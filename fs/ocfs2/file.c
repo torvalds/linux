@@ -444,7 +444,6 @@ static int ocfs2_truncate_file(struct inode *inode,
 	int status = 0;
 	struct ocfs2_dinode *fe = NULL;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_truncate_context *tc = NULL;
 
 	mlog_entry("(inode = %llu, new_i_size = %llu\n",
 		   (unsigned long long)OCFS2_I(inode)->ip_blkno,
@@ -515,13 +514,7 @@ static int ocfs2_truncate_file(struct inode *inode,
 		goto bail_unlock_sem;
 	}
 
-	status = ocfs2_prepare_truncate(osb, inode, di_bh, &tc);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail_unlock_sem;
-	}
-
-	status = ocfs2_commit_truncate(osb, inode, di_bh, tc);
+	status = ocfs2_commit_truncate(osb, inode, di_bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail_unlock_sem;
@@ -1494,7 +1487,7 @@ static int ocfs2_remove_inode_range(struct inode *inode,
 		if (phys_cpos != 0) {
 			ret = ocfs2_remove_btree_range(inode, &et, cpos,
 						       phys_cpos, alloc_size,
-						       &dealloc);
+						       0, &dealloc, 0);
 			if (ret) {
 				mlog_errno(ret);
 				goto out;

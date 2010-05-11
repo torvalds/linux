@@ -2509,20 +2509,19 @@ out:
  *
  * Normally the refcount blocks store these refcount should be
  * contiguous also, so that we can get the number easily.
- * As for meta_ac, we will at most add split 2 refcount record and
- * 2 more refcount block, so just check it in a rough way.
+ * We will at most add split 2 refcount records and 2 more
+ * refcount blocks, so just check it in a rough way.
  *
  * Caller must hold refcount tree lock.
  */
 int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
-					  struct buffer_head *di_bh,
+					  u64 refcount_loc,
 					  u64 phys_blkno,
 					  u32 clusters,
 					  int *credits,
-					  struct ocfs2_alloc_context **meta_ac)
+					  int *ref_blocks)
 {
-	int ret, ref_blocks = 0;
-	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
+	int ret;
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	struct buffer_head *ref_root_bh = NULL;
 	struct ocfs2_refcount_tree *tree;
@@ -2539,14 +2538,13 @@ int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
 	BUG_ON(!(oi->ip_dyn_features & OCFS2_HAS_REFCOUNT_FL));
 
 	ret = ocfs2_get_refcount_tree(OCFS2_SB(inode->i_sb),
-				      le64_to_cpu(di->i_refcount_loc), &tree);
+				      refcount_loc, &tree);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
 	}
 
-	ret = ocfs2_read_refcount_block(&tree->rf_ci,
-					le64_to_cpu(di->i_refcount_loc),
+	ret = ocfs2_read_refcount_block(&tree->rf_ci, refcount_loc,
 					&ref_root_bh);
 	if (ret) {
 		mlog_errno(ret);
@@ -2557,21 +2555,14 @@ int ocfs2_prepare_refcount_change_for_del(struct inode *inode,
 					       &tree->rf_ci,
 					       ref_root_bh,
 					       start_cpos, clusters,
-					       &ref_blocks, credits);
+					       ref_blocks, credits);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
 	}
 
-	mlog(0, "reserve new metadata %d, credits = %d\n",
-	     ref_blocks, *credits);
-
-	if (ref_blocks) {
-		ret = ocfs2_reserve_new_metadata_blocks(OCFS2_SB(inode->i_sb),
-							ref_blocks, meta_ac);
-		if (ret)
-			mlog_errno(ret);
-	}
+	mlog(0, "reserve new metadata %d blocks, credits = %d\n",
+	     *ref_blocks, *credits);
 
 out:
 	brelse(ref_root_bh);

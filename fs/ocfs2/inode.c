@@ -544,7 +544,6 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 				     struct buffer_head *fe_bh)
 {
 	int status = 0;
-	struct ocfs2_truncate_context *tc = NULL;
 	struct ocfs2_dinode *fe;
 	handle_t *handle = NULL;
 
@@ -586,13 +585,7 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 		ocfs2_commit_trans(osb, handle);
 		handle = NULL;
 
-		status = ocfs2_prepare_truncate(osb, inode, fe_bh, &tc);
-		if (status < 0) {
-			mlog_errno(status);
-			goto out;
-		}
-
-		status = ocfs2_commit_truncate(osb, inode, fe_bh, tc);
+		status = ocfs2_commit_truncate(osb, inode, fe_bh);
 		if (status < 0) {
 			mlog_errno(status);
 			goto out;

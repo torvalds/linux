@@ -140,8 +140,9 @@ int ocfs2_remove_extent(handle_t *handle, struct ocfs2_extent_tree *et,
 			struct ocfs2_cached_dealloc_ctxt *dealloc);
 int ocfs2_remove_btree_range(struct inode *inode,
 			     struct ocfs2_extent_tree *et,
-			     u32 cpos, u32 phys_cpos, u32 len,
-			     struct ocfs2_cached_dealloc_ctxt *dealloc);
+			     u32 cpos, u32 phys_cpos, u32 len, int flags,
+			     struct ocfs2_cached_dealloc_ctxt *dealloc,
+			     u64 refcount_loc);
 
 int ocfs2_num_free_extents(struct ocfs2_super *osb,
 			   struct ocfs2_extent_tree *et);
@@ -233,8 +234,7 @@ int ocfs2_prepare_truncate(struct ocfs2_super *osb,
 			   struct ocfs2_truncate_context **tc);
 int ocfs2_commit_truncate(struct ocfs2_super *osb,
 			  struct inode *inode,
-			  struct buffer_head *fe_bh,
-			  struct ocfs2_truncate_context *tc);
+			  struct buffer_head *di_bh);
 int ocfs2_truncate_inline(struct inode *inode, struct buffer_head *di_bh,
 			  unsigned int start, unsigned int end, int trunc);
 
