@@ -452,7 +452,7 @@ struct rds_sock {
 	 * bound_addr used for both incoming and outgoing, no INADDR_ANY
 	 * support.
 	 */
-	struct rb_node		rs_bound_node;
+	struct hlist_node	rs_bound_node;
 	__be32			rs_bound_addr;
 	__be32			rs_conn_addr;
 	__be16			rs_bound_port;

@@ -72,7 +72,15 @@ static int rds_release(struct socket *sock)
 	 * with the socket. */
 	rds_clear_recv_queue(rs);
 	rds_cong_remove_socket(rs);
+
+	/*
+	 * the binding lookup hash uses rcu, we need to
+	 * make sure we sychronize_rcu before we free our
+	 * entry
+	 */
 	rds_remove_bound(rs);
+	synchronize_rcu();
+
 	rds_send_drop_to(rs, NULL);
 	rds_rdma_drop_keys(rs);
 	rds_notify_queue_get(rs, NULL);

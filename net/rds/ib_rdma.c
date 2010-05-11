@@ -303,6 +303,8 @@ static struct rds_ib_mr *rds_ib_alloc_fmr(struct rds_ib_device *rds_ibdev)
 		goto out_no_cigar;
 	}
 
+	memset(ibmr, 0, sizeof(*ibmr));
+
 	ibmr->fmr = ib_alloc_fmr(rds_ibdev->pd,
 			(IB_ACCESS_LOCAL_WRITE |
 			 IB_ACCESS_REMOTE_READ |
