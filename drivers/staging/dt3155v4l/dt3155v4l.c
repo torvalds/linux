@@ -612,7 +612,7 @@ dt3155_queue_dma_contig_init(struct videobuf_queue *q,
 					unsigned int msize,
 					void *priv)
 {
-	struct dt3155_priv *pd = q->priv_data;
+	struct dt3155_priv *pd = priv;
 
 	videobuf_queue_dma_contig_init(q, ops, dev, irqlock,
 				       type, field, msize, priv);
