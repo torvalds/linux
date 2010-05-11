@@ -718,6 +718,7 @@ static bool ath_edma_get_buffers(struct ath_softc *sc,
 		__skb_unlink(skb, &rx_edma->rx_fifo);
 		list_add_tail(&bf->list, &sc->rx.rxbuf);
 		ath_rx_edma_buf_link(sc, qtype);
+		return true;
 	}
 	skb_queue_tail(&rx_edma->rx_buffers, skb);
 
