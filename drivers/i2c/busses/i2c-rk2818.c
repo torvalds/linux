@@ -278,7 +278,7 @@ static int rk2818_send_address(struct rk2818_i2c_data *i2c,
 	conr |= I2C_CONR_MTX_MODE;
 	conr &= I2C_CONR_ACK;
 	writel(conr, i2c->regs + I2C_CONR);
-	dev_info(i2c->dev, "send addr: %lx\n", addr_1st);
+	dev_dbg(i2c->dev, "send addr: %lx\n", addr_1st);
 	writel(addr_1st, i2c->regs + I2C_MTXR);
 	if(i2c->msg_idx == 0)
 	{
@@ -367,7 +367,7 @@ static int rk2818_xfer_msg(struct i2c_adapter *adap,
 				goto exit_disable;
 			}
 			msg->buf[i] = (uint8_t)readl(i2c->regs + I2C_MRXR);
-			dev_info(i2c->dev, "receive data=%u\n",msg->buf[i]);
+			dev_dbg(i2c->dev, "receive data=%u\n",msg->buf[i]);
 			if(i == msg->len - 1)
 			{
 				conr = readl(i2c->regs + I2C_CONR);
@@ -384,7 +384,7 @@ static int rk2818_xfer_msg(struct i2c_adapter *adap,
 		for(i = 0; i < msg->len; i++)
 		{
 			writel(msg->buf[i], i2c->regs + I2C_MTXR);
-			dev_info(i2c->dev, "send data =%u\n", msg->buf[i]);
+			dev_dbg(i2c->dev, "send data =%u\n", msg->buf[i]);
 			conr = readl(i2c->regs + I2C_CONR);
 			conr |= I2C_CONR_NAK;
 			writel(conr, i2c->regs + I2C_CONR);
