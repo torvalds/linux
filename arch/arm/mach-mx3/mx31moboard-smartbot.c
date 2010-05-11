@@ -23,6 +23,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <linux/fsl_devices.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
@@ -116,6 +117,11 @@ static int __init smartbot_cam_init(void)
 	return 0;
 }
 
+static struct fsl_usb2_platform_data usb_pdata = {
+	.operating_mode	= FSL_USB2_DR_DEVICE,
+	.phy_mode	= FSL_USB2_PHY_ULPI,
+};
+
 #define POWER_EN IOMUX_TO_GPIO(MX31_PIN_DTR_DCE1)
 #define DSPIC_RST_B IOMUX_TO_GPIO(MX31_PIN_DSR_DCE1)
 #define TRSLAT_RST_B IOMUX_TO_GPIO(MX31_PIN_RI_DCE1)
@@ -154,6 +160,8 @@ void __init mx31moboard_smartbot_init(void)
 		"smartbot");
 
 	mxc_register_device(&mxc_uart_device1, &uart_pdata);
+
+	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
 
 	smartbot_resets_init();
 

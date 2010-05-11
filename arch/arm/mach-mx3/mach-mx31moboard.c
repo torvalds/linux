@@ -18,7 +18,6 @@
 
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
-#include <linux/fsl_devices.h>
 #include <linux/gfp.h>
 #include <linux/gpio.h>
 #include <linux/init.h>
@@ -353,11 +352,6 @@ static void usb_xcvr_reset(void)
 	mdelay(1);
 }
 
-static struct fsl_usb2_platform_data usb_pdata = {
-	.operating_mode	= FSL_USB2_DR_DEVICE,
-	.phy_mode	= FSL_USB2_PHY_ULPI,
-};
-
 #if defined(CONFIG_USB_ULPI)
 
 static struct mxc_usbh_platform_data usbh2_pdata = {
@@ -485,7 +479,6 @@ static void __init mxc_board_init(void)
 
 	usb_xcvr_reset();
 
-	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
 	moboard_usbh2_init();
 
 	switch (mx31moboard_baseboard) {
