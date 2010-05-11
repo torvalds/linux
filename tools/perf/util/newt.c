@@ -410,8 +410,8 @@ static void hist_browser__delete(struct hist_browser *self)
 	free(self);
 }
 
-static int hist_browser__populate(struct hist_browser *self, struct rb_root *hists,
-				  u64 nr_hists, u64 session_total, const char *title)
+static int hist_browser__populate(struct hist_browser *self, struct hists *hists,
+				  const char *title)
 {
 	int max_len = 0, idx, cols, rows;
 	struct ui_progress *progress;
@@ -426,7 +426,7 @@ static int hist_browser__populate(struct hist_browser *self, struct rb_root *his
 	}
 
 	snprintf(str, sizeof(str), "Samples: %Ld                            ",
-		 session_total);
+		 hists->stats.total);
 	newtDrawRootText(0, 0, str);
 
 	newtGetScreenSize(NULL, &rows);
@@ -442,24 +442,25 @@ static int hist_browser__populate(struct hist_browser *self, struct rb_root *his
 	newtComponentAddCallback(self->tree, hist_browser__selection,
 				 &self->selection);
 
-	progress = ui_progress__new("Adding entries to the browser...", nr_hists);
+	progress = ui_progress__new("Adding entries to the browser...",
+				    hists->nr_entries);
 	if (progress == NULL)
 		return -1;
 
 	idx = 0;
-	for (nd = rb_first(hists); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 		int len;
 
 		if (h->filtered)
 			continue;
 
-		len = hist_entry__append_browser(h, self->tree, session_total);
+		len = hist_entry__append_browser(h, self->tree, hists->stats.total);
 		if (len > max_len)
 			max_len = len;
 		if (symbol_conf.use_callchain)
 			hist_entry__append_callchain_browser(h, self->tree,
-							     session_total, idx++);
+							     hists->stats.total, idx++);
 		++curr_hist;
 		if (curr_hist % 5)
 			ui_progress__update(progress, curr_hist);
@@ -488,57 +489,6 @@ static int hist_browser__populate(struct hist_browser *self, struct rb_root *his
 	self->selection = newt__symbol_tree_get_current(self->tree);
 
 	return 0;
-}
-
-enum hist_filter {
-	HIST_FILTER__DSO,
-	HIST_FILTER__THREAD,
-};
-
-static u64 hists__filter_by_dso(struct rb_root *hists, const struct dso *dso,
-				u64 *session_total)
-{
-	struct rb_node *nd;
-	u64 nr_hists = 0;
-
-	*session_total = 0;
-
-	for (nd = rb_first(hists); nd; nd = rb_next(nd)) {
-		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
-
-		if (dso != NULL && (h->ms.map == NULL || h->ms.map->dso != dso)) {
-			h->filtered |= (1 << HIST_FILTER__DSO);
-			continue;
-		}
-		h->filtered &= ~(1 << HIST_FILTER__DSO);
-		++nr_hists;
-		*session_total += h->count;
-	}
-
-	return nr_hists;
-}
-
-static u64 hists__filter_by_thread(struct rb_root *hists, const struct thread *thread,
-				   u64 *session_total)
-{
-	struct rb_node *nd;
-	u64 nr_hists = 0;
-
-	*session_total = 0;
-
-	for (nd = rb_first(hists); nd; nd = rb_next(nd)) {
-		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
-
-		if (thread != NULL && h->thread != thread) {
-			h->filtered |= (1 << HIST_FILTER__THREAD);
-			continue;
-		}
-		h->filtered &= ~(1 << HIST_FILTER__THREAD);
-		++nr_hists;
-		*session_total += h->count;
-	}
-
-	return nr_hists;
 }
 
 static struct thread *hist_browser__selected_thread(struct hist_browser *self)
@@ -577,9 +527,7 @@ static int hist_browser__title(char *bf, size_t size, const char *input_name,
 	return printed ?: snprintf(bf, size, "Report: %s", input_name);
 }
 
-int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
-			       u64 session_total, const char *helpline,
-			       const char *input_name)
+int hists__browse(struct hists *self, const char *helpline, const char *input_name)
 {
 	struct hist_browser *browser = hist_browser__new();
 	const struct thread *thread_filter = NULL;
@@ -595,7 +543,7 @@ int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 
 	hist_browser__title(msg, sizeof(msg), input_name,
 			    dso_filter, thread_filter);
-	if (hist_browser__populate(browser, hists, nr_hists, session_total, msg) < 0)
+	if (hist_browser__populate(browser, self, msg) < 0)
 		goto out;
 
 	while (1) {
@@ -672,10 +620,10 @@ do_annotate:
 				newtPushHelpLine(msg);
 				dso_filter = dso;
 			}
-			nr_hists = hists__filter_by_dso(hists, dso_filter, &session_total);
+			hists__filter_by_dso(self, dso_filter);
 			hist_browser__title(msg, sizeof(msg), input_name,
 					    dso_filter, thread_filter);
-			if (hist_browser__populate(browser, hists, nr_hists, session_total, msg) < 0)
+			if (hist_browser__populate(browser, self, msg) < 0)
 				goto out;
 		} else if (choice == zoom_thread) {
 			if (thread_filter) {
@@ -689,10 +637,10 @@ do_annotate:
 				newtPushHelpLine(msg);
 				thread_filter = thread;
 			}
-			nr_hists = hists__filter_by_thread(hists, thread_filter, &session_total);
+			hists__filter_by_thread(self, thread_filter);
 			hist_browser__title(msg, sizeof(msg), input_name,
 					    dso_filter, thread_filter);
-			if (hist_browser__populate(browser, hists, nr_hists, session_total, msg) < 0)
+			if (hist_browser__populate(browser, self, msg) < 0)
 				goto out;
 		}
 	}

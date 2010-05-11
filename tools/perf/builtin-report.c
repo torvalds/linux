@@ -301,10 +301,7 @@ static int __cmd_report(void)
 		hists__collapse_resort(hists);
 		hists__output_resort(hists);
 		if (use_browser)
-			perf_session__browse_hists(&hists->entries,
-						   hists->nr_entries,
-						   hists->stats.total, help,
-						   input_name);
+			hists__browse(hists, help, input_name);
 		else {
 			if (rb_first(&session->hists.entries) ==
 			    rb_last(&session->hists.entries))

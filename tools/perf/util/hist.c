@@ -784,3 +784,62 @@ print_entries:
 
 	return ret;
 }
+
+enum hist_filter {
+	HIST_FILTER__DSO,
+	HIST_FILTER__THREAD,
+};
+
+void hists__filter_by_dso(struct hists *self, const struct dso *dso)
+{
+	struct rb_node *nd;
+
+	self->nr_entries = self->stats.total = 0;
+	self->max_sym_namelen = 0;
+
+	for (nd = rb_first(&self->entries); nd; nd = rb_next(nd)) {
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+
+		if (symbol_conf.exclude_other && !h->parent)
+			continue;
+
+		if (dso != NULL && (h->ms.map == NULL || h->ms.map->dso != dso)) {
+			h->filtered |= (1 << HIST_FILTER__DSO);
+			continue;
+		}
+
+		h->filtered &= ~(1 << HIST_FILTER__DSO);
+		if (!h->filtered) {
+			++self->nr_entries;
+			self->stats.total += h->count;
+			if (h->ms.sym &&
+			    self->max_sym_namelen < h->ms.sym->namelen)
+				self->max_sym_namelen = h->ms.sym->namelen;
+		}
+	}
+}
+
+void hists__filter_by_thread(struct hists *self, const struct thread *thread)
+{
+	struct rb_node *nd;
+
+	self->nr_entries = self->stats.total = 0;
+	self->max_sym_namelen = 0;
+
+	for (nd = rb_first(&self->entries); nd; nd = rb_next(nd)) {
+		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
+
+		if (thread != NULL && h->thread != thread) {
+			h->filtered |= (1 << HIST_FILTER__THREAD);
+			continue;
+		}
+		h->filtered &= ~(1 << HIST_FILTER__THREAD);
+		if (!h->filtered) {
+			++self->nr_entries;
+			self->stats.total += h->count;
+			if (h->ms.sym &&
+			    self->max_sym_namelen < h->ms.sym->namelen)
+				self->max_sym_namelen = h->ms.sym->namelen;
+		}
+	}
+}

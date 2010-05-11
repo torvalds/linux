@@ -44,4 +44,19 @@ void hists__output_resort(struct hists *self);
 void hists__collapse_resort(struct hists *self);
 size_t hists__fprintf(struct hists *self, struct hists *pair,
 		      bool show_displacement, FILE *fp);
+
+void hists__filter_by_dso(struct hists *self, const struct dso *dso);
+void hists__filter_by_thread(struct hists *self, const struct thread *thread);
+
+#ifdef NO_NEWT_SUPPORT
+static inline int hists__browse(struct hists self __used,
+				const char *helpline __used,
+				const char *input_name __used)
+{
+	return 0;
+}
+#else
+int hists__browse(struct hists *self, const char *helpline,
+		  const char *input_name);
+#endif
 #endif	/* __PERF_HIST_H */
