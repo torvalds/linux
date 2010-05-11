@@ -4766,6 +4766,9 @@ static void set_hp_led_gpio(struct hda_codec *codec)
 	struct sigmatel_spec *spec = codec->spec;
 	unsigned int gpio;
 
+	if (spec->gpio_led)
+		return;
+
 	gpio = snd_hda_param_read(codec, codec->afg, AC_PAR_GPIO_CAP);
 	gpio &= AC_GPIO_IO_COUNT;
 	if (gpio > 3)
@@ -5683,11 +5686,13 @@ again:
 		 * detection.
 		 */
 		spec->hp_detect = 1;
+		spec->gpio_led = 0x01;
 		break;
 	case STAC_HP_HDX:
 		spec->num_dmics = 1;
 		spec->num_dmuxes = 1;
 		spec->num_smuxes = 1;
+		spec->gpio_led = 0x08;
 		break;
 	}
 
