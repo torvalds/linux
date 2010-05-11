@@ -321,7 +321,10 @@ void rds_conn_destroy(struct rds_connection *conn)
 		 "%pI4\n", conn, &conn->c_laddr,
 		 &conn->c_faddr);
 
+	/* Ensure conn will not be scheduled for reconnect */
+	spin_lock_irq(&rds_conn_lock);
 	hlist_del_init(&conn->c_hash_node);
+	spin_unlock_irq(&rds_conn_lock);
 
 	/* wait for the rds thread to shut it down */
 	atomic_set(&conn->c_state, RDS_CONN_ERROR);
