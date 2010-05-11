@@ -2537,14 +2537,24 @@ static int
 netxen_sysfs_validate_crb(struct netxen_adapter *adapter,
 		loff_t offset, size_t size)
 {
+	size_t crb_size = 4;
+
 	if (!(adapter->flags & NETXEN_NIC_DIAG_ENABLED))
 		return -EIO;
 
-	if ((size != 4) || (offset & 0x3))
-		return  -EINVAL;
+	if (offset < NETXEN_PCI_CRBSPACE) {
+		if (NX_IS_REVISION_P2(adapter->ahw.revision_id))
+			return -EINVAL;
 
-	if (offset < NETXEN_PCI_CRBSPACE)
-		return -EINVAL;
+		if (ADDR_IN_RANGE(offset, NETXEN_PCI_CAMQM,
+						NETXEN_PCI_CAMQM_2M_END))
+			crb_size = 8;
+		else
+			return -EINVAL;
+	}
+
+	if ((size != crb_size) || (offset & (crb_size-1)))
+		return  -EINVAL;
 
 	return 0;
 }
@@ -2556,14 +2566,23 @@ netxen_sysfs_read_crb(struct kobject *kobj, struct bin_attribute *attr,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct netxen_adapter *adapter = dev_get_drvdata(dev);
 	u32 data;
+	u64 qmdata;
 	int ret;
 
 	ret = netxen_sysfs_validate_crb(adapter, offset, size);
 	if (ret != 0)
 		return ret;
 
-	data = NXRD32(adapter, offset);
-	memcpy(buf, &data, size);
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id) &&
+		ADDR_IN_RANGE(offset, NETXEN_PCI_CAMQM,
+					NETXEN_PCI_CAMQM_2M_END)) {
+		netxen_pci_camqm_read_2M(adapter, offset, &qmdata);
+		memcpy(buf, &qmdata, size);
+	} else {
+		data = NXRD32(adapter, offset);
+		memcpy(buf, &data, size);
+	}
+
 	return size;
 }
 
@@ -2574,14 +2593,23 @@ netxen_sysfs_write_crb(struct kobject *kobj, struct bin_attribute *attr,
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct netxen_adapter *adapter = dev_get_drvdata(dev);
 	u32 data;
+	u64 qmdata;
 	int ret;
 
 	ret = netxen_sysfs_validate_crb(adapter, offset, size);
 	if (ret != 0)
 		return ret;
 
-	memcpy(&data, buf, size);
-	NXWR32(adapter, offset, data);
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id) &&
+		ADDR_IN_RANGE(offset, NETXEN_PCI_CAMQM,
+					NETXEN_PCI_CAMQM_2M_END)) {
+		memcpy(&qmdata, buf, size);
+		netxen_pci_camqm_write_2M(adapter, offset, qmdata);
+	} else {
+		memcpy(&data, buf, size);
+		NXWR32(adapter, offset, data);
+	}
+
 	return size;
 }
 

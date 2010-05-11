@@ -62,9 +62,6 @@ static inline void writeq(u64 val, void __iomem *addr)
 }
 #endif
 
-#define ADDR_IN_RANGE(addr, low, high)	\
-	(((addr) < (high)) && ((addr) >= (low)))
-
 #define PCI_OFFSET_FIRST_RANGE(adapter, off)    \
 	((adapter)->ahw.pci_base0 + (off))
 #define PCI_OFFSET_SECOND_RANGE(adapter, off)   \
@@ -1446,6 +1443,28 @@ unlock:
 	if (mem_ptr)
 		iounmap(mem_ptr);
 	return ret;
+}
+
+void
+netxen_pci_camqm_read_2M(struct netxen_adapter *adapter, u64 off, u64 *data)
+{
+	void __iomem *addr = adapter->ahw.pci_base0 +
+		NETXEN_PCI_CAMQM_2M_BASE + (off - NETXEN_PCI_CAMQM);
+
+	spin_lock(&adapter->ahw.mem_lock);
+	*data = readq(addr);
+	spin_unlock(&adapter->ahw.mem_lock);
+}
+
+void
+netxen_pci_camqm_write_2M(struct netxen_adapter *adapter, u64 off, u64 data)
+{
+	void __iomem *addr = adapter->ahw.pci_base0 +
+		NETXEN_PCI_CAMQM_2M_BASE + (off - NETXEN_PCI_CAMQM);
+
+	spin_lock(&adapter->ahw.mem_lock);
+	writeq(data, addr);
+	spin_unlock(&adapter->ahw.mem_lock);
 }
 
 #define MAX_CTL_CHECK   1000
