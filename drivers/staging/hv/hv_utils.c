@@ -106,31 +106,44 @@ static void shutdown_onchannelcallback(void *context)
 		orderly_poweroff(false);
 }
 
-
 /*
- * Synchronize time with host after reboot, restore, etc.
+ * Set guest time to host UTC time.
  */
-static void adj_guesttime(u64 hosttime, u8 flags)
+static inline void do_adj_guesttime(u64 hosttime)
 {
 	s64 host_tns;
 	struct timespec host_ts;
-	static s32 scnt = 50;
 
 	host_tns = (hosttime - WLTIMEDELTA) * 100;
 	host_ts = ns_to_timespec(host_tns);
 
+	do_settimeofday(&host_ts);
+}
+
+/*
+ * Synchronize time with host after reboot, restore, etc.
+ *
+ * ICTIMESYNCFLAG_SYNC flag bit indicates reboot, restore events of the VM.
+ * After reboot the flag ICTIMESYNCFLAG_SYNC is included in the first time
+ * message after the timesync channel is opened. Since the hv_utils module is
+ * loaded after hv_vmbus, the first message is usually missed. The other
+ * thing is, systime is automatically set to emulated hardware clock which may
+ * not be UTC time or in the same time zone. So, to override these effects, we
+ * use the first 50 time samples for initial system time setting.
+ */
+static inline void adj_guesttime(u64 hosttime, u8 flags)
+{
+	static s32 scnt = 50;
+
 	if ((flags & ICTIMESYNCFLAG_SYNC) != 0) {
-		do_settimeofday(&host_ts);
+		do_adj_guesttime(hosttime);
 		return;
 	}
 
-	if ((flags & ICTIMESYNCFLAG_SAMPLE) != 0 &&
-	    scnt > 0) {
+	if ((flags & ICTIMESYNCFLAG_SAMPLE) != 0 && scnt > 0) {
 		scnt--;
-		do_settimeofday(&host_ts);
+		do_adj_guesttime(hosttime);
 	}
-
-	return;
 }
 
 /*
