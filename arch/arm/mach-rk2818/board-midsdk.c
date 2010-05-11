@@ -32,6 +32,7 @@
 #include <mach/rk2818_iomap.h>
 #include <mach/iomux.h>
 #include <mach/gpio.h>
+#include <mach/i2c.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
