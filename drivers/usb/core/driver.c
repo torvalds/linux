@@ -334,7 +334,8 @@ static int usb_probe_interface(struct device *dev)
 	usb_cancel_queued_reset(intf);
 
 	/* Unbound interfaces are always runtime-PM-disabled and -suspended */
-	pm_runtime_disable(dev);
+	if (driver->supports_autosuspend)
+		pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
 
 	usb_autosuspend_device(udev);
@@ -389,7 +390,8 @@ static int usb_unbind_interface(struct device *dev)
 	intf->needs_remote_wakeup = 0;
 
 	/* Unbound interfaces are always runtime-PM-disabled and -suspended */
-	pm_runtime_disable(dev);
+	if (driver->supports_autosuspend)
+		pm_runtime_disable(dev);
 	pm_runtime_set_suspended(dev);
 
 	/* Undo any residual pm_autopm_get_interface_* calls */
@@ -438,14 +440,17 @@ int usb_driver_claim_interface(struct usb_driver *driver,
 
 	iface->condition = USB_INTERFACE_BOUND;
 
-	/* Claimed interfaces are initially inactive (suspended).  They are
-	 * runtime-PM-enabled only if the driver has autosuspend support.
-	 * They are sensitive to their children's power states.
+	/* Claimed interfaces are initially inactive (suspended) and
+	 * runtime-PM-enabled, but only if the driver has autosuspend
+	 * support.  Otherwise they are marked active, to prevent the
+	 * device from being autosuspended, but left disabled.  In either
+	 * case they are sensitive to their children's power states.
 	 */
-	pm_runtime_set_suspended(dev);
 	pm_suspend_ignore_children(dev, false);
 	if (driver->supports_autosuspend)
 		pm_runtime_enable(dev);
+	else
+		pm_runtime_set_active(dev);
 
 	/* if interface was already added, bind now; else let
 	 * the future device_add() bind it, bypassing probe()
