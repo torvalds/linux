@@ -44,7 +44,7 @@ MODULE_ALIAS("ip6t_dst");
 static struct xt_match hbh_mt6_reg[] __read_mostly;
 
 static bool
-hbh_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
+hbh_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct ipv6_opt_hdr _optsh;
 	const struct ipv6_opt_hdr *oh;
@@ -65,13 +65,13 @@ hbh_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 			    NEXTHDR_HOP : NEXTHDR_DEST, NULL);
 	if (err < 0) {
 		if (err != -ENOENT)
-			*par->hotdrop = true;
+			par->hotdrop = true;
 		return false;
 	}
 
 	oh = skb_header_pointer(skb, ptr, sizeof(_optsh), &_optsh);
 	if (oh == NULL) {
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 

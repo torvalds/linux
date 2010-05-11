@@ -28,7 +28,7 @@ struct tcpudphdr {
 };
 
 static bool
-ebt_ip6_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+ebt_ip6_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct ebt_ip6_info *info = par->matchinfo;
 	const struct ipv6hdr *ih6;

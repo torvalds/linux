@@ -165,27 +165,12 @@ ip_checkentry(const struct ipt_ip *ip)
 }
 
 static unsigned int
-ipt_error(struct sk_buff *skb, const struct xt_target_param *par)
+ipt_error(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	if (net_ratelimit())
 		pr_info("error: `%s'\n", (const char *)par->targinfo);
 
 	return NF_DROP;
-}
-
-/* Performance critical - called for every packet */
-static inline bool
-do_match(const struct ipt_entry_match *m, const struct sk_buff *skb,
-	 struct xt_match_param *par)
-{
-	par->match     = m->u.kernel.match;
-	par->matchinfo = m->data;
-
-	/* Stop iteration if it doesn't match */
-	if (!m->u.kernel.match->match(skb, par))
-		return true;
-	else
-		return false;
 }
 
 /* Performance critical */
@@ -323,7 +308,6 @@ ipt_do_table(struct sk_buff *skb,
 {
 	static const char nulldevname[IFNAMSIZ] __attribute__((aligned(sizeof(long))));
 	const struct iphdr *ip;
-	bool hotdrop = false;
 	/* Initializing verdict to NF_DROP keeps gcc happy. */
 	unsigned int verdict = NF_DROP;
 	const char *indev, *outdev;
@@ -331,8 +315,7 @@ ipt_do_table(struct sk_buff *skb,
 	struct ipt_entry *e, **jumpstack;
 	unsigned int *stackptr, origptr, cpu;
 	const struct xt_table_info *private;
-	struct xt_match_param mtpar;
-	struct xt_target_param tgpar;
+	struct xt_action_param acpar;
 
 	/* Initialization */
 	ip = ip_hdr(skb);
@@ -344,13 +327,13 @@ ipt_do_table(struct sk_buff *skb,
 	 * things we don't know, ie. tcp syn flag or ports).  If the
 	 * rule is also a fragment-specific rule, non-fragments won't
 	 * match it. */
-	mtpar.fragoff = ntohs(ip->frag_off) & IP_OFFSET;
-	mtpar.thoff   = ip_hdrlen(skb);
-	mtpar.hotdrop = &hotdrop;
-	mtpar.in      = tgpar.in  = in;
-	mtpar.out     = tgpar.out = out;
-	mtpar.family  = tgpar.family = NFPROTO_IPV4;
-	mtpar.hooknum = tgpar.hooknum = hook;
+	acpar.fragoff = ntohs(ip->frag_off) & IP_OFFSET;
+	acpar.thoff   = ip_hdrlen(skb);
+	acpar.hotdrop = false;
+	acpar.in      = in;
+	acpar.out     = out;
+	acpar.family  = NFPROTO_IPV4;
+	acpar.hooknum = hook;
 
 	IP_NF_ASSERT(table->valid_hooks & (1 << hook));
 	xt_info_rdlock_bh();
@@ -373,15 +356,18 @@ ipt_do_table(struct sk_buff *skb,
 
 		IP_NF_ASSERT(e);
 		if (!ip_packet_match(ip, indev, outdev,
-		    &e->ip, mtpar.fragoff)) {
+		    &e->ip, acpar.fragoff)) {
  no_match:
 			e = ipt_next_entry(e);
 			continue;
 		}
 
-		xt_ematch_foreach(ematch, e)
-			if (do_match(ematch, skb, &mtpar) != 0)
+		xt_ematch_foreach(ematch, e) {
+			acpar.match     = ematch->u.kernel.match;
+			acpar.matchinfo = ematch->data;
+			if (!acpar.match->match(skb, &acpar))
 				goto no_match;
+		}
 
 		ADD_COUNTER(e->counters, ntohs(ip->tot_len), 1);
 
@@ -434,11 +420,10 @@ ipt_do_table(struct sk_buff *skb,
 			continue;
 		}
 
-		tgpar.target   = t->u.kernel.target;
-		tgpar.targinfo = t->data;
+		acpar.target   = t->u.kernel.target;
+		acpar.targinfo = t->data;
 
-
-		verdict = t->u.kernel.target->target(skb, &tgpar);
+		verdict = t->u.kernel.target->target(skb, &acpar);
 		/* Target might have changed stuff. */
 		ip = ip_hdr(skb);
 		if (verdict == IPT_CONTINUE)
@@ -446,7 +431,7 @@ ipt_do_table(struct sk_buff *skb,
 		else
 			/* Verdict */
 			break;
-	} while (!hotdrop);
+	} while (!acpar.hotdrop);
 	xt_info_rdunlock_bh();
 	pr_debug("Exiting %s; resetting sp from %u to %u\n",
 		 __func__, *stackptr, origptr);
@@ -454,7 +439,7 @@ ipt_do_table(struct sk_buff *skb,
 #ifdef DEBUG_ALLOW_ALL
 	return NF_ACCEPT;
 #else
-	if (hotdrop)
+	if (acpar.hotdrop)
 		return NF_DROP;
 	else return verdict;
 #endif
@@ -591,7 +576,7 @@ check_entry(const struct ipt_entry *e, const char *name)
 	const struct ipt_entry_target *t;
 
 	if (!ip_checkentry(&e->ip)) {
-		duprintf("ip check failed %p %s.\n", e, name);
+		duprintf("ip check failed %p %s.\n", e, par->match->name);
 		return -EINVAL;
 	}
 
@@ -618,7 +603,7 @@ check_match(struct ipt_entry_match *m, struct xt_mtchk_param *par)
 	ret = xt_check_match(par, m->u.match_size - sizeof(*m),
 	      ip->proto, ip->invflags & IPT_INV_PROTO);
 	if (ret < 0) {
-		duprintf("check failed for `%s'.\n", par.match->name);
+		duprintf("check failed for `%s'.\n", par->match->name);
 		return ret;
 	}
 	return 0;
@@ -2152,7 +2137,7 @@ icmp_type_code_match(u_int8_t test_type, u_int8_t min_code, u_int8_t max_code,
 }
 
 static bool
-icmp_match(const struct sk_buff *skb, const struct xt_match_param *par)
+icmp_match(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct icmphdr *ic;
 	struct icmphdr _icmph;
@@ -2168,7 +2153,7 @@ icmp_match(const struct sk_buff *skb, const struct xt_match_param *par)
 		 * can't.  Hence, no choice but to drop.
 		 */
 		duprintf("Dropping evil ICMP tinygram.\n");
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 
@@ -2187,23 +2172,23 @@ static int icmp_checkentry(const struct xt_mtchk_param *par)
 	return (icmpinfo->invflags & ~IPT_ICMP_INV) ? -EINVAL : 0;
 }
 
-/* The built-in targets: standard (NULL) and error. */
-static struct xt_target ipt_standard_target __read_mostly = {
-	.name		= IPT_STANDARD_TARGET,
-	.targetsize	= sizeof(int),
-	.family		= NFPROTO_IPV4,
+static struct xt_target ipt_builtin_tg[] __read_mostly = {
+	{
+		.name             = IPT_STANDARD_TARGET,
+		.targetsize       = sizeof(int),
+		.family           = NFPROTO_IPV4,
 #ifdef CONFIG_COMPAT
-	.compatsize	= sizeof(compat_int_t),
-	.compat_from_user = compat_standard_from_user,
-	.compat_to_user	= compat_standard_to_user,
+		.compatsize       = sizeof(compat_int_t),
+		.compat_from_user = compat_standard_from_user,
+		.compat_to_user   = compat_standard_to_user,
 #endif
-};
-
-static struct xt_target ipt_error_target __read_mostly = {
-	.name		= IPT_ERROR_TARGET,
-	.target		= ipt_error,
-	.targetsize	= IPT_FUNCTION_MAXNAMELEN,
-	.family		= NFPROTO_IPV4,
+	},
+	{
+		.name             = IPT_ERROR_TARGET,
+		.target           = ipt_error,
+		.targetsize       = IPT_FUNCTION_MAXNAMELEN,
+		.family           = NFPROTO_IPV4,
+	},
 };
 
 static struct nf_sockopt_ops ipt_sockopts = {
@@ -2223,13 +2208,15 @@ static struct nf_sockopt_ops ipt_sockopts = {
 	.owner		= THIS_MODULE,
 };
 
-static struct xt_match icmp_matchstruct __read_mostly = {
-	.name		= "icmp",
-	.match		= icmp_match,
-	.matchsize	= sizeof(struct ipt_icmp),
-	.checkentry	= icmp_checkentry,
-	.proto		= IPPROTO_ICMP,
-	.family		= NFPROTO_IPV4,
+static struct xt_match ipt_builtin_mt[] __read_mostly = {
+	{
+		.name       = "icmp",
+		.match      = icmp_match,
+		.matchsize  = sizeof(struct ipt_icmp),
+		.checkentry = icmp_checkentry,
+		.proto      = IPPROTO_ICMP,
+		.family     = NFPROTO_IPV4,
+	},
 };
 
 static int __net_init ip_tables_net_init(struct net *net)
@@ -2256,13 +2243,10 @@ static int __init ip_tables_init(void)
 		goto err1;
 
 	/* Noone else will be downing sem now, so we won't sleep */
-	ret = xt_register_target(&ipt_standard_target);
+	ret = xt_register_targets(ipt_builtin_tg, ARRAY_SIZE(ipt_builtin_tg));
 	if (ret < 0)
 		goto err2;
-	ret = xt_register_target(&ipt_error_target);
-	if (ret < 0)
-		goto err3;
-	ret = xt_register_match(&icmp_matchstruct);
+	ret = xt_register_matches(ipt_builtin_mt, ARRAY_SIZE(ipt_builtin_mt));
 	if (ret < 0)
 		goto err4;
 
@@ -2275,11 +2259,9 @@ static int __init ip_tables_init(void)
 	return 0;
 
 err5:
-	xt_unregister_match(&icmp_matchstruct);
+	xt_unregister_matches(ipt_builtin_mt, ARRAY_SIZE(ipt_builtin_mt));
 err4:
-	xt_unregister_target(&ipt_error_target);
-err3:
-	xt_unregister_target(&ipt_standard_target);
+	xt_unregister_targets(ipt_builtin_tg, ARRAY_SIZE(ipt_builtin_tg));
 err2:
 	unregister_pernet_subsys(&ip_tables_net_ops);
 err1:
@@ -2290,10 +2272,8 @@ static void __exit ip_tables_fini(void)
 {
 	nf_unregister_sockopt(&ipt_sockopts);
 
-	xt_unregister_match(&icmp_matchstruct);
-	xt_unregister_target(&ipt_error_target);
-	xt_unregister_target(&ipt_standard_target);
-
+	xt_unregister_matches(ipt_builtin_mt, ARRAY_SIZE(ipt_builtin_mt));
+	xt_unregister_targets(ipt_builtin_tg, ARRAY_SIZE(ipt_builtin_tg));
 	unregister_pernet_subsys(&ip_tables_net_ops);
 }
 

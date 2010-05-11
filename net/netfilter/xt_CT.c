@@ -20,7 +20,7 @@
 #include <net/netfilter/nf_conntrack_zones.h>
 
 static unsigned int xt_ct_target(struct sk_buff *skb,
-				 const struct xt_target_param *par)
+				 const struct xt_action_param *par)
 {
 	const struct xt_ct_target_info *info = par->targinfo;
 	struct nf_conn *ct = info->ct;

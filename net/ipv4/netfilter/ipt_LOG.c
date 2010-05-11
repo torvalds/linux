@@ -425,7 +425,7 @@ ipt_log_packet(u_int8_t pf,
 }
 
 static unsigned int
-log_tg(struct sk_buff *skb, const struct xt_target_param *par)
+log_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ipt_log_info *loginfo = par->targinfo;
 	struct nf_loginfo li;

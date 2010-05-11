@@ -30,7 +30,7 @@ spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, bool invert)
 	return r;
 }
 
-static bool ah_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+static bool ah_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct ip_auth_hdr _ahdr;
 	const struct ip_auth_hdr *ah;
@@ -46,7 +46,7 @@ static bool ah_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		 * can't.  Hence, no choice but to drop.
 		 */
 		pr_debug("Dropping evil AH tinygram.\n");
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return 0;
 	}
 

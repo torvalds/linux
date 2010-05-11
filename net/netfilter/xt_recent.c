@@ -224,7 +224,7 @@ static void recent_table_flush(struct recent_table *t)
 }
 
 static bool
-recent_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct net *net = dev_net(par->in ? par->in : par->out);
 	struct recent_net *recent_net = recent_pernet(net);
@@ -268,7 +268,7 @@ recent_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			goto out;
 		e = recent_entry_init(t, &addr, par->family, ttl);
 		if (e == NULL)
-			*par->hotdrop = true;
+			par->hotdrop = true;
 		ret = !ret;
 		goto out;
 	}

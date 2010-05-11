@@ -173,7 +173,7 @@ static int count_them(struct net *net,
 }
 
 static bool
-connlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+connlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct net *net = dev_net(par->in ? par->in : par->out);
 	const struct xt_connlimit_info *info = par->matchinfo;
@@ -206,14 +206,14 @@ connlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 
 	if (connections < 0) {
 		/* kmalloc failed, drop it entirely */
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 
 	return (connections > info->limit) ^ info->inverse;
 
  hotdrop:
-	*par->hotdrop = true;
+	par->hotdrop = true;
 	return false;
 }
 

@@ -44,7 +44,7 @@ static int masquerade_tg_check(const struct xt_tgchk_param *par)
 }
 
 static unsigned int
-masquerade_tg(struct sk_buff *skb, const struct xt_target_param *par)
+masquerade_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct nf_conn *ct;
 	struct nf_conn_nat *nat;

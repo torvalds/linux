@@ -64,7 +64,7 @@ static void secmark_restore(struct sk_buff *skb)
 }
 
 static unsigned int
-connsecmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
+connsecmark_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_connsecmark_target_info *info = par->targinfo;
 

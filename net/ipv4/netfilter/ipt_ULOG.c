@@ -276,7 +276,7 @@ alloc_failure:
 }
 
 static unsigned int
-ulog_tg(struct sk_buff *skb, const struct xt_target_param *par)
+ulog_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	ipt_ulog_packet(par->hooknum, skb, par->in, par->out,
 	                par->targinfo, NULL);
