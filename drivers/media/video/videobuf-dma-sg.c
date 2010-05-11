@@ -211,17 +211,17 @@ int videobuf_dma_init_kernel(struct videobuf_dmabuf *dma, int direction,
 	dprintk(1, "init kernel [%d pages]\n", nr_pages);
 
 	dma->direction = direction;
-	dma->vmalloc = vmalloc_32(nr_pages << PAGE_SHIFT);
-	if (NULL == dma->vmalloc) {
+	dma->vaddr = vmalloc_32(nr_pages << PAGE_SHIFT);
+	if (NULL == dma->vaddr) {
 		dprintk(1, "vmalloc_32(%d pages) failed\n", nr_pages);
 		return -ENOMEM;
 	}
 
 	dprintk(1, "vmalloc is at addr 0x%08lx, size=%d\n",
-				(unsigned long)dma->vmalloc,
+				(unsigned long)dma->vaddr,
 				nr_pages << PAGE_SHIFT);
 
-	memset(dma->vmalloc, 0, nr_pages << PAGE_SHIFT);
+	memset(dma->vaddr, 0, nr_pages << PAGE_SHIFT);
 	dma->nr_pages = nr_pages;
 
 	return 0;
@@ -254,8 +254,8 @@ int videobuf_dma_map(struct device *dev, struct videobuf_dmabuf *dma)
 		dma->sglist = videobuf_pages_to_sg(dma->pages, dma->nr_pages,
 						   dma->offset);
 	}
-	if (dma->vmalloc) {
-		dma->sglist = videobuf_vmalloc_to_sg(dma->vmalloc,
+	if (dma->vaddr) {
+		dma->sglist = videobuf_vmalloc_to_sg(dma->vaddr,
 						     dma->nr_pages);
 	}
 	if (dma->bus_addr) {
@@ -319,8 +319,8 @@ int videobuf_dma_free(struct videobuf_dmabuf *dma)
 		dma->pages = NULL;
 	}
 
-	vfree(dma->vmalloc);
-	dma->vmalloc = NULL;
+	vfree(dma->vaddr);
+	dma->vaddr = NULL;
 
 	if (dma->bus_addr)
 		dma->bus_addr = 0;
@@ -444,7 +444,7 @@ static void *__videobuf_to_vaddr(struct videobuf_buffer *buf)
 
 	MAGIC_CHECK(mem->magic, MAGIC_SG_MEM);
 
-	return mem->dma.vmalloc;
+	return mem->dma.vaddr;
 }
 
 static int __videobuf_iolock(struct videobuf_queue *q,

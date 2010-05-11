@@ -492,7 +492,7 @@ static int snd_cx25821_hw_params(struct snd_pcm_substream *substream,
 	chip->buf = buf;
 	chip->dma_risc = dma;
 
-	substream->runtime->dma_area = chip->dma_risc->vmalloc;
+	substream->runtime->dma_area = chip->dma_risc->vaddr;
 	substream->runtime->dma_bytes = chip->dma_size;
 	substream->runtime->dma_addr = 0;
 

@@ -102,10 +102,10 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 				   called with IRQ's disabled
 				 */
 				dprintk(1, "%s: buf[%d] freeing (%p)\n",
-					__func__, i, mem->vmalloc);
+					__func__, i, mem->vaddr);
 
-				vfree(mem->vmalloc);
-				mem->vmalloc = NULL;
+				vfree(mem->vaddr);
+				mem->vaddr = NULL;
 			}
 
 			q->bufs[i]->map   = NULL;
@@ -170,7 +170,7 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 		dprintk(1, "%s memory method MMAP\n", __func__);
 
 		/* All handling should be done by __videobuf_mmap_mapper() */
-		if (!mem->vmalloc) {
+		if (!mem->vaddr) {
 			printk(KERN_ERR "memory is not alloced/mmapped.\n");
 			return -EINVAL;
 		}
@@ -189,13 +189,13 @@ static int __videobuf_iolock(struct videobuf_queue *q,
 		 * read() method.
 		 */
 
-		mem->vmalloc = vmalloc_user(pages);
-		if (!mem->vmalloc) {
+		mem->vaddr = vmalloc_user(pages);
+		if (!mem->vaddr) {
 			printk(KERN_ERR "vmalloc (%d pages) failed\n", pages);
 			return -ENOMEM;
 		}
 		dprintk(1, "vmalloc is at addr %p (%d pages)\n",
-			mem->vmalloc, pages);
+			mem->vaddr, pages);
 
 #if 0
 		int rc;
@@ -254,18 +254,18 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	MAGIC_CHECK(mem->magic, MAGIC_VMAL_MEM);
 
 	pages = PAGE_ALIGN(vma->vm_end - vma->vm_start);
-	mem->vmalloc = vmalloc_user(pages);
-	if (!mem->vmalloc) {
+	mem->vaddr = vmalloc_user(pages);
+	if (!mem->vaddr) {
 		printk(KERN_ERR "vmalloc (%d pages) failed\n", pages);
 		goto error;
 	}
-	dprintk(1, "vmalloc is at addr %p (%d pages)\n", mem->vmalloc, pages);
+	dprintk(1, "vmalloc is at addr %p (%d pages)\n", mem->vaddr, pages);
 
 	/* Try to remap memory */
-	retval = remap_vmalloc_range(vma, mem->vmalloc, 0);
+	retval = remap_vmalloc_range(vma, mem->vaddr, 0);
 	if (retval < 0) {
 		printk(KERN_ERR "mmap: remap failed with error %d. ", retval);
-		vfree(mem->vmalloc);
+		vfree(mem->vaddr);
 		goto error;
 	}
 
@@ -317,7 +317,7 @@ void *videobuf_to_vmalloc(struct videobuf_buffer *buf)
 	BUG_ON(!mem);
 	MAGIC_CHECK(mem->magic, MAGIC_VMAL_MEM);
 
-	return mem->vmalloc;
+	return mem->vaddr;
 }
 EXPORT_SYMBOL_GPL(videobuf_to_vmalloc);
 
@@ -339,8 +339,8 @@ void videobuf_vmalloc_free(struct videobuf_buffer *buf)
 
 	MAGIC_CHECK(mem->magic, MAGIC_VMAL_MEM);
 
-	vfree(mem->vmalloc);
-	mem->vmalloc = NULL;
+	vfree(mem->vaddr);
+	mem->vaddr = NULL;
 
 	return;
 }

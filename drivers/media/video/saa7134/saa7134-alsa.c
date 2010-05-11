@@ -669,7 +669,7 @@ static int snd_card_saa7134_hw_params(struct snd_pcm_substream * substream,
 	   byte, but it doesn't work. So I allocate the DMA using the
 	   V4L functions, and force ALSA to use that as the DMA area */
 
-	substream->runtime->dma_area = dev->dmasound.dma.vmalloc;
+	substream->runtime->dma_area = dev->dmasound.dma.vaddr;
 	substream->runtime->dma_bytes = dev->dmasound.bufsize;
 	substream->runtime->dma_addr = 0;
 

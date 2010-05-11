@@ -51,7 +51,7 @@ struct videobuf_dmabuf {
 	struct page         **pages;
 
 	/* for kernel buffers */
-	void                *vmalloc;
+	void                *vaddr;
 
 	/* for overlay buffers (pci-pci dma) */
 	dma_addr_t          bus_addr;
