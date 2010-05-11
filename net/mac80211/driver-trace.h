@@ -774,6 +774,34 @@ TRACE_EVENT(drv_flush,
 	)
 );
 
+TRACE_EVENT(drv_channel_switch,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_channel_switch *ch_switch),
+
+	TP_ARGS(local, ch_switch),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(u64, timestamp)
+		__field(bool, block_tx)
+		__field(u16, freq)
+		__field(u8, count)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->timestamp = ch_switch->timestamp;
+		__entry->block_tx = ch_switch->block_tx;
+		__entry->freq = ch_switch->channel->center_freq;
+		__entry->count = ch_switch->count;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " new freq:%u count:%d",
+		LOCAL_PR_ARG, __entry->freq, __entry->count
+	)
+);
+
 /*
  * Tracing for API calls that drivers call.
  */
@@ -989,6 +1017,27 @@ TRACE_EVENT(api_sta_block_awake,
 	TP_printk(
 		LOCAL_PR_FMT STA_PR_FMT " block:%d",
 		LOCAL_PR_ARG, STA_PR_FMT, __entry->block
+	)
+);
+
+TRACE_EVENT(api_chswitch_done,
+	TP_PROTO(struct ieee80211_sub_if_data *sdata, bool success),
+
+	TP_ARGS(sdata, success),
+
+	TP_STRUCT__entry(
+		VIF_ENTRY
+		__field(bool, success)
+	),
+
+	TP_fast_assign(
+		VIF_ASSIGN;
+		__entry->success = success;
+	),
+
+	TP_printk(
+		VIF_PR_FMT " success=%d",
+		VIF_PR_ARG, __entry->success
 	)
 );
 
