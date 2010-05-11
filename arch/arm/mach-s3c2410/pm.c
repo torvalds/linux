@@ -60,10 +60,10 @@ static void s3c2410_pm_prepare(void)
 		__raw_writel(calc, phys_to_virt(H1940_SUSPEND_CHECKSUM));
 	}
 
-	/* the RX3715 uses similar code and the same H1940 and the
+	/* RX3715 and RX1950 use similar to H1940 code and the
 	 * same offsets for resume and checksum pointers */
 
-	if (machine_is_rx3715()) {
+	if (machine_is_rx3715() || machine_is_rx1950()) {
 		void *base = phys_to_virt(H1940_SUSPEND_CHECK);
 		unsigned long ptr;
 		unsigned long calc = 0;
