@@ -10,4 +10,7 @@ int __init arch_clk_init(void);
 /* arch/sh/kernel/cpu/clock-cpg.c */
 int __init __deprecated cpg_clk_init(void);
 
+/* arch/sh/kernel/cpu/clock.c */
+int clk_init(void);
+
 #endif /* __ASM_SH_CLOCK_H */
