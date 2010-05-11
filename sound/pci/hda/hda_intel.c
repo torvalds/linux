@@ -1890,9 +1890,8 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 	unsigned int pos;
 	int stream;
 
-	wallclk = azx_readl(chip, WALLCLK);
-	if ((wallclk - azx_dev->start_wallclk) <
-				(azx_dev->period_wallclk * 2) / 3)
+	wallclk = azx_readl(chip, WALLCLK) - azx_dev->start_wallclk;
+	if (wallclk < (azx_dev->period_wallclk * 2) / 3)
 		return -1;	/* bogus (too early) interrupt */
 
 	stream = azx_dev->substream->stream;
@@ -1910,9 +1909,11 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 
 	if (WARN_ONCE(!azx_dev->period_bytes,
 		      "hda-intel: zero azx_dev->period_bytes"))
-		return 0; /* this shouldn't happen! */
-	if (pos % azx_dev->period_bytes > azx_dev->period_bytes / 2)
-		return 0; /* NG - it's below the period boundary */
+		return -1; /* this shouldn't happen! */
+	if (wallclk <= azx_dev->period_wallclk &&
+	    pos % azx_dev->period_bytes > azx_dev->period_bytes / 2)
+		/* NG - it's below the first next period boundary */
+		return bdl_pos_adj[chip->dev_index] ? 0 : -1;
 	azx_dev->start_wallclk = wallclk;
 	return 1; /* OK, it's fine */
 }
