@@ -456,7 +456,7 @@ struct uac_iso_endpoint_descriptor {
 	__u8  bmAttributes;
 	__u8  bLockDelayUnits;
 	__le16 wLockDelay;
-};
+} __attribute__((packed));
 #define UAC_ISO_ENDPOINT_DESC_SIZE	7
 
 #define UAC_EP_CS_ATTR_SAMPLE_RATE	0x01
