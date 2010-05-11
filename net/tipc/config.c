@@ -56,9 +56,6 @@ struct subscr_data {
 struct manager {
 	u32 user_ref;
 	u32 port_ref;
-	u32 subscr_ref;
-	u32 link_subscriptions;
-	struct list_head link_subscribers;
 };
 
 static struct manager mng = { 0};
@@ -68,12 +65,6 @@ static DEFINE_SPINLOCK(config_lock);
 static const void *req_tlv_area;	/* request message TLV area */
 static int req_tlv_space;		/* request message TLV area size */
 static int rep_headroom;		/* reply message headroom to use */
-
-
-void tipc_cfg_link_event(u32 addr, char *name, int up)
-{
-	/* TIPC DOESN'T HANDLE LINK EVENT SUBSCRIPTIONS AT THE MOMENT */
-}
 
 
 struct sk_buff *tipc_cfg_reply_alloc(int payload_size)
@@ -130,11 +121,23 @@ struct sk_buff *tipc_cfg_reply_string_type(u16 tlv_type, char *string)
 }
 
 
-
-
 #if 0
 
 /* Now obsolete code for handling commands not yet implemented the new way */
+
+/*
+ * Some of this code assumed that the manager structure contains two added
+ * fields:
+ *	u32 link_subscriptions;
+ *	struct list_head link_subscribers;
+ * which are currently not present.  These fields may need to be re-introduced
+ * if and when support for link subscriptions is added.
+ */
+
+void tipc_cfg_link_event(u32 addr, char *name, int up)
+{
+	/* TIPC DOESN'T HANDLE LINK EVENT SUBSCRIPTIONS AT THE MOMENT */
+}
 
 int tipc_cfg_cmd(const struct tipc_cmd_msg * msg,
 		 char *data,
@@ -666,9 +669,6 @@ int tipc_cfg_init(void)
 {
 	struct tipc_name_seq seq;
 	int res;
-
-	memset(&mng, 0, sizeof(mng));
-	INIT_LIST_HEAD(&mng.link_subscribers);
 
 	res = tipc_attach(&mng.user_ref, NULL, NULL);
 	if (res)
