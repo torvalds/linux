@@ -1440,7 +1440,7 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				  struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	__le32 *txd = skbdesc->desc;
+	__le32 *txd = (__le32 *)(skb->data - TXD_DESC_SIZE);
 	u32 word;
 
 	/*
@@ -1499,6 +1499,12 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			   TXPOWER_TO_DEV(rt2x00dev->tx_power));
 	rt2x00_set_field32(&word, TXD_W5_WAITING_DMA_DONE_INT, 1);
 	rt2x00_desc_write(txd, 5, word);
+
+	/*
+	 * Register descriptor details in skb frame descriptor.
+	 */
+	skbdesc->desc = txd;
+	skbdesc->desc_len = TXD_DESC_SIZE;
 }
 
 /*
@@ -1508,16 +1514,8 @@ static void rt73usb_write_beacon(struct queue_entry *entry,
 				 struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	unsigned int beacon_base;
 	u32 reg;
-
-	/*
-	 * Add the descriptor in front of the skb.
-	 */
-	skb_push(entry->skb, entry->queue->desc_size);
-	memcpy(entry->skb->data, skbdesc->desc, skbdesc->desc_len);
-	skbdesc->desc = entry->skb->data;
 
 	/*
 	 * Disable beaconing while we are reloading the beacon data,
@@ -1526,6 +1524,11 @@ static void rt73usb_write_beacon(struct queue_entry *entry,
 	rt2x00usb_register_read(rt2x00dev, TXRX_CSR9, &reg);
 	rt2x00_set_field32(&reg, TXRX_CSR9_BEACON_GEN, 0);
 	rt2x00usb_register_write(rt2x00dev, TXRX_CSR9, reg);
+
+	/*
+	 * Take the descriptor in front of the skb into account.
+	 */
+	skb_push(entry->skb, TXD_DESC_SIZE);
 
 	/*
 	 * Write entire beacon with descriptor to register.

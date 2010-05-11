@@ -552,7 +552,6 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	struct rt2x00_intf *intf = vif_to_intf(vif);
 	struct skb_frame_desc *skbdesc;
 	struct txentry_desc txdesc;
-	__le32 desc[16];
 
 	if (unlikely(!intf->beacon))
 		return -ENOBUFS;
@@ -585,19 +584,10 @@ int rt2x00queue_update_beacon(struct rt2x00_dev *rt2x00dev,
 	rt2x00queue_create_tx_descriptor(intf->beacon, &txdesc);
 
 	/*
-	 * For the descriptor we use a local array from where the
-	 * driver can move it to the correct location required for
-	 * the hardware.
-	 */
-	memset(desc, 0, sizeof(desc));
-
-	/*
 	 * Fill in skb descriptor
 	 */
 	skbdesc = get_skb_frame_desc(intf->beacon->skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
-	skbdesc->desc = desc;
-	skbdesc->desc_len = intf->beacon->queue->desc_size;
 	skbdesc->entry = intf->beacon;
 
 	/*

@@ -633,7 +633,8 @@ static void rt2800pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				    struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	__le32 *txd = skbdesc->desc;
+	struct queue_entry_priv_pci *entry_priv = skbdesc->entry->priv_data;
+	__le32 *txd = entry_priv->desc;
 	u32 word;
 
 	/*
@@ -657,15 +658,14 @@ static void rt2800pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			   !test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W1_BURST,
 			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W1_SD_LEN0,
-			   rt2x00dev->ops->extra_tx_headroom);
+	rt2x00_set_field32(&word, TXD_W1_SD_LEN0, TXWI_DESC_SIZE);
 	rt2x00_set_field32(&word, TXD_W1_LAST_SEC0, 0);
 	rt2x00_set_field32(&word, TXD_W1_DMA_DONE, 0);
 	rt2x00_desc_write(txd, 1, word);
 
 	rt2x00_desc_read(txd, 2, &word);
 	rt2x00_set_field32(&word, TXD_W2_SD_PTR1,
-			   skbdesc->skb_dma + rt2x00dev->ops->extra_tx_headroom);
+			   skbdesc->skb_dma + TXWI_DESC_SIZE);
 	rt2x00_desc_write(txd, 2, word);
 
 	rt2x00_desc_read(txd, 3, &word);
@@ -673,6 +673,12 @@ static void rt2800pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			   !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W3_QSEL, 2);
 	rt2x00_desc_write(txd, 3, word);
+
+	/*
+	 * Register descriptor details in skb frame descriptor.
+	 */
+	skbdesc->desc = txd;
+	skbdesc->desc_len = TXD_DESC_SIZE;
 }
 
 /*

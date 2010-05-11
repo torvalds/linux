@@ -1164,15 +1164,15 @@ static void rt2500pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	struct queue_entry_priv_pci *entry_priv = skbdesc->entry->priv_data;
-	__le32 *txd = skbdesc->desc;
+	__le32 *txd = entry_priv->desc;
 	u32 word;
 
 	/*
 	 * Start writing the descriptor words.
 	 */
-	rt2x00_desc_read(entry_priv->desc, 1, &word);
+	rt2x00_desc_read(txd, 1, &word);
 	rt2x00_set_field32(&word, TXD_W1_BUFFER_ADDRESS, skbdesc->skb_dma);
-	rt2x00_desc_write(entry_priv->desc, 1, word);
+	rt2x00_desc_write(txd, 1, word);
 
 	rt2x00_desc_read(txd, 2, &word);
 	rt2x00_set_field32(&word, TXD_W2_IV_OFFSET, IEEE80211_HEADER);
@@ -1216,6 +1216,12 @@ static void rt2500pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, txdesc->length);
 	rt2x00_set_field32(&word, TXD_W0_CIPHER_ALG, CIPHER_NONE);
 	rt2x00_desc_write(txd, 0, word);
+
+	/*
+	 * Register descriptor details in skb frame descriptor.
+	 */
+	skbdesc->desc = txd;
+	skbdesc->desc_len = TXD_DESC_SIZE;
 }
 
 /*
@@ -1237,15 +1243,6 @@ static void rt2500pci_write_beacon(struct queue_entry *entry,
 	rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
 	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
 	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
-
-	/*
-	 * Replace rt2x00lib allocated descriptor with the
-	 * pointer to the _real_ hardware descriptor.
-	 * After that, map the beacon to DMA and update the
-	 * descriptor.
-	 */
-	memcpy(entry_priv->desc, skbdesc->desc, skbdesc->desc_len);
-	skbdesc->desc = entry_priv->desc;
 
 	rt2x00queue_map_txskb(rt2x00dev, entry->skb);
 

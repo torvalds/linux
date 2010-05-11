@@ -1033,7 +1033,7 @@ static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				    struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	__le32 *txd = skbdesc->desc;
+	__le32 *txd = (__le32 *)(skb->data - TXD_DESC_SIZE);
 	u32 word;
 
 	/*
@@ -1075,6 +1075,12 @@ static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 		_rt2x00_desc_write(txd, 3, skbdesc->iv[0]);
 		_rt2x00_desc_write(txd, 4, skbdesc->iv[1]);
 	}
+
+	/*
+	 * Register descriptor details in skb frame descriptor.
+	 */
+	skbdesc->desc = txd;
+	skbdesc->desc_len = TXD_DESC_SIZE;
 }
 
 /*
@@ -1088,17 +1094,9 @@ static void rt2500usb_write_beacon(struct queue_entry *entry,
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct usb_device *usb_dev = to_usb_device_intf(rt2x00dev->dev);
 	struct queue_entry_priv_usb_bcn *bcn_priv = entry->priv_data;
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	int pipe = usb_sndbulkpipe(usb_dev, entry->queue->usb_endpoint);
 	int length;
 	u16 reg, reg0;
-
-	/*
-	 * Add the descriptor in front of the skb.
-	 */
-	skb_push(entry->skb, entry->queue->desc_size);
-	memcpy(entry->skb->data, skbdesc->desc, skbdesc->desc_len);
-	skbdesc->desc = entry->skb->data;
 
 	/*
 	 * Disable beaconing while we are reloading the beacon data,
@@ -1107,6 +1105,11 @@ static void rt2500usb_write_beacon(struct queue_entry *entry,
 	rt2500usb_register_read(rt2x00dev, TXRX_CSR19, &reg);
 	rt2x00_set_field16(&reg, TXRX_CSR19_BEACON_GEN, 0);
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
+
+	/*
+	 * Take the descriptor in front of the skb into account.
+	 */
+	skb_push(entry->skb, TXD_DESC_SIZE);
 
 	/*
 	 * USB devices cannot blindly pass the skb->len as the
