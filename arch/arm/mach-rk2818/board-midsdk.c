@@ -110,6 +110,13 @@ static struct map_desc rk2818_io_desc[] __initdata = {
 	},
 	
 	{
+		.virtual	= RK2818_SDRAMC_BASE,
+		.pfn		= __phys_to_pfn(RK2818_SDRAMC_PHYS),
+		.length 	= RK2818_SDRAMC_SIZE,
+		.type		= MT_DEVICE
+	},
+
+	{
 		.virtual	= RK2818_ARMDARBITER_BASE,					
 		.pfn		= __phys_to_pfn(RK2818_ARMDARBITER_PHYS),    
 		.length 	= RK2818_ARMDARBITER_SIZE,						
