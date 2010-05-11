@@ -67,7 +67,7 @@ static inline int may_route(u32 addr)
 	return(addr ^ tipc_own_addr) >> 11;
 }
 
-static inline int in_scope(u32 domain, u32 addr)
+static inline int tipc_in_scope(u32 domain, u32 addr)
 {
 	if (!domain || (domain == addr))
 		return 1;
@@ -79,10 +79,10 @@ static inline int in_scope(u32 domain, u32 addr)
 }
 
 /**
- * addr_scope - convert message lookup domain to equivalent 2-bit scope value
+ * tipc_addr_scope - convert message lookup domain to a 2-bit scope value
  */
 
-static inline int addr_scope(u32 domain)
+static inline int tipc_addr_scope(u32 domain)
 {
 	if (likely(!domain))
 		return TIPC_ZONE_SCOPE;
@@ -110,7 +110,7 @@ static inline int addr_domain(int sc)
 	return tipc_addr(tipc_zone(tipc_own_addr), 0, 0);
 }
 
-static inline char *addr_string_fill(char *string, u32 addr)
+static inline char *tipc_addr_string_fill(char *string, u32 addr)
 {
 	snprintf(string, 16, "<%u.%u.%u>",
 		 tipc_zone(addr), tipc_cluster(addr), tipc_node(addr));

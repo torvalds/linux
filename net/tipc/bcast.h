@@ -74,7 +74,7 @@ extern const char tipc_bclink_name[];
 
 
 /**
- * nmap_add - add a node to a node map
+ * tipc_nmap_add - add a node to a node map
  */
 
 static inline void tipc_nmap_add(struct tipc_node_map *nm_ptr, u32 node)
@@ -90,7 +90,7 @@ static inline void tipc_nmap_add(struct tipc_node_map *nm_ptr, u32 node)
 }
 
 /**
- * nmap_remove - remove a node from a node map
+ * tipc_nmap_remove - remove a node from a node map
  */
 
 static inline void tipc_nmap_remove(struct tipc_node_map *nm_ptr, u32 node)
@@ -106,7 +106,7 @@ static inline void tipc_nmap_remove(struct tipc_node_map *nm_ptr, u32 node)
 }
 
 /**
- * nmap_equal - test for equality of node maps
+ * tipc_nmap_equal - test for equality of node maps
  */
 
 static inline int tipc_nmap_equal(struct tipc_node_map *nm_a, struct tipc_node_map *nm_b)
@@ -115,7 +115,7 @@ static inline int tipc_nmap_equal(struct tipc_node_map *nm_a, struct tipc_node_m
 }
 
 /**
- * nmap_diff - find differences between node maps
+ * tipc_nmap_diff - find differences between node maps
  * @nm_a: input node map A
  * @nm_b: input node map B
  * @nm_diff: output node map A-B (i.e. nodes of A that are not in B)
@@ -143,7 +143,7 @@ static inline void tipc_nmap_diff(struct tipc_node_map *nm_a, struct tipc_node_m
 }
 
 /**
- * port_list_add - add a port to a port list, ensuring no duplicates
+ * tipc_port_list_add - add a port to a port list, ensuring no duplicates
  */
 
 static inline void tipc_port_list_add(struct port_list *pl_ptr, u32 port)
@@ -176,7 +176,7 @@ static inline void tipc_port_list_add(struct port_list *pl_ptr, u32 port)
 }
 
 /**
- * port_list_free - free dynamically created entries in port_list chain
+ * tipc_port_list_free - free dynamically created entries in port_list chain
  *
  * Note: First item is on stack, so it doesn't need to be released
  */

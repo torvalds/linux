@@ -708,7 +708,7 @@ static inline void msg_set_dataoctet(struct tipc_msg *m, u32 pos)
 #define DSC_REQ_MSG          0
 #define DSC_RESP_MSG         1
 
-static inline u32 msg_tot_importance(struct tipc_msg *m)
+static inline u32 tipc_msg_tot_importance(struct tipc_msg *m)
 {
 	if (likely(msg_isdata(m))) {
 		if (likely(msg_orignode(m) == tipc_own_addr))
@@ -722,7 +722,7 @@ static inline u32 msg_tot_importance(struct tipc_msg *m)
 }
 
 
-static inline void msg_init(struct tipc_msg *m, u32 user, u32 type,
+static inline void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type,
 			    u32 hsize, u32 destnode)
 {
 	memset(m, 0, hsize);
@@ -739,10 +739,10 @@ static inline void msg_init(struct tipc_msg *m, u32 user, u32 type,
 }
 
 /**
- * msg_calc_data_size - determine total data size for message
+ * tipc_msg_calc_data_size - determine total data size for message
  */
 
-static inline int msg_calc_data_size(struct iovec const *msg_sect, u32 num_sect)
+static inline int tipc_msg_calc_data_size(struct iovec const *msg_sect, u32 num_sect)
 {
 	int dsz = 0;
 	int i;
@@ -753,20 +753,20 @@ static inline int msg_calc_data_size(struct iovec const *msg_sect, u32 num_sect)
 }
 
 /**
- * msg_build - create message using specified header and data
+ * tipc_msg_build - create message using specified header and data
  *
  * Note: Caller must not hold any locks in case copy_from_user() is interrupted!
  *
  * Returns message data size or errno
  */
 
-static inline int msg_build(struct tipc_msg *hdr,
+static inline int tipc_msg_build(struct tipc_msg *hdr,
 			    struct iovec const *msg_sect, u32 num_sect,
 			    int max_size, int usrmem, struct sk_buff** buf)
 {
 	int dsz, sz, hsz, pos, res, cnt;
 
-	dsz = msg_calc_data_size(msg_sect, num_sect);
+	dsz = tipc_msg_calc_data_size(msg_sect, num_sect);
 	if (unlikely(dsz > TIPC_MAX_USER_MSG_SIZE)) {
 		*buf = NULL;
 		return -EINVAL;

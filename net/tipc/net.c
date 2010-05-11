@@ -219,7 +219,7 @@ void tipc_net_route_msg(struct sk_buff *buf)
 
 	/* Handle message for this node */
 	dnode = msg_short(msg) ? tipc_own_addr : msg_destnode(msg);
-	if (in_scope(dnode, tipc_own_addr)) {
+	if (tipc_in_scope(dnode, tipc_own_addr)) {
 		if (msg_isdata(msg)) {
 			if (msg_mcast(msg))
 				tipc_port_recv_mcast(buf, NULL);
@@ -277,7 +277,7 @@ int tipc_net_start(u32 addr)
 
 	info("Started in network mode\n");
 	info("Own node address %s, network identity %u\n",
-	     addr_string_fill(addr_string, tipc_own_addr), tipc_net_id);
+	     tipc_addr_string_fill(addr_string, tipc_own_addr), tipc_net_id);
 	return 0;
 }
 

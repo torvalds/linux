@@ -433,7 +433,7 @@ struct link *tipc_link_create(struct bearer *b_ptr, const u32 peer,
 
 	l_ptr->pmsg = (struct tipc_msg *)&l_ptr->proto_msg;
 	msg = l_ptr->pmsg;
-	msg_init(msg, LINK_PROTOCOL, RESET_MSG, INT_H_SIZE, l_ptr->addr);
+	tipc_msg_init(msg, LINK_PROTOCOL, RESET_MSG, INT_H_SIZE, l_ptr->addr);
 	msg_set_size(msg, sizeof(l_ptr->proto_msg));
 	msg_set_session(msg, (tipc_random & 0xffff));
 	msg_set_bearer_id(msg, b_ptr->identity);
@@ -1025,7 +1025,7 @@ int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf)
 	u32 size = msg_size(msg);
 	u32 dsz = msg_data_sz(msg);
 	u32 queue_size = l_ptr->out_queue_size;
-	u32 imp = msg_tot_importance(msg);
+	u32 imp = tipc_msg_tot_importance(msg);
 	u32 queue_limit = l_ptr->queue_limit[imp];
 	u32 max_packet = l_ptr->max_pkt;
 
@@ -1090,7 +1090,7 @@ int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf)
 			struct tipc_msg bundler_hdr;
 
 			if (bundler) {
-				msg_init(&bundler_hdr, MSG_BUNDLER, OPEN_MSG,
+				tipc_msg_init(&bundler_hdr, MSG_BUNDLER, OPEN_MSG,
 					 INT_H_SIZE, l_ptr->addr);
 				skb_copy_to_linear_data(bundler, &bundler_hdr,
 							INT_H_SIZE);
@@ -1243,7 +1243,7 @@ again:
 	 * (Must not hold any locks while building message.)
 	 */
 
-	res = msg_build(hdr, msg_sect, num_sect, sender->publ.max_pkt,
+	res = tipc_msg_build(hdr, msg_sect, num_sect, sender->publ.max_pkt,
 			!sender->user_port, &buf);
 
 	read_lock_bh(&tipc_net_lock);
@@ -1354,7 +1354,7 @@ again:
 	/* Prepare reusable fragment header: */
 
 	msg_dbg(hdr, ">FRAGMENTING>");
-	msg_init(&fragm_hdr, MSG_FRAGMENTER, FIRST_FRAGMENT,
+	tipc_msg_init(&fragm_hdr, MSG_FRAGMENTER, FIRST_FRAGMENT,
 		 INT_H_SIZE, msg_destnode(hdr));
 	msg_set_link_selector(&fragm_hdr, sender->publ.ref);
 	msg_set_size(&fragm_hdr, max_pkt);
@@ -1613,7 +1613,7 @@ static void link_reset_all(unsigned long addr)
 	tipc_node_lock(n_ptr);
 
 	warn("Resetting all links to %s\n",
-	     addr_string_fill(addr_string, n_ptr->addr));
+	     tipc_addr_string_fill(addr_string, n_ptr->addr));
 
 	for (i = 0; i < MAX_BEARERS; i++) {
 		if (n_ptr->links[i]) {
@@ -1655,7 +1655,7 @@ static void link_retransmit_failure(struct link *l_ptr, struct sk_buff *buf)
 		n_ptr = l_ptr->owner->next;
 		tipc_node_lock(n_ptr);
 
-		addr_string_fill(addr_string, n_ptr->addr);
+		tipc_addr_string_fill(addr_string, n_ptr->addr);
 		tipc_printf(TIPC_OUTPUT, "Multicast link info for %s\n", addr_string);
 		tipc_printf(TIPC_OUTPUT, "Supported: %d,  ", n_ptr->bclink.supported);
 		tipc_printf(TIPC_OUTPUT, "Acked: %u\n", n_ptr->bclink.acked);
@@ -2398,7 +2398,7 @@ void tipc_link_changeover(struct link *l_ptr)
 		return;
 	}
 
-	msg_init(&tunnel_hdr, CHANGEOVER_PROTOCOL,
+	tipc_msg_init(&tunnel_hdr, CHANGEOVER_PROTOCOL,
 		 ORIGINAL_MSG, INT_H_SIZE, l_ptr->addr);
 	msg_set_bearer_id(&tunnel_hdr, l_ptr->peer_bearer_id);
 	msg_set_msgcnt(&tunnel_hdr, msgcount);
@@ -2453,7 +2453,7 @@ void tipc_link_send_duplicate(struct link *l_ptr, struct link *tunnel)
 	struct sk_buff *iter;
 	struct tipc_msg tunnel_hdr;
 
-	msg_init(&tunnel_hdr, CHANGEOVER_PROTOCOL,
+	tipc_msg_init(&tunnel_hdr, CHANGEOVER_PROTOCOL,
 		 DUPLICATE_MSG, INT_H_SIZE, l_ptr->addr);
 	msg_set_msgcnt(&tunnel_hdr, l_ptr->out_queue_size);
 	msg_set_bearer_id(&tunnel_hdr, l_ptr->peer_bearer_id);
@@ -2659,7 +2659,7 @@ int tipc_link_send_long_buf(struct link *l_ptr, struct sk_buff *buf)
 
 	/* Prepare reusable fragment header: */
 
-	msg_init(&fragm_hdr, MSG_FRAGMENTER, FIRST_FRAGMENT,
+	tipc_msg_init(&fragm_hdr, MSG_FRAGMENTER, FIRST_FRAGMENT,
 		 INT_H_SIZE, destaddr);
 	msg_set_link_selector(&fragm_hdr, msg_link_selector(inmsg));
 	msg_set_long_msgno(&fragm_hdr, mod(l_ptr->long_msg_seq_no++));
