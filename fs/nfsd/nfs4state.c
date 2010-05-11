@@ -613,15 +613,6 @@ unhash_session(struct nfsd4_session *ses)
 	list_del(&ses->se_perclnt);
 }
 
-static void
-release_session(struct nfsd4_session *ses)
-{
-	spin_lock(&client_lock);
-	unhash_session(ses);
-	spin_unlock(&client_lock);
-	nfsd4_put_session(ses);
-}
-
 void
 free_session(struct kref *kref)
 {
@@ -722,12 +713,15 @@ expire_client(struct nfs4_client *clp)
 		sop = list_entry(clp->cl_openowners.next, struct nfs4_stateowner, so_perclient);
 		release_openowner(sop);
 	}
+	spin_lock(&client_lock);
 	while (!list_empty(&clp->cl_sessions)) {
 		struct nfsd4_session  *ses;
 		ses = list_entry(clp->cl_sessions.next, struct nfsd4_session,
 				 se_perclnt);
-		release_session(ses);
+		unhash_session(ses);
+		nfsd4_put_session(ses);
 	}
+	spin_unlock(&client_lock);
 	nfsd4_set_callback_client(clp, NULL);
 	if (clp->cl_cb_conn.cb_xprt)
 		svc_xprt_put(clp->cl_cb_conn.cb_xprt);
