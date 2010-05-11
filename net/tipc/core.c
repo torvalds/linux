@@ -102,6 +102,30 @@ int tipc_get_mode(void)
 }
 
 /**
+ * buf_acquire - creates a TIPC message buffer
+ * @size: message size (including TIPC header)
+ *
+ * Returns a new buffer with data pointers set to the specified size.
+ *
+ * NOTE: Headroom is reserved to allow prepending of a data link header.
+ *       There may also be unrequested tailroom present at the buffer's end.
+ */
+
+struct sk_buff *buf_acquire(u32 size)
+{
+	struct sk_buff *skb;
+	unsigned int buf_size = (BUF_HEADROOM + size + 3) & ~3u;
+
+	skb = alloc_skb_fclone(buf_size, GFP_ATOMIC);
+	if (skb) {
+		skb_reserve(skb, BUF_HEADROOM);
+		skb_put(skb, size);
+		skb->next = NULL;
+	}
+	return skb;
+}
+
+/**
  * tipc_core_stop_net - shut down TIPC networking sub-systems
  */
 
