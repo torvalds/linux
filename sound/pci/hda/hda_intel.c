@@ -425,7 +425,7 @@ struct azx {
 	struct snd_dma_buffer posbuf;
 
 	/* flags */
-	int position_fix;
+	int position_fix[2]; /* for both playback/capture streams */
 	int poll_count;
 	unsigned int running :1;
 	unsigned int initialized :1;
@@ -1306,8 +1306,10 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 	azx_sd_writel(azx_dev, SD_BDLPU, upper_32_bits(azx_dev->bdl.addr));
 
 	/* enable the position buffer */
-	if (chip->position_fix == POS_FIX_POSBUF ||
-	    chip->position_fix == POS_FIX_AUTO ||
+	if (chip->position_fix[0] == POS_FIX_POSBUF ||
+	    chip->position_fix[0] == POS_FIX_AUTO ||
+	    chip->position_fix[1] == POS_FIX_POSBUF ||
+	    chip->position_fix[1] == POS_FIX_AUTO ||
 	    chip->via_dmapos_patch) {
 		if (!(azx_readl(chip, DPLBASE) & ICH6_DPLBASE_ENABLE))
 			azx_writel(chip, DPLBASE,
@@ -1847,13 +1849,16 @@ static unsigned int azx_get_position(struct azx *chip,
 
 	if (chip->via_dmapos_patch)
 		pos = azx_via_get_position(chip, azx_dev);
-	else if (chip->position_fix == POS_FIX_POSBUF ||
-		 chip->position_fix == POS_FIX_AUTO) {
-		/* use the position buffer */
-		pos = le32_to_cpu(*azx_dev->posbuf);
-	} else {
-		/* read LPIB */
-		pos = azx_sd_readl(azx_dev, SD_LPIB);
+	else {
+		int stream = azx_dev->substream->stream;
+		if (chip->position_fix[stream] == POS_FIX_POSBUF ||
+		    chip->position_fix[stream] == POS_FIX_AUTO) {
+			/* use the position buffer */
+			pos = le32_to_cpu(*azx_dev->posbuf);
+		} else {
+			/* read LPIB */
+			pos = azx_sd_readl(azx_dev, SD_LPIB);
+		}
 	}
 	if (pos >= azx_dev->bufsize)
 		pos = 0;
@@ -1881,22 +1886,24 @@ static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
 static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 {
 	unsigned int pos;
+	int stream;
 
 	if (azx_dev->start_flag &&
 	    time_before_eq(jiffies, azx_dev->start_jiffies))
 		return -1;	/* bogus (too early) interrupt */
 	azx_dev->start_flag = 0;
 
+	stream = azx_dev->substream->stream;
 	pos = azx_get_position(chip, azx_dev);
-	if (chip->position_fix == POS_FIX_AUTO) {
+	if (chip->position_fix[stream] == POS_FIX_AUTO) {
 		if (!pos) {
 			printk(KERN_WARNING
 			       "hda-intel: Invalid position buffer, "
 			       "using LPIB read method instead.\n");
-			chip->position_fix = POS_FIX_LPIB;
+			chip->position_fix[stream] = POS_FIX_LPIB;
 			pos = azx_get_position(chip, azx_dev);
 		} else
-			chip->position_fix = POS_FIX_POSBUF;
+			chip->position_fix[stream] = POS_FIX_POSBUF;
 	}
 
 	if (!bdl_pos_adj[chip->dev_index])
@@ -2435,7 +2442,8 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->dev_index = dev;
 	INIT_WORK(&chip->irq_pending_work, azx_irq_pending_work);
 
-	chip->position_fix = check_position_fix(chip, position_fix[dev]);
+	chip->position_fix[0] = chip->position_fix[1] =
+		check_position_fix(chip, position_fix[dev]);
 	check_probe_mask(chip, dev);
 
 	chip->single_cmd = single_cmd;
