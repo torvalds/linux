@@ -186,6 +186,17 @@ static struct clk mstp_clks[HWBLK_NR] = {
 #define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
 
 static struct clk_lookup lookups[] = {
+	/* DIV4 clocks */
+	CLKDEV_CON_ID("cpu_clk", &div4_clks[DIV4_I]),
+	CLKDEV_CON_ID("umem_clk", &div4_clks[DIV4_U]),
+	CLKDEV_CON_ID("shyway_clk", &div4_clks[DIV4_SH]),
+	CLKDEV_CON_ID("bus_clk", &div4_clks[DIV4_B]),
+	CLKDEV_CON_ID("b3_clk", &div4_clks[DIV4_B3]),
+	CLKDEV_CON_ID("peripheral_clk", &div4_clks[DIV4_P]),
+	CLKDEV_CON_ID("irda_clk", &div4_enable_clks[DIV4_IRDA]),
+	CLKDEV_CON_ID("siua_clk", &div4_reparent_clks[DIV4_SIUA]),
+	CLKDEV_CON_ID("siub_clk", &div4_reparent_clks[DIV4_SIUB]),
+
 	/* DIV6 clocks */
 	CLKDEV_CON_ID("video_clk", &div6_clks[DIV6_V]),
 
