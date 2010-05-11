@@ -499,6 +499,7 @@ struct dfs_info3_param {
 #define CIFS_FATTR_DFS_REFERRAL		0x1
 #define CIFS_FATTR_DELETE_PENDING	0x2
 #define CIFS_FATTR_NEED_REVAL		0x4
+#define CIFS_FATTR_INO_COLLISION	0x8
 
 struct cifs_fattr {
 	u32		cf_flags;

@@ -610,6 +610,16 @@ cifs_find_inode(struct inode *inode, void *opaque)
 	if (CIFS_I(inode)->uniqueid != fattr->cf_uniqueid)
 		return 0;
 
+	/*
+	 * uh oh -- it's a directory. We can't use it since hardlinked dirs are
+	 * verboten. Disable serverino and return it as if it were found, the
+	 * caller can discard it, generate a uniqueid and retry the find
+	 */
+	if (S_ISDIR(inode->i_mode) && !list_empty(&inode->i_dentry)) {
+		fattr->cf_flags |= CIFS_FATTR_INO_COLLISION;
+		cifs_autodisable_serverino(CIFS_SB(inode->i_sb));
+	}
+
 	return 1;
 }
 
@@ -629,15 +639,22 @@ cifs_iget(struct super_block *sb, struct cifs_fattr *fattr)
 	unsigned long hash;
 	struct inode *inode;
 
+retry_iget5_locked:
 	cFYI(1, ("looking for uniqueid=%llu", fattr->cf_uniqueid));
 
 	/* hash down to 32-bits on 32-bit arch */
 	hash = cifs_uniqueid_to_ino_t(fattr->cf_uniqueid);
 
 	inode = iget5_locked(sb, hash, cifs_find_inode, cifs_init_inode, fattr);
-
-	/* we have fattrs in hand, update the inode */
 	if (inode) {
+		/* was there a problematic inode number collision? */
+		if (fattr->cf_flags & CIFS_FATTR_INO_COLLISION) {
+			iput(inode);
+			fattr->cf_uniqueid = iunique(sb, ROOT_I);
+			fattr->cf_flags &= ~CIFS_FATTR_INO_COLLISION;
+			goto retry_iget5_locked;
+		}
+
 		cifs_fattr_to_inode(inode, fattr);
 		if (sb->s_flags & MS_NOATIME)
 			inode->i_flags |= S_NOATIME | S_NOCMTIME;
