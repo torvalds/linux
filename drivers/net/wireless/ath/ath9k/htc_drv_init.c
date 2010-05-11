@@ -81,12 +81,19 @@ static int ath9k_htc_wait_for_target(struct ath9k_htc_priv *priv)
 {
 	int time_left;
 
+	if (atomic_read(&priv->htc->tgt_ready) > 0) {
+		atomic_dec(&priv->htc->tgt_ready);
+		return 0;
+	}
+
 	/* Firmware can take up to 50ms to get ready, to be safe use 1 second */
 	time_left = wait_for_completion_timeout(&priv->htc->target_wait, HZ);
 	if (!time_left) {
 		dev_err(priv->dev, "ath9k_htc: Target is unresponsive\n");
 		return -ETIMEDOUT;
 	}
+
+	atomic_dec(&priv->htc->tgt_ready);
 
 	return 0;
 }

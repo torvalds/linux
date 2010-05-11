@@ -95,6 +95,7 @@ static void htc_process_target_rdy(struct htc_target *target,
 	endpoint = &target->endpoint[ENDPOINT0];
 	endpoint->service_id = HTC_CTRL_RSVD_SVC;
 	endpoint->max_msglen = HTC_MAX_CONTROL_MESSAGE_LENGTH;
+	atomic_inc(&target->tgt_ready);
 	complete(&target->target_wait);
 }
 
@@ -450,6 +451,8 @@ struct htc_target *ath9k_htc_hw_alloc(void *hif_handle,
 	endpoint = &target->endpoint[ENDPOINT0];
 	endpoint->ul_pipeid = hif->control_ul_pipe;
 	endpoint->dl_pipeid = hif->control_dl_pipe;
+
+	atomic_set(&target->tgt_ready, 0);
 
 	return target;
 }

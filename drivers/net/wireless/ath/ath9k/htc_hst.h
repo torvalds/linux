@@ -147,6 +147,7 @@ struct htc_target {
 	u16 credits;
 	u16 credit_size;
 	u8 htc_flags;
+	atomic_t tgt_ready;
 };
 
 enum htc_msg_id {
