@@ -561,7 +561,6 @@ static int link_schedule_port(struct link *l_ptr, u32 origport, u32 sz)
 			goto exit;
 		if (!list_empty(&p_ptr->wait_list))
 			goto exit;
-		p_ptr->congested_link = l_ptr;
 		p_ptr->publ.congested = 1;
 		p_ptr->waiting_pkts = 1 + ((sz - 1) / link_max_pkt(l_ptr));
 		list_add_tail(&p_ptr->wait_list, &l_ptr->waiting_ports);
@@ -592,7 +591,6 @@ void tipc_link_wakeup_ports(struct link *l_ptr, int all)
 		if (win <= 0)
 			break;
 		list_del_init(&p_ptr->wait_list);
-		p_ptr->congested_link = NULL;
 		spin_lock_bh(p_ptr->publ.lock);
 		p_ptr->publ.congested = 0;
 		p_ptr->wakeup(&p_ptr->publ);
