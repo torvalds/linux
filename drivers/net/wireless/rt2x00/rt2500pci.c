@@ -1193,6 +1193,11 @@ static void rt2500pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			   test_bit(ENTRY_TXD_RTS_FRAME, &txdesc->flags));
 	rt2x00_desc_write(txd, 10, word);
 
+	/*
+	 * Writing TXD word 0 must the last to prevent a race condition with
+	 * the device, whereby the device may take hold of the TXD before we
+	 * finished updating it.
+	 */
 	rt2x00_desc_read(txd, 0, &word);
 	rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 1);
 	rt2x00_set_field32(&word, TXD_W0_VALID, 1);

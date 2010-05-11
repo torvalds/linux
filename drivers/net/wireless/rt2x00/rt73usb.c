@@ -1446,6 +1446,32 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Start writing the descriptor words.
 	 */
+	rt2x00_desc_read(txd, 0, &word);
+	rt2x00_set_field32(&word, TXD_W0_BURST,
+			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_VALID, 1);
+	rt2x00_set_field32(&word, TXD_W0_MORE_FRAG,
+			   test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_ACK,
+			   test_bit(ENTRY_TXD_ACK, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_TIMESTAMP,
+			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_OFDM,
+			   (txdesc->rate_mode == RATE_MODE_OFDM));
+	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
+	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
+			   test_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_TKIP_MIC,
+			   test_bit(ENTRY_TXD_ENCRYPT_MMIC, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_KEY_TABLE,
+			   test_bit(ENTRY_TXD_ENCRYPT_PAIRWISE, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_KEY_INDEX, txdesc->key_idx);
+	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, txdesc->length);
+	rt2x00_set_field32(&word, TXD_W0_BURST2,
+			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_CIPHER_ALG, txdesc->cipher);
+	rt2x00_desc_write(txd, 0, word);
+
 	rt2x00_desc_read(txd, 1, &word);
 	rt2x00_set_field32(&word, TXD_W1_HOST_Q_ID, txdesc->queue);
 	rt2x00_set_field32(&word, TXD_W1_AIFSN, txdesc->aifs);
@@ -1473,32 +1499,6 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			   TXPOWER_TO_DEV(rt2x00dev->tx_power));
 	rt2x00_set_field32(&word, TXD_W5_WAITING_DMA_DONE_INT, 1);
 	rt2x00_desc_write(txd, 5, word);
-
-	rt2x00_desc_read(txd, 0, &word);
-	rt2x00_set_field32(&word, TXD_W0_BURST,
-			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_VALID, 1);
-	rt2x00_set_field32(&word, TXD_W0_MORE_FRAG,
-			   test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_ACK,
-			   test_bit(ENTRY_TXD_ACK, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_TIMESTAMP,
-			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_OFDM,
-			   (txdesc->rate_mode == RATE_MODE_OFDM));
-	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
-	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
-			   test_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_TKIP_MIC,
-			   test_bit(ENTRY_TXD_ENCRYPT_MMIC, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_KEY_TABLE,
-			   test_bit(ENTRY_TXD_ENCRYPT_PAIRWISE, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_KEY_INDEX, txdesc->key_idx);
-	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, txdesc->length);
-	rt2x00_set_field32(&word, TXD_W0_BURST2,
-			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_CIPHER_ALG, txdesc->cipher);
-	rt2x00_desc_write(txd, 0, word);
 }
 
 /*

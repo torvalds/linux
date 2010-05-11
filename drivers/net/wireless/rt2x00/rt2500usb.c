@@ -1039,6 +1039,24 @@ static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Start writing the descriptor words.
 	 */
+	rt2x00_desc_read(txd, 0, &word);
+	rt2x00_set_field32(&word, TXD_W0_RETRY_LIMIT, txdesc->retry_limit);
+	rt2x00_set_field32(&word, TXD_W0_MORE_FRAG,
+			   test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_ACK,
+			   test_bit(ENTRY_TXD_ACK, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_TIMESTAMP,
+			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_OFDM,
+			   (txdesc->rate_mode == RATE_MODE_OFDM));
+	rt2x00_set_field32(&word, TXD_W0_NEW_SEQ,
+			   test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags));
+	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
+	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, txdesc->length);
+	rt2x00_set_field32(&word, TXD_W0_CIPHER, !!txdesc->cipher);
+	rt2x00_set_field32(&word, TXD_W0_KEY_ID, txdesc->key_idx);
+	rt2x00_desc_write(txd, 0, word);
+
 	rt2x00_desc_read(txd, 1, &word);
 	rt2x00_set_field32(&word, TXD_W1_IV_OFFSET, txdesc->iv_offset);
 	rt2x00_set_field32(&word, TXD_W1_AIFS, txdesc->aifs);
@@ -1057,24 +1075,6 @@ static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 		_rt2x00_desc_write(txd, 3, skbdesc->iv[0]);
 		_rt2x00_desc_write(txd, 4, skbdesc->iv[1]);
 	}
-
-	rt2x00_desc_read(txd, 0, &word);
-	rt2x00_set_field32(&word, TXD_W0_RETRY_LIMIT, txdesc->retry_limit);
-	rt2x00_set_field32(&word, TXD_W0_MORE_FRAG,
-			   test_bit(ENTRY_TXD_MORE_FRAG, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_ACK,
-			   test_bit(ENTRY_TXD_ACK, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_TIMESTAMP,
-			   test_bit(ENTRY_TXD_REQ_TIMESTAMP, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_OFDM,
-			   (txdesc->rate_mode == RATE_MODE_OFDM));
-	rt2x00_set_field32(&word, TXD_W0_NEW_SEQ,
-			   test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags));
-	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
-	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, txdesc->length);
-	rt2x00_set_field32(&word, TXD_W0_CIPHER, !!txdesc->cipher);
-	rt2x00_set_field32(&word, TXD_W0_KEY_ID, txdesc->key_idx);
-	rt2x00_desc_write(txd, 0, word);
 }
 
 /*
