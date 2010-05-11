@@ -740,8 +740,9 @@ expire_client(struct nfs4_client *clp)
 	list_del(&clp->cl_strhash);
 	spin_lock(&client_lock);
 	unhash_client_locked(clp);
+	if (atomic_read(&clp->cl_refcount) == 0)
+		free_client(clp);
 	spin_unlock(&client_lock);
-	free_client(clp);
 }
 
 static void copy_verf(struct nfs4_client *target, nfs4_verifier *source)
@@ -827,6 +828,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
 	}
 
 	memcpy(clp->cl_recdir, recdir, HEXDIR_LEN);
+	atomic_set(&clp->cl_refcount, 0);
 	atomic_set(&clp->cl_cb_set, 0);
 	INIT_LIST_HEAD(&clp->cl_idhash);
 	INIT_LIST_HEAD(&clp->cl_strhash);
