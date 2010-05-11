@@ -774,8 +774,7 @@ static int __devinit sport_uart_probe(struct platform_device *pdev)
 			goto out_error_free_peripherals;
 		}
 
-		sport->port.membase = ioremap(res->start,
-			res->end - res->start);
+		sport->port.membase = ioremap(res->start, resource_size(res));
 		if (!sport->port.membase) {
 			dev_err(&pdev->dev, "Cannot map sport IO\n");
 			ret = -ENXIO;
