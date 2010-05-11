@@ -168,7 +168,12 @@ static int sh_clk_div4_set_parent(struct clk *clk, struct clk *parent)
 	u32 value;
 	int ret;
 
-	if (!strcmp("pll_clk", parent->name))
+	/* we really need a better way to determine parent index, but for
+	 * now assume internal parent comes with CLK_ENABLE_ON_INIT set,
+	 * no CLK_ENABLE_ON_INIT means external clock...
+	 */
+
+	if (parent->flags & CLK_ENABLE_ON_INIT)
 		value = __raw_readl(clk->enable_reg) & ~(1 << 7);
 	else
 		value = __raw_readl(clk->enable_reg) | (1 << 7);
