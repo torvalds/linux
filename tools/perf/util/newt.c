@@ -57,6 +57,43 @@ void ui_progress__delete(struct ui_progress *self)
 	free(self);
 }
 
+static void ui_helpline__pop(void)
+{
+	newtPopHelpLine();
+}
+
+static void ui_helpline__push(const char *msg)
+{
+	newtPushHelpLine(msg);
+}
+
+static void ui_helpline__vpush(const char *fmt, va_list ap)
+{
+	char *s;
+
+	if (vasprintf(&s, fmt, ap) < 0)
+		vfprintf(stderr, fmt, ap);
+	else {
+		ui_helpline__push(s);
+		free(s);
+	}
+}
+
+static void ui_helpline__fpush(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	ui_helpline__vpush(fmt, ap);
+	va_end(ap);
+}
+
+static void ui_helpline__puts(const char *msg)
+{
+	ui_helpline__pop();
+	ui_helpline__push(msg);
+}
+
 static char browser__last_msg[1024];
 
 int browser__show_help(const char *format, va_list ap)
@@ -69,8 +106,7 @@ int browser__show_help(const char *format, va_list ap)
 	backlog += ret;
 
 	if (browser__last_msg[backlog - 1] == '\n') {
-		newtPopHelpLine();
-		newtPushHelpLine(browser__last_msg);
+		ui_helpline__puts(browser__last_msg);
 		newtRefresh();
 		backlog = 0;
 	}
@@ -340,7 +376,7 @@ static void map_symbol__annotate_browser(const struct map_symbol *self,
 	if (fp == NULL)
 		goto out_free_str;
 
-	newtPushHelpLine("Press ESC to exit");
+	ui_helpline__push("Press ESC to exit");
 	newtGetScreenSize(&cols, &rows);
 	tree = newtListbox(0, 0, rows - 5, NEWT_FLAG_SCROLL);
 
@@ -370,7 +406,7 @@ static void map_symbol__annotate_browser(const struct map_symbol *self,
 	newtFormRun(form, &es);
 	newtFormDestroy(form);
 	newtPopWindow();
-	newtPopHelpLine();
+	ui_helpline__pop();
 out_free_str:
 	free(str);
 }
@@ -539,7 +575,7 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 	if (browser == NULL)
 		return -1;
 
-	newtPushHelpLine(helpline);
+	ui_helpline__push(helpline);
 
 	hist_browser__title(msg, sizeof(msg), input_name,
 			    dso_filter, thread_filter);
@@ -602,8 +638,7 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 do_annotate:
 		if (choice == annotate) {
 			if (browser->selection->map->dso->origin == DSO__ORIG_KERNEL) {
-				newtPopHelpLine();
-				newtPushHelpLine("No vmlinux file found, can't "
+				ui_helpline__puts("No vmlinux file found, can't "
 						 "annotate with just a "
 						 "kallsyms file");
 				continue;
@@ -611,13 +646,11 @@ do_annotate:
 			map_symbol__annotate_browser(browser->selection, input_name);
 		} else if (choice == zoom_dso) {
 			if (dso_filter) {
-				newtPopHelpLine();
+				ui_helpline__pop();
 				dso_filter = NULL;
 			} else {
-				snprintf(msg, sizeof(msg),
-					 "To zoom out press -> + \"Zoom out of %s DSO\"",
-					 dso->kernel ? "the Kernel" : dso->short_name);
-				newtPushHelpLine(msg);
+				ui_helpline__fpush("To zoom out press -> + \"Zoom out of %s DSO\"",
+						   dso->kernel ? "the Kernel" : dso->short_name);
 				dso_filter = dso;
 			}
 			hists__filter_by_dso(self, dso_filter);
@@ -627,14 +660,12 @@ do_annotate:
 				goto out;
 		} else if (choice == zoom_thread) {
 			if (thread_filter) {
-				newtPopHelpLine();
+				ui_helpline__pop();
 				thread_filter = NULL;
 			} else {
-				snprintf(msg, sizeof(msg),
-					 "To zoom out press -> + \"Zoom out of %s(%d) thread\"",
-					 (thread->comm_set ? thread->comm : ""),
-					 thread->pid);
-				newtPushHelpLine(msg);
+				ui_helpline__fpush("To zoom out press -> + \"Zoom out of %s(%d) thread\"",
+						   thread->comm_set ? thread->comm : "",
+						   thread->pid);
 				thread_filter = thread;
 			}
 			hists__filter_by_thread(self, thread_filter);
@@ -658,7 +689,7 @@ void setup_browser(void)
 	use_browser = true;
 	newtInit();
 	newtCls();
-	newtPushHelpLine(" ");
+	ui_helpline__puts(" ");
 }
 
 void exit_browser(bool wait_for_ok)
