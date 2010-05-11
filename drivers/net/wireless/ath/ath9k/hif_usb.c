@@ -859,21 +859,21 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 #endif
 	usb_set_intfdata(interface, hif_dev);
 
+	hif_dev->htc_handle = ath9k_htc_hw_alloc(hif_dev, &hif_usb,
+						 &hif_dev->udev->dev);
+	if (hif_dev->htc_handle == NULL) {
+		ret = -ENOMEM;
+		goto err_htc_hw_alloc;
+	}
+
 	ret = ath9k_hif_usb_dev_init(hif_dev, fw_name);
 	if (ret) {
 		ret = -EINVAL;
 		goto err_hif_init_usb;
 	}
 
-	hif_dev->htc_handle = ath9k_htc_hw_alloc(hif_dev);
-	if (hif_dev->htc_handle == NULL) {
-		ret = -ENOMEM;
-		goto err_htc_hw_alloc;
-	}
-
-	ret = ath9k_htc_hw_init(&hif_usb, hif_dev->htc_handle, hif_dev,
-				&hif_dev->udev->dev, hif_dev->device_id,
-				ATH9K_HIF_USB);
+	ret = ath9k_htc_hw_init(hif_dev->htc_handle,
+				&hif_dev->udev->dev, hif_dev->device_id);
 	if (ret) {
 		ret = -EINVAL;
 		goto err_htc_hw_init;
@@ -884,10 +884,10 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 	return 0;
 
 err_htc_hw_init:
-	ath9k_htc_hw_free(hif_dev->htc_handle);
-err_htc_hw_alloc:
 	ath9k_hif_usb_dev_deinit(hif_dev);
 err_hif_init_usb:
+	ath9k_htc_hw_free(hif_dev->htc_handle);
+err_htc_hw_alloc:
 	usb_set_intfdata(interface, NULL);
 	kfree(hif_dev);
 	usb_put_dev(udev);

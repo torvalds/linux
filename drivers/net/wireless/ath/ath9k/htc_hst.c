@@ -425,29 +425,19 @@ void ath9k_htc_rx_msg(struct htc_target *htc_handle,
 	}
 }
 
-struct htc_target *ath9k_htc_hw_alloc(void *hif_handle)
+struct htc_target *ath9k_htc_hw_alloc(void *hif_handle,
+				      struct ath9k_htc_hif *hif,
+				      struct device *dev)
 {
+	struct htc_endpoint *endpoint;
 	struct htc_target *target;
 
 	target = kzalloc(sizeof(struct htc_target), GFP_KERNEL);
-	if (!target)
+	if (!target) {
 		printk(KERN_ERR "Unable to allocate memory for"
 			"target device\n");
-
-	return target;
-}
-
-void ath9k_htc_hw_free(struct htc_target *htc)
-{
-	kfree(htc);
-}
-
-int ath9k_htc_hw_init(struct ath9k_htc_hif *hif, struct htc_target *target,
-		      void *hif_handle, struct device *dev, u16 devid,
-		      enum ath9k_hif_transports transport)
-{
-	struct htc_endpoint *endpoint;
-	int err = 0;
+		return NULL;
+	}
 
 	init_completion(&target->target_wait);
 	init_completion(&target->cmd_wait);
@@ -461,8 +451,18 @@ int ath9k_htc_hw_init(struct ath9k_htc_hif *hif, struct htc_target *target,
 	endpoint->ul_pipeid = hif->control_ul_pipe;
 	endpoint->dl_pipeid = hif->control_dl_pipe;
 
-	err = ath9k_htc_probe_device(target, dev, devid);
-	if (err) {
+	return target;
+}
+
+void ath9k_htc_hw_free(struct htc_target *htc)
+{
+	kfree(htc);
+}
+
+int ath9k_htc_hw_init(struct htc_target *target,
+		      struct device *dev, u16 devid)
+{
+	if (ath9k_htc_probe_device(target, dev, devid)) {
 		printk(KERN_ERR "Failed to initialize the device\n");
 		return -ENODEV;
 	}
