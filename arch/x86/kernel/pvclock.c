@@ -135,6 +135,10 @@ cycle_t pvclock_clocksource_read(struct pvclock_vcpu_time_info *src)
 		barrier();
 	} while (version != src->version);
 
+	if ((valid_flags & PVCLOCK_TSC_STABLE_BIT) &&
+		(shadow.flags & PVCLOCK_TSC_STABLE_BIT))
+		return ret;
+
 	/*
 	 * Assumption here is that last_value, a global accumulator, always goes
 	 * forward. If we are less than that, we should not be much smaller.
