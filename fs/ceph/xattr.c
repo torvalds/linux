@@ -7,7 +7,8 @@
 
 static bool ceph_is_valid_xattr(const char *name)
 {
-	return !strncmp(name, XATTR_SECURITY_PREFIX,
+	return !strncmp(name, "ceph.", 5) ||
+	       !strncmp(name, XATTR_SECURITY_PREFIX,
 			XATTR_SECURITY_PREFIX_LEN) ||
 	       !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) ||
 	       !strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
@@ -76,14 +77,14 @@ static size_t ceph_vxattrcb_rctime(struct ceph_inode_info *ci, char *val,
 }
 
 static struct ceph_vxattr_cb ceph_dir_vxattrs[] = {
-	{ true, "user.ceph.dir.entries", ceph_vxattrcb_entries},
-	{ true, "user.ceph.dir.files", ceph_vxattrcb_files},
-	{ true, "user.ceph.dir.subdirs", ceph_vxattrcb_subdirs},
-	{ true, "user.ceph.dir.rentries", ceph_vxattrcb_rentries},
-	{ true, "user.ceph.dir.rfiles", ceph_vxattrcb_rfiles},
-	{ true, "user.ceph.dir.rsubdirs", ceph_vxattrcb_rsubdirs},
-	{ true, "user.ceph.dir.rbytes", ceph_vxattrcb_rbytes},
-	{ true, "user.ceph.dir.rctime", ceph_vxattrcb_rctime},
+	{ true, "ceph.dir.entries", ceph_vxattrcb_entries},
+	{ true, "ceph.dir.files", ceph_vxattrcb_files},
+	{ true, "ceph.dir.subdirs", ceph_vxattrcb_subdirs},
+	{ true, "ceph.dir.rentries", ceph_vxattrcb_rentries},
+	{ true, "ceph.dir.rfiles", ceph_vxattrcb_rfiles},
+	{ true, "ceph.dir.rsubdirs", ceph_vxattrcb_rsubdirs},
+	{ true, "ceph.dir.rbytes", ceph_vxattrcb_rbytes},
+	{ true, "ceph.dir.rctime", ceph_vxattrcb_rctime},
 	{ true, NULL, NULL }
 };
 
@@ -107,7 +108,7 @@ static size_t ceph_vxattrcb_layout(struct ceph_inode_info *ci, char *val,
 }
 
 static struct ceph_vxattr_cb ceph_file_vxattrs[] = {
-	{ true, "user.ceph.layout", ceph_vxattrcb_layout},
+	{ true, "ceph.layout", ceph_vxattrcb_layout},
 	{ NULL, NULL }
 };
 
