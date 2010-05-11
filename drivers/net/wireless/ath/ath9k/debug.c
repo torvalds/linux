@@ -794,6 +794,86 @@ static const struct file_operations fops_recv = {
 	.owner = THIS_MODULE
 };
 
+static ssize_t read_file_regidx(struct file *file, char __user *user_buf,
+                                size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	char buf[32];
+	unsigned int len;
+
+	len = snprintf(buf, sizeof(buf), "0x%08x\n", sc->debug.regidx);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_regidx(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	unsigned long regidx;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EINVAL;
+
+	buf[len] = '\0';
+	if (strict_strtoul(buf, 0, &regidx))
+		return -EINVAL;
+
+	sc->debug.regidx = regidx;
+	return count;
+}
+
+static const struct file_operations fops_regidx = {
+	.read = read_file_regidx,
+	.write = write_file_regidx,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
+
+static ssize_t read_file_regval(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	char buf[32];
+	unsigned int len;
+	u32 regval;
+
+	regval = REG_READ_D(ah, sc->debug.regidx);
+	len = snprintf(buf, sizeof(buf), "0x%08x\n", regval);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_regval(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	unsigned long regval;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EINVAL;
+
+	buf[len] = '\0';
+	if (strict_strtoul(buf, 0, &regval))
+		return -EINVAL;
+
+	REG_WRITE_D(ah, sc->debug.regidx, regval);
+	return count;
+}
+
+static const struct file_operations fops_regval = {
+	.read = read_file_regval,
+	.write = write_file_regval,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
+
 int ath9k_init_debug(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -845,6 +925,15 @@ int ath9k_init_debug(struct ath_hw *ah)
 			sc->debug.debugfs_phy, sc, &fops_tx_chainmask))
 		goto err;
 
+	if (!debugfs_create_file("regidx", S_IRUSR | S_IWUSR,
+			sc->debug.debugfs_phy, sc, &fops_regidx))
+		goto err;
+
+	if (!debugfs_create_file("regval", S_IRUSR | S_IWUSR,
+			sc->debug.debugfs_phy, sc, &fops_regval))
+		goto err;
+
+	sc->debug.regidx = 0;
 	return 0;
 err:
 	ath9k_exit_debug(ah);
