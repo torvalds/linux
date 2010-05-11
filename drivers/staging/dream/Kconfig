@@ -3,7 +3,6 @@ config DREAM
 	depends on MACH_TROUT
 
 if DREAM
-source "drivers/staging/dream/smd/Kconfig"
 
 source "drivers/staging/dream/camera/Kconfig"
 
