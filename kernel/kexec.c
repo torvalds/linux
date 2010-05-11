@@ -1134,11 +1134,9 @@ int crash_shrink_memory(unsigned long new_size)
 
 	free_reserved_phys_range(end, crashk_res.end);
 
-	if (start == end) {
-		crashk_res.end = end;
+	if (start == end)
 		release_resource(&crashk_res);
-	} else
-		crashk_res.end = end - 1;
+	crashk_res.end = end - 1;
 
 unlock:
 	mutex_unlock(&kexec_mutex);
