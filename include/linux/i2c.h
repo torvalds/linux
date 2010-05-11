@@ -511,6 +511,7 @@ struct i2c_msg {
 #define I2C_M_RECV_LEN		0x0400	/* length will be first received byte */
 	__u16 len;		/* msg length				*/
 	__u8 *buf;		/* pointer to msg data			*/
+	__u32 scl_rate;
 };
 
 /* To determine what functionality is present */
