@@ -261,8 +261,14 @@ int cifs_posix_open(char *full_path, struct inode **pinode,
 	 * cifs_fill_filedata() takes care of setting cifsFileInfo pointer to
 	 * file->private_data.
 	 */
-	if (mnt)
-		cifs_new_fileinfo(*pinode, *pnetfid, NULL, mnt, oflags);
+	if (mnt) {
+		struct cifsFileInfo *pfile_info;
+
+		pfile_info = cifs_new_fileinfo(*pinode, *pnetfid, NULL, mnt,
+					       oflags);
+		if (pfile_info == NULL)
+			rc = -ENOMEM;
+	}
 
 posix_open_ret:
 	kfree(presp_data);
@@ -476,12 +482,15 @@ cifs_create_set_dentry:
 		/* mknod case - do not leave file open */
 		CIFSSMBClose(xid, tcon, fileHandle);
 	} else if (!(posix_create) && (newinode)) {
+		struct cifsFileInfo *pfile_info;
 		/*
 		 * cifs_fill_filedata() takes care of setting cifsFileInfo
 		 * pointer to file->private_data.
 		 */
-		cifs_new_fileinfo(newinode, fileHandle, NULL, nd->path.mnt,
-				  oflags);
+		pfile_info = cifs_new_fileinfo(newinode, fileHandle, NULL,
+					       nd->path.mnt, oflags);
+		if (pfile_info == NULL)
+			rc = -ENOMEM;
 	}
 cifs_create_out:
 	kfree(buf);
