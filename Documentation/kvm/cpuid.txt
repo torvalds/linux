@@ -1,0 +1,42 @@
+KVM CPUID bits
+Glauber Costa <glommer@redhat.com>, Red Hat Inc, 2010
+=====================================================
+
+A guest running on a kvm host, can check some of its features using
+cpuid. This is not always guaranteed to work, since userspace can
+mask-out some, or even all KVM-related cpuid features before launching
+a guest.
+
+KVM cpuid functions are:
+
+function: KVM_CPUID_SIGNATURE (0x40000000)
+returns : eax = 0,
+          ebx = 0x4b4d564b,
+          ecx = 0x564b4d56,
+          edx = 0x4d.
+Note that this value in ebx, ecx and edx corresponds to the string "KVMKVMKVM".
+This function queries the presence of KVM cpuid leafs.
+
+
+function: define KVM_CPUID_FEATURES (0x40000001)
+returns : ebx, ecx, edx = 0
+          eax = and OR'ed group of (1 << flag), where each flags is:
+
+
+flag                               || value || meaning
+=============================================================================
+KVM_FEATURE_CLOCKSOURCE            ||     0 || kvmclock available at msrs
+                                   ||       || 0x11 and 0x12.
+------------------------------------------------------------------------------
+KVM_FEATURE_NOP_IO_DELAY           ||     1 || not necessary to perform delays
+                                   ||       || on PIO operations.
+------------------------------------------------------------------------------
+KVM_FEATURE_MMU_OP                 ||     2 || deprecated.
+------------------------------------------------------------------------------
+KVM_FEATURE_CLOCKSOURCE2           ||     3 || kvmclock available at msrs
+                                   ||       || 0x4b564d00 and 0x4b564d01
+------------------------------------------------------------------------------
+KVM_FEATURE_CLOCKSOURCE_STABLE_BIT ||    24 || host will warn if no guest-side
+                                   ||       || per-cpu warps are expected in
+                                   ||       || kvmclock.
+------------------------------------------------------------------------------
