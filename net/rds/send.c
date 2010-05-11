@@ -60,15 +60,23 @@ void rds_send_reset(struct rds_connection *conn)
 	struct rds_message *rm, *tmp;
 	unsigned long flags;
 
+	spin_lock_irqsave(&conn->c_send_lock, flags);
 	if (conn->c_xmit_rm) {
+		rm = conn->c_xmit_rm;
+		conn->c_xmit_rm = NULL;
 		/* Tell the user the RDMA op is no longer mapped by the
 		 * transport. This isn't entirely true (it's flushed out
 		 * independently) but as the connection is down, there's
 		 * no ongoing RDMA to/from that memory */
-		rds_message_unmapped(conn->c_xmit_rm);
-		rds_message_put(conn->c_xmit_rm);
-		conn->c_xmit_rm = NULL;
+printk(KERN_CRIT "send reset unmapping %p\n", rm);
+		rds_message_unmapped(rm);
+		spin_unlock_irqrestore(&conn->c_send_lock, flags);
+
+		rds_message_put(rm);
+	} else {
+		spin_unlock_irqrestore(&conn->c_send_lock, flags);
 	}
+
 	conn->c_xmit_sg = 0;
 	conn->c_xmit_hdr_off = 0;
 	conn->c_xmit_data_off = 0;
@@ -131,6 +139,7 @@ restart:
 		ret = -ENOMEM;
 		goto out;
 	}
+	atomic_inc(&conn->c_senders);
 
 	if (conn->c_trans->xmit_prepare)
 		conn->c_trans->xmit_prepare(conn);
@@ -349,6 +358,8 @@ restart:
 			rds_message_put(rm);
 		rds_send_remove_from_sock(&to_be_dropped, RDS_RDMA_DROPPED);
 	}
+
+	atomic_dec(&conn->c_senders);
 
 	/*
 	 * Other senders will see we have c_send_lock and exit. We

@@ -863,18 +863,6 @@ int rds_ib_recv(struct rds_connection *conn)
 	int ret = 0;
 
 	rdsdebug("conn %p\n", conn);
-
-	/*
-	 * If we get a temporary posting failure in this context then
-	 * we're really low and we want the caller to back off for a bit.
-	 */
-	mutex_lock(&ic->i_recv_mutex);
-	if (rds_ib_recv_refill(conn, 0))
-		ret = -ENOMEM;
-	else
-		rds_ib_stats_inc(s_ib_rx_refill_from_thread);
-	mutex_unlock(&ic->i_recv_mutex);
-
 	if (rds_conn_up(conn))
 		rds_ib_attempt_ack(ic);
 

@@ -148,6 +148,7 @@ static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
 
 	spin_lock_init(&conn->c_send_lock);
 	atomic_set(&conn->c_send_generation, 1);
+	atomic_set(&conn->c_senders, 0);
 	INIT_LIST_HEAD(&conn->c_send_queue);
 	INIT_LIST_HEAD(&conn->c_retrans);
 
@@ -275,6 +276,12 @@ void rds_conn_shutdown(struct rds_connection *conn)
 		/* verify everybody's out of rds_send_xmit() */
 		spin_lock_irq(&conn->c_send_lock);
 		spin_unlock_irq(&conn->c_send_lock);
+
+		while(atomic_read(&conn->c_senders)) {
+			schedule_timeout(1);
+			spin_lock_irq(&conn->c_send_lock);
+			spin_unlock_irq(&conn->c_send_lock);
+		}
 
 		conn->c_trans->conn_shutdown(conn);
 		rds_conn_reset(conn);

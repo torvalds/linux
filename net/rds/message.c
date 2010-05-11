@@ -81,7 +81,10 @@ static void rds_message_purge(struct rds_message *rm)
 void rds_message_put(struct rds_message *rm)
 {
 	rdsdebug("put rm %p ref %d\n", rm, atomic_read(&rm->m_refcount));
-
+	if (atomic_read(&rm->m_refcount) == 0) {
+printk(KERN_CRIT "danger refcount zero on %p\n", rm);
+WARN_ON(1);
+	}
 	if (atomic_dec_and_test(&rm->m_refcount)) {
 		BUG_ON(!list_empty(&rm->m_sock_item));
 		BUG_ON(!list_empty(&rm->m_conn_item));
