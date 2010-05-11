@@ -81,6 +81,7 @@ extern struct iwl_cfg iwl6000g2b_bgn_cfg;
 extern struct iwl_cfg iwl6000g2b_bg_cfg;
 extern struct iwl_cfg iwl6000g2b_2agn_cfg;
 extern struct iwl_cfg iwl6000g2b_2abg_cfg;
+extern struct iwl_cfg iwl6000g2b_2bgn_cfg;
 extern struct iwl_cfg iwl6000g2b_2bg_cfg;
 extern struct iwl_cfg iwl6000i_2agn_cfg;
 extern struct iwl_cfg iwl6000i_2abg_cfg;
