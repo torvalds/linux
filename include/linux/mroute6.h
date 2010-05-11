@@ -183,9 +183,6 @@ struct mif_device {
 
 struct mfc6_cache {
 	struct mfc6_cache *next;		/* Next entry on cache line 	*/
-#ifdef CONFIG_NET_NS
-	struct net *mfc6_net;
-#endif
 	struct in6_addr mf6c_mcastgrp;			/* Group the entry belongs to 	*/
 	struct in6_addr mf6c_origin;			/* Source of packet 		*/
 	mifi_t mf6c_parent;			/* Source interface		*/
@@ -207,18 +204,6 @@ struct mfc6_cache {
 		} res;
 	} mfc_un;
 };
-
-static inline
-struct net *mfc6_net(const struct mfc6_cache *mfc)
-{
-	return read_pnet(&mfc->mfc6_net);
-}
-
-static inline
-void mfc6_net_set(struct mfc6_cache *mfc, struct net *net)
-{
-	write_pnet(&mfc->mfc6_net, hold_net(net));
-}
 
 #define MFC_STATIC		1
 #define MFC_NOTIFY		2

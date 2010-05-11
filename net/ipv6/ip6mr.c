@@ -76,10 +76,12 @@ static DEFINE_SPINLOCK(mfc_unres_lock);
 
 static struct kmem_cache *mrt_cachep __read_mostly;
 
-static int ip6_mr_forward(struct sk_buff *skb, struct mfc6_cache *cache);
+static int ip6_mr_forward(struct net *net, struct sk_buff *skb,
+			  struct mfc6_cache *cache);
 static int ip6mr_cache_report(struct net *net, struct sk_buff *pkt,
 			      mifi_t mifi, int assert);
-static int ip6mr_fill_mroute(struct sk_buff *skb, struct mfc6_cache *c, struct rtmsg *rtm);
+static int ip6mr_fill_mroute(struct net *net, struct sk_buff *skb,
+			     struct mfc6_cache *c, struct rtmsg *rtm);
 static void mroute_clean_tables(struct net *net);
 
 
@@ -523,7 +525,6 @@ static int mif6_delete(struct net *net, int vifi, struct list_head *head)
 
 static inline void ip6mr_cache_free(struct mfc6_cache *c)
 {
-	release_net(mfc6_net(c));
 	kmem_cache_free(mrt_cachep, c);
 }
 
@@ -531,10 +532,9 @@ static inline void ip6mr_cache_free(struct mfc6_cache *c)
    and reporting error to netlink readers.
  */
 
-static void ip6mr_destroy_unres(struct mfc6_cache *c)
+static void ip6mr_destroy_unres(struct net *net, struct mfc6_cache *c)
 {
 	struct sk_buff *skb;
-	struct net *net = mfc6_net(c);
 
 	atomic_dec(&net->ipv6.cache_resolve_queue_len);
 
@@ -575,7 +575,7 @@ static void ipmr_do_expire_process(struct net *net)
 		}
 
 		*cp = c->next;
-		ip6mr_destroy_unres(c);
+		ip6mr_destroy_unres(net, c);
 	}
 
 	if (net->ipv6.mfc6_unres_queue != NULL)
@@ -599,10 +599,10 @@ static void ipmr_expire_process(unsigned long arg)
 
 /* Fill oifs list. It is called under write locked mrt_lock. */
 
-static void ip6mr_update_thresholds(struct mfc6_cache *cache, unsigned char *ttls)
+static void ip6mr_update_thresholds(struct net *net, struct mfc6_cache *cache,
+				    unsigned char *ttls)
 {
 	int vifi;
-	struct net *net = mfc6_net(cache);
 
 	cache->mfc_un.res.minvif = MAXMIFS;
 	cache->mfc_un.res.maxvif = 0;
@@ -717,24 +717,22 @@ static struct mfc6_cache *ip6mr_cache_find(struct net *net,
 /*
  *	Allocate a multicast cache entry
  */
-static struct mfc6_cache *ip6mr_cache_alloc(struct net *net)
+static struct mfc6_cache *ip6mr_cache_alloc(void)
 {
 	struct mfc6_cache *c = kmem_cache_zalloc(mrt_cachep, GFP_KERNEL);
 	if (c == NULL)
 		return NULL;
 	c->mfc_un.res.minvif = MAXMIFS;
-	mfc6_net_set(c, net);
 	return c;
 }
 
-static struct mfc6_cache *ip6mr_cache_alloc_unres(struct net *net)
+static struct mfc6_cache *ip6mr_cache_alloc_unres(void)
 {
 	struct mfc6_cache *c = kmem_cache_zalloc(mrt_cachep, GFP_ATOMIC);
 	if (c == NULL)
 		return NULL;
 	skb_queue_head_init(&c->mfc_un.unres.unresolved);
 	c->mfc_un.unres.expires = jiffies + 10 * HZ;
-	mfc6_net_set(c, net);
 	return c;
 }
 
@@ -742,7 +740,8 @@ static struct mfc6_cache *ip6mr_cache_alloc_unres(struct net *net)
  *	A cache entry has gone into a resolved state from queued
  */
 
-static void ip6mr_cache_resolve(struct mfc6_cache *uc, struct mfc6_cache *c)
+static void ip6mr_cache_resolve(struct net *net, struct mfc6_cache *uc,
+				struct mfc6_cache *c)
 {
 	struct sk_buff *skb;
 
@@ -755,7 +754,7 @@ static void ip6mr_cache_resolve(struct mfc6_cache *uc, struct mfc6_cache *c)
 			int err;
 			struct nlmsghdr *nlh = (struct nlmsghdr *)skb_pull(skb, sizeof(struct ipv6hdr));
 
-			if (ip6mr_fill_mroute(skb, c, NLMSG_DATA(nlh)) > 0) {
+			if (ip6mr_fill_mroute(net, skb, c, NLMSG_DATA(nlh)) > 0) {
 				nlh->nlmsg_len = skb_tail_pointer(skb) - (u8 *)nlh;
 			} else {
 				nlh->nlmsg_type = NLMSG_ERROR;
@@ -763,9 +762,9 @@ static void ip6mr_cache_resolve(struct mfc6_cache *uc, struct mfc6_cache *c)
 				skb_trim(skb, nlh->nlmsg_len);
 				((struct nlmsgerr *)NLMSG_DATA(nlh))->error = -EMSGSIZE;
 			}
-			err = rtnl_unicast(skb, mfc6_net(uc), NETLINK_CB(skb).pid);
+			err = rtnl_unicast(skb, net, NETLINK_CB(skb).pid);
 		} else
-			ip6_mr_forward(skb, c);
+			ip6_mr_forward(net, skb, c);
 	}
 }
 
@@ -889,7 +888,7 @@ ip6mr_cache_unresolved(struct net *net, mifi_t mifi, struct sk_buff *skb)
 		 */
 
 		if (atomic_read(&net->ipv6.cache_resolve_queue_len) >= 10 ||
-		    (c = ip6mr_cache_alloc_unres(net)) == NULL) {
+		    (c = ip6mr_cache_alloc_unres()) == NULL) {
 			spin_unlock_bh(&mfc_unres_lock);
 
 			kfree_skb(skb);
@@ -1133,7 +1132,7 @@ static int ip6mr_mfc_add(struct net *net, struct mf6cctl *mfc, int mrtsock)
 	if (c != NULL) {
 		write_lock_bh(&mrt_lock);
 		c->mf6c_parent = mfc->mf6cc_parent;
-		ip6mr_update_thresholds(c, ttls);
+		ip6mr_update_thresholds(net, c, ttls);
 		if (!mrtsock)
 			c->mfc_flags |= MFC_STATIC;
 		write_unlock_bh(&mrt_lock);
@@ -1143,14 +1142,14 @@ static int ip6mr_mfc_add(struct net *net, struct mf6cctl *mfc, int mrtsock)
 	if (!ipv6_addr_is_multicast(&mfc->mf6cc_mcastgrp.sin6_addr))
 		return -EINVAL;
 
-	c = ip6mr_cache_alloc(net);
+	c = ip6mr_cache_alloc();
 	if (c == NULL)
 		return -ENOMEM;
 
 	c->mf6c_origin = mfc->mf6cc_origin.sin6_addr;
 	c->mf6c_mcastgrp = mfc->mf6cc_mcastgrp.sin6_addr;
 	c->mf6c_parent = mfc->mf6cc_parent;
-	ip6mr_update_thresholds(c, ttls);
+	ip6mr_update_thresholds(net, c, ttls);
 	if (!mrtsock)
 		c->mfc_flags |= MFC_STATIC;
 
@@ -1178,7 +1177,7 @@ static int ip6mr_mfc_add(struct net *net, struct mf6cctl *mfc, int mrtsock)
 	spin_unlock_bh(&mfc_unres_lock);
 
 	if (uc) {
-		ip6mr_cache_resolve(uc, c);
+		ip6mr_cache_resolve(net, uc, c);
 		ip6mr_cache_free(uc);
 	}
 	return 0;
@@ -1229,7 +1228,7 @@ static void mroute_clean_tables(struct net *net)
 		cp = &net->ipv6.mfc6_unres_queue;
 		while ((c = *cp) != NULL) {
 			*cp = c->next;
-			ip6mr_destroy_unres(c);
+			ip6mr_destroy_unres(net, c);
 		}
 		spin_unlock_bh(&mfc_unres_lock);
 	}
@@ -1497,10 +1496,10 @@ static inline int ip6mr_forward2_finish(struct sk_buff *skb)
  *	Processing handlers for ip6mr_forward
  */
 
-static int ip6mr_forward2(struct sk_buff *skb, struct mfc6_cache *c, int vifi)
+static int ip6mr_forward2(struct net *net, struct sk_buff *skb,
+			  struct mfc6_cache *c, int vifi)
 {
 	struct ipv6hdr *ipv6h;
-	struct net *net = mfc6_net(c);
 	struct mif_device *vif = &net->ipv6.vif6_table[vifi];
 	struct net_device *dev;
 	struct dst_entry *dst;
@@ -1581,11 +1580,11 @@ static int ip6mr_find_vif(struct net_device *dev)
 	return ct;
 }
 
-static int ip6_mr_forward(struct sk_buff *skb, struct mfc6_cache *cache)
+static int ip6_mr_forward(struct net *net, struct sk_buff *skb,
+			  struct mfc6_cache *cache)
 {
 	int psend = -1;
 	int vif, ct;
-	struct net *net = mfc6_net(cache);
 
 	vif = cache->mf6c_parent;
 	cache->mfc_un.res.pkt++;
@@ -1627,13 +1626,13 @@ static int ip6_mr_forward(struct sk_buff *skb, struct mfc6_cache *cache)
 			if (psend != -1) {
 				struct sk_buff *skb2 = skb_clone(skb, GFP_ATOMIC);
 				if (skb2)
-					ip6mr_forward2(skb2, cache, psend);
+					ip6mr_forward2(net, skb2, cache, psend);
 			}
 			psend = ct;
 		}
 	}
 	if (psend != -1) {
-		ip6mr_forward2(skb, cache, psend);
+		ip6mr_forward2(net, skb, cache, psend);
 		return 0;
 	}
 
@@ -1674,7 +1673,7 @@ int ip6_mr_input(struct sk_buff *skb)
 		return -ENODEV;
 	}
 
-	ip6_mr_forward(skb, cache);
+	ip6_mr_forward(net, skb, cache);
 
 	read_unlock(&mrt_lock);
 
@@ -1683,11 +1682,11 @@ int ip6_mr_input(struct sk_buff *skb)
 
 
 static int
-ip6mr_fill_mroute(struct sk_buff *skb, struct mfc6_cache *c, struct rtmsg *rtm)
+ip6mr_fill_mroute(struct net *net, struct sk_buff *skb, struct mfc6_cache *c,
+		  struct rtmsg *rtm)
 {
 	int ct;
 	struct rtnexthop *nhp;
-	struct net *net = mfc6_net(c);
 	u8 *b = skb_tail_pointer(skb);
 	struct rtattr *mp_head;
 
@@ -1781,7 +1780,7 @@ int ip6mr_get_route(struct net *net,
 	if (!nowait && (rtm->rtm_flags&RTM_F_NOTIFY))
 		cache->mfc_flags |= MFC_NOTIFY;
 
-	err = ip6mr_fill_mroute(skb, cache, rtm);
+	err = ip6mr_fill_mroute(net, skb, cache, rtm);
 	read_unlock(&mrt_lock);
 	return err;
 }
