@@ -587,20 +587,20 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 			err = __ip_route_output_key(net, &rt2, &fl);
 		else {
 			struct flowi fl2 = {};
-			struct dst_entry *odst;
+			unsigned long orefdst;
 
 			fl2.fl4_dst = fl.fl4_src;
 			if (ip_route_output_key(net, &rt2, &fl2))
 				goto relookup_failed;
 
 			/* Ugh! */
-			odst = skb_dst(skb_in);
+			orefdst = skb_in->_skb_refdst; /* save old refdst */
 			err = ip_route_input(skb_in, fl.fl4_dst, fl.fl4_src,
 					     RT_TOS(tos), rt2->u.dst.dev);
 
 			dst_release(&rt2->u.dst);
 			rt2 = skb_rtable(skb_in);
-			skb_dst_set(skb_in, odst);
+			skb_in->_skb_refdst = orefdst; /* restore old refdst */
 		}
 
 		if (err)

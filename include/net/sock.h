@@ -600,12 +600,15 @@ static inline int sk_stream_memory_free(struct sock *sk)
 /* OOB backlog add */
 static inline void __sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 {
-	if (!sk->sk_backlog.tail) {
-		sk->sk_backlog.head = sk->sk_backlog.tail = skb;
-	} else {
+	/* dont let skb dst not refcounted, we are going to leave rcu lock */
+	skb_dst_force(skb);
+
+	if (!sk->sk_backlog.tail)
+		sk->sk_backlog.head = skb;
+	else
 		sk->sk_backlog.tail->next = skb;
-		sk->sk_backlog.tail = skb;
-	}
+
+	sk->sk_backlog.tail = skb;
 	skb->next = NULL;
 }
 
