@@ -822,3 +822,63 @@ void tipc_bclink_stop(void)
 	spin_unlock_bh(&bc_lock);
 }
 
+
+/**
+ * tipc_nmap_add - add a node to a node map
+ */
+
+void tipc_nmap_add(struct tipc_node_map *nm_ptr, u32 node)
+{
+	int n = tipc_node(node);
+	int w = n / WSIZE;
+	u32 mask = (1 << (n % WSIZE));
+
+	if ((nm_ptr->map[w] & mask) == 0) {
+		nm_ptr->count++;
+		nm_ptr->map[w] |= mask;
+	}
+}
+
+/**
+ * tipc_nmap_remove - remove a node from a node map
+ */
+
+void tipc_nmap_remove(struct tipc_node_map *nm_ptr, u32 node)
+{
+	int n = tipc_node(node);
+	int w = n / WSIZE;
+	u32 mask = (1 << (n % WSIZE));
+
+	if ((nm_ptr->map[w] & mask) != 0) {
+		nm_ptr->map[w] &= ~mask;
+		nm_ptr->count--;
+	}
+}
+
+/**
+ * tipc_nmap_diff - find differences between node maps
+ * @nm_a: input node map A
+ * @nm_b: input node map B
+ * @nm_diff: output node map A-B (i.e. nodes of A that are not in B)
+ */
+
+void tipc_nmap_diff(struct tipc_node_map *nm_a, struct tipc_node_map *nm_b,
+				  struct tipc_node_map *nm_diff)
+{
+	int stop = ARRAY_SIZE(nm_a->map);
+	int w;
+	int b;
+	u32 map;
+
+	memset(nm_diff, 0, sizeof(*nm_diff));
+	for (w = 0; w < stop; w++) {
+		map = nm_a->map[w] ^ (nm_a->map[w] & nm_b->map[w]);
+		nm_diff->map[w] = map;
+		if (map != 0) {
+			for (b = 0 ; b < WSIZE; b++) {
+				if (map & (1 << b))
+					nm_diff->count++;
+			}
+		}
+	}
+}
