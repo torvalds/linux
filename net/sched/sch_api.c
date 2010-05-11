@@ -1637,9 +1637,12 @@ reclassify:
 		tp = otp;
 
 		if (verd++ >= MAX_REC_LOOP) {
-			printk("rule prio %u protocol %02x reclassify loop, "
-			       "packet dropped\n",
-			       tp->prio&0xffff, ntohs(tp->protocol));
+			if (net_ratelimit())
+				printk(KERN_NOTICE
+				       "%s: packet reclassify loop"
+					  " rule prio %u protocol %02x\n",
+				       tp->q->ops->id,
+				       tp->prio & 0xffff, ntohs(tp->protocol));
 			return TC_ACT_SHOT;
 		}
 		skb->tc_verd = SET_TC_VERD(skb->tc_verd, verd);
