@@ -61,8 +61,8 @@ struct netns_ipv6 {
 #ifdef CONFIG_IPV6_MROUTE
 	struct sock		*mroute6_sk;
 	struct timer_list	ipmr_expire_timer;
-	struct mfc6_cache	*mfc6_unres_queue;
-	struct mfc6_cache	**mfc6_cache_array;
+	struct list_head	mfc6_unres_queue;
+	struct list_head	*mfc6_cache_array;
 	struct mif_device	*vif6_table;
 	int			maxvif;
 	atomic_t		cache_resolve_queue_len;

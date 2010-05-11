@@ -182,7 +182,7 @@ struct mif_device {
 #define VIFF_STATIC 0x8000
 
 struct mfc6_cache {
-	struct mfc6_cache *next;		/* Next entry on cache line 	*/
+	struct list_head list;
 	struct in6_addr mf6c_mcastgrp;			/* Group the entry belongs to 	*/
 	struct in6_addr mf6c_origin;			/* Source of packet 		*/
 	mifi_t mf6c_parent;			/* Source interface		*/
