@@ -157,14 +157,14 @@ static int wl_adapter_attach(struct pcmcia_device *link)
     link->io.Attributes1    = IO_DATA_PATH_WIDTH_16;
     link->io.IOAddrLines    = 6;
     link->irq.Attributes    = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
-    link->irq.IRQInfo1      = IRQ_INFO2_VALID | IRQ_LEVEL_ID;
+//    link->irq.IRQInfo1      = IRQ_INFO2_VALID | IRQ_LEVEL_ID;
     link->irq.Handler       = &wl_isr;
     link->conf.Attributes   = CONF_ENABLE_IRQ;
     link->conf.IntType      = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex  = 5;
     link->conf.Present      = PRESENT_OPTION;
 
-    link->priv = link->irq.Instance = dev;
+    link->priv = dev;
     lp = wl_priv(dev);
     lp->link = link;
 
@@ -317,15 +317,15 @@ void wl_adapter_insert( struct pcmcia_device *link )
     /* Do we need to allocate an interrupt? */
     link->conf.Attributes |= CONF_ENABLE_IRQ;
 
-    CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+//    CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
+//    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
+//    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 
 
     dev->irq        = link->irq.AssignedIRQ;
     dev->base_addr  = link->io.BasePort1;
 
-    SET_NETDEV_DEV(dev, &handle_to_dev(link));
+    SET_NETDEV_DEV(dev, &link->dev);
     if (register_netdev(dev) != 0) {
 	printk("%s: register_netdev() failed\n", MODULE_NAME);
 	goto failed;
@@ -345,7 +345,7 @@ void wl_adapter_insert( struct pcmcia_device *link )
 
 
 cs_failed:
-    cs_error( link, last_fn, last_ret );
+//    cs_error( link, last_fn, last_ret );
 
 
 failed:

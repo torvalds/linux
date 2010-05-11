@@ -286,14 +286,14 @@ int				i;
 		 fw->signature[i+1] != (/* HCF_BIG_ENDIAN ? 'B' : */ 'L'))
 		rc = DHF_ERR_INCOMP_FW;
 	else {					/* Little Endian Binary format */
-		fw->codep    = (CFG_PROG_STRCT FAR*)((PSEUDO_CHARP)fw->codep + (hcf_32)fw);
-		fw->identity = (CFG_IDENTITY_STRCT FAR*)((PSEUDO_CHARP)fw->identity + (hcf_32)fw);
-		fw->compat   = (CFG_RANGE20_STRCT FAR*)((PSEUDO_CHARP)fw->compat + (hcf_32)fw);
+		fw->codep    = (CFG_PROG_STRCT FAR*)((char *)fw->codep + (hcf_32)fw);
+		fw->identity = (CFG_IDENTITY_STRCT FAR*)((char *)fw->identity + (hcf_32)fw);
+		fw->compat   = (CFG_RANGE20_STRCT FAR*)((char *)fw->compat + (hcf_32)fw);
 		for (i = 0; fw->p[i]; i++)
-			fw->p[i] = ((PSEUDO_CHARP)fw->p[i] + (hcf_32)fw);
+			fw->p[i] = ((char *)fw->p[i] + (hcf_32)fw);
 		p = fw->codep;
 		while (p->len) {
-			p->host_addr = (PSEUDO_CHARP)p->host_addr + (hcf_32)fw;
+			p->host_addr = (char *)p->host_addr + (hcf_32)fw;
 			p++;
 		}
 	}
