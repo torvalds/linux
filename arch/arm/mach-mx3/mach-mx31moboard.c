@@ -491,7 +491,8 @@ static void __init mxc_board_init(void)
 		mx31moboard_marxbot_init();
 		break;
 	case MX31SMARTBOT:
-		mx31moboard_smartbot_init();
+	case MX31EYEBOT:
+		mx31moboard_smartbot_init(mx31moboard_baseboard);
 		break;
 	default:
 		printk(KERN_ERR "Illegal mx31moboard_baseboard type %d\n",
