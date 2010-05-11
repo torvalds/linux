@@ -693,6 +693,20 @@ free_client(struct nfs4_client *clp)
 	kfree(clp);
 }
 
+/* must be called under the client_lock */
+static inline void
+unhash_client_locked(struct nfs4_client *clp)
+{
+	list_del(&clp->cl_lru);
+	while (!list_empty(&clp->cl_sessions)) {
+		struct nfsd4_session  *ses;
+		ses = list_entry(clp->cl_sessions.next, struct nfsd4_session,
+				 se_perclnt);
+		unhash_session(ses);
+		nfsd4_put_session(ses);
+	}
+}
+
 static void
 expire_client(struct nfs4_client *clp)
 {
@@ -719,21 +733,14 @@ expire_client(struct nfs4_client *clp)
 		sop = list_entry(clp->cl_openowners.next, struct nfs4_stateowner, so_perclient);
 		release_openowner(sop);
 	}
-	list_del(&clp->cl_idhash);
-	list_del(&clp->cl_strhash);
-	spin_lock(&client_lock);
-	list_del(&clp->cl_lru);
-	while (!list_empty(&clp->cl_sessions)) {
-		struct nfsd4_session  *ses;
-		ses = list_entry(clp->cl_sessions.next, struct nfsd4_session,
-				 se_perclnt);
-		unhash_session(ses);
-		nfsd4_put_session(ses);
-	}
-	spin_unlock(&client_lock);
 	nfsd4_set_callback_client(clp, NULL);
 	if (clp->cl_cb_conn.cb_xprt)
 		svc_xprt_put(clp->cl_cb_conn.cb_xprt);
+	list_del(&clp->cl_idhash);
+	list_del(&clp->cl_strhash);
+	spin_lock(&client_lock);
+	unhash_client_locked(clp);
+	spin_unlock(&client_lock);
 	free_client(clp);
 }
 
