@@ -122,18 +122,18 @@ static struct clk_div4_table div4_table = {
 enum { DIV4_I, DIV4_U, DIV4_SH, DIV4_B, DIV4_B3, DIV4_P,
        DIV4_SIUA, DIV4_SIUB, DIV4_NR };
 
-#define DIV4(_str, _reg, _bit, _mask, _flags) \
-  SH_CLK_DIV4(_str, &pll_clk, _reg, _bit, _mask, _flags)
+#define DIV4(_reg, _bit, _mask, _flags) \
+  SH_CLK_DIV4(&pll_clk, _reg, _bit, _mask, _flags)
 
 struct clk div4_clks[DIV4_NR] = {
-	[DIV4_I] = DIV4("cpu_clk", FRQCR, 20, 0x1fff, CLK_ENABLE_ON_INIT),
-	[DIV4_U] = DIV4("umem_clk", FRQCR, 16, 0x1fff, CLK_ENABLE_ON_INIT),
-	[DIV4_SH] = DIV4("shyway_clk", FRQCR, 12, 0x1fff, CLK_ENABLE_ON_INIT),
-	[DIV4_B] = DIV4("bus_clk", FRQCR, 8, 0x1fff, CLK_ENABLE_ON_INIT),
-	[DIV4_B3] = DIV4("b3_clk", FRQCR, 4, 0x1fff, CLK_ENABLE_ON_INIT),
-	[DIV4_P] = DIV4("peripheral_clk", FRQCR, 0, 0x1fff, 0),
-	[DIV4_SIUA] = DIV4("siua_clk", SCLKACR, 0, 0x1fff, 0),
-	[DIV4_SIUB] = DIV4("siub_clk", SCLKBCR, 0, 0x1fff, 0),
+	[DIV4_I] = DIV4(FRQCR, 20, 0x1fff, CLK_ENABLE_ON_INIT),
+	[DIV4_U] = DIV4(FRQCR, 16, 0x1fff, CLK_ENABLE_ON_INIT),
+	[DIV4_SH] = DIV4(FRQCR, 12, 0x1fff, CLK_ENABLE_ON_INIT),
+	[DIV4_B] = DIV4(FRQCR, 8, 0x1fff, CLK_ENABLE_ON_INIT),
+	[DIV4_B3] = DIV4(FRQCR, 4, 0x1fff, CLK_ENABLE_ON_INIT),
+	[DIV4_P] = DIV4(FRQCR, 0, 0x1fff, 0),
+	[DIV4_SIUA] = DIV4(SCLKACR, 0, 0x1fff, 0),
+	[DIV4_SIUB] = DIV4(SCLKBCR, 0, 0x1fff, 0),
 };
 
 enum { DIV6_V, DIV6_NR };

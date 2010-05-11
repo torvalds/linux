@@ -126,14 +126,13 @@ int clk_rate_table_find(struct clk *clk,
 
 int sh_clk_mstp32_register(struct clk *clks, int nr);
 
-#define SH_CLK_DIV4(_name, _parent, _reg, _shift, _div_bitmap, _flags)	\
-{									\
-	.name = _name,							\
-	.parent = _parent,						\
-	.enable_reg = (void __iomem *)_reg,				\
-	.enable_bit = _shift,						\
-	.arch_flags = _div_bitmap,					\
-	.flags = _flags,						\
+#define SH_CLK_DIV4(_parent, _reg, _shift, _div_bitmap, _flags)	\
+{								\
+	.parent = _parent,					\
+	.enable_reg = (void __iomem *)_reg,			\
+	.enable_bit = _shift,					\
+	.arch_flags = _div_bitmap,				\
+	.flags = _flags,					\
 }
 
 struct clk_div4_table {

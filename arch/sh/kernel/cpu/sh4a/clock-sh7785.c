@@ -70,18 +70,18 @@ static struct clk_div4_table div4_table = {
 enum { DIV4_I, DIV4_U, DIV4_SH, DIV4_B, DIV4_DDR, DIV4_GA,
 	DIV4_DU, DIV4_P, DIV4_NR };
 
-#define DIV4(_str, _bit, _mask, _flags) \
-  SH_CLK_DIV4(_str, &pll_clk, FRQMR1, _bit, _mask, _flags)
+#define DIV4(_bit, _mask, _flags) \
+  SH_CLK_DIV4(&pll_clk, FRQMR1, _bit, _mask, _flags)
 
 struct clk div4_clks[DIV4_NR] = {
-	[DIV4_P] = DIV4("peripheral_clk", 0, 0x0f80, 0),
-	[DIV4_DU] = DIV4("du_clk", 4, 0x0ff0, 0),
-	[DIV4_GA] = DIV4("ga_clk", 8, 0x0030, 0),
-	[DIV4_DDR] = DIV4("ddr_clk", 12, 0x000c, CLK_ENABLE_ON_INIT),
-	[DIV4_B] = DIV4("bus_clk", 16, 0x0fe0, CLK_ENABLE_ON_INIT),
-	[DIV4_SH] = DIV4("shyway_clk", 20, 0x000c, CLK_ENABLE_ON_INIT),
-	[DIV4_U] = DIV4("umem_clk", 24, 0x000c, CLK_ENABLE_ON_INIT),
-	[DIV4_I] = DIV4("cpu_clk", 28, 0x000e, CLK_ENABLE_ON_INIT),
+	[DIV4_P] = DIV4(0, 0x0f80, 0),
+	[DIV4_DU] = DIV4(4, 0x0ff0, 0),
+	[DIV4_GA] = DIV4(8, 0x0030, 0),
+	[DIV4_DDR] = DIV4(12, 0x000c, CLK_ENABLE_ON_INIT),
+	[DIV4_B] = DIV4(16, 0x0fe0, CLK_ENABLE_ON_INIT),
+	[DIV4_SH] = DIV4(20, 0x000c, CLK_ENABLE_ON_INIT),
+	[DIV4_U] = DIV4(24, 0x000c, CLK_ENABLE_ON_INIT),
+	[DIV4_I] = DIV4(28, 0x000e, CLK_ENABLE_ON_INIT),
 };
 
 #define MSTPCR0		0xffc80030
