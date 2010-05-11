@@ -845,15 +845,8 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u64 tsc_this, delta, new_offset;
 
-	if (vcpu->cpu != cpu) {
+	if (vcpu->cpu != cpu)
 		vcpu_clear(vmx);
-		kvm_migrate_timers(vcpu);
-		set_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests);
-		local_irq_disable();
-		list_add(&vmx->local_vcpus_link,
-			 &per_cpu(vcpus_on_cpu, cpu));
-		local_irq_enable();
-	}
 
 	if (per_cpu(current_vmcs, cpu) != vmx->vmcs) {
 		per_cpu(current_vmcs, cpu) = vmx->vmcs;
@@ -863,6 +856,13 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 	if (vcpu->cpu != cpu) {
 		struct desc_ptr dt;
 		unsigned long sysenter_esp;
+
+		kvm_migrate_timers(vcpu);
+		set_bit(KVM_REQ_TLB_FLUSH, &vcpu->requests);
+		local_irq_disable();
+		list_add(&vmx->local_vcpus_link,
+			 &per_cpu(vcpus_on_cpu, cpu));
+		local_irq_enable();
 
 		vcpu->cpu = cpu;
 		/*
