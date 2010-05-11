@@ -32,7 +32,6 @@
 #define MASK(n) ((1ULL<<(n))-1)
 #define MN_WIN(addr) (((addr & 0x1fc0000) >> 1) | ((addr >> 25) & 0x3ff))
 #define OCM_WIN(addr) (((addr & 0x1ff0000) >> 1) | ((addr >> 25) & 0x3ff))
-#define OCM_WIN_P3P(addr) (addr & 0xffc0000)
 #define MS_WIN(addr) (addr & 0x0ffc0000)
 
 #define GET_MEM_OFFS_2M(addr) (addr & MASK(18))
@@ -1391,18 +1390,8 @@ netxen_nic_pci_set_window_2M(struct netxen_adapter *adapter,
 		u64 addr, u32 *start)
 {
 	u32 window;
-	struct pci_dev *pdev = adapter->pdev;
 
-	if ((addr & 0x00ff800) == 0xff800) {
-		if (printk_ratelimit())
-			dev_warn(&pdev->dev, "QM access not handled\n");
-		return -EIO;
-	}
-
-	if (NX_IS_REVISION_P3P(adapter->ahw.revision_id))
-		window = OCM_WIN_P3P(addr);
-	else
-		window = OCM_WIN(addr);
+	window = OCM_WIN(addr);
 
 	writel(window, adapter->ahw.ocm_win_crb);
 	/* read back to flush */
@@ -1419,7 +1408,7 @@ netxen_nic_pci_mem_access_direct(struct netxen_adapter *adapter, u64 off,
 {
 	void __iomem *addr, *mem_ptr = NULL;
 	resource_size_t mem_base;
-	int ret = -EIO;
+	int ret;
 	u32 start;
 
 	spin_lock(&adapter->ahw.mem_lock);
@@ -1428,20 +1417,23 @@ netxen_nic_pci_mem_access_direct(struct netxen_adapter *adapter, u64 off,
 	if (ret != 0)
 		goto unlock;
 
-	addr = pci_base_offset(adapter, start);
-	if (addr)
-		goto noremap;
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		addr = adapter->ahw.pci_base0 + start;
+	} else {
+		addr = pci_base_offset(adapter, start);
+		if (addr)
+			goto noremap;
 
-	mem_base = pci_resource_start(adapter->pdev, 0) + (start & PAGE_MASK);
+		mem_base = pci_resource_start(adapter->pdev, 0) +
+					(start & PAGE_MASK);
+		mem_ptr = ioremap(mem_base, PAGE_SIZE);
+		if (mem_ptr == NULL) {
+			ret = -EIO;
+			goto unlock;
+		}
 
-	mem_ptr = ioremap(mem_base, PAGE_SIZE);
-	if (mem_ptr == NULL) {
-		ret = -EIO;
-		goto unlock;
+		addr = mem_ptr + (start & (PAGE_SIZE-1));
 	}
-
-	addr = mem_ptr + (start & (PAGE_SIZE - 1));
-
 noremap:
 	if (op == 0)	/* read */
 		*data = readq(addr);
