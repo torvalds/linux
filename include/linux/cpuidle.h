@@ -137,16 +137,16 @@ extern void cpuidle_disable_device(struct cpuidle_device *dev);
 #else
 
 static inline int cpuidle_register_driver(struct cpuidle_driver *drv)
-{return 0;}
+{return -ENODEV; }
 static inline void cpuidle_unregister_driver(struct cpuidle_driver *drv) { }
 static inline int cpuidle_register_device(struct cpuidle_device *dev)
-{return 0;}
+{return -ENODEV; }
 static inline void cpuidle_unregister_device(struct cpuidle_device *dev) { }
 
 static inline void cpuidle_pause_and_lock(void) { }
 static inline void cpuidle_resume_and_unlock(void) { }
 static inline int cpuidle_enable_device(struct cpuidle_device *dev)
-{return 0;}
+{return -ENODEV; }
 static inline void cpuidle_disable_device(struct cpuidle_device *dev) { }
 
 #endif
