@@ -191,13 +191,18 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 						unsigned long end_pfn)
 {
 	struct resource *res = &mem_resources[nid];
+	unsigned long start, end;
 
 	WARN_ON(res->name); /* max one active range per node for now */
 
+	start = start_pfn << PAGE_SHIFT;
+	end = end_pfn << PAGE_SHIFT;
+
 	res->name = "System RAM";
-	res->start = start_pfn << PAGE_SHIFT;
-	res->end = (end_pfn << PAGE_SHIFT) - 1;
+	res->start = start;
+	res->end = end - 1;
 	res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+
 	if (request_resource(&iomem_resource, res)) {
 		pr_err("unable to request memory_resource 0x%lx 0x%lx\n",
 		       start_pfn, end_pfn);
@@ -212,6 +217,14 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 	request_resource(res, &code_resource);
 	request_resource(res, &data_resource);
 	request_resource(res, &bss_resource);
+
+	/*
+	 * Also make sure that there is a PMB mapping that covers this
+	 * range before we attempt to activate it, to avoid reset by MMU.
+	 * We can hit this path with NUMA or memory hot-add.
+	 */
+	pmb_bolt_mapping((unsigned long)__va(start), start, end - start,
+			 PAGE_KERNEL);
 
 	add_active_range(nid, start_pfn, end_pfn);
 }
