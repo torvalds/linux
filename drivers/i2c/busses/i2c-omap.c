@@ -166,6 +166,8 @@ enum {
 #define SYSC_IDLEMODE_SMART		0x2
 #define SYSC_CLOCKACTIVITY_FCLK		0x2
 
+/* Errata definitions */
+#define I2C_OMAP_ERRATA_I207		(1 << 0)
 
 struct omap_i2c_dev {
 	struct device		*dev;
@@ -199,6 +201,7 @@ struct omap_i2c_dev {
 	u16			bufstate;
 	u16			syscstate;
 	u16			westate;
+	u16			errata;
 };
 
 const static u8 reg_map[] = {
@@ -498,6 +501,11 @@ static int omap_i2c_init(struct omap_i2c_dev *dev)
 	/* Take the I2C module out of reset: */
 	omap_i2c_write_reg(dev, OMAP_I2C_CON_REG, OMAP_I2C_CON_EN);
 
+	dev->errata = 0;
+
+	if (cpu_is_omap2430() || cpu_is_omap34xx())
+		dev->errata |= I2C_OMAP_ERRATA_I207;
+
 	/* Enable interrupts */
 	dev->iestate = (OMAP_I2C_IE_XRDY | OMAP_I2C_IE_RRDY |
 			OMAP_I2C_IE_ARDY | OMAP_I2C_IE_NACK |
@@ -695,6 +703,34 @@ omap_i2c_ack_stat(struct omap_i2c_dev *dev, u16 stat)
 	omap_i2c_write_reg(dev, OMAP_I2C_STAT_REG, stat);
 }
 
+static inline void i2c_omap_errata_i207(struct omap_i2c_dev *dev, u16 stat)
+{
+	/*
+	 * I2C Errata(Errata Nos. OMAP2: 1.67, OMAP3: 1.8)
+	 * Not applicable for OMAP4.
+	 * Under certain rare conditions, RDR could be set again
+	 * when the bus is busy, then ignore the interrupt and
+	 * clear the interrupt.
+	 */
+	if (stat & OMAP_I2C_STAT_RDR) {
+		/* Step 1: If RDR is set, clear it */
+		omap_i2c_ack_stat(dev, OMAP_I2C_STAT_RDR);
+
+		/* Step 2: */
+		if (!(omap_i2c_read_reg(dev, OMAP_I2C_STAT_REG)
+						& OMAP_I2C_STAT_BB)) {
+
+			/* Step 3: */
+			if (omap_i2c_read_reg(dev, OMAP_I2C_STAT_REG)
+						& OMAP_I2C_STAT_RDR) {
+				omap_i2c_ack_stat(dev, OMAP_I2C_STAT_RDR);
+				dev_dbg(dev->dev, "RDR when bus is busy.\n");
+			}
+
+		}
+	}
+}
+
 /* rev1 devices are apparently only on some 15xx */
 #ifdef CONFIG_ARCH_OMAP15XX
 
@@ -834,6 +870,10 @@ complete:
 		}
 		if (stat & (OMAP_I2C_STAT_RRDY | OMAP_I2C_STAT_RDR)) {
 			u8 num_bytes = 1;
+
+			if (dev->errata & I2C_OMAP_ERRATA_I207)
+				i2c_omap_errata_i207(dev, stat);
+
 			if (dev->fifo_size) {
 				if (stat & OMAP_I2C_STAT_RRDY)
 					num_bytes = dev->fifo_size;
