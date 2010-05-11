@@ -1443,8 +1443,8 @@ static struct procunit_info procunits[] = {
  * predefined data for extension units
  */
 static struct procunit_value_info clock_rate_xu_info[] = {
-       { USB_XU_CLOCK_RATE_SELECTOR, "Selector", USB_MIXER_U8, 0 },
-       { 0 }
+	{ USB_XU_CLOCK_RATE_SELECTOR, "Selector", USB_MIXER_U8, 0 },
+	{ 0 }
 };
 static struct procunit_value_info clock_source_xu_info[] = {
 	{ USB_XU_CLOCK_SOURCE_SELECTOR, "External", USB_MIXER_BOOLEAN },
@@ -1967,26 +1967,98 @@ static void snd_usb_mixer_proc_read(struct snd_info_entry *entry,
 	}
 }
 
-static void snd_usb_mixer_status_complete(struct urb *urb)
+static void snd_usb_mixer_interrupt_v2(struct usb_mixer_interface *mixer,
+				       int attribute, int value, int index)
+{
+	struct usb_mixer_elem_info *info;
+	__u8 unitid = (index >> 8) & 0xff;
+	__u8 control = (value >> 8) & 0xff;
+	__u8 channel = value & 0xff;
+
+	if (channel >= MAX_CHANNELS) {
+		snd_printk(KERN_DEBUG "%s(): bogus channel number %d\n",
+				__func__, channel);
+		return;
+	}
+
+	for (info = mixer->id_elems[unitid]; info; info = info->next_id_elem) {
+		if (info->control != control)
+			continue;
+
+		switch (attribute) {
+		case UAC2_CS_CUR:
+			/* invalidate cache, so the value is read from the device */
+			if (channel)
+				info->cached &= ~(1 << channel);
+			else /* master channel */
+				info->cached = 0;
+
+			snd_ctl_notify(mixer->chip->card, SNDRV_CTL_EVENT_MASK_VALUE,
+					info->elem_id);
+			break;
+
+		case UAC2_CS_RANGE:
+			/* TODO */
+			break;
+
+		case UAC2_CS_MEM:
+			/* TODO */
+			break;
+
+		default:
+			snd_printk(KERN_DEBUG "unknown attribute %d in interrupt\n",
+						attribute);
+			break;
+		} /* switch */
+	}
+}
+
+static void snd_usb_mixer_interrupt(struct urb *urb)
 {
 	struct usb_mixer_interface *mixer = urb->context;
+	int len = urb->actual_length;
 
-	if (urb->status == 0) {
-		u8 *buf = urb->transfer_buffer;
-		int i;
+	if (urb->status != 0)
+		goto requeue;
 
-		for (i = urb->actual_length; i >= 2; buf += 2, i -= 2) {
+	if (mixer->protocol == UAC_VERSION_1) {
+		struct uac1_status_word *status;
+
+		for (status = urb->transfer_buffer;
+		     len >= sizeof(*status);
+		     len -= sizeof(*status), status++) {
 			snd_printd(KERN_DEBUG "status interrupt: %02x %02x\n",
-				   buf[0], buf[1]);
+						status->bStatusType,
+						status->bOriginator);
+
 			/* ignore any notifications not from the control interface */
-			if ((buf[0] & 0x0f) != 0)
+			if ((status->bStatusType & UAC1_STATUS_TYPE_ORIG_MASK) !=
+				UAC1_STATUS_TYPE_ORIG_AUDIO_CONTROL_IF)
 				continue;
-			if (!(buf[0] & 0x40))
-				snd_usb_mixer_notify_id(mixer, buf[1]);
+
+			if (status->bStatusType & UAC1_STATUS_TYPE_MEM_CHANGED)
+				snd_usb_mixer_rc_memory_change(mixer, status->bOriginator);
 			else
-				snd_usb_mixer_rc_memory_change(mixer, buf[1]);
+				snd_usb_mixer_notify_id(mixer, status->bOriginator);
+		}
+	} else { /* UAC_VERSION_2 */
+		struct uac2_interrupt_data_msg *msg;
+
+		for (msg = urb->transfer_buffer;
+		     len >= sizeof(*msg);
+		     len -= sizeof(*msg), msg++) {
+			/* drop vendor specific and endpoint requests */
+			if ((msg->bInfo & UAC2_INTERRUPT_DATA_MSG_VENDOR) ||
+			    (msg->bInfo & UAC2_INTERRUPT_DATA_MSG_EP))
+				continue;
+
+			snd_usb_mixer_interrupt_v2(mixer, msg->bAttribute,
+						   le16_to_cpu(msg->wValue),
+						   le16_to_cpu(msg->wIndex));
 		}
 	}
+
+requeue:
 	if (urb->status != -ENOENT && urb->status != -ECONNRESET) {
 		urb->dev = mixer->chip->dev;
 		usb_submit_urb(urb, GFP_ATOMIC);
@@ -2023,7 +2095,7 @@ static int snd_usb_mixer_status_create(struct usb_mixer_interface *mixer)
 	usb_fill_int_urb(mixer->urb, mixer->chip->dev,
 			 usb_rcvintpipe(mixer->chip->dev, epnum),
 			 transfer_buffer, buffer_length,
-			 snd_usb_mixer_status_complete, mixer, ep->bInterval);
+			 snd_usb_mixer_interrupt, mixer, ep->bInterval);
 	usb_submit_urb(mixer->urb, GFP_KERNEL);
 	return 0;
 }

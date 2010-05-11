@@ -488,6 +488,21 @@ struct uac_iso_endpoint_descriptor {
 #define UAC_FU_BASS_BOOST	(1 << (UAC_BASS_BOOST_CONTROL - 1))
 #define UAC_FU_LOUDNESS		(1 << (UAC_LOUDNESS_CONTROL - 1))
 
+/* status word format (3.7.1.1) */
+
+#define UAC1_STATUS_TYPE_ORIG_MASK		0x0f
+#define UAC1_STATUS_TYPE_ORIG_AUDIO_CONTROL_IF	0x0
+#define UAC1_STATUS_TYPE_ORIG_AUDIO_STREAM_IF	0x1
+#define UAC1_STATUS_TYPE_ORIG_AUDIO_STREAM_EP	0x2
+
+#define UAC1_STATUS_TYPE_IRQ_PENDING		(1 << 7)
+#define UAC1_STATUS_TYPE_MEM_CHANGED		(1 << 6)
+
+struct uac1_status_word {
+	__u8 bStatusType;
+	__u8 bOriginator;
+} __attribute__((packed));
+
 #ifdef __KERNEL__
 
 struct usb_audio_control {

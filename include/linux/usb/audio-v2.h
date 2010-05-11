@@ -105,6 +105,17 @@ struct uac_as_header_descriptor_v2 {
 	__u8 iChannelNames;
 } __attribute__((packed));
 
+/* 6.1 Interrupt Data Message */
+
+#define UAC2_INTERRUPT_DATA_MSG_VENDOR	(1 << 0)
+#define UAC2_INTERRUPT_DATA_MSG_EP	(1 << 1)
+
+struct uac2_interrupt_data_msg {
+	__u8 bInfo;
+	__u8 bAttribute;
+	__le16 wValue;
+	__le16 wIndex;
+} __attribute__((packed));
 
 /* A.7 Audio Function Category Codes */
 #define UAC2_FUNCTION_SUBCLASS_UNDEFINED	0x00
@@ -153,6 +164,7 @@ struct uac_as_header_descriptor_v2 {
 /* A.14 Audio Class-Specific Request Codes */
 #define UAC2_CS_CUR			0x01
 #define UAC2_CS_RANGE			0x02
+#define UAC2_CS_MEM			0x03
 
 /* A.15 Encoder Type Codes */
 #define UAC2_ENCODER_UNDEFINED		0x00
