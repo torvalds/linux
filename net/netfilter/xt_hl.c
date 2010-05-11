@@ -39,10 +39,6 @@ static bool ttl_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			return ttl < info->ttl;
 		case IPT_TTL_GT:
 			return ttl > info->ttl;
-		default:
-			printk(KERN_WARNING "ipt_ttl: unknown mode %d\n",
-				info->mode);
-			return false;
 	}
 
 	return false;
@@ -56,20 +52,12 @@ static bool hl_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 	switch (info->mode) {
 		case IP6T_HL_EQ:
 			return ip6h->hop_limit == info->hop_limit;
-			break;
 		case IP6T_HL_NE:
 			return ip6h->hop_limit != info->hop_limit;
-			break;
 		case IP6T_HL_LT:
 			return ip6h->hop_limit < info->hop_limit;
-			break;
 		case IP6T_HL_GT:
 			return ip6h->hop_limit > info->hop_limit;
-			break;
-		default:
-			printk(KERN_WARNING "ip6t_hl: unknown mode %d\n",
-				info->mode);
-			return false;
 	}
 
 	return false;

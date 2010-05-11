@@ -194,8 +194,7 @@ static int get_tpkt_data(struct sk_buff *skb, unsigned int protoff,
 			return 0;
 		}
 
-		if (net_ratelimit())
-			printk("nf_ct_h323: incomplete TPKT (fragmented?)\n");
+		pr_debug("nf_ct_h323: incomplete TPKT (fragmented?)\n");
 		goto clear_out;
 	}
 

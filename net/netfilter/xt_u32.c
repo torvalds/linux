@@ -3,7 +3,6 @@
  *
  *	Original author: Don Cohen <don@isis.cs3-inc.com>
  *	(C) CC Computer Consultants GmbH, 2007
- *	Contact: <jengelh@computergmbh.de>
  */
 
 #include <linux/module.h>
@@ -117,7 +116,7 @@ static void __exit u32_mt_exit(void)
 
 module_init(u32_mt_init);
 module_exit(u32_mt_exit);
-MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
+MODULE_AUTHOR("Jan Engelhardt <jengelh@medozas.de>");
 MODULE_DESCRIPTION("Xtables: arbitrary byte matching");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_u32");

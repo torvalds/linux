@@ -1,3 +1,4 @@
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/types.h>
 #include <linux/module.h>
 #include <net/ip.h>
@@ -19,13 +20,6 @@ MODULE_ALIAS("ipt_tcp");
 MODULE_ALIAS("ip6t_udp");
 MODULE_ALIAS("ip6t_tcp");
 
-#ifdef DEBUG_IP_FIREWALL_USER
-#define duprintf(format, args...) printk(format , ## args)
-#else
-#define duprintf(format, args...)
-#endif
-
-
 /* Returns 1 if the port is matched by the range, 0 otherwise */
 static inline bool
 port_match(u_int16_t min, u_int16_t max, u_int16_t port, bool invert)
@@ -46,7 +40,7 @@ tcp_find_option(u_int8_t option,
 	u_int8_t _opt[60 - sizeof(struct tcphdr)];
 	unsigned int i;
 
-	duprintf("tcp_match: finding option\n");
+	pr_debug("finding option\n");
 
 	if (!optlen)
 		return invert;
@@ -82,7 +76,7 @@ static bool tcp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		   flag overwrite to pass the direction checks.
 		*/
 		if (par->fragoff == 1) {
-			duprintf("Dropping evil TCP offset=1 frag.\n");
+			pr_debug("Dropping evil TCP offset=1 frag.\n");
 			*par->hotdrop = true;
 		}
 		/* Must not be a fragment. */
@@ -95,7 +89,7 @@ static bool tcp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	if (th == NULL) {
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
-		duprintf("Dropping evil TCP offset=0 tinygram.\n");
+		pr_debug("Dropping evil TCP offset=0 tinygram.\n");
 		*par->hotdrop = true;
 		return false;
 	}
@@ -126,12 +120,12 @@ static bool tcp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-static bool tcp_mt_check(const struct xt_mtchk_param *par)
+static int tcp_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct xt_tcp *tcpinfo = par->matchinfo;
 
 	/* Must specify no unknown invflags */
-	return !(tcpinfo->invflags & ~XT_TCP_INV_MASK);
+	return (tcpinfo->invflags & ~XT_TCP_INV_MASK) ? -EINVAL : 0;
 }
 
 static bool udp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
@@ -148,7 +142,7 @@ static bool udp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	if (uh == NULL) {
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
-		duprintf("Dropping evil UDP tinygram.\n");
+		pr_debug("Dropping evil UDP tinygram.\n");
 		*par->hotdrop = true;
 		return false;
 	}
@@ -161,12 +155,12 @@ static bool udp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			      !!(udpinfo->invflags & XT_UDP_INV_DSTPT));
 }
 
-static bool udp_mt_check(const struct xt_mtchk_param *par)
+static int udp_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct xt_udp *udpinfo = par->matchinfo;
 
 	/* Must specify no unknown invflags */
-	return !(udpinfo->invflags & ~XT_UDP_INV_MASK);
+	return (udpinfo->invflags & ~XT_UDP_INV_MASK) ? -EINVAL : 0;
 }
 
 static struct xt_match tcpudp_mt_reg[] __read_mostly = {

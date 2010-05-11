@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
  *
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter/x_tables.h>
@@ -165,8 +165,7 @@ socket_match(const struct sk_buff *skb, const struct xt_match_param *par,
 			sk = NULL;
 	}
 
-	pr_debug("socket match: proto %u %08x:%u -> %08x:%u "
-		 "(orig %08x:%u) sock %p\n",
+	pr_debug("proto %u %08x:%u -> %08x:%u (orig %08x:%u) sock %p\n",
 		 protocol, ntohl(saddr), ntohs(sport),
 		 ntohl(daddr), ntohs(dport),
 		 ntohl(iph->daddr), hp ? ntohs(hp->dest) : 0, sk);

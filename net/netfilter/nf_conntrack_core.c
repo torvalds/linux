@@ -319,8 +319,10 @@ begin:
 	 * not the expected one, we must restart lookup.
 	 * We probably met an item that was moved to another chain.
 	 */
-	if (get_nulls_value(n) != hash)
+	if (get_nulls_value(n) != hash) {
+		NF_CT_STAT_INC(net, search_restart);
 		goto begin;
+	}
 	local_bh_enable();
 
 	return NULL;

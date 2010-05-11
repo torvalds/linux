@@ -113,6 +113,7 @@ struct ip_conntrack_stat {
 	unsigned int expect_new;
 	unsigned int expect_create;
 	unsigned int expect_delete;
+	unsigned int search_restart;
 };
 
 /* call to create an explicit dependency on nf_conntrack. */

@@ -241,16 +241,6 @@ Who:	Thomas Gleixner <tglx@linutronix.de>
 
 ---------------------------
 
-What (Why):
-	- xt_recent: the old ipt_recent proc dir
-	  (superseded by /proc/net/xt_recent)
-
-When:	January 2009 or Linux 2.7.0, whichever comes first
-Why:	Superseded by newer revisions or modules
-Who:	Jan Engelhardt <jengelh@computergmbh.de>
-
----------------------------
-
 What:	GPIO autorequest on gpio_direction_{input,output}() in gpiolib
 When:	February 2010
 Why:	All callers should use explicit gpio_request()/gpio_free().
@@ -628,3 +618,11 @@ Why:	Internal alias support has been present in module-init-tools for some
 	with no impact.
 
 Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
+
+---------------------------
+
+What:	xt_NOTRACK
+Files:	net/netfilter/xt_NOTRACK.c
+When:	April 2011
+Why:	Superseded by xt_CT
+Who:	Netfilter developer team <netfilter-devel@vger.kernel.org>
