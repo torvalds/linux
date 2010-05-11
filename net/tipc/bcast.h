@@ -87,56 +87,8 @@ static inline int tipc_nmap_equal(struct tipc_node_map *nm_a, struct tipc_node_m
 void tipc_nmap_diff(struct tipc_node_map *nm_a, struct tipc_node_map *nm_b,
 				  struct tipc_node_map *nm_diff);
 
-/**
- * tipc_port_list_add - add a port to a port list, ensuring no duplicates
- */
-
-static inline void tipc_port_list_add(struct port_list *pl_ptr, u32 port)
-{
-	struct port_list *item = pl_ptr;
-	int i;
-	int item_sz = PLSIZE;
-	int cnt = pl_ptr->count;
-
-	for (; ; cnt -= item_sz, item = item->next) {
-		if (cnt < PLSIZE)
-			item_sz = cnt;
-		for (i = 0; i < item_sz; i++)
-			if (item->ports[i] == port)
-				return;
-		if (i < PLSIZE) {
-			item->ports[i] = port;
-			pl_ptr->count++;
-			return;
-		}
-		if (!item->next) {
-			item->next = kmalloc(sizeof(*item), GFP_ATOMIC);
-			if (!item->next) {
-				warn("Incomplete multicast delivery, no memory\n");
-				return;
-			}
-			item->next->next = NULL;
-		}
-	}
-}
-
-/**
- * tipc_port_list_free - free dynamically created entries in port_list chain
- *
- * Note: First item is on stack, so it doesn't need to be released
- */
-
-static inline void tipc_port_list_free(struct port_list *pl_ptr)
-{
-	struct port_list *item;
-	struct port_list *next;
-
-	for (item = pl_ptr->next; item; item = next) {
-		next = item->next;
-		kfree(item);
-	}
-}
-
+void tipc_port_list_add(struct port_list *pl_ptr, u32 port);
+void tipc_port_list_free(struct port_list *pl_ptr);
 
 int  tipc_bclink_init(void);
 void tipc_bclink_stop(void);
