@@ -350,7 +350,8 @@ static struct xhci_segment *find_trb_seg(
 	while (cur_seg->trbs > trb ||
 			&cur_seg->trbs[TRBS_PER_SEGMENT - 1] < trb) {
 		generic_trb = &cur_seg->trbs[TRBS_PER_SEGMENT - 1].generic;
-		if (TRB_TYPE(generic_trb->field[3]) == TRB_LINK &&
+		if ((generic_trb->field[3] & TRB_TYPE_BITMASK) ==
+				TRB_TYPE(TRB_LINK) &&
 				(generic_trb->field[3] & LINK_TOGGLE))
 			*cycle_state = ~(*cycle_state) & 0x1;
 		cur_seg = cur_seg->next;
@@ -406,7 +407,7 @@ void xhci_find_new_dequeue_state(struct xhci_hcd *xhci,
 		BUG();
 
 	trb = &state->new_deq_ptr->generic;
-	if (TRB_TYPE(trb->field[3]) == TRB_LINK &&
+	if ((trb->field[3] & TRB_TYPE_BITMASK) == TRB_TYPE(TRB_LINK) &&
 				(trb->field[3] & LINK_TOGGLE))
 		state->new_cycle_state = ~(state->new_cycle_state) & 0x1;
 	next_trb(xhci, ep_ring, &state->new_deq_seg, &state->new_deq_ptr);
@@ -1210,8 +1211,10 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 			for (cur_trb = ep_ring->dequeue, cur_seg = ep_ring->deq_seg;
 					cur_trb != event_trb;
 					next_trb(xhci, ep_ring, &cur_seg, &cur_trb)) {
-				if (TRB_TYPE(cur_trb->generic.field[3]) != TRB_TR_NOOP &&
-						TRB_TYPE(cur_trb->generic.field[3]) != TRB_LINK)
+				if ((cur_trb->generic.field[3] &
+				 TRB_TYPE_BITMASK) != TRB_TYPE(TRB_TR_NOOP) &&
+				    (cur_trb->generic.field[3] &
+				 TRB_TYPE_BITMASK) != TRB_TYPE(TRB_LINK))
 					td->urb->actual_length +=
 						TRB_LEN(cur_trb->generic.field[2]);
 			}
