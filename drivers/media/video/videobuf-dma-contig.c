@@ -280,8 +280,6 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 		return -ENOMEM;
 
 	buf->map = map;
-	map->start = vma->vm_start;
-	map->end = vma->vm_end;
 	map->q = q;
 
 	buf->baddr = vma->vm_start;

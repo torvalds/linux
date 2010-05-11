@@ -54,8 +54,6 @@ struct videobuf_queue;
 
 struct videobuf_mapping {
 	unsigned int count;
-	unsigned long start;
-	unsigned long end;
 	struct videobuf_queue *q;
 };
 

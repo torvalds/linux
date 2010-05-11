@@ -608,8 +608,6 @@ static int __videobuf_mmap_mapper(struct videobuf_queue *q,
 	}
 
 	map->count    = 1;
-	map->start    = vma->vm_start;
-	map->end      = vma->vm_end;
 	map->q        = q;
 	vma->vm_ops   = &videobuf_vm_ops;
 	vma->vm_flags |= VM_DONTEXPAND | VM_RESERVED;
