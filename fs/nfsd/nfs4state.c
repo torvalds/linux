@@ -701,6 +701,22 @@ free_client(struct nfs4_client *clp)
 	kfree(clp);
 }
 
+void
+release_session_client(struct nfsd4_session *session)
+{
+	struct nfs4_client *clp = session->se_client;
+
+	if (!atomic_dec_and_lock(&clp->cl_refcount, &client_lock))
+		return;
+	if (is_client_expired(clp)) {
+		free_client(clp);
+		session->se_client = NULL;
+	} else
+		renew_client_locked(clp);
+	spin_unlock(&client_lock);
+	nfsd4_put_session(session);
+}
+
 /* must be called under the client_lock */
 static inline void
 unhash_client_locked(struct nfs4_client *clp)
@@ -1476,8 +1492,7 @@ out:
 	/* Hold a session reference until done processing the compound. */
 	if (cstate->session) {
 		nfsd4_get_session(cstate->session);
-		/* Renew the clientid on success and on replay */
-		renew_client_locked(session->se_client);
+		atomic_inc(&session->se_client->cl_refcount);
 	}
 	spin_unlock(&client_lock);
 	dprintk("%s: return %d\n", __func__, ntohl(status));
@@ -2598,7 +2613,13 @@ nfs4_laundromat(void)
 				clientid_val = t;
 			break;
 		}
-		list_move(&clp->cl_lru, &reaplist);
+		if (atomic_read(&clp->cl_refcount)) {
+			dprintk("NFSD: client in use (clientid %08x)\n",
+				clp->cl_clientid.cl_id);
+			continue;
+		}
+		unhash_client_locked(clp);
+		list_add(&clp->cl_lru, &reaplist);
 	}
 	spin_unlock(&client_lock);
 	list_for_each_safe(pos, next, &reaplist) {
