@@ -119,7 +119,7 @@ static struct bclink *bclink = NULL;
 static struct link *bcl = NULL;
 static DEFINE_SPINLOCK(bc_lock);
 
-const char tipc_bclink_name[] = "multicast-link";
+const char tipc_bclink_name[] = "broadcast-link";
 
 
 static u32 buf_seqno(struct sk_buff *buf)
