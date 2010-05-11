@@ -229,10 +229,7 @@ extern int ip6mr_get_route(struct net *net, struct sk_buff *skb,
 			   struct rtmsg *rtm, int nowait);
 
 #ifdef CONFIG_IPV6_MROUTE
-static inline struct sock *mroute6_socket(struct net *net)
-{
-	return net->ipv6.mroute6_sk;
-}
+extern struct sock *mroute6_socket(struct net *net);
 extern int ip6mr_sk_done(struct sock *sk);
 #else
 static inline struct sock *mroute6_socket(struct net *net) { return NULL; }
