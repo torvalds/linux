@@ -135,7 +135,7 @@ static const struct vm_operations_struct videobuf_vm_ops = {
 	struct videobuf_dma_sg_memory
  */
 
-static struct videobuf_buffer *__videobuf_alloc(size_t size)
+static struct videobuf_buffer *__videobuf_alloc_vb(size_t size)
 {
 	struct videobuf_vmalloc_memory *mem;
 	struct videobuf_buffer *vb;
@@ -293,7 +293,7 @@ error:
 static struct videobuf_qtype_ops qops = {
 	.magic        = MAGIC_QTYPE_OPS,
 
-	.alloc        = __videobuf_alloc,
+	.alloc_vb     = __videobuf_alloc_vb,
 	.iolock       = __videobuf_iolock,
 	.mmap_mapper  = __videobuf_mmap_mapper,
 	.vaddr        = videobuf_to_vmalloc,

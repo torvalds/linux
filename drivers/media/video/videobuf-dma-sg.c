@@ -428,7 +428,7 @@ static const struct vm_operations_struct videobuf_vm_ops = {
 	struct videobuf_dma_sg_memory
  */
 
-static struct videobuf_buffer *__videobuf_alloc(size_t size)
+static struct videobuf_buffer *__videobuf_alloc_vb(size_t size)
 {
 	struct videobuf_dma_sg_memory *mem;
 	struct videobuf_buffer *vb;
@@ -638,7 +638,7 @@ done:
 static struct videobuf_qtype_ops sg_ops = {
 	.magic        = MAGIC_QTYPE_OPS,
 
-	.alloc        = __videobuf_alloc,
+	.alloc_vb     = __videobuf_alloc_vb,
 	.iolock       = __videobuf_iolock,
 	.sync         = __videobuf_sync,
 	.mmap_mapper  = __videobuf_mmap_mapper,
@@ -654,7 +654,7 @@ void *videobuf_sg_alloc(size_t size)
 
 	q.msize = size;
 
-	return videobuf_alloc(&q);
+	return videobuf_alloc_vb(&q);
 }
 EXPORT_SYMBOL_GPL(videobuf_sg_alloc);
 

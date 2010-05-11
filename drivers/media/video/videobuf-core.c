@@ -52,18 +52,18 @@ MODULE_LICENSE("GPL");
 #define CALL(q, f, arg...)						\
 	((q->int_ops->f) ? q->int_ops->f(arg) : 0)
 
-struct videobuf_buffer *videobuf_alloc(struct videobuf_queue *q)
+struct videobuf_buffer *videobuf_alloc_vb(struct videobuf_queue *q)
 {
 	struct videobuf_buffer *vb;
 
 	BUG_ON(q->msize < sizeof(*vb));
 
-	if (!q->int_ops || !q->int_ops->alloc) {
+	if (!q->int_ops || !q->int_ops->alloc_vb) {
 		printk(KERN_ERR "No specific ops defined!\n");
 		BUG();
 	}
 
-	vb = q->int_ops->alloc(q->msize);
+	vb = q->int_ops->alloc_vb(q->msize);
 	if (NULL != vb) {
 		init_waitqueue_head(&vb->done);
 		vb->magic = MAGIC_BUFFER;
@@ -71,7 +71,7 @@ struct videobuf_buffer *videobuf_alloc(struct videobuf_queue *q)
 
 	return vb;
 }
-EXPORT_SYMBOL_GPL(videobuf_alloc);
+EXPORT_SYMBOL_GPL(videobuf_alloc_vb);
 
 #define WAITON_CONDITION (vb->state != VIDEOBUF_ACTIVE &&\
 				vb->state != VIDEOBUF_QUEUED)
@@ -359,7 +359,7 @@ int __videobuf_mmap_setup(struct videobuf_queue *q,
 
 	/* Allocate and initialize buffers */
 	for (i = 0; i < bcount; i++) {
-		q->bufs[i] = videobuf_alloc(q);
+		q->bufs[i] = videobuf_alloc_vb(q);
 
 		if (NULL == q->bufs[i])
 			break;
@@ -766,7 +766,7 @@ static ssize_t videobuf_read_zerocopy(struct videobuf_queue *q,
 	MAGIC_CHECK(q->int_ops->magic, MAGIC_QTYPE_OPS);
 
 	/* setup stuff */
-	q->read_buf = videobuf_alloc(q);
+	q->read_buf = videobuf_alloc_vb(q);
 	if (NULL == q->read_buf)
 		return -ENOMEM;
 
@@ -871,7 +871,7 @@ ssize_t videobuf_read_one(struct videobuf_queue *q,
 	if (NULL == q->read_buf) {
 		/* need to capture a new frame */
 		retval = -ENOMEM;
-		q->read_buf = videobuf_alloc(q);
+		q->read_buf = videobuf_alloc_vb(q);
 
 		dprintk(1, "video alloc=0x%p\n", q->read_buf);
 		if (NULL == q->read_buf)
