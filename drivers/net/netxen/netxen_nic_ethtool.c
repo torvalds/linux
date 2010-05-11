@@ -632,6 +632,9 @@ static int netxen_nic_reg_test(struct net_device *dev)
 	if ((data_read & 0xffff) != adapter->pdev->vendor)
 		return 1;
 
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		return 0;
+
 	data_written = (u32)0xa5a5a5a5;
 
 	NXWR32(adapter, CRB_SCRATCHPAD_TEST, data_written);
