@@ -19,6 +19,7 @@
 #include <linux/input.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/spi/spi.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -136,11 +137,34 @@ static struct map_desc rk2818_io_desc[] __initdata = {
 		.length 	= 0xa0000,                      ///apb bus i2s i2c spi no map in this
 		.type		= MT_DEVICE
 	},
+};
+
+/*****************************************************************************************
+ * SPI devices
+ *author: lhh
+ *****************************************************************************************/
+static struct spi_board_info board_spi_devices[] = {
+	{	/* net chip */
+		.modalias	= "enc28j60",
+		.chip_select	= 1,
+		.max_speed_hz	= 12 * 1000 * 1000,
+		.bus_num	= 0,
+		.mode	= SPI_MODE_0,
+	},
+
+  	{	
+		.modalias	= "xpt2046_ts",
+		.chip_select	= 0,
+		.max_speed_hz	= 1000000,
+		.bus_num	= 0,
+		.mode	= SPI_MODE_0,
+	},
 
 };
 
 static struct platform_device *devices[] __initdata = {
 	&rk2818_device_uart1,
+	&rk2818_device_spim,
 };
 
 extern struct sys_timer rk2818_timer;
@@ -155,7 +179,10 @@ static void __init machine_rk2818_init_irq(void)
 static void __init machine_rk2818_board_init(void)
 {
 	platform_add_devices(devices, ARRAY_SIZE(devices));
-
+	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
+	rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME,IOMUXA_GPIO0_B4); //IOMUXA_SPI0_CSN0);//use for gpio SPI CS0
+	rk2818_mux_api_set(GPIOB0_SPI0CSN1_MMC1PCA_NAME,IOMUXA_GPIO0_B0); //IOMUXA_SPI0_CSN1);//use for gpio SPI CS1
+	rk2818_mux_api_set(GPIOB_SPI0_MMC0_NAME,IOMUXA_SPI0);//use for SPI CLK SDI SDO
 }
 
 static void __init machine_rk2818_mapio(void)

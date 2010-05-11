@@ -915,7 +915,7 @@ static struct clk_lookup clks[] = {
 	CLK("rk2818_serial.1", "uart", &uart1_clk),
 	CLK1(i2c0),
 	CLK1(i2c1),
-	CLK1(spi0),
+	CLK("rk2818_spim.0", "spi", &spi0_clk),
 	CLK1(spi1),
 	CLK1(pwm),
 	CLK1(timer),

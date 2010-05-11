@@ -16,7 +16,10 @@
 #ifndef __ARCH_ARM_MACH_RK2818_DEVICES_H
 #define __ARCH_ARM_MACH_RK2818_DEVICES_H
 
+extern struct platform_device rk2818_device_uart0;
 extern struct platform_device rk2818_device_uart1;
-
+extern struct platform_device rk2818_device_uart2;
+extern struct platform_device rk2818_device_uart3;
+extern struct platform_device rk2818_device_spim;
 
 #endif

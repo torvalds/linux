@@ -37,7 +37,7 @@
 #define  IOMUXA_FLASH_CS67                  (2)
 #define  IOMUXA_GPIO1_A12                   (0)
 #define  IOMUXA_CLKIN_SSINN                 (1)
-#define  IOMUXA_FLASH_CS45                  (2)                        (1)                      
+#define  IOMUXA_FLASH_CS45                  (2)                     
 #define  IOMUXA_GPIO0_B0                    (0)
 #define  IOMUXA_SPI0_CSN1                   (1)
 #define  IOMUXA_SDMMC1_PWR_EN               (2)

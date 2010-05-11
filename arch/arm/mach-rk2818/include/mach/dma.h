@@ -1,4 +1,5 @@
-/* arch/arm/mach-rk2818/dma.h
+/*
+ * arch/arm/mach-rk2818/include/mach/dma.h
  *
  * Copyright (C) 2010 ROCKCHIP, Inc.
  *

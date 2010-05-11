@@ -100,3 +100,25 @@ struct platform_device rk2818_device_uart3 = {
 	.resource	= resources_uart3,
 };
 
+/*
+ * rk2818 spi master device
+ */
+static struct resource resources_spim[] = {
+	{
+		.start	= IRQ_NR_SPIM,
+		.end	= IRQ_NR_SPIM,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK2818_SPIMASTER_PHYS,
+		.end	= RK2818_SPIMASTER_PHYS + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+struct platform_device rk2818_device_spim = {
+	.name	= "rk2818_spim",
+	.id	= 0,
+	.num_resources	= ARRAY_SIZE(resources_spim),
+	.resource	= resources_spim,
+};
+
