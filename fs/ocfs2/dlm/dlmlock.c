@@ -431,7 +431,7 @@ struct dlm_lock * dlm_new_lock(int type, u8 node, u64 cookie,
 	struct dlm_lock *lock;
 	int kernel_allocated = 0;
 
-	lock = (struct dlm_lock *) kmem_cache_zalloc(dlm_lock_cache, GFP_NOFS);
+	lock = kmem_cache_zalloc(dlm_lock_cache, GFP_NOFS);
 	if (!lock)
 		return NULL;
 

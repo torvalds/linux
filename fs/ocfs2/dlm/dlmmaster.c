@@ -617,13 +617,11 @@ struct dlm_lock_resource *dlm_new_lockres(struct dlm_ctxt *dlm,
 {
 	struct dlm_lock_resource *res = NULL;
 
-	res = (struct dlm_lock_resource *)
-				kmem_cache_zalloc(dlm_lockres_cache, GFP_NOFS);
+	res = kmem_cache_zalloc(dlm_lockres_cache, GFP_NOFS);
 	if (!res)
 		goto error;
 
-	res->lockname.name = (char *)
-				kmem_cache_zalloc(dlm_lockname_cache, GFP_NOFS);
+	res->lockname.name = kmem_cache_zalloc(dlm_lockname_cache, GFP_NOFS);
 	if (!res->lockname.name)
 		goto error;
 
@@ -757,8 +755,7 @@ lookup:
 		spin_unlock(&dlm->spinlock);
 		mlog(0, "allocating a new resource\n");
 		/* nothing found and we need to allocate one. */
-		alloc_mle = (struct dlm_master_list_entry *)
-			kmem_cache_alloc(dlm_mle_cache, GFP_NOFS);
+		alloc_mle = kmem_cache_alloc(dlm_mle_cache, GFP_NOFS);
 		if (!alloc_mle)
 			goto leave;
 		res = dlm_new_lockres(dlm, lockid, namelen);
@@ -1542,8 +1539,7 @@ way_up_top:
 			spin_unlock(&dlm->master_lock);
 			spin_unlock(&dlm->spinlock);
 
-			mle = (struct dlm_master_list_entry *)
-				kmem_cache_alloc(dlm_mle_cache, GFP_NOFS);
+			mle = kmem_cache_alloc(dlm_mle_cache, GFP_NOFS);
 			if (!mle) {
 				response = DLM_MASTER_RESP_ERROR;
 				mlog_errno(-ENOMEM);
@@ -2458,8 +2454,7 @@ static int dlm_migrate_lockres(struct dlm_ctxt *dlm,
 		goto leave;
 	}
 
-	mle = (struct dlm_master_list_entry *) kmem_cache_alloc(dlm_mle_cache,
-								GFP_NOFS);
+	mle = kmem_cache_alloc(dlm_mle_cache, GFP_NOFS);
 	if (!mle) {
 		mlog_errno(ret);
 		goto leave;
@@ -3041,8 +3036,7 @@ int dlm_migrate_request_handler(struct o2net_msg *msg, u32 len, void *data,
 	hash = dlm_lockid_hash(name, namelen);
 
 	/* preallocate.. if this fails, abort */
-	mle = (struct dlm_master_list_entry *) kmem_cache_alloc(dlm_mle_cache,
-							 GFP_NOFS);
+	mle = kmem_cache_alloc(dlm_mle_cache, GFP_NOFS);
 
 	if (!mle) {
 		ret = -ENOMEM;
