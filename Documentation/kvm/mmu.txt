@@ -161,7 +161,7 @@ Shadow pages contain the following information:
   role.cr4_pae:
     Contains the value of cr4.pae for which the page is valid (e.g. whether
     32-bit or 64-bit gptes are in use).
-  role.cr4_nxe:
+  role.nxe:
     Contains the value of efer.nxe for which the page is valid.
   role.cr0_wp:
     Contains the value of cr0.wp for which the page is valid.
