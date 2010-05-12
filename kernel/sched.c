@@ -9078,10 +9078,26 @@ static int cpuacct_cpufreq_show(struct cgroup *cgrp, struct cftype *cft,
 		struct cgroup_map_cb *cb)
 {
 	struct cpuacct *ca = cgroup_ca(cgrp);
-	if (ca->cpufreq_fn && ca->cpufreq_fn->show)
-		ca->cpufreq_fn->show(ca->cpuacct_data, cb);
+	if (ca->cpufreq_fn && ca->cpufreq_fn->cpufreq_show)
+		ca->cpufreq_fn->cpufreq_show(ca->cpuacct_data, cb);
 
 	return 0;
+}
+
+/* return total cpu power usage (milliWatt second) of a group */
+static u64 cpuacct_powerusage_read(struct cgroup *cgrp, struct cftype *cft)
+{
+	int i;
+	struct cpuacct *ca = cgroup_ca(cgrp);
+	u64 totalpower = 0;
+
+	if (ca->cpufreq_fn && ca->cpufreq_fn->power_usage)
+		for_each_present_cpu(i) {
+			totalpower += ca->cpufreq_fn->power_usage(
+					ca->cpuacct_data);
+		}
+
+	return totalpower;
 }
 
 static struct cftype files[] = {
@@ -9101,6 +9117,10 @@ static struct cftype files[] = {
 	{
 		.name =  "cpufreq",
 		.read_map = cpuacct_cpufreq_show,
+	},
+	{
+		.name = "power",
+		.read_u64 = cpuacct_powerusage_read
 	},
 };
 
