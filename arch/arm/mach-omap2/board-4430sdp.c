@@ -135,11 +135,23 @@ static struct omap_musb_board_data musb_board_data = {
 	.mode			= MUSB_PERIPHERAL,
 	.power			= 100,
 };
-
+static int __init omap4_i2c_init(void)
+{
+	/*
+	 * Phoenix Audio IC needs I2C1 to
+	 * start with 400 KHz or less
+	 */
+	omap_register_i2c_bus(1, 400, NULL, 0);
+	omap_register_i2c_bus(2, 400, NULL, 0);
+	omap_register_i2c_bus(3, 400, NULL, 0);
+	omap_register_i2c_bus(4, 400, NULL, 0);
+	return 0;
+}
 static void __init omap_4430sdp_init(void)
 {
 	int status;
 
+	omap4_i2c_init();
 	platform_add_devices(sdp4430_devices, ARRAY_SIZE(sdp4430_devices));
 	omap_serial_init();
 	/* OMAP4 SDP uses internal transceiver so register nop transceiver */
