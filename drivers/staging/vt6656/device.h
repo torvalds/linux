@@ -435,7 +435,7 @@ typedef struct __device_opt {
     int         short_retry;
     int         long_retry;
     int         bbp_type;
-    U32         flags;
+    u32         flags;
 } OPTIONS, *POPTIONS;
 
 
@@ -453,17 +453,17 @@ typedef struct __device_info {
 	struct tasklet_struct       ReadWorkItem;
 	struct tasklet_struct       RxMngWorkItem;
 
-    U32                         rx_buf_sz;
+    u32                         rx_buf_sz;
     int                         multicast_limit;
     BYTE                        byRxMode;
 
     spinlock_t                  lock;
 
-    U32                         rx_bytes;
+    u32                         rx_bytes;
 
     BYTE                        byRevId;
 
-    U32                         flags;
+    u32                         flags;
     ULONG                       Flags;
 
     SCache                      sDupRxCache;
