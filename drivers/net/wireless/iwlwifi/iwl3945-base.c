@@ -4015,9 +4015,8 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	}
 	/* MAC Address location in EEPROM same for 3945/4965 */
 	eeprom = (struct iwl3945_eeprom *)priv->eeprom;
-	memcpy(priv->mac_addr, eeprom->mac_address, ETH_ALEN);
-	IWL_DEBUG_INFO(priv, "MAC address: %pM\n", priv->mac_addr);
-	SET_IEEE80211_PERM_ADDR(priv->hw, priv->mac_addr);
+	IWL_DEBUG_INFO(priv, "MAC address: %pM\n", eeprom->mac_address);
+	SET_IEEE80211_PERM_ADDR(priv->hw, eeprom->mac_address);
 
 	/***********************
 	 * 5. Setup HW Constants
