@@ -2478,10 +2478,9 @@ static int init_kvm_mmu(struct kvm_vcpu *vcpu)
 static void destroy_kvm_mmu(struct kvm_vcpu *vcpu)
 {
 	ASSERT(vcpu);
-	if (VALID_PAGE(vcpu->arch.mmu.root_hpa)) {
+	if (VALID_PAGE(vcpu->arch.mmu.root_hpa))
+		/* mmu.free() should set root_hpa = INVALID_PAGE */
 		vcpu->arch.mmu.free(vcpu);
-		vcpu->arch.mmu.root_hpa = INVALID_PAGE;
-	}
 }
 
 int kvm_mmu_reset_context(struct kvm_vcpu *vcpu)

@@ -486,7 +486,7 @@ int __kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 		return 1;
 
 	kvm_x86_ops->set_cr4(vcpu, cr4);
-	vcpu->arch.cr4 = cr4;
+
 	kvm_mmu_reset_context(vcpu);
 
 	return 0;
@@ -720,8 +720,6 @@ static int set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	efer |= vcpu->arch.efer & EFER_LMA;
 
 	kvm_x86_ops->set_efer(vcpu, efer);
-
-	vcpu->arch.efer = efer;
 
 	vcpu->arch.mmu.base_role.nxe = (efer & EFER_NX) && !tdp_enabled;
 	kvm_mmu_reset_context(vcpu);
