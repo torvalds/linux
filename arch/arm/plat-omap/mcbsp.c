@@ -778,14 +778,17 @@ int omap_mcbsp_request(unsigned int id)
 			goto err_clk_disable;
 		}
 
-		init_completion(&mcbsp->rx_irq_completion);
-		err = request_irq(mcbsp->rx_irq, omap_mcbsp_rx_irq_handler,
+		if (mcbsp->rx_irq) {
+			init_completion(&mcbsp->rx_irq_completion);
+			err = request_irq(mcbsp->rx_irq,
+					omap_mcbsp_rx_irq_handler,
 					0, "McBSP", (void *)mcbsp);
-		if (err != 0) {
-			dev_err(mcbsp->dev, "Unable to request RX IRQ %d "
-					"for McBSP%d\n", mcbsp->rx_irq,
-					mcbsp->id);
-			goto err_free_irq;
+			if (err != 0) {
+				dev_err(mcbsp->dev, "Unable to request RX IRQ %d "
+						"for McBSP%d\n", mcbsp->rx_irq,
+						mcbsp->id);
+				goto err_free_irq;
+			}
 		}
 	}
 
@@ -835,7 +838,8 @@ void omap_mcbsp_free(unsigned int id)
 
 	if (mcbsp->io_type == OMAP_MCBSP_IRQ_IO) {
 		/* Free IRQs */
-		free_irq(mcbsp->rx_irq, (void *)mcbsp);
+		if (mcbsp->rx_irq)
+			free_irq(mcbsp->rx_irq, (void *)mcbsp);
 		free_irq(mcbsp->tx_irq, (void *)mcbsp);
 	}
 
