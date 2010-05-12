@@ -416,6 +416,10 @@ out:
 
 static int __kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
+	unsigned long old_cr0 = kvm_read_cr0(vcpu);
+	unsigned long update_bits = X86_CR0_PG | X86_CR0_WP |
+				    X86_CR0_CD | X86_CR0_NW;
+
 	cr0 |= X86_CR0_ET;
 
 #ifdef CONFIG_X86_64
@@ -449,7 +453,8 @@ static int __kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 
 	kvm_x86_ops->set_cr0(vcpu, cr0);
 
-	kvm_mmu_reset_context(vcpu);
+	if ((cr0 ^ old_cr0) & update_bits)
+		kvm_mmu_reset_context(vcpu);
 	return 0;
 }
 
@@ -487,7 +492,8 @@ int __kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 
 	kvm_x86_ops->set_cr4(vcpu, cr4);
 
-	kvm_mmu_reset_context(vcpu);
+	if ((cr4 ^ old_cr4) & pdptr_bits)
+		kvm_mmu_reset_context(vcpu);
 
 	return 0;
 }
@@ -693,6 +699,8 @@ static u32 emulated_msrs[] = {
 
 static int set_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
+	u64 old_efer = vcpu->arch.efer;
+
 	if (efer & efer_reserved_bits)
 		return 1;
 
@@ -723,6 +731,10 @@ static int set_efer(struct kvm_vcpu *vcpu, u64 efer)
 
 	vcpu->arch.mmu.base_role.nxe = (efer & EFER_NX) && !tdp_enabled;
 	kvm_mmu_reset_context(vcpu);
+
+	/* Update reserved bits */
+	if ((efer ^ old_efer) & EFER_NX)
+		kvm_mmu_reset_context(vcpu);
 
 	return 0;
 }
