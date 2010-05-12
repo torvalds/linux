@@ -24,7 +24,30 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
-
+static struct resource resources_i2c0[] = {
+	{
+		.start	= IRQ_NR_I2C0,
+		.end	= IRQ_NR_I2C0,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK2818_I2C0_PHYS,
+		.end	= RK2818_I2C0_PHYS + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+static struct resource resources_i2c1[] = {
+	{
+		.start	= IRQ_NR_I2C1,
+		.end	= IRQ_NR_I2C1,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK2818_I2C1_PHYS,
+		.end	= RK2818_I2C1_PHYS + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
 
 static struct resource resources_uart0[] = {
 	{
@@ -73,6 +96,18 @@ static struct resource resources_uart3[] = {
 		.end	= RK2818_UART3_PHYS + SZ_1K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
+};
+struct platform_device rk2818_device_i2c0 = {
+	.name	= "rk2818_i2c",
+	.id	= 0,
+	.num_resources	= ARRAY_SIZE(resources_i2c0),
+	.resource	= resources_i2c0,
+};
+struct platform_device rk2818_device_i2c1 = {
+	.name	= "rk2818_i2c",
+	.id	= 1,
+	.num_resources	= ARRAY_SIZE(resources_i2c1),
+	.resource	= resources_i2c1,
 };
 
 struct platform_device rk2818_device_uart0 = {
