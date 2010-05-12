@@ -497,17 +497,25 @@ struct kmem_cache *ecryptfs_sb_info_cache;
 static int
 ecryptfs_fill_super(struct super_block *sb, void *raw_data, int silent)
 {
+	struct ecryptfs_sb_info *esi;
 	int rc = 0;
 
 	/* Released in ecryptfs_put_super() */
 	ecryptfs_set_superblock_private(sb,
 					kmem_cache_zalloc(ecryptfs_sb_info_cache,
 							 GFP_KERNEL));
-	if (!ecryptfs_superblock_to_private(sb)) {
+	esi = ecryptfs_superblock_to_private(sb);
+	if (!esi) {
 		ecryptfs_printk(KERN_WARNING, "Out of memory\n");
 		rc = -ENOMEM;
 		goto out;
 	}
+
+	rc = bdi_setup_and_register(&esi->bdi, "ecryptfs", BDI_CAP_MAP_COPY);
+	if (rc)
+		goto out;
+
+	sb->s_bdi = &esi->bdi;
 	sb->s_op = &ecryptfs_sops;
 	/* Released through deactivate_super(sb) from get_sb_nodev */
 	sb->s_root = d_alloc(NULL, &(const struct qstr) {

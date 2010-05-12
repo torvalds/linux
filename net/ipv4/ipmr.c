@@ -998,7 +998,8 @@ ipmr_cache_unresolved(struct mr_table *mrt, vifi_t vifi, struct sk_buff *skb)
 		atomic_inc(&mrt->cache_resolve_queue_len);
 		list_add(&c->list, &mrt->mfc_unres_queue);
 
-		mod_timer(&mrt->ipmr_expire_timer, c->mfc_un.unres.expires);
+		if (atomic_read(&mrt->cache_resolve_queue_len) == 1)
+			mod_timer(&mrt->ipmr_expire_timer, c->mfc_un.unres.expires);
 	}
 
 	/*

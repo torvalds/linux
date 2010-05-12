@@ -23,7 +23,7 @@
 #error "This file is DA8xx bus glue.  Define CONFIG_ARCH_DAVINCI_DA8XX."
 #endif
 
-#define CFGCHIP2	DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP2_REG)
+#define CFGCHIP2	DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG)
 
 static struct clk *usb11_clk;
 static struct clk *usb20_clk;

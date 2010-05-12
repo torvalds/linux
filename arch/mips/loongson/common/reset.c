@@ -16,13 +16,31 @@
 
 #include <loongson.h>
 
+static inline void loongson_reboot(void)
+{
+#ifndef CONFIG_CPU_JUMP_WORKAROUNDS
+	((void (*)(void))ioremap_nocache(LOONGSON_BOOT_BASE, 4)) ();
+#else
+	void (*func)(void);
+
+	func = (void *)ioremap_nocache(LOONGSON_BOOT_BASE, 4);
+
+	__asm__ __volatile__(
+	"       .set    noat                                            \n"
+	"       jr      %[func]                                         \n"
+	"       .set    at                                              \n"
+	: /* No outputs */
+	: [func] "r" (func));
+#endif
+}
+
 static void loongson_restart(char *command)
 {
 	/* do preparation for reboot */
 	mach_prepare_reboot();
 
 	/* reboot via jumping to boot base address */
-	((void (*)(void))ioremap_nocache(LOONGSON_BOOT_BASE, 4)) ();
+	loongson_reboot();
 }
 
 static void loongson_poweroff(void)

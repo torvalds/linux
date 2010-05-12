@@ -899,7 +899,8 @@ retry:
 
 	drbd_thread_start(&mdev->asender);
 
-	drbd_send_protocol(mdev);
+	if (!drbd_send_protocol(mdev))
+		return -1;
 	drbd_send_sync_param(mdev, &mdev->sync_conf);
 	drbd_send_sizes(mdev, 0);
 	drbd_send_uuids(mdev);

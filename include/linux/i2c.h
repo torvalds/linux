@@ -355,6 +355,8 @@ struct i2c_adapter {
 	int nr;
 	char name[48];
 	struct completion dev_released;
+
+	struct list_head userspace_clients;
 };
 #define to_i2c_adapter(d) container_of(d, struct i2c_adapter, dev)
 

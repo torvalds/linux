@@ -903,6 +903,11 @@ omap_i2c_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, dev);
 
+	if (cpu_is_omap7xx())
+		dev->reg_shift = 1;
+	else
+		dev->reg_shift = 2;
+
 	if ((r = omap_i2c_get_clocks(dev)) != 0)
 		goto err_iounmap;
 
@@ -925,11 +930,6 @@ omap_i2c_probe(struct platform_device *pdev)
 		dev->fifo_size = (dev->fifo_size / 2);
 		dev->b_hw = 1; /* Enable hardware fixes */
 	}
-
-	if (cpu_is_omap7xx())
-		dev->reg_shift = 1;
-	else
-		dev->reg_shift = 2;
 
 	/* reset ASAP, clearing any IRQs */
 	omap_i2c_init(dev);

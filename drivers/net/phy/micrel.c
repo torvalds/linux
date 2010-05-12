@@ -32,6 +32,7 @@ static int kszphy_config_init(struct phy_device *phydev)
 
 static struct phy_driver ks8001_driver = {
 	.phy_id		= PHY_ID_KS8001,
+	.name		= "Micrel KS8001",
 	.phy_id_mask	= 0x00fffff0,
 	.features	= PHY_BASIC_FEATURES,
 	.flags		= PHY_POLL,

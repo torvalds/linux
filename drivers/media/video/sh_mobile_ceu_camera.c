@@ -1633,7 +1633,7 @@ static int sh_mobile_ceu_try_fmt(struct soc_camera_device *icd,
 	height = pix->height;
 
 	pix->bytesperline = soc_mbus_bytes_per_line(width, xlate->host_fmt);
-	if (pix->bytesperline < 0)
+	if ((int)pix->bytesperline < 0)
 		return pix->bytesperline;
 	pix->sizeimage = height * pix->bytesperline;
 

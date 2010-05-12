@@ -331,6 +331,8 @@ ohci_hcd_at91_drv_suspend(struct platform_device *pdev, pm_message_t mesg)
 	 */
 	if (at91_suspend_entering_slow_clock()) {
 		ohci_usb_reset (ohci);
+		/* flush the writes */
+		(void) ohci_readl (ohci, &ohci->regs->control);
 		at91_stop_clock();
 	}
 

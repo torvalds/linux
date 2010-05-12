@@ -68,7 +68,8 @@ static int call_sbin_request_key(struct key_construction *cons,
 {
 	const struct cred *cred = current_cred();
 	key_serial_t prkey, sskey;
-	struct key *key = cons->key, *authkey = cons->authkey, *keyring;
+	struct key *key = cons->key, *authkey = cons->authkey, *keyring,
+		*session;
 	char *argv[9], *envp[3], uid_str[12], gid_str[12];
 	char key_str[12], keyring_str[3][12];
 	char desc[20];
@@ -93,7 +94,7 @@ static int call_sbin_request_key(struct key_construction *cons,
 	}
 
 	/* attach the auth key to the session keyring */
-	ret = __key_link(keyring, authkey);
+	ret = key_link(keyring, authkey);
 	if (ret < 0)
 		goto error_link;
 
@@ -112,10 +113,12 @@ static int call_sbin_request_key(struct key_construction *cons,
 	if (cred->tgcred->process_keyring)
 		prkey = cred->tgcred->process_keyring->serial;
 
-	if (cred->tgcred->session_keyring)
-		sskey = rcu_dereference(cred->tgcred->session_keyring)->serial;
-	else
-		sskey = cred->user->session_keyring->serial;
+	rcu_read_lock();
+	session = rcu_dereference(cred->tgcred->session_keyring);
+	if (!session)
+		session = cred->user->session_keyring;
+	sskey = session->serial;
+	rcu_read_unlock();
 
 	sprintf(keyring_str[2], "%d", sskey);
 
@@ -336,8 +339,10 @@ static int construct_alloc_key(struct key_type *type,
 
 key_already_present:
 	mutex_unlock(&key_construction_mutex);
-	if (dest_keyring)
+	if (dest_keyring) {
+		__key_link(dest_keyring, key_ref_to_ptr(key_ref));
 		up_write(&dest_keyring->sem);
+	}
 	mutex_unlock(&user->cons_lock);
 	key_put(key);
 	*_key = key = key_ref_to_ptr(key_ref);
@@ -428,6 +433,11 @@ struct key *request_key_and_link(struct key_type *type,
 
 	if (!IS_ERR(key_ref)) {
 		key = key_ref_to_ptr(key_ref);
+		if (dest_keyring) {
+			construct_get_dest_keyring(&dest_keyring);
+			key_link(dest_keyring, key);
+			key_put(dest_keyring);
+		}
 	} else if (PTR_ERR(key_ref) != -EAGAIN) {
 		key = ERR_CAST(key_ref);
 	} else  {

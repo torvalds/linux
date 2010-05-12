@@ -476,6 +476,7 @@ void drm_vblank_off(struct drm_device *dev, int crtc)
 	unsigned long irqflags;
 
 	spin_lock_irqsave(&dev->vbl_lock, irqflags);
+	dev->driver->disable_vblank(dev, crtc);
 	DRM_WAKEUP(&dev->vbl_queue[crtc]);
 	dev->vblank_enabled[crtc] = 0;
 	dev->last_vblank[crtc] = dev->driver->get_vblank_counter(dev, crtc);
