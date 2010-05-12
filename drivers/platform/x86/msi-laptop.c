@@ -581,10 +581,30 @@ static void rfkill_cleanup(void)
 	}
 }
 
+static void msi_init_rfkill(struct work_struct *ignored)
+{
+	if (rfk_wlan) {
+		rfkill_set_sw_state(rfk_wlan, !wlan_s);
+		rfkill_wlan_set(NULL, !wlan_s);
+	}
+	if (rfk_bluetooth) {
+		rfkill_set_sw_state(rfk_bluetooth, !bluetooth_s);
+		rfkill_bluetooth_set(NULL, !bluetooth_s);
+	}
+	if (rfk_threeg) {
+		rfkill_set_sw_state(rfk_threeg, !threeg_s);
+		rfkill_threeg_set(NULL, !threeg_s);
+	}
+}
+static DECLARE_DELAYED_WORK(msi_rfkill_init, msi_init_rfkill);
+
 static int rfkill_init(struct platform_device *sdev)
 {
 	/* add rfkill */
 	int retval;
+
+	/* keep the hardware wireless state */
+	get_wireless_state_ec_standard();
 
 	rfk_bluetooth = rfkill_alloc("msi-bluetooth", &sdev->dev,
 				RFKILL_TYPE_BLUETOOTH,
@@ -618,6 +638,10 @@ static int rfkill_init(struct platform_device *sdev)
 		if (retval)
 			goto err_threeg;
 	}
+
+	/* schedule to run rfkill state initial */
+	schedule_delayed_work(&msi_rfkill_init,
+				round_jiffies_relative(1 * HZ));
 
 	return 0;
 
