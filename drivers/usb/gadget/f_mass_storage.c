@@ -2742,10 +2742,8 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 	/* Maybe allocate device-global string IDs, and patch descriptors */
 	if (fsg_strings[FSG_STRING_INTERFACE].id == 0) {
 		rc = usb_string_id(cdev);
-		if (rc < 0) {
-			kfree(common);
-			return ERR_PTR(rc);
-		}
+		if (unlikely(rc < 0))
+			goto error_release;
 		fsg_strings[FSG_STRING_INTERFACE].id = rc;
 		fsg_intf_desc.iInterface = rc;
 	}
@@ -2753,9 +2751,9 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 	/* Create the LUNs, open their backing files, and register the
 	 * LUN devices in sysfs. */
 	curlun = kzalloc(nluns * sizeof *curlun, GFP_KERNEL);
-	if (!curlun) {
-		kfree(common);
-		return ERR_PTR(-ENOMEM);
+	if (unlikely(!curlun)) {
+		rc = -ENOMEM;
+		goto error_release;
 	}
 	common->luns = curlun;
 
@@ -2914,11 +2912,7 @@ error_release:
 
 static void fsg_common_release(struct kref *ref)
 {
-	struct fsg_common *common =
-		container_of(ref, struct fsg_common, ref);
-	unsigned i = common->nluns;
-	struct fsg_lun *lun = common->luns;
-	struct fsg_buffhd *bh;
+	struct fsg_common *common = container_of(ref, struct fsg_common, ref);
 
 	/* If the thread isn't already dead, tell it to exit now */
 	if (common->state != FSG_STATE_TERMINATED) {
@@ -2929,23 +2923,28 @@ static void fsg_common_release(struct kref *ref)
 		complete(&common->thread_notifier);
 	}
 
-	/* Beware tempting for -> do-while optimization: when in error
-	 * recovery nluns may be zero. */
+	if (likely(common->luns)) {
+		struct fsg_lun *lun = common->luns;
+		unsigned i = common->nluns;
 
-	for (; i; --i, ++lun) {
-		device_remove_file(&lun->dev, &dev_attr_ro);
-		device_remove_file(&lun->dev, &dev_attr_file);
-		fsg_lun_close(lun);
-		device_unregister(&lun->dev);
+		/* In error recovery common->nluns may be zero. */
+		for (; i; --i, ++lun) {
+			device_remove_file(&lun->dev, &dev_attr_ro);
+			device_remove_file(&lun->dev, &dev_attr_file);
+			fsg_lun_close(lun);
+			device_unregister(&lun->dev);
+		}
+
+		kfree(common->luns);
 	}
 
-	kfree(common->luns);
-
-	i = FSG_NUM_BUFFERS;
-	bh = common->buffhds;
-	do {
-		kfree(bh->buf);
-	} while (++bh, --i);
+	{
+		struct fsg_buffhd *bh = common->buffhds;
+		unsigned i = FSG_NUM_BUFFERS;
+		do {
+			kfree(bh->buf);
+		} while (++bh, --i);
+	}
 
 	if (common->free_storage_on_release)
 		kfree(common);
