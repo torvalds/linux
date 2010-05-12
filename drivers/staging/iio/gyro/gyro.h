@@ -39,3 +39,5 @@
 #define IIO_DEV_ATTR_GYRO_Z(_show, _addr)			\
 	IIO_DEVICE_ATTR(gyro_z_raw, S_IRUGO, _show, NULL, _addr)
 
+#define IIO_DEV_ATTR_ANGL(_show, _addr)                         \
+	IIO_DEVICE_ATTR(angl_raw, S_IRUGO, _show, NULL, _addr)
