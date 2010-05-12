@@ -2442,9 +2442,6 @@ static struct rpc_xprt *xs_setup_bc_tcp(struct xprt_create *args)
 	struct sock_xprt *transport;
 	struct svc_sock *bc_sock;
 
-	if (!args->bc_xprt)
-		ERR_PTR(-EINVAL);
-
 	xprt = xs_setup_xprt(args, xprt_tcp_slot_table_entries);
 	if (IS_ERR(xprt))
 		return xprt;
