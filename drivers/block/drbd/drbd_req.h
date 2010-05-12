@@ -104,6 +104,7 @@ enum drbd_req_event {
 	read_ahead_completed_with_error,
 	write_completed_with_error,
 	completed_ok,
+	resend,
 	nothing, /* for tracing only */
 };
 
@@ -205,6 +206,13 @@ enum drbd_req_state_bits {
 #define RQ_NET_MASK        (((1UL << __RQ_NET_MAX)-1) & ~RQ_LOCAL_MASK)
 
 #define RQ_WRITE           (1UL << __RQ_WRITE)
+
+/* For waking up the frozen transfer log mod_req() has to return if the request
+   should be counted in the epoch object*/
+#define MR_WRITE_SHIFT 0
+#define MR_WRITE       (1 << MR_WRITE_SHIFT)
+#define MR_READ_SHIFT  1
+#define MR_READ        (1 << MR_READ_SHIFT)
 
 /* epoch entries */
 static inline

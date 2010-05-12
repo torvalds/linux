@@ -634,6 +634,20 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		/* else: done by handed_over_to_network */
 		break;
 
+	case resend:
+		/* If RQ_NET_OK is already set, we got a P_WRITE_ACK or P_RECV_ACK
+		   before the connection loss; only P_BARRIER_ACK was missing.
+		   Trowing them out of the TL here by pretending we got a BARRIER_ACK
+		   TODO: Either resync them, or ensure peer was not rebooted. */
+		if (!(req->rq_state & RQ_NET_OK)) {
+			if (req->w.cb) {
+				drbd_queue_work(&mdev->data.work, &req->w);
+				rv = req->rq_state & RQ_WRITE ? MR_WRITE : MR_READ;
+			}
+			break;
+		}
+		/* else, fall through to barrier_acked */
+
 	case barrier_acked:
 		if (!(req->rq_state & RQ_WRITE))
 			break;

@@ -333,6 +333,77 @@ bail:
 	drbd_force_state(mdev, NS(conn, C_PROTOCOL_ERROR));
 }
 
+/**
+ * _tl_restart() - Walks the transfer log, and applies an action to all requests
+ * @mdev:	DRBD device.
+ * @what:       The action/event to perform with all request objects
+ *
+ * @what might be one of connection_lost_while_pending, resend, fail_frozen_disk_io,
+ * restart_frozen_disk_io.
+ */
+static void _tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
+{
+	struct drbd_tl_epoch *b, *tmp, **pn;
+	struct list_head *le, *tle;
+	struct drbd_request *req;
+	int rv, n_writes, n_reads;
+
+	b = mdev->oldest_tle;
+	pn = &mdev->oldest_tle;
+	while (b) {
+		n_writes = 0;
+		n_reads = 0;
+		list_for_each_safe(le, tle, &b->requests) {
+			req = list_entry(le, struct drbd_request, tl_requests);
+			rv = _req_mod(req, what);
+
+			n_writes += (rv & MR_WRITE) >> MR_WRITE_SHIFT;
+			n_reads  += (rv & MR_READ) >> MR_READ_SHIFT;
+		}
+		tmp = b->next;
+
+		if (n_writes + n_reads) {
+			if (what == resend) {
+				b->n_writes = n_writes;
+				if (b->w.cb == NULL) {
+					b->w.cb = w_send_barrier;
+					inc_ap_pending(mdev);
+					set_bit(CREATE_BARRIER, &mdev->flags);
+				}
+
+				drbd_queue_work(&mdev->data.work, &b->w);
+			}
+			pn = &b->next;
+		} else {
+			/* there could still be requests on that ring list,
+			 * in case local io is still pending */
+			list_del(&b->requests);
+
+			/* dec_ap_pending corresponding to queue_barrier.
+			 * the newest barrier may not have been queued yet,
+			 * in which case w.cb is still NULL. */
+			if (b->w.cb != NULL)
+				dec_ap_pending(mdev);
+
+			if (b == mdev->newest_tle) {
+				/* recycle, but reinit! */
+				D_ASSERT(tmp == NULL);
+				INIT_LIST_HEAD(&b->requests);
+				INIT_LIST_HEAD(&b->w.list);
+				b->w.cb = NULL;
+				b->br_number = net_random();
+				b->n_writes = 0;
+
+				*pn = b;
+				break;
+			}
+			*pn = tmp;
+			kfree(b);
+		}
+		b = tmp;
+	}
+}
+
 
 /**
  * tl_clear() - Clears all requests and &struct drbd_tl_epoch objects out of the TL
@@ -344,48 +415,12 @@ bail:
  */
 void tl_clear(struct drbd_conf *mdev)
 {
-	struct drbd_tl_epoch *b, *tmp;
 	struct list_head *le, *tle;
 	struct drbd_request *r;
-	int new_initial_bnr = net_random();
 
 	spin_lock_irq(&mdev->req_lock);
 
-	b = mdev->oldest_tle;
-	while (b) {
-		list_for_each_safe(le, tle, &b->requests) {
-			r = list_entry(le, struct drbd_request, tl_requests);
-			/* It would be nice to complete outside of spinlock.
-			 * But this is easier for now. */
-			_req_mod(r, connection_lost_while_pending);
-		}
-		tmp = b->next;
-
-		/* there could still be requests on that ring list,
-		 * in case local io is still pending */
-		list_del(&b->requests);
-
-		/* dec_ap_pending corresponding to queue_barrier.
-		 * the newest barrier may not have been queued yet,
-		 * in which case w.cb is still NULL. */
-		if (b->w.cb != NULL)
-			dec_ap_pending(mdev);
-
-		if (b == mdev->newest_tle) {
-			/* recycle, but reinit! */
-			D_ASSERT(tmp == NULL);
-			INIT_LIST_HEAD(&b->requests);
-			INIT_LIST_HEAD(&b->w.list);
-			b->w.cb = NULL;
-			b->br_number = new_initial_bnr;
-			b->n_writes = 0;
-
-			mdev->oldest_tle = b;
-			break;
-		}
-		kfree(b);
-		b = tmp;
-	}
+	_tl_restart(mdev, connection_lost_while_pending);
 
 	/* we expect this list to be empty. */
 	D_ASSERT(list_empty(&mdev->out_of_sequence_requests));
@@ -403,6 +438,13 @@ void tl_clear(struct drbd_conf *mdev)
 
 	memset(mdev->app_reads_hash, 0, APP_R_HSIZE*sizeof(void *));
 
+	spin_unlock_irq(&mdev->req_lock);
+}
+
+void tl_restart(struct drbd_conf *mdev, enum drbd_req_event what)
+{
+	spin_lock_irq(&mdev->req_lock);
+	_tl_restart(mdev, what);
 	spin_unlock_irq(&mdev->req_lock);
 }
 
