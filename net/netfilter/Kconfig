@@ -505,6 +505,7 @@ config NETFILTER_XT_TARGET_RATEEST
 config NETFILTER_XT_TARGET_TEE
 	tristate '"TEE" - packet cloning to alternate destiantion'
 	depends on NETFILTER_ADVANCED
+	depends on (IPV6 || IPV6=n)
 	---help---
 	This option adds a "TEE" target with which a packet can be cloned and
 	this clone be rerouted to another nexthop.
