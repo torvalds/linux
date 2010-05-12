@@ -1,0 +1,27 @@
+comment "NVIDIA NVRM/NVOS options"
+
+
+config TEGRA_NVRM
+	bool "Enable NVRM stub driver"
+	default n
+	help
+		Enable NVRM stub driver
+
+
+config TEGRA_NVOS
+	bool "Enable NVOS driver"
+	default n
+	help
+		Enable NVOS driver
+
+config TEGRA_NVMAP
+	bool "Enable NVMAP driver"
+	default n
+	help
+		Enable NVMAP driver
+
+config TEGRA_IOVMM
+	bool "Enable IOVMM driver"
+	default n
+	help
+		Enable IOVMM driver

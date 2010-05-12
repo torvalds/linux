@@ -84,6 +84,8 @@ config WIFI_CONTROL_FUNC
 	help
 	  Enables Power/Reset/Carddetect function abstraction
 
+source "arch/arm/mach-tegra/nv/Kconfig"
+
 endif
 
 config TEGRA_IOVMM_GART
