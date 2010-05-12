@@ -26,8 +26,10 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <mach/i2c.h>
+#include <mach/board.h>
 #include <asm/io.h>
+
+#include "i2c-rk2818.h"
 
 #define RK2818_I2C_TIMEOUT		(msecs_to_jiffies(500))
 
