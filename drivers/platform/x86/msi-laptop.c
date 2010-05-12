@@ -59,6 +59,7 @@
 #include <linux/backlight.h>
 #include <linux/platform_device.h>
 #include <linux/rfkill.h>
+#include <linux/i8042.h>
 
 #define MSI_DRIVER_VERSION "0.5"
 
@@ -581,6 +582,46 @@ static void rfkill_cleanup(void)
 	}
 }
 
+static void msi_update_rfkill(struct work_struct *ignored)
+{
+	get_wireless_state_ec_standard();
+
+	if (rfk_wlan)
+		rfkill_set_sw_state(rfk_wlan, !wlan_s);
+	if (rfk_bluetooth)
+		rfkill_set_sw_state(rfk_bluetooth, !bluetooth_s);
+	if (rfk_threeg)
+		rfkill_set_sw_state(rfk_threeg, !threeg_s);
+}
+static DECLARE_DELAYED_WORK(msi_rfkill_work, msi_update_rfkill);
+
+static bool msi_laptop_i8042_filter(unsigned char data, unsigned char str,
+				struct serio *port)
+{
+	static bool extended;
+
+	if (str & 0x20)
+		return false;
+
+	/* 0x54 wwan, 0x62 bluetooth, 0x76 wlan*/
+	if (unlikely(data == 0xe0)) {
+		extended = true;
+		return false;
+	} else if (unlikely(extended)) {
+		switch (data) {
+		case 0x54:
+		case 0x62:
+		case 0x76:
+			schedule_delayed_work(&msi_rfkill_work,
+				round_jiffies_relative(0.5 * HZ));
+			break;
+		}
+		extended = false;
+	}
+
+	return false;
+}
+
 static void msi_init_rfkill(struct work_struct *ignored)
 {
 	if (rfk_wlan) {
@@ -706,9 +747,24 @@ static int load_scm_model_init(struct platform_device *sdev)
 	/* initial rfkill */
 	result = rfkill_init(sdev);
 	if (result < 0)
-		return result;
+		goto fail_rfkill;
+
+	result = i8042_install_filter(msi_laptop_i8042_filter);
+	if (result) {
+		printk(KERN_ERR
+			"msi-laptop: Unable to install key filter\n");
+		goto fail_filter;
+	}
 
 	return 0;
+
+fail_filter:
+	rfkill_cleanup();
+
+fail_rfkill:
+
+	return result;
+
 }
 
 static int __init msi_init(void)
@@ -819,6 +875,7 @@ static void __exit msi_cleanup(void)
 	platform_driver_unregister(&msipf_driver);
 	backlight_device_unregister(msibl_device);
 
+	i8042_remove_filter(msi_laptop_i8042_filter);
 	rfkill_cleanup();
 
 	/* Enable automatic brightness control again */
