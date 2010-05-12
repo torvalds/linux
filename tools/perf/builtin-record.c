@@ -54,7 +54,7 @@ static pid_t			target_tid			=     -1;
 static pid_t			*all_tids			=      NULL;
 static int			thread_num			=      0;
 static pid_t			child_pid			=     -1;
-static bool			inherit				=   true;
+static bool			no_inherit			=  false;
 static enum write_mode_t	write_mode			= WRITE_FORCE;
 static bool			call_graph			=  false;
 static bool			inherit_stat			=  false;
@@ -298,8 +298,8 @@ static void create_counter(int counter, int cpu)
 
 	attr->mmap		= track;
 	attr->comm		= track;
-	attr->inherit		= inherit;
-	if (target_pid == -1 && !system_wide) {
+	attr->inherit		= !no_inherit;
+	if (target_pid == -1 && target_tid == -1 && !system_wide) {
 		attr->disabled = 1;
 		attr->enable_on_exec = 1;
 	}
@@ -641,7 +641,7 @@ static int __cmd_record(int argc, const char **argv)
 		close(child_ready_pipe[0]);
 	}
 
-	if ((!system_wide && !inherit) || profile_cpu != -1) {
+	if ((!system_wide && no_inherit) || profile_cpu != -1) {
 		open_counters(profile_cpu);
 	} else {
 		nr_cpus = read_cpu_map();
@@ -821,8 +821,8 @@ static const struct option options[] = {
 		    "event period to sample"),
 	OPT_STRING('o', "output", &output_name, "file",
 		    "output file name"),
-	OPT_BOOLEAN('i', "inherit", &inherit,
-		    "child tasks inherit counters"),
+	OPT_BOOLEAN('i', "no-inherit", &no_inherit,
+		    "child tasks do not inherit counters"),
 	OPT_INTEGER('F', "freq", &user_freq,
 		    "profile at this frequency"),
 	OPT_INTEGER('m', "mmap-pages", &mmap_pages,

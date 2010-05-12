@@ -72,7 +72,7 @@ static unsigned int		nr_cpus				=  0;
 static int			run_idx				=  0;
 
 static int			run_count			=  1;
-static bool			inherit				=  true;
+static bool			no_inherit			= false;
 static bool			scale				=  true;
 static pid_t			target_pid			= -1;
 static pid_t			target_tid			= -1;
@@ -167,8 +167,8 @@ static int create_perf_stat_counter(int counter)
 				++ncreated;
 		}
 	} else {
-		attr->inherit	     = inherit;
-		if (target_pid == -1) {
+		attr->inherit = !no_inherit;
+		if (target_pid == -1 && target_tid == -1) {
 			attr->disabled = 1;
 			attr->enable_on_exec = 1;
 		}
@@ -518,8 +518,8 @@ static const struct option options[] = {
 	OPT_CALLBACK('e', "event", NULL, "event",
 		     "event selector. use 'perf list' to list available events",
 		     parse_events),
-	OPT_BOOLEAN('i', "inherit", &inherit,
-		    "child tasks inherit counters"),
+	OPT_BOOLEAN('i', "no-inherit", &no_inherit,
+		    "child tasks do not inherit counters"),
 	OPT_INTEGER('p', "pid", &target_pid,
 		    "stat events on existing process id"),
 	OPT_INTEGER('t', "tid", &target_tid,
