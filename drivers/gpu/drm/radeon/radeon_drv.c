@@ -44,9 +44,10 @@
  * - 2.1.0 - add square tiling interface
  * - 2.2.0 - add r6xx/r7xx const buffer support
  * - 2.3.0 - add MSPOS + 3D texture + r500 VAP regs
+ * - 2.4.0 - add crtc id query
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	3
+#define KMS_DRIVER_MINOR	4
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
