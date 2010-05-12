@@ -78,7 +78,7 @@ static void __init trout_map_io(void)
 	writeb(0x80, TROUT_CPLD_BASE + 0x00);
 #endif
 
-	msm_clock_init();
+	msm_clock_init(msm_clocks_7x01a, msm_num_clocks_7x01a);
 }
 
 MACHINE_START(TROUT, "HTC Dream")
