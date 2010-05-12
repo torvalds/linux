@@ -2744,6 +2744,9 @@
 #define  SDVO_ENCODING          (0)
 #define  TMDS_ENCODING          (2 << 10)
 #define  NULL_PACKET_VSYNC_ENABLE       (1 << 9)
+/* CPT */
+#define  HDMI_MODE_SELECT	(1 << 9)
+#define  DVI_MODE_SELECT	(0)
 #define  SDVOB_BORDER_ENABLE    (1 << 7)
 #define  AUDIO_ENABLE           (1 << 6)
 #define  VSYNC_ACTIVE_HIGH      (1 << 4)
