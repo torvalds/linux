@@ -30,32 +30,32 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	__u16 brightness;
+	__u16 exposure;
 	__u16 gain;
 
 	__u8 packet;
 };
 
 /* V4L2 controls supported by the driver */
-static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
 
 static const struct ctrl sd_ctrls[] = {
 	{
 	 {
-	  .id = V4L2_CID_BRIGHTNESS,
+	  .id = V4L2_CID_EXPOSURE,
 	  .type = V4L2_CTRL_TYPE_INTEGER,
-	  .name = "Brightness",
+	  .name = "Exposure",
 	  .minimum = 1,
-	  .maximum = 0x15f,	/* = 352 - 1 */
+	  .maximum = 0x18f,
 	  .step = 1,
-#define BRIGHTNESS_DEF 0x14c
-	  .default_value = BRIGHTNESS_DEF,
+#define EXPOSURE_DEF 0x18f
+	  .default_value = EXPOSURE_DEF,
 	  },
-	 .set = sd_setbrightness,
-	 .get = sd_getbrightness,
+	 .set = sd_setexposure,
+	 .get = sd_getexposure,
 	 },
 	{
 	 {
@@ -209,7 +209,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->cam_mode = sif_mode;
 	cam->nmodes = ARRAY_SIZE(sif_mode);
 
-	sd->brightness = BRIGHTNESS_DEF;
+	sd->exposure = EXPOSURE_DEF;
 	sd->gain = GAIN_DEF;
 	return 0;
 }
@@ -241,11 +241,11 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static void setbrightness(struct gspca_dev *gspca_dev)
+static void setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	reg_w2(gspca_dev, R1C_AD_EXPOSE_TIMEL, sd->brightness);
+	reg_w2(gspca_dev, R1C_AD_EXPOSE_TIMEL, sd->exposure);
 	reg_w1(gspca_dev, R00_PART_CONTROL, LATENT_CHANGE | EXPO_CHANGE);
 						/* 0x84 */
 }
@@ -289,7 +289,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 	tv_8532_setReg(gspca_dev);
 
-	setbrightness(gspca_dev);
+	setexposure(gspca_dev);
 	setgain(gspca_dev);
 
 	/************************************************/
@@ -339,21 +339,21 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			data + gspca_dev->width + 5, gspca_dev->width);
 }
 
-static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
+static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	sd->brightness = val;
+	sd->exposure = val;
 	if (gspca_dev->streaming)
-		setbrightness(gspca_dev);
+		setexposure(gspca_dev);
 	return 0;
 }
 
-static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
+static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	*val = sd->brightness;
+	*val = sd->exposure;
 	return 0;
 }
 
