@@ -1970,6 +1970,8 @@ and is between 256 and 4096 characters. It is defined in the file
 		norom		[X86] Do not assign address space to
 				expansion ROMs that do not already have
 				BIOS assigned address ranges.
+		nobar		[X86] Do not assign address space to the
+				BARs that weren't assigned by the BIOS.
 		irqmask=0xMMMM	[X86] Set a bit mask of IRQs allowed to be
 				assigned automatically to PCI devices. You can
 				make the kernel exclude IRQs of your ISA cards
