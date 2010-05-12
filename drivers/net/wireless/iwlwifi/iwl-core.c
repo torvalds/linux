@@ -1880,8 +1880,6 @@ static int iwl_set_mode(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	if (priv->cfg->ops->hcmd->set_rxon_chain)
 		priv->cfg->ops->hcmd->set_rxon_chain(priv);
 
-	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
-
 	return iwlcore_commit_rxon(priv);
 }
 
