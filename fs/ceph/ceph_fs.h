@@ -635,12 +635,21 @@ struct ceph_mds_cap_reconnect {
 	__le64 cap_id;
 	__le32 wanted;
 	__le32 issued;
+	__le64 snaprealm;
+	__le64 pathbase;        /* base ino for our path to this ino */
+	__le32 flock_len;       /* size of flock state blob, if any */
+} __attribute__ ((packed));
+/* followed by flock blob */
+
+struct ceph_mds_cap_reconnect_v1 {
+	__le64 cap_id;
+	__le32 wanted;
+	__le32 issued;
 	__le64 size;
 	struct ceph_timespec mtime, atime;
 	__le64 snaprealm;
 	__le64 pathbase;        /* base ino for our path to this ino */
 } __attribute__ ((packed));
-/* followed by encoded string */
 
 struct ceph_mds_snaprealm_reconnect {
 	__le64 ino;     /* snap realm base */

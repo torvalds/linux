@@ -37,6 +37,11 @@
  * are no longer valid.
  */
 
+struct ceph_reconnect_state {
+	struct ceph_pagelist *pagelist;
+	bool flock;
+};
+
 static void __wake_requests(struct ceph_mds_client *mdsc,
 			    struct list_head *head);
 
@@ -2268,9 +2273,14 @@ static void replay_unsafe_requests(struct ceph_mds_client *mdsc,
 static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 			  void *arg)
 {
-	struct ceph_mds_cap_reconnect rec;
+	union {
+		struct ceph_mds_cap_reconnect v2;
+		struct ceph_mds_cap_reconnect_v1 v1;
+	} rec;
+	size_t reclen;
 	struct ceph_inode_info *ci;
-	struct ceph_pagelist *pagelist = arg;
+	struct ceph_reconnect_state *recon_state = arg;
+	struct ceph_pagelist *pagelist = recon_state->pagelist;
 	char *path;
 	int pathlen, err;
 	u64 pathbase;
@@ -2303,17 +2313,29 @@ static int encode_caps_cb(struct inode *inode, struct ceph_cap *cap,
 	spin_lock(&inode->i_lock);
 	cap->seq = 0;        /* reset cap seq */
 	cap->issue_seq = 0;  /* and issue_seq */
-	rec.cap_id = cpu_to_le64(cap->cap_id);
-	rec.pathbase = cpu_to_le64(pathbase);
-	rec.wanted = cpu_to_le32(__ceph_caps_wanted(ci));
-	rec.issued = cpu_to_le32(cap->issued);
-	rec.size = cpu_to_le64(inode->i_size);
-	ceph_encode_timespec(&rec.mtime, &inode->i_mtime);
-	ceph_encode_timespec(&rec.atime, &inode->i_atime);
-	rec.snaprealm = cpu_to_le64(ci->i_snap_realm->ino);
+
+	if (recon_state->flock) {
+		rec.v2.cap_id = cpu_to_le64(cap->cap_id);
+		rec.v2.wanted = cpu_to_le32(__ceph_caps_wanted(ci));
+		rec.v2.issued = cpu_to_le32(cap->issued);
+		rec.v2.snaprealm = cpu_to_le64(ci->i_snap_realm->ino);
+		rec.v2.pathbase = cpu_to_le64(pathbase);
+		rec.v2.flock_len = 0;
+		reclen = sizeof(rec.v2);
+	} else {
+		rec.v1.cap_id = cpu_to_le64(cap->cap_id);
+		rec.v1.wanted = cpu_to_le32(__ceph_caps_wanted(ci));
+		rec.v1.issued = cpu_to_le32(cap->issued);
+		rec.v1.size = cpu_to_le64(inode->i_size);
+		ceph_encode_timespec(&rec.v1.mtime, &inode->i_mtime);
+		ceph_encode_timespec(&rec.v1.atime, &inode->i_atime);
+		rec.v1.snaprealm = cpu_to_le64(ci->i_snap_realm->ino);
+		rec.v1.pathbase = cpu_to_le64(pathbase);
+		reclen = sizeof(rec.v1);
+	}
 	spin_unlock(&inode->i_lock);
 
-	err = ceph_pagelist_append(pagelist, &rec, sizeof(rec));
+	err = ceph_pagelist_append(pagelist, &rec, reclen);
 
 out:
 	kfree(path);
@@ -2342,6 +2364,7 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	int mds = session->s_mds;
 	int err = -ENOMEM;
 	struct ceph_pagelist *pagelist;
+	struct ceph_reconnect_state recon_state;
 
 	pr_info("mds%d reconnect start\n", mds);
 
@@ -2376,7 +2399,10 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	err = ceph_pagelist_encode_32(pagelist, session->s_nr_caps);
 	if (err)
 		goto fail;
-	err = iterate_session_caps(session, encode_caps_cb, pagelist);
+
+	recon_state.pagelist = pagelist;
+	recon_state.flock = session->s_con.peer_features & CEPH_FEATURE_FLOCK;
+	err = iterate_session_caps(session, encode_caps_cb, &recon_state);
 	if (err < 0)
 		goto fail;
 
@@ -2401,6 +2427,8 @@ static void send_mds_reconnect(struct ceph_mds_client *mdsc,
 	}
 
 	reply->pagelist = pagelist;
+	if (recon_state.flock)
+		reply->hdr.version = cpu_to_le16(2);
 	reply->hdr.data_len = cpu_to_le32(pagelist->length);
 	reply->nr_pages = calc_pages_for(0, pagelist->length);
 	ceph_con_send(&session->s_con, reply);
