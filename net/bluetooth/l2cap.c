@@ -4166,24 +4166,24 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		skb_pull(skb, 2);
 		len = skb->len;
 
+		/*
+		 * We can just drop the corrupted I-frame here.
+		 * Receiver will miss it and start proper recovery
+		 * procedures and ask retransmission.
+		 */
+		if (l2cap_check_fcs(pi, skb))
+			goto drop;
+
 		if (__is_sar_start(control) && __is_iframe(control))
 			len -= 2;
 
 		if (pi->fcs == L2CAP_FCS_CRC16)
 			len -= 2;
 
-		/*
-		 * We can just drop the corrupted I-frame here.
-		 * Receiver will miss it and start proper recovery
-		 * procedures and ask retransmission.
-		 */
 		if (len > pi->mps) {
 			l2cap_send_disconn_req(pi->conn, sk);
 			goto drop;
 		}
-
-		if (l2cap_check_fcs(pi, skb))
-			goto drop;
 
 		req_seq = __get_reqseq(control);
 		req_seq_offset = (req_seq - pi->expected_ack_seq) % 64;
@@ -4224,6 +4224,9 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 		skb_pull(skb, 2);
 		len = skb->len;
 
+		if (l2cap_check_fcs(pi, skb))
+			goto drop;
+
 		if (__is_sar_start(control))
 			len -= 2;
 
@@ -4231,9 +4234,6 @@ static inline int l2cap_data_channel(struct l2cap_conn *conn, u16 cid, struct sk
 			len -= 2;
 
 		if (len > pi->mps || len < 0 || __is_sframe(control))
-			goto drop;
-
-		if (l2cap_check_fcs(pi, skb))
 			goto drop;
 
 		tx_seq = __get_txseq(control);
