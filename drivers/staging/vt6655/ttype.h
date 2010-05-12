@@ -132,6 +132,4 @@ typedef DWORD *          PDWORD;
 
 typedef QWORD *          PQWORD;
 
-typedef void *HANDLE;
-
 #endif // __TTYPE_H__

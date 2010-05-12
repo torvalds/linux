@@ -91,18 +91,18 @@ const WORD             awHWRetry1[5][5] = {
 /*---------------------  Static Functions  --------------------------*/
 
 void s_vCheckSensitivity(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     );
 
 #ifdef Calcu_LinkQual
 void s_uCalculateLinkQual(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     );
 #endif
 
 
 void s_vCheckPreEDThreshold(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     );
 /*---------------------  Export Variables  --------------------------*/
 
@@ -125,7 +125,7 @@ void s_vCheckPreEDThreshold(
 
 PKnownBSS
 BSSpSearchBSSList(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN PBYTE pbyDesireBSSID,
     IN PBYTE pbyDesireSSID,
     IN CARD_PHY_TYPE  ePhyType
@@ -282,7 +282,7 @@ if(pDevice->bLinkPass==FALSE) pCurrBSS->bSelected = FALSE;
 
 void
 BSSvClearBSSList(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN BOOL bKeepCurrBSSID
     )
 {
@@ -325,7 +325,7 @@ BSSvClearBSSList(
 -*/
 PKnownBSS
 BSSpAddrIsInBSSList(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN PBYTE abyBSSID,
     IN PWLAN_IE_SSID pSSID
     )
@@ -368,7 +368,7 @@ BSSpAddrIsInBSSList(
 
 BOOL
 BSSbInsertToBSSList (
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN PBYTE abyBSSIDAddr,
     IN QWORD qwTimestamp,
     IN WORD wBeaconInterval,
@@ -384,7 +384,7 @@ BSSbInsertToBSSList (
     IN PWLAN_IE_QUIET pIE_Quiet,
     IN UINT uIELength,
     IN PBYTE pbyIEs,
-    IN HANDLE pRxPacketContext
+    IN void *pRxPacketContext
     )
 {
 
@@ -502,7 +502,7 @@ BSSbInsertToBSSList (
         if ((bIs802_1x == TRUE) && (pSSID->len == ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->len) &&
             ( !memcmp(pSSID->abySSID, ((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySSID, pSSID->len))) {
 
-            bAdd_PMKID_Candidate((HANDLE)pDevice, pBSSList->abyBSSID, &pBSSList->sRSNCapObj);
+            bAdd_PMKID_Candidate((void *)pDevice, pBSSList->abyBSSID, &pBSSList->sRSNCapObj);
 
             if ((pDevice->bLinkPass == TRUE) && (pMgmt->eCurrState == WMAC_STATE_ASSOC)) {
                 if ((KeybGetTransmitKey(&(pDevice->sKey), pDevice->abyBSSID, PAIRWISE_KEY, &pTransmitKey) == TRUE) ||
@@ -585,7 +585,7 @@ BSSbInsertToBSSList (
 
 BOOL
 BSSbUpdateToBSSList (
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN QWORD qwTimestamp,
     IN WORD wBeaconInterval,
     IN WORD wCapInfo,
@@ -602,7 +602,7 @@ BSSbUpdateToBSSList (
     IN PKnownBSS pBSSList,
     IN UINT uIELength,
     IN PBYTE pbyIEs,
-    IN HANDLE pRxPacketContext
+    IN void *pRxPacketContext
     )
 {
     int             ii;
@@ -799,7 +799,7 @@ BSSDBbIsSTAInNodeDB(
 -*/
 void
 BSSvCreateOneNode(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     OUT PUINT puNodeIndex
     )
 {
@@ -864,7 +864,7 @@ BSSvCreateOneNode(
 -*/
 void
 BSSvRemoveOneNode(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN UINT uNodeIndex
     )
 {
@@ -897,7 +897,7 @@ BSSvRemoveOneNode(
 
 void
 BSSvUpdateAPNode(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN PWORD pwCapInfo,
     IN PWLAN_IE_SUPP_RATES pSuppRates,
     IN PWLAN_IE_SUPP_RATES pExtSuppRates
@@ -960,7 +960,7 @@ BSSvUpdateAPNode(
 
 void
 BSSvAddMulticastNode(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     )
 {
     PSDevice     pDevice = (PSDevice)hDeviceContext;
@@ -1013,7 +1013,7 @@ UINT status;
 #endif
 void
 BSSvSecondCallBack(
-    IN  HANDLE hDeviceContext
+    IN  void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1111,7 +1111,7 @@ start:
 }
 
 #ifdef Calcu_LinkQual
-   s_uCalculateLinkQual((HANDLE)pDevice);
+   s_uCalculateLinkQual((void *)pDevice);
 #endif
 
     for (ii = 0; ii < (MAX_NODE_NUM + 1); ii++) {
@@ -1261,18 +1261,18 @@ start:
         if (pMgmt->sNodeDBTable[0].bActive) { // Assoc with BSS
            // DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "Callback inactive Count = [%d]\n", pMgmt->sNodeDBTable[0].uInActiveCount);
             //if (pDevice->bUpdateBBVGA) {
-            //  s_vCheckSensitivity((HANDLE) pDevice);
+            //  s_vCheckSensitivity((void *) pDevice);
             //}
 
             if (pDevice->bUpdateBBVGA) {
-               // s_vCheckSensitivity((HANDLE) pDevice);
-               s_vCheckPreEDThreshold((HANDLE)pDevice);
+               // s_vCheckSensitivity((void *) pDevice);
+               s_vCheckPreEDThreshold((void *)pDevice);
             }
 
     	    if ((pMgmt->sNodeDBTable[0].uInActiveCount >= (LOST_BEACON_COUNT/2)) &&
     	        (pDevice->byBBVGACurrent != pDevice->abyBBVGA[0]) ) {
     	        pDevice->byBBVGANew = pDevice->abyBBVGA[0];
-                bScheduleCommand((HANDLE) pDevice, WLAN_CMD_CHANGE_BBSENSITIVITY, NULL);
+                bScheduleCommand((void *) pDevice, WLAN_CMD_CHANGE_BBSENSITIVITY, NULL);
     	    }
 
         	if (pMgmt->sNodeDBTable[0].uInActiveCount >= LOST_BEACON_COUNT) {
@@ -1324,10 +1324,10 @@ start:
 	          pDevice->eEncryptionStatus = pDevice->eOldEncryptionStatus;
 
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Roaming ...\n");
-                BSSvClearBSSList((HANDLE)pDevice, pDevice->bLinkPass);
+                BSSvClearBSSList((void *)pDevice, pDevice->bLinkPass);
  	      pMgmt->eScanType = WMAC_SCAN_ACTIVE;
-                bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
-                bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, pMgmt->abyDesireSSID);
+                bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
+                bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, pMgmt->abyDesireSSID);
                 pDevice->uAutoReConnectTime = 0;
             }
         }
@@ -1342,16 +1342,16 @@ start:
             else {
                 DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Adhoc re-scaning ...\n");
 	      pMgmt->eScanType = WMAC_SCAN_ACTIVE;
-                bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
-                bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, NULL);
+                bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
+                bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL);
                 pDevice->uAutoReConnectTime = 0;
             };
         }
         if (pMgmt->eCurrState == WMAC_STATE_JOINTED) {
 
             if (pDevice->bUpdateBBVGA) {
-               //s_vCheckSensitivity((HANDLE) pDevice);
-               s_vCheckPreEDThreshold((HANDLE)pDevice);
+               //s_vCheckSensitivity((void *) pDevice);
+               s_vCheckPreEDThreshold((void *)pDevice);
             }
         	if (pMgmt->sNodeDBTable[0].uInActiveCount >=ADHOC_LOST_BEACON_COUNT) {
         	    DBG_PRT(MSG_LEVEL_NOTICE, KERN_INFO "Lost other STA beacon [%d] sec, started !\n", pMgmt->sNodeDBTable[0].uInActiveCount);
@@ -1390,7 +1390,7 @@ start:
 
 void
 BSSvUpdateNodeTxCounter(
-    IN HANDLE      hDeviceContext,
+    IN void *hDeviceContext,
     IN BYTE        byTsr0,
     IN BYTE        byTsr1,
     IN PBYTE       pbyBuffer,
@@ -1503,7 +1503,7 @@ BSSvUpdateNodeTxCounter(
 
             pMACHeader = (PS802_11Header)(pbyBuffer + uFIFOHeaderSize);
 
-            if (BSSDBbIsSTAInNodeDB((HANDLE)pMgmt, &(pMACHeader->abyAddr1[0]), &uNodeIndex)){
+            if (BSSDBbIsSTAInNodeDB((void *)pMgmt, &(pMACHeader->abyAddr1[0]), &uNodeIndex)){
                 pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts += 1;
                 if ((byTsr1 & TSR1_TERR) == 0) {
                     // transmit success, TxAttempts at least plus one
@@ -1583,7 +1583,7 @@ BSSvUpdateNodeTxCounter(
 
 void
 BSSvClearNodeDBTable(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN UINT uStartIndex
     )
 
@@ -1611,7 +1611,7 @@ BSSvClearNodeDBTable(
 
 
 void s_vCheckSensitivity(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1649,7 +1649,7 @@ void s_vCheckSensitivity(
                 if (pDevice->byBBVGANew != pDevice->byBBVGACurrent) {
                     pDevice->uBBVGADiffCount++;
                     if (pDevice->uBBVGADiffCount >= BB_VGA_CHANGE_THRESHOLD)
-                        bScheduleCommand((HANDLE) pDevice, WLAN_CMD_CHANGE_BBSENSITIVITY, NULL);
+                        bScheduleCommand((void *) pDevice, WLAN_CMD_CHANGE_BBSENSITIVITY, NULL);
                 } else {
                     pDevice->uBBVGADiffCount = 0;
                 }
@@ -1661,7 +1661,7 @@ void s_vCheckSensitivity(
 
 void
 BSSvClearAnyBSSJoinRecord (
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1676,7 +1676,7 @@ BSSvClearAnyBSSJoinRecord (
 
 #ifdef Calcu_LinkQual
 void s_uCalculateLinkQual(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     )
 {
    PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1724,7 +1724,7 @@ else
 #endif
 
 void s_vCheckPreEDThreshold(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;

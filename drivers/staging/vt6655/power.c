@@ -76,7 +76,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
 
 void
 PSvEnablePowerSaving(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN WORD wListenInterval
     )
 {
@@ -146,7 +146,7 @@ PSvEnablePowerSaving(
 
 void
 PSvDisablePowerSaving(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -184,7 +184,7 @@ PSvDisablePowerSaving(
 
 BOOL
 PSbConsiderPowerDown(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN BOOL bCheckRxDMA,
     IN BOOL bCheckCountToWakeUp
     )
@@ -252,7 +252,7 @@ PSbConsiderPowerDown(
 
 void
 PSvSendPSPOLL(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     )
 {
     PSDevice            pDevice = (PSDevice)hDeviceContext;
@@ -298,7 +298,7 @@ PSvSendPSPOLL(
 -*/
 BOOL
 PSbSendNullPacket(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     )
 {
     PSDevice            pDevice = (PSDevice)hDeviceContext;
@@ -384,7 +384,7 @@ PSbSendNullPacket(
 
 BOOL
 PSbIsNextTBTTWakeUp(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     )
 {
 

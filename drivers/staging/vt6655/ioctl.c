@@ -109,14 +109,14 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         }
         spin_lock_irq(&pDevice->lock);
         if (memcmp(pMgmt->abyCurrBSSID, &abyNullAddr[0], 6) == 0)
-            BSSvClearBSSList((HANDLE)pDevice, FALSE);
+            BSSvClearBSSList((void *)pDevice, FALSE);
         else
-            BSSvClearBSSList((HANDLE)pDevice, pDevice->bLinkPass);
+            BSSvClearBSSList((void *)pDevice, pDevice->bLinkPass);
 
         if (pItemSSID->len != 0)
-            bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, abyScanSSID);
+            bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, abyScanSSID);
         else
-            bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
+            bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
         spin_unlock_irq(&pDevice->lock);
         break;
 
@@ -223,8 +223,8 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         netif_stop_queue(pDevice->dev);
         spin_lock_irq(&pDevice->lock);
         pMgmt->eCurrState = WMAC_STATE_IDLE;
-        bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
-        bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, NULL);
+        bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
+        bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL);
         spin_unlock_irq(&pDevice->lock);
         break;
 
@@ -593,7 +593,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 
         netif_stop_queue(pDevice->dev);
         spin_lock_irq(&pDevice->lock);
-        bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RUN_AP, NULL);
+        bScheduleCommand((void *)pDevice, WLAN_CMD_RUN_AP, NULL);
         spin_unlock_irq(&pDevice->lock);
         break;
 

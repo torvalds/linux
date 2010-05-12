@@ -50,35 +50,35 @@
 
 BOOL
 PSbConsiderPowerDown(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN BOOL bCheckRxDMA,
     IN BOOL bCheckCountToWakeUp
     );
 
 void
 PSvDisablePowerSaving(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     );
 
 void
 PSvEnablePowerSaving(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN WORD wListenInterval
     );
 
 void
 PSvSendPSPOLL(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     );
 
 BOOL
 PSbSendNullPacket(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     );
 
 BOOL
 PSbIsNextTBTTWakeUp(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     );
 
 #endif //__POWER_H__

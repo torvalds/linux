@@ -2878,7 +2878,7 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
 
 void
 TimerSQ3CallBack (
-    IN  HANDLE      hDeviceContext
+    IN void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -2926,7 +2926,7 @@ TimerSQ3CallBack (
 
 void
 TimerState1CallBack (
-    IN  HANDLE      hDeviceContext
+    IN void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;

@@ -496,7 +496,7 @@ static int wpa_set_disassociate(PSDevice pDevice,
     spin_lock_irq(&pDevice->lock);
     if (pDevice->bLinkPass) {
         if (!memcmp(param->addr, pMgmt->abyCurrBSSID, 6))
-            bScheduleCommand((HANDLE)pDevice, WLAN_CMD_DISASSOCIATE, NULL);
+            bScheduleCommand((void *)pDevice, WLAN_CMD_DISASSOCIATE, NULL);
     }
     spin_unlock_irq(&pDevice->lock);
 
@@ -525,8 +525,8 @@ static int wpa_set_scan(PSDevice pDevice,
 	int ret = 0;
 
     spin_lock_irq(&pDevice->lock);
-    BSSvClearBSSList((HANDLE)pDevice, pDevice->bLinkPass);
-    bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
+    BSSvClearBSSList((void *)pDevice, pDevice->bLinkPass);
+    bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
     spin_unlock_irq(&pDevice->lock);
 
     return ret;
@@ -786,7 +786,7 @@ static int wpa_set_associate(PSDevice pDevice,
         memcpy(pMgmt->abyDesireBSSID, param->u.wpa_associate.bssid, 6);
 else
 {
-   bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, pItemSSID->abySSID);
+   bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, pItemSSID->abySSID);
 }
 
     if (param->u.wpa_associate.wpa_ie_len == 0) {
@@ -870,11 +870,11 @@ if (!((pMgmt->eAuthenMode == WMAC_AUTH_SHAREKEY) ||
 
     if (pCurr == NULL){
     printk("wpa_set_associate---->hidden mode site survey before associate.......\n");
-    bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
+    bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
   };
 }
 /****************************************************************/
-    bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, NULL);
+    bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL);
     spin_unlock_irq(&pDevice->lock);
 
     return ret;

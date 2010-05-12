@@ -162,12 +162,12 @@ void BBvExitDeepSleep(DWORD_PTR dwIoBase, BYTE byLocalID);
 
 void
 TimerSQ3CallBack (
-    IN  HANDLE      hDeviceContext
+    IN void *hDeviceContext
     );
 
 void
 TimerState1CallBack(
-    IN  HANDLE      hDeviceContext
+    IN void *hDeviceContext
     );
 
 void BBvAntennaDiversity(PSDevice pDevice, BYTE byRxRate, BYTE bySQ3);

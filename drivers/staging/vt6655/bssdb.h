@@ -244,7 +244,7 @@ typedef struct tagKnownNodeDB {
 
 PKnownBSS
 BSSpSearchBSSList(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN PBYTE pbyDesireBSSID,
     IN PBYTE pbyDesireSSID,
     IN CARD_PHY_TYPE ePhyType
@@ -252,20 +252,20 @@ BSSpSearchBSSList(
 
 PKnownBSS
 BSSpAddrIsInBSSList(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN PBYTE abyBSSID,
     IN PWLAN_IE_SSID pSSID
     );
 
 void
 BSSvClearBSSList(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN BOOL bKeepCurrBSSID
     );
 
 BOOL
 BSSbInsertToBSSList(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN PBYTE abyBSSIDAddr,
     IN QWORD qwTimestamp,
     IN WORD wBeaconInterval,
@@ -281,13 +281,13 @@ BSSbInsertToBSSList(
     IN PWLAN_IE_QUIET pIE_Quiet,
     IN UINT uIELength,
     IN PBYTE pbyIEs,
-    IN HANDLE pRxPacketContext
+    IN void *pRxPacketContext
     );
 
 
 BOOL
 BSSbUpdateToBSSList(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN QWORD qwTimestamp,
     IN WORD wBeaconInterval,
     IN WORD wCapInfo,
@@ -304,26 +304,26 @@ BSSbUpdateToBSSList(
     IN PKnownBSS pBSSList,
     IN UINT uIELength,
     IN PBYTE pbyIEs,
-    IN HANDLE pRxPacketContext
+    IN void *pRxPacketContext
     );
 
 
 BOOL
 BSSDBbIsSTAInNodeDB(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN PBYTE abyDstAddr,
     OUT PUINT puNodeIndex
     );
 
 void
 BSSvCreateOneNode(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     OUT PUINT puNodeIndex
     );
 
 void
 BSSvUpdateAPNode(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN PWORD pwCapInfo,
     IN PWLAN_IE_SUPP_RATES pItemRates,
     IN PWLAN_IE_SUPP_RATES pExtSuppRates
@@ -332,13 +332,13 @@ BSSvUpdateAPNode(
 
 void
 BSSvSecondCallBack(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     );
 
 
 void
 BSSvUpdateNodeTxCounter(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN BYTE        byTsr0,
     IN BYTE        byTsr1,
     IN PBYTE       pbyBuffer,
@@ -347,25 +347,25 @@ BSSvUpdateNodeTxCounter(
 
 void
 BSSvRemoveOneNode(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN UINT uNodeIndex
     );
 
 void
 BSSvAddMulticastNode(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     );
 
 
 void
 BSSvClearNodeDBTable(
-    IN HANDLE hDeviceContext,
+    IN void *hDeviceContext,
     IN UINT uStartIndex
     );
 
 void
 BSSvClearAnyBSSJoinRecord(
-    IN HANDLE hDeviceContext
+    IN void *hDeviceContext
     );
 
 #endif //__BSSDB_H__

@@ -631,13 +631,13 @@ device_receive_frame (
 		tasklet_schedule(&pDevice->RxMngWorkItem);
 #else
 //printk("RxMan\n");
-	vMgrRxManagePacket((HANDLE)pDevice, pDevice->pMgmt, pRxPacket);
+	vMgrRxManagePacket((void *)pDevice, pDevice->pMgmt, pRxPacket);
            //tasklet_schedule(&pDevice->RxMngWorkItem);
 #endif
 
 #endif
 //PLICE_DEBUG<-
-			//vMgrRxManagePacket((HANDLE)pDevice, pDevice->pMgmt, pRxPacket);
+			//vMgrRxManagePacket((void *)pDevice, pDevice->pMgmt, pRxPacket);
             // hostap Deamon handle 802.11 management
             if (pDevice->bEnableHostapd) {
 	            skb->dev = pDevice->apdev;
@@ -1087,7 +1087,7 @@ static BOOL s_bAPModeRxCtl (
                     // delcare received ps-poll event
                     if (IS_CTL_PSPOLL(pbyFrame)) {
                         pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = TRUE;
-                        bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
+                        bScheduleCommand((void *)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: WLAN_CMD_RX_PSPOLL 1\n");
                     }
                     else {
@@ -1096,7 +1096,7 @@ static BOOL s_bAPModeRxCtl (
                         if (!IS_FC_POWERMGT(pbyFrame)) {
                             pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = FALSE;
                             pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = TRUE;
-                            bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
+                            bScheduleCommand((void *)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
                             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: WLAN_CMD_RX_PSPOLL 2\n");
                         }
                     }
@@ -1112,7 +1112,7 @@ static BOOL s_bAPModeRxCtl (
                       if (pMgmt->sNodeDBTable[iSANodeIndex].wEnQueueCnt > 0) {
                           pMgmt->sNodeDBTable[iSANodeIndex].bPSEnable = FALSE;
                           pMgmt->sNodeDBTable[iSANodeIndex].bRxPSPoll = TRUE;
-                          bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
+                          bScheduleCommand((void *)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
                          DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "dpc: WLAN_CMD_RX_PSPOLL 3\n");
 
                       }

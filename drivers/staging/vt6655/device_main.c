@@ -2011,11 +2011,11 @@ DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "call MACvIntEnable\n");
 	MACvIntEnable(pDevice->PortOffset, IMR_MASK_VALUE);
 
     if (pDevice->pMgmt->eConfigMode == WMAC_CONFIG_AP) {
-        bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RUN_AP, NULL);
+        bScheduleCommand((void *)pDevice, WLAN_CMD_RUN_AP, NULL);
 	}
 	else {
-        bScheduleCommand((HANDLE)pDevice, WLAN_CMD_BSSID_SCAN, NULL);
-        bScheduleCommand((HANDLE)pDevice, WLAN_CMD_SSID, NULL);
+        bScheduleCommand((void *)pDevice, WLAN_CMD_BSSID_SCAN, NULL);
+        bScheduleCommand((void *)pDevice, WLAN_CMD_SSID, NULL);
     }
     pDevice->flags |=DEVICE_FLAGS_OPENED;
 
@@ -2034,7 +2034,7 @@ static int  device_close(struct net_device *dev) {
 //PLICE_DEBUG<-
 //2007-1121-02<Add>by EinsnLiu
     if (pDevice->bLinkPass) {
-	bScheduleCommand((HANDLE)pDevice, WLAN_CMD_DISASSOCIATE, NULL);
+	bScheduleCommand((void *)pDevice, WLAN_CMD_DISASSOCIATE, NULL);
         mdelay(30);
     }
 #ifdef TxInSleep
@@ -2860,7 +2860,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
 
             pDevice->bBeaconSent = FALSE;
             if (pDevice->bEnablePSMode) {
-                PSbIsNextTBTTWakeUp((HANDLE)pDevice);
+                PSbIsNextTBTTWakeUp((void *)pDevice);
             };
 
             if ((pDevice->eOPMode == OP_MODE_AP) ||
@@ -2893,7 +2893,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
                         // check if mutltcast tx bufferring
                         pMgmt->byDTIMCount = pMgmt->byDTIMPeriod - 1;
                         pMgmt->sNodeDBTable[0].bRxPSPoll = TRUE;
-                        bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
+                        bScheduleCommand((void *)pDevice, WLAN_CMD_RX_PSPOLL, NULL);
                     }
                 }
             }
@@ -3549,7 +3549,7 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
        if (pMgmt->eConfigMode == WMAC_CONFIG_AP) {
            netif_stop_queue(pDevice->dev);
            spin_lock_irq(&pDevice->lock);
-           bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RUN_AP, NULL);
+           bScheduleCommand((void *)pDevice, WLAN_CMD_RUN_AP, NULL);
            spin_unlock_irq(&pDevice->lock);
        }
        else {
@@ -3563,8 +3563,8 @@ static int  device_ioctl(struct net_device *dev, struct ifreq *rq, int cmd) {
 	      pMgmt->eScanType = WMAC_SCAN_ACTIVE;
 	 if(pDevice->bWPASuppWextEnabled !=TRUE)
 	 #endif
-           bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
-           bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, NULL);
+           bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
+           bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL);
            spin_unlock_irq(&pDevice->lock);
       }
       pDevice->bCommit = FALSE;
@@ -3719,9 +3719,9 @@ viawget_resume(struct pci_dev *pcid)
         init_timer(&pMgmt->sTimerSecondCallback);
         init_timer(&pDevice->sTimerCommand);
         MACvIntEnable(pDevice->PortOffset, IMR_MASK_VALUE);
-        BSSvClearBSSList((HANDLE)pDevice, pDevice->bLinkPass);
-        bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
-        bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, NULL);
+        BSSvClearBSSList((void *)pDevice, pDevice->bLinkPass);
+        bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
+        bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL);
         spin_unlock_irq(&pDevice->lock);
     }
     return 0;
