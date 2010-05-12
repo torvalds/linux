@@ -72,13 +72,6 @@ typedef int             BOOL;
 
 /****** Simple typedefs  ***************************************************/
 
-/* These lines assume that your compiler's longs are 32 bits and
- * shorts are 16 bits. It is already assumed that chars are 8 bits,
- * but it doesn't matter if they're signed or unsigned.
- */
-
-typedef signed char             I8;     /* 8-bit signed integer */
-
 typedef char            CHAR;
 typedef signed short    SHORT;
 typedef signed int      INT;
