@@ -715,6 +715,83 @@ static int dcb_entry_idx_from_crtchead(struct drm_device *dev)
 	return dcb_entry;
 }
 
+static int
+read_dcb_i2c_entry(struct drm_device *dev, int dcb_version, uint8_t *i2ctable, int index, struct dcb_i2c_entry *i2c)
+{
+	uint8_t dcb_i2c_ver = dcb_version, headerlen = 0, entry_len = 4;
+	int i2c_entries = DCB_MAX_NUM_I2C_ENTRIES;
+	int recordoffset = 0, rdofs = 1, wrofs = 0;
+	uint8_t port_type = 0;
+
+	if (!i2ctable)
+		return -EINVAL;
+
+	if (dcb_version >= 0x30) {
+		if (i2ctable[0] != dcb_version) /* necessary? */
+			NV_WARN(dev,
+				"DCB I2C table version mismatch (%02X vs %02X)\n",
+				i2ctable[0], dcb_version);
+		dcb_i2c_ver = i2ctable[0];
+		headerlen = i2ctable[1];
+		if (i2ctable[2] <= DCB_MAX_NUM_I2C_ENTRIES)
+			i2c_entries = i2ctable[2];
+		else
+			NV_WARN(dev,
+				"DCB I2C table has more entries than indexable "
+				"(%d entries, max %d)\n", i2ctable[2],
+				DCB_MAX_NUM_I2C_ENTRIES);
+		entry_len = i2ctable[3];
+		/* [4] is i2c_default_indices, read in parse_dcb_table() */
+	}
+	/*
+	 * It's your own fault if you call this function on a DCB 1.1 BIOS --
+	 * the test below is for DCB 1.2
+	 */
+	if (dcb_version < 0x14) {
+		recordoffset = 2;
+		rdofs = 0;
+		wrofs = 1;
+	}
+
+	if (index == 0xf)
+		return 0;
+	if (index >= i2c_entries) {
+		NV_ERROR(dev, "DCB I2C index too big (%d >= %d)\n",
+			 index, i2ctable[2]);
+		return -ENOENT;
+	}
+	if (i2ctable[headerlen + entry_len * index + 3] == 0xff) {
+		NV_ERROR(dev, "DCB I2C entry invalid\n");
+		return -EINVAL;
+	}
+
+	if (dcb_i2c_ver >= 0x30) {
+		port_type = i2ctable[headerlen + recordoffset + 3 + entry_len * index];
+
+		/*
+		 * Fixup for chips using same address offset for read and
+		 * write.
+		 */
+		if (port_type == 4)	/* seen on C51 */
+			rdofs = wrofs = 1;
+		if (port_type >= 5)	/* G80+ */
+			rdofs = wrofs = 0;
+	}
+
+	if (dcb_i2c_ver >= 0x40) {
+		if (port_type != 5 && port_type != 6)
+			NV_WARN(dev, "DCB I2C table has port type %d\n", port_type);
+
+		i2c->entry = ROM32(i2ctable[headerlen + recordoffset + entry_len * index]);
+	}
+
+	i2c->port_type = port_type;
+	i2c->read = i2ctable[headerlen + recordoffset + rdofs + entry_len * index];
+	i2c->write = i2ctable[headerlen + recordoffset + wrofs + entry_len * index];
+
+	return 0;
+}
+
 static struct nouveau_i2c_chan *
 init_i2c_device_find(struct drm_device *dev, int i2c_index)
 {
@@ -733,6 +810,17 @@ init_i2c_device_find(struct drm_device *dev, int i2c_index)
 	}
 	if (i2c_index == 0x80)	/* g80+ */
 		i2c_index = dcb->i2c_default_indices & 0xf;
+
+	if (i2c_index > DCB_MAX_NUM_I2C_ENTRIES) {
+		NV_ERROR(dev, "invalid i2c_index 0x%x\n", i2c_index);
+		return NULL;
+	}
+
+	/* Make sure i2c table entry has been parsed, it may not
+	 * have been if this is a bus not referenced by a DCB encoder
+	 */
+	read_dcb_i2c_entry(dev, dcb->version, dcb->i2c_table,
+			   i2c_index, &dcb->i2c[i2c_index]);
 
 	return nouveau_i2c_find(dev, i2c_index);
 }
@@ -5086,83 +5174,6 @@ static uint16_t findstr(uint8_t *data, int n, const uint8_t *str, int len)
 		if (j == len)
 			return i;
 	}
-
-	return 0;
-}
-
-static int
-read_dcb_i2c_entry(struct drm_device *dev, int dcb_version, uint8_t *i2ctable, int index, struct dcb_i2c_entry *i2c)
-{
-	uint8_t dcb_i2c_ver = dcb_version, headerlen = 0, entry_len = 4;
-	int i2c_entries = DCB_MAX_NUM_I2C_ENTRIES;
-	int recordoffset = 0, rdofs = 1, wrofs = 0;
-	uint8_t port_type = 0;
-
-	if (!i2ctable)
-		return -EINVAL;
-
-	if (dcb_version >= 0x30) {
-		if (i2ctable[0] != dcb_version) /* necessary? */
-			NV_WARN(dev,
-				"DCB I2C table version mismatch (%02X vs %02X)\n",
-				i2ctable[0], dcb_version);
-		dcb_i2c_ver = i2ctable[0];
-		headerlen = i2ctable[1];
-		if (i2ctable[2] <= DCB_MAX_NUM_I2C_ENTRIES)
-			i2c_entries = i2ctable[2];
-		else
-			NV_WARN(dev,
-				"DCB I2C table has more entries than indexable "
-				"(%d entries, max %d)\n", i2ctable[2],
-				DCB_MAX_NUM_I2C_ENTRIES);
-		entry_len = i2ctable[3];
-		/* [4] is i2c_default_indices, read in parse_dcb_table() */
-	}
-	/*
-	 * It's your own fault if you call this function on a DCB 1.1 BIOS --
-	 * the test below is for DCB 1.2
-	 */
-	if (dcb_version < 0x14) {
-		recordoffset = 2;
-		rdofs = 0;
-		wrofs = 1;
-	}
-
-	if (index == 0xf)
-		return 0;
-	if (index >= i2c_entries) {
-		NV_ERROR(dev, "DCB I2C index too big (%d >= %d)\n",
-			 index, i2ctable[2]);
-		return -ENOENT;
-	}
-	if (i2ctable[headerlen + entry_len * index + 3] == 0xff) {
-		NV_ERROR(dev, "DCB I2C entry invalid\n");
-		return -EINVAL;
-	}
-
-	if (dcb_i2c_ver >= 0x30) {
-		port_type = i2ctable[headerlen + recordoffset + 3 + entry_len * index];
-
-		/*
-		 * Fixup for chips using same address offset for read and
-		 * write.
-		 */
-		if (port_type == 4)	/* seen on C51 */
-			rdofs = wrofs = 1;
-		if (port_type >= 5)	/* G80+ */
-			rdofs = wrofs = 0;
-	}
-
-	if (dcb_i2c_ver >= 0x40) {
-		if (port_type != 5 && port_type != 6)
-			NV_WARN(dev, "DCB I2C table has port type %d\n", port_type);
-
-		i2c->entry = ROM32(i2ctable[headerlen + recordoffset + entry_len * index]);
-	}
-
-	i2c->port_type = port_type;
-	i2c->read = i2ctable[headerlen + recordoffset + rdofs + entry_len * index];
-	i2c->write = i2ctable[headerlen + recordoffset + wrofs + entry_len * index];
 
 	return 0;
 }
