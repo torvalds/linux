@@ -3665,6 +3665,8 @@ static int l2cap_push_rx_skb(struct sock *sk, struct sk_buff *skb, u16 control)
 
 	pi->conn_state |= L2CAP_CONN_RNR_SENT;
 
+	del_timer(&pi->ack_timer);
+
 	queue_work(_busy_wq, &pi->busy_work);
 
 	return err;
@@ -3914,6 +3916,8 @@ static inline int l2cap_data_channel_iframe(struct sock *sk, u16 rx_control, str
 		pi->conn_state |= L2CAP_CONN_SEND_PBIT;
 
 		l2cap_send_srejframe(sk, tx_seq);
+
+		del_timer(&pi->ack_timer);
 	}
 	return 0;
 
