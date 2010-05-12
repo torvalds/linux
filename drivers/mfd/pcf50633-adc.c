@@ -30,13 +30,13 @@
 struct pcf50633_adc_request {
 	int mux;
 	int avg;
-	int result;
 	void (*callback)(struct pcf50633 *, void *, int);
 	void *callback_param;
+};
 
-	/* Used in case of sync requests */
+struct pcf50633_adc_sync_request {
+	int result;
 	struct completion completion;
-
 };
 
 #define PCF50633_MAX_ADC_FIFO_DEPTH 8
@@ -109,10 +109,10 @@ adc_enqueue_request(struct pcf50633 *pcf, struct pcf50633_adc_request *req)
 	return 0;
 }
 
-static void
-pcf50633_adc_sync_read_callback(struct pcf50633 *pcf, void *param, int result)
+static void pcf50633_adc_sync_read_callback(struct pcf50633 *pcf, void *param,
+	int result)
 {
-	struct pcf50633_adc_request *req = param;
+	struct pcf50633_adc_sync_request *req = param;
 
 	req->result = result;
 	complete(&req->completion);
@@ -120,28 +120,19 @@ pcf50633_adc_sync_read_callback(struct pcf50633 *pcf, void *param, int result)
 
 int pcf50633_adc_sync_read(struct pcf50633 *pcf, int mux, int avg)
 {
-	struct pcf50633_adc_request *req;
-	int err;
+	struct pcf50633_adc_sync_request req;
+	int ret;
 
-	/* req is freed when the result is ready, in interrupt handler */
-	req = kzalloc(sizeof(*req), GFP_KERNEL);
-	if (!req)
-		return -ENOMEM;
+	init_completion(&req.completion);
 
-	req->mux = mux;
-	req->avg = avg;
-	req->callback =  pcf50633_adc_sync_read_callback;
-	req->callback_param = req;
+	ret = pcf50633_adc_async_read(pcf, mux, avg,
+		pcf50633_adc_sync_read_callback, &req);
+	if (ret)
+		return ret;
 
-	init_completion(&req->completion);
-	err = adc_enqueue_request(pcf, req);
-	if (err)
-		return err;
+	wait_for_completion(&req.completion);
 
-	wait_for_completion(&req->completion);
-
-	/* FIXME by this time req might be already freed */
-	return req->result;
+	return req.result;
 }
 EXPORT_SYMBOL_GPL(pcf50633_adc_sync_read);
 
