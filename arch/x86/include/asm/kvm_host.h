@@ -179,6 +179,7 @@ union kvm_mmu_page_role {
 		unsigned access:3;
 		unsigned invalid:1;
 		unsigned nxe:1;
+		unsigned cr0_wp:1;
 	};
 };
 
