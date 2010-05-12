@@ -235,7 +235,8 @@ static int tcf_ipt(struct sk_buff *skb, struct tc_action *a,
 		break;
 	default:
 		if (net_ratelimit())
-			printk("Bogus netfilter code %d assume ACCEPT\n", ret);
+			pr_notice("tc filter: Bogus netfilter code"
+				  " %d assume ACCEPT\n", ret);
 		result = TC_POLICE_OK;
 		break;
 	}

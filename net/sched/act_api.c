@@ -153,7 +153,7 @@ int tcf_generic_walker(struct sk_buff *skb, struct netlink_callback *cb,
 	} else if (type == RTM_GETACTION) {
 		return tcf_dump_walker(skb, cb, a, hinfo);
 	} else {
-		printk("tcf_generic_walker: unknown action %d\n", type);
+		WARN(1, "tcf_generic_walker: unknown action %d\n", type);
 		return -EINVAL;
 	}
 }
@@ -403,8 +403,9 @@ void tcf_action_destroy(struct tc_action *act, int bind)
 				module_put(a->ops->owner);
 			act = act->next;
 			kfree(a);
-		} else { /*FIXME: Remove later - catch insertion bugs*/
-			printk("tcf_action_destroy: BUG? destroying NULL ops\n");
+		} else {
+			/*FIXME: Remove later - catch insertion bugs*/
+			WARN(1, "tcf_action_destroy: BUG? destroying NULL ops\n");
 			act = act->next;
 			kfree(a);
 		}
@@ -744,7 +745,7 @@ static struct tc_action *create_a(int i)
 
 	act = kzalloc(sizeof(*act), GFP_KERNEL);
 	if (act == NULL) {
-		printk("create_a: failed to alloc!\n");
+		pr_debug("create_a: failed to alloc!\n");
 		return NULL;
 	}
 	act->order = i;
@@ -766,13 +767,13 @@ static int tca_action_flush(struct net *net, struct nlattr *nla,
 	int err = -ENOMEM;
 
 	if (a == NULL) {
-		printk("tca_action_flush: couldnt create tc_action\n");
+		pr_debug("tca_action_flush: couldnt create tc_action\n");
 		return err;
 	}
 
 	skb = alloc_skb(NLMSG_GOODSIZE, GFP_KERNEL);
 	if (!skb) {
-		printk("tca_action_flush: failed skb alloc\n");
+		pr_debug("tca_action_flush: failed skb alloc\n");
 		kfree(a);
 		return err;
 	}
@@ -979,7 +980,7 @@ static int tc_ctl_action(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 		return ret;
 
 	if (tca[TCA_ACT_TAB] == NULL) {
-		printk("tc_ctl_action: received NO action attribs\n");
+		pr_notice("tc_ctl_action: received NO action attribs\n");
 		return -EINVAL;
 	}
 
@@ -1056,7 +1057,7 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	struct nlattr *kind = find_dump_kind(cb->nlh);
 
 	if (kind == NULL) {
-		printk("tc_dump_action: action bad kind\n");
+		pr_info("tc_dump_action: action bad kind\n");
 		return 0;
 	}
 
@@ -1069,7 +1070,8 @@ tc_dump_action(struct sk_buff *skb, struct netlink_callback *cb)
 	a.ops = a_o;
 
 	if (a_o->walk == NULL) {
-		printk("tc_dump_action: %s !capable of dumping table\n", a_o->kind);
+		WARN(1, "tc_dump_action: %s !capable of dumping table\n",
+		     a_o->kind);
 		goto nla_put_failure;
 	}
 
