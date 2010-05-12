@@ -1223,6 +1223,7 @@ static int process_connect(struct ceph_connection *con)
 		clear_bit(CONNECTING, &con->state);
 		con->peer_global_seq = le32_to_cpu(con->in_reply.global_seq);
 		con->connect_seq++;
+		con->peer_features = server_feat;
 		dout("process_connect got READY gseq %d cseq %d (%d)\n",
 		     con->peer_global_seq,
 		     le32_to_cpu(con->in_reply.connect_seq),
