@@ -136,9 +136,10 @@ __rwsem_do_wake(struct rw_semaphore *sem, int downgrading)
  out:
 	return sem;
 
-	/* undo the change to count, but check for a transition 1->0 */
+	/* undo the change to the active count, but check for a transition
+	 * 1->0 */
  undo:
-	if (rwsem_atomic_update(-RWSEM_ACTIVE_BIAS, sem) != 0)
+	if (rwsem_atomic_update(-RWSEM_ACTIVE_BIAS, sem) & RWSEM_ACTIVE_MASK)
 		goto out;
 	goto try_again;
 }
