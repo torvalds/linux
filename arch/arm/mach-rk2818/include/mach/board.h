@@ -26,8 +26,16 @@ struct RK2818_mddi_platform_data
 	unsigned has_vsync_irq:1;
 };
 
-/* common init routines for use by arch/arm/mach-msm/board-*.c */
+struct rk2818_i2c_platform_data {
+	int     bus_num;        
+	unsigned int    flags;     
+	unsigned int    slave_addr; 
+	unsigned long   scl_rate;   
+	char    		clk_id[16];
+	void    (*cfg_gpio)(struct platform_device *dev);
+};
 
+/* common init routines for use by arch/arm/mach-msm/board-*.c */
 void __init rk2818_add_devices(void);
 void __init rk2818_map_common_io(void);
 void __init rk2818_init_irq(void);
