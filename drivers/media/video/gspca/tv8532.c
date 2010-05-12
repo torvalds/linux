@@ -129,18 +129,6 @@ static const u8 eeprom_data[][3] = {
 	{0x05, 0x09, 0xf1},
 };
 
-static int reg_r(struct gspca_dev *gspca_dev,
-		 __u16 index)
-{
-	usb_control_msg(gspca_dev->dev,
-			usb_rcvctrlpipe(gspca_dev->dev, 0),
-			0x03,
-			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0,	/* value */
-			index, gspca_dev->usb_buf, 1,
-			500);
-	return gspca_dev->usb_buf[0];
-}
 
 /* write 1 byte */
 static void reg_w1(struct gspca_dev *gspca_dev,
@@ -183,7 +171,6 @@ static void tv_8532WriteEEprom(struct gspca_dev *gspca_dev)
 	}
 	reg_w1(gspca_dev, R07_TABLE_LEN, i);
 	reg_w1(gspca_dev, R01_TIMING_CONTROL_LOW, CMD_EEprom_Close);
-	msleep(10);
 }
 
 /* this function is called at probe time */
@@ -201,49 +188,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-static void tv_8532ReadRegisters(struct gspca_dev *gspca_dev)
-{
-	int i;
-	static u8 reg_tb[] = {
-		R0C_AD_WIDTHL,
-		R0D_AD_WIDTHH,
-		R28_QUANT,
-		R29_LINE,
-		R2C_POLARITY,
-		R2D_POINT,
-		R2E_POINTH,
-		R2F_POINTB,
-		R30_POINTBH,
-		R2A_HIGH_BUDGET,
-		R2B_LOW_BUDGET,
-		R34_VID,
-		R35_VIDH,
-		R36_PID,
-		R37_PIDH,
-		R83_AD_IDH,
-		R10_AD_COL_BEGINL,
-		R11_AD_COL_BEGINH,
-		R14_AD_ROW_BEGINL,
-		R15_AD_ROWBEGINH,
-		0
-	};
-
-	i = 0;
-	do {
-		reg_r(gspca_dev, reg_tb[i]);
-		i++;
-	} while (reg_tb[i] != 0);
-}
-
 static void tv_8532_setReg(struct gspca_dev *gspca_dev)
 {
-	reg_w1(gspca_dev, R10_AD_COL_BEGINL, 0x44);
-						/* begin active line */
-	reg_w1(gspca_dev, R11_AD_COL_BEGINH, 0x00);
-						/* mirror and digital gain */
-	reg_w1(gspca_dev, R00_PART_CONTROL, LATENT_CHANGE | EXPO_CHANGE);
-						/* = 0x84 */
-
 	reg_w1(gspca_dev, R3B_Test3, 0x0a);	/* Test0Sel = 10 */
 	/******************************************************/
 	reg_w1(gspca_dev, R0E_AD_HEIGHTL, 0x90);
@@ -255,27 +201,10 @@ static void tv_8532_setReg(struct gspca_dev *gspca_dev)
 						/* mirror and digital gain */
 	reg_w1(gspca_dev, R14_AD_ROW_BEGINL, 0x0a);
 
-	reg_w1(gspca_dev, R91_AD_SLOPEREG, 0x00);
 	reg_w1(gspca_dev, R94_AD_BITCONTROL, 0x02);
-
-	reg_w1(gspca_dev, R01_TIMING_CONTROL_LOW, CMD_EEprom_Close);
-
 	reg_w1(gspca_dev, R91_AD_SLOPEREG, 0x00);
 	reg_w1(gspca_dev, R00_PART_CONTROL, LATENT_CHANGE | EXPO_CHANGE);
 						/* = 0x84 */
-}
-
-static void tv_8532_PollReg(struct gspca_dev *gspca_dev)
-{
-	int i;
-
-	/* strange polling from tgc */
-	for (i = 0; i < 10; i++) {
-		reg_w1(gspca_dev, R2C_POLARITY, 0x10);
-		reg_w1(gspca_dev, R00_PART_CONTROL,
-				LATENT_CHANGE | EXPO_CHANGE);
-		reg_w1(gspca_dev, R31_UPD, 0x01);
-	}
 }
 
 /* this function is called at probe and resume time */
@@ -283,47 +212,6 @@ static int sd_init(struct gspca_dev *gspca_dev)
 {
 	tv_8532WriteEEprom(gspca_dev);
 
-	reg_w1(gspca_dev, R91_AD_SLOPEREG, 0x32);	/* slope begin 1,7V,
-							 * slope rate 2 */
-	reg_w1(gspca_dev, R94_AD_BITCONTROL, 0x00);
-	tv_8532ReadRegisters(gspca_dev);
-	reg_w1(gspca_dev, R3B_Test3, 0x0b);
-	reg_w2(gspca_dev, R0E_AD_HEIGHTL, 0x0190);
-	reg_w2(gspca_dev, R1C_AD_EXPOSE_TIMEL, 0x018f);
-	reg_w1(gspca_dev, R0C_AD_WIDTHL, 0xe8);
-	reg_w1(gspca_dev, R0D_AD_WIDTHH, 0x03);
-
-	/*******************************************************************/
-	reg_w1(gspca_dev, R28_QUANT, 0x90);
-					/* no compress - fixed Q - quant 0 */
-	reg_w1(gspca_dev, R29_LINE, 0x81);
-					/* 0x84; // CIF | 4 packet 0x29 */
-
-	/************************************************/
-	reg_w1(gspca_dev, R2C_POLARITY, 0x10);
-						/* 0x48; //0x08; 0x2c */
-	reg_w1(gspca_dev, R2D_POINT, 0x14);
-						/* 0x38; 0x2d */
-	reg_w1(gspca_dev, R2E_POINTH, 0x01);
-						/* 0x04; 0x2e */
-	reg_w1(gspca_dev, R2F_POINTB, 0x12);
-						/* 0x04; 0x2f */
-	reg_w1(gspca_dev, R30_POINTBH, 0x01);
-						/* 0x04; 0x30 */
-	reg_w1(gspca_dev, R00_PART_CONTROL, LATENT_CHANGE | EXPO_CHANGE);
-						/* 0x00<-0x84 */
-	/*************************************************/
-	reg_w1(gspca_dev, R31_UPD, 0x01);	/* update registers */
-	msleep(200);
-	reg_w1(gspca_dev, R31_UPD, 0x00);		/* end update */
-	/*************************************************/
-	tv_8532_setReg(gspca_dev);
-	/*************************************************/
-	reg_w1(gspca_dev, R3B_Test3, 0x0b);	/* Test0Sel = 11 = GPIO */
-	/*************************************************/
-	tv_8532_setReg(gspca_dev);
-	/*************************************************/
-	tv_8532_PollReg(gspca_dev);
 	return 0;
 }
 
@@ -340,15 +228,6 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-
-	reg_w1(gspca_dev, R91_AD_SLOPEREG, 0x32);	/* slope begin 1,7V,
-							 * slope rate 2 */
-	reg_w1(gspca_dev, R94_AD_BITCONTROL, 0x00);
-	tv_8532ReadRegisters(gspca_dev);
-	reg_w1(gspca_dev, R3B_Test3, 0x0b);
-
-	reg_w2(gspca_dev, R0E_AD_HEIGHTL, 0x0190);
-	setbrightness(gspca_dev);
 
 	reg_w1(gspca_dev, R0C_AD_WIDTHL, 0xe8);		/* 0x20; 0x0c */
 	reg_w1(gspca_dev, R0D_AD_WIDTHH, 0x03);
@@ -371,19 +250,14 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, R2E_POINTH, 0x01);
 	reg_w1(gspca_dev, R2F_POINTB, 0x12);
 	reg_w1(gspca_dev, R30_POINTBH, 0x01);
-	reg_w1(gspca_dev, R00_PART_CONTROL, LATENT_CHANGE | EXPO_CHANGE);
+
+	tv_8532_setReg(gspca_dev);
+
+	setbrightness(gspca_dev);
+
 	/************************************************/
 	reg_w1(gspca_dev, R31_UPD, 0x01);	/* update registers */
 	msleep(200);
-	reg_w1(gspca_dev, R31_UPD, 0x00);		/* end update */
-	/************************************************/
-	tv_8532_setReg(gspca_dev);
-	/************************************************/
-	reg_w1(gspca_dev, R3B_Test3, 0x0b);	/* Test0Sel = 11 = GPIO */
-	/************************************************/
-	tv_8532_setReg(gspca_dev);
-	/************************************************/
-	tv_8532_PollReg(gspca_dev);
 	reg_w1(gspca_dev, R31_UPD, 0x00);	/* end update */
 
 	gspca_dev->empty_packet = 0;		/* check the empty packets */
