@@ -18,6 +18,7 @@
 #include <linux/hardirq.h>
 #include <linux/slab.h>
 #include <asm/asm.h>
+#include <asm/cpufeature.h>
 #include <asm/processor.h>
 #include <asm/sigcontext.h>
 #include <asm/user.h>
@@ -57,16 +58,9 @@ extern int restore_i387_xstate_ia32(void __user *buf);
 
 #define X87_FSW_ES (1 << 7)	/* Exception Summary */
 
-static inline bool use_xsave(void)
+static __always_inline __pure bool use_xsave(void)
 {
-	u8 has_xsave;
-
-	alternative_io("mov $0, %0",
-		       "mov $1, %0",
-		       X86_FEATURE_XSAVE,
-		       "=qm" (has_xsave));
-
-	return has_xsave;
+	return static_cpu_has(X86_FEATURE_XSAVE);
 }
 
 #ifdef CONFIG_X86_64
