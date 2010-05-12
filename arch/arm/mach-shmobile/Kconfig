@@ -21,6 +21,7 @@ config ARCH_SH7372
 	select CPU_V7
 	select HAVE_CLK
 	select COMMON_CLKDEV
+	select SH_CLK_CPG
 	select GENERIC_CLOCKEVENTS
 
 comment "SH-Mobile Board Type"

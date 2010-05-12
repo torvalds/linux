@@ -143,7 +143,7 @@ static struct sh_timer_config cmt10_platform_data = {
 	.name = "CMT10",
 	.channel_offset = 0x10,
 	.timer_bit = 0,
-	.clk = "r_clk",
+	.clk = "cmt1",
 	.clockevent_rating = 125,
 	.clocksource_rating = 125,
 };
@@ -233,14 +233,8 @@ void __init sh7372_add_standard_devices(void)
 			    ARRAY_SIZE(sh7372_early_devices));
 }
 
-#define SMSTPCR3 0xe615013c
-#define SMSTPCR3_CMT1 (1 << 29)
-
 void __init sh7372_add_early_devices(void)
 {
-	/* enable clock to CMT1 */
-	__raw_writel(__raw_readl(SMSTPCR3) & ~SMSTPCR3_CMT1, SMSTPCR3);
-
 	early_platform_add_devices(sh7372_early_devices,
 				   ARRAY_SIZE(sh7372_early_devices));
 }

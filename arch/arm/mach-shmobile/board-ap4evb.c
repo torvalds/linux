@@ -39,6 +39,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/time.h>
 
 /*
  * Address	Interface		BusWidth	note
@@ -328,9 +329,8 @@ static void __init ap4evb_map_io(void)
 {
 	iotable_init(ap4evb_io_desc, ARRAY_SIZE(ap4evb_io_desc));
 
-	/* setup early devices, clocks and console here as well */
+	/* setup early devices and console here as well */
 	sh7372_add_early_devices();
-	sh7367_clock_init(); /* use g3 clocks for now */
 	shmobile_setup_console();
 }
 
@@ -419,11 +419,21 @@ static void __init ap4evb_init(void)
 	platform_add_devices(ap4evb_devices, ARRAY_SIZE(ap4evb_devices));
 }
 
+static void __init ap4evb_timer_init(void)
+{
+	sh7372_clock_init();
+	shmobile_timer.init();
+}
+
+static struct sys_timer ap4evb_timer = {
+	.init		= ap4evb_timer_init,
+};
+
 MACHINE_START(AP4EVB, "ap4evb")
 	.phys_io	= 0xe6000000,
 	.io_pg_offst	= ((0xe6000000) >> 18) & 0xfffc,
 	.map_io		= ap4evb_map_io,
 	.init_irq	= sh7372_init_irq,
 	.init_machine	= ap4evb_init,
-	.timer		= &shmobile_timer,
+	.timer		= &ap4evb_timer,
 MACHINE_END
