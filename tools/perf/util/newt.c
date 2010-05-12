@@ -2,6 +2,7 @@
 #include <stdio.h>
 #undef _GNU_SOURCE
 
+#include <slang.h>
 #include <stdlib.h>
 #include <newt.h>
 #include <sys/ttydefaults.h>
@@ -57,6 +58,43 @@ void ui_progress__delete(struct ui_progress *self)
 	free(self);
 }
 
+static void ui_helpline__pop(void)
+{
+	newtPopHelpLine();
+}
+
+static void ui_helpline__push(const char *msg)
+{
+	newtPushHelpLine(msg);
+}
+
+static void ui_helpline__vpush(const char *fmt, va_list ap)
+{
+	char *s;
+
+	if (vasprintf(&s, fmt, ap) < 0)
+		vfprintf(stderr, fmt, ap);
+	else {
+		ui_helpline__push(s);
+		free(s);
+	}
+}
+
+static void ui_helpline__fpush(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	ui_helpline__vpush(fmt, ap);
+	va_end(ap);
+}
+
+static void ui_helpline__puts(const char *msg)
+{
+	ui_helpline__pop();
+	ui_helpline__push(msg);
+}
+
 static char browser__last_msg[1024];
 
 int browser__show_help(const char *format, va_list ap)
@@ -69,8 +107,7 @@ int browser__show_help(const char *format, va_list ap)
 	backlog += ret;
 
 	if (browser__last_msg[backlog - 1] == '\n') {
-		newtPopHelpLine();
-		newtPushHelpLine(browser__last_msg);
+		ui_helpline__puts(browser__last_msg);
 		newtRefresh();
 		backlog = 0;
 	}
@@ -133,6 +170,254 @@ static bool dialog_yesno(const char *msg)
 	/* newtWinChoice should really be accepting const char pointers... */
 	char yes[] = "Yes", no[] = "No";
 	return newtWinChoice(NULL, yes, no, (char *)msg) == 1;
+}
+
+#define HE_COLORSET_TOP		50
+#define HE_COLORSET_MEDIUM	51
+#define HE_COLORSET_NORMAL	52
+#define HE_COLORSET_SELECTED	53
+#define HE_COLORSET_CODE	54
+
+static int ui_browser__percent_color(double percent, bool current)
+{
+	if (current)
+		return HE_COLORSET_SELECTED;
+	if (percent >= MIN_RED)
+		return HE_COLORSET_TOP;
+	if (percent >= MIN_GREEN)
+		return HE_COLORSET_MEDIUM;
+	return HE_COLORSET_NORMAL;
+}
+
+struct ui_browser {
+	newtComponent	form, sb;
+	u64		index, first_visible_entry_idx;
+	void		*first_visible_entry, *entries;
+	u16		top, left, width, height;
+	void		*priv;
+	u32		nr_entries;
+};
+
+static void ui_browser__refresh_dimensions(struct ui_browser *self)
+{
+	int cols, rows;
+	newtGetScreenSize(&cols, &rows);
+
+	if (self->width > cols - 4)
+		self->width = cols - 4;
+	self->height = rows - 5;
+	if (self->height > self->nr_entries)
+		self->height = self->nr_entries;
+	self->top  = (rows - self->height) / 2;
+	self->left = (cols - self->width) / 2;
+}
+
+static void ui_browser__reset_index(struct ui_browser *self)
+{
+        self->index = self->first_visible_entry_idx = 0;
+        self->first_visible_entry = NULL;
+}
+
+static int objdump_line__show(struct objdump_line *self, struct list_head *head,
+			      int width, struct hist_entry *he, int len,
+			      bool current_entry)
+{
+	if (self->offset != -1) {
+		struct symbol *sym = he->ms.sym;
+		unsigned int hits = 0;
+		double percent = 0.0;
+		int color;
+		struct sym_priv *priv = symbol__priv(sym);
+		struct sym_ext *sym_ext = priv->ext;
+		struct sym_hist *h = priv->hist;
+		s64 offset = self->offset;
+		struct objdump_line *next = objdump__get_next_ip_line(head, self);
+
+		while (offset < (s64)len &&
+		       (next == NULL || offset < next->offset)) {
+			if (sym_ext) {
+				percent += sym_ext[offset].percent;
+			} else
+				hits += h->ip[offset];
+
+			++offset;
+		}
+
+		if (sym_ext == NULL && h->sum)
+			percent = 100.0 * hits / h->sum;
+
+		color = ui_browser__percent_color(percent, current_entry);
+		SLsmg_set_color(color);
+		SLsmg_printf(" %7.2f ", percent);
+		if (!current_entry)
+			SLsmg_set_color(HE_COLORSET_CODE);
+	} else {
+		int color = ui_browser__percent_color(0, current_entry);
+		SLsmg_set_color(color);
+		SLsmg_write_nstring(" ", 9);
+	}
+
+	SLsmg_write_char(':');
+	SLsmg_write_nstring(" ", 8);
+	if (!*self->line)
+		SLsmg_write_nstring(" ", width - 18);
+	else
+		SLsmg_write_nstring(self->line, width - 18);
+
+	return 0;
+}
+
+static int ui_browser__refresh_entries(struct ui_browser *self)
+{
+	struct objdump_line *pos;
+	struct list_head *head = self->entries;
+	struct hist_entry *he = self->priv;
+	int row = 0;
+	int len = he->ms.sym->end - he->ms.sym->start;
+
+	if (self->first_visible_entry == NULL || self->first_visible_entry == self->entries)
+                self->first_visible_entry = head->next;
+
+	pos = list_entry(self->first_visible_entry, struct objdump_line, node);
+
+	list_for_each_entry_from(pos, head, node) {
+		bool current_entry = (self->first_visible_entry_idx + row) == self->index;
+		SLsmg_gotorc(self->top + row, self->left);
+		objdump_line__show(pos, head, self->width,
+				   he, len, current_entry);
+		if (++row == self->height)
+			break;
+	}
+
+	SLsmg_set_color(HE_COLORSET_NORMAL);
+	SLsmg_fill_region(self->top + row, self->left,
+			  self->height - row, self->width, ' ');
+
+	return 0;
+}
+
+static int ui_browser__run(struct ui_browser *self, const char *title,
+			   struct newtExitStruct *es)
+{
+	if (self->form) {
+		newtFormDestroy(self->form);
+		newtPopWindow();
+	}
+
+	ui_browser__refresh_dimensions(self);
+	newtCenteredWindow(self->width + 2, self->height, title);
+	self->form = newt_form__new();
+	if (self->form == NULL)
+		return -1;
+
+	self->sb = newtVerticalScrollbar(self->width + 1, 0, self->height,
+					 HE_COLORSET_NORMAL,
+					 HE_COLORSET_SELECTED);
+	if (self->sb == NULL)
+		return -1;
+
+	newtFormAddHotKey(self->form, NEWT_KEY_UP);
+	newtFormAddHotKey(self->form, NEWT_KEY_DOWN);
+	newtFormAddHotKey(self->form, NEWT_KEY_PGUP);
+	newtFormAddHotKey(self->form, NEWT_KEY_PGDN);
+	newtFormAddHotKey(self->form, NEWT_KEY_HOME);
+	newtFormAddHotKey(self->form, NEWT_KEY_END);
+
+	if (ui_browser__refresh_entries(self) < 0)
+		return -1;
+	newtFormAddComponent(self->form, self->sb);
+
+	while (1) {
+		unsigned int offset;
+
+		newtFormRun(self->form, es);
+
+		if (es->reason != NEWT_EXIT_HOTKEY)
+			break;
+		switch (es->u.key) {
+		case NEWT_KEY_DOWN:
+			if (self->index == self->nr_entries - 1)
+				break;
+			++self->index;
+			if (self->index == self->first_visible_entry_idx + self->height) {
+				struct list_head *pos = self->first_visible_entry;
+				++self->first_visible_entry_idx;
+				self->first_visible_entry = pos->next;
+			}
+			break;
+		case NEWT_KEY_UP:
+			if (self->index == 0)
+				break;
+			--self->index;
+			if (self->index < self->first_visible_entry_idx) {
+				struct list_head *pos = self->first_visible_entry;
+				--self->first_visible_entry_idx;
+				self->first_visible_entry = pos->prev;
+			}
+			break;
+		case NEWT_KEY_PGDN:
+			if (self->first_visible_entry_idx + self->height > self->nr_entries - 1)
+				break;
+
+			offset = self->height;
+			if (self->index + offset > self->nr_entries - 1)
+				offset = self->nr_entries - 1 - self->index;
+			self->index += offset;
+			self->first_visible_entry_idx += offset;
+
+			while (offset--) {
+				struct list_head *pos = self->first_visible_entry;
+				self->first_visible_entry = pos->next;
+			}
+
+			break;
+		case NEWT_KEY_PGUP:
+			if (self->first_visible_entry_idx == 0)
+				break;
+
+			if (self->first_visible_entry_idx < self->height)
+				offset = self->first_visible_entry_idx;
+			else
+				offset = self->height;
+
+			self->index -= offset;
+			self->first_visible_entry_idx -= offset;
+
+			while (offset--) {
+				struct list_head *pos = self->first_visible_entry;
+				self->first_visible_entry = pos->prev;
+			}
+			break;
+		case NEWT_KEY_HOME:
+			ui_browser__reset_index(self);
+			break;
+		case NEWT_KEY_END: {
+			struct list_head *head = self->entries;
+			offset = self->height - 1;
+
+			if (offset > self->nr_entries)
+				offset = self->nr_entries;
+
+			self->index = self->first_visible_entry_idx = self->nr_entries - 1 - offset;
+			self->first_visible_entry = head->prev;
+			while (offset-- != 0) {
+				struct list_head *pos = self->first_visible_entry;
+				self->first_visible_entry = pos->prev;
+			}
+		}
+			break;
+		case NEWT_KEY_ESCAPE:
+		case CTRL('c'):
+		case 'Q':
+		case 'q':
+			return 0;
+		default:
+			continue;
+		}
+		if (ui_browser__refresh_entries(self) < 0)
+			return -1;
+	}
+	return 0;
 }
 
 /*
@@ -317,62 +602,40 @@ static size_t hist_entry__append_browser(struct hist_entry *self,
 	return ret;
 }
 
-static void map_symbol__annotate_browser(const struct map_symbol *self,
-					 const char *input_name)
+static void hist_entry__annotate_browser(struct hist_entry *self)
 {
-	FILE *fp;
-	int cols, rows;
-	newtComponent form, tree;
+	struct ui_browser browser;
 	struct newtExitStruct es;
-	char *str;
-	size_t line_len, max_line_len = 0;
-	size_t max_usable_width;
-	char *line = NULL;
+	struct objdump_line *pos, *n;
+	LIST_HEAD(head);
 
-	if (self->sym == NULL)
+	if (self->ms.sym == NULL)
 		return;
 
-	if (asprintf(&str, "perf annotate -i \"%s\" -d \"%s\" %s 2>&1 | expand",
-		     input_name, self->map->dso->name, self->sym->name) < 0)
+	if (hist_entry__annotate(self, &head) < 0)
 		return;
 
-	fp = popen(str, "r");
-	if (fp == NULL)
-		goto out_free_str;
+	ui_helpline__push("Press ESC to exit");
 
-	newtPushHelpLine("Press ESC to exit");
-	newtGetScreenSize(&cols, &rows);
-	tree = newtListbox(0, 0, rows - 5, NEWT_FLAG_SCROLL);
-
-	while (!feof(fp)) {
-		if (getline(&line, &line_len, fp) < 0 || !line_len)
-			break;
-		while (line_len != 0 && isspace(line[line_len - 1]))
-			line[--line_len] = '\0';
-
-		if (line_len > max_line_len)
-			max_line_len = line_len;
-		newtListboxAppendEntry(tree, line, NULL);
+	memset(&browser, 0, sizeof(browser));
+	browser.entries = &head;
+	browser.priv = self;
+	list_for_each_entry(pos, &head, node) {
+		size_t line_len = strlen(pos->line);
+		if (browser.width < line_len)
+			browser.width = line_len;
+		++browser.nr_entries;
 	}
-	fclose(fp);
-	free(line);
 
-	max_usable_width = cols - 22;
-	if (max_line_len > max_usable_width)
-		max_line_len = max_usable_width;
-
-	newtListboxSetWidth(tree, max_line_len);
-
-	newtCenteredWindow(max_line_len + 2, rows - 5, self->sym->name);
-	form = newt_form__new();
-	newtFormAddComponent(form, tree);
-
-	newtFormRun(form, &es);
-	newtFormDestroy(form);
+	browser.width += 18; /* Percentage */
+	ui_browser__run(&browser, self->ms.sym->name, &es);
+	newtFormDestroy(browser.form);
 	newtPopWindow();
-	newtPopHelpLine();
-out_free_str:
-	free(str);
+	list_for_each_entry_safe(pos, n, &head, node) {
+		list_del(&pos->node);
+		objdump_line__free(pos);
+	}
+	ui_helpline__pop();
 }
 
 static const void *newt__symbol_tree_get_current(newtComponent self)
@@ -410,8 +673,8 @@ static void hist_browser__delete(struct hist_browser *self)
 	free(self);
 }
 
-static int hist_browser__populate(struct hist_browser *self, struct rb_root *hists,
-				  u64 nr_hists, u64 session_total, const char *title)
+static int hist_browser__populate(struct hist_browser *self, struct hists *hists,
+				  const char *title)
 {
 	int max_len = 0, idx, cols, rows;
 	struct ui_progress *progress;
@@ -426,7 +689,7 @@ static int hist_browser__populate(struct hist_browser *self, struct rb_root *his
 	}
 
 	snprintf(str, sizeof(str), "Samples: %Ld                            ",
-		 session_total);
+		 hists->stats.total);
 	newtDrawRootText(0, 0, str);
 
 	newtGetScreenSize(NULL, &rows);
@@ -442,24 +705,25 @@ static int hist_browser__populate(struct hist_browser *self, struct rb_root *his
 	newtComponentAddCallback(self->tree, hist_browser__selection,
 				 &self->selection);
 
-	progress = ui_progress__new("Adding entries to the browser...", nr_hists);
+	progress = ui_progress__new("Adding entries to the browser...",
+				    hists->nr_entries);
 	if (progress == NULL)
 		return -1;
 
 	idx = 0;
-	for (nd = rb_first(hists); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&hists->entries); nd; nd = rb_next(nd)) {
 		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
 		int len;
 
 		if (h->filtered)
 			continue;
 
-		len = hist_entry__append_browser(h, self->tree, session_total);
+		len = hist_entry__append_browser(h, self->tree, hists->stats.total);
 		if (len > max_len)
 			max_len = len;
 		if (symbol_conf.use_callchain)
 			hist_entry__append_callchain_browser(h, self->tree,
-							     session_total, idx++);
+							     hists->stats.total, idx++);
 		++curr_hist;
 		if (curr_hist % 5)
 			ui_progress__update(progress, curr_hist);
@@ -490,58 +754,7 @@ static int hist_browser__populate(struct hist_browser *self, struct rb_root *his
 	return 0;
 }
 
-enum hist_filter {
-	HIST_FILTER__DSO,
-	HIST_FILTER__THREAD,
-};
-
-static u64 hists__filter_by_dso(struct rb_root *hists, const struct dso *dso,
-				u64 *session_total)
-{
-	struct rb_node *nd;
-	u64 nr_hists = 0;
-
-	*session_total = 0;
-
-	for (nd = rb_first(hists); nd; nd = rb_next(nd)) {
-		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
-
-		if (dso != NULL && (h->ms.map == NULL || h->ms.map->dso != dso)) {
-			h->filtered |= (1 << HIST_FILTER__DSO);
-			continue;
-		}
-		h->filtered &= ~(1 << HIST_FILTER__DSO);
-		++nr_hists;
-		*session_total += h->count;
-	}
-
-	return nr_hists;
-}
-
-static u64 hists__filter_by_thread(struct rb_root *hists, const struct thread *thread,
-				   u64 *session_total)
-{
-	struct rb_node *nd;
-	u64 nr_hists = 0;
-
-	*session_total = 0;
-
-	for (nd = rb_first(hists); nd; nd = rb_next(nd)) {
-		struct hist_entry *h = rb_entry(nd, struct hist_entry, rb_node);
-
-		if (thread != NULL && h->thread != thread) {
-			h->filtered |= (1 << HIST_FILTER__THREAD);
-			continue;
-		}
-		h->filtered &= ~(1 << HIST_FILTER__THREAD);
-		++nr_hists;
-		*session_total += h->count;
-	}
-
-	return nr_hists;
-}
-
-static struct thread *hist_browser__selected_thread(struct hist_browser *self)
+static struct hist_entry *hist_browser__selected_entry(struct hist_browser *self)
 {
 	int *indexes;
 
@@ -557,7 +770,13 @@ static struct thread *hist_browser__selected_thread(struct hist_browser *self)
 	}
 	return NULL;
 out:
-	return *(struct thread **)(self->selection + 1);
+	return container_of(self->selection, struct hist_entry, ms);
+}
+
+static struct thread *hist_browser__selected_thread(struct hist_browser *self)
+{
+	struct hist_entry *he = hist_browser__selected_entry(self);
+	return he ? he->thread : NULL;
 }
 
 static int hist_browser__title(char *bf, size_t size, const char *input_name,
@@ -577,9 +796,7 @@ static int hist_browser__title(char *bf, size_t size, const char *input_name,
 	return printed ?: snprintf(bf, size, "Report: %s", input_name);
 }
 
-int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
-			       u64 session_total, const char *helpline,
-			       const char *input_name)
+int hists__browse(struct hists *self, const char *helpline, const char *input_name)
 {
 	struct hist_browser *browser = hist_browser__new();
 	const struct thread *thread_filter = NULL;
@@ -591,11 +808,11 @@ int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 	if (browser == NULL)
 		return -1;
 
-	newtPushHelpLine(helpline);
+	ui_helpline__push(helpline);
 
 	hist_browser__title(msg, sizeof(msg), input_name,
 			    dso_filter, thread_filter);
-	if (hist_browser__populate(browser, hists, nr_hists, session_total, msg) < 0)
+	if (hist_browser__populate(browser, self, msg) < 0)
 		goto out;
 
 	while (1) {
@@ -653,46 +870,48 @@ int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
 			continue;
 do_annotate:
 		if (choice == annotate) {
+			struct hist_entry *he;
+
 			if (browser->selection->map->dso->origin == DSO__ORIG_KERNEL) {
-				newtPopHelpLine();
-				newtPushHelpLine("No vmlinux file found, can't "
+				ui_helpline__puts("No vmlinux file found, can't "
 						 "annotate with just a "
 						 "kallsyms file");
 				continue;
 			}
-			map_symbol__annotate_browser(browser->selection, input_name);
+
+			he = hist_browser__selected_entry(browser);
+			if (he == NULL)
+				continue;
+
+			hist_entry__annotate_browser(he);
 		} else if (choice == zoom_dso) {
 			if (dso_filter) {
-				newtPopHelpLine();
+				ui_helpline__pop();
 				dso_filter = NULL;
 			} else {
-				snprintf(msg, sizeof(msg),
-					 "To zoom out press -> + \"Zoom out of %s DSO\"",
-					 dso->kernel ? "the Kernel" : dso->short_name);
-				newtPushHelpLine(msg);
+				ui_helpline__fpush("To zoom out press -> + \"Zoom out of %s DSO\"",
+						   dso->kernel ? "the Kernel" : dso->short_name);
 				dso_filter = dso;
 			}
-			nr_hists = hists__filter_by_dso(hists, dso_filter, &session_total);
+			hists__filter_by_dso(self, dso_filter);
 			hist_browser__title(msg, sizeof(msg), input_name,
 					    dso_filter, thread_filter);
-			if (hist_browser__populate(browser, hists, nr_hists, session_total, msg) < 0)
+			if (hist_browser__populate(browser, self, msg) < 0)
 				goto out;
 		} else if (choice == zoom_thread) {
 			if (thread_filter) {
-				newtPopHelpLine();
+				ui_helpline__pop();
 				thread_filter = NULL;
 			} else {
-				snprintf(msg, sizeof(msg),
-					 "To zoom out press -> + \"Zoom out of %s(%d) thread\"",
-					 (thread->comm_set ? thread->comm : ""),
-					 thread->pid);
-				newtPushHelpLine(msg);
+				ui_helpline__fpush("To zoom out press -> + \"Zoom out of %s(%d) thread\"",
+						   thread->comm_set ? thread->comm : "",
+						   thread->pid);
 				thread_filter = thread;
 			}
-			nr_hists = hists__filter_by_thread(hists, thread_filter, &session_total);
+			hists__filter_by_thread(self, thread_filter);
 			hist_browser__title(msg, sizeof(msg), input_name,
 					    dso_filter, thread_filter);
-			if (hist_browser__populate(browser, hists, nr_hists, session_total, msg) < 0)
+			if (hist_browser__populate(browser, self, msg) < 0)
 				goto out;
 		}
 	}
@@ -702,15 +921,35 @@ out:
 	return err;
 }
 
+static struct newtPercentTreeColors {
+	const char *topColorFg, *topColorBg;
+	const char *mediumColorFg, *mediumColorBg;
+	const char *normalColorFg, *normalColorBg;
+	const char *selColorFg, *selColorBg;
+	const char *codeColorFg, *codeColorBg;
+} defaultPercentTreeColors = {
+	"red",       "lightgray",
+	"green",     "lightgray",
+	"black",     "lightgray",
+	"lightgray", "magenta",
+	"blue",	     "lightgray",
+};
+
 void setup_browser(void)
 {
+	struct newtPercentTreeColors *c = &defaultPercentTreeColors;
 	if (!isatty(1))
 		return;
 
 	use_browser = true;
 	newtInit();
 	newtCls();
-	newtPushHelpLine(" ");
+	ui_helpline__puts(" ");
+	SLtt_set_color(HE_COLORSET_TOP, NULL, c->topColorFg, c->topColorBg);
+	SLtt_set_color(HE_COLORSET_MEDIUM, NULL, c->mediumColorFg, c->mediumColorBg);
+	SLtt_set_color(HE_COLORSET_NORMAL, NULL, c->normalColorFg, c->normalColorBg);
+	SLtt_set_color(HE_COLORSET_SELECTED, NULL, c->selColorFg, c->selColorBg);
+	SLtt_set_color(HE_COLORSET_CODE, NULL, c->codeColorFg, c->codeColorBg);
 }
 
 void exit_browser(bool wait_for_ok)

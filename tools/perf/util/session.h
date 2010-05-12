@@ -102,21 +102,6 @@ int perf_session__create_kernel_maps(struct perf_session *self);
 int do_read(int fd, void *buf, size_t size);
 void perf_session__update_sample_type(struct perf_session *self);
 
-#ifdef NO_NEWT_SUPPORT
-static inline int perf_session__browse_hists(struct rb_root *hists __used,
-					      u64 nr_hists __used,
-					      u64 session_total __used,
-					     const char *helpline __used,
-					     const char *input_name __used)
-{
-	return 0;
-}
-#else
-int perf_session__browse_hists(struct rb_root *hists, u64 nr_hists,
-			       u64 session_total, const char *helpline,
-			       const char *input_name);
-#endif
-
 static inline
 struct machine *perf_session__find_host_machine(struct perf_session *self)
 {
