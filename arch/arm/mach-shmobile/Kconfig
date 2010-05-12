@@ -76,6 +76,12 @@ config SH_TIMER_CMT
 	help
 	  This enables build of the CMT timer driver.
 
+config SH_TIMER_TMU
+	bool "TMU timer driver"
+	default y
+	help
+	  This enables build of the TMU timer driver.
+
 endmenu
 
 endif
