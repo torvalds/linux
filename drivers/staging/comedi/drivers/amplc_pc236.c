@@ -78,18 +78,18 @@ unused.
  */
 /* Disable interrupt, also clear any interrupt there */
 #define PCI236_INTR_DISABLE (PLX9052_INTCSR_LI1ENAB_DISABLED \
-        | PLX9052_INTCSR_LI1POL_HIGH \
-        | PLX9052_INTCSR_LI2POL_HIGH \
-        | PLX9052_INTCSR_PCIENAB_DISABLED \
-        | PLX9052_INTCSR_LI1SEL_EDGE \
-        | PLX9052_INTCSR_LI1CLRINT_ASSERTED)
+	| PLX9052_INTCSR_LI1POL_HIGH \
+	| PLX9052_INTCSR_LI2POL_HIGH \
+	| PLX9052_INTCSR_PCIENAB_DISABLED \
+	| PLX9052_INTCSR_LI1SEL_EDGE \
+	| PLX9052_INTCSR_LI1CLRINT_ASSERTED)
 /* Enable interrupt, also clear any interrupt there. */
 #define PCI236_INTR_ENABLE (PLX9052_INTCSR_LI1ENAB_ENABLED \
-        | PLX9052_INTCSR_LI1POL_HIGH \
-        | PLX9052_INTCSR_LI2POL_HIGH \
-        | PLX9052_INTCSR_PCIENAB_ENABLED \
-        | PLX9052_INTCSR_LI1SEL_EDGE \
-        | PLX9052_INTCSR_LI1CLRINT_ASSERTED)
+	| PLX9052_INTCSR_LI1POL_HIGH \
+	| PLX9052_INTCSR_LI2POL_HIGH \
+	| PLX9052_INTCSR_PCIENAB_ENABLED \
+	| PLX9052_INTCSR_LI1SEL_EDGE \
+	| PLX9052_INTCSR_LI1CLRINT_ASSERTED)
 
 /*
  * Board descriptions for Amplicon PC36AT and PCI236.
@@ -150,12 +150,13 @@ MODULE_DEVICE_TABLE(pci, pc236_pci_table);
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the struct comedi_device struct.  */
+   feel free to suggest moving the variable to the struct comedi_device struct.
+ */
 struct pc236_private {
 #ifdef CONFIG_COMEDI_PCI
 	/* PCI device */
 	struct pci_dev *pci_dev;
-	unsigned long lcr_iobase;	/* PLX PCI9052 config registers in PCIBAR1 */
+	unsigned long lcr_iobase; /* PLX PCI9052 config registers in PCIBAR1 */
 #endif
 	int enable_irq;
 };
@@ -345,9 +346,8 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 #endif
 	{
 		ret = pc236_request_region(dev->minor, iobase, PC236_IO_SIZE);
-		if (ret < 0) {
+		if (ret < 0)
 			return ret;
-		}
 	}
 	dev->iobase = iobase;
 
@@ -399,11 +399,10 @@ static int pc236_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		printk("(pci %s) ", pci_name(pci_dev));
 #endif
 	}
-	if (irq) {
+	if (irq)
 		printk("(irq %u%s) ", irq, (dev->irq ? "" : " UNAVAILABLE"));
-	} else {
+	else
 		printk("(no irq) ");
-	}
 
 	printk("attached\n");
 
@@ -422,27 +421,24 @@ static int pc236_detach(struct comedi_device *dev)
 {
 	printk(KERN_DEBUG "comedi%d: %s: detach\n", dev->minor,
 	       PC236_DRIVER_NAME);
-	if (devpriv) {
+	if (devpriv)
 		pc236_intr_disable(dev);
-	}
+
 	if (dev->irq)
 		free_irq(dev->irq, dev);
-	if (dev->subdevices) {
+	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 0);
-	}
 	if (devpriv) {
 #ifdef CONFIG_COMEDI_PCI
 		if (devpriv->pci_dev) {
-			if (dev->iobase) {
+			if (dev->iobase)
 				comedi_pci_disable(devpriv->pci_dev);
-			}
 			pci_dev_put(devpriv->pci_dev);
 		} else
 #endif
 		{
-			if (dev->iobase) {
+			if (dev->iobase)
 				release_region(dev->iobase, PC236_IO_SIZE);
-			}
 		}
 	}
 	if (dev->board_name) {

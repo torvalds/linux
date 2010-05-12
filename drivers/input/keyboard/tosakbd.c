@@ -18,6 +18,7 @@
 #include <linux/input.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 #include <mach/gpio.h>
 #include <mach/tosa.h>

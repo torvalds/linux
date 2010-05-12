@@ -120,7 +120,7 @@ extern int sn9c102_write_regs(struct sn9c102_device*, const u8 valreg[][2],
 /*
    Write multiple registers with constant values. For example:
    sn9c102_write_const_regs(cam, {0x00, 0x14}, {0x60, 0x17}, {0x0f, 0x18});
-   Register adresses must be < 256.
+   Register addresses must be < 256.
 */
 #define sn9c102_write_const_regs(sn9c102_device, data...)                     \
 	({ static const u8 _valreg[][2] = {data};                             \

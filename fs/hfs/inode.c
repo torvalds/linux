@@ -381,7 +381,7 @@ void hfs_inode_write_fork(struct inode *inode, struct hfs_extent *ext,
 					 HFS_SB(inode->i_sb)->alloc_blksz);
 }
 
-int hfs_write_inode(struct inode *inode, int unused)
+int hfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct inode *main_inode = inode;
 	struct hfs_find_data fd;

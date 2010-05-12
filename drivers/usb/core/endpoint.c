@@ -11,6 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/usb.h>
 #include "usb.h"
@@ -186,6 +187,7 @@ int usb_create_ep_devs(struct device *parent,
 	ep_dev->dev.parent = parent;
 	ep_dev->dev.release = ep_device_release;
 	dev_set_name(&ep_dev->dev, "ep_%02x", endpoint->desc.bEndpointAddress);
+	device_enable_async_suspend(&ep_dev->dev);
 
 	retval = device_register(&ep_dev->dev);
 	if (retval)

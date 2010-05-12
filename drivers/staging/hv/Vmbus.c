@@ -21,6 +21,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include "osd.h"
 #include "logging.h"
 #include "VersionInfo.h"
@@ -273,10 +274,8 @@ int VmbusInitialize(struct hv_driver *drv)
 
 	DPRINT_ENTER(VMBUS);
 
-	DPRINT_INFO(VMBUS, "+++++++ Build Date=%s %s +++++++",
-			VersionDate, VersionTime);
-	DPRINT_INFO(VMBUS, "+++++++ Build Description=%s +++++++",
-			VersionDesc);
+	DPRINT_INFO(VMBUS, "+++++++ HV Driver version = %s +++++++",
+		    HV_DRV_VERSION);
 	DPRINT_INFO(VMBUS, "+++++++ Vmbus supported version = %d +++++++",
 			VMBUS_REVISION_NUMBER);
 	DPRINT_INFO(VMBUS, "+++++++ Vmbus using SINT %d +++++++",

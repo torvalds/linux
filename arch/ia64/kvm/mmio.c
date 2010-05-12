@@ -316,8 +316,8 @@ void emulate_io_inst(struct kvm_vcpu *vcpu, u64 padr, u64 ma)
 		return;
 	} else {
 		inst_type = -1;
-		panic_vm(vcpu, "Unsupported MMIO access instruction! \
-				Bunld[0]=0x%lx, Bundle[1]=0x%lx\n",
+		panic_vm(vcpu, "Unsupported MMIO access instruction! "
+				"Bunld[0]=0x%lx, Bundle[1]=0x%lx\n",
 				bundle.i64[0], bundle.i64[1]);
 	}
 

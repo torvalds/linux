@@ -22,6 +22,7 @@
 #include <asm/mach/arch.h>
 
 #include <plat/mtu.h>
+#include <plat/i2c.h>
 
 #include <mach/hardware.h>
 #include <mach/setup.h>
@@ -108,11 +109,96 @@ static struct amba_device pl022_device = {
 	.periphid = SSP_PER_ID,
 };
 
+static struct amba_device pl031_device = {
+	.dev = {
+		.init_name = "pl031",
+	},
+	.res = {
+		.start = U8500_RTC_BASE,
+		.end = U8500_RTC_BASE + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	.irq = {IRQ_RTC_RTT, NO_IRQ},
+};
+
+#define U8500_I2C_RESOURCES(id, size)		\
+static struct resource u8500_i2c_resources_##id[] = {	\
+	[0] = {					\
+		.start	= U8500_I2C##id##_BASE,	\
+		.end	= U8500_I2C##id##_BASE + size - 1, \
+		.flags	= IORESOURCE_MEM,	\
+	},					\
+	[1] = {					\
+		.start	= IRQ_I2C##id,		\
+		.end	= IRQ_I2C##id,		\
+		.flags	= IORESOURCE_IRQ	\
+	}					\
+}
+
+U8500_I2C_RESOURCES(0, SZ_4K);
+U8500_I2C_RESOURCES(1, SZ_4K);
+U8500_I2C_RESOURCES(2, SZ_4K);
+U8500_I2C_RESOURCES(3, SZ_4K);
+
+#define U8500_I2C_CONTROLLER(id, _slsu, _tft, _rft, clk, _sm) \
+static struct nmk_i2c_controller u8500_i2c_##id = { \
+	/*				\
+	 * slave data setup time, which is	\
+	 * 250 ns,100ns,10ns which is 14,6,2	\
+	 * respectively for a 48 Mhz	\
+	 * i2c clock			\
+	 */				\
+	.slsu		= _slsu,	\
+	/* Tx FIFO threshold */		\
+	.tft		= _tft,		\
+	/* Rx FIFO threshold */		\
+	.rft		= _rft,		\
+	/* std. mode operation */	\
+	.clk_freq	= clk,		\
+	.sm		= _sm,		\
+}
+
+/*
+ * The board uses 4 i2c controllers, initialize all of
+ * them with slave data setup time of 250 ns,
+ * Tx & Rx FIFO threshold values as 1 and standard
+ * mode of operation
+ */
+U8500_I2C_CONTROLLER(0, 0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
+U8500_I2C_CONTROLLER(1, 0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
+U8500_I2C_CONTROLLER(2,	0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
+U8500_I2C_CONTROLLER(3,	0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
+
+#define U8500_I2C_PDEVICE(cid)		\
+static struct platform_device i2c_controller##cid = { \
+	.name = "nmk-i2c",		\
+	.id	 = cid,			\
+	.num_resources = 2,		\
+	.resource = u8500_i2c_resources_##cid,	\
+	.dev = {			\
+		.platform_data = &u8500_i2c_##cid \
+	}				\
+}
+
+U8500_I2C_PDEVICE(0);
+U8500_I2C_PDEVICE(1);
+U8500_I2C_PDEVICE(2);
+U8500_I2C_PDEVICE(3);
+
 static struct amba_device *amba_devs[] __initdata = {
 	&uart0_device,
 	&uart1_device,
 	&uart2_device,
 	&pl022_device,
+	&pl031_device,
+};
+
+/* add any platform devices here - TODO */
+static struct platform_device *platform_devs[] __initdata = {
+	&i2c_controller0,
+	&i2c_controller1,
+	&i2c_controller2,
+	&i2c_controller3,
 };
 
 static void __init u8500_timer_init(void)
@@ -138,6 +224,8 @@ static void __init u8500_init_machine(void)
 	/* Register the active AMBA devices on this board */
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++)
 		amba_device_register(amba_devs[i], &iomem_resource);
+
+	platform_add_devices(platform_devs, ARRAY_SIZE(platform_devs));
 
 	spi_register_board_info(u8500_spi_devices,
 			ARRAY_SIZE(u8500_spi_devices));

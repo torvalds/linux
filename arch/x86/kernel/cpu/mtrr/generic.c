@@ -6,7 +6,6 @@
 
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/mm.h>
 
@@ -464,7 +463,7 @@ static void generic_get_mtrr(unsigned int reg, unsigned long *base,
 		tmp |= ~((1<<(hi - 1)) - 1);
 
 		if (tmp != mask_lo) {
-			WARN_ONCE(1, KERN_INFO "mtrr: your BIOS has set up an incorrect mask, fixing it up.\n");
+			printk(KERN_WARNING "mtrr: your BIOS has configured an incorrect mask, fixing it.\n");
 			mask_lo = tmp;
 		}
 	}
@@ -570,7 +569,7 @@ static unsigned long set_mtrr_state(void)
 
 
 static unsigned long cr4;
-static DEFINE_SPINLOCK(set_atomicity_lock);
+static DEFINE_RAW_SPINLOCK(set_atomicity_lock);
 
 /*
  * Since we are disabling the cache don't allow any interrupts,
@@ -590,7 +589,7 @@ static void prepare_set(void) __acquires(set_atomicity_lock)
 	 * changes to the way the kernel boots
 	 */
 
-	spin_lock(&set_atomicity_lock);
+	raw_spin_lock(&set_atomicity_lock);
 
 	/* Enter the no-fill (CD=1, NW=0) cache mode and flush caches. */
 	cr0 = read_cr0() | X86_CR0_CD;
@@ -627,7 +626,7 @@ static void post_set(void) __releases(set_atomicity_lock)
 	/* Restore value of CR4 */
 	if (cpu_has_pge)
 		write_cr4(cr4);
-	spin_unlock(&set_atomicity_lock);
+	raw_spin_unlock(&set_atomicity_lock);
 }
 
 static void generic_set_all(void)
@@ -752,7 +751,7 @@ int positive_have_wrcomb(void)
 /*
  * Generic structure...
  */
-struct mtrr_ops generic_mtrr_ops = {
+const struct mtrr_ops generic_mtrr_ops = {
 	.use_intel_if		= 1,
 	.set_all		= generic_set_all,
 	.get			= generic_get_mtrr,

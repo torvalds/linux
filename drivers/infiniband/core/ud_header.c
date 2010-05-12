@@ -181,6 +181,7 @@ static const struct ib_field deth_table[] = {
  * ib_ud_header_init - Initialize UD header structure
  * @payload_bytes:Length of packet payload
  * @grh_present:GRH flag (if non-zero, GRH will be included)
+ * @immediate_present: specify if immediate data should be used
  * @header:Structure to initialize
  *
  * ib_ud_header_init() initializes the lrh.link_version, lrh.link_next_header,
@@ -191,20 +192,12 @@ static const struct ib_field deth_table[] = {
  */
 void ib_ud_header_init(int     		    payload_bytes,
 		       int    		    grh_present,
+		       int		    immediate_present,
 		       struct ib_ud_header *header)
 {
-	int header_len;
 	u16 packet_length;
 
 	memset(header, 0, sizeof *header);
-
-	header_len =
-		IB_LRH_BYTES  +
-		IB_BTH_BYTES  +
-		IB_DETH_BYTES;
-	if (grh_present) {
-		header_len += IB_GRH_BYTES;
-	}
 
 	header->lrh.link_version     = 0;
 	header->lrh.link_next_header =
@@ -231,7 +224,8 @@ void ib_ud_header_init(int     		    payload_bytes,
 
 	header->lrh.packet_length = cpu_to_be16(packet_length);
 
-	if (header->immediate_present)
+	header->immediate_present	     = immediate_present;
+	if (immediate_present)
 		header->bth.opcode           = IB_OPCODE_UD_SEND_ONLY_WITH_IMMEDIATE;
 	else
 		header->bth.opcode           = IB_OPCODE_UD_SEND_ONLY;

@@ -9,6 +9,7 @@
  */
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
+#include <linux/writeback.h>
 #include "adfs.h"
 
 /*
@@ -360,7 +361,7 @@ out:
  * The adfs-specific inode data has already been updated by
  * adfs_notify_change()
  */
-int adfs_write_inode(struct inode *inode, int wait)
+int adfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct super_block *sb = inode->i_sb;
 	struct object_info obj;
@@ -375,7 +376,7 @@ int adfs_write_inode(struct inode *inode, int wait)
 	obj.attr	= ADFS_I(inode)->attr;
 	obj.size	= inode->i_size;
 
-	ret = adfs_dir_update(sb, &obj, wait);
+	ret = adfs_dir_update(sb, &obj, wbc->sync_mode == WB_SYNC_ALL);
 	unlock_kernel();
 	return ret;
 }

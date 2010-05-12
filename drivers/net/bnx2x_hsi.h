@@ -1,6 +1,6 @@
 /* bnx2x_hsi.h: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2009 Broadcom Corporation
+ * Copyright (c) 2007-2010 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1261,7 +1261,7 @@ struct host_func_stats {
 
 #define BCM_5710_FW_MAJOR_VERSION			5
 #define BCM_5710_FW_MINOR_VERSION			2
-#define BCM_5710_FW_REVISION_VERSION			7
+#define BCM_5710_FW_REVISION_VERSION			13
 #define BCM_5710_FW_ENGINEERING_VERSION 		0
 #define BCM_5710_FW_COMPILE_FLAGS			1
 
@@ -2433,8 +2433,10 @@ struct common_ramrod_eth_rx_cqe {
 	u8 ramrod_type;
 #define COMMON_RAMROD_ETH_RX_CQE_TYPE (0x1<<0)
 #define COMMON_RAMROD_ETH_RX_CQE_TYPE_SHIFT 0
-#define COMMON_RAMROD_ETH_RX_CQE_RESERVED0 (0x7F<<1)
-#define COMMON_RAMROD_ETH_RX_CQE_RESERVED0_SHIFT 1
+#define COMMON_RAMROD_ETH_RX_CQE_ERROR (0x1<<1)
+#define COMMON_RAMROD_ETH_RX_CQE_ERROR_SHIFT 1
+#define COMMON_RAMROD_ETH_RX_CQE_RESERVED0 (0x3F<<2)
+#define COMMON_RAMROD_ETH_RX_CQE_RESERVED0_SHIFT 2
 	u8 conn_type;
 	__le16 reserved1;
 	__le32 conn_and_cmd_data;

@@ -144,7 +144,7 @@ static struct symbol *symbol__new(u64 start, u64 len, const char *name)
 	return self;
 }
 
-static void symbol__delete(struct symbol *self)
+void symbol__delete(struct symbol *self)
 {
 	free(((void *)self) - symbol_conf.priv_size);
 }
@@ -163,9 +163,17 @@ void dso__set_long_name(struct dso *self, char *name)
 	self->long_name_len = strlen(name);
 }
 
+static void dso__set_short_name(struct dso *self, const char *name)
+{
+	if (name == NULL)
+		return;
+	self->short_name = name;
+	self->short_name_len = strlen(name);
+}
+
 static void dso__set_basename(struct dso *self)
 {
-	self->short_name = basename(self->long_name);
+	dso__set_short_name(self, basename(self->long_name));
 }
 
 struct dso *dso__new(const char *name)
@@ -176,7 +184,7 @@ struct dso *dso__new(const char *name)
 		int i;
 		strcpy(self->name, name);
 		dso__set_long_name(self, self->name);
-		self->short_name = self->name;
+		dso__set_short_name(self, self->name);
 		for (i = 0; i < MAP__NR_TYPES; ++i)
 			self->symbols[i] = self->symbol_names[i] = RB_ROOT;
 		self->slen_calculated = 0;
@@ -367,6 +375,10 @@ size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp)
 	struct rb_node *nd;
 	size_t ret = fprintf(fp, "dso: %s (", self->short_name);
 
+	if (self->short_name != self->long_name)
+		ret += fprintf(fp, "%s, ", self->long_name);
+	ret += fprintf(fp, "%s, %sloaded, ", map_type__name[type],
+		       self->loaded ? "" : "NOT ");
 	ret += dso__fprintf_buildid(self, fp);
 	ret += fprintf(fp, ")\n");
 	for (nd = rb_first(&self->symbols[type]); nd; nd = rb_next(nd)) {
@@ -527,7 +539,7 @@ static int dso__split_kallsyms(struct dso *self, struct map *map,
 				return -1;
 
 			curr_map = map__new2(pos->start, dso, map->type);
-			if (map == NULL) {
+			if (curr_map == NULL) {
 				dso__delete(dso);
 				return -1;
 			}
@@ -893,7 +905,6 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 	struct kmap *kmap = self->kernel ? map__kmap(map) : NULL;
 	struct map *curr_map = map;
 	struct dso *curr_dso = self;
-	size_t dso_name_len = strlen(self->short_name);
 	Elf_Data *symstrs, *secstrs;
 	uint32_t nr_syms;
 	int err = -1;
@@ -983,7 +994,8 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 			char dso_name[PATH_MAX];
 
 			if (strcmp(section_name,
-				   curr_dso->short_name + dso_name_len) == 0)
+				   (curr_dso->short_name +
+				    self->short_name_len)) == 0)
 				goto new_symbol;
 
 			if (strcmp(section_name, ".text") == 0) {
@@ -1580,6 +1592,9 @@ static int dso__load_vmlinux(struct dso *self, struct map *map,
 	err = dso__load_sym(self, map, vmlinux, fd, filter, 0);
 	close(fd);
 
+	if (err > 0)
+		pr_debug("Using %s for symbols\n", vmlinux);
+
 	return err;
 }
 
@@ -1594,7 +1609,6 @@ int dso__load_vmlinux_path(struct dso *self, struct map *map,
 	for (i = 0; i < vmlinux_path__nr_entries; ++i) {
 		err = dso__load_vmlinux(self, map, vmlinux_path[i], filter);
 		if (err > 0) {
-			pr_debug("Using %s for symbols\n", vmlinux_path[i]);
 			dso__set_long_name(self, strdup(vmlinux_path[i]));
 			break;
 		}
@@ -1661,12 +1675,16 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 
 		if (asprintf(&kallsyms_allocated_filename,
 			     "%s/.debug/[kernel.kallsyms]/%s",
-			     getenv("HOME"), sbuild_id) == -1)
+			     getenv("HOME"), sbuild_id) == -1) {
+			pr_err("Not enough memory for kallsyms file lookup\n");
 			return -1;
+		}
 
 		kallsyms_filename = kallsyms_allocated_filename;
 
 		if (access(kallsyms_filename, F_OK)) {
+			pr_err("No kallsyms or vmlinux with build-id %s "
+			       "was found\n", sbuild_id);
 			free(kallsyms_allocated_filename);
 			return -1;
 		}
@@ -1680,6 +1698,8 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 
 do_kallsyms:
 	err = dso__load_kallsyms(self, kallsyms_filename, map, filter);
+	if (err > 0)
+		pr_debug("Using %s for symbols\n", kallsyms_filename);
 	free(kallsyms_allocated_filename);
 
 out_try_fixup:
@@ -1770,7 +1790,7 @@ struct dso *dso__new_kernel(const char *name)
 	struct dso *self = dso__new(name ?: "[kernel.kallsyms]");
 
 	if (self != NULL) {
-		self->short_name = "[kernel]";
+		dso__set_short_name(self, "[kernel]");
 		self->kernel	 = 1;
 	}
 
@@ -1937,7 +1957,7 @@ int map_groups__create_kernel_maps(struct map_groups *self,
 		return -1;
 
 	if (symbol_conf.use_modules && map_groups__create_modules(self) < 0)
-		return 0;
+		pr_debug("Problems creating module maps, continuing anyway...\n");
 	/*
 	 * Now that we have all the maps created, just set the ->end of them:
 	 */

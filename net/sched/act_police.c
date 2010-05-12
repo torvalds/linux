@@ -18,6 +18,7 @@
 #include <linux/skbuff.h>
 #include <linux/rtnetlink.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <net/act_api.h>
 #include <net/netlink.h>
 

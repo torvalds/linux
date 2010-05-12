@@ -1931,6 +1931,41 @@ s32 igb_phy_init_script_igp3(struct e1000_hw *hw)
 }
 
 /**
+ * igb_power_up_phy_copper - Restore copper link in case of PHY power down
+ * @hw: pointer to the HW structure
+ *
+ * In the case of a PHY power down to save power, or to turn off link during a
+ * driver unload, restore the link to previous settings.
+ **/
+void igb_power_up_phy_copper(struct e1000_hw *hw)
+{
+	u16 mii_reg = 0;
+
+	/* The PHY will retain its settings across a power down/up cycle */
+	hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
+	mii_reg &= ~MII_CR_POWER_DOWN;
+	hw->phy.ops.write_reg(hw, PHY_CONTROL, mii_reg);
+}
+
+/**
+ * igb_power_down_phy_copper - Power down copper PHY
+ * @hw: pointer to the HW structure
+ *
+ * Power down PHY to save power when interface is down and wake on lan
+ * is not enabled.
+ **/
+void igb_power_down_phy_copper(struct e1000_hw *hw)
+{
+	u16 mii_reg = 0;
+
+	/* The PHY will retain its settings across a power down/up cycle */
+	hw->phy.ops.read_reg(hw, PHY_CONTROL, &mii_reg);
+	mii_reg |= MII_CR_POWER_DOWN;
+	hw->phy.ops.write_reg(hw, PHY_CONTROL, mii_reg);
+	msleep(1);
+}
+
+/**
  *  igb_check_polarity_82580 - Checks the polarity.
  *  @hw: pointer to the HW structure
  *

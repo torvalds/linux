@@ -15,6 +15,7 @@
 #include <linux/nls.h>
 #include <linux/mount.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include "hfsplus_fs.h"
 
 enum {

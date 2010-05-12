@@ -334,8 +334,8 @@ static void realview_pbx_reset(char mode)
 	 * in the system FPGA
 	 */
 	__raw_writel(REALVIEW_SYS_LOCK_VAL, lock_ctrl);
-	__raw_writel(0x0000, reset_ctrl);
-	__raw_writel(0x0004, reset_ctrl);
+	__raw_writel(0x00F0, reset_ctrl);
+	__raw_writel(0x00F4, reset_ctrl);
 }
 
 static void __init realview_pbx_init(void)

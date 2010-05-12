@@ -33,6 +33,7 @@
 #include <linux/wait.h>
 #include <linux/list.h>
 #include <linux/kref.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "drm.h"
 #include "radeon_reg.h"

@@ -116,6 +116,9 @@ static void     bfa_fcs_port_fdmi_sm_rpa_retry(struct bfa_fcs_port_fdmi_s *fdmi,
 			enum port_fdmi_event event);
 static void     bfa_fcs_port_fdmi_sm_online(struct bfa_fcs_port_fdmi_s *fdmi,
 			enum port_fdmi_event event);
+static void	bfa_fcs_port_fdmi_sm_disabled(struct bfa_fcs_port_fdmi_s *fdmi,
+			enum port_fdmi_event event);
+
 /**
  * 		Start in offline state - awaiting MS to send start.
  */
@@ -155,7 +158,7 @@ bfa_fcs_port_fdmi_sm_offline(struct bfa_fcs_port_fdmi_s *fdmi,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -180,7 +183,7 @@ bfa_fcs_port_fdmi_sm_sending_rhba(struct bfa_fcs_port_fdmi_s *fdmi,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -227,7 +230,7 @@ bfa_fcs_port_fdmi_sm_rhba(struct bfa_fcs_port_fdmi_s *fdmi,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -255,7 +258,7 @@ bfa_fcs_port_fdmi_sm_rhba_retry(struct bfa_fcs_port_fdmi_s *fdmi,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -283,7 +286,7 @@ bfa_fcs_port_fdmi_sm_sending_rprt(struct bfa_fcs_port_fdmi_s *fdmi,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -328,7 +331,7 @@ bfa_fcs_port_fdmi_sm_rprt(struct bfa_fcs_port_fdmi_s *fdmi,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -356,7 +359,7 @@ bfa_fcs_port_fdmi_sm_rprt_retry(struct bfa_fcs_port_fdmi_s *fdmi,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -384,7 +387,7 @@ bfa_fcs_port_fdmi_sm_sending_rpa(struct bfa_fcs_port_fdmi_s *fdmi,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -428,7 +431,7 @@ bfa_fcs_port_fdmi_sm_rpa(struct bfa_fcs_port_fdmi_s *fdmi,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -456,7 +459,7 @@ bfa_fcs_port_fdmi_sm_rpa_retry(struct bfa_fcs_port_fdmi_s *fdmi,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -475,10 +478,24 @@ bfa_fcs_port_fdmi_sm_online(struct bfa_fcs_port_fdmi_s *fdmi,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
+/**
+ *  FDMI is disabled state.
+ */
+static void
+bfa_fcs_port_fdmi_sm_disabled(struct bfa_fcs_port_fdmi_s *fdmi,
+				enum port_fdmi_event event)
+{
+	struct bfa_fcs_port_s *port = fdmi->ms->port;
+
+	bfa_trc(port->fcs, port->port_cfg.pwwn);
+	bfa_trc(port->fcs, event);
+
+	/* No op State. It can only be enabled at Driver Init. */
+}
 
 /**
 *   RHBA : Register HBA Attributes.
@@ -1097,35 +1114,22 @@ bfa_fcs_fdmi_get_hbaattr(struct bfa_fcs_port_fdmi_s *fdmi,
 {
 	struct bfa_fcs_port_s *port = fdmi->ms->port;
 	struct bfa_fcs_driver_info_s *driver_info = &port->fcs->driver_info;
-	struct bfa_adapter_attr_s adapter_attr;
 
 	bfa_os_memset(hba_attr, 0, sizeof(struct bfa_fcs_fdmi_hba_attr_s));
-	bfa_os_memset(&adapter_attr, 0, sizeof(struct bfa_adapter_attr_s));
 
-	bfa_ioc_get_adapter_attr(&port->fcs->bfa->ioc, &adapter_attr);
-
-	strncpy(hba_attr->manufacturer, adapter_attr.manufacturer,
-		sizeof(adapter_attr.manufacturer));
-
-	strncpy(hba_attr->serial_num, adapter_attr.serial_num,
-		sizeof(adapter_attr.serial_num));
-
-	strncpy(hba_attr->model, adapter_attr.model, sizeof(hba_attr->model));
-
-	strncpy(hba_attr->model_desc, adapter_attr.model_descr,
-		sizeof(hba_attr->model_desc));
-
-	strncpy(hba_attr->hw_version, adapter_attr.hw_ver,
-		sizeof(hba_attr->hw_version));
+	bfa_ioc_get_adapter_manufacturer(&port->fcs->bfa->ioc,
+		hba_attr->manufacturer);
+	bfa_ioc_get_adapter_serial_num(&port->fcs->bfa->ioc,
+						hba_attr->serial_num);
+	bfa_ioc_get_adapter_model(&port->fcs->bfa->ioc, hba_attr->model);
+	bfa_ioc_get_adapter_model(&port->fcs->bfa->ioc, hba_attr->model_desc);
+	bfa_ioc_get_pci_chip_rev(&port->fcs->bfa->ioc, hba_attr->hw_version);
+	bfa_ioc_get_adapter_optrom_ver(&port->fcs->bfa->ioc,
+		hba_attr->option_rom_ver);
+	bfa_ioc_get_adapter_fw_ver(&port->fcs->bfa->ioc, hba_attr->fw_version);
 
 	strncpy(hba_attr->driver_version, (char *)driver_info->version,
 		sizeof(hba_attr->driver_version));
-
-	strncpy(hba_attr->option_rom_ver, adapter_attr.optrom_ver,
-		sizeof(hba_attr->option_rom_ver));
-
-	strncpy(hba_attr->fw_version, adapter_attr.fw_ver,
-		sizeof(hba_attr->fw_version));
 
 	strncpy(hba_attr->os_name, driver_info->host_os_name,
 		sizeof(hba_attr->os_name));
@@ -1158,7 +1162,7 @@ bfa_fcs_fdmi_get_portattr(struct bfa_fcs_port_fdmi_s *fdmi,
 	/*
 	 * get pport attributes from hal
 	 */
-	bfa_pport_get_attr(port->fcs->bfa, &pport_attr);
+	bfa_fcport_get_attr(port->fcs->bfa, &pport_attr);
 
 	/*
 	 * get FC4 type Bitmask
@@ -1201,7 +1205,10 @@ bfa_fcs_port_fdmi_init(struct bfa_fcs_port_ms_s *ms)
 	struct bfa_fcs_port_fdmi_s *fdmi = &ms->fdmi;
 
 	fdmi->ms = ms;
-	bfa_sm_set_state(fdmi, bfa_fcs_port_fdmi_sm_offline);
+	if (ms->port->fcs->fdmi_enabled)
+		bfa_sm_set_state(fdmi, bfa_fcs_port_fdmi_sm_offline);
+	else
+		bfa_sm_set_state(fdmi, bfa_fcs_port_fdmi_sm_disabled);
 }
 
 void

@@ -591,11 +591,7 @@ static int gfs2_ri_update(struct gfs2_inode *ip)
 	u64 rgrp_count = ip->i_disksize;
 	int error;
 
-	if (do_div(rgrp_count, sizeof(struct gfs2_rindex))) {
-		gfs2_consist_inode(ip);
-		return -EIO;
-	}
-
+	do_div(rgrp_count, sizeof(struct gfs2_rindex));
 	clear_rgrpdi(sdp);
 
 	file_ra_state_init(&ra_state, inode->i_mapping);
@@ -915,7 +911,7 @@ void gfs2_rgrp_repolish_clones(struct gfs2_rgrpd *rgd)
 struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip)
 {
 	BUG_ON(ip->i_alloc != NULL);
-	ip->i_alloc = kzalloc(sizeof(struct gfs2_alloc), GFP_KERNEL);
+	ip->i_alloc = kzalloc(sizeof(struct gfs2_alloc), GFP_NOFS);
 	return ip->i_alloc;
 }
 

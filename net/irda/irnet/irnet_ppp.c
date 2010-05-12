@@ -14,6 +14,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include "irnet_ppp.h"		/* Private header */
 /* Please put other headers in irnet.h - Thanks */
@@ -698,15 +699,18 @@ dev_irnet_ioctl(
 
       /* Query PPP channel and unit number */
     case PPPIOCGCHAN:
+      lock_kernel();
       if(ap->ppp_open && !put_user(ppp_channel_index(&ap->chan),
 						(int __user *)argp))
 	err = 0;
+      unlock_kernel();
       break;
     case PPPIOCGUNIT:
       lock_kernel();
       if(ap->ppp_open && !put_user(ppp_unit_number(&ap->chan),
 						(int __user *)argp))
-      err = 0;
+        err = 0;
+      unlock_kernel();
       break;
 
       /* All these ioctls can be passed both directly and from ppp_generic,

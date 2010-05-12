@@ -481,7 +481,7 @@ pdcspath_attr_store(struct kobject *kobj, struct attribute *attr,
 	return ret;
 }
 
-static struct sysfs_ops pdcspath_attr_ops = {
+static const struct sysfs_ops pdcspath_attr_ops = {
 	.show = pdcspath_attr_show,
 	.store = pdcspath_attr_store,
 };

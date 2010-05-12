@@ -197,10 +197,13 @@ static void vfp_raise_exceptions(u32 exceptions, u32 inst, u32 fpscr, struct pt_
 	}
 
 	/*
-	 * Update the FPSCR with the additional exception flags.
+	 * If any of the status flags are set, update the FPSCR.
 	 * Comparison instructions always return at least one of
 	 * these flags set.
 	 */
+	if (exceptions & (FPSCR_N|FPSCR_Z|FPSCR_C|FPSCR_V))
+		fpscr &= ~(FPSCR_N|FPSCR_Z|FPSCR_C|FPSCR_V);
+
 	fpscr |= exceptions;
 
 	fmxr(FPSCR, fpscr);
@@ -425,54 +428,60 @@ static void vfp_pm_init(void)
 static inline void vfp_pm_init(void) { }
 #endif /* CONFIG_PM */
 
-/*
- * Synchronise the hardware VFP state of a thread other than current with the
- * saved one. This function is used by the ptrace mechanism.
- */
-#ifdef CONFIG_SMP
-void vfp_sync_state(struct thread_info *thread)
-{
-	/*
-	 * On SMP systems, the VFP state is automatically saved at every
-	 * context switch. We mark the thread VFP state as belonging to a
-	 * non-existent CPU so that the saved one will be reloaded when
-	 * needed.
-	 */
-	thread->vfpstate.hard.cpu = NR_CPUS;
-}
-#else
-void vfp_sync_state(struct thread_info *thread)
+void vfp_sync_hwstate(struct thread_info *thread)
 {
 	unsigned int cpu = get_cpu();
-	u32 fpexc = fmrx(FPEXC);
 
 	/*
-	 * If VFP is enabled, the previous state was already saved and
-	 * last_VFP_context updated.
+	 * If the thread we're interested in is the current owner of the
+	 * hardware VFP state, then we need to save its state.
 	 */
-	if (fpexc & FPEXC_EN)
-		goto out;
+	if (last_VFP_context[cpu] == &thread->vfpstate) {
+		u32 fpexc = fmrx(FPEXC);
 
-	if (!last_VFP_context[cpu])
-		goto out;
+		/*
+		 * Save the last VFP state on this CPU.
+		 */
+		fmxr(FPEXC, fpexc | FPEXC_EN);
+		vfp_save_state(&thread->vfpstate, fpexc | FPEXC_EN);
+		fmxr(FPEXC, fpexc);
+	}
 
-	/*
-	 * Save the last VFP state on this CPU.
-	 */
-	fmxr(FPEXC, fpexc | FPEXC_EN);
-	vfp_save_state(last_VFP_context[cpu], fpexc);
-	fmxr(FPEXC, fpexc);
-
-	/*
-	 * Set the context to NULL to force a reload the next time the thread
-	 * uses the VFP.
-	 */
-	last_VFP_context[cpu] = NULL;
-
-out:
 	put_cpu();
 }
+
+void vfp_flush_hwstate(struct thread_info *thread)
+{
+	unsigned int cpu = get_cpu();
+
+	/*
+	 * If the thread we're interested in is the current owner of the
+	 * hardware VFP state, then we need to save its state.
+	 */
+	if (last_VFP_context[cpu] == &thread->vfpstate) {
+		u32 fpexc = fmrx(FPEXC);
+
+		fmxr(FPEXC, fpexc & ~FPEXC_EN);
+
+		/*
+		 * Set the context to NULL to force a reload the next time
+		 * the thread uses the VFP.
+		 */
+		last_VFP_context[cpu] = NULL;
+	}
+
+#ifdef CONFIG_SMP
+	/*
+	 * For SMP we still have to take care of the case where the thread
+	 * migrates to another CPU and then back to the original CPU on which
+	 * the last VFP user is still the same thread. Mark the thread VFP
+	 * state as belonging to a non-existent CPU so that the saved one will
+	 * be reloaded in the above case.
+	 */
+	thread->vfpstate.hard.cpu = NR_CPUS;
 #endif
+	put_cpu();
+}
 
 #include <linux/smp.h>
 
@@ -525,7 +534,7 @@ static int __init vfp_init(void)
 		 */
 		elf_hwcap |= HWCAP_VFP;
 #ifdef CONFIG_VFPv3
-		if (VFP_arch >= 3) {
+		if (VFP_arch >= 2) {
 			elf_hwcap |= HWCAP_VFPv3;
 
 			/*

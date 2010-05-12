@@ -558,9 +558,11 @@ static int vidioc_s_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *f
 	/* ok, accept it */
 	vv->ov_fb = *fb;
 	vv->ov_fmt = fmt;
-	if (0 == vv->ov_fb.fmt.bytesperline)
-		vv->ov_fb.fmt.bytesperline =
-			vv->ov_fb.fmt.width * fmt->depth / 8;
+
+	if (vv->ov_fb.fmt.bytesperline < vv->ov_fb.fmt.width) {
+		vv->ov_fb.fmt.bytesperline = vv->ov_fb.fmt.width * fmt->depth / 8;
+		DEB_D(("setting bytesperline to %d\n", vv->ov_fb.fmt.bytesperline));
+	}
 
 	mutex_unlock(&dev->lock);
 	return 0;
@@ -1333,9 +1335,9 @@ static void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 
 	DEB_CAP(("vbuf:%p\n",vb));
 
-	release_all_pagetables(dev, buf);
-
 	saa7146_dma_free(dev,q,buf);
+
+	release_all_pagetables(dev, buf);
 }
 
 static struct videobuf_queue_ops video_qops = {

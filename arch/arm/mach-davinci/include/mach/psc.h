@@ -180,8 +180,23 @@
 #define DA8XX_LPSC1_CR_P3_SS		26
 #define DA8XX_LPSC1_L3_CBA_RAM		31
 
+/* PSC register offsets */
+#define EPCPR		0x070
+#define PTCMD		0x120
+#define PTSTAT		0x128
+#define PDSTAT		0x200
+#define PDCTL1		0x304
+#define MDSTAT		0x800
+#define MDCTL		0xA00
+
+#define MDSTAT_STATE_MASK 0x1f
+
+#ifndef __ASSEMBLER__
+
 extern int davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id);
 extern void davinci_psc_config(unsigned int domain, unsigned int ctlr,
 		unsigned int id, char enable);
+
+#endif
 
 #endif /* __ASM_ARCH_PSC_H */

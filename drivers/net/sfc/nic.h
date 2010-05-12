@@ -156,7 +156,7 @@ extern struct efx_nic_type siena_a0_nic_type;
  **************************************************************************
  */
 
-extern void falcon_probe_board(struct efx_nic *efx, u16 revision_info);
+extern int falcon_probe_board(struct efx_nic *efx, u16 revision_info);
 
 /* TX data path */
 extern int efx_nic_probe_tx(struct efx_tx_queue *tx_queue);

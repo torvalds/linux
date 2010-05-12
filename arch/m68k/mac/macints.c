@@ -34,9 +34,7 @@
  *
  *	3	- unused (?)
  *
- *	4	- SCC (slot number determined by reading RR3 on the SSC itself)
- *		  - slot 1: SCC channel A
- *		  - slot 2: SCC channel B
+ *	4	- SCC
  *
  *	5	- unused (?)
  *		  [serial errors or special conditions seem to raise level 6
@@ -55,8 +53,6 @@
  *		  - slot 5: Slot $E
  *
  *	4	- SCC IOP
- *		  - slot 1: SCC channel A
- *		  - slot 2: SCC channel B
  *
  *	5	- ISM IOP (ADB?)
  *
@@ -136,12 +132,7 @@
 #include <asm/irq_regs.h>
 #include <asm/mac_oss.h>
 
-#define DEBUG_SPURIOUS
 #define SHUTUP_SONIC
-
-/* SCC interrupt mask */
-
-static int scc_mask;
 
 /*
  * VIA/RBV hooks
@@ -191,13 +182,6 @@ extern void baboon_irq_disable(int);
 extern void baboon_irq_clear(int);
 
 /*
- * SCC interrupt routines
- */
-
-static void scc_irq_enable(unsigned int);
-static void scc_irq_disable(unsigned int);
-
-/*
  * console_loglevel determines NMI handler function
  */
 
@@ -221,8 +205,6 @@ void __init mac_init_IRQ(void)
 #ifdef DEBUG_MACINTS
 	printk("mac_init_IRQ(): Setting things up...\n");
 #endif
-	scc_mask = 0;
-
 	m68k_setup_irq_controller(&mac_irq_controller, IRQ_USER,
 				  NUM_MAC_SOURCES - IRQ_USER);
 	/* Make sure the SONIC interrupt is cleared or things get ugly */
@@ -283,15 +265,16 @@ void mac_enable_irq(unsigned int irq)
 			via_irq_enable(irq);
 		break;
 	case 3:
-	case 4:
 	case 5:
 	case 6:
 		if (psc_present)
 			psc_irq_enable(irq);
 		else if (oss_present)
 			oss_irq_enable(irq);
-		else if (irq_src == 4)
-			scc_irq_enable(irq);
+		break;
+	case 4:
+		if (psc_present)
+			psc_irq_enable(irq);
 		break;
 	case 8:
 		if (baboon_present)
@@ -316,15 +299,16 @@ void mac_disable_irq(unsigned int irq)
 			via_irq_disable(irq);
 		break;
 	case 3:
-	case 4:
 	case 5:
 	case 6:
 		if (psc_present)
 			psc_irq_disable(irq);
 		else if (oss_present)
 			oss_irq_disable(irq);
-		else if (irq_src == 4)
-			scc_irq_disable(irq);
+		break;
+	case 4:
+		if (psc_present)
+			psc_irq_disable(irq);
 		break;
 	case 8:
 		if (baboon_present)
@@ -347,13 +331,16 @@ void mac_clear_irq(unsigned int irq)
 			via_irq_clear(irq);
 		break;
 	case 3:
-	case 4:
 	case 5:
 	case 6:
 		if (psc_present)
 			psc_irq_clear(irq);
 		else if (oss_present)
 			oss_irq_clear(irq);
+		break;
+	case 4:
+		if (psc_present)
+			psc_irq_clear(irq);
 		break;
 	case 8:
 		if (baboon_present)
@@ -374,13 +361,17 @@ int mac_irq_pending(unsigned int irq)
 		else
 			return via_irq_pending(irq);
 	case 3:
-	case 4:
 	case 5:
 	case 6:
 		if (psc_present)
 			return psc_irq_pending(irq);
 		else if (oss_present)
 			return oss_irq_pending(irq);
+		break;
+	case 4:
+		if (psc_present)
+			psc_irq_pending(irq);
+		break;
 	}
 	return 0;
 }
@@ -447,60 +438,4 @@ irqreturn_t mac_nmi_handler(int irq, void *dev_id)
 	}
 	in_nmi--;
 	return IRQ_HANDLED;
-}
-
-/*
- * Simple routines for masking and unmasking
- * SCC interrupts in cases where this can't be
- * done in hardware (only the PSC can do that.)
- */
-
-static void scc_irq_enable(unsigned int irq)
-{
-	int irq_idx = IRQ_IDX(irq);
-
-	scc_mask |= (1 << irq_idx);
-}
-
-static void scc_irq_disable(unsigned int irq)
-{
-	int irq_idx = IRQ_IDX(irq);
-
-	scc_mask &= ~(1 << irq_idx);
-}
-
-/*
- * SCC master interrupt handler. We have to do a bit of magic here
- * to figure out what channel gave us the interrupt; putting this
- * here is cleaner than hacking it into drivers/char/macserial.c.
- */
-
-void mac_scc_dispatch(int irq, void *dev_id)
-{
-	volatile unsigned char *scc = (unsigned char *) mac_bi_data.sccbase + 2;
-	unsigned char reg;
-	unsigned long flags;
-
-	/* Read RR3 from the chip. Always do this on channel A */
-	/* This must be an atomic operation so disable irqs.   */
-
-	local_irq_save(flags);
-	*scc = 3;
-	reg = *scc;
-	local_irq_restore(flags);
-
-	/* Now dispatch. Bits 0-2 are for channel B and */
-	/* bits 3-5 are for channel A. We can safely    */
-	/* ignore the remaining bits here.              */
-	/*                                              */
-	/* Note that we're ignoring scc_mask for now.   */
-	/* If we actually mask the ints then we tend to */
-	/* get hammered by very persistent SCC irqs,    */
-	/* and since they're autovector interrupts they */
-	/* pretty much kill the system.                 */
-
-	if (reg & 0x38)
-		m68k_handle_int(IRQ_SCCA);
-	if (reg & 0x07)
-		m68k_handle_int(IRQ_SCCB);
 }

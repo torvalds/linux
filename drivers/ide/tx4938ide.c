@@ -56,16 +56,15 @@ static void tx4938ide_tune_ebusc(unsigned int ebus_ch,
 		     &tx4938_ebuscptr->cr[ebus_ch]);
 }
 
-static void tx4938ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void tx4938ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	struct tx4938ide_platform_info *pdata = hwif->dev->platform_data;
-	u8 safe = pio;
+	u8 safe = drive->pio_mode - XFER_PIO_0;
 	ide_drive_t *pair;
 
 	pair = ide_get_pair_dev(drive);
 	if (pair)
-		safe = min(safe, ide_get_best_pio_mode(pair, 255, 5));
+		safe = min(safe, pair->pio_mode - XFER_PIO_0);
 	tx4938ide_tune_ebusc(pdata->ebus_ch, pdata->gbus_clock, safe);
 }
 

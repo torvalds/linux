@@ -19,7 +19,7 @@
 #include <linux/kthread.h>
 #include <linux/highmem.h>
 #include <linux/firmware.h>
-#include "base.h"
+#include <linux/slab.h>
 
 #define to_dev(obj) container_of(obj, struct device, kobj)
 
@@ -69,7 +69,9 @@ fw_load_abort(struct firmware_priv *fw_priv)
 }
 
 static ssize_t
-firmware_timeout_show(struct class *class, char *buf)
+firmware_timeout_show(struct class *class,
+		      struct class_attribute *attr,
+		      char *buf)
 {
 	return sprintf(buf, "%d\n", loading_timeout);
 }
@@ -77,6 +79,7 @@ firmware_timeout_show(struct class *class, char *buf)
 /**
  * firmware_timeout_store - set number of seconds to wait for firmware
  * @class: device class pointer
+ * @attr: device attribute pointer
  * @buf: buffer to scan for timeout value
  * @count: number of bytes in @buf
  *
@@ -87,7 +90,9 @@ firmware_timeout_show(struct class *class, char *buf)
  *	Note: zero means 'wait forever'.
  **/
 static ssize_t
-firmware_timeout_store(struct class *class, const char *buf, size_t count)
+firmware_timeout_store(struct class *class,
+			struct class_attribute *attr,
+			const char *buf, size_t count)
 {
 	loading_timeout = simple_strtol(buf, NULL, 10);
 	if (loading_timeout < 0)
@@ -439,6 +444,7 @@ static int fw_setup_device(struct firmware *fw, struct device **dev_p,
 	fw_priv = dev_get_drvdata(f_dev);
 
 	fw_priv->fw = fw;
+	sysfs_bin_attr_init(&fw_priv->attr_data);
 	retval = sysfs_create_bin_file(&f_dev->kobj, &fw_priv->attr_data);
 	if (retval) {
 		dev_err(device, "%s: sysfs_create_bin_file failed\n", __func__);
@@ -610,7 +616,7 @@ request_firmware_work_func(void *arg)
 }
 
 /**
- * request_firmware_nowait: asynchronous version of request_firmware
+ * request_firmware_nowait - asynchronous version of request_firmware
  * @module: module requesting the firmware
  * @uevent: sends uevent to copy the firmware image if this flag
  *	is non-zero else the firmware copy must be done manually.

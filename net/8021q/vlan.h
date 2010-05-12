@@ -61,7 +61,7 @@ struct vlan_dev_info {
 	struct proc_dir_entry			*dent;
 	unsigned long				cnt_inc_headroom_on_tx;
 	unsigned long				cnt_encap_on_xmit;
-	struct vlan_rx_stats			*vlan_rx_stats;
+	struct vlan_rx_stats __percpu		*vlan_rx_stats;
 };
 
 static inline struct vlan_dev_info *vlan_dev_info(const struct net_device *dev)

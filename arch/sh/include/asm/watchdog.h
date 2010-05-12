@@ -70,7 +70,7 @@
  */
 static inline __u32 sh_wdt_read_cnt(void)
 {
-	return ctrl_inl(WTCNT_R);
+	return __raw_readl(WTCNT_R);
 }
 
 /**
@@ -82,7 +82,7 @@ static inline __u32 sh_wdt_read_cnt(void)
  */
 static inline void sh_wdt_write_cnt(__u32 val)
 {
-	ctrl_outl((WTCNT_HIGH << 24) | (__u32)val, WTCNT);
+	__raw_writel((WTCNT_HIGH << 24) | (__u32)val, WTCNT);
 }
 
 /**
@@ -94,7 +94,7 @@ static inline void sh_wdt_write_cnt(__u32 val)
  */
 static inline void sh_wdt_write_bst(__u32 val)
 {
-	ctrl_outl((WTBST_HIGH << 24) | (__u32)val, WTBST);
+	__raw_writel((WTBST_HIGH << 24) | (__u32)val, WTBST);
 }
 /**
  * 	sh_wdt_read_csr - Read from Control/Status Register
@@ -103,7 +103,7 @@ static inline void sh_wdt_write_bst(__u32 val)
  */
 static inline __u32 sh_wdt_read_csr(void)
 {
-	return ctrl_inl(WTCSR_R);
+	return __raw_readl(WTCSR_R);
 }
 
 /**
@@ -115,7 +115,7 @@ static inline __u32 sh_wdt_read_csr(void)
  */
 static inline void sh_wdt_write_csr(__u32 val)
 {
-	ctrl_outl((WTCSR_HIGH << 24) | (__u32)val, WTCSR);
+	__raw_writel((WTCSR_HIGH << 24) | (__u32)val, WTCSR);
 }
 #else
 /**
@@ -124,7 +124,7 @@ static inline void sh_wdt_write_csr(__u32 val)
  */
 static inline __u8 sh_wdt_read_cnt(void)
 {
-	return ctrl_inb(WTCNT_R);
+	return __raw_readb(WTCNT_R);
 }
 
 /**
@@ -136,7 +136,7 @@ static inline __u8 sh_wdt_read_cnt(void)
  */
 static inline void sh_wdt_write_cnt(__u8 val)
 {
-	ctrl_outw((WTCNT_HIGH << 8) | (__u16)val, WTCNT);
+	__raw_writew((WTCNT_HIGH << 8) | (__u16)val, WTCNT);
 }
 
 /**
@@ -146,7 +146,7 @@ static inline void sh_wdt_write_cnt(__u8 val)
  */
 static inline __u8 sh_wdt_read_csr(void)
 {
-	return ctrl_inb(WTCSR_R);
+	return __raw_readb(WTCSR_R);
 }
 
 /**
@@ -158,7 +158,7 @@ static inline __u8 sh_wdt_read_csr(void)
  */
 static inline void sh_wdt_write_csr(__u8 val)
 {
-	ctrl_outw((WTCSR_HIGH << 8) | (__u16)val, WTCSR);
+	__raw_writew((WTCSR_HIGH << 8) | (__u16)val, WTCSR);
 }
 #endif /* CONFIG_CPU_SUBTYPE_SH7785 || CONFIG_CPU_SUBTYPE_SH7780 */
 #endif /* __KERNEL__ */

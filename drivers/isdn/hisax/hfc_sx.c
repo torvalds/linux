@@ -17,6 +17,7 @@
 #include "isdnl1.h"
 #include <linux/interrupt.h>
 #include <linux/isapnp.h>
+#include <linux/slab.h>
 
 static const char *hfcsx_revision = "$Revision: 1.12.2.5 $";
 

@@ -747,7 +747,7 @@ config USB_MASS_STORAGE
 	  which may be used with composite framework.
 
 	  Say "y" to link the driver statically, or "m" to build
-	  a dynamically linked module called "g_file_storage".  If unsure,
+	  a dynamically linked module called "g_mass_storage".  If unsure,
 	  consider File-backed Storage Gadget.
 
 config USB_G_SERIAL
@@ -811,6 +811,16 @@ config USB_CDC_COMPOSITE
 
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module.
+
+config USB_G_NOKIA
+	tristate "Nokia composite gadget"
+	depends on PHONET
+	help
+	  The Nokia composite gadget provides support for acm, obex
+	  and phonet in only one composite gadget driver.
+
+	  It's only really useful for N900 hardware. If you're building
+	  a kernel for N900, say Y or M here. If unsure, say N.
 
 config USB_G_MULTI
 	tristate "Multifunction Composite Gadget (EXPERIMENTAL)"

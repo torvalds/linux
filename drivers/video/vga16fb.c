@@ -15,7 +15,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/ioport.h>
@@ -1293,7 +1292,7 @@ static int vga16fb_setup(char *options)
 }
 #endif
 
-static int __init vga16fb_probe(struct platform_device *dev)
+static int __devinit vga16fb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	struct vga16fb_par *par;

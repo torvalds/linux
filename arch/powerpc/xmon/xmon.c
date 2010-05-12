@@ -61,7 +61,7 @@ static int xmon_owner;
 static int xmon_gate;
 #endif /* CONFIG_SMP */
 
-static unsigned long in_xmon = 0;
+static unsigned long in_xmon __read_mostly = 0;
 
 static unsigned long adrs;
 static int size = 1;

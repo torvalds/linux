@@ -53,8 +53,8 @@ struct stat {
 	ino_t		st_ino;
 	mode_t		st_mode;
 	short		st_nlink;
-	uid_t		st_uid;
-	gid_t		st_gid;
+	unsigned short	st_uid;
+	unsigned short	st_gid;
 	unsigned short	st_rdev;
 	off_t		st_size;
 	time_t		st_atime;

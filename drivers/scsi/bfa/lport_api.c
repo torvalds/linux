@@ -156,7 +156,7 @@ bfa_fcs_port_get_rport_max_speed(struct bfa_fcs_port_s *port)
 	/*
 	 * Get Physical port's current speed
 	 */
-	bfa_pport_get_attr(port->fcs->bfa, &pport_attr);
+	bfa_fcport_get_attr(port->fcs->bfa, &pport_attr);
 	pport_speed = pport_attr.speed;
 	bfa_trc(fcs, pport_speed);
 
@@ -235,7 +235,8 @@ bfa_fcs_port_get_info(struct bfa_fcs_port_s *port,
 		port_info->port_wwn = bfa_fcs_port_get_pwwn(port);
 		port_info->node_wwn = bfa_fcs_port_get_nwwn(port);
 
-		port_info->max_vports_supp = bfa_fcs_vport_get_max(port->fcs);
+		port_info->max_vports_supp =
+			bfa_lps_get_max_vport(port->fcs->bfa);
 		port_info->num_vports_inuse =
 			bfa_fcs_fabric_vport_count(port->fabric);
 		port_info->max_rports_supp = BFA_FCS_MAX_RPORTS_SUPP;

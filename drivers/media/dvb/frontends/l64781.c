@@ -192,8 +192,8 @@ static int apply_frontend_param (struct dvb_frontend* fe, struct dvb_frontend_pa
 	spi_bias *= qam_tab[p->constellation];
 	spi_bias /= p->code_rate_HP + 1;
 	spi_bias /= (guard_tab[p->guard_interval] + 32);
-	spi_bias *= 1000ULL;
-	spi_bias /= 1000ULL + ppm/1000;
+	spi_bias *= 1000;
+	spi_bias /= 1000 + ppm/1000;
 	spi_bias *= p->code_rate_HP;
 
 	val0x04 = (p->transmission_mode << 2) | p->guard_interval;

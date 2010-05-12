@@ -156,25 +156,18 @@ static int create_by_name(const char *name, mode_t mode,
 	 * block. A pointer to that is in the struct vfsmount that we
 	 * have around.
 	 */
-	if (!parent ) {
-		if (mount && mount->mnt_sb) {
-			parent = mount->mnt_sb->s_root;
-		}
-	}
-	if (!parent) {
-		pr_debug("securityfs: Ah! can not find a parent!\n");
-		return -EFAULT;
-	}
+	if (!parent)
+		parent = mount->mnt_sb->s_root;
 
 	mutex_lock(&parent->d_inode->i_mutex);
 	*dentry = lookup_one_len(name, parent, strlen(name));
-	if (!IS_ERR(dentry)) {
+	if (!IS_ERR(*dentry)) {
 		if ((mode & S_IFMT) == S_IFDIR)
 			error = mkdir(parent->d_inode, *dentry, mode);
 		else
 			error = create(parent->d_inode, *dentry, mode);
 	} else
-		error = PTR_ERR(dentry);
+		error = PTR_ERR(*dentry);
 	mutex_unlock(&parent->d_inode->i_mutex);
 
 	return error;

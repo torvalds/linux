@@ -156,8 +156,8 @@ extern void radeon_bo_list_add_object(struct radeon_bo_list *lobj,
 				struct list_head *head);
 extern int radeon_bo_list_reserve(struct list_head *head);
 extern void radeon_bo_list_unreserve(struct list_head *head);
-extern int radeon_bo_list_validate(struct list_head *head, void *fence);
-extern void radeon_bo_list_unvalidate(struct list_head *head, void *fence);
+extern int radeon_bo_list_validate(struct list_head *head);
+extern void radeon_bo_list_fence(struct list_head *head, void *fence);
 extern int radeon_bo_fbdev_mmap(struct radeon_bo *bo,
 				struct vm_area_struct *vma);
 extern int radeon_bo_set_tiling_flags(struct radeon_bo *bo,

@@ -194,6 +194,8 @@ static void destroy_inodecache(void)
 static void ext2_clear_inode(struct inode *inode)
 {
 	struct ext2_block_alloc_info *rsv = EXT2_I(inode)->i_block_alloc_info;
+
+	dquot_drop(inode);
 	ext2_discard_reservation(inode);
 	EXT2_I(inode)->i_block_alloc_info = NULL;
 	if (unlikely(rsv))

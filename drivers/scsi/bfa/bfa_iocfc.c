@@ -172,6 +172,7 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 	 */
 	if (bfa_ioc_devid(&bfa->ioc) == BFA_PCI_DEVICE_ID_CT) {
 		iocfc->hwif.hw_reginit = bfa_hwct_reginit;
+		iocfc->hwif.hw_reqq_ack = bfa_hwct_reqq_ack;
 		iocfc->hwif.hw_rspq_ack = bfa_hwct_rspq_ack;
 		iocfc->hwif.hw_msix_init = bfa_hwct_msix_init;
 		iocfc->hwif.hw_msix_install = bfa_hwct_msix_install;
@@ -180,6 +181,7 @@ bfa_iocfc_init_mem(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 		iocfc->hwif.hw_msix_getvecs = bfa_hwct_msix_getvecs;
 	} else {
 		iocfc->hwif.hw_reginit = bfa_hwcb_reginit;
+		iocfc->hwif.hw_reqq_ack = bfa_hwcb_reqq_ack;
 		iocfc->hwif.hw_rspq_ack = bfa_hwcb_rspq_ack;
 		iocfc->hwif.hw_msix_init = bfa_hwcb_msix_init;
 		iocfc->hwif.hw_msix_install = bfa_hwcb_msix_install;
@@ -336,8 +338,10 @@ bfa_iocfc_init_cb(void *bfa_arg, bfa_boolean_t complete)
 			bfa_cb_init(bfa->bfad, BFA_STATUS_OK);
 		else
 			bfa_cb_init(bfa->bfad, BFA_STATUS_FAILED);
-	} else
-		bfa->iocfc.action = BFA_IOCFC_ACT_NONE;
+	} else {
+		if (bfa->iocfc.cfgdone)
+			bfa->iocfc.action = BFA_IOCFC_ACT_NONE;
+	}
 }
 
 static void
@@ -619,14 +623,15 @@ bfa_iocfc_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 
 	bfa_ioc_attach(&bfa->ioc, bfa, &bfa_iocfc_cbfn, &bfa->timer_mod,
 		bfa->trcmod, bfa->aen, bfa->logm);
-	bfa_ioc_pci_init(&bfa->ioc, pcidev, BFI_MC_IOCFC);
-	bfa_ioc_mbox_register(&bfa->ioc, bfa_mbox_isrs);
 
 	/**
 	 * Choose FC (ssid: 0x1C) v/s FCoE (ssid: 0x14) mode.
 	 */
 	if (0)
 		bfa_ioc_set_fcmode(&bfa->ioc);
+
+	bfa_ioc_pci_init(&bfa->ioc, pcidev, BFI_MC_IOCFC);
+	bfa_ioc_mbox_register(&bfa->ioc, bfa_mbox_isrs);
 
 	bfa_iocfc_init_mem(bfa, bfad, cfg, pcidev);
 	bfa_iocfc_mem_claim(bfa, cfg, meminfo);
@@ -654,7 +659,6 @@ bfa_iocfc_init(struct bfa_s *bfa)
 {
 	bfa->iocfc.action = BFA_IOCFC_ACT_INIT;
 	bfa_ioc_enable(&bfa->ioc);
-	bfa_msix_install(bfa);
 }
 
 /**
@@ -797,6 +801,11 @@ bfa_iocfc_get_stats(struct bfa_s *bfa, struct bfa_iocfc_stats_s *stats,
 		return BFA_STATUS_DEVBUSY;
 	}
 
+	if (!bfa_iocfc_is_operational(bfa)) {
+		bfa_trc(bfa, 0);
+		return BFA_STATUS_IOC_NON_OP;
+	}
+
 	iocfc->stats_busy = BFA_TRUE;
 	iocfc->stats_ret = stats;
 	iocfc->stats_cbfn = cbfn;
@@ -815,6 +824,11 @@ bfa_iocfc_clear_stats(struct bfa_s *bfa, bfa_cb_ioc_t cbfn, void *cbarg)
 	if (iocfc->stats_busy) {
 		bfa_trc(bfa, iocfc->stats_busy);
 		return BFA_STATUS_DEVBUSY;
+	}
+
+	if (!bfa_iocfc_is_operational(bfa)) {
+		bfa_trc(bfa, 0);
+		return BFA_STATUS_IOC_NON_OP;
 	}
 
 	iocfc->stats_busy = BFA_TRUE;

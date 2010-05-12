@@ -159,21 +159,21 @@ static void ap320_wvga_power_on(void *board_data)
 	msleep(100);
 
 	/* ASD AP-320/325 LCD ON */
-	ctrl_outw(FPGA_LCDREG_VAL, FPGA_LCDREG);
+	__raw_writew(FPGA_LCDREG_VAL, FPGA_LCDREG);
 
 	/* backlight */
 	gpio_set_value(GPIO_PTS3, 0);
-	ctrl_outw(0x100, FPGA_BKLREG);
+	__raw_writew(0x100, FPGA_BKLREG);
 }
 
 static void ap320_wvga_power_off(void *board_data)
 {
 	/* backlight */
-	ctrl_outw(0, FPGA_BKLREG);
+	__raw_writew(0, FPGA_BKLREG);
 	gpio_set_value(GPIO_PTS3, 1);
 
 	/* ASD AP-320/325 LCD OFF */
-	ctrl_outw(0, FPGA_LCDREG);
+	__raw_writew(0, FPGA_LCDREG);
 }
 
 static struct sh_mobile_lcdc_info lcdc_info = {
@@ -420,7 +420,7 @@ static struct resource sdhi0_cn3_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 101,
+		.start	= 100,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -443,7 +443,7 @@ static struct resource sdhi1_cn7_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 24,
+		.start	= 23,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -471,8 +471,8 @@ static struct i2c_board_info ap325rxa_i2c_camera[] = {
 };
 
 static struct ov772x_camera_info ov7725_info = {
-	.buswidth	= SOCAM_DATAWIDTH_8,
-	.flags		= OV772X_FLAG_VFLIP | OV772X_FLAG_HFLIP,
+	.flags		= OV772X_FLAG_VFLIP | OV772X_FLAG_HFLIP | \
+			  OV772X_FLAG_8BIT,
 	.edgectrl	= OV772X_AUTO_EDGECTRL(0xf, 0),
 };
 
@@ -595,7 +595,7 @@ static int __init ap325rxa_devices_setup(void)
 	gpio_request(GPIO_PTZ4, NULL);
 	gpio_direction_output(GPIO_PTZ4, 0); /* SADDR */
 
-	ctrl_outw(ctrl_inw(PORT_MSELCRB) & ~0x0001, PORT_MSELCRB);
+	__raw_writew(__raw_readw(PORT_MSELCRB) & ~0x0001, PORT_MSELCRB);
 
 	/* FLCTL */
 	gpio_request(GPIO_FN_FCE, NULL);
@@ -613,9 +613,9 @@ static int __init ap325rxa_devices_setup(void)
 	gpio_request(GPIO_FN_FWE, NULL);
 	gpio_request(GPIO_FN_FRB, NULL);
 
-	ctrl_outw(0, PORT_HIZCRC);
-	ctrl_outw(0xFFFF, PORT_DRVCRA);
-	ctrl_outw(0xFFFF, PORT_DRVCRB);
+	__raw_writew(0, PORT_HIZCRC);
+	__raw_writew(0xFFFF, PORT_DRVCRA);
+	__raw_writew(0xFFFF, PORT_DRVCRB);
 
 	platform_resource_setup_memory(&ceu_device, "ceu", 4 << 20);
 

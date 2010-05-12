@@ -16,9 +16,9 @@
 #include <linux/mm.h>
 #include <linux/elf.h>
 #include <linux/vmalloc.h>
-#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/string.h>
+#include <linux/gfp.h>
 
 #include <asm/pgtable.h>
 #include <asm/sections.h>

@@ -29,7 +29,7 @@
 #define HP_VENDOR_ID 0x03f0
 #define HP49GP_PRODUCT_ID 0x0121
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(HP_VENDOR_ID, HP49GP_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };

@@ -31,6 +31,8 @@
  * if dma_cookie_t is >0 it's a DMA request cookie, <0 it's an error code
  */
 typedef s32 dma_cookie_t;
+#define DMA_MIN_COOKIE	1
+#define DMA_MAX_COOKIE	INT_MAX
 
 #define dma_submit_error(cookie) ((cookie) < 0 ? 1 : 0)
 
@@ -162,7 +164,7 @@ struct dma_chan {
 	struct dma_chan_dev *dev;
 
 	struct list_head device_node;
-	struct dma_chan_percpu *local;
+	struct dma_chan_percpu __percpu *local;
 	int client_count;
 	int table_count;
 	void *private;

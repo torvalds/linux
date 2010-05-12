@@ -22,8 +22,9 @@
 #include <linux/delay.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
+#include <asm/clkdev.h>
 
+#include <mach/hardware.h>
 #include <mach/clock.h>
 #include "clock.h"
 
@@ -56,18 +57,19 @@ static void propagate_rate(struct clk *clk)
 	}
 }
 
-static inline void clk_reg_disable(struct clk *clk)
+static void clk_reg_disable(struct clk *clk)
 {
 	if (clk->enable_reg)
 		__raw_writel(__raw_readl(clk->enable_reg) &
 			     ~(1 << clk->enable_shift), clk->enable_reg);
 }
 
-static inline void clk_reg_enable(struct clk *clk)
+static int clk_reg_enable(struct clk *clk)
 {
 	if (clk->enable_reg)
 		__raw_writel(__raw_readl(clk->enable_reg) |
 			     (1 << clk->enable_shift), clk->enable_reg);
+	return 0;
 }
 
 static inline void clk_reg_disable1(struct clk *clk)
@@ -636,31 +638,34 @@ static struct clk flash_ck = {
 static struct clk i2c0_ck = {
 	.name = "i2c0_ck",
 	.parent = &per_ck,
-	.flags = NEEDS_INITIALIZATION,
-	.round_rate = &on_off_round_rate,
-	.set_rate = &on_off_set_rate,
+	.flags = NEEDS_INITIALIZATION | FIXED_RATE,
 	.enable_shift = 0,
 	.enable_reg = I2CCLKCTRL_REG,
+	.rate = 13000000,
+	.enable = clk_reg_enable,
+	.disable = clk_reg_disable,
 };
 
 static struct clk i2c1_ck = {
 	.name = "i2c1_ck",
 	.parent = &per_ck,
-	.flags = NEEDS_INITIALIZATION,
-	.round_rate = &on_off_round_rate,
-	.set_rate = &on_off_set_rate,
+	.flags = NEEDS_INITIALIZATION | FIXED_RATE,
 	.enable_shift = 1,
 	.enable_reg = I2CCLKCTRL_REG,
+	.rate = 13000000,
+	.enable = clk_reg_enable,
+	.disable = clk_reg_disable,
 };
 
 static struct clk i2c2_ck = {
 	.name = "i2c2_ck",
 	.parent = &per_ck,
-	.flags = NEEDS_INITIALIZATION,
-	.round_rate = &on_off_round_rate,
-	.set_rate = &on_off_set_rate,
+	.flags = NEEDS_INITIALIZATION | FIXED_RATE,
 	.enable_shift = 2,
 	.enable_reg = USB_OTG_CLKCTRL_REG,
+	.rate = 13000000,
+	.enable = clk_reg_enable,
+	.disable = clk_reg_disable,
 };
 
 static struct clk spi0_ck = {
@@ -738,16 +743,16 @@ static struct clk wdt_ck = {
 	.name = "wdt_ck",
 	.parent = &per_ck,
 	.flags = NEEDS_INITIALIZATION,
-	.round_rate = &on_off_round_rate,
-	.set_rate = &on_off_set_rate,
 	.enable_shift = 0,
 	.enable_reg = TIMCLKCTRL_REG,
+	.enable = clk_reg_enable,
+	.disable = clk_reg_disable,
 };
 
 /* These clocks are visible outside this module
  * and can be initialized
  */
-static struct clk *onchip_clks[] = {
+static struct clk *onchip_clks[] __initdata = {
 	&ck_13MHz,
 	&ck_pll1,
 	&ck_pll4,
@@ -777,49 +782,74 @@ static struct clk *onchip_clks[] = {
 	&wdt_ck,
 };
 
+static struct clk_lookup onchip_clkreg[] = {
+	{ .clk = &ck_13MHz,	.con_id = "ck_13MHz"	},
+	{ .clk = &ck_pll1,	.con_id = "ck_pll1"	},
+	{ .clk = &ck_pll4,	.con_id = "ck_pll4"	},
+	{ .clk = &ck_pll5,	.con_id = "ck_pll5"	},
+	{ .clk = &ck_pll3,	.con_id = "ck_pll3"	},
+	{ .clk = &vfp9_ck,	.con_id = "vfp9_ck"	},
+	{ .clk = &m2hclk_ck,	.con_id = "m2hclk_ck"	},
+	{ .clk = &hclk_ck,	.con_id = "hclk_ck"	},
+	{ .clk = &dma_ck,	.con_id = "dma_ck"	},
+	{ .clk = &flash_ck,	.con_id = "flash_ck"	},
+	{ .clk = &dum_ck,	.con_id = "dum_ck"	},
+	{ .clk = &keyscan_ck,	.con_id = "keyscan_ck"	},
+	{ .clk = &pwm1_ck,	.con_id = "pwm1_ck"	},
+	{ .clk = &pwm2_ck,	.con_id = "pwm2_ck"	},
+	{ .clk = &jpeg_ck,	.con_id = "jpeg_ck"	},
+	{ .clk = &ms_ck,	.con_id = "ms_ck"	},
+	{ .clk = &touch_ck,	.con_id = "touch_ck"	},
+	{ .clk = &i2c0_ck,	.dev_id = "pnx-i2c.0"	},
+	{ .clk = &i2c1_ck,	.dev_id = "pnx-i2c.1"	},
+	{ .clk = &i2c2_ck,	.dev_id = "pnx-i2c.2"	},
+	{ .clk = &spi0_ck,	.con_id = "spi0_ck"	},
+	{ .clk = &spi1_ck,	.con_id = "spi1_ck"	},
+	{ .clk = &uart3_ck,	.con_id = "uart3_ck"	},
+	{ .clk = &uart4_ck,	.con_id = "uart4_ck"	},
+	{ .clk = &uart5_ck,	.con_id = "uart5_ck"	},
+	{ .clk = &uart6_ck,	.con_id = "uart6_ck"	},
+	{ .clk = &wdt_ck,	.dev_id = "pnx4008-watchdog" },
+};
+
+static void local_clk_disable(struct clk *clk)
+{
+	if (WARN_ON(clk->usecount == 0))
+		return;
+
+	if (!(--clk->usecount)) {
+		if (clk->disable)
+			clk->disable(clk);
+		else if (!(clk->flags & FIXED_RATE) && clk->rate && clk->set_rate)
+			clk->set_rate(clk, 0);
+		if (clk->parent)
+			local_clk_disable(clk->parent);
+	}
+}
+
 static int local_clk_enable(struct clk *clk)
 {
 	int ret = 0;
 
-	if (!(clk->flags & FIXED_RATE) && !clk->rate && clk->set_rate
-	    && clk->user_rate)
-		ret = clk->set_rate(clk, clk->user_rate);
-	return ret;
-}
+	if (clk->usecount == 0) {
+		if (clk->parent) {
+			ret = local_clk_enable(clk->parent);
+			if (ret != 0)
+				goto out;
+		}
 
-static void local_clk_disable(struct clk *clk)
-{
-	if (!(clk->flags & FIXED_RATE) && clk->rate && clk->set_rate)
-		clk->set_rate(clk, 0);
-}
+		if (clk->enable)
+			ret = clk->enable(clk);
+		else if (!(clk->flags & FIXED_RATE) && !clk->rate && clk->set_rate
+			    && clk->user_rate)
+			ret = clk->set_rate(clk, clk->user_rate);
 
-static void local_clk_unuse(struct clk *clk)
-{
-	if (clk->usecount > 0 && !(--clk->usecount)) {
-		local_clk_disable(clk);
-		if (clk->parent)
-			local_clk_unuse(clk->parent);
-	}
-}
-
-static int local_clk_use(struct clk *clk)
-{
-	int ret = 0;
-	if (clk->usecount++ == 0) {
-		if (clk->parent)
-			ret = local_clk_use(clk->parent);
-
-		if (ret != 0) {
-			clk->usecount--;
+		if (ret != 0 && clk->parent) {
+			local_clk_disable(clk->parent);
 			goto out;
 		}
 
-		ret = local_clk_enable(clk);
-
-		if (ret != 0 && clk->parent) {
-			local_clk_unuse(clk->parent);
-			clk->usecount--;
-		}
+		clk->usecount++;
 	}
 out:
 	return ret;
@@ -866,35 +896,6 @@ out:
 
 EXPORT_SYMBOL(clk_set_rate);
 
-struct clk *clk_get(struct device *dev, const char *id)
-{
-	struct clk *clk = ERR_PTR(-ENOENT);
-	struct clk **clkp;
-
-	clock_lock();
-	for (clkp = onchip_clks; clkp < onchip_clks + ARRAY_SIZE(onchip_clks);
-	     clkp++) {
-		if (strcmp(id, (*clkp)->name) == 0
-		    && try_module_get((*clkp)->owner)) {
-			clk = (*clkp);
-			break;
-		}
-	}
-	clock_unlock();
-
-	return clk;
-}
-EXPORT_SYMBOL(clk_get);
-
-void clk_put(struct clk *clk)
-{
-	clock_lock();
-	if (clk && !IS_ERR(clk))
-		module_put(clk->owner);
-	clock_unlock();
-}
-EXPORT_SYMBOL(clk_put);
-
 unsigned long clk_get_rate(struct clk *clk)
 {
 	unsigned long ret;
@@ -907,10 +908,10 @@ EXPORT_SYMBOL(clk_get_rate);
 
 int clk_enable(struct clk *clk)
 {
-	int ret = 0;
+	int ret;
 
 	clock_lock();
-	ret = local_clk_use(clk);
+	ret = local_clk_enable(clk);
 	clock_unlock();
 	return ret;
 }
@@ -920,7 +921,7 @@ EXPORT_SYMBOL(clk_enable);
 void clk_disable(struct clk *clk)
 {
 	clock_lock();
-	local_clk_unuse(clk);
+	local_clk_disable(clk);
 	clock_unlock();
 }
 
@@ -967,18 +968,24 @@ static int __init clk_init(void)
 
 	for (clkp = onchip_clks; clkp < onchip_clks + ARRAY_SIZE(onchip_clks);
 	     clkp++) {
-		if (((*clkp)->flags & NEEDS_INITIALIZATION)
-		    && ((*clkp)->set_rate)) {
-			(*clkp)->user_rate = (*clkp)->rate;
-			local_set_rate((*clkp), (*clkp)->user_rate);
-			if ((*clkp)->set_parent)
-				(*clkp)->set_parent((*clkp), (*clkp)->parent);
+		struct clk *clk = *clkp;
+		if (clk->flags & NEEDS_INITIALIZATION) {
+			if (clk->set_rate) {
+				clk->user_rate = clk->rate;
+				local_set_rate(clk, clk->user_rate);
+				if (clk->set_parent)
+					clk->set_parent(clk, clk->parent);
+			}
+			if (clk->enable && clk->usecount)
+				clk->enable(clk);
+			if (clk->disable && !clk->usecount)
+				clk->disable(clk);
 		}
 		pr_debug("%s: clock %s, rate %ld\n",
-			__func__, (*clkp)->name, (*clkp)->rate);
+			__func__, clk->name, clk->rate);
 	}
 
-	local_clk_use(&ck_pll4);
+	local_clk_enable(&ck_pll4);
 
 	/* if ck_13MHz is not used, disable it. */
 	if (ck_13MHz.usecount == 0)
@@ -986,6 +993,8 @@ static int __init clk_init(void)
 
 	/* Disable autoclocking */
 	__raw_writeb(0xff, AUTOCLK_CTRL);
+
+	clkdev_add_table(onchip_clkreg, ARRAY_SIZE(onchip_clkreg));
 
 	return 0;
 }

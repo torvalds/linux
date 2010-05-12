@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/random.h>
 #include <linux/if_arp.h>
+#include <linux/slab.h>
 
 #include "hostap_wlan.h"
 #include "hostap.h"

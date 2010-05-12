@@ -23,6 +23,7 @@
 #include <scsi/scsi_eh.h>
 #include <scsi/scsi_dh.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 #define RDAC_NAME "rdac"
 #define RDAC_RETRY_COUNT 5

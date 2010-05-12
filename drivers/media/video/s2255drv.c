@@ -45,6 +45,7 @@
 #include <linux/firmware.h>
 #include <linux/kernel.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <linux/videodev2.h>
 #include <linux/version.h>
 #include <linux/mm.h>

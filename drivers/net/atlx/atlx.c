@@ -144,7 +144,7 @@ static void atlx_set_multi(struct net_device *netdev)
 	iowrite32(0, (hw->hw_addr + REG_RX_HASH_TABLE) + (1 << 2));
 
 	/* compute mc addresses' hash value ,and put it into hash table */
-	for (mc_ptr = netdev->mc_list; mc_ptr; mc_ptr = mc_ptr->next) {
+	netdev_for_each_mc_addr(mc_ptr, netdev) {
 		hash_value = atlx_hash_mc_addr(hw, mc_ptr->dmi_addr);
 		atlx_hash_set(hw, hash_value);
 	}

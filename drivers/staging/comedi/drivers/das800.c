@@ -399,9 +399,8 @@ static irqreturn_t das800_interrupt(int irq, void *d)
 		} else {
 			fifo_empty = 0;	/*  cio-das802/16 has no fifo empty status bit */
 		}
-		if (fifo_empty) {
+		if (fifo_empty)
 			break;
-		}
 		/* strip off extraneous bits for 12 bit cards */
 		if (thisboard->resolution == 12)
 			dataPoint = (dataPoint >> 4) & 0xfff;
@@ -457,9 +456,8 @@ static int das800_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int board;
 
 	printk("comedi%d: das800: io 0x%lx", dev->minor, iobase);
-	if (irq) {
+	if (irq)
 		printk(", irq %u", irq);
-	}
 	printk("\n");
 
 	/* allocate and initialize dev->private */

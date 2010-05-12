@@ -37,3 +37,9 @@ config LIBERTAS_DEBUG
 	depends on LIBERTAS
 	---help---
 	  Debugging support.
+
+config LIBERTAS_MESH
+	bool "Enable mesh support"
+	depends on LIBERTAS
+	help
+	  This enables Libertas' MESH support, used by e.g. the OLPC people.

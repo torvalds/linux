@@ -48,14 +48,14 @@ static void vsc_read(adapter_t *adapter, u32 addr, u32 *val)
 		i++;
 	} while (((status & 1) == 0) && (i < 50));
 	if (i == 50)
-		CH_ERR("Invalid tpi read from MAC, breaking loop.\n");
+		pr_err("Invalid tpi read from MAC, breaking loop.\n");
 
 	t1_tpi_read(adapter, (REG_LOCAL_DATA << 2) + 4, &vlo);
 	t1_tpi_read(adapter, REG_LOCAL_DATA << 2, &vhi);
 
 	*val = (vhi << 16) | vlo;
 
-	/* CH_ERR("rd: block: 0x%x  sublock: 0x%x  reg: 0x%x  data: 0x%x\n",
+	/* pr_err("rd: block: 0x%x  sublock: 0x%x  reg: 0x%x  data: 0x%x\n",
 		((addr&0xe000)>>13), ((addr&0x1e00)>>9),
 		((addr&0x01fe)>>1), *val); */
 	spin_unlock_bh(&adapter->mac_lock);
@@ -66,7 +66,7 @@ static void vsc_write(adapter_t *adapter, u32 addr, u32 data)
 	spin_lock_bh(&adapter->mac_lock);
 	t1_tpi_write(adapter, (addr << 2) + 4, data & 0xFFFF);
 	t1_tpi_write(adapter, addr << 2, (data >> 16) & 0xFFFF);
-	/* CH_ERR("wr: block: 0x%x  sublock: 0x%x  reg: 0x%x  data: 0x%x\n",
+	/* pr_err("wr: block: 0x%x  sublock: 0x%x  reg: 0x%x  data: 0x%x\n",
 		((addr&0xe000)>>13), ((addr&0x1e00)>>9),
 		((addr&0x01fe)>>1), data); */
 	spin_unlock_bh(&adapter->mac_lock);
@@ -225,7 +225,7 @@ static void run_table(adapter_t *adapter, struct init_table *ib, int len)
 	for (i = 0; i < len; i++) {
 		if (ib[i].addr == INITBLOCK_SLEEP) {
 			udelay( ib[i].data );
-			CH_ERR("sleep %d us\n",ib[i].data);
+			pr_err("sleep %d us\n",ib[i].data);
 		} else
 			vsc_write( adapter, ib[i].addr, ib[i].data );
 	}
@@ -241,7 +241,7 @@ static int bist_rd(adapter_t *adapter, int moduleid, int address)
 	    (address != 0x2) &&
 	    (address != 0xd) &&
 	    (address != 0xe))
-			CH_ERR("No bist address: 0x%x\n", address);
+			pr_err("No bist address: 0x%x\n", address);
 
 	data = ((0x00 << 24) | ((address & 0xff) << 16) | (0x00 << 8) |
 		((moduleid & 0xff) << 0));
@@ -251,9 +251,9 @@ static int bist_rd(adapter_t *adapter, int moduleid, int address)
 
 	vsc_read(adapter, REG_RAM_BIST_RESULT, &result);
 	if ((result & (1 << 9)) != 0x0)
-		CH_ERR("Still in bist read: 0x%x\n", result);
+		pr_err("Still in bist read: 0x%x\n", result);
 	else if ((result & (1 << 8)) != 0x0)
-		CH_ERR("bist read error: 0x%x\n", result);
+		pr_err("bist read error: 0x%x\n", result);
 
 	return (result & 0xff);
 }
@@ -268,10 +268,10 @@ static int bist_wr(adapter_t *adapter, int moduleid, int address, int value)
 	    (address != 0x2) &&
 	    (address != 0xd) &&
 	    (address != 0xe))
-			CH_ERR("No bist address: 0x%x\n", address);
+			pr_err("No bist address: 0x%x\n", address);
 
 	if (value > 255)
-		CH_ERR("Suspicious write out of range value: 0x%x\n", value);
+		pr_err("Suspicious write out of range value: 0x%x\n", value);
 
 	data = ((0x01 << 24) | ((address & 0xff) << 16) | (value << 8) |
 		((moduleid & 0xff) << 0));
@@ -281,9 +281,9 @@ static int bist_wr(adapter_t *adapter, int moduleid, int address, int value)
 
 	vsc_read(adapter, REG_RAM_BIST_CMD, &result);
 	if ((result & (1 << 27)) != 0x0)
-		CH_ERR("Still in bist write: 0x%x\n", result);
+		pr_err("Still in bist write: 0x%x\n", result);
 	else if ((result & (1 << 26)) != 0x0)
-		CH_ERR("bist write error: 0x%x\n", result);
+		pr_err("bist write error: 0x%x\n", result);
 
 	return 0;
 }
@@ -306,7 +306,7 @@ static int check_bist(adapter_t *adapter, int moduleid)
 	column = ((bist_rd(adapter,moduleid, 0x0e)<<8) +
 			(bist_rd(adapter,moduleid, 0x0d)));
 	if ((result & 3) != 0x3)
-		CH_ERR("Result: 0x%x  BIST error in ram %d, column: 0x%04x\n",
+		pr_err("Result: 0x%x  BIST error in ram %d, column: 0x%04x\n",
 			result, moduleid, column);
 	return 0;
 }

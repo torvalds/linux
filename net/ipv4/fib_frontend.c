@@ -34,6 +34,7 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -883,7 +884,7 @@ static void nl_fib_input(struct sk_buff *skb)
 	netlink_unicast(net->ipv4.fibnl, skb, pid, MSG_DONTWAIT);
 }
 
-static int nl_fib_lookup_init(struct net *net)
+static int __net_init nl_fib_lookup_init(struct net *net)
 {
 	struct sock *sk;
 	sk = netlink_kernel_create(net, NETLINK_FIB_LOOKUP, 0,
@@ -1004,7 +1005,7 @@ fail:
 	return err;
 }
 
-static void __net_exit ip_fib_net_exit(struct net *net)
+static void ip_fib_net_exit(struct net *net)
 {
 	unsigned int i;
 

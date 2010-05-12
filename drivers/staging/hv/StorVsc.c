@@ -20,6 +20,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/delay.h>
 #include "osd.h"
@@ -625,7 +626,7 @@ static int StorVscOnDeviceRemove(struct hv_device *Device)
 	return 0;
 }
 
-static int StorVscOnHostReset(struct hv_device *Device)
+int StorVscOnHostReset(struct hv_device *Device)
 {
 	struct storvsc_device *storDevice;
 	struct storvsc_request_extension *request;
@@ -842,7 +843,6 @@ int StorVscInitialize(struct hv_driver *Driver)
 	storDriver->Base.OnCleanup	= StorVscOnCleanup;
 
 	storDriver->OnIORequest		= StorVscOnIORequest;
-	storDriver->OnHostReset		= StorVscOnHostReset;
 
 	DPRINT_EXIT(STORVSC);
 

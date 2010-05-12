@@ -23,6 +23,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/if_ether.h>
+#include <linux/slab.h>
 
 #include "vnic_resource.h"
 #include "vnic_devcmd.h"
@@ -36,7 +37,6 @@ struct vnic_res {
 };
 
 #define VNIC_DEV_CAP_INIT	0x0001
-#define VNIC_DEV_CAP_PERBI	0x0002
 
 struct vnic_dev {
 	void *priv;

@@ -92,11 +92,9 @@ struct fsl_desc_sw {
 	struct list_head node;
 	struct list_head tx_list;
 	struct dma_async_tx_descriptor async_tx;
-	struct list_head *ld;
-	void *priv;
 } __attribute__((aligned(32)));
 
-struct fsl_dma_chan_regs {
+struct fsldma_chan_regs {
 	u32 mr;	/* 0x00 - Mode Register */
 	u32 sr;	/* 0x04 - Status Register */
 	u64 cdar;	/* 0x08 - Current descriptor address register */
@@ -106,20 +104,19 @@ struct fsl_dma_chan_regs {
 	u64 ndar;	/* 0x24 - Next Descriptor Address Register */
 };
 
-struct fsl_dma_chan;
+struct fsldma_chan;
 #define FSL_DMA_MAX_CHANS_PER_DEVICE 4
 
-struct fsl_dma_device {
-	void __iomem *reg_base;	/* DGSR register base */
-	struct resource reg;	/* Resource for register */
+struct fsldma_device {
+	void __iomem *regs;	/* DGSR register base */
 	struct device *dev;
 	struct dma_device common;
-	struct fsl_dma_chan *chan[FSL_DMA_MAX_CHANS_PER_DEVICE];
+	struct fsldma_chan *chan[FSL_DMA_MAX_CHANS_PER_DEVICE];
 	u32 feature;		/* The same as DMA channels */
 	int irq;		/* Channel IRQ */
 };
 
-/* Define macros for fsl_dma_chan->feature property */
+/* Define macros for fsldma_chan->feature property */
 #define FSL_DMA_LITTLE_ENDIAN	0x00000000
 #define FSL_DMA_BIG_ENDIAN	0x00000001
 
@@ -130,28 +127,28 @@ struct fsl_dma_device {
 #define FSL_DMA_CHAN_PAUSE_EXT	0x00001000
 #define FSL_DMA_CHAN_START_EXT	0x00002000
 
-struct fsl_dma_chan {
-	struct fsl_dma_chan_regs __iomem *reg_base;
+struct fsldma_chan {
+	struct fsldma_chan_regs __iomem *regs;
 	dma_cookie_t completed_cookie;	/* The maximum cookie completed */
 	spinlock_t desc_lock;		/* Descriptor operation lock */
-	struct list_head ld_queue;	/* Link descriptors queue */
+	struct list_head ld_pending;	/* Link descriptors queue */
+	struct list_head ld_running;	/* Link descriptors queue */
 	struct dma_chan common;		/* DMA common channel */
 	struct dma_pool *desc_pool;	/* Descriptors pool */
 	struct device *dev;		/* Channel device */
-	struct resource reg;		/* Resource for register */
 	int irq;			/* Channel IRQ */
 	int id;				/* Raw id of this channel */
 	struct tasklet_struct tasklet;
 	u32 feature;
 
-	void (*toggle_ext_pause)(struct fsl_dma_chan *fsl_chan, int enable);
-	void (*toggle_ext_start)(struct fsl_dma_chan *fsl_chan, int enable);
-	void (*set_src_loop_size)(struct fsl_dma_chan *fsl_chan, int size);
-	void (*set_dest_loop_size)(struct fsl_dma_chan *fsl_chan, int size);
-	void (*set_request_count)(struct fsl_dma_chan *fsl_chan, int size);
+	void (*toggle_ext_pause)(struct fsldma_chan *fsl_chan, int enable);
+	void (*toggle_ext_start)(struct fsldma_chan *fsl_chan, int enable);
+	void (*set_src_loop_size)(struct fsldma_chan *fsl_chan, int size);
+	void (*set_dst_loop_size)(struct fsldma_chan *fsl_chan, int size);
+	void (*set_request_count)(struct fsldma_chan *fsl_chan, int size);
 };
 
-#define to_fsl_chan(chan) container_of(chan, struct fsl_dma_chan, common)
+#define to_fsl_chan(chan) container_of(chan, struct fsldma_chan, common)
 #define to_fsl_desc(lh) container_of(lh, struct fsl_desc_sw, node)
 #define tx_to_fsl_desc(tx) container_of(tx, struct fsl_desc_sw, async_tx)
 

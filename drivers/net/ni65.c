@@ -849,7 +849,7 @@ static int ni65_lance_reinit(struct net_device *dev)
 
 	 if(dev->flags & IFF_PROMISC)
 		 ni65_init_lance(p,dev->dev_addr,0x00,M_PROM);
-	 else if(dev->mc_count || dev->flags & IFF_ALLMULTI)
+	 else if (netdev_mc_count(dev) || dev->flags & IFF_ALLMULTI)
 		 ni65_init_lance(p,dev->dev_addr,0xff,0x0);
 	 else
 		 ni65_init_lance(p,dev->dev_addr,0x00,0x00);

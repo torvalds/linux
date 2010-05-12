@@ -29,6 +29,19 @@ static void tusb_source_power(struct musb *musb, int is_on);
 #define TUSB_REV_MAJOR(reg_val)		((reg_val >> 4) & 0xf)
 #define TUSB_REV_MINOR(reg_val)		(reg_val & 0xf)
 
+#ifdef CONFIG_PM
+/* REVISIT: These should be only needed if somebody implements off idle */
+void musb_platform_save_context(struct musb *musb,
+			struct musb_context_registers *musb_context)
+{
+}
+
+void musb_platform_restore_context(struct musb *musb,
+			struct musb_context_registers *musb_context)
+{
+}
+#endif
+
 /*
  * Checks the revision. We need to use the DMA register as 3.0 does not
  * have correct versions for TUSB_PRCM_REV or TUSB_INT_CTRL_REV.
@@ -1118,7 +1131,7 @@ int __init musb_platform_init(struct musb *musb)
 	}
 	musb->sync = mem->start;
 
-	sync = ioremap(mem->start, mem->end - mem->start + 1);
+	sync = ioremap(mem->start, resource_size(mem));
 	if (!sync) {
 		pr_debug("ioremap for sync failed\n");
 		ret = -ENOMEM;

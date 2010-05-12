@@ -23,12 +23,15 @@ config RWSEM_XCHGADD_ALGORITHM
 
 config BLACKFIN
 	def_bool y
+	select HAVE_ARCH_KGDB
+	select HAVE_ARCH_TRACEHOOK
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_FUNCTION_TRACER
+	select HAVE_FUNCTION_TRACE_MCOUNT_TEST
 	select HAVE_IDE
-	select HAVE_KERNEL_GZIP
-	select HAVE_KERNEL_BZIP2
-	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_GZIP if RAMKERNEL
+	select HAVE_KERNEL_BZIP2 if RAMKERNEL
+	select HAVE_KERNEL_LZMA if RAMKERNEL
 	select HAVE_OPROFILE
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 
@@ -43,9 +46,6 @@ config ZONE_DMA
 	def_bool y
 
 config GENERIC_FIND_NEXT_BIT
-	def_bool y
-
-config GENERIC_HWEIGHT
 	def_bool y
 
 config GENERIC_HARDIRQS
@@ -239,7 +239,7 @@ endchoice
 
 config SMP
 	depends on BF561
-	select GENERIC_CLOCKEVENTS
+	select TICKSOURCE_CORETMR
 	bool "Symmetric multi-processing support"
 	---help---
 	  This enables support for systems with more than one CPU,
@@ -253,10 +253,19 @@ config NR_CPUS
 	depends on SMP
 	default 2 if BF561
 
+config HOTPLUG_CPU
+	bool "Support for hot-pluggable CPUs"
+	depends on SMP && HOTPLUG
+	default y
+
 config IRQ_PER_CPU
 	bool
 	depends on SMP
 	default y
+
+config HAVE_LEGACY_PER_CPU_AREA
+	def_bool y
+	depends on SMP
 
 config BF_REV_MIN
 	int
@@ -349,7 +358,7 @@ config MEM_MT48LC8M32B2B5_7
 
 config MEM_MT48LC32M16A2TG_75
 	bool
-	depends on (BFIN527_EZKIT || BFIN532_IP0X || BLACKSTAMP)
+	depends on (BFIN527_EZKIT || BFIN527_EZKIT_V2 || BFIN532_IP0X || BLACKSTAMP)
 	default y
 
 config MEM_MT48LC32M8A2_75
@@ -401,10 +410,18 @@ config BOOT_LOAD
 config ROM_BASE
 	hex "Kernel ROM Base"
 	depends on ROMKERNEL
-	default "0x20040000"
+	default "0x20040040"
 	range 0x20000000 0x20400000 if !(BF54x || BF561)
 	range 0x20000000 0x30000000 if (BF54x || BF561)
 	help
+	  Make sure your ROM base does not include any file-header
+	  information that is prepended to the kernel.
+
+	  For example, the bootable U-Boot format (created with
+	  mkimage) has a 64 byte header (0x40).  So while the image
+	  you write to flash might start at say 0x20080000, you have
+	  to add 0x40 to get the kernel's ROM base as it will come
+	  after the header.
 
 comment "Clock/PLL Setup"
 
@@ -448,7 +465,7 @@ config VCO_MULT
 	range 1 64
 	default "22" if BFIN533_EZKIT
 	default "45" if BFIN533_STAMP
-	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN548_EZKIT || BFIN548_BLUETECHNIX_CM || BFIN538_EZKIT)
+	default "20" if (BFIN537_STAMP || BFIN527_EZKIT || BFIN527_EZKIT_V2 || BFIN548_EZKIT || BFIN548_BLUETECHNIX_CM || BFIN538_EZKIT)
 	default "22" if BFIN533_BLUETECHNIX_CM
 	default "20" if (BFIN537_BLUETECHNIX_CM_E || BFIN537_BLUETECHNIX_CM_U || BFIN527_BLUETECHNIX_CM || BFIN561_BLUETECHNIX_CM)
 	default "20" if BFIN561_EZKIT
@@ -609,23 +626,23 @@ config GENERIC_CLOCKEVENTS
 	bool "Generic clock events"
 	default y
 
-choice
-	prompt "Kernel Tick Source"
+menu "Clock event device"
 	depends on GENERIC_CLOCKEVENTS
-	default TICKSOURCE_CORETMR
-
 config TICKSOURCE_GPTMR0
-	bool "Gptimer0 (SCLK domain)"
+	bool "GPTimer0"
+	depends on !SMP
 	select BFIN_GPTIMERS
 
 config TICKSOURCE_CORETMR
-	bool "Core timer (CCLK domain)"
+	bool "Core timer"
+	default y
+endmenu
 
-endchoice
-
-config CYCLES_CLOCKSOURCE
-	bool "Use 'CYCLES' as a clocksource"
+menu "Clock souce"
 	depends on GENERIC_CLOCKEVENTS
+config CYCLES_CLOCKSOURCE
+	bool "CYCLES"
+	default y
 	depends on !BFIN_SCRATCH_REG_CYCLES
 	depends on !SMP
 	help
@@ -636,10 +653,10 @@ config CYCLES_CLOCKSOURCE
 	  writing the registers will most likely crash the kernel.
 
 config GPTMR0_CLOCKSOURCE
-	bool "Use GPTimer0 as a clocksource"
+	bool "GPTimer0"
 	select BFIN_GPTIMERS
-	depends on GENERIC_CLOCKEVENTS
 	depends on !TICKSOURCE_GPTMR0
+endmenu
 
 config ARCH_USES_GETTIMEOFFSET
 	depends on !GENERIC_CLOCKEVENTS
@@ -1116,24 +1133,6 @@ config PCI
 
 source "drivers/pci/Kconfig"
 
-config HOTPLUG
-	bool "Support for hot-pluggable device"
-	  help
-	  Say Y here if you want to plug devices into your computer while
-	  the system is running, and be able to use them quickly.  In many
-	  cases, the devices can likewise be unplugged at any time too.
-
-	  One well known example of this is PCMCIA- or PC-cards, credit-card
-	  size devices such as network cards, modems or hard drives which are
-	  plugged into slots found on all modern laptop computers.  Another
-	  example, used on modern desktops as well as laptops, is USB.
-
-	  Enable HOTPLUG and build a modular kernel.  Get agent software
-	  (from <http://linux-hotplug.sourceforge.net/>) and install it.
-	  Then your kernel will automatically call out to a user mode "policy
-	  agent" (/sbin/hotplug) to load modules and set up software needed
-	  to use devices as you hotplug them.
-
 source "drivers/pcmcia/Kconfig"
 
 source "drivers/pci/hotplug/Kconfig"
@@ -1147,7 +1146,6 @@ source "fs/Kconfig.binfmt"
 endmenu
 
 menu "Power management options"
-	depends on !SMP
 
 source "kernel/power/Kconfig"
 
@@ -1240,7 +1238,6 @@ config PM_BFIN_WAKE_GP
 endmenu
 
 menu "CPU Frequency scaling"
-	depends on !SMP
 
 source "drivers/cpufreq/Kconfig"
 

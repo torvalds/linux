@@ -205,8 +205,8 @@ struct atp {
 	bool			overflow_warned;
 	int			x_old;		/* last reported x/y, */
 	int			y_old;		/* used for smoothing */
-	signed char		xy_cur[ATP_XSENSORS + ATP_YSENSORS];
-	signed char		xy_old[ATP_XSENSORS + ATP_YSENSORS];
+	u8			xy_cur[ATP_XSENSORS + ATP_YSENSORS];
+	u8			xy_old[ATP_XSENSORS + ATP_YSENSORS];
 	int			xy_acc[ATP_XSENSORS + ATP_YSENSORS];
 	int			idlecount;	/* number of empty packets */
 	struct work_struct	work;
@@ -531,7 +531,7 @@ static void atp_complete_geyser_1_2(struct urb *urb)
 
 	for (i = 0; i < ATP_XSENSORS + ATP_YSENSORS; i++) {
 		/* accumulate the change */
-		signed char change = dev->xy_old[i] - dev->xy_cur[i];
+		int change = dev->xy_old[i] - dev->xy_cur[i];
 		dev->xy_acc[i] -= change;
 
 		/* prevent down drifting */

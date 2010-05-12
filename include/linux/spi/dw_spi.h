@@ -90,6 +90,7 @@ struct dw_spi {
 	unsigned long		paddr;
 	u32			iolen;
 	int			irq;
+	u32			fifo_len;	/* depth of the FIFO buffer */
 	u32			max_freq;	/* max bus freq supported */
 
 	u16			bus_num;
@@ -171,6 +172,10 @@ static inline void spi_chip_sel(struct dw_spi *dws, u16 cs)
 {
 	if (cs > dws->num_cs)
 		return;
+
+	if (dws->cs_control)
+		dws->cs_control(1);
+
 	dw_writel(dws, ser, 1 << cs);
 }
 

@@ -218,7 +218,7 @@ ENTRY(mohawk_flush_kern_dcache_area)
  *
  * (same as v4wb)
  */
-ENTRY(mohawk_dma_inv_range)
+mohawk_dma_inv_range:
 	tst	r0, #CACHE_DLINESIZE - 1
 	mcrne	p15, 0, r0, c7, c10, 1		@ clean D entry
 	tst	r1, #CACHE_DLINESIZE - 1
@@ -241,7 +241,7 @@ ENTRY(mohawk_dma_inv_range)
  *
  * (same as v4wb)
  */
-ENTRY(mohawk_dma_clean_range)
+mohawk_dma_clean_range:
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHE_DLINESIZE
@@ -268,6 +268,30 @@ ENTRY(mohawk_dma_flush_range)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	mov	pc, lr
 
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(mohawk_dma_map_area)
+	add	r1, r1, r0
+	cmp	r2, #DMA_TO_DEVICE
+	beq	mohawk_dma_clean_range
+	bcs	mohawk_dma_inv_range
+	b	mohawk_dma_flush_range
+ENDPROC(mohawk_dma_map_area)
+
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(mohawk_dma_unmap_area)
+	mov	pc, lr
+ENDPROC(mohawk_dma_unmap_area)
+
 ENTRY(mohawk_cache_fns)
 	.long	mohawk_flush_kern_cache_all
 	.long	mohawk_flush_user_cache_all
@@ -275,8 +299,8 @@ ENTRY(mohawk_cache_fns)
 	.long	mohawk_coherent_kern_range
 	.long	mohawk_coherent_user_range
 	.long	mohawk_flush_kern_dcache_area
-	.long	mohawk_dma_inv_range
-	.long	mohawk_dma_clean_range
+	.long	mohawk_dma_map_area
+	.long	mohawk_dma_unmap_area
 	.long	mohawk_dma_flush_range
 
 ENTRY(cpu_mohawk_dcache_clean_area)

@@ -159,8 +159,7 @@ static void ali_fifo_control(struct ata_port *ap, struct ata_device *adev, int o
  *	ali_program_modes	-	load mode registers
  *	@ap: ALi channel to load
  *	@adev: Device the timing is for
- *	@cmd: Command timing
- *	@data: Data timing
+ *	@t: timing data
  *	@ultra: UDMA timing or zero for off
  *
  *	Loads the timing registers for cmd/data and disable UDMA if
@@ -202,8 +201,7 @@ static void ali_program_modes(struct ata_port *ap, struct ata_device *adev, stru
  *	@ap: ATA interface
  *	@adev: ATA device
  *
- *	Program the ALi registers for PIO mode. FIXME: add timings for
- *	PIO5.
+ *	Program the ALi registers for PIO mode.
  */
 
 static void ali_set_piomode(struct ata_port *ap, struct ata_device *adev)
@@ -237,7 +235,7 @@ static void ali_set_piomode(struct ata_port *ap, struct ata_device *adev)
  *	@ap: ATA interface
  *	@adev: ATA device
  *
- *	FIXME: MWDMA timings
+ *	Program the ALi registers for DMA mode.
  */
 
 static void ali_set_dmamode(struct ata_port *ap, struct ata_device *adev)
@@ -585,7 +583,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	        	ppi[0] = &info_20_udma;
 	}
 
-	return ata_pci_sff_init_one(pdev, ppi, &ali_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &ali_sht, NULL, 0);
 }
 
 #ifdef CONFIG_PM

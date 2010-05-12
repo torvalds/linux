@@ -605,7 +605,7 @@ static struct platform_device dove_xor00_channel = {
 	.dev		= {
 		.dma_mask		= &dove_xor0_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= (void *)&dove_xor00_data,
+		.platform_data		= &dove_xor00_data,
 	},
 };
 
@@ -631,7 +631,7 @@ static struct platform_device dove_xor01_channel = {
 	.dev		= {
 		.dma_mask		= &dove_xor0_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= (void *)&dove_xor01_data,
+		.platform_data		= &dove_xor01_data,
 	},
 };
 
@@ -704,7 +704,7 @@ static struct platform_device dove_xor10_channel = {
 	.dev		= {
 		.dma_mask		= &dove_xor1_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= (void *)&dove_xor10_data,
+		.platform_data		= &dove_xor10_data,
 	},
 };
 
@@ -730,7 +730,7 @@ static struct platform_device dove_xor11_channel = {
 	.dev		= {
 		.dma_mask		= &dove_xor1_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= (void *)&dove_xor11_data,
+		.platform_data		= &dove_xor11_data,
 	},
 };
 

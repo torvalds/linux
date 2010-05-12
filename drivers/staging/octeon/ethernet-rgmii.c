@@ -26,7 +26,7 @@
 **********************************************************************/
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
-#include <linux/mii.h>
+#include <linux/phy.h>
 #include <net/dst.h>
 
 #include <asm/octeon/octeon.h>
@@ -48,14 +48,20 @@ static int number_rgmii_ports;
 static void cvm_oct_rgmii_poll(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
-	unsigned long flags;
+	unsigned long flags = 0;
 	cvmx_helper_link_info_t link_info;
+	int use_global_register_lock = (priv->phydev == NULL);
 
-	/*
-	 * Take the global register lock since we are going to touch
-	 * registers that affect more than one port.
-	 */
-	spin_lock_irqsave(&global_register_lock, flags);
+	BUG_ON(in_interrupt());
+	if (use_global_register_lock) {
+		/*
+		 * Take the global register lock since we are going to
+		 * touch registers that affect more than one port.
+		 */
+		spin_lock_irqsave(&global_register_lock, flags);
+	} else {
+		mutex_lock(&priv->phydev->bus->mdio_lock);
+	}
 
 	link_info = cvmx_helper_link_get(priv->port);
 	if (link_info.u64 == priv->link_info) {
@@ -115,7 +121,11 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 				     dev->name);
 			}
 		}
-		spin_unlock_irqrestore(&global_register_lock, flags);
+
+		if (use_global_register_lock)
+			spin_unlock_irqrestore(&global_register_lock, flags);
+		else
+			mutex_unlock(&priv->phydev->bus->mdio_lock);
 		return;
 	}
 
@@ -151,7 +161,12 @@ static void cvm_oct_rgmii_poll(struct net_device *dev)
 		link_info = cvmx_helper_link_autoconf(priv->port);
 		priv->link_info = link_info.u64;
 	}
-	spin_unlock_irqrestore(&global_register_lock, flags);
+
+	if (use_global_register_lock)
+		spin_unlock_irqrestore(&global_register_lock, flags);
+	else {
+		mutex_unlock(&priv->phydev->bus->mdio_lock);
+	}
 
 	if (priv->phydev == NULL) {
 		/* Tell core. */
@@ -213,8 +228,11 @@ static irqreturn_t cvm_oct_rgmii_rml_interrupt(int cpl, void *dev_id)
 				struct net_device *dev =
 				    cvm_oct_device[cvmx_helper_get_ipd_port
 						   (interface, index)];
-				if (dev)
-					cvm_oct_rgmii_poll(dev);
+				struct octeon_ethernet *priv = netdev_priv(dev);
+
+				if (dev && !atomic_read(&cvm_oct_poll_queue_stopping))
+					queue_work(cvm_oct_poll_queue, &priv->port_work);
+
 				gmx_rx_int_reg.u64 = 0;
 				gmx_rx_int_reg.s.phy_dupx = 1;
 				gmx_rx_int_reg.s.phy_link = 1;
@@ -252,8 +270,11 @@ static irqreturn_t cvm_oct_rgmii_rml_interrupt(int cpl, void *dev_id)
 				struct net_device *dev =
 				    cvm_oct_device[cvmx_helper_get_ipd_port
 						   (interface, index)];
-				if (dev)
-					cvm_oct_rgmii_poll(dev);
+				struct octeon_ethernet *priv = netdev_priv(dev);
+
+				if (dev && !atomic_read(&cvm_oct_poll_queue_stopping))
+					queue_work(cvm_oct_poll_queue, &priv->port_work);
+
 				gmx_rx_int_reg.u64 = 0;
 				gmx_rx_int_reg.s.phy_dupx = 1;
 				gmx_rx_int_reg.s.phy_link = 1;
@@ -302,6 +323,12 @@ int cvm_oct_rgmii_stop(struct net_device *dev)
 	return 0;
 }
 
+static void cvm_oct_rgmii_immediate_poll(struct work_struct *work)
+{
+	struct octeon_ethernet *priv = container_of(work, struct octeon_ethernet, port_work);
+	cvm_oct_rgmii_poll(cvm_oct_device[priv->port]);
+}
+
 int cvm_oct_rgmii_init(struct net_device *dev)
 {
 	struct octeon_ethernet *priv = netdev_priv(dev);
@@ -309,7 +336,7 @@ int cvm_oct_rgmii_init(struct net_device *dev)
 
 	cvm_oct_common_init(dev);
 	dev->netdev_ops->ndo_stop(dev);
-
+	INIT_WORK(&priv->port_work, cvm_oct_rgmii_immediate_poll);
 	/*
 	 * Due to GMX errata in CN3XXX series chips, it is necessary
 	 * to take the link down immediately when the PHY changes
@@ -397,4 +424,5 @@ void cvm_oct_rgmii_uninit(struct net_device *dev)
 	number_rgmii_ports--;
 	if (number_rgmii_ports == 0)
 		free_irq(OCTEON_IRQ_RML, &number_rgmii_ports);
+	cancel_work_sync(&priv->port_work);
 }

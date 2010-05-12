@@ -70,7 +70,6 @@ void            bfa_fcb_itnim_online(struct bfad_itnim_s *itnim_drv);
  */
 void            bfa_fcb_itnim_offline(struct bfad_itnim_s *itnim_drv);
 
-void            bfa_fcb_itnim_tov_begin(struct bfad_itnim_s *itnim_drv);
 void            bfa_fcb_itnim_tov(struct bfad_itnim_s *itnim_drv);
 
 #endif /* __BFAD_FCB_FCPIM_H__ */

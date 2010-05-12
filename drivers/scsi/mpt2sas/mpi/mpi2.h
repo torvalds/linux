@@ -8,7 +8,7 @@
  *                  scatter/gather formats.
  *  Creation Date:  June 21, 2006
  *
- *  mpi2.h Version:  02.00.13
+ *  mpi2.h Version:  02.00.14
  *
  *  Version History
  *  ---------------
@@ -53,6 +53,10 @@
  *                      bytes reserved.
  *                      Added RAID Accelerator functionality.
  *  07-30-09  02.00.13  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  10-28-09  02.00.14  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added MSI-x index mask and shift for Reply Post Host
+ *                      Index register.
+ *                      Added function code for Host Based Discovery Action.
  *  --------------------------------------------------------------------------
  */
 
@@ -78,7 +82,7 @@
 #define MPI2_VERSION_02_00                  (0x0200)
 
 /* versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x0D)
+#define MPI2_HEADER_VERSION_UNIT            (0x0E)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)
@@ -232,9 +236,12 @@ typedef volatile struct _MPI2_SYSTEM_INTERFACE_REGS
 #define MPI2_REPLY_FREE_HOST_INDEX_OFFSET       (0x00000048)
 
 /*
- * Offset for the Reply Descriptor Post Queue
+ * Defines for the Reply Descriptor Post Queue
  */
 #define MPI2_REPLY_POST_HOST_INDEX_OFFSET       (0x0000006C)
+#define MPI2_REPLY_POST_HOST_INDEX_MASK         (0x00FFFFFF)
+#define MPI2_RPHI_MSIX_INDEX_MASK               (0xFF000000)
+#define MPI2_RPHI_MSIX_INDEX_SHIFT              (24)
 
 /*
  * Defines for the HCBSize and address
@@ -497,12 +504,13 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 #define MPI2_FUNCTION_TARGET_CMD_BUF_BASE_POST      (0x24) /* Target Command Buffer Post Base */
 #define MPI2_FUNCTION_TARGET_CMD_BUF_LIST_POST      (0x25) /* Target Command Buffer Post List */
 #define MPI2_FUNCTION_RAID_ACCELERATOR              (0x2C) /* RAID Accelerator*/
+/* Host Based Discovery Action */
+#define MPI2_FUNCTION_HOST_BASED_DISCOVERY_ACTION   (0x2F)
 
 
 
 /* Doorbell functions */
 #define MPI2_FUNCTION_IOC_MESSAGE_UNIT_RESET        (0x40)
-/* #define MPI2_FUNCTION_IO_UNIT_RESET                 (0x41) */
 #define MPI2_FUNCTION_HANDSHAKE                     (0x42)
 
 

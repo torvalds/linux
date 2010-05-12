@@ -1,4 +1,5 @@
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/ide.h>
 #include <linux/jiffies.h>
 #include <linux/blkdev.h>

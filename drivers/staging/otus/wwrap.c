@@ -26,6 +26,7 @@
 #include "usbdrv.h"
 
 #include <linux/netlink.h>
+#include <linux/slab.h>
 #include <net/iw_handler.h>
 
 extern void zfiRecv80211(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo);

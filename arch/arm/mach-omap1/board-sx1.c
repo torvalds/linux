@@ -22,6 +22,7 @@
 #include <linux/notifier.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 #include <linux/types.h>
 #include <linux/i2c.h>
 #include <linux/errno.h>
@@ -29,10 +30,10 @@
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 
 #include <mach/gpio.h>
+#include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/dma.h>
 #include <plat/irda.h>
@@ -287,9 +288,9 @@ static struct mtd_partition sx1_partitions[] = {
 	}
 };
 
-static struct flash_platform_data sx1_flash_data = {
-	.map_name	= "cfi_probe",
+static struct physmap_flash_data sx1_flash_data = {
 	.width		= 2,
+	.set_vpp	= omap1_set_vpp,
 	.parts		= sx1_partitions,
 	.nr_parts	= ARRAY_SIZE(sx1_partitions),
 };
@@ -310,7 +311,7 @@ static struct resource sx1_old_flash_resource[] = {
 };
 
 static struct platform_device sx1_flash_device = {
-	.name		= "omapflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &sx1_flash_data,
@@ -327,7 +328,7 @@ static struct resource sx1_new_flash_resource = {
 };
 
 static struct platform_device sx1_flash_device = {
-	.name		= "omapflash",
+	.name		= "physmap-flash",
 	.id		= 0,
 	.dev		= {
 		.platform_data	= &sx1_flash_data,

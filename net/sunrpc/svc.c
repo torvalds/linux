@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 
 #include <linux/sunrpc/types.h>
 #include <linux/sunrpc/xdr.h>
@@ -133,7 +134,7 @@ svc_pool_map_choose_mode(void)
 		return SVC_POOL_PERNODE;
 	}
 
-	node = any_online_node(node_online_map);
+	node = first_online_node;
 	if (nr_cpus_node(node) > 2) {
 		/*
 		 * Non-trivial SMP, or CONFIG_NUMA on
@@ -505,6 +506,10 @@ static int
 svc_init_buffer(struct svc_rqst *rqstp, unsigned int size)
 {
 	unsigned int pages, arghi;
+
+	/* bc_xprt uses fore channel allocated buffers */
+	if (svc_is_backchannel(rqstp))
+		return 1;
 
 	pages = size / PAGE_SIZE + 1; /* extra page as we hold both request and reply.
 				       * We assume one is at most one page

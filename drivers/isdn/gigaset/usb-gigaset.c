@@ -16,10 +16,6 @@
  */
 
 #include "gigaset.h"
-
-#include <linux/errno.h>
-#include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
@@ -628,7 +624,7 @@ static int write_modem(struct cardstate *cs)
 	struct usb_cardstate *ucs = cs->hw.usb;
 	unsigned long flags;
 
-	gig_dbg(DEBUG_WRITE, "len: %d...", bcs->tx_skb->len);
+	gig_dbg(DEBUG_OUTPUT, "len: %d...", bcs->tx_skb->len);
 
 	if (!bcs->tx_skb->len) {
 		dev_kfree_skb_any(bcs->tx_skb);

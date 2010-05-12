@@ -80,7 +80,7 @@ int kfifo_alloc(struct kfifo *fifo, unsigned int size, gfp_t gfp_mask)
 
 	buffer = kmalloc(size, gfp_mask);
 	if (!buffer) {
-		_kfifo_init(fifo, 0, 0);
+		_kfifo_init(fifo, NULL, 0);
 		return -ENOMEM;
 	}
 
@@ -97,6 +97,7 @@ EXPORT_SYMBOL(kfifo_alloc);
 void kfifo_free(struct kfifo *fifo)
 {
 	kfree(fifo->buffer);
+	_kfifo_init(fifo, NULL, 0);
 }
 EXPORT_SYMBOL(kfifo_free);
 
@@ -349,6 +350,7 @@ EXPORT_SYMBOL(__kfifo_from_user_n);
  * @fifo: the fifo to be used.
  * @from: pointer to the data to be added.
  * @len: the length of the data to be added.
+ * @total: the actual returned data length.
  *
  * This function copies at most @len bytes from the @from into the
  * FIFO depending and returns -EFAULT/0.
@@ -399,7 +401,7 @@ EXPORT_SYMBOL(__kfifo_to_user_n);
  * @fifo: the fifo to be used.
  * @to: where the data must be copied.
  * @len: the size of the destination buffer.
- @ @lenout: pointer to output variable with copied data
+ * @lenout: pointer to output variable with copied data
  *
  * This function copies at most @len bytes from the FIFO into the
  * @to buffer and 0 or -EFAULT.

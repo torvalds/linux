@@ -92,5 +92,6 @@ extern unsigned long sh_mobile_sleep_supported;
 #define SUSP_SH_USTANDBY	(1 << 3) /* SH-Mobile U-standby mode */
 #define SUSP_SH_SF		(1 << 4) /* Enable self-refresh */
 #define SUSP_SH_MMU		(1 << 5) /* Save/restore MMU and cache */
+#define SUSP_SH_REGS		(1 << 6) /* Save/restore registers */
 
 #endif /* _ASM_SH_SUSPEND_H */

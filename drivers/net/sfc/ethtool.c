@@ -196,7 +196,7 @@ int efx_ethtool_get_settings(struct net_device *net_dev,
 	efx->phy_op->get_settings(efx, ecmd);
 	mutex_unlock(&efx->mac_lock);
 
-	/* Falcon GMAC does not support 1000Mbps HD */
+	/* GMAC does not support 1000Mbps HD */
 	ecmd->supported &= ~SUPPORTED_1000baseT_Half;
 	/* Both MACs support pause frames (bidirectional and respond-only) */
 	ecmd->supported |= SUPPORTED_Pause | SUPPORTED_Asym_Pause;
@@ -216,7 +216,7 @@ int efx_ethtool_set_settings(struct net_device *net_dev,
 	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
 
-	/* Falcon GMAC does not support 1000Mbps HD */
+	/* GMAC does not support 1000Mbps HD */
 	if (ecmd->speed == SPEED_1000 && ecmd->duplex != DUPLEX_FULL) {
 		EFX_LOG(efx, "rejecting unsupported 1000Mbps HD"
 			" setting\n");
@@ -342,8 +342,8 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 	unsigned int n = 0, i;
 	enum efx_loopback_mode mode;
 
-	efx_fill_test(n++, strings, data, &tests->mdio,
-		      "core", 0, "mdio", NULL);
+	efx_fill_test(n++, strings, data, &tests->phy_alive,
+		      "phy", 0, "alive", NULL);
 	efx_fill_test(n++, strings, data, &tests->nvram,
 		      "core", 0, "nvram", NULL);
 	efx_fill_test(n++, strings, data, &tests->interrupt,
@@ -379,7 +379,7 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 			if (name == NULL)
 				break;
 
-			efx_fill_test(n++, strings, data, &tests->phy[i],
+			efx_fill_test(n++, strings, data, &tests->phy_ext[i],
 				      "phy", 0, name, NULL);
 		}
 	}

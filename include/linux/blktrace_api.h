@@ -150,8 +150,8 @@ struct blk_user_trace_setup {
 struct blk_trace {
 	int trace_state;
 	struct rchan *rchan;
-	unsigned long *sequence;
-	unsigned char *msg_data;
+	unsigned long __percpu *sequence;
+	unsigned char __percpu *msg_data;
 	u16 act_mask;
 	u64 start_lba;
 	u64 end_lba;

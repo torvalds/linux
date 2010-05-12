@@ -67,7 +67,8 @@
 #define CM_CLKSEL					0x0040
 #define CM_CLKSEL1					CM_CLKSEL
 #define CM_CLKSEL2					0x0044
-#define CM_CLKSTCTRL					0x0048
+#define OMAP2_CM_CLKSTCTRL				0x0048
+#define OMAP4_CM_CLKSTCTRL				0x0000
 
 
 /* Architecture-specific registers */
@@ -88,7 +89,7 @@
 #define OMAP3430_CM_CLKSEL1_PLL				CM_CLKSEL
 #define OMAP3430_CM_CLKSEL2_PLL				CM_CLKSEL2
 #define OMAP3430_CM_SLEEPDEP				CM_CLKSEL2
-#define OMAP3430_CM_CLKSEL3				CM_CLKSTCTRL
+#define OMAP3430_CM_CLKSEL3				OMAP2_CM_CLKSTCTRL
 #define OMAP3430_CM_CLKSTST				0x004c
 #define OMAP3430ES2_CM_CLKSEL4				0x004c
 #define OMAP3430ES2_CM_CLKSEL5				0x0050
@@ -138,5 +139,8 @@ static inline u32 cm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
 /* CM_IDLEST_GFX */
 #define OMAP_ST_GFX					(1 << 0)
 
+/* CM_IDLEST indicator */
+#define OMAP24XX_CM_IDLEST_VAL		0
+#define OMAP34XX_CM_IDLEST_VAL		1
 
 #endif

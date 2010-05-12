@@ -24,6 +24,7 @@
 #include "wl1271_reg.h"
 #include "wl1271_ps.h"
 #include "wl1271_spi.h"
+#include "wl1271_io.h"
 
 #define WL1271_WAKEUP_TIMEOUT 500
 
@@ -39,12 +40,13 @@ void wl1271_elp_work(struct work_struct *work)
 
 	mutex_lock(&wl->mutex);
 
-	if (wl->elp || !wl->psm)
+	if (test_bit(WL1271_FLAG_IN_ELP, &wl->flags) ||
+	    !test_bit(WL1271_FLAG_PSM, &wl->flags))
 		goto out;
 
 	wl1271_debug(DEBUG_PSM, "chip to elp");
 	wl1271_raw_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, ELPCTRL_SLEEP);
-	wl->elp = true;
+	set_bit(WL1271_FLAG_IN_ELP, &wl->flags);
 
 out:
 	mutex_unlock(&wl->mutex);
@@ -55,7 +57,7 @@ out:
 /* Routines to toggle sleep mode while in ELP */
 void wl1271_ps_elp_sleep(struct wl1271 *wl)
 {
-	if (wl->psm) {
+	if (test_bit(WL1271_FLAG_PSM, &wl->flags)) {
 		cancel_delayed_work(&wl->elp_work);
 		ieee80211_queue_delayed_work(wl->hw, &wl->elp_work,
 					msecs_to_jiffies(ELP_ENTRY_DELAY));
@@ -70,7 +72,7 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl, bool chip_awake)
 	u32 start_time = jiffies;
 	bool pending = false;
 
-	if (!wl->elp)
+	if (!test_bit(WL1271_FLAG_IN_ELP, &wl->flags))
 		return 0;
 
 	wl1271_debug(DEBUG_PSM, "waking up chip from elp");
@@ -101,7 +103,7 @@ int wl1271_ps_elp_wakeup(struct wl1271 *wl, bool chip_awake)
 		}
 	}
 
-	wl->elp = false;
+	clear_bit(WL1271_FLAG_IN_ELP, &wl->flags);
 
 	wl1271_debug(DEBUG_PSM, "wakeup time: %u ms",
 		     jiffies_to_msecs(jiffies - start_time));
@@ -117,7 +119,8 @@ out:
 	return 0;
 }
 
-int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode)
+int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
+		       bool send)
 {
 	int ret;
 
@@ -125,25 +128,11 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode)
 	case STATION_POWER_SAVE_MODE:
 		wl1271_debug(DEBUG_PSM, "entering psm");
 
-		/* enable beacon filtering */
-		ret = wl1271_acx_beacon_filter_opt(wl, true);
+		ret = wl1271_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE, send);
 		if (ret < 0)
 			return ret;
 
-		/* enable beacon early termination */
-		ret = wl1271_acx_bet_enable(wl, true);
-		if (ret < 0)
-			return ret;
-
-		ret = wl1271_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE);
-		if (ret < 0)
-			return ret;
-
-		wl1271_ps_elp_sleep(wl);
-		if (ret < 0)
-			return ret;
-
-		wl->psm = 1;
+		set_bit(WL1271_FLAG_PSM, &wl->flags);
 		break;
 	case STATION_ACTIVE_MODE:
 	default:
@@ -162,11 +151,11 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode)
 		if (ret < 0)
 			return ret;
 
-		ret = wl1271_cmd_ps_mode(wl, STATION_ACTIVE_MODE);
+		ret = wl1271_cmd_ps_mode(wl, STATION_ACTIVE_MODE, send);
 		if (ret < 0)
 			return ret;
 
-		wl->psm = 0;
+		clear_bit(WL1271_FLAG_PSM, &wl->flags);
 		break;
 	}
 

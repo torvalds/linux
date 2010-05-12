@@ -108,6 +108,15 @@ struct au1000_private {
 	struct phy_device *phy_dev;
 	struct mii_bus *mii_bus;
 
+	/* PHY configuration */
+	int phy_static_config;
+	int phy_search_highest_addr;
+	int phy1_search_mac0;
+
+	int phy_addr;
+	int phy_busid;
+	int phy_irq;
+
 	/* These variables are just for quick access to certain regs addresses. */
 	volatile mac_reg_t *mac;  /* mac registers                      */
 	volatile u32 *enable;     /* address of MAC Enable Register     */

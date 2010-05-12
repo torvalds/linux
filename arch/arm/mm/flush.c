@@ -13,6 +13,8 @@
 
 #include <asm/cacheflush.h>
 #include <asm/cachetype.h>
+#include <asm/highmem.h>
+#include <asm/smp_plat.h>
 #include <asm/system.h>
 #include <asm/tlbflush.h>
 
@@ -87,13 +89,26 @@ void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsig
 	if (vma->vm_flags & VM_EXEC && icache_is_vivt_asid_tagged())
 		__flush_icache_all();
 }
+#else
+#define flush_pfn_alias(pfn,vaddr)	do { } while (0)
+#endif
 
+#ifdef CONFIG_SMP
+static void flush_ptrace_access_other(void *args)
+{
+	__flush_icache_all();
+}
+#endif
+
+static
 void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
-			 unsigned long uaddr, void *kaddr,
-			 unsigned long len, int write)
+			 unsigned long uaddr, void *kaddr, unsigned long len)
 {
 	if (cache_is_vivt()) {
-		vivt_flush_ptrace_access(vma, page, uaddr, kaddr, len, write);
+		if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm))) {
+			unsigned long addr = (unsigned long)kaddr;
+			__cpuc_coherent_kern_range(addr, addr + len);
+		}
 		return;
 	}
 
@@ -104,34 +119,59 @@ void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 	}
 
 	/* VIPT non-aliasing cache */
-	if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm)) &&
-	    vma->vm_flags & VM_EXEC) {
+	if (vma->vm_flags & VM_EXEC) {
 		unsigned long addr = (unsigned long)kaddr;
-		/* only flushing the kernel mapping on non-aliasing VIPT */
 		__cpuc_coherent_kern_range(addr, addr + len);
+#ifdef CONFIG_SMP
+		if (cache_ops_need_broadcast())
+			smp_call_function(flush_ptrace_access_other,
+					  NULL, 1);
+#endif
 	}
 }
-#else
-#define flush_pfn_alias(pfn,vaddr)	do { } while (0)
+
+/*
+ * Copy user data from/to a page which is mapped into a different
+ * processes address space.  Really, we want to allow our "user
+ * space" model to handle this.
+ *
+ * Note that this code needs to run on the current CPU.
+ */
+void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
+		       unsigned long uaddr, void *dst, const void *src,
+		       unsigned long len)
+{
+#ifdef CONFIG_SMP
+	preempt_disable();
 #endif
+	memcpy(dst, src, len);
+	flush_ptrace_access(vma, page, uaddr, dst, len);
+#ifdef CONFIG_SMP
+	preempt_enable();
+#endif
+}
 
 void __flush_dcache_page(struct address_space *mapping, struct page *page)
 {
-	void *addr = page_address(page);
-
 	/*
 	 * Writeback any data associated with the kernel mapping of this
 	 * page.  This ensures that data in the physical page is mutually
 	 * coherent with the kernels mapping.
 	 */
-#ifdef CONFIG_HIGHMEM
-	/*
-	 * kmap_atomic() doesn't set the page virtual address, and
-	 * kunmap_atomic() takes care of cache flushing already.
-	 */
-	if (addr)
-#endif
-		__cpuc_flush_dcache_area(addr, PAGE_SIZE);
+	if (!PageHighMem(page)) {
+		__cpuc_flush_dcache_area(page_address(page), PAGE_SIZE);
+	} else {
+		void *addr = kmap_high_get(page);
+		if (addr) {
+			__cpuc_flush_dcache_area(addr, PAGE_SIZE);
+			kunmap_high(page);
+		} else if (cache_is_vipt()) {
+			pte_t saved_pte;
+			addr = kmap_high_l1_vipt(page, &saved_pte);
+			__cpuc_flush_dcache_area(addr, PAGE_SIZE);
+			kunmap_high_l1_vipt(page, saved_pte);
+		}
+	}
 
 	/*
 	 * If this is a page cache page, and we have an aliasing VIPT cache,

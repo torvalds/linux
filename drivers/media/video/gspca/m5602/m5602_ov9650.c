@@ -307,7 +307,7 @@ int ov9650_probe(struct sd *sd)
 		return -ENODEV;
 	}
 
-	info("Probing for an ov9650 sensor");
+	PDEBUG(D_PROBE, "Probing for an ov9650 sensor");
 
 	/* Run the pre-init before probing the sensor */
 	for (i = 0; i < ARRAY_SIZE(preinit_ov9650) && !err; i++) {

@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/ioport.h>		/* request_region */
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/of.h>
 #include <linux/of_device.h>

@@ -38,18 +38,20 @@
 #define MSCAN_CLKSRC		0x40
 #define MSCAN_LOOPB		0x20
 #define MSCAN_LISTEN		0x10
+#define MSCAN_BORM		0x08
 #define MSCAN_WUPM		0x04
 #define MSCAN_SLPAK		0x02
 #define MSCAN_INITAK		0x01
 
-/* Use the MPC5200 MSCAN variant? */
+/* Use the MPC5XXX MSCAN variant? */
 #ifdef CONFIG_PPC
-#define MSCAN_FOR_MPC5200
+#define MSCAN_FOR_MPC5XXX
 #endif
 
-#ifdef MSCAN_FOR_MPC5200
+#ifdef MSCAN_FOR_MPC5XXX
 #define MSCAN_CLKSRC_BUS	0
 #define MSCAN_CLKSRC_XTAL	MSCAN_CLKSRC
+#define MSCAN_CLKSRC_IPS	MSCAN_CLKSRC
 #else
 #define MSCAN_CLKSRC_BUS	MSCAN_CLKSRC
 #define MSCAN_CLKSRC_XTAL	0
@@ -136,7 +138,7 @@
 #define MSCAN_EFF_RTR_SHIFT	0
 #define MSCAN_EFF_FLAGS		0x18	/* IDE + SRR */
 
-#ifdef MSCAN_FOR_MPC5200
+#ifdef MSCAN_FOR_MPC5XXX
 #define _MSCAN_RESERVED_(n, num) u8 _res##n[num]
 #define _MSCAN_RESERVED_DSR_SIZE	2
 #else
@@ -165,67 +167,66 @@ struct mscan_regs {
 	u8 cantbsel;				/* + 0x14     0x0a */
 	u8 canidac;				/* + 0x15     0x0b */
 	u8 reserved;				/* + 0x16     0x0c */
-	_MSCAN_RESERVED_(6, 5);			/* + 0x17          */
-#ifndef MSCAN_FOR_MPC5200
-	u8 canmisc;				/*            0x0d */
-#endif
+	_MSCAN_RESERVED_(6, 2);			/* + 0x17          */
+	u8 canmisc;				/* + 0x19     0x0d */
+	_MSCAN_RESERVED_(7, 2);			/* + 0x1a          */
 	u8 canrxerr;				/* + 0x1c     0x0e */
 	u8 cantxerr;				/* + 0x1d     0x0f */
-	_MSCAN_RESERVED_(7, 2);			/* + 0x1e          */
+	_MSCAN_RESERVED_(8, 2);			/* + 0x1e          */
 	u16 canidar1_0;				/* + 0x20     0x10 */
-	_MSCAN_RESERVED_(8, 2);			/* + 0x22          */
+	_MSCAN_RESERVED_(9, 2);			/* + 0x22          */
 	u16 canidar3_2;				/* + 0x24     0x12 */
-	_MSCAN_RESERVED_(9, 2);			/* + 0x26          */
+	_MSCAN_RESERVED_(10, 2);		/* + 0x26          */
 	u16 canidmr1_0;				/* + 0x28     0x14 */
-	_MSCAN_RESERVED_(10, 2);		/* + 0x2a          */
+	_MSCAN_RESERVED_(11, 2);		/* + 0x2a          */
 	u16 canidmr3_2;				/* + 0x2c     0x16 */
-	_MSCAN_RESERVED_(11, 2);		/* + 0x2e          */
+	_MSCAN_RESERVED_(12, 2);		/* + 0x2e          */
 	u16 canidar5_4;				/* + 0x30     0x18 */
-	_MSCAN_RESERVED_(12, 2);		/* + 0x32          */
+	_MSCAN_RESERVED_(13, 2);		/* + 0x32          */
 	u16 canidar7_6;				/* + 0x34     0x1a */
-	_MSCAN_RESERVED_(13, 2);		/* + 0x36          */
+	_MSCAN_RESERVED_(14, 2);		/* + 0x36          */
 	u16 canidmr5_4;				/* + 0x38     0x1c */
-	_MSCAN_RESERVED_(14, 2);		/* + 0x3a          */
+	_MSCAN_RESERVED_(15, 2);		/* + 0x3a          */
 	u16 canidmr7_6;				/* + 0x3c     0x1e */
-	_MSCAN_RESERVED_(15, 2);		/* + 0x3e          */
+	_MSCAN_RESERVED_(16, 2);		/* + 0x3e          */
 	struct {
 		u16 idr1_0;			/* + 0x40     0x20 */
-		 _MSCAN_RESERVED_(16, 2);	/* + 0x42          */
+		_MSCAN_RESERVED_(17, 2);	/* + 0x42          */
 		u16 idr3_2;			/* + 0x44     0x22 */
-		 _MSCAN_RESERVED_(17, 2);	/* + 0x46          */
+		_MSCAN_RESERVED_(18, 2);	/* + 0x46          */
 		u16 dsr1_0;			/* + 0x48     0x24 */
-		 _MSCAN_RESERVED_(18, 2);	/* + 0x4a          */
+		_MSCAN_RESERVED_(19, 2);	/* + 0x4a          */
 		u16 dsr3_2;			/* + 0x4c     0x26 */
-		 _MSCAN_RESERVED_(19, 2);	/* + 0x4e          */
+		_MSCAN_RESERVED_(20, 2);	/* + 0x4e          */
 		u16 dsr5_4;			/* + 0x50     0x28 */
-		 _MSCAN_RESERVED_(20, 2);	/* + 0x52          */
+		_MSCAN_RESERVED_(21, 2);	/* + 0x52          */
 		u16 dsr7_6;			/* + 0x54     0x2a */
-		 _MSCAN_RESERVED_(21, 2);	/* + 0x56          */
+		_MSCAN_RESERVED_(22, 2);	/* + 0x56          */
 		u8 dlr;				/* + 0x58     0x2c */
-		 u8:8;				/* + 0x59     0x2d */
-		 _MSCAN_RESERVED_(22, 2);	/* + 0x5a          */
+		u8 reserved;			/* + 0x59     0x2d */
+		_MSCAN_RESERVED_(23, 2);	/* + 0x5a          */
 		u16 time;			/* + 0x5c     0x2e */
 	} rx;
-	 _MSCAN_RESERVED_(23, 2);		/* + 0x5e          */
+	_MSCAN_RESERVED_(24, 2);		/* + 0x5e          */
 	struct {
 		u16 idr1_0;			/* + 0x60     0x30 */
-		 _MSCAN_RESERVED_(24, 2);	/* + 0x62          */
+		_MSCAN_RESERVED_(25, 2);	/* + 0x62          */
 		u16 idr3_2;			/* + 0x64     0x32 */
-		 _MSCAN_RESERVED_(25, 2);	/* + 0x66          */
+		_MSCAN_RESERVED_(26, 2);	/* + 0x66          */
 		u16 dsr1_0;			/* + 0x68     0x34 */
-		 _MSCAN_RESERVED_(26, 2);	/* + 0x6a          */
+		_MSCAN_RESERVED_(27, 2);	/* + 0x6a          */
 		u16 dsr3_2;			/* + 0x6c     0x36 */
-		 _MSCAN_RESERVED_(27, 2);	/* + 0x6e          */
+		_MSCAN_RESERVED_(28, 2);	/* + 0x6e          */
 		u16 dsr5_4;			/* + 0x70     0x38 */
-		 _MSCAN_RESERVED_(28, 2);	/* + 0x72          */
+		_MSCAN_RESERVED_(29, 2);	/* + 0x72          */
 		u16 dsr7_6;			/* + 0x74     0x3a */
-		 _MSCAN_RESERVED_(29, 2);	/* + 0x76          */
+		_MSCAN_RESERVED_(30, 2);	/* + 0x76          */
 		u8 dlr;				/* + 0x78     0x3c */
 		u8 tbpr;			/* + 0x79     0x3d */
-		 _MSCAN_RESERVED_(30, 2);	/* + 0x7a          */
+		_MSCAN_RESERVED_(31, 2);	/* + 0x7a          */
 		u16 time;			/* + 0x7c     0x3e */
 	} tx;
-	 _MSCAN_RESERVED_(31, 2);		/* + 0x7e          */
+	_MSCAN_RESERVED_(32, 2);		/* + 0x7e          */
 } __attribute__ ((packed));
 
 #undef _MSCAN_RESERVED_
@@ -237,6 +238,15 @@ struct mscan_regs {
 #define MSCAN_POWEROFF_MODE	(MSCAN_CSWAI | MSCAN_SLPRQ)
 #define MSCAN_SET_MODE_RETRIES	255
 #define MSCAN_ECHO_SKB_MAX	3
+#define MSCAN_RX_INTS_ENABLE	(MSCAN_OVRIE | MSCAN_RXFIE | MSCAN_CSCIE | \
+				 MSCAN_RSTATE1 | MSCAN_RSTATE0 | \
+				 MSCAN_TSTATE1 | MSCAN_TSTATE0)
+
+/* MSCAN type variants */
+enum {
+	MSCAN_TYPE_MPC5200,
+	MSCAN_TYPE_MPC5121
+};
 
 #define BTR0_BRP_MASK		0x3f
 #define BTR0_SJW_SHIFT		6
@@ -270,6 +280,7 @@ struct tx_queue_entry {
 
 struct mscan_priv {
 	struct can_priv can;	/* must be the first member */
+	unsigned int type; 	/* MSCAN type variants */
 	long open_time;
 	unsigned long flags;
 	void __iomem *reg_base;	/* ioremap'ed address to registers */
@@ -285,12 +296,7 @@ struct mscan_priv {
 };
 
 extern struct net_device *alloc_mscandev(void);
-/*
- * clock_src:
- *	1 = The MSCAN clock source is the onchip Bus Clock.
- *	0 = The MSCAN clock source is the chip Oscillator Clock.
- */
-extern int register_mscandev(struct net_device *dev, int clock_src);
+extern int register_mscandev(struct net_device *dev, int mscan_clksrc);
 extern void unregister_mscandev(struct net_device *dev);
 
 #endif /* __MSCAN_H__ */

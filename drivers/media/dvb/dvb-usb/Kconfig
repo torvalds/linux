@@ -112,11 +112,13 @@ config DVB_USB_CXUSB
 	select DVB_MT352 if !DVB_FE_CUSTOMISE
 	select DVB_ZL10353 if !DVB_FE_CUSTOMISE
 	select DVB_DIB7000P if !DVB_FE_CUSTOMISE
-	select DVB_LGS8GL5 if !DVB_FE_CUSTOMISE
 	select DVB_TUNER_DIB0070 if !DVB_FE_CUSTOMISE
+	select DVB_ATBM8830 if !DVB_FE_CUSTOMISE
+	select DVB_LGS8GXX if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_SIMPLE if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_XC2028 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_MAX2165 if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the Conexant USB2.0 hybrid reference design.
 	  Currently, only DVB and ATSC modes are supported, analog mode
@@ -334,3 +336,11 @@ config DVB_USB_EC168
 	select MEDIA_TUNER_MXL5005S if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the E3C EC168 DVB-T USB2.0 receiver.
+
+config DVB_USB_AZ6027
+	tristate "Azurewave DVB-S/S2 USB2.0 AZ6027 support"
+	depends on DVB_USB
+	select DVB_STB0899 if !DVB_FE_CUSTOMISE
+	select DVB_STB6100 if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the AZ6027 device

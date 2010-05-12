@@ -514,7 +514,7 @@ static int mt9t112_init_pll(const struct i2c_client *client)
 	/* poll to verify out of standby. Must Poll this bit */
 	for (i = 0; i < 100; i++) {
 		mt9t112_reg_read(data, client, 0x0018);
-		if (0x4000 & data)
+		if (!(0x4000 & data))
 			break;
 
 		mdelay(10);

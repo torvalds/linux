@@ -379,6 +379,12 @@ int event__process_mmap(event_t *self, struct perf_session *session)
 
 			session->vmlinux_maps[MAP__FUNCTION]->start = self->mmap.start;
 			session->vmlinux_maps[MAP__FUNCTION]->end   = self->mmap.start + self->mmap.len;
+			/*
+			 * Be a bit paranoid here, some perf.data file came with
+			 * a zero sized synthesized MMAP event for the kernel.
+			 */
+			if (session->vmlinux_maps[MAP__FUNCTION]->end == 0)
+				session->vmlinux_maps[MAP__FUNCTION]->end = ~0UL;
 
 			perf_session__set_kallsyms_ref_reloc_sym(session, symbol_name,
 								 self->mmap.pgoff);
@@ -436,10 +442,10 @@ void thread__find_addr_map(struct thread *self,
 	al->thread = self;
 	al->addr = addr;
 
-	if (cpumode & PERF_RECORD_MISC_KERNEL) {
+	if (cpumode == PERF_RECORD_MISC_KERNEL) {
 		al->level = 'k';
 		mg = &session->kmaps;
-	} else if (cpumode & PERF_RECORD_MISC_USER)
+	} else if (cpumode == PERF_RECORD_MISC_USER)
 		al->level = '.';
 	else {
 		al->level = 'H';

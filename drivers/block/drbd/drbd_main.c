@@ -1668,7 +1668,7 @@ int drbd_send_sync_param(struct drbd_conf *mdev, struct syncer_conf *sc)
 int drbd_send_protocol(struct drbd_conf *mdev)
 {
 	struct p_protocol *p;
-	int size, rv;
+	int size, cf, rv;
 
 	size = sizeof(struct p_protocol);
 
@@ -1685,8 +1685,21 @@ int drbd_send_protocol(struct drbd_conf *mdev)
 	p->after_sb_0p   = cpu_to_be32(mdev->net_conf->after_sb_0p);
 	p->after_sb_1p   = cpu_to_be32(mdev->net_conf->after_sb_1p);
 	p->after_sb_2p   = cpu_to_be32(mdev->net_conf->after_sb_2p);
-	p->want_lose     = cpu_to_be32(mdev->net_conf->want_lose);
 	p->two_primaries = cpu_to_be32(mdev->net_conf->two_primaries);
+
+	cf = 0;
+	if (mdev->net_conf->want_lose)
+		cf |= CF_WANT_LOSE;
+	if (mdev->net_conf->dry_run) {
+		if (mdev->agreed_pro_version >= 92)
+			cf |= CF_DRY_RUN;
+		else {
+			dev_err(DEV, "--dry-run is not supported by peer");
+			kfree(p);
+			return 0;
+		}
+	}
+	p->conn_flags    = cpu_to_be32(cf);
 
 	if (mdev->agreed_pro_version >= 87)
 		strcpy(p->integrity_alg, mdev->net_conf->integrity_alg);
@@ -2973,7 +2986,6 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 		goto out_no_q;
 	mdev->rq_queue = q;
 	q->queuedata   = mdev;
-	blk_queue_max_segment_size(q, DRBD_MAX_SEGMENT_SIZE);
 
 	disk = alloc_disk(1);
 	if (!disk)
@@ -2997,6 +3009,7 @@ struct drbd_conf *drbd_new_device(unsigned int minor)
 	q->backing_dev_info.congested_data = mdev;
 
 	blk_queue_make_request(q, drbd_make_request_26);
+	blk_queue_max_segment_size(q, DRBD_MAX_SEGMENT_SIZE);
 	blk_queue_bounce_limit(q, BLK_BOUNCE_ANY);
 	blk_queue_merge_bvec(q, drbd_merge_bvec);
 	q->queue_lock = &mdev->req_lock; /* needed since we use */
@@ -3161,14 +3174,18 @@ void drbd_free_bc(struct drbd_backing_dev *ldev)
 void drbd_free_sock(struct drbd_conf *mdev)
 {
 	if (mdev->data.socket) {
+		mutex_lock(&mdev->data.mutex);
 		kernel_sock_shutdown(mdev->data.socket, SHUT_RDWR);
 		sock_release(mdev->data.socket);
 		mdev->data.socket = NULL;
+		mutex_unlock(&mdev->data.mutex);
 	}
 	if (mdev->meta.socket) {
+		mutex_lock(&mdev->meta.mutex);
 		kernel_sock_shutdown(mdev->meta.socket, SHUT_RDWR);
 		sock_release(mdev->meta.socket);
 		mdev->meta.socket = NULL;
+		mutex_unlock(&mdev->meta.mutex);
 	}
 }
 

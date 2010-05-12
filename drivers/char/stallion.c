@@ -724,7 +724,6 @@ static int stl_open(struct tty_struct *tty, struct file *filp)
 {
 	struct stlport	*portp;
 	struct stlbrd	*brdp;
-	struct tty_port *port;
 	unsigned int	minordev, brdnr, panelnr;
 	int		portnr;
 
@@ -754,7 +753,8 @@ static int stl_open(struct tty_struct *tty, struct file *filp)
 	portp = brdp->panels[panelnr]->ports[portnr];
 	if (portp == NULL)
 		return -ENODEV;
-	port = &portp->port;
+
+	tty->driver_data = portp;
 	return tty_port_open(&portp->port, tty, filp);
 
 }
@@ -841,7 +841,8 @@ static void stl_close(struct tty_struct *tty, struct file *filp)
 	pr_debug("stl_close(tty=%p,filp=%p)\n", tty, filp);
 
 	portp = tty->driver_data;
-	BUG_ON(portp == NULL);
+	if(portp == NULL)
+		return;
 	tty_port_close(&portp->port, tty, filp);
 }
 

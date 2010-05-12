@@ -67,32 +67,6 @@
 /* Additional NETIF_MSG_* categories */
 #define NETIF_MSG_MMIO 0x8000000
 
-struct t3_rx_mode {
-	struct net_device *dev;
-	struct dev_mc_list *mclist;
-	unsigned int idx;
-};
-
-static inline void init_rx_mode(struct t3_rx_mode *p, struct net_device *dev,
-				struct dev_mc_list *mclist)
-{
-	p->dev = dev;
-	p->mclist = mclist;
-	p->idx = 0;
-}
-
-static inline u8 *t3_get_next_mcaddr(struct t3_rx_mode *rm)
-{
-	u8 *addr = NULL;
-
-	if (rm->mclist && rm->idx < rm->dev->mc_count) {
-		addr = rm->mclist->dmi_addr;
-		rm->mclist = rm->mclist->next;
-		rm->idx++;
-	}
-	return addr;
-}
-
 enum {
 	MAX_NPORTS = 2,		/* max # of ports */
 	MAX_FRAME_SIZE = 10240,	/* max MAC frame size, including header + FCS */
@@ -746,7 +720,7 @@ void t3_mac_enable_exact_filters(struct cmac *mac);
 int t3_mac_enable(struct cmac *mac, int which);
 int t3_mac_disable(struct cmac *mac, int which);
 int t3_mac_set_mtu(struct cmac *mac, unsigned int mtu);
-int t3_mac_set_rx_mode(struct cmac *mac, struct t3_rx_mode *rm);
+int t3_mac_set_rx_mode(struct cmac *mac, struct net_device *dev);
 int t3_mac_set_address(struct cmac *mac, unsigned int idx, u8 addr[6]);
 int t3_mac_set_num_ucast(struct cmac *mac, int n);
 const struct mac_stats *t3_mac_update_stats(struct cmac *mac);

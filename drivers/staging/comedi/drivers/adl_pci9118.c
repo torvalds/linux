@@ -66,6 +66,7 @@ Configuration options:
 #include "../pci_ids.h"
 
 #include <linux/delay.h>
+#include <linux/gfp.h>
 #include <linux/interrupt.h>
 
 #include "amcc_s5933.h"
@@ -88,9 +89,9 @@ Configuration options:
 #define IORANGE_9118 	64	/* I hope */
 #define PCI9118_CHANLEN	255	/* len of chanlist, some source say 256, but reality looks like 255 :-( */
 
-#define PCI9118_CNT0	0x00	/* R/W: 8254 couter 0 */
-#define PCI9118_CNT1	0x04	/* R/W: 8254 couter 0 */
-#define PCI9118_CNT2	0x08	/* R/W: 8254 couter 0 */
+#define PCI9118_CNT0	0x00	/* R/W: 8254 counter 0 */
+#define PCI9118_CNT1	0x04	/* R/W: 8254 counter 0 */
+#define PCI9118_CNT2	0x08	/* R/W: 8254 counter 0 */
 #define PCI9118_CNTCTRL	0x0c	/* W:   8254 counter control */
 #define PCI9118_AD_DATA	0x10	/* R:   A/D data */
 #define PCI9118_DA1	0x10	/* W:   D/A registers */

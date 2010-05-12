@@ -24,9 +24,11 @@
 #include <linux/uaccess.h>
 #include <linux/ftrace.h>
 #include <linux/sysctl.h>
+#include <linux/slab.h>
 #include <linux/ctype.h>
 #include <linux/list.h>
 #include <linux/hash.h>
+#include <linux/rcupdate.h>
 
 #include <trace/events/sched.h>
 
@@ -84,22 +86,22 @@ ftrace_func_t ftrace_trace_function __read_mostly = ftrace_stub;
 ftrace_func_t __ftrace_trace_function __read_mostly = ftrace_stub;
 ftrace_func_t ftrace_pid_function __read_mostly = ftrace_stub;
 
-#ifdef CONFIG_FUNCTION_GRAPH_TRACER
-static int ftrace_set_func(unsigned long *array, int *idx, char *buffer);
-#endif
-
+/*
+ * Traverse the ftrace_list, invoking all entries.  The reason that we
+ * can use rcu_dereference_raw() is that elements removed from this list
+ * are simply leaked, so there is no need to interact with a grace-period
+ * mechanism.  The rcu_dereference_raw() calls are needed to handle
+ * concurrent insertions into the ftrace_list.
+ *
+ * Silly Alpha and silly pointer-speculation compiler optimizations!
+ */
 static void ftrace_list_func(unsigned long ip, unsigned long parent_ip)
 {
-	struct ftrace_ops *op = ftrace_list;
-
-	/* in case someone actually ports this to alpha! */
-	read_barrier_depends();
+	struct ftrace_ops *op = rcu_dereference_raw(ftrace_list); /*see above*/
 
 	while (op != &ftrace_list_end) {
-		/* silly alpha */
-		read_barrier_depends();
 		op->func(ip, parent_ip);
-		op = op->next;
+		op = rcu_dereference_raw(op->next); /*see above*/
 	};
 }
 
@@ -154,8 +156,7 @@ static int __register_ftrace_function(struct ftrace_ops *ops)
 	 * the ops->next pointer is valid before another CPU sees
 	 * the ops pointer included into the ftrace_list.
 	 */
-	smp_wmb();
-	ftrace_list = ops;
+	rcu_assign_pointer(ftrace_list, ops);
 
 	if (ftrace_enabled) {
 		ftrace_func_t func;
@@ -2276,6 +2277,8 @@ __setup("ftrace_filter=", set_ftrace_filter);
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 static char ftrace_graph_buf[FTRACE_FILTER_SIZE] __initdata;
+static int ftrace_set_func(unsigned long *array, int *idx, char *buffer);
+
 static int __init set_graph_function(char *str)
 {
 	strlcpy(ftrace_graph_buf, str, FTRACE_FILTER_SIZE);
@@ -2402,6 +2405,7 @@ static const struct file_operations ftrace_notrace_fops = {
 static DEFINE_MUTEX(graph_lock);
 
 int ftrace_graph_count;
+int ftrace_graph_filter_enabled;
 unsigned long ftrace_graph_funcs[FTRACE_GRAPH_MAX_FUNCS] __read_mostly;
 
 static void *
@@ -2424,7 +2428,7 @@ static void *g_start(struct seq_file *m, loff_t *pos)
 	mutex_lock(&graph_lock);
 
 	/* Nothing, tell g_show to print all functions are enabled */
-	if (!ftrace_graph_count && !*pos)
+	if (!ftrace_graph_filter_enabled && !*pos)
 		return (void *)1;
 
 	return __g_next(m, pos);
@@ -2470,6 +2474,7 @@ ftrace_graph_open(struct inode *inode, struct file *file)
 	mutex_lock(&graph_lock);
 	if ((file->f_mode & FMODE_WRITE) &&
 	    (file->f_flags & O_TRUNC)) {
+		ftrace_graph_filter_enabled = 0;
 		ftrace_graph_count = 0;
 		memset(ftrace_graph_funcs, 0, sizeof(ftrace_graph_funcs));
 	}
@@ -2495,7 +2500,7 @@ ftrace_set_func(unsigned long *array, int *idx, char *buffer)
 	struct dyn_ftrace *rec;
 	struct ftrace_page *pg;
 	int search_len;
-	int found = 0;
+	int fail = 1;
 	int type, not;
 	char *search;
 	bool exists;
@@ -2506,37 +2511,51 @@ ftrace_set_func(unsigned long *array, int *idx, char *buffer)
 
 	/* decode regex */
 	type = filter_parse_regex(buffer, strlen(buffer), &search, &not);
-	if (not)
-		return -EINVAL;
+	if (!not && *idx >= FTRACE_GRAPH_MAX_FUNCS)
+		return -EBUSY;
 
 	search_len = strlen(search);
 
 	mutex_lock(&ftrace_lock);
 	do_for_each_ftrace_rec(pg, rec) {
 
-		if (*idx >= FTRACE_GRAPH_MAX_FUNCS)
-			break;
-
 		if (rec->flags & (FTRACE_FL_FAILED | FTRACE_FL_FREE))
 			continue;
 
 		if (ftrace_match_record(rec, search, search_len, type)) {
-			/* ensure it is not already in the array */
+			/* if it is in the array */
 			exists = false;
-			for (i = 0; i < *idx; i++)
+			for (i = 0; i < *idx; i++) {
 				if (array[i] == rec->ip) {
 					exists = true;
 					break;
 				}
-			if (!exists)
-				array[(*idx)++] = rec->ip;
-			found = 1;
+			}
+
+			if (!not) {
+				fail = 0;
+				if (!exists) {
+					array[(*idx)++] = rec->ip;
+					if (*idx >= FTRACE_GRAPH_MAX_FUNCS)
+						goto out;
+				}
+			} else {
+				if (exists) {
+					array[i] = array[--(*idx)];
+					array[*idx] = 0;
+					fail = 0;
+				}
+			}
 		}
 	} while_for_each_ftrace_rec();
-
+out:
 	mutex_unlock(&ftrace_lock);
 
-	return found ? 0 : -EINVAL;
+	if (fail)
+		return -EINVAL;
+
+	ftrace_graph_filter_enabled = 1;
+	return 0;
 }
 
 static ssize_t
@@ -2546,15 +2565,10 @@ ftrace_graph_write(struct file *file, const char __user *ubuf,
 	struct trace_parser parser;
 	ssize_t read, ret;
 
-	if (!cnt || cnt < 0)
+	if (!cnt)
 		return 0;
 
 	mutex_lock(&graph_lock);
-
-	if (ftrace_graph_count >= FTRACE_GRAPH_MAX_FUNCS) {
-		ret = -EBUSY;
-		goto out_unlock;
-	}
 
 	if (trace_parser_get_init(&parser, FTRACE_BUFF_MAX)) {
 		ret = -ENOMEM;
@@ -3340,6 +3354,7 @@ void ftrace_graph_init_task(struct task_struct *t)
 {
 	/* Make sure we do not use the parent ret_stack */
 	t->ret_stack = NULL;
+	t->curr_ret_stack = -1;
 
 	if (ftrace_graph_active) {
 		struct ftrace_ret_stack *ret_stack;
@@ -3349,7 +3364,6 @@ void ftrace_graph_init_task(struct task_struct *t)
 				GFP_KERNEL);
 		if (!ret_stack)
 			return;
-		t->curr_ret_stack = -1;
 		atomic_set(&t->tracing_graph_pause, 0);
 		atomic_set(&t->trace_overrun, 0);
 		t->ftrace_timestamp = 0;

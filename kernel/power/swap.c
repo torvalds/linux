@@ -23,6 +23,7 @@
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/pm.h>
+#include <linux/slab.h>
 
 #include "power.h"
 
@@ -657,10 +658,6 @@ int swsusp_read(unsigned int *flags_p)
 	struct swsusp_info *header;
 
 	*flags_p = swsusp_header->flags;
-	if (IS_ERR(resume_bdev)) {
-		pr_debug("PM: Image device not initialised\n");
-		return PTR_ERR(resume_bdev);
-	}
 
 	memset(&snapshot, 0, sizeof(struct snapshot_handle));
 	error = snapshot_write_next(&snapshot, PAGE_SIZE);

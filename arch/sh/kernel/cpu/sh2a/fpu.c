@@ -26,8 +26,7 @@
 /*
  * Save FPU registers onto task structure.
  */
-void
-save_fpu(struct task_struct *tsk)
+void save_fpu(struct task_struct *tsk)
 {
 	unsigned long dummy;
 
@@ -52,7 +51,7 @@ save_fpu(struct task_struct *tsk)
 		     "fmov.s	fr0, @-%0\n\t"
 		     "lds	%3, fpscr\n\t"
 		     : "=r" (dummy)
-		     : "0" ((char *)(&tsk->thread.fpu.hard.status)),
+		     : "0" ((char *)(&tsk->thread.xstate->hardfpu.status)),
 		       "r" (FPSCR_RCHG),
 		       "r" (FPSCR_INIT)
 		     : "memory");
@@ -60,8 +59,7 @@ save_fpu(struct task_struct *tsk)
 	disable_fpu();
 }
 
-static void
-restore_fpu(struct task_struct *tsk)
+void restore_fpu(struct task_struct *tsk)
 {
 	unsigned long dummy;
 
@@ -85,41 +83,8 @@ restore_fpu(struct task_struct *tsk)
 		     "lds.l	@%0+, fpscr\n\t"
 		     "lds.l	@%0+, fpul\n\t"
 		     : "=r" (dummy)
-		     : "0" (&tsk->thread.fpu), "r" (FPSCR_RCHG)
+		     : "0" (tsk->thread.xstate), "r" (FPSCR_RCHG)
 		     : "memory");
-	disable_fpu();
-}
-
-/*
- * Load the FPU with signalling NANS.  This bit pattern we're using
- * has the property that no matter wether considered as single or as
- * double precission represents signaling NANS.
- */
-
-static void
-fpu_init(void)
-{
-	enable_fpu();
-	asm volatile("lds	%0, fpul\n\t"
-		     "fsts	fpul, fr0\n\t"
-		     "fsts	fpul, fr1\n\t"
-		     "fsts	fpul, fr2\n\t"
-		     "fsts	fpul, fr3\n\t"
-		     "fsts	fpul, fr4\n\t"
-		     "fsts	fpul, fr5\n\t"
-		     "fsts	fpul, fr6\n\t"
-		     "fsts	fpul, fr7\n\t"
-		     "fsts	fpul, fr8\n\t"
-		     "fsts	fpul, fr9\n\t"
-		     "fsts	fpul, fr10\n\t"
-		     "fsts	fpul, fr11\n\t"
-		     "fsts	fpul, fr12\n\t"
-		     "fsts	fpul, fr13\n\t"
-		     "fsts	fpul, fr14\n\t"
-		     "fsts	fpul, fr15\n\t"
-		     "lds	%2, fpscr\n\t"
-		     : /* no output */
-		     : "r" (0), "r" (FPSCR_RCHG), "r" (FPSCR_INIT));
 	disable_fpu();
 }
 
@@ -490,9 +455,9 @@ ieee_fpe_handler (struct pt_regs *regs)
 	if ((finsn & 0xf1ff) == 0xf0ad) { /* fcnvsd */
 		struct task_struct *tsk = current;
 
-		if ((tsk->thread.fpu.hard.fpscr & FPSCR_FPU_ERROR)) {
+		if ((tsk->thread.xstate->hardfpu.fpscr & FPSCR_FPU_ERROR)) {
 			/* FPU error */
-			denormal_to_double (&tsk->thread.fpu.hard,
+			denormal_to_double (&tsk->thread.xstate->hardfpu,
 					    (finsn >> 8) & 0xf);
 		} else
 			return 0;
@@ -507,9 +472,9 @@ ieee_fpe_handler (struct pt_regs *regs)
 
 		n = (finsn >> 8) & 0xf;
 		m = (finsn >> 4) & 0xf;
-		hx = tsk->thread.fpu.hard.fp_regs[n];
-		hy = tsk->thread.fpu.hard.fp_regs[m];
-		fpscr = tsk->thread.fpu.hard.fpscr;
+		hx = tsk->thread.xstate->hardfpu.fp_regs[n];
+		hy = tsk->thread.xstate->hardfpu.fp_regs[m];
+		fpscr = tsk->thread.xstate->hardfpu.fpscr;
 		prec = fpscr & (1 << 19);
 
 		if ((fpscr & FPSCR_FPU_ERROR)
@@ -519,15 +484,15 @@ ieee_fpe_handler (struct pt_regs *regs)
 
 			/* FPU error because of denormal */
 			llx = ((long long) hx << 32)
-			       | tsk->thread.fpu.hard.fp_regs[n+1];
+			       | tsk->thread.xstate->hardfpu.fp_regs[n+1];
 			lly = ((long long) hy << 32)
-			       | tsk->thread.fpu.hard.fp_regs[m+1];
+			       | tsk->thread.xstate->hardfpu.fp_regs[m+1];
 			if ((hx & 0x7fffffff) >= 0x00100000)
 				llx = denormal_muld(lly, llx);
 			else
 				llx = denormal_muld(llx, lly);
-			tsk->thread.fpu.hard.fp_regs[n] = llx >> 32;
-			tsk->thread.fpu.hard.fp_regs[n+1] = llx & 0xffffffff;
+			tsk->thread.xstate->hardfpu.fp_regs[n] = llx >> 32;
+			tsk->thread.xstate->hardfpu.fp_regs[n+1] = llx & 0xffffffff;
 		} else if ((fpscr & FPSCR_FPU_ERROR)
 		     && (!prec && ((hx & 0x7fffffff) < 0x00800000
 				   || (hy & 0x7fffffff) < 0x00800000))) {
@@ -536,7 +501,7 @@ ieee_fpe_handler (struct pt_regs *regs)
 				hx = denormal_mulf(hy, hx);
 			else
 				hx = denormal_mulf(hx, hy);
-			tsk->thread.fpu.hard.fp_regs[n] = hx;
+			tsk->thread.xstate->hardfpu.fp_regs[n] = hx;
 		} else
 			return 0;
 
@@ -550,9 +515,9 @@ ieee_fpe_handler (struct pt_regs *regs)
 
 		n = (finsn >> 8) & 0xf;
 		m = (finsn >> 4) & 0xf;
-		hx = tsk->thread.fpu.hard.fp_regs[n];
-		hy = tsk->thread.fpu.hard.fp_regs[m];
-		fpscr = tsk->thread.fpu.hard.fpscr;
+		hx = tsk->thread.xstate->hardfpu.fp_regs[n];
+		hy = tsk->thread.xstate->hardfpu.fp_regs[m];
+		fpscr = tsk->thread.xstate->hardfpu.fpscr;
 		prec = fpscr & (1 << 19);
 
 		if ((fpscr & FPSCR_FPU_ERROR)
@@ -562,15 +527,15 @@ ieee_fpe_handler (struct pt_regs *regs)
 
 			/* FPU error because of denormal */
 			llx = ((long long) hx << 32)
-			       | tsk->thread.fpu.hard.fp_regs[n+1];
+			       | tsk->thread.xstate->hardfpu.fp_regs[n+1];
 			lly = ((long long) hy << 32)
-			       | tsk->thread.fpu.hard.fp_regs[m+1];
+			       | tsk->thread.xstate->hardfpu.fp_regs[m+1];
 			if ((finsn & 0xf00f) == 0xf000)
 				llx = denormal_addd(llx, lly);
 			else
 				llx = denormal_addd(llx, lly ^ (1LL << 63));
-			tsk->thread.fpu.hard.fp_regs[n] = llx >> 32;
-			tsk->thread.fpu.hard.fp_regs[n+1] = llx & 0xffffffff;
+			tsk->thread.xstate->hardfpu.fp_regs[n] = llx >> 32;
+			tsk->thread.xstate->hardfpu.fp_regs[n+1] = llx & 0xffffffff;
 		} else if ((fpscr & FPSCR_FPU_ERROR)
 		     && (!prec && ((hx & 0x7fffffff) < 0x00800000
 				   || (hy & 0x7fffffff) < 0x00800000))) {
@@ -579,7 +544,7 @@ ieee_fpe_handler (struct pt_regs *regs)
 				hx = denormal_addf(hx, hy);
 			else
 				hx = denormal_addf(hx, hy ^ 0x80000000);
-			tsk->thread.fpu.hard.fp_regs[n] = hx;
+			tsk->thread.xstate->hardfpu.fp_regs[n] = hx;
 		} else
 			return 0;
 
@@ -597,7 +562,7 @@ BUILD_TRAP_HANDLER(fpu_error)
 
 	__unlazy_fpu(tsk, regs);
 	if (ieee_fpe_handler(regs)) {
-		tsk->thread.fpu.hard.fpscr &=
+		tsk->thread.xstate->hardfpu.fpscr &=
 			~(FPSCR_CAUSE_MASK | FPSCR_FLAG_MASK);
 		grab_fpu(regs);
 		restore_fpu(tsk);
@@ -606,34 +571,4 @@ BUILD_TRAP_HANDLER(fpu_error)
 	}
 
 	force_sig(SIGFPE, tsk);
-}
-
-void fpu_state_restore(struct pt_regs *regs)
-{
-	struct task_struct *tsk = current;
-
-	grab_fpu(regs);
-	if (unlikely(!user_mode(regs))) {
-		printk(KERN_ERR "BUG: FPU is used in kernel mode.\n");
-		BUG();
-		return;
-	}
-
-	if (likely(used_math())) {
-		/* Using the FPU again.  */
-		restore_fpu(tsk);
-	} else	{
-		/* First time FPU user.  */
-		fpu_init();
-		set_used_math();
-	}
-	task_thread_info(tsk)->status |= TS_USEDFPU;
-	tsk->fpu_counter++;
-}
-
-BUILD_TRAP_HANDLER(fpu_state_restore)
-{
-	TRAP_HANDLER_DECL;
-
-	fpu_state_restore(regs);
 }

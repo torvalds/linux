@@ -26,6 +26,7 @@
 #include <linux/interrupt.h>
 #include <linux/in.h>
 #include <linux/inet.h>
+#include <linux/slab.h>
 #include <linux/tty.h>
 #include <linux/errno.h>
 #include <linux/netdevice.h>

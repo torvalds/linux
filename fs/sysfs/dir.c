@@ -93,7 +93,7 @@ static void sysfs_unlink_sibling(struct sysfs_dirent *sd)
  *	RETURNS:
  *	Pointer to @sd on success, NULL on failure.
  */
-static struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
+struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
 {
 	if (unlikely(!sd))
 		return NULL;
@@ -124,7 +124,7 @@ static struct sysfs_dirent *sysfs_get_active(struct sysfs_dirent *sd)
  *	Put an active reference to @sd.  This function is noop if @sd
  *	is NULL.
  */
-static void sysfs_put_active(struct sysfs_dirent *sd)
+void sysfs_put_active(struct sysfs_dirent *sd)
 {
 	struct completion *cmpl;
 	int v;
@@ -145,45 +145,6 @@ static void sysfs_put_active(struct sysfs_dirent *sd)
 }
 
 /**
- *	sysfs_get_active_two - get active references to sysfs_dirent and parent
- *	@sd: sysfs_dirent of interest
- *
- *	Get active reference to @sd and its parent.  Parent's active
- *	reference is grabbed first.  This function is noop if @sd is
- *	NULL.
- *
- *	RETURNS:
- *	Pointer to @sd on success, NULL on failure.
- */
-struct sysfs_dirent *sysfs_get_active_two(struct sysfs_dirent *sd)
-{
-	if (sd) {
-		if (sd->s_parent && unlikely(!sysfs_get_active(sd->s_parent)))
-			return NULL;
-		if (unlikely(!sysfs_get_active(sd))) {
-			sysfs_put_active(sd->s_parent);
-			return NULL;
-		}
-	}
-	return sd;
-}
-
-/**
- *	sysfs_put_active_two - put active references to sysfs_dirent and parent
- *	@sd: sysfs_dirent of interest
- *
- *	Put active references to @sd and its parent.  This function is
- *	noop if @sd is NULL.
- */
-void sysfs_put_active_two(struct sysfs_dirent *sd)
-{
-	if (sd) {
-		sysfs_put_active(sd);
-		sysfs_put_active(sd->s_parent);
-	}
-}
-
-/**
  *	sysfs_deactivate - deactivate sysfs_dirent
  *	@sd: sysfs_dirent to deactivate
  *
@@ -195,6 +156,10 @@ static void sysfs_deactivate(struct sysfs_dirent *sd)
 	int v;
 
 	BUG_ON(sd->s_sibling || !(sd->s_flags & SYSFS_FLAG_REMOVED));
+
+	if (!(sysfs_type(sd) & SYSFS_ACTIVE_REF))
+		return;
+
 	sd->s_sibling = (void *)&wait;
 
 	rwsem_acquire(&sd->dep_map, 0, 0, _RET_IP_);
@@ -354,7 +319,6 @@ struct sysfs_dirent *sysfs_new_dirent(const char *name, umode_t mode, int type)
 
 	atomic_set(&sd->s_count, 1);
 	atomic_set(&sd->s_active, 0);
-	sysfs_dirent_init_lockdep(sd);
 
 	sd->s_name = name;
 	sd->s_mode = mode;
@@ -681,7 +645,7 @@ static struct dentry * sysfs_lookup(struct inode *dir, struct dentry *dentry,
 	}
 
 	/* attach dentry and inode */
-	inode = sysfs_get_inode(sd);
+	inode = sysfs_get_inode(dir->i_sb, sd);
 	if (!inode) {
 		ret = ERR_PTR(-ENOMEM);
 		goto out_unlock;
@@ -837,11 +801,46 @@ static inline unsigned char dt_type(struct sysfs_dirent *sd)
 	return (sd->s_mode >> 12) & 15;
 }
 
+static int sysfs_dir_release(struct inode *inode, struct file *filp)
+{
+	sysfs_put(filp->private_data);
+	return 0;
+}
+
+static struct sysfs_dirent *sysfs_dir_pos(struct sysfs_dirent *parent_sd,
+	ino_t ino, struct sysfs_dirent *pos)
+{
+	if (pos) {
+		int valid = !(pos->s_flags & SYSFS_FLAG_REMOVED) &&
+			pos->s_parent == parent_sd &&
+			ino == pos->s_ino;
+		sysfs_put(pos);
+		if (valid)
+			return pos;
+	}
+	pos = NULL;
+	if ((ino > 1) && (ino < INT_MAX)) {
+		pos = parent_sd->s_dir.children;
+		while (pos && (ino > pos->s_ino))
+			pos = pos->s_sibling;
+	}
+	return pos;
+}
+
+static struct sysfs_dirent *sysfs_dir_next_pos(struct sysfs_dirent *parent_sd,
+	ino_t ino, struct sysfs_dirent *pos)
+{
+	pos = sysfs_dir_pos(parent_sd, ino, pos);
+	if (pos)
+		pos = pos->s_sibling;
+	return pos;
+}
+
 static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 {
 	struct dentry *dentry = filp->f_path.dentry;
 	struct sysfs_dirent * parent_sd = dentry->d_fsdata;
-	struct sysfs_dirent *pos;
+	struct sysfs_dirent *pos = filp->private_data;
 	ino_t ino;
 
 	if (filp->f_pos == 0) {
@@ -857,29 +856,31 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 		if (filldir(dirent, "..", 2, filp->f_pos, ino, DT_DIR) == 0)
 			filp->f_pos++;
 	}
-	if ((filp->f_pos > 1) && (filp->f_pos < INT_MAX)) {
-		mutex_lock(&sysfs_mutex);
+	mutex_lock(&sysfs_mutex);
+	for (pos = sysfs_dir_pos(parent_sd, filp->f_pos, pos);
+	     pos;
+	     pos = sysfs_dir_next_pos(parent_sd, filp->f_pos, pos)) {
+		const char * name;
+		unsigned int type;
+		int len, ret;
 
-		/* Skip the dentries we have already reported */
-		pos = parent_sd->s_dir.children;
-		while (pos && (filp->f_pos > pos->s_ino))
-			pos = pos->s_sibling;
+		name = pos->s_name;
+		len = strlen(name);
+		ino = pos->s_ino;
+		type = dt_type(pos);
+		filp->f_pos = ino;
+		filp->private_data = sysfs_get(pos);
 
-		for ( ; pos; pos = pos->s_sibling) {
-			const char * name;
-			int len;
-
-			name = pos->s_name;
-			len = strlen(name);
-			filp->f_pos = ino = pos->s_ino;
-
-			if (filldir(dirent, name, len, filp->f_pos, ino,
-					 dt_type(pos)) < 0)
-				break;
-		}
-		if (!pos)
-			filp->f_pos = INT_MAX;
 		mutex_unlock(&sysfs_mutex);
+		ret = filldir(dirent, name, len, filp->f_pos, ino, type);
+		mutex_lock(&sysfs_mutex);
+		if (ret < 0)
+			break;
+	}
+	mutex_unlock(&sysfs_mutex);
+	if ((filp->f_pos > 1) && !pos) { /* EOF */
+		filp->f_pos = INT_MAX;
+		filp->private_data = NULL;
 	}
 	return 0;
 }
@@ -888,5 +889,6 @@ static int sysfs_readdir(struct file * filp, void * dirent, filldir_t filldir)
 const struct file_operations sysfs_dir_operations = {
 	.read		= generic_read_dir,
 	.readdir	= sysfs_readdir,
+	.release	= sysfs_dir_release,
 	.llseek		= generic_file_llseek,
 };

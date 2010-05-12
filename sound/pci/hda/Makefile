@@ -3,7 +3,7 @@ snd-hda-intel-objs := hda_intel.o
 snd-hda-codec-y := hda_codec.o
 snd-hda-codec-$(CONFIG_SND_HDA_GENERIC) += hda_generic.o
 snd-hda-codec-$(CONFIG_PROC_FS) += hda_proc.o
-# snd-hda-codec-$(CONFIG_SND_HDA_ELD) += hda_eld.o
+snd-hda-codec-$(CONFIG_SND_HDA_ELD) += hda_eld.o
 snd-hda-codec-$(CONFIG_SND_HDA_HWDEP) += hda_hwdep.o
 snd-hda-codec-$(CONFIG_SND_HDA_INPUT_BEEP) += hda_beep.o
 
@@ -18,7 +18,7 @@ snd-hda-codec-ca0110-objs :=	patch_ca0110.o
 snd-hda-codec-conexant-objs :=	patch_conexant.o
 snd-hda-codec-via-objs :=	patch_via.o
 snd-hda-codec-nvhdmi-objs :=	patch_nvhdmi.o
-snd-hda-codec-intelhdmi-objs :=	patch_intelhdmi.o hda_eld.o
+snd-hda-codec-intelhdmi-objs :=	patch_intelhdmi.o
 
 # common driver
 obj-$(CONFIG_SND_HDA_INTEL) := snd-hda-codec.o

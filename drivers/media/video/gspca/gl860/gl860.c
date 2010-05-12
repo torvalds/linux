@@ -161,7 +161,7 @@ static int gl860_build_control_table(struct gspca_dev *gspca_dev)
 
 /*==================== sud-driver structure initialisation =================*/
 
-static struct sd_desc sd_desc_mi1320 = {
+static const struct sd_desc sd_desc_mi1320 = {
 	.name        = MODULE_NAME,
 	.ctrls       = sd_ctrls_mi1320,
 	.nctrls      = GL860_NCTRLS,
@@ -174,7 +174,7 @@ static struct sd_desc sd_desc_mi1320 = {
 	.dq_callback = sd_callback,
 };
 
-static struct sd_desc sd_desc_mi2020 = {
+static const struct sd_desc sd_desc_mi2020 = {
 	.name        = MODULE_NAME,
 	.ctrls       = sd_ctrls_mi2020,
 	.nctrls      = GL860_NCTRLS,
@@ -187,7 +187,7 @@ static struct sd_desc sd_desc_mi2020 = {
 	.dq_callback = sd_callback,
 };
 
-static struct sd_desc sd_desc_mi2020b = {
+static const struct sd_desc sd_desc_mi2020b = {
 	.name        = MODULE_NAME,
 	.ctrls       = sd_ctrls_mi2020b,
 	.nctrls      = GL860_NCTRLS,
@@ -200,7 +200,7 @@ static struct sd_desc sd_desc_mi2020b = {
 	.dq_callback = sd_callback,
 };
 
-static struct sd_desc sd_desc_ov2640 = {
+static const struct sd_desc sd_desc_ov2640 = {
 	.name        = MODULE_NAME,
 	.ctrls       = sd_ctrls_ov2640,
 	.nctrls      = GL860_NCTRLS,
@@ -213,7 +213,7 @@ static struct sd_desc sd_desc_ov2640 = {
 	.dq_callback = sd_callback,
 };
 
-static struct sd_desc sd_desc_ov9655 = {
+static const struct sd_desc sd_desc_ov9655 = {
 	.name        = MODULE_NAME,
 	.ctrls       = sd_ctrls_ov9655,
 	.nctrls      = GL860_NCTRLS,

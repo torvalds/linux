@@ -236,7 +236,7 @@ static int vhci_open(struct inode *inode, struct file *file)
 
 	data->hdev = hdev;
 
-	hdev->type = HCI_VIRTUAL;
+	hdev->bus = HCI_VIRTUAL;
 	hdev->driver_data = data;
 
 	hdev->open     = vhci_open_dev;

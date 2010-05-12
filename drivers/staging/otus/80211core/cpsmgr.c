@@ -381,8 +381,6 @@ static void zfPowerSavingMgrSleepIfIdle(zdev_t *dev)
 
 static void zfPowerSavingMgrDisconnectMain(zdev_t* dev)
 {
-    zmw_get_wlan_dev(dev);
-
 #ifdef ZM_ENABLE_DISCONNECT_PS
     switch(wd->sta.psMgr.state)
     {

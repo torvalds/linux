@@ -34,6 +34,7 @@
 #include <linux/moduleparam.h>
 #include <linux/debugfs.h>
 #include <linux/math64.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
 

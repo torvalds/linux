@@ -114,7 +114,7 @@ config HW_RANDOM_IXP4XX
 
 config HW_RANDOM_OMAP
 	tristate "OMAP Random Number Generator support"
-	depends on HW_RANDOM && (ARCH_OMAP16XX || ARCH_OMAP24XX)
+	depends on HW_RANDOM && (ARCH_OMAP16XX || ARCH_OMAP2)
 	default HW_RANDOM
  	---help---
  	  This driver provides kernel-side support for the Random Number
@@ -184,5 +184,17 @@ config HW_RANDOM_MXC_RNGA
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mxc-rnga.
+
+	  If unsure, say Y.
+
+config HW_RANDOM_NOMADIK
+	tristate "ST-Ericsson Nomadik Random Number Generator support"
+	depends on HW_RANDOM && PLAT_NOMADIK
+	---help---
+	  This driver provides kernel-side support for the Random Number
+	  Generator hardware found on ST-Ericsson SoCs (8815 and 8500).
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nomadik-rng.
 
 	  If unsure, say Y.

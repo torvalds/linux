@@ -36,6 +36,7 @@
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include "cx23885-ioctl.h"
+#include "tuner-xc2028.h"
 
 MODULE_DESCRIPTION("v4l2 driver module for cx23885 based TV cards");
 MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
@@ -1505,6 +1506,18 @@ int cx23885_video_register(struct cx23885_dev *dev)
 			tun_setup.tuner_callback = cx23885_tuner_callback;
 
 			v4l2_subdev_call(sd, tuner, s_type_addr, &tun_setup);
+
+			if (dev->board == CX23885_BOARD_LEADTEK_WINFAST_PXTV1200) {
+				struct xc2028_ctrl ctrl = {
+					.fname = XC2028_DEFAULT_FIRMWARE,
+					.max_len = 64
+				};
+				struct v4l2_priv_tun_config cfg = {
+					.tuner = dev->tuner_type,
+					.priv = &ctrl
+				};
+				v4l2_subdev_call(sd, tuner, s_config, &cfg);
+			}
 		}
 	}
 

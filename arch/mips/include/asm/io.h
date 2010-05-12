@@ -447,6 +447,24 @@ __BUILDIO(q, u64)
 #define readl_relaxed			readl
 #define readq_relaxed			readq
 
+#define readb_be(addr)							\
+	__raw_readb((__force unsigned *)(addr))
+#define readw_be(addr)							\
+	be16_to_cpu(__raw_readw((__force unsigned *)(addr)))
+#define readl_be(addr)							\
+	be32_to_cpu(__raw_readl((__force unsigned *)(addr)))
+#define readq_be(addr)							\
+	be64_to_cpu(__raw_readq((__force unsigned *)(addr)))
+
+#define writeb_be(val, addr)						\
+	__raw_writeb((val), (__force unsigned *)(addr))
+#define writew_be(val, addr)						\
+	__raw_writew(cpu_to_be16((val)), (__force unsigned *)(addr))
+#define writel_be(val, addr)						\
+	__raw_writel(cpu_to_be32((val)), (__force unsigned *)(addr))
+#define writeq_be(val, addr)						\
+	__raw_writeq(cpu_to_be64((val)), (__force unsigned *)(addr))
+
 /*
  * Some code tests for these symbols
  */

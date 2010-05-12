@@ -65,12 +65,13 @@
 #define CSR_DIRECTORY_ID	0x20
 
 struct fw_csr_iterator {
-	u32 *p;
-	u32 *end;
+	const u32 *p;
+	const u32 *end;
 };
 
-void fw_csr_iterator_init(struct fw_csr_iterator *ci, u32 *p);
+void fw_csr_iterator_init(struct fw_csr_iterator *ci, const u32 *p);
 int fw_csr_iterator_next(struct fw_csr_iterator *ci, int *key, int *value);
+int fw_csr_string(const u32 *directory, int key, char *buf, size_t size);
 
 extern struct bus_type fw_bus_type;
 
@@ -162,7 +163,7 @@ struct fw_device {
 	struct mutex client_list_mutex;
 	struct list_head client_list;
 
-	u32 *config_rom;
+	const u32 *config_rom;
 	size_t config_rom_length;
 	int config_rom_retries;
 	unsigned is_local:1;
@@ -204,7 +205,7 @@ int fw_device_enable_phys_dma(struct fw_device *device);
  */
 struct fw_unit {
 	struct device device;
-	u32 *directory;
+	const u32 *directory;
 	struct fw_attribute_group attribute_group;
 };
 

@@ -36,7 +36,14 @@ static void radeon_lock_cursor(struct drm_crtc *crtc, bool lock)
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	uint32_t cur_lock;
 
-	if (ASIC_IS_AVIVO(rdev)) {
+	if (ASIC_IS_DCE4(rdev)) {
+		cur_lock = RREG32(EVERGREEN_CUR_UPDATE + radeon_crtc->crtc_offset);
+		if (lock)
+			cur_lock |= EVERGREEN_CURSOR_UPDATE_LOCK;
+		else
+			cur_lock &= ~EVERGREEN_CURSOR_UPDATE_LOCK;
+		WREG32(EVERGREEN_CUR_UPDATE + radeon_crtc->crtc_offset, cur_lock);
+	} else if (ASIC_IS_AVIVO(rdev)) {
 		cur_lock = RREG32(AVIVO_D1CUR_UPDATE + radeon_crtc->crtc_offset);
 		if (lock)
 			cur_lock |= AVIVO_D1CURSOR_UPDATE_LOCK;
@@ -58,7 +65,10 @@ static void radeon_hide_cursor(struct drm_crtc *crtc)
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_device *rdev = crtc->dev->dev_private;
 
-	if (ASIC_IS_AVIVO(rdev)) {
+	if (ASIC_IS_DCE4(rdev)) {
+		WREG32(RADEON_MM_INDEX, EVERGREEN_CUR_CONTROL + radeon_crtc->crtc_offset);
+		WREG32(RADEON_MM_DATA, EVERGREEN_CURSOR_MODE(EVERGREEN_CURSOR_24_8_PRE_MULT));
+	} else if (ASIC_IS_AVIVO(rdev)) {
 		WREG32(RADEON_MM_INDEX, AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset);
 		WREG32(RADEON_MM_DATA, (AVIVO_D1CURSOR_MODE_24BPP << AVIVO_D1CURSOR_MODE_SHIFT));
 	} else {
@@ -81,10 +91,14 @@ static void radeon_show_cursor(struct drm_crtc *crtc)
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_device *rdev = crtc->dev->dev_private;
 
-	if (ASIC_IS_AVIVO(rdev)) {
+	if (ASIC_IS_DCE4(rdev)) {
+		WREG32(RADEON_MM_INDEX, EVERGREEN_CUR_CONTROL + radeon_crtc->crtc_offset);
+		WREG32(RADEON_MM_DATA, EVERGREEN_CURSOR_EN |
+		       EVERGREEN_CURSOR_MODE(EVERGREEN_CURSOR_24_8_PRE_MULT));
+	} else if (ASIC_IS_AVIVO(rdev)) {
 		WREG32(RADEON_MM_INDEX, AVIVO_D1CUR_CONTROL + radeon_crtc->crtc_offset);
 		WREG32(RADEON_MM_DATA, AVIVO_D1CURSOR_EN |
-			     (AVIVO_D1CURSOR_MODE_24BPP << AVIVO_D1CURSOR_MODE_SHIFT));
+		       (AVIVO_D1CURSOR_MODE_24BPP << AVIVO_D1CURSOR_MODE_SHIFT));
 	} else {
 		switch (radeon_crtc->crtc_id) {
 		case 0:
@@ -109,7 +123,10 @@ static void radeon_set_cursor(struct drm_crtc *crtc, struct drm_gem_object *obj,
 	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
 	struct radeon_device *rdev = crtc->dev->dev_private;
 
-	if (ASIC_IS_AVIVO(rdev)) {
+	if (ASIC_IS_DCE4(rdev)) {
+		WREG32(EVERGREEN_CUR_SURFACE_ADDRESS_HIGH + radeon_crtc->crtc_offset, 0);
+		WREG32(EVERGREEN_CUR_SURFACE_ADDRESS + radeon_crtc->crtc_offset, gpu_addr);
+	} else if (ASIC_IS_AVIVO(rdev)) {
 		if (rdev->family >= CHIP_RV770) {
 			if (radeon_crtc->crtc_id)
 				WREG32(R700_D2CUR_SURFACE_ADDRESS_HIGH, 0);
@@ -169,17 +186,13 @@ int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 unpin:
 	if (radeon_crtc->cursor_bo) {
 		radeon_gem_object_unpin(radeon_crtc->cursor_bo);
-		mutex_lock(&crtc->dev->struct_mutex);
-		drm_gem_object_unreference(radeon_crtc->cursor_bo);
-		mutex_unlock(&crtc->dev->struct_mutex);
+		drm_gem_object_unreference_unlocked(radeon_crtc->cursor_bo);
 	}
 
 	radeon_crtc->cursor_bo = obj;
 	return 0;
 fail:
-	mutex_lock(&crtc->dev->struct_mutex);
-	drm_gem_object_unreference(obj);
-	mutex_unlock(&crtc->dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 
 	return 0;
 }
@@ -201,7 +214,20 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 		yorigin = CURSOR_HEIGHT - 1;
 
 	radeon_lock_cursor(crtc, true);
-	if (ASIC_IS_AVIVO(rdev)) {
+	if (ASIC_IS_DCE4(rdev)) {
+		/* cursors are offset into the total surface */
+		x += crtc->x;
+		y += crtc->y;
+		DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
+
+		/* XXX: check if evergreen has the same issues as avivo chips */
+		WREG32(EVERGREEN_CUR_POSITION + radeon_crtc->crtc_offset,
+		       ((xorigin ? 0 : x) << 16) |
+		       (yorigin ? 0 : y));
+		WREG32(EVERGREEN_CUR_HOT_SPOT + radeon_crtc->crtc_offset, (xorigin << 16) | yorigin);
+		WREG32(EVERGREEN_CUR_SIZE + radeon_crtc->crtc_offset,
+		       ((radeon_crtc->cursor_width - 1) << 16) | (radeon_crtc->cursor_height - 1));
+	} else if (ASIC_IS_AVIVO(rdev)) {
 		int w = radeon_crtc->cursor_width;
 		int i = 0;
 		struct drm_crtc *crtc_p;

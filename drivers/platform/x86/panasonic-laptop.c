@@ -124,6 +124,7 @@
 #include <linux/ctype.h>
 #include <linux/seq_file.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 #include <linux/input.h>
@@ -200,7 +201,7 @@ static struct acpi_driver acpi_pcc_driver = {
 };
 
 #define KEYMAP_SIZE		11
-static const int initial_keymap[KEYMAP_SIZE] = {
+static const unsigned int initial_keymap[KEYMAP_SIZE] = {
 	/*  0 */ KEY_RESERVED,
 	/*  1 */ KEY_BRIGHTNESSDOWN,
 	/*  2 */ KEY_BRIGHTNESSUP,
@@ -222,7 +223,7 @@ struct pcc_acpi {
 	struct acpi_device	*device;
 	struct input_dev	*input_dev;
 	struct backlight_device	*backlight;
-	int			keymap[KEYMAP_SIZE];
+	unsigned int		keymap[KEYMAP_SIZE];
 };
 
 struct pcc_keyinput {
@@ -352,7 +353,7 @@ static int bl_set_status(struct backlight_device *bd)
 	return acpi_pcc_write_sset(pcc, SINF_DC_CUR_BRIGHT, bright);
 }
 
-static struct backlight_ops pcc_backlight_ops = {
+static const struct backlight_ops pcc_backlight_ops = {
 	.get_brightness	= bl_get,
 	.update_status	= bl_set_status,
 };
@@ -445,7 +446,8 @@ static struct attribute_group pcc_attr_group = {
 
 /* hotkey input device driver */
 
-static int pcc_getkeycode(struct input_dev *dev, int scancode, int *keycode)
+static int pcc_getkeycode(struct input_dev *dev,
+			  unsigned int scancode, unsigned int *keycode)
 {
 	struct pcc_acpi *pcc = input_get_drvdata(dev);
 
@@ -457,7 +459,7 @@ static int pcc_getkeycode(struct input_dev *dev, int scancode, int *keycode)
 	return 0;
 }
 
-static int keymap_get_by_keycode(struct pcc_acpi *pcc, int keycode)
+static int keymap_get_by_keycode(struct pcc_acpi *pcc, unsigned int keycode)
 {
 	int i;
 
@@ -469,15 +471,13 @@ static int keymap_get_by_keycode(struct pcc_acpi *pcc, int keycode)
 	return 0;
 }
 
-static int pcc_setkeycode(struct input_dev *dev, int scancode, int keycode)
+static int pcc_setkeycode(struct input_dev *dev,
+			  unsigned int scancode, unsigned int keycode)
 {
 	struct pcc_acpi *pcc = input_get_drvdata(dev);
 	int oldkeycode;
 
 	if (scancode >= ARRAY_SIZE(pcc->keymap))
-		return -EINVAL;
-
-	if (keycode < 0 || keycode > KEY_MAX)
 		return -EINVAL;
 
 	oldkeycode = pcc->keymap[scancode];
@@ -601,6 +601,7 @@ static int acpi_pcc_hotkey_resume(struct acpi_device *device)
 
 static int acpi_pcc_hotkey_add(struct acpi_device *device)
 {
+	struct backlight_properties props;
 	struct pcc_acpi *pcc;
 	int num_sifr, result;
 
@@ -638,24 +639,25 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 	if (result) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				  "Error installing keyinput handler\n"));
-		goto out_sinf;
+		goto out_hotkey;
 	}
-
-	/* initialize backlight */
-	pcc->backlight = backlight_device_register("panasonic", NULL, pcc,
-						   &pcc_backlight_ops);
-	if (IS_ERR(pcc->backlight))
-		goto out_input;
 
 	if (!acpi_pcc_retrieve_biosdata(pcc, pcc->sinf)) {
 		ACPI_DEBUG_PRINT((ACPI_DB_ERROR,
 				 "Couldn't retrieve BIOS data\n"));
-		goto out_backlight;
+		goto out_input;
+	}
+	/* initialize backlight */
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = pcc->sinf[SINF_AC_MAX_BRIGHT];
+	pcc->backlight = backlight_device_register("panasonic", NULL, pcc,
+						   &pcc_backlight_ops, &props);
+	if (IS_ERR(pcc->backlight)) {
+		result = PTR_ERR(pcc->backlight);
+		goto out_sinf;
 	}
 
 	/* read the initial brightness setting from the hardware */
-	pcc->backlight->props.max_brightness =
-					pcc->sinf[SINF_AC_MAX_BRIGHT];
 	pcc->backlight->props.brightness = pcc->sinf[SINF_AC_CUR_BRIGHT];
 
 	/* read the initial sticky key mode from the hardware */
@@ -670,12 +672,12 @@ static int acpi_pcc_hotkey_add(struct acpi_device *device)
 
 out_backlight:
 	backlight_device_unregister(pcc->backlight);
+out_sinf:
+	kfree(pcc->sinf);
 out_input:
 	input_unregister_device(pcc->input_dev);
 	/* no need to input_free_device() since core input API refcount and
 	 * free()s the device */
-out_sinf:
-	kfree(pcc->sinf);
 out_hotkey:
 	kfree(pcc);
 

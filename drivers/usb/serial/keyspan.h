@@ -456,7 +456,7 @@ static const struct keyspan_device_details *keyspan_devices[] = {
 	NULL,
 };
 
-static struct usb_device_id keyspan_ids_combined[] = {
+static const struct usb_device_id keyspan_ids_combined[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa18x_pre_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa19_pre_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa19w_pre_product_id) },
@@ -497,7 +497,7 @@ static struct usb_driver keyspan_driver = {
 };
 
 /* usb_device_id table for the pre-firmware download keyspan devices */
-static struct usb_device_id keyspan_pre_ids[] = {
+static const struct usb_device_id keyspan_pre_ids[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa18x_pre_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa19_pre_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa19qi_pre_product_id) },
@@ -513,7 +513,7 @@ static struct usb_device_id keyspan_pre_ids[] = {
 	{ } /* Terminating entry */
 };
 
-static struct usb_device_id keyspan_1port_ids[] = {
+static const struct usb_device_id keyspan_1port_ids[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa18x_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa19_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa19qi_product_id) },
@@ -524,7 +524,7 @@ static struct usb_device_id keyspan_1port_ids[] = {
 	{ } /* Terminating entry */
 };
 
-static struct usb_device_id keyspan_2port_ids[] = {
+static const struct usb_device_id keyspan_2port_ids[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28x_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa28xa_product_id) },
@@ -532,7 +532,7 @@ static struct usb_device_id keyspan_2port_ids[] = {
 	{ } /* Terminating entry */
 };
 
-static struct usb_device_id keyspan_4port_ids[] = {
+static const struct usb_device_id keyspan_4port_ids[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa49w_product_id) },
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa49wlc_product_id)},
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, keyspan_usa49wg_product_id)},

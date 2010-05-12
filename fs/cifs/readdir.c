@@ -22,6 +22,7 @@
  */
 #include <linux/fs.h>
 #include <linux/pagemap.h>
+#include <linux/slab.h>
 #include <linux/stat.h>
 #include "cifspdu.h"
 #include "cifsglob.h"
@@ -76,6 +77,11 @@ cifs_readdir_lookup(struct dentry *parent, struct qstr *name,
 	struct super_block *sb = parent->d_inode->i_sb;
 
 	cFYI(1, ("For %s", name->name));
+
+	if (parent->d_op && parent->d_op->d_hash)
+		parent->d_op->d_hash(parent, name);
+	else
+		name->hash = full_name_hash(name->name, name->len);
 
 	dentry = d_lookup(parent, name);
 	if (dentry) {
@@ -666,12 +672,11 @@ static int cifs_get_name_from_search_buf(struct qstr *pqst,
 					   min(len, max_len), nlt,
 					   cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
+		pqst->len -= nls_nullsize(nlt);
 	} else {
 		pqst->name = filename;
 		pqst->len = len;
 	}
-	pqst->hash = full_name_hash(pqst->name, pqst->len);
-/*	cFYI(1, ("filldir on %s",pqst->name));  */
 	return rc;
 }
 

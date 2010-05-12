@@ -70,7 +70,7 @@ static int snd_ak4113_dev_free(struct snd_device *device)
 }
 
 int snd_ak4113_create(struct snd_card *card, ak4113_read_t *read,
-		ak4113_write_t *write, const unsigned char pgm[5],
+		ak4113_write_t *write, const unsigned char *pgm,
 		void *private_data, struct ak4113 **r_ak4113)
 {
 	struct ak4113 *chip;

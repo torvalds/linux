@@ -139,6 +139,7 @@ static const struct hc_driver xhci_pci_hc_driver = {
 	.reset_bandwidth =	xhci_reset_bandwidth,
 	.address_device =	xhci_address_device,
 	.update_hub_device =	xhci_update_hub_device,
+	.reset_device =		xhci_reset_device,
 
 	/*
 	 * scheduling support

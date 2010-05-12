@@ -49,9 +49,6 @@ const char *usbcore_name = "usbcore";
 
 static int nousb;	/* Disable USB when built into kernel image */
 
-/* Workqueue for autosuspend and for remote wakeup of root hubs */
-struct workqueue_struct *ksuspend_usb_wq;
-
 #ifdef	CONFIG_USB_SUSPEND
 static int usb_autosuspend_delay = 2;		/* Default delay value,
 						 * in seconds */
@@ -228,9 +225,6 @@ static void usb_release_dev(struct device *dev)
 	hcd = bus_to_hcd(udev->bus);
 
 	usb_destroy_configuration(udev);
-	/* Root hubs aren't real devices, so don't free HCD resources */
-	if (hcd->driver->free_dev && udev->parent)
-		hcd->driver->free_dev(hcd, udev);
 	usb_put_hcd(hcd);
 	kfree(udev->product);
 	kfree(udev->manufacturer);
@@ -264,23 +258,6 @@ static int usb_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 #ifdef	CONFIG_PM
 
-static int ksuspend_usb_init(void)
-{
-	/* This workqueue is supposed to be both freezable and
-	 * singlethreaded.  Its job doesn't justify running on more
-	 * than one CPU.
-	 */
-	ksuspend_usb_wq = create_freezeable_workqueue("ksuspend_usbd");
-	if (!ksuspend_usb_wq)
-		return -ENOMEM;
-	return 0;
-}
-
-static void ksuspend_usb_cleanup(void)
-{
-	destroy_workqueue(ksuspend_usb_wq);
-}
-
 /* USB device Power-Management thunks.
  * There's no need to distinguish here between quiescing a USB device
  * and powering it down; the generic_suspend() routine takes care of
@@ -296,7 +273,7 @@ static int usb_dev_prepare(struct device *dev)
 static void usb_dev_complete(struct device *dev)
 {
 	/* Currently used only for rebinding interfaces */
-	usb_resume(dev, PMSG_RESUME);	/* Message event is meaningless */
+	usb_resume(dev, PMSG_ON);	/* FIXME: change to PMSG_COMPLETE */
 }
 
 static int usb_dev_suspend(struct device *dev)
@@ -342,9 +319,7 @@ static const struct dev_pm_ops usb_device_pm_ops = {
 
 #else
 
-#define ksuspend_usb_init()	0
-#define ksuspend_usb_cleanup()	do {} while (0)
-#define usb_device_pm_ops	(*(struct dev_pm_ops *)0)
+#define usb_device_pm_ops	(*(struct dev_pm_ops *) NULL)
 
 #endif	/* CONFIG_PM */
 
@@ -472,9 +447,6 @@ struct usb_device *usb_alloc_dev(struct usb_device *parent,
 	INIT_LIST_HEAD(&dev->filelist);
 
 #ifdef	CONFIG_PM
-	mutex_init(&dev->pm_mutex);
-	INIT_DELAYED_WORK(&dev->autosuspend, usb_autosuspend_work);
-	INIT_WORK(&dev->autoresume, usb_autoresume_work);
 	dev->autosuspend_delay = usb_autosuspend_delay * HZ;
 	dev->connect_time = jiffies;
 	dev->active_duration = -jiffies;
@@ -746,7 +718,7 @@ int __usb_get_extra_descriptor(char *buffer, unsigned size,
 EXPORT_SYMBOL_GPL(__usb_get_extra_descriptor);
 
 /**
- * usb_buffer_alloc - allocate dma-consistent buffer for URB_NO_xxx_DMA_MAP
+ * usb_alloc_coherent - allocate dma-consistent buffer for URB_NO_xxx_DMA_MAP
  * @dev: device the buffer will be used with
  * @size: requested buffer size
  * @mem_flags: affect whether allocation may block
@@ -765,30 +737,30 @@ EXPORT_SYMBOL_GPL(__usb_get_extra_descriptor);
  * architectures where CPU caches are not DMA-coherent.  On systems without
  * bus-snooping caches, these buffers are uncached.
  *
- * When the buffer is no longer used, free it with usb_buffer_free().
+ * When the buffer is no longer used, free it with usb_free_coherent().
  */
-void *usb_buffer_alloc(struct usb_device *dev, size_t size, gfp_t mem_flags,
-		       dma_addr_t *dma)
+void *usb_alloc_coherent(struct usb_device *dev, size_t size, gfp_t mem_flags,
+			 dma_addr_t *dma)
 {
 	if (!dev || !dev->bus)
 		return NULL;
 	return hcd_buffer_alloc(dev->bus, size, mem_flags, dma);
 }
-EXPORT_SYMBOL_GPL(usb_buffer_alloc);
+EXPORT_SYMBOL_GPL(usb_alloc_coherent);
 
 /**
- * usb_buffer_free - free memory allocated with usb_buffer_alloc()
+ * usb_free_coherent - free memory allocated with usb_alloc_coherent()
  * @dev: device the buffer was used with
  * @size: requested buffer size
  * @addr: CPU address of buffer
  * @dma: DMA address of buffer
  *
  * This reclaims an I/O buffer, letting it be reused.  The memory must have
- * been allocated using usb_buffer_alloc(), and the parameters must match
+ * been allocated using usb_alloc_coherent(), and the parameters must match
  * those provided in that allocation request.
  */
-void usb_buffer_free(struct usb_device *dev, size_t size, void *addr,
-		     dma_addr_t dma)
+void usb_free_coherent(struct usb_device *dev, size_t size, void *addr,
+		       dma_addr_t dma)
 {
 	if (!dev || !dev->bus)
 		return;
@@ -796,7 +768,7 @@ void usb_buffer_free(struct usb_device *dev, size_t size, void *addr,
 		return;
 	hcd_buffer_free(dev->bus, size, addr, dma);
 }
-EXPORT_SYMBOL_GPL(usb_buffer_free);
+EXPORT_SYMBOL_GPL(usb_free_coherent);
 
 /**
  * usb_buffer_map - create DMA mapping(s) for an urb
@@ -1117,9 +1089,6 @@ static int __init usb_init(void)
 	if (retval)
 		goto out;
 
-	retval = ksuspend_usb_init();
-	if (retval)
-		goto out;
 	retval = bus_register(&usb_bus_type);
 	if (retval)
 		goto bus_register_failed;
@@ -1159,7 +1128,7 @@ major_init_failed:
 bus_notifier_failed:
 	bus_unregister(&usb_bus_type);
 bus_register_failed:
-	ksuspend_usb_cleanup();
+	usb_debugfs_cleanup();
 out:
 	return retval;
 }
@@ -1181,7 +1150,6 @@ static void __exit usb_exit(void)
 	usb_hub_cleanup();
 	bus_unregister_notifier(&usb_bus_type, &usb_bus_nb);
 	bus_unregister(&usb_bus_type);
-	ksuspend_usb_cleanup();
 	usb_debugfs_cleanup();
 }
 

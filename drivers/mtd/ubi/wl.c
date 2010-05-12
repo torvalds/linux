@@ -464,7 +464,7 @@ retry:
 				   ubi->peb_size - ubi->vid_hdr_aloffset);
 	if (err) {
 		ubi_err("new PEB %d does not contain all 0xFF bytes", e->pnum);
-		return err > 0 ? -EINVAL : err;
+		return err;
 	}
 
 	return e->pnum;
@@ -513,7 +513,7 @@ static int sync_erase(struct ubi_device *ubi, struct ubi_wl_entry *e,
 	dbg_wl("erase PEB %d, old EC %llu", e->pnum, ec);
 
 	err = paranoid_check_ec(ubi, e->pnum, e->ec);
-	if (err > 0)
+	if (err)
 		return -EINVAL;
 
 	ec_hdr = kzalloc(ubi->ec_hdr_alsize, GFP_NOFS);
@@ -1572,8 +1572,7 @@ void ubi_wl_close(struct ubi_device *ubi)
  * @ec: the erase counter to check
  *
  * This function returns zero if the erase counter of physical eraseblock @pnum
- * is equivalent to @ec, %1 if not, and a negative error code if an error
- * occurred.
+ * is equivalent to @ec, and a negative error code if not or if an error occurred.
  */
 static int paranoid_check_ec(struct ubi_device *ubi, int pnum, int ec)
 {
@@ -1611,8 +1610,8 @@ out_free:
  * @e: the wear-leveling entry to check
  * @root: the root of the tree
  *
- * This function returns zero if @e is in the @root RB-tree and %1 if it is
- * not.
+ * This function returns zero if @e is in the @root RB-tree and %-EINVAL if it
+ * is not.
  */
 static int paranoid_check_in_wl_tree(struct ubi_wl_entry *e,
 				     struct rb_root *root)
@@ -1623,7 +1622,7 @@ static int paranoid_check_in_wl_tree(struct ubi_wl_entry *e,
 	ubi_err("paranoid check failed for PEB %d, EC %d, RB-tree %p ",
 		e->pnum, e->ec, root);
 	ubi_dbg_dump_stack();
-	return 1;
+	return -EINVAL;
 }
 
 /**
@@ -1632,7 +1631,7 @@ static int paranoid_check_in_wl_tree(struct ubi_wl_entry *e,
  * @ubi: UBI device description object
  * @e: the wear-leveling entry to check
  *
- * This function returns zero if @e is in @ubi->pq and %1 if it is not.
+ * This function returns zero if @e is in @ubi->pq and %-EINVAL if it is not.
  */
 static int paranoid_check_in_pq(struct ubi_device *ubi, struct ubi_wl_entry *e)
 {
@@ -1647,6 +1646,6 @@ static int paranoid_check_in_pq(struct ubi_device *ubi, struct ubi_wl_entry *e)
 	ubi_err("paranoid check failed for PEB %d, EC %d, Protect queue",
 		e->pnum, e->ec);
 	ubi_dbg_dump_stack();
-	return 1;
+	return -EINVAL;
 }
 #endif /* CONFIG_MTD_UBI_DEBUG_PARANOID */

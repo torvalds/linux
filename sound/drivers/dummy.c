@@ -45,109 +45,23 @@ MODULE_SUPPORTED_DEVICE("{{ALSA,Dummy soundcard}}");
 #define MAX_PCM_SUBSTREAMS	128
 #define MAX_MIDI_DEVICES	2
 
-#if 0 /* emu10k1 emulation */
-#define MAX_BUFFER_SIZE		(128 * 1024)
-static int emu10k1_playback_constraints(struct snd_pcm_runtime *runtime)
-{
-	int err;
-	err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
-	if (err < 0)
-		return err;
-	err = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 256, UINT_MAX);
-	if (err < 0)
-		return err;
-	return 0;
-}
-#define add_playback_constraints emu10k1_playback_constraints
-#endif
-
-#if 0 /* RME9652 emulation */
-#define MAX_BUFFER_SIZE		(26 * 64 * 1024)
-#define USE_FORMATS		SNDRV_PCM_FMTBIT_S32_LE
-#define USE_CHANNELS_MIN	26
-#define USE_CHANNELS_MAX	26
-#define USE_PERIODS_MIN		2
-#define USE_PERIODS_MAX		2
-#endif
-
-#if 0 /* ICE1712 emulation */
-#define MAX_BUFFER_SIZE		(256 * 1024)
-#define USE_FORMATS		SNDRV_PCM_FMTBIT_S32_LE
-#define USE_CHANNELS_MIN	10
-#define USE_CHANNELS_MAX	10
-#define USE_PERIODS_MIN		1
-#define USE_PERIODS_MAX		1024
-#endif
-
-#if 0 /* UDA1341 emulation */
-#define MAX_BUFFER_SIZE		(16380)
-#define USE_FORMATS		SNDRV_PCM_FMTBIT_S16_LE
-#define USE_CHANNELS_MIN	2
-#define USE_CHANNELS_MAX	2
-#define USE_PERIODS_MIN		2
-#define USE_PERIODS_MAX		255
-#endif
-
-#if 0 /* simple AC97 bridge (intel8x0) with 48kHz AC97 only codec */
-#define USE_FORMATS		SNDRV_PCM_FMTBIT_S16_LE
-#define USE_CHANNELS_MIN	2
-#define USE_CHANNELS_MAX	2
-#define USE_RATE		SNDRV_PCM_RATE_48000
-#define USE_RATE_MIN		48000
-#define USE_RATE_MAX		48000
-#endif
-
-#if 0 /* CA0106 */
-#define USE_FORMATS		SNDRV_PCM_FMTBIT_S16_LE
-#define USE_CHANNELS_MIN	2
-#define USE_CHANNELS_MAX	2
-#define USE_RATE		(SNDRV_PCM_RATE_48000|SNDRV_PCM_RATE_96000|SNDRV_PCM_RATE_192000) 
-#define USE_RATE_MIN		48000 
-#define USE_RATE_MAX		192000
-#define MAX_BUFFER_SIZE		((65536-64)*8)
-#define MAX_PERIOD_SIZE		(65536-64)
-#define USE_PERIODS_MIN		2
-#define USE_PERIODS_MAX		8
-#endif
-
-
 /* defaults */
-#ifndef MAX_BUFFER_SIZE
 #define MAX_BUFFER_SIZE		(64*1024)
-#endif
-#ifndef MAX_PERIOD_SIZE
+#define MIN_PERIOD_SIZE		64
 #define MAX_PERIOD_SIZE		MAX_BUFFER_SIZE
-#endif
-#ifndef USE_FORMATS
 #define USE_FORMATS 		(SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE)
-#endif
-#ifndef USE_RATE
 #define USE_RATE		SNDRV_PCM_RATE_CONTINUOUS | SNDRV_PCM_RATE_8000_48000
 #define USE_RATE_MIN		5500
 #define USE_RATE_MAX		48000
-#endif
-#ifndef USE_CHANNELS_MIN
 #define USE_CHANNELS_MIN 	1
-#endif
-#ifndef USE_CHANNELS_MAX
 #define USE_CHANNELS_MAX 	2
-#endif
-#ifndef USE_PERIODS_MIN
 #define USE_PERIODS_MIN 	1
-#endif
-#ifndef USE_PERIODS_MAX
 #define USE_PERIODS_MAX 	1024
-#endif
-#ifndef add_playback_constraints
-#define add_playback_constraints(x) 0
-#endif
-#ifndef add_capture_constraints
-#define add_capture_constraints(x) 0
-#endif
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
 static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;	/* ID for this card */
 static int enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 0};
+static char *model[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = NULL};
 static int pcm_devs[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 1};
 static int pcm_substreams[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 8};
 //static int midi_devs[SNDRV_CARDS] = {[0 ... (SNDRV_CARDS - 1)] = 2};
@@ -162,6 +76,8 @@ module_param_array(id, charp, NULL, 0444);
 MODULE_PARM_DESC(id, "ID string for dummy soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable this dummy soundcard.");
+module_param_array(model, charp, NULL, 0444);
+MODULE_PARM_DESC(model, "Soundcard model.");
 module_param_array(pcm_devs, int, NULL, 0444);
 MODULE_PARM_DESC(pcm_devs, "PCM devices # (0-4) for dummy driver.");
 module_param_array(pcm_substreams, int, NULL, 0444);
@@ -193,13 +109,118 @@ struct dummy_timer_ops {
 	snd_pcm_uframes_t (*pointer)(struct snd_pcm_substream *);
 };
 
+struct dummy_model {
+	const char *name;
+	int (*playback_constraints)(struct snd_pcm_runtime *runtime);
+	int (*capture_constraints)(struct snd_pcm_runtime *runtime);
+	u64 formats;
+	size_t buffer_bytes_max;
+	size_t period_bytes_min;
+	size_t period_bytes_max;
+	unsigned int periods_min;
+	unsigned int periods_max;
+	unsigned int rates;
+	unsigned int rate_min;
+	unsigned int rate_max;
+	unsigned int channels_min;
+	unsigned int channels_max;
+};
+
 struct snd_dummy {
 	struct snd_card *card;
+	struct dummy_model *model;
 	struct snd_pcm *pcm;
+	struct snd_pcm_hardware pcm_hw;
 	spinlock_t mixer_lock;
 	int mixer_volume[MIXER_ADDR_LAST+1][2];
 	int capture_source[MIXER_ADDR_LAST+1][2];
 	const struct dummy_timer_ops *timer_ops;
+};
+
+/*
+ * card models
+ */
+
+static int emu10k1_playback_constraints(struct snd_pcm_runtime *runtime)
+{
+	int err;
+	err = snd_pcm_hw_constraint_integer(runtime, SNDRV_PCM_HW_PARAM_PERIODS);
+	if (err < 0)
+		return err;
+	err = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_BUFFER_BYTES, 256, UINT_MAX);
+	if (err < 0)
+		return err;
+	return 0;
+}
+
+struct dummy_model model_emu10k1 = {
+	.name = "emu10k1",
+	.playback_constraints = emu10k1_playback_constraints,
+	.buffer_bytes_max = 128 * 1024,
+};
+
+struct dummy_model model_rme9652 = {
+	.name = "rme9652",
+	.buffer_bytes_max = 26 * 64 * 1024,
+	.formats = SNDRV_PCM_FMTBIT_S32_LE,
+	.channels_min = 26,
+	.channels_max = 26,
+	.periods_min = 2,
+	.periods_max = 2,
+};
+
+struct dummy_model model_ice1712 = {
+	.name = "ice1712",
+	.buffer_bytes_max = 256 * 1024,
+	.formats = SNDRV_PCM_FMTBIT_S32_LE,
+	.channels_min = 10,
+	.channels_max = 10,
+	.periods_min = 1,
+	.periods_max = 1024,
+};
+
+struct dummy_model model_uda1341 = {
+	.name = "uda1341",
+	.buffer_bytes_max = 16380,
+	.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	.channels_min = 2,
+	.channels_max = 2,
+	.periods_min = 2,
+	.periods_max = 255,
+};
+
+struct dummy_model model_ac97 = {
+	.name = "ac97",
+	.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	.channels_min = 2,
+	.channels_max = 2,
+	.rates = SNDRV_PCM_RATE_48000,
+	.rate_min = 48000,
+	.rate_max = 48000,
+};
+
+struct dummy_model model_ca0106 = {
+	.name = "ca0106",
+	.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	.buffer_bytes_max = ((65536-64)*8),
+	.period_bytes_max = (65536-64),
+	.periods_min = 2,
+	.periods_max = 8,
+	.channels_min = 2,
+	.channels_max = 2,
+	.rates = SNDRV_PCM_RATE_48000|SNDRV_PCM_RATE_96000|SNDRV_PCM_RATE_192000,
+	.rate_min = 48000,
+	.rate_max = 192000,
+};
+
+struct dummy_model *dummy_models[] = {
+	&model_emu10k1,
+	&model_rme9652,
+	&model_ice1712,
+	&model_uda1341,
+	&model_ac97,
+	&model_ca0106,
+	NULL
 };
 
 /*
@@ -509,7 +530,7 @@ static struct snd_pcm_hardware dummy_pcm_hardware = {
 	.channels_min =		USE_CHANNELS_MIN,
 	.channels_max =		USE_CHANNELS_MAX,
 	.buffer_bytes_max =	MAX_BUFFER_SIZE,
-	.period_bytes_min =	64,
+	.period_bytes_min =	MIN_PERIOD_SIZE,
 	.period_bytes_max =	MAX_PERIOD_SIZE,
 	.periods_min =		USE_PERIODS_MIN,
 	.periods_max =		USE_PERIODS_MAX,
@@ -538,6 +559,7 @@ static int dummy_pcm_hw_free(struct snd_pcm_substream *substream)
 static int dummy_pcm_open(struct snd_pcm_substream *substream)
 {
 	struct snd_dummy *dummy = snd_pcm_substream_chip(substream);
+	struct dummy_model *model = dummy->model;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int err;
 
@@ -551,7 +573,7 @@ static int dummy_pcm_open(struct snd_pcm_substream *substream)
 	if (err < 0)
 		return err;
 
-	runtime->hw = dummy_pcm_hardware;
+	runtime->hw = dummy->pcm_hw;
 	if (substream->pcm->device & 1) {
 		runtime->hw.info &= ~SNDRV_PCM_INFO_INTERLEAVED;
 		runtime->hw.info |= SNDRV_PCM_INFO_NONINTERLEAVED;
@@ -560,10 +582,16 @@ static int dummy_pcm_open(struct snd_pcm_substream *substream)
 		runtime->hw.info &= ~(SNDRV_PCM_INFO_MMAP |
 				      SNDRV_PCM_INFO_MMAP_VALID);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		err = add_playback_constraints(substream->runtime);
-	else
-		err = add_capture_constraints(substream->runtime);
+	if (model == NULL)
+		return 0;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		if (model->playback_constraints)
+			err = model->playback_constraints(substream->runtime);
+	} else {
+		if (model->capture_constraints)
+			err = model->capture_constraints(substream->runtime);
+	}
 	if (err < 0) {
 		dummy->timer_ops->free(substream);
 		return err;
@@ -823,17 +851,19 @@ static int __devinit snd_card_dummy_new_mixer(struct snd_dummy *dummy)
 /*
  * proc interface
  */
-static void print_formats(struct snd_info_buffer *buffer)
+static void print_formats(struct snd_dummy *dummy,
+			  struct snd_info_buffer *buffer)
 {
 	int i;
 
 	for (i = 0; i < SNDRV_PCM_FORMAT_LAST; i++) {
-		if (dummy_pcm_hardware.formats & (1ULL << i))
+		if (dummy->pcm_hw.formats & (1ULL << i))
 			snd_iprintf(buffer, " %s", snd_pcm_format_name(i));
 	}
 }
 
-static void print_rates(struct snd_info_buffer *buffer)
+static void print_rates(struct snd_dummy *dummy,
+			struct snd_info_buffer *buffer)
 {
 	static int rates[] = {
 		5512, 8000, 11025, 16000, 22050, 32000, 44100, 48000,
@@ -841,19 +871,19 @@ static void print_rates(struct snd_info_buffer *buffer)
 	};
 	int i;
 
-	if (dummy_pcm_hardware.rates & SNDRV_PCM_RATE_CONTINUOUS)
+	if (dummy->pcm_hw.rates & SNDRV_PCM_RATE_CONTINUOUS)
 		snd_iprintf(buffer, " continuous");
-	if (dummy_pcm_hardware.rates & SNDRV_PCM_RATE_KNOT)
+	if (dummy->pcm_hw.rates & SNDRV_PCM_RATE_KNOT)
 		snd_iprintf(buffer, " knot");
 	for (i = 0; i < ARRAY_SIZE(rates); i++)
-		if (dummy_pcm_hardware.rates & (1 << i))
+		if (dummy->pcm_hw.rates & (1 << i))
 			snd_iprintf(buffer, " %d", rates[i]);
 }
 
-#define get_dummy_int_ptr(ofs) \
-	(unsigned int *)((char *)&dummy_pcm_hardware + (ofs))
-#define get_dummy_ll_ptr(ofs) \
-	(unsigned long long *)((char *)&dummy_pcm_hardware + (ofs))
+#define get_dummy_int_ptr(dummy, ofs) \
+	(unsigned int *)((char *)&((dummy)->pcm_hw) + (ofs))
+#define get_dummy_ll_ptr(dummy, ofs) \
+	(unsigned long long *)((char *)&((dummy)->pcm_hw) + (ofs))
 
 struct dummy_hw_field {
 	const char *name;
@@ -884,20 +914,21 @@ static struct dummy_hw_field fields[] = {
 static void dummy_proc_read(struct snd_info_entry *entry,
 			    struct snd_info_buffer *buffer)
 {
+	struct snd_dummy *dummy = entry->private_data;
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(fields); i++) {
 		snd_iprintf(buffer, "%s ", fields[i].name);
 		if (fields[i].size == sizeof(int))
 			snd_iprintf(buffer, fields[i].format,
-				    *get_dummy_int_ptr(fields[i].offset));
+				*get_dummy_int_ptr(dummy, fields[i].offset));
 		else
 			snd_iprintf(buffer, fields[i].format,
-				    *get_dummy_ll_ptr(fields[i].offset));
+				*get_dummy_ll_ptr(dummy, fields[i].offset));
 		if (!strcmp(fields[i].name, "formats"))
-			print_formats(buffer);
+			print_formats(dummy, buffer);
 		else if (!strcmp(fields[i].name, "rates"))
-			print_rates(buffer);
+			print_rates(dummy, buffer);
 		snd_iprintf(buffer, "\n");
 	}
 }
@@ -905,6 +936,7 @@ static void dummy_proc_read(struct snd_info_entry *entry,
 static void dummy_proc_write(struct snd_info_entry *entry,
 			     struct snd_info_buffer *buffer)
 {
+	struct snd_dummy *dummy = entry->private_data;
 	char line[64];
 
 	while (!snd_info_get_line(buffer, line, sizeof(line))) {
@@ -924,9 +956,9 @@ static void dummy_proc_write(struct snd_info_entry *entry,
 		if (strict_strtoull(item, 0, &val))
 			continue;
 		if (fields[i].size == sizeof(int))
-			*get_dummy_int_ptr(fields[i].offset) = val;
+			*get_dummy_int_ptr(dummy, fields[i].offset) = val;
 		else
-			*get_dummy_ll_ptr(fields[i].offset) = val;
+			*get_dummy_ll_ptr(dummy, fields[i].offset) = val;
 	}
 }
 
@@ -938,6 +970,7 @@ static void __devinit dummy_proc_init(struct snd_dummy *chip)
 		snd_info_set_text_ops(entry, chip, dummy_proc_read);
 		entry->c.text.write = dummy_proc_write;
 		entry->mode |= S_IWUSR;
+		entry->private_data = chip;
 	}
 }
 #else
@@ -948,6 +981,7 @@ static int __devinit snd_dummy_probe(struct platform_device *devptr)
 {
 	struct snd_card *card;
 	struct snd_dummy *dummy;
+	struct dummy_model *m = NULL, **mdl;
 	int idx, err;
 	int dev = devptr->id;
 
@@ -957,6 +991,15 @@ static int __devinit snd_dummy_probe(struct platform_device *devptr)
 		return err;
 	dummy = card->private_data;
 	dummy->card = card;
+	for (mdl = dummy_models; *mdl && model[dev]; mdl++) {
+		if (strcmp(model[dev], (*mdl)->name) == 0) {
+			printk(KERN_INFO
+				"snd-dummy: Using model '%s' for card %i\n",
+				(*mdl)->name, card->number);
+			m = dummy->model = *mdl;
+			break;
+		}
+	}
 	for (idx = 0; idx < MAX_PCM_DEVICES && idx < pcm_devs[dev]; idx++) {
 		if (pcm_substreams[dev] < 1)
 			pcm_substreams[dev] = 1;
@@ -966,6 +1009,33 @@ static int __devinit snd_dummy_probe(struct platform_device *devptr)
 		if (err < 0)
 			goto __nodev;
 	}
+
+	dummy->pcm_hw = dummy_pcm_hardware;
+	if (m) {
+		if (m->formats)
+			dummy->pcm_hw.formats = m->formats;
+		if (m->buffer_bytes_max)
+			dummy->pcm_hw.buffer_bytes_max = m->buffer_bytes_max;
+		if (m->period_bytes_min)
+			dummy->pcm_hw.period_bytes_min = m->period_bytes_min;
+		if (m->period_bytes_max)
+			dummy->pcm_hw.period_bytes_max = m->period_bytes_max;
+		if (m->periods_min)
+			dummy->pcm_hw.periods_min = m->periods_min;
+		if (m->periods_max)
+			dummy->pcm_hw.periods_max = m->periods_max;
+		if (m->rates)
+			dummy->pcm_hw.rates = m->rates;
+		if (m->rate_min)
+			dummy->pcm_hw.rate_min = m->rate_min;
+		if (m->rate_max)
+			dummy->pcm_hw.rate_max = m->rate_max;
+		if (m->channels_min)
+			dummy->pcm_hw.channels_min = m->channels_min;
+		if (m->channels_max)
+			dummy->pcm_hw.channels_max = m->channels_max;
+	}
+
 	err = snd_card_dummy_new_mixer(dummy);
 	if (err < 0)
 		goto __nodev;

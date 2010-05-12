@@ -5,8 +5,6 @@
 
 /*Created on  2009/ 3/ 6,  5:29*/
 
-#define ImgArrayLength 68368
-extern u8 Rtl8192SUFwImgArray[ImgArrayLength];
 #define MainArrayLength 1
 extern u8 Rtl8192SUFwMainArray[MainArrayLength];
 #define DataArrayLength 1

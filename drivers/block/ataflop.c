@@ -1470,8 +1470,6 @@ repeat:
 
 void do_fd_request(struct request_queue * q)
 {
- 	unsigned long flags;
-
 	DPRINT(("do_fd_request for pid %d\n",current->pid));
 	while( fdc_busy ) sleep_on( &fdc_wait );
 	fdc_busy = 1;

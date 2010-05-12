@@ -254,7 +254,7 @@ static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, int rw,
 	 * Issue the synchronous I/O from a different thread
 	 * to avoid generic_make_request recursion.
 	 */
-	INIT_WORK(&req.work, do_metadata);
+	INIT_WORK_ON_STACK(&req.work, do_metadata);
 	queue_work(ps->metadata_wq, &req.work);
 	flush_workqueue(ps->metadata_wq);
 

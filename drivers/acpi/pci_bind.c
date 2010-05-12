@@ -26,7 +26,9 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/pci-acpi.h>
 #include <linux/acpi.h>
+#include <linux/pm_runtime.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 
@@ -38,7 +40,13 @@ static int acpi_pci_unbind(struct acpi_device *device)
 	struct pci_dev *dev;
 
 	dev = acpi_get_pci_dev(device->handle);
-	if (!dev || !dev->subordinate)
+	if (!dev)
+		goto out;
+
+	device_set_run_wake(&dev->dev, false);
+	pci_acpi_remove_pm_notifier(device);
+
+	if (!dev->subordinate)
 		goto out;
 
 	acpi_pci_irq_del_prt(dev->subordinate);
@@ -61,6 +69,10 @@ static int acpi_pci_bind(struct acpi_device *device)
 	dev = acpi_get_pci_dev(device->handle);
 	if (!dev)
 		return 0;
+
+	pci_acpi_add_pm_notifier(device, dev);
+	if (device->wakeup.flags.run_wake)
+		device_set_run_wake(&dev->dev, true);
 
 	/*
 	 * Install the 'bind' function to facilitate callbacks for

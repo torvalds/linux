@@ -1169,7 +1169,7 @@ static void set_multicast_list(struct net_device *dev)
 static void SetMulticastFilter(struct net_device *dev)
 {
 	struct ewrk3_private *lp = netdev_priv(dev);
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct dev_mc_list *dmi;
 	u_long iobase = dev->base_addr;
 	int i;
 	char *addrs, bit, byte;
@@ -1213,9 +1213,8 @@ static void SetMulticastFilter(struct net_device *dev)
 		}
 
 		/* Update table */
-		for (i = 0; i < dev->mc_count; i++) {	/* for each address in the list */
+		netdev_for_each_mc_addr(dmi, dev) {
 			addrs = dmi->dmi_addr;
-			dmi = dmi->next;
 			if ((*addrs & 0x01) == 1) {	/* multicast address? */
 				crc = ether_crc_le(ETH_ALEN, addrs);
 				hashcode = crc & ((1 << 9) - 1);	/* hashcode is 9 LSb of CRC */

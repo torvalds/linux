@@ -1,5 +1,6 @@
 #include <linux/types.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/ioport.h>
 #include <linux/init.h>

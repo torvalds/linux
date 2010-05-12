@@ -149,10 +149,11 @@ char *(*procinfo)(struct capi_ctr *ctrlr)
 	pointer to a callback function returning the entry for the device in
 	the CAPI controller info table, /proc/capi/controller
 
-read_proc_t *ctr_read_proc
-	pointer to the read_proc callback function for the device's proc file
-	system entry, /proc/capi/controllers/<n>; will be called with a
-	pointer to the device's capi_ctr structure as the last (data) argument
+const struct file_operations *proc_fops
+	pointers to callback functions for the device's proc file
+	system entry, /proc/capi/controllers/<n>; pointer to the device's
+	capi_ctr structure is available from struct proc_dir_entry::data
+	which is available from struct inode.
 
 Note: Callback functions except send_message() are never called in interrupt
 context.

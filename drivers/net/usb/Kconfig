@@ -204,6 +204,14 @@ config USB_NET_DM9601
 	  This option adds support for Davicom DM9601 based USB 1.1
 	  10/100 Ethernet adapters.
 
+config USB_NET_SMSC75XX
+	tristate "SMSC LAN75XX based USB 2.0 gigabit ethernet devices"
+	depends on USB_USBNET
+	select CRC32
+	help
+	  This option adds support for SMSC LAN95XX based USB 2.0
+	  Gigabit Ethernet adapters.
+
 config USB_NET_SMSC95XX
 	tristate "SMSC LAN95XX based USB 2.0 10/100 ethernet devices"
 	depends on USB_USBNET
@@ -376,5 +384,26 @@ config USB_CDC_PHONET
 	  Choose this option to support the Phonet interface to a Nokia
 	  cellular modem, as found on most Nokia handsets with the
 	  "PC suite" USB profile.
+
+config USB_IPHETH
+	tristate "Apple iPhone USB Ethernet driver"
+	default n
+	---help---
+	  Module used to share Internet connection (tethering) from your
+	  iPhone (Original, 3G and 3GS) to your system.
+	  Note that you need userspace libraries and programs that are needed
+	  to pair your device with your system and that understand the iPhone
+	  protocol.
+
+	  For more information: http://giagio.com/wiki/moin.cgi/iPhoneEthernetDriver
+
+config USB_SIERRA_NET
+	tristate "USB-to-WWAN Driver for Sierra Wireless modems"
+	depends on USB_USBNET
+	help
+	  Choose this option if you have a Sierra Wireless USB-to-WWAN device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sierra_net.
 
 endmenu

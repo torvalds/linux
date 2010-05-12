@@ -14,6 +14,7 @@
 #include "ssb_private.h"
 
 #include <linux/ctype.h>
+#include <linux/slab.h>
 
 
 static const struct ssb_sprom *fallback_sprom;

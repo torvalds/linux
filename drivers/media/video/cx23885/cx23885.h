@@ -23,6 +23,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/kdev_t.h>
+#include <linux/slab.h>
 
 #include <media/v4l2-device.h>
 #include <media/tuner.h>
@@ -81,6 +82,7 @@
 #define CX23885_BOARD_COMPRO_VIDEOMATE_E800    25
 #define CX23885_BOARD_HAUPPAUGE_HVR1290        26
 #define CX23885_BOARD_MYGICA_X8558PRO          27
+#define CX23885_BOARD_LEADTEK_WINFAST_PXTV1200 28
 
 #define GPIO_0 0x00000001
 #define GPIO_1 0x00000002

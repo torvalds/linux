@@ -153,6 +153,11 @@ struct btrfs_inode {
 	unsigned ordered_data_close:1;
 	unsigned dummy_inode:1;
 
+	/*
+	 * always compress this one file
+	 */
+	unsigned force_compress:1;
+
 	struct inode vfs_inode;
 };
 

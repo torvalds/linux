@@ -1026,14 +1026,16 @@ static ssize_t cmm_read(struct file *filp, __user char *buf, size_t count,
 
 	xoutb(0, REG_FLAGS1(iobase));	/* clear detectCMM */
 	/* last check before exit */
-	if (!io_detect_cm4000(iobase, dev))
-		count = -ENODEV;
+	if (!io_detect_cm4000(iobase, dev)) {
+		rc = -ENODEV;
+		goto release_io;
+	}
 
 	if (test_bit(IS_INVREV, &dev->flags) && count > 0)
 		str_invert_revert(dev->rbuf, count);
 
 	if (copy_to_user(buf, dev->rbuf, count))
-		return -EFAULT;
+		rc = -EFAULT;
 
 release_io:
 	clear_bit(LOCK_IO, &dev->flags);
@@ -1047,7 +1049,7 @@ release_io:
 static ssize_t cmm_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct cm4000_dev *dev = (struct cm4000_dev *) filp->private_data;
+	struct cm4000_dev *dev = filp->private_data;
 	unsigned int iobase = dev->p_dev->io.BasePort1;
 	unsigned short s;
 	unsigned char tmp;

@@ -15,6 +15,7 @@
 #include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 
 #include "dlm_internal.h"
 #include "lock.h"
@@ -256,7 +257,7 @@ static int print_format3_lock(struct seq_file *s, struct dlm_lkb *lkb,
 			lkb->lkb_status,
 			lkb->lkb_grmode,
 			lkb->lkb_rqmode,
-			lkb->lkb_highbast,
+			lkb->lkb_bastmode,
 			rsb_lookup,
 			lkb->lkb_wait_type,
 			lkb->lkb_lvbseq,

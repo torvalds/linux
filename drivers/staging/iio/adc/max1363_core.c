@@ -33,6 +33,7 @@
 #include <linux/i2c.h>
 #include <linux/rtc.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 
 #include "../iio.h"
 #include "../sysfs.h"
@@ -556,6 +557,7 @@ error_put_reg:
 	if (!IS_ERR(st->reg))
 		regulator_put(st->reg);
 error_free_st:
+	i2c_set_clientdata(client, NULL);
 	kfree(st);
 
 error_ret:
@@ -573,6 +575,7 @@ static int max1363_remove(struct i2c_client *client)
 		regulator_disable(st->reg);
 		regulator_put(st->reg);
 	}
+	i2c_set_clientdata(client, NULL);
 	kfree(st);
 
 	return 0;

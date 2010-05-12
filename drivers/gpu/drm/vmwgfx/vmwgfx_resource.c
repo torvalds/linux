@@ -574,6 +574,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 
 	srf->flags = req->flags;
 	srf->format = req->format;
+	srf->scanout = req->scanout;
 	memcpy(srf->mip_levels, req->mip_levels, sizeof(srf->mip_levels));
 	srf->num_sizes = 0;
 	for (i = 0; i < DRM_VMW_MAX_SURFACE_FACES; ++i)
@@ -599,8 +600,7 @@ int vmw_surface_define_ioctl(struct drm_device *dev, void *data,
 	if (unlikely(ret != 0))
 		goto out_err1;
 
-
-	if (srf->flags & (1 << 9) &&
+	if (srf->scanout &&
 	    srf->num_sizes == 1 &&
 	    srf->sizes[0].width == 64 &&
 	    srf->sizes[0].height == 64 &&

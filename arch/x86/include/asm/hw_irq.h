@@ -53,13 +53,6 @@ extern void threshold_interrupt(void);
 extern void call_function_interrupt(void);
 extern void call_function_single_interrupt(void);
 
-/* PIC specific functions */
-extern void disable_8259A_irq(unsigned int irq);
-extern void enable_8259A_irq(unsigned int irq);
-extern int i8259A_irq_pending(unsigned int irq);
-extern void make_8259A_irq(unsigned int irq);
-extern void init_8259A(int aeoi);
-
 /* IOAPIC */
 #define IO_APIC_IRQ(x) (((x) >= NR_IRQS_LEGACY) || ((1<<(x)) & io_apic_irqs))
 extern unsigned long io_apic_irqs;
@@ -140,6 +133,7 @@ extern void (*__initconst interrupt[NR_VECTORS-FIRST_EXTERNAL_VECTOR])(void);
 
 typedef int vector_irq_t[NR_VECTORS];
 DECLARE_PER_CPU(vector_irq_t, vector_irq);
+extern void setup_vector_irq(int cpu);
 
 #ifdef CONFIG_X86_IO_APIC
 extern void lock_vector_lock(void);

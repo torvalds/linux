@@ -164,8 +164,11 @@ static int pxa_irq_suspend(struct sys_device *dev, pm_message_t state)
 		saved_icmr[i] = _ICMR(irq);
 		_ICMR(irq) = 0;
 	}
-	for (i = 0; i < pxa_internal_irq_nr; i++)
-		saved_ipr[i] = IPR(i);
+
+	if (cpu_is_pxa27x() || cpu_is_pxa3xx()) {
+		for (i = 0; i < pxa_internal_irq_nr; i++)
+			saved_ipr[i] = IPR(i);
+	}
 
 	return 0;
 }
@@ -174,12 +177,15 @@ static int pxa_irq_resume(struct sys_device *dev)
 {
 	int i, irq = PXA_IRQ(0);
 
+	if (cpu_is_pxa27x() || cpu_is_pxa3xx()) {
+		for (i = 0; i < pxa_internal_irq_nr; i++)
+			IPR(i) = saved_ipr[i];
+	}
+
 	for (i = 0; irq < PXA_IRQ(pxa_internal_irq_nr); i++, irq += 32) {
 		_ICMR(irq) = saved_icmr[i];
 		_ICLR(irq) = 0;
 	}
-	for (i = 0; i < pxa_internal_irq_nr; i++)
-		IPR(i) = saved_ipr[i];
 
 	ICCR = 1;
 	return 0;

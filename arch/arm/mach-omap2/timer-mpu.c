@@ -28,7 +28,7 @@
  */
 void __cpuinit local_timer_setup(struct clock_event_device *evt)
 {
-	evt->irq = INT_44XX_LOCALTIMER_IRQ;
+	evt->irq = OMAP44XX_IRQ_LOCALTIMER;
 	twd_timer_setup(evt);
 }
 

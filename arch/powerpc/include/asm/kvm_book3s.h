@@ -22,7 +22,7 @@
 
 #include <linux/types.h>
 #include <linux/kvm_host.h>
-#include <asm/kvm_ppc.h>
+#include <asm/kvm_book3s_64_asm.h>
 
 struct kvmppc_slb {
 	u64 esid;
@@ -33,7 +33,8 @@ struct kvmppc_slb {
 	bool Ks;
 	bool Kp;
 	bool nx;
-	bool large;
+	bool large;	/* PTEs are 16MB */
+	bool tb;	/* 1TB segment */
 	bool class;
 };
 
@@ -69,6 +70,7 @@ struct kvmppc_sid_map {
 
 struct kvmppc_vcpu_book3s {
 	struct kvm_vcpu vcpu;
+	struct kvmppc_book3s_shadow_vcpu shadow_vcpu;
 	struct kvmppc_sid_map sid_map[SID_MAP_NUM];
 	struct kvmppc_slb slb[64];
 	struct {
@@ -89,6 +91,7 @@ struct kvmppc_vcpu_book3s {
 	u64 vsid_next;
 	u64 vsid_max;
 	int context_id;
+	ulong prog_flags; /* flags to inject when giving a 700 trap */
 };
 
 #define CONTEXT_HOST		0
@@ -119,6 +122,10 @@ extern void kvmppc_set_bat(struct kvm_vcpu *vcpu, struct kvmppc_bat *bat,
 
 extern u32 kvmppc_trampoline_lowmem;
 extern u32 kvmppc_trampoline_enter;
+extern void kvmppc_rmcall(ulong srr0, ulong srr1);
+extern void kvmppc_load_up_fpu(void);
+extern void kvmppc_load_up_altivec(void);
+extern void kvmppc_load_up_vsx(void);
 
 static inline struct kvmppc_vcpu_book3s *to_book3s(struct kvm_vcpu *vcpu)
 {

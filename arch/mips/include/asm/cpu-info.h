@@ -58,6 +58,9 @@ struct cpuinfo_mips {
 	struct cache_desc	tcache;	/* Tertiary/split secondary cache */
 	int			srsets;	/* Shadow register sets */
 	int			core;	/* physical core number */
+#ifdef CONFIG_64BIT
+	int			vmbits;	/* Virtual memory size in bits */
+#endif
 #if defined(CONFIG_MIPS_MT_SMP) || defined(CONFIG_MIPS_MT_SMTC)
 	/*
 	 * In the MIPS MT "SMTC" model, each TC is considered

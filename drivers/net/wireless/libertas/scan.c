@@ -4,6 +4,7 @@
   * IOCTL handlers as well as command preperation and response routines
   *  for sending scan commands to the firmware.
   */
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/etherdevice.h>
@@ -635,7 +636,7 @@ out:
 	if (priv->connect_status == LBS_CONNECTED && !priv->tx_pending_len)
 		netif_wake_queue(priv->dev);
 
-	if (priv->mesh_dev && (priv->mesh_connect_status == LBS_CONNECTED) &&
+	if (priv->mesh_dev && lbs_mesh_connected(priv) &&
 	    !priv->tx_pending_len)
 		netif_wake_queue(priv->mesh_dev);
 

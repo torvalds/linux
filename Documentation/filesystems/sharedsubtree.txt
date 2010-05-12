@@ -837,6 +837,9 @@ replicas continue to be exactly same.
 	 individual lists does not affect propagation or the way propagation
 	 tree is modified by operations.
 
+	All vfsmounts in a peer group have the same ->mnt_master.  If it is
+	non-NULL, they form a contiguous (ordered) segment of slave list.
+
 	A example propagation tree looks as shown in the figure below.
 	[ NOTE: Though it looks like a forest, if we consider all the shared
 	mounts as a conceptual entity called 'pnode', it becomes a tree]
@@ -874,8 +877,19 @@ replicas continue to be exactly same.
 
 	NOTE: The propagation tree is orthogonal to the mount tree.
 
+8B Locking:
 
-8B Algorithm:
+	->mnt_share, ->mnt_slave, ->mnt_slave_list, ->mnt_master are protected
+	by namespace_sem (exclusive for modifications, shared for reading).
+
+	Normally we have ->mnt_flags modifications serialized by vfsmount_lock.
+	There are two exceptions: do_add_mount() and clone_mnt().
+	The former modifies a vfsmount that has not been visible in any shared
+	data structures yet.
+	The latter holds namespace_sem and the only references to vfsmount
+	are in lists that can't be traversed without namespace_sem.
+
+8C Algorithm:
 
 	The crux of the implementation resides in rbind/move operation.
 

@@ -74,7 +74,6 @@ struct ath_common;
 
 struct ath_bus_ops {
 	void		(*read_cachesize)(struct ath_common *common, int *csz);
-	void		(*cleanup)(struct ath_common *common);
 	bool		(*eeprom_read)(struct ath_common *common, u32 off, u16 *data);
 	void		(*bt_coex_prep)(struct ath_common *common);
 };

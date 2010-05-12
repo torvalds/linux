@@ -861,8 +861,7 @@ typedef struct xfs_item_ops {
 #define	XFS_ITEM_SUCCESS	0
 #define	XFS_ITEM_PINNED		1
 #define	XFS_ITEM_LOCKED		2
-#define	XFS_ITEM_FLUSHING	3
-#define XFS_ITEM_PUSHBUF	4
+#define XFS_ITEM_PUSHBUF	3
 
 /*
  * This structure is used to maintain a list of block ranges that have been
@@ -911,7 +910,7 @@ typedef struct xfs_trans {
 	unsigned int		t_blk_res_used;	/* # of resvd blocks used */
 	unsigned int		t_rtx_res;	/* # of rt extents resvd */
 	unsigned int		t_rtx_res_used;	/* # of resvd rt extents used */
-	xfs_log_ticket_t	t_ticket;	/* log mgr ticket */
+	struct xlog_ticket	*t_ticket;	/* log mgr ticket */
 	xfs_lsn_t		t_lsn;		/* log seq num of start of
 						 * transaction. */
 	xfs_lsn_t		t_commit_lsn;	/* log seq num of end of

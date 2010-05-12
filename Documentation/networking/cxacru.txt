@@ -4,6 +4,12 @@ While it is capable of managing/maintaining the ADSL connection without the
 module loaded, the device will sometimes stop responding after unloading the
 driver and it is necessary to unplug/remove power to the device to fix this.
 
+Note: support for cxacru-cf.bin has been removed. It was not loaded correctly
+so it had no effect on the device configuration. Fixing it could have stopped
+existing devices working when an invalid configuration is supplied.
+
+There is a script cxacru-cf.py to convert an existing file to the sysfs form.
+
 Detected devices will appear as ATM devices named "cxacru". In /sys/class/atm/
 these are directories named cxacruN where N is the device number. A symlink
 named device points to the USB interface device's directory which contains
@@ -14,6 +20,15 @@ several sysfs attribute files for retrieving device statistics:
 * adsl_headend
 * adsl_headend_environment
 	Information about the remote headend.
+
+* adsl_config
+	Configuration writing interface.
+	Write parameters in hexadecimal format <index>=<value>,
+	separated by whitespace, e.g.:
+		"1=0 a=5"
+	Up to 7 parameters at a time will be sent and the modem will restart
+	the ADSL connection when any value is set. These are logged for future
+	reference.
 
 * downstream_attenuation (dB)
 * downstream_bits_per_frame
@@ -61,6 +76,7 @@ several sysfs attribute files for retrieving device statistics:
 * mac_address
 
 * modulation
+	"" (when not connected)
 	"ANSI T1.413"
 	"ITU-T G.992.1 (G.DMT)"
 	"ITU-T G.992.2 (G.LITE)"

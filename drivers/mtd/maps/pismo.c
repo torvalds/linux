@@ -10,6 +10,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
@@ -118,7 +119,7 @@ static int __devinit pismo_add_device(struct pismo_data *pismo, int i,
 {
 	struct platform_device *dev;
 	struct resource res = { };
-	phys_addr_t base = region.base;
+	phys_addr_t base = region->base;
 	int ret;
 
 	if (base == ~0)

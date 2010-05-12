@@ -450,6 +450,8 @@ struct thread_struct {
 	struct perf_event	*ptrace_bps[HBP_NUM];
 	/* Debug status used for traps, single steps, etc... */
 	unsigned long           debugreg6;
+	/* Keep track of the exact dr7 value set by the user */
+	unsigned long           ptrace_dr7;
 	/* Fault info: */
 	unsigned long		cr2;
 	unsigned long		trap_no;

@@ -16,16 +16,18 @@
 #include <linux/io.h>
 #include <mach-se/mach/se7343.h>
 
+unsigned int se7343_fpga_irq[SE7343_FPGA_IRQ_NR] = { 0, };
+
 static void disable_se7343_irq(unsigned int irq)
 {
-	unsigned int bit = irq - SE7343_FPGA_IRQ_BASE;
-	ctrl_outw(ctrl_inw(PA_CPLD_IMSK) | 1 << bit, PA_CPLD_IMSK);
+	unsigned int bit = (unsigned int)get_irq_chip_data(irq);
+	__raw_writew(__raw_readw(PA_CPLD_IMSK) | 1 << bit, PA_CPLD_IMSK);
 }
 
 static void enable_se7343_irq(unsigned int irq)
 {
-	unsigned int bit = irq - SE7343_FPGA_IRQ_BASE;
-	ctrl_outw(ctrl_inw(PA_CPLD_IMSK) & ~(1 << bit), PA_CPLD_IMSK);
+	unsigned int bit = (unsigned int)get_irq_chip_data(irq);
+	__raw_writew(__raw_readw(PA_CPLD_IMSK) & ~(1 << bit), PA_CPLD_IMSK);
 }
 
 static struct irq_chip se7343_irq_chip __read_mostly = {
@@ -37,19 +39,16 @@ static struct irq_chip se7343_irq_chip __read_mostly = {
 
 static void se7343_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
-	unsigned short intv = ctrl_inw(PA_CPLD_ST);
-	struct irq_desc *ext_desc;
-	unsigned int ext_irq = SE7343_FPGA_IRQ_BASE;
+	unsigned short intv = __raw_readw(PA_CPLD_ST);
+	unsigned int ext_irq = 0;
 
 	intv &= (1 << SE7343_FPGA_IRQ_NR) - 1;
 
-	while (intv) {
-		if (intv & 1) {
-			ext_desc = irq_desc + ext_irq;
-			handle_level_irq(ext_irq, ext_desc);
-		}
-		intv >>= 1;
-		ext_irq++;
+	for (; intv; intv >>= 1, ext_irq++) {
+		if (!(intv & 1))
+			continue;
+
+		generic_handle_irq(se7343_fpga_irq[ext_irq]);
 	}
 }
 
@@ -58,15 +57,23 @@ static void se7343_irq_demux(unsigned int irq, struct irq_desc *desc)
  */
 void __init init_7343se_IRQ(void)
 {
-	int i;
+	int i, irq;
 
-	ctrl_outw(0, PA_CPLD_IMSK);	/* disable all irqs */
-	ctrl_outw(0x2000, 0xb03fffec);	/* mrshpc irq enable */
+	__raw_writew(0, PA_CPLD_IMSK);	/* disable all irqs */
+	__raw_writew(0x2000, 0xb03fffec);	/* mrshpc irq enable */
 
-	for (i = 0; i < SE7343_FPGA_IRQ_NR; i++)
-		set_irq_chip_and_handler_name(SE7343_FPGA_IRQ_BASE + i,
+	for (i = 0; i < SE7343_FPGA_IRQ_NR; i++) {
+		irq = create_irq();
+		if (irq < 0)
+			return;
+		se7343_fpga_irq[i] = irq;
+
+		set_irq_chip_and_handler_name(se7343_fpga_irq[i],
 					      &se7343_irq_chip,
 					      handle_level_irq, "level");
+
+		set_irq_chip_data(se7343_fpga_irq[i], (void *)i);
+	}
 
 	set_irq_chained_handler(IRQ0_IRQ, se7343_irq_demux);
 	set_irq_type(IRQ0_IRQ, IRQ_TYPE_LEVEL_LOW);

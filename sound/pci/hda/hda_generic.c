@@ -861,7 +861,8 @@ static int build_input_controls(struct hda_codec *codec)
 	}
 
 	/* create input MUX if multiple sources are available */
-	err = snd_hda_ctl_add(codec, 0, snd_ctl_new1(&cap_sel, codec));
+	err = snd_hda_ctl_add(codec, spec->adc_node->nid,
+			      snd_ctl_new1(&cap_sel, codec));
 	if (err < 0)
 		return err;
 

@@ -14,7 +14,6 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
@@ -85,7 +84,7 @@ static struct fb_ops q40fb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static int __init q40fb_probe(struct platform_device *dev)
+static int __devinit q40fb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 

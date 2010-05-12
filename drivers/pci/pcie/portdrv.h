@@ -30,4 +30,21 @@ extern void pcie_port_device_remove(struct pci_dev *dev);
 extern int __must_check pcie_port_bus_register(void);
 extern void pcie_port_bus_unregister(void);
 
+#ifdef CONFIG_PCIE_PME
+extern bool pcie_pme_msi_disabled;
+
+static inline void pcie_pme_disable_msi(void)
+{
+	pcie_pme_msi_disabled = true;
+}
+
+static inline bool pcie_pme_no_msi(void)
+{
+	return pcie_pme_msi_disabled;
+}
+#else /* !CONFIG_PCIE_PME */
+static inline void pcie_pme_disable_msi(void) {}
+static inline bool pcie_pme_no_msi(void) { return false; }
+#endif /* !CONFIG_PCIE_PME */
+
 #endif /* _PORTDRV_H_ */

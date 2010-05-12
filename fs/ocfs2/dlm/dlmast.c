@@ -28,7 +28,6 @@
 #include <linux/module.h>
 #include <linux/fs.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/init.h>
 #include <linux/sysctl.h>
@@ -123,7 +122,7 @@ static void __dlm_queue_ast(struct dlm_ctxt *dlm, struct dlm_lock *lock)
 		dlm_lock_put(lock);
 		/* free up the reserved bast that we are cancelling.
 		 * guaranteed that this will not be the last reserved
-		 * ast because *both* an ast and a bast were reserved 
+		 * ast because *both* an ast and a bast were reserved
 		 * to get to this point.  the res->spinlock will not be
 		 * taken here */
 		dlm_lockres_release_ast(dlm, res);
@@ -185,9 +184,8 @@ static void dlm_update_lvb(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
 	BUG_ON(!lksb);
 
 	/* only updates if this node masters the lockres */
+	spin_lock(&res->spinlock);
 	if (res->owner == dlm->node_num) {
-
-		spin_lock(&res->spinlock);
 		/* check the lksb flags for the direction */
 		if (lksb->flags & DLM_LKSB_GET_LVB) {
 			mlog(0, "getting lvb from lockres for %s node\n",
@@ -202,8 +200,8 @@ static void dlm_update_lvb(struct dlm_ctxt *dlm, struct dlm_lock_resource *res,
  		 * here. In the future we might want to clear it at the time
  		 * the put is actually done.
 		 */
-		spin_unlock(&res->spinlock);
 	}
+	spin_unlock(&res->spinlock);
 
 	/* reset any lvb flags on the lksb */
 	lksb->flags &= ~(DLM_LKSB_PUT_LVB|DLM_LKSB_GET_LVB);

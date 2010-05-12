@@ -26,6 +26,8 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/err.h>
+#include <linux/slab.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>

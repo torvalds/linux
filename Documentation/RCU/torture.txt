@@ -30,6 +30,18 @@ MODULE PARAMETERS
 
 This module has the following parameters:
 
+fqs_duration	Duration (in microseconds) of artificially induced bursts
+		of force_quiescent_state() invocations.  In RCU
+		implementations having force_quiescent_state(), these
+		bursts help force races between forcing a given grace
+		period and that grace period ending on its own.
+
+fqs_holdoff	Holdoff time (in microseconds) between consecutive calls
+		to force_quiescent_state() within a burst.
+
+fqs_stutter	Wait time (in seconds) between consecutive bursts
+		of calls to force_quiescent_state().
+
 irqreaders	Says to invoke RCU readers from irq level.  This is currently
 		done via timers.  Defaults to "1" for variants of RCU that
 		permit this.  (Or, more accurately, variants of RCU that do

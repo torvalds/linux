@@ -906,10 +906,6 @@ static void cap_audit_rule_free(void *lsmrule)
 }
 #endif /* CONFIG_AUDIT */
 
-struct security_operations default_security_ops = {
-	.name	= "default",
-};
-
 #define set_to_cap_if_null(ops, function)				\
 	do {								\
 		if (!ops->function) {					\

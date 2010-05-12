@@ -23,6 +23,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
@@ -109,6 +110,9 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		case CX88_BOARD_DVICO_FUSIONHDTV_5_GOLD:
 		case CX88_BOARD_PCHDTV_HD5500:
 			cx_write(TS_SOP_STAT, 1<<13);
+			break;
+		case CX88_BOARD_SAMSUNG_SMT_7020:
+			cx_write(TS_SOP_STAT, 0x00);
 			break;
 		case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
 		case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:

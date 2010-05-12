@@ -212,6 +212,15 @@ config CS5535_MFGPT_DEFAULT_IRQ
 	  want to use a different IRQ by default.  This is here for
 	  architectures to set as necessary.
 
+config CS5535_CLOCK_EVENT_SRC
+	tristate "CS5535/CS5536 high-res timer (MFGPT) events"
+	depends on GENERIC_TIME && GENERIC_CLOCKEVENTS && CS5535_MFGPT
+	help
+	  This driver provides a clock event source based on the MFGPT
+	  timer(s) in the CS5535 and CS5536 companion chips.
+	  MFGPTs have a better resolution and max interval than the
+	  generic PIT, and are suitable for use as high-res timers.
+
 config HP_ILO
 	tristate "Channel interface driver for HP iLO/iLO2 processor"
 	depends on PCI
@@ -259,6 +268,16 @@ config ISL29003
 	  This driver can also be built as a module.  If so, the module
 	  will be called isl29003.
 
+config SENSORS_TSL2550
+	tristate "Taos TSL2550 ambient light sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Taos TSL2550
+	  ambient light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called tsl2550.
+
 config EP93XX_PWM
 	tristate "EP93xx PWM support"
 	depends on ARCH_EP93XX
@@ -291,6 +310,22 @@ config TI_DAC7512
 
 	  This driver can also be built as a module. If so, the module
 	  will be calles ti_dac7512.
+
+config VMWARE_BALLOON
+	tristate "VMware Balloon Driver"
+	depends on X86
+	help
+	  This is VMware physical memory management driver which acts
+	  like a "balloon" that can be inflated to reclaim physical pages
+	  by reserving them in the guest and invalidating them in the
+	  monitor, freeing up the underlying machine pages so they can
+	  be allocated to other guests. The balloon can also be deflated
+	  to allow the guest to use more physical memory.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called vmware_balloon.
 
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"

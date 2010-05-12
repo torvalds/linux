@@ -16,7 +16,7 @@
  * Direct access to PCI hardware...
  */
 #define CONFIG_CMD(bus, devfn, where) \
-	(P1SEG | (bus->number << 16) | (devfn << 8) | (where & ~3))
+	(0x80000000 | (bus->number << 16) | (devfn << 8) | (where & ~3))
 
 static DEFINE_SPINLOCK(sh4_pci_lock);
 
@@ -101,34 +101,6 @@ struct pci_ops sh4_pci_ops = {
 	.read		= sh4_pci_read,
 	.write		= sh4_pci_write,
 };
-
-/*
- * Not really related to pci_ops, but it's common and not worth shoving
- * somewhere else for now..
- */
-int __init sh4_pci_check_direct(struct pci_channel *chan)
-{
-	/*
-	 * Check if configuration works.
-	 */
-	unsigned int tmp = pci_read_reg(chan, SH4_PCIPAR);
-
-	pci_write_reg(chan, P1SEG, SH4_PCIPAR);
-
-	if (pci_read_reg(chan, SH4_PCIPAR) == P1SEG) {
-		pci_write_reg(chan, tmp, SH4_PCIPAR);
-		printk(KERN_INFO "PCI: Using configuration type 1\n");
-		request_region(chan->reg_base + SH4_PCIPAR, 8,
-			       "PCI conf1");
-		return 0;
-	}
-
-	pci_write_reg(chan, tmp, SH4_PCIPAR);
-
-	printk(KERN_ERR "PCI: %s failed\n", __func__);
-
-	return -EINVAL;
-}
 
 int __attribute__((weak)) pci_fixup_pcic(struct pci_channel *chan)
 {

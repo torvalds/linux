@@ -312,6 +312,17 @@ static int ieee80211_is_eapol_frame(struct ieee80211_device *ieee,
 	if (skb->len < 24)
 		return 0;
 
+#if 1
+        if (ieee->hwsec_active)
+        {
+                cb_desc *tcb_desc = (cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
+                tcb_desc->bHwSec = 1;
+
+                if(ieee->need_sw_enc)
+                        tcb_desc->bHwSec = 0;
+        }
+#endif
+
 	hdr = (struct ieee80211_hdr_4addr *) skb->data;
 	fc = le16_to_cpu(hdr->frame_ctl);
 
@@ -366,8 +377,8 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device* ieee, struct sk_buff *skb,
 	    strcmp(crypt->ops->name, "TKIP") == 0) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "received packet from " MAC_FMT "\n",
-			       ieee->dev->name, MAC_ARG(hdr->addr2));
+			       "received packet from %pM\n",
+			       ieee->dev->name, hdr->addr2);
 		}
 		return -1;
 	}
@@ -378,8 +389,8 @@ ieee80211_rx_frame_decrypt(struct ieee80211_device* ieee, struct sk_buff *skb,
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
 		IEEE80211_DEBUG_DROP(
-			"decryption failed (SA=" MAC_FMT
-			") res=%d\n", MAC_ARG(hdr->addr2), res);
+			"decryption failed (SA=%pM"
+			") res=%d\n", hdr->addr2, res);
 		if (res == -2)
 			IEEE80211_DEBUG_DROP("Decryption failed ICV "
 					     "mismatch (key %d)\n",
@@ -406,6 +417,10 @@ ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device* ieee, struct sk_buff *s
 	{
 		cb_desc *tcb_desc = (cb_desc *)(skb->cb+ MAX_DEV_ADDR_SIZE);
 		tcb_desc->bHwSec = 1;
+
+                if(ieee->need_sw_enc)
+                        tcb_desc->bHwSec = 0;
+
 	}
 
 	hdr = (struct ieee80211_hdr_4addr *) skb->data;
@@ -416,8 +431,8 @@ ieee80211_rx_frame_decrypt_msdu(struct ieee80211_device* ieee, struct sk_buff *s
 	atomic_dec(&crypt->refcnt);
 	if (res < 0) {
 		printk(KERN_DEBUG "%s: MSDU decryption/MIC verification failed"
-		       " (SA=" MAC_FMT " keyidx=%d)\n",
-		       ieee->dev->name, MAC_ARG(hdr->addr2), keyidx);
+		       " (SA=%pM keyidx=%d)\n",
+		       ieee->dev->name, hdr->addr2, keyidx);
 		return -1;
 	}
 
@@ -799,7 +814,7 @@ void RxReorderIndicatePacket( struct ieee80211_device *ieee,
 #endif
 }
 
-u8 parse_subframe(struct sk_buff *skb,
+u8 parse_subframe(struct ieee80211_device* ieee,struct sk_buff *skb,
                   struct ieee80211_rx_stats *rx_stats,
 		  struct ieee80211_rxb *rxb,u8* src,u8* dst)
 {
@@ -839,6 +854,7 @@ u8 parse_subframe(struct sk_buff *skb,
 	}
 
 	skb_pull(skb, LLCOffset);
+	ieee->bIsAggregateFrame = bIsAggregateFrame;//added by amy for Leisure PS
 
 	if(!bIsAggregateFrame) {
 		rxb->nr_subframes = 1;
@@ -940,6 +956,7 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	u8	TID = 0;
 	u16	SeqNum = 0;
 	PRX_TS_RECORD pTS = NULL;
+	bool unicast_packet = false;
 	//bool bIsAggregateFrame = false;
 	//added by amy for reorder
 #ifdef NOT_YET
@@ -1045,8 +1062,8 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			 * frames silently instead of filling system log with
 			 * these reports. */
 			IEEE80211_DEBUG_DROP("Decryption failed (not set)"
-					     " (SA=" MAC_FMT ")\n",
-					     MAC_ARG(hdr->addr2));
+					     " (SA=%pM)\n",
+					     hdr->addr2);
 			ieee->ieee_stats.rx_discards_undecryptable++;
 			goto rx_dropped;
 		}
@@ -1114,8 +1131,8 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		    (keyidx = hostap_rx_frame_decrypt(ieee, skb, crypt)) < 0)
 		{
 			printk(KERN_DEBUG "%s: failed to decrypt mgmt::auth "
-			       "from " MAC_FMT "\n", dev->name,
-			       MAC_ARG(hdr->addr2));
+			       "from %pM\n", dev->name,
+			       hdr->addr2);
 			/* TODO: could inform hostapd about this so that it
 			 * could send auth failure report */
 			goto rx_dropped;
@@ -1215,6 +1232,24 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
         if (memcmp(bssid, ieee->current_network.bssid, ETH_ALEN))
                 goto rx_dropped;
 
+#ifdef ENABLE_LPS
+	if ((ieee->iw_mode == IW_MODE_INFRA)  && (ieee->sta_sleep == 1)
+		&& (ieee->polling)) {
+		if (WLAN_FC_MORE_DATA(fc)) {
+			/* more data bit is set, let's request a new frame from the AP */
+			ieee80211_sta_ps_send_pspoll_frame(ieee);
+		} else {
+			ieee->polling =  false;
+		}
+	}
+#endif
+
+	ieee->need_sw_enc = 0;
+
+        if((!rx_stats->Decrypted)){
+                ieee->need_sw_enc = 1;
+        }
+
 	/* skb: hdr + (possibly fragmented, possibly encrypted) payload */
 
 	if (ieee->host_decrypt && (fc & IEEE80211_FCTL_WEP) &&
@@ -1296,6 +1331,9 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	ieee->LinkDetectInfo.NumRxOkInPeriod++;
 
 	hdr = (struct ieee80211_hdr_4addr *) skb->data;
+	if((!is_multicast_ether_addr(hdr->addr1)) && (!is_broadcast_ether_addr(hdr->addr1)))
+		unicast_packet = true;
+
 	if (crypt && !(fc & IEEE80211_FCTL_WEP) && !ieee->open_wep) {
 		if (/*ieee->ieee802_1x &&*/
 		    ieee80211_is_eapol_frame(ieee, skb, hdrlen)) {
@@ -1311,8 +1349,8 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		} else {
 			IEEE80211_DEBUG_DROP(
 				"encryption configured, but RX "
-				"frame not encrypted (SA=" MAC_FMT ")\n",
-				MAC_ARG(hdr->addr2));
+				"frame not encrypted (SA=%pM)\n",
+				hdr->addr2);
 			goto rx_dropped;
 		}
 	}
@@ -1331,9 +1369,9 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	    !ieee80211_is_eapol_frame(ieee, skb, hdrlen)) {
 		IEEE80211_DEBUG_DROP(
 			"dropped unencrypted RX data "
-			"frame from " MAC_FMT
+			"frame from %pM"
 			" (drop_unencrypted=1)\n",
-			MAC_ARG(hdr->addr2));
+			hdr->addr2);
 		goto rx_dropped;
 	}
 /*
@@ -1367,7 +1405,7 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 	}
 	/* to parse amsdu packets */
 	/* qos data packets & reserved bit is 1 */
-	if(parse_subframe(skb,rx_stats,rxb,src,dst) == 0) {
+	if(parse_subframe(ieee, skb,rx_stats,rxb,src,dst) == 0) {
 		/* only to free rxb, and not submit the packets to upper layer */
 		for(i =0; i < rxb->nr_subframes; i++) {
 			dev_kfree_skb(rxb->subframes[i]);
@@ -1376,6 +1414,32 @@ int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 		rxb = NULL;
 		goto rx_dropped;
 	}
+
+#ifdef ENABLE_LPS
+		if(unicast_packet)
+		{
+			if (type == IEEE80211_FTYPE_DATA)
+			{
+
+				if(ieee->bIsAggregateFrame)
+					ieee->LinkDetectInfo.NumRxUnicastOkInPeriod+=rxb->nr_subframes;
+				else
+					ieee->LinkDetectInfo.NumRxUnicastOkInPeriod++;
+
+				// 2009.03.03 Leave DC mode immediately when detect high traffic
+				// DbgPrint("ending Seq %d\n", Frame_SeqNum(pduOS));
+				if((ieee->state == IEEE80211_LINKED) /*&& !MgntInitAdapterInProgress(pMgntInfo)*/)
+				{
+					if(	((ieee->LinkDetectInfo.NumRxUnicastOkInPeriod +ieee->LinkDetectInfo.NumTxOkInPeriod) > 8 ) ||
+						(ieee->LinkDetectInfo.NumRxUnicastOkInPeriod > 2) )
+					{
+						if(ieee->LeisurePSLeave)
+							ieee->LeisurePSLeave(dev);
+					}
+				}
+			}
+		}
+#endif
 
 	ieee->last_rx_ps_time = jiffies;
 //added by amy for reorder
@@ -2013,11 +2077,21 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 				info_element->data[1] == 0x13 &&
 				info_element->data[2] == 0x74))
 			{
-				printk("========>%s(): athros AP is exist\n",__FUNCTION__);
+				//printk("========>%s(): athros AP is exist\n",__FUNCTION__);
 				network->atheros_cap_exist = true;
 			}
 			else
 				network->atheros_cap_exist = false;
+
+			if ((info_element->len >= 3 &&
+						info_element->data[0] == 0x00 &&
+						info_element->data[1] == 0x50 &&
+						info_element->data[2] == 0x43) )
+			{
+				network->marvell_cap_exist = true;
+				//printk("========>%s(): marvel AP is exist\n",__FUNCTION__);
+			}
+
 
 			if(info_element->len >= 3 &&
 				info_element->data[0] == 0x00 &&
@@ -2219,7 +2293,8 @@ int ieee80211_parse_info_param(struct ieee80211_device *ieee,
 	}
 
 	if(!network->atheros_cap_exist && !network->broadcom_cap_exist &&
-		!network->cisco_cap_exist && !network->ralink_cap_exist && !network->bssht.bdRT2RTAggregation)
+		!network->cisco_cap_exist && !network->ralink_cap_exist && !network->bssht.bdRT2RTAggregation &&
+		!network->marvell_cap_exist)
 	{
 		network->unknown_cap_exist = true;
 	}
@@ -2333,6 +2408,7 @@ static inline int ieee80211_network_init(
         network->broadcom_cap_exist = false;
 	network->ralink_cap_exist = false;
 	network->atheros_cap_exist = false;
+	network->marvell_cap_exist = false;
 	network->cisco_cap_exist = false;
 	network->unknown_cap_exist = false;
 #ifdef THOMAS_TURBO
@@ -2369,11 +2445,11 @@ static inline int ieee80211_network_init(
 	}
 
 	if (network->mode == 0) {
-		IEEE80211_DEBUG_SCAN("Filtered out '%s (" MAC_FMT ")' "
+		IEEE80211_DEBUG_SCAN("Filtered out '%s (%pM)' "
 				     "network.\n",
 				     escape_essid(network->ssid,
 						  network->ssid_len),
-				     MAC_ARG(network->bssid));
+				     network->bssid);
 		return 1;
 	}
 
@@ -2463,6 +2539,7 @@ static inline void update_network(struct ieee80211_network *dst,
 	dst->broadcom_cap_exist = src->broadcom_cap_exist;
 	dst->ralink_cap_exist = src->ralink_cap_exist;
 	dst->atheros_cap_exist = src->atheros_cap_exist;
+	dst->marvell_cap_exist = src->marvell_cap_exist;
 	dst->cisco_cap_exist = src->cisco_cap_exist;
 	dst->unknown_cap_exist = src->unknown_cap_exist;
 	memcpy(dst->wpa_ie, src->wpa_ie, src->wpa_ie_len);
@@ -2557,9 +2634,9 @@ static inline void ieee80211_process_probe_response(
 
 	memset(&network, 0, sizeof(struct ieee80211_network));
 	IEEE80211_DEBUG_SCAN(
-		"'%s' (" MAC_FMT "): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
+		"'%s' (%pM): %c%c%c%c %c%c%c%c-%c%c%c%c %c%c%c%c\n",
 		escape_essid(info_element->data, info_element->len),
-		MAC_ARG(beacon->header.addr3),
+		beacon->header.addr3,
 		(beacon->capability & (1<<0xf)) ? '1' : '0',
 		(beacon->capability & (1<<0xe)) ? '1' : '0',
 		(beacon->capability & (1<<0xd)) ? '1' : '0',
@@ -2578,10 +2655,10 @@ static inline void ieee80211_process_probe_response(
 		(beacon->capability & (1<<0x0)) ? '1' : '0');
 
 	if (ieee80211_network_init(ieee, beacon, &network, stats)) {
-		IEEE80211_DEBUG_SCAN("Dropped '%s' (" MAC_FMT ") via %s.\n",
+		IEEE80211_DEBUG_SCAN("Dropped '%s' (%pM) via %s.\n",
 				     escape_essid(info_element->data,
 						  info_element->len),
-				     MAC_ARG(beacon->header.addr3),
+				     beacon->header.addr3,
 				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
 				     IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
@@ -2692,11 +2769,11 @@ static inline void ieee80211_process_probe_response(
 			/* If there are no more slots, expire the oldest */
 			list_del(&oldest->list);
 			target = oldest;
-			IEEE80211_DEBUG_SCAN("Expired '%s' (" MAC_FMT ") from "
+			IEEE80211_DEBUG_SCAN("Expired '%s' (%pM) from "
 					     "network list.\n",
 					     escape_essid(target->ssid,
 							  target->ssid_len),
-					     MAC_ARG(target->bssid));
+					     target->bssid);
 		} else {
 			/* Otherwise just pull from the free list */
 			target = list_entry(ieee->network_free_list.next,
@@ -2706,10 +2783,10 @@ static inline void ieee80211_process_probe_response(
 
 
 #ifdef CONFIG_IEEE80211_DEBUG
-		IEEE80211_DEBUG_SCAN("Adding '%s' (" MAC_FMT ") via %s.\n",
+		IEEE80211_DEBUG_SCAN("Adding '%s' (%pM) via %s.\n",
 				     escape_essid(network.ssid,
 						  network.ssid_len),
-				     MAC_ARG(network.bssid),
+				     network.bssid,
 				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
 				     IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
@@ -2719,10 +2796,10 @@ static inline void ieee80211_process_probe_response(
 		if(ieee->softmac_features & IEEE_SOFTMAC_ASSOCIATE)
 			ieee80211_softmac_new_net(ieee,&network);
 	} else {
-		IEEE80211_DEBUG_SCAN("Updating '%s' (" MAC_FMT ") via %s.\n",
+		IEEE80211_DEBUG_SCAN("Updating '%s' (%pM) via %s.\n",
 				     escape_essid(target->ssid,
 						  target->ssid_len),
-				     MAC_ARG(target->bssid),
+				     target->bssid,
 				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
 				     IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
@@ -2761,12 +2838,14 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		      struct ieee80211_hdr_4addr *header,
 		      struct ieee80211_rx_stats *stats)
 {
+#if 0
 	if(ieee->sta_sleep || (ieee->ps != IEEE80211_PS_DISABLED &&
 				ieee->iw_mode == IW_MODE_INFRA &&
 				ieee->state == IEEE80211_LINKED))
 	{
 		tasklet_schedule(&ieee->ps_task);
 	}
+#endif
 
 	if(WLAN_FC_GET_STYPE(header->frame_ctl) != IEEE80211_STYPE_PROBE_RESP &&
 		WLAN_FC_GET_STYPE(header->frame_ctl) != IEEE80211_STYPE_BEACON)
@@ -2780,6 +2859,15 @@ void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 		IEEE80211_DEBUG_SCAN("Beacon\n");
 		ieee80211_process_probe_response(
 			ieee, (struct ieee80211_probe_response *)header, stats);
+
+		//printk("----------->%s()\n", __func__);
+		if(ieee->sta_sleep || (ieee->ps != IEEE80211_PS_DISABLED &&
+					ieee->iw_mode == IW_MODE_INFRA &&
+					ieee->state == IEEE80211_LINKED))
+		{
+			tasklet_schedule(&ieee->ps_task);
+		}
+
 		break;
 
 	case IEEE80211_STYPE_PROBE_RESP:

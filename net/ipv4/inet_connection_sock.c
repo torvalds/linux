@@ -529,6 +529,8 @@ void inet_csk_reqsk_queue_prune(struct sock *parent,
 				syn_ack_recalc(req, thresh, max_retries,
 					       queue->rskq_defer_accept,
 					       &expire, &resend);
+				if (req->rsk_ops->syn_ack_timeout)
+					req->rsk_ops->syn_ack_timeout(parent, req);
 				if (!expire &&
 				    (!resend ||
 				     !req->rsk_ops->rtx_syn_ack(parent, req, NULL) ||

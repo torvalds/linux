@@ -27,6 +27,7 @@
 #include <linux/fsnotify.h>
 #include <linux/string.h>
 #include <linux/magic.h>
+#include <linux/slab.h>
 
 static struct vfsmount *debugfs_mount;
 static int debugfs_mount_count;
@@ -160,15 +161,8 @@ static int debugfs_create_by_name(const char *name, mode_t mode,
 	 * block. A pointer to that is in the struct vfsmount that we
 	 * have around.
 	 */
-	if (!parent) {
-		if (debugfs_mount && debugfs_mount->mnt_sb) {
-			parent = debugfs_mount->mnt_sb->s_root;
-		}
-	}
-	if (!parent) {
-		pr_debug("debugfs: Ah! can not find a parent!\n");
-		return -EFAULT;
-	}
+	if (!parent)
+		parent = debugfs_mount->mnt_sb->s_root;
 
 	*dentry = NULL;
 	mutex_lock(&parent->d_inode->i_mutex);
@@ -503,7 +497,7 @@ struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
 	}
 	d_move(old_dentry, dentry);
 	fsnotify_move(old_dir->d_inode, new_dir->d_inode, old_name,
-		old_dentry->d_name.name, S_ISDIR(old_dentry->d_inode->i_mode),
+		S_ISDIR(old_dentry->d_inode->i_mode),
 		NULL, old_dentry);
 	fsnotify_oldname_free(old_name);
 	unlock_rename(new_dir, old_dir);

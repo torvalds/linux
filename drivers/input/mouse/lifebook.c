@@ -16,6 +16,7 @@
 #include <linux/serio.h>
 #include <linux/libps2.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 
 #include "psmouse.h"
 #include "lifebook.h"
@@ -48,6 +49,12 @@ static const struct dmi_system_id __initconst lifebook_dmi_table[] = {
 		/* FLORA-ie 55mi */
 		.matches = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "FLORA-ie 55mi"),
+		},
+	},
+	{
+		/* LifeBook B */
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_NAME, "Lifebook B Series"),
 		},
 	},
 	{

@@ -22,6 +22,7 @@
 #include <linux/buffer_head.h>
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
+#include <linux/writeback.h>
 #include "jfs_incore.h"
 #include "jfs_inode.h"
 #include "jfs_filsys.h"
@@ -60,7 +61,7 @@ struct inode *jfs_iget(struct super_block *sb, unsigned long ino)
 			inode->i_op = &page_symlink_inode_operations;
 			inode->i_mapping->a_ops = &jfs_aops;
 		} else {
-			inode->i_op = &jfs_symlink_inode_operations;
+			inode->i_op = &jfs_fast_symlink_inode_operations;
 			/*
 			 * The inline data should be null-terminated, but
 			 * don't let on-disk corruption crash the kernel
@@ -120,8 +121,10 @@ int jfs_commit_inode(struct inode *inode, int wait)
 	return rc;
 }
 
-int jfs_write_inode(struct inode *inode, int wait)
+int jfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
+	int wait = wbc->sync_mode == WB_SYNC_ALL;
+
 	if (test_cflag(COMMIT_Nolink, inode))
 		return 0;
 	/*
@@ -146,6 +149,9 @@ void jfs_delete_inode(struct inode *inode)
 {
 	jfs_info("In jfs_delete_inode, inode = 0x%p", inode);
 
+	if (!is_bad_inode(inode))
+		dquot_initialize(inode);
+
 	if (!is_bad_inode(inode) &&
 	    (JFS_IP(inode)->fileset == FILESYSTEM_I)) {
 		truncate_inode_pages(&inode->i_data, 0);
@@ -158,9 +164,9 @@ void jfs_delete_inode(struct inode *inode)
 		/*
 		 * Free the inode from the quota allocation.
 		 */
-		vfs_dq_init(inode);
-		vfs_dq_free_inode(inode);
-		vfs_dq_drop(inode);
+		dquot_initialize(inode);
+		dquot_free_inode(inode);
+		dquot_drop(inode);
 	}
 
 	clear_inode(inode);

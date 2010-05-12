@@ -1187,7 +1187,7 @@ xfs_qm_dqflush(
 	 * block, nada.
 	 */
 	if (!XFS_DQ_IS_DIRTY(dqp) ||
-	    (!(flags & XFS_QMOPT_SYNC) && atomic_read(&dqp->q_pincount) > 0)) {
+	    (!(flags & SYNC_WAIT) && atomic_read(&dqp->q_pincount) > 0)) {
 		xfs_dqfunlock(dqp);
 		return 0;
 	}
@@ -1248,23 +1248,20 @@ xfs_qm_dqflush(
 	 */
 	if (XFS_BUF_ISPINNED(bp)) {
 		trace_xfs_dqflush_force(dqp);
-		xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE);
+		xfs_log_force(mp, 0);
 	}
 
-	if (flags & XFS_QMOPT_DELWRI) {
-		xfs_bdwrite(mp, bp);
-	} else if (flags & XFS_QMOPT_ASYNC) {
-		error = xfs_bawrite(mp, bp);
-	} else {
+	if (flags & SYNC_WAIT)
 		error = xfs_bwrite(mp, bp);
-	}
+	else
+		xfs_bdwrite(mp, bp);
 
 	trace_xfs_dqflush_done(dqp);
 
 	/*
 	 * dqp is still locked, but caller is free to unlock it now.
 	 */
-	return (error);
+	return error;
 
 }
 
@@ -1445,7 +1442,7 @@ xfs_qm_dqpurge(
 		 * We don't care about getting disk errors here. We need
 		 * to purge this dquot anyway, so we go ahead regardless.
 		 */
-		error = xfs_qm_dqflush(dqp, XFS_QMOPT_SYNC);
+		error = xfs_qm_dqflush(dqp, SYNC_WAIT);
 		if (error)
 			xfs_fs_cmn_err(CE_WARN, mp,
 				"xfs_qm_dqpurge: dquot %p flush failed", dqp);
@@ -1529,25 +1526,17 @@ xfs_qm_dqflock_pushbuf_wait(
 	 * the flush lock when the I/O completes.
 	 */
 	bp = xfs_incore(dqp->q_mount->m_ddev_targp, dqp->q_blkno,
-		    XFS_QI_DQCHUNKLEN(dqp->q_mount),
-		    XFS_INCORE_TRYLOCK);
-	if (bp != NULL) {
-		if (XFS_BUF_ISDELAYWRITE(bp)) {
-			int	error;
-			if (XFS_BUF_ISPINNED(bp)) {
-				xfs_log_force(dqp->q_mount,
-					      (xfs_lsn_t)0,
-					      XFS_LOG_FORCE);
-			}
-			error = xfs_bawrite(dqp->q_mount, bp);
-			if (error)
-				xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
-					"xfs_qm_dqflock_pushbuf_wait: "
-					"pushbuf error %d on dqp %p, bp %p",
-					error, dqp, bp);
-		} else {
-			xfs_buf_relse(bp);
-		}
+		    XFS_QI_DQCHUNKLEN(dqp->q_mount), XBF_TRYLOCK);
+	if (!bp)
+		goto out_lock;
+
+	if (XFS_BUF_ISDELAYWRITE(bp)) {
+		if (XFS_BUF_ISPINNED(bp))
+			xfs_log_force(dqp->q_mount, 0);
+		xfs_buf_delwri_promote(bp);
+		wake_up_process(bp->b_target->bt_task);
 	}
+	xfs_buf_relse(bp);
+out_lock:
 	xfs_dqflock(dqp);
 }

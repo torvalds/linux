@@ -35,7 +35,6 @@
 
 #include "debug.h"
 
-#include "iface.h"
 #include "viafbdev.h"
 #include "chip.h"
 #include "accel.h"
@@ -68,8 +67,6 @@ extern int viafb_refresh;
 extern int viafb_refresh1;
 extern int viafb_lcd_dsp_method;
 extern int viafb_lcd_mode;
-extern int viafb_bpp;
-extern int viafb_bpp1;
 
 extern int viafb_CRT_ON;
 extern int viafb_hotplug_Xres;

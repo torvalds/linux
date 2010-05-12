@@ -1992,8 +1992,8 @@ static int __init apm_is_horked_d850md(const struct dmi_system_id *d)
 		apm_info.disabled = 1;
 		printk(KERN_INFO "%s machine detected. "
 		       "Disabling APM.\n", d->ident);
-		printk(KERN_INFO "This bug is fixed in bios P15 which is available for \n");
-		printk(KERN_INFO "download from support.intel.com \n");
+		printk(KERN_INFO "This bug is fixed in bios P15 which is available for\n");
+		printk(KERN_INFO "download from support.intel.com\n");
 	}
 	return 0;
 }

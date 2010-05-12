@@ -20,6 +20,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
@@ -475,7 +476,7 @@ xpnet_dev_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	if (skb->data[0] == 0xff) {
 		/* we are being asked to broadcast to all partitions */
-		for_each_bit(dest_partid, xpnet_broadcast_partitions,
+		for_each_set_bit(dest_partid, xpnet_broadcast_partitions,
 			     xp_max_npartitions) {
 
 			xpnet_send(skb, queued_msg, start_addr, end_addr,

@@ -29,6 +29,7 @@
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 
 #define GPIO_MASK(gpio)		(0x80000000 >> (gpio))
 #define GPIO_MASK2(gpio)	(0xc0000000 >> ((gpio) * 2))

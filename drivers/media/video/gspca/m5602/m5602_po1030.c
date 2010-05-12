@@ -205,7 +205,7 @@ int po1030_probe(struct sd *sd)
 		return -ENODEV;
 	}
 
-	info("Probing for a po1030 sensor");
+	PDEBUG(D_PROBE, "Probing for a po1030 sensor");
 
 	/* Run the pre-init to actually probe the unit */
 	for (i = 0; i < ARRAY_SIZE(preinit_po1030); i++) {

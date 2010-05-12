@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/poll.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <linux/list.h>
 #include <asm/uaccess.h>
 
@@ -141,14 +142,10 @@ void remove_divas_proc(void)
 	}
 }
 
-/*
-** write group_optimization 
-*/
-static int
-write_grp_opt(struct file *file, const char __user *buffer, unsigned long count,
-	      void *data)
+static ssize_t grp_opt_proc_write(struct file *file, const char __user *buffer,
+				  size_t count, loff_t *pos)
 {
-	diva_os_xdi_adapter_t *a = (diva_os_xdi_adapter_t *) data;
+	diva_os_xdi_adapter_t *a = PDE(file->f_path.dentry->d_inode)->data;
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 
 	if ((count == 1) || (count == 2)) {
@@ -172,14 +169,10 @@ write_grp_opt(struct file *file, const char __user *buffer, unsigned long count,
 	return (-EINVAL);
 }
 
-/*
-** write dynamic_l1_down
-*/
-static int
-write_d_l1_down(struct file *file, const char __user *buffer, unsigned long count,
-		void *data)
+static ssize_t d_l1_down_proc_write(struct file *file, const char __user *buffer,
+				    size_t count, loff_t *pos)
 {
-	diva_os_xdi_adapter_t *a = (diva_os_xdi_adapter_t *) data;
+	diva_os_xdi_adapter_t *a = PDE(file->f_path.dentry->d_inode)->data;
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 
 	if ((count == 1) || (count == 2)) {
@@ -203,63 +196,62 @@ write_d_l1_down(struct file *file, const char __user *buffer, unsigned long coun
 	return (-EINVAL);
 }
 
-
-/*
-** read dynamic_l1_down 
-*/
-static int
-read_d_l1_down(char *page, char **start, off_t off, int count, int *eof,
-	       void *data)
+static int d_l1_down_proc_show(struct seq_file *m, void *v)
 {
-	int len = 0;
-	diva_os_xdi_adapter_t *a = (diva_os_xdi_adapter_t *) data;
+	diva_os_xdi_adapter_t *a = m->private;
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 
-	len += sprintf(page + len, "%s\n",
+	seq_printf(m, "%s\n",
 		       (IoAdapter->capi_cfg.
 			cfg_1 & DIVA_XDI_CAPI_CFG_1_DYNAMIC_L1_ON) ? "1" :
 		       "0");
-
-	if (off + count >= len)
-		*eof = 1;
-	if (len < off)
-		return 0;
-	*start = page + off;
-	return ((count < len - off) ? count : len - off);
+	return 0;
 }
 
-/*
-** read group_optimization
-*/
-static int
-read_grp_opt(char *page, char **start, off_t off, int count, int *eof,
-	     void *data)
+static int d_l1_down_proc_open(struct inode *inode, struct file *file)
 {
-	int len = 0;
-	diva_os_xdi_adapter_t *a = (diva_os_xdi_adapter_t *) data;
+	return single_open(file, d_l1_down_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations d_l1_down_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= d_l1_down_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= d_l1_down_proc_write,
+};
+
+static int grp_opt_proc_show(struct seq_file *m, void *v)
+{
+	diva_os_xdi_adapter_t *a = m->private;
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 
-	len += sprintf(page + len, "%s\n",
+	seq_printf(m, "%s\n",
 		       (IoAdapter->capi_cfg.
 			cfg_1 & DIVA_XDI_CAPI_CFG_1_GROUP_POPTIMIZATION_ON)
 		       ? "1" : "0");
-
-	if (off + count >= len)
-		*eof = 1;
-	if (len < off)
-		return 0;
-	*start = page + off;
-	return ((count < len - off) ? count : len - off);
+	return 0;
 }
 
-/*
-** info write
-*/
-static int
-info_write(struct file *file, const char __user *buffer, unsigned long count,
-	   void *data)
+static int grp_opt_proc_open(struct inode *inode, struct file *file)
 {
-	diva_os_xdi_adapter_t *a = (diva_os_xdi_adapter_t *) data;
+	return single_open(file, grp_opt_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations grp_opt_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= grp_opt_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= grp_opt_proc_write,
+};
+
+static ssize_t info_proc_write(struct file *file, const char __user *buffer,
+			       size_t count, loff_t *pos)
+{
+	diva_os_xdi_adapter_t *a = PDE(file->f_path.dentry->d_inode)->data;
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 	char c[4];
 
@@ -277,63 +269,46 @@ info_write(struct file *file, const char __user *buffer, unsigned long count,
 	return (-EINVAL);
 }
 
-/*
-** info read
-*/
-static int
-info_read(char *page, char **start, off_t off, int count, int *eof,
-	  void *data)
+static int info_proc_show(struct seq_file *m, void *v)
 {
 	int i = 0;
-	int len = 0;
 	char *p;
 	char tmpser[16];
-	diva_os_xdi_adapter_t *a = (diva_os_xdi_adapter_t *) data;
+	diva_os_xdi_adapter_t *a = m->private;
 	PISDN_ADAPTER IoAdapter = IoAdapters[a->controller - 1];
 
-	len +=
-	    sprintf(page + len, "Name        : %s\n",
-		    IoAdapter->Properties.Name);
-	len += sprintf(page + len, "DSP state   : %08x\n", a->dsp_mask);
-	len += sprintf(page + len, "Channels    : %02d\n",
-		       IoAdapter->Properties.Channels);
-	len += sprintf(page + len, "E. max/used : %03d/%03d\n",
+	seq_printf(m, "Name        : %s\n", IoAdapter->Properties.Name);
+	seq_printf(m, "DSP state   : %08x\n", a->dsp_mask);
+	seq_printf(m, "Channels    : %02d\n", IoAdapter->Properties.Channels);
+	seq_printf(m, "E. max/used : %03d/%03d\n",
 		       IoAdapter->e_max, IoAdapter->e_count);
 	diva_get_vserial_number(IoAdapter, tmpser);
-	len += sprintf(page + len, "Serial      : %s\n", tmpser);
-	len +=
-	    sprintf(page + len, "IRQ         : %d\n",
-		    IoAdapter->irq_info.irq_nr);
-	len += sprintf(page + len, "CardIndex   : %d\n", a->CardIndex);
-	len += sprintf(page + len, "CardOrdinal : %d\n", a->CardOrdinal);
-	len += sprintf(page + len, "Controller  : %d\n", a->controller);
-	len += sprintf(page + len, "Bus-Type    : %s\n",
+	seq_printf(m, "Serial      : %s\n", tmpser);
+	seq_printf(m, "IRQ         : %d\n", IoAdapter->irq_info.irq_nr);
+	seq_printf(m, "CardIndex   : %d\n", a->CardIndex);
+	seq_printf(m, "CardOrdinal : %d\n", a->CardOrdinal);
+	seq_printf(m, "Controller  : %d\n", a->controller);
+	seq_printf(m, "Bus-Type    : %s\n",
 		       (a->Bus ==
 			DIVAS_XDI_ADAPTER_BUS_ISA) ? "ISA" : "PCI");
-	len += sprintf(page + len, "Port-Name   : %s\n", a->port_name);
+	seq_printf(m, "Port-Name   : %s\n", a->port_name);
 	if (a->Bus == DIVAS_XDI_ADAPTER_BUS_PCI) {
-		len +=
-		    sprintf(page + len, "PCI-bus     : %d\n",
-			    a->resources.pci.bus);
-		len +=
-		    sprintf(page + len, "PCI-func    : %d\n",
-			    a->resources.pci.func);
+		seq_printf(m, "PCI-bus     : %d\n", a->resources.pci.bus);
+		seq_printf(m, "PCI-func    : %d\n", a->resources.pci.func);
 		for (i = 0; i < 8; i++) {
 			if (a->resources.pci.bar[i]) {
-				len +=
-				    sprintf(page + len,
+				seq_printf(m,
 					    "Mem / I/O %d : 0x%x / mapped : 0x%lx",
 					    i, a->resources.pci.bar[i],
 					    (unsigned long) a->resources.
 					    pci.addr[i]);
 				if (a->resources.pci.length[i]) {
-					len +=
-					    sprintf(page + len,
+					seq_printf(m,
 						    " / length : %d",
 						    a->resources.pci.
 						    length[i]);
 				}
-				len += sprintf(page + len, "\n");
+				seq_putc(m, '\n');
 			}
 		}
 	}
@@ -353,15 +328,24 @@ info_read(char *page, char **start, off_t off, int count, int *eof,
 	} else {
 		p = "ready";
 	}
-	len += sprintf(page + len, "State       : %s\n", p);
+	seq_printf(m, "State       : %s\n", p);
 
-	if (off + count >= len)
-		*eof = 1;
-	if (len < off)
-		return 0;
-	*start = page + off;
-	return ((count < len - off) ? count : len - off);
+	return 0;
 }
+
+static int info_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, info_proc_show, PDE(inode)->data);
+}
+
+static const struct file_operations info_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= info_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= info_proc_write,
+};
 
 /*
 ** adapter proc init/de-init
@@ -380,28 +364,20 @@ int create_adapter_proc(diva_os_xdi_adapter_t * a)
 		return (0);
 	a->proc_adapter_dir = (void *) de;
 
-	if (!(pe =
-	     create_proc_entry(info_proc_name, S_IFREG | S_IRUGO | S_IWUSR, de)))
+	pe = proc_create_data(info_proc_name, S_IRUGO | S_IWUSR, de,
+			      &info_proc_fops, a);
+	if (!pe)
 		return (0);
 	a->proc_info = (void *) pe;
-	pe->write_proc = info_write;
-	pe->read_proc = info_read;
-	pe->data = a;
 
-	if ((pe = create_proc_entry(grp_opt_proc_name,
-			       S_IFREG | S_IRUGO | S_IWUSR, de))) {
+	pe = proc_create_data(grp_opt_proc_name, S_IRUGO | S_IWUSR, de,
+			      &grp_opt_proc_fops, a);
+	if (pe)
 		a->proc_grp_opt = (void *) pe;
-		pe->write_proc = write_grp_opt;
-		pe->read_proc = read_grp_opt;
-		pe->data = a;
-	}
-	if ((pe = create_proc_entry(d_l1_down_proc_name,
-			       S_IFREG | S_IRUGO | S_IWUSR, de))) {
+	pe = proc_create_data(d_l1_down_proc_name, S_IRUGO | S_IWUSR, de,
+			      &d_l1_down_proc_fops, a);
+	if (pe)
 		a->proc_d_l1_down = (void *) pe;
-		pe->write_proc = write_d_l1_down;
-		pe->read_proc = read_d_l1_down;
-		pe->data = a;
-	}
 
 	DBG_TRC(("proc entry %s created", tmp));
 

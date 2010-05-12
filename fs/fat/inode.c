@@ -558,7 +558,7 @@ static int fat_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bavail = sbi->free_clusters;
 	buf->f_fsid.val[0] = (u32)id;
 	buf->f_fsid.val[1] = (u32)(id >> 32);
-	buf->f_namelen = sbi->options.isvfat ? 260 : 12;
+	buf->f_namelen = sbi->options.isvfat ? FAT_LFN_LEN : 12;
 
 	return 0;
 }
@@ -577,7 +577,7 @@ static inline loff_t fat_i_pos_read(struct msdos_sb_info *sbi,
 	return i_pos;
 }
 
-static int fat_write_inode(struct inode *inode, int wait)
+static int __fat_write_inode(struct inode *inode, int wait)
 {
 	struct super_block *sb = inode->i_sb;
 	struct msdos_sb_info *sbi = MSDOS_SB(sb);
@@ -634,9 +634,14 @@ retry:
 	return err;
 }
 
+static int fat_write_inode(struct inode *inode, struct writeback_control *wbc)
+{
+	return __fat_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
+}
+
 int fat_sync_inode(struct inode *inode)
 {
-	return fat_write_inode(inode, 1);
+	return __fat_write_inode(inode, 1);
 }
 
 EXPORT_SYMBOL_GPL(fat_sync_inode);

@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <mach/npe.h>
 #include <mach/qmgr.h>
 

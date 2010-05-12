@@ -26,8 +26,8 @@ asmlinkage long sys32_lstat64(char __user *, struct stat64 __user *);
 asmlinkage long sys32_fstat64(unsigned int, struct stat64 __user *);
 asmlinkage long sys32_fstatat(unsigned int, char __user *,
 			      struct stat64 __user *, int);
-struct mmap_arg_struct;
-asmlinkage long sys32_mmap(struct mmap_arg_struct __user *);
+struct mmap_arg_struct32;
+asmlinkage long sys32_mmap(struct mmap_arg_struct32 __user *);
 asmlinkage long sys32_mprotect(unsigned long, size_t, unsigned long);
 
 struct sigaction32;
@@ -40,8 +40,6 @@ asmlinkage long sys32_rt_sigprocmask(int, compat_sigset_t __user *,
 				     compat_sigset_t __user *, unsigned int);
 asmlinkage long sys32_alarm(unsigned int);
 
-struct sel_arg_struct;
-asmlinkage long sys32_old_select(struct sel_arg_struct __user *);
 asmlinkage long sys32_waitpid(compat_pid_t, unsigned int *, int);
 asmlinkage long sys32_sysfs(int, u32, u32);
 
@@ -55,11 +53,6 @@ asmlinkage long sys32_pwrite(unsigned int, char __user *, u32, u32, u32);
 
 asmlinkage long sys32_personality(unsigned long);
 asmlinkage long sys32_sendfile(int, int, compat_off_t __user *, s32);
-
-struct oldold_utsname;
-struct old_utsname;
-asmlinkage long sys32_olduname(struct oldold_utsname __user *);
-long sys32_uname(struct old_utsname __user *);
 
 asmlinkage long sys32_execve(char __user *, compat_uptr_t __user *,
 			     compat_uptr_t __user *, struct pt_regs *);

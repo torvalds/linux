@@ -939,7 +939,7 @@ static int btusb_probe(struct usb_interface *intf,
 		return -ENOMEM;
 	}
 
-	hdev->type = HCI_USB;
+	hdev->bus = HCI_USB;
 	hdev->driver_data = data;
 
 	data->hdev = hdev;

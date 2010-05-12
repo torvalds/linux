@@ -43,6 +43,7 @@
  */
 
 #include <linux/tty.h>
+#include <linux/slab.h>
 #include <linux/tty_flip.h>
 #include <linux/circ_buf.h>
 #include <linux/usb.h>
@@ -78,7 +79,7 @@ static int debug;
 #define DRIVER_DESC "AIRcable USB Driver"
 
 /* ID table that will be registered with USB core */
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(AIRCABLE_VID, AIRCABLE_USB_PID) },
 	{ },
 };
@@ -468,10 +469,6 @@ static void aircable_read_bulk_callback(struct urb *urb)
 
 	if (status) {
 		dbg("%s - urb status = %d", __func__, status);
-		if (!port->port.count) {
-			dbg("%s - port is closed, exiting.", __func__);
-			return;
-		}
 		if (status == -EPROTO) {
 			dbg("%s - caught -EPROTO, resubmitting the urb",
 			    __func__);
@@ -530,23 +527,19 @@ static void aircable_read_bulk_callback(struct urb *urb)
 	}
 	tty_kref_put(tty);
 
-	/* Schedule the next read _if_ we are still open */
-	if (port->port.count) {
-		usb_fill_bulk_urb(port->read_urb, port->serial->dev,
-				  usb_rcvbulkpipe(port->serial->dev,
-					  port->bulk_in_endpointAddress),
-				  port->read_urb->transfer_buffer,
-				  port->read_urb->transfer_buffer_length,
-				  aircable_read_bulk_callback, port);
+	/* Schedule the next read */
+	usb_fill_bulk_urb(port->read_urb, port->serial->dev,
+			  usb_rcvbulkpipe(port->serial->dev,
+				  port->bulk_in_endpointAddress),
+			  port->read_urb->transfer_buffer,
+			  port->read_urb->transfer_buffer_length,
+			  aircable_read_bulk_callback, port);
 
-		result = usb_submit_urb(urb, GFP_ATOMIC);
-		if (result)
-			dev_err(&urb->dev->dev,
-				"%s - failed resubmitting read urb, error %d\n",
-				__func__, result);
-	}
-
-	return;
+	result = usb_submit_urb(urb, GFP_ATOMIC);
+	if (result && result != -EPERM)
+		dev_err(&urb->dev->dev,
+			"%s - failed resubmitting read urb, error %d\n",
+			__func__, result);
 }
 
 /* Based on ftdi_sio.c throttle */

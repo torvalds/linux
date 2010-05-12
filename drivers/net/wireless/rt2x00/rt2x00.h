@@ -104,6 +104,12 @@
 #define GET_DURATION_RES(__size, __rate)(((__size) * 8 * 10) % (__rate))
 
 /*
+ * Determine the number of L2 padding bytes required between the header and
+ * the payload.
+ */
+#define L2PAD_SIZE(__hdrlen)	(-(__hdrlen) & 3)
+
+/*
  * Determine the alignment requirement,
  * to make sure the 802.11 payload is padded to a 4-byte boundrary
  * we must determine the address of the payload and calculate the
@@ -154,6 +160,7 @@ struct avg_val {
 enum rt2x00_chip_intf {
 	RT2X00_CHIP_INTF_PCI,
 	RT2X00_CHIP_INTF_USB,
+	RT2X00_CHIP_INTF_SOC,
 };
 
 /*
@@ -163,25 +170,26 @@ enum rt2x00_chip_intf {
  */
 struct rt2x00_chip {
 	u16 rt;
-#define RT2460		0x0101
-#define RT2560		0x0201
-#define RT2570		0x1201
-#define RT2561s		0x0301	/* Turbo */
-#define RT2561		0x0302
-#define RT2661		0x0401
-#define RT2571		0x1300
-#define RT2860		0x0601	/* 2.4GHz PCI/CB */
-#define RT2860D		0x0681	/* 2.4GHz, 5GHz PCI/CB */
-#define RT2890		0x0701	/* 2.4GHz PCIe */
-#define RT2890D		0x0781	/* 2.4GHz, 5GHz PCIe */
+#define RT2460		0x2460
+#define RT2560		0x2560
+#define RT2570		0x2570
+#define RT2661		0x2661
+#define RT2573		0x2573
+#define RT2860		0x2860	/* 2.4GHz PCI/CB */
+#define RT2870		0x2870
+#define RT2872		0x2872
 #define RT2880		0x2880	/* WSOC */
+#define RT2883		0x2883	/* WSOC */
+#define RT2890		0x2890	/* 2.4GHz PCIe */
 #define RT3052		0x3052	/* WSOC */
+#define RT3070		0x3070
+#define RT3071		0x3071
 #define RT3090		0x3090	/* 2.4GHz PCIe */
-#define RT2870		0x1600
-#define RT3070		0x1800
+#define RT3390		0x3390
+#define RT3572		0x3572
 
 	u16 rf;
-	u32 rev;
+	u16 rev;
 
 	enum rt2x00_chip_intf intf;
 };
@@ -911,51 +919,30 @@ static inline void rt2x00_eeprom_write(struct rt2x00_dev *rt2x00dev,
  * Chipset handlers
  */
 static inline void rt2x00_set_chip(struct rt2x00_dev *rt2x00dev,
-				   const u16 rt, const u16 rf, const u32 rev)
+				   const u16 rt, const u16 rf, const u16 rev)
 {
 	rt2x00dev->chip.rt = rt;
 	rt2x00dev->chip.rf = rf;
 	rt2x00dev->chip.rev = rev;
-}
 
-static inline void rt2x00_set_chip_rt(struct rt2x00_dev *rt2x00dev,
-				      const u16 rt)
-{
-	rt2x00dev->chip.rt = rt;
-}
-
-static inline void rt2x00_set_chip_rf(struct rt2x00_dev *rt2x00dev,
-				      const u16 rf, const u32 rev)
-{
-	rt2x00_set_chip(rt2x00dev, rt2x00dev->chip.rt, rf, rev);
-}
-
-static inline void rt2x00_print_chip(struct rt2x00_dev *rt2x00dev)
-{
 	INFO(rt2x00dev,
-	     "Chipset detected - rt: %04x, rf: %04x, rev: %08x.\n",
+	     "Chipset detected - rt: %04x, rf: %04x, rev: %04x.\n",
 	     rt2x00dev->chip.rt, rt2x00dev->chip.rf, rt2x00dev->chip.rev);
 }
 
-static inline char rt2x00_rt(const struct rt2x00_chip *chipset, const u16 chip)
+static inline char rt2x00_rt(struct rt2x00_dev *rt2x00dev, const u16 rt)
 {
-	return (chipset->rt == chip);
+	return (rt2x00dev->chip.rt == rt);
 }
 
-static inline char rt2x00_rf(const struct rt2x00_chip *chipset, const u16 chip)
+static inline char rt2x00_rf(struct rt2x00_dev *rt2x00dev, const u16 rf)
 {
-	return (chipset->rf == chip);
+	return (rt2x00dev->chip.rf == rf);
 }
 
-static inline u32 rt2x00_rev(const struct rt2x00_chip *chipset)
+static inline u16 rt2x00_rev(struct rt2x00_dev *rt2x00dev)
 {
-	return chipset->rev;
-}
-
-static inline bool rt2x00_check_rev(const struct rt2x00_chip *chipset,
-				    const u32 mask, const u32 rev)
-{
-	return ((chipset->rev & mask) == rev);
+	return rt2x00dev->chip.rev;
 }
 
 static inline void rt2x00_set_chip_intf(struct rt2x00_dev *rt2x00dev,
@@ -964,20 +951,25 @@ static inline void rt2x00_set_chip_intf(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->chip.intf = intf;
 }
 
-static inline bool rt2x00_intf(const struct rt2x00_chip *chipset,
+static inline bool rt2x00_intf(struct rt2x00_dev *rt2x00dev,
 			       enum rt2x00_chip_intf intf)
 {
-	return (chipset->intf == intf);
+	return (rt2x00dev->chip.intf == intf);
 }
 
-static inline bool rt2x00_intf_is_pci(struct rt2x00_dev *rt2x00dev)
+static inline bool rt2x00_is_pci(struct rt2x00_dev *rt2x00dev)
 {
-	return rt2x00_intf(&rt2x00dev->chip, RT2X00_CHIP_INTF_PCI);
+	return rt2x00_intf(rt2x00dev, RT2X00_CHIP_INTF_PCI);
 }
 
-static inline bool rt2x00_intf_is_usb(struct rt2x00_dev *rt2x00dev)
+static inline bool rt2x00_is_usb(struct rt2x00_dev *rt2x00dev)
 {
-	return rt2x00_intf(&rt2x00dev->chip, RT2X00_CHIP_INTF_USB);
+	return rt2x00_intf(rt2x00dev, RT2X00_CHIP_INTF_USB);
+}
+
+static inline bool rt2x00_is_soc(struct rt2x00_dev *rt2x00dev)
+{
+	return rt2x00_intf(rt2x00dev, RT2X00_CHIP_INTF_SOC);
 }
 
 /**
@@ -1019,9 +1011,9 @@ int rt2x00mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb);
 int rt2x00mac_start(struct ieee80211_hw *hw);
 void rt2x00mac_stop(struct ieee80211_hw *hw);
 int rt2x00mac_add_interface(struct ieee80211_hw *hw,
-			    struct ieee80211_if_init_conf *conf);
+			    struct ieee80211_vif *vif);
 void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
-				struct ieee80211_if_init_conf *conf);
+				struct ieee80211_vif *vif);
 int rt2x00mac_config(struct ieee80211_hw *hw, u32 changed);
 void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 				unsigned int changed_flags,
@@ -1038,8 +1030,6 @@ int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 #endif /* CONFIG_RT2X00_LIB_CRYPTO */
 int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats);
-int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,
-			   struct ieee80211_tx_queue_stats *stats);
 void rt2x00mac_bss_info_changed(struct ieee80211_hw *hw,
 				struct ieee80211_vif *vif,
 				struct ieee80211_bss_conf *bss_conf,

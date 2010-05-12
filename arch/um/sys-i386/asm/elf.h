@@ -116,47 +116,4 @@ do {								\
 	}							\
 } while (0)
 
-/*
- * These macros parameterize elf_core_dump in fs/binfmt_elf.c to write out
- * extra segments containing the vsyscall DSO contents.  Dumping its
- * contents makes post-mortem fully interpretable later without matching up
- * the same kernel and hardware config to see what PC values meant.
- * Dumping its extra ELF program headers includes all the other information
- * a debugger needs to easily find how the vsyscall DSO was being used.
- */
-#define ELF_CORE_EXTRA_PHDRS						      \
-	(vsyscall_ehdr ? (((struct elfhdr *)vsyscall_ehdr)->e_phnum) : 0 )
-
-#define ELF_CORE_WRITE_EXTRA_PHDRS					      \
-if ( vsyscall_ehdr ) {							      \
-	const struct elfhdr *const ehdrp = (struct elfhdr *)vsyscall_ehdr;    \
-	const struct elf_phdr *const phdrp =				      \
-		(const struct elf_phdr *) (vsyscall_ehdr + ehdrp->e_phoff);   \
-	int i;								      \
-	Elf32_Off ofs = 0;						      \
-	for (i = 0; i < ehdrp->e_phnum; ++i) {				      \
-		struct elf_phdr phdr = phdrp[i];			      \
-		if (phdr.p_type == PT_LOAD) {				      \
-			ofs = phdr.p_offset = offset;			      \
-			offset += phdr.p_filesz;			      \
-		}							      \
-		else							      \
-			phdr.p_offset += ofs;				      \
-		phdr.p_paddr = 0; /* match other core phdrs */		      \
-		DUMP_WRITE(&phdr, sizeof(phdr));			      \
-	}								      \
-}
-#define ELF_CORE_WRITE_EXTRA_DATA					      \
-if ( vsyscall_ehdr ) {							      \
-	const struct elfhdr *const ehdrp = (struct elfhdr *)vsyscall_ehdr;    \
-	const struct elf_phdr *const phdrp =				      \
-		(const struct elf_phdr *) (vsyscall_ehdr + ehdrp->e_phoff);   \
-	int i;								      \
-	for (i = 0; i < ehdrp->e_phnum; ++i) {				      \
-		if (phdrp[i].p_type == PT_LOAD)				      \
-			DUMP_WRITE((void *) phdrp[i].p_vaddr,		      \
-				   phdrp[i].p_filesz);			      \
-	}								      \
-}
-
 #endif

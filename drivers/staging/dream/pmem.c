@@ -23,6 +23,7 @@
 #include <linux/android_pmem.h>
 #include <linux/mempolicy.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/cacheflush.h>
@@ -37,17 +38,17 @@
  * the file should not be released until put_pmem_file is called */
 #define PMEM_FLAGS_BUSY 0x1
 /* indicates that this is a suballocation of a larger master range */
-#define PMEM_FLAGS_CONNECTED 0x1 << 1
+#define PMEM_FLAGS_CONNECTED ( 0x1 << 1 )
 /* indicates this is a master and not a sub allocation and that it is mmaped */
-#define PMEM_FLAGS_MASTERMAP 0x1 << 2
+#define PMEM_FLAGS_MASTERMAP ( 0x1 << 2 )
 /* submap and unsubmap flags indicate:
  * 00: subregion has never been mmaped
  * 10: subregion has been mmaped, reference to the mm was taken
  * 11: subretion has ben released, refernece to the mm still held
  * 01: subretion has been released, reference to the mm has been released
  */
-#define PMEM_FLAGS_SUBMAP 0x1 << 3
-#define PMEM_FLAGS_UNSUBMAP 0x1 << 4
+#define PMEM_FLAGS_SUBMAP ( 0x1 << 3 )
+#define PMEM_FLAGS_UNSUBMAP ( 0x1 << 4 )
 
 
 struct pmem_data {
@@ -91,7 +92,7 @@ struct pmem_region_node {
 
 #define PMEM_DEBUG_MSGS 0
 #if PMEM_DEBUG_MSGS
-#define DLOG(fmt,args...) \
+#define DLOG(fmt, args...) \
 	do { printk(KERN_INFO "[%s:%s:%d] "fmt, __FILE__, __func__, __LINE__, \
 		    ##args); } \
 	while (0)
@@ -152,7 +153,7 @@ struct pmem_info {
 static struct pmem_info pmem[PMEM_MAX_DEVICES];
 static int id_count;
 
-#define PMEM_IS_FREE(id, index) !(pmem[id].bitmap[index].allocated)
+#define PMEM_IS_FREE(id, index) ( !(pmem[id].bitmap[index].allocated) )
 #define PMEM_ORDER(id, index) pmem[id].bitmap[index].order
 #define PMEM_BUDDY_INDEX(id, index) (index ^ (1 << PMEM_ORDER(id, index)))
 #define PMEM_NEXT_INDEX(id, index) (index + (1 << PMEM_ORDER(id, index)))
@@ -708,9 +709,8 @@ int get_pmem_addr(struct file *file, unsigned long *start,
 	struct pmem_data *data;
 	int id;
 
-	if (!is_pmem_file(file) || !has_allocation(file)) {
+	if (!is_pmem_file(file) || !has_allocation(file))
 		return -1;
-	}
 
 	data = (struct pmem_data *)file->private_data;
 	if (data->index == -1) {
@@ -789,9 +789,8 @@ void flush_pmem_file(struct file *file, unsigned long offset, unsigned long len)
 	struct list_head *elt;
 	void *flush_start, *flush_end;
 
-	if (!is_pmem_file(file) || !has_allocation(file)) {
+	if (!is_pmem_file(file) || !has_allocation(file))
 		return;
-	}
 
 	id = get_id(file);
 	data = (struct pmem_data *)file->private_data;
@@ -833,7 +832,7 @@ static int pmem_connect(unsigned long connect, struct file *file)
 	src_file = fget_light(connect, &put_needed);
 	DLOG("connect %p to %p\n", file, src_file);
 	if (!src_file) {
-		printk("pmem: src file not found!\n");
+		printk(KERN_INFO "pmem: src file not found!\n");
 		ret = -EINVAL;
 		goto err_no_file;
 	}
@@ -846,7 +845,7 @@ static int pmem_connect(unsigned long connect, struct file *file)
 	src_data = (struct pmem_data *)src_file->private_data;
 
 	if (has_allocation(file) && (data->index != src_data->index)) {
-		printk("pmem: file is already mapped but doesn't match this"
+		printk(KERN_INFO "pmem: file is already mapped but doesn't match this"
 		       " src_file!\n");
 		ret = -EINVAL;
 		goto err_bad_file;
@@ -885,7 +884,7 @@ lock_mm:
 		mm = get_task_mm(data->task);
 		if (!mm) {
 #if PMEM_DEBUG
-			printk("pmem: can't remap task is gone!\n");
+			printk(KERN_DEBUG "pmem: can't remap task is gone!\n");
 #endif
 			up_read(&data->sem);
 			return -1;
@@ -936,7 +935,7 @@ int pmem_remap(struct pmem_region *region, struct file *file,
 	if (unlikely(!PMEM_IS_PAGE_ALIGNED(region->offset) ||
 		 !PMEM_IS_PAGE_ALIGNED(region->len))) {
 #if PMEM_DEBUG
-		printk("pmem: request for unaligned pmem suballocation "
+		printk(KERN_DEBUG "pmem: request for unaligned pmem suballocation "
 		       "%lx %lx\n", region->offset, region->len);
 #endif
 		return -EINVAL;

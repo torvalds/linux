@@ -9,6 +9,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/buffer_head.h>
 #include "fat.h"
 

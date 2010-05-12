@@ -223,6 +223,7 @@ ipt_get_target(struct ipt_entry *e)
 	return (void *)e + e->target_offset;
 }
 
+#ifndef __KERNEL__
 /* fn returns 0 to continue iteration */
 #define IPT_MATCH_ITERATE(e, fn, args...) \
 	XT_MATCH_ITERATE(struct ipt_entry, e, fn, ## args)
@@ -230,6 +231,7 @@ ipt_get_target(struct ipt_entry *e)
 /* fn returns 0 to continue iteration */
 #define IPT_ENTRY_ITERATE(entries, size, fn, args...) \
 	XT_ENTRY_ITERATE(struct ipt_entry, entries, size, fn, ## args)
+#endif
 
 /*
  *	Main firewall chains definitions and global var's definitions.
@@ -242,7 +244,7 @@ extern void ipt_init(void) __init;
 extern struct xt_table *ipt_register_table(struct net *net,
 					   const struct xt_table *table,
 					   const struct ipt_replace *repl);
-extern void ipt_unregister_table(struct xt_table *table);
+extern void ipt_unregister_table(struct net *net, struct xt_table *table);
 
 /* Standard entry. */
 struct ipt_standard {
@@ -282,6 +284,7 @@ struct ipt_error {
 	.target.errorname = "ERROR",					       \
 }
 
+extern void *ipt_alloc_initial_table(const struct xt_table *);
 extern unsigned int ipt_do_table(struct sk_buff *skb,
 				 unsigned int hook,
 				 const struct net_device *in,
@@ -311,19 +314,6 @@ compat_ipt_get_target(struct compat_ipt_entry *e)
 }
 
 #define COMPAT_IPT_ALIGN(s) 	COMPAT_XT_ALIGN(s)
-
-/* fn returns 0 to continue iteration */
-#define COMPAT_IPT_MATCH_ITERATE(e, fn, args...) \
-	XT_MATCH_ITERATE(struct compat_ipt_entry, e, fn, ## args)
-
-/* fn returns 0 to continue iteration */
-#define COMPAT_IPT_ENTRY_ITERATE(entries, size, fn, args...) \
-	XT_ENTRY_ITERATE(struct compat_ipt_entry, entries, size, fn, ## args)
-
-/* fn returns 0 to continue iteration */
-#define COMPAT_IPT_ENTRY_ITERATE_CONTINUE(entries, size, n, fn, args...) \
-	XT_ENTRY_ITERATE_CONTINUE(struct compat_ipt_entry, entries, size, n, \
-				  fn, ## args)
 
 #endif /* CONFIG_COMPAT */
 #endif /*__KERNEL__*/

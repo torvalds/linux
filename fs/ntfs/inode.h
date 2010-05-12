@@ -307,12 +307,12 @@ extern void ntfs_truncate_vfs(struct inode *vi);
 
 extern int ntfs_setattr(struct dentry *dentry, struct iattr *attr);
 
-extern int ntfs_write_inode(struct inode *vi, int sync);
+extern int __ntfs_write_inode(struct inode *vi, int sync);
 
 static inline void ntfs_commit_inode(struct inode *vi)
 {
 	if (!is_bad_inode(vi))
-		ntfs_write_inode(vi, 1);
+		__ntfs_write_inode(vi, 1);
 	return;
 }
 

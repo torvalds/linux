@@ -28,6 +28,7 @@
 #include <linux/list.h>
 #include <linux/hrtimer.h>
 #include <linux/lockdep.h>
+#include <linux/slab.h>
 
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -1707,6 +1708,7 @@ static int __init pktsched_init(void)
 {
 	register_qdisc(&pfifo_qdisc_ops);
 	register_qdisc(&bfifo_qdisc_ops);
+	register_qdisc(&pfifo_head_drop_qdisc_ops);
 	register_qdisc(&mq_qdisc_ops);
 	proc_net_fops_create(&init_net, "psched", 0, &psched_fops);
 

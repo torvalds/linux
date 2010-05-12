@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <asm/bvme6000hw.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>

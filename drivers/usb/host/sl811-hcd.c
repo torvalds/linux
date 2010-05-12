@@ -51,6 +51,7 @@
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/byteorder.h>
+#include <asm/unaligned.h>
 
 #include "../core/hcd.h"
 #include "sl811.h"
@@ -719,10 +720,10 @@ retry:
 		/* port status seems weird until after reset, so
 		 * force the reset and make khubd clean up later.
 		 */
-		if (sl811->stat_insrmv & 1)
-			sl811->port1 |= 1 << USB_PORT_FEAT_CONNECTION;
-		else
+		if (irqstat & SL11H_INTMASK_RD)
 			sl811->port1 &= ~(1 << USB_PORT_FEAT_CONNECTION);
+		else
+			sl811->port1 |= 1 << USB_PORT_FEAT_CONNECTION;
 
 		sl811->port1 |= 1 << USB_PORT_FEAT_C_CONNECTION;
 
@@ -1272,12 +1273,12 @@ sl811h_hub_control(
 		sl811h_hub_descriptor(sl811, (struct usb_hub_descriptor *) buf);
 		break;
 	case GetHubStatus:
-		*(__le32 *) buf = cpu_to_le32(0);
+		put_unaligned_le32(0, buf);
 		break;
 	case GetPortStatus:
 		if (wIndex != 1)
 			goto error;
-		*(__le32 *) buf = cpu_to_le32(sl811->port1);
+		put_unaligned_le32(sl811->port1, buf);
 
 #ifndef	VERBOSE
 	if (*(u16*)(buf+2))	/* only if wPortChange is interesting */

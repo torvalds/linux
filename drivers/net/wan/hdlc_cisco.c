@@ -20,7 +20,6 @@
 #include <linux/poll.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 
 #undef DEBUG_HARD_HEADER
 
@@ -141,7 +140,7 @@ static __be16 cisco_type_trans(struct sk_buff *skb, struct net_device *dev)
 	    data->address != CISCO_UNICAST)
 		return cpu_to_be16(ETH_P_HDLC);
 
-	switch(data->protocol) {
+	switch (data->protocol) {
 	case cpu_to_be16(ETH_P_IP):
 	case cpu_to_be16(ETH_P_IPX):
 	case cpu_to_be16(ETH_P_IPV6):
@@ -190,7 +189,7 @@ static int cisco_rx(struct sk_buff *skb)
 		cisco_data = (struct cisco_packet*)(skb->data + sizeof
 						    (struct hdlc_header));
 
-		switch(ntohl (cisco_data->type)) {
+		switch (ntohl (cisco_data->type)) {
 		case CISCO_ADDR_REQ: /* Stolen from syncppp.c :-) */
 			in_dev = dev->ip_ptr;
 			addr = 0;
@@ -245,8 +244,8 @@ static int cisco_rx(struct sk_buff *skb)
 
 			dev_kfree_skb_any(skb);
 			return NET_RX_SUCCESS;
-		} /* switch(keepalive type) */
-	} /* switch(protocol) */
+		} /* switch (keepalive type) */
+	} /* switch (protocol) */
 
 	printk(KERN_INFO "%s: Unsupported protocol %x\n", dev->name,
 	       ntohs(data->protocol));

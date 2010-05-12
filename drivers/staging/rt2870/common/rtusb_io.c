@@ -84,7 +84,7 @@ static int RTUSBFirmwareRun(struct rt_rtmp_adapter *pAd)
 	========================================================================
 */
 int RTUSBFirmwareWrite(struct rt_rtmp_adapter *pAd,
-			    u8 *pFwImage, unsigned long FwLen)
+		       const u8 *pFwImage, unsigned long FwLen)
 {
 	u32 MacReg;
 	int Status;
@@ -167,7 +167,7 @@ int RTUSBMultiRead(struct rt_rtmp_adapter *pAd,
 	========================================================================
 */
 int RTUSBMultiWrite_OneByte(struct rt_rtmp_adapter *pAd,
-				 u16 Offset, u8 *pData)
+			    u16 Offset, const u8 *pData)
 {
 	int Status;
 
@@ -175,18 +175,18 @@ int RTUSBMultiWrite_OneByte(struct rt_rtmp_adapter *pAd,
 	Status = RTUSB_VendorRequest(pAd,
 				     USBD_TRANSFER_DIRECTION_OUT,
 				     DEVICE_VENDOR_REQUEST_OUT,
-				     0x6, 0, Offset, pData, 1);
+				     0x6, 0, Offset, (u8 *)pData, 1);
 
 	return Status;
 }
 
 int RTUSBMultiWrite(struct rt_rtmp_adapter *pAd,
-			 u16 Offset, u8 *pData, u16 length)
+		    u16 Offset, const u8 *pData, u16 length)
 {
 	int Status;
 
 	u16 index = 0, Value;
-	u8 *pSrc = pData;
+	const u8 *pSrc = pData;
 	u16 resude = 0;
 
 	resude = length % 2;

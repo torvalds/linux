@@ -78,7 +78,6 @@ static char lancestr[] = "LANCE";
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -94,6 +93,7 @@ static char lancestr[] = "LANCE";
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -1170,9 +1170,8 @@ static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static void lance_load_multicast(struct net_device *dev)
 {
 	struct lance_private *lp = netdev_priv(dev);
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct dev_mc_list *dmi;
 	char *addrs;
-	int i;
 	u32 crc;
 	u32 val;
 
@@ -1196,9 +1195,8 @@ static void lance_load_multicast(struct net_device *dev)
 		return;
 
 	/* Add addresses */
-	for (i = 0; i < dev->mc_count; i++) {
+	netdev_for_each_mc_addr(dmi, dev) {
 		addrs = dmi->dmi_addr;
-		dmi   = dmi->next;
 
 		/* multicast address? */
 		if (!(*addrs & 1))

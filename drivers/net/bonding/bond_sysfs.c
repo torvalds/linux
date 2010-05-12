@@ -51,7 +51,9 @@
  * "show" function for the bond_masters attribute.
  * The class parameter is ignored.
  */
-static ssize_t bonding_show_bonds(struct class *cls, char *buf)
+static ssize_t bonding_show_bonds(struct class *cls,
+				  struct class_attribute *attr,
+				  char *buf)
 {
 	struct net *net = current->nsproxy->net_ns;
 	struct bond_net *bn = net_generic(net, bond_net_id);
@@ -98,6 +100,7 @@ static struct net_device *bond_get_by_name(struct net *net, const char *ifname)
  */
 
 static ssize_t bonding_store_bonds(struct class *cls,
+				   struct class_attribute *attr,
 				   const char *buffer, size_t count)
 {
 	struct net *net = current->nsproxy->net_ns;

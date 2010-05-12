@@ -108,9 +108,7 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 		 * the last indicator should be set.
 		 */
 		if ((sc & BD_ENET_RX_LAST) == 0)
-			printk(KERN_WARNING DRV_MODULE_NAME
-			       ": %s rcv is not +last\n",
-			       dev->name);
+			dev_warn(fep->dev, "rcv is not +last\n");
 
 		/*
 		 * Check for errors.
@@ -178,9 +176,8 @@ static int fs_enet_rx_napi(struct napi_struct *napi, int budget)
 				received++;
 				netif_receive_skb(skb);
 			} else {
-				printk(KERN_WARNING DRV_MODULE_NAME
-				       ": %s Memory squeeze, dropping packet.\n",
-				       dev->name);
+				dev_warn(fep->dev,
+					 "Memory squeeze, dropping packet.\n");
 				fep->stats.rx_dropped++;
 				skbn = skb;
 			}
@@ -242,9 +239,7 @@ static int fs_enet_rx_non_napi(struct net_device *dev)
 		 * the last indicator should be set.
 		 */
 		if ((sc & BD_ENET_RX_LAST) == 0)
-			printk(KERN_WARNING DRV_MODULE_NAME
-			       ": %s rcv is not +last\n",
-			       dev->name);
+			dev_warn(fep->dev, "rcv is not +last\n");
 
 		/*
 		 * Check for errors.
@@ -313,9 +308,8 @@ static int fs_enet_rx_non_napi(struct net_device *dev)
 				received++;
 				netif_rx(skb);
 			} else {
-				printk(KERN_WARNING DRV_MODULE_NAME
-				       ": %s Memory squeeze, dropping packet.\n",
-				       dev->name);
+				dev_warn(fep->dev,
+					 "Memory squeeze, dropping packet.\n");
 				fep->stats.rx_dropped++;
 				skbn = skb;
 			}
@@ -388,10 +382,10 @@ static void fs_enet_tx(struct net_device *dev)
 		} else
 			fep->stats.tx_packets++;
 
-		if (sc & BD_ENET_TX_READY)
-			printk(KERN_WARNING DRV_MODULE_NAME
-			       ": %s HEY! Enet xmit interrupt and TX_READY.\n",
-			       dev->name);
+		if (sc & BD_ENET_TX_READY) {
+			dev_warn(fep->dev,
+				 "HEY! Enet xmit interrupt and TX_READY.\n");
+		}
 
 		/*
 		 * Deferred means some collisions occurred during transmit,
@@ -511,9 +505,8 @@ void fs_init_bds(struct net_device *dev)
 	for (i = 0, bdp = fep->rx_bd_base; i < fep->rx_ring; i++, bdp++) {
 		skb = dev_alloc_skb(ENET_RX_FRSIZE);
 		if (skb == NULL) {
-			printk(KERN_WARNING DRV_MODULE_NAME
-			       ": %s Memory squeeze, unable to allocate skb\n",
-			       dev->name);
+			dev_warn(fep->dev,
+				 "Memory squeeze, unable to allocate skb\n");
 			break;
 		}
 		skb_align(skb, ENET_RX_ALIGN);
@@ -587,6 +580,40 @@ void fs_cleanup_bds(struct net_device *dev)
 
 /**********************************************************************************/
 
+#ifdef CONFIG_FS_ENET_MPC5121_FEC
+/*
+ * MPC5121 FEC requeries 4-byte alignment for TX data buffer!
+ */
+static struct sk_buff *tx_skb_align_workaround(struct net_device *dev,
+					       struct sk_buff *skb)
+{
+	struct sk_buff *new_skb;
+	struct fs_enet_private *fep = netdev_priv(dev);
+
+	/* Alloc new skb */
+	new_skb = dev_alloc_skb(skb->len + 4);
+	if (!new_skb) {
+		if (net_ratelimit()) {
+			dev_warn(fep->dev,
+				 "Memory squeeze, dropping tx packet.\n");
+		}
+		return NULL;
+	}
+
+	/* Make sure new skb is properly aligned */
+	skb_align(new_skb, 4);
+
+	/* Copy data to new skb ... */
+	skb_copy_from_linear_data(skb, new_skb->data, skb->len);
+	skb_put(new_skb, skb->len);
+
+	/* ... and free an old one */
+	dev_kfree_skb_any(skb);
+
+	return new_skb;
+}
+#endif
+
 static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
@@ -595,6 +622,19 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u16 sc;
 	unsigned long flags;
 
+#ifdef CONFIG_FS_ENET_MPC5121_FEC
+	if (((unsigned long)skb->data) & 0x3) {
+		skb = tx_skb_align_workaround(dev, skb);
+		if (!skb) {
+			/*
+			 * We have lost packet due to memory allocation error
+			 * in tx_skb_align_workaround(). Hopefully original
+			 * skb is still valid, so try transmit it later.
+			 */
+			return NETDEV_TX_BUSY;
+		}
+	}
+#endif
 	spin_lock_irqsave(&fep->tx_lock, flags);
 
 	/*
@@ -610,8 +650,7 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * Ooops.  All transmit buffers are full.  Bail out.
 		 * This should not happen, since the tx queue should be stopped.
 		 */
-		printk(KERN_WARNING DRV_MODULE_NAME
-		       ": %s tx queue full!.\n", dev->name);
+		dev_warn(fep->dev, "tx queue full!.\n");
 		return NETDEV_TX_BUSY;
 	}
 
@@ -788,8 +827,7 @@ static int fs_enet_open(struct net_device *dev)
 	r = request_irq(fep->interrupt, fs_enet_interrupt, IRQF_SHARED,
 			"fs_enet-mac", dev);
 	if (r != 0) {
-		printk(KERN_ERR DRV_MODULE_NAME
-		       ": %s Could not allocate FS_ENET IRQ!", dev->name);
+		dev_err(fep->dev, "Could not allocate FS_ENET IRQ!");
 		if (fep->fpi->use_napi)
 			napi_disable(&fep->napi);
 		return -EINVAL;
@@ -1053,7 +1091,7 @@ static int __devinit fs_enet_probe(struct of_device *ofdev,
 	if (ret)
 		goto out_free_bd;
 
-	printk(KERN_INFO "%s: fs_enet: %pM\n", ndev->name, ndev->dev_addr);
+	pr_info("%s: fs_enet: %pM\n", ndev->name, ndev->dev_addr);
 
 	return 0;
 
@@ -1103,10 +1141,17 @@ static struct of_device_id fs_enet_match[] = {
 	},
 #endif
 #ifdef CONFIG_FS_ENET_HAS_FEC
+#ifdef CONFIG_FS_ENET_MPC5121_FEC
+	{
+		.compatible = "fsl,mpc5121-fec",
+		.data = (void *)&fs_fec_ops,
+	},
+#else
 	{
 		.compatible = "fsl,pq1-fec-enet",
 		.data = (void *)&fs_fec_ops,
 	},
+#endif
 #endif
 	{}
 };

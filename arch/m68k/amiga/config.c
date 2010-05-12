@@ -480,7 +480,7 @@ static void __init amiga_sched_init(irq_handler_t timer_routine)
 	static struct resource sched_res = {
 		.name = "timer", .start = 0x00bfd400, .end = 0x00bfd5ff,
 	};
-	jiffy_ticks = (amiga_eclock+HZ/2)/HZ;
+	jiffy_ticks = DIV_ROUND_CLOSEST(amiga_eclock, HZ);
 
 	if (request_resource(&mb_resources._ciab, &sched_res))
 		printk("Cannot allocate ciab.ta{lo,hi}\n");

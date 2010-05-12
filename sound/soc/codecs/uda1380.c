@@ -137,7 +137,7 @@ static void uda1380_flush_work(struct work_struct *work)
 {
 	int bit, reg;
 
-	for_each_bit(bit, &uda1380_cache_dirty, UDA1380_CACHEREGNUM - 0x10) {
+	for_each_set_bit(bit, &uda1380_cache_dirty, UDA1380_CACHEREGNUM - 0x10) {
 		reg = 0x10 + bit;
 		pr_debug("uda1380: flush reg %x val %x:\n", reg,
 				uda1380_read_reg_cache(uda1380_codec, reg));

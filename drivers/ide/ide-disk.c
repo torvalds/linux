@@ -679,7 +679,7 @@ static void ide_disk_setup(ide_drive_t *drive)
 		if (max_s > hwif->rqsize)
 			max_s = hwif->rqsize;
 
-		blk_queue_max_sectors(q, max_s);
+		blk_queue_max_hw_sectors(q, max_s);
 	}
 
 	printk(KERN_INFO "%s: max request size: %dKiB\n", drive->name,

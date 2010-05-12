@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.33-rc2
-# Wed Dec 30 14:45:09 2009
+# Linux kernel version: 2.6.34-rc1
+# Wed Mar 10 14:34:24 2010
 #
 # CONFIG_PPC64 is not set
 
@@ -95,11 +95,6 @@ CONFIG_RCU_FANOUT=32
 # CONFIG_TREE_RCU_TRACE is not set
 # CONFIG_IKCONFIG is not set
 CONFIG_LOG_BUF_SHIFT=14
-CONFIG_GROUP_SCHED=y
-# CONFIG_FAIR_GROUP_SCHED is not set
-# CONFIG_RT_GROUP_SCHED is not set
-CONFIG_USER_SCHED=y
-# CONFIG_CGROUP_SCHED is not set
 # CONFIG_CGROUPS is not set
 CONFIG_SYSFS_DEPRECATED=y
 CONFIG_SYSFS_DEPRECATED_V2=y
@@ -110,6 +105,7 @@ CONFIG_INITRAMFS_SOURCE=""
 CONFIG_RD_GZIP=y
 # CONFIG_RD_BZIP2 is not set
 # CONFIG_RD_LZMA is not set
+# CONFIG_RD_LZO is not set
 # CONFIG_CC_OPTIMIZE_FOR_SIZE is not set
 CONFIG_SYSCTL=y
 CONFIG_ANON_INODES=y
@@ -317,6 +313,7 @@ CONFIG_SUSPEND=y
 CONFIG_SUSPEND_FREEZER=y
 # CONFIG_HIBERNATION is not set
 # CONFIG_PM_RUNTIME is not set
+CONFIG_PM_OPS=y
 CONFIG_SECCOMP=y
 CONFIG_ISA_DMA_API=y
 
@@ -333,7 +330,6 @@ CONFIG_PCI_SYSCALL=y
 # CONFIG_PCIEPORTBUS is not set
 CONFIG_ARCH_SUPPORTS_MSI=y
 # CONFIG_PCI_MSI is not set
-CONFIG_PCI_LEGACY=y
 # CONFIG_PCI_DEBUG is not set
 # CONFIG_PCI_STUB is not set
 # CONFIG_PCI_IOV is not set
@@ -360,7 +356,6 @@ CONFIG_NET=y
 # Networking options
 #
 CONFIG_PACKET=y
-# CONFIG_PACKET_MMAP is not set
 CONFIG_UNIX=y
 CONFIG_XFRM=y
 CONFIG_XFRM_USER=m
@@ -457,6 +452,8 @@ CONFIG_PREVENT_FIRMWARE_BUILD=y
 # CONFIG_SYS_HYPERVISOR is not set
 # CONFIG_CONNECTOR is not set
 # CONFIG_MTD is not set
+CONFIG_OF_FLATTREE=y
+CONFIG_OF_DYNAMIC=y
 CONFIG_OF_DEVICE=y
 CONFIG_OF_I2C=y
 CONFIG_OF_MDIO=y
@@ -631,6 +628,7 @@ CONFIG_ATA_SFF=y
 # CONFIG_PATA_IT821X is not set
 # CONFIG_PATA_IT8213 is not set
 # CONFIG_PATA_JMICRON is not set
+# CONFIG_PATA_LEGACY is not set
 # CONFIG_PATA_TRIFLEX is not set
 # CONFIG_PATA_MARVELL is not set
 CONFIG_PATA_MPC52xx=y
@@ -668,7 +666,7 @@ CONFIG_PATA_MPC52xx=y
 #
 
 #
-# See the help texts for more information.
+# The newer stack is recommended.
 #
 # CONFIG_FIREWIRE is not set
 # CONFIG_IEEE1394 is not set
@@ -768,6 +766,7 @@ CONFIG_CHELSIO_T3_DEPENDS=y
 # CONFIG_MLX4_CORE is not set
 # CONFIG_TEHUTI is not set
 # CONFIG_BNX2X is not set
+# CONFIG_QLCNIC is not set
 # CONFIG_QLGE is not set
 # CONFIG_SFC is not set
 # CONFIG_BE2NET is not set
@@ -828,6 +827,7 @@ CONFIG_SERIAL_MPC52xx=y
 CONFIG_SERIAL_MPC52xx_CONSOLE=y
 CONFIG_SERIAL_MPC52xx_CONSOLE_BAUD=115200
 # CONFIG_SERIAL_JSM is not set
+# CONFIG_SERIAL_TIMBERDALE is not set
 # CONFIG_SERIAL_GRLIB_GAISLER_APBUART is not set
 CONFIG_UNIX98_PTYS=y
 # CONFIG_DEVPTS_MULTIPLE_INSTANCES is not set
@@ -879,6 +879,7 @@ CONFIG_I2C_HELPER_AUTO=y
 CONFIG_I2C_MPC=y
 # CONFIG_I2C_OCORES is not set
 # CONFIG_I2C_SIMTEC is not set
+# CONFIG_I2C_XILINX is not set
 
 #
 # External I2C/SMBus adapter drivers
@@ -924,18 +925,21 @@ CONFIG_SSB_POSSIBLE=y
 # Multifunction device drivers
 #
 # CONFIG_MFD_CORE is not set
+# CONFIG_MFD_88PM860X is not set
 # CONFIG_MFD_SM501 is not set
 # CONFIG_HTC_PASIC3 is not set
 # CONFIG_TWL4030_CORE is not set
 # CONFIG_MFD_TMIO is not set
 # CONFIG_PMIC_DA903X is not set
 # CONFIG_PMIC_ADP5520 is not set
+# CONFIG_MFD_MAX8925 is not set
 # CONFIG_MFD_WM8400 is not set
 # CONFIG_MFD_WM831X is not set
 # CONFIG_MFD_WM8350_I2C is not set
+# CONFIG_MFD_WM8994 is not set
 # CONFIG_MFD_PCF50633 is not set
 # CONFIG_AB3100_CORE is not set
-# CONFIG_MFD_88PM8607 is not set
+# CONFIG_LPC_SCH is not set
 # CONFIG_REGULATOR is not set
 # CONFIG_MEDIA_SUPPORT is not set
 
@@ -944,6 +948,7 @@ CONFIG_SSB_POSSIBLE=y
 #
 # CONFIG_AGP is not set
 CONFIG_VGA_ARB=y
+CONFIG_VGA_ARB_MAX_GPUS=16
 # CONFIG_DRM is not set
 # CONFIG_VGASTATE is not set
 CONFIG_VIDEO_OUTPUT_CONTROL=m
@@ -1062,6 +1067,7 @@ CONFIG_MISC_FILESYSTEMS=y
 # CONFIG_BEFS_FS is not set
 # CONFIG_BFS_FS is not set
 # CONFIG_EFS_FS is not set
+# CONFIG_LOGFS is not set
 # CONFIG_CRAMFS is not set
 # CONFIG_SQUASHFS is not set
 # CONFIG_VXFS_FS is not set

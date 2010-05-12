@@ -24,7 +24,7 @@ static unsigned long cprc_base;
 
 static void master_clk_init(struct clk *clk)
 {
-	int idx = (ctrl_inl(cprc_base + 0x00) >> 6) & 0x0007;
+	int idx = (__raw_readl(cprc_base + 0x00) >> 6) & 0x0007;
 	clk->rate *= ifc_table[idx];
 }
 
@@ -34,7 +34,7 @@ static struct clk_ops sh5_master_clk_ops = {
 
 static unsigned long module_clk_recalc(struct clk *clk)
 {
-	int idx = (ctrl_inw(cprc_base) >> 12) & 0x0007;
+	int idx = (__raw_readw(cprc_base) >> 12) & 0x0007;
 	return clk->parent->rate / ifc_table[idx];
 }
 
@@ -44,7 +44,7 @@ static struct clk_ops sh5_module_clk_ops = {
 
 static unsigned long bus_clk_recalc(struct clk *clk)
 {
-	int idx = (ctrl_inw(cprc_base) >> 3) & 0x0007;
+	int idx = (__raw_readw(cprc_base) >> 3) & 0x0007;
 	return clk->parent->rate / ifc_table[idx];
 }
 
@@ -54,7 +54,7 @@ static struct clk_ops sh5_bus_clk_ops = {
 
 static unsigned long cpu_clk_recalc(struct clk *clk)
 {
-	int idx = (ctrl_inw(cprc_base) & 0x0007);
+	int idx = (__raw_readw(cprc_base) & 0x0007);
 	return clk->parent->rate / ifc_table[idx];
 }
 

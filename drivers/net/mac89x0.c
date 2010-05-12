@@ -88,7 +88,6 @@ static char *version =
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/nubus.h>
 #include <linux/errno.h>
@@ -98,6 +97,7 @@ static char *version =
 #include <linux/skbuff.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -568,9 +568,7 @@ static void set_multicast_list(struct net_device *dev)
 	if(dev->flags&IFF_PROMISC)
 	{
 		lp->rx_mode = RX_ALL_ACCEPT;
-	}
-	else if((dev->flags&IFF_ALLMULTI)||dev->mc_list)
-	{
+	} else if ((dev->flags & IFF_ALLMULTI) || !netdev_mc_empty(dev)) {
 		/* The multicast-accept list is initialized to accept-all, and we
 		   rely on higher-level filtering for now. */
 		lp->rx_mode = RX_MULTCAST_ACCEPT;

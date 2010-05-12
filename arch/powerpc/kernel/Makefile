@@ -98,10 +98,15 @@ obj64-$(CONFIG_AUDIT)		+= compat_audit.o
 
 obj-$(CONFIG_DYNAMIC_FTRACE)	+= ftrace.o
 obj-$(CONFIG_FUNCTION_GRAPH_TRACER)	+= ftrace.o
-obj-$(CONFIG_PPC_PERF_CTRS)	+= perf_event.o perf_callchain.o
+obj-$(CONFIG_PERF_EVENTS)	+= perf_callchain.o
+
+obj-$(CONFIG_PPC_PERF_CTRS)	+= perf_event.o
 obj64-$(CONFIG_PPC_PERF_CTRS)	+= power4-pmu.o ppc970-pmu.o power5-pmu.o \
 				   power5+-pmu.o power6-pmu.o power7-pmu.o
 obj32-$(CONFIG_PPC_PERF_CTRS)	+= mpc7450-pmu.o
+
+obj-$(CONFIG_FSL_EMB_PERF_EVENT) += perf_event_fsl_emb.o
+obj-$(CONFIG_FSL_EMB_PERF_EVENT_E500) += e500-pmu.o
 
 obj-$(CONFIG_8XX_MINIMAL_FPEMU) += softemu8xx.o
 

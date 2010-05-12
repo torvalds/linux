@@ -5,7 +5,7 @@ config RAMZSWAP
 	select LZO_DECOMPRESS
 	default n
 	help
-	  Creates virtual block devices which can be used (only) as a swap
+	  Creates virtual block devices which can (only) be used as swap
 	  disks. Pages swapped to these disks are compressed and stored in
 	  memory itself.
 

@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -202,6 +202,10 @@ struct iwl_eeprom_enhanced_txpwr {
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 14  bytes */
 #define EEPROM_5000_REG_BAND_52_HT40_CHANNELS  ((0x92)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 22  bytes */
+
+/* 6000 regulatory - indirect access */
+#define EEPROM_6000_REG_BAND_24_HT40_CHANNELS  ((0x80)\
+		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 14  bytes */
 
 /* 6000 and up regulatory tx power - indirect access */
 /* max. elements per section */

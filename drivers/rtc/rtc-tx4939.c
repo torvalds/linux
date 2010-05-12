@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/gfp.h>
 #include <asm/txx9/tx4939.h>
 
 struct tx4939rtc_plat_data {

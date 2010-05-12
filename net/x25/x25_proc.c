@@ -25,49 +25,17 @@
 #include <net/x25.h>
 
 #ifdef CONFIG_PROC_FS
-static __inline__ struct x25_route *x25_get_route_idx(loff_t pos)
-{
-	struct list_head *route_entry;
-	struct x25_route *rt = NULL;
-
-	list_for_each(route_entry, &x25_route_list) {
-		rt = list_entry(route_entry, struct x25_route, node);
-		if (!pos--)
-			goto found;
-	}
-	rt = NULL;
-found:
-	return rt;
-}
 
 static void *x25_seq_route_start(struct seq_file *seq, loff_t *pos)
 	__acquires(x25_route_list_lock)
 {
-	loff_t l = *pos;
-
 	read_lock_bh(&x25_route_list_lock);
-	return l ? x25_get_route_idx(--l) : SEQ_START_TOKEN;
+	return seq_list_start_head(&x25_route_list, *pos);
 }
 
 static void *x25_seq_route_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct x25_route *rt;
-
-	++*pos;
-	if (v == SEQ_START_TOKEN) {
-		rt = NULL;
-		if (!list_empty(&x25_route_list))
-			rt = list_entry(x25_route_list.next,
-					struct x25_route, node);
-		goto out;
-	}
-	rt = v;
-	if (rt->node.next != &x25_route_list)
-		rt = list_entry(rt->node.next, struct x25_route, node);
-	else
-		rt = NULL;
-out:
-	return rt;
+	return seq_list_next(v, &x25_route_list, pos);
 }
 
 static void x25_seq_route_stop(struct seq_file *seq, void *v)
@@ -78,9 +46,9 @@ static void x25_seq_route_stop(struct seq_file *seq, void *v)
 
 static int x25_seq_route_show(struct seq_file *seq, void *v)
 {
-	struct x25_route *rt;
+	struct x25_route *rt = list_entry(v, struct x25_route, node);
 
-	if (v == SEQ_START_TOKEN) {
+	if (v == &x25_route_list) {
 		seq_puts(seq, "Address          Digits  Device\n");
 		goto out;
 	}
@@ -93,40 +61,16 @@ out:
 	return 0;
 }
 
-static __inline__ struct sock *x25_get_socket_idx(loff_t pos)
-{
-	struct sock *s;
-	struct hlist_node *node;
-
-	sk_for_each(s, node, &x25_list)
-		if (!pos--)
-			goto found;
-	s = NULL;
-found:
-	return s;
-}
-
 static void *x25_seq_socket_start(struct seq_file *seq, loff_t *pos)
 	__acquires(x25_list_lock)
 {
-	loff_t l = *pos;
-
 	read_lock_bh(&x25_list_lock);
-	return l ? x25_get_socket_idx(--l) : SEQ_START_TOKEN;
+	return seq_hlist_start_head(&x25_list, *pos);
 }
 
 static void *x25_seq_socket_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct sock *s;
-
-	++*pos;
-	if (v == SEQ_START_TOKEN) {
-		s = sk_head(&x25_list);
-		goto out;
-	}
-	s = sk_next(v);
-out:
-	return s;
+	return seq_hlist_next(v, &x25_list, pos);
 }
 
 static void x25_seq_socket_stop(struct seq_file *seq, void *v)
@@ -148,7 +92,7 @@ static int x25_seq_socket_show(struct seq_file *seq, void *v)
 		goto out;
 	}
 
-	s = v;
+	s = sk_entry(v);
 	x25 = x25_sk(s);
 
 	if (!x25->neighbour || (dev = x25->neighbour->dev) == NULL)
@@ -170,51 +114,16 @@ out:
 	return 0;
 }
 
-static __inline__ struct x25_forward *x25_get_forward_idx(loff_t pos)
-{
-	struct x25_forward *f;
-	struct list_head *entry;
-
-	list_for_each(entry, &x25_forward_list) {
-		f = list_entry(entry, struct x25_forward, node);
-		if (!pos--)
-			goto found;
-	}
-
-	f = NULL;
-found:
-	return f;
-}
-
 static void *x25_seq_forward_start(struct seq_file *seq, loff_t *pos)
 	__acquires(x25_forward_list_lock)
 {
-	loff_t l = *pos;
-
 	read_lock_bh(&x25_forward_list_lock);
-	return l ? x25_get_forward_idx(--l) : SEQ_START_TOKEN;
+	return seq_list_start_head(&x25_forward_list, *pos);
 }
 
 static void *x25_seq_forward_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct x25_forward *f;
-
-	++*pos;
-	if (v == SEQ_START_TOKEN) {
-		f = NULL;
-		if (!list_empty(&x25_forward_list))
-			f = list_entry(x25_forward_list.next,
-					struct x25_forward, node);
-		goto out;
-	}
-	f = v;
-	if (f->node.next != &x25_forward_list)
-		f = list_entry(f->node.next, struct x25_forward, node);
-	else
-		f = NULL;
-out:
-	return f;
-
+	return seq_list_next(v, &x25_forward_list, pos);
 }
 
 static void x25_seq_forward_stop(struct seq_file *seq, void *v)
@@ -225,9 +134,9 @@ static void x25_seq_forward_stop(struct seq_file *seq, void *v)
 
 static int x25_seq_forward_show(struct seq_file *seq, void *v)
 {
-	struct x25_forward *f;
+	struct x25_forward *f = list_entry(v, struct x25_forward, node);
 
-	if (v == SEQ_START_TOKEN) {
+	if (v == &x25_forward_list) {
 		seq_printf(seq, "lci dev1       dev2\n");
 		goto out;
 	}
@@ -236,7 +145,6 @@ static int x25_seq_forward_show(struct seq_file *seq, void *v)
 
 	seq_printf(seq, "%d %-10s %-10s\n",
 			f->lci, f->dev1->name, f->dev2->name);
-
 out:
 	return 0;
 }

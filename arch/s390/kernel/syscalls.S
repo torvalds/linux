@@ -98,7 +98,7 @@ SYSCALL(sys_uselib,sys_uselib,sys32_uselib_wrapper)
 SYSCALL(sys_swapon,sys_swapon,sys32_swapon_wrapper)
 SYSCALL(sys_reboot,sys_reboot,sys32_reboot_wrapper)
 SYSCALL(sys_ni_syscall,sys_ni_syscall,old32_readdir_wrapper)	/* old readdir syscall */
-SYSCALL(sys_s390_old_mmap,sys_s390_old_mmap,old32_mmap_wrapper)	/* 90 */
+SYSCALL(sys_old_mmap,sys_old_mmap,old32_mmap_wrapper)		/* 90 */
 SYSCALL(sys_munmap,sys_munmap,sys32_munmap_wrapper)
 SYSCALL(sys_truncate,sys_truncate,sys32_truncate_wrapper)
 SYSCALL(sys_ftruncate,sys_ftruncate,sys32_ftruncate_wrapper)
@@ -125,12 +125,12 @@ NI_SYSCALL							/* vm86old for i386 */
 SYSCALL(sys_wait4,sys_wait4,compat_sys_wait4_wrapper)
 SYSCALL(sys_swapoff,sys_swapoff,sys32_swapoff_wrapper)		/* 115 */
 SYSCALL(sys_sysinfo,sys_sysinfo,compat_sys_sysinfo_wrapper)
-SYSCALL(sys_ipc,sys_ipc,sys32_ipc_wrapper)
+SYSCALL(sys_s390_ipc,sys_s390_ipc,sys32_ipc_wrapper)
 SYSCALL(sys_fsync,sys_fsync,sys32_fsync_wrapper)
 SYSCALL(sys_sigreturn,sys_sigreturn,sys32_sigreturn)
 SYSCALL(sys_clone,sys_clone,sys_clone_wrapper)			/* 120 */
 SYSCALL(sys_setdomainname,sys_setdomainname,sys32_setdomainname_wrapper)
-SYSCALL(sys_newuname,sys_s390_newuname,sys32_newuname_wrapper)
+SYSCALL(sys_newuname,sys_newuname,sys32_newuname_wrapper)
 NI_SYSCALL							/* modify_ldt for i386 */
 SYSCALL(sys_adjtimex,sys_adjtimex,compat_sys_adjtimex_wrapper)
 SYSCALL(sys_mprotect,sys_mprotect,sys32_mprotect_wrapper)	/* 125 */

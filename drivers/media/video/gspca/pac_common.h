@@ -24,11 +24,10 @@
  */
 
 /* We calculate the autogain at the end of the transfer of a frame, at this
-   moment a frame with the old settings is being transmitted, and a frame is
-   being captured with the old settings. So if we adjust the autogain we must
-   ignore atleast the 2 next frames for the new settings to come into effect
-   before doing any other adjustments */
-#define PAC_AUTOGAIN_IGNORE_FRAMES	3
+   moment a frame with the old settings is being captured and transmitted. So
+   if we adjust the gain or exposure we must ignore atleast the next frame for
+   the new settings to come into effect before doing any other adjustments. */
+#define PAC_AUTOGAIN_IGNORE_FRAMES	2
 
 static const unsigned char pac_sof_marker[5] =
 		{ 0xff, 0xff, 0x00, 0xff, 0x96 };

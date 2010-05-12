@@ -196,7 +196,7 @@ __sclp_start_request(struct sclp_req *req)
 	req->start_count++;
 
 	if (rc == 0) {
-		/* Sucessfully started request */
+		/* Successfully started request */
 		req->status = SCLP_REQ_RUNNING;
 		sclp_running_state = sclp_running_state_running;
 		__sclp_set_request_timer(SCLP_RETRY_INTERVAL * HZ,

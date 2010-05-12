@@ -42,6 +42,7 @@
 #include <linux/random.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
 #include <linux/kdev_t.h>
@@ -3597,7 +3598,7 @@ static ssize_t cm_show_counter(struct kobject *obj, struct attribute *attr,
 		       atomic_long_read(&group->counter[cm_attr->index]));
 }
 
-static struct sysfs_ops cm_counter_ops = {
+static const struct sysfs_ops cm_counter_ops = {
 	.show = cm_show_counter
 };
 
@@ -3693,7 +3694,7 @@ static void cm_add_one(struct ib_device *ib_device)
 	cm_dev->device = device_create(&cm_class, &ib_device->dev,
 				       MKDEV(0, 0), NULL,
 				       "%s", ib_device->name);
-	if (!cm_dev->device) {
+	if (IS_ERR(cm_dev->device)) {
 		kfree(cm_dev);
 		return;
 	}

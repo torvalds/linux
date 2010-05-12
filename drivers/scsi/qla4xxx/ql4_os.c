@@ -5,6 +5,7 @@
  * See LICENSE.qla4xxx for copyright and licensing details.
  */
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsicam.h>

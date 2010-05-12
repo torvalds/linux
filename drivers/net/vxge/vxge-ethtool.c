@@ -12,6 +12,7 @@
  * Copyright(c) 2002-2009 Neterion Inc.
  ******************************************************************************/
 #include<linux/ethtool.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/etherdevice.h>
 

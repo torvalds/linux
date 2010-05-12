@@ -59,7 +59,7 @@ static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val);
 
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 #define MY_BRIGHTNESS 0
 	{
 	    {

@@ -1717,6 +1717,7 @@ static int nsp_cs_config(struct pcmcia_device *link)
 	cfg_mem->data = data;
 
 	ret = pcmcia_loop_config(link, nsp_cs_config_check, cfg_mem);
+	if (ret)
 		goto cs_failed;
 
 	if (link->conf.Attributes & CONF_ENABLE_IRQ) {

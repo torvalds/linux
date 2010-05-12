@@ -212,25 +212,6 @@ static int arch_check_va_in_kernelspace(unsigned long va, u8 hbp_len)
 	return (va >= TASK_SIZE) && ((va + len - 1) >= TASK_SIZE);
 }
 
-/*
- * Store a breakpoint's encoded address, length, and type.
- */
-static int arch_store_info(struct perf_event *bp)
-{
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
-	/*
-	 * For kernel-addresses, either the address or symbol name can be
-	 * specified.
-	 */
-	if (info->name)
-		info->address = (unsigned long)
-				kallsyms_lookup_name(info->name);
-	if (info->address)
-		return 0;
-
-	return -EINVAL;
-}
-
 int arch_bp_generic_fields(int x86_len, int x86_type,
 			   int *gen_len, int *gen_type)
 {
@@ -362,10 +343,6 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp,
 		return ret;
 	}
 
-	ret = arch_store_info(bp);
-
-	if (ret < 0)
-		return ret;
 	/*
 	 * Check that the low-order bits of the address are appropriate
 	 * for the alignment implied by len.
@@ -548,11 +525,6 @@ int __kprobes hw_breakpoint_exceptions_notify(
 }
 
 void hw_breakpoint_pmu_read(struct perf_event *bp)
-{
-	/* TODO */
-}
-
-void hw_breakpoint_pmu_unthrottle(struct perf_event *bp)
 {
 	/* TODO */
 }

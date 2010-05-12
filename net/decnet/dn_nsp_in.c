@@ -57,6 +57,7 @@
 #include <linux/netdevice.h>
 #include <linux/inet.h>
 #include <linux/route.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/tcp_states.h>
 #include <asm/system.h>

@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -191,7 +191,7 @@ enum {
 	IWL_RATE_2M_MASK)
 
 #define IWL_CCK_RATES_MASK          \
-       (IWL_BASIC_RATES_MASK      | \
+       (IWL_CCK_BASIC_RATES_MASK  | \
 	IWL_RATE_5M_MASK          | \
 	IWL_RATE_11M_MASK)
 

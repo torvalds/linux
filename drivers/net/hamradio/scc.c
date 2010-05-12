@@ -158,7 +158,6 @@
 #include <linux/in.h>
 #include <linux/fcntl.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>

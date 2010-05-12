@@ -28,28 +28,33 @@
 #define MCE_VECTOR			0x12
 
 /*
- * IDT vectors usable for external interrupt sources start
- * at 0x20:
+ * IDT vectors usable for external interrupt sources start at 0x20.
+ * (0x80 is the syscall vector, 0x30-0x3f are for ISA)
  */
 #define FIRST_EXTERNAL_VECTOR		0x20
-
-#ifdef CONFIG_X86_32
-# define SYSCALL_VECTOR			0x80
-# define IA32_SYSCALL_VECTOR		0x80
-#else
-# define IA32_SYSCALL_VECTOR		0x80
-#endif
+/*
+ * We start allocating at 0x21 to spread out vectors evenly between
+ * priority levels. (0x80 is the syscall vector)
+ */
+#define VECTOR_OFFSET_START		1
 
 /*
- * Reserve the lowest usable priority level 0x20 - 0x2f for triggering
- * cleanup after irq migration.
+ * Reserve the lowest usable vector (and hence lowest priority)  0x20 for
+ * triggering cleanup after irq migration. 0x21-0x2f will still be used
+ * for device interrupts.
  */
 #define IRQ_MOVE_CLEANUP_VECTOR		FIRST_EXTERNAL_VECTOR
 
+#define IA32_SYSCALL_VECTOR		0x80
+#ifdef CONFIG_X86_32
+# define SYSCALL_VECTOR			0x80
+#endif
+
 /*
  * Vectors 0x30-0x3f are used for ISA interrupts.
+ *   round up to the next 16-vector boundary
  */
-#define IRQ0_VECTOR			(FIRST_EXTERNAL_VECTOR + 0x10)
+#define IRQ0_VECTOR			((FIRST_EXTERNAL_VECTOR + 16) & ~15)
 
 #define IRQ1_VECTOR			(IRQ0_VECTOR +  1)
 #define IRQ2_VECTOR			(IRQ0_VECTOR +  2)
@@ -120,13 +125,6 @@
  */
 #define MCE_SELF_VECTOR			0xeb
 
-/*
- * First APIC vector available to drivers: (vectors 0x30-0xee) we
- * start at 0x31(0x41) to spread out vectors evenly between priority
- * levels. (0x80 is the syscall vector)
- */
-#define FIRST_DEVICE_VECTOR		(IRQ15_VECTOR + 2)
-
 #define NR_VECTORS			 256
 
 #define FPU_IRQ				  13
@@ -154,21 +152,21 @@ static inline int invalid_vm86_irq(int irq)
 
 #define NR_IRQS_LEGACY			  16
 
-#define CPU_VECTOR_LIMIT		(  8 * NR_CPUS      )
 #define IO_APIC_VECTOR_LIMIT		( 32 * MAX_IO_APICS )
 
 #ifdef CONFIG_X86_IO_APIC
 # ifdef CONFIG_SPARSE_IRQ
+#  define CPU_VECTOR_LIMIT		(64 * NR_CPUS)
 #  define NR_IRQS					\
 	(CPU_VECTOR_LIMIT > IO_APIC_VECTOR_LIMIT ?	\
 		(NR_VECTORS + CPU_VECTOR_LIMIT)  :	\
 		(NR_VECTORS + IO_APIC_VECTOR_LIMIT))
 # else
-#  if NR_CPUS < MAX_IO_APICS
-#   define NR_IRQS 			(NR_VECTORS + 4*CPU_VECTOR_LIMIT)
-#  else
-#   define NR_IRQS			(NR_VECTORS + IO_APIC_VECTOR_LIMIT)
-#  endif
+#  define CPU_VECTOR_LIMIT		(32 * NR_CPUS)
+#  define NR_IRQS					\
+	(CPU_VECTOR_LIMIT < IO_APIC_VECTOR_LIMIT ?	\
+		(NR_VECTORS + CPU_VECTOR_LIMIT)  :	\
+		(NR_VECTORS + IO_APIC_VECTOR_LIMIT))
 # endif
 #else /* !CONFIG_X86_IO_APIC: */
 # define NR_IRQS			NR_IRQS_LEGACY

@@ -14,7 +14,6 @@
 #include <linux/string.h>
 #include <linux/nvram.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/adb.h>
@@ -80,7 +79,7 @@ static int is_core_99;
 static int core99_bank = 0;
 static int nvram_partitions[3];
 // XXX Turn that into a sem
-static DEFINE_SPINLOCK(nv_lock);
+static DEFINE_RAW_SPINLOCK(nv_lock);
 
 static int (*core99_write_bank)(int bank, u8* datas);
 static int (*core99_erase_bank)(int bank);
@@ -165,10 +164,10 @@ static unsigned char indirect_nvram_read_byte(int addr)
 	unsigned char val;
 	unsigned long flags;
 
-	spin_lock_irqsave(&nv_lock, flags);
+	raw_spin_lock_irqsave(&nv_lock, flags);
 	out_8(nvram_addr, addr >> 5);
 	val = in_8(&nvram_data[(addr & 0x1f) << 4]);
-	spin_unlock_irqrestore(&nv_lock, flags);
+	raw_spin_unlock_irqrestore(&nv_lock, flags);
 
 	return val;
 }
@@ -177,10 +176,10 @@ static void indirect_nvram_write_byte(int addr, unsigned char val)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&nv_lock, flags);
+	raw_spin_lock_irqsave(&nv_lock, flags);
 	out_8(nvram_addr, addr >> 5);
 	out_8(&nvram_data[(addr & 0x1f) << 4], val);
-	spin_unlock_irqrestore(&nv_lock, flags);
+	raw_spin_unlock_irqrestore(&nv_lock, flags);
 }
 
 
@@ -481,7 +480,7 @@ static void core99_nvram_sync(void)
 	if (!is_core_99 || !nvram_data || !nvram_image)
 		return;
 
-	spin_lock_irqsave(&nv_lock, flags);
+	raw_spin_lock_irqsave(&nv_lock, flags);
 	if (!memcmp(nvram_image, (u8*)nvram_data + core99_bank*NVRAM_SIZE,
 		NVRAM_SIZE))
 		goto bail;
@@ -503,7 +502,7 @@ static void core99_nvram_sync(void)
 		if (core99_write_bank(core99_bank, nvram_image))
 			printk("nvram: Error writing bank %d\n", core99_bank);
  bail:
-	spin_unlock_irqrestore(&nv_lock, flags);
+	raw_spin_unlock_irqrestore(&nv_lock, flags);
 
 #ifdef DEBUG
        	mdelay(2000);

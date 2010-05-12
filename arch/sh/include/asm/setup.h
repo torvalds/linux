@@ -18,7 +18,6 @@
 /* ... */
 #define COMMAND_LINE ((char *) (PARAM+0x100))
 
-int setup_early_printk(char *);
 void sh_mv_setup(void);
 
 #endif /* __KERNEL__ */

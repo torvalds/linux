@@ -296,7 +296,7 @@ static int ti_init(struct yenta_socket *socket)
 	u8 new, reg = exca_readb(socket, I365_INTCTL);
 
 	new = reg & ~I365_INTR_ENA;
-	if (socket->cb_irq)
+	if (socket->dev->irq)
 		new |= I365_INTR_ENA;
 	if (new != reg)
 		exca_writeb(socket, I365_INTCTL, new);
@@ -316,14 +316,47 @@ static int ti_override(struct yenta_socket *socket)
 	return 0;
 }
 
+static void ti113x_use_isa_irq(struct yenta_socket *socket)
+{
+	int isa_irq = -1;
+	u8 intctl;
+	u32 isa_irq_mask = 0;
+
+	if (!isa_probe)
+		return;
+
+	/* get a free isa int */
+	isa_irq_mask = yenta_probe_irq(socket, isa_interrupts);
+	if (!isa_irq_mask)
+		return; /* no useable isa irq found */
+
+	/* choose highest available */
+	for (; isa_irq_mask; isa_irq++)
+		isa_irq_mask >>= 1;
+	socket->cb_irq = isa_irq;
+
+	exca_writeb(socket, I365_CSCINT, (isa_irq << 4));
+
+	intctl = exca_readb(socket, I365_INTCTL);
+	intctl &= ~(I365_INTR_ENA | I365_IRQ_MASK);     /* CSC Enable */
+	exca_writeb(socket, I365_INTCTL, intctl);
+
+	dev_info(&socket->dev->dev,
+		"Yenta TI113x: using isa irq %d for CardBus\n", isa_irq);
+}
+
+
 static int ti113x_override(struct yenta_socket *socket)
 {
 	u8 cardctl;
 
 	cardctl = config_readb(socket, TI113X_CARD_CONTROL);
 	cardctl &= ~(TI113X_CCR_PCI_IRQ_ENA | TI113X_CCR_PCI_IREQ | TI113X_CCR_PCI_CSC);
-	if (socket->cb_irq)
+	if (socket->dev->irq)
 		cardctl |= TI113X_CCR_PCI_IRQ_ENA | TI113X_CCR_PCI_CSC | TI113X_CCR_PCI_IREQ;
+	else
+		ti113x_use_isa_irq(socket);
+
 	config_writeb(socket, TI113X_CARD_CONTROL, cardctl);
 
 	return ti_override(socket);

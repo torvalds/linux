@@ -475,7 +475,8 @@ unsigned long copy_to_user(void __user *dst, const void *src, unsigned long len)
 	return pa_memcpy((void __force *)dst, src, len);
 }
 
-unsigned long copy_from_user(void *dst, const void __user *src, unsigned long len)
+EXPORT_SYMBOL(__copy_from_user);
+unsigned long __copy_from_user(void *dst, const void __user *src, unsigned long len)
 {
 	mtsp(get_user_space(), 1);
 	mtsp(get_kernel_space(), 2);

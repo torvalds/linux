@@ -73,6 +73,8 @@
 #define MCT_U232_SET_CTS_REQUEST   12
 #define MCT_U232_SET_CTS_SIZE       1
 
+#define MCT_U232_MAX_SIZE		4	/* of MCT_XXX_SIZE */
+
 /*
  * Baud rate (divisor)
  * Actually, there are two of them, MCT website calls them "Philips solution"

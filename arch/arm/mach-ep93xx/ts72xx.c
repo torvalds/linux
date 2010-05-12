@@ -166,6 +166,26 @@ static struct platform_device ts72xx_rtc_device = {
 	.num_resources	= 0,
 };
 
+static struct resource ts72xx_wdt_resources[] = {
+	{
+		.start	= TS72XX_WDT_CONTROL_PHYS_BASE,
+		.end	= TS72XX_WDT_CONTROL_PHYS_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= TS72XX_WDT_FEED_PHYS_BASE,
+		.end	= TS72XX_WDT_FEED_PHYS_BASE + SZ_4K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device ts72xx_wdt_device = {
+	.name		= "ts72xx-wdt",
+	.id		= -1,
+	.num_resources 	= ARRAY_SIZE(ts72xx_wdt_resources),
+	.resource	= ts72xx_wdt_resources,
+};
+
 static struct ep93xx_eth_data ts72xx_eth_data = {
 	.phy_id		= 1,
 };
@@ -175,6 +195,7 @@ static void __init ts72xx_init_machine(void)
 	ep93xx_init_devices();
 	ts72xx_register_flash();
 	platform_device_register(&ts72xx_rtc_device);
+	platform_device_register(&ts72xx_wdt_device);
 
 	ep93xx_register_eth(&ts72xx_eth_data, 1);
 }

@@ -25,6 +25,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -627,7 +628,7 @@ static int tlv320aic23_resume(struct platform_device *pdev)
 	u16 reg;
 
 	/* Sync reg_cache with the hardware */
-	for (reg = 0; reg < TLV320AIC23_RESET; reg++) {
+	for (reg = 0; reg <= TLV320AIC23_ACTIVE; reg++) {
 		u16 val = tlv320aic23_read_reg_cache(codec, reg);
 		tlv320aic23_write(codec, reg, val);
 	}

@@ -36,6 +36,7 @@
  */
 
 #include <linux/input.h>
+#include <linux/slab.h>
 #include <media/ir-common.h>
 #include <media/v4l2-subdev.h>
 
@@ -397,7 +398,7 @@ int cx23885_input_init(struct cx23885_dev *dev)
 	dev->ir_input = ir;
 	cx23885_input_ir_start(dev);
 
-	ret = ir_input_register(ir->dev, ir_codes);
+	ret = ir_input_register(ir->dev, ir_codes, NULL);
 	if (ret)
 		goto err_out_stop;
 

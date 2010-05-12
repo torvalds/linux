@@ -53,11 +53,11 @@ static ssize_t display_enabled_store(struct device *dev,
 
 	if (enabled != (dssdev->state != OMAP_DSS_DISPLAY_DISABLED)) {
 		if (enabled) {
-			r = dssdev->enable(dssdev);
+			r = dssdev->driver->enable(dssdev);
 			if (r)
 				return r;
 		} else {
-			dssdev->disable(dssdev);
+			dssdev->driver->disable(dssdev);
 		}
 	}
 
@@ -69,8 +69,8 @@ static ssize_t display_upd_mode_show(struct device *dev,
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 	enum omap_dss_update_mode mode = OMAP_DSS_UPDATE_AUTO;
-	if (dssdev->get_update_mode)
-		mode = dssdev->get_update_mode(dssdev);
+	if (dssdev->driver->get_update_mode)
+		mode = dssdev->driver->get_update_mode(dssdev);
 	return snprintf(buf, PAGE_SIZE, "%d\n", mode);
 }
 
@@ -94,7 +94,7 @@ static ssize_t display_upd_mode_store(struct device *dev,
 		return -EINVAL;
 	}
 
-	r = dssdev->set_update_mode(dssdev, mode);
+	r = dssdev->driver->set_update_mode(dssdev, mode);
 	if (r)
 		return r;
 
@@ -106,7 +106,8 @@ static ssize_t display_tear_show(struct device *dev,
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 	return snprintf(buf, PAGE_SIZE, "%d\n",
-			dssdev->get_te ? dssdev->get_te(dssdev) : 0);
+			dssdev->driver->get_te ?
+			dssdev->driver->get_te(dssdev) : 0);
 }
 
 static ssize_t display_tear_store(struct device *dev,
@@ -116,12 +117,12 @@ static ssize_t display_tear_store(struct device *dev,
 	unsigned long te;
 	int r;
 
-	if (!dssdev->enable_te || !dssdev->get_te)
+	if (!dssdev->driver->enable_te || !dssdev->driver->get_te)
 		return -ENOENT;
 
 	te = simple_strtoul(buf, NULL, 0);
 
-	r = dssdev->enable_te(dssdev, te);
+	r = dssdev->driver->enable_te(dssdev, te);
 	if (r)
 		return r;
 
@@ -134,10 +135,10 @@ static ssize_t display_timings_show(struct device *dev,
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 	struct omap_video_timings t;
 
-	if (!dssdev->get_timings)
+	if (!dssdev->driver->get_timings)
 		return -ENOENT;
 
-	dssdev->get_timings(dssdev, &t);
+	dssdev->driver->get_timings(dssdev, &t);
 
 	return snprintf(buf, PAGE_SIZE, "%u,%u/%u/%u/%u,%u/%u/%u/%u\n",
 			t.pixel_clock,
@@ -152,7 +153,7 @@ static ssize_t display_timings_store(struct device *dev,
 	struct omap_video_timings t;
 	int r, found;
 
-	if (!dssdev->set_timings || !dssdev->check_timings)
+	if (!dssdev->driver->set_timings || !dssdev->driver->check_timings)
 		return -ENOENT;
 
 	found = 0;
@@ -171,11 +172,11 @@ static ssize_t display_timings_store(struct device *dev,
 				&t.y_res, &t.vfp, &t.vbp, &t.vsw) != 9)
 		return -EINVAL;
 
-	r = dssdev->check_timings(dssdev, &t);
+	r = dssdev->driver->check_timings(dssdev, &t);
 	if (r)
 		return r;
 
-	dssdev->set_timings(dssdev, &t);
+	dssdev->driver->set_timings(dssdev, &t);
 
 	return size;
 }
@@ -185,9 +186,9 @@ static ssize_t display_rotate_show(struct device *dev,
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 	int rotate;
-	if (!dssdev->get_rotate)
+	if (!dssdev->driver->get_rotate)
 		return -ENOENT;
-	rotate = dssdev->get_rotate(dssdev);
+	rotate = dssdev->driver->get_rotate(dssdev);
 	return snprintf(buf, PAGE_SIZE, "%u\n", rotate);
 }
 
@@ -198,12 +199,12 @@ static ssize_t display_rotate_store(struct device *dev,
 	unsigned long rot;
 	int r;
 
-	if (!dssdev->set_rotate || !dssdev->get_rotate)
+	if (!dssdev->driver->set_rotate || !dssdev->driver->get_rotate)
 		return -ENOENT;
 
 	rot = simple_strtoul(buf, NULL, 0);
 
-	r = dssdev->set_rotate(dssdev, rot);
+	r = dssdev->driver->set_rotate(dssdev, rot);
 	if (r)
 		return r;
 
@@ -215,9 +216,9 @@ static ssize_t display_mirror_show(struct device *dev,
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 	int mirror;
-	if (!dssdev->get_mirror)
+	if (!dssdev->driver->get_mirror)
 		return -ENOENT;
-	mirror = dssdev->get_mirror(dssdev);
+	mirror = dssdev->driver->get_mirror(dssdev);
 	return snprintf(buf, PAGE_SIZE, "%u\n", mirror);
 }
 
@@ -228,12 +229,12 @@ static ssize_t display_mirror_store(struct device *dev,
 	unsigned long mirror;
 	int r;
 
-	if (!dssdev->set_mirror || !dssdev->get_mirror)
+	if (!dssdev->driver->set_mirror || !dssdev->driver->get_mirror)
 		return -ENOENT;
 
 	mirror = simple_strtoul(buf, NULL, 0);
 
-	r = dssdev->set_mirror(dssdev, mirror);
+	r = dssdev->driver->set_mirror(dssdev, mirror);
 	if (r)
 		return r;
 
@@ -246,10 +247,10 @@ static ssize_t display_wss_show(struct device *dev,
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 	unsigned int wss;
 
-	if (!dssdev->get_wss)
+	if (!dssdev->driver->get_wss)
 		return -ENOENT;
 
-	wss = dssdev->get_wss(dssdev);
+	wss = dssdev->driver->get_wss(dssdev);
 
 	return snprintf(buf, PAGE_SIZE, "0x%05x\n", wss);
 }
@@ -261,7 +262,7 @@ static ssize_t display_wss_store(struct device *dev,
 	unsigned long wss;
 	int r;
 
-	if (!dssdev->get_wss || !dssdev->set_wss)
+	if (!dssdev->driver->get_wss || !dssdev->driver->set_wss)
 		return -ENOENT;
 
 	if (strict_strtoul(buf, 0, &wss))
@@ -270,7 +271,7 @@ static ssize_t display_wss_store(struct device *dev,
 	if (wss > 0xfffff)
 		return -EINVAL;
 
-	r = dssdev->set_wss(dssdev, wss);
+	r = dssdev->driver->set_wss(dssdev, wss);
 	if (r)
 		return r;
 
@@ -303,12 +304,13 @@ static struct device_attribute *display_sysfs_attrs[] = {
 	NULL
 };
 
-static void default_get_resolution(struct omap_dss_device *dssdev,
+void omapdss_default_get_resolution(struct omap_dss_device *dssdev,
 			u16 *xres, u16 *yres)
 {
 	*xres = dssdev->panel.timings.x_res;
 	*yres = dssdev->panel.timings.y_res;
 }
+EXPORT_SYMBOL(omapdss_default_get_resolution);
 
 void default_get_overlay_fifo_thresholds(enum omap_plane plane,
 		u32 fifo_size, enum omap_burst_size *burst_size,
@@ -323,24 +325,8 @@ void default_get_overlay_fifo_thresholds(enum omap_plane plane,
 	*fifo_low = fifo_size - burst_size_bytes;
 }
 
-static int default_wait_vsync(struct omap_dss_device *dssdev)
+int omapdss_default_get_recommended_bpp(struct omap_dss_device *dssdev)
 {
-	unsigned long timeout = msecs_to_jiffies(500);
-	u32 irq;
-
-	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC)
-		irq = DISPC_IRQ_EVSYNC_ODD;
-	else
-		irq = DISPC_IRQ_VSYNC;
-
-	return omap_dispc_wait_for_irq_interruptible_timeout(irq, timeout);
-}
-
-static int default_get_recommended_bpp(struct omap_dss_device *dssdev)
-{
-	if (dssdev->panel.recommended_bpp)
-		return dssdev->panel.recommended_bpp;
-
 	switch (dssdev->type) {
 	case OMAP_DISPLAY_TYPE_DPI:
 		if (dssdev->phy.dpi.data_lines == 24)
@@ -362,6 +348,7 @@ static int default_get_recommended_bpp(struct omap_dss_device *dssdev)
 		BUG();
 	}
 }
+EXPORT_SYMBOL(omapdss_default_get_recommended_bpp);
 
 /* Checks if replication logic should be used. Only use for active matrix,
  * when overlay is in RGB12U or RGB16 mode, and LCD interface is
@@ -424,10 +411,6 @@ void dss_init_device(struct platform_device *pdev,
 				dssdev->name);
 		return;
 	}
-
-	dssdev->get_resolution = default_get_resolution;
-	dssdev->get_recommended_bpp = default_get_recommended_bpp;
-	dssdev->wait_vsync = default_wait_vsync;
 
 	switch (dssdev->type) {
 	case OMAP_DISPLAY_TYPE_DPI:
@@ -502,13 +485,13 @@ static int dss_suspend_device(struct device *dev, void *data)
 		return 0;
 	}
 
-	if (!dssdev->suspend) {
+	if (!dssdev->driver->suspend) {
 		DSSERR("display '%s' doesn't implement suspend\n",
 				dssdev->name);
 		return -ENOSYS;
 	}
 
-	r = dssdev->suspend(dssdev);
+	r = dssdev->driver->suspend(dssdev);
 	if (r)
 		return r;
 
@@ -537,8 +520,8 @@ static int dss_resume_device(struct device *dev, void *data)
 	int r;
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 
-	if (dssdev->activate_after_resume && dssdev->resume) {
-		r = dssdev->resume(dssdev);
+	if (dssdev->activate_after_resume && dssdev->driver->resume) {
+		r = dssdev->driver->resume(dssdev);
 		if (r)
 			return r;
 	}
@@ -558,7 +541,7 @@ int dss_resume_all_devices(void)
 static int dss_disable_device(struct device *dev, void *data)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
-	dssdev->disable(dssdev);
+	dssdev->driver->disable(dssdev);
 	return 0;
 }
 
@@ -591,10 +574,6 @@ struct omap_dss_device *omap_dss_get_next_device(struct omap_dss_device *from)
 
 	int match(struct device *dev, void *data)
 	{
-		/* skip panels connected to controllers */
-		if (to_dss_device(dev)->panel.ctrl)
-			return 0;
-
 		return 1;
 	}
 
@@ -626,45 +605,21 @@ EXPORT_SYMBOL(omap_dss_find_device);
 
 int omap_dss_start_device(struct omap_dss_device *dssdev)
 {
-	int r;
-
 	if (!dssdev->driver) {
 		DSSDBG("no driver\n");
-		r = -ENODEV;
-		goto err0;
-	}
-
-	if (dssdev->ctrl.panel && !dssdev->ctrl.panel->driver) {
-		DSSDBG("no panel driver\n");
-		r = -ENODEV;
-		goto err0;
+		return -ENODEV;
 	}
 
 	if (!try_module_get(dssdev->dev.driver->owner)) {
-		r = -ENODEV;
-		goto err0;
-	}
-
-	if (dssdev->ctrl.panel) {
-		if (!try_module_get(dssdev->ctrl.panel->dev.driver->owner)) {
-			r = -ENODEV;
-			goto err1;
-		}
+		return -ENODEV;
 	}
 
 	return 0;
-err1:
-	module_put(dssdev->dev.driver->owner);
-err0:
-	return r;
 }
 EXPORT_SYMBOL(omap_dss_start_device);
 
 void omap_dss_stop_device(struct omap_dss_device *dssdev)
 {
-	if (dssdev->ctrl.panel)
-		module_put(dssdev->ctrl.panel->dev.driver->owner);
-
 	module_put(dssdev->dev.driver->owner);
 }
 EXPORT_SYMBOL(omap_dss_stop_device);

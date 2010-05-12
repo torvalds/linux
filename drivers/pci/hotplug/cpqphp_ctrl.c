@@ -1130,12 +1130,13 @@ static int is_bridge(struct pci_func * func)
 static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_slot)
 {
 	struct slot *slot;
+	struct pci_bus *bus = ctrl->pci_bus;
 	u8 reg;
 	u8 slot_power = readb(ctrl->hpc_reg + SLOT_POWER);
 	u16 reg16;
 	u32 leds = readl(ctrl->hpc_reg + LED_CONTROL);
 
-	if (ctrl->speed == adapter_speed)
+	if (bus->cur_bus_speed == adapter_speed)
 		return 0;
 
 	/* We don't allow freq/mode changes if we find another adapter running
@@ -1152,7 +1153,7 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 		 * lower speed/mode, we allow the new adapter to function at
 		 * this rate if supported
 		 */
-		if (ctrl->speed < adapter_speed)
+		if (bus->cur_bus_speed < adapter_speed)
 			return 0;
 
 		return 1;
@@ -1161,20 +1162,20 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 	/* If the controller doesn't support freq/mode changes and the
 	 * controller is running at a higher mode, we bail
 	 */
-	if ((ctrl->speed > adapter_speed) && (!ctrl->pcix_speed_capability))
+	if ((bus->cur_bus_speed > adapter_speed) && (!ctrl->pcix_speed_capability))
 		return 1;
 
 	/* But we allow the adapter to run at a lower rate if possible */
-	if ((ctrl->speed < adapter_speed) && (!ctrl->pcix_speed_capability))
+	if ((bus->cur_bus_speed < adapter_speed) && (!ctrl->pcix_speed_capability))
 		return 0;
 
 	/* We try to set the max speed supported by both the adapter and
 	 * controller
 	 */
-	if (ctrl->speed_capability < adapter_speed) {
-		if (ctrl->speed == ctrl->speed_capability)
+	if (bus->max_bus_speed < adapter_speed) {
+		if (bus->cur_bus_speed == bus->max_bus_speed)
 			return 0;
-		adapter_speed = ctrl->speed_capability;
+		adapter_speed = bus->max_bus_speed;
 	}
 
 	writel(0x0L, ctrl->hpc_reg + LED_CONTROL);
@@ -1229,8 +1230,8 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 	pci_write_config_byte(ctrl->pci_dev, 0x43, reg);
 
 	/* Only if mode change...*/
-	if (((ctrl->speed == PCI_SPEED_66MHz) && (adapter_speed == PCI_SPEED_66MHz_PCIX)) ||
-		((ctrl->speed == PCI_SPEED_66MHz_PCIX) && (adapter_speed == PCI_SPEED_66MHz))) 
+	if (((bus->cur_bus_speed == PCI_SPEED_66MHz) && (adapter_speed == PCI_SPEED_66MHz_PCIX)) ||
+		((bus->cur_bus_speed == PCI_SPEED_66MHz_PCIX) && (adapter_speed == PCI_SPEED_66MHz))) 
 			set_SOGO(ctrl);
 
 	wait_for_ctrl_irq(ctrl);
@@ -1243,7 +1244,7 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
 	set_SOGO(ctrl);
 	wait_for_ctrl_irq(ctrl);
 
-	ctrl->speed = adapter_speed;
+	bus->cur_bus_speed = adapter_speed;
 	slot = cpqhp_find_slot(ctrl, hp_slot + ctrl->slot_device_offset);
 
 	info("Successfully changed frequency/mode for adapter in slot %d\n",
@@ -1269,6 +1270,7 @@ static u8 set_controller_speed(struct controller *ctrl, u8 adapter_speed, u8 hp_
  */
 static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 {
+	struct pci_bus *bus = ctrl->pci_bus;
 	u8 hp_slot;
 	u8 temp_byte;
 	u8 adapter_speed;
@@ -1309,7 +1311,7 @@ static u32 board_replaced(struct pci_func *func, struct controller *ctrl)
 		wait_for_ctrl_irq (ctrl);
 
 		adapter_speed = get_adapter_speed(ctrl, hp_slot);
-		if (ctrl->speed != adapter_speed)
+		if (bus->cur_bus_speed != adapter_speed)
 			if (set_controller_speed(ctrl, adapter_speed, hp_slot))
 				rc = WRONG_BUS_FREQUENCY;
 
@@ -1426,6 +1428,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	u32 temp_register = 0xFFFFFFFF;
 	u32 rc = 0;
 	struct pci_func *new_slot = NULL;
+	struct pci_bus *bus = ctrl->pci_bus;
 	struct slot *p_slot;
 	struct resource_lists res_lists;
 
@@ -1456,7 +1459,7 @@ static u32 board_added(struct pci_func *func, struct controller *ctrl)
 	wait_for_ctrl_irq (ctrl);
 
 	adapter_speed = get_adapter_speed(ctrl, hp_slot);
-	if (ctrl->speed != adapter_speed)
+	if (bus->cur_bus_speed != adapter_speed)
 		if (set_controller_speed(ctrl, adapter_speed, hp_slot))
 			rc = WRONG_BUS_FREQUENCY;
 

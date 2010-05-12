@@ -356,7 +356,7 @@ static int __devinit sil680_init_one(struct pci_dev *pdev,
 				 IRQF_SHARED, &sil680_sht);
 
 use_ioports:
-	return ata_pci_sff_init_one(pdev, ppi, &sil680_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &sil680_sht, NULL, 0);
 }
 
 #ifdef CONFIG_PM

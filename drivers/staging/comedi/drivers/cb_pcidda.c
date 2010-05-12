@@ -410,9 +410,8 @@ static int cb_pcidda_detach(struct comedi_device *dev)
  */
 	if (devpriv) {
 		if (devpriv->pci_dev) {
-			if (devpriv->dac) {
+			if (devpriv->dac)
 				comedi_pci_disable(devpriv->pci_dev);
-			}
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}
@@ -677,9 +676,8 @@ static unsigned int cb_pcidda_serial_in(struct comedi_device *dev)
 
 	for (i = 1; i <= value_width; i++) {
 		/*  read bits most significant bit first */
-		if (inw_p(devpriv->dac + DACALIBRATION1) & SERIAL_OUT_BIT) {
+		if (inw_p(devpriv->dac + DACALIBRATION1) & SERIAL_OUT_BIT)
 			value |= 1 << (value_width - i);
-		}
 	}
 
 	return value;
@@ -716,9 +714,8 @@ static unsigned int cb_pcidda_read_eeprom(struct comedi_device *dev,
 	/*  send serial output stream to eeprom */
 	cal2_bits = SELECT_EEPROM_BIT | DESELECT_REF_DAC_BIT | DUMMY_BIT;
 	/*  deactivate caldacs (one caldac for every two channels) */
-	for (i = 0; i < max_num_caldacs; i++) {
+	for (i = 0; i < max_num_caldacs; i++)
 		cal2_bits |= DESELECT_CALDAC_BIT(i);
-	}
 	outw_p(cal2_bits, devpriv->dac + DACALIBRATION2);
 
 	/*  tell eeprom we want to read */
@@ -756,9 +753,8 @@ static void cb_pcidda_write_caldac(struct comedi_device *dev,
 */
 	cal2_bits = DESELECT_REF_DAC_BIT | DUMMY_BIT;
 	/*  deactivate caldacs (one caldac for every two channels) */
-	for (i = 0; i < max_num_caldacs; i++) {
+	for (i = 0; i < max_num_caldacs; i++)
 		cal2_bits |= DESELECT_CALDAC_BIT(i);
-	}
 	/*  activate the caldac we want */
 	cal2_bits &= ~DESELECT_CALDAC_BIT(caldac);
 	outw_p(cal2_bits, devpriv->dac + DACALIBRATION2);

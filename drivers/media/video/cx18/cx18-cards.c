@@ -393,7 +393,7 @@ static const struct cx18_card cx18_card_leadtek_pvr2100 = {
 	.gpio_init.direction = 0x7,
 	.gpio_audio_input = { .mask   = 0x7,
 			      .tuner  = 0x6, .linein = 0x2, .radio  = 0x2 },
-	.xceive_pin = 15,
+	.xceive_pin = 1,
 	.pci_list = cx18_pci_leadtek_pvr2100,
 	.i2c = &cx18_i2c_std,
 };

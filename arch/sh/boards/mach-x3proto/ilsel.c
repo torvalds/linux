@@ -70,10 +70,10 @@ static void __ilsel_enable(ilsel_source_t set, unsigned int bit)
 	pr_debug("%s: bit#%d: addr - 0x%08lx (shift %d, set %d)\n",
 		 __func__, bit, addr, shift, set);
 
-	tmp = ctrl_inw(addr);
+	tmp = __raw_readw(addr);
 	tmp &= ~(0xf << shift);
 	tmp |= set << shift;
-	ctrl_outw(tmp, addr);
+	__raw_writew(tmp, addr);
 }
 
 /**
@@ -142,9 +142,9 @@ void ilsel_disable(unsigned int irq)
 
 	addr = mk_ilsel_addr(irq);
 
-	tmp = ctrl_inw(addr);
+	tmp = __raw_readw(addr);
 	tmp &= ~(0xf << mk_ilsel_shift(irq));
-	ctrl_outw(tmp, addr);
+	__raw_writew(tmp, addr);
 
 	clear_bit(irq, &ilsel_level_map);
 }

@@ -37,35 +37,38 @@
 
 #include	"../rt_config.h"
 
-#if defined(RT2860) || defined(RT3090)
-#include "firmware.h"
-#include "../../rt3090/firmware.h"
-#endif
-#ifdef RT2870
-#include "../../rt3070/firmware.h"
-#include "firmware_3070.h"
-#endif
-
-#include <linux/bitrev.h>
+#include <linux/crc-ccitt.h>
+#include <linux/firmware.h>
 
 #ifdef RTMP_MAC_USB
-/* */
-/* RT2870 Firmware Spec only used 1 oct for version expression */
-/* */
-#define FIRMWARE_MINOR_VERSION	7
-#endif /* RTMP_MAC_USB // */
 
-/* New 8k byte firmware size for RT3071/RT3072 */
-#define FIRMWAREIMAGE_MAX_LENGTH	0x2000
-#define FIRMWAREIMAGE_LENGTH			(sizeof (FirmwareImage) / sizeof(u8))
-#define FIRMWARE_MAJOR_VERSION		0
+#define FIRMWAREIMAGE_LENGTH		0x1000
 
-#define FIRMWAREIMAGEV1_LENGTH		0x1000
-#define FIRMWAREIMAGEV2_LENGTH		0x1000
+#define FIRMWARE_2870_MIN_VERSION	12
+#define FIRMWARE_2870_FILENAME		"rt2870.bin"
+MODULE_FIRMWARE(FIRMWARE_2870_FILENAME);
 
-#ifdef RTMP_MAC_PCI
-#define FIRMWARE_MINOR_VERSION		2
-#endif /* RTMP_MAC_PCI // */
+#define FIRMWARE_3070_MIN_VERSION	17
+#define FIRMWARE_3070_FILENAME		"rt3070.bin"
+MODULE_FIRMWARE(FIRMWARE_3070_FILENAME);
+
+#define FIRMWARE_3071_MIN_VERSION	17
+#define FIRMWARE_3071_FILENAME		"rt3071.bin"	/* for RT3071/RT3072 */
+MODULE_FIRMWARE(FIRMWARE_3071_FILENAME);
+
+#else /* RTMP_MAC_PCI */
+
+#define FIRMWAREIMAGE_LENGTH		0x2000
+
+#define FIRMWARE_2860_MIN_VERSION	11
+#define FIRMWARE_2860_FILENAME		"rt2860.bin"
+MODULE_FIRMWARE(FIRMWARE_2860_FILENAME);
+
+#define FIRMWARE_3090_MIN_VERSION	19
+#define FIRMWARE_3090_FILENAME		"rt3090.bin"	/* for RT3090/RT3390 */
+MODULE_FIRMWARE(FIRMWARE_3090_FILENAME);
+
+#endif
 
 /*
 	========================================================================
@@ -90,6 +93,78 @@ int RtmpAsicEraseFirmware(struct rt_rtmp_adapter *pAd)
 	return 0;
 }
 
+static const struct firmware *rtmp_get_firmware(struct rt_rtmp_adapter *adapter)
+{
+	const char *name;
+	const struct firmware *fw = NULL;
+	u8 min_version;
+	struct device *dev;
+	int err;
+
+	if (adapter->firmware)
+		return adapter->firmware;
+
+#ifdef RTMP_MAC_USB
+	if (IS_RT3071(adapter)) {
+		name = FIRMWARE_3071_FILENAME;
+		min_version = FIRMWARE_3071_MIN_VERSION;
+	} else if (IS_RT3070(adapter)) {
+		name = FIRMWARE_3070_FILENAME;
+		min_version = FIRMWARE_3070_MIN_VERSION;
+	} else {
+		name = FIRMWARE_2870_FILENAME;
+		min_version = FIRMWARE_2870_MIN_VERSION;
+	}
+	dev = &((struct os_cookie *)adapter->OS_Cookie)->pUsb_Dev->dev;
+#else /* RTMP_MAC_PCI */
+	if (IS_RT3090(adapter) || IS_RT3390(adapter)) {
+		name = FIRMWARE_3090_FILENAME;
+		min_version = FIRMWARE_3090_MIN_VERSION;
+	} else {
+		name = FIRMWARE_2860_FILENAME;
+		min_version = FIRMWARE_2860_MIN_VERSION;
+	}
+	dev = &((struct os_cookie *)adapter->OS_Cookie)->pci_dev->dev;
+#endif
+
+	err = request_firmware(&fw, name, dev);
+	if (err) {
+		dev_err(dev, "firmware file %s request failed (%d)\n",
+			name, err);
+		return NULL;
+	}
+
+	if (fw->size < FIRMWAREIMAGE_LENGTH) {
+		dev_err(dev, "firmware file %s size is invalid\n", name);
+		goto invalid;
+	}
+
+	/* is it new enough? */
+	adapter->FirmwareVersion = fw->data[FIRMWAREIMAGE_LENGTH - 3];
+	if (adapter->FirmwareVersion < min_version) {
+		dev_err(dev,
+			"firmware file %s is too old;"
+			" driver requires v%d or later\n",
+			name, min_version);
+		goto invalid;
+	}
+
+	/* is the internal CRC correct? */
+	if (crc_ccitt(0xffff, fw->data, FIRMWAREIMAGE_LENGTH - 2) !=
+	    (fw->data[FIRMWAREIMAGE_LENGTH - 2] |
+	     (fw->data[FIRMWAREIMAGE_LENGTH - 1] << 8))) {
+		dev_err(dev, "firmware file %s failed internal CRC\n", name);
+		goto invalid;
+	}
+
+	adapter->firmware = fw;
+	return fw;
+
+invalid:
+	release_firmware(fw);
+	return NULL;
+}
+
 /*
 	========================================================================
 
@@ -109,46 +184,16 @@ int RtmpAsicEraseFirmware(struct rt_rtmp_adapter *pAd)
 */
 int RtmpAsicLoadFirmware(struct rt_rtmp_adapter *pAd)
 {
-
+	const struct firmware *fw;
 	int Status = NDIS_STATUS_SUCCESS;
-	u8 *pFirmwareImage = NULL;
-	unsigned long FileLength, Index;
+	unsigned long Index;
 	u32 MacReg = 0;
-#ifdef RTMP_MAC_USB
-	u32 Version = (pAd->MACVersion >> 16);
-#endif
 
-	/* New 8k byte firmware size for RT3071/RT3072 */
-	{
-#ifdef RTMP_MAC_PCI
-		if (IS_RT3090(pAd) || IS_RT3390(pAd)) {
-			pFirmwareImage = FirmwareImage_3090;
-			FileLength = FIRMWAREIMAGE_MAX_LENGTH;
-		} else {
-			pFirmwareImage = FirmwareImage_2860;
-			FileLength = FIRMWAREIMAGE_MAX_LENGTH;
-		}
-#endif /* RTMP_MAC_PCI // */
-#ifdef RTMP_MAC_USB
-		/* the firmware image consists of two parts */
-		if ((Version != 0x2860) && (Version != 0x2872) && (Version != 0x3070)) {	/* use the second part */
-			/*printk("KH:Use New Version,part2\n"); */
-			pFirmwareImage =
-			    (u8 *)&
-			    FirmwareImage_3070[FIRMWAREIMAGEV1_LENGTH];
-			FileLength = FIRMWAREIMAGEV2_LENGTH;
-		} else {
-			/*printk("KH:Use New Version,part1\n"); */
-			if (Version == 0x3070)
-				pFirmwareImage = FirmwareImage_3070;
-			else
-				pFirmwareImage = FirmwareImage_2870;
-			FileLength = FIRMWAREIMAGEV1_LENGTH;
-		}
-#endif /* RTMP_MAC_USB // */
-	}
+	fw = rtmp_get_firmware(pAd);
+	if (!fw)
+		return NDIS_STATUS_FAILURE;
 
-	RTMP_WRITE_FIRMWARE(pAd, pFirmwareImage, FileLength);
+	RTMP_WRITE_FIRMWARE(pAd, fw->data, FIRMWAREIMAGE_LENGTH);
 
 	/* check if MCU is ready */
 	Index = 0;
@@ -221,7 +266,7 @@ int RtmpAsicSendCommandToMcu(struct rt_rtmp_adapter *pAd,
 				 ("AsicSendCommanToMcu::Mail box is busy\n"));
 		} while (i++ < 100);
 
-		if (i >= 100) {
+		if (i > 100) {
 			DBGPRINT_ERR(("H2M_MAILBOX still hold by MCU. command fail\n"));
 			return FALSE;
 		}

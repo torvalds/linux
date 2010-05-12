@@ -22,6 +22,7 @@
 #include <linux/posix_acl_xattr.h>
 #include <linux/posix_acl.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include "ctree.h"
 #include "btrfs_inode.h"
@@ -244,6 +245,7 @@ int btrfs_init_acl(struct btrfs_trans_handle *trans,
 						    ACL_TYPE_ACCESS);
 			}
 		}
+		posix_acl_release(clone);
 	}
 failed:
 	posix_acl_release(acl);

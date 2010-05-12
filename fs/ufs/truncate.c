@@ -44,6 +44,7 @@
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/sched.h>
+#include <linux/quotaops.h>
 
 #include "ufs_fs.h"
 #include "ufs.h"
@@ -517,9 +518,18 @@ static int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		return error;
 
+	if ((ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
+	    (ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {
+		error = dquot_transfer(inode, attr);
+		if (error)
+			return error;
+	}
 	if (ia_valid & ATTR_SIZE &&
 	    attr->ia_size != i_size_read(inode)) {
 		loff_t old_i_size = inode->i_size;
+
+		dquot_initialize(inode);
+
 		error = vmtruncate(inode, attr->ia_size);
 		if (error)
 			return error;

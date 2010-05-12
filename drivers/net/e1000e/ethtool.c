@@ -31,6 +31,7 @@
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 
 #include "e1000.h"
@@ -202,7 +203,7 @@ static u32 e1000_get_link(struct net_device *netdev)
 	if (!netif_carrier_ok(netdev))
 		mac->get_link_status = 1;
 
-	return e1000_has_link(adapter);
+	return e1000e_has_link(adapter);
 }
 
 static int e1000_set_spd_dplx(struct e1000_adapter *adapter, u16 spddplx)

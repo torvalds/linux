@@ -598,7 +598,7 @@ setup_sedlbauer_isapnp(struct IsdnCard *card, int *bytecnt)
 }
 #endif /* __ISAPNP__ */
 
-#ifdef CONFIG_PCI_LEGACY
+#ifdef CONFIG_PCI
 static struct pci_dev *dev_sedl __devinitdata = NULL;
 
 static int __devinit
@@ -607,7 +607,7 @@ setup_sedlbauer_pci(struct IsdnCard *card)
 	struct IsdnCardState *cs = card->cs;
 	u16 sub_vendor_id, sub_id;
 
-	if ((dev_sedl = pci_find_device(PCI_VENDOR_ID_TIGERJET,
+	if ((dev_sedl = hisax_find_pci_device(PCI_VENDOR_ID_TIGERJET,
 			PCI_DEVICE_ID_TIGERJET_100, dev_sedl))) {
 		if (pci_enable_device(dev_sedl))
 			return(0);
@@ -673,7 +673,7 @@ setup_sedlbauer_pci(struct IsdnCard *card)
 	return (1);
 }
 
-#endif /* CONFIG_PCI_LEGACY */
+#endif /* CONFIG_PCI */
 
 int __devinit
 setup_sedlbauer(struct IsdnCard *card)

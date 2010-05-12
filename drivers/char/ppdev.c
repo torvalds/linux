@@ -64,6 +64,7 @@
 #include <linux/parport.h>
 #include <linux/ctype.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/major.h>
 #include <linux/ppdev.h>
 #include <linux/smp_lock.h>

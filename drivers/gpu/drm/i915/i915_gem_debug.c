@@ -72,7 +72,7 @@ void
 i915_gem_dump_object(struct drm_gem_object *obj, int len,
 		     const char *where, uint32_t mark)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int page;
 
 	DRM_INFO("%s: object at offset %08x\n", where, obj_priv->gtt_offset);
@@ -137,7 +137,7 @@ void
 i915_gem_object_check_coherency(struct drm_gem_object *obj, int handle)
 {
 	struct drm_device *dev = obj->dev;
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int page;
 	uint32_t *gtt_mapping;
 	uint32_t *backing_map = NULL;

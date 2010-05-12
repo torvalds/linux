@@ -27,6 +27,8 @@
 #define ZFCP_FC_GPN_FT_MAX_ENT	  (ZFCP_FC_GPN_FT_NUM_BUFS * \
 					(ZFCP_FC_GPN_FT_ENT_PAGE + 1))
 
+#define ZFCP_FC_CTELS_TMO	(2 * FC_DEF_R_A_TOV / 1000)
+
 /**
  * struct zfcp_fc_gid_pn_req - container for ct header plus gid_pn request
  * @ct_hdr: FC GS common transport header

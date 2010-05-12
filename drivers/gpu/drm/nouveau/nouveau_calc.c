@@ -274,7 +274,7 @@ getMNP_single(struct drm_device *dev, struct pll_lims *pll_lim, int clk,
 	 * returns calculated clock
 	 */
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int cv = dev_priv->vbios->chip_version;
+	int cv = dev_priv->vbios.chip_version;
 	int minvco = pll_lim->vco1.minfreq, maxvco = pll_lim->vco1.maxfreq;
 	int minM = pll_lim->vco1.min_m, maxM = pll_lim->vco1.max_m;
 	int minN = pll_lim->vco1.min_n, maxN = pll_lim->vco1.max_n;
@@ -373,7 +373,7 @@ getMNP_double(struct drm_device *dev, struct pll_lims *pll_lim, int clk,
 	 * returns calculated clock
 	 */
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int chip_version = dev_priv->vbios->chip_version;
+	int chip_version = dev_priv->vbios.chip_version;
 	int minvco1 = pll_lim->vco1.minfreq, maxvco1 = pll_lim->vco1.maxfreq;
 	int minvco2 = pll_lim->vco2.minfreq, maxvco2 = pll_lim->vco2.maxfreq;
 	int minU1 = pll_lim->vco1.min_inputfreq, minU2 = pll_lim->vco2.min_inputfreq;

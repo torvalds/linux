@@ -25,6 +25,7 @@
 
 static void ipcomp4_err(struct sk_buff *skb, u32 info)
 {
+	struct net *net = dev_net(skb->dev);
 	__be32 spi;
 	struct iphdr *iph = (struct iphdr *)skb->data;
 	struct ip_comp_hdr *ipch = (struct ip_comp_hdr *)(skb->data+(iph->ihl<<2));
@@ -35,7 +36,7 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 		return;
 
 	spi = htonl(ntohs(ipch->cpi));
-	x = xfrm_state_lookup(&init_net, (xfrm_address_t *)&iph->daddr,
+	x = xfrm_state_lookup(net, skb->mark, (xfrm_address_t *)&iph->daddr,
 			      spi, IPPROTO_COMP, AF_INET);
 	if (!x)
 		return;
@@ -47,9 +48,10 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 /* We always hold one tunnel user reference to indicate a tunnel */
 static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 {
+	struct net *net = xs_net(x);
 	struct xfrm_state *t;
 
-	t = xfrm_state_alloc(&init_net);
+	t = xfrm_state_alloc(net);
 	if (t == NULL)
 		goto out;
 
@@ -61,6 +63,7 @@ static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 	t->props.mode = x->props.mode;
 	t->props.saddr.a4 = x->props.saddr.a4;
 	t->props.flags = x->props.flags;
+	memcpy(&t->mark, &x->mark, sizeof(t->mark));
 
 	if (xfrm_init_state(t))
 		goto error;
@@ -82,10 +85,12 @@ error:
  */
 static int ipcomp_tunnel_attach(struct xfrm_state *x)
 {
+	struct net *net = xs_net(x);
 	int err = 0;
 	struct xfrm_state *t;
+	u32 mark = x->mark.v & x->mark.m;
 
-	t = xfrm_state_lookup(&init_net, (xfrm_address_t *)&x->id.daddr.a4,
+	t = xfrm_state_lookup(net, mark, (xfrm_address_t *)&x->id.daddr.a4,
 			      x->props.saddr.a4, IPPROTO_IPIP, AF_INET);
 	if (!t) {
 		t = ipcomp_tunnel_create(x);
@@ -124,16 +129,12 @@ static int ipcomp4_init_state(struct xfrm_state *x)
 	if (x->props.mode == XFRM_MODE_TUNNEL) {
 		err = ipcomp_tunnel_attach(x);
 		if (err)
-			goto error_tunnel;
+			goto out;
 	}
 
 	err = 0;
 out:
 	return err;
-
-error_tunnel:
-	ipcomp_destroy(x);
-	goto out;
 }
 
 static const struct xfrm_type ipcomp_type = {

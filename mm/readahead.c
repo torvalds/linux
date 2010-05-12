@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
@@ -500,6 +501,12 @@ void page_cache_sync_readahead(struct address_space *mapping,
 	/* no read-ahead */
 	if (!ra->ra_pages)
 		return;
+
+	/* be dumb */
+	if (filp && (filp->f_mode & FMODE_RANDOM)) {
+		force_page_cache_readahead(mapping, filp, offset, req_size);
+		return;
+	}
 
 	/* do read-ahead */
 	ondemand_readahead(mapping, ra, filp, false, offset, req_size);

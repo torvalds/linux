@@ -1,6 +1,6 @@
 /* cnic.h: Broadcom CNIC core network driver.
  *
- * Copyright (c) 2006-2009 Broadcom Corporation
+ * Copyright (c) 2006-2010 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -101,7 +101,7 @@ struct cnic_redirect_entry {
 #define BNX2X_KWQ_DATA(cp, x)						\
 	&(cp)->kwq_16_data[BNX2X_KWQ_DATA_PG(cp, x)][BNX2X_KWQ_DATA_IDX(cp, x)]
 
-#define DEF_IPID_COUNT		0xc001
+#define DEF_IPID_START		0x8000
 
 #define DEF_KA_TIMEOUT		10000
 #define DEF_KA_INTERVAL		300000
@@ -224,9 +224,12 @@ struct cnic_local {
 	u16		kcq_prod_idx;
 	u32		kcq_io_addr;
 
-	void				*status_blk;
-	struct status_block_msix	*bnx2_status_blk;
-	struct host_status_block	*bnx2x_status_blk;
+	union {
+		void				*gen;
+		struct status_block_msix	*bnx2;
+		struct host_status_block	*bnx2x;
+	} status_blk;
+
 	struct host_def_status_block	*bnx2x_def_status_blk;
 
 	u32				status_blk_num;

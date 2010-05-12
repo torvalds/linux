@@ -25,6 +25,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <acpi/acpi_bus.h>
@@ -107,12 +108,12 @@ acpi_extract_package(union acpi_object *package,
 		case ACPI_TYPE_INTEGER:
 			switch (format_string[i]) {
 			case 'N':
-				size_required += sizeof(acpi_integer);
-				tail_offset += sizeof(acpi_integer);
+				size_required += sizeof(u64);
+				tail_offset += sizeof(u64);
 				break;
 			case 'S':
 				size_required +=
-				    sizeof(char *) + sizeof(acpi_integer) +
+				    sizeof(char *) + sizeof(u64) +
 				    sizeof(char);
 				tail_offset += sizeof(char *);
 				break;
@@ -193,17 +194,17 @@ acpi_extract_package(union acpi_object *package,
 		case ACPI_TYPE_INTEGER:
 			switch (format_string[i]) {
 			case 'N':
-				*((acpi_integer *) head) =
+				*((u64 *) head) =
 				    element->integer.value;
-				head += sizeof(acpi_integer);
+				head += sizeof(u64);
 				break;
 			case 'S':
 				pointer = (u8 **) head;
 				*pointer = tail;
-				*((acpi_integer *) tail) =
+				*((u64 *) tail) =
 				    element->integer.value;
-				head += sizeof(acpi_integer *);
-				tail += sizeof(acpi_integer);
+				head += sizeof(u64 *);
+				tail += sizeof(u64);
 				/* NULL terminate string */
 				*tail = (char)0;
 				tail += sizeof(char);
@@ -288,51 +289,6 @@ acpi_evaluate_integer(acpi_handle handle,
 }
 
 EXPORT_SYMBOL(acpi_evaluate_integer);
-
-#if 0
-acpi_status
-acpi_evaluate_string(acpi_handle handle,
-		     acpi_string pathname,
-		     acpi_object_list * arguments, acpi_string * data)
-{
-	acpi_status status = AE_OK;
-	acpi_object *element = NULL;
-	acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-
-
-	if (!data)
-		return AE_BAD_PARAMETER;
-
-	status = acpi_evaluate_object(handle, pathname, arguments, &buffer);
-	if (ACPI_FAILURE(status)) {
-		acpi_util_eval_error(handle, pathname, status);
-		return status;
-	}
-
-	element = (acpi_object *) buffer.pointer;
-
-	if ((element->type != ACPI_TYPE_STRING)
-	    || (element->type != ACPI_TYPE_BUFFER)
-	    || !element->string.length) {
-		acpi_util_eval_error(handle, pathname, AE_BAD_DATA);
-		return AE_BAD_DATA;
-	}
-
-	*data = kzalloc(element->string.length + 1, GFP_KERNEL);
-	if (!data) {
-		printk(KERN_ERR PREFIX "Memory allocation\n");
-		return -ENOMEM;
-	}
-
-	memcpy(*data, element->string.pointer, element->string.length);
-
-	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Return value [%s]\n", *data));
-
-	kfree(buffer.pointer);
-
-	return AE_OK;
-}
-#endif
 
 acpi_status
 acpi_evaluate_reference(acpi_handle handle,

@@ -1199,8 +1199,6 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 {
 	int r = 0;
 
-	dtv_property_dump(tvp);
-
 	/* Allow the frontend to validate incoming properties */
 	if (fe->ops.get_property)
 		r = fe->ops.get_property(fe, tvp);
@@ -1322,6 +1320,8 @@ static int dtv_property_process_get(struct dvb_frontend *fe,
 	default:
 		r = -1;
 	}
+
+	dtv_property_dump(tvp);
 
 	return r;
 }
@@ -1488,7 +1488,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	int err = -EOPNOTSUPP;
 
-	dprintk ("%s\n", __func__);
+	dprintk("%s (%d)\n", __func__, _IOC_NR(cmd));
 
 	if (fepriv->exit)
 		return -ENODEV;
@@ -1536,8 +1536,7 @@ static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 		if ((tvps->num == 0) || (tvps->num > DTV_IOCTL_MAX_MSGS))
 			return -EINVAL;
 
-		tvp = (struct dtv_property *) kmalloc(tvps->num *
-			sizeof(struct dtv_property), GFP_KERNEL);
+		tvp = kmalloc(tvps->num * sizeof(struct dtv_property), GFP_KERNEL);
 		if (!tvp) {
 			err = -ENOMEM;
 			goto out;
@@ -1569,8 +1568,7 @@ static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 		if ((tvps->num == 0) || (tvps->num > DTV_IOCTL_MAX_MSGS))
 			return -EINVAL;
 
-		tvp = (struct dtv_property *) kmalloc(tvps->num *
-			sizeof(struct dtv_property), GFP_KERNEL);
+		tvp = kmalloc(tvps->num * sizeof(struct dtv_property), GFP_KERNEL);
 		if (!tvp) {
 			err = -ENOMEM;
 			goto out;

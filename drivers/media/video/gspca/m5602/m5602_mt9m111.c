@@ -48,7 +48,7 @@ static struct v4l2_pix_format mt9m111_modes[] = {
 	}
 };
 
-const static struct ctrl mt9m111_ctrls[] = {
+static const struct ctrl mt9m111_ctrls[] = {
 #define VFLIP_IDX 0
 	{
 		{
@@ -171,7 +171,7 @@ int mt9m111_probe(struct sd *sd)
 		return -ENODEV;
 	}
 
-	info("Probing for a mt9m111 sensor");
+	PDEBUG(D_PROBE, "Probing for a mt9m111 sensor");
 
 	/* Do the preinit */
 	for (i = 0; i < ARRAY_SIZE(preinit_mt9m111); i++) {

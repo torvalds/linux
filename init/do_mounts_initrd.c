@@ -30,11 +30,7 @@ static int __init do_linuxrc(void * shell)
 	extern char * envp_init[];
 
 	sys_close(old_fd);sys_close(root_fd);
-	sys_close(0);sys_close(1);sys_close(2);
 	sys_setsid();
-	(void) sys_open("/dev/console",O_RDWR,0);
-	(void) sys_dup(0);
-	(void) sys_dup(0);
 	return kernel_execve(shell, argv, envp_init);
 }
 

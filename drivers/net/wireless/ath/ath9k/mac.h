@@ -167,6 +167,40 @@ struct ath_rx_status {
 #define ATH9K_RXKEYIX_INVALID	((u8)-1)
 #define ATH9K_TXKEYIX_INVALID	((u32)-1)
 
+enum ath9k_phyerr {
+	ATH9K_PHYERR_UNDERRUN             = 0,  /* Transmit underrun */
+	ATH9K_PHYERR_TIMING               = 1,  /* Timing error */
+	ATH9K_PHYERR_PARITY               = 2,  /* Illegal parity */
+	ATH9K_PHYERR_RATE                 = 3,  /* Illegal rate */
+	ATH9K_PHYERR_LENGTH               = 4,  /* Illegal length */
+	ATH9K_PHYERR_RADAR                = 5,  /* Radar detect */
+	ATH9K_PHYERR_SERVICE              = 6,  /* Illegal service */
+	ATH9K_PHYERR_TOR                  = 7,  /* Transmit override receive */
+
+	ATH9K_PHYERR_OFDM_TIMING          = 17,
+	ATH9K_PHYERR_OFDM_SIGNAL_PARITY   = 18,
+	ATH9K_PHYERR_OFDM_RATE_ILLEGAL    = 19,
+	ATH9K_PHYERR_OFDM_LENGTH_ILLEGAL  = 20,
+	ATH9K_PHYERR_OFDM_POWER_DROP      = 21,
+	ATH9K_PHYERR_OFDM_SERVICE         = 22,
+	ATH9K_PHYERR_OFDM_RESTART         = 23,
+	ATH9K_PHYERR_FALSE_RADAR_EXT      = 24,
+
+	ATH9K_PHYERR_CCK_TIMING           = 25,
+	ATH9K_PHYERR_CCK_HEADER_CRC       = 26,
+	ATH9K_PHYERR_CCK_RATE_ILLEGAL     = 27,
+	ATH9K_PHYERR_CCK_SERVICE          = 30,
+	ATH9K_PHYERR_CCK_RESTART          = 31,
+	ATH9K_PHYERR_CCK_LENGTH_ILLEGAL   = 32,
+	ATH9K_PHYERR_CCK_POWER_DROP       = 33,
+
+	ATH9K_PHYERR_HT_CRC_ERROR         = 34,
+	ATH9K_PHYERR_HT_LENGTH_ILLEGAL    = 35,
+	ATH9K_PHYERR_HT_RATE_ILLEGAL      = 36,
+
+	ATH9K_PHYERR_MAX                  = 37,
+};
+
 struct ath_desc {
 	u32 ds_link;
 	u32 ds_data;

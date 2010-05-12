@@ -18,6 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/fd.h>
+#include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
 #include <linux/kernel.h>
@@ -864,7 +865,7 @@ static int __devinit swim_probe(struct platform_device *dev)
 	struct swim_priv *swd;
 	int ret;
 
-	res = platform_get_resource_byname(dev, IORESOURCE_MEM, "swim-regs");
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!res) {
 		ret = -ENODEV;
 		goto out;
@@ -942,7 +943,7 @@ static int __devexit swim_remove(struct platform_device *dev)
 
 	iounmap(swd->base);
 
-	res = platform_get_resource_byname(dev, IORESOURCE_MEM, "swim-regs");
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (res)
 		release_mem_region(res->start, resource_size(res));
 

@@ -19,6 +19,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/spi/dw_spi.h>
 #include <linux/spi/spi.h>
 
@@ -73,6 +74,7 @@ static int __devinit spi_pci_probe(struct pci_dev *pdev,
 	dws->num_cs = 4;
 	dws->max_freq = 25000000;	/* for Moorestwon */
 	dws->irq = pdev->irq;
+	dws->fifo_len = 40;		/* FIFO has 40 words buffer */
 
 	ret = dw_spi_add_host(dws);
 	if (ret)
@@ -98,6 +100,7 @@ static void __devexit spi_pci_remove(struct pci_dev *pdev)
 	struct dw_spi_pci *dwpci = pci_get_drvdata(pdev);
 
 	pci_set_drvdata(pdev, NULL);
+	dw_spi_remove_host(&dwpci->dws);
 	iounmap(dwpci->dws.regs);
 	pci_release_region(pdev, 0);
 	kfree(dwpci);

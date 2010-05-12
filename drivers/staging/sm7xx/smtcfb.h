@@ -6,7 +6,7 @@
  *	 	Boyod boyod.yang@siliconmotion.com.cn
  *
  * Copyright (C) 2009 Lemote, Inc.
- * Author: Wu Zhangjin, wuzj@lemote.com
+ * Author: Wu Zhangjin, wuzhangjin@gmail.com
  *
  *  This file is subject to the terms and conditions of the GNU General Public
  *  License. See the file COPYING in the main directory of this archive for

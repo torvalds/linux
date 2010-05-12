@@ -107,6 +107,8 @@ struct sas_end_device {
 	struct sas_rphy		rphy;
 	/* flags */
 	unsigned		ready_led_meaning:1;
+	unsigned		tlr_supported:1;
+	unsigned		tlr_enabled:1;
 	/* parameters */
 	u16			I_T_nexus_loss_timeout;
 	u16			initiator_response_timeout;
@@ -180,6 +182,11 @@ extern void sas_phy_free(struct sas_phy *);
 extern int sas_phy_add(struct sas_phy *);
 extern void sas_phy_delete(struct sas_phy *);
 extern int scsi_is_sas_phy(const struct device *);
+
+unsigned int sas_tlr_supported(struct scsi_device *);
+unsigned int sas_is_tlr_enabled(struct scsi_device *);
+void sas_disable_tlr(struct scsi_device *);
+void sas_enable_tlr(struct scsi_device *);
 
 extern struct sas_rphy *sas_end_device_alloc(struct sas_port *);
 extern struct sas_rphy *sas_expander_alloc(struct sas_port *, enum sas_device_type);

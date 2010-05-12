@@ -8,6 +8,7 @@
  */
 
 #include <linux/irq.h>
+#include <linux/slab.h>
 
 static void urb_free_priv (struct ohci_hcd *hc, urb_priv_t *urb_priv)
 {

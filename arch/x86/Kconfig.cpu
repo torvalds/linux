@@ -319,7 +319,7 @@ config X86_L1_CACHE_SHIFT
 
 config X86_XADD
 	def_bool y
-	depends on X86_32 && !M386
+	depends on X86_64 || !M386
 
 config X86_PPRO_FENCE
 	bool "PentiumPro memory ordering errata workaround"

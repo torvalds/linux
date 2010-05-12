@@ -1016,6 +1016,9 @@ magic_found:
 		case UFS_FSSTABLE:
 			UFSD("fs is stable\n");
 			break;
+		case UFS_FSLOG:
+			UFSD("fs is logging fs\n");
+			break;
 		case UFS_FSOSF1:
 			UFSD("fs is DEC OSF/1\n");
 			break;
@@ -1432,6 +1435,11 @@ static void destroy_inodecache(void)
 	kmem_cache_destroy(ufs_inode_cachep);
 }
 
+static void ufs_clear_inode(struct inode *inode)
+{
+	dquot_drop(inode);
+}
+
 #ifdef CONFIG_QUOTA
 static ssize_t ufs_quota_read(struct super_block *, int, char *,size_t, loff_t);
 static ssize_t ufs_quota_write(struct super_block *, int, const char *, size_t, loff_t);
@@ -1442,6 +1450,7 @@ static const struct super_operations ufs_super_ops = {
 	.destroy_inode	= ufs_destroy_inode,
 	.write_inode	= ufs_write_inode,
 	.delete_inode	= ufs_delete_inode,
+	.clear_inode	= ufs_clear_inode,
 	.put_super	= ufs_put_super,
 	.write_super	= ufs_write_super,
 	.sync_fs	= ufs_sync_fs,

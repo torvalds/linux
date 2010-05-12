@@ -133,6 +133,12 @@ static void __init orion_pcie_setup_wins(void __iomem *base,
 	}
 
 	/*
+	 * Round up 'size' to the nearest power of two.
+	 */
+	if ((size & (size - 1)) != 0)
+		size = 1 << fls(size);
+
+	/*
 	 * Setup BAR[1] to all DRAM banks.
 	 */
 	writel(dram->cs[0].base, base + PCIE_BAR_LO_OFF(1));

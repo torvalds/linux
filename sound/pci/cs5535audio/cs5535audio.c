@@ -66,7 +66,7 @@ MODULE_PARM_DESC(id, "ID string for " DRIVER_NAME);
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable " DRIVER_NAME);
 
-static struct pci_device_id snd_cs5535audio_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_cs5535audio_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_CS5535_AUDIO) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_AUDIO) },
 	{}

@@ -463,8 +463,8 @@ static int __init via_pmu_dev_init(void)
 #endif
 
 #ifdef CONFIG_PPC32
-  	if (machine_is_compatible("AAPL,3400/2400") ||
-  		machine_is_compatible("AAPL,3500")) {
+  	if (of_machine_is_compatible("AAPL,3400/2400") ||
+  		of_machine_is_compatible("AAPL,3500")) {
 		int mb = pmac_call_feature(PMAC_FTR_GET_MB_INFO,
 			NULL, PMAC_MB_INFO_MODEL, 0);
 		pmu_battery_count = 1;
@@ -472,8 +472,8 @@ static int __init via_pmu_dev_init(void)
 			pmu_batteries[0].flags |= PMU_BATT_TYPE_COMET;
 		else
 			pmu_batteries[0].flags |= PMU_BATT_TYPE_HOOPER;
-	} else if (machine_is_compatible("AAPL,PowerBook1998") ||
-		machine_is_compatible("PowerBook1,1")) {
+	} else if (of_machine_is_compatible("AAPL,PowerBook1998") ||
+		of_machine_is_compatible("PowerBook1,1")) {
 		pmu_battery_count = 2;
 		pmu_batteries[0].flags |= PMU_BATT_TYPE_SMART;
 		pmu_batteries[1].flags |= PMU_BATT_TYPE_SMART;

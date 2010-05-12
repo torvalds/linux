@@ -135,6 +135,8 @@ int native_cpu_disable(void);
 void native_cpu_die(unsigned int cpu);
 void native_play_dead(void);
 void play_dead_common(void);
+void wbinvd_on_cpu(int cpu);
+int wbinvd_on_all_cpus(void);
 
 void native_send_call_func_ipi(const struct cpumask *mask);
 void native_send_call_func_single_ipi(int cpu);
@@ -146,6 +148,13 @@ void smp_store_cpu_info(int id);
 static inline int num_booting_cpus(void)
 {
 	return cpumask_weight(cpu_callout_mask);
+}
+#else /* !CONFIG_SMP */
+#define wbinvd_on_cpu(cpu)     wbinvd()
+static inline int wbinvd_on_all_cpus(void)
+{
+	wbinvd();
+	return 0;
 }
 #endif /* CONFIG_SMP */
 

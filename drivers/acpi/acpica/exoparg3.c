@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -148,7 +148,7 @@ acpi_status acpi_ex_opcode_3A_1T_1R(struct acpi_walk_state *walk_state)
 	union acpi_operand_object *return_desc = NULL;
 	char *buffer = NULL;
 	acpi_status status = AE_OK;
-	acpi_integer index;
+	u64 index;
 	acpi_size length;
 
 	ACPI_FUNCTION_TRACE_STR(ex_opcode_3A_1T_1R,

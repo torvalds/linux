@@ -110,33 +110,20 @@
 // 20061108 WPS IE buffer
 #define MAX_IE_APPEND_SIZE					256 + 4 // Due to [E id][Length][OUI][Data] may 257 bytes
 
-typedef struct _EVENTLOG
-{
-	u16		Count;			//Total count from start
-	u16		index;			//Buffer index, 0 ~ 63
-	u32		EventValue[64];	//BYTE 3~2 : count, BYTE 1 : Event, BYTE 0 : reason
-} Event_Log, *pEvent_Log;
-
-typedef struct _ChanInfo
+struct chan_info
 {
 	u8		band;
 	u8		ChanNo;
-} ChanInfo, *pChanInfo;
+};
 
-typedef struct _CHAN_LIST
-{
-	u16				Count;
-	ChanInfo		Channel[50]; // 100B
-} CHAN_LIST, *psCHAN_LIST;
-
-typedef struct _RadioOff
+struct radio_off
 {
 	u8			boHwRadioOff;
 	u8			boSwRadioOff;
-} RadioOff, *psRadioOff;
+};
 
 //===========================================================================
-typedef struct LOCAL_PARA
+struct wb_local_para
 {
 	u8			PermanentAddress[ MAC_ADDR_LENGTH + 2 ]; 	// read from EPROM, manufacture set for each NetCard
     u8    		ThisMacAddress[ MAC_ADDR_LENGTH + 2 ];			// the driver will use actually.
@@ -186,7 +173,7 @@ typedef struct LOCAL_PARA
     u16			ListenInterval;     	// The listen interval when SME invoking MLME_
             	                    	// (Re)Associate_Request().
 
-	RadioOff		RadioOffStatus;
+	struct radio_off		RadioOffStatus;
 	u8			Reserved0[2];
 
 	u8			boMsRadioOff;			// Ndis demands to be true when set Disassoc. OID and be false when set SSID OID.
@@ -196,7 +183,7 @@ typedef struct LOCAL_PARA
 	u8			RoamStatus;
 	u8			reserved7[3];
 
-	ChanInfo	CurrentChan;			//Current channel no. and channel band. It may be changed by scanning.
+	struct chan_info	CurrentChan;			//Current channel no. and channel band. It may be changed by scanning.
 	u8			boHandover;				// Roaming, Hnadover to other AP.
 	u8			boCCAbusy;
 
@@ -253,18 +240,15 @@ typedef struct LOCAL_PARA
     u32	   		_dot11WEPUndecryptableCount;
     u32	   		_dot11FrameDuplicateCount;
 
-	ChanInfo	IbssChanSetting;	// 2B. Start IBSS Channel setting by registry or WWU.
+	struct chan_info	IbssChanSetting;	// 2B. Start IBSS Channel setting by registry or WWU.
 	u8		reserved_5[2];		//It may not be used after considering RF type,
 									//region and modulation type.
 
-	CHAN_LIST	sSupportChanList;	// 86B. It will be obtained according to RF type and region
 	u8		reserved_6[2];		//two variables are for wep key error detection added by ws 02/02/04
 
     u32	      bWepKeyError;
     u32         bToSelfPacketReceived;
     u32         WepKeyDetectTimerCount;
-
-	Event_Log	EventLog;
 
 	u16		SignalLostTh;
 	u16		SignalRoamTh;
@@ -274,6 +258,6 @@ typedef struct LOCAL_PARA
 	u16		IE_Append_size;
 	u16		reserved_7;
 
-} WB_LOCALDESCRIPT, *PWB_LOCALDESCRIPT;
+};
 
 #endif

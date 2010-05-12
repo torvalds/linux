@@ -170,10 +170,7 @@ static inline void elf_common_init(struct thread_struct *t,
 }
 
 #define ELF_PLAT_INIT(_r, load_addr)			\
-do {							\
-	elf_common_init(&current->thread, _r, 0);	\
-	clear_thread_flag(TIF_IA32);			\
-} while (0)
+	elf_common_init(&current->thread, _r, 0)
 
 #define	COMPAT_ELF_PLAT_INIT(regs, load_addr)		\
 	elf_common_init(&current->thread, regs, __USER_DS)
@@ -181,14 +178,8 @@ do {							\
 void start_thread_ia32(struct pt_regs *regs, u32 new_ip, u32 new_sp);
 #define compat_start_thread start_thread_ia32
 
-#define COMPAT_SET_PERSONALITY(ex)			\
-do {							\
-	if (test_thread_flag(TIF_IA32))			\
-		clear_thread_flag(TIF_ABI_PENDING);	\
-	else						\
-		set_thread_flag(TIF_ABI_PENDING);	\
-	current->personality |= force_personality32;	\
-} while (0)
+void set_personality_ia32(void);
+#define COMPAT_SET_PERSONALITY(ex) set_personality_ia32()
 
 #define COMPAT_ELF_PLATFORM			("i686")
 

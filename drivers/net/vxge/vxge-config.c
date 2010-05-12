@@ -15,6 +15,7 @@
 #include <linux/etherdevice.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
+#include <linux/slab.h>
 
 #include "vxge-traffic.h"
 #include "vxge-config.h"

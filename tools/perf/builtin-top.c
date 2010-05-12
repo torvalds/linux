@@ -28,6 +28,7 @@
 #include <linux/rbtree.h>
 #include "util/parse-options.h"
 #include "util/parse-events.h"
+#include "util/cpumap.h"
 
 #include "util/debug.h"
 
@@ -287,19 +288,20 @@ out_unlock:
 	pthread_mutex_unlock(&syme->src->lock);
 }
 
+#define PATTERN_LEN		(BITS_PER_LONG / 4 + 2)
+
 static void lookup_sym_source(struct sym_entry *syme)
 {
 	struct symbol *symbol = sym_entry__symbol(syme);
 	struct source_line *line;
-	const size_t pattern_len = BITS_PER_LONG / 4 + 2;
-	char pattern[pattern_len + 1];
+	char pattern[PATTERN_LEN + 1];
 
 	sprintf(pattern, "%0*Lx <", BITS_PER_LONG / 4,
 		map__rip_2objdump(syme->map, symbol->start));
 
 	pthread_mutex_lock(&syme->src->lock);
 	for (line = syme->src->lines; line; line = line->next) {
-		if (memcmp(line->line, pattern, pattern_len) == 0) {
+		if (memcmp(line->line, pattern, PATTERN_LEN) == 0) {
 			syme->src->source = line;
 			break;
 		}
@@ -453,7 +455,7 @@ static void print_sym_table(void)
 	struct sym_entry *syme, *n;
 	struct rb_root tmp = RB_ROOT;
 	struct rb_node *nd;
-	int sym_width = 0, dso_width = 0, max_dso_width;
+	int sym_width = 0, dso_width = 0, dso_short_width = 0;
 	const int win_width = winsize.ws_col - 1;
 
 	samples = userspace_samples = 0;
@@ -543,15 +545,20 @@ static void print_sym_table(void)
 		if (syme->map->dso->long_name_len > dso_width)
 			dso_width = syme->map->dso->long_name_len;
 
+		if (syme->map->dso->short_name_len > dso_short_width)
+			dso_short_width = syme->map->dso->short_name_len;
+
 		if (syme->name_len > sym_width)
 			sym_width = syme->name_len;
 	}
 
 	printed = 0;
 
-	max_dso_width = winsize.ws_col - sym_width - 29;
-	if (dso_width > max_dso_width)
-		dso_width = max_dso_width;
+	if (sym_width + dso_width > winsize.ws_col - 29) {
+		dso_width = dso_short_width;
+		if (sym_width + dso_width > winsize.ws_col - 29)
+			sym_width = winsize.ws_col - dso_width - 29;
+	}
 	putchar('\n');
 	if (nr_counters == 1)
 		printf("             samples  pcnt");
@@ -705,7 +712,7 @@ static void print_mapped_keys(void)
 		fprintf(stdout, "\t[w]     toggle display weighted/count[E]r. \t(%d)\n", display_weighted ? 1 : 0);
 
 	fprintf(stdout,
-		"\t[K]     hide kernel_symbols symbols.             \t(%s)\n",
+		"\t[K]     hide kernel_symbols symbols.     \t(%s)\n",
 		hide_kernel_symbols ? "yes" : "no");
 	fprintf(stdout,
 		"\t[U]     hide user symbols.               \t(%s)\n",
@@ -1122,7 +1129,7 @@ static void start_counter(int i, int counter)
 
 	cpu = profile_cpu;
 	if (target_pid == -1 && profile_cpu == -1)
-		cpu = i;
+		cpu = cpumap[i];
 
 	attr = attrs + counter;
 
@@ -1346,12 +1353,10 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		attrs[counter].sample_period = default_interval;
 	}
 
-	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
-	assert(nr_cpus <= MAX_NR_CPUS);
-	assert(nr_cpus >= 0);
-
 	if (target_pid != -1 || profile_cpu != -1)
 		nr_cpus = 1;
+	else
+		nr_cpus = read_cpu_map();
 
 	get_term_dimensions(&winsize);
 	if (print_entries == 0) {

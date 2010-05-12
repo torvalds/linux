@@ -195,7 +195,7 @@ static struct xt_target ebt_log_tg_reg __read_mostly = {
 	.family		= NFPROTO_BRIDGE,
 	.target		= ebt_log_tg,
 	.checkentry	= ebt_log_tg_check,
-	.targetsize	= XT_ALIGN(sizeof(struct ebt_log_info)),
+	.targetsize	= sizeof(struct ebt_log_info),
 	.me		= THIS_MODULE,
 };
 

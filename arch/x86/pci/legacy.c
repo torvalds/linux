@@ -35,15 +35,12 @@ static void __devinit pcibios_fixup_peer_bridges(void)
 	}
 }
 
-static int __init pci_legacy_init(void)
+int __init pci_legacy_init(void)
 {
 	if (!raw_pci_ops) {
 		printk("PCI: System does not support PCI\n");
 		return 0;
 	}
-
-	if (pcibios_scanned++)
-		return 0;
 
 	printk("PCI: Probing PCI hardware\n");
 	pci_root_bus = pcibios_scan_root(0);
@@ -55,18 +52,15 @@ static int __init pci_legacy_init(void)
 
 int __init pci_subsys_init(void)
 {
-#ifdef CONFIG_X86_NUMAQ
-	pci_numaq_init();
-#endif
-#ifdef CONFIG_ACPI
-	pci_acpi_init();
-#endif
-#ifdef CONFIG_X86_VISWS
-	pci_visws_init();
-#endif
-	pci_legacy_init();
+	/*
+	 * The init function returns an non zero value when
+	 * pci_legacy_init should be invoked.
+	 */
+	if (x86_init.pci.init())
+		pci_legacy_init();
+
 	pcibios_fixup_peer_bridges();
-	pcibios_irq_init();
+	x86_init.pci.init_irq();
 	pcibios_init();
 
 	return 0;

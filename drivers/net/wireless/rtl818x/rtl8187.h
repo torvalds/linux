@@ -92,7 +92,7 @@ struct rtl8187_priv {
 	struct rtl818x_csr *map;
 	const struct rtl818x_rf_ops *rf;
 	struct ieee80211_vif *vif;
-	int mode;
+
 	/* The mutex protects the TX loopback state.
 	 * Any attempt to set channels concurrently locks the device.
 	 */

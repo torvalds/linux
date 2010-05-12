@@ -19,7 +19,6 @@
  */
 
 #include <linux/string.h>
-#include <linux/slab.h>
 #include "pvrusb2-debugifc.h"
 #include "pvrusb2-hdw.h"
 #include "pvrusb2-debug.h"

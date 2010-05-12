@@ -160,7 +160,7 @@ int ieee80211_wx_set_wap(struct ieee80211_device *ieee,
 	}
 
 	if (ifup)
-		ieee80211_stop_protocol(ieee);
+		ieee80211_stop_protocol(ieee,true);
 
 	/* just to avoid to give inconsistent infos in the
 	 * get wx method. not really needed otherwise
@@ -302,7 +302,7 @@ int ieee80211_wx_set_mode(struct ieee80211_device *ieee, struct iw_request_info 
 	if (!ieee->proto_started){
 		ieee->iw_mode = wrqu->mode;
 	}else{
-		ieee80211_stop_protocol(ieee);
+		ieee80211_stop_protocol(ieee,true);
 		ieee->iw_mode = wrqu->mode;
 		ieee80211_start_protocol(ieee);
 	}
@@ -326,6 +326,17 @@ void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee)
 	int b40M = 0;
 	static int count = 0;
 	chan = ieee->current_network.channel;
+
+#ifdef ENABLE_LPS
+	if (ieee->LeisurePSLeave) {
+		ieee->LeisurePSLeave(ieee->dev);
+	}
+
+	/* notify AP to be in PS mode */
+	ieee80211_sta_ps_send_null_frame(ieee, 1);
+	ieee80211_sta_ps_send_null_frame(ieee, 1);
+#endif
+
 	netif_carrier_off(ieee->dev);
 
 	if (ieee->data_hard_stop)
@@ -360,6 +371,12 @@ void ieee80211_wx_sync_scan_wq(struct ieee80211_device *ieee)
 	ieee->InitialGainHandler(ieee->dev,IG_Restore);
 	ieee->state = IEEE80211_LINKED;
 	ieee->link_change(ieee->dev);
+
+#ifdef ENABLE_LPS
+	/* Notify AP that I wake up again */
+	ieee80211_sta_ps_send_null_frame(ieee, 0);
+#endif
+
 	// To prevent the immediately calling watch_dog after scan.
 	if(ieee->LinkDetectInfo.NumRecvBcnInPeriod==0||ieee->LinkDetectInfo.NumRecvDataInPeriod==0 )
 	{
@@ -429,8 +446,9 @@ int ieee80211_wx_set_essid(struct ieee80211_device *ieee,
 		goto out;
 	}
 
-	if(proto_started)
-		ieee80211_stop_protocol(ieee);
+	if(proto_started){
+		ieee80211_stop_protocol(ieee,true);
+	}
 
 
 	/* this is just to be sure that the GET wx callback

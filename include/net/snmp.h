@@ -32,7 +32,7 @@
  *  - name of entries.
  */
 struct snmp_mib {
-	char *name;
+	const char *name;
 	int entry;
 };
 
@@ -129,9 +129,9 @@ struct linux_xfrm_mib {
  * nonlocked_atomic_inc() primitives -AK
  */ 
 #define DEFINE_SNMP_STAT(type, name)	\
-	__typeof__(type) *name[2]
+	__typeof__(type) __percpu *name[2]
 #define DECLARE_SNMP_STAT(type, name)	\
-	extern __typeof__(type) *name[2]
+	extern __typeof__(type) __percpu *name[2]
 
 #define SNMP_STAT_BHPTR(name)	(name[0])
 #define SNMP_STAT_USRPTR(name)	(name[1])
@@ -148,9 +148,13 @@ struct linux_xfrm_mib {
 			__this_cpu_add(mib[0]->mibs[field], addend)
 #define SNMP_ADD_STATS_USER(mib, field, addend)	\
 			this_cpu_add(mib[1]->mibs[field], addend)
+/*
+ * Use "__typeof__(*mib[0]) *ptr" instead of "__typeof__(mib[0]) ptr"
+ * to make @ptr a non-percpu pointer.
+ */
 #define SNMP_UPD_PO_STATS(mib, basefield, addend)	\
 	do { \
-		__typeof__(mib[0]) ptr; \
+		__typeof__(*mib[0]) *ptr; \
 		preempt_disable(); \
 		ptr = this_cpu_ptr((mib)[!in_softirq()]); \
 		ptr->mibs[basefield##PKTS]++; \
@@ -159,7 +163,7 @@ struct linux_xfrm_mib {
 	} while (0)
 #define SNMP_UPD_PO_STATS_BH(mib, basefield, addend)	\
 	do { \
-		__typeof__(mib[0]) ptr = \
+		__typeof__(*mib[0]) *ptr = \
 			__this_cpu_ptr((mib)[!in_softirq()]); \
 		ptr->mibs[basefield##PKTS]++; \
 		ptr->mibs[basefield##OCTETS] += addend;\

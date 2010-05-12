@@ -29,6 +29,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/poll.h>
 
@@ -564,10 +565,10 @@ void hid_debug_event(struct hid_device *hdev, char *buf)
 	struct hid_debug_list *list;
 
 	list_for_each_entry(list, &hdev->debug_list, node) {
-		for (i = 0; i <= strlen(buf); i++)
-			list->hid_debug_buf[(list->tail + i) % (HID_DEBUG_BUFSIZE - 1)] =
+		for (i = 0; i < strlen(buf); i++)
+			list->hid_debug_buf[(list->tail + i) % HID_DEBUG_BUFSIZE] =
 				buf[i];
-		list->tail = (list->tail + i) % (HID_DEBUG_BUFSIZE - 1);
+		list->tail = (list->tail + i) % HID_DEBUG_BUFSIZE;
         }
 }
 EXPORT_SYMBOL_GPL(hid_debug_event);
@@ -864,13 +865,13 @@ static const char **names[EV_MAX + 1] = {
 	[EV_SND] = sounds,			[EV_REP] = repeats,
 };
 
-void hid_resolv_event(__u8 type, __u16 code, struct seq_file *f) {
-
+static void hid_resolv_event(__u8 type, __u16 code, struct seq_file *f)
+{
 	seq_printf(f, "%s.%s", events[type] ? events[type] : "?",
 		names[type] ? (names[type][code] ? names[type][code] : "?") : "?");
 }
 
-void hid_dump_input_mapping(struct hid_device *hid, struct seq_file *f)
+static void hid_dump_input_mapping(struct hid_device *hid, struct seq_file *f)
 {
 	int i, j, k;
 	struct hid_report *report;

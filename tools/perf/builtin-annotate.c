@@ -53,32 +53,20 @@ struct sym_priv {
 
 static const char *sym_hist_filter;
 
-static int symbol_filter(struct map *map __used, struct symbol *sym)
+static int sym__alloc_hist(struct symbol *self)
 {
-	if (sym_hist_filter == NULL ||
-	    strcmp(sym->name, sym_hist_filter) == 0) {
-		struct sym_priv *priv = symbol__priv(sym);
-		const int size = (sizeof(*priv->hist) +
-				  (sym->end - sym->start) * sizeof(u64));
+	struct sym_priv *priv = symbol__priv(self);
+	const int size = (sizeof(*priv->hist) +
+			  (self->end - self->start) * sizeof(u64));
 
-		priv->hist = malloc(size);
-		if (priv->hist)
-			memset(priv->hist, 0, size);
-		return 0;
-	}
-	/*
-	 * FIXME: We should really filter it out, as we don't want to go thru symbols
-	 * we're not interested, and if a DSO ends up with no symbols, delete it too,
-	 * but right now the kernel loading routines in symbol.c bail out if no symbols
-	 * are found, fix it later.
-	 */
-	return 0;
+	priv->hist = zalloc(size);
+	return priv->hist == NULL ? -1 : 0;
 }
 
 /*
  * collect histogram counts
  */
-static void hist_hit(struct hist_entry *he, u64 ip)
+static int annotate__hist_hit(struct hist_entry *he, u64 ip)
 {
 	unsigned int sym_size, offset;
 	struct symbol *sym = he->sym;
@@ -88,11 +76,11 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 	he->count++;
 
 	if (!sym || !he->map)
-		return;
+		return 0;
 
 	priv = symbol__priv(sym);
-	if (!priv->hist)
-		return;
+	if (priv->hist == NULL && sym__alloc_hist(sym) < 0)
+		return -ENOMEM;
 
 	sym_size = sym->end - sym->start;
 	offset = ip - sym->start;
@@ -100,7 +88,7 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 	pr_debug3("%s: ip=%#Lx\n", __func__, he->map->unmap_ip(he->map, ip));
 
 	if (offset >= sym_size)
-		return;
+		return 0;
 
 	h = priv->hist;
 	h->sum++;
@@ -108,18 +96,31 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 
 	pr_debug3("%#Lx %s: count++ [ip: %#Lx, %#Lx] => %Ld\n", he->sym->start,
 		  he->sym->name, ip, ip - he->sym->start, h->ip[offset]);
+	return 0;
 }
 
 static int perf_session__add_hist_entry(struct perf_session *self,
 					struct addr_location *al, u64 count)
 {
 	bool hit;
-	struct hist_entry *he = __perf_session__add_hist_entry(self, al, NULL,
-							       count, &hit);
+	struct hist_entry *he;
+
+	if (sym_hist_filter != NULL &&
+	    (al->sym == NULL || strcmp(sym_hist_filter, al->sym->name) != 0)) {
+		/* We're only interested in a symbol named sym_hist_filter */
+		if (al->sym != NULL) {
+			rb_erase(&al->sym->rb_node,
+				 &al->map->dso->symbols[al->map->type]);
+			symbol__delete(al->sym);
+		}
+		return 0;
+	}
+
+	he = __perf_session__add_hist_entry(&self->hists, al, NULL, count, &hit);
 	if (he == NULL)
 		return -ENOMEM;
-	hist_hit(he, al->addr);
-	return 0;
+
+	return annotate__hist_hit(he, al->addr);
 }
 
 static int process_sample_event(event_t *event, struct perf_session *session)
@@ -129,7 +130,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	dump_printf("(IP, %d): %d: %#Lx\n", event->header.misc,
 		    event->ip.pid, event->ip.ip);
 
-	if (event__preprocess_sample(event, session, &al, symbol_filter) < 0) {
+	if (event__preprocess_sample(event, session, &al, NULL) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;
@@ -144,21 +145,58 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	return 0;
 }
 
-static int parse_line(FILE *file, struct hist_entry *he, u64 len)
+struct objdump_line {
+	struct list_head node;
+	s64		 offset;
+	char		 *line;
+};
+
+static struct objdump_line *objdump_line__new(s64 offset, char *line)
+{
+	struct objdump_line *self = malloc(sizeof(*self));
+
+	if (self != NULL) {
+		self->offset = offset;
+		self->line = line;
+	}
+
+	return self;
+}
+
+static void objdump_line__free(struct objdump_line *self)
+{
+	free(self->line);
+	free(self);
+}
+
+static void objdump__add_line(struct list_head *head, struct objdump_line *line)
+{
+	list_add_tail(&line->node, head);
+}
+
+static struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
+						      struct objdump_line *pos)
+{
+	list_for_each_entry_continue(pos, head, node)
+		if (pos->offset >= 0)
+			return pos;
+
+	return NULL;
+}
+
+static int parse_line(FILE *file, struct hist_entry *he,
+		      struct list_head *head)
 {
 	struct symbol *sym = he->sym;
+	struct objdump_line *objdump_line;
 	char *line = NULL, *tmp, *tmp2;
-	static const char *prev_line;
-	static const char *prev_color;
-	unsigned int offset;
 	size_t line_len;
-	u64 start;
-	s64 line_ip;
-	int ret;
+	s64 line_ip, offset = -1;
 	char *c;
 
 	if (getline(&line, &line_len, file) < 0)
 		return -1;
+
 	if (!line)
 		return -1;
 
@@ -167,8 +205,6 @@ static int parse_line(FILE *file, struct hist_entry *he, u64 len)
 		*c = 0;
 
 	line_ip = -1;
-	offset = 0;
-	ret = -2;
 
 	/*
 	 * Strip leading spaces:
@@ -189,9 +225,30 @@ static int parse_line(FILE *file, struct hist_entry *he, u64 len)
 			line_ip = -1;
 	}
 
-	start = map__rip_2objdump(he->map, sym->start);
-
 	if (line_ip != -1) {
+		u64 start = map__rip_2objdump(he->map, sym->start);
+		offset = line_ip - start;
+	}
+
+	objdump_line = objdump_line__new(offset, line);
+	if (objdump_line == NULL) {
+		free(line);
+		return -1;
+	}
+	objdump__add_line(head, objdump_line);
+
+	return 0;
+}
+
+static int objdump_line__print(struct objdump_line *self,
+			       struct list_head *head,
+			       struct hist_entry *he, u64 len)
+{
+	struct symbol *sym = he->sym;
+	static const char *prev_line;
+	static const char *prev_color;
+
+	if (self->offset != -1) {
 		const char *path = NULL;
 		unsigned int hits = 0;
 		double percent = 0.0;
@@ -199,15 +256,22 @@ static int parse_line(FILE *file, struct hist_entry *he, u64 len)
 		struct sym_priv *priv = symbol__priv(sym);
 		struct sym_ext *sym_ext = priv->ext;
 		struct sym_hist *h = priv->hist;
+		s64 offset = self->offset;
+		struct objdump_line *next = objdump__get_next_ip_line(head, self);
 
-		offset = line_ip - start;
-		if (offset < len)
-			hits = h->ip[offset];
+		while (offset < (s64)len &&
+		       (next == NULL || offset < next->offset)) {
+			if (sym_ext) {
+				if (path == NULL)
+					path = sym_ext[offset].path;
+				percent += sym_ext[offset].percent;
+			} else
+				hits += h->ip[offset];
 
-		if (offset < len && sym_ext) {
-			path = sym_ext[offset].path;
-			percent = sym_ext[offset].percent;
-		} else if (h->sum)
+			++offset;
+		}
+
+		if (sym_ext == NULL && h->sum)
 			percent = 100.0 * hits / h->sum;
 
 		color = get_percent_color(percent);
@@ -228,12 +292,12 @@ static int parse_line(FILE *file, struct hist_entry *he, u64 len)
 
 		color_fprintf(stdout, color, " %7.2f", percent);
 		printf(" :	");
-		color_fprintf(stdout, PERF_COLOR_BLUE, "%s\n", line);
+		color_fprintf(stdout, PERF_COLOR_BLUE, "%s\n", self->line);
 	} else {
-		if (!*line)
+		if (!*self->line)
 			printf("         :\n");
 		else
-			printf("         :	%s\n", line);
+			printf("         :	%s\n", self->line);
 	}
 
 	return 0;
@@ -359,6 +423,20 @@ static void print_summary(const char *filename)
 	}
 }
 
+static void hist_entry__print_hits(struct hist_entry *self)
+{
+	struct symbol *sym = self->sym;
+	struct sym_priv *priv = symbol__priv(sym);
+	struct sym_hist *h = priv->hist;
+	u64 len = sym->end - sym->start, offset;
+
+	for (offset = 0; offset < len; ++offset)
+		if (h->ip[offset] != 0)
+			printf("%*Lx: %Lu\n", BITS_PER_LONG / 2,
+			       sym->start + offset, h->ip[offset]);
+	printf("%*s: %Lu\n", BITS_PER_LONG / 2, "h->sum", h->sum);
+}
+
 static void annotate_sym(struct hist_entry *he)
 {
 	struct map *map = he->map;
@@ -368,6 +446,8 @@ static void annotate_sym(struct hist_entry *he)
 	u64 len;
 	char command[PATH_MAX*2];
 	FILE *file;
+	LIST_HEAD(head);
+	struct objdump_line *pos, *n;
 
 	if (!filename)
 		return;
@@ -409,11 +489,21 @@ static void annotate_sym(struct hist_entry *he)
 		return;
 
 	while (!feof(file)) {
-		if (parse_line(file, he, len) < 0)
+		if (parse_line(file, he, &head) < 0)
 			break;
 	}
 
 	pclose(file);
+
+	if (verbose)
+		hist_entry__print_hits(he);
+
+	list_for_each_entry_safe(pos, n, &head, node) {
+		objdump_line__print(pos, &head, he, len);
+		list_del(&pos->node);
+		objdump_line__free(pos);
+	}
+
 	if (print_line)
 		free_source_line(he, len);
 }
@@ -474,8 +564,8 @@ static int __cmd_annotate(void)
 	if (verbose > 2)
 		dsos__fprintf(stdout);
 
-	perf_session__collapse_resort(session);
-	perf_session__output_resort(session, session->event_total[0]);
+	perf_session__collapse_resort(&session->hists);
+	perf_session__output_resort(&session->hists, session->event_total[0]);
 	perf_session__find_annotations(session);
 out_delete:
 	perf_session__delete(session);

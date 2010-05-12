@@ -118,10 +118,9 @@ struct dm_dev {
 /*
  * Constructors should call these functions to ensure destination devices
  * are opened/closed correctly.
- * FIXME: too many arguments.
  */
-int dm_get_device(struct dm_target *ti, const char *path, sector_t start,
-		  sector_t len, fmode_t mode, struct dm_dev **result);
+int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
+						 struct dm_dev **result);
 void dm_put_device(struct dm_target *ti, struct dm_dev *d);
 
 /*

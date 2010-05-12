@@ -28,6 +28,7 @@
  * for more details.
  */
 
+#include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
@@ -49,8 +50,14 @@ swapper_pg_dir:
 
 #endif /* CONFIG_MMU */
 
-	.text
+	__HEAD
 ENTRY(_start)
+#if CONFIG_KERNEL_BASE_ADDR == 0
+	brai	TOPHYS(real_start)
+	.org	0x100
+real_start:
+#endif
+
 	mfs	r1, rmsr
 	andi	r1, r1, ~2
 	mts	rmsr, r1
@@ -99,8 +106,8 @@ no_fdt_arg:
 	tophys(r4,r4)			/* convert to phys address */
 	ori	r3, r0, COMMAND_LINE_SIZE - 1 /* number of loops */
 _copy_command_line:
-	lbu	r7, r5, r6 /* r7=r5+r6 - r5 contain pointer to command line */
-	sb	r7, r4, r6		/* addr[r4+r6]= r7*/
+	lbu	r2, r5, r6 /* r2=r5+r6 - r5 contain pointer to command line */
+	sb	r2, r4, r6		/* addr[r4+r6]= r2*/
 	addik	r6, r6, 1		/* increment counting */
 	bgtid	r3, _copy_command_line	/* loop for all entries       */
 	addik	r3, r3, -1		/* descrement loop */
@@ -128,13 +135,18 @@ _copy_bram:
 	 * virtual to physical.
 	 */
 	nop
-	addik	r3, r0, 63		/* Invalidate all TLB entries */
+	addik	r3, r0, MICROBLAZE_TLB_SIZE -1	/* Invalidate all TLB entries */
 _invalidate:
 	mts	rtlbx, r3
 	mts	rtlbhi, r0			/* flush: ensure V is clear   */
 	bgtid	r3, _invalidate		/* loop for all entries       */
 	addik	r3, r3, -1
 	/* sync */
+
+	/* Setup the kernel PID */
+	mts	rpid,r0			/* Load the kernel PID */
+	nop
+	bri	4
 
 	/*
 	 * We should still be executing code at physical address area
@@ -145,10 +157,6 @@ _invalidate:
 
 	addik	r3,r0, CONFIG_KERNEL_START /* Load the kernel virtual address */
 	tophys(r4,r3)			/* Load the kernel physical address */
-
-	mts	rpid,r0			/* Load the kernel PID */
-	nop
-	bri	4
 
 	/*
 	 * Configure and load two entries into TLB slots 0 and 1.

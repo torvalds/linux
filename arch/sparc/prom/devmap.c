@@ -50,5 +50,4 @@ prom_unmapio(char *vaddr, unsigned int num_bytes)
 	(*(romvec->pv_v2devops.v2_dumb_munmap))(vaddr, num_bytes);
 	restore_current();
 	spin_unlock_irqrestore(&prom_lock, flags);
-	return;
 }

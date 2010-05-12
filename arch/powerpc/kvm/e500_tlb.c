@@ -13,6 +13,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
@@ -417,7 +418,7 @@ int kvmppc_e500_emul_tlbivax(struct kvm_vcpu *vcpu, int ra, int rb)
 	int esel, tlbsel;
 	gva_t ea;
 
-	ea = ((ra) ? vcpu->arch.gpr[ra] : 0) + vcpu->arch.gpr[rb];
+	ea = ((ra) ? kvmppc_get_gpr(vcpu, ra) : 0) + kvmppc_get_gpr(vcpu, rb);
 
 	ia = (ea >> 2) & 0x1;
 
@@ -470,7 +471,7 @@ int kvmppc_e500_emul_tlbsx(struct kvm_vcpu *vcpu, int rb)
 	struct tlbe *gtlbe = NULL;
 	gva_t ea;
 
-	ea = vcpu->arch.gpr[rb];
+	ea = kvmppc_get_gpr(vcpu, rb);
 
 	for (tlbsel = 0; tlbsel < 2; tlbsel++) {
 		esel = kvmppc_e500_tlb_index(vcpu_e500, ea, tlbsel, pid, as);
@@ -727,6 +728,12 @@ int kvmppc_e500_tlb_init(struct kvmppc_vcpu_e500 *vcpu_e500)
 		kzalloc(sizeof(struct page *) * tlb1_entry_num, GFP_KERNEL);
 	if (vcpu_e500->shadow_pages[1] == NULL)
 		goto err_out_page0;
+
+	/* Init TLB configuration register */
+	vcpu_e500->tlb0cfg = mfspr(SPRN_TLB0CFG) & ~0xfffUL;
+	vcpu_e500->tlb0cfg |= vcpu_e500->guest_tlb_size[0];
+	vcpu_e500->tlb1cfg = mfspr(SPRN_TLB1CFG) & ~0xfffUL;
+	vcpu_e500->tlb1cfg |= vcpu_e500->guest_tlb_size[1];
 
 	return 0;
 

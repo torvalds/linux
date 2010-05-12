@@ -941,13 +941,21 @@ static snd_pcm_uframes_t snd_cmipci_pcm_pointer(struct cmipci *cm, struct cmipci
 						struct snd_pcm_substream *substream)
 {
 	size_t ptr;
-	unsigned int reg;
+	unsigned int reg, rem, tries;
+
 	if (!rec->running)
 		return 0;
 #if 1 // this seems better..
 	reg = rec->ch ? CM_REG_CH1_FRAME2 : CM_REG_CH0_FRAME2;
-	ptr = rec->dma_size - (snd_cmipci_read_w(cm, reg) + 1);
-	ptr >>= rec->shift;
+	for (tries = 0; tries < 3; tries++) {
+		rem = snd_cmipci_read_w(cm, reg);
+		if (rem < rec->dma_size)
+			goto ok;
+	} 
+	printk(KERN_ERR "cmipci: invalid PCM pointer: %#x\n", rem);
+	return SNDRV_PCM_POS_XRUN;
+ok:
+	ptr = (rec->dma_size - (rem + 1)) >> rec->shift;
 #else
 	reg = rec->ch ? CM_REG_CH1_FRAME1 : CM_REG_CH0_FRAME1;
 	ptr = snd_cmipci_read(cm, reg) - rec->offset;
@@ -2796,7 +2804,7 @@ static inline void snd_cmipci_proc_init(struct cmipci *cm) {}
 #endif
 
 
-static struct pci_device_id snd_cmipci_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_cmipci_ids) = {
 	{PCI_VDEVICE(CMEDIA, PCI_DEVICE_ID_CMEDIA_CM8338A), 0},
 	{PCI_VDEVICE(CMEDIA, PCI_DEVICE_ID_CMEDIA_CM8338B), 0},
 	{PCI_VDEVICE(CMEDIA, PCI_DEVICE_ID_CMEDIA_CM8738), 0},
@@ -3018,7 +3026,7 @@ static int __devinit snd_cmipci_create(struct snd_card *card, struct pci_dev *pc
 	int integrated_midi = 0;
 	char modelstr[16];
 	int pcm_index, pcm_spdif_index;
-	static struct pci_device_id intel_82437vx[] = {
+	static DEFINE_PCI_DEVICE_TABLE(intel_82437vx) = {
 		{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82437VX) },
 		{ },
 	};

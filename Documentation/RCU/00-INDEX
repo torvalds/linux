@@ -6,16 +6,22 @@ checklist.txt
 	- Review Checklist for RCU Patches
 listRCU.txt
 	- Using RCU to Protect Read-Mostly Linked Lists
+lockdep.txt
+	- RCU and lockdep checking
 NMI-RCU.txt
 	- Using RCU to Protect Dynamic NMI Handlers
+rcubarrier.txt
+	- RCU and Unloadable Modules
+rculist_nulls.txt
+	- RCU list primitives for use with SLAB_DESTROY_BY_RCU
 rcuref.txt
 	- Reference-count design for elements of lists/arrays protected by RCU
 rcu.txt
 	- RCU Concepts
-rcubarrier.txt
-	- Unloading modules that use RCU callbacks
 RTFP.txt
 	- List of RCU papers (bibliography) going back to 1980.
+stallwarn.txt
+	- RCU CPU stall warnings (CONFIG_RCU_CPU_STALL_DETECTOR)
 torture.txt
 	- RCU Torture Test Operation (CONFIG_RCU_TORTURE_TEST)
 trace.txt

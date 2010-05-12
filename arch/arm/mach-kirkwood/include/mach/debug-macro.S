@@ -8,7 +8,7 @@
 
 #include <mach/bridge-regs.h>
 
-	.macro	addruart,rx
+	.macro	addruart, rx, tmp
 	mrc	p15, 0, \rx, c1, c0
 	tst	\rx, #1					@ MMU enabled?
 	ldreq	\rx, =KIRKWOOD_REGS_PHYS_BASE

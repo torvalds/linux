@@ -6,8 +6,8 @@
  *		 Michael Holzheu <holzheu@de.ibm.com>
  */
 
+#include <asm/asm-offsets.h>
 #include <asm/ptrace.h>
-#include <asm/lowcore.h>
 
 #ifdef CONFIG_64BIT
 

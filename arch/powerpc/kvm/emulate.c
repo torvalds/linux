@@ -83,6 +83,9 @@ void kvmppc_emulate_dec(struct kvm_vcpu *vcpu)
 
 	pr_debug("mtDEC: %x\n", vcpu->arch.dec);
 #ifdef CONFIG_PPC64
+	/* mtdec lowers the interrupt line when positive. */
+	kvmppc_core_dequeue_dec(vcpu);
+
 	/* POWER4+ triggers a dec interrupt if the value is < 0 */
 	if (vcpu->arch.dec & 0x80000000) {
 		hrtimer_try_to_cancel(&vcpu->arch.dec_timer);
@@ -140,14 +143,18 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 	pr_debug(KERN_INFO "Emulating opcode %d / %d\n", get_op(inst), get_xop(inst));
 
+	/* Try again next time */
+	if (inst == KVM_INST_FETCH_FAILED)
+		return EMULATE_DONE;
+
 	switch (get_op(inst)) {
 	case OP_TRAP:
 #ifdef CONFIG_PPC64
 	case OP_TRAP_64:
+		kvmppc_core_queue_program(vcpu, SRR1_PROGTRAP);
 #else
-		vcpu->arch.esr |= ESR_PTR;
+		kvmppc_core_queue_program(vcpu, vcpu->arch.esr | ESR_PTR);
 #endif
-		kvmppc_core_queue_program(vcpu);
 		advance = 0;
 		break;
 
@@ -167,14 +174,14 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		case OP_31_XOP_STWX:
 			rs = get_rs(inst);
 			emulated = kvmppc_handle_store(run, vcpu,
-			                               vcpu->arch.gpr[rs],
+						       kvmppc_get_gpr(vcpu, rs),
 			                               4, 1);
 			break;
 
 		case OP_31_XOP_STBX:
 			rs = get_rs(inst);
 			emulated = kvmppc_handle_store(run, vcpu,
-			                               vcpu->arch.gpr[rs],
+						       kvmppc_get_gpr(vcpu, rs),
 			                               1, 1);
 			break;
 
@@ -183,14 +190,14 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			ra = get_ra(inst);
 			rb = get_rb(inst);
 
-			ea = vcpu->arch.gpr[rb];
+			ea = kvmppc_get_gpr(vcpu, rb);
 			if (ra)
-				ea += vcpu->arch.gpr[ra];
+				ea += kvmppc_get_gpr(vcpu, ra);
 
 			emulated = kvmppc_handle_store(run, vcpu,
-			                               vcpu->arch.gpr[rs],
+						       kvmppc_get_gpr(vcpu, rs),
 			                               1, 1);
-			vcpu->arch.gpr[rs] = ea;
+			kvmppc_set_gpr(vcpu, rs, ea);
 			break;
 
 		case OP_31_XOP_LHZX:
@@ -203,12 +210,12 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			ra = get_ra(inst);
 			rb = get_rb(inst);
 
-			ea = vcpu->arch.gpr[rb];
+			ea = kvmppc_get_gpr(vcpu, rb);
 			if (ra)
-				ea += vcpu->arch.gpr[ra];
+				ea += kvmppc_get_gpr(vcpu, ra);
 
 			emulated = kvmppc_handle_load(run, vcpu, rt, 2, 1);
-			vcpu->arch.gpr[ra] = ea;
+			kvmppc_set_gpr(vcpu, ra, ea);
 			break;
 
 		case OP_31_XOP_MFSPR:
@@ -217,47 +224,49 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 
 			switch (sprn) {
 			case SPRN_SRR0:
-				vcpu->arch.gpr[rt] = vcpu->arch.srr0; break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.srr0); break;
 			case SPRN_SRR1:
-				vcpu->arch.gpr[rt] = vcpu->arch.srr1; break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.srr1); break;
 			case SPRN_PVR:
-				vcpu->arch.gpr[rt] = vcpu->arch.pvr; break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.pvr); break;
 			case SPRN_PIR:
-				vcpu->arch.gpr[rt] = vcpu->vcpu_id; break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->vcpu_id); break;
 			case SPRN_MSSSR0:
-				vcpu->arch.gpr[rt] = 0; break;
+				kvmppc_set_gpr(vcpu, rt, 0); break;
 
 			/* Note: mftb and TBRL/TBWL are user-accessible, so
 			 * the guest can always access the real TB anyways.
 			 * In fact, we probably will never see these traps. */
 			case SPRN_TBWL:
-				vcpu->arch.gpr[rt] = get_tb() >> 32; break;
+				kvmppc_set_gpr(vcpu, rt, get_tb() >> 32); break;
 			case SPRN_TBWU:
-				vcpu->arch.gpr[rt] = get_tb(); break;
+				kvmppc_set_gpr(vcpu, rt, get_tb()); break;
 
 			case SPRN_SPRG0:
-				vcpu->arch.gpr[rt] = vcpu->arch.sprg0; break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.sprg0); break;
 			case SPRN_SPRG1:
-				vcpu->arch.gpr[rt] = vcpu->arch.sprg1; break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.sprg1); break;
 			case SPRN_SPRG2:
-				vcpu->arch.gpr[rt] = vcpu->arch.sprg2; break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.sprg2); break;
 			case SPRN_SPRG3:
-				vcpu->arch.gpr[rt] = vcpu->arch.sprg3; break;
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.sprg3); break;
 			/* Note: SPRG4-7 are user-readable, so we don't get
 			 * a trap. */
 
 			case SPRN_DEC:
 			{
 				u64 jd = get_tb() - vcpu->arch.dec_jiffies;
-				vcpu->arch.gpr[rt] = vcpu->arch.dec - jd;
-				pr_debug(KERN_INFO "mfDEC: %x - %llx = %lx\n", vcpu->arch.dec, jd, vcpu->arch.gpr[rt]);
+				kvmppc_set_gpr(vcpu, rt, vcpu->arch.dec - jd);
+				pr_debug(KERN_INFO "mfDEC: %x - %llx = %lx\n",
+					 vcpu->arch.dec, jd,
+					 kvmppc_get_gpr(vcpu, rt));
 				break;
 			}
 			default:
 				emulated = kvmppc_core_emulate_mfspr(vcpu, sprn, rt);
 				if (emulated == EMULATE_FAIL) {
 					printk("mfspr: unknown spr %x\n", sprn);
-					vcpu->arch.gpr[rt] = 0;
+					kvmppc_set_gpr(vcpu, rt, 0);
 				}
 				break;
 			}
@@ -269,7 +278,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			rb = get_rb(inst);
 
 			emulated = kvmppc_handle_store(run, vcpu,
-			                               vcpu->arch.gpr[rs],
+						       kvmppc_get_gpr(vcpu, rs),
 			                               2, 1);
 			break;
 
@@ -278,14 +287,14 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			ra = get_ra(inst);
 			rb = get_rb(inst);
 
-			ea = vcpu->arch.gpr[rb];
+			ea = kvmppc_get_gpr(vcpu, rb);
 			if (ra)
-				ea += vcpu->arch.gpr[ra];
+				ea += kvmppc_get_gpr(vcpu, ra);
 
 			emulated = kvmppc_handle_store(run, vcpu,
-			                               vcpu->arch.gpr[rs],
+						       kvmppc_get_gpr(vcpu, rs),
 			                               2, 1);
-			vcpu->arch.gpr[ra] = ea;
+			kvmppc_set_gpr(vcpu, ra, ea);
 			break;
 
 		case OP_31_XOP_MTSPR:
@@ -293,9 +302,9 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			rs = get_rs(inst);
 			switch (sprn) {
 			case SPRN_SRR0:
-				vcpu->arch.srr0 = vcpu->arch.gpr[rs]; break;
+				vcpu->arch.srr0 = kvmppc_get_gpr(vcpu, rs); break;
 			case SPRN_SRR1:
-				vcpu->arch.srr1 = vcpu->arch.gpr[rs]; break;
+				vcpu->arch.srr1 = kvmppc_get_gpr(vcpu, rs); break;
 
 			/* XXX We need to context-switch the timebase for
 			 * watchdog and FIT. */
@@ -305,18 +314,18 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			case SPRN_MSSSR0: break;
 
 			case SPRN_DEC:
-				vcpu->arch.dec = vcpu->arch.gpr[rs];
+				vcpu->arch.dec = kvmppc_get_gpr(vcpu, rs);
 				kvmppc_emulate_dec(vcpu);
 				break;
 
 			case SPRN_SPRG0:
-				vcpu->arch.sprg0 = vcpu->arch.gpr[rs]; break;
+				vcpu->arch.sprg0 = kvmppc_get_gpr(vcpu, rs); break;
 			case SPRN_SPRG1:
-				vcpu->arch.sprg1 = vcpu->arch.gpr[rs]; break;
+				vcpu->arch.sprg1 = kvmppc_get_gpr(vcpu, rs); break;
 			case SPRN_SPRG2:
-				vcpu->arch.sprg2 = vcpu->arch.gpr[rs]; break;
+				vcpu->arch.sprg2 = kvmppc_get_gpr(vcpu, rs); break;
 			case SPRN_SPRG3:
-				vcpu->arch.sprg3 = vcpu->arch.gpr[rs]; break;
+				vcpu->arch.sprg3 = kvmppc_get_gpr(vcpu, rs); break;
 
 			default:
 				emulated = kvmppc_core_emulate_mtspr(vcpu, sprn, rs);
@@ -348,7 +357,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			rb = get_rb(inst);
 
 			emulated = kvmppc_handle_store(run, vcpu,
-			                               vcpu->arch.gpr[rs],
+						       kvmppc_get_gpr(vcpu, rs),
 			                               4, 0);
 			break;
 
@@ -363,7 +372,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			rb = get_rb(inst);
 
 			emulated = kvmppc_handle_store(run, vcpu,
-			                               vcpu->arch.gpr[rs],
+						       kvmppc_get_gpr(vcpu, rs),
 			                               2, 0);
 			break;
 
@@ -382,7 +391,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		ra = get_ra(inst);
 		rt = get_rt(inst);
 		emulated = kvmppc_handle_load(run, vcpu, rt, 4, 1);
-		vcpu->arch.gpr[ra] = vcpu->arch.paddr_accessed;
+		kvmppc_set_gpr(vcpu, ra, vcpu->arch.paddr_accessed);
 		break;
 
 	case OP_LBZ:
@@ -394,35 +403,39 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		ra = get_ra(inst);
 		rt = get_rt(inst);
 		emulated = kvmppc_handle_load(run, vcpu, rt, 1, 1);
-		vcpu->arch.gpr[ra] = vcpu->arch.paddr_accessed;
+		kvmppc_set_gpr(vcpu, ra, vcpu->arch.paddr_accessed);
 		break;
 
 	case OP_STW:
 		rs = get_rs(inst);
-		emulated = kvmppc_handle_store(run, vcpu, vcpu->arch.gpr[rs],
+		emulated = kvmppc_handle_store(run, vcpu,
+					       kvmppc_get_gpr(vcpu, rs),
 		                               4, 1);
 		break;
 
 	case OP_STWU:
 		ra = get_ra(inst);
 		rs = get_rs(inst);
-		emulated = kvmppc_handle_store(run, vcpu, vcpu->arch.gpr[rs],
+		emulated = kvmppc_handle_store(run, vcpu,
+					       kvmppc_get_gpr(vcpu, rs),
 		                               4, 1);
-		vcpu->arch.gpr[ra] = vcpu->arch.paddr_accessed;
+		kvmppc_set_gpr(vcpu, ra, vcpu->arch.paddr_accessed);
 		break;
 
 	case OP_STB:
 		rs = get_rs(inst);
-		emulated = kvmppc_handle_store(run, vcpu, vcpu->arch.gpr[rs],
+		emulated = kvmppc_handle_store(run, vcpu,
+					       kvmppc_get_gpr(vcpu, rs),
 		                               1, 1);
 		break;
 
 	case OP_STBU:
 		ra = get_ra(inst);
 		rs = get_rs(inst);
-		emulated = kvmppc_handle_store(run, vcpu, vcpu->arch.gpr[rs],
+		emulated = kvmppc_handle_store(run, vcpu,
+					       kvmppc_get_gpr(vcpu, rs),
 		                               1, 1);
-		vcpu->arch.gpr[ra] = vcpu->arch.paddr_accessed;
+		kvmppc_set_gpr(vcpu, ra, vcpu->arch.paddr_accessed);
 		break;
 
 	case OP_LHZ:
@@ -434,21 +447,23 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 		ra = get_ra(inst);
 		rt = get_rt(inst);
 		emulated = kvmppc_handle_load(run, vcpu, rt, 2, 1);
-		vcpu->arch.gpr[ra] = vcpu->arch.paddr_accessed;
+		kvmppc_set_gpr(vcpu, ra, vcpu->arch.paddr_accessed);
 		break;
 
 	case OP_STH:
 		rs = get_rs(inst);
-		emulated = kvmppc_handle_store(run, vcpu, vcpu->arch.gpr[rs],
+		emulated = kvmppc_handle_store(run, vcpu,
+					       kvmppc_get_gpr(vcpu, rs),
 		                               2, 1);
 		break;
 
 	case OP_STHU:
 		ra = get_ra(inst);
 		rs = get_rs(inst);
-		emulated = kvmppc_handle_store(run, vcpu, vcpu->arch.gpr[rs],
+		emulated = kvmppc_handle_store(run, vcpu,
+					       kvmppc_get_gpr(vcpu, rs),
 		                               2, 1);
-		vcpu->arch.gpr[ra] = vcpu->arch.paddr_accessed;
+		kvmppc_set_gpr(vcpu, ra, vcpu->arch.paddr_accessed);
 		break;
 
 	default:
@@ -461,6 +476,7 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			advance = 0;
 			printk(KERN_ERR "Couldn't emulate instruction 0x%08x "
 			       "(op %d xop %d)\n", inst, get_op(inst), get_xop(inst));
+			kvmppc_core_queue_program(vcpu, 0);
 		}
 	}
 

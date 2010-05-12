@@ -36,6 +36,8 @@
 #include <linux/mm.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
+#include <linux/writeback.h>
+#include <linux/quotaops.h>
 
 #include "ufs_fs.h"
 #include "ufs.h"
@@ -890,11 +892,11 @@ static int ufs_update_inode(struct inode * inode, int do_sync)
 	return 0;
 }
 
-int ufs_write_inode (struct inode * inode, int wait)
+int ufs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	int ret;
 	lock_kernel();
-	ret = ufs_update_inode (inode, wait);
+	ret = ufs_update_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
 	unlock_kernel();
 	return ret;
 }
@@ -907,6 +909,9 @@ int ufs_sync_inode (struct inode *inode)
 void ufs_delete_inode (struct inode * inode)
 {
 	loff_t old_i_size;
+
+	if (!is_bad_inode(inode))
+		dquot_initialize(inode);
 
 	truncate_inode_pages(&inode->i_data, 0);
 	if (is_bad_inode(inode))
