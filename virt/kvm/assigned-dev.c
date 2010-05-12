@@ -448,9 +448,6 @@ static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 	struct kvm_assigned_dev_kernel *match;
 	unsigned long host_irq_type, guest_irq_type;
 
-	if (!capable(CAP_SYS_RAWIO))
-		return -EPERM;
-
 	if (!irqchip_in_kernel(kvm))
 		return r;
 
