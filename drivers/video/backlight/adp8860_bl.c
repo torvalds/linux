@@ -16,6 +16,7 @@
 #include <linux/fb.h>
 #include <linux/backlight.h>
 #include <linux/leds.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 
 #include <linux/i2c/adp8860.h>
@@ -647,6 +648,7 @@ static int __devinit adp8860_probe(struct i2c_client *client,
 	struct adp8860_bl *data;
 	struct adp8860_backlight_platform_data *pdata =
 		client->dev.platform_data;
+	struct backlight_properties props;
 	uint8_t reg_val;
 	int ret;
 
@@ -683,10 +685,13 @@ static int __devinit adp8860_probe(struct i2c_client *client,
 	data->current_brightness = 0;
 	i2c_set_clientdata(client, data);
 
+	memset(&props, 0, sizeof(props));
+	props.max_brightness = ADP8860_MAX_BRIGHTNESS;
+
 	mutex_init(&data->lock);
 
 	bl = backlight_device_register(dev_driver_string(&client->dev),
-			&client->dev, data, &adp8860_bl_ops);
+			&client->dev, data, &adp8860_bl_ops, &props);
 	if (IS_ERR(bl)) {
 		dev_err(&client->dev, "failed to register backlight\n");
 		ret = PTR_ERR(bl);
