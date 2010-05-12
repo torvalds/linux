@@ -104,6 +104,7 @@ enum {
 	STAC_DELL_M4_2,
 	STAC_DELL_M4_3,
 	STAC_HP_M4,
+	STAC_HP_DV4,
 	STAC_HP_DV5,
 	STAC_HP_HDX,
 	STAC_HP_DV4_1222NR,
@@ -1691,6 +1692,7 @@ static unsigned int *stac92hd71bxx_brd_tbl[STAC_92HD71BXX_MODELS] = {
 	[STAC_DELL_M4_2]	= dell_m4_2_pin_configs,
 	[STAC_DELL_M4_3]	= dell_m4_3_pin_configs,
 	[STAC_HP_M4]		= NULL,
+	[STAC_HP_DV4]		= NULL,
 	[STAC_HP_DV5]		= NULL,
 	[STAC_HP_HDX]           = NULL,
 	[STAC_HP_DV4_1222NR]	= NULL,
@@ -1703,6 +1705,7 @@ static const char *stac92hd71bxx_models[STAC_92HD71BXX_MODELS] = {
 	[STAC_DELL_M4_2] = "dell-m4-2",
 	[STAC_DELL_M4_3] = "dell-m4-3",
 	[STAC_HP_M4] = "hp-m4",
+	[STAC_HP_DV4] = "hp-dv4",
 	[STAC_HP_DV5] = "hp-dv5",
 	[STAC_HP_HDX] = "hp-hdx",
 	[STAC_HP_DV4_1222NR] = "hp-dv4-1222nr",
@@ -1721,7 +1724,7 @@ static struct snd_pci_quirk stac92hd71bxx_cfg_tbl[] = {
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x3080,
 		      "HP", STAC_HP_DV5),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x30f0,
-		      "HP dv4-7", STAC_HP_DV5),
+		      "HP dv4-7", STAC_HP_DV4),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x3600,
 		      "HP dv4-7", STAC_HP_DV5),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3610,
@@ -5678,6 +5681,9 @@ again:
 		spec->num_smuxes = 1;
 		spec->num_dmuxes = 1;
 		/* fallthrough */
+	case STAC_HP_DV4:
+		spec->gpio_led = 0x01;
+		/* fallthrough */
 	case STAC_HP_DV5:
 		snd_hda_codec_set_pincfg(codec, 0x0d, 0x90170010);
 		stac92xx_auto_set_pinctl(codec, 0x0d, AC_PINCTL_OUT_EN);
@@ -5686,7 +5692,6 @@ again:
 		 * detection.
 		 */
 		spec->hp_detect = 1;
-		spec->gpio_led = 0x01;
 		break;
 	case STAC_HP_HDX:
 		spec->num_dmics = 1;
@@ -5749,7 +5754,8 @@ again:
 	}
 
 	/* enable bass on HP dv7 */
-	if (spec->board_config == STAC_HP_DV5) {
+	if (spec->board_config == STAC_HP_DV4 ||
+	    spec->board_config == STAC_HP_DV5) {
 		unsigned int cap;
 		cap = snd_hda_param_read(codec, 0x1, AC_PAR_GPIO_CAP);
 		cap &= AC_GPIO_IO_COUNT;
