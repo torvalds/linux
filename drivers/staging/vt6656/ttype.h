@@ -79,7 +79,6 @@ typedef int             BOOL;
 
 typedef signed char             I8;     /* 8-bit signed integer */
 
-typedef unsigned short          U16;    /* 16-bit unsigned integer */
 typedef unsigned long           U32;    /* 32-bit unsigned integer */
 
 typedef char            CHAR;
