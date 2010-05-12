@@ -31,6 +31,7 @@ struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
 	__u16 brightness;
+	__u16 gain;
 
 	__u8 packet;
 };
@@ -38,6 +39,8 @@ struct sd {
 /* V4L2 controls supported by the driver */
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
 
 static const struct ctrl sd_ctrls[] = {
 	{
@@ -53,6 +56,20 @@ static const struct ctrl sd_ctrls[] = {
 	  },
 	 .set = sd_setbrightness,
 	 .get = sd_getbrightness,
+	 },
+	{
+	 {
+	  .id = V4L2_CID_GAIN,
+	  .type = V4L2_CTRL_TYPE_INTEGER,
+	  .name = "Gain",
+	  .minimum = 0,
+	  .maximum = 0x7ff,
+	  .step = 1,
+#define GAIN_DEF 0x100
+	  .default_value = GAIN_DEF,
+	  },
+	 .set = sd_setgain,
+	 .get = sd_getgain,
 	 },
 };
 
@@ -92,6 +109,14 @@ static const struct v4l2_pix_format sif_mode[] = {
 #define R14_AD_ROW_BEGINL 0x14
 #define R15_AD_ROWBEGINH  0x15
 #define R1C_AD_EXPOSE_TIMEL 0x1c
+#define R20_GAIN_G1L	0x20
+#define R21_GAIN_G1H	0x21
+#define R22_GAIN_RL	0x22
+#define R23_GAIN_RH	0x23
+#define R24_GAIN_BL	0x24
+#define R25_GAIN_BH	0x25
+#define R26_GAIN_G2L	0x26
+#define R27_GAIN_G2H	0x27
 #define R28_QUANT	0x28
 #define R29_LINE	0x29
 #define R2C_POLARITY	0x2c
@@ -185,6 +210,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->nmodes = ARRAY_SIZE(sif_mode);
 
 	sd->brightness = BRIGHTNESS_DEF;
+	sd->gain = GAIN_DEF;
 	return 0;
 }
 
@@ -224,6 +250,16 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 						/* 0x84 */
 }
 
+static void setgain(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	reg_w2(gspca_dev, R20_GAIN_G1L, sd->gain);
+	reg_w2(gspca_dev, R22_GAIN_RL, sd->gain);
+	reg_w2(gspca_dev, R24_GAIN_BL, sd->gain);
+	reg_w2(gspca_dev, R26_GAIN_G2L, sd->gain);
+}
+
 /* -- start the camera -- */
 static int sd_start(struct gspca_dev *gspca_dev)
 {
@@ -254,6 +290,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	tv_8532_setReg(gspca_dev);
 
 	setbrightness(gspca_dev);
+	setgain(gspca_dev);
 
 	/************************************************/
 	reg_w1(gspca_dev, R31_UPD, 0x01);	/* update registers */
@@ -317,6 +354,24 @@ static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->brightness;
+	return 0;
+}
+
+static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->gain = val;
+	if (gspca_dev->streaming)
+		setgain(gspca_dev);
+	return 0;
+}
+
+static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->gain;
 	return 0;
 }
 
