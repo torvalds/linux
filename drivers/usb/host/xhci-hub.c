@@ -298,7 +298,6 @@ error:
  * Returns 0 if the status hasn't changed, or the number of bytes in buf.
  * Ports are 0-indexed from the HCD point of view,
  * and 1-indexed from the USB core pointer of view.
- * xHCI instances can have up to 127 ports, so FIXME if you see more than 15.
  *
  * Note that the status change bits will be cleared as soon as a port status
  * change event is generated, so we use the saved status from that event.
@@ -315,14 +314,9 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	ports = HCS_MAX_PORTS(xhci->hcs_params1);
 
 	/* Initial status is no changes */
-	buf[0] = 0;
+	retval = (ports + 8) / 8;
+	memset(buf, 0, retval);
 	status = 0;
-	if (ports > 7) {
-		buf[1] = 0;
-		retval = 2;
-	} else {
-		retval = 1;
-	}
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	/* For each port, did anything change?  If so, set that bit in buf. */
@@ -331,10 +325,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 			NUM_PORT_REGS*i;
 		temp = xhci_readl(xhci, addr);
 		if (temp & (PORT_CSC | PORT_PEC | PORT_OCC)) {
-			if (i < 7)
-				buf[0] |= 1 << (i + 1);
-			else
-				buf[1] |= 1 << (i - 7);
+			buf[(i + 1) / 8] |= 1 << (i + 1) % 8;
 			status = 1;
 		}
 	}
