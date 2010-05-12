@@ -24,6 +24,9 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
+#include <linux/dm9000.h>
+#include <mach/gpio.h>
+
 static struct resource resources_i2c0[] = {
 	{
 		.start	= IRQ_NR_I2C0,
@@ -157,3 +160,41 @@ struct platform_device rk2818_device_spim = {
 	.resource	= resources_spim,
 };
 
+//net device
+/* DM9000 */
+static struct resource dm9k_resource[] = {
+	[0] = {
+		.start = RK2818_NANDC_PHYS + 0x800 + 1*0x100,    //nand_cs1
+		.end   = RK2818_NANDC_PHYS + 0x800 + 1*0x100 + 3,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = RK2818_NANDC_PHYS + (0x800+1*0x100)+ 0x4,
+		.end   = RK2818_NANDC_PHYS + (0x800+1*0x100)+ 0x4 + 3,
+		.flags = IORESOURCE_MEM,
+	},
+	[2] = {
+		.start = RK2818_PIN_PE2,//use pe2 as interrupt
+		.end   = RK2818_PIN_PE2,
+		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
+	}
+
+};
+
+/* for the moment we limit ourselves to 8bit IO until some
+ * better IO routines can be written and tested
+*/
+
+static struct dm9000_plat_data dm9k_platdata = {
+	.flags		= DM9000_PLATF_8BITONLY,
+};
+
+struct platform_device rk2818_device_dm9k = {
+	.name		= "dm9000",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(dm9k_resource),
+	.resource	= dm9k_resource,
+	.dev		= {
+		.platform_data = &dm9k_platdata,
+	}
+};

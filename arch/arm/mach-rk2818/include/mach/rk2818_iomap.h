@@ -89,8 +89,9 @@
 #define RK2818_SDMMC0_PHYS          	0x100AC000
 #define RK2818_SDMMC0_SIZE          	SZ_8K
 
+#define RK2818_NANDC_BASE				0xFF0AE000
 #define RK2818_NANDC_PHYS          	    0x100AE000
-#define RK2818_NANDC_SIZE          	    SZ_16K
+#define RK2818_NANDC_SIZE          	    SZ_8K
 
 #define RK2818_SDRAMC_BASE          	0xFF0B0000
 #define RK2818_SDRAMC_PHYS          	0x100B0000

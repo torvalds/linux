@@ -110,7 +110,14 @@ static struct map_desc rk2818_io_desc[] __initdata = {
 		.length 	= RK2818_INTC_SIZE,					
 		.type		= MT_DEVICE						
 	},
-	
+
+	{
+		.virtual	= RK2818_NANDC_BASE, 				
+		.pfn		= __phys_to_pfn(RK2818_NANDC_PHYS),	 
+		.length 	= RK2818_NANDC_SIZE, 				
+		.type		= MT_DEVICE 					
+	},
+
 	{
 		.virtual	= RK2818_SDRAMC_BASE,
 		.pfn		= __phys_to_pfn(RK2818_SDRAMC_PHYS),
@@ -278,6 +285,7 @@ static struct spi_board_info board_spi_devices[] = {
 
 static struct platform_device *devices[] __initdata = {
 	&rk2818_device_uart1,
+	&rk2818_device_dm9k,
 	&rk2818_device_spim,
 };
 

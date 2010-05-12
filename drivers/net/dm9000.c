@@ -37,6 +37,7 @@
 #include <asm/delay.h>
 #include <asm/irq.h>
 #include <asm/io.h>
+#include <mach/gpio.h>
 
 #include "dm9000.h"
 
@@ -132,7 +133,7 @@ typedef struct board_info {
 } board_info_t;
 
 /* debug code */
-
+#define DEBUG_LEVEL 4
 #define dm9000_dbg(db, lev, msg...) do {		\
 	if ((lev) < CONFIG_DM9000_DEBUGLEVEL &&		\
 	    (lev) < db->debug_level) {			\
@@ -824,8 +825,10 @@ dm9000_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	dm9000_dbg(db, 3, "%s:\n", __func__);
 
-	if (db->tx_pkt_cnt > 1)
+	if (db->tx_pkt_cnt > 1) {
+		dev_dbg(db->dev, "netdev tx busy\n");
 		return NETDEV_TX_BUSY;
+	}
 
 	spin_lock_irqsave(&db->lock, flags);
 
@@ -1283,6 +1286,8 @@ dm9000_probe(struct platform_device *pdev)
 	db->dev = &pdev->dev;
 	db->ndev = ndev;
 
+	//db->debug_level = 5;//add by liuyx@20100511
+
 	spin_lock_init(&db->lock);
 	mutex_init(&db->addr_lock);
 
@@ -1337,8 +1342,13 @@ dm9000_probe(struct platform_device *pdev)
 
 	/* fill in parameters for net-dev structure */
 	ndev->base_addr = (unsigned long)db->io_addr;
-	ndev->irq	= db->irq_res->start;
 
+	#if 0
+	ndev->irq	= db->irq_res->start;
+	#else//modify by liuyx@20100510
+	ndev->irq = gpio_to_irq(db->irq_res->start);
+	#endif
+	
 	/* ensure at least we have a default set of IO routines */
 	dm9000_set_io(db, iosize);
 

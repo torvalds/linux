@@ -23,5 +23,6 @@ extern struct platform_device rk2818_device_uart3;
 extern struct platform_device rk2818_device_spim;
 extern struct platform_device rk2818_device_i2c0;
 extern struct platform_device rk2818_device_i2c1;
+extern struct platform_device rk2818_device_dm9k;
 
 #endif
