@@ -980,7 +980,6 @@ void iwl_connection_init_rx_config(struct iwl_priv *priv,
 	priv->staging_rxon.flags &= ~(RXON_FLG_CHANNEL_MODE_MIXED |
 					RXON_FLG_CHANNEL_MODE_PURE_40);
 	memcpy(priv->staging_rxon.node_addr, priv->mac_addr, ETH_ALEN);
-	memcpy(priv->staging_rxon.wlap_bssid_addr, priv->mac_addr, ETH_ALEN);
 	priv->staging_rxon.ofdm_ht_single_stream_basic_rates = 0xff;
 	priv->staging_rxon.ofdm_ht_dual_stream_basic_rates = 0xff;
 	priv->staging_rxon.ofdm_ht_triple_stream_basic_rates = 0xff;
