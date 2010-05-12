@@ -1102,6 +1102,16 @@ static const struct soc_enum twl4030_vibradir_enum =
 			ARRAY_SIZE(twl4030_vibradir_texts),
 			twl4030_vibradir_texts);
 
+/* Digimic Left and right swapping */
+static const char *twl4030_digimicswap_texts[] = {
+	"Not swapped", "Swapped",
+};
+
+static const struct soc_enum twl4030_digimicswap_enum =
+	SOC_ENUM_SINGLE(TWL4030_REG_MISC_SET_1, 0,
+			ARRAY_SIZE(twl4030_digimicswap_texts),
+			twl4030_digimicswap_texts);
+
 static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 	/* Codec operation mode control */
 	SOC_ENUM_EXT("Codec Operation Mode", twl4030_op_modes_enum,
@@ -1178,6 +1188,8 @@ static const struct snd_kcontrol_new twl4030_snd_controls[] = {
 
 	SOC_ENUM("Vibra H-bridge mode", twl4030_vibradirmode_enum),
 	SOC_ENUM("Vibra H-bridge direction", twl4030_vibradir_enum),
+
+	SOC_ENUM("Digimic LR Swap", twl4030_digimicswap_enum),
 };
 
 static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
