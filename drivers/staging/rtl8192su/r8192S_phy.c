@@ -882,7 +882,7 @@ phy_BB8192S_Config_ParaFile(struct net_device* dev)
 
 	//
 	// 1. Read PHY_REG.TXT BB INIT!!
-	// We will seperate as 1T1R/1T2R/1T2R_GREEN/2T2R
+	// We will separate as 1T1R/1T2R/1T2R_GREEN/2T2R
 	//
 	if (priv->rf_type == RF_1T2R || priv->rf_type == RF_2T2R ||
 	    priv->rf_type == RF_1T1R ||priv->rf_type == RF_2T2R_GREEN)

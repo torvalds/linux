@@ -407,7 +407,7 @@ rtl8192e_SetHwReg(struct net_device *dev,u8 variable,u8* val)
 
 			case RT_OP_MODE_IBSS:
 				btMsr |= MSR_ADHOC;
-				// led link set seperate
+				// led link set separate
 				break;
 
 			case RT_OP_MODE_AP:

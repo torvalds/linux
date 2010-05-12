@@ -654,7 +654,7 @@ int wvlan_uil_put_info( struct uilreq *urq, struct wl_private *lp )
 					pLtv->u.u16[0]  = CNV_INT_TO_LITTLE( pLtv->u.u16[0] );
 					break;
 				/* CFG_CNF_OWN_SSID currently same as CNF_DESIRED_SSID. Do we
-				   need seperate storage for this? */
+				   need separate storage for this? */
 				//case CFG_CNF_OWN_SSID:
 				case CFG_CNF_OWN_ATIM_WINDOW:
 					lp->atimWindow  = pLtv->u.u16[0];

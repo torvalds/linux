@@ -3940,7 +3940,7 @@ void wl_wext_event_mic_failed( struct net_device *dev )
 	   MLME-MICHAELMICFAILURE.indication(keyid=# broadcast/unicast addr=addr2)
    */
 
-	/* NOTE: Format of MAC address (using colons to seperate bytes) may cause
+	/* NOTE: Format of MAC address (using colons to separate bytes) may cause
 			 a problem in future versions of the supplicant, if they ever
 			 actually parse these parameters */
 #if DBG
