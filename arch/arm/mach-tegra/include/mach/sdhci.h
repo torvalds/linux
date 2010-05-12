@@ -18,6 +18,7 @@
 #define __ASM_ARM_ARCH_TEGRA_SDHCI_H
 
 #include <linux/mmc/host.h>
+#include <asm/mach/mmc.h>
 
 struct tegra_sdhci_platform_data {
 	const char *clk_id;
@@ -25,6 +26,7 @@ struct tegra_sdhci_platform_data {
 	int cd_gpio;
 	int wp_gpio;
 	int power_gpio;
+	struct mmc_platform_data mmc_data;
 
 	void (*board_probe)(int id, struct mmc_host *);
 	void (*board_remove)(int id, struct mmc_host *);

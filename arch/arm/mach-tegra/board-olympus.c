@@ -203,6 +203,8 @@ static struct platform_device *olympus_devices[] __initdata = {
 	&hsuart,
 };
 
+extern struct tegra_sdhci_platform_data olympus_wifi_data; /* sdhci1 */
+
 static struct tegra_sdhci_platform_data olympus_sdhci_platform_data3 = {
 	.clk_id = NULL,
 	.force_hs = 0,
@@ -220,10 +222,11 @@ static struct tegra_sdhci_platform_data olympus_sdhci_platform_data4 = {
 static void olympus_sdhci_init(void)
 {
 	/* TODO: setup GPIOs for cd, wd, and power */
+	tegra_sdhci_device1.dev.platform_data = &olympus_wifi_data;
 	tegra_sdhci_device3.dev.platform_data = &olympus_sdhci_platform_data3;
 	tegra_sdhci_device4.dev.platform_data = &olympus_sdhci_platform_data4;
 
-
+	platform_device_register(&tegra_sdhci_device1);
 	platform_device_register(&tegra_sdhci_device3);
 	platform_device_register(&tegra_sdhci_device4);
 }

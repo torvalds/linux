@@ -73,6 +73,11 @@ config TEGRA_PWM
 	help
 	  Enable support for the Tegra PWM controller(s).
 
+config WIFI_CONTROL_FUNC
+	bool "Enable WiFi control function abstraction"
+	help
+	  Enables Power/Reset/Carddetect function abstraction
+
 endif
 
 config TEGRA_IOVMM_GART
