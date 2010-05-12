@@ -49,10 +49,6 @@
 #include "cifs_spnego.h"
 #define CIFS_MAGIC_NUMBER 0xFF534D42	/* the first four bytes of SMB PDUs */
 
-#ifdef CONFIG_CIFS_QUOTA
-static const struct quotactl_ops cifs_quotactl_ops;
-#endif /* QUOTA */
-
 int cifsFYI = 0;
 int cifsERROR = 1;
 int traceSMB = 0;
@@ -135,9 +131,6 @@ cifs_read_super(struct super_block *sb, void *data,
 /*	if (cifs_sb->tcon->ses->server->maxBuf > MAX_CIFS_HDR_SIZE + 512)
 	    sb->s_blocksize =
 		cifs_sb->tcon->ses->server->maxBuf - MAX_CIFS_HDR_SIZE; */
-#ifdef CONFIG_CIFS_QUOTA
-	sb->s_qcop = &cifs_quotactl_ops;
-#endif
 	sb->s_blocksize = CIFS_MAX_MSGSIZE;
 	sb->s_blocksize_bits = 14;	/* default 2**14 = CIFS_MAX_MSGSIZE */
 	inode = cifs_root_iget(sb, ROOT_I);
@@ -417,106 +410,6 @@ cifs_show_options(struct seq_file *s, struct vfsmount *m)
 
 	return 0;
 }
-
-#ifdef CONFIG_CIFS_QUOTA
-int cifs_xquota_set(struct super_block *sb, int quota_type, qid_t qid,
-		struct fs_disk_quota *pdquota)
-{
-	int xid;
-	int rc = 0;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	struct cifsTconInfo *pTcon;
-
-	if (cifs_sb)
-		pTcon = cifs_sb->tcon;
-	else
-		return -EIO;
-
-
-	xid = GetXid();
-	if (pTcon) {
-		cFYI(1, "set type: 0x%x id: %d", quota_type, qid);
-	} else
-		rc = -EIO;
-
-	FreeXid(xid);
-	return rc;
-}
-
-int cifs_xquota_get(struct super_block *sb, int quota_type, qid_t qid,
-		    struct fs_disk_quota *pdquota)
-{
-	int xid;
-	int rc = 0;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	struct cifsTconInfo *pTcon;
-
-	if (cifs_sb)
-		pTcon = cifs_sb->tcon;
-	else
-		return -EIO;
-
-	xid = GetXid();
-	if (pTcon) {
-		cFYI(1, "set type: 0x%x id: %d", quota_type, qid);
-	} else
-		rc = -EIO;
-
-	FreeXid(xid);
-	return rc;
-}
-
-int cifs_xstate_set(struct super_block *sb, unsigned int flags, int operation)
-{
-	int xid;
-	int rc = 0;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	struct cifsTconInfo *pTcon;
-
-	if (cifs_sb)
-		pTcon = cifs_sb->tcon;
-	else
-		return -EIO;
-
-	xid = GetXid();
-	if (pTcon) {
-		cFYI(1, "flags: 0x%x operation: 0x%x", flags, operation);
-	} else
-		rc = -EIO;
-
-	FreeXid(xid);
-	return rc;
-}
-
-int cifs_xstate_get(struct super_block *sb, struct fs_quota_stat *qstats)
-{
-	int xid;
-	int rc = 0;
-	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
-	struct cifsTconInfo *pTcon;
-
-	if (cifs_sb)
-		pTcon = cifs_sb->tcon;
-	else
-		return -EIO;
-
-	xid = GetXid();
-	if (pTcon) {
-		cFYI(1, "pqstats %p", qstats);
-	} else
-		rc = -EIO;
-
-	FreeXid(xid);
-	return rc;
-}
-
-static const struct quotactl_ops cifs_quotactl_ops = {
-	.set_xquota	= cifs_xquota_set,
-	.get_xquota	= cifs_xquota_get,
-	.set_xstate	= cifs_xstate_set,
-	.get_xstate	= cifs_xstate_get,
-};
-#endif
 
 static void cifs_umount_begin(struct super_block *sb)
 {
