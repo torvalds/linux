@@ -33,6 +33,7 @@
 struct tegra_sdhci_host {
 	struct sdhci_host *sdhci;
 	struct clk *clk;
+	struct tegra_sdhci_platform_data *plat;
 };
 
 static irqreturn_t carddetect_irq(int irq, void *data)
@@ -42,6 +43,34 @@ static irqreturn_t carddetect_irq(int irq, void *data)
 	sdhci_card_detect_callback(sdhost);
 	return IRQ_HANDLED;
 };
+
+static void sdhci_status_notify_cb(int card_present, void *dev_id)
+{
+	struct sdhci_host *host = (struct sdhci_host *)dev_id;
+	struct tegra_sdhci_host *tegra_host = sdhci_priv(host);
+	unsigned int status, oldstat;
+
+	pr_debug("%s: card_present %d\n", mmc_hostname(host->mmc),
+		card_present);
+
+        if (!tegra_host->plat->mmc_data.status) {
+		mmc_detect_change(host->mmc, 0);
+		return;
+	}
+
+	status = tegra_host->plat->mmc_data.status(mmc_dev(host->mmc));
+
+	oldstat = host->card_present;
+	host->card_present = status;
+	if (status ^ oldstat) {
+		pr_debug("%s: Slot status change detected (%d -> %d)\n",
+			mmc_hostname(host->mmc), oldstat, status);
+		if (status)
+			mmc_detect_change(host->mmc, (5 * HZ) / 2);
+		else
+			mmc_detect_change(host->mmc, 0);
+	}
+}
 
 static int tegra_sdhci_enable_dma(struct sdhci_host *host)
 {
@@ -86,6 +115,16 @@ static int __devinit tegra_sdhci_probe(struct platform_device *pdev)
 
 	host = sdhci_priv(sdhci);
 	host->sdhci = sdhci;
+	host->plat = plat;
+
+#ifdef CONFIG_MMC_EMBEDDED_SDIO
+	if (plat->mmc_data.embedded_sdio)
+		mmc_set_embedded_sdio_data(sdhci->mmc,
+				&plat->mmc_data.embedded_sdio->cis,
+				&plat->mmc_data.embedded_sdio->cccr,
+				plat->mmc_data.embedded_sdio->funcs,
+				plat->mmc_data.embedded_sdio->num_funcs);
+#endif
 
 	host->clk = clk_get(&pdev->dev, plat->clk_id);
 	if (IS_ERR(host->clk)) {
@@ -129,6 +168,12 @@ static int __devinit tegra_sdhci_probe(struct platform_device *pdev)
 
 		if (rc)
 			goto err_remove_host;
+	} else if (plat->mmc_data.register_status_notify) {
+		plat->mmc_data.register_status_notify(sdhci_status_notify_cb, sdhci);
+	}
+
+	if (plat->mmc_data.status) {
+		sdhci->card_present = host->plat->mmc_data.status(mmc_dev(sdhci->mmc));
 	}
 
 	if (plat->board_probe)
