@@ -100,6 +100,22 @@ config HID_CHICONY
 	---help---
 	Support for Chicony Tactical pad.
 
+config HID_PRODIKEYS
+	tristate "Prodikeys PC-MIDI Keyboard support" if EMBEDDED
+	depends on USB_HID && SND
+	select SND_RAWMIDI
+	default !EMBEDDED
+	---help---
+	Support for Prodikeys PC-MIDI Keyboard device support.
+	Say Y here to enable support for this device.
+	- Prodikeys PC-MIDI keyboard.
+	  The Prodikeys PC-MIDI acts as a USB Audio device, with one MIDI
+	  input and one MIDI output. These MIDI jacks appear as
+	  a sound "card" in the ALSA sound system.
+	  Note: if you say N here, this device will still function as a basic
+	  multimedia keyboard, but will lack support for the musical keyboard
+	  and some additional multimedia keys.
+
 config HID_CYPRESS
 	tristate "Cypress" if EMBEDDED
 	depends on USB_HID
