@@ -516,10 +516,10 @@ static void set_efer(struct kvm_vcpu *vcpu, u64 efer)
 		}
 	}
 
-	kvm_x86_ops->set_efer(vcpu, efer);
-
 	efer &= ~EFER_LMA;
 	efer |= vcpu->arch.shadow_efer & EFER_LMA;
+
+	kvm_x86_ops->set_efer(vcpu, efer);
 
 	vcpu->arch.shadow_efer = efer;
 
