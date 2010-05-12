@@ -1448,12 +1448,11 @@ init_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 */
 
 	uint8_t i2c_index = bios->data[offset + 1];
-	uint8_t i2c_address = bios->data[offset + 2];
+	uint8_t i2c_address = bios->data[offset + 2] >> 1;
 	uint8_t count = bios->data[offset + 3];
-	int len = 4 + count * 3;
 	struct nouveau_i2c_chan *chan;
-	struct i2c_msg msg;
-	int i;
+	int len = 4 + count * 3;
+	int ret, i;
 
 	if (!iexec->execute)
 		return len;
@@ -1467,32 +1466,31 @@ init_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		return -ENODEV;
 
 	for (i = 0; i < count; i++) {
-		uint8_t i2c_reg = bios->data[offset + 4 + i * 3];
+		uint8_t reg = bios->data[offset + 4 + i * 3];
 		uint8_t mask = bios->data[offset + 5 + i * 3];
 		uint8_t data = bios->data[offset + 6 + i * 3];
-		uint8_t value;
+		union i2c_smbus_data val;
 
-		msg.addr = i2c_address;
-		msg.flags = I2C_M_RD;
-		msg.len = 1;
-		msg.buf = &value;
-		if (i2c_transfer(&chan->adapter, &msg, 1) != 1)
-			return -EIO;
+		ret = i2c_smbus_xfer(&chan->adapter, i2c_address, 0,
+				     I2C_SMBUS_READ, reg,
+				     I2C_SMBUS_BYTE_DATA, &val);
+		if (ret < 0)
+			return ret;
 
 		BIOSLOG(bios, "0x%04X: I2CReg: 0x%02X, Value: 0x%02X, "
 			      "Mask: 0x%02X, Data: 0x%02X\n",
-			offset, i2c_reg, value, mask, data);
+			offset, reg, val.byte, mask, data);
 
-		value = (value & mask) | data;
+		if (!bios->execute)
+			continue;
 
-		if (bios->execute) {
-			msg.addr = i2c_address;
-			msg.flags = 0;
-			msg.len = 1;
-			msg.buf = &value;
-			if (i2c_transfer(&chan->adapter, &msg, 1) != 1)
-				return -EIO;
-		}
+		val.byte &= mask;
+		val.byte |= data;
+		ret = i2c_smbus_xfer(&chan->adapter, i2c_address, 0,
+				     I2C_SMBUS_WRITE, reg,
+				     I2C_SMBUS_BYTE_DATA, &val);
+		if (ret < 0)
+			return ret;
 	}
 
 	return len;
@@ -1518,12 +1516,11 @@ init_zm_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 */
 
 	uint8_t i2c_index = bios->data[offset + 1];
-	uint8_t i2c_address = bios->data[offset + 2];
+	uint8_t i2c_address = bios->data[offset + 2] >> 1;
 	uint8_t count = bios->data[offset + 3];
-	int len = 4 + count * 2;
 	struct nouveau_i2c_chan *chan;
-	struct i2c_msg msg;
-	int i;
+	int len = 4 + count * 2;
+	int ret, i;
 
 	if (!iexec->execute)
 		return len;
@@ -1537,20 +1534,22 @@ init_zm_i2c_byte(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 		return -ENODEV;
 
 	for (i = 0; i < count; i++) {
-		uint8_t i2c_reg = bios->data[offset + 4 + i * 2];
-		uint8_t data = bios->data[offset + 5 + i * 2];
+		uint8_t reg = bios->data[offset + 4 + i * 2];
+		union i2c_smbus_data val;
+
+		val.byte = bios->data[offset + 5 + i * 2];
 
 		BIOSLOG(bios, "0x%04X: I2CReg: 0x%02X, Data: 0x%02X\n",
-			offset, i2c_reg, data);
+			offset, reg, val.byte);
 
-		if (bios->execute) {
-			msg.addr = i2c_address;
-			msg.flags = 0;
-			msg.len = 1;
-			msg.buf = &data;
-			if (i2c_transfer(&chan->adapter, &msg, 1) != 1)
-				return -EIO;
-		}
+		if (!bios->execute)
+			continue;
+
+		ret = i2c_smbus_xfer(&chan->adapter, i2c_address, 0,
+				     I2C_SMBUS_WRITE, reg,
+				     I2C_SMBUS_BYTE_DATA, &val);
+		if (ret < 0)
+			return ret;
 	}
 
 	return len;
@@ -1574,7 +1573,7 @@ init_zm_i2c(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 	 */
 
 	uint8_t i2c_index = bios->data[offset + 1];
-	uint8_t i2c_address = bios->data[offset + 2];
+	uint8_t i2c_address = bios->data[offset + 2] >> 1;
 	uint8_t count = bios->data[offset + 3];
 	int len = 4 + count;
 	struct nouveau_i2c_chan *chan;
