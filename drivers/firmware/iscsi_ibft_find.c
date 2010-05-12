@@ -100,7 +100,7 @@ unsigned long __init find_ibft_region(unsigned long *sizep)
 	if (!ibft_addr)
 		acpi_table_parse(ACPI_SIG_IBFT, acpi_find_ibft);
 	if (!ibft_addr)
-		acpi_table_parse("iBFT", acpi_find_ibft);
+		acpi_table_parse(IBFT_SIGN, acpi_find_ibft);
 #endif /* CONFIG_ACPI */
 
 	/* iBFT 1.03 section 1.4.3.1 mandates that UEFI machines will
