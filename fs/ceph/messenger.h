@@ -49,10 +49,8 @@ struct ceph_connection_operations {
 					int *skip);
 };
 
-extern const char *ceph_name_type_str(int t);
-
 /* use format string %s%d */
-#define ENTITY_NAME(n) ceph_name_type_str((n).type), le64_to_cpu((n).num)
+#define ENTITY_NAME(n) ceph_entity_type_name((n).type), le64_to_cpu((n).num)
 
 struct ceph_messenger {
 	struct ceph_entity_inst inst;    /* my name+address */

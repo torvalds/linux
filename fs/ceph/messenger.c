@@ -39,18 +39,6 @@ static void queue_con(struct ceph_connection *con);
 static void con_work(struct work_struct *);
 static void ceph_fault(struct ceph_connection *con);
 
-const char *ceph_name_type_str(int t)
-{
-	switch (t) {
-	case CEPH_ENTITY_TYPE_MON: return "mon";
-	case CEPH_ENTITY_TYPE_MDS: return "mds";
-	case CEPH_ENTITY_TYPE_OSD: return "osd";
-	case CEPH_ENTITY_TYPE_CLIENT: return "client";
-	case CEPH_ENTITY_TYPE_ADMIN: return "admin";
-	default: return "???";
-	}
-}
-
 /*
  * nicely render a sockaddr as a string.
  */
