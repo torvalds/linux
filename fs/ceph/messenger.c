@@ -492,7 +492,14 @@ static void prepare_write_message(struct ceph_connection *con)
 		list_move_tail(&m->list_head, &con->out_sent);
 	}
 
-	m->hdr.seq = cpu_to_le64(++con->out_seq);
+	/*
+	 * only assign outgoing seq # if we haven't sent this message
+	 * yet.  if it is requeued, resend with it's original seq.
+	 */
+	if (m->needs_out_seq) {
+		m->hdr.seq = cpu_to_le64(++con->out_seq);
+		m->needs_out_seq = false;
+	}
 
 	dout("prepare_write_message %p seq %lld type %d len %d+%d+%d %d pgs\n",
 	     m, con->out_seq, le16_to_cpu(m->hdr.type),
@@ -1985,6 +1992,8 @@ void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg)
 	msg->hdr.orig_src = msg->hdr.src;
 
 	BUG_ON(msg->front.iov_len != le32_to_cpu(msg->hdr.front_len));
+
+	msg->needs_out_seq = true;
 
 	/* queue */
 	mutex_lock(&con->mutex);
