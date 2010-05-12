@@ -39,16 +39,18 @@ static inline int fsnotify_perm(struct file *file, int mask)
 {
 	struct path *path = &file->f_path;
 	struct inode *inode = path->dentry->d_inode;
-	__u32 fsnotify_mask;
+	__u32 fsnotify_mask = 0;
 
 	if (file->f_mode & FMODE_NONOTIFY)
 		return 0;
 	if (!(mask & (MAY_READ | MAY_OPEN)))
 		return 0;
-	if (mask & MAY_READ)
-		fsnotify_mask = FS_ACCESS_PERM;
 	if (mask & MAY_OPEN)
 		fsnotify_mask = FS_OPEN_PERM;
+	else if (mask & MAY_READ)
+		fsnotify_mask = FS_ACCESS_PERM;
+	else
+		BUG();
 
 	return fsnotify(inode, fsnotify_mask, path, FSNOTIFY_EVENT_PATH, NULL, 0);
 }
