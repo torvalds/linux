@@ -106,8 +106,18 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	if (he == NULL)
 		goto out_free_syms;
 	err = 0;
-	if (symbol_conf.use_callchain)
+	if (symbol_conf.use_callchain) {
 		err = append_chain(he->callchain, data->callchain, syms);
+		if (err)
+			goto out_free_syms;
+	}
+	/*
+	 * Only in the newt browser we are doing integrated annotation,
+	 * so we don't allocated the extra space needed because the stdio
+	 * code will not use it.
+	 */
+	if (use_browser)
+		err = hist_entry__inc_addr_samples(he, al->addr);
 out_free_syms:
 	free(syms);
 	return err;
@@ -458,6 +468,13 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 
 	if (strcmp(input_name, "-") != 0)
 		setup_browser();
+	/*
+	 * Only in the newt browser we are doing integrated annotation,
+	 * so don't allocate extra space that won't be used in the stdio
+	 * implementation.
+	 */
+	if (use_browser)
+		symbol_conf.priv_size = sizeof(struct sym_priv);
 
 	if (symbol__init() < 0)
 		return -1;

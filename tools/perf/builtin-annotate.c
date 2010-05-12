@@ -34,67 +34,7 @@ static bool		full_paths;
 
 static bool		print_line;
 
-struct sym_hist {
-	u64		sum;
-	u64		ip[0];
-};
-
-struct sym_ext {
-	struct rb_node	node;
-	double		percent;
-	char		*path;
-};
-
-struct sym_priv {
-	struct sym_hist	*hist;
-	struct sym_ext	*ext;
-};
-
 static const char *sym_hist_filter;
-
-static int sym__alloc_hist(struct symbol *self)
-{
-	struct sym_priv *priv = symbol__priv(self);
-	const int size = (sizeof(*priv->hist) +
-			  (self->end - self->start) * sizeof(u64));
-
-	priv->hist = zalloc(size);
-	return priv->hist == NULL ? -1 : 0;
-}
-
-/*
- * collect histogram counts
- */
-static int annotate__hist_hit(struct hist_entry *he, u64 ip)
-{
-	unsigned int sym_size, offset;
-	struct symbol *sym = he->ms.sym;
-	struct sym_priv *priv;
-	struct sym_hist *h;
-
-	if (!sym || !he->ms.map)
-		return 0;
-
-	priv = symbol__priv(sym);
-	if (priv->hist == NULL && sym__alloc_hist(sym) < 0)
-		return -ENOMEM;
-
-	sym_size = sym->end - sym->start;
-	offset = ip - sym->start;
-
-	pr_debug3("%s: ip=%#Lx\n", __func__, he->ms.map->unmap_ip(he->ms.map, ip));
-
-	if (offset >= sym_size)
-		return 0;
-
-	h = priv->hist;
-	h->sum++;
-	h->ip[offset]++;
-
-	pr_debug3("%#Lx %s: count++ [ip: %#Lx, %#Lx] => %Ld\n", he->ms.sym->start,
-		  he->ms.sym->name, ip, ip - he->ms.sym->start, h->ip[offset]);
-	return 0;
-}
 
 static int hists__add_entry(struct hists *self, struct addr_location *al)
 {
@@ -115,7 +55,7 @@ static int hists__add_entry(struct hists *self, struct addr_location *al)
 	if (he == NULL)
 		return -ENOMEM;
 
-	return annotate__hist_hit(he, al->addr);
+	return hist_entry__inc_addr_samples(he, al->addr);
 }
 
 static int process_sample_event(event_t *event, struct perf_session *session)
@@ -136,101 +76,6 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 			   "skipping event\n");
 		return -1;
 	}
-
-	return 0;
-}
-
-struct objdump_line {
-	struct list_head node;
-	s64		 offset;
-	char		 *line;
-};
-
-static struct objdump_line *objdump_line__new(s64 offset, char *line)
-{
-	struct objdump_line *self = malloc(sizeof(*self));
-
-	if (self != NULL) {
-		self->offset = offset;
-		self->line = line;
-	}
-
-	return self;
-}
-
-static void objdump_line__free(struct objdump_line *self)
-{
-	free(self->line);
-	free(self);
-}
-
-static void objdump__add_line(struct list_head *head, struct objdump_line *line)
-{
-	list_add_tail(&line->node, head);
-}
-
-static struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
-						      struct objdump_line *pos)
-{
-	list_for_each_entry_continue(pos, head, node)
-		if (pos->offset >= 0)
-			return pos;
-
-	return NULL;
-}
-
-static int parse_line(FILE *file, struct hist_entry *he,
-		      struct list_head *head)
-{
-	struct symbol *sym = he->ms.sym;
-	struct objdump_line *objdump_line;
-	char *line = NULL, *tmp, *tmp2;
-	size_t line_len;
-	s64 line_ip, offset = -1;
-	char *c;
-
-	if (getline(&line, &line_len, file) < 0)
-		return -1;
-
-	if (!line)
-		return -1;
-
-	c = strchr(line, '\n');
-	if (c)
-		*c = 0;
-
-	line_ip = -1;
-
-	/*
-	 * Strip leading spaces:
-	 */
-	tmp = line;
-	while (*tmp) {
-		if (*tmp != ' ')
-			break;
-		tmp++;
-	}
-
-	if (*tmp) {
-		/*
-		 * Parse hexa addresses followed by ':'
-		 */
-		line_ip = strtoull(tmp, &tmp2, 16);
-		if (*tmp2 != ':')
-			line_ip = -1;
-	}
-
-	if (line_ip != -1) {
-		u64 start = map__rip_2objdump(he->ms.map, sym->start);
-		offset = line_ip - start;
-	}
-
-	objdump_line = objdump_line__new(offset, line);
-	if (objdump_line == NULL) {
-		free(line);
-		return -1;
-	}
-	objdump__add_line(head, objdump_line);
 
 	return 0;
 }
@@ -439,27 +284,11 @@ static void annotate_sym(struct hist_entry *he)
 	struct symbol *sym = he->ms.sym;
 	const char *filename = dso->long_name, *d_filename;
 	u64 len;
-	char command[PATH_MAX*2];
-	FILE *file;
 	LIST_HEAD(head);
 	struct objdump_line *pos, *n;
 
-	if (!filename)
+	if (hist_entry__annotate(he, &head) < 0)
 		return;
-
-	if (dso->origin == DSO__ORIG_KERNEL) {
-		if (dso->annotate_warned)
-			return;
-		dso->annotate_warned = 1;
-		pr_err("Can't annotate %s: No vmlinux file was found in the "
-		       "path:\n", sym->name);
-		vmlinux_path__fprintf(stderr);
-		return;
-	}
-
-	pr_debug("%s: filename=%s, sym=%s, start=%#Lx, end=%#Lx\n", __func__,
-		 filename, sym->name, map->unmap_ip(map, sym->start),
-		 map->unmap_ip(map, sym->end));
 
 	if (full_paths)
 		d_filename = filename;
@@ -476,29 +305,6 @@ static void annotate_sym(struct hist_entry *he)
 	printf("\n\n------------------------------------------------\n");
 	printf(" Percent |	Source code & Disassembly of %s\n", d_filename);
 	printf("------------------------------------------------\n");
-
-	if (verbose >= 2)
-		printf("annotating [%p] %30s : [%p] %30s\n",
-		       dso, dso->long_name, sym, sym->name);
-
-	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s|grep -v %s",
-		map__rip_2objdump(map, sym->start),
-		map__rip_2objdump(map, sym->end),
-		filename, filename);
-
-	if (verbose >= 3)
-		printf("doing: %s\n", command);
-
-	file = popen(command, "r");
-	if (!file)
-		return;
-
-	while (!feof(file)) {
-		if (parse_line(file, he, &head) < 0)
-			break;
-	}
-
-	pclose(file);
 
 	if (verbose)
 		hist_entry__print_hits(he);

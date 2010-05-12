@@ -11,6 +11,32 @@ struct addr_location;
 struct symbol;
 struct rb_root;
 
+struct objdump_line {
+	struct list_head node;
+	s64		 offset;
+	char		 *line;
+};
+
+void objdump_line__free(struct objdump_line *self);
+struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
+					       struct objdump_line *pos);
+
+struct sym_hist {
+	u64		sum;
+	u64		ip[0];
+};
+
+struct sym_ext {
+	struct rb_node	node;
+	double		percent;
+	char		*path;
+};
+
+struct sym_priv {
+	struct sym_hist	*hist;
+	struct sym_ext	*ext;
+};
+
 struct events_stats {
 	u64 total;
 	u64 lost;
@@ -44,6 +70,9 @@ void hists__output_resort(struct hists *self);
 void hists__collapse_resort(struct hists *self);
 size_t hists__fprintf(struct hists *self, struct hists *pair,
 		      bool show_displacement, FILE *fp);
+
+int hist_entry__inc_addr_samples(struct hist_entry *self, u64 ip);
+int hist_entry__annotate(struct hist_entry *self, struct list_head *head);
 
 void hists__filter_by_dso(struct hists *self, const struct dso *dso);
 void hists__filter_by_thread(struct hists *self, const struct thread *thread);

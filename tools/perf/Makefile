@@ -560,6 +560,8 @@ ifneq ($(shell sh -c "(echo '\#include <newt.h>'; echo 'int main(void) { newtIni
 	msg := $(warning newt not found, disables TUI support. Please install newt-devel or libnewt-dev);
 	BASIC_CFLAGS += -DNO_NEWT_SUPPORT
 else
+	# Fedora has /usr/include/slang/slang.h, but ubuntu /usr/include/slang.h
+	BASIC_CFLAGS += -I/usr/include/slang
 	EXTLIBS += -lnewt
 	LIB_OBJS += $(OUTPUT)util/newt.o
 endif
@@ -947,6 +949,9 @@ $(OUTPUT)builtin-init-db.o: builtin-init-db.c $(OUTPUT)PERF-CFLAGS
 
 $(OUTPUT)util/config.o: util/config.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<
+
+$(OUTPUT)util/newt.o: util/newt.c $(OUTPUT)PERF-CFLAGS
+	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DENABLE_SLFUTURE_CONST $<
 
 $(OUTPUT)util/rbtree.o: ../../lib/rbtree.c $(OUTPUT)PERF-CFLAGS
 	$(QUIET_CC)$(CC) -o $@ -c $(ALL_CFLAGS) -DETC_PERFCONFIG='"$(ETC_PERFCONFIG_SQ)"' $<

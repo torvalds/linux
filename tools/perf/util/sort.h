@@ -48,12 +48,6 @@ struct hist_entry {
 	u64			count_us;
 	u64			count_guest_sys;
 	u64			count_guest_us;
-
-	/*
-	 * XXX WARNING!
-	 * thread _has_ to come after ms, see
-	 * hist_browser__selected_thread in util/newt.c
-	 */
 	struct map_symbol	ms;
 	struct thread		*thread;
 	u64			ip;

@@ -843,3 +843,187 @@ void hists__filter_by_thread(struct hists *self, const struct thread *thread)
 		}
 	}
 }
+
+static int symbol__alloc_hist(struct symbol *self)
+{
+	struct sym_priv *priv = symbol__priv(self);
+	const int size = (sizeof(*priv->hist) +
+			  (self->end - self->start) * sizeof(u64));
+
+	priv->hist = zalloc(size);
+	return priv->hist == NULL ? -1 : 0;
+}
+
+int hist_entry__inc_addr_samples(struct hist_entry *self, u64 ip)
+{
+	unsigned int sym_size, offset;
+	struct symbol *sym = self->ms.sym;
+	struct sym_priv *priv;
+	struct sym_hist *h;
+
+	if (!sym || !self->ms.map)
+		return 0;
+
+	priv = symbol__priv(sym);
+	if (priv->hist == NULL && symbol__alloc_hist(sym) < 0)
+		return -ENOMEM;
+
+	sym_size = sym->end - sym->start;
+	offset = ip - sym->start;
+
+	pr_debug3("%s: ip=%#Lx\n", __func__, self->ms.map->unmap_ip(self->ms.map, ip));
+
+	if (offset >= sym_size)
+		return 0;
+
+	h = priv->hist;
+	h->sum++;
+	h->ip[offset]++;
+
+	pr_debug3("%#Lx %s: count++ [ip: %#Lx, %#Lx] => %Ld\n", self->ms.sym->start,
+		  self->ms.sym->name, ip, ip - self->ms.sym->start, h->ip[offset]);
+	return 0;
+}
+
+static struct objdump_line *objdump_line__new(s64 offset, char *line)
+{
+	struct objdump_line *self = malloc(sizeof(*self));
+
+	if (self != NULL) {
+		self->offset = offset;
+		self->line = line;
+	}
+
+	return self;
+}
+
+void objdump_line__free(struct objdump_line *self)
+{
+	free(self->line);
+	free(self);
+}
+
+static void objdump__add_line(struct list_head *head, struct objdump_line *line)
+{
+	list_add_tail(&line->node, head);
+}
+
+struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
+					       struct objdump_line *pos)
+{
+	list_for_each_entry_continue(pos, head, node)
+		if (pos->offset >= 0)
+			return pos;
+
+	return NULL;
+}
+
+static int hist_entry__parse_objdump_line(struct hist_entry *self, FILE *file,
+					  struct list_head *head)
+{
+	struct symbol *sym = self->ms.sym;
+	struct objdump_line *objdump_line;
+	char *line = NULL, *tmp, *tmp2, *c;
+	size_t line_len;
+	s64 line_ip, offset = -1;
+
+	if (getline(&line, &line_len, file) < 0)
+		return -1;
+
+	if (!line)
+		return -1;
+
+	while (line_len != 0 && isspace(line[line_len - 1]))
+		line[--line_len] = '\0';
+
+	c = strchr(line, '\n');
+	if (c)
+		*c = 0;
+
+	line_ip = -1;
+
+	/*
+	 * Strip leading spaces:
+	 */
+	tmp = line;
+	while (*tmp) {
+		if (*tmp != ' ')
+			break;
+		tmp++;
+	}
+
+	if (*tmp) {
+		/*
+		 * Parse hexa addresses followed by ':'
+		 */
+		line_ip = strtoull(tmp, &tmp2, 16);
+		if (*tmp2 != ':')
+			line_ip = -1;
+	}
+
+	if (line_ip != -1) {
+		u64 start = map__rip_2objdump(self->ms.map, sym->start);
+		offset = line_ip - start;
+	}
+
+	objdump_line = objdump_line__new(offset, line);
+	if (objdump_line == NULL) {
+		free(line);
+		return -1;
+	}
+	objdump__add_line(head, objdump_line);
+
+	return 0;
+}
+
+int hist_entry__annotate(struct hist_entry *self, struct list_head *head)
+{
+	struct symbol *sym = self->ms.sym;
+	struct map *map = self->ms.map;
+	struct dso *dso = map->dso;
+	const char *filename = dso->long_name;
+	char command[PATH_MAX * 2];
+	FILE *file;
+	u64 len;
+
+	if (!filename)
+		return -1;
+
+	if (dso->origin == DSO__ORIG_KERNEL) {
+		if (dso->annotate_warned)
+			return 0;
+		dso->annotate_warned = 1;
+		pr_err("Can't annotate %s: No vmlinux file was found in the "
+		       "path:\n", sym->name);
+		vmlinux_path__fprintf(stderr);
+		return -1;
+	}
+
+	pr_debug("%s: filename=%s, sym=%s, start=%#Lx, end=%#Lx\n", __func__,
+		 filename, sym->name, map->unmap_ip(map, sym->start),
+		 map->unmap_ip(map, sym->end));
+
+	len = sym->end - sym->start;
+
+	pr_debug("annotating [%p] %30s : [%p] %30s\n",
+		 dso, dso->long_name, sym, sym->name);
+
+	snprintf(command, sizeof(command),
+		 "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s|grep -v %s|expand",
+		 map__rip_2objdump(map, sym->start),
+		 map__rip_2objdump(map, sym->end),
+		 filename, filename);
+
+	pr_debug("Executing: %s\n", command);
+
+	file = popen(command, "r");
+	if (!file)
+		return -1;
+
+	while (!feof(file))
+		if (hist_entry__parse_objdump_line(self, file, head) < 0)
+			break;
+
+	pclose(file);
+	return 0;
+}
