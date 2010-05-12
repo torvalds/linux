@@ -101,10 +101,9 @@ config HID_CHICONY
 	Support for Chicony Tactical pad.
 
 config HID_PRODIKEYS
-	tristate "Prodikeys PC-MIDI Keyboard support" if EMBEDDED
+	tristate "Prodikeys PC-MIDI Keyboard support"
 	depends on USB_HID && SND
 	select SND_RAWMIDI
-	default !EMBEDDED
 	---help---
 	Support for Prodikeys PC-MIDI Keyboard device support.
 	Say Y here to enable support for this device.
