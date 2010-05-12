@@ -627,43 +627,6 @@ exit:
 }
 
 /**
- * usb_find_device - find a specific usb device in the system
- * @vendor_id: the vendor id of the device to find
- * @product_id: the product id of the device to find
- *
- * Returns a pointer to a struct usb_device if such a specified usb
- * device is present in the system currently.  The usage count of the
- * device will be incremented if a device is found.  Make sure to call
- * usb_put_dev() when the caller is finished with the device.
- *
- * If a device with the specified vendor and product id is not found,
- * NULL is returned.
- */
-struct usb_device *usb_find_device(u16 vendor_id, u16 product_id)
-{
-	struct list_head *buslist;
-	struct usb_bus *bus;
-	struct usb_device *dev = NULL;
-
-	mutex_lock(&usb_bus_list_lock);
-	for (buslist = usb_bus_list.next;
-	     buslist != &usb_bus_list;
-	     buslist = buslist->next) {
-		bus = container_of(buslist, struct usb_bus, bus_list);
-		if (!bus->root_hub)
-			continue;
-		usb_lock_device(bus->root_hub);
-		dev = match_device(bus->root_hub, vendor_id, product_id);
-		usb_unlock_device(bus->root_hub);
-		if (dev)
-			goto exit;
-	}
-exit:
-	mutex_unlock(&usb_bus_list_lock);
-	return dev;
-}
-
-/**
  * usb_get_current_frame_number - return current bus frame number
  * @dev: the device whose bus is being queried
  *
