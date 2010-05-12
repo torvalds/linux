@@ -4,6 +4,8 @@
 extern struct sys_timer shmobile_timer;
 extern void shmobile_setup_console(void);
 
+extern int clk_init(void);
+
 extern void sh7367_init_irq(void);
 extern void sh7367_add_early_devices(void);
 extern void sh7367_add_standard_devices(void);

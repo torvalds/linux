@@ -84,4 +84,7 @@ config SH_TIMER_TMU
 
 endmenu
 
+config SH_CLK_CPG
+	bool
+
 endif

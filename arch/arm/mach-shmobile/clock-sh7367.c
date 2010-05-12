@@ -21,42 +21,8 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/clk.h>
-
-struct clk {
-	const char *name;
-	unsigned long rate;
-};
-
+#include <linux/sh_clk.h>
 #include <asm/clkdev.h>
-
-int __clk_get(struct clk *clk)
-{
-	return 1;
-}
-EXPORT_SYMBOL(__clk_get);
-
-void __clk_put(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(__clk_put);
-
-
-int clk_enable(struct clk *clk)
-{
-	return 0;
-}
-EXPORT_SYMBOL(clk_enable);
-
-void clk_disable(struct clk *clk)
-{
-}
-EXPORT_SYMBOL(clk_disable);
-
-unsigned long clk_get_rate(struct clk *clk)
-{
-	return clk ? clk->rate : 0;
-}
-EXPORT_SYMBOL(clk_get_rate);
 
 /* a static peripheral clock for now - enough to get sh-sci working */
 static struct clk peripheral_clk = {
