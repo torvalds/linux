@@ -1783,7 +1783,7 @@ static int xfrm_add_pol_expire(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	} else {
 		// reset the timers here?
-		printk("Dont know what to do with soft policy expire\n");
+		WARN(1, "Dont know what to do with soft policy expire\n");
 	}
 	km_policy_expired(xp, p->dir, up->hard, current->pid);
 
@@ -1883,7 +1883,7 @@ static int xfrm_add_acquire(struct sk_buff *skb, struct nlmsghdr *nlh,
 	return 0;
 
 bad_policy:
-	printk("BAD policy passed\n");
+	WARN(1, "BAD policy passed\n");
 free_state:
 	kfree(x);
 nomem:
@@ -2385,8 +2385,9 @@ static int xfrm_send_state_notify(struct xfrm_state *x, struct km_event *c)
 	case XFRM_MSG_FLUSHSA:
 		return xfrm_notify_sa_flush(c);
 	default:
-		 printk("xfrm_user: Unknown SA event %d\n", c->event);
-		 break;
+		printk(KERN_NOTICE "xfrm_user: Unknown SA event %d\n",
+		       c->event);
+		break;
 	}
 
 	return 0;
@@ -2676,7 +2677,8 @@ static int xfrm_send_policy_notify(struct xfrm_policy *xp, int dir, struct km_ev
 	case XFRM_MSG_POLEXPIRE:
 		return xfrm_exp_policy_notify(xp, dir, c);
 	default:
-		printk("xfrm_user: Unknown Policy event %d\n", c->event);
+		printk(KERN_NOTICE "xfrm_user: Unknown Policy event %d\n",
+		       c->event);
 	}
 
 	return 0;
