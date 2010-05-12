@@ -736,9 +736,10 @@ static void cleanup_cap_releases(struct ceph_mds_session *session)
 }
 
 /*
- * Helper to safely iterate over all caps associated with a session.
+ * Helper to safely iterate over all caps associated with a session, with
+ * special care taken to handle a racing __ceph_remove_cap().
  *
- * caller must hold session s_mutex
+ * Caller must hold session s_mutex.
  */
 static int iterate_session_caps(struct ceph_mds_session *session,
 				 int (*cb)(struct inode *, struct ceph_cap *,
