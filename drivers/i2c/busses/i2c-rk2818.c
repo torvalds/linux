@@ -246,13 +246,15 @@ static int rk2818_wait_while_busy(struct rk2818_i2c_data *i2c)
 {
 	unsigned long timeout = jiffies + RK2818_I2C_TIMEOUT;
 	unsigned long lsr;
+	unsigned int time = 10;
 	dev_dbg(i2c->dev,"wait_while_busy");
 	while(!time_after(jiffies, timeout))
 	{
 		lsr = readl(i2c->regs + I2C_LSR);
 		if(!(lsr & I2C_LSR_BUSY))
 			return 0;
-		udelay(100);
+		udelay(time);
+		time *= 2;
 	}
 	return -ETIMEDOUT;
 }
