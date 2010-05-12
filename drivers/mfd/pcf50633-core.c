@@ -354,18 +354,18 @@ static void pcf50633_irq_worker(struct work_struct *work)
 	if (pcf_int[0] & (PCF50633_INT1_USBINS | PCF50633_INT1_USBREM)) {
 		chgstat = pcf50633_reg_read(pcf, PCF50633_REG_MBCS2);
 		if (chgstat & (0x3 << 4))
-			pcf_int[0] &= ~(1 << PCF50633_INT1_USBREM);
+			pcf_int[0] &= ~PCF50633_INT1_USBREM;
 		else
-			pcf_int[0] &= ~(1 << PCF50633_INT1_USBINS);
+			pcf_int[0] &= ~PCF50633_INT1_USBINS;
 	}
 
 	/* Make sure only one of ADPINS or ADPREM is set */
 	if (pcf_int[0] & (PCF50633_INT1_ADPINS | PCF50633_INT1_ADPREM)) {
 		chgstat = pcf50633_reg_read(pcf, PCF50633_REG_MBCS2);
 		if (chgstat & (0x3 << 4))
-			pcf_int[0] &= ~(1 << PCF50633_INT1_ADPREM);
+			pcf_int[0] &= ~PCF50633_INT1_ADPREM;
 		else
-			pcf_int[0] &= ~(1 << PCF50633_INT1_ADPINS);
+			pcf_int[0] &= ~PCF50633_INT1_ADPINS;
 	}
 
 	dev_dbg(pcf->dev, "INT1=0x%02x INT2=0x%02x INT3=0x%02x "
