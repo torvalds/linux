@@ -34,7 +34,7 @@
 #include "squashfs_fs_i.h"
 #include "squashfs.h"
 
-static inline struct xattr_handler *squashfs_xattr_handler(int);
+static struct xattr_handler *squashfs_xattr_handler(int);
 
 ssize_t squashfs_listxattr(struct dentry *d, char *buffer,
 	size_t buffer_size)
@@ -228,7 +228,7 @@ static int squashfs_user_get(struct dentry *d, const char *name, void *buffer,
 		buffer, size);
 }
 
-struct xattr_handler squashfs_xattr_user_handler = {
+static struct xattr_handler squashfs_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
 	.list	= squashfs_user_list,
 	.get	= squashfs_user_get
@@ -258,7 +258,7 @@ static int squashfs_trusted_get(struct dentry *d, const char *name,
 		buffer, size);
 }
 
-struct xattr_handler squashfs_xattr_trusted_handler = {
+static struct xattr_handler squashfs_xattr_trusted_handler = {
 	.prefix	= XATTR_TRUSTED_PREFIX,
 	.list	= squashfs_trusted_list,
 	.get	= squashfs_trusted_get
@@ -285,7 +285,7 @@ static int squashfs_security_get(struct dentry *d, const char *name,
 		buffer, size);
 }
 
-struct xattr_handler squashfs_xattr_security_handler = {
+static struct xattr_handler squashfs_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
 	.list	= squashfs_security_list,
 	.get	= squashfs_security_get
