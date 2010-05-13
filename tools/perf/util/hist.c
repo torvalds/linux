@@ -1,3 +1,4 @@
+#include "util.h"
 #include "hist.h"
 #include "session.h"
 #include "sort.h"
