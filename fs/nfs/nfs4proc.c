@@ -717,17 +717,18 @@ static void nfs4_init_opendata_res(struct nfs4_opendata *p)
 
 static struct nfs4_opendata *nfs4_opendata_alloc(struct path *path,
 		struct nfs4_state_owner *sp, fmode_t fmode, int flags,
-		const struct iattr *attrs)
+		const struct iattr *attrs,
+		gfp_t gfp_mask)
 {
 	struct dentry *parent = dget_parent(path->dentry);
 	struct inode *dir = parent->d_inode;
 	struct nfs_server *server = NFS_SERVER(dir);
 	struct nfs4_opendata *p;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), gfp_mask);
 	if (p == NULL)
 		goto err;
-	p->o_arg.seqid = nfs_alloc_seqid(&sp->so_seqid);
+	p->o_arg.seqid = nfs_alloc_seqid(&sp->so_seqid, gfp_mask);
 	if (p->o_arg.seqid == NULL)
 		goto err_free;
 	path_get(path);
@@ -1063,7 +1064,7 @@ static struct nfs4_opendata *nfs4_open_recoverdata_alloc(struct nfs_open_context
 {
 	struct nfs4_opendata *opendata;
 
-	opendata = nfs4_opendata_alloc(&ctx->path, state->owner, 0, 0, NULL);
+	opendata = nfs4_opendata_alloc(&ctx->path, state->owner, 0, 0, NULL, GFP_NOFS);
 	if (opendata == NULL)
 		return ERR_PTR(-ENOMEM);
 	opendata->state = state;
@@ -1651,7 +1652,7 @@ static int _nfs4_do_open(struct inode *dir, struct path *path, fmode_t fmode, in
 	if (path->dentry->d_inode != NULL)
 		nfs4_return_incompatible_delegation(path->dentry->d_inode, fmode);
 	status = -ENOMEM;
-	opendata = nfs4_opendata_alloc(path, sp, fmode, flags, sattr);
+	opendata = nfs4_opendata_alloc(path, sp, fmode, flags, sattr, GFP_KERNEL);
 	if (opendata == NULL)
 		goto err_put_state_owner;
 
@@ -1926,7 +1927,7 @@ static const struct rpc_call_ops nfs4_close_ops = {
  *
  * NOTE: Caller must be holding the sp->so_owner semaphore!
  */
-int nfs4_do_close(struct path *path, struct nfs4_state *state, int wait)
+int nfs4_do_close(struct path *path, struct nfs4_state *state, gfp_t gfp_mask, int wait)
 {
 	struct nfs_server *server = NFS_SERVER(state->inode);
 	struct nfs4_closedata *calldata;
@@ -1945,7 +1946,7 @@ int nfs4_do_close(struct path *path, struct nfs4_state *state, int wait)
 	};
 	int status = -ENOMEM;
 
-	calldata = kzalloc(sizeof(*calldata), GFP_KERNEL);
+	calldata = kzalloc(sizeof(*calldata), gfp_mask);
 	if (calldata == NULL)
 		goto out;
 	calldata->inode = state->inode;
@@ -1953,7 +1954,7 @@ int nfs4_do_close(struct path *path, struct nfs4_state *state, int wait)
 	calldata->arg.fh = NFS_FH(state->inode);
 	calldata->arg.stateid = &state->open_stateid;
 	/* Serialization for the sequence id */
-	calldata->arg.seqid = nfs_alloc_seqid(&state->owner->so_seqid);
+	calldata->arg.seqid = nfs_alloc_seqid(&state->owner->so_seqid, gfp_mask);
 	if (calldata->arg.seqid == NULL)
 		goto out_free_calldata;
 	calldata->arg.fmode = 0;
@@ -3704,7 +3705,7 @@ static int _nfs4_proc_delegreturn(struct inode *inode, struct rpc_cred *cred, co
 	};
 	int status = 0;
 
-	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	data = kzalloc(sizeof(*data), GFP_NOFS);
 	if (data == NULL)
 		return -ENOMEM;
 	data->args.fhandle = &data->fh;
@@ -3860,7 +3861,7 @@ static struct nfs4_unlockdata *nfs4_alloc_unlockdata(struct file_lock *fl,
 	struct nfs4_unlockdata *p;
 	struct inode *inode = lsp->ls_state->inode;
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), GFP_NOFS);
 	if (p == NULL)
 		return NULL;
 	p->arg.fh = NFS_FH(inode);
@@ -3998,7 +3999,7 @@ static int nfs4_proc_unlck(struct nfs4_state *state, int cmd, struct file_lock *
 	if (test_bit(NFS_DELEGATED_STATE, &state->flags))
 		goto out;
 	lsp = request->fl_u.nfs4_fl.owner;
-	seqid = nfs_alloc_seqid(&lsp->ls_seqid);
+	seqid = nfs_alloc_seqid(&lsp->ls_seqid, GFP_KERNEL);
 	status = -ENOMEM;
 	if (seqid == NULL)
 		goto out;
@@ -4026,22 +4027,23 @@ struct nfs4_lockdata {
 };
 
 static struct nfs4_lockdata *nfs4_alloc_lockdata(struct file_lock *fl,
-		struct nfs_open_context *ctx, struct nfs4_lock_state *lsp)
+		struct nfs_open_context *ctx, struct nfs4_lock_state *lsp,
+		gfp_t gfp_mask)
 {
 	struct nfs4_lockdata *p;
 	struct inode *inode = lsp->ls_state->inode;
 	struct nfs_server *server = NFS_SERVER(inode);
 
-	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	p = kzalloc(sizeof(*p), gfp_mask);
 	if (p == NULL)
 		return NULL;
 
 	p->arg.fh = NFS_FH(inode);
 	p->arg.fl = &p->fl;
-	p->arg.open_seqid = nfs_alloc_seqid(&lsp->ls_state->owner->so_seqid);
+	p->arg.open_seqid = nfs_alloc_seqid(&lsp->ls_state->owner->so_seqid, gfp_mask);
 	if (p->arg.open_seqid == NULL)
 		goto out_free;
-	p->arg.lock_seqid = nfs_alloc_seqid(&lsp->ls_seqid);
+	p->arg.lock_seqid = nfs_alloc_seqid(&lsp->ls_seqid, gfp_mask);
 	if (p->arg.lock_seqid == NULL)
 		goto out_free_seqid;
 	p->arg.lock_stateid = &lsp->ls_stateid;
@@ -4195,7 +4197,8 @@ static int _nfs4_do_setlk(struct nfs4_state *state, int cmd, struct file_lock *f
 
 	dprintk("%s: begin!\n", __func__);
 	data = nfs4_alloc_lockdata(fl, nfs_file_open_context(fl->fl_file),
-			fl->fl_u.nfs4_fl.owner);
+			fl->fl_u.nfs4_fl.owner,
+			recovery_type == NFS_LOCK_NEW ? GFP_KERNEL : GFP_NOFS);
 	if (data == NULL)
 		return -ENOMEM;
 	if (IS_SETLKW(cmd))
@@ -4684,7 +4687,7 @@ static int nfs4_reset_slot_table(struct nfs4_slot_table *tbl, u32 max_reqs,
 	if (max_reqs != tbl->max_slots) {
 		ret = -ENOMEM;
 		new = kmalloc(max_reqs * sizeof(struct nfs4_slot),
-			      GFP_KERNEL);
+			      GFP_NOFS);
 		if (!new)
 			goto out;
 		ret = 0;
@@ -4749,7 +4752,7 @@ static int nfs4_init_slot_table(struct nfs4_slot_table *tbl,
 
 	dprintk("--> %s: max_reqs=%u\n", __func__, max_slots);
 
-	slot = kcalloc(max_slots, sizeof(struct nfs4_slot), GFP_KERNEL);
+	slot = kcalloc(max_slots, sizeof(struct nfs4_slot), GFP_NOFS);
 	if (!slot)
 		goto out;
 	ret = 0;
@@ -4798,7 +4801,7 @@ struct nfs4_session *nfs4_alloc_session(struct nfs_client *clp)
 	struct nfs4_session *session;
 	struct nfs4_slot_table *tbl;
 
-	session = kzalloc(sizeof(struct nfs4_session), GFP_KERNEL);
+	session = kzalloc(sizeof(struct nfs4_session), GFP_NOFS);
 	if (!session)
 		return NULL;
 
@@ -5142,8 +5145,8 @@ static int nfs41_proc_async_sequence(struct nfs_client *clp,
 
 	if (!atomic_inc_not_zero(&clp->cl_count))
 		return -EIO;
-	args = kzalloc(sizeof(*args), GFP_KERNEL);
-	res = kzalloc(sizeof(*res), GFP_KERNEL);
+	args = kzalloc(sizeof(*args), GFP_NOFS);
+	res = kzalloc(sizeof(*res), GFP_NOFS);
 	if (!args || !res) {
 		kfree(args);
 		kfree(res);
@@ -5244,7 +5247,7 @@ static int nfs41_proc_reclaim_complete(struct nfs_client *clp)
 	int status = -ENOMEM;
 
 	dprintk("--> %s\n", __func__);
-	calldata = kzalloc(sizeof(*calldata), GFP_KERNEL);
+	calldata = kzalloc(sizeof(*calldata), GFP_NOFS);
 	if (calldata == NULL)
 		goto out;
 	calldata->clp = clp;
