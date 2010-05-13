@@ -408,6 +408,19 @@ static int ocfs2_mknod(struct inode *dir,
 		}
 	}
 
+	/*
+	 * Do this before adding the entry to the directory. We add
+	 * also set d_op after success so that ->d_iput() will cleanup
+	 * the dentry lock even if ocfs2_add_entry() fails below.
+	 */
+	status = ocfs2_dentry_attach_lock(dentry, inode,
+					  OCFS2_I(dir)->ip_blkno);
+	if (status) {
+		mlog_errno(status);
+		goto leave;
+	}
+	dentry->d_op = &ocfs2_dentry_ops;
+
 	status = ocfs2_add_entry(handle, dentry, inode,
 				 OCFS2_I(inode)->ip_blkno, parent_fe_bh,
 				 &lookup);
@@ -416,15 +429,7 @@ static int ocfs2_mknod(struct inode *dir,
 		goto leave;
 	}
 
-	status = ocfs2_dentry_attach_lock(dentry, inode,
-					  OCFS2_I(dir)->ip_blkno);
-	if (status) {
-		mlog_errno(status);
-		goto leave;
-	}
-
 	insert_inode_hash(inode);
-	dentry->d_op = &ocfs2_dentry_ops;
 	d_instantiate(dentry, inode);
 	status = 0;
 leave:
@@ -445,11 +450,6 @@ leave:
 
 	ocfs2_free_dir_lookup_result(&lookup);
 
-	if ((status < 0) && inode) {
-		clear_nlink(inode);
-		iput(inode);
-	}
-
 	if (inode_ac)
 		ocfs2_free_alloc_context(inode_ac);
 
@@ -458,6 +458,17 @@ leave:
 
 	if (meta_ac)
 		ocfs2_free_alloc_context(meta_ac);
+
+	/*
+	 * We should call iput after the i_mutex of the bitmap been
+	 * unlocked in ocfs2_free_alloc_context, or the
+	 * ocfs2_delete_inode will mutex_lock again.
+	 */
+	if ((status < 0) && inode) {
+		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_SKIP_ORPHAN_DIR;
+		clear_nlink(inode);
+		iput(inode);
+	}
 
 	mlog_exit(status);
 
@@ -1771,6 +1782,18 @@ static int ocfs2_symlink(struct inode *dir,
 		}
 	}
 
+	/*
+	 * Do this before adding the entry to the directory. We add
+	 * also set d_op after success so that ->d_iput() will cleanup
+	 * the dentry lock even if ocfs2_add_entry() fails below.
+	 */
+	status = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(dir)->ip_blkno);
+	if (status) {
+		mlog_errno(status);
+		goto bail;
+	}
+	dentry->d_op = &ocfs2_dentry_ops;
+
 	status = ocfs2_add_entry(handle, dentry, inode,
 				 le64_to_cpu(fe->i_blkno), parent_fe_bh,
 				 &lookup);
@@ -1779,14 +1802,7 @@ static int ocfs2_symlink(struct inode *dir,
 		goto bail;
 	}
 
-	status = ocfs2_dentry_attach_lock(dentry, inode, OCFS2_I(dir)->ip_blkno);
-	if (status) {
-		mlog_errno(status);
-		goto bail;
-	}
-
 	insert_inode_hash(inode);
-	dentry->d_op = &ocfs2_dentry_ops;
 	d_instantiate(dentry, inode);
 bail:
 	if (status < 0 && did_quota)
@@ -1811,6 +1827,7 @@ bail:
 	if (xattr_ac)
 		ocfs2_free_alloc_context(xattr_ac);
 	if ((status < 0) && inode) {
+		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_SKIP_ORPHAN_DIR;
 		clear_nlink(inode);
 		iput(inode);
 	}
@@ -1976,6 +1993,7 @@ static int ocfs2_orphan_add(struct ocfs2_super *osb,
 	}
 
 	le32_add_cpu(&fe->i_flags, OCFS2_ORPHANED_FL);
+	OCFS2_I(inode)->ip_flags &= ~OCFS2_INODE_SKIP_ORPHAN_DIR;
 
 	/* Record which orphan dir our inode now resides
 	 * in. delete_inode will use this to determine which orphan

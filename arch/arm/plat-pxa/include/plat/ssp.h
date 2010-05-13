@@ -1,5 +1,26 @@
-#ifndef __ASM_ARCH_REGS_SSP_H
-#define __ASM_ARCH_REGS_SSP_H
+/*
+ *  ssp.h
+ *
+ *  Copyright (C) 2003 Russell King, All Rights Reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This driver supports the following PXA CPU/SSP ports:-
+ *
+ *       PXA250     SSP
+ *       PXA255     SSP, NSSP
+ *       PXA26x     SSP, NSSP, ASSP
+ *       PXA27x     SSP1, SSP2, SSP3
+ *       PXA3xx     SSP1, SSP2, SSP3, SSP4
+ */
+
+#ifndef __ASM_ARCH_SSP_H
+#define __ASM_ARCH_SSP_H
+
+#include <linux/list.h>
+#include <linux/io.h>
 
 /*
  * SSP Serial Port Registers
@@ -19,10 +40,7 @@
 #define SSRSA		(0x34)  /* SSP Rx Timeslot Active */
 #define SSTSS		(0x38)  /* SSP Timeslot Status */
 #define SSACD		(0x3C)  /* SSP Audio Clock Divider */
-
-#if defined(CONFIG_PXA3xx)
 #define SSACDD		(0x40)	/* SSP Audio Clock Dither Divider */
-#endif
 
 /* Common PXA2xx bits first */
 #define SSCR0_DSS	(0x0000000f)	/* Data Size Select (mask) */
@@ -33,29 +51,19 @@
 #define SSCR0_National	(0x2 << 4)	/* National Microwire */
 #define SSCR0_ECS	(1 << 6)	/* External clock select */
 #define SSCR0_SSE	(1 << 7)	/* Synchronous Serial Port Enable */
+#define SSCR0_SCR(x)	((x) << 8)	/* Serial Clock Rate (mask) */
 
-#if defined(CONFIG_PXA25x)
-#define SSCR0_SCR	(0x0000ff00)	/* Serial Clock Rate (mask) */
-#define SSCR0_SerClkDiv(x) ((((x) - 2)/2) << 8) /* Divisor [2..512] */
-#elif defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
-#define SSCR0_SCR	(0x000fff00)	/* Serial Clock Rate (mask) */
-#define SSCR0_SerClkDiv(x) (((x) - 1) << 8) /* Divisor [1..4096] */
-#endif
-
-#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
+/* PXA27x, PXA3xx */
 #define SSCR0_EDSS	(1 << 20)	/* Extended data size select */
 #define SSCR0_NCS	(1 << 21)	/* Network clock select */
 #define SSCR0_RIM	(1 << 22)	/* Receive FIFO overrrun interrupt mask */
 #define SSCR0_TUM	(1 << 23)	/* Transmit FIFO underrun interrupt mask */
 #define SSCR0_FRDC	(0x07000000)	/* Frame rate divider control (mask) */
 #define SSCR0_SlotsPerFrm(x) (((x) - 1) << 24)	/* Time slots per frame [1..8] */
+#define SSCR0_FPCKE	(1 << 29)	/* FIFO packing enable */
 #define SSCR0_ACS	(1 << 30)	/* Audio clock select */
 #define SSCR0_MOD	(1 << 31)	/* Mode (normal or network) */
-#endif
 
-#if defined(CONFIG_PXA3xx)
-#define SSCR0_FPCKE	(1 << 29)	/* FIFO packing enable */
-#endif
 
 #define SSCR1_RIE	(1 << 0)	/* Receive FIFO Interrupt Enable */
 #define SSCR1_TIE	(1 << 1)	/* Transmit FIFO Interrupt Enable */
@@ -75,10 +83,6 @@
 #define SSSR_RFS	(1 << 6)	/* Receive FIFO Service Request */
 #define SSSR_ROR	(1 << 7)	/* Receive FIFO Overrun */
 
-#define SSCR0_TIM		(1 << 23)	/* Transmit FIFO Under Run Interrupt Mask */
-#define SSCR0_RIM		(1 << 22)	/* Receive FIFO Over Run interrupt Mask */
-#define SSCR0_NCS		(1 << 21)	/* Network Clock Select */
-#define SSCR0_EDSS		(1 << 20)	/* Extended Data Size Select */
 
 /* extra bits in PXA255, PXA26x and PXA27x SSP ports */
 #define SSCR0_TISSP		(1 << 4)	/* TI Sync Serial Protocol */
@@ -108,27 +112,75 @@
 #define SSSR_TINT		(1 << 19)	/* Receiver Time-out Interrupt */
 #define SSSR_PINT		(1 << 18)	/* Peripheral Trailing Byte Interrupt */
 
-#if defined(CONFIG_PXA3xx)
-#define SSPSP_EDMYSTOP(x)	((x) << 28)     /* Extended Dummy Stop */
-#define SSPSP_EDMYSTRT(x)	((x) << 26)     /* Extended Dummy Start */
-#endif
 
-#define SSPSP_FSRT		(1 << 25)	/* Frame Sync Relative Timing */
-#define SSPSP_DMYSTOP(x)	((x) << 23)	/* Dummy Stop */
-#define SSPSP_SFRMWDTH(x)	((x) << 16)	/* Serial Frame Width */
-#define SSPSP_SFRMDLY(x)	((x) << 9)	/* Serial Frame Delay */
-#define SSPSP_DMYSTRT(x)	((x) << 7)	/* Dummy Start */
-#define SSPSP_STRTDLY(x)	((x) << 4)	/* Start Delay */
-#define SSPSP_ETDS		(1 << 3)	/* End of Transfer data State */
-#define SSPSP_SFRMP		(1 << 2)	/* Serial Frame Polarity */
 #define SSPSP_SCMODE(x)		((x) << 0)	/* Serial Bit Rate Clock Mode */
+#define SSPSP_SFRMP		(1 << 2)	/* Serial Frame Polarity */
+#define SSPSP_ETDS		(1 << 3)	/* End of Transfer data State */
+#define SSPSP_STRTDLY(x)	((x) << 4)	/* Start Delay */
+#define SSPSP_DMYSTRT(x)	((x) << 7)	/* Dummy Start */
+#define SSPSP_SFRMDLY(x)	((x) << 9)	/* Serial Frame Delay */
+#define SSPSP_SFRMWDTH(x)	((x) << 16)	/* Serial Frame Width */
+#define SSPSP_DMYSTOP(x)	((x) << 23)	/* Dummy Stop */
+#define SSPSP_FSRT		(1 << 25)	/* Frame Sync Relative Timing */
+
+/* PXA3xx */
+#define SSPSP_EDMYSTRT(x)	((x) << 26)     /* Extended Dummy Start */
+#define SSPSP_EDMYSTOP(x)	((x) << 28)     /* Extended Dummy Stop */
+#define SSPSP_TIMING_MASK	(0x7f8001f0)
 
 #define SSACD_SCDB		(1 << 3)	/* SSPSYSCLK Divider Bypass */
 #define SSACD_ACPS(x)		((x) << 4)	/* Audio clock PLL select */
 #define SSACD_ACDS(x)		((x) << 0)	/* Audio clock divider select */
-#if defined(CONFIG_PXA3xx)
 #define SSACD_SCDX8		(1 << 7)	/* SYSCLK division ratio select */
-#endif
 
+enum pxa_ssp_type {
+	SSP_UNDEFINED = 0,
+	PXA25x_SSP,  /* pxa 210, 250, 255, 26x */
+	PXA25x_NSSP, /* pxa 255, 26x (including ASSP) */
+	PXA27x_SSP,
+	PXA168_SSP,
+};
 
-#endif /* __ASM_ARCH_REGS_SSP_H */
+struct ssp_device {
+	struct platform_device *pdev;
+	struct list_head	node;
+
+	struct clk	*clk;
+	void __iomem	*mmio_base;
+	unsigned long	phys_base;
+
+	const char	*label;
+	int		port_id;
+	int		type;
+	int		use_count;
+	int		irq;
+	int		drcmr_rx;
+	int		drcmr_tx;
+};
+
+/**
+ * pxa_ssp_write_reg - Write to a SSP register
+ *
+ * @dev: SSP device to access
+ * @reg: Register to write to
+ * @val: Value to be written.
+ */
+static inline void pxa_ssp_write_reg(struct ssp_device *dev, u32 reg, u32 val)
+{
+	__raw_writel(val, dev->mmio_base + reg);
+}
+
+/**
+ * pxa_ssp_read_reg - Read from a SSP register
+ *
+ * @dev: SSP device to access
+ * @reg: Register to read from
+ */
+static inline u32 pxa_ssp_read_reg(struct ssp_device *dev, u32 reg)
+{
+	return __raw_readl(dev->mmio_base + reg);
+}
+
+struct ssp_device *pxa_ssp_request(int port, const char *label);
+void pxa_ssp_free(struct ssp_device *);
+#endif /* __ASM_ARCH_SSP_H */

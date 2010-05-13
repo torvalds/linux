@@ -254,6 +254,53 @@ radeon_get_atom_connector_priv_from_encoder(struct drm_encoder *encoder)
 	return dig_connector;
 }
 
+void radeon_panel_mode_fixup(struct drm_encoder *encoder,
+			     struct drm_display_mode *adjusted_mode)
+{
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
+	unsigned hblank = native_mode->htotal - native_mode->hdisplay;
+	unsigned vblank = native_mode->vtotal - native_mode->vdisplay;
+	unsigned hover = native_mode->hsync_start - native_mode->hdisplay;
+	unsigned vover = native_mode->vsync_start - native_mode->vdisplay;
+	unsigned hsync_width = native_mode->hsync_end - native_mode->hsync_start;
+	unsigned vsync_width = native_mode->vsync_end - native_mode->vsync_start;
+
+	adjusted_mode->clock = native_mode->clock;
+	adjusted_mode->flags = native_mode->flags;
+
+	if (ASIC_IS_AVIVO(rdev)) {
+		adjusted_mode->hdisplay = native_mode->hdisplay;
+		adjusted_mode->vdisplay = native_mode->vdisplay;
+	}
+
+	adjusted_mode->htotal = native_mode->hdisplay + hblank;
+	adjusted_mode->hsync_start = native_mode->hdisplay + hover;
+	adjusted_mode->hsync_end = adjusted_mode->hsync_start + hsync_width;
+
+	adjusted_mode->vtotal = native_mode->vdisplay + vblank;
+	adjusted_mode->vsync_start = native_mode->vdisplay + vover;
+	adjusted_mode->vsync_end = adjusted_mode->vsync_start + vsync_width;
+
+	drm_mode_set_crtcinfo(adjusted_mode, CRTC_INTERLACE_HALVE_V);
+
+	if (ASIC_IS_AVIVO(rdev)) {
+		adjusted_mode->crtc_hdisplay = native_mode->hdisplay;
+		adjusted_mode->crtc_vdisplay = native_mode->vdisplay;
+	}
+
+	adjusted_mode->crtc_htotal = adjusted_mode->crtc_hdisplay + hblank;
+	adjusted_mode->crtc_hsync_start = adjusted_mode->crtc_hdisplay + hover;
+	adjusted_mode->crtc_hsync_end = adjusted_mode->crtc_hsync_start + hsync_width;
+
+	adjusted_mode->crtc_vtotal = adjusted_mode->crtc_vdisplay + vblank;
+	adjusted_mode->crtc_vsync_start = adjusted_mode->crtc_vdisplay + vover;
+	adjusted_mode->crtc_vsync_end = adjusted_mode->crtc_vsync_start + vsync_width;
+
+}
+
 static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 				   struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
@@ -275,18 +322,8 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 		adjusted_mode->crtc_vsync_start = adjusted_mode->crtc_vdisplay + 2;
 
 	/* get the native mode for LVDS */
-	if (radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
-		struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
-		int mode_id = adjusted_mode->base.id;
-		*adjusted_mode = *native_mode;
-		if (!ASIC_IS_AVIVO(rdev)) {
-			adjusted_mode->hdisplay = mode->hdisplay;
-			adjusted_mode->vdisplay = mode->vdisplay;
-			adjusted_mode->crtc_hdisplay = mode->hdisplay;
-			adjusted_mode->crtc_vdisplay = mode->vdisplay;
-		}
-		adjusted_mode->base.id = mode_id;
-	}
+	if (radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT))
+		radeon_panel_mode_fixup(encoder, adjusted_mode);
 
 	/* get the native mode for TV */
 	if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT)) {

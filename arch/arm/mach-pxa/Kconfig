@@ -19,7 +19,6 @@ config MACH_MAINSTONE
 config MACH_ZYLONITE
 	bool
 	select PXA3xx
-	select PXA_SSP
 	select HAVE_PWM
 	select PXA_HAVE_BOARD_IRQS
 
@@ -39,7 +38,6 @@ config MACH_LITTLETON
 	select PXA3xx
 	select CPU_PXA300
 	select CPU_PXA310
-	select PXA_SSP
 
 config MACH_TAVOREVB
 	bool "PXA930 Evaluation Board (aka TavorEVB)"
@@ -98,7 +96,6 @@ config MACH_ARMCORE
 	select PXA27x
 	select IWMMXT
 	select PXA25x
-	select PXA_SSP
 
 config MACH_EM_X270
 	bool "CompuLab EM-x270 platform"
@@ -161,7 +158,6 @@ config MACH_XCEP
 	select MTD_CFI
 	select MTD_CHAR
 	select SMC91X
-	select PXA_SSP
 	help
 	  PXA255 based Single Board Computer with SMC 91C111 ethernet chip and 64 MB of flash.
 	  Tuned for usage in Libera instruments for particle accelerators.
@@ -180,7 +176,6 @@ config MACH_TRIZEPS4WL
 	depends on TRIZEPS_PXA
 	select TRIZEPS_PCMCIA
 	select PXA27x
-	select PXA_SSP
 
 choice
 	prompt "Select base board for Trizeps module"
@@ -217,7 +212,6 @@ config MACH_PCM027
 	bool "Phytec phyCORE-PXA270 CPU module (PCM-027)"
 	select PXA27x
 	select IWMMXT
-	select PXA_SSP
 	select PXA_HAVE_BOARD_IRQS
 
 config MACH_PCM990_BASEBOARD
@@ -255,13 +249,19 @@ config MACH_COLIBRI320
 	select PXA3xx
 	select CPU_PXA320
 
+config MACH_VPAC270
+	bool "Voipac PXA270"
+	select PXA27x
+	select HAVE_PATA_PLATFORM
+	help
+	  PXA270 based Single Board Computer.
+
 comment "End-user Products (sorted by vendor name)"
 
 config MACH_H4700
 	bool "HP iPAQ hx4700"
 	select PXA27x
 	select IWMMXT
-	select PXA_SSP
 	select HAVE_PWM
 	select PXA_HAVE_BOARD_IRQS
 
@@ -277,7 +277,6 @@ config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
 	select PXA27x
 	select IWMMXT
-	select PXA_SSP
 	select HAVE_PWM
 	select PXA_HAVE_BOARD_IRQS
 
@@ -431,13 +430,11 @@ config MACH_RAUMFELD_CONNECTOR
 	bool "Raumfeld Connector"
 	select PXA3xx
 	select CPU_PXA300
-	select PXA_SSP
 
 config MACH_RAUMFELD_SPEAKER
 	bool "Raumfeld Speaker"
 	select PXA3xx
 	select CPU_PXA300
-	select PXA_SSP
 
 config PXA_SHARPSL
 	bool "SHARP Zaurus SL-5600, SL-C7xx and SL-Cxx00 Models"
@@ -461,21 +458,11 @@ config SHARPSL_PM_MAX1111
 	select HWMON
 	select SENSORS_MAX1111
 
-config CORGI_SSP_DEPRECATED
-	bool
-	select PXA_SSP
-	select PXA_SSP_LEGACY
-	help
-	  This option will include corgi_ssp.c and corgi_lcd.c
-	  that corgi_ts.c and other legacy drivers (corgi_bl.c
-	  and sharpsl_pm.c) may depend on.
-
 config MACH_POODLE
 	bool "Enable Sharp SL-5600 (Poodle) Support"
 	depends on PXA_SHARPSL
 	select PXA25x
 	select SHARP_LOCOMO
-	select PXA_SSP
 	select PXA_HAVE_BOARD_IRQS
 
 config MACH_CORGI
@@ -581,6 +568,12 @@ config MACH_E800
 	  Say Y here if you intend to run this kernel on a Toshiba
 	  e800 family PDA.
 
+config MACH_ZIPIT2
+	bool "Zipit Z2 Handheld"
+	select PXA27x
+	select HAVE_PWM
+	select PXA_HAVE_BOARD_IRQS
+
 endmenu
 
 config PXA25x
@@ -645,27 +638,15 @@ config CPU_PXA950
 
 config PXA_SHARP_C7xx
 	bool
-	select PXA_SSP
 	select SHARPSL_PM
 	help
 	  Enable support for all Sharp C7xx models
 
 config PXA_SHARP_Cxx00
 	bool
-	select PXA_SSP
 	select SHARPSL_PM
 	help
 	  Enable common support for Sharp Cxx00 models
-
-config PXA_SSP
-	tristate
-	help
-	  Enable support for PXA2xx SSP ports
-
-config PXA_SSP_LEGACY
-	bool
-	help
-	  Support of legacy SSP API
 
 config TOSA_BT
 	tristate "Control the state of built-in bluetooth chip on Sharp SL-6000"
@@ -674,6 +655,18 @@ config TOSA_BT
 	help
 	  This is a simple driver that is able to control
 	  the state of built in bluetooth chip on tosa.
+
+config TOSA_USE_EXT_KEYCODES
+	bool "Tosa keyboard: use extended keycodes"
+	depends on MACH_TOSA
+	default n
+	help
+	  Say Y here to enable the tosa keyboard driver to generate extended
+	  (>= 127) keycodes. Be aware, that they can't be correctly interpreted
+	  by either console keyboard driver or by Kdrive keybd driver.
+
+	  Say Y only if you know, what you are doing!
+
 
 config PXA_HAVE_BOARD_IRQS
 	bool

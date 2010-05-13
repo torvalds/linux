@@ -28,6 +28,7 @@
  * for more details.
  */
 
+#include <linux/init.h>
 #include <linux/linkage.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
@@ -49,7 +50,7 @@ swapper_pg_dir:
 
 #endif /* CONFIG_MMU */
 
-	.text
+	__HEAD
 ENTRY(_start)
 #if CONFIG_KERNEL_BASE_ADDR == 0
 	brai	TOPHYS(real_start)

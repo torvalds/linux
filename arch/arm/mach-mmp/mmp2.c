@@ -15,11 +15,14 @@
 #include <linux/init.h>
 #include <linux/io.h>
 
+#include <asm/hardware/cache-tauros2.h>
+
 #include <mach/addr-map.h>
 #include <mach/regs-apbc.h>
 #include <mach/regs-apmu.h>
 #include <mach/cputype.h>
 #include <mach/irqs.h>
+#include <mach/dma.h>
 #include <mach/mfp.h>
 #include <mach/gpio.h>
 #include <mach/devices.h>
@@ -32,7 +35,50 @@
 #define APMASK(i)	(GPIO_REGS_VIRT + BANK_OFF(i) + 0x9c)
 
 static struct mfp_addr_map mmp2_addr_map[] __initdata = {
+
+	MFP_ADDR_X(GPIO0, GPIO58, 0x54),
+	MFP_ADDR_X(GPIO59, GPIO73, 0x280),
+	MFP_ADDR_X(GPIO74, GPIO101, 0x170),
+
+	MFP_ADDR(GPIO102, 0x0),
+	MFP_ADDR(GPIO103, 0x4),
+	MFP_ADDR(GPIO104, 0x1fc),
+	MFP_ADDR(GPIO105, 0x1f8),
+	MFP_ADDR(GPIO106, 0x1f4),
+	MFP_ADDR(GPIO107, 0x1f0),
+	MFP_ADDR(GPIO108, 0x21c),
+	MFP_ADDR(GPIO109, 0x218),
+	MFP_ADDR(GPIO110, 0x214),
+	MFP_ADDR(GPIO111, 0x200),
+	MFP_ADDR(GPIO112, 0x244),
+	MFP_ADDR(GPIO113, 0x25c),
+	MFP_ADDR(GPIO114, 0x164),
+	MFP_ADDR_X(GPIO115, GPIO122, 0x260),
+
+	MFP_ADDR(GPIO123, 0x148),
+	MFP_ADDR_X(GPIO124, GPIO141, 0xc),
+
+	MFP_ADDR(GPIO142, 0x8),
+	MFP_ADDR_X(GPIO143, GPIO151, 0x220),
+	MFP_ADDR_X(GPIO152, GPIO153, 0x248),
+	MFP_ADDR_X(GPIO154, GPIO155, 0x254),
+	MFP_ADDR_X(GPIO156, GPIO159, 0x14c),
+
+	MFP_ADDR(GPIO160, 0x250),
+	MFP_ADDR(GPIO161, 0x210),
+	MFP_ADDR(GPIO162, 0x20c),
+	MFP_ADDR(GPIO163, 0x208),
+	MFP_ADDR(GPIO164, 0x204),
+	MFP_ADDR(GPIO165, 0x1ec),
+	MFP_ADDR(GPIO166, 0x1e8),
+	MFP_ADDR(GPIO167, 0x1e4),
+	MFP_ADDR(GPIO168, 0x1e0),
+
+	MFP_ADDR_X(TWSI1_SCL, TWSI1_SDA, 0x140),
+	MFP_ADDR_X(TWSI4_SCL, TWSI4_SDA, 0x2bc),
+
 	MFP_ADDR(PMIC_INT, 0x2c4),
+	MFP_ADDR(CLK_REQ, 0x160),
 
 	MFP_ADDR_END,
 };
@@ -99,9 +145,13 @@ static struct clk_lookup mmp2_clkregs[] = {
 static int __init mmp2_init(void)
 {
 	if (cpu_is_mmp2()) {
+#ifdef CONFIG_CACHE_TAUROS2
+		tauros2_init();
+#endif
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(mmp2_addr_map);
-		clks_register(ARRAY_AND_SIZE(mmp2_clkregs));
+		pxa_init_dma(IRQ_MMP2_DMA_RIQ, 16);
+		clkdev_add_table(ARRAY_AND_SIZE(mmp2_clkregs));
 	}
 
 	return 0;
