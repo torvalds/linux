@@ -1588,6 +1588,13 @@ i915_gem_process_flushing_list(struct drm_device *dev,
 	}
 }
 
+#define PIPE_CONTROL_FLUSH(addr)					\
+	OUT_RING(GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |		\
+		 PIPE_CONTROL_DEPTH_STALL);				\
+	OUT_RING(addr | PIPE_CONTROL_GLOBAL_GTT);			\
+	OUT_RING(0);							\
+	OUT_RING(0);							\
+
 /**
  * Creates a new sequence number, emitting a write of it to the status page
  * plus an interrupt, which will trigger i915_user_interrupt_handler.
@@ -1622,13 +1629,47 @@ i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
 	if (dev_priv->mm.next_gem_seqno == 0)
 		dev_priv->mm.next_gem_seqno++;
 
-	BEGIN_LP_RING(4);
-	OUT_RING(MI_STORE_DWORD_INDEX);
-	OUT_RING(I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	OUT_RING(seqno);
+	if (HAS_PIPE_CONTROL(dev)) {
+		u32 scratch_addr = dev_priv->seqno_gfx_addr + 128;
 
-	OUT_RING(MI_USER_INTERRUPT);
-	ADVANCE_LP_RING();
+		/*
+		 * Workaround qword write incoherence by flushing the
+		 * PIPE_NOTIFY buffers out to memory before requesting
+		 * an interrupt.
+		 */
+		BEGIN_LP_RING(32);
+		OUT_RING(GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
+			 PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH);
+		OUT_RING(dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
+		OUT_RING(seqno);
+		OUT_RING(0);
+		PIPE_CONTROL_FLUSH(scratch_addr);
+		scratch_addr += 128; /* write to separate cachelines */
+		PIPE_CONTROL_FLUSH(scratch_addr);
+		scratch_addr += 128;
+		PIPE_CONTROL_FLUSH(scratch_addr);
+		scratch_addr += 128;
+		PIPE_CONTROL_FLUSH(scratch_addr);
+		scratch_addr += 128;
+		PIPE_CONTROL_FLUSH(scratch_addr);
+		scratch_addr += 128;
+		PIPE_CONTROL_FLUSH(scratch_addr);
+		OUT_RING(GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |
+			 PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_TC_FLUSH |
+			 PIPE_CONTROL_NOTIFY);
+		OUT_RING(dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
+		OUT_RING(seqno);
+		OUT_RING(0);
+		ADVANCE_LP_RING();
+	} else {
+		BEGIN_LP_RING(4);
+		OUT_RING(MI_STORE_DWORD_INDEX);
+		OUT_RING(I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
+		OUT_RING(seqno);
+
+		OUT_RING(MI_USER_INTERRUPT);
+		ADVANCE_LP_RING();
+	}
 
 	DRM_DEBUG_DRIVER("%d\n", seqno);
 
@@ -1752,7 +1793,10 @@ i915_get_gem_seqno(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	return READ_HWSP(dev_priv, I915_GEM_HWS_INDEX);
+	if (HAS_PIPE_CONTROL(dev))
+		return ((volatile u32 *)(dev_priv->seqno_page))[0];
+	else
+		return READ_HWSP(dev_priv, I915_GEM_HWS_INDEX);
 }
 
 /**
@@ -2361,6 +2405,12 @@ static void i915_write_fence_reg(struct drm_i915_fence_reg *reg)
 	/* Note: pitch better be a power of two tile widths */
 	pitch_val = obj_priv->stride / tile_width;
 	pitch_val = ffs(pitch_val) - 1;
+
+	if (obj_priv->tiling_mode == I915_TILING_Y &&
+	    HAS_128_BYTE_Y_TILING(dev))
+		WARN_ON(pitch_val > I830_FENCE_MAX_PITCH_VAL);
+	else
+		WARN_ON(pitch_val > I915_FENCE_MAX_PITCH_VAL);
 
 	val = obj_priv->gtt_offset;
 	if (obj_priv->tiling_mode == I915_TILING_Y)
@@ -4546,6 +4596,49 @@ i915_gem_idle(struct drm_device *dev)
 	return 0;
 }
 
+/*
+ * 965+ support PIPE_CONTROL commands, which provide finer grained control
+ * over cache flushing.
+ */
+static int
+i915_gem_init_pipe_control(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_gem_object *obj;
+	struct drm_i915_gem_object *obj_priv;
+	int ret;
+
+	obj = drm_gem_object_alloc(dev, 4096);
+	if (obj == NULL) {
+		DRM_ERROR("Failed to allocate seqno page\n");
+		ret = -ENOMEM;
+		goto err;
+	}
+	obj_priv = to_intel_bo(obj);
+	obj_priv->agp_type = AGP_USER_CACHED_MEMORY;
+
+	ret = i915_gem_object_pin(obj, 4096);
+	if (ret)
+		goto err_unref;
+
+	dev_priv->seqno_gfx_addr = obj_priv->gtt_offset;
+	dev_priv->seqno_page =  kmap(obj_priv->pages[0]);
+	if (dev_priv->seqno_page == NULL)
+		goto err_unpin;
+
+	dev_priv->seqno_obj = obj;
+	memset(dev_priv->seqno_page, 0, PAGE_SIZE);
+
+	return 0;
+
+err_unpin:
+	i915_gem_object_unpin(obj);
+err_unref:
+	drm_gem_object_unreference(obj);
+err:
+	return ret;
+}
+
 static int
 i915_gem_init_hws(struct drm_device *dev)
 {
@@ -4563,7 +4656,8 @@ i915_gem_init_hws(struct drm_device *dev)
 	obj = drm_gem_object_alloc(dev, 4096);
 	if (obj == NULL) {
 		DRM_ERROR("Failed to allocate status page\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto err;
 	}
 	obj_priv = to_intel_bo(obj);
 	obj_priv->agp_type = AGP_USER_CACHED_MEMORY;
@@ -4571,7 +4665,7 @@ i915_gem_init_hws(struct drm_device *dev)
 	ret = i915_gem_object_pin(obj, 4096);
 	if (ret != 0) {
 		drm_gem_object_unreference(obj);
-		return ret;
+		goto err_unref;
 	}
 
 	dev_priv->status_gfx_addr = obj_priv->gtt_offset;
@@ -4580,10 +4674,16 @@ i915_gem_init_hws(struct drm_device *dev)
 	if (dev_priv->hw_status_page == NULL) {
 		DRM_ERROR("Failed to map status page.\n");
 		memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
-		i915_gem_object_unpin(obj);
-		drm_gem_object_unreference(obj);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto err_unpin;
 	}
+
+	if (HAS_PIPE_CONTROL(dev)) {
+		ret = i915_gem_init_pipe_control(dev);
+		if (ret)
+			goto err_unpin;
+	}
+
 	dev_priv->hws_obj = obj;
 	memset(dev_priv->hw_status_page, 0, PAGE_SIZE);
 	if (IS_GEN6(dev)) {
@@ -4596,6 +4696,30 @@ i915_gem_init_hws(struct drm_device *dev)
 	DRM_DEBUG_DRIVER("hws offset: 0x%08x\n", dev_priv->status_gfx_addr);
 
 	return 0;
+
+err_unpin:
+	i915_gem_object_unpin(obj);
+err_unref:
+	drm_gem_object_unreference(obj);
+err:
+	return 0;
+}
+
+static void
+i915_gem_cleanup_pipe_control(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	struct drm_gem_object *obj;
+	struct drm_i915_gem_object *obj_priv;
+
+	obj = dev_priv->seqno_obj;
+	obj_priv = to_intel_bo(obj);
+	kunmap(obj_priv->pages[0]);
+	i915_gem_object_unpin(obj);
+	drm_gem_object_unreference(obj);
+	dev_priv->seqno_obj = NULL;
+
+	dev_priv->seqno_page = NULL;
 }
 
 static void
@@ -4618,6 +4742,9 @@ i915_gem_cleanup_hws(struct drm_device *dev)
 
 	memset(&dev_priv->hws_map, 0, sizeof(dev_priv->hws_map));
 	dev_priv->hw_status_page = NULL;
+
+	if (HAS_PIPE_CONTROL(dev))
+		i915_gem_cleanup_pipe_control(dev);
 
 	/* Write high address into HWS_PGA when disabling. */
 	I915_WRITE(HWS_PGA, 0x1ffff000);

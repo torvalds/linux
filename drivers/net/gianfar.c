@@ -549,12 +549,8 @@ static int gfar_parse_group(struct device_node *np,
 		struct gfar_private *priv, const char *model)
 {
 	u32 *queue_mask;
-	u64 addr, size;
 
-	addr = of_translate_address(np,
-			of_get_address(np, 0, &size, NULL));
-	priv->gfargrp[priv->num_grps].regs = ioremap(addr, size);
-
+	priv->gfargrp[priv->num_grps].regs = of_iomap(np, 0);
 	if (!priv->gfargrp[priv->num_grps].regs)
 		return -ENOMEM;
 
@@ -1515,9 +1511,9 @@ static void gfar_halt_nodisable(struct net_device *dev)
 		tempval |= (DMACTRL_GRS | DMACTRL_GTS);
 		gfar_write(&regs->dmactrl, tempval);
 
-		while (!(gfar_read(&regs->ievent) &
-			 (IEVENT_GRSC | IEVENT_GTSC)))
-			cpu_relax();
+		spin_event_timeout(((gfar_read(&regs->ievent) &
+			 (IEVENT_GRSC | IEVENT_GTSC)) ==
+			 (IEVENT_GRSC | IEVENT_GTSC)), -1, 0);
 	}
 }
 
@@ -1653,6 +1649,7 @@ static void free_skb_resources(struct gfar_private *priv)
 			sizeof(struct rxbd8) * priv->total_rx_ring_size,
 			priv->tx_queue[0]->tx_bd_base,
 			priv->tx_queue[0]->tx_bd_dma_base);
+	skb_queue_purge(&priv->rx_recycle);
 }
 
 void gfar_start(struct net_device *dev)
@@ -2092,7 +2089,6 @@ static int gfar_close(struct net_device *dev)
 
 	disable_napi(priv);
 
-	skb_queue_purge(&priv->rx_recycle);
 	cancel_work_sync(&priv->reset_task);
 	stop_gfar(dev);
 

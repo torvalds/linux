@@ -385,4 +385,25 @@ config USB_CDC_PHONET
 	  cellular modem, as found on most Nokia handsets with the
 	  "PC suite" USB profile.
 
+config USB_IPHETH
+	tristate "Apple iPhone USB Ethernet driver"
+	default n
+	---help---
+	  Module used to share Internet connection (tethering) from your
+	  iPhone (Original, 3G and 3GS) to your system.
+	  Note that you need userspace libraries and programs that are needed
+	  to pair your device with your system and that understand the iPhone
+	  protocol.
+
+	  For more information: http://giagio.com/wiki/moin.cgi/iPhoneEthernetDriver
+
+config USB_SIERRA_NET
+	tristate "USB-to-WWAN Driver for Sierra Wireless modems"
+	depends on USB_USBNET
+	help
+	  Choose this option if you have a Sierra Wireless USB-to-WWAN device.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called sierra_net.
+
 endmenu

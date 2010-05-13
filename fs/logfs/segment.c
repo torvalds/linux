@@ -183,14 +183,8 @@ static int btree_write_alias(struct super_block *sb, struct logfs_block *block,
 	return 0;
 }
 
-static gc_level_t btree_block_level(struct logfs_block *block)
-{
-	return expand_level(block->ino, block->level);
-}
-
 static struct logfs_block_ops btree_block_ops = {
 	.write_block	= btree_write_block,
-	.block_level	= btree_block_level,
 	.free_block	= __free_block,
 	.write_alias	= btree_write_alias,
 };
@@ -919,7 +913,7 @@ err:
 	for (i--; i >= 0; i--)
 		free_area(super->s_area[i]);
 	free_area(super->s_journal_area);
-	mempool_destroy(super->s_alias_pool);
+	logfs_mempool_destroy(super->s_alias_pool);
 	return -ENOMEM;
 }
 

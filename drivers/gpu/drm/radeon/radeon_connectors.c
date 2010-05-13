@@ -1316,6 +1316,8 @@ radeon_add_legacy_connector(struct drm_device *dev,
 			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "DVI");
 			if (!radeon_connector->ddc_bus)
 				goto failed;
+		}
+		if (connector_type == DRM_MODE_CONNECTOR_DVII) {
 			radeon_connector->dac_load_detect = true;
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.load_detect_property,

@@ -456,8 +456,17 @@ static int siena_try_update_nic_stats(struct efx_nic *efx)
 
 static void siena_update_nic_stats(struct efx_nic *efx)
 {
-	while (siena_try_update_nic_stats(efx) == -EAGAIN)
-		cpu_relax();
+	int retry;
+
+	/* If we're unlucky enough to read statistics wduring the DMA, wait
+	 * up to 10ms for it to finish (typically takes <500us) */
+	for (retry = 0; retry < 100; ++retry) {
+		if (siena_try_update_nic_stats(efx) == 0)
+			return;
+		udelay(100);
+	}
+
+	/* Use the old values instead */
 }
 
 static void siena_start_nic_stats(struct efx_nic *efx)

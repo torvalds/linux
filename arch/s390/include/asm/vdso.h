@@ -29,6 +29,7 @@ struct vdso_data {
 	__u32 tz_minuteswest;		/* Minutes west of Greenwich	0x30 */
 	__u32 tz_dsttime;		/* Type of dst correction	0x34 */
 	__u32 ectg_available;
+	__u32 ntp_mult;			/* NTP adjusted multiplier	0x3C */
 };
 
 struct vdso_per_cpu_data {

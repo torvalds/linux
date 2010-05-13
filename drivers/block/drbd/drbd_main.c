@@ -1695,6 +1695,7 @@ int drbd_send_protocol(struct drbd_conf *mdev)
 			cf |= CF_DRY_RUN;
 		else {
 			dev_err(DEV, "--dry-run is not supported by peer");
+			kfree(p);
 			return 0;
 		}
 	}

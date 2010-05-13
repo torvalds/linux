@@ -1641,7 +1641,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 	if (nd->last.name[nd->last.len]) {
 		if (open_flag & O_CREAT)
 			goto exit;
-		nd->flags |= LOOKUP_DIRECTORY;
+		nd->flags |= LOOKUP_DIRECTORY | LOOKUP_FOLLOW;
 	}
 
 	/* just plain open? */
@@ -1830,6 +1830,8 @@ reval:
 	}
 	if (open_flag & O_DIRECTORY)
 		nd.flags |= LOOKUP_DIRECTORY;
+	if (!(open_flag & O_NOFOLLOW))
+		nd.flags |= LOOKUP_FOLLOW;
 	filp = do_last(&nd, &path, open_flag, acc_mode, mode, pathname);
 	while (unlikely(!filp)) { /* trailing symlink */
 		struct path holder;
@@ -1837,7 +1839,7 @@ reval:
 		void *cookie;
 		error = -ELOOP;
 		/* S_ISDIR part is a temporary automount kludge */
-		if ((open_flag & O_NOFOLLOW) && !S_ISDIR(inode->i_mode))
+		if (!(nd.flags & LOOKUP_FOLLOW) && !S_ISDIR(inode->i_mode))
 			goto exit_dput;
 		if (count++ == 32)
 			goto exit_dput;
