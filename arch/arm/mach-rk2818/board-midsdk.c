@@ -281,11 +281,13 @@ static struct spi_board_info board_spi_devices[] = {
 		.mode	= SPI_MODE_0,
 	},
 
-};
+}; 
 
 static struct platform_device *devices[] __initdata = {
 	&rk2818_device_uart1,
 	&rk2818_device_dm9k,
+	&rk2818_device_i2c0,
+	&rk2818_device_i2c1,
 	&rk2818_device_spim,
 };
 
@@ -299,9 +301,9 @@ static void __init machine_rk2818_init_irq(void)
 }
 
 static void __init machine_rk2818_board_init(void)
-{
+{	
 	rk2818_i2c_board_init();
-	platform_add_devices(devices, ARRAY_SIZE(devices));
+	platform_add_devices(devices, ARRAY_SIZE(devices));	
 	spi_register_board_info(board_spi_devices, ARRAY_SIZE(board_spi_devices));
 	rk2818_mux_api_set(GPIOB4_SPI0CS0_MMC0D4_NAME,IOMUXA_GPIO0_B4); //IOMUXA_SPI0_CSN0);//use for gpio SPI CS0
 	rk2818_mux_api_set(GPIOB0_SPI0CSN1_MMC1PCA_NAME,IOMUXA_GPIO0_B0); //IOMUXA_SPI0_CSN1);//use for gpio SPI CS1
@@ -315,7 +317,7 @@ static void __init machine_rk2818_mapio(void)
 	rk2818_iomux_init();	
 }
 
-MACHINE_START(RK2818, "rk2818midsdk")
+MACHINE_START(RK2818, "RK28board")
 
 /* UART for LL DEBUG */
 	.phys_io	= 0x18002000,

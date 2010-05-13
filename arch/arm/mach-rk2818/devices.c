@@ -51,7 +51,9 @@ static struct resource resources_i2c1[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 };
-
+/*
+ * rk2818 4 uarts device
+ */
 static struct resource resources_uart0[] = {
 	{
 		.start	= IRQ_NR_UART0,
