@@ -293,12 +293,12 @@ static int __init nf_nat_standalone_init(void)
 #endif
 	ret = nf_nat_rule_init();
 	if (ret < 0) {
-		printk("nf_nat_init: can't setup rules.\n");
+		pr_err("nf_nat_init: can't setup rules.\n");
 		goto cleanup_decode_session;
 	}
 	ret = nf_register_hooks(nf_nat_ops, ARRAY_SIZE(nf_nat_ops));
 	if (ret < 0) {
-		printk("nf_nat_init: can't register hooks.\n");
+		pr_err("nf_nat_init: can't register hooks.\n");
 		goto cleanup_rule_init;
 	}
 	return ret;

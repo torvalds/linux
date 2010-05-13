@@ -2057,29 +2057,29 @@ static int __init ctnetlink_init(void)
 {
 	int ret;
 
-	printk("ctnetlink v%s: registering with nfnetlink.\n", version);
+	pr_info("ctnetlink v%s: registering with nfnetlink.\n", version);
 	ret = nfnetlink_subsys_register(&ctnl_subsys);
 	if (ret < 0) {
-		printk("ctnetlink_init: cannot register with nfnetlink.\n");
+		pr_err("ctnetlink_init: cannot register with nfnetlink.\n");
 		goto err_out;
 	}
 
 	ret = nfnetlink_subsys_register(&ctnl_exp_subsys);
 	if (ret < 0) {
-		printk("ctnetlink_init: cannot register exp with nfnetlink.\n");
+		pr_err("ctnetlink_init: cannot register exp with nfnetlink.\n");
 		goto err_unreg_subsys;
 	}
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 	ret = nf_conntrack_register_notifier(&ctnl_notifier);
 	if (ret < 0) {
-		printk("ctnetlink_init: cannot register notifier.\n");
+		pr_err("ctnetlink_init: cannot register notifier.\n");
 		goto err_unreg_exp_subsys;
 	}
 
 	ret = nf_ct_expect_register_notifier(&ctnl_notifier_exp);
 	if (ret < 0) {
-		printk("ctnetlink_init: cannot expect register notifier.\n");
+		pr_err("ctnetlink_init: cannot expect register notifier.\n");
 		goto err_unreg_notifier;
 	}
 #endif
@@ -2100,7 +2100,7 @@ err_out:
 
 static void __exit ctnetlink_exit(void)
 {
-	printk("ctnetlink: unregistering from nfnetlink.\n");
+	pr_info("ctnetlink: unregistering from nfnetlink.\n");
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 	nf_ct_expect_unregister_notifier(&ctnl_notifier_exp);
@@ -2109,7 +2109,6 @@ static void __exit ctnetlink_exit(void)
 
 	nfnetlink_subsys_unregister(&ctnl_exp_subsys);
 	nfnetlink_subsys_unregister(&ctnl_subsys);
-	return;
 }
 
 module_init(ctnetlink_init);

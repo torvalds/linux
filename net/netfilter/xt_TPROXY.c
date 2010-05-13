@@ -25,7 +25,7 @@
 #include <net/netfilter/nf_tproxy_core.h>
 
 static unsigned int
-tproxy_tg(struct sk_buff *skb, const struct xt_target_param *par)
+tproxy_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	const struct xt_tproxy_target_info *tgi = par->targinfo;

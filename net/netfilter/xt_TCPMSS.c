@@ -172,7 +172,7 @@ static u_int32_t tcpmss_reverse_mtu(const struct sk_buff *skb,
 }
 
 static unsigned int
-tcpmss_tg4(struct sk_buff *skb, const struct xt_target_param *par)
+tcpmss_tg4(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct iphdr *iph = ip_hdr(skb);
 	__be16 newlen;
@@ -195,7 +195,7 @@ tcpmss_tg4(struct sk_buff *skb, const struct xt_target_param *par)
 
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
 static unsigned int
-tcpmss_tg6(struct sk_buff *skb, const struct xt_target_param *par)
+tcpmss_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct ipv6hdr *ipv6h = ipv6_hdr(skb);
 	u8 nexthdr;

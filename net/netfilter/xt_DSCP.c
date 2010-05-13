@@ -28,7 +28,7 @@ MODULE_ALIAS("ipt_TOS");
 MODULE_ALIAS("ip6t_TOS");
 
 static unsigned int
-dscp_tg(struct sk_buff *skb, const struct xt_target_param *par)
+dscp_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_DSCP_info *dinfo = par->targinfo;
 	u_int8_t dscp = ipv4_get_dsfield(ip_hdr(skb)) >> XT_DSCP_SHIFT;
@@ -45,7 +45,7 @@ dscp_tg(struct sk_buff *skb, const struct xt_target_param *par)
 }
 
 static unsigned int
-dscp_tg6(struct sk_buff *skb, const struct xt_target_param *par)
+dscp_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_DSCP_info *dinfo = par->targinfo;
 	u_int8_t dscp = ipv6_get_dsfield(ipv6_hdr(skb)) >> XT_DSCP_SHIFT;
@@ -72,7 +72,7 @@ static int dscp_tg_check(const struct xt_tgchk_param *par)
 }
 
 static unsigned int
-tos_tg(struct sk_buff *skb, const struct xt_target_param *par)
+tos_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_tos_target_info *info = par->targinfo;
 	struct iphdr *iph = ip_hdr(skb);
@@ -92,7 +92,7 @@ tos_tg(struct sk_buff *skb, const struct xt_target_param *par)
 }
 
 static unsigned int
-tos_tg6(struct sk_buff *skb, const struct xt_target_param *par)
+tos_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_tos_target_info *info = par->targinfo;
 	struct ipv6hdr *iph = ipv6_hdr(skb);

@@ -462,7 +462,6 @@ __ipq_rcv_skb(struct sk_buff *skb)
 
 	if (flags & NLM_F_ACK)
 		netlink_ack(skb, nlh, 0);
-	return;
 }
 
 static void

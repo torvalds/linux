@@ -72,7 +72,7 @@ ports_match_v1(const struct xt_multiport_v1 *minfo,
 }
 
 static bool
-multiport_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+multiport_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const __be16 *pptr;
 	__be16 _ports[2];
@@ -87,7 +87,7 @@ multiport_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		 * can't.  Hence, no choice but to drop.
 		 */
 		pr_debug("Dropping evil offset=0 tinygram.\n");
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 
@@ -117,7 +117,7 @@ static int multiport_mt_check(const struct xt_mtchk_param *par)
 	const struct xt_multiport_v1 *multiinfo = par->matchinfo;
 
 	return check(ip->proto, ip->invflags, multiinfo->flags,
-		     multiinfo->count);
+		     multiinfo->count) ? 0 : -EINVAL;
 }
 
 static int multiport_mt6_check(const struct xt_mtchk_param *par)
@@ -126,7 +126,7 @@ static int multiport_mt6_check(const struct xt_mtchk_param *par)
 	const struct xt_multiport_v1 *multiinfo = par->matchinfo;
 
 	return check(ip->proto, ip->invflags, multiinfo->flags,
-		     multiinfo->count);
+		     multiinfo->count) ? 0 : -EINVAL;
 }
 
 static struct xt_match multiport_mt_reg[] __read_mostly = {

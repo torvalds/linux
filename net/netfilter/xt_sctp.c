@@ -114,7 +114,7 @@ match_packet(const struct sk_buff *skb,
 }
 
 static bool
-sctp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+sctp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_sctp_info *info = par->matchinfo;
 	const sctp_sctphdr_t *sh;
@@ -128,7 +128,7 @@ sctp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	sh = skb_header_pointer(skb, par->thoff, sizeof(_sh), &_sh);
 	if (sh == NULL) {
 		pr_debug("Dropping evil TCP offset=0 tinygram.\n");
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 	pr_debug("spt: %d\tdpt: %d\n", ntohs(sh->source), ntohs(sh->dest));
@@ -140,7 +140,7 @@ sctp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			&& ntohs(sh->dest) <= info->dpts[1],
 			XT_SCTP_DEST_PORTS, info->flags, info->invflags)
 		&& SCCHECK(match_packet(skb, par->thoff + sizeof(sctp_sctphdr_t),
-					info, par->hotdrop),
+					info, &par->hotdrop),
 			   XT_SCTP_CHUNK_TYPES, info->flags, info->invflags);
 }
 

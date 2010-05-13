@@ -31,7 +31,7 @@ static u32 jhash_initval __read_mostly;
 static bool rnd_inited __read_mostly;
 
 static unsigned int
-nfqueue_tg(struct sk_buff *skb, const struct xt_target_param *par)
+nfqueue_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_NFQ_info *tinfo = par->targinfo;
 
@@ -65,7 +65,7 @@ static u32 hash_v6(const struct sk_buff *skb)
 #endif
 
 static unsigned int
-nfqueue_tg_v1(struct sk_buff *skb, const struct xt_target_param *par)
+nfqueue_tg_v1(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct xt_NFQ_info_v1 *info = par->targinfo;
 	u32 queue = info->queuenum;

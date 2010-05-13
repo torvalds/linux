@@ -42,7 +42,7 @@ static int redirect_tg_check(const struct xt_tgchk_param *par)
 }
 
 static unsigned int
-redirect_tg(struct sk_buff *skb, const struct xt_target_param *par)
+redirect_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;

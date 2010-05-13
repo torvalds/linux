@@ -36,7 +36,7 @@ spi_match(u_int32_t min, u_int32_t max, u_int32_t spi, bool invert)
 	return r;
 }
 
-static bool esp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+static bool esp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct ip_esp_hdr *eh;
 	struct ip_esp_hdr _esp;
@@ -52,7 +52,7 @@ static bool esp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		 * can't.  Hence, no choice but to drop.
 		 */
 		pr_debug("Dropping evil ESP tinygram.\n");
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 

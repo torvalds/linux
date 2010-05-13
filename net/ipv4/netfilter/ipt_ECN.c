@@ -77,7 +77,7 @@ set_ect_tcp(struct sk_buff *skb, const struct ipt_ECN_info *einfo)
 }
 
 static unsigned int
-ecn_tg(struct sk_buff *skb, const struct xt_target_param *par)
+ecn_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ipt_ECN_info *einfo = par->targinfo;
 

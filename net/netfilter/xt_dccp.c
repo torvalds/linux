@@ -96,7 +96,7 @@ match_option(u_int8_t option, const struct sk_buff *skb, unsigned int protoff,
 }
 
 static bool
-dccp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+dccp_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_dccp_info *info = par->matchinfo;
 	const struct dccp_hdr *dh;
@@ -107,7 +107,7 @@ dccp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 
 	dh = skb_header_pointer(skb, par->thoff, sizeof(_dh), &_dh);
 	if (dh == NULL) {
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 
@@ -120,7 +120,7 @@ dccp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		&& DCCHECK(match_types(dh, info->typemask),
 			   XT_DCCP_TYPE, info->flags, info->invflags)
 		&& DCCHECK(match_option(info->option, skb, par->thoff, dh,
-					par->hotdrop),
+					&par->hotdrop),
 			   XT_DCCP_OPTION, info->flags, info->invflags);
 }
 
