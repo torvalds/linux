@@ -3320,10 +3320,10 @@ static void sky2_restart(struct work_struct *work)
 
 	rtnl_lock();
 
-	napi_disable(&hw->napi);
-	synchronize_irq(hw->pdev->irq);
 	imask = sky2_read32(hw, B0_IMSK);
 	sky2_write32(hw, B0_IMSK, 0);
+	synchronize_irq(hw->pdev->irq);
+	napi_disable(&hw->napi);
 
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
