@@ -11,7 +11,8 @@
  * families, values above 128 may be used arbitrarily.
  */
 #define RTNL_FAMILY_IPMR		128
-#define RTNL_FAMILY_MAX			128
+#define RTNL_FAMILY_IP6MR		129
+#define RTNL_FAMILY_MAX			129
 
 /****
  *		Routing/neighbour discovery messages.

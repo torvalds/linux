@@ -383,6 +383,7 @@ struct raw6_sock {
 	__u32			checksum;	/* perform checksum */
 	__u32			offset;		/* checksum offset  */
 	struct icmp6_filter	filter;
+	__u32			ip6mr_table;
 	/* ipv6_pinfo has to be the last member of raw6_sock, see inet6_sk_generic */
 	struct ipv6_pinfo	inet6;
 };
