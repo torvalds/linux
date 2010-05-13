@@ -20,6 +20,7 @@ r8192s_usb-objs :=		\
 	r8192S_Efuse.o		\
 	r8192U_core.o		\
 	r8192U_pm.o		\
+	r8192SU_led.o		\
 	ieee80211/ieee80211_crypt.o		\
 	ieee80211/ieee80211_crypt_tkip.o	\
 	ieee80211/ieee80211_crypt_ccmp.o	\
