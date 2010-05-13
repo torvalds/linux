@@ -933,9 +933,8 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 	struct buffer_head *bh = NULL;
 	handle_t *handle = NULL;
-	int qtype;
-	struct dquot *transfer_from[MAXQUOTAS] = { };
 	struct dquot *transfer_to[MAXQUOTAS] = { };
+	int qtype;
 
 	mlog_entry("(0x%p, '%.*s')\n", dentry,
 	           dentry->d_name.len, dentry->d_name.name);
@@ -1019,9 +1018,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		    OCFS2_FEATURE_RO_COMPAT_USRQUOTA)) {
 			transfer_to[USRQUOTA] = dqget(sb, attr->ia_uid,
 						      USRQUOTA);
-			transfer_from[USRQUOTA] = dqget(sb, inode->i_uid,
-							USRQUOTA);
-			if (!transfer_to[USRQUOTA] || !transfer_from[USRQUOTA]) {
+			if (!transfer_to[USRQUOTA]) {
 				status = -ESRCH;
 				goto bail_unlock;
 			}
@@ -1031,9 +1028,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		    OCFS2_FEATURE_RO_COMPAT_GRPQUOTA)) {
 			transfer_to[GRPQUOTA] = dqget(sb, attr->ia_gid,
 						      GRPQUOTA);
-			transfer_from[GRPQUOTA] = dqget(sb, inode->i_gid,
-							GRPQUOTA);
-			if (!transfer_to[GRPQUOTA] || !transfer_from[GRPQUOTA]) {
+			if (!transfer_to[GRPQUOTA]) {
 				status = -ESRCH;
 				goto bail_unlock;
 			}
@@ -1045,7 +1040,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 			mlog_errno(status);
 			goto bail_unlock;
 		}
-		status = dquot_transfer(inode, attr);
+		status = __dquot_transfer(inode, transfer_to);
 		if (status < 0)
 			goto bail_commit;
 	} else {
@@ -1085,10 +1080,8 @@ bail:
 	brelse(bh);
 
 	/* Release quota pointers in case we acquired them */
-	for (qtype = 0; qtype < MAXQUOTAS; qtype++) {
+	for (qtype = 0; qtype < MAXQUOTAS; qtype++)
 		dqput(transfer_to[qtype]);
-		dqput(transfer_from[qtype]);
-	}
 
 	if (!status && attr->ia_valid & ATTR_MODE) {
 		status = ocfs2_acl_chmod(inode);
