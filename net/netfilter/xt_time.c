@@ -148,7 +148,6 @@ static void localtime_3(struct xtm *r, time_t time)
 	}
 
 	r->month    = i + 1;
-	return;
 }
 
 static bool

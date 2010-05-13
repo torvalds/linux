@@ -2109,7 +2109,6 @@ static void __exit ctnetlink_exit(void)
 
 	nfnetlink_subsys_unregister(&ctnl_exp_subsys);
 	nfnetlink_subsys_unregister(&ctnl_subsys);
-	return;
 }
 
 module_init(ctnetlink_init);
