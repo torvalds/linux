@@ -45,14 +45,11 @@ struct rpc_task {
 	struct list_head	tk_task;	/* global list of tasks */
 	struct rpc_clnt *	tk_client;	/* RPC client */
 	struct rpc_rqst *	tk_rqstp;	/* RPC request */
-	int			tk_status;	/* result of last operation */
 
 	/*
 	 * RPC call state
 	 */
 	struct rpc_message	tk_msg;		/* RPC call info */
-	__u8			tk_garb_retry;
-	__u8			tk_cred_retry;
 
 	/*
 	 * callback	to be executed after waking up
@@ -65,7 +62,6 @@ struct rpc_task {
 	void *			tk_calldata;
 
 	unsigned long		tk_timeout;	/* timeout for rpc_sleep() */
-	unsigned short		tk_flags;	/* misc flags */
 	unsigned long		tk_runstate;	/* Task run status */
 	struct workqueue_struct	*tk_workqueue;	/* Normally rpciod, but could
 						 * be any workqueue
@@ -76,15 +72,19 @@ struct rpc_task {
 		struct rpc_wait		tk_wait;	/* RPC wait */
 	} u;
 
-	unsigned short		tk_timeouts;	/* maj timeouts */
 	ktime_t			tk_start;	/* RPC task init timestamp */
 
 	pid_t			tk_owner;	/* Process id for batching tasks */
-	unsigned char		tk_priority : 2;/* Task priority */
+	int			tk_status;	/* result of last operation */
+	unsigned short		tk_flags;	/* misc flags */
+	unsigned short		tk_timeouts;	/* maj timeouts */
 
 #ifdef RPC_DEBUG
 	unsigned short		tk_pid;		/* debugging aid */
 #endif
+	unsigned char		tk_priority : 2,/* Task priority */
+				tk_garb_retry : 2,
+				tk_cred_retry : 2;
 };
 #define tk_xprt			tk_client->cl_xprt
 
