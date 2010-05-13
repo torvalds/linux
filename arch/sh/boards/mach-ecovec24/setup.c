@@ -1136,16 +1136,20 @@ static int __init arch_setup(void)
 
 	/* set SPU2 clock to 83.4 MHz */
 	clk = clk_get(NULL, "spu_clk");
-	clk_set_rate(clk, clk_round_rate(clk, 83333333));
-	clk_put(clk);
+	if (clk) {
+		clk_set_rate(clk, clk_round_rate(clk, 83333333));
+		clk_put(clk);
+	}
 
 	/* change parent of FSI B */
 	clk = clk_get(NULL, "fsib_clk");
-	clk_register(&fsimckb_clk);
-	clk_set_parent(clk, &fsimckb_clk);
-	clk_set_rate(clk, 11000);
-	clk_set_rate(&fsimckb_clk, 11000);
-	clk_put(clk);
+	if (clk) {
+		clk_register(&fsimckb_clk);
+		clk_set_parent(clk, &fsimckb_clk);
+		clk_set_rate(clk, 11000);
+		clk_set_rate(&fsimckb_clk, 11000);
+		clk_put(clk);
+	}
 
 	gpio_request(GPIO_PTU0, NULL);
 	gpio_direction_output(GPIO_PTU0, 0);
@@ -1157,8 +1161,10 @@ static int __init arch_setup(void)
 
 	/* set VPU clock to 166 MHz */
 	clk = clk_get(NULL, "vpu_clk");
-	clk_set_rate(clk, clk_round_rate(clk, 166000000));
-	clk_put(clk);
+	if (clk) {
+		clk_set_rate(clk, clk_round_rate(clk, 166000000));
+		clk_put(clk);
+	}
 
 	/* enable IrDA */
 	gpio_request(GPIO_FN_IRDA_OUT, NULL);
