@@ -136,7 +136,7 @@ void am3517_evm_ethernet_init(struct emac_platform_data *pdata)
 #define LCD_PANEL_BKLIGHT_PWR	182
 #define LCD_PANEL_PWM		181
 
-static struct i2c_board_info __initdata am3517evm_i2c_boardinfo[] = {
+static struct i2c_board_info __initdata am3517evm_i2c1_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("s35390a", 0x30),
 		.type		= "s35390a",
@@ -166,7 +166,7 @@ static void __init am3517_evm_rtc_init(void)
 		gpio_free(GPIO_RTCS35390A_IRQ);
 		return;
 	}
-	am3517evm_i2c_boardinfo[0].irq = gpio_to_irq(GPIO_RTCS35390A_IRQ);
+	am3517evm_i2c1_boardinfo[0].irq = gpio_to_irq(GPIO_RTCS35390A_IRQ);
 }
 
 /*
@@ -177,7 +177,7 @@ static void __init am3517_evm_rtc_init(void)
 static struct pca953x_platform_data am3517evm_gpio_expander_info_0 = {
 	.gpio_base	= OMAP_MAX_GPIO_LINES,
 };
-static struct i2c_board_info __initdata am3517evm_tca6416_info_0[] = {
+static struct i2c_board_info __initdata am3517evm_i2c2_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("tca6416", 0x21),
 		.platform_data = &am3517evm_gpio_expander_info_0,
@@ -191,7 +191,7 @@ static struct pca953x_platform_data am3517evm_ui_gpio_expander_info_1 = {
 static struct pca953x_platform_data am3517evm_ui_gpio_expander_info_2 = {
 	.gpio_base	= OMAP_MAX_GPIO_LINES + 32,
 };
-static struct i2c_board_info __initdata am3517evm_ui_tca6416_info[] = {
+static struct i2c_board_info __initdata am3517evm_i2c3_boardinfo[] = {
 	{
 		I2C_BOARD_INFO("tca6416", 0x20),
 		.platform_data = &am3517evm_ui_gpio_expander_info_1,
@@ -205,10 +205,10 @@ static struct i2c_board_info __initdata am3517evm_ui_tca6416_info[] = {
 static int __init am3517_evm_i2c_init(void)
 {
 	omap_register_i2c_bus(1, 400, NULL, 0);
-	omap_register_i2c_bus(2, 400, am3517evm_tca6416_info_0,
-			ARRAY_SIZE(am3517evm_tca6416_info_0));
-	omap_register_i2c_bus(3, 400, am3517evm_ui_tca6416_info,
-			ARRAY_SIZE(am3517evm_ui_tca6416_info));
+	omap_register_i2c_bus(2, 400, am3517evm_i2c2_boardinfo,
+			ARRAY_SIZE(am3517evm_i2c2_boardinfo));
+	omap_register_i2c_bus(3, 400, am3517evm_i2c3_boardinfo,
+			ARRAY_SIZE(am3517evm_i2c3_boardinfo));
 
 	return 0;
 }
@@ -455,8 +455,8 @@ static void __init am3517_evm_init(void)
 	/* RTC - S35390A */
 	am3517_evm_rtc_init();
 
-	i2c_register_board_info(1, am3517evm_i2c_boardinfo,
-				ARRAY_SIZE(am3517evm_i2c_boardinfo));
+	i2c_register_board_info(1, am3517evm_i2c1_boardinfo,
+				ARRAY_SIZE(am3517evm_i2c1_boardinfo));
 	/*Ethernet*/
 	am3517_evm_ethernet_init(&am3517_evm_emac_pdata);
 }
