@@ -46,7 +46,7 @@ struct clk {
 
 #define CLK_ENABLE_ON_INIT	(1 << 0)
 
-/* arch/sh/kernel/cpu/clock.c */
+/* drivers/sh/clk.c */
 unsigned long followparent_recalc(struct clk *);
 void recalculate_root_clocks(void);
 void propagate_rate(struct clk *);
@@ -55,7 +55,6 @@ int clk_register(struct clk *);
 void clk_unregister(struct clk *);
 void clk_enable_init_clocks(void);
 
-/* the exported API, in addition to clk_set_rate */
 /**
  * clk_set_rate_ex - set the clock rate for a clock source, with additional parameter
  * @clk: clock source
