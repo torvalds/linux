@@ -1424,7 +1424,7 @@ static bool handle_ecc(struct denali_nand_info *denali, uint8_t *buf,
 }
 
 /* programs the controller to either enable/disable DMA transfers */
-static void enable_dma(struct denali_nand_info *denali, bool en)
+static void denali_enable_dma(struct denali_nand_info *denali, bool en)
 {
 	uint32_t reg_val = 0x0;
 
@@ -1435,7 +1435,7 @@ static void enable_dma(struct denali_nand_info *denali, bool en)
 }
 
 /* setups the HW to perform the data DMA */
-static void setup_dma(struct denali_nand_info *denali, int op)
+static void denali_setup_dma(struct denali_nand_info *denali, int op)
 {
 	uint32_t mode = 0x0;
 	const int page_count = 1;
@@ -1494,9 +1494,9 @@ static void write_page(struct mtd_info *mtd, struct nand_chip *chip,
 	pci_dma_sync_single_for_device(pci_dev, addr, size, PCI_DMA_TODEVICE);
 
 	clear_interrupts(denali);
-	enable_dma(denali, true);	
+	denali_enable_dma(denali, true);	
 
-	setup_dma(denali, DENALI_WRITE);
+	denali_setup_dma(denali, DENALI_WRITE);
 
 	/* wait for operation to complete */
 	irq_status = wait_for_irq(denali, irq_mask);
@@ -1509,7 +1509,7 @@ static void write_page(struct mtd_info *mtd, struct nand_chip *chip,
 						   	     PASS;
 	}
 
-	enable_dma(denali, false);	
+	denali_enable_dma(denali, false);	
 	pci_dma_sync_single_for_cpu(pci_dev, addr, size, PCI_DMA_TODEVICE);
 }
 
@@ -1569,11 +1569,11 @@ static int denali_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 
 	setup_ecc_for_xfer(denali, true, false);
 
-	enable_dma(denali, true);
+	denali_enable_dma(denali, true);
 	pci_dma_sync_single_for_device(pci_dev, addr, size, PCI_DMA_FROMDEVICE);
 
 	clear_interrupts(denali);
-	setup_dma(denali, DENALI_READ);
+	denali_setup_dma(denali, DENALI_READ);
 
 	/* wait for operation to complete */
 	irq_status = wait_for_irq(denali, irq_mask);
@@ -1583,7 +1583,7 @@ static int denali_read_page(struct mtd_info *mtd, struct nand_chip *chip,
 	memcpy(buf, denali->buf.buf, mtd->writesize);
 	
 	check_erased_page = handle_ecc(denali, buf, chip->oob_poi, irq_status);
-	enable_dma(denali, false);
+	denali_enable_dma(denali, false);
 
 	if (check_erased_page)
 	{
@@ -1618,19 +1618,19 @@ static int denali_read_page_raw(struct mtd_info *mtd, struct nand_chip *chip,
 	uint32_t irq_mask = INTR_STATUS0__DMA_CMD_COMP;
 						
 	setup_ecc_for_xfer(denali, false, true);
-	enable_dma(denali, true);
+	denali_enable_dma(denali, true);
 
 	pci_dma_sync_single_for_device(pci_dev, addr, size, PCI_DMA_FROMDEVICE);
 
 	clear_interrupts(denali);
-	setup_dma(denali, DENALI_READ);
+	denali_setup_dma(denali, DENALI_READ);
 
 	/* wait for operation to complete */
 	irq_status = wait_for_irq(denali, irq_mask);
 
 	pci_dma_sync_single_for_cpu(pci_dev, addr, size, PCI_DMA_FROMDEVICE);
 
-	enable_dma(denali, false);
+	denali_enable_dma(denali, false);
 
 	memcpy(buf, denali->buf.buf, mtd->writesize);
 	memcpy(chip->oob_poi, denali->buf.buf + mtd->writesize, mtd->oobsize);
