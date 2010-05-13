@@ -184,7 +184,7 @@ static void elantech_report_absolute_v1(struct psmouse *psmouse)
 	int fingers;
 	static int old_fingers;
 
-	if (etd->fw_version_maj == 0x01) {
+	if (etd->fw_version < 0x020000) {
 		/*
 		 * byte 0:  D   U  p1  p2   1  p3   R   L
 		 * byte 1:  f   0  th  tw  x9  x8  y9  y8
@@ -226,7 +226,7 @@ static void elantech_report_absolute_v1(struct psmouse *psmouse)
 	input_report_key(dev, BTN_LEFT, packet[0] & 0x01);
 	input_report_key(dev, BTN_RIGHT, packet[0] & 0x02);
 
-	if ((etd->fw_version_maj == 0x01) &&
+	if (etd->fw_version < 0x020000 &&
 	    (etd->capabilities & ETP_CAP_HAS_ROCKER)) {
 		/* rocker up */
 		input_report_key(dev, BTN_FORWARD, packet[0] & 0x40);
@@ -320,7 +320,7 @@ static int elantech_check_parity_v1(struct psmouse *psmouse)
 	unsigned char p1, p2, p3;
 
 	/* Parity bits are placed differently */
-	if (etd->fw_version_maj == 0x01) {
+	if (etd->fw_version < 0x020000) {
 		/* byte 0:  D   U  p1  p2   1  p3   R   L */
 		p1 = (packet[0] & 0x20) >> 5;
 		p2 = (packet[0] & 0x10) >> 4;
@@ -456,7 +456,7 @@ static void elantech_set_input_params(struct psmouse *psmouse)
 	switch (etd->hw_version) {
 	case 1:
 		/* Rocker button */
-		if ((etd->fw_version_maj == 0x01) &&
+		if (etd->fw_version < 0x020000 &&
 		    (etd->capabilities & ETP_CAP_HAS_ROCKER)) {
 			__set_bit(BTN_FORWARD, dev->keybit);
 			__set_bit(BTN_BACK, dev->keybit);
@@ -685,15 +685,14 @@ int elantech_init(struct psmouse *psmouse)
 		pr_err("elantech.c: failed to query firmware version.\n");
 		goto init_fail;
 	}
-	etd->fw_version_maj = param[0];
-	etd->fw_version_min = param[2];
+
+	etd->fw_version = (param[0] << 16) | (param[1] << 8) | param[2];
 
 	/*
 	 * Assume every version greater than this is new EeePC style
 	 * hardware with 6 byte packets
 	 */
-	if ((etd->fw_version_maj == 0x02 && etd->fw_version_min >= 0x30) ||
-	    etd->fw_version_maj > 0x02) {
+	if (etd->fw_version >= 0x020030) {
 		etd->hw_version = 2;
 		/* For now show extra debug information */
 		etd->debug = 1;
@@ -703,8 +702,9 @@ int elantech_init(struct psmouse *psmouse)
 		etd->hw_version = 1;
 		etd->paritycheck = 1;
 	}
-	pr_info("elantech.c: assuming hardware version %d, firmware version %d.%d\n",
-		etd->hw_version, etd->fw_version_maj, etd->fw_version_min);
+
+	pr_info("elantech.c: assuming hardware version %d, firmware version %d.%d.%d\n",
+		etd->hw_version, param[0], param[1], param[2]);
 
 	if (synaptics_send_cmd(psmouse, ETP_CAPABILITIES_QUERY, param)) {
 		pr_err("elantech.c: failed to query capabilities.\n");
@@ -719,8 +719,8 @@ int elantech_init(struct psmouse *psmouse)
 	 * a touch action starts causing the mouse cursor or scrolled page
 	 * to jump. Enable a workaround.
 	 */
-	if (etd->fw_version_maj == 0x02 && etd->fw_version_min == 0x22) {
-		pr_info("elantech.c: firmware version 2.34 detected, "
+	if (etd->fw_version == 0x020022) {
+		pr_info("elantech.c: firmware version 2.0.34 detected, "
 			"enabling jumpy cursor workaround\n");
 		etd->jumpy_cursor = 1;
 	}
