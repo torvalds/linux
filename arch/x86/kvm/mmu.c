@@ -1813,6 +1813,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		if (level > PT_PAGE_TABLE_LEVEL &&
 		    has_wrprotected_page(vcpu->kvm, gfn, level)) {
 			ret = 1;
+			rmap_remove(vcpu->kvm, sptep);
 			spte = shadow_trap_nonpresent_pte;
 			goto set_pte;
 		}
