@@ -586,7 +586,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 		unsigned pte_access;
 		pt_element_t gpte;
 		gpa_t pte_gpa;
-		gfn_t gfn = sp->gfns[i];
+		gfn_t gfn;
 
 		if (!is_shadow_present_pte(sp->spt[i]))
 			continue;
@@ -597,8 +597,9 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 					  sizeof(pt_element_t)))
 			return -EINVAL;
 
-		if (gpte_to_gfn(gpte) != gfn || !is_present_gpte(gpte) ||
-		    !(gpte & PT_ACCESSED_MASK)) {
+		gfn = gpte_to_gfn(gpte);
+		if (unalias_gfn(vcpu->kvm, gfn) != sp->gfns[i] ||
+		      !is_present_gpte(gpte) || !(gpte & PT_ACCESSED_MASK)) {
 			u64 nonpresent;
 
 			rmap_remove(vcpu->kvm, &sp->spt[i]);
