@@ -11,6 +11,8 @@
  */
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/io.h>
+#include <asm/clkdev.h>
 #include <asm/clock.h>
 #include <asm/freq.h>
 #include <asm/io.h>
@@ -83,7 +85,6 @@ static struct clk_ops sh7780_shyway_clk_ops = {
 };
 
 static struct clk sh7780_shyway_clk = {
-	.name		= "shyway_clk",
 	.flags		= CLK_ENABLE_ON_INIT,
 	.ops		= &sh7780_shyway_clk_ops,
 };
@@ -94,6 +95,13 @@ static struct clk sh7780_shyway_clk = {
  */
 static struct clk *sh7780_onchip_clocks[] = {
 	&sh7780_shyway_clk,
+};
+
+#define CLKDEV_CON_ID(_id, _clk) { .con_id = _id, .clk = _clk }
+
+static struct clk_lookup lookups[] = {
+	/* main clocks */
+	CLKDEV_CON_ID("shyway_clk", &sh7780_shyway_clk),
 };
 
 int __init arch_clk_init(void)
@@ -112,6 +120,8 @@ int __init arch_clk_init(void)
 	}
 
 	clk_put(clk);
+
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	return ret;
 }
