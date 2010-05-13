@@ -1196,13 +1196,12 @@ static int drbd_nl_net_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	}
 
 	/* allocation not in the IO path, cqueue thread context */
-	new_conf = kmalloc(sizeof(struct net_conf), GFP_KERNEL);
+	new_conf = kzalloc(sizeof(struct net_conf), GFP_KERNEL);
 	if (!new_conf) {
 		retcode = ERR_NOMEM;
 		goto fail;
 	}
 
-	memset(new_conf, 0, sizeof(struct net_conf));
 	new_conf->timeout	   = DRBD_TIMEOUT_DEF;
 	new_conf->try_connect_int  = DRBD_CONNECT_INT_DEF;
 	new_conf->ping_int	   = DRBD_PING_INT_DEF;
