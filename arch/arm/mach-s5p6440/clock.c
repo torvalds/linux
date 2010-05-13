@@ -467,7 +467,73 @@ static struct clk init_clocks_disable[] = {
 		.parent		= &clk_pclk_low.clk,
 		.enable		= s5p6440_pclk_ctrl,
 		.ctrlbit	= S5P_CLKCON_PCLK_PWM,
-	}
+	}, {
+		.name		= "hclk_fimgvg",
+		.id		= -1,
+		.parent		= &clk_hclk.clk,
+		.enable		= s5p6440_hclk1_ctrl,
+		.ctrlbit	= (1 << 2),
+	}, {
+		.name		= "tsi",
+		.id		= -1,
+		.parent		= &clk_hclk_low.clk,
+		.enable		= s5p6440_hclk1_ctrl,
+		.ctrlbit	= (1 << 0),
+	}, {
+		.name		= "pclk_fimgvg",
+		.id		= -1,
+		.parent		= &clk_pclk.clk,
+		.enable		= s5p6440_pclk_ctrl,
+		.ctrlbit	= (1 << 31),
+	}, {
+		.name		= "dmc0",
+		.id		= -1,
+		.parent		= &clk_pclk.clk,
+		.enable		= s5p6440_pclk_ctrl,
+		.ctrlbit	= (1 << 30),
+	}, {
+		.name		= "etm",
+		.id		= -1,
+		.parent		= &clk_pclk.clk,
+		.enable		= s5p6440_pclk_ctrl,
+		.ctrlbit	= (1 << 29),
+	}, {
+		.name		= "dsim",
+		.id		= -1,
+		.parent		= &clk_pclk_low.clk,
+		.enable		= s5p6440_pclk_ctrl,
+		.ctrlbit	= (1 << 28),
+	}, {
+		.name		= "gps",
+		.id		= -1,
+		.parent		= &clk_pclk_low.clk,
+		.enable		= s5p6440_pclk_ctrl,
+		.ctrlbit	= (1 << 25),
+	}, {
+		.name		= "pcm",
+		.id		= -1,
+		.parent		= &clk_pclk_low.clk,
+		.enable		= s5p6440_pclk_ctrl,
+		.ctrlbit	= (1 << 8),
+	}, {
+		.name		= "irom",
+		.id		= -1,
+		.parent		= &clk_hclk.clk,
+		.enable		= s5p6440_hclk0_ctrl,
+		.ctrlbit	= (1 << 25),
+	}, {
+		.name		= "dma",
+		.id		= -1,
+		.parent		= &clk_hclk_low.clk,
+		.enable		= s5p6440_hclk0_ctrl,
+		.ctrlbit	= (1 << 12),
+	}, {
+		.name		= "2d",
+		.id		= -1,
+		.parent		= &clk_hclk.clk,
+		.enable		= s5p6440_hclk0_ctrl,
+		.ctrlbit	= (1 << 8),
+	},
 };
 
 /*
@@ -504,7 +570,19 @@ static struct clk init_clocks[] = {
 		.parent		= &clk_pclk_low.clk,
 		.enable		= s5p6440_pclk_ctrl,
 		.ctrlbit	= S5P_CLKCON_PCLK_UART3,
-	}
+	}, {
+		.name		= "mem",
+		.id		= -1,
+		.parent		= &clk_hclk.clk,
+		.enable		= s5p6440_hclk0_ctrl,
+		.ctrlbit	= (1 << 21),
+	}, {
+		.name		= "intc",
+		.id		= -1,
+		.parent		= &clk_hclk.clk,
+		.enable		= s5p6440_hclk0_ctrl,
+		.ctrlbit	= (1 << 1),
+	},
 };
 
 static struct clk clk_iis_cd_v40 = {
