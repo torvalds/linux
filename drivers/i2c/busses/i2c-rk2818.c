@@ -419,7 +419,7 @@ static int rk2818_xfer_msg(struct i2c_adapter *adap,
 			if(ret != 0)
 			{
 				dev_err(i2c->dev, "tx success wait bus busy time out\n");
-				return ret;
+				goto exit_disable;
 			}
 		}
 	}
