@@ -952,8 +952,9 @@ static int do_insn_ioctl(struct comedi_device *dev,
 	if (insn.n > MAX_SAMPLES)
 		insn.n = MAX_SAMPLES;
 	if (insn.insn & INSN_MASK_WRITE) {
-		if (copy_from_user
-		    (data, insn.data, insn.n * sizeof(unsigned int))) {
+		if (copy_from_user(data,
+				   insn.data,
+				   insn.n * sizeof(unsigned int))) {
 			ret = -EFAULT;
 			goto error;
 		}
@@ -962,7 +963,9 @@ static int do_insn_ioctl(struct comedi_device *dev,
 	if (ret < 0)
 		goto error;
 	if (insn.insn & INSN_MASK_READ) {
-		if (copy_to_user(insn.data, data, insn.n * sizeof(unsigned int))) {
+		if (copy_to_user(insn.data,
+				 data,
+				 insn.n * sizeof(unsigned int))) {
 			ret = -EFAULT;
 			goto error;
 		}
@@ -1070,7 +1073,9 @@ static int do_cmd_ioctl(struct comedi_device *dev,
 	}
 
 	/* make sure each element in channel/gain list is valid */
-	ret = comedi_check_chanlist(s, async->cmd.chanlist_len, async->cmd.chanlist);
+	ret = comedi_check_chanlist(s,
+				    async->cmd.chanlist_len,
+				    async->cmd.chanlist);
 	if (ret < 0) {
 		DPRINTK("bad chanlist\n");
 		goto cleanup;
@@ -2119,8 +2124,8 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 		kfree(info->device);
 		kfree(info);
 		printk(KERN_ERR
-
-		       "comedi: error: ran out of minor numbers for board device files.\n");
+		       "comedi: error: "
+		       "ran out of minor numbers for board device files.\n");
 		return -EBUSY;
 	}
 	info->device->minor = i;
@@ -2133,7 +2138,8 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	retval = device_create_file(csdev, &dev_attr_max_read_buffer_kb);
 	if (retval) {
 		printk(KERN_ERR
-		       "comedi: failed to create sysfs attribute file \"%s\".\n",
+		       "comedi: "
+		       "failed to create sysfs attribute file \"%s\".\n",
 		       dev_attr_max_read_buffer_kb.attr.name);
 		comedi_free_board_minor(i);
 		return retval;
@@ -2141,7 +2147,8 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	retval = device_create_file(csdev, &dev_attr_read_buffer_kb);
 	if (retval) {
 		printk(KERN_ERR
-		       "comedi: failed to create sysfs attribute file \"%s\".\n",
+		       "comedi: "
+		       "failed to create sysfs attribute file \"%s\".\n",
 		       dev_attr_read_buffer_kb.attr.name);
 		comedi_free_board_minor(i);
 		return retval;
@@ -2149,7 +2156,8 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	retval = device_create_file(csdev, &dev_attr_max_write_buffer_kb);
 	if (retval) {
 		printk(KERN_ERR
-		       "comedi: failed to create sysfs attribute file \"%s\".\n",
+		       "comedi: "
+		       "failed to create sysfs attribute file \"%s\".\n",
 		       dev_attr_max_write_buffer_kb.attr.name);
 		comedi_free_board_minor(i);
 		return retval;
@@ -2157,7 +2165,8 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 	retval = device_create_file(csdev, &dev_attr_write_buffer_kb);
 	if (retval) {
 		printk(KERN_ERR
-		       "comedi: failed to create sysfs attribute file \"%s\".\n",
+		       "comedi: "
+		       "failed to create sysfs attribute file \"%s\".\n",
 		       dev_attr_write_buffer_kb.attr.name);
 		comedi_free_board_minor(i);
 		return retval;
@@ -2216,7 +2225,8 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 	if (i == COMEDI_NUM_MINORS) {
 		kfree(info);
 		printk(KERN_ERR
-		       "comedi: error: ran out of minor numbers for board device files.\n");
+		       "comedi: error: "
+		       "ran out of minor numbers for board device files.\n");
 		return -EBUSY;
 	}
 	s->minor = i;
@@ -2230,7 +2240,8 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 	retval = device_create_file(csdev, &dev_attr_max_read_buffer_kb);
 	if (retval) {
 		printk(KERN_ERR
-		       "comedi: failed to create sysfs attribute file \"%s\".\n",
+		       "comedi: "
+		       "failed to create sysfs attribute file \"%s\".\n",
 		       dev_attr_max_read_buffer_kb.attr.name);
 		comedi_free_subdevice_minor(s);
 		return retval;
@@ -2238,7 +2249,8 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 	retval = device_create_file(csdev, &dev_attr_read_buffer_kb);
 	if (retval) {
 		printk(KERN_ERR
-		       "comedi: failed to create sysfs attribute file \"%s\".\n",
+		       "comedi: "
+		       "failed to create sysfs attribute file \"%s\".\n",
 		       dev_attr_read_buffer_kb.attr.name);
 		comedi_free_subdevice_minor(s);
 		return retval;
@@ -2246,7 +2258,8 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 	retval = device_create_file(csdev, &dev_attr_max_write_buffer_kb);
 	if (retval) {
 		printk(KERN_ERR
-		       "comedi: failed to create sysfs attribute file \"%s\".\n",
+		       "comedi: "
+		       "failed to create sysfs attribute file \"%s\".\n",
 		       dev_attr_max_write_buffer_kb.attr.name);
 		comedi_free_subdevice_minor(s);
 		return retval;
@@ -2254,7 +2267,8 @@ int comedi_alloc_subdevice_minor(struct comedi_device *dev,
 	retval = device_create_file(csdev, &dev_attr_write_buffer_kb);
 	if (retval) {
 		printk(KERN_ERR
-		       "comedi: failed to create sysfs attribute file \"%s\".\n",
+		       "comedi: "
+		       "failed to create sysfs attribute file \"%s\".\n",
 		       dev_attr_write_buffer_kb.attr.name);
 		comedi_free_subdevice_minor(s);
 		return retval;
