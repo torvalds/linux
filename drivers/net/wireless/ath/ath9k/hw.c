@@ -627,6 +627,7 @@ static int __ath9k_hw_init(struct ath_hw *ah)
 		ar9003_hw_set_nf_limits(ah);
 
 	ath9k_init_nfcal_hist_buffer(ah);
+	ah->bb_watchdog_timeout_ms = 25;
 
 	common->state = ATH_HW_INITIALIZED;
 
@@ -1441,6 +1442,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (AR_SREV_9300_20_OR_LATER(ah)) {
 		ath9k_hw_loadnf(ah, curchan);
 		ath9k_hw_start_nfcal(ah);
+		ar9003_hw_bb_watchdog_config(ah);
 	}
 
 	return 0;

@@ -279,6 +279,7 @@ enum ath9k_int {
 	ATH9K_INT_TX = 0x00000040,
 	ATH9K_INT_TXDESC = 0x00000080,
 	ATH9K_INT_TIM_TIMER = 0x00000100,
+	ATH9K_INT_BB_WATCHDOG = 0x00000400,
 	ATH9K_INT_TXURN = 0x00000800,
 	ATH9K_INT_MIB = 0x00001000,
 	ATH9K_INT_RXPHY = 0x00004000,
@@ -789,6 +790,9 @@ struct ath_hw {
 	u32 ts_paddr_end;
 	u16 ts_tail;
 	u8 ts_size;
+
+	u32 bb_watchdog_last_status;
+	u32 bb_watchdog_timeout_ms; /* in ms, 0 to disable */
 };
 
 static inline struct ath_common *ath9k_hw_common(struct ath_hw *ah)
@@ -910,10 +914,13 @@ void ar9002_hw_enable_async_fifo(struct ath_hw *ah);
 void ar9002_hw_enable_wep_aggregation(struct ath_hw *ah);
 
 /*
- * Code specifric to AR9003, we stuff these here to avoid callbacks
+ * Code specific to AR9003, we stuff these here to avoid callbacks
  * for older families
  */
 void ar9003_hw_set_nf_limits(struct ath_hw *ah);
+void ar9003_hw_bb_watchdog_config(struct ath_hw *ah);
+void ar9003_hw_bb_watchdog_read(struct ath_hw *ah);
+void ar9003_hw_bb_watchdog_dbg_info(struct ath_hw *ah);
 
 /* Hardware family op attach helpers */
 void ar5008_hw_attach_phy_ops(struct ath_hw *ah);

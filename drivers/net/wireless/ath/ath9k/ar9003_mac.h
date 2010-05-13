@@ -47,6 +47,7 @@
 #define MAP_ISR_S2_DTIMSYNC     7
 #define MAP_ISR_S2_DTIM         7
 #define MAP_ISR_S2_TSFOOR       4
+#define MAP_ISR_S2_BB_WATCHDOG  6
 
 #define AR9003TXC_CONST(_ds) ((const struct ar9003_txc *) _ds)
 
