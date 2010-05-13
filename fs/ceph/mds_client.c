@@ -1871,6 +1871,12 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 		mutex_unlock(&mdsc->mutex);
 		goto out;
 	}
+	if (req->r_got_safe && !head->safe) {
+		pr_warning("got unsafe after safe on %llu from mds%d\n",
+			   tid, mds);
+		mutex_unlock(&mdsc->mutex);
+		goto out;
+	}
 
 	result = le32_to_cpu(head->result);
 
