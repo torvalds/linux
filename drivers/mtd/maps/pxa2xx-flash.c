@@ -63,11 +63,10 @@ static int __init pxa2xx_flash_probe(struct platform_device *pdev)
 	if (!res)
 		return -ENODEV;
 
-	info = kmalloc(sizeof(struct pxa2xx_flash_info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct pxa2xx_flash_info), GFP_KERNEL);
 	if (!info)
 		return -ENOMEM;
 
-	memset(info, 0, sizeof(struct pxa2xx_flash_info));
 	info->map.name = (char *) flash->name;
 	info->map.bankwidth = flash->width;
 	info->map.phys = res->start;

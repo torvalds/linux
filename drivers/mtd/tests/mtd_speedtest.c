@@ -295,12 +295,11 @@ static int scan_for_bad_eraseblocks(void)
 {
 	int i, bad = 0;
 
-	bbt = kmalloc(ebcnt, GFP_KERNEL);
+	bbt = kzalloc(ebcnt, GFP_KERNEL);
 	if (!bbt) {
 		printk(PRINT_PREF "error: cannot allocate memory\n");
 		return -ENOMEM;
 	}
-	memset(bbt, 0 , ebcnt);
 
 	/* NOR flash does not implement block_isbad */
 	if (mtd->block_isbad == NULL)

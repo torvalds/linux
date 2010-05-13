@@ -196,12 +196,11 @@ static int ixp4xx_flash_probe(struct platform_device *dev)
 			return err;
 	}
 
-	info = kmalloc(sizeof(struct ixp4xx_flash_info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct ixp4xx_flash_info), GFP_KERNEL);
 	if(!info) {
 		err = -ENOMEM;
 		goto Error;
 	}
-	memset(info, 0, sizeof(struct ixp4xx_flash_info));
 
 	platform_set_drvdata(dev, info);
 
