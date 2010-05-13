@@ -2094,7 +2094,7 @@ static int mmu_alloc_roots(struct kvm_vcpu *vcpu)
 			root_gfn = 0;
 		}
 		spin_lock(&vcpu->kvm->mmu_lock);
-		kvm_mmu_free_some_pages(vcpu->kvm);
+		kvm_mmu_free_some_pages(vcpu);
 		sp = kvm_mmu_get_page(vcpu, root_gfn, 0,
 				      PT64_ROOT_LEVEL, direct,
 				      ACC_ALL, NULL);
@@ -2125,7 +2125,7 @@ static int mmu_alloc_roots(struct kvm_vcpu *vcpu)
 			root_gfn = i << 30;
 		}
 		spin_lock(&vcpu->kvm->mmu_lock);
-		kvm_mmu_free_some_pages(vcpu->kvm);
+		kvm_mmu_free_some_pages(vcpu);
 		sp = kvm_mmu_get_page(vcpu, root_gfn, i << 30,
 				      PT32_ROOT_LEVEL, direct,
 				      ACC_ALL, NULL);
