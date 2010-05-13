@@ -204,13 +204,13 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 					   RecvRingBufferSize) >> PAGE_SHIFT;
 
 	ret = RingBufferInit(&NewChannel->Outbound, out, SendRingBufferSize);
-	if (!ret) {
+	if (ret != 0) {
 		err = ret;
 		goto errorout;
 	}
 
 	ret = RingBufferInit(&NewChannel->Inbound, in, RecvRingBufferSize);
-	if (!ret) {
+	if (ret != 0) {
 		err = ret;
 		goto errorout;
 	}
@@ -228,7 +228,7 @@ int VmbusChannelOpen(struct vmbus_channel *NewChannel, u32 SendRingBufferSize,
 					 RecvRingBufferSize,
 					 &NewChannel->RingBufferGpadlHandle);
 
-	if (!ret) {
+	if (ret != 0) {
 		err = ret;
 		goto errorout;
 	}
@@ -569,7 +569,7 @@ int VmbusChannelEstablishGpadl(struct vmbus_channel *Channel, void *Kbuffer,
 			ret = VmbusPostMessage(gpadlBody,
 					       subMsgInfo->MessageSize -
 					       sizeof(*subMsgInfo));
-			if (!ret)
+			if (ret != 0)
 				goto Cleanup;
 
 		}
