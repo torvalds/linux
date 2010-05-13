@@ -26,6 +26,7 @@
 #include <asm/clkdev.h>
 #include <mach/rk2818_iomap.h>
 #include <mach/scu.h>
+#include <mach/iomux.h>	// CPU_APB_REG0
 
 static struct rockchip_scu_reg_hw
 {
@@ -43,9 +44,9 @@ static struct rockchip_scu_reg_hw
 	u32 scu_clksel2_config;
 } *scu_register_base = (struct rockchip_scu_reg_hw *)(RK2818_SCU_BASE);
 
-#define CLKSEL0_REG	(u32 __iomem *)SCU_CLKSEL0_CON
-#define CLKSEL1_REG	(u32 __iomem *)SCU_CLKSEL1_CON
-#define CLKSEL2_REG	(u32 __iomem *)SCU_CLKSEL2_CON
+#define CLKSEL0_REG	(u32 __iomem *)(RK2818_SCU_BASE + SCU_CLKSEL0_CON)
+#define CLKSEL1_REG	(u32 __iomem *)(RK2818_SCU_BASE + SCU_CLKSEL1_CON)
+#define CLKSEL2_REG	(u32 __iomem *)(RK2818_SCU_BASE + SCU_CLKSEL2_CON)
 
 /* SCU PLL CON */
 #define PLL_TEST	(0x01u<<25)
@@ -350,9 +351,9 @@ static int pll_clk_set_rate(struct clk *clk, unsigned long rate)
 		writel(v, reg);
 
 		/* arm run at 24m */ //FIXME
-		unit = 5600;  /* 24m,0.3ms , 24*300*/
+		unit = 7200;  /* 24m,0.3ms , 24*300*/
 		while (unit-- > 0) {
-			v = readl(RK2818_REGFILE_BASE); //CPU_APB_REG0
+			v = readl(RK2818_REGFILE_BASE + CPU_APB_REG0);
 			if (v & (0x80u << clk->pll_idx) )
 				break;
 		}
