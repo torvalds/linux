@@ -1090,10 +1090,9 @@ static int __init fujitsu_init(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
-	fujitsu = kmalloc(sizeof(struct fujitsu_t), GFP_KERNEL);
+	fujitsu = kzalloc(sizeof(struct fujitsu_t), GFP_KERNEL);
 	if (!fujitsu)
 		return -ENOMEM;
-	memset(fujitsu, 0, sizeof(struct fujitsu_t));
 	fujitsu->keycode1 = KEY_PROG1;
 	fujitsu->keycode2 = KEY_PROG2;
 	fujitsu->keycode3 = KEY_PROG3;
@@ -1150,12 +1149,11 @@ static int __init fujitsu_init(void)
 
 	/* Register hotkey driver */
 
-	fujitsu_hotkey = kmalloc(sizeof(struct fujitsu_hotkey_t), GFP_KERNEL);
+	fujitsu_hotkey = kzalloc(sizeof(struct fujitsu_hotkey_t), GFP_KERNEL);
 	if (!fujitsu_hotkey) {
 		ret = -ENOMEM;
 		goto fail_hotkey;
 	}
-	memset(fujitsu_hotkey, 0, sizeof(struct fujitsu_hotkey_t));
 
 	result = acpi_bus_register_driver(&acpi_fujitsu_hotkey_driver);
 	if (result < 0) {
