@@ -297,34 +297,9 @@ static int ir_startup(struct usb_serial *serial)
 
 static int ir_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
-	char *buffer;
 	int result = 0;
 
 	dbg("%s - port %d", __func__, port->number);
-
-	if (buffer_size) {
-		/* override the default buffer sizes */
-		buffer = kmalloc(buffer_size, GFP_KERNEL);
-		if (!buffer) {
-			dev_err(&port->dev, "%s - out of memory.\n", __func__);
-			return -ENOMEM;
-		}
-		kfree(port->read_urb->transfer_buffer);
-		port->read_urb->transfer_buffer = buffer;
-		port->read_urb->transfer_buffer_length = buffer_size;
-		port->bulk_in_buffer = buffer;
-
-		buffer = kmalloc(buffer_size, GFP_KERNEL);
-		if (!buffer) {
-			dev_err(&port->dev, "%s - out of memory.\n", __func__);
-			return -ENOMEM;
-		}
-		kfree(port->write_urb->transfer_buffer);
-		port->write_urb->transfer_buffer = buffer;
-		port->write_urb->transfer_buffer_length = buffer_size;
-		port->bulk_out_buffer = buffer;
-		port->bulk_out_size = buffer_size;
-	}
 
 	/* Start reading from the device */
 	usb_fill_bulk_urb(
@@ -584,6 +559,11 @@ static void ir_set_termios(struct tty_struct *tty,
 static int __init ir_init(void)
 {
 	int retval;
+
+	if (buffer_size) {
+		ir_device.bulk_in_size = buffer_size;
+		ir_device.bulk_out_size = buffer_size;
+	}
 
 	retval = usb_serial_register(&ir_device);
 	if (retval)
