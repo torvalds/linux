@@ -960,6 +960,8 @@ struct qlcnic_adapter {
 
 	u8 mac_addr[ETH_ALEN];
 
+	u64 dev_rst_time;
+
 	struct qlcnic_adapter_stats stats;
 
 	struct qlcnic_recv_context recv_ctx;
