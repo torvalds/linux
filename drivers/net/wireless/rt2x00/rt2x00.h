@@ -39,6 +39,7 @@
 #include <net/mac80211.h>
 
 #include "rt2x00debug.h"
+#include "rt2x00dump.h"
 #include "rt2x00leds.h"
 #include "rt2x00reg.h"
 #include "rt2x00queue.h"
@@ -1013,6 +1014,26 @@ struct data_queue *rt2x00queue_get_queue(struct rt2x00_dev *rt2x00dev,
  */
 struct queue_entry *rt2x00queue_get_entry(struct data_queue *queue,
 					  enum queue_index index);
+
+/*
+ * Debugfs handlers.
+ */
+/**
+ * rt2x00debug_dump_frame - Dump a frame to userspace through debugfs.
+ * @rt2x00dev: Pointer to &struct rt2x00_dev.
+ * @type: The type of frame that is being dumped.
+ * @skb: The skb containing the frame to be dumped.
+ */
+#ifdef CONFIG_RT2X00_LIB_DEBUGFS
+void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
+			    enum rt2x00_dump_type type, struct sk_buff *skb);
+#else
+static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
+					  enum rt2x00_dump_type type,
+					  struct sk_buff *skb)
+{
+}
+#endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
 /*
  * Interrupt context handlers.
