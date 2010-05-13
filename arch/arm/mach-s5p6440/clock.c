@@ -266,6 +266,15 @@ static struct clksrc_clk clk_dout_mpll = {
 	.reg_div	= { .reg = S5P_CLK_DIV0, .shift = 4, .size = 1 },
 };
 
+static struct clksrc_clk clk_hclk = {
+	.clk	= {
+		.name	= "clk_hclk",
+		.id	= -1,
+		.parent	= &clk_armclk.clk,
+	},
+	.reg_div	= { .reg = S5P_CLK_DIV0, .shift = 8, .size = 4 },
+};
+
 int s5p6440_clk48m_ctrl(struct clk *clk, int enable)
 {
 	unsigned long flags;
@@ -321,7 +330,7 @@ static struct clk init_clocks_disable[] = {
 	{
 		.name		= "nand",
 		.id		= -1,
-		.parent		= &clk_h,
+		.parent		= &clk_hclk.clk,
 		.enable		= s5p6440_mem_ctrl,
 		.ctrlbit	= S5P_CLKCON_MEM0_HCLK_NFCON,
 	}, {
@@ -580,6 +589,7 @@ static struct clksrc_clk *sysclks[] = {
 	&clk_mout_mpll,
 	&clk_dout_mpll,
 	&clk_armclk,
+	&clk_hclk,
 };
 
 void __init_or_cpufreq s5p6440_setup_clocks(void)
@@ -628,7 +638,7 @@ void __init_or_cpufreq s5p6440_setup_clocks(void)
 			print_mhz(apll), print_mhz(mpll), print_mhz(epll));
 
 	fclk = clk_get_rate(&clk_armclk.clk);
-	hclk = fclk / GET_DIV(clkdiv0, S5P_CLKDIV0_HCLK);
+	hclk = clk_get_rate(&clk_hclk.clk);
 	pclk = hclk / GET_DIV(clkdiv0, S5P_CLKDIV0_PCLK);
 
 	if (__raw_readl(S5P_OTHERS) & S5P_OTHERS_HCLK_LOW_SEL_MPLL) {
