@@ -469,9 +469,23 @@ static void ir_read_bulk_callback(struct urb *urb)
 	return;
 }
 
+static void ir_set_termios_callback(struct urb *urb)
+{
+	struct usb_serial_port *port = urb->context;
+	int status = urb->status;
+
+	dbg("%s - port %d", __func__, port->number);
+
+	kfree(urb->transfer_buffer);
+
+	if (status)
+		dbg("%s - non-zero urb status: %d", __func__, status);
+}
+
 static void ir_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
 {
+	struct urb *urb;
 	unsigned char *transfer_buffer;
 	int result;
 	speed_t baud;
@@ -525,35 +539,52 @@ static void ir_set_termios(struct tty_struct *tty,
 	else
 		ir_xbof = ir_xbof_change(xbof) ;
 
-	/* FIXME need to check to see if our write urb is busy right
-	 * now, or use a urb pool.
-	 *
-	 * send the baud change out on an "empty" data packet
-	 */
-	transfer_buffer = port->write_urb->transfer_buffer;
-	*transfer_buffer = ir_xbof | ir_baud;
-
-	usb_fill_bulk_urb(
-		port->write_urb,
-		port->serial->dev,
-		usb_sndbulkpipe(port->serial->dev,
-			port->bulk_out_endpointAddress),
-		port->write_urb->transfer_buffer,
-		1,
-		ir_write_bulk_callback,
-		port);
-
-	port->write_urb->transfer_flags = URB_ZERO_PACKET;
-
-	result = usb_submit_urb(port->write_urb, GFP_KERNEL);
-	if (result)
-		dev_err(&port->dev,
-				"%s - failed submitting write urb, error %d\n",
-				__func__, result);
-
 	/* Only speed changes are supported */
 	tty_termios_copy_hw(tty->termios, old_termios);
 	tty_encode_baud_rate(tty, baud, baud);
+
+	/*
+	 * send the baud change out on an "empty" data packet
+	 */
+	urb = usb_alloc_urb(0, GFP_KERNEL);
+	if (!urb) {
+		dev_err(&port->dev, "%s - no more urbs\n", __func__);
+		return;
+	}
+	transfer_buffer = kmalloc(1, GFP_KERNEL);
+	if (!transfer_buffer) {
+		dev_err(&port->dev, "%s - out of memory\n", __func__);
+		goto err_buf;
+	}
+
+	*transfer_buffer = ir_xbof | ir_baud;
+
+	usb_fill_bulk_urb(
+		urb,
+		port->serial->dev,
+		usb_sndbulkpipe(port->serial->dev,
+			port->bulk_out_endpointAddress),
+		transfer_buffer,
+		1,
+		ir_set_termios_callback,
+		port);
+
+	urb->transfer_flags = URB_ZERO_PACKET;
+
+	result = usb_submit_urb(urb, GFP_KERNEL);
+	if (result) {
+		dev_err(&port->dev, "%s - failed to submit urb: %d\n",
+							__func__, result);
+		goto err_subm;
+	}
+
+	usb_free_urb(urb);
+
+	return;
+err_subm:
+	kfree(transfer_buffer);
+err_buf:
+	usb_free_urb(urb);
 }
 
 static int __init ir_init(void)
