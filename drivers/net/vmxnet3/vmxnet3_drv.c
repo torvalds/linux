@@ -1369,13 +1369,12 @@ vmxnet3_rq_create(struct vmxnet3_rx_queue *rq, struct vmxnet3_adapter *adapter)
 
 	sz = sizeof(struct vmxnet3_rx_buf_info) * (rq->rx_ring[0].size +
 						   rq->rx_ring[1].size);
-	bi = kmalloc(sz, GFP_KERNEL);
+	bi = kzalloc(sz, GFP_KERNEL);
 	if (!bi) {
 		printk(KERN_ERR "%s: failed to allocate rx bufinfo\n",
 		       adapter->netdev->name);
 		goto err;
 	}
-	memset(bi, 0, sz);
 	rq->buf_info[0] = bi;
 	rq->buf_info[1] = bi + rq->rx_ring[0].size;
 
