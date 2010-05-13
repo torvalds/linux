@@ -2608,10 +2608,9 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 		goto out;
 
 	ret = -ENOMEM;
-	msp = kmalloc(sizeof(*msp), GFP_KERNEL);
+	msp = kzalloc(sizeof(*msp), GFP_KERNEL);
 	if (msp == NULL)
 		goto out;
-	memset(msp, 0, sizeof(*msp));
 
 	msp->base = ioremap(res->start, res->end - res->start + 1);
 	if (msp->base == NULL)
