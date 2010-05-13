@@ -50,6 +50,23 @@ config MTD_NAND_AUTCPU12
 	  This enables the driver for the autronix autcpu12 board to
 	  access the SmartMediaCard.
 
+config MTD_NAND_DENALI
+       depends on PCI
+        tristate "Support Denali NAND controller on Intel Moorestown"
+        help
+          Enable the driver for NAND flash on Intel Moorestown, using the
+          Denali NAND controller core.
+ 
+config MTD_NAND_DENALI_SCRATCH_REG_ADDR
+        hex "Denali NAND size scratch register address"
+        default "0xFF108018"
+        help
+          Some platforms place the NAND chip size in a scratch register
+          because (some versions of) the driver aren't able to automatically
+          determine the size of certain chips. Set the address of the
+          scratch register here to enable this feature. On Intel Moorestown
+          boards, the scratch register is at 0xFF108018.
+
 config MTD_NAND_EDB7312
 	tristate "Support for Cirrus Logic EBD7312 evaluation board"
 	depends on ARCH_EDB7312
