@@ -1207,6 +1207,8 @@ ironlake_dp_detect(struct drm_connector *connector)
 		if (dp_priv->dpcd[0] != 0)
 			status = connector_status_connected;
 	}
+	DRM_DEBUG_KMS("DPCD: %hx%hx%hx%hx\n", dp_priv->dpcd[0],
+		      dp_priv->dpcd[1], dp_priv->dpcd[2], dp_priv->dpcd[3]);
 	return status;
 }
 
