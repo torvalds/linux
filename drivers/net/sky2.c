@@ -4926,11 +4926,11 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 	cancel_work_sync(&hw->restart_work);
 
 	rtnl_lock();
+
+	sky2_all_down(hw);
 	for (i = 0; i < hw->ports; i++) {
 		struct net_device *dev = hw->dev[i];
 		struct sky2_port *sky2 = netdev_priv(dev);
-
-		sky2_detach(dev);
 
 		if (sky2->wol)
 			sky2_wol_init(sky2);
@@ -4940,8 +4940,6 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	device_set_wakeup_enable(&pdev->dev, wol != 0);
 
-	sky2_write32(hw, B0_IMSK, 0);
-	napi_disable(&hw->napi);
 	sky2_power_aux(hw);
 	rtnl_unlock();
 
@@ -4956,12 +4954,11 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 static int sky2_resume(struct pci_dev *pdev)
 {
 	struct sky2_hw *hw = pci_get_drvdata(pdev);
-	int i, err;
+	int err;
 
 	if (!hw)
 		return 0;
 
-	rtnl_lock();
 	err = pci_set_power_state(pdev, PCI_D0);
 	if (err)
 		goto out;
@@ -4979,20 +4976,13 @@ static int sky2_resume(struct pci_dev *pdev)
 		goto out;
 	}
 
+	rtnl_lock();
 	sky2_reset(hw);
-	sky2_write32(hw, B0_IMSK, Y2_IS_BASE);
-	napi_enable(&hw->napi);
-
-	for (i = 0; i < hw->ports; i++) {
-		err = sky2_reattach(hw->dev[i]);
-		if (err)
-			goto out;
-	}
+	sky2_all_up(hw);
 	rtnl_unlock();
 
 	return 0;
 out:
-	rtnl_unlock();
 
 	dev_err(&pdev->dev, "resume failed (%d)\n", err);
 	pci_disable_device(pdev);
