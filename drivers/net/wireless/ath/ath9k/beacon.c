@@ -274,17 +274,11 @@ int ath_beacon_alloc(struct ath_wiphy *aphy, struct ieee80211_vif *vif)
 			avp->av_bslot = 0;
 			for (slot = 0; slot < ATH_BCBUF; slot++)
 				if (sc->beacon.bslot[slot] == NULL) {
-					/*
-					 * XXX hack, space out slots to better
-					 * deal with misses
-					 */
-					if (slot+1 < ATH_BCBUF &&
-					    sc->beacon.bslot[slot+1] == NULL) {
-						avp->av_bslot = slot+1;
-						break;
-					}
 					avp->av_bslot = slot;
+
 					/* NB: keep looking for a double slot */
+					if (slot == 0 || !sc->beacon.bslot[slot-1])
+						break;
 				}
 			BUG_ON(sc->beacon.bslot[avp->av_bslot] != NULL);
 			sc->beacon.bslot[avp->av_bslot] = vif;
