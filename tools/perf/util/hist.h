@@ -78,7 +78,7 @@ void hists__filter_by_dso(struct hists *self, const struct dso *dso);
 void hists__filter_by_thread(struct hists *self, const struct thread *thread);
 
 #ifdef NO_NEWT_SUPPORT
-static inline int hists__browse(struct hists self __used,
+static inline int hists__browse(struct hists *self __used,
 				const char *helpline __used,
 				const char *input_name __used)
 {
