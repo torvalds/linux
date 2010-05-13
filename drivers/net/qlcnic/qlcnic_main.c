@@ -2043,8 +2043,11 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 
 	do {
 		msleep(1000);
-	} while ((QLCRD32(adapter, QLCNIC_CRB_DEV_STATE) != QLCNIC_DEV_READY)
-			&& --dev_init_timeo);
+		prev_state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
+
+		if (prev_state == QLCNIC_DEV_QUISCENT)
+			continue;
+	} while ((prev_state != QLCNIC_DEV_READY) && --dev_init_timeo);
 
 	if (!dev_init_timeo) {
 		dev_err(&adapter->pdev->dev,
@@ -2075,6 +2078,14 @@ qlcnic_fwinit_work(struct work_struct *work)
 	if (qlcnic_api_lock(adapter))
 		goto err_ret;
 
+	dev_state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
+	if (dev_state ==  QLCNIC_DEV_QUISCENT) {
+		qlcnic_api_unlock(adapter);
+		qlcnic_schedule_work(adapter, qlcnic_fwinit_work,
+						FW_POLL_DELAY * 2);
+		return;
+	}
+
 	if (adapter->fw_wait_cnt++ > adapter->reset_ack_timeo) {
 		dev_err(&adapter->pdev->dev, "Reset:Failed to get ack %d sec\n",
 					adapter->reset_ack_timeo);
@@ -2084,6 +2095,17 @@ qlcnic_fwinit_work(struct work_struct *work)
 	if (!qlcnic_check_drv_state(adapter)) {
 skip_ack_check:
 		dev_state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
+
+		if (dev_state == QLCNIC_DEV_NEED_QUISCENT) {
+			QLCWR32(adapter, QLCNIC_CRB_DEV_STATE,
+						QLCNIC_DEV_QUISCENT);
+			qlcnic_schedule_work(adapter, qlcnic_fwinit_work,
+						FW_POLL_DELAY * 2);
+			QLCDB(adapter, DRV, "Quiscing the driver\n");
+			qlcnic_api_unlock(adapter);
+			return;
+		}
+
 		if (dev_state == QLCNIC_DEV_NEED_RESET) {
 			QLCWR32(adapter, QLCNIC_CRB_DEV_STATE,
 						QLCNIC_DEV_INITIALIZING);
@@ -2106,6 +2128,8 @@ skip_ack_check:
 	QLCDB(adapter, HW, "Func waiting: Device state=%u\n", dev_state);
 
 	switch (dev_state) {
+	case QLCNIC_DEV_QUISCENT:
+	case QLCNIC_DEV_NEED_QUISCENT:
 	case QLCNIC_DEV_NEED_RESET:
 		qlcnic_schedule_work(adapter,
 			qlcnic_fwinit_work, FW_POLL_DELAY);
