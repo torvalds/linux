@@ -270,6 +270,8 @@ rpcauth_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
 	LIST_HEAD(free);
 	int res;
 
+	if ((gfp_mask & GFP_KERNEL) != GFP_KERNEL)
+		return (nr_to_scan == 0) ? 0 : -1;
 	if (list_empty(&cred_unused))
 		return 0;
 	spin_lock(&rpc_credcache_lock);
