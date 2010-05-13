@@ -1703,6 +1703,8 @@ int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
 	struct nfs_inode *nfsi;
 	struct nfs_access_entry *cache;
 
+	if ((gfp_mask & GFP_KERNEL) != GFP_KERNEL)
+		return (nr_to_scan == 0) ? 0 : -1;
 restart:
 	spin_lock(&nfs_access_lru_lock);
 	list_for_each_entry(nfsi, &nfs_access_lru_list, access_cache_inode_lru) {
