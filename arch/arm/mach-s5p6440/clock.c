@@ -336,6 +336,11 @@ static int s5p6440_sclk_ctrl(struct clk *clk, int enable)
 	return s5p_gatectrl(S5P_CLK_GATE_SCLK0, clk, enable);
 }
 
+static int s5p6440_sclk1_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(S5P_CLK_GATE_SCLK1, clk, enable);
+}
+
 static int s5p6440_mem_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(S5P_CLK_GATE_MEM0, clk, enable);
@@ -616,6 +621,19 @@ static struct clksrc_sources clkset_uart = {
 	.nr_sources	= ARRAY_SIZE(clkset_uart_list),
 };
 
+static struct clk *clkset_audio_list[] = {
+	&clk_mout_epll.clk,
+	&clk_dout_mpll.clk,
+	&clk_fin_epll,
+	&clk_iis_cd_v40,
+	&clk_pcm_cd,
+};
+
+static struct clksrc_sources clkset_audio = {
+	.sources	= clkset_audio_list,
+	.nr_sources	= ARRAY_SIZE(clkset_audio_list),
+};
+
 static struct clksrc_clk clksrcs[] = {
 	{
 		.clk	= {
@@ -677,7 +695,47 @@ static struct clksrc_clk clksrcs[] = {
 		.sources = &clkset_group1,
 		.reg_src = { .reg = S5P_CLK_SRC0, .shift = 16, .size = 2 },
 		.reg_div = { .reg = S5P_CLK_DIV2, .shift = 4, .size = 4 },
-	}
+	}, {
+		.clk	= {
+			.name		= "sclk_post",
+			.id		= -1,
+			.ctrlbit	= (1 << 10),
+			.enable		= s5p6440_sclk_ctrl,
+		},
+		.sources = &clkset_group1,
+		.reg_src = { .reg = S5P_CLK_SRC0, .shift = 26, .size = 2 },
+		.reg_div = { .reg = S5P_CLK_DIV1, .shift = 12, .size = 4 },
+	}, {
+		.clk	= {
+			.name		= "sclk_dispcon",
+			.id		= -1,
+			.ctrlbit	= (1 << 1),
+			.enable		= s5p6440_sclk1_ctrl,
+		},
+		.sources = &clkset_group1,
+		.reg_src = { .reg = S5P_CLK_SRC1, .shift = 4, .size = 2 },
+		.reg_div = { .reg = S5P_CLK_DIV3, .shift = 0, .size = 4 },
+	}, {
+		.clk	= {
+			.name		= "sclk_fimgvg",
+			.id		= -1,
+			.ctrlbit	= (1 << 2),
+			.enable		= s5p6440_sclk1_ctrl,
+		},
+		.sources = &clkset_group1,
+		.reg_src = { .reg = S5P_CLK_SRC1, .shift = 8, .size = 2 },
+		.reg_div = { .reg = S5P_CLK_DIV3, .shift = 4, .size = 4 },
+	}, {
+		.clk	= {
+			.name		= "sclk_audio2",
+			.id		= -1,
+			.ctrlbit	= (1 << 11),
+			.enable		= s5p6440_sclk_ctrl,
+		},
+		.sources = &clkset_audio,
+		.reg_src = { .reg = S5P_CLK_SRC1, .shift = 0, .size = 3 },
+		.reg_div = { .reg = S5P_CLK_DIV2, .shift = 24, .size = 4 },
+	},
 };
 
 /* Clock initialisation code */
