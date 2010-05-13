@@ -43,7 +43,7 @@ ip6t_mangle_out(struct sk_buff *skb, const struct net_device *out)
 	if (skb->len < sizeof(struct iphdr) ||
 	    ip_hdrlen(skb) < sizeof(struct iphdr)) {
 		if (net_ratelimit())
-			printk("ip6t_hook: happy cracking.\n");
+			pr_warning("ip6t_hook: happy cracking.\n");
 		return NF_ACCEPT;
 	}
 #endif

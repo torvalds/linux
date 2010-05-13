@@ -382,32 +382,32 @@ static int __init nf_conntrack_l3proto_ipv4_init(void)
 
 	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_tcp4);
 	if (ret < 0) {
-		printk("nf_conntrack_ipv4: can't register tcp.\n");
+		pr_err("nf_conntrack_ipv4: can't register tcp.\n");
 		goto cleanup_sockopt;
 	}
 
 	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_udp4);
 	if (ret < 0) {
-		printk("nf_conntrack_ipv4: can't register udp.\n");
+		pr_err("nf_conntrack_ipv4: can't register udp.\n");
 		goto cleanup_tcp;
 	}
 
 	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_icmp);
 	if (ret < 0) {
-		printk("nf_conntrack_ipv4: can't register icmp.\n");
+		pr_err("nf_conntrack_ipv4: can't register icmp.\n");
 		goto cleanup_udp;
 	}
 
 	ret = nf_conntrack_l3proto_register(&nf_conntrack_l3proto_ipv4);
 	if (ret < 0) {
-		printk("nf_conntrack_ipv4: can't register ipv4\n");
+		pr_err("nf_conntrack_ipv4: can't register ipv4\n");
 		goto cleanup_icmp;
 	}
 
 	ret = nf_register_hooks(ipv4_conntrack_ops,
 				ARRAY_SIZE(ipv4_conntrack_ops));
 	if (ret < 0) {
-		printk("nf_conntrack_ipv4: can't register hooks.\n");
+		pr_err("nf_conntrack_ipv4: can't register hooks.\n");
 		goto cleanup_ipv4;
 	}
 #if defined(CONFIG_PROC_FS) && defined(CONFIG_NF_CONNTRACK_PROC_COMPAT)

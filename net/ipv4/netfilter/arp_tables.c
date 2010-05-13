@@ -222,7 +222,7 @@ static unsigned int
 arpt_error(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	if (net_ratelimit())
-		printk("arp_tables: error: '%s'\n",
+		pr_err("arp_tables: error: '%s'\n",
 		       (const char *)par->targinfo);
 
 	return NF_DROP;
@@ -385,7 +385,7 @@ static int mark_source_chains(const struct xt_table_info *newinfo,
 			int visited = e->comefrom & (1 << hook);
 
 			if (e->comefrom & (1 << NF_ARP_NUMHOOKS)) {
-				printk("arptables: loop hook %u pos %u %08X.\n",
+				pr_notice("arptables: loop hook %u pos %u %08X.\n",
 				       hook, pos, e->comefrom);
 				return 0;
 			}
