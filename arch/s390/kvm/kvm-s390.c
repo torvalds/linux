@@ -371,55 +371,43 @@ static int kvm_arch_vcpu_ioctl_initial_reset(struct kvm_vcpu *vcpu)
 
 int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
-	vcpu_load(vcpu);
 	memcpy(&vcpu->arch.guest_gprs, &regs->gprs, sizeof(regs->gprs));
-	vcpu_put(vcpu);
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
-	vcpu_load(vcpu);
 	memcpy(&regs->gprs, &vcpu->arch.guest_gprs, sizeof(regs->gprs));
-	vcpu_put(vcpu);
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 				  struct kvm_sregs *sregs)
 {
-	vcpu_load(vcpu);
 	memcpy(&vcpu->arch.guest_acrs, &sregs->acrs, sizeof(sregs->acrs));
 	memcpy(&vcpu->arch.sie_block->gcr, &sregs->crs, sizeof(sregs->crs));
-	vcpu_put(vcpu);
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 				  struct kvm_sregs *sregs)
 {
-	vcpu_load(vcpu);
 	memcpy(&sregs->acrs, &vcpu->arch.guest_acrs, sizeof(sregs->acrs));
 	memcpy(&sregs->crs, &vcpu->arch.sie_block->gcr, sizeof(sregs->crs));
-	vcpu_put(vcpu);
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
-	vcpu_load(vcpu);
 	memcpy(&vcpu->arch.guest_fpregs.fprs, &fpu->fprs, sizeof(fpu->fprs));
 	vcpu->arch.guest_fpregs.fpc = fpu->fpc;
-	vcpu_put(vcpu);
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
-	vcpu_load(vcpu);
 	memcpy(&fpu->fprs, &vcpu->arch.guest_fpregs.fprs, sizeof(fpu->fprs));
 	fpu->fpc = vcpu->arch.guest_fpregs.fpc;
-	vcpu_put(vcpu);
 	return 0;
 }
 
@@ -498,8 +486,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	int rc;
 	sigset_t sigsaved;
 
-	vcpu_load(vcpu);
-
 rerun_vcpu:
 	if (vcpu->requests)
 		if (test_and_clear_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests))
@@ -567,8 +553,6 @@ rerun_vcpu:
 
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
-
-	vcpu_put(vcpu);
 
 	vcpu->stat.exit_userspace++;
 	return rc;

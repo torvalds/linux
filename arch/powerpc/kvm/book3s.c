@@ -1047,8 +1047,6 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
 	int i;
 
-	vcpu_load(vcpu);
-
 	regs->pc = kvmppc_get_pc(vcpu);
 	regs->cr = kvmppc_get_cr(vcpu);
 	regs->ctr = kvmppc_get_ctr(vcpu);
@@ -1069,16 +1067,12 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		regs->gpr[i] = kvmppc_get_gpr(vcpu, i);
 
-	vcpu_put(vcpu);
-
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
 	int i;
-
-	vcpu_load(vcpu);
 
 	kvmppc_set_pc(vcpu, regs->pc);
 	kvmppc_set_cr(vcpu, regs->cr);
@@ -1099,8 +1093,6 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	for (i = 0; i < ARRAY_SIZE(regs->gpr); i++)
 		kvmppc_set_gpr(vcpu, i, regs->gpr[i]);
 
-	vcpu_put(vcpu);
-
 	return 0;
 }
 
@@ -1109,8 +1101,6 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 {
 	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
 	int i;
-
-	vcpu_load(vcpu);
 
 	sregs->pvr = vcpu->arch.pvr;
 
@@ -1131,8 +1121,6 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 		}
 	}
 
-	vcpu_put(vcpu);
-
 	return 0;
 }
 
@@ -1141,8 +1129,6 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 {
 	struct kvmppc_vcpu_book3s *vcpu3s = to_book3s(vcpu);
 	int i;
-
-	vcpu_load(vcpu);
 
 	kvmppc_set_pvr(vcpu, sregs->pvr);
 
@@ -1170,8 +1156,6 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 
 	/* Flush the MMU after messing with the segments */
 	kvmppc_mmu_pte_flush(vcpu, 0, 0);
-
-	vcpu_put(vcpu);
 
 	return 0;
 }

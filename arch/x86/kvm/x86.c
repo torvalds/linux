@@ -4773,8 +4773,6 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	int r;
 	sigset_t sigsaved;
 
-	vcpu_load(vcpu);
-
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &vcpu->sigset, &sigsaved);
 
@@ -4815,14 +4813,11 @@ out:
 	if (vcpu->sigset_active)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
 
-	vcpu_put(vcpu);
 	return r;
 }
 
 int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
-	vcpu_load(vcpu);
-
 	regs->rax = kvm_register_read(vcpu, VCPU_REGS_RAX);
 	regs->rbx = kvm_register_read(vcpu, VCPU_REGS_RBX);
 	regs->rcx = kvm_register_read(vcpu, VCPU_REGS_RCX);
@@ -4845,15 +4840,11 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	regs->rip = kvm_rip_read(vcpu);
 	regs->rflags = kvm_get_rflags(vcpu);
 
-	vcpu_put(vcpu);
-
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
-	vcpu_load(vcpu);
-
 	kvm_register_write(vcpu, VCPU_REGS_RAX, regs->rax);
 	kvm_register_write(vcpu, VCPU_REGS_RBX, regs->rbx);
 	kvm_register_write(vcpu, VCPU_REGS_RCX, regs->rcx);
@@ -4878,8 +4869,6 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 
 	vcpu->arch.exception.pending = false;
 
-	vcpu_put(vcpu);
-
 	return 0;
 }
 
@@ -4897,8 +4886,6 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 				  struct kvm_sregs *sregs)
 {
 	struct desc_ptr dt;
-
-	vcpu_load(vcpu);
 
 	kvm_get_segment(vcpu, &sregs->cs, VCPU_SREG_CS);
 	kvm_get_segment(vcpu, &sregs->ds, VCPU_SREG_DS);
@@ -4931,26 +4918,20 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
 		set_bit(vcpu->arch.interrupt.nr,
 			(unsigned long *)sregs->interrupt_bitmap);
 
-	vcpu_put(vcpu);
-
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
-	vcpu_load(vcpu);
 	mp_state->mp_state = vcpu->arch.mp_state;
-	vcpu_put(vcpu);
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
-	vcpu_load(vcpu);
 	vcpu->arch.mp_state = mp_state->mp_state;
-	vcpu_put(vcpu);
 	return 0;
 }
 
@@ -4995,8 +4976,6 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	int mmu_reset_needed = 0;
 	int pending_vec, max_bits;
 	struct desc_ptr dt;
-
-	vcpu_load(vcpu);
 
 	dt.size = sregs->idt.limit;
 	dt.address = sregs->idt.base;
@@ -5057,8 +5036,6 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	    !is_protmode(vcpu))
 		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 
-	vcpu_put(vcpu);
-
 	return 0;
 }
 
@@ -5068,12 +5045,10 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 	unsigned long rflags;
 	int i, r;
 
-	vcpu_load(vcpu);
-
 	if (dbg->control & (KVM_GUESTDBG_INJECT_DB | KVM_GUESTDBG_INJECT_BP)) {
 		r = -EBUSY;
 		if (vcpu->arch.exception.pending)
-			goto unlock_out;
+			goto out;
 		if (dbg->control & KVM_GUESTDBG_INJECT_DB)
 			kvm_queue_exception(vcpu, DB_VECTOR);
 		else
@@ -5115,8 +5090,7 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 
 	r = 0;
 
-unlock_out:
-	vcpu_put(vcpu);
+out:
 
 	return r;
 }
@@ -5152,7 +5126,6 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 	gpa_t gpa;
 	int idx;
 
-	vcpu_load(vcpu);
 	idx = srcu_read_lock(&vcpu->kvm->srcu);
 	gpa = kvm_mmu_gva_to_gpa_system(vcpu, vaddr, NULL);
 	srcu_read_unlock(&vcpu->kvm->srcu, idx);
@@ -5160,7 +5133,6 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 	tr->valid = gpa != UNMAPPED_GVA;
 	tr->writeable = 1;
 	tr->usermode = 0;
-	vcpu_put(vcpu);
 
 	return 0;
 }
@@ -5168,8 +5140,6 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
 	struct fxsave *fxsave = (struct fxsave *)&vcpu->arch.guest_fx_image;
-
-	vcpu_load(vcpu);
 
 	memcpy(fpu->fpr, fxsave->st_space, 128);
 	fpu->fcw = fxsave->cwd;
@@ -5180,16 +5150,12 @@ int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 	fpu->last_dp = fxsave->rdp;
 	memcpy(fpu->xmm, fxsave->xmm_space, sizeof fxsave->xmm_space);
 
-	vcpu_put(vcpu);
-
 	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
 	struct fxsave *fxsave = (struct fxsave *)&vcpu->arch.guest_fx_image;
-
-	vcpu_load(vcpu);
 
 	memcpy(fxsave->st_space, fpu->fpr, 128);
 	fxsave->cwd = fpu->fcw;
@@ -5199,8 +5165,6 @@ int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 	fxsave->rip = fpu->last_ip;
 	fxsave->rdp = fpu->last_dp;
 	memcpy(fxsave->xmm_space, fpu->xmm, sizeof fxsave->xmm_space);
-
-	vcpu_put(vcpu);
 
 	return 0;
 }
