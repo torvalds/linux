@@ -66,8 +66,6 @@ struct rpc_rqst {
 	struct rpc_task *	rq_task;	/* RPC task data */
 	__be32			rq_xid;		/* request XID */
 	int			rq_cong;	/* has incremented xprt->cong */
-	int			rq_reply_bytes_recvd;	/* number of reply */
-							/* bytes received */
 	u32			rq_seqno;	/* gss seq no. used on req. */
 	int			rq_enc_pages_num;
 	struct page		**rq_enc_pages;	/* scratch pages for use by
@@ -78,12 +76,16 @@ struct rpc_rqst {
 	__u32 *			rq_buffer;	/* XDR encode buffer */
 	size_t			rq_callsize,
 				rq_rcvsize;
+	size_t			rq_xmit_bytes_sent;	/* total bytes sent */
+	size_t			rq_reply_bytes_recvd;	/* total reply bytes */
+							/* received */
 
 	struct xdr_buf		rq_private_buf;		/* The receive buffer
 							 * used in the softirq.
 							 */
 	unsigned long		rq_majortimeo;	/* major timeout alarm */
 	unsigned long		rq_timeout;	/* Current timeout value */
+	ktime_t			rq_rtt;		/* round-trip time */
 	unsigned int		rq_retries;	/* # of retries */
 	unsigned int		rq_connect_cookie;
 						/* A cookie used to track the

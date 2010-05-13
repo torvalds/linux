@@ -80,9 +80,7 @@ struct rpc_task {
 	} u;
 
 	unsigned short		tk_timeouts;	/* maj timeouts */
-	size_t			tk_bytes_sent;	/* total bytes sent */
-	ktime_t			tk_start,	/* RPC task init timestamp */
-				tk_rtt;		/* round-trip time */
+	ktime_t			tk_start;	/* RPC task init timestamp */
 
 	pid_t			tk_owner;	/* Process id for batching tasks */
 	unsigned char		tk_priority : 2;/* Task priority */

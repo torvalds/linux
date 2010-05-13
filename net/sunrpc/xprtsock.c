@@ -528,7 +528,7 @@ static int xs_udp_send_request(struct rpc_task *task)
 			xdr->len - req->rq_bytes_sent, status);
 
 	if (status >= 0) {
-		task->tk_bytes_sent += status;
+		req->rq_xmit_bytes_sent += status;
 		if (status >= req->rq_slen)
 			return 0;
 		/* Still some bytes left; set up for a retry later. */
@@ -624,7 +624,7 @@ static int xs_tcp_send_request(struct rpc_task *task)
 		/* If we've sent the entire packet, immediately
 		 * reset the count of bytes sent. */
 		req->rq_bytes_sent += status;
-		task->tk_bytes_sent += status;
+		req->rq_xmit_bytes_sent += status;
 		if (likely(req->rq_bytes_sent >= req->rq_slen)) {
 			req->rq_bytes_sent = 0;
 			return 0;

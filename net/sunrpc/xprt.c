@@ -780,7 +780,7 @@ static void xprt_update_rtt(struct rpc_task *task)
 	struct rpc_rqst *req = task->tk_rqstp;
 	struct rpc_rtt *rtt = task->tk_client->cl_rtt;
 	unsigned timer = task->tk_msg.rpc_proc->p_timer;
-	long m = usecs_to_jiffies(ktime_to_us(task->tk_rtt));
+	long m = usecs_to_jiffies(ktime_to_us(req->rq_rtt));
 
 	if (timer) {
 		if (req->rq_ntrans == 1)
@@ -805,7 +805,7 @@ void xprt_complete_rqst(struct rpc_task *task, int copied)
 			task->tk_pid, ntohl(req->rq_xid), copied);
 
 	xprt->stat.recvs++;
-	task->tk_rtt = ktime_sub(ktime_get(), req->rq_xtime);
+	req->rq_rtt = ktime_sub(ktime_get(), req->rq_xtime);
 	if (xprt->ops->timer != NULL)
 		xprt_update_rtt(task);
 
