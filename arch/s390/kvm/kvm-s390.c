@@ -638,16 +638,16 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	void __user *argp = (void __user *)arg;
 	long r;
 
-	if (ioctl == KVM_S390_INTERRUPT) {
+	switch (ioctl) {
+	case KVM_S390_INTERRUPT: {
 		struct kvm_s390_interrupt s390int;
 
+		r = -EFAULT;
 		if (copy_from_user(&s390int, argp, sizeof(s390int)))
-			return -EFAULT;
-		return kvm_s390_inject_vcpu(vcpu, &s390int);
+			break;
+		r = kvm_s390_inject_vcpu(vcpu, &s390int);
+		break;
 	}
-
-	vcpu_load(vcpu);
-	switch (ioctl) {
 	case KVM_S390_STORE_STATUS:
 		r = kvm_s390_vcpu_store_status(vcpu, arg);
 		break;
@@ -666,7 +666,6 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	default:
 		r = -EINVAL;
 	}
-	vcpu_put(vcpu);
 	return r;
 }
 

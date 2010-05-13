@@ -2298,7 +2298,6 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	int r;
 	struct kvm_lapic_state *lapic = NULL;
 
-	vcpu_load(vcpu);
 	switch (ioctl) {
 	case KVM_GET_LAPIC: {
 		r = -EINVAL;
@@ -2496,7 +2495,6 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		r = -EINVAL;
 	}
 out:
-	vcpu_put(vcpu);
 	kfree(lapic);
 	return r;
 }

@@ -1578,9 +1578,7 @@ out_free2:
 		break;
 	}
 	default:
-		vcpu_put(vcpu);
 		r = kvm_arch_vcpu_ioctl(filp, ioctl, arg);
-		vcpu_load(vcpu);
 	}
 out:
 	vcpu_put(vcpu);
