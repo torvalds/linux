@@ -13,8 +13,8 @@
  *
  */
 
-#ifndef __ASM_ARM_ARCH_I2C_H
-#define __ASM_ARM_ARCH_I2C_H
+#ifndef __RK2818_I2C_H
+#define __RK2818_I2C_H
 
 /* master transmit */
 #define I2C_MTXR                (0x0000)
