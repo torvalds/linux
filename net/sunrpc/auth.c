@@ -236,6 +236,8 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 
 	list_for_each_entry_safe(cred, next, &cred_unused, cr_lru) {
 
+		if (nr_to_scan-- == 0)
+			break;
 		/*
 		 * Enforce a 60 second garbage collection moratorium
 		 * Note that the cred_unused list must be time-ordered.
@@ -255,11 +257,8 @@ rpcauth_prune_expired(struct list_head *free, int nr_to_scan)
 			get_rpccred(cred);
 			list_add_tail(&cred->cr_lru, free);
 			rpcauth_unhash_cred_locked(cred);
-			nr_to_scan--;
 		}
 		spin_unlock(cache_lock);
-		if (nr_to_scan == 0)
-			break;
 	}
 	return (number_cred_unused / 100) * sysctl_vfs_cache_pressure;
 }
