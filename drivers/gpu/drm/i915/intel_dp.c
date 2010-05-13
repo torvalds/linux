@@ -675,10 +675,9 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	dp_priv->link_configuration[1] = dp_priv->lane_count;
 
 	/*
-	 * Check for DPCD version > 1.1,
-	 * enable enahanced frame stuff in that case
+	 * Check for DPCD version > 1.1 and enhanced framing support
 	 */
-	if (dp_priv->dpcd[0] >= 0x11) {
+	if (dp_priv->dpcd[0] >= 0x11 && (dp_priv->dpcd[2] & DP_ENHANCED_FRAME_CAP)) {
 		dp_priv->link_configuration[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 		dp_priv->DP |= DP_ENHANCED_FRAMING;
 	}
