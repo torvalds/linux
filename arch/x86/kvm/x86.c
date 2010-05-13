@@ -3857,8 +3857,6 @@ static void inject_emulated_exception(struct kvm_vcpu *vcpu)
 
 static int handle_emulation_failure(struct kvm_vcpu *vcpu)
 {
-	struct x86_emulate_ctxt *ctxt = &vcpu->arch.emulate_ctxt;
-
 	++vcpu->stat.insn_emulation_fail;
 	trace_kvm_emulate_insn_failed(vcpu);
 	vcpu->run->exit_reason = KVM_EXIT_INTERNAL_ERROR;
