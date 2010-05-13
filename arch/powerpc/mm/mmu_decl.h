@@ -149,7 +149,15 @@ extern unsigned long mmu_mapin_ram(unsigned long top);
 extern void MMU_init_hw(void);
 extern unsigned long mmu_mapin_ram(unsigned long top);
 extern void adjust_total_lowmem(void);
+extern void loadcam_entry(unsigned int index);
 
+struct tlbcam {
+	u32	MAS0;
+	u32	MAS1;
+	unsigned long	MAS2;
+	u32	MAS3;
+	u32	MAS7;
+};
 #elif defined(CONFIG_PPC32)
 /* anything 32-bit except 4xx or 8xx */
 extern void MMU_init_hw(void);

@@ -271,3 +271,31 @@ _GLOBAL(set_context)
 #else
 #error Unsupported processor type !
 #endif
+
+#if defined(CONFIG_FSL_BOOKE)
+/*
+ * extern void loadcam_entry(unsigned int index)
+ *
+ * Load TLBCAM[index] entry in to the L2 CAM MMU
+ */
+_GLOBAL(loadcam_entry)
+	LOAD_REG_ADDR(r4, TLBCAM)
+	mulli	r5,r3,TLBCAM_SIZE
+	add	r3,r5,r4
+	lwz	r4,TLBCAM_MAS0(r3)
+	mtspr	SPRN_MAS0,r4
+	lwz	r4,TLBCAM_MAS1(r3)
+	mtspr	SPRN_MAS1,r4
+	PPC_LL	r4,TLBCAM_MAS2(r3)
+	mtspr	SPRN_MAS2,r4
+	lwz	r4,TLBCAM_MAS3(r3)
+	mtspr	SPRN_MAS3,r4
+BEGIN_MMU_FTR_SECTION
+	lwz	r4,TLBCAM_MAS7(r3)
+	mtspr	SPRN_MAS7,r4
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_BIG_PHYS)
+	isync
+	tlbwe
+	isync
+	blr
+#endif
