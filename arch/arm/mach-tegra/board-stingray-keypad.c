@@ -105,7 +105,7 @@ static struct keyreset_platform_data tegra_reset_keys_pdata = {
 	},
 };
 
-struct platform_device tegra_reset_keys_device = {
+static struct platform_device tegra_reset_keys_device = {
          .name = KEYRESET_NAME,
          .dev.platform_data = &tegra_reset_keys_pdata,
 };

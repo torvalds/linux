@@ -41,10 +41,10 @@ static struct resource fb_resource[] = {
 };
 
 static struct tegra_fb_lcd_data tegra_fb_lcd_platform_data = {
-	.lcd_xres	= 480,
-	.lcd_yres	= 854,
-	.fb_xres	= 480,
-	.fb_yres	= 854,
+	.lcd_xres	= 1280,
+	.lcd_yres	= 720,
+	.fb_xres	= 1280,
+	.fb_yres	= 720,
 	.bits_per_pixel	= 16,
 };
 

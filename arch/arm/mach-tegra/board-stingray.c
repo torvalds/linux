@@ -134,7 +134,7 @@ static struct fsl_usb2_platform_data tegra_otg_pdata = {
 	.phy_mode	= FSL_USB2_PHY_UTMI,
 };
 
-struct platform_device tegra_otg = {
+static struct platform_device tegra_otg = {
 	.name = "fsl-tegra-udc",
 	.id   = -1,
 	.dev  = {
