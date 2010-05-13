@@ -612,14 +612,13 @@ static int ocfs2_sync_dquot_helper(struct dquot *dquot, unsigned long type)
 	}
 	mutex_lock(&sb_dqopt(sb)->dqio_mutex);
 	status = ocfs2_sync_dquot(dquot);
-	mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
 	if (status < 0)
 		mlog_errno(status);
 	/* We have to write local structure as well... */
-	dquot_mark_dquot_dirty(dquot);
-	status = dquot_commit(dquot);
+	status = ocfs2_local_write_dquot(dquot);
 	if (status < 0)
 		mlog_errno(status);
+	mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
 	ocfs2_commit_trans(osb, handle);
 out_ilock:
 	ocfs2_unlock_global_qf(oinfo, 1);
@@ -658,7 +657,9 @@ static int ocfs2_write_dquot(struct dquot *dquot)
 		mlog_errno(status);
 		goto out;
 	}
-	status = dquot_commit(dquot);
+	mutex_lock(&sb_dqopt(dquot->dq_sb)->dqio_mutex);
+	status = ocfs2_local_write_dquot(dquot);
+	mutex_unlock(&sb_dqopt(dquot->dq_sb)->dqio_mutex);
 	ocfs2_commit_trans(osb, handle);
 out:
 	mlog_exit(status);
@@ -831,7 +832,6 @@ static int ocfs2_mark_dquot_dirty(struct dquot *dquot)
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 
 	mlog_entry("id=%u, type=%d", dquot->dq_id, type);
-	dquot_mark_dquot_dirty(dquot);
 
 	/* In case user set some limits, sync dquot immediately to global
 	 * quota file so that information propagates quicker */
@@ -856,14 +856,14 @@ static int ocfs2_mark_dquot_dirty(struct dquot *dquot)
 	}
 	mutex_lock(&sb_dqopt(sb)->dqio_mutex);
 	status = ocfs2_sync_dquot(dquot);
-	mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
 	if (status < 0) {
 		mlog_errno(status);
-		goto out_trans;
+		goto out_dlock;
 	}
 	/* Now write updated local dquot structure */
-	status = dquot_commit(dquot);
-out_trans:
+	status = ocfs2_local_write_dquot(dquot);
+out_dlock:
+	mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
 	ocfs2_commit_trans(osb, handle);
 out_ilock:
 	ocfs2_unlock_global_qf(oinfo, 1);
@@ -915,7 +915,7 @@ static void ocfs2_destroy_dquot(struct dquot *dquot)
 }
 
 const struct dquot_operations ocfs2_quota_operations = {
-	.write_dquot	= ocfs2_write_dquot,
+	/* We never make dquot dirty so .write_dquot is never called */
 	.acquire_dquot	= ocfs2_acquire_dquot,
 	.release_dquot	= ocfs2_release_dquot,
 	.mark_dirty	= ocfs2_mark_dquot_dirty,

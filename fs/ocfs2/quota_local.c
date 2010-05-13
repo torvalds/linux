@@ -892,7 +892,7 @@ static void olq_set_dquot(struct buffer_head *bh, void *private)
 }
 
 /* Write dquot to local quota file */
-static int ocfs2_local_write_dquot(struct dquot *dquot)
+int ocfs2_local_write_dquot(struct dquot *dquot)
 {
 	struct super_block *sb = dquot->dq_sb;
 	struct ocfs2_dquot *od = OCFS2_DQUOT(dquot);
@@ -1309,7 +1309,6 @@ static const struct quota_format_ops ocfs2_format_ops = {
 	.read_file_info		= ocfs2_local_read_info,
 	.write_file_info	= ocfs2_global_write_info,
 	.free_file_info		= ocfs2_local_free_info,
-	.commit_dqblk		= ocfs2_local_write_dquot,
 };
 
 struct quota_format_type ocfs2_quota_format = {

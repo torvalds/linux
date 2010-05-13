@@ -109,6 +109,7 @@ int ocfs2_read_quota_phys_block(struct inode *inode, u64 p_block,
 				struct buffer_head **bh);
 int ocfs2_create_local_dquot(struct dquot *dquot);
 int ocfs2_local_release_dquot(handle_t *handle, struct dquot *dquot);
+int ocfs2_local_write_dquot(struct dquot *dquot);
 
 extern const struct dquot_operations ocfs2_quota_operations;
 extern struct quota_format_type ocfs2_quota_format;
