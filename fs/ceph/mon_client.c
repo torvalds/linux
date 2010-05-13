@@ -481,11 +481,10 @@ int ceph_monc_do_statfs(struct ceph_mon_client *monc, struct ceph_statfs *buf)
 	struct ceph_mon_statfs *h;
 	int err;
 
-	req = kmalloc(sizeof(*req), GFP_NOFS);
+	req = kzalloc(sizeof(*req), GFP_NOFS);
 	if (!req)
 		return -ENOMEM;
 
-	memset(req, 0, sizeof(*req));
 	kref_init(&req->kref);
 	req->buf = buf;
 	init_completion(&req->completion);
