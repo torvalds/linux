@@ -1703,16 +1703,19 @@ EXPORT_SYMBOL(dquot_free_inode);
 
 /*
  * Transfer the number of inode and blocks from one diskquota to an other.
+ * On success, dquot references in transfer_to are consumed and references
+ * to original dquots that need to be released are placed there. On failure,
+ * references are kept untouched.
  *
  * This operation can block, but only after everything is updated
  * A transaction must be started when entering this function.
+ *
  */
-static int __dquot_transfer(struct inode *inode, qid_t *chid, unsigned long mask)
+int __dquot_transfer(struct inode *inode, struct dquot **transfer_to)
 {
 	qsize_t space, cur_space;
 	qsize_t rsv_space = 0;
-	struct dquot *transfer_from[MAXQUOTAS];
-	struct dquot *transfer_to[MAXQUOTAS];
+	struct dquot *transfer_from[MAXQUOTAS] = {};
 	int cnt, ret = 0;
 	char warntype_to[MAXQUOTAS];
 	char warntype_from_inodes[MAXQUOTAS], warntype_from_space[MAXQUOTAS];
@@ -1722,19 +1725,12 @@ static int __dquot_transfer(struct inode *inode, qid_t *chid, unsigned long mask
 	if (IS_NOQUOTA(inode))
 		return 0;
 	/* Initialize the arrays */
-	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
-		transfer_from[cnt] = NULL;
-		transfer_to[cnt] = NULL;
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
 		warntype_to[cnt] = QUOTA_NL_NOWARN;
-	}
-	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
-		if (mask & (1 << cnt))
-			transfer_to[cnt] = dqget(inode->i_sb, chid[cnt], cnt);
-	}
 	down_write(&sb_dqopt(inode->i_sb)->dqptr_sem);
 	if (IS_NOQUOTA(inode)) {	/* File without quota accounting? */
 		up_write(&sb_dqopt(inode->i_sb)->dqptr_sem);
-		goto put_all;
+		return 0;
 	}
 	spin_lock(&dq_data_lock);
 	cur_space = inode_get_bytes(inode);
@@ -1786,46 +1782,41 @@ static int __dquot_transfer(struct inode *inode, qid_t *chid, unsigned long mask
 
 	mark_all_dquot_dirty(transfer_from);
 	mark_all_dquot_dirty(transfer_to);
-	/* The reference we got is transferred to the inode */
+	/* Pass back references to put */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
-		transfer_to[cnt] = NULL;
-warn_put_all:
+		transfer_to[cnt] = transfer_from[cnt];
+warn:
 	flush_warnings(transfer_to, warntype_to);
 	flush_warnings(transfer_from, warntype_from_inodes);
 	flush_warnings(transfer_from, warntype_from_space);
-put_all:
-	dqput_all(transfer_from);
-	dqput_all(transfer_to);
 	return ret;
 over_quota:
 	spin_unlock(&dq_data_lock);
 	up_write(&sb_dqopt(inode->i_sb)->dqptr_sem);
-	/* Clear dquot pointers we don't want to dqput() */
-	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
-		transfer_from[cnt] = NULL;
-	goto warn_put_all;
+	goto warn;
 }
+EXPORT_SYMBOL(__dquot_transfer);
 
 /* Wrapper for transferring ownership of an inode for uid/gid only
  * Called from FSXXX_setattr()
  */
 int dquot_transfer(struct inode *inode, struct iattr *iattr)
 {
-	qid_t chid[MAXQUOTAS];
-	unsigned long mask = 0;
+	struct dquot *transfer_to[MAXQUOTAS] = {};
+	struct super_block *sb = inode->i_sb;
+	int ret;
 
-	if (iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) {
-		mask |= 1 << USRQUOTA;
-		chid[USRQUOTA] = iattr->ia_uid;
-	}
-	if (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid) {
-		mask |= 1 << GRPQUOTA;
-		chid[GRPQUOTA] = iattr->ia_gid;
-	}
-	if (sb_any_quota_active(inode->i_sb) && !IS_NOQUOTA(inode))
-		return __dquot_transfer(inode, chid, mask);
+	if (!sb_any_quota_active(sb) || IS_NOQUOTA(inode))
+		return 0;
 
-	return 0;
+	if (iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid)
+		transfer_to[USRQUOTA] = dqget(sb, iattr->ia_uid, USRQUOTA);
+	if (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)
+		transfer_to[GRPQUOTA] = dqget(sb, iattr->ia_uid, GRPQUOTA);
+
+	ret = __dquot_transfer(inode, transfer_to);
+	dqput_all(transfer_to);
+	return ret;
 }
 EXPORT_SYMBOL(dquot_transfer);
 
