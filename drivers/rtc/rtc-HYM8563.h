@@ -15,8 +15,6 @@
 #ifndef _DRIVERS_HYM8563_H
 #define _DRIVERS_HYM8563_H
  
-#define   HYM_ADDR		0x51
-		
 #define   RTC_CTL1		0x00
 #define   RTC_CTL2		0x01
 #define   RTC_SEC		0x02
@@ -26,9 +24,9 @@
 #define   RTC_WEEK		0x06
 #define   RTC_MON		0x07
 #define   RTC_YEAR		0x08
-#define   RTC_A_MIN 		0x09
+#define   RTC_A_MIN 	0x09
 #define   RTC_A_HOUR	0x0A
-#define   RTC_A_DAY 		0x0B
+#define   RTC_A_DAY 	0x0B
 #define   RTC_A_WEEK	0x0C
 #define   RTC_CLKOUT	0x0D
 #define   RTC_T_CTL 	0x0E

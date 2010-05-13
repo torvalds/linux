@@ -119,4 +119,7 @@
 #define  UART_TRANSMIT_FIFO_NOT_FULL         (1<<1)
 #define  UART_USR_BUSY                       (1)
 
+/*UART_LSR Line Status Register*/
+#define UART_BREAK_INT_BIT					(1<<4)/*break Interrupt bit*/
+
 #endif	/* __DRIVERS_SERIAL_RK2818_SERIAL_H */

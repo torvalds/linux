@@ -26,12 +26,6 @@
 #define DBG(x...)
 #endif
 
-static const unsigned short normal_i2c[] = {
-	HYM_ADDR ,			/* HYM8563 address */
-	I2C_CLIENT_END
-};
-I2C_CLIENT_INSMOD;			/* defines addr_data */
-
 static int hym8563_i2c_read_regs(struct i2c_client *client, u8 reg, u8 buf[], unsigned len)
 {
 	int ret;

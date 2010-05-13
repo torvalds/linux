@@ -543,7 +543,7 @@ static void pump_transfers(unsigned long data)
 			| (chip->tmode << SPI_TMOD_OFFSET);
 	}
 	message->state = RUNNING_STATE;
-
+ 
 	/*
 	 * Adjust transfer mode if necessary. Requires platform dependent
 	 * chipselect mechanism.
@@ -873,7 +873,7 @@ static int __init rk2818_spim_probe(struct platform_device *pdev)
 	struct resource		*regs;
 	struct rk2818_spi   *dws;
 	struct spi_master   *master;
-	int			irq;
+	int			irq; 
 	int         ret;
 		
 	gpio_request(RK2818_PIN_PB0, "rk2818_spim");	
@@ -898,8 +898,10 @@ static int __init rk2818_spim_probe(struct platform_device *pdev)
 	if (IS_ERR(dws->clock_spim))
 		return PTR_ERR(dws->clock_spim);
 	dws->regs = ioremap(regs->start, (regs->end - regs->start) + 1);
-	if (!dws->regs)
-    	  goto exit;
+	if (!dws->regs){
+    	release_mem_region(regs->start, (regs->end - regs->start) + 1);
+		return -EBUSY;
+	}	
     dws->irq = irq;	  
 	dws->master = master;
 	dws->type = SSI_MOTO_SPI;

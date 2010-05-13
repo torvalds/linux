@@ -1,5 +1,5 @@
 /*
- * drivers/serial/rk2818_serial.c - driver for rk2818 RK2818  serial device and console
+ * drivers/serial/rk2818_serial.c - driver for rk2818 serial device and console
  *
  * Copyright (C) 2010 ROCKCHIP, Inc.
  *
@@ -14,6 +14,9 @@
  */
 
 
+#if defined(CONFIG_SERIAL_RK2818_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
+#define SUPPORT_SYSRQ
+#endif
 
 #include <linux/hrtimer.h>
 #include <linux/module.h>
@@ -41,10 +44,6 @@ struct rk2818_port {
 	struct clk		*clk;
 	unsigned int		imr;
 };
-
-#if defined(CONFIG_SERIAL_RK2818_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
-#define SUPPORT_SYSRQ
-#endif
 
 #define UART_TO_RK2818(uart_port)	((struct rk2818_port *) uart_port)
 #define RK2818_SERIAL_MAJOR	 TTY_MAJOR
@@ -223,9 +222,15 @@ static void rk2818_rx_chars(struct uart_port *port)
 	unsigned int ch, flag;
 	while((rk2818_uart_read(port,UART_USR) & UART_RECEIVE_FIFO_NOT_EMPTY) == UART_RECEIVE_FIFO_NOT_EMPTY)
 	{
+		u32 lsr = rk2818_uart_read(port, UART_LSR);
 	    ch = rk2818_uart_read(port,UART_RBR);
 	    flag = TTY_NORMAL;
 		port->icount.rx++;
+		if (lsr & UART_BREAK_INT_BIT) {
+			port->icount.brk++;
+			if (uart_handle_break(port))
+				continue;
+		}
 		if (uart_handle_sysrq_char(port, ch))
 		{
 			continue;
