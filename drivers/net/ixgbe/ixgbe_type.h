@@ -2268,6 +2268,7 @@ struct ixgbe_addr_filter_info {
 	u32 mc_addr_in_rar_count;
 	u32 mta_in_use;
 	u32 overflow_promisc;
+	bool uc_set_promisc;
 	bool user_set_promisc;
 };
 

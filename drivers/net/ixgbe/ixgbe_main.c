@@ -2952,7 +2952,7 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 	fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
 
 	if (netdev->flags & IFF_PROMISC) {
-		hw->addr_ctrl.user_set_promisc = 1;
+		hw->addr_ctrl.user_set_promisc = true;
 		fctrl |= (IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
 		/* don't hardware filter vlans in promisc mode */
 		ixgbe_vlan_filter_disable(adapter);
@@ -2960,11 +2960,11 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 		if (netdev->flags & IFF_ALLMULTI) {
 			fctrl |= IXGBE_FCTRL_MPE;
 			fctrl &= ~IXGBE_FCTRL_UPE;
-		} else {
+		} else if (!hw->addr_ctrl.uc_set_promisc) {
 			fctrl &= ~(IXGBE_FCTRL_UPE | IXGBE_FCTRL_MPE);
 		}
 		ixgbe_vlan_filter_enable(adapter);
-		hw->addr_ctrl.user_set_promisc = 0;
+		hw->addr_ctrl.user_set_promisc = false;
 	}
 
 	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);

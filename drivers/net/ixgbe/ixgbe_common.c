@@ -1392,14 +1392,17 @@ s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw,
 			fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
 			fctrl |= IXGBE_FCTRL_UPE;
 			IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
+			hw->addr_ctrl.uc_set_promisc = true;
 		}
 	} else {
 		/* only disable if set by overflow, not by user */
-		if (old_promisc_setting && !hw->addr_ctrl.user_set_promisc) {
+		if ((old_promisc_setting && hw->addr_ctrl.uc_set_promisc) &&
+		   !(hw->addr_ctrl.user_set_promisc)) {
 			hw_dbg(hw, " Leaving address overflow promisc mode\n");
 			fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
 			fctrl &= ~IXGBE_FCTRL_UPE;
 			IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
+			hw->addr_ctrl.uc_set_promisc = false;
 		}
 	}
 
