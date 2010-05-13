@@ -1249,6 +1249,15 @@ static void clk_enable_init_clocks(void)
 	}
 }
 
+#ifdef CONFIG_CPU_FREQ
+#include <linux/cpufreq.h>
+
+void clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
+{
+}
+EXPORT_SYMBOL(clk_init_cpufreq_table);
+#endif /* CONFIG_CPU_FREQ */
+
 static unsigned int __initdata armclk;
 
 /*

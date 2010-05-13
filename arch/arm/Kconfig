@@ -708,6 +708,7 @@ config ARCH_RK2818
 	select HAVE_TCM
 	select HAVE_CLK
 	select COMMON_CLKDEV
+	select ARCH_HAS_CPUFREQ
         select GENERIC_TIME
         select GENERIC_CLOCKEVENTS
         select ARCH_REQUIRE_GPIOLIB
