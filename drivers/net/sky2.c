@@ -3347,6 +3347,7 @@ static void sky2_restart(struct work_struct *work)
 			continue;
 
 		sky2_hw_up(sky2);
+		sky2_set_multicast(dev);
 		netif_wake_queue(dev);
 	}
 
