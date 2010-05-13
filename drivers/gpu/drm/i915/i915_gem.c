@@ -2247,6 +2247,9 @@ i915_gem_object_get_pages(struct drm_gem_object *obj,
 	struct inode *inode;
 	struct page *page;
 
+	BUG_ON(obj_priv->pages_refcount
+			== DRM_I915_GEM_OBJECT_MAX_PAGES_REFCOUNT);
+
 	if (obj_priv->pages_refcount++ != 0)
 		return 0;
 
@@ -4155,6 +4158,8 @@ i915_gem_object_pin(struct drm_gem_object *obj, uint32_t alignment)
 	struct drm_device *dev = obj->dev;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	int ret;
+
+	BUG_ON(obj_priv->pin_count == DRM_I915_GEM_OBJECT_MAX_PIN_COUNT);
 
 	i915_verify_inactive(dev, __FILE__, __LINE__);
 	if (obj_priv->gtt_space == NULL) {

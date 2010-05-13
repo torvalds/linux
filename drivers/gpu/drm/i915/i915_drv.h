@@ -658,19 +658,64 @@ struct drm_i915_gem_object {
 	 * (has pending rendering), and is not set if it's on inactive (ready
 	 * to be unbound).
 	 */
-	int active;
+	unsigned int active : 1;
 
 	/**
 	 * This is set if the object has been written to since last bound
 	 * to the GTT
 	 */
-	int dirty;
+	unsigned int dirty : 1;
+
+	/**
+	 * Fence register bits (if any) for this object.  Will be set
+	 * as needed when mapped into the GTT.
+	 * Protected by dev->struct_mutex.
+	 *
+	 * Size: 4 bits for 16 fences + sign (for FENCE_REG_NONE)
+	 */
+	int fence_reg : 5;
+
+	/**
+	 * Used for checking the object doesn't appear more than once
+	 * in an execbuffer object list.
+	 */
+	unsigned int in_execbuffer : 1;
+
+	/**
+	 * Advice: are the backing pages purgeable?
+	 */
+	unsigned int madv : 2;
+
+	/**
+	 * Refcount for the pages array. With the current locking scheme, there
+	 * are at most two concurrent users: Binding a bo to the gtt and
+	 * pwrite/pread using physical addresses. So two bits for a maximum
+	 * of two users are enough.
+	 */
+	unsigned int pages_refcount : 2;
+#define DRM_I915_GEM_OBJECT_MAX_PAGES_REFCOUNT 0x3
+
+	/**
+	 * Current tiling mode for the object.
+	 */
+	unsigned int tiling_mode : 2;
+
+	/** How many users have pinned this object in GTT space. The following
+	 * users can each hold at most one reference: pwrite/pread, pin_ioctl
+	 * (via user_pin_count), execbuffer (objects are not allowed multiple
+	 * times for the same batchbuffer), and the framebuffer code. When
+	 * switching/pageflipping, the framebuffer code has at most two buffers
+	 * pinned per crtc.
+	 *
+	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
+	 * bits with absolutely no headroom. So use 4 bits. */
+	int pin_count : 4;
+#define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
 
 	/** AGP memory structure for our GTT binding. */
 	DRM_AGP_MEM *agp_mem;
 
 	struct page **pages;
-	int pages_refcount;
 
 	/**
 	 * Current offset of the object in GTT space.
@@ -687,21 +732,10 @@ struct drm_i915_gem_object {
 	 */
 	uint64_t mmap_offset;
 
-	/**
-	 * Fence register bits (if any) for this object.  Will be set
-	 * as needed when mapped into the GTT.
-	 * Protected by dev->struct_mutex.
-	 */
-	int fence_reg;
-
-	/** How many users have pinned this object in GTT space */
-	int pin_count;
-
 	/** Breadcrumb of last rendering to the buffer. */
 	uint32_t last_rendering_seqno;
 
-	/** Current tiling mode for the object. */
-	uint32_t tiling_mode;
+	/** Current tiling stride for the object, if it's tiled. */
 	uint32_t stride;
 
 	/** Record of address bit 17 of each page at last unbind. */
@@ -722,17 +756,6 @@ struct drm_i915_gem_object {
 
 	/** for phy allocated objects */
 	struct drm_i915_gem_phys_object *phys_obj;
-
-	/**
-	 * Used for checking the object doesn't appear more than once
-	 * in an execbuffer object list.
-	 */
-	int in_execbuffer;
-
-	/**
-	 * Advice: are the backing pages purgeable?
-	 */
-	int madv;
 
 	/**
 	 * Number of crtcs where this object is currently the fb, but
