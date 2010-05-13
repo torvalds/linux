@@ -28,7 +28,7 @@
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
 #include <linux/mmc/card.h>
-#include <plat/gpio.h>
+#include <linux/gpio.h>
 
 #include "wl1271.h"
 #include "wl12xx_80211.h"
