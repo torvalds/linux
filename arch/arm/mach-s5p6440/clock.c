@@ -247,6 +247,16 @@ static struct clk_ops s5p6440_clkarm_ops = {
 	.round_rate	= s5p6440_armclk_round_rate,
 };
 
+static struct clksrc_clk clk_armclk = {
+	.clk	= {
+		.name	= "armclk",
+		.id	= 1,
+		.parent	= &clk_mout_apll.clk,
+		.ops	= &s5p6440_clkarm_ops,
+	},
+	.reg_div	= { .reg = S5P_CLK_DIV0, .shift = 0, .size = 4 },
+};
+
 static struct clksrc_clk clk_dout_mpll = {
 	.clk	= {
 		.name	= "dout_mpll",
@@ -569,6 +579,7 @@ static struct clksrc_clk *sysclks[] = {
 	&clk_mout_epll,
 	&clk_mout_mpll,
 	&clk_dout_mpll,
+	&clk_armclk,
 };
 
 void __init_or_cpufreq s5p6440_setup_clocks(void)
@@ -592,8 +603,6 @@ void __init_or_cpufreq s5p6440_setup_clocks(void)
 	clk_fout_epll.ops = &s5p6440_epll_ops;
 
 	/* Set S5P6440 functions for arm clock */
-	clk_arm.parent = &clk_mout_apll.clk;
-	clk_arm.ops = &s5p6440_clkarm_ops;
 	clk_48m.enable = s5p6440_clk48m_ctrl;
 
 	clkdiv0 = __raw_readl(S5P_CLK_DIV0);
@@ -610,11 +619,15 @@ void __init_or_cpufreq s5p6440_setup_clocks(void)
 	mpll = s5p_get_pll45xx(xtal, __raw_readl(S5P_MPLL_CON), pll_4502);
 	apll = s5p_get_pll45xx(xtal, __raw_readl(S5P_APLL_CON), pll_4502);
 
+	clk_fout_mpll.rate = mpll;
+	clk_fout_epll.rate = epll;
+	clk_fout_apll.rate = apll;
+
 	printk(KERN_INFO "S5P6440: PLL settings, A=%ld.%ldMHz, M=%ld.%ldMHz," \
 			" E=%ld.%ldMHz\n",
 			print_mhz(apll), print_mhz(mpll), print_mhz(epll));
 
-	fclk = apll / GET_DIV(clkdiv0, S5P_CLKDIV0_ARM);
+	fclk = clk_get_rate(&clk_armclk.clk);
 	hclk = fclk / GET_DIV(clkdiv0, S5P_CLKDIV0_HCLK);
 	pclk = hclk / GET_DIV(clkdiv0, S5P_CLKDIV0_PCLK);
 
@@ -632,10 +645,6 @@ void __init_or_cpufreq s5p6440_setup_clocks(void)
 			" PCLK=%ld.%ldMHz, PCLK_LOW=%ld.%ldMHz\n",
 			print_mhz(hclk), print_mhz(hclk_low),
 			print_mhz(pclk), print_mhz(pclk_low));
-
-	clk_fout_mpll.rate = mpll;
-	clk_fout_epll.rate = epll;
-	clk_fout_apll.rate = apll;
 
 	clk_f.rate = fclk;
 	clk_h.rate = hclk;
