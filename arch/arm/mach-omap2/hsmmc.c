@@ -139,6 +139,12 @@ static void hsmmc23_before_set_reg(struct device *dev, int slot,
 	}
 }
 
+static int nop_mmc_set_power(struct device *dev, int slot, int power_on,
+							int vdd)
+{
+	return 0;
+}
+
 static struct omap_mmc_platform_data *hsmmc_data[OMAP34XX_NR_MMC] __initdata;
 
 void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
@@ -216,11 +222,18 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 		 */
 		mmc->slots[0].ocr_mask = c->ocr_mask;
 
+		if (cpu_is_omap3517() || cpu_is_omap3505())
+			mmc->slots[0].set_power = nop_mmc_set_power;
+		else
+			mmc->slots[0].features |= HSMMC_HAS_PBIAS;
+
 		switch (c->mmc) {
 		case 1:
-			/* on-chip level shifting via PBIAS0/PBIAS1 */
-			mmc->slots[0].before_set_reg = hsmmc1_before_set_reg;
-			mmc->slots[0].after_set_reg = hsmmc1_after_set_reg;
+			if (mmc->slots[0].features & HSMMC_HAS_PBIAS) {
+				/* on-chip level shifting via PBIAS0/PBIAS1 */
+				mmc->slots[0].before_set_reg = hsmmc1_before_set_reg;
+				mmc->slots[0].after_set_reg = hsmmc1_after_set_reg;
+			}
 
 			/* Omap3630 HSMMC1 supports only 4-bit */
 			if (cpu_is_omap3630() && c->wires > 4) {
@@ -235,9 +248,11 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 				c->wires = 4;
 			/* FALLTHROUGH */
 		case 3:
-			/* off-chip level shifting, or none */
-			mmc->slots[0].before_set_reg = hsmmc23_before_set_reg;
-			mmc->slots[0].after_set_reg = NULL;
+			if (mmc->slots[0].features & HSMMC_HAS_PBIAS) {
+				/* off-chip level shifting, or none */
+				mmc->slots[0].before_set_reg = hsmmc23_before_set_reg;
+				mmc->slots[0].after_set_reg = NULL;
+			}
 			break;
 		default:
 			pr_err("MMC%d configuration not supported!\n", c->mmc);
