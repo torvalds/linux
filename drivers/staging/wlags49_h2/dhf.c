@@ -109,20 +109,6 @@
 /*                    12345678901234 */
 char signature[14] = "FUPU7D37dhfwci";
 
-/* The binary download function "relocates" the image using constructions like:
-	fw->identity = (CFG_IDENTITY_STRCT FAR *)((char FAR *)fw->identity + (hcf_32)fw );
-	under some of the memory models under MSVC 1.52 these constructions degrade to 16-bits pointer arithmetic.
-	fw->identity is limited, such that adding it to fw, does not need to carry over from offset to segment.
-	However the segment is not set at all.
-	As a workaround the PSEUDO_CHARP macro is introduced which is a char pointer except for MSVC 1.52, in
-	which case we know that a 32-bit quantity is adequate as a pointer.
-	Note that other platforms may experience comparable problems when using the binary download feature. */
-#if defined(_MSC_VER) && _MSC_VER ==  800				/* Visual C++ 1.5 */
-#define PSEUDO_CHARP hcf_32
-#else
-#define PSEUDO_CHARP (hcf_8 *)
-#endif
-
 /*-----------------------------------------------------------------------------
  *
  * LTV-records retrieved from the NIC to:

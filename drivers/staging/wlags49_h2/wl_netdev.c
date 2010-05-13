@@ -463,15 +463,10 @@ static void wl_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 //	strncpy(info.fw_version, priv->fw_name,
 //	sizeof(info.fw_version) - 1);
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,20))
     if (dev->dev.parent) {
     	dev_set_name(dev->dev.parent, "%s", info->bus_info);
 	//strncpy(info->bus_info, dev->dev.parent->bus_id,
 	//	sizeof(info->bus_info) - 1);
-#else
-	    if (dev->class_dev.parent) {
-		sizeof(info->bus_info) - 1);
-#endif
     } else {
 	snprintf(info->bus_info, sizeof(info->bus_info) - 1,
 		"PCMCIA FIXME");
@@ -1179,7 +1174,6 @@ void wl_multicast( struct net_device *dev, int num_addrs, void *addrs )
 
 #endif /* NEW_MULTICAST */
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30))
 static const struct net_device_ops wl_netdev_ops =
 {
     .ndo_start_xmit         = &wl_tx_port0,
@@ -1199,7 +1193,6 @@ static const struct net_device_ops wl_netdev_ops =
     .ndo_poll_controller    = wl_poll,
 #endif
 };
-#endif // (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30))
 
 /*******************************************************************************
  *	wl_device_alloc()
@@ -1253,27 +1246,7 @@ struct net_device * wl_device_alloc( void )
     lp->wireless_data.spy_data = &lp->spy_data;
     dev->wireless_data = &lp->wireless_data;
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30))
     dev->netdev_ops = &wl_netdev_ops;
-#else
-    dev->hard_start_xmit    = &wl_tx_port0;
-
-    dev->set_config         = &wl_config;
-    dev->get_stats          = &wl_stats;
-    dev->set_multicast_list = &wl_multicast;
-
-    dev->init               = &wl_insert;
-    dev->open               = &wl_adapter_open;
-    dev->stop               = &wl_adapter_close;
-    dev->do_ioctl           = &wl_ioctl;
-
-    dev->tx_timeout         = &wl_tx_timeout;
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-    dev->poll_controller = wl_poll;
-#endif
-
-#endif // (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30))
 
     dev->watchdog_timeo     = TX_TIMEOUT;
 
