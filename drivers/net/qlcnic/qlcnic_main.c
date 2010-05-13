@@ -2301,10 +2301,8 @@ qlcnic_check_health(struct qlcnic_adapter *adapter)
 	if (qlcnic_check_temp(adapter))
 		goto detach;
 
-	if (adapter->need_fw_reset) {
+	if (adapter->need_fw_reset)
 		qlcnic_dev_request_reset(adapter);
-		goto detach;
-	}
 
 	state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
 	if (state == QLCNIC_DEV_NEED_RESET || state == QLCNIC_DEV_NEED_QUISCENT)
