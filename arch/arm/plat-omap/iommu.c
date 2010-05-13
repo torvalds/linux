@@ -653,7 +653,7 @@ void iopgtable_lookup_entry(struct iommu *obj, u32 da, u32 **ppgd, u32 **ppte)
 	if (!*iopgd)
 		goto out;
 
-	if (*iopgd & IOPGD_TABLE)
+	if (iopgd_is_table(*iopgd))
 		iopte = iopte_offset(iopgd, da);
 out:
 	*ppgd = iopgd;
@@ -670,7 +670,7 @@ static size_t iopgtable_clear_entry_core(struct iommu *obj, u32 da)
 	if (!*iopgd)
 		return 0;
 
-	if (*iopgd & IOPGD_TABLE) {
+	if (iopgd_is_table(*iopgd)) {
 		int i;
 		u32 *iopte = iopte_offset(iopgd, da);
 
@@ -745,7 +745,7 @@ static void iopgtable_clear_entry_all(struct iommu *obj)
 		if (!*iopgd)
 			continue;
 
-		if (*iopgd & IOPGD_TABLE)
+		if (iopgd_is_table(*iopgd))
 			iopte_free(iopte_offset(iopgd, 0));
 
 		*iopgd = 0;
@@ -785,7 +785,7 @@ static irqreturn_t iommu_fault_handler(int irq, void *data)
 
 	iopgd = iopgd_offset(obj, da);
 
-	if (!(*iopgd & IOPGD_TABLE)) {
+	if (!iopgd_is_table(*iopgd)) {
 		dev_err(obj->dev, "%s: da:%08x pgd:%p *pgd:%08x\n", __func__,
 			da, iopgd, *iopgd);
 		return IRQ_NONE;

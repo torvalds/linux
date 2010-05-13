@@ -63,6 +63,8 @@
 #define IOPGD_SECTION		(2 << 0)
 #define IOPGD_SUPER		(1 << 18 | 2 << 0)
 
+#define iopgd_is_table(x)	(((x) & 3) == IOPGD_TABLE)
+
 #define IOPTE_SMALL		(2 << 0)
 #define IOPTE_LARGE		(1 << 0)
 
