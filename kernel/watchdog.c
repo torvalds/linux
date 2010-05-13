@@ -124,6 +124,7 @@ void touch_softlockup_watchdog(void)
 {
 	__get_cpu_var(watchdog_touch_ts) = 0;
 }
+EXPORT_SYMBOL(touch_softlockup_watchdog);
 
 void touch_all_softlockup_watchdogs(void)
 {
