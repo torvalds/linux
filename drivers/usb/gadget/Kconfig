@@ -726,7 +726,7 @@ config USB_FUNCTIONFS
 
 config USB_FUNCTIONFS_ETH
 	bool "Include CDC ECM (Ethernet) function"
-	depends on USB_FUNCTIONFS
+	depends on USB_FUNCTIONFS && NET
 	help
 	  Include an CDC ECM (Ethernet) funcion in the CDC ECM (Funcion)
 	  Filesystem.  If you also say "y" to the RNDIS query below the
@@ -734,7 +734,7 @@ config USB_FUNCTIONFS_ETH
 
 config USB_FUNCTIONFS_RNDIS
 	bool "Include RNDIS (Ethernet) function"
-	depends on USB_FUNCTIONFS
+	depends on USB_FUNCTIONFS && NET
 	help
 	  Include an RNDIS (Ethernet) funcion in the Funcion Filesystem.
 	  If you also say "y" to the CDC ECM query above the gadget will
