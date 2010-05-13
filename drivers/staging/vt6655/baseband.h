@@ -132,9 +132,9 @@ BBvCaculateParameter (
     UINT cbFrameLength,
     WORD wRate,
     BYTE byPacketType,
-    OUT PWORD pwPhyLen,
-    OUT PBYTE pbyPhySrv,
-    OUT PBYTE pbyPhySgn
+    PWORD pwPhyLen,
+    PBYTE pbyPhySrv,
+    PBYTE pbyPhySgn
     );
 
 BOOL BBbReadEmbeded(DWORD_PTR dwIoBase, BYTE byBBAddr, PBYTE pbyData);

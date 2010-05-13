@@ -427,8 +427,8 @@ void
 s_vCaculateOFDMRParameter(
     BYTE byRate,
     CARD_PHY_TYPE ePHYType,
-    OUT PBYTE pbyTxRate,
-    OUT PBYTE pbyRsvTime
+    PBYTE pbyTxRate,
+    PBYTE pbyRsvTime
     );
 
 
@@ -500,8 +500,8 @@ void
 s_vCaculateOFDMRParameter (
     BYTE byRate,
     CARD_PHY_TYPE ePHYType,
-    OUT PBYTE pbyTxRate,
-    OUT PBYTE pbyRsvTime
+    PBYTE pbyTxRate,
+    PBYTE pbyRsvTime
     )
 {
     switch (byRate) {
@@ -2130,8 +2130,8 @@ CARDvSetPowerConstraint (
 void
 CARDvGetPowerCapability (
     void *pDeviceHandler,
-    OUT PBYTE           pbyMinPower,
-    OUT PBYTE           pbyMaxPower
+    PBYTE           pbyMinPower,
+    PBYTE           pbyMaxPower
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -2166,7 +2166,7 @@ CARDvGetPowerCapability (
 BYTE
 CARDbySetSupportChannels (
     void *pDeviceHandler,
-    OUT PBYTE        pbyIEs
+    PBYTE        pbyIEs
     )
 {
     PSDevice            pDevice = (PSDevice) pDeviceHandler;
@@ -2268,7 +2268,7 @@ CARDbyGetTransmitPower (
 BOOL
 CARDbChannelGetList (
      UINT       uCountryCodeIdx,
-    OUT PBYTE      pbyChannelTable
+    PBYTE      pbyChannelTable
     )
 {
     if (uCountryCodeIdx >= CCODE_MAX) {
@@ -2309,8 +2309,8 @@ BOOL
 CARDbGetChannelMapInfo(
     void *pDeviceHandler,
     UINT         uChannelIndex,
-    OUT PBYTE       pbyChannelNumber,
-    OUT PBYTE       pbyMap
+    PBYTE       pbyChannelNumber,
+    PBYTE       pbyMap
     )
 {
 //    PSDevice            pDevice = (PSDevice) pDeviceHandler;

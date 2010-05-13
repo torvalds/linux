@@ -204,14 +204,14 @@ VNTWIFIbConfigPhyMode(
 void
 VNTWIFIbGetConfigPhyMode(
     void *pMgmtHandle,
-    OUT void *pePhyType
+    void *pePhyType
     );
 
 void
 VNTWIFIvQueryBSSList(
     void *pMgmtHandle,
-    OUT PUINT   puBSSCount,
-    OUT void **pvFirstBSS
+    PUINT   puBSSCount,
+    void **pvFirstBSS
     );
 
 
@@ -221,7 +221,7 @@ void
 VNTWIFIvGetNextBSS (
     void *pMgmtHandle,
     void *pvCurrentBSS,
-    OUT void **pvNextBSS
+    void **pvNextBSS
     );
 
 
@@ -240,16 +240,16 @@ void
 VNTWIFIvGetTxRate(
     void *pMgmtHandle,
     PBYTE    pbyDestAddress,
-    OUT PWORD   pwTxDataRate,
-    OUT PBYTE   pbyACKRate,
-    OUT PBYTE   pbyCCKBasicRate,
-    OUT PBYTE   pbyOFDMBasicRate
+    PWORD   pwTxDataRate,
+    PBYTE   pbyACKRate,
+    PBYTE   pbyCCKBasicRate,
+    PBYTE   pbyOFDMBasicRate
     );
 /*
 BOOL
 VNTWIFIbInit(
     void *pAdapterHandler,
-    OUT void **pMgmtHandler
+    void **pMgmtHandler
     );
 */
 

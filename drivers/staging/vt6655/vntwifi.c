@@ -382,7 +382,7 @@ VNTWIFIbConfigPhyMode (
 void
 VNTWIFIbGetConfigPhyMode (
     void *pMgmtHandle,
-    OUT void *pePhyType
+    void *pePhyType
     )
 {
     PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
@@ -427,8 +427,8 @@ VNTWIFIbGetConfigPhyMode (
 void
 VNTWIFIvQueryBSSList (
     void *pMgmtHandle,
-    OUT PUINT   puBSSCount,
-    OUT void **pvFirstBSS
+    PUINT   puBSSCount,
+    void **pvFirstBSS
     )
 {
     UINT            ii = 0;
@@ -458,7 +458,7 @@ void
 VNTWIFIvGetNextBSS (
     void *pMgmtHandle,
     void *pvCurrentBSS,
-    OUT void **pvNextBSS
+    void **pvNextBSS
     )
 {
     PKnownBSS       pBSS = (PKnownBSS) pvCurrentBSS;
@@ -533,10 +533,10 @@ void
 VNTWIFIvGetTxRate(
     void *pMgmtHandle,
     PBYTE    pbyDestAddress,
-    OUT PWORD   pwTxDataRate,
-    OUT PBYTE   pbyACKRate,
-    OUT PBYTE   pbyCCKBasicRate,
-    OUT PBYTE   pbyOFDMBasicRate
+    PWORD   pwTxDataRate,
+    PBYTE   pbyACKRate,
+    PBYTE   pbyCCKBasicRate,
+    PBYTE   pbyOFDMBasicRate
     )
 {
     PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
@@ -621,7 +621,7 @@ VNTWIFIbyGetKeyCypher(
 BOOL
 VNTWIFIbInit(
     void *pAdapterHandler,
-    OUT void **pMgmtHandler
+    void **pMgmtHandler
     )
 {
 

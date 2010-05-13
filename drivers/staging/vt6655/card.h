@@ -195,14 +195,14 @@ CARDvSetPowerConstraint (
 void
 CARDvGetPowerCapability (
     void *pDeviceHandler,
-    OUT PBYTE           pbyMinPower,
-    OUT PBYTE           pbyMaxPower
+    PBYTE           pbyMinPower,
+    PBYTE           pbyMaxPower
     );
 
 BYTE
 CARDbySetSupportChannels (
     void *pDeviceHandler,
-    OUT PBYTE        pbyIEs
+    PBYTE        pbyIEs
     );
 
 I8
@@ -213,7 +213,7 @@ CARDbyGetTransmitPower (
 BOOL
 CARDbChannelGetList (
      UINT       uCountryCodeIdx,
-    OUT PBYTE      pbyChannelTable
+    PBYTE      pbyChannelTable
     );
 
 void
@@ -226,8 +226,8 @@ BOOL
 CARDbGetChannelMapInfo(
     void *pDeviceHandler,
     UINT         uChannelIndex,
-    OUT PBYTE       pbyChannelNumber,
-    OUT PBYTE       pbyMap
+    PBYTE       pbyChannelNumber,
+    PBYTE       pbyMap
     );
 
 void

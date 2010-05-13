@@ -312,7 +312,7 @@ s_vMgrSynchBSS (
     PSDevice      pDevice,
     UINT          uBSSMode,
     PKnownBSS     pCurr,
-    OUT PCMD_STATUS  pStatus
+    PCMD_STATUS  pStatus
     );
 
 
@@ -320,8 +320,8 @@ static BOOL
 s_bCipherMatch (
     PKnownBSS                        pBSSNode,
     NDIS_802_11_ENCRYPTION_STATUS    EncStatus,
-    OUT PBYTE                           pbyCCSPK,
-    OUT PBYTE                           pbyCCSGK
+    PBYTE                           pbyCCSPK,
+    PBYTE                           pbyCCSGK
     );
 
  static void  Encyption_Rebuild(
@@ -464,7 +464,7 @@ void
 vMgrAssocBeginSta(
     void *hDeviceContext,
     PSMgmtObject pMgmt,
-    OUT PCMD_STATUS pStatus
+    PCMD_STATUS pStatus
     )
 {
     PSDevice             pDevice = (PSDevice)hDeviceContext;
@@ -540,7 +540,7 @@ void
 vMgrReAssocBeginSta(
     void *hDeviceContext,
     PSMgmtObject pMgmt,
-    OUT PCMD_STATUS pStatus
+    PCMD_STATUS pStatus
     )
 {
     PSDevice             pDevice = (PSDevice)hDeviceContext;
@@ -621,7 +621,7 @@ vMgrDisassocBeginSta(
     PSMgmtObject pMgmt,
     PBYTE  abyDestAddress,
     WORD    wReason,
-    OUT PCMD_STATUS pStatus
+    PCMD_STATUS pStatus
     )
 {
     PSDevice            pDevice = (PSDevice)hDeviceContext;
@@ -1154,7 +1154,7 @@ void
 vMgrAuthenBeginSta(
     void *hDeviceContext,
     PSMgmtObject  pMgmt,
-    OUT PCMD_STATUS pStatus
+    PCMD_STATUS pStatus
     )
 {
     PSDevice     pDevice = (PSDevice)hDeviceContext;
@@ -1214,7 +1214,7 @@ vMgrDeAuthenBeginSta(
     PSMgmtObject  pMgmt,
     PBYTE  abyDestAddress,
     WORD    wReason,
-    OUT PCMD_STATUS pStatus
+    PCMD_STATUS pStatus
     )
 {
     PSDevice            pDevice = (PSDevice)hDeviceContext;
@@ -2387,7 +2387,7 @@ if(ChannelExceedZoneType(pDevice,byCurrChannel)==TRUE)
 void
 vMgrCreateOwnIBSS(
     void *hDeviceContext,
-    OUT PCMD_STATUS pStatus
+    PCMD_STATUS pStatus
     )
 {
     PSDevice            pDevice = (PSDevice)hDeviceContext;
@@ -2654,7 +2654,7 @@ vMgrCreateOwnIBSS(
 void
 vMgrJoinBSSBegin(
     void *hDeviceContext,
-    OUT PCMD_STATUS pStatus
+    PCMD_STATUS pStatus
     )
 {
 
@@ -2925,7 +2925,7 @@ s_vMgrSynchBSS (
     PSDevice      pDevice,
     UINT          uBSSMode,
     PKnownBSS     pCurr,
-    OUT PCMD_STATUS  pStatus
+    PCMD_STATUS  pStatus
     )
 {
     CARD_PHY_TYPE   ePhyType = PHY_TYPE_11B;
@@ -4885,8 +4885,8 @@ static BOOL
 s_bCipherMatch (
     PKnownBSS                        pBSSNode,
     NDIS_802_11_ENCRYPTION_STATUS    EncStatus,
-    OUT PBYTE                           pbyCCSPK,
-    OUT PBYTE                           pbyCCSGK
+    PBYTE                           pbyCCSPK,
+    PBYTE                           pbyCCSGK
     )
 {
     BYTE byMulticastCipher = KEY_CTL_INVALID;

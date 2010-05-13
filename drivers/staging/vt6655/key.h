@@ -107,7 +107,7 @@ BOOL KeybGetKey(
     PSKeyManagement pTable,
     PBYTE           pbyBSSID,
     DWORD           dwKeyIndex,
-    OUT PSKeyItem       *pKey
+    PSKeyItem       *pKey
     );
 
 BOOL KeybSetKey(
@@ -144,12 +144,12 @@ BOOL KeybGetTransmitKey(
     PSKeyManagement pTable,
     PBYTE           pbyBSSID,
     DWORD           dwKeyType,
-    OUT PSKeyItem       *pKey
+    PSKeyItem       *pKey
     );
 
 BOOL KeybCheckPairewiseKey(
     PSKeyManagement pTable,
-    OUT PSKeyItem       *pKey
+    PSKeyItem       *pKey
     );
 
 BOOL KeybRemoveAllKey(

@@ -766,7 +766,7 @@ BOOL
 BSSDBbIsSTAInNodeDB(
     void *pMgmtObject,
     PBYTE abyDstAddr,
-    OUT PUINT puNodeIndex
+    PUINT puNodeIndex
     )
 {
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
@@ -800,7 +800,7 @@ BSSDBbIsSTAInNodeDB(
 void
 BSSvCreateOneNode(
     void *hDeviceContext,
-    OUT PUINT puNodeIndex
+    PUINT puNodeIndex
     )
 {
 

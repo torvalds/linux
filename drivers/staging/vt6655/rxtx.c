@@ -123,7 +123,7 @@ s_vFillTxKey(
     PSKeyItem  pTransmitKey,
     PBYTE      pbyHdrBuf,
     WORD       wPayloadLen,
-    OUT PBYTE      pMICHDR
+    PBYTE      pMICHDR
     );
 
 
@@ -184,7 +184,7 @@ s_cbFillTxBufHead (
     BOOL             bNeedEncrypt,
     PSKeyItem        pTransmitKey,
     UINT             uNodeIndex,
-    OUT PUINT            puMACfragNum
+    PUINT            puMACfragNum
     );
 
 
@@ -218,7 +218,7 @@ s_vFillTxKey (
     PSKeyItem  pTransmitKey,
     PBYTE      pbyHdrBuf,
     WORD       wPayloadLen,
-    OUT PBYTE      pMICHDR
+    PBYTE      pMICHDR
     )
 {
     PDWORD          pdwIV = (PDWORD) pbyIVHead;
@@ -1329,7 +1329,7 @@ s_cbFillTxBufHead (
     BOOL             bNeedEncrypt,
     PSKeyItem        pTransmitKey,
     UINT             uNodeIndex,
-    OUT PUINT            puMACfragNum
+    PUINT            puMACfragNum
     )
 {
     UINT           cbMACHdLen;
@@ -2106,8 +2106,8 @@ vGenerateFIFOHeader (
     PBYTE            pPacket,
     PSKeyItem        pTransmitKey,
     UINT             uNodeIndex,
-    OUT PUINT            puMACfragNum,
-    OUT PUINT            pcbHeaderSize
+    PUINT            puMACfragNum,
+    PUINT            pcbHeaderSize
     )
 {
     UINT            wTxBufSize;       // FFinfo size

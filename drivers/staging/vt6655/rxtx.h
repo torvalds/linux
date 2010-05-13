@@ -46,8 +46,8 @@ void vGenerateMACHeader(
     PBYTE pbySkbData,
     UINT cbPacketSize,
     BOOL bDMA0Used,
-    OUT PUINT pcbHeadSize,
-    OUT PUINT pcbAppendPayload
+    PUINT pcbHeadSize,
+    PUINT pcbAppendPayload
      );
 
 void vProcessRxMACHeader (
@@ -55,7 +55,7 @@ void vProcessRxMACHeader (
     DWORD dwRxBufferAddr,
     UINT cbPacketSize,
     BOOL bIsWEP,
-    OUT PUINT pcbHeadSize
+    PUINT pcbHeadSize
     );
 */
 
@@ -95,8 +95,8 @@ vGenerateFIFOHeader (
     PBYTE            pPacket,
     PSKeyItem        pTransmitKey,
     UINT             uNodeIndex,
-    OUT PUINT            puMACfragNum,
-    OUT PUINT            pcbHeaderSize
+    PUINT            puMACfragNum,
+    PUINT            pcbHeaderSize
     );
 
 
