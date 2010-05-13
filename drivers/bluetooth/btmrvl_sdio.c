@@ -217,15 +217,13 @@ static int btmrvl_sdio_download_helper(struct btmrvl_sdio_card *card)
 
 	tmphlprbufsz = ALIGN_SZ(BTM_UPLD_SIZE, BTSDIO_DMA_ALIGN);
 
-	tmphlprbuf = kmalloc(tmphlprbufsz, GFP_KERNEL);
+	tmphlprbuf = kzalloc(tmphlprbufsz, GFP_KERNEL);
 	if (!tmphlprbuf) {
 		BT_ERR("Unable to allocate buffer for helper."
 			" Terminating download");
 		ret = -ENOMEM;
 		goto done;
 	}
-
-	memset(tmphlprbuf, 0, tmphlprbufsz);
 
 	helperbuf = (u8 *) ALIGN_ADDR(tmphlprbuf, BTSDIO_DMA_ALIGN);
 
@@ -319,15 +317,13 @@ static int btmrvl_sdio_download_fw_w_helper(struct btmrvl_sdio_card *card)
 	BT_DBG("Downloading FW image (%d bytes)", firmwarelen);
 
 	tmpfwbufsz = ALIGN_SZ(BTM_UPLD_SIZE, BTSDIO_DMA_ALIGN);
-	tmpfwbuf = kmalloc(tmpfwbufsz, GFP_KERNEL);
+	tmpfwbuf = kzalloc(tmpfwbufsz, GFP_KERNEL);
 	if (!tmpfwbuf) {
 		BT_ERR("Unable to allocate buffer for firmware."
 		       " Terminating download");
 		ret = -ENOMEM;
 		goto done;
 	}
-
-	memset(tmpfwbuf, 0, tmpfwbufsz);
 
 	/* Ensure aligned firmware buffer */
 	fwbuf = (u8 *) ALIGN_ADDR(tmpfwbuf, BTSDIO_DMA_ALIGN);
