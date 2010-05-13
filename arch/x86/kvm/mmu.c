@@ -305,10 +305,11 @@ static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
 	return 0;
 }
 
-static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc)
+static void mmu_free_memory_cache(struct kvm_mmu_memory_cache *mc,
+				  struct kmem_cache *cache)
 {
 	while (mc->nobjs)
-		kfree(mc->objects[--mc->nobjs]);
+		kmem_cache_free(cache, mc->objects[--mc->nobjs]);
 }
 
 static int mmu_topup_memory_cache_page(struct kvm_mmu_memory_cache *cache,
@@ -356,10 +357,11 @@ out:
 
 static void mmu_free_memory_caches(struct kvm_vcpu *vcpu)
 {
-	mmu_free_memory_cache(&vcpu->arch.mmu_pte_chain_cache);
-	mmu_free_memory_cache(&vcpu->arch.mmu_rmap_desc_cache);
+	mmu_free_memory_cache(&vcpu->arch.mmu_pte_chain_cache, pte_chain_cache);
+	mmu_free_memory_cache(&vcpu->arch.mmu_rmap_desc_cache, rmap_desc_cache);
 	mmu_free_memory_cache_page(&vcpu->arch.mmu_page_cache);
-	mmu_free_memory_cache(&vcpu->arch.mmu_page_header_cache);
+	mmu_free_memory_cache(&vcpu->arch.mmu_page_header_cache,
+				mmu_page_header_cache);
 }
 
 static void *mmu_memory_cache_alloc(struct kvm_mmu_memory_cache *mc,
@@ -380,7 +382,7 @@ static struct kvm_pte_chain *mmu_alloc_pte_chain(struct kvm_vcpu *vcpu)
 
 static void mmu_free_pte_chain(struct kvm_pte_chain *pc)
 {
-	kfree(pc);
+	kmem_cache_free(pte_chain_cache, pc);
 }
 
 static struct kvm_rmap_desc *mmu_alloc_rmap_desc(struct kvm_vcpu *vcpu)
@@ -391,7 +393,7 @@ static struct kvm_rmap_desc *mmu_alloc_rmap_desc(struct kvm_vcpu *vcpu)
 
 static void mmu_free_rmap_desc(struct kvm_rmap_desc *rd)
 {
-	kfree(rd);
+	kmem_cache_free(rmap_desc_cache, rd);
 }
 
 /*
@@ -898,7 +900,7 @@ static void kvm_mmu_free_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	list_del(&sp->link);
 	__free_page(virt_to_page(sp->spt));
 	__free_page(virt_to_page(sp->gfns));
-	kfree(sp);
+	kmem_cache_free(mmu_page_header_cache, sp);
 	++kvm->arch.n_free_mmu_pages;
 }
 
