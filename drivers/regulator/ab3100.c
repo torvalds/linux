@@ -492,18 +492,21 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.id   = AB3100_LDO_A,
 		.ops  = &regulator_ops_fixed,
 		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
 	},
 	{
 		.name = "LDO_C",
 		.id   = AB3100_LDO_C,
 		.ops  = &regulator_ops_fixed,
 		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
 	},
 	{
 		.name = "LDO_D",
 		.id   = AB3100_LDO_D,
 		.ops  = &regulator_ops_fixed,
 		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
 	},
 	{
 		.name = "LDO_E",
@@ -511,6 +514,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.ops  = &regulator_ops_variable_sleepable,
 		.n_voltages = ARRAY_SIZE(ldo_e_buck_typ_voltages),
 		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
 	},
 	{
 		.name = "LDO_F",
@@ -518,6 +522,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.ops  = &regulator_ops_variable,
 		.n_voltages = ARRAY_SIZE(ldo_f_typ_voltages),
 		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
 	},
 	{
 		.name = "LDO_G",
@@ -525,6 +530,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.ops  = &regulator_ops_variable,
 		.n_voltages = ARRAY_SIZE(ldo_g_typ_voltages),
 		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
 	},
 	{
 		.name = "LDO_H",
@@ -532,6 +538,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.ops  = &regulator_ops_variable,
 		.n_voltages = ARRAY_SIZE(ldo_h_typ_voltages),
 		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
 	},
 	{
 		.name = "LDO_K",
@@ -539,12 +546,14 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.ops  = &regulator_ops_variable,
 		.n_voltages = ARRAY_SIZE(ldo_k_typ_voltages),
 		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
 	},
 	{
 		.name = "LDO_EXT",
 		.id   = AB3100_LDO_EXT,
 		.ops  = &regulator_ops_external,
 		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
 	},
 	{
 		.name = "BUCK",
@@ -552,6 +561,7 @@ ab3100_regulator_desc[AB3100_NUM_REGULATORS] = {
 		.ops  = &regulator_ops_variable_sleepable,
 		.n_voltages = ARRAY_SIZE(ldo_e_buck_typ_voltages),
 		.type = REGULATOR_VOLTAGE,
+		.owner = THIS_MODULE,
 	},
 };
 
