@@ -41,9 +41,6 @@ struct rpc_wait {
  * This is the RPC task struct
  */
 struct rpc_task {
-#ifdef RPC_DEBUG
-	unsigned long		tk_magic;	/* 0xf00baa */
-#endif
 	atomic_t		tk_count;	/* Reference count */
 	struct list_head	tk_task;	/* global list of tasks */
 	struct rpc_clnt *	tk_client;	/* RPC client */
