@@ -405,17 +405,6 @@ static int ipw_write(struct tty_struct *tty, struct usb_serial_port *port,
 	return count;
 }
 
-static int ipw_probe(struct usb_serial_port *port)
-{
-	return 0;
-}
-
-static int ipw_disconnect(struct usb_serial_port *port)
-{
-	usb_set_serial_port_data(port, NULL);
-	return 0;
-}
-
 static struct usb_serial_driver ipw_device = {
 	.driver = {
 		.owner =	THIS_MODULE,
@@ -428,8 +417,6 @@ static struct usb_serial_driver ipw_device = {
 	.open =			ipw_open,
 	.close =		ipw_close,
 	.dtr_rts =		ipw_dtr_rts,
-	.port_probe = 		ipw_probe,
-	.port_remove =		ipw_disconnect,
 	.write =		ipw_write,
 	.write_bulk_callback =	ipw_write_bulk_callback,
 	.read_bulk_callback =	ipw_read_bulk_callback,
