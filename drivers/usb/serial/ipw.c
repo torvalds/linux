@@ -267,35 +267,6 @@ static int ipw_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_err(&port->dev,
 			"initial flowcontrol failed (error = %d)\n", result);
 
-
-	/*--5: raise the dtr */
-	dbg("%s:raising dtr", __func__);
-	result = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
-			 IPW_SIO_SET_PIN,
-			 USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT,
-			 IPW_PIN_SETDTR,
-			 0,
-			 NULL,
-			 0,
-			 200000);
-	if (result < 0)
-		dev_err(&port->dev,
-				"setting dtr failed (error = %d)\n", result);
-
-	/*--6: raise the rts */
-	dbg("%s:raising rts", __func__);
-	result = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
-			 IPW_SIO_SET_PIN,
-			 USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT,
-			 IPW_PIN_SETRTS,
-			 0,
-			 NULL,
-			 0,
-			 200000);
-	if (result < 0)
-		dev_err(&port->dev,
-				"setting dtr failed (error = %d)\n", result);
-
 	kfree(buf_flow_init);
 	return 0;
 }
@@ -305,8 +276,8 @@ static void ipw_dtr_rts(struct usb_serial_port *port, int on)
 	struct usb_device *dev = port->serial->dev;
 	int result;
 
-	/*--1: drop the dtr */
-	dbg("%s:dropping dtr", __func__);
+	dbg("%s: on = %d", __func__, on);
+
 	result = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			 IPW_SIO_SET_PIN,
 			 USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT,
@@ -316,22 +287,20 @@ static void ipw_dtr_rts(struct usb_serial_port *port, int on)
 			 0,
 			 200000);
 	if (result < 0)
-		dev_err(&port->dev, "dropping dtr failed (error = %d)\n",
+		dev_err(&port->dev, "setting dtr failed (error = %d)\n",
 								result);
 
-	/*--2: drop the rts */
-	dbg("%s:dropping rts", __func__);
 	result = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			 IPW_SIO_SET_PIN, USB_TYPE_VENDOR |
-			 		USB_RECIP_INTERFACE | USB_DIR_OUT,
+					USB_RECIP_INTERFACE | USB_DIR_OUT,
 			 on ? IPW_PIN_SETRTS : IPW_PIN_CLRRTS,
 			 0,
 			 NULL,
 			 0,
 			 200000);
 	if (result < 0)
-		dev_err(&port->dev,
-				"dropping rts failed (error = %d)\n", result);
+		dev_err(&port->dev, "setting rts failed (error = %d)\n",
+								result);
 }
 
 static void ipw_close(struct usb_serial_port *port)
