@@ -1080,16 +1080,12 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_iounmap;
 	}
 
-	qlcnic_setup_idc_param(adapter);
+	if (qlcnic_setup_idc_param(adapter))
+		goto err_out_iounmap;
 
 	err = qlcnic_start_firmware(adapter);
 	if (err)
 		goto err_out_decr_ref;
-
-	/*
-	 * See if the firmware gave us a virtual-physical port mapping.
-	 */
-	adapter->physical_port = adapter->portnum;
 
 	qlcnic_clear_stats(adapter);
 

@@ -1037,7 +1037,7 @@ int qlcnic_need_fw_reset(struct qlcnic_adapter *adapter);
 void qlcnic_request_firmware(struct qlcnic_adapter *adapter);
 void qlcnic_release_firmware(struct qlcnic_adapter *adapter);
 int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter);
-void qlcnic_setup_idc_param(struct qlcnic_adapter *adapter);
+int qlcnic_setup_idc_param(struct qlcnic_adapter *adapter);
 
 int qlcnic_rom_fast_read(struct qlcnic_adapter *adapter, int addr, int *valp);
 int qlcnic_rom_fast_read_words(struct qlcnic_adapter *adapter, int addr,

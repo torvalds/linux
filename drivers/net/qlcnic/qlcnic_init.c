@@ -514,10 +514,22 @@ int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter)
 	return 0;
 }
 
-void
+int
 qlcnic_setup_idc_param(struct qlcnic_adapter *adapter) {
 
 	int timeo;
+	u32 val;
+
+	val = QLCRD32(adapter, QLCNIC_CRB_DEV_PARTITION_INFO);
+	val = (val >> (adapter->portnum * 4)) & 0xf;
+
+	if ((val & 0x3) != 1) {
+		dev_err(&adapter->pdev->dev, "Not an Ethernet NIC func=%u\n",
+									val);
+		return -EIO;
+	}
+
+	adapter->physical_port = (val >> 2);
 
 	if (qlcnic_rom_fast_read(adapter, QLCNIC_ROM_DEV_INIT_TIMEOUT, &timeo))
 		timeo = 30;
@@ -528,6 +540,8 @@ qlcnic_setup_idc_param(struct qlcnic_adapter *adapter) {
 		timeo = 10;
 
 	adapter->reset_ack_timeo = timeo;
+
+	return 0;
 }
 
 static int
