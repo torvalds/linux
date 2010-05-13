@@ -883,9 +883,15 @@ static int ocfs2_susp_quotas(struct ocfs2_super *osb, int unsuspend)
 					sb_dqopt(sb)->files[type],
 					type, QFMT_OCFS2,
 					DQUOT_SUSPENDED);
-		else
+		else {
+			struct ocfs2_mem_dqinfo *oinfo;
+
+			/* Cancel periodic syncing before suspending */
+			oinfo = sb_dqinfo(sb, type)->dqi_priv;
+			cancel_delayed_work_sync(&oinfo->dqi_sync_work);
 			status = vfs_quota_disable(sb, type,
 						   DQUOT_SUSPENDED);
+		}
 		if (status < 0)
 			break;
 	}
