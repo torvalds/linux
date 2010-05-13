@@ -7049,10 +7049,9 @@ static int __init pcidev_init(struct pci_dev *pdev,
 			mib_port_count = SWITCH_PORT_NUM;
 		}
 		hw->mib_port_cnt = TOTAL_PORT_NUM;
-		hw->ksz_switch = kmalloc(sizeof(struct ksz_switch), GFP_KERNEL);
+		hw->ksz_switch = kzalloc(sizeof(struct ksz_switch), GFP_KERNEL);
 		if (!hw->ksz_switch)
 			goto pcidev_init_alloc_err;
-		memset(hw->ksz_switch, 0, sizeof(struct ksz_switch));
 
 		sw = hw->ksz_switch;
 	}

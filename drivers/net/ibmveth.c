@@ -200,7 +200,7 @@ static int ibmveth_alloc_buffer_pool(struct ibmveth_buff_pool *pool)
 		return -1;
 	}
 
-	pool->skbuff = kmalloc(sizeof(void*) * pool->size, GFP_KERNEL);
+	pool->skbuff = kcalloc(pool->size, sizeof(void *), GFP_KERNEL);
 
 	if(!pool->skbuff) {
 		kfree(pool->dma_addr);
@@ -211,7 +211,6 @@ static int ibmveth_alloc_buffer_pool(struct ibmveth_buff_pool *pool)
 		return -1;
 	}
 
-	memset(pool->skbuff, 0, sizeof(void*) * pool->size);
 	memset(pool->dma_addr, 0, sizeof(dma_addr_t) * pool->size);
 
 	for(i = 0; i < pool->size; ++i) {
