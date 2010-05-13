@@ -107,12 +107,18 @@ struct platform_device rk2818_device_i2c0 = {
 	.id	= 0,
 	.num_resources	= ARRAY_SIZE(resources_i2c0),
 	.resource	= resources_i2c0,
+	.dev 			= {
+		.platform_data = &default_i2c0_data,
+	},
 };
 struct platform_device rk2818_device_i2c1 = {
 	.name	= "rk2818_i2c",
 	.id	= 1,
 	.num_resources	= ARRAY_SIZE(resources_i2c1),
 	.resource	= resources_i2c1,
+	.dev 			= {
+		.platform_data = &default_i2c1_data,
+	},
 };
 
 struct platform_device rk2818_device_uart0 = {
