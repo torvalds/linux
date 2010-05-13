@@ -403,8 +403,9 @@ static ssize_t sys_ipl_device_show(struct kobject *kobj,
 static struct kobj_attribute sys_ipl_device_attr =
 	__ATTR(device, S_IRUGO, sys_ipl_device_show, NULL);
 
-static ssize_t ipl_parameter_read(struct kobject *kobj, struct bin_attribute *attr,
-				  char *buf, loff_t off, size_t count)
+static ssize_t ipl_parameter_read(struct file *filp, struct kobject *kobj,
+				  struct bin_attribute *attr, char *buf,
+				  loff_t off, size_t count)
 {
 	return memory_read_from_buffer(buf, count, &off, IPL_PARMBLOCK_START,
 					IPL_PARMBLOCK_SIZE);
@@ -419,8 +420,9 @@ static struct bin_attribute ipl_parameter_attr = {
 	.read = &ipl_parameter_read,
 };
 
-static ssize_t ipl_scp_data_read(struct kobject *kobj, struct bin_attribute *attr,
-				 char *buf, loff_t off, size_t count)
+static ssize_t ipl_scp_data_read(struct file *filp, struct kobject *kobj,
+				 struct bin_attribute *attr, char *buf,
+				 loff_t off, size_t count)
 {
 	unsigned int size = IPL_PARMBLOCK_START->ipl_info.fcp.scp_data_len;
 	void *scp_data = &IPL_PARMBLOCK_START->ipl_info.fcp.scp_data;
@@ -694,7 +696,7 @@ static struct kobj_attribute sys_reipl_ccw_vmparm_attr =
 
 /* FCP reipl device attributes */
 
-static ssize_t reipl_fcp_scpdata_read(struct kobject *kobj,
+static ssize_t reipl_fcp_scpdata_read(struct file *filp, struct kobject *kobj,
 				      struct bin_attribute *attr,
 				      char *buf, loff_t off, size_t count)
 {
@@ -704,7 +706,7 @@ static ssize_t reipl_fcp_scpdata_read(struct kobject *kobj,
 	return memory_read_from_buffer(buf, count, &off, scp_data, size);
 }
 
-static ssize_t reipl_fcp_scpdata_write(struct kobject *kobj,
+static ssize_t reipl_fcp_scpdata_write(struct file *filp, struct kobject *kobj,
 				       struct bin_attribute *attr,
 				       char *buf, loff_t off, size_t count)
 {

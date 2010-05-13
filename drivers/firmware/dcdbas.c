@@ -149,7 +149,7 @@ static ssize_t smi_data_buf_size_store(struct device *dev,
 	return count;
 }
 
-static ssize_t smi_data_read(struct kobject *kobj,
+static ssize_t smi_data_read(struct file *filp, struct kobject *kobj,
 			     struct bin_attribute *bin_attr,
 			     char *buf, loff_t pos, size_t count)
 {
@@ -162,7 +162,7 @@ static ssize_t smi_data_read(struct kobject *kobj,
 	return ret;
 }
 
-static ssize_t smi_data_write(struct kobject *kobj,
+static ssize_t smi_data_write(struct file *filp, struct kobject *kobj,
 			      struct bin_attribute *bin_attr,
 			      char *buf, loff_t pos, size_t count)
 {

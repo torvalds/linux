@@ -343,7 +343,7 @@ static const struct rtc_class_ops m48t02_rtc_ops = {
 	.set_time	= m48t59_rtc_set_time,
 };
 
-static ssize_t m48t59_nvram_read(struct kobject *kobj,
+static ssize_t m48t59_nvram_read(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t pos, size_t size)
 {
@@ -363,7 +363,7 @@ static ssize_t m48t59_nvram_read(struct kobject *kobj,
 	return cnt;
 }
 
-static ssize_t m48t59_nvram_write(struct kobject *kobj,
+static ssize_t m48t59_nvram_write(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t pos, size_t size)
 {

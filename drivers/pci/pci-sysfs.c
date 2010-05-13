@@ -357,7 +357,8 @@ boot_vga_show(struct device *dev, struct device_attribute *attr, char *buf)
 struct device_attribute vga_attr = __ATTR_RO(boot_vga);
 
 static ssize_t
-pci_read_config(struct kobject *kobj, struct bin_attribute *bin_attr,
+pci_read_config(struct file *filp, struct kobject *kobj,
+		struct bin_attribute *bin_attr,
 		char *buf, loff_t off, size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(container_of(kobj,struct device,kobj));
@@ -430,7 +431,8 @@ pci_read_config(struct kobject *kobj, struct bin_attribute *bin_attr,
 }
 
 static ssize_t
-pci_write_config(struct kobject *kobj, struct bin_attribute *bin_attr,
+pci_write_config(struct file* filp, struct kobject *kobj,
+		 struct bin_attribute *bin_attr,
 		 char *buf, loff_t off, size_t count)
 {
 	struct pci_dev *dev = to_pci_dev(container_of(kobj,struct device,kobj));
@@ -487,7 +489,8 @@ pci_write_config(struct kobject *kobj, struct bin_attribute *bin_attr,
 }
 
 static ssize_t
-read_vpd_attr(struct kobject *kobj, struct bin_attribute *bin_attr,
+read_vpd_attr(struct file *filp, struct kobject *kobj,
+	      struct bin_attribute *bin_attr,
 	      char *buf, loff_t off, size_t count)
 {
 	struct pci_dev *dev =
@@ -502,7 +505,8 @@ read_vpd_attr(struct kobject *kobj, struct bin_attribute *bin_attr,
 }
 
 static ssize_t
-write_vpd_attr(struct kobject *kobj, struct bin_attribute *bin_attr,
+write_vpd_attr(struct file *filp, struct kobject *kobj,
+	       struct bin_attribute *bin_attr,
 	       char *buf, loff_t off, size_t count)
 {
 	struct pci_dev *dev =
@@ -519,6 +523,7 @@ write_vpd_attr(struct kobject *kobj, struct bin_attribute *bin_attr,
 #ifdef HAVE_PCI_LEGACY
 /**
  * pci_read_legacy_io - read byte(s) from legacy I/O port space
+ * @filp: open sysfs file
  * @kobj: kobject corresponding to file to read from
  * @bin_attr: struct bin_attribute for this file
  * @buf: buffer to store results
@@ -529,7 +534,8 @@ write_vpd_attr(struct kobject *kobj, struct bin_attribute *bin_attr,
  * callback routine (pci_legacy_read).
  */
 static ssize_t
-pci_read_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
+pci_read_legacy_io(struct file *filp, struct kobject *kobj,
+		   struct bin_attribute *bin_attr,
 		   char *buf, loff_t off, size_t count)
 {
         struct pci_bus *bus = to_pci_bus(container_of(kobj,
@@ -545,6 +551,7 @@ pci_read_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
 
 /**
  * pci_write_legacy_io - write byte(s) to legacy I/O port space
+ * @filp: open sysfs file
  * @kobj: kobject corresponding to file to read from
  * @bin_attr: struct bin_attribute for this file
  * @buf: buffer containing value to be written
@@ -555,7 +562,8 @@ pci_read_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
  * callback routine (pci_legacy_write).
  */
 static ssize_t
-pci_write_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
+pci_write_legacy_io(struct file *filp, struct kobject *kobj,
+		    struct bin_attribute *bin_attr,
 		    char *buf, loff_t off, size_t count)
 {
         struct pci_bus *bus = to_pci_bus(container_of(kobj,
@@ -570,6 +578,7 @@ pci_write_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
 
 /**
  * pci_mmap_legacy_mem - map legacy PCI memory into user memory space
+ * @filp: open sysfs file
  * @kobj: kobject corresponding to device to be mapped
  * @attr: struct bin_attribute for this file
  * @vma: struct vm_area_struct passed to mmap
@@ -579,7 +588,8 @@ pci_write_legacy_io(struct kobject *kobj, struct bin_attribute *bin_attr,
  * memory space.
  */
 static int
-pci_mmap_legacy_mem(struct kobject *kobj, struct bin_attribute *attr,
+pci_mmap_legacy_mem(struct file *filp, struct kobject *kobj,
+		    struct bin_attribute *attr,
                     struct vm_area_struct *vma)
 {
         struct pci_bus *bus = to_pci_bus(container_of(kobj,
@@ -591,6 +601,7 @@ pci_mmap_legacy_mem(struct kobject *kobj, struct bin_attribute *attr,
 
 /**
  * pci_mmap_legacy_io - map legacy PCI IO into user memory space
+ * @filp: open sysfs file
  * @kobj: kobject corresponding to device to be mapped
  * @attr: struct bin_attribute for this file
  * @vma: struct vm_area_struct passed to mmap
@@ -600,7 +611,8 @@ pci_mmap_legacy_mem(struct kobject *kobj, struct bin_attribute *attr,
  * memory space. Returns -ENOSYS if the operation isn't supported
  */
 static int
-pci_mmap_legacy_io(struct kobject *kobj, struct bin_attribute *attr,
+pci_mmap_legacy_io(struct file *filp, struct kobject *kobj,
+		   struct bin_attribute *attr,
 		   struct vm_area_struct *vma)
 {
         struct pci_bus *bus = to_pci_bus(container_of(kobj,
@@ -750,14 +762,16 @@ pci_mmap_resource(struct kobject *kobj, struct bin_attribute *attr,
 }
 
 static int
-pci_mmap_resource_uc(struct kobject *kobj, struct bin_attribute *attr,
+pci_mmap_resource_uc(struct file *filp, struct kobject *kobj,
+		     struct bin_attribute *attr,
 		     struct vm_area_struct *vma)
 {
 	return pci_mmap_resource(kobj, attr, vma, 0);
 }
 
 static int
-pci_mmap_resource_wc(struct kobject *kobj, struct bin_attribute *attr,
+pci_mmap_resource_wc(struct file *filp, struct kobject *kobj,
+		     struct bin_attribute *attr,
 		     struct vm_area_struct *vma)
 {
 	return pci_mmap_resource(kobj, attr, vma, 1);
@@ -861,6 +875,7 @@ void __weak pci_remove_resource_files(struct pci_dev *dev) { return; }
 
 /**
  * pci_write_rom - used to enable access to the PCI ROM display
+ * @filp: sysfs file
  * @kobj: kernel object handle
  * @bin_attr: struct bin_attribute for this file
  * @buf: user input
@@ -870,7 +885,8 @@ void __weak pci_remove_resource_files(struct pci_dev *dev) { return; }
  * writing anything except 0 enables it
  */
 static ssize_t
-pci_write_rom(struct kobject *kobj, struct bin_attribute *bin_attr,
+pci_write_rom(struct file *filp, struct kobject *kobj,
+	      struct bin_attribute *bin_attr,
 	      char *buf, loff_t off, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(container_of(kobj, struct device, kobj));
@@ -885,6 +901,7 @@ pci_write_rom(struct kobject *kobj, struct bin_attribute *bin_attr,
 
 /**
  * pci_read_rom - read a PCI ROM
+ * @filp: sysfs file
  * @kobj: kernel object handle
  * @bin_attr: struct bin_attribute for this file
  * @buf: where to put the data we read from the ROM
@@ -895,7 +912,8 @@ pci_write_rom(struct kobject *kobj, struct bin_attribute *bin_attr,
  * device corresponding to @kobj.
  */
 static ssize_t
-pci_read_rom(struct kobject *kobj, struct bin_attribute *bin_attr,
+pci_read_rom(struct file *filp, struct kobject *kobj,
+	     struct bin_attribute *bin_attr,
 	     char *buf, loff_t off, size_t count)
 {
 	struct pci_dev *pdev = to_pci_dev(container_of(kobj, struct device, kobj));

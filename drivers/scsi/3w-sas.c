@@ -98,7 +98,7 @@ static int twl_reset_device_extension(TW_Device_Extension *tw_dev, int ioctl_res
 /* Functions */
 
 /* This function returns AENs through sysfs */
-static ssize_t twl_sysfs_aen_read(struct kobject *kobj,
+static ssize_t twl_sysfs_aen_read(struct file *filp, struct kobject *kobj,
 				  struct bin_attribute *bin_attr,
 				  char *outbuf, loff_t offset, size_t count)
 {
@@ -129,7 +129,7 @@ static struct bin_attribute twl_sysfs_aen_read_attr = {
 };
 
 /* This function returns driver compatibility info through sysfs */
-static ssize_t twl_sysfs_compat_info(struct kobject *kobj,
+static ssize_t twl_sysfs_compat_info(struct file *filp, struct kobject *kobj,
 				     struct bin_attribute *bin_attr,
 				     char *outbuf, loff_t offset, size_t count)
 {

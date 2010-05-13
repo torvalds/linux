@@ -278,8 +278,9 @@ static ssize_t firmware_loading_store(struct device *dev,
 static DEVICE_ATTR(loading, 0644, firmware_loading_show, firmware_loading_store);
 
 static ssize_t
-firmware_data_read(struct kobject *kobj, struct bin_attribute *bin_attr,
-		   char *buffer, loff_t offset, size_t count)
+firmware_data_read(struct file *filp, struct kobject *kobj,
+		   struct bin_attribute *bin_attr, char *buffer, loff_t offset,
+		   size_t count)
 {
 	struct device *dev = to_dev(kobj);
 	struct firmware_priv *fw_priv = dev_get_drvdata(dev);
@@ -362,6 +363,7 @@ fw_realloc_buffer(struct firmware_priv *fw_priv, int min_size)
 
 /**
  * firmware_data_write - write method for firmware
+ * @filp: open sysfs file
  * @kobj: kobject for the device
  * @bin_attr: bin_attr structure
  * @buffer: buffer being written
@@ -372,8 +374,9 @@ fw_realloc_buffer(struct firmware_priv *fw_priv, int min_size)
  *	the driver as a firmware image.
  **/
 static ssize_t
-firmware_data_write(struct kobject *kobj, struct bin_attribute *bin_attr,
-		    char *buffer, loff_t offset, size_t count)
+firmware_data_write(struct file* filp, struct kobject *kobj,
+		    struct bin_attribute *bin_attr, char *buffer,
+		    loff_t offset, size_t count)
 {
 	struct device *dev = to_dev(kobj);
 	struct firmware_priv *fw_priv = dev_get_drvdata(dev);
