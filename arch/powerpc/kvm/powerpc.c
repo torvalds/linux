@@ -512,15 +512,17 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	void __user *argp = (void __user *)arg;
 	long r;
 
-	switch (ioctl) {
-	case KVM_INTERRUPT: {
+	if (ioctl == KVM_INTERRUPT) {
 		struct kvm_interrupt irq;
 		r = -EFAULT;
 		if (copy_from_user(&irq, argp, sizeof(irq)))
-			goto out;
+			goto out_nolock;
 		r = kvm_vcpu_ioctl_interrupt(vcpu, &irq);
-		break;
+		goto out_nolock;
 	}
+
+	vcpu_load(vcpu);
+	switch (ioctl) {
 	case KVM_ENABLE_CAP:
 	{
 		struct kvm_enable_cap cap;
@@ -535,6 +537,8 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	}
 
 out:
+	vcpu_put(vcpu);
+out_nolock:
 	return r;
 }
 
