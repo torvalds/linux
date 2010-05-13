@@ -1716,22 +1716,14 @@ int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
 
 	if ((gfp_mask & GFP_KERNEL) != GFP_KERNEL)
 		return (nr_to_scan == 0) ? 0 : -1;
-restart:
+
 	spin_lock(&nfs_access_lru_lock);
 	list_for_each_entry(nfsi, &nfs_access_lru_list, access_cache_inode_lru) {
-		struct rw_semaphore *s_umount;
 		struct inode *inode;
 
 		if (nr_to_scan-- == 0)
 			break;
-		s_umount = &nfsi->vfs_inode.i_sb->s_umount;
-		if (!down_read_trylock(s_umount))
-			continue;
-		inode = igrab(&nfsi->vfs_inode);
-		if (inode == NULL) {
-			up_read(s_umount);
-			continue;
-		}
+		inode = &nfsi->vfs_inode;
 		spin_lock(&inode->i_lock);
 		if (list_empty(&nfsi->access_cache_entry_lru))
 			goto remove_lru_entry;
@@ -1745,13 +1737,10 @@ restart:
 		else {
 remove_lru_entry:
 			list_del_init(&nfsi->access_cache_inode_lru);
+			smp_mb__before_clear_bit();
 			clear_bit(NFS_INO_ACL_LRU_SET, &nfsi->flags);
+			smp_mb__after_clear_bit();
 		}
-		spin_unlock(&inode->i_lock);
-		spin_unlock(&nfs_access_lru_lock);
-		iput(inode);
-		up_read(s_umount);
-		goto restart;
 	}
 	spin_unlock(&nfs_access_lru_lock);
 	nfs_access_free_list(&head);
