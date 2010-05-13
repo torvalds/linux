@@ -126,6 +126,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 			cpuinfo.pvr_user1,
 			cpuinfo.pvr_user2);
 
+	count += seq_printf(m, "Page size:\t%lu\n", PAGE_SIZE);
 	return 0;
 }
 

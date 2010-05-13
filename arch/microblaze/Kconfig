@@ -223,6 +223,36 @@ config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
 	default "0x80000000"
 
+choice
+	prompt "Page size"
+	default MICROBLAZE_4K_PAGES
+	depends on ADVANCED_OPTIONS && !MMU
+	help
+	  Select the kernel logical page size. Increasing the page size
+	  will reduce software overhead at each page boundary, allow
+	  hardware prefetch mechanisms to be more effective, and allow
+	  larger dma transfers increasing IO efficiency and reducing
+	  overhead. However the utilization of memory will increase.
+	  For example, each cached file will using a multiple of the
+	  page size to hold its contents and the difference between the
+	  end of file and the end of page is wasted.
+
+	  If unsure, choose 4K_PAGES.
+
+config MICROBLAZE_4K_PAGES
+	bool "4k page size"
+
+config MICROBLAZE_8K_PAGES
+	bool "8k page size"
+
+config MICROBLAZE_16K_PAGES
+	bool "16k page size"
+
+config MICROBLAZE_32K_PAGES
+	bool "32k page size"
+
+endchoice
+
 endmenu
 
 source "mm/Kconfig"
