@@ -448,14 +448,13 @@ static void subsys_create_adapter(struct hpi_message *phm,
 	if (phm->u.s.resource.r.pci->device_id != HPI_PCI_DEV_ID_PCI2040)
 		return;
 
-	ao.priv = kmalloc(sizeof(struct hpi_hw_obj), GFP_KERNEL);
+	ao.priv = kzalloc(sizeof(struct hpi_hw_obj), GFP_KERNEL);
 	if (!ao.priv) {
 		HPI_DEBUG_LOG(ERROR, "cant get mem for adapter object\n");
 		phr->error = HPI_ERROR_MEMORY_ALLOC;
 		return;
 	}
 
-	memset(ao.priv, 0, sizeof(struct hpi_hw_obj));
 	/* create the adapter object based on the resource information */
 	/*? memcpy(&ao.Pci,&phm->u.s.Resource.r.Pci,sizeof(ao.Pci)); */
 	ao.pci = *phm->u.s.resource.r.pci;
