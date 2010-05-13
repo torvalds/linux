@@ -165,6 +165,8 @@ struct ceph_mds_request {
 	struct inode *r_locked_dir; /* dir (if any) i_mutex locked by vfs */
 	struct inode *r_target_inode;       /* resulting inode */
 
+	struct mutex r_fill_mutex;
+
 	union ceph_mds_request_args r_args;
 	int r_fmode;        /* file mode, if expecting cap */
 

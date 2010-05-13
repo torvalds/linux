@@ -1181,6 +1181,7 @@ ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode)
 	if (!req)
 		return ERR_PTR(-ENOMEM);
 
+	mutex_init(&req->r_fill_mutex);
 	req->r_started = jiffies;
 	req->r_resend_mds = -1;
 	INIT_LIST_HEAD(&req->r_unsafe_dir_item);
@@ -1715,8 +1716,16 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 		err = le32_to_cpu(req->r_reply_info.head->result);
 	} else if (err < 0) {
 		dout("aborted request %lld with %d\n", req->r_tid, err);
+
+		/*
+		 * ensure we aren't running concurrently with
+		 * ceph_fill_trace or ceph_readdir_prepopulate, which
+		 * rely on locks (dir mutex) held by our caller.
+		 */
+		mutex_lock(&req->r_fill_mutex);
 		req->r_err = err;
 		req->r_aborted = true;
+		mutex_unlock(&req->r_fill_mutex);
 
 		if (req->r_locked_dir &&
 		    (req->r_op & CEPH_MDS_OP_WRITE)) {
@@ -1861,12 +1870,14 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	}
 
 	/* insert trace into our cache */
+	mutex_lock(&req->r_fill_mutex);
 	err = ceph_fill_trace(mdsc->client->sb, req, req->r_session);
 	if (err == 0) {
 		if (result == 0 && rinfo->dir_nr)
 			ceph_readdir_prepopulate(req, req->r_session);
 		ceph_unreserve_caps(&req->r_caps_reservation);
 	}
+	mutex_unlock(&req->r_fill_mutex);
 
 	up_read(&mdsc->snap_rwsem);
 out_err:
