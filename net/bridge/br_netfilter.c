@@ -643,10 +643,10 @@ static int br_nf_forward_finish(struct sk_buff *skb)
 			skb->pkt_type = PACKET_OTHERHOST;
 			nf_bridge->mask ^= BRNF_PKT_TYPE;
 		}
+		nf_bridge_update_protocol(skb);
 	} else {
 		in = *((struct net_device **)(skb->cb));
 	}
-	nf_bridge_update_protocol(skb);
 	nf_bridge_push_encap_header(skb);
 
 	NF_HOOK_THRESH(NFPROTO_BRIDGE, NF_BR_FORWARD, skb, in,
