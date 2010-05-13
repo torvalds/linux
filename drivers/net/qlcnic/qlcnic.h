@@ -98,8 +98,6 @@
 #define QLCNIC_CT_DEFAULT_RX_BUF_LEN	2048
 #define QLCNIC_LRO_BUFFER_EXTRA		2048
 
-#define QLCNIC_RX_LRO_BUFFER_LENGTH		(8060)
-
 /* Opcodes to be used with the commands */
 #define TX_ETHER_PKT	0x01
 #define TX_TCP_PKT	0x02
@@ -133,7 +131,6 @@
 
 #define RCV_RING_NORMAL 0
 #define RCV_RING_JUMBO	1
-#define RCV_RING_LRO	2
 
 #define MIN_CMD_DESCRIPTORS		64
 #define MIN_RCV_DESCRIPTORS		64
@@ -144,7 +141,6 @@
 #define MAX_RCV_DESCRIPTORS_10G 	8192
 #define MAX_JUMBO_RCV_DESCRIPTORS_1G	512
 #define MAX_JUMBO_RCV_DESCRIPTORS_10G	1024
-#define MAX_LRO_RCV_DESCRIPTORS		8
 
 #define DEFAULT_RCV_DESCRIPTORS_1G	2048
 #define DEFAULT_RCV_DESCRIPTORS_10G	4096
@@ -402,7 +398,6 @@ struct qlcnic_hardware_context {
 	rwlock_t crb_lock;
 	struct mutex mem_lock;
 
-	u8 cut_through;
 	u8 revision_id;
 	u8 pci_func;
 	u8 linkup;
@@ -917,7 +912,6 @@ struct qlcnic_adapter {
 	u16 num_txd;
 	u16 num_rxd;
 	u16 num_jumbo_rxd;
-	u16 num_lro_rxd;
 
 	u8 max_rds_rings;
 	u8 max_sds_rings;

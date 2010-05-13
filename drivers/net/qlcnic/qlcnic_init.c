@@ -230,17 +230,8 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 		switch (ring) {
 		case RCV_RING_NORMAL:
 			rds_ring->num_desc = adapter->num_rxd;
-			if (adapter->ahw.cut_through) {
-				rds_ring->dma_size =
-					QLCNIC_CT_DEFAULT_RX_BUF_LEN;
-				rds_ring->skb_size =
-					QLCNIC_CT_DEFAULT_RX_BUF_LEN;
-			} else {
-				rds_ring->dma_size =
-					QLCNIC_P3_RX_BUF_MAX_LEN;
-				rds_ring->skb_size =
-					rds_ring->dma_size + NET_IP_ALIGN;
-			}
+			rds_ring->dma_size = QLCNIC_P3_RX_BUF_MAX_LEN;
+			rds_ring->skb_size = rds_ring->dma_size + NET_IP_ALIGN;
 			break;
 
 		case RCV_RING_JUMBO:
@@ -254,13 +245,6 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 			rds_ring->skb_size =
 				rds_ring->dma_size + NET_IP_ALIGN;
 			break;
-
-		case RCV_RING_LRO:
-			rds_ring->num_desc = adapter->num_lro_rxd;
-			rds_ring->dma_size = QLCNIC_RX_LRO_BUFFER_LENGTH;
-			rds_ring->skb_size = rds_ring->dma_size + NET_IP_ALIGN;
-			break;
-
 		}
 		rds_ring->rx_buf_arr = (struct qlcnic_rx_buffer *)
 			vmalloc(RCV_BUFF_RINGSIZE(rds_ring));
@@ -556,12 +540,10 @@ qlcnic_has_mn(struct qlcnic_adapter *adapter)
 			QLCNIC_FW_VERSION_OFFSET, (int *)&flashed_ver);
 	flashed_ver = QLCNIC_DECODE_VERSION(flashed_ver);
 
-	if (flashed_ver >= QLCNIC_VERSION_CODE(4, 0, 220)) {
+	capability = QLCRD32(adapter, QLCNIC_PEG_TUNE_CAPABILITY);
+	if (capability & QLCNIC_PEG_TUNE_MN_PRESENT)
+		return 1;
 
-		capability = QLCRD32(adapter, QLCNIC_PEG_TUNE_CAPABILITY);
-		if (capability & QLCNIC_PEG_TUNE_MN_PRESENT)
-			return 1;
-	}
 	return 0;
 }
 
@@ -1279,8 +1261,7 @@ qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 
 	skb = buffer->skb;
 
-	if (!adapter->ahw.cut_through)
-		skb_reserve(skb, 2);
+	skb_reserve(skb, 2);
 
 	dma = pci_map_single(pdev, skb->data,
 			rds_ring->dma_size, PCI_DMA_FROMDEVICE);

@@ -412,7 +412,6 @@ qlcnic_get_ringparam(struct net_device *dev,
 
 	ring->rx_pending = adapter->num_rxd;
 	ring->rx_jumbo_pending = adapter->num_jumbo_rxd;
-	ring->rx_jumbo_pending += adapter->num_lro_rxd;
 	ring->tx_pending = adapter->num_txd;
 
 	if (adapter->ahw.port_type == QLCNIC_GBE) {

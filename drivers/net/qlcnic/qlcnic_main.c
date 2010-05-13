@@ -543,22 +543,10 @@ qlcnic_check_options(struct qlcnic_adapter *adapter)
 				brd_name, adapter->ahw.revision_id);
 	}
 
-	if (adapter->fw_version < QLCNIC_VERSION_CODE(3, 4, 216)) {
-		adapter->driver_mismatch = 1;
-		dev_warn(&pdev->dev, "firmware version %d.%d.%d unsupported\n",
-				fw_major, fw_minor, fw_build);
-		return;
-	}
+	dev_info(&pdev->dev, "firmware v%d.%d.%d\n",
+			fw_major, fw_minor, fw_build);
 
-	i = QLCRD32(adapter, QLCNIC_SRE_MISC);
-	adapter->ahw.cut_through = (i & 0x8000) ? 1 : 0;
-
-	dev_info(&pdev->dev, "firmware v%d.%d.%d [%s]\n",
-			fw_major, fw_minor, fw_build,
-			adapter->ahw.cut_through ? "cut-through" : "legacy");
-
-	if (adapter->fw_version >= QLCNIC_VERSION_CODE(4, 0, 222))
-		adapter->capabilities = QLCRD32(adapter, CRB_FW_CAPABILITIES_1);
+	adapter->capabilities = QLCRD32(adapter, CRB_FW_CAPABILITIES_1);
 
 	adapter->flags &= ~QLCNIC_LRO_ENABLED;
 
@@ -575,7 +563,6 @@ qlcnic_check_options(struct qlcnic_adapter *adapter)
 
 	adapter->num_txd = MAX_CMD_DESCRIPTORS;
 
-	adapter->num_lro_rxd = 0;
 	adapter->max_rds_rings = 2;
 }
 
@@ -2566,23 +2553,11 @@ qlcnic_remove_diag_entries(struct qlcnic_adapter *adapter)
 
 #define is_qlcnic_netdev(dev) (dev->netdev_ops == &qlcnic_netdev_ops)
 
-static int
-qlcnic_destip_supported(struct qlcnic_adapter *adapter)
-{
-	if (adapter->ahw.cut_through)
-		return 0;
-
-	return 1;
-}
-
 static void
 qlcnic_config_indev_addr(struct net_device *dev, unsigned long event)
 {
 	struct in_device *indev;
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
-
-	if (!qlcnic_destip_supported(adapter))
-		return;
 
 	indev = in_dev_get(dev);
 	if (!indev)
@@ -2662,7 +2637,7 @@ recheck:
 
 	adapter = netdev_priv(dev);
 
-	if (!adapter || !qlcnic_destip_supported(adapter))
+	if (!adapter)
 		goto done;
 
 	if (adapter->is_up != QLCNIC_ADAPTER_UP_MAGIC)
