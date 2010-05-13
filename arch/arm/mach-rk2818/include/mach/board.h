@@ -19,6 +19,7 @@
 #include <linux/types.h>
 
 /* platform device data structures */
+struct platform_device;
 
 struct RK2818_mddi_platform_data
 {
