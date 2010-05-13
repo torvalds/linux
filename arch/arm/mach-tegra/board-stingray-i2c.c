@@ -26,6 +26,8 @@
 #include <linux/qtouch_obp_ts.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
+
+#include "board-stingray.h"
 #include "gpio-names.h"
 
 #define XMEGAT_BL_I2C_ADDR	0x35
@@ -298,11 +300,8 @@ static struct i2c_board_info __initdata stingray_i2c_bus1_board_info[] = {
 	 },
 };*/
 
-static int __init stingray_init_i2c(void)
+int __init stingray_i2c_init(void)
 {
-	if (!machine_is_stingray())
-		return 0;
-
 	tegra_gpio_enable(STINGRAY_TOUCH_INT_N_GPIO);
 	gpio_request(STINGRAY_TOUCH_INT_N_GPIO, "touch_irq");
 	gpio_direction_input(STINGRAY_TOUCH_INT_N_GPIO);
@@ -321,6 +320,3 @@ static int __init stingray_init_i2c(void)
 
 	return 0;
 }
-
-device_initcall(stingray_init_i2c);
-

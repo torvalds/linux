@@ -202,6 +202,14 @@ static struct platform_device *stingray_devices[] __initdata = {
 	&androidusb_device,
 	&pda_power_device,
 	&hsuart,
+	&tegra_i2c_device1,
+	&tegra_i2c_device2,
+	&tegra_i2c_device3,
+	&tegra_i2c_device4,
+	&tegra_spi_device1,
+	&tegra_spi_device2,
+	&tegra_spi_device3,
+	&tegra_spi_device4,
 };
 
 extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci2 */
@@ -267,14 +275,18 @@ static void __init tegra_stingray_init(void)
 
 	stingray_pinmux_init();
 
-	stingray_sdhci_init();
-
 	tegra_clk_init_from_table(stingray_clk_init_table);
 
 	clk = tegra_get_clock_by_name("uartb");
 	debug_uart_platform_data[0].uartclk = clk_get_rate(clk);
 
 	platform_add_devices(stingray_devices, ARRAY_SIZE(stingray_devices));
+
+	stingray_keypad_init();
+	stingray_i2c_init();
+	stingray_panel_init();
+	stingray_sdhci_init();
+	stingray_wlan_init();
 }
 
 MACHINE_START(STINGRAY, "stingray")

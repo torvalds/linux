@@ -18,5 +18,9 @@
 #define _MACH_TEGRA_BOARD_STINGRAY_H
 
 void stingray_pinmux_init(void);
+int stingray_panel_init(void);
+int stingray_keypad_init(void);
+int stingray_i2c_init(void);
+int stingray_wlan_init(void);
 
 #endif

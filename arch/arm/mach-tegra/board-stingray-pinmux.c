@@ -16,13 +16,14 @@
 
 #include <linux/kernel.h>
 #include <linux/gpio.h>
+#include <linux/init.h>
 #include <mach/pinmux.h>
 
 #include "gpio-names.h"
 
 #include "board-stingray.h"
 
-static struct tegra_pingroup_config stingray_pinmux[] = {
+static __initdata struct tegra_pingroup_config stingray_pinmux[] = {
 	{TEGRA_PINGROUP_ATA,   TEGRA_MUX_GMI,           TEGRA_PUPD_PULL_UP,   TEGRA_TRI_NORMAL},
 	{TEGRA_PINGROUP_ATB,   TEGRA_MUX_SDIO4,         TEGRA_PUPD_PULL_UP,   TEGRA_TRI_NORMAL},
 	{TEGRA_PINGROUP_ATC,   TEGRA_MUX_GMI,           TEGRA_PUPD_PULL_UP,   TEGRA_TRI_NORMAL},
@@ -141,7 +142,7 @@ static struct tegra_pingroup_config stingray_pinmux[] = {
 	{TEGRA_PINGROUP_XM2D,  TEGRA_MUX_NONE,          TEGRA_PUPD_NORMAL,    TEGRA_TRI_NORMAL},
 };
 
-void stingray_pinmux_init(void)
+void __init stingray_pinmux_init(void)
 {
 	tegra_pinmux_config_table(stingray_pinmux, ARRAY_SIZE(stingray_pinmux));
 
