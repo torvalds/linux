@@ -520,6 +520,12 @@ irqreturn_t ath_isr(int irq, void *dev)
 	    !(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)))
 		goto chip_reset;
 
+	if ((ah->caps.hw_caps & ATH9K_HW_CAP_EDMA) &&
+	    (status & ATH9K_INT_BB_WATCHDOG)) {
+		ar9003_hw_bb_watchdog_dbg_info(ah);
+		goto chip_reset;
+	}
+
 	if (status & ATH9K_INT_SWBA)
 		tasklet_schedule(&sc->bcon_tasklet);
 
@@ -1195,7 +1201,9 @@ static int ath9k_start(struct ieee80211_hw *hw)
 		    ATH9K_INT_GLOBAL;
 
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_EDMA)
-		ah->imask |= ATH9K_INT_RXHP | ATH9K_INT_RXLP;
+		ah->imask |= ATH9K_INT_RXHP |
+			     ATH9K_INT_RXLP |
+			     ATH9K_INT_BB_WATCHDOG;
 	else
 		ah->imask |= ATH9K_INT_RX;
 

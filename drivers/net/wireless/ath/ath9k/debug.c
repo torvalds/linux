@@ -269,6 +269,8 @@ void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status)
 			sc->debug.stats.istats.rxlp++;
 		if (status & ATH9K_INT_RXHP)
 			sc->debug.stats.istats.rxhp++;
+		if (status & ATH9K_INT_BB_WATCHDOG)
+			sc->debug.stats.istats.bb_watchdog++;
 	} else {
 		if (status & ATH9K_INT_RX)
 			sc->debug.stats.istats.rxok++;
@@ -319,6 +321,9 @@ static ssize_t read_file_interrupt(struct file *file, char __user *user_buf,
 			"%8s: %10u\n", "RXLP", sc->debug.stats.istats.rxlp);
 		len += snprintf(buf + len, sizeof(buf) - len,
 			"%8s: %10u\n", "RXHP", sc->debug.stats.istats.rxhp);
+		len += snprintf(buf + len, sizeof(buf) - len,
+			"%8s: %10u\n", "WATCHDOG",
+			sc->debug.stats.istats.bb_watchdog);
 	} else {
 		len += snprintf(buf + len, sizeof(buf) - len,
 			"%8s: %10u\n", "RX", sc->debug.stats.istats.rxok);
