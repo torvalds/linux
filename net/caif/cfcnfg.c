@@ -65,12 +65,11 @@ struct cfcnfg *cfcnfg_create(void)
 	struct cfcnfg *this;
 	struct cfctrl_rsp *resp;
 	/* Initiate this layer */
-	this = kmalloc(sizeof(struct cfcnfg), GFP_ATOMIC);
+	this = kzalloc(sizeof(struct cfcnfg), GFP_ATOMIC);
 	if (!this) {
 		pr_warning("CAIF: %s(): Out of memory\n", __func__);
 		return NULL;
 	}
-	memset(this, 0, sizeof(struct cfcnfg));
 	this->mux = cfmuxl_create();
 	if (!this->mux)
 		goto out_of_mem;

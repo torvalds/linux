@@ -284,12 +284,11 @@ int cfctrl_linkup_request(struct cflayer *layer,
 			   __func__, param->linktype);
 		return -EINVAL;
 	}
-	req = kmalloc(sizeof(*req), GFP_KERNEL);
+	req = kzalloc(sizeof(*req), GFP_KERNEL);
 	if (!req) {
 		pr_warning("CAIF: %s(): Out of memory\n", __func__);
 		return -ENOMEM;
 	}
-	memset(req, 0, sizeof(*req));
 	req->client_layer = user_layer;
 	req->cmd = CFCTRL_CMD_LINK_SETUP;
 	req->param = *param;
