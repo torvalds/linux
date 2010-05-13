@@ -606,17 +606,10 @@ qlcnic_set_pauseparam(struct net_device *netdev,
 static int qlcnic_reg_test(struct net_device *dev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	u32 data_read, data_written;
+	u32 data_read;
 
 	data_read = QLCRD32(adapter, QLCNIC_PCIX_PH_REG(0));
 	if ((data_read & 0xffff) != adapter->pdev->vendor)
-		return 1;
-
-	data_written = (u32)0xa5a5a5a5;
-
-	QLCWR32(adapter, CRB_SCRATCHPAD_TEST, data_written);
-	data_read = QLCRD32(adapter, CRB_SCRATCHPAD_TEST);
-	if (data_written != data_read)
 		return 1;
 
 	return 0;

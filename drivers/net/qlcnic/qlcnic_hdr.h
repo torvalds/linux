@@ -585,15 +585,8 @@ enum {
  * for backward compability
  */
 #define CRB_NIC_CAPABILITIES_HOST	QLCNIC_REG(0x1a8)
-#define CRB_NIC_CAPABILITIES_FW 	QLCNIC_REG(0x1dc)
-#define CRB_NIC_MSI_MODE_HOST		QLCNIC_REG(0x270)
-#define CRB_NIC_MSI_MODE_FW	  	QLCNIC_REG(0x274)
 
 #define INTR_SCHEME_PERPORT	      	0x1
-#define MSI_MODE_MULTIFUNC	      	0x1
-
-/* used for ethtool tests */
-#define CRB_SCRATCHPAD_TEST	    QLCNIC_REG(0x280)
 
 /*
  * CrbPortPhanCntrHi/Lo is used to pass the address of HostPhantomIndex address
