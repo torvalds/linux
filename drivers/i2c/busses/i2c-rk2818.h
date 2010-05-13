@@ -1,4 +1,4 @@
-/* arch/arm/mach-rk2818/include/mach/i2c.h
+/* drivers/i2c/busses/i2c_rk2818.h
  *
  * Copyright (C) 2010 ROCKCHIP, Inc.
  *

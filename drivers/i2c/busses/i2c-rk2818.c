@@ -1,4 +1,4 @@
-/*
+/* drivers/i2c/busses/i2c_rk2818.c
  *
  * Copyright (C) 2010 ROCKCHIP, Inc.
  *
@@ -265,7 +265,7 @@ static int rk2818_send_address(struct rk2818_i2c_data *i2c,
 						struct i2c_msg *msg)
 {
 	unsigned long addr_1st;
-	unsigned long addr_2nd;
+	//unsigned long addr_2nd;
 	unsigned long conr = readl(i2c->regs + I2C_CONR);
 	int ret = 0;
 	/*
