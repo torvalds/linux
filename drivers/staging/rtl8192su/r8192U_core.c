@@ -1219,6 +1219,7 @@ void rtl8192_set_mode(struct net_device *dev,int mode)
 void rtl8192_update_msr(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
+	LED_CTL_MODE LedAction = LED_CTL_NO_LINK;
 	u8 msr;
 
 	msr  = read_nic_byte(dev, MSR);
@@ -1229,19 +1230,23 @@ void rtl8192_update_msr(struct net_device *dev)
 	 * this is intentional and make sense for ad-hoc and
 	 * master (see the create BSS/IBSS func)
 	 */
-	if (priv->ieee80211->state == IEEE80211_LINKED){
+	if (priv->ieee80211->state == IEEE80211_LINKED) {
 
-		if (priv->ieee80211->iw_mode == IW_MODE_INFRA)
+		if (priv->ieee80211->iw_mode == IW_MODE_INFRA) {
 			msr |= (MSR_LINK_MANAGED<<MSR_LINK_SHIFT);
-		else if (priv->ieee80211->iw_mode == IW_MODE_ADHOC)
+			LedAction = LED_CTL_LINK;
+		} else if (priv->ieee80211->iw_mode == IW_MODE_ADHOC)
 			msr |= (MSR_LINK_ADHOC<<MSR_LINK_SHIFT);
 		else if (priv->ieee80211->iw_mode == IW_MODE_MASTER)
 			msr |= (MSR_LINK_MASTER<<MSR_LINK_SHIFT);
 
-	}else
+	} else
 		msr |= (MSR_LINK_NONE<<MSR_LINK_SHIFT);
 
 	write_nic_byte(dev, MSR, msr);
+
+	if(priv->ieee80211->LedControlHandler != NULL)
+		priv->ieee80211->LedControlHandler(dev, LedAction);
 }
 
 void rtl8192_set_chan(struct net_device *dev,short ch)
@@ -2154,15 +2159,13 @@ short rtl8192SU_tx(struct net_device *dev, struct sk_buff* skb)
 	struct r8192_priv *priv = ieee80211_priv(dev);
 	cb_desc *tcb_desc = (cb_desc *)(skb->cb + MAX_DEV_ADDR_SIZE);
 	tx_desc_819x_usb *tx_desc = (tx_desc_819x_usb *)skb->data;
-	//tx_fwinfo_819x_usb *tx_fwinfo = (tx_fwinfo_819x_usb *)(skb->data + USB_HWDESC_HEADER_LEN);//92su del
 	struct usb_device *udev = priv->udev;
 	int pend;
 	int status;
 	struct urb *tx_urb = NULL, *tx_urb_zero = NULL;
-	//int urb_len;
 	unsigned int idx_pipe;
-	u16		MPDUOverhead = 0;
- 	//RT_DEBUG_DATA(COMP_SEND, tcb_desc, sizeof(cb_desc));
+	u16 MPDUOverhead = 0;
+	u16 type = 0;
 
 	pend = atomic_read(&priv->tx_pending[tcb_desc->queue_index]);
 	/* we are locked here so the two atomic_read and inc are executed
@@ -2358,6 +2361,11 @@ short rtl8192SU_tx(struct net_device *dev, struct sk_buff* skb)
 				    usb_sndbulkpipe(udev,priv->RtOutPipes[idx_pipe]),
 				    skb->data,
 				    skb->len, rtl8192_tx_isr, skb);
+
+	if (type == IEEE80211_FTYPE_DATA) {
+		if (priv->ieee80211->LedControlHandler != NULL)
+			priv->ieee80211->LedControlHandler(dev, LED_CTL_TX);
+        }
 
 	status = usb_submit_urb(tx_urb, GFP_ATOMIC);
 	if (!status) {
@@ -5487,6 +5495,9 @@ void rtl819x_watchdog_wqcallback(struct work_struct *work)
 					priv->ieee80211->current_network.bssid);
 			ieee->is_roaming = true;
 			priv->ieee80211->link_change(dev);
+			if(ieee->LedControlHandler != NULL)
+				ieee->LedControlHandler(ieee->dev,
+							LED_CTL_START_TO_LINK);
 			queue_work(priv->ieee80211->wq,
 				&priv->ieee80211->associate_procedure_wq);
 		}
