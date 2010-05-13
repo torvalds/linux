@@ -49,7 +49,7 @@
 
 extern unsigned long shm_align_mask;
 extern unsigned long max_low_pfn, min_low_pfn;
-extern unsigned long memory_start, memory_end;
+extern unsigned long memory_start, memory_end, memory_limit;
 
 static inline unsigned long
 pages_do_alias(unsigned long addr1, unsigned long addr2)

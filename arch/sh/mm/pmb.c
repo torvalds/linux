@@ -341,6 +341,8 @@ int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
 	unsigned long flags, pmb_flags;
 	int i, mapped;
 
+	if (size < SZ_16M)
+		return -EINVAL;
 	if (!pmb_addr_valid(vaddr, size))
 		return -EFAULT;
 	if (pmb_mapping_exists(vaddr, phys, size))

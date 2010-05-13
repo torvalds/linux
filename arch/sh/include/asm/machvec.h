@@ -49,6 +49,8 @@ struct sh_machine_vector {
 
 	int (*mv_clk_init)(void);
 	int (*mv_mode_pins)(void);
+
+	void (*mv_mem_init)(void);
 };
 
 extern struct sh_machine_vector sh_mv;
