@@ -14,8 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef INITVALS_9003_H
-#define INITVALS_9003_H
+#ifndef INITVALS_9003_2P0_H
+#define INITVALS_9003_2P0_H
 
 /* AR9003 2.0 */
 
@@ -1781,4 +1781,4 @@ static const u32 ar9300PciePhy_clkreq_disable_L1_2p0[][2] = {
 	{0x00004044, 0x00000000},
 };
 
-#endif /* INITVALS_9003_H */
+#endif /* INITVALS_9003_2P0_H */
