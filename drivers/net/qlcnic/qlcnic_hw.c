@@ -776,9 +776,6 @@ qlcnic_pci_set_crbwindow_2M(struct qlcnic_adapter *adapter, ulong off)
 
 	window = CRB_HI(off);
 
-	if (adapter->ahw.crb_win == window)
-		return;
-
 	writel(window, addr);
 	if (readl(addr) != window) {
 		if (printk_ratelimit())
@@ -786,7 +783,6 @@ qlcnic_pci_set_crbwindow_2M(struct qlcnic_adapter *adapter, ulong off)
 				"failed to set CRB window to %d off 0x%lx\n",
 				window, off);
 	}
-	adapter->ahw.crb_win = window;
 }
 
 int
@@ -874,7 +870,6 @@ qlcnic_pci_set_window_2M(struct qlcnic_adapter *adapter,
 	/* read back to flush */
 	readl(adapter->ahw.ocm_win_crb);
 
-	adapter->ahw.ocm_win = window;
 	*start = QLCNIC_PCI_OCM0_2M + GET_MEM_OFFS_2M(addr);
 	return 0;
 }

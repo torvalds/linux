@@ -517,13 +517,6 @@ qlcnic_setup_pci_map(struct qlcnic_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	int pci_func = adapter->ahw.pci_func;
 
-	/*
-	 * Set the CRB window to invalid. If any register in window 0 is
-	 * accessed it should set the window to 0 and then reset it to 1.
-	 */
-	adapter->ahw.crb_win = -1;
-	adapter->ahw.ocm_win = -1;
-
 	/* remap phys address */
 	mem_base = pci_resource_start(pdev, 0);	/* 0 is for BAR 0 */
 	mem_len = pci_resource_len(pdev, 0);
@@ -1310,9 +1303,6 @@ qlcnic_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_set_master(pdev);
 	pci_restore_state(pdev);
-
-	adapter->ahw.crb_win = -1;
-	adapter->ahw.ocm_win = -1;
 
 	err = qlcnic_start_firmware(adapter);
 	if (err) {

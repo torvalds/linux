@@ -399,9 +399,6 @@ struct qlcnic_hardware_context {
 
 	unsigned long pci_len0;
 
-	u32 ocm_win;
-	u32 crb_win;
-
 	rwlock_t crb_lock;
 	struct mutex mem_lock;
 
