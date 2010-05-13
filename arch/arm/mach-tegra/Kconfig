@@ -36,6 +36,12 @@ config MACH_OLYMPUS
        help
 	 Support for Olympus development platform
 
+config MACH_STINGRAY
+       bool "Stingray board"
+       select TEGRA_DEBUG_UARTB
+       help
+	 Support for Stingray development platform
+
 choice
         prompt "Low-level debug console UART"
         default TEGRA_DEBUG_UART_NONE
