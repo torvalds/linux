@@ -574,7 +574,7 @@ static struct clksrc_clk clksrcs[] = {
 };
 
 /* Clock initialisation code */
-static struct clksrc_clk *init_parents[] = {
+static struct clksrc_clk *sysclks[] = {
 	&clk_mout_apll,
 	&clk_mout_epll,
 	&clk_mout_mpll,
@@ -652,17 +652,12 @@ void __init_or_cpufreq s5p6440_setup_clocks(void)
 	clk_h_low.rate = hclk_low;
 	clk_p_low.rate = pclk_low;
 
-	for (ptr = 0; ptr < ARRAY_SIZE(init_parents); ptr++)
-		s3c_set_clksrc(init_parents[ptr], true);
-
 	for (ptr = 0; ptr < ARRAY_SIZE(clksrcs); ptr++)
 		s3c_set_clksrc(&clksrcs[ptr], true);
 }
 
 static struct clk *clks[] __initdata = {
 	&clk_ext,
-	&clk_mout_epll.clk,
-	&clk_mout_mpll.clk,
 	&clk_dout_mpll,
 	&clk_iis_cd_v40,
 	&clk_pcm_cd,
@@ -679,6 +674,9 @@ void __init s5p6440_register_clocks(void)
 	ret = s3c24xx_register_clocks(clks, ARRAY_SIZE(clks));
 	if (ret > 0)
 		printk(KERN_ERR "Failed to register %u clocks\n", ret);
+
+	for (ptr = 0; ptr < ARRAY_SIZE(sysclks); ptr++)
+		s3c_register_clksrc(sysclks[ptr], 1);
 
 	s3c_register_clksrc(clksrcs, ARRAY_SIZE(clksrcs));
 	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));
