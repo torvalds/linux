@@ -65,14 +65,14 @@ const BYTE acbyIERate[MAX_RATE] =
 /*---------------------  Static Functions  --------------------------*/
 
 void s_vResetCounter (
-    IN PKnownNodeDB psNodeDBTable
+    PKnownNodeDB psNodeDBTable
     );
 
 
 
 void
 s_vResetCounter (
-    IN PKnownNodeDB psNodeDBTable
+    PKnownNodeDB psNodeDBTable
     )
 {
     BYTE            ii;
@@ -106,7 +106,7 @@ s_vResetCounter (
 -*/
 BYTE
 DATARATEbyGetRateIdx (
-    IN BYTE byRate
+    BYTE byRate
     )
 {
     BYTE    ii;
@@ -160,7 +160,7 @@ DATARATEbyGetRateIdx (
 -*/
 WORD
 wGetRateIdx(
-    IN BYTE byRate
+    BYTE byRate
     )
 {
     WORD    ii;
@@ -196,10 +196,10 @@ wGetRateIdx(
 -*/
 void
 RATEvParseMaxRate (
-    IN void *pDeviceHandler,
-    IN PWLAN_IE_SUPP_RATES pItemRates,
-    IN PWLAN_IE_SUPP_RATES pItemExtRates,
-    IN BOOL bUpdateBasicRate,
+    void *pDeviceHandler,
+    PWLAN_IE_SUPP_RATES pItemRates,
+    PWLAN_IE_SUPP_RATES pItemExtRates,
+    BOOL bUpdateBasicRate,
     OUT PWORD pwMaxBasicRate,
     OUT PWORD pwMaxSuppRate,
     OUT PWORD pwSuppRate,
@@ -309,8 +309,8 @@ UINT  uRateLen;
 
 void
 RATEvTxRateFallBack (
-    IN void *pDeviceHandler,
-    IN PKnownNodeDB psNodeDBTable
+    void *pDeviceHandler,
+    PKnownNodeDB psNodeDBTable
     )
 {
 PSDevice        pDevice = (PSDevice) pDeviceHandler;
@@ -411,9 +411,9 @@ TxRate_iwconfig=psNodeDBTable->wTxDataRate;
 -*/
 BYTE
 RATEuSetIE (
-    IN PWLAN_IE_SUPP_RATES pSrcRates,
-    IN PWLAN_IE_SUPP_RATES pDstRates,
-    IN UINT                uRateLen
+    PWLAN_IE_SUPP_RATES pSrcRates,
+    PWLAN_IE_SUPP_RATES pDstRates,
+    UINT                uRateLen
     )
 {
     UINT ii, uu, uRateCnt = 0;

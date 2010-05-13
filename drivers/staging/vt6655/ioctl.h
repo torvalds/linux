@@ -44,10 +44,10 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq);
 
 /*
 void vConfigWEPKey (
-    IN PSDevice pDevice,
-    IN DWORD    dwKeyIndex,
-    IN PBYTE    pbyKey,
-    IN ULONG    uKeyLength
+    PSDevice pDevice,
+    DWORD    dwKeyIndex,
+    PBYTE    pbyKey,
+    ULONG    uKeyLength
     );
 */
 

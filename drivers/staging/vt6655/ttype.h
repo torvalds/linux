@@ -33,10 +33,6 @@
 
 /******* Common definitions and typedefs ***********************************/
 
-#ifndef IN
-#define IN
-#endif
-
 #ifndef OUT
 #define OUT
 #endif

@@ -478,7 +478,7 @@ pDevice->bUpdateBBVGA = TRUE;
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" pDevice->bDiversityRegCtlON= %d\n",(INT)pDevice->bDiversityRegCtlON);
 }
 
-static void s_vCompleteCurrentMeasure (IN PSDevice pDevice, IN BYTE byResult)
+static void s_vCompleteCurrentMeasure (PSDevice pDevice, BYTE byResult)
 {
     UINT    ii;
     DWORD   dwDuration = 0;

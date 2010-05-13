@@ -91,18 +91,18 @@ const WORD             awHWRetry1[5][5] = {
 /*---------------------  Static Functions  --------------------------*/
 
 void s_vCheckSensitivity(
-    IN void *hDeviceContext
+    void *hDeviceContext
     );
 
 #ifdef Calcu_LinkQual
 void s_uCalculateLinkQual(
-    IN void *hDeviceContext
+    void *hDeviceContext
     );
 #endif
 
 
 void s_vCheckPreEDThreshold(
-    IN void *hDeviceContext
+    void *hDeviceContext
     );
 /*---------------------  Export Variables  --------------------------*/
 
@@ -125,10 +125,10 @@ void s_vCheckPreEDThreshold(
 
 PKnownBSS
 BSSpSearchBSSList(
-    IN void *hDeviceContext,
-    IN PBYTE pbyDesireBSSID,
-    IN PBYTE pbyDesireSSID,
-    IN CARD_PHY_TYPE  ePhyType
+    void *hDeviceContext,
+    PBYTE pbyDesireBSSID,
+    PBYTE pbyDesireSSID,
+    CARD_PHY_TYPE  ePhyType
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -282,8 +282,8 @@ if(pDevice->bLinkPass==FALSE) pCurrBSS->bSelected = FALSE;
 
 void
 BSSvClearBSSList(
-    IN void *hDeviceContext,
-    IN BOOL bKeepCurrBSSID
+    void *hDeviceContext,
+    BOOL bKeepCurrBSSID
     )
 {
     PSDevice     pDevice = (PSDevice)hDeviceContext;
@@ -325,9 +325,9 @@ BSSvClearBSSList(
 -*/
 PKnownBSS
 BSSpAddrIsInBSSList(
-    IN void *hDeviceContext,
-    IN PBYTE abyBSSID,
-    IN PWLAN_IE_SSID pSSID
+    void *hDeviceContext,
+    PBYTE abyBSSID,
+    PWLAN_IE_SSID pSSID
     )
 {
     PSDevice     pDevice = (PSDevice)hDeviceContext;
@@ -368,23 +368,23 @@ BSSpAddrIsInBSSList(
 
 BOOL
 BSSbInsertToBSSList (
-    IN void *hDeviceContext,
-    IN PBYTE abyBSSIDAddr,
-    IN QWORD qwTimestamp,
-    IN WORD wBeaconInterval,
-    IN WORD wCapInfo,
-    IN BYTE byCurrChannel,
-    IN PWLAN_IE_SSID pSSID,
-    IN PWLAN_IE_SUPP_RATES pSuppRates,
-    IN PWLAN_IE_SUPP_RATES pExtSuppRates,
-    IN PERPObject psERP,
-    IN PWLAN_IE_RSN pRSN,
-    IN PWLAN_IE_RSN_EXT pRSNWPA,
-    IN PWLAN_IE_COUNTRY pIE_Country,
-    IN PWLAN_IE_QUIET pIE_Quiet,
-    IN UINT uIELength,
-    IN PBYTE pbyIEs,
-    IN void *pRxPacketContext
+    void *hDeviceContext,
+    PBYTE abyBSSIDAddr,
+    QWORD qwTimestamp,
+    WORD wBeaconInterval,
+    WORD wCapInfo,
+    BYTE byCurrChannel,
+    PWLAN_IE_SSID pSSID,
+    PWLAN_IE_SUPP_RATES pSuppRates,
+    PWLAN_IE_SUPP_RATES pExtSuppRates,
+    PERPObject psERP,
+    PWLAN_IE_RSN pRSN,
+    PWLAN_IE_RSN_EXT pRSNWPA,
+    PWLAN_IE_COUNTRY pIE_Country,
+    PWLAN_IE_QUIET pIE_Quiet,
+    UINT uIELength,
+    PBYTE pbyIEs,
+    void *pRxPacketContext
     )
 {
 
@@ -585,24 +585,24 @@ BSSbInsertToBSSList (
 
 BOOL
 BSSbUpdateToBSSList (
-    IN void *hDeviceContext,
-    IN QWORD qwTimestamp,
-    IN WORD wBeaconInterval,
-    IN WORD wCapInfo,
-    IN BYTE byCurrChannel,
-    IN BOOL bChannelHit,
-    IN PWLAN_IE_SSID pSSID,
-    IN PWLAN_IE_SUPP_RATES pSuppRates,
-    IN PWLAN_IE_SUPP_RATES pExtSuppRates,
-    IN PERPObject psERP,
-    IN PWLAN_IE_RSN pRSN,
-    IN PWLAN_IE_RSN_EXT pRSNWPA,
-    IN PWLAN_IE_COUNTRY pIE_Country,
-    IN PWLAN_IE_QUIET pIE_Quiet,
-    IN PKnownBSS pBSSList,
-    IN UINT uIELength,
-    IN PBYTE pbyIEs,
-    IN void *pRxPacketContext
+    void *hDeviceContext,
+    QWORD qwTimestamp,
+    WORD wBeaconInterval,
+    WORD wCapInfo,
+    BYTE byCurrChannel,
+    BOOL bChannelHit,
+    PWLAN_IE_SSID pSSID,
+    PWLAN_IE_SUPP_RATES pSuppRates,
+    PWLAN_IE_SUPP_RATES pExtSuppRates,
+    PERPObject psERP,
+    PWLAN_IE_RSN pRSN,
+    PWLAN_IE_RSN_EXT pRSNWPA,
+    PWLAN_IE_COUNTRY pIE_Country,
+    PWLAN_IE_QUIET pIE_Quiet,
+    PKnownBSS pBSSList,
+    UINT uIELength,
+    PBYTE pbyIEs,
+    void *pRxPacketContext
     )
 {
     int             ii;
@@ -764,8 +764,8 @@ BSSbUpdateToBSSList (
 
 BOOL
 BSSDBbIsSTAInNodeDB(
-    IN void *pMgmtObject,
-    IN PBYTE abyDstAddr,
+    void *pMgmtObject,
+    PBYTE abyDstAddr,
     OUT PUINT puNodeIndex
     )
 {
@@ -799,7 +799,7 @@ BSSDBbIsSTAInNodeDB(
 -*/
 void
 BSSvCreateOneNode(
-    IN void *hDeviceContext,
+    void *hDeviceContext,
     OUT PUINT puNodeIndex
     )
 {
@@ -864,8 +864,8 @@ BSSvCreateOneNode(
 -*/
 void
 BSSvRemoveOneNode(
-    IN void *hDeviceContext,
-    IN UINT uNodeIndex
+    void *hDeviceContext,
+    UINT uNodeIndex
     )
 {
 
@@ -897,10 +897,10 @@ BSSvRemoveOneNode(
 
 void
 BSSvUpdateAPNode(
-    IN void *hDeviceContext,
-    IN PWORD pwCapInfo,
-    IN PWLAN_IE_SUPP_RATES pSuppRates,
-    IN PWLAN_IE_SUPP_RATES pExtSuppRates
+    void *hDeviceContext,
+    PWORD pwCapInfo,
+    PWLAN_IE_SUPP_RATES pSuppRates,
+    PWLAN_IE_SUPP_RATES pExtSuppRates
     )
 {
     PSDevice     pDevice = (PSDevice)hDeviceContext;
@@ -960,7 +960,7 @@ BSSvUpdateAPNode(
 
 void
 BSSvAddMulticastNode(
-    IN void *hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice     pDevice = (PSDevice)hDeviceContext;
@@ -1013,7 +1013,7 @@ UINT status;
 #endif
 void
 BSSvSecondCallBack(
-    IN  void *hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1390,11 +1390,11 @@ start:
 
 void
 BSSvUpdateNodeTxCounter(
-    IN void *hDeviceContext,
-    IN BYTE        byTsr0,
-    IN BYTE        byTsr1,
-    IN PBYTE       pbyBuffer,
-    IN UINT        uFIFOHeaderSize
+    void *hDeviceContext,
+    BYTE        byTsr0,
+    BYTE        byTsr1,
+    PBYTE       pbyBuffer,
+    UINT        uFIFOHeaderSize
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1583,8 +1583,8 @@ BSSvUpdateNodeTxCounter(
 
 void
 BSSvClearNodeDBTable(
-    IN void *hDeviceContext,
-    IN UINT uStartIndex
+    void *hDeviceContext,
+    UINT uStartIndex
     )
 
 {
@@ -1611,7 +1611,7 @@ BSSvClearNodeDBTable(
 
 
 void s_vCheckSensitivity(
-    IN void *hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1661,7 +1661,7 @@ void s_vCheckSensitivity(
 
 void
 BSSvClearAnyBSSJoinRecord (
-    IN void *hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1676,7 +1676,7 @@ BSSvClearAnyBSSJoinRecord (
 
 #ifdef Calcu_LinkQual
 void s_uCalculateLinkQual(
-    IN void *hDeviceContext
+    void *hDeviceContext
     )
 {
    PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1724,7 +1724,7 @@ else
 #endif
 
 void s_vCheckPreEDThreshold(
-    IN void *hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;

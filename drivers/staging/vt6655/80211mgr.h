@@ -716,112 +716,112 @@ typedef struct tagWLAN_FR_DEAUTHEN {
 
 void
 vMgrEncodeBeacon(
-    IN  PWLAN_FR_BEACON  pFrame
+    PWLAN_FR_BEACON  pFrame
      );
 
 void
 vMgrDecodeBeacon(
-    IN  PWLAN_FR_BEACON  pFrame
+    PWLAN_FR_BEACON  pFrame
     );
 
 void
 vMgrEncodeIBSSATIM(
-    IN  PWLAN_FR_IBSSATIM   pFrame
+    PWLAN_FR_IBSSATIM   pFrame
     );
 
 void
 vMgrDecodeIBSSATIM(
-    IN  PWLAN_FR_IBSSATIM   pFrame
+    PWLAN_FR_IBSSATIM   pFrame
     );
 
 void
 vMgrEncodeDisassociation(
-    IN  PWLAN_FR_DISASSOC  pFrame
+    PWLAN_FR_DISASSOC  pFrame
     );
 
 void
 vMgrDecodeDisassociation(
-    IN  PWLAN_FR_DISASSOC  pFrame
+    PWLAN_FR_DISASSOC  pFrame
     );
 
 void
 vMgrEncodeAssocRequest(
-    IN  PWLAN_FR_ASSOCREQ  pFrame
+    PWLAN_FR_ASSOCREQ  pFrame
     );
 
 void
 vMgrDecodeAssocRequest(
-    IN  PWLAN_FR_ASSOCREQ  pFrame
+    PWLAN_FR_ASSOCREQ  pFrame
     );
 
 void
 vMgrEncodeAssocResponse(
-    IN  PWLAN_FR_ASSOCRESP  pFrame
+    PWLAN_FR_ASSOCRESP  pFrame
     );
 
 void
 vMgrDecodeAssocResponse(
-    IN PWLAN_FR_ASSOCRESP  pFrame
+    PWLAN_FR_ASSOCRESP  pFrame
     );
 
 void
 vMgrEncodeReassocRequest(
-    IN  PWLAN_FR_REASSOCREQ  pFrame
+    PWLAN_FR_REASSOCREQ  pFrame
     );
 
 void
 vMgrDecodeReassocRequest(
-    IN  PWLAN_FR_REASSOCREQ  pFrame
+    PWLAN_FR_REASSOCREQ  pFrame
     );
 
 void
 vMgrEncodeProbeRequest(
-    IN PWLAN_FR_PROBEREQ  pFrame
+    PWLAN_FR_PROBEREQ  pFrame
     );
 
 void
 vMgrDecodeProbeRequest(
-    IN PWLAN_FR_PROBEREQ  pFrame
+    PWLAN_FR_PROBEREQ  pFrame
     );
 
 void
 vMgrEncodeProbeResponse(
-    IN PWLAN_FR_PROBERESP  pFrame
+    PWLAN_FR_PROBERESP  pFrame
     );
 
 void
 vMgrDecodeProbeResponse(
-    IN PWLAN_FR_PROBERESP  pFrame
+    PWLAN_FR_PROBERESP  pFrame
     );
 
 void
 vMgrEncodeAuthen(
-    IN  PWLAN_FR_AUTHEN  pFrame
+    PWLAN_FR_AUTHEN  pFrame
     );
 
 void
 vMgrDecodeAuthen(
-    IN  PWLAN_FR_AUTHEN  pFrame
+    PWLAN_FR_AUTHEN  pFrame
     );
 
 void
 vMgrEncodeDeauthen(
-    IN  PWLAN_FR_DEAUTHEN  pFrame
+    PWLAN_FR_DEAUTHEN  pFrame
     );
 
 void
 vMgrDecodeDeauthen(
-    IN  PWLAN_FR_DEAUTHEN  pFrame
+    PWLAN_FR_DEAUTHEN  pFrame
     );
 
 void
 vMgrEncodeReassocResponse(
-    IN  PWLAN_FR_REASSOCRESP  pFrame
+    PWLAN_FR_REASSOCRESP  pFrame
     );
 
 void
 vMgrDecodeReassocResponse(
-    IN  PWLAN_FR_REASSOCRESP  pFrame
+    PWLAN_FR_REASSOCRESP  pFrame
     );
 
 #endif// __80211MGR_H__

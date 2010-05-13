@@ -1725,13 +1725,13 @@ s_ulGetRatio(PSDevice pDevice);
 static
 void
 s_vChangeAntenna(
-    IN PSDevice pDevice
+    PSDevice pDevice
     );
 
 static
 void
 s_vChangeAntenna (
-    IN PSDevice pDevice
+    PSDevice pDevice
     )
 {
 
@@ -1778,10 +1778,10 @@ s_vChangeAntenna (
  */
 UINT
 BBuGetFrameTime (
-    IN BYTE byPreambleType,
-    IN BYTE byPktType,
-    IN UINT cbFrameLength,
-    IN WORD wRate
+    BYTE byPreambleType,
+    BYTE byPktType,
+    UINT cbFrameLength,
+    WORD wRate
     )
 {
     UINT uFrameTime;
@@ -1845,10 +1845,10 @@ BBuGetFrameTime (
  */
 void
 BBvCaculateParameter (
-    IN  PSDevice pDevice,
-    IN  UINT cbFrameLength,
-    IN  WORD wRate,
-    IN  BYTE byPacketType,
+    PSDevice pDevice,
+    UINT cbFrameLength,
+    WORD wRate,
+    BYTE byPacketType,
     OUT PWORD pwPhyLen,
     OUT PBYTE pbyPhySrv,
     OUT PBYTE pbyPhySgn
@@ -2878,7 +2878,7 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
 
 void
 TimerSQ3CallBack (
-    IN void *hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -2926,7 +2926,7 @@ TimerSQ3CallBack (
 
 void
 TimerState1CallBack (
-    IN void *hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;

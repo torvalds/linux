@@ -120,18 +120,18 @@
 
 UINT
 BBuGetFrameTime(
-    IN BYTE byPreambleType,
-    IN BYTE byPktType,
-    IN UINT cbFrameLength,
-    IN WORD wRate
+    BYTE byPreambleType,
+    BYTE byPktType,
+    UINT cbFrameLength,
+    WORD wRate
     );
 
 void
 BBvCaculateParameter (
-    IN  PSDevice pDevice,
-    IN  UINT cbFrameLength,
-    IN  WORD wRate,
-    IN  BYTE byPacketType,
+    PSDevice pDevice,
+    UINT cbFrameLength,
+    WORD wRate,
+    BYTE byPacketType,
     OUT PWORD pwPhyLen,
     OUT PBYTE pbyPhySrv,
     OUT PBYTE pbyPhySgn
@@ -162,12 +162,12 @@ void BBvExitDeepSleep(DWORD_PTR dwIoBase, BYTE byLocalID);
 
 void
 TimerSQ3CallBack (
-    IN void *hDeviceContext
+    void *hDeviceContext
     );
 
 void
 TimerState1CallBack(
-    IN void *hDeviceContext
+    void *hDeviceContext
     );
 
 void BBvAntennaDiversity(PSDevice pDevice, BYTE byRxRate, BYTE bySQ3);

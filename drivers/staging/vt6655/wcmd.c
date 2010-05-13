@@ -68,19 +68,19 @@ static int          msglevel                =MSG_LEVEL_INFO;
 static
 void
 s_vProbeChannel(
-    IN PSDevice pDevice
+    PSDevice pDevice
     );
 
 
 static
 PSTxMgmtPacket
 s_MgrMakeProbeRequest(
-    IN PSDevice pDevice,
-    IN PSMgmtObject pMgmt,
-    IN PBYTE pScanBSSID,
-    IN PWLAN_IE_SSID pSSID,
-    IN PWLAN_IE_SUPP_RATES pCurrRates,
-    IN PWLAN_IE_SUPP_RATES pCurrExtSuppRates
+    PSDevice pDevice,
+    PSMgmtObject pMgmt,
+    PBYTE pScanBSSID,
+    PWLAN_IE_SSID pSSID,
+    PWLAN_IE_SUPP_RATES pCurrRates,
+    PWLAN_IE_SUPP_RATES pCurrExtSuppRates
     );
 
 
@@ -204,7 +204,7 @@ vAdHocBeaconRestart(PSDevice pDevice)
 static
 void
 s_vProbeChannel(
-    IN PSDevice pDevice
+    PSDevice pDevice
     )
 {
                                                      //1M,   2M,   5M,   11M,  18M,  24M,  36M,  54M
@@ -267,12 +267,12 @@ s_vProbeChannel(
 
 PSTxMgmtPacket
 s_MgrMakeProbeRequest(
-    IN PSDevice pDevice,
-    IN PSMgmtObject pMgmt,
-    IN PBYTE pScanBSSID,
-    IN PWLAN_IE_SSID pSSID,
-    IN PWLAN_IE_SUPP_RATES pCurrRates,
-    IN PWLAN_IE_SUPP_RATES pCurrExtSuppRates
+    PSDevice pDevice,
+    PSMgmtObject pMgmt,
+    PBYTE pScanBSSID,
+    PWLAN_IE_SSID pSSID,
+    PWLAN_IE_SUPP_RATES pCurrRates,
+    PWLAN_IE_SUPP_RATES pCurrExtSuppRates
 
     )
 {
@@ -319,8 +319,8 @@ s_MgrMakeProbeRequest(
 
 void
 vCommandTimerWait(
-    IN void *hDeviceContext,
-    IN UINT MSecond
+    void *hDeviceContext,
+    UINT MSecond
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -339,7 +339,7 @@ vCommandTimerWait(
 
 void
 vCommandTimer (
-    IN void *hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -980,9 +980,9 @@ s_bCommandComplete (
 
 
 BOOL bScheduleCommand (
-    IN void *hDeviceContext,
-    IN CMD_CODE    eCommand,
-    IN PBYTE       pbyItem0
+    void *hDeviceContext,
+    CMD_CODE    eCommand,
+    PBYTE       pbyItem0
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1061,7 +1061,7 @@ BOOL bScheduleCommand (
  *
  */
 BOOL bClearBSSID_SCAN (
-    IN void *hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1083,7 +1083,7 @@ BOOL bClearBSSID_SCAN (
 //mike add:reset command timer
 void
 vResetCommandTimer(
-    IN void *hDeviceContext
+    void *hDeviceContext
     )
 {
   PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -1107,7 +1107,7 @@ vResetCommandTimer(
 #ifdef TxInSleep
 void
 BSSvSecondTxData(
-    IN void *hDeviceContext
+    void *hDeviceContext
     )
 {
   PSDevice        pDevice = (PSDevice)hDeviceContext;

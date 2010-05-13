@@ -76,13 +76,13 @@ const BYTE acbyRxRate[MAX_RATE] =
 
 /*---------------------  Static Functions  --------------------------*/
 
-static BYTE s_byGetRateIdx(IN BYTE byRate);
+static BYTE s_byGetRateIdx(BYTE byRate);
 
 
 static
 void
 s_vGetDASA(
-    IN  PBYTE pbyRxBufferAddr,
+    PBYTE pbyRxBufferAddr,
     OUT PUINT pcbHeaderSize,
     OUT PSEthernetHeader psEthHeader
     );
@@ -90,37 +90,37 @@ s_vGetDASA(
 static
 void
 s_vProcessRxMACHeader (
-    IN  PSDevice pDevice,
-    IN  PBYTE pbyRxBufferAddr,
-    IN  UINT cbPacketSize,
-    IN  BOOL bIsWEP,
-    IN  BOOL bExtIV,
+    PSDevice pDevice,
+    PBYTE pbyRxBufferAddr,
+    UINT cbPacketSize,
+    BOOL bIsWEP,
+    BOOL bExtIV,
     OUT PUINT pcbHeadSize
     );
 
 static BOOL s_bAPModeRxCtl(
-    IN PSDevice pDevice,
-    IN PBYTE    pbyFrame,
-    IN INT      iSANodeIndex
+    PSDevice pDevice,
+    PBYTE    pbyFrame,
+    INT      iSANodeIndex
     );
 
 
 
 static BOOL s_bAPModeRxData (
-    IN PSDevice pDevice,
-    IN struct sk_buff* skb,
-    IN UINT     FrameSize,
-    IN UINT     cbHeaderOffset,
-    IN INT      iSANodeIndex,
-    IN INT      iDANodeIndex
+    PSDevice pDevice,
+    struct sk_buff* skb,
+    UINT     FrameSize,
+    UINT     cbHeaderOffset,
+    INT      iSANodeIndex,
+    INT      iDANodeIndex
     );
 
 
 static BOOL s_bHandleRxEncryption(
-    IN PSDevice     pDevice,
-    IN PBYTE        pbyFrame,
-    IN UINT         FrameSize,
-    IN PBYTE        pbyRsr,
+    PSDevice     pDevice,
+    PBYTE        pbyFrame,
+    UINT         FrameSize,
+    PBYTE        pbyRsr,
     OUT PBYTE       pbyNewRsr,
     OUT PSKeyItem   *pKeyOut,
     int *       pbExtIV,
@@ -130,12 +130,12 @@ static BOOL s_bHandleRxEncryption(
 
 static BOOL s_bHostWepRxEncryption(
 
-    IN PSDevice     pDevice,
-    IN PBYTE        pbyFrame,
-    IN UINT         FrameSize,
-    IN PBYTE        pbyRsr,
-    IN BOOL         bOnFly,
-    IN PSKeyItem    pKey,
+    PSDevice     pDevice,
+    PBYTE        pbyFrame,
+    UINT         FrameSize,
+    PBYTE        pbyRsr,
+    BOOL         bOnFly,
+    PSKeyItem    pKey,
     OUT PBYTE       pbyNewRsr,
     int *       pbExtIV,
     OUT PWORD       pwRxTSC15_0,
@@ -165,11 +165,11 @@ static BOOL s_bHostWepRxEncryption(
 static
 void
 s_vProcessRxMACHeader (
-    IN  PSDevice pDevice,
-    IN  PBYTE pbyRxBufferAddr,
-    IN  UINT cbPacketSize,
-    IN  BOOL bIsWEP,
-    IN  BOOL bExtIV,
+    PSDevice pDevice,
+    PBYTE pbyRxBufferAddr,
+    UINT cbPacketSize,
+    BOOL bIsWEP,
+    BOOL bExtIV,
     OUT PUINT pcbHeadSize
     )
 {
@@ -249,7 +249,7 @@ s_vProcessRxMACHeader (
 
 
 
-static BYTE s_byGetRateIdx (IN BYTE byRate)
+static BYTE s_byGetRateIdx (BYTE byRate)
 {
     BYTE    byRateIdx;
 
@@ -264,7 +264,7 @@ static BYTE s_byGetRateIdx (IN BYTE byRate)
 static
 void
 s_vGetDASA (
-    IN  PBYTE pbyRxBufferAddr,
+    PBYTE pbyRxBufferAddr,
     OUT PUINT pcbHeaderSize,
     OUT PSEthernetHeader psEthHeader
     )
@@ -335,8 +335,8 @@ void	MngWorkItem(void *Context)
 
 BOOL
 device_receive_frame (
-    IN  PSDevice pDevice,
-    IN  PSRxDesc pCurrRD
+    PSDevice pDevice,
+    PSRxDesc pCurrRD
     )
 {
 
@@ -1039,9 +1039,9 @@ device_receive_frame (
 
 
 static BOOL s_bAPModeRxCtl (
-    IN PSDevice pDevice,
-    IN PBYTE    pbyFrame,
-    IN INT      iSANodeIndex
+    PSDevice pDevice,
+    PBYTE    pbyFrame,
+    INT      iSANodeIndex
     )
 {
     PS802_11Header      p802_11Header;
@@ -1163,10 +1163,10 @@ static BOOL s_bAPModeRxCtl (
 }
 
 static BOOL s_bHandleRxEncryption (
-    IN PSDevice     pDevice,
-    IN PBYTE        pbyFrame,
-    IN UINT         FrameSize,
-    IN PBYTE        pbyRsr,
+    PSDevice     pDevice,
+    PBYTE        pbyFrame,
+    UINT         FrameSize,
+    PBYTE        pbyRsr,
     OUT PBYTE       pbyNewRsr,
     OUT PSKeyItem   *pKeyOut,
     int *       pbExtIV,
@@ -1309,12 +1309,12 @@ static BOOL s_bHandleRxEncryption (
 
 
 static BOOL s_bHostWepRxEncryption (
-    IN PSDevice     pDevice,
-    IN PBYTE        pbyFrame,
-    IN UINT         FrameSize,
-    IN PBYTE        pbyRsr,
-    IN BOOL         bOnFly,
-    IN PSKeyItem    pKey,
+    PSDevice     pDevice,
+    PBYTE        pbyFrame,
+    UINT         FrameSize,
+    PBYTE        pbyRsr,
+    BOOL         bOnFly,
+    PSKeyItem    pKey,
     OUT PBYTE       pbyNewRsr,
     int *       pbExtIV,
     OUT PWORD       pwRxTSC15_0,
@@ -1440,12 +1440,12 @@ static BOOL s_bHostWepRxEncryption (
 
 
 static BOOL s_bAPModeRxData (
-    IN PSDevice pDevice,
-    IN struct sk_buff* skb,
-    IN UINT     FrameSize,
-    IN UINT     cbHeaderOffset,
-    IN INT      iSANodeIndex,
-    IN INT      iDANodeIndex
+    PSDevice pDevice,
+    struct sk_buff* skb,
+    UINT     FrameSize,
+    UINT     cbHeaderOffset,
+    INT      iSANodeIndex,
+    INT      iDANodeIndex
     )
 {
     PSMgmtObject        pMgmt = pDevice->pMgmt;

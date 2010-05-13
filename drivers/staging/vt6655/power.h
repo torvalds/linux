@@ -45,40 +45,40 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-// IN PSDevice pDevice
-// IN PSDevice hDeviceContext
+// PSDevice pDevice
+// PSDevice hDeviceContext
 
 BOOL
 PSbConsiderPowerDown(
-    IN void *hDeviceContext,
-    IN BOOL bCheckRxDMA,
-    IN BOOL bCheckCountToWakeUp
+    void *hDeviceContext,
+    BOOL bCheckRxDMA,
+    BOOL bCheckCountToWakeUp
     );
 
 void
 PSvDisablePowerSaving(
-    IN void *hDeviceContext
+    void *hDeviceContext
     );
 
 void
 PSvEnablePowerSaving(
-    IN void *hDeviceContext,
-    IN WORD wListenInterval
+    void *hDeviceContext,
+    WORD wListenInterval
     );
 
 void
 PSvSendPSPOLL(
-    IN void *hDeviceContext
+    void *hDeviceContext
     );
 
 BOOL
 PSbSendNullPacket(
-    IN void *hDeviceContext
+    void *hDeviceContext
     );
 
 BOOL
 PSbIsNextTBTTWakeUp(
-    IN void *hDeviceContext
+    void *hDeviceContext
     );
 
 #endif //__POWER_H__

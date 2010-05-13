@@ -425,8 +425,8 @@ SCountryTable ChannelRuleTab[CCODE_MAX+1] =
 static
 void
 s_vCaculateOFDMRParameter(
-    IN  BYTE byRate,
-    IN  CARD_PHY_TYPE ePHYType,
+    BYTE byRate,
+    CARD_PHY_TYPE ePHYType,
     OUT PBYTE pbyTxRate,
     OUT PBYTE pbyRsvTime
     );
@@ -498,8 +498,8 @@ exit:
 static
 void
 s_vCaculateOFDMRParameter (
-    IN  BYTE byRate,
-    IN  CARD_PHY_TYPE ePHYType,
+    BYTE byRate,
+    CARD_PHY_TYPE ePHYType,
     OUT PBYTE pbyTxRate,
     OUT PBYTE pbyRsvTime
     )
@@ -1550,10 +1550,10 @@ BOOL CARDbRemoveKey (void *pDeviceHandler, PBYTE pbyBSSID)
 -*/
 BOOL
 CARDbAdd_PMKID_Candidate (
-    IN void *pDeviceHandler,
-    IN PBYTE            pbyBSSID,
-    IN BOOL             bRSNCapExist,
-    IN WORD             wRSNCap
+    void *pDeviceHandler,
+    PBYTE            pbyBSSID,
+    BOOL             bRSNCapExist,
+    WORD             wRSNCap
     )
 {
     PSDevice            pDevice = (PSDevice) pDeviceHandler;
@@ -1601,7 +1601,7 @@ CARDbAdd_PMKID_Candidate (
 
 void *
 CARDpGetCurrentAddress (
-    IN void *pDeviceHandler
+    void *pDeviceHandler
     )
 {
     PSDevice            pDevice = (PSDevice) pDeviceHandler;
@@ -1708,9 +1708,9 @@ void CARDvInitChannelTable (void *pDeviceHandler)
 -*/
 BOOL
 CARDbStartMeasure (
-    IN void *pDeviceHandler,
-    IN void *pvMeasureEIDs,
-    IN UINT             uNumOfMeasureEIDs
+    void *pDeviceHandler,
+    void *pvMeasureEIDs,
+    UINT             uNumOfMeasureEIDs
     )
 {
     PSDevice                pDevice = (PSDevice) pDeviceHandler;
@@ -1835,10 +1835,10 @@ CARDbStartMeasure (
 -*/
 BOOL
 CARDbChannelSwitch (
-    IN void *pDeviceHandler,
-    IN BYTE             byMode,
-    IN BYTE             byNewChannel,
-    IN BYTE             byCount
+    void *pDeviceHandler,
+    BYTE             byMode,
+    BYTE             byNewChannel,
+    BYTE             byCount
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -1878,12 +1878,12 @@ CARDbChannelSwitch (
 -*/
 BOOL
 CARDbSetQuiet (
-    IN void *pDeviceHandler,
-    IN BOOL             bResetQuiet,
-    IN BYTE             byQuietCount,
-    IN BYTE             byQuietPeriod,
-    IN WORD             wQuietDuration,
-    IN WORD             wQuietOffset
+    void *pDeviceHandler,
+    BOOL             bResetQuiet,
+    BYTE             byQuietCount,
+    BYTE             byQuietPeriod,
+    WORD             wQuietDuration,
+    WORD             wQuietOffset
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -1934,7 +1934,7 @@ CARDbSetQuiet (
 -*/
 BOOL
 CARDbStartQuiet (
-    IN void *pDeviceHandler
+    void *pDeviceHandler
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -2035,9 +2035,9 @@ CARDbStartQuiet (
 -*/
 void
 CARDvSetCountryInfo (
-    IN void *pDeviceHandler,
-    IN CARD_PHY_TYPE    ePHYType,
-    IN void *pIE
+    void *pDeviceHandler,
+    CARD_PHY_TYPE    ePHYType,
+    void *pIE
     )
 {
     PSDevice            pDevice = (PSDevice) pDeviceHandler;
@@ -2094,9 +2094,9 @@ CARDvSetCountryInfo (
 -*/
 void
 CARDvSetPowerConstraint (
-    IN void *pDeviceHandler,
-    IN BYTE             byChannel,
-    IN I8               byPower
+    void *pDeviceHandler,
+    BYTE             byChannel,
+    I8               byPower
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -2129,7 +2129,7 @@ CARDvSetPowerConstraint (
 -*/
 void
 CARDvGetPowerCapability (
-    IN void *pDeviceHandler,
+    void *pDeviceHandler,
     OUT PBYTE           pbyMinPower,
     OUT PBYTE           pbyMaxPower
     )
@@ -2165,8 +2165,8 @@ CARDvGetPowerCapability (
 -*/
 BYTE
 CARDbySetSupportChannels (
-    IN void *pDeviceHandler,
-    IN OUT PBYTE        pbyIEs
+    void *pDeviceHandler,
+    OUT PBYTE        pbyIEs
     )
 {
     PSDevice            pDevice = (PSDevice) pDeviceHandler;
@@ -2256,7 +2256,7 @@ CARDbySetSupportChannels (
 -*/
 I8
 CARDbyGetTransmitPower (
-    IN void *pDeviceHandler
+    void *pDeviceHandler
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -2267,7 +2267,7 @@ CARDbyGetTransmitPower (
 
 BOOL
 CARDbChannelGetList (
-    IN  UINT       uCountryCodeIdx,
+     UINT       uCountryCodeIdx,
     OUT PBYTE      pbyChannelTable
     )
 {
@@ -2281,8 +2281,8 @@ CARDbChannelGetList (
 
 void
 CARDvSetCountryIE(
-    IN void *pDeviceHandler,
-    IN void *pIE
+    void *pDeviceHandler,
+    void *pIE
     )
 {
     PSDevice            pDevice = (PSDevice) pDeviceHandler;
@@ -2307,8 +2307,8 @@ CARDvSetCountryIE(
 
 BOOL
 CARDbGetChannelMapInfo(
-    IN void *pDeviceHandler,
-    IN UINT         uChannelIndex,
+    void *pDeviceHandler,
+    UINT         uChannelIndex,
     OUT PBYTE       pbyChannelNumber,
     OUT PBYTE       pbyMap
     )
@@ -2326,9 +2326,9 @@ CARDbGetChannelMapInfo(
 
 void
 CARDvSetChannelMapInfo(
-    IN void *pDeviceHandler,
-    IN UINT         uChannelIndex,
-    IN BYTE         byMap
+    void *pDeviceHandler,
+    UINT         uChannelIndex,
+    BYTE         byMap
     )
 {
 //    PSDevice            pDevice = (PSDevice) pDeviceHandler;
@@ -2342,7 +2342,7 @@ CARDvSetChannelMapInfo(
 
 void
 CARDvClearChannelMapInfo(
-    IN void *pDeviceHandler
+    void *pDeviceHandler
     )
 {
 //    PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -2356,7 +2356,7 @@ CARDvClearChannelMapInfo(
 
 BYTE
 CARDbyAutoChannelSelect(
-    IN void *pDeviceHandler,
+    void *pDeviceHandler,
     CARD_PHY_TYPE   ePHYType
     )
 {
@@ -2422,7 +2422,7 @@ CARDbyAutoChannelSelect(
 //xxx
 void
 CARDvSafeResetTx (
-    IN void *pDeviceHandler
+    void *pDeviceHandler
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -2478,7 +2478,7 @@ CARDvSafeResetTx (
 -*/
 void
 CARDvSafeResetRx (
-    IN void *pDeviceHandler
+    void *pDeviceHandler
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;

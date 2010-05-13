@@ -132,9 +132,9 @@ void KeyvInitTable (PSKeyManagement pTable, DWORD_PTR dwIoBase)
  *
  */
 BOOL KeybGetKey (
-    IN  PSKeyManagement pTable,
-    IN  PBYTE           pbyBSSID,
-    IN  DWORD           dwKeyIndex,
+    PSKeyManagement pTable,
+    PBYTE           pbyBSSID,
+    DWORD           dwKeyIndex,
     OUT PSKeyItem       *pKey
     )
 {
@@ -518,9 +518,9 @@ void KeyvRemoveAllWEPKey (
  *
  */
 BOOL KeybGetTransmitKey (
-    IN  PSKeyManagement pTable,
-    IN  PBYTE           pbyBSSID,
-    IN  DWORD           dwKeyType,
+    PSKeyManagement pTable,
+    PBYTE           pbyBSSID,
+    DWORD           dwKeyType,
     OUT PSKeyItem       *pKey
     )
 {
@@ -598,7 +598,7 @@ BOOL KeybGetTransmitKey (
  *
  */
 BOOL KeybCheckPairewiseKey (
-    IN  PSKeyManagement pTable,
+    PSKeyManagement pTable,
     OUT PSKeyItem       *pKey
     )
 {

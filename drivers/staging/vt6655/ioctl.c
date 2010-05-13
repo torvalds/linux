@@ -716,10 +716,10 @@ if(wpa_Result.authenticated==TRUE) {
 /*
 void
 vConfigWEPKey (
-    IN PSDevice pDevice,
-    IN DWORD    dwKeyIndex,
-    IN PBYTE    pbyKey,
-    IN ULONG    uKeyLength
+    PSDevice pDevice,
+    DWORD    dwKeyIndex,
+    PBYTE    pbyKey,
+    ULONG    uKeyLength
     )
 {
     int ii;

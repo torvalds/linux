@@ -43,8 +43,8 @@
 
 BOOL
 device_receive_frame (
-    IN  PSDevice pDevice,
-    IN  PSRxDesc pCurrRD
+    PSDevice pDevice,
+    PSRxDesc pCurrRD
     );
 
 void	MngWorkItem(void *Context);
