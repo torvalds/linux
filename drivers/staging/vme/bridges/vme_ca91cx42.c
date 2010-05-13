@@ -1494,7 +1494,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* We want to support more than one of each bridge so we need to
 	 * dynamically allocate the bridge structure
 	 */
-	ca91cx42_bridge = kmalloc(sizeof(struct vme_bridge), GFP_KERNEL);
+	ca91cx42_bridge = kzalloc(sizeof(struct vme_bridge), GFP_KERNEL);
 
 	if (ca91cx42_bridge == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate memory for device "
@@ -1503,9 +1503,7 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_struct;
 	}
 
-	memset(ca91cx42_bridge, 0, sizeof(struct vme_bridge));
-
-	ca91cx42_device = kmalloc(sizeof(struct ca91cx42_driver), GFP_KERNEL);
+	ca91cx42_device = kzalloc(sizeof(struct ca91cx42_driver), GFP_KERNEL);
 
 	if (ca91cx42_device == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate memory for device "
@@ -1513,8 +1511,6 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		retval = -ENOMEM;
 		goto err_driver;
 	}
-
-	memset(ca91cx42_device, 0, sizeof(struct ca91cx42_driver));
 
 	ca91cx42_bridge->driver_priv = ca91cx42_device;
 

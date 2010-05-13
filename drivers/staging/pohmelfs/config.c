@@ -238,11 +238,10 @@ static int pohmelfs_send_reply(int err, int msg_num, int action, struct cn_msg *
 {
 	struct pohmelfs_cn_ack *ack;
 
-	ack = kmalloc(sizeof(struct pohmelfs_cn_ack), GFP_KERNEL);
+	ack = kzalloc(sizeof(struct pohmelfs_cn_ack), GFP_KERNEL);
 	if (!ack)
 		return -ENOMEM;
 
-	memset(ack, 0, sizeof(struct pohmelfs_cn_ack));
 	memcpy(&ack->msg, msg, sizeof(struct cn_msg));
 
 	if (action == POHMELFS_CTLINFO_ACK)

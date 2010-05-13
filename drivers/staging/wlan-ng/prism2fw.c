@@ -536,13 +536,12 @@ int mkimage(imgchunk_t *clist, unsigned int *ccnt)
 
 	/* Allocate buffer space for chunks */
 	for (i = 0; i < *ccnt; i++) {
-		clist[i].data = kmalloc(clist[i].len, GFP_KERNEL);
+		clist[i].data = kzalloc(clist[i].len, GFP_KERNEL);
 		if (clist[i].data == NULL) {
 			printk(KERN_ERR
 			       "failed to allocate image space, exitting.\n");
 			return 1;
 		}
-		memset(clist[i].data, 0, clist[i].len);
 		pr_debug("chunk[%d]: addr=0x%06x len=%d\n",
 			 i, clist[i].addr, clist[i].len);
 	}

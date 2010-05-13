@@ -90,10 +90,9 @@ static int hostap_enable_hostapd(PSDevice pDevice, int rtnl_locked)
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "%s: Enabling hostapd mode\n", dev->name);
 
-	pDevice->apdev = kmalloc(sizeof(struct net_device), GFP_KERNEL);
+	pDevice->apdev = kzalloc(sizeof(struct net_device), GFP_KERNEL);
 	if (pDevice->apdev == NULL)
 		return -ENOMEM;
-	memset(pDevice->apdev, 0, sizeof(struct net_device));
 
     apdev_priv = netdev_priv(pDevice->apdev);
     *apdev_priv = *pDevice;

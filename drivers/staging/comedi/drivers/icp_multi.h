@@ -73,14 +73,13 @@ static void pci_card_list_init(unsigned short pci_vendor, char display)
 	     pcidev != NULL;
 	     pcidev = pci_get_device(PCI_ANY_ID, PCI_ANY_ID, pcidev)) {
 		if (pcidev->vendor == pci_vendor) {
-			inova = kmalloc(sizeof(*inova), GFP_KERNEL);
+			inova = kzalloc(sizeof(*inova), GFP_KERNEL);
 			if (!inova) {
 				printk
 				    ("icp_multi: pci_card_list_init: allocation failed\n");
 				pci_dev_put(pcidev);
 				break;
 			}
-			memset(inova, 0, sizeof(*inova));
 
 			inova->pcidev = pci_dev_get(pcidev);
 			if (last) {

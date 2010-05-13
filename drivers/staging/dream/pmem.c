@@ -1245,13 +1245,10 @@ int pmem_setup(struct android_pmem_platform_data *pdata,
 	}
 	pmem[id].num_entries = pmem[id].size / PMEM_MIN_ALLOC;
 
-	pmem[id].bitmap = kmalloc(pmem[id].num_entries *
+	pmem[id].bitmap = kcalloc(pmem[id].num_entries,
 				  sizeof(struct pmem_bits), GFP_KERNEL);
 	if (!pmem[id].bitmap)
 		goto err_no_mem_for_metadata;
-
-	memset(pmem[id].bitmap, 0, sizeof(struct pmem_bits) *
-					  pmem[id].num_entries);
 
 	for (i = sizeof(pmem[id].num_entries) * 8 - 1; i >= 0; i--) {
 		if ((pmem[id].num_entries) &  1<<i) {

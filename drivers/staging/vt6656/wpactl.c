@@ -678,13 +678,12 @@ static int wpa_get_scan(PSDevice pDevice,
         count++;
     };
 
-    pBuf = kmalloc(sizeof(struct viawget_scan_result) * count, (int)GFP_ATOMIC);
+    pBuf = kcalloc(count, sizeof(struct viawget_scan_result), (int)GFP_ATOMIC);
 
     if (pBuf == NULL) {
         ret = -ENOMEM;
         return ret;
     }
-   	memset(pBuf, 0, sizeof(struct viawget_scan_result) * count);
     scan_buf = (struct viawget_scan_result *)pBuf;
 	pBSS = &(pMgmt->sBSSList[0]);
     for (ii = 0, jj = 0; ii < MAX_BSS_NUM ; ii++) {

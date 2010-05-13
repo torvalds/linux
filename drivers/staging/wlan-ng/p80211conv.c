@@ -601,7 +601,7 @@ int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 	}
 
 	/* Allocate the rxmeta */
-	rxmeta = kmalloc(sizeof(p80211_rxmeta_t), GFP_ATOMIC);
+	rxmeta = kzalloc(sizeof(p80211_rxmeta_t), GFP_ATOMIC);
 
 	if (rxmeta == NULL) {
 		printk(KERN_ERR "%s: Failed to allocate rxmeta.\n",
@@ -611,7 +611,6 @@ int p80211skb_rxmeta_attach(struct wlandevice *wlandev, struct sk_buff *skb)
 	}
 
 	/* Initialize the rxmeta */
-	memset(rxmeta, 0, sizeof(p80211_rxmeta_t));
 	rxmeta->wlandev = wlandev;
 	rxmeta->hosttime = jiffies;
 

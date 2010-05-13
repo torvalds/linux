@@ -260,11 +260,9 @@ void v_pci_card_list_init(unsigned short pci_vendor, char display)
 		for (i_Count = 0; i_Count < 2; i_Count++) {
 			pci_vendor = i_ADDIDATADeviceID[i_Count];
 			if (pcidev->vendor == pci_vendor) {
-				amcc = kmalloc(sizeof(*amcc), GFP_KERNEL);
+				amcc = kzalloc(sizeof(*amcc), GFP_KERNEL);
 				if (amcc == NULL)
 					continue;
-
-				memset(amcc, 0, sizeof(*amcc));
 
 				amcc->pcidev = pcidev;
 				if (last)

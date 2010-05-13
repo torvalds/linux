@@ -2251,12 +2251,10 @@ short rtl8192_usb_initendpoints(struct net_device *dev)
 #endif
 
 	memset(priv->rx_urb, 0, sizeof(struct urb*) * MAX_RX_URB);
-	priv->pp_rxskb = kmalloc(sizeof(struct sk_buff *) * MAX_RX_URB,
+	priv->pp_rxskb = kcalloc(MAX_RX_URB, sizeof(struct sk_buff *),
 				 GFP_KERNEL);
 	if (priv->pp_rxskb == NULL)
 		goto destroy;
-
-	memset(priv->pp_rxskb, 0, sizeof(struct sk_buff*) * MAX_RX_URB);
 
 	goto _middle;
 

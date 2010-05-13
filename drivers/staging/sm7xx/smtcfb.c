@@ -688,12 +688,10 @@ static struct smtcfb_info *smtc_alloc_fb_info(struct pci_dev *dev,
 {
 	struct smtcfb_info *sfb;
 
-	sfb = kmalloc(sizeof(struct smtcfb_info), GFP_KERNEL);
+	sfb = kzalloc(sizeof(struct smtcfb_info), GFP_KERNEL);
 
 	if (!sfb)
 		return NULL;
-
-	memset(sfb, 0, sizeof(struct smtcfb_info));
 
 	sfb->currcon = -1;
 	sfb->dev = dev;

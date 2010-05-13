@@ -2230,7 +2230,7 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* If we want to support more than one of each bridge, we need to
 	 * dynamically generate this so we get one per device
 	 */
-	tsi148_bridge = kmalloc(sizeof(struct vme_bridge), GFP_KERNEL);
+	tsi148_bridge = kzalloc(sizeof(struct vme_bridge), GFP_KERNEL);
 	if (tsi148_bridge == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate memory for device "
 			"structure\n");
@@ -2238,17 +2238,13 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto err_struct;
 	}
 
-	memset(tsi148_bridge, 0, sizeof(struct vme_bridge));
-
-	tsi148_device = kmalloc(sizeof(struct tsi148_driver), GFP_KERNEL);
+	tsi148_device = kzalloc(sizeof(struct tsi148_driver), GFP_KERNEL);
 	if (tsi148_device == NULL) {
 		dev_err(&pdev->dev, "Failed to allocate memory for device "
 			"structure\n");
 		retval = -ENOMEM;
 		goto err_driver;
 	}
-
-	memset(tsi148_device, 0, sizeof(struct tsi148_driver));
 
 	tsi148_bridge->driver_priv = tsi148_device;
 
