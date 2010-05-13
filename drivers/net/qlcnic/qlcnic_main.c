@@ -1975,12 +1975,25 @@ qlcnic_check_drv_state(struct qlcnic_adapter *adapter)
 		return 1;
 }
 
+static int qlcnic_check_idc_ver(struct qlcnic_adapter *adapter)
+{
+	u32 val = QLCRD32(adapter, QLCNIC_CRB_DRV_IDC_VER);
+
+	if (val != QLCNIC_DRV_IDC_VER) {
+		dev_warn(&adapter->pdev->dev, "IDC Version mismatch, driver's"
+			" idc ver = %x; reqd = %x\n", QLCNIC_DRV_IDC_VER, val);
+	}
+
+	return 0;
+}
+
 static int
 qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 {
 	u32 val, prev_state;
 	u8 dev_init_timeo = adapter->dev_init_timeo;
 	u8 portnum = adapter->portnum;
+	u8 ret;
 
 	if (test_and_clear_bit(__QLCNIC_START_FW, &adapter->state))
 		return 1;
@@ -2000,12 +2013,14 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 	switch (prev_state) {
 	case QLCNIC_DEV_COLD:
 		QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_INITIALIZING);
+		QLCWR32(adapter, QLCNIC_CRB_DRV_IDC_VER, QLCNIC_DRV_IDC_VER);
 		qlcnic_api_unlock(adapter);
 		return 1;
 
 	case QLCNIC_DEV_READY:
+		ret = qlcnic_check_idc_ver(adapter);
 		qlcnic_api_unlock(adapter);
-		return 0;
+		return ret;
 
 	case QLCNIC_DEV_NEED_RESET:
 		val = QLCRD32(adapter, QLCNIC_CRB_DRV_STATE);
@@ -2048,9 +2063,10 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 	QLC_DEV_CLR_RST_QSCNT(val, portnum);
 	QLCWR32(adapter, QLCNIC_CRB_DRV_STATE, val);
 
+	ret = qlcnic_check_idc_ver(adapter);
 	qlcnic_api_unlock(adapter);
 
-	return 0;
+	return ret;
 }
 
 static void
