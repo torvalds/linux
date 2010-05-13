@@ -202,6 +202,14 @@ static struct platform_device *olympus_devices[] __initdata = {
 	&androidusb_device,
 	&pda_power_device,
 	&hsuart,
+	&tegra_i2c_device1,
+	&tegra_i2c_device2,
+	&tegra_i2c_device3,
+	&tegra_i2c_device4,
+	&tegra_spi_device1,
+	&tegra_spi_device2,
+	&tegra_spi_device3,
+	&tegra_spi_device4,
 };
 
 extern struct tegra_sdhci_platform_data olympus_wifi_data; /* sdhci1 */
@@ -267,14 +275,18 @@ static void __init tegra_olympus_init(void)
 
 	olympus_pinmux_init();
 
-	olympus_sdhci_init();
-
 	tegra_clk_init_from_table(olympus_clk_init_table);
 
 	clk = tegra_get_clock_by_name("uartb");
 	debug_uart_platform_data[0].uartclk = clk_get_rate(clk);
 
 	platform_add_devices(olympus_devices, ARRAY_SIZE(olympus_devices));
+
+	olympus_keypad_init();
+	olympus_i2c_init();
+	olympus_panel_init();
+	olympus_sdhci_init();
+	olympus_wlan_init();
 }
 
 MACHINE_START(OLYMPUS, "olympus")

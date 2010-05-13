@@ -18,5 +18,9 @@
 #define _MACH_TEGRA_BOARD_OLYMPUS_H
 
 void olympus_pinmux_init(void);
+int olympus_keypad_init(void);
+void olympus_i2c_init(void);
+int olympus_panel_init(void);
+int olympus_wlan_init(void);
 
 #endif

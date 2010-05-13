@@ -15,11 +15,12 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/init.h>
 #include <mach/pinmux.h>
 
 #include "board-olympus.h"
 
-static struct tegra_pingroup_config olympus_pinmux[] = {
+static __initdata struct tegra_pingroup_config olympus_pinmux[] = {
 	{TEGRA_PINGROUP_ATA,   TEGRA_MUX_GMI,           TEGRA_PUPD_PULL_UP,   TEGRA_TRI_NORMAL},
 	{TEGRA_PINGROUP_ATB,   TEGRA_MUX_SDIO4,         TEGRA_PUPD_PULL_UP,   TEGRA_TRI_NORMAL},
 	{TEGRA_PINGROUP_ATC,   TEGRA_MUX_GMI,           TEGRA_PUPD_PULL_UP,   TEGRA_TRI_NORMAL},
@@ -138,7 +139,7 @@ static struct tegra_pingroup_config olympus_pinmux[] = {
 	{TEGRA_PINGROUP_XM2D,  TEGRA_MUX_NONE,          TEGRA_PUPD_NORMAL,    TEGRA_TRI_NORMAL},
 };
 
-void olympus_pinmux_init(void)
+void __init olympus_pinmux_init(void)
 {
 	tegra_pinmux_config_table(olympus_pinmux, ARRAY_SIZE(olympus_pinmux));
 }

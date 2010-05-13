@@ -12,6 +12,7 @@
 #include <linux/wlan_plat.h>
 #include <mach/sdhci.h>
 
+#include "board-olympus.h"
 #include "gpio-names.h"
 
 #define OLYMPUS_WLAN_IRQ	TEGRA_GPIO_PU5
@@ -195,18 +196,10 @@ static void __init olympus_wlan_gpio(void)
 	gpio_direction_input(OLYMPUS_WLAN_IRQ);
 }
 
-static int __init olympus_wlan_init(void)
+int __init olympus_wlan_init(void)
 {
-	int ret;
-
-	if (!machine_is_olympus())
-		return 0;
-
 	pr_debug("%s: start\n", __func__);
 	olympus_wlan_gpio();
 	olympus_init_wifi_mem();
-	ret = platform_device_register(&olympus_wifi_device);
-	return ret;
+	return platform_device_register(&olympus_wifi_device);
 }
-
-late_initcall(olympus_wlan_init);

@@ -58,18 +58,6 @@ static struct platform_device tegra_fb_device = {
 	},
 };
 
-static int __init olympus_init_panel(void) {
-	int ret;
-
-	if (!machine_is_olympus())
-		return 0;
-
-	ret = platform_device_register(&tegra_fb_device);
-	if (ret != 0)
-		return ret;
-
-	return 0;
+int __init olympus_panel_init(void) {
+	return platform_device_register(&tegra_fb_device);
 }
-
-device_initcall(olympus_init_panel);
-
