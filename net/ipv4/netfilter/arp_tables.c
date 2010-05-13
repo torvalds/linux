@@ -49,12 +49,7 @@ MODULE_DESCRIPTION("arptables core");
 #endif
 
 #ifdef CONFIG_NETFILTER_DEBUG
-#define ARP_NF_ASSERT(x)					\
-do {								\
-	if (!(x))						\
-		printk("ARP_NF_ASSERT: %s:%s:%u\n",		\
-		       __func__, __FILE__, __LINE__);	\
-} while(0)
+#define ARP_NF_ASSERT(x)	WARN_ON(!(x))
 #else
 #define ARP_NF_ASSERT(x)
 #endif
