@@ -754,6 +754,6 @@ static void __exit rk2818_i2c_adap_exit(void)
 subsys_initcall(rk2818_i2c_adap_init);
 module_exit(rk2818_i2c_adap_exit);
 
-MODULE_DESCRIPTION("RK2818 I2C Bus driver");
-MODULE_AUTHOR("Rock-chips, <www.rock-chips.com>");
+MODULE_DESCRIPTION("Driver for RK2818 I2C Bus");
+MODULE_AUTHOR("kfx, kfx@rock-chips.com");
 MODULE_LICENSE("GPL");
