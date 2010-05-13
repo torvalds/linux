@@ -126,6 +126,13 @@ config RTC_INTF_ALARM_DEV
 	help
 	  Exports the alarm interface to user-space.
 
+config RTC_INTF_CPCAP_SECCLKD
+	bool "Secure Clock Daemon support"
+	depends on RTC_DRV_CPCAP
+	default n
+	help
+	  CPCAP RTC driver support for secure clock daemon by maintaining a
+	  counter to keep track of changes in RTC time.
 
 config RTC_DRV_TEST
 	tristate "Test driver/device"
@@ -678,6 +685,13 @@ config RTC_DRV_NUC900
 	help
 	  If you say yes here you get support for the RTC subsystem of the
 	  NUC910/NUC920 used in embedded systems.
+
+config RTC_DRV_CPCAP
+	depends on MFD_CPCAP
+	tristate "CPCAP RTC"
+	help
+	  If you say yes here you get support for the RTC subsystem of the
+	  CPCAP used in embedded systems.
 
 comment "on-CPU RTC drivers"
 

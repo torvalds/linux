@@ -235,5 +235,11 @@ config REGULATOR_TPS6586X
 	help
 	  This driver supports TPS6586X voltage regulator chips.
 
+config REGULATOR_CPCAP
+	tristate "CPCAP regulator driver"
+	depends on MFD_CPCAP
+	help
+	  Say Y here to support the voltage regulators on CPCAP
+
 endif
 

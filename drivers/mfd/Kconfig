@@ -523,6 +523,12 @@ config MFD_RDC321X
 	  southbridge which provides access to GPIOs and Watchdog using the
 	  southbridge PCI device configuration space.
 
+config MFD_CPCAP
+	tristate "Support for CPCAP"
+	depends on SPI && FIRMWARE_IN_KERNEL
+	help
+	 Say yes here if you want to include drivers for the CPCAP chip.
+
 config MFD_JANZ_CMODIO
 	tristate "Support for Janz CMOD-IO PCI MODULbus Carrier Board"
 	select MFD_CORE
