@@ -80,8 +80,6 @@
 
 #include <asm/uaccess.h>
 
-#define __DQUOT_PARANOIA
-
 /*
  * There are three quota SMP locks. dq_list_lock protects all lists with quotas
  * and quota formats, dqstats structure containing statistics about the lists
@@ -695,7 +693,7 @@ void dqput(struct dquot *dquot)
 
 	if (!dquot)
 		return;
-#ifdef __DQUOT_PARANOIA
+#ifdef CONFIG_QUOTA_DEBUG
 	if (!atomic_read(&dquot->dq_count)) {
 		printk("VFS: dqput: trying to free free dquot\n");
 		printk("VFS: device %s, dquot of %s %d\n",
@@ -748,7 +746,7 @@ we_slept:
 		goto we_slept;
 	}
 	atomic_dec(&dquot->dq_count);
-#ifdef __DQUOT_PARANOIA
+#ifdef CONFIG_QUOTA_DEBUG
 	/* sanity check */
 	BUG_ON(!list_empty(&dquot->dq_free));
 #endif
@@ -845,7 +843,7 @@ we_slept:
 		dquot = NULL;
 		goto out;
 	}
-#ifdef __DQUOT_PARANOIA
+#ifdef CONFIG_QUOTA_DEBUG
 	BUG_ON(!dquot->dq_sb);	/* Has somebody invalidated entry under us? */
 #endif
 out:
@@ -874,7 +872,7 @@ static int dqinit_needed(struct inode *inode, int type)
 static void add_dquot_ref(struct super_block *sb, int type)
 {
 	struct inode *inode, *old_inode = NULL;
-#ifdef __DQUOT_PARANOIA
+#ifdef CONFIG_QUOTA_DEBUG
 	int reserved = 0;
 #endif
 
@@ -882,7 +880,7 @@ static void add_dquot_ref(struct super_block *sb, int type)
 	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
 		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE|I_NEW))
 			continue;
-#ifdef __DQUOT_PARANOIA
+#ifdef CONFIG_QUOTA_DEBUG
 		if (unlikely(inode_get_rsv_space(inode) > 0))
 			reserved = 1;
 #endif
@@ -907,7 +905,7 @@ static void add_dquot_ref(struct super_block *sb, int type)
 	spin_unlock(&inode_lock);
 	iput(old_inode);
 
-#ifdef __DQUOT_PARANOIA
+#ifdef CONFIG_QUOTA_DEBUG
 	if (reserved) {
 		printk(KERN_WARNING "VFS (%s): Writes happened before quota"
 			" was turned on thus quota information is probably "
@@ -940,7 +938,7 @@ static int remove_inode_dquot_ref(struct inode *inode, int type,
 	inode->i_dquot[type] = NULL;
 	if (dquot) {
 		if (dqput_blocks(dquot)) {
-#ifdef __DQUOT_PARANOIA
+#ifdef CONFIG_QUOTA_DEBUG
 			if (atomic_read(&dquot->dq_count) != 1)
 				printk(KERN_WARNING "VFS: Adding dquot with dq_count %d to dispose list.\n", atomic_read(&dquot->dq_count));
 #endif

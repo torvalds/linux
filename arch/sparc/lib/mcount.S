@@ -34,7 +34,7 @@ mcount:
 	cmp		%g1, %g2
 	be,pn		%icc, 1f
 	 mov		%i7, %g3
-	save		%sp, -128, %sp
+	save		%sp, -176, %sp
 	mov		%g3, %o1
 	jmpl		%g1, %o7
 	 mov		%i7, %o0
@@ -56,7 +56,7 @@ mcount:
 	 nop
 5:	mov		%i7, %g2
 	mov		%fp, %g3
-	save		%sp, -128, %sp
+	save		%sp, -176, %sp
 	mov		%g2, %l0
 	ba,pt		%xcc, ftrace_graph_caller
 	 mov		%g3, %l1
@@ -85,7 +85,7 @@ ftrace_caller:
 	lduw		[%g1 + %lo(function_trace_stop)], %g1
 	brnz,pn		%g1, ftrace_stub
 	 mov		%fp, %g3
-	save		%sp, -128, %sp
+	save		%sp, -176, %sp
 	mov		%g2, %o1
 	mov		%g2, %l0
 	mov		%g3, %l1
@@ -120,7 +120,7 @@ ENTRY(ftrace_graph_caller)
 END(ftrace_graph_caller)
 
 ENTRY(return_to_handler)
-	save		%sp, -128, %sp
+	save		%sp, -176, %sp
 	call		ftrace_return_to_handler
 	 mov		%fp, %o0
 	jmpl		%o0 + 8, %g0

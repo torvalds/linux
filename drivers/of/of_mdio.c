@@ -69,7 +69,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 		}
 
 		phy = get_phy_device(mdio, be32_to_cpup(addr));
-		if (!phy) {
+		if (!phy || IS_ERR(phy)) {
 			dev_err(&mdio->dev, "error probing PHY at address %i\n",
 				*addr);
 			continue;

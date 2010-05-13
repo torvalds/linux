@@ -1960,7 +1960,7 @@ F:	lib/kobj*
 
 DRM DRIVERS
 M:	David Airlie <airlied@linux.ie>
-L:	dri-devel@lists.sourceforge.net
+L:	dri-devel@lists.freedesktop.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/airlied/drm-2.6.git
 S:	Maintained
 F:	drivers/gpu/drm/
@@ -4482,17 +4482,17 @@ S:	Maintained
 F:	drivers/ata/sata_promise.*
 
 PS3 NETWORK SUPPORT
-M:	Geoff Levand <geoffrey.levand@am.sony.com>
+M:	Geoff Levand <geoff@infradead.org>
 L:	netdev@vger.kernel.org
 L:	cbe-oss-dev@ozlabs.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ps3_gelic_net.*
 
 PS3 PLATFORM SUPPORT
-M:	Geoff Levand <geoffrey.levand@am.sony.com>
+M:	Geoff Levand <geoff@infradead.org>
 L:	linuxppc-dev@ozlabs.org
 L:	cbe-oss-dev@ozlabs.org
-S:	Supported
+S:	Maintained
 F:	arch/powerpc/boot/ps3*
 F:	arch/powerpc/include/asm/lv1call.h
 F:	arch/powerpc/include/asm/ps3*.h
@@ -4791,12 +4791,11 @@ F:	drivers/s390/crypto/
 
 S390 ZFCP DRIVER
 M:	Christof Schmitt <christof.schmitt@de.ibm.com>
-M:	Martin Peschke <mp3@de.ibm.com>
+M:	Swen Schillig <swen@vnet.ibm.com>
 M:	linux390@de.ibm.com
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
-F:	Documentation/s390/zfcpdump.txt
 F:	drivers/s390/scsi/zfcp_*
 
 S390 IUCV NETWORK LAYER

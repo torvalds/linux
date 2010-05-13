@@ -223,7 +223,6 @@ int vpfe_register_ccdc_device(struct ccdc_hw_device *dev)
 	BUG_ON(!dev->hw_ops.get_frame_format);
 	BUG_ON(!dev->hw_ops.get_pixel_format);
 	BUG_ON(!dev->hw_ops.set_pixel_format);
-	BUG_ON(!dev->hw_ops.set_params);
 	BUG_ON(!dev->hw_ops.set_image_window);
 	BUG_ON(!dev->hw_ops.get_image_window);
 	BUG_ON(!dev->hw_ops.get_line_length);
@@ -1689,11 +1688,12 @@ static long vpfe_param_handler(struct file *file, void *priv,
 	struct vpfe_device *vpfe_dev = video_drvdata(file);
 	int ret = 0;
 
-	v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev, "vpfe_param_handler\n");
+	v4l2_dbg(2, debug, &vpfe_dev->v4l2_dev, "vpfe_param_handler\n");
 
 	if (vpfe_dev->started) {
 		/* only allowed if streaming is not started */
-		v4l2_err(&vpfe_dev->v4l2_dev, "device already started\n");
+		v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
+			"device already started\n");
 		return -EBUSY;
 	}
 
@@ -1705,16 +1705,23 @@ static long vpfe_param_handler(struct file *file, void *priv,
 	case VPFE_CMD_S_CCDC_RAW_PARAMS:
 		v4l2_warn(&vpfe_dev->v4l2_dev,
 			  "VPFE_CMD_S_CCDC_RAW_PARAMS: experimental ioctl\n");
-		ret = ccdc_dev->hw_ops.set_params(param);
-		if (ret) {
-			v4l2_err(&vpfe_dev->v4l2_dev,
-				"Error in setting parameters in CCDC\n");
-			goto unlock_out;
-		}
-		if (vpfe_get_ccdc_image_format(vpfe_dev, &vpfe_dev->fmt) < 0) {
-			v4l2_err(&vpfe_dev->v4l2_dev,
-				"Invalid image format at CCDC\n");
-			goto unlock_out;
+		if (ccdc_dev->hw_ops.set_params) {
+			ret = ccdc_dev->hw_ops.set_params(param);
+			if (ret) {
+				v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
+					"Error setting parameters in CCDC\n");
+				goto unlock_out;
+			}
+			if (vpfe_get_ccdc_image_format(vpfe_dev,
+						       &vpfe_dev->fmt) < 0) {
+				v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
+					"Invalid image format at CCDC\n");
+				goto unlock_out;
+			}
+		} else {
+			ret = -EINVAL;
+			v4l2_dbg(1, debug, &vpfe_dev->v4l2_dev,
+				"VPFE_CMD_S_CCDC_RAW_PARAMS not supported\n");
 		}
 		break;
 	default:
@@ -1830,7 +1837,7 @@ static __init int vpfe_probe(struct platform_device *pdev)
 	if (NULL == ccdc_cfg) {
 		v4l2_err(pdev->dev.driver,
 			 "Memory allocation failed for ccdc_cfg\n");
-		goto probe_free_dev_mem;
+		goto probe_free_lock;
 	}
 
 	strncpy(ccdc_cfg->name, vpfe_cfg->ccdc, 32);
@@ -1982,8 +1989,9 @@ probe_out_video_release:
 probe_out_release_irq:
 	free_irq(vpfe_dev->ccdc_irq0, vpfe_dev);
 probe_free_ccdc_cfg_mem:
-	mutex_unlock(&ccdc_lock);
 	kfree(ccdc_cfg);
+probe_free_lock:
+	mutex_unlock(&ccdc_lock);
 probe_free_dev_mem:
 	kfree(vpfe_dev);
 	return ret;

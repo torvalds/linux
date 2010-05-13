@@ -9,6 +9,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/ftrace.h>
 #include <linux/kernel.h>
 #include <linux/hardirq.h>
 #include <linux/interrupt.h>
@@ -32,7 +33,7 @@ EXPORT_SYMBOL_GPL(irq_of_parse_and_map);
 
 static u32 concurrent_irq;
 
-void do_IRQ(struct pt_regs *regs)
+void __irq_entry do_IRQ(struct pt_regs *regs)
 {
 	unsigned int irq;
 	struct pt_regs *old_regs = set_irq_regs(regs);

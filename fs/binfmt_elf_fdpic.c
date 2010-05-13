@@ -1005,15 +1005,8 @@ static int elf_fdpic_map_file_constdisp_on_uclinux(
 				}
 			} else if (!mm->start_data) {
 				mm->start_data = seg->addr;
-#ifndef CONFIG_MMU
 				mm->end_data = seg->addr + phdr->p_memsz;
-#endif
 			}
-
-#ifdef CONFIG_MMU
-			if (seg->addr + phdr->p_memsz > mm->end_data)
-				mm->end_data = seg->addr + phdr->p_memsz;
-#endif
 		}
 
 		seg++;

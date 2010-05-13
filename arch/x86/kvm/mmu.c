@@ -1490,8 +1490,8 @@ static int mmu_zap_unsync_children(struct kvm *kvm,
 		for_each_sp(pages, sp, parents, i) {
 			kvm_mmu_zap_page(kvm, sp);
 			mmu_pages_clear_parents(&parents);
+			zapped++;
 		}
-		zapped += pages.nr;
 		kvm_mmu_pages_init(parent, &parents, &pages);
 	}
 
@@ -1542,14 +1542,16 @@ void kvm_mmu_change_mmu_pages(struct kvm *kvm, unsigned int kvm_nr_mmu_pages)
 	 */
 
 	if (used_pages > kvm_nr_mmu_pages) {
-		while (used_pages > kvm_nr_mmu_pages) {
+		while (used_pages > kvm_nr_mmu_pages &&
+			!list_empty(&kvm->arch.active_mmu_pages)) {
 			struct kvm_mmu_page *page;
 
 			page = container_of(kvm->arch.active_mmu_pages.prev,
 					    struct kvm_mmu_page, link);
-			kvm_mmu_zap_page(kvm, page);
+			used_pages -= kvm_mmu_zap_page(kvm, page);
 			used_pages--;
 		}
+		kvm_nr_mmu_pages = used_pages;
 		kvm->arch.n_free_mmu_pages = 0;
 	}
 	else
@@ -1596,7 +1598,8 @@ static void mmu_unshadow(struct kvm *kvm, gfn_t gfn)
 		    && !sp->role.invalid) {
 			pgprintk("%s: zap %lx %x\n",
 				 __func__, gfn, sp->role.word);
-			kvm_mmu_zap_page(kvm, sp);
+			if (kvm_mmu_zap_page(kvm, sp))
+				nn = bucket->first;
 		}
 	}
 }

@@ -3694,8 +3694,10 @@ static void *cfq_init_queue(struct request_queue *q)
 	 * to make sure that cfq_put_cfqg() does not try to kfree root group
 	 */
 	atomic_set(&cfqg->ref, 1);
+	rcu_read_lock();
 	blkiocg_add_blkio_group(&blkio_root_cgroup, &cfqg->blkg, (void *)cfqd,
 					0);
+	rcu_read_unlock();
 #endif
 	/*
 	 * Not strictly needed (since RB_ROOT just clears the node and we

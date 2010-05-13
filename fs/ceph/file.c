@@ -665,7 +665,8 @@ more:
 		 * throw out any page cache pages in this range. this
 		 * may block.
 		 */
-		truncate_inode_pages_range(inode->i_mapping, pos, pos+len);
+		truncate_inode_pages_range(inode->i_mapping, pos, 
+					   (pos+len) | (PAGE_CACHE_SIZE-1));
 	} else {
 		pages = alloc_page_vector(num_pages);
 		if (IS_ERR(pages)) {

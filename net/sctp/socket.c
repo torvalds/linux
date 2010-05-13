@@ -3719,12 +3719,12 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sp->hmac = NULL;
 
 	SCTP_DBG_OBJCNT_INC(sock);
-	percpu_counter_inc(&sctp_sockets_allocated);
 
 	/* Set socket backlog limit. */
 	sk->sk_backlog.limit = sysctl_sctp_rmem[1];
 
 	local_bh_disable();
+	percpu_counter_inc(&sctp_sockets_allocated);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	local_bh_enable();
 
@@ -3741,8 +3741,8 @@ SCTP_STATIC void sctp_destroy_sock(struct sock *sk)
 	/* Release our hold on the endpoint. */
 	ep = sctp_sk(sk)->ep;
 	sctp_endpoint_free(ep);
-	percpu_counter_dec(&sctp_sockets_allocated);
 	local_bh_disable();
+	percpu_counter_dec(&sctp_sockets_allocated);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	local_bh_enable();
 }
@@ -6187,6 +6187,16 @@ do_interrupted:
 do_nonblock:
 	err = -EAGAIN;
 	goto out;
+}
+
+void sctp_data_ready(struct sock *sk, int len)
+{
+	read_lock_bh(&sk->sk_callback_lock);
+	if (sk_has_sleeper(sk))
+		wake_up_interruptible_sync_poll(sk->sk_sleep, POLLIN |
+						POLLRDNORM | POLLRDBAND);
+	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
+	read_unlock_bh(&sk->sk_callback_lock);
 }
 
 /* If socket sndbuf has changed, wake up all per association waiters.  */
