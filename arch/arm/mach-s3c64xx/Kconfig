@@ -85,6 +85,7 @@ config MACH_ANW6410
 config MACH_SMDK6410
 	bool "SMDK6410"
 	select CPU_S3C6410
+	select SAMSUNG_DEV_ADC
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_I2C1
