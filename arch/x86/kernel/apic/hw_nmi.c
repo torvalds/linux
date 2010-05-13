@@ -8,6 +8,7 @@
  *  Bits copied from original nmi.c file
  *
  */
+#include <asm/apic.h>
 
 #include <linux/cpumask.h>
 #include <linux/kdebug.h>
