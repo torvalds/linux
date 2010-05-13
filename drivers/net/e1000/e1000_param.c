@@ -188,14 +188,6 @@ E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
  */
 E1000_PARAM(SmartPowerDownEnable, "Enable PHY smart power down");
 
-/* Enable Kumeran Lock Loss workaround
- *
- * Valid Range: 0, 1
- *
- * Default Value: 1 (enabled)
- */
-E1000_PARAM(KumeranLockLoss, "Enable Kumeran lock loss workaround");
-
 struct e1000_option {
 	enum { enable_option, range_option, list_option } type;
 	const char *name;
