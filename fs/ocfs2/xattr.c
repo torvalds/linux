@@ -79,6 +79,7 @@ struct ocfs2_xattr_set_ctxt {
 	struct ocfs2_alloc_context *meta_ac;
 	struct ocfs2_alloc_context *data_ac;
 	struct ocfs2_cached_dealloc_ctxt dealloc;
+	int set_abort;
 };
 
 #define OCFS2_XATTR_ROOT_SIZE	(sizeof(struct ocfs2_xattr_def_value_root))
@@ -2135,6 +2136,7 @@ alloc_value:
 		orig_clusters = ocfs2_xa_value_clusters(loc);
 		rc = ocfs2_xa_value_truncate(loc, xi->xi_value_len, ctxt);
 		if (rc < 0) {
+			ctxt->set_abort = 1;
 			ocfs2_xa_cleanup_value_truncate(loc, "growing",
 							orig_clusters);
 			/*
@@ -2946,7 +2948,7 @@ static int ocfs2_xattr_block_set(struct inode *inode,
 		ret = ocfs2_xa_set(&loc, xi, ctxt);
 		if (!ret)
 			xs->here = loc.xl_entry;
-		else if (ret != -ENOSPC)
+		else if ((ret != -ENOSPC) || ctxt->set_abort)
 			goto end;
 		else {
 			ret = ocfs2_xattr_create_index_block(inode, xs, ctxt);
@@ -3308,7 +3310,7 @@ static int __ocfs2_xattr_set_handle(struct inode *inode,
 				goto out;
 			}
 			ret = ocfs2_xattr_block_set(inode, xi, xbs, ctxt);
-		} else if (ret == -ENOSPC) {
+		} else if ((ret == -ENOSPC) && !ctxt->set_abort) {
 			if (di->i_xattr_loc && !xbs->xattr_bh) {
 				ret = ocfs2_xattr_block_find(inode,
 							     xi->xi_name_index,
