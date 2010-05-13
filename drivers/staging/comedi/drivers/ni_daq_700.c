@@ -734,8 +734,12 @@ static struct pcmcia_device_id dio700_cs_ids[] = {
 	PCMCIA_DEVICE_NULL
 };
 
-MODULE_LICENSE("GPL");
+
 MODULE_DEVICE_TABLE(pcmcia, dio700_cs_ids);
+MODULE_AUTHOR("Fred Brooks <nsaspook@nsaspook.com>");
+MODULE_DESCRIPTION("Comedi driver for National Instruments "
+		   "PCMCIA DAQCard-700 DIO");
+MODULE_LICENSE("GPL");
 
 struct pcmcia_driver dio700_cs_driver = {
 	.probe = dio700_cs_attach,
