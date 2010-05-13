@@ -2161,8 +2161,6 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 			e1000_rar_set(hw, ha->addr, i++);
 		}
 
-	WARN_ON(i == rar_entries);
-
 	netdev_for_each_mc_addr(ha, netdev) {
 		if (i == rar_entries) {
 			/* load any remaining addresses into the hash table */
