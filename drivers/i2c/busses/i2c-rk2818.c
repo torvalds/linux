@@ -71,6 +71,9 @@ struct rk2818_i2c_data {
 
 	unsigned int			msg_idx;
 	unsigned int			msg_num;
+#ifdef CONFIG_CPU_FREQ
+		struct notifier_block	freq_transition;
+#endif
 };
 
 static int rk2818_i2c_init_hw(struct rk2818_i2c_data *i2c);
@@ -479,7 +482,7 @@ static const struct i2c_algorithm rk2818_i2c_algorithm = {
 
 #ifdef CONFIG_CPU_FREQ
 
-#define freq_to_i2c(_n) container_of(_n, struct rk2818_i2c, freq_transition)
+#define freq_to_i2c(_n) container_of(_n, struct rk2818_i2c_data, freq_transition)
 
 static int rk2818_i2c_cpufreq_transition(struct notifier_block *nb,
 					  unsigned long val, void *data)
@@ -494,9 +497,9 @@ static int rk2818_i2c_cpufreq_transition(struct notifier_block *nb,
 	if ((val == CPUFREQ_POSTCHANGE && delta_f < 0) ||
 	    (val == CPUFREQ_PRECHANGE && delta_f > 0)) 
 	{
-		spin_lock_irqsave(&i2c->lock, flags);
+		spin_lock_irqsave(&i2c->cmd_lock, flags);
 		ret = rk2818_i2c_clockrate(i2c);
-		spin_unlock_irqrestore(&i2c->lock, flags);
+		spin_unlock_irqrestore(&i2c->cmd_lock, flags);
 	}
 
 	return ret;
@@ -510,7 +513,7 @@ static inline int rk2818_i2c_register_cpufreq(struct rk2818_i2c_data *i2c)
 					 CPUFREQ_TRANSITION_NOTIFIER);
 }
 
-static inline void rk2818_i2c_deregister_cpufreq(struct rk2818_i2c_data *i2c)
+static inline void rk2818_i2c_unregister_cpufreq(struct rk2818_i2c_data *i2c)
 {
 	cpufreq_unregister_notifier(&i2c->freq_transition,
 				    CPUFREQ_TRANSITION_NOTIFIER);
