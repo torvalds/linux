@@ -35,7 +35,8 @@ int gss_import_sec_context(
 		const void*		input_token,
 		size_t			bufsize,
 		struct gss_api_mech	*mech,
-		struct gss_ctx		**ctx_id);
+		struct gss_ctx		**ctx_id,
+		gfp_t			gfp_mask);
 u32 gss_get_mic(
 		struct gss_ctx		*ctx_id,
 		struct xdr_buf		*message,
@@ -89,7 +90,8 @@ struct gss_api_ops {
 	int (*gss_import_sec_context)(
 			const void		*input_token,
 			size_t			bufsize,
-			struct gss_ctx		*ctx_id);
+			struct gss_ctx		*ctx_id,
+			gfp_t			gfp_mask);
 	u32 (*gss_get_mic)(
 			struct gss_ctx		*ctx_id,
 			struct xdr_buf		*message,

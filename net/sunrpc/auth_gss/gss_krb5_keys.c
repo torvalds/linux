@@ -150,7 +150,8 @@ static void krb5_nfold(u32 inbits, const u8 *in,
 u32 krb5_derive_key(const struct gss_krb5_enctype *gk5e,
 		    const struct xdr_netobj *inkey,
 		    struct xdr_netobj *outkey,
-		    const struct xdr_netobj *in_constant)
+		    const struct xdr_netobj *in_constant,
+		    gfp_t gfp_mask)
 {
 	size_t blocksize, keybytes, keylength, n;
 	unsigned char *inblockdata, *outblockdata, *rawkey;
@@ -175,15 +176,15 @@ u32 krb5_derive_key(const struct gss_krb5_enctype *gk5e,
 	/* allocate and set up buffers */
 
 	ret = ENOMEM;
-	inblockdata = kmalloc(blocksize, GFP_KERNEL);
+	inblockdata = kmalloc(blocksize, gfp_mask);
 	if (inblockdata == NULL)
 		goto err_free_cipher;
 
-	outblockdata = kmalloc(blocksize, GFP_KERNEL);
+	outblockdata = kmalloc(blocksize, gfp_mask);
 	if (outblockdata == NULL)
 		goto err_free_in;
 
-	rawkey = kmalloc(keybytes, GFP_KERNEL);
+	rawkey = kmalloc(keybytes, gfp_mask);
 	if (rawkey == NULL)
 		goto err_free_out;
 

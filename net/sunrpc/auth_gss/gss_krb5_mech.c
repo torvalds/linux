@@ -369,7 +369,7 @@ set_cdata(u8 cdata[GSS_KRB5_K5CLENGTH], u32 usage, u8 seed)
 }
 
 static int
-context_derive_keys_des3(struct krb5_ctx *ctx)
+context_derive_keys_des3(struct krb5_ctx *ctx, gfp_t gfp_mask)
 {
 	struct xdr_netobj c, keyin, keyout;
 	u8 cdata[GSS_KRB5_K5CLENGTH];
@@ -396,7 +396,7 @@ context_derive_keys_des3(struct krb5_ctx *ctx)
 	/* derive cksum */
 	set_cdata(cdata, KG_USAGE_SIGN, KEY_USAGE_SEED_CHECKSUM);
 	keyout.data = ctx->cksum;
-	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c);
+	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c, gfp_mask);
 	if (err) {
 		dprintk("%s: Error %d deriving cksum key\n",
 			__func__, err);
@@ -487,7 +487,7 @@ out_err:
 }
 
 static int
-context_derive_keys_new(struct krb5_ctx *ctx)
+context_derive_keys_new(struct krb5_ctx *ctx, gfp_t gfp_mask)
 {
 	struct xdr_netobj c, keyin, keyout;
 	u8 cdata[GSS_KRB5_K5CLENGTH];
@@ -503,7 +503,7 @@ context_derive_keys_new(struct krb5_ctx *ctx)
 	/* initiator seal encryption */
 	set_cdata(cdata, KG_USAGE_INITIATOR_SEAL, KEY_USAGE_SEED_ENCRYPTION);
 	keyout.data = ctx->initiator_seal;
-	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c);
+	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c, gfp_mask);
 	if (err) {
 		dprintk("%s: Error %d deriving initiator_seal key\n",
 			__func__, err);
@@ -518,7 +518,7 @@ context_derive_keys_new(struct krb5_ctx *ctx)
 	/* acceptor seal encryption */
 	set_cdata(cdata, KG_USAGE_ACCEPTOR_SEAL, KEY_USAGE_SEED_ENCRYPTION);
 	keyout.data = ctx->acceptor_seal;
-	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c);
+	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c, gfp_mask);
 	if (err) {
 		dprintk("%s: Error %d deriving acceptor_seal key\n",
 			__func__, err);
@@ -533,7 +533,7 @@ context_derive_keys_new(struct krb5_ctx *ctx)
 	/* initiator sign checksum */
 	set_cdata(cdata, KG_USAGE_INITIATOR_SIGN, KEY_USAGE_SEED_CHECKSUM);
 	keyout.data = ctx->initiator_sign;
-	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c);
+	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c, gfp_mask);
 	if (err) {
 		dprintk("%s: Error %d deriving initiator_sign key\n",
 			__func__, err);
@@ -543,7 +543,7 @@ context_derive_keys_new(struct krb5_ctx *ctx)
 	/* acceptor sign checksum */
 	set_cdata(cdata, KG_USAGE_ACCEPTOR_SIGN, KEY_USAGE_SEED_CHECKSUM);
 	keyout.data = ctx->acceptor_sign;
-	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c);
+	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c, gfp_mask);
 	if (err) {
 		dprintk("%s: Error %d deriving acceptor_sign key\n",
 			__func__, err);
@@ -553,7 +553,7 @@ context_derive_keys_new(struct krb5_ctx *ctx)
 	/* initiator seal integrity */
 	set_cdata(cdata, KG_USAGE_INITIATOR_SEAL, KEY_USAGE_SEED_INTEGRITY);
 	keyout.data = ctx->initiator_integ;
-	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c);
+	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c, gfp_mask);
 	if (err) {
 		dprintk("%s: Error %d deriving initiator_integ key\n",
 			__func__, err);
@@ -563,7 +563,7 @@ context_derive_keys_new(struct krb5_ctx *ctx)
 	/* acceptor seal integrity */
 	set_cdata(cdata, KG_USAGE_ACCEPTOR_SEAL, KEY_USAGE_SEED_INTEGRITY);
 	keyout.data = ctx->acceptor_integ;
-	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c);
+	err = krb5_derive_key(ctx->gk5e, &keyin, &keyout, &c, gfp_mask);
 	if (err) {
 		dprintk("%s: Error %d deriving acceptor_integ key\n",
 			__func__, err);
@@ -598,7 +598,8 @@ out_err:
 }
 
 static int
-gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx)
+gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx,
+		gfp_t gfp_mask)
 {
 	int keylen;
 
@@ -645,7 +646,7 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx)
 	}
 
 	ctx->mech_used.data = kmemdup(gss_kerberos_mech.gm_oid.data,
-				      gss_kerberos_mech.gm_oid.len, GFP_KERNEL);
+				      gss_kerberos_mech.gm_oid.len, gfp_mask);
 	if (unlikely(ctx->mech_used.data == NULL)) {
 		p = ERR_PTR(-ENOMEM);
 		goto out_err;
@@ -654,12 +655,12 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx)
 
 	switch (ctx->enctype) {
 	case ENCTYPE_DES3_CBC_RAW:
-		return context_derive_keys_des3(ctx);
+		return context_derive_keys_des3(ctx, gfp_mask);
 	case ENCTYPE_ARCFOUR_HMAC:
 		return context_derive_keys_rc4(ctx);
 	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
 	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
-		return context_derive_keys_new(ctx);
+		return context_derive_keys_new(ctx, gfp_mask);
 	default:
 		return -EINVAL;
 	}
@@ -670,20 +671,21 @@ out_err:
 
 static int
 gss_import_sec_context_kerberos(const void *p, size_t len,
-				struct gss_ctx *ctx_id)
+				struct gss_ctx *ctx_id,
+				gfp_t gfp_mask)
 {
 	const void *end = (const void *)((const char *)p + len);
 	struct  krb5_ctx *ctx;
 	int ret;
 
-	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	ctx = kzalloc(sizeof(*ctx), gfp_mask);
 	if (ctx == NULL)
 		return -ENOMEM;
 
 	if (len == 85)
 		ret = gss_import_v1_context(p, end, ctx);
 	else
-		ret = gss_import_v2_context(p, end, ctx);
+		ret = gss_import_v2_context(p, end, ctx, gfp_mask);
 
 	if (ret == 0)
 		ctx_id->internal_ctx_id = ctx;
