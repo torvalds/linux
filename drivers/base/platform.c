@@ -1244,7 +1244,7 @@ static int __init early_platform_driver_probe_id(char *class_str,
 			 * dev_name() and others to be used before the
 			 * rest of the driver core is initialized.
 			 */
-			if (!match->dev.init_name) {
+			if (!match->dev.init_name && slab_is_available()) {
 				if (match->id != -1)
 					match->dev.init_name =
 						kasprintf(GFP_KERNEL, "%s.%d",
