@@ -47,10 +47,20 @@ const char *ceph_file_part(const char *s, int len)
  */
 static void ceph_put_super(struct super_block *s)
 {
-	struct ceph_client *cl = ceph_client(s);
+	struct ceph_client *client = ceph_sb_to_client(s);
 
 	dout("put_super\n");
-	ceph_mdsc_close_sessions(&cl->mdsc);
+	ceph_mdsc_close_sessions(&client->mdsc);
+
+	/*
+	 * ensure we release the bdi before put_anon_super releases
+	 * the device name.
+	 */
+	if (s->s_bdi == &client->backing_dev_info) {
+		bdi_unregister(&client->backing_dev_info);
+		s->s_bdi = NULL;
+	}
+
 	return;
 }
 
@@ -636,6 +646,8 @@ static void ceph_destroy_client(struct ceph_client *client)
 	destroy_workqueue(client->pg_inv_wq);
 	destroy_workqueue(client->trunc_wq);
 
+	bdi_destroy(&client->backing_dev_info);
+
 	if (client->msgr)
 		ceph_messenger_destroy(client->msgr);
 	mempool_destroy(client->wb_pagevec_pool);
@@ -876,14 +888,14 @@ static int ceph_register_bdi(struct super_block *sb, struct ceph_client *client)
 {
 	int err;
 
-	sb->s_bdi = &client->backing_dev_info;
-
 	/* set ra_pages based on rsize mount option? */
 	if (client->mount_args->rsize >= PAGE_CACHE_SIZE)
 		client->backing_dev_info.ra_pages =
 			(client->mount_args->rsize + PAGE_CACHE_SIZE - 1)
 			>> PAGE_SHIFT;
 	err = bdi_register_dev(&client->backing_dev_info, sb->s_dev);
+	if (!err)
+		sb->s_bdi = &client->backing_dev_info;
 	return err;
 }
 
@@ -957,9 +969,6 @@ static void ceph_kill_sb(struct super_block *s)
 	dout("kill_sb %p\n", s);
 	ceph_mdsc_pre_umount(&client->mdsc);
 	kill_anon_super(s);    /* will call put_super after sb is r/o */
-	if (s->s_bdi == &client->backing_dev_info)
-		bdi_unregister(&client->backing_dev_info);
-	bdi_destroy(&client->backing_dev_info);
 	ceph_destroy_client(client);
 }
 
