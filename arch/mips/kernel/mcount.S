@@ -132,28 +132,34 @@ ftrace_stub:
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 
 NESTED(ftrace_graph_caller, PT_SIZE, ra)
-#ifdef CONFIG_DYNAMIC_FTRACE
-	PTR_L	a1, PT_R31(sp)	/* load the original ra from the stack */
-#ifdef KBUILD_MCOUNT_RA_ADDRESS
-	PTR_L	t0, PT_R12(sp)	/* load the original t0 from the stack */
-#endif
-#else
+#ifndef CONFIG_DYNAMIC_FTRACE
 	MCOUNT_SAVE_REGS
-	move	a1, ra		/* arg2: next ip, selfaddr */
 #endif
 
+	/* arg1: Get the location of the parent's return address */
 #ifdef KBUILD_MCOUNT_RA_ADDRESS
-	bnez	t0, 1f		/* non-leaf func: t0 saved the location of the return address */
-	 nop
-	PTR_LA	t0, PT_R1(sp)	/* leaf func: get the location of at(old ra) from our own stack */
-1:	move	a0, t0		/* arg1: the location of the return address */
+#ifdef CONFIG_DYNAMIC_FTRACE
+	PTR_L	a0, PT_R12(sp)
 #else
-	PTR_LA	a0, PT_R1(sp)	/* arg1: &AT -> a0 */
+	move	a0, t0
 #endif
-	jal	prepare_ftrace_return
-#ifdef CONFIG_FRAME_POINTER
-	 move	a2, fp		/* arg3: frame pointer */
+	bnez	a0, 1f		/* non-leaf func: stored in t0 */
+	 nop
+#endif
+	PTR_LA	a0, PT_R1(sp)	/* leaf func: the location in current stack */
+1:
+
+	/* arg2: Get self return address */
+#ifdef CONFIG_DYNAMIC_FTRACE
+	PTR_L	a1, PT_R31(sp)
 #else
+	move	a1, ra
+#endif
+
+	/* arg3: Get frame pointer of current stack */
+#ifdef CONFIG_FRAME_POINTER
+	 move	a2, fp
+#else /* ! CONFIG_FRAME_POINTER */
 #ifdef CONFIG_64BIT
 	 PTR_LA	a2, PT_SIZE(sp)
 #else
@@ -161,6 +167,8 @@ NESTED(ftrace_graph_caller, PT_SIZE, ra)
 #endif
 #endif
 
+	jal	prepare_ftrace_return
+	 nop
 	MCOUNT_RESTORE_REGS
 	RETURN_BACK
 	END(ftrace_graph_caller)
