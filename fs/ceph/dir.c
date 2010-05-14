@@ -233,6 +233,7 @@ static int ceph_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	u32 ftype;
 	struct ceph_mds_reply_info_parsed *rinfo;
 	const int max_entries = client->mount_args->max_readdir;
+	const int max_bytes = client->mount_args->max_readdir_bytes;
 
 	dout("readdir %p filp %p frag %u off %u\n", inode, filp, frag, off);
 	if (fi->at_end)
@@ -316,6 +317,7 @@ more:
 		req->r_readdir_offset = fi->next_offset;
 		req->r_args.readdir.frag = cpu_to_le32(frag);
 		req->r_args.readdir.max_entries = cpu_to_le32(max_entries);
+		req->r_args.readdir.max_bytes = cpu_to_le32(max_bytes);
 		req->r_num_caps = max_entries + 1;
 		err = ceph_mdsc_do_request(mdsc, NULL, req);
 		if (err < 0) {

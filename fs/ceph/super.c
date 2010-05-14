@@ -190,6 +190,8 @@ static int ceph_show_options(struct seq_file *m, struct vfsmount *mnt)
 			   args->cap_release_safety);
 	if (args->max_readdir != CEPH_MAX_READDIR_DEFAULT)
 		seq_printf(m, ",readdir_max_entries=%d", args->max_readdir);
+	if (args->max_readdir_bytes != CEPH_MAX_READDIR_BYTES_DEFAULT)
+		seq_printf(m, ",readdir_max_bytes=%d", args->max_readdir_bytes);
 	if (strcmp(args->snapdir_name, CEPH_SNAPDIRNAME_DEFAULT))
 		seq_printf(m, ",snapdirname=%s", args->snapdir_name);
 	if (args->name)
@@ -333,6 +335,7 @@ enum {
 	Opt_caps_wanted_delay_max,
 	Opt_cap_release_safety,
 	Opt_readdir_max_entries,
+	Opt_readdir_max_bytes,
 	Opt_congestion_kb,
 	Opt_last_int,
 	/* int args above */
@@ -365,6 +368,7 @@ static match_table_t arg_tokens = {
 	{Opt_caps_wanted_delay_max, "caps_wanted_delay_max=%d"},
 	{Opt_cap_release_safety, "cap_release_safety=%d"},
 	{Opt_readdir_max_entries, "readdir_max_entries=%d"},
+	{Opt_readdir_max_bytes, "readdir_max_bytes=%d"},
 	{Opt_congestion_kb, "write_congestion_kb=%d"},
 	/* int args above */
 	{Opt_snapdirname, "snapdirname=%s"},
@@ -415,6 +419,7 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 	args->snapdir_name = kstrdup(CEPH_SNAPDIRNAME_DEFAULT, GFP_KERNEL);
 	args->cap_release_safety = CEPH_CAP_RELEASE_SAFETY_DEFAULT;
 	args->max_readdir = CEPH_MAX_READDIR_DEFAULT;
+	args->max_readdir_bytes = CEPH_MAX_READDIR_BYTES_DEFAULT;
 	args->congestion_kb = default_congestion_kb();
 
 	/* ip1[:port1][,ip2[:port2]...]:/subdir/in/fs */
@@ -521,6 +526,9 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 			break;
 		case Opt_readdir_max_entries:
 			args->max_readdir = intval;
+			break;
+		case Opt_readdir_max_bytes:
+			args->max_readdir_bytes = intval;
 			break;
 		case Opt_congestion_kb:
 			args->congestion_kb = intval;

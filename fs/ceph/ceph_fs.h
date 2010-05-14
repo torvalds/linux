@@ -361,6 +361,7 @@ union ceph_mds_request_args {
 	struct {
 		__le32 frag;                 /* which dir fragment */
 		__le32 max_entries;          /* how many dentries to grab */
+		__le32 max_bytes;
 	} __attribute__ ((packed)) readdir;
 	struct {
 		__le32 mode;

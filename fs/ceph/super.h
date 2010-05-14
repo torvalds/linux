@@ -66,7 +66,8 @@ struct ceph_mount_args {
 	int congestion_kb;    /* max writeback in flight */
 	int caps_wanted_delay_min, caps_wanted_delay_max;
 	int cap_release_safety;
-	int max_readdir;      /* max readdir size */
+	int max_readdir;       /* max readdir result (entires) */
+	int max_readdir_bytes; /* max readdir result (bytes) */
 	char *snapdir_name;   /* default ".snap" */
 	char *name;
 	char *secret;
@@ -81,6 +82,7 @@ struct ceph_mount_args {
 #define CEPH_OSD_IDLE_TTL_DEFAULT    60
 #define CEPH_MOUNT_RSIZE_DEFAULT    (512*1024) /* readahead */
 #define CEPH_MAX_READDIR_DEFAULT    1024
+#define CEPH_MAX_READDIR_BYTES_DEFAULT    (512*1024)
 
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)
 #define CEPH_MSG_MAX_DATA_LEN	(16*1024*1024)
