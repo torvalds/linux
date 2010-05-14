@@ -244,11 +244,17 @@ static pci_ers_result_t aer_root_reset(struct pci_dev *dev)
 
 	/* Assert Secondary Bus Reset */
 	pci_read_config_word(dev, PCI_BRIDGE_CONTROL, &p2p_ctrl);
-	p2p_ctrl |= PCI_CB_BRIDGE_CTL_CB_RESET;
+	p2p_ctrl |= PCI_BRIDGE_CTL_BUS_RESET;
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, p2p_ctrl);
 
+	/*
+	 * we should send hot reset message for 2ms to allow it time to
+	 * propogate to all downstream ports
+	 */
+	msleep(2);
+
 	/* De-assert Secondary Bus Reset */
-	p2p_ctrl &= ~PCI_CB_BRIDGE_CTL_CB_RESET;
+	p2p_ctrl &= ~PCI_BRIDGE_CTL_BUS_RESET;
 	pci_write_config_word(dev, PCI_BRIDGE_CONTROL, p2p_ctrl);
 
 	/*

@@ -3234,8 +3234,7 @@ free:
 }
 
 static void
-ftrace_graph_probe_sched_switch(struct rq *__rq, struct task_struct *prev,
-				struct task_struct *next)
+ftrace_graph_probe_sched_switch(struct task_struct *prev, struct task_struct *next)
 {
 	unsigned long long timestamp;
 	int index;

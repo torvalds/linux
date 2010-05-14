@@ -61,7 +61,7 @@ struct inode *jfs_iget(struct super_block *sb, unsigned long ino)
 			inode->i_op = &page_symlink_inode_operations;
 			inode->i_mapping->a_ops = &jfs_aops;
 		} else {
-			inode->i_op = &jfs_symlink_inode_operations;
+			inode->i_op = &jfs_fast_symlink_inode_operations;
 			/*
 			 * The inline data should be null-terminated, but
 			 * don't let on-disk corruption crash the kernel

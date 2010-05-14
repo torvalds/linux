@@ -1326,7 +1326,7 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 
 	radeon_encoder->pixel_clock = adjusted_mode->clock;
 
-	if (ASIC_IS_AVIVO(rdev)) {
+	if (ASIC_IS_AVIVO(rdev) && !ASIC_IS_DCE4(rdev)) {
 		if (radeon_encoder->active_device & (ATOM_DEVICE_CV_SUPPORT | ATOM_DEVICE_TV_SUPPORT))
 			atombios_yuv_setup(encoder, true);
 		else

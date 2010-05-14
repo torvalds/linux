@@ -214,7 +214,7 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 		return;
 	}
 	for (i = base, most = 0; i < base+num; i += 8) {
-		res = claim_region(NULL, i, 8, IORESOURCE_IO, "PCMCIA ioprobe");
+		res = claim_region(s, i, 8, IORESOURCE_IO, "PCMCIA ioprobe");
 		if (!res)
 			continue;
 		hole = inb(i);
@@ -231,9 +231,14 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 
 	bad = any = 0;
 	for (i = base; i < base+num; i += 8) {
-		res = claim_region(NULL, i, 8, IORESOURCE_IO, "PCMCIA ioprobe");
-		if (!res)
+		res = claim_region(s, i, 8, IORESOURCE_IO, "PCMCIA ioprobe");
+		if (!res) {
+			if (!any)
+				printk(" excluding");
+			if (!bad)
+				bad = any = i;
 			continue;
+		}
 		for (j = 0; j < 8; j++)
 			if (inb(i+j) != most)
 				break;
@@ -253,6 +258,7 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 	}
 	if (bad) {
 		if ((num > 16) && (bad == base) && (i == base+num)) {
+			sub_interval(&s_data->io_db, bad, i-bad);
 			printk(" nothing: probe failed.\n");
 			return;
 		} else {
@@ -804,7 +810,7 @@ static int adjust_memory(struct pcmcia_socket *s, unsigned int action, unsigned 
 static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long start, unsigned long end)
 {
 	struct socket_data *data = s->resource_data;
-	unsigned long size = end - start + 1;
+	unsigned long size;
 	int ret = 0;
 
 #if defined(CONFIG_X86)
@@ -813,6 +819,8 @@ static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long
 	if (start < 0x100)
 		start = 0x100;
 #endif
+
+	size = end - start + 1;
 
 	if (end < start)
 		return -EINVAL;
