@@ -420,6 +420,20 @@ static int ath9k_init_queues(struct ath9k_htc_priv *priv)
 	for (i = 0; i < ARRAY_SIZE(priv->hwq_map); i++)
 		priv->hwq_map[i] = -1;
 
+	priv->beaconq = ath9k_hw_beaconq_setup(priv->ah);
+	if (priv->beaconq == -1) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup BEACON xmit queue\n");
+		goto err;
+	}
+
+	priv->cabq = ath9k_htc_cabq_setup(priv);
+	if (priv->cabq == -1) {
+		ath_print(common, ATH_DBG_FATAL,
+			  "Unable to setup CAB xmit queue\n");
+		goto err;
+	}
+
 	if (!ath9k_htc_txq_setup(priv, ATH9K_WME_AC_BE)) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to setup xmit queue for BE traffic\n");

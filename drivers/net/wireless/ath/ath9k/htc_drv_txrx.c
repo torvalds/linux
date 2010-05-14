@@ -20,6 +20,16 @@
 /* TX */
 /******/
 
+#define ATH9K_HTC_INIT_TXQ(subtype) do {			\
+		qi.tqi_subtype = subtype;			\
+		qi.tqi_aifs = ATH9K_TXQ_USEDEFAULT;		\
+		qi.tqi_cwmin = ATH9K_TXQ_USEDEFAULT;		\
+		qi.tqi_cwmax = ATH9K_TXQ_USEDEFAULT;		\
+		qi.tqi_physCompBuf = 0;				\
+		qi.tqi_qflags = TXQ_FLAG_TXEOLINT_ENABLE |	\
+			TXQ_FLAG_TXDESCINT_ENABLE;		\
+	} while (0)
+
 int get_hw_qnum(u16 queue, int *hwq_map)
 {
 	switch (queue) {
@@ -297,13 +307,7 @@ bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv,
 	int qnum;
 
 	memset(&qi, 0, sizeof(qi));
-
-	qi.tqi_subtype = subtype;
-	qi.tqi_aifs = ATH9K_TXQ_USEDEFAULT;
-	qi.tqi_cwmin = ATH9K_TXQ_USEDEFAULT;
-	qi.tqi_cwmax = ATH9K_TXQ_USEDEFAULT;
-	qi.tqi_physCompBuf = 0;
-	qi.tqi_qflags = TXQ_FLAG_TXEOLINT_ENABLE | TXQ_FLAG_TXDESCINT_ENABLE;
+	ATH9K_HTC_INIT_TXQ(subtype);
 
 	qnum = ath9k_hw_setuptxqueue(priv->ah, ATH9K_TX_QUEUE_DATA, &qi);
 	if (qnum == -1)
@@ -319,6 +323,16 @@ bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv,
 
 	priv->hwq_map[subtype] = qnum;
 	return true;
+}
+
+int ath9k_htc_cabq_setup(struct ath9k_htc_priv *priv)
+{
+	struct ath9k_tx_queue_info qi;
+
+	memset(&qi, 0, sizeof(qi));
+	ATH9K_HTC_INIT_TXQ(0);
+
+	return ath9k_hw_setuptxqueue(priv->ah, ATH9K_TX_QUEUE_CAB, &qi);
 }
 
 /******/

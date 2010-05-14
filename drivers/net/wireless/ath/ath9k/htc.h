@@ -393,6 +393,9 @@ struct ath9k_htc_priv {
 	int led_off_duration;
 	int led_on_cnt;
 	int led_off_cnt;
+
+	int beaconq;
+	int cabq;
 	int hwq_map[ATH9K_WME_AC_VO+1];
 
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
@@ -429,6 +432,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb);
 void ath9k_tx_cleanup(struct ath9k_htc_priv *priv);
 bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv,
 			 enum ath9k_tx_queue_subtype qtype);
+int ath9k_htc_cabq_setup(struct ath9k_htc_priv *priv);
 int get_hw_qnum(u16 queue, int *hwq_map);
 int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
 		       struct ath9k_tx_queue_info *qinfo);
