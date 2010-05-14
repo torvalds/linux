@@ -62,14 +62,26 @@ int ftrace_make_nop(struct module *mod,
 				return -EFAULT;
 		}
 
+#if defined(KBUILD_MCOUNT_RA_ADDRESS) && defined(CONFIG_32BIT)
+		/* lui v1, hi_16bit_of_mcount        --> b 1f (0x10000005)
+		 * addiu v1, v1, low_16bit_of_mcount
+		 * move at, ra
+		 * move $12, ra_address
+		 * jalr v1
+		 *  sub sp, sp, 8
+		 *                                  1: offset = 5 instructions
+		 */
+		new = 0x10000005;
+#else
 		/* lui v1, hi_16bit_of_mcount        --> b 1f (0x10000004)
 		 * addiu v1, v1, low_16bit_of_mcount
 		 * move at, ra
 		 * jalr v1
-		 * nop
-		 * 				     1f: (ip + 12)
+		 *  nop | move $12, ra_address | sub sp, sp, 8
+		 *                                  1: offset = 4 instructions
 		 */
 		new = 0x10000004;
+#endif
 	} else {
 		/* record/calculate it for ftrace_make_call */
 		if (jal_mcount == 0) {
