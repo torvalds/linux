@@ -33,6 +33,7 @@
 #include <net/mac80211.h>
 
 #include "wl1271_conf.h"
+#include "wl1271_ini.h"
 
 #define DRIVER_NAME "wl1271"
 #define DRIVER_PREFIX DRIVER_NAME ": "
@@ -115,33 +116,6 @@ enum {
 
 #define WL1271_TX_SECURITY_LO16(s) ((u16)((s) & 0xffff))
 #define WL1271_TX_SECURITY_HI32(s) ((u32)(((s) >> 16) & 0xffffffff))
-
-/* NVS data structure */
-#define WL1271_NVS_SECTION_SIZE                  468
-
-#define WL1271_NVS_GENERAL_PARAMS_SIZE            57
-#define WL1271_NVS_GENERAL_PARAMS_SIZE_PADDED \
-	(WL1271_NVS_GENERAL_PARAMS_SIZE + 1)
-#define WL1271_NVS_STAT_RADIO_PARAMS_SIZE         17
-#define WL1271_NVS_STAT_RADIO_PARAMS_SIZE_PADDED \
-	(WL1271_NVS_STAT_RADIO_PARAMS_SIZE + 1)
-#define WL1271_NVS_DYN_RADIO_PARAMS_SIZE          65
-#define WL1271_NVS_DYN_RADIO_PARAMS_SIZE_PADDED \
-	(WL1271_NVS_DYN_RADIO_PARAMS_SIZE + 1)
-#define WL1271_NVS_FEM_COUNT                       2
-#define WL1271_NVS_INI_SPARE_SIZE                124
-
-struct wl1271_nvs_file {
-	/* NVS section */
-	u8 nvs[WL1271_NVS_SECTION_SIZE];
-
-	/* INI section */
-	u8 general_params[WL1271_NVS_GENERAL_PARAMS_SIZE_PADDED];
-	u8 stat_radio_params[WL1271_NVS_STAT_RADIO_PARAMS_SIZE_PADDED];
-	u8 dyn_radio_params[WL1271_NVS_FEM_COUNT]
-			   [WL1271_NVS_DYN_RADIO_PARAMS_SIZE_PADDED];
-	u8 ini_spare[WL1271_NVS_INI_SPARE_SIZE];
-} __attribute__ ((packed));
 
 /*
  * Enable/disable 802.11a support for WL1273

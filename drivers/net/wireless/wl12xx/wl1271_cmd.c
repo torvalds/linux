@@ -212,8 +212,8 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 
 	gen_parms->test.id = TEST_CMD_INI_FILE_GENERAL_PARAM;
 
-	memcpy(gen_parms->params, wl->nvs->general_params,
-	       WL1271_NVS_GENERAL_PARAMS_SIZE);
+	memcpy(&gen_parms->general_params, &wl->nvs->general_params,
+	       sizeof(struct wl1271_ini_general_params));
 
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), 0);
 	if (ret < 0)
@@ -238,11 +238,11 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 
 	radio_parms->test.id = TEST_CMD_INI_FILE_RADIO_PARAM;
 
-	memcpy(radio_parms->stat_radio_params, wl->nvs->stat_radio_params,
-	       WL1271_NVS_STAT_RADIO_PARAMS_SIZE);
-	memcpy(radio_parms->dyn_radio_params,
-	       wl->nvs->dyn_radio_params[rparam->fem],
-	       WL1271_NVS_DYN_RADIO_PARAMS_SIZE);
+	memcpy(&radio_parms->static_params_2, &wl->nvs->stat_radio_params_2,
+	       sizeof(struct wl1271_ini_band_params_2));
+	memcpy(&radio_parms->dyn_params_2,
+	       &wl->nvs->dyn_radio_params_2[rparam->fem].params,
+	       sizeof(struct wl1271_ini_fem_params_2));
 
 	/* FIXME: current NVS is missing 5GHz parameters */
 
