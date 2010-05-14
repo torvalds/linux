@@ -1344,21 +1344,9 @@ static struct dev_pm_ops gfar_pm_ops = {
 
 #define GFAR_PM_OPS (&gfar_pm_ops)
 
-static int gfar_legacy_suspend(struct of_device *ofdev, pm_message_t state)
-{
-	return gfar_suspend(&ofdev->dev);
-}
-
-static int gfar_legacy_resume(struct of_device *ofdev)
-{
-	return gfar_resume(&ofdev->dev);
-}
-
 #else
 
 #define GFAR_PM_OPS NULL
-#define gfar_legacy_suspend NULL
-#define gfar_legacy_resume NULL
 
 #endif
 
@@ -3184,8 +3172,6 @@ static struct of_platform_driver gfar_driver = {
 
 	.probe = gfar_probe,
 	.remove = gfar_remove,
-	.suspend = gfar_legacy_suspend,
-	.resume = gfar_legacy_resume,
 	.driver.pm = GFAR_PM_OPS,
 };
 
