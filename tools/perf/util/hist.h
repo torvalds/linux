@@ -40,6 +40,8 @@ struct sym_priv {
 struct events_stats {
 	u64 total;
 	u64 lost;
+	u32 nr_events[PERF_RECORD_HEADER_MAX];
+	u32 nr_unknown_events;
 };
 
 struct hists {
@@ -68,6 +70,10 @@ void hist_entry__free(struct hist_entry *);
 
 void hists__output_resort(struct hists *self);
 void hists__collapse_resort(struct hists *self);
+
+void hists__inc_nr_events(struct hists *self, u32 type);
+size_t hists__fprintf_nr_events(struct hists *self, FILE *fp);
+
 size_t hists__fprintf(struct hists *self, struct hists *pair,
 		      bool show_displacement, FILE *fp);
 

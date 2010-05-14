@@ -139,6 +139,12 @@ static int add_event_total(struct perf_session *session,
 		return -ENOMEM;
 
 	hists->stats.total += data->period;
+	/*
+	 * FIXME: add_event_total should be moved from here to
+	 * perf_session__process_event so that the proper hist is passed to
+	 * the event_op methods.
+	 */
+	hists__inc_nr_events(hists, PERF_RECORD_SAMPLE);
 	session->hists.stats.total += data->period;
 	return 0;
 }
@@ -293,7 +299,7 @@ static int __cmd_report(void)
 		goto out_delete;
 
 	if (dump_trace) {
-		event__print_totals();
+		perf_session__fprintf_nr_events(session, stdout);
 		goto out_delete;
 	}
 

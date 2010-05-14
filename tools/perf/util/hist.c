@@ -1028,3 +1028,24 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head)
 	pclose(file);
 	return 0;
 }
+
+void hists__inc_nr_events(struct hists *self, u32 type)
+{
+	++self->hists.stats.nr_events[0];
+	++self->hists.stats.nr_events[type];
+}
+
+size_t hists__fprintf_nr_events(struct hists *self, FILE *fp)
+{
+	int i;
+	size_t ret = 0;
+
+	for (i = 0; i < PERF_RECORD_HEADER_MAX; ++i) {
+		if (!event__name[i])
+			continue;
+		ret += fprintf(fp, "%10s events: %10d\n",
+			       event__name[i], self->stats.nr_events[i]);
+	}
+
+	return ret;
+}
