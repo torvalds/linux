@@ -908,7 +908,7 @@ static struct clk_lookup clks[] = {
 	CLK1(lcdc),
 	CLK1(vip),
 	CLK1(i2s),
-	CLK("rk2818_sdmmc.0", "sdmmc", &sdmmc0_clk),
+	CLK("rk2818_sdmmc0", "sdmmc", &sdmmc0_clk),
 	CLK1(ebrom),
 	CLK1(gpio0),
 	CLK1(gpio1),
@@ -925,7 +925,7 @@ static struct clk_lookup clks[] = {
 	CLK1(lsadc),
 	CLK("rk2818_serial.2", "uart", &uart2_clk),
 	CLK("rk2818_serial.3", "uart", &uart3_clk),
-	CLK("rk2818_sdmmc.1", "sdmmc", &sdmmc1_clk),
+	CLK("rk2818_sdmmc1", "sdmmc", &sdmmc1_clk),
 
 	CLK1(hsadc),
 	CLK1(sdram_common),
