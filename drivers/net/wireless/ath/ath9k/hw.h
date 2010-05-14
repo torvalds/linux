@@ -199,6 +199,7 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_RAC_SUPPORTED		= BIT(18),
 	ATH9K_HW_CAP_LDPC			= BIT(19),
 	ATH9K_HW_CAP_FASTCLOCK			= BIT(20),
+	ATH9K_HW_CAP_SGI_20			= BIT(21),
 };
 
 enum ath9k_capability_type {
