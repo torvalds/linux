@@ -440,7 +440,7 @@ int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 	unsigned int gtlb_index;
 
 	gtlb_index = kvmppc_get_gpr(vcpu, ra);
-	if (gtlb_index > KVM44x_GUEST_TLB_SIZE) {
+	if (gtlb_index >= KVM44x_GUEST_TLB_SIZE) {
 		printk("%s: index %d\n", __func__, gtlb_index);
 		kvmppc_dump_vcpu(vcpu);
 		return EMULATE_FAIL;
