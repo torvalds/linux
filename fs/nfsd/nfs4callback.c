@@ -424,13 +424,19 @@ static struct rpc_procinfo     nfs4_cb_procedures[] = {
 };
 
 static struct rpc_version       nfs_cb_version4 = {
+/*
+ * Note on the callback rpc program version number: despite language in rfc
+ * 5661 section 18.36.3 requiring servers to use 4 in this field, the
+ * official xdr descriptions for both 4.0 and 4.1 specify version 1, and
+ * in practice that appears to be what implementations use.  The section
+ * 18.36.3 language is expected to be fixed in an erratum.
+ */
         .number                 = 1,
         .nrprocs                = ARRAY_SIZE(nfs4_cb_procedures),
         .procs                  = nfs4_cb_procedures
 };
 
 static struct rpc_version *	nfs_cb_version[] = {
-	NULL,
 	&nfs_cb_version4,
 };
 
@@ -471,7 +477,7 @@ int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *cb)
 		.timeout	= &timeparms,
 		.program	= &cb_program,
 		.prognumber	= cb->cb_prog,
-		.version	= nfs_cb_version[1]->number,
+		.version	= 0,
 		.authflavor	= clp->cl_flavor,
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
 		.client_name    = clp->cl_principal,
