@@ -245,6 +245,28 @@ static struct spi_board_info board_spi_devices[] = {
 	},
 
 }; 
+/*rk2818_fb gpio information*/
+static struct rk2818_fb_gpio rk2818_fb_gpio_info = {
+    .lcd_cs     = 0,
+    .display_on = (GPIO_LOW<<16)|RK2818_PIN_PA2,
+    .lcd_standby = 0,
+    .mcu_fmk_pin = 0,
+};
+
+/*rk2818_fb iomux information*/
+static struct rk2818_fb_iomux rk2818_fb_iomux_info = {
+    .data16     = GPIOC_LCDC16BIT_SEL_NAME,
+    .data18     = GPIOC_LCDC18BIT_SEL_NAME,
+    .data24     = GPIOC_LCDC24BIT_SEL_NAME,
+    .den        = CXGPIO_LCDDEN_SEL_NAME,
+    .vsync      = CXGPIO_LCDVSYNC_SEL_NAME,
+    .mcu_fmk    = 0,
+};
+/*rk2818_fb*/
+struct rk2818_fb_mach_info rk2818_fb_mach_info = {
+    .gpio = &rk2818_fb_gpio_info,
+    .iomux = &rk2818_fb_iomux_info,
+};
 
 static struct platform_device *devices[] __initdata = {
 	&rk2818_device_uart1,
@@ -256,6 +278,7 @@ static struct platform_device *devices[] __initdata = {
 	&rk2818_device_i2c1,
 #endif
 	&rk2818_device_spim,
+    &rk2818_device_fb,    
 };
 
 extern struct sys_timer rk2818_timer;

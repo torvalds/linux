@@ -168,6 +168,32 @@ struct platform_device rk2818_device_spim = {
 	.resource	= resources_spim,
 };
 
+/* rk2818 fb resource */
+static struct resource rk2818_fb_resource[] = {
+	[0] = {
+		.start = RK2818_LCDC_PHYS,
+		.end   = RK2818_LCDC_PHYS + RK2818_LCDC_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_NR_LCDC,
+		.end   = IRQ_NR_LCDC,
+		.flags = IORESOURCE_IRQ,
+	},	
+};
+
+/*platform_device*/
+extern struct rk2818_fb_mach_info rk2818_fb_mach_info;
+
+struct platform_device rk2818_device_fb = {
+	.name		  = "rk2818-fb",
+	.id		  = 4,
+	.num_resources	  = ARRAY_SIZE(rk2818_fb_resource),
+	.resource	  = rk2818_fb_resource,
+	.dev            = {
+		.platform_data  = &rk2818_fb_mach_info,
+	}
+};
 //net device
 /* DM9000 */
 static struct resource dm9k_resource[] = {

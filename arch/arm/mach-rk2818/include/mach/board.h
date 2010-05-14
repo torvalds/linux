@@ -35,6 +35,27 @@ struct rk2818_i2c_platform_data {
 	void    (*cfg_gpio)(struct platform_device *dev);
 };
 
+struct rk2818_fb_gpio{
+    u32 display_on;
+    u32 lcd_cs;
+    u32 lcd_standby;
+    u32 mcu_fmk_pin;
+};
+
+struct rk2818_fb_iomux{
+    char *data16;
+    char *data18;
+    char *data24;
+    char *den;
+    char *vsync;
+    char *mcu_fmk;
+};
+
+struct rk2818_fb_mach_info {
+    struct rk2818_fb_gpio *gpio;
+    struct rk2818_fb_iomux *iomux;
+};
+
 /* common init routines for use by arch/arm/mach-msm/board-*.c */
 void __init rk2818_add_devices(void);
 void __init rk2818_map_common_io(void);

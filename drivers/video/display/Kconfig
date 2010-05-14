@@ -20,5 +20,6 @@ config DISPLAY_SUPPORT
 
 comment "Display hardware drivers"
 	depends on DISPLAY_SUPPORT
+source "drivers/video/display/screen/Kconfig"
 
 endmenu
