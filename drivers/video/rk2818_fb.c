@@ -60,14 +60,14 @@
 #define WIN1_USE_DOUBLE_BUF     1       //win1 use double buf to accelerate display
 #define LANDSCAPE_USE_ROTATE    1       //rotate win1 in landscape with mcu panel
 
-#if 1
+#if 0
 	#define fbprintk(msg...)	printk(msg);
 #else
 	#define fbprintk(msg...)
 #endif
 
 
-#if 1
+#if 0
 	#define fbprintk2(msg...)	printk(msg);
 #else
 	#define fbprintk2(msg...)
