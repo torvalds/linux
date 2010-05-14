@@ -549,7 +549,7 @@ static int perf_session__process_event(struct perf_session *self,
 		dump_printf("%#Lx [%#x]: PERF_RECORD_%s",
 			    offset + head, event->header.size,
 			    event__name[event->header.type]);
-		hists__inc_nr_events(self, event->header.type);
+		hists__inc_nr_events(&self->hists, event->header.type);
 	}
 
 	if (self->header.needs_swap && event__swap_ops[event->header.type])

@@ -689,7 +689,7 @@ static int hist_browser__populate(struct hist_browser *self, struct hists *hists
 	}
 
 	snprintf(str, sizeof(str), "Samples: %Ld                            ",
-		 hists->stats.total);
+		 hists->stats.total_period);
 	newtDrawRootText(0, 0, str);
 
 	newtGetScreenSize(NULL, &rows);
@@ -718,12 +718,12 @@ static int hist_browser__populate(struct hist_browser *self, struct hists *hists
 		if (h->filtered)
 			continue;
 
-		len = hist_entry__append_browser(h, self->tree, hists->stats.total);
+		len = hist_entry__append_browser(h, self->tree, hists->stats.total_period);
 		if (len > max_len)
 			max_len = len;
 		if (symbol_conf.use_callchain)
 			hist_entry__append_callchain_browser(h, self->tree,
-							     hists->stats.total, idx++);
+							     hists->stats.total_period, idx++);
 		++curr_hist;
 		if (curr_hist % 5)
 			ui_progress__update(progress, curr_hist);

@@ -138,14 +138,14 @@ static int add_event_total(struct perf_session *session,
 	if (!hists)
 		return -ENOMEM;
 
-	hists->stats.total += data->period;
+	hists->stats.total_period += data->period;
 	/*
 	 * FIXME: add_event_total should be moved from here to
 	 * perf_session__process_event so that the proper hist is passed to
 	 * the event_op methods.
 	 */
 	hists__inc_nr_events(hists, PERF_RECORD_SAMPLE);
-	session->hists.stats.total += data->period;
+	session->hists.stats.total_period += data->period;
 	return 0;
 }
 
@@ -322,10 +322,10 @@ static int __cmd_report(void)
 			if (rb_first(&session->hists.entries) ==
 			    rb_last(&session->hists.entries))
 				fprintf(stdout, "# Samples: %Ld\n#\n",
-					hists->stats.total);
+					hists->stats.total_period);
 			else
 				fprintf(stdout, "# Samples: %Ld %s\n#\n",
-					hists->stats.total,
+					hists->stats.total_period,
 					__event_name(hists->type, hists->config));
 
 			hists__fprintf(hists, NULL, false, stdout);

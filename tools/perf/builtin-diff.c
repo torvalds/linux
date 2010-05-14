@@ -54,7 +54,7 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 		return -1;
 	}
 
-	session->hists.stats.total += data.period;
+	session->hists.stats.total_period += data.period;
 	return 0;
 }
 

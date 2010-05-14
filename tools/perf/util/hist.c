@@ -239,7 +239,7 @@ void hists__output_resort(struct hists *self)
 	struct hist_entry *n;
 	u64 min_callchain_hits;
 
-	min_callchain_hits = self->stats.total * (callchain_param.min_percent / 100);
+	min_callchain_hits = self->stats.total_period * (callchain_param.min_percent / 100);
 
 	tmp = RB_ROOT;
 	next = rb_first(&self->entries);
@@ -525,7 +525,7 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 
 	if (pair_hists) {
 		count = self->pair ? self->pair->count : 0;
-		total = pair_hists->stats.total;
+		total = pair_hists->stats.total_period;
 		count_sys = self->pair ? self->pair->count_sys : 0;
 		count_us = self->pair ? self->pair->count_us : 0;
 		count_guest_sys = self->pair ? self->pair->count_guest_sys : 0;
@@ -769,10 +769,10 @@ print_entries:
 			++position;
 		}
 		ret += hist_entry__fprintf(h, pair, show_displacement,
-					   displacement, fp, self->stats.total);
+					   displacement, fp, self->stats.total_period);
 
 		if (symbol_conf.use_callchain)
-			ret += hist_entry__fprintf_callchain(h, fp, self->stats.total);
+			ret += hist_entry__fprintf_callchain(h, fp, self->stats.total_period);
 
 		if (h->ms.map == NULL && verbose > 1) {
 			__map_groups__fprintf_maps(&h->thread->mg,
@@ -795,7 +795,7 @@ void hists__filter_by_dso(struct hists *self, const struct dso *dso)
 {
 	struct rb_node *nd;
 
-	self->nr_entries = self->stats.total = 0;
+	self->nr_entries = self->stats.total_period = 0;
 	self->max_sym_namelen = 0;
 
 	for (nd = rb_first(&self->entries); nd; nd = rb_next(nd)) {
@@ -812,7 +812,7 @@ void hists__filter_by_dso(struct hists *self, const struct dso *dso)
 		h->filtered &= ~(1 << HIST_FILTER__DSO);
 		if (!h->filtered) {
 			++self->nr_entries;
-			self->stats.total += h->count;
+			self->stats.total_period += h->count;
 			if (h->ms.sym &&
 			    self->max_sym_namelen < h->ms.sym->namelen)
 				self->max_sym_namelen = h->ms.sym->namelen;
@@ -824,7 +824,7 @@ void hists__filter_by_thread(struct hists *self, const struct thread *thread)
 {
 	struct rb_node *nd;
 
-	self->nr_entries = self->stats.total = 0;
+	self->nr_entries = self->stats.total_period = 0;
 	self->max_sym_namelen = 0;
 
 	for (nd = rb_first(&self->entries); nd; nd = rb_next(nd)) {
@@ -837,7 +837,7 @@ void hists__filter_by_thread(struct hists *self, const struct thread *thread)
 		h->filtered &= ~(1 << HIST_FILTER__THREAD);
 		if (!h->filtered) {
 			++self->nr_entries;
-			self->stats.total += h->count;
+			self->stats.total_period += h->count;
 			if (h->ms.sym &&
 			    self->max_sym_namelen < h->ms.sym->namelen)
 				self->max_sym_namelen = h->ms.sym->namelen;
@@ -1031,8 +1031,8 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head)
 
 void hists__inc_nr_events(struct hists *self, u32 type)
 {
-	++self->hists.stats.nr_events[0];
-	++self->hists.stats.nr_events[type];
+	++self->stats.nr_events[0];
+	++self->stats.nr_events[type];
 }
 
 size_t hists__fprintf_nr_events(struct hists *self, FILE *fp)
