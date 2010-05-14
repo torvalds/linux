@@ -30,6 +30,7 @@
 #include <asm/io.h>
 
 #include "i2c-rk2818.h"
+#define DRV_NAME	"rk2818_i2c"
 
 #define RK2818_I2C_TIMEOUT		(msecs_to_jiffies(500))
 
@@ -578,7 +579,7 @@ static int rk2818_i2c_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	strlcpy(i2c->adap.name, "rk2818_i2c", sizeof(i2c->adap.name));
+	strlcpy(i2c->adap.name, DRV_NAME, sizeof(i2c->adap.name));
 	i2c->adap.owner   	= THIS_MODULE;
 	i2c->adap.algo    	= &rk2818_i2c_algorithm;
 	i2c->adap.class   	= I2C_CLASS_HWMON;
@@ -586,7 +587,7 @@ static int rk2818_i2c_probe(struct platform_device *pdev)
 
 	i2c->dev = &pdev->dev;
 	
-	i2c->clk = clk_get(&pdev->dev, pdata->clk_id);
+	i2c->clk = clk_get(&pdev->dev, DRV_NAME);
 	if (IS_ERR(i2c->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
 		ret = -ENOENT;
@@ -740,7 +741,7 @@ static struct platform_driver rk2818_i2c_driver = {
 	.resume		= rk2818_i2c_resume,
 	.driver		= {
 		.owner	= THIS_MODULE,
-		.name	= "rk2818_i2c",
+		.name	= DRV_NAME,
 	},
 };
 
