@@ -2215,9 +2215,9 @@ void drbd_bcast_ee(struct drbd_conf *mdev,
 {
 	struct cn_msg *cn_reply;
 	struct drbd_nl_cfg_reply *reply;
-	struct bio_vec *bvec;
 	unsigned short *tl;
-	int i;
+	struct page *page;
+	unsigned len;
 
 	if (!e)
 		return;
@@ -2255,11 +2255,15 @@ void drbd_bcast_ee(struct drbd_conf *mdev,
 	put_unaligned(T_ee_data, tl++);
 	put_unaligned(e->size, tl++);
 
-	__bio_for_each_segment(bvec, e->private_bio, i, 0) {
-		void *d = kmap(bvec->bv_page);
-		memcpy(tl, d + bvec->bv_offset, bvec->bv_len);
-		kunmap(bvec->bv_page);
-		tl=(unsigned short*)((char*)tl + bvec->bv_len);
+	len = e->size;
+	page = e->pages;
+	page_chain_for_each(page) {
+		void *d = kmap_atomic(page, KM_USER0);
+		unsigned l = min_t(unsigned, len, PAGE_SIZE);
+		memcpy(tl, d, l);
+		kunmap_atomic(d, KM_USER0);
+		tl = (unsigned short*)((char*)tl + l);
+		len -= l;
 	}
 	put_unaligned(TT_END, tl++); /* Close the tag list */
 

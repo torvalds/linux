@@ -740,18 +740,6 @@ enum epoch_event {
 	EV_CLEANUP = 32, /* used as flag */
 };
 
-struct drbd_epoch_entry {
-	struct drbd_work    w;
-	struct drbd_conf *mdev;
-	struct bio *private_bio;
-	struct hlist_node colision;
-	sector_t sector;
-	unsigned int size;
-	unsigned int flags;
-	struct drbd_epoch *epoch;
-	u64    block_id;
-};
-
 struct drbd_wq_barrier {
 	struct drbd_work w;
 	struct completion done;
@@ -762,17 +750,49 @@ struct digest_info {
 	void *digest;
 };
 
-/* ee flag bits */
+struct drbd_epoch_entry {
+	struct drbd_work w;
+	struct hlist_node colision;
+	struct drbd_epoch *epoch;
+	struct drbd_conf *mdev;
+	struct page *pages;
+	atomic_t pending_bios;
+	unsigned int size;
+	/* see comments on ee flag bits below */
+	unsigned long flags;
+	sector_t sector;
+	u64 block_id;
+};
+
+/* ee flag bits.
+ * While corresponding bios are in flight, the only modification will be
+ * set_bit WAS_ERROR, which has to be atomic.
+ * If no bios are in flight yet, or all have been completed,
+ * non-atomic modification to ee->flags is ok.
+ */
 enum {
 	__EE_CALL_AL_COMPLETE_IO,
-	__EE_CONFLICT_PENDING,
 	__EE_MAY_SET_IN_SYNC,
+
+	/* This epoch entry closes an epoch using a barrier.
+	 * On sucessful completion, the epoch is released,
+	 * and the P_BARRIER_ACK send. */
 	__EE_IS_BARRIER,
+
+	/* In case a barrier failed,
+	 * we need to resubmit without the barrier flag. */
+	__EE_RESUBMITTED,
+
+	/* we may have several bios per epoch entry.
+	 * if any of those fail, we set this flag atomically
+	 * from the endio callback */
+	__EE_WAS_ERROR,
 };
 #define EE_CALL_AL_COMPLETE_IO (1<<__EE_CALL_AL_COMPLETE_IO)
-#define EE_CONFLICT_PENDING    (1<<__EE_CONFLICT_PENDING)
 #define EE_MAY_SET_IN_SYNC     (1<<__EE_MAY_SET_IN_SYNC)
 #define EE_IS_BARRIER          (1<<__EE_IS_BARRIER)
+#define	EE_RESUBMITTED         (1<<__EE_RESUBMITTED)
+#define EE_WAS_ERROR           (1<<__EE_WAS_ERROR)
 
 /* global flag bits */
 enum {
@@ -1441,7 +1461,8 @@ static inline void ov_oos_print(struct drbd_conf *mdev)
 }
 
 
-extern void drbd_csum(struct drbd_conf *, struct crypto_hash *, struct bio *, void *);
+extern void drbd_csum_bio(struct drbd_conf *, struct crypto_hash *, struct bio *, void *);
+extern void drbd_csum_ee(struct drbd_conf *, struct crypto_hash *, struct drbd_epoch_entry *, void *);
 /* worker callbacks */
 extern int w_req_cancel_conflict(struct drbd_conf *, struct drbd_work *, int);
 extern int w_read_retry_remote(struct drbd_conf *, struct drbd_work *, int);
@@ -1465,6 +1486,8 @@ extern int w_e_reissue(struct drbd_conf *, struct drbd_work *, int);
 extern void resync_timer_fn(unsigned long data);
 
 /* drbd_receiver.c */
+extern int drbd_submit_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e,
+		const unsigned rw, const int fault_type);
 extern int drbd_release_ee(struct drbd_conf *mdev, struct list_head *list);
 extern struct drbd_epoch_entry *drbd_alloc_ee(struct drbd_conf *mdev,
 					    u64 id,
@@ -1619,6 +1642,41 @@ void drbd_bcast_ee(struct drbd_conf *mdev,
 /*
  * inline helper functions
  *************************/
+
+/* see also page_chain_add and friends in drbd_receiver.c */
+static inline struct page *page_chain_next(struct page *page)
+{
+	return (struct page *)page_private(page);
+}
+#define page_chain_for_each(page) \
+	for (; page && ({ prefetch(page_chain_next(page)); 1; }); \
+			page = page_chain_next(page))
+#define page_chain_for_each_safe(page, n) \
+	for (; page && ({ n = page_chain_next(page); 1; }); page = n)
+
+static inline int drbd_bio_has_active_page(struct bio *bio)
+{
+	struct bio_vec *bvec;
+	int i;
+
+	__bio_for_each_segment(bvec, bio, i, 0) {
+		if (page_count(bvec->bv_page) > 1)
+			return 1;
+	}
+
+	return 0;
+}
+
+static inline int drbd_ee_has_active_page(struct drbd_epoch_entry *e)
+{
+	struct page *page = e->pages;
+	page_chain_for_each(page) {
+		if (page_count(page) > 1)
+			return 1;
+	}
+	return 0;
+}
+
 
 static inline void drbd_state_lock(struct drbd_conf *mdev)
 {

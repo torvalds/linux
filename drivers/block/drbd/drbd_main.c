@@ -2354,6 +2354,19 @@ static int _drbd_send_zc_bio(struct drbd_conf *mdev, struct bio *bio)
 	return 1;
 }
 
+static int _drbd_send_zc_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e)
+{
+	struct page *page = e->pages;
+	unsigned len = e->size;
+	page_chain_for_each(page) {
+		unsigned l = min_t(unsigned, len, PAGE_SIZE);
+		if (!_drbd_send_page(mdev, page, 0, l))
+			return 0;
+		len -= l;
+	}
+	return 1;
+}
+
 static void consider_delay_probes(struct drbd_conf *mdev)
 {
 	if (mdev->state.conn != C_SYNC_SOURCE || mdev->agreed_pro_version < 93)
@@ -2430,7 +2443,7 @@ int drbd_send_dblock(struct drbd_conf *mdev, struct drbd_request *req)
 		drbd_send(mdev, mdev->data.socket, &p, sizeof(p), MSG_MORE));
 	if (ok && dgs) {
 		dgb = mdev->int_dig_out;
-		drbd_csum(mdev, mdev->integrity_w_tfm, req->master_bio, dgb);
+		drbd_csum_bio(mdev, mdev->integrity_w_tfm, req->master_bio, dgb);
 		ok = drbd_send(mdev, mdev->data.socket, dgb, dgs, MSG_MORE);
 	}
 	if (ok) {
@@ -2483,11 +2496,11 @@ int drbd_send_block(struct drbd_conf *mdev, enum drbd_packets cmd,
 					sizeof(p), MSG_MORE);
 	if (ok && dgs) {
 		dgb = mdev->int_dig_out;
-		drbd_csum(mdev, mdev->integrity_w_tfm, e->private_bio, dgb);
+		drbd_csum_ee(mdev, mdev->integrity_w_tfm, e, dgb);
 		ok = drbd_send(mdev, mdev->data.socket, dgb, dgs, MSG_MORE);
 	}
 	if (ok)
-		ok = _drbd_send_zc_bio(mdev, e->private_bio);
+		ok = _drbd_send_zc_ee(mdev, e);
 
 	drbd_put_data_sock(mdev);
 
