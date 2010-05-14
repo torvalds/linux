@@ -159,7 +159,7 @@ static int htc_config_pipe_credits(struct htc_target *target)
 
 	cp_msg->message_id = cpu_to_be16(HTC_MSG_CONFIG_PIPE_ID);
 	cp_msg->pipe_id = USB_WLAN_TX_PIPE;
-	cp_msg->credits = 28;
+	cp_msg->credits = 33;
 
 	target->htc_flags |= HTC_OP_CONFIG_PIPE_CREDITS;
 
