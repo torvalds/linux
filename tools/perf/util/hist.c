@@ -9,21 +9,21 @@ struct callchain_param	callchain_param = {
 	.min_percent = 0.5
 };
 
-static void hist_entry__add_cpumode_count(struct hist_entry *self,
-					  unsigned int cpumode, u64 count)
+static void hist_entry__add_cpumode_period(struct hist_entry *self,
+					   unsigned int cpumode, u64 period)
 {
 	switch (cpumode) {
 	case PERF_RECORD_MISC_KERNEL:
-		self->count_sys += count;
+		self->period_sys += period;
 		break;
 	case PERF_RECORD_MISC_USER:
-		self->count_us += count;
+		self->period_us += period;
 		break;
 	case PERF_RECORD_MISC_GUEST_KERNEL:
-		self->count_guest_sys += count;
+		self->period_guest_sys += period;
 		break;
 	case PERF_RECORD_MISC_GUEST_USER:
-		self->count_guest_us += count;
+		self->period_guest_us += period;
 		break;
 	default:
 		break;
@@ -31,7 +31,7 @@ static void hist_entry__add_cpumode_count(struct hist_entry *self,
 }
 
 /*
- * histogram, sorted on item, collects counts
+ * histogram, sorted on item, collects periods
  */
 
 static struct hist_entry *hist_entry__new(struct hist_entry *template)
@@ -41,6 +41,7 @@ static struct hist_entry *hist_entry__new(struct hist_entry *template)
 
 	if (self != NULL) {
 		*self = *template;
+		self->nr_events = 1;
 		if (symbol_conf.use_callchain)
 			callchain_init(self->callchain);
 	}
@@ -57,7 +58,7 @@ static void hists__inc_nr_entries(struct hists *self, struct hist_entry *entry)
 
 struct hist_entry *__hists__add_entry(struct hists *self,
 				      struct addr_location *al,
-				      struct symbol *sym_parent, u64 count)
+				      struct symbol *sym_parent, u64 period)
 {
 	struct rb_node **p = &self->entries.rb_node;
 	struct rb_node *parent = NULL;
@@ -70,7 +71,7 @@ struct hist_entry *__hists__add_entry(struct hists *self,
 		},
 		.ip	= al->addr,
 		.level	= al->level,
-		.count	= count,
+		.period	= period,
 		.parent = sym_parent,
 	};
 	int cmp;
@@ -82,7 +83,8 @@ struct hist_entry *__hists__add_entry(struct hists *self,
 		cmp = hist_entry__cmp(&entry, he);
 
 		if (!cmp) {
-			he->count += count;
+			he->period += period;
+			++he->nr_events;
 			goto out;
 		}
 
@@ -99,7 +101,7 @@ struct hist_entry *__hists__add_entry(struct hists *self,
 	rb_insert_color(&he->rb_node, &self->entries);
 	hists__inc_nr_entries(self, he);
 out:
-	hist_entry__add_cpumode_count(he, al->cpumode, count);
+	hist_entry__add_cpumode_period(he, al->cpumode, period);
 	return he;
 }
 
@@ -160,7 +162,7 @@ static bool collapse__insert_entry(struct rb_root *root, struct hist_entry *he)
 		cmp = hist_entry__collapse(iter, he);
 
 		if (!cmp) {
-			iter->count += he->count;
+			iter->period += he->period;
 			hist_entry__free(he);
 			return false;
 		}
@@ -203,7 +205,7 @@ void hists__collapse_resort(struct hists *self)
 }
 
 /*
- * reverse the map, sort on count.
+ * reverse the map, sort on period.
  */
 
 static void __hists__insert_output_entry(struct rb_root *entries,
@@ -222,7 +224,7 @@ static void __hists__insert_output_entry(struct rb_root *entries,
 		parent = *p;
 		iter = rb_entry(parent, struct hist_entry, rb_node);
 
-		if (he->count > iter->count)
+		if (he->period > iter->period)
 			p = &(*p)->rb_left;
 		else
 			p = &(*p)->rb_right;
@@ -288,7 +290,7 @@ static size_t ipchain__fprintf_graph_line(FILE *fp, int depth, int depth_mask,
 }
 
 static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_list *chain,
-				     int depth, int depth_mask, int count,
+				     int depth, int depth_mask, int period,
 				     u64 total_samples, int hits,
 				     int left_margin)
 {
@@ -301,7 +303,7 @@ static size_t ipchain__fprintf_graph(FILE *fp, struct callchain_list *chain,
 			ret += fprintf(fp, "|");
 		else
 			ret += fprintf(fp, " ");
-		if (!count && i == depth - 1) {
+		if (!period && i == depth - 1) {
 			double percent;
 
 			percent = hits * 100.0 / total_samples;
@@ -516,7 +518,7 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 			 long displacement, bool color, u64 session_total)
 {
 	struct sort_entry *se;
-	u64 count, total, count_sys, count_us, count_guest_sys, count_guest_us;
+	u64 period, total, period_sys, period_us, period_guest_sys, period_guest_us;
 	const char *sep = symbol_conf.field_sep;
 	int ret;
 
@@ -524,57 +526,57 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 		return 0;
 
 	if (pair_hists) {
-		count = self->pair ? self->pair->count : 0;
+		period = self->pair ? self->pair->period : 0;
 		total = pair_hists->stats.total_period;
-		count_sys = self->pair ? self->pair->count_sys : 0;
-		count_us = self->pair ? self->pair->count_us : 0;
-		count_guest_sys = self->pair ? self->pair->count_guest_sys : 0;
-		count_guest_us = self->pair ? self->pair->count_guest_us : 0;
+		period_sys = self->pair ? self->pair->period_sys : 0;
+		period_us = self->pair ? self->pair->period_us : 0;
+		period_guest_sys = self->pair ? self->pair->period_guest_sys : 0;
+		period_guest_us = self->pair ? self->pair->period_guest_us : 0;
 	} else {
-		count = self->count;
+		period = self->period;
 		total = session_total;
-		count_sys = self->count_sys;
-		count_us = self->count_us;
-		count_guest_sys = self->count_guest_sys;
-		count_guest_us = self->count_guest_us;
+		period_sys = self->period_sys;
+		period_us = self->period_us;
+		period_guest_sys = self->period_guest_sys;
+		period_guest_us = self->period_guest_us;
 	}
 
 	if (total) {
 		if (color)
 			ret = percent_color_snprintf(s, size,
 						     sep ? "%.2f" : "   %6.2f%%",
-						     (count * 100.0) / total);
+						     (period * 100.0) / total);
 		else
 			ret = snprintf(s, size, sep ? "%.2f" : "   %6.2f%%",
-				       (count * 100.0) / total);
+				       (period * 100.0) / total);
 		if (symbol_conf.show_cpu_utilization) {
 			ret += percent_color_snprintf(s + ret, size - ret,
 					sep ? "%.2f" : "   %6.2f%%",
-					(count_sys * 100.0) / total);
+					(period_sys * 100.0) / total);
 			ret += percent_color_snprintf(s + ret, size - ret,
 					sep ? "%.2f" : "   %6.2f%%",
-					(count_us * 100.0) / total);
+					(period_us * 100.0) / total);
 			if (perf_guest) {
 				ret += percent_color_snprintf(s + ret,
 						size - ret,
 						sep ? "%.2f" : "   %6.2f%%",
-						(count_guest_sys * 100.0) /
+						(period_guest_sys * 100.0) /
 								total);
 				ret += percent_color_snprintf(s + ret,
 						size - ret,
 						sep ? "%.2f" : "   %6.2f%%",
-						(count_guest_us * 100.0) /
+						(period_guest_us * 100.0) /
 								total);
 			}
 		}
 	} else
-		ret = snprintf(s, size, sep ? "%lld" : "%12lld ", count);
+		ret = snprintf(s, size, sep ? "%lld" : "%12lld ", period);
 
 	if (symbol_conf.show_nr_samples) {
 		if (sep)
-			ret += snprintf(s + ret, size - ret, "%c%lld", *sep, count);
+			ret += snprintf(s + ret, size - ret, "%c%lld", *sep, period);
 		else
-			ret += snprintf(s + ret, size - ret, "%11lld", count);
+			ret += snprintf(s + ret, size - ret, "%11lld", period);
 	}
 
 	if (pair_hists) {
@@ -582,9 +584,9 @@ int hist_entry__snprintf(struct hist_entry *self, char *s, size_t size,
 		double old_percent = 0, new_percent = 0, diff;
 
 		if (total > 0)
-			old_percent = (count * 100.0) / total;
+			old_percent = (period * 100.0) / total;
 		if (session_total > 0)
-			new_percent = (self->count * 100.0) / session_total;
+			new_percent = (self->period * 100.0) / session_total;
 
 		diff = new_percent - old_percent;
 
@@ -796,6 +798,7 @@ void hists__filter_by_dso(struct hists *self, const struct dso *dso)
 	struct rb_node *nd;
 
 	self->nr_entries = self->stats.total_period = 0;
+	self->stats.nr_events[PERF_RECORD_SAMPLE] = 0;
 	self->max_sym_namelen = 0;
 
 	for (nd = rb_first(&self->entries); nd; nd = rb_next(nd)) {
@@ -812,7 +815,8 @@ void hists__filter_by_dso(struct hists *self, const struct dso *dso)
 		h->filtered &= ~(1 << HIST_FILTER__DSO);
 		if (!h->filtered) {
 			++self->nr_entries;
-			self->stats.total_period += h->count;
+			self->stats.total_period += h->period;
+			self->stats.nr_events[PERF_RECORD_SAMPLE] += h->nr_events;
 			if (h->ms.sym &&
 			    self->max_sym_namelen < h->ms.sym->namelen)
 				self->max_sym_namelen = h->ms.sym->namelen;
@@ -825,6 +829,7 @@ void hists__filter_by_thread(struct hists *self, const struct thread *thread)
 	struct rb_node *nd;
 
 	self->nr_entries = self->stats.total_period = 0;
+	self->stats.nr_events[PERF_RECORD_SAMPLE] = 0;
 	self->max_sym_namelen = 0;
 
 	for (nd = rb_first(&self->entries); nd; nd = rb_next(nd)) {
@@ -837,7 +842,8 @@ void hists__filter_by_thread(struct hists *self, const struct thread *thread)
 		h->filtered &= ~(1 << HIST_FILTER__THREAD);
 		if (!h->filtered) {
 			++self->nr_entries;
-			self->stats.total_period += h->count;
+			self->stats.total_period += h->period;
+			self->stats.nr_events[PERF_RECORD_SAMPLE] += h->nr_events;
 			if (h->ms.sym &&
 			    self->max_sym_namelen < h->ms.sym->namelen)
 				self->max_sym_namelen = h->ms.sym->namelen;
@@ -881,7 +887,7 @@ int hist_entry__inc_addr_samples(struct hist_entry *self, u64 ip)
 	h->sum++;
 	h->ip[offset]++;
 
-	pr_debug3("%#Lx %s: count++ [ip: %#Lx, %#Lx] => %Ld\n", self->ms.sym->start,
+	pr_debug3("%#Lx %s: period++ [ip: %#Lx, %#Lx] => %Ld\n", self->ms.sym->start,
 		  self->ms.sym->name, ip, ip - self->ms.sym->start, h->ip[offset]);
 	return 0;
 }

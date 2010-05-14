@@ -188,14 +188,14 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 		return 0;
 
 	if (perf_session__add_hist_entry(session, &al, &data)) {
-		pr_debug("problem incrementing symbol count, skipping event\n");
+		pr_debug("problem incrementing symbol period, skipping event\n");
 		return -1;
 	}
 
 	attr = perf_header__find_attr(data.id, &session->header);
 
 	if (add_event_total(session, &data, attr)) {
-		pr_debug("problem adding event count\n");
+		pr_debug("problem adding event period\n");
 		return -1;
 	}
 
@@ -269,9 +269,23 @@ static struct perf_event_ops event_ops = {
 
 extern volatile int session_done;
 
-static void sig_handler(int sig __attribute__((__unused__)))
+static void sig_handler(int sig __used)
 {
 	session_done = 1;
+}
+
+static size_t hists__fprintf_nr_sample_events(struct hists *self,
+					      const char *evname, FILE *fp)
+{
+	size_t ret;
+	char unit;
+	unsigned long nr_events = self->stats.nr_events[PERF_RECORD_SAMPLE];
+
+	nr_events = convert_unit(nr_events, &unit);
+	ret = fprintf(fp, "# Events: %lu%c", nr_events, unit);
+	if (evname != NULL)
+		ret += fprintf(fp, " %s", evname);
+	return ret + fprintf(fp, "\n#\n");
 }
 
 static int __cmd_report(void)
@@ -319,14 +333,12 @@ static int __cmd_report(void)
 		if (use_browser)
 			hists__browse(hists, help, input_name);
 		else {
-			if (rb_first(&session->hists.entries) ==
+			const char *evname = NULL;
+			if (rb_first(&session->hists.entries) !=
 			    rb_last(&session->hists.entries))
-				fprintf(stdout, "# Samples: %Ld\n#\n",
-					hists->stats.total_period);
-			else
-				fprintf(stdout, "# Samples: %Ld %s\n#\n",
-					hists->stats.total_period,
-					__event_name(hists->type, hists->config));
+				evname = __event_name(hists->type, hists->config);
+
+			hists__fprintf_nr_sample_events(hists, evname, stdout);
 
 			hists__fprintf(hists, NULL, false, stdout);
 			fprintf(stdout, "\n\n");

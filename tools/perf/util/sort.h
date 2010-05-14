@@ -43,14 +43,15 @@ extern enum sort_type sort__first_dimension;
 
 struct hist_entry {
 	struct rb_node		rb_node;
-	u64			count;
-	u64			count_sys;
-	u64			count_us;
-	u64			count_guest_sys;
-	u64			count_guest_us;
+	u64			period;
+	u64			period_sys;
+	u64			period_us;
+	u64			period_guest_sys;
+	u64			period_guest_us;
 	struct map_symbol	ms;
 	struct thread		*thread;
 	u64			ip;
+	u32			nr_events;
 	char			level;
 	u8			filtered;
 	struct symbol		*parent;

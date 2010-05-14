@@ -69,7 +69,7 @@ struct hists {
 
 struct hist_entry *__hists__add_entry(struct hists *self,
 				      struct addr_location *al,
-				      struct symbol *parent, u64 count);
+				      struct symbol *parent, u64 period);
 extern int64_t hist_entry__cmp(struct hist_entry *, struct hist_entry *);
 extern int64_t hist_entry__collapse(struct hist_entry *, struct hist_entry *);
 int hist_entry__fprintf(struct hist_entry *self, struct hists *pair_hists,

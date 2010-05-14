@@ -680,16 +680,18 @@ static int hist_browser__populate(struct hist_browser *self, struct hists *hists
 	struct ui_progress *progress;
 	struct rb_node *nd;
 	u64 curr_hist = 0;
-	char seq[] = ".";
+	char seq[] = ".", unit;
 	char str[256];
+	unsigned long nr_events = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 
 	if (self->form) {
 		newtFormDestroy(self->form);
 		newtPopWindow();
 	}
 
-	snprintf(str, sizeof(str), "Samples: %Ld                            ",
-		 hists->stats.total_period);
+	nr_events = convert_unit(nr_events, &unit);
+	snprintf(str, sizeof(str), "Events: %lu%c                            ",
+		 nr_events, unit);
 	newtDrawRootText(0, 0, str);
 
 	newtGetScreenSize(NULL, &rows);
