@@ -38,7 +38,7 @@ struct clk clk_xusbxti = {
 	.id		= -1,
 };
 
-static struct clk s5p_clk_27m = {
+struct clk s5p_clk_27m = {
 	.name		= "clk_27m",
 	.id		= -1,
 	.rate		= 27000000,
