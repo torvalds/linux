@@ -56,6 +56,7 @@
 #include <xen/events.h>
 #include <xen/page.h>
 
+#include <xen/platform_pci.h>
 #include <xen/hvm.h>
 
 #include "xenbus_comms.h"
@@ -977,6 +978,9 @@ static void wait_for_devices(struct xenbus_driver *xendrv)
 #ifndef MODULE
 static int __init boot_wait_for_devices(void)
 {
+	if (xen_hvm_domain() && !xen_platform_pci_unplug)
+		return -ENODEV;
+
 	ready_to_wait_for_devices = 1;
 	wait_for_devices(NULL);
 	return 0;
