@@ -137,8 +137,9 @@ do {									\
 do {									\
 	int step = -line_length;					\
 	int align = ~(line_length - 1);					\
+	int count;							\
 	end = ((end & align) == end) ? end - line_length : end & align;	\
-	int count = end - start;					\
+	count = end - start;						\
 	WARN_ON(count < 0);						\
 									\
 	__asm__ __volatile__ (" 1:	" #op "	%0, %1;			\
