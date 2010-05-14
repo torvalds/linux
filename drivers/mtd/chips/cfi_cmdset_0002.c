@@ -442,7 +442,7 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 			if ((bootloc < 2) || (bootloc > 5)) {
 				printk(KERN_WARNING "%s: CFI contains unrecognised boot "
 				       "bank location (%d). Assuming bottom.\n",
-				       bootloc, map->name);
+				       map->name, bootloc);
 				bootloc = 2;
 			}
 
