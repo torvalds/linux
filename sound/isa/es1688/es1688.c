@@ -149,10 +149,11 @@ static int __devinit snd_es1688_probe(struct snd_card *card, unsigned int n)
 	if (error < 0)
 		return error;
 
-	strcpy(card->driver, "ES1688");
-	strcpy(card->shortname, pcm->name);
-	sprintf(card->longname, "%s at 0x%lx, irq %i, dma %i", pcm->name,
-		chip->port, chip->irq, chip->dma8);
+	strlcpy(card->driver, "ES1688", sizeof(card->driver));
+	strlcpy(card->shortname, pcm->name, sizeof(card->shortname));
+	snprintf(card->longname, sizeof(card->longname),
+		"%s at 0x%lx, irq %i, dma %i", pcm->name, chip->port,
+		 chip->irq, chip->dma8);
 
 	if (fm_port[n] == SNDRV_AUTO_PORT)
 		fm_port[n] = port[n];	/* share the same port */
@@ -271,6 +272,8 @@ static int __devinit snd_es968_pnp_detect(struct pnp_card_link *pcard,
 		if (enable[dev] && isapnp[dev])
 			break;
 	}
+	if (dev == SNDRV_CARDS)
+		return -ENODEV;
 
 	error = snd_card_create(index[dev], id[dev], THIS_MODULE,
 				sizeof(struct snd_es1688), &card);
