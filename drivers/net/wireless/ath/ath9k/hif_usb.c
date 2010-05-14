@@ -609,6 +609,10 @@ static int ath9k_hif_usb_alloc_tx_urbs(struct hif_device_usb *hif_dev)
 
 	return 0;
 err:
+	if (tx_buf) {
+		kfree(tx_buf->buf);
+		kfree(tx_buf);
+	}
 	ath9k_hif_usb_dealloc_tx_urbs(hif_dev);
 	return -ENOMEM;
 }
