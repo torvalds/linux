@@ -23,7 +23,10 @@
 #define jump_insn_encode(op_code, addr) \
 	((unsigned int)((op_code) | (((addr) >> 2) & ADDR_MASK)))
 
-static unsigned int ftrace_nop = 0x00000000;
+#define INSN_B_1F_4 0x10000004	/* b 1f; offset = 4 */
+#define INSN_B_1F_5 0x10000005	/* b 1f; offset = 5 */
+#define INSN_NOP 0x00000000	/* nop */
+#define INSN_JAL(addr)	jump_insn_encode(JAL, addr)
 
 static int ftrace_modify_code(unsigned long ip, unsigned int new_code)
 {
@@ -71,7 +74,7 @@ int ftrace_make_nop(struct module *mod,
 		 *  sub sp, sp, 8
 		 *                                  1: offset = 5 instructions
 		 */
-		new = 0x10000005;
+		new = INSN_B_1F_5;
 #else
 		/* lui v1, hi_16bit_of_mcount        --> b 1f (0x10000004)
 		 * addiu v1, v1, low_16bit_of_mcount
@@ -80,7 +83,7 @@ int ftrace_make_nop(struct module *mod,
 		 *  nop | move $12, ra_address | sub sp, sp, 8
 		 *                                  1: offset = 4 instructions
 		 */
-		new = 0x10000004;
+		new = INSN_B_1F_4;
 #endif
 	} else {
 		/* record/calculate it for ftrace_make_call */
@@ -88,13 +91,13 @@ int ftrace_make_nop(struct module *mod,
 			/* We can record it directly like this:
 			 *     jal_mcount = *(unsigned int *)ip;
 			 * Herein, jump over the first two nop instructions */
-			jal_mcount = jump_insn_encode(JAL, (MCOUNT_ADDR + 8));
+			jal_mcount = INSN_JAL(MCOUNT_ADDR + 8);
 		}
 
 		/* move at, ra
 		 * jalr v1		--> nop
 		 */
-		new = ftrace_nop;
+		new = INSN_NOP;
 	}
 	return ftrace_modify_code(ip, new);
 }
@@ -109,7 +112,7 @@ int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 	/* We just need to remove the "b ftrace_stub" at the fist time! */
 	if (modified == 0) {
 		modified = 1;
-		ftrace_modify_code(addr, ftrace_nop);
+		ftrace_modify_code(addr, INSN_NOP);
 	}
 	/* ip, module: 0xc0000000, kernel: 0x80000000 */
 	new = (ip & 0x40000000) ? lui_v1 : jal_mcount;
@@ -123,7 +126,7 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 {
 	unsigned int new;
 
-	new = jump_insn_encode(JAL, (unsigned long)func);
+	new = INSN_JAL((unsigned long)func);
 
 	return ftrace_modify_code(FTRACE_CALL_IP, new);
 }
@@ -155,7 +158,7 @@ int ftrace_enable_ftrace_graph_caller(void)
 
 int ftrace_disable_ftrace_graph_caller(void)
 {
-	return ftrace_modify_code(FTRACE_GRAPH_CALL_IP, ftrace_nop);
+	return ftrace_modify_code(FTRACE_GRAPH_CALL_IP, INSN_NOP);
 }
 
 #endif				/* !CONFIG_DYNAMIC_FTRACE */
