@@ -2071,14 +2071,14 @@ static int shmem_xattr_security_set(struct dentry *dentry, const char *name,
 					  size, flags);
 }
 
-static struct xattr_handler shmem_xattr_security_handler = {
+static const struct xattr_handler shmem_xattr_security_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
 	.list   = shmem_xattr_security_list,
 	.get    = shmem_xattr_security_get,
 	.set    = shmem_xattr_security_set,
 };
 
-static struct xattr_handler *shmem_xattr_handlers[] = {
+static const struct xattr_handler *shmem_xattr_handlers[] = {
 	&generic_acl_access_handler,
 	&generic_acl_default_handler,
 	&shmem_xattr_security_handler,

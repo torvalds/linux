@@ -1336,7 +1336,7 @@ struct super_block {
 #ifdef CONFIG_SECURITY
 	void                    *s_security;
 #endif
-	struct xattr_handler	**s_xattr;
+	const struct xattr_handler **s_xattr;
 
 	struct list_head	s_inodes;	/* all inodes */
 	struct hlist_head	s_anon;		/* anonymous dentries for (nfs) exporting */
