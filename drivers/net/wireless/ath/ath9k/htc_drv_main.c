@@ -617,6 +617,19 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 			"%20s : %10u\n", "SKBs dropped",
 			priv->debug.tx_stats.skb_dropped);
 
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "BE queued",
+			priv->debug.tx_stats.queue_stats[WME_AC_BE]);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "BK queued",
+			priv->debug.tx_stats.queue_stats[WME_AC_BK]);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "VI queued",
+			priv->debug.tx_stats.queue_stats[WME_AC_VI]);
+	len += snprintf(buf + len, sizeof(buf) - len,
+			"%20s : %10u\n", "VO queued",
+			priv->debug.tx_stats.queue_stats[WME_AC_VO]);
+
 	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
 }
 

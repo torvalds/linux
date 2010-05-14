@@ -135,16 +135,20 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 
 		switch (hw_qnum) {
 		case 0:
+			TX_QSTAT_INC(WME_AC_BE);
 			epid = priv->data_be_ep;
 			break;
 		case 2:
+			TX_QSTAT_INC(WME_AC_VI);
 			epid = priv->data_vi_ep;
 			break;
 		case 3:
+			TX_QSTAT_INC(WME_AC_VO);
 			epid = priv->data_vo_ep;
 			break;
 		case 1:
 		default:
+			TX_QSTAT_INC(WME_AC_BK);
 			epid = priv->data_bk_ep;
 			break;
 		}

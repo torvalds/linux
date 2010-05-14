@@ -257,12 +257,15 @@ struct ath9k_htc_tx_ctl {
 #define TX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.tx_stats.c++)
 #define RX_STAT_INC(c) (hif_dev->htc_handle->drv_priv->debug.rx_stats.c++)
 
+#define TX_QSTAT_INC(q) (priv->debug.tx_stats.queue_stats[q]++)
+
 struct ath_tx_stats {
 	u32 buf_queued;
 	u32 buf_completed;
 	u32 skb_queued;
 	u32 skb_completed;
 	u32 skb_dropped;
+	u32 queue_stats[WME_NUM_AC];
 };
 
 struct ath_rx_stats {
