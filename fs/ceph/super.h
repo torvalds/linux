@@ -871,6 +871,7 @@ extern struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
 extern void ceph_dentry_lru_add(struct dentry *dn);
 extern void ceph_dentry_lru_touch(struct dentry *dn);
 extern void ceph_dentry_lru_del(struct dentry *dn);
+extern void ceph_invalidate_dentry_lease(struct dentry *dentry);
 
 /*
  * our d_ops vary depending on whether the inode is live,

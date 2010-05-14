@@ -938,8 +938,15 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 				ceph_inode(req->r_locked_dir);
 			dout(" clearing %p complete (empty trace)\n",
 			     req->r_locked_dir);
+			spin_lock(&req->r_locked_dir->i_lock);
 			ci->i_ceph_flags &= ~CEPH_I_COMPLETE;
 			ci->i_release_count++;
+			spin_unlock(&req->r_locked_dir->i_lock);
+
+			if (req->r_dentry)
+				ceph_invalidate_dentry_lease(req->r_dentry);
+			if (req->r_old_dentry)
+				ceph_invalidate_dentry_lease(req->r_old_dentry);
 		}
 		return 0;
 	}
@@ -1011,13 +1018,15 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			     req->r_old_dentry->d_name.len,
 			     req->r_old_dentry->d_name.name,
 			     dn, dn->d_name.len, dn->d_name.name);
+
 			/* ensure target dentry is invalidated, despite
 			   rehashing bug in vfs_rename_dir */
-			dn->d_time = jiffies;
-			ceph_dentry(dn)->lease_shared_gen = 0;
+			ceph_invalidate_dentry_lease(dn);
+
 			/* take overwritten dentry's readdir offset */
 			ceph_dentry(req->r_old_dentry)->offset =
 				ceph_dentry(dn)->offset;
+
 			dn = req->r_old_dentry;  /* use old_dentry */
 			in = dn->d_inode;
 		}

@@ -888,13 +888,22 @@ static int ceph_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 		/* ensure target dentry is invalidated, despite
 		   rehashing bug in vfs_rename_dir */
-		new_dentry->d_time = jiffies;
-		ceph_dentry(new_dentry)->lease_shared_gen = 0;
+		ceph_invalidate_dentry_lease(new_dentry);
 	}
 	ceph_mdsc_put_request(req);
 	return err;
 }
 
+/*
+ * Ensure a dentry lease will no longer revalidate.
+ */
+void ceph_invalidate_dentry_lease(struct dentry *dentry)
+{
+	spin_lock(&dentry->d_lock);
+	dentry->d_time = jiffies;
+	ceph_dentry(dentry)->lease_shared_gen = 0;
+	spin_unlock(&dentry->d_lock);
+}
 
 /*
  * Check if dentry lease is valid.  If not, delete the lease.  Try to

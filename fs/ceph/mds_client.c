@@ -1732,12 +1732,17 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 			struct ceph_inode_info *ci =
 				ceph_inode(req->r_locked_dir);
 
-			dout("aborted, clearing I_COMPLETE on %p\n",
+			dout("aborted, clearing I_COMPLETE on %p, leases\n",
 			     req->r_locked_dir);
 			spin_lock(&req->r_locked_dir->i_lock);
 			ci->i_ceph_flags &= ~CEPH_I_COMPLETE;
 			ci->i_release_count++;
 			spin_unlock(&req->r_locked_dir->i_lock);
+
+			if (req->r_dentry)
+				ceph_invalidate_dentry_lease(req->r_dentry);
+			if (req->r_old_dentry)
+				ceph_invalidate_dentry_lease(req->r_old_dentry);
 		}
 	} else {
 		err = req->r_err;
