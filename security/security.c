@@ -23,14 +23,14 @@ static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
 	CONFIG_DEFAULT_SECURITY;
 
 /* things that live in capability.c */
-extern void security_fixup_ops(struct security_operations *ops);
+extern void __init security_fixup_ops(struct security_operations *ops);
 
 static struct security_operations *security_ops;
 static struct security_operations default_security_ops = {
 	.name	= "default",
 };
 
-static inline int verify(struct security_operations *ops)
+static inline int __init verify(struct security_operations *ops)
 {
 	/* verify the security_operations structure exists */
 	if (!ops)

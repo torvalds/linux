@@ -854,7 +854,7 @@ static void cap_audit_rule_free(void *lsmrule)
 			}						\
 	} while (0)
 
-void security_fixup_ops(struct security_operations *ops)
+void __init security_fixup_ops(struct security_operations *ops)
 {
 	set_to_cap_if_null(ops, ptrace_access_check);
 	set_to_cap_if_null(ops, ptrace_traceme);
