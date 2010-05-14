@@ -844,7 +844,6 @@ static void skfp_ctl_set_multicast_list(struct net_device *dev)
 	spin_lock_irqsave(&bp->DriverLock, Flags);
 	skfp_ctl_set_multicast_list_wo_lock(dev);
 	spin_unlock_irqrestore(&bp->DriverLock, Flags);
-	return;
 }				// skfp_ctl_set_multicast_list
 
 
@@ -898,7 +897,6 @@ static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
 		/* Update adapter filters */
 		mac_update_multicast(smc);
 	}
-	return;
 }				// skfp_ctl_set_multicast_list_wo_lock
 
 

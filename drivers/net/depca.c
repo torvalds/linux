@@ -1203,8 +1203,6 @@ static void LoadCSRs(struct net_device *dev)
 	outw(ACON, DEPCA_DATA);
 
 	outw(CSR0, DEPCA_ADDR);	/* Point back to CSR0 */
-
-	return;
 }
 
 static int InitRestartDepca(struct net_device *dev)
@@ -1302,8 +1300,6 @@ static void SetMulticastFilter(struct net_device *dev)
 			}
 		}
 	}
-
-	return;
 }
 
 static int __init depca_common_init (u_long ioaddr, struct net_device **devp)
@@ -1908,8 +1904,6 @@ static void depca_dbg_open(struct net_device *dev)
 		outw(CSR3, DEPCA_ADDR);
 		printk("CSR3: 0x%4.4x\n", inw(DEPCA_DATA));
 	}
-
-	return;
 }
 
 /*

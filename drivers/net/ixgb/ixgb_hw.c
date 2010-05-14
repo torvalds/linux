@@ -413,8 +413,6 @@ ixgb_init_rx_addrs(struct ixgb_hw *hw)
 		IXGB_WRITE_REG_ARRAY(hw, RA, ((i << 1) + 1), 0);
 		IXGB_WRITE_REG_ARRAY(hw, RA, (i << 1), 0);
 	}
-
-	return;
 }
 
 /******************************************************************************
@@ -483,7 +481,6 @@ ixgb_mc_addr_list_update(struct ixgb_hw *hw,
 	}
 
 	pr_debug("MC Update Complete\n");
-	return;
 }
 
 /******************************************************************************
@@ -566,8 +563,6 @@ ixgb_mta_set(struct ixgb_hw *hw,
 	mta_reg |= (1 << hash_bit);
 
 	IXGB_WRITE_REG_ARRAY(hw, MTA, hash_reg, mta_reg);
-
-	return;
 }
 
 /******************************************************************************
@@ -600,7 +595,6 @@ ixgb_rar_set(struct ixgb_hw *hw,
 
 	IXGB_WRITE_REG_ARRAY(hw, RA, (index << 1), rar_low);
 	IXGB_WRITE_REG_ARRAY(hw, RA, ((index << 1) + 1), rar_high);
-	return;
 }
 
 /******************************************************************************
@@ -616,7 +610,6 @@ ixgb_write_vfta(struct ixgb_hw *hw,
 		 u32 value)
 {
 	IXGB_WRITE_REG_ARRAY(hw, VFTA, offset, value);
-	return;
 }
 
 /******************************************************************************
@@ -631,7 +624,6 @@ ixgb_clear_vfta(struct ixgb_hw *hw)
 
 	for (offset = 0; offset < IXGB_VLAN_FILTER_TBL_SIZE; offset++)
 		IXGB_WRITE_REG_ARRAY(hw, VFTA, offset, 0);
-	return;
 }
 
 /******************************************************************************
@@ -1050,7 +1042,6 @@ ixgb_clear_hw_cntrs(struct ixgb_hw *hw)
 	temp_reg = IXGB_READ_REG(hw, XOFFRXC);
 	temp_reg = IXGB_READ_REG(hw, XOFFTXC);
 	temp_reg = IXGB_READ_REG(hw, RJC);
-	return;
 }
 
 /******************************************************************************
@@ -1066,7 +1057,6 @@ ixgb_led_on(struct ixgb_hw *hw)
 	/* To turn on the LED, clear software-definable pin 0 (SDP0). */
 	ctrl0_reg &= ~IXGB_CTRL0_SDP0;
 	IXGB_WRITE_REG(hw, CTRL0, ctrl0_reg);
-	return;
 }
 
 /******************************************************************************
@@ -1082,7 +1072,6 @@ ixgb_led_off(struct ixgb_hw *hw)
 	/* To turn off the LED, set software-definable pin 0 (SDP0). */
 	ctrl0_reg |= IXGB_CTRL0_SDP0;
 	IXGB_WRITE_REG(hw, CTRL0, ctrl0_reg);
-	return;
 }
 
 /******************************************************************************
@@ -1122,8 +1111,6 @@ ixgb_get_bus_info(struct ixgb_hw *hw)
 
 	hw->bus.width = (status_reg & IXGB_STATUS_BUS64) ?
 		ixgb_bus_width_64 : ixgb_bus_width_32;
-
-	return;
 }
 
 /******************************************************************************
@@ -1210,8 +1197,6 @@ ixgb_optics_reset(struct ixgb_hw *hw)
 					     IXGB_PHY_ADDRESS,
 					     MDIO_MMD_PMAPMD);
 	}
-
-	return;
 }
 
 /******************************************************************************
@@ -1272,6 +1257,4 @@ ixgb_optics_reset_bcm(struct ixgb_hw *hw)
 
 	/* SerDes needs extra delay */
 	msleep(IXGB_SUN_PHY_RESET_DELAY);
-
-	return;
 }

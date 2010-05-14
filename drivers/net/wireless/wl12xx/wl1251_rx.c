@@ -183,6 +183,4 @@ void wl1251_rx(struct wl1251 *wl)
 
 	/* Finally, we need to ACK the RX */
 	wl1251_rx_ack(wl);
-
-	return;
 }

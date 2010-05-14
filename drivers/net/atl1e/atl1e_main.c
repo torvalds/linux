@@ -707,8 +707,6 @@ static void atl1e_init_ring_resources(struct atl1e_adapter *adapter)
 	adapter->ring_vir_addr = NULL;
 	adapter->rx_ring.desc = NULL;
 	rwlock_init(&adapter->tx_ring.tx_lock);
-
-	return;
 }
 
 /*
@@ -905,8 +903,6 @@ static inline void atl1e_configure_des_ring(const struct atl1e_adapter *adapter)
 	AT_WRITE_REG(hw, REG_HOST_RXFPAGE_SIZE, rx_ring->page_size);
 	/* Load all of base address above */
 	AT_WRITE_REG(hw, REG_LOAD_PTR, 1);
-
-	return;
 }
 
 static inline void atl1e_configure_tx(struct atl1e_adapter *adapter)
@@ -950,7 +946,6 @@ static inline void atl1e_configure_tx(struct atl1e_adapter *adapter)
 			(((u16)hw->tpd_burst & TXQ_CTRL_NUM_TPD_BURST_MASK)
 			 << TXQ_CTRL_NUM_TPD_BURST_SHIFT)
 			| TXQ_CTRL_ENH_MODE | TXQ_CTRL_EN);
-	return;
 }
 
 static inline void atl1e_configure_rx(struct atl1e_adapter *adapter)
@@ -1004,7 +999,6 @@ static inline void atl1e_configure_rx(struct atl1e_adapter *adapter)
 			 RXQ_CTRL_CUT_THRU_EN | RXQ_CTRL_EN;
 
 	AT_WRITE_REG(hw, REG_RXQ_CTRL, rxq_ctrl_data);
-	return;
 }
 
 static inline void atl1e_configure_dma(struct atl1e_adapter *adapter)
@@ -1024,7 +1018,6 @@ static inline void atl1e_configure_dma(struct atl1e_adapter *adapter)
 		<< DMA_CTRL_DMAW_DLY_CNT_SHIFT;
 
 	AT_WRITE_REG(hw, REG_DMA_CTRL, dma_ctrl_data);
-	return;
 }
 
 static void atl1e_setup_mac_ctrl(struct atl1e_adapter *adapter)

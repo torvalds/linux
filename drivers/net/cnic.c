@@ -2092,7 +2092,6 @@ end:
 		i += j;
 		j = 1;
 	}
-	return;
 }
 
 static u16 cnic_bnx2_next_idx(u16 idx)
@@ -2325,7 +2324,6 @@ done:
 			   status_idx, IGU_INT_ENABLE, 1);
 
 	cp->kcq_prod_idx = sw_prod;
-	return;
 }
 
 static int cnic_service_bnx2x(void *data, void *status_blk)
@@ -4628,7 +4626,6 @@ static void __exit cnic_exit(void)
 {
 	unregister_netdevice_notifier(&cnic_netdev_notifier);
 	cnic_release();
-	return;
 }
 
 module_init(cnic_init);

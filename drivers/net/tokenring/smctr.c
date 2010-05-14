@@ -5147,8 +5147,6 @@ static void smctr_set_multicast_list(struct net_device *dev)
 {
         if(smctr_debug > 10)
                 printk(KERN_DEBUG "%s: smctr_set_multicast_list\n", dev->name);
-
-        return;
 }
 
 static int smctr_set_page(struct net_device *dev, __u8 *buf)

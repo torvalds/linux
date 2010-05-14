@@ -36,8 +36,6 @@ void ath9k_hw_analog_shift_rmw(struct ath_hw *ah, u32 reg, u32 mask,
 
 	if (ah->config.analog_shiftreg)
 		udelay(100);
-
-	return;
 }
 
 int16_t ath9k_hw_interpolate(u16 target, u16 srcLeft, u16 srcRight,

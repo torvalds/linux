@@ -71,8 +71,6 @@ static void dwmac100_dma_operation_mode(unsigned long ioaddr, int txmode,
 		csr6 |= DMA_CONTROL_TTC_128;
 
 	writel(csr6, ioaddr + DMA_CONTROL);
-
-	return;
 }
 
 static void dwmac100_dump_dma_regs(unsigned long ioaddr)
@@ -88,7 +86,6 @@ static void dwmac100_dump_dma_regs(unsigned long ioaddr)
 	    DMA_CUR_TX_BUF_ADDR, readl(ioaddr + DMA_CUR_TX_BUF_ADDR));
 	CHIP_DBG(KERN_DEBUG "\t CSR21 (offset 0x%x): 0x%08x\n",
 	    DMA_CUR_RX_BUF_ADDR, readl(ioaddr + DMA_CUR_RX_BUF_ADDR));
-	return;
 }
 
 /* DMA controller has two counters to track the number of
@@ -119,7 +116,6 @@ static void dwmac100_dma_diagnostic_fr(void *data, struct stmmac_extra_stats *x,
 			x->rx_missed_cntr += miss_f;
 		}
 	}
-	return;
 }
 
 struct stmmac_dma_ops dwmac100_dma_ops = {

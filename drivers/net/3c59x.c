@@ -1855,7 +1855,6 @@ leave_media_alone:
 	mod_timer(&vp->timer, RUN_AT(next_tick));
 	if (vp->deferred)
 		iowrite16(FakeIntr, ioaddr + EL3_CMD);
-	return;
 }
 
 static void vortex_tx_timeout(struct net_device *dev)
@@ -2798,7 +2797,6 @@ static void update_stats(void __iomem *ioaddr, struct net_device *dev)
 	}
 
 	EL3WINDOW(old_window >> 13);
-	return;
 }
 
 static int vortex_nway_reset(struct net_device *dev)
@@ -3120,7 +3118,6 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 		iowrite16(MDIO_ENB_IN | MDIO_SHIFT_CLK, mdio_addr);
 		mdio_delay();
 	}
-	return;
 }
 
 /* ACPI: Advanced Configuration and Power Interface. */

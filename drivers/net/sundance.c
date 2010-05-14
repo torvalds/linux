@@ -788,7 +788,6 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 		iowrite8(MDIO_EnbIn | MDIO_ShiftClk, mdio_addr);
 		mdio_delay();
 	}
-	return;
 }
 
 static int mdio_wait_link(struct net_device *dev, int wait)
@@ -1022,7 +1021,6 @@ static void init_ring(struct net_device *dev)
 		np->tx_skbuff[i] = NULL;
 		np->tx_ring[i].status = 0;
 	}
-	return;
 }
 
 static void tx_poll (unsigned long data)
@@ -1049,7 +1047,6 @@ static void tx_poll (unsigned long data)
 	if (ioread32 (np->base + TxListPtr) == 0)
 		iowrite32 (np->tx_ring_dma + head * sizeof(struct netdev_desc),
 			np->base + TxListPtr);
-	return;
 }
 
 static netdev_tx_t
@@ -1378,7 +1375,6 @@ not_done:
 	if (np->budget <= 0)
 		np->budget = RX_BUDGET;
 	tasklet_schedule(&np->rx_tasklet);
-	return;
 }
 
 static void refill_rx (struct net_device *dev)
@@ -1409,7 +1405,6 @@ static void refill_rx (struct net_device *dev)
 		np->rx_ring[entry].status = 0;
 		cnt++;
 	}
-	return;
 }
 static void netdev_error(struct net_device *dev, int intr_status)
 {

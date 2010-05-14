@@ -1005,7 +1005,6 @@ static void octeon_mgmt_poll_controller(struct net_device *netdev)
 
 	octeon_mgmt_receive_packets(p, 16);
 	octeon_mgmt_update_rx_stats(netdev);
-	return;
 }
 #endif
 

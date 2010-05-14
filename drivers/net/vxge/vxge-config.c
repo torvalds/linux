@@ -183,8 +183,6 @@ __vxge_hw_device_pci_e_init(struct __vxge_hw_device *hldev)
 	pci_write_config_word(hldev->pdev, PCI_COMMAND, cmd);
 
 	pci_save_state(hldev->pdev);
-
-	return;
 }
 
 /*
@@ -342,8 +340,6 @@ void __vxge_hw_device_id_get(struct __vxge_hw_device *hldev)
 
 	hldev->minor_revision =
 		(u8)VXGE_HW_TITAN_ASIC_ID_GET_INITIAL_MINOR_REVISION(val64);
-
-	return;
 }
 
 /*
@@ -428,8 +424,6 @@ void __vxge_hw_device_host_info_get(struct __vxge_hw_device *hldev)
 		hldev->first_vp_id = i;
 		break;
 	}
-
-	return;
 }
 
 /*
@@ -1217,8 +1211,6 @@ __vxge_hw_ring_mempool_item_alloc(struct vxge_hw_mempool *mempoolh,
 		/* link this RxD block with previous one */
 		__vxge_hw_ring_rxdblock_link(mempoolh, ring, index - 1, index);
 	}
-
-	return;
 }
 
 /*
@@ -2318,8 +2310,6 @@ __vxge_hw_fifo_mempool_item_alloc(
 	txdl_priv->first_txdp = txdp;
 	txdl_priv->next_txdl_priv = NULL;
 	txdl_priv->alloc_frags = 0;
-
-	return;
 }
 
 /*
@@ -2576,7 +2566,6 @@ __vxge_hw_read_rts_ds(struct vxge_hw_vpath_reg __iomem *vpath_reg,
 	writeq(dta_struct_sel, &vpath_reg->rts_access_steer_data0);
 	writeq(0, &vpath_reg->rts_access_steer_data1);
 	wmb();
-	return;
 }
 
 
@@ -3484,7 +3473,6 @@ __vxge_hw_vpath_prc_configure(struct __vxge_hw_device *hldev, u32 vp_id)
 		val64 &= ~VXGE_HW_PRC_CFG4_RTH_DISABLE;
 
 	writeq(val64, &vp_reg->prc_cfg4);
-	return;
 }
 
 /*
@@ -3903,7 +3891,6 @@ vxge_hw_vpath_tti_ci_set(struct __vxge_hw_device *hldev, u32 vp_id)
 			&vp_reg->tim_cfg1_int_num[VXGE_HW_VPATH_INTR_TX]);
 		}
 	}
-	return;
 }
 /*
  * __vxge_hw_vpath_initialize
@@ -5037,8 +5024,6 @@ __vxge_hw_blockpool_free(struct __vxge_hw_device *devh,
 		if (status == VXGE_HW_OK)
 			__vxge_hw_blockpool_blocks_remove(blockpool);
 	}
-
-	return;
 }
 
 /*
@@ -5094,6 +5079,4 @@ __vxge_hw_blockpool_block_free(struct __vxge_hw_device *devh,
 	}
 
 	__vxge_hw_blockpool_blocks_remove(blockpool);
-
-	return;
 }

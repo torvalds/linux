@@ -691,8 +691,6 @@ static void smc_hardware_send_packet( struct net_device * dev )
 
 	/* we can send another packet */
 	netif_wake_queue(dev);
-
-	return;
 }
 
 /*-------------------------------------------------------------------------
@@ -1355,7 +1353,6 @@ static void smc_tx( struct net_device * dev )
 	lp->packets_waiting--;
 
 	outb( saved_packet, ioaddr + PNR_ARR );
-	return;
 }
 
 /*--------------------------------------------------------------------

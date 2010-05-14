@@ -2781,7 +2781,6 @@ netxen_config_indev_addr(struct net_device *dev, unsigned long event)
 	} endfor_ifa(indev);
 
 	in_dev_put(indev);
-	return;
 }
 
 static int netxen_netdev_event(struct notifier_block *this,

@@ -1214,8 +1214,6 @@ void igb_power_down_phy_copper_82575(struct e1000_hw *hw)
 	/* If the management interface is not enabled, then power down */
 	if (!(igb_enable_mng_pass_thru(hw) || igb_check_reset_block(hw)))
 		igb_power_down_phy_copper(hw);
-
-	return;
 }
 
 /**

@@ -167,7 +167,6 @@ static inline void
 dbdma_st32(volatile __u32 __iomem *a, unsigned long x)
 {
 	__asm__ volatile( "stwbrx %0,0,%1" : : "r" (x), "r" (a) : "memory");
-	return;
 }
 
 static inline unsigned long
@@ -382,8 +381,6 @@ bmac_init_registers(struct net_device *dev)
 	bmwrite(dev, RXCFG, RxCRCNoStrip | RxHashFilterEnable | RxRejectOwnPackets);
 
 	bmwrite(dev, INTDISABLE, EnableNormal);
-
-	return;
 }
 
 #if 0

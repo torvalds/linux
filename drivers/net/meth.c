@@ -748,8 +748,6 @@ static void meth_tx_timeout(struct net_device *dev)
 
 	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
-
-	return;
 }
 
 /*

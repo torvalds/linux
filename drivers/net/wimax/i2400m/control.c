@@ -568,7 +568,6 @@ void i2400m_msg_ack_hook(struct i2400m *i2400m,
 		}
 		break;
 	};
-	return;
 }
 
 
@@ -1419,5 +1418,4 @@ void i2400m_dev_shutdown(struct i2400m *i2400m)
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);
-	return;
 }

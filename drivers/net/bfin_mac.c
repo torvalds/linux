@@ -835,8 +835,6 @@ static void bfin_mac_multicast_hash(struct net_device *dev)
 
 	bfin_write_EMAC_HASHHI(emac_hashhi);
 	bfin_write_EMAC_HASHLO(emac_hashlo);
-
-	return;
 }
 
 /*

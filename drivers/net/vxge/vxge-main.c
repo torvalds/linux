@@ -1764,7 +1764,6 @@ static void vxge_netpoll(struct net_device *dev)
 
 	vxge_debug_entryexit(VXGE_TRACE,
 		"%s:%d  Exiting...", __func__, __LINE__);
-	return;
 }
 #endif
 
@@ -2815,7 +2814,6 @@ static void vxge_napi_del_all(struct vxgedev *vdev)
 		for (i = 0; i < vdev->no_of_vpath; i++)
 			netif_napi_del(&vdev->vpaths[i].ring.napi);
 	}
-	return;
 }
 
 int do_vxge_close(struct net_device *dev, int do_io)
@@ -3500,8 +3498,6 @@ static void verify_bandwidth(void)
 		for (i = 1; i < VXGE_HW_MAX_VIRTUAL_PATHS; i++)
 			bw_percentage[i] = bw_percentage[0];
 	}
-
-	return;
 }
 
 /*

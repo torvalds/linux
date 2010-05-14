@@ -3009,8 +3009,6 @@ static void gfar_set_multi(struct net_device *dev)
 				gfar_set_hash_for_addr(dev, ha->addr);
 		}
 	}
-
-	return;
 }
 
 
@@ -3051,8 +3049,6 @@ static void gfar_set_hash_for_addr(struct net_device *dev, u8 *addr)
 	tempval = gfar_read(priv->hash_regs[whichreg]);
 	tempval |= value;
 	gfar_write(priv->hash_regs[whichreg], tempval);
-
-	return;
 }
 
 

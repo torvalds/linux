@@ -626,7 +626,6 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 		iowrite32(MDIO_EnbIn | MDIO_ShiftClk, mdio_addr);
 		mdio_delay(mdio_addr);
 	}
-	return;
 }
 
 
@@ -971,7 +970,6 @@ static void tx_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 	dev->trans_start = jiffies; /* prevent tx timeout */
 	np->stats.tx_errors++;
-	return;
 }
 
 /* Initialize the Rx and Tx rings, along with various 'dev' bits. */

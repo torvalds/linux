@@ -86,7 +86,6 @@ static void ath9k_hw_update_nfcal_hist_buffer(struct ath9k_nfcal_hist *h,
 				ath9k_hw_get_nf_hist_mid(h[i].nfCalBuffer);
 		}
 	}
-	return;
 }
 
 static bool ath9k_hw_get_nf_thresh(struct ath_hw *ah,

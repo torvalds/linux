@@ -647,7 +647,6 @@ free_new_rx_ring:
 			    (1 << size),
 			    new_rx_ring,
 			    new_ring_dma_addr);
-	return;
 }
 
 static void pcnet32_purge_rx_ring(struct net_device *dev)
@@ -1215,7 +1214,6 @@ static void pcnet32_rx_entry(struct net_device *dev,
 	skb->protocol = eth_type_trans(skb, dev);
 	netif_receive_skb(skb);
 	dev->stats.rx_packets++;
-	return;
 }
 
 static int pcnet32_rx(struct net_device *dev, int budget)
@@ -2623,7 +2621,6 @@ static void pcnet32_load_multicast(struct net_device *dev)
 	for (i = 0; i < 4; i++)
 		lp->a.write_csr(ioaddr, PCNET32_MC_FILTER + i,
 				le16_to_cpu(mcast_table[i]));
-	return;
 }
 
 /*

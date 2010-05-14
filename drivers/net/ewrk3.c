@@ -1369,8 +1369,6 @@ static void __init EthwrkSignature(char *name, char *eeprom_image)
 		name[EWRK3_STRLEN] = '\0';
 	} else
 		name[0] = '\0';
-
-	return;
 }
 
 /*

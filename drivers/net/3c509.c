@@ -1037,7 +1037,6 @@ static void update_stats(struct net_device *dev)
 	/* Back to window 1, and turn statistics back on. */
 	EL3WINDOW(1);
 	outw(StatsEnable, ioaddr + EL3_CMD);
-	return;
 }
 
 static int

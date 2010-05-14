@@ -764,7 +764,6 @@ static void init_82586_mem(struct net_device *dev)
 	if (net_debug > 4)
 		pr_debug("%s: Initialized 82586, status %04x.\n", dev->name,
 			   readw(shmem+iSCB_STATUS));
-	return;
 }
 
 static void hardware_send_packet(struct net_device *dev, void *buf, short length, short pad)

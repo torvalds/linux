@@ -1570,7 +1570,6 @@ static void eexp_hw_init586(struct net_device *dev)
 #if NET_DEBUG > 6
         printk("%s: leaving eexp_hw_init586()\n", dev->name);
 #endif
-	return;
 }
 
 static void eexp_setup_filter(struct net_device *dev)

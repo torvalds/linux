@@ -417,7 +417,6 @@ static void tun_net_mclist(struct net_device *dev)
 	 * _rx_ path and has nothing to do with the _tx_ path.
 	 * In rx path we always accept everything userspace gives us.
 	 */
-	return;
 }
 
 #define MIN_MTU 68

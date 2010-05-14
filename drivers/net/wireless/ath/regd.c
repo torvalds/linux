@@ -333,7 +333,6 @@ static void ath_reg_apply_world_flags(struct wiphy *wiphy,
 		ath_reg_apply_active_scan_flags(wiphy, initiator);
 		break;
 	}
-	return;
 }
 
 int ath_reg_notifier_apply(struct wiphy *wiphy,

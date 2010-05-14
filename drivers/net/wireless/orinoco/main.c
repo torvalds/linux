@@ -1618,8 +1618,6 @@ void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 		/* We don't actually do anything about it */
 		break;
 	}
-
-	return;
 }
 EXPORT_SYMBOL(__orinoco_ev_info);
 

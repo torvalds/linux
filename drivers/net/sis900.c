@@ -858,7 +858,6 @@ static void mdio_reset(long mdio_addr)
 		outl(MDDIR | MDIO | MDC, mdio_addr);
 		mdio_delay();
 	}
-	return;
 }
 
 /**
@@ -953,8 +952,6 @@ static void mdio_write(struct net_device *net_dev, int phy_id, int location,
 		mdio_delay();
 	}
 	outl(0x00, mdio_addr);
-
-	return;
 }
 
 
@@ -1264,7 +1261,6 @@ static void sis630_set_eq(struct net_device *net_dev, u8 revision)
 			mdio_write(net_dev, sis_priv->cur_phy, MII_RESV,
 						(reg14h | 0x2000) & 0xBFFF);
 	}
-	return;
 }
 
 /**
@@ -1560,7 +1556,6 @@ static void sis900_tx_timeout(struct net_device *net_dev)
 
 	/* Enable all known interrupts by setting the interrupt mask. */
 	outl((RxSOVR|RxORN|RxERR|RxOK|TxURN|TxERR|TxIDLE), ioaddr + imr);
-	return;
 }
 
 /**
@@ -2330,8 +2325,6 @@ static void set_rx_mode(struct net_device *net_dev)
 		/* restore cr */
 		outl(cr_saved, ioaddr + cr);
 	}
-
-	return;
 }
 
 /**

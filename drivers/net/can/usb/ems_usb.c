@@ -300,8 +300,6 @@ static void ems_usb_read_interrupt_callback(struct urb *urb)
 	else if (err)
 		dev_err(netdev->dev.parent,
 			"failed resubmitting intr urb: %d\n", err);
-
-	return;
 }
 
 static void ems_usb_rx_can_msg(struct ems_usb *dev, struct ems_cpc_msg *msg)
@@ -497,8 +495,6 @@ resubmit_urb:
 	else if (retval)
 		dev_err(netdev->dev.parent,
 			"failed resubmitting read bulk urb: %d\n", retval);
-
-	return;
 }
 
 /*

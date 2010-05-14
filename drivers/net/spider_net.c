@@ -2095,8 +2095,6 @@ static void spider_net_link_phy(unsigned long data)
 		card->netdev->name, phy->speed,
 		phy->duplex == 1 ? "Full" : "Half",
 		phy->autoneg == 1 ? "" : "no ");
-
-	return;
 }
 
 /**

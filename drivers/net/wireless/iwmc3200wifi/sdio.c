@@ -479,8 +479,6 @@ static void iwm_sdio_remove(struct sdio_func *func)
 	sdio_set_drvdata(func, NULL);
 
 	dev_info(dev, "IWM SDIO remove\n");
-
-	return;
 }
 
 static const struct sdio_device_id iwm_sdio_ids[] = {

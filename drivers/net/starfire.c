@@ -1221,8 +1221,6 @@ static void init_ring(struct net_device *dev)
 
 	for (i = 0; i < TX_RING_SIZE; i++)
 		memset(&np->tx_info[i], 0, sizeof(np->tx_info[i]));
-
-	return;
 }
 
 

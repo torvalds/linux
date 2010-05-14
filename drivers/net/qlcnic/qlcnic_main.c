@@ -239,7 +239,6 @@ qlcnic_napi_disable(struct qlcnic_adapter *adapter)
 static void qlcnic_clear_stats(struct qlcnic_adapter *adapter)
 {
 	memset(&adapter->stats, 0, sizeof(adapter->stats));
-	return;
 }
 
 static int qlcnic_set_dma_mask(struct qlcnic_adapter *adapter)
@@ -2662,7 +2661,6 @@ qlcnic_config_indev_addr(struct net_device *dev, unsigned long event)
 	} endfor_ifa(indev);
 
 	in_dev_put(indev);
-	return;
 }
 
 static int qlcnic_netdev_event(struct notifier_block *this,

@@ -50,7 +50,6 @@ static void ath9k_get_txgain_index(struct ath_hw *ah,
 		i++;
 
 	*pcdacIdx = i;
-	return;
 }
 
 static void ath9k_olc_get_pdadcs(struct ath_hw *ah,
@@ -751,8 +750,6 @@ static void ath9k_hw_get_def_gain_boundaries_pdadcs(struct ath_hw *ah,
 		pPDADCValues[k] = pPDADCValues[k - 1];
 		k++;
 	}
-
-	return;
 }
 
 static int16_t ath9k_change_gain_boundary_setting(struct ath_hw *ah,

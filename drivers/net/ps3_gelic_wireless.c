@@ -301,7 +301,6 @@ static void gelic_wl_get_ch_info(struct gelic_wl_info *wl)
 			/* 16 bits of MSB has available channels */
 			wl->ch_info = ch_info_raw >> 48;
 	}
-	return;
 }
 
 /* SIOGIWRANGE */

@@ -1767,8 +1767,6 @@ void e1000e_reset_interrupt_capability(struct e1000_adapter *adapter)
 		pci_disable_msi(adapter->pdev);
 		adapter->flags &= ~FLAG_MSI_ENABLED;
 	}
-
-	return;
 }
 
 /**
@@ -1820,8 +1818,6 @@ void e1000e_set_interrupt_capability(struct e1000_adapter *adapter)
 		/* Don't do anything; this is the system default */
 		break;
 	}
-
-	return;
 }
 
 /**

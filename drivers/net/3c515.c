@@ -958,7 +958,6 @@ static void corkscrew_timer(unsigned long data)
 		       dev->name, media_tbl[dev->if_port].name);
 
 #endif				/* AUTOMEDIA */
-	return;
 }
 
 static void corkscrew_timeout(struct net_device *dev)
@@ -1516,7 +1515,6 @@ static void update_stats(int ioaddr, struct net_device *dev)
 
 	/* We change back to window 7 (not 1) with the Vortex. */
 	EL3WINDOW(7);
-	return;
 }
 
 /* This new version of set_rx_mode() supports v1.4 kernels.

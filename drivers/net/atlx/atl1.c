@@ -1830,8 +1830,6 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 		adapter->hw_csum_good++;
 		return;
 	}
-
-	return;
 }
 
 /*
@@ -3390,7 +3388,6 @@ static void atl1_get_wol(struct net_device *netdev,
 	wol->wolopts = 0;
 	if (adapter->wol & ATLX_WUFC_MAG)
 		wol->wolopts |= WAKE_MAGIC;
-	return;
 }
 
 static int atl1_set_wol(struct net_device *netdev,

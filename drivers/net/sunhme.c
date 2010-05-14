@@ -2943,7 +2943,6 @@ static void get_hme_mac_nonsparc(struct pci_dev *pdev, unsigned char *dev_addr)
 	dev_addr[1] = 0x00;
 	dev_addr[2] = 0x20;
 	get_random_bytes(&dev_addr[3], 3);
-	return;
 }
 #endif /* !(CONFIG_SPARC) */
 

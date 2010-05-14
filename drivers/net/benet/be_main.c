@@ -830,7 +830,6 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 
 done:
 	be_rx_stats_update(adapter, pktsize, num_rcvd);
-	return;
 }
 
 /* Process the RX completion indicated by rxcp when GRO is disabled */
@@ -884,8 +883,6 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	} else {
 		netif_receive_skb(skb);
 	}
-
-	return;
 }
 
 /* Process the RX completion indicated by rxcp when GRO is enabled */
@@ -965,7 +962,6 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	}
 
 	be_rx_stats_update(adapter, pkt_size, num_rcvd);
-	return;
 }
 
 static struct be_eth_rx_compl *be_rx_compl_get(struct be_adapter *adapter)
@@ -1059,8 +1055,6 @@ static void be_post_rx_frags(struct be_adapter *adapter)
 		/* Let be_worker replenish when memory is available */
 		adapter->rx_post_starved = true;
 	}
-
-	return;
 }
 
 static struct be_eth_tx_compl *be_tx_compl_get(struct be_queue_info *tx_cq)
@@ -1622,7 +1616,6 @@ static void be_msix_enable(struct be_adapter *adapter)
 		BE_NUM_MSIX_VECTORS);
 	if (status == 0)
 		adapter->msix_enabled = true;
-	return;
 }
 
 static void be_sriov_enable(struct be_adapter *adapter)
@@ -1634,7 +1627,6 @@ static void be_sriov_enable(struct be_adapter *adapter)
 		adapter->sriov_enabled = status ? false : true;
 	}
 #endif
-	return;
 }
 
 static void be_sriov_disable(struct be_adapter *adapter)
@@ -1741,7 +1733,6 @@ static void be_irq_unregister(struct be_adapter *adapter)
 	be_free_irq(adapter, &adapter->rx_eq);
 done:
 	adapter->isr_registered = false;
-	return;
 }
 
 static int be_open(struct net_device *netdev)
@@ -2620,8 +2611,6 @@ static void be_shutdown(struct pci_dev *pdev)
 		be_setup_wol(adapter, true);
 
 	pci_disable_device(pdev);
-
-	return;
 }
 
 static pci_ers_result_t be_eeh_err_detected(struct pci_dev *pdev,
@@ -2703,7 +2692,6 @@ static void be_eeh_resume(struct pci_dev *pdev)
 	return;
 err:
 	dev_err(&adapter->pdev->dev, "EEH resume failed\n");
-	return;
 }
 
 static struct pci_error_handlers be_eeh_handlers = {

@@ -795,7 +795,6 @@ net_rx(struct net_device *dev)
 			printk("%s: Exint Rx packet with mode %02x after %d ticks.\n",
 				   dev->name, inb(ioaddr + RX_MODE), i);
 	}
-	return;
 }
 
 /* The inverse routine to net_open(). */
@@ -869,7 +868,6 @@ set_rx_mode(struct net_device *dev)
 		outw(saved_bank, ioaddr + CONFIG_0);
 	}
 	spin_unlock_irqrestore (&lp->lock, flags);
-	return;
 }
 
 #ifdef MODULE

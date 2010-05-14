@@ -690,8 +690,6 @@ static s32 e1000_acquire_nvm_ich8lan(struct e1000_hw *hw)
 static void e1000_release_nvm_ich8lan(struct e1000_hw *hw)
 {
 	mutex_unlock(&nvm_mutex);
-
-	return;
 }
 
 static DEFINE_MUTEX(swflag_mutex);
@@ -770,8 +768,6 @@ static void e1000_release_swflag_ich8lan(struct e1000_hw *hw)
 	ew32(EXTCNF_CTRL, extcnf_ctrl);
 
 	mutex_unlock(&swflag_mutex);
-
-	return;
 }
 
 /**
@@ -2756,8 +2752,6 @@ static void e1000_initialize_hw_bits_ich8lan(struct e1000_hw *hw)
 	reg = er32(RFCTL);
 	reg |= (E1000_RFCTL_NFSW_DIS | E1000_RFCTL_NFSR_DIS);
 	ew32(RFCTL, reg);
-
-	return;
 }
 
 /**
@@ -3137,8 +3131,6 @@ void e1000e_disable_gig_wol_ich8lan(struct e1000_hw *hw)
 	default:
 		break;
 	}
-
-	return;
 }
 
 /**
@@ -3347,8 +3339,6 @@ static void e1000_power_down_phy_copper_ich8lan(struct e1000_hw *hw)
 	if (!(hw->mac.ops.check_mng_mode(hw) ||
 	      hw->phy.ops.check_reset_block(hw)))
 		e1000_power_down_phy_copper(hw);
-
-	return;
 }
 
 /**

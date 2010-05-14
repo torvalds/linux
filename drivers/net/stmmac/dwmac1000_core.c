@@ -48,7 +48,6 @@ static void dwmac1000_core_init(unsigned long ioaddr)
 	/* Tag detection without filtering */
 	writel(0x0, ioaddr + GMAC_VLAN_TAG);
 #endif
-	return;
 }
 
 static void dwmac1000_dump_regs(unsigned long ioaddr)
@@ -61,7 +60,6 @@ static void dwmac1000_dump_regs(unsigned long ioaddr)
 		pr_info("\tReg No. %d (offset 0x%x): 0x%08x\n", i,
 			offset, readl(ioaddr + offset));
 	}
-	return;
 }
 
 static void dwmac1000_set_umac_addr(unsigned long ioaddr, unsigned char *addr,
@@ -139,8 +137,6 @@ static void dwmac1000_set_filter(struct net_device *dev)
 	CHIP_DBG(KERN_INFO "\tFrame Filter reg: 0x%08x\n\tHash regs: "
 	    "HI 0x%08x, LO 0x%08x\n", readl(ioaddr + GMAC_FRAME_FILTER),
 	    readl(ioaddr + GMAC_HASH_HIGH), readl(ioaddr + GMAC_HASH_LOW));
-
-	return;
 }
 
 static void dwmac1000_flow_ctrl(unsigned long ioaddr, unsigned int duplex,
@@ -164,7 +160,6 @@ static void dwmac1000_flow_ctrl(unsigned long ioaddr, unsigned int duplex,
 	}
 
 	writel(flow, ioaddr + GMAC_FLOW_CTRL);
-	return;
 }
 
 static void dwmac1000_pmt(unsigned long ioaddr, unsigned long mode)
@@ -180,7 +175,6 @@ static void dwmac1000_pmt(unsigned long ioaddr, unsigned long mode)
 	}
 
 	writel(pmt, ioaddr + GMAC_PMT);
-	return;
 }
 
 
@@ -204,8 +198,6 @@ static void dwmac1000_irq_status(unsigned long ioaddr)
 		 * status register. */
 		readl(ioaddr + GMAC_PMT);
 	}
-
-	return;
 }
 
 struct stmmac_ops dwmac1000_ops = {

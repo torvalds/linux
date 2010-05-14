@@ -1383,8 +1383,6 @@ static void e1000_power_down_phy_copper_80003es2lan(struct e1000_hw *hw)
 	if (!(hw->mac.ops.check_mng_mode(hw) ||
 	      hw->phy.ops.check_reset_block(hw)))
 		e1000_power_down_phy_copper(hw);
-
-	return;
 }
 
 /**

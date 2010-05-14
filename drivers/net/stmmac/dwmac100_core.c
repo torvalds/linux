@@ -40,7 +40,6 @@ static void dwmac100_core_init(unsigned long ioaddr)
 #ifdef STMMAC_VLAN_TAG_USED
 	writel(ETH_P_8021Q, ioaddr + MAC_VLAN1);
 #endif
-	return;
 }
 
 static void dwmac100_dump_mac_regs(unsigned long ioaddr)
@@ -76,7 +75,6 @@ static void dwmac100_dump_mac_regs(unsigned long ioaddr)
 		MMC_HIGH_INTR_MASK, readl(ioaddr + MMC_HIGH_INTR_MASK));
 	pr_info("\t MMC Low Interrupt Mask (offset 0x%x): 0x%08x\n",
 		MMC_LOW_INTR_MASK, readl(ioaddr + MMC_LOW_INTR_MASK));
-	return;
 }
 
 static void dwmac100_irq_status(unsigned long ioaddr)
@@ -145,7 +143,6 @@ static void dwmac100_set_filter(struct net_device *dev)
 	    "HI 0x%08x, LO 0x%08x\n",
 	    __func__, readl(ioaddr + MAC_CONTROL),
 	    readl(ioaddr + MAC_HASH_HIGH), readl(ioaddr + MAC_HASH_LOW));
-	return;
 }
 
 static void dwmac100_flow_ctrl(unsigned long ioaddr, unsigned int duplex,
@@ -156,8 +153,6 @@ static void dwmac100_flow_ctrl(unsigned long ioaddr, unsigned int duplex,
 	if (duplex)
 		flow |= (pause_time << MAC_FLOW_CTRL_PT_SHIFT);
 	writel(flow, ioaddr + MAC_FLOW_CTRL);
-
-	return;
 }
 
 /* No PMT module supported for this Ethernet Controller.

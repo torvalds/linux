@@ -514,8 +514,6 @@ static void dump_packet(void *buf, int len)
 		if (i % 16 == 15) printk("\n");
 	}
 	printk("\n");
-
-	return;
 }
 
 /* We have a good packet, get it out of the buffer. */

@@ -848,7 +848,6 @@ static void iwl3945_rx_reply_add_sta(struct iwl_priv *priv,
 #endif
 
 	IWL_DEBUG_RX(priv, "Received REPLY_ADD_STA: 0x%02X\n", pkt->u.status);
-	return;
 }
 
 static void iwl3945_bg_beacon_update(struct work_struct *work)

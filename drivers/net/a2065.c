@@ -627,7 +627,6 @@ static void lance_load_multicast (struct net_device *dev)
 		crc = crc >> 26;
 		mcast_table [crc >> 4] |= 1 << (crc & 0xf);
 	}
-	return;
 }
 
 static void lance_set_multicast (struct net_device *dev)

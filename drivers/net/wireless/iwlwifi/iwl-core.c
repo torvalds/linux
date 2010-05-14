@@ -769,7 +769,6 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf)
 			"extension channel offset 0x%x\n",
 			le32_to_cpu(rxon->flags), ht_conf->ht_protection,
 			ht_conf->extension_chan_offset);
-	return;
 }
 EXPORT_SYMBOL(iwl_set_rxon_ht);
 

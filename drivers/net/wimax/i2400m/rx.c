@@ -313,7 +313,6 @@ error_waiter_cancelled:
 	kfree_skb(ack_skb);
 error_no_waiter:
 	spin_unlock_irqrestore(&i2400m->rx_lock, flags);
-	return;
 }
 
 
@@ -718,7 +717,6 @@ void __i2400m_roq_queue(struct i2400m *i2400m, struct i2400m_roq *roq,
 out:
 	d_fnend(4, dev, "(i2400m %p roq %p skb %p sn %u nsn %d) = void\n",
 		i2400m, roq, skb, sn, nsn);
-	return;
 }
 
 
@@ -798,7 +796,6 @@ void i2400m_roq_reset(struct i2400m *i2400m, struct i2400m_roq *roq)
 	}
 	roq->ws = 0;
 	d_fnend(2, dev, "(i2400m %p roq %p) = void\n", i2400m, roq);
-	return;
 }
 
 
@@ -837,7 +834,6 @@ void i2400m_roq_queue(struct i2400m *i2400m, struct i2400m_roq *roq,
 	}
 	d_fnend(2, dev, "(i2400m %p roq %p skb %p lbn %u) = void\n",
 		i2400m, roq, skb, lbn);
-	return;
 }
 
 
@@ -863,7 +859,6 @@ void i2400m_roq_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
 	i2400m_roq_log_add(i2400m, roq, I2400M_RO_TYPE_WS,
 			     old_ws, len, sn, nsn, roq->ws);
 	d_fnstart(2, dev, "(i2400m %p roq %p sn %u) = void\n", i2400m, roq, sn);
-	return;
 }
 
 
@@ -912,7 +907,6 @@ void i2400m_roq_queue_update_ws(struct i2400m *i2400m, struct i2400m_roq *roq,
 	}
 	d_fnend(2, dev, "(i2400m %p roq %p skb %p sn %u) = void\n",
 		i2400m, roq, skb, sn);
-	return;
 }
 
 
@@ -1041,7 +1035,6 @@ error_skb_clone:
 error:
 	d_fnend(2, dev, "(i2400m %p skb_rx %p single %u payload %p "
 		"size %zu) = void\n", i2400m, skb_rx, single_last, payload, size);
-	return;
 }
 
 

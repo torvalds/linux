@@ -1883,8 +1883,6 @@ de4x5_local_stats(struct net_device *dev, char *buf, int pkt_len)
     if (lp->pktStats.bins[0] == 0) { /* Reset counters */
         memset((char *)&lp->pktStats, 0, sizeof(lp->pktStats));
     }
-
-    return;
 }
 
 /*
@@ -1991,8 +1989,6 @@ SetMulticastFilter(struct net_device *dev)
 	}
     }
     outl(omr, DE4X5_OMR);
-
-    return;
 }
 
 #ifdef CONFIG_EISA
@@ -2187,8 +2183,6 @@ srom_search(struct net_device *dev, struct pci_dev *pdev)
 	    return;
 	}
     }
-
-    return;
 }
 
 /*
@@ -3291,8 +3285,6 @@ de4x5_init_connection(struct net_device *dev)
     outl(POLL_DEMAND, DE4X5_TPD);
 
     netif_wake_queue(dev);
-
-    return;
 }
 
 /*
@@ -3664,8 +3656,6 @@ de4x5_free_rx_buffs(struct net_device *dev)
 	lp->rx_ring[i].status = 0;
 	lp->rx_skb[i] = (struct sk_buff *)1;    /* Dummy entry */
     }
-
-    return;
 }
 
 static void
@@ -3708,8 +3698,6 @@ de4x5_save_skbs(struct net_device *dev)
 	lp->cache.save_cnt++;
 	START_DE4X5;
     }
-
-    return;
 }
 
 static void
@@ -3741,8 +3729,6 @@ de4x5_rst_desc_ring(struct net_device *dev)
 	lp->cache.save_cnt--;
 	START_DE4X5;
     }
-
-    return;
 }
 
 static void
@@ -3771,8 +3757,6 @@ de4x5_cache_state(struct net_device *dev, int flag)
 	}
 	break;
     }
-
-    return;
 }
 
 static void
@@ -3845,8 +3829,6 @@ de4x5_setup_intr(struct net_device *dev)
 	outl(sts, DE4X5_STS);
 	ENABLE_IRQs;
     }
-
-    return;
 }
 
 /*
@@ -3879,8 +3861,6 @@ reset_init_sia(struct net_device *dev, s32 csr13, s32 csr14, s32 csr15)
     outl(csr13, DE4X5_SICR);
 
     mdelay(10);
-
-    return;
 }
 
 /*
@@ -3901,8 +3881,6 @@ create_packet(struct net_device *dev, char *frame, int len)
 
     *buf++ = 0;                              /* Packet length (2 bytes) */
     *buf++ = 1;
-
-    return;
 }
 
 /*
@@ -4006,8 +3984,6 @@ DevicePresent(struct net_device *dev, u_long aprom_addr)
 	}
 	de4x5_dbg_srom((struct de4x5_srom *)&lp->srom);
     }
-
-    return;
 }
 
 /*
@@ -4045,8 +4021,6 @@ enet_addr_rst(u_long aprom_addr)
 	    }
 	}
     }
-
-    return;
 }
 
 /*
@@ -4186,8 +4160,6 @@ srom_repair(struct net_device *dev, int card)
 	lp->useSROM = true;
 	break;
     }
-
-    return;
 }
 
 /*
@@ -4261,8 +4233,6 @@ srom_latch(u_int command, u_long addr)
     sendto_srom(command, addr);
     sendto_srom(command | DT_CLK, addr);
     sendto_srom(command, addr);
-
-    return;
 }
 
 static void
@@ -4271,8 +4241,6 @@ srom_command(u_int command, u_long addr)
     srom_latch(command, addr);
     srom_latch(command, addr);
     srom_latch((command & 0x0000ff00) | DT_CS, addr);
-
-    return;
 }
 
 static void
@@ -4287,8 +4255,6 @@ srom_address(u_int command, u_long addr, u_char offset)
     udelay(1);
 
     i = (getfrom_srom(addr) >> 3) & 0x01;
-
-    return;
 }
 
 static short
@@ -4322,8 +4288,6 @@ srom_busy(u_int command, u_long addr)
    }
 
    sendto_srom(command & 0x0000ff00, addr);
-
-   return;
 }
 */
 
@@ -4332,8 +4296,6 @@ sendto_srom(u_int command, u_long addr)
 {
     outl(command, addr);
     udelay(1);
-
-    return;
 }
 
 static int
@@ -4432,8 +4394,6 @@ srom_init(struct net_device *dev)
 	    p += ((*p & BLOCK_LEN) + 1);
 	}
     }
-
-    return;
 }
 
 /*
@@ -4462,8 +4422,6 @@ srom_exec(struct net_device *dev, u_char *p)
 	outl(lp->cache.csr14, DE4X5_STRR);
 	outl(lp->cache.csr13, DE4X5_SICR);
     }
-
-    return;
 }
 
 /*
@@ -4888,8 +4846,6 @@ mii_wr(int data, u_char phyreg, u_char phyaddr, u_long ioaddr)
     mii_ta(MII_STWR, ioaddr);              /* Turn around time - 2 MDC       */
     data = mii_swap(data, 16);             /* Swap data bit ordering         */
     mii_wdata(data, 16, ioaddr);           /* Write data                     */
-
-    return;
 }
 
 static int
@@ -4915,8 +4871,6 @@ mii_wdata(int data, int len, u_long ioaddr)
 	sendto_mii(MII_MWR | MII_WR, data, ioaddr);
 	data >>= 1;
     }
-
-    return;
 }
 
 static void
@@ -4929,8 +4883,6 @@ mii_address(u_char addr, u_long ioaddr)
 	sendto_mii(MII_MWR | MII_WR, addr, ioaddr);
 	addr >>= 1;
     }
-
-    return;
 }
 
 static void
@@ -4942,8 +4894,6 @@ mii_ta(u_long rw, u_long ioaddr)
     } else {
 	getfrom_mii(MII_MRD | MII_RD, ioaddr);        /* Tri-state MDIO */
     }
-
-    return;
 }
 
 static int
@@ -4970,8 +4920,6 @@ sendto_mii(u32 command, int data, u_long ioaddr)
     udelay(1);
     outl(command | MII_MDC | j, ioaddr);
     udelay(1);
-
-    return;
 }
 
 static int
@@ -5185,8 +5133,6 @@ gep_wr(s32 data, struct net_device *dev)
     } else if ((lp->chipset & ~0x00ff) == DC2114x) {
 	outl((data<<16) | lp->cache.csr15, DE4X5_SIGR);
     }
-
-    return;
 }
 
 static int
@@ -5246,8 +5192,6 @@ yawn(struct net_device *dev, int state)
 	    break;
 	}
     }
-
-    return;
 }
 
 static void
@@ -5289,8 +5233,6 @@ de4x5_parse_params(struct net_device *dev)
 	}
 	*q = t;
     }
-
-    return;
 }
 
 static void
@@ -5340,8 +5282,6 @@ de4x5_dbg_open(struct net_device *dev)
 	       (short)lp->rxRingSize,
 	       (short)lp->txRingSize);
     }
-
-    return;
 }
 
 static void
@@ -5368,8 +5308,6 @@ de4x5_dbg_mii(struct net_device *dev, int k)
 	    printk("MII 20:  %x\n",mii_rd(0x14,lp->phy[k].addr,DE4X5_MII));
 	}
     }
-
-    return;
 }
 
 static void
@@ -5394,8 +5332,6 @@ de4x5_dbg_media(struct net_device *dev)
 	}
 	lp->c_media = lp->media;
     }
-
-    return;
 }
 
 static void
@@ -5416,8 +5352,6 @@ de4x5_dbg_srom(struct de4x5_srom *p)
 	    printk("%3d %04x\n", i<<1, (u_short)*((u_short *)p+i));
 	}
     }
-
-    return;
 }
 
 static void
@@ -5439,8 +5373,6 @@ de4x5_dbg_rx(struct sk_buff *skb, int len)
 	  printk("\n");
 	}
     }
-
-    return;
 }
 
 /*

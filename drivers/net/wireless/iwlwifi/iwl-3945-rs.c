@@ -545,8 +545,6 @@ static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
 
 	IWL_DEBUG_RATE(priv, "leave\n");
-
-	return;
 }
 
 static u16 iwl3945_get_adjacent_rate(struct iwl3945_rs_sta *rs_sta,

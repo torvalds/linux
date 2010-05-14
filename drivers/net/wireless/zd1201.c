@@ -134,7 +134,6 @@ static void zd1201_usbfree(struct urb *urb)
 
 	kfree(urb->transfer_buffer);
 	usb_free_urb(urb);
-	return;
 }
 
 /* cmdreq message: 
@@ -185,7 +184,6 @@ static void zd1201_usbtx(struct urb *urb)
 {
 	struct zd1201 *zd = urb->context;
 	netif_wake_queue(zd->dev);
-	return;
 }
 
 /* Incoming data */
@@ -407,7 +405,6 @@ exit:
 		wake_up(&zd->rxdataq);
 		kfree(urb->transfer_buffer);
 	}
-	return;
 }
 
 static int zd1201_getconfig(struct zd1201 *zd, int rid, void *riddata,

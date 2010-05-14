@@ -652,7 +652,6 @@ static void mdio_write(struct net_device *dev, int phy_id, int loc, int value)
 		if ((inl(ioaddr + MIICtrl) & MII_WRITEOP) == 0)
 			break;
 	}
-	return;
 }
 
 
@@ -840,7 +839,6 @@ static void epic_restart(struct net_device *dev)
 		   " interrupt %4.4x.\n",
 		   dev->name, (int)inl(ioaddr + COMMAND), (int)inl(ioaddr + GENCTL),
 		   (int)inl(ioaddr + INTSTAT));
-	return;
 }
 
 static void check_media(struct net_device *dev)
@@ -958,7 +956,6 @@ static void epic_init_ring(struct net_device *dev)
 			(i+1)*sizeof(struct epic_tx_desc);
 	}
 	ep->tx_ring[i-1].next = ep->tx_ring_dma;
-	return;
 }
 
 static netdev_tx_t epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -1413,7 +1410,6 @@ static void set_rx_mode(struct net_device *dev)
 			outw(((u16 *)mc_filter)[i], ioaddr + MC0 + i*4);
 		memcpy(ep->mc_filter, mc_filter, sizeof(mc_filter));
 	}
-	return;
 }
 
 static void netdev_get_drvinfo (struct net_device *dev, struct ethtool_drvinfo *info)

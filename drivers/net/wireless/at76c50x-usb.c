@@ -1223,7 +1223,6 @@ static void at76_rx_callback(struct urb *urb)
 
 	priv->rx_tasklet.data = (unsigned long)urb;
 	tasklet_schedule(&priv->rx_tasklet);
-	return;
 }
 
 static int at76_submit_rx_urb(struct at76_priv *priv)

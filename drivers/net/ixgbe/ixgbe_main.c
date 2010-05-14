@@ -1615,8 +1615,6 @@ static void ixgbe_set_itr_msix(struct ixgbe_q_vector *q_vector)
 
 		ixgbe_write_eitr(q_vector);
 	}
-
-	return;
 }
 
 static void ixgbe_check_fan_failure(struct ixgbe_adapter *adapter, u32 eicr)
@@ -2180,8 +2178,6 @@ static void ixgbe_set_itr(struct ixgbe_adapter *adapter)
 
 		ixgbe_write_eitr(q_vector);
 	}
-
-	return;
 }
 
 /**
@@ -4466,7 +4462,6 @@ static void ixgbe_reset_interrupt_capability(struct ixgbe_adapter *adapter)
 		adapter->flags &= ~IXGBE_FLAG_MSI_ENABLED;
 		pci_disable_msi(adapter->pdev);
 	}
-	return;
 }
 
 /**

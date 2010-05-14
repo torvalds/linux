@@ -426,7 +426,6 @@ sb1000_send_command(const int ioaddr[], const char* name,
 	if (sb1000_debug > 3)
 		printk(KERN_DEBUG "%s: sb1000_send_command out: %02x%02x%02x%02x"
 			"%02x%02x\n", name, out[0], out[1], out[2], out[3], out[4], out[5]);
-	return;
 }
 
 /* Card Read Status (to be used during frame rx) */
@@ -438,7 +437,6 @@ sb1000_read_status(const int ioaddr[], unsigned char in[])
 	in[3] = inb(ioaddr[0] + 3);
 	in[4] = inb(ioaddr[0] + 4);
 	in[0] = inb(ioaddr[0] + 5);
-	return;
 }
 
 /* Issue Read Command (to be used during frame rx) */
@@ -450,7 +448,6 @@ sb1000_issue_read_command(const int ioaddr[], const char* name)
 	sb1000_wait_for_ready_clear(ioaddr, name);
 	outb(0xa0, ioaddr[0] + 6);
 	sb1000_send_command(ioaddr, name, Command0);
-	return;
 }
 
 
@@ -733,7 +730,6 @@ sb1000_print_status_buffer(const char* name, unsigned char st[],
 			printk("\n");
 		}
 	}
-	return;
 }
 
 /*
@@ -926,7 +922,6 @@ sb1000_error_dpc(struct net_device *dev)
 	sb1000_read_status(ioaddr, st);
 	if (st[1] & 0x10)
 		lp->rx_error_dpc_count = ErrorDpcCounterInitialize;
-	return;
 }
 
 

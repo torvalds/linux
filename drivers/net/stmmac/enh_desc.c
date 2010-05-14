@@ -241,7 +241,6 @@ static void enh_desc_init_rx_desc(struct dma_desc *p, unsigned int ring_size,
 			p->des01.erx.disable_ic = 1;
 		p++;
 	}
-	return;
 }
 
 static void enh_desc_init_tx_desc(struct dma_desc *p, unsigned int ring_size)
@@ -254,8 +253,6 @@ static void enh_desc_init_tx_desc(struct dma_desc *p, unsigned int ring_size)
 			p->des01.etx.end_ring = 1;
 		p++;
 	}
-
-	return;
 }
 
 static int enh_desc_get_tx_owner(struct dma_desc *p)
@@ -289,8 +286,6 @@ static void enh_desc_release_tx_desc(struct dma_desc *p)
 
 	memset(p, 0, sizeof(struct dma_desc));
 	p->des01.etx.end_ring = ter;
-
-	return;
 }
 
 static void enh_desc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,

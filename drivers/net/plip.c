@@ -1191,8 +1191,6 @@ plip_wakeup(void *handle)
 		/* Clear the data port. */
 		write_data (dev, 0x00);
 	}
-
-	return;
 }
 
 static int
@@ -1308,7 +1306,6 @@ err_parport_unregister:
 	parport_unregister_device(nl->pardev);
 err_free_dev:
 	free_netdev(dev);
-	return;
 }
 
 /* plip_detach() is called (by the parport code) when a port is

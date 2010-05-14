@@ -222,7 +222,6 @@ static void ql_write_common_reg_l(struct ql3_adapter *qdev,
 	writel(value, reg);
 	readl(reg);
 	spin_unlock_irqrestore(&qdev->hw_lock, hw_flags);
-	return;
 }
 
 static void ql_write_common_reg(struct ql3_adapter *qdev,
@@ -230,7 +229,6 @@ static void ql_write_common_reg(struct ql3_adapter *qdev,
 {
 	writel(value, reg);
 	readl(reg);
-	return;
 }
 
 static void ql_write_nvram_reg(struct ql3_adapter *qdev,
@@ -239,7 +237,6 @@ static void ql_write_nvram_reg(struct ql3_adapter *qdev,
 	writel(value, reg);
 	readl(reg);
 	udelay(1);
-	return;
 }
 
 static void ql_write_page0_reg(struct ql3_adapter *qdev,
@@ -249,7 +246,6 @@ static void ql_write_page0_reg(struct ql3_adapter *qdev,
 		ql_set_register_page(qdev,0);
 	writel(value, reg);
 	readl(reg);
-	return;
 }
 
 /*
@@ -262,7 +258,6 @@ static void ql_write_page1_reg(struct ql3_adapter *qdev,
 		ql_set_register_page(qdev,1);
 	writel(value, reg);
 	readl(reg);
-	return;
 }
 
 /*
@@ -275,7 +270,6 @@ static void ql_write_page2_reg(struct ql3_adapter *qdev,
 		ql_set_register_page(qdev,2);
 	writel(value, reg);
 	readl(reg);
-	return;
 }
 
 static void ql_disable_interrupts(struct ql3_adapter *qdev)

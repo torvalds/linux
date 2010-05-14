@@ -1493,8 +1493,6 @@ static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 	tx_ring->tx_buffer_info = NULL;
 	kfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;
-
-	return;
 }
 
 static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
@@ -1973,8 +1971,6 @@ static void ixgbe_get_wol(struct net_device *netdev,
 		wol->wolopts |= WAKE_BCAST;
 	if (adapter->wol & IXGBE_WUFC_MAG)
 		wol->wolopts |= WAKE_MAGIC;
-
-	return;
 }
 
 static int ixgbe_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)

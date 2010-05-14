@@ -1629,7 +1629,6 @@ static void scc_net_rx(struct scc_channel *scc, struct sk_buff *skb)
 	skb->protocol = ax25_type_trans(skb, scc->dev);
 	
 	netif_rx(skb);
-	return;
 }
 
 /* ----> transmit frame <---- */

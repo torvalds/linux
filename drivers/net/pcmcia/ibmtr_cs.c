@@ -402,8 +402,6 @@ static void ibmtr_hw_setup(struct net_device *dev, u_int mmiobase)
 
     /* 0x40 will release the card for use */
     outb(0x40, dev->base_addr);
-
-    return;
 }
 
 static struct pcmcia_device_id ibmtr_ids[] = {

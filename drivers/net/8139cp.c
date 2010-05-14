@@ -1224,8 +1224,6 @@ static void cp_tx_timeout(struct net_device *dev)
 	netif_wake_queue(dev);
 
 	spin_unlock_irqrestore(&cp->lock, flags);
-
-	return;
 }
 
 #ifdef BROKEN

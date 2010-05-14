@@ -90,7 +90,6 @@ static void lbs_save_rawSNRNF(struct lbs_private *priv, struct rxpd *p_rx_pd)
 	priv->nextSNRNF++;
 	if (priv->nextSNRNF >= DEFAULT_DATA_AVG_FACTOR)
 		priv->nextSNRNF = 0;
-	return;
 }
 
 /**

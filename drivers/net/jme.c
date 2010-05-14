@@ -103,8 +103,6 @@ jme_mdio_write(struct net_device *netdev,
 
 	if (i == 0)
 		jeprintk(jme->pdev, "phy(%d) write timeout : %d\n", phy, reg);
-
-	return;
 }
 
 static inline void
@@ -130,8 +128,6 @@ jme_reset_phy_processor(struct jme_adapter *jme)
 	jme_mdio_write(jme->dev,
 			jme->mii_if.phy_id,
 			MII_BMCR, val | BMCR_RESET);
-
-	return;
 }
 
 static void

@@ -791,7 +791,6 @@ static void ei_receive(struct net_device *dev)
 	/* We used to also ack ENISR_OVER here, but that would sometimes mask
 	   a real overrun, leaving the 8390 in a stopped state with rec'vr off. */
 	ei_outb_p(ENISR_RX+ENISR_RX_ERR, e8390_base+EN0_ISR);
-	return;
 }
 
 /**

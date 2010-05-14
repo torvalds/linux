@@ -1239,7 +1239,6 @@ static void smc_hardware_send_packet(struct net_device * dev)
     dev_kfree_skb_irq(skb);
     dev->trans_start = jiffies;
     netif_start_queue(dev);
-    return;
 }
 
 /*====================================================================*/
@@ -1369,7 +1368,6 @@ static void smc_tx_err(struct net_device * dev)
     smc->packets_waiting--;
 
     outw(saved_packet, ioaddr + PNR_ARR);
-    return;
 }
 
 /*====================================================================*/
@@ -1589,8 +1587,6 @@ static void smc_rx(struct net_device *dev)
     }
     /* Let the MMU free the memory of this packet. */
     outw(MC_RELEASE, ioaddr + MMU_CMD);
-
-    return;
 }
 
 /*======================================================================
@@ -1640,8 +1636,6 @@ static void set_rx_mode(struct net_device *dev)
     outw(rx_cfg_setting, ioaddr + RCR);
     SMC_SELECT_BANK(2);
     spin_unlock_irqrestore(&smc->lock, flags);
-
-    return;
 }
 
 /*======================================================================

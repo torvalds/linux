@@ -1118,7 +1118,6 @@ static void dmfe_ethtool_get_wol(struct net_device *dev,
 
 	wolinfo->supported = WAKE_PHY | WAKE_MAGIC;
 	wolinfo->wolopts = db->wol_mode;
-	return;
 }
 
 

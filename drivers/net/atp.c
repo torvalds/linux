@@ -802,7 +802,6 @@ static void net_rx(struct net_device *dev)
  done:
 	write_reg(ioaddr, CMR1, CMR1_NextPkt);
 	lp->last_rx_time = jiffies;
-	return;
 }
 
 static void read_block(long ioaddr, int length, unsigned char *p, int data_mode)

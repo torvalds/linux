@@ -578,7 +578,6 @@ static void seeq8005_rx(struct net_device *dev)
 	/* If any worth-while packets have been received, netif_rx()
 	   has done a mark_bh(NET_BH) for us and will work on them
 	   when we get to the bottom-half routine. */
-	return;
 }
 
 /* The inverse routine to net_open(). */

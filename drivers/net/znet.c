@@ -801,7 +801,6 @@ static void znet_rx(struct net_device *dev)
 	/* If any worth-while packets have been received, dev_rint()
 	   has done a mark_bh(INET_BH) for us and will work on them
 	   when we get to the bottom-half routine. */
-	return;
 }
 
 /* The inverse routine to znet_open(). */

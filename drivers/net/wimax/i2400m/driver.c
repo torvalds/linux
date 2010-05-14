@@ -711,7 +711,6 @@ out:
 	kfree(iw);
 	d_fnend(3, dev, "(ws %p i2400m %p reason %s) = void\n",
 		ws, i2400m, reason);
-	return;
 }
 
 
@@ -996,7 +995,6 @@ void __exit i2400m_driver_exit(void)
 	/* for scheds i2400m_dev_reset_handle() */
 	flush_scheduled_work();
 	i2400m_barker_db_exit();
-	return;
 }
 module_exit(i2400m_driver_exit);
 

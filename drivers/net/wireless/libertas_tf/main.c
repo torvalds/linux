@@ -360,7 +360,6 @@ static void lbtf_op_stop(struct ieee80211_hw *hw)
 	lbtf_set_radio_control(priv);
 
 	lbtf_deb_leave(LBTF_DEB_MACOPS);
-	return;
 }
 
 static int lbtf_op_add_interface(struct ieee80211_hw *hw,

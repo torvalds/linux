@@ -1472,7 +1472,6 @@ static void hso_serial_set_termios(struct tty_struct *tty, struct ktermios *old)
 	spin_unlock_irqrestore(&serial->serial_lock, flags);
 
 	/* done */
-	return;
 }
 
 /* how many characters in the buffer */
@@ -1992,7 +1991,6 @@ static void hso_std_serial_write_bulk_callback(struct urb *urb)
 	hso_kick_transmit(serial);
 
 	D1(" ");
-	return;
 }
 
 /* called for writing diag or CS serial port */

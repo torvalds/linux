@@ -596,8 +596,6 @@ alloc_list (struct net_device *dev)
 	/* Set RFDListPtr */
 	writel (np->rx_ring_dma, dev->base_addr + RFDListPtr0);
 	writel (0, dev->base_addr + RFDListPtr1);
-
-	return;
 }
 
 static netdev_tx_t

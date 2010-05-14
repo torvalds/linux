@@ -2919,8 +2919,6 @@ static void __devinit ace_clear(struct ace_regs __iomem *regs, u32 dest, int siz
 		dest += tsize;
 		size -= tsize;
 	}
-
-	return;
 }
 
 

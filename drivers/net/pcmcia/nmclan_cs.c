@@ -1313,8 +1313,6 @@ static void update_stats(unsigned int ioaddr, struct net_device *dev)
   lp->linux_stats.tx_fifo_errors = lp->mace_stats.uflo;
   lp->linux_stats.tx_heartbeat_errors = lp->mace_stats.cerr;
   /* lp->linux_stats.tx_window_errors; */
-
-  return;
 } /* update_stats */
 
 /* ----------------------------------------------------------------------------

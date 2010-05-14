@@ -946,8 +946,6 @@ static void ixgbevf_set_itr_msix(struct ixgbevf_q_vector *q_vector)
 		itr_reg = EITR_INTS_PER_SEC_TO_REG(new_itr);
 		ixgbevf_write_eitr(adapter, v_idx, itr_reg);
 	}
-
-	return;
 }
 
 static irqreturn_t ixgbevf_msix_mbx(int irq, void *data)
@@ -2151,8 +2149,6 @@ static void ixgbevf_reset_interrupt_capability(struct ixgbevf_adapter *adapter)
 	pci_disable_msix(adapter->pdev);
 	kfree(adapter->msix_entries);
 	adapter->msix_entries = NULL;
-
-	return;
 }
 
 /**

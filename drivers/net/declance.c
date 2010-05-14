@@ -969,7 +969,6 @@ static void lance_load_multicast(struct net_device *dev)
 		crc = crc >> 26;
 		*lib_ptr(ib, filter[crc >> 4], lp->type) |= 1 << (crc & 0xf);
 	}
-	return;
 }
 
 static void lance_set_multicast(struct net_device *dev)

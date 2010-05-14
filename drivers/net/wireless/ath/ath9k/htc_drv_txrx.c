@@ -663,7 +663,6 @@ void ath9k_htc_rxep(void *drv_priv, struct sk_buff *skb,
 	return;
 err:
 	dev_kfree_skb_any(skb);
-	return;
 }
 
 /* FIXME: Locking for cleanup/init */

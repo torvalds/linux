@@ -3239,7 +3239,6 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 			       IPW_MEM_HOST_SHARED_TX_QUEUE_WRITE_INDEX,
 			       txq->next);
 	}
-	return;
 }
 
 static void ipw2100_irq_tasklet(struct ipw2100_priv *priv)

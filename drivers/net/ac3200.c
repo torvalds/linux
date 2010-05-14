@@ -307,8 +307,6 @@ static void ac_reset_8390(struct net_device *dev)
 	ei_status.txing = 0;
 	outb(AC_ENABLE, ioaddr + AC_RESET_PORT);
 	if (ei_debug > 1) printk("reset done\n");
-
-	return;
 }
 
 /* Grab the 8390 specific header. Similar to the block_input routine, but

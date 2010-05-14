@@ -2943,7 +2943,6 @@ static void s2io_netpoll(struct net_device *dev)
 		}
 	}
 	enable_irq(dev->irq);
-	return;
 }
 #endif
 
@@ -4756,7 +4755,6 @@ reset:
 	s2io_stop_all_tx_queue(sp);
 	schedule_work(&sp->rst_timer_task);
 	sw_stat->soft_reset_cnt++;
-	return;
 }
 
 /**
@@ -8645,7 +8643,6 @@ static void lro_append_pkt(struct s2io_nic *sp, struct lro *lro,
 	first->truesize += skb->truesize;
 	lro->last_frag = skb;
 	swstats->clubbed_frms_cnt++;
-	return;
 }
 
 /**

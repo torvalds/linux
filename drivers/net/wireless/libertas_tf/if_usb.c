@@ -576,7 +576,6 @@ static void if_usb_receive_fwload(struct urb *urb)
 	kfree(syncfwheader);
 
 	lbtf_deb_leave(LBTF_DEB_USB);
-	return;
 }
 
 #define MRVDRV_MIN_PKT_LEN	30

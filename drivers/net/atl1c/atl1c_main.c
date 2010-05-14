@@ -317,8 +317,6 @@ static void atl1c_common_task(struct work_struct *work)
 
 	if (adapter->work_event & ATL1C_WORK_EVENT_LINK_CHANGE)
 		atl1c_check_link_status(adapter);
-
-	return;
 }
 
 

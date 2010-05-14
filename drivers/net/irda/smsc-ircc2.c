@@ -2822,7 +2822,6 @@ static void __init preconfigure_ali_port(struct pci_dev *dev,
 	tmpbyte |= mask;
 	pci_write_config_byte(dev, reg, tmpbyte);
 	IRDA_MESSAGE("Activated ALi 1533 ISA bridge port 0x%04x.\n", port);
-	return;
 }
 
 static int __init preconfigure_through_ali(struct pci_dev *dev,

@@ -1421,7 +1421,6 @@ static void ibmveth_proc_register_adapter(struct ibmveth_adapter *adapter)
 		if (!entry)
 			ibmveth_error_printk("Cannot create adapter proc entry");
 	}
-	return;
 }
 
 static void ibmveth_proc_unregister_adapter(struct ibmveth_adapter *adapter)

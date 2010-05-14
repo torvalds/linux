@@ -1015,8 +1015,6 @@ static void e1000_free_desc_rings(struct e1000_adapter *adapter)
 	txdr->buffer_info = NULL;
 	kfree(rxdr->buffer_info);
 	rxdr->buffer_info = NULL;
-
-	return;
 }
 
 static int e1000_setup_desc_rings(struct e1000_adapter *adapter)
@@ -1711,8 +1709,6 @@ static void e1000_get_wol(struct net_device *netdev,
 		wol->wolopts |= WAKE_BCAST;
 	if (adapter->wol & E1000_WUFC_MAG)
 		wol->wolopts |= WAKE_MAGIC;
-
-	return;
 }
 
 static int e1000_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)

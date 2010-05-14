@@ -902,7 +902,6 @@ get_dma_channel(struct net_device *dev)
 			return;
 		}
 	}
-	return;
 }
 
 static void
@@ -1672,7 +1671,6 @@ count_rx_errors(int status, struct net_local *lp)
 		/* per str 172 */
 		lp->stats.rx_crc_errors++;
 	if (status & RX_DRIBBLE) lp->stats.rx_frame_errors++;
-	return;
 }
 
 /* We have a good packet(s), get it/them out of the buffers. */

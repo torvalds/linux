@@ -573,7 +573,6 @@ el2_block_output(struct net_device *dev, int count,
     }
     blocked:;
     outb_p(ei_status.interface_num==0 ? ECNTRL_THIN : ECNTRL_AUI, E33G_CNTRL);
-    return;
 }
 
 /* Read the 4 byte, page aligned 8390 specific header. */
@@ -689,7 +688,6 @@ el2_block_input(struct net_device *dev, int count, struct sk_buff *skb, int ring
     }
     blocked:;
     outb_p(ei_status.interface_num == 0 ? ECNTRL_THIN : ECNTRL_AUI, E33G_CNTRL);
-    return;
 }
 
 

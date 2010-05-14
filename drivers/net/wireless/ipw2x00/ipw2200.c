@@ -2607,8 +2607,6 @@ static inline void eeprom_write_reg(struct ipw_priv *p, u32 data)
 
 	/* the eeprom requires some time to complete the operation */
 	udelay(p->eeprom_delay);
-
-	return;
 }
 
 /* perform a chip select operation */

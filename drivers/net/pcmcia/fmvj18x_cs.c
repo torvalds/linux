@@ -1081,8 +1081,6 @@ static void fjn_rx(struct net_device *dev)
 		  "%d ticks.\n", dev->name, inb(ioaddr + RX_MODE), i);
     }
 */
-
-    return;
 } /* fjn_rx */
 
 /*====================================================================*/

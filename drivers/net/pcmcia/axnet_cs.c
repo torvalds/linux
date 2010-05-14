@@ -1510,8 +1510,6 @@ static void ei_receive(struct net_device *dev)
 		ei_local->current_page = next_frame;
 		outb_p(next_frame-1, e8390_base+EN0_BOUNDARY);
 	}
-
-	return;
 }
 
 /**

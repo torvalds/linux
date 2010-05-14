@@ -1452,8 +1452,6 @@ static void wl3501_detach(struct pcmcia_device *link)
 
 	if (link->priv)
 		free_netdev(link->priv);
-
-	return;
 }
 
 static int wl3501_get_name(struct net_device *dev, struct iw_request_info *info,

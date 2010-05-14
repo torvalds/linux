@@ -564,7 +564,6 @@ static void mdio_write(void __iomem *ioaddr, int phy_id, int location, int value
 	for (i = 10000; i >= 0; i--)
 		if ((ioread16(ioaddr + MII_Status) & 1) == 0)
 			break;
-	return;
 }
 
 

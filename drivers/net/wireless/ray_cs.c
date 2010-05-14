@@ -735,8 +735,6 @@ static void verify_dl_startup(u_long data)
 		start_net((u_long) local);
 	else
 		join_net((u_long) local);
-
-	return;
 } /* end verify_dl_startup */
 
 /*===========================================================================*/
@@ -764,7 +762,6 @@ static void start_net(u_long data)
 		return;
 	}
 	local->card_status = CARD_DOING_ACQ;
-	return;
 } /* end start_net */
 
 /*===========================================================================*/
@@ -795,7 +792,6 @@ static void join_net(u_long data)
 		return;
 	}
 	local->card_status = CARD_DOING_ACQ;
-	return;
 }
 
 /*============================================================================
@@ -1626,7 +1622,6 @@ static int ray_dev_close(struct net_device *dev)
 static void ray_reset(struct net_device *dev)
 {
 	pr_debug("ray_reset entered\n");
-	return;
 }
 
 /*===========================================================================*/

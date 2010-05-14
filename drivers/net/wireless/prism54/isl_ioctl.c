@@ -210,8 +210,6 @@ prism54_update_stats(struct work_struct *work)
 	priv->local_iwstatistics.discard.retries = r.u;
 
 	mutex_unlock(&priv->stats_lock);
-
-	return;
 }
 
 struct iw_statistics *

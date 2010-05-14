@@ -622,8 +622,6 @@ static void mdio_write(unsigned int ioaddr, int phy_id, int location, int value)
 		outw(MDIO_ENB_IN, mdio_addr);
 		outw(MDIO_ENB_IN | MDIO_SHIFT_CLK, mdio_addr);
 	}
-
-	return;
 }
 
 /* Reset and restore all of the 3c574 registers. */

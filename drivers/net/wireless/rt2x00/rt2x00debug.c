@@ -700,8 +700,6 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 exit:
 	rt2x00debug_deregister(rt2x00dev);
 	ERROR(rt2x00dev, "Failed to register debug handler.\n");
-
-	return;
 }
 
 void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev)

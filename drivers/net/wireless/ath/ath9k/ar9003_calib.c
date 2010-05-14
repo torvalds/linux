@@ -726,7 +726,6 @@ static void ar9003_hw_tx_iq_cal(struct ath_hw *ah)
 
 TX_IQ_CAL_FAILED:
 	ath_print(common, ATH_DBG_CALIBRATE, "Tx IQ Cal failed\n");
-	return;
 }
 
 static bool ar9003_hw_init_cal(struct ath_hw *ah,

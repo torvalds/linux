@@ -1148,8 +1148,6 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	default:
 		break;
 	}
-
-	return;
 }
 
 /**
@@ -1653,8 +1651,6 @@ static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw)
 	/* If the management interface is not enabled, then power down */
 	if (!(mac->ops.check_mng_mode(hw) || phy->ops.check_reset_block(hw)))
 		e1000_power_down_phy_copper(hw);
-
-	return;
 }
 
 /**

@@ -726,7 +726,6 @@ static void el_receive(struct net_device *dev)
 		dev->stats.rx_packets++;
 		dev->stats.rx_bytes += pkt_len;
 	}
-	return;
 }
 
 /**

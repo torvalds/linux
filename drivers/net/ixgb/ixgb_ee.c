@@ -58,7 +58,6 @@ ixgb_raise_clock(struct ixgb_hw *hw,
 	*eecd_reg = *eecd_reg | IXGB_EECD_SK;
 	IXGB_WRITE_REG(hw, EECD, *eecd_reg);
 	udelay(50);
-	return;
 }
 
 /******************************************************************************
@@ -77,7 +76,6 @@ ixgb_lower_clock(struct ixgb_hw *hw,
 	*eecd_reg = *eecd_reg & ~IXGB_EECD_SK;
 	IXGB_WRITE_REG(hw, EECD, *eecd_reg);
 	udelay(50);
-	return;
 }
 
 /******************************************************************************
@@ -127,7 +125,6 @@ ixgb_shift_out_bits(struct ixgb_hw *hw,
 	/* We leave the "DI" bit set to "0" when we leave this routine. */
 	eecd_reg &= ~IXGB_EECD_DI;
 	IXGB_WRITE_REG(hw, EECD, eecd_reg);
-	return;
 }
 
 /******************************************************************************
@@ -192,7 +189,6 @@ ixgb_setup_eeprom(struct ixgb_hw *hw)
 	/*  Set CS  */
 	eecd_reg |= IXGB_EECD_CS;
 	IXGB_WRITE_REG(hw, EECD, eecd_reg);
-	return;
 }
 
 /******************************************************************************
@@ -226,7 +222,6 @@ ixgb_standby_eeprom(struct ixgb_hw *hw)
 	eecd_reg &= ~IXGB_EECD_SK;
 	IXGB_WRITE_REG(hw, EECD, eecd_reg);
 	udelay(50);
-	return;
 }
 
 /******************************************************************************
@@ -250,7 +245,6 @@ ixgb_clock_eeprom(struct ixgb_hw *hw)
 	eecd_reg &= ~IXGB_EECD_SK;
 	IXGB_WRITE_REG(hw, EECD, eecd_reg);
 	udelay(50);
-	return;
 }
 
 /******************************************************************************
@@ -270,7 +264,6 @@ ixgb_cleanup_eeprom(struct ixgb_hw *hw)
 	IXGB_WRITE_REG(hw, EECD, eecd_reg);
 
 	ixgb_clock_eeprom(hw);
-	return;
 }
 
 /******************************************************************************
@@ -359,7 +352,6 @@ ixgb_update_eeprom_checksum(struct ixgb_hw *hw)
 	checksum = (u16) EEPROM_SUM - checksum;
 
 	ixgb_write_eeprom(hw, EEPROM_CHECKSUM_REG, checksum);
-	return;
 }
 
 /******************************************************************************
@@ -414,8 +406,6 @@ ixgb_write_eeprom(struct ixgb_hw *hw, u16 offset, u16 data)
 
 	/* clear the init_ctrl_reg_1 to signify that the cache is invalidated */
 	ee_map->init_ctrl_reg_1 = cpu_to_le16(EEPROM_ICW1_SIGNATURE_CLEAR);
-
-	return;
 }
 
 /******************************************************************************

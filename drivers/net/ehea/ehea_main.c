@@ -1881,7 +1881,6 @@ static void ehea_promiscuous(struct net_device *dev, int enable)
 	port->promisc = enable;
 out:
 	free_page((unsigned long)cb7);
-	return;
 }
 
 static u64 ehea_multicast_reg_helper(struct ehea_port *port, u64 mc_mac_addr,
@@ -2025,7 +2024,6 @@ static void ehea_set_multicast_list(struct net_device *dev)
 	}
 out:
 	ehea_update_bcmc_registrations();
-	return;
 }
 
 static int ehea_change_mtu(struct net_device *dev, int new_mtu)
@@ -2338,7 +2336,6 @@ static void ehea_vlan_rx_kill_vid(struct net_device *dev, unsigned short vid)
 		ehea_error("modify_ehea_port failed");
 out:
 	free_page((unsigned long)cb1);
-	return;
 }
 
 int ehea_activate_qp(struct ehea_adapter *adapter, struct ehea_qp *qp)
@@ -2881,7 +2878,6 @@ static void ehea_reset_port(struct work_struct *work)
 	netif_wake_queue(dev);
 out:
 	mutex_unlock(&port->port_lock);
-	return;
 }
 
 static void ehea_rereg_mrs(struct work_struct *work)

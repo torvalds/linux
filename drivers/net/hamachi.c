@@ -859,7 +859,6 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 	for (i = 10000; i >= 0; i--)
 		if ((readw(ioaddr + MII_Status) & 1) == 0)
 			break;
-	return;
 }
 
 
@@ -1225,8 +1224,6 @@ static void hamachi_init_ring(struct net_device *dev)
 	}
 	/* Mark the last entry of the ring */
 	hmp->tx_ring[TX_RING_SIZE-1].status_n_length |= cpu_to_le32(DescEndRing);
-
-	return;
 }
 
 

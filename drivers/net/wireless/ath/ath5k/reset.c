@@ -627,7 +627,6 @@ static void ath5k_hw_set_sleep_clock(struct ath5k_hw *ah, bool enable)
 
 		AR5K_REG_WRITE_BITS(ah, AR5K_TSF_PARM, AR5K_TSF_PARM_INC, 1);
 	}
-	return;
 }
 
 /* TODO: Half/Quarter rate */
@@ -883,8 +882,6 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 	/* Heavy clipping -disable for now */
 	if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_5_1)
 		ath5k_hw_reg_write(ah, 0, AR5K_PHY_HEAVY_CLIP_ENABLE);
-
-	return;
 }
 
 /*

@@ -593,8 +593,6 @@ static void cops_load (struct net_device *dev)
                 tangent_wait_reset(ioaddr);
                 inb(ioaddr);	/* Clear initial ready signal. */
         }
-
-        return;
 }
 
 /*
@@ -701,8 +699,6 @@ static void cops_poll(unsigned long ltdev)
 	/* poll 20 times per second */
 	cops_timer.expires = jiffies + HZ/20;
 	add_timer(&cops_timer);
-
-	return;
 }
 
 /*

@@ -255,7 +255,6 @@ void i2400m_net_wake_stop(struct i2400m *i2400m)
 		kfree_skb(wake_tx_skb);
 	}
 	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);
-	return;
 }
 
 
@@ -434,7 +433,6 @@ void i2400m_tx_timeout(struct net_device *net_dev)
 	 * this, there might be data pending to be sent or not...
 	 */
 	net_dev->stats.tx_errors++;
-	return;
 }
 
 

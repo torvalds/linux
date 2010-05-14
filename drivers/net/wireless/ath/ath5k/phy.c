@@ -2145,8 +2145,6 @@ ath5k_get_chan_pcal_surrounding_piers(struct ath5k_hw *ah,
 done:
 	*pcinfo_l = &pcinfo[idx_l];
 	*pcinfo_r = &pcinfo[idx_r];
-
-	return;
 }
 
 /*

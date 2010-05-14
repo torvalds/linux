@@ -132,7 +132,6 @@ static void ndesc_init_rx_desc(struct dma_desc *p, unsigned int ring_size,
 			p->des01.rx.disable_ic = 1;
 		p++;
 	}
-	return;
 }
 
 static void ndesc_init_tx_desc(struct dma_desc *p, unsigned int ring_size)
@@ -144,7 +143,6 @@ static void ndesc_init_tx_desc(struct dma_desc *p, unsigned int ring_size)
 			p->des01.tx.end_ring = 1;
 		p++;
 	}
-	return;
 }
 
 static int ndesc_get_tx_owner(struct dma_desc *p)
@@ -194,8 +192,6 @@ static void ndesc_release_tx_desc(struct dma_desc *p)
 
 	/* set termination field */
 	p->des01.tx.end_ring = ter;
-
-	return;
 }
 
 static void ndesc_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
