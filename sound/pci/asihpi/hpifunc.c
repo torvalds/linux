@@ -3407,7 +3407,7 @@ u16 hpi_entity_alloc_and_pack(const enum e_entity_type type,
 	if (hE)
 		return hE;
 
-	HPI_DEBUG_ASSERT(role > entity_role_null && type < LAST_ENTITY_ROLE);
+	HPI_DEBUG_ASSERT(role > entity_role_null && type < LAST_ENTITY_TYPE);
 
 	bytes_to_copy = entity_type_to_size[type] * item_count;
 	total_size = hpi_entity_header_size(*entity) + bytes_to_copy;
