@@ -485,7 +485,7 @@ void drm_fb_helper_fini(struct drm_fb_helper *fb_helper)
 	if (!list_empty(&fb_helper->kernel_fb_list)) {
 		list_del(&fb_helper->kernel_fb_list);
 		if (list_empty(&kernel_fb_helper_list)) {
-			printk(KERN_INFO "unregistered panic notifier\n");
+			printk(KERN_INFO "drm: unregistered panic notifier\n");
 			atomic_notifier_chain_unregister(&panic_notifier_list,
 							 &paniced);
 			unregister_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
@@ -859,7 +859,7 @@ int drm_fb_helper_single_fb_probe(struct drm_fb_helper *fb_helper,
 	/* Switch back to kernel console on panic */
 	/* multi card linked list maybe */
 	if (list_empty(&kernel_fb_helper_list)) {
-		printk(KERN_INFO "registered panic notifier\n");
+		printk(KERN_INFO "drm: registered panic notifier\n");
 		atomic_notifier_chain_register(&panic_notifier_list,
 					       &paniced);
 		register_sysrq_key('v', &sysrq_drm_fb_helper_restore_op);
