@@ -57,7 +57,7 @@ static ssize_t write_file_debug(struct file *file, const char __user *user_buf,
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
-		return -EINVAL;
+		return -EFAULT;
 
 	buf[len] = '\0';
 	if (strict_strtoul(buf, 0, &mask))
@@ -101,7 +101,7 @@ static ssize_t write_file_tx_chainmask(struct file *file, const char __user *use
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
-		return -EINVAL;
+		return -EFAULT;
 
 	buf[len] = '\0';
 	if (strict_strtoul(buf, 0, &mask))
@@ -143,7 +143,7 @@ static ssize_t write_file_rx_chainmask(struct file *file, const char __user *use
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
-		return -EINVAL;
+		return -EFAULT;
 
 	buf[len] = '\0';
 	if (strict_strtoul(buf, 0, &mask))
@@ -176,7 +176,7 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 
 	buf = kmalloc(DMA_BUF_LEN, GFP_KERNEL);
 	if (!buf)
-		return 0;
+		return -ENOMEM;
 
 	ath9k_ps_wakeup(sc);
 
@@ -411,7 +411,7 @@ static ssize_t read_file_rcstat(struct file *file, char __user *user_buf,
 	max = 80 + sc->cur_rate_table->rate_cnt * 1024 + 1;
 	buf = kmalloc(max, GFP_KERNEL);
 	if (buf == NULL)
-		return 0;
+		return -ENOMEM;
 
 	len += sprintf(buf, "%6s %6s %6s "
 		       "%10s %10s %10s %10s\n",
@@ -646,7 +646,7 @@ static ssize_t read_file_xmit(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return 0;
+		return -ENOMEM;
 
 	len += sprintf(buf, "%30s %10s%10s%10s\n\n", "BE", "BK", "VI", "VO");
 
@@ -719,7 +719,7 @@ static ssize_t read_file_recv(struct file *file, char __user *user_buf,
 
 	buf = kzalloc(size, GFP_KERNEL);
 	if (buf == NULL)
-		return 0;
+		return -ENOMEM;
 
 	len += snprintf(buf + len, size - len,
 			"%18s : %10u\n", "CRC ERR",
@@ -838,7 +838,7 @@ static ssize_t write_file_regidx(struct file *file, const char __user *user_buf,
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
-		return -EINVAL;
+		return -EFAULT;
 
 	buf[len] = '\0';
 	if (strict_strtoul(buf, 0, &regidx))
@@ -880,7 +880,7 @@ static ssize_t write_file_regval(struct file *file, const char __user *user_buf,
 
 	len = min(count, sizeof(buf) - 1);
 	if (copy_from_user(buf, user_buf, len))
-		return -EINVAL;
+		return -EFAULT;
 
 	buf[len] = '\0';
 	if (strict_strtoul(buf, 0, &regval))
