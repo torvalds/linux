@@ -566,14 +566,21 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 		return ret;
 	}
 
-	if (fw->size != sizeof(struct wl1271_nvs_file)) {
+	/*
+	 * FIXME: the LEGACY NVS image support (NVS's missing the 5GHz band
+	 * configurations) can be removed when those NVS files stop floating
+	 * around.
+	 */
+	if (fw->size != sizeof(struct wl1271_nvs_file) &&
+	    (fw->size != WL1271_INI_LEGACY_NVS_FILE_SIZE ||
+	     wl1271_11a_enabled())) {
 		wl1271_error("nvs size is not as expected: %zu != %zu",
 			     fw->size, sizeof(struct wl1271_nvs_file));
 		ret = -EILSEQ;
 		goto out;
 	}
 
-	wl->nvs = kmalloc(sizeof(struct wl1271_nvs_file), GFP_KERNEL);
+	wl->nvs = kzalloc(sizeof(struct wl1271_nvs_file), GFP_KERNEL);
 
 	if (!wl->nvs) {
 		wl1271_error("could not allocate memory for the nvs file");
@@ -581,7 +588,7 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 		goto out;
 	}
 
-	memcpy(wl->nvs, fw->data, sizeof(struct wl1271_nvs_file));
+	memcpy(wl->nvs, fw->data, fw->size);
 
 out:
 	release_firmware(fw);

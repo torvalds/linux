@@ -95,8 +95,9 @@ struct wl1271_ini_fem_params_5 {
 
 /* NVS data structure */
 #define WL1271_INI_NVS_SECTION_SIZE		     468
-#define WL1271_INI_SPARE_SIZE			     124
 #define WL1271_INI_FEM_MODULE_COUNT                  2
+
+#define WL1271_INI_LEGACY_NVS_FILE_SIZE              800
 
 struct wl1271_nvs_file {
 	/* NVS section */
@@ -111,8 +112,12 @@ struct wl1271_nvs_file {
 		struct wl1271_ini_fem_params_2 params;
 		u8 padding;
 	} dyn_radio_params_2[WL1271_INI_FEM_MODULE_COUNT];
-
-	u8 ini_spare[WL1271_INI_SPARE_SIZE];
+	struct wl1271_ini_band_params_5 stat_radio_params_5;
+	u8 padding3;
+	struct {
+		struct wl1271_ini_fem_params_5 params;
+		u8 padding;
+	} dyn_radio_params_5[WL1271_INI_FEM_MODULE_COUNT];
 } __attribute__ ((packed));
 
 #endif
