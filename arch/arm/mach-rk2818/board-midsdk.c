@@ -165,7 +165,6 @@ struct rk2818_i2c_platform_data default_i2c0_data __initdata = {
 	.flags      = 0,
 	.slave_addr = 0xff,
 	.scl_rate  = 400*1000,
-	.clk_id  = "i2c0",
 	.cfg_gpio = rk2818_i2c0_cfg_gpio,
 };
 struct rk2818_i2c_platform_data default_i2c1_data __initdata = { 
@@ -177,7 +176,6 @@ struct rk2818_i2c_platform_data default_i2c1_data __initdata = {
 	.flags      = 0,
 	.slave_addr = 0xff,
 	.scl_rate  = 400*1000,
-	.clk_id  = "i2c1",
 	.cfg_gpio = rk2818_i2c1_cfg_gpio,
 };
 
