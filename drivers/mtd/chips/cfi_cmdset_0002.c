@@ -390,14 +390,15 @@ struct mtd_info *cfi_cmdset_0002(struct map_info *map, int primary)
 #endif
 
 			bootloc = extp->TopBottom;
-			if ((bootloc != 2) && (bootloc != 3)) {
-				printk(KERN_WARNING "%s: CFI does not contain boot "
-				       "bank location. Assuming top.\n", map->name);
+			if ((bootloc < 2) || (bootloc > 5)) {
+				printk(KERN_WARNING "%s: CFI contains unrecognised boot "
+				       "bank location (%d). Assuming bottom.\n",
+				       bootloc, map->name);
 				bootloc = 2;
 			}
 
 			if (bootloc == 3 && cfi->cfiq->NumEraseRegions > 1) {
-				printk(KERN_WARNING "%s: Swapping erase regions for broken CFI table.\n", map->name);
+				printk(KERN_WARNING "%s: Swapping erase regions for top-boot CFI table.\n", map->name);
 
 				for (i=0; i<cfi->cfiq->NumEraseRegions / 2; i++) {
 					int j = (cfi->cfiq->NumEraseRegions-1)-i;
