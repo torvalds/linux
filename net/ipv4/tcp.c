@@ -2215,7 +2215,7 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 	default:
 		/* fallthru */
 		break;
-	};
+	}
 
 	if (optlen < sizeof(int))
 		return -EINVAL;

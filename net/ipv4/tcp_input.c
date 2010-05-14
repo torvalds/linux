@@ -3845,12 +3845,13 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 					/* 16-bit multiple */
 					opt_rx->cookie_plus = opsize;
 					*hvpp = ptr;
+					break;
 				default:
 					/* ignore option */
 					break;
-				};
+				}
 				break;
-			};
+			}
 
 			ptr += opsize-2;
 			length -= opsize;

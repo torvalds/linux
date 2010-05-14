@@ -522,7 +522,7 @@ static int ethtool_get_rx_ntuple(struct net_device *dev, void __user *useraddr)
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			goto unknown_filter;
-		};
+		}
 
 		/* now the rest of the filters */
 		switch (fsc->fs.flow_type) {
@@ -646,7 +646,7 @@ static int ethtool_get_rx_ntuple(struct net_device *dev, void __user *useraddr)
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			break;
-		};
+		}
 		sprintf(p, "\tVLAN: %d, mask: 0x%x\n",
 			fsc->fs.vlan_tag, fsc->fs.vlan_tag_mask);
 		p += ETH_GSTRING_LEN;

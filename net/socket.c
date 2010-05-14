@@ -2615,7 +2615,7 @@ static int bond_ioctl(struct net *net, unsigned int cmd,
 		return dev_ioctl(net, cmd, uifr);
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 static int siocdevprivate_ioctl(struct net *net, unsigned int cmd,
