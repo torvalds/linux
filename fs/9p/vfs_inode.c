@@ -697,8 +697,8 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	if (IS_ERR(fid)) {
 		result = PTR_ERR(fid);
 		if (result == -ENOENT) {
-			d_add(dentry, NULL);
-			return NULL;
+			inode = NULL;
+			goto inst_out;
 		}
 
 		return ERR_PTR(result);
@@ -715,7 +715,8 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	if (result < 0)
 		goto error;
 
-	if ((fid->qid.version) && (v9ses->cache))
+inst_out:
+	if (v9ses->cache)
 		dentry->d_op = &v9fs_cached_dentry_operations;
 	else
 		dentry->d_op = &v9fs_dentry_operations;
