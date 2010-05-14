@@ -431,7 +431,7 @@ int iwl_add_bssid_station(struct iwl_priv *priv, const u8 *addr, bool init_rs,
 	struct iwl_link_quality_cmd *link_cmd;
 	unsigned long flags;
 
-	if (*sta_id_r)
+	if (sta_id_r)
 		*sta_id_r = IWL_INVALID_STATION;
 
 	ret = iwl_add_station_common(priv, addr, 0, NULL, &sta_id);
