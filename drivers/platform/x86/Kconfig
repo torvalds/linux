@@ -539,4 +539,14 @@ config INTEL_SCU_IPC
 	  some embedded Intel x86 platforms. This is not needed for PC-type
 	  machines.
 
+config INTEL_IPS
+	tristate "Intel Intelligent Power Sharing"
+	depends on ACPI
+	---help---
+	  Intel Calpella platforms support dynamic power sharing between the
+	  CPU and GPU, maximizing performance in a given TDP.  This driver,
+	  along with the CPU frequency and i915 drivers, provides that
+	  functionality.  If in doubt, say Y here; it will only load on
+	  supported platforms.
+
 endif # X86_PLATFORM_DEVICES
