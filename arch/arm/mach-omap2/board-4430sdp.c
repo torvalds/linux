@@ -18,6 +18,7 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/usb/otg.h>
+#include <linux/spi/spi.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -31,6 +32,75 @@
 #include <plat/usb.h>
 #include <asm/hardware/gic.h>
 #include <asm/hardware/cache-l2x0.h>
+
+#define ETH_KS8851_IRQ			34
+#define ETH_KS8851_POWER_ON		48
+#define ETH_KS8851_QUART		138
+
+static struct spi_board_info sdp4430_spi_board_info[] __initdata = {
+	{
+		.modalias               = "ks8851",
+		.bus_num                = 1,
+		.chip_select            = 0,
+		.max_speed_hz           = 24000000,
+		.irq                    = ETH_KS8851_IRQ,
+	},
+};
+
+static int omap_ethernet_init(void)
+{
+	int status;
+
+	/* Request of GPIO lines */
+
+	status = gpio_request(ETH_KS8851_POWER_ON, "eth_power");
+	if (status) {
+		pr_err("Cannot request GPIO %d\n", ETH_KS8851_POWER_ON);
+		return status;
+	}
+
+	status = gpio_request(ETH_KS8851_QUART, "quart");
+	if (status) {
+		pr_err("Cannot request GPIO %d\n", ETH_KS8851_QUART);
+		goto error1;
+	}
+
+	status = gpio_request(ETH_KS8851_IRQ, "eth_irq");
+	if (status) {
+		pr_err("Cannot request GPIO %d\n", ETH_KS8851_IRQ);
+		goto error2;
+	}
+
+	/* Configuration of requested GPIO lines */
+
+	status = gpio_direction_output(ETH_KS8851_POWER_ON, 1);
+	if (status) {
+		pr_err("Cannot set output GPIO %d\n", ETH_KS8851_IRQ);
+		goto error3;
+	}
+
+	status = gpio_direction_output(ETH_KS8851_QUART, 1);
+	if (status) {
+		pr_err("Cannot set output GPIO %d\n", ETH_KS8851_QUART);
+		goto error3;
+	}
+
+	status = gpio_direction_input(ETH_KS8851_IRQ);
+	if (status) {
+		pr_err("Cannot set input GPIO %d\n", ETH_KS8851_IRQ);
+		goto error3;
+	}
+
+	return 0;
+
+error3:
+	gpio_free(ETH_KS8851_IRQ);
+error2:
+	gpio_free(ETH_KS8851_QUART);
+error1:
+	gpio_free(ETH_KS8851_POWER_ON);
+	return status;
+}
 
 static struct platform_device sdp4430_lcd_device = {
 	.name		= "sdp4430_lcd",
@@ -113,6 +183,8 @@ static struct omap_musb_board_data musb_board_data = {
 
 static void __init omap_4430sdp_init(void)
 {
+	int status;
+
 	platform_add_devices(sdp4430_devices, ARRAY_SIZE(sdp4430_devices));
 	omap_serial_init();
 	/* OMAP4 SDP uses internal transceiver so register nop transceiver */
@@ -120,6 +192,15 @@ static void __init omap_4430sdp_init(void)
 	/* FIXME: allow multi-omap to boot until musb is updated for omap4 */
 	if (!cpu_is_omap44xx())
 		usb_musb_init(&musb_board_data);
+
+	status = omap_ethernet_init();
+	if (status) {
+		pr_err("Ethernet initialization failed: %d\n", status);
+	} else {
+		sdp4430_spi_board_info[0].irq = gpio_to_irq(ETH_KS8851_IRQ);
+		spi_register_board_info(sdp4430_spi_board_info,
+				ARRAY_SIZE(sdp4430_spi_board_info));
+	}
 }
 
 static void __init omap_4430sdp_map_io(void)
