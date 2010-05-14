@@ -11,6 +11,7 @@
  * Jeremy Fitzhardinge <jeremy@xensource.com>, XenSource Inc, 2007
  */
 
+#include <linux/cpu.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/smp.h>
@@ -38,6 +39,7 @@
 #include <xen/interface/memory.h>
 #include <xen/features.h>
 #include <xen/page.h>
+#include <xen/hvm.h>
 #include <xen/hvc-console.h>
 
 #include <asm/paravirt.h>
@@ -80,6 +82,8 @@ struct shared_info xen_dummy_shared_info;
 void *xen_initial_gdt;
 
 RESERVE_BRK(shared_info_page_brk, PAGE_SIZE);
+__read_mostly int xen_have_vector_callback;
+EXPORT_SYMBOL_GPL(xen_have_vector_callback);
 
 /*
  * Point at some empty memory to start with. We map the real shared_info
@@ -1277,6 +1281,24 @@ static void __init init_shared_info(void)
 	per_cpu(xen_vcpu, 0) = &HYPERVISOR_shared_info->vcpu_info[0];
 }
 
+static int __cpuinit xen_hvm_cpu_notify(struct notifier_block *self,
+				    unsigned long action, void *hcpu)
+{
+	int cpu = (long)hcpu;
+	switch (action) {
+	case CPU_UP_PREPARE:
+		per_cpu(xen_vcpu, cpu) = &HYPERVISOR_shared_info->vcpu_info[cpu];
+		break;
+	default:
+		break;
+	}
+	return NOTIFY_OK;
+}
+
+static struct notifier_block __cpuinitdata xen_hvm_cpu_notifier = {
+	.notifier_call	= xen_hvm_cpu_notify,
+};
+
 static void __init xen_hvm_guest_init(void)
 {
 	int r;
@@ -1287,6 +1309,12 @@ static void __init xen_hvm_guest_init(void)
 		return;
 
 	init_shared_info();
+
+	if (xen_feature(XENFEAT_hvm_callback_vector))
+		xen_have_vector_callback = 1;
+	register_cpu_notifier(&xen_hvm_cpu_notifier);
+	have_vcpu_info_placement = 0;
+	x86_init.irqs.intr_init = xen_init_IRQ;
 }
 
 static bool __init xen_hvm_platform(void)

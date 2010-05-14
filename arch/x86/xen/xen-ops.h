@@ -38,6 +38,8 @@ void xen_enable_sysenter(void);
 void xen_enable_syscall(void);
 void xen_vcpu_restore(void);
 
+void xen_callback_vector(void);
+
 void __init xen_build_dynamic_phys_to_machine(void);
 
 void xen_init_irq_ops(void);
