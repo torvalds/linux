@@ -13,6 +13,7 @@ source "drivers/media/IR/keymaps/Kconfig"
 config IR_NEC_DECODER
 	tristate "Enable IR raw decoder for the NEC protocol"
 	depends on IR_CORE
+	select BITREVERSE
 	default y
 
 	---help---
