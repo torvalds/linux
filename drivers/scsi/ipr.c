@@ -5021,6 +5021,8 @@ static int ipr_build_ioadl64(struct ipr_ioa_cfg *ioa_cfg,
 	ipr_cmd->dma_use_sg = nseg;
 
 	ioarcb->data_transfer_length = cpu_to_be32(length);
+	ioarcb->ioadl_len =
+		cpu_to_be32(sizeof(struct ipr_ioadl64_desc) * ipr_cmd->dma_use_sg);
 
 	if (scsi_cmd->sc_data_direction == DMA_TO_DEVICE) {
 		ioadl_flags = IPR_IOADL_FLAGS_WRITE;
