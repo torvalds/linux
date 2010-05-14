@@ -1907,7 +1907,8 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct iwl_priv *priv = hw->priv;
 	int err = 0;
 
-	IWL_DEBUG_MAC80211(priv, "enter: type %d\n", vif->type);
+	IWL_DEBUG_MAC80211(priv, "enter: type %d, addr %pM\n",
+			   vif->type, vif->addr);
 
 	mutex_lock(&priv->mutex);
 
@@ -1924,9 +1925,6 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 	priv->vif = vif;
 	priv->iw_mode = vif->type;
-
-	IWL_DEBUG_MAC80211(priv, "Set %pM\n", vif->addr);
-	memcpy(priv->mac_addr, vif->addr, ETH_ALEN);
 
 	err = iwl_set_mode(priv, vif);
 	if (err)
