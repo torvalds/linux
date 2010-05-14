@@ -81,7 +81,7 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 	struct ath9k_htc_vif *avp;
 	struct ath9k_htc_tx_ctl tx_ctl;
 	enum htc_endpoint_id epid;
-	u16 qnum, hw_qnum;
+	u16 qnum;
 	__le16 fc;
 	u8 *tx_fhdr;
 	u8 sta_idx;
@@ -141,22 +141,21 @@ int ath9k_htc_tx_start(struct ath9k_htc_priv *priv, struct sk_buff *skb)
 		memcpy(tx_fhdr, (u8 *) &tx_hdr, sizeof(tx_hdr));
 
 		qnum = skb_get_queue_mapping(skb);
-		hw_qnum = get_hw_qnum(qnum, priv->hwq_map);
 
-		switch (hw_qnum) {
+		switch (qnum) {
 		case 0:
-			TX_QSTAT_INC(WME_AC_BE);
-			epid = priv->data_be_ep;
-			break;
-		case 2:
-			TX_QSTAT_INC(WME_AC_VI);
-			epid = priv->data_vi_ep;
-			break;
-		case 3:
 			TX_QSTAT_INC(WME_AC_VO);
 			epid = priv->data_vo_ep;
 			break;
 		case 1:
+			TX_QSTAT_INC(WME_AC_VI);
+			epid = priv->data_vi_ep;
+			break;
+		case 2:
+			TX_QSTAT_INC(WME_AC_BE);
+			epid = priv->data_be_ep;
+			break;
+		case 3:
 		default:
 			TX_QSTAT_INC(WME_AC_BK);
 			epid = priv->data_bk_ep;
