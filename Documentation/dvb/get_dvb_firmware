@@ -518,11 +518,11 @@ sub bluebird {
 sub af9015 {
 	my $sourcefile = "download.ashx?file=57";
 	my $url = "http://www.ite.com.tw/EN/Services/$sourcefile";
-	my $hash = "ff5b096ed47c080870eacdab2de33ad6";
+	my $hash = "e3f08935158038d385ad382442f4bb2d";
 	my $outfile = "dvb-usb-af9015.fw";
 	my $tmpdir = tempdir(DIR => "/tmp", CLEANUP => 1);
-	my $fwoffset = 0x22708;
-	my $fwlength = 18225;
+	my $fwoffset = 0x25690;
+	my $fwlength = 18725;
 	my ($chunklength, $buf, $rcount);
 
 	checkstandard();
