@@ -2279,16 +2279,8 @@ EXPORT_SYMBOL(dsi_vc_dcs_read_2);
 
 int dsi_vc_set_max_rx_packet_size(int channel, u16 len)
 {
-	int r;
-	r = dsi_vc_send_short(channel, DSI_DT_SET_MAX_RET_PKG_SIZE,
+	return dsi_vc_send_short(channel, DSI_DT_SET_MAX_RET_PKG_SIZE,
 			len, 0);
-
-	if (r)
-		return r;
-
-	r = dsi_vc_send_bta_sync(channel);
-
-	return r;
 }
 EXPORT_SYMBOL(dsi_vc_set_max_rx_packet_size);
 
