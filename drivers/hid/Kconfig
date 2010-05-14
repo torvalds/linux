@@ -380,6 +380,13 @@ config ZEROPLUS_FF
 	  Say Y here if you have a Zeroplus based game controller and want
 	  to have force feedback support for it.
 
+config HID_ZYDACRON
+	tristate "Zydacron remote control support" if EMBEDDED
+	depends on USB_HID
+	default !EMBEDDED
+	---help---
+	Support for Zydacron remote control.
+
 endmenu
 
 endif # HID_SUPPORT
