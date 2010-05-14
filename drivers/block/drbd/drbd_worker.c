@@ -462,7 +462,7 @@ int w_make_resync_request(struct drbd_conf *mdev,
 	unsigned long bit;
 	sector_t sector;
 	const sector_t capacity = drbd_get_capacity(mdev->this_bdev);
-	int max_segment_size = queue_max_segment_size(mdev->rq_queue);
+	int max_segment_size;
 	int number, i, size, pe, mx;
 	int align, queued, sndbuf;
 
@@ -487,6 +487,11 @@ int w_make_resync_request(struct drbd_conf *mdev,
 		mdev->resync_work.cb = w_resync_inactive;
 		return 1;
 	}
+
+	/* starting with drbd 8.3.8, we can handle multi-bio EEs,
+	 * if it should be necessary */
+	max_segment_size = mdev->agreed_pro_version < 94 ?
+		queue_max_segment_size(mdev->rq_queue) : DRBD_MAX_SEGMENT_SIZE;
 
 	mdev->c_sync_rate = calc_resync_rate(mdev);
 	number = SLEEP_TIME * mdev->c_sync_rate  / ((BM_BLOCK_SIZE / 1024) * HZ);
@@ -552,12 +557,6 @@ next_sector:
 		 *
 		 * Additionally always align bigger requests, in order to
 		 * be prepared for all stripe sizes of software RAIDs.
-		 *
-		 * we _do_ care about the agreed-upon q->max_segment_size
-		 * here, as splitting up the requests on the other side is more
-		 * difficult.  the consequence is, that on lvm and md and other
-		 * "indirect" devices, this is dead code, since
-		 * q->max_segment_size will be PAGE_SIZE.
 		 */
 		align = 1;
 		for (;;) {
