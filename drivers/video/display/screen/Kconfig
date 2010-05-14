@@ -1,0 +1,38 @@
+choice
+    depends on DISPLAY_SUPPORT
+	prompt  "LCD Panel Select"
+config LCD_NULL
+	bool "NULL"
+config LCD_TD043MGEA1
+	bool "RGB TD043MGEA1"
+config LCD_TJ048NC01CA
+    bool "RGB TJ048NC01CA"
+config LCD_HL070VM4AU
+    bool "RGB_HL070VM4AU"
+config LCD_HSD070IDW1
+    bool "RGB Hannstar800x480"
+config LCD_A060SE02
+    bool "MCU A060SE02"
+config LCD_S1D13521
+    bool "MCU S1D13521"
+config LCD_NT35582
+	bool "MCU NT35582"
+config LCD_NT35580
+	bool "MCU NT35580"
+endchoice
+
+choice
+    depends on DISPLAY_SUPPORT
+	prompt  "TVOUT Chip Select"
+config TV_NULL
+	bool "NULL"
+endchoice
+
+choice
+    depends on DISPLAY_SUPPORT
+	prompt  "HDMI Chip Select"
+config HDMI_NULL
+	bool "NULL"
+config HDMI_ANX7150
+	bool "HDMI ANX7150"
+endchoice
