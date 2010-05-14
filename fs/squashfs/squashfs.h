@@ -73,6 +73,12 @@ extern struct inode *squashfs_iget(struct super_block *, long long,
 				unsigned int);
 extern int squashfs_read_inode(struct inode *, long long);
 
+/* xattr_id.c */
+extern int squashfs_xattr_lookup(struct super_block *, unsigned int, int *,
+				int *, long long *);
+extern __le64 *squashfs_read_xattr_id_table(struct super_block *, u64,
+				u64 *, int *);
+
 /*
  * Inodes, files and decompressor operations
  */

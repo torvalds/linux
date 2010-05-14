@@ -174,6 +174,24 @@
 
 #define SQUASHFS_ID_BLOCK_BYTES(A)	(SQUASHFS_ID_BLOCKS(A) *\
 					sizeof(u64))
+/* xattr id lookup table defines */
+#define SQUASHFS_XATTR_BYTES(A)		((A) * sizeof(struct squashfs_xattr_id))
+
+#define SQUASHFS_XATTR_BLOCK(A)		(SQUASHFS_XATTR_BYTES(A) / \
+					SQUASHFS_METADATA_SIZE)
+
+#define SQUASHFS_XATTR_BLOCK_OFFSET(A)	(SQUASHFS_XATTR_BYTES(A) % \
+					SQUASHFS_METADATA_SIZE)
+
+#define SQUASHFS_XATTR_BLOCKS(A)	((SQUASHFS_XATTR_BYTES(A) + \
+					SQUASHFS_METADATA_SIZE - 1) / \
+					SQUASHFS_METADATA_SIZE)
+
+#define SQUASHFS_XATTR_BLOCK_BYTES(A)	(SQUASHFS_XATTR_BLOCKS(A) *\
+					sizeof(u64))
+#define SQUASHFS_XATTR_BLK(A)		((unsigned int) ((A) >> 16))
+
+#define SQUASHFS_XATTR_OFFSET(A)	((unsigned int) ((A) & 0xffff))
 
 /* cached data constants for filesystem */
 #define SQUASHFS_CACHED_BLKS		8
@@ -228,7 +246,7 @@ struct squashfs_super_block {
 	__le64			root_inode;
 	__le64			bytes_used;
 	__le64			id_table_start;
-	__le64			xattr_table_start;
+	__le64			xattr_id_table_start;
 	__le64			inode_table_start;
 	__le64			directory_table_start;
 	__le64			fragment_table_start;
@@ -375,6 +393,18 @@ struct squashfs_fragment_entry {
 	__le64			start_block;
 	__le32			size;
 	unsigned int		unused;
+};
+
+struct squashfs_xattr_id {
+	__le64			xattr;
+	__le32			count;
+	__le32			size;
+};
+
+struct squashfs_xattr_id_table {
+	__le64			xattr_table_start;
+	__le32			xattr_ids;
+	__le32			unused;
 };
 
 #endif
