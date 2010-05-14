@@ -3279,7 +3279,7 @@ static u16 hpi_entity_alloc_and_copy(struct hpi_entity *src,
 
 	buf_size = hpi_entity_size(src);
 	*dst = kmalloc(buf_size, GFP_KERNEL);
-	if (dst == NULL)
+	if (*dst == NULL)
 		return HPI_ERROR_MEMORY_ALLOC;
 	memcpy(*dst, src, buf_size);
 	return 0;
