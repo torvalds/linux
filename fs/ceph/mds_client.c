@@ -1794,22 +1794,8 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 		mutex_unlock(&req->r_fill_mutex);
 
 		if (req->r_locked_dir &&
-		    (req->r_op & CEPH_MDS_OP_WRITE)) {
-			struct ceph_inode_info *ci =
-				ceph_inode(req->r_locked_dir);
-
-			dout("aborted, clearing I_COMPLETE on %p, leases\n",
-			     req->r_locked_dir);
-			spin_lock(&req->r_locked_dir->i_lock);
-			ci->i_ceph_flags &= ~CEPH_I_COMPLETE;
-			ci->i_release_count++;
-			spin_unlock(&req->r_locked_dir->i_lock);
-
-			if (req->r_dentry)
-				ceph_invalidate_dentry_lease(req->r_dentry);
-			if (req->r_old_dentry)
-				ceph_invalidate_dentry_lease(req->r_old_dentry);
-		}
+		    (req->r_op & CEPH_MDS_OP_WRITE))
+			ceph_invalidate_dir_request(req);
 	} else {
 		err = req->r_err;
 	}
@@ -1818,6 +1804,27 @@ out:
 	mutex_unlock(&mdsc->mutex);
 	dout("do_request %p done, result %d\n", req, err);
 	return err;
+}
+
+/*
+ * Invalidate dir I_COMPLETE, dentry lease state on an aborted MDS
+ * namespace request.
+ */
+void ceph_invalidate_dir_request(struct ceph_mds_request *req)
+{
+	struct inode *inode = req->r_locked_dir;
+	struct ceph_inode_info *ci = ceph_inode(inode);
+
+	dout("invalidate_dir_request %p (I_COMPLETE, lease(s))\n", inode);
+	spin_lock(&inode->i_lock);
+	ci->i_ceph_flags &= ~CEPH_I_COMPLETE;
+	ci->i_release_count++;
+	spin_unlock(&inode->i_lock);
+
+	if (req->r_dentry)
+		ceph_invalidate_dentry_lease(req->r_dentry);
+	if (req->r_old_dentry)
+		ceph_invalidate_dentry_lease(req->r_old_dentry);
 }
 
 /*

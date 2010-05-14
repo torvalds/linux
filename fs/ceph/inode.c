@@ -941,21 +941,8 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 
 	if (!rinfo->head->is_target && !rinfo->head->is_dentry) {
 		dout("fill_trace reply is empty!\n");
-		if (rinfo->head->result == 0 && req->r_locked_dir) {
-			struct ceph_inode_info *ci =
-				ceph_inode(req->r_locked_dir);
-			dout(" clearing %p complete (empty trace)\n",
-			     req->r_locked_dir);
-			spin_lock(&req->r_locked_dir->i_lock);
-			ci->i_ceph_flags &= ~CEPH_I_COMPLETE;
-			ci->i_release_count++;
-			spin_unlock(&req->r_locked_dir->i_lock);
-
-			if (req->r_dentry)
-				ceph_invalidate_dentry_lease(req->r_dentry);
-			if (req->r_old_dentry)
-				ceph_invalidate_dentry_lease(req->r_old_dentry);
-		}
+		if (rinfo->head->result == 0 && req->r_locked_dir)
+			ceph_invalidate_dir_request(req);
 		return 0;
 	}
 

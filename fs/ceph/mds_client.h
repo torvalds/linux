@@ -303,6 +303,8 @@ extern void ceph_mdsc_lease_release(struct ceph_mds_client *mdsc,
 				    struct inode *inode,
 				    struct dentry *dn, int mask);
 
+extern void ceph_invalidate_dir_request(struct ceph_mds_request *req);
+
 extern struct ceph_mds_request *
 ceph_mdsc_create_request(struct ceph_mds_client *mdsc, int op, int mode);
 extern void ceph_mdsc_submit_request(struct ceph_mds_client *mdsc,
