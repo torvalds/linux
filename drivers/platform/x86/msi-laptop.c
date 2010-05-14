@@ -859,6 +859,11 @@ static int __init msi_init(void)
 
 fail_platform_device2:
 
+	if (load_scm_model) {
+		i8042_remove_filter(msi_laptop_i8042_filter);
+		cancel_delayed_work_sync(&msi_rfkill_work);
+		rfkill_cleanup();
+	}
 	platform_device_del(msipf_device);
 
 fail_platform_device1:
@@ -878,6 +883,11 @@ fail_backlight:
 
 static void __exit msi_cleanup(void)
 {
+	if (load_scm_model) {
+		i8042_remove_filter(msi_laptop_i8042_filter);
+		cancel_delayed_work_sync(&msi_rfkill_work);
+		rfkill_cleanup();
+	}
 
 	sysfs_remove_group(&msipf_device->dev.kobj, &msipf_attribute_group);
 	if (!old_ec_model && threeg_exists)
@@ -885,9 +895,6 @@ static void __exit msi_cleanup(void)
 	platform_device_unregister(msipf_device);
 	platform_driver_unregister(&msipf_driver);
 	backlight_device_unregister(msibl_device);
-
-	i8042_remove_filter(msi_laptop_i8042_filter);
-	rfkill_cleanup();
 
 	/* Enable automatic brightness control again */
 	if (auto_brightness != 2)
