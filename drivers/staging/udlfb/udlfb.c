@@ -1438,7 +1438,7 @@ static int __init dlfb_module_init(void)
 	if (res)
 		err("usb_register failed. Error number %d", res);
 
-	printk("VMODES initialized\n");
+	printk(KERN_INFO "VMODES initialized\n");
 
 	return res;
 }
@@ -1567,7 +1567,7 @@ static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size)
 
 	kref_get(&dev->kref); /* released in free_render_urbs() */
 
-	dl_notice("allocated %d %d byte urbs \n", i, (int) size);
+	dl_notice("allocated %d %d byte urbs\n", i, (int) size);
 
 	return i;
 }
