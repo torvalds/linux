@@ -125,7 +125,7 @@ static int __init ahci_probe(struct platform_device *pdev)
 
 		/* set enclosure management message type */
 		if (ap->flags & ATA_FLAG_EM)
-			ap->em_message_type = ahci_em_messages;
+			ap->em_message_type = hpriv->em_msg_type;
 
 		/* disabled/not-implemented port */
 		if (!(hpriv->port_map & (1 << i)))
