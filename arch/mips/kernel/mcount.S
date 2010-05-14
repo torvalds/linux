@@ -6,6 +6,7 @@
  * more details.
  *
  * Copyright (C) 2009 Lemote Inc. & DSLab, Lanzhou University, China
+ * Copyright (C) 2010 DSLab, Lanzhou University, China
  * Author: Wu Zhangjin <wuzhangjin@gmail.com>
  */
 
@@ -69,14 +70,14 @@ _mcount:
 
 	MCOUNT_SAVE_REGS
 #ifdef KBUILD_MCOUNT_RA_ADDRESS
-	PTR_S	t0, PT_R12(sp)	/* t0 saved the location of the return address(at) by -mmcount-ra-address */
+	PTR_S	t0, PT_R12(sp)	/* save location of parent's return address */
 #endif
 
-	move	a0, ra		/* arg1: next ip, selfaddr */
+	move	a0, ra		/* arg1: self return address */
 	.globl ftrace_call
 ftrace_call:
 	nop	/* a placeholder for the call to a real tracing function */
-	 move	a1, AT		/* arg2: the caller's next ip, parent */
+	 move	a1, AT		/* arg2: parent's return address */
 
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
 	.globl ftrace_graph_call
@@ -117,9 +118,9 @@ NESTED(_mcount, PT_SIZE, ra)
 static_trace:
 	MCOUNT_SAVE_REGS
 
-	move	a0, ra		/* arg1: next ip, selfaddr */
+	move	a0, ra		/* arg1: self return address */
 	jalr	t2		/* (1) call *ftrace_trace_function */
-	 move	a1, AT		/* arg2: the caller's next ip, parent */
+	 move	a1, AT		/* arg2: parent's return address */
 
 	MCOUNT_RESTORE_REGS
 	.globl ftrace_stub
