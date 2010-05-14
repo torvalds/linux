@@ -1023,7 +1023,7 @@ static int mv_probe(struct platform_device *pdev)
 
 	spin_lock_init(&cp->lock);
 	crypto_init_queue(&cp->queue, 50);
-	cp->reg = ioremap(res->start, res->end - res->start + 1);
+	cp->reg = ioremap(res->start, resource_size(res));
 	if (!cp->reg) {
 		ret = -ENOMEM;
 		goto err;
@@ -1034,7 +1034,7 @@ static int mv_probe(struct platform_device *pdev)
 		ret = -ENXIO;
 		goto err_unmap_reg;
 	}
-	cp->sram_size = res->end - res->start + 1;
+	cp->sram_size = resource_size(res);
 	cp->max_req_size = cp->sram_size - SRAM_CFG_SPACE;
 	cp->sram = ioremap(res->start, cp->sram_size);
 	if (!cp->sram) {
