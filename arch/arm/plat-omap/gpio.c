@@ -138,7 +138,11 @@
 #define OMAP4_GPIO_IRQSTATUSCLR1	0x0040
 #define OMAP4_GPIO_IRQWAKEN0		0x0044
 #define OMAP4_GPIO_IRQWAKEN1		0x0048
-#define OMAP4_GPIO_SYSSTATUS		0x0104
+#define OMAP4_GPIO_SYSSTATUS		0x0114
+#define OMAP4_GPIO_IRQENABLE1		0x011c
+#define OMAP4_GPIO_WAKE_EN		0x0120
+#define OMAP4_GPIO_IRQSTATUS2		0x0128
+#define OMAP4_GPIO_IRQENABLE2		0x012c
 #define OMAP4_GPIO_CTRL			0x0130
 #define OMAP4_GPIO_OE			0x0134
 #define OMAP4_GPIO_DATAIN		0x0138
@@ -149,6 +153,10 @@
 #define OMAP4_GPIO_FALLINGDETECT	0x014c
 #define OMAP4_GPIO_DEBOUNCENABLE	0x0150
 #define OMAP4_GPIO_DEBOUNCINGTIME	0x0154
+#define OMAP4_GPIO_CLEARIRQENABLE1	0x0160
+#define OMAP4_GPIO_SETIRQENABLE1	0x0164
+#define OMAP4_GPIO_CLEARWKUENA		0x0180
+#define OMAP4_GPIO_SETWKUENA		0x0184
 #define OMAP4_GPIO_CLEARDATAOUT		0x0190
 #define OMAP4_GPIO_SETDATAOUT		0x0194
 /*
@@ -591,10 +599,14 @@ static int _get_gpio_dataout(struct gpio_bank *bank, int gpio)
 		reg += OMAP7XX_GPIO_DATA_OUTPUT;
 		break;
 #endif
-#ifdef CONFIG_ARCH_OMAP2PLUS
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	case METHOD_GPIO_24XX:
-	case METHOD_GPIO_44XX:
 		reg += OMAP24XX_GPIO_DATAOUT;
+		break;
+#endif
+#ifdef CONFIG_ARCH_OMAP4
+	case METHOD_GPIO_44XX:
+		reg += OMAP4_GPIO_DATAOUT;
 		break;
 #endif
 	default:
@@ -1213,11 +1225,17 @@ static int omap_gpio_request(struct gpio_chip *chip, unsigned offset)
 #endif
 	if (!cpu_class_is_omap1()) {
 		if (!bank->mod_usage) {
+			void __iomem *reg = bank->base;
 			u32 ctrl;
-			ctrl = __raw_readl(bank->base + OMAP24XX_GPIO_CTRL);
-			ctrl &= 0xFFFFFFFE;
+
+			if (cpu_is_omap24xx() || cpu_is_omap34xx())
+				reg += OMAP24XX_GPIO_CTRL;
+			else if (cpu_is_omap44xx())
+				reg += OMAP4_GPIO_CTRL;
+			ctrl = __raw_readl(reg);
 			/* Module is enabled, clocks are not gated */
-			__raw_writel(ctrl, bank->base + OMAP24XX_GPIO_CTRL);
+			ctrl &= 0xFFFFFFFE;
+			__raw_writel(ctrl, reg);
 		}
 		bank->mod_usage |= 1 << offset;
 	}
@@ -1239,22 +1257,34 @@ static void omap_gpio_free(struct gpio_chip *chip, unsigned offset)
 		__raw_writel(1 << offset, reg);
 	}
 #endif
-#ifdef CONFIG_ARCH_OMAP2PLUS
-	if ((bank->method == METHOD_GPIO_24XX) ||
-			(bank->method == METHOD_GPIO_44XX)) {
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
+	if (bank->method == METHOD_GPIO_24XX) {
 		/* Disable wake-up during idle for dynamic tick */
 		void __iomem *reg = bank->base + OMAP24XX_GPIO_CLEARWKUENA;
+		__raw_writel(1 << offset, reg);
+	}
+#endif
+#ifdef CONFIG_ARCH_OMAP4
+	if (bank->method == METHOD_GPIO_44XX) {
+		/* Disable wake-up during idle for dynamic tick */
+		void __iomem *reg = bank->base + OMAP4_GPIO_IRQWAKEN0;
 		__raw_writel(1 << offset, reg);
 	}
 #endif
 	if (!cpu_class_is_omap1()) {
 		bank->mod_usage &= ~(1 << offset);
 		if (!bank->mod_usage) {
+			void __iomem *reg = bank->base;
 			u32 ctrl;
-			ctrl = __raw_readl(bank->base + OMAP24XX_GPIO_CTRL);
+
+			if (cpu_is_omap24xx() || cpu_is_omap34xx())
+				reg += OMAP24XX_GPIO_CTRL;
+			else if (cpu_is_omap44xx())
+				reg += OMAP4_GPIO_CTRL;
+			ctrl = __raw_readl(reg);
 			/* Module is disabled, clocks are gated */
 			ctrl |= 1;
-			__raw_writel(ctrl, bank->base + OMAP24XX_GPIO_CTRL);
+			__raw_writel(ctrl, reg);
 		}
 	}
 	_reset_gpio(bank, bank->chip.base + offset);
@@ -1583,9 +1613,14 @@ static int gpio_is_input(struct gpio_bank *bank, int mask)
 		reg += OMAP7XX_GPIO_DIR_CONTROL;
 		break;
 	case METHOD_GPIO_24XX:
-	case METHOD_GPIO_44XX:
 		reg += OMAP24XX_GPIO_OE;
 		break;
+	case METHOD_GPIO_44XX:
+		reg += OMAP4_GPIO_OE;
+		break;
+	default:
+		WARN_ONCE(1, "gpio_is_input: incorrect OMAP GPIO method");
+		return -EINVAL;
 	}
 	return __raw_readl(reg) & mask;
 }
