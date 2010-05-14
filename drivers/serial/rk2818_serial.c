@@ -436,6 +436,26 @@ static int rk2818_serial_verify_port(struct uart_port *port, struct serial_struc
 	return ret;
 }
 
+#ifdef CONFIG_CONSOLE_POLL
+/*
+ * Console polling routines for writing and reading from the uart while
+ * in an interrupt or debug context.
+ */
+
+static int rk2818_serial_poll_get_char(struct uart_port *port)
+{
+	while (!((rk2818_uart_read(port, UART_USR) & UART_RECEIVE_FIFO_NOT_EMPTY) == UART_RECEIVE_FIFO_NOT_EMPTY))
+		barrier();
+	return rk2818_uart_read(port, UART_RBR);
+}
+
+static void rk2818_serial_poll_put_char(struct uart_port *port, unsigned char c)
+{
+	while (!(rk2818_uart_read(port, UART_USR) & UART_TRANSMIT_FIFO_NOT_FULL))
+		barrier();
+	rk2818_uart_write(port, c, UART_THR);
+}
+#endif /* CONFIG_CONSOLE_POLL */
 
 static struct uart_ops rk2818_uart_pops = {
 	.tx_empty = rk2818_serial_tx_empty,
@@ -455,6 +475,10 @@ static struct uart_ops rk2818_uart_pops = {
 	.config_port = rk2818_serial_config_port,
 	.verify_port = rk2818_serial_verify_port,
 	.pm = rk2818_serial_pm,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char = rk2818_serial_poll_get_char,
+	.poll_put_char = rk2818_serial_poll_put_char,
+#endif
 };
 
 
@@ -667,8 +691,11 @@ static void __exit rk2818_serial_exit(void)
 	uart_unregister_driver(&rk2818_uart_driver);
 }
 
-
-module_init(rk2818_serial_init);
+/*
+ * While this can be a module, if builtin it's most likely the console
+ * So let's leave module_exit but move module_init to an earlier place
+ */
+arch_initcall(rk2818_serial_init);
 module_exit(rk2818_serial_exit);
 
 MODULE_AUTHOR("lhh lhh@rock-chips.com");
