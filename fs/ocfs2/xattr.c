@@ -97,7 +97,7 @@ static struct ocfs2_xattr_def_value_root def_xv = {
 	.xv.xr_list.l_count = cpu_to_le16(1),
 };
 
-struct xattr_handler *ocfs2_xattr_handlers[] = {
+const struct xattr_handler *ocfs2_xattr_handlers[] = {
 	&ocfs2_xattr_user_handler,
 	&ocfs2_xattr_acl_access_handler,
 	&ocfs2_xattr_acl_default_handler,
@@ -106,7 +106,7 @@ struct xattr_handler *ocfs2_xattr_handlers[] = {
 	NULL
 };
 
-static struct xattr_handler *ocfs2_xattr_handler_map[OCFS2_XATTR_MAX] = {
+static const struct xattr_handler *ocfs2_xattr_handler_map[OCFS2_XATTR_MAX] = {
 	[OCFS2_XATTR_INDEX_USER]	= &ocfs2_xattr_user_handler,
 	[OCFS2_XATTR_INDEX_POSIX_ACL_ACCESS]
 					= &ocfs2_xattr_acl_access_handler,
@@ -540,7 +540,7 @@ static int ocfs2_read_xattr_block(struct inode *inode, u64 xb_blkno,
 
 static inline const char *ocfs2_xattr_prefix(int name_index)
 {
-	struct xattr_handler *handler = NULL;
+	const struct xattr_handler *handler = NULL;
 
 	if (name_index > 0 && name_index < OCFS2_XATTR_MAX)
 		handler = ocfs2_xattr_handler_map[name_index];
@@ -7213,7 +7213,7 @@ int ocfs2_init_security_set(handle_t *handle,
 				     xattr_ac, data_ac);
 }
 
-struct xattr_handler ocfs2_xattr_security_handler = {
+const struct xattr_handler ocfs2_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
 	.list	= ocfs2_xattr_security_list,
 	.get	= ocfs2_xattr_security_get,
@@ -7257,7 +7257,7 @@ static int ocfs2_xattr_trusted_set(struct dentry *dentry, const char *name,
 			       name, value, size, flags);
 }
 
-struct xattr_handler ocfs2_xattr_trusted_handler = {
+const struct xattr_handler ocfs2_xattr_trusted_handler = {
 	.prefix	= XATTR_TRUSTED_PREFIX,
 	.list	= ocfs2_xattr_trusted_list,
 	.get	= ocfs2_xattr_trusted_get,
@@ -7313,7 +7313,7 @@ static int ocfs2_xattr_user_set(struct dentry *dentry, const char *name,
 			       name, value, size, flags);
 }
 
-struct xattr_handler ocfs2_xattr_user_handler = {
+const struct xattr_handler ocfs2_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
 	.list	= ocfs2_xattr_user_list,
 	.get	= ocfs2_xattr_user_get,
