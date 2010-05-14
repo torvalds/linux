@@ -930,6 +930,7 @@ dt3155_release(struct file *filp)
 		dt3155_stop_acq(pd);
 		videobuf_stop(pd->vidq);
 		pd->acq_fp = NULL;
+		pd->streaming = 0;
 	}
 	if (!pd->users) {
 		kthread_stop(pd->thread);
@@ -949,10 +950,14 @@ dt3155_read(struct file *filp, char __user *user, size_t size, loff_t *loff)
 
 	if (mutex_lock_interruptible(&pd->mux) == -EINTR)
 		return -ERESTARTSYS;
-	if (!pd->acq_fp)
+	if (!pd->acq_fp) {
 		pd->acq_fp = filp;
-	else if (pd->acq_fp != filp) {
+		pd->streaming = 0;
+	} else if (pd->acq_fp != filp) {
 		ret = -EBUSY;
+		goto done;
+	} else if (pd->streaming == 1) {
+		ret = -EINVAL;
 		goto done;
 	}
 	ret = videobuf_read_stream(pd->vidq, user, size, loff, 0,
@@ -1001,8 +1006,10 @@ dt3155_ioc_streamon(struct file *filp, void *p, enum v4l2_buf_type type)
 		if (ret)
 			goto unlock;
 		pd->acq_fp = filp;
+		pd->streaming = 1;
 		wake_up_interruptible_sync(&pd->do_dma);
 	} else if (pd->acq_fp == filp) {
+		pd->streaming = 1;
 		ret = videobuf_streamon(pd->vidq);
 		if (!ret)
 			wake_up_interruptible_sync(&pd->do_dma);
@@ -1043,11 +1050,8 @@ dt3155_ioc_querycap(struct file *filp, void *p, struct v4l2_capability *cap)
 	cap->version =
 	       KERNEL_VERSION(DT3155_VER_MAJ, DT3155_VER_MIN, DT3155_VER_EXT);
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE |
-#ifdef CONFIG_DT3155_STREAMING
-				V4L2_CAP_STREAMING;
-#else
+				V4L2_CAP_STREAMING |
 				V4L2_CAP_READWRITE;
-#endif
 	return 0;
 }
 
@@ -1095,7 +1099,28 @@ dt3155_ioc_try_fmt_vid_cap(struct file *filp, void *p, struct v4l2_format *f)
 static int
 dt3155_ioc_s_fmt_vid_cap(struct file *filp, void *p, struct v4l2_format *f)
 {
-	return dt3155_ioc_g_fmt_vid_cap(filp, p, f);
+	struct dt3155_priv *pd = video_drvdata(filp);
+	int ret =  -ERESTARTSYS;
+
+	if (mutex_lock_interruptible(&pd->mux) == -EINTR)
+		return ret;
+	if (!pd->acq_fp) {
+		pd->acq_fp = filp;
+		pd->streaming = 0;
+	} else if (pd->acq_fp != filp) {
+		ret = -EBUSY;
+		goto done;
+	}
+/*	FIXME: we don't change the format for now
+	if (pd->vidq->streaming || pd->vidq->reading || pd->curr_buff) {
+		ret = -EBUSY;
+		goto done;
+	}
+*/
+	ret = dt3155_ioc_g_fmt_vid_cap(filp, p, f);
+done:
+	mutex_unlock(&pd->mux);
+	return ret;
 }
 
 static int
@@ -1103,15 +1128,33 @@ dt3155_ioc_reqbufs(struct file *filp, void *p, struct v4l2_requestbuffers *b)
 {
 	struct dt3155_priv *pd = video_drvdata(filp);
 	struct videobuf_queue *q = pd->vidq;
+	int ret = -ERESTARTSYS;
 
 	if (b->memory != V4L2_MEMORY_MMAP)
 		return -EINVAL;
+	if (mutex_lock_interruptible(&pd->mux) == -EINTR)
+		return ret;
+	if (!pd->acq_fp)
+		pd->acq_fp = filp;
+	else if (pd->acq_fp != filp) {
+		ret = -EBUSY;
+		goto done;
+	}
+	pd->streaming = 1;
+	ret = 0;
+done:
+	mutex_unlock(&pd->mux);
+	if (ret)
+		return ret;
 	if (b->count)
-		return videobuf_reqbufs(q, b);
+		ret = videobuf_reqbufs(q, b);
 	else { /* FIXME: is it necessary? */
 		printk(KERN_DEBUG "dt3155: request to free buffers\n");
-		return videobuf_mmap_free(q);
+		/* ret = videobuf_mmap_free(q); */
+		ret = dt3155_ioc_streamoff(filp, p,
+						V4L2_BUF_TYPE_VIDEO_CAPTURE);
 	}
+	return ret;
 }
 
 static int
@@ -1128,8 +1171,12 @@ dt3155_ioc_qbuf(struct file *filp, void *p, struct v4l2_buffer *b)
 {
 	struct dt3155_priv *pd = video_drvdata(filp);
 	struct videobuf_queue *q = pd->vidq;
+	int ret;
 
-	return videobuf_qbuf(q, b);
+	ret = videobuf_qbuf(q, b);
+	if (ret)
+		return ret;
+	return videobuf_querybuf(q, b);
 }
 
 static int
@@ -1170,7 +1217,12 @@ dt3155_ioc_enum_input(struct file *filp, void *p, struct v4l2_input *input)
 		return -EINVAL;
 	strcpy(input->name, "Coax in");
 	input->type = V4L2_INPUT_TYPE_CAMERA;
-	input->std = V4L2_STD_ALL;
+	/*
+	 * FIXME: input->std = 0 according to v4l2 API
+	 * VIDIOC_G_STD, VIDIOC_S_STD, VIDIOC_QUERYSTD and VIDIOC_ENUMSTD
+	 * should return -EINVAL
+	 */
+	input->std = DT3155_CURRENT_NORM;
 	input->status = 0;/* FIXME: add sync detection & V4L2_IN_ST_NO_H_LOCK */
 	return 0;
 }
@@ -1200,7 +1252,7 @@ dt3155_ioc_g_parm(struct file *filp, void *p, struct v4l2_streamparm *parms)
 	parms->parm.capture.timeperframe.numerator = 1001;
 	parms->parm.capture.timeperframe.denominator = frames_per_sec * 1000;
 	parms->parm.capture.extendedmode = 0;
-	parms->parm.capture.readbuffers = 1;
+	parms->parm.capture.readbuffers = 1; /* FIXME: 2 buffers? */
 	return 0;
 }
 
@@ -1214,7 +1266,7 @@ dt3155_ioc_s_parm(struct file *filp, void *p, struct v4l2_streamparm *parms)
 	parms->parm.capture.timeperframe.numerator = 1001;
 	parms->parm.capture.timeperframe.denominator = frames_per_sec * 1000;
 	parms->parm.capture.extendedmode = 0;
-	parms->parm.capture.readbuffers = 1;
+	parms->parm.capture.readbuffers = 1; /* FIXME: 2 buffers? */
 	return 0;
 }
 
@@ -1377,7 +1429,7 @@ static struct video_device dt3155_vdev = {
 	.ioctl_ops = &dt3155_ioctl_ops,
 	.minor = -1,
 	.release = video_device_release,
-	.tvnorms = V4L2_STD_ALL,
+	.tvnorms = DT3155_CURRENT_NORM,
 	.current_norm = DT3155_CURRENT_NORM,
 };
 

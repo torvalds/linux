@@ -30,7 +30,7 @@
 #define DT3155_NAME "dt3155"
 #define DT3155_VER_MAJ 1
 #define DT3155_VER_MIN 0
-#define DT3155_VER_EXT 2
+#define DT3155_VER_EXT 3
 #define DT3155_VERSION  __stringify(DT3155_VER_MAJ)	"."		\
 			__stringify(DT3155_VER_MIN)	"."		\
 			__stringify(DT3155_VER_EXT)
@@ -180,6 +180,7 @@ struct dt3155_stats {
  *
  * @vdev:		pointer to video_device structure
  * @acq_fp		pointer to filp that starts acquisition
+ * @streaming		streaming is negotiated
  * @pdev:		pointer to pci_dev structure
  * @vidq		pointer to videobuf_queue structure
  * @curr_buf:		pointer to curren buffer
@@ -200,6 +201,7 @@ struct dt3155_stats {
 struct dt3155_priv {
 	struct video_device *vdev;
 	struct file *acq_fp;
+	int streaming;
 	struct pci_dev *pdev;
 	struct videobuf_queue *vidq;
 	struct videobuf_buffer *curr_buf;

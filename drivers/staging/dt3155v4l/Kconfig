@@ -18,11 +18,3 @@ config DT3155_CCIR
 	---help---
 	  Select it for CCIR/50Hz (European region),
 	  or leave it unselected for RS-170/60Hz (North America).
-
-config DT3155_STREAMING
-	bool "Selects mmap streaming instead of read method"
-	depends on VIDEO_DT3155
-	default y
-	---help---
-	  Select it if you wish to try mmap streaming, or
-	  or leave it unselected for using read method.
