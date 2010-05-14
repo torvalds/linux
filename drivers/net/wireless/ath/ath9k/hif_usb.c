@@ -107,11 +107,13 @@ static inline void ath9k_skb_queue_purge(struct hif_device_usb *hif_dev,
 static void hif_usb_tx_cb(struct urb *urb)
 {
 	struct tx_buf *tx_buf = (struct tx_buf *) urb->context;
-	struct hif_device_usb *hif_dev = tx_buf->hif_dev;
+	struct hif_device_usb *hif_dev;
 	struct sk_buff *skb;
 
-	if (!hif_dev || !tx_buf)
+	if (!tx_buf || !tx_buf->hif_dev)
 		return;
+
+	hif_dev = tx_buf->hif_dev;
 
 	switch (urb->status) {
 	case 0:
