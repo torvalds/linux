@@ -150,7 +150,8 @@ int ceph_build_auth_request(struct ceph_auth_client *ac,
 
 	ret = ac->ops->build_request(ac, p + sizeof(u32), end);
 	if (ret < 0) {
-		pr_err("error %d building request\n", ret);
+		pr_err("error %d building auth method %s request\n", ret,
+		       ac->ops->name);
 		return ret;
 	}
 	dout(" built request %d bytes\n", ret);
@@ -216,8 +217,8 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 		if (ac->protocol != protocol) {
 			ret = ceph_auth_init_protocol(ac, protocol);
 			if (ret) {
-				pr_err("error %d on auth protocol %d init\n",
-				       ret, protocol);
+				pr_err("error %d on auth method %s init\n",
+				       ret, ac->ops->name);
 				goto out;
 			}
 		}
@@ -229,7 +230,7 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 	if (ret == -EAGAIN) {
 		return ceph_build_auth_request(ac, reply_buf, reply_len);
 	} else if (ret) {
-		pr_err("authentication error %d\n", ret);
+		pr_err("auth method '%s' error %d\n", ac->ops->name, ret);
 		return ret;
 	}
 	return 0;

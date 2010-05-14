@@ -618,6 +618,7 @@ static void ceph_x_invalidate_authorizer(struct ceph_auth_client *ac,
 
 
 static const struct ceph_auth_client_ops ceph_x_ops = {
+	.name = "x",
 	.is_authenticated = ceph_x_is_authenticated,
 	.build_request = ceph_x_build_request,
 	.handle_reply = ceph_x_handle_reply,
