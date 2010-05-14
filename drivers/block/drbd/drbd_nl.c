@@ -704,9 +704,6 @@ void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_seg_s) __mu
 	struct request_queue * const b = mdev->ldev->backing_bdev->bd_disk->queue;
 	int max_segments = mdev->ldev->dc.max_bio_bvecs;
 
-	if (b->merge_bvec_fn && !mdev->ldev->dc.use_bmbv)
-		max_seg_s = PAGE_SIZE;
-
 	max_seg_s = min(queue_max_sectors(b) * queue_logical_block_size(b), max_seg_s);
 
 	blk_queue_max_hw_sectors(q, max_seg_s >> 9);
