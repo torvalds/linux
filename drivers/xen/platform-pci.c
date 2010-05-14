@@ -31,6 +31,7 @@
 #include <xen/xenbus.h>
 #include <xen/events.h>
 #include <xen/hvm.h>
+#include <xen/xen-ops.h>
 
 #define DRV_NAME    "xen-platform-pci"
 
@@ -41,6 +42,7 @@ MODULE_LICENSE("GPL");
 static unsigned long platform_mmio;
 static unsigned long platform_mmio_alloc;
 static unsigned long platform_mmiolen;
+static uint64_t callback_via;
 
 unsigned long alloc_xen_mmio(unsigned long len)
 {
@@ -85,13 +87,25 @@ static int xen_allocate_irq(struct pci_dev *pdev)
 			"xen-platform-pci", pdev);
 }
 
+static int platform_pci_resume(struct pci_dev *pdev)
+{
+	int err;
+	if (xen_have_vector_callback)
+		return 0;
+	err = xen_set_callback_via(callback_via);
+	if (err) {
+		dev_err(&pdev->dev, "platform_pci_resume failure!\n");
+		return err;
+	}
+	return 0;
+}
+
 static int __devinit platform_pci_init(struct pci_dev *pdev,
 				       const struct pci_device_id *ent)
 {
 	int i, ret;
 	long ioaddr, iolen;
 	long mmio_addr, mmio_len;
-	uint64_t callback_via;
 	unsigned int max_nr_gframes;
 
 	i = pci_enable_device(pdev);
@@ -148,6 +162,9 @@ static int __devinit platform_pci_init(struct pci_dev *pdev,
 	if (ret)
 		goto out;
 	xenbus_probe(NULL);
+	ret = xen_setup_shutdown_event();
+	if (ret)
+		goto out;
 	return 0;
 
 out:
@@ -171,6 +188,9 @@ static struct pci_driver platform_driver = {
 	.name =           DRV_NAME,
 	.probe =          platform_pci_init,
 	.id_table =       platform_pci_tbl,
+#ifdef CONFIG_PM
+	.resume_early =   platform_pci_resume,
+#endif
 };
 
 static int __init platform_pci_module_init(void)
