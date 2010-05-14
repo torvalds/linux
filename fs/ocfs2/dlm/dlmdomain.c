@@ -1523,7 +1523,7 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 		goto leave;
 	}
 
-	dlm->name = kmalloc(strlen(domain) + 1, GFP_KERNEL);
+	dlm->name = kstrdup(domain, GFP_KERNEL);
 	if (dlm->name == NULL) {
 		mlog_errno(-ENOMEM);
 		kfree(dlm);
@@ -1557,7 +1557,6 @@ static struct dlm_ctxt *dlm_alloc_ctxt(const char *domain,
 	for (i = 0; i < DLM_HASH_BUCKETS; i++)
 		INIT_HLIST_HEAD(dlm_master_hash(dlm, i));
 
-	strcpy(dlm->name, domain);
 	dlm->key = key;
 	dlm->node_num = o2nm_this_node();
 
