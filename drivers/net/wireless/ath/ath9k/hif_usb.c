@@ -907,11 +907,9 @@ static void ath9k_hif_usb_reboot(struct usb_device *udev)
 	void *buf;
 	int ret;
 
-	buf = kmalloc(4, GFP_KERNEL);
+	buf = kmemdup(&reboot_cmd, 4, GFP_KERNEL);
 	if (!buf)
 		return;
-
-	memcpy(buf, &reboot_cmd, 4);
 
 	ret = usb_bulk_msg(udev, usb_sndbulkpipe(udev, USB_REG_OUT_PIPE),
 			   buf, 4, NULL, HZ);
