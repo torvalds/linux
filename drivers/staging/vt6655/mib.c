@@ -190,7 +190,7 @@ void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
 
         pStatistic->ullRsrOK++;
 
-        if (cbFrameLength >= U_ETHER_ADDR_LEN) {
+        if (cbFrameLength >= ETH_ALEN) {
             // update counters in case that successful transmit
             if (byRSR & RSR_ADDRBROAD) {
                 pStatistic->ullRxBroadcastFrames++;

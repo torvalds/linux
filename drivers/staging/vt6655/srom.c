@@ -320,7 +320,7 @@ void SROMvReadEtherAddress(DWORD_PTR dwIoBase, PBYTE pbyEtherAddress)
     BYTE     ii;
 
     /* ii = Rom Address */
-    for (ii = 0; ii < U_ETHER_ADDR_LEN; ii++) {
+    for (ii = 0; ii < ETH_ALEN; ii++) {
         *pbyEtherAddress = SROMbyReadEmbedded(dwIoBase, ii);
         pbyEtherAddress++;
     }
@@ -345,7 +345,7 @@ void SROMvWriteEtherAddress(DWORD_PTR dwIoBase, PBYTE pbyEtherAddress)
     BYTE     ii;
 
     /* ii = Rom Address */
-    for (ii = 0; ii < U_ETHER_ADDR_LEN; ii++) {
+    for (ii = 0; ii < ETH_ALEN; ii++) {
         SROMbWriteEmbedded(dwIoBase, ii, *pbyEtherAddress);
         pbyEtherAddress++;
     }

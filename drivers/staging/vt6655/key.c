@@ -281,7 +281,7 @@ BOOL KeybSetKey (
         }
     }
     if (j < (MAX_KEY_TABLE-1)) {
-        memcpy(pTable->KeyTable[j].abyBSSID,pbyBSSID,U_ETHER_ADDR_LEN);
+        memcpy(pTable->KeyTable[j].abyBSSID,pbyBSSID,ETH_ALEN);
         pTable->KeyTable[j].bInUse = TRUE;
         if ((dwKeyIndex & PAIRWISE_KEY) != 0)  {
             // Pairwise key
@@ -656,7 +656,7 @@ BOOL KeybSetDefaultKey (
     }
 
     pTable->KeyTable[MAX_KEY_TABLE-1].bInUse = TRUE;
-    for(ii=0;ii<U_ETHER_ADDR_LEN;ii++)
+    for(ii=0;ii<ETH_ALEN;ii++)
         pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID[ii] = 0xFF;
 
     // Group key
