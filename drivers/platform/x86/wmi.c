@@ -756,11 +756,9 @@ static __init acpi_status parse_wdg(acpi_handle handle)
 
 	total = obj->buffer.length / sizeof(struct guid_block);
 
-	gblock = kzalloc(obj->buffer.length, GFP_KERNEL);
+	gblock = kmemdup(obj->buffer.pointer, obj->buffer.length, GFP_KERNEL);
 	if (!gblock)
 		return AE_NO_MEMORY;
-
-	memcpy(gblock, obj->buffer.pointer, obj->buffer.length);
 
 	for (i = 0; i < total; i++) {
 		/*
