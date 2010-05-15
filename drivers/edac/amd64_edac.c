@@ -1979,107 +1979,6 @@ static int get_channel_from_ecc_syndrome(struct mem_ctl_info *mci, u16 syndrome)
 }
 
 /*
- * Check for valid error in the NB Status High register. If so, proceed to read
- * NB Status Low, NB Address Low and NB Address High registers and store data
- * into error structure.
- *
- * Returns:
- *	- 1: if hardware regs contains valid error info
- *	- 0: if no valid error is indicated
- */
-static int amd64_get_error_info_regs(struct mem_ctl_info *mci,
-				     struct err_regs *regs)
-{
-	struct amd64_pvt *pvt;
-	struct pci_dev *misc_f3_ctl;
-
-	pvt = mci->pvt_info;
-	misc_f3_ctl = pvt->misc_f3_ctl;
-
-	if (amd64_read_pci_cfg(misc_f3_ctl, K8_NBSH, &regs->nbsh))
-		return 0;
-
-	if (!(regs->nbsh & K8_NBSH_VALID_BIT))
-		return 0;
-
-	/* valid error, read remaining error information registers */
-	if (amd64_read_pci_cfg(misc_f3_ctl, K8_NBSL, &regs->nbsl) ||
-	    amd64_read_pci_cfg(misc_f3_ctl, K8_NBEAL, &regs->nbeal) ||
-	    amd64_read_pci_cfg(misc_f3_ctl, K8_NBEAH, &regs->nbeah) ||
-	    amd64_read_pci_cfg(misc_f3_ctl, K8_NBCFG, &regs->nbcfg))
-		return 0;
-
-	return 1;
-}
-
-/*
- * This function is called to retrieve the error data from hardware and store it
- * in the info structure.
- *
- * Returns:
- *	- 1: if a valid error is found
- *	- 0: if no error is found
- */
-static int amd64_get_error_info(struct mem_ctl_info *mci,
-				struct err_regs *info)
-{
-	struct amd64_pvt *pvt;
-	struct err_regs regs;
-
-	pvt = mci->pvt_info;
-
-	if (!amd64_get_error_info_regs(mci, info))
-		return 0;
-
-	/*
-	 * Here's the problem with the K8's EDAC reporting: There are four
-	 * registers which report pieces of error information. They are shared
-	 * between CEs and UEs. Furthermore, contrary to what is stated in the
-	 * BKDG, the overflow bit is never used! Every error always updates the
-	 * reporting registers.
-	 *
-	 * Can you see the race condition? All four error reporting registers
-	 * must be read before a new error updates them! There is no way to read
-	 * all four registers atomically. The best than can be done is to detect
-	 * that a race has occured and then report the error without any kind of
-	 * precision.
-	 *
-	 * What is still positive is that errors are still reported and thus
-	 * problems can still be detected - just not localized because the
-	 * syndrome and address are spread out across registers.
-	 *
-	 * Grrrrr!!!!!  Here's hoping that AMD fixes this in some future K8 rev.
-	 * UEs and CEs should have separate register sets with proper overflow
-	 * bits that are used! At very least the problem can be fixed by
-	 * honoring the ErrValid bit in 'nbsh' and not updating registers - just
-	 * set the overflow bit - unless the current error is CE and the new
-	 * error is UE which would be the only situation for overwriting the
-	 * current values.
-	 */
-
-	regs = *info;
-
-	/* Use info from the second read - most current */
-	if (unlikely(!amd64_get_error_info_regs(mci, info)))
-		return 0;
-
-	/* clear the error bits in hardware */
-	pci_write_bits32(pvt->misc_f3_ctl, K8_NBSH, 0, K8_NBSH_VALID_BIT);
-
-	/* Check for the possible race condition */
-	if ((regs.nbsh != info->nbsh) ||
-	     (regs.nbsl != info->nbsl) ||
-	     (regs.nbeah != info->nbeah) ||
-	     (regs.nbeal != info->nbeal)) {
-		amd64_mc_printk(mci, KERN_WARNING,
-				"hardware STATUS read access race condition "
-				"detected!\n");
-		return 0;
-	}
-	return 1;
-}
-
-/*
  * Handle any Correctable Errors (CEs) that have occurred. Check for valid ERROR
  * ADDRESS and process.
  */
@@ -2200,20 +2099,6 @@ void amd64_decode_bus_error(int node_id, struct err_regs *regs)
 	if (regs->nbsh & K8_NBSH_UC_ERR && !report_gart_errors)
 		edac_mc_handle_ue_no_info(mci, "UE bit is set");
 
-}
-
-/*
- * The main polling 'check' function, called FROM the edac core to perform the
- * error checking and if an error is encountered, error processing.
- */
-static void amd64_check(struct mem_ctl_info *mci)
-{
-	struct err_regs regs;
-
-	if (amd64_get_error_info(mci, &regs)) {
-		struct amd64_pvt *pvt = mci->pvt_info;
-		amd_decode_nb_mce(pvt->mc_node_id, &regs, 1);
-	}
 }
 
 /*
@@ -2755,9 +2640,6 @@ static void amd64_setup_mci_misc_attributes(struct mem_ctl_info *mci)
 	mci->ctl_name		= get_amd_family_name(pvt->mc_type_index);
 	mci->dev_name		= pci_name(pvt->dram_f2_ctl);
 	mci->ctl_page_to_phys	= NULL;
-
-	/* IMPORTANT: Set the polling 'check' function in this module */
-	mci->edac_check		= amd64_check;
 
 	/* memory scrubber interface */
 	mci->set_sdram_scrub_rate = amd64_set_scrub_rate;
