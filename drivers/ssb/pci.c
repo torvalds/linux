@@ -625,11 +625,22 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 		return -ENODEV;
 	}
 	if (bus->chipco.dev) {	/* can be unavailible! */
-		bus->sprom_offset = (bus->chipco.dev->id.revision < 31) ?
-			SSB_SPROM_BASE1 : SSB_SPROM_BASE31;
+		/*
+		 * get SPROM offset: SSB_SPROM_BASE1 except for
+		 * chipcommon rev >= 31 or chip ID is 0x4312 and
+		 * chipcommon status & 3 == 2
+		 */
+		if (bus->chipco.dev->id.revision >= 31)
+			bus->sprom_offset = SSB_SPROM_BASE31;
+		else if (bus->chip_id == 0x4312 &&
+			 (bus->chipco.status & 0x03) == 2)
+			bus->sprom_offset = SSB_SPROM_BASE31;
+		else
+			bus->sprom_offset = SSB_SPROM_BASE1;
 	} else {
 		bus->sprom_offset = SSB_SPROM_BASE1;
 	}
+	ssb_dprintk(KERN_INFO PFX "SPROM offset is 0x%x\n", bus->sprom_offset);
 
 	buf = kcalloc(SSB_SPROMSIZE_WORDS_R123, sizeof(u16), GFP_KERNEL);
 	if (!buf)
