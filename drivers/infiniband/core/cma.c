@@ -1677,13 +1677,13 @@ int rdma_set_ib_paths(struct rdma_cm_id *id,
 	if (!cma_comp_exch(id_priv, CMA_ADDR_RESOLVED, CMA_ROUTE_RESOLVED))
 		return -EINVAL;
 
-	id->route.path_rec = kmalloc(sizeof *path_rec * num_paths, GFP_KERNEL);
+	id->route.path_rec = kmemdup(path_rec, sizeof *path_rec * num_paths,
+				     GFP_KERNEL);
 	if (!id->route.path_rec) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	memcpy(id->route.path_rec, path_rec, sizeof *path_rec * num_paths);
 	id->route.num_paths = num_paths;
 	return 0;
 err:
