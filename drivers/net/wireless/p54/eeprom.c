@@ -599,13 +599,13 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 			}
 			break;
 		case PDR_PRISM_ZIF_TX_IQ_CALIBRATION:
-			priv->iq_autocal = kmalloc(data_len, GFP_KERNEL);
+			priv->iq_autocal = kmemdup(entry->data, data_len,
+						   GFP_KERNEL);
 			if (!priv->iq_autocal) {
 				err = -ENOMEM;
 				goto err;
 			}
 
-			memcpy(priv->iq_autocal, entry->data, data_len);
 			priv->iq_autocal_len = data_len / sizeof(struct pda_iq_autocal_entry);
 			break;
 		case PDR_DEFAULT_COUNTRY:
