@@ -892,10 +892,10 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 
 		if (choice == -1)
 			continue;
-do_annotate:
+
 		if (choice == annotate) {
 			struct hist_entry *he;
-
+do_annotate:
 			if (browser->selection->map->dso->origin == DSO__ORIG_KERNEL) {
 				ui_helpline__puts("No vmlinux file found, can't "
 						 "annotate with just a "
