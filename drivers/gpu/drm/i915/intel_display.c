@@ -4589,12 +4589,6 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 	spin_lock_irqsave(&dev->event_lock, flags);
 	work = intel_crtc->unpin_work;
 	if (work == NULL || !work->pending) {
-		if (work && !work->pending) {
-			obj_priv = to_intel_bo(work->pending_flip_obj);
-			DRM_DEBUG_DRIVER("flip finish: %p (%d) not pending?\n",
-					 obj_priv,
-					 atomic_read(&obj_priv->pending_flip));
-		}
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		return;
 	}
