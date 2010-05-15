@@ -93,10 +93,9 @@ static int dm_write(struct usbnet *dev, u8 reg, u16 length, void *data)
 	netdev_dbg(dev->net, "dm_write() reg=0x%02x, length=%d\n", reg, length);
 
 	if (data) {
-		buf = kmalloc(length, GFP_KERNEL);
+		buf = kmemdup(data, length, GFP_KERNEL);
 		if (!buf)
 			goto out;
-		memcpy(buf, data, length);
 	}
 
 	err = usb_control_msg(dev->udev,
