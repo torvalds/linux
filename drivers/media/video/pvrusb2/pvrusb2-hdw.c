@@ -4084,11 +4084,19 @@ void pvr2_hdw_device_reset(struct pvr2_hdw *hdw)
 
 void pvr2_hdw_cpureset_assert(struct pvr2_hdw *hdw,int val)
 {
-	char da[1];
+	char *da;
 	unsigned int pipe;
 	int ret;
 
 	if (!hdw->usb_dev) return;
+
+	da = kmalloc(16, GFP_KERNEL);
+
+	if (da == NULL) {
+		pvr2_trace(PVR2_TRACE_ERROR_LEGS,
+			   "Unable to allocate memory to control CPU reset");
+		return;
+	}
 
 	pvr2_trace(PVR2_TRACE_INIT,"cpureset_assert(%d)",val);
 
@@ -4103,6 +4111,8 @@ void pvr2_hdw_cpureset_assert(struct pvr2_hdw *hdw,int val)
 			   "cpureset_assert(%d) error=%d",val,ret);
 		pvr2_hdw_render_useless(hdw);
 	}
+
+	kfree(da);
 }
 
 
