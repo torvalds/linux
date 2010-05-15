@@ -203,13 +203,12 @@ static int set_registers(pegasus_t * pegasus, __u16 indx, __u16 size,
 	char *buffer;
 	DECLARE_WAITQUEUE(wait, current);
 
-	buffer = kmalloc(size, GFP_KERNEL);
+	buffer = kmemdup(data, size, GFP_KERNEL);
 	if (!buffer) {
 		netif_warn(pegasus, drv, pegasus->net,
 			   "out of memory in %s\n", __func__);
 		return -ENOMEM;
 	}
-	memcpy(buffer, data, size);
 
 	add_wait_queue(&pegasus->ctrl_wait, &wait);
 	set_current_state(TASK_UNINTERRUPTIBLE);
@@ -255,13 +254,12 @@ static int set_register(pegasus_t * pegasus, __u16 indx, __u8 data)
 	char *tmp;
 	DECLARE_WAITQUEUE(wait, current);
 
-	tmp = kmalloc(1, GFP_KERNEL);
+	tmp = kmemdup(&data, 1, GFP_KERNEL);
 	if (!tmp) {
 		netif_warn(pegasus, drv, pegasus->net,
 			   "out of memory in %s\n", __func__);
 		return -ENOMEM;
 	}
-	memcpy(tmp, &data, 1);
 	add_wait_queue(&pegasus->ctrl_wait, &wait);
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	while (pegasus->flags & ETH_REGS_CHANGED)
