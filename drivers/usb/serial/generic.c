@@ -324,6 +324,9 @@ void usb_serial_generic_process_read_urb(struct urb *urb)
 	char *ch = (char *)urb->transfer_buffer;
 	int i;
 
+	if (!urb->actual_length)
+		return;
+
 	tty = tty_port_tty_get(&port->port);
 	if (!tty)
 		return;
