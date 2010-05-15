@@ -942,13 +942,6 @@ config PERF_USE_VMALLOC
 	help
 	  See tools/perf/design.txt for details
 
-config PERF_EVENTS_NMI
-	def_bool PERF_EVENTS && HAVE_PERF_EVENTS_NMI
-	help
-	  System hardware can generate an NMI using the perf event
-	  subsystem.  Also has support for calculating CPU cycle events
-	  to determine how many clock cycles in a given period.
-
 menu "Kernel Performance Events And Counters"
 
 config PERF_EVENTS

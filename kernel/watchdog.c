@@ -37,7 +37,7 @@ static DEFINE_PER_CPU(struct hrtimer, watchdog_hrtimer);
 static DEFINE_PER_CPU(bool, softlockup_touch_sync);
 static DEFINE_PER_CPU(bool, hard_watchdog_warn);
 static DEFINE_PER_CPU(bool, soft_watchdog_warn);
-#ifdef CONFIG_PERF_EVENTS_NMI
+#ifdef CONFIG_HARDLOCKUP_DETECTOR
 static DEFINE_PER_CPU(unsigned long, hrtimer_interrupts);
 static DEFINE_PER_CPU(unsigned long, hrtimer_interrupts_saved);
 static DEFINE_PER_CPU(struct perf_event *, watchdog_ev);
@@ -51,7 +51,7 @@ static int __initdata no_watchdog;
 /*
  * Should we panic when a soft-lockup or hard-lockup occurs:
  */
-#ifdef CONFIG_PERF_EVENTS_NMI
+#ifdef CONFIG_HARDLOCKUP_DETECTOR
 static int hardlockup_panic;
 
 static int __init hardlockup_panic_setup(char *str)
@@ -152,7 +152,7 @@ void touch_softlockup_watchdog_sync(void)
 	__raw_get_cpu_var(watchdog_touch_ts) = 0;
 }
 
-#ifdef CONFIG_PERF_EVENTS_NMI
+#ifdef CONFIG_HARDLOCKUP_DETECTOR
 /* watchdog detector functions */
 static int is_hardlockup(int cpu)
 {
@@ -189,7 +189,7 @@ static struct notifier_block panic_block = {
 	.notifier_call = watchdog_panic,
 };
 
-#ifdef CONFIG_PERF_EVENTS_NMI
+#ifdef CONFIG_HARDLOCKUP_DETECTOR
 static struct perf_event_attr wd_hw_attr = {
 	.type		= PERF_TYPE_HARDWARE,
 	.config		= PERF_COUNT_HW_CPU_CYCLES,
@@ -239,7 +239,7 @@ static void watchdog_interrupt_count(void)
 }
 #else
 static inline void watchdog_interrupt_count(void) { return; }
-#endif /* CONFIG_PERF_EVENTS_NMI */
+#endif /* CONFIG_HARDLOCKUP_DETECTOR */
 
 /* watchdog kicker functions */
 static enum hrtimer_restart watchdog_timer_fn(struct hrtimer *hrtimer)
@@ -342,7 +342,7 @@ static int watchdog(void *__bind_cpu)
 }
 
 
-#ifdef CONFIG_PERF_EVENTS_NMI
+#ifdef CONFIG_HARDLOCKUP_DETECTOR
 static int watchdog_nmi_enable(int cpu)
 {
 	struct perf_event_attr *wd_attr;
@@ -393,7 +393,7 @@ static void watchdog_nmi_disable(int cpu)
 #else
 static int watchdog_nmi_enable(int cpu) { return 0; }
 static void watchdog_nmi_disable(int cpu) { return; }
-#endif /* CONFIG_PERF_EVENTS_NMI */
+#endif /* CONFIG_HARDLOCKUP_DETECTOR */
 
 /* prepare/enable/disable routines */
 static int watchdog_prepare_cpu(int cpu)
