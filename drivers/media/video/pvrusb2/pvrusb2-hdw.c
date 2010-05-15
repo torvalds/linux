@@ -2459,6 +2459,19 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 		   hdw,hdw_desc->description);
 	pvr2_trace(PVR2_TRACE_INFO, "Hardware description: %s",
 		hdw_desc->description);
+	if (hdw_desc->flag_is_experimental) {
+		pvr2_trace(PVR2_TRACE_INFO, "**********");
+		pvr2_trace(PVR2_TRACE_INFO,
+			   "WARNING: Support for this device (%s) is"
+			   " experimental.", hdw_desc->description);
+		pvr2_trace(PVR2_TRACE_INFO,
+			   "Important functionality might not be"
+			   " entirely working.");
+		pvr2_trace(PVR2_TRACE_INFO,
+			   "Please consider contacting the driver author to"
+			   " help with further stabilization of the driver.");
+		pvr2_trace(PVR2_TRACE_INFO, "**********");
+	}
 	if (!hdw) goto fail;
 
 	init_timer(&hdw->quiescent_timer);
