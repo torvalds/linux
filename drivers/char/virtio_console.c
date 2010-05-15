@@ -1090,7 +1090,7 @@ free_port:
 	kfree(port);
 fail:
 	/* The host might want to notify management sw about port add failure */
-	send_control_msg(port, VIRTIO_CONSOLE_PORT_READY, 0);
+	__send_control_msg(portdev, id, VIRTIO_CONSOLE_PORT_READY, 0);
 	return err;
 }
 
@@ -1559,6 +1559,9 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 	return 0;
 
 free_vqs:
+	/* The host might want to notify mgmt sw about device add failure */
+	__send_control_msg(portdev, VIRTIO_CONSOLE_BAD_ID,
+			   VIRTIO_CONSOLE_DEVICE_READY, 0);
 	vdev->config->del_vqs(vdev);
 	kfree(portdev->in_vqs);
 	kfree(portdev->out_vqs);
@@ -1567,9 +1570,6 @@ free_chrdev:
 free:
 	kfree(portdev);
 fail:
-	/* The host might want to notify mgmt sw about device add failure */
-	__send_control_msg(portdev, VIRTIO_CONSOLE_BAD_ID,
-			   VIRTIO_CONSOLE_DEVICE_READY, 0);
 	return err;
 }
 
