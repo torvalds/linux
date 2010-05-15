@@ -185,11 +185,10 @@ static void VmbusOnMsgDPC(struct hv_driver *drv)
 			/* no msg */
 			break;
 		} else {
-			copied = kmalloc(sizeof(*copied), GFP_ATOMIC);
+			copied = kmemdup(msg, sizeof(*copied), GFP_ATOMIC);
 			if (copied == NULL)
 				continue;
 
-			memcpy(copied, msg, sizeof(*copied));
 			osd_schedule_callback(gVmbusConnection.WorkQueue,
 					      VmbusOnChannelMessage,
 					      (void *)copied);

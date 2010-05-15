@@ -1074,7 +1074,8 @@ int pod_init(struct usb_interface *interface, struct usb_line6_pod *pod)
 		return -ENOMEM;
 	}
 
-	pod->buffer_versionreq = kmalloc(sizeof(pod_request_version),
+	pod->buffer_versionreq = kmemdup(pod_request_version,
+					 sizeof(pod_request_version),
 					 GFP_KERNEL);
 
 	if (pod->buffer_versionreq == NULL) {
@@ -1082,9 +1083,6 @@ int pod_init(struct usb_interface *interface, struct usb_line6_pod *pod)
 		pod_destruct(interface);
 		return -ENOMEM;
 	}
-
-	memcpy(pod->buffer_versionreq, pod_request_version,
-	       sizeof(pod_request_version));
 
 	/* create sysfs entries: */
 	err = pod_create_files2(&interface->dev);

@@ -1368,13 +1368,12 @@ static int firmwareUpload(struct usbduxfastsub_s *usbduxfastsub,
 	}
 
 	/* we generate a local buffer for the firmware */
-	fwBuf = kzalloc(sizeFirmware, GFP_KERNEL);
+	fwBuf = kmemdup(firmwareBinary, sizeFirmware, GFP_KERNEL);
 	if (!fwBuf) {
 		dev_err(&usbduxfastsub->interface->dev,
 			"comedi_: mem alloc for firmware failed\n");
 		return -ENOMEM;
 	}
-	memcpy(fwBuf, firmwareBinary, sizeFirmware);
 
 	ret = usbduxfastsub_stop(usbduxfastsub);
 	if (ret < 0) {

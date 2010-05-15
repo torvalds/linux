@@ -767,10 +767,9 @@ int ieee80211_wx_set_gen_ie(struct ieee80211_device *ieee, u8 *ie, size_t len)
 			printk("len: %Zd, ie:%d\n", len, ie[1]);
 			return -EINVAL;
 		}
-		buf = kmalloc(len, GFP_KERNEL);
+		buf = kmemdup(ie, len, GFP_KERNEL);
 		if (buf == NULL)
 			return -ENOMEM;
-		memcpy(buf, ie, len);
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
 		ieee->wpa_ie_len = len;

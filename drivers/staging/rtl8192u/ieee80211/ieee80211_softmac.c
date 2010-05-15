@@ -1579,10 +1579,9 @@ static inline u16 auth_parse(struct sk_buff *skb, u8** challenge, int *chlen)
 
 		if(*(t++) == MFIE_TYPE_CHALLENGE){
 			*chlen = *(t++);
-			*challenge = kmalloc(*chlen, GFP_ATOMIC);
+			*challenge = kmemdup(t, *chlen, GFP_ATOMIC);
 			if (!*challenge)
 				return -ENOMEM;
-			memcpy(*challenge, t, *chlen);
 		}
 	}
 
@@ -2870,11 +2869,11 @@ static int ieee80211_wpa_set_wpa_ie(struct ieee80211_device *ieee,
 		return -EINVAL;
 
 	if (param->u.wpa_ie.len) {
-		buf = kmalloc(param->u.wpa_ie.len, GFP_KERNEL);
+		buf = kmemdup(param->u.wpa_ie.data, param->u.wpa_ie.len,
+			      GFP_KERNEL);
 		if (buf == NULL)
 			return -ENOMEM;
 
-		memcpy(buf, param->u.wpa_ie.data, param->u.wpa_ie.len);
 		kfree(ieee->wpa_ie);
 		ieee->wpa_ie = buf;
 		ieee->wpa_ie_len = param->u.wpa_ie.len;
