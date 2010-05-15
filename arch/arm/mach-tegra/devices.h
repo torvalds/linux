@@ -27,5 +27,13 @@ extern struct platform_device tegra_sdhci_device1;
 extern struct platform_device tegra_sdhci_device2;
 extern struct platform_device tegra_sdhci_device3;
 extern struct platform_device tegra_sdhci_device4;
+extern struct platform_device tegra_i2c_device1;
+extern struct platform_device tegra_i2c_device2;
+extern struct platform_device tegra_i2c_device3;
+extern struct platform_device tegra_i2c_device4;
+extern struct platform_device tegra_spi_device1;
+extern struct platform_device tegra_spi_device2;
+extern struct platform_device tegra_spi_device3;
+extern struct platform_device tegra_spi_device4;
 
 #endif

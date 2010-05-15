@@ -76,7 +76,7 @@ static struct resource i2c_resource4[] = {
 	},
 };
 
-static struct platform_device tegra_i2c_device1 = {
+struct platform_device tegra_i2c_device1 = {
 	.name		= "tegra-i2c",
 	.id		= 0,
 	.resource	= i2c_resource1,
@@ -86,7 +86,7 @@ static struct platform_device tegra_i2c_device1 = {
 	},
 };
 
-static struct platform_device tegra_i2c_device2 = {
+struct platform_device tegra_i2c_device2 = {
 	.name		= "tegra-i2c",
 	.id		= 1,
 	.resource	= i2c_resource2,
@@ -96,7 +96,7 @@ static struct platform_device tegra_i2c_device2 = {
 	},
 };
 
-static struct platform_device tegra_i2c_device3 = {
+struct platform_device tegra_i2c_device3 = {
 	.name		= "tegra-i2c",
 	.id		= 2,
 	.resource	= i2c_resource3,
@@ -106,7 +106,7 @@ static struct platform_device tegra_i2c_device3 = {
 	},
 };
 
-static struct platform_device tegra_i2c_device4 = {
+struct platform_device tegra_i2c_device4 = {
 	.name		= "tegra-i2c",
 	.id		= 3,
 	.resource	= i2c_resource4,
@@ -168,7 +168,7 @@ static struct resource spi_resource4[] = {
 	},
 };
 
-static struct platform_device tegra_spi_device1 = {
+struct platform_device tegra_spi_device1 = {
 	.name           = "spi_tegra",
 	.id             = 0,
 	.resource       = spi_resource1,
@@ -178,7 +178,7 @@ static struct platform_device tegra_spi_device1 = {
 	},
 };
 
-static struct platform_device tegra_spi_device2 = {
+struct platform_device tegra_spi_device2 = {
 	.name           = "spi_tegra",
 	.id             = 1,
 	.resource       = spi_resource2,
@@ -188,7 +188,7 @@ static struct platform_device tegra_spi_device2 = {
 	},
 };
 
-static struct platform_device tegra_spi_device3 = {
+struct platform_device tegra_spi_device3 = {
 	.name           = "spi_tegra",
 	.id             = 2,
 	.resource       = spi_resource3,
@@ -198,7 +198,7 @@ static struct platform_device tegra_spi_device3 = {
 	},
 };
 
-static struct platform_device tegra_spi_device4 = {
+struct platform_device tegra_spi_device4 = {
 	.name           = "spi_tegra",
 	.id             = 3,
 	.resource       = spi_resource4,
@@ -292,22 +292,3 @@ struct platform_device tegra_sdhci_device4 = {
 	.resource	= sdhci_resource4,
 	.num_resources	= ARRAY_SIZE(sdhci_resource4),
 };
-
-
-static struct platform_device *tegra_devices[] __initdata = {
-	&tegra_i2c_device1,
-	&tegra_i2c_device2,
-	&tegra_i2c_device3,
-	&tegra_i2c_device4,
-	&tegra_spi_device1,
-	&tegra_spi_device2,
-	&tegra_spi_device3,
-	&tegra_spi_device4,
-};
-
-static int __init tegra_devices_init(void)
-{
-	return platform_add_devices(tegra_devices, ARRAY_SIZE(tegra_devices));
-};
-
-arch_initcall(tegra_devices_init);
