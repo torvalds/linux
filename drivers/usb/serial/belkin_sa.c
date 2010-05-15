@@ -207,29 +207,20 @@ static void belkin_sa_release(struct usb_serial *serial)
 static int belkin_sa_open(struct tty_struct *tty,
 					struct usb_serial_port *port)
 {
-	int retval = 0;
+	int retval;
 
 	dbg("%s port %d", __func__, port->number);
 
-	/*Start reading from the device*/
-	/* TODO: Look at possibility of submitting multiple URBs to device to
-	 *       enhance buffering.  Win trace shows 16 initial read URBs.
-	 */
-	port->read_urb->dev = port->serial->dev;
-	retval = usb_submit_urb(port->read_urb, GFP_KERNEL);
-	if (retval) {
-		dev_err(&port->dev, "usb_submit_urb(read bulk) failed\n");
-		goto exit;
-	}
-
-	port->interrupt_in_urb->dev = port->serial->dev;
 	retval = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (retval) {
-		usb_kill_urb(port->read_urb);
 		dev_err(&port->dev, "usb_submit_urb(read int) failed\n");
+		return retval;
 	}
 
-exit:
+	retval = usb_serial_generic_open(tty, port);
+	if (retval)
+		usb_kill_urb(port->interrupt_in_urb);
+
 	return retval;
 }
 
