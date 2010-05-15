@@ -147,7 +147,7 @@ static int __devinit rdc321x_gpio_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gpio-reg1");
+	r = platform_get_resource_byname(pdev, IORESOURCE_IO, "gpio-reg1");
 	if (!r) {
 		dev_err(&pdev->dev, "failed to get gpio-reg1 resource\n");
 		err = -ENODEV;
@@ -159,7 +159,7 @@ static int __devinit rdc321x_gpio_probe(struct platform_device *pdev)
 	rdc321x_gpio_dev->reg1_ctrl_base = r->start;
 	rdc321x_gpio_dev->reg1_data_base = r->start + 0x4;
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "gpio-reg2");
+	r = platform_get_resource_byname(pdev, IORESOURCE_IO, "gpio-reg2");
 	if (!r) {
 		dev_err(&pdev->dev, "failed to get gpio-reg2 resource\n");
 		err = -ENODEV;

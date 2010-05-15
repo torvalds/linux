@@ -34,7 +34,7 @@ static struct resource rdc321x_wdt_resource[] = {
 		.name	= "wdt-reg",
 		.start	= RDC321X_WDT_CTRL,
 		.end	= RDC321X_WDT_CTRL + 0x3,
-		.flags	= IORESOURCE_MEM,
+		.flags	= IORESOURCE_IO,
 	}
 };
 
@@ -47,12 +47,12 @@ static struct resource rdc321x_gpio_resources[] = {
 		.name	= "gpio-reg1",
 		.start	= RDC321X_GPIO_CTRL_REG1,
 		.end	= RDC321X_GPIO_CTRL_REG1 + 0x7,
-		.flags	= IORESOURCE_MEM,
+		.flags	= IORESOURCE_IO,
 	}, {
 		.name	= "gpio-reg2",
 		.start	= RDC321X_GPIO_CTRL_REG2,
 		.end	= RDC321X_GPIO_CTRL_REG2 + 0x7,
-		.flags	= IORESOURCE_MEM,
+		.flags	= IORESOURCE_IO,
 	}
 };
 

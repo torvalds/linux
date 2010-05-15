@@ -237,7 +237,7 @@ static int __devinit rdc321x_wdt_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "wdt-reg");
+	r = platform_get_resource_byname(pdev, IORESOURCE_IO, "wdt-reg");
 	if (!r) {
 		dev_err(&pdev->dev, "failed to get wdt-reg resource\n");
 		return -ENODEV;
