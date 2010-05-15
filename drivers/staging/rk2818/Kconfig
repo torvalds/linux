@@ -1,0 +1,14 @@
+#
+# RK28XX ADC configuration
+#
+menuconfig RK28
+	tristate "RK28 Staging Driver"
+	depends on ARCH_RK2818
+	
+if RK28
+config RK28_ADC
+	tristate "RK28 ADC Driver"
+	default y
+	---help---
+		RK28 ADC Driver
+endif #RK28

@@ -422,5 +422,14 @@ config KEYBOARD_W90P910
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called w90p910_keypad.
+config KEYBOARD_RK28ADC	 
+	tristate "RK2818 ADC Keypad support"
+	depends on ARCH_RK2818
+	default y
+	help
+	  Say Y here to enable the adc keypad on SDK board
+	  based on RK2818.
 
+	  To compile this driver as a module, choose M here: the
+	  module will be called rk2818_adckey.
 endif
