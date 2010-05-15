@@ -142,11 +142,9 @@ static int mcs7830_set_reg(struct usbnet *dev, u16 index, u16 size, const void *
 	int ret;
 	void *buffer;
 
-	buffer = kmalloc(size, GFP_NOIO);
+	buffer = kmemdup(data, size, GFP_NOIO);
 	if (buffer == NULL)
 		return -ENOMEM;
-
-	memcpy(buffer, data, size);
 
 	ret = usb_control_msg(xdev, usb_sndctrlpipe(xdev, 0), MCS7830_WR_BREQ,
 			      MCS7830_WR_BMREQ, 0x0000, index, buffer,

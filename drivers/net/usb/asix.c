@@ -224,10 +224,9 @@ static int asix_write_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 		   cmd, value, index, size);
 
 	if (data) {
-		buf = kmalloc(size, GFP_KERNEL);
+		buf = kmemdup(data, size, GFP_KERNEL);
 		if (!buf)
 			goto out;
-		memcpy(buf, data, size);
 	}
 
 	err = usb_control_msg(
