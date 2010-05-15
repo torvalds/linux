@@ -249,6 +249,7 @@ static struct usb_serial_driver clie_3_5_device = {
 	.throttle =		visor_throttle,
 	.unthrottle =		visor_unthrottle,
 	.attach =		clie_3_5_startup,
+	.release =		visor_release,
 	.write =		visor_write,
 	.write_room =		visor_write_room,
 	.write_bulk_callback =	visor_write_bulk_callback,
