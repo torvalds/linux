@@ -135,6 +135,7 @@ config DVB_USB_M920X
 	select DVB_TDA1004X if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_QT1010 if !MEDIA_TUNER_CUSTOMISE
 	select MEDIA_TUNER_TDA827X if !MEDIA_TUNER_CUSTOMISE
+	select MEDIA_TUNER_SIMPLE if !MEDIA_TUNER_CUSTOMISE
 	help
 	  Say Y here to support the MSI Mega Sky 580 USB2.0 DVB-T receiver.
 	  Currently, only devices with a product id of
