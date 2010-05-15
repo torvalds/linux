@@ -601,10 +601,10 @@ rescan:
 			       "%s: p%d size %llu exceeds device capacity, ",
 			       disk->disk_name, p, (unsigned long long) size);
 
-			if (bdops->set_capacity &&
+			if (bdops->unlock_native_capacity &&
 			    (disk->flags & GENHD_FL_NATIVE_CAPACITY) == 0) {
 				printk(KERN_CONT "enabling native capacity\n");
-				bdops->set_capacity(disk, ~0ULL);
+				bdops->unlock_native_capacity(disk);
 				disk->flags |= GENHD_FL_NATIVE_CAPACITY;
 				/* free state and restart */
 				kfree(state);
