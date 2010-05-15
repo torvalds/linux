@@ -700,12 +700,16 @@ static bool ath_edma_get_buffers(struct ath_softc *sc,
 	bf = SKB_CB_ATHBUF(skb);
 	BUG_ON(!bf);
 
-	dma_sync_single_for_device(sc->dev, bf->bf_buf_addr,
+	dma_sync_single_for_cpu(sc->dev, bf->bf_buf_addr,
 				common->rx_bufsize, DMA_FROM_DEVICE);
 
 	ret = ath9k_hw_process_rxdesc_edma(ah, NULL, skb->data);
-	if (ret == -EINPROGRESS)
+	if (ret == -EINPROGRESS) {
+		/*let device gain the buffer again*/
+		dma_sync_single_for_device(sc->dev, bf->bf_buf_addr,
+				common->rx_bufsize, DMA_FROM_DEVICE);
 		return false;
+	}
 
 	__skb_unlink(skb, &rx_edma->rx_fifo);
 	if (ret == -EINVAL) {
@@ -814,7 +818,7 @@ static struct ath_buf *ath_get_next_rx_buf(struct ath_softc *sc,
 	 * 1. accessing the frame
 	 * 2. requeueing the same buffer to h/w
 	 */
-	dma_sync_single_for_device(sc->dev, bf->bf_buf_addr,
+	dma_sync_single_for_cpu(sc->dev, bf->bf_buf_addr,
 			common->rx_bufsize,
 			DMA_FROM_DEVICE);
 
