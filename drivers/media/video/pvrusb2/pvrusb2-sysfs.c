@@ -74,7 +74,7 @@ struct pvr2_sysfs_ctl_item {
 	int ctl_id;
 	struct pvr2_sysfs *chptr;
 	struct pvr2_sysfs_ctl_item *item_next;
-	struct attribute *attr_gen[7];
+	struct attribute *attr_gen[8];
 	struct attribute_group grp;
 	int created_ok;
 	char name[80];
