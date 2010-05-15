@@ -27,4 +27,6 @@ extern struct rk2818_i2c_platform_data default_i2c0_data;
 extern struct rk2818_i2c_platform_data default_i2c1_data;
 extern struct platform_device rk2818_device_dm9k;
 extern struct platform_device rk2818_device_fb;
+extern struct platform_device rk2818_device_adc;
+extern struct platform_device rk2818_device_adckey;
 #endif

@@ -232,3 +232,33 @@ struct platform_device rk2818_device_dm9k = {
 		.platform_data = &dm9k_platdata,
 	}
 };
+
+/*ADC*/
+static struct resource rk2818_adc_resource[] = {
+	{
+		.start = IRQ_NR_ADC,
+		.end   = IRQ_NR_ADC,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = RK2818_ADC_PHYS,
+		.end   = RK2818_ADC_PHYS + RK2818_ADC_SIZE - 1,
+		.flags = IORESOURCE_MEM,
+	},
+
+};
+
+struct platform_device rk2818_device_adc = {
+	.name		  = "rk2818-adc",
+	.id		  = -1,
+	.num_resources	  = ARRAY_SIZE(rk2818_adc_resource),
+	.resource	  = rk2818_adc_resource,
+};
+
+
+struct platform_device rk2818_device_adckey = {
+	.name		= "rk2818-adckey",
+	.id		= -1,
+	.dev.parent	= &rk2818_device_adc.dev,
+};
+
