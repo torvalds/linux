@@ -1337,7 +1337,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	unsigned index;
 	unsigned quadrant;
 	struct hlist_head *bucket;
-	struct kvm_mmu_page *sp;
+	struct kvm_mmu_page *sp, *unsync_sp = NULL;
 	struct hlist_node *node, *tmp;
 
 	role = vcpu->arch.mmu.base_role;
@@ -1356,20 +1356,30 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	hlist_for_each_entry_safe(sp, node, tmp, bucket, hash_link)
 		if (sp->gfn == gfn) {
 			if (sp->unsync)
-				if (kvm_sync_page(vcpu, sp))
-					continue;
+				unsync_sp = sp;
 
 			if (sp->role.word != role.word)
 				continue;
+
+			if (!direct && unsync_sp &&
+			      kvm_sync_page_transient(vcpu, unsync_sp)) {
+				unsync_sp = NULL;
+				break;
+			}
 
 			mmu_page_add_parent_pte(vcpu, sp, parent_pte);
 			if (sp->unsync_children) {
 				set_bit(KVM_REQ_MMU_SYNC, &vcpu->requests);
 				kvm_mmu_mark_parents_unsync(sp);
-			}
+			} else if (sp->unsync)
+				kvm_mmu_mark_parents_unsync(sp);
+
 			trace_kvm_mmu_get_page(sp, false);
 			return sp;
 		}
+	if (!direct && unsync_sp)
+		kvm_sync_page(vcpu, unsync_sp);
+
 	++vcpu->kvm->stat.mmu_cache_miss;
 	sp = kvm_mmu_alloc_page(vcpu, parent_pte);
 	if (!sp)
