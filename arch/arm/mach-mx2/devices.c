@@ -483,8 +483,8 @@ int __init mxc_register_gpios(void)
 #ifdef CONFIG_MACH_MX21
 static struct resource mx21_usbhc_resources[] = {
 	{
-		.start	= MX21_BASE_ADDR,
-		.end	= MX21_BASE_ADDR + 0x1FFF,
+		.start	= MX21_USBOTG_BASE_ADDR,
+		.end	= MX21_USBOTG_BASE_ADDR + SZ_8K - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	{
