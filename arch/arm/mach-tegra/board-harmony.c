@@ -38,6 +38,7 @@
 #include "board.h"
 #include "board-harmony.h"
 #include "clock.h"
+#include "devices.h"
 
 /* NVidia bootloader tags */
 #define ATAG_NVIDIA		0x41000801
@@ -251,6 +252,14 @@ static struct platform_device *harmony_devices[] __initdata = {
 	&tegra_nand_device,
 	&tegra_otg,
 	&pda_power_device,
+	&tegra_i2c_device1,
+	&tegra_i2c_device2,
+	&tegra_i2c_device3,
+	&tegra_i2c_device4,
+	&tegra_spi_device1,
+	&tegra_spi_device2,
+	&tegra_spi_device3,
+	&tegra_spi_device4,
 };
 
 static void __init tegra_harmony_fixup(struct machine_desc *desc,
@@ -278,6 +287,9 @@ static void __init tegra_harmony_init(void)
 	harmony_pinmux_init();
 
 	platform_add_devices(harmony_devices, ARRAY_SIZE(harmony_devices));
+
+	harmony_panel_init();
+	harmony_sdhci_init();
 }
 
 MACHINE_START(HARMONY, "harmony")
