@@ -164,8 +164,8 @@ struct sysv_dir_entry *sysv_find_entry(struct dentry *dentry, struct page **res_
 							name, de->name))
 					goto found;
 			}
+			dir_put_page(page);
 		}
-		dir_put_page(page);
 
 		if (++n >= npages)
 			n = 0;
