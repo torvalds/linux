@@ -365,7 +365,7 @@ static int __cmd_annotate(void)
 		goto out_delete;
 
 	if (dump_trace) {
-		event__print_totals();
+		perf_session__fprintf_nr_events(session, stdout);
 		goto out_delete;
 	}
 

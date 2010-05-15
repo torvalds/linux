@@ -37,9 +37,23 @@ struct sym_priv {
 	struct sym_ext	*ext;
 };
 
+/*
+ * The kernel collects the number of events it couldn't send in a stretch and
+ * when possible sends this number in a PERF_RECORD_LOST event. The number of
+ * such "chunks" of lost events is stored in .nr_events[PERF_EVENT_LOST] while
+ * total_lost tells exactly how many events the kernel in fact lost, i.e. it is
+ * the sum of all struct lost_event.lost fields reported.
+ *
+ * The total_period is needed because by default auto-freq is used, so
+ * multipling nr_events[PERF_EVENT_SAMPLE] by a frequency isn't possible to get
+ * the total number of low level events, it is necessary to to sum all struct
+ * sample_event.period and stash the result in total_period.
+ */
 struct events_stats {
-	u64 total;
-	u64 lost;
+	u64 total_period;
+	u64 total_lost;
+	u32 nr_events[PERF_RECORD_HEADER_MAX];
+	u32 nr_unknown_events;
 };
 
 struct hists {
@@ -55,7 +69,7 @@ struct hists {
 
 struct hist_entry *__hists__add_entry(struct hists *self,
 				      struct addr_location *al,
-				      struct symbol *parent, u64 count);
+				      struct symbol *parent, u64 period);
 extern int64_t hist_entry__cmp(struct hist_entry *, struct hist_entry *);
 extern int64_t hist_entry__collapse(struct hist_entry *, struct hist_entry *);
 int hist_entry__fprintf(struct hist_entry *self, struct hists *pair_hists,
@@ -68,6 +82,10 @@ void hist_entry__free(struct hist_entry *);
 
 void hists__output_resort(struct hists *self);
 void hists__collapse_resort(struct hists *self);
+
+void hists__inc_nr_events(struct hists *self, u32 type);
+size_t hists__fprintf_nr_events(struct hists *self, FILE *fp);
+
 size_t hists__fprintf(struct hists *self, struct hists *pair,
 		      bool show_displacement, FILE *fp);
 

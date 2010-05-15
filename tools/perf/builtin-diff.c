@@ -23,9 +23,9 @@ static bool  force;
 static bool show_displacement;
 
 static int hists__add_entry(struct hists *self,
-			    struct addr_location *al, u64 count)
+			    struct addr_location *al, u64 period)
 {
-	if (__hists__add_entry(self, al, NULL, count) != NULL)
+	if (__hists__add_entry(self, al, NULL, period) != NULL)
 		return 0;
 	return -ENOMEM;
 }
@@ -50,11 +50,11 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 	event__parse_sample(event, session->sample_type, &data);
 
 	if (hists__add_entry(&session->hists, &al, data.period)) {
-		pr_warning("problem incrementing symbol count, skipping event\n");
+		pr_warning("problem incrementing symbol period, skipping event\n");
 		return -1;
 	}
 
-	session->hists.stats.total += data.period;
+	session->hists.stats.total_period += data.period;
 	return 0;
 }
 

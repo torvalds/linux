@@ -109,7 +109,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 					     data.time, thread->comm);
 	}
 
-	session->hists.stats.total += data.period;
+	session->hists.stats.total_period += data.period;
 	return 0;
 }
 

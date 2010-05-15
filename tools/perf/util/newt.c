@@ -9,6 +9,7 @@
 
 #include "cache.h"
 #include "hist.h"
+#include "pstack.h"
 #include "session.h"
 #include "sort.h"
 #include "symbol.h"
@@ -680,16 +681,18 @@ static int hist_browser__populate(struct hist_browser *self, struct hists *hists
 	struct ui_progress *progress;
 	struct rb_node *nd;
 	u64 curr_hist = 0;
-	char seq[] = ".";
+	char seq[] = ".", unit;
 	char str[256];
+	unsigned long nr_events = hists->stats.nr_events[PERF_RECORD_SAMPLE];
 
 	if (self->form) {
 		newtFormDestroy(self->form);
 		newtPopWindow();
 	}
 
-	snprintf(str, sizeof(str), "Samples: %Ld                            ",
-		 hists->stats.total);
+	nr_events = convert_unit(nr_events, &unit);
+	snprintf(str, sizeof(str), "Events: %lu%c                            ",
+		 nr_events, unit);
 	newtDrawRootText(0, 0, str);
 
 	newtGetScreenSize(NULL, &rows);
@@ -718,12 +721,12 @@ static int hist_browser__populate(struct hist_browser *self, struct hists *hists
 		if (h->filtered)
 			continue;
 
-		len = hist_entry__append_browser(h, self->tree, hists->stats.total);
+		len = hist_entry__append_browser(h, self->tree, hists->stats.total_period);
 		if (len > max_len)
 			max_len = len;
 		if (symbol_conf.use_callchain)
 			hist_entry__append_callchain_browser(h, self->tree,
-							     hists->stats.total, idx++);
+							     hists->stats.total_period, idx++);
 		++curr_hist;
 		if (curr_hist % 5)
 			ui_progress__update(progress, curr_hist);
@@ -748,6 +751,7 @@ static int hist_browser__populate(struct hist_browser *self, struct hists *hists
 	newtFormAddHotKey(self->form, 'A');
 	newtFormAddHotKey(self->form, 'a');
 	newtFormAddHotKey(self->form, NEWT_KEY_RIGHT);
+	newtFormAddHotKey(self->form, NEWT_KEY_LEFT);
 	newtFormAddComponents(self->form, self->tree, NULL);
 	self->selection = newt__symbol_tree_get_current(self->tree);
 
@@ -799,6 +803,7 @@ static int hist_browser__title(char *bf, size_t size, const char *input_name,
 int hists__browse(struct hists *self, const char *helpline, const char *input_name)
 {
 	struct hist_browser *browser = hist_browser__new();
+	struct pstack *fstack = pstack__new(2);
 	const struct thread *thread_filter = NULL;
 	const struct dso *dso_filter = NULL;
 	struct newtExitStruct es;
@@ -808,12 +813,16 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 	if (browser == NULL)
 		return -1;
 
+	fstack = pstack__new(2);
+	if (fstack == NULL)
+		goto out;
+
 	ui_helpline__push(helpline);
 
 	hist_browser__title(msg, sizeof(msg), input_name,
 			    dso_filter, thread_filter);
 	if (hist_browser__populate(browser, self, msg) < 0)
-		goto out;
+		goto out_free_stack;
 
 	while (1) {
 		const struct thread *thread;
@@ -833,6 +842,19 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 					break;
 				else
 					continue;
+			}
+
+			if (es.u.key == NEWT_KEY_LEFT) {
+				const void *top;
+
+				if (pstack__empty(fstack))
+					continue;
+				top = pstack__pop(fstack);
+				if (top == &dso_filter)
+					goto zoom_out_dso;
+				if (top == &thread_filter)
+					goto zoom_out_thread;
+				continue;
 			}
 		}
 
@@ -886,12 +908,15 @@ do_annotate:
 			hist_entry__annotate_browser(he);
 		} else if (choice == zoom_dso) {
 			if (dso_filter) {
+				pstack__remove(fstack, &dso_filter);
+zoom_out_dso:
 				ui_helpline__pop();
 				dso_filter = NULL;
 			} else {
-				ui_helpline__fpush("To zoom out press -> + \"Zoom out of %s DSO\"",
+				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s DSO\"",
 						   dso->kernel ? "the Kernel" : dso->short_name);
 				dso_filter = dso;
+				pstack__push(fstack, &dso_filter);
 			}
 			hists__filter_by_dso(self, dso_filter);
 			hist_browser__title(msg, sizeof(msg), input_name,
@@ -900,13 +925,16 @@ do_annotate:
 				goto out;
 		} else if (choice == zoom_thread) {
 			if (thread_filter) {
+				pstack__remove(fstack, &thread_filter);
+zoom_out_thread:
 				ui_helpline__pop();
 				thread_filter = NULL;
 			} else {
-				ui_helpline__fpush("To zoom out press -> + \"Zoom out of %s(%d) thread\"",
+				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s(%d) thread\"",
 						   thread->comm_set ? thread->comm : "",
 						   thread->pid);
 				thread_filter = thread;
+				pstack__push(fstack, &thread_filter);
 			}
 			hists__filter_by_thread(self, thread_filter);
 			hist_browser__title(msg, sizeof(msg), input_name,
@@ -916,6 +944,8 @@ do_annotate:
 		}
 	}
 	err = 0;
+out_free_stack:
+	pstack__delete(fstack);
 out:
 	hist_browser__delete(browser);
 	return err;

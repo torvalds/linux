@@ -1641,19 +1641,10 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	return 0;
 }
 
-static int process_lost_event(event_t *event __used,
-			      struct perf_session *session __used)
-{
-	nr_lost_chunks++;
-	nr_lost_events += event->lost.lost;
-
-	return 0;
-}
-
 static struct perf_event_ops event_ops = {
 	.sample			= process_sample_event,
 	.comm			= event__process_comm,
-	.lost			= process_lost_event,
+	.lost			= event__process_lost,
 	.ordered_samples	= true,
 };
 
@@ -1664,8 +1655,12 @@ static int read_events(void)
 	if (session == NULL)
 		return -ENOMEM;
 
-	if (perf_session__has_traces(session, "record -R"))
+	if (perf_session__has_traces(session, "record -R")) {
 		err = perf_session__process_events(session, &event_ops);
+		nr_events      = session->hists.stats.nr_events[0];
+		nr_lost_events = session->hists.stats.total_lost;
+		nr_lost_chunks = session->hists.stats.nr_events[PERF_RECORD_LOST];
+	}
 
 	perf_session__delete(session);
 	return err;

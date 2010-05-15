@@ -94,7 +94,6 @@ struct perf_session *perf_session__new(const char *filename, int mode, bool forc
 	self->mmap_window = 32;
 	self->cwd = NULL;
 	self->cwdlen = 0;
-	self->unknown_events = 0;
 	self->machines = RB_ROOT;
 	self->repipe = repipe;
 	INIT_LIST_HEAD(&self->ordered_samples.samples_head);
@@ -238,36 +237,6 @@ static void perf_event_ops__fill_defaults(struct perf_event_ops *handler)
 			handler->finished_round = process_finished_round;
 		else
 			handler->finished_round = process_finished_round_stub;
-	}
-}
-
-static const char *event__name[] = {
-	[0]			 = "TOTAL",
-	[PERF_RECORD_MMAP]	 = "MMAP",
-	[PERF_RECORD_LOST]	 = "LOST",
-	[PERF_RECORD_COMM]	 = "COMM",
-	[PERF_RECORD_EXIT]	 = "EXIT",
-	[PERF_RECORD_THROTTLE]	 = "THROTTLE",
-	[PERF_RECORD_UNTHROTTLE] = "UNTHROTTLE",
-	[PERF_RECORD_FORK]	 = "FORK",
-	[PERF_RECORD_READ]	 = "READ",
-	[PERF_RECORD_SAMPLE]	 = "SAMPLE",
-	[PERF_RECORD_HEADER_ATTR]	 = "ATTR",
-	[PERF_RECORD_HEADER_EVENT_TYPE]	 = "EVENT_TYPE",
-	[PERF_RECORD_HEADER_TRACING_DATA]	 = "TRACING_DATA",
-	[PERF_RECORD_HEADER_BUILD_ID]	 = "BUILD_ID",
-};
-
-unsigned long event__total[PERF_RECORD_HEADER_MAX];
-
-void event__print_totals(void)
-{
-	int i;
-	for (i = 0; i < PERF_RECORD_HEADER_MAX; ++i) {
-		if (!event__name[i])
-			continue;
-		pr_info("%10s events: %10ld\n",
-			event__name[i], event__total[i]);
 	}
 }
 
@@ -580,8 +549,7 @@ static int perf_session__process_event(struct perf_session *self,
 		dump_printf("%#Lx [%#x]: PERF_RECORD_%s",
 			    offset + head, event->header.size,
 			    event__name[event->header.type]);
-		++event__total[0];
-		++event__total[event->header.type];
+		hists__inc_nr_events(&self->hists, event->header.type);
 	}
 
 	if (self->header.needs_swap && event__swap_ops[event->header.type])
@@ -619,7 +587,7 @@ static int perf_session__process_event(struct perf_session *self,
 	case PERF_RECORD_FINISHED_ROUND:
 		return ops->finished_round(event, self, ops);
 	default:
-		self->unknown_events++;
+		++self->hists.stats.nr_unknown_events;
 		return -1;
 	}
 }

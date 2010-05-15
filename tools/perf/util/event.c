@@ -7,6 +7,23 @@
 #include "strlist.h"
 #include "thread.h"
 
+const char *event__name[] = {
+	[0]			 = "TOTAL",
+	[PERF_RECORD_MMAP]	 = "MMAP",
+	[PERF_RECORD_LOST]	 = "LOST",
+	[PERF_RECORD_COMM]	 = "COMM",
+	[PERF_RECORD_EXIT]	 = "EXIT",
+	[PERF_RECORD_THROTTLE]	 = "THROTTLE",
+	[PERF_RECORD_UNTHROTTLE] = "UNTHROTTLE",
+	[PERF_RECORD_FORK]	 = "FORK",
+	[PERF_RECORD_READ]	 = "READ",
+	[PERF_RECORD_SAMPLE]	 = "SAMPLE",
+	[PERF_RECORD_HEADER_ATTR]	 = "ATTR",
+	[PERF_RECORD_HEADER_EVENT_TYPE]	 = "EVENT_TYPE",
+	[PERF_RECORD_HEADER_TRACING_DATA]	 = "TRACING_DATA",
+	[PERF_RECORD_HEADER_BUILD_ID]	 = "BUILD_ID",
+};
+
 static pid_t event__synthesize_comm(pid_t pid, int full,
 				    event__handler_t process,
 				    struct perf_session *session)
@@ -368,7 +385,7 @@ int event__process_comm(event_t *self, struct perf_session *session)
 int event__process_lost(event_t *self, struct perf_session *session)
 {
 	dump_printf(": id:%Ld: lost:%Ld\n", self->lost.id, self->lost.lost);
-	session->hists.stats.lost += self->lost.lost;
+	session->hists.stats.total_lost += self->lost.lost;
 	return 0;
 }
 

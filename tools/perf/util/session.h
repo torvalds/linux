@@ -30,8 +30,6 @@ struct perf_session {
 	struct machine		host_machine;
 	struct rb_root		machines;
 	struct rb_root		hists_tree;
-	unsigned long		event_total[PERF_RECORD_MAX];
-	unsigned long		unknown_events;
 	/*
 	 * FIXME: should point to the first entry in hists_tree and
 	 *        be a hists instance. Right now its only 'report'
@@ -139,5 +137,11 @@ size_t perf_session__fprintf_dsos_buildid(struct perf_session *self, FILE *fp,
 					  bool with_hits)
 {
 	return machines__fprintf_dsos_buildid(&self->machines, fp, with_hits);
+}
+
+static inline
+size_t perf_session__fprintf_nr_events(struct perf_session *self, FILE *fp)
+{
+	return hists__fprintf_nr_events(&self->hists, fp);
 }
 #endif /* __PERF_SESSION_H */
