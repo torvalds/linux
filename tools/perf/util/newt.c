@@ -323,6 +323,7 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 	newtFormAddHotKey(self->form, NEWT_KEY_PGDN);
 	newtFormAddHotKey(self->form, NEWT_KEY_HOME);
 	newtFormAddHotKey(self->form, NEWT_KEY_END);
+	newtFormAddHotKey(self->form, NEWT_KEY_LEFT);
 
 	if (ui_browser__refresh_entries(self) < 0)
 		return -1;
@@ -408,6 +409,7 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 		}
 			break;
 		case NEWT_KEY_ESCAPE:
+		case NEWT_KEY_LEFT:
 		case CTRL('c'):
 		case 'Q':
 		case 'q':
@@ -616,7 +618,7 @@ static void hist_entry__annotate_browser(struct hist_entry *self)
 	if (hist_entry__annotate(self, &head) < 0)
 		return;
 
-	ui_helpline__push("Press ESC to exit");
+	ui_helpline__push("Press <- or ESC to exit");
 
 	memset(&browser, 0, sizeof(browser));
 	browser.entries = &head;
