@@ -33,8 +33,8 @@ struct vmbus_channel_message_table_entry {
 	void (*messageHandler)(struct vmbus_channel_message_header *msg);
 };
 
-#define MAX_MSG_TYPES                    2
-#define MAX_NUM_DEVICE_CLASSES_SUPPORTED 6
+#define MAX_MSG_TYPES                    3
+#define MAX_NUM_DEVICE_CLASSES_SUPPORTED 7
 
 static const struct hv_guid
 	gSupportedDeviceClasses[MAX_NUM_DEVICE_CLASSES_SUPPORTED] = {
@@ -87,6 +87,14 @@ static const struct hv_guid
 		.data = {
 			0x30, 0xe6, 0x27, 0x95, 0xae, 0xd0, 0x7b, 0x49,
 			0xad, 0xce, 0xe8, 0x0a, 0xb0, 0x17, 0x5c, 0xaf
+		}
+	},
+	/* {57164f39-9115-4e78-ab55-382f3bd5422d} */
+	/* Heartbeat */
+	{
+		.data = {
+			0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
+			0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d
 		}
 	},
 };
@@ -210,6 +218,17 @@ struct hyperv_service_callback hv_cb_utils[MAX_MSG_TYPES] = {
 		},
 		.callback = chn_cb_negotiate,
 		.log_msg = "Timesync channel functionality initialized"
+	},
+	/* {57164f39-9115-4e78-ab55-382f3bd5422d} */
+	/* Heartbeat */
+	{
+		.msg_type = HV_HEARTBEAT_MSG,
+		.data = {
+			0x39, 0x4f, 0x16, 0x57, 0x15, 0x91, 0x78, 0x4e,
+			0xab, 0x55, 0x38, 0x2f, 0x3b, 0xd5, 0x42, 0x2d
+		},
+		.callback = chn_cb_negotiate,
+		.log_msg = "Heartbeat channel functionality initialized"
 	},
 };
 EXPORT_SYMBOL(hv_cb_utils);

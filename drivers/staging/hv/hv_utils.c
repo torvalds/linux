@@ -194,6 +194,62 @@ static void timesync_onchannelcallback(void *context)
 	DPRINT_EXIT(VMBUS);
 }
 
+/*
+ * Heartbeat functionality.
+ * Every two seconds, Hyper-V send us a heartbeat request message.
+ * we respond to this message, and Hyper-V knows we are alive.
+ */
+static void heartbeat_onchannelcallback(void *context)
+{
+	struct vmbus_channel *channel = context;
+	u8 *buf;
+	u32 buflen, recvlen;
+	u64 requestid;
+	struct icmsg_hdr *icmsghdrp;
+	struct heartbeat_msg_data *heartbeat_msg;
+
+	DPRINT_ENTER(VMBUS);
+
+	buflen = PAGE_SIZE;
+	buf = kmalloc(buflen, GFP_ATOMIC);
+
+	VmbusChannelRecvPacket(channel, buf, buflen, &recvlen, &requestid);
+
+	if (recvlen > 0) {
+		DPRINT_DBG(VMBUS, "heartbeat packet: len=%d, requestid=%lld",
+			   recvlen, requestid);
+
+		icmsghdrp = (struct icmsg_hdr *)&buf[
+			sizeof(struct vmbuspipe_hdr)];
+
+		icmsghdrp = (struct icmsg_hdr *)&buf[
+				sizeof(struct vmbuspipe_hdr)];
+
+		if (icmsghdrp->icmsgtype == ICMSGTYPE_NEGOTIATE) {
+			prep_negotiate_resp(icmsghdrp, NULL, buf);
+		} else {
+			heartbeat_msg = (struct heartbeat_msg_data *)&buf[
+				sizeof(struct vmbuspipe_hdr) +
+				sizeof(struct icmsg_hdr)];
+
+			DPRINT_DBG(VMBUS, "heartbeat seq = %lld",
+				   heartbeat_msg->seq_num);
+
+			heartbeat_msg->seq_num += 1;
+		}
+
+		icmsghdrp->icflags = ICMSGHDRFLAG_TRANSACTION
+			| ICMSGHDRFLAG_RESPONSE;
+
+		VmbusChannelSendPacket(channel, buf,
+				       recvlen, requestid,
+				       VmbusPacketTypeDataInBand, 0);
+	}
+
+	kfree(buf);
+
+	DPRINT_EXIT(VMBUS);
+}
 
 static int __init init_hyperv_utils(void)
 {
@@ -206,6 +262,10 @@ static int __init init_hyperv_utils(void)
 	hv_cb_utils[HV_TIMESYNC_MSG].channel->OnChannelCallback =
 		&timesync_onchannelcallback;
 	hv_cb_utils[HV_TIMESYNC_MSG].callback = &timesync_onchannelcallback;
+
+	hv_cb_utils[HV_HEARTBEAT_MSG].channel->OnChannelCallback =
+		&heartbeat_onchannelcallback;
+	hv_cb_utils[HV_HEARTBEAT_MSG].callback = &heartbeat_onchannelcallback;
 
 	return 0;
 }
@@ -221,6 +281,10 @@ static void exit_hyperv_utils(void)
 	hv_cb_utils[HV_TIMESYNC_MSG].channel->OnChannelCallback =
 		&chn_cb_negotiate;
 	hv_cb_utils[HV_TIMESYNC_MSG].callback = &chn_cb_negotiate;
+
+	hv_cb_utils[HV_HEARTBEAT_MSG].channel->OnChannelCallback =
+		&chn_cb_negotiate;
+	hv_cb_utils[HV_HEARTBEAT_MSG].callback = &chn_cb_negotiate;
 }
 
 module_init(init_hyperv_utils);

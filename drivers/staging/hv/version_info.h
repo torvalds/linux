@@ -40,8 +40,9 @@
  *	Minor Number	Changes when new functionality is added
  *			to the Linux IC's that is not a bug fix.
  *
+ * 3.1 - Added completed hv_utils driver. Shutdown/Heartbeat/Timesync
  */
-#define HV_DRV_VERSION           "3.0"
+#define HV_DRV_VERSION           "3.1"
 
 
 #endif

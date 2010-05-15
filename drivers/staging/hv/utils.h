@@ -75,6 +75,10 @@ struct shutdown_msg_data {
 	u8  display_message[2048];
 } __attribute__((packed));
 
+struct heartbeat_msg_data {
+	u64 seq_num;
+	u32 reserved[8];
+} __attribute__((packed));
 
 /* Time Sync IC defs */
 #define ICTIMESYNCFLAG_PROBE	0
@@ -97,6 +101,7 @@ struct ictimesync_data{
 /* Index for each IC struct in array hv_cb_utils[] */
 #define HV_SHUTDOWN_MSG		0
 #define HV_TIMESYNC_MSG		1
+#define HV_HEARTBEAT_MSG	2
 
 struct hyperv_service_callback {
 	u8 msg_type;
