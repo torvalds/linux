@@ -1,7 +1,7 @@
 config COMEDI
 	tristate "Data acquisition support (comedi)"
 	default N
-	depends on m && (PCI || PCMCIA || PCCARD || USB)
+	depends on m
 	---help---
 	  Enable support a wide range of data acquisition devices
 	  for Linux.
@@ -57,7 +57,6 @@ config COMEDI_TEST
 
 config COMEDI_PARPORT
 	tristate "Parallel port support"
-	depends on PARPORT_PC
 	default N
 	---help---
 	  Enable support for the standard parallel port.
@@ -1266,7 +1265,7 @@ config COMEDI_MITE
 
 config COMEDI_NI_TIO
 	tristate "NI general purpose counter support"
-	depends on COMEDI_MITE
+	select COMEDI_MITE
 	default N
 	---help---
 	  Enable support for National Instruments general purpose counters.
