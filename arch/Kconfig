@@ -145,4 +145,7 @@ config HAVE_HW_BREAKPOINT
 config HAVE_USER_RETURN_NOTIFIER
 	bool
 
+config HAVE_PERF_EVENTS_NMI
+	bool
+
 source "kernel/gcov/Kconfig"
