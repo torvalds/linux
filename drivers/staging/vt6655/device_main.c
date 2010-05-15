@@ -2152,8 +2152,8 @@ BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, UINT uNodeIndex) {
 
     pHeadTD->m_td1TD1.byTCR = (TCR_EDP|TCR_STP);
 
-    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)(skb->data), U_HEADER_LEN);
-    cbFrameBodySize = skb->len - U_HEADER_LEN;
+    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)(skb->data), ETH_HLEN);
+    cbFrameBodySize = skb->len - ETH_HLEN;
 
     // 802.1H
     if (ntohs(pDevice->sTxEthHeader.wType) > MAX_DATA_LEN) {
@@ -2356,8 +2356,8 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
     pHeadTD->m_td1TD1.byTCR = (TCR_EDP|TCR_STP);
 
 
-    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)(skb->data), U_HEADER_LEN);
-    cbFrameBodySize = skb->len - U_HEADER_LEN;
+    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)(skb->data), ETH_HLEN);
+    cbFrameBodySize = skb->len - ETH_HLEN;
     // 802.1H
     if (ntohs(pDevice->sTxEthHeader.wType) > MAX_DATA_LEN) {
         cbFrameBodySize += 8;
@@ -2636,10 +2636,10 @@ pDevice->byTopCCKBasicRate,pDevice->byTopOFDMBasicRate);
     BYTE  Descriptor_type;
     WORD Key_info;
 BOOL            bTxeapol_key = FALSE;
-    Protocol_Version = skb->data[U_HEADER_LEN];
-    Packet_Type = skb->data[U_HEADER_LEN+1];
-    Descriptor_type = skb->data[U_HEADER_LEN+1+1+2];
-    Key_info = (skb->data[U_HEADER_LEN+1+1+2+1] << 8)|(skb->data[U_HEADER_LEN+1+1+2+2]);
+    Protocol_Version = skb->data[ETH_HLEN];
+    Packet_Type = skb->data[ETH_HLEN+1];
+    Descriptor_type = skb->data[ETH_HLEN+1+1+2];
+    Key_info = (skb->data[ETH_HLEN+1+1+2+1] << 8)|(skb->data[ETH_HLEN+1+1+2+2]);
    if (pDevice->sTxEthHeader.wType == TYPE_PKT_802_1x) {
            if(((Protocol_Version==1) ||(Protocol_Version==2)) &&
 	        (Packet_Type==3)) {  //802.1x OR eapol-key challenge frame transfer
