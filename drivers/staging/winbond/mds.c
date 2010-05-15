@@ -6,7 +6,7 @@
 #include "wblinux_f.h"
 
 unsigned char
-Mds_initial(struct wbsoft_priv * adapter)
+Mds_initial(struct wbsoft_priv *adapter)
 {
 	struct wb35_mds *pMds = &adapter->Mds;
 
@@ -18,7 +18,7 @@ Mds_initial(struct wbsoft_priv * adapter)
 }
 
 void
-Mds_Destroy(struct wbsoft_priv * adapter)
+Mds_Destroy(struct wbsoft_priv *adapter)
 {
 }
 
@@ -318,7 +318,7 @@ static u16 Mds_BodyCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *pDe
 	return Size;
 }
 
-static void Mds_HeaderCopy(struct wbsoft_priv * adapter, struct wb35_descriptor *pDes, u8 *TargetBuffer)
+static void Mds_HeaderCopy(struct wbsoft_priv *adapter, struct wb35_descriptor *pDes, u8 *TargetBuffer)
 {
 	struct wb35_mds *pMds = &adapter->Mds;
 	u8	*src_buffer = pDes->buffer_address[0]; /* 931130.5.g */
@@ -414,9 +414,9 @@ static void Mds_HeaderCopy(struct wbsoft_priv * adapter, struct wb35_descriptor 
 }
 
 void
-Mds_Tx(struct wbsoft_priv * adapter)
+Mds_Tx(struct wbsoft_priv *adapter)
 {
-	struct hw_data *	pHwData = &adapter->sHwData;
+	struct hw_data *pHwData = &adapter->sHwData;
 	struct wb35_mds *pMds = &adapter->Mds;
 	struct wb35_descriptor	TxDes;
 	struct wb35_descriptor *pTxDes = &TxDes;
@@ -550,10 +550,10 @@ Mds_Tx(struct wbsoft_priv * adapter)
 }
 
 void
-Mds_SendComplete(struct wbsoft_priv * adapter, PT02_DESCRIPTOR pT02)
+Mds_SendComplete(struct wbsoft_priv *adapter, PT02_DESCRIPTOR pT02)
 {
 	struct wb35_mds *pMds = &adapter->Mds;
-	struct hw_data *	pHwData = &adapter->sHwData;
+	struct hw_data *pHwData = &adapter->sHwData;
 	u8	PacketId = (u8)pT02->T02_Tx_PktID;
 	unsigned char	SendOK = true;
 	u8	RetryCount, TxRate;
