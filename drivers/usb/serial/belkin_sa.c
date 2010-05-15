@@ -112,7 +112,6 @@ static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(BELKIN_DOCKSTATION_VID, BELKIN_DOCKSTATION_PID) },
 	{ }	/* Terminating entry */
 };
-
 MODULE_DEVICE_TABLE(usb, id_table_combined);
 
 static struct usb_driver belkin_driver = {
@@ -120,7 +119,7 @@ static struct usb_driver belkin_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table_combined,
-	.no_dynamic_id = 	1,
+	.no_dynamic_id =	1,
 };
 
 /* All of the device info needed for the serial converters */
@@ -144,7 +143,6 @@ static struct usb_serial_driver belkin_device = {
 	.attach =		belkin_sa_startup,
 	.release =		belkin_sa_release,
 };
-
 
 struct belkin_sa_private {
 	spinlock_t		lock;
@@ -196,23 +194,17 @@ static int belkin_sa_startup(struct usb_serial *serial)
 	return 0;
 }
 
-
 static void belkin_sa_release(struct usb_serial *serial)
 {
-	struct belkin_sa_private *priv;
 	int i;
 
 	dbg("%s", __func__);
 
-	for (i = 0; i < serial->num_ports; ++i) {
-		/* My special items, the standard routines free my urbs */
-		priv = usb_get_serial_port_data(serial->port[i]);
-		kfree(priv);
-	}
+	for (i = 0; i < serial->num_ports; ++i)
+		kfree(usb_get_serial_port_data(serial->port[i]));
 }
 
-
-static int  belkin_sa_open(struct tty_struct *tty,
+static int belkin_sa_open(struct tty_struct *tty,
 					struct usb_serial_port *port)
 {
 	int retval = 0;
@@ -239,8 +231,7 @@ static int  belkin_sa_open(struct tty_struct *tty,
 
 exit:
 	return retval;
-} /* belkin_sa_open */
-
+}
 
 static void belkin_sa_close(struct usb_serial_port *port)
 {
@@ -248,8 +239,7 @@ static void belkin_sa_close(struct usb_serial_port *port)
 
 	usb_serial_generic_close(port);
 	usb_kill_urb(port->interrupt_in_urb);
-} /* belkin_sa_close */
-
+}
 
 static void belkin_sa_read_int_callback(struct urb *urb)
 {
@@ -480,8 +470,7 @@ static void belkin_sa_set_termios(struct tty_struct *tty,
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->control_state = control_state;
 	spin_unlock_irqrestore(&priv->lock, flags);
-} /* belkin_sa_set_termios */
-
+}
 
 static void belkin_sa_break_ctl(struct tty_struct *tty, int break_state)
 {
@@ -491,7 +480,6 @@ static void belkin_sa_break_ctl(struct tty_struct *tty, int break_state)
 	if (BSA_USB_CMD(BELKIN_SA_SET_BREAK_REQUEST, break_state ? 1 : 0) < 0)
 		dev_err(&port->dev, "Set break_ctl %d\n", break_state);
 }
-
 
 static int belkin_sa_tiocmget(struct tty_struct *tty, struct file *file)
 {
@@ -508,7 +496,6 @@ static int belkin_sa_tiocmget(struct tty_struct *tty, struct file *file)
 
 	return control_state;
 }
-
 
 static int belkin_sa_tiocmset(struct tty_struct *tty, struct file *file,
 			       unsigned int set, unsigned int clear)
@@ -580,7 +567,6 @@ failed_usb_register:
 failed_usb_serial_register:
 	return retval;
 }
-
 
 static void __exit belkin_sa_exit (void)
 {
