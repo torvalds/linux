@@ -959,10 +959,15 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 		ret = -EBADF;
 		goto out_drop_write;
 	}
+
 	src = src_file->f_dentry->d_inode;
 
 	ret = -EINVAL;
 	if (src == inode)
+		goto out_fput;
+
+	/* the src must be open for reading */
+	if (!(src_file->f_mode & FMODE_READ))
 		goto out_fput;
 
 	ret = -EISDIR;
