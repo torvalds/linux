@@ -50,7 +50,7 @@ int cfg80211_set_freq(struct cfg80211_registered_device *rdev,
 	struct ieee80211_channel *chan;
 	int result;
 
-	if (wdev->iftype == NL80211_IFTYPE_MONITOR)
+	if (wdev && wdev->iftype == NL80211_IFTYPE_MONITOR)
 		wdev = NULL;
 
 	if (wdev) {
