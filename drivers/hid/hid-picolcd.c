@@ -1616,7 +1616,7 @@ static ssize_t _picolcd_flash_write(struct picolcd_data *data, int report_id,
 		raw_data[len_off] = s > 32 ? 32 : s;
 		if (copy_from_user(raw_data+len_off+1, u, raw_data[len_off])) {
 			err = -EFAULT;
-			goto skip;
+			break;
 		}
 		resp = picolcd_send_and_wait(data->hdev, report_id, raw_data,
 				len_off+1+raw_data[len_off]);
