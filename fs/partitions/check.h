@@ -6,6 +6,7 @@
  * description.
  */
 struct parsed_partitions {
+	struct block_device *bdev;
 	char name[BDEVNAME_SIZE];
 	struct {
 		sector_t from;
@@ -15,6 +16,12 @@ struct parsed_partitions {
 	int next;
 	int limit;
 };
+
+static inline void *read_part_sector(struct parsed_partitions *state,
+				     sector_t n, Sector *p)
+{
+	return read_dev_sector(state->bdev, n, p);
+}
 
 static inline void
 put_partition(struct parsed_partitions *p, int n, sector_t from, sector_t size)

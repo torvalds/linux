@@ -45,7 +45,7 @@ extern void md_autodetect_dev(dev_t dev);
 
 int warn_no_part = 1; /*This is ugly: should make genhd removable media aware*/
 
-static int (*check_part[])(struct parsed_partitions *, struct block_device *) = {
+static int (*check_part[])(struct parsed_partitions *) = {
 	/*
 	 * Probe partition formats with tables at disk address 0
 	 * that also have an ADFS boot block at 0xdc0.
@@ -165,6 +165,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	if (!state)
 		return NULL;
 
+	state->bdev = bdev;
 	disk_name(hd, 0, state->name);
 	printk(KERN_INFO " %s:", state->name);
 	if (isdigit(state->name[strlen(state->name)-1]))
@@ -174,7 +175,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	i = res = err = 0;
 	while (!res && check_part[i]) {
 		memset(&state->parts, 0, sizeof(state->parts));
-		res = check_part[i++](state, bdev);
+		res = check_part[i++](state);
 		if (res < 0) {
 			/* We have hit an I/O error which we don't report now.
 		 	* But record it, and let the others do their job.
