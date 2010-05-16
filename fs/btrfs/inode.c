@@ -1175,6 +1175,13 @@ out_check:
 					       num_bytes, num_bytes, type);
 		BUG_ON(ret);
 
+		if (root->root_key.objectid ==
+		    BTRFS_DATA_RELOC_TREE_OBJECTID) {
+			ret = btrfs_reloc_clone_csums(inode, cur_offset,
+						      num_bytes);
+			BUG_ON(ret);
+		}
+
 		extent_clear_unlock_delalloc(inode, &BTRFS_I(inode)->io_tree,
 				cur_offset, cur_offset + num_bytes - 1,
 				locked_page, EXTENT_CLEAR_UNLOCK_PAGE |
@@ -6080,16 +6087,15 @@ out_unlock:
 	return err;
 }
 
-static int prealloc_file_range(struct inode *inode, u64 start, u64 end,
-			u64 alloc_hint, int mode, loff_t actual_len)
+int btrfs_prealloc_file_range(struct inode *inode, int mode,
+			      u64 start, u64 num_bytes, u64 min_size,
+			      loff_t actual_len, u64 *alloc_hint)
 {
 	struct btrfs_trans_handle *trans;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_key ins;
 	u64 cur_offset = start;
-	u64 num_bytes = end - start;
 	int ret = 0;
-	u64 i_size;
 
 	while (num_bytes > 0) {
 		trans = btrfs_start_transaction(root, 3);
@@ -6098,9 +6104,8 @@ static int prealloc_file_range(struct inode *inode, u64 start, u64 end,
 			break;
 		}
 
-		ret = btrfs_reserve_extent(trans, root, num_bytes,
-					   root->sectorsize, 0, alloc_hint,
-					   (u64)-1, &ins, 1);
+		ret = btrfs_reserve_extent(trans, root, num_bytes, min_size,
+					   0, *alloc_hint, (u64)-1, &ins, 1);
 		if (ret) {
 			btrfs_end_transaction(trans, root);
 			break;
@@ -6117,20 +6122,19 @@ static int prealloc_file_range(struct inode *inode, u64 start, u64 end,
 
 		num_bytes -= ins.offset;
 		cur_offset += ins.offset;
-		alloc_hint = ins.objectid + ins.offset;
+		*alloc_hint = ins.objectid + ins.offset;
 
 		inode->i_ctime = CURRENT_TIME;
 		BTRFS_I(inode)->flags |= BTRFS_INODE_PREALLOC;
 		if (!(mode & FALLOC_FL_KEEP_SIZE) &&
-			(actual_len > inode->i_size) &&
-			(cur_offset > inode->i_size)) {
-
+		    (actual_len > inode->i_size) &&
+		    (cur_offset > inode->i_size)) {
 			if (cur_offset > actual_len)
-				i_size  = actual_len;
+				i_size_write(inode, actual_len);
 			else
-				i_size = cur_offset;
-			i_size_write(inode, i_size);
-			btrfs_ordered_update_i_size(inode, i_size, NULL);
+				i_size_write(inode, cur_offset);
+			i_size_write(inode, cur_offset);
+			btrfs_ordered_update_i_size(inode, cur_offset, NULL);
 		}
 
 		ret = btrfs_update_inode(trans, root, inode);
@@ -6216,16 +6220,16 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 		if (em->block_start == EXTENT_MAP_HOLE ||
 		    (cur_offset >= inode->i_size &&
 		     !test_bit(EXTENT_FLAG_PREALLOC, &em->flags))) {
-			ret = prealloc_file_range(inode,
-						  cur_offset, last_byte,
-						alloc_hint, mode, offset+len);
+			ret = btrfs_prealloc_file_range(inode, 0, cur_offset,
+							last_byte - cur_offset,
+							1 << inode->i_blkbits,
+							offset + len,
+							&alloc_hint);
 			if (ret < 0) {
 				free_extent_map(em);
 				break;
 			}
 		}
-		if (em->block_start <= EXTENT_MAP_LAST_BYTE)
-			alloc_hint = em->block_start;
 		free_extent_map(em);
 
 		cur_offset = last_byte;

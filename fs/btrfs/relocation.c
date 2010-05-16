@@ -2546,6 +2546,50 @@ out:
 }
 
 static noinline_for_stack
+int prealloc_file_extent_cluster(struct inode *inode,
+				 struct file_extent_cluster *cluster)
+{
+	u64 alloc_hint = 0;
+	u64 start;
+	u64 end;
+	u64 offset = BTRFS_I(inode)->index_cnt;
+	u64 num_bytes;
+	int nr = 0;
+	int ret = 0;
+
+	BUG_ON(cluster->start != cluster->boundary[0]);
+	mutex_lock(&inode->i_mutex);
+
+	ret = btrfs_check_data_free_space(inode, cluster->end +
+					  1 - cluster->start);
+	if (ret)
+		goto out;
+
+	while (nr < cluster->nr) {
+		start = cluster->boundary[nr] - offset;
+		if (nr + 1 < cluster->nr)
+			end = cluster->boundary[nr + 1] - 1 - offset;
+		else
+			end = cluster->end - offset;
+
+		lock_extent(&BTRFS_I(inode)->io_tree, start, end, GFP_NOFS);
+		num_bytes = end + 1 - start;
+		ret = btrfs_prealloc_file_range(inode, 0, start,
+						num_bytes, num_bytes,
+						end + 1, &alloc_hint);
+		unlock_extent(&BTRFS_I(inode)->io_tree, start, end, GFP_NOFS);
+		if (ret)
+			break;
+		nr++;
+	}
+	btrfs_free_reserved_data_space(inode, cluster->end +
+				       1 - cluster->start);
+out:
+	mutex_unlock(&inode->i_mutex);
+	return ret;
+}
+
+static noinline_for_stack
 int setup_extent_mapping(struct inode *inode, u64 start, u64 end,
 			 u64 block_start)
 {
@@ -2588,7 +2632,6 @@ static int relocate_file_extent_cluster(struct inode *inode,
 	u64 offset = BTRFS_I(inode)->index_cnt;
 	unsigned long index;
 	unsigned long last_index;
-	unsigned int dirty_page = 0;
 	struct page *page;
 	struct file_ra_state *ra;
 	int nr = 0;
@@ -2601,21 +2644,24 @@ static int relocate_file_extent_cluster(struct inode *inode,
 	if (!ra)
 		return -ENOMEM;
 
-	index = (cluster->start - offset) >> PAGE_CACHE_SHIFT;
-	last_index = (cluster->end - offset) >> PAGE_CACHE_SHIFT;
-
-	mutex_lock(&inode->i_mutex);
-
-	i_size_write(inode, cluster->end + 1 - offset);
-	ret = setup_extent_mapping(inode, cluster->start - offset,
-				   cluster->end - offset, cluster->start);
+	ret = prealloc_file_extent_cluster(inode, cluster);
 	if (ret)
-		goto out_unlock;
+		goto out;
 
 	file_ra_state_init(ra, inode->i_mapping);
 
-	WARN_ON(cluster->start != cluster->boundary[0]);
+	ret = setup_extent_mapping(inode, cluster->start - offset,
+				   cluster->end - offset, cluster->start);
+	if (ret)
+		goto out;
+
+	index = (cluster->start - offset) >> PAGE_CACHE_SHIFT;
+	last_index = (cluster->end - offset) >> PAGE_CACHE_SHIFT;
 	while (index <= last_index) {
+		ret = btrfs_delalloc_reserve_metadata(inode, PAGE_CACHE_SIZE);
+		if (ret)
+			goto out;
+
 		page = find_lock_page(inode->i_mapping, index);
 		if (!page) {
 			page_cache_sync_readahead(inode->i_mapping,
@@ -2623,8 +2669,10 @@ static int relocate_file_extent_cluster(struct inode *inode,
 						  last_index + 1 - index);
 			page = grab_cache_page(inode->i_mapping, index);
 			if (!page) {
+				btrfs_delalloc_release_metadata(inode,
+							PAGE_CACHE_SIZE);
 				ret = -ENOMEM;
-				goto out_unlock;
+				goto out;
 			}
 		}
 
@@ -2640,8 +2688,10 @@ static int relocate_file_extent_cluster(struct inode *inode,
 			if (!PageUptodate(page)) {
 				unlock_page(page);
 				page_cache_release(page);
+				btrfs_delalloc_release_metadata(inode,
+							PAGE_CACHE_SIZE);
 				ret = -EIO;
-				goto out_unlock;
+				goto out;
 			}
 		}
 
@@ -2660,10 +2710,9 @@ static int relocate_file_extent_cluster(struct inode *inode,
 					EXTENT_BOUNDARY, GFP_NOFS);
 			nr++;
 		}
-		btrfs_set_extent_delalloc(inode, page_start, page_end, NULL);
 
+		btrfs_set_extent_delalloc(inode, page_start, page_end, NULL);
 		set_page_dirty(page);
-		dirty_page++;
 
 		unlock_extent(&BTRFS_I(inode)->io_tree,
 			      page_start, page_end, GFP_NOFS);
@@ -2671,20 +2720,11 @@ static int relocate_file_extent_cluster(struct inode *inode,
 		page_cache_release(page);
 
 		index++;
-		if (nr < cluster->nr &&
-		    page_end + 1 + offset == cluster->boundary[nr]) {
-			balance_dirty_pages_ratelimited_nr(inode->i_mapping,
-							   dirty_page);
-			dirty_page = 0;
-		}
-	}
-	if (dirty_page) {
-		balance_dirty_pages_ratelimited_nr(inode->i_mapping,
-						   dirty_page);
+		balance_dirty_pages_ratelimited(inode->i_mapping);
+		btrfs_throttle(BTRFS_I(inode)->root);
 	}
 	WARN_ON(nr != cluster->nr);
-out_unlock:
-	mutex_unlock(&inode->i_mutex);
+out:
 	kfree(ra);
 	return ret;
 }
