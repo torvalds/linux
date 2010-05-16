@@ -498,9 +498,6 @@ static void adjust_quirks(struct us_data *us)
 		}
 	}
 	us->fflags = (us->fflags & ~mask) | f;
-	dev_info(&us->pusb_intf->dev, "Quirks match for "
-			"vid %04x pid %04x: %x\n",
-			vid, pid, f);
 }
 
 /* Get the unusual_devs entries and the string descriptors */
@@ -534,6 +531,12 @@ static int get_device_info(struct us_data *us, const struct usb_device_id *id,
 	 */
 	if (dev->speed != USB_SPEED_HIGH)
 		us->fflags &= ~US_FL_GO_SLOW;
+
+	if (us->fflags)
+		dev_info(pdev, "Quirks match for vid %04x pid %04x: %lx\n",
+				le16_to_cpu(dev->descriptor.idVendor),
+				le16_to_cpu(dev->descriptor.idProduct),
+				us->fflags);
 
 	/* Log a message if a non-generic unusual_dev entry contains an
 	 * unnecessary subclass or protocol override.  This may stimulate
