@@ -1805,7 +1805,7 @@ restart:
 			/* EREMOTE tells the caller to generate
 			 * a one-shot blackhole route. */
 			dst_release(dst);
-			xfrm_pols_put(pols, num_pols);
+			xfrm_pols_put(pols, drop_pols);
 			XFRM_INC_STATS(net, LINUX_MIB_XFRMOUTNOSTATES);
 			return -EREMOTE;
 		}
