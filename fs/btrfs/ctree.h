@@ -663,6 +663,7 @@ struct btrfs_csum_item {
 #define BTRFS_BLOCK_GROUP_RAID1    (1 << 4)
 #define BTRFS_BLOCK_GROUP_DUP	   (1 << 5)
 #define BTRFS_BLOCK_GROUP_RAID10   (1 << 6)
+#define BTRFS_NR_RAID_TYPES	   5
 
 struct btrfs_block_group_item {
 	__le64 used;
@@ -674,7 +675,8 @@ struct btrfs_space_info {
 	u64 flags;
 
 	u64 total_bytes;	/* total bytes in the space */
-	u64 bytes_used;		/* total bytes used on disk */
+	u64 bytes_used;		/* total bytes used,
+				   this does't take mirrors into account */
 	u64 bytes_pinned;	/* total bytes pinned, will be freed when the
 				   transaction finishes */
 	u64 bytes_reserved;	/* total bytes the allocator has reserved for
@@ -687,6 +689,7 @@ struct btrfs_space_info {
 				   delalloc/allocations */
 	u64 bytes_delalloc;	/* number of bytes currently reserved for
 				   delayed allocation */
+	u64 disk_used;		/* total bytes used on disk */
 
 	int full;		/* indicates that we cannot allocate any more
 				   chunks for this space */
@@ -704,7 +707,7 @@ struct btrfs_space_info {
 	int flushing;
 
 	/* for block groups in our same type */
-	struct list_head block_groups;
+	struct list_head block_groups[BTRFS_NR_RAID_TYPES];
 	spinlock_t lock;
 	struct rw_semaphore groups_sem;
 	atomic_t caching_threads;
