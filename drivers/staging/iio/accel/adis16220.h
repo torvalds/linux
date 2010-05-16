@@ -141,9 +141,6 @@ struct adis16220_state {
 	struct iio_dev			*indio_dev;
 	u8				*tx;
 	u8				*rx;
-	struct bin_attribute            accel_bin;
-	struct bin_attribute            adc1_bin;
-	struct bin_attribute            adc2_bin;
 	struct mutex			buf_lock;
 };
 
