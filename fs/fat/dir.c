@@ -753,9 +753,10 @@ static int fat_ioctl_readdir(struct inode *inode, struct file *filp,
 	return ret;
 }
 
-static int fat_dir_ioctl(struct inode *inode, struct file *filp,
-			 unsigned int cmd, unsigned long arg)
+static long fat_dir_ioctl(struct file *filp, unsigned int cmd,
+			  unsigned long arg)
 {
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	struct __fat_dirent __user *d1 = (struct __fat_dirent __user *)arg;
 	int short_only, both;
 
@@ -769,7 +770,7 @@ static int fat_dir_ioctl(struct inode *inode, struct file *filp,
 		both = 1;
 		break;
 	default:
-		return fat_generic_ioctl(inode, filp, cmd, arg);
+		return fat_generic_ioctl(filp, cmd, arg);
 	}
 
 	if (!access_ok(VERIFY_WRITE, d1, sizeof(struct __fat_dirent[2])))
@@ -809,7 +810,7 @@ static long fat_compat_dir_ioctl(struct file *filp, unsigned cmd,
 		both = 1;
 		break;
 	default:
-		return -ENOIOCTLCMD;
+		return fat_generic_ioctl(filp, cmd, (unsigned long)arg);
 	}
 
 	if (!access_ok(VERIFY_WRITE, d1, sizeof(struct compat_dirent[2])))
@@ -831,7 +832,7 @@ const struct file_operations fat_dir_operations = {
 	.llseek		= generic_file_llseek,
 	.read		= generic_read_dir,
 	.readdir	= fat_readdir,
-	.ioctl		= fat_dir_ioctl,
+	.unlocked_ioctl	= fat_dir_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= fat_compat_dir_ioctl,
 #endif

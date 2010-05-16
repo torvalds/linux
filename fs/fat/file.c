@@ -8,6 +8,7 @@
 
 #include <linux/capability.h>
 #include <linux/module.h>
+#include <linux/compat.h>
 #include <linux/mount.h>
 #include <linux/time.h>
 #include <linux/buffer_head.h>
@@ -114,9 +115,9 @@ out:
 	return err;
 }
 
-int fat_generic_ioctl(struct inode *inode, struct file *filp,
-		      unsigned int cmd, unsigned long arg)
+long fat_generic_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
+	struct inode *inode = filp->f_path.dentry->d_inode;
 	u32 __user *user_attr = (u32 __user *)arg;
 
 	switch (cmd) {
@@ -128,6 +129,15 @@ int fat_generic_ioctl(struct inode *inode, struct file *filp,
 		return -ENOTTY;	/* Inappropriate ioctl for device */
 	}
 }
+
+#ifdef CONFIG_COMPAT
+static long fat_generic_compat_ioctl(struct file *filp, unsigned int cmd,
+				      unsigned long arg)
+
+{
+	return fat_generic_ioctl(filp, cmd, (unsigned long)compat_ptr(arg));
+}
+#endif
 
 static int fat_file_release(struct inode *inode, struct file *filp)
 {
@@ -159,7 +169,10 @@ const struct file_operations fat_file_operations = {
 	.aio_write	= generic_file_aio_write,
 	.mmap		= generic_file_mmap,
 	.release	= fat_file_release,
-	.ioctl		= fat_generic_ioctl,
+	.unlocked_ioctl	= fat_generic_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl	= fat_generic_compat_ioctl,
+#endif
 	.fsync		= fat_file_fsync,
 	.splice_read	= generic_file_splice_read,
 };
