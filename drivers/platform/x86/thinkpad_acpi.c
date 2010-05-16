@@ -605,9 +605,10 @@ static int acpi_evalf(acpi_handle handle,
 
 	switch (res_type) {
 	case 'd':		/* int */
-		if (res)
+		success = (status == AE_OK &&
+			   out_obj.type == ACPI_TYPE_INTEGER);
+		if (success && res)
 			*(int *)res = out_obj.integer.value;
-		success = status == AE_OK && out_obj.type == ACPI_TYPE_INTEGER;
 		break;
 	case 'v':		/* void */
 		success = status == AE_OK;
@@ -620,8 +621,8 @@ static int acpi_evalf(acpi_handle handle,
 	}
 
 	if (!success && !quiet)
-		printk(TPACPI_ERR "acpi_evalf(%s, %s, ...) failed: %d\n",
-		       method, fmt0, status);
+		printk(TPACPI_ERR "acpi_evalf(%s, %s, ...) failed: %s\n",
+		       method, fmt0, acpi_format_exception(status));
 
 	return success;
 }
