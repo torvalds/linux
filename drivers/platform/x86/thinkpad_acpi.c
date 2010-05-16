@@ -122,6 +122,11 @@ enum {
 	TP_NVRAM_POS_LEVEL_VOLUME	= 0,
 };
 
+/* Misc NVRAM-related */
+enum {
+	TP_NVRAM_LEVEL_VOLUME_MAX = 14,
+};
+
 /* ACPI HIDs */
 #define TPACPI_ACPI_HKEY_HID		"IBM0068"
 
@@ -2418,6 +2423,21 @@ static void hotkey_compare_and_issue_event(struct tp_nvram_state *oldn,
 			tpacpi_hotkey_send_key(__scancode); \
 	} while (0)
 
+	void issue_volchange(const unsigned int oldvol,
+			     const unsigned int newvol)
+	{
+		unsigned int i = oldvol;
+
+		while (i > newvol) {
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEDOWN);
+			i--;
+		}
+		while (i < newvol) {
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEUP);
+			i++;
+		}
+	}
+
 	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_THINKPAD, thinkpad_toggle);
 	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_FNSPACE, zoom_toggle);
 	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_FNF7, display_toggle);
@@ -2427,24 +2447,47 @@ static void hotkey_compare_and_issue_event(struct tp_nvram_state *oldn,
 
 	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_FNF8, displayexp_toggle);
 
-	/* handle volume */
-	if (oldn->volume_toggle != newn->volume_toggle) {
-		if (oldn->mute != newn->mute) {
+	/*
+	 * Handle volume
+	 *
+	 * This code is supposed to duplicate the IBM firmware behaviour:
+	 * - Pressing MUTE issues mute hotkey message, even when already mute
+	 * - Pressing Volume up/down issues volume up/down hotkey messages,
+	 *   even when already at maximum or minumum volume
+	 * - The act of unmuting issues volume up/down notification,
+	 *   depending which key was used to unmute
+	 *
+	 * We are constrained to what the NVRAM can tell us, which is not much
+	 * and certainly not enough if more than one volume hotkey was pressed
+	 * since the last poll cycle.
+	 *
+	 * Just to make our life interesting, some newer Lenovo ThinkPads have
+	 * bugs in the BIOS and may fail to update volume_toggle properly.
+	 */
+	if (newn->mute) {
+		/* muted */
+		if (!oldn->mute ||
+		    oldn->volume_toggle != newn->volume_toggle ||
+		    oldn->volume_level != newn->volume_level) {
+			/* recently muted, or repeated mute keypress, or
+			 * multiple presses ending in mute */
+			issue_volchange(oldn->volume_level, newn->volume_level);
 			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_MUTE);
 		}
-		if (oldn->volume_level > newn->volume_level) {
-			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEDOWN);
-		} else if (oldn->volume_level < newn->volume_level) {
+	} else {
+		/* unmute */
+		if (oldn->mute) {
+			/* recently unmuted, issue 'unmute' keypress */
 			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEUP);
-		} else if (oldn->mute == newn->mute) {
-			/* repeated key presses that didn't change state */
-			if (newn->mute) {
-				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_MUTE);
-			} else if (newn->volume_level != 0) {
-				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEUP);
-			} else {
+		}
+		if (oldn->volume_level != newn->volume_level) {
+			issue_volchange(oldn->volume_level, newn->volume_level);
+		} else if (oldn->volume_toggle != newn->volume_toggle) {
+			/* repeated vol up/down keypress at end of scale ? */
+			if (newn->volume_level == 0)
 				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEDOWN);
-			}
+			else if (newn->volume_level >= TP_NVRAM_LEVEL_VOLUME_MAX)
+				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEUP);
 		}
 	}
 
