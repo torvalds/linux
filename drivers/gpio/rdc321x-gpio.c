@@ -73,7 +73,7 @@ static void rdc_gpio_set_value_impl(struct gpio_chip *chip,
 		gpch->data_reg[reg] &= ~(1 << (gpio & 0x1f));
 
 	pci_write_config_dword(gpch->sb_pdev,
-			reg ? gpch->reg1_data_base : gpch->reg2_data_base,
+			reg ? gpch->reg2_data_base : gpch->reg1_data_base,
 			gpch->data_reg[reg]);
 }
 
