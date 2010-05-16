@@ -701,9 +701,7 @@ struct btrfs_space_info {
 	struct list_head list;
 
 	/* for controlling how we free up space for allocations */
-	wait_queue_head_t allocate_wait;
 	wait_queue_head_t flush_wait;
-	int allocating_chunk;
 	int flushing;
 
 	/* for block groups in our same type */
