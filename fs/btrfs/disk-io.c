@@ -903,6 +903,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->name = NULL;
 	root->in_sysfs = 0;
 	root->inode_tree = RB_ROOT;
+	root->block_rsv = NULL;
 
 	INIT_LIST_HEAD(&root->dirty_list);
 	INIT_LIST_HEAD(&root->orphan_list);
@@ -910,6 +911,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	spin_lock_init(&root->node_lock);
 	spin_lock_init(&root->list_lock);
 	spin_lock_init(&root->inode_lock);
+	spin_lock_init(&root->accounting_lock);
 	mutex_init(&root->objectid_mutex);
 	mutex_init(&root->log_mutex);
 	init_waitqueue_head(&root->log_writer_wait);
@@ -1620,6 +1622,13 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->dirty_cowonly_roots);
 	INIT_LIST_HEAD(&fs_info->space_info);
 	btrfs_mapping_init(&fs_info->mapping_tree);
+	btrfs_init_block_rsv(&fs_info->global_block_rsv);
+	btrfs_init_block_rsv(&fs_info->delalloc_block_rsv);
+	btrfs_init_block_rsv(&fs_info->trans_block_rsv);
+	btrfs_init_block_rsv(&fs_info->chunk_block_rsv);
+	btrfs_init_block_rsv(&fs_info->empty_block_rsv);
+	INIT_LIST_HEAD(&fs_info->durable_block_rsv_list);
+	mutex_init(&fs_info->durable_block_rsv_mutex);
 	atomic_set(&fs_info->nr_async_submits, 0);
 	atomic_set(&fs_info->async_delalloc_pages, 0);
 	atomic_set(&fs_info->async_submit_draining, 0);
