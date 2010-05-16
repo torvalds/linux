@@ -5009,11 +5009,7 @@ enum {	/* For TPACPI_LED_OLD */
 
 static enum led_access_mode led_supported;
 
-TPACPI_HANDLE(led, ec, "SLED",	/* 570 */
-	   "SYSL",		/* 600e/x, 770e, 770x, A21e, A2xm/p, */
-				/* T20-22, X20-21 */
-	   "LED",		/* all others */
-	   );			/* R30, R31 */
+static acpi_handle led_handle;
 
 #define TPACPI_LED_NUMLEDS 16
 static struct tpacpi_led_classdev *tpacpi_leds;
@@ -5273,6 +5269,32 @@ static const struct tpacpi_quirk led_useful_qtable[] __initconst = {
 #undef TPACPI_LEDQ_IBM
 #undef TPACPI_LEDQ_LNV
 
+static enum led_access_mode __init led_init_detect_mode(void)
+{
+	acpi_status status;
+
+	if (tpacpi_is_ibm()) {
+		/* 570 */
+		status = acpi_get_handle(ec_handle, "SLED", &led_handle);
+		if (ACPI_SUCCESS(status))
+			return TPACPI_LED_570;
+
+		/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20-21 */
+		status = acpi_get_handle(ec_handle, "SYSL", &led_handle);
+		if (ACPI_SUCCESS(status))
+			return TPACPI_LED_OLD;
+	}
+
+	/* most others */
+	status = acpi_get_handle(ec_handle, "LED", &led_handle);
+	if (ACPI_SUCCESS(status))
+		return TPACPI_LED_NEW;
+
+	/* R30, R31, and unknown firmwares */
+	led_handle = NULL;
+	return TPACPI_LED_NONE;
+}
+
 static int __init led_init(struct ibm_init_struct *iibm)
 {
 	unsigned int i;
@@ -5281,20 +5303,7 @@ static int __init led_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing LED subdriver\n");
 
-	TPACPI_ACPIHANDLE_INIT(led);
-
-	if (!led_handle)
-		/* led not supported on R30, R31 */
-		led_supported = TPACPI_LED_NONE;
-	else if (tpacpi_is_ibm() && strlencmp(led_path, "SLED") == 0)
-		/* 570 */
-		led_supported = TPACPI_LED_570;
-	else if (tpacpi_is_ibm() && strlencmp(led_path, "SYSL") == 0)
-		/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20-21 */
-		led_supported = TPACPI_LED_OLD;
-	else
-		/* all others */
-		led_supported = TPACPI_LED_NEW;
+	led_supported = led_init_detect_mode();
 
 	vdbg_printk(TPACPI_DBG_INIT, "LED commands are %s, mode %d\n",
 		str_supported(led_supported), led_supported);
