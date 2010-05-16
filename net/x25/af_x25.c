@@ -641,6 +641,7 @@ static struct sock *x25_make_new(struct sock *osk)
 	x25->cudmatchlength = ox25->cudmatchlength;
 	x25->accptapprv = ox25->accptapprv;
 
+	clear_bit(X25_INTERRUPT_FLAG, &x25->flags);
 	x25_init_timers(sk);
 out:
 	return sk;

@@ -115,6 +115,7 @@ enum {
 
 /* Bitset in x25_sock->flags for misc flags */
 #define X25_Q_BIT_FLAG		0
+#define X25_INTERRUPT_FLAG	1
 
 /**
  *	struct x25_route - x25 routing entry
@@ -149,7 +150,7 @@ struct x25_sock {
 	struct x25_address	source_addr, dest_addr;
 	struct x25_neigh	*neighbour;
 	unsigned int		lci, cudmatchlength;
-	unsigned char		state, condition, intflag, accptapprv;
+	unsigned char		state, condition, accptapprv;
 	unsigned short		vs, vr, va, vl;
 	unsigned long		t2, t21, t22, t23;
 	unsigned short		fraglen;
