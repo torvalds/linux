@@ -785,8 +785,8 @@ static int __init setup_acpi_notify(struct ibm_struct *ibm)
 			       "handling %s events\n", ibm->name);
 		} else {
 			printk(TPACPI_ERR
-			       "acpi_install_notify_handler(%s) failed: %d\n",
-			       ibm->name, status);
+			       "acpi_install_notify_handler(%s) failed: %s\n",
+			       ibm->name, acpi_format_exception(status));
 		}
 		return -ENODEV;
 	}
