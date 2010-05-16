@@ -1463,10 +1463,6 @@ static int cleaner_kthread(void *arg)
 	struct btrfs_root *root = arg;
 
 	do {
-		smp_mb();
-		if (root->fs_info->closing)
-			break;
-
 		vfs_check_frozen(root->fs_info->sb, SB_FREEZE_WRITE);
 
 		if (!(root->fs_info->sb->s_flags & MS_RDONLY) &&
@@ -1479,11 +1475,9 @@ static int cleaner_kthread(void *arg)
 		if (freezing(current)) {
 			refrigerator();
 		} else {
-			smp_mb();
-			if (root->fs_info->closing)
-				break;
 			set_current_state(TASK_INTERRUPTIBLE);
-			schedule();
+			if (!kthread_should_stop())
+				schedule();
 			__set_current_state(TASK_RUNNING);
 		}
 	} while (!kthread_should_stop());
@@ -1495,36 +1489,40 @@ static int transaction_kthread(void *arg)
 	struct btrfs_root *root = arg;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_transaction *cur;
+	u64 transid;
 	unsigned long now;
 	unsigned long delay;
 	int ret;
 
 	do {
-		smp_mb();
-		if (root->fs_info->closing)
-			break;
-
 		delay = HZ * 30;
 		vfs_check_frozen(root->fs_info->sb, SB_FREEZE_WRITE);
 		mutex_lock(&root->fs_info->transaction_kthread_mutex);
 
-		mutex_lock(&root->fs_info->trans_mutex);
+		spin_lock(&root->fs_info->new_trans_lock);
 		cur = root->fs_info->running_transaction;
 		if (!cur) {
-			mutex_unlock(&root->fs_info->trans_mutex);
+			spin_unlock(&root->fs_info->new_trans_lock);
 			goto sleep;
 		}
 
 		now = get_seconds();
-		if (now < cur->start_time || now - cur->start_time < 30) {
-			mutex_unlock(&root->fs_info->trans_mutex);
+		if (!cur->blocked &&
+		    (now < cur->start_time || now - cur->start_time < 30)) {
+			spin_unlock(&root->fs_info->new_trans_lock);
 			delay = HZ * 5;
 			goto sleep;
 		}
-		mutex_unlock(&root->fs_info->trans_mutex);
-		trans = btrfs_join_transaction(root, 1);
-		ret = btrfs_commit_transaction(trans, root);
+		transid = cur->transid;
+		spin_unlock(&root->fs_info->new_trans_lock);
 
+		trans = btrfs_join_transaction(root, 1);
+		if (transid == trans->transid) {
+			ret = btrfs_commit_transaction(trans, root);
+			BUG_ON(ret);
+		} else {
+			btrfs_end_transaction(trans, root);
+		}
 sleep:
 		wake_up_process(root->fs_info->cleaner_kthread);
 		mutex_unlock(&root->fs_info->transaction_kthread_mutex);
@@ -1532,10 +1530,10 @@ sleep:
 		if (freezing(current)) {
 			refrigerator();
 		} else {
-			if (root->fs_info->closing)
-				break;
 			set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(delay);
+			if (!kthread_should_stop() &&
+			    !btrfs_transaction_blocked(root->fs_info))
+				schedule_timeout(delay);
 			__set_current_state(TASK_RUNNING);
 		}
 	} while (!kthread_should_stop());
@@ -1917,17 +1915,18 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	csum_root->track_dirty = 1;
 
+	fs_info->generation = generation;
+	fs_info->last_trans_committed = generation;
+	fs_info->data_alloc_profile = (u64)-1;
+	fs_info->metadata_alloc_profile = (u64)-1;
+	fs_info->system_alloc_profile = fs_info->metadata_alloc_profile;
+
 	ret = btrfs_read_block_groups(extent_root);
 	if (ret) {
 		printk(KERN_ERR "Failed to read block groups: %d\n", ret);
 		goto fail_block_groups;
 	}
 
-	fs_info->generation = generation;
-	fs_info->last_trans_committed = generation;
-	fs_info->data_alloc_profile = (u64)-1;
-	fs_info->metadata_alloc_profile = (u64)-1;
-	fs_info->system_alloc_profile = fs_info->metadata_alloc_profile;
 	fs_info->cleaner_kthread = kthread_run(cleaner_kthread, tree_root,
 					       "btrfs-cleaner");
 	if (IS_ERR(fs_info->cleaner_kthread))
@@ -2430,14 +2429,14 @@ int close_ctree(struct btrfs_root *root)
 	fs_info->closing = 1;
 	smp_mb();
 
-	kthread_stop(root->fs_info->transaction_kthread);
-	kthread_stop(root->fs_info->cleaner_kthread);
-
 	if (!(fs_info->sb->s_flags & MS_RDONLY)) {
 		ret =  btrfs_commit_super(root);
 		if (ret)
 			printk(KERN_ERR "btrfs: commit super ret %d\n", ret);
 	}
+
+	kthread_stop(root->fs_info->transaction_kthread);
+	kthread_stop(root->fs_info->cleaner_kthread);
 
 	fs_info->closing = 2;
 	smp_mb();

@@ -4060,7 +4060,7 @@ int btrfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	struct btrfs_trans_handle *trans;
 	int ret = 0;
 
-	if (root->fs_info->btree_inode == inode)
+	if (BTRFS_I(inode)->dummy_inode)
 		return 0;
 
 	if (wbc->sync_mode == WB_SYNC_ALL) {
@@ -4081,10 +4081,19 @@ void btrfs_dirty_inode(struct inode *inode)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
+	int ret;
+
+	if (BTRFS_I(inode)->dummy_inode)
+		return;
 
 	trans = btrfs_join_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, inode);
-	btrfs_update_inode(trans, root, inode);
+
+	ret = btrfs_update_inode(trans, root, inode);
+	if (ret)
+		printk(KERN_ERR"btrfs: fail to dirty inode %lu error %d\n",
+			inode->i_ino, ret);
+
 	btrfs_end_transaction(trans, root);
 }
 

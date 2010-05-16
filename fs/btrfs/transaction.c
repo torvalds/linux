@@ -321,10 +321,36 @@ void btrfs_throttle(struct btrfs_root *root)
 	mutex_unlock(&root->fs_info->trans_mutex);
 }
 
+static int should_end_transaction(struct btrfs_trans_handle *trans,
+				  struct btrfs_root *root)
+{
+	int ret;
+	ret = btrfs_block_rsv_check(trans, root,
+				    &root->fs_info->global_block_rsv, 0, 5);
+	return ret ? 1 : 0;
+}
+
+int btrfs_should_end_transaction(struct btrfs_trans_handle *trans,
+				 struct btrfs_root *root)
+{
+	struct btrfs_transaction *cur_trans = trans->transaction;
+	int updates;
+
+	if (cur_trans->blocked || cur_trans->delayed_refs.flushing)
+		return 1;
+
+	updates = trans->delayed_ref_updates;
+	trans->delayed_ref_updates = 0;
+	if (updates)
+		btrfs_run_delayed_refs(trans, root, updates);
+
+	return should_end_transaction(trans, root);
+}
+
 static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root, int throttle)
 {
-	struct btrfs_transaction *cur_trans;
+	struct btrfs_transaction *cur_trans = trans->transaction;
 	struct btrfs_fs_info *info = root->fs_info;
 	int count = 0;
 
@@ -350,9 +376,19 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 
 	btrfs_trans_release_metadata(trans, root);
 
+	if (!root->fs_info->open_ioctl_trans &&
+	    should_end_transaction(trans, root))
+		trans->transaction->blocked = 1;
+
+	if (cur_trans->blocked && !cur_trans->in_commit) {
+		if (throttle)
+			return btrfs_commit_transaction(trans, root);
+		else
+			wake_up_process(info->transaction_kthread);
+	}
+
 	mutex_lock(&info->trans_mutex);
-	cur_trans = info->running_transaction;
-	WARN_ON(cur_trans != trans->transaction);
+	WARN_ON(cur_trans != info->running_transaction);
 	WARN_ON(cur_trans->num_writers < 1);
 	cur_trans->num_writers--;
 
@@ -664,30 +700,30 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans,
 int btrfs_defrag_root(struct btrfs_root *root, int cacheonly)
 {
 	struct btrfs_fs_info *info = root->fs_info;
-	int ret;
 	struct btrfs_trans_handle *trans;
+	int ret;
 	unsigned long nr;
 
-	smp_mb();
-	if (root->defrag_running)
+	if (xchg(&root->defrag_running, 1))
 		return 0;
-	trans = btrfs_start_transaction(root, 1);
+
 	while (1) {
-		root->defrag_running = 1;
+		trans = btrfs_start_transaction(root, 0);
+		if (IS_ERR(trans))
+			return PTR_ERR(trans);
+
 		ret = btrfs_defrag_leaves(trans, root, cacheonly);
+
 		nr = trans->blocks_used;
 		btrfs_end_transaction(trans, root);
 		btrfs_btree_balance_dirty(info->tree_root, nr);
 		cond_resched();
 
-		trans = btrfs_start_transaction(root, 1);
 		if (root->fs_info->closing || ret != -EAGAIN)
 			break;
 	}
 	root->defrag_running = 0;
-	smp_mb();
-	btrfs_end_transaction(trans, root);
-	return 0;
+	return ret;
 }
 
 #if 0
@@ -920,6 +956,16 @@ int btrfs_transaction_in_commit(struct btrfs_fs_info *info)
 	spin_lock(&info->new_trans_lock);
 	if (info->running_transaction)
 		ret = info->running_transaction->in_commit;
+	spin_unlock(&info->new_trans_lock);
+	return ret;
+}
+
+int btrfs_transaction_blocked(struct btrfs_fs_info *info)
+{
+	int ret = 0;
+	spin_lock(&info->new_trans_lock);
+	if (info->running_transaction)
+		ret = info->running_transaction->blocked;
 	spin_unlock(&info->new_trans_lock);
 	return ret;
 }

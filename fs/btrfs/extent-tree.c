@@ -2895,10 +2895,9 @@ int btrfs_check_data_free_space(struct inode *inode, u64 bytes)
 again:
 	/* make sure we have enough space to handle the data first */
 	spin_lock(&data_sinfo->lock);
-	used = data_sinfo->bytes_used + data_sinfo->bytes_delalloc +
-		data_sinfo->bytes_reserved + data_sinfo->bytes_pinned +
-		data_sinfo->bytes_readonly + data_sinfo->bytes_may_use +
-		data_sinfo->bytes_super;
+	used = data_sinfo->bytes_used + data_sinfo->bytes_reserved +
+		data_sinfo->bytes_pinned + data_sinfo->bytes_readonly +
+		data_sinfo->bytes_may_use;
 
 	if (used + bytes > data_sinfo->total_bytes) {
 		struct btrfs_trans_handle *trans;
@@ -2922,7 +2921,7 @@ alloc:
 					     bytes + 2 * 1024 * 1024,
 					     alloc_target, 0);
 			btrfs_end_transaction(trans, root);
-			if (ret)
+			if (ret < 0)
 				return ret;
 
 			if (!data_sinfo) {
@@ -2945,11 +2944,10 @@ alloc:
 			goto again;
 		}
 
-		printk(KERN_ERR "no space left, need %llu, %llu delalloc bytes"
-		       ", %llu bytes_used, %llu bytes_reserved, "
-		       "%llu bytes_pinned, %llu bytes_readonly, %llu may use "
-		       "%llu total\n", (unsigned long long)bytes,
-		       (unsigned long long)data_sinfo->bytes_delalloc,
+		printk(KERN_ERR "no space left, need %llu, %llu bytes_used, "
+		       "%llu bytes_reserved, " "%llu bytes_pinned, "
+		       "%llu bytes_readonly, %llu may use %llu total\n",
+		       (unsigned long long)bytes,
 		       (unsigned long long)data_sinfo->bytes_used,
 		       (unsigned long long)data_sinfo->bytes_reserved,
 		       (unsigned long long)data_sinfo->bytes_pinned,
@@ -3464,6 +3462,91 @@ void btrfs_block_rsv_release(struct btrfs_root *root,
 	block_rsv_release_bytes(block_rsv, global_rsv, num_bytes);
 }
 
+/*
+ * helper to calculate size of global block reservation.
+ * the desired value is sum of space used by extent tree,
+ * checksum tree and root tree
+ */
+static u64 calc_global_metadata_size(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_space_info *sinfo;
+	u64 num_bytes;
+	u64 meta_used;
+	u64 data_used;
+	int csum_size = btrfs_super_csum_size(&fs_info->super_copy);
+#if 0
+	/*
+	 * per tree used space accounting can be inaccuracy, so we
+	 * can't rely on it.
+	 */
+	spin_lock(&fs_info->extent_root->accounting_lock);
+	num_bytes = btrfs_root_used(&fs_info->extent_root->root_item);
+	spin_unlock(&fs_info->extent_root->accounting_lock);
+
+	spin_lock(&fs_info->csum_root->accounting_lock);
+	num_bytes += btrfs_root_used(&fs_info->csum_root->root_item);
+	spin_unlock(&fs_info->csum_root->accounting_lock);
+
+	spin_lock(&fs_info->tree_root->accounting_lock);
+	num_bytes += btrfs_root_used(&fs_info->tree_root->root_item);
+	spin_unlock(&fs_info->tree_root->accounting_lock);
+#endif
+	sinfo = __find_space_info(fs_info, BTRFS_BLOCK_GROUP_DATA);
+	spin_lock(&sinfo->lock);
+	data_used = sinfo->bytes_used;
+	spin_unlock(&sinfo->lock);
+
+	sinfo = __find_space_info(fs_info, BTRFS_BLOCK_GROUP_METADATA);
+	spin_lock(&sinfo->lock);
+	meta_used = sinfo->bytes_used;
+	spin_unlock(&sinfo->lock);
+
+	num_bytes = (data_used >> fs_info->sb->s_blocksize_bits) *
+		    csum_size * 2;
+	num_bytes += div64_u64(data_used + meta_used, 50);
+
+	if (num_bytes * 3 > meta_used)
+		num_bytes = div64_u64(meta_used, 3);
+
+	return ALIGN(num_bytes, fs_info->extent_root->leafsize << 10);
+}
+
+static void update_global_block_rsv(struct btrfs_fs_info *fs_info)
+{
+	struct btrfs_block_rsv *block_rsv = &fs_info->global_block_rsv;
+	struct btrfs_space_info *sinfo = block_rsv->space_info;
+	u64 num_bytes;
+
+	num_bytes = calc_global_metadata_size(fs_info);
+
+	spin_lock(&block_rsv->lock);
+	spin_lock(&sinfo->lock);
+
+	block_rsv->size = num_bytes;
+
+	num_bytes = sinfo->bytes_used + sinfo->bytes_pinned +
+		    sinfo->bytes_reserved + sinfo->bytes_readonly;
+
+	if (sinfo->total_bytes > num_bytes) {
+		num_bytes = sinfo->total_bytes - num_bytes;
+		block_rsv->reserved += num_bytes;
+		sinfo->bytes_reserved += num_bytes;
+	}
+
+	if (block_rsv->reserved >= block_rsv->size) {
+		num_bytes = block_rsv->reserved - block_rsv->size;
+		sinfo->bytes_reserved -= num_bytes;
+		block_rsv->reserved = block_rsv->size;
+		block_rsv->full = 1;
+	}
+#if 0
+	printk(KERN_INFO"global block rsv size %llu reserved %llu\n",
+		block_rsv->size, block_rsv->reserved);
+#endif
+	spin_unlock(&sinfo->lock);
+	spin_unlock(&block_rsv->lock);
+}
+
 static void init_global_block_rsv(struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_space_info *space_info;
@@ -3473,11 +3556,36 @@ static void init_global_block_rsv(struct btrfs_fs_info *fs_info)
 	fs_info->chunk_block_rsv.priority = 10;
 
 	space_info = __find_space_info(fs_info, BTRFS_BLOCK_GROUP_METADATA);
+	fs_info->global_block_rsv.space_info = space_info;
+	fs_info->global_block_rsv.priority = 10;
+	fs_info->global_block_rsv.refill_used = 1;
+	fs_info->delalloc_block_rsv.space_info = space_info;
 	fs_info->trans_block_rsv.space_info = space_info;
 	fs_info->empty_block_rsv.space_info = space_info;
 	fs_info->empty_block_rsv.priority = 10;
 
+	fs_info->extent_root->block_rsv = &fs_info->global_block_rsv;
+	fs_info->csum_root->block_rsv = &fs_info->global_block_rsv;
+	fs_info->dev_root->block_rsv = &fs_info->global_block_rsv;
+	fs_info->tree_root->block_rsv = &fs_info->global_block_rsv;
 	fs_info->chunk_root->block_rsv = &fs_info->chunk_block_rsv;
+
+	btrfs_add_durable_block_rsv(fs_info, &fs_info->global_block_rsv);
+
+	btrfs_add_durable_block_rsv(fs_info, &fs_info->delalloc_block_rsv);
+
+	update_global_block_rsv(fs_info);
+}
+
+static void release_global_block_rsv(struct btrfs_fs_info *fs_info)
+{
+	block_rsv_release_bytes(&fs_info->global_block_rsv, NULL, (u64)-1);
+	WARN_ON(fs_info->delalloc_block_rsv.size > 0);
+	WARN_ON(fs_info->delalloc_block_rsv.reserved > 0);
+	WARN_ON(fs_info->trans_block_rsv.size > 0);
+	WARN_ON(fs_info->trans_block_rsv.reserved > 0);
+	WARN_ON(fs_info->chunk_block_rsv.size > 0);
+	WARN_ON(fs_info->chunk_block_rsv.reserved > 0);
 }
 
 static u64 calc_trans_metadata_size(struct btrfs_root *root, int num_items)
@@ -3826,6 +3934,8 @@ int btrfs_prepare_extent_commit(struct btrfs_trans_handle *trans,
 		fs_info->pinned_extents = &fs_info->freed_extents[0];
 
 	up_write(&fs_info->extent_commit_sem);
+
+	update_global_block_rsv(fs_info);
 	return 0;
 }
 
@@ -4818,19 +4928,16 @@ static void dump_space_info(struct btrfs_space_info *info, u64 bytes,
 	printk(KERN_INFO "space_info has %llu free, is %sfull\n",
 	       (unsigned long long)(info->total_bytes - info->bytes_used -
 				    info->bytes_pinned - info->bytes_reserved -
-				    info->bytes_super),
+				    info->bytes_readonly),
 	       (info->full) ? "" : "not ");
-	printk(KERN_INFO "space_info total=%llu, pinned=%llu, delalloc=%llu,"
-	       " may_use=%llu, used=%llu, root=%llu, super=%llu, reserved=%llu"
-	       "\n",
+	printk(KERN_INFO "space_info total=%llu, used=%llu, pinned=%llu, "
+	       "reserved=%llu, may_use=%llu, readonly=%llu\n",
 	       (unsigned long long)info->total_bytes,
-	       (unsigned long long)info->bytes_pinned,
-	       (unsigned long long)info->bytes_delalloc,
-	       (unsigned long long)info->bytes_may_use,
 	       (unsigned long long)info->bytes_used,
-	       (unsigned long long)info->bytes_root,
-	       (unsigned long long)info->bytes_super,
-	       (unsigned long long)info->bytes_reserved);
+	       (unsigned long long)info->bytes_pinned,
+	       (unsigned long long)info->bytes_reserved,
+	       (unsigned long long)info->bytes_may_use,
+	       (unsigned long long)info->bytes_readonly);
 	spin_unlock(&info->lock);
 
 	if (!dump_block_groups)
@@ -7726,6 +7833,8 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 	 * just to be on the safe side.
 	 */
 	synchronize_rcu();
+
+	release_global_block_rsv(info);
 
 	while(!list_empty(&info->space_info)) {
 		space_info = list_entry(info->space_info.next,

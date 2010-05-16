@@ -683,21 +683,15 @@ struct btrfs_space_info {
 	u64 bytes_reserved;	/* total bytes the allocator has reserved for
 				   current allocations */
 	u64 bytes_readonly;	/* total bytes that are read only */
-	u64 bytes_super;	/* total bytes reserved for the super blocks */
-	u64 bytes_root;		/* the number of bytes needed to commit a
-				   transaction */
+
 	u64 bytes_may_use;	/* number of bytes that may be used for
 				   delalloc/allocations */
-	u64 bytes_delalloc;	/* number of bytes currently reserved for
-				   delayed allocation */
 	u64 disk_used;		/* total bytes used on disk */
 
 	int full;		/* indicates that we cannot allocate any more
 				   chunks for this space */
 	int force_alloc;	/* set if we need to force a chunk alloc for
 				   this space */
-	int force_delalloc;	/* make people start doing filemap_flush until
-				   we're under a threshold */
 
 	struct list_head list;
 

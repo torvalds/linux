@@ -1341,8 +1341,10 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 			ret = -EPERM;
 			goto out;
 		}
-		btrfs_defrag_root(root, 0);
-		btrfs_defrag_root(root->fs_info->extent_root, 0);
+		ret = btrfs_defrag_root(root, 0);
+		if (ret)
+			goto out;
+		ret = btrfs_defrag_root(root->fs_info->extent_root, 0);
 		break;
 	case S_IFREG:
 		if (!(file->f_mode & FMODE_WRITE)) {
@@ -1372,9 +1374,11 @@ static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 			/* the rest are all set to zero by kzalloc */
 			range->len = (u64)-1;
 		}
-		btrfs_defrag_file(file, range);
+		ret = btrfs_defrag_file(file, range);
 		kfree(range);
 		break;
+	default:
+		ret = -EINVAL;
 	}
 out:
 	mnt_drop_write(file->f_path.mnt);
