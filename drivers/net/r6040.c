@@ -400,9 +400,6 @@ static void r6040_init_mac_regs(struct net_device *dev)
 	 * we may got called by r6040_tx_timeout which has left
 	 * some unsent tx buffers */
 	iowrite16(0x01, ioaddr + MTPR);
-
-	/* Check media */
-	mii_check_media(&lp->mii_if, 1, 1);
 }
 
 static void r6040_tx_timeout(struct net_device *dev)
@@ -529,8 +526,6 @@ static int r6040_phy_mode_chk(struct net_device *dev)
 		else
 			phy_dat = 0x0000;
 	}
-
-	mii_check_media(&lp->mii_if, 0, 1);
 
 	return phy_dat;
 };
@@ -813,6 +808,9 @@ static void r6040_timer(unsigned long data)
 
 	/* Timer active again */
 	mod_timer(&lp->timer, round_jiffies(jiffies + HZ));
+
+	/* Check media */
+	mii_check_media(&lp->mii_if, 1, 1);
 }
 
 /* Read/set MAC address routines */
