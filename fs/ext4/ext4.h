@@ -126,6 +126,29 @@ struct ext4_allocation_request {
 };
 
 /*
+ * Logical to physical block mapping, used by ext4_map_blocks()
+ *
+ * This structure is used to pass requests into ext4_map_blocks() as
+ * well as to store the information returned by ext4_map_blocks().  It
+ * takes less room on the stack than a struct buffer_head.
+ */
+#define EXT4_MAP_NEW		(1 << BH_New)
+#define EXT4_MAP_MAPPED		(1 << BH_Mapped)
+#define EXT4_MAP_UNWRITTEN	(1 << BH_Unwritten)
+#define EXT4_MAP_BOUNDARY	(1 << BH_Boundary)
+#define EXT4_MAP_UNINIT		(1 << BH_Uninit)
+#define EXT4_MAP_FLAGS		(EXT4_MAP_NEW | EXT4_MAP_MAPPED |\
+				 EXT4_MAP_UNWRITTEN | EXT4_MAP_BOUNDARY |\
+				 EXT4_MAP_UNINIT)
+
+struct ext4_map_blocks {
+	ext4_fsblk_t m_pblk;
+	ext4_lblk_t m_lblk;
+	unsigned int m_len;
+	unsigned int m_flags;
+};
+
+/*
  * For delayed allocation tracking
  */
 struct mpage_da_data {
@@ -1773,9 +1796,8 @@ extern int ext4_ext_tree_init(handle_t *handle, struct inode *);
 extern int ext4_ext_writepage_trans_blocks(struct inode *, int);
 extern int ext4_ext_index_trans_blocks(struct inode *inode, int nrblocks,
 				       int chunk);
-extern int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
-			       ext4_lblk_t iblock, unsigned int max_blocks,
-			       struct buffer_head *bh_result, int flags);
+extern int ext4_ext_map_blocks(handle_t *handle, struct inode *inode,
+			       struct ext4_map_blocks *map, int flags);
 extern void ext4_ext_truncate(struct inode *);
 extern void ext4_ext_init(struct super_block *);
 extern void ext4_ext_release(struct super_block *);
@@ -1783,6 +1805,8 @@ extern long ext4_fallocate(struct inode *inode, int mode, loff_t offset,
 			  loff_t len);
 extern int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
 			  ssize_t len);
+extern int ext4_map_blocks(handle_t *handle, struct inode *inode,
+			   struct ext4_map_blocks *map, int flags);
 extern int ext4_get_blocks(handle_t *handle, struct inode *inode,
 			   sector_t block, unsigned int max_blocks,
 			   struct buffer_head *bh, int flags);

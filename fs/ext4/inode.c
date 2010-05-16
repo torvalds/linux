@@ -149,7 +149,7 @@ int ext4_truncate_restart_trans(handle_t *handle, struct inode *inode,
 	int ret;
 
 	/*
-	 * Drop i_data_sem to avoid deadlock with ext4_get_blocks At this
+	 * Drop i_data_sem to avoid deadlock with ext4_map_blocks.  At this
 	 * moment, get_block can be called only for blocks inside i_size since
 	 * page cache has been already dropped and writes are blocked by
 	 * i_mutex. So we can safely drop the i_data_sem here.
@@ -890,9 +890,9 @@ err_out:
 }
 
 /*
- * The ext4_ind_get_blocks() function handles non-extents inodes
+ * The ext4_ind_map_blocks() function handles non-extents inodes
  * (i.e., using the traditional indirect/double-indirect i_blocks
- * scheme) for ext4_get_blocks().
+ * scheme) for ext4_map_blocks().
  *
  * Allocation strategy is simple: if we have to allocate something, we will
  * have to go the whole way to leaf. So let's do it before attaching anything
@@ -917,9 +917,8 @@ err_out:
  * down_read(&EXT4_I(inode)->i_data_sem) if not allocating file system
  * blocks.
  */
-static int ext4_ind_get_blocks(handle_t *handle, struct inode *inode,
-			       ext4_lblk_t iblock, unsigned int maxblocks,
-			       struct buffer_head *bh_result,
+static int ext4_ind_map_blocks(handle_t *handle, struct inode *inode,
+			       struct ext4_map_blocks *map,
 			       int flags)
 {
 	int err = -EIO;
@@ -935,7 +934,7 @@ static int ext4_ind_get_blocks(handle_t *handle, struct inode *inode,
 
 	J_ASSERT(!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL));
 	J_ASSERT(handle != NULL || (flags & EXT4_GET_BLOCKS_CREATE) == 0);
-	depth = ext4_block_to_path(inode, iblock, offsets,
+	depth = ext4_block_to_path(inode, map->m_lblk, offsets,
 				   &blocks_to_boundary);
 
 	if (depth == 0)
@@ -946,10 +945,9 @@ static int ext4_ind_get_blocks(handle_t *handle, struct inode *inode,
 	/* Simplest case - block found, no allocation needed */
 	if (!partial) {
 		first_block = le32_to_cpu(chain[depth - 1].key);
-		clear_buffer_new(bh_result);
 		count++;
 		/*map more blocks*/
-		while (count < maxblocks && count <= blocks_to_boundary) {
+		while (count < map->m_len && count <= blocks_to_boundary) {
 			ext4_fsblk_t blk;
 
 			blk = le32_to_cpu(*(chain[depth-1].p + count));
@@ -969,7 +967,7 @@ static int ext4_ind_get_blocks(handle_t *handle, struct inode *inode,
 	/*
 	 * Okay, we need to do block allocation.
 	*/
-	goal = ext4_find_goal(inode, iblock, partial);
+	goal = ext4_find_goal(inode, map->m_lblk, partial);
 
 	/* the number of blocks need to allocate for [d,t]indirect blocks */
 	indirect_blks = (chain + depth) - partial - 1;
@@ -979,11 +977,11 @@ static int ext4_ind_get_blocks(handle_t *handle, struct inode *inode,
 	 * direct blocks to allocate for this branch.
 	 */
 	count = ext4_blks_to_allocate(partial, indirect_blks,
-					maxblocks, blocks_to_boundary);
+				      map->m_len, blocks_to_boundary);
 	/*
 	 * Block out ext4_truncate while we alter the tree
 	 */
-	err = ext4_alloc_branch(handle, inode, iblock, indirect_blks,
+	err = ext4_alloc_branch(handle, inode, map->m_lblk, indirect_blks,
 				&count, goal,
 				offsets + (partial - chain), partial);
 
@@ -995,18 +993,20 @@ static int ext4_ind_get_blocks(handle_t *handle, struct inode *inode,
 	 * may need to return -EAGAIN upwards in the worst case.  --sct
 	 */
 	if (!err)
-		err = ext4_splice_branch(handle, inode, iblock,
+		err = ext4_splice_branch(handle, inode, map->m_lblk,
 					 partial, indirect_blks, count);
 	if (err)
 		goto cleanup;
 
-	set_buffer_new(bh_result);
+	map->m_flags |= EXT4_MAP_NEW;
 
 	ext4_update_inode_fsync_trans(handle, inode, 1);
 got_it:
-	map_bh(bh_result, inode->i_sb, le32_to_cpu(chain[depth-1].key));
+	map->m_flags |= EXT4_MAP_MAPPED;
+	map->m_pblk = le32_to_cpu(chain[depth-1].key);
+	map->m_len = count;
 	if (count > blocks_to_boundary)
-		set_buffer_boundary(bh_result);
+		map->m_flags |= EXT4_MAP_BOUNDARY;
 	err = count;
 	/* Clean up and exit */
 	partial = chain + depth - 1;	/* the whole chain */
@@ -1016,7 +1016,6 @@ cleanup:
 		brelse(partial->bh);
 		partial--;
 	}
-	BUFFER_TRACE(bh_result, "returned");
 out:
 	return err;
 }
@@ -1203,15 +1202,15 @@ static pgoff_t ext4_num_dirty_pages(struct inode *inode, pgoff_t idx,
 }
 
 /*
- * The ext4_get_blocks() function tries to look up the requested blocks,
+ * The ext4_map_blocks() function tries to look up the requested blocks,
  * and returns if the blocks are already mapped.
  *
  * Otherwise it takes the write lock of the i_data_sem and allocate blocks
  * and store the allocated blocks in the result buffer head and mark it
  * mapped.
  *
- * If file type is extents based, it will call ext4_ext_get_blocks(),
- * Otherwise, call with ext4_ind_get_blocks() to handle indirect mapping
+ * If file type is extents based, it will call ext4_ext_map_blocks(),
+ * Otherwise, call with ext4_ind_map_blocks() to handle indirect mapping
  * based files
  *
  * On success, it returns the number of blocks being mapped or allocate.
@@ -1224,35 +1223,30 @@ static pgoff_t ext4_num_dirty_pages(struct inode *inode, pgoff_t idx,
  *
  * It returns the error in case of allocation failure.
  */
-int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
-		    unsigned int max_blocks, struct buffer_head *bh,
-		    int flags)
+int ext4_map_blocks(handle_t *handle, struct inode *inode,
+		    struct ext4_map_blocks *map, int flags)
 {
 	int retval;
 
-	clear_buffer_mapped(bh);
-	clear_buffer_unwritten(bh);
-
-	ext_debug("ext4_get_blocks(): inode %lu, flag %d, max_blocks %u,"
-		  "logical block %lu\n", inode->i_ino, flags, max_blocks,
-		  (unsigned long)block);
+	map->m_flags = 0;
+	ext_debug("ext4_map_blocks(): inode %lu, flag %d, max_blocks %u,"
+		  "logical block %lu\n", inode->i_ino, flags, map->m_len,
+		  (unsigned long) map->m_lblk);
 	/*
 	 * Try to see if we can get the block without requesting a new
 	 * file system block.
 	 */
 	down_read((&EXT4_I(inode)->i_data_sem));
 	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL) {
-		retval =  ext4_ext_get_blocks(handle, inode, block, max_blocks,
-				bh, 0);
+		retval = ext4_ext_map_blocks(handle, inode, map, 0);
 	} else {
-		retval = ext4_ind_get_blocks(handle, inode, block, max_blocks,
-					     bh, 0);
+		retval = ext4_ind_map_blocks(handle, inode, map, 0);
 	}
 	up_read((&EXT4_I(inode)->i_data_sem));
 
-	if (retval > 0 && buffer_mapped(bh)) {
+	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED) {
 		int ret = check_block_validity(inode, "file system corruption",
-					       block, bh->b_blocknr, retval);
+					map->m_lblk, map->m_pblk, retval);
 		if (ret != 0)
 			return ret;
 	}
@@ -1268,7 +1262,7 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 	 * ext4_ext_get_block() returns th create = 0
 	 * with buffer head unmapped.
 	 */
-	if (retval > 0 && buffer_mapped(bh))
+	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED)
 		return retval;
 
 	/*
@@ -1281,7 +1275,7 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 	 * of BH_Unwritten and BH_Mapped flags being simultaneously
 	 * set on the buffer_head.
 	 */
-	clear_buffer_unwritten(bh);
+	map->m_flags &= ~EXT4_MAP_UNWRITTEN;
 
 	/*
 	 * New blocks allocate and/or writing to uninitialized extent
@@ -1304,13 +1298,11 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 	 * could have changed the inode type in between
 	 */
 	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL) {
-		retval =  ext4_ext_get_blocks(handle, inode, block, max_blocks,
-					      bh, flags);
+		retval = ext4_ext_map_blocks(handle, inode, map, flags);
 	} else {
-		retval = ext4_ind_get_blocks(handle, inode, block,
-					     max_blocks, bh, flags);
+		retval = ext4_ind_map_blocks(handle, inode, map, flags);
 
-		if (retval > 0 && buffer_new(bh)) {
+		if (retval > 0 && map->m_flags & EXT4_MAP_NEW) {
 			/*
 			 * We allocated new blocks which will result in
 			 * i_data's format changing.  Force the migrate
@@ -1333,14 +1325,36 @@ int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
 		EXT4_I(inode)->i_delalloc_reserved_flag = 0;
 
 	up_write((&EXT4_I(inode)->i_data_sem));
-	if (retval > 0 && buffer_mapped(bh)) {
+	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED) {
 		int ret = check_block_validity(inode, "file system "
 					       "corruption after allocation",
-					       block, bh->b_blocknr, retval);
+					       map->m_lblk, map->m_pblk,
+					       retval);
 		if (ret != 0)
 			return ret;
 	}
 	return retval;
+}
+
+int ext4_get_blocks(handle_t *handle, struct inode *inode, sector_t block,
+		    unsigned int max_blocks, struct buffer_head *bh,
+		    int flags)
+{
+	struct ext4_map_blocks map;
+	int ret;
+
+	map.m_lblk = block;
+	map.m_len = max_blocks;
+
+	ret = ext4_map_blocks(handle, inode, &map, flags);
+	if (ret < 0)
+		return ret;
+
+	bh->b_blocknr = map.m_pblk;
+	bh->b_size = inode->i_sb->s_blocksize * map.m_len;
+	bh->b_bdev = inode->i_sb->s_bdev;
+	bh->b_state = (bh->b_state & ~EXT4_MAP_FLAGS) | map.m_flags;
+	return ret;
 }
 
 /* Maximum number of blocks we map for direct IO at once. */
