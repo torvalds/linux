@@ -5611,6 +5611,38 @@ int btrfs_start_delalloc_inodes(struct btrfs_root *root, int delay_iput)
 	return 0;
 }
 
+int btrfs_start_one_delalloc_inode(struct btrfs_root *root, int delay_iput)
+{
+	struct btrfs_inode *binode;
+	struct inode *inode = NULL;
+
+	spin_lock(&root->fs_info->delalloc_lock);
+	while (!list_empty(&root->fs_info->delalloc_inodes)) {
+		binode = list_entry(root->fs_info->delalloc_inodes.next,
+				    struct btrfs_inode, delalloc_inodes);
+		inode = igrab(&binode->vfs_inode);
+		if (inode) {
+			list_move_tail(&binode->delalloc_inodes,
+				       &root->fs_info->delalloc_inodes);
+			break;
+		}
+
+		list_del_init(&binode->delalloc_inodes);
+		cond_resched_lock(&root->fs_info->delalloc_lock);
+	}
+	spin_unlock(&root->fs_info->delalloc_lock);
+
+	if (inode) {
+		write_inode_now(inode, 0);
+		if (delay_iput)
+			btrfs_add_delayed_iput(inode);
+		else
+			iput(inode);
+		return 1;
+	}
+	return 0;
+}
+
 static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 			 const char *symname)
 {

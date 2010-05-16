@@ -74,6 +74,9 @@ static void dump_space_info(struct btrfs_space_info *info, u64 bytes,
 static int maybe_allocate_chunk(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root,
 				struct btrfs_space_info *sinfo, u64 num_bytes);
+static int shrink_delalloc(struct btrfs_trans_handle *trans,
+			   struct btrfs_root *root,
+			   struct btrfs_space_info *sinfo, u64 to_reclaim);
 
 static noinline int
 block_group_cache_done(struct btrfs_block_group_cache *cache)
@@ -2693,7 +2696,6 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 	for (i = 0; i < BTRFS_NR_RAID_TYPES; i++)
 		INIT_LIST_HEAD(&found->block_groups[i]);
 	init_rwsem(&found->groups_sem);
-	init_waitqueue_head(&found->flush_wait);
 	spin_lock_init(&found->lock);
 	found->flags = flags & (BTRFS_BLOCK_GROUP_DATA |
 				BTRFS_BLOCK_GROUP_SYSTEM |
@@ -2907,105 +2909,6 @@ static void check_force_delalloc(struct btrfs_space_info *meta_sinfo)
 		meta_sinfo->force_delalloc = 0;
 }
 
-struct async_flush {
-	struct btrfs_root *root;
-	struct btrfs_space_info *info;
-	struct btrfs_work work;
-};
-
-static noinline void flush_delalloc_async(struct btrfs_work *work)
-{
-	struct async_flush *async;
-	struct btrfs_root *root;
-	struct btrfs_space_info *info;
-
-	async = container_of(work, struct async_flush, work);
-	root = async->root;
-	info = async->info;
-
-	btrfs_start_delalloc_inodes(root, 0);
-	wake_up(&info->flush_wait);
-	btrfs_wait_ordered_extents(root, 0, 0);
-
-	spin_lock(&info->lock);
-	info->flushing = 0;
-	spin_unlock(&info->lock);
-	wake_up(&info->flush_wait);
-
-	kfree(async);
-}
-
-static void wait_on_flush(struct btrfs_space_info *info)
-{
-	DEFINE_WAIT(wait);
-	u64 used;
-
-	while (1) {
-		prepare_to_wait(&info->flush_wait, &wait,
-				TASK_UNINTERRUPTIBLE);
-		spin_lock(&info->lock);
-		if (!info->flushing) {
-			spin_unlock(&info->lock);
-			break;
-		}
-
-		used = info->bytes_used + info->bytes_reserved +
-			info->bytes_pinned + info->bytes_readonly +
-			info->bytes_super + info->bytes_root +
-			info->bytes_may_use + info->bytes_delalloc;
-		if (used < info->total_bytes) {
-			spin_unlock(&info->lock);
-			break;
-		}
-		spin_unlock(&info->lock);
-		schedule();
-	}
-	finish_wait(&info->flush_wait, &wait);
-}
-
-static void flush_delalloc(struct btrfs_root *root,
-				 struct btrfs_space_info *info)
-{
-	struct async_flush *async;
-	bool wait = false;
-
-	spin_lock(&info->lock);
-
-	if (!info->flushing)
-		info->flushing = 1;
-	else
-		wait = true;
-
-	spin_unlock(&info->lock);
-
-	if (wait) {
-		wait_on_flush(info);
-		return;
-	}
-
-	async = kzalloc(sizeof(*async), GFP_NOFS);
-	if (!async)
-		goto flush;
-
-	async->root = root;
-	async->info = info;
-	async->work.func = flush_delalloc_async;
-
-	btrfs_queue_worker(&root->fs_info->enospc_workers,
-			   &async->work);
-	wait_on_flush(info);
-	return;
-
-flush:
-	btrfs_start_delalloc_inodes(root, 0);
-	btrfs_wait_ordered_extents(root, 0, 0);
-
-	spin_lock(&info->lock);
-	info->flushing = 0;
-	spin_unlock(&info->lock);
-	wake_up(&info->flush_wait);
-}
-
 /*
  * Reserve metadata space for delalloc.
  */
@@ -3058,7 +2961,7 @@ again:
 			filemap_flush(inode->i_mapping);
 			goto again;
 		} else if (flushed == 3) {
-			flush_delalloc(root, meta_sinfo);
+			shrink_delalloc(NULL, root, meta_sinfo, num_bytes);
 			goto again;
 		}
 		spin_lock(&meta_sinfo->lock);
@@ -3171,7 +3074,7 @@ again:
 		}
 
 		if (retries == 2) {
-			flush_delalloc(root, meta_sinfo);
+			shrink_delalloc(NULL, root, meta_sinfo, num_bytes);
 			goto again;
 		}
 		spin_lock(&meta_sinfo->lock);
@@ -3197,7 +3100,7 @@ int btrfs_check_data_free_space(struct btrfs_root *root, struct inode *inode,
 {
 	struct btrfs_space_info *data_sinfo;
 	u64 used;
-	int ret = 0, committed = 0, flushed = 0;
+	int ret = 0, committed = 0;
 
 	/* make sure bytes are sectorsize aligned */
 	bytes = (bytes + root->sectorsize - 1) & ~((u64)root->sectorsize - 1);
@@ -3216,13 +3119,6 @@ again:
 
 	if (used + bytes > data_sinfo->total_bytes) {
 		struct btrfs_trans_handle *trans;
-
-		if (!flushed) {
-			spin_unlock(&data_sinfo->lock);
-			flush_delalloc(root, data_sinfo);
-			flushed = 1;
-			goto again;
-		}
 
 		/*
 		 * if we don't have enough free bytes in this space then we need
@@ -3465,6 +3361,55 @@ static int maybe_allocate_chunk(struct btrfs_trans_handle *trans,
 		btrfs_end_transaction(trans, root);
 
 	return ret == 1 ? 1 : 0;
+}
+
+/*
+ * shrink metadata reservation for delalloc
+ */
+static int shrink_delalloc(struct btrfs_trans_handle *trans,
+			   struct btrfs_root *root,
+			   struct btrfs_space_info *sinfo, u64 to_reclaim)
+{
+	u64 reserved;
+	u64 max_reclaim;
+	u64 reclaimed = 0;
+	int pause = 1;
+	int ret;
+
+	spin_lock(&sinfo->lock);
+	reserved = sinfo->bytes_delalloc;
+	spin_unlock(&sinfo->lock);
+
+	if (reserved == 0)
+		return 0;
+
+	max_reclaim = min(reserved, to_reclaim);
+
+	while (1) {
+		ret = btrfs_start_one_delalloc_inode(root, trans ? 1 : 0);
+		if (!ret) {
+			__set_current_state(TASK_INTERRUPTIBLE);
+			schedule_timeout(pause);
+			pause <<= 1;
+			if (pause > HZ / 10)
+				pause = HZ / 10;
+		} else {
+			pause = 1;
+		}
+
+		spin_lock(&sinfo->lock);
+		if (reserved > sinfo->bytes_delalloc)
+			reclaimed = reserved - sinfo->bytes_delalloc;
+		reserved = sinfo->bytes_delalloc;
+		spin_unlock(&sinfo->lock);
+
+		if (reserved == 0 || reclaimed >= max_reclaim)
+			break;
+
+		if (trans && trans->transaction->blocked)
+			return -EAGAIN;
+	}
+	return reclaimed >= to_reclaim;
 }
 
 static int update_block_group(struct btrfs_trans_handle *trans,
