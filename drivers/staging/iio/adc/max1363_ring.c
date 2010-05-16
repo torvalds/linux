@@ -51,15 +51,15 @@ int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
 	/* Need a count of channels prior to this one */
 	mask >>= 1;
 	while (mask) {
-		if (mask && st->current_mode->modemask)
+		if (mask & st->current_mode->modemask)
 			count++;
 		mask >>= 1;
 	}
 	if (st->chip_info->bits != 8)
-		return ((int)(ring_data[count*2 + 0] & 0x0F) << 8)
+		ret = ((int)(ring_data[count*2 + 0] & 0x0F) << 8)
 			+ (int)(ring_data[count*2 + 1]);
 	else
-		return ring_data[count];
+		ret = ring_data[count];
 
 error_free_ring_data:
 	kfree(ring_data);
