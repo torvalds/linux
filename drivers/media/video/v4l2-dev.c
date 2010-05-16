@@ -447,8 +447,12 @@ static int __video_register_device(struct video_device *vdev, int type, int nr,
 
 	vdev->vfl_type = type;
 	vdev->cdev = NULL;
-	if (vdev->v4l2_dev && vdev->v4l2_dev->dev)
-		vdev->parent = vdev->v4l2_dev->dev;
+	if (vdev->v4l2_dev) {
+		if (vdev->v4l2_dev->dev)
+			vdev->parent = vdev->v4l2_dev->dev;
+		if (vdev->ctrl_handler == NULL)
+			vdev->ctrl_handler = vdev->v4l2_dev->ctrl_handler;
+	}
 
 	/* Part 2: find a free minor, device node number and device index. */
 #ifdef CONFIG_VIDEO_FIXED_MINOR_RANGES
