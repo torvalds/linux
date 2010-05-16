@@ -1509,7 +1509,6 @@ static int add_detailed_info_eedid(struct drm_connector *connector,
 	char *edid_ext = NULL;
 	struct detailed_timing *timing;
 	int start_offset, end_offset;
-	int timing_level;
 
 	if (edid->version == 1 && edid->revision < 3)
 		return 0;
@@ -1536,7 +1535,6 @@ static int add_detailed_info_eedid(struct drm_connector *connector,
 		return 0;
 	}
 
-	timing_level = standard_timing_level(edid);
 	end_offset = EDID_LENGTH;
 	end_offset -= sizeof(struct detailed_timing);
 	for (i = start_offset; i < end_offset;
