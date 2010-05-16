@@ -837,9 +837,10 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 		if (es.reason == NEWT_EXIT_HOTKEY) {
 			if (toupper(es.u.key) == 'A')
 				goto do_annotate;
-			if (es.u.key == NEWT_KEY_ESCAPE ||
-			    toupper(es.u.key) == 'Q' ||
-			    es.u.key == CTRL('c')) {
+			if (toupper(es.u.key) == 'Q' ||
+			    es.u.key == CTRL('c'))
+				break;
+			if (es.u.key == NEWT_KEY_ESCAPE) {
 				if (dialog_yesno("Do you really want to exit?"))
 					break;
 				else
