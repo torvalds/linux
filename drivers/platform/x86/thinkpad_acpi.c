@@ -2340,6 +2340,21 @@ static void hotkey_compare_and_issue_event(struct tp_nvram_state *oldn,
 		}
 	}
 
+	void issue_brightnesschange(const unsigned int oldbrt,
+				    const unsigned int newbrt)
+	{
+		unsigned int i = oldbrt;
+
+		while (i > newbrt) {
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNEND);
+			i--;
+		}
+		while (i < newbrt) {
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNHOME);
+			i++;
+		}
+	}
+
 	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_THINKPAD, thinkpad_toggle);
 	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_FNSPACE, zoom_toggle);
 	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_FNF7, display_toggle);
@@ -2394,19 +2409,16 @@ static void hotkey_compare_and_issue_event(struct tp_nvram_state *oldn,
 	}
 
 	/* handle brightness */
-	if (oldn->brightness_toggle != newn->brightness_toggle) {
-		if (oldn->brightness_level < newn->brightness_level) {
-			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNHOME);
-		} else if (oldn->brightness_level > newn->brightness_level) {
+	if (oldn->brightness_level != newn->brightness_level) {
+		issue_brightnesschange(oldn->brightness_level,
+				       newn->brightness_level);
+	} else if (oldn->brightness_toggle != newn->brightness_toggle) {
+		/* repeated key presses that didn't change state */
+		if (newn->brightness_level == 0)
 			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNEND);
-		} else {
-			/* repeated key presses that didn't change state */
-			if (newn->brightness_level != 0) {
-				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNHOME);
-			} else {
-				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNEND);
-			}
-		}
+		else if (newn->brightness_level >= bright_maxlvl
+				&& !tp_features.bright_unkfw)
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNHOME);
 	}
 
 #undef TPACPI_COMPARE_KEY
