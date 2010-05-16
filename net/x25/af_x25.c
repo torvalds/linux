@@ -586,7 +586,7 @@ static int x25_create(struct net *net, struct socket *sock, int protocol,
 	x25->t2    = sysctl_x25_ack_holdback_timeout;
 	x25->state = X25_STATE_0;
 	x25->cudmatchlength = 0;
-	x25->accptapprv = X25_DENY_ACCPT_APPRV;		/* normally no cud  */
+	set_bit(X25_ACCPT_APPRV_FLAG, &x25->flags);	/* normally no cud  */
 							/* on call accept   */
 
 	x25->facilities.winsize_in  = X25_DEFAULT_WINDOW_SIZE;
@@ -639,7 +639,6 @@ static struct sock *x25_make_new(struct sock *osk)
 	x25->facilities = ox25->facilities;
 	x25->dte_facilities = ox25->dte_facilities;
 	x25->cudmatchlength = ox25->cudmatchlength;
-	x25->accptapprv = ox25->accptapprv;
 
 	clear_bit(X25_INTERRUPT_FLAG, &x25->flags);
 	x25_init_timers(sk);
@@ -1057,8 +1056,8 @@ int x25_rx_call_request(struct sk_buff *skb, struct x25_neigh *nb,
 	makex25->vc_facil_mask &= ~X25_MASK_CALLING_AE;
 	makex25->cudmatchlength = x25_sk(sk)->cudmatchlength;
 
-	/* Normally all calls are accepted immediatly */
-	if(makex25->accptapprv & X25_DENY_ACCPT_APPRV) {
+	/* Normally all calls are accepted immediately */
+	if (test_bit(X25_ACCPT_APPRV_FLAG, &makex25->flags)) {
 		x25_write_internal(make, X25_CALL_ACCEPTED);
 		makex25->state = X25_STATE_3;
 	}
@@ -1580,7 +1579,7 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			rc = -EINVAL;
 			if (sk->sk_state != TCP_CLOSE)
 				break;
-			x25->accptapprv = X25_ALLOW_ACCPT_APPRV;
+			clear_bit(X25_ACCPT_APPRV_FLAG, &x25->flags);
 			rc = 0;
 			break;
 		}
@@ -1589,7 +1588,8 @@ static int x25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			rc = -EINVAL;
 			if (sk->sk_state != TCP_ESTABLISHED)
 				break;
-			if (x25->accptapprv)	/* must call accptapprv above */
+			/* must call accptapprv above */
+			if (test_bit(X25_ACCPT_APPRV_FLAG, &x25->flags))
 				break;
 			x25_write_internal(sk, X25_CALL_ACCEPTED);
 			x25->state = X25_STATE_3;
