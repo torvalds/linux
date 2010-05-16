@@ -285,11 +285,76 @@ exit:
 	usb_set_intfdata(interface, NULL);
 }
 
+#ifdef CONFIG_PM
+static int prism2sta_suspend(struct usb_interface *interface,
+				pm_message_t message)
+{
+	hfa384x_t *hw = NULL;
+	wlandevice_t *wlandev;
+	wlandev = (wlandevice_t *) usb_get_intfdata(interface);
+	if (!wlandev)
+		return -ENODEV;
+
+	hw = wlandev->priv;
+	if (!hw)
+		return -ENODEV;
+
+	prism2sta_ifstate(wlandev, P80211ENUM_ifstate_disable);
+
+	usb_kill_urb(&hw->rx_urb);
+	usb_kill_urb(&hw->tx_urb);
+	usb_kill_urb(&hw->ctlx_urb);
+
+	return 0;
+}
+
+static int prism2sta_resume(struct usb_interface *interface)
+{
+	int result = 0;
+	hfa384x_t *hw = NULL;
+	wlandevice_t *wlandev;
+	wlandev = (wlandevice_t *) usb_get_intfdata(interface);
+	if (!wlandev)
+		return -ENODEV;
+
+	hw = wlandev->priv;
+	if (!hw)
+		return -ENODEV;
+
+	/* Do a chip-level reset on the MAC */
+	if (prism2_doreset) {
+		result = hfa384x_corereset(hw,
+					   prism2_reset_holdtime,
+					   prism2_reset_settletime, 0);
+		if (result != 0) {
+			unregister_wlandev(wlandev);
+			hfa384x_destroy(hw);
+			printk(KERN_ERR
+			       "%s: hfa384x_corereset() failed.\n", dev_info);
+			kfree(wlandev);
+			kfree(hw);
+			wlandev = NULL;
+			return -ENODEV;
+		}
+	}
+
+	prism2sta_ifstate(wlandev, P80211ENUM_ifstate_enable);
+
+	return 0;
+}
+#else
+#define prism2sta_suspend NULL
+#define prism2sta_resume NULL
+#endif /* CONFIG_PM */
+
 static struct usb_driver prism2_usb_driver = {
 	.name = "prism2_usb",
 	.probe = prism2sta_probe_usb,
 	.disconnect = prism2sta_disconnect_usb,
 	.id_table = usb_prism_tbl,
+	.suspend = prism2sta_suspend,
+	.resume = prism2sta_resume,
+	.reset_resume = prism2sta_resume,
 	/* fops, minor? */
 };
 
