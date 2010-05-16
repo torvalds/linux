@@ -6740,6 +6740,8 @@ static int volume_alsa_vol_get(struct snd_kcontrol *kcontrol,
 static int volume_alsa_vol_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
+	tpacpi_disclose_usertask("ALSA", "set volume to %ld\n",
+				 ucontrol->value.integer.value[0]);
 	return volume_alsa_set_volume(ucontrol->value.integer.value[0]);
 }
 
@@ -6763,6 +6765,9 @@ static int volume_alsa_mute_get(struct snd_kcontrol *kcontrol,
 static int volume_alsa_mute_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
+	tpacpi_disclose_usertask("ALSA", "%smute\n",
+				 ucontrol->value.integer.value[0] ?
+					"un" : "");
 	return volume_alsa_set_mute(!ucontrol->value.integer.value[0]);
 }
 
