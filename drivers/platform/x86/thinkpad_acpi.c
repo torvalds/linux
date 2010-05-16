@@ -516,6 +516,7 @@ TPACPI_HANDLE(ec, root, "\\_SB.PCI0.ISA.EC0",	/* 240, 240x */
 	   "\\_SB.PCI0.ISA.EC",	/* A21e, A2xm/p, T20-22, X20-21 */
 	   "\\_SB.PCI0.AD4S.EC0",	/* i1400, R30 */
 	   "\\_SB.PCI0.ICH3.EC0",	/* R31 */
+	   "\\_SB.PCI0.LPC0.EC",	/* X100e and a few others */
 	   "\\_SB.PCI0.LPC.EC",	/* all others */
 	   );
 
@@ -537,6 +538,7 @@ TPACPI_HANDLE(vid, root, "\\_SB.PCI.AGP.VGA",	/* 570 */
 	   "\\_SB.PCI0.AGP0.VID0",	/* 600e/x, 770x */
 	   "\\_SB.PCI0.VID0",	/* 770e */
 	   "\\_SB.PCI0.VID",	/* A21e, G4x, R50e, X30, X40 */
+	   "\\_SB.PCI0.AGP.VGA",	/* X100e and a few others */
 	   "\\_SB.PCI0.AGP.VID",	/* all others */
 	   );				/* R30, R31 */
 
