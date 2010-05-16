@@ -45,7 +45,6 @@ separate MTD devices.
 // Includes
 
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <asm/io.h>

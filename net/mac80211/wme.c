@@ -96,7 +96,7 @@ u16 ieee80211_select_queue(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (!sta && ra && !is_multicast_ether_addr(ra)) {
-		sta = sta_info_get(local, ra);
+		sta = sta_info_get(sdata, ra);
 		if (sta)
 			sta_flags = get_sta_flags(sta);
 	}

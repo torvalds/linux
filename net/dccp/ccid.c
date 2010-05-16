@@ -11,6 +11,8 @@
  *	published by the Free Software Foundation.
  */
 
+#include <linux/slab.h>
+
 #include "ccid.h"
 #include "ccids/lib/tfrc.h"
 
@@ -63,14 +65,13 @@ int ccid_getsockopt_builtin_ccids(struct sock *sk, int len,
 	u8 *ccid_array, array_len;
 	int err = 0;
 
-	if (len < ARRAY_SIZE(ccids))
-		return -EINVAL;
-
 	if (ccid_get_builtin_ccids(&ccid_array, &array_len))
 		return -ENOBUFS;
 
-	if (put_user(array_len, optlen) ||
-	    copy_to_user(optval, ccid_array, array_len))
+	if (put_user(array_len, optlen))
+		err = -EFAULT;
+	else if (len > 0 && copy_to_user(optval, ccid_array,
+					 len > array_len ? array_len : len))
 		err = -EFAULT;
 
 	kfree(ccid_array);

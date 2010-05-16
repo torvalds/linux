@@ -1639,8 +1639,8 @@ void vcpu_set_psr(struct kvm_vcpu *vcpu, unsigned long val)
 	 * Otherwise panic
 	 */
 	if (val & (IA64_PSR_PK | IA64_PSR_IS | IA64_PSR_VM))
-		panic_vm(vcpu, "Only support guests with vpsr.pk =0 \
-				& vpsr.is=0\n");
+		panic_vm(vcpu, "Only support guests with vpsr.pk =0 "
+				"& vpsr.is=0\n");
 
 	/*
 	 * For those IA64_PSR bits: id/da/dd/ss/ed/ia

@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
+#include <linux/gfp.h>
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <net/protocol.h>
@@ -256,6 +257,9 @@ int __init ip_vs_protocol_init(void)
 #endif
 #ifdef CONFIG_IP_VS_PROTO_UDP
 	REGISTER_PROTOCOL(&ip_vs_protocol_udp);
+#endif
+#ifdef CONFIG_IP_VS_PROTO_SCTP
+	REGISTER_PROTOCOL(&ip_vs_protocol_sctp);
 #endif
 #ifdef CONFIG_IP_VS_PROTO_AH
 	REGISTER_PROTOCOL(&ip_vs_protocol_ah);

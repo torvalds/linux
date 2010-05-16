@@ -582,7 +582,7 @@ static int bt3c_open(bt3c_info_t *info)
 
 	info->hdev = hdev;
 
-	hdev->type = HCI_PCCARD;
+	hdev->bus = HCI_PCCARD;
 	hdev->driver_data = info;
 	SET_HCIDEV_DEV(hdev, &info->p_dev->dev);
 

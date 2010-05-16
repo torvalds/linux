@@ -264,7 +264,7 @@ struct dt9812_usb_cmd {
 
 static DECLARE_MUTEX(dt9812_mutex);
 
-static struct usb_device_id dt9812_table[] = {
+static const struct usb_device_id dt9812_table[] = {
 	{USB_DEVICE(0x0867, 0x9812)},
 	{}			/* Terminating entry */
 };

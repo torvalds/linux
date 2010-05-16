@@ -17,7 +17,9 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/mm.h>
 #include <asm/unaligned.h>
+#include <asm/cacheflush.h>
 
 #include "../core/hcd.h"
 #include "isp1760-hcd.h"
@@ -902,6 +904,14 @@ __acquires(priv->lock)
 	if (!urb->unlinked) {
 		if (status == -EINPROGRESS)
 			status = 0;
+	}
+
+	if (usb_pipein(urb->pipe) && usb_pipetype(urb->pipe) != PIPE_CONTROL) {
+		void *ptr;
+		for (ptr = urb->transfer_buffer;
+		     ptr < urb->transfer_buffer + urb->transfer_buffer_length;
+		     ptr += PAGE_SIZE)
+			flush_dcache_page(virt_to_page(ptr));
 	}
 
 	/* complete() can reenter this HCD */

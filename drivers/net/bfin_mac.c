@@ -812,16 +812,14 @@ static void bfin_mac_timeout(struct net_device *dev)
 static void bfin_mac_multicast_hash(struct net_device *dev)
 {
 	u32 emac_hashhi, emac_hashlo;
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct dev_mc_list *dmi;
 	char *addrs;
-	int i;
 	u32 crc;
 
 	emac_hashhi = emac_hashlo = 0;
 
-	for (i = 0; i < dev->mc_count; i++) {
+	netdev_for_each_mc_addr(dmi, dev) {
 		addrs = dmi->dmi_addr;
-		dmi = dmi->next;
 
 		/* skip non-multicast addresses */
 		if (!(*addrs & 1))
@@ -862,7 +860,7 @@ static void bfin_mac_set_multicast_list(struct net_device *dev)
 		sysctl = bfin_read_EMAC_OPMODE();
 		sysctl |= PAM;
 		bfin_write_EMAC_OPMODE(sysctl);
-	} else if (dev->mc_count) {
+	} else if (!netdev_mc_empty(dev)) {
 		/* set up multicast hash table */
 		sysctl = bfin_read_EMAC_OPMODE();
 		sysctl |= HM;

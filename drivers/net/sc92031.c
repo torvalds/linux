@@ -429,13 +429,13 @@ static void _sc92031_set_mar(struct net_device *dev)
 	u32 mar0 = 0, mar1 = 0;
 
 	if ((dev->flags & IFF_PROMISC) ||
-	    dev->mc_count > multicast_filter_limit ||
+	    netdev_mc_count(dev) > multicast_filter_limit ||
 	    (dev->flags & IFF_ALLMULTI))
 		mar0 = mar1 = 0xffffffff;
 	else if (dev->flags & IFF_MULTICAST) {
 		struct dev_mc_list *mc_list;
 
-		for (mc_list = dev->mc_list; mc_list; mc_list = mc_list->next) {
+		netdev_for_each_mc_addr(mc_list, dev) {
 			u32 crc;
 			unsigned bit = 0;
 
@@ -1589,7 +1589,7 @@ out:
 	return 0;
 }
 
-static struct pci_device_id sc92031_pci_device_id_table[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(sc92031_pci_device_id_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, 0x2031) },
 	{ PCI_DEVICE(PCI_VENDOR_ID_SILAN, 0x8139) },
 	{ PCI_DEVICE(0x1088, 0x2031) },

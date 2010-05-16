@@ -144,7 +144,7 @@ static int jmicron_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
 
-	return ata_pci_sff_init_one(pdev, ppi, &jmicron_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &jmicron_sht, NULL, 0);
 }
 
 static const struct pci_device_id jmicron_pci_tbl[] = {

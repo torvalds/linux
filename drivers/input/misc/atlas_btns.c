@@ -47,7 +47,7 @@ static acpi_status acpi_atlas_button_setup(acpi_handle region_handle,
 
 static acpi_status acpi_atlas_button_handler(u32 function,
 		      acpi_physical_address address,
-		      u32 bit_width, acpi_integer *value,
+		      u32 bit_width, u64 *value,
 		      void *handler_context, void *region_context)
 {
 	acpi_status status;

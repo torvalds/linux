@@ -27,4 +27,3 @@ NESTED(genexcept_early, 0, sp)
 	jr	k0
 	 rfe
 END(genexcept_early)
-

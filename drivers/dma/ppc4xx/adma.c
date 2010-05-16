@@ -38,6 +38,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/proc_fs.h>
 #include <linux/of.h>
@@ -4940,7 +4941,7 @@ out_free:
 	return ret;
 }
 
-static struct of_device_id __devinitdata ppc440spe_adma_of_match[] = {
+static const struct of_device_id ppc440spe_adma_of_match[] __devinitconst = {
 	{ .compatible	= "ibm,dma-440spe", },
 	{ .compatible	= "amcc,xor-accelerator", },
 	{},

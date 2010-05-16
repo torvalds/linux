@@ -22,6 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/string.h>
+#include <linux/gfp.h>
 #include <linux/types.h>
 #include <linux/mm.h>
 #include <linux/stddef.h>
@@ -48,6 +49,7 @@
 #include <asm/sparsemem.h>
 #include <asm/vdso.h>
 #include <asm/fixmap.h>
+#include <asm/swiotlb.h>
 
 #include "mmu_decl.h"
 
@@ -320,6 +322,11 @@ void __init mem_init(void)
 	struct page *page;
 	unsigned long reservedpages = 0, codesize, initsize, datasize, bsssize;
 
+#ifdef CONFIG_SWIOTLB
+	if (ppc_swiotlb_enable)
+		swiotlb_init(1);
+#endif
+
 	num_physpages = lmb.memory.size >> PAGE_SHIFT;
 	high_memory = (void *) __va(max_low_pfn * PAGE_SIZE);
 
@@ -494,13 +501,13 @@ EXPORT_SYMBOL(flush_icache_user_range);
  * This must always be called with the pte lock held.
  */
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
-		      pte_t pte)
+		      pte_t *ptep)
 {
 #ifdef CONFIG_PPC_STD_MMU
 	unsigned long access = 0, trap;
 
 	/* We only want HPTEs for linux PTEs that have _PAGE_ACCESSED set */
-	if (!pte_young(pte) || address >= TASK_SIZE)
+	if (!pte_young(*ptep) || address >= TASK_SIZE)
 		return;
 
 	/* We try to figure out if we are coming from an instruction

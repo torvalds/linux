@@ -18,6 +18,7 @@
  */
 #include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/slab.h>
 #include <linux/slow-work.h>
 #include "cifs_fs_sb.h"
 #include "cifsacl.h"
@@ -205,7 +206,7 @@ struct cifsUidInfo {
 struct cifsSesInfo {
 	struct list_head smb_ses_list;
 	struct list_head tcon_list;
-	struct semaphore sesSem;
+	struct mutex session_mutex;
 #if 0
 	struct cifsUidInfo *uidInfo;	/* pointer to user info */
 #endif
@@ -389,6 +390,7 @@ struct cifsInodeInfo {
 	bool clientCanCacheRead:1;	/* read oplock */
 	bool clientCanCacheAll:1;	/* read and writebehind oplock */
 	bool delete_pending:1;		/* DELETE_ON_CLOSE is set */
+	bool invalid_mapping:1;		/* pagecache is invalid */
 	u64  server_eof;		/* current file size on server */
 	u64  uniqueid;			/* server inode number */
 	struct inode vfs_inode;

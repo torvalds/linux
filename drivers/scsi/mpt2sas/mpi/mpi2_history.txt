@@ -5,23 +5,24 @@
  Copyright (c) 2000-2009 LSI Corporation.
 
  ---------------------------------------
- Header Set Release Version:    02.00.12
- Header Set Release Date:       05-06-09
+ Header Set Release Version:    02.00.14
+ Header Set Release Date:       10-28-09
  ---------------------------------------
 
  Filename               Current version     Prior version
  ----------             ---------------     -------------
- mpi2.h                 02.00.12            02.00.11
- mpi2_cnfg.h            02.00.11            02.00.10
- mpi2_init.h            02.00.07            02.00.06
- mpi2_ioc.h             02.00.11            02.00.10
- mpi2_raid.h            02.00.03            02.00.03
- mpi2_sas.h             02.00.02            02.00.02
+ mpi2.h                 02.00.14            02.00.13
+ mpi2_cnfg.h            02.00.13            02.00.12
+ mpi2_init.h            02.00.08            02.00.07
+ mpi2_ioc.h             02.00.13            02.00.12
+ mpi2_raid.h            02.00.04            02.00.04
+ mpi2_sas.h             02.00.03            02.00.02
  mpi2_targ.h            02.00.03            02.00.03
- mpi2_tool.h            02.00.03            02.00.02
+ mpi2_tool.h            02.00.04            02.00.04
  mpi2_type.h            02.00.00            02.00.00
- mpi2_ra.h              02.00.00
- mpi2_history.txt       02.00.11            02.00.12
+ mpi2_ra.h              02.00.00            02.00.00
+ mpi2_hbd.h             02.00.00
+ mpi2_history.txt       02.00.14            02.00.13
 
 
  *  Date      Version   Description
@@ -65,6 +66,11 @@ mpi2.h
  *                      MPI2_SCSI_IO_SUCCESS_REPLY_DESCRIPTOR and made those
  *                      bytes reserved.
  *                      Added RAID Accelerator functionality.
+ *  07-30-09  02.00.13  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  10-28-09  02.00.14  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added MSI-x index mask and shift for Reply Post Host
+ *                      Index register.
+ *                      Added function code for Host Based Discovery Action.
  *  --------------------------------------------------------------------------
 
 mpi2_cnfg.h
@@ -155,6 +161,15 @@ mpi2_cnfg.h
  *                      Added expander reduced functionality data to SAS
  *                      Expander Page 0.
  *                      Added SAS PHY Page 2 and SAS PHY Page 3.
+ *  07-30-09  02.00.12  Added IO Unit Page 7.
+ *                      Added new device ids.
+ *                      Added SAS IO Unit Page 5.
+ *                      Added partial and slumber power management capable flags
+ *                      to SAS Device Page 0 Flags field.
+ *                      Added PhyInfo defines for power condition.
+ *                      Added Ethernet configuration pages.
+ *  10-28-09  02.00.13  Added MPI2_IOUNITPAGE1_ENABLE_HOST_BASED_DISCOVERY.
+ *                      Added SAS PHY Page 4 structure and defines.
  *  --------------------------------------------------------------------------
 
 mpi2_init.h
@@ -172,6 +187,10 @@ mpi2_init.h
  *                      Query Asynchronous Event.
  *                      Defined two new bits in the SlotStatus field of the SCSI
  *                      Enclosure Processor Request and Reply.
+ *  10-28-09  02.00.08  Added defines for decoding the ResponseInfo bytes for
+ *                      both SCSI IO Error Reply and SCSI Task Management Reply.
+ *                      Added ResponseInfo field to MPI2_SCSI_TASK_MANAGE_REPLY.
+ *                      Added MPI2_SCSITASKMGMT_RSP_TM_OVERLAPPED_TAG define.
  *  --------------------------------------------------------------------------
 
 mpi2_ioc.h
@@ -246,6 +265,20 @@ mpi2_ioc.h
  *                      Added two new reason codes for SAS Device Status Change
  *                      Event.
  *                      Added new event: SAS PHY Counter.
+ *  07-30-09  02.00.12  Added GPIO Interrupt event define and structure.
+ *                      Added MPI2_IOCFACTS_CAPABILITY_EXTENDED_BUFFER define.
+ *                      Added new product id family for 2208.
+ *  10-28-09  02.00.13  Added HostMSIxVectors field to MPI2_IOC_INIT_REQUEST.
+ *                      Added MaxMSIxVectors field to MPI2_IOC_FACTS_REPLY.
+ *                      Added MinDevHandle field to MPI2_IOC_FACTS_REPLY.
+ *                      Added MPI2_IOCFACTS_CAPABILITY_HOST_BASED_DISCOVERY.
+ *                      Added MPI2_EVENT_HOST_BASED_DISCOVERY_PHY define.
+ *                      Added MPI2_EVENT_SAS_TOPO_ES_NO_EXPANDER define.
+ *                      Added Host Based Discovery Phy Event data.
+ *                      Added defines for ProductID Product field
+ *                      (MPI2_FW_HEADER_PID_).
+ *                      Modified values for SAS ProductID Family
+ *                      (MPI2_FW_HEADER_PID_FAMILY_).
  *  --------------------------------------------------------------------------
 
 mpi2_raid.h
@@ -256,6 +289,8 @@ mpi2_raid.h
  *  05-21-08  02.00.03  Added MPI2_RAID_VOL_CREATION_NUM_PHYSDISKS so that
  *                      the PhysDisk array in MPI2_RAID_VOLUME_CREATION_STRUCT
  *                      can be sized by the build environment.
+ *  07-30-09  02.00.04  Added proper define for the Use Default Settings bit of
+ *                      VolumeCreationFlags and marked the old one as obsolete.
  *  --------------------------------------------------------------------------
 
 mpi2_sas.h
@@ -264,6 +299,8 @@ mpi2_sas.h
  *                      Control Request.
  *  10-02-08  02.00.02  Added Set IOC Parameter Operation to SAS IO Unit Control
  *                      Request.
+ *  10-28-09  02.00.03  Changed the type of SGL in MPI2_SATA_PASSTHROUGH_REQUEST
+ *                      to MPI2_SGE_IO_UNION since it supports chained SGLs.
  *  --------------------------------------------------------------------------
 
 mpi2_targ.h
@@ -283,6 +320,10 @@ mpi2_tool.h
  *                      structures and defines.
  *  02-29-08  02.00.02  Modified various names to make them 32-character unique.
  *  05-06-09  02.00.03  Added ISTWI Read Write Tool and Diagnostic CLI Tool.
+ *  07-30-09  02.00.04  Added ExtendedType field to DiagnosticBufferPost request
+ *                      and reply messages.
+ *                      Added MPI2_DIAG_BUF_TYPE_EXTENDED.
+ *                      Incremented MPI2_DIAG_BUF_TYPE_COUNT.
  *  --------------------------------------------------------------------------
 
 mpi2_type.h
@@ -293,20 +334,26 @@ mpi2_ra.h
  *  05-06-09  02.00.00  Initial version.
  *  --------------------------------------------------------------------------
 
+mpi2_hbd.h
+ *  10-28-09  02.00.00  Initial version.
+ *  --------------------------------------------------------------------------
+
+
 mpi2_history.txt         Parts list history
 
-Filename     02.00.12
-----------   --------
-mpi2.h       02.00.12
-mpi2_cnfg.h  02.00.11
-mpi2_init.h  02.00.07
-mpi2_ioc.h   02.00.11
-mpi2_raid.h  02.00.03
-mpi2_sas.h   02.00.02
-mpi2_targ.h  02.00.03
-mpi2_tool.h  02.00.03
-mpi2_type.h  02.00.00
-mpi2_ra.h    02.00.00
+Filename     02.00.14  02.00.13  02.00.12
+----------   --------  --------  --------
+mpi2.h       02.00.14  02.00.13  02.00.12
+mpi2_cnfg.h  02.00.13  02.00.12  02.00.11
+mpi2_init.h  02.00.08  02.00.07  02.00.07
+mpi2_ioc.h   02.00.13  02.00.12  02.00.11
+mpi2_raid.h  02.00.04  02.00.04  02.00.03
+mpi2_sas.h   02.00.03  02.00.02  02.00.02
+mpi2_targ.h  02.00.03  02.00.03  02.00.03
+mpi2_tool.h  02.00.04  02.00.04  02.00.03
+mpi2_type.h  02.00.00  02.00.00  02.00.00
+mpi2_ra.h    02.00.00  02.00.00  02.00.00
+mpi2_hbd.h   02.00.00
 
 Filename     02.00.11  02.00.10  02.00.09  02.00.08  02.00.07  02.00.06
 ----------   --------  --------  --------  --------  --------  --------

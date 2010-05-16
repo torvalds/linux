@@ -14,6 +14,7 @@
  *	- cache integrity information associated with an inode
  *	  using a radix tree.
  */
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/radix-tree.h>
@@ -63,11 +64,10 @@ int ima_inode_alloc(struct inode *inode)
 	spin_lock(&ima_iint_lock);
 	rc = radix_tree_insert(&ima_iint_store, (unsigned long)inode, iint);
 	spin_unlock(&ima_iint_lock);
+	radix_tree_preload_end();
 out:
 	if (rc < 0)
 		kmem_cache_free(iint_cache, iint);
-
-	radix_tree_preload_end();
 
 	return rc;
 }

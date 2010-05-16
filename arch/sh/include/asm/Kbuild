@@ -1,6 +1,8 @@
 include include/asm-generic/Kbuild.asm
 
-header-y += cachectl.h cpu-features.h
+header-y += cachectl.h
+header-y += cpu-features.h
+header-y += hw_breakpoint.h
 
 unifdef-y += unistd_32.h
 unifdef-y += unistd_64.h

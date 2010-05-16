@@ -88,6 +88,7 @@
 
 #include <linux/jiffies.h>
 #include <linux/ctype.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include "wusbhc.h"
 
@@ -437,7 +438,7 @@ static void __wusbhc_keep_alive(struct wusbhc *wusbhc)
 	old_keep_alives = ie->hdr.bLength - sizeof(ie->hdr);
 	keep_alives = 0;
 	for (cnt = 0;
-	     keep_alives <= WUIE_ELT_MAX && cnt < wusbhc->ports_max;
+	     keep_alives < WUIE_ELT_MAX && cnt < wusbhc->ports_max;
 	     cnt++) {
 		unsigned tt = msecs_to_jiffies(wusbhc->trust_timeout);
 
@@ -868,7 +869,7 @@ static struct usb_wireless_cap_descriptor wusb_cap_descr_default = {
  * reference that we'll drop.
  *
  * First we need to determine if the device is a WUSB device (else we
- * ignore it). For that we use the speed setting (USB_SPEED_VARIABLE)
+ * ignore it). For that we use the speed setting (USB_SPEED_WIRELESS)
  * [FIXME: maybe we'd need something more definitive]. If so, we track
  * it's usb_busd and from there, the WUSB HC.
  *

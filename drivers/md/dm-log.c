@@ -543,8 +543,7 @@ static int disk_ctr(struct dm_dirty_log *log, struct dm_target *ti,
 		return -EINVAL;
 	}
 
-	r = dm_get_device(ti, argv[0], 0, 0 /* FIXME */,
-			  FMODE_READ | FMODE_WRITE, &dev);
+	r = dm_get_device(ti, argv[0], FMODE_READ | FMODE_WRITE, &dev);
 	if (r)
 		return r;
 

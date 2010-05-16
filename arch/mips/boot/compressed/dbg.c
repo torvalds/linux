@@ -5,11 +5,11 @@
  * please select SYS_SUPPORTS_ZBOOT_UART16550 for your machine. othewise, you
  * need to implement your own putc().
  */
-
+#include <linux/compiler.h>
 #include <linux/init.h>
 #include <linux/types.h>
 
-void __attribute__ ((weak)) putc(char c)
+void __weak putc(char c)
 {
 }
 

@@ -989,8 +989,8 @@ Changes from 20040709 to 20040716
 	* Remove redundant port_cmp != 2 check in if
 	  (!port_cmp) { .... if (port_cmp != 2).... }
 	* Clock changes: removed struct clk_data and timerList.
-	* Clock changes: seperate nodev_tmo and els_retry_delay into 2
-	  seperate timers and convert to 1 argument changed
+	* Clock changes: separate nodev_tmo and els_retry_delay into 2
+	  separate timers and convert to 1 argument changed
 	  LPFC_NODE_FARP_PEND_t to struct lpfc_node_farp_pend convert
 	  ipfarp_tmo to 1 argument convert target struct tmofunc and
 	  rtplunfunc to 1 argument * cr_count, cr_delay and
@@ -1514,7 +1514,7 @@ Changes from 20040402 to 20040409
 	* Remove unused elxclock declaration in elx_sli.h.
 	* Since everywhere IOCB_ENTRY is used, the return value is cast,
 	  move the cast into the macro.
-	* Split ioctls out into seperate files
+	* Split ioctls out into separate files
 
 Changes from 20040326 to 20040402
 
@@ -1534,7 +1534,7 @@ Changes from 20040326 to 20040402
 	* Unused variable cleanup
 	* Use Linux list macros for DMABUF_t
 	* Break up ioctls into 3 sections, dfc, util, hbaapi
-	  rearranged code so this could be easily seperated into a
+	  rearranged code so this could be easily separated into a
 	  differnet module later All 3 are currently turned on by
 	  defines in lpfc_ioctl.c LPFC_DFC_IOCTL, LPFC_UTIL_IOCTL,
 	  LPFC_HBAAPI_IOCTL
@@ -1551,7 +1551,7 @@ Changes from 20040326 to 20040402
 	  started by lpfc_online().  lpfc_offline() only stopped
 	  els_timeout routine.  It now stops all timeout routines
 	  associated with that hba.
-	* Replace seperate next and prev pointers in struct
+	* Replace separate next and prev pointers in struct
 	  lpfc_bindlist with list_head type.  In elxHBA_t, replace
 	  fc_nlpbind_start and _end with fc_nlpbind_list and use
 	  list_head macros to access it.

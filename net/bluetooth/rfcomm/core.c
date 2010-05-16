@@ -33,9 +33,12 @@
 #include <linux/init.h>
 #include <linux/wait.h>
 #include <linux/device.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
 #include <linux/net.h>
 #include <linux/mutex.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 
 #include <net/sock.h>
 #include <asm/uaccess.h>
@@ -2098,11 +2101,10 @@ static struct hci_cb rfcomm_cb = {
 	.security_cfm	= rfcomm_security_cfm
 };
 
-static ssize_t rfcomm_dlc_sysfs_show(struct class *dev, char *buf)
+static int rfcomm_dlc_debugfs_show(struct seq_file *f, void *x)
 {
 	struct rfcomm_session *s;
 	struct list_head *pp, *p;
-	char *str = buf;
 
 	rfcomm_lock();
 
@@ -2112,18 +2114,32 @@ static ssize_t rfcomm_dlc_sysfs_show(struct class *dev, char *buf)
 			struct sock *sk = s->sock->sk;
 			struct rfcomm_dlc *d = list_entry(pp, struct rfcomm_dlc, list);
 
-			str += sprintf(str, "%s %s %ld %d %d %d %d\n",
-					batostr(&bt_sk(sk)->src), batostr(&bt_sk(sk)->dst),
-					d->state, d->dlci, d->mtu, d->rx_credits, d->tx_credits);
+			seq_printf(f, "%s %s %ld %d %d %d %d\n",
+						batostr(&bt_sk(sk)->src),
+						batostr(&bt_sk(sk)->dst),
+						d->state, d->dlci, d->mtu,
+						d->rx_credits, d->tx_credits);
 		}
 	}
 
 	rfcomm_unlock();
 
-	return (str - buf);
+	return 0;
 }
 
-static CLASS_ATTR(rfcomm_dlc, S_IRUGO, rfcomm_dlc_sysfs_show, NULL);
+static int rfcomm_dlc_debugfs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rfcomm_dlc_debugfs_show, inode->i_private);
+}
+
+static const struct file_operations rfcomm_dlc_debugfs_fops = {
+	.open		= rfcomm_dlc_debugfs_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static struct dentry *rfcomm_dlc_debugfs;
 
 /* ---- Initialization ---- */
 static int __init rfcomm_init(void)
@@ -2140,8 +2156,12 @@ static int __init rfcomm_init(void)
 		goto unregister;
 	}
 
-	if (class_create_file(bt_class, &class_attr_rfcomm_dlc) < 0)
-		BT_ERR("Failed to create RFCOMM info file");
+	if (bt_debugfs) {
+		rfcomm_dlc_debugfs = debugfs_create_file("rfcomm_dlc", 0444,
+				bt_debugfs, NULL, &rfcomm_dlc_debugfs_fops);
+		if (!rfcomm_dlc_debugfs)
+			BT_ERR("Failed to create RFCOMM debug file");
+	}
 
 	err = rfcomm_init_ttys();
 	if (err < 0)
@@ -2169,7 +2189,7 @@ unregister:
 
 static void __exit rfcomm_exit(void)
 {
-	class_remove_file(bt_class, &class_attr_rfcomm_dlc);
+	debugfs_remove(rfcomm_dlc_debugfs);
 
 	hci_unregister_cb(&rfcomm_cb);
 

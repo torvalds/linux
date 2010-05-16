@@ -25,6 +25,7 @@
 
 #include <linux/file.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/mount.h>
 #include <linux/pagemap.h>
 #include <linux/security.h>

@@ -15,6 +15,7 @@
 #include <linux/err.h>
 #include <linux/virtio.h>
 #include <linux/virtio_config.h>
+#include <linux/slab.h>
 #include <linux/virtio_console.h>
 #include <linux/interrupt.h>
 #include <linux/virtio_ring.h>
@@ -340,11 +341,11 @@ static void kvm_extint_handler(u16 code)
 		return;
 
 	/* The LSB might be overloaded, we have to mask it */
-	vq = (struct virtqueue *) ((*(long *) __LC_PFAULT_INTPARM) & ~1UL);
+	vq = (struct virtqueue *)(S390_lowcore.ext_params2 & ~1UL);
 
 	/* We use the LSB of extparam, to decide, if this interrupt is a config
 	 * change or a "standard" interrupt */
-	config_changed =  (*(int *)  __LC_EXT_PARAMS & 1);
+	config_changed = S390_lowcore.ext_params & 1;
 
 	if (config_changed) {
 		struct virtio_driver *drv;

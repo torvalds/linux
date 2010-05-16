@@ -36,6 +36,7 @@
 #include <linux/init.h>
 #include <linux/sysctl.h>
 #include <linux/netfilter.h>
+#include <linux/slab.h>
 
 #include <net/sock.h>
 #include <net/snmp.h>

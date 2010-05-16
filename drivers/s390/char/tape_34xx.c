@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/bio.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 #define TAPE_DBF_AREA	tape_34xx_dbf
 

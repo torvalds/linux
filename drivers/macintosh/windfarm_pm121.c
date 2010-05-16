@@ -1008,7 +1008,7 @@ static int __init pm121_init(void)
 {
 	int rc = -ENODEV;
 
-	if (machine_is_compatible("PowerMac12,1"))
+	if (of_machine_is_compatible("PowerMac12,1"))
 		rc = pm121_init_pm();
 
 	if (rc == 0) {

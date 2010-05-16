@@ -365,6 +365,8 @@ enum fp_registers {
 	FP_CRC, /* 0x458 */
 };
 
+#define FP_PT2_HSP			(1 << 22)
+#define FP_PT2_VSP			(1 << 23)
 #define FP_PT2_SCRC			(1 << 27)	/* shfclk free */
 
 #define FP_PM_P				(1 << 24)	/* panel power ctl */

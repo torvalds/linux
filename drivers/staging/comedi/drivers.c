@@ -44,7 +44,7 @@
 #include <linux/cdev.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/system.h>
 
 static int postconfig(struct comedi_device *dev);
@@ -99,11 +99,10 @@ static void cleanup_device(struct comedi_device *dev)
 static void __comedi_device_detach(struct comedi_device *dev)
 {
 	dev->attached = 0;
-	if (dev->driver) {
+	if (dev->driver)
 		dev->driver->detach(dev);
-	} else {
+	else
 		printk("BUG: dev->driver=NULL in comedi_device_detach()\n");
-	}
 	cleanup_device(dev);
 }
 
@@ -380,9 +379,8 @@ static int insn_rw_emulate_bits(struct comedi_device *dev,
 	if (ret < 0)
 		return ret;
 
-	if (insn->insn == INSN_READ) {
+	if (insn->insn == INSN_READ)
 		data[0] = (new_data[1] >> (chan - base_bitfield_channel)) & 1;
-	}
 
 	return 1;
 }
@@ -429,9 +427,9 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 	new_size = (new_size + PAGE_SIZE - 1) & PAGE_MASK;
 
 	/* if no change is required, do nothing */
-	if (async->prealloc_buf && async->prealloc_bufsz == new_size) {
+	if (async->prealloc_buf && async->prealloc_bufsz == new_size)
 		return 0;
-	}
+
 	/*  deallocate old buffer */
 	if (async->prealloc_buf) {
 		vunmap(async->prealloc_buf);
@@ -494,9 +492,9 @@ int comedi_buf_alloc(struct comedi_device *dev, struct comedi_subdevice *s,
 					    (void *)
 					    get_zeroed_page(GFP_KERNEL);
 				}
-				if (async->buf_page_list[i].virt_addr == NULL) {
+				if (async->buf_page_list[i].virt_addr == NULL)
 					break;
-				}
+
 				mem_map_reserve(virt_to_page
 						(async->buf_page_list[i].
 						 virt_addr));
@@ -619,9 +617,9 @@ unsigned int comedi_buf_write_alloc(struct comedi_async *async,
 {
 	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
 
-	if ((int)(async->buf_write_alloc_count + nbytes - free_end) > 0) {
+	if ((int)(async->buf_write_alloc_count + nbytes - free_end) > 0)
 		nbytes = free_end - async->buf_write_alloc_count;
-	}
+
 	async->buf_write_alloc_count += nbytes;
 	/* barrier insures the read of buf_read_count above occurs before
 	   we write data to the write-alloc'ed buffer space */
@@ -635,9 +633,9 @@ unsigned int comedi_buf_write_alloc_strict(struct comedi_async *async,
 {
 	unsigned int free_end = async->buf_read_count + async->prealloc_bufsz;
 
-	if ((int)(async->buf_write_alloc_count + nbytes - free_end) > 0) {
+	if ((int)(async->buf_write_alloc_count + nbytes - free_end) > 0)
 		nbytes = 0;
-	}
+
 	async->buf_write_alloc_count += nbytes;
 	/* barrier insures the read of buf_read_count above occurs before
 	   we write data to the write-alloc'ed buffer space */
@@ -657,9 +655,9 @@ unsigned comedi_buf_write_free(struct comedi_async *async, unsigned int nbytes)
 	async->buf_write_count += nbytes;
 	async->buf_write_ptr += nbytes;
 	comedi_buf_munge(async, async->buf_write_count - async->munge_count);
-	if (async->buf_write_ptr >= async->prealloc_bufsz) {
+	if (async->buf_write_ptr >= async->prealloc_bufsz)
 		async->buf_write_ptr %= async->prealloc_bufsz;
-	}
+
 	return nbytes;
 }
 

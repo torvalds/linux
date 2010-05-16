@@ -45,7 +45,7 @@ static int iget_test(struct inode *inode, void *opaque)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	u64 *no_addr = opaque;
 
-	if (ip->i_no_addr == *no_addr && test_bit(GIF_USER, &ip->i_flags))
+	if (ip->i_no_addr == *no_addr)
 		return 1;
 
 	return 0;
@@ -58,7 +58,6 @@ static int iget_set(struct inode *inode, void *opaque)
 
 	inode->i_ino = (unsigned long)*no_addr;
 	ip->i_no_addr = *no_addr;
-	set_bit(GIF_USER, &ip->i_flags);
 	return 0;
 }
 
@@ -84,7 +83,7 @@ static int iget_skip_test(struct inode *inode, void *opaque)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_skip_data *data = opaque;
 
-	if (ip->i_no_addr == data->no_addr && test_bit(GIF_USER, &ip->i_flags)){
+	if (ip->i_no_addr == data->no_addr) {
 		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE)){
 			data->skipped = 1;
 			return 0;
@@ -103,7 +102,6 @@ static int iget_skip_set(struct inode *inode, void *opaque)
 		return 1;
 	inode->i_ino = (unsigned long)(data->no_addr);
 	ip->i_no_addr = data->no_addr;
-	set_bit(GIF_USER, &ip->i_flags);
 	return 0;
 }
 

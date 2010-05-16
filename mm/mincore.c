@@ -7,8 +7,8 @@
 /*
  * The mincore() system call.
  */
-#include <linux/slab.h>
 #include <linux/pagemap.h>
+#include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/syscalls.h>

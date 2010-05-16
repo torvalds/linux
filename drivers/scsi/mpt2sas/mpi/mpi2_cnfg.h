@@ -6,7 +6,7 @@
  *          Title:  MPI Configuration messages and pages
  *  Creation Date:  November 10, 2006
  *
- *    mpi2_cnfg.h Version:  02.00.12
+ *    mpi2_cnfg.h Version:  02.00.13
  *
  *  Version History
  *  ---------------
@@ -107,6 +107,8 @@
  *                      to SAS Device Page 0 Flags field.
  *                      Added PhyInfo defines for power condition.
  *                      Added Ethernet configuration pages.
+ *  10-28-09  02.00.13  Added MPI2_IOUNITPAGE1_ENABLE_HOST_BASED_DISCOVERY.
+ *                      Added SAS PHY Page 4 structure and defines.
  *  --------------------------------------------------------------------------
  */
 
@@ -712,6 +714,7 @@ typedef struct _MPI2_CONFIG_PAGE_IO_UNIT_1
 #define MPI2_IOUNITPAGE1_PAGEVERSION                    (0x04)
 
 /* IO Unit Page 1 Flags defines */
+#define MPI2_IOUNITPAGE1_ENABLE_HOST_BASED_DISCOVERY    (0x00000800)
 #define MPI2_IOUNITPAGE1_MASK_SATA_WRITE_CACHE          (0x00000600)
 #define MPI2_IOUNITPAGE1_ENABLE_SATA_WRITE_CACHE        (0x00000000)
 #define MPI2_IOUNITPAGE1_DISABLE_SATA_WRITE_CACHE       (0x00000200)
@@ -2289,6 +2292,26 @@ typedef struct _MPI2_CONFIG_PAGE_SAS_PHY_3 {
   Mpi2SasPhyPage3_t, MPI2_POINTER pMpi2SasPhyPage3_t;
 
 #define MPI2_SASPHY3_PAGEVERSION            (0x00)
+
+
+/* SAS PHY Page 4 */
+
+typedef struct _MPI2_CONFIG_PAGE_SAS_PHY_4 {
+    MPI2_CONFIG_EXTENDED_PAGE_HEADER    Header;                     /* 0x00 */
+    U16                                 Reserved1;                  /* 0x08 */
+    U8                                  Reserved2;                  /* 0x0A */
+    U8                                  Flags;                      /* 0x0B */
+    U8                                  InitialFrame[28];           /* 0x0C */
+} MPI2_CONFIG_PAGE_SAS_PHY_4, MPI2_POINTER PTR_MPI2_CONFIG_PAGE_SAS_PHY_4,
+  Mpi2SasPhyPage4_t, MPI2_POINTER pMpi2SasPhyPage4_t;
+
+#define MPI2_SASPHY4_PAGEVERSION            (0x00)
+
+/* values for the Flags field */
+#define MPI2_SASPHY4_FLAGS_FRAME_VALID        (0x02)
+#define MPI2_SASPHY4_FLAGS_SATA_FRAME         (0x01)
+
+
 
 
 /****************************************************************************

@@ -25,6 +25,7 @@
 #include <linux/mfd/tmio.h>
 #include <linux/mfd/tc6393xb.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #define SCR_REVID	0x08		/* b Revision ID	*/
 #define SCR_ISR		0x50		/* b Interrupt Status	*/
@@ -647,7 +648,7 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 	if (ret)
 		goto err_request_scr;
 
-	tc6393xb->scr = ioremap(rscr->start, rscr->end - rscr->start + 1);
+	tc6393xb->scr = ioremap(rscr->start, resource_size(rscr));
 	if (!tc6393xb->scr) {
 		ret = -ENOMEM;
 		goto err_ioremap;

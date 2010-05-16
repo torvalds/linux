@@ -73,6 +73,7 @@
  *                        alloc_netdev.
  */
 #include <linux/if_arp.h>
+#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
 #include "i2400m.h"

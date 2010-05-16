@@ -185,6 +185,22 @@ the protocol. All ARP communications use slave address 0x61 and
 require PEC checksums.
 
 
+SMBus Alert
+===========
+
+SMBus Alert was introduced in Revision 1.0 of the specification.
+
+The SMBus alert protocol allows several SMBus slave devices to share a
+single interrupt pin on the SMBus master, while still allowing the master
+to know which slave triggered the interrupt.
+
+This is implemented the following way in the Linux kernel:
+* I2C bus drivers which support SMBus alert should call
+  i2c_setup_smbus_alert() to setup SMBus alert support.
+* I2C drivers for devices which can trigger SMBus alerts should implement
+  the optional alert() callback.
+
+
 I2C Block Transactions
 ======================
 

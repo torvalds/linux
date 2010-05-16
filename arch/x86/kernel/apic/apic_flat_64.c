@@ -223,7 +223,7 @@ struct apic apic_flat =  {
 };
 
 /*
- * Physflat mode is used when there are more than 8 CPUs on a AMD system.
+ * Physflat mode is used when there are more than 8 CPUs on a system.
  * We cannot use logical delivery in this case because the mask
  * overflows, so use physical mode.
  */

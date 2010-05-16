@@ -53,13 +53,13 @@ urb_print(struct urb * urb, char * str, int small, int status)
 		int i, len;
 
 		if (usb_pipecontrol (pipe)) {
-			printk (KERN_DEBUG __FILE__ ": setup(8):");
+			printk (KERN_DEBUG "%s: setup(8):", __FILE__);
 			for (i = 0; i < 8 ; i++)
 				printk (" %02x", ((__u8 *) urb->setup_packet) [i]);
 			printk ("\n");
 		}
 		if (urb->transfer_buffer_length > 0 && urb->transfer_buffer) {
-			printk (KERN_DEBUG __FILE__ ": data(%d/%d):",
+			printk (KERN_DEBUG "%s: data(%d/%d):", __FILE__,
 				urb->actual_length,
 				urb->transfer_buffer_length);
 			len = usb_pipeout (pipe)?

@@ -29,11 +29,65 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/list.h>
+#include <linux/firmware.h>
 #include <linux/uaccess.h>
 
 #include <video/broadsheetfb.h>
 
-/* Display specific information */
+/* track panel specific parameters */
+struct panel_info {
+	int w;
+	int h;
+	u16 sdcfg;
+	u16 gdcfg;
+	u16 lutfmt;
+	u16 fsynclen;
+	u16 fendfbegin;
+	u16 lsynclen;
+	u16 lendlbegin;
+	u16 pixclk;
+};
+
+/* table of panel specific parameters to be indexed into by the board drivers */
+static struct panel_info panel_table[] = {
+	{	/* standard 6" on TFT backplane */
+		.w = 800,
+		.h = 600,
+		.sdcfg = (100 | (1 << 8) | (1 << 9)),
+		.gdcfg = 2,
+		.lutfmt = (4 | (1 << 7)),
+		.fsynclen = 4,
+		.fendfbegin = (10 << 8) | 4,
+		.lsynclen = 10,
+		.lendlbegin = (100 << 8) | 4,
+		.pixclk = 6,
+	},
+	{	/* custom 3.7" flexible on PET or steel */
+		.w = 320,
+		.h = 240,
+		.sdcfg = (67 | (0 << 8) | (0 << 9) | (0 << 10) | (0 << 12)),
+		.gdcfg = 3,
+		.lutfmt = (4 | (1 << 7)),
+		.fsynclen = 0,
+		.fendfbegin = (80 << 8) | 4,
+		.lsynclen = 10,
+		.lendlbegin = (80 << 8) | 20,
+		.pixclk = 14,
+	},
+	{	/* standard 9.7" on TFT backplane */
+		.w = 1200,
+		.h = 825,
+		.sdcfg = (100 | (1 << 8) | (1 << 9) | (0 << 10) | (0 << 12)),
+		.gdcfg = 2,
+		.lutfmt = (4 | (1 << 7)),
+		.fsynclen = 0,
+		.fendfbegin = (4 << 8) | 4,
+		.lsynclen = 4,
+		.lendlbegin = (60 << 8) | 10,
+		.pixclk = 3,
+	},
+};
+
 #define DPY_W 800
 #define DPY_H 600
 
@@ -62,30 +116,30 @@ static struct fb_var_screeninfo broadsheetfb_var __devinitdata = {
 };
 
 /* main broadsheetfb functions */
-static void broadsheet_issue_data(struct broadsheetfb_par *par, u16 data)
+static void broadsheet_gpio_issue_data(struct broadsheetfb_par *par, u16 data)
 {
 	par->board->set_ctl(par, BS_WR, 0);
 	par->board->set_hdb(par, data);
 	par->board->set_ctl(par, BS_WR, 1);
 }
 
-static void broadsheet_issue_cmd(struct broadsheetfb_par *par, u16 data)
+static void broadsheet_gpio_issue_cmd(struct broadsheetfb_par *par, u16 data)
 {
 	par->board->set_ctl(par, BS_DC, 0);
-	broadsheet_issue_data(par, data);
+	broadsheet_gpio_issue_data(par, data);
 }
 
-static void broadsheet_send_command(struct broadsheetfb_par *par, u16 data)
+static void broadsheet_gpio_send_command(struct broadsheetfb_par *par, u16 data)
 {
 	par->board->wait_for_rdy(par);
 
 	par->board->set_ctl(par, BS_CS, 0);
-	broadsheet_issue_cmd(par, data);
+	broadsheet_gpio_issue_cmd(par, data);
 	par->board->set_ctl(par, BS_DC, 1);
 	par->board->set_ctl(par, BS_CS, 1);
 }
 
-static void broadsheet_send_cmdargs(struct broadsheetfb_par *par, u16 cmd,
+static void broadsheet_gpio_send_cmdargs(struct broadsheetfb_par *par, u16 cmd,
 					int argc, u16 *argv)
 {
 	int i;
@@ -93,15 +147,43 @@ static void broadsheet_send_cmdargs(struct broadsheetfb_par *par, u16 cmd,
 	par->board->wait_for_rdy(par);
 
 	par->board->set_ctl(par, BS_CS, 0);
-	broadsheet_issue_cmd(par, cmd);
+	broadsheet_gpio_issue_cmd(par, cmd);
 	par->board->set_ctl(par, BS_DC, 1);
 
 	for (i = 0; i < argc; i++)
-		broadsheet_issue_data(par, argv[i]);
+		broadsheet_gpio_issue_data(par, argv[i]);
 	par->board->set_ctl(par, BS_CS, 1);
 }
 
-static void broadsheet_burst_write(struct broadsheetfb_par *par, int size,
+static void broadsheet_mmio_send_cmdargs(struct broadsheetfb_par *par, u16 cmd,
+				    int argc, u16 *argv)
+{
+	int i;
+
+	par->board->mmio_write(par, BS_MMIO_CMD, cmd);
+
+	for (i = 0; i < argc; i++)
+		par->board->mmio_write(par, BS_MMIO_DATA, argv[i]);
+}
+
+static void broadsheet_send_command(struct broadsheetfb_par *par, u16 data)
+{
+	if (par->board->mmio_write)
+		par->board->mmio_write(par, BS_MMIO_CMD, data);
+	else
+		broadsheet_gpio_send_command(par, data);
+}
+
+static void broadsheet_send_cmdargs(struct broadsheetfb_par *par, u16 cmd,
+				    int argc, u16 *argv)
+{
+	if (par->board->mmio_write)
+		broadsheet_mmio_send_cmdargs(par, cmd, argc, argv);
+	else
+		broadsheet_gpio_send_cmdargs(par, cmd, argc, argv);
+}
+
+static void broadsheet_gpio_burst_write(struct broadsheetfb_par *par, int size,
 					u16 *data)
 {
 	int i;
@@ -121,7 +203,30 @@ static void broadsheet_burst_write(struct broadsheetfb_par *par, int size,
 	par->board->set_ctl(par, BS_CS, 1);
 }
 
-static u16 broadsheet_get_data(struct broadsheetfb_par *par)
+static void broadsheet_mmio_burst_write(struct broadsheetfb_par *par, int size,
+				   u16 *data)
+{
+	int i;
+	u16 tmp;
+
+	for (i = 0; i < size; i++) {
+		tmp = (data[i] & 0x0F) << 4;
+		tmp |= (data[i] & 0x0F00) << 4;
+		par->board->mmio_write(par, BS_MMIO_DATA, tmp);
+	}
+
+}
+
+static void broadsheet_burst_write(struct broadsheetfb_par *par, int size,
+				   u16 *data)
+{
+	if (par->board->mmio_write)
+		broadsheet_mmio_burst_write(par, size, data);
+	else
+		broadsheet_gpio_burst_write(par, size, data);
+}
+
+static u16 broadsheet_gpio_get_data(struct broadsheetfb_par *par)
 {
 	u16 res;
 	/* wait for ready to go hi. (lo is busy) */
@@ -141,7 +246,16 @@ static u16 broadsheet_get_data(struct broadsheetfb_par *par)
 	return res;
 }
 
-static void broadsheet_write_reg(struct broadsheetfb_par *par, u16 reg,
+
+static u16 broadsheet_get_data(struct broadsheetfb_par *par)
+{
+	if (par->board->mmio_read)
+		return par->board->mmio_read(par);
+	else
+		return broadsheet_gpio_get_data(par);
+}
+
+static void broadsheet_gpio_write_reg(struct broadsheetfb_par *par, u16 reg,
 					u16 data)
 {
 	/* wait for ready to go hi. (lo is busy) */
@@ -150,43 +264,540 @@ static void broadsheet_write_reg(struct broadsheetfb_par *par, u16 reg,
 	/* cs lo, dc lo for cmd, we lo for each data, db as usual */
 	par->board->set_ctl(par, BS_CS, 0);
 
-	broadsheet_issue_cmd(par, BS_CMD_WR_REG);
+	broadsheet_gpio_issue_cmd(par, BS_CMD_WR_REG);
 
 	par->board->set_ctl(par, BS_DC, 1);
 
-	broadsheet_issue_data(par, reg);
-	broadsheet_issue_data(par, data);
+	broadsheet_gpio_issue_data(par, reg);
+	broadsheet_gpio_issue_data(par, data);
 
 	par->board->set_ctl(par, BS_CS, 1);
 }
 
+static void broadsheet_mmio_write_reg(struct broadsheetfb_par *par, u16 reg,
+				 u16 data)
+{
+	par->board->mmio_write(par, BS_MMIO_CMD, BS_CMD_WR_REG);
+	par->board->mmio_write(par, BS_MMIO_DATA, reg);
+	par->board->mmio_write(par, BS_MMIO_DATA, data);
+
+}
+
+static void broadsheet_write_reg(struct broadsheetfb_par *par, u16 reg,
+					u16 data)
+{
+	if (par->board->mmio_write)
+		broadsheet_mmio_write_reg(par, reg, data);
+	else
+		broadsheet_gpio_write_reg(par, reg, data);
+}
+
+static void broadsheet_write_reg32(struct broadsheetfb_par *par, u16 reg,
+					u32 data)
+{
+	broadsheet_write_reg(par, reg, cpu_to_le32(data) & 0xFFFF);
+	broadsheet_write_reg(par, reg + 2, (cpu_to_le32(data) >> 16) & 0xFFFF);
+}
+
+
 static u16 broadsheet_read_reg(struct broadsheetfb_par *par, u16 reg)
 {
-	broadsheet_send_command(par, reg);
-	msleep(100);
+	broadsheet_send_cmdargs(par, BS_CMD_RD_REG, 1, &reg);
+	par->board->wait_for_rdy(par);
 	return broadsheet_get_data(par);
 }
 
+/* functions for waveform manipulation */
+static int is_broadsheet_pll_locked(struct broadsheetfb_par *par)
+{
+	return broadsheet_read_reg(par, 0x000A) & 0x0001;
+}
+
+static int broadsheet_setup_plls(struct broadsheetfb_par *par)
+{
+	int retry_count = 0;
+	u16 tmp;
+
+	/* disable arral saemipu mode */
+	broadsheet_write_reg(par, 0x0006, 0x0000);
+
+	broadsheet_write_reg(par, 0x0010, 0x0004);
+	broadsheet_write_reg(par, 0x0012, 0x5949);
+	broadsheet_write_reg(par, 0x0014, 0x0040);
+	broadsheet_write_reg(par, 0x0016, 0x0000);
+
+	do {
+		if (retry_count++ > 100)
+			return -ETIMEDOUT;
+		mdelay(1);
+	} while (!is_broadsheet_pll_locked(par));
+
+	tmp = broadsheet_read_reg(par, 0x0006);
+	tmp &= ~0x1;
+	broadsheet_write_reg(par, 0x0006, tmp);
+
+	return 0;
+}
+
+static int broadsheet_setup_spi(struct broadsheetfb_par *par)
+{
+
+	broadsheet_write_reg(par, 0x0204, ((3 << 3) | 1));
+	broadsheet_write_reg(par, 0x0208, 0x0001);
+
+	return 0;
+}
+
+static int broadsheet_setup_spiflash(struct broadsheetfb_par *par,
+						u16 *orig_sfmcd)
+{
+
+	*orig_sfmcd = broadsheet_read_reg(par, 0x0204);
+	broadsheet_write_reg(par, 0x0208, 0);
+	broadsheet_write_reg(par, 0x0204, 0);
+	broadsheet_write_reg(par, 0x0204, ((3 << 3) | 1));
+
+	return 0;
+}
+
+static int broadsheet_spiflash_wait_for_bit(struct broadsheetfb_par *par,
+						u16 reg, int bitnum, int val,
+						int timeout)
+{
+	u16 tmp;
+
+	do {
+		tmp = broadsheet_read_reg(par, reg);
+		if (((tmp >> bitnum) & 1) == val)
+			return 0;
+		mdelay(1);
+	} while (timeout--);
+
+	return -ETIMEDOUT;
+}
+
+static int broadsheet_spiflash_write_byte(struct broadsheetfb_par *par, u8 data)
+{
+	broadsheet_write_reg(par, 0x0202, (data | 0x100));
+
+	return broadsheet_spiflash_wait_for_bit(par, 0x0206, 3, 0, 100);
+}
+
+static int broadsheet_spiflash_read_byte(struct broadsheetfb_par *par, u8 *data)
+{
+	int err;
+	u16 tmp;
+
+	broadsheet_write_reg(par, 0x0202, 0);
+
+	err = broadsheet_spiflash_wait_for_bit(par, 0x0206, 3, 0, 100);
+	if (err)
+		return err;
+
+	tmp = broadsheet_read_reg(par, 0x200);
+
+	*data = tmp & 0xFF;
+
+	return 0;
+}
+
+static int broadsheet_spiflash_wait_for_status(struct broadsheetfb_par *par,
+								int timeout)
+{
+	u8 tmp;
+	int err;
+
+	do {
+		broadsheet_write_reg(par, 0x0208, 1);
+
+		err = broadsheet_spiflash_write_byte(par, 0x05);
+		if (err)
+			goto failout;
+
+		err = broadsheet_spiflash_read_byte(par, &tmp);
+		if (err)
+			goto failout;
+
+		broadsheet_write_reg(par, 0x0208, 0);
+
+		if (!(tmp & 0x1))
+			return 0;
+
+		mdelay(5);
+	} while (timeout--);
+
+	dev_err(par->info->device, "Timed out waiting for spiflash status\n");
+	return -ETIMEDOUT;
+
+failout:
+	broadsheet_write_reg(par, 0x0208, 0);
+	return err;
+}
+
+static int broadsheet_spiflash_op_on_address(struct broadsheetfb_par *par,
+							u8 op, u32 addr)
+{
+	int i;
+	u8 tmp;
+	int err;
+
+	broadsheet_write_reg(par, 0x0208, 1);
+
+	err = broadsheet_spiflash_write_byte(par, op);
+	if (err)
+		return err;
+
+	for (i = 2; i >= 0; i--) {
+		tmp = ((addr >> (i * 8)) & 0xFF);
+		err = broadsheet_spiflash_write_byte(par, tmp);
+		if (err)
+			return err;
+	}
+
+	return err;
+}
+
+static int broadsheet_verify_spiflash(struct broadsheetfb_par *par,
+						int *flash_type)
+{
+	int err = 0;
+	u8 sig;
+
+	err = broadsheet_spiflash_op_on_address(par, 0xAB, 0x00000000);
+	if (err)
+		goto failout;
+
+	err = broadsheet_spiflash_read_byte(par, &sig);
+	if (err)
+		goto failout;
+
+	if ((sig != 0x10) && (sig != 0x11)) {
+		dev_err(par->info->device, "Unexpected flash type\n");
+		err = -EINVAL;
+		goto failout;
+	}
+
+	*flash_type = sig;
+
+failout:
+	broadsheet_write_reg(par, 0x0208, 0);
+	return err;
+}
+
+static int broadsheet_setup_for_wfm_write(struct broadsheetfb_par *par,
+					u16 *initial_sfmcd, int *flash_type)
+
+{
+	int err;
+
+	err = broadsheet_setup_plls(par);
+	if (err)
+		return err;
+
+	broadsheet_write_reg(par, 0x0106, 0x0203);
+
+	err = broadsheet_setup_spi(par);
+	if (err)
+		return err;
+
+	err = broadsheet_setup_spiflash(par, initial_sfmcd);
+	if (err)
+		return err;
+
+	return broadsheet_verify_spiflash(par, flash_type);
+}
+
+static int broadsheet_spiflash_write_control(struct broadsheetfb_par *par,
+						int mode)
+{
+	int err;
+
+	broadsheet_write_reg(par, 0x0208, 1);
+	if (mode)
+		err = broadsheet_spiflash_write_byte(par, 0x06);
+	else
+		err = broadsheet_spiflash_write_byte(par, 0x04);
+
+	broadsheet_write_reg(par, 0x0208, 0);
+	return err;
+}
+
+static int broadsheet_spiflash_erase_sector(struct broadsheetfb_par *par,
+						int addr)
+{
+	int err;
+
+	broadsheet_spiflash_write_control(par, 1);
+
+	err = broadsheet_spiflash_op_on_address(par, 0xD8, addr);
+
+	broadsheet_write_reg(par, 0x0208, 0);
+
+	if (err)
+		return err;
+
+	err = broadsheet_spiflash_wait_for_status(par, 1000);
+
+	return err;
+}
+
+static int broadsheet_spiflash_read_range(struct broadsheetfb_par *par,
+						int addr, int size, char *data)
+{
+	int err;
+	int i;
+
+	err = broadsheet_spiflash_op_on_address(par, 0x03, addr);
+	if (err)
+		goto failout;
+
+	for (i = 0; i < size; i++) {
+		err = broadsheet_spiflash_read_byte(par, &data[i]);
+		if (err)
+			goto failout;
+	}
+
+failout:
+	broadsheet_write_reg(par, 0x0208, 0);
+	return err;
+}
+
+#define BS_SPIFLASH_PAGE_SIZE 256
+static int broadsheet_spiflash_write_page(struct broadsheetfb_par *par,
+						int addr, const char *data)
+{
+	int err;
+	int i;
+
+	broadsheet_spiflash_write_control(par, 1);
+
+	err = broadsheet_spiflash_op_on_address(par, 0x02, addr);
+	if (err)
+		goto failout;
+
+	for (i = 0; i < BS_SPIFLASH_PAGE_SIZE; i++) {
+		err = broadsheet_spiflash_write_byte(par, data[i]);
+		if (err)
+			goto failout;
+	}
+
+	broadsheet_write_reg(par, 0x0208, 0);
+
+	err = broadsheet_spiflash_wait_for_status(par, 100);
+
+failout:
+	return err;
+}
+
+static int broadsheet_spiflash_write_sector(struct broadsheetfb_par *par,
+				int addr, const char *data, int sector_size)
+{
+	int i;
+	int err;
+
+	for (i = 0; i < sector_size; i += BS_SPIFLASH_PAGE_SIZE) {
+		err = broadsheet_spiflash_write_page(par, addr + i, &data[i]);
+		if (err)
+			return err;
+	}
+	return 0;
+}
+
+/*
+ * The caller must guarantee that the data to be rewritten is entirely
+ * contained within this sector. That is, data_start_addr + data_len
+ * must be less than sector_start_addr + sector_size.
+ */
+static int broadsheet_spiflash_rewrite_sector(struct broadsheetfb_par *par,
+					int sector_size, int data_start_addr,
+					int data_len, const char *data)
+{
+	int err;
+	char *sector_buffer;
+	int tail_start_addr;
+	int start_sector_addr;
+
+	sector_buffer = kzalloc(sizeof(char)*sector_size, GFP_KERNEL);
+	if (!sector_buffer)
+		return -ENOMEM;
+
+	/* the start address of the sector is the 0th byte of that sector */
+	start_sector_addr = (data_start_addr / sector_size) * sector_size;
+
+	/*
+	 * check if there is head data that we need to readback into our sector
+	 * buffer first
+	 */
+	if (data_start_addr != start_sector_addr) {
+		/*
+		 * we need to read every byte up till the start address of our
+		 * data and we put it into our sector buffer.
+		 */
+		err = broadsheet_spiflash_read_range(par, start_sector_addr,
+						data_start_addr, sector_buffer);
+		if (err)
+			return err;
+	}
+
+	/* now we copy our data into the right place in the sector buffer */
+	memcpy(sector_buffer + data_start_addr, data, data_len);
+
+	/*
+	 * now we check if there is a tail section of the sector that we need to
+	 * readback.
+	 */
+	tail_start_addr = (data_start_addr + data_len) % sector_size;
+
+	if (tail_start_addr) {
+		int tail_len;
+
+		tail_len = sector_size - tail_start_addr;
+
+		/* now we read this tail into our sector buffer */
+		err = broadsheet_spiflash_read_range(par, tail_start_addr,
+			tail_len, sector_buffer + tail_start_addr);
+		if (err)
+			return err;
+	}
+
+	/* if we got here we have the full sector that we want to rewrite. */
+
+	/* first erase the sector */
+	err = broadsheet_spiflash_erase_sector(par, start_sector_addr);
+	if (err)
+		return err;
+
+	/* now write it */
+	err = broadsheet_spiflash_write_sector(par, start_sector_addr,
+					sector_buffer, sector_size);
+	return err;
+}
+
+static int broadsheet_write_spiflash(struct broadsheetfb_par *par, u32 wfm_addr,
+				const u8 *wfm, int bytecount, int flash_type)
+{
+	int sector_size;
+	int err;
+	int cur_addr;
+	int writecount;
+	int maxlen;
+	int offset = 0;
+
+	switch (flash_type) {
+	case 0x10:
+		sector_size = 32*1024;
+		break;
+	case 0x11:
+	default:
+		sector_size = 64*1024;
+		break;
+	}
+
+	while (bytecount) {
+		cur_addr = wfm_addr + offset;
+		maxlen = roundup(cur_addr, sector_size) - cur_addr;
+		writecount = min(bytecount, maxlen);
+
+		err = broadsheet_spiflash_rewrite_sector(par, sector_size,
+				cur_addr, writecount, wfm + offset);
+		if (err)
+			return err;
+
+		offset += writecount;
+		bytecount -= writecount;
+	}
+
+	return 0;
+}
+
+static int broadsheet_store_waveform_to_spiflash(struct broadsheetfb_par *par,
+						const u8 *wfm, size_t wfm_size)
+{
+	int err = 0;
+	u16 initial_sfmcd = 0;
+	int flash_type = 0;
+
+	err = broadsheet_setup_for_wfm_write(par, &initial_sfmcd, &flash_type);
+	if (err)
+		goto failout;
+
+	err = broadsheet_write_spiflash(par, 0x886, wfm, wfm_size, flash_type);
+
+failout:
+	broadsheet_write_reg(par, 0x0204, initial_sfmcd);
+	return err;
+}
+
+static ssize_t broadsheet_loadstore_waveform(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf, size_t len)
+{
+	int err;
+	struct fb_info *info = dev_get_drvdata(dev);
+	struct broadsheetfb_par *par = info->par;
+	const struct firmware *fw_entry;
+
+	if (len < 1)
+		return -EINVAL;
+
+	err = request_firmware(&fw_entry, "broadsheet.wbf", dev);
+	if (err < 0) {
+		dev_err(dev, "Failed to get broadsheet waveform\n");
+		goto err_failed;
+	}
+
+	/* try to enforce reasonable min max on waveform */
+	if ((fw_entry->size < 8*1024) || (fw_entry->size > 64*1024)) {
+		dev_err(dev, "Invalid waveform\n");
+		err = -EINVAL;
+		goto err_failed;
+	}
+
+	mutex_lock(&(par->io_lock));
+	err = broadsheet_store_waveform_to_spiflash(par, fw_entry->data,
+							fw_entry->size);
+
+	mutex_unlock(&(par->io_lock));
+	if (err < 0) {
+		dev_err(dev, "Failed to store broadsheet waveform\n");
+		goto err_failed;
+	}
+
+	dev_info(dev, "Stored broadsheet waveform, size %zd\n", fw_entry->size);
+
+	return len;
+
+err_failed:
+	return err;
+}
+static DEVICE_ATTR(loadstore_waveform, S_IWUSR, NULL,
+			broadsheet_loadstore_waveform);
+
+/* upper level functions that manipulate the display and other stuff */
 static void __devinit broadsheet_init_display(struct broadsheetfb_par *par)
 {
 	u16 args[5];
+	int xres = par->info->var.xres;
+	int yres = par->info->var.yres;
 
-	args[0] = DPY_W;
-	args[1] = DPY_H;
-	args[2] = (100 | (1 << 8) | (1 << 9)); /* sdcfg */
-	args[3] = 2; /* gdrv cfg */
-	args[4] = (4 | (1 << 7)); /* lut index format */
+	args[0] = panel_table[par->panel_index].w;
+	args[1] = panel_table[par->panel_index].h;
+	args[2] = panel_table[par->panel_index].sdcfg;
+	args[3] = panel_table[par->panel_index].gdcfg;
+	args[4] = panel_table[par->panel_index].lutfmt;
 	broadsheet_send_cmdargs(par, BS_CMD_INIT_DSPE_CFG, 5, args);
 
 	/* did the controller really set it? */
 	broadsheet_send_cmdargs(par, BS_CMD_INIT_DSPE_CFG, 5, args);
 
-	args[0] = 4; /* fsync len */
-	args[1] = (10 << 8) | 4; /* fend/fbegin len */
-	args[2] = 10; /* line sync len */
-	args[3] = (100 << 8) | 4; /* line end/begin len */
-	args[4] = 6; /* pixel clock cfg */
+	args[0] = panel_table[par->panel_index].fsynclen;
+	args[1] = panel_table[par->panel_index].fendfbegin;
+	args[2] = panel_table[par->panel_index].lsynclen;
+	args[3] = panel_table[par->panel_index].lendlbegin;
+	args[4] = panel_table[par->panel_index].pixclk;
 	broadsheet_send_cmdargs(par, BS_CMD_INIT_DSPE_TMG, 5, args);
+
+	broadsheet_write_reg32(par, 0x310, xres*yres*2);
 
 	/* setup waveform */
 	args[0] = 0x886;
@@ -207,8 +818,9 @@ static void __devinit broadsheet_init_display(struct broadsheetfb_par *par)
 	args[0] = 0x154;
 	broadsheet_send_cmdargs(par, BS_CMD_WR_REG, 1, args);
 
-	broadsheet_burst_write(par, DPY_W*DPY_H/2,
-				(u16 *) par->info->screen_base);
+	broadsheet_burst_write(par, (panel_table[par->panel_index].w *
+					panel_table[par->panel_index].h)/2,
+					(u16 *) par->info->screen_base);
 
 	broadsheet_send_command(par, BS_CMD_LD_IMG_END);
 
@@ -220,6 +832,21 @@ static void __devinit broadsheet_init_display(struct broadsheetfb_par *par)
 	broadsheet_send_command(par, BS_CMD_WAIT_DSPE_FREND);
 
 	par->board->wait_for_rdy(par);
+}
+
+static void __devinit broadsheet_identify(struct broadsheetfb_par *par)
+{
+	u16 rev, prc;
+	struct device *dev = par->info->device;
+
+	rev = broadsheet_read_reg(par, BS_REG_REV);
+	prc = broadsheet_read_reg(par, BS_REG_PRC);
+	dev_info(dev, "Broadsheet Rev 0x%x, Product Code 0x%x\n", rev, prc);
+
+	if (prc != 0x0047)
+		dev_warn(dev, "Unrecognized Broadsheet Product Code\n");
+	if (rev != 0x0100)
+		dev_warn(dev, "Unrecognized Broadsheet Revision\n");
 }
 
 static void __devinit broadsheet_init(struct broadsheetfb_par *par)
@@ -236,6 +863,7 @@ static void broadsheetfb_dpy_update_pages(struct broadsheetfb_par *par,
 	u16 args[5];
 	unsigned char *buf = (unsigned char *)par->info->screen_base;
 
+	mutex_lock(&(par->io_lock));
 	/* y1 must be a multiple of 4 so drop the lower bits */
 	y1 &= 0xFFFC;
 	/* y2 must be a multiple of 4 , but - 1 so up the lower bits */
@@ -265,6 +893,7 @@ static void broadsheetfb_dpy_update_pages(struct broadsheetfb_par *par,
 	broadsheet_send_command(par, BS_CMD_WAIT_DSPE_FREND);
 
 	par->board->wait_for_rdy(par);
+	mutex_unlock(&(par->io_lock));
 
 }
 
@@ -272,13 +901,15 @@ static void broadsheetfb_dpy_update(struct broadsheetfb_par *par)
 {
 	u16 args[5];
 
+	mutex_lock(&(par->io_lock));
 	args[0] = 0x3 << 4;
 	broadsheet_send_cmdargs(par, BS_CMD_LD_IMG, 1, args);
 
 	args[0] = 0x154;
 	broadsheet_send_cmdargs(par, BS_CMD_WR_REG, 1, args);
-	broadsheet_burst_write(par, DPY_W*DPY_H/2,
-				(u16 *) par->info->screen_base);
+	broadsheet_burst_write(par, (panel_table[par->panel_index].w *
+					panel_table[par->panel_index].h)/2,
+					(u16 *) par->info->screen_base);
 
 	broadsheet_send_command(par, BS_CMD_LD_IMG_END);
 
@@ -290,7 +921,7 @@ static void broadsheetfb_dpy_update(struct broadsheetfb_par *par)
 	broadsheet_send_command(par, BS_CMD_WAIT_DSPE_FREND);
 
 	par->board->wait_for_rdy(par);
-
+	mutex_unlock(&(par->io_lock));
 }
 
 /* this is called back from the deferred io workqueue */
@@ -436,6 +1067,8 @@ static int __devinit broadsheetfb_probe(struct platform_device *dev)
 	unsigned char *videomemory;
 	struct broadsheetfb_par *par;
 	int i;
+	int dpyw, dpyh;
+	int panel_index;
 
 	/* pick up board specific routines */
 	board = dev->dev.platform_data;
@@ -450,7 +1083,24 @@ static int __devinit broadsheetfb_probe(struct platform_device *dev)
 	if (!info)
 		goto err;
 
-	videomemorysize = (DPY_W*DPY_H);
+	switch (board->get_panel_type()) {
+	case 37:
+		panel_index = 1;
+		break;
+	case 97:
+		panel_index = 2;
+		break;
+	case 6:
+	default:
+		panel_index = 0;
+		break;
+	}
+
+	dpyw = panel_table[panel_index].w;
+	dpyh = panel_table[panel_index].h;
+
+	videomemorysize = roundup((dpyw*dpyh), PAGE_SIZE);
+
 	videomemory = vmalloc(videomemorysize);
 	if (!videomemory)
 		goto err_fb_rel;
@@ -460,15 +1110,24 @@ static int __devinit broadsheetfb_probe(struct platform_device *dev)
 	info->screen_base = (char *)videomemory;
 	info->fbops = &broadsheetfb_ops;
 
+	broadsheetfb_var.xres = dpyw;
+	broadsheetfb_var.yres = dpyh;
+	broadsheetfb_var.xres_virtual = dpyw;
+	broadsheetfb_var.yres_virtual = dpyh;
 	info->var = broadsheetfb_var;
+
+	broadsheetfb_fix.line_length = dpyw;
 	info->fix = broadsheetfb_fix;
 	info->fix.smem_len = videomemorysize;
 	par = info->par;
+	par->panel_index = panel_index;
 	par->info = info;
 	par->board = board;
 	par->write_reg = broadsheet_write_reg;
 	par->read_reg = broadsheet_read_reg;
 	init_waitqueue_head(&par->waitq);
+
+	mutex_init(&par->io_lock);
 
 	info->flags = FBINFO_FLAG_DEFAULT | FBINFO_VIRTFB;
 
@@ -496,12 +1155,19 @@ static int __devinit broadsheetfb_probe(struct platform_device *dev)
 	if (retval < 0)
 		goto err_free_irq;
 
+	broadsheet_identify(par);
+
 	broadsheet_init(par);
 
 	retval = register_framebuffer(info);
 	if (retval < 0)
 		goto err_free_irq;
+
 	platform_set_drvdata(dev, info);
+
+	retval = device_create_file(&dev->dev, &dev_attr_loadstore_waveform);
+	if (retval < 0)
+		goto err_unreg_fb;
 
 	printk(KERN_INFO
 	       "fb%d: Broadsheet frame buffer, using %dK of video memory\n",
@@ -510,6 +1176,8 @@ static int __devinit broadsheetfb_probe(struct platform_device *dev)
 
 	return 0;
 
+err_unreg_fb:
+	unregister_framebuffer(info);
 err_free_irq:
 	board->cleanup(par);
 err_cmap:
@@ -530,6 +1198,8 @@ static int __devexit broadsheetfb_remove(struct platform_device *dev)
 
 	if (info) {
 		struct broadsheetfb_par *par = info->par;
+
+		device_remove_file(info->dev, &dev_attr_loadstore_waveform);
 		unregister_framebuffer(info);
 		fb_deferred_io_cleanup(info);
 		par->board->cleanup(par);

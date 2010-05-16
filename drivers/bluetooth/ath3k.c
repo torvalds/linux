@@ -143,6 +143,8 @@ static int ath3k_probe(struct usb_interface *intf,
 	usb_set_intfdata(intf, data);
 	if (ath3k_load_firmware(data, data->fw_data, data->fw_size)) {
 		usb_set_intfdata(intf, NULL);
+		kfree(data->fw_data);
+		kfree(data);
 		return -EIO;
 	}
 

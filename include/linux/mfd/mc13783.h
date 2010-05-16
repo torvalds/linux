@@ -26,10 +26,30 @@ int mc13783_irq_request(struct mc13783 *mc13783, int irq,
 int mc13783_irq_request_nounmask(struct mc13783 *mc13783, int irq,
 		irq_handler_t handler, const char *name, void *dev);
 int mc13783_irq_free(struct mc13783 *mc13783, int irq, void *dev);
-int mc13783_ackirq(struct mc13783 *mc13783, int irq);
 
-int mc13783_mask(struct mc13783 *mc13783, int irq);
-int mc13783_unmask(struct mc13783 *mc13783, int irq);
+int mc13783_irq_mask(struct mc13783 *mc13783, int irq);
+int mc13783_irq_unmask(struct mc13783 *mc13783, int irq);
+int mc13783_irq_status(struct mc13783 *mc13783, int irq,
+		int *enabled, int *pending);
+int mc13783_irq_ack(struct mc13783 *mc13783, int irq);
+
+static inline int mc13783_mask(struct mc13783 *mc13783, int irq) __deprecated;
+static inline int mc13783_mask(struct mc13783 *mc13783, int irq)
+{
+	return mc13783_irq_mask(mc13783, irq);
+}
+
+static inline int mc13783_unmask(struct mc13783 *mc13783, int irq) __deprecated;
+static inline int mc13783_unmask(struct mc13783 *mc13783, int irq)
+{
+	return mc13783_irq_unmask(mc13783, irq);
+}
+
+static inline int mc13783_ackirq(struct mc13783 *mc13783, int irq) __deprecated;
+static inline int mc13783_ackirq(struct mc13783 *mc13783, int irq)
+{
+	return mc13783_irq_ack(mc13783, irq);
+}
 
 #define MC13783_ADC0		43
 #define MC13783_ADC0_ADREFEN		(1 << 10)
@@ -108,6 +128,8 @@ int mc13783_adc_do_conversion(struct mc13783 *mc13783, unsigned int mode,
 #define	MC13783_REGU_V2		28
 #define	MC13783_REGU_V3		29
 #define	MC13783_REGU_V4		30
+#define	MC13783_REGU_PWGT1SPI	31
+#define	MC13783_REGU_PWGT2SPI	32
 
 #define MC13783_IRQ_ADCDONE	0
 #define MC13783_IRQ_ADCBISDONE	1

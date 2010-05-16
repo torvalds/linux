@@ -58,7 +58,7 @@ BUILD_TRAP_HANDLER(debug)
 	TRAP_HANDLER_DECL;
 
 	/* Rewind */
-	regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
+	regs->pc -= instruction_size(__raw_readw(regs->pc - 4));
 
 	if (notify_die(DIE_TRAP, "debug trap", regs, 0, vec & 0xff,
 		       SIGTRAP) == NOTIFY_STOP)
@@ -75,7 +75,7 @@ BUILD_TRAP_HANDLER(bug)
 	TRAP_HANDLER_DECL;
 
 	/* Rewind */
-	regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
+	regs->pc -= instruction_size(__raw_readw(regs->pc - 4));
 
 	if (notify_die(DIE_TRAP, "bug trap", regs, 0, TRAPA_BUG_OPCODE & 0xff,
 		       SIGTRAP) == NOTIFY_STOP)

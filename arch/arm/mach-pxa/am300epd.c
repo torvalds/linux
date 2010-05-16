@@ -288,7 +288,7 @@ int __init am300_init(void)
 }
 
 module_param(panel_type, uint, 0);
-MODULE_PARM_DESC(panel_type, "Select the panel type: 6, 8, 97");
+MODULE_PARM_DESC(panel_type, "Select the panel type: 37, 6, 97");
 
 MODULE_DESCRIPTION("board driver for am300 epd kit");
 MODULE_AUTHOR("Jaya Kumar");

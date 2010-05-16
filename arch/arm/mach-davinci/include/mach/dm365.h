@@ -14,10 +14,11 @@
 #define __ASM_ARCH_DM665_H
 
 #include <linux/platform_device.h>
+#include <linux/davinci_emac.h>
 #include <mach/hardware.h>
-#include <mach/emac.h>
 #include <mach/asp.h>
 #include <mach/keyscan.h>
+#include <media/davinci/vpfe_capture.h>
 
 #define DM365_EMAC_BASE			(0x01D07000)
 #define DM365_EMAC_CNTRL_OFFSET		(0x0000)
@@ -31,9 +32,17 @@
 
 #define DM365_RTC_BASE			(0x01C69000)
 
+#define DAVINCI_DM365_VC_BASE		(0x01D0C000)
+#define DAVINCI_DMA_VC_TX		2
+#define DAVINCI_DMA_VC_RX		3
+
 void __init dm365_init(void);
 void __init dm365_init_asp(struct snd_platform_data *pdata);
+void __init dm365_init_vc(struct snd_platform_data *pdata);
 void __init dm365_init_ks(struct davinci_ks_platform_data *pdata);
 void __init dm365_init_rtc(void);
+void dm365_init_spi0(unsigned chipselect_mask,
+			struct spi_board_info *info, unsigned len);
 
+void dm365_set_vpfe_config(struct vpfe_config *cfg);
 #endif /* __ASM_ARCH_DM365_H */

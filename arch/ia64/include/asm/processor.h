@@ -270,23 +270,6 @@ typedef struct {
 		 (int __user *) (addr));							\
 })
 
-#ifdef CONFIG_IA32_SUPPORT
-struct desc_struct {
-	unsigned int a, b;
-};
-
-#define desc_empty(desc)		(!((desc)->a | (desc)->b))
-#define desc_equal(desc1, desc2)	(((desc1)->a == (desc2)->a) && ((desc1)->b == (desc2)->b))
-
-#define GDT_ENTRY_TLS_ENTRIES	3
-#define GDT_ENTRY_TLS_MIN	6
-#define GDT_ENTRY_TLS_MAX 	(GDT_ENTRY_TLS_MIN + GDT_ENTRY_TLS_ENTRIES - 1)
-
-#define TLS_SIZE (GDT_ENTRY_TLS_ENTRIES * 8)
-
-struct ia64_partial_page_list;
-#endif
-
 struct thread_struct {
 	__u32 flags;			/* various thread flags (see IA64_THREAD_*) */
 	/* writing on_ustack is performance-critical, so it's worth spending 8 bits on it... */
@@ -298,29 +281,6 @@ struct thread_struct {
 	__u64 rbs_bot;			/* the base address for the RBS */
 	int last_fph_cpu;		/* CPU that may hold the contents of f32-f127 */
 
-#ifdef CONFIG_IA32_SUPPORT
-	__u64 eflag;			/* IA32 EFLAGS reg */
-	__u64 fsr;			/* IA32 floating pt status reg */
-	__u64 fcr;			/* IA32 floating pt control reg */
-	__u64 fir;			/* IA32 fp except. instr. reg */
-	__u64 fdr;			/* IA32 fp except. data reg */
-	__u64 old_k1;			/* old value of ar.k1 */
-	__u64 old_iob;			/* old IOBase value */
-	struct ia64_partial_page_list *ppl; /* partial page list for 4K page size issue */
-        /* cached TLS descriptors. */
-	struct desc_struct tls_array[GDT_ENTRY_TLS_ENTRIES];
-
-# define INIT_THREAD_IA32	.eflag =	0,			\
-				.fsr =		0,			\
-				.fcr =		0x17800000037fULL,	\
-				.fir =		0,			\
-				.fdr =		0,			\
-				.old_k1 =	0,			\
-				.old_iob =	0,			\
-				.ppl =		NULL,
-#else
-# define INIT_THREAD_IA32
-#endif /* CONFIG_IA32_SUPPORT */
 #ifdef CONFIG_PERFMON
 	void *pfm_context;		     /* pointer to detailed PMU context */
 	unsigned long pfm_needs_checking;    /* when >0, pending perfmon work on kernel exit */
@@ -342,7 +302,6 @@ struct thread_struct {
 	.rbs_bot =	STACK_TOP - DEFAULT_USER_STACK_SIZE,	\
 	.task_size =	DEFAULT_TASK_SIZE,			\
 	.last_fph_cpu =  -1,					\
-	INIT_THREAD_IA32					\
 	INIT_THREAD_PM						\
 	.dbr =		{0, },					\
 	.ibr =		{0, },					\
@@ -484,11 +443,6 @@ extern void __ia64_save_fpu (struct ia64_fpreg *fph);
 extern void __ia64_load_fpu (struct ia64_fpreg *fph);
 extern void ia64_save_debug_regs (unsigned long *save_area);
 extern void ia64_load_debug_regs (unsigned long *save_area);
-
-#ifdef CONFIG_IA32_SUPPORT
-extern void ia32_save_state (struct task_struct *task);
-extern void ia32_load_state (struct task_struct *task);
-#endif
 
 #define ia64_fph_enable()	do { ia64_rsm(IA64_PSR_DFH); ia64_srlz_d(); } while (0)
 #define ia64_fph_disable()	do { ia64_ssm(IA64_PSR_DFH); ia64_srlz_d(); } while (0)

@@ -13,11 +13,11 @@
 
 #define DRV_NAME "tc86c001"
 
-static void tc86c001_set_mode(ide_drive_t *drive, const u8 speed)
+static void tc86c001_set_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	unsigned long scr_port	= hwif->config_data + (drive->dn ? 0x02 : 0x00);
 	u16 mode, scr		= inw(scr_port);
+	const u8 speed		= drive->dma_mode;
 
 	switch (speed) {
 	case XFER_UDMA_4:	mode = 0x00c0; break;
@@ -41,9 +41,10 @@ static void tc86c001_set_mode(ide_drive_t *drive, const u8 speed)
 	outw(scr, scr_port);
 }
 
-static void tc86c001_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void tc86c001_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	tc86c001_set_mode(drive, XFER_PIO_0 + pio);
+	drive->dma_mode = drive->pio_mode;
+	tc86c001_set_mode(hwif, drive);
 }
 
 /*

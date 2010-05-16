@@ -25,7 +25,7 @@ static struct resource cobalt_mem_resource = {
 
 static struct resource cobalt_io_resource = {
 	.start	= 0x1000,
-	.end	= GT_DEF_PCI0_IO_SIZE - 1,
+	.end	= 0xffffffUL,
 	.name	= "PCI I/O",
 	.flags	= IORESOURCE_IO,
 };

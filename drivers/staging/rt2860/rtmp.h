@@ -1719,6 +1719,7 @@ struct rt_rtmp_adapter {
 	void *OS_Cookie;	/* save specific structure relative to OS */
 	struct net_device *net_dev;
 	unsigned long VirtualIfCnt;
+	const struct firmware *firmware;
 
 	struct rt_rtmp_chip_op chipOps;
 	u16 ThisTbttNumToNextWakeUp;
@@ -4043,10 +4044,10 @@ int RTUSBMultiRead(struct rt_rtmp_adapter *pAd,
 			u16 Offset, u8 *pData, u16 length);
 
 int RTUSBMultiWrite(struct rt_rtmp_adapter *pAd,
-			 u16 Offset, u8 *pData, u16 length);
+		    u16 Offset, const u8 *pData, u16 length);
 
 int RTUSBMultiWrite_OneByte(struct rt_rtmp_adapter *pAd,
-				 u16 Offset, u8 *pData);
+			    u16 Offset, const u8 *pData);
 
 int RTUSBReadBBPRegister(struct rt_rtmp_adapter *pAd,
 			      u8 Id, u8 *pValue);
@@ -4112,7 +4113,7 @@ int RTUSBSingleWrite(struct rt_rtmp_adapter *pAd,
 			  u16 Offset, u16 Value);
 
 int RTUSBFirmwareWrite(struct rt_rtmp_adapter *pAd,
-			    u8 *pFwImage, unsigned long FwLen);
+		       const u8 *pFwImage, unsigned long FwLen);
 
 int RTUSBVenderReset(struct rt_rtmp_adapter *pAd);
 

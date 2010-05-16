@@ -35,6 +35,7 @@
 #include <linux/sched.h>
 #include <linux/parser.h>
 #include <linux/magic.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include "internal.h"
 

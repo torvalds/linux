@@ -31,7 +31,7 @@ struct cryptd_cpu_queue {
 };
 
 struct cryptd_queue {
-	struct cryptd_cpu_queue *cpu_queue;
+	struct cryptd_cpu_queue __percpu *cpu_queue;
 };
 
 struct cryptd_instance_ctx {

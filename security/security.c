@@ -23,10 +23,12 @@ static __initdata char chosen_lsm[SECURITY_NAME_MAX + 1] =
 	CONFIG_DEFAULT_SECURITY;
 
 /* things that live in capability.c */
-extern struct security_operations default_security_ops;
 extern void security_fixup_ops(struct security_operations *ops);
 
-struct security_operations *security_ops;	/* Initialized to NULL */
+static struct security_operations *security_ops;
+static struct security_operations default_security_ops = {
+	.name	= "default",
+};
 
 static inline int verify(struct security_operations *ops)
 {
@@ -61,6 +63,11 @@ int __init security_init(void)
 	do_security_initcalls();
 
 	return 0;
+}
+
+void reset_security_ops(void)
+{
+	security_ops = &default_security_ops;
 }
 
 /* Save user chosen LSM */
@@ -203,9 +210,9 @@ int security_quota_on(struct dentry *dentry)
 	return security_ops->quota_on(dentry);
 }
 
-int security_syslog(int type)
+int security_syslog(int type, bool from_file)
 {
-	return security_ops->syslog(type);
+	return security_ops->syslog(type, from_file);
 }
 
 int security_settime(struct timespec *ts, struct timezone *tz)
@@ -389,42 +396,42 @@ int security_inode_init_security(struct inode *inode, struct inode *dir,
 EXPORT_SYMBOL(security_inode_init_security);
 
 #ifdef CONFIG_SECURITY_PATH
-int security_path_mknod(struct path *path, struct dentry *dentry, int mode,
+int security_path_mknod(struct path *dir, struct dentry *dentry, int mode,
 			unsigned int dev)
 {
-	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
 		return 0;
-	return security_ops->path_mknod(path, dentry, mode, dev);
+	return security_ops->path_mknod(dir, dentry, mode, dev);
 }
 EXPORT_SYMBOL(security_path_mknod);
 
-int security_path_mkdir(struct path *path, struct dentry *dentry, int mode)
+int security_path_mkdir(struct path *dir, struct dentry *dentry, int mode)
 {
-	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
 		return 0;
-	return security_ops->path_mkdir(path, dentry, mode);
+	return security_ops->path_mkdir(dir, dentry, mode);
 }
 
-int security_path_rmdir(struct path *path, struct dentry *dentry)
+int security_path_rmdir(struct path *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
 		return 0;
-	return security_ops->path_rmdir(path, dentry);
+	return security_ops->path_rmdir(dir, dentry);
 }
 
-int security_path_unlink(struct path *path, struct dentry *dentry)
+int security_path_unlink(struct path *dir, struct dentry *dentry)
 {
-	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
 		return 0;
-	return security_ops->path_unlink(path, dentry);
+	return security_ops->path_unlink(dir, dentry);
 }
 
-int security_path_symlink(struct path *path, struct dentry *dentry,
+int security_path_symlink(struct path *dir, struct dentry *dentry,
 			  const char *old_name)
 {
-	if (unlikely(IS_PRIVATE(path->dentry->d_inode)))
+	if (unlikely(IS_PRIVATE(dir->dentry->d_inode)))
 		return 0;
-	return security_ops->path_symlink(path, dentry, old_name);
+	return security_ops->path_symlink(dir, dentry, old_name);
 }
 
 int security_path_link(struct dentry *old_dentry, struct path *new_dir,
@@ -630,14 +637,14 @@ int security_inode_killpriv(struct dentry *dentry)
 int security_inode_getsecurity(const struct inode *inode, const char *name, void **buffer, bool alloc)
 {
 	if (unlikely(IS_PRIVATE(inode)))
-		return 0;
+		return -EOPNOTSUPP;
 	return security_ops->inode_getsecurity(inode, name, buffer, alloc);
 }
 
 int security_inode_setsecurity(struct inode *inode, const char *name, const void *value, size_t size, int flags)
 {
 	if (unlikely(IS_PRIVATE(inode)))
-		return 0;
+		return -EOPNOTSUPP;
 	return security_ops->inode_setsecurity(inode, name, value, size, flags);
 }
 

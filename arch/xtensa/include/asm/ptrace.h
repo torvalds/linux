@@ -113,6 +113,7 @@ struct pt_regs {
 
 #include <variant/core.h>
 
+# define arch_has_single_step()	(1)
 # define task_pt_regs(tsk) ((struct pt_regs*) \
   (task_stack_page(tsk) + KERNEL_STACK_SIZE - (XCHAL_NUM_AREGS-16)*4) - 1)
 # define user_mode(regs) (((regs)->ps & 0x00000020)!=0)

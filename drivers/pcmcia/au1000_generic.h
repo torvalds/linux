@@ -36,30 +36,14 @@
 #define AU1X_SOCK0_IO        0xF00000000ULL
 #define AU1X_SOCK0_PHYS_ATTR 0xF40000000ULL
 #define AU1X_SOCK0_PHYS_MEM  0xF80000000ULL
-/* pseudo 32 bit phys addresses, which get fixed up to the
- * real 36 bit address in fixup_bigphys_addr() */
-#define AU1X_SOCK0_PSEUDO_PHYS_ATTR 0xF4000000
-#define AU1X_SOCK0_PSEUDO_PHYS_MEM  0xF8000000
 
 /* pcmcia socket 1 needs external glue logic so the memory map
  * differs from board to board.
  */
-#if defined(CONFIG_MIPS_PB1000) || defined(CONFIG_MIPS_PB1100) || \
-    defined(CONFIG_MIPS_PB1500) || defined(CONFIG_MIPS_PB1550) || \
-    defined(CONFIG_MIPS_PB1200)
+#if defined(CONFIG_MIPS_PB1000)
 #define AU1X_SOCK1_IO        0xF08000000ULL
 #define AU1X_SOCK1_PHYS_ATTR 0xF48000000ULL
 #define AU1X_SOCK1_PHYS_MEM  0xF88000000ULL
-#define AU1X_SOCK1_PSEUDO_PHYS_ATTR 0xF4800000
-#define AU1X_SOCK1_PSEUDO_PHYS_MEM  0xF8800000
-#elif defined(CONFIG_MIPS_DB1000) || defined(CONFIG_MIPS_DB1100) || \
-      defined(CONFIG_MIPS_DB1500) || defined(CONFIG_MIPS_DB1550) || \
-      defined(CONFIG_MIPS_DB1200)
-#define AU1X_SOCK1_IO        0xF04000000ULL
-#define AU1X_SOCK1_PHYS_ATTR 0xF44000000ULL
-#define AU1X_SOCK1_PHYS_MEM  0xF84000000ULL
-#define AU1X_SOCK1_PSEUDO_PHYS_ATTR 0xF4400000
-#define AU1X_SOCK1_PSEUDO_PHYS_MEM  0xF8400000
 #endif
 
 struct pcmcia_state {

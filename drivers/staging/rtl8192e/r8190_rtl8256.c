@@ -429,11 +429,12 @@ SetRFPowerState8190(
 	bool bResult = true;
 	//u8 eRFPath;
 	u8	i = 0, QueueID = 0;
-	ptx_ring	head=NULL,tail=NULL;
+	//ptx_ring	head=NULL,tail=NULL;
+	struct rtl8192_tx_ring  *ring = NULL;
 
 	if(priv->SetRFPowerStateInProgress == true)
 		return false;
-	RT_TRACE(COMP_POWER, "===========> SetRFPowerState8190()!\n");
+	//RT_TRACE(COMP_PS, "===========> SetRFPowerState8190()!\n");
 	priv->SetRFPowerStateInProgress = true;
 
 	switch(priv->rf_chip)
@@ -442,11 +443,11 @@ SetRFPowerState8190(
 		switch( eRFPowerState )
 		{
 			case eRfOn:
-				RT_TRACE(COMP_POWER, "SetRFPowerState8190() eRfOn !\n");
+				//RT_TRACE(COMP_PS, "SetRFPowerState8190() eRfOn !\n");
 						//RXTX enable control: On
 					//for(eRFPath = 0; eRFPath <pHalData->NumTotalRFPath; eRFPath++)
-					//	PHY_SetRFReg(Adapter, (RF90_RADIO_PATH_E)eRFPath, 0x4, 0xC00, 0x2);
-				#ifdef RTL8190P
+					//	PHY_SetRFReg(dev, (RF90_RADIO_PATH_E)eRFPath, 0x4, 0xC00, 0x2);
+#ifdef RTL8190P
 				if(priv->rf_type == RF_2T4R)
 				{
 					//enable RF-Chip A/B
@@ -479,36 +480,92 @@ SetRFPowerState8190(
 					//analog to digital part2 on
 					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x1800, 0x3); // 0x880[12:11]
 				}
-				#else
-				write_nic_byte(dev, ANAPAR, 0x37);//160MHz
-				write_nic_byte(dev, MacBlkCtrl, 0x17); // 0x403
-				mdelay(1);
-				//enable clock 80/88 MHz
+				else if(priv->rf_type == RF_1T1R)	//RF-C
+				{
+					//enable RF-Chip C/D
+					rtl8192_setBBreg(dev, rFPGA0_XC_RFInterfaceOE, BIT4, 0x1); // 0x868[4]
+					//analog to digital on
+					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0x400, 0x1);// 0x88c[10]
+					//digital to analog on
+					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x80, 0x1); // 0x880[7]
+					//rx antenna on
+					rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0x4, 0x1);// 0xc04[2]
+					//rx antenna on
+					rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0x4, 0x1);// 0xd04[2]
+					//analog to digital part2 on
+					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x800, 0x1); // 0x880[11]
+				}
 
-				priv->bHwRfOffAction = 0;
-				//}
+#elif defined RTL8192E
+				// turn on RF
+				if((priv->ieee80211->eRFPowerState == eRfOff) && RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
+				{ // The current RF state is OFF and the RF OFF level is halting the NIC, re-initialize the NIC.
+					bool rtstatus = true;
+					u32 InitilizeCount = 3;
+					do
+					{
+						InitilizeCount--;
+						priv->RegRfOff = false;
+						rtstatus = NicIFEnableNIC(dev);
+					}while( (rtstatus != true) &&(InitilizeCount >0) );
 
-				// Baseband reset 2008.09.30 add
-				write_nic_byte(dev, BB_RESET, (read_nic_byte(dev, BB_RESET)|BIT0));
+					if(rtstatus != true)
+					{
+						RT_TRACE(COMP_ERR,"%s():Initialize Adapter fail,return\n",__FUNCTION__);
+						priv->SetRFPowerStateInProgress = false;
+						return false;
+					}
 
-				//2 AFE
-				// 2008.09.30 add
-				rtl8192_setBBreg(dev, rFPGA0_AnalogParameter2, 0x20000000, 0x1); // 0x884
-				//analog to digital part2 on
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x60, 0x3);		// 0x880[6:5]
-				//digital to analog on
-				rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x98, 0x13); // 0x880[4:3]
-				//analog to digital on
-				rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0xf03, 0xf03);// 0x88c[9:8]
-				//rx antenna on
-				//PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0x3, 0x3);// 0xc04[1:0]
-				//rx antenna on 2008.09.30 mark
-				//PHY_SetBBReg(Adapter, rOFDM1_TRxPathEnable, 0x3, 0x3);// 0xd04[1:0]
+					RT_CLEAR_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
+				} else {
+					write_nic_byte(dev, ANAPAR, 0x37);//160MHz
+					//write_nic_byte(dev, MacBlkCtrl, 0x17); // 0x403
+					mdelay(1);
+					//enable clock 80/88 MHz
+					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x4, 0x1); // 0x880[2]
+					priv->bHwRfOffAction = 0;
+					//}
 
-				//2 RF
-				//enable RF-Chip A/B
+					//RF-A, RF-B
+					//enable RF-Chip A/B
 					rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x1);		// 0x860[4]
-				rtl8192_setBBreg(dev, rFPGA0_XB_RFInterfaceOE, BIT4, 0x1);		// 0x864[4]
+					//analog to digital on
+					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0x300, 0x3);// 0x88c[9:8]
+					//digital to analog on
+					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x18, 0x3); // 0x880[4:3]
+					//rx antenna on
+					rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0x3, 0x3);// 0xc04[1:0]
+					//rx antenna on
+					rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0x3, 0x3);// 0xd04[1:0]
+					//analog to digital part2 on
+					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x60, 0x3); 	// 0x880[6:5]
+
+					// Baseband reset 2008.09.30 add
+					//write_nic_byte(dev, BB_RESET, (read_nic_byte(dev, BB_RESET)|BIT0));
+
+				//2 	AFE
+					// 2008.09.30 add
+					//rtl8192_setBBreg(dev, rFPGA0_AnalogParameter2, 0x20000000, 0x1); // 0x884
+					//analog to digital part2 on
+					//rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x60, 0x3);		// 0x880[6:5]
+
+
+					//digital to analog on
+					//rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x98, 0x13); // 0x880[4:3]
+					//analog to digital on
+					//rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0xf03, 0xf03);// 0x88c[9:8]
+					//rx antenna on
+					//PHY_SetBBReg(dev, rOFDM0_TRxPathEnable, 0x3, 0x3);// 0xc04[1:0]
+					//rx antenna on 2008.09.30 mark
+					//PHY_SetBBReg(dev, rOFDM1_TRxPathEnable, 0x3, 0x3);// 0xd04[1:0]
+
+				//2 	RF
+					//enable RF-Chip A/B
+					//rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x1);		// 0x860[4]
+					//rtl8192_setBBreg(dev, rFPGA0_XB_RFInterfaceOE, BIT4, 0x1);		// 0x864[4]
+
+				}
+
 				#endif
 						break;
 
@@ -517,119 +574,137 @@ SetRFPowerState8190(
 				// By Bruce, 2008-01-16.
 				//
 			case eRfSleep:
-			case eRfOff:
-				RT_TRACE(COMP_POWER, "SetRFPowerState8190() eRfOff/Sleep !\n");
-				if (pPSC->bLeisurePs)
+			{
+				// HW setting had been configured with deeper mode.
+				if(priv->ieee80211->eRFPowerState == eRfOff)
+					break;
+
+				// Update current RF state variable.
+				//priv->ieee80211->eRFPowerState = eRFPowerState;
+
+				//if (pPSC->bLeisurePs)
 				{
 					for(QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; )
 					{
-						switch(QueueID) {
-							case MGNT_QUEUE:
-								tail=priv->txmapringtail;
-								head=priv->txmapringhead;
-								break;
+							ring = &priv->tx_ring[QueueID];
 
-							case BK_QUEUE:
-								tail=priv->txbkpringtail;
-								head=priv->txbkpringhead;
-								break;
+							if(skb_queue_len(&ring->queue) == 0)
+							{
+								QueueID++;
+								continue;
+							}
+							else
+							{
+								RT_TRACE((COMP_POWER|COMP_RF), "eRf Off/Sleep: %d times TcbBusyQueue[%d] !=0 before doze!\n", (i+1), QueueID);
+								udelay(10);
+								i++;
+							}
 
-							case BE_QUEUE:
-								tail=priv->txbepringtail;
-								head=priv->txbepringhead;
+							if(i >= MAX_DOZE_WAITING_TIMES_9x)
+							{
+								RT_TRACE(COMP_POWER, "\n\n\n TimeOut!! SetRFPowerState8190(): eRfOff: %d times TcbBusyQueue[%d] != 0 !!!\n\n\n", MAX_DOZE_WAITING_TIMES_9x, QueueID);
 								break;
-
-							case VI_QUEUE:
-								tail=priv->txvipringtail;
-								head=priv->txvipringhead;
-								break;
-
-							case VO_QUEUE:
-								tail=priv->txvopringtail;
-								head=priv->txvopringhead;
-								break;
-
-							default:
-								tail=head=NULL;
-								break;
+							}
 						}
-						if(tail == head)
+				}
+
+				//if(Adapter->HardwareType == HARDWARE_TYPE_RTL8190P)
+#ifdef RTL8190P
+				{
+					PHY_SetRtl8190pRfOff(dev);
+				}
+				//else if(Adapter->HardwareType == HARDWARE_TYPE_RTL8192E)
+#elif defined RTL8192E
+				{
+					PHY_SetRtl8192eRfOff(dev);
+				}
+#endif
+			}
+								break;
+
+			case eRfOff:
+				//RT_TRACE(COMP_PS, "SetRFPowerState8190() eRfOff/Sleep !\n");
+
+				// Update current RF state variable.
+				//priv->ieee80211->eRFPowerState = eRFPowerState;
+
+				//
+				// Disconnect with Any AP or STA.
+				//
+				for(QueueID = 0, i = 0; QueueID < MAX_TX_QUEUE; )
+				{
+					ring = &priv->tx_ring[QueueID];
+
+					if(skb_queue_len(&ring->queue) == 0)
 						{
-							//DbgPrint("QueueID = %d", QueueID);
 							QueueID++;
 							continue;
 						}
 						else
 						{
-							RT_TRACE(COMP_POWER, "eRf Off/Sleep: %d times BusyQueue[%d] !=0 before doze!\n", (i+1), QueueID);
+							RT_TRACE(COMP_POWER,
+							"eRf Off/Sleep: %d times TcbBusyQueue[%d] !=0 before doze!\n", (i+1), QueueID);
 							udelay(10);
 							i++;
 						}
 
 						if(i >= MAX_DOZE_WAITING_TIMES_9x)
 						{
-							RT_TRACE(COMP_POWER, "\n\n\n TimeOut!! SetRFPowerState8190(): eRfOff: %d times BusyQueue[%d] != 0 !!!\n\n\n", MAX_DOZE_WAITING_TIMES_9x, QueueID);
+							RT_TRACE(COMP_POWER, "\n\n\n SetZebraRFPowerState8185B(): eRfOff: %d times TcbBusyQueue[%d] != 0 !!!\n\n\n", MAX_DOZE_WAITING_TIMES_9x, QueueID);
 							break;
 						}
 					}
-				}
-				#ifdef RTL8190P
-				if(priv->rf_type == RF_2T4R)
+
+				//if(Adapter->HardwareType == HARDWARE_TYPE_RTL8190P)
+#if defined RTL8190P
 				{
-					//disable RF-Chip A/B
-					rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x0);		// 0x860[4]
+					PHY_SetRtl8190pRfOff(dev);
 				}
-				//disable RF-Chip C/D
-				rtl8192_setBBreg(dev, rFPGA0_XC_RFInterfaceOE, BIT4, 0x0); // 0x868[4]
-				//analog to digital off, for power save
-				rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0xf00, 0x0);// 0x88c[11:8]
-				//digital to analog off, for power save
-				rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x1e0, 0x0); // 0x880[8:5]
-				//rx antenna off
-				rtl8192_setBBreg(dev, rOFDM0_TRxPathEnable, 0xf, 0x0);// 0xc04[3:0]
-				//rx antenna off
-				rtl8192_setBBreg(dev, rOFDM1_TRxPathEnable, 0xf, 0x0);// 0xd04[3:0]
-				//analog to digital part2 off, for power save
-				rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x1e00, 0x0); // 0x880[12:9]
-#else //8192E
-					//2 RF
-				//disable RF-Chip A/B
-				rtl8192_setBBreg(dev, rFPGA0_XA_RFInterfaceOE, BIT4, 0x0);		// 0x860[4]
-					rtl8192_setBBreg(dev, rFPGA0_XB_RFInterfaceOE, BIT4, 0x0);		// 0x864[4]
-					//2 AFE
-				//analog to digital off, for power save
-					//PHY_SetBBReg(Adapter, rFPGA0_AnalogParameter4, 0xf00, 0x0);// 0x88c[11:8]
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter4, 0xf03, 0x0); //  2008.09.30 Modify
-				//digital to analog off, for power save
-					//PHY_SetBBReg(Adapter, rFPGA0_AnalogParameter1, 0x18, 0x0); // 0x880[4:3]
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x98, 0x0); // 0x880 2008.09.30 Modify
-					//rx antenna off  2008.09.30 mark
-					//PHY_SetBBReg(Adapter, rOFDM0_TRxPathEnable, 0xf, 0x0);// 0xc04[3:0]
-					//rx antenna off  2008.09.30 mark
-					//PHY_SetBBReg(Adapter, rOFDM1_TRxPathEnable, 0xf, 0x0);// 0xd04[3:0]
-				//analog to digital part2 off, for power save
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter1, 0x60, 0x0);		// 0x880[6:5]
-					// 2008.09.30 add
-					rtl8192_setBBreg(dev, rFPGA0_AnalogParameter2, 0x20000000, 0x0); // 0x884
+				//else if(Adapter->HardwareType == HARDWARE_TYPE_RTL8192E)
+#elif defined RTL8192E
+				{
+					//if(pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC && !RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC) && priv->ieee80211->RfOffReason > RF_CHANGE_BY_PS)
+					if (pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC && !RT_IN_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC))
+					{ // Disable all components.
+						//
+						// Note:
+						//	NicIFSetLinkStatus is a big problem when we indicate the status to OS,
+						//	the OS(XP) will reset. But now, we cnnot find why the NIC is hard to receive
+						//	packets after RF ON. Just keep this function here and still work to find out the root couse.
+						//	By Bruce, 2009-05-01.
+						//
+						//NicIFSetLinkStatus( Adapter, RT_MEDIA_DISCONNECT );
+						//if HW radio of , need to indicate scan complete first for not be reset.
+						//if(MgntScanInProgress(pMgntInfo))
+						//	MgntResetScanProcess( Adapter );
 
-
-					//disable clock 80/88 MHz 2008.09.30 mark
-					//PHY_SetBBReg(Adapter, rFPGA0_AnalogParameter1, 0x4, 0x0); // 0x880[2]
-					//2 BB
-					// Baseband reset 2008.09.30 add
-					write_nic_byte(dev, BB_RESET, (read_nic_byte(dev, BB_RESET)|BIT0)); // 0x101
-					//MAC: off
-					write_nic_byte(dev, MacBlkCtrl, 0x0); // 0x403
-					//slow down cpu/lbus clock from 160MHz to Lower
-					write_nic_byte(dev, ANAPAR, 0x07); // 0x 17 40MHz
-				priv->bHwRfOffAction = 0;
-				//}
+						// <1> Disable Interrupt
+						//rtl8192_irq_disable(dev);
+						// <2> Stop all timer
+						//MgntCancelAllTimer(Adapter);
+						// <3> Disable Adapter
+						//NicIFHaltAdapter(Adapter, false);
+						NicIFDisableNIC(dev);
+						RT_SET_PS_LEVEL(pPSC, RT_RF_OFF_LEVL_HALT_NIC);
+					}
+					else if (!(pPSC->RegRfPsLevel & RT_RF_OFF_LEVL_HALT_NIC))
+					{ // Normal case.
+				  		// IPS should go to this.
+						PHY_SetRtl8192eRfOff(dev);
+					}
+				}
+#else
+				else
+				{
+					RT_TRACE(COMP_DBG,DBG_TRACE,("It is not 8190Pci and 8192PciE \n"));
+				}
 				#endif
+
 					break;
 
 			default:
 					bResult = false;
-					RT_TRACE(COMP_ERR, "SetRFPowerState8190(): unknown state to set: 0x%X!!!\n", eRFPowerState);
+					RT_TRACE(COMP_ERR, "SetRFPowerState8190(): unknow state to set: 0x%X!!!\n", eRFPowerState);
 					break;
 		}
 
@@ -644,64 +719,11 @@ SetRFPowerState8190(
 	{
 		// Update current RF state variable.
 		priv->ieee80211->eRFPowerState = eRFPowerState;
-
-		switch(priv->rf_chip )
-		{
-			case RF_8256:
-			switch(priv->ieee80211->eRFPowerState)
-			{
-				case eRfOff:
-				//
-				//If Rf off reason is from IPS, Led should blink with no link, by Maddest 071015
-				//
-					if(priv->ieee80211->RfOffReason==RF_CHANGE_BY_IPS )
-					{
-						#ifdef TO_DO
-						Adapter->HalFunc.LedControlHandler(Adapter,LED_CTL_NO_LINK);
-						#endif
-					}
-					else
-					{
-					// Turn off LED if RF is not ON.
-						#ifdef TO_DO
-						Adapter->HalFunc.LedControlHandler(Adapter, LED_CTL_POWER_OFF);
-						#endif
-					}
-					break;
-
-				case eRfOn:
-				// Turn on RF we are still linked, which might happen when
-				// we quickly turn off and on HW RF. 2006.05.12, by rcnjko.
-					if( priv->ieee80211->state == IEEE80211_LINKED)
-					{
-						#ifdef TO_DO
-						Adapter->HalFunc.LedControlHandler(Adapter, LED_CTL_LINK);
-						#endif
-					}
-					else
-					{
-					// Turn off LED if RF is not ON.
-						#ifdef TO_DO
-						Adapter->HalFunc.LedControlHandler(Adapter, LED_CTL_NO_LINK);
-						#endif
-					}
-					break;
-
-				default:
-			// do nothing.
-					break;
-			}// Switch RF state
-
-			break;
-
-			default:
-				RT_TRACE(COMP_ERR, "SetRFPowerState8190(): Unknown RF type\n");
-				break;
-		}// Switch RFChipID
 	}
 
+	//printk("%s()priv->ieee80211->eRFPowerState:%s\n" ,__func__,priv->ieee80211->eRFPowerState == eRfOn ? "On" : "Off");
 	priv->SetRFPowerStateInProgress = false;
-	RT_TRACE(COMP_POWER, "<=========== SetRFPowerState8190() bResult = %d!\n", bResult);
+	//RT_TRACE(COMP_PS, "<=========== SetRFPowerState8190() bResult = %d!\n", bResult);
 	return bResult;
 }
 

@@ -215,7 +215,6 @@ static int dma;
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -228,6 +227,7 @@ static int dma;
 #include <linux/timer.h>
 #include <linux/atalk.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/dma.h>
@@ -1125,7 +1125,6 @@ struct net_device * __init ltpc_probe(void)
 		printk(KERN_INFO "Apple/Farallon LocalTalk-PC card at %03x, DMA%d.  Using polled mode.\n",io,dma);
 
 	dev->netdev_ops = &ltpc_netdev;
-	dev->mc_list = NULL;
 	dev->base_addr = io;
 	dev->irq = irq;
 	dev->dma = dma;

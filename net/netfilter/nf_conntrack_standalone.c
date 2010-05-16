@@ -8,6 +8,7 @@
 
 #include <linux/types.h>
 #include <linux/netfilter.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/proc_fs.h>
@@ -26,6 +27,7 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_acct.h>
+#include <net/netfilter/nf_conntrack_zones.h>
 
 MODULE_LICENSE("GPL");
 
@@ -168,6 +170,11 @@ static int ct_seq_show(struct seq_file *s, void *v)
 
 #ifdef CONFIG_NF_CONNTRACK_SECMARK
 	if (seq_printf(s, "secmark=%u ", ct->secmark))
+		goto release;
+#endif
+
+#ifdef CONFIG_NF_CONNTRACK_ZONES
+	if (seq_printf(s, "zone=%u ", nf_ct_zone(ct)))
 		goto release;
 #endif
 

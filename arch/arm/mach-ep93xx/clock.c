@@ -10,6 +10,8 @@
  * your option) any later version.
  */
 
+#define pr_fmt(fmt) "ep93xx " KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -445,37 +447,39 @@ static void __init ep93xx_dma_clock_init(void)
 static int __init ep93xx_clock_init(void)
 {
 	u32 value;
-	int i;
 
-	value = __raw_readl(EP93XX_SYSCON_CLOCK_SET1);
-	if (!(value & 0x00800000)) {			/* PLL1 bypassed?  */
+	/* Determine the bootloader configured pll1 rate */
+	value = __raw_readl(EP93XX_SYSCON_CLKSET1);
+	if (!(value & EP93XX_SYSCON_CLKSET1_NBYP1))
 		clk_pll1.rate = clk_xtali.rate;
-	} else {
+	else
 		clk_pll1.rate = calc_pll_rate(value);
-	}
+
+	/* Initialize the pll1 derived clocks */
 	clk_f.rate = clk_pll1.rate / fclk_divisors[(value >> 25) & 0x7];
 	clk_h.rate = clk_pll1.rate / hclk_divisors[(value >> 20) & 0x7];
 	clk_p.rate = clk_h.rate / pclk_divisors[(value >> 18) & 0x3];
 	ep93xx_dma_clock_init();
 
-	value = __raw_readl(EP93XX_SYSCON_CLOCK_SET2);
-	if (!(value & 0x00080000)) {			/* PLL2 bypassed?  */
+	/* Determine the bootloader configured pll2 rate */
+	value = __raw_readl(EP93XX_SYSCON_CLKSET2);
+	if (!(value & EP93XX_SYSCON_CLKSET2_NBYP2))
 		clk_pll2.rate = clk_xtali.rate;
-	} else if (value & 0x00040000) {		/* PLL2 enabled?  */
+	else if (value & EP93XX_SYSCON_CLKSET2_PLL2_EN)
 		clk_pll2.rate = calc_pll_rate(value);
-	} else {
+	else
 		clk_pll2.rate = 0;
-	}
+
+	/* Initialize the pll2 derived clocks */
 	clk_usb_host.rate = clk_pll2.rate / (((value >> 28) & 0xf) + 1);
 
-	printk(KERN_INFO "ep93xx: PLL1 running at %ld MHz, PLL2 at %ld MHz\n",
+	pr_info("PLL1 running at %ld MHz, PLL2 at %ld MHz\n",
 		clk_pll1.rate / 1000000, clk_pll2.rate / 1000000);
-	printk(KERN_INFO "ep93xx: FCLK %ld MHz, HCLK %ld MHz, PCLK %ld MHz\n",
+	pr_info("FCLK %ld MHz, HCLK %ld MHz, PCLK %ld MHz\n",
 		clk_f.rate / 1000000, clk_h.rate / 1000000,
 		clk_p.rate / 1000000);
 
-	for (i = 0; i < ARRAY_SIZE(clocks); i++)
-		clkdev_add(&clocks[i]);
+	clkdev_add_table(clocks, ARRAY_SIZE(clocks));
 	return 0;
 }
 arch_initcall(ep93xx_clock_init);

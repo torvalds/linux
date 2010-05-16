@@ -42,6 +42,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/mISDNhw.h>
+#include <linux/slab.h>
 #include "ipac.h"
 
 #define INFINEON_REV	"1.0"
@@ -1133,6 +1134,7 @@ inf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 			if (err) {
 				kfree(sc);
 				release_card(card);
+				break;
 			} else
 				card->sc[i - 1] = sc;
 		}

@@ -59,6 +59,7 @@
 #include <linux/init.h>
 #include <linux/if_vlan.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -3095,7 +3096,7 @@ static void nv_set_multicast(struct net_device *dev)
 	} else {
 		pff |= NVREG_PFF_MYADDR;
 
-		if (dev->flags & IFF_ALLMULTI || dev->mc_list) {
+		if (dev->flags & IFF_ALLMULTI || !netdev_mc_empty(dev)) {
 			u32 alwaysOff[2];
 			u32 alwaysOn[2];
 
@@ -3105,8 +3106,7 @@ static void nv_set_multicast(struct net_device *dev)
 			} else {
 				struct dev_mc_list *walk;
 
-				walk = dev->mc_list;
-				while (walk != NULL) {
+				netdev_for_each_mc_addr(walk, dev) {
 					u32 a, b;
 					a = le32_to_cpu(*(__le32 *) walk->dmi_addr);
 					b = le16_to_cpu(*(__le16 *) (&walk->dmi_addr[4]));
@@ -3114,7 +3114,6 @@ static void nv_set_multicast(struct net_device *dev)
 					alwaysOff[0] &= ~a;
 					alwaysOn[1] &= b;
 					alwaysOff[1] &= ~b;
-					walk = walk->next;
 				}
 			}
 			addr[0] = alwaysOn[0];
@@ -5900,7 +5899,7 @@ static int __devinit nv_probe(struct pci_dev *pci_dev, const struct pci_device_i
 	/* Limit the number of tx's outstanding for hw bug */
 	if (id->driver_data & DEV_NEED_TX_LIMIT) {
 		np->tx_limit = 1;
-		if ((id->driver_data & DEV_NEED_TX_LIMIT2) &&
+		if (((id->driver_data & DEV_NEED_TX_LIMIT2) == DEV_NEED_TX_LIMIT2) &&
 		    pci_dev->revision >= 0xA2)
 			np->tx_limit = 0;
 	}
@@ -6198,7 +6197,7 @@ static void nv_shutdown(struct pci_dev *pdev)
 #define nv_resume NULL
 #endif /* CONFIG_PM */
 
-static struct pci_device_id pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(pci_tbl) = {
 	{	/* nForce Ethernet Controller */
 		PCI_DEVICE(0x10DE, 0x01C3),
 		.driver_data = DEV_NEED_TIMERIRQ|DEV_NEED_LINKTIMER,

@@ -12,6 +12,7 @@
  */
 
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 
 #include "sound_config.h"
 

@@ -92,23 +92,18 @@ static void setup_cpunode_map(void)
 	if (!dir1)
 		return;
 
-	while (true) {
-		dent1 = readdir(dir1);
-		if (!dent1)
-			break;
-
-		if (sscanf(dent1->d_name, "node%u", &mem) < 1)
+	while ((dent1 = readdir(dir1)) != NULL) {
+		if (dent1->d_type != DT_DIR ||
+		    sscanf(dent1->d_name, "node%u", &mem) < 1)
 			continue;
 
 		snprintf(buf, PATH_MAX, "%s/%s", PATH_SYS_NODE, dent1->d_name);
 		dir2 = opendir(buf);
 		if (!dir2)
 			continue;
-		while (true) {
-			dent2 = readdir(dir2);
-			if (!dent2)
-				break;
-			if (sscanf(dent2->d_name, "cpu%u", &cpu) < 1)
+		while ((dent2 = readdir(dir2)) != NULL) {
+			if (dent2->d_type != DT_LNK ||
+			    sscanf(dent2->d_name, "cpu%u", &cpu) < 1)
 				continue;
 			cpunode_map[cpu] = mem;
 		}
@@ -321,11 +316,8 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 
 	event__parse_sample(event, session->sample_type, &data);
 
-	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
-		event->header.misc,
-		data.pid, data.tid,
-		(void *)(long)data.ip,
-		(long long)data.period);
+	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
+		    data.pid, data.tid, data.ip, data.period);
 
 	thread = perf_session__findnew(session, event->ip.pid);
 	if (thread == NULL) {
@@ -342,22 +334,9 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	return 0;
 }
 
-static int sample_type_check(struct perf_session *session)
-{
-	if (!(session->sample_type & PERF_SAMPLE_RAW)) {
-		fprintf(stderr,
-			"No trace sample to read. Did you call perf record "
-			"without -R?");
-		return -1;
-	}
-
-	return 0;
-}
-
 static struct perf_event_ops event_ops = {
-	.process_sample_event	= process_sample_event,
-	.process_comm_event	= event__process_comm,
-	.sample_type_check	= sample_type_check,
+	.sample	= process_sample_event,
+	.comm	= event__process_comm,
 };
 
 static double fragmentation(unsigned long n_req, unsigned long n_alloc)
@@ -390,7 +369,7 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = map_groups__find_function(&session->kmaps, session, addr, NULL);
+				sym = map_groups__find_function(&session->kmaps, addr, NULL);
 		} else
 			addr = data->ptr;
 
@@ -504,10 +483,13 @@ static void sort_result(void)
 
 static int __cmd_kmem(void)
 {
-	int err;
+	int err = -EINVAL;
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0);
 	if (session == NULL)
 		return -ENOMEM;
+
+	if (!perf_session__has_traces(session, "kmem record"))
+		goto out_delete;
 
 	setup_pager();
 	err = perf_session__process_events(session, &event_ops);

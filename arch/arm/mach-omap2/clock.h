@@ -47,7 +47,10 @@
 #define DPLL_LOW_POWER_BYPASS	0x5
 #define DPLL_LOCKED		0x7
 
-int omap2_clk_init(void);
+/* DPLL Type and DCO Selection Flags */
+#define DPLL_J_TYPE		0x1
+#define DPLL_NO_DCO_SEL		0x2
+
 int omap2_clk_enable(struct clk *clk);
 void omap2_clk_disable(struct clk *clk);
 long omap2_clk_round_rate(struct clk *clk, unsigned long rate);
@@ -78,23 +81,53 @@ u32 omap2_clksel_round_rate_div(struct clk *clk, unsigned long target_rate,
 				u32 *new_div);
 u32 omap2_clksel_to_divisor(struct clk *clk, u32 field_val);
 u32 omap2_divisor_to_clksel(struct clk *clk, u32 div);
-unsigned long omap2_fixed_divisor_recalc(struct clk *clk);
 long omap2_clksel_round_rate(struct clk *clk, unsigned long target_rate);
 int omap2_clksel_set_rate(struct clk *clk, unsigned long rate);
+int omap2_clksel_set_parent(struct clk *clk, struct clk *new_parent);
 u32 omap2_get_dpll_rate(struct clk *clk);
 void omap2_init_dpll_parent(struct clk *clk);
 int omap2_wait_clock_ready(void __iomem *reg, u32 cval, const char *name);
-void omap2_clk_prepare_for_reboot(void);
+
+
+#ifdef CONFIG_ARCH_OMAP2
+void omap2xxx_clk_prepare_for_reboot(void);
+#else
+static inline void omap2xxx_clk_prepare_for_reboot(void)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP3
+void omap3_clk_prepare_for_reboot(void);
+#else
+static inline void omap3_clk_prepare_for_reboot(void)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP4
+void omap4_clk_prepare_for_reboot(void);
+#else
+static inline void omap4_clk_prepare_for_reboot(void)
+{
+}
+#endif
+
 int omap2_dflt_clk_enable(struct clk *clk);
 void omap2_dflt_clk_disable(struct clk *clk);
 void omap2_clk_dflt_find_companion(struct clk *clk, void __iomem **other_reg,
 				   u8 *other_bit);
 void omap2_clk_dflt_find_idlest(struct clk *clk, void __iomem **idlest_reg,
-				u8 *idlest_bit);
+				u8 *idlest_bit, u8 *idlest_val);
+int omap2_clk_switch_mpurate_at_boot(const char *mpurate_ck_name);
+void omap2_clk_print_new_rates(const char *hfclkin_ck_name,
+			       const char *core_ck_name,
+			       const char *mpu_ck_name);
 
 extern u8 cpu_mask;
 
 extern const struct clkops clkops_omap2_dflt_wait;
+extern const struct clkops clkops_dummy;
 extern const struct clkops clkops_omap2_dflt;
 
 extern struct clk_functions omap2_clk_functions;
@@ -104,5 +137,14 @@ extern const struct clksel_rate gpt_32k_rates[];
 extern const struct clksel_rate gpt_sys_rates[];
 extern const struct clksel_rate gfx_l3_rates[];
 
+#if defined(CONFIG_ARCH_OMAP2) && defined(CONFIG_CPU_FREQ)
+extern void omap2_clk_init_cpufreq_table(struct cpufreq_frequency_table **table);
+extern void omap2_clk_exit_cpufreq_table(struct cpufreq_frequency_table **table);
+#else
+#define omap2_clk_init_cpufreq_table	0
+#define omap2_clk_exit_cpufreq_table	0
+#endif
+
+extern const struct clkops clkops_omap3_noncore_dpll_ops;
 
 #endif

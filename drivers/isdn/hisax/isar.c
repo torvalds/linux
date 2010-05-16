@@ -13,6 +13,7 @@
 #include "isar.h"
 #include "isdnl1.h"
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 #define DBG_LOADFIRM	0
 #define DUMP_MBOXFRAME	2
@@ -138,7 +139,7 @@ waitrecmsg(struct IsdnCardState *cs, u_char *len,
 	while((!(cs->BC_Read_Reg(cs, 0, ISAR_IRQBIT) & ISAR_IRQSTA)) &&
 		(timeout++ < maxdelay))
 		udelay(1);
-	if (timeout >= maxdelay) {
+	if (timeout > maxdelay) {
 		printk(KERN_WARNING"isar recmsg IRQSTA timeout\n");
 		return(0);
 	}

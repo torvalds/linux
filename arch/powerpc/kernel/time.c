@@ -265,8 +265,8 @@ void account_system_vtime(struct task_struct *tsk)
 		account_system_time(tsk, 0, delta, deltascaled);
 	else
 		account_idle_time(delta);
-	per_cpu(cputime_last_delta, smp_processor_id()) = delta;
-	per_cpu(cputime_scaled_last_delta, smp_processor_id()) = deltascaled;
+	__get_cpu_var(cputime_last_delta) = delta;
+	__get_cpu_var(cputime_scaled_last_delta) = deltascaled;
 	local_irq_restore(flags);
 }
 EXPORT_SYMBOL_GPL(account_system_vtime);
@@ -574,6 +574,8 @@ void timer_interrupt(struct pt_regs * regs)
 	u64 now;
 
 	trace_timer_interrupt_entry(regs);
+
+	__get_cpu_var(irq_stat).timer_irqs++;
 
 	/* Ensure a positive value is written to the decrementer, or else
 	 * some CPUs will continuue to take decrementer exceptions */
@@ -935,8 +937,8 @@ static void register_decrementer_clockevent(int cpu)
 	*dec = decrementer_clockevent;
 	dec->cpumask = cpumask_of(cpu);
 
-	printk(KERN_DEBUG "clockevent: %s mult[%x] shift[%d] cpu[%d]\n",
-	       dec->name, dec->mult, dec->shift, cpu);
+	printk_once(KERN_DEBUG "clockevent: %s mult[%x] shift[%d] cpu[%d]\n",
+		    dec->name, dec->mult, dec->shift, cpu);
 
 	clockevents_register_device(dec);
 }

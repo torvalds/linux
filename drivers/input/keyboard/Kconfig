@@ -35,10 +35,10 @@ config KEYBOARD_ADP5520
 	  be called adp5520-keys.
 
 config KEYBOARD_ADP5588
-	tristate "ADP5588 I2C QWERTY Keypad and IO Expander"
+	tristate "ADP5588/87 I2C QWERTY Keypad and IO Expander"
 	depends on I2C
 	help
-	  Say Y here if you want to use a ADP5588 attached to your
+	  Say Y here if you want to use a ADP5588/87 attached to your
 	  system I2C bus.
 
 	  To compile this driver as a module, choose M here: the
@@ -144,12 +144,14 @@ config KEYBOARD_BFIN
 	  module will be called bf54x-keys.
 
 config KEYBOARD_CORGI
-	tristate "Corgi keyboard"
+	tristate "Corgi keyboard (deprecated)"
 	depends on PXA_SHARPSL
-	default y
 	help
 	  Say Y here to enable the keyboard on the Sharp Zaurus SL-C7xx
 	  series of PDAs.
+
+	  This driver is now deprecated, use generic GPIO based matrix
+	  keyboard driver instead.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called corgikbd.
@@ -292,6 +294,15 @@ config KEYBOARD_MAX7359
 	  To compile this driver as a module, choose M here: the
 	  module will be called max7359_keypad.
 
+config KEYBOARD_IMX
+	tristate "IMX keypad support"
+	depends on ARCH_MXC
+	help
+	  Enable support for IMX keypad port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx_keypad.
+
 config KEYBOARD_NEWTON
 	tristate "Newton keyboard"
 	select SERIO
@@ -329,12 +340,14 @@ config KEYBOARD_PXA930_ROTARY
 	  module will be called pxa930_rotary.
 
 config KEYBOARD_SPITZ
-	tristate "Spitz keyboard"
+	tristate "Spitz keyboard (deprecated)"
 	depends on PXA_SHARPSL
-	default y
 	help
 	  Say Y here to enable the keyboard on the Sharp Zaurus SL-C1000,
 	  SL-C3000 and Sl-C3100 series of PDAs.
+
+	  This driver is now deprecated, use generic GPIO based matrix
+	  keyboard driver instead.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called spitzkbd.
@@ -363,7 +376,7 @@ config KEYBOARD_SUNKBD
 
 config KEYBOARD_SH_KEYSC
 	tristate "SuperH KEYSC keypad support"
-	depends on SUPERH
+	depends on SUPERH || ARCH_SHMOBILE
 	help
 	  Say Y here if you want to use a keypad attached to the KEYSC block
 	  on SuperH processors such as sh7722 and sh7343.
@@ -402,11 +415,13 @@ config KEYBOARD_TWL4030
 	  module will be called twl4030_keypad.
 
 config KEYBOARD_TOSA
-	tristate "Tosa keyboard"
+	tristate "Tosa keyboard (deprecated)"
 	depends on MACH_TOSA
-	default y
 	help
 	  Say Y here to enable the keyboard on the Sharp Zaurus SL-6000x (Tosa)
+
+	  This driver is now deprecated, use generic GPIO based matrix
+	  keyboard driver instead.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called tosakbd.

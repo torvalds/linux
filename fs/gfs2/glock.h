@@ -180,6 +180,13 @@ static inline int gfs2_glock_is_held_shrd(struct gfs2_glock *gl)
 	return gl->gl_state == LM_ST_SHARED;
 }
 
+static inline struct address_space *gfs2_glock2aspace(struct gfs2_glock *gl)
+{
+	if (gl->gl_ops->go_flags & GLOF_ASPACE)
+		return (struct address_space *)(gl + 1);
+	return NULL;
+}
+
 int gfs2_glock_get(struct gfs2_sbd *sdp,
 		   u64 number, const struct gfs2_glock_operations *glops,
 		   int create, struct gfs2_glock **glp);

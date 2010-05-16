@@ -52,6 +52,32 @@ static bool ebt_mark_tg_check(const struct xt_tgchk_param *par)
 		return false;
 	return true;
 }
+#ifdef CONFIG_COMPAT
+struct compat_ebt_mark_t_info {
+	compat_ulong_t mark;
+	compat_uint_t target;
+};
+
+static void mark_tg_compat_from_user(void *dst, const void *src)
+{
+	const struct compat_ebt_mark_t_info *user = src;
+	struct ebt_mark_t_info *kern = dst;
+
+	kern->mark = user->mark;
+	kern->target = user->target;
+}
+
+static int mark_tg_compat_to_user(void __user *dst, const void *src)
+{
+	struct compat_ebt_mark_t_info __user *user = dst;
+	const struct ebt_mark_t_info *kern = src;
+
+	if (put_user(kern->mark, &user->mark) ||
+	    put_user(kern->target, &user->target))
+		return -EFAULT;
+	return 0;
+}
+#endif
 
 static struct xt_target ebt_mark_tg_reg __read_mostly = {
 	.name		= "mark",
@@ -59,7 +85,12 @@ static struct xt_target ebt_mark_tg_reg __read_mostly = {
 	.family		= NFPROTO_BRIDGE,
 	.target		= ebt_mark_tg,
 	.checkentry	= ebt_mark_tg_check,
-	.targetsize	= XT_ALIGN(sizeof(struct ebt_mark_t_info)),
+	.targetsize	= sizeof(struct ebt_mark_t_info),
+#ifdef CONFIG_COMPAT
+	.compatsize	= sizeof(struct compat_ebt_mark_t_info),
+	.compat_from_user = mark_tg_compat_from_user,
+	.compat_to_user	= mark_tg_compat_to_user,
+#endif
 	.me		= THIS_MODULE,
 };
 

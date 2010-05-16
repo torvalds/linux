@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -55,11 +55,10 @@ ACPI_MODULE_NAME("exfldio")
 static acpi_status
 acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 		       u32 field_datum_byte_offset,
-		       acpi_integer * value, u32 read_write);
+		       u64 *value, u32 read_write);
 
 static u8
-acpi_ex_register_overflow(union acpi_operand_object *obj_desc,
-			  acpi_integer value);
+acpi_ex_register_overflow(union acpi_operand_object *obj_desc, u64 value);
 
 static acpi_status
 acpi_ex_setup_region(union acpi_operand_object *obj_desc,
@@ -212,7 +211,7 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
  *              field_datum_byte_offset - Byte offset of this datum within the
  *                                        parent field
  *              Value                   - Where to store value (must at least
- *                                        the size of acpi_integer)
+ *                                        64 bits)
  *              Function                - Read or Write flag plus other region-
  *                                        dependent flags
  *
@@ -224,8 +223,7 @@ acpi_ex_setup_region(union acpi_operand_object *obj_desc,
 
 acpi_status
 acpi_ex_access_region(union acpi_operand_object *obj_desc,
-		      u32 field_datum_byte_offset,
-		      acpi_integer * value, u32 function)
+		      u32 field_datum_byte_offset, u64 *value, u32 function)
 {
 	acpi_status status;
 	union acpi_operand_object *rgn_desc;
@@ -317,8 +315,7 @@ acpi_ex_access_region(union acpi_operand_object *obj_desc,
  ******************************************************************************/
 
 static u8
-acpi_ex_register_overflow(union acpi_operand_object *obj_desc,
-			  acpi_integer value)
+acpi_ex_register_overflow(union acpi_operand_object *obj_desc, u64 value)
 {
 
 	if (obj_desc->common_field.bit_length >= ACPI_INTEGER_BIT_SIZE) {
@@ -329,7 +326,7 @@ acpi_ex_register_overflow(union acpi_operand_object *obj_desc,
 		return (FALSE);
 	}
 
-	if (value >= ((acpi_integer) 1 << obj_desc->common_field.bit_length)) {
+	if (value >= ((u64) 1 << obj_desc->common_field.bit_length)) {
 		/*
 		 * The Value is larger than the maximum value that can fit into
 		 * the register.
@@ -362,11 +359,10 @@ acpi_ex_register_overflow(union acpi_operand_object *obj_desc,
 
 static acpi_status
 acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
-		       u32 field_datum_byte_offset,
-		       acpi_integer * value, u32 read_write)
+		       u32 field_datum_byte_offset, u64 *value, u32 read_write)
 {
 	acpi_status status;
-	acpi_integer local_value;
+	u64 local_value;
 
 	ACPI_FUNCTION_TRACE_U32(ex_field_datum_io, field_datum_byte_offset);
 
@@ -439,8 +435,8 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 		 * the register
 		 */
 		if (acpi_ex_register_overflow(obj_desc->bank_field.bank_obj,
-					      (acpi_integer) obj_desc->
-					      bank_field.value)) {
+					      (u64) obj_desc->bank_field.
+					      value)) {
 			return_ACPI_STATUS(AE_AML_REGISTER_LIMIT);
 		}
 
@@ -481,8 +477,8 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 		 * the register
 		 */
 		if (acpi_ex_register_overflow(obj_desc->index_field.index_obj,
-					      (acpi_integer) obj_desc->
-					      index_field.value)) {
+					      (u64) obj_desc->index_field.
+					      value)) {
 			return_ACPI_STATUS(AE_AML_REGISTER_LIMIT);
 		}
 
@@ -512,7 +508,7 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 			status =
 			    acpi_ex_extract_from_field(obj_desc->index_field.
 						       data_obj, value,
-						       sizeof(acpi_integer));
+						       sizeof(u64));
 		} else {
 			/* Write the datum to the data_register */
 
@@ -523,7 +519,7 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 			status =
 			    acpi_ex_insert_into_field(obj_desc->index_field.
 						      data_obj, value,
-						      sizeof(acpi_integer));
+						      sizeof(u64));
 		}
 		break;
 
@@ -571,13 +567,12 @@ acpi_ex_field_datum_io(union acpi_operand_object *obj_desc,
 
 acpi_status
 acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
-			       acpi_integer mask,
-			       acpi_integer field_value,
-			       u32 field_datum_byte_offset)
+			       u64 mask,
+			       u64 field_value, u32 field_datum_byte_offset)
 {
 	acpi_status status = AE_OK;
-	acpi_integer merged_value;
-	acpi_integer current_value;
+	u64 merged_value;
+	u64 current_value;
 
 	ACPI_FUNCTION_TRACE_U32(ex_write_with_update_rule, mask);
 
@@ -587,7 +582,7 @@ acpi_ex_write_with_update_rule(union acpi_operand_object *obj_desc,
 
 	/* If the mask is all ones, we don't need to worry about the update rule */
 
-	if (mask != ACPI_INTEGER_MAX) {
+	if (mask != ACPI_UINT64_MAX) {
 
 		/* Decode the update rule */
 
@@ -678,8 +673,8 @@ acpi_ex_extract_from_field(union acpi_operand_object *obj_desc,
 			   void *buffer, u32 buffer_length)
 {
 	acpi_status status;
-	acpi_integer raw_datum;
-	acpi_integer merged_datum;
+	u64 raw_datum;
+	u64 merged_datum;
 	u32 field_offset = 0;
 	u32 buffer_offset = 0;
 	u32 buffer_tail_bits;
@@ -804,10 +799,10 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 			  void *buffer, u32 buffer_length)
 {
 	acpi_status status;
-	acpi_integer mask;
-	acpi_integer width_mask;
-	acpi_integer merged_datum;
-	acpi_integer raw_datum = 0;
+	u64 mask;
+	u64 width_mask;
+	u64 merged_datum;
+	u64 raw_datum = 0;
 	u32 field_offset = 0;
 	u32 buffer_offset = 0;
 	u32 buffer_tail_bits;
@@ -855,7 +850,7 @@ acpi_ex_insert_into_field(union acpi_operand_object *obj_desc,
 	 * shift operator
 	 */
 	if (obj_desc->common_field.access_bit_width == ACPI_INTEGER_BIT_SIZE) {
-		width_mask = ACPI_INTEGER_MAX;
+		width_mask = ACPI_UINT64_MAX;
 	} else {
 		width_mask =
 		    ACPI_MASK_BITS_ABOVE(obj_desc->common_field.

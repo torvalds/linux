@@ -275,7 +275,7 @@ struct snd_ali {
 #endif
 };
 
-static struct pci_device_id snd_ali_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_ali_ids) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M5451), 0, 0, 0},
 	{0, }
 };

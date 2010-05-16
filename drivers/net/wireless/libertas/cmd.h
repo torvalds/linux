@@ -110,18 +110,6 @@ int lbs_set_snmp_mib(struct lbs_private *priv, u32 oid, u16 val);
 int lbs_get_snmp_mib(struct lbs_private *priv, u32 oid, u16 *out_val);
 
 
-/* Mesh related */
-
-int lbs_mesh_access(struct lbs_private *priv, uint16_t cmd_action,
-		    struct cmd_ds_mesh_access *cmd);
-
-int lbs_mesh_config_send(struct lbs_private *priv,
-			 struct cmd_ds_mesh_config *cmd,
-			 uint16_t action, uint16_t type);
-
-int lbs_mesh_config(struct lbs_private *priv, uint16_t enable, uint16_t chan);
-
-
 /* Commands only used in wext.c, assoc. and scan.c */
 
 int lbs_set_power_adapt_cfg(struct lbs_private *priv, int enable, int8_t p0,

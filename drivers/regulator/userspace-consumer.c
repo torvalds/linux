@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/userspace-consumer.h>
+#include <linux/slab.h>
 
 struct userspace_consumer_data {
 	const char *name;

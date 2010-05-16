@@ -806,7 +806,7 @@ static int find_psb_table(struct powernow_k8_data *data)
 static void powernow_k8_acpi_pst_values(struct powernow_k8_data *data,
 		unsigned int index)
 {
-	acpi_integer control;
+	u64 control;
 
 	if (!data->acpi_data.state_count || (cpu_family == CPU_HW_PSTATE))
 		return;
@@ -824,7 +824,7 @@ static int powernow_k8_cpu_init_acpi(struct powernow_k8_data *data)
 {
 	struct cpufreq_frequency_table *powernow_table;
 	int ret_val = -ENODEV;
-	acpi_integer control, status;
+	u64 control, status;
 
 	if (acpi_processor_register_performance(&data->acpi_data, data->cpu)) {
 		dprintk("register performance failed: bad ACPI data\n");
@@ -929,7 +929,8 @@ static int fill_powernow_table_pstate(struct powernow_k8_data *data,
 		powernow_table[i].index = index;
 
 		/* Frequency may be rounded for these */
-		if (boot_cpu_data.x86 == 0x10 || boot_cpu_data.x86 == 0x11) {
+		if ((boot_cpu_data.x86 == 0x10 && boot_cpu_data.x86_model < 10)
+				 || boot_cpu_data.x86 == 0x11) {
 			powernow_table[i].frequency =
 				freq_from_fid_did(lo & 0x3f, (lo >> 6) & 7);
 		} else
@@ -948,7 +949,7 @@ static int fill_powernow_table_fidvid(struct powernow_k8_data *data,
 		u32 fid;
 		u32 vid;
 		u32 freq, index;
-		acpi_integer status, control;
+		u64 status, control;
 
 		if (data->exttype) {
 			status =  data->acpi_data.states[i].status;

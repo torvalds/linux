@@ -1487,7 +1487,7 @@ static int __devinit usbvision_register_video(struct usb_usbvision *usbvision)
 		usbvision->vbi = usbvision_vdev_init(usbvision,
 						     &usbvision_vbi_template,
 						     "USBVision VBI");
-		if (usbvision->vdev == NULL) {
+		if (usbvision->vbi == NULL) {
 			goto err_exit;
 		}
 		if (video_register_device(usbvision->vbi,

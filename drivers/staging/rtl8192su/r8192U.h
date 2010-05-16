@@ -1258,7 +1258,6 @@ typedef struct r8192_priv
 	u8 Rf_Mode; //add for Firmware RF -R/W switch
 	prt_firmware		pFirmware;
 	rtl819xUsb_loopback_e	LoopbackMode;
-	firmware_source_e	firmware_source;
 	bool usb_error;
 
 	u16 EEPROMTxPowerDiff;

@@ -26,7 +26,6 @@
 
 #define __NO_VERSION__
 #include "comedi.h"
-#include <linux/smp_lock.h>
 #include <linux/uaccess.h>
 
 #include "comedi_compat32.h"

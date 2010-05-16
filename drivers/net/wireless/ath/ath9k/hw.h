@@ -40,6 +40,7 @@
 #define AR9280_DEVID_PCI	0x0029
 #define AR9280_DEVID_PCIE	0x002a
 #define AR9285_DEVID_PCIE	0x002b
+#define AR2427_DEVID_PCIE	0x002c
 
 #define AR5416_AR9100_DEVID	0x000b
 
@@ -212,7 +213,7 @@ struct ath9k_ops_config {
 	u32 cck_trig_low;
 	u32 enable_ani;
 	int serialize_regmode;
-	bool intr_mitigation;
+	bool rx_intr_mitigation;
 #define SPUR_DISABLE        	0
 #define SPUR_ENABLE_IOCTL   	1
 #define SPUR_ENABLE_EEPROM  	2
@@ -551,10 +552,9 @@ struct ath_hw {
 	u32 *bank6Temp;
 
 	int16_t txpower_indexoffset;
+	int coverage_class;
 	u32 beacon_interval;
 	u32 slottime;
-	u32 acktimeout;
-	u32 ctstimeout;
 	u32 globaltxtimeout;
 
 	/* ANI */
@@ -616,7 +616,7 @@ static inline struct ath_regulatory *ath9k_hw_regulatory(struct ath_hw *ah)
 
 /* Initialization, Detach, Reset */
 const char *ath9k_hw_probe(u16 vendorid, u16 devid);
-void ath9k_hw_detach(struct ath_hw *ah);
+void ath9k_hw_deinit(struct ath_hw *ah);
 int ath9k_hw_init(struct ath_hw *ah);
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   bool bChannelChange);
@@ -668,7 +668,7 @@ void ath9k_hw_settsf64(struct ath_hw *ah, u64 tsf64);
 void ath9k_hw_reset_tsf(struct ath_hw *ah);
 void ath9k_hw_set_tsfadjust(struct ath_hw *ah, u32 setting);
 u64 ath9k_hw_extend_tsf(struct ath_hw *ah, u32 rstamp);
-bool ath9k_hw_setslottime(struct ath_hw *ah, u32 us);
+void ath9k_hw_init_global_settings(struct ath_hw *ah);
 void ath9k_hw_set11nmac2040(struct ath_hw *ah);
 void ath9k_hw_beaconinit(struct ath_hw *ah, u32 next_beacon, u32 beacon_period);
 void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,

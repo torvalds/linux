@@ -88,12 +88,12 @@ changes occur:
 	This is used primarily during fault processing.
 
 5) void update_mmu_cache(struct vm_area_struct *vma,
-			 unsigned long address, pte_t pte)
+			 unsigned long address, pte_t *ptep)
 
 	At the end of every page fault, this routine is invoked to
 	tell the architecture specific code that a translation
-	described by "pte" now exists at virtual address "address"
-	for address space "vma->vm_mm", in the software page tables.
+	now exists at virtual address "address" for address space
+	"vma->vm_mm", in the software page tables.
 
 	A port may use this information in any way it so chooses.
 	For example, it could use this event to pre-load TLB
@@ -377,3 +377,27 @@ maps this page at its virtual address.
 	All the functionality of flush_icache_page can be implemented in
 	flush_dcache_page and update_mmu_cache. In 2.7 the hope is to
 	remove this interface completely.
+
+The final category of APIs is for I/O to deliberately aliased address
+ranges inside the kernel.  Such aliases are set up by use of the
+vmap/vmalloc API.  Since kernel I/O goes via physical pages, the I/O
+subsystem assumes that the user mapping and kernel offset mapping are
+the only aliases.  This isn't true for vmap aliases, so anything in
+the kernel trying to do I/O to vmap areas must manually manage
+coherency.  It must do this by flushing the vmap range before doing
+I/O and invalidating it after the I/O returns.
+
+  void flush_kernel_vmap_range(void *vaddr, int size)
+       flushes the kernel cache for a given virtual address range in
+       the vmap area.  This is to make sure that any data the kernel
+       modified in the vmap range is made visible to the physical
+       page.  The design is to make this area safe to perform I/O on.
+       Note that this API does *not* also flush the offset map alias
+       of the area.
+
+  void invalidate_kernel_vmap_range(void *vaddr, int size) invalidates
+       the cache for a given virtual address range in the vmap area
+       which prevents the processor from making the cache stale by
+       speculatively reading data while the I/O was occurring to the
+       physical pages.  This is only necessary for data reads into the
+       vmap area.

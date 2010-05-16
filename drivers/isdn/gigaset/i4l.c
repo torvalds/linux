@@ -216,7 +216,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		return -EINVAL;
 
 	case ISDN_CMD_DIAL:
-		gig_dbg(DEBUG_ANY,
+		gig_dbg(DEBUG_CMD,
 			"ISDN_CMD_DIAL (phone: %s, msn: %s, si1: %d, si2: %d)",
 			cntrl->parm.setup.phone, cntrl->parm.setup.eazmsn,
 			cntrl->parm.setup.si1, cntrl->parm.setup.si2);
@@ -304,11 +304,10 @@ static int command_from_LL(isdn_ctrl *cntrl)
 			gigaset_free_channel(bcs);
 			return -ENOMEM;
 		}
-
-		gig_dbg(DEBUG_CMD, "scheduling DIAL");
 		gigaset_schedule_event(cs);
 		break;
 	case ISDN_CMD_ACCEPTD:
+		gig_dbg(DEBUG_CMD, "ISDN_CMD_ACCEPTD");
 		if (ch >= cs->channels) {
 			dev_err(cs->dev,
 				"ISDN_CMD_ACCEPTD: invalid channel (%d)\n", ch);
@@ -318,14 +317,11 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		if (!gigaset_add_event(cs, &bcs->at_state,
 				       EV_ACCEPT, NULL, 0, NULL))
 			return -ENOMEM;
-
-		gig_dbg(DEBUG_CMD, "scheduling ACCEPT");
 		gigaset_schedule_event(cs);
 
 		break;
-	case ISDN_CMD_ACCEPTB:
-		break;
 	case ISDN_CMD_HANGUP:
+		gig_dbg(DEBUG_CMD, "ISDN_CMD_HANGUP");
 		if (ch >= cs->channels) {
 			dev_err(cs->dev,
 				"ISDN_CMD_HANGUP: invalid channel (%d)\n", ch);
@@ -335,8 +331,6 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		if (!gigaset_add_event(cs, &bcs->at_state,
 				       EV_HUP, NULL, 0, NULL))
 			return -ENOMEM;
-
-		gig_dbg(DEBUG_CMD, "scheduling HUP");
 		gigaset_schedule_event(cs);
 
 		break;
@@ -376,6 +370,7 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		}
 		break;
 	case ISDN_CMD_SETL3: /* Set L3 to given protocol */
+		gig_dbg(DEBUG_CMD, "ISDN_CMD_SETL3");
 		if (ch >= cs->channels) {
 			dev_err(cs->dev,
 				"ISDN_CMD_SETL3: invalid channel (%d)\n", ch);
@@ -390,44 +385,9 @@ static int command_from_LL(isdn_ctrl *cntrl)
 		}
 
 		break;
-	case ISDN_CMD_PROCEED:
-		gig_dbg(DEBUG_ANY, "ISDN_CMD_PROCEED");
-		break;
-	case ISDN_CMD_ALERT:
-		gig_dbg(DEBUG_ANY, "ISDN_CMD_ALERT");
-		if (cntrl->arg >= cs->channels) {
-			dev_err(cs->dev,
-				"ISDN_CMD_ALERT: invalid channel (%d)\n",
-				(int) cntrl->arg);
-			return -EINVAL;
-		}
-		break;
-	case ISDN_CMD_REDIR:
-		gig_dbg(DEBUG_ANY, "ISDN_CMD_REDIR");
-		break;
-	case ISDN_CMD_PROT_IO:
-		gig_dbg(DEBUG_ANY, "ISDN_CMD_PROT_IO");
-		break;
-	case ISDN_CMD_FAXCMD:
-		gig_dbg(DEBUG_ANY, "ISDN_CMD_FAXCMD");
-		break;
-	case ISDN_CMD_GETL2:
-		gig_dbg(DEBUG_ANY, "ISDN_CMD_GETL2");
-		break;
-	case ISDN_CMD_GETL3:
-		gig_dbg(DEBUG_ANY, "ISDN_CMD_GETL3");
-		break;
-	case ISDN_CMD_GETEAZ:
-		gig_dbg(DEBUG_ANY, "ISDN_CMD_GETEAZ");
-		break;
-	case ISDN_CMD_SETSIL:
-		gig_dbg(DEBUG_ANY, "ISDN_CMD_SETSIL");
-		break;
-	case ISDN_CMD_GETSIL:
-		gig_dbg(DEBUG_ANY, "ISDN_CMD_GETSIL");
-		break;
+
 	default:
-		dev_err(cs->dev, "unknown command %d from LL\n",
+		gig_dbg(DEBUG_CMD, "unknown command %d from LL",
 			cntrl->command);
 		return -EINVAL;
 	}
@@ -632,15 +592,13 @@ void gigaset_isdn_stop(struct cardstate *cs)
 }
 
 /**
- * gigaset_isdn_register() - register to LL
+ * gigaset_isdn_regdev() - register to LL
  * @cs:		device descriptor structure.
  * @isdnid:	device name.
  *
- * Called by main module to register the device with the LL.
- *
  * Return value: 1 for success, 0 for failure
  */
-int gigaset_isdn_register(struct cardstate *cs, const char *isdnid)
+int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 {
 	isdn_if *iif;
 
@@ -690,15 +648,29 @@ int gigaset_isdn_register(struct cardstate *cs, const char *isdnid)
 }
 
 /**
- * gigaset_isdn_unregister() - unregister from LL
+ * gigaset_isdn_unregdev() - unregister device from LL
  * @cs:		device descriptor structure.
- *
- * Called by main module to unregister the device from the LL.
  */
-void gigaset_isdn_unregister(struct cardstate *cs)
+void gigaset_isdn_unregdev(struct cardstate *cs)
 {
 	gig_dbg(DEBUG_CMD, "sending UNLOAD");
 	gigaset_i4l_cmd(cs, ISDN_STAT_UNLOAD);
 	kfree(cs->iif);
 	cs->iif = NULL;
+}
+
+/**
+ * gigaset_isdn_regdrv() - register driver to LL
+ */
+void gigaset_isdn_regdrv(void)
+{
+	/* nothing to do */
+}
+
+/**
+ * gigaset_isdn_unregdrv() - unregister driver from LL
+ */
+void gigaset_isdn_unregdrv(void)
+{
+	/* nothing to do */
 }

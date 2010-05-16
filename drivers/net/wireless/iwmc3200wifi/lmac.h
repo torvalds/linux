@@ -262,7 +262,7 @@ struct iwm_ct_kill_cfg_cmd {
 
 /* Power Management */
 #define POWER_TABLE_CMD			0x77
-#define SAVE_RESTORE_ADRESS_CMD		0x78
+#define SAVE_RESTORE_ADDRESS_CMD		0x78
 #define REPLY_WATERMARK_CMD		0x79
 #define PM_DEBUG_STATISTIC_NOTIFIC	0x7B
 #define PD_FLUSH_N_NOTIFICATION		0x7C

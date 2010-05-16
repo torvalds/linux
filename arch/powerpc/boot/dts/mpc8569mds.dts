@@ -535,6 +535,7 @@
 			rx-clock-name = "none";
 			tx-clock-name = "clk12";
 			pio-handle = <&pio1>;
+			tbi-handle = <&tbi1>;
 			phy-handle = <&qe_phy0>;
 			phy-connection-type = "rgmii-id";
 		};
@@ -579,7 +580,7 @@
 				reg = <0x6>;
 				device_type = "ethernet-phy";
 			};
-			tbi-phy@11 {
+			tbi1: tbi-phy@11 {
 				reg = <0x11>;
 				device_type = "tbi-phy";
 			};
@@ -590,7 +591,7 @@
 			reg = <0x3520 0x18>;
 			compatible = "fsl,ucc-mdio";
 
-			tbi0: tbi-phy@15 {
+			tbi6: tbi-phy@15 {
 			reg = <0x15>;
 			device_type = "tbi-phy";
 			};
@@ -600,7 +601,7 @@
 			#size-cells = <0>;
 			reg = <0x3720 0x38>;
 			compatible = "fsl,ucc-mdio";
-			tbi1: tbi-phy@17 {
+			tbi8: tbi-phy@17 {
 				reg = <0x17>;
 				device_type = "tbi-phy";
 			};
@@ -617,8 +618,20 @@
 			rx-clock-name = "none";
 			tx-clock-name = "clk12";
 			pio-handle = <&pio3>;
+			tbi-handle = <&tbi3>;
 			phy-handle = <&qe_phy2>;
 			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@2320 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x2320 0x18>;
+			compatible = "fsl,ucc-mdio";
+			tbi3: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
 		};
 
 		enet1: ucc@3000 {
@@ -632,8 +645,20 @@
 			rx-clock-name = "none";
 			tx-clock-name = "clk17";
 			pio-handle = <&pio2>;
+			tbi-handle = <&tbi2>;
 			phy-handle = <&qe_phy1>;
 			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@3120 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3120 0x18>;
+			compatible = "fsl,ucc-mdio";
+			tbi2: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
 		};
 
 		enet3: ucc@3200 {
@@ -647,8 +672,20 @@
 			rx-clock-name = "none";
 			tx-clock-name = "clk17";
 			pio-handle = <&pio4>;
+			tbi-handle = <&tbi4>;
 			phy-handle = <&qe_phy3>;
 			phy-connection-type = "rgmii-id";
+		};
+
+		mdio@3320 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0x3320 0x18>;
+			compatible = "fsl,ucc-mdio";
+			tbi4: tbi-phy@11 {
+				reg = <0x11>;
+				device_type = "tbi-phy";
+			};
 		};
 
 		enet5: ucc@3400 {
@@ -661,7 +698,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			rx-clock-name = "none";
 			tx-clock-name = "none";
-			tbi-handle = <&tbi0>;
+			tbi-handle = <&tbi6>;
 			phy-handle = <&qe_phy5>;
 			phy-connection-type = "sgmii";
 		};
@@ -676,7 +713,7 @@
 			local-mac-address = [ 00 00 00 00 00 00 ];
 			rx-clock-name = "none";
 			tx-clock-name = "none";
-			tbi-handle = <&tbi1>;
+			tbi-handle = <&tbi8>;
 			phy-handle = <&qe_phy7>;
 			phy-connection-type = "sgmii";
 		};

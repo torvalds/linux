@@ -32,7 +32,7 @@ struct efx_loopback_self_tests {
  */
 struct efx_self_tests {
 	/* online tests */
-	int mdio;
+	int phy_alive;
 	int nvram;
 	int interrupt;
 	int eventq_dma[EFX_MAX_CHANNELS];
@@ -40,7 +40,7 @@ struct efx_self_tests {
 	int eventq_poll[EFX_MAX_CHANNELS];
 	/* offline tests */
 	int registers;
-	int phy[EFX_MAX_PHY_TESTS];
+	int phy_ext[EFX_MAX_PHY_TESTS];
 	struct efx_loopback_self_tests loopback[LOOPBACK_TEST_MAX + 1];
 };
 

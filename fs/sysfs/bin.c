@@ -54,14 +54,14 @@ fill_read(struct dentry *dentry, char *buffer, loff_t off, size_t count)
 	int rc;
 
 	/* need attr_sd for attr, its parent for kobj */
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return -ENODEV;
 
 	rc = -EIO;
 	if (attr->read)
 		rc = attr->read(kobj, attr, buffer, off, count);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 
 	return rc;
 }
@@ -125,14 +125,14 @@ flush_write(struct dentry *dentry, char *buffer, loff_t offset, size_t count)
 	int rc;
 
 	/* need attr_sd for attr, its parent for kobj */
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return -ENODEV;
 
 	rc = -EIO;
 	if (attr->write)
 		rc = attr->write(kobj, attr, buffer, offset, count);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 
 	return rc;
 }
@@ -184,12 +184,12 @@ static void bin_vma_open(struct vm_area_struct *vma)
 	if (!bb->vm_ops || !bb->vm_ops->open)
 		return;
 
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return;
 
 	bb->vm_ops->open(vma);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 }
 
 static void bin_vma_close(struct vm_area_struct *vma)
@@ -201,12 +201,12 @@ static void bin_vma_close(struct vm_area_struct *vma)
 	if (!bb->vm_ops || !bb->vm_ops->close)
 		return;
 
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return;
 
 	bb->vm_ops->close(vma);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 }
 
 static int bin_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
@@ -219,12 +219,12 @@ static int bin_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (!bb->vm_ops || !bb->vm_ops->fault)
 		return VM_FAULT_SIGBUS;
 
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return VM_FAULT_SIGBUS;
 
 	ret = bb->vm_ops->fault(vma, vmf);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 	return ret;
 }
 
@@ -241,12 +241,12 @@ static int bin_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	if (!bb->vm_ops->page_mkwrite)
 		return 0;
 
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return VM_FAULT_SIGBUS;
 
 	ret = bb->vm_ops->page_mkwrite(vma, vmf);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 	return ret;
 }
 
@@ -261,12 +261,12 @@ static int bin_access(struct vm_area_struct *vma, unsigned long addr,
 	if (!bb->vm_ops || !bb->vm_ops->access)
 		return -EINVAL;
 
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return -EINVAL;
 
 	ret = bb->vm_ops->access(vma, addr, buf, len, write);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 	return ret;
 }
 
@@ -281,12 +281,12 @@ static int bin_set_policy(struct vm_area_struct *vma, struct mempolicy *new)
 	if (!bb->vm_ops || !bb->vm_ops->set_policy)
 		return 0;
 
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return -EINVAL;
 
 	ret = bb->vm_ops->set_policy(vma, new);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 	return ret;
 }
 
@@ -301,12 +301,12 @@ static struct mempolicy *bin_get_policy(struct vm_area_struct *vma,
 	if (!bb->vm_ops || !bb->vm_ops->get_policy)
 		return vma->vm_policy;
 
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return vma->vm_policy;
 
 	pol = bb->vm_ops->get_policy(vma, addr);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 	return pol;
 }
 
@@ -321,12 +321,12 @@ static int bin_migrate(struct vm_area_struct *vma, const nodemask_t *from,
 	if (!bb->vm_ops || !bb->vm_ops->migrate)
 		return 0;
 
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return 0;
 
 	ret = bb->vm_ops->migrate(vma, from, to, flags);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 	return ret;
 }
 #endif
@@ -356,7 +356,7 @@ static int mmap(struct file *file, struct vm_area_struct *vma)
 
 	/* need attr_sd for attr, its parent for kobj */
 	rc = -ENODEV;
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		goto out_unlock;
 
 	rc = -EINVAL;
@@ -384,7 +384,7 @@ static int mmap(struct file *file, struct vm_area_struct *vma)
 	bb->vm_ops = vma->vm_ops;
 	vma->vm_ops = &bin_vm_ops;
 out_put:
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 out_unlock:
 	mutex_unlock(&bb->mutex);
 
@@ -399,7 +399,7 @@ static int open(struct inode * inode, struct file * file)
 	int error;
 
 	/* binary file operations requires both @sd and its parent */
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return -ENODEV;
 
 	error = -EACCES;
@@ -426,11 +426,11 @@ static int open(struct inode * inode, struct file * file)
 	mutex_unlock(&sysfs_bin_lock);
 
 	/* open succeeded, put active references */
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 	return 0;
 
  err_out:
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 	kfree(bb);
 	return error;
 }

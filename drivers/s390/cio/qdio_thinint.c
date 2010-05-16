@@ -7,6 +7,7 @@
  *	      Jan Glauber <jang@linux.vnet.ibm.com>
  */
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <asm/atomic.h>
 #include <asm/debug.h>
 #include <asm/qdio.h>
@@ -198,8 +199,8 @@ static int set_subchannel_ind(struct qdio_irq *irq_ptr, int reset)
 		.code	= 0x0021,
 	};
 	scssc_area->operation_code = 0;
-	scssc_area->ks = PAGE_DEFAULT_KEY;
-	scssc_area->kc = PAGE_DEFAULT_KEY;
+	scssc_area->ks = PAGE_DEFAULT_KEY >> 4;
+	scssc_area->kc = PAGE_DEFAULT_KEY >> 4;
 	scssc_area->isc = QDIO_AIRQ_ISC;
 	scssc_area->schid = irq_ptr->schid;
 

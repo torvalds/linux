@@ -20,7 +20,6 @@
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/utsname.h>
 #include <linux/time.h>
@@ -37,6 +36,7 @@
 #include <linux/uio.h>
 #include <linux/vfs.h>
 #include <linux/rcupdate.h>
+#include <linux/slab.h>
 
 #include <asm/fpu.h>
 #include <asm/io.h>
@@ -361,7 +361,7 @@ osf_procfs_mount(char *dirname, struct procfs_args __user *args, int flags)
 SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, char __user *, path,
 		int, flag, void __user *, data)
 {
-	int retval = -EINVAL;
+	int retval;
 	char *name;
 
 	name = getname(path);
@@ -379,6 +379,7 @@ SYSCALL_DEFINE4(osf_mount, unsigned long, typenr, char __user *, path,
 		retval = osf_procfs_mount(name, data, flag);
 		break;
 	default:
+		retval = -EINVAL;
 		printk("osf_mount(%ld, %x)\n", typenr, flag);
 	}
 	putname(name);

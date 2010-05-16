@@ -15,7 +15,6 @@
 #include <linux/irq.h>
 #include <linux/bitops.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/random.h>
 #include <linux/sched.h>
@@ -512,10 +511,6 @@ void __init arch_init_irq(void)
 				"level");
 			break;
 
-		case CRIME_GBE0_IRQ ... CRIME_GBE3_IRQ:
-			set_irq_chip_and_handler_name(irq,
-				&crime_edge_interrupt, handle_edge_irq, "edge");
-			break;
 		case CRIME_CPUERR_IRQ:
 		case CRIME_MEMERR_IRQ:
 			set_irq_chip_and_handler_name(irq,
@@ -523,12 +518,9 @@ void __init arch_init_irq(void)
 				"level");
 			break;
 
+		case CRIME_GBE0_IRQ ... CRIME_GBE3_IRQ:
 		case CRIME_RE_EMPTY_E_IRQ ... CRIME_RE_IDLE_E_IRQ:
 		case CRIME_SOFT0_IRQ ... CRIME_SOFT2_IRQ:
-			set_irq_chip_and_handler_name(irq,
-				&crime_edge_interrupt, handle_edge_irq, "edge");
-			break;
-
 		case CRIME_VICE_IRQ:
 			set_irq_chip_and_handler_name(irq,
 				&crime_edge_interrupt, handle_edge_irq, "edge");

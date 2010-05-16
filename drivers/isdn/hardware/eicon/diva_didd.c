@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <net/net_namespace.h>
 
 #include "platform.h"
@@ -62,39 +63,41 @@ static char *getrev(const char *revision)
 	return rev;
 }
 
-static int
-proc_read(char *page, char **start, off_t off, int count, int *eof,
-	  void *data)
+static int divadidd_proc_show(struct seq_file *m, void *v)
 {
-	int len = 0;
 	char tmprev[32];
 
 	strcpy(tmprev, main_revision);
-	len += sprintf(page + len, "%s\n", DRIVERNAME);
-	len += sprintf(page + len, "name     : %s\n", DRIVERLNAME);
-	len += sprintf(page + len, "release  : %s\n", DRIVERRELEASE_DIDD);
-	len += sprintf(page + len, "build    : %s(%s)\n",
+	seq_printf(m, "%s\n", DRIVERNAME);
+	seq_printf(m, "name     : %s\n", DRIVERLNAME);
+	seq_printf(m, "release  : %s\n", DRIVERRELEASE_DIDD);
+	seq_printf(m, "build    : %s(%s)\n",
 		       diva_didd_common_code_build, DIVA_BUILD);
-	len += sprintf(page + len, "revision : %s\n", getrev(tmprev));
+	seq_printf(m, "revision : %s\n", getrev(tmprev));
 
-	if (off + count >= len)
-		*eof = 1;
-	if (len < off)
-		return 0;
-	*start = page + off;
-	return ((count < len - off) ? count : len - off);
+	return 0;
 }
+
+static int divadidd_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, divadidd_proc_show, NULL);
+}
+
+static const struct file_operations divadidd_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= divadidd_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 
 static int DIVA_INIT_FUNCTION create_proc(void)
 {
 	proc_net_eicon = proc_mkdir("eicon", init_net.proc_net);
 
 	if (proc_net_eicon) {
-		if ((proc_didd =
-		     create_proc_entry(DRIVERLNAME, S_IFREG | S_IRUGO,
-				       proc_net_eicon))) {
-			proc_didd->read_proc = proc_read;
-		}
+		proc_didd = proc_create(DRIVERLNAME, S_IRUGO, proc_net_eicon,
+					&divadidd_proc_fops);
 		return (1);
 	}
 	return (0);

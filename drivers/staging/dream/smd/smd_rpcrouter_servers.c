@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/wakelock.h>
+#include <linux/slab.h>
 
 #include <linux/msm_rpcrouter.h>
 #include <linux/uaccess.h>

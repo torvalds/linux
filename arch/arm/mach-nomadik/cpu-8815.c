@@ -86,11 +86,19 @@ static struct amba_device cpu8815_amba_gpio[] = {
 	},
 };
 
+static struct amba_device cpu8815_amba_rng = {
+	.dev = {
+		.init_name = "rng",
+	},
+	__MEM_4K_RESOURCE(NOMADIK_RNG_BASE),
+};
+
 static struct amba_device *amba_devs[] __initdata = {
 	cpu8815_amba_gpio + 0,
 	cpu8815_amba_gpio + 1,
 	cpu8815_amba_gpio + 2,
 	cpu8815_amba_gpio + 3,
+	&cpu8815_amba_rng
 };
 
 static int __init cpu8815_init(void)

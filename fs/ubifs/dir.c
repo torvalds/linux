@@ -1120,7 +1120,7 @@ static int ubifs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	if (release)
 		ubifs_release_budget(c, &ino_req);
 	if (IS_SYNC(old_inode))
-		err = old_inode->i_sb->s_op->write_inode(old_inode, 1);
+		err = old_inode->i_sb->s_op->write_inode(old_inode, NULL);
 	return err;
 
 out_cancel:

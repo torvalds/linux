@@ -35,6 +35,7 @@
 #include <linux/version.h>
 #include <linux/mm.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include "em28xx.h"
 #include <media/v4l2-common.h>
@@ -282,7 +283,7 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 {
 	void *startwrite, *startread;
 	int  offset;
-	int bytesperline = 720;
+	int bytesperline = dev->vbi_width;
 
 	if (dev == NULL) {
 		em28xx_isocdbg("dev is null\n");
@@ -323,8 +324,8 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 
 	/* Make sure the bottom field populates the second half of the frame */
 	if (buf->top_field == 0) {
-		startwrite += bytesperline * 0x0c;
-		offset += bytesperline * 0x0c;
+		startwrite += bytesperline * dev->vbi_height;
+		offset += bytesperline * dev->vbi_height;
 	}
 
 	memcpy(startwrite, startread, len);
@@ -578,8 +579,7 @@ static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
 			dev->cur_field = p[2];
 		}
 
-		/* FIXME: get rid of hard-coded value */
-		vbi_size = 720 * 0x0c;
+		vbi_size = dev->vbi_width * dev->vbi_height;
 
 		if (dev->capture_type == 0) {
 			if (dev->vbi_read >= vbi_size) {
@@ -1850,18 +1850,27 @@ static int vidioc_try_set_sliced_vbi_cap(struct file *file, void *priv,
 static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 				struct v4l2_format *format)
 {
-	format->fmt.vbi.samples_per_line = 720;
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+
+	format->fmt.vbi.samples_per_line = dev->vbi_width;
 	format->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
 	format->fmt.vbi.offset = 0;
 	format->fmt.vbi.flags = 0;
+	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2;
+	format->fmt.vbi.count[0] = dev->vbi_height;
+	format->fmt.vbi.count[1] = dev->vbi_height;
 
 	/* Varies by video standard (NTSC, PAL, etc.) */
-	/* FIXME: hard-coded for NTSC support */
-	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2; /* FIXME: ??? */
-	format->fmt.vbi.count[0] = 12;
-	format->fmt.vbi.count[1] = 12;
-	format->fmt.vbi.start[0] = 10;
-	format->fmt.vbi.start[1] = 273;
+	if (dev->norm & V4L2_STD_525_60) {
+		/* NTSC */
+		format->fmt.vbi.start[0] = 10;
+		format->fmt.vbi.start[1] = 273;
+	} else if (dev->norm & V4L2_STD_625_50) {
+		/* PAL */
+		format->fmt.vbi.start[0] = 6;
+		format->fmt.vbi.start[1] = 318;
+	}
 
 	return 0;
 }
@@ -1869,18 +1878,27 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 static int vidioc_s_fmt_vbi_cap(struct file *file, void *priv,
 				struct v4l2_format *format)
 {
-	format->fmt.vbi.samples_per_line = 720;
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+
+	format->fmt.vbi.samples_per_line = dev->vbi_width;
 	format->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
 	format->fmt.vbi.offset = 0;
 	format->fmt.vbi.flags = 0;
+	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2;
+	format->fmt.vbi.count[0] = dev->vbi_height;
+	format->fmt.vbi.count[1] = dev->vbi_height;
 
 	/* Varies by video standard (NTSC, PAL, etc.) */
-	/* FIXME: hard-coded for NTSC support */
-	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2; /* FIXME: ??? */
-	format->fmt.vbi.count[0] = 12;
-	format->fmt.vbi.count[1] = 12;
-	format->fmt.vbi.start[0] = 10;
-	format->fmt.vbi.start[1] = 273;
+	if (dev->norm & V4L2_STD_525_60) {
+		/* NTSC */
+		format->fmt.vbi.start[0] = 10;
+		format->fmt.vbi.start[1] = 273;
+	} else if (dev->norm & V4L2_STD_625_50) {
+		/* PAL */
+		format->fmt.vbi.start[0] = 6;
+		format->fmt.vbi.start[1] = 318;
+	}
 
 	return 0;
 }
@@ -1922,7 +1940,8 @@ static int vidioc_querybuf(struct file *file, void *priv,
 		   At a minimum, it causes a crash in zvbi since it does
 		   a memcpy based on the source buffer length */
 		int result = videobuf_querybuf(&fh->vb_vbiq, b);
-		b->length = 17280;
+		b->length = dev->vbi_width * dev->vbi_height * 2;
+
 		return result;
 	}
 }

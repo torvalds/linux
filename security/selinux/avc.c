@@ -337,7 +337,7 @@ static inline struct avc_node *avc_search_node(u32 ssid, u32 tsid, u16 tclass)
  * Look up an AVC entry that is valid for the
  * (@ssid, @tsid), interpreting the permissions
  * based on @tclass.  If a valid AVC entry exists,
- * then this function return the avc_node.
+ * then this function returns the avc_node.
  * Otherwise, this function returns NULL.
  */
 static struct avc_node *avc_lookup(u32 ssid, u32 tsid, u16 tclass)
@@ -489,17 +489,14 @@ void avc_audit(u32 ssid, u32 tsid,
 	struct common_audit_data stack_data;
 	u32 denied, audited;
 	denied = requested & ~avd->allowed;
-	if (denied) {
-		audited = denied;
-		if (!(audited & avd->auditdeny))
-			return;
-	} else if (result) {
+	if (denied)
+		audited = denied & avd->auditdeny;
+	else if (result)
 		audited = denied = requested;
-	} else {
-		audited = requested;
-		if (!(audited & avd->auditallow))
-			return;
-	}
+	else
+		audited = requested & avd->auditallow;
+	if (!audited)
+		return;
 	if (!a) {
 		a = &stack_data;
 		memset(a, 0, sizeof(*a));
@@ -526,7 +523,7 @@ void avc_audit(u32 ssid, u32 tsid,
  * @perms: permissions
  *
  * Register a callback function for events in the set @events
- * related to the SID pair (@ssid, @tsid) and
+ * related to the SID pair (@ssid, @tsid) 
  * and the permissions @perms, interpreting
  * @perms based on @tclass.  Returns %0 on success or
  * -%ENOMEM if insufficient memory exists to add the callback.
@@ -571,7 +568,7 @@ static inline int avc_sidcmp(u32 x, u32 y)
  *
  * if a valid AVC entry doesn't exist,this function returns -ENOENT.
  * if kmalloc() called internal returns NULL, this function returns -ENOMEM.
- * otherwise, this function update the AVC entry. The original AVC-entry object
+ * otherwise, this function updates the AVC entry. The original AVC-entry object
  * will release later by RCU.
  */
 static int avc_update_node(u32 event, u32 perms, u32 ssid, u32 tsid, u16 tclass,
@@ -746,9 +743,7 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 		else
 			avd = &avd_entry;
 
-		rc = security_compute_av(ssid, tsid, tclass, requested, avd);
-		if (rc)
-			goto out;
+		security_compute_av(ssid, tsid, tclass, avd);
 		rcu_read_lock();
 		node = avc_insert(ssid, tsid, tclass, avd);
 	} else {
@@ -770,7 +765,6 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 	}
 
 	rcu_read_unlock();
-out:
 	return rc;
 }
 

@@ -1,4 +1,4 @@
-What:		/sys/devices/platform/asus-laptop/display
+What:		/sys/devices/platform/asus_laptop/display
 Date:		January 2007
 KernelVersion:	2.6.20
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
@@ -13,7 +13,7 @@ Description:
 		Ex: - 0 (0000b) means no display
 		    - 3 (0011b) CRT+LCD.
 
-What:		/sys/devices/platform/asus-laptop/gps
+What:		/sys/devices/platform/asus_laptop/gps
 Date:		January 2007
 KernelVersion:	2.6.20
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
@@ -21,7 +21,7 @@ Description:
 		Control the gps device. 1 means on, 0 means off.
 Users:		Lapsus
 
-What:		/sys/devices/platform/asus-laptop/ledd
+What:		/sys/devices/platform/asus_laptop/ledd
 Date:		January 2007
 KernelVersion:	2.6.20
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
@@ -29,11 +29,11 @@ Description:
 		Some models like the W1N have a LED display that can be
 		used to display several informations.
 		To control the LED display, use the following :
-		    echo 0x0T000DDD > /sys/devices/platform/asus-laptop/
+		    echo 0x0T000DDD > /sys/devices/platform/asus_laptop/
 		where T control the 3 letters display, and DDD the 3 digits display.
 		The DDD table can be found in Documentation/laptops/asus-laptop.txt
 
-What:		/sys/devices/platform/asus-laptop/bluetooth
+What:		/sys/devices/platform/asus_laptop/bluetooth
 Date:		January 2007
 KernelVersion:	2.6.20
 Contact:	"Corentin Chary" <corentincj@iksaif.net>
@@ -42,7 +42,7 @@ Description:
 		This may control the led, the device or both.
 Users:		Lapsus
 
-What:		/sys/devices/platform/asus-laptop/wlan
+What:		/sys/devices/platform/asus_laptop/wlan
 Date:		January 2007
 KernelVersion:	2.6.20
 Contact:	"Corentin Chary" <corentincj@iksaif.net>

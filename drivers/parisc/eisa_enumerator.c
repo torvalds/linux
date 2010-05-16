@@ -460,7 +460,7 @@ static int init_slot(int slot, struct eeprom_eisa_slot_info *es)
 			       slot, id_string);
 			
 			print_eisa_id(id_string, es->eisa_slot_id);
-			printk(" expected %s \n", id_string);
+			printk(" expected %s\n", id_string);
 		
 			return -1;	
 			

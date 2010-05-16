@@ -1170,7 +1170,7 @@ frames per second. If less than this number of frames is to be
 captured or output, applications can request frame skipping or
 duplicating on the driver side. This is especially useful when using
 the &func-read; or &func-write;, which are not augmented by timestamps
-or sequence counters, and to avoid unneccessary data copying.</para>
+or sequence counters, and to avoid unnecessary data copying.</para>
 
     <para>Finally these ioctls can be used to determine the number of
 buffers used internally by a driver in read/write mode. For

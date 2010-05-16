@@ -12,6 +12,7 @@
 #include "linux/module.h"
 #include "linux/sched.h"
 #include "linux/seq_file.h"
+#include "linux/slab.h"
 #include "as-layout.h"
 #include "kern_util.h"
 #include "os.h"

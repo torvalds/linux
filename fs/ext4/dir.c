@@ -83,10 +83,12 @@ int ext4_check_dir_entry(const char *function, struct inode *dir,
 		error_msg = "inode out of bounds";
 
 	if (error_msg != NULL)
-		ext4_error(dir->i_sb, function,
-			"bad entry in directory #%lu: %s - "
-			"offset=%u, inode=%u, rec_len=%d, name_len=%d",
-			dir->i_ino, error_msg, offset,
+		__ext4_error(dir->i_sb, function,
+			"bad entry in directory #%lu: %s - block=%llu"
+			"offset=%u(%u), inode=%u, rec_len=%d, name_len=%d",
+			dir->i_ino, error_msg, 
+			(unsigned long long) bh->b_blocknr,     
+			(unsigned) (offset%bh->b_size), offset,
 			le32_to_cpu(de->inode),
 			rlen, de->name_len);
 	return error_msg == NULL ? 1 : 0;
@@ -150,7 +152,7 @@ static int ext4_readdir(struct file *filp,
 		 */
 		if (!bh) {
 			if (!dir_has_error) {
-				ext4_error(sb, __func__, "directory #%lu "
+				ext4_error(sb, "directory #%lu "
 					   "contains a hole at offset %Lu",
 					   inode->i_ino,
 					   (unsigned long long) filp->f_pos);
@@ -303,7 +305,7 @@ static void free_rb_tree_fname(struct rb_root *root)
 			kfree(old);
 		}
 		if (!parent)
-			root->rb_node = NULL;
+			*root = RB_ROOT;
 		else if (parent->rb_left == n)
 			parent->rb_left = NULL;
 		else if (parent->rb_right == n)

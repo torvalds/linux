@@ -57,6 +57,7 @@
 #define OMAPFB_WAITFORGO	OMAP_IO(60)
 #define OMAPFB_GET_VRAM_INFO	OMAP_IOR(61, struct omapfb_vram_info)
 #define OMAPFB_SET_TEARSYNC	OMAP_IOW(62, struct omapfb_tearsync_info)
+#define OMAPFB_GET_DISPLAY_INFO	OMAP_IOR(63, struct omapfb_display_info)
 
 #define OMAPFB_CAPS_GENERIC_MASK	0x00000fff
 #define OMAPFB_CAPS_LCDC_MASK		0x00fff000
@@ -204,6 +205,14 @@ struct omapfb_tearsync_info {
 	__u8 reserved1[3];
 	__u16 line;
 	__u16 reserved2;
+};
+
+struct omapfb_display_info {
+	__u16 xres;
+	__u16 yres;
+	__u32 width;	/* phys width of the display in micrometers */
+	__u32 height;	/* phys height of the display in micrometers */
+	__u32 reserved[5];
 };
 
 #ifdef __KERNEL__

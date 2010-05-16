@@ -21,6 +21,7 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/regulator.h>
@@ -600,6 +601,8 @@ static __devexit int wm831x_buckv_remove(struct platform_device *pdev)
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
 	struct wm831x *wm831x = dcdc->wm831x;
 
+	platform_set_drvdata(pdev, NULL);
+
 	wm831x_free_irq(wm831x, platform_get_irq_byname(pdev, "HC"), dcdc);
 	wm831x_free_irq(wm831x, platform_get_irq_byname(pdev, "UV"), dcdc);
 	regulator_unregister(dcdc->regulator);
@@ -615,6 +618,7 @@ static struct platform_driver wm831x_buckv_driver = {
 	.remove = __devexit_p(wm831x_buckv_remove),
 	.driver		= {
 		.name	= "wm831x-buckv",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -769,6 +773,8 @@ static __devexit int wm831x_buckp_remove(struct platform_device *pdev)
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
 	struct wm831x *wm831x = dcdc->wm831x;
 
+	platform_set_drvdata(pdev, NULL);
+
 	wm831x_free_irq(wm831x, platform_get_irq_byname(pdev, "UV"), dcdc);
 	regulator_unregister(dcdc->regulator);
 	kfree(dcdc);
@@ -781,6 +787,7 @@ static struct platform_driver wm831x_buckp_driver = {
 	.remove = __devexit_p(wm831x_buckp_remove),
 	.driver		= {
 		.name	= "wm831x-buckp",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -895,6 +902,8 @@ static __devexit int wm831x_boostp_remove(struct platform_device *pdev)
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
 	struct wm831x *wm831x = dcdc->wm831x;
 
+	platform_set_drvdata(pdev, NULL);
+
 	wm831x_free_irq(wm831x, platform_get_irq_byname(pdev, "UV"), dcdc);
 	regulator_unregister(dcdc->regulator);
 	kfree(dcdc);
@@ -907,6 +916,7 @@ static struct platform_driver wm831x_boostp_driver = {
 	.remove = __devexit_p(wm831x_boostp_remove),
 	.driver		= {
 		.name	= "wm831x-boostp",
+		.owner	= THIS_MODULE,
 	},
 };
 
@@ -979,6 +989,8 @@ static __devexit int wm831x_epe_remove(struct platform_device *pdev)
 {
 	struct wm831x_dcdc *dcdc = platform_get_drvdata(pdev);
 
+	platform_set_drvdata(pdev, NULL);
+
 	regulator_unregister(dcdc->regulator);
 	kfree(dcdc);
 
@@ -990,6 +1002,7 @@ static struct platform_driver wm831x_epe_driver = {
 	.remove = __devexit_p(wm831x_epe_remove),
 	.driver		= {
 		.name	= "wm831x-epe",
+		.owner	= THIS_MODULE,
 	},
 };
 

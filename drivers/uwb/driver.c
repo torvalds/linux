@@ -74,13 +74,16 @@
 unsigned long beacon_timeout_ms = 500;
 
 static
-ssize_t beacon_timeout_ms_show(struct class *class, char *buf)
+ssize_t beacon_timeout_ms_show(struct class *class,
+				struct class_attribute *attr,
+				char *buf)
 {
 	return scnprintf(buf, PAGE_SIZE, "%lu\n", beacon_timeout_ms);
 }
 
 static
 ssize_t beacon_timeout_ms_store(struct class *class,
+				struct class_attribute *attr,
 				const char *buf, size_t size)
 {
 	unsigned long bt;

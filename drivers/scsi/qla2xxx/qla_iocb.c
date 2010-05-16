@@ -1025,6 +1025,119 @@ qla2x00_logout_iocb(srb_t *sp, struct mbx_entry *mbx)
 	/* Implicit: mbx->mbx10 = 0. */
 }
 
+static void
+qla24xx_els_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
+{
+	struct fc_bsg_job *bsg_job = ((struct srb_bsg*)sp->ctx)->bsg_job;
+
+        els_iocb->entry_type = ELS_IOCB_TYPE;
+        els_iocb->entry_count = 1;
+        els_iocb->sys_define = 0;
+        els_iocb->entry_status = 0;
+        els_iocb->handle = sp->handle;
+        els_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+        els_iocb->tx_dsd_count = __constant_cpu_to_le16(bsg_job->request_payload.sg_cnt);
+        els_iocb->vp_index = sp->fcport->vp_idx;
+        els_iocb->sof_type = EST_SOFI3;
+        els_iocb->rx_dsd_count = __constant_cpu_to_le16(bsg_job->reply_payload.sg_cnt);
+
+        els_iocb->opcode =(((struct srb_bsg*)sp->ctx)->ctx.type == SRB_ELS_CMD_RPT) ?
+	    bsg_job->request->rqst_data.r_els.els_code : bsg_job->request->rqst_data.h_els.command_code;
+        els_iocb->port_id[0] = sp->fcport->d_id.b.al_pa;
+        els_iocb->port_id[1] = sp->fcport->d_id.b.area;
+        els_iocb->port_id[2] = sp->fcport->d_id.b.domain;
+        els_iocb->control_flags = 0;
+        els_iocb->rx_byte_count =
+            cpu_to_le32(bsg_job->reply_payload.payload_len);
+        els_iocb->tx_byte_count =
+            cpu_to_le32(bsg_job->request_payload.payload_len);
+
+        els_iocb->tx_address[0] = cpu_to_le32(LSD(sg_dma_address
+            (bsg_job->request_payload.sg_list)));
+        els_iocb->tx_address[1] = cpu_to_le32(MSD(sg_dma_address
+            (bsg_job->request_payload.sg_list)));
+        els_iocb->tx_len = cpu_to_le32(sg_dma_len
+            (bsg_job->request_payload.sg_list));
+
+        els_iocb->rx_address[0] = cpu_to_le32(LSD(sg_dma_address
+            (bsg_job->reply_payload.sg_list)));
+        els_iocb->rx_address[1] = cpu_to_le32(MSD(sg_dma_address
+            (bsg_job->reply_payload.sg_list)));
+        els_iocb->rx_len = cpu_to_le32(sg_dma_len
+            (bsg_job->reply_payload.sg_list));
+}
+
+static void
+qla24xx_ct_iocb(srb_t *sp, struct ct_entry_24xx *ct_iocb)
+{
+	uint16_t        avail_dsds;
+	uint32_t        *cur_dsd;
+	struct scatterlist *sg;
+	int index;
+	uint16_t tot_dsds;
+        scsi_qla_host_t *vha = sp->fcport->vha;
+	struct fc_bsg_job *bsg_job = ((struct srb_bsg*)sp->ctx)->bsg_job;
+	int loop_iterartion = 0;
+	int cont_iocb_prsnt = 0;
+	int entry_count = 1;
+
+	ct_iocb->entry_type = CT_IOCB_TYPE;
+        ct_iocb->entry_status = 0;
+        ct_iocb->sys_define = 0;
+        ct_iocb->handle = sp->handle;
+
+	ct_iocb->nport_handle = cpu_to_le16(sp->fcport->loop_id);
+	ct_iocb->vp_index = sp->fcport->vp_idx;
+        ct_iocb->comp_status = __constant_cpu_to_le16(0);
+
+	ct_iocb->cmd_dsd_count =
+            __constant_cpu_to_le16(bsg_job->request_payload.sg_cnt);
+        ct_iocb->timeout = 0;
+        ct_iocb->rsp_dsd_count =
+            __constant_cpu_to_le16(bsg_job->reply_payload.sg_cnt);
+        ct_iocb->rsp_byte_count =
+            cpu_to_le32(bsg_job->reply_payload.payload_len);
+        ct_iocb->cmd_byte_count =
+            cpu_to_le32(bsg_job->request_payload.payload_len);
+        ct_iocb->dseg_0_address[0] = cpu_to_le32(LSD(sg_dma_address
+            (bsg_job->request_payload.sg_list)));
+        ct_iocb->dseg_0_address[1] = cpu_to_le32(MSD(sg_dma_address
+           (bsg_job->request_payload.sg_list)));
+        ct_iocb->dseg_0_len = cpu_to_le32(sg_dma_len
+            (bsg_job->request_payload.sg_list));
+
+	avail_dsds = 1;
+	cur_dsd = (uint32_t *)ct_iocb->dseg_1_address;
+	index = 0;
+	tot_dsds = bsg_job->reply_payload.sg_cnt;
+
+	for_each_sg(bsg_job->reply_payload.sg_list, sg, tot_dsds, index) {
+		dma_addr_t       sle_dma;
+		cont_a64_entry_t *cont_pkt;
+
+		/* Allocate additional continuation packets? */
+		if (avail_dsds == 0) {
+			/*
+			* Five DSDs are available in the Cont.
+			* Type 1 IOCB.
+			       */
+			cont_pkt = qla2x00_prep_cont_type1_iocb(vha);
+			cur_dsd = (uint32_t *) cont_pkt->dseg_0_address;
+			avail_dsds = 5;
+			cont_iocb_prsnt = 1;
+			entry_count++;
+		}
+
+		sle_dma = sg_dma_address(sg);
+		*cur_dsd++   = cpu_to_le32(LSD(sle_dma));
+		*cur_dsd++   = cpu_to_le32(MSD(sle_dma));
+		*cur_dsd++   = cpu_to_le32(sg_dma_len(sg));
+		loop_iterartion++;
+		avail_dsds--;
+	}
+        ct_iocb->entry_count = entry_count;
+}
+
 int
 qla2x00_start_sp(srb_t *sp)
 {
@@ -1051,6 +1164,13 @@ qla2x00_start_sp(srb_t *sp)
 		IS_FWI2_CAPABLE(ha) ?
 		    qla24xx_logout_iocb(sp, pkt):
 		    qla2x00_logout_iocb(sp, pkt);
+		break;
+	case SRB_ELS_CMD_RPT:
+	case SRB_ELS_CMD_HST:
+		qla24xx_els_iocb(sp, pkt);
+		break;
+	case SRB_CT_CMD:
+		qla24xx_ct_iocb(sp, pkt);
 		break;
 	default:
 		break;

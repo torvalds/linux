@@ -21,6 +21,7 @@
 #include <linux/i2c-algo-pca.h>
 #include <linux/usb/r8a66597.h>
 #include <linux/irq.h>
+#include <linux/io.h>
 #include <linux/clk.h>
 #include <linux/errno.h>
 #include <mach/sh7785lcr.h>
@@ -32,26 +33,17 @@
  * NOTE: This board has 2 physical memory maps.
  *	 Please look at include/asm-sh/sh7785lcr.h or hardware manual.
  */
-static struct resource heartbeat_resources[] = {
-	[0] = {
-		.start	= PLD_LEDCR,
-		.end	= PLD_LEDCR,
-		.flags	= IORESOURCE_MEM,
-	},
-};
-
-static struct heartbeat_data heartbeat_data = {
-	.regsize = 8,
+static struct resource heartbeat_resource = {
+	.start	= PLD_LEDCR,
+	.end	= PLD_LEDCR,
+	.flags	= IORESOURCE_MEM | IORESOURCE_MEM_8BIT,
 };
 
 static struct platform_device heartbeat_device = {
 	.name		= "heartbeat",
 	.id		= -1,
-	.dev	= {
-		.platform_data	= &heartbeat_data,
-	},
-	.num_resources	= ARRAY_SIZE(heartbeat_resources),
-	.resource	= heartbeat_resources,
+	.num_resources	= 1,
+	.resource	= &heartbeat_resource,
 };
 
 static struct mtd_partition nor_flash_partitions[] = {
@@ -341,8 +333,14 @@ static void __init sh7785lcr_setup(char **cmdline_p)
 	pm_power_off = sh7785lcr_power_off;
 
 	/* sm501 DRAM configuration */
-	sm501_reg = (void __iomem *)0xb3e00000 + SM501_DRAM_CONTROL;
-	writel(0x000307c2, sm501_reg);
+	sm501_reg = ioremap_nocache(SM107_REG_ADDR, SM501_DRAM_CONTROL);
+	if (!sm501_reg) {
+		printk(KERN_ERR "%s: ioremap error.\n", __func__);
+		return;
+	}
+
+	writel(0x000307c2, sm501_reg + SM501_DRAM_CONTROL);
+	iounmap(sm501_reg);
 }
 
 /* Return the board specific boot mode pin configuration */

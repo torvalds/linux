@@ -1160,8 +1160,7 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 	cc->start = tmpll;
 
-	if (dm_get_device(ti, argv[3], cc->start, ti->len,
-			  dm_table_get_mode(ti->table), &cc->dev)) {
+	if (dm_get_device(ti, argv[3], dm_table_get_mode(ti->table), &cc->dev)) {
 		ti->error = "Device lookup failed";
 		goto bad_device;
 	}

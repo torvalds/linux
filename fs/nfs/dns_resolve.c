@@ -9,6 +9,7 @@
 #include <linux/hash.h>
 #include <linux/string.h>
 #include <linux/kmod.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/socket.h>
 #include <linux/seq_file.h>
@@ -36,6 +37,19 @@ struct nfs_dns_ent {
 };
 
 
+static void nfs_dns_ent_update(struct cache_head *cnew,
+		struct cache_head *ckey)
+{
+	struct nfs_dns_ent *new;
+	struct nfs_dns_ent *key;
+
+	new = container_of(cnew, struct nfs_dns_ent, h);
+	key = container_of(ckey, struct nfs_dns_ent, h);
+
+	memcpy(&new->addr, &key->addr, key->addrlen);
+	new->addrlen = key->addrlen;
+}
+
 static void nfs_dns_ent_init(struct cache_head *cnew,
 		struct cache_head *ckey)
 {
@@ -49,8 +63,7 @@ static void nfs_dns_ent_init(struct cache_head *cnew,
 	new->hostname = kstrndup(key->hostname, key->namelen, GFP_KERNEL);
 	if (new->hostname) {
 		new->namelen = key->namelen;
-		memcpy(&new->addr, &key->addr, key->addrlen);
-		new->addrlen = key->addrlen;
+		nfs_dns_ent_update(cnew, ckey);
 	} else {
 		new->namelen = 0;
 		new->addrlen = 0;
@@ -234,7 +247,7 @@ static struct cache_detail nfs_dns_resolve = {
 	.cache_show = nfs_dns_show,
 	.match = nfs_dns_match,
 	.init = nfs_dns_ent_init,
-	.update = nfs_dns_ent_init,
+	.update = nfs_dns_ent_update,
 	.alloc = nfs_dns_ent_alloc,
 };
 

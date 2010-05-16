@@ -22,6 +22,7 @@
 #include <linux/seq_file.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
@@ -30,7 +31,7 @@
 
 #include <plat/regs-usb-hsotg-phy.h>
 #include <plat/regs-usb-hsotg.h>
-#include <plat/regs-sys.h>
+#include <mach/regs-sys.h>
 #include <plat/udc-hs.h>
 
 #define DMA_ADDR_INVALID (~((dma_addr_t)0))
@@ -317,7 +318,8 @@ static void s3c_hsotg_init_fifo(struct s3c_hsotg *hsotg)
  *
  * Allocate a new USB request structure appropriate for the specified endpoint
  */
-struct usb_request *s3c_hsotg_ep_alloc_request(struct usb_ep *ep, gfp_t flags)
+static struct usb_request *s3c_hsotg_ep_alloc_request(struct usb_ep *ep,
+						      gfp_t flags)
 {
 	struct s3c_hsotg_req *req;
 
@@ -373,7 +375,7 @@ static void s3c_hsotg_unmap_dma(struct s3c_hsotg *hsotg,
 		req->dma = DMA_ADDR_INVALID;
 		hs_req->mapped = 0;
 	} else {
-		dma_sync_single(hsotg->dev, req->dma, req->length, dir);
+		dma_sync_single_for_cpu(hsotg->dev, req->dma, req->length, dir);
 	}
 }
 
@@ -755,7 +757,7 @@ static int s3c_hsotg_map_dma(struct s3c_hsotg *hsotg,
 		hs_req->mapped = 1;
 		req->dma = dma;
 	} else {
-		dma_sync_single(hsotg->dev, req->dma, req->length, dir);
+		dma_sync_single_for_cpu(hsotg->dev, req->dma, req->length, dir);
 		hs_req->mapped = 0;
 	}
 
@@ -1460,7 +1462,7 @@ static u32 s3c_hsotg_read_frameno(struct s3c_hsotg *hsotg)
  * as the actual data should be sent to the memory directly and we turn
  * on the completion interrupts to get notifications of transfer completion.
  */
-void s3c_hsotg_handle_rx(struct s3c_hsotg *hsotg)
+static void s3c_hsotg_handle_rx(struct s3c_hsotg *hsotg)
 {
 	u32 grxstsr = readl(hsotg->regs + S3C_GRXSTSP);
 	u32 epnum, status, size;
@@ -2143,6 +2145,7 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	u32 epctrl;
 	u32 mps;
 	int dir_in;
+	int ret = 0;
 
 	dev_dbg(hsotg->dev,
 		"%s: ep %s: a 0x%02x, attr 0x%02x, mps 0x%04x, intr %d\n",
@@ -2194,7 +2197,8 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	switch (desc->bmAttributes & USB_ENDPOINT_XFERTYPE_MASK) {
 	case USB_ENDPOINT_XFER_ISOC:
 		dev_err(hsotg->dev, "no current ISOC support\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 
 	case USB_ENDPOINT_XFER_BULK:
 		epctrl |= S3C_DxEPCTL_EPType_Bulk;
@@ -2233,8 +2237,9 @@ static int s3c_hsotg_ep_enable(struct usb_ep *ep,
 	/* enable the endpoint interrupt */
 	s3c_hsotg_ctrl_epint(hsotg, index, dir_in, 1);
 
+out:
 	spin_unlock_irqrestore(&hs_ep->lock, flags);
-	return 0;
+	return ret;
 }
 
 static int s3c_hsotg_ep_disable(struct usb_ep *ep)
@@ -3094,7 +3099,7 @@ static void s3c_hsotg_gate(struct platform_device *pdev, bool on)
 	local_irq_restore(flags);
 }
 
-struct s3c_hsotg_plat s3c_hsotg_default_pdata;
+static struct s3c_hsotg_plat s3c_hsotg_default_pdata;
 
 static int __devinit s3c_hsotg_probe(struct platform_device *pdev)
 {

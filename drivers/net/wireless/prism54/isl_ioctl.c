@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/if_arp.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 
 #include <asm/uaccess.h>

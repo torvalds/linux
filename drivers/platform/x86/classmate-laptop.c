@@ -19,6 +19,7 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <acpi/acpi_drivers.h>
 #include <linux/backlight.h>
@@ -33,6 +34,11 @@ struct cmpc_accel {
 
 #define CMPC_ACCEL_SENSITIVITY_DEFAULT		5
 
+
+#define CMPC_ACCEL_HID		"ACCE0000"
+#define CMPC_TABLET_HID		"TBLT0000"
+#define CMPC_BL_HID		"IPML200"
+#define CMPC_KEYS_HID		"FnBT0000"
 
 /*
  * Generic input device code.
@@ -282,10 +288,9 @@ static int cmpc_accel_remove(struct acpi_device *acpi, int type)
 }
 
 static const struct acpi_device_id cmpc_accel_device_ids[] = {
-	{"ACCE0000", 0},
+	{CMPC_ACCEL_HID, 0},
 	{"", 0}
 };
-MODULE_DEVICE_TABLE(acpi, cmpc_accel_device_ids);
 
 static struct acpi_driver cmpc_accel_acpi_driver = {
 	.owner = THIS_MODULE,
@@ -366,10 +371,9 @@ static int cmpc_tablet_resume(struct acpi_device *acpi)
 }
 
 static const struct acpi_device_id cmpc_tablet_device_ids[] = {
-	{"TBLT0000", 0},
+	{CMPC_TABLET_HID, 0},
 	{"", 0}
 };
-MODULE_DEVICE_TABLE(acpi, cmpc_tablet_device_ids);
 
 static struct acpi_driver cmpc_tablet_acpi_driver = {
 	.owner = THIS_MODULE,
@@ -452,18 +456,22 @@ static int cmpc_bl_update_status(struct backlight_device *bd)
 		return -1;
 }
 
-static struct backlight_ops cmpc_bl_ops = {
+static const struct backlight_ops cmpc_bl_ops = {
 	.get_brightness = cmpc_bl_get_brightness,
 	.update_status = cmpc_bl_update_status
 };
 
 static int cmpc_bl_add(struct acpi_device *acpi)
 {
+	struct backlight_properties props;
 	struct backlight_device *bd;
 
-	bd = backlight_device_register("cmpc_bl", &acpi->dev,
-				       acpi->handle, &cmpc_bl_ops);
-	bd->props.max_brightness = 7;
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 7;
+	bd = backlight_device_register("cmpc_bl", &acpi->dev, acpi->handle,
+				       &cmpc_bl_ops, &props);
+	if (IS_ERR(bd))
+		return PTR_ERR(bd);
 	dev_set_drvdata(&acpi->dev, bd);
 	return 0;
 }
@@ -477,17 +485,16 @@ static int cmpc_bl_remove(struct acpi_device *acpi, int type)
 	return 0;
 }
 
-static const struct acpi_device_id cmpc_device_ids[] = {
-	{"IPML200", 0},
+static const struct acpi_device_id cmpc_bl_device_ids[] = {
+	{CMPC_BL_HID, 0},
 	{"", 0}
 };
-MODULE_DEVICE_TABLE(acpi, cmpc_device_ids);
 
 static struct acpi_driver cmpc_bl_acpi_driver = {
 	.owner = THIS_MODULE,
 	.name = "cmpc",
 	.class = "cmpc",
-	.ids = cmpc_device_ids,
+	.ids = cmpc_bl_device_ids,
 	.ops = {
 		.add = cmpc_bl_add,
 		.remove = cmpc_bl_remove
@@ -505,6 +512,10 @@ static int cmpc_keys_codes[] = {
 	KEY_BRIGHTNESSDOWN,
 	KEY_BRIGHTNESSUP,
 	KEY_VENDOR,
+	KEY_UNKNOWN,
+	KEY_CAMERA,
+	KEY_BACK,
+	KEY_FORWARD,
 	KEY_MAX
 };
 
@@ -540,10 +551,9 @@ static int cmpc_keys_remove(struct acpi_device *acpi, int type)
 }
 
 static const struct acpi_device_id cmpc_keys_device_ids[] = {
-	{"FnBT0000", 0},
+	{CMPC_KEYS_HID, 0},
 	{"", 0}
 };
-MODULE_DEVICE_TABLE(acpi, cmpc_keys_device_ids);
 
 static struct acpi_driver cmpc_keys_acpi_driver = {
 	.owner = THIS_MODULE,
@@ -607,3 +617,13 @@ static void cmpc_exit(void)
 
 module_init(cmpc_init);
 module_exit(cmpc_exit);
+
+static const struct acpi_device_id cmpc_device_ids[] = {
+	{CMPC_ACCEL_HID, 0},
+	{CMPC_TABLET_HID, 0},
+	{CMPC_BL_HID, 0},
+	{CMPC_KEYS_HID, 0},
+	{"", 0}
+};
+
+MODULE_DEVICE_TABLE(acpi, cmpc_device_ids);

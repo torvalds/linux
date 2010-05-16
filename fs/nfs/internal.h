@@ -211,7 +211,7 @@ extern int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask);
 extern struct workqueue_struct *nfsiod_workqueue;
 extern struct inode *nfs_alloc_inode(struct super_block *sb);
 extern void nfs_destroy_inode(struct inode *);
-extern int nfs_write_inode(struct inode *,int);
+extern int nfs_write_inode(struct inode *, struct writeback_control *);
 extern void nfs_clear_inode(struct inode *);
 #ifdef CONFIG_NFS_V4
 extern void nfs4_clear_inode(struct inode *);

@@ -106,6 +106,26 @@ struct bfa_sge_s {
 	bfa_ioc_fetch_stats(&(__bfa)->ioc, __ioc_stats)
 #define bfa_ioc_clear_stats(__bfa)	\
 	bfa_ioc_clr_stats(&(__bfa)->ioc)
+#define bfa_get_nports(__bfa)   \
+	bfa_ioc_get_nports(&(__bfa)->ioc)
+#define bfa_get_adapter_manufacturer(__bfa, __manufacturer) \
+	bfa_ioc_get_adapter_manufacturer(&(__bfa)->ioc, __manufacturer)
+#define bfa_get_adapter_model(__bfa, __model)   \
+	bfa_ioc_get_adapter_model(&(__bfa)->ioc, __model)
+#define bfa_get_adapter_serial_num(__bfa, __serial_num) \
+	bfa_ioc_get_adapter_serial_num(&(__bfa)->ioc, __serial_num)
+#define bfa_get_adapter_fw_ver(__bfa, __fw_ver) \
+	bfa_ioc_get_adapter_fw_ver(&(__bfa)->ioc, __fw_ver)
+#define bfa_get_adapter_optrom_ver(__bfa, __optrom_ver) \
+	bfa_ioc_get_adapter_optrom_ver(&(__bfa)->ioc, __optrom_ver)
+#define bfa_get_pci_chip_rev(__bfa, __chip_rev) \
+	bfa_ioc_get_pci_chip_rev(&(__bfa)->ioc, __chip_rev)
+#define bfa_get_ioc_state(__bfa)    \
+	bfa_ioc_get_state(&(__bfa)->ioc)
+#define bfa_get_type(__bfa) \
+	bfa_ioc_get_type(&(__bfa)->ioc)
+#define bfa_get_mac(__bfa)  \
+	bfa_ioc_get_mac(&(__bfa)->ioc)
 
 /*
  * bfa API functions
@@ -161,6 +181,7 @@ bfa_status_t bfa_iocfc_israttr_set(struct bfa_s *bfa,
 void bfa_iocfc_enable(struct bfa_s *bfa);
 void bfa_iocfc_disable(struct bfa_s *bfa);
 void bfa_ioc_auto_recover(bfa_boolean_t auto_recover);
+void bfa_chip_reset(struct bfa_s *bfa);
 void bfa_cb_ioc_disable(void *bfad);
 void bfa_timer_tick(struct bfa_s *bfa);
 #define bfa_timer_start(_bfa, _timer, _timercb, _arg, _timeout)	\
@@ -171,6 +192,7 @@ void bfa_timer_tick(struct bfa_s *bfa);
  */
 bfa_status_t bfa_debug_fwtrc(struct bfa_s *bfa, void *trcdata, int *trclen);
 bfa_status_t bfa_debug_fwsave(struct bfa_s *bfa, void *trcdata, int *trclen);
+void bfa_debug_fwsave_clear(struct bfa_s *bfa);
 
 #include "bfa_priv.h"
 

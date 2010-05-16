@@ -325,7 +325,7 @@ static inline pte_t pte_modify(pte_t pte, pgprot_t newprot)
 
 struct vm_area_struct;
 extern void update_mmu_cache(struct vm_area_struct * vma,
-			     unsigned long address, pte_t pte);
+			     unsigned long address, pte_t *ptep);
 
 /*
  * Encode and decode a swap entry

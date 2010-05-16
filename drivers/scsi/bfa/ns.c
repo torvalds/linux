@@ -164,7 +164,7 @@ bfa_fcs_port_ns_sm_offline(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -187,7 +187,7 @@ bfa_fcs_port_ns_sm_plogi_sending(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -221,7 +221,7 @@ bfa_fcs_port_ns_sm_plogi(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -247,7 +247,7 @@ bfa_fcs_port_ns_sm_plogi_retry(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -270,7 +270,7 @@ bfa_fcs_port_ns_sm_sending_rspn_id(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -304,7 +304,7 @@ bfa_fcs_port_ns_sm_rspn_id(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -330,7 +330,7 @@ bfa_fcs_port_ns_sm_rspn_id_retry(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -353,7 +353,7 @@ bfa_fcs_port_ns_sm_sending_rft_id(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -390,7 +390,7 @@ bfa_fcs_port_ns_sm_rft_id(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -413,7 +413,7 @@ bfa_fcs_port_ns_sm_rft_id_retry(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -436,7 +436,7 @@ bfa_fcs_port_ns_sm_sending_rff_id(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -494,7 +494,7 @@ bfa_fcs_port_ns_sm_rff_id(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -517,7 +517,7 @@ bfa_fcs_port_ns_sm_rff_id_retry(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 static void
@@ -539,7 +539,7 @@ bfa_fcs_port_ns_sm_sending_gid_ft(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -575,7 +575,7 @@ bfa_fcs_port_ns_sm_gid_ft(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -598,7 +598,7 @@ bfa_fcs_port_ns_sm_gid_ft_retry(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -626,7 +626,7 @@ bfa_fcs_port_ns_sm_online(struct bfa_fcs_port_ns_s *ns,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ns->port->fcs, event);
 	}
 }
 
@@ -660,7 +660,7 @@ bfa_fcs_port_ns_send_plogi(void *ns_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 			     bfa_os_hton3b(FC_NAME_SERVER),
 			     bfa_fcs_port_get_fcid(port), 0,
 			     port->port_cfg.pwwn, port->port_cfg.nwwn,
-			     bfa_pport_get_maxfrsize(port->fcs->bfa));
+			     bfa_fcport_get_maxfrsize(port->fcs->bfa));
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, bfa_fcs_port_ns_plogi_response,

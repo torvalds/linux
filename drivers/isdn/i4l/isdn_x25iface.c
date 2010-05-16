@@ -20,6 +20,7 @@
 /* #include <linux/isdn.h> */
 #include <linux/netdevice.h>
 #include <linux/concap.h>
+#include <linux/slab.h>
 #include <linux/wanrouter.h>
 #include <net/x25device.h>
 #include "isdn_x25iface.h"

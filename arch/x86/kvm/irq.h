@@ -62,7 +62,7 @@ struct kvm_kpic_state {
 };
 
 struct kvm_pic {
-	spinlock_t lock;
+	raw_spinlock_t lock;
 	unsigned pending_acks;
 	struct kvm *kvm;
 	struct kvm_kpic_state pics[2]; /* 0 is master pic, 1 is slave pic */
@@ -75,6 +75,7 @@ struct kvm_pic {
 };
 
 struct kvm_pic *kvm_create_pic(struct kvm *kvm);
+void kvm_destroy_pic(struct kvm *kvm);
 int kvm_pic_read_irq(struct kvm *kvm);
 void kvm_pic_update_irq(struct kvm_pic *s);
 void kvm_pic_clear_isr_ack(struct kvm *kvm);

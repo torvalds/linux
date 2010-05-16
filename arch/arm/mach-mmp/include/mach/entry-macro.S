@@ -15,7 +15,12 @@
 	.endm
 
 	.macro	get_irqnr_preamble, base, tmp
-	ldr	\base, =ICU_AP_IRQ_SEL_INT_NUM
+	mrc	p15, 0, \tmp, c0, c0, 0		@ CPUID
+	and	\tmp, \tmp, #0xff00
+	cmp	\tmp, #0x5800
+	ldr	\base, =ICU_VIRT_BASE
+	addne	\base, \base, #0x10c		@ PJ1 AP INT SEL register
+	addeq	\base, \base, #0x104		@ PJ4 IRQ SEL register
 	.endm
 
 	.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp

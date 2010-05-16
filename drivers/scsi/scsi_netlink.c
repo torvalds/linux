@@ -22,6 +22,7 @@
 #include <linux/jiffies.h>
 #include <linux/security.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/netlink.h>
 

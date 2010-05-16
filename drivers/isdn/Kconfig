@@ -7,15 +7,14 @@ menuconfig ISDN
 	depends on NET
 	depends on !S390
 	---help---
-	  ISDN ("Integrated Services Digital Networks", called RNIS in France)
-	  is a special type of fully digital telephone service; it's mostly
-	  used to connect to your Internet service provider (with SLIP or
-	  PPP).  The main advantage is that the speed is higher than ordinary
-	  modem/telephone connections, and that you can have voice
-	  conversations while downloading stuff.  It only works if your
-	  computer is equipped with an ISDN card and both you and your service
-	  provider purchased an ISDN line from the phone company.  For
-	  details, read <http://www.alumni.caltech.edu/~dank/isdn/> on the WWW.
+	  ISDN ("Integrated Services Digital Network", called RNIS in France)
+	  is a fully digital telephone service that can be used for voice and
+	  data connections.  If your computer is equipped with an ISDN
+	  adapter you can use it to connect to your Internet service provider
+	  (with SLIP or PPP) faster than via a conventional telephone modem
+	  (though still much slower than with DSL) or to make and accept
+	  voice calls (eg. turning your PC into a software answering machine
+	  or PABX).
 
 	  Select this option if you want your kernel to support ISDN.
 
@@ -39,17 +38,22 @@ menuconfig ISDN_I4L
 	  It is still available, though, for use with adapters that are not
 	  supported by the new CAPI subsystem yet.
 
-source "drivers/isdn/mISDN/Kconfig"
-
 source "drivers/isdn/i4l/Kconfig"
 
 menuconfig ISDN_CAPI
 	tristate "CAPI 2.0 subsystem"
 	help
-	  This provides the CAPI (Common ISDN Application Programming
-	  Interface, a standard making it easy for programs to access ISDN
-	  hardware, see <http://www.capi.org/>.  This is needed for AVM's set
-	  of active ISDN controllers like B1, T1, M1.
+	  This provides CAPI (the Common ISDN Application Programming
+	  Interface) Version 2.0, a standard making it easy for programs to
+	  access ISDN hardware in a device independent way. (For details see
+	  <http://www.capi.org/>.)  CAPI supports making and accepting voice
+	  and data connections, controlling call options and protocols,
+	  as well as ISDN supplementary services like call forwarding or
+	  three-party conferences (if supported by the specific hardware
+	  driver).
+
+	  Select this option and the appropriate hardware driver below if
+	  you have an ISDN adapter supported by the CAPI subsystem.
 
 if ISDN_CAPI
 
@@ -60,5 +64,14 @@ source "drivers/isdn/hardware/Kconfig"
 endif # ISDN_CAPI
 
 source "drivers/isdn/gigaset/Kconfig"
+
+source "drivers/isdn/hysdn/Kconfig"
+
+source "drivers/isdn/mISDN/Kconfig"
+
+config ISDN_HDLC
+	tristate
+	select CRC_CCITT
+	select BITREVERSE
 
 endif # ISDN

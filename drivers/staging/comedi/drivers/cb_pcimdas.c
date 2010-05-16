@@ -330,11 +330,10 @@ found:
 
 	s = dev->subdevices + 2;
 	/* digital i/o subdevice */
-	if (thisboard->has_dio) {
+	if (thisboard->has_dio)
 		subdev_8255_init(dev, s, NULL, devpriv->BADR4);
-	} else {
+	else
 		s->type = COMEDI_SUBD_UNUSED;
-	}
 
 	printk("attached\n");
 
@@ -365,9 +364,8 @@ static int cb_pcimdas_detach(struct comedi_device *dev)
 		free_irq(dev->irq, dev);
 	if (devpriv) {
 		if (devpriv->pci_dev) {
-			if (devpriv->BADR0) {
+			if (devpriv->BADR0)
 				comedi_pci_disable(devpriv->pci_dev);
-			}
 			pci_dev_put(devpriv->pci_dev);
 		}
 	}

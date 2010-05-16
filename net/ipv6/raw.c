@@ -21,6 +21,7 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/socket.h>
+#include <linux/slab.h>
 #include <linux/sockios.h>
 #include <linux/net.h>
 #include <linux/in6.h>
@@ -1275,7 +1276,7 @@ static const struct file_operations raw6_seq_fops = {
 	.release =	seq_release_net,
 };
 
-static int raw6_init_net(struct net *net)
+static int __net_init raw6_init_net(struct net *net)
 {
 	if (!proc_net_fops_create(net, "raw6", S_IRUGO, &raw6_seq_fops))
 		return -ENOMEM;
@@ -1283,7 +1284,7 @@ static int raw6_init_net(struct net *net)
 	return 0;
 }
 
-static void raw6_exit_net(struct net *net)
+static void __net_exit raw6_exit_net(struct net *net)
 {
 	proc_net_remove(net, "raw6");
 }

@@ -28,6 +28,7 @@
  *
  ********************************************************************/
 
+#include <linux/gfp.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 

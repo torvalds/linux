@@ -151,13 +151,10 @@ int ftrace_make_nop(struct module *mod,
 	return ret;
 }
 
-static int ret_addr; /* initialized as 0 by default */
-
 /* I believe that first is called ftrace_make_nop before this function */
 int ftrace_make_call(struct dyn_ftrace *rec, unsigned long addr)
 {
 	int ret;
-	ret_addr = addr; /* saving where the barrier jump is */
 	pr_debug("%s: addr:0x%x, rec->ip: 0x%x, imm:0x%x\n",
 		__func__, (unsigned int)addr, (unsigned int)rec->ip, imm);
 	ret = ftrace_modify_code(rec->ip, imm);
@@ -194,12 +191,9 @@ int ftrace_update_ftrace_func(ftrace_func_t func)
 	ret = ftrace_modify_code(ip, upper);
 	ret += ftrace_modify_code(ip + 4, lower);
 
-	/* We just need to remove the rtsd r15, 8 by NOP */
-	BUG_ON(!ret_addr);
-	if (ret_addr)
-		ret += ftrace_modify_code(ret_addr, MICROBLAZE_NOP);
-	else
-		ret = 1; /* fault */
+	/* We just need to replace the rtsd r15, 8 with NOP */
+	ret += ftrace_modify_code((unsigned long)&ftrace_caller,
+				  MICROBLAZE_NOP);
 
 	/* All changes are done - lets do caches consistent */
 	flush_icache();

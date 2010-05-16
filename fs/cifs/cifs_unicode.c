@@ -19,6 +19,7 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include "cifs_unicode.h"
 #include "cifs_uniupr.h"
 #include "cifspdu.h"

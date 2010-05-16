@@ -46,6 +46,7 @@ struct sockaddr_ll {
 #define PACKET_RESERVE			12
 #define PACKET_TX_RING			13
 #define PACKET_LOSS			14
+#define PACKET_VNET_HDR			15
 
 struct tpacket_stats {
 	unsigned int	tp_packets;

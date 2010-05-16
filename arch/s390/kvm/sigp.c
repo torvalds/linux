@@ -14,6 +14,7 @@
 
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <linux/slab.h>
 #include "gaccess.h"
 #include "kvm-s390.h"
 
@@ -172,7 +173,7 @@ static int __sigp_set_arch(struct kvm_vcpu *vcpu, u32 parameter)
 		rc = 0; /* order accepted */
 		break;
 	default:
-		rc = -ENOTSUPP;
+		rc = -EOPNOTSUPP;
 	}
 	return rc;
 }
@@ -293,7 +294,7 @@ int kvm_s390_handle_sigp(struct kvm_vcpu *vcpu)
 		vcpu->stat.instruction_sigp_restart++;
 		/* user space must know about restart */
 	default:
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	if (rc < 0)

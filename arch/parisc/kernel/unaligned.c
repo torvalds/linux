@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/signal.h>
+#include <linux/ratelimit.h>
 #include <asm/uaccess.h>
 
 /* #define DEBUG_UNALIGNED 1 */
@@ -446,8 +447,7 @@ static int emulate_std(struct pt_regs *regs, int frreg, int flop)
 
 void handle_unaligned(struct pt_regs *regs)
 {
-	static unsigned long unaligned_count = 0;
-	static unsigned long last_time = 0;
+	static DEFINE_RATELIMIT_STATE(ratelimit, 5 * HZ, 5);
 	unsigned long newbase = R1(regs->iir)?regs->gr[R1(regs->iir)]:0;
 	int modify = 0;
 	int ret = ERR_NOTHANDLED;
@@ -460,14 +460,8 @@ void handle_unaligned(struct pt_regs *regs)
 			goto force_sigbus;
 		}
 
-		if (unaligned_count > 5 &&
-				time_after(jiffies, last_time + 5 * HZ)) {
-			unaligned_count = 0;
-			last_time = jiffies;
-		}
-
-		if (!(current->thread.flags & PARISC_UAC_NOPRINT) 
-		    && ++unaligned_count < 5) {
+		if (!(current->thread.flags & PARISC_UAC_NOPRINT) &&
+			__ratelimit(&ratelimit)) {
 			char buf[256];
 			sprintf(buf, "%s(%d): unaligned access to 0x" RFMT " at ip=0x" RFMT "\n",
 				current->comm, task_pid_nr(current), regs->ior, regs->iaoq[0]);

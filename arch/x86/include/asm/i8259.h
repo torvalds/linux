@@ -24,12 +24,7 @@ extern unsigned int cached_irq_mask;
 #define SLAVE_ICW4_DEFAULT	0x01
 #define PIC_ICW4_AEOI		2
 
-extern spinlock_t i8259A_lock;
-
-extern void init_8259A(int auto_eoi);
-extern void enable_8259A_irq(unsigned int irq);
-extern void disable_8259A_irq(unsigned int irq);
-extern unsigned int startup_8259A_irq(unsigned int irq);
+extern raw_spinlock_t i8259A_lock;
 
 /* the PIC may need a careful delay on some platforms, hence specific calls */
 static inline unsigned char inb_pic(unsigned int port)
@@ -57,7 +52,17 @@ static inline void outb_pic(unsigned char value, unsigned int port)
 
 extern struct irq_chip i8259A_chip;
 
-extern void mask_8259A(void);
-extern void unmask_8259A(void);
+struct legacy_pic {
+	int nr_legacy_irqs;
+	struct irq_chip *chip;
+	void (*mask_all)(void);
+	void (*restore_mask)(void);
+	void (*init)(int auto_eoi);
+	int (*irq_pending)(unsigned int irq);
+	void (*make_irq)(unsigned int irq);
+};
+
+extern struct legacy_pic *legacy_pic;
+extern struct legacy_pic null_legacy_pic;
 
 #endif /* _ASM_X86_I8259_H */

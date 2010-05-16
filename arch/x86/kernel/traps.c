@@ -534,6 +534,9 @@ dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 
 	get_debugreg(dr6, 6);
 
+	/* Filter out all the reserved bits which are preset to 1 */
+	dr6 &= ~DR6_RESERVED;
+
 	/* Catch kmemcheck conditions first of all! */
 	if ((dr6 & DR_STEP) && kmemcheck_trap(regs))
 		return;

@@ -114,7 +114,7 @@ bfa_fcs_port_sm_uninit(struct bfa_fcs_port_s *port,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -136,7 +136,7 @@ bfa_fcs_port_sm_init(struct bfa_fcs_port_s *port, enum bfa_fcs_port_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -176,7 +176,7 @@ bfa_fcs_port_sm_online(struct bfa_fcs_port_s *port,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -214,7 +214,7 @@ bfa_fcs_port_sm_offline(struct bfa_fcs_port_s *port,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -234,7 +234,7 @@ bfa_fcs_port_sm_deleting(struct bfa_fcs_port_s *port,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -263,30 +263,8 @@ bfa_fcs_port_aen_post(struct bfa_fcs_port_s *port,
 
 	bfa_assert(role <= BFA_PORT_ROLE_FCP_MAX);
 
-	switch (event) {
-	case BFA_LPORT_AEN_ONLINE:
-		bfa_log(logmod, BFA_AEN_LPORT_ONLINE, lpwwn_ptr,
-			role_str[role / 2]);
-		break;
-	case BFA_LPORT_AEN_OFFLINE:
-		bfa_log(logmod, BFA_AEN_LPORT_OFFLINE, lpwwn_ptr,
-			role_str[role / 2]);
-		break;
-	case BFA_LPORT_AEN_NEW:
-		bfa_log(logmod, BFA_AEN_LPORT_NEW, lpwwn_ptr,
-			role_str[role / 2]);
-		break;
-	case BFA_LPORT_AEN_DELETE:
-		bfa_log(logmod, BFA_AEN_LPORT_DELETE, lpwwn_ptr,
-			role_str[role / 2]);
-		break;
-	case BFA_LPORT_AEN_DISCONNECT:
-		bfa_log(logmod, BFA_AEN_LPORT_DISCONNECT, lpwwn_ptr,
-			role_str[role / 2]);
-		break;
-	default:
-		break;
-	}
+	bfa_log(logmod, BFA_LOG_CREATE_ID(BFA_AEN_CAT_LPORT, event), lpwwn_ptr,
+		role_str[role/2]);
 
 	aen_data.lport.vf_id = port->fabric->vf_id;
 	aen_data.lport.roles = role;
@@ -873,35 +851,45 @@ bfa_fcs_port_is_online(struct bfa_fcs_port_s *port)
 }
 
 /**
- * Logical port initialization of base or virtual port.
- * Called by fabric for base port or by vport for virtual ports.
+ * Attach time initialization of logical ports.
  */
 void
-bfa_fcs_lport_init(struct bfa_fcs_port_s *lport, struct bfa_fcs_s *fcs,
-		   u16 vf_id, struct bfa_port_cfg_s *port_cfg,
-		   struct bfa_fcs_vport_s *vport)
+bfa_fcs_lport_attach(struct bfa_fcs_port_s *lport, struct bfa_fcs_s *fcs,
+		uint16_t vf_id, struct bfa_fcs_vport_s *vport)
 {
 	lport->fcs = fcs;
 	lport->fabric = bfa_fcs_vf_lookup(fcs, vf_id);
-	bfa_os_assign(lport->port_cfg, *port_cfg);
 	lport->vport = vport;
 	lport->lp_tag = (vport) ? bfa_lps_get_tag(vport->lps) :
 			 bfa_lps_get_tag(lport->fabric->lps);
 
 	INIT_LIST_HEAD(&lport->rport_q);
 	lport->num_rports = 0;
+}
 
-	lport->bfad_port =
-		bfa_fcb_port_new(fcs->bfad, lport, lport->port_cfg.roles,
+/**
+ * Logical port initialization of base or virtual port.
+ * Called by fabric for base port or by vport for virtual ports.
+ */
+
+void
+bfa_fcs_lport_init(struct bfa_fcs_port_s *lport,
+		struct bfa_port_cfg_s *port_cfg)
+{
+	struct bfa_fcs_vport_s *vport = lport->vport;
+
+	bfa_os_assign(lport->port_cfg, *port_cfg);
+
+	lport->bfad_port = bfa_fcb_port_new(lport->fcs->bfad, lport,
+				lport->port_cfg.roles,
 				lport->fabric->vf_drv,
 				vport ? vport->vport_drv : NULL);
+
 	bfa_fcs_port_aen_post(lport, BFA_LPORT_AEN_NEW);
 
 	bfa_sm_set_state(lport, bfa_fcs_port_sm_uninit);
 	bfa_sm_send_event(lport, BFA_FCS_PORT_SM_CREATE);
 }
-
-
 
 /**
  *  fcs_lport_api
@@ -921,13 +909,20 @@ bfa_fcs_port_get_attr(struct bfa_fcs_port_s *port,
 	if (port->fabric) {
 		port_attr->port_type = bfa_fcs_fabric_port_type(port->fabric);
 		port_attr->loopback = bfa_fcs_fabric_is_loopback(port->fabric);
+		port_attr->authfail =
+				bfa_fcs_fabric_is_auth_failed(port->fabric);
 		port_attr->fabric_name = bfa_fcs_port_get_fabric_name(port);
 		memcpy(port_attr->fabric_ip_addr,
 		       bfa_fcs_port_get_fabric_ipaddr(port),
 		       BFA_FCS_FABRIC_IPADDR_SZ);
 
-		if (port->vport != NULL)
+		if (port->vport != NULL) {
 			port_attr->port_type = BFA_PPORT_TYPE_VPORT;
+			port_attr->fpma_mac =
+				bfa_lps_get_lp_mac(port->vport->lps);
+		} else
+			port_attr->fpma_mac =
+				bfa_lps_get_lp_mac(port->fabric->lps);
 
 	} else {
 		port_attr->port_type = BFA_PPORT_TYPE_UNKNOWN;

@@ -330,9 +330,9 @@ BTFIXUPDEF_CALL(void, mmu_info, struct seq_file *)
 #define FAULT_CODE_WRITE    0x2
 #define FAULT_CODE_USER     0x4
 
-BTFIXUPDEF_CALL(void, update_mmu_cache, struct vm_area_struct *, unsigned long, pte_t)
+BTFIXUPDEF_CALL(void, update_mmu_cache, struct vm_area_struct *, unsigned long, pte_t *)
 
-#define update_mmu_cache(vma,addr,pte) BTFIXUP_CALL(update_mmu_cache)(vma,addr,pte)
+#define update_mmu_cache(vma,addr,ptep) BTFIXUP_CALL(update_mmu_cache)(vma,addr,ptep)
 
 BTFIXUPDEF_CALL(void, sparc_mapiorange, unsigned int, unsigned long,
     unsigned long, unsigned int)

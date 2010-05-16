@@ -68,7 +68,8 @@ config SH_STORE_QUEUES
 
 config SPECULATIVE_EXECUTION
 	bool "Speculative subroutine return"
-	depends on CPU_SUBTYPE_SH7780 && EXPERIMENTAL
+	depends on EXPERIMENTAL
+	depends on CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785 || CPU_SUBTYPE_SH7786
 	help
 	  This enables support for a speculative instruction fetch for
 	  subroutine return. There are various pitfalls associated with

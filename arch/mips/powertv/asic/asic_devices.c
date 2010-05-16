@@ -39,6 +39,7 @@
 #include <linux/mm.h>
 #include <linux/platform_device.h>
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <asm/page.h>
 #include <linux/swap.h>
 #include <linux/highmem.h>
@@ -340,10 +341,6 @@ static void __init platform_configure_usb(void)
 
 	switch (asic) {
 	case ASIC_ZEUS:
-		fs_update(0x0000, 0x11, 0x02, 0);
-		bcm1_usb2_ctl = 0x803;
-		break;
-
 	case ASIC_CRONUS:
 	case ASIC_CRONUSLITE:
 		fs_update(0x0000, 0x11, 0x02, 0);

@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/rcupdate.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/pkt_sched.h>
 
 /* Main transmission queue. */

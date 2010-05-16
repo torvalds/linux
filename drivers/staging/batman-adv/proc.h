@@ -31,19 +31,10 @@
 #define PROC_FILE_LOG_LEVEL "log_level"
 #define PROC_FILE_TRANST_LOCAL "transtable_local"
 #define PROC_FILE_TRANST_GLOBAL "transtable_global"
-#define PROC_FILE_VIS "vis"
-#define PROC_FILE_VIS_FORMAT "vis_format"
+#define PROC_FILE_VIS_SRV "vis_server"
+#define PROC_FILE_VIS_DATA "vis_data"
 #define PROC_FILE_AGGR "aggregate_ogm"
 
 void cleanup_procfs(void);
 int setup_procfs(void);
 
-/* While scanning for vis-entries of a particular vis-originator
- * this list collects its interfaces to create a subgraph/cluster
- * out of them later
- */
-struct vis_if_list {
-	uint8_t addr[ETH_ALEN];
-	bool primary;
-	struct vis_if_list *next;
-};

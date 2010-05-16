@@ -298,6 +298,9 @@ void  cs46xx_dsp_spos_destroy (struct snd_cs46xx * chip)
 		if (ins->scbs[i].deleted) continue;
 
 		cs46xx_dsp_proc_free_scb_desc ( (ins->scbs + i) );
+#ifdef CONFIG_PM
+		kfree(ins->scbs[i].data);
+#endif
 	}
 
 	kfree(ins->code.data);
@@ -974,13 +977,11 @@ static struct dsp_scb_descriptor * _map_scb (struct snd_cs46xx *chip, char * nam
 
 	index = find_free_scb_index (ins);
 
+	memset(&ins->scbs[index], 0, sizeof(ins->scbs[index]));
 	strcpy(ins->scbs[index].scb_name, name);
 	ins->scbs[index].address = dest;
 	ins->scbs[index].index = index;
-	ins->scbs[index].proc_info = NULL;
 	ins->scbs[index].ref_count = 1;
-	ins->scbs[index].deleted = 0;
-	spin_lock_init(&ins->scbs[index].lock);
 
 	desc = (ins->scbs + index);
 	ins->scbs[index].scb_symbol = add_symbol (chip, name, dest, SYMBOL_PARAMETER);
@@ -1022,10 +1023,19 @@ _map_task_tree (struct snd_cs46xx *chip, char * name, u32 dest, u32 size)
 	return desc;
 }
 
+#define SCB_BYTES	(0x10 * 4)
+
 struct dsp_scb_descriptor *
 cs46xx_dsp_create_scb (struct snd_cs46xx *chip, char * name, u32 * scb_data, u32 dest)
 {
 	struct dsp_scb_descriptor * desc;
+
+#ifdef CONFIG_PM
+	/* copy the data for resume */
+	scb_data = kmemdup(scb_data, SCB_BYTES, GFP_KERNEL);
+	if (!scb_data)
+		return NULL;
+#endif
 
 	desc = _map_scb (chip,name,dest);
 	if (desc) {
@@ -1033,6 +1043,9 @@ cs46xx_dsp_create_scb (struct snd_cs46xx *chip, char * name, u32 * scb_data, u32
 		_dsp_create_scb(chip,scb_data,dest);
 	} else {
 		snd_printk(KERN_ERR "dsp_spos: failed to map SCB\n");
+#ifdef CONFIG_PM
+		kfree(scb_data);
+#endif
 	}
 
 	return desc;
@@ -1988,7 +2001,28 @@ int cs46xx_dsp_resume(struct snd_cs46xx * chip)
 			continue;
 		_dsp_create_scb(chip, s->data, s->address);
 	}
-
+	for (i = 0; i < ins->nscb; i++) {
+		struct dsp_scb_descriptor *s = &ins->scbs[i];
+		if (s->deleted)
+			continue;
+		if (s->updated)
+			cs46xx_dsp_spos_update_scb(chip, s);
+		if (s->volume_set)
+			cs46xx_dsp_scb_set_volume(chip, s,
+						  s->volume[0], s->volume[1]);
+	}
+	if (ins->spdif_status_out & DSP_SPDIF_STATUS_HW_ENABLED) {
+		cs46xx_dsp_enable_spdif_hw(chip);
+		snd_cs46xx_poke(chip, (ins->ref_snoop_scb->address + 2) << 2,
+				(OUTPUT_SNOOP_BUFFER + 0x10) << 0x10);
+		if (ins->spdif_status_out & DSP_SPDIF_STATUS_PLAYBACK_OPEN)
+			cs46xx_poke_via_dsp(chip, SP_SPDOUT_CSUV,
+					    ins->spdif_csuv_stream);
+	}
+	if (chip->dsp_spos_instance->spdif_status_in) {
+		cs46xx_poke_via_dsp(chip, SP_ASER_COUNTDOWN, 0x80000005);
+		cs46xx_poke_via_dsp(chip, SP_SPDIN_CONTROL, 0x800003ff);
+	}
 	return 0;
 }
 #endif

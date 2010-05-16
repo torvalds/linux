@@ -1,2 +1,2 @@
 
-#define VMALLOC_END       0xe8000000
+#define VMALLOC_END       0xe8000000UL

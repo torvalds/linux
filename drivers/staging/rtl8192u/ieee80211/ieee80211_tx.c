@@ -200,8 +200,8 @@ int ieee80211_encrypt_fragment(
 		header = (struct ieee80211_hdr *) frag->data;
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "TX packet to " MAC_FMT "\n",
-			       ieee->dev->name, MAC_ARG(header->addr1));
+			       "TX packet to %pM\n",
+			       ieee->dev->name, header->addr1);
 		}
 		return -1;
 	}

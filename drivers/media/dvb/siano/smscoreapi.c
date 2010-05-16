@@ -28,6 +28,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <linux/firmware.h>
 #include <linux/wait.h>
@@ -1459,8 +1460,10 @@ int smscore_gpio_configure(struct smscore_device_t *coredev, u8 PinNum,
 	if (!(coredev->device_flags & SMS_DEVICE_FAMILY2)) {
 		pMsg->xMsgHeader.msgType = MSG_SMS_GPIO_CONFIG_REQ;
 		if (GetGpioPinParams(PinNum, &TranslatedPinNum, &GroupNum,
-				&groupCfg) != 0)
-			return -EINVAL;
+				&groupCfg) != 0) {
+			rc = -EINVAL;
+			goto free;
+		}
 
 		pMsg->msgData[1] = TranslatedPinNum;
 		pMsg->msgData[2] = GroupNum;
@@ -1490,6 +1493,7 @@ int smscore_gpio_configure(struct smscore_device_t *coredev, u8 PinNum,
 		else
 			sms_err("smscore_gpio_configure error");
 	}
+free:
 	kfree(buffer);
 
 	return rc;

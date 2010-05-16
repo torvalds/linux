@@ -30,6 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/pci.h>
 #include <linux/pm.h>
@@ -396,6 +397,7 @@ static int intel_menlow_add_one_attribute(char *name, int mode, void *show,
 	if (!attr)
 		return -ENOMEM;
 
+	sysfs_attr_init(&attr->attr.attr); /* That is consistent naming :D */
 	attr->attr.attr.name = name;
 	attr->attr.attr.mode = mode;
 	attr->attr.show = show;

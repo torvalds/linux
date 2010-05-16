@@ -4,9 +4,25 @@
 
 #include <linux/device.h>
 #include <linux/string.h>
+#include <linux/pm_runtime.h>
 #include "power.h"
 
 /*
+ *	control - Report/change current runtime PM setting of the device
+ *
+ *	Runtime power management of a device can be blocked with the help of
+ *	this attribute.  All devices have one of the following two values for
+ *	the power/control file:
+ *
+ *	 + "auto\n" to allow the device to be power managed at run time;
+ *	 + "on\n" to prevent the device from being power managed at run time;
+ *
+ *	The default for all devices is "auto", which means that devices may be
+ *	subject to automatic power management, depending on their drivers.
+ *	Changing this attribute to "on" prevents the driver from power managing
+ *	the device at run time.  Doing that while the device is suspended causes
+ *	it to be woken up.
+ *
  *	wakeup - Report/change current wakeup option for device
  *
  *	Some devices support "wakeup" events, which are hardware signals
@@ -38,10 +54,60 @@
  *	wakeup events internally (unless they are disabled), keeping
  *	their hardware in low power modes whenever they're unused.  This
  *	saves runtime power, without requiring system-wide sleep states.
+ *
+ *	async - Report/change current async suspend setting for the device
+ *
+ *	Asynchronous suspend and resume of the device during system-wide power
+ *	state transitions can be enabled by writing "enabled" to this file.
+ *	Analogously, if "disabled" is written to this file, the device will be
+ *	suspended and resumed synchronously.
+ *
+ *	All devices have one of the following two values for power/async:
+ *
+ *	 + "enabled\n" to permit the asynchronous suspend/resume of the device;
+ *	 + "disabled\n" to forbid it;
+ *
+ *	NOTE: It generally is unsafe to permit the asynchronous suspend/resume
+ *	of a device unless it is certain that all of the PM dependencies of the
+ *	device are known to the PM core.  However, for some devices this
+ *	attribute is set to "enabled" by bus type code or device drivers and in
+ *	that cases it should be safe to leave the default value.
  */
 
 static const char enabled[] = "enabled";
 static const char disabled[] = "disabled";
+
+#ifdef CONFIG_PM_RUNTIME
+static const char ctrl_auto[] = "auto";
+static const char ctrl_on[] = "on";
+
+static ssize_t control_show(struct device *dev, struct device_attribute *attr,
+			    char *buf)
+{
+	return sprintf(buf, "%s\n",
+				dev->power.runtime_auto ? ctrl_auto : ctrl_on);
+}
+
+static ssize_t control_store(struct device * dev, struct device_attribute *attr,
+			     const char * buf, size_t n)
+{
+	char *cp;
+	int len = n;
+
+	cp = memchr(buf, '\n', n);
+	if (cp)
+		len = cp - buf;
+	if (len == sizeof ctrl_auto - 1 && strncmp(buf, ctrl_auto, len) == 0)
+		pm_runtime_allow(dev);
+	else if (len == sizeof ctrl_on - 1 && strncmp(buf, ctrl_on, len) == 0)
+		pm_runtime_forbid(dev);
+	else
+		return -EINVAL;
+	return n;
+}
+
+static DEVICE_ATTR(control, 0644, control_show, control_store);
+#endif
 
 static ssize_t
 wake_show(struct device * dev, struct device_attribute *attr, char * buf)
@@ -77,9 +143,43 @@ wake_store(struct device * dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(wakeup, 0644, wake_show, wake_store);
 
+#ifdef CONFIG_PM_SLEEP_ADVANCED_DEBUG
+static ssize_t async_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	return sprintf(buf, "%s\n",
+			device_async_suspend_enabled(dev) ? enabled : disabled);
+}
+
+static ssize_t async_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t n)
+{
+	char *cp;
+	int len = n;
+
+	cp = memchr(buf, '\n', n);
+	if (cp)
+		len = cp - buf;
+	if (len == sizeof enabled - 1 && strncmp(buf, enabled, len) == 0)
+		device_enable_async_suspend(dev);
+	else if (len == sizeof disabled - 1 && strncmp(buf, disabled, len) == 0)
+		device_disable_async_suspend(dev);
+	else
+		return -EINVAL;
+	return n;
+}
+
+static DEVICE_ATTR(async, 0644, async_show, async_store);
+#endif /* CONFIG_PM_SLEEP_ADVANCED_DEBUG */
 
 static struct attribute * power_attrs[] = {
+#ifdef CONFIG_PM_RUNTIME
+	&dev_attr_control.attr,
+#endif
 	&dev_attr_wakeup.attr,
+#ifdef CONFIG_PM_SLEEP_ADVANCED_DEBUG
+	&dev_attr_async.attr,
+#endif
 	NULL,
 };
 static struct attribute_group pm_attr_group = {

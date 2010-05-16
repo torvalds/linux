@@ -351,14 +351,11 @@ static inline void usb_serial_debug_data(int debug,
 
 /* Use our own dbg macro */
 #undef dbg
-#define dbg(format, arg...) \
-	do { \
-		if (debug) \
-			printk(KERN_DEBUG "%s: " format "\n" , __FILE__ , \
-				## arg); \
-	} while (0)
-
-
+#define dbg(format, arg...)						\
+do {									\
+	if (debug)							\
+		printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg);	\
+} while (0)
 
 #endif /* __LINUX_USB_SERIAL_H */
 

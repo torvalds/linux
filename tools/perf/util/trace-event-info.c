@@ -20,6 +20,7 @@
  */
 #define _GNU_SOURCE
 #include <dirent.h>
+#include <mntent.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,6 +38,7 @@
 
 #include "../perf.h"
 #include "trace-event.h"
+#include "debugfs.h"
 
 #define VERSION "0.5"
 
@@ -101,32 +103,12 @@ void *malloc_or_die(unsigned int size)
 
 static const char *find_debugfs(void)
 {
-	static char debugfs[MAX_PATH+1];
-	static int debugfs_found;
-	char type[100];
-	FILE *fp;
+	const char *path = debugfs_mount(NULL);
 
-	if (debugfs_found)
-		return debugfs;
+	if (!path)
+		die("Your kernel not support debugfs filesystem");
 
-	if ((fp = fopen("/proc/mounts","r")) == NULL)
-		die("Can't open /proc/mounts for read");
-
-	while (fscanf(fp, "%*s %"
-		      STR(MAX_PATH)
-		      "s %99s %*s %*d %*d\n",
-		      debugfs, type) == 2) {
-		if (strcmp(type, "debugfs") == 0)
-			break;
-	}
-	fclose(fp);
-
-	if (strcmp(type, "debugfs") != 0)
-		die("debugfs not mounted, please mount");
-
-	debugfs_found = 1;
-
-	return debugfs;
+	return path;
 }
 
 /*
@@ -271,6 +253,8 @@ static void read_header_files(void)
 	write_or_die("header_page", 12);
 	write_or_die(&size, 8);
 	check_size = copy_file_fd(fd);
+	close(fd);
+
 	if (size != check_size)
 		die("wrong size for '%s' size=%lld read=%lld",
 		    path, size, check_size);
@@ -289,6 +273,7 @@ static void read_header_files(void)
 	if (size != check_size)
 		die("wrong size for '%s'", path);
 	put_tracing_file(path);
+	close(fd);
 }
 
 static bool name_in_tp_list(char *sys, struct tracepoint_path *tps)
@@ -317,7 +302,8 @@ static void copy_event_system(const char *sys, struct tracepoint_path *tps)
 		die("can't read directory '%s'", sys);
 
 	while ((dent = readdir(dir))) {
-		if (strcmp(dent->d_name, ".") == 0 ||
+		if (dent->d_type != DT_DIR ||
+		    strcmp(dent->d_name, ".") == 0 ||
 		    strcmp(dent->d_name, "..") == 0 ||
 		    !name_in_tp_list(dent->d_name, tps))
 			continue;
@@ -334,7 +320,8 @@ static void copy_event_system(const char *sys, struct tracepoint_path *tps)
 
 	rewinddir(dir);
 	while ((dent = readdir(dir))) {
-		if (strcmp(dent->d_name, ".") == 0 ||
+		if (dent->d_type != DT_DIR ||
+		    strcmp(dent->d_name, ".") == 0 ||
 		    strcmp(dent->d_name, "..") == 0 ||
 		    !name_in_tp_list(dent->d_name, tps))
 			continue;
@@ -353,6 +340,7 @@ static void copy_event_system(const char *sys, struct tracepoint_path *tps)
 
 		free(format);
 	}
+	closedir(dir);
 }
 
 static void read_ftrace_files(struct tracepoint_path *tps)
@@ -394,26 +382,21 @@ static void read_event_files(struct tracepoint_path *tps)
 		die("can't read directory '%s'", path);
 
 	while ((dent = readdir(dir))) {
-		if (strcmp(dent->d_name, ".") == 0 ||
+		if (dent->d_type != DT_DIR ||
+		    strcmp(dent->d_name, ".") == 0 ||
 		    strcmp(dent->d_name, "..") == 0 ||
 		    strcmp(dent->d_name, "ftrace") == 0 ||
 		    !system_in_tp_list(dent->d_name, tps))
 			continue;
-		sys = malloc_or_die(strlen(path) + strlen(dent->d_name) + 2);
-		sprintf(sys, "%s/%s", path, dent->d_name);
-		ret = stat(sys, &st);
-		free(sys);
-		if (ret < 0)
-			continue;
-		if (S_ISDIR(st.st_mode))
-			count++;
+		count++;
 	}
 
 	write_or_die(&count, 4);
 
 	rewinddir(dir);
 	while ((dent = readdir(dir))) {
-		if (strcmp(dent->d_name, ".") == 0 ||
+		if (dent->d_type != DT_DIR ||
+		    strcmp(dent->d_name, ".") == 0 ||
 		    strcmp(dent->d_name, "..") == 0 ||
 		    strcmp(dent->d_name, "ftrace") == 0 ||
 		    !system_in_tp_list(dent->d_name, tps))
@@ -422,14 +405,13 @@ static void read_event_files(struct tracepoint_path *tps)
 		sprintf(sys, "%s/%s", path, dent->d_name);
 		ret = stat(sys, &st);
 		if (ret >= 0) {
-			if (S_ISDIR(st.st_mode)) {
-				write_or_die(dent->d_name, strlen(dent->d_name) + 1);
-				copy_event_system(sys, tps);
-			}
+			write_or_die(dent->d_name, strlen(dent->d_name) + 1);
+			copy_event_system(sys, tps);
 		}
 		free(sys);
 	}
 
+	closedir(dir);
 	put_tracing_file(path);
 }
 
@@ -533,7 +515,7 @@ int read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events)
 	write_or_die(buf, 1);
 
 	/* save page_size */
-	page_size = getpagesize();
+	page_size = sysconf(_SC_PAGESIZE);
 	write_or_die(&page_size, 4);
 
 	read_header_files();

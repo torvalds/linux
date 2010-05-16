@@ -110,18 +110,21 @@ struct clk *main_clks[] = {
 static int multipliers[] = { 1, 2, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1 };
 static int divisors[] = { 1, 3, 2, 5, 3, 4, 5, 6, 8, 10, 12, 16, 20 };
 
-static struct clk_div_mult_table div4_table = {
+static struct clk_div_mult_table div4_div_mult_table = {
 	.divisors = divisors,
 	.nr_divisors = ARRAY_SIZE(divisors),
 	.multipliers = multipliers,
 	.nr_multipliers = ARRAY_SIZE(multipliers),
 };
 
-enum { DIV4_I, DIV4_U, DIV4_SH, DIV4_B, DIV4_B3, DIV4_P,
-       DIV4_SIUA, DIV4_SIUB, DIV4_IRDA, DIV4_NR };
+static struct clk_div4_table div4_table = {
+	.div_mult_table = &div4_div_mult_table,
+};
 
 #define DIV4(_str, _reg, _bit, _mask, _flags) \
   SH_CLK_DIV4(_str, &pll_clk, _reg, _bit, _mask, _flags)
+
+enum { DIV4_I, DIV4_U, DIV4_SH, DIV4_B, DIV4_B3, DIV4_P, DIV4_NR };
 
 struct clk div4_clks[DIV4_NR] = {
 	[DIV4_I] = DIV4("cpu_clk", FRQCR, 20, 0x1fef, CLK_ENABLE_ON_INIT),
@@ -130,9 +133,19 @@ struct clk div4_clks[DIV4_NR] = {
 	[DIV4_B] = DIV4("bus_clk", FRQCR, 8, 0x1fff, CLK_ENABLE_ON_INIT),
 	[DIV4_B3] = DIV4("b3_clk", FRQCR, 4, 0x1fff, CLK_ENABLE_ON_INIT),
 	[DIV4_P] = DIV4("peripheral_clk", FRQCR, 0, 0x1fff, 0),
+};
+
+enum { DIV4_IRDA, DIV4_ENABLE_NR };
+
+struct clk div4_enable_clks[DIV4_ENABLE_NR] = {
+	[DIV4_IRDA] = DIV4("irda_clk", IRDACLKCR, 0, 0x1fff, 0),
+};
+
+enum { DIV4_SIUA, DIV4_SIUB, DIV4_REPARENT_NR };
+
+struct clk div4_reparent_clks[DIV4_REPARENT_NR] = {
 	[DIV4_SIUA] = DIV4("siua_clk", SCLKACR, 0, 0x1fff, 0),
 	[DIV4_SIUB] = DIV4("siub_clk", SCLKBCR, 0, 0x1fff, 0),
-	[DIV4_IRDA] = DIV4("irda_clk", IRDACLKCR, 0, 0x1fff, 0),
 };
 
 struct clk div6_clks[] = {
@@ -187,6 +200,14 @@ int __init arch_clk_init(void)
 
 	if (!ret)
 		ret = sh_clk_div4_register(div4_clks, DIV4_NR, &div4_table);
+
+	if (!ret)
+		ret = sh_clk_div4_enable_register(div4_enable_clks,
+					DIV4_ENABLE_NR, &div4_table);
+
+	if (!ret)
+		ret = sh_clk_div4_reparent_register(div4_reparent_clks,
+					DIV4_REPARENT_NR, &div4_table);
 
 	if (!ret)
 		ret = sh_clk_div6_register(div6_clks, ARRAY_SIZE(div6_clks));

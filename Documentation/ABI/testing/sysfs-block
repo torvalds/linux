@@ -128,3 +128,17 @@ Description:
 		preferred request size for workloads where sustained
 		throughput is desired.  If no optimal I/O size is
 		reported this file contains 0.
+
+What:		/sys/block/<disk>/queue/nomerges
+Date:		January 2010
+Contact:
+Description:
+		Standard I/O elevator operations include attempts to
+		merge contiguous I/Os. For known random I/O loads these
+		attempts will always fail and result in extra cycles
+		being spent in the kernel. This allows one to turn off
+		this behavior on one of two ways: When set to 1, complex
+		merge checks are disabled, but the simple one-shot merges
+		with the previous I/O request are enabled. When set to 2,
+		all merge tries are disabled. The default value is 0 -
+		which enables all types of merge tries.

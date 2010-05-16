@@ -33,8 +33,7 @@
 #include "debug-levels.h"
 
 
-static const
-struct nla_policy wimax_gnl_state_get_policy[WIMAX_GNL_ATTR_MAX + 1] = {
+static const struct nla_policy wimax_gnl_state_get_policy[WIMAX_GNL_ATTR_MAX + 1] = {
 	[WIMAX_GNL_STGET_IFIDX] = {
 		.type = NLA_U32,
 	},

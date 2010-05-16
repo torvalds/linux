@@ -1,0 +1,9 @@
+config DVB_NGENE
+	tristate "Micronas nGene support"
+	depends on DVB_CORE && PCI && I2C
+	select DVB_LNBP21 if !DVB_FE_CUSTOMISE
+	select DVB_STV6110x if !DVB_FE_CUSTOMISE
+	select DVB_STV090x if !DVB_FE_CUSTOMISE
+	---help---
+	  Support for Micronas PCI express cards with nGene bridge.
+

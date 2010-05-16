@@ -2,6 +2,7 @@
  * Functions related to sysfs handling
  */
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/bio.h>
 #include <linux/blkdev.h>
@@ -106,6 +107,19 @@ static ssize_t queue_max_sectors_show(struct request_queue *q, char *page)
 	return queue_var_show(max_sectors_kb, (page));
 }
 
+static ssize_t queue_max_segments_show(struct request_queue *q, char *page)
+{
+	return queue_var_show(queue_max_segments(q), (page));
+}
+
+static ssize_t queue_max_segment_size_show(struct request_queue *q, char *page)
+{
+	if (test_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags))
+		return queue_var_show(queue_max_segment_size(q), (page));
+
+	return queue_var_show(PAGE_CACHE_SIZE, (page));
+}
+
 static ssize_t queue_logical_block_size_show(struct request_queue *q, char *page)
 {
 	return queue_var_show(queue_logical_block_size(q), page);
@@ -189,7 +203,8 @@ static ssize_t queue_nonrot_store(struct request_queue *q, const char *page,
 
 static ssize_t queue_nomerges_show(struct request_queue *q, char *page)
 {
-	return queue_var_show(blk_queue_nomerges(q), page);
+	return queue_var_show((blk_queue_nomerges(q) << 1) |
+			       blk_queue_noxmerges(q), page);
 }
 
 static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
@@ -199,10 +214,12 @@ static ssize_t queue_nomerges_store(struct request_queue *q, const char *page,
 	ssize_t ret = queue_var_store(&nm, page, count);
 
 	spin_lock_irq(q->queue_lock);
-	if (nm)
+	queue_flag_clear(QUEUE_FLAG_NOMERGES, q);
+	queue_flag_clear(QUEUE_FLAG_NOXMERGES, q);
+	if (nm == 2)
 		queue_flag_set(QUEUE_FLAG_NOMERGES, q);
-	else
-		queue_flag_clear(QUEUE_FLAG_NOMERGES, q);
+	else if (nm)
+		queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
 	spin_unlock_irq(q->queue_lock);
 
 	return ret;
@@ -275,6 +292,16 @@ static struct queue_sysfs_entry queue_max_sectors_entry = {
 static struct queue_sysfs_entry queue_max_hw_sectors_entry = {
 	.attr = {.name = "max_hw_sectors_kb", .mode = S_IRUGO },
 	.show = queue_max_hw_sectors_show,
+};
+
+static struct queue_sysfs_entry queue_max_segments_entry = {
+	.attr = {.name = "max_segments", .mode = S_IRUGO },
+	.show = queue_max_segments_show,
+};
+
+static struct queue_sysfs_entry queue_max_segment_size_entry = {
+	.attr = {.name = "max_segment_size", .mode = S_IRUGO },
+	.show = queue_max_segment_size_show,
 };
 
 static struct queue_sysfs_entry queue_iosched_entry = {
@@ -352,6 +379,8 @@ static struct attribute *default_attrs[] = {
 	&queue_ra_entry.attr,
 	&queue_max_hw_sectors_entry.attr,
 	&queue_max_sectors_entry.attr,
+	&queue_max_segments_entry.attr,
+	&queue_max_segment_size_entry.attr,
 	&queue_iosched_entry.attr,
 	&queue_hw_sector_size_entry.attr,
 	&queue_logical_block_size_entry.attr,
@@ -447,7 +476,7 @@ static void blk_release_queue(struct kobject *kobj)
 	kmem_cache_free(blk_requestq_cachep, q);
 }
 
-static struct sysfs_ops queue_sysfs_ops = {
+static const struct sysfs_ops queue_sysfs_ops = {
 	.show	= queue_attr_show,
 	.store	= queue_attr_store,
 };

@@ -153,6 +153,7 @@ struct nilfs_super_root {
 						   semantics also for data */
 #define NILFS_MOUNT_NORECOVERY		0x4000  /* Disable write access during
 						   mount-time recovery */
+#define NILFS_MOUNT_DISCARD		0x8000  /* Issue DISCARD requests */
 
 
 /**

@@ -81,12 +81,12 @@ static struct udp_seq_afinfo udplite4_seq_afinfo = {
 	},
 };
 
-static int udplite4_proc_init_net(struct net *net)
+static int __net_init udplite4_proc_init_net(struct net *net)
 {
 	return udp_proc_register(net, &udplite4_seq_afinfo);
 }
 
-static void udplite4_proc_exit_net(struct net *net)
+static void __net_exit udplite4_proc_exit_net(struct net *net)
 {
 	udp_proc_unregister(net, &udplite4_seq_afinfo);
 }

@@ -21,6 +21,7 @@
 #include <linux/of_spi.h>
 #include <linux/io.h>
 #include <linux/of_gpio.h>
+#include <linux/slab.h>
 #include <asm/time.h>
 #include <asm/mpc52xx.h>
 
@@ -550,7 +551,7 @@ static int __devexit mpc52xx_spi_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id mpc52xx_spi_match[] __devinitdata = {
+static const struct of_device_id mpc52xx_spi_match[] __devinitconst = {
 	{ .compatible = "fsl,mpc5200-spi", },
 	{}
 };

@@ -23,6 +23,7 @@
 #include <linux/swap.h>
 #include <linux/slab.h>
 #include <linux/sysctl.h>
+#include <linux/signal.h>
 #include <linux/proc_fs.h>
 #include <linux/security.h>
 #include <linux/ctype.h>
@@ -50,6 +51,7 @@
 #include <linux/ftrace.h>
 #include <linux/slow-work.h>
 #include <linux/perf_event.h>
+#include <linux/kprobes.h>
 
 #include <asm/uaccess.h>
 #include <asm/processor.h>
@@ -59,13 +61,23 @@
 #include <asm/stacktrace.h>
 #include <asm/io.h>
 #endif
+#ifdef CONFIG_BSD_PROCESS_ACCT
+#include <linux/acct.h>
+#endif
+#ifdef CONFIG_RT_MUTEXES
+#include <linux/rtmutex.h>
+#endif
+#if defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_LOCK_STAT)
+#include <linux/lockdep.h>
+#endif
+#ifdef CONFIG_CHR_DEV_SG
+#include <scsi/sg.h>
+#endif
 
 
 #if defined(CONFIG_SYSCTL)
 
 /* External variables not in a header file. */
-extern int C_A_D;
-extern int print_fatal_signals;
 extern int sysctl_overcommit_memory;
 extern int sysctl_overcommit_ratio;
 extern int sysctl_panic_on_oom;
@@ -87,9 +99,6 @@ extern int sysctl_nr_open_min, sysctl_nr_open_max;
 #ifndef CONFIG_MMU
 extern int sysctl_nr_trim_pages;
 #endif
-#ifdef CONFIG_RCU_TORTURE_TEST
-extern int rcutorture_runnable;
-#endif /* #ifdef CONFIG_RCU_TORTURE_TEST */
 #ifdef CONFIG_BLOCK
 extern int blk_iopoll_enabled;
 #endif
@@ -119,14 +128,6 @@ static int min_percpu_pagelist_fract = 8;
 
 static int ngroups_max = NGROUPS_MAX;
 
-#ifdef CONFIG_MODULES
-extern char modprobe_path[];
-extern int modules_disabled;
-#endif
-#ifdef CONFIG_CHR_DEV_SG
-extern int sg_big_buff;
-#endif
-
 #ifdef CONFIG_SPARC
 #include <asm/system.h>
 #endif
@@ -148,20 +149,12 @@ extern int sysctl_userprocess_debug;
 extern int spin_retry;
 #endif
 
-#ifdef CONFIG_BSD_PROCESS_ACCT
-extern int acct_parm[];
-#endif
-
 #ifdef CONFIG_IA64
 extern int no_unaligned_warning;
 extern int unaligned_dump_stack;
 #endif
 
 extern struct ratelimit_state printk_ratelimit_state;
-
-#ifdef CONFIG_RT_MUTEXES
-extern int max_lock_depth;
-#endif
 
 #ifdef CONFIG_PROC_SYSCTL
 static int proc_do_cad_pid(struct ctl_table *table, int write,
@@ -200,9 +193,6 @@ extern struct ctl_table epoll_table[];
 #ifdef HAVE_ARCH_PICK_MMAP_LAYOUT
 int sysctl_legacy_va_layout;
 #endif
-
-extern int prove_locking;
-extern int lock_stat;
 
 /* The default sysctl tables: */
 
@@ -1441,13 +1431,24 @@ static struct ctl_table fs_table[] = {
 };
 
 static struct ctl_table debug_table[] = {
-#if defined(CONFIG_X86) || defined(CONFIG_PPC)
+#if defined(CONFIG_X86) || defined(CONFIG_PPC) || defined(CONFIG_SPARC)
 	{
 		.procname	= "exception-trace",
 		.data		= &show_unhandled_signals,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
+	},
+#endif
+#if defined(CONFIG_OPTPROBES)
+	{
+		.procname	= "kprobes-optimization",
+		.data		= &sysctl_kprobes_optimization,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_kprobes_optimization_handler,
+		.extra1		= &zero,
+		.extra2		= &one,
 	},
 #endif
 	{ }

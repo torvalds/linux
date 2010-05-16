@@ -15,7 +15,6 @@
 
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/poll.h>
 #include <linux/module.h>
 #include <linux/init.h>
@@ -542,10 +541,8 @@ static int mousedev_open(struct inode *inode, struct file *file)
 	if (i >= MOUSEDEV_MINORS)
 		return -ENODEV;
 
-	lock_kernel();
 	error = mutex_lock_interruptible(&mousedev_table_mutex);
 	if (error) {
-		unlock_kernel();
 		return error;
 	}
 	mousedev = mousedev_table[i];
@@ -554,7 +551,6 @@ static int mousedev_open(struct inode *inode, struct file *file)
 	mutex_unlock(&mousedev_table_mutex);
 
 	if (!mousedev) {
-		unlock_kernel();
 		return -ENODEV;
 	}
 
@@ -575,7 +571,6 @@ static int mousedev_open(struct inode *inode, struct file *file)
 		goto err_free_client;
 
 	file->private_data = client;
-	unlock_kernel();
 	return 0;
 
  err_free_client:
@@ -583,7 +578,6 @@ static int mousedev_open(struct inode *inode, struct file *file)
 	kfree(client);
  err_put_mousedev:
 	put_device(&mousedev->dev);
-	unlock_kernel();
 	return error;
 }
 

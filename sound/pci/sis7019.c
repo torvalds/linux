@@ -24,6 +24,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/time.h>
+#include <linux/slab.h>
 #include <linux/moduleparam.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
@@ -48,7 +49,7 @@ MODULE_PARM_DESC(id, "ID string for SiS7019 Audio Accelerator.");
 module_param(enable, bool, 0444);
 MODULE_PARM_DESC(enable, "Enable SiS7019 Audio Accelerator.");
 
-static struct pci_device_id snd_sis7019_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_sis7019_ids) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_SI, 0x7019) },
 	{ 0, }
 };

@@ -35,8 +35,8 @@ typedef	struct	_MD4_CTX_	{
 	u8	buffer[64];      /* input buffer */
 }	MD4_CTX;
 
-void MD4Init (MD4_CTX *);
-void MD4Update (MD4_CTX *, u8 *, UINT);
-void MD4Final (u8 [16], MD4_CTX *);
+void MD4Init(MD4_CTX *);
+void MD4Update(MD4_CTX *, u8 *, UINT);
+void MD4Final(u8 [16], MD4_CTX *);
 
-#endif //__MD4_H__
+#endif /*__MD4_H__*/

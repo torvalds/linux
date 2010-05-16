@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/smp_lock.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 #include <linux/coda.h>

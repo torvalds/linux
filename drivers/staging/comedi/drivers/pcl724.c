@@ -17,7 +17,7 @@
      [0] - IO Base
      [1] - IRQ (0=disable IRQ) IRQ isn't supported at this time!
      [2] -number of DIO:
-              0, 144: 144 DIO configuration
+	      0, 144: 144 DIO configuration
 	      1,  96:  96 DIO configuration
 */
 /*
@@ -137,8 +137,8 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	iorange = this_board->io_range;
 	if ((this_board->can_have96) && ((it->options[1] == 1)
 					 || (it->options[1] == 96)))
-		iorange = PCL722_96_SIZE;	/*  PCL-724 in 96 DIO configuration */
-	printk("comedi%d: pcl724: board=%s, 0x%03lx ", dev->minor,
+		iorange = PCL722_96_SIZE; /* PCL-724 in 96 DIO configuration */
+	printk(KERN_INFO "comedi%d: pcl724: board=%s, 0x%03lx ", dev->minor,
 	       this_board->name, iobase);
 	if (!request_region(iobase, iorange, "pcl724")) {
 		printk("I/O port conflict\n");
@@ -155,16 +155,16 @@ static int pcl724_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		irq = it->options[1];
 		if (irq) {	/* we want to use IRQ */
 			if (((1 << irq) & this_board->IRQbits) == 0) {
-				printk
-				    (", IRQ %u is out of allowed range, DISABLING IT",
-				     irq);
+				printk(KERN_WARNING
+				       ", IRQ %u is out of allowed range, "
+				       "DISABLING IT", irq);
 				irq = 0;	/* Bad IRQ */
 			} else {
 				if (request_irq
 				    (irq, interrupt_pcl724, 0, "pcl724", dev)) {
-					printk
-					    (", unable to allocate IRQ %u, DISABLING IT",
-					     irq);
+					printk(KERN_WARNING
+					       ", unable to allocate IRQ %u, "
+					       "DISABLING IT", irq);
 					irq = 0;	/* Can't use IRQ */
 				} else {
 					printk(", irq=%u", irq);
@@ -207,16 +207,14 @@ static int pcl724_detach(struct comedi_device *dev)
 {
 	int i;
 
-/* printk("comedi%d: pcl724: remove\n",dev->minor); */
+	/* printk("comedi%d: pcl724: remove\n",dev->minor); */
 
-	for (i = 0; i < dev->n_subdevices; i++) {
+	for (i = 0; i < dev->n_subdevices; i++)
 		subdev_8255_cleanup(dev, dev->subdevices + i);
-	}
 
 #ifdef PCL724_IRQ
-	if (dev->irq) {
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}
 #endif
 
 	release_region(dev->iobase, this_board->io_range);

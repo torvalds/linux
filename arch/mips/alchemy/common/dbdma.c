@@ -30,6 +30,7 @@
  *
  */
 
+#include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
@@ -58,7 +59,6 @@ static DEFINE_SPINLOCK(au1xxx_dbdma_spin_lock);
 
 static dbdma_global_t *dbdma_gptr = (dbdma_global_t *)DDMA_GLOBAL_BASE;
 static int dbdma_initialized;
-static void au1xxx_dbdma_init(void);
 
 static dbdev_tab_t dbdev_tab[] = {
 #ifdef CONFIG_SOC_AU1550
@@ -237,7 +237,7 @@ u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
        void (*callback)(int, void *), void *callparam)
 {
 	unsigned long   flags;
-	u32		used, chan, rv;
+	u32		used, chan;
 	u32		dcp;
 	int		i;
 	dbdev_tab_t	*stp, *dtp;
@@ -250,8 +250,7 @@ u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
 	 * which can't be done successfully during board set up.
 	 */
 	if (!dbdma_initialized)
-		au1xxx_dbdma_init();
-	dbdma_initialized = 1;
+		return 0;
 
 	stp = find_dbdev_id(srcid);
 	if (stp == NULL)
@@ -261,7 +260,6 @@ u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
 		return 0;
 
 	used = 0;
-	rv = 0;
 
 	/* Check to see if we can get both channels. */
 	spin_lock_irqsave(&au1xxx_dbdma_spin_lock, flags);
@@ -282,63 +280,65 @@ u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
 		used++;
 	spin_unlock_irqrestore(&au1xxx_dbdma_spin_lock, flags);
 
-	if (!used) {
-		/* Let's see if we can allocate a channel for it. */
-		ctp = NULL;
-		chan = 0;
-		spin_lock_irqsave(&au1xxx_dbdma_spin_lock, flags);
-		for (i = 0; i < NUM_DBDMA_CHANS; i++)
-			if (chan_tab_ptr[i] == NULL) {
-				/*
-				 * If kmalloc fails, it is caught below same
-				 * as a channel not available.
-				 */
-				ctp = kmalloc(sizeof(chan_tab_t), GFP_ATOMIC);
-				chan_tab_ptr[i] = ctp;
-				break;
-			}
-		spin_unlock_irqrestore(&au1xxx_dbdma_spin_lock, flags);
+	if (used)
+		return 0;
 
-		if (ctp != NULL) {
-			memset(ctp, 0, sizeof(chan_tab_t));
-			ctp->chan_index = chan = i;
-			dcp = DDMA_CHANNEL_BASE;
-			dcp += (0x0100 * chan);
-			ctp->chan_ptr = (au1x_dma_chan_t *)dcp;
-			cp = (au1x_dma_chan_t *)dcp;
-			ctp->chan_src = stp;
-			ctp->chan_dest = dtp;
-			ctp->chan_callback = callback;
-			ctp->chan_callparam = callparam;
-
-			/* Initialize channel configuration. */
-			i = 0;
-			if (stp->dev_intlevel)
-				i |= DDMA_CFG_SED;
-			if (stp->dev_intpolarity)
-				i |= DDMA_CFG_SP;
-			if (dtp->dev_intlevel)
-				i |= DDMA_CFG_DED;
-			if (dtp->dev_intpolarity)
-				i |= DDMA_CFG_DP;
-			if ((stp->dev_flags & DEV_FLAGS_SYNC) ||
-				(dtp->dev_flags & DEV_FLAGS_SYNC))
-					i |= DDMA_CFG_SYNC;
-			cp->ddma_cfg = i;
-			au_sync();
-
-			/* Return a non-zero value that can be used to
-			 * find the channel information in subsequent
-			 * operations.
+	/* Let's see if we can allocate a channel for it. */
+	ctp = NULL;
+	chan = 0;
+	spin_lock_irqsave(&au1xxx_dbdma_spin_lock, flags);
+	for (i = 0; i < NUM_DBDMA_CHANS; i++)
+		if (chan_tab_ptr[i] == NULL) {
+			/*
+			 * If kmalloc fails, it is caught below same
+			 * as a channel not available.
 			 */
-			rv = (u32)(&chan_tab_ptr[chan]);
-		} else {
-			/* Release devices */
-			stp->dev_flags &= ~DEV_FLAGS_INUSE;
-			dtp->dev_flags &= ~DEV_FLAGS_INUSE;
+			ctp = kmalloc(sizeof(chan_tab_t), GFP_ATOMIC);
+			chan_tab_ptr[i] = ctp;
+			break;
 		}
+	spin_unlock_irqrestore(&au1xxx_dbdma_spin_lock, flags);
+
+	if (ctp != NULL) {
+		memset(ctp, 0, sizeof(chan_tab_t));
+		ctp->chan_index = chan = i;
+		dcp = DDMA_CHANNEL_BASE;
+		dcp += (0x0100 * chan);
+		ctp->chan_ptr = (au1x_dma_chan_t *)dcp;
+		cp = (au1x_dma_chan_t *)dcp;
+		ctp->chan_src = stp;
+		ctp->chan_dest = dtp;
+		ctp->chan_callback = callback;
+		ctp->chan_callparam = callparam;
+
+		/* Initialize channel configuration. */
+		i = 0;
+		if (stp->dev_intlevel)
+			i |= DDMA_CFG_SED;
+		if (stp->dev_intpolarity)
+			i |= DDMA_CFG_SP;
+		if (dtp->dev_intlevel)
+			i |= DDMA_CFG_DED;
+		if (dtp->dev_intpolarity)
+			i |= DDMA_CFG_DP;
+		if ((stp->dev_flags & DEV_FLAGS_SYNC) ||
+			(dtp->dev_flags & DEV_FLAGS_SYNC))
+				i |= DDMA_CFG_SYNC;
+		cp->ddma_cfg = i;
+		au_sync();
+
+		/*
+		 * Return a non-zero value that can be used to find the channel
+		 * information in subsequent operations.
+		 */
+		return (u32)(&chan_tab_ptr[chan]);
 	}
-	return rv;
+
+	/* Release devices */
+	stp->dev_flags &= ~DEV_FLAGS_INUSE;
+	dtp->dev_flags &= ~DEV_FLAGS_INUSE;
+
+	return 0;
 }
 EXPORT_SYMBOL(au1xxx_dbdma_chan_alloc);
 
@@ -572,7 +572,7 @@ EXPORT_SYMBOL(au1xxx_dbdma_ring_alloc);
  * This updates the source pointer and byte count.  Normally used
  * for memory to fifo transfers.
  */
-u32 _au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags)
+u32 au1xxx_dbdma_put_source(u32 chanid, dma_addr_t buf, int nbytes, u32 flags)
 {
 	chan_tab_t		*ctp;
 	au1x_ddma_desc_t	*dp;
@@ -598,7 +598,7 @@ u32 _au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags)
 		return 0;
 
 	/* Load up buffer address and byte count. */
-	dp->dscr_source0 = virt_to_phys(buf);
+	dp->dscr_source0 = buf & ~0UL;
 	dp->dscr_cmd1 = nbytes;
 	/* Check flags */
 	if (flags & DDMA_FLAGS_IE)
@@ -625,14 +625,13 @@ u32 _au1xxx_dbdma_put_source(u32 chanid, void *buf, int nbytes, u32 flags)
 	/* Return something non-zero. */
 	return nbytes;
 }
-EXPORT_SYMBOL(_au1xxx_dbdma_put_source);
+EXPORT_SYMBOL(au1xxx_dbdma_put_source);
 
 /* Put a destination buffer into the DMA ring.
  * This updates the destination pointer and byte count.  Normally used
  * to place an empty buffer into the ring for fifo to memory transfers.
  */
-u32
-_au1xxx_dbdma_put_dest(u32 chanid, void *buf, int nbytes, u32 flags)
+u32 au1xxx_dbdma_put_dest(u32 chanid, dma_addr_t buf, int nbytes, u32 flags)
 {
 	chan_tab_t		*ctp;
 	au1x_ddma_desc_t	*dp;
@@ -662,7 +661,7 @@ _au1xxx_dbdma_put_dest(u32 chanid, void *buf, int nbytes, u32 flags)
 	if (flags & DDMA_FLAGS_NOIE)
 		dp->dscr_cmd0 &= ~DSCR_CMD0_IE;
 
-	dp->dscr_dest0 = virt_to_phys(buf);
+	dp->dscr_dest0 = buf & ~0UL;
 	dp->dscr_cmd1 = nbytes;
 #if 0
 	printk(KERN_DEBUG "cmd0:%x cmd1:%x source0:%x source1:%x dest0:%x dest1:%x\n",
@@ -688,7 +687,7 @@ _au1xxx_dbdma_put_dest(u32 chanid, void *buf, int nbytes, u32 flags)
 	/* Return something non-zero. */
 	return nbytes;
 }
-EXPORT_SYMBOL(_au1xxx_dbdma_put_dest);
+EXPORT_SYMBOL(au1xxx_dbdma_put_dest);
 
 /*
  * Get a destination buffer into the DMA ring.
@@ -871,28 +870,6 @@ static irqreturn_t dbdma_interrupt(int irq, void *dev_id)
 	return IRQ_RETVAL(1);
 }
 
-static void au1xxx_dbdma_init(void)
-{
-	int irq_nr;
-
-	dbdma_gptr->ddma_config = 0;
-	dbdma_gptr->ddma_throttle = 0;
-	dbdma_gptr->ddma_inten = 0xffff;
-	au_sync();
-
-#if defined(CONFIG_SOC_AU1550)
-	irq_nr = AU1550_DDMA_INT;
-#elif defined(CONFIG_SOC_AU1200)
-	irq_nr = AU1200_DDMA_INT;
-#else
-	#error Unknown Au1x00 SOC
-#endif
-
-	if (request_irq(irq_nr, dbdma_interrupt, IRQF_DISABLED,
-			"Au1xxx dbdma", (void *)dbdma_gptr))
-		printk(KERN_ERR "Can't get 1550 dbdma irq");
-}
-
 void au1xxx_dbdma_dump(u32 chanid)
 {
 	chan_tab_t	 *ctp;
@@ -906,7 +883,7 @@ void au1xxx_dbdma_dump(u32 chanid)
 	dtp = ctp->chan_dest;
 	cp = ctp->chan_ptr;
 
-	printk(KERN_DEBUG "Chan %x, stp %x (dev %d)  dtp %x (dev %d) \n",
+	printk(KERN_DEBUG "Chan %x, stp %x (dev %d)  dtp %x (dev %d)\n",
 			  (u32)ctp, (u32)stp, stp - dbdev_tab, (u32)dtp,
 			  dtp - dbdev_tab);
 	printk(KERN_DEBUG "desc base %x, get %x, put %x, cur %x\n",
@@ -1041,4 +1018,38 @@ void au1xxx_dbdma_resume(void)
 	}
 }
 #endif	/* CONFIG_PM */
+
+static int __init au1xxx_dbdma_init(void)
+{
+	int irq_nr, ret;
+
+	dbdma_gptr->ddma_config = 0;
+	dbdma_gptr->ddma_throttle = 0;
+	dbdma_gptr->ddma_inten = 0xffff;
+	au_sync();
+
+	switch (alchemy_get_cputype()) {
+	case ALCHEMY_CPU_AU1550:
+		irq_nr = AU1550_DDMA_INT;
+		break;
+	case ALCHEMY_CPU_AU1200:
+		irq_nr = AU1200_DDMA_INT;
+		break;
+	default:
+		return -ENODEV;
+	}
+
+	ret = request_irq(irq_nr, dbdma_interrupt, IRQF_DISABLED,
+			"Au1xxx dbdma", (void *)dbdma_gptr);
+	if (ret)
+		printk(KERN_ERR "Cannot grab DBDMA interrupt!\n");
+	else {
+		dbdma_initialized = 1;
+		printk(KERN_INFO "Alchemy DBDMA initialized\n");
+	}
+
+	return ret;
+}
+subsys_initcall(au1xxx_dbdma_init);
+
 #endif /* defined(CONFIG_SOC_AU1550) || defined(CONFIG_SOC_AU1200) */

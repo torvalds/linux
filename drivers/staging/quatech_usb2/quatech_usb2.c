@@ -116,7 +116,7 @@ static int debug;
 #define FOURTHCHAR	((unsigned char *)(urb->transfer_buffer))[i + 3]
 #define FIFTHCHAR	((unsigned char *)(urb->transfer_buffer))[i + 4]
 
-static struct usb_device_id quausb2_id_table[] = {
+static const struct usb_device_id quausb2_id_table[] = {
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_SSU2_100)},
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_DSU2_100)},
 	{USB_DEVICE(USB_VENDOR_ID_QUATECH, QUATECH_DSU2_400)},

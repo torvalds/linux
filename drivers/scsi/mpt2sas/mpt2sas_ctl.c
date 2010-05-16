@@ -891,6 +891,7 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 
  issue_host_reset:
 	if (issue_reset) {
+		ret = -ENODATA;
 		if ((mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST ||
 		    mpi_request->Function ==
 		    MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH)) {
@@ -2202,14 +2203,10 @@ _ctl_compat_mpt_command(struct file *file, unsigned cmd, unsigned long arg)
 	karg.data_out_size = karg32.data_out_size;
 	karg.max_sense_bytes = karg32.max_sense_bytes;
 	karg.data_sge_offset = karg32.data_sge_offset;
-	memcpy(&karg.reply_frame_buf_ptr, &karg32.reply_frame_buf_ptr,
-	    sizeof(uint32_t));
-	memcpy(&karg.data_in_buf_ptr, &karg32.data_in_buf_ptr,
-	    sizeof(uint32_t));
-	memcpy(&karg.data_out_buf_ptr, &karg32.data_out_buf_ptr,
-	    sizeof(uint32_t));
-	memcpy(&karg.sense_data_ptr, &karg32.sense_data_ptr,
-	    sizeof(uint32_t));
+	karg.reply_frame_buf_ptr = compat_ptr(karg32.reply_frame_buf_ptr);
+	karg.data_in_buf_ptr = compat_ptr(karg32.data_in_buf_ptr);
+	karg.data_out_buf_ptr = compat_ptr(karg32.data_out_buf_ptr);
+	karg.sense_data_ptr = compat_ptr(karg32.sense_data_ptr);
 	state = (file->f_flags & O_NONBLOCK) ? NON_BLOCKING : BLOCKING;
 	return _ctl_do_mpt_command(ioc, karg, &uarg->mf, state);
 }

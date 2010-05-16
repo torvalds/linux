@@ -204,4 +204,19 @@ struct usbatm_data {
 	struct urb *urbs[0];
 };
 
+static inline void *to_usbatm_driver_data(struct usb_interface *intf)
+{
+	struct usbatm_data *usbatm_instance;
+
+	if (intf == NULL)
+		return NULL;
+
+	usbatm_instance = usb_get_intfdata(intf);
+
+	if (usbatm_instance == NULL) /* set NULL before unbind() */
+		return NULL;
+
+	return usbatm_instance->driver_data; /* set NULL after unbind() */
+}
+
 #endif	/* _USBATM_H_ */

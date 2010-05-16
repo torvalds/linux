@@ -1,8 +1,8 @@
 /*
     comedi/drivers/ni_pcidio.c
     driver for National Instruments PCI-DIO-96/PCI-6508
-               National Instruments PCI-DIO-32HS
-               National Instruments PCI-6503
+		National Instruments PCI-DIO-32HS
+		National Instruments PCI-6503
 
     COMEDI - Linux Control and Measurement Device Interface
     Copyright (C) 1999,2002 David A. Schleef <ds@schleef.org>
@@ -518,7 +518,8 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 	ni_pcidio_print_status(status);
 
 	/* printk("buf[0]=%08x\n",*(unsigned int *)async->prealloc_buf); */
-	/* printk("buf[4096]=%08x\n",*(unsigned int *)(async->prealloc_buf+4096)); */
+	/* printk("buf[4096]=%08x\n",
+	       *(unsigned int *)(async->prealloc_buf+4096)); */
 
 	spin_lock_irqsave(&devpriv->mite_channel_lock, irq_flags);
 	if (devpriv->di_mite_chan)
@@ -526,7 +527,9 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 #ifdef MITE_DEBUG
 	mite_print_chsr(m_status);
 #endif
-	/* printk("mite_bytes_transferred: %d\n",mite_bytes_transferred(mite,DI_DMA_CHAN)); */
+	/* printk("mite_bytes_transferred: %d\n",
+	       mite_bytes_transferred(mite,DI_DMA_CHAN)); */
+
 	/* mite_dump_regs(mite); */
 	if (m_status & CHSR_INT) {
 		if (m_status & CHSR_LINKC) {
@@ -565,7 +568,8 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 					DPRINTK("too much work in interrupt\n");
 					writeb(0x00,
 					       devpriv->mite->daq_io_addr +
-					       Master_DMA_And_Interrupt_Control);
+					       Master_DMA_And_Interrupt_Control
+					      );
 					goto out;
 				}
 				AuxData =
@@ -579,8 +583,10 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 				flags = readb(devpriv->mite->daq_io_addr +
 					      Group_1_Flags);
 			}
-			/* DPRINTK("buf_int_count: %d\n",async->buf_int_count); */
-			/* DPRINTK("1) IntEn=%d,flags=%d,status=%d\n",IntEn,flags,status); */
+			/* DPRINTK("buf_int_count: %d\n",
+				async->buf_int_count); */
+			/* DPRINTK("1) IntEn=%d,flags=%d,status=%d\n",
+				IntEn,flags,status); */
 			/* ni_pcidio_print_flags(flags); */
 			/* ni_pcidio_print_status(status); */
 			async->events |= COMEDI_CB_BLOCK;
@@ -627,8 +633,8 @@ static irqreturn_t nidio_interrupt(int irq, void *d)
 		flags = readb(devpriv->mite->daq_io_addr + Group_1_Flags);
 		status = readb(devpriv->mite->daq_io_addr +
 			       Interrupt_And_Window_Status);
-		/* DPRINTK("loop end: IntEn=0x%02x,flags=0x%02x,status=0x%02x\n", */
-		/* IntEn,flags,status); */
+		/* DPRINTK("loop end: IntEn=0x%02x,flags=0x%02x,"
+			"status=0x%02x\n", IntEn, flags, status); */
 		/* ni_pcidio_print_flags(flags); */
 		/* ni_pcidio_print_status(status); */
 	}
@@ -655,11 +661,10 @@ static void ni_pcidio_print_flags(unsigned int flags)
 {
 	int i;
 
-	printk("group_1_flags:");
+	printk(KERN_INFO "group_1_flags:");
 	for (i = 7; i >= 0; i--) {
-		if (flags & (1 << i)) {
+		if (flags & (1 << i))
 			printk(" %s", flags_strings[i]);
-		}
 	}
 	printk("\n");
 }
@@ -673,11 +678,10 @@ static void ni_pcidio_print_status(unsigned int flags)
 {
 	int i;
 
-	printk("group_status:");
+	printk(KERN_INFO "group_status:");
 	for (i = 7; i >= 0; i--) {
-		if (flags & (1 << i)) {
+		if (flags & (1 << i))
 			printk(" %s", status_strings[i]);
-		}
 	}
 	printk("\n");
 }
@@ -793,7 +797,8 @@ static int ni_pcidio_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* step 2: make sure trigger sources are unique and mutually
+	compatible */
 
 	/* note that mutual compatibility is not an issue here */
 	if (cmd->start_src != TRIG_NOW && cmd->start_src != TRIG_INT)
@@ -974,7 +979,8 @@ static int ni_pcidio_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	/* clear and enable interrupts */
 	writeb(0xff, devpriv->mite->daq_io_addr + Group_1_First_Clear);
-	/* writeb(ClearExpired,devpriv->mite->daq_io_addr+Group_1_Second_Clear); */
+	/* writeb(ClearExpired,
+	       devpriv->mite->daq_io_addr+Group_1_Second_Clear); */
 
 	writeb(IntEn, devpriv->mite->daq_io_addr + Interrupt_Control);
 	writeb(0x03,
@@ -1052,7 +1058,7 @@ static int ni_pcidio_change(struct comedi_device *dev,
 }
 
 static int pci_6534_load_fpga(struct comedi_device *dev, int fpga_index,
-			      u8 * data, int data_len)
+			      u8 *data, int data_len)
 {
 	static const int timeout = 1000;
 	int i, j;
@@ -1066,9 +1072,8 @@ static int pci_6534_load_fpga(struct comedi_device *dev, int fpga_index,
 		udelay(1);
 	}
 	if (i == timeout) {
-		printk
-		    ("ni_pcidio: failed to load fpga %i, waiting for status 0x2\n",
-		     fpga_index);
+		printk(KERN_WARNING "ni_pcidio: failed to load fpga %i, "
+		       "waiting for status 0x2\n", fpga_index);
 		return -EIO;
 	}
 	writew(0x80 | fpga_index,
@@ -1079,9 +1084,8 @@ static int pci_6534_load_fpga(struct comedi_device *dev, int fpga_index,
 		udelay(1);
 	}
 	if (i == timeout) {
-		printk
-		    ("ni_pcidio: failed to load fpga %i, waiting for status 0x3\n",
-		     fpga_index);
+		printk(KERN_WARNING "ni_pcidio: failed to load fpga %i, "
+		       "waiting for status 0x3\n", fpga_index);
 		return -EIO;
 	}
 	for (j = 0; j + 1 < data_len;) {
@@ -1174,9 +1178,10 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	int n_subdevices;
 	unsigned int irq;
 
-	printk("comedi%d: nidio:", dev->minor);
+	printk(KERN_INFO "comedi%d: nidio:", dev->minor);
 
-	if ((ret = alloc_private(dev, sizeof(struct nidio96_private))) < 0)
+	ret = alloc_private(dev, sizeof(struct nidio96_private));
+	if (ret < 0)
 		return ret;
 	spin_lock_init(&devpriv->mite_channel_lock);
 
@@ -1186,7 +1191,7 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	ret = mite_setup(devpriv->mite);
 	if (ret < 0) {
-		printk("error setting up mite\n");
+		printk(KERN_WARNING "error setting up mite\n");
 		return ret;
 	}
 	comedi_set_hw_dev(dev, &devpriv->mite->pcidev->dev);
@@ -1196,18 +1201,19 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 	dev->board_name = this_board->name;
 	irq = mite_irq(devpriv->mite);
-	printk(" %s", dev->board_name);
+	printk(KERN_INFO " %s", dev->board_name);
 	if (this_board->uses_firmware) {
 		ret = pci_6534_upload_firmware(dev, it->options);
 		if (ret < 0)
 			return ret;
 	}
-	if (!this_board->is_diodaq) {
+	if (!this_board->is_diodaq)
 		n_subdevices = this_board->n_8255;
-	} else {
+	else
 		n_subdevices = 1;
-	}
-	if ((ret = alloc_subdevices(dev, n_subdevices)) < 0)
+
+	ret = alloc_subdevices(dev, n_subdevices);
+	if (ret < 0)
 		return ret;
 
 	if (!this_board->is_diodaq) {
@@ -1220,7 +1226,7 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		}
 	} else {
 
-		printk(" rev=%d",
+		printk(KERN_INFO " rev=%d",
 		       readb(devpriv->mite->daq_io_addr + Chip_Version));
 
 		s = dev->subdevices + 0;
@@ -1253,9 +1259,9 @@ static int nidio_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 
 		ret = request_irq(irq, nidio_interrupt, IRQF_SHARED,
 				  "ni_pcidio", dev);
-		if (ret < 0) {
-			printk(" irq not available");
-		}
+		if (ret < 0)
+			printk(KERN_WARNING " irq not available");
+
 		dev->irq = irq;
 	}
 
@@ -1269,9 +1275,8 @@ static int nidio_detach(struct comedi_device *dev)
 	int i;
 
 	if (this_board && !this_board->is_diodaq) {
-		for (i = 0; i < this_board->n_8255; i++) {
+		for (i = 0; i < this_board->n_8255; i++)
 			subdev_8255_cleanup(dev, dev->subdevices + i);
-		}
 	}
 
 	if (dev->irq)
@@ -1310,7 +1315,7 @@ static int nidio_find_device(struct comedi_device *dev, int bus, int slot)
 			}
 		}
 	}
-	printk("no device found\n");
+	printk(KERN_WARNING "no device found\n");
 	mite_list_devices();
 	return -EIO;
 }

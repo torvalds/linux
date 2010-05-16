@@ -1081,7 +1081,7 @@ xfs_dir2_leaf_getdents(
 		dep = (xfs_dir2_data_entry_t *)ptr;
 		length = xfs_dir2_data_entsize(dep->namelen);
 
-		if (filldir(dirent, dep->name, dep->namelen,
+		if (filldir(dirent, (char *)dep->name, dep->namelen,
 			    xfs_dir2_byte_to_dataptr(mp, curoff) & 0x7fffffff,
 			    be64_to_cpu(dep->inumber), DT_UNKNOWN))
 			break;

@@ -43,6 +43,16 @@ config SMSGIUCV
 	  Select this option if you want to be able to receive SMSG messages
 	  from other VM guest systems.
 
+config SMSGIUCV_EVENT
+	tristate "Deliver IUCV special messages as uevents (VM only)"
+	depends on SMSGIUCV
+	help
+	  Select this option to deliver CP special messages (SMSGs) as
+	  uevents.  The driver handles only those special messages that
+	  start with "APP".
+
+	  To compile as a module, choose M. The module name is "smsgiucv_app".
+
 config CLAW
 	tristate "CLAW device support"
 	depends on CCW && NETDEVICES

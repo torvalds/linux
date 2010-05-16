@@ -51,9 +51,10 @@ void flush_tlb_page(struct vm_area_struct *vma, unsigned long addr)
 /*
  * preemptively set a TLB entry
  */
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr, pte_t pte)
+void update_mmu_cache(struct vm_area_struct *vma, unsigned long addr, pte_t *ptep)
 {
 	unsigned long pteu, ptel, cnx, flags;
+	pte_t pte = *ptep;
 
 	addr &= PAGE_MASK;
 	ptel = pte_val(pte) & ~(xPTEL_UNUSED1 | xPTEL_UNUSED2);

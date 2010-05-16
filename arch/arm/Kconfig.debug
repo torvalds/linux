@@ -117,7 +117,7 @@ config DEBUG_CLPS711X_UART2
 	  cause the debug messages to appear on the first serial port.
 
 config DEBUG_S3C_UART
-	depends on PLAT_S3C
+	depends on PLAT_SAMSUNG
 	int "S3C UART to use for low-level debug"
 	default "0"
 	help

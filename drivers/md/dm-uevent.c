@@ -187,7 +187,7 @@ void dm_path_uevent(enum dm_uevent_type event_type, struct dm_target *ti,
 
 	if (event_type >= ARRAY_SIZE(_dm_uevent_type_names)) {
 		DMERR("%s: Invalid event_type %d", __func__, event_type);
-		goto out;
+		return;
 	}
 
 	event = dm_build_path_uevent(md, ti,
@@ -195,12 +195,9 @@ void dm_path_uevent(enum dm_uevent_type event_type, struct dm_target *ti,
 				     _dm_uevent_type_names[event_type].name,
 				     path, nr_valid_paths);
 	if (IS_ERR(event))
-		goto out;
+		return;
 
 	dm_uevent_add(md, &event->elist);
-
-out:
-	dm_put(md);
 }
 EXPORT_SYMBOL_GPL(dm_path_uevent);
 

@@ -245,6 +245,24 @@ void discard_lazy_cpu_state(void)
 }
 #endif /* CONFIG_SMP */
 
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+void do_send_trap(struct pt_regs *regs, unsigned long address,
+		  unsigned long error_code, int signal_code, int breakpt)
+{
+	siginfo_t info;
+
+	if (notify_die(DIE_DABR_MATCH, "dabr_match", regs, error_code,
+			11, SIGSEGV) == NOTIFY_STOP)
+		return;
+
+	/* Deliver the signal to userspace */
+	info.si_signo = SIGTRAP;
+	info.si_errno = breakpt;	/* breakpoint or watchpoint id */
+	info.si_code = signal_code;
+	info.si_addr = (void __user *)address;
+	force_sig_info(SIGTRAP, &info, current);
+}
+#else	/* !CONFIG_PPC_ADV_DEBUG_REGS */
 void do_dabr(struct pt_regs *regs, unsigned long address,
 		    unsigned long error_code)
 {
@@ -257,12 +275,6 @@ void do_dabr(struct pt_regs *regs, unsigned long address,
 	if (debugger_dabr_match(regs))
 		return;
 
-	/* Clear the DAC and struct entries.  One shot trigger */
-#if defined(CONFIG_BOOKE)
-	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) & ~(DBSR_DAC1R | DBSR_DAC1W
-							| DBCR0_IDM));
-#endif
-
 	/* Clear the DABR */
 	set_dabr(0);
 
@@ -273,8 +285,81 @@ void do_dabr(struct pt_regs *regs, unsigned long address,
 	info.si_addr = (void __user *)address;
 	force_sig_info(SIGTRAP, &info, current);
 }
+#endif	/* CONFIG_PPC_ADV_DEBUG_REGS */
 
 static DEFINE_PER_CPU(unsigned long, current_dabr);
+
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+/*
+ * Set the debug registers back to their default "safe" values.
+ */
+static void set_debug_reg_defaults(struct thread_struct *thread)
+{
+	thread->iac1 = thread->iac2 = 0;
+#if CONFIG_PPC_ADV_DEBUG_IACS > 2
+	thread->iac3 = thread->iac4 = 0;
+#endif
+	thread->dac1 = thread->dac2 = 0;
+#if CONFIG_PPC_ADV_DEBUG_DVCS > 0
+	thread->dvc1 = thread->dvc2 = 0;
+#endif
+	thread->dbcr0 = 0;
+#ifdef CONFIG_BOOKE
+	/*
+	 * Force User/Supervisor bits to b11 (user-only MSR[PR]=1)
+	 */
+	thread->dbcr1 = DBCR1_IAC1US | DBCR1_IAC2US |	\
+			DBCR1_IAC3US | DBCR1_IAC4US;
+	/*
+	 * Force Data Address Compare User/Supervisor bits to be User-only
+	 * (0b11 MSR[PR]=1) and set all other bits in DBCR2 register to be 0.
+	 */
+	thread->dbcr2 = DBCR2_DAC1US | DBCR2_DAC2US;
+#else
+	thread->dbcr1 = 0;
+#endif
+}
+
+static void prime_debug_regs(struct thread_struct *thread)
+{
+	mtspr(SPRN_IAC1, thread->iac1);
+	mtspr(SPRN_IAC2, thread->iac2);
+#if CONFIG_PPC_ADV_DEBUG_IACS > 2
+	mtspr(SPRN_IAC3, thread->iac3);
+	mtspr(SPRN_IAC4, thread->iac4);
+#endif
+	mtspr(SPRN_DAC1, thread->dac1);
+	mtspr(SPRN_DAC2, thread->dac2);
+#if CONFIG_PPC_ADV_DEBUG_DVCS > 0
+	mtspr(SPRN_DVC1, thread->dvc1);
+	mtspr(SPRN_DVC2, thread->dvc2);
+#endif
+	mtspr(SPRN_DBCR0, thread->dbcr0);
+	mtspr(SPRN_DBCR1, thread->dbcr1);
+#ifdef CONFIG_BOOKE
+	mtspr(SPRN_DBCR2, thread->dbcr2);
+#endif
+}
+/*
+ * Unless neither the old or new thread are making use of the
+ * debug registers, set the debug registers from the values
+ * stored in the new thread.
+ */
+static void switch_booke_debug_regs(struct thread_struct *new_thread)
+{
+	if ((current->thread.dbcr0 & DBCR0_IDM)
+		|| (new_thread->dbcr0 & DBCR0_IDM))
+			prime_debug_regs(new_thread);
+}
+#else	/* !CONFIG_PPC_ADV_DEBUG_REGS */
+static void set_debug_reg_defaults(struct thread_struct *thread)
+{
+	if (thread->dabr) {
+		thread->dabr = 0;
+		set_dabr(0);
+	}
+}
+#endif	/* CONFIG_PPC_ADV_DEBUG_REGS */
 
 int set_dabr(unsigned long dabr)
 {
@@ -284,7 +369,7 @@ int set_dabr(unsigned long dabr)
 		return ppc_md.set_dabr(dabr);
 
 	/* XXX should we have a CPU_FTR_HAS_DABR ? */
-#if defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	mtspr(SPRN_DAC1, dabr);
 #elif defined(CONFIG_PPC_BOOK3S)
 	mtspr(SPRN_DABR, dabr);
@@ -371,10 +456,8 @@ struct task_struct *__switch_to(struct task_struct *prev,
 
 #endif /* CONFIG_SMP */
 
-#if defined(CONFIG_BOOKE)
-	/* If new thread DAC (HW breakpoint) is the same then leave it */
-	if (new->thread.dabr)
-		set_dabr(new->thread.dabr);
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
+	switch_booke_debug_regs(&new->thread);
 #else
 	if (unlikely(__get_cpu_var(current_dabr) != new->thread.dabr))
 		set_dabr(new->thread.dabr);
@@ -514,7 +597,7 @@ void show_regs(struct pt_regs * regs)
 	printk("  CR: %08lx  XER: %08lx\n", regs->ccr, regs->xer);
 	trap = TRAP(regs);
 	if (trap == 0x300 || trap == 0x600)
-#if defined(CONFIG_4xx) || defined(CONFIG_BOOKE)
+#ifdef CONFIG_PPC_ADV_DEBUG_REGS
 		printk("DEAR: "REG", ESR: "REG"\n", regs->dar, regs->dsisr);
 #else
 		printk("DAR: "REG", DSISR: "REG"\n", regs->dar, regs->dsisr);
@@ -556,14 +639,7 @@ void flush_thread(void)
 {
 	discard_lazy_cpu_state();
 
-	if (current->thread.dabr) {
-		current->thread.dabr = 0;
-		set_dabr(0);
-
-#if defined(CONFIG_BOOKE)
-		current->thread.dbcr0 &= ~(DBSR_DAC1R | DBSR_DAC1W);
-#endif
-	}
+	set_debug_reg_defaults(&current->thread);
 }
 
 void

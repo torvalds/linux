@@ -84,15 +84,9 @@
 #include <linux/ioport.h>
 
 #include "et1310_phy.h"
-#include "et1310_pm.h"
-#include "et1310_jagcore.h"
-
 #include "et131x_adapter.h"
-#include "et131x_initpci.h"
-#include "et131x_isr.h"
-
 #include "et1310_tx.h"
-
+#include "et131x.h"
 
 static inline void et131x_free_send_packet(struct et131x_adapter *etdev,
 					   struct tcb *tcb);
@@ -200,7 +194,7 @@ void et131x_tx_dma_memory_free(struct et131x_adapter *adapter)
  */
 void ConfigTxDmaRegs(struct et131x_adapter *etdev)
 {
-	struct _TXDMA_t __iomem *txdma = &etdev->regs->txdma;
+	struct txdma_regs __iomem *txdma = &etdev->regs->txdma;
 
 	/* Load the hardware with the start of the transmit descriptor ring. */
 	writel((u32) ((u64)etdev->tx_ring.tx_desc_ring_pa >> 32),

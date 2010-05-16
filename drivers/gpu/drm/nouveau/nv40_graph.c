@@ -335,6 +335,27 @@ nv40_graph_init(struct drm_device *dev)
 	nv_wr32(dev, 0x400b38, 0x2ffff800);
 	nv_wr32(dev, 0x400b3c, 0x00006000);
 
+	/* Tiling related stuff. */
+	switch (dev_priv->chipset) {
+	case 0x44:
+	case 0x4a:
+		nv_wr32(dev, 0x400bc4, 0x1003d888);
+		nv_wr32(dev, 0x400bbc, 0xb7a7b500);
+		break;
+	case 0x46:
+		nv_wr32(dev, 0x400bc4, 0x0000e024);
+		nv_wr32(dev, 0x400bbc, 0xb7a7b520);
+		break;
+	case 0x4c:
+	case 0x4e:
+	case 0x67:
+		nv_wr32(dev, 0x400bc4, 0x1003d888);
+		nv_wr32(dev, 0x400bbc, 0xb7a7b540);
+		break;
+	default:
+		break;
+	}
+
 	/* Turn all the tiling regions off. */
 	for (i = 0; i < pfb->num_tiles; i++)
 		nv40_graph_set_region_tiling(dev, i, 0, 0, 0);

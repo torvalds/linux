@@ -8,7 +8,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/time.h>
 #include <linux/rtc.h>
 #include <linux/mm.h>

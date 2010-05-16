@@ -20,8 +20,8 @@ static int hpfs_hash_dentry(struct dentry *dentry, struct qstr *qstr)
 
 	if (l == 1) if (qstr->name[0]=='.') goto x;
 	if (l == 2) if (qstr->name[0]=='.' || qstr->name[1]=='.') goto x;
-	hpfs_adjust_length((char *)qstr->name, &l);
-	/*if (hpfs_chk_name((char *)qstr->name,&l))*/
+	hpfs_adjust_length(qstr->name, &l);
+	/*if (hpfs_chk_name(qstr->name,&l))*/
 		/*return -ENAMETOOLONG;*/
 		/*return -ENOENT;*/
 	x:
@@ -38,14 +38,16 @@ static int hpfs_compare_dentry(struct dentry *dentry, struct qstr *a, struct qst
 {
 	unsigned al=a->len;
 	unsigned bl=b->len;
-	hpfs_adjust_length((char *)a->name, &al);
-	/*hpfs_adjust_length((char *)b->name, &bl);*/
+	hpfs_adjust_length(a->name, &al);
+	/*hpfs_adjust_length(b->name, &bl);*/
 	/* 'a' is the qstr of an already existing dentry, so the name
 	 * must be valid. 'b' must be validated first.
 	 */
 
-	if (hpfs_chk_name((char *)b->name, &bl)) return 1;
-	if (hpfs_compare_names(dentry->d_sb, (char *)a->name, al, (char *)b->name, bl, 0)) return 1;
+	if (hpfs_chk_name(b->name, &bl))
+		return 1;
+	if (hpfs_compare_names(dentry->d_sb, a->name, al, b->name, bl, 0))
+		return 1;
 	return 0;
 }
 

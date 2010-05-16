@@ -2618,6 +2618,15 @@ static irqreturn_t prism2_interrupt(int irq, void *dev_id)
 	int events = 0;
 	u16 ev;
 
+	/* Detect early interrupt before driver is fully configued */
+	if (!dev->base_addr) {
+		if (net_ratelimit()) {
+			printk(KERN_DEBUG "%s: Interrupt, but dev not configured\n",
+			       dev->name);
+		}
+		return IRQ_HANDLED;
+	}
+
 	iface = netdev_priv(dev);
 	local = iface->local;
 

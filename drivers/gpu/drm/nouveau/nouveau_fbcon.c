@@ -30,12 +30,12 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 #include <linux/tty.h>
-#include <linux/slab.h>
 #include <linux/sysrq.h>
 #include <linux/delay.h>
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/screen_info.h>
+#include <linux/vga_switcheroo.h>
 
 #include "drmP.h"
 #include "drm.h"
@@ -370,6 +370,7 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 						nvbo->bo.offset, nvbo);
 
 	mutex_unlock(&dev->struct_mutex);
+	vga_switcheroo_client_fb_set(dev->pdev, info);
 	return 0;
 
 out_unref:
@@ -401,10 +402,8 @@ nouveau_fbcon_remove(struct drm_device *dev, struct drm_framebuffer *fb)
 
 		unregister_framebuffer(info);
 		nouveau_bo_unmap(nouveau_fb->nvbo);
-		mutex_lock(&dev->struct_mutex);
-		drm_gem_object_unreference(nouveau_fb->nvbo->gem);
+		drm_gem_object_unreference_unlocked(nouveau_fb->nvbo->gem);
 		nouveau_fb->nvbo = NULL;
-		mutex_unlock(&dev->struct_mutex);
 		if (par)
 			drm_fb_helper_free(&par->helper);
 		framebuffer_release(info);

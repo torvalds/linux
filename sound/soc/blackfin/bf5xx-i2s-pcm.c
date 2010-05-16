@@ -29,8 +29,8 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -207,8 +207,7 @@ static int bf5xx_pcm_preallocate_dma_buffer(struct snd_pcm *pcm, int stream)
 	buf->area = dma_alloc_coherent(pcm->card->dev, size,
 			&buf->addr, GFP_KERNEL);
 	if (!buf->area) {
-		pr_err("Failed to allocate dma memory \
-			Please increase uncached DMA memory region\n");
+		pr_err("Failed to allocate dma memory - Please increase uncached DMA memory region\n");
 		return -ENOMEM;
 	}
 	buf->bytes = size;

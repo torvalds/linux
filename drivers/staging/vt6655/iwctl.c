@@ -1472,7 +1472,7 @@ if((wrq->flags & IW_ENCODE_DISABLED)==0){
 		if ( index < 4 ) {
 		    pDevice->byKeyIndex = index;
 		}
-		else if(!wrq->flags & IW_ENCODE_MODE) {
+		else if(!(wrq->flags & IW_ENCODE_MODE)) {
 				rc = -EINVAL;
 				return rc;
 	    }

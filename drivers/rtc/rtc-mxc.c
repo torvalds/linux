@@ -12,6 +12,7 @@
 #include <linux/io.h>
 #include <linux/rtc.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
@@ -383,21 +384,29 @@ static int __init mxc_rtc_probe(struct platform_device *pdev)
 	struct rtc_device *rtc;
 	struct rtc_plat_data *pdata = NULL;
 	u32 reg;
-	int ret, rate;
+	unsigned long rate;
+	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENODEV;
 
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 
-	pdata->ioaddr = ioremap(res->start, resource_size(res));
+	if (!devm_request_mem_region(&pdev->dev, res->start,
+				     resource_size(res), pdev->name))
+		return -EBUSY;
+
+	pdata->ioaddr = devm_ioremap(&pdev->dev, res->start,
+				     resource_size(res));
 
 	clk = clk_get(&pdev->dev, "ckil");
-	if (IS_ERR(clk))
-		return PTR_ERR(clk);
+	if (IS_ERR(clk)) {
+		ret = PTR_ERR(clk);
+		goto exit_free_pdata;
+	}
 
 	rate = clk_get_rate(clk);
 	clk_put(clk);
@@ -409,8 +418,7 @@ static int __init mxc_rtc_probe(struct platform_device *pdev)
 	else if (rate == 38400)
 		reg = RTC_INPUT_CLK_38400HZ;
 	else {
-		dev_err(&pdev->dev, "rtc clock is not valid (%lu)\n",
-			clk_get_rate(clk));
+		dev_err(&pdev->dev, "rtc clock is not valid (%lu)\n", rate);
 		ret = -EINVAL;
 		goto exit_free_pdata;
 	}
@@ -446,8 +454,8 @@ static int __init mxc_rtc_probe(struct platform_device *pdev)
 	pdata->irq = platform_get_irq(pdev, 0);
 
 	if (pdata->irq >= 0 &&
-	    request_irq(pdata->irq, mxc_rtc_interrupt, IRQF_SHARED,
-			pdev->name, pdev) < 0) {
+	    devm_request_irq(&pdev->dev, pdata->irq, mxc_rtc_interrupt,
+			     IRQF_SHARED, pdev->name, pdev) < 0) {
 		dev_warn(&pdev->dev, "interrupt not available.\n");
 		pdata->irq = -1;
 	}
@@ -455,10 +463,10 @@ static int __init mxc_rtc_probe(struct platform_device *pdev)
 	return 0;
 
 exit_put_clk:
+	clk_disable(pdata->clk);
 	clk_put(pdata->clk);
 
 exit_free_pdata:
-	kfree(pdata);
 
 	return ret;
 }
@@ -469,12 +477,8 @@ static int __exit mxc_rtc_remove(struct platform_device *pdev)
 
 	rtc_device_unregister(pdata->rtc);
 
-	if (pdata->irq >= 0)
-		free_irq(pdata->irq, pdev);
-
 	clk_disable(pdata->clk);
 	clk_put(pdata->clk);
-	kfree(pdata);
 	platform_set_drvdata(pdev, NULL);
 
 	return 0;

@@ -107,6 +107,7 @@ struct af9015_config {
 	u16 mt2060_if1[2];
 	u16 firmware_size;
 	u16 firmware_checksum;
+	u32 eeprom_sum;
 	u8  *ir_table;
 	u16 ir_table_size;
 };

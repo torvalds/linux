@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <stdbool.h>
 #include "types.h"
+#include "event.h"
 
 #include <linux/bitmap.h>
 
@@ -52,6 +53,7 @@ struct perf_header {
 	u64			data_size;
 	u64			event_offset;
 	u64			event_size;
+	bool			needs_swap;
 	DECLARE_BITMAP(adds_features, HEADER_FEAT_BITS);
 };
 
@@ -64,7 +66,7 @@ int perf_header__write(struct perf_header *self, int fd, bool at_exit);
 int perf_header__add_attr(struct perf_header *self,
 			  struct perf_header_attr *attr);
 
-void perf_header__push_event(u64 id, const char *name);
+int perf_header__push_event(u64 id, const char *name);
 char *perf_header__find_event(u64 id);
 
 struct perf_header_attr *perf_header_attr__new(struct perf_event_attr *attr);
@@ -80,6 +82,11 @@ bool perf_header__has_feat(const struct perf_header *self, int feat);
 
 int perf_header__process_sections(struct perf_header *self, int fd,
 				  int (*process)(struct perf_file_section *self,
+						 struct perf_header *ph,
 						 int feat, int fd));
+
+int build_id_cache__add_s(const char *sbuild_id, const char *debugdir,
+			  const char *name, bool is_kallsyms);
+int build_id_cache__remove_s(const char *sbuild_id, const char *debugdir);
 
 #endif /* __PERF_HEADER_H */

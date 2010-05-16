@@ -1882,6 +1882,15 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *tb_ptr)
 			     (msg_destnode(msg) != tipc_own_addr)))
 			goto cont;
 
+		/* Discard non-routeable messages destined for another node */
+
+		if (unlikely(!msg_isdata(msg) &&
+			     (msg_destnode(msg) != tipc_own_addr))) {
+			if ((msg_user(msg) != CONN_MANAGER) &&
+			    (msg_user(msg) != MSG_FRAGMENTER))
+				goto cont;
+		}
+
 		/* Locate unicast link endpoint that should handle message */
 
 		n_ptr = tipc_node_find(msg_prevnode(msg));

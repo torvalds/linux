@@ -187,7 +187,6 @@ void zfLedCtrlType2_scan(zdev_t* dev);
 
 void zfLedCtrlType2(zdev_t* dev)
 {
-    u32_t ton, toff, tmp, period;
     u16_t OperateLED;
     zmw_get_wlan_dev(dev);
 

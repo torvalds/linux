@@ -573,7 +573,7 @@ static struct vfsmount *clone_mnt(struct vfsmount *old, struct dentry *root,
 			mnt->mnt_master = old;
 			CLEAR_MNT_SHARED(mnt);
 		} else if (!(flag & CL_PRIVATE)) {
-			if ((flag & CL_PROPAGATION) || IS_MNT_SHARED(old))
+			if ((flag & CL_MAKE_SHARED) || IS_MNT_SHARED(old))
 				list_add(&mnt->mnt_share, &old->mnt_share);
 			if (IS_MNT_SLAVE(old))
 				list_add(&mnt->mnt_slave, &old->mnt_slave);
@@ -735,6 +735,21 @@ static void *m_next(struct seq_file *m, void *v, loff_t *pos)
 static void m_stop(struct seq_file *m, void *v)
 {
 	up_read(&namespace_sem);
+}
+
+int mnt_had_events(struct proc_mounts *p)
+{
+	struct mnt_namespace *ns = p->ns;
+	int res = 0;
+
+	spin_lock(&vfsmount_lock);
+	if (p->event != ns->event) {
+		p->event = ns->event;
+		res = 1;
+	}
+	spin_unlock(&vfsmount_lock);
+
+	return res;
 }
 
 struct proc_fs_info {
@@ -1121,8 +1136,15 @@ SYSCALL_DEFINE2(umount, char __user *, name, int, flags)
 {
 	struct path path;
 	int retval;
+	int lookup_flags = 0;
 
-	retval = user_path(name, &path);
+	if (flags & ~(MNT_FORCE | MNT_DETACH | MNT_EXPIRE | UMOUNT_NOFOLLOW))
+		return -EINVAL;
+
+	if (!(flags & UMOUNT_NOFOLLOW))
+		lookup_flags |= LOOKUP_FOLLOW;
+
+	retval = user_path_at(AT_FDCWD, name, lookup_flags, &path);
 	if (retval)
 		goto out;
 	retval = -EINVAL;
@@ -1244,6 +1266,21 @@ void drop_collected_mounts(struct vfsmount *mnt)
 	spin_unlock(&vfsmount_lock);
 	up_write(&namespace_sem);
 	release_mounts(&umount_list);
+}
+
+int iterate_mounts(int (*f)(struct vfsmount *, void *), void *arg,
+		   struct vfsmount *root)
+{
+	struct vfsmount *mnt;
+	int res = f(root, arg);
+	if (res)
+		return res;
+	list_for_each_entry(mnt, &root->mnt_list, mnt_list) {
+		res = f(mnt, arg);
+		if (res)
+			return res;
+	}
+	return 0;
 }
 
 static void cleanup_group_ids(struct vfsmount *mnt, struct vfsmount *end)
@@ -1538,7 +1575,7 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 		err = do_remount_sb(sb, flags, data, 0);
 	if (!err) {
 		spin_lock(&vfsmount_lock);
-		mnt_flags |= path->mnt->mnt_flags & MNT_PNODE_MASK;
+		mnt_flags |= path->mnt->mnt_flags & MNT_PROPAGATION_MASK;
 		path->mnt->mnt_flags = mnt_flags;
 		spin_unlock(&vfsmount_lock);
 	}
@@ -1671,7 +1708,7 @@ int do_add_mount(struct vfsmount *newmnt, struct path *path,
 {
 	int err;
 
-	mnt_flags &= ~(MNT_SHARED | MNT_WRITE_HOLD);
+	mnt_flags &= ~(MNT_SHARED | MNT_WRITE_HOLD | MNT_INTERNAL);
 
 	down_write(&namespace_sem);
 	/* Something was mounted here while we slept */
@@ -2314,17 +2351,13 @@ void __init mnt_init(void)
 
 void put_mnt_ns(struct mnt_namespace *ns)
 {
-	struct vfsmount *root;
 	LIST_HEAD(umount_list);
 
-	if (!atomic_dec_and_lock(&ns->count, &vfsmount_lock))
+	if (!atomic_dec_and_test(&ns->count))
 		return;
-	root = ns->root;
-	ns->root = NULL;
-	spin_unlock(&vfsmount_lock);
 	down_write(&namespace_sem);
 	spin_lock(&vfsmount_lock);
-	umount_tree(root, 0, &umount_list);
+	umount_tree(ns->root, 0, &umount_list);
 	spin_unlock(&vfsmount_lock);
 	up_write(&namespace_sem);
 	release_mounts(&umount_list);

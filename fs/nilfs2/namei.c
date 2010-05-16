@@ -67,7 +67,7 @@ nilfs_lookup(struct inode *dir, struct dentry *dentry, struct nameidata *nd)
 	if (dentry->d_name.len > NILFS_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
-	ino = nilfs_inode_by_name(dir, dentry);
+	ino = nilfs_inode_by_name(dir, &dentry->d_name);
 	inode = NULL;
 	if (ino) {
 		inode = nilfs_iget(dir->i_sb, ino);
@@ -81,10 +81,7 @@ struct dentry *nilfs_get_parent(struct dentry *child)
 {
 	unsigned long ino;
 	struct inode *inode;
-	struct dentry dotdot;
-
-	dotdot.d_name.name = "..";
-	dotdot.d_name.len = 2;
+	struct qstr dotdot = {.name = "..", .len = 2};
 
 	ino = nilfs_inode_by_name(child->d_inode, &dotdot);
 	if (!ino)
@@ -296,7 +293,7 @@ static int nilfs_do_unlink(struct inode *dir, struct dentry *dentry)
 	int err;
 
 	err = -ENOENT;
-	de = nilfs_find_entry(dir, dentry, &page);
+	de = nilfs_find_entry(dir, &dentry->d_name, &page);
 	if (!de)
 		goto out;
 
@@ -389,7 +386,7 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		return err;
 
 	err = -ENOENT;
-	old_de = nilfs_find_entry(old_dir, old_dentry, &old_page);
+	old_de = nilfs_find_entry(old_dir, &old_dentry->d_name, &old_page);
 	if (!old_de)
 		goto out;
 
@@ -409,7 +406,7 @@ static int nilfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out_dir;
 
 		err = -ENOENT;
-		new_de = nilfs_find_entry(new_dir, new_dentry, &new_page);
+		new_de = nilfs_find_entry(new_dir, &new_dentry->d_name, &new_page);
 		if (!new_de)
 			goto out_dir;
 		inc_nlink(old_inode);

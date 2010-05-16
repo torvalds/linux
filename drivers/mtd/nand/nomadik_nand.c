@@ -30,6 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/partitions.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <mach/nand.h>
 #include <mach/fsmc.h>
 

@@ -26,6 +26,7 @@
 
 #include "wl1271.h"
 #include "wl1271_spi.h"
+#include "wl1271_io.h"
 #include "wl1271_reg.h"
 #include "wl1271_ps.h"
 #include "wl1271_tx.h"
@@ -87,7 +88,7 @@ static int wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 			      u32 extra, struct ieee80211_tx_info *control)
 {
 	struct wl1271_tx_hw_descr *desc;
-	int pad;
+	int pad, ac;
 	u16 tx_attr;
 
 	desc = (struct wl1271_tx_hw_descr *) skb->data;
@@ -107,9 +108,11 @@ static int wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 
 	/* configure the tx attributes */
 	tx_attr = wl->session_counter << TX_HW_ATTR_OFST_SESSION_COUNTER;
-	/* FIXME: do we know the packet priority? can we identify mgmt
-	   packets, and use max prio for them at least? */
-	desc->tid = 0;
+
+	/* queue */
+	ac = wl1271_tx_get_queue(skb_get_queue_mapping(skb));
+	desc->tid = wl1271_tx_ac_to_tid(ac);
+
 	desc->aid = TX_HW_DEFAULT_AID;
 	desc->reserved = 0;
 
@@ -120,6 +123,11 @@ static int wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	/* calculate number of padding bytes */
 	pad = pad - skb->len;
 	tx_attr |= pad << TX_HW_ATTR_OFST_LAST_WORD_PAD;
+
+	/* if the packets are destined for AP (have a STA entry) send them
+	   with AP rate policies, otherwise use default basic rates */
+	if (control->control.sta)
+		tx_attr |= ACX_TX_AP_FULL_RATE << TX_HW_ATTR_OFST_RATE_POLICY;
 
 	desc->tx_attr = cpu_to_le16(tx_attr);
 
@@ -158,11 +166,11 @@ static int wl1271_tx_send_packet(struct wl1271 *wl, struct sk_buff *skb,
 	len = WL1271_TX_ALIGN(skb->len);
 
 	/* perform a fixed address block write with the packet */
-	wl1271_spi_write(wl, WL1271_SLV_MEM_DATA, skb->data, len, true);
+	wl1271_write(wl, WL1271_SLV_MEM_DATA, skb->data, len, true);
 
 	/* write packet new counter into the write access register */
 	wl->tx_packets_count++;
-	wl1271_spi_write32(wl, WL1271_HOST_WR_ACCESS, wl->tx_packets_count);
+	wl1271_write32(wl, WL1271_HOST_WR_ACCESS, wl->tx_packets_count);
 
 	desc = (struct wl1271_tx_hw_descr *) skb->data;
 	wl1271_debug(DEBUG_TX, "tx id %u skb 0x%p payload %u (%u words)",
@@ -196,6 +204,7 @@ static int wl1271_tx_frame(struct wl1271 *wl, struct sk_buff *skb)
 			ret = wl1271_cmd_set_default_wep_key(wl, idx);
 			if (ret < 0)
 				return ret;
+			wl->default_key = idx;
 		}
 	}
 
@@ -214,17 +223,49 @@ static int wl1271_tx_frame(struct wl1271 *wl, struct sk_buff *skb)
 	return ret;
 }
 
+static u32 wl1271_tx_enabled_rates_get(struct wl1271 *wl, u32 rate_set)
+{
+	struct ieee80211_supported_band *band;
+	u32 enabled_rates = 0;
+	int bit;
+
+	band = wl->hw->wiphy->bands[wl->band];
+	for (bit = 0; bit < band->n_bitrates; bit++) {
+		if (rate_set & 0x1)
+			enabled_rates |= band->bitrates[bit].hw_value;
+		rate_set >>= 1;
+	}
+
+	return enabled_rates;
+}
+
 void wl1271_tx_work(struct work_struct *work)
 {
 	struct wl1271 *wl = container_of(work, struct wl1271, tx_work);
 	struct sk_buff *skb;
 	bool woken_up = false;
+	u32 sta_rates = 0;
 	int ret;
+
+	/* check if the rates supported by the AP have changed */
+	if (unlikely(test_and_clear_bit(WL1271_FLAG_STA_RATES_CHANGED,
+					&wl->flags))) {
+		unsigned long flags;
+		spin_lock_irqsave(&wl->wl_lock, flags);
+		sta_rates = wl->sta_rate_set;
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
+	}
 
 	mutex_lock(&wl->mutex);
 
 	if (unlikely(wl->state == WL1271_STATE_OFF))
 		goto out;
+
+	/* if rates have changed, re-configure the rate policy */
+	if (unlikely(sta_rates)) {
+		wl->rate_set = wl1271_tx_enabled_rates_get(wl, sta_rates);
+		wl1271_acx_rate_policies(wl);
+	}
 
 	while ((skb = skb_dequeue(&wl->tx_queue))) {
 		if (!woken_up) {
@@ -240,18 +281,18 @@ void wl1271_tx_work(struct work_struct *work)
 			wl1271_debug(DEBUG_TX, "tx_work: fw buffer full, "
 				     "stop queues");
 			ieee80211_stop_queues(wl->hw);
-			wl->tx_queue_stopped = true;
+			set_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
 			skb_queue_head(&wl->tx_queue, skb);
 			goto out;
 		} else if (ret < 0) {
 			dev_kfree_skb(skb);
 			goto out;
-		} else if (wl->tx_queue_stopped) {
+		} else if (test_and_clear_bit(WL1271_FLAG_TX_QUEUE_STOPPED,
+					      &wl->flags)) {
 			/* firmware buffer has space, restart queues */
 			wl1271_debug(DEBUG_TX,
 				     "complete_packet: waking queues");
 			ieee80211_wake_queues(wl->hw);
-			wl->tx_queue_stopped = false;
 		}
 	}
 
@@ -335,8 +376,8 @@ void wl1271_tx_complete(struct wl1271 *wl, u32 count)
 	wl1271_debug(DEBUG_TX, "tx_complete received, packets: %d", count);
 
 	/* read the tx results from the chipset */
-	wl1271_spi_read(wl, le32_to_cpu(memmap->tx_result),
-			wl->tx_res_if, sizeof(*wl->tx_res_if), false);
+	wl1271_read(wl, le32_to_cpu(memmap->tx_result),
+		    wl->tx_res_if, sizeof(*wl->tx_res_if), false);
 
 	/* verify that the result buffer is not getting overrun */
 	if (count > TX_HW_RESULT_QUEUE_LEN) {
@@ -357,10 +398,10 @@ void wl1271_tx_complete(struct wl1271 *wl, u32 count)
 	}
 
 	/* write host counter to chipset (to ack) */
-	wl1271_spi_write32(wl, le32_to_cpu(memmap->tx_result) +
-			   offsetof(struct wl1271_tx_hw_res_if,
-				    tx_result_host_counter),
-			   le32_to_cpu(wl->tx_res_if->tx_result_fw_counter));
+	wl1271_write32(wl, le32_to_cpu(memmap->tx_result) +
+		       offsetof(struct wl1271_tx_hw_res_if,
+		       tx_result_host_counter),
+		       le32_to_cpu(wl->tx_res_if->tx_result_fw_counter));
 }
 
 /* caller must hold wl->mutex */

@@ -28,7 +28,9 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include <linux/of.h>
+#include <linux/pm.h>
 #include <linux/stringify.h>
 #include <asm/firmware.h>
 #include <asm/irq.h>
@@ -4195,7 +4197,7 @@ static void ibmvfc_tgt_add_rport(struct ibmvfc_target *tgt)
 		if (tgt->service_parms.class3_parms[0] & 0x80000000)
 			rport->supported_classes |= FC_COS_CLASS3;
 		if (rport->rqst_q)
-			blk_queue_max_hw_segments(rport->rqst_q, 1);
+			blk_queue_max_segments(rport->rqst_q, 1);
 	} else
 		tgt_dbg(tgt, "rport add failed\n");
 	spin_unlock_irqrestore(vhost->host->host_lock, flags);
@@ -4669,7 +4671,7 @@ static int ibmvfc_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	}
 
 	if (shost_to_fc_host(shost)->rqst_q)
-		blk_queue_max_hw_segments(shost_to_fc_host(shost)->rqst_q, 1);
+		blk_queue_max_segments(shost_to_fc_host(shost)->rqst_q, 1);
 	dev_set_drvdata(dev, vhost);
 	spin_lock(&ibmvfc_driver_lock);
 	list_add_tail(&vhost->queue, &ibmvfc_head);
@@ -4736,6 +4738,27 @@ static int ibmvfc_remove(struct vio_dev *vdev)
 }
 
 /**
+ * ibmvfc_resume - Resume from suspend
+ * @dev:	device struct
+ *
+ * We may have lost an interrupt across suspend/resume, so kick the
+ * interrupt handler
+ *
+ */
+static int ibmvfc_resume(struct device *dev)
+{
+	unsigned long flags;
+	struct ibmvfc_host *vhost = dev_get_drvdata(dev);
+	struct vio_dev *vdev = to_vio_dev(dev);
+
+	spin_lock_irqsave(vhost->host->host_lock, flags);
+	vio_disable_interrupts(vdev);
+	tasklet_schedule(&vhost->tasklet);
+	spin_unlock_irqrestore(vhost->host->host_lock, flags);
+	return 0;
+}
+
+/**
  * ibmvfc_get_desired_dma - Calculate DMA resources needed by the driver
  * @vdev:	vio device struct
  *
@@ -4755,6 +4778,10 @@ static struct vio_device_id ibmvfc_device_table[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(vio, ibmvfc_device_table);
 
+static struct dev_pm_ops ibmvfc_pm_ops = {
+	.resume = ibmvfc_resume
+};
+
 static struct vio_driver ibmvfc_driver = {
 	.id_table = ibmvfc_device_table,
 	.probe = ibmvfc_probe,
@@ -4763,6 +4790,7 @@ static struct vio_driver ibmvfc_driver = {
 	.driver = {
 		.name = IBMVFC_NAME,
 		.owner = THIS_MODULE,
+		.pm = &ibmvfc_pm_ops,
 	}
 };
 

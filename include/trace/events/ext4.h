@@ -874,6 +874,107 @@ TRACE_EVENT(ext4_forget,
 		  __entry->mode, __entry->is_metadata, __entry->block)
 );
 
+TRACE_EVENT(ext4_da_update_reserve_space,
+	TP_PROTO(struct inode *inode, int used_blocks),
+
+	TP_ARGS(inode, used_blocks),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	ino_t,	ino			)
+		__field(	umode_t, mode			)
+		__field(	__u64,	i_blocks		)
+		__field(	int,	used_blocks		)
+		__field(	int,	reserved_data_blocks	)
+		__field(	int,	reserved_meta_blocks	)
+		__field(	int,	allocated_meta_blocks	)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->mode	= inode->i_mode;
+		__entry->i_blocks = inode->i_blocks;
+		__entry->used_blocks = used_blocks;
+		__entry->reserved_data_blocks = EXT4_I(inode)->i_reserved_data_blocks;
+		__entry->reserved_meta_blocks = EXT4_I(inode)->i_reserved_meta_blocks;
+		__entry->allocated_meta_blocks = EXT4_I(inode)->i_allocated_meta_blocks;
+	),
+
+	TP_printk("dev %s ino %lu mode 0%o i_blocks %llu used_blocks %d reserved_data_blocks %d reserved_meta_blocks %d allocated_meta_blocks %d",
+		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->ino,
+		  __entry->mode,  (unsigned long long) __entry->i_blocks,
+		  __entry->used_blocks, __entry->reserved_data_blocks,
+		  __entry->reserved_meta_blocks, __entry->allocated_meta_blocks)
+);
+
+TRACE_EVENT(ext4_da_reserve_space,
+	TP_PROTO(struct inode *inode, int md_needed),
+
+	TP_ARGS(inode, md_needed),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	ino_t,	ino			)
+		__field(	umode_t, mode			)
+		__field(	__u64,	i_blocks		)
+		__field(	int,	md_needed		)
+		__field(	int,	reserved_data_blocks	)
+		__field(	int,	reserved_meta_blocks	)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->mode	= inode->i_mode;
+		__entry->i_blocks = inode->i_blocks;
+		__entry->md_needed = md_needed;
+		__entry->reserved_data_blocks = EXT4_I(inode)->i_reserved_data_blocks;
+		__entry->reserved_meta_blocks = EXT4_I(inode)->i_reserved_meta_blocks;
+	),
+
+	TP_printk("dev %s ino %lu mode 0%o i_blocks %llu md_needed %d reserved_data_blocks %d reserved_meta_blocks %d",
+		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->ino,
+		  __entry->mode, (unsigned long long) __entry->i_blocks,
+		  __entry->md_needed, __entry->reserved_data_blocks,
+		  __entry->reserved_meta_blocks)
+);
+
+TRACE_EVENT(ext4_da_release_space,
+	TP_PROTO(struct inode *inode, int freed_blocks),
+
+	TP_ARGS(inode, freed_blocks),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	ino_t,	ino			)
+		__field(	umode_t, mode			)
+		__field(	__u64,	i_blocks		)
+		__field(	int,	freed_blocks		)
+		__field(	int,	reserved_data_blocks	)
+		__field(	int,	reserved_meta_blocks	)
+		__field(	int,	allocated_meta_blocks	)
+	),
+
+	TP_fast_assign(
+		__entry->dev	= inode->i_sb->s_dev;
+		__entry->ino	= inode->i_ino;
+		__entry->mode	= inode->i_mode;
+		__entry->i_blocks = inode->i_blocks;
+		__entry->freed_blocks = freed_blocks;
+		__entry->reserved_data_blocks = EXT4_I(inode)->i_reserved_data_blocks;
+		__entry->reserved_meta_blocks = EXT4_I(inode)->i_reserved_meta_blocks;
+		__entry->allocated_meta_blocks = EXT4_I(inode)->i_allocated_meta_blocks;
+	),
+
+	TP_printk("dev %s ino %lu mode 0%o i_blocks %llu freed_blocks %d reserved_data_blocks %d reserved_meta_blocks %d allocated_meta_blocks %d",
+		  jbd2_dev_to_name(__entry->dev), (unsigned long) __entry->ino,
+		  __entry->mode, (unsigned long long) __entry->i_blocks,
+		  __entry->freed_blocks, __entry->reserved_data_blocks,
+		  __entry->reserved_meta_blocks, __entry->allocated_meta_blocks)
+);
+
+
 #endif /* _TRACE_EXT4_H */
 
 /* This part must be outside protection */

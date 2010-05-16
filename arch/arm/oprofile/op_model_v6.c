@@ -19,39 +19,47 @@
 /* #define DEBUG */
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/oprofile.h>
 #include <linux/interrupt.h>
 #include <asm/irq.h>
 #include <asm/system.h>
+#include <asm/pmu.h>
 
 #include "op_counter.h"
 #include "op_arm_model.h"
 #include "op_model_arm11_core.h"
 
-static int irqs[] = {
-#ifdef CONFIG_ARCH_OMAP2
-	3,
-#endif
-#ifdef CONFIG_ARCH_BCMRING
-	IRQ_PMUIRQ, /* for BCMRING, ARM PMU interrupt is 43 */
-#endif
-};
+static const struct pmu_irqs *pmu_irqs;
 
 static void armv6_pmu_stop(void)
 {
 	arm11_stop_pmu();
-	arm11_release_interrupts(irqs, ARRAY_SIZE(irqs));
+	arm11_release_interrupts(pmu_irqs->irqs, pmu_irqs->num_irqs);
+	release_pmu(pmu_irqs);
+	pmu_irqs = NULL;
 }
 
 static int armv6_pmu_start(void)
 {
 	int ret;
 
-	ret = arm11_request_interrupts(irqs, ARRAY_SIZE(irqs));
-	if (ret >= 0)
-		ret = arm11_start_pmu();
+	pmu_irqs = reserve_pmu();
+	if (IS_ERR(pmu_irqs)) {
+		ret = PTR_ERR(pmu_irqs);
+		goto out;
+	}
 
+	ret = arm11_request_interrupts(pmu_irqs->irqs, pmu_irqs->num_irqs);
+	if (ret >= 0) {
+		ret = arm11_start_pmu();
+	} else {
+		release_pmu(pmu_irqs);
+		pmu_irqs = NULL;
+	}
+
+out:
 	return ret;
 }
 

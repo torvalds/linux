@@ -560,7 +560,7 @@ static void iss_net_set_multicast_list(struct net_device *dev)
 #if 0
 	if (dev->flags & IFF_PROMISC)
 		return;
-	else if (dev->mc_count)
+	else if (!netdev_mc_empty(dev))
 		dev->flags |= IFF_ALLMULTI;
 	else
 		dev->flags &= ~IFF_ALLMULTI;

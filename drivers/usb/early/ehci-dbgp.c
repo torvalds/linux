@@ -66,8 +66,6 @@ static struct ehci_dev ehci_dev;
 
 #define USB_DEBUG_DEVNUM 127
 
-#define DBGP_DATA_TOGGLE	0x8800
-
 #ifdef DBGP_DEBUG
 #define dbgp_printk printk
 static void dbgp_ehci_status(char *str)
@@ -87,11 +85,6 @@ static void dbgp_ehci_status(char *str)
 static inline void dbgp_ehci_status(char *str) { }
 static inline void dbgp_printk(const char *fmt, ...) { }
 #endif
-
-static inline u32 dbgp_pid_update(u32 x, u32 tok)
-{
-	return ((x ^ DBGP_DATA_TOGGLE) & 0xffff00) | (tok & 0xff);
-}
 
 static inline u32 dbgp_len_update(u32 x, u32 len)
 {
@@ -136,6 +129,19 @@ static inline u32 dbgp_len_update(u32 x, u32 len)
 
 #define DBGP_MAX_PACKET		8
 #define DBGP_TIMEOUT		(250 * 1000)
+#define DBGP_LOOPS		1000
+
+static inline u32 dbgp_pid_write_update(u32 x, u32 tok)
+{
+	static int data0 = USB_PID_DATA1;
+	data0 ^= USB_PID_DATA_TOGGLE;
+	return (x & 0xffff0000) | (data0 << 8) | (tok & 0xff);
+}
+
+static inline u32 dbgp_pid_read_update(u32 x, u32 tok)
+{
+	return (x & 0xffff0000) | (USB_PID_DATA0 << 8) | (tok & 0xff);
+}
 
 static int dbgp_wait_until_complete(void)
 {
@@ -180,7 +186,7 @@ static int dbgp_wait_until_done(unsigned ctrl)
 {
 	u32 pids, lpid;
 	int ret;
-	int loop = 3;
+	int loop = DBGP_LOOPS;
 
 retry:
 	writel(ctrl | DBGP_GO, &ehci_debug->control);
@@ -197,6 +203,8 @@ retry:
 		 */
 		if (ret == -DBGP_TIMEOUT && !dbgp_not_safe)
 			dbgp_not_safe = 1;
+		if (ret == -DBGP_ERR_BAD && --loop > 0)
+			goto retry;
 		return ret;
 	}
 
@@ -245,12 +253,20 @@ static inline void dbgp_get_data(void *buf, int size)
 		bytes[i] = (hi >> (8*(i - 4))) & 0xff;
 }
 
-static int dbgp_out(u32 addr, const char *bytes, int size)
+static int dbgp_bulk_write(unsigned devnum, unsigned endpoint,
+			 const char *bytes, int size)
 {
+	int ret;
+	u32 addr;
 	u32 pids, ctrl;
 
+	if (size > DBGP_MAX_PACKET)
+		return -1;
+
+	addr = DBGP_EPADDR(devnum, endpoint);
+
 	pids = readl(&ehci_debug->pids);
-	pids = dbgp_pid_update(pids, USB_PID_OUT);
+	pids = dbgp_pid_write_update(pids, USB_PID_OUT);
 
 	ctrl = readl(&ehci_debug->control);
 	ctrl = dbgp_len_update(ctrl, size);
@@ -260,34 +276,7 @@ static int dbgp_out(u32 addr, const char *bytes, int size)
 	dbgp_set_data(bytes, size);
 	writel(addr, &ehci_debug->address);
 	writel(pids, &ehci_debug->pids);
-	return dbgp_wait_until_done(ctrl);
-}
-
-static int dbgp_bulk_write(unsigned devnum, unsigned endpoint,
-			 const char *bytes, int size)
-{
-	int ret;
-	int loops = 5;
-	u32 addr;
-	if (size > DBGP_MAX_PACKET)
-		return -1;
-
-	addr = DBGP_EPADDR(devnum, endpoint);
-try_again:
-	if (loops--) {
-		ret = dbgp_out(addr, bytes, size);
-		if (ret == -DBGP_ERR_BAD) {
-			int try_loops = 3;
-			do {
-				/* Emit a dummy packet to re-sync communication
-				 * with the debug device */
-				if (dbgp_out(addr, "12345678", 8) >= 0) {
-					udelay(2);
-					goto try_again;
-				}
-			} while (try_loops--);
-		}
-	}
+	ret = dbgp_wait_until_done(ctrl);
 
 	return ret;
 }
@@ -304,7 +293,7 @@ static int dbgp_bulk_read(unsigned devnum, unsigned endpoint, void *data,
 	addr = DBGP_EPADDR(devnum, endpoint);
 
 	pids = readl(&ehci_debug->pids);
-	pids = dbgp_pid_update(pids, USB_PID_IN);
+	pids = dbgp_pid_read_update(pids, USB_PID_IN);
 
 	ctrl = readl(&ehci_debug->control);
 	ctrl = dbgp_len_update(ctrl, size);
@@ -361,7 +350,6 @@ static int dbgp_control_msg(unsigned devnum, int requesttype,
 	/* Read the result */
 	return dbgp_bulk_read(devnum, 0, data, size);
 }
-
 
 /* Find a PCI capability */
 static u32 __init find_cap(u32 num, u32 slot, u32 func, int cap)

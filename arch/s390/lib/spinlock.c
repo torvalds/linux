@@ -43,16 +43,24 @@ void arch_spin_lock_wait(arch_spinlock_t *lp)
 {
 	int count = spin_retry;
 	unsigned int cpu = ~smp_processor_id();
+	unsigned int owner;
 
 	while (1) {
-		if (count-- <= 0) {
-			unsigned int owner = lp->owner_cpu;
-			if (owner != 0)
-				_raw_yield_cpu(~owner);
-			count = spin_retry;
+		owner = lp->owner_cpu;
+		if (!owner || smp_vcpu_scheduled(~owner)) {
+			for (count = spin_retry; count > 0; count--) {
+				if (arch_spin_is_locked(lp))
+					continue;
+				if (_raw_compare_and_swap(&lp->owner_cpu, 0,
+							  cpu) == 0)
+					return;
+			}
+			if (MACHINE_IS_LPAR)
+				continue;
 		}
-		if (arch_spin_is_locked(lp))
-			continue;
+		owner = lp->owner_cpu;
+		if (owner)
+			_raw_yield_cpu(~owner);
 		if (_raw_compare_and_swap(&lp->owner_cpu, 0, cpu) == 0)
 			return;
 	}
@@ -63,17 +71,27 @@ void arch_spin_lock_wait_flags(arch_spinlock_t *lp, unsigned long flags)
 {
 	int count = spin_retry;
 	unsigned int cpu = ~smp_processor_id();
+	unsigned int owner;
 
 	local_irq_restore(flags);
 	while (1) {
-		if (count-- <= 0) {
-			unsigned int owner = lp->owner_cpu;
-			if (owner != 0)
-				_raw_yield_cpu(~owner);
-			count = spin_retry;
+		owner = lp->owner_cpu;
+		if (!owner || smp_vcpu_scheduled(~owner)) {
+			for (count = spin_retry; count > 0; count--) {
+				if (arch_spin_is_locked(lp))
+					continue;
+				local_irq_disable();
+				if (_raw_compare_and_swap(&lp->owner_cpu, 0,
+							  cpu) == 0)
+					return;
+				local_irq_restore(flags);
+			}
+			if (MACHINE_IS_LPAR)
+				continue;
 		}
-		if (arch_spin_is_locked(lp))
-			continue;
+		owner = lp->owner_cpu;
+		if (owner)
+			_raw_yield_cpu(~owner);
 		local_irq_disable();
 		if (_raw_compare_and_swap(&lp->owner_cpu, 0, cpu) == 0)
 			return;
@@ -100,8 +118,11 @@ EXPORT_SYMBOL(arch_spin_trylock_retry);
 void arch_spin_relax(arch_spinlock_t *lock)
 {
 	unsigned int cpu = lock->owner_cpu;
-	if (cpu != 0)
-		_raw_yield_cpu(~cpu);
+	if (cpu != 0) {
+		if (MACHINE_IS_VM || MACHINE_IS_KVM ||
+		    !smp_vcpu_scheduled(~cpu))
+			_raw_yield_cpu(~cpu);
+	}
 }
 EXPORT_SYMBOL(arch_spin_relax);
 

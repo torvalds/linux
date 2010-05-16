@@ -34,19 +34,19 @@ Configuration options:
   [0] - I/O port base base address
   [1] - IRQ (unused)
   [2] - Voltage unipolar/bipolar configuration
-          0 == unipolar 5V  (0V -- +5V)
-	  1 == bipolar 5V  (-5V -- +5V)
+	0 == unipolar 5V  (0V -- +5V)
+	1 == bipolar 5V  (-5V -- +5V)
   [3] - Current offset configuration
-          0 == disabled  (0mA -- +32mAV)
-          1 == enabled  (+4mA -- +20mAV)
+	0 == disabled  (0mA -- +32mAV)
+	1 == enabled  (+4mA -- +20mAV)
   [4] - Firmware program configuration
-          0 == program 1 (see manual table 5-4)
-          1 == program 2 (see manual table 5-4)
-          2 == program 3 (see manual table 5-4)
-          3 == program 4 (see manual table 5-4)
+	0 == program 1 (see manual table 5-4)
+	1 == program 2 (see manual table 5-4)
+	2 == program 3 (see manual table 5-4)
+	3 == program 4 (see manual table 5-4)
   [5] - Analog output 0 range configuration
-          0 == voltage
-          1 == current
+	0 == voltage
+	1 == current
   [6] - Analog output 1 range configuration (same options)
   [7] - Analog output 2 range configuration (same options)
   [8] - Analog output 3 range configuration (same options)
@@ -61,17 +61,11 @@ Configuration options:
 #include <linux/ioport.h>
 #include <linux/delay.h>
 
-static const struct comedi_lrange range_dt2815_ao_32_current = { 1, {
-								     RANGE_mA(0,
-									      32)
-								     }
-};
+static const struct comedi_lrange
+	range_dt2815_ao_32_current = {1, {RANGE_mA(0, 32)} };
 
-static const struct comedi_lrange range_dt2815_ao_20_current = { 1, {
-								     RANGE_mA(4,
-									      20)
-								     }
-};
+static const struct comedi_lrange
+	range_dt2815_ao_20_current = {1, {RANGE_mA(4, 20)} };
 
 #define DT2815_SIZE 2
 
@@ -118,9 +112,8 @@ static int dt2815_ao_insn_read(struct comedi_device *dev,
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
-	for (i = 0; i < insn->n; i++) {
+	for (i = 0; i < insn->n; i++)
 		data[i] = devpriv->ao_readback[chan];
-	}
 
 	return i;
 }
@@ -139,9 +132,8 @@ static int dt2815_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		status = dt2815_wait_for_status(dev, 0x00);
 		if (status != 0) {
-			printk
-			    ("dt2815: failed to write low byte on %d reason %x\n",
-			     chan, status);
+			printk(KERN_WARNING "dt2815: failed to write low byte "
+			       "on %d reason %x\n", chan, status);
 			return -EBUSY;
 		}
 
@@ -149,9 +141,8 @@ static int dt2815_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 
 		status = dt2815_wait_for_status(dev, 0x10);
 		if (status != 0x10) {
-			printk
-			    ("dt2815: failed to write high byte on %d reason %x\n",
-			     chan, status);
+			printk(KERN_WARNING "dt2815: failed to write high byte "
+			       "on %d reason %x\n", chan, status);
 			return -EBUSY;
 		}
 		devpriv->ao_readback[chan] = data[i];
@@ -163,24 +154,24 @@ static int dt2815_ao_insn(struct comedi_device *dev, struct comedi_subdevice *s,
   options[0]   Board base address
   options[1]   IRQ (not applicable)
   options[2]   Voltage unipolar/bipolar configuration
-                 0 == unipolar 5V  (0V -- +5V)
-		 1 == bipolar 5V  (-5V -- +5V)
+		0 == unipolar 5V  (0V -- +5V)
+		1 == bipolar 5V  (-5V -- +5V)
   options[3]   Current offset configuration
-                 0 == disabled  (0mA -- +32mAV)
-                 1 == enabled  (+4mA -- +20mAV)
+		0 == disabled  (0mA -- +32mAV)
+		1 == enabled  (+4mA -- +20mAV)
   options[4]   Firmware program configuration
-                 0 == program 1 (see manual table 5-4)
-                 1 == program 2 (see manual table 5-4)
-                 2 == program 3 (see manual table 5-4)
-                 3 == program 4 (see manual table 5-4)
+		0 == program 1 (see manual table 5-4)
+		1 == program 2 (see manual table 5-4)
+		2 == program 3 (see manual table 5-4)
+		3 == program 4 (see manual table 5-4)
   options[5]   Analog output 0 range configuration
-                 0 == voltage
-                 1 == current
+		0 == voltage
+		1 == current
   options[6]   Analog output 1 range configuration
   ...
   options[12]   Analog output 7 range configuration
-                 0 == voltage
-                 1 == current
+		0 == voltage
+		1 == current
  */
 
 static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
@@ -191,9 +182,9 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned long iobase;
 
 	iobase = it->options[0];
-	printk("comedi%d: dt2815: 0x%04lx ", dev->minor, iobase);
+	printk(KERN_INFO "comedi%d: dt2815: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, DT2815_SIZE, "dt2815")) {
-		printk("I/O port conflict\n");
+		printk(KERN_WARNING "I/O port conflict\n");
 		return -EIO;
 	}
 
@@ -236,18 +227,16 @@ static int dt2815_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			unsigned int program;
 			program = (it->options[4] & 0x3) << 3 | 0x7;
 			outb(program, dev->iobase + DT2815_DATA);
-			printk(", program: 0x%x (@t=%d)\n", program, i);
+			printk(KERN_INFO ", program: 0x%x (@t=%d)\n",
+			       program, i);
 			break;
 		} else if (status != 0x00) {
-			printk("dt2815: unexpected status 0x%x (@t=%d)\n",
-			       status, i);
-			if (status & 0x60) {
+			printk(KERN_WARNING "dt2815: unexpected status 0x%x "
+			       "(@t=%d)\n", status, i);
+			if (status & 0x60)
 				outb(0x00, dev->iobase + DT2815_STATUS);
-			}
 		}
 	}
-
-	printk("\n");
 
 	return 0;
 }
@@ -260,7 +249,7 @@ static void dt2815_free_resources(struct comedi_device *dev)
 
 static int dt2815_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: dt2815: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: dt2815: remove\n", dev->minor);
 
 	dt2815_free_resources(dev);
 

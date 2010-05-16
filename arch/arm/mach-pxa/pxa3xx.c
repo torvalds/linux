@@ -634,7 +634,7 @@ static int __init pxa3xx_init(void)
 		 */
 		ASCR &= ~(ASCR_RDH | ASCR_D1S | ASCR_D2S | ASCR_D3S);
 
-		clks_register(pxa3xx_clkregs, ARRAY_SIZE(pxa3xx_clkregs));
+		clkdev_add_table(pxa3xx_clkregs, ARRAY_SIZE(pxa3xx_clkregs));
 
 		if ((ret = pxa_init_dma(IRQ_DMA, 32)))
 			return ret;

@@ -156,19 +156,19 @@ static int irqflags[PNX833X_PIC_NUM_IRQ];	/* initialized by zeroes */
 #define IRQFLAG_STARTED		1
 #define IRQFLAG_DISABLED	2
 
-static DEFINE_SPINLOCK(pnx833x_irq_lock);
+static DEFINE_RAW_SPINLOCK(pnx833x_irq_lock);
 
 static unsigned int pnx833x_startup_pic_irq(unsigned int irq)
 {
 	unsigned long flags;
 	unsigned int pic_irq = irq - PNX833X_PIC_IRQ_BASE;
 
-	spin_lock_irqsave(&pnx833x_irq_lock, flags);
+	raw_spin_lock_irqsave(&pnx833x_irq_lock, flags);
 
 	irqflags[pic_irq] = IRQFLAG_STARTED;	/* started, not disabled */
 	pnx833x_hard_enable_pic_irq(pic_irq);
 
-	spin_unlock_irqrestore(&pnx833x_irq_lock, flags);
+	raw_spin_unlock_irqrestore(&pnx833x_irq_lock, flags);
 	return 0;
 }
 
@@ -177,12 +177,12 @@ static void pnx833x_shutdown_pic_irq(unsigned int irq)
 	unsigned long flags;
 	unsigned int pic_irq = irq - PNX833X_PIC_IRQ_BASE;
 
-	spin_lock_irqsave(&pnx833x_irq_lock, flags);
+	raw_spin_lock_irqsave(&pnx833x_irq_lock, flags);
 
 	irqflags[pic_irq] = 0;			/* not started */
 	pnx833x_hard_disable_pic_irq(pic_irq);
 
-	spin_unlock_irqrestore(&pnx833x_irq_lock, flags);
+	raw_spin_unlock_irqrestore(&pnx833x_irq_lock, flags);
 }
 
 static void pnx833x_enable_pic_irq(unsigned int irq)
@@ -190,13 +190,13 @@ static void pnx833x_enable_pic_irq(unsigned int irq)
 	unsigned long flags;
 	unsigned int pic_irq = irq - PNX833X_PIC_IRQ_BASE;
 
-	spin_lock_irqsave(&pnx833x_irq_lock, flags);
+	raw_spin_lock_irqsave(&pnx833x_irq_lock, flags);
 
 	irqflags[pic_irq] &= ~IRQFLAG_DISABLED;
 	if (irqflags[pic_irq] == IRQFLAG_STARTED)
 		pnx833x_hard_enable_pic_irq(pic_irq);
 
-	spin_unlock_irqrestore(&pnx833x_irq_lock, flags);
+	raw_spin_unlock_irqrestore(&pnx833x_irq_lock, flags);
 }
 
 static void pnx833x_disable_pic_irq(unsigned int irq)
@@ -204,12 +204,12 @@ static void pnx833x_disable_pic_irq(unsigned int irq)
 	unsigned long flags;
 	unsigned int pic_irq = irq - PNX833X_PIC_IRQ_BASE;
 
-	spin_lock_irqsave(&pnx833x_irq_lock, flags);
+	raw_spin_lock_irqsave(&pnx833x_irq_lock, flags);
 
 	irqflags[pic_irq] |= IRQFLAG_DISABLED;
 	pnx833x_hard_disable_pic_irq(pic_irq);
 
-	spin_unlock_irqrestore(&pnx833x_irq_lock, flags);
+	raw_spin_unlock_irqrestore(&pnx833x_irq_lock, flags);
 }
 
 static void pnx833x_ack_pic_irq(unsigned int irq)
@@ -220,15 +220,15 @@ static void pnx833x_end_pic_irq(unsigned int irq)
 {
 }
 
-static DEFINE_SPINLOCK(pnx833x_gpio_pnx833x_irq_lock);
+static DEFINE_RAW_SPINLOCK(pnx833x_gpio_pnx833x_irq_lock);
 
 static unsigned int pnx833x_startup_gpio_irq(unsigned int irq)
 {
 	int pin = irq - PNX833X_GPIO_IRQ_BASE;
 	unsigned long flags;
-	spin_lock_irqsave(&pnx833x_gpio_pnx833x_irq_lock, flags);
+	raw_spin_lock_irqsave(&pnx833x_gpio_pnx833x_irq_lock, flags);
 	pnx833x_gpio_enable_irq(pin);
-	spin_unlock_irqrestore(&pnx833x_gpio_pnx833x_irq_lock, flags);
+	raw_spin_unlock_irqrestore(&pnx833x_gpio_pnx833x_irq_lock, flags);
 	return 0;
 }
 
@@ -236,18 +236,18 @@ static void pnx833x_enable_gpio_irq(unsigned int irq)
 {
 	int pin = irq - PNX833X_GPIO_IRQ_BASE;
 	unsigned long flags;
-	spin_lock_irqsave(&pnx833x_gpio_pnx833x_irq_lock, flags);
+	raw_spin_lock_irqsave(&pnx833x_gpio_pnx833x_irq_lock, flags);
 	pnx833x_gpio_enable_irq(pin);
-	spin_unlock_irqrestore(&pnx833x_gpio_pnx833x_irq_lock, flags);
+	raw_spin_unlock_irqrestore(&pnx833x_gpio_pnx833x_irq_lock, flags);
 }
 
 static void pnx833x_disable_gpio_irq(unsigned int irq)
 {
 	int pin = irq - PNX833X_GPIO_IRQ_BASE;
 	unsigned long flags;
-	spin_lock_irqsave(&pnx833x_gpio_pnx833x_irq_lock, flags);
+	raw_spin_lock_irqsave(&pnx833x_gpio_pnx833x_irq_lock, flags);
 	pnx833x_gpio_disable_irq(pin);
-	spin_unlock_irqrestore(&pnx833x_gpio_pnx833x_irq_lock, flags);
+	raw_spin_unlock_irqrestore(&pnx833x_gpio_pnx833x_irq_lock, flags);
 }
 
 static void pnx833x_ack_gpio_irq(unsigned int irq)
@@ -258,9 +258,9 @@ static void pnx833x_end_gpio_irq(unsigned int irq)
 {
 	int pin = irq - PNX833X_GPIO_IRQ_BASE;
 	unsigned long flags;
-	spin_lock_irqsave(&pnx833x_gpio_pnx833x_irq_lock, flags);
+	raw_spin_lock_irqsave(&pnx833x_gpio_pnx833x_irq_lock, flags);
 	pnx833x_gpio_clear_irq(pin);
-	spin_unlock_irqrestore(&pnx833x_gpio_pnx833x_irq_lock, flags);
+	raw_spin_unlock_irqrestore(&pnx833x_gpio_pnx833x_irq_lock, flags);
 }
 
 static int pnx833x_set_type_gpio_irq(unsigned int irq, unsigned int flow_type)
@@ -377,4 +377,3 @@ void __init plat_time_init(void)
 
 	mips_hpt_frequency *= 500000;
 }
-

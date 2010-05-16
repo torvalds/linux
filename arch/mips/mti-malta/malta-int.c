@@ -25,7 +25,6 @@
 #include <linux/irq.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/kernel_stat.h>
@@ -52,7 +51,7 @@ static unsigned long _msc01_biu_base;
 static unsigned long _gcmp_base;
 static unsigned int ipi_map[NR_CPUS];
 
-static DEFINE_SPINLOCK(mips_irq_lock);
+static DEFINE_RAW_SPINLOCK(mips_irq_lock);
 
 static inline int mips_pcibios_iack(void)
 {
@@ -103,7 +102,7 @@ static inline int get_int(void)
 {
 	unsigned long flags;
 	int irq;
-	spin_lock_irqsave(&mips_irq_lock, flags);
+	raw_spin_lock_irqsave(&mips_irq_lock, flags);
 
 	irq = mips_pcibios_iack();
 
@@ -113,7 +112,7 @@ static inline int get_int(void)
 	 * on an SMP system,  so leave it up to the generic code...
 	 */
 
-	spin_unlock_irqrestore(&mips_irq_lock, flags);
+	raw_spin_unlock_irqrestore(&mips_irq_lock, flags);
 
 	return irq;
 }

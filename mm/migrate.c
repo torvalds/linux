@@ -32,6 +32,7 @@
 #include <linux/security.h>
 #include <linux/memcontrol.h>
 #include <linux/syscalls.h>
+#include <linux/gfp.h>
 
 #include "internal.h"
 
@@ -134,7 +135,7 @@ static int remove_migration_pte(struct page *new, struct vm_area_struct *vma,
 		page_add_file_rmap(new);
 
 	/* No need to invalidate - it was non-present before */
-	update_mmu_cache(vma, addr, pte);
+	update_mmu_cache(vma, addr, ptep);
 unlock:
 	pte_unmap_unlock(ptep, ptl);
 out:
@@ -275,8 +276,6 @@ static int migrate_page_move_mapping(struct address_space *mapping,
  */
 static void migrate_page_copy(struct page *newpage, struct page *page)
 {
-	int anon;
-
 	copy_highpage(newpage, page);
 
 	if (PageError(page))
@@ -313,8 +312,6 @@ static void migrate_page_copy(struct page *newpage, struct page *page)
 	ClearPageSwapCache(page);
 	ClearPagePrivate(page);
 	set_page_private(page, 0);
-	/* page->mapping contains a flag for PageAnon() */
-	anon = PageAnon(page);
 	page->mapping = NULL;
 
 	/*

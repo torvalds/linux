@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/idr.h>
 #include <net/9p/9p.h>
@@ -110,7 +111,7 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 {
 	int i, n, l, clone, any, access;
 	u32 uid;
-	struct p9_fid *fid;
+	struct p9_fid *fid, *old_fid = NULL;
 	struct dentry *d, *ds;
 	struct v9fs_session_info *v9ses;
 	char **wnames, *uname;
@@ -151,7 +152,7 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 			if (access == V9FS_ACCESS_SINGLE)
 				return ERR_PTR(-EPERM);
 
-			if (v9fs_extended(v9ses))
+			if (v9fs_proto_dotu(v9ses))
 				uname = NULL;
 			else
 				uname = v9ses->uname;
@@ -183,10 +184,18 @@ struct p9_fid *v9fs_fid_lookup(struct dentry *dentry)
 		l = min(n - i, P9_MAXWELEM);
 		fid = p9_client_walk(fid, l, &wnames[i], clone);
 		if (IS_ERR(fid)) {
+			if (old_fid) {
+				/*
+				 * If we fail, clunk fid which are mapping
+				 * to path component and not the last component
+				 * of the path.
+				 */
+				p9_client_clunk(old_fid);
+			}
 			kfree(wnames);
 			return fid;
 		}
-
+		old_fid = fid;
 		i += l;
 		clone = 0;
 	}

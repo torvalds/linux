@@ -3924,7 +3924,7 @@ static void FPT_sinits(struct sccb *p_sccb, unsigned char p_card)
 {
 	struct sccb_mgr_tar_info *currTar_Info;
 
-	if ((p_sccb->TargID > MAX_SCSI_TAR) || (p_sccb->Lun > MAX_LUN)) {
+	if ((p_sccb->TargID >= MAX_SCSI_TAR) || (p_sccb->Lun >= MAX_LUN)) {
 		return;
 	}
 	currTar_Info = &FPT_sccbMgrTbl[p_card][p_sccb->TargID];

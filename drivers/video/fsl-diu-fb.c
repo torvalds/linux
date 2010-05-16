@@ -1536,6 +1536,7 @@ static int __devinit fsl_diu_probe(struct of_device *ofdev,
 		goto error;
 	}
 
+	sysfs_attr_init(&machine_data->dev_attr.attr);
 	machine_data->dev_attr.attr.name = "monitor";
 	machine_data->dev_attr.attr.mode = S_IRUGO|S_IWUSR;
 	machine_data->dev_attr.show = show_monitor;
@@ -1633,6 +1634,11 @@ static int __init fsl_diu_setup(char *options)
 #endif
 
 static struct of_device_id fsl_diu_match[] = {
+#ifdef CONFIG_PPC_MPC512x
+	{
+		.compatible = "fsl,mpc5121-diu",
+	},
+#endif
 	{
 		.compatible = "fsl,diu",
 	},

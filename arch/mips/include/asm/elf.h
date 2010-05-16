@@ -310,6 +310,7 @@ do {									\
 
 #endif /* CONFIG_64BIT */
 
+struct pt_regs;
 struct task_struct;
 
 extern void elf_dump_regs(elf_greg_t *, struct pt_regs *regs);
@@ -334,14 +335,14 @@ extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);
 
 #define ELF_HWCAP       (0)
 
-/* This yields a string that ld.so will use to load implementation
-   specific libraries for optimization.  This is more specific in
-   intent than poking at uname or /proc/cpuinfo.
+/*
+ * This yields a string that ld.so will use to load implementation
+ * specific libraries for optimization.  This is more specific in
+ * intent than poking at uname or /proc/cpuinfo.
+ */
 
-   For the moment, we have only optimizations for the Intel generations,
-   but that could change... */
-
-#define ELF_PLATFORM  (NULL)
+#define ELF_PLATFORM  __elf_platform
+extern const char *__elf_platform;
 
 /*
  * See comments in asm-alpha/elf.h, this is the same thing
@@ -367,4 +368,8 @@ extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);
 #define ELF_ET_DYN_BASE         (TASK_SIZE / 3 * 2)
 #endif
 
+#define ARCH_HAS_SETUP_ADDITIONAL_PAGES 1
+struct linux_binprm;
+extern int arch_setup_additional_pages(struct linux_binprm *bprm,
+				       int uses_interp);
 #endif /* _ASM_ELF_H */

@@ -33,6 +33,7 @@
  */
 
 #include <linux/timer.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include <asm/unaligned.h>
 

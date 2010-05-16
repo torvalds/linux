@@ -5,88 +5,41 @@
  */
 #include <linux/module.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
+#include <linux/slab.h>
 
 #define RAW_VALID_HOOKS ((1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_OUT))
-
-static const struct
-{
-	struct ip6t_replace repl;
-	struct ip6t_standard entries[2];
-	struct ip6t_error term;
-} initial_table __net_initdata = {
-	.repl = {
-		.name = "raw",
-		.valid_hooks = RAW_VALID_HOOKS,
-		.num_entries = 3,
-		.size = sizeof(struct ip6t_standard) * 2 + sizeof(struct ip6t_error),
-		.hook_entry = {
-			[NF_INET_PRE_ROUTING] = 0,
-			[NF_INET_LOCAL_OUT] = sizeof(struct ip6t_standard)
-		},
-		.underflow = {
-			[NF_INET_PRE_ROUTING] = 0,
-			[NF_INET_LOCAL_OUT] = sizeof(struct ip6t_standard)
-		},
-	},
-	.entries = {
-		IP6T_STANDARD_INIT(NF_ACCEPT),	/* PRE_ROUTING */
-		IP6T_STANDARD_INIT(NF_ACCEPT),	/* LOCAL_OUT */
-	},
-	.term = IP6T_ERROR_INIT,		/* ERROR */
-};
 
 static const struct xt_table packet_raw = {
 	.name = "raw",
 	.valid_hooks = RAW_VALID_HOOKS,
 	.me = THIS_MODULE,
 	.af = NFPROTO_IPV6,
+	.priority = NF_IP6_PRI_RAW,
 };
 
 /* The work comes in here from netfilter.c. */
 static unsigned int
-ip6t_pre_routing_hook(unsigned int hook,
-	 struct sk_buff *skb,
-	 const struct net_device *in,
-	 const struct net_device *out,
-	 int (*okfn)(struct sk_buff *))
+ip6table_raw_hook(unsigned int hook, struct sk_buff *skb,
+		  const struct net_device *in, const struct net_device *out,
+		  int (*okfn)(struct sk_buff *))
 {
-	return ip6t_do_table(skb, hook, in, out,
-			     dev_net(in)->ipv6.ip6table_raw);
+	const struct net *net = dev_net((in != NULL) ? in : out);
+
+	return ip6t_do_table(skb, hook, in, out, net->ipv6.ip6table_raw);
 }
 
-static unsigned int
-ip6t_local_out_hook(unsigned int hook,
-	 struct sk_buff *skb,
-	 const struct net_device *in,
-	 const struct net_device *out,
-	 int (*okfn)(struct sk_buff *))
-{
-	return ip6t_do_table(skb, hook, in, out,
-			     dev_net(out)->ipv6.ip6table_raw);
-}
-
-static struct nf_hook_ops ip6t_ops[] __read_mostly = {
-	{
-	  .hook = ip6t_pre_routing_hook,
-	  .pf = NFPROTO_IPV6,
-	  .hooknum = NF_INET_PRE_ROUTING,
-	  .priority = NF_IP6_PRI_FIRST,
-	  .owner = THIS_MODULE,
-	},
-	{
-	  .hook = ip6t_local_out_hook,
-	  .pf = NFPROTO_IPV6,
-	  .hooknum = NF_INET_LOCAL_OUT,
-	  .priority = NF_IP6_PRI_FIRST,
-	  .owner = THIS_MODULE,
-	},
-};
+static struct nf_hook_ops *rawtable_ops __read_mostly;
 
 static int __net_init ip6table_raw_net_init(struct net *net)
 {
-	/* Register table */
+	struct ip6t_replace *repl;
+
+	repl = ip6t_alloc_initial_table(&packet_raw);
+	if (repl == NULL)
+		return -ENOMEM;
 	net->ipv6.ip6table_raw =
-		ip6t_register_table(net, &packet_raw, &initial_table.repl);
+		ip6t_register_table(net, &packet_raw, repl);
+	kfree(repl);
 	if (IS_ERR(net->ipv6.ip6table_raw))
 		return PTR_ERR(net->ipv6.ip6table_raw);
 	return 0;
@@ -94,7 +47,7 @@ static int __net_init ip6table_raw_net_init(struct net *net)
 
 static void __net_exit ip6table_raw_net_exit(struct net *net)
 {
-	ip6t_unregister_table(net->ipv6.ip6table_raw);
+	ip6t_unregister_table(net, net->ipv6.ip6table_raw);
 }
 
 static struct pernet_operations ip6table_raw_net_ops = {
@@ -111,9 +64,11 @@ static int __init ip6table_raw_init(void)
 		return ret;
 
 	/* Register hooks */
-	ret = nf_register_hooks(ip6t_ops, ARRAY_SIZE(ip6t_ops));
-	if (ret < 0)
+	rawtable_ops = xt_hook_link(&packet_raw, ip6table_raw_hook);
+	if (IS_ERR(rawtable_ops)) {
+		ret = PTR_ERR(rawtable_ops);
 		goto cleanup_table;
+	}
 
 	return ret;
 
@@ -124,7 +79,7 @@ static int __init ip6table_raw_init(void)
 
 static void __exit ip6table_raw_fini(void)
 {
-	nf_unregister_hooks(ip6t_ops, ARRAY_SIZE(ip6t_ops));
+	xt_hook_unlink(&packet_raw, rawtable_ops);
 	unregister_pernet_subsys(&ip6table_raw_net_ops);
 }
 

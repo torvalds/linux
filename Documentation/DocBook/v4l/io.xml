@@ -589,7 +589,8 @@ number of a video input as in &v4l2-input; field
 	    <entry></entry>
 	    <entry>A place holder for future extensions and custom
 (driver defined) buffer types
-<constant>V4L2_BUF_TYPE_PRIVATE</constant> and higher.</entry>
+<constant>V4L2_BUF_TYPE_PRIVATE</constant> and higher. Applications
+should set this to 0.</entry>
 	  </row>
 	</tbody>
       </tgroup>

@@ -622,6 +622,7 @@ static int timekeeping_suspend(struct sys_device *dev, pm_message_t state)
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 
 	clockevents_notify(CLOCK_EVT_NOTIFY_SUSPEND, NULL);
+	clocksource_suspend();
 
 	return 0;
 }
@@ -817,7 +818,8 @@ void update_wall_time(void)
 	shift = min(shift, maxshift);
 	while (offset >= timekeeper.cycle_interval) {
 		offset = logarithmic_accumulation(offset, shift);
-		shift--;
+		if(offset < timekeeper.cycle_interval<<shift)
+			shift--;
 	}
 
 	/* correct the clock when NTP error is too big */

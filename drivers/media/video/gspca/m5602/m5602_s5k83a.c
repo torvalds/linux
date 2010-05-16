@@ -17,6 +17,7 @@
  */
 
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include "m5602_s5k83a.h"
 
 static int s5k83a_set_gain(struct gspca_dev *gspca_dev, __s32 val);
@@ -143,7 +144,7 @@ int s5k83a_probe(struct sd *sd)
 		return -ENODEV;
 	}
 
-	info("Probing for a s5k83a sensor");
+	PDEBUG(D_PROBE, "Probing for a s5k83a sensor");
 
 	/* Preinit the sensor */
 	for (i = 0; i < ARRAY_SIZE(preinit_s5k83a) && !err; i++) {

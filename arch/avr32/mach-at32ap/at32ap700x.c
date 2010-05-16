@@ -12,6 +12,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/spi/spi.h>
 #include <linux/usb/atmel_usba_udc.h>
@@ -1770,10 +1771,13 @@ at32_add_device_usba(unsigned int id, struct usba_platform_data *data)
 					  ARRAY_SIZE(usba0_resource)))
 		goto out_free_pdev;
 
-	if (data)
+	if (data) {
 		usba_data.pdata.vbus_pin = data->vbus_pin;
-	else
+		usba_data.pdata.vbus_pin_inverted = data->vbus_pin_inverted;
+	} else {
 		usba_data.pdata.vbus_pin = -EINVAL;
+		usba_data.pdata.vbus_pin_inverted = -EINVAL;
+	}
 
 	data = &usba_data.pdata;
 	data->num_ep = ARRAY_SIZE(at32_usba_ep);

@@ -75,13 +75,21 @@ MODULE_PARM_DESC(ignorelid, "Ignore ACPI lid status");
 int nouveau_ignorelid = 0;
 module_param_named(ignorelid, nouveau_ignorelid, int, 0400);
 
-MODULE_PARM_DESC(noagp, "Disable all acceleration");
+MODULE_PARM_DESC(noaccel, "Disable all acceleration");
 int nouveau_noaccel = 0;
 module_param_named(noaccel, nouveau_noaccel, int, 0400);
 
-MODULE_PARM_DESC(noagp, "Disable fbcon acceleration");
+MODULE_PARM_DESC(nofbaccel, "Disable fbcon acceleration");
 int nouveau_nofbaccel = 0;
 module_param_named(nofbaccel, nouveau_nofbaccel, int, 0400);
+
+MODULE_PARM_DESC(override_conntype, "Ignore DCB connector type");
+int nouveau_override_conntype = 0;
+module_param_named(override_conntype, nouveau_override_conntype, int, 0400);
+
+MODULE_PARM_DESC(tv_disable, "Disable TV-out detection\n");
+int nouveau_tv_disable = 0;
+module_param_named(tv_disable, nouveau_tv_disable, int, 0400);
 
 MODULE_PARM_DESC(tv_norm, "Default TV norm.\n"
 		 "\t\tSupported: PAL, PAL-M, PAL-N, PAL-Nc, NTSC-M, NTSC-J,\n"
@@ -135,7 +143,7 @@ nouveau_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
-static int
+int
 nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
@@ -154,9 +162,11 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	if (pm_state.event == PM_EVENT_PRETHAW)
 		return 0;
 
+	NV_INFO(dev, "Disabling fbcon acceleration...\n");
 	fbdev_flags = dev_priv->fbdev_info->flags;
 	dev_priv->fbdev_info->flags |= FBINFO_HWACCEL_DISABLED;
 
+	NV_INFO(dev, "Unpinning framebuffer(s)...\n");
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_framebuffer *nouveau_fb;
 
@@ -233,7 +243,7 @@ out_abort:
 	return ret;
 }
 
-static int
+int
 nouveau_pci_resume(struct pci_dev *pdev)
 {
 	struct drm_device *dev = pci_get_drvdata(pdev);
@@ -402,8 +412,10 @@ static int __init nouveau_init(void)
 			nouveau_modeset = 1;
 	}
 
-	if (nouveau_modeset == 1)
+	if (nouveau_modeset == 1) {
 		driver.driver_features |= DRIVER_MODESET;
+		nouveau_register_dsm_handler();
+	}
 
 	return drm_init(&driver);
 }
@@ -411,6 +423,7 @@ static int __init nouveau_init(void)
 static void __exit nouveau_exit(void)
 {
 	drm_exit(&driver);
+	nouveau_unregister_dsm_handler();
 }
 
 module_init(nouveau_init);

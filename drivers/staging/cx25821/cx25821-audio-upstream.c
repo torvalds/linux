@@ -32,6 +32,7 @@
 #include <linux/file.h>
 #include <linux/fcntl.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 MODULE_DESCRIPTION("v4l2 driver module for cx25821 based TV cards");

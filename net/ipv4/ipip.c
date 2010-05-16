@@ -95,6 +95,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -130,7 +131,6 @@ struct ipip_net {
 	struct net_device *fb_tunnel_dev;
 };
 
-static void ipip_fb_tunnel_init(struct net_device *dev);
 static void ipip_tunnel_init(struct net_device *dev);
 static void ipip_tunnel_setup(struct net_device *dev);
 
@@ -730,7 +730,7 @@ static void ipip_tunnel_init(struct net_device *dev)
 	ipip_tunnel_bind_dev(dev);
 }
 
-static void ipip_fb_tunnel_init(struct net_device *dev)
+static void __net_init ipip_fb_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
@@ -773,7 +773,7 @@ static void ipip_destroy_tunnels(struct ipip_net *ipn, struct list_head *head)
 	}
 }
 
-static int ipip_init_net(struct net *net)
+static int __net_init ipip_init_net(struct net *net)
 {
 	struct ipip_net *ipn = net_generic(net, ipip_net_id);
 	int err;
@@ -806,7 +806,7 @@ err_alloc_dev:
 	return err;
 }
 
-static void ipip_exit_net(struct net *net)
+static void __net_exit ipip_exit_net(struct net *net)
 {
 	struct ipip_net *ipn = net_generic(net, ipip_net_id);
 	LIST_HEAD(list);
@@ -831,15 +831,14 @@ static int __init ipip_init(void)
 
 	printk(banner);
 
-	if (xfrm4_tunnel_register(&ipip_handler, AF_INET)) {
-		printk(KERN_INFO "ipip init: can't register tunnel\n");
-		return -EAGAIN;
-	}
-
 	err = register_pernet_device(&ipip_net_ops);
-	if (err)
-		xfrm4_tunnel_deregister(&ipip_handler, AF_INET);
-
+	if (err < 0)
+		return err;
+	err = xfrm4_tunnel_register(&ipip_handler, AF_INET);
+	if (err < 0) {
+		unregister_pernet_device(&ipip_net_ops);
+		printk(KERN_INFO "ipip init: can't register tunnel\n");
+	}
 	return err;
 }
 

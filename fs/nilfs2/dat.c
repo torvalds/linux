@@ -288,7 +288,7 @@ int nilfs_dat_mark_dirty(struct inode *dat, __u64 vblocknr)
  * @vblocknrs and @nitems.
  *
  * Return Value: On success, 0 is returned. On error, one of the following
- * nagative error codes is returned.
+ * negative error codes is returned.
  *
  * %-EIO - I/O error.
  *
@@ -388,8 +388,7 @@ int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
 		ret = -ENOENT;
 		goto out;
 	}
-	if (blocknrp != NULL)
-		*blocknrp = blocknr;
+	*blocknrp = blocknr;
 
  out:
 	kunmap_atomic(kaddr, KM_USER0);

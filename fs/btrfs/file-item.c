@@ -17,6 +17,7 @@
  */
 
 #include <linux/bio.h>
+#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include "ctree.h"

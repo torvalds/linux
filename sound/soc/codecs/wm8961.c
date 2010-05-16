@@ -18,6 +18,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -1022,6 +1023,9 @@ static int wm8961_resume(struct platform_device *pdev)
 	int i;
 
 	for (i = 0; i < codec->reg_cache_size; i++) {
+		if (reg_cache[i] == wm8961_reg_defaults[i])
+			continue;
+
 		if (i == WM8961_SOFTWARE_RESET)
 			continue;
 

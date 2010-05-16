@@ -42,12 +42,7 @@
 
 #define DBG(...)
 
-#ifdef CONFIG_IOMMU_VMERGE
-static int novmerge = 0;
-#else
-static int novmerge = 1;
-#endif
-
+static int novmerge;
 static int protect4gb = 1;
 
 static void __iommu_free(struct iommu_table *, dma_addr_t, unsigned int);

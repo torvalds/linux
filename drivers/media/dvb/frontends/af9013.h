@@ -44,6 +44,7 @@ enum af9013_tuner {
 	AF9013_TUNER_MT2060_2   = 147, /* Microtune */
 	AF9013_TUNER_TDA18271   = 156, /* NXP */
 	AF9013_TUNER_QT1010A    = 162, /* Quantek */
+	AF9013_TUNER_TDA18218   = 179, /* NXP */
 };
 
 /* AF9013/5 GPIOs (mostly guessed)

@@ -527,15 +527,6 @@ struct adapter {
     (largestat) += ((newstat) - (oldstat));                              \
 }
 
-#define ETHER_EQ_ADDR(_AddrA, _AddrB, _Result)                           \
-{                                                                        \
-    _Result = true;                                                      \
-    if (*(u32 *)(_AddrA) != *(u32 *)(_AddrB))                          \
-	_Result = false;                                                 \
-    if (*(u16 *)(&((_AddrA)[4])) != *(u16 *)(&((_AddrB)[4])))        \
-	_Result = false;                                                 \
-}
-
 #if defined(CONFIG_X86_64) || defined(CONFIG_IA64)
 #define   SLIC_GET_ADDR_LOW(_addr)  (u32)((u64)(_addr) & \
 	0x00000000FFFFFFFF)

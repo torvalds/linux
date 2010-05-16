@@ -167,23 +167,40 @@ struct kvm_vcpu_arch {
 	ulong trampoline_lowmem;
 	ulong trampoline_enter;
 	ulong highmem_handler;
+	ulong rmcall;
 	ulong host_paca_phys;
 	struct kvmppc_mmu mmu;
 #endif
 
-	u64 fpr[32];
 	ulong gpr[32];
 
+	u64 fpr[32];
+	u32 fpscr;
+
+#ifdef CONFIG_ALTIVEC
+	vector128 vr[32];
+	vector128 vscr;
+#endif
+
+#ifdef CONFIG_VSX
+	u64 vsr[32];
+#endif
+
 	ulong pc;
-	u32 cr;
 	ulong ctr;
 	ulong lr;
+
+#ifdef CONFIG_BOOKE
 	ulong xer;
+	u32 cr;
+#endif
 
 	ulong msr;
 #ifdef CONFIG_PPC64
 	ulong shadow_msr;
+	ulong shadow_srr1;
 	ulong hflags;
+	ulong guest_owned_ext;
 #endif
 	u32 mmucr;
 	ulong sprg0;
@@ -242,6 +259,8 @@ struct kvm_vcpu_arch {
 #endif
 	ulong fault_dear;
 	ulong fault_esr;
+	ulong queued_dear;
+	ulong queued_esr;
 	gpa_t paddr_accessed;
 
 	u8 io_gpr; /* GPR used as IO source/target */

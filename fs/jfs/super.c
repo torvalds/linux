@@ -30,6 +30,7 @@
 #include <linux/buffer_head.h>
 #include <linux/exportfs.h>
 #include <linux/crc32.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/seq_file.h>
 #include <linux/smp_lock.h>
@@ -129,6 +130,11 @@ static void jfs_destroy_inode(struct inode *inode)
 	}
 	spin_unlock_irq(&ji->ag_lock);
 	kmem_cache_free(jfs_inode_cachep, ji);
+}
+
+static void jfs_clear_inode(struct inode *inode)
+{
+	dquot_drop(inode);
 }
 
 static int jfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -745,6 +751,7 @@ static const struct super_operations jfs_super_operations = {
 	.dirty_inode	= jfs_dirty_inode,
 	.write_inode	= jfs_write_inode,
 	.delete_inode	= jfs_delete_inode,
+	.clear_inode	= jfs_clear_inode,
 	.put_super	= jfs_put_super,
 	.sync_fs	= jfs_sync_fs,
 	.freeze_fs	= jfs_freeze,

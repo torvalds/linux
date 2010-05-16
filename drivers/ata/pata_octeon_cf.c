@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/libata.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
 #include <scsi/scsi_host.h>

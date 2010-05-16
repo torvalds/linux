@@ -238,11 +238,10 @@ HAVE_SYSCALL_TRACEPOINTS
 
 You need very few things to get the syscalls tracing in an arch.
 
+- Support HAVE_ARCH_TRACEHOOK (see arch/Kconfig).
 - Have a NR_syscalls variable in <asm/unistd.h> that provides the number
   of syscalls supported by the arch.
-- Implement arch_syscall_addr() that resolves a syscall address from a
-  syscall number.
-- Support the TIF_SYSCALL_TRACEPOINT thread flags
+- Support the TIF_SYSCALL_TRACEPOINT thread flags.
 - Put the trace_sys_enter() and trace_sys_exit() tracepoints calls from ptrace
   in the ptrace syscalls tracing path.
 - Tag this arch as HAVE_SYSCALL_TRACEPOINTS.

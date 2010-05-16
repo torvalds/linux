@@ -8,6 +8,7 @@
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-debug.h>
+#include <linux/gfp.h>
 #include <linux/lmb.h>
 #include <asm/bug.h>
 #include <asm/abs_addr.h>

@@ -3393,3 +3393,102 @@ struct ir_scancode_table ir_codes_nec_terratec_cinergy_xs_table = {
 };
 EXPORT_SYMBOL_GPL(ir_codes_nec_terratec_cinergy_xs_table);
 
+
+/* Leadtek Winfast TV USB II Deluxe remote
+   Magnus Alm <magnus.alm@gmail.com>
+ */
+static struct ir_scancode ir_codes_winfast_usbii_deluxe[] = {
+	{ 0x62, KEY_0},
+	{ 0x75, KEY_1},
+	{ 0x76, KEY_2},
+	{ 0x77, KEY_3},
+	{ 0x79, KEY_4},
+	{ 0x7a, KEY_5},
+	{ 0x7b, KEY_6},
+	{ 0x7d, KEY_7},
+	{ 0x7e, KEY_8},
+	{ 0x7f, KEY_9},
+
+	{ 0x38, KEY_CAMERA},		/* SNAPSHOT */
+	{ 0x37, KEY_RECORD},		/* RECORD */
+	{ 0x35, KEY_TIME},		/* TIMESHIFT */
+
+	{ 0x74, KEY_VOLUMEUP},		/* VOLUMEUP */
+	{ 0x78, KEY_VOLUMEDOWN},	/* VOLUMEDOWN */
+	{ 0x64, KEY_MUTE},		/* MUTE */
+
+	{ 0x21, KEY_CHANNEL},		/* SURF */
+	{ 0x7c, KEY_CHANNELUP},		/* CHANNELUP */
+	{ 0x60, KEY_CHANNELDOWN},	/* CHANNELDOWN */
+	{ 0x61, KEY_LAST},		/* LAST CHANNEL (RECALL) */
+
+	{ 0x72, KEY_VIDEO}, 		/* INPUT MODES (TV/FM) */
+
+	{ 0x70, KEY_POWER2},		/* TV ON/OFF */
+
+	{ 0x39, KEY_CYCLEWINDOWS},	/* MINIMIZE (BOSS) */
+	{ 0x3a, KEY_NEW},		/* PIP */
+	{ 0x73, KEY_ZOOM},		/* FULLSECREEN */
+
+	{ 0x66, KEY_INFO},		/* OSD (DISPLAY) */
+
+	{ 0x31, KEY_DOT},		/* '.' */
+	{ 0x63, KEY_ENTER},		/* ENTER */
+
+};
+struct ir_scancode_table ir_codes_winfast_usbii_deluxe_table = {
+	.scan = ir_codes_winfast_usbii_deluxe,
+	.size = ARRAY_SIZE(ir_codes_winfast_usbii_deluxe),
+};
+EXPORT_SYMBOL_GPL(ir_codes_winfast_usbii_deluxe_table);
+
+/* Kworld 315U
+ */
+static struct ir_scancode ir_codes_kworld_315u[] = {
+	{ 0x6143, KEY_POWER },
+	{ 0x6101, KEY_TUNER },		/* source */
+	{ 0x610b, KEY_ZOOM },
+	{ 0x6103, KEY_POWER2 },		/* shutdown */
+
+	{ 0x6104, KEY_1 },
+	{ 0x6108, KEY_2 },
+	{ 0x6102, KEY_3 },
+	{ 0x6109, KEY_CHANNELUP },
+
+	{ 0x610f, KEY_4 },
+	{ 0x6105, KEY_5 },
+	{ 0x6106, KEY_6 },
+	{ 0x6107, KEY_CHANNELDOWN },
+
+	{ 0x610c, KEY_7 },
+	{ 0x610d, KEY_8 },
+	{ 0x610a, KEY_9 },
+	{ 0x610e, KEY_VOLUMEUP },
+
+	{ 0x6110, KEY_LAST },
+	{ 0x6111, KEY_0 },
+	{ 0x6112, KEY_ENTER },
+	{ 0x6113, KEY_VOLUMEDOWN },
+
+	{ 0x6114, KEY_RECORD },
+	{ 0x6115, KEY_STOP },
+	{ 0x6116, KEY_PLAY },
+	{ 0x6117, KEY_MUTE },
+
+	{ 0x6118, KEY_UP },
+	{ 0x6119, KEY_DOWN },
+	{ 0x611a, KEY_LEFT },
+	{ 0x611b, KEY_RIGHT },
+
+	{ 0x611c, KEY_RED },
+	{ 0x611d, KEY_GREEN },
+	{ 0x611e, KEY_YELLOW },
+	{ 0x611f, KEY_BLUE },
+};
+
+struct ir_scancode_table ir_codes_kworld_315u_table = {
+	.scan = ir_codes_kworld_315u,
+	.size = ARRAY_SIZE(ir_codes_kworld_315u),
+	.ir_type = IR_TYPE_NEC,
+};
+EXPORT_SYMBOL_GPL(ir_codes_kworld_315u_table);

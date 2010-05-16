@@ -1925,6 +1925,15 @@ void *raw_field_ptr(struct event *event, const char *name, void *data)
 	if (!field)
 		return NULL;
 
+	if (field->flags & FIELD_IS_STRING) {
+		int offset;
+
+		offset = *(int *)(data + field->offset);
+		offset &= 0xffff;
+
+		return data + offset;
+	}
+
 	return data + field->offset;
 }
 
@@ -3276,4 +3285,19 @@ void parse_set_info(int nr_cpus, int long_sz)
 {
 	cpus = nr_cpus;
 	long_size = long_sz;
+}
+
+int common_pc(struct scripting_context *context)
+{
+	return parse_common_pc(context->event_data);
+}
+
+int common_flags(struct scripting_context *context)
+{
+	return parse_common_flags(context->event_data);
+}
+
+int common_lock_depth(struct scripting_context *context)
+{
+	return parse_common_lock_depth(context->event_data);
 }

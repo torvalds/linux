@@ -5,8 +5,8 @@
  * Author: Matt Porter <mporter@mvista.com> Derived from
  * arch/ppc/boot/prep/misc.c
  *
- * Copyright (C) 2009 Lemote, Inc. & Institute of Computing Technology
- * Author: Wu Zhangjin <wuzj@lemote.com>
+ * Copyright (C) 2009 Lemote, Inc.
+ * Author: Wu Zhangjin <wuzhangjin@gmail.com>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the

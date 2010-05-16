@@ -37,6 +37,7 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint32_t fc = NV40_RAMFC(chan->id);
+	unsigned long flags;
 	int ret;
 
 	ret = nouveau_gpuobj_new_fake(dev, NV40_RAMFC(chan->id), ~0,
@@ -44,6 +45,8 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 				      NVOBJ_FLAG_ZERO_FREE, NULL, &chan->ramfc);
 	if (ret)
 		return ret;
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
 	dev_priv->engine.instmem.prepare_access(dev, true);
 	nv_wi32(dev, fc +  0, chan->pushbuf_base);
@@ -63,6 +66,8 @@ nv40_fifo_create_context(struct nouveau_channel *chan)
 	/* enable the fifo dma operation */
 	nv_wr32(dev, NV04_PFIFO_MODE,
 		nv_rd32(dev, NV04_PFIFO_MODE) | (1 << chan->id));
+
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 	return 0;
 }
 
@@ -273,7 +278,7 @@ nv40_fifo_init_ramxx(struct drm_device *dev)
 	default:
 		nv_wr32(dev, 0x2230, 0);
 		nv_wr32(dev, NV40_PFIFO_RAMFC,
-			((nouveau_mem_fb_amount(dev) - 512 * 1024 +
+			((dev_priv->vram_size - 512 * 1024 +
 			  dev_priv->ramfc_offset) >> 16) | (3 << 16));
 		break;
 	}
