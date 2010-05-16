@@ -1454,12 +1454,18 @@ void net_disable_timestamp(void)
 }
 EXPORT_SYMBOL(net_disable_timestamp);
 
-static inline void net_timestamp(struct sk_buff *skb)
+static inline void net_timestamp_set(struct sk_buff *skb)
 {
 	if (atomic_read(&netstamp_needed))
 		__net_timestamp(skb);
 	else
 		skb->tstamp.tv64 = 0;
+}
+
+static inline void net_timestamp_check(struct sk_buff *skb)
+{
+	if (!skb->tstamp.tv64 && atomic_read(&netstamp_needed))
+		__net_timestamp(skb);
 }
 
 /**
@@ -1508,9 +1514,9 @@ static void dev_queue_xmit_nit(struct sk_buff *skb, struct net_device *dev)
 
 #ifdef CONFIG_NET_CLS_ACT
 	if (!(skb->tstamp.tv64 && (G_TC_FROM(skb->tc_verd) & AT_INGRESS)))
-		net_timestamp(skb);
+		net_timestamp_set(skb);
 #else
-	net_timestamp(skb);
+	net_timestamp_set(skb);
 #endif
 
 	rcu_read_lock();
@@ -2201,6 +2207,7 @@ EXPORT_SYMBOL(dev_queue_xmit);
   =======================================================================*/
 
 int netdev_max_backlog __read_mostly = 1000;
+int netdev_tstamp_prequeue __read_mostly = 1;
 int netdev_budget __read_mostly = 300;
 int weight_p __read_mostly = 64;            /* old backlog weight */
 
@@ -2465,8 +2472,8 @@ int netif_rx(struct sk_buff *skb)
 	if (netpoll_rx(skb))
 		return NET_RX_DROP;
 
-	if (!skb->tstamp.tv64)
-		net_timestamp(skb);
+	if (netdev_tstamp_prequeue)
+		net_timestamp_check(skb);
 
 #ifdef CONFIG_RPS
 	{
@@ -2791,8 +2798,8 @@ static int __netif_receive_skb(struct sk_buff *skb)
 	int ret = NET_RX_DROP;
 	__be16 type;
 
-	if (!skb->tstamp.tv64)
-		net_timestamp(skb);
+	if (!netdev_tstamp_prequeue)
+		net_timestamp_check(skb);
 
 	if (vlan_tx_tag_present(skb) && vlan_hwaccel_do_receive(skb))
 		return NET_RX_SUCCESS;
@@ -2910,23 +2917,28 @@ out:
  */
 int netif_receive_skb(struct sk_buff *skb)
 {
+	if (netdev_tstamp_prequeue)
+		net_timestamp_check(skb);
+
 #ifdef CONFIG_RPS
-	struct rps_dev_flow voidflow, *rflow = &voidflow;
-	int cpu, ret;
+	{
+		struct rps_dev_flow voidflow, *rflow = &voidflow;
+		int cpu, ret;
 
-	rcu_read_lock();
+		rcu_read_lock();
 
-	cpu = get_rps_cpu(skb->dev, skb, &rflow);
+		cpu = get_rps_cpu(skb->dev, skb, &rflow);
 
-	if (cpu >= 0) {
-		ret = enqueue_to_backlog(skb, cpu, &rflow->last_qtail);
-		rcu_read_unlock();
-	} else {
-		rcu_read_unlock();
-		ret = __netif_receive_skb(skb);
+		if (cpu >= 0) {
+			ret = enqueue_to_backlog(skb, cpu, &rflow->last_qtail);
+			rcu_read_unlock();
+		} else {
+			rcu_read_unlock();
+			ret = __netif_receive_skb(skb);
+		}
+
+		return ret;
 	}
-
-	return ret;
 #else
 	return __netif_receive_skb(skb);
 #endif
