@@ -16,7 +16,9 @@
 #define EXTENT_BOUNDARY (1 << 9)
 #define EXTENT_NODATASUM (1 << 10)
 #define EXTENT_DO_ACCOUNTING (1 << 11)
+#define EXTENT_FIRST_DELALLOC (1 << 12)
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
+#define EXTENT_CTLBITS (EXTENT_DO_ACCOUNTING | EXTENT_FIRST_DELALLOC)
 
 /* flags for bio submission */
 #define EXTENT_BIO_COMPRESSED 1
@@ -69,10 +71,10 @@ struct extent_io_ops {
 				    struct extent_state *state);
 	int (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,
 				      struct extent_state *state, int uptodate);
-	int (*set_bit_hook)(struct inode *inode, u64 start, u64 end,
-			    unsigned long old, unsigned long bits);
+	int (*set_bit_hook)(struct inode *inode, struct extent_state *state,
+			    int *bits);
 	int (*clear_bit_hook)(struct inode *inode, struct extent_state *state,
-			      unsigned long bits);
+			      int *bits);
 	int (*merge_extent_hook)(struct inode *inode,
 				 struct extent_state *new,
 				 struct extent_state *other);

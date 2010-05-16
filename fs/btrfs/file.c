@@ -852,13 +852,6 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 
 	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
 
-	/* do the reserve before the mutex lock in case we have to do some
-	 * flushing.  We wouldn't deadlock, but this is more polite.
-	 */
-	err = btrfs_reserve_metadata_for_delalloc(root, inode, 1);
-	if (err)
-		goto out_nolock;
-
 	mutex_lock(&inode->i_mutex);
 
 	current->backing_dev_info = inode->i_mapping->backing_dev_info;
@@ -921,7 +914,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		WARN_ON(num_pages > nrptrs);
 		memset(pages, 0, sizeof(struct page *) * nrptrs);
 
-		ret = btrfs_check_data_free_space(root, inode, write_bytes);
+		ret = btrfs_delalloc_reserve_space(inode, write_bytes);
 		if (ret)
 			goto out;
 
@@ -929,26 +922,20 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 				    pos, first_index, last_index,
 				    write_bytes);
 		if (ret) {
-			btrfs_free_reserved_data_space(root, inode,
-						       write_bytes);
+			btrfs_delalloc_release_space(inode, write_bytes);
 			goto out;
 		}
 
 		ret = btrfs_copy_from_user(pos, num_pages,
 					   write_bytes, pages, buf);
-		if (ret) {
-			btrfs_free_reserved_data_space(root, inode,
-						       write_bytes);
-			btrfs_drop_pages(pages, num_pages);
-			goto out;
+		if (ret == 0) {
+			dirty_and_release_pages(NULL, root, file, pages,
+						num_pages, pos, write_bytes);
 		}
 
-		ret = dirty_and_release_pages(NULL, root, file, pages,
-					      num_pages, pos, write_bytes);
 		btrfs_drop_pages(pages, num_pages);
 		if (ret) {
-			btrfs_free_reserved_data_space(root, inode,
-						       write_bytes);
+			btrfs_delalloc_release_space(inode, write_bytes);
 			goto out;
 		}
 
@@ -975,9 +962,7 @@ out:
 	mutex_unlock(&inode->i_mutex);
 	if (ret)
 		err = ret;
-	btrfs_unreserve_metadata_for_delalloc(root, inode, 1);
 
-out_nolock:
 	kfree(pages);
 	if (pinned[0])
 		page_cache_release(pinned[0]);
