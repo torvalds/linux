@@ -252,19 +252,21 @@ void pm_qos_update_request(struct pm_qos_request_list *pm_qos_req,
 	int pending_update = 0;
 	s32 temp;
 
-	spin_lock_irqsave(&pm_qos_lock, flags);
-	if (new_value == PM_QOS_DEFAULT_VALUE)
-		temp = pm_qos_array[pm_qos_req->pm_qos_class]->default_value;
-	else
-		temp = new_value;
+	if (pm_qos_req) { /*guard against callers passing in null */
+		spin_lock_irqsave(&pm_qos_lock, flags);
+		if (new_value == PM_QOS_DEFAULT_VALUE)
+			temp = pm_qos_array[pm_qos_req->pm_qos_class]->default_value;
+		else
+			temp = new_value;
 
-	if (temp != pm_qos_req->value) {
-		pending_update = 1;
-		pm_qos_req->value = temp;
+		if (temp != pm_qos_req->value) {
+			pending_update = 1;
+			pm_qos_req->value = temp;
+		}
+		spin_unlock_irqrestore(&pm_qos_lock, flags);
+		if (pending_update)
+			update_target(pm_qos_req->pm_qos_class);
 	}
-	spin_unlock_irqrestore(&pm_qos_lock, flags);
-	if (pending_update)
-		update_target(pm_qos_req->pm_qos_class);
 }
 EXPORT_SYMBOL_GPL(pm_qos_update_request);
 
