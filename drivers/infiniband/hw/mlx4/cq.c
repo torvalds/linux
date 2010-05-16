@@ -661,6 +661,14 @@ repoll:
 			wc->opcode    = IB_WC_FETCH_ADD;
 			wc->byte_len  = 8;
 			break;
+		case MLX4_OPCODE_MASKED_ATOMIC_CS:
+			wc->opcode    = IB_WC_MASKED_COMP_SWAP;
+			wc->byte_len  = 8;
+			break;
+		case MLX4_OPCODE_MASKED_ATOMIC_FA:
+			wc->opcode    = IB_WC_MASKED_FETCH_ADD;
+			wc->byte_len  = 8;
+			break;
 		case MLX4_OPCODE_BIND_MW:
 			wc->opcode    = IB_WC_BIND_MW;
 			break;

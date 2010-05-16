@@ -1297,7 +1297,7 @@ int nes_destroy_cqp(struct nes_device *nesdev)
 /**
  * nes_init_1g_phy
  */
-int nes_init_1g_phy(struct nes_device *nesdev, u8 phy_type, u8 phy_index)
+static int nes_init_1g_phy(struct nes_device *nesdev, u8 phy_type, u8 phy_index)
 {
 	u32 counter = 0;
 	u16 phy_data;
@@ -1351,7 +1351,7 @@ int nes_init_1g_phy(struct nes_device *nesdev, u8 phy_type, u8 phy_index)
 /**
  * nes_init_2025_phy
  */
-int nes_init_2025_phy(struct nes_device *nesdev, u8 phy_type, u8 phy_index)
+static int nes_init_2025_phy(struct nes_device *nesdev, u8 phy_type, u8 phy_index)
 {
 	u32 temp_phy_data = 0;
 	u32 temp_phy_data2 = 0;
@@ -2458,7 +2458,6 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 		return;
 	}
 	nesadapter->mac_sw_state[mac_number] = NES_MAC_SW_INTERRUPT;
-	spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
 
 	/* ack the MAC interrupt */
 	mac_status = nes_read_indexed(nesdev, NES_IDX_MAC_INT_STATUS + (mac_index * 0x200));
@@ -2469,11 +2468,9 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 
 	if (mac_status & (NES_MAC_INT_LINK_STAT_CHG | NES_MAC_INT_XGMII_EXT)) {
 		nesdev->link_status_interrupts++;
-		if (0 == (++nesadapter->link_interrupt_count[mac_index] % ((u16)NES_MAX_LINK_INTERRUPTS))) {
-			spin_lock_irqsave(&nesadapter->phy_lock, flags);
+		if (0 == (++nesadapter->link_interrupt_count[mac_index] % ((u16)NES_MAX_LINK_INTERRUPTS)))
 			nes_reset_link(nesdev, mac_index);
-			spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
-		}
+
 		/* read the PHY interrupt status register */
 		if ((nesadapter->OneG_Mode) &&
 		(nesadapter->phy_type[mac_index] != NES_PHY_TYPE_PUMA_1G)) {
@@ -2587,6 +2584,7 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 				break;
 			}
 		}
+		spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
 
 		if (phy_data & 0x0004) {
 			if (wide_ppm_offset &&
