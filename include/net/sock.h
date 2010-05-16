@@ -177,6 +177,7 @@ struct sock_common {
   *		   %SO_OOBINLINE settings, %SO_TIMESTAMPING settings
   *	@sk_no_check: %SO_NO_CHECK setting, wether or not checkup packets
   *	@sk_route_caps: route capabilities (e.g. %NETIF_F_TSO)
+  *	@sk_route_nocaps: forbidden route capabilities (e.g NETIF_F_GSO_MASK)
   *	@sk_gso_type: GSO type (e.g. %SKB_GSO_TCPV4)
   *	@sk_gso_max_size: Maximum GSO segment size to build
   *	@sk_lingertime: %SO_LINGER l_linger setting
@@ -276,6 +277,7 @@ struct sock {
 	int			sk_forward_alloc;
 	gfp_t			sk_allocation;
 	int			sk_route_caps;
+	int			sk_route_nocaps;
 	int			sk_gso_type;
 	unsigned int		sk_gso_max_size;
 	int			sk_rcvlowat;
@@ -1334,6 +1336,12 @@ static inline int sk_can_gso(const struct sock *sk)
 }
 
 extern void sk_setup_caps(struct sock *sk, struct dst_entry *dst);
+
+static inline void sk_nocaps_add(struct sock *sk, int flags)
+{
+	sk->sk_route_nocaps |= flags;
+	sk->sk_route_caps &= ~flags;
+}
 
 static inline int skb_copy_to_page(struct sock *sk, char __user *from,
 				   struct sk_buff *skb, struct page *page,

@@ -891,7 +891,7 @@ int tcp_v4_md5_do_add(struct sock *sk, __be32 addr,
 				kfree(newkey);
 				return -ENOMEM;
 			}
-			sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
+			sk_nocaps_add(sk, NETIF_F_GSO_MASK);
 		}
 		if (tcp_alloc_md5sig_pool(sk) == NULL) {
 			kfree(newkey);
@@ -1021,7 +1021,7 @@ static int tcp_v4_parse_md5_keys(struct sock *sk, char __user *optval,
 			return -EINVAL;
 
 		tp->md5sig_info = p;
-		sk->sk_route_caps &= ~NETIF_F_GSO_MASK;
+		sk_nocaps_add(sk, NETIF_F_GSO_MASK);
 	}
 
 	newkey = kmemdup(cmd.tcpm_key, cmd.tcpm_keylen, sk->sk_allocation);
@@ -1462,7 +1462,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 		if (newkey != NULL)
 			tcp_v4_md5_do_add(newsk, newinet->inet_daddr,
 					  newkey, key->keylen);
-		newsk->sk_route_caps &= ~NETIF_F_GSO_MASK;
+		sk_nocaps_add(newsk, NETIF_F_GSO_MASK);
 	}
 #endif
 
