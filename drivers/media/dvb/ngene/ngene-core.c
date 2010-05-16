@@ -1299,11 +1299,14 @@ static void ngene_stop(struct ngene *dev)
 	ngwritel(0, NGENE_EVENT);
 	ngwritel(0, NGENE_EVENT_HI);
 	free_irq(dev->pci_dev->irq, dev);
+	if (dev->msi_enabled)
+		pci_disable_msi(dev->pci_dev);
 }
 
 static int ngene_start(struct ngene *dev)
 {
 	int stat;
+	unsigned long flags;
 	int i;
 
 	pci_set_master(dev->pci_dev);
@@ -1333,6 +1336,28 @@ static int ngene_start(struct ngene *dev)
 	if (stat < 0)
 		goto fail;
 
+#ifdef CONFIG_PCI_MSI
+	/* enable MSI if kernel and card support it */
+	if (dev->card_info->msi_supported) {
+		ngwritel(0, NGENE_INT_ENABLE);
+		free_irq(dev->pci_dev->irq, dev);
+		stat = pci_enable_msi(dev->pci_dev);
+		if (stat) {
+			printk(KERN_INFO DEVICE_NAME
+				": MSI not available\n");
+			flags = IRQF_SHARED;
+		} else {
+			flags = 0;
+			dev->msi_enabled = true;
+		}
+		stat = request_irq(dev->pci_dev->irq, irq_handler,
+					flags, "nGene", dev);
+		if (stat < 0)
+			goto fail2;
+		ngwritel(1, NGENE_INT_ENABLE);
+	}
+#endif
+
 	stat = ngene_i2c_init(dev, 0);
 	if (stat < 0)
 		goto fail;
@@ -1358,10 +1383,16 @@ static int ngene_start(struct ngene *dev)
 			bconf = BUFFER_CONFIG_3333;
 		stat = ngene_command_config_buf(dev, bconf);
 	}
-	return stat;
+	if (!stat)
+		return stat;
+
+	/* otherwise error: fall through */
 fail:
 	ngwritel(0, NGENE_INT_ENABLE);
 	free_irq(dev->pci_dev->irq, dev);
+fail2:
+	if (dev->msi_enabled)
+		pci_disable_msi(dev->pci_dev);
 	return stat;
 }
 

@@ -725,6 +725,7 @@ struct ngene {
 	u32                   device_version;
 	u32                   fw_interface_version;
 	u32                   icounts;
+	bool                  msi_enabled;
 
 	u8                   *CmdDoneByte;
 	int                   BootFirmware;
@@ -797,6 +798,7 @@ struct ngene_info {
 #define NGENE_VBOX_V2	 7
 
 	int   fw_version;
+	bool  msi_supported;
 	char *name;
 
 	int   io_type[MAX_STREAM];
