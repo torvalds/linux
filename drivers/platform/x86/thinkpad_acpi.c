@@ -6397,6 +6397,10 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 			"or not on your ThinkPad\n", TPACPI_MAIL);
 	}
 
+	/* Added by mistake in early 2007.  Probably useless, but it could
+	 * be working around some unknown firmware problem where the value
+	 * read at startup doesn't match the real hardware state... so leave
+	 * it in place just in case */
 	backlight_update_status(ibm_backlight_device);
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_BRGHT,
