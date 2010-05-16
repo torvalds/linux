@@ -85,7 +85,6 @@ static int unstable_bauds;
 
 /* write buffer size defines */
 #define CYPRESS_BUF_SIZE	1024
-#define CYPRESS_CLOSING_WAIT	(30*HZ)
 
 static const struct usb_device_id id_table_earthmate[] = {
 	{ USB_DEVICE(VENDOR_ID_DELORME, PRODUCT_ID_EARTHMATEUSB) },
