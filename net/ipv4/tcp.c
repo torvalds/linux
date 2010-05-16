@@ -2839,7 +2839,6 @@ static void __tcp_free_md5sig_pool(struct tcp_md5sig_pool * __percpu *pool)
 			if (p->md5_desc.tfm)
 				crypto_free_hash(p->md5_desc.tfm);
 			kfree(p);
-			p = NULL;
 		}
 	}
 	free_percpu(pool);
@@ -2937,25 +2936,40 @@ retry:
 
 EXPORT_SYMBOL(tcp_alloc_md5sig_pool);
 
-struct tcp_md5sig_pool *__tcp_get_md5sig_pool(int cpu)
+
+/**
+ *	tcp_get_md5sig_pool - get md5sig_pool for this user
+ *
+ *	We use percpu structure, so if we succeed, we exit with preemption
+ *	and BH disabled, to make sure another thread or softirq handling
+ *	wont try to get same context.
+ */
+struct tcp_md5sig_pool *tcp_get_md5sig_pool(void)
 {
 	struct tcp_md5sig_pool * __percpu *p;
-	spin_lock_bh(&tcp_md5sig_pool_lock);
+
+	local_bh_disable();
+
+	spin_lock(&tcp_md5sig_pool_lock);
 	p = tcp_md5sig_pool;
 	if (p)
 		tcp_md5sig_users++;
-	spin_unlock_bh(&tcp_md5sig_pool_lock);
-	return (p ? *per_cpu_ptr(p, cpu) : NULL);
+	spin_unlock(&tcp_md5sig_pool_lock);
+
+	if (p)
+		return *per_cpu_ptr(p, smp_processor_id());
+
+	local_bh_enable();
+	return NULL;
 }
+EXPORT_SYMBOL(tcp_get_md5sig_pool);
 
-EXPORT_SYMBOL(__tcp_get_md5sig_pool);
-
-void __tcp_put_md5sig_pool(void)
+void tcp_put_md5sig_pool(void)
 {
+	local_bh_enable();
 	tcp_free_md5sig_pool();
 }
-
-EXPORT_SYMBOL(__tcp_put_md5sig_pool);
+EXPORT_SYMBOL(tcp_put_md5sig_pool);
 
 int tcp_md5_hash_header(struct tcp_md5sig_pool *hp,
 			struct tcphdr *th)
