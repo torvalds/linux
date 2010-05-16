@@ -853,6 +853,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 		goto fail;
 	}
 
+	btrfs_reloc_pre_snapshot(trans, pending, &to_reserve);
 	btrfs_orphan_pre_snapshot(trans, pending, &to_reserve);
 
 	if (to_reserve > 0) {
@@ -924,6 +925,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	pending->snap = btrfs_read_fs_root_no_name(root->fs_info, &key);
 	BUG_ON(IS_ERR(pending->snap));
 
+	btrfs_reloc_post_snapshot(trans, pending);
 	btrfs_orphan_post_snapshot(trans, pending);
 fail:
 	kfree(new_root_item);
@@ -1213,9 +1215,9 @@ int btrfs_clean_old_snapshots(struct btrfs_root *root)
 
 		if (btrfs_header_backref_rev(root->node) <
 		    BTRFS_MIXED_BACKREF_REV)
-			btrfs_drop_snapshot(root, 0);
+			btrfs_drop_snapshot(root, NULL, 0);
 		else
-			btrfs_drop_snapshot(root, 1);
+			btrfs_drop_snapshot(root, NULL, 1);
 	}
 	return 0;
 }

@@ -5875,7 +5875,8 @@ static noinline int walk_up_tree(struct btrfs_trans_handle *trans,
  * also make sure backrefs for the shared block and all lower level
  * blocks are properly updated.
  */
-int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref)
+int btrfs_drop_snapshot(struct btrfs_root *root,
+			struct btrfs_block_rsv *block_rsv, int update_ref)
 {
 	struct btrfs_path *path;
 	struct btrfs_trans_handle *trans;
@@ -5894,6 +5895,8 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref)
 	BUG_ON(!wc);
 
 	trans = btrfs_start_transaction(tree_root, 0);
+	if (block_rsv)
+		trans->block_rsv = block_rsv;
 
 	if (btrfs_disk_key_objectid(&root_item->drop_progress) == 0) {
 		level = btrfs_header_level(root->node);
@@ -5981,24 +5984,16 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref)
 		}
 
 		BUG_ON(wc->level == 0);
-		if (trans->transaction->in_commit ||
-		    trans->transaction->delayed_refs.flushing) {
+		if (btrfs_should_end_transaction(trans, tree_root)) {
 			ret = btrfs_update_root(trans, tree_root,
 						&root->root_key,
 						root_item);
 			BUG_ON(ret);
 
-			btrfs_end_transaction(trans, tree_root);
+			btrfs_end_transaction_throttle(trans, tree_root);
 			trans = btrfs_start_transaction(tree_root, 0);
-			if (IS_ERR(trans))
-				return PTR_ERR(trans);
-		} else {
-			unsigned long update;
-			update = trans->delayed_ref_updates;
-			trans->delayed_ref_updates = 0;
-			if (update)
-				btrfs_run_delayed_refs(trans, tree_root,
-						       update);
+			if (block_rsv)
+				trans->block_rsv = block_rsv;
 		}
 	}
 	btrfs_release_path(root, path);
@@ -6026,7 +6021,7 @@ int btrfs_drop_snapshot(struct btrfs_root *root, int update_ref)
 		kfree(root);
 	}
 out:
-	btrfs_end_transaction(trans, tree_root);
+	btrfs_end_transaction_throttle(trans, tree_root);
 	kfree(wc);
 	btrfs_free_path(path);
 	return err;

@@ -447,6 +447,9 @@ static noinline int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 
 	update_ref_for_cow(trans, root, buf, cow, &last_ref);
 
+	if (root->ref_cows)
+		btrfs_reloc_cow_block(trans, root, buf, cow);
+
 	if (buf == root->node) {
 		WARN_ON(parent && parent != buf);
 		if (root->root_key.objectid == BTRFS_TREE_RELOC_OBJECTID ||
