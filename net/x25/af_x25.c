@@ -453,7 +453,6 @@ static int x25_setsockopt(struct socket *sock, int level, int optname,
 	struct sock *sk = sock->sk;
 	int rc = -ENOPROTOOPT;
 
-	lock_kernel();
 	if (level != SOL_X25 || optname != X25_QBITINCL)
 		goto out;
 
@@ -471,7 +470,6 @@ static int x25_setsockopt(struct socket *sock, int level, int optname,
 		clear_bit(X25_Q_BIT_FLAG, &x25_sk(sk)->flags);
 	rc = 0;
 out:
-	unlock_kernel();
 	return rc;
 }
 
@@ -481,7 +479,6 @@ static int x25_getsockopt(struct socket *sock, int level, int optname,
 	struct sock *sk = sock->sk;
 	int val, len, rc = -ENOPROTOOPT;
 
-	lock_kernel();
 	if (level != SOL_X25 || optname != X25_QBITINCL)
 		goto out;
 
@@ -502,7 +499,6 @@ static int x25_getsockopt(struct socket *sock, int level, int optname,
 	val = test_bit(X25_Q_BIT_FLAG, &x25_sk(sk)->flags);
 	rc = copy_to_user(optval, &val, len) ? -EFAULT : 0;
 out:
-	unlock_kernel();
 	return rc;
 }
 
