@@ -668,11 +668,16 @@ static struct apertures_struct *nouveau_get_apertures(struct drm_device *dev)
 static int nouveau_remove_conflicting_drivers(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	bool primary = false;
 	dev_priv->apertures = nouveau_get_apertures(dev);
 	if (!dev_priv->apertures)
 		return -ENOMEM;
 
-	remove_conflicting_framebuffers(dev_priv->apertures, "nouveaufb");
+#ifdef CONFIG_X86
+	primary = dev->pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
+#endif
+	
+	remove_conflicting_framebuffers(dev_priv->apertures, "nouveaufb", primary);
 	return 0;
 }
 

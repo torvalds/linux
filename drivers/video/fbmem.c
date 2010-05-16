@@ -1500,19 +1500,26 @@ static bool fb_do_apertures_overlap(struct apertures_struct *gena,
 	return false;
 }
 
-void remove_conflicting_framebuffers(struct apertures_struct *a, const char *name)
+#define VGA_FB_PHYS 0xA0000
+void remove_conflicting_framebuffers(struct apertures_struct *a,
+				     const char *name, bool primary)
 {
 	int i;
 
 	/* check all firmware fbs and kick off if the base addr overlaps */
 	for (i = 0 ; i < FB_MAX; i++) {
+		struct apertures_struct *gen_aper;
 		if (!registered_fb[i])
 			continue;
 
 		if (!(registered_fb[i]->flags & FBINFO_MISC_FIRMWARE))
 			continue;
 
-		if (fb_do_apertures_overlap(registered_fb[i]->apertures, a)) {
+		gen_aper = registered_fb[i]->apertures;
+		if (fb_do_apertures_overlap(gen_aper, a) ||
+			(primary && gen_aper && gen_aper->count &&
+			 gen_aper->ranges[0].base == VGA_FB_PHYS)) {
+
 			printk(KERN_ERR "fb: conflicting fb hw usage "
 			       "%s vs %s - removing generic driver\n",
 			       name, registered_fb[i]->fix.id);
@@ -1545,7 +1552,8 @@ register_framebuffer(struct fb_info *fb_info)
 	if (fb_check_foreignness(fb_info))
 		return -ENOSYS;
 
-	remove_conflicting_framebuffers(fb_info->apertures, fb_info->fix.id);
+	remove_conflicting_framebuffers(fb_info->apertures, fb_info->fix.id,
+					 fb_is_primary_device(fb_info));
 
 	num_registered_fb++;
 	for (i = 0 ; i < FB_MAX; i++)
