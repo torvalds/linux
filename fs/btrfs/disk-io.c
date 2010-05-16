@@ -972,42 +972,6 @@ static int find_and_setup_root(struct btrfs_root *tree_root,
 	return 0;
 }
 
-int btrfs_free_log_root_tree(struct btrfs_trans_handle *trans,
-			     struct btrfs_fs_info *fs_info)
-{
-	struct extent_buffer *eb;
-	struct btrfs_root *log_root_tree = fs_info->log_root_tree;
-	u64 start = 0;
-	u64 end = 0;
-	int ret;
-
-	if (!log_root_tree)
-		return 0;
-
-	while (1) {
-		ret = find_first_extent_bit(&log_root_tree->dirty_log_pages,
-				0, &start, &end, EXTENT_DIRTY | EXTENT_NEW);
-		if (ret)
-			break;
-
-		clear_extent_bits(&log_root_tree->dirty_log_pages, start, end,
-				  EXTENT_DIRTY | EXTENT_NEW, GFP_NOFS);
-	}
-	eb = fs_info->log_root_tree->node;
-
-	WARN_ON(btrfs_header_level(eb) != 0);
-	WARN_ON(btrfs_header_nritems(eb) != 0);
-
-	ret = btrfs_free_reserved_extent(fs_info->tree_root,
-				eb->start, eb->len);
-	BUG_ON(ret);
-
-	free_extent_buffer(eb);
-	kfree(fs_info->log_root_tree);
-	fs_info->log_root_tree = NULL;
-	return 0;
-}
-
 static struct btrfs_root *alloc_log_tree(struct btrfs_trans_handle *trans,
 					 struct btrfs_fs_info *fs_info)
 {

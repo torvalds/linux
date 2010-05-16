@@ -657,6 +657,9 @@ again:
 		goto found;
 	}
 	ret = PTR_ERR(item);
+	if (ret != -EFBIG && ret != -ENOENT)
+		goto fail_unlock;
+
 	if (ret == -EFBIG) {
 		u32 item_size;
 		/* we found one, but it isn't big enough yet */
