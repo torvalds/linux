@@ -147,24 +147,24 @@ static void demux_tasklet(unsigned long data)
 		} else {
 			if (chan->HWState == HWSTATE_RUN) {
 				u32 Flags = 0;
+				IBufferExchange *exch1 = chan->pBufferExchange;
+				IBufferExchange *exch2 = chan->pBufferExchange2;
 				if (Cur->ngeneBuffer.SR.Flags & 0x01)
 					Flags |= BEF_EVEN_FIELD;
 				if (Cur->ngeneBuffer.SR.Flags & 0x20)
 					Flags |= BEF_OVERFLOW;
-				if (chan->pBufferExchange)
-					chan->pBufferExchange(chan,
-							      Cur->Buffer1,
-							      chan->
-							      Capture1Length,
-							      Cur->ngeneBuffer.
-							      SR.Clock, Flags);
-				if (chan->pBufferExchange2)
-					chan->pBufferExchange2(chan,
-							       Cur->Buffer2,
-							       chan->
-							       Capture2Length,
-							       Cur->ngeneBuffer.
-							       SR.Clock, Flags);
+				spin_unlock_irq(&chan->state_lock);
+				if (exch1)
+					exch1(chan, Cur->Buffer1,
+						chan->Capture1Length,
+						Cur->ngeneBuffer.SR.Clock,
+						Flags);
+				if (exch2)
+					exch2(chan, Cur->Buffer2,
+						chan->Capture2Length,
+						Cur->ngeneBuffer.SR.Clock,
+						Flags);
+				spin_lock_irq(&chan->state_lock);
 			} else if (chan->HWState != HWSTATE_STOP)
 				chan->HWState = HWSTATE_RUN;
 		}
