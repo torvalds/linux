@@ -1126,7 +1126,8 @@ void ext4_da_update_reserve_space(struct inode *inode,
 		 */
 		if (allocated_meta_blocks)
 			dquot_claim_block(inode, allocated_meta_blocks);
-		dquot_release_reservation_block(inode, mdb_free + used);
+		dquot_release_reservation_block(inode, mdb_free + used -
+						allocated_meta_blocks);
 	}
 
 	/*
