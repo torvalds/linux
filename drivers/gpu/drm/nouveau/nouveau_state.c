@@ -639,6 +639,43 @@ static void nouveau_OF_copy_vbios_to_ramin(struct drm_device *dev)
 #endif
 }
 
+static struct apertures_struct *nouveau_get_apertures(struct drm_device *dev)
+{
+	struct pci_dev *pdev = dev->pdev;
+	struct apertures_struct *aper = alloc_apertures(3);
+	if (!aper)
+		return NULL;
+
+	aper->ranges[0].base = pci_resource_start(pdev, 1);
+	aper->ranges[0].size = pci_resource_len(pdev, 1);
+	aper->count = 1;
+
+	if (pci_resource_len(pdev, 2)) {
+		aper->ranges[aper->count].base = pci_resource_start(pdev, 2);
+		aper->ranges[aper->count].size = pci_resource_len(pdev, 2);
+		aper->count++;
+	}
+
+	if (pci_resource_len(pdev, 3)) {
+		aper->ranges[aper->count].base = pci_resource_start(pdev, 3);
+		aper->ranges[aper->count].size = pci_resource_len(pdev, 3);
+		aper->count++;
+	}
+
+	return aper;
+}
+
+static int nouveau_remove_conflicting_drivers(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	dev_priv->apertures = nouveau_get_apertures(dev);
+	if (!dev_priv->apertures)
+		return -ENOMEM;
+
+	remove_conflicting_framebuffers(dev_priv->apertures, "nouveaufb");
+	return 0;
+}
+
 int nouveau_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_nouveau_private *dev_priv;
@@ -725,6 +762,12 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 
 	NV_INFO(dev, "Detected an NV%2x generation card (0x%08x)\n",
 		dev_priv->card_type, reg0);
+
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		int ret = nouveau_remove_conflicting_drivers(dev);
+		if (ret)
+			return ret;
+	}
 
 	/* map larger RAMIN aperture on NV40 cards */
 	dev_priv->ramin  = NULL;

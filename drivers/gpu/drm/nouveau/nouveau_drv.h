@@ -624,6 +624,7 @@ struct drm_nouveau_private {
 	} debugfs;
 
 	struct nouveau_fbdev *nfbdev;
+	struct apertures_struct *apertures;
 };
 
 static inline struct drm_nouveau_private *

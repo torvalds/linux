@@ -183,7 +183,6 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 	struct drm_mode_fb_cmd mode_cmd;
 	struct pci_dev *pdev = dev->pdev;
 	struct device *device = &pdev->dev;
-	struct apertures_struct *aper;
 	int size, ret;
 
 	mode_cmd.width = sizes->surface_width;
@@ -267,26 +266,10 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 	info->fix.mmio_len = pci_resource_len(pdev, 1);
 
 	/* Set aperture base/size for vesafb takeover */
-	aper = info->apertures = alloc_apertures(3);
+	info->apertures = dev_priv->apertures;
 	if (!info->apertures) {
 		ret = -ENOMEM;
 		goto out_unref;
-	}
-
-	aper->ranges[0].base = pci_resource_start(pdev, 1);
-	aper->ranges[0].size = pci_resource_len(pdev, 1);
-	aper->count = 1;
-
-	if (pci_resource_len(pdev, 2)) {
-		aper->ranges[aper->count].base = pci_resource_start(pdev, 2);
-		aper->ranges[aper->count].size = pci_resource_len(pdev, 2);
-		aper->count++;
-	}
-
-	if (pci_resource_len(pdev, 3)) {
-		aper->ranges[aper->count].base = pci_resource_start(pdev, 3);
-		aper->ranges[aper->count].size = pci_resource_len(pdev, 3);
-		aper->count++;
 	}
 
 	info->pixmap.size = 64*1024;
