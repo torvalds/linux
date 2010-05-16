@@ -43,12 +43,6 @@ static struct usb_driver debug_driver = {
 	.no_dynamic_id = 	1,
 };
 
-static int usb_debug_open(struct tty_struct *tty, struct usb_serial_port *port)
-{
-	port->bulk_out_size = USB_DEBUG_MAX_PACKET_SIZE;
-	return usb_serial_generic_open(tty, port);
-}
-
 /* This HW really does not support a serial break, so one will be
  * emulated when ever the break state is set to true.
  */
@@ -82,7 +76,7 @@ static struct usb_serial_driver debug_device = {
 	},
 	.id_table =		id_table,
 	.num_ports =		1,
-	.open =			usb_debug_open,
+	.bulk_out_size =	USB_DEBUG_MAX_PACKET_SIZE,
 	.break_ctl =		usb_debug_break_ctl,
 	.read_bulk_callback =	usb_debug_read_bulk_callback,
 };
