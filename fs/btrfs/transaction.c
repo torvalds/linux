@@ -676,6 +676,7 @@ static noinline int commit_fs_roots(struct btrfs_trans_handle *trans,
 
 			btrfs_free_log(trans, root);
 			btrfs_update_reloc_root(trans, root);
+			btrfs_orphan_commit_root(trans, root);
 
 			if (root->commit_root != root->node) {
 				switch_commit_root(root);
@@ -835,6 +836,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct extent_buffer *tmp;
 	struct extent_buffer *old;
 	int ret;
+	int retries = 0;
+	u64 to_reserve = 0;
 	u64 index = 0;
 	u64 objectid;
 
@@ -848,6 +851,17 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	if (ret) {
 		pending->error = ret;
 		goto fail;
+	}
+
+	btrfs_orphan_pre_snapshot(trans, pending, &to_reserve);
+
+	if (to_reserve > 0) {
+		ret = btrfs_block_rsv_add(trans, root, &pending->block_rsv,
+					  to_reserve, &retries);
+		if (ret) {
+			pending->error = ret;
+			goto fail;
+		}
 	}
 
 	key.objectid = objectid;
@@ -909,6 +923,8 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	key.offset = (u64)-1;
 	pending->snap = btrfs_read_fs_root_no_name(root->fs_info, &key);
 	BUG_ON(IS_ERR(pending->snap));
+
+	btrfs_orphan_post_snapshot(trans, pending);
 fail:
 	kfree(new_root_item);
 	btrfs_block_rsv_release(root, &pending->block_rsv, (u64)-1);

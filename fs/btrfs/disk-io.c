@@ -894,7 +894,8 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->ref_cows = 0;
 	root->track_dirty = 0;
 	root->in_radix = 0;
-	root->clean_orphans = 0;
+	root->orphan_item_inserted = 0;
+	root->orphan_cleanup_state = 0;
 
 	root->fs_info = fs_info;
 	root->objectid = objectid;
@@ -904,12 +905,13 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->in_sysfs = 0;
 	root->inode_tree = RB_ROOT;
 	root->block_rsv = NULL;
+	root->orphan_block_rsv = NULL;
 
 	INIT_LIST_HEAD(&root->dirty_list);
 	INIT_LIST_HEAD(&root->orphan_list);
 	INIT_LIST_HEAD(&root->root_list);
 	spin_lock_init(&root->node_lock);
-	spin_lock_init(&root->list_lock);
+	spin_lock_init(&root->orphan_lock);
 	spin_lock_init(&root->inode_lock);
 	spin_lock_init(&root->accounting_lock);
 	mutex_init(&root->objectid_mutex);
@@ -1193,18 +1195,22 @@ again:
 	if (root)
 		return root;
 
-	ret = btrfs_find_orphan_item(fs_info->tree_root, location->objectid);
-	if (ret == 0)
-		ret = -ENOENT;
-	if (ret < 0)
-		return ERR_PTR(ret);
-
 	root = btrfs_read_fs_root_no_radix(fs_info->tree_root, location);
 	if (IS_ERR(root))
 		return root;
 
-	WARN_ON(btrfs_root_refs(&root->root_item) == 0);
 	set_anon_super(&root->anon_super, NULL);
+
+	if (btrfs_root_refs(&root->root_item) == 0) {
+		ret = -ENOENT;
+		goto fail;
+	}
+
+	ret = btrfs_find_orphan_item(fs_info->tree_root, location->objectid);
+	if (ret < 0)
+		goto fail;
+	if (ret == 0)
+		root->orphan_item_inserted = 1;
 
 	ret = radix_tree_preload(GFP_NOFS & ~__GFP_HIGHMEM);
 	if (ret)
@@ -1214,10 +1220,9 @@ again:
 	ret = radix_tree_insert(&fs_info->fs_roots_radix,
 				(unsigned long)root->root_key.objectid,
 				root);
-	if (ret == 0) {
+	if (ret == 0)
 		root->in_radix = 1;
-		root->clean_orphans = 1;
-	}
+
 	spin_unlock(&fs_info->fs_roots_radix_lock);
 	radix_tree_preload_end();
 	if (ret) {
@@ -1981,6 +1986,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	BUG_ON(ret);
 
 	if (!(sb->s_flags & MS_RDONLY)) {
+		ret = btrfs_cleanup_fs_roots(fs_info);
+		BUG_ON(ret);
+
 		ret = btrfs_recover_relocation(tree_root);
 		if (ret < 0) {
 			printk(KERN_WARNING

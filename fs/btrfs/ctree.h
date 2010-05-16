@@ -1069,7 +1069,6 @@ struct btrfs_root {
 	int ref_cows;
 	int track_dirty;
 	int in_radix;
-	int clean_orphans;
 
 	u64 defrag_trans_start;
 	struct btrfs_key defrag_progress;
@@ -1083,8 +1082,11 @@ struct btrfs_root {
 
 	struct list_head root_list;
 
-	spinlock_t list_lock;
+	spinlock_t orphan_lock;
 	struct list_head orphan_list;
+	struct btrfs_block_rsv *orphan_block_rsv;
+	int orphan_item_inserted;
+	int orphan_cleanup_state;
 
 	spinlock_t inode_lock;
 	/* red-black tree that keeps track of in-memory inodes */
@@ -2080,6 +2082,9 @@ int btrfs_trans_reserve_metadata(struct btrfs_trans_handle *trans,
 				int num_items, int *retries);
 void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
 				struct btrfs_root *root);
+int btrfs_orphan_reserve_metadata(struct btrfs_trans_handle *trans,
+				  struct inode *inode);
+void btrfs_orphan_release_metadata(struct inode *inode);
 int btrfs_snap_reserve_metadata(struct btrfs_trans_handle *trans,
 				struct btrfs_pending_snapshot *pending);
 int btrfs_delalloc_reserve_metadata(struct inode *inode, u64 num_bytes);
@@ -2404,6 +2409,13 @@ int btrfs_update_inode(struct btrfs_trans_handle *trans,
 int btrfs_orphan_add(struct btrfs_trans_handle *trans, struct inode *inode);
 int btrfs_orphan_del(struct btrfs_trans_handle *trans, struct inode *inode);
 void btrfs_orphan_cleanup(struct btrfs_root *root);
+void btrfs_orphan_pre_snapshot(struct btrfs_trans_handle *trans,
+				struct btrfs_pending_snapshot *pending,
+				u64 *bytes_to_reserve);
+void btrfs_orphan_post_snapshot(struct btrfs_trans_handle *trans,
+				struct btrfs_pending_snapshot *pending);
+void btrfs_orphan_commit_root(struct btrfs_trans_handle *trans,
+			      struct btrfs_root *root);
 int btrfs_cont_expand(struct inode *inode, loff_t size);
 int btrfs_invalidate_inodes(struct btrfs_root *root);
 void btrfs_add_delayed_iput(struct inode *inode);

@@ -1297,10 +1297,12 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	dest->root_item.drop_level = 0;
 	btrfs_set_root_refs(&dest->root_item, 0);
 
-	ret = btrfs_insert_orphan_item(trans,
-				root->fs_info->tree_root,
-				dest->root_key.objectid);
-	BUG_ON(ret);
+	if (!xchg(&dest->orphan_item_inserted, 1)) {
+		ret = btrfs_insert_orphan_item(trans,
+					root->fs_info->tree_root,
+					dest->root_key.objectid);
+		BUG_ON(ret);
+	}
 
 	ret = btrfs_commit_transaction(trans, root);
 	BUG_ON(ret);

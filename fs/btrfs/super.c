@@ -694,11 +694,11 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data)
 		if (btrfs_super_log_root(&root->fs_info->super_copy) != 0)
 			return -EINVAL;
 
-		/* recover relocation */
-		ret = btrfs_recover_relocation(root);
+		ret = btrfs_cleanup_fs_roots(root->fs_info);
 		WARN_ON(ret);
 
-		ret = btrfs_cleanup_fs_roots(root->fs_info);
+		/* recover relocation */
+		ret = btrfs_recover_relocation(root);
 		WARN_ON(ret);
 
 		sb->s_flags &= ~MS_RDONLY;
