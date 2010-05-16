@@ -271,7 +271,8 @@ static int __init find_min_common_depth(void)
 	const unsigned int *ref_points;
 	struct device_node *rtas_root;
 	unsigned int len;
-	struct device_node *options;
+	struct device_node *chosen;
+	const char *vec5;
 
 	rtas_root = of_find_node_by_path("/rtas");
 
@@ -289,14 +290,17 @@ static int __init find_min_common_depth(void)
 			"ibm,associativity-reference-points", &len);
 
 	/*
-	 * For type 1 affinity information we want the first field
+	 * For form 1 affinity information we want the first field
 	 */
-	options = of_find_node_by_path("/options");
-	if (options) {
-		const char *str;
-		str = of_get_property(options, "ibm,associativity-form", NULL);
-		if (str && !strcmp(str, "1"))
-                        index = 0;
+#define VEC5_AFFINITY_BYTE	5
+#define VEC5_AFFINITY		0x80
+	chosen = of_find_node_by_path("/chosen");
+	if (chosen) {
+		vec5 = of_get_property(chosen, "ibm,architecture-vec-5", NULL);
+		if (vec5 && (vec5[VEC5_AFFINITY_BYTE] & VEC5_AFFINITY)) {
+			dbg("Using form 1 affinity\n");
+			index = 0;
+		}
 	}
 
 	if ((len >= 2 * sizeof(unsigned int)) && ref_points) {
