@@ -490,7 +490,8 @@ static ssize_t qeth_dev_isolation_store(struct device *dev,
 
 	mutex_lock(&card->conf_mutex);
 	/* check for unknown, too, in case we do not yet know who we are */
-	if (card->info.type != QETH_CARD_TYPE_OSAE &&
+	if (card->info.type != QETH_CARD_TYPE_OSD &&
+	    card->info.type != QETH_CARD_TYPE_OSX &&
 	    card->info.type != QETH_CARD_TYPE_UNKNOWN) {
 		rc = -EOPNOTSUPP;
 		dev_err(&card->gdev->dev, "Adapter does not "

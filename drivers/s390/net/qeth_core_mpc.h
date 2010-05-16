@@ -48,9 +48,11 @@ extern unsigned char IPA_PDU_HEADER[];
 
 enum qeth_card_types {
 	QETH_CARD_TYPE_UNKNOWN = 0,
-	QETH_CARD_TYPE_OSAE    = 10,
-	QETH_CARD_TYPE_IQD     = 1234,
-	QETH_CARD_TYPE_OSN     = 11,
+	QETH_CARD_TYPE_OSD     = 1,
+	QETH_CARD_TYPE_IQD     = 5,
+	QETH_CARD_TYPE_OSN     = 6,
+	QETH_CARD_TYPE_OSM     = 3,
+	QETH_CARD_TYPE_OSX     = 2,
 };
 
 #define QETH_MPC_DIFINFO_LEN_INDICATES_LINK_TYPE 0x18
@@ -614,6 +616,8 @@ extern unsigned char IDX_ACTIVATE_WRITE[];
 #define QETH_IS_IDX_ACT_POS_REPLY(buffer) (((buffer)[0x08] & 3) == 2)
 #define QETH_IDX_REPLY_LEVEL(buffer) (buffer + 0x12)
 #define QETH_IDX_ACT_CAUSE_CODE(buffer) (buffer)[0x09]
+#define QETH_IDX_ACT_ERR_EXCL	0x19
+#define QETH_IDX_ACT_ERR_AUTH	0x1E
 
 #define PDU_ENCAPSULATION(buffer) \
 	(buffer + *(buffer + (*(buffer + 0x0b)) + \
