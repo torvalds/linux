@@ -2426,17 +2426,6 @@ static int __mpage_da_writepage(struct page *page,
 	struct buffer_head *bh, *head;
 	sector_t logical;
 
-	if (mpd->io_done) {
-		/*
-		 * Rest of the page in the page_vec
-		 * redirty then and skip then. We will
-		 * try to write them again after
-		 * starting a new transaction
-		 */
-		redirty_page_for_writepage(wbc, page);
-		unlock_page(page);
-		return MPAGE_DA_EXTENT_TAIL;
-	}
 	/*
 	 * Can we merge this page to current extent?
 	 */
@@ -2831,6 +2820,124 @@ static int ext4_da_writepages_trans_blocks(struct inode *inode)
 	return ext4_chunk_trans_blocks(inode, max_blocks);
 }
 
+/*
+ * write_cache_pages_da - walk the list of dirty pages of the given
+ * address space and call the callback function (which usually writes
+ * the pages).
+ *
+ * This is a forked version of write_cache_pages().  Differences:
+ *	Range cyclic is ignored.
+ *	no_nrwrite_index_update is always presumed true
+ */
+static int write_cache_pages_da(struct address_space *mapping,
+				struct writeback_control *wbc,
+				struct mpage_da_data *mpd)
+{
+	int ret = 0;
+	int done = 0;
+	struct pagevec pvec;
+	int nr_pages;
+	pgoff_t index;
+	pgoff_t end;		/* Inclusive */
+	long nr_to_write = wbc->nr_to_write;
+
+	pagevec_init(&pvec, 0);
+	index = wbc->range_start >> PAGE_CACHE_SHIFT;
+	end = wbc->range_end >> PAGE_CACHE_SHIFT;
+
+	while (!done && (index <= end)) {
+		int i;
+
+		nr_pages = pagevec_lookup_tag(&pvec, mapping, &index,
+			      PAGECACHE_TAG_DIRTY,
+			      min(end - index, (pgoff_t)PAGEVEC_SIZE-1) + 1);
+		if (nr_pages == 0)
+			break;
+
+		for (i = 0; i < nr_pages; i++) {
+			struct page *page = pvec.pages[i];
+
+			/*
+			 * At this point, the page may be truncated or
+			 * invalidated (changing page->mapping to NULL), or
+			 * even swizzled back from swapper_space to tmpfs file
+			 * mapping. However, page->index will not change
+			 * because we have a reference on the page.
+			 */
+			if (page->index > end) {
+				done = 1;
+				break;
+			}
+
+			lock_page(page);
+
+			/*
+			 * Page truncated or invalidated. We can freely skip it
+			 * then, even for data integrity operations: the page
+			 * has disappeared concurrently, so there could be no
+			 * real expectation of this data interity operation
+			 * even if there is now a new, dirty page at the same
+			 * pagecache address.
+			 */
+			if (unlikely(page->mapping != mapping)) {
+continue_unlock:
+				unlock_page(page);
+				continue;
+			}
+
+			if (!PageDirty(page)) {
+				/* someone wrote it for us */
+				goto continue_unlock;
+			}
+
+			if (PageWriteback(page)) {
+				if (wbc->sync_mode != WB_SYNC_NONE)
+					wait_on_page_writeback(page);
+				else
+					goto continue_unlock;
+			}
+
+			BUG_ON(PageWriteback(page));
+			if (!clear_page_dirty_for_io(page))
+				goto continue_unlock;
+
+			ret = __mpage_da_writepage(page, wbc, mpd);
+			if (unlikely(ret)) {
+				if (ret == AOP_WRITEPAGE_ACTIVATE) {
+					unlock_page(page);
+					ret = 0;
+				} else {
+					done = 1;
+					break;
+				}
+			}
+
+			if (nr_to_write > 0) {
+				nr_to_write--;
+				if (nr_to_write == 0 &&
+				    wbc->sync_mode == WB_SYNC_NONE) {
+					/*
+					 * We stop writing back only if we are
+					 * not doing integrity sync. In case of
+					 * integrity sync we have to keep going
+					 * because someone may be concurrently
+					 * dirtying pages, and we might have
+					 * synced a lot of newly appeared dirty
+					 * pages, but have not synced all of the
+					 * old dirty pages.
+					 */
+					done = 1;
+					break;
+				}
+			}
+		}
+		pagevec_release(&pvec);
+		cond_resched();
+	}
+	return ret;
+}
+
+
 static int ext4_da_writepages(struct address_space *mapping,
 			      struct writeback_control *wbc)
 {
@@ -2839,7 +2946,6 @@ static int ext4_da_writepages(struct address_space *mapping,
 	handle_t *handle = NULL;
 	struct mpage_da_data mpd;
 	struct inode *inode = mapping->host;
-	int no_nrwrite_index_update;
 	int pages_written = 0;
 	long pages_skipped;
 	unsigned int max_pages;
@@ -2919,12 +3025,6 @@ static int ext4_da_writepages(struct address_space *mapping,
 	mpd.wbc = wbc;
 	mpd.inode = mapping->host;
 
-	/*
-	 * we don't want write_cache_pages to update
-	 * nr_to_write and writeback_index
-	 */
-	no_nrwrite_index_update = wbc->no_nrwrite_index_update;
-	wbc->no_nrwrite_index_update = 1;
 	pages_skipped = wbc->pages_skipped;
 
 retry:
@@ -2966,8 +3066,7 @@ retry:
 		mpd.io_done = 0;
 		mpd.pages_written = 0;
 		mpd.retval = 0;
-		ret = write_cache_pages(mapping, wbc, __mpage_da_writepage,
-					&mpd);
+		ret = write_cache_pages_da(mapping, wbc, &mpd);
 		/*
 		 * If we have a contiguous extent of pages and we
 		 * haven't done the I/O yet, map the blocks and submit
@@ -3033,8 +3132,6 @@ retry:
 		mapping->writeback_index = index;
 
 out_writepages:
-	if (!no_nrwrite_index_update)
-		wbc->no_nrwrite_index_update = 0;
 	wbc->nr_to_write -= nr_to_writebump;
 	wbc->range_start = range_start;
 	trace_ext4_da_writepages_result(inode, wbc, ret, pages_written);
