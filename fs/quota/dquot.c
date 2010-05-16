@@ -1494,6 +1494,7 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags)
 	char warntype[MAXQUOTAS];
 	int warn = flags & DQUOT_SPACE_WARN;
 	int reserve = flags & DQUOT_SPACE_RESERVE;
+	int nofail = flags & DQUOT_SPACE_NOFAIL;
 
 	/*
 	 * First test before acquiring mutex - solves deadlocks when we
@@ -1514,7 +1515,7 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags)
 			continue;
 		ret = check_bdq(inode->i_dquot[cnt], number, !warn,
 				warntype+cnt);
-		if (ret) {
+		if (ret && !nofail) {
 			spin_unlock(&dq_data_lock);
 			goto out_flush_warn;
 		}

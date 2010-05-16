@@ -11,6 +11,7 @@
 
 #define DQUOT_SPACE_WARN	0x1
 #define DQUOT_SPACE_RESERVE	0x2
+#define DQUOT_SPACE_NOFAIL	0x4
 
 static inline struct quota_info *sb_dqopt(struct super_block *sb)
 {
@@ -262,6 +263,12 @@ static inline int dquot_alloc_space_nodirty(struct inode *inode, qsize_t nr)
 	return __dquot_alloc_space(inode, nr, DQUOT_SPACE_WARN);
 }
 
+static inline void dquot_alloc_space_nofail(struct inode *inode, qsize_t nr)
+{
+	__dquot_alloc_space(inode, nr, DQUOT_SPACE_WARN|DQUOT_SPACE_NOFAIL);
+	mark_inode_dirty(inode);
+}
+
 static inline int dquot_alloc_space(struct inode *inode, qsize_t nr)
 {
 	int ret;
@@ -275,6 +282,11 @@ static inline int dquot_alloc_space(struct inode *inode, qsize_t nr)
 static inline int dquot_alloc_block_nodirty(struct inode *inode, qsize_t nr)
 {
 	return dquot_alloc_space_nodirty(inode, nr << inode->i_blkbits);
+}
+
+static inline void dquot_alloc_block_nofail(struct inode *inode, qsize_t nr)
+{
+	dquot_alloc_space_nofail(inode, nr << inode->i_blkbits);
 }
 
 static inline int dquot_alloc_block(struct inode *inode, qsize_t nr)
