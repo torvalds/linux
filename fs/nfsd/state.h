@@ -72,6 +72,8 @@ struct nfsd4_cb_args {
 
 struct nfsd4_callback {
 	struct nfsd4_cb_args cb_args;
+	struct rpc_message cb_msg;
+	const struct rpc_call_ops *cb_ops;
 	struct work_struct cb_work;
 };
 

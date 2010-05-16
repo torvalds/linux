@@ -585,7 +585,6 @@ void nfsd4_probe_callback(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 static int nfsd41_cb_setup_sequence(struct nfs4_client *clp,
 		struct rpc_task *task)
 {
-	struct nfsd4_cb_args *args = task->tk_msg.rpc_argp;
 	u32 *ptr = (u32 *)clp->cl_sessionid.data;
 	int status = 0;
 
@@ -598,14 +597,6 @@ static int nfsd41_cb_setup_sequence(struct nfs4_client *clp,
 		status = -EAGAIN;
 		goto out;
 	}
-
-	/*
-	 * We'll need the clp during XDR encoding and decoding,
-	 * and the sequence during decoding to verify the reply
-	 */
-	args->args_clp = clp;
-	task->tk_msg.rpc_resp = args;
-
 out:
 	dprintk("%s status=%d\n", __func__, status);
 	return status;
@@ -617,7 +608,8 @@ out:
  */
 static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 {
-	struct nfs4_delegation *dp = calldata;
+	struct nfsd4_callback *cb = calldata;
+	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
 	struct nfs4_client *clp = dp->dl_client;
 	struct nfsd4_cb_args *args = task->tk_msg.rpc_argp;
 	u32 minorversion = clp->cl_cb_conn.cb_minorversion;
@@ -640,7 +632,8 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 
 static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs4_delegation *dp = calldata;
+	struct nfsd4_callback *cb = calldata;
+	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
 	struct nfs4_client *clp = dp->dl_client;
 
 	dprintk("%s: minorversion=%d\n", __func__,
@@ -662,7 +655,8 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 
 static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs4_delegation *dp = calldata;
+	struct nfsd4_callback *cb = calldata;
+	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
 	struct nfs4_client *clp = dp->dl_client;
 	struct rpc_clnt *current_rpc_client = clp->cl_cb_client;
 
@@ -707,7 +701,8 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 
 static void nfsd4_cb_recall_release(void *calldata)
 {
-	struct nfs4_delegation *dp = calldata;
+	struct nfsd4_callback *cb = calldata;
+	struct nfs4_delegation *dp = container_of(cb, struct nfs4_delegation, dl_recall);
 
 	nfs4_put_delegation(dp);
 }
@@ -749,42 +744,39 @@ void nfsd4_set_callback_client(struct nfs4_client *clp, struct rpc_clnt *new)
 		rpc_shutdown_client(old);
 }
 
-/*
- * called with dp->dl_count inc'ed.
- */
-static void _nfsd4_cb_recall(struct nfs4_delegation *dp)
+void nfsd4_release_cb(struct nfsd4_callback *cb)
 {
-	struct nfs4_client *clp = dp->dl_client;
-	struct rpc_clnt *clnt = clp->cl_cb_client;
-	struct nfsd4_cb_args *args = &dp->dl_recall.cb_args;
-	struct rpc_message msg = {
-		.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_RECALL],
-		.rpc_cred = callback_cred
-	};
-
-	if (clnt == NULL) {
-		nfs4_put_delegation(dp);
-		return; /* Client is shutting down; give up. */
-	}
-
-	args->args_op = dp;
-	msg.rpc_argp = args;
-	dp->dl_retries = 1;
-	rpc_call_async(clnt, &msg, RPC_TASK_SOFT, &nfsd4_cb_recall_ops, dp);
+	if (cb->cb_ops->rpc_release)
+		cb->cb_ops->rpc_release(cb);
 }
 
 void nfsd4_do_callback_rpc(struct work_struct *w)
 {
-	/* XXX: for now, just send off delegation recall. */
-	/* In future, generalize to handle any sort of callback. */
-	struct nfsd4_callback *c = container_of(w, struct nfsd4_callback, cb_work);
-	struct nfs4_delegation *dp = container_of(c, struct nfs4_delegation, dl_recall);
+	struct nfsd4_callback *cb = container_of(w, struct nfsd4_callback, cb_work);
+	struct nfs4_client *clp = cb->cb_args.args_clp;
+	struct rpc_clnt *clnt = clp->cl_cb_client;
 
-	_nfsd4_cb_recall(dp);
+	if (clnt == NULL) {
+		nfsd4_release_cb(cb);
+		return; /* Client is shutting down; give up. */
+	}
+	rpc_call_async(clnt, &cb->cb_msg, RPC_TASK_SOFT, cb->cb_ops, cb);
 }
-
 
 void nfsd4_cb_recall(struct nfs4_delegation *dp)
 {
+	struct nfsd4_callback *cb = &dp->dl_recall;
+
+	dp->dl_retries = 1;
+	cb->cb_args.args_op = dp;
+	cb->cb_args.args_clp = dp->dl_client;
+	cb->cb_msg.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_RECALL];
+	cb->cb_msg.rpc_argp = &cb->cb_args;
+	cb->cb_msg.rpc_resp = &cb->cb_args;
+	cb->cb_msg.rpc_cred = callback_cred;
+
+	cb->cb_ops = &nfsd4_cb_recall_ops;
+	dp->dl_retries = 1;
+
 	queue_work(callback_wq, &dp->dl_recall.cb_work);
 }
