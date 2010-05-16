@@ -465,7 +465,10 @@ static int x25_setsockopt(struct socket *sock, int level, int optname,
 	if (get_user(opt, (int __user *)optval))
 		goto out;
 
-	x25_sk(sk)->qbitincl = !!opt;
+	if (opt)
+		set_bit(X25_Q_BIT_FLAG, &x25_sk(sk)->flags);
+	else
+		clear_bit(X25_Q_BIT_FLAG, &x25_sk(sk)->flags);
 	rc = 0;
 out:
 	unlock_kernel();
@@ -496,7 +499,7 @@ static int x25_getsockopt(struct socket *sock, int level, int optname,
 	if (put_user(len, optlen))
 		goto out;
 
-	val = x25_sk(sk)->qbitincl;
+	val = test_bit(X25_Q_BIT_FLAG, &x25_sk(sk)->flags);
 	rc = copy_to_user(optval, &val, len) ? -EFAULT : 0;
 out:
 	unlock_kernel();
@@ -632,8 +635,8 @@ static struct sock *x25_make_new(struct sock *osk)
 	x25->t22        = ox25->t22;
 	x25->t23        = ox25->t23;
 	x25->t2         = ox25->t2;
+	x25->flags	= ox25->flags;
 	x25->facilities = ox25->facilities;
-	x25->qbitincl   = ox25->qbitincl;
 	x25->dte_facilities = ox25->dte_facilities;
 	x25->cudmatchlength = ox25->cudmatchlength;
 	x25->accptapprv = ox25->accptapprv;
@@ -1186,7 +1189,7 @@ static int x25_sendmsg(struct kiocb *iocb, struct socket *sock,
 	 *	If the Q BIT Include socket option is in force, the first
 	 *	byte of the user data is the logical value of the Q Bit.
 	 */
-	if (x25->qbitincl) {
+	if (test_bit(X25_Q_BIT_FLAG, &x25->flags)) {
 		qbit = skb->data[0];
 		skb_pull(skb, 1);
 	}
@@ -1242,7 +1245,7 @@ static int x25_sendmsg(struct kiocb *iocb, struct socket *sock,
 		len = rc;
 		if (rc < 0)
 			kfree_skb(skb);
-		else if (x25->qbitincl)
+		else if (test_bit(X25_Q_BIT_FLAG, &x25->flags))
 			len++;
 	}
 
@@ -1307,7 +1310,7 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 		/*
 		 *	No Q bit information on Interrupt data.
 		 */
-		if (x25->qbitincl) {
+		if (test_bit(X25_Q_BIT_FLAG, &x25->flags)) {
 			asmptr  = skb_push(skb, 1);
 			*asmptr = 0x00;
 		}
@@ -1325,7 +1328,7 @@ static int x25_recvmsg(struct kiocb *iocb, struct socket *sock,
 		skb_pull(skb, x25->neighbour->extended ?
 				X25_EXT_MIN_LEN : X25_STD_MIN_LEN);
 
-		if (x25->qbitincl) {
+		if (test_bit(X25_Q_BIT_FLAG, &x25->flags)) {
 			asmptr  = skb_push(skb, 1);
 			*asmptr = qbit;
 		}

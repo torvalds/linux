@@ -113,6 +113,9 @@ enum {
 #define X25_MAX_AE_LEN 		40			/* Max num of semi-octets in AE - OSI Nw */
 #define X25_MAX_DTE_FACIL_LEN	21			/* Max length of DTE facility params */
 
+/* Bitset in x25_sock->flags for misc flags */
+#define X25_Q_BIT_FLAG		0
+
 /**
  *	struct x25_route - x25 routing entry
  *	@node - entry in x25_list_lock
@@ -146,10 +149,11 @@ struct x25_sock {
 	struct x25_address	source_addr, dest_addr;
 	struct x25_neigh	*neighbour;
 	unsigned int		lci, cudmatchlength;
-	unsigned char		state, condition, qbitincl, intflag, accptapprv;
+	unsigned char		state, condition, intflag, accptapprv;
 	unsigned short		vs, vr, va, vl;
 	unsigned long		t2, t21, t22, t23;
 	unsigned short		fraglen;
+	unsigned long		flags;
 	struct sk_buff_head	ack_queue;
 	struct sk_buff_head	fragment_queue;
 	struct sk_buff_head	interrupt_in_queue;
