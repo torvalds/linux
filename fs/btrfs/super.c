@@ -498,7 +498,7 @@ int btrfs_sync_fs(struct super_block *sb, int wait)
 	btrfs_start_delalloc_inodes(root, 0);
 	btrfs_wait_ordered_extents(root, 0, 0);
 
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_start_transaction(root, 0);
 	ret = btrfs_commit_transaction(trans, root);
 	return ret;
 }

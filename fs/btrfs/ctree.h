@@ -34,6 +34,7 @@
 
 struct btrfs_trans_handle;
 struct btrfs_transaction;
+struct btrfs_pending_snapshot;
 extern struct kmem_cache *btrfs_trans_handle_cachep;
 extern struct kmem_cache *btrfs_transaction_cachep;
 extern struct kmem_cache *btrfs_bit_radix_cachep;
@@ -970,6 +971,7 @@ struct btrfs_fs_info {
 	int do_barriers;
 	int closing;
 	int log_root_recovering;
+	int enospc_unlink;
 
 	u64 total_pinned;
 
@@ -1995,6 +1997,9 @@ void btrfs_put_block_group(struct btrfs_block_group_cache *cache);
 int btrfs_run_delayed_refs(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root, unsigned long count);
 int btrfs_lookup_extent(struct btrfs_root *root, u64 start, u64 len);
+int btrfs_lookup_extent_info(struct btrfs_trans_handle *trans,
+			     struct btrfs_root *root, u64 bytenr,
+			     u64 num_bytes, u64 *refs, u64 *flags);
 int btrfs_pin_extent(struct btrfs_root *root,
 		     u64 bytenr, u64 num, int reserved);
 int btrfs_drop_leaf_ref(struct btrfs_trans_handle *trans,
@@ -2075,8 +2080,6 @@ u64 btrfs_reduce_alloc_profile(struct btrfs_root *root, u64 flags);
 void btrfs_set_inode_space_info(struct btrfs_root *root, struct inode *ionde);
 void btrfs_clear_space_info_full(struct btrfs_fs_info *info);
 
-int btrfs_reserve_metadata_space(struct btrfs_root *root, int num_items);
-int btrfs_unreserve_metadata_space(struct btrfs_root *root, int num_items);
 int btrfs_unreserve_metadata_for_delalloc(struct btrfs_root *root,
 					  struct inode *inode, int num_items);
 int btrfs_reserve_metadata_for_delalloc(struct btrfs_root *root,
@@ -2089,6 +2092,13 @@ void btrfs_delalloc_reserve_space(struct btrfs_root *root, struct inode *inode,
 				 u64 bytes);
 void btrfs_delalloc_free_space(struct btrfs_root *root, struct inode *inode,
 			      u64 bytes);
+int btrfs_trans_reserve_metadata(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root,
+				int num_items, int *retries);
+void btrfs_trans_release_metadata(struct btrfs_trans_handle *trans,
+				struct btrfs_root *root);
+int btrfs_snap_reserve_metadata(struct btrfs_trans_handle *trans,
+				struct btrfs_pending_snapshot *pending);
 void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv);
 struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_root *root);
 void btrfs_free_block_rsv(struct btrfs_root *root,
@@ -2296,6 +2306,12 @@ int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root,
 			   const char *name, int name_len,
 			   u64 inode_objectid, u64 ref_objectid, u64 *index);
+struct btrfs_inode_ref *
+btrfs_lookup_inode_ref(struct btrfs_trans_handle *trans,
+			struct btrfs_root *root,
+			struct btrfs_path *path,
+			const char *name, int name_len,
+			u64 inode_objectid, u64 ref_objectid, int mod);
 int btrfs_insert_empty_inode(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct btrfs_path *path, u64 objectid);

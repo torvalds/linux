@@ -239,23 +239,19 @@ static noinline int create_subvol(struct btrfs_root *root,
 	u64 new_dirid = BTRFS_FIRST_FREE_OBJECTID;
 	u64 index = 0;
 
+	ret = btrfs_find_free_objectid(NULL, root->fs_info->tree_root,
+				       0, &objectid);
+	if (ret)
+		return ret;
 	/*
 	 * 1 - inode item
 	 * 2 - refs
 	 * 1 - root item
 	 * 2 - dir items
 	 */
-	ret = btrfs_reserve_metadata_space(root, 6);
-	if (ret)
-		return ret;
-
-	trans = btrfs_start_transaction(root, 1);
-	BUG_ON(!trans);
-
-	ret = btrfs_find_free_objectid(trans, root->fs_info->tree_root,
-				       0, &objectid);
-	if (ret)
-		goto fail;
+	trans = btrfs_start_transaction(root, 6);
+	if (IS_ERR(trans))
+		return PTR_ERR(trans);
 
 	leaf = btrfs_alloc_free_block(trans, root, root->leafsize,
 				      0, objectid, NULL, 0, 0, 0);
@@ -345,13 +341,10 @@ fail:
 	err = btrfs_commit_transaction(trans, root);
 	if (err && !ret)
 		ret = err;
-
-	btrfs_unreserve_metadata_space(root, 6);
 	return ret;
 }
 
-static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
-			   char *name, int namelen)
+static int create_snapshot(struct btrfs_root *root, struct dentry *dentry)
 {
 	struct inode *inode;
 	struct btrfs_pending_snapshot *pending_snapshot;
@@ -361,40 +354,33 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 	if (!root->ref_cows)
 		return -EINVAL;
 
-	/*
-	 * 1 - inode item
-	 * 2 - refs
-	 * 1 - root item
-	 * 2 - dir items
-	 */
-	ret = btrfs_reserve_metadata_space(root, 6);
+	pending_snapshot = kzalloc(sizeof(*pending_snapshot), GFP_NOFS);
+	if (!pending_snapshot)
+		return -ENOMEM;
+
+	btrfs_init_block_rsv(&pending_snapshot->block_rsv);
+	pending_snapshot->dentry = dentry;
+	pending_snapshot->root = root;
+
+	trans = btrfs_start_transaction(root->fs_info->extent_root, 5);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
+		goto fail;
+	}
+
+	ret = btrfs_snap_reserve_metadata(trans, pending_snapshot);
+	BUG_ON(ret);
+
+	list_add(&pending_snapshot->list,
+		 &trans->transaction->pending_snapshots);
+	ret = btrfs_commit_transaction(trans, root->fs_info->extent_root);
+	BUG_ON(ret);
+
+	ret = pending_snapshot->error;
 	if (ret)
 		goto fail;
 
-	pending_snapshot = kzalloc(sizeof(*pending_snapshot), GFP_NOFS);
-	if (!pending_snapshot) {
-		ret = -ENOMEM;
-		btrfs_unreserve_metadata_space(root, 6);
-		goto fail;
-	}
-	pending_snapshot->name = kmalloc(namelen + 1, GFP_NOFS);
-	if (!pending_snapshot->name) {
-		ret = -ENOMEM;
-		kfree(pending_snapshot);
-		btrfs_unreserve_metadata_space(root, 6);
-		goto fail;
-	}
-	memcpy(pending_snapshot->name, name, namelen);
-	pending_snapshot->name[namelen] = '\0';
-	pending_snapshot->dentry = dentry;
-	trans = btrfs_start_transaction(root, 1);
-	BUG_ON(!trans);
-	pending_snapshot->root = root;
-	list_add(&pending_snapshot->list,
-		 &trans->transaction->pending_snapshots);
-	ret = btrfs_commit_transaction(trans, root);
-	BUG_ON(ret);
-	btrfs_unreserve_metadata_space(root, 6);
+	btrfs_orphan_cleanup(pending_snapshot->snap);
 
 	inode = btrfs_lookup_dentry(dentry->d_parent->d_inode, dentry);
 	if (IS_ERR(inode)) {
@@ -405,6 +391,7 @@ static int create_snapshot(struct btrfs_root *root, struct dentry *dentry,
 	d_instantiate(dentry, inode);
 	ret = 0;
 fail:
+	kfree(pending_snapshot);
 	return ret;
 }
 
@@ -456,8 +443,7 @@ static noinline int btrfs_mksubvol(struct path *parent,
 		goto out_up_read;
 
 	if (snap_src) {
-		error = create_snapshot(snap_src, dentry,
-					name, namelen);
+		error = create_snapshot(snap_src, dentry);
 	} else {
 		error = create_subvol(BTRFS_I(dir)->root, dentry,
 				      name, namelen);
@@ -811,7 +797,7 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 		device->name, (unsigned long long)new_size);
 
 	if (new_size > old_size) {
-		trans = btrfs_start_transaction(root, 1);
+		trans = btrfs_start_transaction(root, 0);
 		ret = btrfs_grow_device(trans, device, new_size);
 		btrfs_commit_transaction(trans, root);
 	} else {
@@ -1300,7 +1286,13 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	if (err)
 		goto out_up_write;
 
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_start_transaction(root, 0);
+	if (IS_ERR(trans)) {
+		err = PTR_ERR(trans);
+		goto out;
+	}
+	trans->block_rsv = &root->fs_info->global_block_rsv;
+
 	ret = btrfs_unlink_subvol(trans, root, dir,
 				dest->root_key.objectid,
 				dentry->d_name.name,
@@ -1550,12 +1542,6 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 		btrfs_wait_ordered_range(src, off, off+len);
 	}
 
-	trans = btrfs_start_transaction(root, 1);
-	BUG_ON(!trans);
-
-	/* punch hole in destination first */
-	btrfs_drop_extents(trans, inode, off, off + len, &hint_byte, 1);
-
 	/* clone data */
 	key.objectid = src->i_ino;
 	key.type = BTRFS_EXTENT_DATA_KEY;
@@ -1566,7 +1552,7 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 		 * note the key will change type as we walk through the
 		 * tree.
 		 */
-		ret = btrfs_search_slot(trans, root, &key, path, 0, 0);
+		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 		if (ret < 0)
 			goto out;
 
@@ -1629,12 +1615,31 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			new_key.objectid = inode->i_ino;
 			new_key.offset = key.offset + destoff - off;
 
+			trans = btrfs_start_transaction(root, 1);
+			if (IS_ERR(trans)) {
+				ret = PTR_ERR(trans);
+				goto out;
+			}
+
 			if (type == BTRFS_FILE_EXTENT_REG ||
 			    type == BTRFS_FILE_EXTENT_PREALLOC) {
+				if (off > key.offset) {
+					datao += off - key.offset;
+					datal -= off - key.offset;
+				}
+
+				if (key.offset + datal > off + len)
+					datal = off + len - key.offset;
+
+				ret = btrfs_drop_extents(trans, inode,
+							 new_key.offset,
+							 new_key.offset + datal,
+							 &hint_byte, 1);
+				BUG_ON(ret);
+
 				ret = btrfs_insert_empty_item(trans, root, path,
 							      &new_key, size);
-				if (ret)
-					goto out;
+				BUG_ON(ret);
 
 				leaf = path->nodes[0];
 				slot = path->slots[0];
@@ -1644,14 +1649,6 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 
 				extent = btrfs_item_ptr(leaf, slot,
 						struct btrfs_file_extent_item);
-
-				if (off > key.offset) {
-					datao += off - key.offset;
-					datal -= off - key.offset;
-				}
-
-				if (key.offset + datal > off + len)
-					datal = off + len - key.offset;
 
 				/* disko == 0 means it's a hole */
 				if (!disko)
@@ -1683,14 +1680,21 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 
 				if (comp && (skip || trim)) {
 					ret = -EINVAL;
+					btrfs_end_transaction(trans, root);
 					goto out;
 				}
 				size -= skip + trim;
 				datal -= skip + trim;
+
+				ret = btrfs_drop_extents(trans, inode,
+							 new_key.offset,
+							 new_key.offset + datal,
+							 &hint_byte, 1);
+				BUG_ON(ret);
+
 				ret = btrfs_insert_empty_item(trans, root, path,
 							      &new_key, size);
-				if (ret)
-					goto out;
+				BUG_ON(ret);
 
 				if (skip) {
 					u32 start =
@@ -1708,8 +1712,17 @@ static noinline long btrfs_ioctl_clone(struct file *file, unsigned long srcfd,
 			}
 
 			btrfs_mark_buffer_dirty(leaf);
-		}
+			btrfs_release_path(root, path);
 
+			inode->i_mtime = inode->i_ctime = CURRENT_TIME;
+			if (new_key.offset + datal > inode->i_size)
+				btrfs_i_size_write(inode,
+						   new_key.offset + datal);
+			BTRFS_I(inode)->flags = BTRFS_I(src)->flags;
+			ret = btrfs_update_inode(trans, root, inode);
+			BUG_ON(ret);
+			btrfs_end_transaction(trans, root);
+		}
 next:
 		btrfs_release_path(root, path);
 		key.offset++;
@@ -1717,17 +1730,7 @@ next:
 	ret = 0;
 out:
 	btrfs_release_path(root, path);
-	if (ret == 0) {
-		inode->i_mtime = inode->i_ctime = CURRENT_TIME;
-		if (destoff + olen > inode->i_size)
-			btrfs_i_size_write(inode, destoff + olen);
-		BTRFS_I(inode)->flags = BTRFS_I(src)->flags;
-		ret = btrfs_update_inode(trans, root, inode);
-	}
-	btrfs_end_transaction(trans, root);
 	unlock_extent(&BTRFS_I(src)->io_tree, off, off+len, GFP_NOFS);
-	if (ret)
-		vmtruncate(inode, 0);
 out_unlock:
 	mutex_unlock(&src->i_mutex);
 	mutex_unlock(&inode->i_mutex);

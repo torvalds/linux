@@ -57,8 +57,11 @@ struct btrfs_trans_handle {
 struct btrfs_pending_snapshot {
 	struct dentry *dentry;
 	struct btrfs_root *root;
-	char *name;
-	struct btrfs_key root_key;
+	struct btrfs_root *snap;
+	/* block reservation for the operation */
+	struct btrfs_block_rsv block_rsv;
+	/* extra metadata reseration for relocation */
+	int error;
 	struct list_head list;
 };
 
@@ -85,11 +88,11 @@ static inline void btrfs_set_inode_last_trans(struct btrfs_trans_handle *trans,
 int btrfs_end_transaction(struct btrfs_trans_handle *trans,
 			  struct btrfs_root *root);
 struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
-						   int num_blocks);
+						   int num_items);
 struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root,
-						   int num_blocks);
+						  int num_blocks);
 struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *r,
-						   int num_blocks);
+							 int num_blocks);
 int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root);
 int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,

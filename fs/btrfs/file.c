@@ -126,8 +126,7 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 	end_of_last_block = start_pos + num_bytes - 1;
 	err = btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block,
 					NULL);
-	if (err)
-		return err;
+	BUG_ON(err);
 
 	for (i = 0; i < num_pages; i++) {
 		struct page *p = pages[i];
@@ -142,7 +141,7 @@ static noinline int dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		 * at this time.
 		 */
 	}
-	return err;
+	return 0;
 }
 
 /*
@@ -1008,7 +1007,7 @@ out_nolock:
 			num_written = err;
 
 		if ((file->f_flags & O_DSYNC) || IS_SYNC(inode)) {
-			trans = btrfs_start_transaction(root, 1);
+			trans = btrfs_start_transaction(root, 0);
 			ret = btrfs_log_dentry_safe(trans, root,
 						    file->f_dentry);
 			if (ret == 0) {
@@ -1104,9 +1103,9 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	if (file && file->private_data)
 		btrfs_ioctl_trans_end(file);
 
-	trans = btrfs_start_transaction(root, 1);
-	if (!trans) {
-		ret = -ENOMEM;
+	trans = btrfs_start_transaction(root, 0);
+	if (IS_ERR(trans)) {
+		ret = PTR_ERR(trans);
 		goto out;
 	}
 

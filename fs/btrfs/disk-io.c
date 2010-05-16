@@ -1522,7 +1522,7 @@ static int transaction_kthread(void *arg)
 			goto sleep;
 		}
 		mutex_unlock(&root->fs_info->trans_mutex);
-		trans = btrfs_start_transaction(root, 1);
+		trans = btrfs_join_transaction(root, 1);
 		ret = btrfs_commit_transaction(trans, root);
 
 sleep:
@@ -2409,11 +2409,11 @@ int btrfs_commit_super(struct btrfs_root *root)
 	down_write(&root->fs_info->cleanup_work_sem);
 	up_write(&root->fs_info->cleanup_work_sem);
 
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_join_transaction(root, 1);
 	ret = btrfs_commit_transaction(trans, root);
 	BUG_ON(ret);
 	/* run commit again to drop the original snapshot */
-	trans = btrfs_start_transaction(root, 1);
+	trans = btrfs_join_transaction(root, 1);
 	btrfs_commit_transaction(trans, root);
 	ret = btrfs_write_and_wait_transaction(NULL, root);
 	BUG_ON(ret);
