@@ -752,6 +752,10 @@ static int hist_browser__populate(struct hist_browser *self, struct hists *hists
 
 	newtFormAddHotKey(self->form, 'A');
 	newtFormAddHotKey(self->form, 'a');
+	newtFormAddHotKey(self->form, 'D');
+	newtFormAddHotKey(self->form, 'd');
+	newtFormAddHotKey(self->form, 'T');
+	newtFormAddHotKey(self->form, 't');
 	newtFormAddHotKey(self->form, NEWT_KEY_RIGHT);
 	newtFormAddHotKey(self->form, NEWT_KEY_LEFT);
 	newtFormAddComponents(self->form, self->tree, NULL);
@@ -834,9 +838,20 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 		    annotate = -2, zoom_dso = -2, zoom_thread = -2;
 
 		newtFormRun(browser->form, &es);
+
+		thread = hist_browser__selected_thread(browser);
+		dso = browser->selection->map ? browser->selection->map->dso : NULL;
+
 		if (es.reason == NEWT_EXIT_HOTKEY) {
-			if (toupper(es.u.key) == 'A')
+			switch (toupper(es.u.key)) {
+			case 'A':
 				goto do_annotate;
+			case 'D':
+				goto zoom_dso;
+			case 'T':
+				goto zoom_thread;
+			default:;
+			}
 			if (toupper(es.u.key) == 'Q' ||
 			    es.u.key == CTRL('c'))
 				break;
@@ -866,7 +881,6 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 			     browser->selection->sym->name) > 0)
 			annotate = nr_options++;
 
-		thread = hist_browser__selected_thread(browser);
 		if (thread != NULL &&
 		    asprintf(&options[nr_options], "Zoom %s %s(%d) thread",
 			     (thread_filter ? "out of" : "into"),
@@ -874,7 +888,6 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 			     thread->pid) > 0)
 			zoom_thread = nr_options++;
 
-		dso = browser->selection->map ? browser->selection->map->dso : NULL;
 		if (dso != NULL &&
 		    asprintf(&options[nr_options], "Zoom %s %s DSO",
 			     (dso_filter ? "out of" : "into"),
@@ -910,12 +923,15 @@ do_annotate:
 
 			hist_entry__annotate_browser(he);
 		} else if (choice == zoom_dso) {
+zoom_dso:
 			if (dso_filter) {
 				pstack__remove(fstack, &dso_filter);
 zoom_out_dso:
 				ui_helpline__pop();
 				dso_filter = NULL;
 			} else {
+				if (dso == NULL)
+					continue;
 				ui_helpline__fpush("To zoom out press <- or -> + \"Zoom out of %s DSO\"",
 						   dso->kernel ? "the Kernel" : dso->short_name);
 				dso_filter = dso;
@@ -927,6 +943,7 @@ zoom_out_dso:
 			if (hist_browser__populate(browser, self, msg) < 0)
 				goto out;
 		} else if (choice == zoom_thread) {
+zoom_thread:
 			if (thread_filter) {
 				pstack__remove(fstack, &thread_filter);
 zoom_out_thread:
