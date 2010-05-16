@@ -118,6 +118,7 @@ int browser__show_help(const char *format, va_list ap)
 
 static void newt_form__set_exit_keys(newtComponent self)
 {
+	newtFormAddHotKey(self, NEWT_KEY_LEFT);
 	newtFormAddHotKey(self, NEWT_KEY_ESCAPE);
 	newtFormAddHotKey(self, 'Q');
 	newtFormAddHotKey(self, 'q');
@@ -323,7 +324,6 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 	newtFormAddHotKey(self->form, NEWT_KEY_PGDN);
 	newtFormAddHotKey(self->form, NEWT_KEY_HOME);
 	newtFormAddHotKey(self->form, NEWT_KEY_END);
-	newtFormAddHotKey(self->form, NEWT_KEY_LEFT);
 
 	if (ui_browser__refresh_entries(self) < 0)
 		return -1;
@@ -757,7 +757,6 @@ static int hist_browser__populate(struct hist_browser *self, struct hists *hists
 	newtFormAddHotKey(self->form, 'T');
 	newtFormAddHotKey(self->form, 't');
 	newtFormAddHotKey(self->form, NEWT_KEY_RIGHT);
-	newtFormAddHotKey(self->form, NEWT_KEY_LEFT);
 	newtFormAddComponents(self->form, self->tree, NULL);
 	self->selection = newt__symbol_tree_get_current(self->tree);
 
