@@ -1488,11 +1488,12 @@ static void inode_decr_space(struct inode *inode, qsize_t number, int reserve)
 /*
  * This operation can block, but only after everything is updated
  */
-int __dquot_alloc_space(struct inode *inode, qsize_t number,
-		int warn, int reserve)
+int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags)
 {
 	int cnt, ret = 0;
 	char warntype[MAXQUOTAS];
+	int warn = flags & DQUOT_SPACE_WARN;
+	int reserve = flags & DQUOT_SPACE_RESERVE;
 
 	/*
 	 * First test before acquiring mutex - solves deadlocks when we
@@ -1612,10 +1613,11 @@ EXPORT_SYMBOL(dquot_claim_space_nodirty);
 /*
  * This operation can block, but only after everything is updated
  */
-void __dquot_free_space(struct inode *inode, qsize_t number, int reserve)
+void __dquot_free_space(struct inode *inode, qsize_t number, int flags)
 {
 	unsigned int cnt;
 	char warntype[MAXQUOTAS];
+	int reserve = flags & DQUOT_SPACE_RESERVE;
 
 	/* First test before acquiring mutex - solves deadlocks when we
          * re-enter the quota code and are already holding the mutex */

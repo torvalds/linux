@@ -9,6 +9,9 @@
 
 #include <linux/fs.h>
 
+#define DQUOT_SPACE_WARN	0x1
+#define DQUOT_SPACE_RESERVE	0x2
+
 static inline struct quota_info *sb_dqopt(struct super_block *sb)
 {
 	return &sb->s_dquot;
@@ -33,9 +36,8 @@ int dquot_scan_active(struct super_block *sb,
 struct dquot *dquot_alloc(struct super_block *sb, int type);
 void dquot_destroy(struct dquot *dquot);
 
-int __dquot_alloc_space(struct inode *inode, qsize_t number,
-		int warn, int reserve);
-void __dquot_free_space(struct inode *inode, qsize_t number, int reserve);
+int __dquot_alloc_space(struct inode *inode, qsize_t number, int flags);
+void __dquot_free_space(struct inode *inode, qsize_t number, int flags);
 
 int dquot_alloc_inode(const struct inode *inode);
 
@@ -231,17 +233,17 @@ static inline int dquot_transfer(struct inode *inode, struct iattr *iattr)
 }
 
 static inline int __dquot_alloc_space(struct inode *inode, qsize_t number,
-		int warn, int reserve)
+		int flags)
 {
-	if (!reserve)
+	if (!(flags & DQUOT_SPACE_RESERVE))
 		inode_add_bytes(inode, number);
 	return 0;
 }
 
 static inline void __dquot_free_space(struct inode *inode, qsize_t number,
-		int reserve)
+		int flags)
 {
-	if (!reserve)
+	if (!(flags & DQUOT_SPACE_RESERVE))
 		inode_sub_bytes(inode, number);
 }
 
@@ -257,7 +259,7 @@ static inline int dquot_claim_space_nodirty(struct inode *inode, qsize_t number)
 
 static inline int dquot_alloc_space_nodirty(struct inode *inode, qsize_t nr)
 {
-	return __dquot_alloc_space(inode, nr, 1, 0);
+	return __dquot_alloc_space(inode, nr, DQUOT_SPACE_WARN);
 }
 
 static inline int dquot_alloc_space(struct inode *inode, qsize_t nr)
@@ -282,7 +284,7 @@ static inline int dquot_alloc_block(struct inode *inode, qsize_t nr)
 
 static inline int dquot_prealloc_block_nodirty(struct inode *inode, qsize_t nr)
 {
-	return __dquot_alloc_space(inode, nr << inode->i_blkbits, 0, 0);
+	return __dquot_alloc_space(inode, nr << inode->i_blkbits, 0);
 }
 
 static inline int dquot_prealloc_block(struct inode *inode, qsize_t nr)
@@ -297,7 +299,8 @@ static inline int dquot_prealloc_block(struct inode *inode, qsize_t nr)
 
 static inline int dquot_reserve_block(struct inode *inode, qsize_t nr)
 {
-	return __dquot_alloc_space(inode, nr << inode->i_blkbits, 1, 1);
+	return __dquot_alloc_space(inode, nr << inode->i_blkbits,
+				DQUOT_SPACE_WARN|DQUOT_SPACE_RESERVE);
 }
 
 static inline int dquot_claim_block(struct inode *inode, qsize_t nr)
@@ -334,7 +337,7 @@ static inline void dquot_free_block(struct inode *inode, qsize_t nr)
 static inline void dquot_release_reservation_block(struct inode *inode,
 		qsize_t nr)
 {
-	__dquot_free_space(inode, nr << inode->i_blkbits, 1);
+	__dquot_free_space(inode, nr << inode->i_blkbits, DQUOT_SPACE_RESERVE);
 }
 
 #endif /* _LINUX_QUOTAOPS_ */
