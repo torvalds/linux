@@ -152,44 +152,6 @@ static void nouveau_fbcon_gamma_get(struct drm_crtc *crtc, u16 *red, u16 *green,
 	*blue = nv_crtc->lut.b[regno];
 }
 
-#if defined(__i386__) || defined(__x86_64__)
-static bool
-nouveau_fbcon_has_vesafb_or_efifb(struct drm_device *dev)
-{
-	struct pci_dev *pdev = dev->pdev;
-	int ramin;
-
-	if (screen_info.orig_video_isVGA != VIDEO_TYPE_VLFB &&
-	    screen_info.orig_video_isVGA != VIDEO_TYPE_EFI)
-		return false;
-
-	if (screen_info.lfb_base < pci_resource_start(pdev, 1))
-		goto not_fb;
-
-	if (screen_info.lfb_base + screen_info.lfb_size >=
-	    pci_resource_start(pdev, 1) + pci_resource_len(pdev, 1))
-		goto not_fb;
-
-	return true;
-not_fb:
-	ramin = 2;
-	if (pci_resource_len(pdev, ramin) == 0) {
-		ramin = 3;
-		if (pci_resource_len(pdev, ramin) == 0)
-			return false;
-	}
-
-	if (screen_info.lfb_base < pci_resource_start(pdev, ramin))
-		return false;
-
-	if (screen_info.lfb_base + screen_info.lfb_size >=
-	    pci_resource_start(pdev, ramin) + pci_resource_len(pdev, ramin))
-		return false;
-
-	return true;
-}
-#endif
-
 static void
 nouveau_fbcon_zfill(struct drm_device *dev, struct nouveau_fbdev *nfbdev)
 {
@@ -219,7 +181,9 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 	struct nouveau_framebuffer *nouveau_fb;
 	struct nouveau_bo *nvbo;
 	struct drm_mode_fb_cmd mode_cmd;
-	struct device *device = &dev->pdev->dev;
+	struct pci_dev *pdev = dev->pdev;
+	struct device *device = &pdev->dev;
+	struct apertures_struct *aper;
 	int size, ret;
 
 	mode_cmd.width = sizes->surface_width;
@@ -299,28 +263,30 @@ nouveau_fbcon_create(struct nouveau_fbdev *nfbdev,
 	drm_fb_helper_fill_var(info, &nfbdev->helper, sizes->fb_width, sizes->fb_height);
 
 	/* FIXME: we really shouldn't expose mmio space at all */
-	info->fix.mmio_start = pci_resource_start(dev->pdev, 1);
-	info->fix.mmio_len = pci_resource_len(dev->pdev, 1);
+	info->fix.mmio_start = pci_resource_start(pdev, 1);
+	info->fix.mmio_len = pci_resource_len(pdev, 1);
 
 	/* Set aperture base/size for vesafb takeover */
-#if defined(__i386__) || defined(__x86_64__)
-	if (nouveau_fbcon_has_vesafb_or_efifb(dev)) {
-		/* Some NVIDIA VBIOS' are stupid and decide to put the
-		 * framebuffer in the middle of the PRAMIN BAR for
-		 * whatever reason.  We need to know the exact lfb_base
-		 * to get vesafb kicked off, and the only reliable way
-		 * we have left is to find out lfb_base the same way
-		 * vesafb did.
-		 */
-		info->aperture_base = screen_info.lfb_base;
-		info->aperture_size = screen_info.lfb_size;
-		if (screen_info.orig_video_isVGA == VIDEO_TYPE_VLFB)
-			info->aperture_size *= 65536;
-	} else
-#endif
-	{
-		info->aperture_base = info->fix.mmio_start;
-		info->aperture_size = info->fix.mmio_len;
+	aper = info->apertures = alloc_apertures(3);
+	if (!info->apertures) {
+		ret = -ENOMEM;
+		goto out_unref;
+	}
+
+	aper->ranges[0].base = pci_resource_start(pdev, 1);
+	aper->ranges[0].size = pci_resource_len(pdev, 1);
+	aper->count = 1;
+
+	if (pci_resource_len(pdev, 2)) {
+		aper->ranges[aper->count].base = pci_resource_start(pdev, 2);
+		aper->ranges[aper->count].size = pci_resource_len(pdev, 2);
+		aper->count++;
+	}
+
+	if (pci_resource_len(pdev, 3)) {
+		aper->ranges[aper->count].base = pci_resource_start(pdev, 3);
+		aper->ranges[aper->count].size = pci_resource_len(pdev, 3);
+		aper->count++;
 	}
 
 	info->pixmap.size = 64*1024;

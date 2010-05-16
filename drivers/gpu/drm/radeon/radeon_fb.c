@@ -236,8 +236,13 @@ static int radeonfb_create(struct radeon_fbdev *rfbdev,
 	drm_fb_helper_fill_var(info, &rfbdev->helper, sizes->fb_width, sizes->fb_height);
 
 	/* setup aperture base/size for vesafb takeover */
-	info->aperture_base = rdev->ddev->mode_config.fb_base;
-	info->aperture_size = rdev->mc.real_vram_size;
+	info->apertures = alloc_apertures(1);
+	if (!info->apertures) {
+		ret = -ENOMEM;
+		goto out_unref;
+	}
+	info->apertures->ranges[0].base = rdev->ddev->mode_config.fb_base;
+	info->apertures->ranges[0].size = rdev->mc.real_vram_size;
 
 	info->fix.mmio_start = 0;
 	info->fix.mmio_len = 0;

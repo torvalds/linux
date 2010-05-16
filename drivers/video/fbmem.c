@@ -1468,16 +1468,39 @@ static int fb_check_foreignness(struct fb_info *fi)
 	return 0;
 }
 
-static bool fb_do_apertures_overlap(struct fb_info *gen, struct fb_info *hw)
+static bool apertures_overlap(struct aperture *gen, struct aperture *hw)
 {
 	/* is the generic aperture base the same as the HW one */
-	if (gen->aperture_base == hw->aperture_base)
+	if (gen->base == hw->base)
 		return true;
 	/* is the generic aperture base inside the hw base->hw base+size */
-	if (gen->aperture_base > hw->aperture_base && gen->aperture_base <= hw->aperture_base + hw->aperture_size)
+	if (gen->base > hw->base && gen->base <= hw->base + hw->size)
 		return true;
 	return false;
 }
+
+static bool fb_do_apertures_overlap(struct fb_info *gen, struct fb_info *hw)
+{
+	int i, j;
+	struct apertures_struct *hwa = hw->apertures;
+	struct apertures_struct *gena = gen->apertures;
+	if (!hwa || !gena)
+		return false;
+
+	for (i = 0; i < hwa->count; ++i) {
+		struct aperture *h = &hwa->ranges[i];
+		for (j = 0; j < gena->count; ++j) {
+			struct aperture *g = &gena->ranges[j];
+			printk(KERN_DEBUG "checking generic (%llx %llx) vs hw (%llx %llx)\n",
+				g->base, g->size, h->base, h->size);
+			if (apertures_overlap(g, h))
+				return true;
+		}
+	}
+
+	return false;
+}
+
 /**
  *	register_framebuffer - registers a frame buffer device
  *	@fb_info: frame buffer info structure

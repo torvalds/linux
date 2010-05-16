@@ -128,11 +128,16 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	info->fbops = &intelfb_ops;
 
 	/* setup aperture base/size for vesafb takeover */
-	info->aperture_base = dev->mode_config.fb_base;
+	info->apertures = alloc_apertures(1);
+	if (!info->apertures) {
+		ret = -ENOMEM;
+		goto out_unpin;
+	}
+	info->apertures->ranges[0].base = dev->mode_config.fb_base;
 	if (IS_I9XX(dev))
-		info->aperture_size = pci_resource_len(dev->pdev, 2);
+		info->apertures->ranges[0].size = pci_resource_len(dev->pdev, 2);
 	else
-		info->aperture_size = pci_resource_len(dev->pdev, 0);
+		info->apertures->ranges[0].size = pci_resource_len(dev->pdev, 0);
 
 	info->fix.smem_start = dev->mode_config.fb_base + obj_priv->gtt_offset;
 	info->fix.smem_len = size;

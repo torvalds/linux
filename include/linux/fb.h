@@ -403,6 +403,7 @@ struct fb_cursor {
 #include <linux/notifier.h>
 #include <linux/list.h>
 #include <linux/backlight.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 
 struct vm_area_struct;
@@ -862,9 +863,21 @@ struct fb_info {
 	/* we need the PCI or similiar aperture base/size not
 	   smem_start/size as smem_start may just be an object
 	   allocated inside the aperture so may not actually overlap */
-	resource_size_t aperture_base;
-	resource_size_t aperture_size;
+	struct apertures_struct {
+		unsigned int count;
+		struct aperture {
+			resource_size_t base;
+			resource_size_t size;
+		} ranges[0];
+	} *apertures;
 };
+
+static inline struct apertures_struct *alloc_apertures(unsigned int max_num) {
+	struct apertures_struct *a = kzalloc(sizeof(struct apertures_struct)
+			+ max_num * sizeof(struct aperture), GFP_KERNEL);
+	a->count = max_num;
+	return a;
+}
 
 #ifdef MODULE
 #define FBINFO_DEFAULT	FBINFO_MODULE

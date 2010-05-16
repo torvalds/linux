@@ -559,8 +559,13 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	info->pixmap.scan_align = 1;
 #endif
 
-	info->aperture_base = vmw_priv->vram_start;
-	info->aperture_size = vmw_priv->vram_size;
+	info->apertures = alloc_apertures(1);
+	if (!info->apertures) {
+		ret = -ENOMEM;
+		goto err_aper;
+	}
+	info->apertures->ranges[0].base = vmw_priv->vram_start;
+	info->apertures->ranges[0].size = vmw_priv->vram_size;
 
 	/*
 	 * Dirty & Deferred IO
@@ -580,6 +585,7 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 
 err_defio:
 	fb_deferred_io_cleanup(info);
+err_aper:
 	ttm_bo_kunmap(&par->map);
 err_unref:
 	ttm_bo_unref((struct ttm_buffer_object **)&par->vmw_bo);
