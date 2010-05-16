@@ -726,6 +726,7 @@ struct ngene {
 	u32                   fw_interface_version;
 	u32                   icounts;
 	bool                  msi_enabled;
+	bool                  cmd_timeout_workaround;
 
 	u8                   *CmdDoneByte;
 	int                   BootFirmware;

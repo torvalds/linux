@@ -53,8 +53,6 @@ MODULE_PARM_DESC(debug, "Print debugging information.");
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-#define COMMAND_TIMEOUT_WORKAROUND
-
 #define dprintk	if (debug) printk
 
 #define ngwriteb(dat, adr)         writeb((dat), (char *)(dev->iomem + (adr)))
@@ -1252,14 +1250,17 @@ static int ngene_load_firm(struct ngene *dev)
 		version = 15;
 		size = 23466;
 		fw_name = "ngene_15.fw";
+		dev->cmd_timeout_workaround = true;
 		break;
 	case 16:
 		size = 23498;
 		fw_name = "ngene_16.fw";
+		dev->cmd_timeout_workaround = true;
 		break;
 	case 17:
 		size = 24446;
 		fw_name = "ngene_17.fw";
+		dev->cmd_timeout_workaround = true;
 		break;
 	}
 
@@ -1410,10 +1411,8 @@ static void release_channel(struct ngene_channel *chan)
 	struct ngene_info *ni = dev->card_info;
 	int io = ni->io_type[chan->number];
 
-#ifdef COMMAND_TIMEOUT_WORKAROUND
-	if (chan->running)
+	if (chan->dev->cmd_timeout_workaround && chan->running)
 		set_transfer(chan, 0);
-#endif
 
 	tasklet_kill(&chan->demux_tasklet);
 
