@@ -705,16 +705,18 @@ void iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	for (i = 1; i < counter; i++) {
 		pci_unmap_single(dev, le32_to_cpu(tfd->tbs[i].addr),
 			 le32_to_cpu(tfd->tbs[i].len), PCI_DMA_TODEVICE);
-		if (txq->txb[txq->q.read_ptr].skb[0]) {
-			struct sk_buff *skb = txq->txb[txq->q.read_ptr].skb[0];
-			if (txq->txb[txq->q.read_ptr].skb[0]) {
-				/* Can be called from interrupt context */
+		if (txq->txb) {
+			struct sk_buff *skb;
+
+			skb = txq->txb[txq->q.read_ptr].skb[i - 1];
+
+			/* can be called from irqs-disabled context */
+			if (skb) {
 				dev_kfree_skb_any(skb);
-				txq->txb[txq->q.read_ptr].skb[0] = NULL;
+				txq->txb[txq->q.read_ptr].skb[i - 1] = NULL;
 			}
 		}
 	}
-	return ;
 }
 
 /**
