@@ -105,7 +105,7 @@ static u64			sum_runtime;
 static u64			sum_fluct;
 static u64			run_avg;
 
-static unsigned long		replay_repeat = 10;
+static unsigned int		replay_repeat = 10;
 static unsigned long		nr_timestamps;
 static unsigned long		nr_unordered_timestamps;
 static unsigned long		nr_state_machine_bugs;
@@ -1816,8 +1816,8 @@ static const char * const replay_usage[] = {
 };
 
 static const struct option replay_options[] = {
-	OPT_INTEGER('r', "repeat", &replay_repeat,
-		    "repeat the workload replay N times (-1: infinite)"),
+	OPT_UINTEGER('r', "repeat", &replay_repeat,
+		     "repeat the workload replay N times (-1: infinite)"),
 	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,

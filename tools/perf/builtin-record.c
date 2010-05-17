@@ -45,7 +45,7 @@ static int			output;
 static int			pipe_output			=      0;
 static const char		*output_name			= "perf.data";
 static int			group				=      0;
-static unsigned int		realtime_prio			=      0;
+static int			realtime_prio			=      0;
 static bool			raw_samples			=  false;
 static bool			system_wide			=  false;
 static int			profile_cpu			=     -1;
@@ -822,10 +822,8 @@ static const struct option options[] = {
 		    "output file name"),
 	OPT_BOOLEAN('i', "no-inherit", &no_inherit,
 		    "child tasks do not inherit counters"),
-	OPT_INTEGER('F', "freq", &user_freq,
-		    "profile at this frequency"),
-	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
-		    "number of mmap data pages"),
+	OPT_UINTEGER('F', "freq", &user_freq, "profile at this frequency"),
+	OPT_UINTEGER('m', "mmap-pages", &mmap_pages, "number of mmap data pages"),
 	OPT_BOOLEAN('g', "call-graph", &call_graph,
 		    "do call-graph (stack chain/backtrace) recording"),
 	OPT_INCR('v', "verbose", &verbose,

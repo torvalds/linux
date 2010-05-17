@@ -71,7 +71,7 @@ static int			thread_num			=      0;
 static bool			inherit				=  false;
 static int			profile_cpu			=     -1;
 static int			nr_cpus				=      0;
-static unsigned int		realtime_prio			=      0;
+static int			realtime_prio			=      0;
 static bool			group				=  false;
 static unsigned int		page_size;
 static unsigned int		mmap_pages			=     16;
@@ -1357,8 +1357,7 @@ static const struct option options[] = {
 		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN('K', "hide_kernel_symbols", &hide_kernel_symbols,
 		    "hide kernel symbols"),
-	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
-		    "number of mmap data pages"),
+	OPT_UINTEGER('m', "mmap-pages", &mmap_pages, "number of mmap data pages"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
 	OPT_INTEGER('d', "delay", &delay_secs,
