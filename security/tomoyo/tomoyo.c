@@ -3,10 +3,7 @@
  *
  * LSM hooks for TOMOYO Linux.
  *
- * Copyright (C) 2005-2009  NTT DATA CORPORATION
- *
- * Version: 2.2.0   2009/04/01
- *
+ * Copyright (C) 2005-2010  NTT DATA CORPORATION
  */
 
 #include <linux/security.h>
@@ -286,7 +283,7 @@ static int __init tomoyo_init(void)
 		panic("Failure registering TOMOYO Linux");
 	printk(KERN_INFO "TOMOYO Linux initialized\n");
 	cred->security = &tomoyo_kernel_domain;
-	tomoyo_realpath_init();
+	tomoyo_mm_init();
 	return 0;
 }
 

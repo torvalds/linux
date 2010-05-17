@@ -1,12 +1,9 @@
 /*
  * security/tomoyo/file.c
  *
- * Implementation of the Domain-Based Mandatory Access Control.
+ * Pathname restriction functions.
  *
- * Copyright (C) 2005-2009  NTT DATA CORPORATION
- *
- * Version: 2.2.0   2009/04/01
- *
+ * Copyright (C) 2005-2010  NTT DATA CORPORATION
  */
 
 #include "common.h"
@@ -97,61 +94,6 @@ bool tomoyo_compare_number_union(const unsigned long value,
 	if (ptr->is_group)
 		return tomoyo_number_matches_group(value, value, ptr->group);
 	return value >= ptr->values[0] && value <= ptr->values[1];
-}
-
-/**
- * tomoyo_init_request_info - Initialize "struct tomoyo_request_info" members.
- *
- * @r:      Pointer to "struct tomoyo_request_info" to initialize.
- * @domain: Pointer to "struct tomoyo_domain_info". NULL for tomoyo_domain().
- *
- * Returns mode.
- */
-int tomoyo_init_request_info(struct tomoyo_request_info *r,
-			     struct tomoyo_domain_info *domain)
-{
-	memset(r, 0, sizeof(*r));
-	if (!domain)
-		domain = tomoyo_domain();
-	r->domain = domain;
-	r->mode = tomoyo_check_flags(domain, TOMOYO_MAC_FOR_FILE);
-	return r->mode;
-}
-
-static void tomoyo_warn_log(struct tomoyo_request_info *r, const char *fmt, ...)
-     __attribute__ ((format(printf, 2, 3)));
-/**
- * tomoyo_warn_log - Print warning or error message on console.
- *
- * @r:   Pointer to "struct tomoyo_request_info".
- * @fmt: The printf()'s format string, followed by parameters.
- */
-static void tomoyo_warn_log(struct tomoyo_request_info *r, const char *fmt, ...)
-{
-	int len = PAGE_SIZE;
-	va_list args;
-	char *buffer;
-	if (!tomoyo_verbose_mode(r->domain))
-		return;
-	while (1) {
-		int len2;
-		buffer = kmalloc(len, GFP_NOFS);
-		if (!buffer)
-			return;
-		va_start(args, fmt);
-		len2 = vsnprintf(buffer, len - 1, fmt, args);
-		va_end(args);
-		if (len2 <= len - 1) {
-			buffer[len2] = '\0';
-			break;
-		}
-		len = len2 + 1;
-		kfree(buffer);
-	}
-	printk(KERN_WARNING "TOMOYO-%s: Access %s denied for %s\n",
-	       r->mode == TOMOYO_CONFIG_ENFORCING ? "ERROR" : "WARNING",
-	       buffer, tomoyo_get_last_name(r->domain));
-	kfree(buffer);
 }
 
 /**

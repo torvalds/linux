@@ -1,12 +1,9 @@
 /*
  * security/tomoyo/domain.c
  *
- * Implementation of the Domain-Based Mandatory Access Control.
+ * Domain transition functions for TOMOYO.
  *
- * Copyright (C) 2005-2009  NTT DATA CORPORATION
- *
- * Version: 2.2.0   2009/04/01
- *
+ * Copyright (C) 2005-2010  NTT DATA CORPORATION
  */
 
 #include "common.h"
@@ -697,23 +694,10 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	struct tomoyo_path_info rn; /* real name */
 	struct tomoyo_path_info sn; /* symlink name */
 	struct tomoyo_path_info ln; /* last name */
-	static bool initialized;
 
 	tomoyo_init_request_info(&r, NULL);
 	if (!tmp)
 		goto out;
-
-	if (!initialized) {
-		/*
-		 * Built-in initializers. This is needed because policies are
-		 * not loaded until starting /sbin/init.
-		 */
-		tomoyo_update_domain_initializer_entry(NULL, "/sbin/hotplug",
-						       false, false);
-		tomoyo_update_domain_initializer_entry(NULL, "/sbin/modprobe",
-						       false, false);
-		initialized = true;
-	}
 
  retry:
 	/* Get tomoyo_realpath of program. */

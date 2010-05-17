@@ -673,6 +673,31 @@ struct tomoyo_policy_manager_entry {
 extern asmlinkage long sys_getpid(void);
 extern asmlinkage long sys_getppid(void);
 
+/* Check whether the given string starts with the given keyword. */
+bool tomoyo_str_starts(char **src, const char *find);
+/* Get tomoyo_realpath() of current process. */
+const char *tomoyo_get_exe(void);
+/* Format string. */
+void tomoyo_normalize_line(unsigned char *buffer);
+/* Print warning or error message on console. */
+void tomoyo_warn_log(struct tomoyo_request_info *r, const char *fmt, ...)
+     __attribute__ ((format(printf, 2, 3)));
+/* Check all profiles currently assigned to domains are defined. */
+void tomoyo_check_profile(void);
+/* Open operation for /sys/kernel/security/tomoyo/ interface. */
+int tomoyo_open_control(const u8 type, struct file *file);
+/* Close /sys/kernel/security/tomoyo/ interface. */
+int tomoyo_close_control(struct file *file);
+/* Read operation for /sys/kernel/security/tomoyo/ interface. */
+int tomoyo_read_control(struct file *file, char __user *buffer,
+			const int buffer_len);
+/* Write operation for /sys/kernel/security/tomoyo/ interface. */
+int tomoyo_write_control(struct file *file, const char __user *buffer,
+			 const int buffer_len);
+/* Check whether the domain has too many ACL entries to hold. */
+bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r);
+/* Print out of memory warning message. */
+void tomoyo_warn_oom(const char *function);
 /* Check whether the given name matches the given name_union. */
 bool tomoyo_compare_name_union(const struct tomoyo_path_info *name,
 			       const struct tomoyo_name_union *ptr);
@@ -837,8 +862,8 @@ int tomoyo_read_memory_counter(struct tomoyo_io_buffer *head);
 /* Set memory quota. */
 int tomoyo_write_memory_quota(struct tomoyo_io_buffer *head);
 
-/* Initialize realpath related code. */
-void __init tomoyo_realpath_init(void);
+/* Initialize mm related code. */
+void __init tomoyo_mm_init(void);
 int tomoyo_check_exec_perm(struct tomoyo_domain_info *domain,
 			   const struct tomoyo_path_info *filename);
 int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
