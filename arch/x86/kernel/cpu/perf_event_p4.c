@@ -465,15 +465,21 @@ out:
 	return rc;
 }
 
-static inline void p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
+static inline int p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
 {
-	unsigned long dummy;
+	int overflow = 0;
+	u32 low, high;
 
-	rdmsrl(hwc->config_base + hwc->idx, dummy);
-	if (dummy & P4_CCCR_OVF) {
+	rdmsr(hwc->config_base + hwc->idx, low, high);
+
+	/* we need to check high bit for unflagged overflows */
+	if ((low & P4_CCCR_OVF) || (high & (1 << 31))) {
+		overflow = 1;
 		(void)checking_wrmsrl(hwc->config_base + hwc->idx,
-			((u64)dummy) & ~P4_CCCR_OVF);
+			((u64)low) & ~P4_CCCR_OVF);
 	}
+
+	return overflow;
 }
 
 static inline void p4_pmu_disable_event(struct perf_event *event)
@@ -584,21 +590,15 @@ static int p4_pmu_handle_irq(struct pt_regs *regs)
 
 		WARN_ON_ONCE(hwc->idx != idx);
 
-		/*
-		 * FIXME: Redundant call, actually not needed
-		 * but just to check if we're screwed
-		 */
-		p4_pmu_clear_cccr_ovf(hwc);
+		/* it might be unflagged overflow */
+		handled = p4_pmu_clear_cccr_ovf(hwc);
 
 		val = x86_perf_event_update(event);
-		if (val & (1ULL << (x86_pmu.cntval_bits - 1)))
+		if (!handled && (val & (1ULL << (x86_pmu.cntval_bits - 1))))
 			continue;
 
-		/*
-		 * event overflow
-		 */
-		handled		= 1;
-		data.period	= event->hw.last_period;
+		/* event overflow for sure */
+		data.period = event->hw.last_period;
 
 		if (!x86_perf_event_set_period(event))
 			continue;
