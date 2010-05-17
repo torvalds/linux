@@ -210,7 +210,7 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 	cmd_buf_arr = vmalloc(TX_BUFF_RINGSIZE(tx_ring));
 	if (cmd_buf_arr == NULL) {
 		dev_err(&netdev->dev, "failed to allocate cmd buffer ring\n");
-		return -ENOMEM;
+		goto err_out;
 	}
 	memset(cmd_buf_arr, 0, TX_BUFF_RINGSIZE(tx_ring));
 	tx_ring->cmd_buf_arr = cmd_buf_arr;
@@ -221,7 +221,7 @@ int qlcnic_alloc_sw_resources(struct qlcnic_adapter *adapter)
 	rds_ring = kzalloc(size, GFP_KERNEL);
 	if (rds_ring == NULL) {
 		dev_err(&netdev->dev, "failed to allocate rds ring struct\n");
-		return -ENOMEM;
+		goto err_out;
 	}
 	recv_ctx->rds_rings = rds_ring;
 
