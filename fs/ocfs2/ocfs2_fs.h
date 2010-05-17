@@ -1574,5 +1574,19 @@ static inline void ocfs2_set_de_type(struct ocfs2_dir_entry *de,
 	de->file_type = ocfs2_type_by_mode[(mode & S_IFMT)>>S_SHIFT];
 }
 
+static inline int ocfs2_gd_is_discontig(struct ocfs2_group_desc *gd)
+{
+	if ((offsetof(struct ocfs2_group_desc, bg_bitmap) +
+	     le16_to_cpu(gd->bg_size)) !=
+	    offsetof(struct ocfs2_group_desc, bg_list))
+		return 0;
+	/*
+	 * Only valid to check l_next_free_rec if
+	 * bg_bitmap + bg_size == bg_list.
+	 */
+	if (!gd->bg_list.l_next_free_rec)
+		return 0;
+	return 1;
+}
 #endif  /* _OCFS2_FS_H */
 
