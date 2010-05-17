@@ -635,9 +635,12 @@ wait_init:
 
 	adapter->need_fw_reset = 0;
 
-	/* fall through and release firmware */
+	qlcnic_release_firmware(adapter);
+	return 0;
 
 err_out:
+	QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_FAILED);
+	dev_err(&adapter->pdev->dev, "Device state set to failed\n");
 	qlcnic_release_firmware(adapter);
 	return err;
 }
@@ -1100,8 +1103,10 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_iounmap;
 
 	err = qlcnic_start_firmware(adapter);
-	if (err)
+	if (err) {
+		dev_err(&pdev->dev, "Loading fw failed.Please Reboot\n");
 		goto err_out_decr_ref;
+	}
 
 	qlcnic_clear_stats(adapter);
 
@@ -2061,6 +2066,7 @@ qlcnic_can_start_firmware(struct qlcnic_adapter *adapter)
 		break;
 
 	case QLCNIC_DEV_FAILED:
+		dev_err(&adapter->pdev->dev, "Device in failed state.\n");
 		qlcnic_api_unlock(adapter);
 		return -1;
 
