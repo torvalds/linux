@@ -41,7 +41,7 @@ static int hym8563_i2c_read_regs(struct i2c_client *client, u8 reg, u8 buf[], un
 	msgs[1].addr = client->addr;
 	msgs[1].flags = client->flags | I2C_M_RD;
 	msgs[1].len = len;
-	msgs[1].scl_rate = 4000 * 1000; 
+	msgs[1].scl_rate = 400 * 1000; 
 
 	ret = i2c_transfer(adap, msgs, 2);
 	/*
