@@ -122,7 +122,7 @@ static void logfs_cleanse_block(struct super_block *sb, u64 ofs, u64 ino,
 	logfs_safe_iput(inode, cookie);
 }
 
-static u32 logfs_gc_segment(struct super_block *sb, u32 segno, u8 dist)
+static u32 logfs_gc_segment(struct super_block *sb, u32 segno)
 {
 	struct logfs_super *super = logfs_super(sb);
 	struct logfs_segment_header sh;
@@ -401,7 +401,7 @@ static int __logfs_gc_once(struct super_block *sb, struct gc_candidate *cand)
 			segno, (u64)segno << super->s_segshift,
 			dist, no_free_segments(sb), valid,
 			super->s_free_bytes);
-	cleaned = logfs_gc_segment(sb, segno, dist);
+	cleaned = logfs_gc_segment(sb, segno);
 	log_gc("GC segment #%02x complete - now %x valid\n", segno,
 			valid - cleaned);
 	BUG_ON(cleaned != valid);
@@ -632,38 +632,31 @@ static int check_area(struct super_block *sb, int i)
 {
 	struct logfs_super *super = logfs_super(sb);
 	struct logfs_area *area = super->s_area[i];
-	struct logfs_object_header oh;
+	gc_level_t gc_level;
+	u32 cleaned, valid, ec;
 	u32 segno = area->a_segno;
-	u32 ofs = area->a_used_bytes;
-	__be32 crc;
-	int err;
+	u64 ofs = dev_ofs(sb, area->a_segno, area->a_written_bytes);
 
 	if (!area->a_is_open)
 		return 0;
 
-	for (ofs = area->a_used_bytes;
-	     ofs <= super->s_segsize - sizeof(oh);
-	     ofs += (u32)be16_to_cpu(oh.len) + sizeof(oh)) {
-		err = wbuf_read(sb, dev_ofs(sb, segno, ofs), sizeof(oh), &oh);
-		if (err)
-			return err;
+	if (super->s_devops->can_write_buf(sb, ofs) == 0)
+		return 0;
 
-		if (!memchr_inv(&oh, 0xff, sizeof(oh)))
-			break;
-
-		crc = logfs_crc32(&oh, sizeof(oh) - 4, 4);
-		if (crc != oh.crc) {
-			printk(KERN_INFO "interrupted header at %llx\n",
-					dev_ofs(sb, segno, ofs));
-			return 0;
-		}
-	}
-	if (ofs != area->a_used_bytes) {
-		printk(KERN_INFO "%x bytes unaccounted data found at %llx\n",
-				ofs - area->a_used_bytes,
-				dev_ofs(sb, segno, area->a_used_bytes));
-		area->a_used_bytes = ofs;
-	}
+	printk(KERN_INFO"LogFS: Possibly incomplete write at %llx\n", ofs);
+	/*
+	 * The device cannot write back the write buffer.  Most likely the
+	 * wbuf was already written out and the system crashed at some point
+	 * before the journal commit happened.  In that case we wouldn't have
+	 * to do anything.  But if the crash happened before the wbuf was
+	 * written out correctly, we must GC this segment.  So assume the
+	 * worst and always do the GC run.
+	 */
+	area->a_is_open = 0;
+	valid = logfs_valid_bytes(sb, segno, &ec, &gc_level);
+	cleaned = logfs_gc_segment(sb, segno);
+	if (cleaned != valid)
+		return -EIO;
 	return 0;
 }
 
