@@ -1688,11 +1688,10 @@ static unsigned ni_tio_next_load_register(struct ni_gpct *counter)
 					    NITIO_Gxx_Status_Reg(counter->
 								 counter_index));
 
-	if (bits & Gi_Next_Load_Source_Bit(counter->counter_index)) {
+	if (bits & Gi_Next_Load_Source_Bit(counter->counter_index))
 		return NITIO_Gi_LoadB_Reg(counter->counter_index);
-	} else {
+	else
 		return NITIO_Gi_LoadA_Reg(counter->counter_index);
-	}
 }
 
 int ni_tio_winsn(struct ni_gpct *counter, struct comedi_insn *insn,
