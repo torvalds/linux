@@ -525,7 +525,7 @@ static int dso__split_kallsyms(struct dso *self, struct map *map,
 				curr_map = map_groups__find_by_name(kmaps,
 							map->type, module);
 				if (curr_map == NULL) {
-					pr_err("%s/proc/{kallsyms,modules} "
+					pr_debug("%s/proc/{kallsyms,modules} "
 					         "inconsistency while looking "
 						 "for \"%s\" module!\n",
 						 machine->root_dir, module);
