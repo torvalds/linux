@@ -626,7 +626,7 @@ static long vhost_net_compat_ioctl(struct file *f, unsigned int ioctl,
 }
 #endif
 
-const static struct file_operations vhost_net_fops = {
+static const struct file_operations vhost_net_fops = {
 	.owner          = THIS_MODULE,
 	.release        = vhost_net_release,
 	.unlocked_ioctl = vhost_net_ioctl,
