@@ -870,6 +870,7 @@ void qlcnic_diag_free_res(struct net_device *netdev, int max_sds_rings)
 	struct qlcnic_host_sds_ring *sds_ring;
 	int ring;
 
+	clear_bit(__QLCNIC_DEV_UP, &adapter->state);
 	if (adapter->diag_test == QLCNIC_INTERRUPT_TEST) {
 		for (ring = 0; ring < adapter->max_sds_rings; ring++) {
 			sds_ring = &adapter->recv_ctx.sds_rings[ring];
@@ -920,6 +921,7 @@ int qlcnic_diag_alloc_res(struct net_device *netdev, int test)
 			qlcnic_enable_int(sds_ring);
 		}
 	}
+	set_bit(__QLCNIC_DEV_UP, &adapter->state);
 
 	return 0;
 }
