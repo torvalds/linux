@@ -12,6 +12,8 @@
 #include <linux/slab.h>
 
 enum tomoyo_gc_id {
+	TOMOYO_ID_PATH_GROUP,
+	TOMOYO_ID_PATH_GROUP_MEMBER,
 	TOMOYO_ID_DOMAIN_INITIALIZER,
 	TOMOYO_ID_DOMAIN_KEEPER,
 	TOMOYO_ID_ALIAS,
@@ -91,15 +93,15 @@ static void tomoyo_del_acl(struct tomoyo_acl_info *acl)
 		{
 			struct tomoyo_path_acl *entry
 				= container_of(acl, typeof(*entry), head);
-			tomoyo_put_name(entry->filename);
+			tomoyo_put_name_union(&entry->name);
 		}
 		break;
 	case TOMOYO_TYPE_PATH2_ACL:
 		{
 			struct tomoyo_path2_acl *entry
 				= container_of(acl, typeof(*entry), head);
-			tomoyo_put_name(entry->filename1);
-			tomoyo_put_name(entry->filename2);
+			tomoyo_put_name_union(&entry->name1);
+			tomoyo_put_name_union(&entry->name2);
 		}
 		break;
 	default:
@@ -149,9 +151,21 @@ static void tomoyo_del_name(const struct tomoyo_name_entry *ptr)
 {
 }
 
+static void tomoyo_del_path_group_member(struct tomoyo_path_group_member
+					 *member)
+{
+	tomoyo_put_name(member->member_name);
+}
+
+static void tomoyo_del_path_group(struct tomoyo_path_group *group)
+{
+	tomoyo_put_name(group->group_name);
+}
+
 static void tomoyo_collect_entry(void)
 {
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		return;
 	{
 		struct tomoyo_globally_readable_file_entry *ptr;
 		list_for_each_entry_rcu(ptr, &tomoyo_globally_readable_list,
@@ -275,8 +289,6 @@ static void tomoyo_collect_entry(void)
 				break;
 		}
 	}
-	mutex_unlock(&tomoyo_policy_lock);
-	mutex_lock(&tomoyo_name_list_lock);
 	{
 		int i;
 		for (i = 0; i < TOMOYO_MAX_HASH; i++) {
@@ -294,7 +306,30 @@ static void tomoyo_collect_entry(void)
 			}
 		}
 	}
-	mutex_unlock(&tomoyo_name_list_lock);
+	{
+		struct tomoyo_path_group *group;
+		list_for_each_entry_rcu(group, &tomoyo_path_group_list, list) {
+			struct tomoyo_path_group_member *member;
+			list_for_each_entry_rcu(member, &group->member_list,
+						list) {
+				if (!member->is_deleted)
+					continue;
+				if (tomoyo_add_to_gc(TOMOYO_ID_PATH_GROUP_MEMBER,
+						     member))
+					list_del_rcu(&member->list);
+				else
+					break;
+			}
+			if (!list_empty(&group->member_list) ||
+			    atomic_read(&group->users))
+				continue;
+			if (tomoyo_add_to_gc(TOMOYO_ID_PATH_GROUP, group))
+				list_del_rcu(&group->list);
+			else
+				break;
+		}
+	}
+	mutex_unlock(&tomoyo_policy_lock);
 }
 
 static void tomoyo_kfree_entry(void)
@@ -334,6 +369,12 @@ static void tomoyo_kfree_entry(void)
 		case TOMOYO_ID_DOMAIN:
 			if (!tomoyo_del_domain(p->element))
 				continue;
+			break;
+		case TOMOYO_ID_PATH_GROUP_MEMBER:
+			tomoyo_del_path_group_member(p->element);
+			break;
+		case TOMOYO_ID_PATH_GROUP:
+			tomoyo_del_path_group(p->element);
 			break;
 		default:
 			printk(KERN_WARNING "Unknown type\n");

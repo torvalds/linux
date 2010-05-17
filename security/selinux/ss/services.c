@@ -274,15 +274,15 @@ static int constraint_expr_eval(struct context *scontext,
 		case CEXPR_AND:
 			BUG_ON(sp < 1);
 			sp--;
-			s[sp] &= s[sp+1];
+			s[sp] &= s[sp + 1];
 			break;
 		case CEXPR_OR:
 			BUG_ON(sp < 1);
 			sp--;
-			s[sp] |= s[sp+1];
+			s[sp] |= s[sp + 1];
 			break;
 		case CEXPR_ATTR:
-			if (sp == (CEXPR_MAXDEPTH-1))
+			if (sp == (CEXPR_MAXDEPTH - 1))
 				return 0;
 			switch (e->attr) {
 			case CEXPR_USER:
@@ -1216,7 +1216,7 @@ static int security_context_to_sid_core(const char *scontext, u32 scontext_len,
 	*sid = SECSID_NULL;
 
 	/* Copy the string so that we can modify the copy as we parse it. */
-	scontext2 = kmalloc(scontext_len+1, gfp_flags);
+	scontext2 = kmalloc(scontext_len + 1, gfp_flags);
 	if (!scontext2)
 		return -ENOMEM;
 	memcpy(scontext2, scontext, scontext_len);
@@ -1760,22 +1760,28 @@ int security_load_policy(void *data, size_t len)
 
 	if (!ss_initialized) {
 		avtab_cache_init();
-		if (policydb_read(&policydb, fp)) {
+		rc = policydb_read(&policydb, fp);
+		if (rc) {
 			avtab_cache_destroy();
-			return -EINVAL;
+			return rc;
 		}
-		if (selinux_set_mapping(&policydb, secclass_map,
-					&current_mapping,
-					&current_mapping_size)) {
+
+		rc = selinux_set_mapping(&policydb, secclass_map,
+					 &current_mapping,
+					 &current_mapping_size);
+		if (rc) {
 			policydb_destroy(&policydb);
 			avtab_cache_destroy();
-			return -EINVAL;
+			return rc;
 		}
-		if (policydb_load_isids(&policydb, &sidtab)) {
+
+		rc = policydb_load_isids(&policydb, &sidtab);
+		if (rc) {
 			policydb_destroy(&policydb);
 			avtab_cache_destroy();
-			return -EINVAL;
+			return rc;
 		}
+
 		security_load_policycaps();
 		ss_initialized = 1;
 		seqno = ++latest_granting;
@@ -1791,8 +1797,9 @@ int security_load_policy(void *data, size_t len)
 	sidtab_hash_eval(&sidtab, "sids");
 #endif
 
-	if (policydb_read(&newpolicydb, fp))
-		return -EINVAL;
+	rc = policydb_read(&newpolicydb, fp);
+	if (rc)
+		return rc;
 
 	/* If switching between different policy types, log MLS status */
 	if (policydb.mls_enabled && !newpolicydb.mls_enabled)
@@ -1807,8 +1814,8 @@ int security_load_policy(void *data, size_t len)
 		return rc;
 	}
 
-	if (selinux_set_mapping(&newpolicydb, secclass_map,
-				&map, &map_size))
+	rc = selinux_set_mapping(&newpolicydb, secclass_map, &map, &map_size);
+	if (rc)
 		goto err;
 
 	rc = security_preserve_bools(&newpolicydb);
@@ -1819,10 +1826,10 @@ int security_load_policy(void *data, size_t len)
 
 	/* Clone the SID table. */
 	sidtab_shutdown(&sidtab);
-	if (sidtab_map(&sidtab, clone_sid, &newsidtab)) {
-		rc = -ENOMEM;
+
+	rc = sidtab_map(&sidtab, clone_sid, &newsidtab);
+	if (rc)
 		goto err;
-	}
 
 	/*
 	 * Convert the internal representations of contexts
@@ -2101,9 +2108,9 @@ int security_get_user_sids(u32 fromsid,
 
 	ebitmap_for_each_positive_bit(&user->roles, rnode, i) {
 		role = policydb.role_val_to_struct[i];
-		usercon.role = i+1;
+		usercon.role = i + 1;
 		ebitmap_for_each_positive_bit(&role->types, tnode, j) {
-			usercon.type = j+1;
+			usercon.type = j + 1;
 
 			if (mls_setup_user_range(fromcon, user, &usercon))
 				continue;

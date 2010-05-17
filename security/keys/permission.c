@@ -109,7 +109,7 @@ int key_validate(struct key *key)
 		}
 	}
 
- error:
+error:
 	return ret;
 
 } /* end key_validate() */
