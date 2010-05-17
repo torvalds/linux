@@ -3036,7 +3036,7 @@ int perf_output_begin(struct perf_output_handle *handle,
 	handle->sample	= sample;
 
 	if (!data->nr_pages)
-		goto fail;
+		goto out;
 
 	have_lost = atomic_read(&data->lost);
 	if (have_lost)
