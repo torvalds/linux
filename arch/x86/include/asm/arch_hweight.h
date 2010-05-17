@@ -2,13 +2,15 @@
 #define _ASM_X86_HWEIGHT_H
 
 #ifdef CONFIG_64BIT
+/* popcnt %edi, %eax -- redundant REX prefix for alignment */
+#define POPCNT32 ".byte 0xf3,0x40,0x0f,0xb8,0xc7"
 /* popcnt %rdi, %rax */
-#define POPCNT ".byte 0xf3,0x48,0x0f,0xb8,0xc7"
+#define POPCNT64 ".byte 0xf3,0x48,0x0f,0xb8,0xc7"
 #define REG_IN "D"
 #define REG_OUT "a"
 #else
 /* popcnt %eax, %eax */
-#define POPCNT ".byte 0xf3,0x0f,0xb8,0xc0"
+#define POPCNT32 ".byte 0xf3,0x0f,0xb8,0xc0"
 #define REG_IN "a"
 #define REG_OUT "a"
 #endif
@@ -23,7 +25,7 @@ static inline unsigned int __arch_hweight32(unsigned int w)
 {
 	unsigned int res = 0;
 
-	asm (ALTERNATIVE("call __sw_hweight32", POPCNT, X86_FEATURE_POPCNT)
+	asm (ALTERNATIVE("call __sw_hweight32", POPCNT32, X86_FEATURE_POPCNT)
 		     : "="REG_OUT (res)
 		     : REG_IN (w));
 
@@ -48,7 +50,7 @@ static inline unsigned long __arch_hweight64(__u64 w)
 	return  __arch_hweight32((u32)w) +
 		__arch_hweight32((u32)(w >> 32));
 #else
-	asm (ALTERNATIVE("call __sw_hweight64", POPCNT, X86_FEATURE_POPCNT)
+	asm (ALTERNATIVE("call __sw_hweight64", POPCNT64, X86_FEATURE_POPCNT)
 		     : "="REG_OUT (res)
 		     : REG_IN (w));
 #endif /* CONFIG_X86_32 */
