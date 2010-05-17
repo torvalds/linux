@@ -140,13 +140,6 @@ static int squashfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (msblk->decompressor == NULL)
 		goto failed_mount;
 
-	/*
-	 * Check if there's xattrs in the filesystem.  These are not
-	 * supported in this version, so warn that they will be ignored.
-	 */
-	if (le64_to_cpu(sblk->xattr_id_table_start) != SQUASHFS_INVALID_BLK)
-		ERROR("Xattrs in filesystem, these will be ignored\n");
-
 	/* Check the filesystem does not extend beyond the end of the
 	   block device */
 	msblk->bytes_used = le64_to_cpu(sblk->bytes_used);
@@ -268,6 +261,7 @@ allocate_lookup_table:
 	sb->s_export_op = &squashfs_export_ops;
 
 allocate_xattr_table:
+	sb->s_xattr = squashfs_xattr_handlers;
 	xattr_id_table_start = le64_to_cpu(sblk->xattr_id_table_start);
 	if (xattr_id_table_start == SQUASHFS_INVALID_BLK)
 		goto allocate_root;

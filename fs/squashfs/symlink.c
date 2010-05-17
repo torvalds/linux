@@ -35,6 +35,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/pagemap.h>
+#include <linux/xattr.h>
 
 #include "squashfs_fs.h"
 #include "squashfs_fs_sb.h"
@@ -114,3 +115,12 @@ error_out:
 const struct address_space_operations squashfs_symlink_aops = {
 	.readpage = squashfs_symlink_readpage
 };
+
+const struct inode_operations squashfs_symlink_inode_ops = {
+	.readlink = generic_readlink,
+	.follow_link = page_follow_link_light,
+	.put_link = page_put_link,
+	.getxattr = generic_getxattr,
+	.listxattr = squashfs_listxattr
+};
+
