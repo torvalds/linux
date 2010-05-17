@@ -125,6 +125,5 @@ source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
 
-source "drivers/staging/rk2818/Kconfig"
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
