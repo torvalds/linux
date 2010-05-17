@@ -273,7 +273,7 @@ config HID_SAMSUNG
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
-	Support for Samsung InfraRed remote control.
+	Support for Samsung InfraRed remote control or keyboards.
 
 config HID_SONY
 	tristate "Sony" if EMBEDDED
