@@ -272,7 +272,7 @@ static int iwl_tx_queue_alloc(struct iwl_priv *priv,
 	/* Driver private data, only for Tx (not command) queues,
 	 * not shared with device. */
 	if (id != IWL_CMD_QUEUE_NUM) {
-		txq->txb = kmalloc(sizeof(txq->txb[0]) *
+		txq->txb = kzalloc(sizeof(txq->txb[0]) *
 				   TFD_QUEUE_SIZE_MAX, GFP_KERNEL);
 		if (!txq->txb) {
 			IWL_ERR(priv, "kmalloc for auxiliary BD "
