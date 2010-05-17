@@ -66,7 +66,7 @@ ext4_file_write(struct kiocb *iocb, const struct iovec *iov,
 	 * is smaller than s_maxbytes, which is for extent-mapped files.
 	 */
 
-	if (!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)) {
+	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
 		struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 		size_t length = iov_length(iov, nr_segs);
 
