@@ -142,7 +142,7 @@ struct iwl_queue {
 
 /* One for each TFD */
 struct iwl_tx_info {
-	struct sk_buff *skb[IWL_NUM_OF_TBS - 1];
+	struct sk_buff *skb;
 };
 
 /**
@@ -1425,9 +1425,9 @@ static inline u32 iwl_get_debug_level(struct iwl_priv *priv)
 static inline struct ieee80211_hdr *iwl_tx_queue_get_hdr(struct iwl_priv *priv,
 							 int txq_id, int idx)
 {
-	if (priv->txq[txq_id].txb[idx].skb[0])
+	if (priv->txq[txq_id].txb[idx].skb)
 		return (struct ieee80211_hdr *)priv->txq[txq_id].
-				txb[idx].skb[0]->data;
+				txb[idx].skb->data;
 	return NULL;
 }
 

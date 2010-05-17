@@ -479,20 +479,20 @@ void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 				PCI_DMA_BIDIRECTIONAL);
 
 	/* Unmap chunks, if any. */
-	for (i = 1; i < num_tbs; i++) {
+	for (i = 1; i < num_tbs; i++)
 		pci_unmap_single(dev, iwl_tfd_tb_get_addr(tfd, i),
 				iwl_tfd_tb_get_len(tfd, i), PCI_DMA_TODEVICE);
 
-		if (txq->txb) {
-			struct sk_buff *skb;
+	/* free SKB */
+	if (txq->txb) {
+		struct sk_buff *skb;
 
-			skb = txq->txb[txq->q.read_ptr].skb[i - 1];
+		skb = txq->txb[txq->q.read_ptr].skb;
 
-			/* can be called from irqs-disabled context */
-			if (skb) {
-				dev_kfree_skb_any(skb);
-				txq->txb[txq->q.read_ptr].skb[i - 1] = NULL;
-			}
+		/* can be called from irqs-disabled context */
+		if (skb) {
+			dev_kfree_skb_any(skb);
+			txq->txb[txq->q.read_ptr].skb = NULL;
 		}
 	}
 }

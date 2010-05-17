@@ -279,8 +279,8 @@ static void iwl3945_tx_queue_reclaim(struct iwl_priv *priv,
 		q->read_ptr = iwl_queue_inc_wrap(q->read_ptr, q->n_bd)) {
 
 		tx_info = &txq->txb[txq->q.read_ptr];
-		ieee80211_tx_status_irqsafe(priv->hw, tx_info->skb[0]);
-		tx_info->skb[0] = NULL;
+		ieee80211_tx_status_irqsafe(priv->hw, tx_info->skb);
+		tx_info->skb = NULL;
 		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
 	}
 
@@ -315,7 +315,7 @@ static void iwl3945_rx_reply_tx(struct iwl_priv *priv,
 		return;
 	}
 
-	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb[0]);
+	info = IEEE80211_SKB_CB(txq->txb[txq->q.read_ptr].skb);
 	ieee80211_tx_info_clear_status(info);
 
 	/* Fill the MRR chain with some info about on-chip retransmissions */
@@ -702,19 +702,20 @@ void iwl3945_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 
 	/* unmap chunks if any */
 
-	for (i = 1; i < counter; i++) {
+	for (i = 1; i < counter; i++)
 		pci_unmap_single(dev, le32_to_cpu(tfd->tbs[i].addr),
 			 le32_to_cpu(tfd->tbs[i].len), PCI_DMA_TODEVICE);
-		if (txq->txb) {
-			struct sk_buff *skb;
 
-			skb = txq->txb[txq->q.read_ptr].skb[i - 1];
+	/* free SKB */
+	if (txq->txb) {
+		struct sk_buff *skb;
 
-			/* can be called from irqs-disabled context */
-			if (skb) {
-				dev_kfree_skb_any(skb);
-				txq->txb[txq->q.read_ptr].skb[i - 1] = NULL;
-			}
+		skb = txq->txb[txq->q.read_ptr].skb;
+
+		/* can be called from irqs-disabled context */
+		if (skb) {
+			dev_kfree_skb_any(skb);
+			txq->txb[txq->q.read_ptr].skb = NULL;
 		}
 	}
 }
