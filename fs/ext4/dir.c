@@ -128,14 +128,14 @@ static int ext4_readdir(struct file *filp,
 	offset = filp->f_pos & (sb->s_blocksize - 1);
 
 	while (!error && !stored && filp->f_pos < inode->i_size) {
-		ext4_lblk_t blk = filp->f_pos >> EXT4_BLOCK_SIZE_BITS(sb);
-		struct buffer_head map_bh;
+		struct ext4_map_blocks map;
 		struct buffer_head *bh = NULL;
 
-		map_bh.b_state = 0;
-		err = ext4_get_blocks(NULL, inode, blk, 1, &map_bh, 0);
+		map.m_lblk = filp->f_pos >> EXT4_BLOCK_SIZE_BITS(sb);
+		map.m_len = 1;
+		err = ext4_map_blocks(NULL, inode, &map, 0);
 		if (err > 0) {
-			pgoff_t index = map_bh.b_blocknr >>
+			pgoff_t index = map.m_pblk >>
 					(PAGE_CACHE_SHIFT - inode->i_blkbits);
 			if (!ra_has_index(&filp->f_ra, index))
 				page_cache_sync_readahead(
@@ -143,7 +143,7 @@ static int ext4_readdir(struct file *filp,
 					&filp->f_ra, filp,
 					index, 1);
 			filp->f_ra.prev_pos = (loff_t)index << PAGE_CACHE_SHIFT;
-			bh = ext4_bread(NULL, inode, blk, 0, &err);
+			bh = ext4_bread(NULL, inode, map.m_lblk, 0, &err);
 		}
 
 		/*

@@ -3667,13 +3667,12 @@ static void ext4_falloc_update_inode(struct inode *inode,
 long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 {
 	handle_t *handle;
-	ext4_lblk_t block;
 	loff_t new_size;
 	unsigned int max_blocks;
 	int ret = 0;
 	int ret2 = 0;
 	int retries = 0;
-	struct buffer_head map_bh;
+	struct ext4_map_blocks map;
 	unsigned int credits, blkbits = inode->i_blkbits;
 
 	/*
@@ -3687,13 +3686,13 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 	if (S_ISDIR(inode->i_mode))
 		return -ENODEV;
 
-	block = offset >> blkbits;
+	map.m_lblk = offset >> blkbits;
 	/*
 	 * We can't just convert len to max_blocks because
 	 * If blocksize = 4096 offset = 3072 and len = 2048
 	 */
 	max_blocks = (EXT4_BLOCK_ALIGN(len + offset, blkbits) >> blkbits)
-							- block;
+		- map.m_lblk;
 	/*
 	 * credits to insert 1 extent into extent tree
 	 */
@@ -3706,16 +3705,14 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 	}
 retry:
 	while (ret >= 0 && ret < max_blocks) {
-		block = block + ret;
-		max_blocks = max_blocks - ret;
+		map.m_lblk = map.m_lblk + ret;
+		map.m_len = max_blocks = max_blocks - ret;
 		handle = ext4_journal_start(inode, credits);
 		if (IS_ERR(handle)) {
 			ret = PTR_ERR(handle);
 			break;
 		}
-		map_bh.b_state = 0;
-		ret = ext4_get_blocks(handle, inode, block,
-				      max_blocks, &map_bh,
+		ret = ext4_map_blocks(handle, inode, &map,
 				      EXT4_GET_BLOCKS_CREATE_UNINIT_EXT);
 		if (ret <= 0) {
 #ifdef EXT4FS_DEBUG
@@ -3729,14 +3726,14 @@ retry:
 			ret2 = ext4_journal_stop(handle);
 			break;
 		}
-		if ((block + ret) >= (EXT4_BLOCK_ALIGN(offset + len,
+		if ((map.m_lblk + ret) >= (EXT4_BLOCK_ALIGN(offset + len,
 						blkbits) >> blkbits))
 			new_size = offset + len;
 		else
-			new_size = (block + ret) << blkbits;
+			new_size = (map.m_lblk + ret) << blkbits;
 
 		ext4_falloc_update_inode(inode, mode, new_size,
-						buffer_new(&map_bh));
+					 (map.m_flags & EXT4_MAP_NEW));
 		ext4_mark_inode_dirty(handle, inode);
 		ret2 = ext4_journal_stop(handle);
 		if (ret2)
@@ -3765,42 +3762,39 @@ int ext4_convert_unwritten_extents(struct inode *inode, loff_t offset,
 				    ssize_t len)
 {
 	handle_t *handle;
-	ext4_lblk_t block;
 	unsigned int max_blocks;
 	int ret = 0;
 	int ret2 = 0;
-	struct buffer_head map_bh;
+	struct ext4_map_blocks map;
 	unsigned int credits, blkbits = inode->i_blkbits;
 
-	block = offset >> blkbits;
+	map.m_lblk = offset >> blkbits;
 	/*
 	 * We can't just convert len to max_blocks because
 	 * If blocksize = 4096 offset = 3072 and len = 2048
 	 */
-	max_blocks = (EXT4_BLOCK_ALIGN(len + offset, blkbits) >> blkbits)
-							- block;
+	max_blocks = ((EXT4_BLOCK_ALIGN(len + offset, blkbits) >> blkbits) -
+		      map.m_lblk);
 	/*
 	 * credits to insert 1 extent into extent tree
 	 */
 	credits = ext4_chunk_trans_blocks(inode, max_blocks);
 	while (ret >= 0 && ret < max_blocks) {
-		block = block + ret;
-		max_blocks = max_blocks - ret;
+		map.m_lblk += ret;
+		map.m_len = (max_blocks -= ret);
 		handle = ext4_journal_start(inode, credits);
 		if (IS_ERR(handle)) {
 			ret = PTR_ERR(handle);
 			break;
 		}
-		map_bh.b_state = 0;
-		ret = ext4_get_blocks(handle, inode, block,
-				      max_blocks, &map_bh,
+		ret = ext4_map_blocks(handle, inode, &map,
 				      EXT4_GET_BLOCKS_IO_CONVERT_EXT);
 		if (ret <= 0) {
 			WARN_ON(ret <= 0);
 			printk(KERN_ERR "%s: ext4_ext_map_blocks "
 				    "returned error inode#%lu, block=%u, "
 				    "max_blocks=%u", __func__,
-				    inode->i_ino, block, max_blocks);
+				    inode->i_ino, map.m_lblk, map.m_len);
 		}
 		ext4_mark_inode_dirty(handle, inode);
 		ret2 = ext4_journal_stop(handle);
