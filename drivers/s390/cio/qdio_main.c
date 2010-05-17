@@ -336,10 +336,10 @@ again:
 		WARN_ON(queue_type(q) != QDIO_IQDIO_QFMT || cc != 2);
 
 		if (!start_time) {
-			start_time = get_usecs();
+			start_time = get_clock();
 			goto again;
 		}
-		if ((get_usecs() - start_time) < QDIO_BUSY_BIT_PATIENCE)
+		if ((get_clock() - start_time) < QDIO_BUSY_BIT_PATIENCE)
 			goto again;
 	}
 	return cc;
@@ -536,7 +536,7 @@ static int qdio_inbound_q_moved(struct qdio_q *q)
 	if ((bufnr != q->last_move) || q->qdio_error) {
 		q->last_move = bufnr;
 		if (!is_thinint_irq(q->irq_ptr) && MACHINE_IS_LPAR)
-			q->u.in.timestamp = get_usecs();
+			q->u.in.timestamp = get_clock();
 		return 1;
 	} else
 		return 0;
@@ -567,7 +567,7 @@ static inline int qdio_inbound_q_done(struct qdio_q *q)
 	 * At this point we know, that inbound first_to_check
 	 * has (probably) not moved (see qdio_inbound_processing).
 	 */
-	if (get_usecs() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
+	if (get_clock() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in done:%02x",
 			      q->first_to_check);
 		return 1;

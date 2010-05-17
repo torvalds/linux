@@ -13,8 +13,8 @@
 #include <asm/debug.h>
 #include "chsc.h"
 
-#define QDIO_BUSY_BIT_PATIENCE		100	/* 100 microseconds */
-#define QDIO_INPUT_THRESHOLD		500	/* 500 microseconds */
+#define QDIO_BUSY_BIT_PATIENCE		(100 << 12)	/* 100 microseconds */
+#define QDIO_INPUT_THRESHOLD		(500 << 12)	/* 500 microseconds */
 
 /*
  * if an asynchronous HiperSockets queue runs full, the 10 seconds timer wait
@@ -368,11 +368,6 @@ static inline int multicast_outbound(struct qdio_q *q)
 {
 	return (q->irq_ptr->nr_output_qs > 1) &&
 	       (q->nr == q->irq_ptr->nr_output_qs - 1);
-}
-
-static inline unsigned long long get_usecs(void)
-{
-	return monotonic_clock() >> 12;
 }
 
 #define pci_out_supported(q) \
