@@ -390,8 +390,8 @@ static void default_trap_handler(struct pt_regs * regs, long interruption_code)
 {
         if (regs->psw.mask & PSW_MASK_PSTATE) {
 		local_irq_enable();
-		do_exit(SIGSEGV);
 		report_user_fault(interruption_code, regs);
+		do_exit(SIGSEGV);
 	} else
 		die("Unknown program exception", regs, interruption_code);
 }
