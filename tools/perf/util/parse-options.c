@@ -59,6 +59,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 		case OPTION_GROUP:
 		case OPTION_STRING:
 		case OPTION_INTEGER:
+		case OPTION_UINTEGER:
 		case OPTION_LONG:
 		case OPTION_U64:
 		default:
@@ -122,6 +123,22 @@ static int get_value(struct parse_opt_ctx_t *p,
 		if (get_arg(p, opt, flags, &arg))
 			return -1;
 		*(int *)opt->value = strtol(arg, (char **)&s, 10);
+		if (*s)
+			return opterror(opt, "expects a numerical value", flags);
+		return 0;
+
+	case OPTION_UINTEGER:
+		if (unset) {
+			*(unsigned int *)opt->value = 0;
+			return 0;
+		}
+		if (opt->flags & PARSE_OPT_OPTARG && !p->opt) {
+			*(unsigned int *)opt->value = opt->defval;
+			return 0;
+		}
+		if (get_arg(p, opt, flags, &arg))
+			return -1;
+		*(unsigned int *)opt->value = strtol(arg, (char **)&s, 10);
 		if (*s)
 			return opterror(opt, "expects a numerical value", flags);
 		return 0;
@@ -463,7 +480,10 @@ int usage_with_options_internal(const char * const *usagestr,
 		switch (opts->type) {
 		case OPTION_ARGUMENT:
 			break;
+		case OPTION_LONG:
+		case OPTION_U64:
 		case OPTION_INTEGER:
+		case OPTION_UINTEGER:
 			if (opts->flags & PARSE_OPT_OPTARG)
 				if (opts->long_name)
 					pos += fprintf(stderr, "[=<n>]");
@@ -503,8 +523,6 @@ int usage_with_options_internal(const char * const *usagestr,
 		case OPTION_INCR:
 		case OPTION_SET_INT:
 		case OPTION_SET_PTR:
-		case OPTION_LONG:
-		case OPTION_U64:
 			break;
 		}
 
