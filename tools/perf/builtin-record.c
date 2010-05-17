@@ -33,8 +33,8 @@ enum write_mode_t {
 
 static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
 
-static unsigned int		user_interval 			= UINT_MAX;
-static long			default_interval		=      0;
+static u64			user_interval			= ULLONG_MAX;
+static u64			default_interval		=      0;
 
 static int			nr_cpus				=      0;
 static unsigned int		page_size;
@@ -268,7 +268,7 @@ static void create_counter(int counter, int cpu)
 	 * it a weak assumption overridable by the user.
 	 */
 	if (!attr->sample_period || (user_freq != UINT_MAX &&
-				     user_interval != UINT_MAX)) {
+				     user_interval != ULLONG_MAX)) {
 		if (freq) {
 			attr->sample_type	|= PERF_SAMPLE_PERIOD;
 			attr->freq		= 1;
@@ -817,8 +817,7 @@ static const struct option options[] = {
 			    "CPU to profile on"),
 	OPT_BOOLEAN('f', "force", &force,
 			"overwrite existing data file (deprecated)"),
-	OPT_LONG('c', "count", &user_interval,
-		    "event period to sample"),
+	OPT_U64('c', "count", &user_interval, "event period to sample"),
 	OPT_STRING('o', "output", &output_name, "file",
 		    "output file name"),
 	OPT_BOOLEAN('i', "no-inherit", &no_inherit,
@@ -901,7 +900,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	if (!event_array)
 		return -ENOMEM;
 
-	if (user_interval != UINT_MAX)
+	if (user_interval != ULLONG_MAX)
 		default_interval = user_interval;
 	if (user_freq != UINT_MAX)
 		freq = user_freq;
