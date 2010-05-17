@@ -515,7 +515,7 @@ static void mpc8xxx_spi_cpm_bufs_complete(struct mpc8xxx_spi *mspi)
 
 	if (mspi->map_tx_dma)
 		dma_unmap_single(dev, mspi->tx_dma, t->len, DMA_TO_DEVICE);
-	if (mspi->map_tx_dma)
+	if (mspi->map_rx_dma)
 		dma_unmap_single(dev, mspi->rx_dma, t->len, DMA_FROM_DEVICE);
 	mspi->xfer_in_progress = NULL;
 }
