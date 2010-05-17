@@ -742,15 +742,14 @@ __critical_end:
 
 	.globl mcck_int_handler
 mcck_int_handler:
-	stck	__LC_INT_CLOCK
+	stck	__LC_MCCK_CLOCK
 	spt	__LC_CPU_TIMER_SAVE_AREA	# revalidate cpu timer
 	lm	%r0,%r15,__LC_GPREGS_SAVE_AREA	# revalidate gprs
 	SAVE_ALL_BASE __LC_SAVE_AREA+32
 	la	%r12,__LC_MCK_OLD_PSW
 	tm	__LC_MCCK_CODE,0x80	# system damage?
 	bo	BASED(mcck_int_main)	# yes -> rest of mcck code invalid
-	mvc	__LC_SAVE_AREA+52(8),__LC_ASYNC_ENTER_TIMER
-	mvc	__LC_ASYNC_ENTER_TIMER(8),__LC_CPU_TIMER_SAVE_AREA
+	mvc	__LC_MCCK_ENTER_TIMER(8),__LC_CPU_TIMER_SAVE_AREA
 	tm	__LC_MCCK_CODE+5,0x02	# stored cpu timer value valid?
 	bo	BASED(1f)
 	la	%r14,__LC_SYNC_ENTER_TIMER
@@ -764,7 +763,7 @@ mcck_int_handler:
 	bl	BASED(0f)
 	la	%r14,__LC_LAST_UPDATE_TIMER
 0:	spt	0(%r14)
-	mvc	__LC_ASYNC_ENTER_TIMER(8),0(%r14)
+	mvc	__LC_MCCK_ENTER_TIMER(8),0(%r14)
 1:	tm	__LC_MCCK_CODE+2,0x09	# mwp + ia of old psw valid?
 	bno	BASED(mcck_int_main)	# no -> skip cleanup critical
 	tm	__LC_MCK_OLD_PSW+1,0x01	# test problem state bit
@@ -786,9 +785,9 @@ mcck_int_main:
 	bno	BASED(mcck_no_vtime)	# no -> skip cleanup critical
 	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
 	bz	BASED(mcck_no_vtime)
-	UPDATE_VTIME __LC_EXIT_TIMER,__LC_ASYNC_ENTER_TIMER,__LC_USER_TIMER
+	UPDATE_VTIME __LC_EXIT_TIMER,__LC_MCCK_ENTER_TIMER,__LC_USER_TIMER
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
-	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
+	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_MCCK_ENTER_TIMER
 mcck_no_vtime:
 	l	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
@@ -811,7 +810,6 @@ mcck_no_vtime:
 mcck_return:
 	mvc	__LC_RETURN_MCCK_PSW(8),SP_PSW(%r15) # move return PSW
 	ni	__LC_RETURN_MCCK_PSW+1,0xfd # clear wait state bit
-	mvc	__LC_ASYNC_ENTER_TIMER(8),__LC_SAVE_AREA+52
 	tm	__LC_RETURN_MCCK_PSW+1,0x01 # returning to user ?
 	bno	BASED(0f)
 	lm	%r0,%r15,SP_R0(%r15)	# load gprs 0-15
@@ -934,15 +932,16 @@ cleanup_critical:
 
 cleanup_system_call:
 	mvc	__LC_RETURN_PSW(8),0(%r12)
-	c	%r12,BASED(.Lmck_old_psw)
-	be	BASED(0f)
-	la	%r12,__LC_SAVE_AREA+16
-	b	BASED(1f)
-0:	la	%r12,__LC_SAVE_AREA+32
-1:
 	clc	__LC_RETURN_PSW+4(4),BASED(cleanup_system_call_insn+4)
 	bh	BASED(0f)
+	mvc	__LC_SYNC_ENTER_TIMER(8),__LC_MCCK_ENTER_TIMER
+	c	%r12,BASED(.Lmck_old_psw)
+	be	BASED(0f)
 	mvc	__LC_SYNC_ENTER_TIMER(8),__LC_ASYNC_ENTER_TIMER
+0:	c	%r12,BASED(.Lmck_old_psw)
+	la	%r12,__LC_SAVE_AREA+32
+	be	BASED(0f)
+	la	%r12,__LC_SAVE_AREA+16
 0:	clc	__LC_RETURN_PSW+4(4),BASED(cleanup_system_call_insn+8)
 	bhe	BASED(cleanup_vtime)
 	clc	__LC_RETURN_PSW+4(4),BASED(cleanup_system_call_insn)
@@ -984,16 +983,19 @@ cleanup_sysc_tif:
 cleanup_sysc_restore:
 	clc	4(4,%r12),BASED(cleanup_sysc_restore_insn)
 	be	BASED(2f)
+	mvc	__LC_EXIT_TIMER(8),__LC_MCCK_ENTER_TIMER
+	c	%r12,BASED(.Lmck_old_psw)
+	be	BASED(0f)
 	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
-	clc	4(4,%r12),BASED(cleanup_sysc_restore_insn+4)
+0:	clc	4(4,%r12),BASED(cleanup_sysc_restore_insn+4)
 	be	BASED(2f)
 	mvc	__LC_RETURN_PSW(8),SP_PSW(%r15)
 	c	%r12,BASED(.Lmck_old_psw)
-	bne	BASED(0f)
-	mvc	__LC_SAVE_AREA+32(16),SP_R12(%r15)
-	b	BASED(1f)
-0:	mvc	__LC_SAVE_AREA+16(16),SP_R12(%r15)
-1:	lm	%r0,%r11,SP_R0(%r15)
+	la	%r12,__LC_SAVE_AREA+32
+	be	BASED(1f)
+	la	%r12,__LC_SAVE_AREA+16
+1:	mvc	0(16,%r12),SP_R12(%r15)
+	lm	%r0,%r11,SP_R0(%r15)
 	l	%r15,SP_R15(%r15)
 2:	la	%r12,__LC_RETURN_PSW
 	br	%r14
@@ -1009,19 +1011,15 @@ cleanup_io_tif:
 
 cleanup_io_restore:
 	clc	4(4,%r12),BASED(cleanup_io_restore_insn)
-	be	BASED(2f)
-	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
+	be	BASED(1f)
+	mvc	__LC_EXIT_TIMER(8),__LC_MCCK_ENTER_TIMER
 	clc	4(4,%r12),BASED(cleanup_io_restore_insn+4)
-	be	BASED(2f)
+	be	BASED(1f)
 	mvc	__LC_RETURN_PSW(8),SP_PSW(%r15)
-	c	%r12,BASED(.Lmck_old_psw)
-	bne	BASED(0f)
 	mvc	__LC_SAVE_AREA+32(16),SP_R12(%r15)
-	b	BASED(1f)
-0:	mvc	__LC_SAVE_AREA+16(16),SP_R12(%r15)
-1:	lm	%r0,%r11,SP_R0(%r15)
+	lm	%r0,%r11,SP_R0(%r15)
 	l	%r15,SP_R15(%r15)
-2:	la	%r12,__LC_RETURN_PSW
+1:	la	%r12,__LC_RETURN_PSW
 	br	%r14
 cleanup_io_restore_insn:
 	.long	io_done - 4 + 0x80000000

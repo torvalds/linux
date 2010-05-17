@@ -725,7 +725,7 @@ __critical_end:
  */
 	.globl mcck_int_handler
 mcck_int_handler:
-	stck	__LC_INT_CLOCK
+	stck	__LC_MCCK_CLOCK
 	la	%r1,4095		# revalidate r1
 	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# revalidate cpu timer
 	lmg	%r0,%r15,__LC_GPREGS_SAVE_AREA-4095(%r1)# revalidate gprs
@@ -734,8 +734,7 @@ mcck_int_handler:
 	tm	__LC_MCCK_CODE,0x80	# system damage?
 	jo	mcck_int_main		# yes -> rest of mcck code invalid
 	la	%r14,4095
-	mvc	__LC_SAVE_AREA+104(8),__LC_ASYNC_ENTER_TIMER
-	mvc	__LC_ASYNC_ENTER_TIMER(8),__LC_CPU_TIMER_SAVE_AREA-4095(%r14)
+	mvc	__LC_MCCK_ENTER_TIMER(8),__LC_CPU_TIMER_SAVE_AREA-4095(%r14)
 	tm	__LC_MCCK_CODE+5,0x02	# stored cpu timer value valid?
 	jo	1f
 	la	%r14,__LC_SYNC_ENTER_TIMER
@@ -749,7 +748,7 @@ mcck_int_handler:
 	jl	0f
 	la	%r14,__LC_LAST_UPDATE_TIMER
 0:	spt	0(%r14)
-	mvc	__LC_ASYNC_ENTER_TIMER(8),0(%r14)
+	mvc	__LC_MCCK_ENTER_TIMER(8),0(%r14)
 1:	tm	__LC_MCCK_CODE+2,0x09	# mwp + ia of old psw valid?
 	jno	mcck_int_main		# no -> skip cleanup critical
 	tm	__LC_MCK_OLD_PSW+1,0x01 # test problem state bit
@@ -770,9 +769,9 @@ mcck_int_main:
 	jno	mcck_no_vtime		# no -> no timer update
 	tm	SP_PSW+1(%r15),0x01	# interrupting from user ?
 	jz	mcck_no_vtime
-	UPDATE_VTIME __LC_EXIT_TIMER,__LC_ASYNC_ENTER_TIMER,__LC_USER_TIMER
+	UPDATE_VTIME __LC_EXIT_TIMER,__LC_MCCK_ENTER_TIMER,__LC_USER_TIMER
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
-	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
+	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_MCCK_ENTER_TIMER
 mcck_no_vtime:
 	lg	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	la	%r2,SP_PTREGS(%r15)	# load pt_regs
@@ -794,7 +793,6 @@ mcck_return:
 	mvc	__LC_RETURN_MCCK_PSW(16),SP_PSW(%r15) # move return PSW
 	ni	__LC_RETURN_MCCK_PSW+1,0xfd # clear wait state bit
 	lmg	%r0,%r15,SP_R0(%r15)	# load gprs 0-15
-	mvc	__LC_ASYNC_ENTER_TIMER(8),__LC_SAVE_AREA+104
 	tm	__LC_RETURN_MCCK_PSW+1,0x01 # returning to user ?
 	jno	0f
 	stpt	__LC_EXIT_TIMER
@@ -909,15 +907,16 @@ cleanup_critical:
 
 cleanup_system_call:
 	mvc	__LC_RETURN_PSW(16),0(%r12)
-	cghi	%r12,__LC_MCK_OLD_PSW
-	je	0f
-	la	%r12,__LC_SAVE_AREA+32
-	j	1f
-0:	la	%r12,__LC_SAVE_AREA+64
-1:
 	clc	__LC_RETURN_PSW+8(8),BASED(cleanup_system_call_insn+8)
 	jh	0f
+	mvc	__LC_SYNC_ENTER_TIMER(8),__LC_MCCK_ENTER_TIMER
+	cghi	%r12,__LC_MCK_OLD_PSW
+	je	0f
 	mvc	__LC_SYNC_ENTER_TIMER(8),__LC_ASYNC_ENTER_TIMER
+0:	cghi	%r12,__LC_MCK_OLD_PSW
+	la	%r12,__LC_SAVE_AREA+64
+	je	0f
+	la	%r12,__LC_SAVE_AREA+32
 0:	clc	__LC_RETURN_PSW+8(8),BASED(cleanup_system_call_insn+16)
 	jhe	cleanup_vtime
 	clc	__LC_RETURN_PSW+8(8),BASED(cleanup_system_call_insn)
@@ -958,19 +957,22 @@ cleanup_sysc_tif:
 
 cleanup_sysc_restore:
 	clc	8(8,%r12),BASED(cleanup_sysc_restore_insn)
-	je	3f
+	je	2f
 	clc	8(8,%r12),BASED(cleanup_sysc_restore_insn+8)
 	jhe	0f
+	mvc	__LC_EXIT_TIMER(8),__LC_MCCK_ENTER_TIMER
+	cghi	%r12,__LC_MCK_OLD_PSW
+	je	0f
 	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
 0:	mvc	__LC_RETURN_PSW(16),SP_PSW(%r15)
 	cghi	%r12,__LC_MCK_OLD_PSW
-	jne	1f
-	mvc	__LC_SAVE_AREA+64(32),SP_R12(%r15)
-	j	2f
-1:	mvc	__LC_SAVE_AREA+32(32),SP_R12(%r15)
-2:	lmg	%r0,%r11,SP_R0(%r15)
+	la	%r12,__LC_SAVE_AREA+64
+	je	1f
+	la	%r12,__LC_SAVE_AREA+32
+1:	mvc	0(32,%r12),SP_R12(%r15)
+	lmg	%r0,%r11,SP_R0(%r15)
 	lg	%r15,SP_R15(%r15)
-3:	la	%r12,__LC_RETURN_PSW
+2:	la	%r12,__LC_RETURN_PSW
 	br	%r14
 cleanup_sysc_restore_insn:
 	.quad	sysc_done - 4
@@ -984,19 +986,15 @@ cleanup_io_tif:
 
 cleanup_io_restore:
 	clc	8(8,%r12),BASED(cleanup_io_restore_insn)
-	je	3f
+	je	1f
 	clc	8(8,%r12),BASED(cleanup_io_restore_insn+8)
 	jhe	0f
-	mvc	__LC_EXIT_TIMER(8),__LC_ASYNC_ENTER_TIMER
+	mvc	__LC_EXIT_TIMER(8),__LC_MCCK_ENTER_TIMER
 0:	mvc	__LC_RETURN_PSW(16),SP_PSW(%r15)
-	cghi	%r12,__LC_MCK_OLD_PSW
-	jne	1f
 	mvc	__LC_SAVE_AREA+64(32),SP_R12(%r15)
-	j	2f
-1:	mvc	__LC_SAVE_AREA+32(32),SP_R12(%r15)
-2:	lmg	%r0,%r11,SP_R0(%r15)
+	lmg	%r0,%r11,SP_R0(%r15)
 	lg	%r15,SP_R15(%r15)
-3:	la	%r12,__LC_RETURN_PSW
+1:	la	%r12,__LC_RETURN_PSW
 	br	%r14
 cleanup_io_restore_insn:
 	.quad	io_done - 4

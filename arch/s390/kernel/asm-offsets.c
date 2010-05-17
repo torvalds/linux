@@ -112,6 +112,7 @@ int main(void)
 	DEFINE(__LC_RETURN_MCCK_PSW, offsetof(struct _lowcore, return_mcck_psw));
 	DEFINE(__LC_SYNC_ENTER_TIMER, offsetof(struct _lowcore, sync_enter_timer));
 	DEFINE(__LC_ASYNC_ENTER_TIMER, offsetof(struct _lowcore, async_enter_timer));
+	DEFINE(__LC_MCCK_ENTER_TIMER, offsetof(struct _lowcore, mcck_enter_timer));
 	DEFINE(__LC_EXIT_TIMER, offsetof(struct _lowcore, exit_timer));
 	DEFINE(__LC_USER_TIMER, offsetof(struct _lowcore, user_timer));
 	DEFINE(__LC_SYSTEM_TIMER, offsetof(struct _lowcore, system_timer));
@@ -127,6 +128,7 @@ int main(void)
 	DEFINE(__LC_USER_ASCE, offsetof(struct _lowcore, user_asce));
 	DEFINE(__LC_USER_EXEC_ASCE, offsetof(struct _lowcore, user_exec_asce));
 	DEFINE(__LC_INT_CLOCK, offsetof(struct _lowcore, int_clock));
+	DEFINE(__LC_MCCK_CLOCK, offsetof(struct _lowcore, mcck_clock));
 	DEFINE(__LC_MACHINE_FLAGS, offsetof(struct _lowcore, machine_flags));
 	DEFINE(__LC_FTRACE_FUNC, offsetof(struct _lowcore, ftrace_func));
 	DEFINE(__LC_IRB, offsetof(struct _lowcore, irb));
