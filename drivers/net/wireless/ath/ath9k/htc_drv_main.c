@@ -334,40 +334,35 @@ static int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv)
 	return ret;
 }
 
-static int ath9k_htc_init_rate(struct ath9k_htc_priv *priv,
-				 struct ieee80211_vif *vif,
-				 struct ieee80211_sta *sta)
+static void ath9k_htc_setup_rate(struct ath9k_htc_priv *priv,
+				 struct ieee80211_sta *sta,
+				 struct ath9k_htc_target_rate *trate)
 {
-	struct ath_common *common = ath9k_hw_common(priv->ah);
 	struct ath9k_htc_sta *ista = (struct ath9k_htc_sta *) sta->drv_priv;
 	struct ieee80211_supported_band *sband;
-	struct ath9k_htc_target_rate trate;
 	u32 caps = 0;
-	u8 cmd_rsp;
-	int i, j, ret;
-
-	memset(&trate, 0, sizeof(trate));
+	int i, j;
 
 	/* Only 2GHz is supported */
 	sband = priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ];
 
 	for (i = 0, j = 0; i < sband->n_bitrates; i++) {
 		if (sta->supp_rates[sband->band] & BIT(i)) {
-			priv->tgt_rate.rates.legacy_rates.rs_rates[j]
+			trate->rates.legacy_rates.rs_rates[j]
 				= (sband->bitrates[i].bitrate * 2) / 10;
 			j++;
 		}
 	}
-	priv->tgt_rate.rates.legacy_rates.rs_nrates = j;
+	trate->rates.legacy_rates.rs_nrates = j;
 
 	if (sta->ht_cap.ht_supported) {
 		for (i = 0, j = 0; i < 77; i++) {
 			if (sta->ht_cap.mcs.rx_mask[i/8] & (1<<(i%8)))
-				priv->tgt_rate.rates.ht_rates.rs_rates[j++] = i;
+				trate->rates.ht_rates.rs_rates[j++] = i;
 			if (j == ATH_HTC_RATE_MAX)
 				break;
 		}
-		priv->tgt_rate.rates.ht_rates.rs_nrates = j;
+		trate->rates.ht_rates.rs_nrates = j;
 
 		caps = WLAN_RC_HT_FLAG;
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
@@ -377,81 +372,41 @@ static int ath9k_htc_init_rate(struct ath9k_htc_priv *priv,
 
 	}
 
-	priv->tgt_rate.sta_index = ista->index;
-	priv->tgt_rate.isnew = 1;
-	trate = priv->tgt_rate;
-	priv->tgt_rate.capflags = cpu_to_be32(caps);
-	trate.capflags = cpu_to_be32(caps);
+	trate->sta_index = ista->index;
+	trate->isnew = 1;
+	trate->capflags = cpu_to_be32(caps);
+}
 
-	WMI_CMD_BUF(WMI_RC_RATE_UPDATE_CMDID, &trate);
+static int ath9k_htc_send_rate_cmd(struct ath9k_htc_priv *priv,
+				    struct ath9k_htc_target_rate *trate)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	int ret;
+	u8 cmd_rsp;
+
+	WMI_CMD_BUF(WMI_RC_RATE_UPDATE_CMDID, trate);
 	if (ret) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to initialize Rate information on target\n");
-		return ret;
 	}
 
-	ath_print(common, ATH_DBG_CONFIG,
-		  "Updated target STA: %pM (caps: 0x%x)\n", sta->addr, caps);
-	return 0;
+	return ret;
 }
 
-static bool check_rc_update(struct ieee80211_hw *hw, bool *cw40)
+static void ath9k_htc_init_rate(struct ath9k_htc_priv *priv,
+				struct ieee80211_sta *sta)
 {
-	struct ath9k_htc_priv *priv = hw->priv;
-	struct ieee80211_conf *conf = &hw->conf;
-
-	if (!conf_is_ht(conf))
-		return false;
-
-	if (!(priv->op_flags & OP_ASSOCIATED) ||
-	    (priv->op_flags & OP_SCANNING))
-		return false;
-
-	if (conf_is_ht40(conf)) {
-		if (priv->ah->curchan->chanmode &
-			(CHANNEL_HT40PLUS | CHANNEL_HT40MINUS)) {
-			return false;
-		} else {
-			*cw40 = true;
-			return true;
-		}
-	} else {  /* ht20 */
-		if (priv->ah->curchan->chanmode & CHANNEL_HT20)
-			return false;
-		else
-			return true;
-	}
-}
-
-static void ath9k_htc_rc_update(struct ath9k_htc_priv *priv, bool is_cw40)
-{
-	struct ath9k_htc_target_rate trate;
 	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_target_rate trate;
 	int ret;
-	u32 caps = be32_to_cpu(priv->tgt_rate.capflags);
-	u8 cmd_rsp;
 
-	memset(&trate, 0, sizeof(trate));
-
-	trate = priv->tgt_rate;
-
-	if (is_cw40)
-		caps |= WLAN_RC_40_FLAG;
-	else
-		caps &= ~WLAN_RC_40_FLAG;
-
-	priv->tgt_rate.capflags = cpu_to_be32(caps);
-	trate.capflags = cpu_to_be32(caps);
-
-	WMI_CMD_BUF(WMI_RC_RATE_UPDATE_CMDID, &trate);
-	if (ret) {
-		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to update Rate information on target\n");
-		return;
-	}
-
-	ath_print(common, ATH_DBG_CONFIG, "Rate control updated with "
-		  "caps:0x%x on target\n", priv->tgt_rate.capflags);
+	memset(&trate, 0, sizeof(struct ath9k_htc_target_rate));
+	ath9k_htc_setup_rate(priv, sta, &trate);
+	ret = ath9k_htc_send_rate_cmd(priv, &trate);
+	if (!ret)
+		ath_print(common, ATH_DBG_CONFIG,
+			  "Updated target sta: %pM, rate caps: 0x%X\n",
+			  sta->addr, be32_to_cpu(trate.capflags));
 }
 
 static int ath9k_htc_aggr_oper(struct ath9k_htc_priv *priv,
@@ -1372,13 +1327,9 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 	if (changed & IEEE80211_CONF_CHANGE_CHANNEL) {
 		struct ieee80211_channel *curchan = hw->conf.channel;
 		int pos = curchan->hw_value;
-		bool is_cw40 = false;
 
 		ath_print(common, ATH_DBG_CONFIG, "Set channel: %d MHz\n",
 			  curchan->center_freq);
-
-		if (check_rc_update(hw, &is_cw40))
-			ath9k_htc_rc_update(priv, is_cw40);
 
 		ath9k_cmn_update_ichannel(hw, &priv->ah->channels[pos]);
 
@@ -1471,7 +1422,7 @@ static void ath9k_htc_sta_notify(struct ieee80211_hw *hw,
 	case STA_NOTIFY_ADD:
 		ret = ath9k_htc_add_station(priv, vif, sta);
 		if (!ret)
-			ath9k_htc_init_rate(priv, vif, sta);
+			ath9k_htc_init_rate(priv, sta);
 		break;
 	case STA_NOTIFY_REMOVE:
 		ath9k_htc_remove_station(priv, vif, sta);

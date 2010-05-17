@@ -401,8 +401,6 @@ struct ath9k_htc_priv {
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
 	struct ath9k_debug debug;
 #endif
-	struct ath9k_htc_target_rate tgt_rate;
-
 	struct mutex mutex;
 };
 
