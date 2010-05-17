@@ -264,5 +264,6 @@ static int __init setup_shutdown_event(void)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(xen_setup_shutdown_event);
 
 subsys_initcall(setup_shutdown_event);

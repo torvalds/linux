@@ -28,6 +28,7 @@
 #ifndef __XEN_PUBLIC_GRANT_TABLE_H__
 #define __XEN_PUBLIC_GRANT_TABLE_H__
 
+#include <xen/interface/xen.h>
 
 /***********************************
  * GRANT TABLE REPRESENTATION

@@ -781,8 +781,23 @@ void xenbus_probe(struct work_struct *unused)
 	/* Notify others that xenstore is up */
 	blocking_notifier_call_chain(&xenstore_chain, 0, NULL);
 }
+EXPORT_SYMBOL_GPL(xenbus_probe);
 
-static int __init xenbus_probe_init(void)
+static int __init xenbus_probe_initcall(void)
+{
+	if (!xen_domain())
+		return -ENODEV;
+
+	if (xen_initial_domain() || xen_hvm_domain())
+		return 0;
+
+	xenbus_probe(NULL);
+	return 0;
+}
+
+device_initcall(xenbus_probe_initcall);
+
+static int __init xenbus_init(void)
 {
 	int err = 0;
 
@@ -834,9 +849,6 @@ static int __init xenbus_probe_init(void)
 		goto out_unreg_back;
 	}
 
-	if (!xen_initial_domain())
-		xenbus_probe(NULL);
-
 #ifdef CONFIG_XEN_COMPAT_XENFS
 	/*
 	 * Create xenfs mountpoint in /proc for compatibility with
@@ -857,7 +869,7 @@ static int __init xenbus_probe_init(void)
 	return err;
 }
 
-postcore_initcall(xenbus_probe_init);
+postcore_initcall(xenbus_init);
 
 MODULE_LICENSE("GPL");
 
