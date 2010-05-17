@@ -153,6 +153,21 @@ struct platform_device mxc_usbh1_device = {
 	},
 };
 
+static struct resource mxc_wdt_resources[] = {
+	{
+		.start = MX51_WDOG_BASE_ADDR,
+		.end = MX51_WDOG_BASE_ADDR + SZ_16K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+struct platform_device mxc_wdt = {
+	.name = "imx2-wdt",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_wdt_resources),
+	.resource = mxc_wdt_resources,
+};
+
 static struct mxc_gpio_port mxc_gpio_ports[] = {
 	{
 		.chip.label = "gpio-0",
