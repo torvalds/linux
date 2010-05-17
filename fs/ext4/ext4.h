@@ -75,7 +75,7 @@ typedef __u32 ext4_lblk_t;
 typedef unsigned int ext4_group_t;
 
 /*
- * Flags used in mballoc's allocation_context flags field.  
+ * Flags used in mballoc's allocation_context flags field.
  *
  * Also used to show what's going on for debugging purposes when the
  * flag field is exported via the traceport interface
@@ -470,7 +470,7 @@ struct ext4_new_group_data {
 #define EXT4_GET_BLOCKS_CREATE_UNINIT_EXT	(EXT4_GET_BLOCKS_UNINIT_EXT|\
 						 EXT4_GET_BLOCKS_CREATE)
 	/* Caller is from the delayed allocation writeout path,
-	   so set the magic i_delalloc_reserve_flag after taking the 
+	   so set the magic i_delalloc_reserve_flag after taking the
 	   inode allocation semaphore for */
 #define EXT4_GET_BLOCKS_DELALLOC_RESERVE	0x0004
 	/* caller is from the direct IO path, request to creation of an

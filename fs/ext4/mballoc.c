@@ -2691,7 +2691,7 @@ int __init init_ext4_mballoc(void)
 
 void exit_ext4_mballoc(void)
 {
-	/* 
+	/*
 	 * Wait for completion of call_rcu()'s on ext4_pspace_cachep
 	 * before destroying the slab cache.
 	 */
@@ -3330,7 +3330,7 @@ static void ext4_mb_put_pa(struct ext4_allocation_context *ac,
 	spin_unlock(&pa->pa_lock);
 
 	grp_blk = pa->pa_pstart;
-	/* 
+	/*
 	 * If doing group-based preallocation, pa_pstart may be in the
 	 * next group when pa is used up
 	 */
@@ -4534,12 +4534,12 @@ void ext4_free_blocks(handle_t *handle, struct inode *inode,
 			if (!bh)
 				tbh = sb_find_get_block(inode->i_sb,
 							block + i);
-			ext4_forget(handle, flags & EXT4_FREE_BLOCKS_METADATA, 
+			ext4_forget(handle, flags & EXT4_FREE_BLOCKS_METADATA,
 				    inode, tbh, block + i);
 		}
 	}
 
-	/* 
+	/*
 	 * We need to make sure we don't reuse the freed block until
 	 * after the transaction is committed, which we can do by
 	 * treating the block as metadata, below.  We make an

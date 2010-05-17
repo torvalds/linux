@@ -182,10 +182,10 @@ static ext4_fsblk_t ext4_ext_find_goal(struct inode *inode,
 	if (flex_size >= EXT4_FLEX_SIZE_DIR_ALLOC_SCHEME) {
 		/*
 		 * If there are at least EXT4_FLEX_SIZE_DIR_ALLOC_SCHEME
-		 * block groups per flexgroup, reserve the first block 
-		 * group for directories and special files.  Regular 
+		 * block groups per flexgroup, reserve the first block
+		 * group for directories and special files.  Regular
 		 * files will start at the second block group.  This
-		 * tends to speed up directory access and improves 
+		 * tends to speed up directory access and improves
 		 * fsck times.
 		 */
 		block_group &= ~(flex_size-1);
@@ -2034,7 +2034,7 @@ ext4_ext_in_cache(struct inode *inode, ext4_lblk_t block,
 	struct ext4_ext_cache *cex;
 	int ret = EXT4_EXT_CACHE_NO;
 
-	/* 
+	/*
 	 * We borrow i_block_reservation_lock to protect i_cached_extent
 	 */
 	spin_lock(&EXT4_I(inode)->i_block_reservation_lock);

@@ -187,7 +187,7 @@ unsigned int ext4_rec_len_from_disk(__le16 dlen, unsigned blocksize)
 		return blocksize;
 	return (len & 65532) | ((len & 3) << 16);
 }
-  
+
 __le16 ext4_rec_len_to_disk(unsigned len, unsigned blocksize)
 {
 	if ((len > blocksize) || (blocksize > (1 << 18)) || (len & 3))
@@ -197,7 +197,7 @@ __le16 ext4_rec_len_to_disk(unsigned len, unsigned blocksize)
 	if (len == blocksize) {
 		if (blocksize == 65536)
 			return cpu_to_le16(EXT4_MAX_REC_LEN);
-		else 
+		else
 			return cpu_to_le16(0);
 	}
 	return cpu_to_le16((len & 65532) | ((len >> 16) & 3));
@@ -349,7 +349,7 @@ struct stats dx_show_entries(struct dx_hash_info *hinfo, struct inode *dir,
 		brelse(bh);
 	}
 	if (bcount)
-		printk(KERN_DEBUG "%snames %u, fullness %u (%u%%)\n", 
+		printk(KERN_DEBUG "%snames %u, fullness %u (%u%%)\n",
 		       levels ? "" : "   ", names, space/bcount,
 		       (space/bcount)*100/blocksize);
 	return (struct stats) { names, space, bcount};
@@ -653,7 +653,7 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 	int ret, err;
 	__u32 hashval;
 
-	dxtrace(printk(KERN_DEBUG "In htree_fill_tree, start hash: %x:%x\n", 
+	dxtrace(printk(KERN_DEBUG "In htree_fill_tree, start hash: %x:%x\n",
 		       start_hash, start_minor_hash));
 	dir = dir_file->f_path.dentry->d_inode;
 	if (!(ext4_test_inode_flag(dir, EXT4_INODE_INDEX))) {
@@ -1141,7 +1141,7 @@ dx_move_dirents(char *from, char *to, struct dx_map_entry *map, int count,
 	unsigned rec_len = 0;
 
 	while (count--) {
-		struct ext4_dir_entry_2 *de = (struct ext4_dir_entry_2 *) 
+		struct ext4_dir_entry_2 *de = (struct ext4_dir_entry_2 *)
 						(from + (map->offs<<2));
 		rec_len = EXT4_DIR_REC_LEN(de->name_len);
 		memcpy (to, de, rec_len);

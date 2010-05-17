@@ -66,7 +66,7 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	ret = flush_completed_IO(inode);
 	if (ret < 0)
 		return ret;
-	
+
 	if (!journal)
 		return simple_fsync(file, dentry, datasync);
 

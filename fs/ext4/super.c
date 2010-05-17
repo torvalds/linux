@@ -2216,7 +2216,7 @@ static unsigned long ext4_get_stripe_size(struct ext4_sb_info *sbi)
 struct ext4_attr {
 	struct attribute attr;
 	ssize_t (*show)(struct ext4_attr *, struct ext4_sb_info *, char *);
-	ssize_t (*store)(struct ext4_attr *, struct ext4_sb_info *, 
+	ssize_t (*store)(struct ext4_attr *, struct ext4_sb_info *,
 			 const char *, size_t);
 	int offset;
 };
@@ -3383,7 +3383,7 @@ static int ext4_commit_super(struct super_block *sb, int sync)
 	if (!(sb->s_flags & MS_RDONLY))
 		es->s_wtime = cpu_to_le32(get_seconds());
 	es->s_kbytes_written =
-		cpu_to_le64(EXT4_SB(sb)->s_kbytes_written + 
+		cpu_to_le64(EXT4_SB(sb)->s_kbytes_written +
 			    ((part_stat_read(sb->s_bdev->bd_part, sectors[1]) -
 			      EXT4_SB(sb)->s_sectors_written_start) >> 1));
 	ext4_free_blocks_count_set(es, percpu_counter_sum_positive(
