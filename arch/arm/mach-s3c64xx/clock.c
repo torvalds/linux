@@ -88,6 +88,12 @@ struct clk clk_48m = {
 	.enable		= clk_48m_ctrl,
 };
 
+struct clk clk_xusbxti = {
+	.name		= "xusbxti",
+	.id		= -1,
+	.rate		= 48000000,
+};
+
 static int inline s3c64xx_gate(void __iomem *reg,
 				struct clk *clk,
 				int enable)
@@ -791,6 +797,7 @@ static struct clk *clks[] __initdata = {
 	&clk_27m,
 	&clk_48m,
 	&clk_h2,
+	&clk_xusbxti,
 };
 
 /**
