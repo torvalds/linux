@@ -1743,7 +1743,6 @@ static int prepare_ring(struct xhci_hcd *xhci, struct xhci_ring *ep_ring,
 	if (enqueue_is_link_trb(ep_ring)) {
 		struct xhci_ring *ring = ep_ring;
 		union xhci_trb *next;
-		unsigned long long addr;
 
 		xhci_dbg(xhci, "prepare_ring: pointing to link trb\n");
 		next = ring->enqueue;
