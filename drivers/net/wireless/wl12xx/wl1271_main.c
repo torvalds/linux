@@ -467,6 +467,7 @@ static void wl1271_irq_work(struct work_struct *work)
 		intr = le32_to_cpu(wl->fw_status->intr);
 		if (!intr) {
 			wl1271_debug(DEBUG_IRQ, "Zero interrupt received.");
+			spin_lock_irqsave(&wl->wl_lock, flags);
 			continue;
 		}
 
@@ -852,7 +853,7 @@ static int wl1271_dev_notify(struct notifier_block *me, unsigned long what,
 		if (wl == wl_temp)
 			break;
 	}
-	if (wl == NULL)
+	if (wl != wl_temp)
 		return NOTIFY_DONE;
 
 	/* Get the interface IP address for the device. "ifa" will become
@@ -1558,8 +1559,6 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	default:
 		wl1271_error("Unsupported key cmd 0x%x", cmd);
 		ret = -EOPNOTSUPP;
-		goto out_sleep;
-
 		break;
 	}
 

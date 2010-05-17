@@ -38,6 +38,7 @@
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
 #include "iwl-agn.h"
+#include "iwl-sta.h"
 
 static inline u32 iwlagn_get_scd_ssn(struct iwl5000_tx_resp *tx_resp)
 {
@@ -1113,8 +1114,9 @@ void iwlagn_rx_reply_rx_phy(struct iwl_priv *priv,
 }
 
 static int iwl_get_single_channel_for_scan(struct iwl_priv *priv,
-				     enum ieee80211_band band,
-				     struct iwl_scan_channel *scan_ch)
+					   struct ieee80211_vif *vif,
+					   enum ieee80211_band band,
+					   struct iwl_scan_channel *scan_ch)
 {
 	const struct ieee80211_supported_band *sband;
 	const struct iwl_channel_info *ch_info;
@@ -1130,7 +1132,7 @@ static int iwl_get_single_channel_for_scan(struct iwl_priv *priv,
 	}
 
 	active_dwell = iwl_get_active_dwell_time(priv, band, 0);
-	passive_dwell = iwl_get_passive_dwell_time(priv, band);
+	passive_dwell = iwl_get_passive_dwell_time(priv, band, vif);
 
 	if (passive_dwell <= active_dwell)
 		passive_dwell = active_dwell + 1;
@@ -1179,6 +1181,7 @@ static int iwl_get_single_channel_for_scan(struct iwl_priv *priv,
 }
 
 static int iwl_get_channels_for_scan(struct iwl_priv *priv,
+				     struct ieee80211_vif *vif,
 				     enum ieee80211_band band,
 				     u8 is_active, u8 n_probes,
 				     struct iwl_scan_channel *scan_ch)
@@ -1196,7 +1199,7 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 		return 0;
 
 	active_dwell = iwl_get_active_dwell_time(priv, band, n_probes);
-	passive_dwell = iwl_get_passive_dwell_time(priv, band);
+	passive_dwell = iwl_get_passive_dwell_time(priv, band, vif);
 
 	if (passive_dwell <= active_dwell)
 		passive_dwell = active_dwell + 1;
@@ -1256,7 +1259,7 @@ static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 	return added;
 }
 
-void iwlagn_request_scan(struct iwl_priv *priv)
+void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 {
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_SCAN_CMD,
@@ -1342,7 +1345,7 @@ void iwlagn_request_scan(struct iwl_priv *priv)
 
 		IWL_DEBUG_INFO(priv, "Scanning while associated...\n");
 		spin_lock_irqsave(&priv->lock, flags);
-		interval = priv->beacon_int;
+		interval = vif ? vif->bss_conf.beacon_int : 0;
 		spin_unlock_irqrestore(&priv->lock, flags);
 
 		scan->suspend_time = 0;
@@ -1473,12 +1476,12 @@ void iwlagn_request_scan(struct iwl_priv *priv)
 
 	if (priv->is_internal_short_scan) {
 		scan->channel_count =
-			iwl_get_single_channel_for_scan(priv, band,
+			iwl_get_single_channel_for_scan(priv, vif, band,
 				(void *)&scan->data[le16_to_cpu(
 				scan->tx_cmd.len)]);
 	} else {
 		scan->channel_count =
-			iwl_get_channels_for_scan(priv, band,
+			iwl_get_channels_for_scan(priv, vif, band,
 				is_active, n_probes,
 				(void *)&scan->data[le16_to_cpu(
 				scan->tx_cmd.len)]);
@@ -1512,4 +1515,16 @@ void iwlagn_request_scan(struct iwl_priv *priv)
 	clear_bit(STATUS_SCANNING, &priv->status);
 	/* inform mac80211 scan aborted */
 	queue_work(priv->workqueue, &priv->scan_completed);
+}
+
+int iwlagn_manage_ibss_station(struct iwl_priv *priv,
+			       struct ieee80211_vif *vif, bool add)
+{
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
+
+	if (add)
+		return iwl_add_bssid_station(priv, vif->bss_conf.bssid, true,
+					     &vif_priv->ibss_bssid_sta_id);
+	return iwl_remove_station(priv, vif_priv->ibss_bssid_sta_id,
+				  vif->bss_conf.bssid);
 }

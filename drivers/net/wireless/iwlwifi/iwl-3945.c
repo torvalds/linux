@@ -391,6 +391,67 @@ static void iwl3945_accumulative_statistics(struct iwl_priv *priv,
 }
 #endif
 
+/**
+ * iwl3945_good_plcp_health - checks for plcp error.
+ *
+ * When the plcp error is exceeding the thresholds, reset the radio
+ * to improve the throughput.
+ */
+static bool iwl3945_good_plcp_health(struct iwl_priv *priv,
+				struct iwl_rx_packet *pkt)
+{
+	bool rc = true;
+	struct iwl3945_notif_statistics current_stat;
+	int combined_plcp_delta;
+	unsigned int plcp_msec;
+	unsigned long plcp_received_jiffies;
+
+	memcpy(&current_stat, pkt->u.raw, sizeof(struct
+			iwl3945_notif_statistics));
+	/*
+	 * check for plcp_err and trigger radio reset if it exceeds
+	 * the plcp error threshold plcp_delta.
+	 */
+	plcp_received_jiffies = jiffies;
+	plcp_msec = jiffies_to_msecs((long) plcp_received_jiffies -
+					(long) priv->plcp_jiffies);
+	priv->plcp_jiffies = plcp_received_jiffies;
+	/*
+	 * check to make sure plcp_msec is not 0 to prevent division
+	 * by zero.
+	 */
+	if (plcp_msec) {
+		combined_plcp_delta =
+			(le32_to_cpu(current_stat.rx.ofdm.plcp_err) -
+			le32_to_cpu(priv->_3945.statistics.rx.ofdm.plcp_err));
+
+		if ((combined_plcp_delta > 0) &&
+			((combined_plcp_delta * 100) / plcp_msec) >
+			priv->cfg->plcp_delta_threshold) {
+			/*
+			 * if plcp_err exceed the threshold, the following
+			 * data is printed in csv format:
+			 *    Text: plcp_err exceeded %d,
+			 *    Received ofdm.plcp_err,
+			 *    Current ofdm.plcp_err,
+			 *    combined_plcp_delta,
+			 *    plcp_msec
+			 */
+			IWL_DEBUG_RADIO(priv, "plcp_err exceeded %u, "
+				"%u, %d, %u mSecs\n",
+				priv->cfg->plcp_delta_threshold,
+				le32_to_cpu(current_stat.rx.ofdm.plcp_err),
+				combined_plcp_delta, plcp_msec);
+			/*
+			 * Reset the RF radio due to the high plcp
+			 * error rate
+			 */
+			rc = false;
+		}
+	}
+	return rc;
+}
+
 void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 		struct iwl_rx_mem_buffer *rxb)
 {
@@ -402,6 +463,7 @@ void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 #ifdef CONFIG_IWLWIFI_DEBUG
 	iwl3945_accumulative_statistics(priv, (__le32 *)&pkt->u.raw);
 #endif
+	iwl_recover_from_statistics(priv, pkt);
 
 	memcpy(&priv->_3945.statistics, pkt->u.raw, sizeof(priv->_3945.statistics));
 }
@@ -885,7 +947,8 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 		       tx_cmd->supp_rates[1], tx_cmd->supp_rates[0]);
 }
 
-u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id, u16 tx_rate, u8 flags)
+static u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id,
+			   u16 tx_rate, u8 flags)
 {
 	unsigned long flags_spin;
 	struct iwl_station_entry *station;
@@ -1715,6 +1778,11 @@ static int iwl3945_hw_reg_comp_txpower_temp(struct iwl_priv *priv)
 	int ref_temp;
 	int temperature = priv->temperature;
 
+	if (priv->disable_tx_power_cal ||
+	    test_bit(STATUS_SCANNING, &priv->status)) {
+		/* do not perform tx power calibration */
+		return 0;
+	}
 	/* set up new Tx power info for each and every channel, 2.4 and 5.x */
 	for (i = 0; i < priv->channel_count; i++) {
 		ch_info = &priv->channel_info[i];
@@ -1925,7 +1993,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 				  "configuration (%d).\n", rc);
 			return rc;
 		}
-		iwl_clear_ucode_stations(priv, false);
+		iwl_clear_ucode_stations(priv);
 		iwl_restore_stations(priv);
 	}
 
@@ -1958,7 +2026,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	memcpy(active_rxon, staging_rxon, sizeof(*active_rxon));
 
 	if (!new_assoc) {
-		iwl_clear_ucode_stations(priv, false);
+		iwl_clear_ucode_stations(priv);
 		iwl_restore_stations(priv);
 	}
 
@@ -2391,6 +2459,30 @@ static u16 iwl3945_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd, u8 *data)
 	return (u16)sizeof(struct iwl3945_addsta_cmd);
 }
 
+static int iwl3945_manage_ibss_station(struct iwl_priv *priv,
+				       struct ieee80211_vif *vif, bool add)
+{
+	struct iwl_vif_priv *vif_priv = (void *)vif->drv_priv;
+	int ret;
+
+	if (add) {
+		ret = iwl_add_bssid_station(priv, vif->bss_conf.bssid, false,
+					    &vif_priv->ibss_bssid_sta_id);
+		if (ret)
+			return ret;
+
+		iwl3945_sync_sta(priv, vif_priv->ibss_bssid_sta_id,
+				 (priv->band == IEEE80211_BAND_5GHZ) ?
+				 IWL_RATE_6M_PLCP : IWL_RATE_1M_PLCP,
+				 CMD_ASYNC);
+		iwl3945_rate_scale_init(priv->hw, vif_priv->ibss_bssid_sta_id);
+
+		return 0;
+	}
+
+	return iwl_remove_station(priv, vif_priv->ibss_bssid_sta_id,
+				  vif->bss_conf.bssid);
+}
 
 /**
  * iwl3945_init_hw_rate_table - Initialize the hardware rate fallback table
@@ -2720,49 +2812,10 @@ static int iwl3945_load_bsm(struct iwl_priv *priv)
 	return 0;
 }
 
-#define IWL3945_UCODE_GET(item)						\
-static u32 iwl3945_ucode_get_##item(const struct iwl_ucode_header *ucode,\
-				    u32 api_ver)			\
-{									\
-	return le32_to_cpu(ucode->u.v1.item);				\
-}
-
-static u32 iwl3945_ucode_get_header_size(u32 api_ver)
-{
-	return UCODE_HEADER_SIZE(1);
-}
-static u32 iwl3945_ucode_get_build(const struct iwl_ucode_header *ucode,
-				   u32 api_ver)
-{
-	return 0;
-}
-static u8 *iwl3945_ucode_get_data(const struct iwl_ucode_header *ucode,
-				  u32 api_ver)
-{
-	return (u8 *) ucode->u.v1.data;
-}
-
-IWL3945_UCODE_GET(inst_size);
-IWL3945_UCODE_GET(data_size);
-IWL3945_UCODE_GET(init_size);
-IWL3945_UCODE_GET(init_data_size);
-IWL3945_UCODE_GET(boot_size);
-
 static struct iwl_hcmd_ops iwl3945_hcmd = {
 	.rxon_assoc = iwl3945_send_rxon_assoc,
 	.commit_rxon = iwl3945_commit_rxon,
 	.send_bt_config = iwl_send_bt_config,
-};
-
-static struct iwl_ucode_ops iwl3945_ucode = {
-	.get_header_size = iwl3945_ucode_get_header_size,
-	.get_build = iwl3945_ucode_get_build,
-	.get_inst_size = iwl3945_ucode_get_inst_size,
-	.get_data_size = iwl3945_ucode_get_data_size,
-	.get_init_size = iwl3945_ucode_get_init_size,
-	.get_init_data_size = iwl3945_ucode_get_init_data_size,
-	.get_boot_size = iwl3945_ucode_get_boot_size,
-	.get_data = iwl3945_ucode_get_data,
 };
 
 static struct iwl_lib_ops iwl3945_lib = {
@@ -2798,7 +2851,8 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.post_associate = iwl3945_post_associate,
 	.isr = iwl_isr_legacy,
 	.config_ap = iwl3945_config_ap,
-	.add_bcast_station = iwl3945_add_bcast_station,
+	.manage_ibss_station = iwl3945_manage_ibss_station,
+	.check_plcp_health = iwl3945_good_plcp_health,
 
 	.debugfs_ops = {
 		.rx_stats_read = iwl3945_ucode_rx_stats_read,
@@ -2815,7 +2869,6 @@ static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 };
 
 static const struct iwl_ops iwl3945_ops = {
-	.ucode = &iwl3945_ucode,
 	.lib = &iwl3945_lib,
 	.hcmd = &iwl3945_hcmd,
 	.utils = &iwl3945_hcmd_utils,
@@ -2840,9 +2893,10 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.ht_greenfield_support = false,
 	.led_compensation = 64,
 	.broken_powersave = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.tx_power_by_driver = true,
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2860,9 +2914,10 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.ht_greenfield_support = false,
 	.led_compensation = 64,
 	.broken_powersave = true,
-	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.tx_power_by_driver = true,
 };
 
 DEFINE_PCI_DEVICE_TABLE(iwl3945_hw_card_ids) = {

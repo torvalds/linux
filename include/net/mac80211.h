@@ -712,6 +712,28 @@ struct ieee80211_conf {
 };
 
 /**
+ * struct ieee80211_channel_switch - holds the channel switch data
+ *
+ * The information provided in this structure is required for channel switch
+ * operation.
+ *
+ * @timestamp: value in microseconds of the 64-bit Time Synchronization
+ *	Function (TSF) timer when the frame containing the channel switch
+ *	announcement was received. This is simply the rx.mactime parameter
+ *	the driver passed into mac80211.
+ * @block_tx: Indicates whether transmission must be blocked before the
+ *	scheduled channel switch, as indicated by the AP.
+ * @channel: the new channel to switch to
+ * @count: the number of TBTT's until the channel switch event
+ */
+struct ieee80211_channel_switch {
+	u64 timestamp;
+	bool block_tx;
+	struct ieee80211_channel *channel;
+	u8 count;
+};
+
+/**
  * struct ieee80211_vif - per-interface data
  *
  * Data in this structure is continually present for driver
@@ -1631,6 +1653,11 @@ enum ieee80211_ampdu_mlme_action {
  * @flush: Flush all pending frames from the hardware queue, making sure
  *	that the hardware queues are empty. If the parameter @drop is set
  *	to %true, pending frames may be dropped. The callback can sleep.
+ *
+ * @channel_switch: Drivers that need (or want) to offload the channel
+ *	switch operation for CSAs received from the AP may implement this
+ *	callback. They must then call ieee80211_chswitch_done() to indicate
+ *	completion of the channel switch.
  */
 struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1694,6 +1721,8 @@ struct ieee80211_ops {
 	int (*testmode_cmd)(struct ieee80211_hw *hw, void *data, int len);
 #endif
 	void (*flush)(struct ieee80211_hw *hw, bool drop);
+	void (*channel_switch)(struct ieee80211_hw *hw,
+			       struct ieee80211_channel_switch *ch_switch);
 };
 
 /**
@@ -2443,6 +2472,16 @@ void ieee80211_connection_loss(struct ieee80211_vif *vif);
 void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
 			       enum nl80211_cqm_rssi_threshold_event rssi_event,
 			       gfp_t gfp);
+
+/**
+ * ieee80211_chswitch_done - Complete channel switch process
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @success: make the channel switch successful or not
+ *
+ * Complete the channel switch post-process: set the new operational channel
+ * and wake up the suspended queues.
+ */
+void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success);
 
 /* Rate control API */
 

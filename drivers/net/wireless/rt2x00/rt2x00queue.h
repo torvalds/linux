@@ -94,12 +94,15 @@ enum data_queue_qid {
  *	mac80211 but was stripped for processing by the driver.
  * @SKBDESC_NOT_MAC80211: Frame didn't originate from mac80211,
  *	don't try to pass it back.
+ * @SKBDESC_DESC_IN_SKB: The descriptor is at the start of the
+ *	skb, instead of in the desc field.
  */
 enum skb_frame_desc_flags {
 	SKBDESC_DMA_MAPPED_RX = 1 << 0,
 	SKBDESC_DMA_MAPPED_TX = 1 << 1,
 	SKBDESC_IV_STRIPPED = 1 << 2,
 	SKBDESC_NOT_MAC80211 = 1 << 3,
+	SKBDESC_DESC_IN_SKB = 1 << 4,
 };
 
 /**

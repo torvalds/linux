@@ -106,7 +106,7 @@ struct iwl_hcmd_utils_ops {
 			__le32 *tx_flags);
 	int  (*calc_rssi)(struct iwl_priv *priv,
 			  struct iwl_rx_phy_res *rx_resp);
-	void (*request_scan)(struct iwl_priv *priv);
+	void (*request_scan)(struct iwl_priv *priv, struct ieee80211_vif *vif);
 };
 
 struct iwl_apm_ops {
@@ -129,17 +129,6 @@ struct iwl_temp_ops {
 	void (*temperature)(struct iwl_priv *priv);
 	void (*set_ct_kill)(struct iwl_priv *priv);
 	void (*set_calib_version)(struct iwl_priv *priv);
-};
-
-struct iwl_ucode_ops {
-	u32 (*get_header_size)(u32);
-	u32 (*get_build)(const struct iwl_ucode_header *, u32);
-	u32 (*get_inst_size)(const struct iwl_ucode_header *, u32);
-	u32 (*get_data_size)(const struct iwl_ucode_header *, u32);
-	u32 (*get_init_size)(const struct iwl_ucode_header *, u32);
-	u32 (*get_init_data_size)(const struct iwl_ucode_header *, u32);
-	u32 (*get_boot_size)(const struct iwl_ucode_header *, u32);
-	u8 * (*get_data)(const struct iwl_ucode_header *, u32);
 };
 
 struct iwl_lib_ops {
@@ -191,8 +180,9 @@ struct iwl_lib_ops {
 	/* power */
 	int (*send_tx_power) (struct iwl_priv *priv);
 	void (*update_chain_flags)(struct iwl_priv *priv);
-	void (*post_associate) (struct iwl_priv *priv);
-	void (*config_ap) (struct iwl_priv *priv);
+	void (*post_associate)(struct iwl_priv *priv,
+			       struct ieee80211_vif *vif);
+	void (*config_ap)(struct iwl_priv *priv, struct ieee80211_vif *vif);
 	irqreturn_t (*isr) (int irq, void *data);
 
 	/* eeprom operations (as defined in iwl-eeprom.h) */
@@ -201,7 +191,8 @@ struct iwl_lib_ops {
 	/* temperature */
 	struct iwl_temp_ops temp_ops;
 	/* station management */
-	void (*add_bcast_station)(struct iwl_priv *priv);
+	int (*manage_ibss_station)(struct iwl_priv *priv,
+				   struct ieee80211_vif *vif, bool add);
 	/* recover from tx queue stall */
 	void (*recover_from_tx_stall)(unsigned long data);
 	/* check for plcp health */
@@ -220,7 +211,6 @@ struct iwl_led_ops {
 };
 
 struct iwl_ops {
-	const struct iwl_ucode_ops *ucode;
 	const struct iwl_lib_ops *lib;
 	const struct iwl_hcmd_ops *hcmd;
 	const struct iwl_hcmd_utils_ops *utils;
@@ -257,6 +247,18 @@ struct iwl_mod_params {
  * @support_wimax_coexist: support wimax/wifi co-exist
  * @plcp_delta_threshold: plcp error rate threshold used to trigger
  *	radio tuning when there is a high receiving plcp error rate
+ * @chain_noise_scale: default chain noise scale used for gain computation
+ * @monitor_recover_period: default timer used to check stuck queues
+ * @temperature_kelvin: temperature report by uCode in kelvin
+ * @max_event_log_size: size of event log buffer size for ucode event logging
+ * @tx_power_by_driver: tx power calibration performed by driver
+ *	instead of uCode
+ * @ucode_tracing: support ucode continuous tracing
+ * @sensitivity_calib_by_driver: driver has the capability to perform
+ *	sensitivity calibration operation
+ * @chain_noise_calib_by_driver: driver has the capability to perform
+ *	chain noise calibration operation
+ * @scan_antennas: available antenna for scan operation
  *
  * We enable the driver to be backward compatible wrt API version. The
  * driver specifies which APIs it supports (with @ucode_api_max being the
@@ -319,6 +321,10 @@ struct iwl_cfg {
 	u32 monitor_recover_period;
 	bool temperature_kelvin;
 	u32 max_event_log_size;
+	const bool tx_power_by_driver;
+	const bool ucode_tracing;
+	const bool sensitivity_calib_by_driver;
+	const bool chain_noise_calib_by_driver;
 	u8 scan_antennas[IEEE80211_NUM_BANDS];
 };
 
@@ -340,8 +346,8 @@ int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch);
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_config *ht_conf);
 u8 iwl_is_ht40_tx_allowed(struct iwl_priv *priv,
 			 struct ieee80211_sta_ht_cap *sta_ht_inf);
-void iwl_set_flags_for_band(struct iwl_priv *priv, enum ieee80211_band band);
-void iwl_connection_init_rx_config(struct iwl_priv *priv, int mode);
+void iwl_connection_init_rx_config(struct iwl_priv *priv,
+				   struct ieee80211_vif *vif);
 int iwl_set_decrypted_flag(struct iwl_priv *priv,
 			   struct ieee80211_hdr *hdr,
 			   u32 decrypt_res,
@@ -351,7 +357,7 @@ void iwl_configure_filter(struct ieee80211_hw *hw,
 			  unsigned int changed_flags,
 			  unsigned int *total_flags, u64 multicast);
 int iwl_set_hw_params(struct iwl_priv *priv);
-void iwl_post_associate(struct iwl_priv *priv);
+void iwl_post_associate(struct iwl_priv *priv, struct ieee80211_vif *vif);
 void iwl_bss_info_changed(struct ieee80211_hw *hw,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *bss_conf,
@@ -363,13 +369,12 @@ int iwl_mac_add_interface(struct ieee80211_hw *hw,
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif);
 int iwl_mac_config(struct ieee80211_hw *hw, u32 changed);
-void iwl_config_ap(struct iwl_priv *priv);
+void iwl_config_ap(struct iwl_priv *priv, struct ieee80211_vif *vif);
 void iwl_mac_reset_tsf(struct ieee80211_hw *hw);
 int iwl_alloc_txq_mem(struct iwl_priv *priv);
 void iwl_free_txq_mem(struct iwl_priv *priv);
 void iwlcore_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
 				__le32 *tx_flags);
-int iwl_send_wimax_coex(struct iwl_priv *priv);
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 int iwl_alloc_traffic_mem(struct iwl_priv *priv);
 void iwl_free_traffic_mem(struct iwl_priv *priv);
@@ -448,6 +453,8 @@ bool iwl_good_plcp_health(struct iwl_priv *priv,
 				 struct iwl_rx_packet *pkt);
 bool iwl_good_ack_health(struct iwl_priv *priv,
 				 struct iwl_rx_packet *pkt);
+void iwl_recover_from_statistics(struct iwl_priv *priv,
+				struct iwl_rx_packet *pkt);
 void iwl_rx_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb);
 void iwl_reply_statistics(struct iwl_priv *priv,
@@ -515,6 +522,7 @@ int iwl_scan_cancel_timeout(struct iwl_priv *priv, unsigned long ms);
 int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 		    struct ieee80211_vif *vif,
 		    struct cfg80211_scan_request *req);
+void iwl_bg_start_internal_scan(struct work_struct *work);
 void iwl_internal_short_hw_scan(struct iwl_priv *priv);
 int iwl_force_reset(struct iwl_priv *priv, int mode);
 u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
@@ -524,7 +532,8 @@ u16 iwl_get_active_dwell_time(struct iwl_priv *priv,
 			      enum ieee80211_band band,
 			      u8 n_probes);
 u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
-			       enum ieee80211_band band);
+			       enum ieee80211_band band,
+			       struct ieee80211_vif *vif);
 void iwl_bg_scan_check(struct work_struct *data);
 void iwl_bg_abort_scan(struct work_struct *work);
 void iwl_bg_scan_completed(struct work_struct *work);
@@ -688,7 +697,7 @@ extern int iwl_send_lq_cmd(struct iwl_priv *priv,
 void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 
-void iwl_setup_rxon_timing(struct iwl_priv *priv);
+void iwl_setup_rxon_timing(struct iwl_priv *priv, struct ieee80211_vif *vif);
 static inline int iwl_send_rxon_assoc(struct iwl_priv *priv)
 {
 	return priv->cfg->ops->hcmd->rxon_assoc(priv);
@@ -697,9 +706,10 @@ static inline int iwlcore_commit_rxon(struct iwl_priv *priv)
 {
 	return priv->cfg->ops->hcmd->commit_rxon(priv);
 }
-static inline void iwlcore_config_ap(struct iwl_priv *priv)
+static inline void iwlcore_config_ap(struct iwl_priv *priv,
+				     struct ieee80211_vif *vif)
 {
-	priv->cfg->ops->lib->config_ap(priv);
+	priv->cfg->ops->lib->config_ap(priv, vif);
 }
 static inline const struct ieee80211_supported_band *iwl_get_hw_mode(
 			struct iwl_priv *priv, enum ieee80211_band band)

@@ -1953,6 +1953,60 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 	return 0;
 }
 
+static u8 iwl_find_station(struct iwl_priv *priv, const u8 *addr)
+{
+	int i;
+	int start = 0;
+	int ret = IWL_INVALID_STATION;
+	unsigned long flags;
+
+	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) ||
+	    (priv->iw_mode == NL80211_IFTYPE_AP))
+		start = IWL_STA_ID;
+
+	if (is_broadcast_ether_addr(addr))
+		return priv->hw_params.bcast_sta_id;
+
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	for (i = start; i < priv->hw_params.max_stations; i++)
+		if (priv->stations[i].used &&
+		    (!compare_ether_addr(priv->stations[i].sta.sta.addr,
+					 addr))) {
+			ret = i;
+			goto out;
+		}
+
+	IWL_DEBUG_ASSOC_LIMIT(priv, "can not find STA %pM total %d\n",
+			      addr, priv->num_stations);
+
+ out:
+	/*
+	 * It may be possible that more commands interacting with stations
+	 * arrive before we completed processing the adding of
+	 * station
+	 */
+	if (ret != IWL_INVALID_STATION &&
+	    (!(priv->stations[ret].used & IWL_STA_UCODE_ACTIVE) ||
+	     ((priv->stations[ret].used & IWL_STA_UCODE_ACTIVE) &&
+	      (priv->stations[ret].used & IWL_STA_UCODE_INPROGRESS)))) {
+		IWL_ERR(priv, "Requested station info for sta %d before ready.\n",
+			ret);
+		ret = IWL_INVALID_STATION;
+	}
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
+	return ret;
+}
+
+static int iwl_get_ra_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
+{
+	if (priv->iw_mode == NL80211_IFTYPE_STATION) {
+		return IWL_AP_ID;
+	} else {
+		u8 *da = ieee80211_get_DA(hdr);
+		return iwl_find_station(priv, da);
+	}
+}
+
 /**
  * iwl4965_rx_reply_tx - Handle standard (non-aggregation) Tx response
  */
@@ -2112,34 +2166,6 @@ static void iwl4965_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_work_sync(&priv->txpower_work);
 }
 
-#define IWL4965_UCODE_GET(item)						\
-static u32 iwl4965_ucode_get_##item(const struct iwl_ucode_header *ucode,\
-				    u32 api_ver)			\
-{									\
-	return le32_to_cpu(ucode->u.v1.item);				\
-}
-
-static u32 iwl4965_ucode_get_header_size(u32 api_ver)
-{
-	return UCODE_HEADER_SIZE(1);
-}
-static u32 iwl4965_ucode_get_build(const struct iwl_ucode_header *ucode,
-				   u32 api_ver)
-{
-	return 0;
-}
-static u8 *iwl4965_ucode_get_data(const struct iwl_ucode_header *ucode,
-				  u32 api_ver)
-{
-	return (u8 *) ucode->u.v1.data;
-}
-
-IWL4965_UCODE_GET(inst_size);
-IWL4965_UCODE_GET(data_size);
-IWL4965_UCODE_GET(init_size);
-IWL4965_UCODE_GET(init_data_size);
-IWL4965_UCODE_GET(boot_size);
-
 static struct iwl_hcmd_ops iwl4965_hcmd = {
 	.rxon_assoc = iwl4965_send_rxon_assoc,
 	.commit_rxon = iwl_commit_rxon,
@@ -2147,16 +2173,6 @@ static struct iwl_hcmd_ops iwl4965_hcmd = {
 	.send_bt_config = iwl_send_bt_config,
 };
 
-static struct iwl_ucode_ops iwl4965_ucode = {
-	.get_header_size = iwl4965_ucode_get_header_size,
-	.get_build = iwl4965_ucode_get_build,
-	.get_inst_size = iwl4965_ucode_get_inst_size,
-	.get_data_size = iwl4965_ucode_get_data_size,
-	.get_init_size = iwl4965_ucode_get_init_size,
-	.get_init_data_size = iwl4965_ucode_get_init_data_size,
-	.get_boot_size = iwl4965_ucode_get_boot_size,
-	.get_data = iwl4965_ucode_get_data,
-};
 static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 	.get_hcmd_size = iwl4965_get_hcmd_size,
 	.build_addsta_hcmd = iwl4965_build_addsta_hcmd,
@@ -2218,7 +2234,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.temperature = iwl4965_temperature_calib,
 		.set_ct_kill = iwl4965_set_ct_threshold,
 	},
-	.add_bcast_station = iwl_add_bcast_station,
+	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
@@ -2228,7 +2244,6 @@ static struct iwl_lib_ops iwl4965_lib = {
 };
 
 static const struct iwl_ops iwl4965_ops = {
-	.ucode = &iwl4965_ucode,
 	.lib = &iwl4965_lib,
 	.hcmd = &iwl4965_hcmd,
 	.utils = &iwl4965_hcmd_utils,
@@ -2262,7 +2277,10 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.temperature_kelvin = true,
 	.max_event_log_size = 512,
-
+	.tx_power_by_driver = true,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 	/*
 	 * Force use of chains B and C for scan RX on 5 GHz band
 	 * because the device has off-channel reception on chain A.

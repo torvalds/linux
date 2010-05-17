@@ -39,7 +39,7 @@ static struct htc_endpoint *get_next_avail_ep(struct htc_endpoint *endpoint)
 {
 	enum htc_endpoint_id avail_epid;
 
-	for (avail_epid = ENDPOINT_MAX; avail_epid > ENDPOINT0; avail_epid--)
+	for (avail_epid = (ENDPOINT_MAX - 1); avail_epid > ENDPOINT0; avail_epid--)
 		if (endpoint[avail_epid].service_id == 0)
 			return &endpoint[avail_epid];
 	return NULL;
@@ -95,6 +95,7 @@ static void htc_process_target_rdy(struct htc_target *target,
 	endpoint = &target->endpoint[ENDPOINT0];
 	endpoint->service_id = HTC_CTRL_RSVD_SVC;
 	endpoint->max_msglen = HTC_MAX_CONTROL_MESSAGE_LENGTH;
+	atomic_inc(&target->tgt_ready);
 	complete(&target->target_wait);
 }
 
@@ -116,7 +117,7 @@ static void htc_process_conn_rsp(struct htc_target *target,
 		max_msglen = be16_to_cpu(svc_rspmsg->max_msg_len);
 		endpoint = &target->endpoint[epid];
 
-		for (tepid = ENDPOINT_MAX; tepid > ENDPOINT0; tepid--) {
+		for (tepid = (ENDPOINT_MAX - 1); tepid > ENDPOINT0; tepid--) {
 			tmp_endpoint = &target->endpoint[tepid];
 			if (tmp_endpoint->service_id == service_id) {
 				tmp_endpoint->service_id = 0;
@@ -124,7 +125,7 @@ static void htc_process_conn_rsp(struct htc_target *target,
 			}
 		}
 
-		if (!tmp_endpoint)
+		if (tepid == ENDPOINT0)
 			return;
 
 		endpoint->service_id = service_id;
@@ -297,7 +298,7 @@ void htc_stop(struct htc_target *target)
 	enum htc_endpoint_id epid;
 	struct htc_endpoint *endpoint;
 
-	for (epid = ENDPOINT0; epid <= ENDPOINT_MAX; epid++) {
+	for (epid = ENDPOINT0; epid < ENDPOINT_MAX; epid++) {
 		endpoint = &target->endpoint[epid];
 		if (endpoint->service_id != 0)
 			target->hif->stop(target->hif_dev, endpoint->ul_pipeid);
@@ -309,7 +310,7 @@ void htc_start(struct htc_target *target)
 	enum htc_endpoint_id epid;
 	struct htc_endpoint *endpoint;
 
-	for (epid = ENDPOINT0; epid <= ENDPOINT_MAX; epid++) {
+	for (epid = ENDPOINT0; epid < ENDPOINT_MAX; epid++) {
 		endpoint = &target->endpoint[epid];
 		if (endpoint->service_id != 0)
 			target->hif->start(target->hif_dev,
@@ -425,29 +426,19 @@ void ath9k_htc_rx_msg(struct htc_target *htc_handle,
 	}
 }
 
-struct htc_target *ath9k_htc_hw_alloc(void *hif_handle)
+struct htc_target *ath9k_htc_hw_alloc(void *hif_handle,
+				      struct ath9k_htc_hif *hif,
+				      struct device *dev)
 {
+	struct htc_endpoint *endpoint;
 	struct htc_target *target;
 
 	target = kzalloc(sizeof(struct htc_target), GFP_KERNEL);
-	if (!target)
+	if (!target) {
 		printk(KERN_ERR "Unable to allocate memory for"
 			"target device\n");
-
-	return target;
-}
-
-void ath9k_htc_hw_free(struct htc_target *htc)
-{
-	kfree(htc);
-}
-
-int ath9k_htc_hw_init(struct ath9k_htc_hif *hif, struct htc_target *target,
-		      void *hif_handle, struct device *dev, u16 devid,
-		      enum ath9k_hif_transports transport)
-{
-	struct htc_endpoint *endpoint;
-	int err = 0;
+		return NULL;
+	}
 
 	init_completion(&target->target_wait);
 	init_completion(&target->cmd_wait);
@@ -461,8 +452,20 @@ int ath9k_htc_hw_init(struct ath9k_htc_hif *hif, struct htc_target *target,
 	endpoint->ul_pipeid = hif->control_ul_pipe;
 	endpoint->dl_pipeid = hif->control_dl_pipe;
 
-	err = ath9k_htc_probe_device(target, dev, devid);
-	if (err) {
+	atomic_set(&target->tgt_ready, 0);
+
+	return target;
+}
+
+void ath9k_htc_hw_free(struct htc_target *htc)
+{
+	kfree(htc);
+}
+
+int ath9k_htc_hw_init(struct htc_target *target,
+		      struct device *dev, u16 devid)
+{
+	if (ath9k_htc_probe_device(target, dev, devid)) {
 		printk(KERN_ERR "Failed to initialize the device\n");
 		return -ENODEV;
 	}

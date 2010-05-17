@@ -351,7 +351,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 		.temperature = iwlagn_temperature,
 		.set_ct_kill = iwl5000_set_ct_threshold,
 	 },
-	.add_bcast_station = iwl_add_bcast_station,
+	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
@@ -413,7 +413,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 		.temperature = iwl5150_temperature,
 		.set_ct_kill = iwl5150_set_ct_threshold,
 	 },
-	.add_bcast_station = iwl_add_bcast_station,
+	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
@@ -425,7 +425,6 @@ static struct iwl_lib_ops iwl5150_lib = {
 };
 
 static const struct iwl_ops iwl5000_ops = {
-	.ucode = &iwlagn_ucode,
 	.lib = &iwl5000_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
@@ -433,7 +432,6 @@ static const struct iwl_ops iwl5000_ops = {
 };
 
 static const struct iwl_ops iwl5150_ops = {
-	.ucode = &iwlagn_ucode,
 	.lib = &iwl5150_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
@@ -466,6 +464,9 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl5100_bgn_cfg = {
@@ -494,6 +495,9 @@ struct iwl_cfg iwl5100_bgn_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl5100_abg_cfg = {
@@ -520,6 +524,9 @@ struct iwl_cfg iwl5100_abg_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl5100_agn_cfg = {
@@ -548,6 +555,9 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl5350_agn_cfg = {
@@ -576,6 +586,9 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl5150_agn_cfg = {
@@ -604,6 +617,9 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl5150_abg_cfg = {
@@ -630,6 +646,9 @@ struct iwl_cfg iwl5150_abg_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 512,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));

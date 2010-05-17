@@ -52,6 +52,37 @@ static const s8 iwlagn_default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_UNUSED,
 };
 
+static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
+	{COEX_CU_UNASSOC_IDLE_RP, COEX_CU_UNASSOC_IDLE_WP,
+	 0, COEX_UNASSOC_IDLE_FLAGS},
+	{COEX_CU_UNASSOC_MANUAL_SCAN_RP, COEX_CU_UNASSOC_MANUAL_SCAN_WP,
+	 0, COEX_UNASSOC_MANUAL_SCAN_FLAGS},
+	{COEX_CU_UNASSOC_AUTO_SCAN_RP, COEX_CU_UNASSOC_AUTO_SCAN_WP,
+	 0, COEX_UNASSOC_AUTO_SCAN_FLAGS},
+	{COEX_CU_CALIBRATION_RP, COEX_CU_CALIBRATION_WP,
+	 0, COEX_CALIBRATION_FLAGS},
+	{COEX_CU_PERIODIC_CALIBRATION_RP, COEX_CU_PERIODIC_CALIBRATION_WP,
+	 0, COEX_PERIODIC_CALIBRATION_FLAGS},
+	{COEX_CU_CONNECTION_ESTAB_RP, COEX_CU_CONNECTION_ESTAB_WP,
+	 0, COEX_CONNECTION_ESTAB_FLAGS},
+	{COEX_CU_ASSOCIATED_IDLE_RP, COEX_CU_ASSOCIATED_IDLE_WP,
+	 0, COEX_ASSOCIATED_IDLE_FLAGS},
+	{COEX_CU_ASSOC_MANUAL_SCAN_RP, COEX_CU_ASSOC_MANUAL_SCAN_WP,
+	 0, COEX_ASSOC_MANUAL_SCAN_FLAGS},
+	{COEX_CU_ASSOC_AUTO_SCAN_RP, COEX_CU_ASSOC_AUTO_SCAN_WP,
+	 0, COEX_ASSOC_AUTO_SCAN_FLAGS},
+	{COEX_CU_ASSOC_ACTIVE_LEVEL_RP, COEX_CU_ASSOC_ACTIVE_LEVEL_WP,
+	 0, COEX_ASSOC_ACTIVE_LEVEL_FLAGS},
+	{COEX_CU_RF_ON_RP, COEX_CU_RF_ON_WP, 0, COEX_CU_RF_ON_FLAGS},
+	{COEX_CU_RF_OFF_RP, COEX_CU_RF_OFF_WP, 0, COEX_RF_OFF_FLAGS},
+	{COEX_CU_STAND_ALONE_DEBUG_RP, COEX_CU_STAND_ALONE_DEBUG_WP,
+	 0, COEX_STAND_ALONE_DEBUG_FLAGS},
+	{COEX_CU_IPAN_ASSOC_LEVEL_RP, COEX_CU_IPAN_ASSOC_LEVEL_WP,
+	 0, COEX_IPAN_ASSOC_LEVEL_FLAGS},
+	{COEX_CU_RSRVD1_RP, COEX_CU_RSRVD1_WP, 0, COEX_RSRVD1_FLAGS},
+	{COEX_CU_RSRVD2_RP, COEX_CU_RSRVD2_WP, 0, COEX_RSRVD2_FLAGS}
+};
+
 /*
  * ucode
  */
@@ -150,55 +181,6 @@ int iwlagn_load_ucode(struct iwl_priv *priv)
 
 	return ret;
 }
-
-#define IWL_UCODE_GET(item)						\
-static u32 iwlagn_ucode_get_##item(const struct iwl_ucode_header *ucode,\
-				    u32 api_ver)			\
-{									\
-	if (api_ver <= 2)						\
-		return le32_to_cpu(ucode->u.v1.item);			\
-	return le32_to_cpu(ucode->u.v2.item);				\
-}
-
-static u32 iwlagn_ucode_get_header_size(u32 api_ver)
-{
-	if (api_ver <= 2)
-		return UCODE_HEADER_SIZE(1);
-	return UCODE_HEADER_SIZE(2);
-}
-
-static u32 iwlagn_ucode_get_build(const struct iwl_ucode_header *ucode,
-				   u32 api_ver)
-{
-	if (api_ver <= 2)
-		return 0;
-	return le32_to_cpu(ucode->u.v2.build);
-}
-
-static u8 *iwlagn_ucode_get_data(const struct iwl_ucode_header *ucode,
-				  u32 api_ver)
-{
-	if (api_ver <= 2)
-		return (u8 *) ucode->u.v1.data;
-	return (u8 *) ucode->u.v2.data;
-}
-
-IWL_UCODE_GET(inst_size);
-IWL_UCODE_GET(data_size);
-IWL_UCODE_GET(init_size);
-IWL_UCODE_GET(init_data_size);
-IWL_UCODE_GET(boot_size);
-
-struct iwl_ucode_ops iwlagn_ucode = {
-	.get_header_size = iwlagn_ucode_get_header_size,
-	.get_build = iwlagn_ucode_get_build,
-	.get_inst_size = iwlagn_ucode_get_inst_size,
-	.get_data_size = iwlagn_ucode_get_data_size,
-	.get_init_size = iwlagn_ucode_get_init_size,
-	.get_init_data_size = iwlagn_ucode_get_init_data_size,
-	.get_boot_size = iwlagn_ucode_get_boot_size,
-	.get_data = iwlagn_ucode_get_data,
-};
 
 /*
  *  Calibration
@@ -320,6 +302,33 @@ restart:
 	queue_work(priv->workqueue, &priv->restart);
 }
 
+static int iwlagn_send_wimax_coex(struct iwl_priv *priv)
+{
+	struct iwl_wimax_coex_cmd coex_cmd;
+
+	if (priv->cfg->support_wimax_coexist) {
+		/* UnMask wake up src at associated sleep */
+		coex_cmd.flags = COEX_FLAGS_ASSOC_WA_UNMASK_MSK;
+
+		/* UnMask wake up src at unassociated sleep */
+		coex_cmd.flags |= COEX_FLAGS_UNASSOC_WA_UNMASK_MSK;
+		memcpy(coex_cmd.sta_prio, cu_priorities,
+			sizeof(struct iwl_wimax_coex_event_entry) *
+			 COEX_NUM_OF_EVENTS);
+
+		/* enabling the coexistence feature */
+		coex_cmd.flags |= COEX_FLAGS_COEX_ENABLE_MSK;
+
+		/* enabling the priorities tables */
+		coex_cmd.flags |= COEX_FLAGS_STA_TABLE_VALID_MSK;
+	} else {
+		/* coexistence is disabled */
+		memset(&coex_cmd, 0, sizeof(coex_cmd));
+	}
+	return iwl_send_cmd_pdu(priv, COEX_PRIORITY_TABLE_CMD,
+				sizeof(coex_cmd), &coex_cmd);
+}
+
 int iwlagn_alive_notify(struct iwl_priv *priv)
 {
 	u32 a;
@@ -407,7 +416,7 @@ int iwlagn_alive_notify(struct iwl_priv *priv)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	iwl_send_wimax_coex(priv);
+	iwlagn_send_wimax_coex(priv);
 
 	iwlagn_set_Xtal_calib(priv);
 	iwl_send_calib_results(priv);
