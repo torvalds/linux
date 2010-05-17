@@ -2,7 +2,7 @@
  *  arch/s390/kernel/entry64.S
  *    S390 low-level entry points.
  *
- *    Copyright (C) IBM Corp. 1999,2006
+ *    Copyright (C) IBM Corp. 1999,2010
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *		 Hartmut Penner (hp@de.ibm.com),
  *		 Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
@@ -58,6 +58,16 @@ _TIF_SYSCALL = (_TIF_SYSCALL_TRACE>>8 | _TIF_SYSCALL_AUDIT>>8 | \
 		_TIF_SECCOMP>>8 | _TIF_SYSCALL_TRACEPOINT>>8)
 
 #define BASED(name) name-system_call(%r13)
+
+	.macro	HANDLE_SIE_INTERCEPT
+#if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
+	lg	%r3,__LC_SIE_HOOK
+	ltgr	%r3,%r3
+	jz	0f
+	basr	%r14,%r3
+	0:
+#endif
+	.endm
 
 #ifdef CONFIG_TRACE_IRQFLAGS
 	.macro	TRACE_IRQS_ON
@@ -466,6 +476,7 @@ pgm_check_handler:
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
 pgm_no_vtime:
+	HANDLE_SIE_INTERCEPT
 	TRACE_IRQS_CHECK_OFF
 	lg	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	mvc	SP_ARGS(8,%r15),__LC_LAST_BREAK
@@ -507,6 +518,7 @@ pgm_per_std:
 	UPDATE_VTIME __LC_LAST_UPDATE_TIMER,__LC_EXIT_TIMER,__LC_SYSTEM_TIMER
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_SYNC_ENTER_TIMER
 pgm_no_vtime2:
+	HANDLE_SIE_INTERCEPT
 	TRACE_IRQS_CHECK_OFF
 	lg	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
 	lg	%r1,__TI_task(%r9)
@@ -570,6 +582,7 @@ io_int_handler:
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
 io_no_vtime:
 	lg	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
+	HANDLE_SIE_INTERCEPT
 	TRACE_IRQS_OFF
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	brasl	%r14,do_IRQ		# call standard irq handler
@@ -595,15 +608,6 @@ io_done:
 io_work:
 	tm	SP_PSW+1(%r15),0x01	# returning to user ?
 	jo	io_work_user		# yes -> do resched & signal
-#if defined(CONFIG_KVM) || defined(CONFIG_KVM_MODULE)
-	lg	%r2,SP_PSW+8(%r15)	# check if current instruction is SIE
-	lh	%r1,0(%r2)
-	chi	%r1,-19948		# signed 16 bit compare with 0xb214
-	jne	0f			# no -> leave PSW alone
-	aghi	%r2,4			# yes-> add 4 bytes to leave SIE
-	stg	%r2,SP_PSW+8(%r15)
-0:
-#endif
 #ifdef CONFIG_PREEMPT
 	# check for preemptive scheduling
 	icm	%r0,15,__TI_precount(%r9)
@@ -712,6 +716,7 @@ ext_int_handler:
 	mvc	__LC_LAST_UPDATE_TIMER(8),__LC_ASYNC_ENTER_TIMER
 ext_no_vtime:
 	lg	%r9,__LC_THREAD_INFO	# load pointer to thread_info struct
+	HANDLE_SIE_INTERCEPT
 	TRACE_IRQS_OFF
 	la	%r2,SP_PTREGS(%r15)	# address of register-save area
 	llgh	%r3,__LC_EXT_INT_CODE	# get interruption code
@@ -786,6 +791,7 @@ mcck_no_vtime:
 	stosm	__SF_EMPTY(%r15),0x04	# turn dat on
 	tm	__TI_flags+7(%r9),_TIF_MCCK_PENDING
 	jno	mcck_return
+	HANDLE_SIE_INTERCEPT
 	TRACE_IRQS_OFF
 	brasl	%r14,s390_handle_mcck
 	TRACE_IRQS_ON
