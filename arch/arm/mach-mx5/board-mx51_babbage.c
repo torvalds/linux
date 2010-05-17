@@ -33,6 +33,7 @@
 
 #define BABBAGE_USB_HUB_RESET	(0*32 + 7)	/* GPIO_1_7 */
 #define BABBAGE_USBH1_STP	(0*32 + 27)	/* GPIO_1_27 */
+#define BABBAGE_PHY_RESET (1*32 +5)	/* GPIO_2_5 */
 
 /* USB_CTRL_1 */
 #define MX51_USB_CTRL_1_OFFSET			0x10
@@ -101,6 +102,7 @@ static inline void mxc_init_imx_uart(void)
 static int gpio_usbh1_active(void)
 {
 	struct pad_desc usbh1stp_gpio = MX51_PAD_USBH1_STP__GPIO_1_27;
+	struct pad_desc phyreset_gpio = MX51_PAD_EIM_D21__GPIO_2_5;
 	int ret;
 
 	/* Set USBH1_STP to GPIO and toggle it */
@@ -115,6 +117,16 @@ static int gpio_usbh1_active(void)
 	gpio_set_value(BABBAGE_USBH1_STP, 1);
 	msleep(100);
 	gpio_free(BABBAGE_USBH1_STP);
+
+	/* De-assert USB PHY RESETB */
+	mxc_iomux_v3_setup_pad(&phyreset_gpio);
+	ret = gpio_request(BABBAGE_PHY_RESET, "phy_reset");
+
+	if (ret) {
+		pr_debug("failed to get MX51_PAD_EIM_D21__GPIO_2_5: %d\n", ret);
+		return ret;
+	}
+	gpio_direction_output(BABBAGE_PHY_RESET, 1);
 	return 0;
 }
 
