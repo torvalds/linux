@@ -86,10 +86,10 @@ static void n30_udc_pullup(enum s3c2410_udc_cmd_e cmd)
 {
 	switch (cmd) {
 	case S3C2410_UDC_P_ENABLE :
-		s3c2410_gpio_setpin(S3C2410_GPB(3), 1);
+		gpio_set_value(S3C2410_GPB(3), 1);
 		break;
 	case S3C2410_UDC_P_DISABLE :
-		s3c2410_gpio_setpin(S3C2410_GPB(3), 0);
+		gpio_set_value(S3C2410_GPB(3), 0);
 		break;
 	case S3C2410_UDC_P_RESET :
 		break;
@@ -536,6 +536,9 @@ static void __init n30_init(void)
 
 		platform_add_devices(n35_devices, ARRAY_SIZE(n35_devices));
 	}
+
+	WARN_ON(gpio_request(S3C2410_GPB(3), "udc pup"));
+	gpio_direction_output(S3C2410_GPB(3), 0);
 }
 
 MACHINE_START(N30, "Acer-N30")
