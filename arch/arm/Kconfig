@@ -296,7 +296,6 @@ config ARCH_VEXPRESS
 
 config ARCH_AT91
 	bool "Atmel AT91"
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
 	select ARCH_USES_GETTIMEOFFSET
@@ -326,7 +325,6 @@ config ARCH_CLPS711X
 config ARCH_GEMINI
 	bool "Cortina Systems Gemini"
 	select CPU_FA526
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_USES_GETTIMEOFFSET
 	help
@@ -349,7 +347,6 @@ config ARCH_EP93XX
 	select CPU_ARM920T
 	select ARM_AMBA
 	select ARM_VIC
-	select GENERIC_GPIO
 	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_HOLES_MEMORYMODEL
@@ -382,7 +379,6 @@ config ARCH_STMP3XXX
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_GPIO
 	select USB_ARCH_HAS_EHCI
 	help
 	  Support for systems based on the Freescale 3xxx CPUs.
@@ -421,7 +417,6 @@ config ARCH_IOP32X
 	select CPU_XSCALE
 	select PLAT_IOP
 	select PCI
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Intel's 80219 and IOP32X (XScale) family of
@@ -433,7 +428,6 @@ config ARCH_IOP33X
 	select CPU_XSCALE
 	select PLAT_IOP
 	select PCI
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Intel's IOP33X (XScale) family of processors.
@@ -485,7 +479,6 @@ config ARCH_L7200
 config ARCH_DOVE
 	bool "Marvell Dove"
 	select PCI
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -497,7 +490,6 @@ config ARCH_KIRKWOOD
 	bool "Marvell Kirkwood"
 	select CPU_FEROCEON
 	select PCI
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -519,7 +511,6 @@ config ARCH_MV78XX0
 	bool "Marvell MV78xx0"
 	select CPU_FEROCEON
 	select PCI
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -533,7 +524,6 @@ config ARCH_ORION5X
 	depends on MMU
 	select CPU_FEROCEON
 	select PCI
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -546,7 +536,6 @@ config ARCH_ORION5X
 config ARCH_MMP
 	bool "Marvell PXA168/910/MMP2"
 	depends on MMU
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select COMMON_CLKDEV
 	select GENERIC_TIME
@@ -559,8 +548,7 @@ config ARCH_MMP
 config ARCH_KS8695
 	bool "Micrel/Kendin KS8695"
 	select CPU_ARM922T
-	select GENERIC_GPIO
-        select ARCH_REQUIRE_GPIOLIB
+	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Support for Micrel/Kendin KS8695 "Centaur" (ARM922T) based
@@ -583,7 +571,6 @@ config ARCH_W90X900
 	bool "Nuvoton W90X900 CPU"
 	select CPU_ARM926T
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_GPIO
 	select COMMON_CLKDEV
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -617,7 +604,6 @@ config ARCH_PXA
 	depends on MMU
 	select ARCH_MTD_XIP
 	select ARCH_HAS_CPUFREQ
-	select GENERIC_GPIO
 	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_TIME
@@ -666,7 +652,6 @@ config ARCH_SA1100
 	select ARCH_MTD_XIP
 	select ARCH_HAS_CPUFREQ
 	select CPU_FREQ
-	select GENERIC_GPIO
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
@@ -690,7 +675,6 @@ config ARCH_S3C64XX
 	bool "Samsung S3C64XX"
 	select PLAT_SAMSUNG
 	select CPU_V6
-	select GENERIC_GPIO
 	select ARM_VIC
 	select HAVE_CLK
 	select NO_IOPORT
@@ -801,7 +785,6 @@ config ARCH_NOMADIK
 	select COMMON_CLKDEV
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for the Nomadik platform by ST-Ericsson
@@ -811,7 +794,6 @@ config ARCH_DAVINCI
 	select CPU_ARM926T
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select ZONE_DMA
 	select HAVE_IDE
@@ -823,7 +805,6 @@ config ARCH_DAVINCI
 
 config ARCH_OMAP
 	bool "TI OMAP"
-	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_CPUFREQ
@@ -839,7 +820,6 @@ config PLAT_SPEAR
 	select ARCH_REQUIRE_GPIOLIB
 	select COMMON_CLKDEV
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_GPIO
 	select GENERIC_TIME
 	select HAVE_CLK
 	help
