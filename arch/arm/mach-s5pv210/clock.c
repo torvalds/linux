@@ -155,11 +155,6 @@ static int s5pv210_clk_ip3_ctrl(struct clk *clk, int enable)
 	return s5p_gatectrl(S5P_CLKGATE_IP3, clk, enable);
 }
 
-static struct clk clk_h100 = {
-	.name		= "hclk100",
-	.id		= -1,
-};
-
 static struct clk clk_p83 = {
 	.name		= "pclk83",
 	.id		= -1,
@@ -171,9 +166,17 @@ static struct clk clk_p66 = {
 };
 
 static struct clk *sys_clks[] = {
-	&clk_h100,
 	&clk_p83,
 	&clk_p66
+};
+
+static unsigned long s5pv210_clk_imem_get_rate(struct clk *clk)
+{
+	return clk_get_rate(clk->parent) / 2;
+}
+
+static struct clk_ops clk_hclk_imem_ops = {
+	.get_rate	= s5pv210_clk_imem_get_rate,
 };
 
 static struct clk init_clocks_disable[] = {
@@ -326,6 +329,13 @@ static struct clk init_clocks_disable[] = {
 
 static struct clk init_clocks[] = {
 	{
+		.name		= "hclk_imem",
+		.id		= -1,
+		.parent		= &clk_hclk_msys.clk,
+		.ctrlbit	= (1 << 5),
+		.enable		= s5pv210_clk_ip0_ctrl,
+		.ops		= &clk_hclk_imem_ops,
+	}, {
 		.name		= "uart",
 		.id		= 0,
 		.parent		= &clk_p66,
