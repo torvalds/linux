@@ -974,6 +974,39 @@ TRACE_EVENT(ext4_da_release_space,
 		  __entry->reserved_meta_blocks, __entry->allocated_meta_blocks)
 );
 
+DECLARE_EVENT_CLASS(ext4__bitmap_load,
+	TP_PROTO(struct super_block *sb, unsigned long group),
+
+	TP_ARGS(sb, group),
+
+	TP_STRUCT__entry(
+		__field(	dev_t,	dev			)
+		__field(	__u32,	group			)
+
+	),
+
+	TP_fast_assign(
+		__entry->dev	= sb->s_dev;
+		__entry->group	= group;
+	),
+
+	TP_printk("dev %s group %u",
+		  jbd2_dev_to_name(__entry->dev), __entry->group)
+);
+
+DEFINE_EVENT(ext4__bitmap_load, ext4_mb_bitmap_load,
+
+	TP_PROTO(struct super_block *sb, unsigned long group),
+
+	TP_ARGS(sb, group)
+);
+
+DEFINE_EVENT(ext4__bitmap_load, ext4_mb_buddy_bitmap_load,
+
+	TP_PROTO(struct super_block *sb, unsigned long group),
+
+	TP_ARGS(sb, group)
+);
 
 #endif /* _TRACE_EXT4_H */
 

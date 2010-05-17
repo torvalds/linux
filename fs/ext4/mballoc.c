@@ -890,6 +890,7 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 			BUG_ON(incore == NULL);
 			mb_debug(1, "put buddy for group %u in page %lu/%x\n",
 				group, page->index, i * blocksize);
+			trace_ext4_mb_buddy_bitmap_load(sb, group);
 			grinfo = ext4_get_group_info(sb, group);
 			grinfo->bb_fragments = 0;
 			memset(grinfo->bb_counters, 0,
@@ -907,6 +908,7 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 			BUG_ON(incore != NULL);
 			mb_debug(1, "put bitmap for group %u in page %lu/%x\n",
 				group, page->index, i * blocksize);
+			trace_ext4_mb_bitmap_load(sb, group);
 
 			/* see comments in ext4_mb_put_pa() */
 			ext4_lock_group(sb, group);
