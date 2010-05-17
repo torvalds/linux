@@ -3688,6 +3688,11 @@ xlog_state_ioerror(
  *	c. nothing new gets queued up after (a) and (b) are done.
  *	d. if !logerror, flush the iclogs to disk, then seal them off
  *	   for business.
+ *
+ * Note: for delayed logging the !logerror case needs to flush the regions
+ * held in memory out to the iclogs before flushing them to disk. This needs
+ * to be done before the log is marked as shutdown, otherwise the flush to the
+ * iclogs will fail.
  */
 int
 xfs_log_force_umount(
@@ -3721,6 +3726,16 @@ xfs_log_force_umount(
 		return 1;
 	}
 	retval = 0;
+
+	/*
+	 * Flush the in memory commit item list before marking the log as
+	 * being shut down. We need to do it in this order to ensure all the
+	 * completed transactions are flushed to disk with the xfs_log_force()
+	 * call below.
+	 */
+	if (!logerror && (mp->m_flags & XFS_MOUNT_DELAYLOG))
+		xlog_cil_push(log, 1);
+
 	/*
 	 * We must hold both the GRANT lock and the LOG lock,
 	 * before we mark the filesystem SHUTDOWN and wake
