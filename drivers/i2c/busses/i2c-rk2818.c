@@ -587,7 +587,7 @@ static int rk2818_i2c_probe(struct platform_device *pdev)
 
 	i2c->dev = &pdev->dev;
 	
-	i2c->clk = clk_get(&pdev->dev, DRV_NAME);
+	i2c->clk = clk_get(&pdev->dev, "i2c");
 	if (IS_ERR(i2c->clk)) {
 		dev_err(&pdev->dev, "cannot get clock\n");
 		ret = -ENOENT;
