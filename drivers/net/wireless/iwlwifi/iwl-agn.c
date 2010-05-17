@@ -484,8 +484,15 @@ void iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 				iwl_tfd_tb_get_len(tfd, i), PCI_DMA_TODEVICE);
 
 		if (txq->txb) {
-			dev_kfree_skb(txq->txb[txq->q.read_ptr].skb[i - 1]);
-			txq->txb[txq->q.read_ptr].skb[i - 1] = NULL;
+			struct sk_buff *skb;
+
+			skb = txq->txb[txq->q.read_ptr].skb[i - 1];
+
+			/* can be called from irqs-disabled context */
+			if (skb) {
+				dev_kfree_skb_any(skb);
+				txq->txb[txq->q.read_ptr].skb[i - 1] = NULL;
+			}
 		}
 	}
 }
