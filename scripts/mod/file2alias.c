@@ -796,6 +796,16 @@ static int do_platform_entry(const char *filename,
 	return 1;
 }
 
+/* Looks like: zorro:iN. */
+static int do_zorro_entry(const char *filename, struct zorro_device_id *id,
+			  char *alias)
+{
+	id->id = TO_NATIVE(id->id);
+	strcpy(alias, "zorro:");
+	ADD(alias, "i", id->id != ZORRO_WILDCARD, id->id);
+	return 1;
+}
+
 /* Ignore any prefix, eg. some architectures prepend _ */
 static inline int sym_is(const char *symbol, const char *name)
 {
@@ -943,6 +953,10 @@ void handle_moddevtable(struct module *mod, struct elf_info *info,
 		do_table(symval, sym->st_size,
 			 sizeof(struct platform_device_id), "platform",
 			 do_platform_entry, mod);
+	else if (sym_is(symname, "__mod_zorro_device_table"))
+		do_table(symval, sym->st_size,
+			 sizeof(struct zorro_device_id), "zorro",
+			 do_zorro_entry, mod);
 	free(zeros);
 }
 

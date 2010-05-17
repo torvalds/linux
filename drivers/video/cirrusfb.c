@@ -299,6 +299,7 @@ static const struct zorro_device_id cirrusfb_zorro_table[] = {
 	},
 	{ 0 }
 };
+MODULE_DEVICE_TABLE(zorro, cirrusfb_zorro_table);
 
 static const struct {
 	zorro_id id2;
