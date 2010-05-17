@@ -112,13 +112,6 @@ static int samsung_kbd_mouse_input_mapping(struct hid_device *hdev,
 
 	switch (usage->hid & HID_USAGE) {
 	/* report 2 */
-	case 0x0b5: samsung_kbd_mouse_map_key_clear(KEY_NEXTSONG); break;
-	case 0x0b6: samsung_kbd_mouse_map_key_clear(KEY_PREVIOUSSONG); break;
-	case 0x0b7: samsung_kbd_mouse_map_key_clear(KEY_STOPCD); break;
-	case 0x0cd: samsung_kbd_mouse_map_key_clear(KEY_PLAYPAUSE); break;
-	case 0x0e2: samsung_kbd_mouse_map_key_clear(KEY_MUTE); break;
-	case 0x0e9: samsung_kbd_mouse_map_key_clear(KEY_VOLUMEUP); break;
-	case 0x0ea: samsung_kbd_mouse_map_key_clear(KEY_VOLUMEDOWN); break;
 	case 0x183: samsung_kbd_mouse_map_key_clear(KEY_MEDIA); break;
 	case 0x195: samsung_kbd_mouse_map_key_clear(KEY_EMAIL);	break;
 	case 0x196: samsung_kbd_mouse_map_key_clear(KEY_CALC); break;
