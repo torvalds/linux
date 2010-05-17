@@ -312,6 +312,9 @@ struct dasd_discipline {
 	/* suspend/resume functions */
 	int (*freeze) (struct dasd_device *);
 	int (*restore) (struct dasd_device *);
+
+	/* reload device after state change */
+	int (*reload) (struct dasd_device *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
@@ -386,6 +389,7 @@ struct dasd_device {
         struct tasklet_struct tasklet;
 	struct work_struct kick_work;
 	struct work_struct restore_device;
+	struct work_struct reload_device;
 	struct timer_list timer;
 
 	debug_info_t *debug_area;
@@ -582,6 +586,7 @@ void dasd_enable_device(struct dasd_device *);
 void dasd_set_target_state(struct dasd_device *, int);
 void dasd_kick_device(struct dasd_device *);
 void dasd_restore_device(struct dasd_device *);
+void dasd_reload_device(struct dasd_device *);
 
 void dasd_add_request_head(struct dasd_ccw_req *);
 void dasd_add_request_tail(struct dasd_ccw_req *);

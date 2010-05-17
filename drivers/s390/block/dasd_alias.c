@@ -642,6 +642,14 @@ int dasd_alias_add_device(struct dasd_device *device)
 	return rc;
 }
 
+int dasd_alias_update_add_device(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private;
+	private = (struct dasd_eckd_private *) device->private;
+	private->lcu->flags |= UPDATE_PENDING;
+	return dasd_alias_add_device(device);
+}
+
 int dasd_alias_remove_device(struct dasd_device *device)
 {
 	struct dasd_eckd_private *private;
