@@ -10,13 +10,17 @@
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <asm/ebcdic.h>
+#include <asm/timex.h>
 #include "hypfs.h"
 
 #define NAME_LEN 8
+#define DBFS_D2FC_HDR_VERSION 0
 
 static char local_guest[] = "        ";
 static char all_guests[] = "*       ";
 static char *guest_query;
+
+static struct dentry *dbfs_d2fc_file;
 
 struct diag2fc_data {
 	__u32 version;
@@ -76,23 +80,26 @@ static int diag2fc(int size, char* query, void *addr)
 		return -residual_cnt;
 }
 
-static struct diag2fc_data *diag2fc_store(char *query, int *count)
+/*
+ * Allocate buffer for "query" and store diag 2fc at "offset"
+ */
+static void *diag2fc_store(char *query, unsigned int *count, int offset)
 {
+	void *data;
 	int size;
-	struct diag2fc_data *data;
 
 	do {
 		size = diag2fc(0, query, NULL);
 		if (size < 0)
 			return ERR_PTR(-EACCES);
-		data = vmalloc(size);
+		data = vmalloc(size + offset);
 		if (!data)
 			return ERR_PTR(-ENOMEM);
-		if (diag2fc(size, query, data) == 0)
+		if (diag2fc(size, query, data + offset) == 0)
 			break;
 		vfree(data);
 	} while (1);
-	*count = (size / sizeof(*data));
+	*count = (size / sizeof(struct diag2fc_data));
 
 	return data;
 }
@@ -168,9 +175,10 @@ int hypfs_vm_create_files(struct super_block *sb, struct dentry *root)
 {
 	struct dentry *dir, *file;
 	struct diag2fc_data *data;
-	int rc, i, count = 0;
+	unsigned int count = 0;
+	int rc, i;
 
-	data = diag2fc_store(guest_query, &count);
+	data = diag2fc_store(guest_query, &count, 0);
 	if (IS_ERR(data))
 		return PTR_ERR(data);
 
@@ -218,8 +226,61 @@ failed:
 	return rc;
 }
 
+struct dbfs_d2fc_hdr {
+	u64	len;		/* Length of d2fc buffer without header */
+	u16	version;	/* Version of header */
+	char	tod_ext[16];	/* TOD clock for d2fc */
+	u64	count;		/* Number of VM guests in d2fc buffer */
+	char	reserved[30];
+} __attribute__ ((packed));
+
+struct dbfs_d2fc {
+	struct dbfs_d2fc_hdr	hdr;	/* 64 byte header */
+	char			buf[];	/* d2fc buffer */
+} __attribute__ ((packed));
+
+static int dbfs_d2fc_open(struct inode *inode, struct file *file)
+{
+	struct dbfs_d2fc *data;
+	unsigned int count;
+
+	data = diag2fc_store(guest_query, &count, sizeof(data->hdr));
+	if (IS_ERR(data))
+		return PTR_ERR(data);
+	get_clock_ext(data->hdr.tod_ext);
+	data->hdr.len = count * sizeof(struct diag2fc_data);
+	data->hdr.version = DBFS_D2FC_HDR_VERSION;
+	data->hdr.count = count;
+	memset(&data->hdr.reserved, 0, sizeof(data->hdr.reserved));
+	file->private_data = data;
+	return nonseekable_open(inode, file);
+}
+
+static int dbfs_d2fc_release(struct inode *inode, struct file *file)
+{
+	diag2fc_free(file->private_data);
+	return 0;
+}
+
+static ssize_t dbfs_d2fc_read(struct file *file, char __user *buf,
+				    size_t size, loff_t *ppos)
+{
+	struct dbfs_d2fc *data = file->private_data;
+
+	return simple_read_from_buffer(buf, size, ppos, data, data->hdr.len +
+				       sizeof(struct dbfs_d2fc_hdr));
+}
+
+static const struct file_operations dbfs_d2fc_ops = {
+	.open		= dbfs_d2fc_open,
+	.read		= dbfs_d2fc_read,
+	.release	= dbfs_d2fc_release,
+};
+
 int hypfs_vm_init(void)
 {
+	if (!MACHINE_IS_VM)
+		return 0;
 	if (diag2fc(0, all_guests, NULL) > 0)
 		guest_query = all_guests;
 	else if (diag2fc(0, local_guest, NULL) > 0)
@@ -227,5 +288,17 @@ int hypfs_vm_init(void)
 	else
 		return -EACCES;
 
+	dbfs_d2fc_file = debugfs_create_file("diag_2fc", 0400, hypfs_dbfs_dir,
+					     NULL, &dbfs_d2fc_ops);
+	if (IS_ERR(dbfs_d2fc_file))
+		return PTR_ERR(dbfs_d2fc_file);
+
 	return 0;
+}
+
+void hypfs_vm_exit(void)
+{
+	if (!MACHINE_IS_VM)
+		return;
+	debugfs_remove(dbfs_d2fc_file);
 }
