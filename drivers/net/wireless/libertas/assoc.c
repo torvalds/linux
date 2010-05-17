@@ -4,6 +4,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ieee80211.h>
 #include <linux/if_arp.h>
+#include <linux/slab.h>
 #include <net/lib80211.h>
 
 #include "assoc.h"

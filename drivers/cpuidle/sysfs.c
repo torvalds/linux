@@ -9,6 +9,7 @@
 #include <linux/kernel.h>
 #include <linux/cpuidle.h>
 #include <linux/sysfs.h>
+#include <linux/slab.h>
 #include <linux/cpu.h>
 
 #include "cpuidle.h"

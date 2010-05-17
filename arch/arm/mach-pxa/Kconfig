@@ -272,7 +272,6 @@ config MACH_H5000
 config MACH_HIMALAYA
 	bool "HTC Himalaya Support"
 	select CPU_PXA26x
-	select FB_W100
 
 config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
@@ -454,6 +453,13 @@ config PXA_SHARPSL
 config SHARPSL_PM
 	bool
 	select APM_EMULATION
+	select SHARPSL_PM_MAX1111
+
+config SHARPSL_PM_MAX1111
+	bool
+	depends on !CORGI_SSP_DEPRECATED
+	select HWMON
+	select SENSORS_MAX1111
 
 config CORGI_SSP_DEPRECATED
 	bool
@@ -547,7 +553,6 @@ config MACH_E740
 	bool "Toshiba e740"
 	default y
 	depends on ARCH_PXA_ESERIES
-	select FB_W100
 	help
 	  Say Y here if you intend to run this kernel on a Toshiba
 	  e740 family PDA.
@@ -556,7 +561,6 @@ config MACH_E750
 	bool "Toshiba e750"
 	default y
 	depends on ARCH_PXA_ESERIES
-	select FB_W100
 	help
 	  Say Y here if you intend to run this kernel on a Toshiba
 	  e750 family PDA.
@@ -573,7 +577,6 @@ config MACH_E800
 	bool "Toshiba e800"
 	default y
 	depends on ARCH_PXA_ESERIES
-	select FB_W100
 	help
 	  Say Y here if you intend to run this kernel on a Toshiba
 	  e800 family PDA.

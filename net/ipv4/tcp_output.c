@@ -37,6 +37,7 @@
 #include <net/tcp.h>
 
 #include <linux/compiler.h>
+#include <linux/gfp.h>
 #include <linux/module.h>
 
 /* People can turn this off for buggy TCP's found in printers etc. */

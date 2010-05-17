@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/mempool.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 
 #include <scsi/scsi.h>

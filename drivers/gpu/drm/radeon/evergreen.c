@@ -23,8 +23,10 @@
  */
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "radeon_drm.h"
 #include "rv770d.h"
 #include "atom.h"
@@ -436,7 +438,6 @@ static void evergreen_gpu_init(struct radeon_device *rdev)
 
 int evergreen_mc_init(struct radeon_device *rdev)
 {
-	fixed20_12 a;
 	u32 tmp;
 	int chansize, numchan;
 
@@ -481,12 +482,8 @@ int evergreen_mc_init(struct radeon_device *rdev)
 		rdev->mc.real_vram_size = rdev->mc.aper_size;
 	}
 	r600_vram_gtt_location(rdev, &rdev->mc);
-	/* FIXME: we should enforce default clock in case GPU is not in
-	 * default setup
-	 */
-	a.full = rfixed_const(100);
-	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
-	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+	radeon_update_bandwidth_info(rdev);
+
 	return 0;
 }
 
@@ -746,6 +743,7 @@ int evergreen_init(struct radeon_device *rdev)
 
 void evergreen_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	evergreen_suspend(rdev);
 #if 0
 	r600_blit_fini(rdev);

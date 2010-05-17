@@ -807,7 +807,7 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 			return;
 		}
 		vid = AMAP_GET_BITS(struct amap_eth_rx_compl, vlan_tag, rxcp);
-		vid = be16_to_cpu(vid);
+		vid = swab16(vid);
 		vlan_hwaccel_receive_skb(skb, adapter->vlan_grp, vid);
 	} else {
 		netif_receive_skb(skb);
@@ -884,7 +884,7 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 		napi_gro_frags(&eq_obj->napi);
 	} else {
 		vid = AMAP_GET_BITS(struct amap_eth_rx_compl, vlan_tag, rxcp);
-		vid = be16_to_cpu(vid);
+		vid = swab16(vid);
 
 		if (!adapter->vlan_grp || adapter->vlans_added == 0)
 			return;
@@ -1855,7 +1855,7 @@ static bool be_flash_redboot(struct be_adapter *adapter,
 	p += crc_offset;
 
 	status = be_cmd_get_flash_crc(adapter, flashed_crc,
-			(img_start + image_size - 4));
+			(image_size - 4));
 	if (status) {
 		dev_err(&adapter->pdev->dev,
 		"could not get crc from flash, not flashing redboot\n");
@@ -1991,7 +1991,7 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 	struct flash_file_hdr_g3 *fhdr3;
 	struct image_hdr *img_hdr_ptr = NULL;
 	struct be_dma_mem flash_cmd;
-	int status, i = 0;
+	int status, i = 0, num_imgs = 0;
 	const u8 *p;
 
 	strcpy(fw_file, func);
@@ -2017,15 +2017,14 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 	if ((adapter->generation == BE_GEN3) &&
 			(get_ufigen_type(fhdr) == BE_GEN3)) {
 		fhdr3 = (struct flash_file_hdr_g3 *) fw->data;
-		for (i = 0; i < fhdr3->num_imgs; i++) {
+		num_imgs = le32_to_cpu(fhdr3->num_imgs);
+		for (i = 0; i < num_imgs; i++) {
 			img_hdr_ptr = (struct image_hdr *) (fw->data +
 					(sizeof(struct flash_file_hdr_g3) +
-					i * sizeof(struct image_hdr)));
-			if (img_hdr_ptr->imageid == 1) {
-				status = be_flash_data(adapter, fw,
-						&flash_cmd, fhdr3->num_imgs);
-			}
-
+					 i * sizeof(struct image_hdr)));
+			if (le32_to_cpu(img_hdr_ptr->imageid) == 1)
+				status = be_flash_data(adapter, fw, &flash_cmd,
+							num_imgs);
 		}
 	} else if ((adapter->generation == BE_GEN2) &&
 			(get_ufigen_type(fhdr) == BE_GEN2)) {

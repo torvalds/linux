@@ -35,7 +35,6 @@
 #include <linux/syscalls.h>
 #include <linux/security.h>
 #include <linux/fs.h>
-#include <linux/slab.h>
 #include <linux/math64.h>
 #include <linux/ptrace.h>
 

@@ -10,7 +10,6 @@
 
 #include <linux/kernel.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/pagemap.h>
 #include <linux/init.h>
@@ -20,6 +19,7 @@
 #include <linux/seq_file.h>
 #include <linux/kdebug.h>
 #include <linux/log2.h>
+#include <linux/gfp.h>
 
 #include <asm/bitext.h>
 #include <asm/page.h>

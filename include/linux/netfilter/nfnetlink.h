@@ -76,7 +76,7 @@ extern int nfnetlink_subsys_unregister(const struct nfnetlink_subsystem *n);
 extern int nfnetlink_has_listeners(struct net *net, unsigned int group);
 extern int nfnetlink_send(struct sk_buff *skb, struct net *net, u32 pid, unsigned group,
 			  int echo, gfp_t flags);
-extern void nfnetlink_set_err(struct net *net, u32 pid, u32 group, int error);
+extern int nfnetlink_set_err(struct net *net, u32 pid, u32 group, int error);
 extern int nfnetlink_unicast(struct sk_buff *skb, struct net *net, u_int32_t pid, int flags);
 
 extern void nfnl_lock(void);

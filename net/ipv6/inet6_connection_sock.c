@@ -17,6 +17,7 @@
 #include <linux/in6.h>
 #include <linux/ipv6.h>
 #include <linux/jhash.h>
+#include <linux/slab.h>
 
 #include <net/addrconf.h>
 #include <net/inet_connection_sock.h>

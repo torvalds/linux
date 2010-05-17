@@ -30,6 +30,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 #include <asm/hardware/arm_twd.h>
 

@@ -71,6 +71,7 @@
 #include <linux/netlink.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/ip.h>
 #include <net/protocol.h>
@@ -961,7 +962,9 @@ fib_find_node(struct trie *t, u32 key)
 	struct node *n;
 
 	pos = 0;
-	n = rcu_dereference(t->trie);
+	n = rcu_dereference_check(t->trie,
+				  rcu_read_lock_held() ||
+				  lockdep_rtnl_is_held());
 
 	while (n != NULL &&  NODE_TYPE(n) == T_TNODE) {
 		tn = (struct tnode *) n;

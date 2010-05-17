@@ -26,6 +26,7 @@
  *	Eric Anholt <eric@anholt.net>
  */
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include "drmP.h"
 #include "drm.h"

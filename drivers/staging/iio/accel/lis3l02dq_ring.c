@@ -8,6 +8,7 @@
 #include <linux/spi/spi.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #include "../iio.h"
 #include "../sysfs.h"

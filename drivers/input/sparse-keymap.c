@@ -15,6 +15,7 @@
 
 #include <linux/input.h>
 #include <linux/input/sparse-keymap.h>
+#include <linux/slab.h>
 
 MODULE_AUTHOR("Dmitry Torokhov <dtor@mail.ru>");
 MODULE_DESCRIPTION("Generic support for sparse keymaps");

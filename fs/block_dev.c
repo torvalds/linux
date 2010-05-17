@@ -404,7 +404,7 @@ static loff_t block_llseek(struct file *file, loff_t offset, int origin)
  *	NULL first argument is nfsd_sync_dir() and that's not a directory.
  */
  
-static int block_fsync(struct file *filp, struct dentry *dentry, int datasync)
+int blkdev_fsync(struct file *filp, struct dentry *dentry, int datasync)
 {
 	struct block_device *bdev = I_BDEV(filp->f_mapping->host);
 	int error;
@@ -418,6 +418,7 @@ static int block_fsync(struct file *filp, struct dentry *dentry, int datasync)
 		error = 0;
 	return error;
 }
+EXPORT_SYMBOL(blkdev_fsync);
 
 /*
  * pseudo-fs
@@ -1481,7 +1482,7 @@ const struct file_operations def_blk_fops = {
   	.aio_read	= generic_file_aio_read,
 	.aio_write	= blkdev_aio_write,
 	.mmap		= generic_file_mmap,
-	.fsync		= block_fsync,
+	.fsync		= blkdev_fsync,
 	.unlocked_ioctl	= block_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= compat_blkdev_ioctl,

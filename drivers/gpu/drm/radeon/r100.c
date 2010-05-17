@@ -26,11 +26,13 @@
  *          Jerome Glisse
  */
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "drm.h"
 #include "radeon_drm.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "r100d.h"
 #include "rs100d.h"
 #include "rv200d.h"
@@ -235,9 +237,9 @@ int r100_pci_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 
 void r100_pci_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	r100_pci_gart_disable(rdev);
 	radeon_gart_table_ram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 int r100_irq_set(struct radeon_device *rdev)
@@ -312,10 +314,12 @@ int r100_irq_process(struct radeon_device *rdev)
 		/* Vertical blank interrupts */
 		if (status & RADEON_CRTC_VBLANK_STAT) {
 			drm_handle_vblank(rdev->ddev, 0);
+			rdev->pm.vblank_sync = true;
 			wake_up(&rdev->irq.vblank_queue);
 		}
 		if (status & RADEON_CRTC2_VBLANK_STAT) {
 			drm_handle_vblank(rdev->ddev, 1);
+			rdev->pm.vblank_sync = true;
 			wake_up(&rdev->irq.vblank_queue);
 		}
 		if (status & RADEON_FP_DETECT_STAT) {
@@ -741,6 +745,8 @@ int r100_cp_init(struct radeon_device *rdev, unsigned ring_size)
 	udelay(10);
 	rdev->cp.rptr = RREG32(RADEON_CP_RB_RPTR);
 	rdev->cp.wptr = RREG32(RADEON_CP_RB_WPTR);
+	/* protect against crazy HW on resume */
+	rdev->cp.wptr &= rdev->cp.ptr_mask;
 	/* Set cp mode to bus mastering & enable cp*/
 	WREG32(RADEON_CP_CSQ_MODE,
 	       REG_SET(RADEON_INDIRECT2_START, indirect2_start) |
@@ -1804,6 +1810,7 @@ void r100_set_common_regs(struct radeon_device *rdev)
 {
 	struct drm_device *dev = rdev->ddev;
 	bool force_dac2 = false;
+	u32 tmp;
 
 	/* set these so they don't interfere with anything */
 	WREG32(RADEON_OV0_SCALE_CNTL, 0);
@@ -1875,6 +1882,12 @@ void r100_set_common_regs(struct radeon_device *rdev)
 		WREG32(RADEON_DISP_HW_DEBUG, disp_hw_debug);
 		WREG32(RADEON_DAC_CNTL2, dac2_cntl);
 	}
+
+	/* switch PM block to ACPI mode */
+	tmp = RREG32_PLL(RADEON_PLL_PWRMGT_CNTL);
+	tmp &= ~RADEON_PM_MODE_SEL;
+	WREG32_PLL(RADEON_PLL_PWRMGT_CNTL, tmp);
+
 }
 
 /*
@@ -2022,6 +2035,7 @@ void r100_mc_init(struct radeon_device *rdev)
 	radeon_vram_location(rdev, &rdev->mc, base);
 	if (!(rdev->flags & RADEON_IS_AGP))
 		radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 
@@ -2385,6 +2399,8 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 	uint32_t pixel_bytes1 = 0;
 	uint32_t pixel_bytes2 = 0;
 
+	radeon_update_display_priority(rdev);
+
 	if (rdev->mode_info.crtcs[0]->base.enabled) {
 		mode1 = &rdev->mode_info.crtcs[0]->base.mode;
 		pixel_bytes1 = rdev->mode_info.crtcs[0]->base.fb->bits_per_pixel / 8;
@@ -2413,11 +2429,8 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 	/*
 	 * determine is there is enough bw for current mode
 	 */
-	mclk_ff.full = rfixed_const(rdev->clock.default_mclk);
-	temp_ff.full = rfixed_const(100);
-	mclk_ff.full = rfixed_div(mclk_ff, temp_ff);
-	sclk_ff.full = rfixed_const(rdev->clock.default_sclk);
-	sclk_ff.full = rfixed_div(sclk_ff, temp_ff);
+	sclk_ff = rdev->pm.sclk;
+	mclk_ff = rdev->pm.mclk;
 
 	temp = (rdev->mc.vram_width / 8) * (rdev->mc.vram_is_ddr ? 2 : 1);
 	temp_ff.full = rfixed_const(temp);
@@ -3440,6 +3453,7 @@ int r100_suspend(struct radeon_device *rdev)
 
 void r100_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);

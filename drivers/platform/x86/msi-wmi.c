@@ -26,6 +26,7 @@
 #include <linux/input/sparse-keymap.h>
 #include <linux/acpi.h>
 #include <linux/backlight.h>
+#include <linux/slab.h>
 
 MODULE_AUTHOR("Thomas Renninger <trenn@suse.de>");
 MODULE_DESCRIPTION("MSI laptop WMI hotkeys driver");

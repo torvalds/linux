@@ -37,6 +37,7 @@
 #include <linux/errno.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/usb.h>

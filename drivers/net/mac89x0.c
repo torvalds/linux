@@ -88,7 +88,6 @@ static char *version =
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/nubus.h>
 #include <linux/errno.h>
@@ -98,6 +97,7 @@ static char *version =
 #include <linux/skbuff.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>

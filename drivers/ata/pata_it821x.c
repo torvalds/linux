@@ -75,6 +75,7 @@
 #include <linux/init.h>
 #include <linux/blkdev.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 

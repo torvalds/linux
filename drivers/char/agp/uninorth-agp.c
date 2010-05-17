@@ -3,6 +3,7 @@
  */
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
 #include <linux/agp_backend.h>

@@ -493,6 +493,7 @@ static void hashlimit_ipv6_mask(__be32 *i, unsigned int p)
 	case 64 ... 95:
 		i[2] = maskl(i[2], p - 64);
 		i[3] = 0;
+		break;
 	case 96 ... 127:
 		i[3] = maskl(i[3], p - 96);
 		break;
@@ -879,7 +880,8 @@ static void dl_seq_stop(struct seq_file *s, void *v)
 	struct xt_hashlimit_htable *htable = s->private;
 	unsigned int *bucket = (unsigned int *)v;
 
-	kfree(bucket);
+	if (!IS_ERR(bucket))
+		kfree(bucket);
 	spin_unlock_bh(&htable->lock);
 }
 

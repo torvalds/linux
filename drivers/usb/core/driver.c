@@ -23,6 +23,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 #include <linux/usb/quirks.h>
 #include <linux/pm_runtime.h>

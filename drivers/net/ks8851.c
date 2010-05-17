@@ -976,7 +976,6 @@ static void ks8851_set_rx_mode(struct net_device *dev)
 			crc >>= (32 - 6);  /* get top six bits */
 
 			rxctrl.mchash[crc >> 4] |= (1 << (crc & 0xf));
-			mcptr = mcptr->next;
 		}
 
 		rxctrl.rxcr1 = RXCR1_RXME | RXCR1_RXPAFMA;

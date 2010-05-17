@@ -37,6 +37,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 /* I2C controller revisions */
 #define OMAP_I2C_REV_2			0x20

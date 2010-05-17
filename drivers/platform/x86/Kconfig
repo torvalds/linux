@@ -385,6 +385,16 @@ config EEEPC_LAPTOP
 
 	  If you have an Eee PC laptop, say Y or M here.
 
+config EEEPC_WMI
+	tristate "Eee PC WMI Hotkey Driver (EXPERIMENTAL)"
+	depends on ACPI_WMI
+	depends on INPUT
+	depends on EXPERIMENTAL
+	---help---
+	  Say Y here if you want to support WMI-based hotkeys on Eee PC laptops.
+
+	  To compile this driver as a module, choose M here: the module will
+	  be called eeepc-wmi.
 
 config ACPI_WMI
 	tristate "WMI"

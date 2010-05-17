@@ -28,6 +28,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <linux/firmware.h>
 #include <linux/wait.h>

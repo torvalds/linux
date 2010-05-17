@@ -40,6 +40,7 @@
  * at the end of nfs4svc_decode_compoundargs.
  */
 
+#include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/statfs.h>
 #include <linux/utsname.h>

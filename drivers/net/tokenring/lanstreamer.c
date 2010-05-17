@@ -121,6 +121,7 @@
 #include <linux/spinlock.h>
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
+#include <linux/slab.h>
 
 #include <net/net_namespace.h>
 #include <net/checksum.h>

@@ -290,7 +290,7 @@ static int locomo_suspend(struct platform_device *dev, pm_message_t state)
 	save->LCM_GPO     = locomo_readl(lchip->base + LOCOMO_GPO);	/* GPIO */
 	locomo_writel(0x00, lchip->base + LOCOMO_GPO);
 	save->LCM_SPICT   = locomo_readl(lchip->base + LOCOMO_SPI + LOCOMO_SPICT);	/* SPI */
-	locomo_writel(0x40, lchip->base + LOCOMO_SPICT);
+	locomo_writel(0x40, lchip->base + LOCOMO_SPI + LOCOMO_SPICT);
 	save->LCM_GPE     = locomo_readl(lchip->base + LOCOMO_GPE);	/* GPIO */
 	locomo_writel(0x00, lchip->base + LOCOMO_GPE);
 	save->LCM_ASD     = locomo_readl(lchip->base + LOCOMO_ASD);	/* ADSTART */
@@ -418,7 +418,7 @@ __locomo_probe(struct device *me, struct resource *mem, int irq)
 	/* Longtime timer */
 	locomo_writel(0, lchip->base + LOCOMO_LTINT);
 	/* SPI */
-	locomo_writel(0, lchip->base + LOCOMO_SPIIE);
+	locomo_writel(0, lchip->base + LOCOMO_SPI + LOCOMO_SPIIE);
 
 	locomo_writel(6 + 8 + 320 + 30 - 10, lchip->base + LOCOMO_ASD);
 	r = locomo_readl(lchip->base + LOCOMO_ASD);
@@ -707,7 +707,7 @@ void locomo_m62332_senddata(struct locomo_dev *ldev, unsigned int dac_data, int 
 	udelay(DAC_SCL_HIGH_HOLD_TIME);	/* 4.7 usec */
 	if (locomo_readl(mapbase + LOCOMO_DAC) & LOCOMO_DAC_SDAOEB) {	/* High is error */
 		printk(KERN_WARNING "locomo: m62332_senddata Error 1\n");
-		return;
+		goto out;
 	}
 
 	/* Send Sub address (LSB is channel select) */
@@ -735,7 +735,7 @@ void locomo_m62332_senddata(struct locomo_dev *ldev, unsigned int dac_data, int 
 	udelay(DAC_SCL_HIGH_HOLD_TIME);	/* 4.7 usec */
 	if (locomo_readl(mapbase + LOCOMO_DAC) & LOCOMO_DAC_SDAOEB) {	/* High is error */
 		printk(KERN_WARNING "locomo: m62332_senddata Error 2\n");
-		return;
+		goto out;
 	}
 
 	/* Send DAC data */
@@ -760,9 +760,9 @@ void locomo_m62332_senddata(struct locomo_dev *ldev, unsigned int dac_data, int 
 	udelay(DAC_SCL_HIGH_HOLD_TIME);	/* 4.7 usec */
 	if (locomo_readl(mapbase + LOCOMO_DAC) & LOCOMO_DAC_SDAOEB) {	/* High is error */
 		printk(KERN_WARNING "locomo: m62332_senddata Error 3\n");
-		return;
 	}
 
+out:
 	/* stop */
 	r = locomo_readl(mapbase + LOCOMO_DAC);
 	r &=  ~(LOCOMO_DAC_SCLOEB);

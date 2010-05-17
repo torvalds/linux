@@ -33,6 +33,7 @@
 #include <linux/ethtool.h>
 #include <linux/pci.h>
 #include <linux/ip.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 #include <linux/tcp.h>
 #include <linux/in.h>

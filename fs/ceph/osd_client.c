@@ -413,11 +413,22 @@ static void remove_old_osds(struct ceph_osd_client *osdc, int remove_all)
  */
 static int __reset_osd(struct ceph_osd_client *osdc, struct ceph_osd *osd)
 {
+	struct ceph_osd_request *req;
 	int ret = 0;
 
 	dout("__reset_osd %p osd%d\n", osd, osd->o_osd);
 	if (list_empty(&osd->o_requests)) {
 		__remove_osd(osdc, osd);
+	} else if (memcmp(&osdc->osdmap->osd_addr[osd->o_osd],
+			  &osd->o_con.peer_addr,
+			  sizeof(osd->o_con.peer_addr)) == 0 &&
+		   !ceph_con_opened(&osd->o_con)) {
+		dout(" osd addr hasn't changed and connection never opened,"
+		     " letting msgr retry");
+		/* touch each r_stamp for handle_timeout()'s benfit */
+		list_for_each_entry(req, &osd->o_requests, r_osd_item)
+			req->r_stamp = jiffies;
+		ret = -EAGAIN;
 	} else {
 		ceph_con_close(&osd->o_con);
 		ceph_con_open(&osd->o_con, &osdc->osdmap->osd_addr[osd->o_osd]);
@@ -633,7 +644,7 @@ static int __send_request(struct ceph_osd_client *osdc,
 	reqhead->flags |= cpu_to_le32(req->r_flags);  /* e.g., RETRY */
 	reqhead->reassert_version = req->r_reassert_version;
 
-	req->r_sent_stamp = jiffies;
+	req->r_stamp = jiffies;
 	list_move_tail(&osdc->req_lru, &req->r_req_lru_item);
 
 	ceph_msg_get(req->r_request); /* send consumes a ref */
@@ -660,7 +671,7 @@ static void handle_timeout(struct work_struct *work)
 	unsigned long timeout = osdc->client->mount_args->osd_timeout * HZ;
 	unsigned long keepalive =
 		osdc->client->mount_args->osd_keepalive_timeout * HZ;
-	unsigned long last_sent = 0;
+	unsigned long last_stamp = 0;
 	struct rb_node *p;
 	struct list_head slow_osds;
 
@@ -697,12 +708,12 @@ static void handle_timeout(struct work_struct *work)
 		req = list_entry(osdc->req_lru.next, struct ceph_osd_request,
 				 r_req_lru_item);
 
-		if (time_before(jiffies, req->r_sent_stamp + timeout))
+		if (time_before(jiffies, req->r_stamp + timeout))
 			break;
 
-		BUG_ON(req == last_req && req->r_sent_stamp == last_sent);
+		BUG_ON(req == last_req && req->r_stamp == last_stamp);
 		last_req = req;
-		last_sent = req->r_sent_stamp;
+		last_stamp = req->r_stamp;
 
 		osd = req->r_osd;
 		BUG_ON(!osd);
@@ -718,7 +729,7 @@ static void handle_timeout(struct work_struct *work)
 	 */
 	INIT_LIST_HEAD(&slow_osds);
 	list_for_each_entry(req, &osdc->req_lru, r_req_lru_item) {
-		if (time_before(jiffies, req->r_sent_stamp + keepalive))
+		if (time_before(jiffies, req->r_stamp + keepalive))
 			break;
 
 		osd = req->r_osd;
@@ -862,7 +873,9 @@ static int __kick_requests(struct ceph_osd_client *osdc,
 
 	dout("kick_requests osd%d\n", kickosd ? kickosd->o_osd : -1);
 	if (kickosd) {
-		__reset_osd(osdc, kickosd);
+		err = __reset_osd(osdc, kickosd);
+		if (err == -EAGAIN)
+			return 1;
 	} else {
 		for (p = rb_first(&osdc->osds); p; p = n) {
 			struct ceph_osd *osd =
@@ -913,7 +926,7 @@ static int __kick_requests(struct ceph_osd_client *osdc,
 
 kick:
 		dout("kicking %p tid %llu osd%d\n", req, req->r_tid,
-		     req->r_osd->o_osd);
+		     req->r_osd ? req->r_osd->o_osd : -1);
 		req->r_flags |= CEPH_OSD_FLAG_RETRY;
 		err = __send_request(osdc, req);
 		if (err) {

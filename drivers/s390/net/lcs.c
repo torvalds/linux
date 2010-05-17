@@ -37,6 +37,7 @@
 #include <linux/igmp.h>
 #include <linux/delay.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 #include <net/ip.h>
 

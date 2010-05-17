@@ -53,7 +53,6 @@ static char version[] = "atarilance.c: v1.3 04/04/96 "
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/bitops.h>

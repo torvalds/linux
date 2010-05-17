@@ -25,6 +25,7 @@
  */
 
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #undef LOOP_TEST
 #undef DUMP_RX

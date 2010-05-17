@@ -17,6 +17,7 @@
 #include <linux/list.h>
 #include <linux/module.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 
 #include "internal.h"

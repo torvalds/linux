@@ -22,7 +22,6 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/percpu.h>
-#include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/miscdevice.h>
 #include <linux/vmalloc.h>
@@ -46,6 +45,7 @@
 #include <linux/compat.h>
 #include <linux/srcu.h>
 #include <linux/hugetlb.h>
+#include <linux/slab.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>

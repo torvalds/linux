@@ -32,6 +32,7 @@
 #include <linux/udp.h>
 #include <linux/if.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <linux/if_ether.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>

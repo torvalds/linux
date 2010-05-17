@@ -37,6 +37,7 @@
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
 #include <plat/usb.h>
 
 /*

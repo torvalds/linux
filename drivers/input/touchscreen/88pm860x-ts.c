@@ -14,6 +14,7 @@
 #include <linux/i2c.h>
 #include <linux/input.h>
 #include <linux/mfd/88pm860x.h>
+#include <linux/slab.h>
 
 #define MEAS_LEN		(8)
 #define ACCURATE_BIT		(12)

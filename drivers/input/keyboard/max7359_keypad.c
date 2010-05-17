@@ -15,6 +15,7 @@
 
 #include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/input/matrix_keypad.h>

@@ -26,10 +26,12 @@
  *          Jerome Glisse
  */
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "drm.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "radeon_drm.h"
 #include "r100_track.h"
 #include "r300d.h"
@@ -164,9 +166,9 @@ void rv370_pcie_gart_disable(struct radeon_device *rdev)
 
 void rv370_pcie_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	rv370_pcie_gart_disable(rdev);
 	radeon_gart_table_vram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 void r300_fence_ring_emit(struct radeon_device *rdev,
@@ -323,11 +325,12 @@ void r300_gpu_init(struct radeon_device *rdev)
 
 	r100_hdp_reset(rdev);
 	/* FIXME: rv380 one pipes ? */
-	if ((rdev->family == CHIP_R300) || (rdev->family == CHIP_R350)) {
+	if ((rdev->family == CHIP_R300 && rdev->pdev->device != 0x4144) ||
+	    (rdev->family == CHIP_R350)) {
 		/* r300,r350 */
 		rdev->num_gb_pipes = 2;
 	} else {
-		/* rv350,rv370,rv380 */
+		/* rv350,rv370,rv380,r300 AD */
 		rdev->num_gb_pipes = 1;
 	}
 	rdev->num_z_pipes = 1;
@@ -481,6 +484,7 @@ void r300_mc_init(struct radeon_device *rdev)
 	radeon_vram_location(rdev, &rdev->mc, base);
 	if (!(rdev->flags & RADEON_IS_AGP))
 		radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes)
@@ -1334,6 +1338,7 @@ int r300_suspend(struct radeon_device *rdev)
 
 void r300_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);

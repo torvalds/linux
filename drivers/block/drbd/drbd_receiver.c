@@ -2513,6 +2513,10 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 	}
 
 	if (hg == -100) {
+		/* FIXME this log message is not correct if we end up here
+		 * after an attempted attach on a diskless node.
+		 * We just refuse to attach -- well, we drop the "connection"
+		 * to that disk, in a way... */
 		dev_alert(DEV, "Split-Brain detected, dropping connection!\n");
 		drbd_khelper(mdev, "split-brain");
 		return C_MASK;
@@ -2536,6 +2540,16 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 			dev_warn(DEV, "Becoming SyncTarget, violating the stable-data"
 			     "assumption\n");
 		}
+	}
+
+	if (mdev->net_conf->dry_run || test_bit(CONN_DRY_RUN, &mdev->flags)) {
+		if (hg == 0)
+			dev_info(DEV, "dry-run connect: No resync, would become Connected immediately.\n");
+		else
+			dev_info(DEV, "dry-run connect: Would become %s, doing a %s resync.",
+				 drbd_conn_str(hg > 0 ? C_SYNC_SOURCE : C_SYNC_TARGET),
+				 abs(hg) >= 2 ? "full" : "bit-map based");
+		return C_MASK;
 	}
 
 	if (abs(hg) >= 2) {
@@ -2585,7 +2599,7 @@ static int receive_protocol(struct drbd_conf *mdev, struct p_header *h)
 	struct p_protocol *p = (struct p_protocol *)h;
 	int header_size, data_size;
 	int p_proto, p_after_sb_0p, p_after_sb_1p, p_after_sb_2p;
-	int p_want_lose, p_two_primaries;
+	int p_want_lose, p_two_primaries, cf;
 	char p_integrity_alg[SHARED_SECRET_MAX] = "";
 
 	header_size = sizeof(*p) - sizeof(*h);
@@ -2598,8 +2612,14 @@ static int receive_protocol(struct drbd_conf *mdev, struct p_header *h)
 	p_after_sb_0p	= be32_to_cpu(p->after_sb_0p);
 	p_after_sb_1p	= be32_to_cpu(p->after_sb_1p);
 	p_after_sb_2p	= be32_to_cpu(p->after_sb_2p);
-	p_want_lose	= be32_to_cpu(p->want_lose);
 	p_two_primaries = be32_to_cpu(p->two_primaries);
+	cf		= be32_to_cpu(p->conn_flags);
+	p_want_lose = cf & CF_WANT_LOSE;
+
+	clear_bit(CONN_DRY_RUN, &mdev->flags);
+
+	if (cf & CF_DRY_RUN)
+		set_bit(CONN_DRY_RUN, &mdev->flags);
 
 	if (p_proto != mdev->net_conf->wire_protocol) {
 		dev_err(DEV, "incompatible communication protocols\n");
@@ -3118,13 +3138,16 @@ static int receive_state(struct drbd_conf *mdev, struct p_header *h)
 
 		put_ldev(mdev);
 		if (nconn == C_MASK) {
+			nconn = C_CONNECTED;
 			if (mdev->state.disk == D_NEGOTIATING) {
 				drbd_force_state(mdev, NS(disk, D_DISKLESS));
-				nconn = C_CONNECTED;
 			} else if (peer_state.disk == D_NEGOTIATING) {
 				dev_err(DEV, "Disk attach process on the peer node was aborted.\n");
 				peer_state.disk = D_DISKLESS;
+				real_peer_disk = D_DISKLESS;
 			} else {
+				if (test_and_clear_bit(CONN_DRY_RUN, &mdev->flags))
+					return FALSE;
 				D_ASSERT(oconn == C_WF_REPORT_PARAMS);
 				drbd_force_state(mdev, NS(conn, C_DISCONNECTING));
 				return FALSE;
@@ -3594,10 +3617,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 
 	/* asender does not clean up anything. it must not interfere, either */
 	drbd_thread_stop(&mdev->asender);
-
-	mutex_lock(&mdev->data.mutex);
 	drbd_free_sock(mdev);
-	mutex_unlock(&mdev->data.mutex);
 
 	spin_lock_irq(&mdev->req_lock);
 	_drbd_wait_ee_list_empty(mdev, &mdev->active_ee);
@@ -4054,6 +4074,8 @@ static int got_PingAck(struct drbd_conf *mdev, struct p_header *h)
 {
 	/* restore idle timeout */
 	mdev->meta.socket->sk->sk_rcvtimeo = mdev->net_conf->ping_int*HZ;
+	if (!test_and_set_bit(GOT_PING_ACK, &mdev->flags))
+		wake_up(&mdev->misc_wait);
 
 	return TRUE;
 }

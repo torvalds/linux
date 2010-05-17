@@ -12,6 +12,7 @@
 #include <linux/fs.h>
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/sysctl.h>
 #include <linux/ctype.h>

@@ -28,6 +28,7 @@
      */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/fb.h>
 
 #include "drmP.h"

@@ -1,6 +1,7 @@
 #include "wl1251_cmd.h"
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/crc7.h>
 
 #include "wl1251.h"

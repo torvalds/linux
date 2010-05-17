@@ -31,6 +31,7 @@
 #include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/8xx_immap.h>

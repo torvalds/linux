@@ -47,6 +47,7 @@
 #include <linux/sched.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
 
 #include <mach/irqs.h>
 #include <mach/hardware.h>

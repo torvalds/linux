@@ -603,6 +603,10 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 				      ? RADEON_CRTC2_INTERLACE_EN
 				      : 0));
 
+		/* rs4xx chips seem to like to have the crtc enabled when the timing is set */
+		if ((rdev->family == CHIP_RS400) || (rdev->family == CHIP_RS480))
+			crtc2_gen_cntl |= RADEON_CRTC2_EN;
+
 		disp2_merge_cntl = RREG32(RADEON_DISP2_MERGE_CNTL);
 		disp2_merge_cntl &= ~RADEON_DISP2_RGB_OFFSET_EN;
 
@@ -629,6 +633,10 @@ static bool radeon_set_crtc_timing(struct drm_crtc *crtc, struct drm_display_mod
 				 | ((mode->flags & DRM_MODE_FLAG_INTERLACE)
 				    ? RADEON_CRTC_INTERLACE_EN
 				    : 0));
+
+		/* rs4xx chips seem to like to have the crtc enabled when the timing is set */
+		if ((rdev->family == CHIP_RS400) || (rdev->family == CHIP_RS480))
+			crtc_gen_cntl |= RADEON_CRTC_EN;
 
 		crtc_ext_cntl = RREG32(RADEON_CRTC_EXT_CNTL);
 		crtc_ext_cntl |= (RADEON_XCRT_CNT_EN |

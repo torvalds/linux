@@ -31,7 +31,8 @@ enum fields {
 	BIMM = 0x040,
 	JIMM = 0x080,
 	FUNC = 0x100,
-	SET = 0x200
+	SET = 0x200,
+	SCIMM = 0x400
 };
 
 #define OP_MASK		0x3f
@@ -52,6 +53,8 @@ enum fields {
 #define FUNC_SH		0
 #define SET_MASK	0x7
 #define SET_SH		0
+#define SCIMM_MASK	0xfffff
+#define SCIMM_SH	6
 
 enum opcode {
 	insn_invalid,
@@ -61,10 +64,10 @@ enum opcode {
 	insn_dmtc0, insn_dsll, insn_dsll32, insn_dsra, insn_dsrl,
 	insn_dsrl32, insn_drotr, insn_dsubu, insn_eret, insn_j, insn_jal,
 	insn_jr, insn_ld, insn_ll, insn_lld, insn_lui, insn_lw, insn_mfc0,
-	insn_mtc0, insn_ori, insn_pref, insn_rfe, insn_sc, insn_scd,
+	insn_mtc0, insn_or, insn_ori, insn_pref, insn_rfe, insn_sc, insn_scd,
 	insn_sd, insn_sll, insn_sra, insn_srl, insn_rotr, insn_subu, insn_sw,
 	insn_tlbp, insn_tlbr, insn_tlbwi, insn_tlbwr, insn_xor, insn_xori,
-	insn_dins
+	insn_dins, insn_syscall
 };
 
 struct insn {
@@ -117,6 +120,7 @@ static struct insn insn_table[] __cpuinitdata = {
 	{ insn_lw,  M(lw_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
 	{ insn_mfc0,  M(cop0_op, mfc_op, 0, 0, 0, 0),  RT | RD | SET},
 	{ insn_mtc0,  M(cop0_op, mtc_op, 0, 0, 0, 0),  RT | RD | SET},
+	{ insn_or,  M(spec_op, 0, 0, 0, 0, or_op),  RS | RT | RD },
 	{ insn_ori,  M(ori_op, 0, 0, 0, 0, 0),  RS | RT | UIMM },
 	{ insn_pref,  M(pref_op, 0, 0, 0, 0, 0),  RS | RT | SIMM },
 	{ insn_rfe,  M(cop0_op, cop_op, 0, 0, 0, rfe_op),  0 },
@@ -136,6 +140,7 @@ static struct insn insn_table[] __cpuinitdata = {
 	{ insn_xor,  M(spec_op, 0, 0, 0, 0, xor_op),  RS | RT | RD },
 	{ insn_xori,  M(xori_op, 0, 0, 0, 0, 0),  RS | RT | UIMM },
 	{ insn_dins, M(spec3_op, 0, 0, 0, 0, dins_op), RS | RT | RD | RE },
+	{ insn_syscall, M(spec_op, 0, 0, 0, 0, syscall_op), SCIMM},
 	{ insn_invalid, 0, 0 }
 };
 
@@ -208,6 +213,14 @@ static inline __cpuinit u32 build_jimm(u32 arg)
 	return (arg >> 2) & JIMM_MASK;
 }
 
+static inline __cpuinit u32 build_scimm(u32 arg)
+{
+	if (arg & ~SCIMM_MASK)
+		printk(KERN_WARNING "Micro-assembler field overflow\n");
+
+	return (arg & SCIMM_MASK) << SCIMM_SH;
+}
+
 static inline __cpuinit u32 build_func(u32 arg)
 {
 	if (arg & ~FUNC_MASK)
@@ -266,6 +279,8 @@ static void __cpuinit build_insn(u32 **buf, enum opcode opc, ...)
 		op |= build_func(va_arg(ap, u32));
 	if (ip->fields & SET)
 		op |= build_set(va_arg(ap, u32));
+	if (ip->fields & SCIMM)
+		op |= build_scimm(va_arg(ap, u32));
 	va_end(ap);
 
 	**buf = op;
@@ -373,6 +388,7 @@ I_u2s3u1(_lw)
 I_u1u2u3(_mfc0)
 I_u1u2u3(_mtc0)
 I_u2u1u3(_ori)
+I_u3u1u2(_or)
 I_u2s3u1(_pref)
 I_0(_rfe)
 I_u2s3u1(_sc)
@@ -391,6 +407,7 @@ I_0(_tlbwr)
 I_u3u1u2(_xor)
 I_u2u1u3(_xori)
 I_u2u1msbu3(_dins);
+I_u1(_syscall);
 
 /* Handle labels. */
 void __cpuinit uasm_build_label(struct uasm_label **lab, u32 *addr, int lid)

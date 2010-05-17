@@ -298,6 +298,10 @@
 #define INSTDONE	0x02090
 #define NOPID		0x02094
 #define HWSTAM		0x02098
+
+#define MI_MODE		0x0209c
+# define VS_TIMER_DISPATCH				(1 << 6)
+
 #define SCPD0		0x0209c /* 915+ only */
 #define IER		0x020a0
 #define IIR		0x020a4
@@ -366,7 +370,7 @@
 #define   FBC_CTL_PERIODIC	(1<<30)
 #define   FBC_CTL_INTERVAL_SHIFT (16)
 #define   FBC_CTL_UNCOMPRESSIBLE (1<<14)
-#define   FBC_C3_IDLE		(1<<13)
+#define   FBC_CTL_C3_IDLE	(1<<13)
 #define   FBC_CTL_STRIDE_SHIFT	(5)
 #define   FBC_CTL_FENCENO	(1<<0)
 #define FBC_COMMAND		0x0320c
@@ -2171,6 +2175,14 @@
 #define DISPLAY_PORT_PLL_BIOS_0         0x4600c
 #define DISPLAY_PORT_PLL_BIOS_1         0x46010
 #define DISPLAY_PORT_PLL_BIOS_2         0x46014
+
+#define PCH_DSPCLK_GATE_D	0x42020
+# define DPFDUNIT_CLOCK_GATE_DISABLE		(1 << 7)
+# define DPARBUNIT_CLOCK_GATE_DISABLE		(1 << 5)
+
+#define PCH_3DCGDIS0		0x46020
+# define MARIUNIT_CLOCK_GATE_DISABLE		(1 << 18)
+# define SVSMUNIT_CLOCK_GATE_DISABLE		(1 << 1)
 
 #define FDI_PLL_FREQ_CTL        0x46030
 #define  FDI_PLL_FREQ_CHANGE_REQUEST    (1<<24)

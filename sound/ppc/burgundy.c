@@ -21,7 +21,6 @@
 
 #include <asm/io.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <sound/core.h>
 #include "pmac.h"

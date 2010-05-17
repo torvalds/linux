@@ -36,6 +36,7 @@
 #include <linux/notifier.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/gfp.h>
 #include <asm/uaccess.h>
 #include <asm/delay.h>
 #include <asm/s390_ext.h>

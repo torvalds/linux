@@ -61,6 +61,7 @@
 
 #include <linux/namei.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/mount.h>
 #include <linux/mempool.h>
 #include <linux/writeback.h>

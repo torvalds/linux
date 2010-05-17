@@ -16,6 +16,7 @@
 ***************************************************************************/
 
 #include <linux/version.h>
+#include <linux/slab.h>
 
 #include "crystalhd_lnx.h"
 

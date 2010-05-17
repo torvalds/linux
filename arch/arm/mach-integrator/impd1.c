@@ -21,6 +21,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <asm/clkdev.h>
 #include <mach/clkdev.h>

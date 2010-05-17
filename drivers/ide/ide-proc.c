@@ -25,6 +25,7 @@
 #include <linux/ctype.h>
 #include <linux/ide.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 

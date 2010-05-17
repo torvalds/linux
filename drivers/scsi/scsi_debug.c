@@ -30,6 +30,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/timer.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/genhd.h>

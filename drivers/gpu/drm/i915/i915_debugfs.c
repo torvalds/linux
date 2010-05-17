@@ -28,6 +28,7 @@
 
 #include <linux/seq_file.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "drm.h"
 #include "i915_drm.h"

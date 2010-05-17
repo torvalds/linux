@@ -123,22 +123,11 @@ static inline int rcu_read_lock_held(void)
 	return lock_is_held(&rcu_lock_map);
 }
 
-/**
- * rcu_read_lock_bh_held - might we be in RCU-bh read-side critical section?
- *
- * If CONFIG_PROVE_LOCKING is selected and enabled, returns nonzero iff in
- * an RCU-bh read-side critical section.  In absence of CONFIG_PROVE_LOCKING,
- * this assumes we are in an RCU-bh read-side critical section unless it can
- * prove otherwise.
- *
- * Check rcu_scheduler_active to prevent false positives during boot.
+/*
+ * rcu_read_lock_bh_held() is defined out of line to avoid #include-file
+ * hell.
  */
-static inline int rcu_read_lock_bh_held(void)
-{
-	if (!debug_lockdep_rcu_enabled())
-		return 1;
-	return lock_is_held(&rcu_bh_lock_map);
-}
+extern int rcu_read_lock_bh_held(void);
 
 /**
  * rcu_read_lock_sched_held - might we be in RCU-sched read-side critical section?
@@ -160,7 +149,7 @@ static inline int rcu_read_lock_sched_held(void)
 		return 1;
 	if (debug_locks)
 		lockdep_opinion = lock_is_held(&rcu_sched_lock_map);
-	return lockdep_opinion || preempt_count() != 0;
+	return lockdep_opinion || preempt_count() != 0 || irqs_disabled();
 }
 #else /* #ifdef CONFIG_PREEMPT */
 static inline int rcu_read_lock_sched_held(void)
@@ -191,7 +180,7 @@ static inline int rcu_read_lock_bh_held(void)
 #ifdef CONFIG_PREEMPT
 static inline int rcu_read_lock_sched_held(void)
 {
-	return !rcu_scheduler_active || preempt_count() != 0;
+	return !rcu_scheduler_active || preempt_count() != 0 || irqs_disabled();
 }
 #else /* #ifdef CONFIG_PREEMPT */
 static inline int rcu_read_lock_sched_held(void)

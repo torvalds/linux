@@ -10,6 +10,7 @@
 #include <linux/topology.h>
 #include <linux/device.h>
 #include <linux/node.h>
+#include <linux/gfp.h>
 
 #include "base.h"
 

@@ -30,6 +30,7 @@
 #include <linux/gpio.h>
 #include <linux/completion.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 #include <plat/display.h>
 

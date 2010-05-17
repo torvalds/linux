@@ -17,6 +17,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include "jfs_incore.h"
 #include "jfs_superblock.h"
 #include "jfs_dmap.h"

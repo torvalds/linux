@@ -31,6 +31,7 @@
 #include <linux/smsc911x.h>
 #include <linux/ata_platform.h>
 #include <linux/amba/mmci.h>
+#include <linux/gfp.h>
 
 #include <asm/clkdev.h>
 #include <asm/system.h>

@@ -67,6 +67,7 @@
 #include <linux/highmem.h>
 #include <linux/sockios.h>
 #include <linux/firmware.h>
+#include <linux/slab.h>
 
 #if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #include <linux/if_vlan.h>

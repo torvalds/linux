@@ -6,6 +6,7 @@
 
 #define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/bitops.h>
 #include <linux/capability.h>

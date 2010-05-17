@@ -27,7 +27,6 @@
  */
 
 #include <linux/cgroup.h>
-#include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
 #include <linux/fs.h>

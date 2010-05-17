@@ -18,6 +18,7 @@
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
+#include <linux/slab.h>
 #ifdef CONFIG_OF_GPIO
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>

@@ -35,6 +35,7 @@
 #include <linux/key.h>
 #include <linux/parser.h>
 #include <linux/fs_stack.h>
+#include <linux/slab.h>
 #include "ecryptfs_kernel.h"
 
 /**

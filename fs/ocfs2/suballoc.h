@@ -127,6 +127,11 @@ int ocfs2_free_clusters(handle_t *handle,
 			struct buffer_head *bitmap_bh,
 			u64 start_blk,
 			unsigned int num_clusters);
+int ocfs2_release_clusters(handle_t *handle,
+			   struct inode *bitmap_inode,
+			   struct buffer_head *bitmap_bh,
+			   u64 start_blk,
+			   unsigned int num_clusters);
 
 static inline u64 ocfs2_which_suballoc_group(u64 block, unsigned int bit)
 {

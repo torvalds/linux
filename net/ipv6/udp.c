@@ -34,6 +34,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 #include <net/ndisc.h>

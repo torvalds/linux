@@ -58,7 +58,6 @@ static const char version[] =
 #include <linux/etherdevice.h>
 #include <linux/if_ether.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
 

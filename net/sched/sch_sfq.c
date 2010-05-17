@@ -20,6 +20,7 @@
 #include <linux/ipv6.h>
 #include <linux/skbuff.h>
 #include <linux/jhash.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>

@@ -13,6 +13,7 @@
  *             Pavel Emelianov <xemul@openvz.org>
  */
 
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/nsproxy.h>
 #include <linux/init_task.h>

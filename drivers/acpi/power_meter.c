@@ -25,6 +25,7 @@
 #include <linux/jiffies.h>
 #include <linux/mutex.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 #include <linux/kdev_t.h>
 #include <linux/sched.h>
 #include <linux/time.h>

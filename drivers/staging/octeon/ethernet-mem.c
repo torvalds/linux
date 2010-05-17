@@ -26,6 +26,7 @@
 **********************************************************************/
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 
 #include <asm/octeon/octeon.h>
 

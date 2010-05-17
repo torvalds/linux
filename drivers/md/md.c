@@ -49,6 +49,7 @@
 #include <linux/delay.h>
 #include <linux/raid/md_p.h>
 #include <linux/raid/md_u.h>
+#include <linux/slab.h>
 #include "md.h"
 #include "bitmap.h"
 

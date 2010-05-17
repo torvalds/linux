@@ -29,6 +29,7 @@
 #include <linux/etherdevice.h>
 #include <linux/skbuff.h>
 #include <linux/in.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 #include <net/route.h>
 #include <net/sock.h>

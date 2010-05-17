@@ -18,6 +18,7 @@
 #include <linux/skbuff.h>
 #include <linux/init.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/notifier.h>
 #include <linux/netdevice.h>
 #include <linux/netfilter.h>

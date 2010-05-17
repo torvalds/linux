@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 static LIST_HEAD(container_list);
 static DEFINE_MUTEX(container_list_lock);

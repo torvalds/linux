@@ -23,7 +23,6 @@
 #include <linux/ioctl.h>
 #include <linux/if.h>
 #include <linux/if_bridge.h>
-#include <linux/slab.h>
 #include <linux/raid/md_u.h>
 #include <linux/kd.h>
 #include <linux/route.h>
@@ -60,6 +59,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-dev.h>
 #include <linux/atalk.h>
+#include <linux/gfp.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci.h>

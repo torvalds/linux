@@ -36,6 +36,7 @@
 #include <linux/personality.h>
 #include <linux/ptrace.h>
 #include <linux/fs_struct.h>
+#include <linux/gfp.h>
 
 #include <linux/compat.h>
 #include <linux/syscalls.h>

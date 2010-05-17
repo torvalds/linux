@@ -26,6 +26,7 @@
 #include <asm/kvm_ppc.h>
 #include <asm/kvm_book3s.h>
 #include <asm/mmu_context.h>
+#include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
 

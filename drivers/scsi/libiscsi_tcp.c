@@ -29,6 +29,7 @@
 #include <linux/types.h>
 #include <linux/list.h>
 #include <linux/inet.h>
+#include <linux/slab.h>
 #include <linux/file.h>
 #include <linux/blkdev.h>
 #include <linux/crypto.h>

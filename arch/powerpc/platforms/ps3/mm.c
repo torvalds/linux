@@ -22,6 +22,7 @@
 #include <linux/module.h>
 #include <linux/memory_hotplug.h>
 #include <linux/lmb.h>
+#include <linux/slab.h>
 
 #include <asm/cell-regs.h>
 #include <asm/firmware.h>

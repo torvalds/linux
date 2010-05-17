@@ -34,6 +34,7 @@
 #include <linux/fs.h>
 #include <linux/cdev.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>
 #include <linux/notifier.h>

@@ -10,6 +10,7 @@
  */
 #include <linux/init.h>
 #include <linux/pfn.h>
+#include <linux/slab.h>
 #include <linux/bootmem.h>
 #include <linux/module.h>
 #include <linux/kmemleak.h>
@@ -180,19 +181,12 @@ static void __init __free_pages_memory(unsigned long start, unsigned long end)
 	end_aligned = end & ~(BITS_PER_LONG - 1);
 
 	if (end_aligned <= start_aligned) {
-#if 1
-		printk(KERN_DEBUG " %lx - %lx\n", start, end);
-#endif
 		for (i = start; i < end; i++)
 			__free_pages_bootmem(pfn_to_page(i), 0);
 
 		return;
 	}
 
-#if 1
-	printk(KERN_DEBUG " %lx %lx - %lx %lx\n",
-		 start, start_aligned, end_aligned, end);
-#endif
 	for (i = start; i < start_aligned; i++)
 		__free_pages_bootmem(pfn_to_page(i), 0);
 
@@ -310,9 +304,22 @@ unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
 unsigned long __init free_all_bootmem(void)
 {
 #ifdef CONFIG_NO_BOOTMEM
-	return free_all_memory_core_early(NODE_DATA(0)->node_id);
+	/*
+	 * We need to use MAX_NUMNODES instead of NODE_DATA(0)->node_id
+	 *  because in some case like Node0 doesnt have RAM installed
+	 *  low ram will be on Node1
+	 * Use MAX_NUMNODES will make sure all ranges in early_node_map[]
+	 *  will be used instead of only Node0 related
+	 */
+	return free_all_memory_core_early(MAX_NUMNODES);
 #else
-	return free_all_bootmem_core(NODE_DATA(0)->bdata);
+	unsigned long total_pages = 0;
+	bootmem_data_t *bdata;
+
+	list_for_each_entry(bdata, &bdata_list, list)
+		total_pages += free_all_bootmem_core(bdata);
+
+	return total_pages;
 #endif
 }
 
@@ -428,9 +435,6 @@ void __init free_bootmem_node(pg_data_t *pgdat, unsigned long physaddr,
 {
 #ifdef CONFIG_NO_BOOTMEM
 	free_early(physaddr, physaddr + size);
-#if 0
-	printk(KERN_DEBUG "free %lx %lx\n", physaddr, size);
-#endif
 #else
 	unsigned long start, end;
 
@@ -456,9 +460,6 @@ void __init free_bootmem(unsigned long addr, unsigned long size)
 {
 #ifdef CONFIG_NO_BOOTMEM
 	free_early(addr, addr + size);
-#if 0
-	printk(KERN_DEBUG "free %lx %lx\n", addr, size);
-#endif
 #else
 	unsigned long start, end;
 

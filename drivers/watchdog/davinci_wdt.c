@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/device.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
 
 #define MODULE_NAME "DAVINCI-WDT: "
 

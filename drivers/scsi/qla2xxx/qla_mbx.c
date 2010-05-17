@@ -7,6 +7,7 @@
 #include "qla_def.h"
 
 #include <linux/delay.h>
+#include <linux/gfp.h>
 
 
 /*
@@ -339,6 +340,7 @@ qla2x00_load_ram(scsi_qla_host_t *vha, dma_addr_t req_dma, uint32_t risc_addr,
 	return rval;
 }
 
+#define	EXTENDED_BB_CREDITS	BIT_0
 /*
  * qla2x00_execute_fw
  *     Start adapter firmware.
@@ -371,7 +373,12 @@ qla2x00_execute_fw(scsi_qla_host_t *vha, uint32_t risc_addr)
 		mcp->mb[1] = MSW(risc_addr);
 		mcp->mb[2] = LSW(risc_addr);
 		mcp->mb[3] = 0;
-		mcp->mb[4] = 0;
+		if (IS_QLA81XX(ha)) {
+			struct nvram_81xx *nv = ha->nvram;
+			mcp->mb[4] = (nv->enhanced_features &
+			    EXTENDED_BB_CREDITS);
+		} else
+			mcp->mb[4] = 0;
 		mcp->out_mb |= MBX_4|MBX_3|MBX_2|MBX_1;
 		mcp->in_mb |= MBX_1;
 	} else {

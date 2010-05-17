@@ -46,6 +46,7 @@
  *              -> sdio_disable_func()
  */
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 
 #include "iwm.h"
 #include "commands.h"

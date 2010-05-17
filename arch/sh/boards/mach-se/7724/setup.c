@@ -52,6 +52,13 @@
  * and change SW41 to use 720p
  */
 
+/*
+ * about sound
+ *
+ * This setup.c supports FSI slave mode.
+ * Please change J20, J21, J22 pin to 1-2 connection.
+ */
+
 /* Heartbeat */
 static struct resource heartbeat_resource = {
 	.start  = PA_LED,
@@ -276,6 +283,7 @@ static struct clk fsimcka_clk = {
 	.rate		= 0, /* unknown */
 };
 
+/* change J20, J21, J22 pin to 1-2 connection to use slave mode */
 struct sh_fsi_platform_info fsi_info = {
 	.porta_flags = SH_FSI_BRS_INV |
 		       SH_FSI_OUT_SLAVE_MODE |

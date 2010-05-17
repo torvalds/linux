@@ -29,6 +29,7 @@
 #include <linux/crc32.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
+#include <linux/slab.h>
 
 #include "common.h"
 #include "dwmac100.h"

@@ -35,6 +35,7 @@
 #include <linux/freezer.h>
 #include <linux/errno.h>
 #include <linux/net.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 
 #include <linux/socket.h>

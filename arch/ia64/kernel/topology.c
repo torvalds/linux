@@ -17,6 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h>
 #include <linux/node.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/nodemask.h>

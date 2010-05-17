@@ -26,6 +26,7 @@
 #include <linux/sched.h>
 #include <linux/moduleparam.h>
 #include <linux/ftrace_event.h>
+#include <linux/slab.h>
 #include "kvm_cache_regs.h"
 #include "x86.h"
 

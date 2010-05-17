@@ -7,7 +7,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/pagemap.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/dmapool.h>
 #include <linux/mempool.h>
 #include <linux/spinlock.h>

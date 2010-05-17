@@ -14,6 +14,7 @@
 #include <linux/etherdevice.h>
 #include <linux/rtnetlink.h>
 #include <linux/llc.h>
+#include <linux/slab.h>
 #include <net/llc.h>
 #include <net/llc_pdu.h>
 #include <net/garp.h>

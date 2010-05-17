@@ -29,6 +29,7 @@
  */
 
 #include <linux/types.h>
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/ide.h>
 #include <linux/scatterlist.h>
@@ -492,6 +493,7 @@ ide_startstop_t ide_dma_timeout_retry(ide_drive_t *drive, int error)
 	if (rq) {
 		hwif->rq = NULL;
 		rq->errors = 0;
+		ide_requeue_and_plug(drive, rq);
 	}
 	return ret;
 }

@@ -31,6 +31,7 @@
 #include "radeon_drm.h"
 
 #include <linux/vga_switcheroo.h>
+#include <linux/slab.h>
 
 int radeon_driver_unload_kms(struct drm_device *dev)
 {

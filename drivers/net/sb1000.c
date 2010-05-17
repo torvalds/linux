@@ -42,7 +42,6 @@ static char version[] = "sb1000.c:v1.1.2 6/01/98 (fventuri@mediaone.net)\n";
 #include <linux/errno.h>
 #include <linux/if_cablemodem.h> /* for SIOGCM/SIOSCM stuff */
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
@@ -52,6 +51,7 @@ static char version[] = "sb1000.c:v1.1.2 6/01/98 (fventuri@mediaone.net)\n";
 #include <linux/pnp.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/processor.h>

@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 #include <asm/numa.h>
 #include <asm/pci_x86.h>
 
@@ -122,8 +123,8 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	struct acpi_resource_address64 addr;
 	acpi_status status;
 	unsigned long flags;
-	struct resource *root;
-	u64 start, end;
+	struct resource *root, *conflict;
+	u64 start, end, max_len;
 
 	status = resource_to_addr(acpi_res, &addr);
 	if (!ACPI_SUCCESS(status))
@@ -139,6 +140,17 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 		flags = IORESOURCE_IO;
 	} else
 		return AE_OK;
+
+	max_len = addr.maximum - addr.minimum + 1;
+	if (addr.address_length > max_len) {
+		dev_printk(KERN_DEBUG, &info->bridge->dev,
+			   "host bridge window length %#llx doesn't fit in "
+			   "%#llx-%#llx, trimming\n",
+			   (unsigned long long) addr.address_length,
+			   (unsigned long long) addr.minimum,
+			   (unsigned long long) addr.maximum);
+		addr.address_length = max_len;
+	}
 
 	start = addr.minimum + addr.translation_offset;
 	end = start + addr.address_length - 1;
@@ -157,9 +169,12 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 		return AE_OK;
 	}
 
-	if (insert_resource(root, res)) {
+	conflict = insert_resource_conflict(root, res);
+	if (conflict) {
 		dev_err(&info->bridge->dev,
-			"can't allocate host bridge window %pR\n", res);
+			"address space collision: host bridge window %pR "
+			"conflicts with %s %pR\n",
+			res, conflict->name, conflict);
 	} else {
 		pci_bus_add_resource(info->bus, res, 0);
 		info->res_num++;

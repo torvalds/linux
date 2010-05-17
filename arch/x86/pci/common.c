@@ -9,6 +9,7 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 
 #include <asm/acpi.h>
 #include <asm/segment.h>

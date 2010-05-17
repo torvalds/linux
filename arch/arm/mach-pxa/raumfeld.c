@@ -37,8 +37,6 @@
 #include <linux/lis3lv02d.h>
 #include <linux/pda_power.h>
 #include <linux/power_supply.h>
-#include <linux/pda_power.h>
-#include <linux/power_supply.h>
 #include <linux/regulator/max8660.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
@@ -444,7 +442,7 @@ static struct gpio_keys_button gpio_keys_button[] = {
 		.active_low		= 0,
 		.wakeup			= 0,
 		.debounce_interval	= 5, /* ms */
-		.desc			= "on/off button",
+		.desc			= "on_off button",
 	},
 };
 

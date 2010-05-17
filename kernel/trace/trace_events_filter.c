@@ -22,6 +22,7 @@
 #include <linux/ctype.h>
 #include <linux/mutex.h>
 #include <linux/perf_event.h>
+#include <linux/slab.h>
 
 #include "trace.h"
 #include "trace_output.h"

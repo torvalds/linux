@@ -30,6 +30,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/cpufreq.h>
+#include <linux/slab.h>
 
 #ifdef CONFIG_X86
 #include <asm/cpufeature.h>

@@ -17,6 +17,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/writeback.h>
 #include <linux/pagemap.h>
@@ -147,18 +148,13 @@ static void wait_current_trans(struct btrfs_root *root)
 		while (1) {
 			prepare_to_wait(&root->fs_info->transaction_wait, &wait,
 					TASK_UNINTERRUPTIBLE);
-			if (cur_trans->blocked) {
-				mutex_unlock(&root->fs_info->trans_mutex);
-				schedule();
-				mutex_lock(&root->fs_info->trans_mutex);
-				finish_wait(&root->fs_info->transaction_wait,
-					    &wait);
-			} else {
-				finish_wait(&root->fs_info->transaction_wait,
-					    &wait);
+			if (!cur_trans->blocked)
 				break;
-			}
+			mutex_unlock(&root->fs_info->trans_mutex);
+			schedule();
+			mutex_lock(&root->fs_info->trans_mutex);
 		}
+		finish_wait(&root->fs_info->transaction_wait, &wait);
 		put_transaction(cur_trans);
 	}
 }
@@ -760,10 +756,17 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	struct btrfs_root_item *new_root_item;
 	struct btrfs_root *tree_root = fs_info->tree_root;
 	struct btrfs_root *root = pending->root;
+	struct btrfs_root *parent_root;
+	struct inode *parent_inode;
 	struct extent_buffer *tmp;
 	struct extent_buffer *old;
 	int ret;
 	u64 objectid;
+	int namelen;
+	u64 index = 0;
+
+	parent_inode = pending->dentry->d_parent->d_inode;
+	parent_root = BTRFS_I(parent_inode)->root;
 
 	new_root_item = kmalloc(sizeof(*new_root_item), GFP_NOFS);
 	if (!new_root_item) {
@@ -774,14 +777,34 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	if (ret)
 		goto fail;
 
-	record_root_in_trans(trans, root);
-	btrfs_set_root_last_snapshot(&root->root_item, trans->transid);
-	memcpy(new_root_item, &root->root_item, sizeof(*new_root_item));
-
 	key.objectid = objectid;
 	/* record when the snapshot was created in key.offset */
 	key.offset = trans->transid;
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
+
+	memcpy(&pending->root_key, &key, sizeof(key));
+	pending->root_key.offset = (u64)-1;
+
+	record_root_in_trans(trans, parent_root);
+	/*
+	 * insert the directory item
+	 */
+	namelen = strlen(pending->name);
+	ret = btrfs_set_inode_index(parent_inode, &index);
+	BUG_ON(ret);
+	ret = btrfs_insert_dir_item(trans, parent_root,
+			    pending->name, namelen,
+			    parent_inode->i_ino,
+			    &pending->root_key, BTRFS_FT_DIR, index);
+	BUG_ON(ret);
+
+	btrfs_i_size_write(parent_inode, parent_inode->i_size + namelen * 2);
+	ret = btrfs_update_inode(trans, parent_root, parent_inode);
+	BUG_ON(ret);
+
+	record_root_in_trans(trans, root);
+	btrfs_set_root_last_snapshot(&root->root_item, trans->transid);
+	memcpy(new_root_item, &root->root_item, sizeof(*new_root_item));
 
 	old = btrfs_lock_root_node(root);
 	btrfs_cow_block(trans, root, old, NULL, 0, &old);
@@ -794,59 +817,19 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_set_root_node(new_root_item, tmp);
 	ret = btrfs_insert_root(trans, root->fs_info->tree_root, &key,
 				new_root_item);
+	BUG_ON(ret);
 	btrfs_tree_unlock(tmp);
 	free_extent_buffer(tmp);
-	if (ret)
-		goto fail;
-
-	key.offset = (u64)-1;
-	memcpy(&pending->root_key, &key, sizeof(key));
-fail:
-	kfree(new_root_item);
-	return ret;
-}
-
-static noinline int finish_pending_snapshot(struct btrfs_fs_info *fs_info,
-				   struct btrfs_pending_snapshot *pending)
-{
-	int ret;
-	int namelen;
-	u64 index = 0;
-	struct btrfs_trans_handle *trans;
-	struct inode *parent_inode;
-	struct btrfs_root *parent_root;
-
-	parent_inode = pending->dentry->d_parent->d_inode;
-	parent_root = BTRFS_I(parent_inode)->root;
-	trans = btrfs_join_transaction(parent_root, 1);
-
-	/*
-	 * insert the directory item
-	 */
-	namelen = strlen(pending->name);
-	ret = btrfs_set_inode_index(parent_inode, &index);
-	ret = btrfs_insert_dir_item(trans, parent_root,
-			    pending->name, namelen,
-			    parent_inode->i_ino,
-			    &pending->root_key, BTRFS_FT_DIR, index);
-
-	if (ret)
-		goto fail;
-
-	btrfs_i_size_write(parent_inode, parent_inode->i_size + namelen * 2);
-	ret = btrfs_update_inode(trans, parent_root, parent_inode);
-	BUG_ON(ret);
 
 	ret = btrfs_add_root_ref(trans, parent_root->fs_info->tree_root,
 				 pending->root_key.objectid,
 				 parent_root->root_key.objectid,
 				 parent_inode->i_ino, index, pending->name,
 				 namelen);
-
 	BUG_ON(ret);
 
 fail:
-	btrfs_end_transaction(trans, fs_info->fs_root);
+	kfree(new_root_item);
 	return ret;
 }
 
@@ -863,25 +846,6 @@ static noinline int create_pending_snapshots(struct btrfs_trans_handle *trans,
 	list_for_each_entry(pending, head, list) {
 		ret = create_pending_snapshot(trans, fs_info, pending);
 		BUG_ON(ret);
-	}
-	return 0;
-}
-
-static noinline int finish_pending_snapshots(struct btrfs_trans_handle *trans,
-					     struct btrfs_fs_info *fs_info)
-{
-	struct btrfs_pending_snapshot *pending;
-	struct list_head *head = &trans->transaction->pending_snapshots;
-	int ret;
-
-	while (!list_empty(head)) {
-		pending = list_entry(head->next,
-				     struct btrfs_pending_snapshot, list);
-		ret = finish_pending_snapshot(fs_info, pending);
-		BUG_ON(ret);
-		list_del(&pending->list);
-		kfree(pending->name);
-		kfree(pending);
 	}
 	return 0;
 }
@@ -1096,9 +1060,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	mutex_unlock(&root->fs_info->tree_log_mutex);
 
 	btrfs_finish_extent_commit(trans, root);
-
-	/* do the directory inserts of any pending snapshot creations */
-	finish_pending_snapshots(trans, root->fs_info);
 
 	mutex_lock(&root->fs_info->trans_mutex);
 

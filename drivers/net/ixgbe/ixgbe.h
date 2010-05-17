@@ -204,14 +204,17 @@ enum ixgbe_ring_f_enum {
 #define IXGBE_MAX_FDIR_INDICES 64
 #ifdef IXGBE_FCOE
 #define IXGBE_MAX_FCOE_INDICES  8
+#define MAX_RX_QUEUES (IXGBE_MAX_FDIR_INDICES + IXGBE_MAX_FCOE_INDICES)
+#define MAX_TX_QUEUES (IXGBE_MAX_FDIR_INDICES + IXGBE_MAX_FCOE_INDICES)
+#else
+#define MAX_RX_QUEUES IXGBE_MAX_FDIR_INDICES
+#define MAX_TX_QUEUES IXGBE_MAX_FDIR_INDICES
 #endif /* IXGBE_FCOE */
 struct ixgbe_ring_feature {
 	int indices;
 	int mask;
 } ____cacheline_internodealigned_in_smp;
 
-#define MAX_RX_QUEUES 128
-#define MAX_TX_QUEUES 128
 
 #define MAX_RX_PACKET_BUFFERS ((adapter->flags & IXGBE_FLAG_DCB_ENABLED) \
                               ? 8 : 1)

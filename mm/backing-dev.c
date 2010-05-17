@@ -227,6 +227,9 @@ static struct device_attribute bdi_dev_attrs[] = {
 static __init int bdi_class_init(void)
 {
 	bdi_class = class_create(THIS_MODULE, "bdi");
+	if (IS_ERR(bdi_class))
+		return PTR_ERR(bdi_class);
+
 	bdi_class->dev_attrs = bdi_dev_attrs;
 	bdi_debug_init();
 	return 0;

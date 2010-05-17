@@ -16,6 +16,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
+#include <linux/slab.h>
 #include <linux/ssb/ssb.h>
 
 #include "sdio.h"

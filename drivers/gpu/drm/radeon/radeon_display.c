@@ -368,10 +368,9 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 
 	if (rdev->bios) {
 		if (rdev->is_atom_bios) {
-			if (rdev->family >= CHIP_R600)
+			ret = radeon_get_atom_connector_info_from_supported_devices_table(dev);
+			if (ret == false)
 				ret = radeon_get_atom_connector_info_from_object_table(dev);
-			else
-				ret = radeon_get_atom_connector_info_from_supported_devices_table(dev);
 		} else {
 			ret = radeon_get_legacy_connector_info_from_bios(dev);
 			if (ret == false)
@@ -469,9 +468,18 @@ static void radeon_compute_pll_legacy(struct radeon_pll *pll,
 	uint32_t best_error = 0xffffffff;
 	uint32_t best_vco_diff = 1;
 	uint32_t post_div;
+	u32 pll_out_min, pll_out_max;
 
 	DRM_DEBUG("PLL freq %llu %u %u\n", freq, pll->min_ref_div, pll->max_ref_div);
 	freq = freq * 1000;
+
+	if (pll->flags & RADEON_PLL_IS_LCD) {
+		pll_out_min = pll->lcd_pll_out_min;
+		pll_out_max = pll->lcd_pll_out_max;
+	} else {
+		pll_out_min = pll->pll_out_min;
+		pll_out_max = pll->pll_out_max;
+	}
 
 	if (pll->flags & RADEON_PLL_USE_REF_DIV)
 		min_ref_div = max_ref_div = pll->reference_div;
@@ -536,10 +544,10 @@ static void radeon_compute_pll_legacy(struct radeon_pll *pll,
 				tmp = (uint64_t)pll->reference_freq * feedback_div;
 				vco = radeon_div(tmp, ref_div);
 
-				if (vco < pll->pll_out_min) {
+				if (vco < pll_out_min) {
 					min_feed_div = feedback_div + 1;
 					continue;
-				} else if (vco > pll->pll_out_max) {
+				} else if (vco > pll_out_max) {
 					max_feed_div = feedback_div;
 					continue;
 				}
@@ -675,6 +683,15 @@ calc_fb_ref_div(struct radeon_pll *pll,
 {
 	fixed20_12 ffreq, max_error, error, pll_out, a;
 	u32 vco;
+	u32 pll_out_min, pll_out_max;
+
+	if (pll->flags & RADEON_PLL_IS_LCD) {
+		pll_out_min = pll->lcd_pll_out_min;
+		pll_out_max = pll->lcd_pll_out_max;
+	} else {
+		pll_out_min = pll->pll_out_min;
+		pll_out_max = pll->pll_out_max;
+	}
 
 	ffreq.full = rfixed_const(freq);
 	/* max_error = ffreq * 0.0025; */
@@ -686,7 +703,7 @@ calc_fb_ref_div(struct radeon_pll *pll,
 			vco = pll->reference_freq * (((*fb_div) * 10) + (*fb_div_frac));
 			vco = vco / ((*ref_div) * 10);
 
-			if ((vco < pll->pll_out_min) || (vco > pll->pll_out_max))
+			if ((vco < pll_out_min) || (vco > pll_out_max))
 				continue;
 
 			/* pll_out = vco / post_div; */
@@ -714,6 +731,15 @@ static void radeon_compute_pll_new(struct radeon_pll *pll,
 {
 	u32 fb_div = 0, fb_div_frac = 0, post_div = 0, ref_div = 0;
 	u32 best_freq = 0, vco_frequency;
+	u32 pll_out_min, pll_out_max;
+
+	if (pll->flags & RADEON_PLL_IS_LCD) {
+		pll_out_min = pll->lcd_pll_out_min;
+		pll_out_max = pll->lcd_pll_out_max;
+	} else {
+		pll_out_min = pll->pll_out_min;
+		pll_out_max = pll->pll_out_max;
+	}
 
 	/* freq = freq / 10; */
 	do_div(freq, 10);
@@ -724,7 +750,7 @@ static void radeon_compute_pll_new(struct radeon_pll *pll,
 			goto done;
 
 		vco_frequency = freq * post_div;
-		if ((vco_frequency < pll->pll_out_min) || (vco_frequency > pll->pll_out_max))
+		if ((vco_frequency < pll_out_min) || (vco_frequency > pll_out_max))
 			goto done;
 
 		if (pll->flags & RADEON_PLL_USE_REF_DIV) {
@@ -749,7 +775,7 @@ static void radeon_compute_pll_new(struct radeon_pll *pll,
 				continue;
 
 			vco_frequency = freq * post_div;
-			if ((vco_frequency < pll->pll_out_min) || (vco_frequency > pll->pll_out_max))
+			if ((vco_frequency < pll_out_min) || (vco_frequency > pll_out_max))
 				continue;
 			if (pll->flags & RADEON_PLL_USE_REF_DIV) {
 				ref_div = pll->reference_div;
@@ -945,6 +971,23 @@ static int radeon_modeset_create_props(struct radeon_device *rdev)
 	return 0;
 }
 
+void radeon_update_display_priority(struct radeon_device *rdev)
+{
+	/* adjustment options for the display watermarks */
+	if ((radeon_disp_priority == 0) || (radeon_disp_priority > 2)) {
+		/* set display priority to high for r3xx, rv515 chips
+		 * this avoids flickering due to underflow to the
+		 * display controllers during heavy acceleration.
+		 */
+		if (ASIC_IS_R300(rdev) || (rdev->family == CHIP_RV515))
+			rdev->disp_priority = 2;
+		else
+			rdev->disp_priority = 0;
+	} else
+		rdev->disp_priority = radeon_disp_priority;
+
+}
+
 int radeon_modeset_init(struct radeon_device *rdev)
 {
 	int i;
@@ -974,15 +1017,6 @@ int radeon_modeset_init(struct radeon_device *rdev)
 	if (!rdev->is_atom_bios) {
 		/* check for hardcoded EDID in BIOS */
 		radeon_combios_check_hardcoded_edid(rdev);
-	}
-
-	if (rdev->flags & RADEON_SINGLE_CRTC)
-		rdev->num_crtc = 1;
-	else {
-		if (ASIC_IS_DCE4(rdev))
-			rdev->num_crtc = 6;
-		else
-			rdev->num_crtc = 2;
 	}
 
 	/* allocate crtcs */

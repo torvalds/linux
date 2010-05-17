@@ -279,7 +279,6 @@ struct e1000_adapter {
 
 	struct napi_struct napi;
 
-	unsigned long tx_queue_len;
 	unsigned int restart_queue;
 	u32 txd_cmd;
 

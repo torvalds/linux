@@ -27,6 +27,7 @@
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
 #include <linux/input.h>
+#include <linux/slab.h>
 #include <media/ir-common.h>
 
 #include "demux.h"

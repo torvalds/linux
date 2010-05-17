@@ -16,6 +16,7 @@
 #include <linux/proc_fs.h>
 #include <linux/spinlock.h>
 #include <linux/cpu.h>
+#include <linux/slab.h>
 #include "offline_states.h"
 
 #include <asm/prom.h>

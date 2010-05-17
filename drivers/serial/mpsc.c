@@ -70,6 +70,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mv643xx.h>
 #include <linux/platform_device.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

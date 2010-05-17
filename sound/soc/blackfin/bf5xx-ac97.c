@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>

@@ -23,6 +23,7 @@
 #include <linux/string.h>
 #include <linux/list.h>
 #include <linux/wait.h>
+#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/ctype.h>
 #include <linux/utsname.h>

@@ -27,6 +27,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/crc32c.h>
+#include <linux/slab.h>
 #include "compat.h"
 #include "ctree.h"
 #include "disk-io.h"
@@ -1634,7 +1635,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	atomic_set(&fs_info->async_submit_draining, 0);
 	atomic_set(&fs_info->nr_async_bios, 0);
 	fs_info->sb = sb;
-	fs_info->max_extent = (u64)-1;
 	fs_info->max_inline = 8192 * 1024;
 	fs_info->metadata_ratio = 0;
 
@@ -1922,7 +1922,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	csum_root->track_dirty = 1;
 
-	btrfs_read_block_groups(extent_root);
+	ret = btrfs_read_block_groups(extent_root);
+	if (ret) {
+		printk(KERN_ERR "Failed to read block groups: %d\n", ret);
+		goto fail_block_groups;
+	}
 
 	fs_info->generation = generation;
 	fs_info->last_trans_committed = generation;
@@ -1932,7 +1936,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->cleaner_kthread = kthread_run(cleaner_kthread, tree_root,
 					       "btrfs-cleaner");
 	if (IS_ERR(fs_info->cleaner_kthread))
-		goto fail_csum_root;
+		goto fail_block_groups;
 
 	fs_info->transaction_kthread = kthread_run(transaction_kthread,
 						   tree_root,
@@ -2020,7 +2024,8 @@ fail_cleaner:
 	filemap_write_and_wait(fs_info->btree_inode->i_mapping);
 	invalidate_inode_pages2(fs_info->btree_inode->i_mapping);
 
-fail_csum_root:
+fail_block_groups:
+	btrfs_free_block_groups(fs_info);
 	free_extent_buffer(csum_root->node);
 	free_extent_buffer(csum_root->commit_root);
 fail_dev_root:

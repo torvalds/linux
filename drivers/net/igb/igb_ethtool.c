@@ -35,6 +35,7 @@
 #include <linux/if_ether.h>
 #include <linux/ethtool.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include "igb.h"
 

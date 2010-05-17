@@ -420,6 +420,7 @@
 #include <linux/init.h>
 #include <linux/ctype.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <asm/dma.h>
 #include <asm/irq.h>
 

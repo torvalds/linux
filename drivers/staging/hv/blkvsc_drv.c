@@ -25,6 +25,7 @@
 #include <linux/major.h>
 #include <linux/delay.h>
 #include <linux/hdreg.h>
+#include <linux/slab.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_eh.h>

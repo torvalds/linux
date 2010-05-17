@@ -19,6 +19,7 @@
 #include <linux/completion.h>
 #include <linux/io.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #define SMCR		0x00
 #define SMCR_START	(1 << 0)

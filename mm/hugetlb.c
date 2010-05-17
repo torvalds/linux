@@ -2,7 +2,6 @@
  * Generic hugetlb support.
  * (C) William Irwin, April 2004
  */
-#include <linux/gfp.h>
 #include <linux/list.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -18,6 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/bootmem.h>
 #include <linux/sysfs.h>
+#include <linux/slab.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>

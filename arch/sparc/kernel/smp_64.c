@@ -23,6 +23,7 @@
 #include <linux/bootmem.h>
 #include <linux/vmalloc.h>
 #include <linux/cpu.h>
+#include <linux/slab.h>
 
 #include <asm/head.h>
 #include <asm/ptrace.h>

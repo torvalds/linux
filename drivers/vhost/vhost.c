@@ -22,6 +22,7 @@
 #include <linux/poll.h>
 #include <linux/file.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 
 #include <linux/net.h>
 #include <linux/if_packet.h>
@@ -476,8 +477,10 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 		if (r < 0)
 			break;
 		eventfp = f.fd == -1 ? NULL : eventfd_fget(f.fd);
-		if (IS_ERR(eventfp))
-			return PTR_ERR(eventfp);
+		if (IS_ERR(eventfp)) {
+			r = PTR_ERR(eventfp);
+			break;
+		}
 		if (eventfp != vq->kick) {
 			pollstop = filep = vq->kick;
 			pollstart = vq->kick = eventfp;
@@ -489,8 +492,10 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 		if (r < 0)
 			break;
 		eventfp = f.fd == -1 ? NULL : eventfd_fget(f.fd);
-		if (IS_ERR(eventfp))
-			return PTR_ERR(eventfp);
+		if (IS_ERR(eventfp)) {
+			r = PTR_ERR(eventfp);
+			break;
+		}
 		if (eventfp != vq->call) {
 			filep = vq->call;
 			ctx = vq->call_ctx;
@@ -505,8 +510,10 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 		if (r < 0)
 			break;
 		eventfp = f.fd == -1 ? NULL : eventfd_fget(f.fd);
-		if (IS_ERR(eventfp))
-			return PTR_ERR(eventfp);
+		if (IS_ERR(eventfp)) {
+			r = PTR_ERR(eventfp);
+			break;
+		}
 		if (eventfp != vq->error) {
 			filep = vq->error;
 			vq->error = eventfp;

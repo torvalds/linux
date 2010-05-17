@@ -22,6 +22,7 @@
 
 #include <linux/init.h>
 #include <linux/usb.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/eeprom_93cx6.h>

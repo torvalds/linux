@@ -47,6 +47,7 @@
 #include <linux/hdlc.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
+#include <linux/gfp.h>
 #include <asm/dma.h>
 #include <asm/io.h>
 #define RT_LOCK

@@ -67,6 +67,7 @@
 #include <linux/poll.h>
 #include <linux/init.h>
 #include <linux/crypto.h>
+#include <linux/slab.h>
 
 #include <net/ip.h>
 #include <net/icmp.h>

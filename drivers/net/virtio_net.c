@@ -25,6 +25,7 @@
 #include <linux/virtio_net.h>
 #include <linux/scatterlist.h>
 #include <linux/if_vlan.h>
+#include <linux/slab.h>
 
 static int napi_weight = 128;
 module_param(napi_weight, int, 0444);

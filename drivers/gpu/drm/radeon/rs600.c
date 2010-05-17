@@ -37,6 +37,7 @@
  */
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "atom.h"
 #include "rs600d.h"
 
@@ -267,9 +268,9 @@ void rs600_gart_disable(struct radeon_device *rdev)
 
 void rs600_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	rs600_gart_disable(rdev);
 	radeon_gart_table_vram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 #define R600_PTE_VALID     (1 << 0)
@@ -392,10 +393,12 @@ int rs600_irq_process(struct radeon_device *rdev)
 		/* Vertical blank interrupts */
 		if (G_007EDC_LB_D1_VBLANK_INTERRUPT(r500_disp_int)) {
 			drm_handle_vblank(rdev->ddev, 0);
+			rdev->pm.vblank_sync = true;
 			wake_up(&rdev->irq.vblank_queue);
 		}
 		if (G_007EDC_LB_D2_VBLANK_INTERRUPT(r500_disp_int)) {
 			drm_handle_vblank(rdev->ddev, 1);
+			rdev->pm.vblank_sync = true;
 			wake_up(&rdev->irq.vblank_queue);
 		}
 		if (G_007EDC_DC_HOT_PLUG_DETECT1_INTERRUPT(r500_disp_int)) {
@@ -472,13 +475,38 @@ void rs600_mc_init(struct radeon_device *rdev)
 	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
 	base = RREG32_MC(R_000004_MC_FB_LOCATION);
 	base = G_000004_MC_FB_START(base) << 16;
+	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
 	radeon_vram_location(rdev, &rdev->mc, base);
 	radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 void rs600_bandwidth_update(struct radeon_device *rdev)
 {
-	/* FIXME: implement, should this be like rs690 ? */
+	struct drm_display_mode *mode0 = NULL;
+	struct drm_display_mode *mode1 = NULL;
+	u32 d1mode_priority_a_cnt, d2mode_priority_a_cnt;
+	/* FIXME: implement full support */
+
+	radeon_update_display_priority(rdev);
+
+	if (rdev->mode_info.crtcs[0]->base.enabled)
+		mode0 = &rdev->mode_info.crtcs[0]->base.mode;
+	if (rdev->mode_info.crtcs[1]->base.enabled)
+		mode1 = &rdev->mode_info.crtcs[1]->base.mode;
+
+	rs690_line_buffer_adjust(rdev, mode0, mode1);
+
+	if (rdev->disp_priority == 2) {
+		d1mode_priority_a_cnt = RREG32(R_006548_D1MODE_PRIORITY_A_CNT);
+		d2mode_priority_a_cnt = RREG32(R_006D48_D2MODE_PRIORITY_A_CNT);
+		d1mode_priority_a_cnt |= S_006548_D1MODE_PRIORITY_A_ALWAYS_ON(1);
+		d2mode_priority_a_cnt |= S_006D48_D2MODE_PRIORITY_A_ALWAYS_ON(1);
+		WREG32(R_006548_D1MODE_PRIORITY_A_CNT, d1mode_priority_a_cnt);
+		WREG32(R_00654C_D1MODE_PRIORITY_B_CNT, d1mode_priority_a_cnt);
+		WREG32(R_006D48_D2MODE_PRIORITY_A_CNT, d2mode_priority_a_cnt);
+		WREG32(R_006D4C_D2MODE_PRIORITY_B_CNT, d2mode_priority_a_cnt);
+	}
 }
 
 uint32_t rs600_mc_rreg(struct radeon_device *rdev, uint32_t reg)
@@ -598,6 +626,7 @@ int rs600_suspend(struct radeon_device *rdev)
 
 void rs600_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);

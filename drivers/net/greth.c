@@ -34,6 +34,7 @@
 #include <linux/mii.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
+#include <linux/slab.h>
 #include <asm/cacheflush.h>
 #include <asm/byteorder.h>
 

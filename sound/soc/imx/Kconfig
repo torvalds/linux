@@ -1,6 +1,6 @@
 config SND_IMX_SOC
 	tristate "SoC Audio for Freescale i.MX CPUs"
-	depends on ARCH_MXC && BROKEN
+	depends on ARCH_MXC
 	select SND_PCM
 	select FIQ
 	select SND_SOC_AC97_BUS

@@ -10,6 +10,7 @@
 #include <linux/hwmon.h>
 #include <linux/list.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <acpi/acpi.h>
 #include <acpi/acpixf.h>

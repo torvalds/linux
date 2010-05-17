@@ -659,6 +659,7 @@ struct rpc_task *rpc_run_bc_task(struct rpc_rqst *req,
 	task = rpc_new_task(&task_setup_data);
 	if (!task) {
 		xprt_free_bc_request(req);
+		task = ERR_PTR(-ENOMEM);
 		goto out;
 	}
 	task->tk_rqstp = req;

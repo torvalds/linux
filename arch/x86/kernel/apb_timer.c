@@ -33,6 +33,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/sysdev.h>
+#include <linux/slab.h>
 #include <linux/pm.h>
 #include <linux/pci.h>
 #include <linux/sfi.h>

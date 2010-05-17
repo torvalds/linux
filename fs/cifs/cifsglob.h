@@ -18,6 +18,7 @@
  */
 #include <linux/in.h>
 #include <linux/in6.h>
+#include <linux/slab.h>
 #include <linux/slow-work.h>
 #include "cifs_fs_sb.h"
 #include "cifsacl.h"

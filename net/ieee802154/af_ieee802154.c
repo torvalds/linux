@@ -28,6 +28,7 @@
 #include <linux/if.h>
 #include <linux/termios.h>	/* For TIOCOUTQ/INQ */
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <net/datalink.h>
 #include <net/psnap.h>
 #include <net/sock.h>
@@ -125,6 +126,9 @@ static int ieee802154_sock_connect(struct socket *sock, struct sockaddr *uaddr,
 			int addr_len, int flags)
 {
 	struct sock *sk = sock->sk;
+
+	if (addr_len < sizeof(uaddr->sa_family))
+		return -EINVAL;
 
 	if (uaddr->sa_family == AF_UNSPEC)
 		return sk->sk_prot->disconnect(sk, flags);

@@ -11,7 +11,7 @@
  */
 #include <linux/module.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
+#include <linux/gfp.h>
 #include <linux/errno.h>
 #include <linux/list.h>
 #include <linux/init.h>

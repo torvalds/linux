@@ -1,4 +1,5 @@
 #include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/nfs.h>
 #include <linux/nfs3.h>
 #include <linux/nfs_fs.h>

@@ -51,6 +51,7 @@
 #include <linux/types.h>
 #include <linux/socket.h>
 #include <linux/ip.h>
+#include <linux/gfp.h>
 #include <net/sock.h>
 #include <net/sctp/sctp.h>
 #include <net/sctp/sm.h>

@@ -56,6 +56,7 @@
 #include <linux/can.h>
 #include <linux/can/core.h>
 #include <linux/can/bcm.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/net_namespace.h>
 
@@ -1477,6 +1478,9 @@ static int bcm_connect(struct socket *sock, struct sockaddr *uaddr, int len,
 	struct sockaddr_can *addr = (struct sockaddr_can *)uaddr;
 	struct sock *sk = sock->sk;
 	struct bcm_sock *bo = bcm_sk(sk);
+
+	if (len < sizeof(*addr))
+		return -EINVAL;
 
 	if (bo->bound)
 		return -EISCONN;

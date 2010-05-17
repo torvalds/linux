@@ -17,6 +17,7 @@
  */
 #include <linux/mm.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/blkdev.h>
 #include <linux/backing-dev.h>

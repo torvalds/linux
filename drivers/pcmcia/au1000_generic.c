@@ -43,6 +43,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
@@ -510,17 +511,6 @@ static int au1x00_drv_pcmcia_probe(struct platform_device *dev)
 	return ret;
 }
 
-static int au1x00_drv_pcmcia_suspend(struct platform_device *dev,
-				     pm_message_t state)
-{
-	return pcmcia_socket_dev_suspend(&dev->dev);
-}
-
-static int au1x00_drv_pcmcia_resume(struct platform_device *dev)
-{
-	return pcmcia_socket_dev_resume(&dev->dev);
-}
-
 static struct platform_driver au1x00_pcmcia_driver = {
 	.driver = {
 		.name		= "au1x00-pcmcia",
@@ -528,8 +518,6 @@ static struct platform_driver au1x00_pcmcia_driver = {
 	},
 	.probe		= au1x00_drv_pcmcia_probe,
 	.remove		= au1x00_drv_pcmcia_remove,
-	.suspend 	= au1x00_drv_pcmcia_suspend,
-	.resume 	= au1x00_drv_pcmcia_resume,
 };
 
 

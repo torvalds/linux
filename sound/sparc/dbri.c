@@ -58,6 +58,7 @@
 #include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>

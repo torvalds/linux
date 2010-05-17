@@ -66,6 +66,7 @@ Configuration options:
 #include "../pci_ids.h"
 
 #include <linux/delay.h>
+#include <linux/gfp.h>
 #include <linux/interrupt.h>
 
 #include "amcc_s5933.h"

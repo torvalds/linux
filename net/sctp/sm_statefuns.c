@@ -56,6 +56,7 @@
 #include <linux/ipv6.h>
 #include <linux/net.h>
 #include <linux/inet.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/inet_ecn.h>
 #include <linux/skbuff.h>

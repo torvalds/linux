@@ -17,6 +17,7 @@
 #include <linux/fs.h>
 #include <linux/blkpg.h>
 #include <linux/smp_lock.h>
+#include <linux/slab.h>
 #include <asm/compat.h>
 #include <asm/ccwdev.h>
 #include <asm/cmb.h>

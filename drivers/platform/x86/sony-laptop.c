@@ -58,6 +58,7 @@
 #include <linux/kfifo.h>
 #include <linux/workqueue.h>
 #include <linux/acpi.h>
+#include <linux/slab.h>
 #include <acpi/acpi_drivers.h>
 #include <acpi/acpi_bus.h>
 #include <asm/uaccess.h>

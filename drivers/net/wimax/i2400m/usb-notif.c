@@ -56,6 +56,7 @@
  *     i2400mu_rx_kick()
  */
 #include <linux/usb.h>
+#include <linux/slab.h>
 #include "i2400m-usb.h"
 
 

@@ -1,6 +1,7 @@
 /* Bluetooth HCI driver model support. */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -8,8 +9,7 @@
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-struct class *bt_class = NULL;
-EXPORT_SYMBOL_GPL(bt_class);
+static struct class *bt_class;
 
 struct dentry *bt_debugfs = NULL;
 EXPORT_SYMBOL_GPL(bt_debugfs);

@@ -14,6 +14,7 @@
 #define KMSG_COMPONENT "dasd"
 
 #include <linux/ctype.h>
+#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/seq_file.h>
 #include <linux/vmalloc.h>

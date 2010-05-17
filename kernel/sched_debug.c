@@ -518,8 +518,4 @@ void proc_sched_set_task(struct task_struct *p)
 	p->se.nr_wakeups_idle			= 0;
 	p->sched_info.bkl_count			= 0;
 #endif
-	p->se.sum_exec_runtime			= 0;
-	p->se.prev_sum_exec_runtime		= 0;
-	p->nvcsw				= 0;
-	p->nivcsw				= 0;
 }

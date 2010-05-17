@@ -758,7 +758,6 @@ static u8 dm365_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 	[IRQ_MMCINT]			= 7,
 	[IRQ_DM365_MMCINT1]		= 7,
 	[IRQ_DM365_PWMINT3]		= 7,
-	[IRQ_DDRINT]			= 4,
 	[IRQ_AEMIFINT]			= 2,
 	[IRQ_DM365_SDIOINT1]		= 2,
 	[IRQ_TINT0_TINT12]		= 7,

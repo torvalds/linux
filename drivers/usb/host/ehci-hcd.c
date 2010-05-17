@@ -23,7 +23,6 @@
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -35,6 +34,7 @@
 #include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 
 #include "../core/hcd.h"
 

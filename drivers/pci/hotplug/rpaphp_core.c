@@ -27,7 +27,6 @@
 #include <linux/moduleparam.h>
 #include <linux/pci.h>
 #include <linux/pci_hotplug.h>
-#include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/init.h>
 #include <asm/eeh.h>       /* for eeh_add_device() */

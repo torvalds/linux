@@ -315,7 +315,7 @@ int radeon_connector_set_property(struct drm_connector *connector, struct drm_pr
 		radeon_encoder = to_radeon_encoder(encoder);
 		if (!radeon_encoder->enc_priv)
 			return 0;
-		if (rdev->is_atom_bios) {
+		if (ASIC_IS_AVIVO(rdev) || radeon_r4xx_atom) {
 			struct radeon_encoder_atom_dac *dac_int;
 			dac_int = radeon_encoder->enc_priv;
 			dac_int->tv_std = val;
@@ -940,7 +940,7 @@ static void radeon_dp_connector_destroy(struct drm_connector *connector)
 	if (radeon_connector->edid)
 		kfree(radeon_connector->edid);
 	if (radeon_dig_connector->dp_i2c_bus)
-		radeon_i2c_destroy_dp(radeon_dig_connector->dp_i2c_bus);
+		radeon_i2c_destroy(radeon_dig_connector->dp_i2c_bus);
 	kfree(radeon_connector->con_priv);
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);

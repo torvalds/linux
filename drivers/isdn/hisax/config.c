@@ -23,6 +23,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #define HISAX_STATUS_BUFSIZE 4096
 
 /*

@@ -31,6 +31,7 @@
 #include <linux/hugetlb.h>
 #include <linux/compiler.h>
 #include <linux/srcu.h>
+#include <linux/slab.h>
 
 #include <asm/page.h>
 #include <asm/cmpxchg.h>

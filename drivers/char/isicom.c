@@ -130,6 +130,7 @@
 #include <linux/timer.h>
 #include <linux/delay.h>
 #include <linux/ioport.h>
+#include <linux/slab.h>
 
 #include <linux/uaccess.h>
 #include <linux/io.h>

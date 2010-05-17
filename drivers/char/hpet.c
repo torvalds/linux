@@ -31,6 +31,7 @@
 #include <linux/seq_file.h>
 #include <linux/bitops.h>
 #include <linux/clocksource.h>
+#include <linux/slab.h>
 
 #include <asm/current.h>
 #include <asm/uaccess.h>

@@ -12,7 +12,6 @@
 
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/vmalloc.h>

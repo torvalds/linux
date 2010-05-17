@@ -47,6 +47,7 @@
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/smp_lock.h>
+#include <linux/slab.h>
 #include <scsi/scsicam.h>
 
 #include "scsi.h"

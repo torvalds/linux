@@ -31,6 +31,7 @@
 #include <linux/mount.h>
 #include <linux/crypto.h>
 #include <linux/fs_stack.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 

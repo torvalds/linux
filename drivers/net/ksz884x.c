@@ -30,6 +30,7 @@
 #include <linux/if_vlan.h>
 #include <linux/crc32.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 
 /* DMA Registers */
@@ -6322,7 +6323,7 @@ static int netdev_set_eeprom(struct net_device *dev,
 	int len;
 
 	if (eeprom->magic != EEPROM_MAGIC)
-		return 1;
+		return -EINVAL;
 
 	len = (eeprom->offset + eeprom->len + 1) / 2;
 	for (i = eeprom->offset / 2; i < len; i++)

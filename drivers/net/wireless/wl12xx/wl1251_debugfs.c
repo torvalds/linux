@@ -24,6 +24,7 @@
 #include "wl1251_debugfs.h"
 
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 
 #include "wl1251.h"
 #include "wl1251_acx.h"
@@ -466,7 +467,8 @@ out:
 
 void wl1251_debugfs_reset(struct wl1251 *wl)
 {
-	memset(wl->stats.fw_stats, 0, sizeof(*wl->stats.fw_stats));
+	if (wl->stats.fw_stats != NULL)
+		memset(wl->stats.fw_stats, 0, sizeof(*wl->stats.fw_stats));
 	wl->stats.retry_count = 0;
 	wl->stats.excessive_retries = 0;
 }

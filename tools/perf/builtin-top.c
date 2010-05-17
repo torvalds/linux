@@ -455,7 +455,7 @@ static void print_sym_table(void)
 	struct sym_entry *syme, *n;
 	struct rb_root tmp = RB_ROOT;
 	struct rb_node *nd;
-	int sym_width = 0, dso_width = 0, max_dso_width;
+	int sym_width = 0, dso_width = 0, dso_short_width = 0;
 	const int win_width = winsize.ws_col - 1;
 
 	samples = userspace_samples = 0;
@@ -545,15 +545,20 @@ static void print_sym_table(void)
 		if (syme->map->dso->long_name_len > dso_width)
 			dso_width = syme->map->dso->long_name_len;
 
+		if (syme->map->dso->short_name_len > dso_short_width)
+			dso_short_width = syme->map->dso->short_name_len;
+
 		if (syme->name_len > sym_width)
 			sym_width = syme->name_len;
 	}
 
 	printed = 0;
 
-	max_dso_width = winsize.ws_col - sym_width - 29;
-	if (dso_width > max_dso_width)
-		dso_width = max_dso_width;
+	if (sym_width + dso_width > winsize.ws_col - 29) {
+		dso_width = dso_short_width;
+		if (sym_width + dso_width > winsize.ws_col - 29)
+			sym_width = winsize.ws_col - dso_width - 29;
+	}
 	putchar('\n');
 	if (nr_counters == 1)
 		printf("             samples  pcnt");

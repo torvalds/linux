@@ -70,6 +70,7 @@
 #include <linux/moduleparam.h>
 #include <linux/dma-mapping.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/pm.h>
 #include <asm/firmware.h>

@@ -40,6 +40,7 @@
 #include <linux/sched.h>
 #include <linux/skbuff.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <net/dst.h>
 #include <asm/unaligned.h>
 

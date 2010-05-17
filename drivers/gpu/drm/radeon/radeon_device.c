@@ -26,6 +26,7 @@
  *          Jerome Glisse
  */
 #include <linux/console.h>
+#include <linux/slab.h>
 #include <drm/drmP.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>
@@ -33,7 +34,6 @@
 #include <linux/vga_switcheroo.h>
 #include "radeon_reg.h"
 #include "radeon.h"
-#include "radeon_asic.h"
 #include "atom.h"
 
 /*
@@ -242,6 +242,36 @@ bool radeon_card_posted(struct radeon_device *rdev)
 
 }
 
+void radeon_update_bandwidth_info(struct radeon_device *rdev)
+{
+	fixed20_12 a;
+	u32 sclk, mclk;
+
+	if (rdev->flags & RADEON_IS_IGP) {
+		sclk = radeon_get_engine_clock(rdev);
+		mclk = rdev->clock.default_mclk;
+
+		a.full = rfixed_const(100);
+		rdev->pm.sclk.full = rfixed_const(sclk);
+		rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+		rdev->pm.mclk.full = rfixed_const(mclk);
+		rdev->pm.mclk.full = rfixed_div(rdev->pm.mclk, a);
+
+		a.full = rfixed_const(16);
+		/* core_bandwidth = sclk(Mhz) * 16 */
+		rdev->pm.core_bandwidth.full = rfixed_div(rdev->pm.sclk, a);
+	} else {
+		sclk = radeon_get_engine_clock(rdev);
+		mclk = radeon_get_memory_clock(rdev);
+
+		a.full = rfixed_const(100);
+		rdev->pm.sclk.full = rfixed_const(sclk);
+		rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+		rdev->pm.mclk.full = rfixed_const(mclk);
+		rdev->pm.mclk.full = rfixed_div(rdev->pm.mclk, a);
+	}
+}
+
 bool radeon_boot_test_post_card(struct radeon_device *rdev)
 {
 	if (radeon_card_posted(rdev))
@@ -287,181 +317,6 @@ void radeon_dummy_page_fini(struct radeon_device *rdev)
 	rdev->dummy_page.page = NULL;
 }
 
-
-/*
- * Registers accessors functions.
- */
-uint32_t radeon_invalid_rreg(struct radeon_device *rdev, uint32_t reg)
-{
-	DRM_ERROR("Invalid callback to read register 0x%04X\n", reg);
-	BUG_ON(1);
-	return 0;
-}
-
-void radeon_invalid_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
-{
-	DRM_ERROR("Invalid callback to write register 0x%04X with 0x%08X\n",
-		  reg, v);
-	BUG_ON(1);
-}
-
-void radeon_register_accessor_init(struct radeon_device *rdev)
-{
-	rdev->mc_rreg = &radeon_invalid_rreg;
-	rdev->mc_wreg = &radeon_invalid_wreg;
-	rdev->pll_rreg = &radeon_invalid_rreg;
-	rdev->pll_wreg = &radeon_invalid_wreg;
-	rdev->pciep_rreg = &radeon_invalid_rreg;
-	rdev->pciep_wreg = &radeon_invalid_wreg;
-
-	/* Don't change order as we are overridding accessor. */
-	if (rdev->family < CHIP_RV515) {
-		rdev->pcie_reg_mask = 0xff;
-	} else {
-		rdev->pcie_reg_mask = 0x7ff;
-	}
-	/* FIXME: not sure here */
-	if (rdev->family <= CHIP_R580) {
-		rdev->pll_rreg = &r100_pll_rreg;
-		rdev->pll_wreg = &r100_pll_wreg;
-	}
-	if (rdev->family >= CHIP_R420) {
-		rdev->mc_rreg = &r420_mc_rreg;
-		rdev->mc_wreg = &r420_mc_wreg;
-	}
-	if (rdev->family >= CHIP_RV515) {
-		rdev->mc_rreg = &rv515_mc_rreg;
-		rdev->mc_wreg = &rv515_mc_wreg;
-	}
-	if (rdev->family == CHIP_RS400 || rdev->family == CHIP_RS480) {
-		rdev->mc_rreg = &rs400_mc_rreg;
-		rdev->mc_wreg = &rs400_mc_wreg;
-	}
-	if (rdev->family == CHIP_RS690 || rdev->family == CHIP_RS740) {
-		rdev->mc_rreg = &rs690_mc_rreg;
-		rdev->mc_wreg = &rs690_mc_wreg;
-	}
-	if (rdev->family == CHIP_RS600) {
-		rdev->mc_rreg = &rs600_mc_rreg;
-		rdev->mc_wreg = &rs600_mc_wreg;
-	}
-	if ((rdev->family >= CHIP_R600) && (rdev->family <= CHIP_RV740)) {
-		rdev->pciep_rreg = &r600_pciep_rreg;
-		rdev->pciep_wreg = &r600_pciep_wreg;
-	}
-}
-
-
-/*
- * ASIC
- */
-int radeon_asic_init(struct radeon_device *rdev)
-{
-	radeon_register_accessor_init(rdev);
-	switch (rdev->family) {
-	case CHIP_R100:
-	case CHIP_RV100:
-	case CHIP_RS100:
-	case CHIP_RV200:
-	case CHIP_RS200:
-		rdev->asic = &r100_asic;
-		break;
-	case CHIP_R200:
-	case CHIP_RV250:
-	case CHIP_RS300:
-	case CHIP_RV280:
-		rdev->asic = &r200_asic;
-		break;
-	case CHIP_R300:
-	case CHIP_R350:
-	case CHIP_RV350:
-	case CHIP_RV380:
-		if (rdev->flags & RADEON_IS_PCIE)
-			rdev->asic = &r300_asic_pcie;
-		else
-			rdev->asic = &r300_asic;
-		break;
-	case CHIP_R420:
-	case CHIP_R423:
-	case CHIP_RV410:
-		rdev->asic = &r420_asic;
-		break;
-	case CHIP_RS400:
-	case CHIP_RS480:
-		rdev->asic = &rs400_asic;
-		break;
-	case CHIP_RS600:
-		rdev->asic = &rs600_asic;
-		break;
-	case CHIP_RS690:
-	case CHIP_RS740:
-		rdev->asic = &rs690_asic;
-		break;
-	case CHIP_RV515:
-		rdev->asic = &rv515_asic;
-		break;
-	case CHIP_R520:
-	case CHIP_RV530:
-	case CHIP_RV560:
-	case CHIP_RV570:
-	case CHIP_R580:
-		rdev->asic = &r520_asic;
-		break;
-	case CHIP_R600:
-	case CHIP_RV610:
-	case CHIP_RV630:
-	case CHIP_RV620:
-	case CHIP_RV635:
-	case CHIP_RV670:
-	case CHIP_RS780:
-	case CHIP_RS880:
-		rdev->asic = &r600_asic;
-		break;
-	case CHIP_RV770:
-	case CHIP_RV730:
-	case CHIP_RV710:
-	case CHIP_RV740:
-		rdev->asic = &rv770_asic;
-		break;
-	case CHIP_CEDAR:
-	case CHIP_REDWOOD:
-	case CHIP_JUNIPER:
-	case CHIP_CYPRESS:
-	case CHIP_HEMLOCK:
-		rdev->asic = &evergreen_asic;
-		break;
-	default:
-		/* FIXME: not supported yet */
-		return -EINVAL;
-	}
-
-	if (rdev->flags & RADEON_IS_IGP) {
-		rdev->asic->get_memory_clock = NULL;
-		rdev->asic->set_memory_clock = NULL;
-	}
-
-	return 0;
-}
-
-
-/*
- * Wrapper around modesetting bits.
- */
-int radeon_clocks_init(struct radeon_device *rdev)
-{
-	int r;
-
-	r = radeon_static_clocks_init(rdev->ddev);
-	if (r) {
-		return r;
-	}
-	DRM_INFO("Clocks initialized !\n");
-	return 0;
-}
-
-void radeon_clocks_fini(struct radeon_device *rdev)
-{
-}
 
 /* ATOM accessor methods */
 static uint32_t cail_pll_read(struct card_info *info, uint32_t reg)
@@ -565,29 +420,6 @@ static unsigned int radeon_vga_set_decode(void *cookie, bool state)
 		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 	else
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
-}
-
-void radeon_agp_disable(struct radeon_device *rdev)
-{
-	rdev->flags &= ~RADEON_IS_AGP;
-	if (rdev->family >= CHIP_R600) {
-		DRM_INFO("Forcing AGP to PCIE mode\n");
-		rdev->flags |= RADEON_IS_PCIE;
-	} else if (rdev->family >= CHIP_RV515 ||
-			rdev->family == CHIP_RV380 ||
-			rdev->family == CHIP_RV410 ||
-			rdev->family == CHIP_R423) {
-		DRM_INFO("Forcing AGP to PCIE mode\n");
-		rdev->flags |= RADEON_IS_PCIE;
-		rdev->asic->gart_tlb_flush = &rv370_pcie_gart_tlb_flush;
-		rdev->asic->gart_set_page = &rv370_pcie_gart_set_page;
-	} else {
-		DRM_INFO("Forcing AGP to PCI mode\n");
-		rdev->flags |= RADEON_IS_PCI;
-		rdev->asic->gart_tlb_flush = &r100_pci_gart_tlb_flush;
-		rdev->asic->gart_set_page = &r100_pci_gart_set_page;
-	}
-	rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
 }
 
 void radeon_check_arguments(struct radeon_device *rdev)
@@ -730,6 +562,14 @@ int radeon_device_init(struct radeon_device *rdev,
 	if (r)
 		return r;
 	radeon_check_arguments(rdev);
+
+	/* all of the newer IGP chips have an internal gart
+	 * However some rs4xx report as AGP, so remove that here.
+	 */
+	if ((rdev->family >= CHIP_RS400) &&
+	    (rdev->flags & RADEON_IS_IGP)) {
+		rdev->flags &= ~RADEON_IS_AGP;
+	}
 
 	if (rdev->flags & RADEON_IS_AGP && radeon_agpmode == -1) {
 		radeon_agp_disable(rdev);

@@ -24,6 +24,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 struct virtio_balloon
 {
