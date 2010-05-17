@@ -49,7 +49,7 @@ static unsigned char ret_diacr[NR_DEAD] = {
 struct kbd_data *
 kbd_alloc(void) {
 	struct kbd_data *kbd;
-	int i, len;
+	int i;
 
 	kbd = kzalloc(sizeof(struct kbd_data), GFP_KERNEL);
 	if (!kbd)
@@ -72,11 +72,10 @@ kbd_alloc(void) {
 		goto out_maps;
 	for (i = 0; i < ARRAY_SIZE(func_table); i++) {
 		if (func_table[i]) {
-			len = strlen(func_table[i]) + 1;
-			kbd->func_table[i] = kmalloc(len, GFP_KERNEL);
+			kbd->func_table[i] = kstrdup(func_table[i],
+						     GFP_KERNEL);
 			if (!kbd->func_table[i])
 				goto out_func;
-			memcpy(kbd->func_table[i], func_table[i], len);
 		}
 	}
 	kbd->fn_handler =
