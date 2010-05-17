@@ -1757,12 +1757,12 @@ alloc_init_file(struct inode *ino)
 		INIT_LIST_HEAD(&fp->fi_hash);
 		INIT_LIST_HEAD(&fp->fi_stateids);
 		INIT_LIST_HEAD(&fp->fi_delegations);
-		spin_lock(&recall_lock);
-		list_add(&fp->fi_hash, &file_hashtbl[hashval]);
-		spin_unlock(&recall_lock);
 		fp->fi_inode = igrab(ino);
 		fp->fi_id = current_fileid++;
 		fp->fi_had_conflict = false;
+		spin_lock(&recall_lock);
+		list_add(&fp->fi_hash, &file_hashtbl[hashval]);
+		spin_unlock(&recall_lock);
 		return fp;
 	}
 	return NULL;
