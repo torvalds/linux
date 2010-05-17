@@ -26,7 +26,7 @@
 
 //
 // Definitions of USB product IDs
-// 
+//
 
 #define	USB_VENDOR_ID_ION	0x1608		// Our VID
 #define	USB_VENDOR_ID_TI	0x0451		// TI VID
@@ -54,7 +54,7 @@
 // Product IDs - assigned to match middle digit of serial number (No longer true)
 
 #define ION_DEVICE_ID_80251_NETCHIP	0x020	// This bit is set in the PID if this edgeport hardware$
-						// is based on the 80251+Netchip.  
+						// is based on the 80251+Netchip.
 
 #define ION_DEVICE_ID_GENERATION_1	0x00	// Value for 930 based edgeports
 #define ION_DEVICE_ID_GENERATION_2	0x01	// Value for 80251+Netchip.
@@ -134,7 +134,7 @@
 #define ION_DEVICE_ID_TI_EDGEPORT_416		0x0212  // Edgeport/416
 #define ION_DEVICE_ID_TI_EDGEPORT_1		0x0215	// Edgeport/1 RS232
 #define ION_DEVICE_ID_TI_EDGEPORT_42		0x0217	// Edgeport/42 4 hub 2 RS232
-#define ION_DEVICE_ID_TI_EDGEPORT_22I  		0x021A	// Edgeport/22I is an Edgeport/4 with ports 1&2 RS422 and ports 3&4 RS232
+#define ION_DEVICE_ID_TI_EDGEPORT_22I		0x021A	// Edgeport/22I is an Edgeport/4 with ports 1&2 RS422 and ports 3&4 RS232
 #define ION_DEVICE_ID_TI_EDGEPORT_2C		0x021B	// Edgeport/2c RS232
 #define ION_DEVICE_ID_TI_EDGEPORT_221C		0x021C	// Edgeport/221c is a TI based Edgeport/2 with lucent chip and
 							// 2 external hub ports - Large I2C
@@ -142,7 +142,7 @@
 							// 2 external hub ports - Large I2C
 #define ION_DEVICE_ID_TI_EDGEPORT_21C		0x021E	// Edgeport/21c is a TI based Edgeport/2 with lucent chip
 
-// Generation 3 devices -- 3410 based edgport/1 (256 byte I2C) 
+// Generation 3 devices -- 3410 based edgport/1 (256 byte I2C)
 #define ION_DEVICE_ID_TI_TI3410_EDGEPORT_1	0x0240	// Edgeport/1 RS232
 #define ION_DEVICE_ID_TI_TI3410_EDGEPORT_1I	0x0241	// Edgeport/1i- RS422 model
 
@@ -176,7 +176,7 @@
 							// Default to /P function
 
 #define ION_DEVICE_ID_PLUS_PWR_HP4CD		0x30C	// 5052 Plus Power HubPort/4CD+ (for Dell)
-#define ION_DEVICE_ID_PLUS_PWR_HP4C		0x30D	// 5052 Plus Power HubPort/4C+ 
+#define ION_DEVICE_ID_PLUS_PWR_HP4C		0x30D	// 5052 Plus Power HubPort/4C+
 #define ION_DEVICE_ID_PLUS_PWR_PCI		0x30E	// 3410 Plus Power PCI Host Controller 4 port
 
 
@@ -217,17 +217,17 @@
 #define ION_DEVICE_ID_MT4X56USB			0x1403	// OEM device
 
 
-#define	GENERATION_ID_FROM_USB_PRODUCT_ID( ProductId )				\
-			( (__u16) ((ProductId >> 8) & (ION_GENERATION_MASK)) )
+#define	GENERATION_ID_FROM_USB_PRODUCT_ID(ProductId)				\
+			((__u16) ((ProductId >> 8) & (ION_GENERATION_MASK)))
 
-#define	MAKE_USB_PRODUCT_ID( OemId, DeviceId )					\
-			( (__u16) (((OemId) << 10) || (DeviceId)) )
+#define	MAKE_USB_PRODUCT_ID(OemId, DeviceId)					\
+			((__u16) (((OemId) << 10) || (DeviceId)))
 
-#define	DEVICE_ID_FROM_USB_PRODUCT_ID( ProductId )				\
-			( (__u16) ((ProductId) & (EDGEPORT_DEVICE_ID_MASK)) )
+#define	DEVICE_ID_FROM_USB_PRODUCT_ID(ProductId)				\
+			((__u16) ((ProductId) & (EDGEPORT_DEVICE_ID_MASK)))
 
-#define	OEM_ID_FROM_USB_PRODUCT_ID( ProductId )					\
-			( (__u16) (((ProductId) >> 10) & 0x3F) )
+#define	OEM_ID_FROM_USB_PRODUCT_ID(ProductId)					\
+			((__u16) (((ProductId) >> 10) & 0x3F))
 
 //
 // Definitions of parameters for download code. Note that these are
@@ -237,7 +237,7 @@
 
 // TxCredits value below which driver won't bother sending (to prevent too many small writes).
 // Send only if above 25%
-#define EDGE_FW_GET_TX_CREDITS_SEND_THRESHOLD(InitialCredit, MaxPacketSize) (max( ((InitialCredit) / 4), (MaxPacketSize) ))
+#define EDGE_FW_GET_TX_CREDITS_SEND_THRESHOLD(InitialCredit, MaxPacketSize) (max(((InitialCredit) / 4), (MaxPacketSize)))
 
 #define	EDGE_FW_BULK_MAX_PACKET_SIZE		64	// Max Packet Size for Bulk In Endpoint (EP1)
 #define EDGE_FW_BULK_READ_BUFFER_SIZE		1024	// Size to use for Bulk reads
@@ -263,7 +263,7 @@
 //		wValue = 16-bit address
 //		wIndex = unused (though we could put segment 00: or FF: here)
 //		wLength = # bytes to read/write (max 64)
-//							
+//
 
 #define USB_REQUEST_ION_RESET_DEVICE	0	// Warm reboot Edgeport, retaining USB address
 #define USB_REQUEST_ION_GET_EPIC_DESC	1	// Get Edgeport Compatibility Descriptor
@@ -278,7 +278,7 @@
 #define USB_REQUEST_ION_ENABLE_SUSPEND	9	// Enable/Disable suspend feature
 						// (wValue != 0: Enable; wValue = 0: Disable)
 
-#define USB_REQUEST_ION_SEND_IOSP	10	// Send an IOSP command to the edgeport over the control pipe	
+#define USB_REQUEST_ION_SEND_IOSP	10	// Send an IOSP command to the edgeport over the control pipe
 #define USB_REQUEST_ION_RECV_IOSP	11	// Receive an IOSP command from the edgeport over the control pipe
 
 
@@ -301,8 +301,7 @@
 // this is a "real" Edgeport.
 //
 
-struct edge_compatibility_bits
-{
+struct edge_compatibility_bits {
 	// This __u32 defines which Vendor-specific commands/functionality
 	// the device supports on the default EP0 pipe.
 
@@ -334,24 +333,22 @@ struct edge_compatibility_bits
 	__u32	TrueEdgeport		:  1;	// 0001	Set if device is a 'real' Edgeport
 											// (Used only by driver, NEVER set by an EPiC device)
 	__u32	GenUnused		: 31;	// Available for future expansion, must be 0
-
 };
 
 #define EDGE_COMPATIBILITY_MASK0	0x0001
 #define EDGE_COMPATIBILITY_MASK1	0x3FFF
 #define EDGE_COMPATIBILITY_MASK2	0x0001
 
-struct edge_compatibility_descriptor
-{
+struct edge_compatibility_descriptor {
 	__u8	Length;				// Descriptor Length (per USB spec)
 	__u8	DescType;			// Descriptor Type (per USB spec, =DEVICE type)
 	__u8	EpicVer;			// Version of EPiC spec supported
-											// (Currently must be 1)
+						// (Currently must be 1)
 	__u8	NumPorts;			// Number of serial ports supported
 	__u8	iDownloadFile;			// Index of string containing download code filename
-											// 0=no download, FF=download compiled into driver.
-	__u8	Unused[ 3 ];			// Available for future expansion, must be 0
-											// (Currently must be 0).
+						// 0=no download, FF=download compiled into driver.
+	__u8	Unused[3];			// Available for future expansion, must be 0
+						// (Currently must be 0).
 	__u8	MajorVersion;			// Firmware version: xx.
 	__u8	MinorVersion;			//  yy.
 	__le16	BuildNumber;			//  zzzz (LE format)
@@ -359,9 +356,7 @@ struct edge_compatibility_descriptor
 	// The following structure contains __u32s, with each bit
 	// specifying whether the EPiC device supports the given
 	// command or functionality.
-
 	struct edge_compatibility_bits	Supports;
-
 };
 
 // Values for iDownloadFile
@@ -391,8 +386,8 @@ struct edge_compatibility_descriptor
 
 // Define the max block size that may be read or written
 // in a read/write RAM/ROM command.
-#define	MAX_SIZE_REQ_ION_READ_MEM	( (__u16) 64 )
-#define	MAX_SIZE_REQ_ION_WRITE_MEM	( (__u16) 64 )
+#define	MAX_SIZE_REQ_ION_READ_MEM	((__u16)64)
+#define	MAX_SIZE_REQ_ION_WRITE_MEM	((__u16)64)
 
 
 //
@@ -545,7 +540,7 @@ struct edge_boot_descriptor {
 	__u8		MajorVersion;		// C6 Firmware version: xx.
 	__u8		MinorVersion;		// C7			yy.
 	__le16		BuildNumber;		// C8			zzzz (LE format)
-	
+
 	__u16		EnumRootDescTable;	// CA Root of ROM-based descriptor table
 	__u8		NumDescTypes;		// CC Number of supported descriptor types
 
@@ -597,41 +592,36 @@ struct edge_boot_descriptor {
 #define I2C_DESC_TYPE_ION		0	// Not defined by TI
 
 
-struct ti_i2c_desc
-{
+struct ti_i2c_desc {
 	__u8	Type;			// Type of descriptor
 	__u16	Size;			// Size of data only not including header
 	__u8	CheckSum;		// Checksum (8 bit sum of data only)
 	__u8	Data[0];		// Data starts here
-}__attribute__((packed));
+} __attribute__((packed));
 
 // for 5152 devices only (type 2 record)
 // for 3410 the version is stored in the WATCHPORT_FIRMWARE_VERSION descriptor
-struct ti_i2c_firmware_rec
-{
+struct ti_i2c_firmware_rec {
 	__u8	Ver_Major;		// Firmware Major version number
 	__u8	Ver_Minor;		// Firmware Minor version number
 	__u8	Data[0];		// Download starts here
-}__attribute__((packed));
+} __attribute__((packed));
 
 
-struct watchport_firmware_version
-{
+struct watchport_firmware_version {
 // Added 2 bytes for version number
 	__u8	Version_Major;		//  Download Version (for Watchport)
 	__u8	Version_Minor;
-}__attribute__((packed));
+} __attribute__((packed));
 
 
 // Structure of header of download image in fw_down.h
-struct ti_i2c_image_header
-{
+struct ti_i2c_image_header {
 	__le16	Length;
 	__u8	CheckSum;
-}__attribute__((packed));
+} __attribute__((packed));
 
-struct ti_basic_descriptor
-{
+struct ti_basic_descriptor {
 	__u8	Power;		// Self powered
 				// bit 7: 1 - power switching supported
 				//        0 - power switching not supported
@@ -663,9 +653,9 @@ struct ti_basic_descriptor
 #define TI_I2C_SIZE_MASK		0x1f  // 5 bits
 #define TI_GET_I2C_SIZE(x)		((((x) & TI_I2C_SIZE_MASK)+1)*256)
 
-#define TI_MAX_I2C_SIZE			( 16 * 1024 )
+#define TI_MAX_I2C_SIZE			(16 * 1024)
 
-#define TI_MANUF_VERSION_0		0	
+#define TI_MANUF_VERSION_0		0
 
 // IonConig2 flags
 #define TI_CONFIG2_RS232		0x01
@@ -676,8 +666,7 @@ struct ti_basic_descriptor
 #define TI_CONFIG2_WATCHPORT		0x10
 
 
-struct edge_ti_manuf_descriptor
-{
+struct edge_ti_manuf_descriptor {
 	__u8 IonConfig;		//  Config byte for ION manufacturing use
 	__u8 IonConfig2;	//  Expansion
 	__u8 Version;		//  Version
@@ -688,7 +677,7 @@ struct edge_ti_manuf_descriptor
 	__u8 HubConfig2;	//  Used to configure the Hub
 	__u8 TotalPorts;	//  Total Number of Com Ports for the entire device (All UMPs)
 	__u8 Reserved;		//  Reserved
-}__attribute__((packed));
+} __attribute__((packed));
 
 
 #endif		// if !defined(_USBVEND_H)
