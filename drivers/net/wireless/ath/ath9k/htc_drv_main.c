@@ -367,9 +367,12 @@ static void ath9k_htc_setup_rate(struct ath9k_htc_priv *priv,
 		caps = WLAN_RC_HT_FLAG;
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
 			caps |= WLAN_RC_40_FLAG;
-		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40)
+		if (conf_is_ht40(&priv->hw->conf) &&
+		    (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40))
 			caps |= WLAN_RC_SGI_FLAG;
-
+		else if (conf_is_ht20(&priv->hw->conf) &&
+			 (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20))
+			caps |= WLAN_RC_SGI_FLAG;
 	}
 
 	trate->sta_index = ista->index;

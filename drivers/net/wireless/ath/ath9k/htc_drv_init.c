@@ -404,6 +404,9 @@ static void setup_ht_cap(struct ath9k_htc_priv *priv,
 		       IEEE80211_HT_CAP_SGI_40 |
 		       IEEE80211_HT_CAP_DSSSCCK40;
 
+	if (priv->ah->caps.hw_caps & ATH9K_HW_CAP_SGI_20)
+		ht_info->cap |= IEEE80211_HT_CAP_SGI_20;
+
 	ht_info->ampdu_factor = IEEE80211_HT_MAX_AMPDU_64K;
 	ht_info->ampdu_density = IEEE80211_HT_MPDU_DENSITY_8;
 
