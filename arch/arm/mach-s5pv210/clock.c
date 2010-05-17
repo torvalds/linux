@@ -173,6 +173,57 @@ static int s5pv210_clk_ip3_ctrl(struct clk *clk, int enable)
 	return s5p_gatectrl(S5P_CLKGATE_IP3, clk, enable);
 }
 
+static int s5pv210_clk_mask0_ctrl(struct clk *clk, int enable)
+{
+	return s5p_gatectrl(S5P_CLK_SRC_MASK0, clk, enable);
+}
+
+static struct clk clk_sclk_hdmi27m = {
+	.name		= "sclk_hdmi27m",
+	.id		= -1,
+	.rate		= 27000000,
+};
+
+static struct clk *clkset_vpllsrc_list[] = {
+	[0] = &clk_fin_vpll,
+	[1] = &clk_sclk_hdmi27m,
+};
+
+static struct clksrc_sources clkset_vpllsrc = {
+	.sources	= clkset_vpllsrc_list,
+	.nr_sources	= ARRAY_SIZE(clkset_vpllsrc_list),
+};
+
+static struct clksrc_clk clk_vpllsrc = {
+	.clk	= {
+		.name		= "vpll_src",
+		.id		= -1,
+		.enable		= s5pv210_clk_mask0_ctrl,
+		.ctrlbit	= (1 << 7),
+	},
+	.sources	= &clkset_vpllsrc,
+	.reg_src	= { .reg = S5P_CLK_SRC1, .shift = 28, .size = 1 },
+};
+
+static struct clk *clkset_sclk_vpll_list[] = {
+	[0] = &clk_vpllsrc.clk,
+	[1] = &clk_fout_vpll,
+};
+
+static struct clksrc_sources clkset_sclk_vpll = {
+	.sources	= clkset_sclk_vpll_list,
+	.nr_sources	= ARRAY_SIZE(clkset_sclk_vpll_list),
+};
+
+static struct clksrc_clk clk_sclk_vpll = {
+	.clk	= {
+		.name		= "sclk_vpll",
+		.id		= -1,
+	},
+	.sources	= &clkset_sclk_vpll,
+	.reg_src	= { .reg = S5P_CLK_SRC0, .shift = 12, .size = 1 },
+};
+
 static unsigned long s5pv210_clk_imem_get_rate(struct clk *clk)
 {
 	return clk_get_rate(clk->parent) / 2;
@@ -402,12 +453,15 @@ static struct clksrc_clk *sysclks[] = {
 	&clk_pclk_msys,
 	&clk_pclk_dsys,
 	&clk_pclk_psys,
+	&clk_vpllsrc,
+	&clk_sclk_vpll,
 };
 
 void __init_or_cpufreq s5pv210_setup_clocks(void)
 {
 	struct clk *xtal_clk;
 	unsigned long xtal;
+	unsigned long vpllsrc;
 	unsigned long armclk;
 	unsigned long hclk_msys;
 	unsigned long hclk_dsys;
@@ -418,6 +472,7 @@ void __init_or_cpufreq s5pv210_setup_clocks(void)
 	unsigned long apll;
 	unsigned long mpll;
 	unsigned long epll;
+	unsigned long vpll;
 	unsigned int ptr;
 	u32 clkdiv0, clkdiv1;
 
@@ -440,13 +495,16 @@ void __init_or_cpufreq s5pv210_setup_clocks(void)
 	apll = s5p_get_pll45xx(xtal, __raw_readl(S5P_APLL_CON), pll_4508);
 	mpll = s5p_get_pll45xx(xtal, __raw_readl(S5P_MPLL_CON), pll_4502);
 	epll = s5p_get_pll45xx(xtal, __raw_readl(S5P_EPLL_CON), pll_4500);
+	vpllsrc = clk_get_rate(&clk_vpllsrc.clk);
+	vpll = s5p_get_pll45xx(vpllsrc, __raw_readl(S5P_VPLL_CON), pll_4502);
 
 	clk_fout_apll.rate = apll;
 	clk_fout_mpll.rate = mpll;
 	clk_fout_epll.rate = epll;
+	clk_fout_vpll.rate = vpll;
 
-	printk(KERN_INFO "S5PV210: PLL settings, A=%ld, M=%ld, E=%ld",
-			apll, mpll, epll);
+	printk(KERN_INFO "S5PV210: PLL settings, A=%ld, M=%ld, E=%ld V=%ld",
+			apll, mpll, epll, vpll);
 
 	armclk = clk_get_rate(&clk_armclk.clk);
 	hclk_msys = clk_get_rate(&clk_hclk_msys.clk);
@@ -470,6 +528,7 @@ void __init_or_cpufreq s5pv210_setup_clocks(void)
 }
 
 static struct clk *clks[] __initdata = {
+	&clk_sclk_hdmi27m,
 };
 
 void __init s5pv210_register_clocks(void)
