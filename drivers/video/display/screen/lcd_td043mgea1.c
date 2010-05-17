@@ -79,7 +79,7 @@ void screen_set_iomux(u8 enable)
 
          gpio_free(RK2818_PIN_PE7);   
          gpio_free(RK2818_PIN_PE6); 
-         rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, 1);
+         rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, 2);
    }
     return ;
 pin_err:
@@ -199,8 +199,6 @@ void spi_screenreg_set(u32 Addr, u32 Data)
 
 int init(void)
 {    
-	printk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
-
     screen_set_iomux(1);
 
     spi_screenreg_set(0x02, 0x07);
@@ -244,9 +242,7 @@ int init(void)
 }
 
 int standby(u8 enable)
-{   
-	printk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
-    
+{       
     screen_set_iomux(1);
 	if(enable) {
 		spi_screenreg_set(0x03, 0xde);
