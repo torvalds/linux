@@ -369,10 +369,6 @@ static void setup_addressing_mode(void)
 			pr_info("Address spaces switched, "
 				"mvcos not available\n");
 	}
-#ifdef CONFIG_TRACE_IRQFLAGS
-	sysc_restore_trace_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
-	io_restore_trace_psw.mask = psw_kernel_bits & ~PSW_MASK_MCHECK;
-#endif
 }
 
 static void __init
