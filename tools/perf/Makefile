@@ -564,7 +564,7 @@ ifneq ($(shell sh -c "(echo '\#include <newt.h>'; echo 'int main(void) { newtIni
 else
 	# Fedora has /usr/include/slang/slang.h, but ubuntu /usr/include/slang.h
 	BASIC_CFLAGS += -I/usr/include/slang
-	EXTLIBS += -lnewt
+	EXTLIBS += -lnewt -lslang
 	LIB_OBJS += $(OUTPUT)util/newt.o
 endif
 
