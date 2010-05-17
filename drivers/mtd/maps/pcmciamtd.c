@@ -161,7 +161,7 @@ static void pcmcia_copy_from_remap(struct map_info *map, void *to, unsigned long
 	struct pcmciamtd_dev *dev = (struct pcmciamtd_dev *)map->map_priv_1;
 	unsigned long win_size = dev->win_size;
 
-	DEBUG(3, "to = %p from = %lu len = %u", to, from, len);
+	DEBUG(3, "to = %p from = %lu len = %zd", to, from, len);
 	while(len) {
 		int toread = win_size - (from & (win_size-1));
 		caddr_t addr;
@@ -210,7 +210,7 @@ static void pcmcia_copy_to_remap(struct map_info *map, unsigned long to, const v
 	struct pcmciamtd_dev *dev = (struct pcmciamtd_dev *)map->map_priv_1;
 	unsigned long win_size = dev->win_size;
 
-	DEBUG(3, "to = %lu from = %p len = %u", to, from, len);
+	DEBUG(3, "to = %lu from = %p len = %zd", to, from, len);
 	while(len) {
 		int towrite = win_size - (to & (win_size-1));
 		caddr_t addr;
@@ -272,7 +272,7 @@ static void pcmcia_copy_from(struct map_info *map, void *to, unsigned long from,
 	if(DEV_REMOVED(map))
 		return;
 
-	DEBUG(3, "to = %p from = %lu len = %u", to, from, len);
+	DEBUG(3, "to = %p from = %lu len = %zd", to, from, len);
 	memcpy_fromio(to, win_base + from, len);
 }
 
@@ -310,7 +310,7 @@ static void pcmcia_copy_to(struct map_info *map, unsigned long to, const void *f
 	if(DEV_REMOVED(map))
 		return;
 
-	DEBUG(3, "to = %lu from = %p len = %u", to, from, len);
+	DEBUG(3, "to = %lu from = %p len = %zd", to, from, len);
 	memcpy_toio(win_base + to, from, len);
 }
 
