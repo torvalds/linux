@@ -1893,6 +1893,7 @@ static void ext4_da_release_space(struct inode *inode, int to_free)
 
 	spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
 
+	trace_ext4_da_release_space(inode, to_free);
 	if (unlikely(to_free > ei->i_reserved_data_blocks)) {
 		/*
 		 * if there aren't enough reserved blocks, then the
