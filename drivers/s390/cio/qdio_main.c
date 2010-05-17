@@ -606,7 +606,7 @@ static void qdio_kick_handler(struct qdio_q *q)
 static void __qdio_inbound_processing(struct qdio_q *q)
 {
 	qperf_inc(q, tasklet_inbound);
-again:
+
 	if (!qdio_inbound_q_moved(q))
 		return;
 
@@ -615,7 +615,10 @@ again:
 	if (!qdio_inbound_q_done(q)) {
 		/* means poll time is not yet over */
 		qperf_inc(q, tasklet_inbound_resched);
-		goto again;
+		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED)) {
+			tasklet_schedule(&q->tasklet);
+			return;
+		}
 	}
 
 	qdio_stop_polling(q);
@@ -625,7 +628,8 @@ again:
 	 */
 	if (!qdio_inbound_q_done(q)) {
 		qperf_inc(q, tasklet_inbound_resched2);
-		goto again;
+		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED))
+			tasklet_schedule(&q->tasklet);
 	}
 }
 
