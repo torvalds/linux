@@ -55,12 +55,19 @@ struct linux_binprm;
 #define TOMOYO_KEYWORD_NO_INITIALIZE_DOMAIN      "no_initialize_domain "
 #define TOMOYO_KEYWORD_NO_KEEP_DOMAIN            "no_keep_domain "
 #define TOMOYO_KEYWORD_PATH_GROUP                "path_group "
+#define TOMOYO_KEYWORD_NUMBER_GROUP              "number_group "
 #define TOMOYO_KEYWORD_SELECT                    "select "
 #define TOMOYO_KEYWORD_USE_PROFILE               "use_profile "
 #define TOMOYO_KEYWORD_IGNORE_GLOBAL_ALLOW_READ  "ignore_global_allow_read"
 /* A domain definition starts with <kernel>. */
 #define TOMOYO_ROOT_NAME                         "<kernel>"
 #define TOMOYO_ROOT_NAME_LEN                     (sizeof(TOMOYO_ROOT_NAME) - 1)
+
+/* Value type definition. */
+#define TOMOYO_VALUE_TYPE_INVALID     0
+#define TOMOYO_VALUE_TYPE_DECIMAL     1
+#define TOMOYO_VALUE_TYPE_OCTAL       2
+#define TOMOYO_VALUE_TYPE_HEXADECIMAL 3
 
 /* Index numbers for Access Controls. */
 enum tomoyo_mac_index {
@@ -211,8 +218,24 @@ struct tomoyo_name_union {
 	u8 is_group;
 };
 
+struct tomoyo_number_union {
+	unsigned long values[2];
+	struct tomoyo_number_group *group;
+	u8 min_type;
+	u8 max_type;
+	u8 is_group;
+};
+
 /* Structure for "path_group" directive. */
 struct tomoyo_path_group {
+	struct list_head list;
+	const struct tomoyo_path_info *group_name;
+	struct list_head member_list;
+	atomic_t users;
+};
+
+/* Structure for "number_group" directive. */
+struct tomoyo_number_group {
 	struct list_head list;
 	const struct tomoyo_path_info *group_name;
 	struct list_head member_list;
@@ -224,6 +247,13 @@ struct tomoyo_path_group_member {
 	struct list_head list;
 	bool is_deleted;
 	const struct tomoyo_path_info *member_name;
+};
+
+/* Structure for "number_group" directive. */
+struct tomoyo_number_group_member {
+	struct list_head list;
+	bool is_deleted;
+	struct tomoyo_number_union number;
 };
 
 /*
@@ -554,9 +584,18 @@ bool tomoyo_parse_name_union(const char *filename,
 bool tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
 			       const struct tomoyo_path_group *group,
 			       const bool may_use_pattern);
+/* Check whether the given value matches the given number_group. */
+bool tomoyo_number_matches_group(const unsigned long min,
+				 const unsigned long max,
+				 const struct tomoyo_number_group *group);
 /* Check whether the given filename matches the given pattern. */
 bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
 				 const struct tomoyo_path_info *pattern);
+
+bool tomoyo_print_number_union(struct tomoyo_io_buffer *head,
+			       const struct tomoyo_number_union *ptr);
+bool tomoyo_parse_number_union(char *data, struct tomoyo_number_union *num);
+
 /* Read "alias" entry in exception policy. */
 bool tomoyo_read_alias_policy(struct tomoyo_io_buffer *head);
 /*
@@ -570,6 +609,8 @@ bool tomoyo_read_domain_keeper_policy(struct tomoyo_io_buffer *head);
 bool tomoyo_read_file_pattern(struct tomoyo_io_buffer *head);
 /* Read "path_group" entry in exception policy. */
 bool tomoyo_read_path_group_policy(struct tomoyo_io_buffer *head);
+/* Read "number_group" entry in exception policy. */
+bool tomoyo_read_number_group_policy(struct tomoyo_io_buffer *head);
 /* Read "allow_read" entry in exception policy. */
 bool tomoyo_read_globally_readable_policy(struct tomoyo_io_buffer *head);
 /* Read "deny_rewrite" entry in exception policy. */
@@ -614,6 +655,8 @@ int tomoyo_write_no_rewrite_policy(char *data, const bool is_delete);
 int tomoyo_write_pattern_policy(char *data, const bool is_delete);
 /* Create "path_group" entry in exception policy. */
 int tomoyo_write_path_group_policy(char *data, const bool is_delete);
+/* Create "number_group" entry in exception policy. */
+int tomoyo_write_number_group_policy(char *data, const bool is_delete);
 /* Find a domain by the given name. */
 struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname);
 /* Find or create a domain by the given name. */
@@ -623,6 +666,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 
 /* Allocate memory for "struct tomoyo_path_group". */
 struct tomoyo_path_group *tomoyo_get_path_group(const char *group_name);
+struct tomoyo_number_group *tomoyo_get_number_group(const char *group_name);
 
 /* Check mode for specified functionality. */
 unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
@@ -631,6 +675,8 @@ unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
 void tomoyo_fill_path_info(struct tomoyo_path_info *ptr);
 /* Run policy loader when /sbin/init starts. */
 void tomoyo_load_policy(const char *filename);
+
+void tomoyo_put_number_union(struct tomoyo_number_union *ptr);
 
 /* Convert binary string to ascii string. */
 int tomoyo_encode(char *buffer, int buflen, const char *str);
@@ -697,6 +743,7 @@ extern struct srcu_struct tomoyo_ss;
 extern struct list_head tomoyo_domain_list;
 
 extern struct list_head tomoyo_path_group_list;
+extern struct list_head tomoyo_number_group_list;
 extern struct list_head tomoyo_domain_initializer_list;
 extern struct list_head tomoyo_domain_keeper_list;
 extern struct list_head tomoyo_alias_list;
@@ -773,6 +820,12 @@ static inline void tomoyo_put_path_group(struct tomoyo_path_group *group)
 		atomic_dec(&group->users);
 }
 
+static inline void tomoyo_put_number_group(struct tomoyo_number_group *group)
+{
+	if (group)
+		atomic_dec(&group->users);
+}
+
 static inline struct tomoyo_domain_info *tomoyo_domain(void)
 {
 	return current_cred()->security;
@@ -795,6 +848,14 @@ static inline bool tomoyo_is_same_name_union
 {
 	return p1->filename == p2->filename && p1->group == p2->group &&
 		p1->is_group == p2->is_group;
+}
+
+static inline bool tomoyo_is_same_number_union
+(const struct tomoyo_number_union *p1, const struct tomoyo_number_union *p2)
+{
+	return p1->values[0] == p2->values[0] && p1->values[1] == p2->values[1]
+		&& p1->group == p2->group && p1->min_type == p2->min_type &&
+		p1->max_type == p2->max_type && p1->is_group == p2->is_group;
 }
 
 static inline bool tomoyo_is_same_path_acl(const struct tomoyo_path_acl *p1,

@@ -14,6 +14,8 @@
 enum tomoyo_gc_id {
 	TOMOYO_ID_PATH_GROUP,
 	TOMOYO_ID_PATH_GROUP_MEMBER,
+	TOMOYO_ID_NUMBER_GROUP,
+	TOMOYO_ID_NUMBER_GROUP_MEMBER,
 	TOMOYO_ID_DOMAIN_INITIALIZER,
 	TOMOYO_ID_DOMAIN_KEEPER,
 	TOMOYO_ID_ALIAS,
@@ -158,6 +160,16 @@ static void tomoyo_del_path_group_member(struct tomoyo_path_group_member
 }
 
 static void tomoyo_del_path_group(struct tomoyo_path_group *group)
+{
+	tomoyo_put_name(group->group_name);
+}
+
+static void tomoyo_del_number_group_member(struct tomoyo_number_group_member
+					   *member)
+{
+}
+
+static void tomoyo_del_number_group(struct tomoyo_number_group *group)
 {
 	tomoyo_put_name(group->group_name);
 }
@@ -329,6 +341,29 @@ static void tomoyo_collect_entry(void)
 				break;
 		}
 	}
+	{
+		struct tomoyo_number_group *group;
+		list_for_each_entry_rcu(group, &tomoyo_number_group_list, list) {
+			struct tomoyo_number_group_member *member;
+			list_for_each_entry_rcu(member, &group->member_list,
+						list) {
+				if (!member->is_deleted)
+					continue;
+				if (tomoyo_add_to_gc(TOMOYO_ID_NUMBER_GROUP_MEMBER,
+						     member))
+					list_del_rcu(&member->list);
+				else
+					break;
+			}
+			if (!list_empty(&group->member_list) ||
+			    atomic_read(&group->users))
+				continue;
+			if (tomoyo_add_to_gc(TOMOYO_ID_NUMBER_GROUP, group))
+				list_del_rcu(&group->list);
+			else
+				break;
+		}
+	}
 	mutex_unlock(&tomoyo_policy_lock);
 }
 
@@ -375,6 +410,12 @@ static void tomoyo_kfree_entry(void)
 			break;
 		case TOMOYO_ID_PATH_GROUP:
 			tomoyo_del_path_group(p->element);
+			break;
+		case TOMOYO_ID_NUMBER_GROUP_MEMBER:
+			tomoyo_del_number_group_member(p->element);
+			break;
+		case TOMOYO_ID_NUMBER_GROUP:
+			tomoyo_del_number_group(p->element);
 			break;
 		default:
 			printk(KERN_WARNING "Unknown type\n");

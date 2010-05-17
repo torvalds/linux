@@ -119,6 +119,159 @@ static bool tomoyo_print_name_union(struct tomoyo_io_buffer *head,
 }
 
 /**
+ * tomoyo_parse_ulong - Parse an "unsigned long" value.
+ *
+ * @result: Pointer to "unsigned long".
+ * @str:    Pointer to string to parse.
+ *
+ * Returns value type on success, 0 otherwise.
+ *
+ * The @src is updated to point the first character after the value
+ * on success.
+ */
+u8 tomoyo_parse_ulong(unsigned long *result, char **str)
+{
+	const char *cp = *str;
+	char *ep;
+	int base = 10;
+	if (*cp == '0') {
+		char c = *(cp + 1);
+		if (c == 'x' || c == 'X') {
+			base = 16;
+			cp += 2;
+		} else if (c >= '0' && c <= '7') {
+			base = 8;
+			cp++;
+		}
+	}
+	*result = simple_strtoul(cp, &ep, base);
+	if (cp == ep)
+		return 0;
+	*str = ep;
+	switch (base) {
+	case 16:
+		return TOMOYO_VALUE_TYPE_HEXADECIMAL;
+	case 8:
+		return TOMOYO_VALUE_TYPE_OCTAL;
+	default:
+		return TOMOYO_VALUE_TYPE_DECIMAL;
+	}
+}
+
+/**
+ * tomoyo_print_ulong - Print an "unsigned long" value.
+ *
+ * @buffer:     Pointer to buffer.
+ * @buffer_len: Size of @buffer.
+ * @value:      An "unsigned long" value.
+ * @type:       Type of @value.
+ *
+ * Returns nothing.
+ */
+void tomoyo_print_ulong(char *buffer, const int buffer_len,
+			const unsigned long value, const u8 type)
+{
+	if (type == TOMOYO_VALUE_TYPE_DECIMAL)
+		snprintf(buffer, buffer_len, "%lu", value);
+	else if (type == TOMOYO_VALUE_TYPE_OCTAL)
+		snprintf(buffer, buffer_len, "0%lo", value);
+	else if (type == TOMOYO_VALUE_TYPE_HEXADECIMAL)
+		snprintf(buffer, buffer_len, "0x%lX", value);
+	else
+		snprintf(buffer, buffer_len, "type(%u)", type);
+}
+
+/**
+ * tomoyo_print_number_union - Print a tomoyo_number_union.
+ *
+ * @head:       Pointer to "struct tomoyo_io_buffer".
+ * @ptr:        Pointer to "struct tomoyo_number_union".
+ *
+ * Returns true on success, false otherwise.
+ */
+bool tomoyo_print_number_union(struct tomoyo_io_buffer *head,
+			       const struct tomoyo_number_union *ptr)
+{
+	unsigned long min;
+	unsigned long max;
+	u8 min_type;
+	u8 max_type;
+	if (!tomoyo_io_printf(head, " "))
+		return false;
+	if (ptr->is_group)
+		return tomoyo_io_printf(head, "@%s",
+					ptr->group->group_name->name);
+	min_type = ptr->min_type;
+	max_type = ptr->max_type;
+	min = ptr->values[0];
+	max = ptr->values[1];
+	switch (min_type) {
+	case TOMOYO_VALUE_TYPE_HEXADECIMAL:
+		if (!tomoyo_io_printf(head, "0x%lX", min))
+			return false;
+		break;
+	case TOMOYO_VALUE_TYPE_OCTAL:
+		if (!tomoyo_io_printf(head, "0%lo", min))
+			return false;
+		break;
+	default:
+		if (!tomoyo_io_printf(head, "%lu", min))
+			return false;
+		break;
+	}
+	if (min == max && min_type == max_type)
+		return true;
+	switch (max_type) {
+	case TOMOYO_VALUE_TYPE_HEXADECIMAL:
+		return tomoyo_io_printf(head, "-0x%lX", max);
+	case TOMOYO_VALUE_TYPE_OCTAL:
+		return tomoyo_io_printf(head, "-0%lo", max);
+	default:
+		return tomoyo_io_printf(head, "-%lu", max);
+	}
+}
+
+/**
+ * tomoyo_parse_number_union - Parse a tomoyo_number_union.
+ *
+ * @data: Number or number range or number group.
+ * @ptr:  Pointer to "struct tomoyo_number_union".
+ *
+ * Returns true on success, false otherwise.
+ */
+bool tomoyo_parse_number_union(char *data, struct tomoyo_number_union *num)
+{
+	u8 type;
+	unsigned long v;
+	memset(num, 0, sizeof(*num));
+	if (data[0] == '@') {
+		if (!tomoyo_is_correct_path(data, 0, 0, 0))
+			return false;
+		num->group = tomoyo_get_number_group(data + 1);
+		num->is_group = true;
+		return num->group != NULL;
+	}
+	type = tomoyo_parse_ulong(&v, &data);
+	if (!type)
+		return false;
+	num->values[0] = v;
+	num->min_type = type;
+	if (!*data) {
+		num->values[1] = v;
+		num->max_type = type;
+		return true;
+	}
+	if (*data++ != '-')
+		return false;
+	type = tomoyo_parse_ulong(&v, &data);
+	if (!type || *data)
+		return false;
+	num->values[1] = v;
+	num->max_type = type;
+	return true;
+}
+
+/**
  * tomoyo_is_byte_range - Check whether the string isa \ooo style octal value.
  *
  * @str: Pointer to the string.
@@ -1750,6 +1903,8 @@ static int tomoyo_write_exception_policy(struct tomoyo_io_buffer *head)
 		return tomoyo_write_no_rewrite_policy(data, is_delete);
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_PATH_GROUP))
 		return tomoyo_write_path_group_policy(data, is_delete);
+	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_NUMBER_GROUP))
+		return tomoyo_write_number_group_policy(data, is_delete);
 	return -EINVAL;
 }
 
@@ -1812,6 +1967,12 @@ static int tomoyo_read_exception_policy(struct tomoyo_io_buffer *head)
 			head->read_var2 = NULL;
 			head->read_step = 10;
 		case 10:
+			if (!tomoyo_read_number_group_policy(head))
+				break;
+			head->read_var1 = NULL;
+			head->read_var2 = NULL;
+			head->read_step = 11;
+		case 11:
 			head->read_eof = true;
 			break;
 		default:

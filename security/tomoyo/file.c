@@ -76,6 +76,20 @@ static bool tomoyo_compare_name_union_pattern(const struct tomoyo_path_info
 	return false;
 }
 
+void tomoyo_put_number_union(struct tomoyo_number_union *ptr)
+{
+	if (ptr && ptr->is_group)
+		tomoyo_put_number_group(ptr->group);
+}
+
+bool tomoyo_compare_number_union(const unsigned long value,
+				 const struct tomoyo_number_union *ptr)
+{
+	if (ptr->is_group)
+		return tomoyo_number_matches_group(value, value, ptr->group);
+	return value >= ptr->values[0] && value <= ptr->values[1];
+}
+
 /**
  * tomoyo_path2keyword - Get the name of single path operation.
  *
