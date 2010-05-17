@@ -1528,6 +1528,11 @@ cifs_inode_needs_reval(struct inode *inode)
 	if (time_after_eq(jiffies, cifs_i->time + HZ))
 		return true;
 
+	/* hardlinked files w/ noserverino get "special" treatment */
+	if (!(CIFS_SB(inode->i_sb)->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM) &&
+	    S_ISREG(inode->i_mode) && inode->i_nlink != 1)
+		return true;
+
 	return false;
 }
 
