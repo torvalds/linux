@@ -1672,6 +1672,13 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 		dev_priv->has_gem = 0;
 	}
 
+	if (dev_priv->has_gem == 0 &&
+	    drm_core_check_feature(dev, DRIVER_MODESET)) {
+		DRM_ERROR("kernel modesetting requires GEM, disabling driver.\n");
+		ret = -ENODEV;
+		goto out_iomapfree;
+	}
+
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
 	if (IS_G4X(dev) || IS_IRONLAKE(dev) || IS_GEN6(dev)) {
