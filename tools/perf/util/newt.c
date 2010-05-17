@@ -14,6 +14,17 @@
 #include "sort.h"
 #include "symbol.h"
 
+#if SLANG_VERSION < 20104
+#define slsmg_printf(msg, args...) SLsmg_printf((char *)msg, ##args)
+#define slsmg_write_nstring(msg, len) SLsmg_write_nstring((char *)msg, len)
+#define sltt_set_color(obj, name, fg, bg) SLtt_set_color(obj,(char *)name,\
+							 (char *)fg, (char *)bg)
+#else
+#define slsmg_printf SLsmg_printf
+#define slsmg_write_nstring SLsmg_write_nstring
+#define sltt_set_color SLtt_set_color
+#endif
+
 struct ui_progress {
 	newtComponent form, scale;
 };
@@ -292,21 +303,21 @@ static int objdump_line__show(struct objdump_line *self, struct list_head *head,
 
 		color = ui_browser__percent_color(percent, current_entry);
 		SLsmg_set_color(color);
-		SLsmg_printf(" %7.2f ", percent);
+		slsmg_printf(" %7.2f ", percent);
 		if (!current_entry)
 			SLsmg_set_color(HE_COLORSET_CODE);
 	} else {
 		int color = ui_browser__percent_color(0, current_entry);
 		SLsmg_set_color(color);
-		SLsmg_write_nstring(" ", 9);
+		slsmg_write_nstring(" ", 9);
 	}
 
 	SLsmg_write_char(':');
-	SLsmg_write_nstring(" ", 8);
+	slsmg_write_nstring(" ", 8);
 	if (!*self->line)
-		SLsmg_write_nstring(" ", width - 18);
+		slsmg_write_nstring(" ", width - 18);
 	else
-		SLsmg_write_nstring(self->line, width - 18);
+		slsmg_write_nstring(self->line, width - 18);
 
 	return 0;
 }
@@ -1054,11 +1065,11 @@ void setup_browser(void)
 	newtInit();
 	newtCls();
 	ui_helpline__puts(" ");
-	SLtt_set_color(HE_COLORSET_TOP, NULL, c->topColorFg, c->topColorBg);
-	SLtt_set_color(HE_COLORSET_MEDIUM, NULL, c->mediumColorFg, c->mediumColorBg);
-	SLtt_set_color(HE_COLORSET_NORMAL, NULL, c->normalColorFg, c->normalColorBg);
-	SLtt_set_color(HE_COLORSET_SELECTED, NULL, c->selColorFg, c->selColorBg);
-	SLtt_set_color(HE_COLORSET_CODE, NULL, c->codeColorFg, c->codeColorBg);
+	sltt_set_color(HE_COLORSET_TOP, NULL, c->topColorFg, c->topColorBg);
+	sltt_set_color(HE_COLORSET_MEDIUM, NULL, c->mediumColorFg, c->mediumColorBg);
+	sltt_set_color(HE_COLORSET_NORMAL, NULL, c->normalColorFg, c->normalColorBg);
+	sltt_set_color(HE_COLORSET_SELECTED, NULL, c->selColorFg, c->selColorBg);
+	sltt_set_color(HE_COLORSET_CODE, NULL, c->codeColorFg, c->codeColorBg);
 }
 
 void exit_browser(bool wait_for_ok)
