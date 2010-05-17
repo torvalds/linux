@@ -55,14 +55,16 @@ static void mmci_set_clkreg(struct mmci_host *host, unsigned int desired)
 			host->cclk = host->mclk / (2 * (clk + 1));
 		}
 		if (host->hw_designer == AMBA_VENDOR_ST)
-			clk |= MCI_FCEN; /* Bug fix in ST IP block */
+			clk |= MCI_ST_FCEN; /* Bug fix in ST IP block */
 		clk |= MCI_CLK_ENABLE;
 		/* This hasn't proven to be worthwhile */
 		/* clk |= MCI_CLK_PWRSAVE; */
 	}
 
 	if (host->mmc->ios.bus_width == MMC_BUS_WIDTH_4)
-		clk |= MCI_WIDE_BUS;
+		clk |= MCI_4BIT_BUS;
+	if (host->mmc->ios.bus_width == MMC_BUS_WIDTH_8)
+		clk |= MCI_ST_8BIT_BUS;
 
 	writel(clk, host->base + MMCICLOCK);
 }
@@ -629,7 +631,18 @@ static int __devinit mmci_probe(struct amba_device *dev, struct amba_id *id)
 
 	mmc->ops = &mmci_ops;
 	mmc->f_min = (host->mclk + 511) / 512;
-	mmc->f_max = min(host->mclk, fmax);
+	/*
+	 * If the platform data supplies a maximum operating
+	 * frequency, this takes precedence. Else, we fall back
+	 * to using the module parameter, which has a (low)
+	 * default value in case it is not specified. Either
+	 * value must not exceed the clock rate into the block,
+	 * of course.
+	 */
+	if (plat->f_max)
+		mmc->f_max = min(host->mclk, plat->f_max);
+	else
+		mmc->f_max = min(host->mclk, fmax);
 	dev_dbg(mmc_dev(mmc), "clocking block at %u Hz\n", mmc->f_max);
 
 #ifdef CONFIG_REGULATOR

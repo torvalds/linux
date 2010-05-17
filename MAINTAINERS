@@ -5229,6 +5229,46 @@ F:	drivers/serial/sunsu.c
 F:	drivers/serial/sunzilog.c
 F:	drivers/serial/sunzilog.h
 
+SPEAR PLATFORM SUPPORT
+M:	Viresh Kumar <viresh.kumar@st.com>
+W:	http://www.st.com/spear
+S:	Maintained
+F:	arch/arm/plat-spear/
+
+SPEAR3XX MACHINE SUPPORT
+M:	Viresh Kumar <viresh.kumar@st.com>
+W:	http://www.st.com/spear
+S:	Maintained
+F:	arch/arm/mach-spear3xx/
+
+SPEAR6XX MACHINE SUPPORT
+M:	Rajeev Kumar <rajeev-dlh.kumar@st.com>
+W:	http://www.st.com/spear
+S:	Maintained
+F:	arch/arm/mach-spear6xx/
+
+SPEAR CLOCK FRAMEWORK SUPPORT
+M:	Viresh Kumar <viresh.kumar@st.com>
+W:	http://www.st.com/spear
+S:	Maintained
+F:	arch/arm/mach-spear*/clock.c
+F:	arch/arm/mach-spear*/include/mach/clkdev.h
+F:	arch/arm/plat-spear/clock.c
+F:	arch/arm/plat-spear/include/plat/clock.h and clkdev.h
+
+SPEAR PAD MULTIPLEXING SUPPORT
+M:	Viresh Kumar <viresh.kumar@st.com>
+W:	http://www.st.com/spear
+S:	Maintained
+F:	arch/arm/plat-spear/include/plat/padmux.h
+F:	arch/arm/plat-spear/padmux.c
+F:	arch/arm/mach-spear*/spear*xx.c
+F:	arch/arm/mach-spear*/include/mach/generic.h
+F:	arch/arm/mach-spear3xx/spear3*0.c
+F:	arch/arm/mach-spear3xx/spear3*0_evb.c
+F:	arch/arm/mach-spear6xx/spear600.c
+F:	arch/arm/mach-spear6xx/spear600_evb.c
+
 SPECIALIX IO8+ MULTIPORT SERIAL CARD DRIVER
 M:	Roger Wolff <R.E.Wolff@BitWizard.nl>
 S:	Supported

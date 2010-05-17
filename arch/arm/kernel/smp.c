@@ -162,7 +162,7 @@ int __cpu_disable(void)
 	struct task_struct *p;
 	int ret;
 
-	ret = mach_cpu_disable(cpu);
+	ret = platform_cpu_disable(cpu);
 	if (ret)
 		return ret;
 

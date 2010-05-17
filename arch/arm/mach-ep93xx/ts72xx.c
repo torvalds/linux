@@ -186,7 +186,7 @@ static struct platform_device ts72xx_wdt_device = {
 	.resource	= ts72xx_wdt_resources,
 };
 
-static struct ep93xx_eth_data ts72xx_eth_data = {
+static struct ep93xx_eth_data __initdata ts72xx_eth_data = {
 	.phy_id		= 1,
 };
 
