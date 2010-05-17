@@ -359,6 +359,10 @@ static void option_instat_callback(struct urb *urb);
 
 #define CINTERION_VENDOR_ID			0x0681
 
+/* Olivetti products */
+#define OLIVETTI_VENDOR_ID			0x0b3c
+#define OLIVETTI_PRODUCT_OLICARD100		0xc000
+
 /* some devices interfaces need special handling due to a number of reasons */
 enum option_blacklist_reason {
 		OPTION_BLACKLIST_NONE = 0,
@@ -879,6 +883,8 @@ static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1012)},
 
 	{ USB_DEVICE(CINTERION_VENDOR_ID, 0x0047) },
+
+	{ USB_DEVICE(OLIVETTI_VENDOR_ID, OLIVETTI_PRODUCT_OLICARD100) },
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
