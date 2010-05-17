@@ -273,6 +273,7 @@ static void rk2818_serial_shutdown(struct uart_port *port)
  */
 static int rk2818_serial_startup(struct uart_port *port)
 {
+	struct rk2818_port *rk2818_port = UART_TO_RK2818(port);
 	struct tty_struct *tty = port->state->port.tty;	
 	int retval;	
 		
@@ -284,6 +285,7 @@ static int rk2818_serial_startup(struct uart_port *port)
 		rk2818_serial_shutdown(port);
 		return 	retval;
 	}	
+	clk_enable(rk2818_port->clk);
 	rk2818_uart_write(port,0xf1,UART_FCR);
 	rk2818_uart_write(port,0x01,UART_SFE);///enable fifo
     rk2818_uart_write(port,UART_IER_RECV_DATA_AVAIL_INT_ENABLE,UART_IER);  //enable uart recevice IRQ
