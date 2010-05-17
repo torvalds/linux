@@ -21,6 +21,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
 
 #include <mach/hardware.h>
 #include <mach/gpio.h>

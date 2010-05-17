@@ -566,6 +566,12 @@ struct rxfcb {
 	u16	vlctl;	/* VLAN control word */
 };
 
+struct gianfar_skb_cb {
+	int alignamount;
+};
+
+#define GFAR_CB(skb) ((struct gianfar_skb_cb *)((skb)->cb))
+
 struct rmon_mib
 {
 	u32	tr64;	/* 0x.680 - Transmit and Receive 64-byte Frame Counter */

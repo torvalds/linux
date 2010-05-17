@@ -24,7 +24,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/list.h>
 #include <linux/delay.h>
@@ -445,6 +444,8 @@ int __init musb_platform_init(struct musb *musb)
 	return 0;
 
 fail:
+	clk_disable(musb->clock);
+
 	usb_nop_xceiv_unregister();
 	return -ENODEV;
 }

@@ -219,7 +219,6 @@ struct snd_soc_dai {
 	struct snd_soc_codec *codec;
 	unsigned int active;
 	unsigned char pop_wait:1;
-	void *dma_data;
 
 	/* DAI private data */
 	void *private_data;
@@ -229,5 +228,22 @@ struct snd_soc_dai {
 
 	struct list_head list;
 };
+
+static inline void *snd_soc_dai_get_dma_data(const struct snd_soc_dai *dai,
+					     const struct snd_pcm_substream *ss)
+{
+	return (ss->stream == SNDRV_PCM_STREAM_PLAYBACK) ?
+		dai->playback.dma_data : dai->capture.dma_data;
+}
+
+static inline void snd_soc_dai_set_dma_data(struct snd_soc_dai *dai,
+					    const struct snd_pcm_substream *ss,
+					    void *data)
+{
+	if (ss->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		dai->playback.dma_data = data;
+	else
+		dai->capture.dma_data = data;
+}
 
 #endif

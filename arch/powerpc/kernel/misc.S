@@ -127,3 +127,29 @@ _GLOBAL(__setup_cpu_power7)
 _GLOBAL(__restore_cpu_power7)
 	/* place holder */
 	blr
+
+/*
+ * Get a minimal set of registers for our caller's nth caller.
+ * r3 = regs pointer, r5 = n.
+ *
+ * We only get R1 (stack pointer), NIP (next instruction pointer)
+ * and LR (link register).  These are all we can get in the
+ * general case without doing complicated stack unwinding, but
+ * fortunately they are enough to do a stack backtrace, which
+ * is all we need them for.
+ */
+_GLOBAL(perf_arch_fetch_caller_regs)
+	mr	r6,r1
+	cmpwi	r5,0
+	mflr	r4
+	ble	2f
+	mtctr	r5
+1:	PPC_LL	r6,0(r6)
+	bdnz	1b
+	PPC_LL	r4,PPC_LR_STKOFF(r6)
+2:	PPC_LL	r7,0(r6)
+	PPC_LL	r7,PPC_LR_STKOFF(r7)
+	PPC_STL	r6,GPR1-STACK_FRAME_OVERHEAD(r3)
+	PPC_STL	r4,_NIP-STACK_FRAME_OVERHEAD(r3)
+	PPC_STL	r7,_LINK-STACK_FRAME_OVERHEAD(r3)
+	blr

@@ -4,6 +4,7 @@
 #include <linux/usb.h>
 #include <linux/mm.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-dev.h>

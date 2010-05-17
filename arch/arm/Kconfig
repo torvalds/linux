@@ -241,6 +241,7 @@ config ARCH_REALVIEW
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PLAT_VERSATILE
 	select ARM_TIMER_SP804
+	select GPIO_PL061 if GPIOLIB
 	help
 	  This enables support for ARM Ltd RealView boards.
 
@@ -299,6 +300,15 @@ config ARCH_CLPS711X
 	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Support for Cirrus Logic 711x/721x based boards.
+
+config ARCH_CNS3XXX
+	bool "Cavium Networks CNS3XXX family"
+	select CPU_V6
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+	select ARM_GIC
+	help
+	  Support for Cavium Networks CNS3XXX platform.
 
 config ARCH_GEMINI
 	bool "Cortina Systems Gemini"
@@ -593,14 +603,15 @@ config ARCH_PXA
 
 config ARCH_MSM
 	bool "Qualcomm MSM"
-	select CPU_V6
+	select HAVE_CLK
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
-	  Support for Qualcomm MSM7K based systems.  This runs on the ARM11
-	  apps processor of the MSM7K and depends on a shared memory
-	  interface to the ARM9 modem processor which runs the baseband stack
-	  and controls some vital subsystems (clock and power control, etc).
+	  Support for Qualcomm MSM/QSD based systems.  This runs on the
+	  apps processor of the MSM/QSD and depends on a shared memory
+	  interface to the modem processor which runs the baseband
+	  stack and controls some vital subsystems
+	  (clock and power control, etc).
 
 config ARCH_SHMOBILE
 	bool "Renesas SH-Mobile"
@@ -639,7 +650,7 @@ config ARCH_SA1100
 	  Support for StrongARM 11x0 based boards.
 
 config ARCH_S3C2410
-	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2440, S3C2442, S3C2443"
+	bool "Samsung S3C2410, S3C2412, S3C2413, S3C2416, S3C2440, S3C2442, S3C2443, S3C2450"
 	select GENERIC_GPIO
 	select ARCH_HAS_CPUFREQ
 	select HAVE_CLK
@@ -648,6 +659,10 @@ config ARCH_S3C2410
 	  Samsung S3C2410X CPU based systems, such as the Simtec Electronics
 	  BAST (<http://www.simtec.co.uk/products/EB110ITX/>), the IPAQ 1940 or
 	  the Samsung SMDK2410 development board (and derivatives).
+
+	  Note, the S3C2416 and the S3C2450 are so close that they even share
+	  the same SoC ID code. This means that there is no seperate machine
+	  directory (no arch/arm/mach-s3c2450) as the S3C2416 was first.
 
 config ARCH_S3C64XX
 	bool "Samsung S3C64XX"
@@ -818,6 +833,8 @@ source "arch/arm/mach-bcmring/Kconfig"
 
 source "arch/arm/mach-clps711x/Kconfig"
 
+source "arch/arm/mach-cns3xxx/Kconfig"
+
 source "arch/arm/mach-davinci/Kconfig"
 
 source "arch/arm/mach-dove/Kconfig"
@@ -894,6 +911,7 @@ if ARCH_S3C2410
 source "arch/arm/mach-s3c2400/Kconfig"
 source "arch/arm/mach-s3c2410/Kconfig"
 source "arch/arm/mach-s3c2412/Kconfig"
+source "arch/arm/mach-s3c2416/Kconfig"
 source "arch/arm/mach-s3c2440/Kconfig"
 source "arch/arm/mach-s3c2443/Kconfig"
 endif

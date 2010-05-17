@@ -15,7 +15,6 @@
 #include <linux/io.h>
 #include <linux/bootmem.h>
 #include <linux/proc_fs.h>
-#include <linux/slab.h>
 #include <asm/fixmap.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>

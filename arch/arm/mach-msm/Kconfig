@@ -29,12 +29,14 @@ endchoice
 
 config MACH_HALIBUT
 	depends on ARCH_MSM
+	select CPU_V6
 	default y
 	bool "Halibut Board (QCT SURF7201A)"
 	help
 	  Support for the Qualcomm SURF7201A eval board.
 
 config MACH_TROUT
+	select CPU_V6
 	default y
 	bool "HTC Dream (aka trout)"
 	help

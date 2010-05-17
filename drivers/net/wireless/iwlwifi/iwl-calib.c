@@ -60,6 +60,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *****************************************************************************/
 
+#include <linux/slab.h>
 #include <net/mac80211.h>
 
 #include "iwl-dev.h"
@@ -806,6 +807,18 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 			     i, rssi_delta, data->disconn_array[i]);
 		}
 	}
+
+	/*
+	 * The above algorithm sometimes fails when the ucode
+	 * reports 0 for all chains. It's not clear why that
+	 * happens to start with, but it is then causing trouble
+	 * because this can make us enable more chains than the
+	 * hardware really has.
+	 *
+	 * To be safe, simply mask out any chains that we know
+	 * are not on the device.
+	 */
+	active_chains &= priv->hw_params.valid_rx_ant;
 
 	num_tx_chains = 0;
 	for (i = 0; i < NUM_RX_CHAINS; i++) {

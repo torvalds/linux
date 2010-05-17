@@ -15,6 +15,7 @@
 #include <linux/ip.h>
 #include <linux/tcp.h>
 #include <linux/netfilter.h>
+#include <linux/slab.h>
 
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_expect.h>

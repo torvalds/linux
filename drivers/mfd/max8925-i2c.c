@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/mfd/max8925.h>
+#include <linux/slab.h>
 
 #define RTC_I2C_ADDR		0x68
 #define ADC_I2C_ADDR		0x47

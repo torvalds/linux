@@ -58,6 +58,7 @@
 #include <linux/io.h>
 #include <linux/async.h>
 #include <linux/log2.h>
+#include <linux/slab.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
@@ -1493,6 +1494,7 @@ static int ata_hpa_resize(struct ata_device *dev)
 {
 	struct ata_eh_context *ehc = &dev->link->eh_context;
 	int print_info = ehc->i.flags & ATA_EHI_PRINTINFO;
+	bool unlock_hpa = ata_ignore_hpa || dev->flags & ATA_DFLAG_UNLOCK_HPA;
 	u64 sectors = ata_id_n_sectors(dev->id);
 	u64 native_sectors;
 	int rc;
@@ -1509,7 +1511,7 @@ static int ata_hpa_resize(struct ata_device *dev)
 		/* If device aborted the command or HPA isn't going to
 		 * be unlocked, skip HPA resizing.
 		 */
-		if (rc == -EACCES || !ata_ignore_hpa) {
+		if (rc == -EACCES || !unlock_hpa) {
 			ata_dev_printk(dev, KERN_WARNING, "HPA support seems "
 				       "broken, skipping HPA handling\n");
 			dev->horkage |= ATA_HORKAGE_BROKEN_HPA;
@@ -1524,7 +1526,7 @@ static int ata_hpa_resize(struct ata_device *dev)
 	dev->n_native_sectors = native_sectors;
 
 	/* nothing to do? */
-	if (native_sectors <= sectors || !ata_ignore_hpa) {
+	if (native_sectors <= sectors || !unlock_hpa) {
 		if (!print_info || native_sectors == sectors)
 			return 0;
 
@@ -4185,36 +4187,51 @@ int ata_dev_revalidate(struct ata_device *dev, unsigned int new_class,
 		goto fail;
 
 	/* verify n_sectors hasn't changed */
-	if (dev->class == ATA_DEV_ATA && n_sectors &&
-	    dev->n_sectors != n_sectors) {
-		ata_dev_printk(dev, KERN_WARNING, "n_sectors mismatch "
-			       "%llu != %llu\n",
-			       (unsigned long long)n_sectors,
-			       (unsigned long long)dev->n_sectors);
-		/*
-		 * Something could have caused HPA to be unlocked
-		 * involuntarily.  If n_native_sectors hasn't changed
-		 * and the new size matches it, keep the device.
-		 */
-		if (dev->n_native_sectors == n_native_sectors &&
-		    dev->n_sectors > n_sectors &&
-		    dev->n_sectors == n_native_sectors) {
-			ata_dev_printk(dev, KERN_WARNING,
-				       "new n_sectors matches native, probably "
-				       "late HPA unlock, continuing\n");
-			/* keep using the old n_sectors */
-			dev->n_sectors = n_sectors;
-		} else {
-			/* restore original n_[native]_sectors and fail */
-			dev->n_native_sectors = n_native_sectors;
-			dev->n_sectors = n_sectors;
-			rc = -ENODEV;
-			goto fail;
-		}
+	if (dev->class != ATA_DEV_ATA || !n_sectors ||
+	    dev->n_sectors == n_sectors)
+		return 0;
+
+	/* n_sectors has changed */
+	ata_dev_printk(dev, KERN_WARNING, "n_sectors mismatch %llu != %llu\n",
+		       (unsigned long long)n_sectors,
+		       (unsigned long long)dev->n_sectors);
+
+	/*
+	 * Something could have caused HPA to be unlocked
+	 * involuntarily.  If n_native_sectors hasn't changed and the
+	 * new size matches it, keep the device.
+	 */
+	if (dev->n_native_sectors == n_native_sectors &&
+	    dev->n_sectors > n_sectors && dev->n_sectors == n_native_sectors) {
+		ata_dev_printk(dev, KERN_WARNING,
+			       "new n_sectors matches native, probably "
+			       "late HPA unlock, continuing\n");
+		/* keep using the old n_sectors */
+		dev->n_sectors = n_sectors;
+		return 0;
 	}
 
-	return 0;
+	/*
+	 * Some BIOSes boot w/o HPA but resume w/ HPA locked.  Try
+	 * unlocking HPA in those cases.
+	 *
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=15396
+	 */
+	if (dev->n_native_sectors == n_native_sectors &&
+	    dev->n_sectors < n_sectors && n_sectors == n_native_sectors &&
+	    !(dev->horkage & ATA_HORKAGE_BROKEN_HPA)) {
+		ata_dev_printk(dev, KERN_WARNING,
+			       "old n_sectors matches native, probably "
+			       "late HPA lock, will try to unlock HPA\n");
+		/* try unlocking HPA */
+		dev->flags |= ATA_DFLAG_UNLOCK_HPA;
+		rc = -EIO;
+	} else
+		rc = -ENODEV;
 
+	/* restore original n_[native_]sectors and fail */
+	dev->n_native_sectors = n_native_sectors;
+	dev->n_sectors = n_sectors;
  fail:
 	ata_dev_printk(dev, KERN_ERR, "revalidation failed (errno=%d)\n", rc);
 	return rc;
@@ -4352,6 +4369,9 @@ static const struct ata_blacklist_entry ata_device_blacklist [] = {
 	{ "HTS541060G9SA00",    "MB3OC60D",     ATA_HORKAGE_NONCQ, },
 	{ "HTS541080G9SA00",    "MB4OC60D",     ATA_HORKAGE_NONCQ, },
 	{ "HTS541010G9SA00",    "MBZOC60D",     ATA_HORKAGE_NONCQ, },
+
+	/* https://bugzilla.kernel.org/show_bug.cgi?id=15573 */
+	{ "C300-CTFDDAC128MAG",	"0001",		ATA_HORKAGE_NONCQ, },
 
 	/* devices which puke on READ_NATIVE_MAX */
 	{ "HDS724040KLSA80",	"KFAOA20N",	ATA_HORKAGE_BROKEN_HPA, },

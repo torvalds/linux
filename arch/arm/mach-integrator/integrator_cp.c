@@ -13,7 +13,6 @@
 #include <linux/list.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/sysdev.h>
 #include <linux/amba/bus.h>
@@ -21,6 +20,7 @@
 #include <linux/amba/clcd.h>
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
+#include <linux/gfp.h>
 
 #include <asm/clkdev.h>
 #include <mach/clkdev.h>

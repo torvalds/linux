@@ -78,13 +78,13 @@ static const char * const boot_msg =
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
 #include <linux/fddidevice.h>
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/byteorder.h>
 #include <asm/io.h>

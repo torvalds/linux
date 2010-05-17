@@ -16,6 +16,7 @@
 #include <linux/bootmem.h>
 #include <linux/msi.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/of_platform.h>
 #include <sysdev/fsl_soc.h>
 #include <asm/prom.h>

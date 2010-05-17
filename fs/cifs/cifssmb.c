@@ -30,6 +30,7 @@
 #include <linux/fs.h>
 #include <linux/kernel.h>
 #include <linux/vfs.h>
+#include <linux/slab.h>
 #include <linux/posix_acl_xattr.h>
 #include <asm/uaccess.h>
 #include "cifspdu.h"
@@ -500,7 +501,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	} else if (pSMBr->hdr.WordCount == 13) {
 		cERROR(1, ("mount failed, cifs module not built "
 			  "with CIFS_WEAK_PW_HASH support"));
-			rc = -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
 #endif /* WEAK_PW_HASH */
 		goto neg_err_exit;
 	} else if (pSMBr->hdr.WordCount != 17) {
@@ -1430,6 +1431,8 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 	__u32 bytes_sent;
 	__u16 byte_count;
 
+	*nbytes = 0;
+
 	/* cFYI(1, ("write at %lld %d bytes", offset, count));*/
 	if (tcon->ses == NULL)
 		return -ECONNABORTED;
@@ -1512,11 +1515,18 @@ CIFSSMBWrite(const int xid, struct cifsTconInfo *tcon,
 	cifs_stats_inc(&tcon->num_writes);
 	if (rc) {
 		cFYI(1, ("Send error in write = %d", rc));
-		*nbytes = 0;
 	} else {
 		*nbytes = le16_to_cpu(pSMBr->CountHigh);
 		*nbytes = (*nbytes) << 16;
 		*nbytes += le16_to_cpu(pSMBr->Count);
+
+		/*
+		 * Mask off high 16 bits when bytes written as returned by the
+		 * server is greater than bytes requested by the client. Some
+		 * OS/2 servers are known to set incorrect CountHigh values.
+		 */
+		if (*nbytes > count)
+			*nbytes &= 0xFFFF;
 	}
 
 	cifs_buf_release(pSMB);
@@ -1605,6 +1615,14 @@ CIFSSMBWrite2(const int xid, struct cifsTconInfo *tcon,
 		*nbytes = le16_to_cpu(pSMBr->CountHigh);
 		*nbytes = (*nbytes) << 16;
 		*nbytes += le16_to_cpu(pSMBr->Count);
+
+		/*
+		 * Mask off high 16 bits when bytes written as returned by the
+		 * server is greater than bytes requested by the client. OS/2
+		 * servers are known to set incorrect CountHigh values.
+		 */
+		if (*nbytes > count)
+			*nbytes &= 0xFFFF;
 	}
 
 /*	cifs_small_buf_release(pSMB); */ /* Freed earlier now in SendReceive2 */
@@ -1793,8 +1811,21 @@ CIFSSMBPosixLock(const int xid, struct cifsTconInfo *tcon,
 		}
 		parm_data = (struct cifs_posix_lock *)
 			((char *)&pSMBr->hdr.Protocol + data_offset);
-		if (parm_data->lock_type == cpu_to_le16(CIFS_UNLCK))
+		if (parm_data->lock_type == __constant_cpu_to_le16(CIFS_UNLCK))
 			pLockData->fl_type = F_UNLCK;
+		else {
+			if (parm_data->lock_type ==
+					__constant_cpu_to_le16(CIFS_RDLCK))
+				pLockData->fl_type = F_RDLCK;
+			else if (parm_data->lock_type ==
+					__constant_cpu_to_le16(CIFS_WRLCK))
+				pLockData->fl_type = F_WRLCK;
+
+			pLockData->fl_start = parm_data->start;
+			pLockData->fl_end = parm_data->start +
+						parm_data->length - 1;
+			pLockData->fl_pid = parm_data->pid;
+		}
 	}
 
 plk_err_exit:
@@ -3230,8 +3261,72 @@ QInfRetry:
 	return rc;
 }
 
+int
+CIFSSMBQFileInfo(const int xid, struct cifsTconInfo *tcon,
+		 u16 netfid, FILE_ALL_INFO *pFindData)
+{
+	struct smb_t2_qfi_req *pSMB = NULL;
+	struct smb_t2_qfi_rsp *pSMBr = NULL;
+	int rc = 0;
+	int bytes_returned;
+	__u16 params, byte_count;
 
+QFileInfoRetry:
+	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
+		      (void **) &pSMBr);
+	if (rc)
+		return rc;
 
+	params = 2 /* level */ + 2 /* fid */;
+	pSMB->t2.TotalDataCount = 0;
+	pSMB->t2.MaxParameterCount = cpu_to_le16(4);
+	/* BB find exact max data count below from sess structure BB */
+	pSMB->t2.MaxDataCount = cpu_to_le16(CIFSMaxBufSize);
+	pSMB->t2.MaxSetupCount = 0;
+	pSMB->t2.Reserved = 0;
+	pSMB->t2.Flags = 0;
+	pSMB->t2.Timeout = 0;
+	pSMB->t2.Reserved2 = 0;
+	pSMB->t2.ParameterOffset = cpu_to_le16(offsetof(struct smb_t2_qfi_req,
+					       Fid) - 4);
+	pSMB->t2.DataCount = 0;
+	pSMB->t2.DataOffset = 0;
+	pSMB->t2.SetupCount = 1;
+	pSMB->t2.Reserved3 = 0;
+	pSMB->t2.SubCommand = cpu_to_le16(TRANS2_QUERY_FILE_INFORMATION);
+	byte_count = params + 1 /* pad */ ;
+	pSMB->t2.TotalParameterCount = cpu_to_le16(params);
+	pSMB->t2.ParameterCount = pSMB->t2.TotalParameterCount;
+	pSMB->InformationLevel = cpu_to_le16(SMB_QUERY_FILE_ALL_INFO);
+	pSMB->Pad = 0;
+	pSMB->Fid = netfid;
+	pSMB->hdr.smb_buf_length += byte_count;
+
+	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
+			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
+	if (rc) {
+		cFYI(1, ("Send error in QPathInfo = %d", rc));
+	} else {		/* decode response */
+		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
+
+		if (rc) /* BB add auto retry on EOPNOTSUPP? */
+			rc = -EIO;
+		else if (pSMBr->ByteCount < 40)
+			rc = -EIO;	/* bad smb */
+		else if (pFindData) {
+			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
+			memcpy((char *) pFindData,
+			       (char *) &pSMBr->hdr.Protocol +
+			       data_offset, sizeof(FILE_ALL_INFO));
+		} else
+		    rc = -ENOMEM;
+	}
+	cifs_buf_release(pSMB);
+	if (rc == -EAGAIN)
+		goto QFileInfoRetry;
+
+	return rc;
+}
 
 int
 CIFSSMBQPathInfo(const int xid, struct cifsTconInfo *tcon,
@@ -3330,6 +3425,75 @@ QPathInfoRetry:
 	cifs_buf_release(pSMB);
 	if (rc == -EAGAIN)
 		goto QPathInfoRetry;
+
+	return rc;
+}
+
+int
+CIFSSMBUnixQFileInfo(const int xid, struct cifsTconInfo *tcon,
+		 u16 netfid, FILE_UNIX_BASIC_INFO *pFindData)
+{
+	struct smb_t2_qfi_req *pSMB = NULL;
+	struct smb_t2_qfi_rsp *pSMBr = NULL;
+	int rc = 0;
+	int bytes_returned;
+	__u16 params, byte_count;
+
+UnixQFileInfoRetry:
+	rc = smb_init(SMB_COM_TRANSACTION2, 15, tcon, (void **) &pSMB,
+		      (void **) &pSMBr);
+	if (rc)
+		return rc;
+
+	params = 2 /* level */ + 2 /* fid */;
+	pSMB->t2.TotalDataCount = 0;
+	pSMB->t2.MaxParameterCount = cpu_to_le16(4);
+	/* BB find exact max data count below from sess structure BB */
+	pSMB->t2.MaxDataCount = cpu_to_le16(CIFSMaxBufSize);
+	pSMB->t2.MaxSetupCount = 0;
+	pSMB->t2.Reserved = 0;
+	pSMB->t2.Flags = 0;
+	pSMB->t2.Timeout = 0;
+	pSMB->t2.Reserved2 = 0;
+	pSMB->t2.ParameterOffset = cpu_to_le16(offsetof(struct smb_t2_qfi_req,
+					       Fid) - 4);
+	pSMB->t2.DataCount = 0;
+	pSMB->t2.DataOffset = 0;
+	pSMB->t2.SetupCount = 1;
+	pSMB->t2.Reserved3 = 0;
+	pSMB->t2.SubCommand = cpu_to_le16(TRANS2_QUERY_FILE_INFORMATION);
+	byte_count = params + 1 /* pad */ ;
+	pSMB->t2.TotalParameterCount = cpu_to_le16(params);
+	pSMB->t2.ParameterCount = pSMB->t2.TotalParameterCount;
+	pSMB->InformationLevel = cpu_to_le16(SMB_QUERY_FILE_UNIX_BASIC);
+	pSMB->Pad = 0;
+	pSMB->Fid = netfid;
+	pSMB->hdr.smb_buf_length += byte_count;
+
+	rc = SendReceive(xid, tcon->ses, (struct smb_hdr *) pSMB,
+			 (struct smb_hdr *) pSMBr, &bytes_returned, 0);
+	if (rc) {
+		cFYI(1, ("Send error in QPathInfo = %d", rc));
+	} else {		/* decode response */
+		rc = validate_t2((struct smb_t2_rsp *)pSMBr);
+
+		if (rc || (pSMBr->ByteCount < sizeof(FILE_UNIX_BASIC_INFO))) {
+			cERROR(1, ("Malformed FILE_UNIX_BASIC_INFO response.\n"
+				   "Unix Extensions can be disabled on mount "
+				   "by specifying the nosfu mount option."));
+			rc = -EIO;	/* bad smb */
+		} else {
+			__u16 data_offset = le16_to_cpu(pSMBr->t2.DataOffset);
+			memcpy((char *) pFindData,
+			       (char *) &pSMBr->hdr.Protocol +
+			       data_offset,
+			       sizeof(FILE_UNIX_BASIC_INFO));
+		}
+	}
+
+	cifs_buf_release(pSMB);
+	if (rc == -EAGAIN)
+		goto UnixQFileInfoRetry;
 
 	return rc;
 }

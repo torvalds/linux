@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/timer.h>
 #include <linux/skbuff.h>
+#include <linux/gfp.h>
 #include <net/checksum.h>
 #include <net/icmp.h>
 #include <net/ip.h>

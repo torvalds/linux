@@ -37,6 +37,7 @@
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 
 #include "cxio_resource.h"

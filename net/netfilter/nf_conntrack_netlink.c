@@ -27,6 +27,7 @@
 #include <linux/netlink.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 #include <linux/netfilter.h>
 #include <net/netlink.h>
@@ -582,7 +583,9 @@ nla_put_failure:
 nlmsg_failure:
 	kfree_skb(skb);
 errout:
-	nfnetlink_set_err(net, 0, group, -ENOBUFS);
+	if (nfnetlink_set_err(net, 0, group, -ENOBUFS) > 0)
+		return -ENOBUFS;
+
 	return 0;
 }
 #endif /* CONFIG_NF_CONNTRACK_EVENTS */

@@ -7,6 +7,7 @@
 #include "qla_def.h"
 
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <scsi/scsi_tcq.h>
 #include <scsi/scsi_bsg_fc.h>
 
@@ -620,11 +621,10 @@ skip_rio:
 		 *           vp_idx does not match
 		 *       Event is not global, vp_idx does not match
 		 */
-		if ((mb[1] == 0xffff && (mb[3] & 0xff) != 0xff)
-			|| (mb[1] != 0xffff)) {
-			if (vha->vp_idx != (mb[3] & 0xff))
-				break;
-		}
+		if (IS_QLA2XXX_MIDTYPE(ha) &&
+		    ((mb[1] == 0xffff && (mb[3] & 0xff) != 0xff) ||
+			(mb[1] != 0xffff)) && vha->vp_idx != (mb[3] & 0xff))
+			break;
 
 		/* Global event -- port logout or port unavailable. */
 		if (mb[1] == 0xffff && mb[2] == 0x7) {
@@ -2272,28 +2272,26 @@ qla2x00_request_irqs(struct qla_hw_data *ha, struct rsp_que *rsp)
 
 	/* If possible, enable MSI-X. */
 	if (!IS_QLA2432(ha) && !IS_QLA2532(ha) &&
-	    !IS_QLA8432(ha) && !IS_QLA8001(ha))
-		goto skip_msix;
+		!IS_QLA8432(ha) && !IS_QLA8001(ha))
+		goto skip_msi;
+
+	if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_HP &&
+		(ha->pdev->subsystem_device == 0x7040 ||
+		ha->pdev->subsystem_device == 0x7041 ||
+		ha->pdev->subsystem_device == 0x1705)) {
+		DEBUG2(qla_printk(KERN_WARNING, ha,
+			"MSI-X: Unsupported ISP2432 SSVID/SSDID (0x%X,0x%X).\n",
+			ha->pdev->subsystem_vendor,
+			ha->pdev->subsystem_device));
+		goto skip_msi;
+	}
 
 	if (IS_QLA2432(ha) && (ha->pdev->revision < QLA_MSIX_CHIP_REV_24XX ||
 		!QLA_MSIX_FW_MODE_1(ha->fw_attributes))) {
 		DEBUG2(qla_printk(KERN_WARNING, ha,
 		"MSI-X: Unsupported ISP2432 (0x%X, 0x%X).\n",
 			ha->pdev->revision, ha->fw_attributes));
-
 		goto skip_msix;
-	}
-
-	if (ha->pdev->subsystem_vendor == PCI_VENDOR_ID_HP &&
-	    (ha->pdev->subsystem_device == 0x7040 ||
-		ha->pdev->subsystem_device == 0x7041 ||
-		ha->pdev->subsystem_device == 0x1705)) {
-		DEBUG2(qla_printk(KERN_WARNING, ha,
-		    "MSI-X: Unsupported ISP2432 SSVID/SSDID (0x%X, 0x%X).\n",
-		    ha->pdev->subsystem_vendor,
-		    ha->pdev->subsystem_device));
-
-		goto skip_msi;
 	}
 
 	ret = qla24xx_enable_msix(ha, rsp);

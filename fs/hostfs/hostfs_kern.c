@@ -11,6 +11,7 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/statfs.h>
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/mount.h>
 #include "hostfs.h"

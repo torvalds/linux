@@ -2,6 +2,7 @@
   * This file contains ioctl functions
   */
 #include <linux/ctype.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/if.h>
 #include <linux/if_arp.h>

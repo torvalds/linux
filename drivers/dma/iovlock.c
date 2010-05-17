@@ -27,6 +27,7 @@
 
 #include <linux/dmaengine.h>
 #include <linux/pagemap.h>
+#include <linux/slab.h>
 #include <net/tcp.h> /* for memcpy_toiovec */
 #include <asm/io.h>
 #include <asm/uaccess.h>

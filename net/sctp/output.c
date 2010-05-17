@@ -48,6 +48,7 @@
 #include <linux/ip.h>
 #include <linux/ipv6.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <net/inet_ecn.h>
 #include <net/ip.h>
 #include <net/icmp.h>

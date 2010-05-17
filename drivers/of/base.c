@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/proc_fs.h>
 
 struct device_node *allnodes;

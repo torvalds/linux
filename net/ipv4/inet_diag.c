@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/fcntl.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <linux/cache.h>
 #include <linux/init.h>
 #include <linux/time.h>

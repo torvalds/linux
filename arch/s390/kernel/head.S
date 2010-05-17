@@ -517,7 +517,10 @@ startup:
 	lhi	%r1,2			# mode 2 = esame (dump)
 	sigp	%r1,%r0,0x12		# switch to esame mode
 	sam64				# switch to 64 bit mode
+	larl	%r13,4f
+	lmh	%r0,%r15,0(%r13)	# clear high-order half
 	jg	startup_continue
+4:	.fill	16,4,0x0
 #else
 	mvi	__LC_AR_MODE_ID,0	# set ESA flag (mode 0)
 	l	%r13,4f-.LPG0(%r13)

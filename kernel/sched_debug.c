@@ -114,7 +114,9 @@ print_task(struct seq_file *m, struct rq *rq, struct task_struct *p)
 	{
 		char path[64];
 
+		rcu_read_lock();
 		cgroup_path(task_group(p)->css.cgroup, path, sizeof(path));
+		rcu_read_unlock();
 		SEQ_printf(m, " %s", path);
 	}
 #endif
@@ -518,8 +520,4 @@ void proc_sched_set_task(struct task_struct *p)
 	p->se.nr_wakeups_idle			= 0;
 	p->sched_info.bkl_count			= 0;
 #endif
-	p->se.sum_exec_runtime			= 0;
-	p->se.prev_sum_exec_runtime		= 0;
-	p->nvcsw				= 0;
-	p->nivcsw				= 0;
 }

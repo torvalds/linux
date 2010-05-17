@@ -485,8 +485,8 @@ S:	Maintained
 F:	drivers/input/mouse/bcm5974.c
 
 APPLE SMC DRIVER
-M:	Nicolas Boichat <nicolas@boichat.ch>
-L:	mactel-linux-devel@lists.sourceforge.net
+M:	Henrik Rydberg <rydberg@euromail.se>
+L:	lm-sensors@lm-sensors.org
 S:	Maintained
 F:	drivers/hwmon/applesmc.c
 
@@ -585,6 +585,12 @@ F:	drivers/mtd/nand/bcm_umi_nand.c
 F:	drivers/mtd/nand/bcm_umi_bch.c
 F:	drivers/mtd/nand/bcm_umi_hamming.c
 F:	drivers/mtd/nand/nand_bcm_umi.h
+
+ARM/CAVIUM NETWORKS CNS3XXX MACHINE SUPPORT
+M:	Anton Vorontsov <avorontsov@mvista.com>
+S:	Maintained
+F:	arch/arm/mach-cns3xxx/
+T:	git git://git.infradead.org/users/cbou/linux-cns3xxx.git
 
 ARM/CIRRUS LOGIC EP93XX ARM ARCHITECTURE
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
@@ -775,11 +781,10 @@ M:	Philipp Zabel <philipp.zabel@gmail.com>
 S:	Maintained
 
 ARM/Marvell Loki/Kirkwood/MV78xx0/Orion SOC support
-M:	Lennert Buytenhek <buytenh@marvell.com>
-M:	Nicolas Pitre <nico@marvell.com>
+M:	Lennert Buytenhek <kernel@wantstofly.org>
+M:	Nicolas Pitre <nico@fluxnic.net>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-T:	git git://git.marvell.com/orion
-S:	Maintained
+S:	Odd Fixes
 F:	arch/arm/mach-loki/
 F:	arch/arm/mach-kirkwood/
 F:	arch/arm/mach-mv78xx0/
@@ -797,12 +802,12 @@ M:	Michael Petchkovsky <mkpetch@internode.on.net>
 S:	Maintained
 
 ARM/NOMADIK ARCHITECTURE
-M:     Alessandro Rubini <rubini@unipv.it>
-M:     STEricsson <STEricsson_nomadik_linux@list.st.com>
-L:     linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:     Maintained
-F:     arch/arm/mach-nomadik/
-F:     arch/arm/plat-nomadik/
+M:	Alessandro Rubini <rubini@unipv.it>
+M:	STEricsson <STEricsson_nomadik_linux@list.st.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-nomadik/
+F:	arch/arm/plat-nomadik/
 
 ARM/OPENMOKO NEO FREERUNNER (GTA02) MACHINE SUPPORT
 M:	Nelson Castillo <arhuaco@freaks-unidos.net>
@@ -971,6 +976,16 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.mcuos.com
 S:	Maintained
 
+ARM/U300 MACHINE SUPPORT
+M:	Linus Walleij <linus.walleij@stericsson.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Supported
+F:	arch/arm/mach-u300/
+F:	drivers/i2c/busses/i2c-stu300.c
+F:	drivers/rtc/rtc-coh901331.c
+F:	drivers/watchdog/coh901327_wdt.c
+F:	drivers/dma/coh901318*
+
 ARM/U8500 ARM ARCHITECTURE
 M:	Srinidhi Kasagar <srinidhi.kasagar@stericsson.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -983,6 +998,20 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	arch/arm/vfp/
+
+ARM/VOIPAC PXA270 SUPPORT
+M:	Marek Vasut <marek.vasut@gmail.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-pxa/vpac270.c
+F:	arch/arm/mach-pxa/include/mach-pxa/vpac270.h
+
+ARM/ZIPIT Z2 SUPPORT
+M:	Marek Vasut <marek.vasut@gmail.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-pxa/z2.c
+F:	arch/arm/mach-pxa/include/mach-pxa/z2.h
 
 ASC7621 HARDWARE MONITOR DRIVER
 M:	George Joseph <george.joseph@fairview5.com>
@@ -1440,6 +1469,15 @@ F:	arch/powerpc/include/asm/cell*.h
 F:	arch/powerpc/include/asm/spu*.h
 F:	arch/powerpc/oprofile/*cell*
 F:	arch/powerpc/platforms/cell/
+
+CEPH DISTRIBUTED FILE SYSTEM CLIENT
+M:	Sage Weil <sage@newdream.net>
+L:	ceph-devel@vger.kernel.org
+W:	http://ceph.newdream.net/
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sage/ceph-client.git
+S:	Supported
+F:	Documentation/filesystems/ceph.txt
+F:	fs/ceph
 
 CERTIFIED WIRELESS USB (WUSB) SUBSYSTEM:
 M:	David Vrabel <david.vrabel@csr.com>
@@ -1917,17 +1955,17 @@ F:	drivers/scsi/dpt*
 F:	drivers/scsi/dpt/
 
 DRBD DRIVER
-P:     Philipp Reisner
-P:     Lars Ellenberg
-M:     drbd-dev@lists.linbit.com
-L:     drbd-user@lists.linbit.com
-W:     http://www.drbd.org
-T:     git git://git.drbd.org/linux-2.6-drbd.git drbd
-T:     git git://git.drbd.org/drbd-8.3.git
-S:     Supported
-F:     drivers/block/drbd/
-F:     lib/lru_cache.c
-F:     Documentation/blockdev/drbd/
+P:	Philipp Reisner
+P:	Lars Ellenberg
+M:	drbd-dev@lists.linbit.com
+L:	drbd-user@lists.linbit.com
+W:	http://www.drbd.org
+T:	git git://git.drbd.org/linux-2.6-drbd.git drbd
+T:	git git://git.drbd.org/drbd-8.3.git
+S:	Supported
+F:	drivers/block/drbd/
+F:	lib/lru_cache.c
+F:	Documentation/blockdev/drbd/
 
 DRIVER CORE, KOBJECTS, AND SYSFS
 M:	Greg Kroah-Hartman <gregkh@suse.de>
@@ -1941,7 +1979,7 @@ F:	lib/kobj*
 
 DRM DRIVERS
 M:	David Airlie <airlied@linux.ie>
-L:	dri-devel@lists.sourceforge.net
+L:	dri-devel@lists.freedesktop.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/airlied/drm-2.6.git
 S:	Maintained
 F:	drivers/gpu/drm/
@@ -2464,12 +2502,6 @@ HYPERVISOR VIRTUAL CONSOLE DRIVER
 L:	linuxppc-dev@ozlabs.org
 S:	Odd Fixes
 F:	drivers/char/hvc_*
-
-VIRTIO CONSOLE DRIVER
-M:	Amit Shah <amit.shah@redhat.com>
-L:	virtualization@lists.linux-foundation.org
-S:	Maintained
-F:	drivers/char/virtio_console.c
 
 iSCSI BOOT FIRMWARE TABLE (iBFT) DRIVER
 M:	Peter Jones <pjones@redhat.com>
@@ -3074,6 +3106,7 @@ F:	include/scsi/*iscsi*
 ISDN SUBSYSTEM
 M:	Karsten Keil <isdn@linux-pingi.de>
 L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
+L:	netdev@vger.kernel.org
 W:	http://www.isdn4linux.de
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kkeil/isdn-2.6.git
 S:	Maintained
@@ -3259,6 +3292,16 @@ L:	kexec@lists.infradead.org
 S:	Maintained
 F:	include/linux/kexec.h
 F:	kernel/kexec.c
+
+KEYS/KEYRINGS:
+M:	David Howells <dhowells@redhat.com>
+L:	keyrings@linux-nfs.org
+S:	Maintained
+F:	Documentation/keys.txt
+F:	include/linux/key.h
+F:	include/linux/key-type.h
+F:	include/keys/
+F:	security/keys/
 
 KGDB
 M:	Jason Wessel <jason.wessel@windriver.com>
@@ -3509,8 +3552,8 @@ F:	drivers/scsi/sym53c8xx_2/
 LTP (Linux Test Project)
 M:	Rishikesh K Rajak <risrajak@linux.vnet.ibm.com>
 M:	Garrett Cooper <yanegomi@gmail.com>
-M:     Mike Frysinger <vapier@gentoo.org>
-M:     Subrata Modak <subrata@linux.vnet.ibm.com>
+M:	Mike Frysinger <vapier@gentoo.org>
+M:	Subrata Modak <subrata@linux.vnet.ibm.com>
 L:	ltp-list@lists.sourceforge.net (subscribers-only)
 W:	http://ltp.sourceforge.net/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/galak/ltp.git
@@ -3600,7 +3643,8 @@ F:	drivers/net/wireless/mwl8k.c
 
 MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
-S:	Maintained
+S:	Odd Fixes
+F: drivers/mmc/host/mvsdio.*
 
 MARVELL YUKON / SYSKONNECT DRIVER
 M:	Mirko Lindner <mlindner@syskonnect.de>
@@ -4458,17 +4502,17 @@ S:	Maintained
 F:	drivers/ata/sata_promise.*
 
 PS3 NETWORK SUPPORT
-M:	Geoff Levand <geoffrey.levand@am.sony.com>
+M:	Geoff Levand <geoff@infradead.org>
 L:	netdev@vger.kernel.org
 L:	cbe-oss-dev@ozlabs.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/ps3_gelic_net.*
 
 PS3 PLATFORM SUPPORT
-M:	Geoff Levand <geoffrey.levand@am.sony.com>
+M:	Geoff Levand <geoff@infradead.org>
 L:	linuxppc-dev@ozlabs.org
 L:	cbe-oss-dev@ozlabs.org
-S:	Supported
+S:	Maintained
 F:	arch/powerpc/boot/ps3*
 F:	arch/powerpc/include/asm/lv1call.h
 F:	arch/powerpc/include/asm/ps3*.h
@@ -4767,12 +4811,11 @@ F:	drivers/s390/crypto/
 
 S390 ZFCP DRIVER
 M:	Christof Schmitt <christof.schmitt@de.ibm.com>
-M:	Martin Peschke <mp3@de.ibm.com>
+M:	Swen Schillig <swen@vnet.ibm.com>
 M:	linux390@de.ibm.com
 L:	linux-s390@vger.kernel.org
 W:	http://www.ibm.com/developerworks/linux/linux390/
 S:	Supported
-F:	Documentation/s390/zfcpdump.txt
 F:	drivers/s390/scsi/zfcp_*
 
 S390 IUCV NETWORK LAYER
@@ -5098,7 +5141,7 @@ F:	mm/sl?b.c
 
 SMC91x ETHERNET DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/net/smc91x.*
 
 SMSC47B397 HARDWARE MONITOR DRIVER
@@ -5454,7 +5497,6 @@ S:	Maintained
 F:	sound/soc/codecs/twl4030*
 
 TIPC NETWORK LAYER
-M:	Per Liden <per.liden@ericsson.com>
 M:	Jon Maloy <jon.maloy@ericsson.com>
 M:	Allan Stephens <allan.stephens@windriver.com>
 L:	tipc-discussion@lists.sourceforge.net
@@ -5992,6 +6034,13 @@ S:	Maintained
 F:	Documentation/filesystems/vfat.txt
 F:	fs/fat/
 
+VIRTIO CONSOLE DRIVER
+M:	Amit Shah <amit.shah@redhat.com>
+L:	virtualization@lists.linux-foundation.org
+S:	Maintained
+F:	drivers/char/virtio_console.c
+F:	include/linux/virtio_console.h
+
 VIRTIO HOST (VHOST)
 M:	"Michael S. Tsirkin" <mst@redhat.com>
 L:	kvm@vger.kernel.org
@@ -6232,7 +6281,7 @@ F:	arch/x86/
 X86 PLATFORM DRIVERS
 M:	Matthew Garrett <mjg@redhat.com>
 L:	platform-driver-x86@vger.kernel.org
-T:      git git://git.kernel.org/pub/scm/linux/kernel/git/mjg59/platform-drivers-x86.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mjg59/platform-drivers-x86.git
 S:	Maintained
 F:	drivers/platform/x86
 

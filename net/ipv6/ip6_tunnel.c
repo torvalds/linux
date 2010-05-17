@@ -37,6 +37,7 @@
 #include <linux/route.h>
 #include <linux/rtnetlink.h>
 #include <linux/netfilter_ipv6.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/atomic.h>

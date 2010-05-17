@@ -12,6 +12,7 @@
  */
 
 #include <linux/inet.h>
+#include <linux/slab.h>
 #include <linux/crypto.h>
 #include <linux/if_vlan.h>
 #include <net/dst.h>

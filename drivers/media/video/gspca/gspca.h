@@ -7,6 +7,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 /* compilation option */
 #define GSPCA_DEBUG 1

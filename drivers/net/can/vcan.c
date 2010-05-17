@@ -48,6 +48,7 @@
 #include <linux/if_ether.h>
 #include <linux/can.h>
 #include <linux/can/dev.h>
+#include <linux/slab.h>
 #include <net/rtnetlink.h>
 
 static __initdata const char banner[] =

@@ -747,7 +747,7 @@ config USB_MASS_STORAGE
 	  which may be used with composite framework.
 
 	  Say "y" to link the driver statically, or "m" to build
-	  a dynamically linked module called "g_file_storage".  If unsure,
+	  a dynamically linked module called "g_mass_storage".  If unsure,
 	  consider File-backed Storage Gadget.
 
 config USB_G_SERIAL

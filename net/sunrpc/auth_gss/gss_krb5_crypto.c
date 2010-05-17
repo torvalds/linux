@@ -37,7 +37,6 @@
 #include <linux/err.h>
 #include <linux/types.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/scatterlist.h>
 #include <linux/crypto.h>
 #include <linux/highmem.h>

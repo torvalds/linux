@@ -461,6 +461,7 @@ alloc_group_attrs(ssize_t (*show)(struct ib_port *,
 		element->attr.attr.mode  = S_IRUGO;
 		element->attr.show       = show;
 		element->index		 = i;
+		sysfs_attr_init(&element->attr.attr);
 
 		tab_attr[i] = &element->attr.attr;
 	}

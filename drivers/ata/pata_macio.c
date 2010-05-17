@@ -21,6 +21,7 @@
 #include <linux/pmu.h>
 #include <linux/scatterlist.h>
 #include <linux/of.h>
+#include <linux/gfp.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>

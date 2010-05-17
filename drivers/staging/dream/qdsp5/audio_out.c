@@ -26,6 +26,7 @@
 #include <linux/debugfs.h>
 #include <linux/delay.h>
 #include <linux/wakelock.h>
+#include <linux/gfp.h>
 
 #include <linux/msm_audio.h>
 

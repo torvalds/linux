@@ -14,6 +14,7 @@
 #include <linux/i2c-algo-bit.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 

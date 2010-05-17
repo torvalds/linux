@@ -91,6 +91,7 @@ extern int s3c24xx_register_clock(struct clk *clk);
 extern int s3c24xx_register_clocks(struct clk **clk, int nr_clks);
 
 extern void s3c_register_clocks(struct clk *clk, int nr_clks);
+extern void s3c_disable_clocks(struct clk *clkp, int nr_clks);
 
 extern int s3c24xx_register_baseclocks(unsigned long xtal);
 

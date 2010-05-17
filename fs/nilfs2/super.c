@@ -749,6 +749,7 @@ nilfs_fill_super(struct super_block *sb, void *data, int silent,
 	sb->s_export_op = &nilfs_export_ops;
 	sb->s_root = NULL;
 	sb->s_time_gran = 1;
+	sb->s_bdi = nilfs->ns_bdi;
 
 	err = load_nilfs(nilfs, sbi);
 	if (err)

@@ -30,6 +30,7 @@
 #include <linux/log2.h>
 #include <linux/pci.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #define DRVNAME "i5k_amb"
 

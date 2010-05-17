@@ -24,6 +24,7 @@
 #include <linux/sched.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 
 static struct pci_driver pasemi_smb_driver;

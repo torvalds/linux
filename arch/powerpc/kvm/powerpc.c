@@ -25,6 +25,7 @@
 #include <linux/vmalloc.h>
 #include <linux/hrtimer.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <asm/cputable.h>
 #include <asm/uaccess.h>
 #include <asm/kvm_ppc.h>

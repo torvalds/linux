@@ -17,6 +17,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include "ctree.h"
 #include "disk-io.h"
 #include "transaction.h"
@@ -3038,6 +3039,10 @@ static noinline int setup_leaf_for_split(struct btrfs_trans_handle *trans,
 	leaf = path->nodes[0];
 	/* if our item isn't there or got smaller, return now */
 	if (ret > 0 || item_size != btrfs_item_size_nr(leaf, path->slots[0]))
+		goto err;
+
+	/* the leaf has  changed, it now has room.  return now */
+	if (btrfs_leaf_free_space(root, path->nodes[0]) >= ins_len)
 		goto err;
 
 	if (key.type == BTRFS_EXTENT_DATA_KEY) {

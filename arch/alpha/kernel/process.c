@@ -17,7 +17,6 @@
 #include <linux/stddef.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/time.h>
 #include <linux/major.h>
@@ -28,6 +27,7 @@
 #include <linux/reboot.h>
 #include <linux/tty.h>
 #include <linux/console.h>
+#include <linux/slab.h>
 
 #include <asm/reg.h>
 #include <asm/uaccess.h>

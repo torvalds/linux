@@ -19,6 +19,7 @@
  */
 #include <linux/reboot.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/blkdev.h>
 #include <linux/pci.h>

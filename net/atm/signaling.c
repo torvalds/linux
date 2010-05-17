@@ -14,6 +14,7 @@
 #include <linux/atmsvc.h>
 #include <linux/atmdev.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 
 #include "resources.h"
 #include "signaling.h"

@@ -29,6 +29,7 @@
 #include <linux/list.h>
 #include <linux/highmem.h>
 #include <linux/pagevec.h>
+#include <linux/gfp.h>
 #include "nilfs.h"
 #include "page.h"
 #include "mdt.h"

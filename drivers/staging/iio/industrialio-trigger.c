@@ -14,6 +14,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 #include "iio.h"
 #include "trigger.h"

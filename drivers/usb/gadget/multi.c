@@ -211,8 +211,6 @@ static int __init cdc_do_config(struct usb_configuration *c)
 	ret = fsg_add(c->cdev, c, fsg_common);
 	if (ret < 0)
 		return ret;
-	if (ret < 0)
-		return ret;
 
 	return 0;
 }

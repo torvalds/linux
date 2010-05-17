@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/types.h>
 
 #include <asm/io.h>

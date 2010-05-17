@@ -25,6 +25,7 @@
 #include <linux/virtio_net.h>
 #include <linux/scatterlist.h>
 #include <linux/if_vlan.h>
+#include <linux/slab.h>
 
 static int napi_weight = 128;
 module_param(napi_weight, int, 0444);
@@ -326,6 +327,7 @@ static int add_recvbuf_small(struct virtnet_info *vi, gfp_t gfp)
 	struct scatterlist sg[2];
 	int err;
 
+	sg_init_table(sg, 2);
 	skb = netdev_alloc_skb_ip_align(vi->dev, MAX_PACKET_LEN);
 	if (unlikely(!skb))
 		return -ENOMEM;
@@ -351,6 +353,7 @@ static int add_recvbuf_big(struct virtnet_info *vi, gfp_t gfp)
 	char *p;
 	int i, err, offset;
 
+	sg_init_table(sg, MAX_SKB_FRAGS + 2);
 	/* page in sg[MAX_SKB_FRAGS + 1] is list tail */
 	for (i = MAX_SKB_FRAGS + 1; i > 1; --i) {
 		first = get_a_page(vi, gfp);

@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/wm8350/core.h>
+#include <linux/slab.h>
 
 static int wm8350_i2c_read_device(struct wm8350 *wm8350, char reg,
 				  int bytes, void *dest)

@@ -40,6 +40,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/nsproxy.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/snmp.h>
 #include <net/ipv6.h>
@@ -814,7 +815,7 @@ struct dst_entry * ip6_route_output(struct net *net, struct sock *sk,
 {
 	int flags = 0;
 
-	if (rt6_need_strict(&fl->fl6_dst))
+	if (fl->oif || rt6_need_strict(&fl->fl6_dst))
 		flags |= RT6_LOOKUP_F_IFACE;
 
 	if (!ipv6_addr_any(&fl->fl6_src))
@@ -879,7 +880,7 @@ static struct dst_entry *ip6_dst_check(struct dst_entry *dst, u32 cookie)
 
 	rt = (struct rt6_info *) dst;
 
-	if (rt && rt->rt6i_node && (rt->rt6i_node->fn_sernum == cookie))
+	if (rt->rt6i_node && (rt->rt6i_node->fn_sernum == cookie))
 		return dst;
 
 	return NULL;
@@ -890,12 +891,17 @@ static struct dst_entry *ip6_negative_advice(struct dst_entry *dst)
 	struct rt6_info *rt = (struct rt6_info *) dst;
 
 	if (rt) {
-		if (rt->rt6i_flags & RTF_CACHE)
-			ip6_del_rt(rt);
-		else
+		if (rt->rt6i_flags & RTF_CACHE) {
+			if (rt6_check_expired(rt)) {
+				ip6_del_rt(rt);
+				dst = NULL;
+			}
+		} else {
 			dst_release(dst);
+			dst = NULL;
+		}
 	}
-	return NULL;
+	return dst;
 }
 
 static void ip6_link_failure(struct sk_buff *skb)

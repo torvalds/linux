@@ -224,11 +224,14 @@ static int s3c_ac97_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct s3c_dma_params *dma_data;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		cpu_dai->dma_data = &s3c_ac97_pcm_out;
+		dma_data = &s3c_ac97_pcm_out;
 	else
-		cpu_dai->dma_data = &s3c_ac97_pcm_in;
+		dma_data = &s3c_ac97_pcm_in;
+
+	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
 
 	return 0;
 }
@@ -238,8 +241,8 @@ static int s3c_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
 {
 	u32 ac_glbctrl;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	int channel = ((struct s3c_dma_params *)
-		  rtd->dai->cpu_dai->dma_data)->channel;
+	struct s3c_dma_params *dma_data =
+		snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
 
 	ac_glbctrl = readl(s3c_ac97.regs + S3C_AC97_GLBCTRL);
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
@@ -265,7 +268,7 @@ static int s3c_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
 
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
-	s3c2410_dma_ctrl(channel, S3C2410_DMAOP_STARTED);
+	s3c2410_dma_ctrl(dma_data->channel, S3C2410_DMAOP_STARTED);
 
 	return 0;
 }
@@ -280,7 +283,7 @@ static int s3c_ac97_hw_mic_params(struct snd_pcm_substream *substream,
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		return -ENODEV;
 	else
-		cpu_dai->dma_data = &s3c_ac97_mic_in;
+		snd_soc_dai_set_dma_data(cpu_dai, substream, &s3c_ac97_mic_in);
 
 	return 0;
 }
@@ -290,8 +293,8 @@ static int s3c_ac97_mic_trigger(struct snd_pcm_substream *substream,
 {
 	u32 ac_glbctrl;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	int channel = ((struct s3c_dma_params *)
-		  rtd->dai->cpu_dai->dma_data)->channel;
+	struct s3c_dma_params *dma_data =
+		snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
 
 	ac_glbctrl = readl(s3c_ac97.regs + S3C_AC97_GLBCTRL);
 	ac_glbctrl &= ~S3C_AC97_GLBCTRL_MICINTM_MASK;
@@ -311,7 +314,7 @@ static int s3c_ac97_mic_trigger(struct snd_pcm_substream *substream,
 
 	writel(ac_glbctrl, s3c_ac97.regs + S3C_AC97_GLBCTRL);
 
-	s3c2410_dma_ctrl(channel, S3C2410_DMAOP_STARTED);
+	s3c2410_dma_ctrl(dma_data->channel, S3C2410_DMAOP_STARTED);
 
 	return 0;
 }

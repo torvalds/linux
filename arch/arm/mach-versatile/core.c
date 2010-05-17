@@ -29,6 +29,7 @@
 #include <linux/amba/pl061.h>
 #include <linux/amba/mmci.h>
 #include <linux/io.h>
+#include <linux/gfp.h>
 
 #include <asm/clkdev.h>
 #include <asm/system.h>

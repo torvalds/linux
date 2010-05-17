@@ -130,7 +130,17 @@ rtrap_xcall:
 		 nop
 		call			trace_hardirqs_on
 		 nop
-		wrpr			%l4, %pil
+		/* Do not actually set the %pil here.  We will do that
+		 * below after we clear PSTATE_IE in the %pstate register.
+		 * If we re-enable interrupts here, we can recurse down
+		 * the hardirq stack potentially endlessly, causing a
+		 * stack overflow.
+		 *
+		 * It is tempting to put this test and trace_hardirqs_on
+		 * call at the 'rt_continue' label, but that will not work
+		 * as that path hits unconditionally and we do not want to
+		 * execute this in NMI return paths, for example.
+		 */
 #endif
 rtrap_no_irq_enable:
 		andcc			%l1, TSTATE_PRIV, %l3

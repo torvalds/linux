@@ -238,12 +238,12 @@ static unsigned int us2e_freq_get(unsigned int cpu)
 		return 0;
 
 	cpus_allowed = current->cpus_allowed;
-	set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
 	clock_tick = sparc64_get_clock_tick(cpu) / 1000;
 	estar = read_hbreg(HBIRD_ESTAR_MODE_ADDR);
 
-	set_cpus_allowed(current, cpus_allowed);
+	set_cpus_allowed_ptr(current, &cpus_allowed);
 
 	return clock_tick / estar_to_divisor(estar);
 }
@@ -259,7 +259,7 @@ static void us2e_set_cpu_divider_index(unsigned int cpu, unsigned int index)
 		return;
 
 	cpus_allowed = current->cpus_allowed;
-	set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
 	new_freq = clock_tick = sparc64_get_clock_tick(cpu) / 1000;
 	new_bits = index_to_estar_mode(index);
@@ -281,7 +281,7 @@ static void us2e_set_cpu_divider_index(unsigned int cpu, unsigned int index)
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 
-	set_cpus_allowed(current, cpus_allowed);
+	set_cpus_allowed_ptr(current, &cpus_allowed);
 }
 
 static int us2e_freq_target(struct cpufreq_policy *policy,

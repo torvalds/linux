@@ -17,6 +17,7 @@
 
 #include <linux/ssb/ssb.h>
 #include <linux/ssb/ssb_regs.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
 

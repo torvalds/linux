@@ -32,6 +32,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 
 #include "iscsi_iser.h"

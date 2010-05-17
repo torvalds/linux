@@ -21,7 +21,6 @@
 #include <linux/fcntl.h>
 #include <linux/ptrace.h>
 #include <linux/user.h>
-#include <linux/slab.h>
 #include <linux/binfmts.h>
 #include <linux/personality.h>
 #include <linux/init.h>

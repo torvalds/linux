@@ -33,14 +33,15 @@ static void h1940bt_enable(int on)
 		h1940_latch_control(0, H1940_LATCH_BLUETOOTH_POWER);
 		/* Reset the chip */
 		mdelay(10);
-		s3c2410_gpio_setpin(S3C2410_GPH(1), 1);
+
+		gpio_set_value(S3C2410_GPH(1), 1);
 		mdelay(10);
-		s3c2410_gpio_setpin(S3C2410_GPH(1), 0);
+		gpio_set_value(S3C2410_GPH(1), 0);
 	}
 	else {
-		s3c2410_gpio_setpin(S3C2410_GPH(1), 1);
+		gpio_set_value(S3C2410_GPH(1), 1);
 		mdelay(10);
-		s3c2410_gpio_setpin(S3C2410_GPH(1), 0);
+		gpio_set_value(S3C2410_GPH(1), 0);
 		mdelay(10);
 		h1940_latch_control(H1940_LATCH_BLUETOOTH_POWER, 0);
 	}
@@ -61,15 +62,21 @@ static int __devinit h1940bt_probe(struct platform_device *pdev)
 	struct rfkill *rfk;
 	int ret = 0;
 
+	ret = gpio_request(S3C2410_GPH(1), dev_name(&pdev->dev));
+	if (ret) {
+		dev_err(&pdev->dev, "could not get GPH1\n");\
+		return ret;
+	}
+
 	/* Configures BT serial port GPIOs */
-	s3c2410_gpio_cfgpin(S3C2410_GPH(0), S3C2410_GPH0_nCTS0);
-	s3c2410_gpio_pullup(S3C2410_GPH(0), 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPH(1), S3C2410_GPIO_OUTPUT);
-	s3c2410_gpio_pullup(S3C2410_GPH(1), 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPH(2), S3C2410_GPH2_TXD0);
-	s3c2410_gpio_pullup(S3C2410_GPH(2), 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPH(3), S3C2410_GPH3_RXD0);
-	s3c2410_gpio_pullup(S3C2410_GPH(3), 1);
+	s3c_gpio_cfgpin(S3C2410_GPH(0), S3C2410_GPH0_nCTS0);
+	s3c_gpio_cfgpull(S3C2410_GPH(0), S3C_GPIO_PULL_NONE);
+	s3c_gpio_cfgpin(S3C2410_GPH(1), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpull(S3C2410_GPH(1), S3C_GPIO_PULL_NONE);
+	s3c_gpio_cfgpin(S3C2410_GPH(2), S3C2410_GPH2_TXD0);
+	s3c_gpio_cfgpull(S3C2410_GPH(2), S3C_GPIO_PULL_NONE);
+	s3c_gpio_cfgpin(S3C2410_GPH(3), S3C2410_GPH3_RXD0);
+	s3c_gpio_cfgpull(S3C2410_GPH(3), S3C_GPIO_PULL_NONE);
 
 
 	rfk = rfkill_alloc(DRV_NAME, &pdev->dev, RFKILL_TYPE_BLUETOOTH,
@@ -100,6 +107,7 @@ static int h1940bt_remove(struct platform_device *pdev)
 	struct rfkill *rfk = platform_get_drvdata(pdev);
 
 	platform_set_drvdata(pdev, NULL);
+	gpio_free(S3C2410_GPH(1));
 
 	if (rfk) {
 		rfkill_unregister(rfk);

@@ -58,6 +58,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/videodev.h>
+#include <linux/slab.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include <linux/parport.h>

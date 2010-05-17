@@ -45,6 +45,7 @@
  */
 #include <linux/etherdevice.h> /* for is_valid_ether_addr */
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/wlp.h>
 
 #include "wlp-internal.h"

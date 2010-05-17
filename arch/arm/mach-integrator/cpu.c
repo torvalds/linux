@@ -13,7 +13,6 @@
 #include <linux/types.h>
 #include <linux/kernel.h>
 #include <linux/cpufreq.h>
-#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/init.h>

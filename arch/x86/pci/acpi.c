@@ -3,6 +3,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 #include <asm/numa.h>
 #include <asm/pci_x86.h>
 
@@ -65,14 +66,44 @@ resource_to_addr(struct acpi_resource *resource,
 			struct acpi_resource_address64 *addr)
 {
 	acpi_status status;
+	struct acpi_resource_memory24 *memory24;
+	struct acpi_resource_memory32 *memory32;
+	struct acpi_resource_fixed_memory32 *fixed_memory32;
 
-	status = acpi_resource_to_address64(resource, addr);
-	if (ACPI_SUCCESS(status) &&
-	    (addr->resource_type == ACPI_MEMORY_RANGE ||
-	    addr->resource_type == ACPI_IO_RANGE) &&
-	    addr->address_length > 0 &&
-	    addr->producer_consumer == ACPI_PRODUCER) {
+	memset(addr, 0, sizeof(*addr));
+	switch (resource->type) {
+	case ACPI_RESOURCE_TYPE_MEMORY24:
+		memory24 = &resource->data.memory24;
+		addr->resource_type = ACPI_MEMORY_RANGE;
+		addr->minimum = memory24->minimum;
+		addr->address_length = memory24->address_length;
+		addr->maximum = addr->minimum + addr->address_length - 1;
 		return AE_OK;
+	case ACPI_RESOURCE_TYPE_MEMORY32:
+		memory32 = &resource->data.memory32;
+		addr->resource_type = ACPI_MEMORY_RANGE;
+		addr->minimum = memory32->minimum;
+		addr->address_length = memory32->address_length;
+		addr->maximum = addr->minimum + addr->address_length - 1;
+		return AE_OK;
+	case ACPI_RESOURCE_TYPE_FIXED_MEMORY32:
+		fixed_memory32 = &resource->data.fixed_memory32;
+		addr->resource_type = ACPI_MEMORY_RANGE;
+		addr->minimum = fixed_memory32->address;
+		addr->address_length = fixed_memory32->address_length;
+		addr->maximum = addr->minimum + addr->address_length - 1;
+		return AE_OK;
+	case ACPI_RESOURCE_TYPE_ADDRESS16:
+	case ACPI_RESOURCE_TYPE_ADDRESS32:
+	case ACPI_RESOURCE_TYPE_ADDRESS64:
+		status = acpi_resource_to_address64(resource, addr);
+		if (ACPI_SUCCESS(status) &&
+		    (addr->resource_type == ACPI_MEMORY_RANGE ||
+		    addr->resource_type == ACPI_IO_RANGE) &&
+		    addr->address_length > 0) {
+			return AE_OK;
+		}
+		break;
 	}
 	return AE_ERROR;
 }
@@ -90,30 +121,6 @@ count_resource(struct acpi_resource *acpi_res, void *data)
 	return AE_OK;
 }
 
-static void
-align_resource(struct acpi_device *bridge, struct resource *res)
-{
-	int align = (res->flags & IORESOURCE_MEM) ? 16 : 4;
-
-	/*
-	 * Host bridge windows are not BARs, but the decoders on the PCI side
-	 * that claim this address space have starting alignment and length
-	 * constraints, so fix any obvious BIOS goofs.
-	 */
-	if (!IS_ALIGNED(res->start, align)) {
-		dev_printk(KERN_DEBUG, &bridge->dev,
-			   "host bridge window %pR invalid; "
-			   "aligning start to %d-byte boundary\n", res, align);
-		res->start &= ~(align - 1);
-	}
-	if (!IS_ALIGNED(res->end + 1, align)) {
-		dev_printk(KERN_DEBUG, &bridge->dev,
-			   "host bridge window %pR invalid; "
-			   "aligning end to %d-byte boundary\n", res, align);
-		res->end = ALIGN(res->end, align) - 1;
-	}
-}
-
 static acpi_status
 setup_resource(struct acpi_resource *acpi_res, void *data)
 {
@@ -122,7 +129,7 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	struct acpi_resource_address64 addr;
 	acpi_status status;
 	unsigned long flags;
-	struct resource *root;
+	struct resource *root, *conflict;
 	u64 start, end;
 
 	status = resource_to_addr(acpi_res, &addr);
@@ -141,7 +148,7 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 		return AE_OK;
 
 	start = addr.minimum + addr.translation_offset;
-	end = start + addr.address_length - 1;
+	end = addr.maximum + addr.translation_offset;
 
 	res = &info->res[info->res_num];
 	res->name = info->name;
@@ -149,7 +156,6 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	res->start = start;
 	res->end = end;
 	res->child = NULL;
-	align_resource(info->bridge, res);
 
 	if (!pci_use_crs) {
 		dev_printk(KERN_DEBUG, &info->bridge->dev,
@@ -157,9 +163,12 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 		return AE_OK;
 	}
 
-	if (insert_resource(root, res)) {
+	conflict = insert_resource_conflict(root, res);
+	if (conflict) {
 		dev_err(&info->bridge->dev,
-			"can't allocate host bridge window %pR\n", res);
+			"address space collision: host bridge window %pR "
+			"conflicts with %s %pR\n",
+			res, conflict->name, conflict);
 	} else {
 		pci_bus_add_resource(info->bus, res, 0);
 		info->res_num++;

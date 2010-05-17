@@ -214,7 +214,7 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 		return;
 	}
 	for (i = base, most = 0; i < base+num; i += 8) {
-		res = claim_region(NULL, i, 8, IORESOURCE_IO, "PCMCIA ioprobe");
+		res = claim_region(s, i, 8, IORESOURCE_IO, "PCMCIA ioprobe");
 		if (!res)
 			continue;
 		hole = inb(i);
@@ -231,9 +231,14 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 
 	bad = any = 0;
 	for (i = base; i < base+num; i += 8) {
-		res = claim_region(NULL, i, 8, IORESOURCE_IO, "PCMCIA ioprobe");
-		if (!res)
+		res = claim_region(s, i, 8, IORESOURCE_IO, "PCMCIA ioprobe");
+		if (!res) {
+			if (!any)
+				printk(" excluding");
+			if (!bad)
+				bad = any = i;
 			continue;
+		}
 		for (j = 0; j < 8; j++)
 			if (inb(i+j) != most)
 				break;
@@ -253,6 +258,7 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 	}
 	if (bad) {
 		if ((num > 16) && (bad == base) && (i == base+num)) {
+			sub_interval(&s_data->io_db, bad, i-bad);
 			printk(" nothing: probe failed.\n");
 			return;
 		} else {
@@ -596,19 +602,17 @@ struct pcmcia_align_data {
 	struct resource_map	*map;
 };
 
-static resource_size_t
-pcmcia_common_align(void *align_data, const struct resource *res,
-			resource_size_t size, resource_size_t align)
+static resource_size_t pcmcia_common_align(struct pcmcia_align_data *align_data,
+					resource_size_t start)
 {
-	struct pcmcia_align_data *data = align_data;
-	resource_size_t start;
+	resource_size_t ret;
 	/*
 	 * Ensure that we have the correct start address
 	 */
-	start = (res->start & ~data->mask) + data->offset;
-	if (start < res->start)
-		start += data->mask + 1;
-	return start;
+	ret = (start & ~align_data->mask) + align_data->offset;
+	if (ret < start)
+		ret += align_data->mask + 1;
+	return ret;
 }
 
 static resource_size_t
@@ -619,29 +623,28 @@ pcmcia_align(void *align_data, const struct resource *res,
 	struct resource_map *m;
 	resource_size_t start;
 
-	start = pcmcia_common_align(data, res, size, align);
+	start = pcmcia_common_align(data, res->start);
 
 	for (m = data->map->next; m != data->map; m = m->next) {
-		unsigned long start = m->base;
-		unsigned long end = m->base + m->num - 1;
+		unsigned long map_start = m->base;
+		unsigned long map_end = m->base + m->num - 1;
 
 		/*
 		 * If the lower resources are not available, try aligning
 		 * to this entry of the resource database to see if it'll
 		 * fit here.
 		 */
-		if (res->start < start) {
-			start = pcmcia_common_align(data, res, size, align);
-		}
+		if (start < map_start)
+			start = pcmcia_common_align(data, map_start);
 
 		/*
 		 * If we're above the area which was passed in, there's
 		 * no point proceeding.
 		 */
-		if (res->start >= res->end)
+		if (start >= res->end)
 			break;
 
-		if ((res->start + size - 1) <= end)
+		if ((start + size - 1) <= map_end)
 			break;
 	}
 
@@ -807,8 +810,17 @@ static int adjust_memory(struct pcmcia_socket *s, unsigned int action, unsigned 
 static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long start, unsigned long end)
 {
 	struct socket_data *data = s->resource_data;
-	unsigned long size = end - start + 1;
+	unsigned long size;
 	int ret = 0;
+
+#if defined(CONFIG_X86)
+	/* on x86, avoid anything < 0x100 for it is often used for
+	 * legacy platform devices */
+	if (start < 0x100)
+		start = 0x100;
+#endif
+
+	size = end - start + 1;
 
 	if (end < start)
 		return -EINVAL;
@@ -867,10 +879,8 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 			if (res == &ioport_resource)
 				continue;
 			dev_printk(KERN_INFO, &s->cb_dev->dev,
-				   "pcmcia: parent PCI bridge I/O "
-				   "window: 0x%llx - 0x%llx\n",
-				   (unsigned long long)res->start,
-				   (unsigned long long)res->end);
+				   "pcmcia: parent PCI bridge window: %pR\n",
+				   res);
 			if (!adjust_io(s, ADD_MANAGED_RESOURCE, res->start, res->end))
 				done |= IORESOURCE_IO;
 
@@ -880,10 +890,8 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 			if (res == &iomem_resource)
 				continue;
 			dev_printk(KERN_INFO, &s->cb_dev->dev,
-				   "pcmcia: parent PCI bridge Memory "
-				   "window: 0x%llx - 0x%llx\n",
-				   (unsigned long long)res->start,
-				   (unsigned long long)res->end);
+				   "pcmcia: parent PCI bridge window: %pR\n",
+				   res);
 			if (!adjust_memory(s, ADD_MANAGED_RESOURCE, res->start, res->end))
 				done |= IORESOURCE_MEM;
 		}

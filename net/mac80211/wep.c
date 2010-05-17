@@ -17,6 +17,7 @@
 #include <linux/err.h>
 #include <linux/mm.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 
 #include <net/mac80211.h>

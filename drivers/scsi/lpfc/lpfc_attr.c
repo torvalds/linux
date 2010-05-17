@@ -24,6 +24,7 @@
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 #include <linux/aer.h>
+#include <linux/gfp.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_device.h>

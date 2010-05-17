@@ -9,9 +9,9 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/types.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
+#include <linux/gfp.h>
 
 #include <asm/setup.h>
 #include <asm/segment.h>

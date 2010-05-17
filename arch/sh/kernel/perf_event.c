@@ -315,7 +315,7 @@ void hw_perf_disable(void)
 	sh_pmu->disable_all();
 }
 
-int register_sh_pmu(struct sh_pmu *pmu)
+int __cpuinit register_sh_pmu(struct sh_pmu *pmu)
 {
 	if (sh_pmu)
 		return -EBUSY;

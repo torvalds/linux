@@ -20,6 +20,7 @@
 #include <linux/if_arp.h>
 #include <linux/init.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <net/checksum.h>
 
 #include <net/inet_sock.h>

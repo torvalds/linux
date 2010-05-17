@@ -24,6 +24,7 @@
 #include <linux/idr.h>
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
 #include <linux/ctype.h>

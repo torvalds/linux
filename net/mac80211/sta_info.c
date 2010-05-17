@@ -93,12 +93,18 @@ struct sta_info *sta_info_get(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
-	sta = rcu_dereference(local->sta_hash[STA_HASH(addr)]);
+	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
+				    rcu_read_lock_held() ||
+				    lockdep_is_held(&local->sta_lock) ||
+				    lockdep_is_held(&local->sta_mtx));
 	while (sta) {
 		if (sta->sdata == sdata &&
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
-		sta = rcu_dereference(sta->hnext);
+		sta = rcu_dereference_check(sta->hnext,
+					    rcu_read_lock_held() ||
+					    lockdep_is_held(&local->sta_lock) ||
+					    lockdep_is_held(&local->sta_mtx));
 	}
 	return sta;
 }
@@ -113,13 +119,19 @@ struct sta_info *sta_info_get_bss(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
-	sta = rcu_dereference(local->sta_hash[STA_HASH(addr)]);
+	sta = rcu_dereference_check(local->sta_hash[STA_HASH(addr)],
+				    rcu_read_lock_held() ||
+				    lockdep_is_held(&local->sta_lock) ||
+				    lockdep_is_held(&local->sta_mtx));
 	while (sta) {
 		if ((sta->sdata == sdata ||
 		     sta->sdata->bss == sdata->bss) &&
 		    memcmp(sta->sta.addr, addr, ETH_ALEN) == 0)
 			break;
-		sta = rcu_dereference(sta->hnext);
+		sta = rcu_dereference_check(sta->hnext,
+					    rcu_read_lock_held() ||
+					    lockdep_is_held(&local->sta_lock) ||
+					    lockdep_is_held(&local->sta_mtx));
 	}
 	return sta;
 }

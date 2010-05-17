@@ -19,6 +19,7 @@
  *  rport.c Remote port implementation.
  */
 
+#include <linux/slab.h>
 #include <bfa.h>
 #include <bfa_svc.h>
 #include "fcbuild.h"

@@ -12,6 +12,7 @@
 
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
 #include <linux/icmp.h>

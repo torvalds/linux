@@ -21,6 +21,7 @@
 
 #include <linux/kthread.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include <net/bluetooth/bluetooth.h>
 
 #define BTM_HEADER_LEN			4

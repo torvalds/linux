@@ -24,6 +24,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/socket.h>
 #include <asm/ioctls.h>
 #include <net/sock.h>

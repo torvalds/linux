@@ -5,6 +5,7 @@
  * Author: Andi Kleen
  */
 
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/percpu.h>

@@ -16,6 +16,7 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
+#include <linux/gfp.h>
 
 #include <asm/bugs.h>
 #include <asm/cacheflush.h>

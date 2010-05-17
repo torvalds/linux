@@ -24,6 +24,7 @@
 #include <linux/acpi.h>
 #include <linux/mm.h>
 #include <linux/i8042.h>
+#include <linux/slab.h>
 #include "../../firmware/dcdbas.h"
 
 #define BRIGHTNESS_TOKEN 0x7d

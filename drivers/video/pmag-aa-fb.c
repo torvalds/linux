@@ -28,7 +28,6 @@
 #include <linux/string.h>
 #include <linux/timer.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/fb.h>

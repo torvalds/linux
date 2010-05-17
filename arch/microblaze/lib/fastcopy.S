@@ -30,8 +30,9 @@
  */
 
 #include <linux/linkage.h>
-
+	.text
 	.globl	memcpy
+	.type  memcpy, @function
 	.ent	memcpy
 
 memcpy:
@@ -345,9 +346,11 @@ a_done:
 	rtsd	r15, 8
 	nop
 
+.size  memcpy, . - memcpy
 .end memcpy
 /*----------------------------------------------------------------------------*/
 	.globl	memmove
+	.type  memmove, @function
 	.ent	memmove
 
 memmove:
@@ -659,4 +662,5 @@ d_done:
 	rtsd	r15, 8
 	nop
 
+.size  memmove, . - memmove
 .end memmove

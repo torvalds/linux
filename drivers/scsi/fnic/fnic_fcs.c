@@ -17,6 +17,7 @@
  */
 #include <linux/errno.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock.h>

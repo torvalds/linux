@@ -45,7 +45,7 @@ static void ccw_timeout_log(struct ccw_device *cdev)
 	sch = to_subchannel(cdev->dev.parent);
 	private = to_io_private(sch);
 	orb = &private->orb;
-	cc = stsch(sch->schid, &schib);
+	cc = stsch_err(sch->schid, &schib);
 
 	printk(KERN_WARNING "cio: ccw device timeout occurred at %llx, "
 	       "device information:\n", get_clock());

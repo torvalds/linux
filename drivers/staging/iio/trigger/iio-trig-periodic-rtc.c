@@ -14,6 +14,7 @@
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/rtc.h>
 #include "../iio.h"
 #include "../trigger.h"

@@ -32,6 +32,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 #include <linux/i2c-smbus.h>
+#include <linux/slab.h>
 #include "i2c-parport.h"
 
 /* ----- Device list ------------------------------------------------------ */

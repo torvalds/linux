@@ -68,7 +68,6 @@
 #include <linux/hugetlb.h>
 #include <linux/pagemap.h>
 #include <linux/swap.h>
-#include <linux/slab.h>
 #include <linux/smp.h>
 #include <linux/signal.h>
 #include <linux/highmem.h>

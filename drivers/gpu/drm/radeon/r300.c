@@ -26,10 +26,12 @@
  *          Jerome Glisse
  */
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "drm.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "radeon_drm.h"
 #include "r100_track.h"
 #include "r300d.h"
@@ -164,9 +166,9 @@ void rv370_pcie_gart_disable(struct radeon_device *rdev)
 
 void rv370_pcie_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	rv370_pcie_gart_disable(rdev);
 	radeon_gart_table_vram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 void r300_fence_ring_emit(struct radeon_device *rdev,
@@ -322,12 +324,12 @@ void r300_gpu_init(struct radeon_device *rdev)
 	uint32_t gb_tile_config, tmp;
 
 	r100_hdp_reset(rdev);
-	/* FIXME: rv380 one pipes ? */
-	if ((rdev->family == CHIP_R300) || (rdev->family == CHIP_R350)) {
+	if ((rdev->family == CHIP_R300 && rdev->pdev->device != 0x4144) ||
+	    (rdev->family == CHIP_R350 && rdev->pdev->device != 0x4148)) {
 		/* r300,r350 */
 		rdev->num_gb_pipes = 2;
 	} else {
-		/* rv350,rv370,rv380 */
+		/* rv350,rv370,rv380,r300 AD, r350 AH */
 		rdev->num_gb_pipes = 1;
 	}
 	rdev->num_z_pipes = 1;
@@ -481,6 +483,7 @@ void r300_mc_init(struct radeon_device *rdev)
 	radeon_vram_location(rdev, &rdev->mc, base);
 	if (!(rdev->flags & RADEON_IS_AGP))
 		radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes)
@@ -726,6 +729,12 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		/* VAP_VF_MAX_VTX_INDX */
 		track->max_indx = idx_value & 0x00FFFFFFUL;
 		break;
+	case 0x2088:
+		/* VAP_ALT_NUM_VERTICES - only valid on r500 */
+		if (p->rdev->family < CHIP_RV515)
+			goto fail;
+		track->vap_alt_nverts = idx_value & 0xFFFFFF;
+		break;
 	case 0x43E4:
 		/* SC_SCISSOR1 */
 		track->maxy = ((idx_value >> 13) & 0x1FFF) + 1;
@@ -763,7 +772,6 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		tmp = idx_value & ~(0x7 << 16);
 		tmp |= tile_flags;
 		ib[idx] = tmp;
-
 		i = (reg - 0x4E38) >> 2;
 		track->cb[i].pitch = idx_value & 0x3FFE;
 		switch (((idx_value >> 21) & 0xF)) {
@@ -1036,7 +1044,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		break;
 	case 0x4d1c:
 		/* ZB_BW_CNTL */
-		track->fastfill = !!(idx_value & (1 << 2));
+		track->zb_cb_clear = !!(idx_value & (1 << 5));
 		break;
 	case 0x4e04:
 		/* RB3D_BLENDCNTL */
@@ -1048,11 +1056,13 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			break;
 		/* fallthrough do not move */
 	default:
-		printk(KERN_ERR "Forbidden register 0x%04X in cs at %d\n",
-		       reg, idx);
-		return -EINVAL;
+		goto fail;
 	}
 	return 0;
+fail:
+	printk(KERN_ERR "Forbidden register 0x%04X in cs at %d\n",
+	       reg, idx);
+	return -EINVAL;
 }
 
 static int r300_packet3_check(struct radeon_cs_parser *p,
@@ -1334,6 +1344,7 @@ int r300_suspend(struct radeon_device *rdev)
 
 void r300_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);

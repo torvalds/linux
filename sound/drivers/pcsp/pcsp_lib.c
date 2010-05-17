@@ -7,6 +7,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <linux/moduleparam.h>
 #include <linux/interrupt.h>
 #include <sound/pcm.h>

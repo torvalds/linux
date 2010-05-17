@@ -51,6 +51,7 @@
  *   wimax_rfkill_rm()
  */
 #include <linux/device.h>
+#include <linux/gfp.h>
 #include <net/genetlink.h>
 #include <linux/netdevice.h>
 #include <linux/wimax.h>
