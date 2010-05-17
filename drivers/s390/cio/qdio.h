@@ -296,10 +296,8 @@ struct qdio_q {
 	struct qdio_irq *irq_ptr;
 	struct sl *sl;
 	/*
-	 * Warning: Leave this member at the end so it won't be cleared in
-	 * qdio_fill_qs. A page is allocated under this pointer and used for
-	 * slib and sl. slib is 2048 bytes big and sl points to offset
-	 * PAGE_SIZE / 2.
+	 * A page is allocated under this pointer and used for slib and sl.
+	 * slib is 2048 bytes big and sl points to offset PAGE_SIZE / 2.
 	 */
 	struct slib *slib;
 } __attribute__ ((aligned(256)));
