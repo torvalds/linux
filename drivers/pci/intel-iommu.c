@@ -3433,19 +3433,6 @@ static void vm_domain_remove_all_dev_info(struct dmar_domain *domain)
 /* domain id for virtual machine, it won't be set in context */
 static unsigned long vm_domid;
 
-static int vm_domain_min_agaw(struct dmar_domain *domain)
-{
-	int i;
-	int min_agaw = domain->agaw;
-
-	for_each_set_bit(i, &domain->iommu_bmp, g_num_of_iommus) {
-		if (min_agaw > g_iommus[i]->agaw)
-			min_agaw = g_iommus[i]->agaw;
-	}
-
-	return min_agaw;
-}
-
 static struct dmar_domain *iommu_alloc_vm_domain(void)
 {
 	struct dmar_domain *domain;
@@ -3574,7 +3561,6 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct intel_iommu *iommu;
 	int addr_width;
-	u64 end;
 
 	/* normally pdev is not mapped */
 	if (unlikely(domain_context_mapped(pdev))) {
@@ -3597,13 +3583,29 @@ static int intel_iommu_attach_device(struct iommu_domain *domain,
 
 	/* check if this iommu agaw is sufficient for max mapped address */
 	addr_width = agaw_to_width(iommu->agaw);
-	end = DOMAIN_MAX_ADDR(addr_width);
-	end = end & VTD_PAGE_MASK;
-	if (end < dmar_domain->max_addr) {
-		printk(KERN_ERR "%s: iommu agaw (%d) is not "
+	if (addr_width > cap_mgaw(iommu->cap))
+		addr_width = cap_mgaw(iommu->cap);
+
+	if (dmar_domain->max_addr > (1LL << addr_width)) {
+		printk(KERN_ERR "%s: iommu width (%d) is not "
 		       "sufficient for the mapped address (%llx)\n",
-		       __func__, iommu->agaw, dmar_domain->max_addr);
+		       __func__, addr_width, dmar_domain->max_addr);
 		return -EFAULT;
+	}
+	dmar_domain->gaw = addr_width;
+
+	/*
+	 * Knock out extra levels of page tables if necessary
+	 */
+	while (iommu->agaw < dmar_domain->agaw) {
+		struct dma_pte *pte;
+
+		pte = dmar_domain->pgd;
+		if (dma_pte_present(pte)) {
+			free_pgtable_page(dmar_domain->pgd);
+			dmar_domain->pgd = (struct dma_pte *)dma_pte_addr(pte);
+		}
+		dmar_domain->agaw--;
 	}
 
 	return domain_add_dev_info(dmar_domain, pdev, CONTEXT_TT_MULTI_LEVEL);
