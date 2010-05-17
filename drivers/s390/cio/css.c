@@ -1065,6 +1065,7 @@ static ssize_t cio_settle_write(struct file *file, const char __user *buf,
 }
 
 static const struct file_operations cio_settle_proc_fops = {
+	.open = nonseekable_open,
 	.write = cio_settle_write,
 };
 

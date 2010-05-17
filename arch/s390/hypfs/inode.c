@@ -145,7 +145,7 @@ static int hypfs_open(struct inode *inode, struct file *filp)
 		}
 		mutex_unlock(&fs_info->lock);
 	}
-	return 0;
+	return nonseekable_open(inode, filp);
 }
 
 static ssize_t hypfs_aio_read(struct kiocb *iocb, const struct iovec *iov,
