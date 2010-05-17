@@ -124,6 +124,16 @@ static void tomoyo_del_acl(struct tomoyo_acl_info *acl)
 			tomoyo_put_number_union(&entry->minor);
 		}
 		break;
+	case TOMOYO_TYPE_MOUNT_ACL:
+		{
+			struct tomoyo_mount_acl *entry
+				= container_of(acl, typeof(*entry), head);
+			tomoyo_put_name_union(&entry->dev_name);
+			tomoyo_put_name_union(&entry->dir_name);
+			tomoyo_put_name_union(&entry->fs_type);
+			tomoyo_put_number_union(&entry->flags);
+		}
+		break;
 	default:
 		printk(KERN_WARNING "Unknown type\n");
 		break;

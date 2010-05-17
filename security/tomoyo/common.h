@@ -53,6 +53,7 @@ enum tomoyo_mode_index {
 
 /* Keywords for ACLs. */
 #define TOMOYO_KEYWORD_ALIAS                     "alias "
+#define TOMOYO_KEYWORD_ALLOW_MOUNT               "allow_mount "
 #define TOMOYO_KEYWORD_ALLOW_READ                "allow_read "
 #define TOMOYO_KEYWORD_DELETE                    "delete "
 #define TOMOYO_KEYWORD_DENY_REWRITE              "deny_rewrite "
@@ -90,6 +91,7 @@ enum tomoyo_acl_entry_type_index {
 	TOMOYO_TYPE_PATH2_ACL,
 	TOMOYO_TYPE_PATH_NUMBER_ACL,
 	TOMOYO_TYPE_PATH_NUMBER3_ACL,
+	TOMOYO_TYPE_MOUNT_ACL,
 };
 
 /* Index numbers for File Controls. */
@@ -116,7 +118,6 @@ enum tomoyo_path_acl_index {
 	TOMOYO_TYPE_SYMLINK,
 	TOMOYO_TYPE_REWRITE,
 	TOMOYO_TYPE_CHROOT,
-	TOMOYO_TYPE_MOUNT,
 	TOMOYO_TYPE_UMOUNT,
 	TOMOYO_MAX_PATH_OPERATION
 };
@@ -360,8 +361,8 @@ struct tomoyo_domain_info {
  *
  * Directives held by this structure are "allow_read/write", "allow_execute",
  * "allow_read", "allow_write", "allow_unlink", "allow_rmdir",
- * "allow_truncate", "allow_symlink", "allow_rewrite", "allow_chroot",
- * "allow_mount" and "allow_unmount".
+ * "allow_truncate", "allow_symlink", "allow_rewrite", "allow_chroot" and
+ * "allow_unmount".
  */
 struct tomoyo_path_acl {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_PATH_ACL */
@@ -432,6 +433,29 @@ struct tomoyo_path2_acl {
 	u8 perm;
 	struct tomoyo_name_union name1;
 	struct tomoyo_name_union name2;
+};
+
+/*
+ * tomoyo_mount_acl is a structure which is used for holding an
+ * entry for mount operation.
+ * It has following fields.
+ *
+ *  (1) "head" which is a "struct tomoyo_acl_info".
+ *  (2) "is_deleted" is boolean.
+ *  (3) "dev_name" is the device name.
+ *  (4) "dir_name" is the mount point.
+ *  (5) "flags" is the mount flags.
+ *
+ * Directives held by this structure are "allow_rename", "allow_link" and
+ * "allow_pivot_root".
+ */
+struct tomoyo_mount_acl {
+	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_MOUNT_ACL */
+	bool is_deleted;
+	struct tomoyo_name_union dev_name;
+	struct tomoyo_name_union dir_name;
+	struct tomoyo_name_union fs_type;
+	struct tomoyo_number_union flags;
 };
 
 /*
@@ -638,6 +662,9 @@ struct tomoyo_policy_manager_entry {
 /* Check whether the given name matches the given name_union. */
 bool tomoyo_compare_name_union(const struct tomoyo_path_info *name,
 			       const struct tomoyo_name_union *ptr);
+/* Check whether the given number matches the given number_union. */
+bool tomoyo_compare_number_union(const unsigned long value,
+				 const struct tomoyo_number_union *ptr);
 /* Check whether the domain has too many ACL entries to hold. */
 bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r);
 /* Transactional sprintf() for policy dump. */
@@ -699,6 +726,12 @@ const char *tomoyo_path_number32keyword(const u8 operation);
 const char *tomoyo_get_last_name(const struct tomoyo_domain_info *domain);
 /* Convert single path operation to operation name. */
 const char *tomoyo_path2keyword(const u8 operation);
+/* Fill "struct tomoyo_request_info". */
+int tomoyo_init_request_info(struct tomoyo_request_info *r,
+			     struct tomoyo_domain_info *domain);
+/* Check permission for mount operation. */
+int tomoyo_mount_permission(char *dev_name, struct path *path, char *type,
+			    unsigned long flags, void *data_page);
 /* Create "alias" entry in exception policy. */
 int tomoyo_write_alias_policy(char *data, const bool is_delete);
 /*
@@ -721,6 +754,9 @@ int tomoyo_write_file_policy(char *data, struct tomoyo_domain_info *domain,
 			     const bool is_delete);
 /* Create "allow_read" entry in exception policy. */
 int tomoyo_write_globally_readable_policy(char *data, const bool is_delete);
+/* Create "allow_mount" entry in domain policy. */
+int tomoyo_write_mount_policy(char *data, struct tomoyo_domain_info *domain,
+			      const bool is_delete);
 /* Create "deny_rewrite" entry in exception policy. */
 int tomoyo_write_no_rewrite_policy(char *data, const bool is_delete);
 /* Create "file_pattern" entry in exception policy. */
@@ -735,7 +771,9 @@ struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname);
 struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 							    domainname,
 							    const u8 profile);
-
+/* Get patterned pathname. */
+const struct tomoyo_path_info *
+tomoyo_get_file_pattern(const struct tomoyo_path_info *filename);
 /* Allocate memory for "struct tomoyo_path_group". */
 struct tomoyo_path_group *tomoyo_get_path_group(const char *group_name);
 struct tomoyo_number_group *tomoyo_get_number_group(const char *group_name);
@@ -970,6 +1008,16 @@ static inline bool tomoyo_is_same_path_number_acl
 	return tomoyo_is_same_acl_head(&p1->head, &p2->head)
 		&& tomoyo_is_same_name_union(&p1->name, &p2->name)
 		&& tomoyo_is_same_number_union(&p1->number, &p2->number);
+}
+
+static inline bool tomoyo_is_same_mount_acl(const struct tomoyo_mount_acl *p1,
+					    const struct tomoyo_mount_acl *p2)
+{
+	return tomoyo_is_same_acl_head(&p1->head, &p2->head) &&
+		tomoyo_is_same_name_union(&p1->dev_name, &p2->dev_name) &&
+		tomoyo_is_same_name_union(&p1->dir_name, &p2->dir_name) &&
+		tomoyo_is_same_name_union(&p1->fs_type, &p2->fs_type) &&
+		tomoyo_is_same_number_union(&p1->flags, &p2->flags);
 }
 
 static inline bool tomoyo_is_same_domain_initializer_entry

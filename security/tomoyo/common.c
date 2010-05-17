@@ -1075,6 +1075,10 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 				if (perm & (1 << i))
 					count++;
 			break;
+		case TOMOYO_TYPE_MOUNT_ACL:
+			if (!container_of(ptr, struct tomoyo_mount_acl, head)->
+			    is_deleted)
+				count++;
 		}
 	}
 	if (count < tomoyo_check_flags(domain, TOMOYO_MAX_ACCEPT_ENTRY))
@@ -1576,6 +1580,8 @@ static int tomoyo_write_domain_policy(struct tomoyo_io_buffer *head)
 		domain->ignore_global_allow_read = !is_delete;
 		return 0;
 	}
+        if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_ALLOW_MOUNT))
+                return tomoyo_write_mount_policy(data, domain, is_delete);
 	return tomoyo_write_file_policy(data, domain, is_delete);
 }
 
@@ -1721,6 +1727,30 @@ static bool tomoyo_print_path_number3_acl(struct tomoyo_io_buffer *head,
 }
 
 /**
+ * tomoyo_print_mount_acl - Print a mount ACL entry.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ * @ptr:  Pointer to "struct tomoyo_mount_acl".
+ *
+ * Returns true on success, false otherwise.
+ */
+static bool tomoyo_print_mount_acl(struct tomoyo_io_buffer *head,
+				   struct tomoyo_mount_acl *ptr)
+{
+	const int pos = head->read_avail;
+	if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_ALLOW_MOUNT) ||
+	    !tomoyo_print_name_union(head, &ptr->dev_name) ||
+	    !tomoyo_print_name_union(head, &ptr->dir_name) ||
+	    !tomoyo_print_name_union(head, &ptr->fs_type) ||
+	    !tomoyo_print_number_union(head, &ptr->flags) ||
+	    !tomoyo_io_printf(head, "\n")) {
+		head->read_avail = pos;
+		return false;
+	}
+	return true;
+}
+
+/**
  * tomoyo_print_entry - Print an ACL entry.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
@@ -1754,6 +1784,11 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 			= container_of(ptr, struct tomoyo_path_number3_acl,
 				       head);
 		return tomoyo_print_path_number3_acl(head, acl);
+	}
+	if (acl_type == TOMOYO_TYPE_MOUNT_ACL) {
+		struct tomoyo_mount_acl *acl
+			= container_of(ptr, struct tomoyo_mount_acl, head);
+		return tomoyo_print_mount_acl(head, acl);
 	}
 	BUG(); /* This must not happen. */
 	return false;

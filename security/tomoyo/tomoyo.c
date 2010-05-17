@@ -226,7 +226,7 @@ static int tomoyo_path_chroot(struct path *path)
 static int tomoyo_sb_mount(char *dev_name, struct path *path,
 			   char *type, unsigned long flags, void *data)
 {
-	return tomoyo_path_perm(TOMOYO_TYPE_MOUNT, path);
+	return tomoyo_mount_permission(dev_name, path, type, flags, data);
 }
 
 static int tomoyo_sb_umount(struct vfsmount *mnt, int flags)

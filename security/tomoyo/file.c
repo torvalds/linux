@@ -24,7 +24,6 @@ static const char *tomoyo_path_keyword[TOMOYO_MAX_PATH_OPERATION] = {
 	[TOMOYO_TYPE_SYMLINK]    = "symlink",
 	[TOMOYO_TYPE_REWRITE]    = "rewrite",
 	[TOMOYO_TYPE_CHROOT]     = "chroot",
-	[TOMOYO_TYPE_MOUNT]      = "mount",
 	[TOMOYO_TYPE_UMOUNT]     = "unmount",
 };
 
@@ -108,8 +107,8 @@ bool tomoyo_compare_number_union(const unsigned long value,
  *
  * Returns mode.
  */
-static int tomoyo_init_request_info(struct tomoyo_request_info *r,
-				    struct tomoyo_domain_info *domain)
+int tomoyo_init_request_info(struct tomoyo_request_info *r,
+			     struct tomoyo_domain_info *domain)
 {
 	memset(r, 0, sizeof(*r));
 	if (!domain)
@@ -487,7 +486,7 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
  *
  * Caller holds tomoyo_read_lock().
  */
-static const struct tomoyo_path_info *
+const struct tomoyo_path_info *
 tomoyo_get_file_pattern(const struct tomoyo_path_info *filename)
 {
 	struct tomoyo_pattern_entry *ptr;
@@ -1418,7 +1417,7 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 }
 
 /**
- * tomoyo_path_perm - Check permission for "unlink", "rmdir", "truncate", "symlink", "rewrite", "chroot", "mount" and "unmount".
+ * tomoyo_path_perm - Check permission for "unlink", "rmdir", "truncate", "symlink", "rewrite", "chroot" and "unmount".
  *
  * @operation: Type of operation.
  * @path:      Pointer to "struct path".
