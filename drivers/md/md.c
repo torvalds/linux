@@ -2088,7 +2088,6 @@ static void sync_sbs(mddev_t * mddev, int nospares)
 		if (rdev->sb_events == mddev->events ||
 		    (nospares &&
 		     rdev->raid_disk < 0 &&
-		     (rdev->sb_events&1)==0 &&
 		     rdev->sb_events+1 == mddev->events)) {
 			/* Don't update this superblock */
 			rdev->sb_loaded = 2;
@@ -2141,28 +2140,14 @@ repeat:
 	 * and 'events' is odd, we can roll back to the previous clean state */
 	if (nospares
 	    && (mddev->in_sync && mddev->recovery_cp == MaxSector)
-	    && (mddev->events & 1)
-	    && mddev->events != 1)
+	    && mddev->can_decrease_events
+	    && mddev->events != 1) {
 		mddev->events--;
-	else {
+		mddev->can_decrease_events = 0;
+	} else {
 		/* otherwise we have to go forward and ... */
 		mddev->events ++;
-		if (!mddev->in_sync || mddev->recovery_cp != MaxSector) { /* not clean */
-			/* .. if the array isn't clean, an 'even' event must also go
-			 * to spares. */
-			if ((mddev->events&1)==0) {
-				nospares = 0;
-				sync_req = 2; /* force a second update to get the
-					       * even/odd in sync */
-			}
-		} else {
-			/* otherwise an 'odd' event must go to spares */
-			if ((mddev->events&1)) {
-				nospares = 0;
-				sync_req = 2; /* force a second update to get the
-					       * even/odd in sync */
-			}
-		}
+		mddev->can_decrease_events = nospares;
 	}
 
 	if (!mddev->events) {
@@ -4606,6 +4591,7 @@ static void md_clean(mddev_t *mddev)
 	mddev->layout = 0;
 	mddev->max_disks = 0;
 	mddev->events = 0;
+	mddev->can_decrease_events = 0;
 	mddev->delta_disks = 0;
 	mddev->new_level = LEVEL_NONE;
 	mddev->new_layout = 0;

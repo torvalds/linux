@@ -150,6 +150,12 @@ struct mddev_s
 	int				external_size; /* size managed
 							* externally */
 	__u64				events;
+	/* If the last 'event' was simply a clean->dirty transition, and
+	 * we didn't write it to the spares, then it is safe and simple
+	 * to just decrement the event count on a dirty->clean transition.
+	 * So we record that possibility here.
+	 */
+	int				can_decrease_events;
 
 	char				uuid[16];
 
