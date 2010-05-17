@@ -16,7 +16,6 @@
 
 #define S3C2410_GPIONO(bank,offset) ((bank) + (offset))
 
-#define S3C2410_GPIO_BANKC   (32*2)
 #define S3C2410_GPIO_BANKG   (32*6)
 #define S3C2410_GPIO_BANKH   (32*7)
 
