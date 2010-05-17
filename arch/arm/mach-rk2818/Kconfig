@@ -14,4 +14,10 @@ config RK28_GPIO_IRQ
 	int
 	default 16 if ARCH_RK2818	
 	default 0	
+config RK28_ADC
+	tristate "RK28 ADC Driver"
+	depends on ARCH_RK2818
+	default y
+	---help---
+		RK28 ADC Driver
 endif
