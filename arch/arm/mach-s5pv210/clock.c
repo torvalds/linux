@@ -31,6 +31,33 @@
 #include <plat/clock-clksrc.h>
 #include <plat/s5pv210.h>
 
+static struct clksrc_clk clk_mout_apll = {
+	.clk	= {
+		.name		= "mout_apll",
+		.id		= -1,
+	},
+	.sources	= &clk_src_apll,
+	.reg_src	= { .reg = S5P_CLK_SRC0, .shift = 0, .size = 1 },
+};
+
+static struct clksrc_clk clk_mout_epll = {
+	.clk	= {
+		.name		= "mout_epll",
+		.id		= -1,
+	},
+	.sources	= &clk_src_epll,
+	.reg_src	= { .reg = S5P_CLK_SRC0, .shift = 8, .size = 1 },
+};
+
+static struct clksrc_clk clk_mout_mpll = {
+	.clk = {
+		.name		= "mout_mpll",
+		.id		= -1,
+	},
+	.sources	= &clk_src_mpll,
+	.reg_src	= { .reg = S5P_CLK_SRC0, .shift = 4, .size = 1 },
+};
+
 static int s5pv210_clk_ip0_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(S5P_CLKGATE_IP0, clk, enable);
@@ -270,33 +297,6 @@ static struct clk init_clocks[] = {
 		.enable		= s5pv210_clk_ip3_ctrl,
 		.ctrlbit	= (1<<10),
 	},
-};
-
-static struct clksrc_clk clk_mout_apll = {
-	.clk	= {
-		.name		= "mout_apll",
-		.id		= -1,
-	},
-	.sources	= &clk_src_apll,
-	.reg_src	= { .reg = S5P_CLK_SRC0, .shift = 0, .size = 1 },
-};
-
-static struct clksrc_clk clk_mout_epll = {
-	.clk	= {
-		.name		= "mout_epll",
-		.id		= -1,
-	},
-	.sources	= &clk_src_epll,
-	.reg_src	= { .reg = S5P_CLK_SRC0, .shift = 8, .size = 1 },
-};
-
-static struct clksrc_clk clk_mout_mpll = {
-	.clk = {
-		.name		= "mout_mpll",
-		.id		= -1,
-	},
-	.sources	= &clk_src_mpll,
-	.reg_src	= { .reg = S5P_CLK_SRC0, .shift = 4, .size = 1 },
 };
 
 static struct clk *clkset_uart_list[] = {
