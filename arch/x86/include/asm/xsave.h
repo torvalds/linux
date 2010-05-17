@@ -13,6 +13,9 @@
 
 #define FXSAVE_SIZE	512
 
+#define XSTATE_YMM_SIZE 256
+#define XSTATE_YMM_OFFSET (512 + 64)
+
 /*
  * These are the features that the OS can handle currently.
  */

@@ -482,6 +482,8 @@ static inline void fpu_copy(struct fpu *dst, struct fpu *src)
 	memcpy(dst->state, src->state, xstate_size);
 }
 
+extern void fpu_finit(struct fpu *fpu);
+
 #endif /* __ASSEMBLY__ */
 
 #define PSHUFB_XMM5_XMM0 .byte 0x66, 0x0f, 0x38, 0x00, 0xc5
