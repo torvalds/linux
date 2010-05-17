@@ -477,7 +477,7 @@ static inline int usb_endpoint_xfer_isoc(
 static inline int usb_endpoint_is_bulk_in(
 				const struct usb_endpoint_descriptor *epd)
 {
-	return (usb_endpoint_xfer_bulk(epd) && usb_endpoint_dir_in(epd));
+	return usb_endpoint_xfer_bulk(epd) && usb_endpoint_dir_in(epd);
 }
 
 /**
@@ -490,7 +490,7 @@ static inline int usb_endpoint_is_bulk_in(
 static inline int usb_endpoint_is_bulk_out(
 				const struct usb_endpoint_descriptor *epd)
 {
-	return (usb_endpoint_xfer_bulk(epd) && usb_endpoint_dir_out(epd));
+	return usb_endpoint_xfer_bulk(epd) && usb_endpoint_dir_out(epd);
 }
 
 /**
@@ -503,7 +503,7 @@ static inline int usb_endpoint_is_bulk_out(
 static inline int usb_endpoint_is_int_in(
 				const struct usb_endpoint_descriptor *epd)
 {
-	return (usb_endpoint_xfer_int(epd) && usb_endpoint_dir_in(epd));
+	return usb_endpoint_xfer_int(epd) && usb_endpoint_dir_in(epd);
 }
 
 /**
@@ -516,7 +516,7 @@ static inline int usb_endpoint_is_int_in(
 static inline int usb_endpoint_is_int_out(
 				const struct usb_endpoint_descriptor *epd)
 {
-	return (usb_endpoint_xfer_int(epd) && usb_endpoint_dir_out(epd));
+	return usb_endpoint_xfer_int(epd) && usb_endpoint_dir_out(epd);
 }
 
 /**
@@ -529,7 +529,7 @@ static inline int usb_endpoint_is_int_out(
 static inline int usb_endpoint_is_isoc_in(
 				const struct usb_endpoint_descriptor *epd)
 {
-	return (usb_endpoint_xfer_isoc(epd) && usb_endpoint_dir_in(epd));
+	return usb_endpoint_xfer_isoc(epd) && usb_endpoint_dir_in(epd);
 }
 
 /**
@@ -542,7 +542,7 @@ static inline int usb_endpoint_is_isoc_in(
 static inline int usb_endpoint_is_isoc_out(
 				const struct usb_endpoint_descriptor *epd)
 {
-	return (usb_endpoint_xfer_isoc(epd) && usb_endpoint_dir_out(epd));
+	return usb_endpoint_xfer_isoc(epd) && usb_endpoint_dir_out(epd);
 }
 
 /*-------------------------------------------------------------------------*/

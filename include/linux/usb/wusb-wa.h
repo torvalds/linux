@@ -87,7 +87,7 @@ enum rpipe_crs {
  * FIXME: explain rpipes
  */
 struct usb_rpipe_descriptor {
-	u8 	bLength;
+	u8	bLength;
 	u8	bDescriptorType;
 	__le16  wRPipeIndex;
 	__le16	wRequests;

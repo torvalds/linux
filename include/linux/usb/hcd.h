@@ -126,7 +126,7 @@ struct usb_hcd {
 
 
 #define HCD_BUFFER_POOLS	4
-	struct dma_pool		*pool [HCD_BUFFER_POOLS];
+	struct dma_pool		*pool[HCD_BUFFER_POOLS];
 
 	int			state;
 #	define	__ACTIVE		0x01
@@ -219,12 +219,12 @@ struct hc_driver {
 				struct urb *urb, int status);
 
 	/* hw synch, freeing endpoint resources that urb_dequeue can't */
-	void 	(*endpoint_disable)(struct usb_hcd *hcd,
+	void	(*endpoint_disable)(struct usb_hcd *hcd,
 			struct usb_host_endpoint *ep);
 
 	/* (optional) reset any endpoint state such as sequence number
 	   and current window */
-	void 	(*endpoint_reset)(struct usb_hcd *hcd,
+	void	(*endpoint_reset)(struct usb_hcd *hcd,
 			struct usb_host_endpoint *ep);
 
 	/* root hub support */
@@ -265,16 +265,18 @@ struct hc_driver {
 	/* Note that add_endpoint() can only be called once per endpoint before
 	 * check_bandwidth() or reset_bandwidth() must be called.
 	 * drop_endpoint() can only be called once per endpoint also.
-	 * A call to xhci_drop_endpoint() followed by a call to xhci_add_endpoint() will
-	 * add the endpoint to the schedule with possibly new parameters denoted by a
-	 * different endpoint descriptor in usb_host_endpoint.
-	 * A call to xhci_add_endpoint() followed by a call to xhci_drop_endpoint() is
-	 * not allowed.
+	 * A call to xhci_drop_endpoint() followed by a call to
+	 * xhci_add_endpoint() will add the endpoint to the schedule with
+	 * possibly new parameters denoted by a different endpoint descriptor
+	 * in usb_host_endpoint.  A call to xhci_add_endpoint() followed by a
+	 * call to xhci_drop_endpoint() is not allowed.
 	 */
 		/* Allocate endpoint resources and add them to a new schedule */
-	int 	(*add_endpoint)(struct usb_hcd *, struct usb_device *, struct usb_host_endpoint *);
+	int	(*add_endpoint)(struct usb_hcd *, struct usb_device *,
+				struct usb_host_endpoint *);
 		/* Drop an endpoint from a new schedule */
-	int 	(*drop_endpoint)(struct usb_hcd *, struct usb_device *, struct usb_host_endpoint *);
+	int	(*drop_endpoint)(struct usb_hcd *, struct usb_device *,
+				 struct usb_host_endpoint *);
 		/* Check that a new hardware configuration, set using
 		 * endpoint_enable and endpoint_disable, does not exceed bus
 		 * bandwidth.  This must be called before any set configuration
@@ -484,8 +486,8 @@ extern void usb_ep0_reinit(struct usb_device *);
 #define HS_NSECS_ISO(bytes) (((38 * 8 * 2083) \
 	+ (2083UL * (3 + BitTime(bytes))))/1000 \
 	+ USB2_HOST_DELAY)
-#define HS_USECS(bytes) NS_TO_US (HS_NSECS(bytes))
-#define HS_USECS_ISO(bytes) NS_TO_US (HS_NSECS_ISO(bytes))
+#define HS_USECS(bytes)		NS_TO_US(HS_NSECS(bytes))
+#define HS_USECS_ISO(bytes)	NS_TO_US(HS_NSECS_ISO(bytes))
 
 extern long usb_calc_bus_time(int speed, int is_input,
 			int isoc, int bytecount);
@@ -596,7 +598,7 @@ static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb,
 
 /* hub.h ... DeviceRemovable in 2.4.2-ac11, gone in 2.4.10 */
 /* bleech -- resurfaced in 2.4.11 or 2.4.12 */
-#define bitmap 	DeviceRemovable
+#define bitmap	DeviceRemovable
 
 
 /*-------------------------------------------------------------------------*/

@@ -52,7 +52,7 @@ enum port_dev_state {
  * @interrupt_out_size: the size of the interrupt_out_buffer, in bytes.
  * @interrupt_out_urb: pointer to the interrupt out struct urb for this port.
  * @interrupt_out_endpointAddress: endpoint address for the interrupt out pipe
- * 	for this port.
+ *	for this port.
  * @bulk_in_buffer: pointer to the bulk in buffer for this port.
  * @bulk_in_size: the size of the bulk_in_buffer, in bytes.
  * @read_urb: pointer to the bulk in struct urb for this port.
