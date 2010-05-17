@@ -369,6 +369,10 @@ void __init_or_cpufreq s5pv210_setup_clocks(void)
 	mpll = s5p_get_pll45xx(xtal, __raw_readl(S5P_MPLL_CON), pll_4502);
 	epll = s5p_get_pll45xx(xtal, __raw_readl(S5P_EPLL_CON), pll_4500);
 
+	clk_fout_apll.rate = apll;
+	clk_fout_mpll.rate = mpll;
+	clk_fout_epll.rate = epll;
+
 	printk(KERN_INFO "S5PV210: PLL settings, A=%ld, M=%ld, E=%ld",
 			apll, mpll, epll);
 
@@ -397,10 +401,6 @@ void __init_or_cpufreq s5pv210_setup_clocks(void)
 	printk(KERN_INFO "S5PV210: ARMCLK=%ld, HCLKM=%ld, HCLKD=%ld, \
 			HCLKP=%ld, PCLKM=%ld, PCLKD=%ld, PCLKP=%ld\n",
 	       armclk, hclk200, hclk166, hclk133, pclk100, pclk83, pclk66);
-
-	clk_fout_apll.rate = apll;
-	clk_fout_mpll.rate = mpll;
-	clk_fout_epll.rate = epll;
 
 	clk_f.rate = armclk;
 	clk_h.rate = hclk133;
