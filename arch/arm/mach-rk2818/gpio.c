@@ -31,7 +31,6 @@
 #include <asm/gpio.h>
 
 #define to_rk2818_gpio_chip(c) container_of(c, struct rk2818_gpio_chip, chip)
-#define gpio_irq_set_wake	 NULL
 
 struct rk2818_gpio_chip {
 	struct gpio_chip	chip;				/*RK2818相关GPIO函数操作和逻辑信息*/
@@ -41,6 +40,7 @@ struct rk2818_gpio_chip {
 };
 
 static int gpio_banks;//GPIO组数
+static int gpio_banksInGrp;//num of GPIOS.eg:GPIO0_X or GPIO1_X(X=A\B\C\D)
 /*
  * This lock class tells lockdep that GPIO irqs are in a different
  * category than their parents, so it won't report false recursion.
@@ -87,7 +87,8 @@ static struct rk2818_gpio_chip rk2818gpio_chip[] = {
 	RK2818_GPIO_CHIP("C", 6*NUM_GROUP + PIN_BASE, NUM_GROUP),
 	RK2818_GPIO_CHIP("D", 7*NUM_GROUP + PIN_BASE, NUM_GROUP),
 };
-
+static u32 wakeups[MAX_GPIO_BANKS];
+static u32 wakeupsDepth[MAX_GPIO_BANKS];
 /*----------------------------------------------------------------------
 Name	: rk2818_gpio_write
 Desc		: 往指定寄存器写入指定值
@@ -600,6 +601,67 @@ static inline unsigned  offset_to_mask(unsigned offset)
 {
 	return 1ul << (offset% NUM_GROUP);
 }
+static int gpio_irq_set_wake(unsigned irq, unsigned state)
+{	
+	unsigned int pin = irq_to_gpio(irq);
+	unsigned	mask = pin_to_mask(pin);
+	unsigned	bank = (pin - PIN_BASE) / NUM_GROUP;
+
+	if (unlikely(bank >= MAX_GPIO_BANKS))
+		return -EINVAL;
+	
+	if(rk2818gpio_chip[bank].bank->id == RK2818_ID_PIOA)
+	{
+		set_irq_wake(IRQ_NR_GPIO0, state);
+	}
+	else if(rk2818gpio_chip[bank].bank->id == RK2818_ID_PIOE)
+	{
+		set_irq_wake(IRQ_NR_GPIO1, state);
+	}
+	else
+	{
+		return 0;
+	}
+	
+	if (state)
+		wakeups[bank] |= mask;
+	else
+		wakeups[bank] &= ~mask;
+	
+	return 0;
+
+}
+void rk2818_gpio_resume(void)
+{
+	int i;
+	
+	for (i = 0; i < gpio_banks; i+=gpio_banksInGrp) {
+		printk("rk2818_gpio_resume:wakeups[%d]=%d,wakeupsDepth[%d]=%d\n",
+			i,wakeups[i],i,wakeupsDepth[i]);
+		if (!wakeups[i] && wakeupsDepth[i])
+		{
+			wakeupsDepth[i] = 0;
+			clk_enable(rk2818gpio_chip[i].bank->clock);
+		}
+	}
+	return;
+}
+
+void rk2818_gpio_suspend(void)
+{
+	int i;
+
+	for (i = 0; i < gpio_banks; i+=gpio_banksInGrp)  {
+		printk("rk2818_gpio_suspend:wakeups[%d]=%d,wakeupsDepth[%d]=%d\n",
+			i,wakeups[i],i,wakeupsDepth[i]);
+		if (!wakeups[i] && !wakeupsDepth[i])
+		{
+			wakeupsDepth[i] = 1;
+			clk_disable(rk2818gpio_chip[i].bank->clock);
+		}
+	}
+	return;
+}
 
  #if 0
 int  rk2818_set_gpio_input(unsigned pin, int use_pullup)
@@ -842,7 +904,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 	struct rk2818_gpio_chip *rk2818_gpio;
 	unsigned char  __iomem	*gpioRegBase;
 	u32		isr;
-	//printk(KERN_INFO "gpio_irq_handler:start");
+
 	rk2818_gpio = get_irq_chip_data(irq);
 	gpioRegBase = rk2818_gpio->regbase;
 
@@ -898,7 +960,7 @@ static void gpio_irq_handler(unsigned irq, struct irq_desc *desc)
 		isr >>= 1;
 		gpioToirq = gpio_to_irq(pin);
 	}
-	//printk(KERN_INFO "gpio_irq_handler:end");
+
 	desc->chip->unmask(irq);
 	/* now it may re-trigger */
 }
@@ -1150,19 +1212,26 @@ Return	:
 ----------------------------------------------------------------------*/
 void __init rk2818_gpio_init(struct rk2818_gpio_bank *data, int nr_banks)
 {
-	unsigned		i;
+	unsigned	i;
+	const char clkId[2][6] = {"gpio0","gpio1"};
 	struct rk2818_gpio_chip *rk2818_gpio, *last = NULL;
 	
 	BUG_ON(nr_banks > MAX_GPIO_BANKS);
 
 	gpio_banks = nr_banks;
-
+	gpio_banksInGrp = nr_banks/2;
+	
 	for (i = 0; i < nr_banks; i++) {
 		
 		rk2818_gpio = &rk2818gpio_chip[i];
 		rk2818_gpio->bank = &data[i];
+		rk2818_gpio->bank->clock = clk_get(NULL,clkId[i/gpio_banksInGrp]);
 		rk2818_gpio->regbase = (unsigned char  __iomem *)rk2818_gpio->bank->offset;
 
+		/* enable gpio controller's clock */
+		if(i%gpio_banksInGrp == 0)
+			clk_enable(rk2818_gpio->bank->clock);
+		
 		if(last)
 			last->next = rk2818_gpio;
 		last = rk2818_gpio;
