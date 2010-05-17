@@ -1702,7 +1702,7 @@ static struct net_device_stats *qlcnic_get_stats(struct net_device *netdev)
 
 	stats->rx_packets = adapter->stats.rx_pkts + adapter->stats.lro_pkts;
 	stats->tx_packets = adapter->stats.xmitfinished;
-	stats->rx_bytes = adapter->stats.rxbytes;
+	stats->rx_bytes = adapter->stats.rxbytes + adapter->stats.lrobytes;
 	stats->tx_bytes = adapter->stats.txbytes;
 	stats->rx_dropped = adapter->stats.rxdropped;
 	stats->tx_dropped = adapter->stats.txdropped;
