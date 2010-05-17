@@ -691,7 +691,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	char *real_program_name = NULL;
 	char *symlink_program_name = NULL;
 	const u8 mode = tomoyo_check_flags(old_domain, TOMOYO_MAC_FOR_FILE);
-	const bool is_enforce = (mode == 3);
+	const bool is_enforce = (mode == TOMOYO_CONFIG_ENFORCING);
 	int retval = -ENOMEM;
 	struct tomoyo_path_info r; /* real name */
 	struct tomoyo_path_info s; /* symlink name */

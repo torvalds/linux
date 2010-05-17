@@ -44,6 +44,13 @@ struct linux_binprm;
 /* Profile number is an integer between 0 and 255. */
 #define TOMOYO_MAX_PROFILES 256
 
+enum tomoyo_mode_index {
+	TOMOYO_CONFIG_DISABLED,
+	TOMOYO_CONFIG_LEARNING,
+	TOMOYO_CONFIG_PERMISSIVE,
+	TOMOYO_CONFIG_ENFORCING
+};
+
 /* Keywords for ACLs. */
 #define TOMOYO_KEYWORD_ALIAS                     "alias "
 #define TOMOYO_KEYWORD_ALLOW_READ                "allow_read "
@@ -150,6 +157,17 @@ enum tomoyo_securityfs_interface_index {
  */
 struct tomoyo_page_buffer {
 	char buffer[4096];
+};
+
+/*
+ * tomoyo_request_info is a structure which is used for holding
+ *
+ * (1) Domain information of current process.
+ * (2) Access control mode of the profile.
+ */
+struct tomoyo_request_info {
+	struct tomoyo_domain_info *domain;
+	u8 mode; /* One of tomoyo_mode_index . */
 };
 
 /*
@@ -332,8 +350,8 @@ struct tomoyo_domain_info {
  * "allow_read", "allow_write", "allow_create", "allow_unlink", "allow_mkdir",
  * "allow_rmdir", "allow_mkfifo", "allow_mksock", "allow_mkblock",
  * "allow_mkchar", "allow_truncate", "allow_symlink", "allow_rewrite",
- * "allow_chmod", "allow_chown", "allow_chgrp", "allow_chroot", "allow_mount"
- * and "allow_unmount".
+ * "allow_ioctl", "allow_chmod", "allow_chown", "allow_chgrp", "allow_chroot",
+ * "allow_mount" and "allow_unmount".
  */
 struct tomoyo_path_acl {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_PATH_ACL */
@@ -567,7 +585,7 @@ struct tomoyo_policy_manager_entry {
 bool tomoyo_compare_name_union(const struct tomoyo_path_info *name,
 			       const struct tomoyo_name_union *ptr);
 /* Check whether the domain has too many ACL entries to hold. */
-bool tomoyo_domain_quota_is_ok(struct tomoyo_domain_info * const domain);
+bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r);
 /* Transactional sprintf() for policy dump. */
 bool tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
 	__attribute__ ((format(printf, 2, 3)));
@@ -623,8 +641,6 @@ bool tomoyo_verbose_mode(const struct tomoyo_domain_info *domain);
 const char *tomoyo_path22keyword(const u8 operation);
 /* Get the last component of the given domainname. */
 const char *tomoyo_get_last_name(const struct tomoyo_domain_info *domain);
-/* Get warning message. */
-const char *tomoyo_get_msg(const bool is_enforce);
 /* Convert single path operation to operation name. */
 const char *tomoyo_path2keyword(const u8 operation);
 /* Create "alias" entry in exception policy. */
@@ -723,7 +739,6 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 int tomoyo_path_perm(const u8 operation, struct path *path);
 int tomoyo_path2_perm(const u8 operation, struct path *path1,
 		      struct path *path2);
-int tomoyo_check_rewrite_permission(struct file *filp);
 int tomoyo_find_next_domain(struct linux_binprm *bprm);
 
 /* Drop refcount on tomoyo_name_union. */

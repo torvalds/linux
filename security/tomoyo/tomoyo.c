@@ -173,7 +173,7 @@ static int tomoyo_file_fcntl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
 	if (cmd == F_SETFL && ((arg ^ file->f_flags) & O_APPEND))
-		return tomoyo_check_rewrite_permission(file);
+		return tomoyo_path_perm(TOMOYO_TYPE_REWRITE, &file->f_path);
 	return 0;
 }
 

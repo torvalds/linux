@@ -985,21 +985,6 @@ static const char *tomoyo_get_exe(void)
 }
 
 /**
- * tomoyo_get_msg - Get warning message.
- *
- * @is_enforce: Is it enforcing mode?
- *
- * Returns "ERROR" or "WARNING".
- */
-const char *tomoyo_get_msg(const bool is_enforce)
-{
-	if (is_enforce)
-		return "ERROR";
-	else
-		return "WARNING";
-}
-
-/**
  * tomoyo_check_flags - Check mode for specified functionality.
  *
  * @domain: Pointer to "struct tomoyo_domain_info".
@@ -1040,17 +1025,20 @@ bool tomoyo_verbose_mode(const struct tomoyo_domain_info *domain)
 /**
  * tomoyo_domain_quota_is_ok - Check for domain's quota.
  *
- * @domain: Pointer to "struct tomoyo_domain_info".
+ * @r: Pointer to "struct tomoyo_request_info".
  *
  * Returns true if the domain is not exceeded quota, false otherwise.
  *
  * Caller holds tomoyo_read_lock().
  */
-bool tomoyo_domain_quota_is_ok(struct tomoyo_domain_info * const domain)
+bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 {
 	unsigned int count = 0;
+	struct tomoyo_domain_info *domain = r->domain;
 	struct tomoyo_acl_info *ptr;
 
+	if (r->mode != TOMOYO_CONFIG_LEARNING)
+		return false;
 	if (!domain)
 		return true;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
