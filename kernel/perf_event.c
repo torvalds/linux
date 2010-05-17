@@ -2320,6 +2320,19 @@ perf_mmap_to_page(struct perf_mmap_data *data, unsigned long pgoff)
 	return virt_to_page(data->data_pages[pgoff - 1]);
 }
 
+static void *perf_mmap_alloc_page(int cpu)
+{
+	struct page *page;
+	int node;
+
+	node = (cpu == -1) ? cpu : cpu_to_node(cpu);
+	page = alloc_pages_node(node, GFP_KERNEL | __GFP_ZERO, 0);
+	if (!page)
+		return NULL;
+
+	return page_address(page);
+}
+
 static struct perf_mmap_data *
 perf_mmap_data_alloc(struct perf_event *event, int nr_pages)
 {
@@ -2336,12 +2349,12 @@ perf_mmap_data_alloc(struct perf_event *event, int nr_pages)
 	if (!data)
 		goto fail;
 
-	data->user_page = (void *)get_zeroed_page(GFP_KERNEL);
+	data->user_page = perf_mmap_alloc_page(event->cpu);
 	if (!data->user_page)
 		goto fail_user_page;
 
 	for (i = 0; i < nr_pages; i++) {
-		data->data_pages[i] = (void *)get_zeroed_page(GFP_KERNEL);
+		data->data_pages[i] = perf_mmap_alloc_page(event->cpu);
 		if (!data->data_pages[i])
 			goto fail_data_pages;
 	}
