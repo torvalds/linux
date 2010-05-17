@@ -336,6 +336,7 @@ xfs_log_commit_cil(
 {
 	struct log		*log = mp->m_log;
 	int			log_flags = 0;
+	int			push = 0;
 
 	if (flags & XFS_TRANS_RELEASE_LOG_RES)
 		log_flags = XFS_LOG_REL_PERM_RESERV;
@@ -365,8 +366,20 @@ xfs_log_commit_cil(
 	xfs_log_done(mp, tp->t_ticket, NULL, log_flags);
 	xfs_trans_unreserve_and_mod_sb(tp);
 
-	/* background commit is allowed again */
+	/* check for background commit before unlock */
+	if (log->l_cilp->xc_ctx->space_used > XLOG_CIL_SPACE_LIMIT(log))
+		push = 1;
 	up_read(&log->l_cilp->xc_ctx_lock);
+
+	/*
+	 * We need to push CIL every so often so we don't cache more than we
+	 * can fit in the log. The limit really is that a checkpoint can't be
+	 * more than half the log (the current checkpoint is not allowed to
+	 * overwrite the previous checkpoint), but commit latency and memory
+	 * usage limit this to a smaller size in most cases.
+	 */
+	if (push)
+		xlog_cil_push(log, 0);
 	return 0;
 }
 
@@ -429,16 +442,23 @@ xlog_cil_push(
 	if (!cil)
 		return 0;
 
-	/* XXX: don't sleep for background? */
 	new_ctx = kmem_zalloc(sizeof(*new_ctx), KM_SLEEP|KM_NOFS);
 	new_ctx->ticket = xlog_cil_ticket_alloc(log);
 
-	/* lock out transaction commit */
-	down_write(&cil->xc_ctx_lock);
+	/* lock out transaction commit, but don't block on background push */
+	if (!down_write_trylock(&cil->xc_ctx_lock)) {
+		if (!push_now)
+			goto out_free_ticket;
+		down_write(&cil->xc_ctx_lock);
+	}
 	ctx = cil->xc_ctx;
 
 	/* check if we've anything to push */
 	if (list_empty(&cil->xc_cil))
+		goto out_skip;
+
+	/* check for spurious background flush */
+	if (!push_now && cil->xc_ctx->space_used < XLOG_CIL_SPACE_LIMIT(log))
 		goto out_skip;
 
 	/*
@@ -584,6 +604,7 @@ restart:
 
 out_skip:
 	up_write(&cil->xc_ctx_lock);
+out_free_ticket:
 	xfs_log_ticket_put(new_ctx->ticket);
 	kmem_free(new_ctx);
 	return 0;
