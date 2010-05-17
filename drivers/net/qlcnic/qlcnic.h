@@ -149,8 +149,6 @@
 #define get_next_index(index, length)	\
 	(((index) + 1) & ((length) - 1))
 
-#define MPORT_MULTI_FUNCTION_MODE 0x2222
-
 /*
  * Following data structures describe the descriptors that will be used.
  * Added fileds of tcpHdrSize and ipHdrSize, The driver needs to do it only when

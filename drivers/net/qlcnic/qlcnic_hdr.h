@@ -563,30 +563,14 @@ enum {
 #define CRB_PF_LINK_SPEED_1		(QLCNIC_REG(0xe8))
 #define CRB_PF_LINK_SPEED_2		(QLCNIC_REG(0xec))
 
-#define CRB_MPORT_MODE			(QLCNIC_REG(0xc4))
-#define CRB_DMA_SHIFT			(QLCNIC_REG(0xcc))
-
 #define CRB_TEMP_STATE			(QLCNIC_REG(0x1b4))
 
 #define CRB_V2P_0			(QLCNIC_REG(0x290))
 #define CRB_V2P(port)			(CRB_V2P_0+((port)*4))
 #define CRB_DRIVER_VERSION		(QLCNIC_REG(0x2a0))
 
-#define CRB_SW_INT_MASK_0		(QLCNIC_REG(0x1d8))
-#define CRB_SW_INT_MASK_1		(QLCNIC_REG(0x1e0))
-#define CRB_SW_INT_MASK_2		(QLCNIC_REG(0x1e4))
-#define CRB_SW_INT_MASK_3		(QLCNIC_REG(0x1e8))
-
 #define CRB_FW_CAPABILITIES_1		(QLCNIC_CAM_RAM(0x128))
 #define CRB_MAC_BLOCK_START		(QLCNIC_CAM_RAM(0x1c0))
-
-/*
- * capabilities register, can be used to selectively enable/disable features
- * for backward compability
- */
-#define CRB_NIC_CAPABILITIES_HOST	QLCNIC_REG(0x1a8)
-
-#define INTR_SCHEME_PERPORT	      	0x1
 
 /*
  * CrbPortPhanCntrHi/Lo is used to pass the address of HostPhantomIndex address

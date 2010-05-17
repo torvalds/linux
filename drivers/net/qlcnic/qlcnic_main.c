@@ -606,7 +606,6 @@ qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 		msleep(1);
 	}
 
-	QLCWR32(adapter, CRB_DMA_SHIFT, 0x55555555);
 	QLCWR32(adapter, QLCNIC_PEG_HALT_STATUS1, 0);
 	QLCWR32(adapter, QLCNIC_PEG_HALT_STATUS2, 0);
 
