@@ -301,7 +301,7 @@ struct kvm_vcpu_arch {
 		unsigned long mmu_seq;
 	} update_pte;
 
-	struct i387_fxsave_struct guest_fx_image;
+	struct fpu guest_fpu;
 
 	gva_t mmio_fault_cr2;
 	struct kvm_pio_request pio;
@@ -707,21 +707,6 @@ static inline unsigned long read_msr(unsigned long msr)
 	return value;
 }
 #endif
-
-static inline void kvm_fx_save(struct i387_fxsave_struct *image)
-{
-	asm("fxsave (%0)":: "r" (image));
-}
-
-static inline void kvm_fx_restore(struct i387_fxsave_struct *image)
-{
-	asm("fxrstor (%0)":: "r" (image));
-}
-
-static inline void kvm_fx_finit(void)
-{
-	asm("finit");
-}
 
 static inline u32 get_rdx_init_val(void)
 {
