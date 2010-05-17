@@ -180,9 +180,9 @@ STACK_SIZE  = 1 << STACK_SHIFT
 	s	%r15,BASED(.Lc_spsize)	# make room for registers & psw
 	mvc	SP_PSW(8,%r15),0(%r12)	# move user PSW to stack
 	st	%r2,SP_ORIG_R2(%r15)	# store original content of gpr 2
-	icm	%r12,3,__LC_SVC_ILC
+	icm	%r12,12,__LC_SVC_ILC
 	stm	%r0,%r11,SP_R0(%r15)	# store gprs %r0-%r11 to kernel stack
-	st	%r12,SP_SVCNR(%r15)
+	st	%r12,SP_ILC(%r15)
 	mvc	SP_R12(16,%r15),\savearea # move %r12-%r15 to stack
 	la	%r12,0
 	st	%r12,__SF_BACKCHAIN(%r15)	# clear back chain
