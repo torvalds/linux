@@ -58,6 +58,26 @@ static struct clksrc_clk clk_mout_mpll = {
 	.reg_src	= { .reg = S5P_CLK_SRC0, .shift = 4, .size = 1 },
 };
 
+static struct clk *clkset_armclk_list[] = {
+	[0] = &clk_mout_apll.clk,
+	[1] = &clk_mout_mpll.clk,
+};
+
+static struct clksrc_sources clkset_armclk = {
+	.sources	= clkset_armclk_list,
+	.nr_sources	= ARRAY_SIZE(clkset_armclk_list),
+};
+
+static struct clksrc_clk clk_armclk = {
+	.clk	= {
+		.name		= "armclk",
+		.id		= -1,
+	},
+	.sources	= &clkset_armclk,
+	.reg_src	= { .reg = S5P_CLK_SRC0, .shift = 16, .size = 1 },
+	.reg_div	= { .reg = S5P_CLK_DIV0, .shift = 0, .size = 3 },
+};
+
 static int s5pv210_clk_ip0_ctrl(struct clk *clk, int enable)
 {
 	return s5p_gatectrl(S5P_CLKGATE_IP0, clk, enable);
@@ -328,6 +348,7 @@ static struct clksrc_clk *sysclks[] = {
 	&clk_mout_apll,
 	&clk_mout_epll,
 	&clk_mout_mpll,
+	&clk_armclk,
 };
 
 #define GET_DIV(clk, field) ((((clk) & field##_MASK) >> field##_SHIFT) + 1)
@@ -376,7 +397,7 @@ void __init_or_cpufreq s5pv210_setup_clocks(void)
 	printk(KERN_INFO "S5PV210: PLL settings, A=%ld, M=%ld, E=%ld",
 			apll, mpll, epll);
 
-	armclk = apll / GET_DIV(clkdiv0, S5P_CLKDIV0_APLL);
+	armclk = clk_get_rate(&clk_armclk.clk);
 	if (__raw_readl(S5P_CLK_SRC0) & S5P_CLKSRC0_MUX200_MASK)
 		hclk200 = mpll / GET_DIV(clkdiv0, S5P_CLKDIV0_HCLK200);
 	else
