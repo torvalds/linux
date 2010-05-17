@@ -61,7 +61,7 @@ static __u16 product;
 
 struct ftdi_private {
 	struct kref kref;
-	ftdi_chip_type_t chip_type;
+	enum ftdi_chip_type chip_type;
 				/* type of device, either SIO or FT8U232AM */
 	int baud_base;		/* baud base clock for divisor setting */
 	int custom_divisor;	/* custom_divisor kludge, this is for
