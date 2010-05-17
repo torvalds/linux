@@ -911,8 +911,12 @@ dm9000_rx(struct net_device *dev)
 		/* Status check: this byte must be 0 or 1 */
 		if (rxbyte & DM9000_PKT_ERR) {
 			dev_warn(db->dev, "status check fail: %d\n", rxbyte);
+			#if 0
 			iow(db, DM9000_RCR, 0x00);	/* Stop Device */
-			iow(db, DM9000_ISR, IMR_PAR);	/* Stop INT request */
+			iow(db, DM9000_IMR, IMR_PAR);	/* Stop INT request */
+			#else
+			dm9000_reset(db);
+			#endif			
 			return;
 		}
 

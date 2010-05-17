@@ -198,17 +198,17 @@ struct platform_device rk2818_device_fb = {
 /* DM9000 */
 static struct resource dm9k_resource[] = {
 	[0] = {
-		.start = RK2818_NANDC_PHYS + 0x800 + 1*0x100,    //nand_cs1
-		.end   = RK2818_NANDC_PHYS + 0x800 + 1*0x100 + 3,
+		.start = RK2818_NANDC_PHYS + 0x800 + (1*0x100 + 0x8),    //nand_cs1+nand_cmd
+		.end   = RK2818_NANDC_PHYS + 0x800 + (1*0x100 + 0x8) + 3,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start = RK2818_NANDC_PHYS + (0x800+1*0x100)+ 0x4,
-		.end   = RK2818_NANDC_PHYS + (0x800+1*0x100)+ 0x4 + 3,
+		.start = RK2818_NANDC_PHYS + 0x800 + (1*0x100 + 0x4),	//nand_cs1+nand_data
+		.end   = RK2818_NANDC_PHYS + 0x800 + (1*0x100 + 0x4) + 3,
 		.flags = IORESOURCE_MEM,
 	},
 	[2] = {
-		.start = RK2818_PIN_PE2,//use pe2 as interrupt
+		.start = RK2818_PIN_PE2,	//use pe2 as interrupt
 		.end   = RK2818_PIN_PE2,
 		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
 	}
