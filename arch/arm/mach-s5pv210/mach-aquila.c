@@ -12,6 +12,7 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/serial_core.h>
+#include <linux/fb.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -20,11 +21,13 @@
 
 #include <mach/map.h>
 #include <mach/regs-clock.h>
+#include <mach/regs-fb.h>
 
 #include <plat/regs-serial.h>
 #include <plat/s5pv210.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/fb.h>
 
 /* Following are default values for UCON, ULCON and UFCON UART registers */
 #define S5PV210_UCON_DEFAULT	(S3C2410_UCON_TXILEVEL |	\
@@ -71,7 +74,50 @@ static struct s3c2410_uartcfg smdkv210_uartcfgs[] __initdata = {
 	},
 };
 
+/* Frame Buffer */
+static struct s3c_fb_pd_win aquila_fb_win0 = {
+	.win_mode = {
+		.pixclock = 1000000000000ULL / ((16+16+2+480)*(28+3+2+800)*60),
+		.left_margin = 16,
+		.right_margin = 16,
+		.upper_margin = 3,
+		.lower_margin = 28,
+		.hsync_len = 2,
+		.vsync_len = 2,
+		.xres = 480,
+		.yres = 800,
+	},
+	.max_bpp = 32,
+	.default_bpp = 16,
+};
+
+static struct s3c_fb_pd_win aquila_fb_win1 = {
+	.win_mode = {
+		.pixclock = 1000000000000ULL / ((16+16+2+480)*(28+3+2+800)*60),
+		.left_margin = 16,
+		.right_margin = 16,
+		.upper_margin = 3,
+		.lower_margin = 28,
+		.hsync_len = 2,
+		.vsync_len = 2,
+		.xres = 480,
+		.yres = 800,
+	},
+	.max_bpp = 32,
+	.default_bpp = 16,
+};
+
+static struct s3c_fb_platdata aquila_lcd_pdata __initdata = {
+	.win[0]		= &aquila_fb_win0,
+	.win[1]		= &aquila_fb_win1,
+	.vidcon0	= VIDCON0_VIDOUT_RGB | VIDCON0_PNRMODE_RGB,
+	.vidcon1	= VIDCON1_INV_HSYNC | VIDCON1_INV_VSYNC |
+			  VIDCON1_INV_VCLK | VIDCON1_INV_VDEN,
+	.setup_gpio	= s5pv210_fb_gpio_setup_24bpp,
+};
+
 static struct platform_device *aquila_devices[] __initdata = {
+	&s3c_device_fb,
 };
 
 static void __init aquila_map_io(void)
@@ -83,6 +129,9 @@ static void __init aquila_map_io(void)
 
 static void __init aquila_machine_init(void)
 {
+	/* FB */
+	s3c_fb_set_platdata(&aquila_lcd_pdata);
+
 	platform_add_devices(aquila_devices, ARRAY_SIZE(aquila_devices));
 }
 

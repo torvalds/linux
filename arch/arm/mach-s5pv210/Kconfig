@@ -20,6 +20,8 @@ config MACH_AQUILA
 	bool "Samsung Aquila"
 	select CPU_S5PV210
 	select ARCH_SPARSEMEM_ENABLE
+	select S5PV210_SETUP_FB_24BPP
+	select S3C_DEV_FB
 	help
 	  Machine support for the Samsung Aquila target based on S5PC110 SoC
 
