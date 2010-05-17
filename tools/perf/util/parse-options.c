@@ -60,6 +60,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 		case OPTION_STRING:
 		case OPTION_INTEGER:
 		case OPTION_LONG:
+		case OPTION_U64:
 		default:
 			break;
 		}
@@ -137,6 +138,22 @@ static int get_value(struct parse_opt_ctx_t *p,
 		if (get_arg(p, opt, flags, &arg))
 			return -1;
 		*(long *)opt->value = strtol(arg, (char **)&s, 10);
+		if (*s)
+			return opterror(opt, "expects a numerical value", flags);
+		return 0;
+
+	case OPTION_U64:
+		if (unset) {
+			*(u64 *)opt->value = 0;
+			return 0;
+		}
+		if (opt->flags & PARSE_OPT_OPTARG && !p->opt) {
+			*(u64 *)opt->value = opt->defval;
+			return 0;
+		}
+		if (get_arg(p, opt, flags, &arg))
+			return -1;
+		*(u64 *)opt->value = strtoull(arg, (char **)&s, 10);
 		if (*s)
 			return opterror(opt, "expects a numerical value", flags);
 		return 0;
@@ -487,6 +504,7 @@ int usage_with_options_internal(const char * const *usagestr,
 		case OPTION_SET_INT:
 		case OPTION_SET_PTR:
 		case OPTION_LONG:
+		case OPTION_U64:
 			break;
 		}
 
