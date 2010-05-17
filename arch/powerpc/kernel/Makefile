@@ -57,8 +57,12 @@ obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 obj-$(CONFIG_E500)		+= idle_e500.o
 obj-$(CONFIG_6xx)		+= idle_6xx.o l2cr_6xx.o cpu_setup_6xx.o
 obj-$(CONFIG_TAU)		+= tau_6xx.o
-obj-$(CONFIG_HIBERNATION)	+= swsusp.o suspend.o \
-				   swsusp_$(CONFIG_WORD_SIZE).o
+obj-$(CONFIG_HIBERNATION)	+= swsusp.o suspend.o
+ifeq ($(CONFIG_FSL_BOOKE),y)
+obj-$(CONFIG_HIBERNATION)	+= swsusp_booke.o
+else
+obj-$(CONFIG_HIBERNATION)	+= swsusp_$(CONFIG_WORD_SIZE).o
+endif
 obj64-$(CONFIG_HIBERNATION)	+= swsusp_asm64.o
 obj-$(CONFIG_MODULES)		+= module.o module_$(CONFIG_WORD_SIZE).o
 obj-$(CONFIG_44x)		+= cpu_setup_44x.o
