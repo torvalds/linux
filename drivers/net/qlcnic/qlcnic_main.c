@@ -495,7 +495,9 @@ static void get_brd_name(struct qlcnic_adapter *adapter, char *name)
 			qlcnic_boards[i].device == pdev->device &&
 			qlcnic_boards[i].sub_vendor == pdev->subsystem_vendor &&
 			qlcnic_boards[i].sub_device == pdev->subsystem_device) {
-				strcpy(name, qlcnic_boards[i].short_name);
+				sprintf(name, "%pM: %s" ,
+					adapter->mac_addr,
+					qlcnic_boards[i].short_name);
 				found = 1;
 				break;
 		}
@@ -1082,6 +1084,9 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "Error getting board config info.\n");
 		goto err_out_iounmap;
 	}
+
+	if (qlcnic_read_mac_addr(adapter))
+		dev_warn(&pdev->dev, "failed to read mac addr\n");
 
 	if (qlcnic_setup_idc_param(adapter))
 		goto err_out_iounmap;
