@@ -775,7 +775,7 @@ fail:
 }
 
 static int fsl_dma_device_control(struct dma_chan *dchan,
-				  enum dma_ctrl_cmd cmd)
+				  enum dma_ctrl_cmd cmd, unsigned long arg)
 {
 	struct fsldma_chan *chan;
 	unsigned long flags;

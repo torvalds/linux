@@ -942,7 +942,7 @@ coh901318_free_chan_resources(struct dma_chan *chan)
 
 	spin_unlock_irqrestore(&cohc->lock, flags);
 
-	chan->device->device_control(chan, DMA_TERMINATE_ALL);
+	chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
 }
 
 
@@ -1176,7 +1176,8 @@ coh901318_issue_pending(struct dma_chan *chan)
 }
 
 static int
-coh901318_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
+coh901318_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+		  unsigned long arg)
 {
 	unsigned long flags;
 	struct coh901318_chan *cohc = to_coh901318_chan(chan);

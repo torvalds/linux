@@ -781,7 +781,8 @@ err_desc_get:
 	return NULL;
 }
 
-static int dwc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
+static int dwc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+		       unsigned long arg)
 {
 	struct dw_dma_chan	*dwc = to_dw_dma_chan(chan);
 	struct dw_dma		*dw = to_dw_dma(chan->device);

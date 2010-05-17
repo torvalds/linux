@@ -1472,7 +1472,8 @@ static void idmac_issue_pending(struct dma_chan *chan)
 	 */
 }
 
-static int __idmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
+static int __idmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+			   unsigned long arg)
 {
 	struct idmac_channel *ichan = to_idmac_chan(chan);
 	struct idmac *idmac = to_idmac(chan->device);
@@ -1513,14 +1514,15 @@ static int __idmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
 	return 0;
 }
 
-static int idmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
+static int idmac_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+			 unsigned long arg)
 {
 	struct idmac_channel *ichan = to_idmac_chan(chan);
 	int ret;
 
 	mutex_lock(&ichan->chan_mutex);
 
-	ret = __idmac_control(chan, cmd);
+	ret = __idmac_control(chan, cmd, arg);
 
 	mutex_unlock(&ichan->chan_mutex);
 
@@ -1616,7 +1618,7 @@ static void idmac_free_chan_resources(struct dma_chan *chan)
 
 	mutex_lock(&ichan->chan_mutex);
 
-	__idmac_control(chan, DMA_TERMINATE_ALL);
+	__idmac_control(chan, DMA_TERMINATE_ALL, 0);
 
 	if (ichan->status > IPU_CHANNEL_FREE) {
 #ifdef DEBUG
@@ -1709,7 +1711,7 @@ static void __exit ipu_idmac_exit(struct ipu *ipu)
 	for (i = 0; i < IPU_CHANNELS_NUM; i++) {
 		struct idmac_channel *ichan = ipu->channel + i;
 
-		idmac_control(&ichan->dma_chan, DMA_TERMINATE_ALL);
+		idmac_control(&ichan->dma_chan, DMA_TERMINATE_ALL, 0);
 		idmac_prep_slave_sg(&ichan->dma_chan, NULL, 0, DMA_NONE, 0);
 	}
 

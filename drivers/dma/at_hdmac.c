@@ -759,7 +759,8 @@ err_desc_get:
 	return NULL;
 }
 
-static int atc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd)
+static int atc_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+		       unsigned long arg)
 {
 	struct at_dma_chan	*atchan = to_at_dma_chan(chan);
 	struct at_dma		*atdma = to_at_dma(chan->device);
