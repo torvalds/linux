@@ -61,6 +61,10 @@ static int auto_fw_reset = AUTO_FW_RESET_ENABLED;
 module_param(auto_fw_reset, int, 0644);
 MODULE_PARM_DESC(auto_fw_reset, "Auto firmware reset (0=disabled, 1=enabled");
 
+static int load_fw_file;
+module_param(load_fw_file, int, 0644);
+MODULE_PARM_DESC(load_fw_file, "Load firmware from (0=flash, 1=file");
+
 static int __devinit qlcnic_probe(struct pci_dev *pdev,
 		const struct pci_device_id *ent);
 static void __devexit qlcnic_remove(struct pci_dev *pdev);
@@ -585,7 +589,10 @@ qlcnic_start_firmware(struct qlcnic_adapter *adapter)
 		/* This is the first boot after power up */
 		QLCWR32(adapter, QLCNIC_CAM_RAM(0x1fc), QLCNIC_BDINFO_MAGIC);
 
-	qlcnic_request_firmware(adapter);
+	if (load_fw_file)
+		qlcnic_request_firmware(adapter);
+	else
+		adapter->fw_type = QLCNIC_FLASH_ROMIMAGE;
 
 	err = qlcnic_need_fw_reset(adapter);
 	if (err < 0)
