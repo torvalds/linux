@@ -112,7 +112,8 @@ static int tomoyo_path_mkdir(struct path *parent, struct dentry *dentry,
 			     int mode)
 {
 	struct path path = { parent->mnt, dentry };
-	return tomoyo_path_perm(TOMOYO_TYPE_MKDIR, &path);
+	return tomoyo_path_number_perm(TOMOYO_TYPE_MKDIR, &path,
+				       mode & S_IALLUGO);
 }
 
 static int tomoyo_path_rmdir(struct path *parent, struct dentry *dentry)
@@ -133,6 +134,7 @@ static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
 {
 	struct path path = { parent->mnt, dentry };
 	int type = TOMOYO_TYPE_CREATE;
+	const unsigned int perm = mode & S_IALLUGO;
 
 	switch (mode & S_IFMT) {
 	case S_IFCHR:
@@ -141,6 +143,12 @@ static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
 	case S_IFBLK:
 		type = TOMOYO_TYPE_MKBLOCK;
 		break;
+	default:
+		goto no_dev;
+	}
+	return tomoyo_path_number3_perm(type, &path, perm, dev);
+ no_dev:
+	switch (mode & S_IFMT) {
 	case S_IFIFO:
 		type = TOMOYO_TYPE_MKFIFO;
 		break;
@@ -148,7 +156,7 @@ static int tomoyo_path_mknod(struct path *parent, struct dentry *dentry,
 		type = TOMOYO_TYPE_MKSOCK;
 		break;
 	}
-	return tomoyo_path_perm(type, &path);
+	return tomoyo_path_number_perm(type, &path, perm);
 }
 
 static int tomoyo_path_link(struct dentry *old_dentry, struct path *new_dir,
@@ -189,23 +197,24 @@ static int tomoyo_dentry_open(struct file *f, const struct cred *cred)
 static int tomoyo_file_ioctl(struct file *file, unsigned int cmd,
 			     unsigned long arg)
 {
-	return tomoyo_path_perm(TOMOYO_TYPE_IOCTL, &file->f_path);
+	return tomoyo_path_number_perm(TOMOYO_TYPE_IOCTL, &file->f_path, cmd);
 }
 
 static int tomoyo_path_chmod(struct dentry *dentry, struct vfsmount *mnt,
 			     mode_t mode)
 {
 	struct path path = { mnt, dentry };
-	return tomoyo_path_perm(TOMOYO_TYPE_CHMOD, &path);
+	return tomoyo_path_number_perm(TOMOYO_TYPE_CHMOD, &path,
+				       mode & S_IALLUGO);
 }
 
 static int tomoyo_path_chown(struct path *path, uid_t uid, gid_t gid)
 {
 	int error = 0;
 	if (uid != (uid_t) -1)
-		error = tomoyo_path_perm(TOMOYO_TYPE_CHOWN, path);
+		error = tomoyo_path_number_perm(TOMOYO_TYPE_CHOWN, path, uid);
 	if (!error && gid != (gid_t) -1)
-		error = tomoyo_path_perm(TOMOYO_TYPE_CHGRP, path);
+		error = tomoyo_path_number_perm(TOMOYO_TYPE_CHGRP, path, gid);
 	return error;
 }
 

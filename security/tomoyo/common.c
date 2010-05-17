@@ -1043,12 +1043,11 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 		return true;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
 		switch (ptr->type) {
-			struct tomoyo_path_acl *acl;
-			u32 perm;
+			u16 perm;
 			u8 i;
 		case TOMOYO_TYPE_PATH_ACL:
-			acl = container_of(ptr, struct tomoyo_path_acl, head);
-			perm = acl->perm | (((u32) acl->perm_high) << 16);
+			perm = container_of(ptr, struct tomoyo_path_acl, head)
+				->perm;
 			for (i = 0; i < TOMOYO_MAX_PATH_OPERATION; i++)
 				if (perm & (1 << i))
 					count++;
@@ -1059,6 +1058,20 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 			perm = container_of(ptr, struct tomoyo_path2_acl, head)
 				->perm;
 			for (i = 0; i < TOMOYO_MAX_PATH2_OPERATION; i++)
+				if (perm & (1 << i))
+					count++;
+			break;
+		case TOMOYO_TYPE_PATH_NUMBER_ACL:
+			perm = container_of(ptr, struct tomoyo_path_number_acl,
+					    head)->perm;
+			for (i = 0; i < TOMOYO_MAX_PATH_NUMBER_OPERATION; i++)
+				if (perm & (1 << i))
+					count++;
+			break;
+		case TOMOYO_TYPE_PATH_NUMBER3_ACL:
+			perm = container_of(ptr, struct tomoyo_path_number3_acl,
+					    head)->perm;
+			for (i = 0; i < TOMOYO_MAX_PATH_NUMBER3_OPERATION; i++)
 				if (perm & (1 << i))
 					count++;
 			break;
@@ -1579,7 +1592,7 @@ static bool tomoyo_print_path_acl(struct tomoyo_io_buffer *head,
 {
 	int pos;
 	u8 bit;
-	const u32 perm = ptr->perm | (((u32) ptr->perm_high) << 16);
+	const u16 perm = ptr->perm;
 
 	for (bit = head->read_bit; bit < TOMOYO_MAX_PATH_OPERATION; bit++) {
 		if (!(perm & (1 << bit)))
@@ -1638,6 +1651,76 @@ static bool tomoyo_print_path2_acl(struct tomoyo_io_buffer *head,
 }
 
 /**
+ * tomoyo_print_path_number_acl - Print a path_number ACL entry.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ * @ptr:  Pointer to "struct tomoyo_path_number_acl".
+ *
+ * Returns true on success, false otherwise.
+ */
+static bool tomoyo_print_path_number_acl(struct tomoyo_io_buffer *head,
+					 struct tomoyo_path_number_acl *ptr)
+{
+	int pos;
+	u8 bit;
+	const u8 perm = ptr->perm;
+	for (bit = head->read_bit; bit < TOMOYO_MAX_PATH_NUMBER_OPERATION;
+	     bit++) {
+		if (!(perm & (1 << bit)))
+			continue;
+		pos = head->read_avail;
+		if (!tomoyo_io_printf(head, "allow_%s",
+				      tomoyo_path_number2keyword(bit)) ||
+		    !tomoyo_print_name_union(head, &ptr->name) ||
+		    !tomoyo_print_number_union(head, &ptr->number) ||
+		    !tomoyo_io_printf(head, "\n"))
+			goto out;
+	}
+	head->read_bit = 0;
+	return true;
+ out:
+	head->read_bit = bit;
+	head->read_avail = pos;
+	return false;
+}
+
+/**
+ * tomoyo_print_path_number3_acl - Print a path_number3 ACL entry.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ * @ptr:  Pointer to "struct tomoyo_path_number3_acl".
+ *
+ * Returns true on success, false otherwise.
+ */
+static bool tomoyo_print_path_number3_acl(struct tomoyo_io_buffer *head,
+					  struct tomoyo_path_number3_acl *ptr)
+{
+	int pos;
+	u8 bit;
+	const u16 perm = ptr->perm;
+	for (bit = head->read_bit; bit < TOMOYO_MAX_PATH_NUMBER3_OPERATION;
+	     bit++) {
+		if (!(perm & (1 << bit)))
+			continue;
+		pos = head->read_avail;
+		if (!tomoyo_io_printf(head, "allow_%s",
+				      tomoyo_path_number32keyword(bit)) ||
+		    !tomoyo_print_name_union(head, &ptr->name) ||
+		    !tomoyo_print_number_union(head, &ptr->mode) ||
+		    !tomoyo_print_number_union(head, &ptr->major) ||
+		    !tomoyo_print_number_union(head, &ptr->minor) ||
+		    !tomoyo_io_printf(head, "\n"))
+			goto out;
+	}
+	head->read_bit = 0;
+	return true;
+ out:
+	head->read_bit = bit;
+	head->read_avail = pos;
+	return false;
+}
+
+/**
  * tomoyo_print_entry - Print an ACL entry.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
@@ -1659,6 +1742,18 @@ static bool tomoyo_print_entry(struct tomoyo_io_buffer *head,
 		struct tomoyo_path2_acl *acl
 			= container_of(ptr, struct tomoyo_path2_acl, head);
 		return tomoyo_print_path2_acl(head, acl);
+	}
+	if (acl_type == TOMOYO_TYPE_PATH_NUMBER_ACL) {
+		struct tomoyo_path_number_acl *acl
+			= container_of(ptr, struct tomoyo_path_number_acl,
+				       head);
+		return tomoyo_print_path_number_acl(head, acl);
+	}
+	if (acl_type == TOMOYO_TYPE_PATH_NUMBER3_ACL) {
+		struct tomoyo_path_number3_acl *acl
+			= container_of(ptr, struct tomoyo_path_number3_acl,
+				       head);
+		return tomoyo_print_path_number3_acl(head, acl);
 	}
 	BUG(); /* This must not happen. */
 	return false;

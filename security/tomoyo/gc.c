@@ -106,6 +106,24 @@ static void tomoyo_del_acl(struct tomoyo_acl_info *acl)
 			tomoyo_put_name_union(&entry->name2);
 		}
 		break;
+	case TOMOYO_TYPE_PATH_NUMBER_ACL:
+		{
+			struct tomoyo_path_number_acl *entry
+				= container_of(acl, typeof(*entry), head);
+			tomoyo_put_name_union(&entry->name);
+			tomoyo_put_number_union(&entry->number);
+		}
+		break;
+	case TOMOYO_TYPE_PATH_NUMBER3_ACL:
+		{
+			struct tomoyo_path_number3_acl *entry
+				= container_of(acl, typeof(*entry), head);
+			tomoyo_put_name_union(&entry->name);
+			tomoyo_put_number_union(&entry->mode);
+			tomoyo_put_number_union(&entry->major);
+			tomoyo_put_number_union(&entry->minor);
+		}
+		break;
 	default:
 		printk(KERN_WARNING "Unknown type\n");
 		break;
@@ -268,15 +286,24 @@ static void tomoyo_collect_entry(void)
 				case TOMOYO_TYPE_PATH_ACL:
 					if (container_of(acl,
 					 struct tomoyo_path_acl,
-							 head)->perm ||
-					    container_of(acl,
-					 struct tomoyo_path_acl,
-							 head)->perm_high)
+							 head)->perm)
 						continue;
 					break;
 				case TOMOYO_TYPE_PATH2_ACL:
 					if (container_of(acl,
 					 struct tomoyo_path2_acl,
+							 head)->perm)
+						continue;
+					break;
+				case TOMOYO_TYPE_PATH_NUMBER_ACL:
+					if (container_of(acl,
+					 struct tomoyo_path_number_acl,
+							 head)->perm)
+						continue;
+					break;
+				case TOMOYO_TYPE_PATH_NUMBER3_ACL:
+					if (container_of(acl,
+					 struct tomoyo_path_number3_acl,
 							 head)->perm)
 						continue;
 					break;

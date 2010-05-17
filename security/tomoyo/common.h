@@ -88,17 +88,21 @@ enum tomoyo_mac_index {
 enum tomoyo_acl_entry_type_index {
 	TOMOYO_TYPE_PATH_ACL,
 	TOMOYO_TYPE_PATH2_ACL,
+	TOMOYO_TYPE_PATH_NUMBER_ACL,
+	TOMOYO_TYPE_PATH_NUMBER3_ACL,
 };
 
 /* Index numbers for File Controls. */
 
 /*
- * TYPE_READ_WRITE_ACL is special. TYPE_READ_WRITE_ACL is automatically set
- * if both TYPE_READ_ACL and TYPE_WRITE_ACL are set. Both TYPE_READ_ACL and
- * TYPE_WRITE_ACL are automatically set if TYPE_READ_WRITE_ACL is set.
- * TYPE_READ_WRITE_ACL is automatically cleared if either TYPE_READ_ACL or
- * TYPE_WRITE_ACL is cleared. Both TYPE_READ_ACL and TYPE_WRITE_ACL are
- * automatically cleared if TYPE_READ_WRITE_ACL is cleared.
+ * TOMOYO_TYPE_READ_WRITE is special. TOMOYO_TYPE_READ_WRITE is automatically
+ * set if both TOMOYO_TYPE_READ and TOMOYO_TYPE_WRITE are set.
+ * Both TOMOYO_TYPE_READ and TOMOYO_TYPE_WRITE are automatically set if
+ * TOMOYO_TYPE_READ_WRITE is set.
+ * TOMOYO_TYPE_READ_WRITE is automatically cleared if either TOMOYO_TYPE_READ
+ * or TOMOYO_TYPE_WRITE is cleared.
+ * Both TOMOYO_TYPE_READ and TOMOYO_TYPE_WRITE are automatically cleared if
+ * TOMOYO_TYPE_READ_WRITE is cleared.
  */
 
 enum tomoyo_path_acl_index {
@@ -106,25 +110,21 @@ enum tomoyo_path_acl_index {
 	TOMOYO_TYPE_EXECUTE,
 	TOMOYO_TYPE_READ,
 	TOMOYO_TYPE_WRITE,
-	TOMOYO_TYPE_CREATE,
 	TOMOYO_TYPE_UNLINK,
-	TOMOYO_TYPE_MKDIR,
 	TOMOYO_TYPE_RMDIR,
-	TOMOYO_TYPE_MKFIFO,
-	TOMOYO_TYPE_MKSOCK,
-	TOMOYO_TYPE_MKBLOCK,
-	TOMOYO_TYPE_MKCHAR,
 	TOMOYO_TYPE_TRUNCATE,
 	TOMOYO_TYPE_SYMLINK,
 	TOMOYO_TYPE_REWRITE,
-	TOMOYO_TYPE_IOCTL,
-	TOMOYO_TYPE_CHMOD,
-	TOMOYO_TYPE_CHOWN,
-	TOMOYO_TYPE_CHGRP,
 	TOMOYO_TYPE_CHROOT,
 	TOMOYO_TYPE_MOUNT,
 	TOMOYO_TYPE_UMOUNT,
 	TOMOYO_MAX_PATH_OPERATION
+};
+
+enum tomoyo_path_number3_acl_index {
+	TOMOYO_TYPE_MKBLOCK,
+	TOMOYO_TYPE_MKCHAR,
+	TOMOYO_MAX_PATH_NUMBER3_OPERATION
 };
 
 enum tomoyo_path2_acl_index {
@@ -132,6 +132,18 @@ enum tomoyo_path2_acl_index {
 	TOMOYO_TYPE_RENAME,
 	TOMOYO_TYPE_PIVOT_ROOT,
 	TOMOYO_MAX_PATH2_OPERATION
+};
+
+enum tomoyo_path_number_acl_index {
+	TOMOYO_TYPE_CREATE,
+	TOMOYO_TYPE_MKDIR,
+	TOMOYO_TYPE_MKFIFO,
+	TOMOYO_TYPE_MKSOCK,
+	TOMOYO_TYPE_IOCTL,
+	TOMOYO_TYPE_CHMOD,
+	TOMOYO_TYPE_CHOWN,
+	TOMOYO_TYPE_CHGRP,
+	TOMOYO_MAX_PATH_NUMBER_OPERATION
 };
 
 enum tomoyo_securityfs_interface_index {
@@ -347,17 +359,59 @@ struct tomoyo_domain_info {
  *  (3) "name" is the pathname.
  *
  * Directives held by this structure are "allow_read/write", "allow_execute",
- * "allow_read", "allow_write", "allow_create", "allow_unlink", "allow_mkdir",
- * "allow_rmdir", "allow_mkfifo", "allow_mksock", "allow_mkblock",
- * "allow_mkchar", "allow_truncate", "allow_symlink", "allow_rewrite",
- * "allow_ioctl", "allow_chmod", "allow_chown", "allow_chgrp", "allow_chroot",
+ * "allow_read", "allow_write", "allow_unlink", "allow_rmdir",
+ * "allow_truncate", "allow_symlink", "allow_rewrite", "allow_chroot",
  * "allow_mount" and "allow_unmount".
  */
 struct tomoyo_path_acl {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_PATH_ACL */
-	u8 perm_high;
 	u16 perm;
 	struct tomoyo_name_union name;
+};
+
+/*
+ * tomoyo_path_number_acl is a structure which is used for holding an
+ * entry with one pathname and one number operation.
+ * It has following fields.
+ *
+ *  (1) "head" which is a "struct tomoyo_acl_info".
+ *  (2) "perm" which is a bitmask of permitted operations.
+ *  (3) "name" is the pathname.
+ *  (4) "number" is the numeric value.
+ *
+ * Directives held by this structure are "allow_create", "allow_mkdir",
+ * "allow_ioctl", "allow_mkfifo", "allow_mksock", "allow_chmod", "allow_chown"
+ * and "allow_chgrp".
+ *
+ */
+struct tomoyo_path_number_acl {
+	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_PATH_NUMBER_ACL */
+	u8 perm;
+	struct tomoyo_name_union name;
+	struct tomoyo_number_union number;
+};
+
+/*
+ * tomoyo_path_number3_acl is a structure which is used for holding an
+ * entry with one pathname and three numbers operation.
+ * It has following fields.
+ *
+ *  (1) "head" which is a "struct tomoyo_acl_info".
+ *  (2) "perm" which is a bitmask of permitted operations.
+ *  (3) "mode" is the create mode.
+ *  (4) "major" is the major number of device node.
+ *  (5) "minor" is the minor number of device node.
+ *
+ * Directives held by this structure are "allow_mkchar", "allow_mkblock".
+ *
+ */
+struct tomoyo_path_number3_acl {
+	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_PATH_NUMBER3_ACL */
+	u8 perm;
+	struct tomoyo_name_union name;
+	struct tomoyo_number_union mode;
+	struct tomoyo_number_union major;
+	struct tomoyo_number_union minor;
 };
 
 /*
@@ -639,6 +693,8 @@ bool tomoyo_tokenize(char *buffer, char *w[], size_t size);
 bool tomoyo_verbose_mode(const struct tomoyo_domain_info *domain);
 /* Convert double path operation to operation name. */
 const char *tomoyo_path22keyword(const u8 operation);
+const char *tomoyo_path_number2keyword(const u8 operation);
+const char *tomoyo_path_number32keyword(const u8 operation);
 /* Get the last component of the given domainname. */
 const char *tomoyo_get_last_name(const struct tomoyo_domain_info *domain);
 /* Convert single path operation to operation name. */
@@ -736,10 +792,17 @@ int tomoyo_check_exec_perm(struct tomoyo_domain_info *domain,
 			   const struct tomoyo_path_info *filename);
 int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 				 struct path *path, const int flag);
+int tomoyo_path_number_perm(const u8 operation, struct path *path,
+			    unsigned long number);
+int tomoyo_path_number3_perm(const u8 operation, struct path *path,
+			     const unsigned int mode, unsigned int dev);
 int tomoyo_path_perm(const u8 operation, struct path *path);
 int tomoyo_path2_perm(const u8 operation, struct path *path1,
 		      struct path *path2);
 int tomoyo_find_next_domain(struct linux_binprm *bprm);
+
+void tomoyo_print_ulong(char *buffer, const int buffer_len,
+			const unsigned long value, const u8 type);
 
 /* Drop refcount on tomoyo_name_union. */
 void tomoyo_put_name_union(struct tomoyo_name_union *ptr);
@@ -880,12 +943,33 @@ static inline bool tomoyo_is_same_path_acl(const struct tomoyo_path_acl *p1,
 		tomoyo_is_same_name_union(&p1->name, &p2->name);
 }
 
+static inline bool tomoyo_is_same_path_number3_acl
+(const struct tomoyo_path_number3_acl *p1,
+ const struct tomoyo_path_number3_acl *p2)
+{
+	return tomoyo_is_same_acl_head(&p1->head, &p2->head)
+		&& tomoyo_is_same_name_union(&p1->name, &p2->name)
+		&& tomoyo_is_same_number_union(&p1->mode, &p2->mode)
+		&& tomoyo_is_same_number_union(&p1->major, &p2->major)
+		&& tomoyo_is_same_number_union(&p1->minor, &p2->minor);
+}
+
+
 static inline bool tomoyo_is_same_path2_acl(const struct tomoyo_path2_acl *p1,
 					    const struct tomoyo_path2_acl *p2)
 {
 	return tomoyo_is_same_acl_head(&p1->head, &p2->head) &&
 		tomoyo_is_same_name_union(&p1->name1, &p2->name1) &&
 		tomoyo_is_same_name_union(&p1->name2, &p2->name2);
+}
+
+static inline bool tomoyo_is_same_path_number_acl
+(const struct tomoyo_path_number_acl *p1,
+ const struct tomoyo_path_number_acl *p2)
+{
+	return tomoyo_is_same_acl_head(&p1->head, &p2->head)
+		&& tomoyo_is_same_name_union(&p1->name, &p2->name)
+		&& tomoyo_is_same_number_union(&p1->number, &p2->number);
 }
 
 static inline bool tomoyo_is_same_domain_initializer_entry
