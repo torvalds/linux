@@ -65,7 +65,7 @@ struct usb_host_endpoint {
 	struct usb_ss_ep_comp_descriptor	ss_ep_comp;
 	struct list_head		urb_list;
 	void				*hcpriv;
-	struct ep_device 		*ep_dev;	/* For sysfs info */
+	struct ep_device		*ep_dev;	/* For sysfs info */
 
 	unsigned char *extra;   /* Extra descriptors */
 	int extralen;
@@ -96,8 +96,8 @@ enum usb_interface_condition {
 /**
  * struct usb_interface - what usb device drivers talk to
  * @altsetting: array of interface structures, one for each alternate
- * 	setting that may be selected.  Each one includes a set of
- * 	endpoint configurations.  They will be in no particular order.
+ *	setting that may be selected.  Each one includes a set of
+ *	endpoint configurations.  They will be in no particular order.
  * @cur_altsetting: the current altsetting.
  * @num_altsetting: number of altsettings defined.
  * @intf_assoc: interface association descriptor
@@ -200,7 +200,7 @@ void usb_put_intf(struct usb_interface *intf);
 
 /* this maximum is arbitrary */
 #define USB_MAXINTERFACES	32
-#define USB_MAXIADS		USB_MAXINTERFACES/2
+#define USB_MAXIADS		(USB_MAXINTERFACES/2)
 
 /**
  * struct usb_interface_cache - long-term representation of a device interface
@@ -420,7 +420,7 @@ struct usb_tt;
  */
 struct usb_device {
 	int		devnum;
-	char		devpath [16];
+	char		devpath[16];
 	u32		route;
 	enum usb_device_state	state;
 	enum usb_device_speed	speed;
@@ -453,7 +453,7 @@ struct usb_device {
 	unsigned persist_enabled:1;
 	unsigned have_langid:1;
 	unsigned authorized:1;
- 	unsigned authenticated:1;
+	unsigned authenticated:1;
 	unsigned wusb:1;
 	int string_langid;
 
@@ -664,7 +664,7 @@ static inline int usb_make_path(struct usb_device *dev, char *buf, size_t size)
  * This macro is used to create a struct usb_device_id that matches a
  * specific device.
  */
-#define USB_DEVICE(vend,prod) \
+#define USB_DEVICE(vend, prod) \
 	.match_flags = USB_DEVICE_ID_MATCH_DEVICE, \
 	.idVendor = (vend), \
 	.idProduct = (prod)
@@ -1186,7 +1186,7 @@ struct urb {
 					 * current owner */
 	struct list_head anchor_list;	/* the URB may be anchored */
 	struct usb_anchor *anchor;
-	struct usb_device *dev; 	/* (in) pointer to associated device */
+	struct usb_device *dev;		/* (in) pointer to associated device */
 	struct usb_host_endpoint *ep;	/* (internal) pointer to endpoint */
 	unsigned int pipe;		/* (in) pipe information */
 	unsigned int stream_id;		/* (in) stream ID */
@@ -1535,21 +1535,21 @@ static inline unsigned int __create_pipe(struct usb_device *dev,
 }
 
 /* Create various pipes... */
-#define usb_sndctrlpipe(dev,endpoint)	\
+#define usb_sndctrlpipe(dev, endpoint)	\
 	((PIPE_CONTROL << 30) | __create_pipe(dev, endpoint))
-#define usb_rcvctrlpipe(dev,endpoint)	\
+#define usb_rcvctrlpipe(dev, endpoint)	\
 	((PIPE_CONTROL << 30) | __create_pipe(dev, endpoint) | USB_DIR_IN)
-#define usb_sndisocpipe(dev,endpoint)	\
+#define usb_sndisocpipe(dev, endpoint)	\
 	((PIPE_ISOCHRONOUS << 30) | __create_pipe(dev, endpoint))
-#define usb_rcvisocpipe(dev,endpoint)	\
+#define usb_rcvisocpipe(dev, endpoint)	\
 	((PIPE_ISOCHRONOUS << 30) | __create_pipe(dev, endpoint) | USB_DIR_IN)
-#define usb_sndbulkpipe(dev,endpoint)	\
+#define usb_sndbulkpipe(dev, endpoint)	\
 	((PIPE_BULK << 30) | __create_pipe(dev, endpoint))
-#define usb_rcvbulkpipe(dev,endpoint)	\
+#define usb_rcvbulkpipe(dev, endpoint)	\
 	((PIPE_BULK << 30) | __create_pipe(dev, endpoint) | USB_DIR_IN)
-#define usb_sndintpipe(dev,endpoint)	\
+#define usb_sndintpipe(dev, endpoint)	\
 	((PIPE_INTERRUPT << 30) | __create_pipe(dev, endpoint))
-#define usb_rcvintpipe(dev,endpoint)	\
+#define usb_rcvintpipe(dev, endpoint)	\
 	((PIPE_INTERRUPT << 30) | __create_pipe(dev, endpoint) | USB_DIR_IN)
 
 static inline struct usb_host_endpoint *
