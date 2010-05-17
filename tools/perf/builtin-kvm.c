@@ -22,8 +22,8 @@
 static char			*file_name;
 static char			name_buffer[256];
 
-int				perf_host = 1;
-int				perf_guest;
+bool				perf_host = 1;
+bool				perf_guest;
 
 static const char * const kvm_usage[] = {
 	"perf kvm [<options>] {top|record|report|diff|buildid-list}",

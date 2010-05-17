@@ -792,8 +792,7 @@ static void print_result(void)
 	print_bad_events(bad, total);
 }
 
-static int			info_threads;
-static int			info_map;
+static bool info_threads, info_map;
 
 static void dump_threads(void)
 {
