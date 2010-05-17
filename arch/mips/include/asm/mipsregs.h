@@ -135,6 +135,12 @@
 #define FPU_CSR_COND7   0x80000000      /* $fcc7 */
 
 /*
+ * Bits 18 - 20 of the FPU Status Register will be read as 0,
+ * and should be written as zero.
+ */
+#define FPU_CSR_RSVD	0x001c0000
+
+/*
  * X the exception cause indicator
  * E the exception enable
  * S the sticky/flag bit
@@ -161,7 +167,8 @@
 #define FPU_CSR_UDF_S   0x00000008
 #define FPU_CSR_INE_S   0x00000004
 
-/* rounding mode */
+/* Bits 0 and 1 of FPU Status Register specify the rounding mode */
+#define FPU_CSR_RM	0x00000003
 #define FPU_CSR_RN      0x0     /* nearest */
 #define FPU_CSR_RZ      0x1     /* towards zero */
 #define FPU_CSR_RU      0x2     /* towards +Infinity */

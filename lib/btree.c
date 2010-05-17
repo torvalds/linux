@@ -95,7 +95,8 @@ static unsigned long *btree_node_alloc(struct btree_head *head, gfp_t gfp)
 	unsigned long *node;
 
 	node = mempool_alloc(head->mempool, gfp);
-	memset(node, 0, NODESIZE);
+	if (likely(node))
+		memset(node, 0, NODESIZE);
 	return node;
 }
 

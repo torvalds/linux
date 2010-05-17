@@ -202,7 +202,7 @@
 #define __cpu_is_pxa950(id)                             \
 	({                                              \
 		unsigned int _id = (id) >> 4 & 0xfff;	\
-		id == 0x697;				\
+		_id == 0x697;				\
 	 })
 #else
 #define __cpu_is_pxa950(id)	(0)

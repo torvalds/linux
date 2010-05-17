@@ -385,7 +385,7 @@ EXPORT(sysn32_call_table)
 	PTR	sys_fchmodat
 	PTR	sys_faccessat
 	PTR	compat_sys_pselect6
-	PTR	sys_ppoll			/* 6265 */
+	PTR	compat_sys_ppoll		/* 6265 */
 	PTR	sys_unshare
 	PTR	sys_splice
 	PTR	sys_sync_file_range

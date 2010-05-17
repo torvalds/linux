@@ -5492,7 +5492,7 @@ S:	Maintained
 F:	drivers/mmc/host/tmio_mmc.*
 
 TMPFS (SHMEM FILESYSTEM)
-M:	Hugh Dickins <hugh.dickins@tiscali.co.uk>
+M:	Hugh Dickins <hughd@google.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	include/linux/shmem_fs.h

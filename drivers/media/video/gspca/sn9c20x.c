@@ -1427,7 +1427,7 @@ static int input_kthread(void *data)
 	struct gspca_dev *gspca_dev = (struct gspca_dev *)data;
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	DECLARE_WAIT_QUEUE_HEAD(wait);
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wait);
 	set_freezable();
 	for (;;) {
 		if (kthread_should_stop())
