@@ -1257,7 +1257,7 @@ static int nm_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	return 1;
 }
 
-static int mc_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+static void svm_handle_mce(struct vcpu_svm *svm)
 {
 	/*
 	 * On an #MC intercept the MCE handler is not called automatically in
@@ -1267,6 +1267,11 @@ static int mc_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 		"int $0x12\n");
 	/* not sure if we ever come back to this point */
 
+	return;
+}
+
+static int mc_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
+{
 	return 1;
 }
 
@@ -2717,6 +2722,14 @@ static void svm_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		vcpu->arch.regs_avail &= ~(1 << VCPU_EXREG_PDPTR);
 		vcpu->arch.regs_dirty &= ~(1 << VCPU_EXREG_PDPTR);
 	}
+
+	/*
+	 * We need to handle MC intercepts here before the vcpu has a chance to
+	 * change the physical cpu
+	 */
+	if (unlikely(svm->vmcb->control.exit_code ==
+		     SVM_EXIT_EXCP_BASE + MC_VECTOR))
+		svm_handle_mce(svm);
 }
 
 #undef R
