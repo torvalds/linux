@@ -24,9 +24,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <mach/rk2818_adc.h>
+#include <mach/adc.h>
 
-#if 0
+#if 1
 #define DBG(x...)   printk(x)
 #else
 #define DBG(x...)
@@ -41,17 +41,25 @@
 #define AD2KEY5 		KEY_0
 #define AD2KEY6 		KEY_W
 
+#define KEYMENU			AD2KEY6
+#define ENDCALL			62
+
 #define Valuedrift		50
 #define ADEmpty			1000
-#define ADKEYNum		6
+#define ADInvalid		20
+#define ADKEYNUM		6
 
 #define ADKEYCH			1	//ADÍ¨µÀ
 
-#define KEY_PHYS_NAME	"rk2818 adc key"
+#define KEY_PHYS_NAME	"rk2818_adckey/input0"
 
-volatile int ADSampleTimes = 0;
-volatile int ADC_Chanel = 0;
-volatile int ADC_Value[4]={ADEmpty+1, ADEmpty+1, ADEmpty+1, ADEmpty+1};	//0->ch0 1->ch1 2->ch2 3->ch3
+volatile int gADSampleTimes = 0;
+volatile int gAdcChanel = 0;
+volatile int gAdcValue[4]={0, 0, 0, 0};	//0->ch0 1->ch1 2->ch2 3->ch3
+
+volatile unsigned int gCodeCount = 0;
+volatile unsigned int gThisCode = 0;
+volatile unsigned int gLastCode = 0;
 
 //ADC Registers
 typedef  struct tagADC_keyst
@@ -61,7 +69,7 @@ typedef  struct tagADC_keyst
 }ADC_keyst,*pADC_keyst;
 
 //	adc	 ---> key	
-static  ADC_keyst advaluetab[] = 
+static  ADC_keyst gAdcValueTab[] = 
 {
 	{95,  AD2KEY1},
 	{249, AD2KEY2},
@@ -73,7 +81,7 @@ static  ADC_keyst advaluetab[] =
 };
 
 //key code tab
-static unsigned char initkey_code[6] = 
+static unsigned char gInitKeyCode[ADKEYNUM] = 
 {
 	AD2KEY1,AD2KEY2,AD2KEY3,AD2KEY4,AD2KEY5,AD2KEY6	
 };
@@ -85,13 +93,12 @@ struct rk28_adckey
 	struct rk28_adc_client	*client;
 	struct input_dev *input_dev;
 	struct timer_list timer;
-	unsigned char keycodes[6];
-	
+	unsigned char keycodes[ADKEYNUM];
 	struct clk *clk;
 	void __iomem *mmio_base;
 };
 
-struct rk28_adckey *prk28_adckey;
+struct rk28_adckey *pRk28AdcKey;
 
 unsigned int rk28_get_keycode(unsigned int advalue,pADC_keyst ptab)
 {	
@@ -156,11 +163,11 @@ static int rk28_read_adc(struct rk28_adckey *adckey)
 	ret = down_interruptible(&adckey->lock);
 	if (ret < 0)
 		return ret;	
-	if(ADC_Chanel > 3)
-		ADC_Chanel = 0;
-	ADC_Value[ADC_Chanel] = rk28_adc_read(adckey->client, ADC_Chanel);
-	DBG("Enter::%s,LINE=%d,ADC_Value[%d]=%d\n",__FUNCTION__,__LINE__,ADC_Chanel,ADC_Value[ADC_Chanel]);
-	ADC_Chanel++;
+	if(gAdcChanel > 3)
+		gAdcChanel = 0;
+	gAdcValue[gAdcChanel] = rk28_adc_read(adckey->client, gAdcChanel);
+	//DBG("Enter::%s,LINE=%d,gAdcValue[%d]=%d\n",__FUNCTION__,__LINE__,gAdcChanel,gAdcValue[gAdcChanel]);
+	gAdcChanel++;
 	up(&adckey->lock);
 	return ret;
 }
@@ -169,58 +176,74 @@ static void rk28_adkeyscan_timer(unsigned long data)
 {
 	unsigned int adcvalue = -1, code;
 
-	prk28_adckey->timer.expires  = jiffies+2;
-	add_timer(&prk28_adckey->timer);
-#if 1
-	if (ADSampleTimes < 2)
+	pRk28AdcKey->timer.expires  = jiffies + msecs_to_jiffies(10);
+	add_timer(&pRk28AdcKey->timer);
+	
+	if (gADSampleTimes < 4)
 	{
-		ADSampleTimes ++;
+		gADSampleTimes ++;
 		return;
 	}
 	
-	ADSampleTimes = 0;
-#endif
+	gADSampleTimes = 0;
 
-	rk28_read_adc(prk28_adckey);	
-	adcvalue = ADC_Value[ADKEYCH];
-	if(adcvalue > ADEmpty)
-	return;
-	printk("adcvalue=0x%x\n",adcvalue);
+	rk28_read_adc(pRk28AdcKey);	
+	adcvalue = gAdcValue[ADKEYCH];
+	if((adcvalue > ADEmpty) || (adcvalue < ADInvalid))
+	{
+		if(gLastCode == 0)
+		return;
+		else
+		{
+			if(gLastCode == KEYMENU)
+			{
+				if(gCodeCount > 31)
+				{
+					input_report_key(pRk28AdcKey->input_dev,ENDCALL,0);
+					input_sync(pRk28AdcKey->input_dev);
+					DBG("Enter::%s,LINE=%d,code=%d,ENDCALL,0\n",__FUNCTION__,__LINE__,gLastCode);
+				}	
+				input_report_key(pRk28AdcKey->input_dev,gLastCode,1);
+				input_sync(pRk28AdcKey->input_dev);
+				DBG("Enter::%s,LINE=%d,code=%d,1\n",__FUNCTION__,__LINE__,gLastCode);
+			}
+			
+			input_report_key(pRk28AdcKey->input_dev,gLastCode,0);
+			input_sync(pRk28AdcKey->input_dev);
+			DBG("Enter::%s,LINE=%d,code=%d,0\n",__FUNCTION__,__LINE__,gLastCode);
+			gLastCode = 0;
+			gCodeCount = 0;
+			return;
+		}
+	}
 	
-	code=rk28_get_keycode(adcvalue,advaluetab);
+	DBG("adcvalue=0x%x\n",adcvalue);
+	
+	code=rk28_get_keycode(adcvalue,gAdcValueTab);
 	if(code)
 	{
-		switch(code)
+		if(code == KEYMENU)
 		{
-			case AD2KEY1:
-				printk("KEY1\n");
-				break;
-			case AD2KEY2:
-				printk("KEY2\n");
-				break;
-			case AD2KEY3:
-				printk("KEY3\n");
-				break;
-			case AD2KEY4:
-				printk("KEY4\n");
-				break;
-			case AD2KEY5:
-				printk("KEY5\n");
-				break;
-			case AD2KEY6:
-				printk("KEY6\n");
-				break;
-			default:
-				printk("unknow\n");
-				break;		
+			gLastCode = code;
+			if(++gCodeCount == 31)//40ms * 30 =1.2s 
+			{
+				input_report_key(pRk28AdcKey->input_dev,ENDCALL,1);
+	    		input_sync(pRk28AdcKey->input_dev);
+				DBG("Enter::%s,LINE=%d,code=%d,ENDCALL,1\n",__FUNCTION__,__LINE__,code);
+			}
 		}
-		input_report_key(prk28_adckey->input_dev,code,1);
-		input_sync(prk28_adckey->input_dev);
-		input_report_key(prk28_adckey->input_dev,code,0);
-		input_sync(prk28_adckey->input_dev);
-		return;
+		else
+		{
+			gLastCode = code;
+			if(++gCodeCount == 2)//only one event once one touch 
+			{
+				input_report_key(pRk28AdcKey->input_dev,code,1);
+				input_sync(pRk28AdcKey->input_dev);
+				DBG("Enter::%s,LINE=%d,code=%d,1\n",__FUNCTION__,__LINE__,code);
+			}
+		}
+		
 	}
-	
 
 }
 
@@ -237,7 +260,7 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 	
-	memcpy(adckey->keycodes, initkey_code, sizeof(adckey->keycodes));
+	memcpy(adckey->keycodes, gInitKeyCode, sizeof(adckey->keycodes));
 	
 	/* Create and register the input driver. */
 	input_dev = input_allocate_device();
@@ -259,9 +282,9 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 
 	input_dev->keycode = adckey->keycodes;
 	input_dev->keycodesize = sizeof(unsigned char);
-	input_dev->keycodemax = ARRAY_SIZE(initkey_code);
-	for (i = 0; i < ARRAY_SIZE(initkey_code); i++)
-		set_bit(initkey_code[i], input_dev->keybit);
+	input_dev->keycodemax = ARRAY_SIZE(gInitKeyCode);
+	for (i = 0; i < ARRAY_SIZE(gInitKeyCode); i++)
+		set_bit(gInitKeyCode[i], input_dev->keybit);
 	clear_bit(0, input_dev->keybit);
 
 	adckey->input_dev = input_dev;
@@ -282,7 +305,7 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 		goto failed_free;
 	}
 
-	prk28_adckey = adckey;
+	pRk28AdcKey = adckey;
 
 	/* Register the input device */
 	error = input_register_device(input_dev);
@@ -292,10 +315,9 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 	}
 
 	setup_timer(&adckey->timer, rk28_adkeyscan_timer, (unsigned long)adckey);
-	//mod_timer(&adckey->timer, 100);
-	adckey->timer.expires  = jiffies+30;
+	adckey->timer.expires  = jiffies+50;
 	add_timer(&adckey->timer);
-	printk("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
+	DBG("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
 	return 0;
 
 failed_free_dev:
@@ -334,7 +356,7 @@ static struct platform_driver rk28_adckey_driver =
 
  int __init rk28_adckey_init(void)
 {
-	printk("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
+	DBG("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
 	return platform_driver_register(&rk28_adckey_driver);
 }
 
