@@ -2999,6 +2999,7 @@ int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *hp,
 	const unsigned head_data_len = skb_headlen(skb) > header_len ?
 				       skb_headlen(skb) - header_len : 0;
 	const struct skb_shared_info *shi = skb_shinfo(skb);
+	struct sk_buff *frag_iter;
 
 	sg_init_table(&sg, 1);
 
@@ -3012,6 +3013,10 @@ int tcp_md5_hash_skb_data(struct tcp_md5sig_pool *hp,
 		if (crypto_hash_update(desc, &sg, f->size))
 			return 1;
 	}
+
+	skb_walk_frags(skb, frag_iter)
+		if (tcp_md5_hash_skb_data(hp, frag_iter, 0))
+			return 1;
 
 	return 0;
 }
