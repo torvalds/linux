@@ -589,6 +589,9 @@ static int dac33_set_bias_level(struct snd_soc_codec *codec,
 		}
 		break;
 	case SND_SOC_BIAS_OFF:
+		/* Do not power off, when the codec is already off */
+		if (codec->bias_level == SND_SOC_BIAS_OFF)
+			return 0;
 		ret = dac33_hard_power(codec, 0);
 		if (ret != 0)
 			return ret;
