@@ -978,7 +978,9 @@ void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
 	struct dma_chan *chan)
 {
 	tx->chan = chan;
+	#ifndef CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH
 	spin_lock_init(&tx->lock);
+	#endif
 }
 EXPORT_SYMBOL(dma_async_tx_descriptor_init);
 
@@ -1011,7 +1013,7 @@ EXPORT_SYMBOL_GPL(dma_wait_for_async_tx);
  */
 void dma_run_dependencies(struct dma_async_tx_descriptor *tx)
 {
-	struct dma_async_tx_descriptor *dep = tx->next;
+	struct dma_async_tx_descriptor *dep = txd_next(tx);
 	struct dma_async_tx_descriptor *dep_next;
 	struct dma_chan *chan;
 
@@ -1019,7 +1021,7 @@ void dma_run_dependencies(struct dma_async_tx_descriptor *tx)
 		return;
 
 	/* we'll submit tx->next now, so clear the link */
-	tx->next = NULL;
+	txd_clear_next(tx);
 	chan = dep->chan;
 
 	/* keep submitting up until a channel switch is detected
@@ -1027,14 +1029,14 @@ void dma_run_dependencies(struct dma_async_tx_descriptor *tx)
 	 * processing the interrupt from async_tx_channel_switch
 	 */
 	for (; dep; dep = dep_next) {
-		spin_lock_bh(&dep->lock);
-		dep->parent = NULL;
-		dep_next = dep->next;
+		txd_lock(dep);
+		txd_clear_parent(dep);
+		dep_next = txd_next(dep);
 		if (dep_next && dep_next->chan == chan)
-			dep->next = NULL; /* ->next will be submitted */
+			txd_clear_next(dep); /* ->next will be submitted */
 		else
 			dep_next = NULL; /* submit current dep and terminate */
-		spin_unlock_bh(&dep->lock);
+		txd_unlock(dep);
 
 		dep->tx_submit(dep);
 	}

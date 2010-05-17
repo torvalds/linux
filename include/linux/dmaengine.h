@@ -230,10 +230,70 @@ struct dma_async_tx_descriptor {
 	dma_cookie_t (*tx_submit)(struct dma_async_tx_descriptor *tx);
 	dma_async_tx_callback callback;
 	void *callback_param;
+#ifndef CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH
 	struct dma_async_tx_descriptor *next;
 	struct dma_async_tx_descriptor *parent;
 	spinlock_t lock;
+#endif
 };
+
+#ifdef CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH
+static inline void txd_lock(struct dma_async_tx_descriptor *txd)
+{
+}
+static inline void txd_unlock(struct dma_async_tx_descriptor *txd)
+{
+}
+static inline void txd_chain(struct dma_async_tx_descriptor *txd, struct dma_async_tx_descriptor *next)
+{
+	BUG();
+}
+static inline void txd_clear_parent(struct dma_async_tx_descriptor *txd)
+{
+}
+static inline void txd_clear_next(struct dma_async_tx_descriptor *txd)
+{
+}
+static inline struct dma_async_tx_descriptor *txd_next(struct dma_async_tx_descriptor *txd)
+{
+	return NULL;
+}
+static inline struct dma_async_tx_descriptor *txd_parent(struct dma_async_tx_descriptor *txd)
+{
+	return NULL;
+}
+
+#else
+static inline void txd_lock(struct dma_async_tx_descriptor *txd)
+{
+	spin_lock_bh(&txd->lock);
+}
+static inline void txd_unlock(struct dma_async_tx_descriptor *txd)
+{
+	spin_unlock_bh(&txd->lock);
+}
+static inline void txd_chain(struct dma_async_tx_descriptor *txd, struct dma_async_tx_descriptor *next)
+{
+	txd->next = next;
+	next->parent = txd;
+}
+static inline void txd_clear_parent(struct dma_async_tx_descriptor *txd)
+{
+	txd->parent = NULL;
+}
+static inline void txd_clear_next(struct dma_async_tx_descriptor *txd)
+{
+	txd->next = NULL;
+}
+static inline struct dma_async_tx_descriptor *txd_parent(struct dma_async_tx_descriptor *txd)
+{
+	return txd->parent;
+}
+static inline struct dma_async_tx_descriptor *txd_next(struct dma_async_tx_descriptor *txd)
+{
+	return txd->next;
+}
+#endif
 
 /**
  * struct dma_device - info on the entity supplying DMA services
