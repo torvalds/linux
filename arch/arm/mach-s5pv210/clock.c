@@ -184,6 +184,21 @@ static struct clk clk_sclk_hdmi27m = {
 	.rate		= 27000000,
 };
 
+static struct clk clk_sclk_hdmiphy = {
+	.name		= "sclk_hdmiphy",
+	.id		= -1,
+};
+
+static struct clk clk_sclk_usbphy0 = {
+	.name		= "sclk_usbphy0",
+	.id		= -1,
+};
+
+static struct clk clk_sclk_usbphy1 = {
+	.name		= "sclk_usbphy1",
+	.id		= -1,
+};
+
 static struct clk *clkset_vpllsrc_list[] = {
 	[0] = &clk_fin_vpll,
 	[1] = &clk_sclk_hdmi27m,
@@ -426,8 +441,46 @@ static struct clksrc_sources clkset_uart = {
 	.nr_sources	= ARRAY_SIZE(clkset_uart_list),
 };
 
+static struct clk *clkset_group1_list[] = {
+	[0] = &clk_sclk_a2m.clk,
+	[1] = &clk_mout_mpll.clk,
+	[2] = &clk_mout_epll.clk,
+	[3] = &clk_sclk_vpll.clk,
+};
+
+static struct clksrc_sources clkset_group1 = {
+	.sources	= clkset_group1_list,
+	.nr_sources	= ARRAY_SIZE(clkset_group1_list),
+};
+
+static struct clk *clkset_sclk_onenand_list[] = {
+	[0] = &clk_hclk_psys.clk,
+	[1] = &clk_hclk_dsys.clk,
+};
+
+static struct clksrc_sources clkset_sclk_onenand = {
+	.sources	= clkset_sclk_onenand_list,
+	.nr_sources	= ARRAY_SIZE(clkset_sclk_onenand_list),
+};
+
 static struct clksrc_clk clksrcs[] = {
 	{
+		.clk	= {
+			.name		= "sclk_dmc",
+			.id		= -1,
+		},
+		.sources = &clkset_group1,
+		.reg_src = { .reg = S5P_CLK_SRC6, .shift = 24, .size = 2 },
+		.reg_div = { .reg = S5P_CLK_DIV6, .shift = 28, .size = 4 },
+	}, {
+		.clk	= {
+			.name		= "sclk_onenand",
+			.id		= -1,
+		},
+		.sources = &clkset_sclk_onenand,
+		.reg_src = { .reg = S5P_CLK_SRC0, .shift = 28, .size = 1 },
+		.reg_div = { .reg = S5P_CLK_DIV6, .shift = 12, .size = 3 },
+	}, {
 		.clk	= {
 			.name		= "uclk1",
 			.id		= -1,
@@ -529,6 +582,9 @@ void __init_or_cpufreq s5pv210_setup_clocks(void)
 
 static struct clk *clks[] __initdata = {
 	&clk_sclk_hdmi27m,
+	&clk_sclk_hdmiphy,
+	&clk_sclk_usbphy0,
+	&clk_sclk_usbphy1,
 };
 
 void __init s5pv210_register_clocks(void)
