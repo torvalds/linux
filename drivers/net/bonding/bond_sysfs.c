@@ -219,7 +219,7 @@ static ssize_t bonding_store_slaves(struct device *d,
 {
 	char command[IFNAMSIZ + 1] = { 0, };
 	char *ifname;
-	int i, res, found, ret = count;
+	int i, res, ret = count;
 	u32 original_mtu;
 	struct slave *slave;
 	struct net_device *dev = NULL;
@@ -245,7 +245,6 @@ static ssize_t bonding_store_slaves(struct device *d,
 	if (command[0] == '+') {
 
 		/* Got a slave name in ifname.  Is it already in the list? */
-		found = 0;
 
 		dev = __dev_get_by_name(dev_net(bond->dev), ifname);
 		if (!dev) {
