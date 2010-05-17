@@ -593,39 +593,6 @@ int usb_lock_device_for_reset(struct usb_device *udev,
 }
 EXPORT_SYMBOL_GPL(usb_lock_device_for_reset);
 
-static struct usb_device *match_device(struct usb_device *dev,
-				       u16 vendor_id, u16 product_id)
-{
-	struct usb_device *ret_dev = NULL;
-	int child;
-
-	dev_dbg(&dev->dev, "check for vendor %04x, product %04x ...\n",
-	    le16_to_cpu(dev->descriptor.idVendor),
-	    le16_to_cpu(dev->descriptor.idProduct));
-
-	/* see if this device matches */
-	if ((vendor_id == le16_to_cpu(dev->descriptor.idVendor)) &&
-	    (product_id == le16_to_cpu(dev->descriptor.idProduct))) {
-		dev_dbg(&dev->dev, "matched this device!\n");
-		ret_dev = usb_get_dev(dev);
-		goto exit;
-	}
-
-	/* look through all of the children of this device */
-	for (child = 0; child < dev->maxchild; ++child) {
-		if (dev->children[child]) {
-			usb_lock_device(dev->children[child]);
-			ret_dev = match_device(dev->children[child],
-					       vendor_id, product_id);
-			usb_unlock_device(dev->children[child]);
-			if (ret_dev)
-				goto exit;
-		}
-	}
-exit:
-	return ret_dev;
-}
-
 /**
  * usb_get_current_frame_number - return current bus frame number
  * @dev: the device whose bus is being queried
