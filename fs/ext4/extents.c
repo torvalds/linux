@@ -439,10 +439,10 @@ static int __ext4_ext_check(const char *function, struct inode *inode,
 	return 0;
 
 corrupted:
-	__ext4_error(inode->i_sb, function,
-			"bad header/extent in inode #%lu: %s - magic %x, "
+	ext4_error_inode(function, inode,
+			"bad header/extent: %s - magic %x, "
 			"entries %u, max %u(%u), depth %u(%u)",
-			inode->i_ino, error_msg, le16_to_cpu(eh->eh_magic),
+			error_msg, le16_to_cpu(eh->eh_magic),
 			le16_to_cpu(eh->eh_entries), le16_to_cpu(eh->eh_max),
 			max, le16_to_cpu(eh->eh_depth), depth);
 
@@ -1622,9 +1622,7 @@ int ext4_ext_try_to_merge(struct inode *inode,
 		merge_done = 1;
 		WARN_ON(eh->eh_entries == 0);
 		if (!eh->eh_entries)
-			ext4_error(inode->i_sb,
-				   "inode#%lu, eh->eh_entries = 0!",
-				   inode->i_ino);
+			EXT4_ERROR_INODE(inode, "eh->eh_entries = 0!");
 	}
 
 	return merge_done;

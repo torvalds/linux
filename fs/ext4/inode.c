@@ -348,9 +348,8 @@ static int __ext4_check_blockref(const char *function, struct inode *inode,
 		if (blk &&
 		    unlikely(!ext4_data_block_valid(EXT4_SB(inode->i_sb),
 						    blk, 1))) {
-			__ext4_error(inode->i_sb, function,
-				   "invalid block reference %u "
-				   "in inode #%lu", blk, inode->i_ino);
+			ext4_error_inode(function, inode,
+					 "invalid block reference %u", blk);
 			return -EIO;
 		}
 	}
@@ -1129,15 +1128,15 @@ void ext4_da_update_reserve_space(struct inode *inode,
 		ext4_discard_preallocations(inode);
 }
 
-static int check_block_validity(struct inode *inode, const char *msg,
-				sector_t logical, sector_t phys, int len)
+static int check_block_validity(struct inode *inode, const char *func,
+				struct ext4_map_blocks *map)
 {
-	if (!ext4_data_block_valid(EXT4_SB(inode->i_sb), phys, len)) {
-		__ext4_error(inode->i_sb, msg,
-			   "inode #%lu logical block %llu mapped to %llu "
-			   "(size %d)", inode->i_ino,
-			   (unsigned long long) logical,
-			   (unsigned long long) phys, len);
+	if (!ext4_data_block_valid(EXT4_SB(inode->i_sb), map->m_pblk,
+				   map->m_len)) {
+		ext4_error_inode(func, inode,
+			   "lblock %lu mapped to illegal pblock %llu "
+			   "(length %d)", (unsigned long) map->m_lblk,
+				 map->m_pblk, map->m_len);
 		return -EIO;
 	}
 	return 0;
@@ -1245,8 +1244,7 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 	up_read((&EXT4_I(inode)->i_data_sem));
 
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED) {
-		int ret = check_block_validity(inode, "file system corruption",
-					map->m_lblk, map->m_pblk, retval);
+		int ret = check_block_validity(inode, __func__, map);
 		if (ret != 0)
 			return ret;
 	}
@@ -1326,10 +1324,9 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 
 	up_write((&EXT4_I(inode)->i_data_sem));
 	if (retval > 0 && map->m_flags & EXT4_MAP_MAPPED) {
-		int ret = check_block_validity(inode, "file system "
-					       "corruption after allocation",
-					       map->m_lblk, map->m_pblk,
-					       retval);
+		int ret = check_block_validity(inode,
+					       "ext4_map_blocks_after_alloc",
+					       map);
 		if (ret != 0)
 			return ret;
 	}
@@ -4327,10 +4324,9 @@ static int ext4_clear_blocks(handle_t *handle, struct inode *inode,
 
 	if (!ext4_data_block_valid(EXT4_SB(inode->i_sb), block_to_free,
 				   count)) {
-		ext4_error(inode->i_sb, "inode #%lu: "
-			   "attempt to clear blocks %llu len %lu, invalid",
-			   inode->i_ino, (unsigned long long) block_to_free,
-			   count);
+		EXT4_ERROR_INODE(inode, "attempt to clear invalid "
+				 "blocks %llu len %lu",
+				 (unsigned long long) block_to_free, count);
 		return 1;
 	}
 
@@ -4435,11 +4431,10 @@ static void ext4_free_data(handle_t *handle, struct inode *inode,
 		if ((EXT4_JOURNAL(inode) == NULL) || bh2jh(this_bh))
 			ext4_handle_dirty_metadata(handle, inode, this_bh);
 		else
-			ext4_error(inode->i_sb,
-				   "circular indirect block detected, "
-				   "inode=%lu, block=%llu",
-				   inode->i_ino,
-				   (unsigned long long) this_bh->b_blocknr);
+			EXT4_ERROR_INODE(inode,
+					 "circular indirect block detected at "
+					 "block %llu",
+				(unsigned long long) this_bh->b_blocknr);
 	}
 }
 
@@ -4477,11 +4472,10 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 
 			if (!ext4_data_block_valid(EXT4_SB(inode->i_sb),
 						   nr, 1)) {
-				ext4_error(inode->i_sb,
-					   "indirect mapped block in inode "
-					   "#%lu invalid (level %d, blk #%lu)",
-					   inode->i_ino, depth,
-					   (unsigned long) nr);
+				EXT4_ERROR_INODE(inode,
+						 "invalid indirect mapped "
+						 "block %lu (level %d)",
+						 (unsigned long) nr, depth);
 				break;
 			}
 
@@ -4493,9 +4487,9 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			 * (should be rare).
 			 */
 			if (!bh) {
-				ext4_error(inode->i_sb,
-					   "Read failure, inode=%lu, block=%llu",
-					   inode->i_ino, nr);
+				EXT4_ERROR_INODE(inode,
+						 "Read failure block=%llu",
+						 (unsigned long long) nr);
 				continue;
 			}
 
@@ -4810,8 +4804,8 @@ static int __ext4_get_inode_loc(struct inode *inode,
 
 	bh = sb_getblk(sb, block);
 	if (!bh) {
-		ext4_error(sb, "unable to read inode block - "
-			   "inode=%lu, block=%llu", inode->i_ino, block);
+		EXT4_ERROR_INODE(inode, "unable to read inode block - "
+				 "block %llu", block);
 		return -EIO;
 	}
 	if (!buffer_uptodate(bh)) {
@@ -4909,8 +4903,8 @@ make_io:
 		submit_bh(READ_META, bh);
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
-			ext4_error(sb, "unable to read inode block - inode=%lu,"
-				   " block=%llu", inode->i_ino, block);
+			EXT4_ERROR_INODE(inode, "unable to read inode "
+					 "block %llu", block);
 			brelse(bh);
 			return -EIO;
 		}
@@ -5121,8 +5115,8 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	ret = 0;
 	if (ei->i_file_acl &&
 	    !ext4_data_block_valid(EXT4_SB(sb), ei->i_file_acl, 1)) {
-		ext4_error(sb, "bad extended attribute block %llu inode #%lu",
-			   ei->i_file_acl, inode->i_ino);
+		EXT4_ERROR_INODE(inode, "bad extended attribute block %llu",
+				 ei->i_file_acl);
 		ret = -EIO;
 		goto bad_inode;
 	} else if (ei->i_flags & EXT4_EXTENTS_FL) {
@@ -5167,8 +5161,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 			   new_decode_dev(le32_to_cpu(raw_inode->i_block[1])));
 	} else {
 		ret = -EIO;
-		ext4_error(inode->i_sb, "bogus i_mode (%o) for inode=%lu",
-			   inode->i_mode, inode->i_ino);
+		EXT4_ERROR_INODE(inode, "bogus i_mode (%o)", inode->i_mode);
 		goto bad_inode;
 	}
 	brelse(iloc.bh);
@@ -5406,9 +5399,9 @@ int ext4_write_inode(struct inode *inode, struct writeback_control *wbc)
 		if (wbc->sync_mode == WB_SYNC_ALL)
 			sync_dirty_buffer(iloc.bh);
 		if (buffer_req(iloc.bh) && !buffer_uptodate(iloc.bh)) {
-			ext4_error(inode->i_sb, "IO error syncing inode, "
-				   "inode=%lu, block=%llu", inode->i_ino,
-				   (unsigned long long)iloc.bh->b_blocknr);
+			EXT4_ERROR_INODE(inode,
+				"IO error syncing inode (block=%llu)",
+				(unsigned long long) iloc.bh->b_blocknr);
 			err = -EIO;
 		}
 		brelse(iloc.bh);

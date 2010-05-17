@@ -943,8 +943,8 @@ restart:
 		wait_on_buffer(bh);
 		if (!buffer_uptodate(bh)) {
 			/* read error, skip block & hope for the best */
-			ext4_error(sb, "reading directory #%lu offset %lu",
-				   dir->i_ino, (unsigned long)block);
+			EXT4_ERROR_INODE(dir, "reading directory lblock %lu",
+					 (unsigned long) block);
 			brelse(bh);
 			goto next;
 		}
@@ -1066,15 +1066,15 @@ static struct dentry *ext4_lookup(struct inode *dir, struct dentry *dentry, stru
 		__u32 ino = le32_to_cpu(de->inode);
 		brelse(bh);
 		if (!ext4_valid_inum(dir->i_sb, ino)) {
-			ext4_error(dir->i_sb, "bad inode number: %u", ino);
+			EXT4_ERROR_INODE(dir, "bad inode number: %u", ino);
 			return ERR_PTR(-EIO);
 		}
 		inode = ext4_iget(dir->i_sb, ino);
 		if (unlikely(IS_ERR(inode))) {
 			if (PTR_ERR(inode) == -ESTALE) {
-				ext4_error(dir->i_sb,
-						"deleted inode referenced: %u",
-						ino);
+				EXT4_ERROR_INODE(dir,
+						 "deleted inode referenced: %u",
+						 ino);
 				return ERR_PTR(-EIO);
 			} else {
 				return ERR_CAST(inode);
@@ -1104,8 +1104,8 @@ struct dentry *ext4_get_parent(struct dentry *child)
 	brelse(bh);
 
 	if (!ext4_valid_inum(child->d_inode->i_sb, ino)) {
-		ext4_error(child->d_inode->i_sb,
-			   "bad inode number: %u", ino);
+		EXT4_ERROR_INODE(child->d_inode,
+				 "bad parent inode number: %u", ino);
 		return ERR_PTR(-EIO);
 	}
 
@@ -1404,9 +1404,7 @@ static int make_indexed_dir(handle_t *handle, struct dentry *dentry,
 	de = (struct ext4_dir_entry_2 *)((char *)fde +
 		ext4_rec_len_from_disk(fde->rec_len, blocksize));
 	if ((char *) de >= (((char *) root) + blocksize)) {
-		ext4_error(dir->i_sb,
-			   "invalid rec_len for '..' in inode %lu",
-			   dir->i_ino);
+		EXT4_ERROR_INODE(dir, "invalid rec_len for '..'");
 		brelse(bh);
 		return -EIO;
 	}
@@ -1915,9 +1913,8 @@ static int empty_dir(struct inode *inode)
 	if (inode->i_size < EXT4_DIR_REC_LEN(1) + EXT4_DIR_REC_LEN(2) ||
 	    !(bh = ext4_bread(NULL, inode, 0, 0, &err))) {
 		if (err)
-			ext4_error(inode->i_sb,
-				   "error %d reading directory #%lu offset 0",
-				   err, inode->i_ino);
+			EXT4_ERROR_INODE(inode,
+				"error %d reading directory lblock 0", err);
 		else
 			ext4_warning(inode->i_sb,
 				     "bad directory (dir #%lu) - no data block",
@@ -1941,17 +1938,17 @@ static int empty_dir(struct inode *inode)
 	de = ext4_next_entry(de1, sb->s_blocksize);
 	while (offset < inode->i_size) {
 		if (!bh ||
-			(void *) de >= (void *) (bh->b_data+sb->s_blocksize)) {
+		    (void *) de >= (void *) (bh->b_data+sb->s_blocksize)) {
+			unsigned int lblock;
 			err = 0;
 			brelse(bh);
-			bh = ext4_bread(NULL, inode,
-				offset >> EXT4_BLOCK_SIZE_BITS(sb), 0, &err);
+			lblock = offset >> EXT4_BLOCK_SIZE_BITS(sb);
+			bh = ext4_bread(NULL, inode, lblock, 0, &err);
 			if (!bh) {
 				if (err)
-					ext4_error(sb,
-						   "error %d reading directory"
-						   " #%lu offset %u",
-						   err, inode->i_ino, offset);
+					EXT4_ERROR_INODE(inode,
+						"error %d reading directory "
+						"lblock %u", err, lblock);
 				offset += sb->s_blocksize;
 				continue;
 			}
