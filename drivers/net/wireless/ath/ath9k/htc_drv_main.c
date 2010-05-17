@@ -409,6 +409,33 @@ static void ath9k_htc_init_rate(struct ath9k_htc_priv *priv,
 			  sta->addr, be32_to_cpu(trate.capflags));
 }
 
+static void ath9k_htc_update_rate(struct ath9k_htc_priv *priv,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_bss_conf *bss_conf)
+{
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	struct ath9k_htc_target_rate trate;
+	struct ieee80211_sta *sta;
+	int ret;
+
+	memset(&trate, 0, sizeof(struct ath9k_htc_target_rate));
+
+	rcu_read_lock();
+	sta = ieee80211_find_sta(vif, bss_conf->bssid);
+	if (!sta) {
+		rcu_read_unlock();
+		return;
+	}
+	ath9k_htc_setup_rate(priv, sta, &trate);
+	rcu_read_unlock();
+
+	ret = ath9k_htc_send_rate_cmd(priv, &trate);
+	if (!ret)
+		ath_print(common, ATH_DBG_CONFIG,
+			  "Updated target sta: %pM, rate caps: 0x%X\n",
+			  bss_conf->bssid, be32_to_cpu(trate.capflags));
+}
+
 static int ath9k_htc_aggr_oper(struct ath9k_htc_priv *priv,
 			       struct ieee80211_vif *vif,
 			       u8 *sta_addr, u8 tid, bool oper)
@@ -1594,6 +1621,9 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 
 		ath9k_hw_init_global_settings(ah);
 	}
+
+	if (changed & BSS_CHANGED_HT)
+		ath9k_htc_update_rate(priv, vif, bss_conf);
 
 	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
