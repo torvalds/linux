@@ -169,6 +169,17 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 	cifs_set_ops(inode, fattr->cf_flags & CIFS_FATTR_DFS_REFERRAL);
 }
 
+void
+cifs_fill_uniqueid(struct super_block *sb, struct cifs_fattr *fattr)
+{
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SERVER_INUM)
+		return;
+
+	fattr->cf_uniqueid = iunique(sb, ROOT_I);
+}
+
 /* Fill a cifs_fattr struct with info from FILE_UNIX_BASIC_INFO. */
 void
 cifs_unix_basic_to_fattr(struct cifs_fattr *fattr, FILE_UNIX_BASIC_INFO *info,
@@ -322,6 +333,7 @@ int cifs_get_inode_info_unix(struct inode **pinode,
 
 	if (*pinode == NULL) {
 		/* get new inode */
+		cifs_fill_uniqueid(sb, &fattr);
 		*pinode = cifs_iget(sb, &fattr);
 		if (!*pinode)
 			rc = -ENOMEM;
@@ -1197,6 +1209,7 @@ int cifs_mkdir(struct inode *inode, struct dentry *direntry, int mode)
 				direntry->d_op = &cifs_dentry_ops;
 
 			cifs_unix_basic_to_fattr(&fattr, pInfo, cifs_sb);
+			cifs_fill_uniqueid(inode->i_sb, &fattr);
 			newinode = cifs_iget(inode->i_sb, &fattr);
 			if (!newinode) {
 				kfree(pInfo);
