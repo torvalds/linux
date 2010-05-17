@@ -57,6 +57,11 @@ config WM8350_POWER
           Say Y here to enable support for the power management unit
 	  provided by the Wolfson Microelectronics WM8350 PMIC.
 
+config TEST_POWER
+	tristate "Test power driver"
+	help
+	  This driver is used for testing. It's safe to say M here.
+
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
 	select W1
