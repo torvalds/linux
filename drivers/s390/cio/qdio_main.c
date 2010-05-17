@@ -1023,30 +1023,6 @@ int qdio_get_ssqd_desc(struct ccw_device *cdev,
 }
 EXPORT_SYMBOL_GPL(qdio_get_ssqd_desc);
 
-/**
- * qdio_cleanup - shutdown queues and free data structures
- * @cdev: associated ccw device
- * @how: use halt or clear to shutdown
- *
- * This function calls qdio_shutdown() for @cdev with method @how.
- * and qdio_free(). The qdio_free() return value is ignored since
- * !irq_ptr is already checked.
- */
-int qdio_cleanup(struct ccw_device *cdev, int how)
-{
-	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
-	int rc;
-
-	if (!irq_ptr)
-		return -ENODEV;
-
-	rc = qdio_shutdown(cdev, how);
-
-	qdio_free(cdev);
-	return rc;
-}
-EXPORT_SYMBOL_GPL(qdio_cleanup);
-
 static void qdio_shutdown_queues(struct ccw_device *cdev)
 {
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
@@ -1162,28 +1138,6 @@ int qdio_free(struct ccw_device *cdev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qdio_free);
-
-/**
- * qdio_initialize - allocate and establish queues for a qdio subchannel
- * @init_data: initialization data
- *
- * This function first allocates queues via qdio_allocate() and on success
- * establishes them via qdio_establish().
- */
-int qdio_initialize(struct qdio_initialize *init_data)
-{
-	int rc;
-
-	rc = qdio_allocate(init_data);
-	if (rc)
-		return rc;
-
-	rc = qdio_establish(init_data);
-	if (rc)
-		qdio_free(init_data->cdev);
-	return rc;
-}
-EXPORT_SYMBOL_GPL(qdio_initialize);
 
 /**
  * qdio_allocate - allocate qdio queues and associated data
