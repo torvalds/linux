@@ -659,7 +659,7 @@ static void d40_config_set_event(struct d40_chan *d40c, bool do_enable)
 	spin_unlock_irqrestore(&d40c->phy_chan->lock, flags);
 }
 
-static bool d40_chan_has_events(struct d40_chan *d40c)
+static u32 d40_chan_has_events(struct d40_chan *d40c)
 {
 	u32 val = 0;
 
@@ -674,7 +674,7 @@ static bool d40_chan_has_events(struct d40_chan *d40c)
 		val = readl(d40c->base->virtbase + D40_DREG_PCBASE +
 			    d40c->phy_chan->num * D40_DREG_PCDELTA +
 			    D40_CHAN_REG_SDLNK);
-	return (bool) val;
+	return val;
 }
 
 static void d40_config_enable_lidx(struct d40_chan *d40c)
@@ -1389,6 +1389,65 @@ static int d40_pause(struct dma_chan *chan)
 	return res;
 }
 
+static bool d40_is_paused(struct d40_chan *d40c)
+{
+	bool is_paused = false;
+	unsigned long flags;
+	void __iomem *active_reg;
+	u32 status;
+	u32 event;
+	int res;
+
+	spin_lock_irqsave(&d40c->lock, flags);
+
+	if (d40c->log_num == D40_PHY_CHAN) {
+		if (d40c->phy_chan->num % 2 == 0)
+			active_reg = d40c->base->virtbase + D40_DREG_ACTIVE;
+		else
+			active_reg = d40c->base->virtbase + D40_DREG_ACTIVO;
+
+		status = (readl(active_reg) &
+			  D40_CHAN_POS_MASK(d40c->phy_chan->num)) >>
+			D40_CHAN_POS(d40c->phy_chan->num);
+		if (status == D40_DMA_SUSPENDED || status == D40_DMA_STOP)
+			is_paused = true;
+
+		goto _exit;
+	}
+
+	res = d40_channel_execute_command(d40c, D40_DMA_SUSPEND_REQ);
+	if (res != 0)
+		goto _exit;
+
+	if (d40c->dma_cfg.dir == STEDMA40_MEM_TO_PERIPH ||
+	    d40c->dma_cfg.dir == STEDMA40_MEM_TO_MEM)
+		event = D40_TYPE_TO_EVENT(d40c->dma_cfg.dst_dev_type);
+	else if (d40c->dma_cfg.dir == STEDMA40_PERIPH_TO_MEM)
+		event = D40_TYPE_TO_EVENT(d40c->dma_cfg.src_dev_type);
+	else {
+		dev_err(&d40c->chan.dev->device,
+			"[%s] Unknown direction\n", __func__);
+		goto _exit;
+	}
+	status = d40_chan_has_events(d40c);
+	status = (status & D40_EVENTLINE_MASK(event)) >>
+		D40_EVENTLINE_POS(event);
+
+	if (status != D40_DMA_RUN)
+		is_paused = true;
+
+	/* Resume the other logical channels if any */
+	if (d40_chan_has_events(d40c))
+		res = d40_channel_execute_command(d40c,
+						  D40_DMA_RUN);
+
+_exit:
+	spin_unlock_irqrestore(&d40c->lock, flags);
+	return is_paused;
+
+}
+
+
 static bool d40_tx_is_linked(struct d40_chan *d40c)
 {
 	bool is_link;
@@ -1980,13 +2039,13 @@ static enum dma_status d40_tx_status(struct dma_chan *chan,
 	last_complete = d40c->completed;
 	last_used = chan->cookie;
 
-	ret = dma_async_is_complete(cookie, last_complete, last_used);
+	if (d40_is_paused(d40c))
+		ret = DMA_PAUSED;
+	else
+		ret = dma_async_is_complete(cookie, last_complete, last_used);
 
-	if (txstate) {
-		txstate->last = last_complete;
-		txstate->used = last_used;
-		txstate->residue = stedma40_residue(chan);
-	}
+	dma_set_tx_state(txstate, last_complete, last_used,
+			 stedma40_residue(chan));
 
 	return ret;
 }
