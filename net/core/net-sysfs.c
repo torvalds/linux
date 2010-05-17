@@ -469,6 +469,7 @@ static struct attribute_group wireless_group = {
 	.attrs = wireless_attrs,
 };
 #endif
+#endif /* CONFIG_SYSFS */
 
 #ifdef CONFIG_RPS
 /*
@@ -796,11 +797,10 @@ static void net_kobj_ns_exit(struct net *net)
 	kobj_ns_exit(KOBJ_NS_TYPE_NET, net);
 }
 
-static struct pernet_operations sysfs_net_ops = {
+static struct pernet_operations kobj_net_ops = {
 	.exit = net_kobj_ns_exit,
 };
 
-#endif /* CONFIG_SYSFS */
 
 #ifdef CONFIG_HOTPLUG
 static int netdev_uevent(struct device *d, struct kobj_uevent_env *env)
@@ -948,8 +948,6 @@ void netdev_initialize_kobject(struct net_device *net)
 int netdev_kobject_init(void)
 {
 	kobj_ns_type_register(&net_ns_type_operations);
-#ifdef CONFIG_SYSFS
-	register_pernet_subsys(&sysfs_net_ops);
-#endif
+	register_pernet_subsys(&kobj_net_ops);
 	return class_register(&net_class);
 }
