@@ -859,6 +859,12 @@ static long wb_check_old_data_flush(struct bdi_writeback *wb)
 	unsigned long expired;
 	long nr_pages;
 
+	/*
+	 * When set to zero, disable periodic writeback
+	 */
+	if (!dirty_writeback_interval)
+		return 0;
+
 	expired = wb->last_old_flush +
 			msecs_to_jiffies(dirty_writeback_interval * 10);
 	if (time_before(jiffies, expired))
@@ -954,8 +960,12 @@ int bdi_writeback_task(struct bdi_writeback *wb)
 				break;
 		}
 
-		wait_jiffies = msecs_to_jiffies(dirty_writeback_interval * 10);
-		schedule_timeout_interruptible(wait_jiffies);
+		if (dirty_writeback_interval) {
+			wait_jiffies = msecs_to_jiffies(dirty_writeback_interval * 10);
+			schedule_timeout_interruptible(wait_jiffies);
+		} else
+			schedule();
+
 		try_to_freeze();
 	}
 
