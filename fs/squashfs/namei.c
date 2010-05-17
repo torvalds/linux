@@ -63,6 +63,7 @@
 #include "squashfs_fs_sb.h"
 #include "squashfs_fs_i.h"
 #include "squashfs.h"
+#include "xattr.h"
 
 /*
  * Lookup name in the directory index, returning the location of the metadata

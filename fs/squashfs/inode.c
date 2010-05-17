@@ -46,6 +46,7 @@
 #include "squashfs_fs_sb.h"
 #include "squashfs_fs_i.h"
 #include "squashfs.h"
+#include "xattr.h"
 
 /*
  * Initialise VFS inode with the base inode information common to all

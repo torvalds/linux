@@ -76,12 +76,6 @@ extern int squashfs_read_inode(struct inode *, long long);
 /* xattr.c */
 extern ssize_t squashfs_listxattr(struct dentry *, char *, size_t);
 
-/* xattr_id.c */
-extern int squashfs_xattr_lookup(struct super_block *, unsigned int, int *,
-				int *, long long *);
-extern __le64 *squashfs_read_xattr_id_table(struct super_block *, u64,
-				u64 *, int *);
-
 /*
  * Inodes, files,  decompressor and xattr operations
  */

@@ -43,6 +43,7 @@
 #include "squashfs_fs_i.h"
 #include "squashfs.h"
 #include "decompressor.h"
+#include "xattr.h"
 
 static struct file_system_type squashfs_fs_type;
 static const struct super_operations squashfs_super_ops;
@@ -272,7 +273,8 @@ allocate_xattr_table:
 	if (IS_ERR(msblk->xattr_id_table)) {
 		err = PTR_ERR(msblk->xattr_id_table);
 		msblk->xattr_id_table = NULL;
-		goto failed_mount;
+		if (err != -ENOTSUPP)
+			goto failed_mount;
 	}
 allocate_root:
 	root = new_inode(sb);

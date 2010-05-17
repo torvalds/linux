@@ -41,6 +41,7 @@
 #include "squashfs_fs_sb.h"
 #include "squashfs_fs_i.h"
 #include "squashfs.h"
+#include "xattr.h"
 
 static int squashfs_symlink_readpage(struct file *file, struct page *page)
 {
