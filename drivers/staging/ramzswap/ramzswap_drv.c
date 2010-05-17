@@ -335,14 +335,6 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 
 	src = rzs->compress_buffer;
 
-	/*
-	 * System swaps to same sector again when the stored page
-	 * is no longer referenced by any process. So, its now safe
-	 * to free the memory that was allocated for this page.
-	 */
-	if (rzs->table[index].page || rzs_test_flag(rzs, index, RZS_ZERO))
-		ramzswap_free_page(rzs, index);
-
 	mutex_lock(&rzs->lock);
 
 	user_mem = kmap_atomic(page, KM_USER0);
@@ -690,9 +682,21 @@ out:
 	return ret;
 }
 
+void ramzswap_slot_free_notify(struct block_device *bdev, unsigned long index)
+{
+	struct ramzswap *rzs;
+
+	rzs = bdev->bd_disk->private_data;
+	ramzswap_free_page(rzs, index);
+	rzs_stat64_inc(rzs, &rzs->stats.notify_free);
+
+	return;
+}
+
 static struct block_device_operations ramzswap_devops = {
 	.ioctl = ramzswap_ioctl,
-	.owner = THIS_MODULE,
+	.swap_slot_free_notify = ramzswap_slot_free_notify,
+	.owner = THIS_MODULE
 };
 
 static int create_device(struct ramzswap *rzs, int device_id)
