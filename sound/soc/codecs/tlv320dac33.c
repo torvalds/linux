@@ -352,7 +352,7 @@ static int dac33_hard_power(struct snd_soc_codec *codec, int power)
 
 	/* Safety check */
 	if (unlikely(power == dac33->chip_power)) {
-		dev_warn(codec->dev, "Trying to set the same power state: %s\n",
+		dev_dbg(codec->dev, "Trying to set the same power state: %s\n",
 			power ? "ON" : "OFF");
 		goto exit;
 	}
