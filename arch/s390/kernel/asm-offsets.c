@@ -126,7 +126,6 @@ int main(void)
 	DEFINE(__LC_KERNEL_ASCE, offsetof(struct _lowcore, kernel_asce));
 	DEFINE(__LC_USER_ASCE, offsetof(struct _lowcore, user_asce));
 	DEFINE(__LC_USER_EXEC_ASCE, offsetof(struct _lowcore, user_exec_asce));
-	DEFINE(__LC_CPUID, offsetof(struct _lowcore, cpu_id));
 	DEFINE(__LC_INT_CLOCK, offsetof(struct _lowcore, int_clock));
 	DEFINE(__LC_MACHINE_FLAGS, offsetof(struct _lowcore, machine_flags));
 	DEFINE(__LC_FTRACE_FUNC, offsetof(struct _lowcore, ftrace_func));

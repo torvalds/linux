@@ -126,16 +126,15 @@ struct _lowcore {
 	__u32	user_exec_asce;			/* 0x02ac */
 
 	/* SMP info area */
-	struct cpuid cpu_id;			/* 0x02b0 */
-	__u32	cpu_nr;				/* 0x02b8 */
-	__u32	softirq_pending;		/* 0x02bc */
-	__u32	percpu_offset;			/* 0x02c0 */
-	__u32	ext_call_fast;			/* 0x02c4 */
-	__u64	int_clock;			/* 0x02c8 */
-	__u64	clock_comparator;		/* 0x02d0 */
-	__u32	machine_flags;			/* 0x02d8 */
-	__u32	ftrace_func;			/* 0x02dc */
-	__u8	pad_0x02e0[0x0300-0x02e0];	/* 0x02e0 */
+	__u32	cpu_nr;				/* 0x02b0 */
+	__u32	softirq_pending;		/* 0x02b4 */
+	__u32	percpu_offset;			/* 0x02b8 */
+	__u32	ext_call_fast;			/* 0x02bc */
+	__u64	int_clock;			/* 0x02c0 */
+	__u64	clock_comparator;		/* 0x02c8 */
+	__u32	machine_flags;			/* 0x02d0 */
+	__u32	ftrace_func;			/* 0x02d4 */
+	__u8	pad_0x02d8[0x0300-0x02d8];	/* 0x02d8 */
 
 	/* Interrupt response block */
 	__u8	irb[64];			/* 0x0300 */
@@ -189,14 +188,14 @@ struct _lowcore {
 	__u32	data_exc_code;			/* 0x0090 */
 	__u16	mon_class_num;			/* 0x0094 */
 	__u16	per_perc_atmid;			/* 0x0096 */
-	addr_t	per_address;			/* 0x0098 */
+	__u64	per_address;			/* 0x0098 */
 	__u8	exc_access_id;			/* 0x00a0 */
 	__u8	per_access_id;			/* 0x00a1 */
 	__u8	op_access_id;			/* 0x00a2 */
 	__u8	ar_access_id;			/* 0x00a3 */
 	__u8	pad_0x00a4[0x00a8-0x00a4];	/* 0x00a4 */
-	addr_t	trans_exc_code;			/* 0x00a8 */
-	addr_t	monitor_code;			/* 0x00b0 */
+	__u64	trans_exc_code;			/* 0x00a8 */
+	__u64	monitor_code;			/* 0x00b0 */
 	__u16	subchannel_id;			/* 0x00b8 */
 	__u16	subchannel_nr;			/* 0x00ba */
 	__u32	io_int_parm;			/* 0x00bc */
@@ -207,7 +206,7 @@ struct _lowcore {
 	__u32	mcck_interruption_code[2];	/* 0x00e8 */
 	__u8	pad_0x00f0[0x00f4-0x00f0];	/* 0x00f0 */
 	__u32	external_damage_code;		/* 0x00f4 */
-	addr_t	failing_storage_address;	/* 0x00f8 */
+	__u64	failing_storage_address;	/* 0x00f8 */
 	__u8	pad_0x0100[0x0110-0x0100];	/* 0x0100 */
 	__u64	breaking_event_addr;		/* 0x0110 */
 	__u8	pad_0x0118[0x0120-0x0118];	/* 0x0118 */
@@ -255,17 +254,16 @@ struct _lowcore {
 	__u64	user_exec_asce;			/* 0x0318 */
 
 	/* SMP info area */
-	struct cpuid cpu_id;			/* 0x0320 */
-	__u32	cpu_nr;				/* 0x0328 */
-	__u32	softirq_pending;		/* 0x032c */
-	__u64	percpu_offset;			/* 0x0330 */
-	__u64	ext_call_fast;			/* 0x0338 */
-	__u64	int_clock;			/* 0x0340 */
-	__u64	clock_comparator;		/* 0x0348 */
-	__u64	vdso_per_cpu_data;		/* 0x0350 */
-	__u64	machine_flags;			/* 0x0358 */
-	__u64	ftrace_func;			/* 0x0360 */
-	__u8	pad_0x0368[0x0380-0x0368];	/* 0x0368 */
+	__u32	cpu_nr;				/* 0x0320 */
+	__u32	softirq_pending;		/* 0x0324 */
+	__u64	percpu_offset;			/* 0x0328 */
+	__u64	ext_call_fast;			/* 0x0330 */
+	__u64	int_clock;			/* 0x0338 */
+	__u64	clock_comparator;		/* 0x0340 */
+	__u64	vdso_per_cpu_data;		/* 0x0348 */
+	__u64	machine_flags;			/* 0x0350 */
+	__u64	ftrace_func;			/* 0x0358 */
+	__u8	pad_0x0368[0x0380-0x0360];	/* 0x0360 */
 
 	/* Interrupt response block. */
 	__u8	irb[64];			/* 0x0380 */

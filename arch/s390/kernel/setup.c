@@ -113,22 +113,6 @@ static struct resource data_resource = {
 };
 
 /*
- * cpu_init() initializes state that is per-CPU.
- */
-void __cpuinit cpu_init(void)
-{
-        /*
-         * Store processor id in lowcore (used e.g. in timer_interrupt)
-         */
-	get_cpu_id(&S390_lowcore.cpu_id);
-
-	atomic_inc(&init_mm.mm_count);
-	current->active_mm = &init_mm;
-	BUG_ON(current->mm);
-        enter_lazy_tlb(&init_mm, current);
-}
-
-/*
  * condev= and conmode= setup parameter.
  */
 
@@ -695,6 +679,7 @@ static void __init setup_hwcaps(void)
 	static const int stfl_bits[6] = { 0, 2, 7, 17, 19, 21 };
 	unsigned long long facility_list_extended;
 	unsigned int facility_list;
+	struct cpuid cpu_id;
 	int i;
 
 	facility_list = stfl();
@@ -756,7 +741,8 @@ static void __init setup_hwcaps(void)
 	 */
 	elf_hwcap |= HWCAP_S390_HIGH_GPRS;
 
-	switch (S390_lowcore.cpu_id.machine) {
+	get_cpu_id(&cpu_id);
+	switch (cpu_id.machine) {
 	case 0x9672:
 #if !defined(CONFIG_64BIT)
 	default:	/* Use "g5" as default for 31 bit kernels. */
