@@ -463,6 +463,67 @@ static struct clksrc_sources clkset_sclk_onenand = {
 	.nr_sources	= ARRAY_SIZE(clkset_sclk_onenand_list),
 };
 
+static struct clk *clkset_sclk_dac_list[] = {
+	[0] = &clk_sclk_vpll.clk,
+	[1] = &clk_sclk_hdmiphy,
+};
+
+static struct clksrc_sources clkset_sclk_dac = {
+	.sources	= clkset_sclk_dac_list,
+	.nr_sources	= ARRAY_SIZE(clkset_sclk_dac_list),
+};
+
+static struct clksrc_clk clk_sclk_dac = {
+	.clk		= {
+		.name		= "sclk_dac",
+		.id		= -1,
+		.ctrlbit	= (1 << 10),
+		.enable		= s5pv210_clk_ip1_ctrl,
+	},
+	.sources	= &clkset_sclk_dac,
+	.reg_src	= { .reg = S5P_CLK_SRC1, .shift = 8, .size = 1 },
+};
+
+static struct clksrc_clk clk_sclk_pixel = {
+	.clk		= {
+		.name		= "sclk_pixel",
+		.id		= -1,
+		.parent		= &clk_sclk_vpll.clk,
+	},
+	.reg_div	= { .reg = S5P_CLK_DIV1, .shift = 0, .size = 4},
+};
+
+static struct clk *clkset_sclk_hdmi_list[] = {
+	[0] = &clk_sclk_pixel.clk,
+	[1] = &clk_sclk_hdmiphy,
+};
+
+static struct clksrc_sources clkset_sclk_hdmi = {
+	.sources	= clkset_sclk_hdmi_list,
+	.nr_sources	= ARRAY_SIZE(clkset_sclk_hdmi_list),
+};
+
+static struct clksrc_clk clk_sclk_hdmi = {
+	.clk		= {
+		.name		= "sclk_hdmi",
+		.id		= -1,
+		.enable		= s5pv210_clk_ip1_ctrl,
+		.ctrlbit	= (1 << 11),
+	},
+	.sources	= &clkset_sclk_hdmi,
+	.reg_src	= { .reg = S5P_CLK_SRC1, .shift = 0, .size = 1 },
+};
+
+static struct clk *clkset_sclk_mixer_list[] = {
+	[0] = &clk_sclk_dac.clk,
+	[1] = &clk_sclk_hdmi.clk,
+};
+
+static struct clksrc_sources clkset_sclk_mixer = {
+	.sources	= clkset_sclk_mixer_list,
+	.nr_sources	= ARRAY_SIZE(clkset_sclk_mixer_list),
+};
+
 static struct clksrc_clk clksrcs[] = {
 	{
 		.clk	= {
@@ -490,7 +551,16 @@ static struct clksrc_clk clksrcs[] = {
 		.sources = &clkset_uart,
 		.reg_src = { .reg = S5P_CLK_SRC4, .shift = 16, .size = 4 },
 		.reg_div = { .reg = S5P_CLK_DIV4, .shift = 16, .size = 4 },
-	}
+	}, {
+		.clk	= {
+			.name		= "sclk_mixer",
+			.id		= -1,
+			.enable		= s5pv210_clk_ip1_ctrl,
+			.ctrlbit	= (1 << 9),
+		},
+		.sources = &clkset_sclk_mixer,
+		.reg_src = { .reg = S5P_CLK_SRC1, .shift = 4, .size = 1 },
+	},
 };
 
 /* Clock initialisation code */
@@ -508,6 +578,9 @@ static struct clksrc_clk *sysclks[] = {
 	&clk_pclk_psys,
 	&clk_vpllsrc,
 	&clk_sclk_vpll,
+	&clk_sclk_dac,
+	&clk_sclk_pixel,
+	&clk_sclk_hdmi,
 };
 
 void __init_or_cpufreq s5pv210_setup_clocks(void)
