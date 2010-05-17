@@ -46,6 +46,7 @@
 #define SQUASHFS_NAME_LEN		256
 
 #define SQUASHFS_INVALID_FRAG		(0xffffffffU)
+#define SQUASHFS_INVALID_XATTR		(0xffffffffU)
 #define SQUASHFS_INVALID_BLK		(-1LL)
 
 /* Filesystem flags */
@@ -95,6 +96,13 @@
 #define SQUASHFS_LCHRDEV_TYPE		12
 #define SQUASHFS_LFIFO_TYPE		13
 #define SQUASHFS_LSOCKET_TYPE		14
+
+/* Xattr types */
+#define SQUASHFS_XATTR_USER             0
+#define SQUASHFS_XATTR_TRUSTED          1
+#define SQUASHFS_XATTR_SECURITY         2
+#define SQUASHFS_XATTR_VALUE_OOL        256
+#define SQUASHFS_XATTR_PREFIX_MASK      0xff
 
 /* Flag whether block is compressed or uncompressed, bit is set if block is
  * uncompressed */
@@ -393,6 +401,17 @@ struct squashfs_fragment_entry {
 	__le64			start_block;
 	__le32			size;
 	unsigned int		unused;
+};
+
+struct squashfs_xattr_entry {
+	__le16			type;
+	__le16			size;
+	char			data[0];
+};
+
+struct squashfs_xattr_val {
+	__le32			vsize;
+	char			value[0];
 };
 
 struct squashfs_xattr_id {
