@@ -662,7 +662,7 @@ size_t hists__fprintf(struct hists *self, struct hists *pair,
 	long displacement = 0;
 	unsigned int width;
 	const char *sep = symbol_conf.field_sep;
-	char *col_width = symbol_conf.col_width_list_str;
+	const char *col_width = symbol_conf.col_width_list_str;
 
 	init_rem_hits();
 

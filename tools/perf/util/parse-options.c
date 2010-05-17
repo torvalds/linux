@@ -51,7 +51,7 @@ static int get_value(struct parse_opt_ctx_t *p,
 		case OPTION_BOOLEAN:
 		case OPTION_INCR:
 		case OPTION_BIT:
-		case OPTION_SET_INT:
+		case OPTION_SET_UINT:
 		case OPTION_SET_PTR:
 			return opterror(opt, "takes no value", flags);
 		case OPTION_END:
@@ -83,8 +83,8 @@ static int get_value(struct parse_opt_ctx_t *p,
 		*(int *)opt->value = unset ? 0 : *(int *)opt->value + 1;
 		return 0;
 
-	case OPTION_SET_INT:
-		*(int *)opt->value = unset ? 0 : opt->defval;
+	case OPTION_SET_UINT:
+		*(unsigned int *)opt->value = unset ? 0 : opt->defval;
 		return 0;
 
 	case OPTION_SET_PTR:
@@ -515,13 +515,13 @@ int usage_with_options_internal(const char * const *usagestr,
 					pos += fprintf(stderr, " ...");
 			}
 			break;
-		default: /* OPTION_{BIT,BOOLEAN,SET_INT,SET_PTR} */
+		default: /* OPTION_{BIT,BOOLEAN,SET_UINT,SET_PTR} */
 		case OPTION_END:
 		case OPTION_GROUP:
 		case OPTION_BIT:
 		case OPTION_BOOLEAN:
 		case OPTION_INCR:
-		case OPTION_SET_INT:
+		case OPTION_SET_UINT:
 		case OPTION_SET_PTR:
 			break;
 		}

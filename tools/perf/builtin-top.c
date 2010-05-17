@@ -96,7 +96,7 @@ struct source_line {
 	struct source_line	*next;
 };
 
-static char			*sym_filter			=   NULL;
+static const char		*sym_filter			=   NULL;
 struct sym_entry		*sym_filter_entry		=   NULL;
 struct sym_entry		*sym_filter_entry_sched		=   NULL;
 static int			sym_pcnt_filter			=      5;

@@ -78,7 +78,7 @@ struct symbol_conf {
 			*default_guest_kallsyms,
 			*default_guest_modules;
 	const char	*guestmount;
-	char		*dso_list_str,
+	const char	*dso_list_str,
 			*comm_list_str,
 			*sym_list_str,
 			*col_width_list_str;

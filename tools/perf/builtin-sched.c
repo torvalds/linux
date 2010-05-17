@@ -22,7 +22,7 @@
 static char			const *input_name = "perf.data";
 
 static char			default_sort_order[] = "avg, max, switch, runtime";
-static char			*sort_order = default_sort_order;
+static const char		*sort_order = default_sort_order;
 
 static int			profile_cpu = -1;
 

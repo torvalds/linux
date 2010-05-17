@@ -19,7 +19,7 @@
 #include <pthread.h>
 #include <math.h>
 
-static char			*file_name;
+static const char		*file_name;
 static char			name_buffer[256];
 
 bool				perf_host = 1;

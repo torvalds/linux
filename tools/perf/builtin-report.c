@@ -39,8 +39,8 @@ static bool		dont_use_callchains;
 static bool		show_threads;
 static struct perf_read_values	show_threads_values;
 
-static char		default_pretty_printing_style[] = "normal";
-static char		*pretty_printing_style = default_pretty_printing_style;
+static const char	default_pretty_printing_style[] = "normal";
+static const char	*pretty_printing_style = default_pretty_printing_style;
 
 static char		callchain_default_opt[] = "fractal,0.5";
 
