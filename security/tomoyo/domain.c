@@ -678,6 +678,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
  */
 int tomoyo_find_next_domain(struct linux_binprm *bprm)
 {
+	struct tomoyo_request_info r;
 	/*
 	 * This function assumes that the size of buffer returned by
 	 * tomoyo_realpath() = TOMOYO_MAX_PATHNAME_LEN.
@@ -693,11 +694,12 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	const u8 mode = tomoyo_check_flags(old_domain, TOMOYO_MAC_FOR_FILE);
 	const bool is_enforce = (mode == TOMOYO_CONFIG_ENFORCING);
 	int retval = -ENOMEM;
-	struct tomoyo_path_info r; /* real name */
-	struct tomoyo_path_info s; /* symlink name */
-	struct tomoyo_path_info l; /* last name */
+	struct tomoyo_path_info rn; /* real name */
+	struct tomoyo_path_info sn; /* symlink name */
+	struct tomoyo_path_info ln; /* last name */
 	static bool initialized;
 
+	tomoyo_init_request_info(&r, NULL);
 	if (!tmp)
 		goto out;
 
@@ -713,6 +715,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 		initialized = true;
 	}
 
+ retry:
 	/* Get tomoyo_realpath of program. */
 	retval = -ENOENT;
 	/* I hope tomoyo_realpath() won't fail with -ENOMEM. */
@@ -724,37 +727,39 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	if (!symlink_program_name)
 		goto out;
 
-	r.name = real_program_name;
-	tomoyo_fill_path_info(&r);
-	s.name = symlink_program_name;
-	tomoyo_fill_path_info(&s);
-	l.name = tomoyo_get_last_name(old_domain);
-	tomoyo_fill_path_info(&l);
+	rn.name = real_program_name;
+	tomoyo_fill_path_info(&rn);
+	sn.name = symlink_program_name;
+	tomoyo_fill_path_info(&sn);
+	ln.name = tomoyo_get_last_name(old_domain);
+	tomoyo_fill_path_info(&ln);
 
 	/* Check 'alias' directive. */
-	if (tomoyo_pathcmp(&r, &s)) {
+	if (tomoyo_pathcmp(&rn, &sn)) {
 		struct tomoyo_alias_entry *ptr;
 		/* Is this program allowed to be called via symbolic links? */
 		list_for_each_entry_rcu(ptr, &tomoyo_alias_list, list) {
 			if (ptr->is_deleted ||
-			    tomoyo_pathcmp(&r, ptr->original_name) ||
-			    tomoyo_pathcmp(&s, ptr->aliased_name))
+			    tomoyo_pathcmp(&rn, ptr->original_name) ||
+			    tomoyo_pathcmp(&sn, ptr->aliased_name))
 				continue;
 			memset(real_program_name, 0, TOMOYO_MAX_PATHNAME_LEN);
 			strncpy(real_program_name, ptr->aliased_name->name,
 				TOMOYO_MAX_PATHNAME_LEN - 1);
-			tomoyo_fill_path_info(&r);
+			tomoyo_fill_path_info(&rn);
 			break;
 		}
 	}
 
 	/* Check execute permission. */
-	retval = tomoyo_check_exec_perm(old_domain, &r);
+	retval = tomoyo_check_exec_perm(old_domain, &rn);
+	if (retval == TOMOYO_RETRY_REQUEST)
+		goto retry;
 	if (retval < 0)
 		goto out;
 
 	new_domain_name = tmp->buffer;
-	if (tomoyo_is_domain_initializer(old_domain->domainname, &r, &l)) {
+	if (tomoyo_is_domain_initializer(old_domain->domainname, &rn, &ln)) {
 		/* Transit to the child of tomoyo_kernel_domain domain. */
 		snprintf(new_domain_name, TOMOYO_MAX_PATHNAME_LEN + 1,
 			 TOMOYO_ROOT_NAME " " "%s", real_program_name);
@@ -766,7 +771,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 		 * initializers because they might start before /sbin/init.
 		 */
 		domain = old_domain;
-	} else if (tomoyo_is_domain_keeper(old_domain->domainname, &r, &l)) {
+	} else if (tomoyo_is_domain_keeper(old_domain->domainname, &rn, &ln)) {
 		/* Keep current domain. */
 		domain = old_domain;
 	} else {
@@ -779,8 +784,14 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	domain = tomoyo_find_domain(new_domain_name);
 	if (domain)
 		goto done;
-	if (is_enforce)
-		goto done;
+	if (is_enforce) {
+		int error = tomoyo_supervisor(&r, "# wants to create domain\n"
+					      "%s\n", new_domain_name);
+		if (error == TOMOYO_RETRY_REQUEST)
+			goto retry;
+		if (error < 0)
+			goto done;
+	}
 	domain = tomoyo_find_or_assign_new_domain(new_domain_name,
 						  old_domain->profile);
  done:

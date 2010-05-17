@@ -178,19 +178,12 @@ static int tomoyo_mount_acl2(struct tomoyo_request_info *r, char *dev_name,
 		error = 0;
 		break;
 	}
-	if (error) {
-		const char *dev = tomoyo_get_file_pattern(&rdev)->name;
-		const char *dir = tomoyo_get_file_pattern(&rdir)->name;
-		int len = strlen(dev) + strlen(dir) + strlen(requested_type)
-			+ 64;
-		char *buf = kzalloc(len, GFP_NOFS);
-		if (buf) {
-			snprintf(buf, len - 1, "%s %s %s 0x%lX",
-				 dev, dir, requested_type, flags);
-			tomoyo_write_mount_policy(buf, r->domain, false);
-			kfree(buf);
-		}
-	}
+	if (error)
+		error = tomoyo_supervisor(r, TOMOYO_KEYWORD_ALLOW_MOUNT
+					  "%s %s %s 0x%lX\n",
+					  tomoyo_file_pattern(&rdev),
+					  tomoyo_file_pattern(&rdir),
+					  requested_type, flags);
  out:
 	kfree(requested_dev_name);
 	kfree(requested_dir_name);
@@ -279,7 +272,10 @@ static int tomoyo_mount_acl(struct tomoyo_request_info *r, char *dev_name,
 				      TOMOYO_MOUNT_MAKE_SHARED_KEYWORD,
 				      flags & ~MS_SHARED);
 	else
-		error = tomoyo_mount_acl2(r, dev_name, dir, type, flags);
+		do {
+			error = tomoyo_mount_acl2(r, dev_name, dir, type,
+						  flags);
+		} while (error == TOMOYO_RETRY_REQUEST);
 	if (r->mode != TOMOYO_CONFIG_ENFORCING)
 		error = 0;
 	return error;

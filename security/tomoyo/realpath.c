@@ -333,6 +333,9 @@ void __init tomoyo_realpath_init(void)
 		panic("Can't register tomoyo_kernel_domain");
 }
 
+unsigned int tomoyo_quota_for_query;
+unsigned int tomoyo_query_memory_size;
+
 /**
  * tomoyo_read_memory_counter - Check for memory usage in bytes.
  *
@@ -345,6 +348,7 @@ int tomoyo_read_memory_counter(struct tomoyo_io_buffer *head)
 	if (!head->read_eof) {
 		const unsigned int policy
 			= atomic_read(&tomoyo_policy_memory_size);
+		const unsigned int query = tomoyo_query_memory_size;
 		char buffer[64];
 
 		memset(buffer, 0, sizeof(buffer));
@@ -354,8 +358,17 @@ int tomoyo_read_memory_counter(struct tomoyo_io_buffer *head)
 				 tomoyo_quota_for_policy);
 		else
 			buffer[0] = '\0';
-		tomoyo_io_printf(head, "Policy:  %10u%s\n", policy, buffer);
-		tomoyo_io_printf(head, "Total:   %10u\n", policy);
+		tomoyo_io_printf(head, "Policy:       %10u%s\n", policy,
+				 buffer);
+		if (tomoyo_quota_for_query)
+			snprintf(buffer, sizeof(buffer) - 1,
+				 "   (Quota: %10u)",
+				 tomoyo_quota_for_query);
+		else
+			buffer[0] = '\0';
+		tomoyo_io_printf(head, "Query lists:  %10u%s\n", query,
+				 buffer);
+		tomoyo_io_printf(head, "Total:        %10u\n", policy + query);
 		head->read_eof = true;
 	}
 	return 0;
@@ -375,5 +388,7 @@ int tomoyo_write_memory_quota(struct tomoyo_io_buffer *head)
 
 	if (sscanf(data, "Policy: %u", &size) == 1)
 		tomoyo_quota_for_policy = size;
+	else if (sscanf(data, "Query lists: %u", &size) == 1)
+		tomoyo_quota_for_query = size;
 	return 0;
 }

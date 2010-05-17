@@ -74,6 +74,8 @@ static int tomoyo_read_control(struct file *file, char __user *buffer,
 /* Write operation for /sys/kernel/security/tomoyo/ interface. */
 static int tomoyo_write_control(struct file *file, const char __user *buffer,
 				const int buffer_len);
+/* Check whether the domain has too many ACL entries to hold. */
+static bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r);
 
 /**
  * tomoyo_parse_name_union - Parse a tomoyo_name_union.
@@ -1031,7 +1033,7 @@ bool tomoyo_verbose_mode(const struct tomoyo_domain_info *domain)
  *
  * Caller holds tomoyo_read_lock().
  */
-bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
+static bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 {
 	unsigned int count = 0;
 	struct tomoyo_domain_info *domain = r->domain;
@@ -1531,6 +1533,24 @@ static int tomoyo_delete_domain(char *domainname)
 }
 
 /**
+ * tomoyo_write_domain_policy2 - Write domain policy.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ *
+ * Returns 0 on success, negative value otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
+ */
+static int tomoyo_write_domain_policy2(char *data,
+				       struct tomoyo_domain_info *domain,
+				       const bool is_delete)
+{
+	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_ALLOW_MOUNT))
+                return tomoyo_write_mount_policy(data, domain, is_delete);
+	return tomoyo_write_file_policy(data, domain, is_delete);
+}
+
+/**
  * tomoyo_write_domain_policy - Write domain policy.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
@@ -1580,9 +1600,7 @@ static int tomoyo_write_domain_policy(struct tomoyo_io_buffer *head)
 		domain->ignore_global_allow_read = !is_delete;
 		return 0;
 	}
-        if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_ALLOW_MOUNT))
-                return tomoyo_write_mount_policy(data, domain, is_delete);
-	return tomoyo_write_file_policy(data, domain, is_delete);
+	return tomoyo_write_domain_policy2(data, domain, is_delete);
 }
 
 /**
@@ -2186,6 +2204,357 @@ void tomoyo_load_policy(const char *filename)
 }
 
 /**
+ * tomoyo_print_header - Get header line of audit log.
+ *
+ * @r: Pointer to "struct tomoyo_request_info".
+ *
+ * Returns string representation.
+ *
+ * This function uses kmalloc(), so caller must kfree() if this function
+ * didn't return NULL.
+ */
+static char *tomoyo_print_header(struct tomoyo_request_info *r)
+{
+	static const char *tomoyo_mode_4[4] = {
+		"disabled", "learning", "permissive", "enforcing"
+	};
+	struct timeval tv;
+	const pid_t gpid = task_pid_nr(current);
+	static const int tomoyo_buffer_len = 4096;
+	char *buffer = kmalloc(tomoyo_buffer_len, GFP_NOFS);
+	if (!buffer)
+		return NULL;
+	do_gettimeofday(&tv);
+	snprintf(buffer, tomoyo_buffer_len - 1,
+		 "#timestamp=%lu profile=%u mode=%s (global-pid=%u)"
+		 " task={ pid=%u ppid=%u uid=%u gid=%u euid=%u"
+		 " egid=%u suid=%u sgid=%u fsuid=%u fsgid=%u }",
+		 tv.tv_sec, r->profile, tomoyo_mode_4[r->mode], gpid,
+		 (pid_t) sys_getpid(), (pid_t) sys_getppid(),
+		 current_uid(), current_gid(), current_euid(),
+		 current_egid(), current_suid(), current_sgid(),
+		 current_fsuid(), current_fsgid());
+	return buffer;
+}
+
+/**
+ * tomoyo_init_audit_log - Allocate buffer for audit logs.
+ *
+ * @len: Required size.
+ * @r:   Pointer to "struct tomoyo_request_info".
+ *
+ * Returns pointer to allocated memory.
+ *
+ * The @len is updated to add the header lines' size on success.
+ *
+ * This function uses kzalloc(), so caller must kfree() if this function
+ * didn't return NULL.
+ */
+static char *tomoyo_init_audit_log(int *len, struct tomoyo_request_info *r)
+{
+	char *buf = NULL;
+	const char *header;
+	const char *domainname;
+	if (!r->domain)
+		r->domain = tomoyo_domain();
+	domainname = r->domain->domainname->name;
+	header = tomoyo_print_header(r);
+	if (!header)
+		return NULL;
+	*len += strlen(domainname) + strlen(header) + 10;
+	buf = kzalloc(*len, GFP_NOFS);
+	if (buf)
+		snprintf(buf, (*len) - 1, "%s\n%s\n", header, domainname);
+	kfree(header);
+	return buf;
+}
+
+/* Wait queue for tomoyo_query_list. */
+static DECLARE_WAIT_QUEUE_HEAD(tomoyo_query_wait);
+
+/* Lock for manipulating tomoyo_query_list. */
+static DEFINE_SPINLOCK(tomoyo_query_list_lock);
+
+/* Structure for query. */
+struct tomoyo_query_entry {
+	struct list_head list;
+	char *query;
+	int query_len;
+	unsigned int serial;
+	int timer;
+	int answer;
+};
+
+/* The list for "struct tomoyo_query_entry". */
+static LIST_HEAD(tomoyo_query_list);
+
+/*
+ * Number of "struct file" referring /sys/kernel/security/tomoyo/query
+ * interface.
+ */
+static atomic_t tomoyo_query_observers = ATOMIC_INIT(0);
+
+/**
+ * tomoyo_supervisor - Ask for the supervisor's decision.
+ *
+ * @r:       Pointer to "struct tomoyo_request_info".
+ * @fmt:     The printf()'s format string, followed by parameters.
+ *
+ * Returns 0 if the supervisor decided to permit the access request which
+ * violated the policy in enforcing mode, TOMOYO_RETRY_REQUEST if the
+ * supervisor decided to retry the access request which violated the policy in
+ * enforcing mode, 0 if it is not in enforcing mode, -EPERM otherwise.
+ */
+int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
+{
+	va_list args;
+	int error = -EPERM;
+	int pos;
+	int len;
+	static unsigned int tomoyo_serial;
+	struct tomoyo_query_entry *tomoyo_query_entry = NULL;
+	bool quota_exceeded = false;
+	char *header;
+	switch (r->mode) {
+		char *buffer;
+	case TOMOYO_CONFIG_LEARNING:
+		if (!tomoyo_domain_quota_is_ok(r))
+			return 0;
+		va_start(args, fmt);
+		len = vsnprintf((char *) &pos, sizeof(pos) - 1, fmt, args) + 4;
+		va_end(args);
+		buffer = kmalloc(len, GFP_NOFS);
+		if (!buffer)
+			return 0;
+		va_start(args, fmt);
+		vsnprintf(buffer, len - 1, fmt, args);
+		va_end(args);
+		tomoyo_normalize_line(buffer);
+		tomoyo_write_domain_policy2(buffer, r->domain, false);
+		kfree(buffer);
+		/* fall through */
+	case TOMOYO_CONFIG_PERMISSIVE:
+		return 0;
+	}
+	if (!r->domain)
+		r->domain = tomoyo_domain();
+	if (!atomic_read(&tomoyo_query_observers))
+		return -EPERM;
+	va_start(args, fmt);
+	len = vsnprintf((char *) &pos, sizeof(pos) - 1, fmt, args) + 32;
+	va_end(args);
+	header = tomoyo_init_audit_log(&len, r);
+	if (!header)
+		goto out;
+	tomoyo_query_entry = kzalloc(sizeof(*tomoyo_query_entry), GFP_NOFS);
+	if (!tomoyo_query_entry)
+		goto out;
+	tomoyo_query_entry->query = kzalloc(len, GFP_NOFS);
+	if (!tomoyo_query_entry->query)
+		goto out;
+	len = ksize(tomoyo_query_entry->query);
+	INIT_LIST_HEAD(&tomoyo_query_entry->list);
+	spin_lock(&tomoyo_query_list_lock);
+	if (tomoyo_quota_for_query && tomoyo_query_memory_size + len +
+	    sizeof(*tomoyo_query_entry) >= tomoyo_quota_for_query) {
+		quota_exceeded = true;
+	} else {
+		tomoyo_query_memory_size += len + sizeof(*tomoyo_query_entry);
+		tomoyo_query_entry->serial = tomoyo_serial++;
+	}
+	spin_unlock(&tomoyo_query_list_lock);
+	if (quota_exceeded)
+		goto out;
+	pos = snprintf(tomoyo_query_entry->query, len - 1, "Q%u-%hu\n%s",
+		       tomoyo_query_entry->serial, r->retry, header);
+	kfree(header);
+	header = NULL;
+	va_start(args, fmt);
+	vsnprintf(tomoyo_query_entry->query + pos, len - 1 - pos, fmt, args);
+	tomoyo_query_entry->query_len = strlen(tomoyo_query_entry->query) + 1;
+	va_end(args);
+	spin_lock(&tomoyo_query_list_lock);
+	list_add_tail(&tomoyo_query_entry->list, &tomoyo_query_list);
+	spin_unlock(&tomoyo_query_list_lock);
+	/* Give 10 seconds for supervisor's opinion. */
+	for (tomoyo_query_entry->timer = 0;
+	     atomic_read(&tomoyo_query_observers) && tomoyo_query_entry->timer < 100;
+	     tomoyo_query_entry->timer++) {
+		wake_up(&tomoyo_query_wait);
+		set_current_state(TASK_INTERRUPTIBLE);
+		schedule_timeout(HZ / 10);
+		if (tomoyo_query_entry->answer)
+			break;
+	}
+	spin_lock(&tomoyo_query_list_lock);
+	list_del(&tomoyo_query_entry->list);
+	tomoyo_query_memory_size -= len + sizeof(*tomoyo_query_entry);
+	spin_unlock(&tomoyo_query_list_lock);
+	switch (tomoyo_query_entry->answer) {
+	case 3: /* Asked to retry by administrator. */
+		error = TOMOYO_RETRY_REQUEST;
+		r->retry++;
+		break;
+	case 1:
+		/* Granted by administrator. */
+		error = 0;
+		break;
+	case 0:
+		/* Timed out. */
+		break;
+	default:
+		/* Rejected by administrator. */
+		break;
+	}
+ out:
+	if (tomoyo_query_entry)
+		kfree(tomoyo_query_entry->query);
+	kfree(tomoyo_query_entry);
+	kfree(header);
+	return error;
+}
+
+/**
+ * tomoyo_poll_query - poll() for /sys/kernel/security/tomoyo/query.
+ *
+ * @file: Pointer to "struct file".
+ * @wait: Pointer to "poll_table".
+ *
+ * Returns POLLIN | POLLRDNORM when ready to read, 0 otherwise.
+ *
+ * Waits for access requests which violated policy in enforcing mode.
+ */
+static int tomoyo_poll_query(struct file *file, poll_table *wait)
+{
+	struct list_head *tmp;
+	bool found = false;
+	u8 i;
+	for (i = 0; i < 2; i++) {
+		spin_lock(&tomoyo_query_list_lock);
+		list_for_each(tmp, &tomoyo_query_list) {
+			struct tomoyo_query_entry *ptr
+				= list_entry(tmp, struct tomoyo_query_entry,
+					     list);
+			if (ptr->answer)
+				continue;
+			found = true;
+			break;
+		}
+		spin_unlock(&tomoyo_query_list_lock);
+		if (found)
+			return POLLIN | POLLRDNORM;
+		if (i)
+			break;
+		poll_wait(file, &tomoyo_query_wait, wait);
+	}
+	return 0;
+}
+
+/**
+ * tomoyo_read_query - Read access requests which violated policy in enforcing mode.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ *
+ * Returns 0.
+ */
+static int tomoyo_read_query(struct tomoyo_io_buffer *head)
+{
+	struct list_head *tmp;
+	int pos = 0;
+	int len = 0;
+	char *buf;
+	if (head->read_avail)
+		return 0;
+	if (head->read_buf) {
+		kfree(head->read_buf);
+		head->read_buf = NULL;
+		head->readbuf_size = 0;
+	}
+	spin_lock(&tomoyo_query_list_lock);
+	list_for_each(tmp, &tomoyo_query_list) {
+		struct tomoyo_query_entry *ptr
+			= list_entry(tmp, struct tomoyo_query_entry, list);
+		if (ptr->answer)
+			continue;
+		if (pos++ != head->read_step)
+			continue;
+		len = ptr->query_len;
+		break;
+	}
+	spin_unlock(&tomoyo_query_list_lock);
+	if (!len) {
+		head->read_step = 0;
+		return 0;
+	}
+	buf = kzalloc(len, GFP_NOFS);
+	if (!buf)
+		return 0;
+	pos = 0;
+	spin_lock(&tomoyo_query_list_lock);
+	list_for_each(tmp, &tomoyo_query_list) {
+		struct tomoyo_query_entry *ptr
+			= list_entry(tmp, struct tomoyo_query_entry, list);
+		if (ptr->answer)
+			continue;
+		if (pos++ != head->read_step)
+			continue;
+		/*
+		 * Some query can be skipped because tomoyo_query_list
+		 * can change, but I don't care.
+		 */
+		if (len == ptr->query_len)
+			memmove(buf, ptr->query, len);
+		break;
+	}
+	spin_unlock(&tomoyo_query_list_lock);
+	if (buf[0]) {
+		head->read_avail = len;
+		head->readbuf_size = head->read_avail;
+		head->read_buf = buf;
+		head->read_step++;
+	} else {
+		kfree(buf);
+	}
+	return 0;
+}
+
+/**
+ * tomoyo_write_answer - Write the supervisor's decision.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ *
+ * Returns 0 on success, -EINVAL otherwise.
+ */
+static int tomoyo_write_answer(struct tomoyo_io_buffer *head)
+{
+	char *data = head->write_buf;
+	struct list_head *tmp;
+	unsigned int serial;
+	unsigned int answer;
+	spin_lock(&tomoyo_query_list_lock);
+	list_for_each(tmp, &tomoyo_query_list) {
+		struct tomoyo_query_entry *ptr
+			= list_entry(tmp, struct tomoyo_query_entry, list);
+		ptr->timer = 0;
+	}
+	spin_unlock(&tomoyo_query_list_lock);
+	if (sscanf(data, "A%u=%u", &serial, &answer) != 2)
+		return -EINVAL;
+	spin_lock(&tomoyo_query_list_lock);
+	list_for_each(tmp, &tomoyo_query_list) {
+		struct tomoyo_query_entry *ptr
+			= list_entry(tmp, struct tomoyo_query_entry, list);
+		if (ptr->serial != serial)
+			continue;
+		if (!ptr->answer)
+			ptr->answer = answer;
+		break;
+	}
+	spin_unlock(&tomoyo_query_list_lock);
+	return 0;
+}
+
+/**
  * tomoyo_read_version: Get version.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
@@ -2239,6 +2608,7 @@ static int tomoyo_open_control(const u8 type, struct file *file)
 	if (!head)
 		return -ENOMEM;
 	mutex_init(&head->io_sem);
+	head->type = type;
 	switch (type) {
 	case TOMOYO_DOMAINPOLICY:
 		/* /sys/kernel/security/tomoyo/domain_policy */
@@ -2280,6 +2650,11 @@ static int tomoyo_open_control(const u8 type, struct file *file)
 		head->write = tomoyo_write_profile;
 		head->read = tomoyo_read_profile;
 		break;
+	case TOMOYO_QUERY: /* /sys/kernel/security/tomoyo/query */
+		head->poll = tomoyo_poll_query;
+		head->write = tomoyo_write_answer;
+		head->read = tomoyo_read_query;
+		break;
 	case TOMOYO_MANAGER:
 		/* /sys/kernel/security/tomoyo/manager */
 		head->write = tomoyo_write_manager_policy;
@@ -2292,7 +2667,9 @@ static int tomoyo_open_control(const u8 type, struct file *file)
 		 * for reading.
 		 */
 		head->read = NULL;
-	} else {
+		head->poll = NULL;
+	} else if (!head->poll) {
+		/* Don't allocate read_buf for poll() access. */
 		if (!head->readbuf_size)
 			head->readbuf_size = 4096 * 2;
 		head->read_buf = kzalloc(head->readbuf_size, GFP_NOFS);
@@ -2316,7 +2693,8 @@ static int tomoyo_open_control(const u8 type, struct file *file)
 			return -ENOMEM;
 		}
 	}
-	head->reader_idx = tomoyo_read_lock();
+	if (type != TOMOYO_QUERY)
+		head->reader_idx = tomoyo_read_lock();
 	file->private_data = head;
 	/*
 	 * Call the handler now if the file is
@@ -2327,7 +2705,32 @@ static int tomoyo_open_control(const u8 type, struct file *file)
 	 */
 	if (type == TOMOYO_SELFDOMAIN)
 		tomoyo_read_control(file, NULL, 0);
+	/*
+	 * If the file is /sys/kernel/security/tomoyo/query , increment the
+	 * observer counter.
+	 * The obserber counter is used by tomoyo_supervisor() to see if
+	 * there is some process monitoring /sys/kernel/security/tomoyo/query.
+	 */
+	else if (type == TOMOYO_QUERY)
+		atomic_inc(&tomoyo_query_observers);
 	return 0;
+}
+
+/**
+ * tomoyo_poll_control - poll() for /sys/kernel/security/tomoyo/ interface.
+ *
+ * @file: Pointer to "struct file".
+ * @wait: Pointer to "poll_table".
+ *
+ * Waits for read readiness.
+ * /sys/kernel/security/tomoyo/query is handled by /usr/sbin/tomoyo-queryd .
+ */
+int tomoyo_poll_control(struct file *file, poll_table *wait)
+{
+	struct tomoyo_io_buffer *head = file->private_data;
+	if (!head->poll)
+		return -ENOSYS;
+	return head->poll(file, wait);
 }
 
 /**
@@ -2443,7 +2846,14 @@ static int tomoyo_close_control(struct file *file)
 	struct tomoyo_io_buffer *head = file->private_data;
 	const bool is_write = !!head->write_buf;
 
-	tomoyo_read_unlock(head->reader_idx);
+	/*
+	 * If the file is /sys/kernel/security/tomoyo/query , decrement the
+	 * observer counter.
+	 */
+	if (head->type == TOMOYO_QUERY)
+		atomic_dec(&tomoyo_query_observers);
+	else
+		tomoyo_read_unlock(head->reader_idx);
 	/* Release memory used for policy I/O. */
 	kfree(head->read_buf);
 	head->read_buf = NULL;
@@ -2562,6 +2972,8 @@ static int __init tomoyo_initerface_init(void)
 		return 0;
 
 	tomoyo_dir = securityfs_create_dir("tomoyo", NULL);
+	tomoyo_create_entry("query",            0600, tomoyo_dir,
+			    TOMOYO_QUERY);
 	tomoyo_create_entry("domain_policy",    0600, tomoyo_dir,
 			    TOMOYO_DOMAINPOLICY);
 	tomoyo_create_entry("exception_policy", 0600, tomoyo_dir,

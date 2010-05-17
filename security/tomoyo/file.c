@@ -478,7 +478,7 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 }
 
 /**
- * tomoyo_get_file_pattern - Get patterned pathname.
+ * tomoyo_file_pattern - Get patterned pathname.
  *
  * @filename: The filename to find patterned pathname.
  *
@@ -486,8 +486,7 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
  *
  * Caller holds tomoyo_read_lock().
  */
-const struct tomoyo_path_info *
-tomoyo_get_file_pattern(const struct tomoyo_path_info *filename)
+const char *tomoyo_file_pattern(const struct tomoyo_path_info *filename)
 {
 	struct tomoyo_pattern_entry *ptr;
 	const struct tomoyo_path_info *pattern = NULL;
@@ -507,7 +506,7 @@ tomoyo_get_file_pattern(const struct tomoyo_path_info *filename)
 	}
 	if (pattern)
 		filename = pattern;
-	return filename;
+	return filename->name;
 }
 
 /**
@@ -812,23 +811,25 @@ static int tomoyo_file_perm(struct tomoyo_request_info *r,
 		perm = 1 << TOMOYO_TYPE_EXECUTE;
 	} else
 		BUG();
-	error = tomoyo_path_acl(r, filename, perm, mode != 1);
-	if (error && mode == 4 && !r->domain->ignore_global_allow_read
-	    && tomoyo_is_globally_readable_file(filename))
+	do {
+		error = tomoyo_path_acl(r, filename, perm, mode != 1);
+		if (error && mode == 4 && !r->domain->ignore_global_allow_read
+		    && tomoyo_is_globally_readable_file(filename))
+			error = 0;
+		if (!error)
+			break;
+		tomoyo_warn_log(r, "%s %s", msg, filename->name);
+		error = tomoyo_supervisor(r, "allow_%s %s\n", msg,
+					  mode == 1 ? filename->name :
+					  tomoyo_file_pattern(filename));
+		/*
+                 * Do not retry for execute request, for alias may have
+		 * changed.
+                 */
+	} while (error == TOMOYO_RETRY_REQUEST && mode != 1);
+	if (r->mode != TOMOYO_CONFIG_ENFORCING)
 		error = 0;
-	if (!error)
-		return 0;
-	tomoyo_warn_log(r, "%s %s", msg, filename->name);
-	if (r->mode == TOMOYO_CONFIG_ENFORCING)
-		return error;
-	if (tomoyo_domain_quota_is_ok(r)) {
-		/* Don't use patterns for execute permission. */
-		const struct tomoyo_path_info *patterned_file = (mode != 1) ?
-			tomoyo_get_file_pattern(filename) : filename;
-		tomoyo_update_file_acl(mode, patterned_file->name, r->domain,
-				       false);
-	}
-	return 0;
+	return error;
 }
 
 /**
@@ -1123,21 +1124,21 @@ static int tomoyo_path2_acl(const struct tomoyo_request_info *r, const u8 type,
 static int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 				  const struct tomoyo_path_info *filename)
 {
+	const char *msg;
 	int error;
 
  next:
-	error = tomoyo_path_acl(r, filename, 1 << operation, 1);
-	if (!error)
-		goto ok;
-	tomoyo_warn_log(r, "%s %s", tomoyo_path2keyword(operation),
-			filename->name);
-	if (tomoyo_domain_quota_is_ok(r)) {
-		const char *name = tomoyo_get_file_pattern(filename)->name;
-		tomoyo_update_path_acl(operation, name, r->domain, false);
-	}
+	do {
+		error = tomoyo_path_acl(r, filename, 1 << operation, 1);
+		if (!error)
+			break;
+		msg = tomoyo_path2keyword(operation);
+		tomoyo_warn_log(r, "%s %s", msg, filename->name);
+		error = tomoyo_supervisor(r, "allow_%s %s\n", msg,
+					  tomoyo_file_pattern(filename));
+	} while (error == TOMOYO_RETRY_REQUEST);
 	if (r->mode != TOMOYO_CONFIG_ENFORCING)
 		error = 0;
- ok:
 	/*
 	 * Since "allow_truncate" doesn't imply "allow_rewrite" permission,
 	 * we need to check "allow_rewrite" permission if the filename is
@@ -1267,6 +1268,7 @@ static int tomoyo_path_number_perm2(struct tomoyo_request_info *r,
 	char buffer[64];
 	int error;
 	u8 radix;
+	const char *msg;
 
 	if (!filename)
 		return 0;
@@ -1286,15 +1288,16 @@ static int tomoyo_path_number_perm2(struct tomoyo_request_info *r,
 		break;
 	}
 	tomoyo_print_ulong(buffer, sizeof(buffer), number, radix);
-	error = tomoyo_path_number_acl(r, type, filename, number);
-	if (!error)
-		return 0;
-	tomoyo_warn_log(r, "%s %s %s", tomoyo_path_number2keyword(type),
-			filename->name, buffer);
-	if (tomoyo_domain_quota_is_ok(r))
-		tomoyo_update_path_number_acl(type,
-					      tomoyo_get_file_pattern(filename)
-					      ->name, buffer, r->domain, false);
+	do {
+		error = tomoyo_path_number_acl(r, type, filename, number);
+		if (!error)
+			break;
+		msg = tomoyo_path_number2keyword(type);
+		tomoyo_warn_log(r, "%s %s %s", msg, filename->name, buffer);
+		error = tomoyo_supervisor(r, "allow_%s %s %s\n", msg,
+					  tomoyo_file_pattern(filename),
+					  buffer);
+	} while (error == TOMOYO_RETRY_REQUEST);
 	if (r->mode != TOMOYO_CONFIG_ENFORCING)
 		error = 0;
 	return error;
@@ -1484,32 +1487,23 @@ static int tomoyo_path_number3_perm2(struct tomoyo_request_info *r,
 				     const unsigned int dev)
 {
 	int error;
+	const char *msg;
 	const unsigned int major = MAJOR(dev);
 	const unsigned int minor = MINOR(dev);
 
-	error = tomoyo_path_number3_acl(r, filename, 1 << operation, mode,
-					major, minor);
-	if (!error)
-		return 0;
-	tomoyo_warn_log(r, "%s %s 0%o %u %u",
-			tomoyo_path_number32keyword(operation),
-			filename->name, mode, major, minor);
-	if (tomoyo_domain_quota_is_ok(r)) {
-		char mode_buf[64];
-		char major_buf[64];
-		char minor_buf[64];
-		memset(mode_buf, 0, sizeof(mode_buf));
-		memset(major_buf, 0, sizeof(major_buf));
-		memset(minor_buf, 0, sizeof(minor_buf));
-		snprintf(mode_buf, sizeof(mode_buf) - 1, "0%o", mode);
-		snprintf(major_buf, sizeof(major_buf) - 1, "%u", major);
-		snprintf(minor_buf, sizeof(minor_buf) - 1, "%u", minor);
-		tomoyo_update_path_number3_acl(operation,
-					       tomoyo_get_file_pattern(filename)
-					       ->name, mode_buf, major_buf,
-					       minor_buf, r->domain, false);
-	}
-	if (r->mode != TOMOYO_CONFIG_ENFORCING)
+	do {
+		error = tomoyo_path_number3_acl(r, filename, 1 << operation,
+						mode, major, minor);
+		if (!error)
+			break;
+		msg = tomoyo_path_number32keyword(operation);
+		tomoyo_warn_log(r, "%s %s 0%o %u %u", msg, filename->name,
+				mode, major, minor);
+		error = tomoyo_supervisor(r, "allow_%s %s 0%o %u %u\n", msg,
+					  tomoyo_file_pattern(filename), mode,
+					  major, minor);
+	} while (error == TOMOYO_RETRY_REQUEST);
+        if (r->mode != TOMOYO_CONFIG_ENFORCING)
 		error = 0;
 	return error;
 }
@@ -1562,6 +1556,7 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 		      struct path *path2)
 {
 	int error = -ENOMEM;
+	const char *msg;
 	struct tomoyo_path_info *buf1;
 	struct tomoyo_path_info *buf2;
 	struct tomoyo_request_info r;
@@ -1591,17 +1586,16 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 			}
 		}
 	}
-	error = tomoyo_path2_acl(&r, operation, buf1, buf2);
-	if (!error)
-		goto out;
-	tomoyo_warn_log(&r, "%s %s %s", tomoyo_path22keyword(operation),
-			buf1->name, buf2->name);
-	if (tomoyo_domain_quota_is_ok(&r)) {
-		const char *name1 = tomoyo_get_file_pattern(buf1)->name;
-		const char *name2 = tomoyo_get_file_pattern(buf2)->name;
-		tomoyo_update_path2_acl(operation, name1, name2, r.domain,
-					false);
-	}
+	do {
+		error = tomoyo_path2_acl(&r, operation, buf1, buf2);
+		if (!error)
+			break;
+		msg = tomoyo_path22keyword(operation);
+		tomoyo_warn_log(&r, "%s %s %s", msg, buf1->name, buf2->name);
+		error = tomoyo_supervisor(&r, "allow_%s %s %s\n", msg,
+					  tomoyo_file_pattern(buf1),
+					  tomoyo_file_pattern(buf2));
+        } while (error == TOMOYO_RETRY_REQUEST);
  out:
 	kfree(buf1);
 	kfree(buf2);

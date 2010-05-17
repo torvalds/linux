@@ -20,6 +20,7 @@
 #include <linux/mount.h>
 #include <linux/list.h>
 #include <linux/cred.h>
+#include <linux/poll.h>
 struct linux_binprm;
 
 /********** Constants definitions. **********/
@@ -156,8 +157,11 @@ enum tomoyo_securityfs_interface_index {
 	TOMOYO_SELFDOMAIN,
 	TOMOYO_VERSION,
 	TOMOYO_PROFILE,
+	TOMOYO_QUERY,
 	TOMOYO_MANAGER
 };
+
+#define TOMOYO_RETRY_REQUEST 1 /* Retry this request. */
 
 /********** Structure definitions. **********/
 
@@ -176,10 +180,14 @@ struct tomoyo_page_buffer {
  * tomoyo_request_info is a structure which is used for holding
  *
  * (1) Domain information of current process.
- * (2) Access control mode of the profile.
+ * (2) How many retries are made for this request.
+ * (3) Profile number used for this request.
+ * (4) Access control mode of the profile.
  */
 struct tomoyo_request_info {
 	struct tomoyo_domain_info *domain;
+	u8 retry;
+	u8 profile;
 	u8 mode; /* One of tomoyo_mode_index . */
 };
 
@@ -484,6 +492,7 @@ struct tomoyo_mount_acl {
 struct tomoyo_io_buffer {
 	int (*read) (struct tomoyo_io_buffer *);
 	int (*write) (struct tomoyo_io_buffer *);
+	int (*poll) (struct file *file, poll_table *wait);
 	/* Exclusive lock for this structure.   */
 	struct mutex io_sem;
 	/* Index returned by tomoyo_read_lock(). */
@@ -514,6 +523,8 @@ struct tomoyo_io_buffer {
 	int write_avail;
 	/* Size of write buffer.                */
 	int writebuf_size;
+	/* Type of this interface.              */
+	u8 type;
 };
 
 /*
@@ -659,14 +670,15 @@ struct tomoyo_policy_manager_entry {
 
 /********** Function prototypes. **********/
 
+extern asmlinkage long sys_getpid(void);
+extern asmlinkage long sys_getppid(void);
+
 /* Check whether the given name matches the given name_union. */
 bool tomoyo_compare_name_union(const struct tomoyo_path_info *name,
 			       const struct tomoyo_name_union *ptr);
 /* Check whether the given number matches the given number_union. */
 bool tomoyo_compare_number_union(const unsigned long value,
 				 const struct tomoyo_number_union *ptr);
-/* Check whether the domain has too many ACL entries to hold. */
-bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r);
 /* Transactional sprintf() for policy dump. */
 bool tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
 	__attribute__ ((format(printf, 2, 3)));
@@ -763,6 +775,8 @@ int tomoyo_write_no_rewrite_policy(char *data, const bool is_delete);
 int tomoyo_write_pattern_policy(char *data, const bool is_delete);
 /* Create "path_group" entry in exception policy. */
 int tomoyo_write_path_group_policy(char *data, const bool is_delete);
+int tomoyo_supervisor(struct tomoyo_request_info *r, const char *fmt, ...)
+     __attribute__ ((format(printf, 2, 3)));
 /* Create "number_group" entry in exception policy. */
 int tomoyo_write_number_group_policy(char *data, const bool is_delete);
 /* Find a domain by the given name. */
@@ -771,9 +785,6 @@ struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname);
 struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 							    domainname,
 							    const u8 profile);
-/* Get patterned pathname. */
-const struct tomoyo_path_info *
-tomoyo_get_file_pattern(const struct tomoyo_path_info *filename);
 /* Allocate memory for "struct tomoyo_path_group". */
 struct tomoyo_path_group *tomoyo_get_path_group(const char *group_name);
 struct tomoyo_number_group *tomoyo_get_number_group(const char *group_name);
@@ -807,6 +818,8 @@ char *tomoyo_realpath(const char *pathname);
 char *tomoyo_realpath_nofollow(const char *pathname);
 /* Same with tomoyo_realpath() except that the pathname is already solved. */
 char *tomoyo_realpath_from_path(struct path *path);
+/* Get patterned pathname. */
+const char *tomoyo_file_pattern(const struct tomoyo_path_info *filename);
 
 /* Check memory quota. */
 bool tomoyo_memory_ok(void *ptr);
@@ -877,6 +890,9 @@ extern bool tomoyo_policy_loaded;
 
 /* The kernel's domain. */
 extern struct tomoyo_domain_info tomoyo_kernel_domain;
+
+extern unsigned int tomoyo_quota_for_query;
+extern unsigned int tomoyo_query_memory_size;
 
 /********** Inlined functions. **********/
 
