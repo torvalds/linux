@@ -33,14 +33,14 @@ int s3c2412_gpio_set_sleepcfg(unsigned int pin, unsigned int state)
 
 	offs *= 2;
 
-	if (pin < S3C2410_GPIO_BANKB)
+	if (pin < S3C2410_GPB(0))
 		return -EINVAL;
 
-	if (pin >= S3C2410_GPIO_BANKF &&
-	    pin <= S3C2410_GPIO_BANKG)
+	if (pin >= S3C2410_GPF(0) &&
+	    pin <= S3C2410_GPG(16))
 		return -EINVAL;
 
-	if (pin > (S3C2410_GPIO_BANKH + 32))
+	if (pin > S3C2410_GPH(16))
 		return -EINVAL;
 
 	local_irq_save(flags);
