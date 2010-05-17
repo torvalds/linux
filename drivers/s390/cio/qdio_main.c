@@ -955,6 +955,9 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		return;
 	}
 
+	if (irq_ptr->perf_stat_enabled)
+		irq_ptr->perf_stat.qdio_int++;
+
 	if (IS_ERR(irb)) {
 		switch (PTR_ERR(irb)) {
 		case -EIO:
