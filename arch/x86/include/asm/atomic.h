@@ -22,7 +22,7 @@
  */
 static inline int atomic_read(const atomic_t *v)
 {
-	return v->counter;
+	return (*(volatile int *)&(v)->counter);
 }
 
 /**
