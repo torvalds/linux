@@ -281,6 +281,7 @@ static int linear_stop (mddev_t *mddev)
 	rcu_barrier();
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
 	kfree(conf);
+	mddev->private = NULL;
 
 	return 0;
 }
