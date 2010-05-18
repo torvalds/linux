@@ -53,6 +53,16 @@ static struct intel_lvds *enc_to_intel_lvds(struct drm_encoder *encoder)
 	return container_of(enc_to_intel_encoder(encoder), struct intel_lvds, base);
 }
 
+static void intel_lvds_lock_panel(struct drm_device *dev, bool lock)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (lock)
+		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) & 0x3);
+	else
+		I915_WRITE(PP_CONTROL, I915_READ(PP_CONTROL) | PANEL_UNLOCK_REGS);
+}
+
 /**
  * Sets the power state for the panel.
  */
@@ -349,10 +359,14 @@ static void intel_lvds_prepare(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_lvds *intel_lvds = enc_to_intel_lvds(encoder);
 
 	dev_priv->backlight_level = intel_panel_get_backlight(dev);
 
-	intel_lvds_set_power(dev, false);
+	if (intel_lvds->pfit_control == I915_READ(PFIT_CONTROL))
+		intel_lvds_lock_panel(dev, false);
+	else
+		intel_lvds_set_power(dev, false);
 }
 
 static void intel_lvds_commit( struct drm_encoder *encoder)
@@ -363,7 +377,10 @@ static void intel_lvds_commit( struct drm_encoder *encoder)
 	if (dev_priv->backlight_level == 0)
 		dev_priv->backlight_level = intel_panel_get_max_backlight(dev);
 
-	intel_lvds_set_power(dev, true);
+	if ((I915_READ(PP_CONTROL) & PANEL_UNLOCK_REGS) == PANEL_UNLOCK_REGS)
+		intel_lvds_lock_panel(dev, true);
+	else
+		intel_lvds_set_power(dev, true);
 }
 
 static void intel_lvds_mode_set(struct drm_encoder *encoder,
