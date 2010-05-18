@@ -117,9 +117,12 @@ static cpumask_var_t __read_mostly	tracing_buffer_mask;
  *
  * It is default off, but you can enable it with either specifying
  * "ftrace_dump_on_oops" in the kernel command line, or setting
- * /proc/sys/kernel/ftrace_dump_on_oops to true.
+ * /proc/sys/kernel/ftrace_dump_on_oops
+ * Set 1 if you want to dump buffers of all CPUs
+ * Set 2 if you want to dump the buffer of the CPU that triggered oops
  */
-int ftrace_dump_on_oops;
+
+enum ftrace_dump_mode ftrace_dump_on_oops;
 
 static int tracing_set_tracer(const char *buf);
 
@@ -139,8 +142,17 @@ __setup("ftrace=", set_cmdline_ftrace);
 
 static int __init set_ftrace_dump_on_oops(char *str)
 {
-	ftrace_dump_on_oops = 1;
-	return 1;
+	if (*str++ != '=' || !*str) {
+		ftrace_dump_on_oops = DUMP_ALL;
+		return 1;
+	}
+
+	if (!strcmp("orig_cpu", str)) {
+		ftrace_dump_on_oops = DUMP_ORIG;
+                return 1;
+        }
+
+        return 0;
 }
 __setup("ftrace_dump_on_oops", set_ftrace_dump_on_oops);
 
@@ -1571,7 +1583,7 @@ __find_next_entry(struct trace_iterator *iter, int *ent_cpu,
 {
 	struct ring_buffer *buffer = iter->tr->buffer;
 	struct trace_entry *ent, *next = NULL;
-	unsigned long lost_events, next_lost = 0;
+	unsigned long lost_events = 0, next_lost = 0;
 	int cpu_file = iter->cpu_file;
 	u64 next_ts = 0, ts;
 	int next_cpu = -1;
@@ -1796,7 +1808,7 @@ static void print_func_help_header(struct seq_file *m)
 }
 
 
-static void
+void
 print_trace_header(struct seq_file *m, struct trace_iterator *iter)
 {
 	unsigned long sym_flags = (trace_flags & TRACE_ITER_SYM_MASK);
@@ -2005,7 +2017,7 @@ static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 	return event ? event->binary(iter, 0) : TRACE_TYPE_HANDLED;
 }
 
-static int trace_empty(struct trace_iterator *iter)
+int trace_empty(struct trace_iterator *iter)
 {
 	int cpu;
 
@@ -2072,6 +2084,23 @@ static enum print_line_t print_trace_line(struct trace_iterator *iter)
 	return print_trace_fmt(iter);
 }
 
+void trace_default_header(struct seq_file *m)
+{
+	struct trace_iterator *iter = m->private;
+
+	if (iter->iter_flags & TRACE_FILE_LAT_FMT) {
+		/* print nothing if the buffers are empty */
+		if (trace_empty(iter))
+			return;
+		print_trace_header(m, iter);
+		if (!(trace_flags & TRACE_ITER_VERBOSE))
+			print_lat_help_header(m);
+	} else {
+		if (!(trace_flags & TRACE_ITER_VERBOSE))
+			print_func_help_header(m);
+	}
+}
+
 static int s_show(struct seq_file *m, void *v)
 {
 	struct trace_iterator *iter = v;
@@ -2084,17 +2113,9 @@ static int s_show(struct seq_file *m, void *v)
 		}
 		if (iter->trace && iter->trace->print_header)
 			iter->trace->print_header(m);
-		else if (iter->iter_flags & TRACE_FILE_LAT_FMT) {
-			/* print nothing if the buffers are empty */
-			if (trace_empty(iter))
-				return 0;
-			print_trace_header(m, iter);
-			if (!(trace_flags & TRACE_ITER_VERBOSE))
-				print_lat_help_header(m);
-		} else {
-			if (!(trace_flags & TRACE_ITER_VERBOSE))
-				print_func_help_header(m);
-		}
+		else
+			trace_default_header(m);
+
 	} else if (iter->leftover) {
 		/*
 		 * If we filled the seq_file buffer earlier, we
@@ -2180,15 +2201,20 @@ __tracing_open(struct inode *inode, struct file *file)
 
 	if (iter->cpu_file == TRACE_PIPE_ALL_CPU) {
 		for_each_tracing_cpu(cpu) {
-
 			iter->buffer_iter[cpu] =
-				ring_buffer_read_start(iter->tr->buffer, cpu);
+				ring_buffer_read_prepare(iter->tr->buffer, cpu);
+		}
+		ring_buffer_read_prepare_sync();
+		for_each_tracing_cpu(cpu) {
+			ring_buffer_read_start(iter->buffer_iter[cpu]);
 			tracing_iter_reset(iter, cpu);
 		}
 	} else {
 		cpu = iter->cpu_file;
 		iter->buffer_iter[cpu] =
-				ring_buffer_read_start(iter->tr->buffer, cpu);
+			ring_buffer_read_prepare(iter->tr->buffer, cpu);
+		ring_buffer_read_prepare_sync();
+		ring_buffer_read_start(iter->buffer_iter[cpu]);
 		tracing_iter_reset(iter, cpu);
 	}
 
@@ -4338,7 +4364,7 @@ static int trace_panic_handler(struct notifier_block *this,
 			       unsigned long event, void *unused)
 {
 	if (ftrace_dump_on_oops)
-		ftrace_dump();
+		ftrace_dump(ftrace_dump_on_oops);
 	return NOTIFY_OK;
 }
 
@@ -4355,7 +4381,7 @@ static int trace_die_handler(struct notifier_block *self,
 	switch (val) {
 	case DIE_OOPS:
 		if (ftrace_dump_on_oops)
-			ftrace_dump();
+			ftrace_dump(ftrace_dump_on_oops);
 		break;
 	default:
 		break;
@@ -4396,7 +4422,8 @@ trace_printk_seq(struct trace_seq *s)
 	trace_seq_init(s);
 }
 
-static void __ftrace_dump(bool disable_tracing)
+static void
+__ftrace_dump(bool disable_tracing, enum ftrace_dump_mode oops_dump_mode)
 {
 	static arch_spinlock_t ftrace_dump_lock =
 		(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
@@ -4429,12 +4456,25 @@ static void __ftrace_dump(bool disable_tracing)
 	/* don't look at user memory in panic mode */
 	trace_flags &= ~TRACE_ITER_SYM_USEROBJ;
 
-	printk(KERN_TRACE "Dumping ftrace buffer:\n");
-
 	/* Simulate the iterator */
 	iter.tr = &global_trace;
 	iter.trace = current_trace;
-	iter.cpu_file = TRACE_PIPE_ALL_CPU;
+
+	switch (oops_dump_mode) {
+	case DUMP_ALL:
+		iter.cpu_file = TRACE_PIPE_ALL_CPU;
+		break;
+	case DUMP_ORIG:
+		iter.cpu_file = raw_smp_processor_id();
+		break;
+	case DUMP_NONE:
+		goto out_enable;
+	default:
+		printk(KERN_TRACE "Bad dumping mode, switching to all CPUs dump\n");
+		iter.cpu_file = TRACE_PIPE_ALL_CPU;
+	}
+
+	printk(KERN_TRACE "Dumping ftrace buffer:\n");
 
 	/*
 	 * We need to stop all tracing on all CPUS to read the
@@ -4473,6 +4513,7 @@ static void __ftrace_dump(bool disable_tracing)
 	else
 		printk(KERN_TRACE "---------------------------------\n");
 
+ out_enable:
 	/* Re-enable tracing if requested */
 	if (!disable_tracing) {
 		trace_flags |= old_userobj;
@@ -4489,9 +4530,9 @@ static void __ftrace_dump(bool disable_tracing)
 }
 
 /* By default: disable tracing after the dump */
-void ftrace_dump(void)
+void ftrace_dump(enum ftrace_dump_mode oops_dump_mode)
 {
-	__ftrace_dump(true);
+	__ftrace_dump(true, oops_dump_mode);
 }
 
 __init static int tracer_alloc_buffers(void)

@@ -33,6 +33,65 @@ struct tracepoint {
 					 * Keep in sync with vmlinux.lds.h.
 					 */
 
+/*
+ * Connect a probe to a tracepoint.
+ * Internal API, should not be used directly.
+ */
+extern int tracepoint_probe_register(const char *name, void *probe);
+
+/*
+ * Disconnect a probe from a tracepoint.
+ * Internal API, should not be used directly.
+ */
+extern int tracepoint_probe_unregister(const char *name, void *probe);
+
+extern int tracepoint_probe_register_noupdate(const char *name, void *probe);
+extern int tracepoint_probe_unregister_noupdate(const char *name, void *probe);
+extern void tracepoint_probe_update_all(void);
+
+struct tracepoint_iter {
+	struct module *module;
+	struct tracepoint *tracepoint;
+};
+
+extern void tracepoint_iter_start(struct tracepoint_iter *iter);
+extern void tracepoint_iter_next(struct tracepoint_iter *iter);
+extern void tracepoint_iter_stop(struct tracepoint_iter *iter);
+extern void tracepoint_iter_reset(struct tracepoint_iter *iter);
+extern int tracepoint_get_iter_range(struct tracepoint **tracepoint,
+	struct tracepoint *begin, struct tracepoint *end);
+
+/*
+ * tracepoint_synchronize_unregister must be called between the last tracepoint
+ * probe unregistration and the end of module exit to make sure there is no
+ * caller executing a probe when it is freed.
+ */
+static inline void tracepoint_synchronize_unregister(void)
+{
+	synchronize_sched();
+}
+
+#define PARAMS(args...) args
+
+#ifdef CONFIG_TRACEPOINTS
+extern void tracepoint_update_probe_range(struct tracepoint *begin,
+	struct tracepoint *end);
+#else
+static inline void tracepoint_update_probe_range(struct tracepoint *begin,
+	struct tracepoint *end)
+{ }
+#endif /* CONFIG_TRACEPOINTS */
+
+#endif /* _LINUX_TRACEPOINT_H */
+
+/*
+ * Note: we keep the TRACE_EVENT and DECLARE_TRACE outside the include
+ *  file ifdef protection.
+ *  This is due to the way trace events work. If a file includes two
+ *  trace event headers under one "CREATE_TRACE_POINTS" the first include
+ *  will override the TRACE_EVENT and break the second include.
+ */
+
 #ifndef DECLARE_TRACE
 
 #define TP_PROTO(args...)	args
@@ -96,9 +155,6 @@ struct tracepoint {
 #define EXPORT_TRACEPOINT_SYMBOL(name)					\
 	EXPORT_SYMBOL(__tracepoint_##name)
 
-extern void tracepoint_update_probe_range(struct tracepoint *begin,
-	struct tracepoint *end);
-
 #else /* !CONFIG_TRACEPOINTS */
 #define DECLARE_TRACE(name, proto, args)				\
 	static inline void _do_trace_##name(struct tracepoint *tp, proto) \
@@ -119,60 +175,8 @@ extern void tracepoint_update_probe_range(struct tracepoint *begin,
 #define EXPORT_TRACEPOINT_SYMBOL_GPL(name)
 #define EXPORT_TRACEPOINT_SYMBOL(name)
 
-static inline void tracepoint_update_probe_range(struct tracepoint *begin,
-	struct tracepoint *end)
-{ }
 #endif /* CONFIG_TRACEPOINTS */
 #endif /* DECLARE_TRACE */
-
-/*
- * Connect a probe to a tracepoint.
- * Internal API, should not be used directly.
- */
-extern int tracepoint_probe_register(const char *name, void *probe);
-
-/*
- * Disconnect a probe from a tracepoint.
- * Internal API, should not be used directly.
- */
-extern int tracepoint_probe_unregister(const char *name, void *probe);
-
-extern int tracepoint_probe_register_noupdate(const char *name, void *probe);
-extern int tracepoint_probe_unregister_noupdate(const char *name, void *probe);
-extern void tracepoint_probe_update_all(void);
-
-struct tracepoint_iter {
-	struct module *module;
-	struct tracepoint *tracepoint;
-};
-
-extern void tracepoint_iter_start(struct tracepoint_iter *iter);
-extern void tracepoint_iter_next(struct tracepoint_iter *iter);
-extern void tracepoint_iter_stop(struct tracepoint_iter *iter);
-extern void tracepoint_iter_reset(struct tracepoint_iter *iter);
-extern int tracepoint_get_iter_range(struct tracepoint **tracepoint,
-	struct tracepoint *begin, struct tracepoint *end);
-
-/*
- * tracepoint_synchronize_unregister must be called between the last tracepoint
- * probe unregistration and the end of module exit to make sure there is no
- * caller executing a probe when it is freed.
- */
-static inline void tracepoint_synchronize_unregister(void)
-{
-	synchronize_sched();
-}
-
-#define PARAMS(args...) args
-
-#endif /* _LINUX_TRACEPOINT_H */
-
-/*
- * Note: we keep the TRACE_EVENT outside the include file ifdef protection.
- *  This is due to the way trace events work. If a file includes two
- *  trace event headers under one "CREATE_TRACE_POINTS" the first include
- *  will override the TRACE_EVENT and break the second include.
- */
 
 #ifndef TRACE_EVENT
 /*
