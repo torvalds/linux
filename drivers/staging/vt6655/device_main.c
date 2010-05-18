@@ -2156,7 +2156,7 @@ BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, UINT uNodeIndex) {
     cbFrameBodySize = skb->len - ETH_HLEN;
 
     // 802.1H
-    if (ntohs(pDevice->sTxEthHeader.wType) > MAX_DATA_LEN) {
+    if (ntohs(pDevice->sTxEthHeader.wType) > ETH_DATA_LEN) {
         cbFrameBodySize += 8;
     }
     uMACfragNum = cbGetFragCount(pDevice, pTransmitKey, cbFrameBodySize, &pDevice->sTxEthHeader);
@@ -2359,7 +2359,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
     memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)(skb->data), ETH_HLEN);
     cbFrameBodySize = skb->len - ETH_HLEN;
     // 802.1H
-    if (ntohs(pDevice->sTxEthHeader.wType) > MAX_DATA_LEN) {
+    if (ntohs(pDevice->sTxEthHeader.wType) > ETH_DATA_LEN) {
         cbFrameBodySize += 8;
     }
 

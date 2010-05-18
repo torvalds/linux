@@ -1622,7 +1622,7 @@ s_cbFillTxBufHead (
 
 
                 // 802.1H
-                if (ntohs(psEthHeader->wType) > MAX_DATA_LEN) {
+                if (ntohs(psEthHeader->wType) > ETH_DATA_LEN) {
                     if ((psEthHeader->wType == TYPE_PKT_IPX) ||
                         (psEthHeader->wType == cpu_to_le16(0xF380))) {
                         memcpy((PBYTE) (pbyPayloadHead), &pDevice->abySNAP_Bridgetunnel[0], 6);
@@ -1986,7 +1986,7 @@ s_cbFillTxBufHead (
         }
 
         // 802.1H
-        if (ntohs(psEthHeader->wType) > MAX_DATA_LEN) {
+        if (ntohs(psEthHeader->wType) > ETH_DATA_LEN) {
             if ((psEthHeader->wType == TYPE_PKT_IPX) ||
                 (psEthHeader->wType == cpu_to_le16(0xF380))) {
                 memcpy((PBYTE) (pbyPayloadHead), &pDevice->abySNAP_Bridgetunnel[0], 6);

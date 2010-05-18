@@ -95,7 +95,7 @@ BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeI
 
     cbFrameBodySize = uDataLen - ETH_HLEN;
 
-    if (ntohs(pDevice->sTxEthHeader.wType) > MAX_DATA_LEN) {
+    if (ntohs(pDevice->sTxEthHeader.wType) > ETH_DATA_LEN) {
         cbFrameBodySize += 8;
     }
 
