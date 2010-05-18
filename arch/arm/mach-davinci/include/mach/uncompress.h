@@ -63,6 +63,10 @@ static inline void set_uart_info(u32 phys, void * __iomem virt)
 	_DEBUG_LL_ENTRY(machine, DA8XX_UART##port##_BASE,	\
 			IO_ADDRESS(DA8XX_UART##port##_BASE))
 
+#define DEBUG_LL_TNETV107X(machine, port)			\
+	_DEBUG_LL_ENTRY(machine, TNETV107X_UART##port##_BASE,	\
+			TNETV107X_UART##port##_VIRT)
+
 static inline void __arch_decomp_setup(unsigned long arch_id)
 {
 	/*
@@ -84,6 +88,9 @@ static inline void __arch_decomp_setup(unsigned long arch_id)
 		/* DA8xx boards */
 		DEBUG_LL_DA8XX(davinci_da830_evm,	2);
 		DEBUG_LL_DA8XX(davinci_da850_evm,	2);
+
+		/* TNETV107x boards */
+		DEBUG_LL_TNETV107X(tnetv107x,		1);
 	} while (0);
 }
 
