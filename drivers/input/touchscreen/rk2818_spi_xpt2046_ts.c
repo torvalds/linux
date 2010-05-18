@@ -46,6 +46,12 @@
  * note. The strength of filtering can be set in the board-* specific
  * files.
  */
+#define XPT2046_DEBUG			0
+#if XPT2046_DEBUG
+	#define xpt2046printk(msg...)	printk(msg);
+#else
+	#define xpt2046printk(msg...)
+#endif
 #define LCD_MAX_LENGTH				800
 #define LCD_MAX_WIDTH				480
 #define PT2046_TOUCH_AD_LEFT		3855
@@ -306,7 +312,9 @@ static void xpt2046_rx(void *xpt)
 	 */
 	x = packet->tc.x;
 	y = packet->tc.y;
-	printk("***>%s:x=%d,y=%d\n",__FUNCTION__,x,y);
+
+	xpt2046printk("***>%s:x=%d,y=%d\n",__FUNCTION__,x,y);
+
 	/* range filtering */
 	if (x == MAX_12BIT)
 		x = 0;
@@ -316,7 +324,9 @@ static void xpt2046_rx(void *xpt)
 	 * once more the measurement
 	 */
 	if (packet->tc.ignore) {
-		printk("***>%s:ignored=%d\n",__FUNCTION__,packet->tc.ignore);
+
+		xpt2046printk("***>%s:ignored=%d\n",__FUNCTION__,packet->tc.ignore);
+	
 		hrtimer_start(&ts->timer, ktime_set(0, TS_POLL_PERIOD),
 			      HRTIMER_MODE_REL);
 		return;
@@ -360,7 +370,7 @@ static void xpt2046_rx(void *xpt)
 		input_report_abs(input, ABS_Y, y);
 
 		input_sync(input);
-		printk("***>%s:input_report_abs(%4d/%4d)\n",__FUNCTION__,x, y);
+		xpt2046printk("***>%s:input_report_abs(%4d/%4d)\n",__FUNCTION__,x, y);
 	}
 
 	hrtimer_start(&ts->timer, ktime_set(0, TS_POLL_PERIOD),
@@ -373,12 +383,12 @@ static int xpt2046_debounce(void *xpt, int data_idx, int *val)
 	static int average_val[2];
 	
 
-	printk("***>%s:%d,%d,%d,%d,%d,%d,%d,%d\n",__FUNCTION__,
+	xpt2046printk("***>%s:%d,%d,%d,%d,%d,%d,%d,%d\n",__FUNCTION__,
 		data_idx,ts->last_read,
 	  ts->read_cnt,ts->debounce_max,
 		abs(ts->last_read - *val),ts->debounce_tol,
 		ts->read_rep,ts->debounce_rep);
-	
+
 	/* discard the first sample. */
 	if(!ts->read_cnt)
 	{
@@ -406,7 +416,7 @@ static int xpt2046_debounce(void *xpt, int data_idx, int *val)
 			ts->read_cnt = 0;
 			ts->last_read = 0;
 			memset(average_val,0,sizeof(average_val));
-			printk("***>%s:XPT2046_FILTER_IGNORE\n",__FUNCTION__);
+			xpt2046printk("***>%s:XPT2046_FILTER_IGNORE\n",__FUNCTION__);
 			return XPT2046_FILTER_IGNORE;
 		}
 	} 
@@ -452,7 +462,9 @@ static void xpt2046_rx_val(void *xpt)
 	 * built from two 8 bit values written msb-first.
 	 */
 	val = (be16_to_cpup((__be16 *)t->rx_buf) >> 3) & 0x0fff;
-	printk("***>%s:value=%d\n",__FUNCTION__,val);
+
+	xpt2046printk("***>%s:value=%d\n",__FUNCTION__,val);
+	
 	action = ts->filter(ts->filter_data, ts->msg_idx, &val);
 	switch (action) {
 	case XPT2046_FILTER_REPEAT:
@@ -508,7 +520,7 @@ static enum hrtimer_restart xpt2046_timer(struct hrtimer *handle)
 		ts->pending = 0;
 	} else {
 		/* pen is still down, continue with the measurement */
-		printk("***>%s:pen is still down, continue with the measurement\n",__FUNCTION__);
+		xpt2046printk("***>%s:pen is still down, continue with the measurement\n",__FUNCTION__);
 		ts->msg_idx = 0;
 		ts->wait_for_sync();
 		status = spi_async(ts->spi, &ts->msg[0]);
@@ -525,7 +537,7 @@ static irqreturn_t xpt2046_irq(int irq, void *handle)
 	struct xpt2046 *ts = handle;
 	unsigned long flags;
 	
-	printk("***>%s.....%s.....%d\n",__FILE__,__FUNCTION__,__LINE__);
+	xpt2046printk("***>%s.....%s.....%d\n",__FILE__,__FUNCTION__,__LINE__);
 	
 	spin_lock_irqsave(&ts->lock, flags);
 
