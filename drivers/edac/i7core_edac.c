@@ -1,9 +1,14 @@
-/* Intel 7 core  Memory Controller kernel module (Nehalem)
+/* Intel i7 core/Nehalem Memory Controller kernel module
+ *
+ * This driver supports yhe memory controllers found on the Intel
+ * processor families i7core, i7core 7xx/8xx, i5core, Xeon 35xx,
+ * Xeon 55xx and Xeon 56xx also known as Nehalem, Nehalem-EP, Lynnfield
+ * and Westmere-EP.
  *
  * This file may be distributed under the terms of the
  * GNU General Public License version 2 only.
  *
- * Copyright (c) 2009 by:
+ * Copyright (c) 2009-2010 by:
  *	 Mauro Carvalho Chehab <mchehab@redhat.com>
  *
  * Red Hat Inc. http://www.redhat.com
