@@ -237,7 +237,7 @@ static struct spi_board_info board_spi_devices[] = {
 		.mode	= SPI_MODE_0,
 	},
 #endif	
-#if defined(CONFIG_TOUCHSCREEN_RK2818_SPI_XPT2046) || defined(CONFIG_TOUCHSCREEN_RK2818_SPI_XPT2046_CBN)
+#if defined(CONFIG_TOUCHSCREEN_XPT2046_SPI) || defined(CONFIG_TOUCHSCREEN_XPT2046_CBN_SPI)
 	{
 		.modalias	= "xpt2046_ts",
 		.chip_select	= 0,
