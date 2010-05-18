@@ -157,6 +157,9 @@ static int btrfs_xattr_set_acl(struct inode *inode, int type,
 	int ret = 0;
 	struct posix_acl *acl = NULL;
 
+	if (!is_owner_or_cap(inode))
+		return -EPERM;
+
 	if (value) {
 		acl = posix_acl_from_xattr(value, size);
 		if (acl == NULL) {
