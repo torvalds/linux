@@ -25,6 +25,7 @@
 
 enum davinci_gpio_type {
 	GPIO_TYPE_DAVINCI = 0,
+	GPIO_TYPE_TNETV107X,
 };
 
 /*
@@ -87,8 +88,12 @@ static inline u32 __gpio_mask(unsigned gpio)
 	return 1 << (gpio % 32);
 }
 
-/* The get/set/clear functions will inline when called with constant
+/*
+ * The get/set/clear functions will inline when called with constant
  * parameters referencing built-in GPIOs, for low-overhead bitbanging.
+ *
+ * gpio_set_value() will inline only on traditional Davinci style controllers
+ * with distinct set/clear registers.
  *
  * Otherwise, calls with variable parameters or referencing external
  * GPIOs (e.g. on GPIO expander chips) use outlined functions.
@@ -100,12 +105,15 @@ static inline void gpio_set_value(unsigned gpio, int value)
 		u32				mask;
 
 		ctlr = __gpio_to_controller(gpio);
-		mask = __gpio_mask(gpio);
-		if (value)
-			__raw_writel(mask, ctlr->set_data);
-		else
-			__raw_writel(mask, ctlr->clr_data);
-		return;
+
+		if (ctlr->set_data != ctlr->clr_data) {
+			mask = __gpio_mask(gpio);
+			if (value)
+				__raw_writel(mask, ctlr->set_data);
+			else
+				__raw_writel(mask, ctlr->clr_data);
+			return;
+		}
 	}
 
 	__gpio_set_value(gpio, value);
