@@ -285,7 +285,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv,
 	struct iwl_host_cmd hcmd = {
 		.id = REPLY_CHANNEL_SWITCH,
 		.len = sizeof(cmd),
-		.flags = CMD_SIZE_HUGE,
+		.flags = CMD_SYNC,
 		.data = &cmd,
 	};
 
