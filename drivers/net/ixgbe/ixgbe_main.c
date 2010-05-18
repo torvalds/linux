@@ -625,16 +625,16 @@ static void ixgbe_unmap_and_free_tx_resource(struct ixgbe_adapter *adapter,
 }
 
 /**
- * ixgbe_tx_is_paused - check if the tx ring is paused
+ * ixgbe_tx_xon_state - check the tx ring xon state
  * @adapter: the ixgbe adapter
  * @tx_ring: the corresponding tx_ring
  *
  * If not in DCB mode, checks TFCS.TXOFF, otherwise, find out the
  * corresponding TC of this tx_ring when checking TFCS.
  *
- * Returns : true if paused
+ * Returns : true if in xon state (currently not paused)
  */
-static inline bool ixgbe_tx_is_paused(struct ixgbe_adapter *adapter,
+static inline bool ixgbe_tx_xon_state(struct ixgbe_adapter *adapter,
                                       struct ixgbe_ring *tx_ring)
 {
 	u32 txoff = IXGBE_TFCS_TXOFF;
@@ -690,7 +690,7 @@ static inline bool ixgbe_check_tx_hang(struct ixgbe_adapter *adapter,
 	adapter->detect_tx_hung = false;
 	if (tx_ring->tx_buffer_info[eop].time_stamp &&
 	    time_after(jiffies, tx_ring->tx_buffer_info[eop].time_stamp + HZ) &&
-	    !ixgbe_tx_is_paused(adapter, tx_ring)) {
+	    ixgbe_tx_xon_state(adapter, tx_ring)) {
 		/* detected Tx unit hang */
 		union ixgbe_adv_tx_desc *tx_desc;
 		tx_desc = IXGBE_TX_DESC_ADV(*tx_ring, eop);
