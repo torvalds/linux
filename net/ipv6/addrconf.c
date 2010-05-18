@@ -715,13 +715,20 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 {
 	struct inet6_ifaddr *ifa, *ifn;
 	struct inet6_dev *idev = ifp->idev;
+	int state;
 	int hash;
 	int deleted = 0, onlink = 0;
 	unsigned long expires = jiffies;
 
 	hash = ipv6_addr_hash(&ifp->addr);
 
+	spin_lock_bh(&ifp->state_lock);
+	state = ifp->state;
 	ifp->state = INET6_IFADDR_STATE_DEAD;
+	spin_unlock_bh(&ifp->state_lock);
+
+	if (state == INET6_IFADDR_STATE_DEAD)
+		goto out;
 
 	spin_lock_bh(&addrconf_hash_lock);
 	hlist_del_init_rcu(&ifp->addr_lst);
@@ -819,6 +826,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 		dst_release(&rt->u.dst);
 	}
 
+out:
 	in6_ifa_put(ifp);
 }
 
@@ -2626,6 +2634,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	struct inet6_dev *idev;
 	struct inet6_ifaddr *ifa;
 	LIST_HEAD(keep_list);
+	int state;
 
 	ASSERT_RTNL();
 
@@ -2666,7 +2675,6 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 		ifa = list_first_entry(&idev->tempaddr_list,
 				       struct inet6_ifaddr, tmp_list);
 		list_del(&ifa->tmp_list);
-		ifa->state = INET6_IFADDR_STATE_DEAD;
 		write_unlock_bh(&idev->lock);
 		spin_lock_bh(&ifa->lock);
 
@@ -2704,23 +2712,34 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 			/* Flag it for later restoration when link comes up */
 			ifa->flags |= IFA_F_TENTATIVE;
-			in6_ifa_hold(ifa);
+
 			write_unlock_bh(&idev->lock);
+
+			in6_ifa_hold(ifa);
 		} else {
 			list_del(&ifa->if_list);
-			ifa->state = INET6_IFADDR_STATE_DEAD;
-			write_unlock_bh(&idev->lock);
 
 			/* clear hash table */
 			spin_lock_bh(&addrconf_hash_lock);
 			hlist_del_init_rcu(&ifa->addr_lst);
 			spin_unlock_bh(&addrconf_hash_lock);
+
+			write_unlock_bh(&idev->lock);
+			spin_lock_bh(&ifa->state_lock);
+			state = ifa->state;
+			ifa->state = INET6_IFADDR_STATE_DEAD;
+			spin_unlock_bh(&ifa->state_lock);
+
+			if (state == INET6_IFADDR_STATE_DEAD)
+				goto put_ifa;
 		}
 
 		__ipv6_ifa_notify(RTM_DELADDR, ifa);
 		if (ifa->state == INET6_IFADDR_STATE_DEAD)
 			atomic_notifier_call_chain(&inet6addr_chain,
 						   NETDEV_DOWN, ifa);
+
+put_ifa:
 		in6_ifa_put(ifa);
 
 		write_lock_bh(&idev->lock);
