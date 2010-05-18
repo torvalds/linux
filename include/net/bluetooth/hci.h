@@ -100,6 +100,9 @@ enum {
 #define HCISETACLMTU	_IOW('H', 227, int)
 #define HCISETSCOMTU	_IOW('H', 228, int)
 
+#define HCIBLOCKADDR	_IOW('H', 230, int)
+#define HCIUNBLOCKADDR	_IOW('H', 231, int)
+
 #define HCIINQUIRY	_IOR('H', 240, int)
 
 /* HCI timeouts */

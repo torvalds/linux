@@ -62,6 +62,11 @@ struct hci_conn_hash {
 	unsigned int     sco_num;
 };
 
+struct bdaddr_list {
+	struct list_head list;
+	bdaddr_t bdaddr;
+};
+
 struct hci_dev {
 	struct list_head list;
 	spinlock_t	lock;
@@ -127,6 +132,7 @@ struct hci_dev {
 
 	struct inquiry_cache	inq_cache;
 	struct hci_conn_hash	conn_hash;
+	struct bdaddr_list	blacklist;
 
 	struct hci_dev_stats	stat;
 
@@ -423,6 +429,9 @@ int hci_get_conn_list(void __user *arg);
 int hci_get_conn_info(struct hci_dev *hdev, void __user *arg);
 int hci_get_auth_info(struct hci_dev *hdev, void __user *arg);
 int hci_inquiry(void __user *arg);
+
+struct bdaddr_list *hci_blacklist_lookup(struct hci_dev *hdev, bdaddr_t *bdaddr);
+int hci_blacklist_clear(struct hci_dev *hdev);
 
 void hci_event_packet(struct hci_dev *hdev, struct sk_buff *skb);
 
