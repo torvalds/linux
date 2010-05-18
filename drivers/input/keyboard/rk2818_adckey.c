@@ -34,12 +34,12 @@
 
 //ROCKCHIP AD KEY CODE ,for demo board
 //      key		--->	EV	
-#define AD2KEY1			KEY_ESC
-#define AD2KEY2 		KEY_7
-#define AD2KEY3 		KEY_8
-#define AD2KEY4 		KEY_9
-#define AD2KEY5 		KEY_0
-#define AD2KEY6 		KEY_W
+#define AD2KEY1			114   ///VOLUME_DOWN 
+#define AD2KEY2 		115   ///VOLUME_UP
+#define AD2KEY3 		59    ///MENU
+#define AD2KEY4 		102   ///HOME
+#define AD2KEY5 		158   ///BACK
+#define AD2KEY6 		61    ///CALL
 
 #define KEYMENU			AD2KEY6
 #define ENDCALL			62
