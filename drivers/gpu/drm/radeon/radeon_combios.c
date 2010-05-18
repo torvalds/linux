@@ -1113,18 +1113,20 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 				break;
 
 			if ((RBIOS16(tmp) == lvds->native_mode.hdisplay) &&
-			    (RBIOS16(tmp + 2) ==
-			     lvds->native_mode.vdisplay)) {
-				lvds->native_mode.htotal = RBIOS16(tmp + 17) * 8;
-				lvds->native_mode.hsync_start = RBIOS16(tmp + 21) * 8;
-				lvds->native_mode.hsync_end = (RBIOS8(tmp + 23) +
-							       RBIOS16(tmp + 21)) * 8;
+			    (RBIOS16(tmp + 2) == lvds->native_mode.vdisplay)) {
+				lvds->native_mode.htotal = lvds->native_mode.hdisplay +
+					(RBIOS16(tmp + 17) - RBIOS16(tmp + 19)) * 8;
+				lvds->native_mode.hsync_start = lvds->native_mode.hdisplay +
+					(RBIOS16(tmp + 21) - RBIOS16(tmp + 19) - 1) * 8;
+				lvds->native_mode.hsync_end = lvds->native_mode.hsync_start +
+					(RBIOS8(tmp + 23) * 8);
 
-				lvds->native_mode.vtotal = RBIOS16(tmp + 24);
-				lvds->native_mode.vsync_start = RBIOS16(tmp + 28) & 0x7ff;
-				lvds->native_mode.vsync_end =
-					((RBIOS16(tmp + 28) & 0xf800) >> 11) +
-					(RBIOS16(tmp + 28) & 0x7ff);
+				lvds->native_mode.vtotal = lvds->native_mode.vdisplay +
+					(RBIOS16(tmp + 24) - RBIOS16(tmp + 26));
+				lvds->native_mode.vsync_start = lvds->native_mode.vdisplay +
+					((RBIOS16(tmp + 28) & 0x7ff) - RBIOS16(tmp + 26));
+				lvds->native_mode.vsync_end = lvds->native_mode.vsync_start +
+					((RBIOS16(tmp + 28) & 0xf800) >> 11);
 
 				lvds->native_mode.clock = RBIOS16(tmp + 9) * 10;
 				lvds->native_mode.flags = 0;
