@@ -343,10 +343,11 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 				int (*get_ucode_data)(void *, const void *, size_t))
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	u8 *ucode_ptr = data, *new_mc = NULL, *mc;
+	u8 *ucode_ptr = data, *new_mc = NULL, *mc = NULL;
 	int new_rev = uci->cpu_sig.rev;
 	unsigned int leftover = size;
 	enum ucode_state state = UCODE_OK;
+	unsigned int curr_mc_size = 0;
 
 	while (leftover) {
 		struct microcode_header_intel mc_header;
@@ -361,9 +362,15 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 			break;
 		}
 
-		mc = vmalloc(mc_size);
-		if (!mc)
-			break;
+		/* For performance reasons, reuse mc area when possible */
+		if (!mc || mc_size > curr_mc_size) {
+			if (mc)
+				vfree(mc);
+			mc = vmalloc(mc_size);
+			if (!mc)
+				break;
+			curr_mc_size = mc_size;
+		}
 
 		if (get_ucode_data(mc, ucode_ptr, mc_size) ||
 		    microcode_sanity_check(mc) < 0) {
@@ -376,12 +383,15 @@ static enum ucode_state generic_load_microcode(int cpu, void *data, size_t size,
 				vfree(new_mc);
 			new_rev = mc_header.rev;
 			new_mc  = mc;
-		} else
-			vfree(mc);
+			mc = NULL;	/* trigger new vmalloc */
+		}
 
 		ucode_ptr += mc_size;
 		leftover  -= mc_size;
 	}
+
+	if (mc)
+		vfree(mc);
 
 	if (leftover) {
 		if (new_mc)
