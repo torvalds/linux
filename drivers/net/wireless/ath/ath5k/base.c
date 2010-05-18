@@ -1932,12 +1932,6 @@ ath5k_tasklet_rx(unsigned long data)
 
 		sc->stats.rx_all_count++;
 
-		if (unlikely(rs.rs_more)) {
-			ATH5K_WARN(sc, "unsupported jumbo\n");
-			sc->stats.rxerr_jumbo++;
-			goto next;
-		}
-
 		if (unlikely(rs.rs_status)) {
 			if (rs.rs_status & AR5K_RXERR_CRC)
 				sc->stats.rxerr_crc++;
@@ -1976,6 +1970,12 @@ ath5k_tasklet_rx(unsigned long data)
 				~(AR5K_RXERR_DECRYPT|AR5K_RXERR_MIC)) ||
 					sc->opmode != NL80211_IFTYPE_MONITOR)
 				goto next;
+		}
+
+		if (unlikely(rs.rs_more)) {
+			sc->stats.rxerr_jumbo++;
+			goto next;
+
 		}
 accept:
 		next_skb = ath5k_rx_skb_alloc(sc, &next_skb_addr);

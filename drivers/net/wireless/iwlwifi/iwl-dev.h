@@ -57,8 +57,8 @@ extern struct iwl_cfg iwl5100_bgn_cfg;
 extern struct iwl_cfg iwl5100_abg_cfg;
 extern struct iwl_cfg iwl5150_agn_cfg;
 extern struct iwl_cfg iwl5150_abg_cfg;
+extern struct iwl_cfg iwl6000g2a_2agn_cfg;
 extern struct iwl_cfg iwl6000i_2agn_cfg;
-extern struct iwl_cfg iwl6000g2_2agn_cfg;
 extern struct iwl_cfg iwl6000i_2abg_cfg;
 extern struct iwl_cfg iwl6000i_2bg_cfg;
 extern struct iwl_cfg iwl6000_3agn_cfg;
@@ -497,18 +497,36 @@ struct iwl_station_entry {
 	struct iwl_link_quality_cmd *lq;
 };
 
+struct iwl_station_priv_common {
+	u8 sta_id;
+};
+
 /*
  * iwl_station_priv: Driver's private station information
  *
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is places in that
  * space.
+ *
+ * The common struct MUST be first because it is shared between
+ * 3945 and agn!
  */
 struct iwl_station_priv {
+	struct iwl_station_priv_common common;
 	struct iwl_lq_sta lq_sta;
 	atomic_t pending_frames;
 	bool client;
 	bool asleep;
+};
+
+/**
+ * struct iwl_vif_priv - driver's private per-interface information
+ *
+ * When mac80211 allocates a virtual interface, it can allocate
+ * space for us to put data into.
+ */
+struct iwl_vif_priv {
+	u8 ibss_bssid_sta_id;
 };
 
 /* one for each uCode image (inst/data, boot/init/runtime) */
@@ -518,7 +536,7 @@ struct fw_desc {
 	u32 len;		/* bytes */
 };
 
-/* uCode file layout */
+/* v1/v2 uCode file layout */
 struct iwl_ucode_header {
 	__le32 ver;	/* major/minor/API/serial */
 	union {
@@ -541,7 +559,62 @@ struct iwl_ucode_header {
 		} v2;
 	} u;
 };
-#define UCODE_HEADER_SIZE(ver) ((ver) == 1 ? 24 : 28)
+
+/*
+ * new TLV uCode file layout
+ *
+ * The new TLV file format contains TLVs, that each specify
+ * some piece of data. To facilitate "groups", for example
+ * different instruction image with different capabilities,
+ * bundled with the same init image, an alternative mechanism
+ * is provided:
+ * When the alternative field is 0, that means that the item
+ * is always valid. When it is non-zero, then it is only
+ * valid in conjunction with items of the same alternative,
+ * in which case the driver (user) selects one alternative
+ * to use.
+ */
+
+enum iwl_ucode_tlv_type {
+	IWL_UCODE_TLV_INVALID		= 0, /* unused */
+	IWL_UCODE_TLV_INST		= 1,
+	IWL_UCODE_TLV_DATA		= 2,
+	IWL_UCODE_TLV_INIT		= 3,
+	IWL_UCODE_TLV_INIT_DATA		= 4,
+	IWL_UCODE_TLV_BOOT		= 5,
+	IWL_UCODE_TLV_PROBE_MAX_LEN	= 6, /* a u32 value */
+};
+
+struct iwl_ucode_tlv {
+	__le16 type;		/* see above */
+	__le16 alternative;	/* see comment */
+	__le32 length;		/* not including type/length fields */
+	u8 data[0];
+} __attribute__ ((packed));
+
+#define IWL_TLV_UCODE_MAGIC	0x0a4c5749
+
+struct iwl_tlv_ucode_header {
+	/*
+	 * The TLV style ucode header is distinguished from
+	 * the v1/v2 style header by first four bytes being
+	 * zero, as such is an invalid combination of
+	 * major/minor/API/serial versions.
+	 */
+	__le32 zero;
+	__le32 magic;
+	u8 human_readable[64];
+	__le32 ver;		/* major/minor/API/serial */
+	__le32 build;
+	__le64 alternatives;	/* bitmask of valid alternatives */
+	/*
+	 * The data contained herein has a TLV layout,
+	 * see above for the TLV header and types.
+	 * Note that each TLV is padded to a length
+	 * that is a multiple of 4 for alignment.
+	 */
+	u8 data[0];
+};
 
 struct iwl4965_ibss_seq {
 	u8 mac[ETH_ALEN];
@@ -1155,8 +1228,7 @@ struct iwl_priv {
 #endif
 
 	/* context information */
-	u8 bssid[ETH_ALEN];
-	u16 rts_threshold;
+	u8 bssid[ETH_ALEN]; /* used only on 3945 but filled by core */
 	u8 mac_addr[ETH_ALEN];
 
 	/*station table variables */
@@ -1189,7 +1261,6 @@ struct iwl_priv {
 
 	/* Last Rx'd beacon timestamp */
 	u64 timestamp;
-	u16 beacon_int;
 	struct ieee80211_vif *vif;
 
 	union {
@@ -1242,6 +1313,8 @@ struct iwl_priv {
 
 			struct iwl_rx_phy_res last_phy_res;
 			bool last_phy_res_valid;
+
+			struct completion firmware_loading_complete;
 		} _agn;
 #endif
 	};
@@ -1249,10 +1322,6 @@ struct iwl_priv {
 	struct iwl_hw_params hw_params;
 
 	u32 inta_mask;
-	/* Current association information needed to configure the
-	 * hardware */
-	u16 assoc_id;
-	u16 assoc_capability;
 
 	struct iwl_qos_info qos_data;
 

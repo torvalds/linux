@@ -78,6 +78,90 @@ static const struct file_operations fops_debug = {
 
 #define DMA_BUF_LEN 1024
 
+static ssize_t read_file_tx_chainmask(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	char buf[32];
+	unsigned int len;
+
+	len = snprintf(buf, sizeof(buf), "0x%08x\n", common->tx_chainmask);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_tx_chainmask(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	unsigned long mask;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EINVAL;
+
+	buf[len] = '\0';
+	if (strict_strtoul(buf, 0, &mask))
+		return -EINVAL;
+
+	common->tx_chainmask = mask;
+	sc->sc_ah->caps.tx_chainmask = mask;
+	return count;
+}
+
+static const struct file_operations fops_tx_chainmask = {
+	.read = read_file_tx_chainmask,
+	.write = write_file_tx_chainmask,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
+
+
+static ssize_t read_file_rx_chainmask(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	char buf[32];
+	unsigned int len;
+
+	len = snprintf(buf, sizeof(buf), "0x%08x\n", common->rx_chainmask);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_rx_chainmask(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	unsigned long mask;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EINVAL;
+
+	buf[len] = '\0';
+	if (strict_strtoul(buf, 0, &mask))
+		return -EINVAL;
+
+	common->rx_chainmask = mask;
+	sc->sc_ah->caps.rx_chainmask = mask;
+	return count;
+}
+
+static const struct file_operations fops_rx_chainmask = {
+	.read = read_file_rx_chainmask,
+	.write = write_file_rx_chainmask,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
+
+
 static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 			     size_t count, loff_t *ppos)
 {
@@ -711,6 +795,86 @@ static const struct file_operations fops_recv = {
 	.owner = THIS_MODULE
 };
 
+static ssize_t read_file_regidx(struct file *file, char __user *user_buf,
+                                size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	char buf[32];
+	unsigned int len;
+
+	len = snprintf(buf, sizeof(buf), "0x%08x\n", sc->debug.regidx);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_regidx(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	unsigned long regidx;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EINVAL;
+
+	buf[len] = '\0';
+	if (strict_strtoul(buf, 0, &regidx))
+		return -EINVAL;
+
+	sc->debug.regidx = regidx;
+	return count;
+}
+
+static const struct file_operations fops_regidx = {
+	.read = read_file_regidx,
+	.write = write_file_regidx,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
+
+static ssize_t read_file_regval(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	char buf[32];
+	unsigned int len;
+	u32 regval;
+
+	regval = REG_READ_D(ah, sc->debug.regidx);
+	len = snprintf(buf, sizeof(buf), "0x%08x\n", regval);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_regval(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	unsigned long regval;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EINVAL;
+
+	buf[len] = '\0';
+	if (strict_strtoul(buf, 0, &regval))
+		return -EINVAL;
+
+	REG_WRITE_D(ah, sc->debug.regidx, regval);
+	return count;
+}
+
+static const struct file_operations fops_regval = {
+	.read = read_file_regval,
+	.write = write_file_regval,
+	.open = ath9k_debugfs_open,
+	.owner = THIS_MODULE
+};
+
 int ath9k_init_debug(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -722,54 +886,55 @@ int ath9k_init_debug(struct ath_hw *ah)
 	sc->debug.debugfs_phy = debugfs_create_dir(wiphy_name(sc->hw->wiphy),
 						      ath9k_debugfs_root);
 	if (!sc->debug.debugfs_phy)
-		goto err;
+		return -ENOMEM;
 
 #ifdef CONFIG_ATH_DEBUG
-	sc->debug.debugfs_debug = debugfs_create_file("debug",
-		S_IRUSR | S_IWUSR, sc->debug.debugfs_phy, sc, &fops_debug);
-	if (!sc->debug.debugfs_debug)
+	if (!debugfs_create_file("debug", S_IRUSR | S_IWUSR,
+			sc->debug.debugfs_phy, sc, &fops_debug))
 		goto err;
 #endif
 
-	sc->debug.debugfs_dma = debugfs_create_file("dma", S_IRUSR,
-				       sc->debug.debugfs_phy, sc, &fops_dma);
-	if (!sc->debug.debugfs_dma)
+	if (!debugfs_create_file("dma", S_IRUSR, sc->debug.debugfs_phy,
+			sc, &fops_dma))
 		goto err;
 
-	sc->debug.debugfs_interrupt = debugfs_create_file("interrupt",
-						     S_IRUSR,
-						     sc->debug.debugfs_phy,
-						     sc, &fops_interrupt);
-	if (!sc->debug.debugfs_interrupt)
+	if (!debugfs_create_file("interrupt", S_IRUSR, sc->debug.debugfs_phy,
+			sc, &fops_interrupt))
 		goto err;
 
-	sc->debug.debugfs_rcstat = debugfs_create_file("rcstat",
-						  S_IRUSR,
-						  sc->debug.debugfs_phy,
-						  sc, &fops_rcstat);
-	if (!sc->debug.debugfs_rcstat)
+	if (!debugfs_create_file("rcstat", S_IRUSR, sc->debug.debugfs_phy,
+			sc, &fops_rcstat))
 		goto err;
 
-	sc->debug.debugfs_wiphy = debugfs_create_file(
-		"wiphy", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy, sc,
-		&fops_wiphy);
-	if (!sc->debug.debugfs_wiphy)
+	if (!debugfs_create_file("wiphy", S_IRUSR | S_IWUSR,
+			sc->debug.debugfs_phy, sc, &fops_wiphy))
 		goto err;
 
-	sc->debug.debugfs_xmit = debugfs_create_file("xmit",
-						     S_IRUSR,
-						     sc->debug.debugfs_phy,
-						     sc, &fops_xmit);
-	if (!sc->debug.debugfs_xmit)
+	if (!debugfs_create_file("xmit", S_IRUSR, sc->debug.debugfs_phy,
+			sc, &fops_xmit))
 		goto err;
 
-	sc->debug.debugfs_recv = debugfs_create_file("recv",
-						     S_IRUSR,
-						     sc->debug.debugfs_phy,
-						     sc, &fops_recv);
-	if (!sc->debug.debugfs_recv)
+	if (!debugfs_create_file("recv", S_IRUSR, sc->debug.debugfs_phy,
+			sc, &fops_recv))
 		goto err;
 
+	if (!debugfs_create_file("rx_chainmask", S_IRUSR | S_IWUSR,
+			sc->debug.debugfs_phy, sc, &fops_rx_chainmask))
+		goto err;
+
+	if (!debugfs_create_file("tx_chainmask", S_IRUSR | S_IWUSR,
+			sc->debug.debugfs_phy, sc, &fops_tx_chainmask))
+		goto err;
+
+	if (!debugfs_create_file("regidx", S_IRUSR | S_IWUSR,
+			sc->debug.debugfs_phy, sc, &fops_regidx))
+		goto err;
+
+	if (!debugfs_create_file("regval", S_IRUSR | S_IWUSR,
+			sc->debug.debugfs_phy, sc, &fops_regval))
+		goto err;
+
+	sc->debug.regidx = 0;
 	return 0;
 err:
 	ath9k_exit_debug(ah);
@@ -781,14 +946,7 @@ void ath9k_exit_debug(struct ath_hw *ah)
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath_softc *sc = (struct ath_softc *) common->priv;
 
-	debugfs_remove(sc->debug.debugfs_recv);
-	debugfs_remove(sc->debug.debugfs_xmit);
-	debugfs_remove(sc->debug.debugfs_wiphy);
-	debugfs_remove(sc->debug.debugfs_rcstat);
-	debugfs_remove(sc->debug.debugfs_interrupt);
-	debugfs_remove(sc->debug.debugfs_dma);
-	debugfs_remove(sc->debug.debugfs_debug);
-	debugfs_remove(sc->debug.debugfs_phy);
+	debugfs_remove_recursive(sc->debug.debugfs_phy);
 }
 
 int ath9k_debug_create_root(void)

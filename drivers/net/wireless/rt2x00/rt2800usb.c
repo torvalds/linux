@@ -400,7 +400,7 @@ static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				    struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	__le32 *txi = skbdesc->desc;
+	__le32 *txi = (__le32 *)(skb->data - TXWI_DESC_SIZE - TXINFO_DESC_SIZE);
 	u32 word;
 
 	/*
@@ -422,6 +422,12 @@ static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXINFO_W0_USB_DMA_TX_BURST,
 			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
 	rt2x00_desc_write(txi, 0, word);
+
+	/*
+	 * Register descriptor details in skb frame descriptor.
+	 */
+	skbdesc->desc = txi;
+	skbdesc->desc_len = TXINFO_DESC_SIZE + TXWI_DESC_SIZE;
 }
 
 /*

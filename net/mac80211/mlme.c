@@ -342,7 +342,11 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 		goto out;
 
 	sdata->local->oper_channel = sdata->local->csa_channel;
-	ieee80211_hw_config(sdata->local, IEEE80211_CONF_CHANGE_CHANNEL);
+	if (!sdata->local->ops->channel_switch) {
+		/* call "hw_config" only if doing sw channel switch */
+		ieee80211_hw_config(sdata->local,
+			IEEE80211_CONF_CHANGE_CHANNEL);
+	}
 
 	/* XXX: shouldn't really modify cfg80211-owned data! */
 	ifmgd->associated->channel = sdata->local->oper_channel;
@@ -353,6 +357,29 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 	ifmgd->flags &= ~IEEE80211_STA_CSA_RECEIVED;
 	mutex_unlock(&ifmgd->mtx);
 }
+
+void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success)
+{
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_if_managed *ifmgd;
+
+	sdata = vif_to_sdata(vif);
+	ifmgd = &sdata->u.mgd;
+
+	trace_api_chswitch_done(sdata, success);
+	if (!success) {
+		/*
+		 * If the channel switch was not successful, stay
+		 * around on the old channel. We currently lack
+		 * good handling of this situation, possibly we
+		 * should just drop the association.
+		 */
+		sdata->local->csa_channel = sdata->local->oper_channel;
+	}
+
+	ieee80211_queue_work(&sdata->local->hw, &ifmgd->chswitch_work);
+}
+EXPORT_SYMBOL(ieee80211_chswitch_done);
 
 static void ieee80211_chswitch_timer(unsigned long data)
 {
@@ -370,7 +397,8 @@ static void ieee80211_chswitch_timer(unsigned long data)
 
 void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 				      struct ieee80211_channel_sw_ie *sw_elem,
-				      struct ieee80211_bss *bss)
+				      struct ieee80211_bss *bss,
+				      u64 timestamp)
 {
 	struct cfg80211_bss *cbss =
 		container_of((void *)bss, struct cfg80211_bss, priv);
@@ -398,10 +426,29 @@ void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 
 	sdata->local->csa_channel = new_ch;
 
+	if (sdata->local->ops->channel_switch) {
+		/* use driver's channel switch callback */
+		struct ieee80211_channel_switch ch_switch;
+		memset(&ch_switch, 0, sizeof(ch_switch));
+		ch_switch.timestamp = timestamp;
+		if (sw_elem->mode) {
+			ch_switch.block_tx = true;
+			ieee80211_stop_queues_by_reason(&sdata->local->hw,
+					IEEE80211_QUEUE_STOP_REASON_CSA);
+		}
+		ch_switch.channel = new_ch;
+		ch_switch.count = sw_elem->count;
+		ifmgd->flags |= IEEE80211_STA_CSA_RECEIVED;
+		drv_channel_switch(sdata->local, &ch_switch);
+		return;
+	}
+
+	/* channel switch handled in software */
 	if (sw_elem->count <= 1) {
 		ieee80211_queue_work(&sdata->local->hw, &ifmgd->chswitch_work);
 	} else {
-		ieee80211_stop_queues_by_reason(&sdata->local->hw,
+		if (sw_elem->mode)
+			ieee80211_stop_queues_by_reason(&sdata->local->hw,
 					IEEE80211_QUEUE_STOP_REASON_CSA);
 		ifmgd->flags |= IEEE80211_STA_CSA_RECEIVED;
 		mod_timer(&ifmgd->chswitch_timer,
@@ -1317,7 +1364,8 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 							ETH_ALEN) == 0)) {
 		struct ieee80211_channel_sw_ie *sw_elem =
 			(struct ieee80211_channel_sw_ie *)elems->ch_switch_elem;
-		ieee80211_sta_process_chanswitch(sdata, sw_elem, bss);
+		ieee80211_sta_process_chanswitch(sdata, sw_elem,
+						 bss, rx_status->mactime);
 	}
 }
 
@@ -1649,7 +1697,8 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 
 			ieee80211_sta_process_chanswitch(sdata,
 					&mgmt->u.action.u.chan_switch.sw_elem,
-					(void *)ifmgd->associated->priv);
+					(void *)ifmgd->associated->priv,
+					rx_status->mactime);
 			break;
 		}
 		mutex_unlock(&ifmgd->mtx);

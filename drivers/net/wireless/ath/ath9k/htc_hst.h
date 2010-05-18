@@ -123,9 +123,6 @@ struct htc_endpoint {
 #define HTC_CONTROL_BUFFER_SIZE	\
 	(HTC_MAX_CONTROL_MESSAGE_LENGTH + sizeof(struct htc_frame_hdr))
 
-#define NUM_CONTROL_BUFFERS 8
-#define HST_ENDPOINT_MAX 8
-
 struct htc_control_buf {
 	struct htc_packet htc_pkt;
 	u8 buf[HTC_CONTROL_BUFFER_SIZE];
@@ -139,7 +136,7 @@ struct htc_target {
 	struct ath9k_htc_priv *drv_priv;
 	struct device *dev;
 	struct ath9k_htc_hif *hif;
-	struct htc_endpoint endpoint[HST_ENDPOINT_MAX];
+	struct htc_endpoint endpoint[ENDPOINT_MAX];
 	struct completion target_wait;
 	struct completion cmd_wait;
 	struct list_head list;
@@ -147,6 +144,7 @@ struct htc_target {
 	u16 credits;
 	u16 credit_size;
 	u8 htc_flags;
+	atomic_t tgt_ready;
 };
 
 enum htc_msg_id {
@@ -236,11 +234,12 @@ void ath9k_htc_rx_msg(struct htc_target *htc_handle,
 void ath9k_htc_txcompletion_cb(struct htc_target *htc_handle,
 			       struct sk_buff *skb, bool txok);
 
-struct htc_target *ath9k_htc_hw_alloc(void *hif_handle);
+struct htc_target *ath9k_htc_hw_alloc(void *hif_handle,
+				      struct ath9k_htc_hif *hif,
+				      struct device *dev);
 void ath9k_htc_hw_free(struct htc_target *htc);
-int ath9k_htc_hw_init(struct ath9k_htc_hif *hif, struct htc_target *target,
-		      void *hif_handle, struct device *dev, u16 devid,
-		      enum ath9k_hif_transports transport);
+int ath9k_htc_hw_init(struct htc_target *target,
+		      struct device *dev, u16 devid);
 void ath9k_htc_hw_deinit(struct htc_target *target, bool hot_unplug);
 
 #endif /* HTC_HST_H */

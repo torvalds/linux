@@ -66,7 +66,6 @@
 #include "iwl-dev.h"
 
 extern struct iwl_mod_params iwlagn_mod_params;
-extern struct iwl_ucode_ops iwlagn_ucode;
 extern struct iwl_hcmd_ops iwlagn_hcmd;
 extern struct iwl_hcmd_utils_ops iwlagn_hcmd_utils;
 
@@ -136,9 +135,10 @@ void iwlagn_rx_reply_rx_phy(struct iwl_priv *priv,
 void iwlagn_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
 			      struct ieee80211_tx_info *info);
 int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
-int iwlagn_tx_agg_start(struct iwl_priv *priv,
-			const u8 *ra, u16 tid, u16 *ssn);
-int iwlagn_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid);
+int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
+			struct ieee80211_sta *sta, u16 tid, u16 *ssn);
+int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
+		       struct ieee80211_sta *sta, u16 tid);
 int iwlagn_txq_check_empty(struct iwl_priv *priv,
 			   int sta_id, u8 tid, int txq_id);
 void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
@@ -172,6 +172,10 @@ static inline bool iwl_is_tx_success(u32 status)
 }
 
 /* scan */
-void iwlagn_request_scan(struct iwl_priv *priv);
+void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif);
+
+/* station mgmt */
+int iwlagn_manage_ibss_station(struct iwl_priv *priv,
+			       struct ieee80211_vif *vif, bool add);
 
 #endif /* __iwl_agn_h__ */

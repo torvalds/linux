@@ -1253,6 +1253,12 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
 	if (skb_linearize(rx->skb))
 		return RX_DROP_UNUSABLE;
 
+	/*
+	 *  skb_linearize() might change the skb->data and
+	 *  previously cached variables (in this case, hdr) need to
+	 *  be refreshed with the new data.
+	 */
+	hdr = (struct ieee80211_hdr *)rx->skb->data;
 	seq = (sc & IEEE80211_SCTL_SEQ) >> 4;
 
 	if (frag == 0) {

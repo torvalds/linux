@@ -1764,7 +1764,8 @@ static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				  struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	__le32 *txd = skbdesc->desc;
+	struct queue_entry_priv_pci *entry_priv = skbdesc->entry->priv_data;
+	__le32 *txd = entry_priv->desc;
 	u32 word;
 
 	/*
@@ -1802,18 +1803,23 @@ static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W5_WAITING_DMA_DONE_INT, 1);
 	rt2x00_desc_write(txd, 5, word);
 
-	rt2x00_desc_read(txd, 6, &word);
-	rt2x00_set_field32(&word, TXD_W6_BUFFER_PHYSICAL_ADDRESS,
-			   skbdesc->skb_dma);
-	rt2x00_desc_write(txd, 6, word);
+	if (txdesc->queue != QID_BEACON) {
+		rt2x00_desc_read(txd, 6, &word);
+		rt2x00_set_field32(&word, TXD_W6_BUFFER_PHYSICAL_ADDRESS,
+				   skbdesc->skb_dma);
+		rt2x00_desc_write(txd, 6, word);
 
-	if (skbdesc->desc_len > TXINFO_SIZE) {
 		rt2x00_desc_read(txd, 11, &word);
 		rt2x00_set_field32(&word, TXD_W11_BUFFER_LENGTH0,
 				   txdesc->length);
 		rt2x00_desc_write(txd, 11, word);
 	}
 
+	/*
+	 * Writing TXD word 0 must the last to prevent a race condition with
+	 * the device, whereby the device may take hold of the TXD before we
+	 * finished updating it.
+	 */
 	rt2x00_desc_read(txd, 0, &word);
 	rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 1);
 	rt2x00_set_field32(&word, TXD_W0_VALID, 1);
@@ -1838,6 +1844,13 @@ static void rt61pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_CIPHER_ALG, txdesc->cipher);
 	rt2x00_desc_write(txd, 0, word);
+
+	/*
+	 * Register descriptor details in skb frame descriptor.
+	 */
+	skbdesc->desc = txd;
+	skbdesc->desc_len =
+		(txdesc->queue == QID_BEACON) ?  TXINFO_SIZE : TXD_DESC_SIZE;
 }
 
 /*
@@ -1847,7 +1860,7 @@ static void rt61pci_write_beacon(struct queue_entry *entry,
 				 struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
+	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	unsigned int beacon_base;
 	u32 reg;
 
@@ -1863,11 +1876,9 @@ static void rt61pci_write_beacon(struct queue_entry *entry,
 	 * Write entire beacon with descriptor to register.
 	 */
 	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);
-	rt2x00pci_register_multiwrite(rt2x00dev,
-				      beacon_base,
-				      skbdesc->desc, skbdesc->desc_len);
-	rt2x00pci_register_multiwrite(rt2x00dev,
-				      beacon_base + skbdesc->desc_len,
+	rt2x00pci_register_multiwrite(rt2x00dev, beacon_base,
+				      entry_priv->desc, TXINFO_SIZE);
+	rt2x00pci_register_multiwrite(rt2x00dev, beacon_base + TXINFO_SIZE,
 				      entry->skb->data, entry->skb->len);
 
 	/*

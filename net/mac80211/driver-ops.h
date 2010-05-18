@@ -371,4 +371,15 @@ static inline void drv_flush(struct ieee80211_local *local, bool drop)
 	if (local->ops->flush)
 		local->ops->flush(&local->hw, drop);
 }
+
+static inline void drv_channel_switch(struct ieee80211_local *local,
+				     struct ieee80211_channel_switch *ch_switch)
+{
+	might_sleep();
+
+	local->ops->channel_switch(&local->hw, ch_switch);
+
+	trace_drv_channel_switch(local, ch_switch);
+}
+
 #endif /* __MAC80211_DRIVER_OPS */

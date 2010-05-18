@@ -212,7 +212,7 @@ static struct iwl_lib_ops iwl1000_lib = {
 		.temperature = iwlagn_temperature,
 		.set_ct_kill = iwl1000_set_ct_threshold,
 	 },
-	.add_bcast_station = iwl_add_bcast_station,
+	.manage_ibss_station = iwlagn_manage_ibss_station,
 	.debugfs_ops = {
 		.rx_stats_read = iwl_ucode_rx_stats_read,
 		.tx_stats_read = iwl_ucode_tx_stats_read,
@@ -224,7 +224,6 @@ static struct iwl_lib_ops iwl1000_lib = {
 };
 
 static const struct iwl_ops iwl1000_ops = {
-	.ucode = &iwlagn_ucode,
 	.lib = &iwl1000_lib,
 	.hcmd = &iwlagn_hcmd,
 	.utils = &iwlagn_hcmd_utils,
@@ -260,6 +259,9 @@ struct iwl_cfg iwl1000_bgn_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 128,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl1000_bg_cfg = {
@@ -289,6 +291,9 @@ struct iwl_cfg iwl1000_bg_cfg = {
 	.chain_noise_scale = 1000,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.max_event_log_size = 128,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 MODULE_FIRMWARE(IWL1000_MODULE_FIRMWARE(IWL1000_UCODE_API_MAX));

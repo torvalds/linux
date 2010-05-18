@@ -169,7 +169,7 @@ enum CompressAlgorithm {
 };
 
 struct ar9300_base_eep_hdr {
-	u16 regDmn[2];
+	__le16 regDmn[2];
 	/* 4 bits tx and 4 bits rx */
 	u8 txrxMask;
 	struct eepFlags opCapFlags;
@@ -199,16 +199,16 @@ struct ar9300_base_eep_hdr {
 	u8 rxBandSelectGpio;
 	u8 txrxgain;
 	/* SW controlled internal regulator fields */
-	u32 swreg;
+	__le32 swreg;
 } __packed;
 
 struct ar9300_modal_eep_header {
 	/* 4 idle, t1, t2, b (4 bits per setting) */
-	u32 antCtrlCommon;
+	__le32 antCtrlCommon;
 	/* 4 ra1l1, ra2l1, ra1l2, ra2l2, ra12 */
-	u32 antCtrlCommon2;
+	__le32 antCtrlCommon2;
 	/* 6 idle, t, r, rx1, rx12, b (2 bits each) */
-	u16 antCtrlChain[AR9300_MAX_CHAINS];
+	__le16 antCtrlChain[AR9300_MAX_CHAINS];
 	/* 3 xatten1_db for AR9280 (0xa20c/b20c 5:0) */
 	u8 xatten1DB[AR9300_MAX_CHAINS];
 	/* 3  xatten1_margin for merlin (0xa20c/b20c 16:12 */
