@@ -212,8 +212,8 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		ecmd->port = PORT_FIBRE;
 		break;
 	case ixgbe_phy_nl:
-	case ixgbe_phy_tw_tyco:
-	case ixgbe_phy_tw_unknown:
+	case ixgbe_phy_sfp_passive_tyco:
+	case ixgbe_phy_sfp_passive_unknown:
 	case ixgbe_phy_sfp_ftl:
 	case ixgbe_phy_sfp_avago:
 	case ixgbe_phy_sfp_intel:
