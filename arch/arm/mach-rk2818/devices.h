@@ -30,4 +30,5 @@ extern struct platform_device rk2818_device_pmem;
 extern struct platform_device rk2818_device_fb;
 extern struct platform_device rk2818_device_adc;
 extern struct platform_device rk2818_device_adckey;
+extern struct platform_device rk2818_device_backlight;
 #endif

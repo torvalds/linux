@@ -33,6 +33,7 @@
 #include <mach/rk2818_iomap.h>
 #include <mach/iomux.h>
 #include <mach/gpio.h>
+#include <mach/rk2818_backlight.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
@@ -271,6 +272,12 @@ struct rk2818_fb_mach_info rk2818_fb_mach_info = {
     .iomux = &rk2818_fb_iomux_info,
 };
 
+struct rk2818bl_info rk2818_bl_info = {
+        .pwm_id   = 0,
+        .pw_pin   = GPIO_HIGH | (RK2818_PIN_PF1 << 8) ,
+        .bl_ref   = 0,
+};
+
 static struct platform_device *devices[] __initdata = {
 	&rk2818_device_uart1,
 	&rk2818_device_dm9k,
@@ -284,7 +291,8 @@ static struct platform_device *devices[] __initdata = {
 	&rk2818_device_pmem,
 	&rk2818_device_adc,
 	&rk2818_device_adckey,
-    &rk2818_device_fb,    
+  &rk2818_device_fb,    
+    &rk2818_device_backlight,
 };
 
 extern struct sys_timer rk2818_timer;

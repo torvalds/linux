@@ -262,3 +262,9 @@ config BACKLIGHT_ADP5520
 	  To compile this driver as a module, choose M here: the module will
 	  be called adp5520_bl.
 
+config BACKLIGHT_RK2818_BL
+        bool "rk2818 backlight driver"
+	depends on BACKLIGHT_CLASS_DEVICE
+	default y
+	help
+	  rk2818 backlight support.

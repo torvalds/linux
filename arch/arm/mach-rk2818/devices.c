@@ -195,6 +195,22 @@ struct platform_device rk2818_device_fb = {
 		.platform_data  = &rk2818_fb_mach_info,
 	}
 };
+
+/***********************************************************
+*	  backlight
+*	author :nzy zhongyw
+*	data:2010-05-18
+***************************************************************/
+extern struct rk2818bl_info rk2818_bl_info;
+
+struct platform_device rk2818_device_backlight = {
+		.name	= "rk2818_backlight",
+		.id 	= -1,
+        .dev    = {
+           .platform_data  = &rk2818_bl_info,
+        }
+};
+
 //net device
 /* DM9000 */
 static struct resource dm9k_resource[] = {
