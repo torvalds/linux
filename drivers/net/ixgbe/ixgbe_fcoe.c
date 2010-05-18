@@ -32,6 +32,7 @@
 #endif /* CONFIG_IXGBE_DCB */
 #include <linux/if_ether.h>
 #include <linux/gfp.h>
+#include <linux/if_vlan.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/fc/fc_fs.h>
@@ -312,10 +313,12 @@ int ixgbe_fcoe_ddp(struct ixgbe_adapter *adapter,
 	if (fcerr == IXGBE_FCERR_BADCRC)
 		skb->ip_summed = CHECKSUM_NONE;
 
-	skb_reset_network_header(skb);
-	skb_set_transport_header(skb, skb_network_offset(skb) +
-				 sizeof(struct fcoe_hdr));
-	fh = (struct fc_frame_header *)skb_transport_header(skb);
+	if (eth_hdr(skb)->h_proto == htons(ETH_P_8021Q))
+		fh = (struct fc_frame_header *)(skb->data +
+			sizeof(struct vlan_hdr) + sizeof(struct fcoe_hdr));
+	else
+		fh = (struct fc_frame_header *)(skb->data +
+			sizeof(struct fcoe_hdr));
 	fctl = ntoh24(fh->fh_f_ctl);
 	if (fctl & FC_FC_EX_CTX)
 		xid =  be16_to_cpu(fh->fh_ox_id);
