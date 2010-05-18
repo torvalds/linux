@@ -6075,7 +6075,8 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 		}
 		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_VLAN;
-	} else if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+	} else if (adapter->flags & IXGBE_FLAG_DCB_ENABLED &&
+		   skb->priority != TC_PRIO_CONTROL) {
 		tx_flags |= ((skb->queue_mapping & 0x7) << 13);
 		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_VLAN;
