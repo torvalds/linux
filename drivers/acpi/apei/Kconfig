@@ -1,0 +1,8 @@
+config ACPI_APEI
+	bool "ACPI Platform Error Interface (APEI)"
+	depends on X86
+	help
+	  APEI allows to report errors (for example from the chipset)
+	  to the operating system. This improves NMI handling
+	  especially. In addition it supports error serialization and
+	  error injection.

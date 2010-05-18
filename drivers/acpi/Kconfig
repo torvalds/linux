@@ -360,4 +360,6 @@ config ACPI_SBS
 	  To compile this driver as a module, choose M here:
 	  the modules will be called sbs and sbshc.
 
+source "drivers/acpi/apei/Kconfig"
+
 endif	# ACPI
