@@ -1,9 +1,9 @@
 /*
- * linux/arch/arm/plat-s5pc100/setup-fb-24bpp.c
+ * linux/arch/arm/mach-s5pc100/setup-fb-24bpp.c
  *
  * Copyright 2009 Samsung Electronics
  *
- * Base S5PC1XX setup information for 24bpp LCD framebuffer
+ * Base S5PC100 setup information for 24bpp LCD framebuffer
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

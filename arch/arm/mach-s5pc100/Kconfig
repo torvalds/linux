@@ -12,6 +12,11 @@ config CPU_S5PC100
 	help
 	  Enable S5PC100 CPU support
 
+config S5PC100_SETUP_FB_24BPP
+	bool
+	help
+	  Common setup code for S5PC1XX with an 24bpp RGB display helper.
+
 config S5PC100_SETUP_SDHCI
         bool
         select S5PC1XX_SETUP_SDHCI_GPIO
@@ -28,7 +33,7 @@ config MACH_SMDKC100
 	select S3C_DEV_HSMMC2
 	select S5PC1XX_SETUP_I2C0
 	select S5PC1XX_SETUP_I2C1
-	select S5PC1XX_SETUP_FB_24BPP
+	select S5PC100_SETUP_FB_24BPP
 	select S5PC100_SETUP_SDHCI
 	help
 	  Machine support for the Samsung SMDKC100
