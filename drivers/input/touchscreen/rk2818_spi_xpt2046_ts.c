@@ -503,7 +503,6 @@ static enum hrtimer_restart xpt2046_timer(struct hrtimer *handle)
 		if (ts->pendown) {
 			struct input_dev *input = ts->input;
 			input_report_key(input, BTN_TOUCH, 0);
-			input_report_abs(input, ABS_PRESSURE, 0);
 			input_sync(input);
 
 			ts->pendown = 0;
