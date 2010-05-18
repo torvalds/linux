@@ -1752,10 +1752,10 @@ static int ftdi_prepare_write_buffer(struct usb_serial_port *port,
 		spin_lock_irqsave(&port->lock, flags);
 		for (i = 0; i < size - 1; i += priv->max_packet_size) {
 			len = min_t(int, size - i, priv->max_packet_size) - 1;
-			buffer[i] = (len << 2) + 1;
 			c = kfifo_out(&port->write_fifo, &buffer[i + 1], len);
 			if (!c)
 				break;
+			buffer[i] = (c << 2) + 1;
 			count += c + 1;
 		}
 		spin_unlock_irqrestore(&port->lock, flags);
