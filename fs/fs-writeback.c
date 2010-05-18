@@ -978,8 +978,13 @@ int bdi_writeback_task(struct bdi_writeback *wb)
 		if (dirty_writeback_interval) {
 			wait_jiffies = msecs_to_jiffies(dirty_writeback_interval * 10);
 			schedule_timeout_interruptible(wait_jiffies);
-		} else
-			schedule();
+		} else {
+			set_current_state(TASK_INTERRUPTIBLE);
+			if (list_empty_careful(&wb->bdi->work_list) &&
+			    !kthread_should_stop())
+				schedule();
+			__set_current_state(TASK_RUNNING);
+		}
 
 		try_to_freeze();
 	}
