@@ -243,7 +243,7 @@ static ssize_t bonding_store_slaves(struct device *d,
 
 	if (command[0] == '+') {
 
-		/* Got a slave name in ifname.  Is it already in the list? */
+		/* Got a slave name in ifname. */
 
 		dev = __dev_get_by_name(dev_net(bond->dev), ifname);
 		if (!dev) {
@@ -252,24 +252,6 @@ static ssize_t bonding_store_slaves(struct device *d,
 			ret = -ENODEV;
 			goto out;
 		}
-
-		if (dev->flags & IFF_UP) {
-			pr_err("%s: Error: Unable to enslave %s because it is already up.\n",
-			       bond->dev->name, dev->name);
-			ret = -EPERM;
-			goto out;
-		}
-
-		read_lock(&bond->lock);
-		bond_for_each_slave(bond, slave, i)
-			if (slave->dev == dev) {
-				pr_err("%s: Interface %s is already enslaved!\n",
-				       bond->dev->name, ifname);
-				ret = -EPERM;
-				read_unlock(&bond->lock);
-				goto out;
-			}
-		read_unlock(&bond->lock);
 
 		pr_info("%s: Adding slave %s.\n", bond->dev->name, ifname);
 
