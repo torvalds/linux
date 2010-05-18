@@ -597,11 +597,11 @@ struct perf_mmap_data {
 	atomic_t			events;		/* event_id limit       */
 
 	atomic_long_t			head;		/* write position    */
-	atomic_long_t			done_head;	/* completed head    */
 
-	atomic_t			lock;		/* concurrent writes */
 	atomic_t			wakeup;		/* needs a wakeup    */
 	atomic_t			lost;		/* nr records lost   */
+
+	atomic_t			nest;		/* nested writers    */
 
 	long				watermark;	/* wakeup watermark  */
 
@@ -807,7 +807,6 @@ struct perf_output_handle {
 	unsigned long			offset;
 	int				nmi;
 	int				sample;
-	int				locked;
 };
 
 #ifdef CONFIG_PERF_EVENTS
