@@ -398,6 +398,7 @@ void radeon_pm_resume(struct radeon_device *rdev)
 
 int radeon_pm_init(struct radeon_device *rdev)
 {
+	int ret;
 	/* default to profile method */
 	rdev->pm.pm_method = PM_METHOD_PROFILE;
 	rdev->pm.dynpm_state = DYNPM_STATE_DISABLED;
@@ -427,8 +428,12 @@ int radeon_pm_init(struct radeon_device *rdev)
 		}
 
 		/* where's the best place to put these? */
-		device_create_file(rdev->dev, &dev_attr_power_profile);
-		device_create_file(rdev->dev, &dev_attr_power_method);
+		ret = device_create_file(rdev->dev, &dev_attr_power_profile);
+		if (ret)
+			DRM_ERROR("failed to create device file for power profile\n");
+		ret = device_create_file(rdev->dev, &dev_attr_power_method);
+		if (ret)
+			DRM_ERROR("failed to create device file for power method\n");
 
 #ifdef CONFIG_ACPI
 		rdev->acpi_nb.notifier_call = radeon_acpi_event;
