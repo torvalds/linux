@@ -106,6 +106,7 @@ struct outbound_transaction_resource {
 
 struct inbound_transaction_resource {
 	struct client_resource resource;
+	struct fw_card *card;
 	struct fw_request *request;
 	void *data;
 	size_t length;
@@ -625,8 +626,7 @@ static void release_request(struct client *client,
 	if (is_fcp_request(r->request))
 		kfree(r->data);
 	else
-		fw_send_response(client->device->card, r->request,
-				 RCODE_CONFLICT_ERROR);
+		fw_send_response(r->card, r->request, RCODE_CONFLICT_ERROR);
 	kfree(r);
 }
 
@@ -646,6 +646,7 @@ static void handle_request(struct fw_card *card, struct fw_request *request,
 	if (r == NULL || e == NULL)
 		goto failed;
 
+	r->card    = card;
 	r->request = request;
 	r->data    = payload;
 	r->length  = length;
@@ -765,7 +766,7 @@ static int ioctl_send_response(struct client *client, union ioctl_arg *arg)
 		kfree(r->request);
 		goto out;
 	}
-	fw_send_response(client->device->card, r->request, a->rcode);
+	fw_send_response(r->card, r->request, a->rcode);
  out:
 	kfree(r);
 
