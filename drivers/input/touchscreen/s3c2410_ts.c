@@ -55,6 +55,8 @@
 			 S3C2410_ADCTSC_AUTO_PST | \
 			 S3C2410_ADCTSC_XY_PST(0))
 
+#define FEAT_PEN_IRQ	(1 << 0)	/* HAS ADCCLRINTPNDNUP */
+
 /* Per-touchscreen data. */
 
 /**
@@ -69,6 +71,7 @@
  * @irq_tc: The interrupt number for pen up/down interrupt
  * @count: The number of samples collected.
  * @shift: The log2 of the maximum count to read in one go.
+ * @features: The features supported by the TSADC MOdule.
  */
 struct s3c2410ts {
 	struct s3c_adc_client *client;
@@ -81,6 +84,7 @@ struct s3c2410ts {
 	int irq_tc;
 	int count;
 	int shift;
+	int features;
 };
 
 static struct s3c2410ts ts;
@@ -170,6 +174,11 @@ static irqreturn_t stylus_irq(int irq, void *dev_id)
 		s3c_adc_start(ts.client, 0, 1 << ts.shift);
 	else
 		dev_info(ts.dev, "%s: count=%d\n", __func__, ts.count);
+
+	if (ts.features & FEAT_PEN_IRQ) {
+		/* Clear pen down/up interrupt */
+		writel(0x0, ts.io + S3C64XX_ADCCLRINTPNDNUP);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -317,6 +326,7 @@ static int __devinit s3c2410ts_probe(struct platform_device *pdev)
 	ts.input->id.version = 0x0102;
 
 	ts.shift = info->oversampling_shift;
+	ts.features = platform_get_device_id(pdev)->driver_data;
 
 	ret = request_irq(ts.irq_tc, stylus_irq, IRQF_DISABLED,
 			  "s3c2410_ts_pen", ts.input);
@@ -403,15 +413,14 @@ static struct dev_pm_ops s3c_ts_pmops = {
 #endif
 
 static struct platform_device_id s3cts_driver_ids[] = {
-	{ "s3c2410-ts", 0 },
-	{ "s3c2440-ts", 1 },
+	{ "s3c64xx-ts", FEAT_PEN_IRQ },
 	{ }
 };
 MODULE_DEVICE_TABLE(platform, s3cts_driver_ids);
 
 static struct platform_driver s3c_ts_driver = {
 	.driver         = {
-		.name   = "s3c24xx-ts",
+		.name   = "samsung-ts",
 		.owner  = THIS_MODULE,
 #ifdef CONFIG_PM
 		.pm	= &s3c_ts_pmops,
