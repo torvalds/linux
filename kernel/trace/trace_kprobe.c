@@ -1362,7 +1362,7 @@ static __kprobes void kprobe_perf_func(struct kprobe *kp,
 	for (i = 0; i < tp->nr_args; i++)
 		call_fetch(&tp->args[i].fetch, regs, data + tp->args[i].offset);
 
-	perf_trace_buf_submit(entry, size, rctx, entry->ip, 1, irq_flags, regs);
+	perf_trace_buf_submit(entry, size, rctx, entry->ip, 1, irq_flags, regs, call->perf_data);
 }
 
 /* Kretprobe profile handler */
@@ -1395,7 +1395,7 @@ static __kprobes void kretprobe_perf_func(struct kretprobe_instance *ri,
 		call_fetch(&tp->args[i].fetch, regs, data + tp->args[i].offset);
 
 	perf_trace_buf_submit(entry, size, rctx, entry->ret_ip, 1,
-			       irq_flags, regs);
+			       irq_flags, regs, call->perf_data);
 }
 
 static int probe_perf_enable(struct ftrace_event_call *call)

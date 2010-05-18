@@ -132,6 +132,7 @@ struct ftrace_event_call {
 	void			*data;
 
 	int			perf_refcount;
+	void			*perf_data;
 	int			(*perf_event_enable)(struct ftrace_event_call *);
 	void			(*perf_event_disable)(struct ftrace_event_call *);
 };
@@ -190,7 +191,7 @@ struct perf_event;
 
 DECLARE_PER_CPU(struct pt_regs, perf_trace_regs);
 
-extern int perf_trace_enable(int event_id);
+extern int perf_trace_enable(int event_id, void *data);
 extern void perf_trace_disable(int event_id);
 extern int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 				     char *filter_str);
@@ -201,11 +202,12 @@ perf_trace_buf_prepare(int size, unsigned short type, int *rctxp,
 
 static inline void
 perf_trace_buf_submit(void *raw_data, int size, int rctx, u64 addr,
-		       u64 count, unsigned long irq_flags, struct pt_regs *regs)
+		       u64 count, unsigned long irq_flags, struct pt_regs *regs,
+		       void *event)
 {
 	struct trace_entry *entry = raw_data;
 
-	perf_tp_event(entry->type, addr, count, raw_data, size, regs);
+	perf_tp_event(entry->type, addr, count, raw_data, size, regs, event);
 	perf_swevent_put_recursion_context(rctx);
 	local_irq_restore(irq_flags);
 }

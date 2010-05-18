@@ -4468,8 +4468,9 @@ static int swevent_hlist_get(struct perf_event *event)
 #ifdef CONFIG_EVENT_TRACING
 
 void perf_tp_event(int event_id, u64 addr, u64 count, void *record,
-		   int entry_size, struct pt_regs *regs)
+		   int entry_size, struct pt_regs *regs, void *event)
 {
+	const int type = PERF_TYPE_TRACEPOINT;
 	struct perf_sample_data data;
 	struct perf_raw_record raw = {
 		.size = entry_size,
@@ -4479,9 +4480,13 @@ void perf_tp_event(int event_id, u64 addr, u64 count, void *record,
 	perf_sample_data_init(&data, addr);
 	data.raw = &raw;
 
-	/* Trace events already protected against recursion */
-	do_perf_sw_event(PERF_TYPE_TRACEPOINT, event_id, count, 1,
-			 &data, regs);
+	if (!event) {
+		do_perf_sw_event(type, event_id, count, 1, &data, regs);
+		return;
+	}
+
+	if (perf_swevent_match(event, type, event_id, &data, regs))
+		perf_swevent_add(event, count, 1, &data, regs);
 }
 EXPORT_SYMBOL_GPL(perf_tp_event);
 
@@ -4514,7 +4519,7 @@ static const struct pmu *tp_perf_event_init(struct perf_event *event)
 			!capable(CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
 
-	if (perf_trace_enable(event->attr.config))
+	if (perf_trace_enable(event->attr.config, event))
 		return NULL;
 
 	event->destroy = tp_perf_event_destroy;

@@ -785,7 +785,8 @@ perf_trace_templ_##call(struct ftrace_event_call *event_call,		\
 	{ assign; }							\
 									\
 	perf_trace_buf_submit(entry, __entry_size, rctx, __addr,	\
-			       __count, irq_flags, __regs);		\
+			       __count, irq_flags, __regs, 		\
+			      event_call->perf_data);			\
 }
 
 #undef DEFINE_EVENT

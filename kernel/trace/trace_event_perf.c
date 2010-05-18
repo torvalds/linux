@@ -27,13 +27,15 @@ typedef typeof(unsigned long [PERF_MAX_TRACE_SIZE / sizeof(unsigned long)])
 /* Count the events in use (per event id, not per instance) */
 static int	total_ref_count;
 
-static int perf_trace_event_enable(struct ftrace_event_call *event)
+static int perf_trace_event_enable(struct ftrace_event_call *event, void *data)
 {
 	char *buf;
 	int ret = -ENOMEM;
 
-	if (event->perf_refcount++ > 0)
+	if (event->perf_refcount++ > 0) {
+		event->perf_data = NULL;
 		return 0;
+	}
 
 	if (!total_ref_count) {
 		buf = (char *)alloc_percpu(perf_trace_t);
@@ -51,6 +53,7 @@ static int perf_trace_event_enable(struct ftrace_event_call *event)
 
 	ret = event->perf_event_enable(event);
 	if (!ret) {
+		event->perf_data = data;
 		total_ref_count++;
 		return 0;
 	}
@@ -68,7 +71,7 @@ fail_buf:
 	return ret;
 }
 
-int perf_trace_enable(int event_id)
+int perf_trace_enable(int event_id, void *data)
 {
 	struct ftrace_event_call *event;
 	int ret = -EINVAL;
@@ -77,7 +80,7 @@ int perf_trace_enable(int event_id)
 	list_for_each_entry(event, &ftrace_events, list) {
 		if (event->id == event_id && event->perf_event_enable &&
 		    try_module_get(event->mod)) {
-			ret = perf_trace_event_enable(event);
+			ret = perf_trace_event_enable(event, data);
 			break;
 		}
 	}
