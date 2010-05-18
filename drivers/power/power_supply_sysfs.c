@@ -33,7 +33,7 @@
 {									\
 	.attr = { .name = #_name },					\
 	.show = power_supply_show_property,				\
-	.store = NULL,							\
+	.store = power_supply_store_property,				\
 }
 
 static struct device_attribute power_supply_attrs[];
@@ -99,6 +99,29 @@ static ssize_t power_supply_show_property(struct device *dev,
 	return sprintf(buf, "%d\n", value.intval);
 }
 
+static ssize_t power_supply_store_property(struct device *dev,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count) {
+	ssize_t ret;
+	struct power_supply *psy = dev_get_drvdata(dev);
+	const ptrdiff_t off = attr - power_supply_attrs;
+	union power_supply_propval value;
+	long long_val;
+
+	/* TODO: support other types than int */
+	ret = strict_strtol(buf, 10, &long_val);
+	if (ret < 0)
+		return ret;
+
+	value.intval = long_val;
+
+	ret = psy->set_property(psy, off, &value);
+	if (ret < 0)
+		return ret;
+
+	return count;
+}
+
 /* Must be in the same order as POWER_SUPPLY_PROP_* */
 static struct device_attribute power_supply_attrs[] = {
 	/* Properties of type `int' */
@@ -159,8 +182,17 @@ static mode_t power_supply_attr_is_visible(struct kobject *kobj,
 	int i;
 
 	for (i = 0; i < psy->num_properties; i++) {
-		if (psy->properties[i] == attrno)
-			return 0444;
+		int property = psy->properties[i];
+
+		if (property == attrno) {
+			mode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
+
+			if (psy->property_is_writeable &&
+			    psy->property_is_writeable(psy, property) > 0)
+				mode |= S_IWUSR;
+
+			return mode;
+		}
 	}
 
 	return 0;
