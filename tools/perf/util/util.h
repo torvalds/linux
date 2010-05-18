@@ -179,16 +179,8 @@ static inline char *gitstrchrnul(const char *s, int c)
  * Wrappers:
  */
 extern char *xstrdup(const char *str);
-extern void *xmalloc(size_t size) __attribute__((weak));
-extern char *xstrndup(const char *str, size_t len);
 extern void *xrealloc(void *ptr, size_t size) __attribute__((weak));
 
-static inline void *xzalloc(size_t size)
-{
-	void *buf = xmalloc(size);
-
-	return memset(buf, 0, size);
-}
 
 static inline void *zalloc(size_t size)
 {

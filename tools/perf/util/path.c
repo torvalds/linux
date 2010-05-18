@@ -152,5 +152,5 @@ char *strip_path_suffix(const char *path, const char *suffix)
 
 	if (path_len && !is_dir_sep(path[path_len - 1]))
 		return NULL;
-	return xstrndup(path, chomp_trailing_dir_sep(path, path_len));
+	return strndup(path, chomp_trailing_dir_sep(path, path_len));
 }

@@ -53,8 +53,8 @@ const char *perf_extract_argv0_path(const char *argv0)
 		slash--;
 
 	if (slash >= argv0) {
-		argv0_path = xstrndup(argv0, slash - argv0);
-		return slash + 1;
+		argv0_path = strndup(argv0, slash - argv0);
+		return argv0_path ? slash + 1 : NULL;
 	}
 
 	return argv0;
