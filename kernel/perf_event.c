@@ -2916,7 +2916,7 @@ static void perf_output_get_handle(struct perf_output_handle *handle)
 	struct perf_mmap_data *data = handle->data;
 
 	preempt_disable();
-	atomic_inc(&data->nest);
+	local_inc(&data->nest);
 }
 
 static void perf_output_put_handle(struct perf_output_handle *handle)
@@ -2925,13 +2925,13 @@ static void perf_output_put_handle(struct perf_output_handle *handle)
 	unsigned long head;
 
 again:
-	head = atomic_long_read(&data->head);
+	head = local_read(&data->head);
 
 	/*
 	 * IRQ/NMI can happen here, which means we can miss a head update.
 	 */
 
-	if (!atomic_dec_and_test(&data->nest))
+	if (!local_dec_and_test(&data->nest))
 		return;
 
 	/*
@@ -2945,12 +2945,12 @@ again:
 	 * Now check if we missed an update, rely on the (compiler)
 	 * barrier in atomic_dec_and_test() to re-read data->head.
 	 */
-	if (unlikely(head != atomic_long_read(&data->head))) {
-		atomic_inc(&data->nest);
+	if (unlikely(head != local_read(&data->head))) {
+		local_inc(&data->nest);
 		goto again;
 	}
 
-	if (atomic_xchg(&data->wakeup, 0))
+	if (local_xchg(&data->wakeup, 0))
 		perf_output_wakeup(handle);
 
 	preempt_enable();
@@ -3031,7 +3031,7 @@ int perf_output_begin(struct perf_output_handle *handle,
 	if (!data->nr_pages)
 		goto out;
 
-	have_lost = atomic_read(&data->lost);
+	have_lost = local_read(&data->lost);
 	if (have_lost)
 		size += sizeof(lost_event);
 
@@ -3045,24 +3045,24 @@ int perf_output_begin(struct perf_output_handle *handle,
 		 */
 		tail = ACCESS_ONCE(data->user_page->data_tail);
 		smp_rmb();
-		offset = head = atomic_long_read(&data->head);
+		offset = head = local_read(&data->head);
 		head += size;
 		if (unlikely(!perf_output_space(data, tail, offset, head)))
 			goto fail;
-	} while (atomic_long_cmpxchg(&data->head, offset, head) != offset);
+	} while (local_cmpxchg(&data->head, offset, head) != offset);
 
 	handle->offset	= offset;
 	handle->head	= head;
 
 	if (head - tail > data->watermark)
-		atomic_inc(&data->wakeup);
+		local_inc(&data->wakeup);
 
 	if (have_lost) {
 		lost_event.header.type = PERF_RECORD_LOST;
 		lost_event.header.misc = 0;
 		lost_event.header.size = sizeof(lost_event);
 		lost_event.id          = event->id;
-		lost_event.lost        = atomic_xchg(&data->lost, 0);
+		lost_event.lost        = local_xchg(&data->lost, 0);
 
 		perf_output_put(handle, lost_event);
 	}
@@ -3070,7 +3070,7 @@ int perf_output_begin(struct perf_output_handle *handle,
 	return 0;
 
 fail:
-	atomic_inc(&data->lost);
+	local_inc(&data->lost);
 	perf_output_put_handle(handle);
 out:
 	rcu_read_unlock();
@@ -3086,10 +3086,10 @@ void perf_output_end(struct perf_output_handle *handle)
 	int wakeup_events = event->attr.wakeup_events;
 
 	if (handle->sample && wakeup_events) {
-		int events = atomic_inc_return(&data->events);
+		int events = local_inc_return(&data->events);
 		if (events >= wakeup_events) {
-			atomic_sub(wakeup_events, &data->events);
-			atomic_inc(&data->wakeup);
+			local_sub(wakeup_events, &data->events);
+			local_inc(&data->wakeup);
 		}
 	}
 
