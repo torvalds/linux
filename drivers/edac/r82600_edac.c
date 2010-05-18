@@ -354,7 +354,7 @@ static int __devinit r82600_init_one(struct pci_dev *pdev,
 {
 	debugf0("%s()\n", __func__);
 
-	/* don't need to call pci_device_enable() */
+	/* don't need to call pci_enable_device() */
 	return r82600_probe1(pdev, ent->driver_data);
 }
 
