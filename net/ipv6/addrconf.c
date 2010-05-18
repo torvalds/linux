@@ -2853,10 +2853,10 @@ static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 	net_srandom(ifp->addr.s6_addr32[3]);
 
 	read_lock_bh(&idev->lock);
+	spin_lock(&ifp->lock);
 	if (ifp->state == INET6_IFADDR_STATE_DEAD)
 		goto out;
 
-	spin_lock(&ifp->lock);
 	if (dev->flags&(IFF_NOARP|IFF_LOOPBACK) ||
 	    idev->cnf.accept_dad < 1 ||
 	    !(ifp->flags&IFA_F_TENTATIVE) ||
@@ -2890,8 +2890,8 @@ static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 		ip6_ins_rt(ifp->rt);
 
 	addrconf_dad_kick(ifp);
-	spin_unlock(&ifp->lock);
 out:
+	spin_unlock(&ifp->lock);
 	read_unlock_bh(&idev->lock);
 }
 
@@ -2911,6 +2911,12 @@ static void addrconf_dad_timer(unsigned long data)
 	}
 
 	spin_lock(&ifp->lock);
+	if (ifp->state == INET6_IFADDR_STATE_DEAD) {
+		spin_unlock(&ifp->lock);
+		read_unlock(&idev->lock);
+		goto out;
+	}
+
 	if (ifp->probes == 0) {
 		/*
 		 * DAD was successful
