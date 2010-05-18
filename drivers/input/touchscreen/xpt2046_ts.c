@@ -268,7 +268,7 @@ static int xpt2046_read12_dfr(struct device *dev, unsigned command)
 		status = be16_to_cpu(req->sample);
 		status = status >> 3;
 		status &= 0x0fff;
-		printk("***>%s:status=%d\n",__FUNCTION__,status);
+		xpt2046printk("***>%s:status=%d\n",__FUNCTION__,status);
 	}
 
 	kfree(req);
@@ -837,7 +837,7 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 
 	if (request_irq(spi->irq, xpt2046_irq, IRQF_TRIGGER_FALLING,
 			spi->dev.driver->name, ts)) {
-		printk("***>%s:trying pin change workaround on irq %d\n",__FUNCTION__,spi->irq);
+		printk("%s:trying pin change workaround on irq %d\n",__FUNCTION__,spi->irq);
 		err = request_irq(spi->irq, xpt2046_irq,
 				  IRQF_TRIGGER_FALLING | IRQF_TRIGGER_RISING,
 				  spi->dev.driver->name, ts);
@@ -846,7 +846,7 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 			goto err_free_gpio;
 		}
 	}
-	printk("***>%s:touchscreen irq %d\n",__FUNCTION__,spi->irq);
+	xpt2046printk("***>%s:touchscreen irq %d\n",__FUNCTION__,spi->irq);
 	
 	/* take a first sample, leaving nPENIRQ active and vREF off; avoid
 	 * the touchscreen, in case it's not connected.
@@ -856,7 +856,7 @@ static int __devinit xpt2046_probe(struct spi_device *spi)
 	err = input_register_device(input_dev);
 	if (err)
 		goto err_remove_attr_group;
-
+  printk("xpt2046_ts: driver initialized\n");
 	return 0;
 
  err_remove_attr_group:
