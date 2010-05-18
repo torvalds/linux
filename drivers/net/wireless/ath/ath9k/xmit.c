@@ -2279,6 +2279,17 @@ void ath_tx_edma_tasklet(struct ath_softc *sc)
 
 		txok = !(txs.ts_status & ATH9K_TXERR_MASK);
 
+		/*
+		 * Make sure null func frame is acked before configuring
+		 * hw into ps mode.
+		 */
+		if (bf->bf_isnullfunc && txok) {
+			if ((sc->ps_flags & PS_ENABLED))
+				ath9k_enable_ps(sc);
+			else
+				sc->ps_flags |= PS_NULLFUNC_COMPLETED;
+		}
+
 		if (!bf_isampdu(bf)) {
 			bf->bf_retries = txs.ts_longretry;
 			if (txs.ts_status & ATH9K_TXERR_XRETRY)
