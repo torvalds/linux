@@ -56,10 +56,6 @@
 #define EPROM_PAGE_SIZE		64
 
 
-struct edgeport_uart_buf_desc {
-	__u32 count;		/* Number of bytes currently in buffer */
-};
-
 /* different hardware types */
 #define HARDWARE_TYPE_930	0
 #define HARDWARE_TYPE_TIUMP	1
@@ -108,7 +104,6 @@ struct edgeport_port {
 	int baud_rate;
 	int close_pending;
 	int lsr_event;
-	struct edgeport_uart_buf_desc tx;
 	struct async_icount	icount;
 	wait_queue_head_t	delta_msr_wait;	/* for handling sleeping while
 						   waiting for msr change to
