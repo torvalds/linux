@@ -159,6 +159,12 @@ static int hym8563_read_datetime(struct i2c_client *client, struct rtc_time *tm)
 	if(tm->tm_year < 0)
 		tm->tm_year = 0;	
 	tm->tm_isdst = 0;	
+	DBG("%s [%d]tm_sec=%d \n",__FUNCTION__,__LINE__,tm->tm_sec);
+	DBG("%s [%d]tm_min=%d \n",__FUNCTION__,__LINE__,tm->tm_min);
+	DBG("%s [%d]tm_hour=%d \n",__FUNCTION__,__LINE__,tm->tm_hour);
+	DBG("%s [%d]tm_mday=%d \n",__FUNCTION__,__LINE__,tm->tm_mday);
+	DBG("%s [%d]tm_mon=%d \n",__FUNCTION__,__LINE__,tm->tm_mon);
+	DBG("%s [%d]tm_year=%d \n",__FUNCTION__,__LINE__,tm->tm_year);
 	return 0;
 }
 
@@ -173,6 +179,12 @@ static int hym8563_set_time(struct i2c_client *client, struct rtc_time *tm)
 	u8 mon_day,i;
 	u8 ret = 0;
 	
+	DBG("%s [%d]tm_sec=%d \n",__FUNCTION__,__LINE__,tm->tm_sec);
+	DBG("%s [%d]tm_min=%d \n",__FUNCTION__,__LINE__,tm->tm_min);
+	DBG("%s [%d]tm_hour=%d \n",__FUNCTION__,__LINE__,tm->tm_hour);
+	DBG("%s [%d]tm_mday=%d \n",__FUNCTION__,__LINE__,tm->tm_mday);
+	DBG("%s [%d]tm_mon=%d \n",__FUNCTION__,__LINE__,tm->tm_mon);
+	DBG("%s [%d]tm_year=%d \n",__FUNCTION__,__LINE__,tm->tm_year);
 	mon_day = rtc_month_days((tm->tm_mon), tm->tm_year + 1900);
 	
 	if(tm->tm_sec >= 60 || tm->tm_sec < 0 )		//set  sec
@@ -361,12 +373,6 @@ static int __devinit  hym8563_probe(struct i2c_client *client,const struct i2c_d
 	hym8563_init_device(client);
 	hym8563_read_datetime(client, &tm_read);	//read time from hym8563
 	
-	DBG("%s [%d]tm_sec=%d \n",__FUNCTION__,__LINE__,tm_read.tm_sec);
-	DBG("%s [%d]tm_min=%d \n",__FUNCTION__,__LINE__,tm_read.tm_min);
-	DBG("%s [%d]tm_hour=%d \n",__FUNCTION__,__LINE__,tm_read.tm_hour);
-	DBG("%s [%d]tm_mday=%d \n",__FUNCTION__,__LINE__,tm_read.tm_mday);
-	DBG("%s [%d]tm_mon=%d \n",__FUNCTION__,__LINE__,tm_read.tm_mon);
-	DBG("%s [%d]tm_year=%d \n",__FUNCTION__,__LINE__,tm_read.tm_year);
 	if(((tm_read.tm_year < 70) | (tm_read.tm_year > 137 )) | (tm_read.tm_mon == -1))	//if the hym8563 haven't initialized
 	{
 		hym8563_set_time(client, &tm);	//initialize the hym8563 
