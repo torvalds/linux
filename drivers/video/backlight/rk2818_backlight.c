@@ -32,8 +32,10 @@
 //#include <mach/typedef.h>
 #include <mach/iomux.h>
 #include <mach/gpio.h>
-#include <mach/rk2818_backlight.h>
 #include <mach/rk2818_iomap.h>
+#include <mach/board.h>
+
+#include "rk2818_backlight.h"
 
 //#define RK28_PRINT 
 //#include <mach/rk2818_debug.h>

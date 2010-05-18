@@ -33,7 +33,6 @@
 #include <mach/rk2818_iomap.h>
 #include <mach/iomux.h>
 #include <mach/gpio.h>
-#include <mach/rk2818_backlight.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>

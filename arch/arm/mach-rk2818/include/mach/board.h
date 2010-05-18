@@ -17,6 +17,8 @@
 #define __ASM_ARCH_RK2818_BOARD_H
 
 #include <linux/types.h>
+#include <linux/timer.h>
+#include <linux/notifier.h>
 
 /* platform device data structures */
 struct platform_device;
@@ -54,6 +56,14 @@ struct rk2818_fb_iomux{
 struct rk2818_fb_mach_info {
     struct rk2818_fb_gpio *gpio;
     struct rk2818_fb_iomux *iomux;
+};
+
+struct rk2818bl_info{
+    u32 pwm_id;
+    u32 pw_pin;
+    u32 bl_ref;
+    struct timer_list timer;  
+    struct notifier_block freq_transition;
 };
 
 /* common init routines for use by arch/arm/mach-msm/board-*.c */
