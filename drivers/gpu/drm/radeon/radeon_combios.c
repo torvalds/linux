@@ -600,7 +600,7 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 	}
 	i2c.mm_i2c = false;
 	i2c.i2c_id = 0;
-	i2c.hpd_id = 0;
+	i2c.hpd = RADEON_HPD_NONE;
 
 	if (ddc_line)
 		i2c.valid = true;
@@ -2198,7 +2198,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 						  ATOM_DEVICE_DFP1_SUPPORT);
 
 			ddc_i2c = combios_setup_i2c_bus(rdev, RADEON_GPIO_DVI_DDC);
-			hpd.hpd = RADEON_HPD_NONE;
+			hpd.hpd = RADEON_HPD_1;
 			radeon_add_legacy_connector(dev,
 						    0,
 						    ATOM_DEVICE_CRT1_SUPPORT |

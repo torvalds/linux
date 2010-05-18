@@ -66,6 +66,16 @@ enum radeon_tv_std {
 	TV_STD_PAL_N,
 };
 
+enum radeon_hpd_id {
+	RADEON_HPD_1 = 0,
+	RADEON_HPD_2,
+	RADEON_HPD_3,
+	RADEON_HPD_4,
+	RADEON_HPD_5,
+	RADEON_HPD_6,
+	RADEON_HPD_NONE = 0xff,
+};
+
 /* radeon gpio-based i2c
  * 1. "mask" reg and bits
  *    grabs the gpio pins for software use
@@ -85,7 +95,7 @@ struct radeon_i2c_bus_rec {
 	/* id used by atom */
 	uint8_t i2c_id;
 	/* id used by atom */
-	uint8_t hpd_id;
+	enum radeon_hpd_id hpd;
 	/* can be used with hw i2c engine */
 	bool hw_capable;
 	/* uses multi-media i2c engine */
@@ -368,16 +378,6 @@ struct radeon_gpio_rec {
 	u8 id;
 	u32 reg;
 	u32 mask;
-};
-
-enum radeon_hpd_id {
-	RADEON_HPD_NONE = 0,
-	RADEON_HPD_1,
-	RADEON_HPD_2,
-	RADEON_HPD_3,
-	RADEON_HPD_4,
-	RADEON_HPD_5,
-	RADEON_HPD_6,
 };
 
 struct radeon_hpd {

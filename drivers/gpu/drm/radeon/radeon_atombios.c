@@ -549,7 +549,6 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 						ATOM_I2C_RECORD *i2c_record;
 						ATOM_HPD_INT_RECORD *hpd_record;
 						ATOM_I2C_ID_CONFIG_ACCESS *i2c_config;
-						hpd.hpd = RADEON_HPD_NONE;
 
 						while (record->ucRecordType > 0
 						       && record->
@@ -590,7 +589,7 @@ bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
 			}
 
 			/* needed for aux chan transactions */
-			ddc_bus.hpd_id = hpd.hpd ? (hpd.hpd - 1) : 0;
+			ddc_bus.hpd = hpd.hpd;
 
 			conn_id = le16_to_cpu(path->usConnObjectId);
 
