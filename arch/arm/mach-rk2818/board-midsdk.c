@@ -228,6 +228,7 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
  *author: lhh
  *****************************************************************************************/
 static struct spi_board_info board_spi_devices[] = {
+#if defined(CONFIG_ENC28J60)	
 	{	/* net chip */
 		.modalias	= "enc28j60",
 		.chip_select	= 1,
@@ -235,6 +236,7 @@ static struct spi_board_info board_spi_devices[] = {
 		.bus_num	= 0,
 		.mode	= SPI_MODE_0,
 	},
+#endif	
 #if defined(CONFIG_TOUCHSCREEN_RK2818_SPI_XPT2046) || defined(CONFIG_TOUCHSCREEN_RK2818_SPI_XPT2046_CBN)
 	{
 		.modalias	= "xpt2046_ts",
@@ -279,6 +281,7 @@ static struct platform_device *devices[] __initdata = {
 	&rk2818_device_i2c1,
 #endif
 	&rk2818_device_spim,
+	&rk2818_device_pmem,
 	&rk2818_device_adc,
 	&rk2818_device_adckey,
     &rk2818_device_fb,    

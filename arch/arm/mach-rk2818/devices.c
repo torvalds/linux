@@ -15,6 +15,7 @@
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/android_pmem.h>
 
 #include <mach/irqs.h>
 #include <mach/rk2818_iomap.h>
@@ -261,4 +262,39 @@ struct platform_device rk2818_device_adckey = {
 	.id		= -1,
 	.dev.parent	= &rk2818_device_adc.dev,
 };
+
+
+#if defined(CONFIG_ANDROID_PMEM)
+static struct android_pmem_platform_data pmem_pdata = {
+	.name = "pmem",
+	.no_allocator = 1,
+	.cached = 1,
+	.start = 0x6f000000,
+	.size =  0x1000000,
+	//.start = 0x67000000,
+	//.size =  0x1000000,
+};
+
+static struct android_pmem_platform_data pmem_pdata_dsp = {
+	.name = "pmem-dsp",
+	.no_allocator = 1,
+	.cached = 0,
+    .start = 0x66B00000,
+	.size =  0x1500000,
+};
+
+struct platform_device rk2818_device_pmem = {
+	.name = "android_pmem",
+	.id = 0,
+	.dev = { .platform_data = &pmem_pdata },
+};
+
+struct platform_device rk2818_device_pmem_dsp = {
+	.name = "android_pmem",
+	.id = 1,
+	.dev = { .platform_data = &pmem_pdata_dsp },
+};
+
+
+#endif
 
