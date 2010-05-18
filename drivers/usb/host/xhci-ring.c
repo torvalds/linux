@@ -241,10 +241,27 @@ static int room_on_ring(struct xhci_hcd *xhci, struct xhci_ring *ring,
 	int i;
 	union xhci_trb *enq = ring->enqueue;
 	struct xhci_segment *enq_seg = ring->enq_seg;
+	struct xhci_segment *cur_seg;
+	unsigned int left_on_ring;
 
 	/* Check if ring is empty */
-	if (enq == ring->dequeue)
+	if (enq == ring->dequeue) {
+		/* Can't use link trbs */
+		left_on_ring = TRBS_PER_SEGMENT - 1;
+		for (cur_seg = enq_seg->next; cur_seg != enq_seg;
+				cur_seg = cur_seg->next)
+			left_on_ring += TRBS_PER_SEGMENT - 1;
+
+		/* Always need one TRB free in the ring. */
+		left_on_ring -= 1;
+		if (num_trbs > left_on_ring) {
+			xhci_warn(xhci, "Not enough room on ring; "
+					"need %u TRBs, %u TRBs left\n",
+					num_trbs, left_on_ring);
+			return 0;
+		}
 		return 1;
+	}
 	/* Make sure there's an extra empty TRB available */
 	for (i = 0; i <= num_trbs; ++i) {
 		if (enq == ring->dequeue)
