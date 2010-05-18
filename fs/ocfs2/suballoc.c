@@ -484,7 +484,7 @@ static int ocfs2_block_group_claim_bits(struct ocfs2_super *osb,
 					unsigned int min_bits,
 					u32 *bit_off, u32 *num_bits)
 {
-	int status;
+	int status = 0;
 
 	while (min_bits) {
 		status = ocfs2_claim_clusters(handle, ac, min_bits,
