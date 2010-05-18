@@ -1282,7 +1282,8 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 		 * completed and if needed, also for RX of buffered frames.
 		 */
 		ath9k_ps_wakeup(sc);
-		ath9k_hw_setrxabort(sc->sc_ah, 0);
+		if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_AUTOSLEEP))
+			ath9k_hw_setrxabort(sc->sc_ah, 0);
 		if (ieee80211_is_pspoll(hdr->frame_control)) {
 			ath_print(common, ATH_DBG_PS,
 				  "Sending PS-Poll to pick a buffered frame\n");
@@ -1546,8 +1547,8 @@ void ath9k_enable_ps(struct ath_softc *sc)
 			ah->imask |= ATH9K_INT_TIM_TIMER;
 			ath9k_hw_set_interrupts(ah, ah->imask);
 		}
+		ath9k_hw_setrxabort(ah, 1);
 	}
-	ath9k_hw_setrxabort(ah, 1);
 }
 
 static int ath9k_config(struct ieee80211_hw *hw, u32 changed)
