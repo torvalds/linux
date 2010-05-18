@@ -307,6 +307,7 @@ static int ir_prepare_write_buffer(struct usb_serial_port *port,
 						void *dest, size_t size)
 {
 	unsigned char *buf = dest;
+	int count;
 
 	/*
 	 * The first byte of the packet we send to the device contains an
@@ -317,8 +318,9 @@ static int ir_prepare_write_buffer(struct usb_serial_port *port,
 	 */
 	*buf = ir_xbof | ir_baud;
 
-	return kfifo_out_locked(&port->write_fifo, buf + 1, size - 1,
+	count = kfifo_out_locked(&port->write_fifo, buf + 1, size - 1,
 								&port->lock);
+	return count + 1;
 }
 
 static void ir_process_read_urb(struct urb *urb)
