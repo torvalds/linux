@@ -51,7 +51,7 @@ MODULE_LICENSE("GPL v2");
 #define	FCOE_CTLR_DEF_FKA	FIP_DEF_FKA	/* default keep alive (mS) */
 
 static void fcoe_ctlr_timeout(unsigned long);
-static void fcoe_ctlr_link_work(struct work_struct *);
+static void fcoe_ctlr_timer_work(struct work_struct *);
 static void fcoe_ctlr_recv_work(struct work_struct *);
 
 static u8 fcoe_all_fcfs[ETH_ALEN] = FIP_ALL_FCF_MACS;
@@ -116,7 +116,7 @@ void fcoe_ctlr_init(struct fcoe_ctlr *fip)
 	spin_lock_init(&fip->lock);
 	fip->flogi_oxid = FC_XID_UNKNOWN;
 	setup_timer(&fip->timer, fcoe_ctlr_timeout, (unsigned long)fip);
-	INIT_WORK(&fip->link_work, fcoe_ctlr_link_work);
+	INIT_WORK(&fip->timer_work, fcoe_ctlr_timer_work);
 	INIT_WORK(&fip->recv_work, fcoe_ctlr_recv_work);
 	skb_queue_head_init(&fip->fip_recv_list);
 }
@@ -164,7 +164,7 @@ void fcoe_ctlr_destroy(struct fcoe_ctlr *fip)
 	fcoe_ctlr_reset_fcfs(fip);
 	spin_unlock_bh(&fip->lock);
 	del_timer_sync(&fip->timer);
-	cancel_work_sync(&fip->link_work);
+	cancel_work_sync(&fip->timer_work);
 }
 EXPORT_SYMBOL(fcoe_ctlr_destroy);
 
@@ -257,14 +257,10 @@ void fcoe_ctlr_link_up(struct fcoe_ctlr *fip)
 {
 	spin_lock_bh(&fip->lock);
 	if (fip->state == FIP_ST_NON_FIP || fip->state == FIP_ST_AUTO) {
-		fip->last_link = 1;
-		fip->link = 1;
 		spin_unlock_bh(&fip->lock);
 		fc_linkup(fip->lp);
 	} else if (fip->state == FIP_ST_LINK_WAIT) {
 		fip->state = fip->mode;
-		fip->last_link = 1;
-		fip->link = 1;
 		spin_unlock_bh(&fip->lock);
 		if (fip->state == FIP_ST_AUTO)
 			LIBFCOE_FIP_DBG(fip, "%s", "setting AUTO mode.\n");
@@ -306,9 +302,7 @@ int fcoe_ctlr_link_down(struct fcoe_ctlr *fip)
 	LIBFCOE_FIP_DBG(fip, "link down.\n");
 	spin_lock_bh(&fip->lock);
 	fcoe_ctlr_reset(fip);
-	link_dropped = fip->link;
-	fip->link = 0;
-	fip->last_link = 0;
+	link_dropped = fip->state != FIP_ST_LINK_WAIT;
 	fip->state = FIP_ST_LINK_WAIT;
 	spin_unlock_bh(&fip->lock);
 
@@ -349,7 +343,7 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip,
 
 	fcf = fip->sel_fcf;
 	lp = fip->lp;
-	if (!fcf || !fc_host_port_id(lp->host))
+	if (!fcf || !lp->port_id)
 		return;
 
 	len = sizeof(*kal) + ports * sizeof(*vn);
@@ -380,8 +374,8 @@ static void fcoe_ctlr_send_keep_alive(struct fcoe_ctlr *fip,
 		vn->fd_desc.fip_dtype = FIP_DT_VN_ID;
 		vn->fd_desc.fip_dlen = sizeof(*vn) / FIP_BPW;
 		memcpy(vn->fd_mac, fip->get_src_addr(lport), ETH_ALEN);
-		hton24(vn->fd_fc_id, fc_host_port_id(lp->host));
-		put_unaligned_be64(lp->wwpn, &vn->fd_wwpn);
+		hton24(vn->fd_fc_id, lport->port_id);
+		put_unaligned_be64(lport->wwpn, &vn->fd_wwpn);
 	}
 	skb_put(skb, len);
 	skb->protocol = htons(ETH_P_FIP);
@@ -445,13 +439,18 @@ static int fcoe_ctlr_encaps(struct fcoe_ctlr *fip, struct fc_lport *lport,
 	cap->encaps.fd_desc.fip_dlen = dlen / FIP_BPW;
 
 	mac = (struct fip_mac_desc *)skb_put(skb, sizeof(*mac));
-	memset(mac, 0, sizeof(mac));
+	memset(mac, 0, sizeof(*mac));
 	mac->fd_desc.fip_dtype = FIP_DT_MAC;
 	mac->fd_desc.fip_dlen = sizeof(*mac) / FIP_BPW;
-	if (dtype != FIP_DT_FLOGI && dtype != FIP_DT_FDISC)
+	if (dtype != FIP_DT_FLOGI && dtype != FIP_DT_FDISC) {
 		memcpy(mac->fd_mac, fip->get_src_addr(lport), ETH_ALEN);
-	else if (fip->spma)
+	} else if (fip_flags & FIP_FL_SPMA) {
+		LIBFCOE_FIP_DBG(fip, "FLOGI/FDISC sent with SPMA\n");
 		memcpy(mac->fd_mac, fip->ctl_src_addr, ETH_ALEN);
+	} else {
+		LIBFCOE_FIP_DBG(fip, "FLOGI/FDISC sent with FPMA\n");
+		/* FPMA only FLOGI must leave the MAC desc set to all 0s */
+	}
 
 	skb->protocol = htons(ETH_P_FIP);
 	skb_reset_mac_header(skb);
@@ -556,7 +555,7 @@ EXPORT_SYMBOL(fcoe_ctlr_els_send);
  * fcoe_ctlr_age_fcfs() - Reset and free all old FCFs for a controller
  * @fip: The FCoE controller to free FCFs on
  *
- * Called with lock held.
+ * Called with lock held and preemption disabled.
  *
  * An FCF is considered old if we have missed three advertisements.
  * That is, there have been no valid advertisement from it for three
@@ -573,17 +572,20 @@ static void fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
 	struct fcoe_fcf *next;
 	unsigned long sel_time = 0;
 	unsigned long mda_time = 0;
+	struct fcoe_dev_stats *stats;
 
 	list_for_each_entry_safe(fcf, next, &fip->fcfs, list) {
 		mda_time = fcf->fka_period + (fcf->fka_period >> 1);
 		if ((fip->sel_fcf == fcf) &&
 		    (time_after(jiffies, fcf->time + mda_time))) {
 			mod_timer(&fip->timer, jiffies + mda_time);
-			fc_lport_get_stats(fip->lp)->MissDiscAdvCount++;
+			stats = per_cpu_ptr(fip->lp->dev_stats,
+					    smp_processor_id());
+			stats->MissDiscAdvCount++;
 			printk(KERN_INFO "libfcoe: host%d: Missing Discovery "
-			       "Advertisement for fab %llx count %lld\n",
+			       "Advertisement for fab %16.16llx count %lld\n",
 			       fip->lp->host->host_no, fcf->fabric_name,
-			       fc_lport_get_stats(fip->lp)->MissDiscAdvCount);
+			       stats->MissDiscAdvCount);
 		}
 		if (time_after(jiffies, fcf->time + fcf->fka_period * 3 +
 			       msecs_to_jiffies(FIP_FCF_FUZZ * 3))) {
@@ -593,7 +595,9 @@ static void fcoe_ctlr_age_fcfs(struct fcoe_ctlr *fip)
 			WARN_ON(!fip->fcf_count);
 			fip->fcf_count--;
 			kfree(fcf);
-			fc_lport_get_stats(fip->lp)->VLinkFailureCount++;
+			stats = per_cpu_ptr(fip->lp->dev_stats,
+					    smp_processor_id());
+			stats->VLinkFailureCount++;
 		} else if (fcoe_ctlr_mtu_valid(fcf) &&
 			   (!sel_time || time_before(sel_time, fcf->time))) {
 			sel_time = fcf->time;
@@ -776,7 +780,8 @@ static void fcoe_ctlr_recv_adv(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	mtu_valid = fcoe_ctlr_mtu_valid(fcf);
 	fcf->time = jiffies;
 	if (!found) {
-		LIBFCOE_FIP_DBG(fip, "New FCF for fab %llx map %x val %d\n",
+		LIBFCOE_FIP_DBG(fip, "New FCF for fab %16.16llx "
+				"map %x val %d\n",
 				fcf->fabric_name, fcf->fc_map, mtu_valid);
 	}
 
@@ -906,9 +911,10 @@ static void fcoe_ctlr_recv_els(struct fcoe_ctlr *fip, struct sk_buff *skb)
 	fr_eof(fp) = FC_EOF_T;
 	fr_dev(fp) = lport;
 
-	stats = fc_lport_get_stats(lport);
+	stats = per_cpu_ptr(lport->dev_stats, get_cpu());
 	stats->RxFrames++;
 	stats->RxWords += skb->len / FIP_BPW;
+	put_cpu();
 
 	fc_exch_recv(lport, fp);
 	return;
@@ -942,9 +948,8 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 	u32	desc_mask;
 
 	LIBFCOE_FIP_DBG(fip, "Clear Virtual Link received\n");
-	if (!fcf)
-		return;
-	if (!fcf || !fc_host_port_id(lport->host))
+
+	if (!fcf || !lport->port_id)
 		return;
 
 	/*
@@ -982,8 +987,7 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 			if (compare_ether_addr(vp->fd_mac,
 					       fip->get_src_addr(lport)) == 0 &&
 			    get_unaligned_be64(&vp->fd_wwpn) == lport->wwpn &&
-			    ntoh24(vp->fd_fc_id) ==
-			    fc_host_port_id(lport->host))
+			    ntoh24(vp->fd_fc_id) == lport->port_id)
 				desc_mask &= ~BIT(FIP_DT_VN_ID);
 			break;
 		default:
@@ -1006,7 +1010,8 @@ static void fcoe_ctlr_recv_clr_vlink(struct fcoe_ctlr *fip,
 		LIBFCOE_FIP_DBG(fip, "performing Clear Virtual Link\n");
 
 		spin_lock_bh(&fip->lock);
-		fc_lport_get_stats(lport)->VLinkFailureCount++;
+		per_cpu_ptr(lport->dev_stats,
+			    smp_processor_id())->VLinkFailureCount++;
 		fcoe_ctlr_reset(fip);
 		spin_unlock_bh(&fip->lock);
 
@@ -1102,15 +1107,17 @@ static void fcoe_ctlr_select(struct fcoe_ctlr *fip)
 	struct fcoe_fcf *best = NULL;
 
 	list_for_each_entry(fcf, &fip->fcfs, list) {
-		LIBFCOE_FIP_DBG(fip, "consider FCF for fab %llx VFID %d map %x "
-				"val %d\n", fcf->fabric_name, fcf->vfid,
+		LIBFCOE_FIP_DBG(fip, "consider FCF for fab %16.16llx "
+				"VFID %d map %x val %d\n",
+				fcf->fabric_name, fcf->vfid,
 				fcf->fc_map, fcoe_ctlr_mtu_valid(fcf));
 		if (!fcoe_ctlr_fcf_usable(fcf)) {
-			LIBFCOE_FIP_DBG(fip, "FCF for fab %llx map %x %svalid "
-					"%savailable\n", fcf->fabric_name,
-					fcf->fc_map, (fcf->flags & FIP_FL_SOL)
-					? "" : "in", (fcf->flags & FIP_FL_AVAIL)
-					? "" : "un");
+			LIBFCOE_FIP_DBG(fip, "FCF for fab %16.16llx "
+					"map %x %svalid %savailable\n",
+					fcf->fabric_name, fcf->fc_map,
+					(fcf->flags & FIP_FL_SOL) ? "" : "in",
+					(fcf->flags & FIP_FL_AVAIL) ?
+					"" : "un");
 			continue;
 		}
 		if (!best) {
@@ -1175,7 +1182,7 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 			       "Starting FCF discovery.\n",
 			       fip->lp->host->host_no);
 			fip->reset_req = 1;
-			schedule_work(&fip->link_work);
+			schedule_work(&fip->timer_work);
 		}
 	}
 
@@ -1201,43 +1208,31 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 		mod_timer(&fip->timer, next_timer);
 	}
 	if (fip->send_ctlr_ka || fip->send_port_ka)
-		schedule_work(&fip->link_work);
+		schedule_work(&fip->timer_work);
 	spin_unlock_bh(&fip->lock);
 }
 
 /**
- * fcoe_ctlr_link_work() - Worker thread function for link changes
+ * fcoe_ctlr_timer_work() - Worker thread function for timer work
  * @work: Handle to a FCoE controller
  *
- * See if the link status has changed and if so, report it.
- *
- * This is here because fc_linkup() and fc_linkdown() must not
+ * Sends keep-alives and resets which must not
  * be called from the timer directly, since they use a mutex.
  */
-static void fcoe_ctlr_link_work(struct work_struct *work)
+static void fcoe_ctlr_timer_work(struct work_struct *work)
 {
 	struct fcoe_ctlr *fip;
 	struct fc_lport *vport;
 	u8 *mac;
-	int link;
-	int last_link;
 	int reset;
 
-	fip = container_of(work, struct fcoe_ctlr, link_work);
+	fip = container_of(work, struct fcoe_ctlr, timer_work);
 	spin_lock_bh(&fip->lock);
-	last_link = fip->last_link;
-	link = fip->link;
-	fip->last_link = link;
 	reset = fip->reset_req;
 	fip->reset_req = 0;
 	spin_unlock_bh(&fip->lock);
 
-	if (last_link != link) {
-		if (link)
-			fc_linkup(fip->lp);
-		else
-			fc_linkdown(fip->lp);
-	} else if (reset && link)
+	if (reset)
 		fc_lport_reset(fip->lp);
 
 	if (fip->send_ctlr_ka) {
@@ -1334,9 +1329,9 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_lport *lport,
 		if (fip->state == FIP_ST_AUTO || fip->state == FIP_ST_NON_FIP) {
 			memcpy(fip->dest_addr, sa, ETH_ALEN);
 			fip->map_dest = 0;
-			if (fip->state == FIP_ST_NON_FIP)
-				LIBFCOE_FIP_DBG(fip, "received FLOGI REQ, "
-						"using non-FIP mode\n");
+			if (fip->state == FIP_ST_AUTO)
+				LIBFCOE_FIP_DBG(fip, "received non-FIP FLOGI. "
+						"Setting non-FIP mode\n");
 			fip->state = FIP_ST_NON_FIP;
 		}
 		spin_unlock_bh(&fip->lock);

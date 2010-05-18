@@ -2,7 +2,7 @@
  * Scsi Host Layer for MPT (Message Passing Technology) based controllers
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_scsih.c
- * Copyright (C) 2007-2009  LSI Corporation
+ * Copyright (C) 2007-2010  LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -52,6 +52,7 @@
 #include <linux/delay.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/aer.h>
 #include <linux/raid_class.h>
 #include <linux/slab.h>
 
@@ -109,14 +110,16 @@ struct sense_info {
 };
 
 
+#define MPT2SAS_RESCAN_AFTER_HOST_RESET (0xFFFF)
+
 /**
  * struct fw_event_work - firmware event struct
  * @list: link list framework
  * @work: work object (ioc->fault_reset_work_q)
+ * @cancel_pending_work: flag set during reset handling
  * @ioc: per adapter object
  * @VF_ID: virtual function id
  * @VP_ID: virtual port id
- * @host_reset_handling: handling events during host reset
  * @ignore: flag meaning this event has been marked to ignore
  * @event: firmware event MPI2_EVENT_XXX defined in mpt2_ioc.h
  * @event_data: reply event data payload follows
@@ -125,11 +128,11 @@ struct sense_info {
  */
 struct fw_event_work {
 	struct list_head 	list;
-	struct work_struct	work;
+	u8			cancel_pending_work;
+	struct delayed_work	delayed_work;
 	struct MPT2SAS_ADAPTER *ioc;
 	u8			VF_ID;
 	u8			VP_ID;
-	u8			host_reset_handling;
 	u8			ignore;
 	u16			event;
 	void			*event_data;
@@ -482,27 +485,17 @@ struct _sas_device *
 mpt2sas_scsih_sas_device_find_by_sas_address(struct MPT2SAS_ADAPTER *ioc,
     u64 sas_address)
 {
-	struct _sas_device *sas_device, *r;
+	struct _sas_device *sas_device;
 
-	r = NULL;
-	/* check the sas_device_init_list */
-	list_for_each_entry(sas_device, &ioc->sas_device_init_list,
-	    list) {
-		if (sas_device->sas_address != sas_address)
-			continue;
-		r = sas_device;
-		goto out;
-	}
+	list_for_each_entry(sas_device, &ioc->sas_device_list, list)
+		if (sas_device->sas_address == sas_address)
+			return sas_device;
 
-	/* then check the sas_device_list */
-	list_for_each_entry(sas_device, &ioc->sas_device_list, list) {
-		if (sas_device->sas_address != sas_address)
-			continue;
-		r = sas_device;
-		goto out;
-	}
- out:
-	return r;
+	list_for_each_entry(sas_device, &ioc->sas_device_init_list, list)
+		if (sas_device->sas_address == sas_address)
+			return sas_device;
+
+	return NULL;
 }
 
 /**
@@ -517,28 +510,17 @@ mpt2sas_scsih_sas_device_find_by_sas_address(struct MPT2SAS_ADAPTER *ioc,
 static struct _sas_device *
 _scsih_sas_device_find_by_handle(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 {
-	struct _sas_device *sas_device, *r;
+	struct _sas_device *sas_device;
 
-	r = NULL;
-	if (ioc->wait_for_port_enable_to_complete) {
-		list_for_each_entry(sas_device, &ioc->sas_device_init_list,
-		    list) {
-			if (sas_device->handle != handle)
-				continue;
-			r = sas_device;
-			goto out;
-		}
-	} else {
-		list_for_each_entry(sas_device, &ioc->sas_device_list, list) {
-			if (sas_device->handle != handle)
-				continue;
-			r = sas_device;
-			goto out;
-		}
-	}
+	list_for_each_entry(sas_device, &ioc->sas_device_list, list)
+		if (sas_device->handle == handle)
+			return sas_device;
 
- out:
-	return r;
+	list_for_each_entry(sas_device, &ioc->sas_device_init_list, list)
+		if (sas_device->handle == handle)
+			return sas_device;
+
+	return NULL;
 }
 
 /**
@@ -555,10 +537,15 @@ _scsih_sas_device_remove(struct MPT2SAS_ADAPTER *ioc,
 {
 	unsigned long flags;
 
+	if (!sas_device)
+		return;
+
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
-	list_del(&sas_device->list);
-	memset(sas_device, 0, sizeof(struct _sas_device));
-	kfree(sas_device);
+	if (mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
+	    sas_device->sas_address)) {
+		list_del(&sas_device->list);
+		kfree(sas_device);
+	}
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 }
 
@@ -988,7 +975,7 @@ _scsih_build_scatter_gather(struct MPT2SAS_ADAPTER *ioc,
 	u32 chain_offset;
 	u32 chain_length;
 	u32 chain_flags;
-	u32 sges_left;
+	int sges_left;
 	u32 sges_in_segment;
 	u32 sgl_flags;
 	u32 sgl_flags_last_element;
@@ -1009,7 +996,7 @@ _scsih_build_scatter_gather(struct MPT2SAS_ADAPTER *ioc,
 
 	sg_scmd = scsi_sglist(scmd);
 	sges_left = scsi_dma_map(scmd);
-	if (!sges_left) {
+	if (sges_left < 0) {
 		sdev_printk(KERN_ERR, scmd->device, "pci_map_sg"
 		" failed: request for %d bytes!\n", scsi_bufflen(scmd));
 		return -ENOMEM;
@@ -1395,7 +1382,7 @@ _scsih_display_sata_capabilities(struct MPT2SAS_ADAPTER *ioc,
 	}
 
 	flags = le16_to_cpu(sas_device_pg0.Flags);
-	device_info = le16_to_cpu(sas_device_pg0.DeviceInfo);
+	device_info = le32_to_cpu(sas_device_pg0.DeviceInfo);
 
 	sdev_printk(KERN_INFO, sdev,
 	    "atapi(%s), ncq(%s), asyn_notify(%s), smart(%s), fua(%s), "
@@ -1963,65 +1950,78 @@ mpt2sas_scsih_clear_tm_flag(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	}
 }
 
+
 /**
  * mpt2sas_scsih_issue_tm - main routine for sending tm requests
  * @ioc: per adapter struct
  * @device_handle: device handle
+ * @channel: the channel assigned by the OS
+ * @id: the id assigned by the OS
  * @lun: lun number
  * @type: MPI2_SCSITASKMGMT_TASKTYPE__XXX (defined in mpi2_init.h)
  * @smid_task: smid assigned to the task
  * @timeout: timeout in seconds
- * Context: The calling function needs to acquire the tm_cmds.mutex
+ * Context: user
  *
  * A generic API for sending task management requests to firmware.
  *
- * The ioc->tm_cmds.status flag should be MPT2_CMD_NOT_USED before calling
- * this API.
- *
  * The callback index is set inside `ioc->tm_cb_idx`.
  *
- * Return nothing.
+ * Return SUCCESS or FAILED.
  */
-void
-mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
-    u8 type, u16 smid_task, ulong timeout)
+int
+mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint channel,
+    uint id, uint lun, u8 type, u16 smid_task, ulong timeout,
+    struct scsi_cmnd *scmd)
 {
 	Mpi2SCSITaskManagementRequest_t *mpi_request;
 	Mpi2SCSITaskManagementReply_t *mpi_reply;
 	u16 smid = 0;
 	u32 ioc_state;
 	unsigned long timeleft;
+	struct scsi_cmnd *scmd_lookup;
+	int rc;
 
+	mutex_lock(&ioc->tm_cmds.mutex);
 	if (ioc->tm_cmds.status != MPT2_CMD_NOT_USED) {
 		printk(MPT2SAS_INFO_FMT "%s: tm_cmd busy!!!\n",
 		    __func__, ioc->name);
-		return;
+		rc = FAILED;
+		goto err_out;
 	}
 
-	if (ioc->shost_recovery) {
+	if (ioc->shost_recovery || ioc->remove_host) {
 		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
 		    __func__, ioc->name);
-		return;
+		rc = FAILED;
+		goto err_out;
 	}
 
 	ioc_state = mpt2sas_base_get_iocstate(ioc, 0);
 	if (ioc_state & MPI2_DOORBELL_USED) {
 		dhsprintk(ioc, printk(MPT2SAS_DEBUG_FMT "unexpected doorbell "
 		    "active!\n", ioc->name));
-		goto issue_host_reset;
+		mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
+		    FORCE_BIG_HAMMER);
+		rc = SUCCESS;
+		goto err_out;
 	}
 
 	if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT) {
 		mpt2sas_base_fault_info(ioc, ioc_state &
 		    MPI2_DOORBELL_DATA_MASK);
-		goto issue_host_reset;
+		mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
+		    FORCE_BIG_HAMMER);
+		rc = SUCCESS;
+		goto err_out;
 	}
 
 	smid = mpt2sas_base_get_smid_hpr(ioc, ioc->tm_cb_idx);
 	if (!smid) {
 		printk(MPT2SAS_ERR_FMT "%s: failed obtaining a smid\n",
 		    ioc->name, __func__);
-		return;
+		rc = FAILED;
+		goto err_out;
 	}
 
 	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "sending tm: handle(0x%04x),"
@@ -2035,21 +2035,24 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
 	mpi_request->DevHandle = cpu_to_le16(handle);
 	mpi_request->TaskType = type;
 	mpi_request->TaskMID = cpu_to_le16(smid_task);
-	mpi_request->VP_ID = 0;  /* TODO */
-	mpi_request->VF_ID = 0;
 	int_to_scsilun(lun, (struct scsi_lun *)mpi_request->LUN);
 	mpt2sas_scsih_set_tm_flag(ioc, handle);
 	init_completion(&ioc->tm_cmds.done);
 	mpt2sas_base_put_smid_hi_priority(ioc, smid);
 	timeleft = wait_for_completion_timeout(&ioc->tm_cmds.done, timeout*HZ);
-	mpt2sas_scsih_clear_tm_flag(ioc, handle);
 	if (!(ioc->tm_cmds.status & MPT2_CMD_COMPLETE)) {
 		printk(MPT2SAS_ERR_FMT "%s: timeout\n",
 		    ioc->name, __func__);
 		_debug_dump_mf(mpi_request,
 		    sizeof(Mpi2SCSITaskManagementRequest_t)/4);
-		if (!(ioc->tm_cmds.status & MPT2_CMD_RESET))
-			goto issue_host_reset;
+		if (!(ioc->tm_cmds.status & MPT2_CMD_RESET)) {
+			mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
+			    FORCE_BIG_HAMMER);
+			rc = SUCCESS;
+			ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
+			mpt2sas_scsih_clear_tm_flag(ioc, handle);
+			goto err_out;
+		}
 	}
 
 	if (ioc->tm_cmds.status & MPT2_CMD_REPLY_VALID) {
@@ -2059,12 +2062,57 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
 		    ioc->name, le16_to_cpu(mpi_reply->IOCStatus),
 		    le32_to_cpu(mpi_reply->IOCLogInfo),
 		    le32_to_cpu(mpi_reply->TerminationCount)));
-		if (ioc->logging_level & MPT_DEBUG_TM)
+		if (ioc->logging_level & MPT_DEBUG_TM) {
 			_scsih_response_code(ioc, mpi_reply->ResponseCode);
+			if (mpi_reply->IOCStatus)
+				_debug_dump_mf(mpi_request,
+				    sizeof(Mpi2SCSITaskManagementRequest_t)/4);
+		}
 	}
-	return;
- issue_host_reset:
-	mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP, FORCE_BIG_HAMMER);
+
+	/* sanity check:
+	 * Check to see the commands were terminated.
+	 * This is only needed for eh callbacks, hence the scmd check.
+	 */
+	rc = FAILED;
+	if (scmd == NULL)
+		goto bypass_sanity_checks;
+	switch (type) {
+	case MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK:
+		scmd_lookup = _scsih_scsi_lookup_get(ioc, smid_task);
+		if (scmd_lookup && (scmd_lookup->serial_number ==
+		    scmd->serial_number))
+			rc = FAILED;
+		else
+			rc = SUCCESS;
+		break;
+
+	case MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET:
+		if (_scsih_scsi_lookup_find_by_target(ioc, id, channel))
+			rc = FAILED;
+		else
+			rc = SUCCESS;
+		break;
+
+	case MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET:
+		if (_scsih_scsi_lookup_find_by_lun(ioc, id, lun, channel))
+			rc = FAILED;
+		else
+			rc = SUCCESS;
+		break;
+	}
+
+ bypass_sanity_checks:
+
+	mpt2sas_scsih_clear_tm_flag(ioc, handle);
+	ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
+	mutex_unlock(&ioc->tm_cmds.mutex);
+
+	return rc;
+
+ err_out:
+	mutex_unlock(&ioc->tm_cmds.mutex);
+	return rc;
 }
 
 /**
@@ -2081,7 +2129,6 @@ _scsih_abort(struct scsi_cmnd *scmd)
 	u16 smid;
 	u16 handle;
 	int r;
-	struct scsi_cmnd *scmd_lookup;
 
 	printk(MPT2SAS_INFO_FMT "attempting task abort! scmd(%p)\n",
 	    ioc->name, scmd);
@@ -2116,19 +2163,10 @@ _scsih_abort(struct scsi_cmnd *scmd)
 
 	mpt2sas_halt_firmware(ioc);
 
-	mutex_lock(&ioc->tm_cmds.mutex);
 	handle = sas_device_priv_data->sas_target->handle;
-	mpt2sas_scsih_issue_tm(ioc, handle, sas_device_priv_data->lun,
-	    MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK, smid, 30);
-
-	/* sanity check - see whether command actually completed */
-	scmd_lookup = _scsih_scsi_lookup_get(ioc, smid);
-	if (scmd_lookup && (scmd_lookup->serial_number == scmd->serial_number))
-		r = FAILED;
-	else
-		r = SUCCESS;
-	ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
-	mutex_unlock(&ioc->tm_cmds.mutex);
+	r = mpt2sas_scsih_issue_tm(ioc, handle, scmd->device->channel,
+	    scmd->device->id, scmd->device->lun,
+	    MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK, smid, 30, scmd);
 
  out:
 	printk(MPT2SAS_INFO_FMT "task abort: %s scmd(%p)\n",
@@ -2185,22 +2223,9 @@ _scsih_dev_reset(struct scsi_cmnd *scmd)
 		goto out;
 	}
 
-	mutex_lock(&ioc->tm_cmds.mutex);
-	mpt2sas_scsih_issue_tm(ioc, handle, 0,
-	    MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET, scmd->device->lun,
-	    30);
-
-	/*
-	 *  sanity check see whether all commands to this device been
-	 *  completed
-	 */
-	if (_scsih_scsi_lookup_find_by_lun(ioc, scmd->device->id,
-	    scmd->device->lun, scmd->device->channel))
-		r = FAILED;
-	else
-		r = SUCCESS;
-	ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
-	mutex_unlock(&ioc->tm_cmds.mutex);
+	r = mpt2sas_scsih_issue_tm(ioc, handle, scmd->device->channel,
+	    scmd->device->id, scmd->device->lun,
+	    MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET, 0, 30, scmd);
 
  out:
 	printk(MPT2SAS_INFO_FMT "device reset: %s scmd(%p)\n",
@@ -2257,21 +2282,9 @@ _scsih_target_reset(struct scsi_cmnd *scmd)
 		goto out;
 	}
 
-	mutex_lock(&ioc->tm_cmds.mutex);
-	mpt2sas_scsih_issue_tm(ioc, handle, 0,
-	    MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 30);
-
-	/*
-	 *  sanity check see whether all commands to this target been
-	 *  completed
-	 */
-	if (_scsih_scsi_lookup_find_by_target(ioc, scmd->device->id,
-	    scmd->device->channel))
-		r = FAILED;
-	else
-		r = SUCCESS;
-	ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
-	mutex_unlock(&ioc->tm_cmds.mutex);
+	r = mpt2sas_scsih_issue_tm(ioc, handle, scmd->device->channel,
+	    scmd->device->id, 0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0,
+	    30, scmd);
 
  out:
 	printk(MPT2SAS_INFO_FMT "target reset: %s scmd(%p)\n",
@@ -2325,8 +2338,9 @@ _scsih_fw_event_add(struct MPT2SAS_ADAPTER *ioc, struct fw_event_work *fw_event)
 
 	spin_lock_irqsave(&ioc->fw_event_lock, flags);
 	list_add_tail(&fw_event->list, &ioc->fw_event_list);
-	INIT_WORK(&fw_event->work, _firmware_event_work);
-	queue_work(ioc->firmware_event_thread, &fw_event->work);
+	INIT_DELAYED_WORK(&fw_event->delayed_work, _firmware_event_work);
+	queue_delayed_work(ioc->firmware_event_thread,
+	    &fw_event->delayed_work, 0);
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 }
 
@@ -2353,61 +2367,53 @@ _scsih_fw_event_free(struct MPT2SAS_ADAPTER *ioc, struct fw_event_work
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 }
 
+
 /**
- * _scsih_fw_event_add - requeue an event
+ * _scsih_queue_rescan - queue a topology rescan from user context
  * @ioc: per adapter object
- * @fw_event: object describing the event
- * Context: This function will acquire ioc->fw_event_lock.
  *
  * Return nothing.
  */
 static void
-_scsih_fw_event_requeue(struct MPT2SAS_ADAPTER *ioc, struct fw_event_work
-    *fw_event, unsigned long delay)
+_scsih_queue_rescan(struct MPT2SAS_ADAPTER *ioc)
 {
-	unsigned long flags;
-	if (ioc->firmware_event_thread == NULL)
+	struct fw_event_work *fw_event;
+
+	if (ioc->wait_for_port_enable_to_complete)
+		return;
+	fw_event = kzalloc(sizeof(struct fw_event_work), GFP_ATOMIC);
+	if (!fw_event)
+		return;
+	fw_event->event = MPT2SAS_RESCAN_AFTER_HOST_RESET;
+	fw_event->ioc = ioc;
+	_scsih_fw_event_add(ioc, fw_event);
+}
+
+/**
+ * _scsih_fw_event_cleanup_queue - cleanup event queue
+ * @ioc: per adapter object
+ *
+ * Walk the firmware event queue, either killing timers, or waiting
+ * for outstanding events to complete
+ *
+ * Return nothing.
+ */
+static void
+_scsih_fw_event_cleanup_queue(struct MPT2SAS_ADAPTER *ioc)
+{
+	struct fw_event_work *fw_event, *next;
+
+	if (list_empty(&ioc->fw_event_list) ||
+	     !ioc->firmware_event_thread || in_interrupt())
 		return;
 
-	spin_lock_irqsave(&ioc->fw_event_lock, flags);
-	queue_work(ioc->firmware_event_thread, &fw_event->work);
-	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
-}
-
-/**
- * _scsih_fw_event_off - turn flag off preventing event handling
- * @ioc: per adapter object
- *
- * Used to prevent handling of firmware events during adapter reset
- * driver unload.
- *
- * Return nothing.
- */
-static void
-_scsih_fw_event_off(struct MPT2SAS_ADAPTER *ioc)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&ioc->fw_event_lock, flags);
-	ioc->fw_events_off = 1;
-	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
-
-}
-
-/**
- * _scsih_fw_event_on - turn flag on allowing firmware event handling
- * @ioc: per adapter object
- *
- * Returns nothing.
- */
-static void
-_scsih_fw_event_on(struct MPT2SAS_ADAPTER *ioc)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&ioc->fw_event_lock, flags);
-	ioc->fw_events_off = 0;
-	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
+	list_for_each_entry_safe(fw_event, next, &ioc->fw_event_list, list) {
+		if (cancel_delayed_work(&fw_event->delayed_work)) {
+			_scsih_fw_event_free(ioc, fw_event);
+			continue;
+		}
+		fw_event->cancel_pending_work = 1;
+	}
 }
 
 /**
@@ -2571,25 +2577,24 @@ static void
 _scsih_tm_tr_send(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 {
 	Mpi2SCSITaskManagementRequest_t *mpi_request;
-	struct MPT2SAS_TARGET *sas_target_priv_data;
 	u16 smid;
 	struct _sas_device *sas_device;
 	unsigned long flags;
 	struct _tr_list *delayed_tr;
 
-	if (ioc->shost_recovery) {
-		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
-		    __func__, ioc->name);
+	if (ioc->shost_recovery || ioc->remove_host) {
+		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host reset in "
+		   "progress!\n", __func__, ioc->name));
 		return;
 	}
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
 	sas_device = _scsih_sas_device_find_by_handle(ioc, handle);
-	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
-
-	/* skip is hidden raid component */
-	if (sas_device && sas_device->hidden_raid_component)
+	if (sas_device && sas_device->hidden_raid_component) {
+		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 		return;
+	}
+	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
 	smid = mpt2sas_base_get_smid_hpr(ioc, ioc->tm_tr_cb_idx);
 	if (!smid) {
@@ -2598,36 +2603,16 @@ _scsih_tm_tr_send(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 			return;
 		INIT_LIST_HEAD(&delayed_tr->list);
 		delayed_tr->handle = handle;
-		delayed_tr->state = MPT2SAS_REQ_SAS_CNTRL;
-		list_add_tail(&delayed_tr->list,
-		    &ioc->delayed_tr_list);
-		if (sas_device && sas_device->starget) {
-			dewtprintk(ioc, starget_printk(KERN_INFO,
-			    sas_device->starget, "DELAYED:tr:handle(0x%04x), "
-			    "(open)\n", handle));
-		} else {
-			dewtprintk(ioc, printk(MPT2SAS_INFO_FMT
-			    "DELAYED:tr:handle(0x%04x), (open)\n",
-			    ioc->name, handle));
-		}
+		list_add_tail(&delayed_tr->list, &ioc->delayed_tr_list);
+		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT
+		    "DELAYED:tr:handle(0x%04x), (open)\n",
+		    ioc->name, handle));
 		return;
 	}
 
-	if (sas_device) {
-		sas_device->state |= MPTSAS_STATE_TR_SEND;
-		sas_device->state |= MPT2SAS_REQ_SAS_CNTRL;
-		if (sas_device->starget && sas_device->starget->hostdata) {
-			sas_target_priv_data = sas_device->starget->hostdata;
-			sas_target_priv_data->tm_busy = 1;
-			dewtprintk(ioc, starget_printk(KERN_INFO,
-			    sas_device->starget, "tr:handle(0x%04x), (open)\n",
-			    handle));
-		}
-	} else {
-		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT
-		    "tr:handle(0x%04x), (open)\n", ioc->name, handle));
-	}
-
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "tr_send:handle(0x%04x), "
+	    "(open), smid(%d), cb(%d)\n", ioc->name, handle, smid,
+	    ioc->tm_tr_cb_idx));
 	mpi_request = mpt2sas_base_get_msg_frame(ioc, smid);
 	memset(mpi_request, 0, sizeof(Mpi2SCSITaskManagementRequest_t));
 	mpi_request->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
@@ -2657,35 +2642,15 @@ static u8
 _scsih_sas_control_complete(struct MPT2SAS_ADAPTER *ioc, u16 smid,
     u8 msix_index, u32 reply)
 {
-	unsigned long flags;
-	u16 handle;
-	struct _sas_device *sas_device;
 	Mpi2SasIoUnitControlReply_t *mpi_reply =
 	    mpt2sas_base_get_reply_virt_addr(ioc, reply);
 
-	handle = le16_to_cpu(mpi_reply->DevHandle);
-
-	spin_lock_irqsave(&ioc->sas_device_lock, flags);
-	sas_device = _scsih_sas_device_find_by_handle(ioc, handle);
-	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
-
-	if (sas_device) {
-		sas_device->state |= MPTSAS_STATE_CNTRL_COMPLETE;
-		if (sas_device->starget)
-			dewtprintk(ioc, starget_printk(KERN_INFO,
-			    sas_device->starget,
-			    "sc_complete:handle(0x%04x), "
-			    "ioc_status(0x%04x), loginfo(0x%08x)\n",
-			    handle, le16_to_cpu(mpi_reply->IOCStatus),
-			    le32_to_cpu(mpi_reply->IOCLogInfo)));
-	} else {
-		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT
-		    "sc_complete:handle(0x%04x), "
-		    "ioc_status(0x%04x), loginfo(0x%08x)\n",
-		    ioc->name, handle, le16_to_cpu(mpi_reply->IOCStatus),
-		    le32_to_cpu(mpi_reply->IOCLogInfo)));
-	}
-
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT
+	    "sc_complete:handle(0x%04x), (open) "
+	    "smid(%d), ioc_status(0x%04x), loginfo(0x%08x)\n",
+	    ioc->name, le16_to_cpu(mpi_reply->DevHandle), smid,
+	    le16_to_cpu(mpi_reply->IOCStatus),
+	    le32_to_cpu(mpi_reply->IOCLogInfo)));
 	return 1;
 }
 
@@ -2709,87 +2674,63 @@ static u8
 _scsih_tm_tr_complete(struct MPT2SAS_ADAPTER *ioc, u16 smid, u8 msix_index,
     u32 reply)
 {
-	unsigned long flags;
 	u16 handle;
-	struct _sas_device *sas_device;
+	Mpi2SCSITaskManagementRequest_t *mpi_request_tm;
 	Mpi2SCSITaskManagementReply_t *mpi_reply =
 	    mpt2sas_base_get_reply_virt_addr(ioc, reply);
 	Mpi2SasIoUnitControlRequest_t *mpi_request;
 	u16 smid_sas_ctrl;
-	struct MPT2SAS_TARGET *sas_target_priv_data;
 	struct _tr_list *delayed_tr;
-	u8 rc;
 
-	handle = le16_to_cpu(mpi_reply->DevHandle);
-	spin_lock_irqsave(&ioc->sas_device_lock, flags);
-	sas_device = _scsih_sas_device_find_by_handle(ioc, handle);
-	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
-
-	if (sas_device) {
-		sas_device->state |= MPTSAS_STATE_TR_COMPLETE;
-		if (sas_device->starget) {
-			dewtprintk(ioc, starget_printk(KERN_INFO,
-			    sas_device->starget, "tr_complete:handle(0x%04x), "
-			    "(%s) ioc_status(0x%04x), loginfo(0x%08x), "
-			    "completed(%d)\n", sas_device->handle,
-			    (sas_device->state & MPT2SAS_REQ_SAS_CNTRL) ?
-			    "open" : "active",
-			    le16_to_cpu(mpi_reply->IOCStatus),
-			    le32_to_cpu(mpi_reply->IOCLogInfo),
-			    le32_to_cpu(mpi_reply->TerminationCount)));
-			if (sas_device->starget->hostdata) {
-				sas_target_priv_data =
-				    sas_device->starget->hostdata;
-				sas_target_priv_data->tm_busy = 0;
-			}
-		}
-	} else {
-		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT
-		    "tr_complete:handle(0x%04x), (open) ioc_status(0x%04x), "
-		    "loginfo(0x%08x), completed(%d)\n", ioc->name,
-		    handle, le16_to_cpu(mpi_reply->IOCStatus),
-		    le32_to_cpu(mpi_reply->IOCLogInfo),
-		    le32_to_cpu(mpi_reply->TerminationCount)));
+	if (ioc->shost_recovery || ioc->remove_host) {
+		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: host reset in "
+		   "progress!\n", __func__, ioc->name));
+		return 1;
 	}
 
-	if (!list_empty(&ioc->delayed_tr_list)) {
-		delayed_tr = list_entry(ioc->delayed_tr_list.next,
-		    struct _tr_list, list);
-		mpt2sas_base_free_smid(ioc, smid);
-		if (delayed_tr->state & MPT2SAS_REQ_SAS_CNTRL)
-			_scsih_tm_tr_send(ioc, delayed_tr->handle);
-		list_del(&delayed_tr->list);
-		kfree(delayed_tr);
-		rc = 0; /* tells base_interrupt not to free mf */
-	} else
-		rc = 1;
-
-	if (sas_device && !(sas_device->state & MPT2SAS_REQ_SAS_CNTRL))
-		return rc;
-
-	if (ioc->shost_recovery) {
-		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
-		    __func__, ioc->name);
-		return rc;
+	mpi_request_tm = mpt2sas_base_get_msg_frame(ioc, smid);
+	handle = le16_to_cpu(mpi_request_tm->DevHandle);
+	if (handle != le16_to_cpu(mpi_reply->DevHandle)) {
+		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "spurious interrupt: "
+		    "handle(0x%04x:0x%04x), smid(%d)!!!\n", ioc->name, handle,
+		    le16_to_cpu(mpi_reply->DevHandle), smid));
+		return 0;
 	}
+
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT
+	    "tr_complete:handle(0x%04x), (open) smid(%d), ioc_status(0x%04x), "
+	    "loginfo(0x%08x), completed(%d)\n", ioc->name,
+	    handle, smid, le16_to_cpu(mpi_reply->IOCStatus),
+	    le32_to_cpu(mpi_reply->IOCLogInfo),
+	    le32_to_cpu(mpi_reply->TerminationCount)));
 
 	smid_sas_ctrl = mpt2sas_base_get_smid(ioc, ioc->tm_sas_control_cb_idx);
 	if (!smid_sas_ctrl) {
 		printk(MPT2SAS_ERR_FMT "%s: failed obtaining a smid\n",
 		    ioc->name, __func__);
-		return rc;
+		return 1;
 	}
 
-	if (sas_device)
-		sas_device->state |= MPTSAS_STATE_CNTRL_SEND;
-
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "sc_send:handle(0x%04x), "
+	    "(open), smid(%d), cb(%d)\n", ioc->name, handle, smid_sas_ctrl,
+	    ioc->tm_sas_control_cb_idx));
 	mpi_request = mpt2sas_base_get_msg_frame(ioc, smid_sas_ctrl);
 	memset(mpi_request, 0, sizeof(Mpi2SasIoUnitControlRequest_t));
 	mpi_request->Function = MPI2_FUNCTION_SAS_IO_UNIT_CONTROL;
 	mpi_request->Operation = MPI2_SAS_OP_REMOVE_DEVICE;
-	mpi_request->DevHandle = mpi_reply->DevHandle;
+	mpi_request->DevHandle = mpi_request_tm->DevHandle;
 	mpt2sas_base_put_smid_default(ioc, smid_sas_ctrl);
-	return rc;
+
+	if (!list_empty(&ioc->delayed_tr_list)) {
+		delayed_tr = list_entry(ioc->delayed_tr_list.next,
+		    struct _tr_list, list);
+		mpt2sas_base_free_smid(ioc, smid);
+		_scsih_tm_tr_send(ioc, delayed_tr->handle);
+		list_del(&delayed_tr->list);
+		kfree(delayed_tr);
+		return 0; /* tells base_interrupt not to free mf */
+	}
+	return 1;
 }
 
 /**
@@ -3021,25 +2962,32 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 
 	scmd->scsi_done = done;
 	sas_device_priv_data = scmd->device->hostdata;
-	if (!sas_device_priv_data) {
+	if (!sas_device_priv_data || !sas_device_priv_data->sas_target) {
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
 		return 0;
 	}
 
 	sas_target_priv_data = sas_device_priv_data->sas_target;
-	if (!sas_target_priv_data || sas_target_priv_data->handle ==
-	    MPT2SAS_INVALID_DEVICE_HANDLE || sas_target_priv_data->deleted) {
+	/* invalid device handle */
+	if (sas_target_priv_data->handle == MPT2SAS_INVALID_DEVICE_HANDLE) {
 		scmd->result = DID_NO_CONNECT << 16;
 		scmd->scsi_done(scmd);
 		return 0;
 	}
 
-	/* see if we are busy with task managment stuff */
-	if (sas_device_priv_data->block || sas_target_priv_data->tm_busy)
-		return SCSI_MLQUEUE_DEVICE_BUSY;
-	else if (ioc->shost_recovery || ioc->ioc_link_reset_in_progress)
+	/* host recovery or link resets sent via IOCTLs */
+	if (ioc->shost_recovery || ioc->ioc_link_reset_in_progress)
 		return SCSI_MLQUEUE_HOST_BUSY;
+	/* device busy with task managment */
+	else if (sas_device_priv_data->block || sas_target_priv_data->tm_busy)
+		return SCSI_MLQUEUE_DEVICE_BUSY;
+	/* device has been deleted */
+	else if (sas_target_priv_data->deleted) {
+		scmd->result = DID_NO_CONNECT << 16;
+		scmd->scsi_done(scmd);
+		return 0;
+	}
 
 	if (scmd->sc_data_direction == DMA_FROM_DEVICE)
 		mpi_control = MPI2_SCSIIO_CONTROL_READ;
@@ -3110,8 +3058,11 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 		}
 	}
 
-	mpt2sas_base_put_smid_scsi_io(ioc, smid,
-	    sas_device_priv_data->sas_target->handle);
+	if (likely(mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST))
+		mpt2sas_base_put_smid_scsi_io(ioc, smid,
+		    sas_device_priv_data->sas_target->handle);
+	else
+		mpt2sas_base_put_smid_default(ioc, smid);
 	return 0;
 
  out:
@@ -3301,8 +3252,8 @@ _scsih_scsi_ioc_info(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 		struct sense_info data;
 		_scsih_normalize_sense(scmd->sense_buffer, &data);
 		printk(MPT2SAS_WARN_FMT "\t[sense_key,asc,ascq]: "
-		    "[0x%02x,0x%02x,0x%02x]\n", ioc->name, data.skey,
-		    data.asc, data.ascq);
+		    "[0x%02x,0x%02x,0x%02x], count(%d)\n", ioc->name, data.skey,
+		    data.asc, data.ascq, le32_to_cpu(mpi_reply->SenseCount));
 	}
 
 	if (scsi_state & MPI2_SCSI_STATE_RESPONSE_INFO_VALID) {
@@ -3356,7 +3307,7 @@ _scsih_smart_predicted_fault(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 		mpi_request.Function = MPI2_FUNCTION_SCSI_ENCLOSURE_PROCESSOR;
 		mpi_request.Action = MPI2_SEP_REQ_ACTION_WRITE_STATUS;
 		mpi_request.SlotStatus =
-		    MPI2_SEP_REQ_SLOTSTATUS_PREDICTED_FAULT;
+		    cpu_to_le32(MPI2_SEP_REQ_SLOTSTATUS_PREDICTED_FAULT);
 		mpi_request.DevHandle = cpu_to_le16(handle);
 		mpi_request.Flags = MPI2_SEP_REQ_FLAGS_DEVHANDLE_ADDRESS;
 		if ((mpt2sas_base_scsi_enclosure_processor(ioc, &mpi_reply,
@@ -4008,6 +3959,134 @@ _scsih_expander_remove(struct MPT2SAS_ADAPTER *ioc, u64 sas_address)
 }
 
 /**
+ * _scsih_check_access_status - check access flags
+ * @ioc: per adapter object
+ * @sas_address: sas address
+ * @handle: sas device handle
+ * @access_flags: errors returned during discovery of the device
+ *
+ * Return 0 for success, else failure
+ */
+static u8
+_scsih_check_access_status(struct MPT2SAS_ADAPTER *ioc, u64 sas_address,
+   u16 handle, u8 access_status)
+{
+	u8 rc = 1;
+	char *desc = NULL;
+
+	switch (access_status) {
+	case MPI2_SAS_DEVICE0_ASTATUS_NO_ERRORS:
+	case MPI2_SAS_DEVICE0_ASTATUS_SATA_NEEDS_INITIALIZATION:
+		rc = 0;
+		break;
+	case MPI2_SAS_DEVICE0_ASTATUS_SATA_CAPABILITY_FAILED:
+		desc = "sata capability failed";
+		break;
+	case MPI2_SAS_DEVICE0_ASTATUS_SATA_AFFILIATION_CONFLICT:
+		desc = "sata affiliation conflict";
+		break;
+	case MPI2_SAS_DEVICE0_ASTATUS_ROUTE_NOT_ADDRESSABLE:
+		desc = "route not addressable";
+		break;
+	case MPI2_SAS_DEVICE0_ASTATUS_SMP_ERROR_NOT_ADDRESSABLE:
+		desc = "smp error not addressable";
+		break;
+	case MPI2_SAS_DEVICE0_ASTATUS_DEVICE_BLOCKED:
+		desc = "device blocked";
+		break;
+	case MPI2_SAS_DEVICE0_ASTATUS_SATA_INIT_FAILED:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_UNKNOWN:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_AFFILIATION_CONFLICT:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_DIAG:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_IDENTIFICATION:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_CHECK_POWER:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_PIO_SN:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_MDMA_SN:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_UDMA_SN:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_ZONING_VIOLATION:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_NOT_ADDRESSABLE:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_MAX:
+		desc = "sata initialization failed";
+		break;
+	default:
+		desc = "unknown";
+		break;
+	}
+
+	if (!rc)
+		return 0;
+
+	printk(MPT2SAS_ERR_FMT "discovery errors(%s): sas_address(0x%016llx), "
+	    "handle(0x%04x)\n", ioc->name, desc,
+	    (unsigned long long)sas_address, handle);
+	return rc;
+}
+
+static void
+_scsih_check_device(struct MPT2SAS_ADAPTER *ioc, u16 handle)
+{
+	Mpi2ConfigReply_t mpi_reply;
+	Mpi2SasDevicePage0_t sas_device_pg0;
+	struct _sas_device *sas_device;
+	u32 ioc_status;
+	unsigned long flags;
+	u64 sas_address;
+	struct scsi_target *starget;
+	struct MPT2SAS_TARGET *sas_target_priv_data;
+	u32 device_info;
+
+	if ((mpt2sas_config_get_sas_device_pg0(ioc, &mpi_reply, &sas_device_pg0,
+	    MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle)))
+		return;
+
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) & MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS)
+		return;
+
+	/* check if this is end device */
+	device_info = le32_to_cpu(sas_device_pg0.DeviceInfo);
+	if (!(_scsih_is_end_device(device_info)))
+		return;
+
+	spin_lock_irqsave(&ioc->sas_device_lock, flags);
+	sas_address = le64_to_cpu(sas_device_pg0.SASAddress);
+	sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
+	    sas_address);
+
+	if (!sas_device) {
+		printk(MPT2SAS_ERR_FMT "device is not present "
+		    "handle(0x%04x), no sas_device!!!\n", ioc->name, handle);
+		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
+		return;
+	}
+
+	if (unlikely(sas_device->handle != handle)) {
+		starget = sas_device->starget;
+		sas_target_priv_data = starget->hostdata;
+		starget_printk(KERN_INFO, starget, "handle changed from(0x%04x)"
+		   " to (0x%04x)!!!\n", sas_device->handle, handle);
+		sas_target_priv_data->handle = handle;
+		sas_device->handle = handle;
+	}
+	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
+
+	/* check if device is present */
+	if (!(le16_to_cpu(sas_device_pg0.Flags) &
+	    MPI2_SAS_DEVICE0_FLAGS_DEVICE_PRESENT)) {
+		printk(MPT2SAS_ERR_FMT "device is not present "
+		    "handle(0x%04x), flags!!!\n", ioc->name, handle);
+		return;
+	}
+
+	/* check if there were any issues with discovery */
+	if (_scsih_check_access_status(ioc, sas_address, handle,
+	    sas_device_pg0.AccessStatus))
+		return;
+	_scsih_ublock_io_device(ioc, handle);
+
+}
+
+/**
  * _scsih_add_device -  creating sas device object
  * @ioc: per adapter object
  * @handle: sas device handle
@@ -4045,6 +4124,8 @@ _scsih_add_device(struct MPT2SAS_ADAPTER *ioc, u16 handle, u8 phy_num, u8 is_pd)
 		return -1;
 	}
 
+	sas_address = le64_to_cpu(sas_device_pg0.SASAddress);
+
 	/* check if device is present */
 	if (!(le16_to_cpu(sas_device_pg0.Flags) &
 	    MPI2_SAS_DEVICE0_FLAGS_DEVICE_PRESENT)) {
@@ -4055,15 +4136,10 @@ _scsih_add_device(struct MPT2SAS_ADAPTER *ioc, u16 handle, u8 phy_num, u8 is_pd)
 		return -1;
 	}
 
-	/* check if there were any issus with discovery */
-	if (sas_device_pg0.AccessStatus ==
-	    MPI2_SAS_DEVICE0_ASTATUS_SATA_INIT_FAILED) {
-		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
-		printk(MPT2SAS_ERR_FMT "AccessStatus = 0x%02x\n",
-		    ioc->name, sas_device_pg0.AccessStatus);
+	/* check if there were any issues with discovery */
+	if (_scsih_check_access_status(ioc, sas_address, handle,
+	    sas_device_pg0.AccessStatus))
 		return -1;
-	}
 
 	/* check if this is end device */
 	device_info = le32_to_cpu(sas_device_pg0.DeviceInfo);
@@ -4073,17 +4149,14 @@ _scsih_add_device(struct MPT2SAS_ADAPTER *ioc, u16 handle, u8 phy_num, u8 is_pd)
 		return -1;
 	}
 
-	sas_address = le64_to_cpu(sas_device_pg0.SASAddress);
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
 	sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
 	    sas_address);
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
-	if (sas_device) {
-		_scsih_ublock_io_device(ioc, handle);
+	if (sas_device)
 		return 0;
-	}
 
 	sas_device = kzalloc(sizeof(struct _sas_device),
 	    GFP_KERNEL);
@@ -4126,67 +4199,38 @@ _scsih_add_device(struct MPT2SAS_ADAPTER *ioc, u16 handle, u8 phy_num, u8 is_pd)
 }
 
 /**
- * _scsih_remove_device -  removing sas device object
+ * _scsih_remove_pd_device -  removing sas device pd object
  * @ioc: per adapter object
- * @sas_device: the sas_device object
+ * @sas_device_delete: the sas_device object
  *
+ * For hidden raid components, we do driver-fw handshake from
+ * hotplug work threads.
  * Return nothing.
  */
 static void
-_scsih_remove_device(struct MPT2SAS_ADAPTER *ioc, struct _sas_device
-    *sas_device)
+_scsih_remove_pd_device(struct MPT2SAS_ADAPTER *ioc, struct _sas_device
+    sas_device)
 {
-	struct MPT2SAS_TARGET *sas_target_priv_data;
 	Mpi2SasIoUnitControlReply_t mpi_reply;
 	Mpi2SasIoUnitControlRequest_t mpi_request;
-	u16 device_handle, handle;
+	u16 vol_handle, handle;
 
-	if (!sas_device)
-		return;
-
-	handle = sas_device->handle;
+	handle = sas_device.handle;
 	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter: handle(0x%04x),"
 	    " sas_addr(0x%016llx)\n", ioc->name, __func__, handle,
-	    (unsigned long long) sas_device->sas_address));
+	    (unsigned long long) sas_device.sas_address));
 
-	if (sas_device->starget && sas_device->starget->hostdata) {
-		sas_target_priv_data = sas_device->starget->hostdata;
-		sas_target_priv_data->deleted = 1;
-	}
-
-	if (ioc->remove_host || ioc->shost_recovery || !handle)
-		goto out;
-
-	if ((sas_device->state & MPTSAS_STATE_TR_COMPLETE)) {
-		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "\tskip "
-		   "target_reset handle(0x%04x)\n", ioc->name,
-		   handle));
-		goto skip_tr;
-	}
-
-	/* Target Reset to flush out all the outstanding IO */
-	device_handle = (sas_device->hidden_raid_component) ?
-	    sas_device->volume_handle : handle;
-	if (device_handle) {
-		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "issue target reset: "
-		    "handle(0x%04x)\n", ioc->name, device_handle));
-		mutex_lock(&ioc->tm_cmds.mutex);
-		mpt2sas_scsih_issue_tm(ioc, device_handle, 0,
-		    MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 10);
-		ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
-		mutex_unlock(&ioc->tm_cmds.mutex);
-		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "issue target reset "
-		    "done: handle(0x%04x)\n", ioc->name, device_handle));
-		if (ioc->shost_recovery)
-			goto out;
-	}
- skip_tr:
-
-	if ((sas_device->state & MPTSAS_STATE_CNTRL_COMPLETE)) {
-		dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "\tskip "
-		   "sas_cntrl handle(0x%04x)\n", ioc->name, handle));
-		goto out;
-	}
+	vol_handle = sas_device.volume_handle;
+	if (!vol_handle)
+		return;
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "issue target reset: "
+	    "handle(0x%04x)\n", ioc->name, vol_handle));
+	mpt2sas_scsih_issue_tm(ioc, vol_handle, 0, 0, 0,
+	    MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 30, NULL);
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "issue target reset "
+	    "done: handle(0x%04x)\n", ioc->name, vol_handle));
+	if (ioc->shost_recovery)
+		return;
 
 	/* SAS_IO_UNIT_CNTR - send REMOVE_DEVICE */
 	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "sas_iounit: handle"
@@ -4194,34 +4238,68 @@ _scsih_remove_device(struct MPT2SAS_ADAPTER *ioc, struct _sas_device
 	memset(&mpi_request, 0, sizeof(Mpi2SasIoUnitControlRequest_t));
 	mpi_request.Function = MPI2_FUNCTION_SAS_IO_UNIT_CONTROL;
 	mpi_request.Operation = MPI2_SAS_OP_REMOVE_DEVICE;
-	mpi_request.DevHandle = handle;
-	mpi_request.VF_ID = 0; /* TODO */
-	mpi_request.VP_ID = 0;
+	mpi_request.DevHandle = cpu_to_le16(handle);
 	if ((mpt2sas_base_sas_iounit_control(ioc, &mpi_reply,
-	    &mpi_request)) != 0) {
+	    &mpi_request)) != 0)
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
-	}
 
 	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "sas_iounit: ioc_status"
 	    "(0x%04x), loginfo(0x%08x)\n", ioc->name,
 	    le16_to_cpu(mpi_reply.IOCStatus),
 	    le32_to_cpu(mpi_reply.IOCLogInfo)));
 
- out:
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: exit: handle(0x%04x),"
+	    " sas_addr(0x%016llx)\n", ioc->name, __func__, handle,
+	    (unsigned long long) sas_device.sas_address));
+}
 
-	_scsih_ublock_io_device(ioc, handle);
+/**
+ * _scsih_remove_device -  removing sas device object
+ * @ioc: per adapter object
+ * @sas_device_delete: the sas_device object
+ *
+ * Return nothing.
+ */
+static void
+_scsih_remove_device(struct MPT2SAS_ADAPTER *ioc,
+    struct _sas_device *sas_device)
+{
+	struct _sas_device sas_device_backup;
+	struct MPT2SAS_TARGET *sas_target_priv_data;
 
-	mpt2sas_transport_port_remove(ioc, sas_device->sas_address,
-	    sas_device->sas_address_parent);
+	if (!sas_device)
+		return;
 
-	printk(MPT2SAS_INFO_FMT "removing handle(0x%04x), sas_addr"
-	    "(0x%016llx)\n", ioc->name, handle,
-	    (unsigned long long) sas_device->sas_address);
+	memcpy(&sas_device_backup, sas_device, sizeof(struct _sas_device));
 	_scsih_sas_device_remove(ioc, sas_device);
 
-	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: exit: handle"
-	    "(0x%04x)\n", ioc->name, __func__, handle));
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: enter: "
+	    "handle(0x%04x), sas_addr(0x%016llx)\n", ioc->name, __func__,
+	    sas_device_backup.handle, (unsigned long long)
+	    sas_device_backup.sas_address));
+
+	if (sas_device_backup.starget && sas_device_backup.starget->hostdata) {
+		sas_target_priv_data = sas_device_backup.starget->hostdata;
+		sas_target_priv_data->deleted = 1;
+	}
+
+	if (sas_device_backup.hidden_raid_component)
+		_scsih_remove_pd_device(ioc, sas_device_backup);
+
+	_scsih_ublock_io_device(ioc, sas_device_backup.handle);
+
+	mpt2sas_transport_port_remove(ioc, sas_device_backup.sas_address,
+	    sas_device_backup.sas_address_parent);
+
+	printk(MPT2SAS_INFO_FMT "removing handle(0x%04x), sas_addr"
+	    "(0x%016llx)\n", ioc->name, sas_device_backup.handle,
+	    (unsigned long long) sas_device_backup.sas_address);
+
+	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "%s: exit: "
+	    "handle(0x%04x), sas_addr(0x%016llx)\n", ioc->name, __func__,
+	    sas_device_backup.handle, (unsigned long long)
+	    sas_device_backup.sas_address));
 }
 
 #ifdef CONFIG_SCSI_MPT2SAS_LOGGING
@@ -4331,7 +4409,7 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 		_scsih_sas_topology_change_event_debug(ioc, event_data);
 #endif
 
-	if (ioc->shost_recovery)
+	if (ioc->shost_recovery || ioc->remove_host)
 		return;
 
 	if (!ioc->sas_hba.num_phys)
@@ -4370,7 +4448,7 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 			    "expander event\n", ioc->name));
 			return;
 		}
-		if (ioc->shost_recovery)
+		if (ioc->shost_recovery || ioc->remove_host)
 			return;
 		phy_number = event_data->StartPhyNum + i;
 		reason_code = event_data->PHY[i].PhyStatus &
@@ -4393,8 +4471,10 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 			mpt2sas_transport_update_links(ioc, sas_address,
 			    handle, phy_number, link_rate);
 
-			if (link_rate >= MPI2_SAS_NEG_LINK_RATE_1_5)
-				_scsih_ublock_io_device(ioc, handle);
+			if (link_rate < MPI2_SAS_NEG_LINK_RATE_1_5)
+				break;
+
+			_scsih_check_device(ioc, handle);
 			break;
 		case MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED:
 
@@ -4520,10 +4600,10 @@ _scsih_sas_device_status_change_event(struct MPT2SAS_ADAPTER *ioc,
 		     event_data);
 #endif
 
-	if (!(event_data->ReasonCode ==
+	if (event_data->ReasonCode !=
 	    MPI2_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET &&
-	   event_data->ReasonCode ==
-	    MPI2_EVENT_SAS_DEV_STAT_RC_CMP_INTERNAL_DEV_RESET))
+	   event_data->ReasonCode !=
+	    MPI2_EVENT_SAS_DEV_STAT_RC_CMP_INTERNAL_DEV_RESET)
 		return;
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
@@ -4630,7 +4710,6 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 	dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: enter\n", ioc->name,
 	    __func__));
 
-	mutex_lock(&ioc->tm_cmds.mutex);
 	termination_count = 0;
 	query_count = 0;
 	mpi_reply = ioc->tm_cmds.reply;
@@ -4654,8 +4733,8 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 		lun = sas_device_priv_data->lun;
 		query_count++;
 
-		mpt2sas_scsih_issue_tm(ioc, handle, lun,
-		    MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK, smid, 30);
+		mpt2sas_scsih_issue_tm(ioc, handle, 0, 0, lun,
+		    MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK, smid, 30, NULL);
 		ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
 		ioc_status = le16_to_cpu(mpi_reply->IOCStatus)
 		    & MPI2_IOCSTATUS_MASK;
@@ -4666,13 +4745,11 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 		     MPI2_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC))
 			continue;
 
-		mpt2sas_scsih_issue_tm(ioc, handle, lun,
-		    MPI2_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET, 0, 30);
-		ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
+		mpt2sas_scsih_issue_tm(ioc, handle, 0, 0, lun,
+		    MPI2_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET, 0, 30, NULL);
 		termination_count += le32_to_cpu(mpi_reply->TerminationCount);
 	}
 	ioc->broadcast_aen_busy = 0;
-	mutex_unlock(&ioc->tm_cmds.mutex);
 
 	dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT
 	    "%s - exit, query_count = %d termination_count = %d\n",
@@ -5442,6 +5519,26 @@ _scsih_task_set_full(struct MPT2SAS_ADAPTER *ioc, struct fw_event_work
 }
 
 /**
+ * _scsih_prep_device_scan - initialize parameters prior to device scan
+ * @ioc: per adapter object
+ *
+ * Set the deleted flag prior to device scan.  If the device is found during
+ * the scan, then we clear the deleted flag.
+ */
+static void
+_scsih_prep_device_scan(struct MPT2SAS_ADAPTER *ioc)
+{
+	struct MPT2SAS_DEVICE *sas_device_priv_data;
+	struct scsi_device *sdev;
+
+	shost_for_each_device(sdev, ioc->shost) {
+		sas_device_priv_data = sdev->hostdata;
+		if (sas_device_priv_data && sas_device_priv_data->sas_target)
+			sas_device_priv_data->sas_target->deleted = 1;
+	}
+}
+
+/**
  * _scsih_mark_responding_sas_device - mark a sas_devices as responding
  * @ioc: per adapter object
  * @sas_address: sas address
@@ -5467,10 +5564,13 @@ _scsih_mark_responding_sas_device(struct MPT2SAS_ADAPTER *ioc, u64 sas_address,
 		if (sas_device->sas_address == sas_address &&
 		    sas_device->slot == slot && sas_device->starget) {
 			sas_device->responding = 1;
-			sas_device->state = 0;
 			starget = sas_device->starget;
-			sas_target_priv_data = starget->hostdata;
-			sas_target_priv_data->tm_busy = 0;
+			if (starget && starget->hostdata) {
+				sas_target_priv_data = starget->hostdata;
+				sas_target_priv_data->tm_busy = 0;
+				sas_target_priv_data->deleted = 0;
+			} else
+				sas_target_priv_data = NULL;
 			starget_printk(KERN_INFO, sas_device->starget,
 			    "handle(0x%04x), sas_addr(0x%016llx), enclosure "
 			    "logical id(0x%016llx), slot(%d)\n", handle,
@@ -5483,7 +5583,8 @@ _scsih_mark_responding_sas_device(struct MPT2SAS_ADAPTER *ioc, u64 sas_address,
 			printk(KERN_INFO "\thandle changed from(0x%04x)!!!\n",
 			    sas_device->handle);
 			sas_device->handle = handle;
-			sas_target_priv_data->handle = handle;
+			if (sas_target_priv_data)
+				sas_target_priv_data->handle = handle;
 			goto out;
 		}
 	}
@@ -5558,6 +5659,12 @@ _scsih_mark_responding_raid_device(struct MPT2SAS_ADAPTER *ioc, u64 wwid,
 	spin_lock_irqsave(&ioc->raid_device_lock, flags);
 	list_for_each_entry(raid_device, &ioc->raid_device_list, list) {
 		if (raid_device->wwid == wwid && raid_device->starget) {
+			starget = raid_device->starget;
+			if (starget && starget->hostdata) {
+				sas_target_priv_data = starget->hostdata;
+				sas_target_priv_data->deleted = 0;
+			} else
+				sas_target_priv_data = NULL;
 			raid_device->responding = 1;
 			starget_printk(KERN_INFO, raid_device->starget,
 			    "handle(0x%04x), wwid(0x%016llx)\n", handle,
@@ -5567,9 +5674,8 @@ _scsih_mark_responding_raid_device(struct MPT2SAS_ADAPTER *ioc, u64 wwid,
 			printk(KERN_INFO "\thandle changed from(0x%04x)!!!\n",
 			    raid_device->handle);
 			raid_device->handle = handle;
-			starget = raid_device->starget;
-			sas_target_priv_data = starget->hostdata;
-			sas_target_priv_data->handle = handle;
+			if (sas_target_priv_data)
+				sas_target_priv_data->handle = handle;
 			goto out;
 		}
 	}
@@ -5694,13 +5800,13 @@ _scsih_search_responding_expanders(struct MPT2SAS_ADAPTER *ioc)
 }
 
 /**
- * _scsih_remove_unresponding_devices - removing unresponding devices
+ * _scsih_remove_unresponding_sas_devices - removing unresponding devices
  * @ioc: per adapter object
  *
  * Return nothing.
  */
 static void
-_scsih_remove_unresponding_devices(struct MPT2SAS_ADAPTER *ioc)
+_scsih_remove_unresponding_sas_devices(struct MPT2SAS_ADAPTER *ioc)
 {
 	struct _sas_device *sas_device, *sas_device_next;
 	struct _sas_node *sas_expander;
@@ -5722,8 +5828,6 @@ _scsih_remove_unresponding_devices(struct MPT2SAS_ADAPTER *ioc)
 			    (unsigned long long)
 			    sas_device->enclosure_logical_id,
 			    sas_device->slot);
-		/* invalidate the device handle */
-		sas_device->handle = 0;
 		_scsih_remove_device(ioc, sas_device);
 	}
 
@@ -5774,31 +5878,32 @@ mpt2sas_scsih_reset_handler(struct MPT2SAS_ADAPTER *ioc, int reset_phase)
 	case MPT2_IOC_PRE_RESET:
 		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: "
 		    "MPT2_IOC_PRE_RESET\n", ioc->name, __func__));
-		_scsih_fw_event_off(ioc);
 		break;
 	case MPT2_IOC_AFTER_RESET:
 		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: "
 		    "MPT2_IOC_AFTER_RESET\n", ioc->name, __func__));
+		if (ioc->scsih_cmds.status & MPT2_CMD_PENDING) {
+			ioc->scsih_cmds.status |= MPT2_CMD_RESET;
+			mpt2sas_base_free_smid(ioc, ioc->scsih_cmds.smid);
+			complete(&ioc->scsih_cmds.done);
+		}
 		if (ioc->tm_cmds.status & MPT2_CMD_PENDING) {
 			ioc->tm_cmds.status |= MPT2_CMD_RESET;
 			mpt2sas_base_free_smid(ioc, ioc->tm_cmds.smid);
 			complete(&ioc->tm_cmds.done);
 		}
-		_scsih_fw_event_on(ioc);
+		_scsih_fw_event_cleanup_queue(ioc);
 		_scsih_flush_running_cmds(ioc);
+		_scsih_queue_rescan(ioc);
 		break;
 	case MPT2_IOC_DONE_RESET:
 		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: "
 		    "MPT2_IOC_DONE_RESET\n", ioc->name, __func__));
 		_scsih_sas_host_refresh(ioc);
+		_scsih_prep_device_scan(ioc);
 		_scsih_search_responding_sas_devices(ioc);
 		_scsih_search_responding_raid_devices(ioc);
 		_scsih_search_responding_expanders(ioc);
-		break;
-	case MPT2_IOC_RUNNING:
-		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: "
-		    "MPT2_IOC_RUNNING\n", ioc->name, __func__));
-		_scsih_remove_unresponding_devices(ioc);
 		break;
 	}
 }
@@ -5815,21 +5920,28 @@ static void
 _firmware_event_work(struct work_struct *work)
 {
 	struct fw_event_work *fw_event = container_of(work,
-	    struct fw_event_work, work);
+	    struct fw_event_work, delayed_work.work);
 	unsigned long flags;
 	struct MPT2SAS_ADAPTER *ioc = fw_event->ioc;
 
 	/* the queue is being flushed so ignore this event */
-	spin_lock_irqsave(&ioc->fw_event_lock, flags);
-	if (ioc->fw_events_off || ioc->remove_host) {
-		spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
+	if (ioc->remove_host || fw_event->cancel_pending_work) {
 		_scsih_fw_event_free(ioc, fw_event);
 		return;
 	}
-	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 
-	if (ioc->shost_recovery) {
-		_scsih_fw_event_requeue(ioc, fw_event, 1000);
+	if (fw_event->event == MPT2SAS_RESCAN_AFTER_HOST_RESET) {
+		_scsih_fw_event_free(ioc, fw_event);
+		spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
+		if (ioc->shost_recovery) {
+			init_completion(&ioc->shost_recovery_done);
+			spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock,
+			    flags);
+			wait_for_completion(&ioc->shost_recovery_done);
+		} else
+			spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock,
+			    flags);
+		_scsih_remove_unresponding_sas_devices(ioc);
 		return;
 	}
 
@@ -5891,16 +6003,12 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 {
 	struct fw_event_work *fw_event;
 	Mpi2EventNotificationReply_t *mpi_reply;
-	unsigned long flags;
 	u16 event;
+	u16 sz;
 
 	/* events turned off due to host reset or driver unloading */
-	spin_lock_irqsave(&ioc->fw_event_lock, flags);
-	if (ioc->fw_events_off || ioc->remove_host) {
-		spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
+	if (ioc->remove_host)
 		return 1;
-	}
-	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
 	event = le16_to_cpu(mpi_reply->Event);
@@ -5947,8 +6055,8 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 		    ioc->name, __FILE__, __LINE__, __func__);
 		return 1;
 	}
-	fw_event->event_data =
-	    kzalloc(mpi_reply->EventDataLength*4, GFP_ATOMIC);
+	sz = le16_to_cpu(mpi_reply->EventDataLength) * 4;
+	fw_event->event_data = kzalloc(sz, GFP_ATOMIC);
 	if (!fw_event->event_data) {
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
@@ -5957,7 +6065,7 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 	}
 
 	memcpy(fw_event->event_data, mpi_reply->EventData,
-	    mpi_reply->EventDataLength*4);
+	    sz);
 	fw_event->ioc = ioc;
 	fw_event->VF_ID = mpi_reply->VF_ID;
 	fw_event->VP_ID = mpi_reply->VP_ID;
@@ -6158,6 +6266,18 @@ _scsih_shutdown(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+	struct workqueue_struct	*wq;
+	unsigned long flags;
+
+	ioc->remove_host = 1;
+	_scsih_fw_event_cleanup_queue(ioc);
+
+	spin_lock_irqsave(&ioc->fw_event_lock, flags);
+	wq = ioc->firmware_event_thread;
+	ioc->firmware_event_thread = NULL;
+	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
+	if (wq)
+		destroy_workqueue(wq);
 
 	_scsih_ir_shutdown(ioc);
 	mpt2sas_base_detach(ioc);
@@ -6184,7 +6304,7 @@ _scsih_remove(struct pci_dev *pdev)
 	unsigned long flags;
 
 	ioc->remove_host = 1;
-	_scsih_fw_event_off(ioc);
+	_scsih_fw_event_cleanup_queue(ioc);
 
 	spin_lock_irqsave(&ioc->fw_event_lock, flags);
 	wq = ioc->firmware_event_thread;
@@ -6557,6 +6677,122 @@ _scsih_resume(struct pci_dev *pdev)
 }
 #endif /* CONFIG_PM */
 
+/**
+ * _scsih_pci_error_detected - Called when a PCI error is detected.
+ * @pdev: PCI device struct
+ * @state: PCI channel state
+ *
+ * Description: Called when a PCI error is detected.
+ *
+ * Return value:
+ *      PCI_ERS_RESULT_NEED_RESET or PCI_ERS_RESULT_DISCONNECT
+ */
+static pci_ers_result_t
+_scsih_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+
+	printk(MPT2SAS_INFO_FMT "PCI error: detected callback, state(%d)!!\n",
+	    ioc->name, state);
+
+	switch (state) {
+	case pci_channel_io_normal:
+		return PCI_ERS_RESULT_CAN_RECOVER;
+	case pci_channel_io_frozen:
+		scsi_block_requests(ioc->shost);
+		mpt2sas_base_stop_watchdog(ioc);
+		mpt2sas_base_free_resources(ioc);
+		return PCI_ERS_RESULT_NEED_RESET;
+	case pci_channel_io_perm_failure:
+		_scsih_remove(pdev);
+		return PCI_ERS_RESULT_DISCONNECT;
+	}
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+/**
+ * _scsih_pci_slot_reset - Called when PCI slot has been reset.
+ * @pdev: PCI device struct
+ *
+ * Description: This routine is called by the pci error recovery
+ * code after the PCI slot has been reset, just before we
+ * should resume normal operations.
+ */
+static pci_ers_result_t
+_scsih_pci_slot_reset(struct pci_dev *pdev)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+	int rc;
+
+	printk(MPT2SAS_INFO_FMT "PCI error: slot reset callback!!\n",
+		ioc->name);
+
+	ioc->pdev = pdev;
+	rc = mpt2sas_base_map_resources(ioc);
+	if (rc)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+
+	rc = mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
+	    FORCE_BIG_HAMMER);
+
+	printk(MPT2SAS_WARN_FMT "hard reset: %s\n", ioc->name,
+	    (rc == 0) ? "success" : "failed");
+
+	if (!rc)
+		return PCI_ERS_RESULT_RECOVERED;
+	else
+		return PCI_ERS_RESULT_DISCONNECT;
+}
+
+/**
+ * _scsih_pci_resume() - resume normal ops after PCI reset
+ * @pdev: pointer to PCI device
+ *
+ * Called when the error recovery driver tells us that its
+ * OK to resume normal operation. Use completion to allow
+ * halted scsi ops to resume.
+ */
+static void
+_scsih_pci_resume(struct pci_dev *pdev)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+
+	printk(MPT2SAS_INFO_FMT "PCI error: resume callback!!\n", ioc->name);
+
+	pci_cleanup_aer_uncorrect_error_status(pdev);
+	mpt2sas_base_start_watchdog(ioc);
+	scsi_unblock_requests(ioc->shost);
+}
+
+/**
+ * _scsih_pci_mmio_enabled - Enable MMIO and dump debug registers
+ * @pdev: pointer to PCI device
+ */
+static pci_ers_result_t
+_scsih_pci_mmio_enabled(struct pci_dev *pdev)
+{
+	struct Scsi_Host *shost = pci_get_drvdata(pdev);
+	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+
+	printk(MPT2SAS_INFO_FMT "PCI error: mmio enabled callback!!\n",
+	    ioc->name);
+
+	/* TODO - dump whatever for debugging purposes */
+
+	/* Request a slot reset. */
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static struct pci_error_handlers _scsih_err_handler = {
+	.error_detected = _scsih_pci_error_detected,
+	.mmio_enabled = _scsih_pci_mmio_enabled,
+	.slot_reset =	_scsih_pci_slot_reset,
+	.resume =	_scsih_pci_resume,
+};
 
 static struct pci_driver scsih_driver = {
 	.name		= MPT2SAS_DRIVER_NAME,
@@ -6564,6 +6800,7 @@ static struct pci_driver scsih_driver = {
 	.probe		= _scsih_probe,
 	.remove		= __devexit_p(_scsih_remove),
 	.shutdown	= _scsih_shutdown,
+	.err_handler	= &_scsih_err_handler,
 #ifdef CONFIG_PM
 	.suspend	= _scsih_suspend,
 	.resume		= _scsih_resume,

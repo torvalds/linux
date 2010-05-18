@@ -3,7 +3,7 @@
  * for access to MPT (Message Passing Technology) firmware.
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_base.h
- * Copyright (C) 2007-2009  LSI Corporation
+ * Copyright (C) 2007-2010  LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -69,11 +69,11 @@
 #define MPT2SAS_DRIVER_NAME		"mpt2sas"
 #define MPT2SAS_AUTHOR	"LSI Corporation <DL-MPTFusionLinux@lsi.com>"
 #define MPT2SAS_DESCRIPTION	"LSI MPT Fusion SAS 2.0 Device Driver"
-#define MPT2SAS_DRIVER_VERSION		"04.100.01.00"
-#define MPT2SAS_MAJOR_VERSION		04
+#define MPT2SAS_DRIVER_VERSION		"05.100.00.02"
+#define MPT2SAS_MAJOR_VERSION		05
 #define MPT2SAS_MINOR_VERSION		100
-#define MPT2SAS_BUILD_VERSION		01
-#define MPT2SAS_RELEASE_VERSION		00
+#define MPT2SAS_BUILD_VERSION		00
+#define MPT2SAS_RELEASE_VERSION		02
 
 /*
  * Set MPT2SAS_SG_DEPTH value based on user input.
@@ -119,7 +119,6 @@
 #define MPT2_IOC_PRE_RESET		1 /* prior to host reset */
 #define MPT2_IOC_AFTER_RESET		2 /* just after host reset */
 #define MPT2_IOC_DONE_RESET		3 /* links re-initialized */
-#define MPT2_IOC_RUNNING		4 /* shost running */
 
 /*
  * logging format
@@ -260,16 +259,6 @@ struct _internal_cmd {
 	u16	smid;
 };
 
-/*
- * SAS Topology Structures
- */
-
-#define MPTSAS_STATE_TR_SEND		0x0001
-#define MPTSAS_STATE_TR_COMPLETE	0x0002
-#define MPTSAS_STATE_CNTRL_SEND		0x0004
-#define MPTSAS_STATE_CNTRL_COMPLETE	0x0008
-
-#define MPT2SAS_REQ_SAS_CNTRL		0x0010
 
 /**
  * struct _sas_device - attached device information
@@ -307,7 +296,6 @@ struct _sas_device {
 	u16	slot;
 	u8	hidden_raid_component;
 	u8	responding;
-	u16	state;
 };
 
 /**
@@ -378,6 +366,7 @@ struct _sas_port {
  * @phy_id: unique phy id
  * @handle: device handle for this phy
  * @attached_handle: device handle for attached device
+ * @phy_belongs_to_port: port has been created for this phy
  */
 struct _sas_phy {
 	struct list_head port_siblings;
@@ -387,6 +376,7 @@ struct _sas_phy {
 	u8	phy_id;
 	u16	handle;
 	u16	attached_handle;
+	u8	phy_belongs_to_port;
 };
 
 /**
@@ -603,7 +593,6 @@ struct MPT2SAS_ADAPTER {
 	/* fw event handler */
 	char		firmware_event_name[20];
 	struct workqueue_struct	*firmware_event_thread;
-	u8		fw_events_off;
 	spinlock_t	fw_event_lock;
 	struct list_head fw_event_list;
 
@@ -611,6 +600,7 @@ struct MPT2SAS_ADAPTER {
 	int		aen_event_read_flag;
 	u8		broadcast_aen_busy;
 	u8		shost_recovery;
+	struct completion	shost_recovery_done;
 	spinlock_t 	ioc_reset_in_progress_lock;
 	u8		ioc_link_reset_in_progress;
 	u8		ignore_loginfos;
@@ -688,7 +678,8 @@ struct MPT2SAS_ADAPTER {
 	dma_addr_t	request_dma;
 	u32		request_dma_sz;
 	struct request_tracker *scsi_lookup;
-	spinlock_t scsi_lookup_lock;
+	ulong		scsi_lookup_pages;
+	spinlock_t 	scsi_lookup_lock;
 	struct list_head free_list;
 	int		pending_io_count;
 	wait_queue_head_t reset_wq;
@@ -700,7 +691,7 @@ struct MPT2SAS_ADAPTER {
 	u16		max_sges_in_chain_message;
 	u16		chains_needed_per_io;
 	u16		chain_offset_value_for_main_message;
-	u16		chain_depth;
+	u32		chain_depth;
 
 	/* hi-priority queue */
 	u16		hi_priority_smid;
@@ -814,8 +805,9 @@ void mpt2sas_halt_firmware(struct MPT2SAS_ADAPTER *ioc);
 /* scsih shared API */
 u8 mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
     u32 reply);
-void mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
-    u8 type, u16 smid_task, ulong timeout);
+int mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle,
+    uint channel, uint id, uint lun, u8 type, u16 smid_task,
+    ulong timeout, struct scsi_cmnd *scmd);
 void mpt2sas_scsih_set_tm_flag(struct MPT2SAS_ADAPTER *ioc, u16 handle);
 void mpt2sas_scsih_clear_tm_flag(struct MPT2SAS_ADAPTER *ioc, u16 handle);
 struct _sas_node *mpt2sas_scsih_expander_find_by_handle(struct MPT2SAS_ADAPTER *ioc,

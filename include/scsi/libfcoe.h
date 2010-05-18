@@ -29,6 +29,8 @@
 #include <scsi/fc/fc_fcoe.h>
 #include <scsi/libfc.h>
 
+#define FCOE_MAX_CMD_LEN	16	/* Supported CDB length */
+
 /*
  * FIP tunable parameters.
  */
@@ -65,14 +67,12 @@ enum fip_state {
  * @port_ka_time:  time of next port keep-alive.
  * @ctlr_ka_time:  time of next controller keep-alive.
  * @timer:	   timer struct used for all delayed events.
- * @link_work:	   &work_struct for doing FCF selection.
+ * @timer_work:	   &work_struct for doing keep-alives and resets.
  * @recv_work:	   &work_struct for receiving FIP frames.
  * @fip_recv_list: list of received FIP frames.
  * @user_mfs:	   configured maximum FC frame size, including FC header.
  * @flogi_oxid:    exchange ID of most recent fabric login.
  * @flogi_count:   number of FLOGI attempts in AUTO mode.
- * @link:	   current link status for libfc.
- * @last_link:	   last link state reported to libfc.
  * @map_dest:	   use the FC_MAP mode for destination MAC addresses.
  * @spma:	   supports SPMA server-provided MACs mode
  * @send_ctlr_ka:  need to send controller keep alive
@@ -100,14 +100,12 @@ struct fcoe_ctlr {
 	unsigned long port_ka_time;
 	unsigned long ctlr_ka_time;
 	struct timer_list timer;
-	struct work_struct link_work;
+	struct work_struct timer_work;
 	struct work_struct recv_work;
 	struct sk_buff_head fip_recv_list;
 	u16 user_mfs;
 	u16 flogi_oxid;
 	u8 flogi_count;
-	u8 link;
-	u8 last_link;
 	u8 reset_req;
 	u8 map_dest;
 	u8 spma;

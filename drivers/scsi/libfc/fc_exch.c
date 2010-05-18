@@ -488,7 +488,7 @@ static int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp,
 	 */
 	spin_lock_bh(&ep->ex_lock);
 	ep->f_ctl = f_ctl & ~FC_FC_FIRST_SEQ;	/* not first seq */
-	if (f_ctl & (FC_FC_END_SEQ | FC_FC_SEQ_INIT))
+	if (f_ctl & FC_FC_SEQ_INIT)
 		ep->esb_stat &= ~ESB_ST_SEQ_INIT;
 	spin_unlock_bh(&ep->ex_lock);
 	return error;
@@ -676,9 +676,10 @@ static struct fc_exch *fc_exch_em_alloc(struct fc_lport *lport,
 	}
 	memset(ep, 0, sizeof(*ep));
 
-	cpu = smp_processor_id();
+	cpu = get_cpu();
 	pool = per_cpu_ptr(mp->pool, cpu);
 	spin_lock_bh(&pool->lock);
+	put_cpu();
 	index = pool->next_index;
 	/* allocate new exch from pool */
 	while (fc_exch_ptr_get(pool, index)) {
@@ -734,19 +735,14 @@ err:
  * EM is selected when a NULL match function pointer is encountered
  * or when a call to a match function returns true.
  */
-static struct fc_exch *fc_exch_alloc(struct fc_lport *lport,
-				     struct fc_frame *fp)
+static inline struct fc_exch *fc_exch_alloc(struct fc_lport *lport,
+					    struct fc_frame *fp)
 {
 	struct fc_exch_mgr_anchor *ema;
-	struct fc_exch *ep;
 
-	list_for_each_entry(ema, &lport->ema_list, ema_list) {
-		if (!ema->match || ema->match(fp)) {
-			ep = fc_exch_em_alloc(lport, ema->mp);
-			if (ep)
-				return ep;
-		}
-	}
+	list_for_each_entry(ema, &lport->ema_list, ema_list)
+		if (!ema->match || ema->match(fp))
+			return fc_exch_em_alloc(lport, ema->mp);
 	return NULL;
 }
 
@@ -920,13 +916,9 @@ static enum fc_pf_rjt_reason fc_seq_lookup_recip(struct fc_lport *lport,
 	 * Find or create the sequence.
 	 */
 	if (fc_sof_is_init(fr_sof(fp))) {
-		sp = fc_seq_start_next(&ep->seq);
-		if (!sp) {
-			reject = FC_RJT_SEQ_XS;	/* exchange shortage */
-			goto rel;
-		}
-		sp->id = fh->fh_seq_id;
+		sp = &ep->seq;
 		sp->ssb_stat |= SSB_ST_RESP;
+		sp->id = fh->fh_seq_id;
 	} else {
 		sp = &ep->seq;
 		if (sp->id != fh->fh_seq_id) {
@@ -1250,9 +1242,6 @@ static void fc_exch_recv_req(struct fc_lport *lport, struct fc_exch_mgr *mp,
 	struct fc_frame_header *fh = fc_frame_header_get(fp);
 	struct fc_seq *sp = NULL;
 	struct fc_exch *ep = NULL;
-	enum fc_sof sof;
-	enum fc_eof eof;
-	u32 f_ctl;
 	enum fc_pf_rjt_reason reject;
 
 	/* We can have the wrong fc_lport at this point with NPIV, which is a
@@ -1269,9 +1258,6 @@ static void fc_exch_recv_req(struct fc_lport *lport, struct fc_exch_mgr *mp,
 	if (reject == FC_RJT_NONE) {
 		sp = fr_seq(fp);	/* sequence will be held */
 		ep = fc_seq_exch(sp);
-		sof = fr_sof(fp);
-		eof = fr_eof(fp);
-		f_ctl = ntoh24(fh->fh_f_ctl);
 		fc_seq_send_ack(sp, fp);
 
 		/*
@@ -1336,17 +1322,15 @@ static void fc_exch_recv_seq_resp(struct fc_exch_mgr *mp, struct fc_frame *fp)
 		goto rel;
 	}
 	sof = fr_sof(fp);
+	sp = &ep->seq;
 	if (fc_sof_is_init(sof)) {
-		sp = fc_seq_start_next(&ep->seq);
-		sp->id = fh->fh_seq_id;
 		sp->ssb_stat |= SSB_ST_RESP;
-	} else {
-		sp = &ep->seq;
-		if (sp->id != fh->fh_seq_id) {
-			atomic_inc(&mp->stats.seq_not_found);
-			goto rel;
-		}
+		sp->id = fh->fh_seq_id;
+	} else if (sp->id != fh->fh_seq_id) {
+		atomic_inc(&mp->stats.seq_not_found);
+		goto rel;
 	}
+
 	f_ctl = ntoh24(fh->fh_f_ctl);
 	fr_seq(fp) = sp;
 	if (f_ctl & FC_FC_SEQ_INIT)
@@ -1763,7 +1747,6 @@ static void fc_exch_els_rec(struct fc_seq *sp, struct fc_frame *rfp)
 		fc_exch_done(sp);
 		goto out;
 	}
-	sp = fc_seq_start_next(sp);
 	acc = fc_frame_payload_get(fp, sizeof(*acc));
 	memset(acc, 0, sizeof(*acc));
 	acc->reca_cmd = ELS_LS_ACC;
@@ -1944,7 +1927,7 @@ static void fc_exch_rrq(struct fc_exch *ep)
 		did = ep->sid;
 
 	fc_fill_fc_hdr(fp, FC_RCTL_ELS_REQ, did,
-		       fc_host_port_id(lport->host), FC_TYPE_ELS,
+		       lport->port_id, FC_TYPE_ELS,
 		       FC_FC_FIRST_SEQ | FC_FC_END_SEQ | FC_FC_SEQ_INIT, 0);
 
 	if (fc_exch_seq_send(lport, fp, fc_exch_rrq_resp, NULL, ep,

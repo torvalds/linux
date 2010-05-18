@@ -114,6 +114,7 @@
  */
 #define MAC_ADDR_LEN			6	/* in bytes */
 #define IP_ADDR_LEN			4	/* in bytes */
+#define IPv6_ADDR_LEN			16	/* IPv6 address size */
 #define DRIVER_NAME			"qla4xxx"
 
 #define MAX_LINKED_CMDS_PER_LUN		3
@@ -147,6 +148,8 @@
 
 #define MAX_RESET_HA_RETRIES		2
 
+#define CMD_SP(Cmnd)			((Cmnd)->SCp.ptr)
+
 /*
  * SCSI Request Block structure	 (srb)	that is placed
  * on cmd->SCp location of every I/O	 [We have 22 bytes available]
@@ -169,7 +172,7 @@ struct srb {
 
 	struct scsi_cmnd *cmd;	/* (4) SCSI command block */
 	dma_addr_t dma_handle;	/* (4) for unmap of single transfers */
-	atomic_t ref_count;	/* reference count for this srb */
+	struct kref srb_ref;	/* reference count for this srb */
 	uint32_t fw_ddb_index;
 	uint8_t err_id;		/* error id */
 #define SRB_ERR_PORT	   1	/* Request failed because "port down" */
@@ -220,7 +223,7 @@ struct ddb_entry {
 
 	uint16_t os_target_id;	/* Target ID */
 	uint16_t fw_ddb_index;	/* DDB firmware index */
-	uint8_t reserved[2];
+	uint16_t options;
 	uint32_t fw_ddb_device_state; /* F/W Device State  -- see ql4_fw.h */
 
 	uint32_t CmdSn;
@@ -245,10 +248,18 @@ struct ddb_entry {
 
 	uint16_t port;
 	uint32_t tpgt;
-	uint8_t ip_addr[ISCSI_IPADDR_SIZE];
+	uint8_t ip_addr[IP_ADDR_LEN];
 	uint8_t iscsi_name[ISCSI_NAME_SIZE];	/* 72 x48 */
 	uint8_t iscsi_alias[0x20];
 	uint8_t isid[6];
+	uint16_t iscsi_max_burst_len;
+	uint16_t iscsi_max_outsnd_r2t;
+	uint16_t iscsi_first_burst_len;
+	uint16_t iscsi_max_rcv_data_seg_len;
+	uint16_t iscsi_max_snd_data_seg_len;
+
+	struct in6_addr remote_ipv6_addr;
+	struct in6_addr link_local_ipv6_addr;
 };
 
 /*
@@ -301,6 +312,7 @@ struct scsi_qla_host {
 #define DPC_ISNS_RESTART		7 /* 0x00000080 */
 #define DPC_AEN				9 /* 0x00000200 */
 #define DPC_GET_DHCP_IP_ADDR		15 /* 0x00008000 */
+#define DPC_LINK_CHANGED		18 /* 0x00040000 */
 
 	struct Scsi_Host *host; /* pointer to host data */
 	uint32_t tot_ddbs;
@@ -320,8 +332,7 @@ struct scsi_qla_host {
 #define MIN_IOBASE_LEN		0x100
 
 	uint16_t req_q_count;
-	uint8_t marker_needed;
-	uint8_t rsvd1;
+	uint8_t rsvd1[2];
 
 	unsigned long host_no;
 
@@ -441,7 +452,34 @@ struct scsi_qla_host {
 
 	/* Saved srb for status continuation entry processing */
 	struct srb *status_srb;
+
+	/* IPv6 support info from InitFW */
+	uint8_t acb_version;
+	uint8_t ipv4_addr_state;
+	uint16_t ipv4_options;
+
+	uint32_t resvd2;
+	uint32_t ipv6_options;
+	uint32_t ipv6_addl_options;
+	uint8_t ipv6_link_local_state;
+	uint8_t ipv6_addr0_state;
+	uint8_t ipv6_addr1_state;
+	uint8_t ipv6_default_router_state;
+	struct in6_addr ipv6_link_local_addr;
+	struct in6_addr ipv6_addr0;
+	struct in6_addr ipv6_addr1;
+	struct in6_addr ipv6_default_router_addr;
 };
+
+static inline int is_ipv4_enabled(struct scsi_qla_host *ha)
+{
+	return ((ha->ipv4_options & IPOPT_IPv4_PROTOCOL_ENABLE) != 0);
+}
+
+static inline int is_ipv6_enabled(struct scsi_qla_host *ha)
+{
+	return ((ha->ipv6_options & IPV6_OPT_IPV6_PROTOCOL_ENABLE) != 0);
+}
 
 static inline int is_qla4010(struct scsi_qla_host *ha)
 {
