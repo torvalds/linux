@@ -48,7 +48,7 @@ void *xmalloc(size_t size)
  * and returns a pointer to the allocated memory. If the allocation fails,
  * the program dies.
  */
-void *xmemdupz(const void *data, size_t len)
+static void *xmemdupz(const void *data, size_t len)
 {
 	char *p = xmalloc(len + 1);
 	memcpy(p, data, len);
@@ -77,74 +77,4 @@ void *xrealloc(void *ptr, size_t size)
 			die("Out of memory, realloc failed");
 	}
 	return ret;
-}
-
-/*
- * xread() is the same a read(), but it automatically restarts read()
- * operations with a recoverable error (EAGAIN and EINTR). xread()
- * DOES NOT GUARANTEE that "len" bytes is read even if the data is available.
- */
-static ssize_t xread(int fd, void *buf, size_t len)
-{
-	ssize_t nr;
-	while (1) {
-		nr = read(fd, buf, len);
-		if ((nr < 0) && (errno == EAGAIN || errno == EINTR))
-			continue;
-		return nr;
-	}
-}
-
-/*
- * xwrite() is the same a write(), but it automatically restarts write()
- * operations with a recoverable error (EAGAIN and EINTR). xwrite() DOES NOT
- * GUARANTEE that "len" bytes is written even if the operation is successful.
- */
-static ssize_t xwrite(int fd, const void *buf, size_t len)
-{
-	ssize_t nr;
-	while (1) {
-		nr = write(fd, buf, len);
-		if ((nr < 0) && (errno == EAGAIN || errno == EINTR))
-			continue;
-		return nr;
-	}
-}
-
-ssize_t read_in_full(int fd, void *buf, size_t count)
-{
-	char *p = buf;
-	ssize_t total = 0;
-
-	while (count > 0) {
-		ssize_t loaded = xread(fd, p, count);
-		if (loaded <= 0)
-			return total ? total : loaded;
-		count -= loaded;
-		p += loaded;
-		total += loaded;
-	}
-
-	return total;
-}
-
-ssize_t write_in_full(int fd, const void *buf, size_t count)
-{
-	const char *p = buf;
-	ssize_t total = 0;
-
-	while (count > 0) {
-		ssize_t written = xwrite(fd, p, count);
-		if (written < 0)
-			return -1;
-		if (!written) {
-			errno = ENOSPC;
-			return -1;
-		}
-		count -= written;
-		p += written;
-		total += written;
-	}
-
-	return total;
 }

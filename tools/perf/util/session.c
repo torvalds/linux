@@ -5,6 +5,7 @@
 #include <byteswap.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 
 #include "session.h"
 #include "sort.h"

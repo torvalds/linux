@@ -25,6 +25,7 @@
 
 #include <unistd.h>
 #include <sched.h>
+#include <sys/mman.h>
 
 enum write_mode_t {
 	WRITE_FORCE,
