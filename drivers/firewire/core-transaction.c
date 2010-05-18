@@ -780,9 +780,11 @@ static void handle_exclusive_region_request(struct fw_card *card,
 	unsigned long flags;
 	int tcode, destination, source;
 
-	tcode       = HEADER_GET_TCODE(p->header[0]);
 	destination = HEADER_GET_DESTINATION(p->header[0]);
 	source      = HEADER_GET_SOURCE(p->header[1]);
+	tcode       = HEADER_GET_TCODE(p->header[0]);
+	if (tcode == TCODE_LOCK_REQUEST)
+		tcode = 0x10 + HEADER_GET_EXTENDED_TCODE(p->header[3]);
 
 	spin_lock_irqsave(&address_handler_lock, flags);
 	handler = lookup_enclosing_address_handler(&address_handler_list,
