@@ -13,6 +13,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/power_supply.h>
@@ -21,6 +22,8 @@
 /* exported for the APM Power driver, APM emulation */
 struct class *power_supply_class;
 EXPORT_SYMBOL_GPL(power_supply_class);
+
+static struct device_type power_supply_dev_type;
 
 static int __power_supply_changed_work(struct device *dev, void *data)
 {
@@ -144,22 +147,39 @@ struct power_supply *power_supply_get_by_name(char *name)
 }
 EXPORT_SYMBOL_GPL(power_supply_get_by_name);
 
+static void power_supply_dev_release(struct device *dev)
+{
+	pr_debug("device: '%s': %s\n", dev_name(dev), __func__);
+	kfree(dev);
+}
+
 int power_supply_register(struct device *parent, struct power_supply *psy)
 {
-	int rc = 0;
+	struct device *dev;
+	int rc;
 
-	psy->dev = device_create(power_supply_class, parent, 0, psy,
-				 "%s", psy->name);
-	if (IS_ERR(psy->dev)) {
-		rc = PTR_ERR(psy->dev);
-		goto dev_create_failed;
-	}
+	dev = kzalloc(sizeof(*dev), GFP_KERNEL);
+	if (!dev)
+		return -ENOMEM;
+
+	device_initialize(dev);
+
+	dev->class = power_supply_class;
+	dev->type = &power_supply_dev_type;
+	dev->parent = parent;
+	dev->release = power_supply_dev_release;
+	dev_set_drvdata(dev, psy);
+	psy->dev = dev;
+
+	rc = kobject_set_name(&dev->kobj, "%s", psy->name);
+	if (rc)
+		goto kobject_set_name_failed;
+
+	rc = device_add(dev);
+	if (rc)
+		goto device_add_failed;
 
 	INIT_WORK(&psy->changed_work, power_supply_changed_work);
-
-	rc = power_supply_create_attrs(psy);
-	if (rc)
-		goto create_attrs_failed;
 
 	rc = power_supply_create_triggers(psy);
 	if (rc)
@@ -170,10 +190,10 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 	goto success;
 
 create_triggers_failed:
-	power_supply_remove_attrs(psy);
-create_attrs_failed:
 	device_unregister(psy->dev);
-dev_create_failed:
+kobject_set_name_failed:
+device_add_failed:
+	kfree(dev);
 success:
 	return rc;
 }
@@ -183,7 +203,6 @@ void power_supply_unregister(struct power_supply *psy)
 {
 	flush_scheduled_work();
 	power_supply_remove_triggers(psy);
-	power_supply_remove_attrs(psy);
 	device_unregister(psy->dev);
 }
 EXPORT_SYMBOL_GPL(power_supply_unregister);
@@ -196,6 +215,7 @@ static int __init power_supply_class_init(void)
 		return PTR_ERR(power_supply_class);
 
 	power_supply_class->dev_uevent = power_supply_uevent;
+	power_supply_init_attrs(&power_supply_dev_type);
 
 	return 0;
 }
