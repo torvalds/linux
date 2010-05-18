@@ -28,14 +28,17 @@
  */
 
 #ifdef CONFIG_SMP
-#define LOCK_PREFIX \
+#define LOCK_PREFIX_HERE \
 		".section .smp_locks,\"a\"\n"	\
 		".balign 4\n"			\
-		".long 661f - .\n" /* offset */	\
+		".long 671f - .\n" /* offset */	\
 		".previous\n"			\
-		"661:\n\tlock; "
+		"671:"
+
+#define LOCK_PREFIX LOCK_PREFIX_HERE "\n\tlock; "
 
 #else /* ! CONFIG_SMP */
+#define LOCK_PREFIX_HERE ""
 #define LOCK_PREFIX ""
 #endif
 
