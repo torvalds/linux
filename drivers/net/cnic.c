@@ -1143,12 +1143,12 @@ static int cnic_submit_bnx2_kwqes(struct cnic_dev *dev, struct kwqe *wqes[],
 
 	spin_lock_bh(&cp->cnic_ulp_lock);
 	if (num_wqes > cnic_kwq_avail(cp) &&
-	    !(cp->cnic_local_flags & CNIC_LCL_FL_KWQ_INIT)) {
+	    !test_bit(CNIC_LCL_FL_KWQ_INIT, &cp->cnic_local_flags)) {
 		spin_unlock_bh(&cp->cnic_ulp_lock);
 		return -EAGAIN;
 	}
 
-	cp->cnic_local_flags &= ~CNIC_LCL_FL_KWQ_INIT;
+	clear_bit(CNIC_LCL_FL_KWQ_INIT, &cp->cnic_local_flags);
 
 	prod = cp->kwq_prod_idx;
 	sw_prod = prod & MAX_KWQ_IDX;
@@ -3690,7 +3690,7 @@ static int cnic_start_bnx2_hw(struct cnic_dev *dev)
 	cp->max_kwq_idx = MAX_KWQ_IDX;
 	cp->kwq_prod_idx = 0;
 	cp->kwq_con_idx = 0;
-	cp->cnic_local_flags |= CNIC_LCL_FL_KWQ_INIT;
+	set_bit(CNIC_LCL_FL_KWQ_INIT, &cp->cnic_local_flags);
 
 	if (CHIP_NUM(cp) == CHIP_NUM_5706 || CHIP_NUM(cp) == CHIP_NUM_5708)
 		cp->kwq_con_idx_ptr = &sblk->status_rx_quick_consumer_index15;

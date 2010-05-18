@@ -179,9 +179,8 @@ struct cnic_local {
 #define ULP_F_CALL_PENDING	2
 	struct cnic_ulp_ops *ulp_ops[MAX_CNIC_ULP_TYPE];
 
-	/* protected by ulp_lock */
-	u32 cnic_local_flags;
-#define	CNIC_LCL_FL_KWQ_INIT	0x00000001
+	unsigned long cnic_local_flags;
+#define	CNIC_LCL_FL_KWQ_INIT		0x0
 
 	struct cnic_dev *dev;
 
