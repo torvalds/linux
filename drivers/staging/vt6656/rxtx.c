@@ -1483,7 +1483,7 @@ s_bPacketToWirelessUsb(
         cb802_1_H_len = 0;
     }
 
-    cbFrameBodySize = uSkbPacketLen - U_HEADER_LEN + cb802_1_H_len;
+    cbFrameBodySize = uSkbPacketLen - ETH_HLEN + cb802_1_H_len;
 
     //Set packet type
     pTxBufHead->wFIFOCtl |= (WORD)(byPktType<<8);
@@ -1729,13 +1729,13 @@ s_bPacketToWirelessUsb(
     if (pPacket != NULL) {
         // Copy the Packet into a tx Buffer
         memcpy((pbyPayloadHead + cb802_1_H_len),
-                 (pPacket + U_HEADER_LEN),
-                 uSkbPacketLen - U_HEADER_LEN
+                 (pPacket + ETH_HLEN),
+                 uSkbPacketLen - ETH_HLEN
                  );
 
     } else {
         // while bRelayPacketSend psEthHeader is point to header+payload
-        memcpy((pbyPayloadHead + cb802_1_H_len), ((PBYTE)psEthHeader)+U_HEADER_LEN, uSkbPacketLen - U_HEADER_LEN);
+        memcpy((pbyPayloadHead + cb802_1_H_len), ((PBYTE)psEthHeader) + ETH_HLEN, uSkbPacketLen - ETH_HLEN);
     }
 
     ASSERT(uLength == cbNdisBodySize);
@@ -2849,7 +2849,7 @@ nsDMA_tx_packet(
         return STATUS_RESOURCES;
     }
 
-    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)(skb->data), U_HEADER_LEN);
+    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)(skb->data), ETH_HLEN);
 
 //mike add:station mode check eapol-key challenge--->
 {
@@ -2858,10 +2858,10 @@ nsDMA_tx_packet(
     BYTE  Descriptor_type;
     WORD Key_info;
 
-    Protocol_Version = skb->data[U_HEADER_LEN];
-    Packet_Type = skb->data[U_HEADER_LEN+1];
-    Descriptor_type = skb->data[U_HEADER_LEN+1+1+2];
-    Key_info = (skb->data[U_HEADER_LEN+1+1+2+1] << 8)|(skb->data[U_HEADER_LEN+1+1+2+2]);
+    Protocol_Version = skb->data[ETH_HLEN];
+    Packet_Type = skb->data[ETH_HLEN+1];
+    Descriptor_type = skb->data[ETH_HLEN+1+1+2];
+    Key_info = (skb->data[ETH_HLEN+1+1+2+1] << 8)|(skb->data[ETH_HLEN+1+1+2+2]);
    if (pDevice->sTxEthHeader.wType == TYPE_PKT_802_1x) {
            if(((Protocol_Version==1) ||(Protocol_Version==2)) &&
 	        (Packet_Type==3)) {  //802.1x OR eapol-key challenge frame transfer
@@ -3195,7 +3195,7 @@ bRelayPacketSend (
         return FALSE;
     }
 
-    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)pbySkbData, U_HEADER_LEN);
+    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)pbySkbData, ETH_HLEN);
 
     if (pDevice->bEncryptionEnable == TRUE) {
         bNeedEncryption = TRUE;
