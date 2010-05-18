@@ -218,7 +218,9 @@ static void safe_process_read_urb(struct urb *urb)
 	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned char length = urb->actual_length;
+	int actual_length;
 	struct tty_struct *tty;
+	__u16 fcs;
 
 	if (!length)
 		return;
@@ -227,30 +229,27 @@ static void safe_process_read_urb(struct urb *urb)
 	if (!tty)
 		return;
 
-	if (safe) {
-		__u16 fcs;
-		fcs = fcs_compute10(data, length, CRC10_INITFCS);
-		if (!fcs) {
-			int actual_length = data[length - 2] >> 2;
-			if (actual_length <= (length - 2)) {
-				dev_info(&urb->dev->dev, "%s - actual: %d\n",
-					 __func__, actual_length);
-				tty_insert_flip_string(tty,
-							data, actual_length);
-				tty_flip_buffer_push(tty);
-			} else {
-				dev_err(&port->dev,
-					"%s - inconsistent lengths %d:%d\n",
-					__func__, actual_length, length);
-			}
-		} else {
-			dev_err(&port->dev, "%s - bad CRC %x\n", __func__, fcs);
-		}
-	} else {
-		tty_insert_flip_string(tty, data, length);
-		tty_flip_buffer_push(tty);
+	if (!safe)
+		goto out;
+
+	fcs = fcs_compute10(data, length, CRC10_INITFCS);
+	if (fcs) {
+		dev_err(&port->dev, "%s - bad CRC %x\n", __func__, fcs);
+		goto err;
 	}
 
+	actual_length = data[length - 2] >> 2;
+	if (actual_length > (length - 2)) {
+		dev_err(&port->dev, "%s - inconsistent lengths %d:%d\n",
+				__func__, actual_length, length);
+		goto err;
+	}
+	dev_info(&urb->dev->dev, "%s - actual: %d\n", __func__, actual_length);
+	length = actual_length;
+out:
+	tty_insert_flip_string(tty, data, length);
+	tty_flip_buffer_push(tty);
+err:
 	tty_kref_put(tty);
 }
 
