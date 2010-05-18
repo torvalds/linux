@@ -30,7 +30,7 @@
 #include <linux/spinlock.h>
 #include <linux/ioctl.h>
 #include <linux/serial.h>
-#include <linux/circ_buf.h>
+#include <linux/kfifo.h>
 #include <linux/mutex.h>
 #include <linux/uaccess.h>
 #include <linux/usb.h>
@@ -40,7 +40,7 @@
 
 /* Defines */
 
-#define TI_DRIVER_VERSION	"v0.9"
+#define TI_DRIVER_VERSION	"v0.10"
 #define TI_DRIVER_AUTHOR	"Al Borchers <alborchers@steinerpoint.com>"
 #define TI_DRIVER_DESC		"TI USB 3410/5052 Serial Driver"
 
@@ -82,7 +82,7 @@ struct ti_port {
 	spinlock_t		tp_lock;
 	int			tp_read_urb_state;
 	int			tp_write_urb_in_use;
-	struct circ_buf		*tp_write_buf;
+	struct kfifo		write_fifo;
 };
 
 struct ti_device {
@@ -143,15 +143,6 @@ static int ti_write_byte(struct ti_device *tdev, unsigned long addr,
 	__u8 mask, __u8 byte);
 
 static int ti_download_firmware(struct ti_device *tdev);
-
-/* circular buffer */
-static struct circ_buf *ti_buf_alloc(void);
-static void ti_buf_free(struct circ_buf *cb);
-static void ti_buf_clear(struct circ_buf *cb);
-static int ti_buf_data_avail(struct circ_buf *cb);
-static int ti_buf_space_avail(struct circ_buf *cb);
-static int ti_buf_put(struct circ_buf *cb, const char *buf, int count);
-static int ti_buf_get(struct circ_buf *cb, char *buf, int count);
 
 
 /* Data */
@@ -450,8 +441,8 @@ static int ti_startup(struct usb_serial *serial)
 		tport->tp_closing_wait = closing_wait;
 		init_waitqueue_head(&tport->tp_msr_wait);
 		init_waitqueue_head(&tport->tp_write_wait);
-		tport->tp_write_buf = ti_buf_alloc();
-		if (tport->tp_write_buf == NULL) {
+		if (kfifo_alloc(&tport->write_fifo, TI_WRITE_BUF_SIZE,
+								GFP_KERNEL)) {
 			dev_err(&dev->dev, "%s - out of memory\n", __func__);
 			kfree(tport);
 			status = -ENOMEM;
@@ -468,7 +459,7 @@ static int ti_startup(struct usb_serial *serial)
 free_tports:
 	for (--i; i >= 0; --i) {
 		tport = usb_get_serial_port_data(serial->port[i]);
-		ti_buf_free(tport->tp_write_buf);
+		kfifo_free(&tport->write_fifo);
 		kfree(tport);
 		usb_set_serial_port_data(serial->port[i], NULL);
 	}
@@ -490,7 +481,7 @@ static void ti_release(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; ++i) {
 		tport = usb_get_serial_port_data(serial->port[i]);
 		if (tport) {
-			ti_buf_free(tport->tp_write_buf);
+			kfifo_free(&tport->write_fifo);
 			kfree(tport);
 		}
 	}
@@ -701,7 +692,6 @@ static int ti_write(struct tty_struct *tty, struct usb_serial_port *port,
 			const unsigned char *data, int count)
 {
 	struct ti_port *tport = usb_get_serial_port_data(port);
-	unsigned long flags;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -713,10 +703,8 @@ static int ti_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (tport == NULL || !tport->tp_is_open)
 		return -ENODEV;
 
-	spin_lock_irqsave(&tport->tp_lock, flags);
-	count = ti_buf_put(tport->tp_write_buf, data, count);
-	spin_unlock_irqrestore(&tport->tp_lock, flags);
-
+	count = kfifo_in_locked(&tport->write_fifo, data, count,
+							&tport->tp_lock);
 	ti_send(tport);
 
 	return count;
@@ -736,7 +724,7 @@ static int ti_write_room(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&tport->tp_lock, flags);
-	room = ti_buf_space_avail(tport->tp_write_buf);
+	room = kfifo_avail(&tport->write_fifo);
 	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
 	dbg("%s - returns %d", __func__, room);
@@ -757,7 +745,7 @@ static int ti_chars_in_buffer(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&tport->tp_lock, flags);
-	chars = ti_buf_data_avail(tport->tp_write_buf);
+	chars = kfifo_len(&tport->write_fifo);
 	spin_unlock_irqrestore(&tport->tp_lock, flags);
 
 	dbg("%s - returns %d", __func__, chars);
@@ -1309,7 +1297,7 @@ static void ti_send(struct ti_port *tport)
 	if (tport->tp_write_urb_in_use)
 		goto unlock;
 
-	count = ti_buf_get(tport->tp_write_buf,
+	count = kfifo_out(&tport->write_fifo,
 				port->write_urb->transfer_buffer,
 				port->bulk_out_size);
 
@@ -1504,7 +1492,7 @@ static void ti_drain(struct ti_port *tport, unsigned long timeout, int flush)
 	add_wait_queue(&tport->tp_write_wait, &wait);
 	for (;;) {
 		set_current_state(TASK_INTERRUPTIBLE);
-		if (ti_buf_data_avail(tport->tp_write_buf) == 0
+		if (kfifo_len(&tport->write_fifo) == 0
 		|| timeout == 0 || signal_pending(current)
 		|| tdev->td_urb_error
 		|| port->serial->disconnected)  /* disconnect */
@@ -1518,7 +1506,7 @@ static void ti_drain(struct ti_port *tport, unsigned long timeout, int flush)
 
 	/* flush any remaining data in the buffer */
 	if (flush)
-		ti_buf_clear(tport->tp_write_buf);
+		kfifo_reset_out(&tport->write_fifo);
 
 	spin_unlock_irq(&tport->tp_lock);
 
@@ -1760,143 +1748,4 @@ static int ti_download_firmware(struct ti_device *tdev)
 	dbg("%s - download successful", __func__);
 
 	return 0;
-}
-
-
-/* Circular Buffer Functions */
-
-/*
- * ti_buf_alloc
- *
- * Allocate a circular buffer and all associated memory.
- */
-
-static struct circ_buf *ti_buf_alloc(void)
-{
-	struct circ_buf *cb;
-
-	cb = kmalloc(sizeof(struct circ_buf), GFP_KERNEL);
-	if (cb == NULL)
-		return NULL;
-
-	cb->buf = kmalloc(TI_WRITE_BUF_SIZE, GFP_KERNEL);
-	if (cb->buf == NULL) {
-		kfree(cb);
-		return NULL;
-	}
-
-	ti_buf_clear(cb);
-
-	return cb;
-}
-
-
-/*
- * ti_buf_free
- *
- * Free the buffer and all associated memory.
- */
-
-static void ti_buf_free(struct circ_buf *cb)
-{
-	kfree(cb->buf);
-	kfree(cb);
-}
-
-
-/*
- * ti_buf_clear
- *
- * Clear out all data in the circular buffer.
- */
-
-static void ti_buf_clear(struct circ_buf *cb)
-{
-	cb->head = cb->tail = 0;
-}
-
-
-/*
- * ti_buf_data_avail
- *
- * Return the number of bytes of data available in the circular
- * buffer.
- */
-
-static int ti_buf_data_avail(struct circ_buf *cb)
-{
-	return CIRC_CNT(cb->head, cb->tail, TI_WRITE_BUF_SIZE);
-}
-
-
-/*
- * ti_buf_space_avail
- *
- * Return the number of bytes of space available in the circular
- * buffer.
- */
-
-static int ti_buf_space_avail(struct circ_buf *cb)
-{
-	return CIRC_SPACE(cb->head, cb->tail, TI_WRITE_BUF_SIZE);
-}
-
-
-/*
- * ti_buf_put
- *
- * Copy data data from a user buffer and put it into the circular buffer.
- * Restrict to the amount of space available.
- *
- * Return the number of bytes copied.
- */
-
-static int ti_buf_put(struct circ_buf *cb, const char *buf, int count)
-{
-	int c, ret = 0;
-
-	while (1) {
-		c = CIRC_SPACE_TO_END(cb->head, cb->tail, TI_WRITE_BUF_SIZE);
-		if (count < c)
-			c = count;
-		if (c <= 0)
-			break;
-		memcpy(cb->buf + cb->head, buf, c);
-		cb->head = (cb->head + c) & (TI_WRITE_BUF_SIZE-1);
-		buf += c;
-		count -= c;
-		ret += c;
-	}
-
-	return ret;
-}
-
-
-/*
- * ti_buf_get
- *
- * Get data from the circular buffer and copy to the given buffer.
- * Restrict to the amount of data available.
- *
- * Return the number of bytes copied.
- */
-
-static int ti_buf_get(struct circ_buf *cb, char *buf, int count)
-{
-	int c, ret = 0;
-
-	while (1) {
-		c = CIRC_CNT_TO_END(cb->head, cb->tail, TI_WRITE_BUF_SIZE);
-		if (count < c)
-			c = count;
-		if (c <= 0)
-			break;
-		memcpy(buf, cb->buf + cb->tail, c);
-		cb->tail = (cb->tail + c) & (TI_WRITE_BUF_SIZE-1);
-		buf += c;
-		count -= c;
-		ret += c;
-	}
-
-	return ret;
 }
