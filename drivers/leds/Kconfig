@@ -138,6 +138,12 @@ config LEDS_PCA9532
 	  LED controller. It is generally only useful
 	  as a platform driver
 
+config LEDS_AUO_PANEL
+	tristate "Support for AUO display backlight driver"
+	depends on LEDS_CLASS
+	help
+	  This option enables support for AUO display backlight driver
+
 config LEDS_GPIO
 	tristate "LED Support for GPIO connected LEDs"
 	depends on GENERIC_GPIO
