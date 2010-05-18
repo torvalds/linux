@@ -43,6 +43,10 @@ static DEFINE_MUTEX(isolated_cpus_lock);
 #define CPUID5_ECX_EXTENSIONS_SUPPORTED (0x1)
 #define CPUID5_ECX_INTERRUPT_BREAK	(0x2)
 static unsigned long power_saving_mwait_eax;
+
+static unsigned char tsc_detected_unstable;
+static unsigned char tsc_marked_unstable;
+
 static void power_saving_mwait_init(void)
 {
 	unsigned int eax, ebx, ecx, edx;
@@ -87,8 +91,8 @@ static void power_saving_mwait_init(void)
 
 		/*FALL THROUGH*/
 	default:
-		/* TSC could halt in idle, so notify users */
-		mark_tsc_unstable("TSC halts in idle");
+		/* TSC could halt in idle */
+		tsc_detected_unstable = 1;
 	}
 #endif
 }
@@ -178,6 +182,11 @@ static int power_saving_thread(void *data)
 		expire_time = jiffies + HZ * (100 - idle_pct) / 100;
 
 		while (!need_resched()) {
+			if (tsc_detected_unstable && !tsc_marked_unstable) {
+				/* TSC could halt in idle, so notify users */
+				mark_tsc_unstable("TSC halts in idle");
+				tsc_marked_unstable = 1;
+			}
 			local_irq_disable();
 			cpu = smp_processor_id();
 			clockevents_notify(CLOCK_EVT_NOTIFY_BROADCAST_ENTER,
