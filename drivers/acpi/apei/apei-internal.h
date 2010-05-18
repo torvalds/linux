@@ -6,6 +6,8 @@
 #ifndef APEI_INTERNAL_H
 #define APEI_INTERNAL_H
 
+#include <linux/cper.h>
+
 struct apei_exec_context;
 
 typedef int (*apei_exec_ins_func_t)(struct apei_exec_context *ctx,
@@ -92,4 +94,21 @@ int apei_exec_collect_resources(struct apei_exec_context *ctx,
 
 struct dentry;
 struct dentry *apei_get_debugfs_dir(void);
+
+#define apei_estatus_for_each_section(estatus, section)			\
+	for (section = (struct acpi_hest_generic_data *)(estatus + 1);	\
+	     (void *)section - (void *)estatus < estatus->data_length;	\
+	     section = (void *)(section+1) + section->error_data_length)
+
+static inline u32 apei_estatus_len(struct acpi_hest_generic_status *estatus)
+{
+	if (estatus->raw_data_length)
+		return estatus->raw_data_offset + \
+			estatus->raw_data_length;
+	else
+		return sizeof(*estatus) + estatus->data_length;
+}
+
+int apei_estatus_check_header(const struct acpi_hest_generic_status *estatus);
+int apei_estatus_check(const struct acpi_hest_generic_status *estatus);
 #endif
