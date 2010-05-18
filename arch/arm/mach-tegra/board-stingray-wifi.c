@@ -15,7 +15,7 @@
 #include "gpio-names.h"
 
 #define STINGRAY_WLAN_IRQ	TEGRA_GPIO_PU5
-#define STINGRAY_WLAN_PWR	TEGRA_GPIO_PU3
+#define STINGRAY_WLAN_PWR	TEGRA_GPIO_PU4
 #define STINGRAY_WLAN_RST	TEGRA_GPIO_PU2
 
 #define PREALLOC_WLAN_NUMBER_OF_SECTIONS	4
@@ -127,7 +127,7 @@ struct tegra_sdhci_platform_data stingray_wifi_data = {
 	}
 };
 
-int stingray_wifi_set_carddetect(int val)
+static int stingray_wifi_set_carddetect(int val)
 {
 	pr_debug("%s: %d\n", __func__, val);
 	stingray_wifi_cd = val;
@@ -140,7 +140,7 @@ int stingray_wifi_set_carddetect(int val)
 
 static int stingray_wifi_power_state;
 
-int stingray_wifi_power(int on)
+static int stingray_wifi_power(int on)
 {
 	pr_debug("%s: %d\n", __func__, on);
 
@@ -156,7 +156,7 @@ int stingray_wifi_power(int on)
 
 static int stingray_wifi_reset_state;
 
-int stingray_wifi_reset(int on)
+static int stingray_wifi_reset(int on)
 {
 	pr_debug("%s: do nothing\n", __func__);
 	stingray_wifi_reset_state = on;

@@ -204,7 +204,7 @@ static struct platform_device *stingray_devices[] __initdata = {
 	&hsuart,
 };
 
-extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci1 */
+extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci2 */
 
 static struct tegra_sdhci_platform_data stingray_sdhci_platform_data3 = {
 	.clk_id = NULL,
@@ -229,11 +229,11 @@ static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
 static void stingray_sdhci_init(void)
 {
 	/* TODO: setup GPIOs for cd, wd, and power */
-	tegra_sdhci_device1.dev.platform_data = &stingray_wifi_data;
+	tegra_sdhci_device2.dev.platform_data = &stingray_wifi_data;
 	tegra_sdhci_device3.dev.platform_data = &stingray_sdhci_platform_data3;
 	tegra_sdhci_device4.dev.platform_data = &stingray_sdhci_platform_data4;
 
-	platform_device_register(&tegra_sdhci_device1);
+	platform_device_register(&tegra_sdhci_device2);
 	platform_device_register(&tegra_sdhci_device3);
 	platform_device_register(&tegra_sdhci_device4);
 }
