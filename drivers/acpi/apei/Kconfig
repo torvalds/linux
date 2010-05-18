@@ -6,3 +6,11 @@ config ACPI_APEI
 	  to the operating system. This improves NMI handling
 	  especially. In addition it supports error serialization and
 	  error injection.
+
+config ACPI_APEI_EINJ
+	tristate "APEI Error INJection (EINJ)"
+	depends on ACPI_APEI && DEBUG_FS
+	help
+	  EINJ provides a hardware error injection mechanism, it is
+	  mainly used for debugging and testing the other parts of
+	  APEI and some other RAS features.
