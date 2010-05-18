@@ -539,12 +539,6 @@ void ixgbe_configure_fcoe(struct ixgbe_adapter *adapter)
 		}
 		IXGBE_WRITE_REG(hw, IXGBE_FCRECTL, IXGBE_FCRECTL_ENA);
 		IXGBE_WRITE_REG(hw, IXGBE_ETQS(IXGBE_ETQF_FILTER_FCOE), 0);
-		fcoe_i = f->mask;
-		fcoe_i &= IXGBE_FCRETA_ENTRY_MASK;
-		fcoe_q = adapter->rx_ring[fcoe_i]->reg_idx;
-		IXGBE_WRITE_REG(hw, IXGBE_ETQS(IXGBE_ETQF_FILTER_FIP),
-				IXGBE_ETQS_QUEUE_EN |
-				(fcoe_q << IXGBE_ETQS_RX_QUEUE_SHIFT));
 	} else  {
 		/* Use single rx queue for FCoE */
 		fcoe_i = f->mask;
