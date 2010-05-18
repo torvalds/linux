@@ -473,7 +473,7 @@ static inline int p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
 	rdmsr(hwc->config_base + hwc->idx, low, high);
 
 	/* we need to check high bit for unflagged overflows */
-	if ((low & P4_CCCR_OVF) || (high & (1 << 31))) {
+	if ((low & P4_CCCR_OVF) || !(high & (1 << 31))) {
 		overflow = 1;
 		(void)checking_wrmsrl(hwc->config_base + hwc->idx,
 			((u64)low) & ~P4_CCCR_OVF);
