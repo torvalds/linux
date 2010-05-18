@@ -95,7 +95,7 @@ static int aircable_prepare_write_buffer(struct usb_serial_port *port,
 	buf[1] = TX_HEADER_1;
 	put_unaligned_le16(count, &buf[2]);
 
-	return count;
+	return count + HCI_HEADER_LENGTH;
 }
 
 static int aircable_probe(struct usb_serial *serial,
