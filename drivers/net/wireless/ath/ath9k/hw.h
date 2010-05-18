@@ -461,7 +461,7 @@ struct ath9k_hw_version {
 #define AR_GENTMR_BIT(_index)	(1 << (_index))
 
 /*
- * Using de Bruijin sequence to to look up 1's index in a 32 bit number
+ * Using de Bruijin sequence to look up 1's index in a 32 bit number
  * debruijn32 = 0000 0111 0111 1100 1011 0101 0011 0001
  */
 #define debruijn32 0x077CB531U

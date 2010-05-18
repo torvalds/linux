@@ -224,7 +224,7 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	/*
 	 * If the IV/EIV data was stripped from the frame before it was
 	 * passed to the hardware, we should now reinsert it again because
-	 * mac80211 will expect the the same data to be present it the
+	 * mac80211 will expect the same data to be present it the
 	 * frame as it was passed to us.
 	 */
 	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags))

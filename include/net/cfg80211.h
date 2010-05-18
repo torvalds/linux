@@ -89,7 +89,7 @@ enum ieee80211_channel_flags {
  * @max_power: maximum transmission power (in dBm)
  * @beacon_found: helper to regulatory code to indicate when a beacon
  *	has been found on this channel. Use regulatory_hint_found_beacon()
- *	to enable this, this is is useful only on 5 GHz band.
+ *	to enable this, this is useful only on 5 GHz band.
  * @orig_mag: internal use
  * @orig_mpwr: internal use
  */
