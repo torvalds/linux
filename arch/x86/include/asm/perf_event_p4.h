@@ -89,7 +89,8 @@
 	P4_CCCR_ENABLE)
 
 /* HT mask */
-#define P4_CCCR_MASK_HT	(P4_CCCR_MASK | P4_CCCR_THREAD_ANY)
+#define P4_CCCR_MASK_HT				\
+	(P4_CCCR_MASK | P4_CCCR_OVF_PMI_T1 | P4_CCCR_THREAD_ANY)
 
 #define P4_GEN_ESCR_EMASK(class, name, bit)	\
 	class##__##name = ((1 << bit) << P4_ESCR_EVENTMASK_SHIFT)
