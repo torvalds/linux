@@ -1400,7 +1400,7 @@ int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 	}
 
 	err = -EINVAL;
-	if (!call)
+	if (&call->list == &ftrace_events)
 		goto out_unlock;
 
 	err = -EEXIST;

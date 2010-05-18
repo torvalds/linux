@@ -1653,7 +1653,7 @@ fec_set_mac_address(struct net_device *dev, void *p)
 		(dev->dev_addr[1] << 16) | (dev->dev_addr[0] << 24),
 		fep->hwp + FEC_ADDR_LOW);
 	writel((dev->dev_addr[5] << 16) | (dev->dev_addr[4] << 24),
-		fep + FEC_ADDR_HIGH);
+		fep->hwp + FEC_ADDR_HIGH);
 	return 0;
 }
 

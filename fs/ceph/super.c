@@ -996,9 +996,10 @@ static int __init init_ceph(void)
 	if (ret)
 		goto out_icache;
 
-	pr_info("loaded %d.%d.%d (mon/mds/osd proto %d/%d/%d)\n",
-		CEPH_VERSION_MAJOR, CEPH_VERSION_MINOR, CEPH_VERSION_PATCH,
-		CEPH_MONC_PROTOCOL, CEPH_MDSC_PROTOCOL, CEPH_OSDC_PROTOCOL);
+	pr_info("loaded (mon/mds/osd proto %d/%d/%d, osdmap %d/%d %d/%d)\n",
+		CEPH_MONC_PROTOCOL, CEPH_MDSC_PROTOCOL, CEPH_OSDC_PROTOCOL,
+		CEPH_OSDMAP_VERSION, CEPH_OSDMAP_VERSION_EXT,
+		CEPH_OSDMAP_INC_VERSION, CEPH_OSDMAP_INC_VERSION_EXT);
 	return 0;
 
 out_icache:

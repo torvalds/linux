@@ -997,6 +997,10 @@ int ceph_fill_trace(struct super_block *sb, struct ceph_mds_request *req,
 			     dn, dn->d_name.len, dn->d_name.name);
 			dout("fill_trace doing d_move %p -> %p\n",
 			     req->r_old_dentry, dn);
+
+			/* d_move screws up d_subdirs order */
+			ceph_i_clear(dir, CEPH_I_COMPLETE);
+
 			d_move(req->r_old_dentry, dn);
 			dout(" src %p '%.*s' dst %p '%.*s'\n",
 			     req->r_old_dentry,

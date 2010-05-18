@@ -335,8 +335,9 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 }
 
 static struct perf_event_ops event_ops = {
-	.sample	= process_sample_event,
-	.comm	= event__process_comm,
+	.sample			= process_sample_event,
+	.comm			= event__process_comm,
+	.ordered_samples	= true,
 };
 
 static double fragmentation(unsigned long n_req, unsigned long n_alloc)
@@ -351,6 +352,7 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 			   int n_lines, int is_caller)
 {
 	struct rb_node *next;
+	struct machine *machine;
 
 	printf("%.102s\n", graph_dotted_line);
 	printf(" %-34s |",  is_caller ? "Callsite": "Alloc Ptr");
@@ -359,23 +361,29 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 
 	next = rb_first(root);
 
+	machine = perf_session__find_host_machine(session);
+	if (!machine) {
+		pr_err("__print_result: couldn't find kernel information\n");
+		return;
+	}
 	while (next && n_lines--) {
 		struct alloc_stat *data = rb_entry(next, struct alloc_stat,
 						   node);
 		struct symbol *sym = NULL;
+		struct map *map;
 		char buf[BUFSIZ];
 		u64 addr;
 
 		if (is_caller) {
 			addr = data->call_site;
 			if (!raw_ip)
-				sym = map_groups__find_function(&session->kmaps, addr, NULL);
+				sym = machine__find_kernel_function(machine, addr, &map, NULL);
 		} else
 			addr = data->ptr;
 
 		if (sym != NULL)
 			snprintf(buf, sizeof(buf), "%s+%Lx", sym->name,
-				 addr - sym->start);
+				 addr - map->unmap_ip(map, sym->start));
 		else
 			snprintf(buf, sizeof(buf), "%#Lx", addr);
 		printf(" %-34s |", buf);
@@ -484,9 +492,12 @@ static void sort_result(void)
 static int __cmd_kmem(void)
 {
 	int err = -EINVAL;
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0);
+	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0, false);
 	if (session == NULL)
 		return -ENOMEM;
+
+	if (perf_session__create_kernel_maps(session) < 0)
+		goto out_delete;
 
 	if (!perf_session__has_traces(session, "kmem record"))
 		goto out_delete;
@@ -718,7 +729,6 @@ static const char *record_args[] = {
 	"record",
 	"-a",
 	"-R",
-	"-M",
 	"-f",
 	"-c", "1",
 	"-e", "kmem:kmalloc",

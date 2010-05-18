@@ -519,18 +519,6 @@ extern enum ftrace_dump_mode ftrace_dump_on_oops;
 #define INIT_TRACE_RECURSION
 #endif
 
-#ifdef CONFIG_HW_BRANCH_TRACER
-
-void trace_hw_branch(u64 from, u64 to);
-void trace_hw_branch_oops(void);
-
-#else /* CONFIG_HW_BRANCH_TRACER */
-
-static inline void trace_hw_branch(u64 from, u64 to) {}
-static inline void trace_hw_branch_oops(void) {}
-
-#endif /* CONFIG_HW_BRANCH_TRACER */
-
 #ifdef CONFIG_FTRACE_SYSCALLS
 
 unsigned long arch_syscall_addr(int nr);

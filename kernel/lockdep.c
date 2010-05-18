@@ -3227,7 +3227,7 @@ void lock_release(struct lockdep_map *lock, int nested,
 	raw_local_irq_save(flags);
 	check_flags(flags);
 	current->lockdep_recursion = 1;
-	trace_lock_release(lock, nested, ip);
+	trace_lock_release(lock, ip);
 	__lock_release(lock, nested, ip);
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);
@@ -3380,7 +3380,7 @@ found_it:
 		hlock->holdtime_stamp = now;
 	}
 
-	trace_lock_acquired(lock, ip, waittime);
+	trace_lock_acquired(lock, ip);
 
 	stats = get_lock_stats(hlock_class(hlock));
 	if (waittime) {

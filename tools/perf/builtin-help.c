@@ -29,7 +29,7 @@ enum help_format {
 	HELP_FORMAT_WEB,
 };
 
-static int show_all = 0;
+static bool show_all = false;
 static enum help_format help_format = HELP_FORMAT_MAN;
 static struct option builtin_help_options[] = {
 	OPT_BOOLEAN('a', "all", &show_all, "print all available commands"),

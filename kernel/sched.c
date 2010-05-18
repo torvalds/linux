@@ -323,6 +323,15 @@ static inline struct task_group *task_group(struct task_struct *p)
 /* Change a task's cfs_rq and parent entity if it moves across CPUs/groups */
 static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
 {
+	/*
+	 * Strictly speaking this rcu_read_lock() is not needed since the
+	 * task_group is tied to the cgroup, which in turn can never go away
+	 * as long as there are tasks attached to it.
+	 *
+	 * However since task_group() uses task_subsys_state() which is an
+	 * rcu_dereference() user, this quiets CONFIG_PROVE_RCU.
+	 */
+	rcu_read_lock();
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	p->se.cfs_rq = task_group(p)->cfs_rq[cpu];
 	p->se.parent = task_group(p)->se[cpu];
@@ -332,6 +341,7 @@ static inline void set_task_rq(struct task_struct *p, unsigned int cpu)
 	p->rt.rt_rq  = task_group(p)->rt_rq[cpu];
 	p->rt.parent = task_group(p)->rt_se[cpu];
 #endif
+	rcu_read_unlock();
 }
 
 #else
@@ -2058,49 +2068,6 @@ static bool migrate_task(struct task_struct *p, int dest_cpu)
 }
 
 /*
- * wait_task_context_switch -	wait for a thread to complete at least one
- *				context switch.
- *
- * @p must not be current.
- */
-void wait_task_context_switch(struct task_struct *p)
-{
-	unsigned long nvcsw, nivcsw, flags;
-	int running;
-	struct rq *rq;
-
-	nvcsw	= p->nvcsw;
-	nivcsw	= p->nivcsw;
-	for (;;) {
-		/*
-		 * The runqueue is assigned before the actual context
-		 * switch. We need to take the runqueue lock.
-		 *
-		 * We could check initially without the lock but it is
-		 * very likely that we need to take the lock in every
-		 * iteration.
-		 */
-		rq = task_rq_lock(p, &flags);
-		running = task_running(rq, p);
-		task_rq_unlock(rq, &flags);
-
-		if (likely(!running))
-			break;
-		/*
-		 * The switch count is incremented before the actual
-		 * context switch. We thus wait for two switches to be
-		 * sure at least one completed.
-		 */
-		if ((p->nvcsw - nvcsw) > 1)
-			break;
-		if ((p->nivcsw - nivcsw) > 1)
-			break;
-
-		cpu_relax();
-	}
-}
-
-/*
  * wait_task_inactive - wait for a thread to unschedule.
  *
  * If @match_state is nonzero, it's the @p->state value just checked and
@@ -3724,7 +3691,7 @@ int mutex_spin_on_owner(struct mutex *lock, struct thread_info *owner)
 	 * the mutex owner just released it and exited.
 	 */
 	if (probe_kernel_address(&owner->cpu, cpu))
-		goto out;
+		return 0;
 #else
 	cpu = owner->cpu;
 #endif
@@ -3734,14 +3701,14 @@ int mutex_spin_on_owner(struct mutex *lock, struct thread_info *owner)
 	 * the cpu field may no longer be valid.
 	 */
 	if (cpu >= nr_cpumask_bits)
-		goto out;
+		return 0;
 
 	/*
 	 * We need to validate that we can do a
 	 * get_cpu() and that we have the percpu area.
 	 */
 	if (!cpu_online(cpu))
-		goto out;
+		return 0;
 
 	rq = cpu_rq(cpu);
 
@@ -3760,7 +3727,7 @@ int mutex_spin_on_owner(struct mutex *lock, struct thread_info *owner)
 
 		cpu_relax();
 	}
-out:
+
 	return 1;
 }
 #endif
