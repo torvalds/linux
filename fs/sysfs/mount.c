@@ -138,6 +138,9 @@ static void sysfs_kill_sb(struct super_block *sb)
 {
 	struct sysfs_super_info *info = sysfs_info(sb);
 
+	/* Remove the superblock from fs_supers/s_instances
+	 * so we can't find it, before freeing sysfs_super_info.
+	 */
 	kill_anon_super(sb);
 	kfree(info);
 }
@@ -156,9 +159,11 @@ void sysfs_exit_ns(enum kobj_ns_type type, const void *ns)
 	spin_lock(&sb_lock);
 	list_for_each_entry(sb, &sysfs_fs_type.fs_supers, s_instances) {
 		struct sysfs_super_info *info = sysfs_info(sb);
-		/* Ignore superblocks that are in the process of unmounting */
-		if (sb->s_count <= S_BIAS)
-			continue;
+		/*
+		 * If we see a superblock on the fs_supers/s_instances
+		 * list the unmount has not completed and sb->s_fs_info
+		 * points to a valid struct sysfs_super_info.
+		 */
 		/* Ignore superblocks with the wrong ns */
 		if (info->ns[type] != ns)
 			continue;
