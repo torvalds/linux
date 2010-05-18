@@ -3,5 +3,6 @@ SECTIONS
   .text : {
 	zero_page_pos = .;
 	*(.data)
+	end_data = .;
 	}
 }
