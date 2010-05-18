@@ -44,11 +44,8 @@
 #define MIN_PACKET_LEN      (MIN_DATA_LEN + ETH_HLEN)
                                         // 60
                                         // min total packet length (tx)
-#define MAX_PACKET_LEN      (ETH_DATA_LEN + ETH_HLEN)
-                                        // 1514
-                                        // max total packet length (tx)
 
-#define MAX_LOOKAHEAD_SIZE  MAX_PACKET_LEN
+#define MAX_LOOKAHEAD_SIZE  ETH_FRAME_LEN
 
 #define U_MULTI_ADDR_LEN    8           // multicast address length
 
