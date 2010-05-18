@@ -225,7 +225,6 @@ config ARCH_INTEGRATOR
 	select ARCH_HAS_CPUFREQ
 	select COMMON_CLKDEV
 	select ICST
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_VERSATILE
 	help
@@ -236,7 +235,6 @@ config ARCH_REALVIEW
 	select ARM_AMBA
 	select COMMON_CLKDEV
 	select ICST
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PLAT_VERSATILE
@@ -251,7 +249,6 @@ config ARCH_VERSATILE
 	select ARM_VIC
 	select COMMON_CLKDEV
 	select ICST
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select PLAT_VERSATILE
@@ -266,7 +263,6 @@ config ARCH_VEXPRESS
 	select ARM_TIMER_SP804
 	select COMMON_CLKDEV
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_TIME
 	select HAVE_CLK
 	select ICST
 	select PLAT_VERSATILE
@@ -288,7 +284,6 @@ config ARCH_BCMRING
 	select CPU_V6
 	select ARM_AMBA
 	select COMMON_CLKDEV
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	help
@@ -304,7 +299,6 @@ config ARCH_CLPS711X
 config ARCH_CNS3XXX
 	bool "Cavium Networks CNS3XXX family"
 	select CPU_V6
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARM_GIC
 	help
@@ -353,7 +347,6 @@ config ARCH_FOOTBRIDGE
 
 config ARCH_MXC
 	bool "Freescale MXC/iMX-based"
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
 	select COMMON_CLKDEV
@@ -365,7 +358,6 @@ config ARCH_STMP3XXX
 	select CPU_ARM926T
 	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select USB_ARCH_HAS_EHCI
 	help
@@ -376,7 +368,6 @@ config ARCH_NETX
 	select CPU_ARM926T
 	select ARM_VIC
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_TIME
 	help
 	  This enables support for systems based on the Hilscher NetX Soc
 
@@ -443,7 +434,6 @@ config ARCH_IXP4XX
 	depends on MMU
 	select CPU_XSCALE
 	select GENERIC_GPIO
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select DMABOUNCE if PCI
 	help
@@ -468,7 +458,6 @@ config ARCH_DOVE
 	bool "Marvell Dove"
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
 	help
@@ -479,7 +468,6 @@ config ARCH_KIRKWOOD
 	select CPU_FEROCEON
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
 	help
@@ -489,7 +477,6 @@ config ARCH_KIRKWOOD
 config ARCH_LOKI
 	bool "Marvell Loki (88RC8480)"
 	select CPU_FEROCEON
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
 	help
@@ -500,7 +487,6 @@ config ARCH_MV78XX0
 	select CPU_FEROCEON
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
 	help
@@ -513,7 +499,6 @@ config ARCH_ORION5X
 	select CPU_FEROCEON
 	select PCI
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select PLAT_ORION
 	help
@@ -526,7 +511,6 @@ config ARCH_MMP
 	depends on MMU
 	select ARCH_REQUIRE_GPIOLIB
 	select COMMON_CLKDEV
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select TICK_ONESHOT
 	select PLAT_PXA
@@ -546,7 +530,6 @@ config ARCH_NS9XXX
 	bool "NetSilicon NS9xxx"
 	select CPU_ARM926T
 	select GENERIC_GPIO
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
 	help
@@ -560,7 +543,6 @@ config ARCH_W90X900
 	select CPU_ARM926T
 	select ARCH_REQUIRE_GPIOLIB
 	select COMMON_CLKDEV
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
 	  Support for Nuvoton (Winbond logic dept.) ARM9 processor,
@@ -594,7 +576,6 @@ config ARCH_PXA
 	select ARCH_HAS_CPUFREQ
 	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select TICK_ONESHOT
 	select PLAT_PXA
@@ -604,7 +585,6 @@ config ARCH_PXA
 config ARCH_MSM
 	bool "Qualcomm MSM"
 	select HAVE_CLK
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	help
 	  Support for Qualcomm MSM/QSD based systems.  This runs on the
@@ -641,7 +621,6 @@ config ARCH_SA1100
 	select ARCH_MTD_XIP
 	select ARCH_HAS_CPUFREQ
 	select CPU_FREQ
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select HAVE_CLK
 	select TICK_ONESHOT
@@ -752,7 +731,6 @@ config ARCH_U300
 	select HAVE_TCM
 	select ARM_AMBA
 	select ARM_VIC
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select COMMON_CLKDEV
 	select GENERIC_GPIO
@@ -763,7 +741,6 @@ config ARCH_U8500
 	bool "ST-Ericsson U8500 Series"
 	select CPU_V7
 	select ARM_AMBA
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
@@ -776,7 +753,6 @@ config ARCH_NOMADIK
 	select ARM_VIC
 	select CPU_ARM926T
 	select COMMON_CLKDEV
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
 	help
@@ -785,7 +761,6 @@ config ARCH_NOMADIK
 config ARCH_DAVINCI
 	bool "TI DaVinci"
 	select CPU_ARM926T
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
 	select ZONE_DMA
@@ -801,7 +776,6 @@ config ARCH_OMAP
 	select HAVE_CLK
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_CPUFREQ
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_HAS_HOLES_MEMORYMODEL
 	help
@@ -813,7 +787,6 @@ config PLAT_SPEAR
 	select ARCH_REQUIRE_GPIOLIB
 	select COMMON_CLKDEV
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_TIME
 	select HAVE_CLK
 	help
 	  Support for ST's SPEAr platform (SPEAr3xx, SPEAr6xx and SPEAr13xx).
@@ -951,7 +924,6 @@ config ARCH_ACORN
 config PLAT_IOP
 	bool
 	select GENERIC_CLOCKEVENTS
-	select GENERIC_TIME
 
 config PLAT_ORION
 	bool
