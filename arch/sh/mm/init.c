@@ -17,10 +17,10 @@
 #include <linux/percpu.h>
 #include <linux/io.h>
 #include <linux/lmb.h>
-#include <linux/kexec.h>
 #include <linux/dma-mapping.h>
 #include <asm/mmu_context.h>
 #include <asm/mmzone.h>
+#include <asm/kexec.h>
 #include <asm/tlb.h>
 #include <asm/cacheflush.h>
 #include <asm/sections.h>
