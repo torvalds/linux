@@ -50,6 +50,11 @@ config ARCH_DAVINCI_DM365
 	select AINTC
 	select ARCH_DAVINCI_DMx
 
+config ARCH_DAVINCI_TNETV107X
+	select CPU_V6
+	select CP_INTC
+	bool "TNETV107X based system"
+
 comment "DaVinci Board Type"
 
 config MACH_DAVINCI_EVM
