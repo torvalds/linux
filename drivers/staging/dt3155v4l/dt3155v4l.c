@@ -18,21 +18,25 @@
  *   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             *
  ***************************************************************************/
 
-#include <media/v4l2-dev.h>
-#include <media/videobuf-core.h>
-#include <media/v4l2-ioctl.h>
-#include <linux/pci.h>
 #include <linux/version.h>
 #include <linux/stringify.h>
 #include <linux/delay.h>
-#include <media/videobuf-dma-contig.h>
 #include <linux/kthread.h>
+#include <media/v4l2-dev.h>
+#include <media/v4l2-ioctl.h>
+#include <media/videobuf-dma-contig.h>
 
 #include "dt3155v4l.h"
-#include "dt3155-bufs.h"
 
 #define DT3155_VENDOR_ID 0x8086
 #define DT3155_DEVICE_ID 0x1223
+
+/* DT3155_CHUNK_SIZE is 4M (2^22) 8 full size buffers */
+#define DT3155_CHUNK_SIZE (1U << 22)
+
+#define DT3155_COH_FLAGS (GFP_KERNEL | GFP_DMA32 | __GFP_COLD | __GFP_NOWARN)
+
+#define DT3155_BUF_SIZE (768 * 576)
 
 /*  global initializers (for all boards)  */
 #ifdef CONFIG_DT3155_CCIR
@@ -190,441 +194,6 @@ static int wait_i2c_reg(void __iomem *addr)
 	return 0;
 }
 
-/*
- * global pointers to a list of 4MB chunks reserved at driver
- * load, broken down to contiguous buffers of 768 * 576 bytes
- * each to form a pool of buffers for allocations
- * FIXME: add spinlock to protect moves between alloc/free lists
- */
-static struct dt3155_fifo *dt3155_chunks;	/* list of 4MB chuncks */
-static struct dt3155_fifo *dt3155_free_bufs;	/* list of free buffers */
-static struct dt3155_fifo *dt3155_alloc_bufs;	/* list of allocated buffers */
-
-/* same as in <drivers/media/video/videobuf-dma-contig.c> */
-struct videobuf_dma_contig_memory {
-	u32 magic;
-	void *vaddr;
-	dma_addr_t dma_handle;
-	unsigned long size;
-	int is_userptr;
-};
-
-#define MAGIC_DC_MEM 0x0733ac61
-#define MAGIC_CHECK(is, should)						    \
-	if (unlikely((is) != (should)))	{				    \
-		pr_err("magic mismatch: %x expected %x\n", (is), (should)); \
-		BUG();							    \
-	}
-
-/* helper functions to allocate/free buffers from the pool */
-static void *
-dt3155_alloc_buffer(struct device *dev, size_t size, dma_addr_t *dma_handle,
-								gfp_t flag)
-{
-	struct dt3155_buf *buf;
-
-	if (size > DT3155_BUF_SIZE)
-		return NULL;
-	size = DT3155_BUF_SIZE; /* same for CCIR & RS-170 */
-	buf = dt3155_get_buf(dt3155_free_bufs);
-	if (!buf)
-		return NULL;
-	buf->dma = dma_map_single(dev, buf->cpu, size, DMA_FROM_DEVICE);
-	if (dma_mapping_error(dev, buf->dma)) {
-		dt3155_put_buf(buf, dt3155_free_bufs);
-		return NULL;
-	}
-	dt3155_put_buf(buf, dt3155_alloc_bufs);
-	*dma_handle = buf->dma;
-	return buf->cpu;
-}
-
-static void
-dt3155_free_buffer(struct device *dev, size_t size, void *cpu_addr,
-							dma_addr_t dma_handle)
-{
-	struct dt3155_buf *buf, *last;
-	int found = 0;
-
-	if (!cpu_addr) /* to free NULL is OK */
-		return;
-	last = dt3155_get_buf(dt3155_alloc_bufs);
-	if (!last) {
-		printk(KERN_ERR "dt3155: %s(): no alloc buffers\n", __func__);
-		return;
-	}
-	dt3155_put_buf(last, dt3155_alloc_bufs);
-	do {
-		buf = dt3155_get_buf(dt3155_alloc_bufs);
-		if (buf->cpu == cpu_addr && buf->dma == dma_handle) {
-			found = 1;
-			break;
-		}
-		dt3155_put_buf(buf, dt3155_alloc_bufs);
-	} while (buf != last);
-	if (!found) {
-		printk(KERN_ERR "dt3155: %s(): buffer not found\n", __func__);
-		return;
-	}
-	size = DT3155_BUF_SIZE; /* same for CCIR & RS-170 */
-	dma_unmap_single(dev, dma_handle, size, DMA_FROM_DEVICE);
-	dt3155_put_buf(buf, dt3155_free_bufs);
-}
-
-/* same as videobuf_dma_contig_user_get() */
-static int
-dt3155_dma_contig_user_get(struct videobuf_dma_contig_memory *mem,
-					struct videobuf_buffer *vb)
-{
-	struct mm_struct *mm = current->mm;
-	struct vm_area_struct *vma;
-	unsigned long prev_pfn, this_pfn;
-	unsigned long pages_done, user_address;
-	unsigned int offset;
-	int ret;
-
-	offset = vb->baddr & ~PAGE_MASK;
-	mem->size = PAGE_ALIGN(vb->size + offset);
-	mem->is_userptr = 0;
-	ret = -EINVAL;
-
-	down_read(&mm->mmap_sem);
-
-	vma = find_vma(mm, vb->baddr);
-	if (!vma)
-		goto out_up;
-
-	if ((vb->baddr + mem->size) > vma->vm_end)
-		goto out_up;
-
-	pages_done = 0;
-	prev_pfn = 0; /* kill warning */
-	user_address = vb->baddr;
-
-	while (pages_done < (mem->size >> PAGE_SHIFT)) {
-		ret = follow_pfn(vma, user_address, &this_pfn);
-		if (ret)
-			break;
-
-		if (pages_done == 0)
-			mem->dma_handle = (this_pfn << PAGE_SHIFT) + offset;
-		else if (this_pfn != (prev_pfn + 1))
-			ret = -EFAULT;
-
-		if (ret)
-			break;
-
-		prev_pfn = this_pfn;
-		user_address += PAGE_SIZE;
-		pages_done++;
-	}
-
-	if (!ret)
-		mem->is_userptr = 1;
-
- out_up:
-	up_read(&current->mm->mmap_sem);
-
-	return ret;
-}
-
-/* same as videobuf_dma_contig_user_put() */
-static void
-dt3155_dma_contig_user_put(struct videobuf_dma_contig_memory *mem)
-{
-	mem->is_userptr = 0;
-	mem->dma_handle = 0;
-	mem->size = 0;
-}
-
-/* same as videobuf_iolock() but uses allocations from the pool */
-static int
-dt3155_iolock(struct videobuf_queue *q, struct videobuf_buffer *vb,
-						struct v4l2_framebuffer *fbuf)
-{
-	struct videobuf_dma_contig_memory *mem = vb->priv;
-
-	BUG_ON(!mem);
-	MAGIC_CHECK(mem->magic, MAGIC_DC_MEM);
-
-	switch (vb->memory) {
-	case V4L2_MEMORY_MMAP:
-		dev_dbg(q->dev, "%s memory method MMAP\n", __func__);
-
-		/* All handling should be done by __videobuf_mmap_mapper() */
-		if (!mem->vaddr) {
-			dev_err(q->dev, "memory is not alloced/mmapped.\n");
-			return -EINVAL;
-		}
-		break;
-	case V4L2_MEMORY_USERPTR:
-		dev_dbg(q->dev, "%s memory method USERPTR\n", __func__);
-
-		/* handle pointer from user space */
-		if (vb->baddr)
-			return dt3155_dma_contig_user_get(mem, vb);
-
-		/* allocate memory for the read() method */
-		mem->size = PAGE_ALIGN(vb->size);
-		mem->vaddr = dt3155_alloc_buffer(q->dev, mem->size,
-						&mem->dma_handle, GFP_KERNEL);
-		if (!mem->vaddr) {
-			dev_err(q->dev, "dma_alloc_coherent %ld failed\n",
-					 mem->size);
-			return -ENOMEM;
-		}
-
-		dev_dbg(q->dev, "dma_alloc_coherent data is at %p (%ld)\n",
-			mem->vaddr, mem->size);
-		break;
-	case V4L2_MEMORY_OVERLAY:
-	default:
-		dev_dbg(q->dev, "%s memory method OVERLAY/unknown\n",
-			__func__);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-/* same as videobuf_dma_contig_free() but uses the pool */
-void
-dt3155_dma_contig_free(struct videobuf_queue *q, struct videobuf_buffer *buf)
-{
-	struct videobuf_dma_contig_memory *mem = buf->priv;
-
-	/* mmapped memory can't be freed here, otherwise mmapped region
-	   would be released, while still needed. In this case, the memory
-	   release should happen inside videobuf_vm_close().
-	   So, it should free memory only if the memory were allocated for
-	   read() operation.
-	 */
-	if (buf->memory != V4L2_MEMORY_USERPTR)
-		return;
-
-	if (!mem)
-		return;
-
-	MAGIC_CHECK(mem->magic, MAGIC_DC_MEM);
-
-	/* handle user space pointer case */
-	if (buf->baddr) {
-		dt3155_dma_contig_user_put(mem);
-		return;
-	}
-
-	/* read() method */
-	dt3155_free_buffer(q->dev, mem->size, mem->vaddr, mem->dma_handle);
-	mem->vaddr = NULL;
-}
-
-/* same as videobuf_vm_open() */
-static void
-dt3155_vm_open(struct vm_area_struct *vma)
-{
-	struct videobuf_mapping *map = vma->vm_private_data;
-
-	dev_dbg(map->q->dev, "vm_open %p [count=%u,vma=%08lx-%08lx]\n",
-		map, map->count, vma->vm_start, vma->vm_end);
-
-	map->count++;
-}
-
-/* same as videobuf_vm_close(), but free to the pool */
-static void
-dt3155_vm_close(struct vm_area_struct *vma)
-{
-	struct videobuf_mapping *map = vma->vm_private_data;
-	struct videobuf_queue *q = map->q;
-	int i;
-
-	dev_dbg(q->dev, "vm_close %p [count=%u,vma=%08lx-%08lx]\n",
-		map, map->count, vma->vm_start, vma->vm_end);
-
-	map->count--;
-	if (0 == map->count) {
-		struct videobuf_dma_contig_memory *mem;
-
-		dev_dbg(q->dev, "munmap %p q=%p\n", map, q);
-		mutex_lock(&q->vb_lock);
-
-		/* We need first to cancel streams, before unmapping */
-		if (q->streaming)
-			videobuf_queue_cancel(q);
-
-		for (i = 0; i < VIDEO_MAX_FRAME; i++) {
-			if (NULL == q->bufs[i])
-				continue;
-
-			if (q->bufs[i]->map != map)
-				continue;
-
-			mem = q->bufs[i]->priv;
-			if (mem) {
-				/* This callback is called only if kernel has
-				   allocated memory and this memory is mmapped.
-				   In this case, memory should be freed,
-				   in order to do memory unmap.
-				 */
-
-				MAGIC_CHECK(mem->magic, MAGIC_DC_MEM);
-
-				/* vfree is not atomic - can't be
-				   called with IRQ's disabled
-				 */
-				dev_dbg(q->dev, "buf[%d] freeing %p\n",
-					i, mem->vaddr);
-
-				dt3155_free_buffer(q->dev, mem->size,
-						mem->vaddr, mem->dma_handle);
-				mem->vaddr = NULL;
-			}
-
-			q->bufs[i]->map   = NULL;
-			q->bufs[i]->baddr = 0;
-		}
-
-		kfree(map);
-
-		mutex_unlock(&q->vb_lock);
-	}
-}
-
-static const struct vm_operations_struct dt3155_vm_ops = {
-	.open     = dt3155_vm_open,
-	.close    = dt3155_vm_close,
-};
-
-/* same as videobuf_mmap_mapper(), but allocates from the pool */
-static int
-dt3155_mmap_mapper(struct videobuf_queue *q, struct videobuf_buffer *buf,
-						struct vm_area_struct *vma)
-{
-	struct videobuf_dma_contig_memory *mem;
-	struct videobuf_mapping *map;
-	int retval;
-	unsigned long size;
-
-	dev_dbg(q->dev, "%s\n", __func__);
-
-	/* create mapping + update buffer list */
-	map = kzalloc(sizeof(struct videobuf_mapping), GFP_KERNEL);
-	if (!map)
-		return -ENOMEM;
-
-	buf->map = map;
-	map->start = vma->vm_start;
-	map->end = vma->vm_end;
-	map->q = q;
-
-	buf->baddr = vma->vm_start;
-
-	mem = buf->priv;
-	BUG_ON(!mem);
-	MAGIC_CHECK(mem->magic, MAGIC_DC_MEM);
-
-	mem->size = PAGE_ALIGN(buf->bsize);
-	mem->vaddr = dt3155_alloc_buffer(q->dev, mem->size,
-					&mem->dma_handle, GFP_KERNEL);
-	if (!mem->vaddr) {
-		dev_err(q->dev, "dma_alloc_coherent size %ld failed\n",
-			mem->size);
-		goto error;
-	}
-	dev_dbg(q->dev, "dma_alloc_coherent data is at addr %p (size %ld)\n",
-		mem->vaddr, mem->size);
-
-	/* Try to remap memory */
-
-	size = vma->vm_end - vma->vm_start;
-	size = (size < mem->size) ? size : mem->size;
-
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-	retval = remap_pfn_range(vma, vma->vm_start,
-				 mem->dma_handle >> PAGE_SHIFT,
-				 size, vma->vm_page_prot);
-	if (retval) {
-		dev_err(q->dev, "mmap: remap failed with error %d. ", retval);
-		dt3155_free_buffer(q->dev, mem->size,
-				  mem->vaddr, mem->dma_handle);
-		goto error;
-	}
-
-	vma->vm_ops          = &dt3155_vm_ops;
-	vma->vm_flags       |= VM_DONTEXPAND;
-	vma->vm_private_data = map;
-
-	dev_dbg(q->dev, "mmap %p: q=%p %08lx-%08lx (%lx) pgoff %08lx buf %d\n",
-		map, q, vma->vm_start, vma->vm_end,
-		(long int)buf->bsize,
-		vma->vm_pgoff, buf->i);
-
-	dt3155_vm_open(vma);
-
-	return 0;
-
-error:
-	kfree(map);
-	return -ENOMEM;
-}
-
-static int
-dt3155_sync_for_cpu(struct videobuf_queue *q, struct videobuf_buffer *vb)
-{
-	struct dt3155_priv *pd = q->priv_data;
-	struct videobuf_dma_contig_memory *mem = vb->priv;
-
-	BUG_ON(!mem);
-	MAGIC_CHECK(mem->magic, MAGIC_DC_MEM);
-
-	pci_dma_sync_single_for_cpu(pd->pdev, mem->dma_handle,
-					mem->size, PCI_DMA_FROMDEVICE);
-	return 0;
-}
-
-static int
-dt3155_sync_for_device(struct videobuf_queue *q, struct videobuf_buffer *vb)
-{
-	struct dt3155_priv *pd = q->priv_data;
-	struct videobuf_dma_contig_memory *mem = vb->priv;
-
-	BUG_ON(!mem);
-	MAGIC_CHECK(mem->magic, MAGIC_DC_MEM);
-
-	pci_dma_sync_single_for_device(pd->pdev, mem->dma_handle,
-						mem->size, PCI_DMA_FROMDEVICE);
-	return 0;
-}
-
-/*
- * same as videobuf_queue_dma_contig_init(), but after
- * initialisation overwrites videobuf_iolock() and
- * videobuf_mmap_mapper() with our customized versions
- * as well as adds sync() method
- */
-static void
-dt3155_queue_dma_contig_init(struct videobuf_queue *q,
-					struct videobuf_queue_ops *ops,
-					struct device *dev,
-					spinlock_t *irqlock,
-					enum v4l2_buf_type type,
-					enum v4l2_field field,
-					unsigned int msize,
-					void *priv)
-{
-	struct dt3155_priv *pd = priv;
-
-	videobuf_queue_dma_contig_init(q, ops, dev, irqlock,
-				       type, field, msize, priv);
-	/* replace with local copy */
-	pd->qt_ops = *q->int_ops;
-	q->int_ops = &pd->qt_ops;
-	/* and overwrite with our methods */
-	q->int_ops->iolock = dt3155_iolock;
-	q->int_ops->mmap_mapper = dt3155_mmap_mapper;
-	q->int_ops->sync = dt3155_sync_for_cpu;
-}
-
 static int
 dt3155_start_acq(struct dt3155_priv *pd)
 {
@@ -699,7 +268,7 @@ dt3155_buf_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	if (ret) {
 		vb->state = VIDEOBUF_ERROR;
 		printk(KERN_ERR "ERROR: videobuf_iolock() failed\n");
-		videobuf_dma_contig_free(q, vb);
+		videobuf_dma_contig_free(q, vb); /* FIXME: needed? */
 	} else
 		vb->state = VIDEOBUF_PREPARED;
 	return ret;
@@ -713,7 +282,6 @@ dt3155_buf_queue(struct videobuf_queue *q, struct videobuf_buffer *vb)
 
 	if (vb->state != VIDEOBUF_NEEDS_INIT) {
 		vb->state = VIDEOBUF_QUEUED;
-		dt3155_sync_for_device(q, vb);
 		list_add_tail(&vb->queue, &pd->dmaq);
 		wake_up_interruptible_sync(&pd->do_dma);
 	} else
@@ -726,7 +294,7 @@ dt3155_buf_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
 	if (vb->state == VIDEOBUF_ACTIVE)
 		videobuf_waiton(vb, 0, 0); /* FIXME: cannot be interrupted */
-	dt3155_dma_contig_free(q, vb);
+	videobuf_dma_contig_free(q, vb);
 	vb->state = VIDEOBUF_NEEDS_INIT;
 }
 
@@ -869,7 +437,7 @@ dt3155_open(struct file *filp)
 			ret = -ENOMEM;
 			goto err_alloc_queue;
 		}
-		dt3155_queue_dma_contig_init(pd->vidq, &vbq_ops,
+		videobuf_queue_dma_contig_init(pd->vidq, &vbq_ops,
 				&pd->pdev->dev, &pd->lock,
 				V4L2_BUF_TYPE_VIDEO_CAPTURE, V4L2_FIELD_NONE,
 				sizeof(struct videobuf_buffer), pd);
@@ -1317,11 +885,13 @@ static const struct v4l2_ioctl_ops dt3155_ioctl_ops = {
 static int __devinit
 dt3155_init_board(struct pci_dev *dev)
 {
+	struct dt3155_priv *pd = pci_get_drvdata(dev);
+	void *buf_cpu;
+	dma_addr_t buf_dma;
 	int i;
 	u8 tmp;
-	struct dt3155_buf *buf;
-	struct dt3155_priv *pd = pci_get_drvdata(dev);
-	pci_set_master(dev); /* dt3155 needs it  */
+
+	pci_set_master(dev); /* dt3155 needs it */
 
 	/*  resetting the adapter  */
 	iowrite32(FLD_CRPT_ODD | FLD_CRPT_EVEN | FLD_DN_ODD | FLD_DN_EVEN,
@@ -1381,22 +951,16 @@ dt3155_init_board(struct pci_dev *dev)
 	write_i2c_reg(pd->regs, AD_ADDR, AD_CMD_REG);
 	write_i2c_reg(pd->regs, AD_CMD, VIDEO_CNL_1 | SYNC_CNL_1 | SYNC_LVL_3);
 
-	/* allocate and pci_map memory, and initialize the DMA machine */
-	buf = dt3155_get_buf(dt3155_free_bufs);
-	if (!buf) {
-		printk(KERN_ERR "dt3155: dt3155_get_buf "
+	/* allocate memory, and initialize the DMA machine */
+	buf_cpu = dma_alloc_coherent(&dev->dev, DT3155_BUF_SIZE, &buf_dma,
+								GFP_KERNEL);
+	if (!buf_cpu) {
+		printk(KERN_ERR "dt3155: dma_alloc_coherent "
 					"(in dt3155_init_board) failed\n");
 		return -ENOMEM;
 	}
-	buf->dma = pci_map_single(dev, buf->cpu,
-					DT3155_BUF_SIZE, PCI_DMA_FROMDEVICE);
-	if (pci_dma_mapping_error(dev, buf->dma)) {
-		printk(KERN_ERR "dt3155: pci_map_single failed\n");
-		dt3155_put_buf(buf, dt3155_free_bufs);
-		return -ENOMEM;
-	}
-	iowrite32(buf->dma, pd->regs + EVEN_DMA_START);
-	iowrite32(buf->dma, pd->regs + ODD_DMA_START);
+	iowrite32(buf_dma, pd->regs + EVEN_DMA_START);
+	iowrite32(buf_dma, pd->regs + ODD_DMA_START);
 	iowrite32(0, pd->regs + EVEN_DMA_STRIDE);
 	iowrite32(0, pd->regs + ODD_DMA_STRIDE);
 
@@ -1413,9 +977,8 @@ dt3155_init_board(struct pci_dev *dev)
 	write_i2c_reg(pd->regs, CSR2, pd->csr2);
 	iowrite32(FIFO_EN | SRST | FLD_DN_EVEN | FLD_DN_ODD, pd->regs + CSR1);
 
-	/*  pci_unmap and deallocate memory  */
-	pci_unmap_single(dev, buf->dma, DT3155_BUF_SIZE, PCI_DMA_FROMDEVICE);
-	dt3155_put_buf(buf, dt3155_free_bufs);
+	/*  deallocate memory  */
+	dma_free_coherent(&dev->dev, DT3155_BUF_SIZE, buf_cpu, buf_dma);
 	if (tmp & BUSY_EVEN) {
 		printk(KERN_ERR "dt3155: BUSY_EVEN not cleared\n");
 		return -EIO;
@@ -1433,15 +996,80 @@ static struct video_device dt3155_vdev = {
 	.current_norm = DT3155_CURRENT_NORM,
 };
 
+/* same as in drivers/base/dma-coherent.c */
+struct dma_coherent_mem {
+	void		*virt_base;
+	u32		device_base;
+	int		size;
+	int		flags;
+	unsigned long	*bitmap;
+};
+
+static int __devinit
+dt3155_alloc_coherent(struct device *dev, size_t size, int flags)
+{
+	int pages = size >> PAGE_SHIFT;
+	int bitmap_size = BITS_TO_LONGS(pages) * sizeof(long);
+
+	if ((flags & DMA_MEMORY_MAP) == 0)
+		goto out;
+	if (!size)
+		goto out;
+	if (dev->dma_mem)
+		goto out;
+
+	dev->dma_mem = kzalloc(sizeof(struct dma_coherent_mem), GFP_KERNEL);
+	if (!dev->dma_mem)
+		goto out;
+	dev->dma_mem->bitmap = kzalloc(bitmap_size, GFP_KERNEL);
+	if (!dev->dma_mem->bitmap)
+		goto err_bitmap;
+
+	dev->dma_mem->virt_base = dma_alloc_coherent(dev, size,
+				&dev->dma_mem->device_base, DT3155_COH_FLAGS);
+	if (!dev->dma_mem->virt_base)
+		goto err_coherent;
+	dev->dma_mem->size = pages;
+	dev->dma_mem->flags = flags;
+	return DMA_MEMORY_MAP;
+
+err_coherent:
+	kfree(dev->dma_mem->bitmap);
+err_bitmap:
+	kfree(dev->dma_mem);
+out:
+	return 0;
+}
+
+static void __devexit
+dt3155_free_coherent(struct device *dev)
+{
+	struct dma_coherent_mem *mem = dev->dma_mem;
+
+	if (!mem)
+		return;
+	dev->dma_mem = NULL;
+	dma_free_coherent(dev, mem->size << PAGE_SHIFT,
+					mem->virt_base, mem->device_base);
+	kfree(mem->bitmap);
+	kfree(mem);
+}
+
 static int __devinit
 dt3155_probe(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	int err = -ENODEV;
+	int err;
 	struct dt3155_priv *pd;
 
 	printk(KERN_INFO "dt3155: probe()\n");
-	if (pci_set_dma_mask(dev, DMA_BIT_MASK(32))) {
+	err = dma_set_mask(&dev->dev, DMA_BIT_MASK(32));
+	if (err) {
 		printk(KERN_ERR "dt3155: cannot set dma_mask\n");
+		return -ENODEV;
+	}
+	err = dma_set_coherent_mask(&dev->dev, DMA_BIT_MASK(32));
+	if (err) {
+		printk(KERN_ERR "dt3155: cannot set dma_coherent_mask\n");
 		return -ENODEV;
 	}
 	pd = kzalloc(sizeof(*pd), GFP_KERNEL);
@@ -1451,12 +1079,12 @@ dt3155_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 	pd->vdev = video_device_alloc();
 	if (!pd->vdev) {
-		printk(KERN_ERR "dt3155: cannot allocate vdp structure\n");
+		printk(KERN_ERR "dt3155: cannot allocate vdev structure\n");
 		goto err_video_device_alloc;
 	}
 	*pd->vdev = dt3155_vdev;
-	pci_set_drvdata(dev, pd);   /* for use in dt3155_remove()  */
-	video_set_drvdata(pd->vdev, pd);  /* for use in video_fops  */
+	pci_set_drvdata(dev, pd);    /* for use in dt3155_remove() */
+	video_set_drvdata(pd->vdev, pd);  /* for use in video_fops */
 	pd->users = 0;
 	pd->acq_fp = NULL;
 	pd->pdev = dev;
@@ -1489,6 +1117,10 @@ dt3155_probe(struct pci_dev *dev, const struct pci_device_id *id)
 		printk(KERN_ERR "dt3155: Cannot register video device\n");
 		goto err_init_board;
 	}
+	err = dt3155_alloc_coherent(&dev->dev, DT3155_CHUNK_SIZE,
+							DMA_MEMORY_MAP);
+	if (err)
+		printk(KERN_INFO "dt3155: preallocated 8 buffers\n");
 	printk(KERN_INFO "dt3155: /dev/video%i is ready\n", pd->vdev->minor);
 	return 0;  /*   success   */
 
@@ -1511,6 +1143,7 @@ dt3155_remove(struct pci_dev *dev)
 	struct dt3155_priv *pd = pci_get_drvdata(dev);
 
 	printk(KERN_INFO "dt3155: remove()\n");
+	dt3155_free_coherent(&dev->dev);
 	video_unregister_device(pd->vdev);
 	pci_iounmap(dev, pd->regs);
 	pci_release_region(pd->pdev, 0);
@@ -1542,48 +1175,18 @@ dt3155_init_module(void)
 
 	printk(KERN_INFO "dt3155: ==================\n");
 	printk(KERN_INFO "dt3155: init()\n");
-	dt3155_chunks = dt3155_init_chunks_fifo();
-	if (!dt3155_chunks) {
-		err = -ENOMEM;
-		printk(KERN_ERR "dt3155: cannot init dt3155_chunks_fifo\n");
-		goto err_init_chunks_fifo;
-	}
-	dt3155_free_bufs = dt3155_init_ibufs_fifo(dt3155_chunks,
-							DT3155_BUF_SIZE);
-	if (!dt3155_free_bufs) {
-		err = -ENOMEM;
-		printk(KERN_ERR "dt3155: cannot dt3155_init_ibufs_fifo\n");
-		goto err_init_ibufs_fifo;
-	}
-	dt3155_alloc_bufs = dt3155_init_fifo();
-	if (!dt3155_alloc_bufs) {
-		err = -ENOMEM;
-		printk(KERN_ERR "dt3155: cannot dt3155_init_fifo\n");
-		goto err_init_fifo;
-	}
 	err = pci_register_driver(&pci_driver);
 	if (err) {
 		printk(KERN_ERR "dt3155: cannot register pci_driver\n");
-		goto err_register_driver;
+		return err;
 	}
 	return 0; /* succes */
-err_register_driver:
-	dt3155_free_fifo(dt3155_alloc_bufs);
-err_init_fifo:
-	dt3155_free_ibufs_fifo(dt3155_free_bufs);
-err_init_ibufs_fifo:
-	dt3155_free_chunks_fifo(dt3155_chunks);
-err_init_chunks_fifo:
-	return err;
 }
 
 static void __exit
 dt3155_exit_module(void)
 {
 	pci_unregister_driver(&pci_driver);
-	dt3155_free_fifo(dt3155_alloc_bufs);
-	dt3155_free_ibufs_fifo(dt3155_free_bufs);
-	dt3155_free_chunks_fifo(dt3155_chunks);
 	printk(KERN_INFO "dt3155: exit()\n");
 	printk(KERN_INFO "dt3155: ==================\n");
 }

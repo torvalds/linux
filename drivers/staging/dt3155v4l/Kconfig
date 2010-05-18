@@ -9,7 +9,7 @@ config VIDEO_DT3155
 	  In doubt, say N.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called dt3155_v4l.
+	  module will be called dt3155v4l.
 
 config DT3155_CCIR
 	bool "Selects CCIR/50Hz vertical refresh"
