@@ -1406,9 +1406,26 @@ static void addrconf_dad_stop(struct inet6_ifaddr *ifp, int dad_failed)
 		ipv6_del_addr(ifp);
 }
 
+static int addrconf_dad_end(struct inet6_ifaddr *ifp)
+{
+	int err = -ENOENT;
+
+	spin_lock(&ifp->state_lock);
+	if (ifp->state == INET6_IFADDR_STATE_DAD) {
+		ifp->state = INET6_IFADDR_STATE_POSTDAD;
+		err = 0;
+	}
+	spin_unlock(&ifp->state_lock);
+
+	return err;
+}
+
 void addrconf_dad_failure(struct inet6_ifaddr *ifp)
 {
 	struct inet6_dev *idev = ifp->idev;
+
+	if (addrconf_dad_end(ifp))
+		return;
 
 	if (net_ratelimit())
 		printk(KERN_INFO "%s: IPv6 duplicate address %pI6c detected!\n",
@@ -2712,6 +2729,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 			/* Flag it for later restoration when link comes up */
 			ifa->flags |= IFA_F_TENTATIVE;
+			ifa->state = INET6_IFADDR_STATE_DAD;
 
 			write_unlock_bh(&idev->lock);
 
@@ -2883,6 +2901,9 @@ static void addrconf_dad_timer(unsigned long data)
 	struct inet6_dev *idev = ifp->idev;
 	struct in6_addr mcaddr;
 
+	if (!ifp->probes && addrconf_dad_end(ifp))
+		goto out;
+
 	read_lock(&idev->lock);
 	if (idev->dead || !(idev->if_flags & IF_READY)) {
 		read_unlock(&idev->lock);
@@ -2956,12 +2977,10 @@ static void addrconf_dad_run(struct inet6_dev *idev)
 	read_lock_bh(&idev->lock);
 	list_for_each_entry(ifp, &idev->addr_list, if_list) {
 		spin_lock(&ifp->lock);
-		if (!(ifp->flags & IFA_F_TENTATIVE)) {
-			spin_unlock(&ifp->lock);
-			continue;
-		}
+		if (ifp->flags & IFA_F_TENTATIVE &&
+		    ifp->state == INET6_IFADDR_STATE_DAD)
+			addrconf_dad_kick(ifp);
 		spin_unlock(&ifp->lock);
-		addrconf_dad_kick(ifp);
 	}
 	read_unlock_bh(&idev->lock);
 }
