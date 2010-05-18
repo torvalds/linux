@@ -101,6 +101,7 @@ static const struct snd_soc_dapm_widget sdp4430_twl6040_dapm_widgets[] = {
 	SND_SOC_DAPM_SPK("Ext Spk", NULL),
 	SND_SOC_DAPM_MIC("Headset Mic", NULL),
 	SND_SOC_DAPM_HP("Headset Stereophone", NULL),
+	SND_SOC_DAPM_SPK("Earphone Spk", NULL),
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
@@ -120,6 +121,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	/* Headset Stereophone (Headphone): HSOL, HSOR */
 	{"Headset Stereophone", NULL, "HSOL"},
 	{"Headset Stereophone", NULL, "HSOR"},
+
+	/* Earphone speaker */
+	{"Earphone Spk", NULL, "EP"},
 };
 
 static int sdp4430_twl6040_init(struct snd_soc_codec *codec)
