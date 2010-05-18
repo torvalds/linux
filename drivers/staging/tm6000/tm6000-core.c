@@ -153,6 +153,22 @@ int tm6000_get_reg32 (struct tm6000_core *dev, u8 req, u16 value, u16 index)
 	return buf[3] | buf[2] << 8 | buf[1] << 16 | buf[0] << 24;
 }
 
+int tm6000_i2c_reset(struct tm6000_core *dev, u16 tsleep)
+{
+	int rc;
+
+	rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_CLK, 0);
+	if (rc < 0)
+		return rc;
+
+	msleep(tsleep);
+
+	rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN, TM6000_GPIO_CLK, 1);
+	msleep(tsleep);
+
+	return rc;
+}
+
 void tm6000_set_fourcc_format(struct tm6000_core *dev)
 {
 	if (dev->dev_type == TM6010) {

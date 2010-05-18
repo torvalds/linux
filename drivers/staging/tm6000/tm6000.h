@@ -246,6 +246,8 @@ int tm6000_get_reg (struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_get_reg16(struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_get_reg32(struct tm6000_core *dev, u8 req, u16 value, u16 index);
 int tm6000_set_reg (struct tm6000_core *dev, u8 req, u16 value, u16 index);
+int tm6000_i2c_reset(struct tm6000_core *dev, u16 tsleep);
+
 int tm6000_init (struct tm6000_core *dev);
 
 int tm6000_init_analog_mode (struct tm6000_core *dev);

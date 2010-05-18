@@ -363,13 +363,7 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 		tm6000_set_reg(dev, REQ_04_EN_DISABLE_MCU_INT,
 					0x02, arg);
 		msleep(10);
-		rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					TM6000_GPIO_CLK, 0);
-		if (rc < 0)
-			return rc;
-		msleep(10);
-		rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-					TM6000_GPIO_CLK, 1);
+		rc = tm6000_i2c_reset(dev, 10);
 		break;
 	case XC2028_TUNER_RESET:
 		/* Reset codes during load firmware */
@@ -423,14 +417,7 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 			break;
 
 		case 2:
-			rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-						TM6000_GPIO_CLK, 0);
-			if (rc < 0)
-				return rc;
-			msleep(100);
-			rc = tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
-						TM6000_GPIO_CLK, 1);
-			msleep(100);
+			rc = tm6000_i2c_reset(dev, 100);
 			break;
 		}
 	}
