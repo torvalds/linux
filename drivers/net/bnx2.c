@@ -656,19 +656,11 @@ bnx2_netif_stop(struct bnx2 *bp, bool stop_cnic)
 	if (stop_cnic)
 		bnx2_cnic_stop(bp);
 	if (netif_running(bp->dev)) {
-		int i;
-
 		bnx2_napi_disable(bp);
 		netif_tx_disable(bp->dev);
-		/* prevent tx timeout */
-		for (i = 0; i <  bp->dev->num_tx_queues; i++) {
-			struct netdev_queue *txq;
-
-			txq = netdev_get_tx_queue(bp->dev, i);
-			txq->trans_start = jiffies;
-		}
 	}
 	bnx2_disable_int_sync(bp);
+	netif_carrier_off(bp->dev);	/* prevent tx timeout */
 }
 
 static void
@@ -677,6 +669,10 @@ bnx2_netif_start(struct bnx2 *bp, bool start_cnic)
 	if (atomic_dec_and_test(&bp->intr_sem)) {
 		if (netif_running(bp->dev)) {
 			netif_tx_wake_all_queues(bp->dev);
+			spin_lock_bh(&bp->phy_lock);
+			if (bp->link_up)
+				netif_carrier_on(bp->dev);
+			spin_unlock_bh(&bp->phy_lock);
 			bnx2_napi_enable(bp);
 			bnx2_enable_int(bp);
 			if (start_cnic)
