@@ -31,8 +31,7 @@ static unsigned int stingray_row_gpios[] = {
 };
 static unsigned int stingray_col_gpios[] = {
 	TEGRA_GPIO_PQ0,
-	TEGRA_GPIO_PQ1,
-	TEGRA_GPIO_PQ2
+	TEGRA_GPIO_PQ1
 };
 
 #define KEYMAP_INDEX(col, row) ((col)*ARRAY_SIZE(stingray_row_gpios) + (row))
@@ -40,14 +39,11 @@ static unsigned int stingray_col_gpios[] = {
 static const unsigned short stingray_p3_keymap[ARRAY_SIZE(stingray_col_gpios) *
 					     ARRAY_SIZE(stingray_row_gpios)] = {
 	[KEYMAP_INDEX(0, 0)] = KEY_VOLUMEUP,
-	[KEYMAP_INDEX(1, 0)] = KEY_CAMERA_FOCUS,
-	[KEYMAP_INDEX(2, 0)] = KEY_MENU,
+	[KEYMAP_INDEX(1, 0)] = KEY_BACK,
 	[KEYMAP_INDEX(0, 1)] = KEY_VOLUMEDOWN,
-	[KEYMAP_INDEX(1, 1)] = KEY_CAMERA,
-	[KEYMAP_INDEX(2, 1)] = KEY_HOME,
+	[KEYMAP_INDEX(1, 1)] = KEY_HOME,
 	[KEYMAP_INDEX(0, 2)] = KEY_AUX,
-	[KEYMAP_INDEX(1, 2)] = KEY_SEARCH,
-	[KEYMAP_INDEX(2, 2)] = KEY_BACK,
+	[KEYMAP_INDEX(1, 2)] = KEY_MENU,
 };
 
 static struct gpio_event_matrix_info stingray_keypad_matrix_info = {
