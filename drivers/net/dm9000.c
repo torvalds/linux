@@ -471,22 +471,31 @@ static uint32_t dm9000_get_rx_csum(struct net_device *dev)
 	return dm->rx_csum;
 }
 
-static int dm9000_set_rx_csum(struct net_device *dev, uint32_t data)
+static int dm9000_set_rx_csum_unlocked(struct net_device *dev, uint32_t data)
 {
 	board_info_t *dm = to_dm9000_board(dev);
-	unsigned long flags;
 
 	if (dm->can_csum) {
 		dm->rx_csum = data;
-
-		spin_lock_irqsave(&dm->lock, flags);
 		iow(dm, DM9000_RCSR, dm->rx_csum ? RCSR_CSUM : 0);
-		spin_unlock_irqrestore(&dm->lock, flags);
 
 		return 0;
 	}
 
 	return -EOPNOTSUPP;
+}
+
+static int dm9000_set_rx_csum(struct net_device *dev, uint32_t data)
+{
+	board_info_t *dm = to_dm9000_board(dev);
+	unsigned long flags;
+	int ret;
+
+	spin_lock_irqsave(&dm->lock, flags);
+	ret = dm9000_set_rx_csum_unlocked(dev, data);
+	spin_unlock_irqrestore(&dm->lock, flags);
+
+	return ret;
 }
 
 static int dm9000_set_tx_csum(struct net_device *dev, uint32_t data)
@@ -667,7 +676,7 @@ static unsigned char dm9000_type_to_char(enum dm9000_type type)
  *  Set DM9000 multicast address
  */
 static void
-dm9000_hash_table(struct net_device *dev)
+dm9000_hash_table_unlocked(struct net_device *dev)
 {
 	board_info_t *db = netdev_priv(dev);
 	struct dev_mc_list *mcptr = dev->mc_list;
@@ -676,11 +685,8 @@ dm9000_hash_table(struct net_device *dev)
 	u32 hash_val;
 	u16 hash_table[4];
 	u8 rcr = RCR_DIS_LONG | RCR_DIS_CRC | RCR_RXEN;
-	unsigned long flags;
 
 	dm9000_dbg(db, 1, "entering %s\n", __func__);
-
-	spin_lock_irqsave(&db->lock, flags);
 
 	for (i = 0, oft = DM9000_PAR; i < 6; i++, oft++)
 		iow(db, oft, dev->dev_addr[i]);
@@ -711,6 +717,16 @@ dm9000_hash_table(struct net_device *dev)
 	}
 
 	iow(db, DM9000_RCR, rcr);
+}
+
+static void
+dm9000_hash_table(struct net_device *dev)
+{
+	board_info_t *db = netdev_priv(dev);
+	unsigned long flags;
+
+	spin_lock_irqsave(&db->lock, flags);
+	dm9000_hash_table_unlocked(dev);
 	spin_unlock_irqrestore(&db->lock, flags);
 }
 
@@ -729,7 +745,7 @@ dm9000_init_dm9000(struct net_device *dev)
 	db->io_mode = ior(db, DM9000_ISR) >> 6;	/* ISR bit7:6 keeps I/O mode */
 
 	/* Checksum mode */
-	dm9000_set_rx_csum(dev, db->rx_csum);
+	dm9000_set_rx_csum_unlocked(dev, db->rx_csum);
 
 	/* GPIO0 on pre-activate PHY */
 	iow(db, DM9000_GPR, 0);	/* REG_1F bit0 activate phyxcer */
@@ -749,7 +765,7 @@ dm9000_init_dm9000(struct net_device *dev)
 	iow(db, DM9000_ISR, ISR_CLR_STATUS); /* Clear interrupt status */
 
 	/* Set address filter table */
-	dm9000_hash_table(dev);
+	dm9000_hash_table_unlocked(dev);
 
 	imr = IMR_PAR | IMR_PTM | IMR_PRM;
 	if (db->type != TYPE_DM9000E)
