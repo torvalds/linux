@@ -235,15 +235,15 @@ static struct spi_board_info board_spi_devices[] = {
 		.bus_num	= 0,
 		.mode	= SPI_MODE_0,
 	},
-
-  	{	
+#if defined(CONFIG_TOUCHSCREEN_RK2818_SPI_XPT2046) || defined(CONFIG_TOUCHSCREEN_RK2818_SPI_XPT2046_CBN)
+	{
 		.modalias	= "xpt2046_ts",
 		.chip_select	= 0,
-		.max_speed_hz	= 1000000,
+		.max_speed_hz	= 1000000,/* (max sample rate @ 3V) * (cmd + data + overhead) */
 		.bus_num	= 0,
-		.mode	= SPI_MODE_0,
+		.irq		= RK2818_PIN_PE3,
 	},
-
+#endif
 }; 
 
 /*rk2818_fb gpio information*/

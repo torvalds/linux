@@ -43,3 +43,5 @@ obj-$(CONFIG_TOUCHSCREEN_WM97XX_MAINSTONE)	+= mainstone-wm97xx.o
 obj-$(CONFIG_TOUCHSCREEN_WM97XX_ZYLONITE)	+= zylonite-wm97xx.o
 obj-$(CONFIG_TOUCHSCREEN_W90X900)	+= w90p910_ts.o
 obj-$(CONFIG_TOUCHSCREEN_PCAP)		+= pcap_ts.o
+obj-$(CONFIG_TOUCHSCREEN_RK2818_SPI_XPT2046)		+= rk2818_spi_xpt2046_ts.o
+obj-$(CONFIG_TOUCHSCREEN_RK2818_SPI_XPT2046_CBN)		+= rk2818_spi_xpt2046_cbn_ts.o rk2818_calibration_ts.o rk2818_largenum_ts.o
