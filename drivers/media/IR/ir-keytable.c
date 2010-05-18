@@ -78,6 +78,7 @@ static int ir_resize_table(struct ir_scancode_table *rc_tab)
  * @rc_tab:	the struct ir_scancode_table to set the keycode in
  * @scancode:	the scancode for the ir command
  * @keycode:	the keycode for the ir command
+ * @resize:	whether the keytable may be shrunk
  * @return:	-EINVAL if the keycode could not be inserted, otherwise zero.
  *
  * This routine is used internally to manipulate the scancode->keycode table.
@@ -85,7 +86,8 @@ static int ir_resize_table(struct ir_scancode_table *rc_tab)
  */
 static int ir_do_setkeycode(struct input_dev *dev,
 			    struct ir_scancode_table *rc_tab,
-			    unsigned scancode, unsigned keycode)
+			    unsigned scancode, unsigned keycode,
+			    bool resize)
 {
 	unsigned int i;
 	int old_keycode = KEY_RESERVED;
@@ -129,7 +131,7 @@ static int ir_do_setkeycode(struct input_dev *dev,
 
 	if (old_keycode == KEY_RESERVED && keycode != KEY_RESERVED) {
 		/* No previous mapping found, we might need to grow the table */
-		if (ir_resize_table(rc_tab))
+		if (resize && ir_resize_table(rc_tab))
 			return -ENOMEM;
 
 		IR_dprintk(1, "#%d: New scan 0x%04x with key 0x%04x\n",
@@ -177,7 +179,7 @@ static int ir_setkeycode(struct input_dev *dev,
 	struct ir_scancode_table *rc_tab = &ir_dev->rc_tab;
 
 	spin_lock_irqsave(&rc_tab->lock, flags);
-	rc = ir_do_setkeycode(dev, rc_tab, scancode, keycode);
+	rc = ir_do_setkeycode(dev, rc_tab, scancode, keycode, true);
 	spin_unlock_irqrestore(&rc_tab->lock, flags);
 	return rc;
 }
@@ -204,7 +206,7 @@ static int ir_setkeytable(struct input_dev *dev,
 	spin_lock_irqsave(&rc_tab->lock, flags);
 	for (i = 0; i < from->size; i++) {
 		rc = ir_do_setkeycode(dev, to, from->scan[i].scancode,
-				      from->scan[i].keycode);
+				      from->scan[i].keycode, false);
 		if (rc)
 			break;
 	}
