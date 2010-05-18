@@ -7,6 +7,12 @@
  *
  * Licensed under the GPL-2 or later.
  */
+#ifndef _BFIN_MAC_H_
+#define _BFIN_MAC_H_
+
+#include <linux/net_tstamp.h>
+#include <linux/clocksource.h>
+#include <linux/timecompare.h>
 
 #define BFIN_MAC_CSUM_OFFLOAD
 
@@ -67,6 +73,15 @@ struct bfin_mac_local {
 
 	struct phy_device *phydev;
 	struct mii_bus *mii_bus;
+
+#if defined(CONFIG_BFIN_MAC_USE_HWSTAMP)
+	struct cyclecounter cycles;
+	struct timecounter clock;
+	struct timecompare compare;
+	struct hwtstamp_config stamp_cfg;
+#endif
 };
 
 extern void bfin_get_ether_addr(char *addr);
+
+#endif
