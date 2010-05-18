@@ -791,7 +791,6 @@ static int tm6000_usb_probe(struct usb_interface *interface,
 	if ((card[nr] >= 0) && (card[nr] < ARRAY_SIZE(tm6000_boards)))
 		dev->model = card[nr];
 
-	INIT_LIST_HEAD(&dev->tm6000_corelist);
 	dev->udev = usbdev;
 	dev->devno = nr;
 

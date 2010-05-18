@@ -169,7 +169,6 @@ struct tm6000_core {
 	struct i2c_client		i2c_client;
 
 	/* video for linux */
-	struct list_head		tm6000_corelist;
 	int				users;
 
 	/* various device info */
