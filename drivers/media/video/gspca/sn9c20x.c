@@ -18,10 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifdef CONFIG_USB_GSPCA_SN9C20X_EVDEV
-#include <linux/kthread.h>
-#include <linux/freezer.h>
-#include <linux/usb/input.h>
+#ifdef CONFIG_INPUT
 #include <linux/input.h>
 #include <linux/slab.h>
 #endif
@@ -54,6 +51,9 @@ MODULE_LICENSE("GPL");
 #define SENSOR_MT9M111	9
 #define SENSOR_HV7131R	10
 #define SENSOR_MT9VPRB	20
+
+/* camera flags */
+#define HAS_BUTTON	0x1
 
 /* specific webcam descriptor */
 struct sd {
@@ -88,11 +88,7 @@ struct sd {
 	u8 *jpeg_hdr;
 	u8 quality;
 
-#ifdef CONFIG_USB_GSPCA_SN9C20X_EVDEV
-	struct input_dev *input_dev;
-	u8 input_gpio;
-	struct task_struct *input_task;
-#endif
+	u8 flags;
 };
 
 struct i2c_reg_u8 {
@@ -1421,87 +1417,6 @@ static int hv7131r_init_sensor(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-#ifdef CONFIG_USB_GSPCA_SN9C20X_EVDEV
-static int input_kthread(void *data)
-{
-	struct gspca_dev *gspca_dev = (struct gspca_dev *)data;
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wait);
-	set_freezable();
-	for (;;) {
-		if (kthread_should_stop())
-			break;
-
-		if (reg_r(gspca_dev, 0x1005, 1) < 0)
-			continue;
-
-		input_report_key(sd->input_dev,
-				 KEY_CAMERA,
-				 gspca_dev->usb_buf[0] & sd->input_gpio);
-		input_sync(sd->input_dev);
-
-		wait_event_freezable_timeout(wait,
-					     kthread_should_stop(),
-					     msecs_to_jiffies(100));
-	}
-	return 0;
-}
-
-
-static int sn9c20x_input_init(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	if (sd->input_gpio == 0)
-		return 0;
-
-	sd->input_dev = input_allocate_device();
-	if (!sd->input_dev)
-		return -ENOMEM;
-
-	sd->input_dev->name = "SN9C20X Webcam";
-
-	sd->input_dev->phys = kasprintf(GFP_KERNEL, "usb-%s-%s",
-					 gspca_dev->dev->bus->bus_name,
-					 gspca_dev->dev->devpath);
-
-	if (!sd->input_dev->phys)
-		return -ENOMEM;
-
-	usb_to_input_id(gspca_dev->dev, &sd->input_dev->id);
-	sd->input_dev->dev.parent = &gspca_dev->dev->dev;
-
-	set_bit(EV_KEY, sd->input_dev->evbit);
-	set_bit(KEY_CAMERA, sd->input_dev->keybit);
-
-	if (input_register_device(sd->input_dev))
-		return -EINVAL;
-
-	sd->input_task = kthread_run(input_kthread, gspca_dev, "sn9c20x/%s-%s",
-				     gspca_dev->dev->bus->bus_name,
-				     gspca_dev->dev->devpath);
-
-	if (IS_ERR(sd->input_task))
-		return -EINVAL;
-
-	return 0;
-}
-
-static void sn9c20x_input_cleanup(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	if (sd->input_task != NULL && !IS_ERR(sd->input_task))
-		kthread_stop(sd->input_task);
-
-	if (sd->input_dev != NULL) {
-		input_unregister_device(sd->input_dev);
-		kfree(sd->input_dev->phys);
-		input_free_device(sd->input_dev);
-		sd->input_dev = NULL;
-	}
-}
-#endif
-
 static int set_cmatrix(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -2005,6 +1920,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	sd->sensor = (id->driver_info >> 8) & 0xff;
 	sd->i2c_addr = id->driver_info & 0xff;
+	sd->flags = (id->driver_info >> 16) & 0xff;
 
 	switch (sd->sensor) {
 	case SENSOR_MT9M111:
@@ -2039,11 +1955,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	sd->quality = 95;
 
-#ifdef CONFIG_USB_GSPCA_SN9C20X_EVDEV
-	sd->input_gpio = (id->driver_info >> 16) & 0xff;
-	if (sn9c20x_input_init(gspca_dev) < 0)
-		return -ENODEV;
-#endif
 	return 0;
 }
 
@@ -2343,6 +2254,24 @@ static void sd_dqcallback(struct gspca_dev *gspca_dev)
 		do_autoexposure(gspca_dev, avg_lum);
 }
 
+#ifdef CONFIG_INPUT
+static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
+			u8 *data,		/* interrupt packet */
+			int len)		/* interrupt packet length */
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int ret = -EINVAL;
+	if (sd->flags & HAS_BUTTON && len == 1) {
+			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
+			input_sync(gspca_dev->input_dev);
+			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+			input_sync(gspca_dev->input_dev);
+			ret = 0;
+	}
+	return ret;
+}
+#endif
+
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
@@ -2409,6 +2338,9 @@ static const struct sd_desc sd_desc = {
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
+#ifdef CONFIG_INPUT
+	.int_pkt_scan = sd_int_pkt_scan,
+#endif
 	.dq_callback = sd_dqcallback,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.set_register = sd_dbg_s_register,
@@ -2417,8 +2349,8 @@ static const struct sd_desc sd_desc = {
 	.get_chip_ident = sd_chip_ident,
 };
 
-#define SN9C20X(sensor, i2c_addr, button_mask) \
-	.driver_info =  (button_mask << 16) \
+#define SN9C20X(sensor, i2c_addr, flags) \
+	.driver_info =  (flags << 16) \
 			| (SENSOR_ ## sensor << 8) \
 			| (i2c_addr)
 
@@ -2426,7 +2358,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6240), SN9C20X(MT9M001, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6242), SN9C20X(MT9M111, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6248), SN9C20X(OV9655, 0x30, 0)},
-	{USB_DEVICE(0x0c45, 0x624e), SN9C20X(SOI968, 0x30, 0x10)},
+	{USB_DEVICE(0x0c45, 0x624e), SN9C20X(SOI968, 0x30, HAS_BUTTON)},
 	{USB_DEVICE(0x0c45, 0x624f), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6251), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6253), SN9C20X(OV9650, 0x30, 0)},
@@ -2437,13 +2369,13 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x627f), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6280), SN9C20X(MT9M001, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6282), SN9C20X(MT9M111, 0x5d, 0)},
-	{USB_DEVICE(0x0c45, 0x6288), SN9C20X(OV9655, 0x30, 0)},
+	{USB_DEVICE(0x0c45, 0x6288), SN9C20X(OV9655, 0x30, HAS_BUTTON)},
 	{USB_DEVICE(0x0c45, 0x628e), SN9C20X(SOI968, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x628f), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x62a0), SN9C20X(OV7670, 0x21, 0)},
 	{USB_DEVICE(0x0c45, 0x62b0), SN9C20X(MT9VPRB, 0x00, 0)},
 	{USB_DEVICE(0x0c45, 0x62b3), SN9C20X(OV9655, 0x30, 0)},
-	{USB_DEVICE(0x0c45, 0x62bb), SN9C20X(OV7660, 0x21, 0)},
+	{USB_DEVICE(0x0c45, 0x62bb), SN9C20X(OV7660, 0x21, HAS_BUTTON)},
 	{USB_DEVICE(0x0c45, 0x62bc), SN9C20X(HV7131R, 0x11, 0)},
 	{USB_DEVICE(0x045e, 0x00f4), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x145f, 0x013d), SN9C20X(OV7660, 0x21, 0)},
@@ -2452,7 +2384,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0xa168, 0x0611), SN9C20X(HV7131R, 0x11, 0)},
 	{USB_DEVICE(0xa168, 0x0613), SN9C20X(HV7131R, 0x11, 0)},
 	{USB_DEVICE(0xa168, 0x0618), SN9C20X(HV7131R, 0x11, 0)},
-	{USB_DEVICE(0xa168, 0x0614), SN9C20X(MT9M111, 0x5d, 0)},
+	{USB_DEVICE(0xa168, 0x0614), SN9C20X(MT9M111, 0x5d, HAS_BUTTON)},
 	{USB_DEVICE(0xa168, 0x0615), SN9C20X(MT9M111, 0x5d, 0)},
 	{USB_DEVICE(0xa168, 0x0617), SN9C20X(MT9M111, 0x5d, 0)},
 	{}
@@ -2467,22 +2399,11 @@ static int sd_probe(struct usb_interface *intf,
 				THIS_MODULE);
 }
 
-static void sd_disconnect(struct usb_interface *intf)
-{
-#ifdef CONFIG_USB_GSPCA_SN9C20X_EVDEV
-	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
-
-	sn9c20x_input_cleanup(gspca_dev);
-#endif
-
-	gspca_disconnect(intf);
-}
-
 static struct usb_driver sd_driver = {
 	.name = MODULE_NAME,
 	.id_table = device_table,
 	.probe = sd_probe,
-	.disconnect = sd_disconnect,
+	.disconnect = gspca_disconnect,
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,

@@ -172,12 +172,6 @@ config USB_GSPCA_SN9C20X
 	 To compile this driver as a module, choose M here: the
 	 module will be called gspca_sn9c20x.
 
-config USB_GSPCA_SN9C20X_EVDEV
-	bool "Enable evdev support"
-	depends on USB_GSPCA_SN9C20X && INPUT
-	---help---
-	  Say Y here in order to enable evdev support for sn9c20x webcam button.
-
 config USB_GSPCA_SONIXB
 	tristate "SONIX Bayer USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
