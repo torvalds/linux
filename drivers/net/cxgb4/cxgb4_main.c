@@ -315,7 +315,7 @@ static int link_start(struct net_device *dev)
 	if (ret == 0) {
 		ret = t4_change_mac(pi->adapter, 0, pi->viid,
 				    pi->xact_addr_filt, dev->dev_addr, true,
-				    false);
+				    true);
 		if (ret >= 0) {
 			pi->xact_addr_filt = ret;
 			ret = 0;
