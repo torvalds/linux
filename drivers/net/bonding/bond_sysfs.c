@@ -211,7 +211,8 @@ static ssize_t bonding_show_slaves(struct device *d,
 /*
  * Set the slaves in the current bond.  The bond interface must be
  * up for this to succeed.
- * This function is largely the same flow as bonding_update_bonds().
+ * This is supposed to be only thin wrapper for bond_enslave and bond_release.
+ * All hard work should be done there.
  */
 static ssize_t bonding_store_slaves(struct device *d,
 				    struct device_attribute *attr,
@@ -219,9 +220,8 @@ static ssize_t bonding_store_slaves(struct device *d,
 {
 	char command[IFNAMSIZ + 1] = { 0, };
 	char *ifname;
-	int i, res, ret = count;
-	struct slave *slave;
-	struct net_device *dev = NULL;
+	int res, ret = count;
+	struct net_device *dev;
 	struct bonding *bond = to_bond(d);
 
 	/* Quick sanity check -- is the bond interface up? */
@@ -229,8 +229,6 @@ static ssize_t bonding_store_slaves(struct device *d,
 		pr_warning("%s: doing slave updates when interface is down.\n",
 			   bond->dev->name);
 	}
-
-	/* Note:  We can't hold bond->lock here, as bond_create grabs it. */
 
 	if (!rtnl_trylock())
 		return restart_syscall();
@@ -241,19 +239,17 @@ static ssize_t bonding_store_slaves(struct device *d,
 	    !dev_valid_name(ifname))
 		goto err_no_cmd;
 
-	if (command[0] == '+') {
+	dev = __dev_get_by_name(dev_net(bond->dev), ifname);
+	if (!dev) {
+		pr_info("%s: Interface %s does not exist!\n",
+			bond->dev->name, ifname);
+		ret = -ENODEV;
+		goto out;
+	}
 
-		/* Got a slave name in ifname. */
-
-		dev = __dev_get_by_name(dev_net(bond->dev), ifname);
-		if (!dev) {
-			pr_info("%s: Interface %s does not exist!\n",
-				bond->dev->name, ifname);
-			ret = -ENODEV;
-			goto out;
-		}
-
-		pr_info("%s: Adding slave %s.\n", bond->dev->name, ifname);
+	switch (command[0]) {
+	case '+':
+		pr_info("%s: Adding slave %s.\n", bond->dev->name, dev->name);
 
 		/* If this is the first slave, then we need to set
 		   the master's hardware address to be the same as the
@@ -263,32 +259,20 @@ static ssize_t bonding_store_slaves(struct device *d,
 			       dev->addr_len);
 
 		res = bond_enslave(bond->dev, dev);
-		if (res)
-			ret = res;
+		break;
 
-		goto out;
+	case '-':
+		pr_info("%s: Removing slave %s.\n", bond->dev->name, dev->name);
+		res = bond_release(bond->dev, dev);
+		break;
+
+	default:
+		goto err_no_cmd;
 	}
 
-	if (command[0] == '-') {
-		dev = NULL;
-		bond_for_each_slave(bond, slave, i)
-			if (strnicmp(slave->dev->name, ifname, IFNAMSIZ) == 0) {
-				dev = slave->dev;
-				break;
-			}
-		if (dev) {
-			pr_info("%s: Removing slave %s\n",
-				bond->dev->name, dev->name);
-			res = bond_release(bond->dev, dev);
-			if (res)
-				ret = res;
-		} else {
-			pr_err("unable to remove non-existent slave %s for bond %s.\n",
-			       ifname, bond->dev->name);
-			ret = -ENODEV;
-		}
-		goto out;
-	}
+	if (res)
+		ret = res;
+	goto out;
 
 err_no_cmd:
 	pr_err("no command found in slaves file for bond %s. Use +ifname or -ifname.\n",
