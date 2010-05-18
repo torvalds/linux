@@ -80,6 +80,13 @@ extern struct platform_device s5p6442_device_iis1;
 extern struct platform_device s5p6440_device_pcm;
 extern struct platform_device s5p6440_device_iis;
 
+extern struct platform_device s5pc100_device_ac97;
+extern struct platform_device s5pc100_device_pcm0;
+extern struct platform_device s5pc100_device_pcm1;
+extern struct platform_device s5pc100_device_iis0;
+extern struct platform_device s5pc100_device_iis1;
+extern struct platform_device s5pc100_device_iis2;
+
 /* s3c2440 specific devices */
 
 #ifdef CONFIG_CPU_S3C2440
