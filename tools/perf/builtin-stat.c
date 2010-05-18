@@ -50,6 +50,7 @@
 
 #include <sys/prctl.h>
 #include <math.h>
+#include <locale.h>
 
 static struct perf_event_attr default_attrs[] = {
 
@@ -80,6 +81,8 @@ static pid_t			*all_tids			=  NULL;
 static int			thread_num			=  0;
 static pid_t			child_pid			= -1;
 static bool			null_run			=  false;
+static bool			big_num				=  false;
+
 
 static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
 
@@ -377,7 +380,7 @@ static void nsec_printout(int counter, double avg)
 {
 	double msecs = avg / 1e6;
 
-	fprintf(stderr, " %14.6f  %-24s", msecs, event_name(counter));
+	fprintf(stderr, " %18.6f  %-24s", msecs, event_name(counter));
 
 	if (MATCH_EVENT(SOFTWARE, SW_TASK_CLOCK, counter)) {
 		fprintf(stderr, " # %10.3f CPUs ",
@@ -389,7 +392,10 @@ static void abs_printout(int counter, double avg)
 {
 	double total, ratio = 0.0;
 
-	fprintf(stderr, " %14.0f  %-24s", avg, event_name(counter));
+	if (big_num)
+		fprintf(stderr, " %'18.0f  %-24s", avg, event_name(counter));
+	else
+		fprintf(stderr, " %18.0f  %-24s", avg, event_name(counter));
 
 	if (MATCH_EVENT(HARDWARE, HW_INSTRUCTIONS, counter)) {
 		total = avg_stats(&runtime_cycles_stats);
@@ -426,7 +432,7 @@ static void print_counter(int counter)
 	int scaled = event_scaled[counter];
 
 	if (scaled == -1) {
-		fprintf(stderr, " %14s  %-24s\n",
+		fprintf(stderr, " %18s  %-24s\n",
 			"<not counted>", event_name(counter));
 		return;
 	}
@@ -477,7 +483,7 @@ static void print_stat(int argc, const char **argv)
 		print_counter(counter);
 
 	fprintf(stderr, "\n");
-	fprintf(stderr, " %14.9f  seconds time elapsed",
+	fprintf(stderr, " %18.9f  seconds time elapsed",
 			avg_stats(&walltime_nsecs_stats)/1e9);
 	if (run_count > 1) {
 		fprintf(stderr, "   ( +- %7.3f%% )",
@@ -534,6 +540,8 @@ static const struct option options[] = {
 		    "repeat command and print average + stddev (max: 100)"),
 	OPT_BOOLEAN('n', "null", &null_run,
 		    "null run - dont start any counters"),
+	OPT_BOOLEAN('B', "big-num", &big_num,
+		    "print large numbers with thousands\' separators"),
 	OPT_END()
 };
 
@@ -541,6 +549,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 {
 	int status;
 	int i,j;
+
+	setlocale(LC_ALL, "");
 
 	argc = parse_options(argc, argv, options, stat_usage,
 		PARSE_OPT_STOP_AT_NON_OPTION);
