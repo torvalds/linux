@@ -36,7 +36,7 @@ int pci_enable_pcie_error_reporting(struct pci_dev *dev)
 	u16 reg16 = 0;
 	int pos;
 
-	if (dev->aer_firmware_first)
+	if (pcie_aer_get_firmware_first(dev))
 		return -EIO;
 
 	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ERR);
@@ -64,7 +64,7 @@ int pci_disable_pcie_error_reporting(struct pci_dev *dev)
 	u16 reg16 = 0;
 	int pos;
 
-	if (dev->aer_firmware_first)
+	if (pcie_aer_get_firmware_first(dev))
 		return -EIO;
 
 	pos = pci_pcie_cap(dev);
@@ -859,7 +859,7 @@ void aer_delete_rootport(struct aer_rpc *rpc)
  */
 int aer_init(struct pcie_device *dev)
 {
-	if (dev->port->aer_firmware_first) {
+	if (pcie_aer_get_firmware_first(dev->port)) {
 		dev_printk(KERN_DEBUG, &dev->device,
 			   "PCIe errors handled by platform firmware.\n");
 		goto out;
@@ -873,7 +873,7 @@ out:
 	if (forceload) {
 		dev_printk(KERN_DEBUG, &dev->device,
 			   "aerdrv forceload requested.\n");
-		dev->port->aer_firmware_first = 0;
+		pcie_aer_force_firmware_first(dev->port, 0);
 		return 0;
 	}
 	return -ENXIO;
