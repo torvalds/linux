@@ -178,6 +178,13 @@ config DA850_UI_RMII
 
 endchoice
 
+config MACH_TNETV107X
+	bool "TI TNETV107X Reference Platform"
+	default ARCH_DAVINCI_TNETV107X
+	depends on ARCH_DAVINCI_TNETV107X
+	help
+	  Say Y here to select the TI TNETV107X Evaluation Module.
+
 config DAVINCI_MUX
 	bool "DAVINCI multiplexing support"
 	depends on ARCH_DAVINCI
