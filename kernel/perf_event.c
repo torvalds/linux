@@ -2593,6 +2593,14 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	long user_extra, extra;
 	int ret = 0;
 
+	/*
+	 * Don't allow mmap() of inherited per-task counters. This would
+	 * create a performance issue due to all children writing to the
+	 * same buffer.
+	 */
+	if (event->cpu == -1 && event->attr.inherit)
+		return -EINVAL;
+
 	if (!(vma->vm_flags & VM_SHARED))
 		return -EINVAL;
 
