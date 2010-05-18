@@ -17,16 +17,21 @@ config S5PC100_SETUP_FB_24BPP
 	help
 	  Common setup code for S5PC1XX with an 24bpp RGB display helper.
 
-config S5PC100_SETUP_SDHCI
-        bool
-        select S5PC1XX_SETUP_SDHCI_GPIO
-        help
-          Internal helper functions for S5PC100 based SDHCI systems
-
 config S5PC100_SETUP_I2C1
 	bool
 	help
 	  Common setup code for i2c bus 1.
+
+config S5PC100_SETUP_SDHCI
+	bool
+	select S5PC100_SETUP_SDHCI_GPIO
+	help
+	  Internal helper functions for S5PC100 based SDHCI systems
+
+config S5PC100_SETUP_SDHCI_GPIO
+	bool
+	help
+	  Common setup code for SDHCI gpio.
 
 config MACH_SMDKC100
 	bool "SMDKC100"
