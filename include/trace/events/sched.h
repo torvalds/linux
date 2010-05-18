@@ -51,15 +51,12 @@ TRACE_EVENT(sched_kthread_stop_ret,
 
 /*
  * Tracepoint for waiting on task to unschedule:
- *
- * (NOTE: the 'rq' argument is not used by generic trace events,
- *        but used by the latency tracer plugin. )
  */
 TRACE_EVENT(sched_wait_task,
 
-	TP_PROTO(struct rq *rq, struct task_struct *p),
+	TP_PROTO(struct task_struct *p),
 
-	TP_ARGS(rq, p),
+	TP_ARGS(p),
 
 	TP_STRUCT__entry(
 		__array(	char,	comm,	TASK_COMM_LEN	)
@@ -79,15 +76,12 @@ TRACE_EVENT(sched_wait_task,
 
 /*
  * Tracepoint for waking up a task:
- *
- * (NOTE: the 'rq' argument is not used by generic trace events,
- *        but used by the latency tracer plugin. )
  */
 DECLARE_EVENT_CLASS(sched_wakeup_template,
 
-	TP_PROTO(struct rq *rq, struct task_struct *p, int success),
+	TP_PROTO(struct task_struct *p, int success),
 
-	TP_ARGS(rq, p, success),
+	TP_ARGS(p, success),
 
 	TP_STRUCT__entry(
 		__array(	char,	comm,	TASK_COMM_LEN	)
@@ -111,31 +105,25 @@ DECLARE_EVENT_CLASS(sched_wakeup_template,
 );
 
 DEFINE_EVENT(sched_wakeup_template, sched_wakeup,
-	     TP_PROTO(struct rq *rq, struct task_struct *p, int success),
-	     TP_ARGS(rq, p, success));
+	     TP_PROTO(struct task_struct *p, int success),
+	     TP_ARGS(p, success));
 
 /*
  * Tracepoint for waking up a new task:
- *
- * (NOTE: the 'rq' argument is not used by generic trace events,
- *        but used by the latency tracer plugin. )
  */
 DEFINE_EVENT(sched_wakeup_template, sched_wakeup_new,
-	     TP_PROTO(struct rq *rq, struct task_struct *p, int success),
-	     TP_ARGS(rq, p, success));
+	     TP_PROTO(struct task_struct *p, int success),
+	     TP_ARGS(p, success));
 
 /*
  * Tracepoint for task switches, performed by the scheduler:
- *
- * (NOTE: the 'rq' argument is not used by generic trace events,
- *        but used by the latency tracer plugin. )
  */
 TRACE_EVENT(sched_switch,
 
-	TP_PROTO(struct rq *rq, struct task_struct *prev,
+	TP_PROTO(struct task_struct *prev,
 		 struct task_struct *next),
 
-	TP_ARGS(rq, prev, next),
+	TP_ARGS(prev, next),
 
 	TP_STRUCT__entry(
 		__array(	char,	prev_comm,	TASK_COMM_LEN	)
