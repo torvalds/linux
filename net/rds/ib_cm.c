@@ -95,7 +95,6 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 {
 	const struct rds_ib_connect_private *dp = NULL;
 	struct rds_ib_connection *ic = conn->c_transport_data;
-	struct rds_ib_device *rds_ibdev;
 	struct ib_qp_attr qp_attr;
 	int err;
 
@@ -145,12 +144,11 @@ void rds_ib_cm_connect_complete(struct rds_connection *conn, struct rdma_cm_even
 	if (err)
 		printk(KERN_NOTICE "ib_modify_qp(IB_QP_STATE, RTS): err=%d\n", err);
 
-	/* update ib_device with this local ipaddr & conn */
-	rds_ibdev = ib_get_client_data(ic->i_cm_id->device, &rds_ib_client);
-	err = rds_ib_update_ipaddr(rds_ibdev, conn->c_laddr);
+	/* update ib_device with this local ipaddr */
+	err = rds_ib_update_ipaddr(ic->rds_ibdev, conn->c_laddr);
 	if (err)
-		printk(KERN_ERR "rds_ib_update_ipaddr failed (%d)\n", err);
-	rds_ib_add_conn(rds_ibdev, conn);
+		printk(KERN_ERR "rds_ib_update_ipaddr failed (%d)\n",
+			err);
 
 	/* If the peer gave us the last packet it saw, process this as if
 	 * we had received a regular ACK. */
@@ -168,11 +166,9 @@ static void rds_ib_cm_fill_conn_param(struct rds_connection *conn,
 			u32 max_initiator_depth)
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
-	struct rds_ib_device *rds_ibdev;
+	struct rds_ib_device *rds_ibdev = ic->rds_ibdev;
 
 	memset(conn_param, 0, sizeof(struct rdma_conn_param));
-
-	rds_ibdev = ib_get_client_data(ic->i_cm_id->device, &rds_ib_client);
 
 	conn_param->responder_resources =
 		min_t(u32, rds_ibdev->max_responder_resources, max_responder_resources);
@@ -241,18 +237,16 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 	struct rds_ib_device *rds_ibdev;
 	int ret;
 
-	/* rds_ib_add_one creates a rds_ib_device object per IB device,
-	 * and allocates a protection domain, memory range and FMR pool
-	 * for each.  If that fails for any reason, it will not register
-	 * the rds_ibdev at all.
+	/*
+	 * It's normal to see a null device if an incoming connection races
+	 * with device removal, so we don't print a warning.
 	 */
-	rds_ibdev = ib_get_client_data(dev, &rds_ib_client);
-	if (!rds_ibdev) {
-		if (printk_ratelimit())
-			printk(KERN_NOTICE "RDS/IB: No client_data for device %s\n",
-					dev->name);
+	rds_ibdev = rds_ib_get_client_data(dev);
+	if (!rds_ibdev)
 		return -EOPNOTSUPP;
-	}
+
+	/* add the conn now so that connection establishment has the dev */
+	rds_ib_add_conn(rds_ibdev, conn);
 
 	if (rds_ibdev->max_wrs < ic->i_send_ring.w_nr + 1)
 		rds_ib_ring_resize(&ic->i_send_ring, rds_ibdev->max_wrs - 1);
@@ -371,6 +365,7 @@ static int rds_ib_setup_qp(struct rds_connection *conn)
 		 ic->i_send_cq, ic->i_recv_cq);
 
 out:
+	rds_ib_dev_put(rds_ibdev);
 	return ret;
 }
 

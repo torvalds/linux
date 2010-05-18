@@ -167,6 +167,8 @@ struct rds_ib_device {
 	unsigned int		max_initiator_depth;
 	unsigned int		max_responder_resources;
 	spinlock_t		spinlock;	/* protect the above */
+	atomic_t		refcount;
+	struct work_struct	free_work;
 };
 
 #define pcidev_to_node(pcidev) pcibus_to_node(pcidev->bus)
@@ -251,6 +253,8 @@ static inline void rds_ib_dma_sync_sg_for_device(struct ib_device *dev,
 extern struct rds_transport rds_ib_transport;
 extern void rds_ib_add_one(struct ib_device *device);
 extern void rds_ib_remove_one(struct ib_device *device);
+struct rds_ib_device *rds_ib_get_client_data(struct ib_device *device);
+void rds_ib_dev_put(struct rds_ib_device *rds_ibdev);
 extern struct ib_client rds_ib_client;
 
 extern unsigned int fmr_pool_size;

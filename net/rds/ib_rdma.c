@@ -87,6 +87,7 @@ static struct rds_ib_device *rds_ib_get_device(__be32 ipaddr)
 		rcu_read_lock();
 		list_for_each_entry_rcu(i_ipaddr, &rds_ibdev->ipaddr_list, list) {
 			if (i_ipaddr->ipaddr == ipaddr) {
+				atomic_inc(&rds_ibdev->refcount);
 				rcu_read_unlock();
 				return rds_ibdev;
 			}
@@ -141,8 +142,10 @@ int rds_ib_update_ipaddr(struct rds_ib_device *rds_ibdev, __be32 ipaddr)
 	struct rds_ib_device *rds_ibdev_old;
 
 	rds_ibdev_old = rds_ib_get_device(ipaddr);
-	if (rds_ibdev_old)
+	if (rds_ibdev_old) {
 		rds_ib_remove_ipaddr(rds_ibdev_old, ipaddr);
+		rds_ib_dev_put(rds_ibdev_old);
+	}
 
 	return rds_ib_add_ipaddr(rds_ibdev, ipaddr);
 }
@@ -163,6 +166,7 @@ void rds_ib_add_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *con
 	spin_unlock_irq(&ib_nodev_conns_lock);
 
 	ic->rds_ibdev = rds_ibdev;
+	atomic_inc(&rds_ibdev->refcount);
 }
 
 void rds_ib_remove_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *conn)
@@ -182,6 +186,7 @@ void rds_ib_remove_conn(struct rds_ib_device *rds_ibdev, struct rds_connection *
 	spin_unlock(&ib_nodev_conns_lock);
 
 	ic->rds_ibdev = NULL;
+	rds_ib_dev_put(rds_ibdev);
 }
 
 void __rds_ib_destroy_conns(struct list_head *list, spinlock_t *list_lock)
@@ -240,7 +245,7 @@ void rds_ib_get_mr_info(struct rds_ib_device *rds_ibdev, struct rds_info_rdma_co
 
 void rds_ib_destroy_mr_pool(struct rds_ib_mr_pool *pool)
 {
-	flush_workqueue(rds_wq);
+	cancel_work_sync(&pool->flush_worker);
 	rds_ib_flush_mr_pool(pool, 1);
 	WARN_ON(atomic_read(&pool->item_count));
 	WARN_ON(atomic_read(&pool->free_pinned));
@@ -597,6 +602,8 @@ void rds_ib_free_mr(void *trans_private, int invalidate)
 			queue_work(rds_wq, &pool->flush_worker);
 		}
 	}
+
+	rds_ib_dev_put(rds_ibdev);
 }
 
 void rds_ib_flush_mrs(void)
@@ -640,6 +647,7 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 		printk(KERN_WARNING "RDS/IB: map_fmr failed (errno=%d)\n", ret);
 
 	ibmr->device = rds_ibdev;
+	rds_ibdev = NULL;
 
  out:
 	if (ret) {
@@ -647,5 +655,7 @@ void *rds_ib_get_mr(struct scatterlist *sg, unsigned long nents,
 			rds_ib_free_mr(ibmr, 0);
 		ibmr = ERR_PTR(ret);
 	}
+	if (rds_ibdev)
+		rds_ib_dev_put(rds_ibdev);
 	return ibmr;
 }

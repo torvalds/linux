@@ -59,6 +59,38 @@ struct list_head rds_ib_devices;
 DEFINE_SPINLOCK(ib_nodev_conns_lock);
 LIST_HEAD(ib_nodev_conns);
 
+/*
+ * rds_ib_destroy_mr_pool() blocks on a few things and mrs drop references
+ * from interrupt context so we push freing off into a work struct in krdsd.
+ */
+static void rds_ib_dev_free(struct work_struct *work)
+{
+	struct rds_ib_ipaddr *i_ipaddr, *i_next;
+	struct rds_ib_device *rds_ibdev = container_of(work,
+					struct rds_ib_device, free_work);
+
+	if (rds_ibdev->mr_pool)
+		rds_ib_destroy_mr_pool(rds_ibdev->mr_pool);
+	if (rds_ibdev->mr)
+		ib_dereg_mr(rds_ibdev->mr);
+	if (rds_ibdev->pd)
+		ib_dealloc_pd(rds_ibdev->pd);
+
+	list_for_each_entry_safe(i_ipaddr, i_next, &rds_ibdev->ipaddr_list, list) {
+		list_del(&i_ipaddr->list);
+		kfree(i_ipaddr);
+	}
+
+	kfree(rds_ibdev);
+}
+
+void rds_ib_dev_put(struct rds_ib_device *rds_ibdev)
+{
+	BUG_ON(atomic_read(&rds_ibdev->refcount) <= 0);
+	if (atomic_dec_and_test(&rds_ibdev->refcount))
+		queue_work(rds_wq, &rds_ibdev->free_work);
+}
+
 void rds_ib_add_one(struct ib_device *device)
 {
 	struct rds_ib_device *rds_ibdev;
@@ -77,11 +109,14 @@ void rds_ib_add_one(struct ib_device *device)
 		goto free_attr;
 	}
 
-	rds_ibdev = kmalloc_node(sizeof *rds_ibdev, GFP_KERNEL, ibdev_to_node(device));
+	rds_ibdev = kzalloc_node(sizeof(struct rds_ib_device), GFP_KERNEL,
+				 ibdev_to_node(device));
 	if (!rds_ibdev)
 		goto free_attr;
 
 	spin_lock_init(&rds_ibdev->spinlock);
+	atomic_set(&rds_ibdev->refcount, 1);
+	INIT_WORK(&rds_ibdev->free_work, rds_ib_dev_free);
 
 	rds_ibdev->max_wrs = dev_attr->max_qp_wr;
 	rds_ibdev->max_sge = min(dev_attr->max_sge, RDS_IB_MAX_SGE);
@@ -96,67 +131,93 @@ void rds_ib_add_one(struct ib_device *device)
 
 	rds_ibdev->dev = device;
 	rds_ibdev->pd = ib_alloc_pd(device);
-	if (IS_ERR(rds_ibdev->pd))
-		goto free_dev;
+	if (IS_ERR(rds_ibdev->pd)) {
+		rds_ibdev->pd = NULL;
+		goto put_dev;
+	}
 
-	rds_ibdev->mr = ib_get_dma_mr(rds_ibdev->pd,
-				      IB_ACCESS_LOCAL_WRITE);
-	if (IS_ERR(rds_ibdev->mr))
-		goto err_pd;
+	rds_ibdev->mr = ib_get_dma_mr(rds_ibdev->pd, IB_ACCESS_LOCAL_WRITE);
+	if (IS_ERR(rds_ibdev->mr)) {
+		rds_ibdev->mr = NULL;
+		goto put_dev;
+	}
 
 	rds_ibdev->mr_pool = rds_ib_create_mr_pool(rds_ibdev);
 	if (IS_ERR(rds_ibdev->mr_pool)) {
 		rds_ibdev->mr_pool = NULL;
-		goto err_mr;
+		goto put_dev;
 	}
 
 	INIT_LIST_HEAD(&rds_ibdev->ipaddr_list);
 	INIT_LIST_HEAD(&rds_ibdev->conn_list);
 	list_add_tail(&rds_ibdev->list, &rds_ib_devices);
+	atomic_inc(&rds_ibdev->refcount);
 
 	ib_set_client_data(device, &rds_ib_client, rds_ibdev);
+	atomic_inc(&rds_ibdev->refcount);
 
-	goto free_attr;
-
-err_mr:
-	ib_dereg_mr(rds_ibdev->mr);
-err_pd:
-	ib_dealloc_pd(rds_ibdev->pd);
-free_dev:
-	kfree(rds_ibdev);
+put_dev:
+	rds_ib_dev_put(rds_ibdev);
 free_attr:
 	kfree(dev_attr);
 }
 
+/*
+ * New connections use this to find the device to associate with the
+ * connection.  It's not in the fast path so we're not concerned about the
+ * performance of the IB call.  (As of this writing, it uses an interrupt
+ * blocking spinlock to serialize walking a per-device list of all registered
+ * clients.)
+ *
+ * RCU is used to handle incoming connections racing with device teardown.
+ * Rather than use a lock to serialize removal from the client_data and
+ * getting a new reference, we use an RCU grace period.  The destruction
+ * path removes the device from client_data and then waits for all RCU
+ * readers to finish.
+ *
+ * A new connection can get NULL from this if its arriving on a
+ * device that is in the process of being removed.
+ */
+struct rds_ib_device *rds_ib_get_client_data(struct ib_device *device)
+{
+	struct rds_ib_device *rds_ibdev;
+
+	rcu_read_lock();
+	rds_ibdev = ib_get_client_data(device, &rds_ib_client);
+	if (rds_ibdev)
+		atomic_inc(&rds_ibdev->refcount);
+	rcu_read_unlock();
+	return rds_ibdev;
+}
+
+/*
+ * The IB stack is letting us know that a device is going away.  This can
+ * happen if the underlying HCA driver is removed or if PCI hotplug is removing
+ * the pci function, for example.
+ *
+ * This can be called at any time and can be racing with any other RDS path.
+ */
 void rds_ib_remove_one(struct ib_device *device)
 {
 	struct rds_ib_device *rds_ibdev;
-	struct rds_ib_ipaddr *i_ipaddr, *i_next;
 
 	rds_ibdev = ib_get_client_data(device, &rds_ib_client);
 	if (!rds_ibdev)
 		return;
 
-	synchronize_rcu();
-	list_for_each_entry_safe(i_ipaddr, i_next, &rds_ibdev->ipaddr_list, list) {
-		list_del(&i_ipaddr->list);
-		kfree(i_ipaddr);
-	}
-
 	rds_ib_destroy_conns(rds_ibdev);
 
-	if (rds_ibdev->mr_pool)
-		rds_ib_destroy_mr_pool(rds_ibdev->mr_pool);
-
-	ib_dereg_mr(rds_ibdev->mr);
-
-	while (ib_dealloc_pd(rds_ibdev->pd)) {
-		rdsdebug("Failed to dealloc pd %p\n", rds_ibdev->pd);
-		msleep(1);
-	}
+	/*
+	 * prevent future connection attempts from getting a reference to this
+	 * device and wait for currently racing connection attempts to finish
+	 * getting their reference
+	 */
+	ib_set_client_data(device, &rds_ib_client, NULL);
+	synchronize_rcu();
+	rds_ib_dev_put(rds_ibdev);
 
 	list_del(&rds_ibdev->list);
-	kfree(rds_ibdev);
+	rds_ib_dev_put(rds_ibdev);
 }
 
 struct ib_client rds_ib_client = {
@@ -190,7 +251,7 @@ static int rds_ib_conn_info_visitor(struct rds_connection *conn,
 		rdma_addr_get_sgid(dev_addr, (union ib_gid *) &iinfo->src_gid);
 		rdma_addr_get_dgid(dev_addr, (union ib_gid *) &iinfo->dst_gid);
 
-		rds_ibdev = ib_get_client_data(ic->i_cm_id->device, &rds_ib_client);
+		rds_ibdev = ic->rds_ibdev;
 		iinfo->max_send_wr = ic->i_send_ring.w_nr;
 		iinfo->max_recv_wr = ic->i_recv_ring.w_nr;
 		iinfo->max_send_sge = rds_ibdev->max_sge;
