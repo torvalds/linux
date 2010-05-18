@@ -72,11 +72,6 @@ typedef int             BOOL;
 
 /****** Simple typedefs  ***************************************************/
 
-typedef char            CHAR;
-typedef signed short    SHORT;
-typedef signed int      INT;
-typedef signed long     LONG;
-
 typedef unsigned char   UCHAR;
 typedef unsigned short  USHORT;
 typedef unsigned int    UINT;

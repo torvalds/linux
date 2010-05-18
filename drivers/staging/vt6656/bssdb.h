@@ -109,9 +109,9 @@ typedef struct tagKnownBSS {
 
 //    WORD            wATIMWindow;
     BYTE            byRSSIStatCnt;
-    LONG            ldBmMAX;
-    LONG            ldBmAverage[RSSI_STAT_COUNT];
-    LONG            ldBmAverRange;
+    signed long            ldBmMAX;
+    signed long            ldBmAverage[RSSI_STAT_COUNT];
+    signed long            ldBmAverRange;
     //For any BSSID selection improvment
     BOOL            bSelected;
 

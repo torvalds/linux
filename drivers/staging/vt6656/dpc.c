@@ -98,7 +98,7 @@ s_vProcessRxMACHeader (
 static BOOL s_bAPModeRxCtl(
      PSDevice pDevice,
      PBYTE    pbyFrame,
-     INT      iSANodeIndex
+     signed int      iSANodeIndex
     );
 
 
@@ -108,8 +108,8 @@ static BOOL s_bAPModeRxData (
      struct sk_buff *skb,
      UINT     FrameSize,
      UINT     cbHeaderOffset,
-     INT      iSANodeIndex,
-     INT      iDANodeIndex
+     signed int      iSANodeIndex,
+     signed int      iDANodeIndex
     );
 
 
@@ -336,8 +336,8 @@ RXbBulkInProcessData (
     UINT            cbHeaderOffset;
     UINT            FrameSize;
     WORD            wEtherType = 0;
-    INT             iSANodeIndex = -1;
-    INT             iDANodeIndex = -1;
+    signed int             iSANodeIndex = -1;
+    signed int             iDANodeIndex = -1;
     UINT            ii;
     UINT            cbIVOffset;
     PBYTE           pbyRxSts;
@@ -352,7 +352,7 @@ RXbBulkInProcessData (
     DWORD           dwRxTSC47_16 = 0;
     SKeyItem        STempKey;
     // 802.11h RPI
-    //LONG            ldBm = 0;
+    /* signed long ldBm = 0; */
     BOOL            bIsWEP = FALSE;
     BOOL            bExtIV = FALSE;
     DWORD           dwWbkStatus;
@@ -1023,7 +1023,7 @@ RXbBulkInProcessData (
 static BOOL s_bAPModeRxCtl (
      PSDevice pDevice,
      PBYTE    pbyFrame,
-     INT      iSANodeIndex
+     signed int      iSANodeIndex
     )
 {
     PS802_11Header      p802_11Header;
@@ -1431,8 +1431,8 @@ static BOOL s_bAPModeRxData (
      struct sk_buff *skb,
      UINT     FrameSize,
      UINT     cbHeaderOffset,
-     INT      iSANodeIndex,
-     INT      iDANodeIndex
+     signed int      iSANodeIndex,
+     signed int      iDANodeIndex
     )
 
 {

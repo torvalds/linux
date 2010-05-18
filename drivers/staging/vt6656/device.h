@@ -210,7 +210,7 @@ typedef enum _CONTEXT_TYPE {
 typedef struct _RCB
 {
     void *Next;
-    LONG                    Ref;
+    signed long                    Ref;
     void *pDevice;
     struct urb              *pUrb;
     SRxMgmtPacket           sMngPacket;
@@ -234,16 +234,15 @@ typedef struct _USB_SEND_CONTEXT {
 } USB_SEND_CONTEXT, *PUSB_SEND_CONTEXT;
 
 
-//structure got from configuration file as user desired default setting.
-typedef struct _DEFAULT_CONFIG{
-    INT    ZoneType;
-    INT    eConfigMode;
-    INT    eAuthenMode;    //open/wep/wpa
-    INT    bShareKeyAlgorithm;  //open-open/open-sharekey/wep-sharekey
-    INT    keyidx;               //wepkey index
-    INT    eEncryptionStatus;
-
-}DEFAULT_CONFIG,*PDEFAULT_CONFIG;
+/* structure got from configuration file as user-desired default settings */
+typedef struct _DEFAULT_CONFIG {
+	signed int    ZoneType;
+	signed int    eConfigMode;
+	signed int    eAuthenMode;        /* open/wep/wpa */
+	signed int    bShareKeyAlgorithm; /* open-open/{open,wep}-sharekey */
+	signed int    keyidx;             /* wepkey index */
+	signed int    eEncryptionStatus;
+} DEFAULT_CONFIG, *PDEFAULT_CONFIG;
 
 //
 // Structure to keep track of usb interrupt packets
@@ -785,7 +784,7 @@ typedef struct __device_info {
     BYTE                    byBBVGANew;
     BYTE                    byBBVGACurrent;
     BYTE                    abyBBVGA[BB_VGA_LEVEL];
-    LONG                    ldBmThreshold[BB_VGA_LEVEL];
+    signed long                    ldBmThreshold[BB_VGA_LEVEL];
 
     BYTE                    byBBPreEDRSSI;
     BYTE                    byBBPreEDIndex;

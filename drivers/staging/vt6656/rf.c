@@ -962,8 +962,8 @@ RFvRSSITodBm (
     )
 {
     BYTE byIdx = (((byCurrRSSI & 0xC0) >> 6) & 0x03);
-    LONG b = (byCurrRSSI & 0x3F);
-    LONG a = 0;
+    signed long b = (byCurrRSSI & 0x3F);
+    signed long a = 0;
     BYTE abyAIROHARF[4] = {0, 18, 0, 40};
 
     switch (pDevice->byRFType) {

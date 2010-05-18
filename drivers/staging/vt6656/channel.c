@@ -116,7 +116,7 @@ static SChannelTblElement sChannelTbl[CB_MAX_CHANNEL+1] =
 static  struct
 {
     BYTE    byChannelCountryCode;             /* The country code         */
-    CHAR    chCountryCode[2];
+    char    chCountryCode[2];
     BYTE    bChannelIdxList[CB_MAX_CHANNEL];  /* Available channels Index */
     BYTE    byPower[CB_MAX_CHANNEL];
 }   ChannelRuleTab[] =
