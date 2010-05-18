@@ -806,10 +806,10 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 	struct rds_ib_send_work *first;
 	struct rds_ib_send_work *prev;
 	struct ib_send_wr *failed_wr;
-	struct rds_ib_device *rds_ibdev;
 	struct scatterlist *scat;
 	unsigned long len;
 	u64 remote_addr = op->op_remote_addr;
+	u32 max_sge = ic->rds_ibdev->max_sge;
 	u32 pos;
 	u32 work_alloc;
 	u32 i;
@@ -817,8 +817,6 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 	int sent;
 	int ret;
 	int num_sge;
-
-	rds_ibdev = ib_get_client_data(ic->i_cm_id->device, &rds_ib_client);
 
 	/* map the op the first time we see it */
 	if (!op->op_mapped) {
@@ -839,7 +837,7 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 	 * Instead of knowing how to return a partial rdma read/write we insist that there
 	 * be enough work requests to send the entire message.
 	 */
-	i = ceil(op->op_count, rds_ibdev->max_sge);
+	i = ceil(op->op_count, max_sge);
 
 	work_alloc = rds_ib_ring_alloc(&ic->i_send_ring, i, &pos);
 	if (work_alloc != i) {
@@ -867,9 +865,9 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 		send->s_wr.wr.rdma.remote_addr = remote_addr;
 		send->s_wr.wr.rdma.rkey = op->op_rkey;
 
-		if (num_sge > rds_ibdev->max_sge) {
-			send->s_wr.num_sge = rds_ibdev->max_sge;
-			num_sge -= rds_ibdev->max_sge;
+		if (num_sge > max_sge) {
+			send->s_wr.num_sge = max_sge;
+			num_sge -= max_sge;
 		} else {
 			send->s_wr.num_sge = num_sge;
 		}
