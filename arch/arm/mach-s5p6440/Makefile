@@ -21,3 +21,4 @@ obj-$(CONFIG_MACH_SMDK6440)	+= mach-smdk6440.o
 
 # device support
 obj-y				+= dev-audio.o
+obj-$(CONFIG_S3C64XX_DEV_SPI)	+= dev-spi.o
