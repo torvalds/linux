@@ -164,4 +164,9 @@ config S3C24XX_SIMTEC_AUDIO
 	help
 	  Add audio devices for common Simtec S3C24XX boards
 
+config S3C2410_SETUP_TS
+	bool
+	help
+	  Compile in platform device definition for Samsung TouchScreen.
+
 endif

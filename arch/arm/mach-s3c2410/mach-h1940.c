@@ -146,6 +146,7 @@ static struct s3c2410_ts_mach_info h1940_ts_cfg __initdata = {
 		.delay = 10000,
 		.presc = 49,
 		.oversampling_shift = 2,
+		.cfg_gpio = s3c24xx_ts_cfg_gpio,
 };
 
 /**
