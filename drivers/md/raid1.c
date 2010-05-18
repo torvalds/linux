@@ -891,9 +891,10 @@ static int make_request(struct request_queue *q, struct bio * bio)
 			if (test_bit(Faulty, &rdev->flags)) {
 				rdev_dec_pending(rdev, mddev);
 				r1_bio->bios[i] = NULL;
-			} else
+			} else {
 				r1_bio->bios[i] = bio;
-			targets++;
+				targets++;
+			}
 		} else
 			r1_bio->bios[i] = NULL;
 	}
