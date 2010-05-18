@@ -1960,6 +1960,11 @@ void iwl_mac_remove_interface(struct ieee80211_hw *hw,
 	}
 	if (priv->vif == vif) {
 		priv->vif = NULL;
+		if (priv->scan_vif == vif) {
+			ieee80211_scan_completed(priv->hw, true);
+			priv->scan_vif = NULL;
+			priv->scan_request = NULL;
+		}
 		memset(priv->bssid, 0, ETH_ALEN);
 	}
 	mutex_unlock(&priv->mutex);
