@@ -7,7 +7,7 @@
  * For more information about EINJ, please refer to ACPI Specification
  * version 4.0, section 17.5.
  *
- * Copyright 2009 Intel Corp.
+ * Copyright 2009-2010 Intel Corp.
  *   Author: Huang Ying <ying.huang@intel.com>
  *
  * This program is free software; you can redistribute it and/or
@@ -41,6 +41,20 @@
 #define SPIN_UNIT		100			/* 100ns */
 /* Firmware should respond within 1 miliseconds */
 #define FIRMWARE_TIMEOUT	(1 * NSEC_PER_MSEC)
+
+/*
+ * Some BIOSes allow parameters to the SET_ERROR_TYPE entries in the
+ * EINJ table through an unpublished extension. Use with caution as
+ * most will ignore the parameter and make their own choice of address
+ * for error injection.
+ */
+struct einj_parameter {
+	u64 type;
+	u64 reserved1;
+	u64 reserved2;
+	u64 param1;
+	u64 param2;
+};
 
 #define EINJ_OP_BUSY			0x1
 #define EINJ_STATUS_SUCCESS		0x0
@@ -85,6 +99,8 @@ static struct apei_exec_ins_type einj_ins_type[] = {
  */
 static DEFINE_MUTEX(einj_mutex);
 
+static struct einj_parameter *einj_param;
+
 static void einj_exec_ctx_init(struct apei_exec_context *ctx)
 {
 	apei_exec_ctx_init(ctx, einj_ins_type, ARRAY_SIZE(einj_ins_type),
@@ -128,6 +144,26 @@ static int einj_timedout(u64 *t)
 	ndelay(SPIN_UNIT);
 	touch_nmi_watchdog();
 	return 0;
+}
+
+static u64 einj_get_parameter_address(void)
+{
+	int i;
+	u64 paddr = 0;
+	struct acpi_whea_header *entry;
+
+	entry = EINJ_TAB_ENTRY(einj_tab);
+	for (i = 0; i < einj_tab->entries; i++) {
+		if (entry->action == ACPI_EINJ_SET_ERROR_TYPE &&
+		    entry->instruction == ACPI_EINJ_WRITE_REGISTER &&
+		    entry->register_region.space_id ==
+		    ACPI_ADR_SPACE_SYSTEM_MEMORY)
+			memcpy(&paddr, &entry->register_region.address,
+			       sizeof(paddr));
+		entry++;
+	}
+
+	return paddr;
 }
 
 /* do sanity check to trigger table */
@@ -233,7 +269,7 @@ out:
 	return rc;
 }
 
-static int __einj_error_inject(u32 type)
+static int __einj_error_inject(u32 type, u64 param1, u64 param2)
 {
 	struct apei_exec_context ctx;
 	u64 val, trigger_paddr, timeout = FIRMWARE_TIMEOUT;
@@ -248,6 +284,10 @@ static int __einj_error_inject(u32 type)
 	rc = apei_exec_run(&ctx, ACPI_EINJ_SET_ERROR_TYPE);
 	if (rc)
 		return rc;
+	if (einj_param) {
+		writeq(param1, &einj_param->param1);
+		writeq(param2, &einj_param->param2);
+	}
 	rc = apei_exec_run(&ctx, ACPI_EINJ_EXECUTE_OPERATION);
 	if (rc)
 		return rc;
@@ -281,18 +321,20 @@ static int __einj_error_inject(u32 type)
 }
 
 /* Inject the specified hardware error */
-static int einj_error_inject(u32 type)
+static int einj_error_inject(u32 type, u64 param1, u64 param2)
 {
 	int rc;
 
 	mutex_lock(&einj_mutex);
-	rc = __einj_error_inject(type);
+	rc = __einj_error_inject(type, param1, param2);
 	mutex_unlock(&einj_mutex);
 
 	return rc;
 }
 
 static u32 error_type;
+static u64 error_param1;
+static u64 error_param2;
 static struct dentry *einj_debug_dir;
 
 static int available_error_type_show(struct seq_file *m, void *v)
@@ -376,7 +418,7 @@ static int error_inject_set(void *data, u64 val)
 	if (!error_type)
 		return -EINVAL;
 
-	return einj_error_inject(error_type);
+	return einj_error_inject(error_type, error_param1, error_param2);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(error_inject_fops, NULL,
@@ -399,6 +441,7 @@ static int einj_check_table(struct acpi_table_einj *einj_tab)
 static int __init einj_init(void)
 {
 	int rc;
+	u64 param_paddr;
 	acpi_status status;
 	struct dentry *fentry;
 	struct apei_exec_context ctx;
@@ -436,6 +479,14 @@ static int __init einj_init(void)
 				     einj_debug_dir, NULL, &error_type_fops);
 	if (!fentry)
 		goto err_cleanup;
+	fentry = debugfs_create_x64("param1", S_IRUSR | S_IWUSR,
+				    einj_debug_dir, &error_param1);
+	if (!fentry)
+		goto err_cleanup;
+	fentry = debugfs_create_x64("param2", S_IRUSR | S_IWUSR,
+				    einj_debug_dir, &error_param2);
+	if (!fentry)
+		goto err_cleanup;
 	fentry = debugfs_create_file("error_inject", S_IWUSR,
 				     einj_debug_dir, NULL, &error_inject_fops);
 	if (!fentry)
@@ -452,11 +503,20 @@ static int __init einj_init(void)
 	rc = apei_exec_pre_map_gars(&ctx);
 	if (rc)
 		goto err_release;
+	param_paddr = einj_get_parameter_address();
+	if (param_paddr) {
+		einj_param = ioremap(param_paddr, sizeof(*einj_param));
+		rc = -ENOMEM;
+		if (!einj_param)
+			goto err_unmap;
+	}
 
 	pr_info(EINJ_PFX "Error INJection is initialized.\n");
 
 	return 0;
 
+err_unmap:
+	apei_exec_post_unmap_gars(&ctx);
 err_release:
 	apei_resources_release(&einj_resources);
 err_fini:
@@ -471,6 +531,8 @@ static void __exit einj_exit(void)
 {
 	struct apei_exec_context ctx;
 
+	if (einj_param)
+		iounmap(einj_param);
 	einj_exec_ctx_init(&ctx);
 	apei_exec_post_unmap_gars(&ctx);
 	apei_resources_release(&einj_resources);
