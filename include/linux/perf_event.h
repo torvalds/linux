@@ -804,6 +804,7 @@ struct perf_output_handle {
 	struct perf_mmap_data		*data;
 	unsigned long			head;
 	unsigned long			offset;
+	unsigned long			wakeup;
 	int				nmi;
 	int				sample;
 };

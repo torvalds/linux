@@ -2917,6 +2917,7 @@ static void perf_output_get_handle(struct perf_output_handle *handle)
 
 	preempt_disable();
 	local_inc(&data->nest);
+	handle->wakeup = local_read(&data->wakeup);
 }
 
 static void perf_output_put_handle(struct perf_output_handle *handle)
@@ -2950,7 +2951,7 @@ again:
 		goto again;
 	}
 
-	if (local_xchg(&data->wakeup, 0))
+	if (handle->wakeup != local_read(&data->wakeup))
 		perf_output_wakeup(handle);
 
 	preempt_enable();
