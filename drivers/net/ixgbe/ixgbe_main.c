@@ -2845,7 +2845,11 @@ static void ixgbe_vlan_filter_disable(struct ixgbe_adapter *adapter)
 
 	switch (hw->mac.type) {
 	case ixgbe_mac_82598EB:
-		vlnctrl &= ~(IXGBE_VLNCTRL_VME | IXGBE_VLNCTRL_VFE);
+		vlnctrl &= ~IXGBE_VLNCTRL_VFE;
+#ifdef CONFIG_IXGBE_DCB
+		if (!(adapter->flags & IXGBE_FLAG_DCB_ENABLED))
+			vlnctrl &= ~IXGBE_VLNCTRL_VME;
+#endif
 		vlnctrl &= ~IXGBE_VLNCTRL_CFIEN;
 		IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
 		break;
@@ -2853,6 +2857,10 @@ static void ixgbe_vlan_filter_disable(struct ixgbe_adapter *adapter)
 		vlnctrl &= ~IXGBE_VLNCTRL_VFE;
 		vlnctrl &= ~IXGBE_VLNCTRL_CFIEN;
 		IXGBE_WRITE_REG(hw, IXGBE_VLNCTRL, vlnctrl);
+#ifdef CONFIG_IXGBE_DCB
+		if (adapter->flags & IXGBE_FLAG_DCB_ENABLED)
+			break;
+#endif
 		for (i = 0; i < adapter->num_rx_queues; i++) {
 			j = adapter->rx_ring[i]->reg_idx;
 			vlnctrl = IXGBE_READ_REG(hw, IXGBE_RXDCTL(j));
