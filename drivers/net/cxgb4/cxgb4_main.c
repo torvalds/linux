@@ -2327,6 +2327,9 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 		register_netevent_notifier(&cxgb4_netevent_nb);
 		netevent_registered = true;
 	}
+
+	if (adap->flags & FULL_INIT_DONE)
+		ulds[uld].state_change(handle, CXGB4_STATE_UP);
 }
 
 static void attach_ulds(struct adapter *adap)
