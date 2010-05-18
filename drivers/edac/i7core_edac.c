@@ -1856,7 +1856,8 @@ static int i7core_register_mci(struct i7core_dev *i7core_dev,
 	}
 
 fail:
-	edac_mc_free(mci);
+	if (rc < 0)
+		edac_mc_free(mci);
 	return rc;
 }
 
