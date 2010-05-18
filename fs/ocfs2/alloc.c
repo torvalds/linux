@@ -1006,7 +1006,7 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 	int count, status, i;
 	u16 suballoc_bit_start;
 	u32 num_got;
-	u64 first_blkno;
+	u64 suballoc_loc, first_blkno;
 	struct ocfs2_super *osb =
 		OCFS2_SB(ocfs2_metadata_cache_get_super(et->et_ci));
 	struct ocfs2_extent_block *eb;
@@ -1015,10 +1015,10 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 
 	count = 0;
 	while (count < wanted) {
-		status = ocfs2_claim_metadata(osb,
-					      handle,
+		status = ocfs2_claim_metadata(handle,
 					      meta_ac,
 					      wanted - count,
+					      &suballoc_loc,
 					      &suballoc_bit_start,
 					      &num_got,
 					      &first_blkno);
@@ -1052,6 +1052,7 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 			eb->h_fs_generation = cpu_to_le32(osb->fs_generation);
 			eb->h_suballoc_slot =
 				cpu_to_le16(meta_ac->ac_alloc_slot);
+			eb->h_suballoc_loc = cpu_to_le64(suballoc_loc);
 			eb->h_suballoc_bit = cpu_to_le16(suballoc_bit_start);
 			eb->h_list.l_count =
 				cpu_to_le16(ocfs2_extent_recs_per_eb(osb->sb));
@@ -4786,7 +4787,7 @@ int ocfs2_add_clusters_in_btree(handle_t *handle,
 		goto leave;
 	}
 
-	status = __ocfs2_claim_clusters(osb, handle, data_ac, 1,
+	status = __ocfs2_claim_clusters(handle, data_ac, 1,
 					clusters_to_add, &bit_off, &num_bits);
 	if (status < 0) {
 		if (status != -ENOSPC)
@@ -6295,6 +6296,7 @@ int ocfs2_truncate_log_init(struct ocfs2_super *osb)
  */
 struct ocfs2_cached_block_free {
 	struct ocfs2_cached_block_free		*free_next;
+	u64					free_bg;
 	u64					free_blk;
 	unsigned int				free_bit;
 };
@@ -6341,8 +6343,11 @@ static int ocfs2_free_cached_blocks(struct ocfs2_super *osb,
 	}
 
 	while (head) {
-		bg_blkno = ocfs2_which_suballoc_group(head->free_blk,
-						      head->free_bit);
+		if (head->free_bg)
+			bg_blkno = head->free_bg;
+		else
+			bg_blkno = ocfs2_which_suballoc_group(head->free_blk,
+							      head->free_bit);
 		mlog(0, "Free bit: (bit %u, blkno %llu)\n",
 		     head->free_bit, (unsigned long long)head->free_blk);
 
@@ -6390,7 +6395,7 @@ int ocfs2_cache_cluster_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
 	int ret = 0;
 	struct ocfs2_cached_block_free *item;
 
-	item = kmalloc(sizeof(*item), GFP_NOFS);
+	item = kzalloc(sizeof(*item), GFP_NOFS);
 	if (item == NULL) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
@@ -6530,8 +6535,8 @@ ocfs2_find_per_slot_free_list(int type,
 }
 
 int ocfs2_cache_block_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
-			      int type, int slot, u64 blkno,
-			      unsigned int bit)
+			      int type, int slot, u64 suballoc,
+			      u64 blkno, unsigned int bit)
 {
 	int ret;
 	struct ocfs2_per_slot_free_list *fl;
@@ -6544,7 +6549,7 @@ int ocfs2_cache_block_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
 		goto out;
 	}
 
-	item = kmalloc(sizeof(*item), GFP_NOFS);
+	item = kzalloc(sizeof(*item), GFP_NOFS);
 	if (item == NULL) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
@@ -6554,6 +6559,7 @@ int ocfs2_cache_block_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
 	mlog(0, "Insert: (type %d, slot %u, bit %u, blk %llu)\n",
 	     type, slot, bit, (unsigned long long)blkno);
 
+	item->free_bg = suballoc;
 	item->free_blk = blkno;
 	item->free_bit = bit;
 	item->free_next = fl->f_first;
@@ -6570,6 +6576,7 @@ static int ocfs2_cache_extent_block_free(struct ocfs2_cached_dealloc_ctxt *ctxt,
 {
 	return ocfs2_cache_block_dealloc(ctxt, EXTENT_ALLOC_SYSTEM_INODE,
 					 le16_to_cpu(eb->h_suballoc_slot),
+					 le64_to_cpu(eb->h_suballoc_loc),
 					 le64_to_cpu(eb->h_blkno),
 					 le16_to_cpu(eb->h_suballoc_bit));
 }
@@ -6883,7 +6890,7 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 
 		data_ac->ac_resv = &OCFS2_I(inode)->ip_la_data_resv;
 
-		ret = ocfs2_claim_clusters(osb, handle, data_ac, 1, &bit_off,
+		ret = ocfs2_claim_clusters(handle, data_ac, 1, &bit_off,
 					   &num);
 		if (ret) {
 			mlog_errno(ret);

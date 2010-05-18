@@ -122,7 +122,7 @@ unsigned int ocfs2_la_default_mb(struct ocfs2_super *osb)
 	struct super_block *sb = osb->sb;
 
 	gd_mb = ocfs2_clusters_to_megabytes(osb->sb,
-					    8 * ocfs2_group_bitmap_size(sb));
+		8 * ocfs2_group_bitmap_size(sb, 0, osb->s_feature_incompat));
 
 	/*
 	 * This takes care of files systems with very small group
@@ -1161,7 +1161,7 @@ static int ocfs2_local_alloc_new_window(struct ocfs2_super *osb,
 	/* we used the generic suballoc reserve function, but we set
 	 * everything up nicely, so there's no reason why we can't use
 	 * the more specific cluster api to claim bits. */
-	status = ocfs2_claim_clusters(osb, handle, ac, osb->local_alloc_bits,
+	status = ocfs2_claim_clusters(handle, ac, osb->local_alloc_bits,
 				      &cluster_off, &cluster_count);
 	if (status == -ENOSPC) {
 retry_enospc:
@@ -1175,7 +1175,7 @@ retry_enospc:
 			goto bail;
 
 		ac->ac_bits_wanted = osb->local_alloc_default_bits;
-		status = ocfs2_claim_clusters(osb, handle, ac,
+		status = ocfs2_claim_clusters(handle, ac,
 					      osb->local_alloc_bits,
 					      &cluster_off,
 					      &cluster_count);
