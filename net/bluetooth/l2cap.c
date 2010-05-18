@@ -1322,8 +1322,6 @@ static void l2cap_drop_acked_frames(struct sock *sk)
 
 	if (!l2cap_pi(sk)->unacked_frames)
 		del_timer(&l2cap_pi(sk)->retrans_timer);
-
-	return;
 }
 
 static inline void l2cap_do_send(struct sock *sk, struct sk_buff *skb)
@@ -4667,7 +4665,6 @@ void l2cap_load(void)
 	/* Dummy function to trigger automatic L2CAP module loading by
 	 * other modules that use L2CAP sockets but don't use any other
 	 * symbols from it. */
-	return;
 }
 EXPORT_SYMBOL(l2cap_load);
 

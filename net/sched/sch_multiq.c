@@ -340,7 +340,6 @@ static unsigned long multiq_bind(struct Qdisc *sch, unsigned long parent,
 
 static void multiq_put(struct Qdisc *q, unsigned long cl)
 {
-	return;
 }
 
 static int multiq_dump_class(struct Qdisc *sch, unsigned long cl,

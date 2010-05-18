@@ -80,7 +80,6 @@ static inline void sctp_outq_head_data(struct sctp_outq *q,
 {
 	list_add(&ch->list, &q->out_chunk_list);
 	q->out_qlen += ch->skb->len;
-	return;
 }
 
 /* Take data from the front of the queue. */
@@ -103,7 +102,6 @@ static inline void sctp_outq_tail_data(struct sctp_outq *q,
 {
 	list_add_tail(&ch->list, &q->out_chunk_list);
 	q->out_qlen += ch->skb->len;
-	return;
 }
 
 /*

@@ -816,8 +816,6 @@ void sctp_assoc_del_nonprimary_peers(struct sctp_association *asoc,
 		if (t != primary)
 			sctp_assoc_rm_peer(asoc, t);
 	}
-
-	return;
 }
 
 /* Engage in transport control operations.

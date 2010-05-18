@@ -624,7 +624,6 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 fail:
 	rcu_read_unlock();
 	sdata->u.mesh.mshstats.dropped_frames_no_route++;
-	return;
 }
 
 static void hwmp_perr_frame_process(struct ieee80211_sub_if_data *sdata,

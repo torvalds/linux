@@ -502,7 +502,6 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 	t->err_time = jiffies;
 out:
 	rcu_read_unlock();
-	return;
 }
 
 static inline void ipgre_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)

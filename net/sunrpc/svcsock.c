@@ -150,7 +150,6 @@ static void svc_set_cmsg_data(struct svc_rqst *rqstp, struct cmsghdr *cmh)
 		}
 		break;
 	}
-	return;
 }
 
 /*

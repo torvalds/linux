@@ -617,7 +617,6 @@ rtsc_min(struct runtime_sc *rtsc, struct internal_sc *isc, u64 x, u64 y)
 	rtsc->y = y;
 	rtsc->dx = dx;
 	rtsc->dy = dy;
-	return;
 }
 
 static void

@@ -716,7 +716,6 @@ void xprt_connect(struct rpc_task *task)
 		xprt->stat.connect_start = jiffies;
 		xprt->ops->connect(task);
 	}
-	return;
 }
 
 static void xprt_connect_status(struct rpc_task *task)

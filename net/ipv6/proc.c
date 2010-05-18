@@ -168,7 +168,6 @@ static void snmp6_seq_show_icmpv6msg(struct seq_file *seq, void __percpu **mib)
 			i & 0x100 ?  "Out" : "In", i & 0xff);
 		seq_printf(seq, "%-32s\t%lu\n", name, val);
 	}
-	return;
 }
 
 static void snmp6_seq_show_item(struct seq_file *seq, void __percpu **mib,

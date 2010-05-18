@@ -1316,8 +1316,6 @@ void hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
 	}
 
 	tasklet_schedule(&hdev->tx_task);
-
-	return;
 }
 EXPORT_SYMBOL(hci_send_acl);
 

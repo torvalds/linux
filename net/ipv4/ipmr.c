@@ -1606,7 +1606,6 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 
 out_free:
 	kfree_skb(skb);
-	return;
 }
 
 static int ipmr_find_vif(struct mr_table *mrt, struct net_device *dev)

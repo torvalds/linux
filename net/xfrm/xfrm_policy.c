@@ -2209,7 +2209,6 @@ EXPORT_SYMBOL(xfrm_dst_ifdown);
 static void xfrm_link_failure(struct sk_buff *skb)
 {
 	/* Impossible. Such dst must be popped before reaches point of failure. */
-	return;
 }
 
 static struct dst_entry *xfrm_negative_advice(struct dst_entry *dst)

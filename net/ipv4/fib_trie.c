@@ -1022,8 +1022,6 @@ static void trie_rebalance(struct trie *t, struct tnode *tn)
 
 	rcu_assign_pointer(t->trie, (struct node *)tn);
 	tnode_free_flush();
-
-	return;
 }
 
 /* only used from updater-side */

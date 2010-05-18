@@ -264,7 +264,6 @@ static struct dst_entry *dn_dst_negative_advice(struct dst_entry *dst)
 
 static void dn_dst_link_failure(struct sk_buff *skb)
 {
-	return;
 }
 
 static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)

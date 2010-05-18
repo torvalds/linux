@@ -112,7 +112,6 @@ static void caif_device_destroy(struct net_device *dev)
 	spin_unlock_bh(&caifdevs->lock);
 
 	kfree(caifd);
-	return;
 }
 
 static int transmit(struct cflayer *layer, struct cfpkt *pkt)

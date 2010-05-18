@@ -892,8 +892,6 @@ static void sctp_cmd_process_fwdtsn(struct sctp_ulpq *ulpq,
 	sctp_walk_fwdtsn(skip, chunk) {
 		sctp_ulpq_skip(ulpq, ntohs(skip->stream), ntohs(skip->ssn));
 	}
-
-	return;
 }
 
 /* Helper function to remove the association non-primary peer
@@ -912,8 +910,6 @@ static void sctp_cmd_del_non_primary(struct sctp_association *asoc)
 			sctp_assoc_del_peer(asoc, &t->ipaddr);
 		}
 	}
-
-	return;
 }
 
 /* Helper function to set sk_err on a 1-1 style socket. */
