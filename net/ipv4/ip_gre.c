@@ -538,7 +538,6 @@ static int ipgre_rcv(struct sk_buff *skb)
 	struct ip_tunnel *tunnel;
 	int    offset = 4;
 	__be16 gre_proto;
-	unsigned int len;
 
 	if (!pskb_may_pull(skb, 16))
 		goto drop_nolock;
@@ -629,8 +628,6 @@ static int ipgre_rcv(struct sk_buff *skb)
 			tunnel->i_seqno = seqno + 1;
 		}
 
-		len = skb->len;
-
 		/* Warning: All skb pointers will be invalidated! */
 		if (tunnel->dev->type == ARPHRD_ETHER) {
 			if (!pskb_may_pull(skb, ETH_HLEN)) {
@@ -644,11 +641,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 			skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 		}
 
-		stats->rx_packets++;
-		stats->rx_bytes += len;
-		skb->dev = tunnel->dev;
-		skb_dst_drop(skb);
-		nf_reset(skb);
+		skb_tunnel_rx(skb, tunnel->dev);
 
 		skb_reset_network_header(skb);
 		ipgre_ecn_decapsulate(iph, skb);

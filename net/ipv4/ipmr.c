@@ -1831,14 +1831,12 @@ static int __pim_rcv(struct mr_table *mrt, struct sk_buff *skb,
 	skb->mac_header = skb->network_header;
 	skb_pull(skb, (u8*)encap - skb->data);
 	skb_reset_network_header(skb);
-	skb->dev = reg_dev;
 	skb->protocol = htons(ETH_P_IP);
 	skb->ip_summed = 0;
 	skb->pkt_type = PACKET_HOST;
-	skb_dst_drop(skb);
-	reg_dev->stats.rx_bytes += skb->len;
-	reg_dev->stats.rx_packets++;
-	nf_reset(skb);
+
+	skb_tunnel_rx(skb, reg_dev);
+
 	netif_rx(skb);
 	dev_put(reg_dev);
 

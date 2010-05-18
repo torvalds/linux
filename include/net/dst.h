@@ -226,6 +226,26 @@ static inline void skb_dst_force(struct sk_buff *skb)
 	}
 }
 
+
+/**
+ *	skb_tunnel_rx - prepare skb for rx reinsert
+ *	@skb: buffer
+ *	@dev: tunnel device
+ *
+ *	After decapsulation, packet is going to re-enter (netif_rx()) our stack,
+ *	so make some cleanups, and perform accounting.
+ */
+static inline void skb_tunnel_rx(struct sk_buff *skb, struct net_device *dev)
+{
+	skb->dev = dev;
+	/* TODO : stats should be SMP safe */
+	dev->stats.rx_packets++;
+	dev->stats.rx_bytes += skb->len;
+	skb->rxhash = 0;
+	skb_dst_drop(skb);
+	nf_reset(skb);
+}
+
 /* Children define the path of the packet through the
  * Linux networking.  Thus, destinations are stackable.
  */
