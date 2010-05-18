@@ -113,6 +113,8 @@ enum {
 	IFLA_NUM_VF,		/* Number of VFs if device is SR-IOV PF */
 	IFLA_VFINFO_LIST,
 	IFLA_STATS64,
+	IFLA_VF_PORTS,
+	IFLA_PORT_SELF,
 	__IFLA_MAX
 };
 
@@ -274,4 +276,77 @@ struct ifla_vf_info {
 	__u32 qos;
 	__u32 tx_rate;
 };
+
+/* VF ports management section
+ *
+ *	Nested layout of set/get msg is:
+ *
+ *		[IFLA_NUM_VF]
+ *		[IFLA_VF_PORTS]
+ *			[IFLA_VF_PORT]
+ *				[IFLA_PORT_*], ...
+ *			[IFLA_VF_PORT]
+ *				[IFLA_PORT_*], ...
+ *			...
+ *		[IFLA_PORT_SELF]
+ *			[IFLA_PORT_*], ...
+ */
+
+enum {
+	IFLA_VF_PORT_UNSPEC,
+	IFLA_VF_PORT,			/* nest */
+	__IFLA_VF_PORT_MAX,
+};
+
+#define IFLA_VF_PORT_MAX (__IFLA_VF_PORT_MAX - 1)
+
+enum {
+	IFLA_PORT_UNSPEC,
+	IFLA_PORT_VF,			/* __u32 */
+	IFLA_PORT_PROFILE,		/* string */
+	IFLA_PORT_VSI_TYPE,		/* 802.1Qbg (pre-)standard VDP */
+	IFLA_PORT_INSTANCE_UUID,	/* binary UUID */
+	IFLA_PORT_HOST_UUID,		/* binary UUID */
+	IFLA_PORT_REQUEST,		/* __u8 */
+	IFLA_PORT_RESPONSE,		/* __u16, output only */
+	__IFLA_PORT_MAX,
+};
+
+#define IFLA_PORT_MAX (__IFLA_PORT_MAX - 1)
+
+#define PORT_PROFILE_MAX	40
+#define PORT_UUID_MAX		16
+#define PORT_SELF_VF		-1
+
+enum {
+	PORT_REQUEST_PREASSOCIATE = 0,
+	PORT_REQUEST_PREASSOCIATE_RR,
+	PORT_REQUEST_ASSOCIATE,
+	PORT_REQUEST_DISASSOCIATE,
+};
+
+enum {
+	PORT_VDP_RESPONSE_SUCCESS = 0,
+	PORT_VDP_RESPONSE_INVALID_FORMAT,
+	PORT_VDP_RESPONSE_INSUFFICIENT_RESOURCES,
+	PORT_VDP_RESPONSE_UNUSED_VTID,
+	PORT_VDP_RESPONSE_VTID_VIOLATION,
+	PORT_VDP_RESPONSE_VTID_VERSION_VIOALTION,
+	PORT_VDP_RESPONSE_OUT_OF_SYNC,
+	/* 0x08-0xFF reserved for future VDP use */
+	PORT_PROFILE_RESPONSE_SUCCESS = 0x100,
+	PORT_PROFILE_RESPONSE_INPROGRESS,
+	PORT_PROFILE_RESPONSE_INVALID,
+	PORT_PROFILE_RESPONSE_BADSTATE,
+	PORT_PROFILE_RESPONSE_INSUFFICIENT_RESOURCES,
+	PORT_PROFILE_RESPONSE_ERROR,
+};
+
+struct ifla_port_vsi {
+	__u8 vsi_mgr_id;
+	__u8 vsi_type_id[3];
+	__u8 vsi_type_version;
+	__u8 pad[3];
+};
+
 #endif /* _LINUX_IF_LINK_H */
