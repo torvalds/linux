@@ -19,7 +19,6 @@
 #include <mach/map.h>
 #include <plat/fb.h>
 #include <plat/gpio-cfg.h>
-#include <plat/gpio-cfg-s5pc1xx.h>
 
 #define DISR_OFFSET	0x7008
 
