@@ -671,21 +671,24 @@ bPacketToWirelessUsb(
       BYTE             byPktType,
       PBYTE            usbPacketBuf,
       BOOL             bNeedEncrypt,
-      UINT             cbPayloadSize,
-      UINT             uDMAIdx,
+      unsigned int             cbPayloadSize,
+      unsigned int             uDMAIdx,
       PSEthernetHeader psEthHeader,
       PBYTE            pPacket,
       PSKeyItem        pTransmitKey,
-      UINT             uNodeIndex,
+      unsigned int             uNodeIndex,
       WORD             wCurrentRate,
-     UINT             *pcbHeaderLen,
-     UINT             *pcbTotalLen
+     unsigned int             *pcbHeaderLen,
+     unsigned int             *pcbTotalLen
     );
 
 void vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb);
-NTSTATUS nsDMA_tx_packet(PSDevice  pDevice, UINT uDMAIdx, struct sk_buff *skb);
+NTSTATUS nsDMA_tx_packet(PSDevice  pDevice,
+			 unsigned int uDMAIdx,
+			 struct sk_buff *skb);
 CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
-BOOL bRelayPacketSend(PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeIndex);
+BOOL bRelayPacketSend(PSDevice pDevice, PBYTE pbySkbData,
+		      unsigned int uDataLen, unsigned int uNodeIndex);
 
 #endif /* __RXTX_H__ */

@@ -152,9 +152,10 @@ void STAvUpdateIsrStatCounter (PSStatCounter pStatistic, BYTE byIsr0, BYTE byIsr
  * Return Value: none
  *
  */
-void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
-                              BYTE byRSR, BYTE byNewRSR, BYTE byRxSts, BYTE byRxRate,
-                              PBYTE pbyBuffer, UINT cbFrameLength)
+void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
+			     BYTE byRSR, BYTE byNewRSR,
+			     BYTE byRxSts, BYTE byRxRate,
+			     PBYTE pbyBuffer, unsigned int cbFrameLength)
 {
 	/* need change */
 	PS802_11Header pHeader = (PS802_11Header)pbyBuffer;
@@ -169,15 +170,18 @@ void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
 			/* update counters in case of successful transmission */
             if (byRSR & RSR_ADDRBROAD) {
                 pStatistic->ullRxBroadcastFrames++;
-                pStatistic->ullRxBroadcastBytes += (ULONGLONG)cbFrameLength;
+		pStatistic->ullRxBroadcastBytes +=
+		  (unsigned long long) cbFrameLength;
             }
             else if (byRSR & RSR_ADDRMULTI) {
                 pStatistic->ullRxMulticastFrames++;
-                pStatistic->ullRxMulticastBytes += (ULONGLONG)cbFrameLength;
+		pStatistic->ullRxMulticastBytes +=
+		  (unsigned long long) cbFrameLength;
             }
             else {
                 pStatistic->ullRxDirectedFrames++;
-                pStatistic->ullRxDirectedBytes += (ULONGLONG)cbFrameLength;
+		pStatistic->ullRxDirectedBytes +=
+		  (unsigned long long) cbFrameLength;
             }
         }
     }
@@ -396,7 +400,7 @@ STAvUpdateRDStatCounterEx (
     BYTE            byRxSts,
     BYTE            byRxRate,
     PBYTE           pbyBuffer,
-    UINT            cbFrameLength
+    unsigned int            cbFrameLength
     )
 {
     STAvUpdateRDStatCounter(
@@ -536,19 +540,22 @@ STAvUpdate802_11Counter(
     )
 {
     //p802_11Counter->TransmittedFragmentCount
-    p802_11Counter->MulticastTransmittedFrameCount = (ULONGLONG) (pStatistic->dwTsrBroadcast +
-                                                                  pStatistic->dwTsrMulticast);
-    p802_11Counter->FailedCount = (ULONGLONG) (pStatistic->dwTsrErr);
-    p802_11Counter->RetryCount = (ULONGLONG) (pStatistic->dwTsrRetry);
-    p802_11Counter->MultipleRetryCount = (ULONGLONG) (pStatistic->dwTsrMoreThanOnceRetry);
+    p802_11Counter->MulticastTransmittedFrameCount =
+      (unsigned long long) (pStatistic->dwTsrBroadcast +
+			    pStatistic->dwTsrMulticast);
+    p802_11Counter->FailedCount = (unsigned long long) (pStatistic->dwTsrErr);
+    p802_11Counter->RetryCount = (unsigned long long) (pStatistic->dwTsrRetry);
+    p802_11Counter->MultipleRetryCount =
+      (unsigned long long) (pStatistic->dwTsrMoreThanOnceRetry);
     //p802_11Counter->FrameDuplicateCount
-    p802_11Counter->RTSSuccessCount += (ULONGLONG) byRTSSuccess;
-    p802_11Counter->RTSFailureCount += (ULONGLONG) byRTSFail;
-    p802_11Counter->ACKFailureCount += (ULONGLONG) byACKFail;
-    p802_11Counter->FCSErrorCount +=   (ULONGLONG) byFCSErr;
+    p802_11Counter->RTSSuccessCount += (unsigned long long) byRTSSuccess;
+    p802_11Counter->RTSFailureCount += (unsigned long long) byRTSFail;
+    p802_11Counter->ACKFailureCount += (unsigned long long) byACKFail;
+    p802_11Counter->FCSErrorCount +=   (unsigned long long) byFCSErr;
     //p802_11Counter->ReceivedFragmentCount
-    p802_11Counter->MulticastReceivedFrameCount = (ULONGLONG) (pStatistic->dwRsrBroadcast +
-                                                               pStatistic->dwRsrMulticast);
+    p802_11Counter->MulticastReceivedFrameCount =
+      (unsigned long long) (pStatistic->dwRsrBroadcast +
+			    pStatistic->dwRsrMulticast);
 }
 
 /*

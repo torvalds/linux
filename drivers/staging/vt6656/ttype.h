@@ -72,12 +72,6 @@ typedef int             BOOL;
 
 /****** Simple typedefs  ***************************************************/
 
-typedef unsigned char   UCHAR;
-typedef unsigned short  USHORT;
-typedef unsigned int    UINT;
-typedef unsigned long   ULONG;
-typedef unsigned long long	ULONGLONG; //64 bit
-
 typedef unsigned char   BYTE;           //  8-bit
 typedef unsigned short  WORD;           // 16-bit
 typedef unsigned long   DWORD;          // 32-bit

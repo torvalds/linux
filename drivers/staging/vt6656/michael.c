@@ -64,7 +64,7 @@ static void s_vAppendByte(BYTE b);	/* Add a single byte to the internal
 static DWORD  L, R;		/* Current state */
 static DWORD  K0, K1;		/* Key */
 static DWORD  M;		/* Message accumulator (single word) */
-static UINT   nBytesInM;	/* # bytes in M */
+static unsigned int   nBytesInM;	/* # bytes in M */
 
 /*---------------------  Export Functions  --------------------------*/
 
@@ -73,7 +73,7 @@ static DWORD s_dwGetUINT32 (BYTE * p)
 // Convert from BYTE[] to DWORD in a portable way
 {
 	DWORD res = 0;
-	UINT i;
+	unsigned int i;
 	for(i=0; i<4; i++ )
 		res |= (*p++) << (8*i);
 	return res;
@@ -82,7 +82,7 @@ static DWORD s_dwGetUINT32 (BYTE * p)
 static void s_vPutUINT32(BYTE *p, DWORD val)
 // Convert from DWORD to BYTE[] in a portable way
 {
-	UINT i;
+	unsigned int i;
 	for(i=0; i<4; i++ ) {
 		*p++ = (BYTE) (val & 0xff);
 		val >>= 8;
@@ -148,7 +148,7 @@ void MIC_vUnInit(void)
 	s_vClear();
 }
 
-void MIC_vAppend(PBYTE src, UINT nBytes)
+void MIC_vAppend(PBYTE src, unsigned int nBytes)
 {
     /* This is simple */
 	while (nBytes > 0) {

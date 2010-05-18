@@ -89,7 +89,7 @@ void
 s_vProcessRxMACHeader (
       PSDevice pDevice,
       PBYTE pbyRxBufferAddr,
-      UINT cbPacketSize,
+      unsigned int cbPacketSize,
       BOOL bIsWEP,
       BOOL bExtIV,
      PUINT pcbHeadSize
@@ -106,8 +106,8 @@ static BOOL s_bAPModeRxCtl(
 static BOOL s_bAPModeRxData (
      PSDevice pDevice,
      struct sk_buff *skb,
-     UINT     FrameSize,
-     UINT     cbHeaderOffset,
+     unsigned int     FrameSize,
+     unsigned int     cbHeaderOffset,
      signed int      iSANodeIndex,
      signed int      iDANodeIndex
     );
@@ -116,7 +116,7 @@ static BOOL s_bAPModeRxData (
 static BOOL s_bHandleRxEncryption(
      PSDevice     pDevice,
      PBYTE        pbyFrame,
-     UINT         FrameSize,
+     unsigned int         FrameSize,
      PBYTE        pbyRsr,
      PBYTE       pbyNewRsr,
      PSKeyItem   * pKeyOut,
@@ -129,7 +129,7 @@ static BOOL s_bHostWepRxEncryption(
 
      PSDevice     pDevice,
      PBYTE        pbyFrame,
-     UINT         FrameSize,
+     unsigned int         FrameSize,
      PBYTE        pbyRsr,
      BOOL         bOnFly,
      PSKeyItem    pKey,
@@ -164,14 +164,14 @@ void
 s_vProcessRxMACHeader (
       PSDevice pDevice,
       PBYTE pbyRxBufferAddr,
-      UINT cbPacketSize,
+      unsigned int cbPacketSize,
       BOOL bIsWEP,
       BOOL bExtIV,
      PUINT pcbHeadSize
     )
 {
     PBYTE           pbyRxBuffer;
-    UINT            cbHeaderSize = 0;
+    unsigned int            cbHeaderSize = 0;
     PWORD           pwType;
     PS802_11Header  pMACHeader;
     int             ii;
@@ -266,7 +266,7 @@ s_vGetDASA (
      PSEthernetHeader psEthHeader
     )
 {
-	UINT            cbHeaderSize = 0;
+	unsigned int            cbHeaderSize = 0;
 	PS802_11Header  pMACHeader;
 	int             ii;
 
@@ -318,7 +318,7 @@ BOOL
 RXbBulkInProcessData (
      PSDevice         pDevice,
      PRCB             pRCB,
-     ULONG            BytesToIndicate
+     unsigned long            BytesToIndicate
     )
 {
 
@@ -333,20 +333,20 @@ RXbBulkInProcessData (
     PQWORD          pqwTSFTime;
     PBYTE           pbyFrame;
     BOOL            bDeFragRx = FALSE;
-    UINT            cbHeaderOffset;
-    UINT            FrameSize;
+    unsigned int            cbHeaderOffset;
+    unsigned int            FrameSize;
     WORD            wEtherType = 0;
     signed int             iSANodeIndex = -1;
     signed int             iDANodeIndex = -1;
-    UINT            ii;
-    UINT            cbIVOffset;
+    unsigned int            ii;
+    unsigned int            cbIVOffset;
     PBYTE           pbyRxSts;
     PBYTE           pbyRxRate;
     PBYTE           pbySQ;
 #ifdef Calcu_LinkQual
     PBYTE           pby3SQ;
 #endif
-    UINT            cbHeaderSize;
+    unsigned int            cbHeaderSize;
     PSKeyItem       pKey = NULL;
     WORD            wRxTSC15_0 = 0;
     DWORD           dwRxTSC47_16 = 0;
@@ -372,7 +372,7 @@ RXbBulkInProcessData (
 
     //[31:16]RcvByteCount ( not include 4-byte Status )
     dwWbkStatus =  *( (PDWORD)(skb->data) );
-    FrameSize = (UINT)(dwWbkStatus >> 16);
+    FrameSize = (unsigned int)(dwWbkStatus >> 16);
     FrameSize += 4;
 
     if (BytesToIndicate != FrameSize) {
@@ -934,9 +934,9 @@ RXbBulkInProcessData (
         if (bIsWEP) {
             WORD        wLocalTSC15_0 = 0;
             DWORD       dwLocalTSC47_16 = 0;
-            ULONGLONG       RSC = 0;
+	    unsigned long long       RSC = 0;
             // endian issues
-            RSC = *((ULONGLONG *) &(pKey->KeyRSC));
+	    RSC = *((unsigned long long *) &(pKey->KeyRSC));
             wLocalTSC15_0 = (WORD) RSC;
             dwLocalTSC47_16 = (DWORD) (RSC>>16);
 
@@ -1151,7 +1151,7 @@ static BOOL s_bAPModeRxCtl (
 static BOOL s_bHandleRxEncryption (
      PSDevice     pDevice,
      PBYTE        pbyFrame,
-     UINT         FrameSize,
+     unsigned int         FrameSize,
      PBYTE        pbyRsr,
      PBYTE       pbyNewRsr,
      PSKeyItem   * pKeyOut,
@@ -1160,7 +1160,7 @@ static BOOL s_bHandleRxEncryption (
      PDWORD      pdwRxTSC47_16
     )
 {
-    UINT            PayloadLen = FrameSize;
+    unsigned int            PayloadLen = FrameSize;
     PBYTE           pbyIV;
     BYTE            byKeyIdx;
     PSKeyItem       pKey = NULL;
@@ -1297,7 +1297,7 @@ static BOOL s_bHandleRxEncryption (
 static BOOL s_bHostWepRxEncryption (
      PSDevice     pDevice,
      PBYTE        pbyFrame,
-     UINT         FrameSize,
+     unsigned int         FrameSize,
      PBYTE        pbyRsr,
      BOOL         bOnFly,
      PSKeyItem    pKey,
@@ -1308,7 +1308,7 @@ static BOOL s_bHostWepRxEncryption (
     )
 {
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    UINT            PayloadLen = FrameSize;
+    unsigned int            PayloadLen = FrameSize;
     PBYTE           pbyIV;
     BYTE            byKeyIdx;
     BYTE            byDecMode = KEY_CTL_WEP;
@@ -1429,8 +1429,8 @@ static BOOL s_bHostWepRxEncryption (
 static BOOL s_bAPModeRxData (
      PSDevice pDevice,
      struct sk_buff *skb,
-     UINT     FrameSize,
-     UINT     cbHeaderOffset,
+     unsigned int     FrameSize,
+     unsigned int     cbHeaderOffset,
      signed int      iSANodeIndex,
      signed int      iDANodeIndex
     )
@@ -1503,7 +1503,8 @@ static BOOL s_bAPModeRxData (
             iDANodeIndex = 0;
 
         if ((pDevice->uAssocCount > 1) && (iDANodeIndex >= 0)) {
-            bRelayPacketSend(pDevice, (PBYTE)(skb->data + cbHeaderOffset), FrameSize, (UINT)iDANodeIndex);
+		bRelayPacketSend(pDevice, (PBYTE) (skb->data + cbHeaderOffset),
+				 FrameSize, (unsigned int) iDANodeIndex);
         }
 
         if (bRelayOnly)

@@ -223,7 +223,7 @@ BOOL KeybSetKey(
     PSKeyManagement pTable,
     PBYTE           pbyBSSID,
     DWORD           dwKeyIndex,
-    ULONG           uKeyLength,
+    unsigned long           uKeyLength,
     PQWORD          pKeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode
@@ -231,9 +231,9 @@ BOOL KeybSetKey(
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     int         i,j;
-    UINT        ii;
+    unsigned int        ii;
     PSKeyItem   pKey;
-    UINT        uKeyIdx;
+    unsigned int        uKeyIdx;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetKey: %lX\n", dwKeyIndex);
 
@@ -670,19 +670,19 @@ BOOL KeybSetDefaultKey(
     void *pDeviceHandler,
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
-    ULONG           uKeyLength,
+    unsigned long           uKeyLength,
     PQWORD          pKeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
-    UINT        ii;
+    unsigned int        ii;
     PSKeyItem   pKey;
-    UINT        uKeyIdx;
+    unsigned int        uKeyIdx;
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetDefaultKey: %1x, %d \n", (int)dwKeyIndex, (int)uKeyLength);
-
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enter KeybSetDefaultKey: %1x, %d\n",
+	    (int) dwKeyIndex, (int) uKeyLength);
 
     if ((dwKeyIndex & PAIRWISE_KEY) != 0) {                  // Pairwise key
         return (FALSE);
@@ -778,7 +778,7 @@ BOOL KeybSetAllGroupKey(
     void *pDeviceHandler,
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
-    ULONG           uKeyLength,
+    unsigned long           uKeyLength,
     PQWORD          pKeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode
@@ -786,9 +786,9 @@ BOOL KeybSetAllGroupKey(
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     int         i;
-    UINT        ii;
+    unsigned int        ii;
     PSKeyItem   pKey;
-    UINT        uKeyIdx;
+    unsigned int        uKeyIdx;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetAllGroupKey: %lX\n", dwKeyIndex);
 

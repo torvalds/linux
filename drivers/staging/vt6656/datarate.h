@@ -92,7 +92,7 @@ BYTE
 RATEuSetIE(
      PWLAN_IE_SUPP_RATES pSrcRates,
      PWLAN_IE_SUPP_RATES pDstRates,
-     UINT                uRateLen
+     unsigned int                uRateLen
     );
 
 WORD

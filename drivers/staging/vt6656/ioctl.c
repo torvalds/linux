@@ -72,10 +72,10 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
     SNodeList           sNodeList;
     PSBSSIDList         pList;
     PSNodeList          pNodeList;
-    UINT                cbListCount;
+    unsigned int                cbListCount;
     PKnownBSS           pBSS;
     PKnownNodeDB        pNode;
-    UINT                ii, jj;
+    unsigned int                ii, jj;
     SCmdLinkStatus      sLinkStatus;
     BYTE                abySuppRates[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
     BYTE                abyNullAddr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -337,7 +337,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
     		    pList->sBSSIDList[ii].wBeaconInterval = pBSS->wBeaconInterval;
     		    pList->sBSSIDList[ii].wCapInfo = pBSS->wCapInfo;
     		    RFvRSSITodBm(pDevice, (BYTE)(pBSS->uRSSI), &ldBm);
-    		    pList->sBSSIDList[ii].uRSSI = (UINT)ldBm;
+		    pList->sBSSIDList[ii].uRSSI = (unsigned int) ldBm;
 //    		    pList->sBSSIDList[ii].uRSSI = pBSS->uRSSI;
     		    memcpy(pList->sBSSIDList[ii].abyBSSID, pBSS->abyBSSID, WLAN_BSSID_LEN);
     		    pItemSSID = (PWLAN_IE_SSID)pBSS->abySSID;

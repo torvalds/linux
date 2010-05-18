@@ -484,12 +484,11 @@ s_nsInterruptUsbIoCompleteRead(
             pDevice->fKillEventPollingThread = TRUE;
 //        }
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"IntUSBIoCompleteControl STATUS = %d\n", ntStatus );
-    }
-    else {
-        pDevice->ulIntInBytesRead += (ULONG)urb->actual_length;
-        pDevice->ulIntInContCRCError = 0;
-        pDevice->bEventAvailable = TRUE;
-        INTnsProcessData(pDevice);
+    } else {
+	    pDevice->ulIntInBytesRead += (unsigned long) urb->actual_length;
+	    pDevice->ulIntInContCRCError = 0;
+	    pDevice->bEventAvailable = TRUE;
+	    INTnsProcessData(pDevice);
     }
 
     STAvUpdateUSBCounter(&pDevice->scStatistic.USB_InterruptStat, ntStatus);
@@ -614,7 +613,7 @@ s_nsBulkInUsbIoCompleteRead(
 {
     PRCB    pRCB = (PRCB)urb->context;
     PSDevice pDevice = (PSDevice)pRCB->pDevice;
-    ULONG   bytesRead;
+    unsigned long   bytesRead;
     BOOL    bIndicateReceive = FALSE;
     BOOL    bReAllocSkb = FALSE;
     NTSTATUS    status;
@@ -774,7 +773,7 @@ s_nsBulkOutIoCompleteWrite(
     PSDevice            pDevice;
     NTSTATUS            status;
     CONTEXT_TYPE        ContextType;
-    ULONG               ulBufLen;
+    unsigned long               ulBufLen;
     PUSB_SEND_CONTEXT   pContext;
 
 

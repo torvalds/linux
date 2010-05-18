@@ -389,7 +389,7 @@ static  struct
 // 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165 (Value 23 ~ 56)
  ************************************************************************/
 BOOL
-ChannelValid(UINT CountryCode, UINT ChannelIndex)
+ChannelValid(unsigned int CountryCode, unsigned int ChannelIndex)
 {
     BOOL    bValid;
 
@@ -425,7 +425,7 @@ exit:
  ************************************************************************/
 BOOL
 CHvChannelGetList (
-      UINT       uCountryCodeIdx,
+      unsigned int       uCountryCodeIdx,
      PBYTE      pbyChannelTable
     )
 {
@@ -441,7 +441,7 @@ void CHvInitChannelTable(void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     BOOL        bMultiBand = FALSE;
-    UINT        ii;
+    unsigned int        ii;
 
     for(ii=1;ii<=CB_MAX_CHANNEL;ii++) {
         sChannelTbl[ii].bValid = FALSE;

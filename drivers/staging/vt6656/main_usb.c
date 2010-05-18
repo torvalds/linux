@@ -277,8 +277,10 @@ static void device_free_frag_bufs(PSDevice pDevice);
 static BOOL device_alloc_bufs(PSDevice pDevice);
 
 static int Read_config_file(PSDevice pDevice);
-static UCHAR *Config_FileOperation(PSDevice pDevice);
-static int Config_FileGetParameter(UCHAR *string, UCHAR *dest,UCHAR *source);
+static unsigned char *Config_FileOperation(PSDevice pDevice);
+static int Config_FileGetParameter(unsigned char *string,
+				   unsigned char *dest,
+				   unsigned char *source);
 
 //2008-0714<Add>by Mike Liu
 static BOOL device_release_WPADEV(PSDevice pDevice);
@@ -334,17 +336,17 @@ device_set_options(PSDevice pDevice) {
 static void device_init_diversity_timer(PSDevice pDevice)
 {
     init_timer(&pDevice->TimerSQ3Tmax1);
-    pDevice->TimerSQ3Tmax1.data = (ULONG)pDevice;
+    pDevice->TimerSQ3Tmax1.data = (unsigned long)pDevice;
     pDevice->TimerSQ3Tmax1.function = (TimerFunction)TimerSQ3CallBack;
     pDevice->TimerSQ3Tmax1.expires = RUN_AT(HZ);
 
     init_timer(&pDevice->TimerSQ3Tmax2);
-    pDevice->TimerSQ3Tmax2.data = (ULONG)pDevice;
+    pDevice->TimerSQ3Tmax2.data = (unsigned long)pDevice;
     pDevice->TimerSQ3Tmax2.function = (TimerFunction)TimerSQ3CallBack;
     pDevice->TimerSQ3Tmax2.expires = RUN_AT(HZ);
 
     init_timer(&pDevice->TimerSQ3Tmax3);
-    pDevice->TimerSQ3Tmax3.data = (ULONG)pDevice;
+    pDevice->TimerSQ3Tmax3.data = (unsigned long)pDevice;
     pDevice->TimerSQ3Tmax3.function = (TimerFunction)TimerSQ3Tmax3CallBack;
     pDevice->TimerSQ3Tmax3.expires = RUN_AT(HZ);
 
@@ -362,7 +364,7 @@ static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
     u8 abySNAP_RFC1042[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0x00};
     u8 abySNAP_Bridgetunnel[ETH_ALEN] = {0xAA, 0xAA, 0x03, 0x00, 0x00, 0xF8};
     BYTE            byAntenna;
-    UINT            ii;
+    unsigned int            ii;
     CMD_CARD_INIT   sInitCmd;
     NTSTATUS        ntStatus = STATUS_SUCCESS;
     RSP_CARD_INIT   sInitRsp;
@@ -1336,7 +1338,7 @@ device_release_WPADEV(pDevice);
 static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
     PSDevice        pDevice=netdev_priv(dev);
     PBYTE           pbMPDU;
-    UINT            cbMPDULen = 0;
+    unsigned int            cbMPDULen = 0;
 
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_dma0_tx_80211\n");
@@ -1411,24 +1413,27 @@ static inline u32 ether_crc(int length, unsigned char *data)
 }
 
 //find out  the start  position of str2 from str1
-static UCHAR *kstrstr(const UCHAR *str1,const UCHAR *str2) {
-  int str1_len=strlen(str1);
-  int str2_len=strlen(str2);
+static unsigned char *kstrstr(const unsigned char *str1,
+			      const unsigned char *str2) {
+  int str1_len = strlen(str1);
+  int str2_len = strlen(str2);
 
   while (str1_len >= str2_len) {
        str1_len--;
       if(memcmp(str1,str2,str2_len)==0)
-         return (UCHAR *)str1;
+	return (unsigned char *) str1;
         str1++;
   }
   return NULL;
 }
 
-static int Config_FileGetParameter(UCHAR *string, UCHAR *dest,UCHAR *source)
+static int Config_FileGetParameter(unsigned char *string,
+				   unsigned char *dest,
+				   unsigned char *source)
 {
-  UCHAR buf1[100];
-  UCHAR buf2[100];
-  UCHAR *start_p=NULL,*end_p=NULL,*tmp_p=NULL;
+  unsigned char buf1[100];
+  unsigned char buf2[100];
+  unsigned char *start_p = NULL, *end_p = NULL, *tmp_p = NULL;
   int ii;
 
     memset(buf1,0,100);
@@ -1480,13 +1485,14 @@ for(ii=1;;ii++) {
 }
 
 //if read fail,return NULL,or return data pointer;
-static UCHAR *Config_FileOperation(PSDevice pDevice) {
-    UCHAR    *config_path=CONFIG_PATH;
-    UCHAR    *buffer=NULL;
+static unsigned char *Config_FileOperation(PSDevice pDevice)
+{
+    unsigned char *config_path = CONFIG_PATH;
+    unsigned char *buffer = NULL;
     struct file   *filp=NULL;
     mm_segment_t old_fs = get_fs();
     //int oldfsuid=0,oldfsgid=0;
-    int result=0;
+    int result = 0;
 
     set_fs (KERNEL_DS);
     /* Can't do this anymore, so we rely on correct filesystem permissions:
@@ -1545,9 +1551,9 @@ if(result!=0) {
 
 //return --->-1:fail;  >=0:successful
 static int Read_config_file(PSDevice pDevice) {
-  int result=0;
-  UCHAR      tmpbuffer[100];
-  UCHAR *buffer=NULL;
+  int result = 0;
+  unsigned char tmpbuffer[100];
+  unsigned char *buffer = NULL;
 
   //init config setting
  pDevice->config_file.ZoneType = -1;

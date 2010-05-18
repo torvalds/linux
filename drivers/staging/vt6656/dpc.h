@@ -55,7 +55,7 @@ BOOL
 RXbBulkInProcessData(
      PSDevice         pDevice,
      PRCB             pRCB,
-     ULONG            BytesToIndicate
+     unsigned long            BytesToIndicate
     );
 
 #endif /* __RXTX_H__ */

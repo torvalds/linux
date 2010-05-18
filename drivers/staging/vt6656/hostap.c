@@ -210,7 +210,7 @@ int vt6656_hostap_set_hostapd(PSDevice pDevice, int val, int rtnl_locked)
 static int hostap_remove_sta(PSDevice pDevice,
 				     struct viawget_hostapd_param *param)
 {
-	UINT uNodeIndex;
+	unsigned int uNodeIndex;
 
 
     if (BSSbIsSTAInNodeDB(pDevice, param->sta_addr, &uNodeIndex)) {
@@ -239,7 +239,7 @@ static int hostap_add_sta(PSDevice pDevice,
 				  struct viawget_hostapd_param *param)
 {
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-	UINT uNodeIndex;
+	unsigned int uNodeIndex;
 
 
     if (!BSSbIsSTAInNodeDB(pDevice, param->sta_addr, &uNodeIndex)) {
@@ -299,7 +299,7 @@ static int hostap_get_info_sta(PSDevice pDevice,
 				       struct viawget_hostapd_param *param)
 {
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-	UINT uNodeIndex;
+	unsigned int uNodeIndex;
 
     if (BSSbIsSTAInNodeDB(pDevice, param->sta_addr, &uNodeIndex)) {
 	    param->u.get_info_sta.inactive_sec =
@@ -333,7 +333,7 @@ static int hostap_reset_txexc_sta(PSDevice pDevice,
 					  struct viawget_hostapd_param *param)
 {
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-	UINT uNodeIndex;
+	unsigned int uNodeIndex;
 
     if (BSSbIsSTAInNodeDB(pDevice, param->sta_addr, &uNodeIndex)) {
         pMgmt->sNodeDBTable[uNodeIndex].uTxAttempts = 0;
@@ -363,13 +363,13 @@ static int hostap_set_flags_sta(PSDevice pDevice,
 					struct viawget_hostapd_param *param)
 {
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-	UINT uNodeIndex;
+	unsigned int uNodeIndex;
 
     if (BSSbIsSTAInNodeDB(pDevice, param->sta_addr, &uNodeIndex)) {
 		pMgmt->sNodeDBTable[uNodeIndex].dwFlags |= param->u.set_flags_sta.flags_or;
 		pMgmt->sNodeDBTable[uNodeIndex].dwFlags &= param->u.set_flags_sta.flags_and;
-		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " dwFlags = %x \n",
-		            (UINT)pMgmt->sNodeDBTable[uNodeIndex].dwFlags);
+		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " dwFlags = %x\n",
+			(unsigned int) pMgmt->sNodeDBTable[uNodeIndex].dwFlags);
 	}
 	else {
 	    return -ENOENT;

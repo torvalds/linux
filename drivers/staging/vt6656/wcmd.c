@@ -219,7 +219,7 @@ s_vProbeChannel(
     PBYTE           pbyRate;
     PSTxMgmtPacket  pTxPacket;
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    UINT            ii;
+    unsigned int            ii;
 
 
     if (pDevice->byBBType == BB_TYPE_11A) {
@@ -316,15 +316,15 @@ s_MgrMakeProbeRequest(
     return pTxPacket;
 }
 
-void vCommandTimerWait(void *hDeviceContext, UINT MSecond)
+void vCommandTimerWait(void *hDeviceContext, unsigned int MSecond)
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
 
     init_timer(&pDevice->sTimerCommand);
-    pDevice->sTimerCommand.data = (ULONG)pDevice;
+    pDevice->sTimerCommand.data = (unsigned long)pDevice;
     pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
     // RUN_AT :1 msec ~= (HZ/1024)
-    pDevice->sTimerCommand.expires = (UINT)RUN_AT((MSecond * HZ) >> 10);
+    pDevice->sTimerCommand.expires = (unsigned int)RUN_AT((MSecond * HZ) >> 10);
     add_timer(&pDevice->sTimerCommand);
     return;
 }
@@ -336,7 +336,7 @@ void vRunCommand(void *hDeviceContext)
     PWLAN_IE_SSID   pItemSSID;
     PWLAN_IE_SSID   pItemSSIDCurr;
     CMD_STATUS      Status;
-    UINT            ii;
+    unsigned int            ii;
     BYTE            byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
     struct sk_buff  *skb;
     BYTE            byData;
@@ -760,7 +760,7 @@ void vRunCommand(void *hDeviceContext)
                      // printk("Re-initial TxDataTimer****\n");
 		    del_timer(&pDevice->sTimerTxData);
                       init_timer(&pDevice->sTimerTxData);
-                      pDevice->sTimerTxData.data = (ULONG)pDevice;
+			pDevice->sTimerTxData.data = (unsigned long) pDevice;
                       pDevice->sTimerTxData.function = (TimerFunction)BSSvSecondTxData;
                       pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
                       pDevice->fTxDataInSleep = FALSE;
@@ -1264,8 +1264,8 @@ BOOL bScheduleCommand(void *hDeviceContext,
 static BOOL s_bClearBSSID_SCAN(void *hDeviceContext)
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
-    UINT            uCmdDequeueIdx = pDevice->uCmdDequeueIdx;
-    UINT            ii;
+    unsigned int            uCmdDequeueIdx = pDevice->uCmdDequeueIdx;
+    unsigned int            ii;
 
     if ((pDevice->cbFreeCmdQueue < CMD_Q_SIZE) && (uCmdDequeueIdx != pDevice->uCmdEnqueueIdx)) {
         for (ii = 0; ii < (CMD_Q_SIZE - pDevice->cbFreeCmdQueue); ii ++) {
@@ -1289,7 +1289,7 @@ void vResetCommandTimer(void *hDeviceContext)
       del_timer(&pDevice->sTimerCommand);
   //init timer
       init_timer(&pDevice->sTimerCommand);
-    pDevice->sTimerCommand.data = (ULONG)pDevice;
+    pDevice->sTimerCommand.data = (unsigned long)pDevice;
     pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
     pDevice->sTimerCommand.expires = RUN_AT(HZ);
     pDevice->cbFreeCmdQueue = CMD_Q_SIZE;

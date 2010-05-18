@@ -66,14 +66,14 @@ extern const BYTE RFaby11aChannelIndex[200];
 BOOL IFRFbWriteEmbeded(PSDevice pDevice, DWORD dwData);
 BOOL RFbSetPower (
       PSDevice  pDevice,
-      UINT      uRATE,
-      UINT      uCH
+      unsigned int      uRATE,
+      unsigned int      uCH
     );
 
 BOOL RFbRawSetPower(
       PSDevice  pDevice,
       BYTE      byPwr,
-      UINT      uRATE
+      unsigned int      uRATE
     );
 
 void

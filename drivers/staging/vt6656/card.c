@@ -95,7 +95,7 @@ const WORD cwRXBCNTSFOff[MAX_RATE] =
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL CARDbSetMediaChannel(void *pDeviceHandler, UINT uConnectionChannel)
+BOOL CARDbSetMediaChannel(void *pDeviceHandler, unsigned int uConnectionChannel)
 {
 PSDevice            pDevice = (PSDevice) pDeviceHandler;
 BOOL                bResult = TRUE;
@@ -159,7 +159,7 @@ BOOL                bResult = TRUE;
 static WORD swGetCCKControlRate(void *pDeviceHandler, WORD wRateIdx)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
-    UINT ui = (UINT)wRateIdx;
+    unsigned int ui = (unsigned int)wRateIdx;
     while (ui > RATE_1M) {
         if (pDevice->wBasicRate & ((WORD)1 << ui)) {
             return (WORD)ui;
@@ -185,7 +185,7 @@ static WORD swGetCCKControlRate(void *pDeviceHandler, WORD wRateIdx)
 static WORD swGetOFDMControlRate(void *pDeviceHandler, WORD wRateIdx)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
-    UINT ui = (UINT)wRateIdx;
+    unsigned int ui = (unsigned int)wRateIdx;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BASIC RATE: %X\n", pDevice->wBasicRate);
 
@@ -508,7 +508,7 @@ void vUpdateIFS(void *pDeviceHandler)
     else {// PK_TYPE_11GA & PK_TYPE_11GB
         BYTE byRate = 0;
         BOOL bOFDMRate = FALSE;
-        UINT ii = 0;
+	unsigned int ii = 0;
         PWLAN_IE_SUPP_RATES pItemRates = NULL;
 
         pDevice->uSIFS = C_SIFS_BG;
@@ -806,9 +806,9 @@ BOOL CARDbClearCurrentTSF(void *pDeviceHandler)
 QWORD CARDqGetNextTBTT (QWORD qwTSF, WORD wBeaconInterval)
 {
 
-    UINT    uLowNextTBTT;
-    UINT    uHighRemain, uLowRemain;
-    UINT    uBeaconInterval;
+    unsigned int    uLowNextTBTT;
+    unsigned int    uHighRemain, uLowRemain;
+    unsigned int    uBeaconInterval;
 
     uBeaconInterval = wBeaconInterval * 1024;
     // Next TBTT = ((local_current_TSF / beacon_interval) + 1 ) * beacon_interval
