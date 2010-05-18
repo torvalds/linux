@@ -42,9 +42,9 @@ config TOUCHSCREEN_AD7877
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7877.
 	  
-config TOUCHSCREEN_RK2818_SPI_XPT2046
-	tristate "RK2818 SPI XPT2046 based touchscreens"
-	depends on SPIM_RK2818 && TOUCHSCREEN_RK2818_SPI_XPT2046_CBN = n
+config TOUCHSCREEN_XPT2046_SPI
+	tristate "XPT2046 based touchscreens: XPT2046 SPI Interface"
+	depends on SPIM_RK2818 && TOUCHSCREEN_XPT2046_CBN_SPI = n
 	help
 	  Say Y here if you have a touchscreen interface using the
 	  xpt2046 controller, and your board-specific initialization
@@ -53,10 +53,10 @@ config TOUCHSCREEN_RK2818_SPI_XPT2046
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called rk2818_spi_xpt2046_ts.
+	  module will be called xpt2046_ts.
 	  
-config TOUCHSCREEN_RK2818_SPI_XPT2046_CBN
-	tristate "RK2818 SPI XPT2046 CALIBRATION based touchscreens"
+config TOUCHSCREEN_XPT2046_CBN_SPI
+	tristate "XPT2046 CALIBRATION based touchscreens: XPT2046 SPI Interface"
 	depends on SPIM_RK2818
 	help
 	  Say Y here if you have a touchscreen interface using the
@@ -66,7 +66,7 @@ config TOUCHSCREEN_RK2818_SPI_XPT2046_CBN
 	  If unsure, say N (but it's safe to say "Y").
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called rk2818_spi_xpt2046_cbn_ts.
+	  module will be called xpt2046_cbn_ts.
 
 config TOUCHSCREEN_AD7879_I2C
 	tristate "AD7879 based touchscreens: AD7879-1 I2C Interface"
