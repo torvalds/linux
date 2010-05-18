@@ -26,6 +26,45 @@
 
 #include <linux/delay.h>
 
+/*
+ * Check the RCU kernel configuration parameters and print informative
+ * messages about anything out of the ordinary.  If you like #ifdef, you
+ * will love this function.
+ */
+static void __init rcu_bootup_announce_oddness(void)
+{
+#ifdef CONFIG_RCU_TRACE
+	printk(KERN_INFO "\tRCU debugfs-based tracing is enabled.\n");
+#endif
+#if (defined(CONFIG_64BIT) && CONFIG_RCU_FANOUT != 64) || (!defined(CONFIG_64BIT) && CONFIG_RCU_FANOUT != 32)
+	printk(KERN_INFO "\tCONFIG_RCU_FANOUT set to non-default value of %d\n",
+	       CONFIG_RCU_FANOUT);
+#endif
+#ifdef CONFIG_RCU_FANOUT_EXACT
+	printk(KERN_INFO "\tHierarchical RCU autobalancing is disabled.\n");
+#endif
+#ifdef CONFIG_RCU_FAST_NO_HZ
+	printk(KERN_INFO
+	       "\tRCU dyntick-idle grace-period acceleration is enabled.\n");
+#endif
+#ifdef CONFIG_PROVE_RCU
+	printk(KERN_INFO "\tRCU lockdep checking is enabled.\n");
+#endif
+#ifdef CONFIG_RCU_TORTURE_TEST_RUNNABLE
+	printk(KERN_INFO "\tRCU torture testing starts during boot.\n");
+#endif
+#ifndef CONFIG_RCU_CPU_STALL_DETECTOR
+	printk(KERN_INFO
+	       "\tRCU-based detection of stalled CPUs is disabled.\n");
+#endif
+#ifndef CONFIG_RCU_CPU_STALL_VERBOSE
+	printk(KERN_INFO "\tVerbose stalled-CPUs detection is disabled.\n");
+#endif
+#if NUM_RCU_LVL_4 != 0
+	printk(KERN_INFO "\tExperimental four-level hierarchy is enabled.\n");
+#endif
+}
+
 #ifdef CONFIG_TREE_PREEMPT_RCU
 
 struct rcu_state rcu_preempt_state = RCU_STATE_INITIALIZER(rcu_preempt_state);
@@ -38,8 +77,8 @@ static int rcu_preempted_readers_exp(struct rcu_node *rnp);
  */
 static void __init rcu_bootup_announce(void)
 {
-	printk(KERN_INFO
-	       "Experimental preemptable hierarchical RCU implementation.\n");
+	printk(KERN_INFO "Preemptable hierarchical RCU implementation.\n");
+	rcu_bootup_announce_oddness();
 }
 
 /*
@@ -75,13 +114,19 @@ EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
  * that this just means that the task currently running on the CPU is
  * not in a quiescent state.  There might be any number of tasks blocked
  * while in an RCU read-side critical section.
+ *
+ * Unlike the other rcu_*_qs() functions, callers to this function
+ * must disable irqs in order to protect the assignment to
+ * ->rcu_read_unlock_special.
  */
 static void rcu_preempt_qs(int cpu)
 {
 	struct rcu_data *rdp = &per_cpu(rcu_preempt_data, cpu);
+
 	rdp->passed_quiesc_completed = rdp->gpnum - 1;
 	barrier();
 	rdp->passed_quiesc = 1;
+	current->rcu_read_unlock_special &= ~RCU_READ_UNLOCK_NEED_QS;
 }
 
 /*
@@ -144,9 +189,8 @@ static void rcu_preempt_note_context_switch(int cpu)
 	 * grace period, then the fact that the task has been enqueued
 	 * means that we continue to block the current grace period.
 	 */
-	rcu_preempt_qs(cpu);
 	local_irq_save(flags);
-	t->rcu_read_unlock_special &= ~RCU_READ_UNLOCK_NEED_QS;
+	rcu_preempt_qs(cpu);
 	local_irq_restore(flags);
 }
 
@@ -236,7 +280,6 @@ static void rcu_read_unlock_special(struct task_struct *t)
 	 */
 	special = t->rcu_read_unlock_special;
 	if (special & RCU_READ_UNLOCK_NEED_QS) {
-		t->rcu_read_unlock_special &= ~RCU_READ_UNLOCK_NEED_QS;
 		rcu_preempt_qs(smp_processor_id());
 	}
 
@@ -473,7 +516,6 @@ static void rcu_preempt_check_callbacks(int cpu)
 	struct task_struct *t = current;
 
 	if (t->rcu_read_lock_nesting == 0) {
-		t->rcu_read_unlock_special &= ~RCU_READ_UNLOCK_NEED_QS;
 		rcu_preempt_qs(cpu);
 		return;
 	}
@@ -515,11 +557,13 @@ void synchronize_rcu(void)
 	if (!rcu_scheduler_active)
 		return;
 
+	init_rcu_head_on_stack(&rcu.head);
 	init_completion(&rcu.completion);
 	/* Will wake me after RCU finished. */
 	call_rcu(&rcu.head, wakeme_after_rcu);
 	/* Wait for it. */
 	wait_for_completion(&rcu.completion);
+	destroy_rcu_head_on_stack(&rcu.head);
 }
 EXPORT_SYMBOL_GPL(synchronize_rcu);
 
@@ -754,6 +798,7 @@ void exit_rcu(void)
 static void __init rcu_bootup_announce(void)
 {
 	printk(KERN_INFO "Hierarchical RCU implementation.\n");
+	rcu_bootup_announce_oddness();
 }
 
 /*
@@ -1008,6 +1053,8 @@ static DEFINE_PER_CPU(unsigned long, rcu_dyntick_holdoff);
 int rcu_needs_cpu(int cpu)
 {
 	int c = 0;
+	int snap;
+	int snap_nmi;
 	int thatcpu;
 
 	/* Check for being in the holdoff period. */
@@ -1015,12 +1062,18 @@ int rcu_needs_cpu(int cpu)
 		return rcu_needs_cpu_quick_check(cpu);
 
 	/* Don't bother unless we are the last non-dyntick-idle CPU. */
-	for_each_cpu_not(thatcpu, nohz_cpu_mask)
-		if (thatcpu != cpu) {
+	for_each_online_cpu(thatcpu) {
+		if (thatcpu == cpu)
+			continue;
+		snap = per_cpu(rcu_dynticks, thatcpu).dynticks;
+		snap_nmi = per_cpu(rcu_dynticks, thatcpu).dynticks_nmi;
+		smp_mb(); /* Order sampling of snap with end of grace period. */
+		if (((snap & 0x1) != 0) || ((snap_nmi & 0x1) != 0)) {
 			per_cpu(rcu_dyntick_drain, cpu) = 0;
 			per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
 			return rcu_needs_cpu_quick_check(cpu);
 		}
+	}
 
 	/* Check and update the rcu_dyntick_drain sequencing. */
 	if (per_cpu(rcu_dyntick_drain, cpu) <= 0) {
