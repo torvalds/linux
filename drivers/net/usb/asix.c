@@ -322,8 +322,29 @@ static int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		/* get the packet length */
 		size = (u16) (header & 0x0000ffff);
 
-		if ((skb->len) - ((size + 1) & 0xfffe) == 0)
+		if ((skb->len) - ((size + 1) & 0xfffe) == 0) {
+			u8 alignment = (u32)skb->data & 0x3;
+			if (alignment != 0x2) {
+				/*
+				 * not 16bit aligned so use the room provided by
+				 * the 32 bit header to align the data
+				 *
+				 * note we want 16bit alignment as MAC header is
+				 * 14bytes thus ip header will be aligned on
+				 * 32bit boundary so accessing ipheader elements
+				 * using a cast to struct ip header wont cause
+				 * an unaligned accesses.
+				 */
+				u8 realignment = (alignment + 2) & 0x3;
+				memmove(skb->data - realignment,
+					skb->data,
+					size);
+				skb->data -= realignment;
+				skb_set_tail_pointer(skb, size);
+			}
 			return 2;
+		}
+
 		if (size > ETH_FRAME_LEN) {
 			netdev_err(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
 				   size);
@@ -331,7 +352,18 @@ static int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		}
 		ax_skb = skb_clone(skb, GFP_ATOMIC);
 		if (ax_skb) {
+			u8 alignment = (u32)packet & 0x3;
 			ax_skb->len = size;
+
+			if (alignment != 0x2) {
+				/*
+				 * not 16bit aligned use the room provided by
+				 * the 32 bit header to align the data
+				 */
+				u8 realignment = (alignment + 2) & 0x3;
+				memmove(packet - realignment, packet, size);
+				packet -= realignment;
+			}
 			ax_skb->data = packet;
 			skb_set_tail_pointer(ax_skb, size);
 			usbnet_skb_return(dev, ax_skb);
