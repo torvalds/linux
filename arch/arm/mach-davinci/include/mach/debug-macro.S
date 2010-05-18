@@ -17,22 +17,50 @@
  */
 
 #include <linux/serial_reg.h>
+
+#include <asm/memory.h>
+
+#include <mach/serial.h>
+
 #define UART_SHIFT	2
 
+		.pushsection .data
+davinci_uart_phys:	.word	0
+davinci_uart_virt:	.word	0
+		.popsection
+
 		.macro addruart, rx, tmp
+
+		/* Use davinci_uart_phys/virt if already configured */
+10:		mrc	p15, 0, \rx, c1, c0
+		tst	\rx, #1			@ MMU enabled?
+		ldreq	\rx, =__virt_to_phys(davinci_uart_phys)
+		ldrne	\rx, =davinci_uart_virt
+		ldr	\rx, [\rx]
+		cmp	\rx, #0			@ is port configured?
+		bne	99f			@ already configured
+
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?
-		moveq	\rx, #0x01000000	@ physical base address
-		movne	\rx, #0xfe000000	@ virtual base
-#if defined(CONFIG_ARCH_DAVINCI_DA8XX) && defined(CONFIG_ARCH_DAVINCI_DMx)
-#error Cannot enable DaVinci and DA8XX platforms concurrently
-#elif defined(CONFIG_MACH_DAVINCI_DA830_EVM) || \
-	defined(CONFIG_MACH_DAVINCI_DA850_EVM)
-		orr	\rx, \rx, #0x00d00000	@ physical base address
-		orr	\rx, \rx, #0x0000d000	@ of UART 2
-#else
-		orr	\rx, \rx, #0x00c20000   @ UART 0
-#endif
+
+		/* Copy uart phys address from decompressor uart info */
+		ldreq	\tmp, =__virt_to_phys(davinci_uart_phys)
+		ldrne	\tmp, =davinci_uart_phys
+		ldreq	\rx, =DAVINCI_UART_INFO
+		ldrne	\rx, =__phys_to_virt(DAVINCI_UART_INFO)
+		ldr	\rx, [\rx, #0]
+		str	\rx, [\tmp]
+
+		/* Copy uart virt address from decompressor uart info */
+		ldreq	\tmp, =__virt_to_phys(davinci_uart_virt)
+		ldrne	\tmp, =davinci_uart_virt
+		ldreq	\rx, =DAVINCI_UART_INFO
+		ldrne	\rx, =__phys_to_virt(DAVINCI_UART_INFO)
+		ldr	\rx, [\rx, #4]
+		str	\rx, [\tmp]
+
+		b	10b
+99:
 		.endm
 
 		.macro	senduart,rd,rx
