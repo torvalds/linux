@@ -252,6 +252,18 @@ static void pca953x_irq_bus_lock(unsigned int irq)
 static void pca953x_irq_bus_sync_unlock(unsigned int irq)
 {
 	struct pca953x_chip *chip = get_irq_chip_data(irq);
+	uint16_t new_irqs;
+	uint16_t level;
+
+	/* Look for any newly setup interrupt */
+	new_irqs = chip->irq_trig_fall | chip->irq_trig_raise;
+	new_irqs &= ~chip->reg_direction;
+
+	while (new_irqs) {
+		level = __ffs(new_irqs);
+		pca953x_gpio_direction_input(&chip->gpio_chip, level);
+		new_irqs &= ~(1 << level);
+	}
 
 	mutex_unlock(&chip->irq_lock);
 }
@@ -278,7 +290,7 @@ static int pca953x_irq_set_type(unsigned int irq, unsigned int type)
 	else
 		chip->irq_trig_raise &= ~mask;
 
-	return pca953x_gpio_direction_input(&chip->gpio_chip, level);
+	return 0;
 }
 
 static struct irq_chip pca953x_irq_chip = {

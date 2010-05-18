@@ -19,6 +19,7 @@
 #include <linux/workqueue.h>
 #include <linux/sched.h>
 #include <linux/fscache.h>
+#include <linux/backing-dev.h>
 
 #include "afs.h"
 #include "afs_vl.h"
@@ -313,6 +314,7 @@ struct afs_volume {
 	unsigned short		rjservers;	/* number of servers discarded due to -ENOMEDIUM */
 	struct afs_server	*servers[8];	/* servers on which volume resides (ordered) */
 	struct rw_semaphore	server_sem;	/* lock for accessing current server */
+	struct backing_dev_info	bdi;
 };
 
 /*

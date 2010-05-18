@@ -1334,6 +1334,7 @@ static int read_partial_message(struct ceph_connection *con)
 	unsigned front_len, middle_len, data_len, data_off;
 	int datacrc = con->msgr->nocrc;
 	int skip;
+	u64 seq;
 
 	dout("read_partial_message con %p msg %p\n", con, m);
 
@@ -1368,6 +1369,25 @@ static int read_partial_message(struct ceph_connection *con)
 		return -EIO;
 	data_off = le16_to_cpu(con->in_hdr.data_off);
 
+	/* verify seq# */
+	seq = le64_to_cpu(con->in_hdr.seq);
+	if ((s64)seq - (s64)con->in_seq < 1) {
+		pr_info("skipping %s%lld %s seq %lld, expected %lld\n",
+			ENTITY_NAME(con->peer_name),
+			pr_addr(&con->peer_addr.in_addr),
+			seq, con->in_seq + 1);
+		con->in_base_pos = -front_len - middle_len - data_len -
+			sizeof(m->footer);
+		con->in_tag = CEPH_MSGR_TAG_READY;
+		con->in_seq++;
+		return 0;
+	} else if ((s64)seq - (s64)con->in_seq > 1) {
+		pr_err("read_partial_message bad seq %lld expected %lld\n",
+		       seq, con->in_seq + 1);
+		con->error_msg = "bad message sequence # for incoming message";
+		return -EBADMSG;
+	}
+
 	/* allocate message? */
 	if (!con->in_msg) {
 		dout("got hdr type %d front %d data %d\n", con->in_hdr.type,
@@ -1379,6 +1399,7 @@ static int read_partial_message(struct ceph_connection *con)
 			con->in_base_pos = -front_len - middle_len - data_len -
 				sizeof(m->footer);
 			con->in_tag = CEPH_MSGR_TAG_READY;
+			con->in_seq++;
 			return 0;
 		}
 		if (IS_ERR(con->in_msg)) {
@@ -2030,6 +2051,7 @@ void ceph_con_revoke_message(struct ceph_connection *con, struct ceph_msg *msg)
 		ceph_msg_put(con->in_msg);
 		con->in_msg = NULL;
 		con->in_tag = CEPH_MSGR_TAG_READY;
+		con->in_seq++;
 	} else {
 		dout("con_revoke_pages %p msg %p pages %p no-op\n",
 		     con, con->in_msg, msg);

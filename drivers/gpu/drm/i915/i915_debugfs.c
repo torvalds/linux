@@ -566,23 +566,14 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct drm_crtc *crtc;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	bool fbc_enabled = false;
 
-	if (!dev_priv->display.fbc_enabled) {
+	if (!I915_HAS_FBC(dev)) {
 		seq_printf(m, "FBC unsupported on this chipset\n");
 		return 0;
 	}
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (!crtc->enabled)
-			continue;
-		if (dev_priv->display.fbc_enabled(crtc))
-			fbc_enabled = true;
-	}
-
-	if (fbc_enabled) {
+	if (intel_fbc_enabled(dev)) {
 		seq_printf(m, "FBC enabled\n");
 	} else {
 		seq_printf(m, "FBC disabled: ");

@@ -2982,6 +2982,10 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 	else
 		ixgbe_configure_msi_and_legacy(adapter);
 
+	/* enable the optics */
+	if (hw->phy.multispeed_fiber)
+		hw->mac.ops.enable_tx_laser(hw);
+
 	clear_bit(__IXGBE_DOWN, &adapter->state);
 	ixgbe_napi_enable_all(adapter);
 
@@ -3242,6 +3246,10 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 	/* signal that we are down to the interrupt handler */
 	set_bit(__IXGBE_DOWN, &adapter->state);
+
+	/* power down the optics */
+	if (hw->phy.multispeed_fiber)
+		hw->mac.ops.disable_tx_laser(hw);
 
 	/* disable receive for all VFs and wait one second */
 	if (adapter->num_vfs) {
@@ -6253,6 +6261,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		goto err_eeprom;
 	}
 
+	/* power down the optics */
+	if (hw->phy.multispeed_fiber)
+		hw->mac.ops.disable_tx_laser(hw);
+
 	init_timer(&adapter->watchdog_timer);
 	adapter->watchdog_timer.function = &ixgbe_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
@@ -6400,16 +6412,6 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	del_timer_sync(&adapter->sfp_timer);
 	cancel_work_sync(&adapter->watchdog_task);
 	cancel_work_sync(&adapter->sfp_task);
-	if (adapter->hw.phy.multispeed_fiber) {
-		struct ixgbe_hw *hw = &adapter->hw;
-		/*
-		 * Restart clause 37 autoneg, disable and re-enable
-		 * the tx laser, to clear & alert the link partner
-		 * that it needs to restart autotry
-		 */
-		hw->mac.autotry_restart = true;
-		hw->mac.ops.flap_tx_laser(hw);
-	}
 	cancel_work_sync(&adapter->multispeed_fiber_task);
 	cancel_work_sync(&adapter->sfp_config_module_task);
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||

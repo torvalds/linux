@@ -276,5 +276,5 @@ DEFINE_EVENT(i915_ring, i915_ring_wait_end,
 
 /* This part must be outside protection */
 #undef TRACE_INCLUDE_PATH
-#define TRACE_INCLUDE_PATH ../../drivers/gpu/drm/i915
+#define TRACE_INCLUDE_PATH .
 #include <trace/define_trace.h>
