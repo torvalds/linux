@@ -2835,7 +2835,7 @@ jme_init_one(struct pci_dev *pdev,
 	default:
 		jme->reg_txcs = TXCS_DEFAULT | TXCS_DMASIZE_512B;
 		break;
-	};
+	}
 
 	/*
 	 * Must check before reset_mac_processor

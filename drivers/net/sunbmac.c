@@ -362,7 +362,7 @@ static void bigmac_tcvr_write(struct bigmac *bp, void __iomem *tregs,
 	default:
 		printk(KERN_ERR "bigmac_tcvr_read: Whoops, no known transceiver type.\n");
 		return;
-	};
+	}
 
 	idle_transceiver(tregs);
 	write_tcvr_bit(bp, tregs, 0);
@@ -401,7 +401,7 @@ static unsigned short bigmac_tcvr_read(struct bigmac *bp,
 	default:
 		printk(KERN_ERR "bigmac_tcvr_read: Whoops, no known transceiver type.\n");
 		return 0xffff;
-	};
+	}
 
 	idle_transceiver(tregs);
 	write_tcvr_bit(bp, tregs, 0);

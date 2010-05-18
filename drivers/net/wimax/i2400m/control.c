@@ -361,7 +361,7 @@ void i2400m_report_tlv_system_state(struct i2400m *i2400m,
 			i2400m_state);
 		i2400m_reset(i2400m, I2400M_RT_WARM);
 		break;
-	};
+	}
 	d_fnend(3, dev, "(i2400m %p ss %p [%u]) = void\n",
 		i2400m, ss, i2400m_state);
 }
@@ -410,7 +410,7 @@ void i2400m_report_tlv_media_status(struct i2400m *i2400m,
 	default:
 		dev_err(dev, "HW BUG? unknown media status %u\n",
 			status);
-	};
+	}
 	d_fnend(3, dev, "(i2400m %p ms %p [%u]) = void\n",
 		i2400m, ms, status);
 }
@@ -539,7 +539,7 @@ void i2400m_report_hook(struct i2400m *i2400m,
 			}
 		}
 		break;
-	};
+	}
 	d_fnend(3, dev, "(i2400m %p l3l4_hdr %p size %zu) = void\n",
 		i2400m, l3l4_hdr, size);
 }
@@ -582,7 +582,7 @@ void i2400m_msg_ack_hook(struct i2400m *i2400m,
 					 size);
 		}
 		break;
-	};
+	}
 }
 
 
@@ -754,7 +754,7 @@ struct sk_buff *i2400m_msg_to_dev(struct i2400m *i2400m,
 		break;
 	default:
 		ack_timeout = HZ;
-	};
+	}
 
 	if (unlikely(i2400m->trace_msg_from_user))
 		wimax_msg(&i2400m->wimax_dev, "echo", buf, buf_len, GFP_KERNEL);

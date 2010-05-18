@@ -932,7 +932,7 @@ static u32 iwlagn_translate_rx_status(struct iwl_priv *priv, u32 decrypt_in)
 		else
 			decrypt_out |= RX_RES_STATUS_DECRYPT_OK;
 		break;
-	};
+	}
 
 	IWL_DEBUG_RX(priv, "decrypt_in:0x%x  decrypt_out = 0x%x\n",
 					decrypt_in, decrypt_out);

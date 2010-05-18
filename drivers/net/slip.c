@@ -1269,7 +1269,7 @@ static int sl_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 	case SIOCGLEASE:
 		*p = sl->leased;
-	};
+	}
 	spin_unlock_bh(&sl->lock);
 	return 0;
 }

@@ -1091,7 +1091,7 @@ static int __devinit i82596_probe(struct net_device *dev)
 		DMA_FREE(dev->dev.parent, sizeof(struct i596_dma),
 				    (void *)dma, lp->dma_addr);
 		return i;
-	};
+	}
 
 	DEB(DEB_PROBE, printk(KERN_INFO "%s: 82596 at %#3lx, %pM IRQ %d.\n",
 			      dev->name, dev->base_addr, dev->dev_addr,

@@ -896,7 +896,7 @@ static int gelic_wl_set_auth(struct net_device *netdev,
 	default:
 		ret = -EOPNOTSUPP;
 		break;
-	};
+	}
 
 	if (!ret)
 		set_bit(GELIC_WL_STAT_CONFIGURED, &wl->stat);
@@ -1991,7 +1991,7 @@ static int gelic_wl_associate_bss(struct gelic_wl_info *wl,
 	case GELIC_WL_WPA_LEVEL_WPA2:
 		ret = gelic_wl_do_wpa_setup(wl);
 		break;
-	};
+	}
 
 	if (ret) {
 		pr_debug("%s: WEP/WPA setup failed %d\n", __func__,

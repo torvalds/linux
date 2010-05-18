@@ -855,7 +855,7 @@ static void happy_meal_timer(unsigned long data)
 		hp->timer_ticks = 0;
 		hp->timer_state = asleep; /* foo on you */
 		break;
-	};
+	}
 
 	if (restart_timer) {
 		hp->happy_timer.expires = jiffies + ((12 * HZ)/10); /* 1.2 sec. */
@@ -1488,7 +1488,7 @@ static int happy_meal_init(struct happy_meal *hp)
 		HMD(("external, disable MII, "));
 		hme_write32(hp, bregs + BMAC_XIFCFG, BIGMAC_XCFG_MIIDISAB);
 		break;
-	};
+	}
 
 	if (happy_meal_tcvr_reset(hp, tregs))
 		return -EAGAIN;
@@ -1734,7 +1734,7 @@ static void happy_meal_set_initial_advertisement(struct happy_meal *hp)
 	case external:
 		hme_write32(hp, bregs + BMAC_XIFCFG, BIGMAC_XCFG_MIIDISAB);
 		break;
-	};
+	}
 	if (happy_meal_tcvr_reset(hp, tregs))
 		return;
 

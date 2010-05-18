@@ -946,7 +946,7 @@ islpci_set_state(islpci_private *priv, islpci_state_t new_state)
 		if (!priv->state_off)
 			priv->state = new_state;
 		break;
-	};
+	}
 #if 0
 	printk(KERN_DEBUG "%s: state transition %d -> %d (off#%d)\n",
 	       priv->ndev->name, old_state, new_state, priv->state_off);

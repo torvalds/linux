@@ -362,7 +362,7 @@ static int pppoe_device_event(struct notifier_block *this,
 
 	default:
 		break;
-	};
+	}
 
 	return NOTIFY_DONE;
 }

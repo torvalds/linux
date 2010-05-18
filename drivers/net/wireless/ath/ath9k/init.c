@@ -308,7 +308,7 @@ int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 			dd->dd_desc_len += dma_len;
 
 			ndesc_skipped = ATH_DESC_4KB_BOUND_NUM_SKIPPED(dma_len);
-		};
+		}
 	}
 
 	/* allocate descriptors */

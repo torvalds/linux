@@ -820,7 +820,7 @@ static struct ehea_cqe *ehea_proc_cqes(struct ehea_port_res *pr, int my_quota)
 		quota--;
 
 		cqe = ehea_poll_cq(send_cq);
-	};
+	}
 
 	ehea_update_feca(send_cq, cqe_counter);
 	atomic_add(swqe_av, &pr->swqe_avail);
@@ -3253,7 +3253,7 @@ static int ehea_setup_ports(struct ehea_adapter *adapter)
 			ehea_remove_adapter_mr(adapter);
 
 		i++;
-	};
+	}
 	return 0;
 }
 
@@ -3272,7 +3272,7 @@ static struct device_node *ehea_get_eth_dn(struct ehea_adapter *adapter,
 		if (dn_log_port_id)
 			if (*dn_log_port_id == logical_port_id)
 				return eth_dn;
-	};
+	}
 
 	return NULL;
 }

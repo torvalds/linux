@@ -1367,7 +1367,7 @@ static long __tun_chr_ioctl(struct file *file, unsigned int cmd,
 	default:
 		ret = -EINVAL;
 		break;
-	};
+	}
 
 unlock:
 	rtnl_unlock();

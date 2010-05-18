@@ -1054,7 +1054,7 @@ static void lance_piocopy_from_skb(void __iomem *dest, unsigned char *src, int l
 		}
 		src = (char *) p16;
 		break;
-	};
+	}
 	if (len >= 2) {
 		u16 val = src[0] << 8 | src[1];
 		sbus_writew(val, piobuf);

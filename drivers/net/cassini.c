@@ -4824,7 +4824,7 @@ static int cas_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 	default:
 		break;
-	};
+	}
 
 	mutex_unlock(&cp->pm_mutex);
 	return rc;
