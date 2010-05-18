@@ -8499,6 +8499,7 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 	/* Disable HW interrupts, NAPI and Tx */
 	bnx2x_netif_stop(bp, 1);
+	netif_carrier_off(bp->dev);
 
 	del_timer_sync(&bp->timer);
 	SHMEM_WR(bp, func_mb[BP_FUNC(bp)].drv_pulse_mb,
@@ -8523,8 +8524,6 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 	bnx2x_free_mem(bp);
 
 	bp->state = BNX2X_STATE_CLOSED;
-
-	netif_carrier_off(bp->dev);
 
 	/* The last driver must disable a "close the gate" if there is no
 	 * parity attention or "process kill" pending.
@@ -13431,6 +13430,7 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	bp->rx_mode = BNX2X_RX_MODE_NONE;
 
 	bnx2x_netif_stop(bp, 0);
+	netif_carrier_off(bp->dev);
 
 	del_timer_sync(&bp->timer);
 	bp->stats_state = STATS_STATE_DISABLED;
@@ -13456,8 +13456,6 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	bnx2x_free_mem(bp);
 
 	bp->state = BNX2X_STATE_CLOSED;
-
-	netif_carrier_off(bp->dev);
 
 	return 0;
 }
