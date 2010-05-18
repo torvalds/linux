@@ -436,6 +436,41 @@ static const struct file_operations inquiry_cache_fops = {
 	.release	= single_release,
 };
 
+static int blacklist_show(struct seq_file *f, void *p)
+{
+	struct hci_dev *hdev = f->private;
+	struct bdaddr_list *blacklist = &hdev->blacklist;
+	struct list_head *l;
+
+	hci_dev_lock_bh(hdev);
+
+	list_for_each(l, &blacklist->list) {
+		struct bdaddr_list *b;
+		bdaddr_t bdaddr;
+
+		b = list_entry(l, struct bdaddr_list, list);
+
+		baswap(&bdaddr, &b->bdaddr);
+
+		seq_printf(f, "%s\n", batostr(&bdaddr));
+	}
+
+	hci_dev_unlock_bh(hdev);
+
+	return 0;
+}
+
+static int blacklist_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, blacklist_show, inode->i_private);
+}
+
+static const struct file_operations blacklist_fops = {
+	.open		= blacklist_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
 int hci_register_sysfs(struct hci_dev *hdev)
 {
 	struct device *dev = &hdev->dev;
@@ -464,6 +499,9 @@ int hci_register_sysfs(struct hci_dev *hdev)
 
 	debugfs_create_file("inquiry_cache", 0444, hdev->debugfs,
 						hdev, &inquiry_cache_fops);
+
+	debugfs_create_file("blacklist", 0444, hdev->debugfs,
+						hdev, &blacklist_fops);
 
 	return 0;
 }
