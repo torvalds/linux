@@ -374,8 +374,6 @@ static int python_start_script(const char *script, int argc, const char **argv)
 	}
 
 	free(command_line);
-	fprintf(stderr, "perf trace started with Python script %s\n\n",
-		script);
 
 	return err;
 error:
@@ -406,8 +404,6 @@ out:
 	Py_XDECREF(main_dict);
 	Py_XDECREF(main_module);
 	Py_Finalize();
-
-	fprintf(stderr, "\nperf trace Python script stopped\n");
 
 	return err;
 }

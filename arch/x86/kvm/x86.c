@@ -40,6 +40,7 @@
 #include <linux/user-return-notifier.h>
 #include <linux/srcu.h>
 #include <linux/slab.h>
+#include <linux/perf_event.h>
 #include <trace/events/kvm.h>
 #undef TRACE_INCLUDE_FILE
 #define CREATE_TRACE_POINTS
@@ -3747,6 +3748,51 @@ static void kvm_timer_init(void)
 	}
 }
 
+static DEFINE_PER_CPU(struct kvm_vcpu *, current_vcpu);
+
+static int kvm_is_in_guest(void)
+{
+	return percpu_read(current_vcpu) != NULL;
+}
+
+static int kvm_is_user_mode(void)
+{
+	int user_mode = 3;
+
+	if (percpu_read(current_vcpu))
+		user_mode = kvm_x86_ops->get_cpl(percpu_read(current_vcpu));
+
+	return user_mode != 0;
+}
+
+static unsigned long kvm_get_guest_ip(void)
+{
+	unsigned long ip = 0;
+
+	if (percpu_read(current_vcpu))
+		ip = kvm_rip_read(percpu_read(current_vcpu));
+
+	return ip;
+}
+
+static struct perf_guest_info_callbacks kvm_guest_cbs = {
+	.is_in_guest		= kvm_is_in_guest,
+	.is_user_mode		= kvm_is_user_mode,
+	.get_guest_ip		= kvm_get_guest_ip,
+};
+
+void kvm_before_handle_nmi(struct kvm_vcpu *vcpu)
+{
+	percpu_write(current_vcpu, vcpu);
+}
+EXPORT_SYMBOL_GPL(kvm_before_handle_nmi);
+
+void kvm_after_handle_nmi(struct kvm_vcpu *vcpu)
+{
+	percpu_write(current_vcpu, NULL);
+}
+EXPORT_SYMBOL_GPL(kvm_after_handle_nmi);
+
 int kvm_arch_init(void *opaque)
 {
 	int r;
@@ -3783,6 +3829,8 @@ int kvm_arch_init(void *opaque)
 
 	kvm_timer_init();
 
+	perf_register_guest_info_callbacks(&kvm_guest_cbs);
+
 	return 0;
 
 out:
@@ -3791,6 +3839,8 @@ out:
 
 void kvm_arch_exit(void)
 {
+	perf_unregister_guest_info_callbacks(&kvm_guest_cbs);
+
 	if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
 		cpufreq_unregister_notifier(&kvmclock_cpufreq_notifier_block,
 					    CPUFREQ_TRANSITION_NOTIFIER);

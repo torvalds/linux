@@ -42,12 +42,14 @@
 #define _ALL_SOURCE 1
 #define _GNU_SOURCE 1
 #define _BSD_SOURCE 1
+#define HAS_BOOL
 
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/stat.h>
 #include <sys/statfs.h>
 #include <fcntl.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -78,6 +80,7 @@
 #include <pwd.h>
 #include <inttypes.h>
 #include "../../../include/linux/magic.h"
+#include "types.h"
 
 
 #ifndef NO_ICONV
@@ -295,6 +298,13 @@ extern void *xmemdupz(const void *data, size_t len);
 extern char *xstrndup(const char *str, size_t len);
 extern void *xrealloc(void *ptr, size_t size) __attribute__((weak));
 
+static inline void *xzalloc(size_t size)
+{
+	void *buf = xmalloc(size);
+
+	return memset(buf, 0, size);
+}
+
 static inline void *zalloc(size_t size)
 {
 	return calloc(1, size);
@@ -309,6 +319,7 @@ static inline int has_extension(const char *filename, const char *ext)
 {
 	size_t len = strlen(filename);
 	size_t extlen = strlen(ext);
+
 	return len > extlen && !memcmp(filename + len - extlen, ext, extlen);
 }
 
@@ -322,6 +333,7 @@ static inline int has_extension(const char *filename, const char *ext)
 #undef isalnum
 #undef tolower
 #undef toupper
+
 extern unsigned char sane_ctype[256];
 #define GIT_SPACE		0x01
 #define GIT_DIGIT		0x02
@@ -405,5 +417,15 @@ void git_qsort(void *base, size_t nmemb, size_t size,
 
 int mkdir_p(char *path, mode_t mode);
 int copyfile(const char *from, const char *to);
+
+s64 perf_atoll(const char *str);
+char **argv_split(const char *str, int *argcp);
+void argv_free(char **argv);
+bool strglobmatch(const char *str, const char *pat);
+bool strlazymatch(const char *str, const char *pat);
+unsigned long convert_unit(unsigned long value, char *unit);
+
+#define _STR(x) #x
+#define STR(x) _STR(x)
 
 #endif

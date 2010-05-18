@@ -3659,8 +3659,11 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 
 	/* We need to handle NMIs before interrupts are enabled */
 	if ((exit_intr_info & INTR_INFO_INTR_TYPE_MASK) == INTR_TYPE_NMI_INTR &&
-	    (exit_intr_info & INTR_INFO_VALID_MASK))
+	    (exit_intr_info & INTR_INFO_VALID_MASK)) {
+		kvm_before_handle_nmi(&vmx->vcpu);
 		asm("int $2");
+		kvm_after_handle_nmi(&vmx->vcpu);
+	}
 
 	idtv_info_valid = idt_vectoring_info & VECTORING_INFO_VALID_MASK;
 

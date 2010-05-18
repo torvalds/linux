@@ -763,13 +763,12 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 static notrace void							\
 perf_trace_templ_##call(struct ftrace_event_call *event_call,		\
-			    proto)					\
+			struct pt_regs *__regs, proto)			\
 {									\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
 	struct ftrace_raw_##call *entry;				\
 	u64 __addr = 0, __count = 1;					\
 	unsigned long irq_flags;					\
-	struct pt_regs *__regs;						\
 	int __entry_size;						\
 	int __data_size;						\
 	int rctx;							\
@@ -790,20 +789,22 @@ perf_trace_templ_##call(struct ftrace_event_call *event_call,		\
 									\
 	{ assign; }							\
 									\
-	__regs = &__get_cpu_var(perf_trace_regs);			\
-	perf_fetch_caller_regs(__regs, 2);				\
-									\
 	perf_trace_buf_submit(entry, __entry_size, rctx, __addr,	\
 			       __count, irq_flags, __regs);		\
 }
 
 #undef DEFINE_EVENT
-#define DEFINE_EVENT(template, call, proto, args)		\
-static notrace void perf_trace_##call(proto)			\
-{								\
-	struct ftrace_event_call *event_call = &event_##call;	\
-								\
-	perf_trace_templ_##template(event_call, args);		\
+#define DEFINE_EVENT(template, call, proto, args)			\
+static notrace void perf_trace_##call(proto)				\
+{									\
+	struct ftrace_event_call *event_call = &event_##call;		\
+	struct pt_regs *__regs = &get_cpu_var(perf_trace_regs);		\
+									\
+	perf_fetch_caller_regs(__regs, 1);				\
+									\
+	perf_trace_templ_##template(event_call, __regs, args);		\
+									\
+	put_cpu_var(perf_trace_regs);					\
 }
 
 #undef DEFINE_EVENT_PRINT

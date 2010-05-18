@@ -34,7 +34,6 @@ enum trace_type {
 	TRACE_GRAPH_RET,
 	TRACE_GRAPH_ENT,
 	TRACE_USER_STACK,
-	TRACE_HW_BRANCHES,
 	TRACE_KMEM_ALLOC,
 	TRACE_KMEM_FREE,
 	TRACE_BLK,
@@ -103,28 +102,16 @@ struct syscall_trace_exit {
 	long			ret;
 };
 
-struct kprobe_trace_entry {
+struct kprobe_trace_entry_head {
 	struct trace_entry	ent;
 	unsigned long		ip;
-	int			nargs;
-	unsigned long		args[];
 };
 
-#define SIZEOF_KPROBE_TRACE_ENTRY(n)			\
-	(offsetof(struct kprobe_trace_entry, args) +	\
-	(sizeof(unsigned long) * (n)))
-
-struct kretprobe_trace_entry {
+struct kretprobe_trace_entry_head {
 	struct trace_entry	ent;
 	unsigned long		func;
 	unsigned long		ret_ip;
-	int			nargs;
-	unsigned long		args[];
 };
-
-#define SIZEOF_KRETPROBE_TRACE_ENTRY(n)			\
-	(offsetof(struct kretprobe_trace_entry, args) +	\
-	(sizeof(unsigned long) * (n)))
 
 /*
  * trace_flag_type is an enumeration that holds different
@@ -229,7 +216,6 @@ extern void __ftrace_bad_type(void);
 			  TRACE_GRAPH_ENT);		\
 		IF_ASSIGN(var, ent, struct ftrace_graph_ret_entry,	\
 			  TRACE_GRAPH_RET);		\
-		IF_ASSIGN(var, ent, struct hw_branch_entry, TRACE_HW_BRANCHES);\
 		IF_ASSIGN(var, ent, struct kmemtrace_alloc_entry,	\
 			  TRACE_KMEM_ALLOC);	\
 		IF_ASSIGN(var, ent, struct kmemtrace_free_entry,	\
@@ -467,8 +453,6 @@ extern int trace_selftest_startup_sysprof(struct tracer *trace,
 					       struct trace_array *tr);
 extern int trace_selftest_startup_branch(struct tracer *trace,
 					 struct trace_array *tr);
-extern int trace_selftest_startup_hw_branches(struct tracer *trace,
-					      struct trace_array *tr);
 extern int trace_selftest_startup_ksym(struct tracer *trace,
 					 struct trace_array *tr);
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
