@@ -72,6 +72,8 @@ static struct s3c2410_uartcfg smdkv210_uartcfgs[] __initdata = {
 };
 
 static struct platform_device *smdkc110_devices[] __initdata = {
+	&s5pv210_device_iis0,
+	&s5pv210_device_ac97,
 };
 
 static void __init smdkc110_map_io(void)
