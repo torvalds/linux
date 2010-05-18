@@ -36,7 +36,6 @@
 //
 // constants
 //
-#define U_CRC_LEN           4           //
 #define U_ETHER_ADDR_STR_LEN (ETH_ALEN * 2 + 1)
                                         // Ethernet address string length
 

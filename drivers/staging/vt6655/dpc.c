@@ -569,7 +569,7 @@ device_receive_frame (
     // RX OK
     //
     //remove the CRC length
-    FrameSize -= U_CRC_LEN;
+    FrameSize -= ETH_FCS_LEN;
 
     if (( !(*pbyRsr & (RSR_ADDRBROAD | RSR_ADDRMULTI))) && // unicast address
         (IS_FRAGMENT_PKT((skb->data+4)))
