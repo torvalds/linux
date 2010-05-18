@@ -553,7 +553,7 @@ void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp)
 	if (del_timer(&ifp->timer))
 		pr_notice("Timer is still running, when freeing ifa=%p\n", ifp);
 
-	if (!ifp->dead) {
+	if (ifp->state != INET6_IFADDR_STATE_DEAD) {
 		pr_warning("Freeing alive inet6 address %p\n", ifp);
 		return;
 	}
@@ -648,6 +648,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 	ipv6_addr_copy(&ifa->addr, addr);
 
 	spin_lock_init(&ifa->lock);
+	spin_lock_init(&ifa->state_lock);
 	init_timer(&ifa->timer);
 	INIT_HLIST_NODE(&ifa->addr_lst);
 	ifa->timer.data = (unsigned long) ifa;
@@ -720,7 +721,7 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 
 	hash = ipv6_addr_hash(&ifp->addr);
 
-	ifp->dead = 1;
+	ifp->state = INET6_IFADDR_STATE_DEAD;
 
 	spin_lock_bh(&addrconf_hash_lock);
 	hlist_del_init_rcu(&ifp->addr_lst);
@@ -2665,7 +2666,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 		ifa = list_first_entry(&idev->tempaddr_list,
 				       struct inet6_ifaddr, tmp_list);
 		list_del(&ifa->tmp_list);
-		ifa->dead = 1;
+		ifa->state = INET6_IFADDR_STATE_DEAD;
 		write_unlock_bh(&idev->lock);
 		spin_lock_bh(&ifa->lock);
 
@@ -2707,7 +2708,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 			write_unlock_bh(&idev->lock);
 		} else {
 			list_del(&ifa->if_list);
-			ifa->dead = 1;
+			ifa->state = INET6_IFADDR_STATE_DEAD;
 			write_unlock_bh(&idev->lock);
 
 			/* clear hash table */
@@ -2717,7 +2718,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 		}
 
 		__ipv6_ifa_notify(RTM_DELADDR, ifa);
-		if (ifa->dead)
+		if (ifa->state == INET6_IFADDR_STATE_DEAD)
 			atomic_notifier_call_chain(&inet6addr_chain,
 						   NETDEV_DOWN, ifa);
 		in6_ifa_put(ifa);
@@ -2815,7 +2816,7 @@ static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags)
 	net_srandom(ifp->addr.s6_addr32[3]);
 
 	read_lock_bh(&idev->lock);
-	if (ifp->dead)
+	if (ifp->state == INET6_IFADDR_STATE_DEAD)
 		goto out;
 
 	spin_lock(&ifp->lock);
@@ -4050,7 +4051,8 @@ static void __ipv6_ifa_notify(int event, struct inet6_ifaddr *ifp)
 		addrconf_leave_solict(ifp->idev, &ifp->addr);
 		dst_hold(&ifp->rt->u.dst);
 
-		if (ifp->dead && ip6_del_rt(ifp->rt))
+		if (ifp->state == INET6_IFADDR_STATE_DEAD &&
+		    ip6_del_rt(ifp->rt))
 			dst_free(&ifp->rt->u.dst);
 		break;
 	}

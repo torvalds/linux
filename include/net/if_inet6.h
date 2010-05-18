@@ -32,6 +32,13 @@
 
 #ifdef __KERNEL__
 
+enum {
+	INET6_IFADDR_STATE_DAD,
+	INET6_IFADDR_STATE_POSTDAD,
+	INET6_IFADDR_STATE_UP,
+	INET6_IFADDR_STATE_DEAD,
+};
+
 struct inet6_ifaddr {
 	struct in6_addr		addr;
 	__u32			prefix_len;
@@ -40,6 +47,9 @@ struct inet6_ifaddr {
 	__u32			prefered_lft;
 	atomic_t		refcnt;
 	spinlock_t		lock;
+	spinlock_t		state_lock;
+
+	int			state;
 
 	__u8			probes;
 	__u8			flags;
@@ -62,8 +72,6 @@ struct inet6_ifaddr {
 	struct inet6_ifaddr	*ifpub;
 	int			regen_count;
 #endif
-
-	int			dead;
 	struct rcu_head		rcu;
 };
 
