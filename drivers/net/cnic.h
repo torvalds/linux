@@ -181,6 +181,7 @@ struct cnic_local {
 
 	unsigned long cnic_local_flags;
 #define	CNIC_LCL_FL_KWQ_INIT		0x0
+#define	CNIC_LCL_FL_L2_WAIT		0x1
 
 	struct cnic_dev *dev;
 
@@ -347,6 +348,10 @@ struct bnx2x_bd_chain_next {
 #define BNX2X_MAX_RX_DESC_CNT		(BNX2X_RX_DESC_CNT - 2)
 #define BNX2X_RCQ_DESC_CNT		(BCM_PAGE_SIZE / sizeof(union eth_rx_cqe))
 #define BNX2X_MAX_RCQ_DESC_CNT		(BNX2X_RCQ_DESC_CNT - 1)
+
+#define BNX2X_NEXT_RCQE(x) (((x) & BNX2X_MAX_RCQ_DESC_CNT) ==		\
+		(BNX2X_MAX_RCQ_DESC_CNT - 1)) ?				\
+		((x) + 2) : ((x) + 1)
 
 #define BNX2X_DEF_SB_ID			16
 
