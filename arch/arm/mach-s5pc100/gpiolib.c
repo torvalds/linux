@@ -17,11 +17,11 @@
 #include <linux/gpio.h>
 
 #include <mach/map.h>
+#include <mach/regs-gpio.h>
 
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
-#include <plat/regs-gpio.h>
 
 /* S5PC100 GPIO bank summary:
  *
@@ -61,6 +61,7 @@
  * L3	8	4Bit	None
  */
 
+#if 0
 static int s5pc1xx_gpiolib_to_irq(struct gpio_chip *chip, unsigned int offset)
 {
 	return S3C_IRQ_GPIO(chip->base + offset);
@@ -84,7 +85,7 @@ static int s5pc1xx_gpiolib_to_eint(struct gpio_chip *chip, unsigned int offset)
 		return IRQ_EINT(24 + offset);
 	return -EINVAL;
 }
-
+#endif
 static struct s3c_gpio_cfg gpio_cfg = {
 	.set_config	= s3c_gpio_setcfg_s3c64xx_4bit,
 	.set_pull	= s3c_gpio_setpull_updown,
@@ -386,7 +387,7 @@ extern void s5pc1xx_irq_gpioint_handler(unsigned int irq, struct irq_desc *desc)
 
 static __init void s5pc100_gpiolib_link(struct s3c_gpio_chip *chip)
 {
-
+#if 0
 	/* Interrupt */
 	if (chip->config == &gpio_cfg) {
 		int i, irq;
@@ -402,6 +403,7 @@ static __init void s5pc100_gpiolib_link(struct s3c_gpio_chip *chip)
 		}
 	} else if (chip->config == &gpio_cfg_eint)
 		chip->chip.to_irq = s5pc1xx_gpiolib_to_eint;
+#endif
 }
 
 static __init int s5pc1xx_gpiolib_init(void)
@@ -417,9 +419,10 @@ static __init int s5pc1xx_gpiolib_init(void)
 
 	samsung_gpiolib_add_4bit_chips(s5pc100_gpio_chips,
 				       ARRAY_SIZE(s5pc100_gpio_chips));
+#if 0
 	/* Interrupt */
 	set_irq_chained_handler(IRQ_GPIOINT, s5pc1xx_irq_gpioint_handler);
-
+#endif
 	return 0;
 }
 core_initcall(s5pc1xx_gpiolib_init);

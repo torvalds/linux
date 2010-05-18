@@ -13,9 +13,8 @@ obj-				:=
 
 obj-y				+= dev-uart.o
 obj-y				+= cpu.o
-obj-y				+= irq.o irq-gpio.o irq-eint.o
+obj-y				+= irq.o
 obj-y				+= clock.o
-obj-y				+= gpiolib.o
 
 # CPU support
 
