@@ -213,38 +213,20 @@ static __u16 __inline__ fcs_compute10(unsigned char *sp, int len, __u16 fcs)
 	return fcs;
 }
 
-static void safe_read_bulk_callback(struct urb *urb)
+static void safe_process_read_urb(struct urb *urb)
 {
-	struct usb_serial_port *port =  urb->context;
+	struct usb_serial_port *port = urb->context;
 	unsigned char *data = urb->transfer_buffer;
 	unsigned char length = urb->actual_length;
 	struct tty_struct *tty;
-	int result;
-	int status = urb->status;
 
-	dbg("%s", __func__);
-
-	if (status) {
-		dbg("%s - nonzero read bulk status received: %d",
-		    __func__, status);
+	if (!length)
 		return;
-	}
 
-	dbg("safe_read_bulk_callback length: %d",
-					port->read_urb->actual_length);
-#ifdef ECHO_RCV
-	{
-		int i;
-		unsigned char *cp = port->read_urb->transfer_buffer;
-		for (i = 0; i < port->read_urb->actual_length; i++) {
-			if ((i % 32) == 0)
-				printk("\nru[%02x] ", i);
-			printk("%02x ", *cp++);
-		}
-		printk("\n");
-	}
-#endif
 	tty = tty_port_tty_get(&port->port);
+	if (!tty)
+		return;
+
 	if (safe) {
 		__u16 fcs;
 		fcs = fcs_compute10(data, length, CRC10_INITFCS);
@@ -268,21 +250,8 @@ static void safe_read_bulk_callback(struct urb *urb)
 		tty_insert_flip_string(tty, data, length);
 		tty_flip_buffer_push(tty);
 	}
+
 	tty_kref_put(tty);
-
-	/* Continue trying to always read  */
-	usb_fill_bulk_urb(urb, port->serial->dev,
-			usb_rcvbulkpipe(port->serial->dev,
-					port->bulk_in_endpointAddress),
-			urb->transfer_buffer, urb->transfer_buffer_length,
-			safe_read_bulk_callback, port);
-
-	result = usb_submit_urb(urb, GFP_ATOMIC);
-	if (result)
-		dev_err(&port->dev,
-			"%s - failed resubmitting read urb, error %d\n",
-			__func__, result);
-		/* FIXME: Need a mechanism to retry later if this happens */
 }
 
 static int safe_prepare_write_buffer(struct usb_serial_port *port,
@@ -343,7 +312,7 @@ static struct usb_serial_driver safe_device = {
 	.id_table =		id_table,
 	.usb_driver =		&safe_driver,
 	.num_ports =		1,
-	.read_bulk_callback =	safe_read_bulk_callback,
+	.process_read_urb =	safe_process_read_urb,
 	.prepare_write_buffer =	safe_prepare_write_buffer,
 	.attach =		safe_startup,
 };
