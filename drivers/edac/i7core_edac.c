@@ -1213,10 +1213,15 @@ int i7core_get_onedevice(struct pci_dev **prev, int devno,
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 				      PCI_DEVICE_ID_INTEL_I7_NONCORE_ALT, *prev);
 
-	if (dev_descr->dev_id == PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE && !pdev)
+	if (dev_descr->dev_id == PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE && !pdev) {
 		pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
 				      PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE_ALT,
 				      *prev);
+		if (!pdev)
+			pdev = pci_get_device(PCI_VENDOR_ID_INTEL,
+					      PCI_DEVICE_ID_INTEL_LYNNFIELD_NONCORE_REV2,
+					      *prev);
+	}
 
 	if (!pdev) {
 		if (*prev) {
