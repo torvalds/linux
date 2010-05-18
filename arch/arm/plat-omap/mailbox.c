@@ -347,6 +347,8 @@ void omap_mbox_put(struct omap_mbox *mbox)
 }
 EXPORT_SYMBOL(omap_mbox_put);
 
+static struct class omap_mbox_class = { .name = "mbox", };
+
 int omap_mbox_register(struct device *parent, struct omap_mbox *mbox)
 {
 	int ret = 0;
@@ -356,6 +358,11 @@ int omap_mbox_register(struct device *parent, struct omap_mbox *mbox)
 		return -EINVAL;
 	if (mbox->next)
 		return -EBUSY;
+
+	mbox->dev = device_create(&omap_mbox_class,
+				  parent, 0, mbox, "%s", mbox->name);
+	if (IS_ERR(mbox->dev))
+		return PTR_ERR(mbox->dev);
 
 	spin_lock(&mboxes_lock);
 	tmp = find_mboxes(mbox->name);
@@ -385,6 +392,7 @@ int omap_mbox_unregister(struct omap_mbox *mbox)
 			*tmp = mbox->next;
 			mbox->next = NULL;
 			spin_unlock(&mboxes_lock);
+			device_unregister(mbox->dev);
 			return 0;
 		}
 		tmp = &(*tmp)->next;
@@ -397,6 +405,12 @@ EXPORT_SYMBOL(omap_mbox_unregister);
 
 static int __init omap_mbox_init(void)
 {
+	int err;
+
+	err = class_register(&omap_mbox_class);
+	if (err)
+		return err;
+
 	mboxd = create_workqueue("mboxd");
 	if (!mboxd)
 		return -ENOMEM;
@@ -407,11 +421,12 @@ static int __init omap_mbox_init(void)
 
 	return 0;
 }
-module_init(omap_mbox_init);
+subsys_initcall(omap_mbox_init);
 
 static void __exit omap_mbox_exit(void)
 {
 	destroy_workqueue(mboxd);
+	class_unregister(&omap_mbox_class);
 }
 module_exit(omap_mbox_exit);
 
