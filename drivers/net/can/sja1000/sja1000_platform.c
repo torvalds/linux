@@ -111,7 +111,8 @@ static int sp_probe(struct platform_device *pdev)
 	dev->irq = res_irq->start;
 	priv->irq_flags = res_irq->flags & (IRQF_TRIGGER_MASK | IRQF_SHARED);
 	priv->reg_base = addr;
-	priv->can.clock.freq = pdata->clock;
+	/* The CAN clock frequency is half the oscillator clock frequency */
+	priv->can.clock.freq = pdata->osc_freq / 2;
 	priv->ocr = pdata->ocr;
 	priv->cdr = pdata->cdr;
 
