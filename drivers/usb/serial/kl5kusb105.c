@@ -107,7 +107,7 @@ static struct usb_driver kl5kusb105d_driver = {
 	.probe =	usb_serial_probe,
 	.disconnect =	usb_serial_disconnect,
 	.id_table =	id_table,
-	.no_dynamic_id = 	1,
+	.no_dynamic_id =	1,
 };
 
 static struct usb_serial_driver kl5kusb105d_device = {
@@ -115,26 +115,26 @@ static struct usb_serial_driver kl5kusb105d_device = {
 		.owner =	THIS_MODULE,
 		.name =		"kl5kusb105d",
 	},
-	.description =	     "KL5KUSB105D / PalmConnect",
-	.usb_driver =	     &kl5kusb105d_driver,
-	.id_table =	     id_table,
-	.num_ports =	     1,
-	.open =		     klsi_105_open,
-	.close =	     klsi_105_close,
-	.write =	     klsi_105_write,
-	.write_bulk_callback = klsi_105_write_bulk_callback,
-	.chars_in_buffer =   klsi_105_chars_in_buffer,
-	.write_room =        klsi_105_write_room,
-	.read_bulk_callback = klsi_105_read_bulk_callback,
-	.set_termios =	     klsi_105_set_termios,
-	/*.break_ctl =	     klsi_105_break_ctl,*/
-	.tiocmget =          klsi_105_tiocmget,
-	.tiocmset =          klsi_105_tiocmset,
-	.attach =	     klsi_105_startup,
-	.disconnect =	     klsi_105_disconnect,
-	.release =	     klsi_105_release,
-	.throttle =	     klsi_105_throttle,
-	.unthrottle =	     klsi_105_unthrottle,
+	.description =		"KL5KUSB105D / PalmConnect",
+	.usb_driver =		&kl5kusb105d_driver,
+	.id_table =		id_table,
+	.num_ports =		1,
+	.open =			klsi_105_open,
+	.close =		klsi_105_close,
+	.write =		klsi_105_write,
+	.write_bulk_callback =	klsi_105_write_bulk_callback,
+	.chars_in_buffer =	klsi_105_chars_in_buffer,
+	.write_room =		klsi_105_write_room,
+	.read_bulk_callback =	klsi_105_read_bulk_callback,
+	.set_termios =		klsi_105_set_termios,
+	/*.break_ctl =		klsi_105_break_ctl,*/
+	.tiocmget =		klsi_105_tiocmget,
+	.tiocmset =		klsi_105_tiocmset,
+	.attach =		klsi_105_startup,
+	.disconnect =		klsi_105_disconnect,
+	.release =		klsi_105_release,
+	.throttle =		klsi_105_throttle,
+	.unthrottle =		klsi_105_unthrottle,
 };
 
 struct klsi_105_port_settings {
@@ -189,7 +189,7 @@ static int klsi_105_chg_port_settings(struct usb_serial_port *port,
 		 settings->pktlen, settings->baudrate, settings->databits,
 		 settings->unknown1, settings->unknown2);
 	return rc;
-} /* klsi_105_chg_port_settings */
+}
 
 /* translate a 16-bit status value from the device to linux's TIO bits */
 static unsigned long klsi_105_status2linestate(const __u16 status)
@@ -202,6 +202,7 @@ static unsigned long klsi_105_status2linestate(const __u16 status)
 
 	return res;
 }
+
 /*
  * Read line control via vendor command and return result through
  * *line_state_p
@@ -325,8 +326,7 @@ err_cleanup:
 		usb_set_serial_port_data(serial->port[i], NULL);
 	}
 	return -ENOMEM;
-} /* klsi_105_startup */
-
+}
 
 static void klsi_105_disconnect(struct usb_serial *serial)
 {
@@ -352,8 +352,7 @@ static void klsi_105_disconnect(struct usb_serial *serial)
 			}
 		}
 	}
-} /* klsi_105_disconnect */
-
+}
 
 static void klsi_105_release(struct usb_serial *serial)
 {
@@ -367,7 +366,7 @@ static void klsi_105_release(struct usb_serial *serial)
 
 		kfree(priv);
 	}
-} /* klsi_105_release */
+}
 
 static int  klsi_105_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
@@ -461,8 +460,7 @@ static int  klsi_105_open(struct tty_struct *tty, struct usb_serial_port *port)
 exit:
 	kfree(cfg);
 	return retval;
-} /* klsi_105_open */
-
+}
 
 static void klsi_105_close(struct usb_serial_port *port)
 {
@@ -498,15 +496,13 @@ static void klsi_105_close(struct usb_serial_port *port)
 	dev_info(&port->serial->dev->dev,
 		 "port stats: %ld bytes in, %ld bytes out\n",
 		 priv->bytes_in, priv->bytes_out);
-} /* klsi_105_close */
-
+}
 
 /* We need to write a complete 64-byte data block and encode the
  * number actually sent in the first double-byte, LSB-order. That
  * leaves at most 62 bytes of payload.
  */
 #define KLSI_105_DATA_OFFSET	2   /* in the bulk urb data block */
-
 
 static int klsi_105_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count)
@@ -586,7 +582,7 @@ exit:
 	priv->bytes_out += bytes_sent;
 
 	return bytes_sent;	/* that's how much we wrote */
-} /* klsi_105_write */
+}
 
 static void klsi_105_write_bulk_callback(struct urb *urb)
 {
@@ -602,8 +598,7 @@ static void klsi_105_write_bulk_callback(struct urb *urb)
 	}
 
 	usb_serial_port_softint(port);
-} /* klsi_105_write_bulk_completion_callback */
-
+}
 
 /* return number of characters currently in the writing process */
 static int klsi_105_chars_in_buffer(struct tty_struct *tty)
@@ -646,8 +641,6 @@ static int klsi_105_write_room(struct tty_struct *tty)
 	dbg("%s - returns %d", __func__, room);
 	return room;
 }
-
-
 
 static void klsi_105_read_bulk_callback(struct urb *urb)
 {
@@ -720,8 +713,7 @@ static void klsi_105_read_bulk_callback(struct urb *urb)
 		dev_err(&port->dev,
 			"%s - failed resubmitting read urb, error %d\n",
 			__func__, rc);
-} /* klsi_105_read_bulk_callback */
-
+}
 
 static void klsi_105_set_termios(struct tty_struct *tty,
 				 struct usb_serial_port *port,
@@ -888,8 +880,7 @@ static void klsi_105_set_termios(struct tty_struct *tty,
 	klsi_105_chg_port_settings(port, cfg);
 err:
 	kfree(cfg);
-} /* klsi_105_set_termios */
-
+}
 
 #if 0
 static void mct_u232_break_ctl(struct tty_struct *tty, int break_state)
@@ -907,7 +898,7 @@ static void mct_u232_break_ctl(struct tty_struct *tty, int break_state)
 		lcr |= MCT_U232_SET_BREAK;
 
 	mct_u232_set_line_ctrl(serial, lcr);
-} /* mct_u232_break_ctl */
+}
 #endif
 
 static int klsi_105_tiocmget(struct tty_struct *tty, struct file *file)
@@ -986,7 +977,6 @@ static void klsi_105_unthrottle(struct tty_struct *tty)
 }
 
 
-
 static int __init klsi_105_init(void)
 {
 	int retval;
@@ -1006,7 +996,6 @@ failed_usb_serial_register:
 	return retval;
 }
 
-
 static void __exit klsi_105_exit(void)
 {
 	usb_deregister(&kl5kusb105d_driver);
@@ -1024,5 +1013,3 @@ MODULE_LICENSE("GPL");
 
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "enable extensive debugging messages");
-
-/* vim: set sts=8 ts=8 sw=8: */
