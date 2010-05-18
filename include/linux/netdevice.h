@@ -2334,7 +2334,7 @@ do {								\
 #define netif_vdbg(priv, type, dev, format, args...)		\
 ({								\
 	if (0)							\
-		netif_printk(KERN_DEBUG, dev, format, ##args);	\
+		netif_printk(priv, type, KERN_DEBUG, dev, format, ##args); \
 	0;							\
 })
 #endif
