@@ -1070,10 +1070,13 @@ static int super_90_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 				mddev->bitmap_info.default_offset;
 
 	} else if (mddev->pers == NULL) {
-		/* Insist on good event counter while assembling */
+		/* Insist on good event counter while assembling, except
+		 * for spares (which don't need an event count) */
 		++ev1;
-		if (ev1 < mddev->events) 
-			return -EINVAL;
+		if (sb->disks[rdev->desc_nr].state & (
+			    (1<<MD_DISK_SYNC) | (1 << MD_DISK_ACTIVE)))
+			if (ev1 < mddev->events) 
+				return -EINVAL;
 	} else if (mddev->bitmap) {
 		/* if adding to array with a bitmap, then we can accept an
 		 * older device ... but not too old.
@@ -1469,10 +1472,14 @@ static int super_1_validate(mddev_t *mddev, mdk_rdev_t *rdev)
 		}
 
 	} else if (mddev->pers == NULL) {
-		/* Insist of good event counter while assembling */
+		/* Insist of good event counter while assembling, except for
+		 * spares (which don't need an event count) */
 		++ev1;
-		if (ev1 < mddev->events)
-			return -EINVAL;
+		if (rdev->desc_nr >= 0 &&
+		    rdev->desc_nr < le32_to_cpu(sb->max_dev) &&
+		    le16_to_cpu(sb->dev_roles[rdev->desc_nr]) < 0xfffe)
+			if (ev1 < mddev->events)
+				return -EINVAL;
 	} else if (mddev->bitmap) {
 		/* If adding to array with a bitmap, then we can accept an
 		 * older device, but not too old.
