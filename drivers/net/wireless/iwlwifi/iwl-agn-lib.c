@@ -1150,6 +1150,7 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 	bool is_active = false;
 	int  chan_mod;
 	u8 active_chains;
+	u8 scan_tx_antennas = priv->hw_params.valid_tx_ant;
 
 	conf = ieee80211_get_hw_conf(priv->hw);
 
@@ -1301,11 +1302,14 @@ void iwlagn_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif)
 
 	band = priv->scan_band;
 
-	if (priv->cfg->scan_antennas[band])
-		rx_ant = priv->cfg->scan_antennas[band];
+	if (priv->cfg->scan_rx_antennas[band])
+		rx_ant = priv->cfg->scan_rx_antennas[band];
 
-	priv->scan_tx_ant[band] =
-			iwl_toggle_tx_ant(priv, priv->scan_tx_ant[band]);
+	if (priv->cfg->scan_tx_antennas[band])
+		scan_tx_antennas = priv->cfg->scan_tx_antennas[band];
+
+	priv->scan_tx_ant[band] = iwl_toggle_tx_ant(priv, priv->scan_tx_ant[band],
+						    scan_tx_antennas);
 	rate_flags |= iwl_ant_idx_to_flags(priv->scan_tx_ant[band]);
 	scan->tx_cmd.rate_n_flags = iwl_hw_set_rate_n_flags(rate, rate_flags);
 

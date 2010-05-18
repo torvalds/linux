@@ -2326,7 +2326,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	 * Force use of chains B and C for scan RX on 5 GHz band
 	 * because the device has off-channel reception on chain A.
 	 */
-	.scan_antennas[IEEE80211_BAND_5GHZ] = ANT_BC,
+	.scan_rx_antennas[IEEE80211_BAND_5GHZ] = ANT_BC,
 };
 
 /* Module firmware */

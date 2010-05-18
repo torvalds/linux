@@ -141,13 +141,14 @@ int iwl_hwrate_to_plcp_idx(u32 rate_n_flags)
 }
 EXPORT_SYMBOL(iwl_hwrate_to_plcp_idx);
 
-u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant)
+u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant, u8 valid)
 {
 	int i;
 	u8 ind = ant;
+
 	for (i = 0; i < RATE_ANT_NUM - 1; i++) {
 		ind = (ind + 1) < RATE_ANT_NUM ?  ind + 1 : 0;
-		if (priv->hw_params.valid_tx_ant & BIT(ind))
+		if (valid & BIT(ind))
 			return ind;
 	}
 	return ant;

@@ -328,7 +328,8 @@ struct iwl_cfg {
 	const bool ucode_tracing;
 	const bool sensitivity_calib_by_driver;
 	const bool chain_noise_calib_by_driver;
-	u8 scan_antennas[IEEE80211_NUM_BANDS];
+	u8 scan_rx_antennas[IEEE80211_NUM_BANDS];
+	u8 scan_tx_antennas[IEEE80211_NUM_BANDS];
 };
 
 /***************************
@@ -499,7 +500,7 @@ int iwl_hwrate_to_plcp_idx(u32 rate_n_flags);
 
 u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv);
 
-u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx);
+u8 iwl_toggle_tx_ant(struct iwl_priv *priv, u8 ant_idx, u8 valid);
 
 static inline u32 iwl_ant_idx_to_flags(u8 ant_idx)
 {
