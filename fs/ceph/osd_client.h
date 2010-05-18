@@ -134,14 +134,20 @@ struct ceph_osd_req_op {
 			__u8 cmp_mode;     /* CEPH_OSD_CMPXATTR_MODE_* */
 		} xattr;
 		struct {
+			const char *class_name;
 			__u8 class_len;
+			const char *method_name;
 			__u8 method_len;
 			__u8 argc;
+			const char *indata;
 			u32 indata_len;
 		} cls;
 		struct {
 			u64 cookie, count;
 		} pgls;
+	        struct {
+		        u64 snapid;
+	        } snap;
 	};
 	u32 payload_len;
 };

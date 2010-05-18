@@ -161,6 +161,7 @@ static int op_needs_trail(int op)
 	case CEPH_OSD_OP_GETXATTR:
 	case CEPH_OSD_OP_SETXATTR:
 	case CEPH_OSD_OP_CMPXATTR:
+	case CEPH_OSD_OP_CALL:
 		return 1;
 	default:
 		return 0;
@@ -300,6 +301,23 @@ static void osd_req_encode_op(struct ceph_osd_request *req,
 				     src->xattr.name_len);
 		ceph_pagelist_append(req->r_trail, src->xattr.val,
 				     src->xattr.value_len);
+		break;
+	case CEPH_OSD_OP_CALL:
+		BUG_ON(!req->r_trail);
+
+		dst->cls.class_len = src->cls.class_len;
+		dst->cls.method_len = src->cls.method_len;
+		dst->cls.indata_len = cpu_to_le32(src->cls.indata_len);
+
+		ceph_pagelist_append(req->r_trail, src->cls.class_name,
+				     src->cls.class_len);
+		ceph_pagelist_append(req->r_trail, src->cls.method_name,
+				     src->cls.method_len);
+		ceph_pagelist_append(req->r_trail, src->cls.indata,
+				     src->cls.indata_len);
+		break;
+	case CEPH_OSD_OP_ROLLBACK:
+		dst->snap.snapid = cpu_to_le64(src->snap.snapid);
 		break;
 	case CEPH_OSD_OP_STARTSYNC:
 		break;

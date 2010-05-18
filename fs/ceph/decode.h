@@ -191,6 +191,11 @@ static inline void ceph_encode_string(void **p, void *end,
 		ceph_encode_need(p, end, n, bad);		\
 		ceph_encode_copy(p, pv, n);			\
 	} while (0)
+#define ceph_encode_string_safe(p, end, s, n, bad)		\
+	do {							\
+		ceph_encode_need(p, end, n, bad);		\
+		ceph_encode_string(p, end, s, n);		\
+	} while (0)
 
 
 #endif
