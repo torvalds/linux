@@ -670,7 +670,7 @@ static void p4_pmu_swap_config_ts(struct hw_perf_event *hwc, int cpu)
 
 /*
  * ESCR address hashing is tricky, ESCRs are not sequential
- * in memory but all starts from MSR_P4_BSU_ESCR0 (0x03e0) and
+ * in memory but all starts from MSR_P4_BSU_ESCR0 (0x03a0) and
  * the metric between any ESCRs is laid in range [0xa0,0xe1]
  *
  * so we make ~70% filled hashtable
@@ -735,8 +735,9 @@ static int p4_get_escr_idx(unsigned int addr)
 {
 	unsigned int idx = P4_ESCR_MSR_IDX(addr);
 
-	if (unlikely(idx >= P4_ESCR_MSR_TABLE_SIZE ||
-			!p4_escr_table[idx])) {
+	if (unlikely(idx >= P4_ESCR_MSR_TABLE_SIZE	||
+			!p4_escr_table[idx]		||
+			p4_escr_table[idx] != addr)) {
 		WARN_ONCE(1, "P4 PMU: Wrong address passed: %x\n", addr);
 		return -1;
 	}
