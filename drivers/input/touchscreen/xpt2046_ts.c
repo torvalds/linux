@@ -339,7 +339,7 @@ static void xpt2046_rx(void *xpt)
 		udelay(ts->penirq_recheck_delay_usecs);
 		if (!get_pendown_state(ts))
 		{
-			printk("***>%s:get_pendown_state(ts)==0,discard false reading\n",__FUNCTION__);
+			xpt2046printk("***>%s:get_pendown_state(ts)==0,discard false reading\n",__FUNCTION__);
 			Rt = 0;
 		}
 	}
@@ -357,7 +357,7 @@ static void xpt2046_rx(void *xpt)
 		if (!ts->pendown) {
 			input_report_key(input, BTN_TOUCH, 1);
 			ts->pendown = 1;
-			printk("***>%s:input_report_key(pen down)\n",__FUNCTION__);
+			xpt2046printk("***>%s:input_report_key(pen down)\n",__FUNCTION__);
 		}
 		
 		x =  AD_TO_X(x);
@@ -507,12 +507,12 @@ static enum hrtimer_restart xpt2046_timer(struct hrtimer *handle)
 
 			ts->pendown = 0;
 			
-			printk("***>%s:input_report_key(The touchscreen up)\n",__FUNCTION__);
+			xpt2046printk("***>%s:input_report_key(The touchscreen up)\n",__FUNCTION__);
 		}
 
 		/* measurement cycle ended */
 		if (!device_suspended(&ts->spi->dev)) {
-			printk("***>%s:device_suspended==0\n",__FUNCTION__);
+			xpt2046printk("***>%s:device_suspended==0\n",__FUNCTION__);
 			ts->irq_disabled = 0;
 			enable_irq(ts->spi->irq);
 		}
