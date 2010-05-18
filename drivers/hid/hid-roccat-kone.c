@@ -912,6 +912,24 @@ static void kone_remove(struct hid_device *hdev)
 	hid_hw_stop(hdev);
 }
 
+/* handle special events and keep actual profile and dpi values up to date */
+static void kone_keep_values_up_to_date(struct kone_device *kone,
+		struct kone_mouse_event const *event)
+{
+	switch (event->event) {
+	case kone_mouse_event_switch_profile:
+	case kone_mouse_event_osd_profile:
+		kone->actual_profile = event->value;
+		kone->actual_dpi = kone->profiles[kone->actual_profile - 1].
+				startup_dpi;
+		break;
+	case kone_mouse_event_switch_dpi:
+	case kone_mouse_event_osd_dpi:
+		kone->actual_dpi = event->value;
+		break;
+	}
+}
+
 /*
  * Is called for keyboard- and mousepart.
  * Only mousepart gets informations about special events in its extended event
@@ -938,41 +956,9 @@ static int kone_raw_event(struct hid_device *hdev, struct hid_report *report,
 	else
 		memset(&event->tilt, 0, 5);
 
-	/*
-	 * handle special events and keep actual profile and dpi values
-	 * up to date
-	 */
-	switch (event->event) {
-	case kone_mouse_event_osd_dpi:
-		dev_dbg(&hdev->dev, "osd dpi event. actual dpi %d\n",
-				event->value);
-		return 1; /* return 1 if event was handled */
-	case kone_mouse_event_switch_dpi:
-		kone->actual_dpi = event->value;
-		dev_dbg(&hdev->dev, "switched dpi to %d\n", event->value);
-		return 1;
-	case kone_mouse_event_osd_profile:
-		dev_dbg(&hdev->dev, "osd profile event. actual profile %d\n",
-				event->value);
-		return 1;
-	case kone_mouse_event_switch_profile:
-		kone->actual_profile = event->value;
-		kone->actual_dpi = kone->profiles[kone->actual_profile - 1].
-				startup_dpi;
-		dev_dbg(&hdev->dev, "switched profile to %d\n", event->value);
-		return 1;
-	case kone_mouse_event_call_overlong_macro:
-		dev_dbg(&hdev->dev, "overlong macro called, button %d %s/%s\n",
-				event->macro_key,
-				kone->profiles[kone->actual_profile - 1].
-				button_infos[event->macro_key].macro_set_name,
-				kone->profiles[kone->actual_profile - 1].
-				button_infos[event->macro_key].macro_name
-				);
-		return 1;
-	}
+	kone_keep_values_up_to_date(kone, event);
 
-	return 0; /* do further processing */
+	return 0; /* always do further processing */
 }
 
 static const struct hid_device_id kone_devices[] = {
