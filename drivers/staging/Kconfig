@@ -145,5 +145,7 @@ source "drivers/staging/xgifb/Kconfig"
 
 source "drivers/staging/mrst-touchscreen/Kconfig"
 
+source "drivers/staging/msm/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING
