@@ -17,28 +17,10 @@
 #include <mach/gpio-nrs.h>
 
 #ifdef CONFIG_CPU_S3C2400
-#define S3C24XX_GPIO_BASE(x)  S3C2400_GPIO_BASE(x)
-#define S3C24XX_MISCCR        S3C2400_MISCCR
+#define S3C24XX_MISCCR		S3C2400_MISCCR
 #else
-#define S3C24XX_GPIO_BASE(x)  S3C2410_GPIO_BASE(x)
-#define S3C24XX_MISCCR	      S3C24XX_GPIOREG2(0x80)
+#define S3C24XX_MISCCR		S3C24XX_GPIOREG2(0x80)
 #endif /* CONFIG_CPU_S3C2400 */
-
-
-/* S3C2400 doesn't have a 1:1 mapping to S3C2410 gpio base pins */
-
-#define S3C2400_BANKNUM(pin)     (((pin) & ~31) / 32)
-#define S3C2400_BASEA2B(pin)     ((((pin) & ~31) >> 2))
-#define S3C2400_BASEC2H(pin)     ((S3C2400_BANKNUM(pin) * 10) + \
-                                 (2 * (S3C2400_BANKNUM(pin)-2)))
-
-#define S3C2400_GPIO_BASE(pin)   (pin < S3C2410_GPIO_BANKC ? \
-                                 S3C2400_BASEA2B(pin)+S3C24XX_VA_GPIO : \
-                                 S3C2400_BASEC2H(pin)+S3C24XX_VA_GPIO)
-
-
-#define S3C2410_GPIO_BASE(pin)   ((((pin) & ~31) >> 1) + S3C24XX_VA_GPIO)
-#define S3C2410_GPIO_OFFSET(pin) ((pin) & 31)
 
 /* general configuration options */
 
@@ -638,6 +620,23 @@
  * GPH, which means all registers after 0x80 are now offset by 0x10
  * for the 2412/2413 from the 2410/2440/2442
 */
+
+/* S3C2443 and above */
+#define S3C2440_GPJCON	   S3C2410_GPIOREG(0xD0)
+#define S3C2440_GPJDAT	   S3C2410_GPIOREG(0xD4)
+#define S3C2440_GPJUP	   S3C2410_GPIOREG(0xD8)
+
+#define S3C2443_GPKCON	   S3C2410_GPIOREG(0xE0)
+#define S3C2443_GPKDAT	   S3C2410_GPIOREG(0xE4)
+#define S3C2443_GPKUP	   S3C2410_GPIOREG(0xE8)
+
+#define S3C2443_GPLCON	   S3C2410_GPIOREG(0xF0)
+#define S3C2443_GPLDAT	   S3C2410_GPIOREG(0xF4)
+#define S3C2443_GPLUP	   S3C2410_GPIOREG(0xF8)
+
+#define S3C2443_GPMCON	   S3C2410_GPIOREG(0x100)
+#define S3C2443_GPMDAT	   S3C2410_GPIOREG(0x104)
+#define S3C2443_GPMUP	   S3C2410_GPIOREG(0x108)
 
 /* miscellaneous control */
 #define S3C2400_MISCCR	   S3C2410_GPIOREG(0x54)

@@ -85,10 +85,10 @@ static void smdk2413_udc_pullup(enum s3c2410_udc_cmd_e cmd)
 	switch (cmd)
 	{
 		case S3C2410_UDC_P_ENABLE :
-			s3c2410_gpio_setpin(S3C2410_GPF(2), 1);
+			gpio_set_value(S3C2410_GPF(2), 1);
 			break;
 		case S3C2410_UDC_P_DISABLE :
-			s3c2410_gpio_setpin(S3C2410_GPF(2), 0);
+			gpio_set_value(S3C2410_GPF(2), 0);
 			break;
 		case S3C2410_UDC_P_RESET :
 			break;
@@ -134,8 +134,8 @@ static void __init smdk2413_machine_init(void)
 {	/* Turn off suspend on both USB ports, and switch the
 	 * selectable USB port to USB device mode. */
 
-	s3c2410_gpio_setpin(S3C2410_GPF(2), 0);
-	s3c2410_gpio_cfgpin(S3C2410_GPF(2), S3C2410_GPIO_OUTPUT);
+	WARN_ON(gpio_request(S3C2410_GPF(2), "udc pull"));
+	gpio_direction_output(S3C2410_GPF(2), 0);
 
 	s3c2410_modify_misccr(S3C2410_MISCCR_USBHOST |
 			      S3C2410_MISCCR_USBSUSPND0 |
