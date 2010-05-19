@@ -444,7 +444,7 @@ static int serial_2002_open(struct comedi_device *dev)
 				break;
 			} else {
 				int command, channel, kind;
-				struct config_t *cur_config = 0;
+				struct config_t *cur_config = NULL;
 
 				channel = data.value & 0x1f;
 				kind = (data.value >> 5) & 0x7;
@@ -571,8 +571,8 @@ static int serial_2002_open(struct comedi_device *dev)
 		for (i = 0; i <= 4; i++) {
 			/*  Fill in subdev data */
 			struct config_t *c;
-			unsigned char *mapping = 0;
-			struct serial2002_range_table_t *range = 0;
+			unsigned char *mapping = NULL;
+			struct serial2002_range_table_t *range = NULL;
 			int kind = 0;
 
 			switch (i) {
@@ -610,7 +610,7 @@ static int serial_2002_open(struct comedi_device *dev)
 				}
 				break;
 			default:{
-					c = 0;
+					c = NULL;
 				}
 				break;
 			}
