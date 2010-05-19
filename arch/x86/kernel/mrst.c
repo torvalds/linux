@@ -46,7 +46,7 @@
  * lapic (always-on,ARAT) ------ 150
  */
 
-int mrst_timer_options __cpuinitdata;
+__cpuinitdata enum mrst_timer_options mrst_timer_options;
 
 static u32 sfi_mtimer_usage[SFI_MTMR_MAX_NUM];
 static struct sfi_timer_table_entry sfi_mtimer_array[SFI_MTMR_MAX_NUM];

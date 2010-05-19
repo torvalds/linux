@@ -11,7 +11,6 @@
 #ifndef _ASM_X86_MRST_H
 #define _ASM_X86_MRST_H
 extern int pci_mrst_init(void);
-extern int mrst_timer_options __cpuinitdata;
 int __init sfi_parse_mrtc(struct sfi_table_header *table);
 
 /*
@@ -37,6 +36,8 @@ enum mrst_timer_options {
 	MRST_TIMER_APBT_ONLY,
 	MRST_TIMER_LAPIC_APBT,
 };
+
+extern enum mrst_timer_options mrst_timer_options;
 
 #define SFI_MTMR_MAX_NUM 8
 #define SFI_MRTC_MAX	8
