@@ -1,0 +1,1549 @@
+/****************************************************************
+//    CopyRight(C) 2008 by Rock-Chip Fuzhou
+//      All Rights Reserved
+//文件名:hw_sdram.c
+//描述:sdram driver implement
+//作者:hcy
+//创建日期:2008-11-08
+//更改记录:
+$Log: hw_sdram.c,v $
+Revision 1.1.1.1  2009/12/15 01:46:27  zjd
+20091215 杨永忠提交初始版本
+
+Revision 1.1.1.1  2009/09/25 08:00:32  zjd
+20090925 黄德胜提交 V1.3.1
+
+Revision 1.1.1.1  2009/08/18 06:43:26  Administrator
+no message
+
+Revision 1.1.1.1  2009/08/14 08:02:00  Administrator
+no message
+
+Revision 1.4  2009/04/02 03:03:37  hcy
+更新SDRAM时序配置，只考虑-6，-75系列SDRAM
+
+Revision 1.3  2009/03/19 13:38:39  hxy
+hcy去掉SDRAM保守时序,保守时序不对,导致MP3播放时界面抖动
+
+Revision 1.2  2009/03/19 12:21:18  hxy
+hcy增加SDRAM保守时序供测试
+
+Revision 1.1.1.1  2009/03/16 01:34:06  zjd
+20090316 邓训金提供初始SDK版本
+
+Revision 1.2  2009/03/07 07:30:18  yk
+(yk)更新SCU模块各频率设置，完成所有函数及代码，更新初始化设置，
+更新遥控器代码，删除FPGA_BOARD宏。
+(hcy)SDRAM驱动改成28的
+
+//当前版本:1.00
+****************************************************************/
+#define  DRIVERS_DDRAM
+
+
+#ifdef DRIVERS_DDRAM
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/irqflags.h>
+#include <linux/string.h>
+#include <linux/version.h>
+
+#include <asm/tcm.h>
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
+#include <mach/rk2818_iomap.h>
+#include <mach/memory.h>
+#else
+#include <asm/arch/hardware.h>
+#include <asm/arch/rk28_debug.h>
+#include <asm/arch/rk28_scu.h>
+#endif
+#include <asm/delay.h>
+/*APB reg file*/
+typedef volatile struct tagGRF_REG
+{
+    unsigned int  CPU_APB_REG0;
+    unsigned int  CPU_APB_REG1;
+    unsigned int  CPU_APB_REG2;
+    unsigned int  CPU_APB_REG3;
+    unsigned int  CPU_APB_REG4;
+    unsigned int  CPU_APB_REG5;
+    unsigned int  CPU_APB_REG6;
+    unsigned int  CPU_APB_REG7;
+    unsigned int  IOMUX_A_CON;
+    unsigned int  IOMUX_B_CON;
+    unsigned int  GPIO0_AB_PU_CON;
+    unsigned int  GPIO0_CD_PU_CON;
+    unsigned int  GPIO1_AB_PU_CON;
+    unsigned int  GPIO1_CD_PU_CON;
+    unsigned int  OTGPHY_CON0;
+    unsigned int  OTGPHY_CON1;
+}GRF_REG, *pGRF_REG,*pAPB_REG;
+
+/*scu*/
+typedef volatile struct tagSCU_REG
+{
+    unsigned int SCU_APLL_CON;//[3];//0:arm 1:dsp 2:codec
+    unsigned int SCU_DPLL_CON;
+    unsigned int SCU_CPLL_CON;
+    unsigned int SCU_MODE_CON;
+    unsigned int SCU_PMU_CON;
+    unsigned int SCU_CLKSEL0_CON;
+    unsigned int SCU_CLKSEL1_CON;
+    unsigned int SCU_CLKGATE0_CON;
+    unsigned int SCU_CLKGATE1_CON;
+    unsigned int SCU_CLKGATE2_CON;
+    unsigned int SCU_SOFTRST_CON;
+    unsigned int SCU_CHIPCFG_CON;
+    unsigned int SCU_CPUPD;
+	unsigned int SCU_CLKSEL2_CON;
+}SCU_REG,*pSCU_REG;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
+typedef u32 uint32;
+#define SCU_BASE_ADDR_VA	RK2818_SCU_BASE
+#define SDRAMC_BASE_ADDR_VA	RK2818_SDRAMC_BASE
+#define REG_FILE_BASE_ADDR_VA	RK2818_REGFILE_BASE
+#endif
+
+#define SDRAM_REG_BASE     (SDRAMC_BASE_ADDR_VA)
+#define DDR_REG_BASE       (SDRAMC_BASE_ADDR_VA)
+
+/* CPU_APB_REG4 */
+#define MSDR_1_8V_ENABLE  (0x1 << 24)
+#define READ_PIPE_ENABLE  (0x1 << 22)
+#define EXIT_SELF_REFRESH (0x1 << 21)
+
+/* CPU_APB_REG5 */
+#define MEMTYPEMASK   (0x3 << 11) 
+#define SDRAM         (0x0 << 11)
+#define Mobile_SDRAM  (0x1 << 11)
+#define DDRII         (0x2 << 11)
+#define Mobile_DDR    (0x3 << 11)
+
+/* SDRAM Config Register */
+#define DATA_WIDTH_16     (0x0 << 13)
+#define DATA_WIDTH_32     (0x1 << 13)
+#define DATA_WIDTH_64     (0x2 << 13)
+#define DATA_WIDTH_128    (0x3 << 13)
+
+#define COL(n)            ((n-1) << 9)
+#define ROW(n)            ((n-1) << 5)
+
+#define BANK_2            (0 << 3)
+#define BANK_4            (1 << 3)
+#define BANK_8            (2 << 3)
+#define BANK_16           (3 << 3) 
+
+/* SDRAM Timing Register0 */
+#define T_RC_SHIFT        (22)
+#define T_RC_MAX         (0xF)
+#define T_XSR_MSB_SHIFT   (27)
+#define T_XSR_MSB_MASK    (0x1F)
+#define T_XSR_LSB_SHIFT   (18)
+#define T_XSR_LSB_MASK    (0xF)
+#define T_RCAR_SHIFT      (14)
+#define T_RCAR_MAX       (0xF)
+#define T_WR_SHIFT        (12)
+#define T_WR_MAX         (0x3)
+#define T_RP_SHIFT        (9)
+#define T_RP_MAX         (0x7)
+#define T_RCD_SHIFT       (6)
+#define T_RCD_MAX        (0x7)
+#define T_RAS_SHIFT       (2)
+#define T_RAS_MASK        (0xF)
+
+#define CL_1              (0)
+#define CL_2              (1)
+#define CL_3              (2)
+#define CL_4              (3)
+
+/* SDRAM Timing Register1 */
+#define AR_COUNT_SHIFT    (16)
+
+/* SDRAM Control Regitster */
+#define MSD_DEEP_POWERDOWN (1 << 20)
+#define UPDATE_EMRS    (1 << 18)
+#define OPEN_BANK_COUNT_SHIFT  (12)
+#define SR_MODE            (1 << 11)
+#define UPDATE_MRS         (1 << 9)
+#define READ_PIPE_SHIFT    (6)
+#define REFRESH_ALL_ROW_A  (1 << 5)
+#define REFRESH_ALL_ROW_B  (1 << 4)
+#define DELAY_PRECHARGE    (1 << 3)
+#define SDR_POWERDOWN      (1 << 2)
+#define ENTER_SELF_REFRESH (1 << 1)
+#define SDR_INIT           (1 << 0)
+
+/* Extended Mode Register */
+#define DS_FULL            (0 << 5)
+#define DS_1_2             (1 << 5)
+#define DS_1_4             (2 << 5)
+#define DS_1_8             (3 << 5)
+
+#define TCSR_70            (0 << 3)
+#define TCSR_45            (1 << 3)
+#define TCSR_15            (2 << 3)
+#define TCSR_85            (3 << 3)
+
+#define PASR_4_BANK        (0)
+#define PASR_2_BANK        (1)
+#define PASR_1_BANK        (2)
+#define PASR_1_2_BANK      (5)
+#define PASR_1_4_BANK      (6)
+
+/* SDRAM Controller register struct */
+typedef volatile struct TagSDRAMC_REG
+{
+    volatile uint32 MSDR_SCONR;         //SDRAM configuration register
+    volatile uint32 MSDR_STMG0R;        //SDRAM timing register0
+    volatile uint32 MSDR_STMG1R;        //SDRAM timing register1
+    volatile uint32 MSDR_SCTLR;         //SDRAM control register
+    volatile uint32 MSDR_SREFR;         //SDRAM refresh register
+    volatile uint32 MSDR_SCSLR0_LOW;    //Chip select register0(lower 32bits)
+    volatile uint32 MSDR_SCSLR1_LOW;    //Chip select register1(lower 32bits)
+    volatile uint32 MSDR_SCSLR2_LOW;    //Chip select register2(lower 32bits)
+    uint32 reserved0[(0x54-0x1c)/4 - 1];
+    volatile uint32 MSDR_SMSKR0;        //Mask register 0
+    volatile uint32 MSDR_SMSKR1;        //Mask register 1
+    volatile uint32 MSDR_SMSKR2;        //Mask register 2
+    uint32 reserved1[(0x84-0x5c)/4 - 1];
+    volatile uint32 MSDR_CSREMAP0_LOW;  //Remap register for chip select0(lower 32 bits)
+    uint32 reserved2[(0x94-0x84)/4 - 1];
+    volatile uint32 MSDR_SMTMGR_SET0;   //Static memory timing register Set0
+    volatile uint32 MSDR_SMTMGR_SET1;   //Static memory timing register Set1
+    volatile uint32 MSDR_SMTMGR_SET2;   //Static memory timing register Set2
+    volatile uint32 MSDR_FLASH_TRPDR;   //FLASH memory tRPD timing register
+    volatile uint32 MSDR_SMCTLR;        //Static memory control register
+    uint32 reserved4;
+    volatile uint32 MSDR_EXN_MODE_REG;  //Extended Mode Register
+}SDRAMC_REG_T,*pSDRAMC_REG_T;
+
+
+#define pSDR_Reg       ((pSDRAMC_REG_T)SDRAM_REG_BASE)
+#define pDDR_Reg       ((pDDRC_REG_T)DDR_REG_BASE)
+#define pSCU_Reg       ((pSCU_REG)SCU_BASE_ADDR_VA)
+#define pGRF_Reg       ((pGRF_REG)REG_FILE_BASE_ADDR_VA)
+
+#define DDR_MEM_TYPE()	(pGRF_Reg->CPU_APB_REG0 & MEMTYPEMASK)
+
+#define ODT_DIS          (0x0)
+#define ODT_75           (0x8)
+#define ODT_150          (0x40)
+#define ODT_50           (0x48)
+
+/* CTRL_REG_01 */
+#define EXP_BDW_OVFLOW   (0x1 << 24)  //port 3
+#define LCDC_BDW_OVFLOW  (0x1 << 16)  //port 2
+
+/* CTRL_REG_02 */
+#define VIDEO_BDW_OVFLOW (0x1 << 24) //port 7
+#define CEVA_BDW_OVFLOW  (0x1 << 16) //port 6
+#define ARMI_BDW_OVFLOW  (0x1 << 8)  //port 5
+#define ARMD_BDW_OVFLOW  (0x1 << 0)  //port 4
+
+/* CTR_REG_03 */
+#define CONCURRENTAP     (0x1 << 16)
+
+/* CTRL_REG_04 */
+#define SINGLE_ENDED_DQS  (0x0 << 24)
+#define DIFFERENTIAL_DQS  (0x1 << 24)
+#define DLL_BYPASS_EN     (0x1 << 16)
+
+/* CTR_REG_05 */
+#define CS1_BANK_4        (0x0 << 16)
+#define CS1_BANK_8        (0x1 << 16)
+#define CS0_BANK_4        (0x0 << 8)
+#define CS0_BANK_8        (0x1 << 8)
+
+/* CTR_REG_07 */
+#define ODT_CL_3          (0x1 << 8)
+
+/* CTR_REG_08 */
+#define BUS_16BIT         (0x1 << 16)
+#define BUS_32BIT         (0x0 << 16)
+
+/* CTR_REG_10 */
+#define EN_TRAS_LOCKOUT   (0x1 << 24)
+#define DIS_TRAS_LOCKOUT  (0x0 << 24)
+
+/* CTR_REG_12 */
+#define AXI_MC_ASYNC      (0x0)
+#define AXI_MC_2_1        (0x1)
+#define AXI_MC_1_2        (0x2)
+#define AXI_MC_SYNC       (0x3)
+
+/* CTR_REG_13 */
+#define LCDC_WR_PRIO(n)    ((n) << 24)
+#define LCDC_RD_PRIO(n)    ((n) << 16)
+
+/* CTR_REG_14 */
+#define EXP_WR_PRIO(n)     ((n) << 16)
+#define EXP_RD_PRIO(n)     ((n) << 8)
+
+/* CTR_REG_15 */
+#define ARMD_WR_PRIO(n)     ((n) << 8)
+#define ARMD_RD_PRIO(n)     (n)
+#define ARMI_RD_PRIO(n)     ((n) << 24)
+
+/* CTR_REG_16 */
+#define ARMI_WR_PRIO(n)     (n)
+#define CEVA_WR_PRIO(n)     ((n) << 24)
+#define CEVA_RD_PRIO(n)     ((n) << 16)
+
+/* CTR_REG_17 */
+#define VIDEO_WR_PRIO(n)     ((n) << 16)
+#define VIDEO_RD_PRIO(n)     ((n) << 8)
+#define CS_MAP(n)            ((n) << 24)
+
+/* CTR_REG_18 */
+#define CS0_RD_ODT_MASK      (0x3 << 24)
+#define CS0_RD_ODT(n)        (0x1 << (24+(n)))
+#define CS0_LOW_POWER_REF_EN (0x0 << 8)
+#define CS0_LOW_POWER_REF_DIS (0x1 << 8)
+#define CS1_LOW_POWER_REF_EN (0x0 << 9)
+#define CS1_LOW_POWER_REF_DIS (0x1 << 9)
+
+/* CTR_REG_19 */
+#define CS0_ROW(n)           ((15-(n)) << 24)
+#define CS1_WR_ODT_MASK      (0x3 << 16)
+#define CS1_WR_ODT(n)        (0x1 << (16+(n)))
+#define CS0_WR_ODT_MASK      (0x3 << 8)
+#define CS0_WR_ODT(n)        (0x1 << (8+(n)))
+#define CS1_RD_ODT_MASK      (0x3)
+#define CS1_RD_ODT(n)        (0x1 << (n))
+
+/* CTR_REG_20 */
+#define CS1_ROW(n)           (15-(n))
+#define CL(n)                (((n)&0x7) << 16)
+
+/* CTR_REG_21 */
+#define CS0_COL(n)           (13-(n))
+#define CS1_COL(n)           ((13-(n)) << 8)
+
+/* CTR_REG_23 */
+#define TRRD(n)              ((n) << 24)
+#define TCKE(n)              ((n) << 8)
+
+/* CTR_REG_24 */
+#define TRTP(n)              (n)
+
+/* CTR_REG_29 */
+//CAS latency linear value
+#define CL_L_1_0             (2)
+#define CL_L_1_5             (3)
+#define CL_L_2_0             (4)
+#define CL_L_2_5             (5)
+#define CL_L_3_0             (6)
+#define CL_L_3_5             (7)
+#define CL_L_4_0             (8)
+#define CL_L_4_5             (9)
+#define CL_L_5_0             (0xA)
+#define CL_L_5_5             (0xB)
+#define CL_L_6_0             (0xC)
+#define CL_L_6_5             (0xD)
+#define CL_L_7_0             (0xE)
+#define CL_L_7_5             (0xF)
+
+/* CTR_REG_34 */
+#define CS0_TRP_ALL(n)       ((n) << 24)
+#define TRP(n)               ((n) << 16)
+
+/* CTR_REG_35 */
+#define WL(n)                ((((n)&0xF) << 16) | (((n)&0xF) << 24))
+#define TWTR(n)              (((n)&0xF) << 8)
+#define CS1_TRP_ALL(n)       ((n)&0xF)
+
+/* CTR_REG_37 */
+#define TMRD(n)              ((n) << 24)
+#define TDAL(n)              ((n) << 16)
+#define TCKESR(n)            ((n) << 8)
+#define TCCD(n)              (n)
+
+/* CTR_REG_38 */
+#define TRC(n)               ((n) << 24)
+#define TFAW(n)              ((n) << 16)
+#define TWR(n)               (n)
+
+/* CTR_REG_40 */
+#define EXP_BW_PER(n)        ((n) << 16)
+#define LCDC_BW_PER(n)       (n)
+
+/* CTR_REG_41 */
+#define ARMI_BW_PER(n)       ((n) << 16)
+#define ARMD_BW_PER(n)       (n)
+
+/* CTR_REG_42 */
+#define VIDEO_BW_PER(n)      ((n) << 16)
+#define CEVA_BW_PER(n)       (n)
+
+/* CTR_REG_43 */
+#define TMOD(n)              (((n)&0xFF) << 24)
+
+/* CTR_REG_44 */
+#define TRFC(n)              ((n) << 16)
+#define TRCD(n)              ((n) << 8)
+#define TRAS_MIN(n)          (n)
+
+/* CTR_REG_48 */
+#define TPHYUPD_RESP(n)      (((n)&0x3FFF) << 16)
+#define TCTRLUPD_MAX(n)      ((n)&0x3FFF)
+
+/* CTR_REG_51 */
+#define CS0_MR(n)            ((((n) & 0xFEF0) | 0x2) << 16)
+#define TREF(n)              (n)
+
+/* CTR_REG_52 */
+#define CS0_EMRS_1(n)        (((n)&0xFFC7) << 16)
+#define CS1_MR(n)            (((n) & 0xFEF0) | 0x2)
+
+/* CTR_REG_53 */
+#define CS0_EMRS_2(n)        ((n) << 16)
+#define CS0_EMR(n)           ((n) << 16)
+#define CS1_EMRS_1(n)        ((n)&0xFFC7)
+
+/* CTR_REG_54 */
+#define CS0_EMRS_3(n)        ((n) << 16)
+#define CS1_EMRS_2(n)        (n)
+#define CS1_EMR(n)           (n)
+
+/* CTR_REG_55 */
+#define CS1_EMRS_3(n)        (n)
+
+/* CTR_REG_59 */
+#define CS_MSK_0(n)          (((n)&0xFFFF) << 16)
+
+/* CTR_REG_60 */
+#define CS_VAL_0(n)          (((n)&0xFFFF) << 16)
+#define CS_MSK_1(n)          ((n)&0xFFFF)
+
+/* CTR_REG_61 */
+#define CS_VAL_1(n)          ((n)&0xFFFF)
+
+/* CTR_REG_62 */
+#define MODE5_CNT(n)         (((n)&0xFFFF) << 16)
+#define MODE4_CNT(n)         ((n)&0xFFFF)
+
+/* CTR_REG_63 */
+#define MODE1_2_CNT(n)        ((n)&0xFFFF)
+
+/* CTR_REG_64 */
+#define TCPD(n)              ((n) << 16)
+#define MODE3_CNT(n)         (n)
+
+/* CTR_REG_65 */
+#define TPDEX(n)             ((n) << 16)
+#define TDLL(n)              (n)
+
+/* CTR_REG_66 */
+#define TXSNR(n)             ((n) << 16)
+#define TRAS_MAX(n)          (n)
+
+/* CTR_REG_67 */
+#define TXSR(n)              (n)
+
+/* CTR_REG_68 */
+#define TINIT(n)             (n)
+
+
+/* DDR Controller register struct */
+typedef volatile struct TagDDRC_REG
+{
+    volatile uint32 CTRL_REG_00;
+    volatile uint32 CTRL_REG_01;
+    volatile uint32 CTRL_REG_02;
+    volatile uint32 CTRL_REG_03;
+    volatile uint32 CTRL_REG_04;
+    volatile uint32 CTRL_REG_05;
+    volatile uint32 CTRL_REG_06;
+    volatile uint32 CTRL_REG_07;
+    volatile uint32 CTRL_REG_08;
+    volatile uint32 CTRL_REG_09;
+    volatile uint32 CTRL_REG_10;
+    volatile uint32 CTRL_REG_11;
+    volatile uint32 CTRL_REG_12;
+    volatile uint32 CTRL_REG_13;
+    volatile uint32 CTRL_REG_14;
+    volatile uint32 CTRL_REG_15;
+    volatile uint32 CTRL_REG_16;
+    volatile uint32 CTRL_REG_17;
+    volatile uint32 CTRL_REG_18;
+    volatile uint32 CTRL_REG_19;
+    volatile uint32 CTRL_REG_20;
+    volatile uint32 CTRL_REG_21;
+    volatile uint32 CTRL_REG_22;
+    volatile uint32 CTRL_REG_23;
+    volatile uint32 CTRL_REG_24;
+    volatile uint32 CTRL_REG_25;
+    volatile uint32 CTRL_REG_26;
+    volatile uint32 CTRL_REG_27;
+    volatile uint32 CTRL_REG_28;
+    volatile uint32 CTRL_REG_29;
+    volatile uint32 CTRL_REG_30;
+    volatile uint32 CTRL_REG_31;
+    volatile uint32 CTRL_REG_32;
+    volatile uint32 CTRL_REG_33;
+    volatile uint32 CTRL_REG_34;
+    volatile uint32 CTRL_REG_35;
+    volatile uint32 CTRL_REG_36;
+    volatile uint32 CTRL_REG_37;
+    volatile uint32 CTRL_REG_38;
+    volatile uint32 CTRL_REG_39;
+    volatile uint32 CTRL_REG_40;
+    volatile uint32 CTRL_REG_41;
+    volatile uint32 CTRL_REG_42;
+    volatile uint32 CTRL_REG_43;
+    volatile uint32 CTRL_REG_44;
+    volatile uint32 CTRL_REG_45;
+    volatile uint32 CTRL_REG_46;
+    volatile uint32 CTRL_REG_47;
+    volatile uint32 CTRL_REG_48;
+    volatile uint32 CTRL_REG_49;
+    volatile uint32 CTRL_REG_50;
+    volatile uint32 CTRL_REG_51;
+    volatile uint32 CTRL_REG_52;
+    volatile uint32 CTRL_REG_53;
+    volatile uint32 CTRL_REG_54;
+    volatile uint32 CTRL_REG_55;
+    volatile uint32 CTRL_REG_56;
+    volatile uint32 CTRL_REG_57;
+    volatile uint32 CTRL_REG_58;
+    volatile uint32 CTRL_REG_59;
+    volatile uint32 CTRL_REG_60;
+    volatile uint32 CTRL_REG_61;
+    volatile uint32 CTRL_REG_62;
+    volatile uint32 CTRL_REG_63;
+    volatile uint32 CTRL_REG_64;
+    volatile uint32 CTRL_REG_65;
+    volatile uint32 CTRL_REG_66;
+    volatile uint32 CTRL_REG_67;
+    volatile uint32 CTRL_REG_68;
+    volatile uint32 CTRL_REG_69;
+    volatile uint32 CTRL_REG_70;
+    volatile uint32 CTRL_REG_71;
+    volatile uint32 CTRL_REG_72;
+    volatile uint32 CTRL_REG_73;
+    volatile uint32 CTRL_REG_74;
+    volatile uint32 CTRL_REG_75;
+    volatile uint32 CTRL_REG_76;
+    volatile uint32 CTRL_REG_77;
+    volatile uint32 CTRL_REG_78;
+    volatile uint32 CTRL_REG_79;
+    volatile uint32 CTRL_REG_80;
+    volatile uint32 CTRL_REG_81;
+    volatile uint32 CTRL_REG_82;
+    volatile uint32 CTRL_REG_83;
+    volatile uint32 CTRL_REG_84;
+    volatile uint32 CTRL_REG_85;
+    volatile uint32 CTRL_REG_86;
+    volatile uint32 CTRL_REG_87;
+    volatile uint32 CTRL_REG_88;
+    volatile uint32 CTRL_REG_89;
+    volatile uint32 CTRL_REG_90;
+    volatile uint32 CTRL_REG_91;
+    volatile uint32 CTRL_REG_92;
+    volatile uint32 CTRL_REG_93;
+    volatile uint32 CTRL_REG_94;
+    volatile uint32 CTRL_REG_95;
+    volatile uint32 CTRL_REG_96;
+    volatile uint32 CTRL_REG_97;
+    volatile uint32 CTRL_REG_98;
+    volatile uint32 CTRL_REG_99;
+    volatile uint32 CTRL_REG_100;
+    volatile uint32 CTRL_REG_101;
+    volatile uint32 CTRL_REG_102;
+    volatile uint32 CTRL_REG_103;
+    volatile uint32 CTRL_REG_104;
+    volatile uint32 CTRL_REG_105;
+    volatile uint32 CTRL_REG_106;
+    volatile uint32 CTRL_REG_107;
+    volatile uint32 CTRL_REG_108;
+    volatile uint32 CTRL_REG_109;
+    volatile uint32 CTRL_REG_110;
+    volatile uint32 CTRL_REG_111;
+    volatile uint32 CTRL_REG_112;
+    volatile uint32 CTRL_REG_113;
+    volatile uint32 CTRL_REG_114;
+    volatile uint32 CTRL_REG_115;
+    volatile uint32 CTRL_REG_116;
+    volatile uint32 CTRL_REG_117;
+    volatile uint32 CTRL_REG_118;
+    volatile uint32 CTRL_REG_119;
+    volatile uint32 CTRL_REG_120;
+    volatile uint32 CTRL_REG_121;
+    volatile uint32 CTRL_REG_122;
+    volatile uint32 CTRL_REG_123;
+    volatile uint32 CTRL_REG_124;
+    volatile uint32 CTRL_REG_125;
+    volatile uint32 CTRL_REG_126;
+    volatile uint32 CTRL_REG_127;
+    volatile uint32 CTRL_REG_128;
+    volatile uint32 CTRL_REG_129;
+    volatile uint32 CTRL_REG_130;
+    volatile uint32 CTRL_REG_131;
+    volatile uint32 CTRL_REG_132;
+    volatile uint32 CTRL_REG_133;
+    volatile uint32 CTRL_REG_134;
+    volatile uint32 CTRL_REG_135;
+    volatile uint32 CTRL_REG_136;
+    volatile uint32 CTRL_REG_137;
+    volatile uint32 CTRL_REG_138;
+    volatile uint32 CTRL_REG_139;
+    volatile uint32 CTRL_REG_140;
+    volatile uint32 CTRL_REG_141;
+    volatile uint32 CTRL_REG_142;
+    volatile uint32 CTRL_REG_143;
+    volatile uint32 CTRL_REG_144;
+    volatile uint32 CTRL_REG_145;
+    volatile uint32 CTRL_REG_146;
+    volatile uint32 CTRL_REG_147;
+    volatile uint32 CTRL_REG_148;
+    volatile uint32 CTRL_REG_149;
+    volatile uint32 CTRL_REG_150;
+    volatile uint32 CTRL_REG_151;
+    volatile uint32 CTRL_REG_152;
+    volatile uint32 CTRL_REG_153;
+    volatile uint32 CTRL_REG_154;
+    volatile uint32 CTRL_REG_155;
+    volatile uint32 CTRL_REG_156;
+    volatile uint32 CTRL_REG_157;
+    volatile uint32 CTRL_REG_158;
+    volatile uint32 CTRL_REG_159;
+}DDRC_REG_T,*pDDRC_REG_T;
+
+typedef volatile struct tagUART_STRUCT
+{
+    unsigned int UART_RBR;
+    unsigned int UART_DLH;
+    unsigned int UART_IIR;
+    unsigned int UART_LCR;
+    unsigned int UART_MCR;
+    unsigned int UART_LSR;
+    unsigned int UART_MSR;
+    unsigned int UART_SCR;
+    unsigned int RESERVED1[(0x30-0x20)/4];
+    unsigned int UART_SRBR[(0x70-0x30)/4];
+    unsigned int UART_FAR;
+    unsigned int UART_TFR;
+    unsigned int UART_RFW;
+    unsigned int UART_USR;
+    unsigned int UART_TFL;
+    unsigned int UART_RFL;
+    unsigned int UART_SRR;
+    unsigned int UART_SRTS;
+    unsigned int UART_SBCR;
+    unsigned int UART_SDMAM;
+    unsigned int UART_SFE;
+    unsigned int UART_SRT;
+    unsigned int UART_STET;
+    unsigned int UART_HTX;
+    unsigned int UART_DMASA;
+    unsigned int RESERVED2[(0xf4-0xac)/4];
+    unsigned int UART_CPR;
+    unsigned int UART_UCV;
+    unsigned int UART_CTR;
+} UART_REG, *pUART_REG;
+
+
+#define USE_DETECT            (1)    //定义是否探测
+#define USE_DQS_DIFFERENTIAL  (1)    //定义DQS输出方式，有定义则为Differential DQS，无定义则为Single-ended DQS
+#define USE_TRAS_LOCKOUT      (0)    //器件是否支持tRAS lockout
+#define USE_LOW_POWER_MODE    (0)    //是否使能low power mode
+
+//#define pSDR_Reg       ((pSDRAMC_REG_T)SDRAM_REG_BASE)
+//#define pDDR_Reg       ((pDDRC_REG_T)DDR_REG_BASE)
+//#define pSCU_Reg       ((pSCU_REG)SCU_BASE_ADDR_VA)
+//#define pGRF_Reg       ((pGRF_REG)REG_FILE_BASE_ADDR_VA)
+
+#define  read32(address)           (*((uint32 volatile*)(address)))
+#define  write32(address, value)   (*((uint32 volatile*)(address)) = value)
+
+
+ uint32 __tcmdata telement;
+ uint32 __tcmdata capability;  //单个CS的容量
+ uint32 __tcmdata SDRAMnewKHz = 150000;
+ uint32 __tcmdata DDRnewKHz = 400000 ; //266000;
+ uint32 __tcmdata SDRAMoldKHz = 66000;
+ uint32 __tcmdata DDRoldKHz = 200000;
+ unsigned int __tcmdata ddr_reg[8] ;
+ volatile int __tcmdata rk28_debugs = 0;
+ uint32 __tcmdata save_sp;
+ 
+__tcmdata uint32 bFreqRaise;
+__tcmdata uint32 elementCnt;
+__tcmdata uint32 ddrSREF;
+__tcmdata uint32 ddrRASMAX;
+__tcmdata uint32 ddrCTRL_REG_23;
+__tcmdata uint32 ddrCTRL_REG_24;
+__tcmdata uint32 ddrCTRL_REG_37;
+__tcmdata uint32 ddrCTRL_REG_34;
+__tcmdata uint32 ddrCTRL_REG_35;
+__tcmdata uint32 ddrCTRL_REG_38;
+__tcmdata uint32 ddrCTRL_REG_43;
+__tcmdata uint32 ddrCTRL_REG_66;
+__tcmdata uint32 ddrCTRL_REG_44;
+__tcmdata uint32 ddrCTRL_REG_67;
+__tcmdata uint32 ddrCTRL_REG_64;
+__tcmdata uint32 ddrCTRL_REG_68;
+__tcmdata uint32 ddrCTRL_REG_44;
+__tcmdata uint32 ddrCTRL_REG_67;
+__tcmdata uint32 ddrCTRL_REG_64;
+__tcmdata uint32 ddrCTRL_REG_68;
+
+
+static void __tcmfunc DLLBypass(uint32 KHz)
+{
+
+    volatile uint32 value = 0;
+    
+    value = pDDR_Reg->CTRL_REG_04;
+    pDDR_Reg->CTRL_REG_04 = value | DLL_BYPASS_EN;
+
+    
+    pDDR_Reg->CTRL_REG_70 = 0x10002117 | (elementCnt << 15);
+    pDDR_Reg->CTRL_REG_71 = 0x10002117 | (elementCnt << 15);
+    pDDR_Reg->CTRL_REG_72 = 0x10002117 | (elementCnt << 15);
+    pDDR_Reg->CTRL_REG_73 = 0x10002117 | (elementCnt << 15);
+    pDDR_Reg->CTRL_REG_74 = 0x00002104 | (elementCnt << 15);
+    pDDR_Reg->CTRL_REG_75 = 0x00002104 | (elementCnt << 15);
+    pDDR_Reg->CTRL_REG_76 = 0x00002104 | (elementCnt << 15);
+    pDDR_Reg->CTRL_REG_77 = 0x00002104 | (elementCnt << 15);
+}
+
+ void SDRAMUpdateRef(uint32 kHz)
+{
+    if(capability <= 0x2000000) // <= SDRAM_2x32x4
+    {
+        // 64Mb and 128Mb SDRAM's auto refresh cycle 15.6us or a burst of 4096 auto refresh cycles once in 64ms
+        pSDR_Reg->MSDR_SREFR = (((125*kHz)/1000) >> 3) & 0xFFFF;  // 125/8 = 15.625us
+    }
+    else
+    {
+        // 256Mb and 512Mb SDRAM's auto refresh cycle 7.8us or a burst of 8192 auto refresh cycles once in 64ms
+        pSDR_Reg->MSDR_SREFR = (((62*kHz)/1000) >> 3) & 0xFFFF;  // 62/8 = 7.75us
+    }
+}
+
+ void SDRAMUpdateTiming(uint32 kHz)
+{
+    uint32 value =0;
+    uint32 tmp = 0;
+    
+    value = pSDR_Reg->MSDR_STMG0R;
+    value &= 0xFC3C003F;
+    //t_rc =  15ns
+    tmp = (15*kHz/1000000) + ((((15*kHz)%1000000) > 0) ? 1:0);
+    tmp = (tmp > 0) ? (tmp - 1) : 0;
+    tmp = (tmp > T_RC_MAX) ? T_RC_MAX : tmp;
+    value |= tmp << T_RC_SHIFT;
+    //t_rcar = 80ns
+    tmp = (80*kHz/1000000) + ((((80*kHz)%1000000) > 0) ? 1:0);
+    tmp = (tmp > 0) ? (tmp - 1) : 0;
+    tmp = (tmp > T_RCAR_MAX) ? T_RCAR_MAX : tmp;
+    value |= tmp << T_RCAR_SHIFT;
+    //t_wr 固定为2个clk
+    value |= 1 << T_WR_SHIFT;
+    //t_rp =  20ns
+    tmp = (20*kHz/1000000) + ((((20*kHz)%1000000) > 0) ? 1:0);
+    tmp = (tmp > 0) ? (tmp - 1) : 0;
+    tmp = (tmp > T_RP_MAX) ? T_RP_MAX : tmp;
+    value |= tmp << T_RP_SHIFT;
+    //t_rcd = 20ns
+    tmp = (20*kHz/1000000) + ((((20*kHz)%1000000) > 0) ? 1:0);
+    tmp = (tmp > 0) ? (tmp - 1) : 0;
+    tmp = (tmp > T_RCD_MAX) ? T_RCD_MAX : tmp;
+    value |= tmp << T_RCD_SHIFT;
+    pSDR_Reg->MSDR_STMG0R = value;
+    #if 0
+    if(newKHz >= 90000)  //大于90M，开启read pipe
+    {
+        value = *pSDR_SUB_Reg;
+        value |= READ_PIPE_ENABLE;
+        *pSDR_SUB_Reg = value;
+        value = pSDR_Reg->MSDR_SCTLR;
+        value &= ~(0x7 << READ_PIPE_SHIFT);
+        value |= (0x1 << READ_PIPE_SHIFT);
+        pSDR_Reg->MSDR_SCTLR = value;
+    }
+    else
+    {
+        value = *pSDR_SUB_Reg;
+        value &= ~(READ_PIPE_ENABLE);
+        *pSDR_SUB_Reg = value;
+    }
+    #endif
+}
+ 
+#if 0
+static uint32 __tcmfunc DDR_debug_byte(char byte)
+{
+	uint32 uartTimeOut;
+#define UART_THR            UART_RBR
+	pUART_REG g_UART =((pUART_REG)(( UART1_BASE_ADDR_VA)));
+    if( byte == '\n' )
+	  	DDR_debug_byte(0x0d);          
+	uartTimeOut = 0xffff;
+	while((g_UART->UART_USR & (1<<1)) != (1<<1))
+	{
+		if(uartTimeOut == 0)
+		{
+			return (1);
+		}
+		uartTimeOut--;
+	}
+	g_UART->UART_THR = byte;         
+	return (0);
+}
+static uint32 __tcmfunc DDR_debug_string(char *s)
+{
+	 while(*s){
+                DDR_debug_byte(*s);
+                s++;
+        }
+        return 0;
+}
+#else
+#define DDR_debug_string( a ) do{ }while(0)
+#endif
+
+static void DDRPreUpdateRef(uint32 kHz)
+{
+    ddrSREF = (((62*kHz)/1000) >> 3) & 0x3FFF;  // 62/8 = 7.75us
+    
+    ddrRASMAX = (70000*kHz/1000000) + ((((70000*kHz)%1000000) > 0) ? 1:0);
+    ddrRASMAX = (ddrRASMAX > 0xFFFF) ? 0xFFFF : ddrRASMAX;
+}
+
+static void __tcmfunc DDRUpdateRef(void)
+{
+    volatile uint32 value = 0;
+	
+    value = pDDR_Reg->CTRL_REG_51;
+    value &= 0x3FFF;
+    value |= ddrSREF;
+    pDDR_Reg->CTRL_REG_51 = value;
+    pDDR_Reg->CTRL_REG_48 = TPHYUPD_RESP(value) | TCTRLUPD_MAX(value);
+
+    //tXSNR =没这个名字的时间，按DDRII，也让其等于 =  tRFC + 10ns, tRAS_max = 70000ns
+    value = pDDR_Reg->CTRL_REG_66;
+    value &= ~(0xFFFF);
+    pDDR_Reg->CTRL_REG_66 = value | TRAS_MAX(ddrRASMAX);
+}
+
+ 
+static  uint32 PLLGetDDRFreq(void)
+{
+
+#define DIV1  (0x00 << 30)
+#define DIV2  (0x01 << 30)
+#define DIV4  (0x02 << 30)
+#define DIV8  (0x03 << 30)
+#define EXT_OSC_CLK		24000
+#define LOADER_DDR_FREQ_KHZ  133000
+	uint32 codecfrqkHz,ddrfrqkHz,codecpll_nf,codecpll_nr,codecpll_od,ddrclk_div;
+	codecpll_nr = ((pSCU_Reg->SCU_CPLL_CON & 0x003f0000) >> 16 ) + 1; /*NR = CLKR[5:0] + 1*/
+	codecpll_nf = ((pSCU_Reg->SCU_CPLL_CON & 0x0000fff0) >> 4 ) + 1;	/*NF = CLKF[11:0] + 1*/
+	codecpll_od = ((pSCU_Reg->SCU_CPLL_CON & 0x0000000e) >> 1 ) + 1;	/*OD = CLKOD[2:0] + 1*/
+	ddrclk_div =(pSCU_Reg->SCU_CLKSEL0_CON & 0xc0000000);
+	switch(ddrclk_div)
+	{
+		case DIV1 :
+			ddrclk_div = 1;
+			//printk("%s-ddr clk div =%d->%d\n",__FUNCTION__,ddrclk_div,__LINE__);
+			break;
+		case DIV2 :
+			ddrclk_div = 2;
+			//printk("%s-ddr clk div =%d->%d\n",__FUNCTION__,ddrclk_div,__LINE__);
+			break;
+		case DIV4 :
+			ddrclk_div = 4;
+			//printk("%s-ddr clk div =%d->%d\n",__FUNCTION__,ddrclk_div,__LINE__);
+			break;
+		case DIV8 :
+			ddrclk_div = 8;
+			//printk("%s-ddr clk div =%d->%d\n",__FUNCTION__,ddrclk_div,__LINE__);
+			break;
+		default :
+			ddrclk_div = 1;
+			break;
+	}
+	#if 0
+	if((armpll_nr == 0)||(armpll_od == 0))
+		//printk("codec current clk error !! flag armpll_nr ==%d armpll_od==%d\n",armpll_nr,armpll_od);
+	if(((EXT_OSC_CLK/armpll_nr) < 9 ) && ((EXT_OSC_CLK/armpll_nr) > 800))
+		//printk(" codec current freq/nr range error\n");
+	if(((EXT_OSC_CLK/armpll_nr)*armpll_nf < 160 ) && ((EXT_OSC_CLK/armpll_nr)*armpll_nf > 800))
+		//printk(" codec current freq/nr*nf range error\n");
+	#endif
+	/*the output frequency  Fout = EXT_OSC_CLK * armpll_nf/armpll_nr/armpll_od */
+	codecfrqkHz = EXT_OSC_CLK * codecpll_nf;
+	codecfrqkHz = codecfrqkHz/codecpll_nr;
+	codecfrqkHz = codecfrqkHz/codecpll_od;
+	ddrfrqkHz = codecfrqkHz/ddrclk_div;	/*calculate DDR current frquency*/
+	//printk("SCU_CPLL_CON ==%x codecpll_nr == %d codecpll_nf == %d codecpll_od ==%d\n",pSCU_Reg->SCU_CPLL_CON,armpll_nr,armpll_nf,armpll_od);
+	//printk("get current freq codecfrqkhz==%d ddfrqkHz==%d\n",armfrqkHz,ddrfrqkHz);
+	if(ddrfrqkHz == 0)
+		return LOADER_DDR_FREQ_KHZ;
+	return ddrfrqkHz;
+}
+static void DDRPreUpdateTiming(uint32 kHz)
+{
+    uint32 tmp;
+    uint32 tmp2;
+    uint32 tmp3;
+    uint32 memType = DDR_MEM_TYPE();// (read32(CPU_APB_REG0) >> 11) & 0x3;
+    
+    //时序
+    if(memType == DDRII)
+    {
+        // tRRD = 10ns, tCKE = 3 tCK
+        tmp = (10*kHz/1000000) + ((((10*kHz)%1000000) > 0) ? 1:0);
+        tmp = (tmp > 7) ? 7 : tmp;
+        ddrCTRL_REG_23 = TRRD(tmp) | TCKE(3) | 0x2;
+        // tRTP = 7.5ns
+        tmp = (8*kHz/1000000) + ((((8*kHz)%1000000) > 0) ? 1:0);
+        tmp = (tmp > 7) ? 7 : tmp;
+        ddrCTRL_REG_24 = TRTP(tmp) | 0x1010100;
+        // tMRD = 2 tCK, tDAL = tWR + tRP, tCKESR=没找到=tCKE, tCCD = 2 tCK
+        tmp = (30*kHz/1000000) + ((((30*kHz)%1000000) > 0) ? 1:0);
+        tmp = (tmp > 0x1F) ? 0x1F : tmp;
+        ddrCTRL_REG_37 = TMRD(2) | TDAL(tmp) | TCKESR(3) | TCCD(2);
+        //tRP_ALL = 没找到 = tRP + 1 tCK, tRP = 15ns
+        tmp = (15*kHz/1000000) + ((((15*kHz)%1000000) > 0) ? 1:0);
+        tmp = (tmp > 0xF) ? 0xF : tmp;
+        ddrCTRL_REG_34 = CS0_TRP_ALL(((tmp == 0xF) ? 0xF : (tmp+1))) | TRP(tmp) | 0x200;
+        //tWTR = 10ns
+        tmp2 = (10*kHz/1000000) + ((((10*kHz)%1000000) > 0) ? 1:0);
+        tmp2 = (tmp2 > 0xF) ? 0xF : tmp2;
+        ddrCTRL_REG_35 = CS1_TRP_ALL(tmp) | TWTR(tmp2);
+        //tRC = 65ns, tFAW = 37.5ns, tWR = 15ns
+        tmp = (65*kHz/1000000) + ((((65*kHz)%1000000) > 0) ? 1:0);
+        tmp = (tmp > 0x3F) ? 0x3F : tmp;
+        tmp2 = (38*kHz/1000000) + ((((38*kHz)%1000000) > 0) ? 1:0);
+        tmp2 = (tmp2 > 0x3F) ? 0x3F : tmp2;
+        tmp3 = (15*kHz/1000000) + ((((15*kHz)%1000000) > 0) ? 1:0);
+        tmp3 = (tmp3 > 0x1F) ? 0x1F : tmp3;
+        ddrCTRL_REG_38 = TRC(tmp) | TFAW(tmp2) | TWR(tmp3);
+        //tMOD = 12ns
+        tmp = (12*kHz/1000000) + ((((12*kHz)%1000000) > 0) ? 1:0);
+        tmp = (tmp > 0xFF) ? 0xFF : tmp;
+        ddrCTRL_REG_43 = TMOD(tmp);
+        if(capability <= 0x2000000)  // 256Mb
+        {
+            tmp = (75*kHz/1000000) + ((((75*kHz)%1000000) > 0) ? 1:0);
+            tmp = (tmp > 0xFF) ? 0xFF : tmp;
+            //tXSNR = tRFC + 10ns, tRAS_max = 70000ns
+            tmp3 = (85*kHz/1000000) + ((((85*kHz)%1000000) > 0) ? 1:0);
+            tmp3 = (tmp3 > 0xFFFF) ? 0xFFFF : tmp3;
+            ddrCTRL_REG_66 = TXSNR(tmp3);
+        }
+        else if(capability <= 0x4000000) // 512Mb
+        {
+            tmp = (105*kHz/1000000) + ((((105*kHz)%1000000) > 0) ? 1:0);
+            tmp = (tmp > 0xFF) ? 0xFF : tmp;
+            //tXSNR = tRFC + 10ns, tRAS_max = 70000ns
+            tmp3 = (115*kHz/1000000) + ((((115*kHz)%1000000) > 0) ? 1:0);
+            tmp3 = (tmp3 > 0xFFFF) ? 0xFFFF : tmp3;
+            ddrCTRL_REG_66 = TXSNR(tmp3);
+        }
+        else if(capability <= 0x8000000)  // 1Gb
+        {
+            tmp = (128*kHz/1000000) + ((((128*kHz)%1000000) > 0) ? 1:0);
+            tmp = (tmp > 0xFF) ? 0xFF : tmp;
+            //tXSNR = tRFC + 10ns, tRAS_max = 70000ns
+            tmp3 = (138*kHz/1000000) + ((((138*kHz)%1000000) > 0) ? 1:0);
+            tmp3 = (tmp3 > 0xFFFF) ? 0xFFFF : tmp3;
+            ddrCTRL_REG_66 = TXSNR(tmp3);
+        }
+        else  // 4Gb
+        {
+            tmp = (328*kHz/1000000) + ((((328*kHz)%1000000) > 0) ? 1:0);
+            tmp = (tmp > 0xFF) ? 0xFF : tmp;
+            //tXSNR = tRFC + 10ns, tRAS_max = 70000ns
+            tmp3 = (338*kHz/1000000) + ((((338*kHz)%1000000) > 0) ? 1:0);
+            tmp3 = (tmp3 > 0xFFFF) ? 0xFFFF : tmp3;
+            ddrCTRL_REG_66 = TXSNR(tmp3);
+        }
+        //tRFC = 75ns(256Mb)/105ns(512Mb)/127.5ns(1Gb)/327.5ns(4Gb), tRCD = 20ns, tRAS_min = 40ns
+        tmp2 = (20*kHz/1000000) + ((((20*kHz)%1000000) > 0) ? 1:0);
+        tmp2 = (tmp2 > 0xFF) ? 0xFF : tmp2;
+        tmp3 = (40*kHz/1000000) + ((((40*kHz)%1000000) > 0) ? 1:0);
+        tmp3 = (tmp3 > 0xFF) ? 0xFF : tmp3;
+        ddrCTRL_REG_44 = TRFC(tmp) | TRCD(tmp2) | TRAS_MIN(tmp3);
+    }
+    else
+    {
+        // tRRD = 15ns, tCKE = 2 tCK
+        tmp = (15*kHz/1000000) + ((((15*kHz)%1000000) > 0) ? 1:0);
+        tmp = (tmp > 7) ? 7 : tmp;
+        ddrCTRL_REG_23 = TRRD(tmp) | TCKE(2) | 0x2;
+        // tRTP = 没找到,按DDRII的7.5ns
+        tmp = (8*kHz/1000000) + ((((8*kHz)%1000000) > 0) ? 1:0);
+        tmp = (tmp > 7) ? 7 : tmp;
+        ddrCTRL_REG_24 = TRTP(tmp) | 0x1000100;
+        // tMRD = 2 tCK, tDAL = tWR + tRP, tCKESR=没找到=tCKE, tCCD = 没找到
+        tmp = (45*kHz/1000000) + ((((45*kHz)%1000000) > 0) ? 1:0);
+        tmp = (tmp > 0x1F) ? 0x1F : tmp;
+        ddrCTRL_REG_37 = TMRD(2) | TDAL(tmp) | TCKESR(2) | TCCD(2);
+        //tRP_ALL = 没找到 = tRP + 1 tCK, tRP = 30ns
+        tmp = (30*kHz/1000000) + ((((30*kHz)%1000000) > 0) ? 1:0);
+        tmp = (tmp > 0xF) ? 0xF : tmp;
+        ddrCTRL_REG_34 = CS0_TRP_ALL(((tmp == 0xF) ? 0xF : (tmp+1))) | TRP(tmp) | 0x200;
+        //tWTR = 1 tCK
+        ddrCTRL_REG_35 = CS1_TRP_ALL(tmp) | TWTR(1);
+        //tRC = 80ns, tFAW = 没有这个时间, tWR = 15ns
+        tmp = (80*kHz/1000000) + ((((80*kHz)%1000000) > 0) ? 1:0);
+        tmp = (tmp > 0x3F) ? 0x3F : tmp;
+        tmp2 = (38*kHz/1000000) + ((((38*kHz)%1000000) > 0) ? 1:0);
+        tmp2 = (tmp2 > 0x3F) ? 0x3F : tmp2;
+        tmp3 = (15*kHz/1000000) + ((((15*kHz)%1000000) > 0) ? 1:0);
+        tmp3 = (tmp3 > 0x1F) ? 0x1F : tmp3;
+        ddrCTRL_REG_38 = TRC(tmp) | TFAW(tmp2) | TWR(tmp3);
+        //tMOD = 没有这个时间
+        tmp = (12*kHz/1000000) + ((((12*kHz)%1000000) > 0) ? 1:0);
+        tmp = (tmp > 0xFF) ? 0xFF : tmp;
+        ddrCTRL_REG_43 = TMOD(tmp);
+        if(capability <= 0x2000000)  // 128Mb,256Mb
+        {
+            tmp = (80*kHz/1000000) + ((((80*kHz)%1000000) > 0) ? 1:0);
+            tmp = (tmp > 0xFF) ? 0xFF : tmp;
+            //tXSNR = tRFC + 10ns, tRAS_max = 70000ns
+            tmp3 = (90*kHz/1000000) + ((((90*kHz)%1000000) > 0) ? 1:0);
+            tmp3 = (tmp3 > 0xFFFF) ? 0xFFFF : tmp3;
+            ddrCTRL_REG_66 = TXSNR(tmp3);
+        }
+        else if(capability <= 0x4000000) // 512Mb
+        {
+            tmp = (110*kHz/1000000) + ((((110*kHz)%1000000) > 0) ? 1:0);
+            tmp = (tmp > 0xFF) ? 0xFF : tmp;
+            //tXSNR = tRFC + 10ns, tRAS_max = 70000ns
+            tmp3 = (120*kHz/1000000) + ((((120*kHz)%1000000) > 0) ? 1:0);
+            tmp3 = (tmp3 > 0xFFFF) ? 0xFFFF : tmp3;
+            ddrCTRL_REG_66 = TXSNR(tmp3);
+        }
+        else if(capability <= 0x8000000)  // 1Gb
+        {
+            tmp = (140*kHz/1000000) + ((((140*kHz)%1000000) > 0) ? 1:0);
+            tmp = (tmp > 0xFF) ? 0xFF : tmp;
+            //tXSNR = tRFC + 10ns, tRAS_max = 70000ns
+            tmp3 = (150*kHz/1000000) + ((((150*kHz)%1000000) > 0) ? 1:0);
+            tmp3 = (tmp3 > 0xFFFF) ? 0xFFFF : tmp3;
+            ddrCTRL_REG_66 = TXSNR(tmp3);
+        }
+        else  // 4Gb
+        {
+            tmp = (328*kHz/1000000) + ((((328*kHz)%1000000) > 0) ? 1:0);
+            tmp = (tmp > 0xFF) ? 0xFF : tmp;
+            //tXSNR = tRFC + 10ns, tRAS_max = 70000ns
+            tmp3 = (338*kHz/1000000) + ((((338*kHz)%1000000) > 0) ? 1:0);
+            tmp3 = (tmp3 > 0xFFFF) ? 0xFFFF : tmp3;
+            ddrCTRL_REG_66 = TXSNR(tmp3);
+        }
+        //tRFC = 80ns(128Mb,256Mb)/110ns(512Mb)/140ns(1Gb), tRCD = 30ns, tRAS_min = 45ns
+        tmp2 = (30*kHz/1000000) + ((((30*kHz)%1000000) > 0) ? 1:0);
+        tmp2 = (tmp2 > 0xFF) ? 0xFF : tmp2;
+        tmp3 = (45*kHz/1000000) + ((((45*kHz)%1000000) > 0) ? 1:0);
+        tmp3 = (tmp3 > 0xFF) ? 0xFF : tmp3;
+        ddrCTRL_REG_44 = TRFC(tmp) | TRCD(tmp2) | TRAS_MIN(tmp3);
+        //tXSR = 200 ns
+        tmp = (200*kHz/1000000) + ((((200*kHz)%1000000) > 0) ? 1:0);
+        tmp = (tmp > 0xFFFF) ? 0xFFFF : tmp;
+        ddrCTRL_REG_67 = TXSR(tmp);
+    }
+    //tCPD = 400ns
+    tmp = (400*kHz/1000000) + ((((400*kHz)%1000000) > 0) ? 1:0);
+    tmp = (tmp > 0xFFFF) ? 0xFFFF : tmp;
+    ddrCTRL_REG_64 = TCPD(tmp) | MODE3_CNT(0x3FFF);
+    //tINIT = 200us
+    tmp = (200000*kHz/1000000) + ((((200000*kHz)%1000000) > 0) ? 1:0);
+    tmp = (tmp > 0xFFFFFF) ? 0xFFFFFF : tmp;
+    ddrCTRL_REG_68 = TINIT(tmp);
+}
+
+static void __tcmfunc DDRUpdateTiming(void)
+{
+    uint32 value;
+    uint32 memType = DDR_MEM_TYPE();// (read32(CPU_APB_REG0) >> 11) & 0x3;
+    
+    //时序
+    if(memType == DDRII)
+    {
+        value = pDDR_Reg->CTRL_REG_35;
+        value &= ~(0xF0F);
+        pDDR_Reg->CTRL_REG_35 = value | ddrCTRL_REG_35;
+    }
+    else
+    {
+        //tWTR = 1 tCK
+        value = pDDR_Reg->CTRL_REG_35;
+        value &= ~(0xF);
+        pDDR_Reg->CTRL_REG_35 = value | ddrCTRL_REG_35;
+        pDDR_Reg->CTRL_REG_67 = ddrCTRL_REG_67;
+    }
+    pDDR_Reg->CTRL_REG_23 = ddrCTRL_REG_23;
+    pDDR_Reg->CTRL_REG_24 = ddrCTRL_REG_24;
+    pDDR_Reg->CTRL_REG_37 = ddrCTRL_REG_37;
+    pDDR_Reg->CTRL_REG_34 = ddrCTRL_REG_34;
+    pDDR_Reg->CTRL_REG_38 = ddrCTRL_REG_38;
+    pDDR_Reg->CTRL_REG_43 = ddrCTRL_REG_43;
+    value = pDDR_Reg->CTRL_REG_66;
+    value &= ~(0xFFFF0000);
+    pDDR_Reg->CTRL_REG_66 = ddrCTRL_REG_66 | value;
+    pDDR_Reg->CTRL_REG_44 = ddrCTRL_REG_44;
+    pDDR_Reg->CTRL_REG_64 = ddrCTRL_REG_64;
+    pDDR_Reg->CTRL_REG_68 = ddrCTRL_REG_68;
+}
+/****************************************************************/
+//函数名:SDRAM_BeforeUpdateFreq
+//描述:调整SDRAM/DDR频率前调用的函数，用于调整SDRAM/DDR时序参数
+//参数说明:SDRAMnewKHz   输入参数   SDRAM将要调整到的频率，单位KHz
+//         DDRnewKHz     输入参数   DDR将要调整到的频率，单位KHz
+//返回值:
+//相关全局变量:
+//注意:这个函数只修改MSDR_STMG0R，MSDR_SREFR，MSDR_SCTLR的值
+/****************************************************************/
+static void __tcmfunc SDRAM_BeforeUpdateFreq(uint32 SDRAMnewKHz, uint32 DDRnewKHz)
+{
+    uint32 KHz;
+    uint32 memType = DDR_MEM_TYPE();// (pGRF_Reg->CPU_APB_REG0) & MEMTYPEMASK;
+    uint32 tmp;
+	volatile uint32 *p_ddr = (volatile uint32 *)0xc0080000;
+	//uint32 *ddr_reg = 0xff401c00;
+	ddr_reg[0] = pGRF_Reg->CPU_APB_REG0;
+	ddr_reg[1] = pGRF_Reg->CPU_APB_REG1;
+	
+	
+	ddr_reg[4] = pDDR_Reg->CTRL_REG_10;
+	
+	ddr_reg[6] = pDDR_Reg->CTRL_REG_78;
+    switch(memType)
+    {
+        case Mobile_SDRAM:
+        case SDRAM:
+			printk("%s:erroe memtype=0x%lx\n" ,__func__, memType);
+			#if 0
+            KHz = PLLGetAHBFreq();
+            if(KHz < SDRAMnewKHz)  //升频
+            {
+                SDRAMUpdateTiming(SDRAMnewKHz);
+                bFreqRaise = 1;
+            }
+            else //降频
+            {
+                SDRAMUpdateRef(SDRAMnewKHz);
+                bFreqRaise = 0;
+            }
+			#endif
+            break;
+        case DDRII:
+        case Mobile_DDR:
+            KHz = PLLGetDDRFreq();
+            if(telement)
+            {
+                elementCnt = 250000000/(KHz*telement);
+                if(elementCnt > 156)
+                {
+                    elementCnt = 156;
+                }
+            }
+            else
+            {
+                elementCnt = 2778000/KHz;  // 90ps算
+                if(elementCnt > 156)
+                {
+                    elementCnt = 156;
+                }
+            }
+            DDRPreUpdateRef(DDRnewKHz);
+            DDRPreUpdateTiming(DDRnewKHz);
+			printk("%s::just befor ddr refresh.ahb=%ld,new ddr=%ld\n" , __func__ , SDRAMnewKHz , DDRnewKHz);
+			//WAIT_ME();
+            while(pGRF_Reg->CPU_APB_REG1 & 0x100);
+			tmp = *p_ddr;  //read to wakeup
+			pDDR_Reg->CTRL_REG_36 &= ~(0x1F << 8);
+            while(pDDR_Reg->CTRL_REG_03 & 0x100)
+            {         	
+                tmp = *p_ddr;  //read to wakeup
+            }					
+            while(pGRF_Reg->CPU_APB_REG1 & 0x100);
+            pDDR_Reg->CTRL_REG_09 |= (0x1 << 24);	// after this on,ddr enter refresh,no access valid!!
+            //WAIT_ME();
+            while(!(pDDR_Reg->CTRL_REG_03 & 0x100));
+            pDDR_Reg->CTRL_REG_10 &= ~(0x1);
+            if(110000 > KHz)
+            {
+                DLLBypass(KHz);
+            }
+            if(KHz < DDRnewKHz)  //升频
+            {
+                DDRUpdateTiming();
+                bFreqRaise = 1;
+            }
+            else //降频
+            {
+                DDRUpdateRef();
+                bFreqRaise = 0;
+            }
+            break;
+    }
+}
+
+/****************************************************************/
+//函数名:SDRAM_AfterUpdateFreq
+//描述:SDRAM/DDR频率调整后，调用这个函数，完成调频后的善后工作
+//参数说明:SDRAMoldKHz   输入参数   SDRAM调整前的频率，单位KHz
+//         DDRoldKHz     输入参数   SDRAM调整前的频率，单位KHz
+//返回值:
+//相关全局变量:
+//注意:这个函数只修改MSDR_STMG0R，MSDR_SREFR，MSDR_SCTLR的值
+/****************************************************************/
+
+static void __tcmfunc SDRAM_AfterUpdateFreq(uint32 SDRAMoldKHz, uint32 DDRnewKHz)
+{
+    uint32 value =0;
+    //uint32 tmp = 0;
+    uint32 ddrKHz;
+    //uint32 ahbKHz;
+    uint32 memType = DDR_MEM_TYPE();// (pGRF_Reg->CPU_APB_REG0) & MEMTYPEMASK;
+	DDR_debug_string("21\n");
+    switch(memType)
+    {
+        case Mobile_SDRAM:
+        case SDRAM:
+			printk("%s:erroe memtype=0x%lx\n" ,__func__, memType);
+			#if 0
+           // ahbKHz = PLLGetAHBFreq();
+            if(ahbKHz > SDRAMoldKHz)  //升频
+            {
+               // SDRAMUpdateRef(ahbKHz);
+            }
+            else //降频
+            {
+              //  SDRAMUpdateTiming(ahbKHz);
+            }
+			#endif
+            break;
+        case DDRII:
+        case Mobile_DDR:
+            if(bFreqRaise)  //升频
+            {
+                DDRUpdateRef();
+            }
+            else //降频
+            {
+                DDRUpdateTiming();
+            }
+			ddrKHz = DDRnewKHz;
+            pDDR_Reg->CTRL_REG_10 |= 0x1;
+            value = 1000;
+            while(value)
+            {
+                if(pDDR_Reg->CTRL_REG_04 & 0x100)
+                {
+                    break;
+                }
+                value--;
+            }
+            if(!(value))
+            {
+                DLLBypass(ddrKHz);
+                pDDR_Reg->CTRL_REG_10 |= 0x1;
+                while(!(pDDR_Reg->CTRL_REG_04 & 0x100));
+            }
+            pDDR_Reg->CTRL_REG_09 &= ~(0x1 << 24);
+            while(pDDR_Reg->CTRL_REG_03 & 0x100); // exit 
+			printk("exit ddr refresh,");
+            //退出自刷新后，再算element的值
+            ddrKHz = PLLGetDDRFreq();
+			printk("new ddr kHz=%ld\n" , ddrKHz);
+            if(110000 < ddrKHz)
+            {
+                value = pDDR_Reg->CTRL_REG_78;
+                if(value & 0x1)
+                {
+                    value = value >> 1;
+                    telement = 1000000000/(ddrKHz*value);
+                }
+            }
+            pDDR_Reg->CTRL_REG_36 |= (0x1F << 8);
+            break;
+    }
+}
+
+static void __tcmfunc rk281x_restart( void )
+{
+        void (*boot)(void) = (void (*)(void))0;
+        #define pSCU_Reg       ((pSCU_REG)SCU_BASE_ADDR_VA)
+        #define pGRF_Reg       ((pGRF_REG)REG_FILE_BASE_ADDR_VA)
+
+        asm( "MRC p15,0,r0,c1,c0,0\n"
+                "BIC r0,r0,#(1<<0)     @disable mmu\n"
+                "BIC r0,r0,#(1<<13)    @set vector to 0x00000000\n"
+                "MCR p15,0,r0,c1,c0,0\n"
+                "mov r1,r1\n"
+                "mov r1,r1\n" );
+        pSCU_Reg->SCU_MODE_CON |= (3<<2); // arm slow mod
+        pGRF_Reg->CPU_APB_REG5 &= ~(1<<0); // no remap.
+        boot();
+}
+
+
+/*SCU PLL CON , 20100518,copy from rk28_scu_hw.c
+*/
+#define PLL_TEST        (0x01u<<25)
+#define PLL_SAT         (0x01u<<24)
+#define PLL_FAST        (0x01u<<23)
+#define PLL_PD          (0x01u<<22)
+#define PLL_CLKR(i)     (((i)&0x3f)<<16)
+#define PLL_CLKF(i)     (((i)&0x0fff)<<4)
+#define PLL_CLKOD(i)    (((i)&0x07)<<1)
+#define PLL_BYPASS      (0X01)
+
+static void __tcmfunc  ddr_change_freq(int freq_MHZ)
+{
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 32))
+	int ahb = 150;
+#else
+	int ahb = rockchip_clk_get_ahb()/1000;
+#endif
+	uint32 DDRnewKHz = freq_MHZ*1000;
+	SDRAM_BeforeUpdateFreq( ahb,  DDRnewKHz);
+	if(  freq_MHZ >= 200 )
+		pSCU_Reg->SCU_CPLL_CON = PLL_SAT|PLL_FAST|(PLL_CLKR(24-1))|(PLL_CLKF(freq_MHZ-1))|(PLL_CLKOD(1 - 1));
+	else
+		pSCU_Reg->SCU_CPLL_CON = PLL_SAT|PLL_FAST|(PLL_CLKR(12-1))|(PLL_CLKF(freq_MHZ-1))|(PLL_CLKOD(2 - 1));
+	SDRAM_AfterUpdateFreq( ahb,  DDRnewKHz);
+}
+
+/****************************************************************/
+//函数名:SDRAM_Init
+//描述:SDRAM初始化
+//参数说明:
+//返回值:
+//相关全局变量:
+//注意:
+/****************************************************************/
+static void  SDRAM_DDR_Init(void)
+{
+	uint32 			value;
+    uint32          KHz;
+    uint32          memType = DDR_MEM_TYPE();// (pGRF_Reg->CPU_APB_REG0) & MEMTYPEMASK;
+	
+    telement = 0;
+    if(memType == DDRII)
+    {
+        pDDR_Reg->CTRL_REG_82 = 0x00685555;
+                //tXSR = tXSRD = 200 tCK
+        pDDR_Reg->CTRL_REG_67 = TXSR(200);
+     }
+     else
+     {
+        pDDR_Reg->CTRL_REG_11 = 0x101;
+        pDDR_Reg->CTRL_REG_82 = 0x00640000; 
+     }
+            //tPDEX=没找到，应该等于=tXP=25ns 
+            pDDR_Reg->CTRL_REG_65 = TPDEX(0x2) | TDLL(200);
+            //读操作时端口优先级是:VIDEO(port 7) > CEVA(port 6) > ARMI(port 5) > ARMD(port 4) > LCDC(port 2) > EXP(port3)
+            //写操作时端口优先级是:VIDEO(port 7) > CEVA(port 6) > ARMD(port 4) > EXP(port3) > LCDC(port 2) > ARMI(port 5)
+            pDDR_Reg->CTRL_REG_13 = (AXI_MC_ASYNC << 8) | LCDC_WR_PRIO(3) | LCDC_RD_PRIO(3);
+            pDDR_Reg->CTRL_REG_14 = (AXI_MC_ASYNC << 24) | (AXI_MC_ASYNC) | EXP_WR_PRIO(3) | EXP_RD_PRIO(3);
+            pDDR_Reg->CTRL_REG_15 = (AXI_MC_ASYNC << 16) | ARMD_WR_PRIO(2) | ARMD_RD_PRIO(3) | ARMI_RD_PRIO(2);
+            pDDR_Reg->CTRL_REG_16 = (AXI_MC_ASYNC << 8) | CEVA_WR_PRIO(1) | CEVA_RD_PRIO(1) | ARMI_WR_PRIO(3);
+            capability = (0x1 << ((0x2 >> ((pDDR_Reg->CTRL_REG_08 >> 16) & 0x1))  //bus width
+                                    + (13 - (pDDR_Reg->CTRL_REG_21 & 0x7))  //col
+                                    + (2 + ((pDDR_Reg->CTRL_REG_05 >> 8) & 0x1))  //bank
+                                    + (15 - ((pDDR_Reg->CTRL_REG_19 >> 24) & 0x7))));  //row
+            if(((pDDR_Reg->CTRL_REG_17 >> 24) & 0x3) == 0x3)
+            {
+                if(capability < (0x1 << ((0x2 >> ((pDDR_Reg->CTRL_REG_08 >> 16) & 0x1))  //bus width
+                                    + (13 - ((pDDR_Reg->CTRL_REG_21 >> 8) & 0x7))  //col
+                                    + (2 + ((pDDR_Reg->CTRL_REG_05 >> 16) & 0x1))  //bank
+                                    + (15 - (pDDR_Reg->CTRL_REG_20 & 0x7))))) //row
+                {
+                    capability = (0x1 << ((0x2 >> ((pDDR_Reg->CTRL_REG_08 >> 16) & 0x1))  //bus width
+                                    + (13 - ((pDDR_Reg->CTRL_REG_21 >> 8) & 0x7))  //col
+                                    + (2 + ((pDDR_Reg->CTRL_REG_05 >> 16) & 0x1))  //bank
+                                    + (15 - (pDDR_Reg->CTRL_REG_20 & 0x7))));  //row
+                }
+            }
+            KHz = PLLGetDDRFreq();
+			printk("PLLGetDDRFreq=%ld KHZ\n" , KHz);
+            if(110000 > KHz)
+            {
+                DLLBypass(KHz);
+            }
+            else
+            {
+                value = pDDR_Reg->CTRL_REG_78;
+                if(value & 0x1)
+                {
+                    value = value >> 1;
+                    telement = 1000000000/(KHz*value);
+                }
+            }
+            DDRPreUpdateRef(KHz);
+            DDRPreUpdateTiming(KHz);
+            DDRUpdateRef();
+            DDRUpdateTiming();
+            pDDR_Reg->CTRL_REG_36 = 0x1F1F;
+			
+	printk("..%s -->capability ==%ld telement==%ld -->%d\n",__FUNCTION__,capability,telement,__LINE__);
+	ddr_change_freq( 351 );
+}
+
+unsigned long ddr_save_sp( unsigned long new_sp );
+asm(	
+"	.section \".tcm.text\",\"ax\"\n"	
+"	.align\n"
+"	.type	ddr_save_sp, #function\n"
+"ddr_save_sp:\n"
+"	mov r1,sp\n"	
+"	mov sp,r0\n"	
+"	mov r0,r1\n"	
+"	mov pc,lr\n"
+"	.previous"
+);
+
+void(*rk28_restart_mmu)(void )= (void(*)(void ))rk281x_restart;
+
+extern void clk_recalculate_root_clocks(void);
+
+static int __init update_frq(void)
+{
+	unsigned long ps_sram = (DTCM_END&(~7));
+	//printk(">>>>>%s-->%d\n",__FUNCTION__,__LINE__);
+	int *reg = (int *)(SCU_BASE_ADDR_VA);
+	ddr_reg[0] = pGRF_Reg->CPU_APB_REG0;
+	ddr_reg[1] = pGRF_Reg->CPU_APB_REG1;
+	ddr_reg[2] = pDDR_Reg->CTRL_REG_03;
+	ddr_reg[3] = pDDR_Reg->CTRL_REG_09;
+	ddr_reg[4] = pDDR_Reg->CTRL_REG_10;
+	ddr_reg[5] = pDDR_Reg->CTRL_REG_36;
+	ddr_reg[6] = pDDR_Reg->CTRL_REG_78;
+	printk(" before 0x%08x 0x%08x 0x%08x 0x%08x\n"
+                            "0x%08x 0x%08x 0x%08x \n"
+                          //  "0x%08x 0x%08x 0x%08x 0x%08x\n" ,
+                            ,ddr_reg[0],ddr_reg[1],ddr_reg[2],ddr_reg[3],
+                            ddr_reg[4],ddr_reg[5],ddr_reg[6]);
+	strcpy( (char*)(ps_sram-0x40) , "rk281x_ddr_sram-wqq\n" );
+//	printk( "sram data:%s\n" , (char*)(ps_sram-0x40) );
+	local_irq_disable();
+	//printk("wait for jtag...\n");
+	//WAIT_ME();
+	save_sp = ddr_save_sp(ps_sram);
+	SDRAM_DDR_Init();
+	ddr_save_sp(save_sp);
+	printk("after SDRAM_DDR_Init\n");
+	local_irq_enable();		
+	ddr_reg[0] = pGRF_Reg->CPU_APB_REG0;
+	ddr_reg[1] = pGRF_Reg->CPU_APB_REG1;
+	ddr_reg[2] = pDDR_Reg->CTRL_REG_03;
+	ddr_reg[3] = pDDR_Reg->CTRL_REG_09;
+	ddr_reg[4] = pDDR_Reg->CTRL_REG_10;
+	ddr_reg[5] = pDDR_Reg->CTRL_REG_36;
+	ddr_reg[6] = pDDR_Reg->CTRL_REG_78;
+	printk("after 0x%08x 0x%08x 0x%08x 0x%08x\n"
+                            "0x%08x 0x%08x 0x%08x \n"
+                          //  "0x%08x 0x%08x 0x%08x 0x%08x\n" ,
+                            ,ddr_reg[0],ddr_reg[1],ddr_reg[2],ddr_reg[3],
+                            ddr_reg[4],ddr_reg[5],ddr_reg[6]);
+
+	printk("scu after frq%s::\n0x%08x 0x%08x 0x%08x 0x%08x\n"
+                            "0x%08x 0x%08x 0x%08x 0x%08x 0x%08x\n"
+                            "0x%08x 0x%08x 0x%08x 0x%08x\n"
+                          //  "0x%08x 0x%08x 0x%08x 0x%08x\n" ,
+                            ,__func__,
+                            reg[0],reg[1],reg[2],reg[3],
+                            reg[4],reg[5],reg[6],reg[7], reg[8],
+                            reg[9], reg[10],reg[11], reg[12]);
+	clk_recalculate_root_clocks();
+	return 0;	
+}
+core_initcall_sync(update_frq);
+
+#if 0
+/****************************************************************/
+//函数名:SDRAM_EnterSelfRefresh
+//描述:SDRAM进入自刷新模式
+//参数说明:
+//返回值:
+//相关全局变量:
+//注意:(1)系统完全idle后才能进入自刷新模式，进入自刷新后不能再访问SDRAM
+//     (2)要进入自刷新模式，必须保证运行时这个函数所调用到的所有代码不在SDRAM上
+/****************************************************************/
+void SDRAM_EnterSelfRefresh(void)
+{
+    volatile uint32 value =0;
+    uint32 memType = (pGRF_Reg->CPU_APB_REG0) & MEMTYPEMASK;
+    
+    switch(memType)
+    {
+        case SDRAM:
+        case Mobile_SDRAM:
+            value = pSDR_Reg->MSDR_SCTLR;
+            value |= ENTER_SELF_REFRESH;
+            pSDR_Reg->MSDR_SCTLR = value;
+
+            while(!((value = pSDR_Reg->MSDR_SCTLR) & SR_MODE));  //确定已经进入self-refresh
+            SCUDisableClk(CLK_GATE_EXTMEM);
+            if(SDRAM == memType)
+            {
+                SCUDisableClk(CLK_GATE_SDRMEM);
+            }
+            else
+            {
+                SCUDisableClk(CLK_GATE_MSDRMEM);
+            }
+            break;
+        case DDRII:
+        case Mobile_DDR:
+            pDDR_Reg->CTRL_REG_62 = pDDR_Reg->CTRL_REG_62 & (~(0xFFFF<<16)) | MODE5_CNT(0x1);
+            break;
+    }
+}
+
+/****************************************************************/
+//函数名:SDRAM_ExitSelfRefresh
+//描述:SDRAM退出自刷新模式
+//参数说明:
+//返回值:
+//相关全局变量:
+//注意:(1)SDRAM在自刷新模式后不能被访问，必须先退出自刷新模式
+//     (2)必须保证运行时这个函数的代码不在SDRAM上
+/****************************************************************/
+void SDRAM_ExitSelfRefresh(void)
+{
+    volatile uint32 value =0;
+    uint32 memType = (pGRF_Reg->CPU_APB_REG0) & MEMTYPEMASK;
+
+    switch(memType)
+    {
+        case SDRAM:
+        case Mobile_SDRAM:
+            SCUEnableClk(CLK_GATE_EXTMEM);
+            if(SDRAM == memType)
+            {
+                SCUEnableClk(CLK_GATE_SDRMEM);
+            }
+            else
+            {
+                SCUEnableClk(CLK_GATE_MSDRMEM);
+            }
+            DRVDelayUs(1);
+    
+            value = pSDR_Reg->MSDR_SCTLR;
+            value &= ~(ENTER_SELF_REFRESH);
+            pSDR_Reg->MSDR_SCTLR = value;
+
+            while((value = pSDR_Reg->MSDR_SCTLR) & SR_MODE);  //确定退出进入self-refresh
+            break;
+        case DDRII:
+        case Mobile_DDR:
+            pDDR_Reg->CTRL_REG_62 = pDDR_Reg->CTRL_REG_62 & (~(0xFFFF<<16)) | MODE5_CNT(0xFFFF);
+            break;
+    }
+    
+    DRVDelayUs(100); //延时一下比较安全，保证退出后稳定
+}
+#endif
+#endif //endi of #ifdef DRIVERS_SDRAM
+

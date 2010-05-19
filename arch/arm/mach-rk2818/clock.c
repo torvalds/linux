@@ -1203,6 +1203,15 @@ static void recalculate_root_clocks(void)
 	}
 }
 
+void clk_recalculate_root_clocks(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&clockfw_lock, flags);
+	recalculate_root_clocks();
+	spin_unlock_irqrestore(&clockfw_lock, flags);
+}
+
 /**
  * clk_preinit - initialize any fields in the struct clk before clk init
  * @clk: struct clk * to initialize
