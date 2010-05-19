@@ -10,6 +10,7 @@
 #include <linux/poll.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
 
