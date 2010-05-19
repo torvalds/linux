@@ -200,7 +200,7 @@ void wm97xx_set_gpio(struct wm97xx *wm, u32 gpio,
 	mutex_lock(&wm->codec_mutex);
 	reg = wm97xx_reg_read(wm, AC97_GPIO_STATUS);
 
-	if (status & WM97XX_GPIO_HIGH)
+	if (status == WM97XX_GPIO_HIGH)
 		reg |= gpio;
 	else
 		reg &= ~gpio;
