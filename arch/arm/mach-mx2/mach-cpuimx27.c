@@ -162,6 +162,8 @@ static struct mxc_nand_platform_data eukrea_cpuimx27_nand_board_info = {
 static struct platform_device *platform_devices[] __initdata = {
 	&eukrea_cpuimx27_nor_mtd_device,
 	&mxc_fec_device,
+	&mxc_wdt,
+	&mxc_w1_master_device,
 };
 
 static struct imxi2c_platform_data eukrea_cpuimx27_i2c_1_data = {
