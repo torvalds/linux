@@ -179,6 +179,7 @@ u32 pci_ide_read_reg(int reg)
 	case PCI_IDE_ETC_REG:
 		_rdmsr(IDE_MSR_REG(IDE_ETC), &hi, &lo);
 		conf_data = lo;
+		break;
 	case PCI_IDE_PM_REG:
 		_rdmsr(IDE_MSR_REG(IDE_INTERNAL_PM), &hi, &lo);
 		conf_data = lo;
