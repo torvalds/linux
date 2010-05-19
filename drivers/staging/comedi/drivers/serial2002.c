@@ -412,30 +412,25 @@ static int serial_2002_open(struct comedi_device *dev)
 			int max;
 		};
 
-		struct config_t dig_in_config[32];
-		struct config_t dig_out_config[32];
-		struct config_t chan_in_config[32];
-		struct config_t chan_out_config[32];
+		struct config_t *dig_in_config;
+		struct config_t *dig_out_config;
+		struct config_t *chan_in_config;
+		struct config_t *chan_out_config;
 		int i;
 
 		result = 0;
-		for (i = 0; i < 32; i++) {
-			dig_in_config[i].kind = 0;
-			dig_in_config[i].bits = 0;
-			dig_in_config[i].min = 0;
-			dig_in_config[i].max = 0;
-			dig_out_config[i].kind = 0;
-			dig_out_config[i].bits = 0;
-			dig_out_config[i].min = 0;
-			dig_out_config[i].max = 0;
-			chan_in_config[i].kind = 0;
-			chan_in_config[i].bits = 0;
-			chan_in_config[i].min = 0;
-			chan_in_config[i].max = 0;
-			chan_out_config[i].kind = 0;
-			chan_out_config[i].bits = 0;
-			chan_out_config[i].min = 0;
-			chan_out_config[i].max = 0;
+		dig_in_config = kcalloc(32, sizeof(struct config_t),
+				GFP_KERNEL);
+		dig_out_config = kcalloc(32, sizeof(struct config_t),
+				GFP_KERNEL);
+		chan_in_config = kcalloc(32, sizeof(struct config_t),
+				GFP_KERNEL);
+		chan_out_config = kcalloc(32, sizeof(struct config_t),
+				GFP_KERNEL);
+		if (!dig_in_config || !dig_out_config
+		    || !chan_in_config || !chan_out_config) {
+			result = -ENOMEM;
+			goto err_alloc_configs;
 		}
 
 		tty_setspeed(devpriv->tty, devpriv->speed);
@@ -690,6 +685,13 @@ static int serial_2002_open(struct comedi_device *dev)
 				s->range_table_list = NULL;
 			}
 		}
+
+err_alloc_configs:
+		kfree(dig_in_config);
+		kfree(dig_out_config);
+		kfree(chan_in_config);
+		kfree(chan_out_config);
+
 		if (result) {
 			if (devpriv->tty) {
 				filp_close(devpriv->tty, 0);
