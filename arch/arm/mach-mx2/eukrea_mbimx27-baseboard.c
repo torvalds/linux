@@ -50,10 +50,12 @@ static int eukrea_mbimx27_pins[] = {
 	PE10_PF_UART3_CTS,
 	PE11_PF_UART3_RTS,
 	/* UART4 */
+#if !defined(MACH_EUKREA_CPUIMX27_USEUART4)
 	PB26_AF_UART4_RTS,
 	PB28_AF_UART4_TXD,
 	PB29_AF_UART4_CTS,
 	PB31_AF_UART4_RXD,
+#endif
 	/* SDHC1*/
 	PE18_PF_SD1_D0,
 	PE19_PF_SD1_D1,
@@ -229,6 +231,9 @@ static struct imxuart_platform_data uart_pdata[] = {
 	{
 		.flags = IMXUART_HAVE_RTSCTS,
 	},
+	{
+		.flags = IMXUART_HAVE_RTSCTS,
+	},
 };
 
 #if defined(CONFIG_TOUCHSCREEN_ADS7846)
@@ -293,6 +298,9 @@ void __init eukrea_mbimx27_baseboard_init(void)
 
 	mxc_register_device(&mxc_uart_device1, &uart_pdata[0]);
 	mxc_register_device(&mxc_uart_device2, &uart_pdata[1]);
+#if !defined(MACH_EUKREA_CPUIMX27_USEUART4)
+	mxc_register_device(&mxc_uart_device3, &uart_pdata[2]);
+#endif
 
 	mxc_register_device(&mxc_fb_device, &eukrea_mbimx27_fb_data);
 	mxc_register_device(&mxc_sdhc_device0, NULL);

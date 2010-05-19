@@ -49,10 +49,12 @@ static int eukrea_cpuimx27_pins[] = {
 	PE14_PF_UART1_CTS,
 	PE15_PF_UART1_RTS,
 	/* UART4 */
+#if defined(MACH_EUKREA_CPUIMX27_USEUART4)
 	PB26_AF_UART4_RTS,
 	PB28_AF_UART4_TXD,
 	PB29_AF_UART4_CTS,
 	PB31_AF_UART4_RXD,
+#endif
 	/* FEC */
 	PD0_AIN_FEC_TXD0,
 	PD1_AIN_FEC_TXD1,
@@ -76,12 +78,14 @@ static int eukrea_cpuimx27_pins[] = {
 	PD17_PF_I2C_DATA,
 	PD18_PF_I2C_CLK,
 	/* SDHC2 */
+#if defined(CONFIG_MACH_EUKREA_CPUIMX27_USESDHC2)
 	PB4_PF_SD2_D0,
 	PB5_PF_SD2_D1,
 	PB6_PF_SD2_D2,
 	PB7_PF_SD2_D3,
 	PB8_PF_SD2_CMD,
 	PB9_PF_SD2_CLK,
+#endif
 #if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
 	/* Quad UART's IRQ */
 	GPIO_PORTD | 22 | GPIO_GPIO | GPIO_IN,
@@ -202,6 +206,8 @@ static void __init eukrea_cpuimx27_init(void)
 #if defined(CONFIG_MACH_EUKREA_CPUIMX27_USESDHC2)
 	/* SDHC2 can be used for Wifi */
 	mxc_register_device(&mxc_sdhc_device1, NULL);
+#endif
+#if defined(MACH_EUKREA_CPUIMX27_USEUART4)
 	/* in which case UART4 is also used for Bluetooth */
 	mxc_register_device(&mxc_uart_device3, &uart_pdata[1]);
 #endif
