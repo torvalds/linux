@@ -206,7 +206,7 @@ static int eeepc_wmi_backlight_notify(struct eeepc_wmi *eeepc, int code)
 {
 	struct backlight_device *bd = eeepc->backlight_device;
 	int old = bd->props.brightness;
-	int new;
+	int new = old;
 
 	if (code >= NOTIFY_BRNUP_MIN && code <= NOTIFY_BRNUP_MAX)
 		new = code - NOTIFY_BRNUP_MIN + 1;
