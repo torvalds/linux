@@ -116,9 +116,21 @@ int jffs2_reserve_space(struct jffs2_sb_info *c, uint32_t minsize,
 
 			ret = jffs2_garbage_collect_pass(c);
 
-			if (ret == -EAGAIN)
-				jffs2_erase_pending_blocks(c, 1);
-			else if (ret)
+			if (ret == -EAGAIN) {
+				spin_lock(&c->erase_completion_lock);
+				if (c->nr_erasing_blocks &&
+				    list_empty(&c->erase_pending_list) &&
+				    list_empty(&c->erase_complete_list)) {
+					DECLARE_WAITQUEUE(wait, current);
+					set_current_state(TASK_UNINTERRUPTIBLE);
+					add_wait_queue(&c->erase_wait, &wait);
+					D1(printk(KERN_DEBUG "%s waiting for erase to complete\n", __func__));
+					spin_unlock(&c->erase_completion_lock);
+
+					schedule();
+				} else
+					spin_unlock(&c->erase_completion_lock);
+			} else if (ret)
 				return ret;
 
 			cond_resched();
