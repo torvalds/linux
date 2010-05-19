@@ -43,10 +43,11 @@
 
 #include <asm/fixmap.h>
 #include <asm/apb_timer.h>
+#include <asm/mrst.h>
 
 #define APBT_MASK			CLOCKSOURCE_MASK(32)
 #define APBT_SHIFT			22
-#define APBT_CLOCKEVENT_RATING		150
+#define APBT_CLOCKEVENT_RATING		110
 #define APBT_CLOCKSOURCE_RATING		250
 #define APBT_MIN_DELTA_USEC		200
 
@@ -82,8 +83,6 @@ struct apbt_dev {
 	unsigned int flags;
 	char name[10];
 };
-
-int disable_apbt_percpu __cpuinitdata;
 
 static DEFINE_PER_CPU(struct apbt_dev, cpu_apbt_dev);
 
@@ -193,29 +192,6 @@ static struct clock_event_device apbt_clockevent = {
 	.irq		= 0,
 	.rating		= APBT_CLOCKEVENT_RATING,
 };
-
-/*
- * if user does not want to use per CPU apb timer, just give it a lower rating
- * than local apic timer and skip the late per cpu timer init.
- */
-static inline int __init setup_x86_mrst_timer(char *arg)
-{
-	if (!arg)
-		return -EINVAL;
-
-	if (strcmp("apbt_only", arg) == 0)
-		disable_apbt_percpu = 0;
-	else if (strcmp("lapic_and_apbt", arg) == 0)
-		disable_apbt_percpu = 1;
-	else {
-		pr_warning("X86 MRST timer option %s not recognised"
-			   " use x86_mrst_timer=apbt_only or lapic_and_apbt\n",
-			   arg);
-		return -EINVAL;
-	}
-	return 0;
-}
-__setup("x86_mrst_timer=", setup_x86_mrst_timer);
 
 /*
  * start count down from 0xffff_ffff. this is done by toggling the enable bit
@@ -335,7 +311,7 @@ static int __init apbt_clockevent_register(void)
 	adev->num = smp_processor_id();
 	memcpy(&adev->evt, &apbt_clockevent, sizeof(struct clock_event_device));
 
-	if (disable_apbt_percpu) {
+	if (mrst_timer_options == MRST_TIMER_LAPIC_APBT) {
 		apbt_clockevent.rating = APBT_CLOCKEVENT_RATING - 100;
 		global_clock_event = &adev->evt;
 		printk(KERN_DEBUG "%s clockevent registered as global\n",
@@ -429,7 +405,8 @@ static int apbt_cpuhp_notify(struct notifier_block *n,
 
 static __init int apbt_late_init(void)
 {
-	if (disable_apbt_percpu || !apb_timer_block_enabled)
+	if (mrst_timer_options == MRST_TIMER_LAPIC_APBT ||
+		!apb_timer_block_enabled)
 		return 0;
 	/* This notifier should be called after workqueue is ready */
 	hotcpu_notifier(apbt_cpuhp_notify, -20);
@@ -449,6 +426,8 @@ static void apbt_set_mode(enum clock_event_mode mode,
 	uint64_t delta;
 	int timer_num;
 	struct apbt_dev *adev = EVT_TO_APBT_DEV(evt);
+
+	BUG_ON(!apbt_virt_address);
 
 	timer_num = adev->num;
 	pr_debug("%s CPU %d timer %d mode=%d\n",
@@ -676,7 +655,7 @@ void __init apbt_time_init(void)
 	}
 #ifdef CONFIG_SMP
 	/* kernel cmdline disable apb timer, so we will use lapic timers */
-	if (disable_apbt_percpu) {
+	if (mrst_timer_options == MRST_TIMER_LAPIC_APBT) {
 		printk(KERN_INFO "apbt: disabled per cpu timer\n");
 		return;
 	}
