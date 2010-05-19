@@ -2807,6 +2807,7 @@ ath5k_tasklet_calibrate(unsigned long data)
 			ieee80211_frequency_to_channel(
 				sc->curchan->center_freq));
 
+	ath5k_hw_update_noise_floor(ah);
 	/* Wake queues */
 	ieee80211_wake_queues(sc->hw);
 

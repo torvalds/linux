@@ -1167,7 +1167,7 @@ static s16 ath5k_hw_get_median_noise_floor(struct ath5k_hw *ah)
  * The median of the values in the history is then loaded into the
  * hardware for its own use for RSSI and CCA measurements.
  */
-static void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
+void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	u32 val;
@@ -1248,7 +1248,6 @@ static void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 /*
  * Perform a PHY calibration on RF5110
  * -Fix BPSK/QAM Constellation (I/Q correction)
- * -Calculate Noise Floor
  */
 static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 		struct ieee80211_channel *channel)
@@ -1335,8 +1334,6 @@ static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 		return ret;
 	}
 
-	ath5k_hw_update_noise_floor(ah);
-
 	/*
 	 * Re-enable RX/TX and beacons
 	 */
@@ -1348,10 +1345,10 @@ static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 }
 
 /*
- * Perform a PHY calibration on RF5111/5112 and newer chips
+ * Perform I/Q calibration on RF5111/5112 and newer chips
  */
-static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
-		struct ieee80211_channel *channel)
+static int
+ath5k_hw_rf511x_iq_calibrate(struct ath5k_hw *ah)
 {
 	u32 i_pwr, q_pwr;
 	s32 iq_corr, i_coff, i_coffd, q_coff, q_coffd;
@@ -1360,10 +1357,9 @@ static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
 
 	if (!ah->ah_calibration ||
 		ath5k_hw_reg_read(ah, AR5K_PHY_IQ) & AR5K_PHY_IQ_RUN)
-		goto done;
+		return 0;
 
 	/* Calibration has finished, get the results and re-run */
-
 	/* work around empty results which can apparently happen on 5212 */
 	for (i = 0; i <= 10; i++) {
 		iq_corr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_CORR);
@@ -1384,7 +1380,7 @@ static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
 
 	/* protect against divide by 0 and loss of sign bits */
 	if (i_coffd == 0 || q_coffd < 2)
-		goto done;
+		return -1;
 
 	i_coff = (-iq_corr) / i_coffd;
 	i_coff = clamp(i_coff, -32, 31); /* signed 6 bit */
@@ -1410,17 +1406,6 @@ static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
 			AR5K_PHY_IQ_CAL_NUM_LOG_MAX, 15);
 	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_RUN);
 
-done:
-
-	/* TODO: Separate noise floor calibration from I/Q calibration
-	 * since noise floor calibration interrupts rx path while I/Q
-	 * calibration doesn't. We don't need to run noise floor calibration
-	 * as often as I/Q calibration.*/
-	ath5k_hw_update_noise_floor(ah);
-
-	/* Initiate a gain_F calibration */
-	ath5k_hw_request_rfgain_probe(ah);
-
 	return 0;
 }
 
@@ -1434,8 +1419,10 @@ int ath5k_hw_phy_calibrate(struct ath5k_hw *ah,
 
 	if (ah->ah_radio == AR5K_RF5110)
 		ret = ath5k_hw_rf5110_calibrate(ah, channel);
-	else
-		ret = ath5k_hw_rf511x_calibrate(ah, channel);
+	else {
+		ret = ath5k_hw_rf511x_iq_calibrate(ah);
+		ath5k_hw_request_rfgain_probe(ah);
+	}
 
 	return ret;
 }
