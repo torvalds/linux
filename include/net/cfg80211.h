@@ -1168,6 +1168,7 @@ struct cfg80211_ops {
 	int	(*action)(struct wiphy *wiphy, struct net_device *dev,
 			  struct ieee80211_channel *chan,
 			  enum nl80211_channel_type channel_type,
+			  bool channel_type_valid,
 			  const u8 *buf, size_t len, u64 *cookie);
 
 	int	(*set_power_mgmt)(struct wiphy *wiphy, struct net_device *dev,

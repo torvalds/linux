@@ -4681,6 +4681,7 @@ static int nl80211_action(struct sk_buff *skb, struct genl_info *info)
 	struct net_device *dev;
 	struct ieee80211_channel *chan;
 	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
+	bool channel_type_valid = false;
 	u32 freq;
 	int err;
 	void *hdr;
@@ -4722,6 +4723,7 @@ static int nl80211_action(struct sk_buff *skb, struct genl_info *info)
 			err = -EINVAL;
 			goto out;
 		}
+		channel_type_valid = true;
 	}
 
 	freq = nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]);
@@ -4745,6 +4747,7 @@ static int nl80211_action(struct sk_buff *skb, struct genl_info *info)
 		goto free_msg;
 	}
 	err = cfg80211_mlme_action(rdev, dev, chan, channel_type,
+				   channel_type_valid,
 				   nla_data(info->attrs[NL80211_ATTR_FRAME]),
 				   nla_len(info->attrs[NL80211_ATTR_FRAME]),
 				   &cookie);

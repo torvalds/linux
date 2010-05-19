@@ -1554,10 +1554,12 @@ static int ieee80211_cancel_remain_on_channel(struct wiphy *wiphy,
 static int ieee80211_action(struct wiphy *wiphy, struct net_device *dev,
 			    struct ieee80211_channel *chan,
 			    enum nl80211_channel_type channel_type,
+			    bool channel_type_valid,
 			    const u8 *buf, size_t len, u64 *cookie)
 {
 	return ieee80211_mgd_action(IEEE80211_DEV_TO_SUB_IF(dev), chan,
-				    channel_type, buf, len, cookie);
+				    channel_type, channel_type_valid,
+				    buf, len, cookie);
 }
 
 struct cfg80211_ops mac80211_config_ops = {
