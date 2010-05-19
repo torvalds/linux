@@ -313,6 +313,7 @@ static int usb_kbd_probe(struct usb_interface *iface,
 		goto fail2;
 
 	usb_set_intfdata(iface, kbd);
+	device_set_wakeup_enable(&dev->dev, 1);
 	return 0;
 
 fail2:	

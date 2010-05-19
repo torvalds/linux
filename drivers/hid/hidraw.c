@@ -311,7 +311,7 @@ static long hidraw_ioctl(struct file *file, unsigned int cmd,
 						-EFAULT : len;
 					break;
 				}
-                }
+		}
 
 		ret = -ENOTTY;
 	}

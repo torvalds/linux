@@ -273,7 +273,7 @@ config HID_SAMSUNG
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
-	Support for Samsung InfraRed remote control.
+	Support for Samsung InfraRed remote control or keyboards.
 
 config HID_SONY
 	tristate "Sony" if EMBEDDED
@@ -332,7 +332,7 @@ config HID_TOPSEED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
-	Say Y if you have a TopSeed Cyberlink remote control.
+	Say Y if you have a TopSeed Cyberlink or BTC Emprex remote control.
 
 config HID_THRUSTMASTER
 	tristate "ThrustMaster devices support" if EMBEDDED
@@ -357,6 +357,14 @@ config HID_WACOM
 	---help---
 	Support for Wacom Graphire Bluetooth tablet.
 
+config HID_WACOM_POWER_SUPPLY
+	bool "Wacom Bluetooth devices power supply status support"
+	depends on HID_WACOM
+	select POWER_SUPPLY
+	---help---
+	  Say Y here if you want to enable power supply status monitoring for
+	  Wacom Bluetooth devices.
+
 config HID_ZEROPLUS
 	tristate "Zeroplus based game controller support" if EMBEDDED
 	depends on USB_HID
@@ -371,6 +379,13 @@ config ZEROPLUS_FF
 	---help---
 	  Say Y here if you have a Zeroplus based game controller and want
 	  to have force feedback support for it.
+
+config HID_ZYDACRON
+	tristate "Zydacron remote control support" if EMBEDDED
+	depends on USB_HID
+	default !EMBEDDED
+	---help---
+	Support for Zydacron remote control.
 
 endmenu
 
