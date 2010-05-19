@@ -418,9 +418,11 @@ void dsptimer_callback(unsigned long arg)
         break;
     case DS_SLOW:
         if(++sec_cnt>=5) {
+#if 0     	
             dsp_powerctl(DPC_SLEEP, 0);
             inf->dsp_status = DS_SLEEP;
             printk("dsp work mode : sleep mode \n");
+#endif            
         }
         break;
     case DS_SLEEP:
