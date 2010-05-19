@@ -3636,7 +3636,6 @@ need_resched:
 	rq = cpu_rq(cpu);
 	rcu_note_context_switch(cpu);
 	prev = rq->curr;
-	switch_count = &prev->nivcsw;
 
 	release_kernel_lock(prev);
 need_resched_nonpreemptible:
@@ -3649,6 +3648,7 @@ need_resched_nonpreemptible:
 	raw_spin_lock_irq(&rq->lock);
 	clear_tsk_need_resched(prev);
 
+	switch_count = &prev->nivcsw;
 	if (prev->state && !(preempt_count() & PREEMPT_ACTIVE)) {
 		if (unlikely(signal_pending_state(prev->state, prev))) {
 			prev->state = TASK_RUNNING;
@@ -3689,8 +3689,10 @@ need_resched_nonpreemptible:
 
 		context_switch(rq, prev, next); /* unlocks the rq */
 		/*
-		 * the context switch might have flipped the stack from under
-		 * us, hence refresh the local variables.
+		 * The context switch have flipped the stack from under us
+		 * and restored the local variables which were saved when
+		 * this task called schedule() in the past. prev == current
+		 * is still correct, but it can be moved to another cpu/rq.
 		 */
 		cpu = smp_processor_id();
 		rq = cpu_rq(cpu);
@@ -3699,11 +3701,8 @@ need_resched_nonpreemptible:
 
 	post_schedule(rq);
 
-	if (unlikely(reacquire_kernel_lock(current) < 0)) {
-		prev = rq->curr;
-		switch_count = &prev->nivcsw;
+	if (unlikely(reacquire_kernel_lock(prev)))
 		goto need_resched_nonpreemptible;
-	}
 
 	preempt_enable_no_resched();
 	if (need_resched())
