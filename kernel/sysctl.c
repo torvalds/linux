@@ -621,7 +621,7 @@ static struct ctl_table kern_table[] = {
 #endif
 	{
 		.procname	= "userprocess_debug",
-		.data		= &sysctl_userprocess_debug,
+		.data		= &show_unhandled_signals,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec,
@@ -1431,7 +1431,8 @@ static struct ctl_table fs_table[] = {
 };
 
 static struct ctl_table debug_table[] = {
-#if defined(CONFIG_X86) || defined(CONFIG_PPC) || defined(CONFIG_SPARC)
+#if defined(CONFIG_X86) || defined(CONFIG_PPC) || defined(CONFIG_SPARC) || \
+    defined(CONFIG_S390)
 	{
 		.procname	= "exception-trace",
 		.data		= &show_unhandled_signals,

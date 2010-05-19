@@ -328,8 +328,8 @@ struct pt_regs
 	psw_t psw;
 	unsigned long gprs[NUM_GPRS];
 	unsigned long orig_gpr2;
-	unsigned short svcnr;
 	unsigned short ilc;
+	unsigned short svcnr;
 };
 #endif
 
@@ -436,6 +436,7 @@ typedef struct
 #define PTRACE_PEEKDATA_AREA	      0x5003
 #define PTRACE_POKETEXT_AREA	      0x5004
 #define PTRACE_POKEDATA_AREA 	      0x5005
+#define PTRACE_GET_LAST_BREAK	      0x5006
 
 /*
  * PT_PROT definition is loosely based on hppa bsd definition in

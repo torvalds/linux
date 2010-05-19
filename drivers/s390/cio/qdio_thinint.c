@@ -95,7 +95,7 @@ void tiqdio_add_input_queues(struct qdio_irq *irq_ptr)
 	for_each_input_queue(irq_ptr, q, i)
 		list_add_rcu(&q->entry, &tiq_list);
 	mutex_unlock(&tiq_list_lock);
-	xchg(irq_ptr->dsci, 1);
+	xchg(irq_ptr->dsci, 1 << 7);
 }
 
 void tiqdio_remove_input_queues(struct qdio_irq *irq_ptr)
@@ -173,7 +173,7 @@ static void tiqdio_thinint_handler(void *ind, void *drv_data)
 
 		/* prevent racing */
 		if (*tiqdio_alsi)
-			xchg(&q_indicators[TIQDIO_SHARED_IND].ind, 1);
+			xchg(&q_indicators[TIQDIO_SHARED_IND].ind, 1 << 7);
 	}
 }
 
