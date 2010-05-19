@@ -311,6 +311,11 @@ static int rk2818_backlight_probe(struct platform_device *pdev)
 
     rk2818_mux_api_set(pwm_iomux[id], 1);
 
+    if(rk2818_bl_info->pw_iomux)
+    {
+        rk2818_mux_api_set(rk2818_bl_info->pw_iomux, 0); 
+    }
+
     ret = gpio_request(pin, NULL); 
     if(ret != 0)
     {
