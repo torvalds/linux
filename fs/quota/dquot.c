@@ -1847,6 +1847,7 @@ const struct dquot_operations dquot_operations = {
 	.alloc_dquot	= dquot_alloc,
 	.destroy_dquot	= dquot_destroy,
 };
+EXPORT_SYMBOL(dquot_operations);
 
 /*
  * Generic helper for ->open on filesystems supporting disk quotas.
@@ -2491,7 +2492,7 @@ const struct quotactl_ops vfs_quotactl_ops = {
 	.get_dqblk	= vfs_get_dqblk,
 	.set_dqblk	= vfs_set_dqblk
 };
-
+EXPORT_SYMBOL(vfs_quotactl_ops);
 
 static int do_proc_dqstats(struct ctl_table *table, int write,
 		     void __user *buffer, size_t *lenp, loff_t *ppos)

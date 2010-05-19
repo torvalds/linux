@@ -1045,7 +1045,11 @@ magic_found:
 	 */
 	sb->s_op = &ufs_super_ops;
 	sb->s_export_op = &ufs_export_ops;
-	sb->dq_op = NULL; /***/
+#ifdef CONFIG_QUOTA
+	sb->s_qcop = &vfs_quotactl_ops;
+	sb->dq_op = NULL; /* &dquot_operations */
+#endif
+
 	sb->s_magic = fs32_to_cpu(sb, usb3->fs_magic);
 
 	uspi->s_sblkno = fs32_to_cpu(sb, usb1->fs_sblkno);

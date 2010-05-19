@@ -153,9 +153,6 @@ static inline unsigned sb_any_quota_active(struct super_block *sb)
 extern const struct dquot_operations dquot_operations;
 extern const struct quotactl_ops vfs_quotactl_ops;
 
-#define sb_dquot_ops (&dquot_operations)
-#define sb_quotactl_ops (&vfs_quotactl_ops)
-
 #else
 
 static inline int sb_has_quota_usage_enabled(struct super_block *sb, int type)
@@ -198,12 +195,6 @@ static inline int sb_any_quota_active(struct super_block *sb)
 {
 	return 0;
 }
-
-/*
- * NO-OP when quota not configured.
- */
-#define sb_dquot_ops				(NULL)
-#define sb_quotactl_ops				(NULL)
 
 static inline void dquot_initialize(struct inode *inode)
 {
