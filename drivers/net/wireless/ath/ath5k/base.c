@@ -2927,6 +2927,8 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 
 	ath5k_ani_init(ah, ah->ah_sc->ani_state.ani_mode);
 
+	ah->ah_cal_next_full = jiffies;
+	ah->ah_cal_next_ani = jiffies;
 	/*
 	 * Change channels and update the h/w rate map if we're switching;
 	 * e.g. 11a to 11b/g.
