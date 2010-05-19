@@ -50,6 +50,12 @@
 					  * in MEM bank 1 position. This is
 					  * true for OMAP3430
 					  */
+#define PWRDM_HAS_LOWPOWERSTATECHANGE	(1 << 2) /*
+						  * support to transition from a
+						  * sleep state to a lower sleep
+						  * state without waking up the
+						  * powerdomain
+						  */
 
 /*
  * Number of memory banks that are power-controllable.	On OMAP4430, the

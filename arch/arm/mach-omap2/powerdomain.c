@@ -980,6 +980,34 @@ bool pwrdm_has_hdwr_sar(struct powerdomain *pwrdm)
 }
 
 /**
+ * pwrdm_set_lowpwrstchange - Request a low power state change
+ * @pwrdm: struct powerdomain *
+ *
+ * Allows a powerdomain to transtion to a lower power sleep state
+ * from an existing sleep state without waking up the powerdomain.
+ * Returns -EINVAL if the powerdomain pointer is null or if the
+ * powerdomain does not support LOWPOWERSTATECHANGE, or returns 0
+ * upon success.
+ */
+int pwrdm_set_lowpwrstchange(struct powerdomain *pwrdm)
+{
+	if (!pwrdm)
+		return -EINVAL;
+
+	if (!(pwrdm->flags & PWRDM_HAS_LOWPOWERSTATECHANGE))
+		return -EINVAL;
+
+	pr_debug("powerdomain: %s: setting LOWPOWERSTATECHANGE bit\n",
+		 pwrdm->name);
+
+	prm_rmw_mod_reg_bits(OMAP4430_LOWPOWERSTATECHANGE_MASK,
+			     (1 << OMAP4430_LOWPOWERSTATECHANGE_SHIFT),
+			     pwrdm->prcm_offs, pwrstctrl_reg_offs);
+
+	return 0;
+}
+
+/**
  * pwrdm_wait_transition - wait for powerdomain power transition to finish
  * @pwrdm: struct powerdomain * to wait for
  *
