@@ -418,6 +418,7 @@ static int serial_2002_open(struct comedi_device *dev)
 		struct config_t chan_out_config[32];
 		int i;
 
+		result = 0;
 		for (i = 0; i < 32; i++) {
 			dig_in_config[i].kind = 0;
 			dig_in_config[i].bits = 0;
@@ -633,22 +634,23 @@ static int serial_2002_open(struct comedi_device *dev)
 				s = &dev->subdevices[i];
 				s->n_chan = chan;
 				s->maxdata = 0;
-				if (s->maxdata_list) {
-					kfree(s->maxdata_list);
-				}
+				kfree(s->maxdata_list);
 				s->maxdata_list = maxdata_list =
 				    kmalloc(sizeof(unsigned int) * s->n_chan,
 					    GFP_KERNEL);
-				if (s->range_table_list) {
-					kfree(s->range_table_list);
-				}
+				if (!s->maxdata_list)
+					break;	/* error handled below */
+				kfree(s->range_table_list);
+				s->range_table = NULL;
+				s->range_table_list = NULL;
 				if (range) {
-					s->range_table = 0;
 					s->range_table_list = range_table_list =
 					    kmalloc(sizeof
 						    (struct
 						     serial2002_range_table_t) *
 						    s->n_chan, GFP_KERNEL);
+					if (!s->range_table_list)
+						break;	/* err handled below */
 				}
 				for (chan = 0, j = 0; j < 32; j++) {
 					if (c[j].kind == kind) {
@@ -674,7 +676,26 @@ static int serial_2002_open(struct comedi_device *dev)
 				}
 			}
 		}
-		result = 0;
+		if (i <= 4) {
+			/* Failed to allocate maxdata_list or range_table_list
+			 * for a subdevice that needed it.  */
+			result = -ENOMEM;
+			for (i = 0; i <= 4; i++) {
+				struct comedi_subdevice *s;
+
+				s = &dev->subdevices[i];
+				kfree(s->maxdata_list);
+				s->maxdata_list = NULL;
+				kfree(s->range_table_list);
+				s->range_table_list = NULL;
+			}
+		}
+		if (result) {
+			if (devpriv->tty) {
+				filp_close(devpriv->tty, 0);
+				devpriv->tty = NULL;
+			}
+		}
 	}
 	return result;
 }
