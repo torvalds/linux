@@ -60,7 +60,9 @@
 #define WIN1_USE_DOUBLE_BUF     1       //win1 use double buf to accelerate display
 #define LANDSCAPE_USE_ROTATE    1       //rotate win1 in landscape with mcu panel
 
-#if 0
+#define CURSOR_BUF_SIZE         256      //RK2818 cursor need 256B buf
+
+#if 1
 	#define fbprintk(msg...)	printk(msg);
 #else
 	#define fbprintk(msg...)
@@ -72,14 +74,7 @@
 #else
 	#define fbprintk2(msg...)
 #endif
-/*
-#define LcdReadBit(inf, addr, msk)      ((inf->regbak.addr=__raw_readl(inf->preg->addr))&(msk))
-#define LcdWrReg(inf, addr, val)         __raw_writel(val, inf->regbak.addr); inf->preg->addr = (val)                                         
-#define LcdRdReg(inf, addr)             __raw_readl(inf->preg->addr)
-#define LcdSetBit(inf, addr, msk)       __raw_writel((inf->regbak.addr |= (msk)), inf->preg->addr)
-#define LcdClrBit(inf, addr, msk)       __raw_writel((inf->regbak.addr &= ~(msk)), inf->preg->addr)
-#define LcdMskReg(inf, addr, msk, val)  (inf->regbak.addr)&=~(msk);   __raw_writel((inf->regbak.addr|=(val)), inf->preg->addr)
-*/
+
 #define LcdReadBit(inf, addr, msk)      ((inf->regbak.addr=inf->preg->addr)&(msk))
 #define LcdWrReg(inf, addr, val)        inf->preg->addr=inf->regbak.addr=(val)
 #define LcdRdReg(inf, addr)             (inf->preg->addr)
@@ -165,6 +160,7 @@ struct rk2818fb_inf {
     struct clk      *dclk;            //lcdc dclk
     struct clk      *dclk_parent;     //lcdc dclk divider frequency source
     struct clk      *dclk_divider;    //lcdc demodulator divider frequency
+    struct clk      *clk_share_mem;   //lcdc share memory frequency
     unsigned long	dclk_rate;
 
     /* lcdc reg base address and backup reg */
@@ -189,6 +185,10 @@ struct rk2818fb_inf {
 	char __iomem *screen_base2;
     __u32 smem_len2;
     unsigned long  smem_start2;
+
+    char __iomem *cursor_base;   /* cursor Virtual address*/
+    __u32 cursor_size;           /* Amount of ioremapped VRAM or 0 */ 
+    unsigned long  cursor_start;
 
     struct rk28fb_screen lcd_info;
     struct rk28fb_screen tv_info[5];
@@ -355,11 +355,7 @@ void mcutimer_callback(unsigned long arg)
     switch(inf->mcu_status)
     {
     case MS_IDLE:
-        if(OUT_P16BPP4==inf->cur_screen->face) {
-            inf->mcu_status = MS_EBOOK;
-        } else {
-            inf->mcu_status = MS_MCU;
-        }
+        inf->mcu_status = MS_MCU;        
         break;
     case MS_MCU:
         if(inf->mcu_usetimer)   mcu_do_refresh(inf);
@@ -406,16 +402,16 @@ int mcu_refresh(struct rk2818fb_inf *inf)
 
     if(SCREEN_MCU!=inf->cur_screen->type)   return 0;
 
-    if(!mcutimer_inited) {
+    if(!mcutimer_inited) 
+    {
         mcutimer_inited = 1;
         init_timer(&inf->mcutimer);
         inf->mcutimer.function = mcutimer_callback;
         inf->mcutimer.expires = jiffies + HZ/5;
-        inf->mcu_status = 0;
+        inf->mcu_status = MS_IDLE;
         add_timer(&inf->mcutimer);
     }
 
-    inf->mcu_ebooknew = 1;
     if(MS_MCU==inf->mcu_status)     mcu_do_refresh(inf);
 
     return 0;
@@ -497,7 +493,7 @@ void load_screen(struct fb_info *info, bool initscreen)
     struct rk2818fb_inf *inf = dev_get_drvdata(info->device);
     struct rk28fb_screen *screen = inf->cur_screen;
     u16 face = screen->face;
-
+    u16 mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend;
     u16 right_margin = screen->right_margin, lower_margin = screen->lower_margin;
     u16 x_res = screen->x_res, y_res = screen->y_res;
     u32 clk_rate = 0;
@@ -505,8 +501,30 @@ void load_screen(struct fb_info *info, bool initscreen)
         
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
+//	if(OUT_P16BPP4==face)   face = OUT_P565;
+
     // set the rgb or mcu
     LcdMskReg(inf, MCU_TIMING_CTRL, m_MCU_OUTPUT_SELECT, v_MCU_OUTPUT_SELECT((SCREEN_MCU==screen->type)?(1):(0)));
+
+	// set out format and mcu timing
+    mcu_total  = (screen->mcu_wrperiod*150*1000)/1000000;
+    if(mcu_total>31)    mcu_total = 31;
+    if(mcu_total<3)     mcu_total = 3;
+    mcu_rwstart = (mcu_total+1)/4 - 1;
+    mcu_rwend = ((mcu_total+1)*3)/4 - 1;
+    mcu_csstart = (mcu_rwstart>2) ? (mcu_rwstart-3) : (0);
+    mcu_csend = (mcu_rwend>15) ? (mcu_rwend-1) : (mcu_rwend);
+
+    fbprintk(">> mcu_total=%d, mcu_rwstart=%d, mcu_csstart=%d, mcu_rwend=%d, mcu_csend=%d \n",
+        mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend);
+
+    LcdMskReg(inf, MCU_TIMING_CTRL,
+             m_MCU_CS_ST | m_MCU_CS_END| m_MCU_RW_ST | m_MCU_RW_END |
+             m_MCU_WRITE_PERIOD | m_MCU_HOLDMODE_SELECT | m_MCU_HOLDMODE_FRAME_ST,
+            v_MCU_CS_ST(mcu_csstart) | v_MCU_CS_END(mcu_csend) | v_MCU_RW_ST(mcu_rwstart) |
+            v_MCU_RW_END(mcu_rwend) |  v_MCU_WRITE_PERIOD(mcu_total) |
+            v_MCU_HOLDMODE_SELECT((SCREEN_MCU==screen->type)?(1):(0)) | v_MCU_HOLDMODE_FRAME_ST(0)
+           );
 
 	// set synchronous pin polarity and data pin swap rule
      LcdMskReg(inf, DSP_CTRL0,
@@ -516,7 +534,7 @@ void load_screen(struct fb_info *info, bool initscreen)
         v_DEN_POLARITY(screen->pin_den) | v_DCLK_POLARITY(screen->pin_dclk) | v_COLOR_SPACE_CONVERSION(0)        
         );
 
-     LcdMskReg(inf, DSP_CTRL1, m_BG_COLOR,  v_BG_COLOR(0xff0000) );
+     LcdMskReg(inf, DSP_CTRL1, m_BG_COLOR,  v_BG_COLOR(0x000000) );
 
      LcdMskReg(inf, SWAP_CTRL, m_OUTPUT_RB_SWAP | m_OUTPUT_RG_SWAP | m_DELTA_SWAP | m_DUMMY_SWAP,
             v_OUTPUT_RB_SWAP(screen->swap_rb) | v_OUTPUT_RG_SWAP(screen->swap_rg) | v_DELTA_SWAP(screen->swap_delta) | v_DUMMY_SWAP(screen->swap_dumy));
@@ -561,7 +579,7 @@ void load_screen(struct fb_info *info, bool initscreen)
 
     dclk_rate = screen->pixclock * 1000000;
     
-    printk(">>>>>> set lcdc dclk need %d HZ, clk_parent = %d hz \n ", screen->pixclock, clk_rate);
+    fbprintk(">>>>>> set lcdc dclk need %d HZ, clk_parent = %d hz \n ", screen->pixclock, clk_rate);
 
     if(clk_rate < dclk_rate)
     {
@@ -590,7 +608,7 @@ void load_screen(struct fb_info *info, bool initscreen)
     }    
   
     clk_enable(inf->dclk);
-  //  clk_enable(inf->clk);
+    clk_enable(inf->clk);
 
     // init screen panel
     if(screen->init && initscreen)
@@ -629,6 +647,114 @@ static int fb_setcolreg(unsigned regno,
 
 	return 0;
 }
+
+int rk2818_set_cursor(struct fb_info *info, struct fb_cursor *cursor)
+{
+    struct rk2818fb_inf *inf = dev_get_drvdata(info->device);
+
+    fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
+
+    /* check not being asked to exceed capabilities */
+
+    if (cursor->image.width > 32)
+        return -EINVAL;
+
+    if (cursor->image.height > 32)
+        return -EINVAL;
+
+    if (cursor->image.depth > 1)
+        return -EINVAL;
+
+    if (cursor->enable)
+        LcdSetBit(inf, SYS_CONFIG, m_HWC_ENABLE);
+    else
+        LcdClrBit(inf, SYS_CONFIG, m_HWC_ENABLE);    
+
+    /* set data */
+    if (cursor->set & FB_CUR_SETPOS) 
+    {
+        unsigned int x = cursor->image.dx;
+        unsigned int y = cursor->image.dy;
+
+        if (x >= 0x800 || y >= 0x800 )
+            return -EINVAL;
+        LcdWrReg(inf, HWC_DSP_ST, v_BIT11LO(x)|v_BIT11HI(y));        
+    }
+
+    if (cursor->set & FB_CUR_SETCMAP) 
+    {
+        unsigned int bg_col = cursor->image.bg_color;
+        unsigned int fg_col = cursor->image.fg_color;
+
+        fbprintk("%s: update cmap (%08x,%08x)\n",
+            __func__, bg_col, fg_col);
+
+        LcdMskReg(inf, HWC_COLOR_LUT0, m_HWC_R|m_HWC_G|m_HWC_B, 
+                  v_HWC_R(info->cmap.red[bg_col]) | v_HWC_G(info->cmap.green[bg_col]) | v_HWC_B(info->cmap.blue[bg_col]));
+
+        LcdMskReg(inf, HWC_COLOR_LUT2, m_HWC_R|m_HWC_G|m_HWC_B, 
+                         v_HWC_R(info->cmap.red[fg_col]) | v_HWC_G(info->cmap.green[fg_col]) | v_HWC_B(info->cmap.blue[fg_col]));
+    }
+
+    if (cursor->set & FB_CUR_SETSIZE ||
+        cursor->set & (FB_CUR_SETIMAGE | FB_CUR_SETSHAPE))
+    {
+        /* rk2818 cursor is a 2 bpp 32x32 bitmap this routine
+         * clears it to transparent then combines the cursor
+         * shape plane with the colour plane to set the
+         * cursor */
+        int x, y;
+        const unsigned char *pcol = cursor->image.data;
+        const unsigned char *pmsk = cursor->mask;
+        void __iomem   *dst;
+        unsigned long cursor_mem_start;
+        unsigned char  dcol = 0;
+        unsigned char  dmsk = 0;
+        unsigned int   op;
+    
+        dst = info->screen_base + info->fix.smem_len - CURSOR_BUF_SIZE;
+	    cursor_mem_start = info->fix.smem_start + info->fix.smem_len - CURSOR_BUF_SIZE;
+        
+        fbprintk("%s: setting shape (%d,%d)\n",
+            __func__, cursor->image.width, cursor->image.height);
+
+        memset(dst, 0, CURSOR_BUF_SIZE);
+
+        for (y = 0; y < cursor->image.height; y++) 
+        {
+            for (x = 0; x < cursor->image.width; x++) 
+            {
+                if ((x % 8) == 0) {
+                    dcol = *pcol++;
+                    dmsk = *pmsk++;
+                } else {
+                    dcol >>= 1;
+                    dmsk >>= 1;
+                }
+
+                if (dmsk & 1) {
+                    op = (dcol & 1) ? 1 : 3;
+                    op <<= ((x % 4) * 2);   
+                    *(u8*)(dst+(x/4)) |= op;
+                }               
+            }
+            dst += (32*2)/8;
+        }
+        LcdSetBit(inf, SYS_CONFIG,m_HWC_RELOAD_EN);
+        LcdWrReg(inf, HWC_MST, cursor_mem_start);   
+        // flush end when wq_condition=1 in mcu panel, but not in rgb panel
+        if(SCREEN_MCU == inf->cur_screen->type) {
+            wait_event_interruptible_timeout(wq, wq_condition, HZ/20);
+            wq_condition = 0;
+        } else {
+            wq_condition = 0;
+            wait_event_interruptible_timeout(wq, wq_condition, HZ/20);
+        }
+        LcdSetBit(inf, SYS_CONFIG, m_HWC_RELOAD_EN);
+    }
+    return 0;
+}
+
 
 static int win0fb_blank(int blank_mode, struct fb_info *info)
 {
@@ -670,7 +796,8 @@ static int win0fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
     u16 ysize = (var->grayscale>>20) & 0xfff;
     u16 xlcd = screen->x_res;        //size of panel
     u16 ylcd = screen->y_res;
-
+    u16 yres = 0;
+    
     if(IsMcuLandscape()) 
     {
         xlcd = screen->y_res;
@@ -758,10 +885,18 @@ static int win0fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
         return -EINVAL;
     }
 
-    ScaleYDnY = CalScaleDownW0(var->yres, ysize);
-    ScaleYUpY = CalScaleUpW0(var->yres, ysize);
+    if(var->rotate == 270)
+    {
+        yres = var->xres;
+    }
+    else
+    {
+        yres = var->yres;
+    }
+    ScaleYDnY = CalScaleDownW0(yres, ysize);
+    ScaleYUpY = CalScaleUpW0(yres, ysize);
 
-    if((ScaleYDnY>0x8000) || (ScaleYUpY<=0x200))
+    if((ScaleYDnY>0x8000) || (ScaleYUpY<0x200))
     {
         return -EINVAL;        // multiple of scale down or scale up can't exceed 8
     }    
@@ -772,6 +907,7 @@ static int win0fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 static int win0fb_set_par(struct fb_info *info)
 {
     struct rk2818fb_inf *inf = dev_get_drvdata(info->device);
+    struct rk28fb_screen *screen = inf->cur_screen;
     struct fb_var_screeninfo *var = &info->var;
     struct fb_fix_screeninfo *fix = &info->fix;
     struct win0_par *par = info->par;
@@ -779,7 +915,6 @@ static int win0fb_set_par(struct fb_info *info)
     u8 format = 0;
     dma_addr_t map_dma;
     u32 y_offset=0, uv_offset=0, cblen=0, crlen=0, map_size=0, smem_len=0;
-    u16 xres=var->xres;
     u16 xpos = (var->nonstd>>8) & 0xfff;
     u16 ypos = (var->nonstd>>20) & 0xfff;
     u16 xsize = (var->grayscale>>8) & 0xfff;
@@ -787,6 +922,8 @@ static int win0fb_set_par(struct fb_info *info)
     u32 win0_en = var->reserved[2];
     u32 y_addr = var->reserved[3];
     u32 uv_addr = var->reserved[4];
+    u32 actWidth = 0; 
+    u32 actHeight = 0; 
 
     u32 ScaleYUpX=0x1000, ScaleYDnX=0x1000, ScaleYUpY=0x1000, ScaleYDnY=0x1000;
     u32 ScaleCbrUpX=0x1000, ScaleCbrDnX=0x1000, ScaleCbrUpY=0x1000, ScaleCbrDnY=0x1000;
@@ -820,6 +957,11 @@ static int win0fb_set_par(struct fb_info *info)
         fix->line_length = var->xres_virtual;
         y_offset = var->yoffset*var->xres_virtual + var->xoffset;
         uv_offset = var->yoffset*var->xres_virtual + var->xoffset;
+        if(var->rotate == 270)
+        {
+            y_offset += var->xres_virtual*(var->yres - 1);
+            uv_offset += var->xres_virtual*(var->yres - 1);
+        }
         cblen = crlen = (var->xres_virtual*var->yres_virtual)/2;
         break;
     case 2: // yuv4200
@@ -827,6 +969,11 @@ static int win0fb_set_par(struct fb_info *info)
         fix->line_length = var->xres_virtual;
         y_offset = var->yoffset*var->xres_virtual + var->xoffset;
         uv_offset = (var->yoffset/2)*var->xres_virtual + var->xoffset;
+        if(var->rotate == 270)
+        {
+            y_offset += var->xres_virtual*(var->yres - 1);
+            uv_offset += var->xres_virtual*(var->yres/2 - 1);
+        }
         cblen = crlen = (var->xres_virtual*var->yres_virtual)/4;
         break;
     case 3: // yuv4201
@@ -834,6 +981,11 @@ static int win0fb_set_par(struct fb_info *info)
         fix->line_length = var->xres_virtual;
         y_offset = (var->yoffset/2)*2*var->xres_virtual + (var->xoffset)*2;
         uv_offset = (var->yoffset/2)*var->xres_virtual + var->xoffset;
+        if(var->rotate == 270)
+        {
+            y_offset += var->xres_virtual*2*(var->yres/2 - 1);
+            uv_offset += var->xres_virtual*(var->yres/2 - 1);
+        }
         cblen = crlen = (var->xres_virtual*var->yres_virtual)/4;
         break;
     case 4: // yuv420m
@@ -910,90 +1062,99 @@ static int win0fb_set_par(struct fb_info *info)
     fbprintk("y_addr 0x%08x = 0x%08x + %d\n", y_addr, (u32)fix->smem_start, y_offset);
     fbprintk("uv_addr 0x%08x = 0x%08x + %d\n", uv_addr, (u32)fix->mmio_start , uv_offset);
 
+    if(var->rotate == 270)
+    {      
+        actWidth = var->yres;
+        actHeight = var->xres;
+    }
+    else
+    {
+        actWidth = var->xres;
+        actHeight = var->yres; 
+    }
     if((var->xres>1280) && (xsize>1280))
     {
-        ScaleYDnX = CalScaleDownW0(var->xres, 1280);
+        ScaleYDnX = CalScaleDownW0(actWidth, 1280);
         ScaleYUpX = CalScaleUpW0(1280, xsize);
     }
     else
     {
-        ScaleYDnX = CalScaleDownW0(var->xres, xsize);
-        ScaleYUpX = CalScaleUpW0(var->xres, xsize);
+        ScaleYDnX = CalScaleDownW0(actWidth, xsize);
+        ScaleYUpX = CalScaleUpW0(actWidth, xsize);
     }
 
-    ScaleYDnY = CalScaleDownW0(var->yres, ysize);
-    ScaleYUpY = CalScaleUpW0(var->yres, ysize);
+    ScaleYDnY = CalScaleDownW0(actHeight, ysize);
+    ScaleYUpY = CalScaleUpW0(actHeight, ysize);
 
     switch(var->nonstd&0xff)
-    {
-       case 0: // rgb
+    {       
        case 1:// yuv422
            if((var->xres>1280) && (xsize>1280))
            {
-               ScaleCbrDnX= CalScaleDownW0((var->xres/2), 1280);   
+               ScaleCbrDnX= CalScaleDownW0((actWidth/2), 1280);   
                ScaleCbrUpX = CalScaleUpW0((640), xsize); 
            }
            else             
            {
-               if(var->rotate) 
+               if(var->rotate == 270) 
                {
-                   ScaleCbrDnX= CalScaleDownW0(var->xres, xsize);   
-                   ScaleCbrUpX = CalScaleUpW0(var->xres, xsize); 
+                   ScaleCbrDnX= CalScaleDownW0(actWidth, xsize);   
+                   ScaleCbrUpX = CalScaleUpW0(actWidth, xsize); 
                }
                else
                {
-                   ScaleCbrDnX= CalScaleDownW0((var->xres/2), xsize);   
-                   ScaleCbrUpX = CalScaleUpW0((var->xres/2), xsize);   
+                   ScaleCbrDnX= CalScaleDownW0((actWidth/2), xsize);   
+                   ScaleCbrUpX = CalScaleUpW0((actWidth/2), xsize);   
                }
            }        
            
-           ScaleCbrDnY =  CalScaleDownW0(var->yres, ysize);  
-           ScaleCbrUpY =  CalScaleUpW0(var->yres, ysize); 
+           ScaleCbrDnY =  CalScaleDownW0(actHeight, ysize);  
+           ScaleCbrUpY =  CalScaleUpW0(actHeight, ysize); 
            break;
        case 2: // yuv4200
        case 3: // yuv4201
        case 4: // yuv420m                   
            if((var->xres>1280) && (xsize>1280))
            {
-               ScaleCbrDnX= CalScaleDownW0(var->xres/2, 1280);   
+               ScaleCbrDnX= CalScaleDownW0(actWidth/2, 1280);   
                ScaleCbrUpX = CalScaleUpW0(640, xsize); 
            }
            else
            {
-               ScaleCbrDnX= CalScaleDownW0(var->xres/2, xsize);   
-               ScaleCbrUpX = CalScaleUpW0(var->xres/2, xsize); 
+               ScaleCbrDnX= CalScaleDownW0(actWidth/2, xsize);   
+               ScaleCbrUpX = CalScaleUpW0(actWidth/2, xsize); 
            }
            
-           ScaleCbrDnY =  CalScaleDownW0(var->yres/2, ysize);  
-           ScaleCbrUpY =  CalScaleUpW0(var->yres/2, ysize);  
+           ScaleCbrDnY =  CalScaleDownW0(actHeight/2, ysize);  
+           ScaleCbrUpY =  CalScaleUpW0(actHeight/2, ysize);  
            break;
        case 5:// yuv444
            if((var->xres>1280) && (xsize>1280))
            {
-               ScaleCbrDnX= CalScaleDownW0(var->xres, 1280);   
+               ScaleCbrDnX= CalScaleDownW0(actWidth, 1280);   
                ScaleCbrUpX = CalScaleUpW0(1280, xsize);   
            }
            else
            {
-               ScaleCbrDnX= CalScaleDownW0(var->xres, xsize);   
-               ScaleCbrUpX = CalScaleUpW0(var->xres, xsize); 
+               ScaleCbrDnX= CalScaleDownW0(actWidth, xsize);   
+               ScaleCbrUpX = CalScaleUpW0(actWidth, xsize); 
            }
-           ScaleCbrDnY =  CalScaleDownW0(var->yres, ysize);  
-           ScaleCbrUpY =  CalScaleUpW0(var->yres, ysize);    
+           ScaleCbrDnY =  CalScaleDownW0(actHeight, ysize);  
+           ScaleCbrUpY =  CalScaleUpW0(actHeight, ysize);    
            break;
     }
         
-    xpos += LcdReadBit(inf, DSP_HACT_ST_END, m_BIT11HI);
-    ypos += LcdReadBit(inf, DSP_VACT_ST_END, m_BIT11HI);
+    xpos += (screen->left_margin + screen->hsync_len);
+    ypos += (screen->upper_margin + screen->vsync_len);
 
     LcdWrReg(inf, WIN0_YRGB_MST, y_addr);
     LcdWrReg(inf, WIN0_CBR_MST, uv_addr);
 
-    LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE | m_W0_FORMAT,
-        v_W0_ENABLE(win0_en) | v_W0_FORMAT(format));
+    LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE | m_W0_FORMAT | m_W0_ROTATE,
+        v_W0_ENABLE(win0_en) | v_W0_FORMAT(format) | v_W0_ROTATE(var->rotate==270));
     
     LcdMskReg(inf, WIN0_VIR, m_WORDLO | m_WORDHI, v_VIRWIDTH(var->xres_virtual) | v_VIRHEIGHT((var->yres_virtual)) );
-    LcdMskReg(inf, WIN0_ACT_INFO, m_WORDLO | m_WORDHI, v_WORDLO(xres) | v_WORDHI(var->yres));
+    LcdMskReg(inf, WIN0_ACT_INFO, m_WORDLO | m_WORDHI, v_WORDLO(actWidth) | v_WORDHI(actHeight));
     LcdMskReg(inf, WIN0_DSP_ST, m_BIT11LO | m_BIT11HI, v_BIT11LO(xpos) | v_BIT11HI(ypos));
     LcdMskReg(inf, WIN0_DSP_INFO, m_BIT11LO | m_BIT11HI,  v_BIT11LO(xsize) | v_BIT11HI(ysize));
     LcdMskReg(inf, WIN0_SD_FACTOR_Y, m_WORDLO | m_WORDHI, v_WORDLO(ScaleYDnX) | v_WORDHI(ScaleYDnY));
@@ -1105,6 +1266,37 @@ static int win0fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
     return 0;
 }
 
+/* Set rotation (0, 90, 180, 270 degree), and switch to the new mode. */
+int win0fb_rotate(struct fb_info *fbi, int rotate)
+{
+    struct fb_var_screeninfo *var = &fbi->var;
+    u32 SrcFmt = var->nonstd&0xff;
+    
+    if(rotate == 0)
+    {
+        if(var->rotate)
+        {
+           var->rotate = 0; 
+           if(!win0fb_check_var(var, fbi))
+              win0fb_set_par(fbi);
+        }        
+    }
+    else
+    {
+        if((var->xres >1280) || (var->yres >720)||((SrcFmt!= 1) && (SrcFmt!= 2) && (SrcFmt!= 3)))
+        {
+            return -EPERM;
+        }  
+        if(var->rotate != 270)
+        {
+            var->rotate = 270;
+            if(!win0fb_check_var(var, fbi))
+               win0fb_set_par(fbi);
+        }
+    }
+    
+    return 0;    
+}
 int win0fb_open(struct fb_info *info, int user)
 {
     struct win0_par *par = info->par;
@@ -1243,6 +1435,18 @@ static int win0fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
             }
         }
         break;
+    case FB1_IOCTL_SET_ROTATE:
+        fbprintk(">>>>>> change lcdc direction(%d) \n", (int)arg);
+        switch(arg)
+        {
+        case 0:
+            win0fb_rotate(info, 0);
+            break;
+        case 270:
+            win0fb_rotate(info, 270);
+            break;
+        }
+        break;  
     default:
         break;
     }
@@ -1304,6 +1508,8 @@ static int win1fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
     u16 ylcd = screen->y_res;
     u8 trspmode = (var->grayscale>>8) & 0xff;
     u8 trspval = (var->grayscale) & 0xff;
+    //u16 xsize = var->xres;//(var->grayscale>>8) & 0xfff;    //visiable size in panel
+    u16 ysize = var->yres;//(var->grayscale>>20) & 0xfff;   
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
@@ -1350,7 +1556,7 @@ static int win1fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
         break;
     }
     
-  //  ScaleY = CalScaleW1(var->yres, ysize);
+    ScaleY = CalScaleW1(var->yres, ysize);
  
     if((ScaleY>0x8000) ||(ScaleY<0x200))
     {
@@ -1370,13 +1576,20 @@ static int win1fb_set_par(struct fb_info *info)
     u8 format = 0;
     dma_addr_t map_dma;
     u32 offset=0, addr=0, map_size=0, smem_len=0;
-    u16 xpos = (var->nonstd>>8) & 0xfff;
+    u32 ScaleX = 0x1000;
+    u32 ScaleY = 0x1000;
+
+    u16 xres_virtual = var->xres_virtual;      //virtual screen size
+   // u16 yres_virtual = var->yres_virtual;
+    u16 xsize_virtual = var->xres;             //visiable size in virtual screen
+    u16 ysize_virtual = var->yres;
+   // u16 xpos_virtual = var->xoffset;           //visiable offset in virtual screen
+   // u16 ypos_virtual = var->yoffset;
+    
+    u16 xpos = (var->nonstd>>8) & 0xfff;        //visiable offset in panel
     u16 ypos = (var->nonstd>>20) & 0xfff;
-    u16 xres = var->xres, yres = var->yres, xres_virtual = var->xres_virtual;
-    // u8 trspmode = TRSP_FMREG; //(var->grayscale>>8) & 0xff;
-    // u8 trspmode = TRSP_CLOSE;    // 不使用硬件的半透操作.
-    u8 trspmode = TRSP_CLOSE;        // 将指定的 像素 value (缺省是 黑色(0, 0, 0) ), 设置为 全透.
-    u8 trspval = 1;	//(var->grayscale) & 0xff;
+    u16 xsize = var->xres;//(var->grayscale>>8) & 0xfff;    //visiable size in panel
+    u16 ysize = var->yres;//(var->grayscale>>20) & 0xfff;   
 
     //the below code is not correct, make we can't see alpha picture.
     //u8 trspmode = (var->grayscale>>8) & 0xff;
@@ -1401,7 +1614,7 @@ static int win1fb_set_par(struct fb_info *info)
         break;
     }
 
-    smem_len = fix->line_length * var->yres_virtual;
+    smem_len = fix->line_length * var->yres_virtual + CURSOR_BUF_SIZE;   //cursor buf also alloc here
     map_size = PAGE_ALIGN(smem_len);
 
 #if WIN1_USE_DOUBLE_BUF
@@ -1448,8 +1661,8 @@ static int win1fb_set_par(struct fb_info *info)
 
     addr = fix->smem_start + offset;
 
-    if(TRSP_FMREGEX==trspmode)     trspmode = TRSP_FMREG;
-    if(TRSP_FMRAMEX==trspmode)     trspmode = TRSP_FMRAM;
+    ScaleX = CalScaleW1(xsize_virtual, xsize);
+    ScaleY = CalScaleW1(ysize_virtual, ysize);
 
     LcdMskReg(inf, SYS_CONFIG, m_W1_ENABLE|m_W1_FORMAT, v_W1_ENABLE(1)|v_W1_FORMAT(format));  
 
@@ -1460,14 +1673,18 @@ static int win1fb_set_par(struct fb_info *info)
     LcdWrReg(inf, WIN1_VIR_MST, fix->smem_start);
     
     LcdMskReg(inf, WIN1_DSP_ST, m_BIT11LO|m_BIT11HI, v_BIT11LO(xpos) | v_BIT11HI(ypos));
-    LcdMskReg(inf, WIN1_DSP_INFO, m_BIT11LO|m_BIT11HI, v_BIT11LO(xres) | v_BIT11HI(yres)); 
+    LcdMskReg(inf, WIN1_DSP_INFO, m_BIT11LO|m_BIT11HI, v_BIT11LO(xsize) | v_BIT11HI(ysize)); 
 
     LcdMskReg(inf, WIN1_VIR, m_WORDLO | m_WORDHI , v_WORDLO(xres_virtual) | v_WORDHI(var->yres_virtual));
-    LcdMskReg(inf, WIN1_ACT_INFO, m_WORDLO | m_WORDHI, v_WORDLO(xres) | v_WORDHI(yres));
+    LcdMskReg(inf, WIN1_ACT_INFO, m_WORDLO | m_WORDHI, v_WORDLO(xsize_virtual) | v_WORDHI(ysize_virtual));
 
-    LcdMskReg(inf, BLEND_CTRL, m_W1_BLEND_EN | m_W1_BLEND_FACTOR_SELECT | m_W1_BLEND_FACTOR,
-        v_W1_BLEND_EN((TRSP_FMREG==trspmode) || (TRSP_MASK==trspmode)) | 
-        v_W1_BLEND_FACTOR_SELECT(TRSP_FMRAM==trspmode) | v_W1_BLEND_FACTOR(trspval));  //透明度  
+    LcdMskReg(inf, WIN1_SCL_FACTOR, m_HSCALE_FACTOR | m_VSCALE_FACTOR, v_HSCALE_FACTOR(ScaleX) | v_VSCALE_FACTOR(ScaleY));
+
+//    LcdMskReg(inf, BLEND_CTRL, m_W1_BLEND_EN | m_W1_BLEND_FACTOR_SELECT | m_W1_BLEND_FACTOR,
+ //       v_W1_BLEND_EN((TRSP_FMREG==trspmode) || (TRSP_MASK==trspmode)) | 
+//        v_W1_BLEND_FACTOR_SELECT(TRSP_FMRAM==trspmode) | v_W1_BLEND_FACTOR(trspval));    
+
+    LcdMskReg(inf, WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR, v_COLORKEY_EN(1) | v_KEYCOLOR(0));  //open color key and set the color to 0
         
     if(1==format) //rgb565
     {
@@ -1610,7 +1827,7 @@ static struct fb_ops win1fb_ops = {
 	.fb_fillrect    = cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	.fb_cursor      = NULL,//fb_set_cursor,
+	//.fb_cursor      = rk2818_set_cursor,
 };
 
 
@@ -2021,8 +2238,6 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
         goto unregister_win1fb;
     }
     
-    clk_enable(inf->clk );
-    
     inf->dclk = clk_get(&pdev->dev, "lcdc");
 	if (!inf->dclk || IS_ERR(inf->dclk)) 
     {
@@ -2045,7 +2260,15 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
 		goto unregister_win1fb;
 	}
    
-	printk("got and enabled clock\n");  
+    inf->clk_share_mem= clk_get(&pdev->dev, "lcdc_share_memory");
+    if (!inf->clk_share_mem || IS_ERR(inf->clk_share_mem))
+    {
+		dev_err(&pdev->dev,  "failed to get lcd clock clk_share_mem source \n");
+		ret = -ENOENT;
+		goto unregister_win1fb;
+	}
+    
+	fbprintk("got clock\n");  
     
 	mach_info = pdev->dev.platform_data;
 	if(mach_info)
@@ -2072,7 +2295,7 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
 	load_screen(inf->win1fb, 1);
 
     /* Register framebuffer(win1fb & win0fb) */
-    fbprintk(">> Register framebuffer(win1fb & win0fb) \n");
+    fbprintk(">> Register framebuffer(win1fb) \n");
     ret = register_framebuffer(inf->win1fb);
     if(ret<0) 
     {
@@ -2080,8 +2303,10 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
         ret = -EINVAL;
 		goto release_win0fb;
     }
+    
+    fbprintk(">> Register framebuffer(win0fb) \n");
 
-//    ret = register_framebuffer(inf->win0fb);
+    ret = register_framebuffer(inf->win0fb);
     if(ret<0) 
     {
         printk(">> win0fb register_framebuffer fail!\n");
@@ -2102,7 +2327,7 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
     if (irq < 0) {
         dev_err(&pdev->dev, "no irq for device\n");
         ret = -ENOENT;
-        goto release_irq;
+        goto unregister_win1fb;
     }
     ret = request_irq(irq, rk2818fb_irq, IRQF_DISABLED, pdev->name, pdev);
     if (ret) {
@@ -2123,11 +2348,6 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
         }
     }
  
-#if (0==FMK_USE_HARDTIMER)
-    hrtimer_init(&inf->htimer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	inf->htimer.function = rk2818_fb_dohtimer;
-#endif
-
     return ret;
 
 release_irq:
@@ -2380,13 +2600,13 @@ static struct platform_driver rk2818fb_driver = {
 
 static int __init rk2818fb_init(void)
 {
-    fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
+    printk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
     return platform_driver_register(&rk2818fb_driver);
 }
 
 static void __exit rk2818fb_exit(void)
 {
-    fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
+    printk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
     platform_driver_unregister(&rk2818fb_driver);
 }
 

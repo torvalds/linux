@@ -344,6 +344,7 @@
 #define FB1_IOCTL_GET_PANEL_SIZE		0x5001
 #define FB1_IOCTL_SET_YUV_ADDR			0x5002
 #define FB1_TOCTL_SET_MCU_DIR			0x5003
+#define FB1_IOCTL_SET_ROTATE            0x5004
 
 
 /********************************************************************
