@@ -45,7 +45,7 @@ struct kvm_ioapic {
 	struct kvm_io_device dev;
 	struct kvm *kvm;
 	void (*ack_notifier)(void *opaque, int irq);
-	struct mutex lock;
+	spinlock_t lock;
 	DECLARE_BITMAP(handled_vectors, 256);
 };
 

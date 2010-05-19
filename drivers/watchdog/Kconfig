@@ -175,7 +175,7 @@ config SA1100_WATCHDOG
 
 config MPCORE_WATCHDOG
 	tristate "MPcore watchdog"
-	depends on ARM_MPCORE_PLATFORM && LOCAL_TIMERS
+	depends on HAVE_ARM_TWD
 	help
 	  Watchdog timer embedded into the MPcore system.
 

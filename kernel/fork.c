@@ -1112,8 +1112,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->memcg_batch.memcg = NULL;
 #endif
 
-	p->bts = NULL;
-
 	/* Perform scheduler related setup. Assign this task to a CPU. */
 	sched_fork(p, clone_flags);
 

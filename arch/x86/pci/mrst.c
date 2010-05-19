@@ -109,7 +109,7 @@ static int pci_device_update_fixed(struct pci_bus *bus, unsigned int devfn,
 			decode++;
 			decode = ~(decode - 1);
 		} else {
-			decode = ~0;
+			decode = 0;
 		}
 
 		/*
@@ -246,6 +246,10 @@ static void __devinit pci_fixed_bar_fixup(struct pci_dev *dev)
 	unsigned long offset;
 	u32 size;
 	int i;
+
+	/* Must have extended configuration space */
+	if (dev->cfg_size < PCIE_CAP_OFFSET + 4)
+		return;
 
 	/* Fixup the BAR sizes for fixed BAR devices and make them unmoveable */
 	offset = fixed_bar_cap(dev->bus, dev->devfn);

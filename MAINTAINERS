@@ -2954,6 +2954,17 @@ S:	Odd Fixes
 F:	Documentation/networking/README.ipw2200
 F:	drivers/net/wireless/ipw2x00/ipw2200.*
 
+INTEL(R) TRUSTED EXECUTION TECHNOLOGY (TXT)
+M:	Joseph Cihula <joseph.cihula@intel.com>
+M:	Shane Wang <shane.wang@intel.com>
+L:	tboot-devel@lists.sourceforge.net
+W:	http://tboot.sourceforge.net
+T:	Mercurial http://www.bughost.org/repos.hg/tboot.hg
+S:	Supported
+F:	Documentation/intel_txt.txt
+F:	include/linux/tboot.h
+F:	arch/x86/kernel/tboot.c
+
 INTEL WIRELESS WIMAX CONNECTION 2400
 M:	Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
 M:	linux-wimax@intel.com
@@ -4165,6 +4176,7 @@ OPROFILE
 M:	Robert Richter <robert.richter@amd.com>
 L:	oprofile-list@lists.sf.net
 S:	Maintained
+F:	arch/*/include/asm/oprofile*.h
 F:	arch/*/oprofile/
 F:	drivers/oprofile/
 F:	include/linux/oprofile.h
@@ -4353,13 +4365,13 @@ M:	Paul Mackerras <paulus@samba.org>
 M:	Ingo Molnar <mingo@elte.hu>
 M:	Arnaldo Carvalho de Melo <acme@redhat.com>
 S:	Supported
-F:	kernel/perf_event.c
+F:	kernel/perf_event*.c
 F:	include/linux/perf_event.h
-F:	arch/*/kernel/perf_event.c
-F:	arch/*/kernel/*/perf_event.c
-F:	arch/*/kernel/*/*/perf_event.c
+F:	arch/*/kernel/perf_event*.c
+F:	arch/*/kernel/*/perf_event*.c
+F:	arch/*/kernel/*/*/perf_event*.c
 F:	arch/*/include/asm/perf_event.h
-F:	arch/*/lib/perf_event.c
+F:	arch/*/lib/perf_event*.c
 F:	arch/*/kernel/perf_callchain.c
 F:	tools/perf/
 
@@ -5493,7 +5505,7 @@ S:	Maintained
 F:	drivers/mmc/host/tmio_mmc.*
 
 TMPFS (SHMEM FILESYSTEM)
-M:	Hugh Dickins <hugh.dickins@tiscali.co.uk>
+M:	Hugh Dickins <hughd@google.com>
 L:	linux-mm@kvack.org
 S:	Maintained
 F:	include/linux/shmem_fs.h

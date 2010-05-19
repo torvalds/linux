@@ -146,11 +146,11 @@ static unsigned int get_time_pit(void)
         unsigned long flags;
         unsigned int count;
 
-        spin_lock_irqsave(&i8253_lock, flags);
+        raw_spin_lock_irqsave(&i8253_lock, flags);
         outb_p(0x00, 0x43);
         count = inb_p(0x40);
         count |= inb_p(0x40) << 8;
-        spin_unlock_irqrestore(&i8253_lock, flags);
+        raw_spin_unlock_irqrestore(&i8253_lock, flags);
 
         return count;
 }

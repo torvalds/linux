@@ -14,7 +14,6 @@
 #include <linux/mm.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
-#include <linux/smp_lock.h>
 #include <linux/ptrace.h>
 #include <linux/security.h>
 #include <linux/signal.h>
@@ -76,7 +75,6 @@ void __ptrace_unlink(struct task_struct *child)
 	child->parent = child->real_parent;
 	list_del_init(&child->ptrace_entry);
 
-	arch_ptrace_untrace(child);
 	if (task_is_traced(child))
 		ptrace_untrace(child);
 }
@@ -666,10 +664,6 @@ SYSCALL_DEFINE4(ptrace, long, request, long, pid, long, addr, long, data)
 	struct task_struct *child;
 	long ret;
 
-	/*
-	 * This lock_kernel fixes a subtle race with suid exec
-	 */
-	lock_kernel();
 	if (request == PTRACE_TRACEME) {
 		ret = ptrace_traceme();
 		if (!ret)
@@ -703,7 +697,6 @@ SYSCALL_DEFINE4(ptrace, long, request, long, pid, long, addr, long, data)
  out_put_task_struct:
 	put_task_struct(child);
  out:
-	unlock_kernel();
 	return ret;
 }
 
@@ -813,10 +806,6 @@ asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
 	struct task_struct *child;
 	long ret;
 
-	/*
-	 * This lock_kernel fixes a subtle race with suid exec
-	 */
-	lock_kernel();
 	if (request == PTRACE_TRACEME) {
 		ret = ptrace_traceme();
 		goto out;
@@ -846,7 +835,6 @@ asmlinkage long compat_sys_ptrace(compat_long_t request, compat_long_t pid,
  out_put_task_struct:
 	put_task_struct(child);
  out:
-	unlock_kernel();
 	return ret;
 }
 #endif	/* CONFIG_COMPAT */

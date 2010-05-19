@@ -145,6 +145,7 @@ static struct zorro_device_id ariadne_zorro_tbl[] __devinitdata = {
     { ZORRO_PROD_VILLAGE_TRONIC_ARIADNE },
     { 0 }
 };
+MODULE_DEVICE_TABLE(zorro, ariadne_zorro_tbl);
 
 static struct zorro_driver ariadne_driver = {
     .name	= "ariadne",

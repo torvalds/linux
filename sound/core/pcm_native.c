@@ -36,6 +36,9 @@
 #include <sound/timer.h>
 #include <sound/minors.h>
 #include <asm/io.h>
+#if defined(CONFIG_MIPS) && defined(CONFIG_DMA_NONCOHERENT)
+#include <dma-coherence.h>
+#endif
 
 /*
  *  Compatibility
@@ -3184,6 +3187,10 @@ static int snd_pcm_default_mmap(struct snd_pcm_substream *substream,
 					 substream->runtime->dma_area,
 					 substream->runtime->dma_addr,
 					 area->vm_end - area->vm_start);
+#elif defined(CONFIG_MIPS) && defined(CONFIG_DMA_NONCOHERENT)
+	if (substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV &&
+	    !plat_device_is_coherent(substream->dma_buffer.dev.dev))
+		area->vm_page_prot = pgprot_noncached(area->vm_page_prot);
 #endif /* ARCH_HAS_DMA_MMAP_COHERENT */
 	/* mmap with fault handler */
 	area->vm_ops = &snd_pcm_vm_ops_data_fault;
