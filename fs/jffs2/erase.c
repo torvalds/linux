@@ -103,9 +103,10 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 	jffs2_erase_failed(c, jeb, bad_offset);
 }
 
-void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
+int jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 {
 	struct jffs2_eraseblock *jeb;
+	int work_done = 0;
 
 	mutex_lock(&c->erase_free_sem);
 
@@ -121,6 +122,7 @@ void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 			mutex_unlock(&c->erase_free_sem);
 			jffs2_mark_erased_block(c, jeb);
 
+			work_done++;
 			if (!--count) {
 				D1(printk(KERN_DEBUG "Count reached. jffs2_erase_pending_blocks leaving\n"));
 				goto done;
@@ -157,6 +159,7 @@ void jffs2_erase_pending_blocks(struct jffs2_sb_info *c, int count)
 	mutex_unlock(&c->erase_free_sem);
  done:
 	D1(printk(KERN_DEBUG "jffs2_erase_pending_blocks completed\n"));
+	return work_done;
 }
 
 static void jffs2_erase_succeeded(struct jffs2_sb_info *c, struct jffs2_eraseblock *jeb)
