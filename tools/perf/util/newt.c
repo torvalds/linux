@@ -383,6 +383,7 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 	newtFormAddHotKey(self->form, NEWT_KEY_DOWN);
 	newtFormAddHotKey(self->form, NEWT_KEY_PGUP);
 	newtFormAddHotKey(self->form, NEWT_KEY_PGDN);
+	newtFormAddHotKey(self->form, ' ');
 	newtFormAddHotKey(self->form, NEWT_KEY_HOME);
 	newtFormAddHotKey(self->form, NEWT_KEY_END);
 
@@ -419,6 +420,7 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 			}
 			break;
 		case NEWT_KEY_PGDN:
+		case ' ':
 			if (self->first_visible_entry_idx + self->height > self->nr_entries - 1)
 				break;
 
