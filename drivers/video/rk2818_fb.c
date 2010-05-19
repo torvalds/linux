@@ -60,7 +60,7 @@
 #define WIN1_USE_DOUBLE_BUF     1       //win1 use double buf to accelerate display
 #define LANDSCAPE_USE_ROTATE    1       //rotate win1 in landscape with mcu panel
 
-#if 0
+#if 1
 	#define fbprintk(msg...)	printk(msg);
 #else
 	#define fbprintk(msg...)
@@ -1870,20 +1870,6 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
     struct rk28fb_screen *screen = NULL;
 	int irq = 0;
     int ret = 0;
-
-//------------------back light-----------------------
-    rk2818_mux_api_set(GPIOF2_APWM0_SEL_NAME, 0);
-    ret = gpio_request(RK2818_PIN_PF2, NULL); 
-    if(ret != 0)
-    {
-        gpio_free(RK2818_PIN_PF2);
-        printk(KERN_ERR ">>>>>> back light gpio_request err \n ");
-        return 1;
-    }
-    gpio_direction_output(RK2818_PIN_PF2, 0);
-	gpio_set_value(RK2818_PIN_PF2, 0);
-
-//-----------------------------------------
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
