@@ -25,8 +25,8 @@
 
 static struct resource s3c_ts_resource[] = {
 	[0] = {
-		.start = S3C64XX_PA_ADC,
-		.end   = S3C64XX_PA_ADC + SZ_256 - 1,
+		.start = SAMSUNG_PA_ADC,
+		.end   = SAMSUNG_PA_ADC + SZ_256 - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
