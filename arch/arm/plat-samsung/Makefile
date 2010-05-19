@@ -46,6 +46,8 @@ obj-$(CONFIG_S3C_DEV_NAND)	+= dev-nand.o
 
 obj-$(CONFIG_S3C_DMA)		+= dma.o
 
+obj-$(CONFIG_S3C_PL330_DMA)	+= s3c-pl330.o
+
 # PM support
 
 obj-$(CONFIG_PM)		+= pm.o
