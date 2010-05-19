@@ -16,8 +16,6 @@
 
 #include <asm/stacktrace.h>
 
-#include "dumpstack.h"
-
 
 void dump_trace(struct task_struct *task, struct pt_regs *regs,
 		unsigned long *stack, unsigned long bp,

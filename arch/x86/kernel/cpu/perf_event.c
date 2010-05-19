@@ -1585,8 +1585,6 @@ static const struct stacktrace_ops backtrace_ops = {
 	.walk_stack		= print_context_stack_bp,
 };
 
-#include "../dumpstack.h"
-
 static void
 perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {
