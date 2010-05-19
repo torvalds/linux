@@ -811,11 +811,10 @@ static int nexio_init(struct usbtouch_usb *usbtouch)
 
 	priv = usbtouch->priv;
 
-	priv->ack_buf = kmalloc(sizeof(nexio_ack_pkt), GFP_KERNEL);
+	priv->ack_buf = kmemdup(nexio_ack_pkt, sizeof(nexio_ack_pkt),
+				GFP_KERNEL);
 	if (!priv->ack_buf)
 		goto err_priv;
-
-	memcpy(priv->ack_buf, nexio_ack_pkt, sizeof(nexio_ack_pkt));
 
 	priv->ack = usb_alloc_urb(0, GFP_KERNEL);
 	if (!priv->ack) {
