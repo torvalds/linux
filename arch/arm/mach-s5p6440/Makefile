@@ -17,3 +17,6 @@ obj-$(CONFIG_CPU_S5P6440)	+= cpu.o init.o clock.o gpio.o dma.o
 # machine support
 
 obj-$(CONFIG_MACH_SMDK6440)	+= mach-smdk6440.o
+
+# device support
+obj-y				+= dev-audio.o
