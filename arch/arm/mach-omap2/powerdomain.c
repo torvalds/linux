@@ -64,10 +64,10 @@ static u16 pwrstst_reg_offs;
 #define OMAP_MEM4_ONSTATE_MASK OMAP4430_OCP_NRET_BANK_ONSTATE_MASK
 
 /* OMAP3 and OMAP4 Memory Retstate Masks (common across all power domains) */
-#define OMAP_MEM0_RETSTATE_MASK OMAP3430_SHAREDL1CACHEFLATRETSTATE
-#define OMAP_MEM1_RETSTATE_MASK OMAP3430_L1FLATMEMRETSTATE
-#define OMAP_MEM2_RETSTATE_MASK OMAP3430_SHAREDL2CACHEFLATRETSTATE
-#define OMAP_MEM3_RETSTATE_MASK OMAP3430_L2FLATMEMRETSTATE
+#define OMAP_MEM0_RETSTATE_MASK OMAP3430_SHAREDL1CACHEFLATRETSTATE_MASK
+#define OMAP_MEM1_RETSTATE_MASK OMAP3430_L1FLATMEMRETSTATE_MASK
+#define OMAP_MEM2_RETSTATE_MASK OMAP3430_SHAREDL2CACHEFLATRETSTATE_MASK
+#define OMAP_MEM3_RETSTATE_MASK OMAP3430_L2FLATMEMRETSTATE_MASK
 #define OMAP_MEM4_RETSTATE_MASK OMAP4430_OCP_NRET_BANK_RETSTATE_MASK
 
 /* OMAP3 and OMAP4 Memory Status bits */
@@ -511,6 +511,8 @@ int pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
  */
 int pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
 {
+	u32 v;
+
 	if (!pwrdm)
 		return -EINVAL;
 
@@ -526,9 +528,9 @@ int pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
 	 * but the type of value returned is the same for each
 	 * powerdomain.
 	 */
-	prm_rmw_mod_reg_bits(OMAP3430_LOGICL1CACHERETSTATE,
-			     (pwrst << __ffs(OMAP3430_LOGICL1CACHERETSTATE)),
-				 pwrdm->prcm_offs, pwrstctrl_reg_offs);
+	v = pwrst << __ffs(OMAP3430_LOGICL1CACHERETSTATE_MASK);
+	prm_rmw_mod_reg_bits(OMAP3430_LOGICL1CACHERETSTATE_MASK, v,
+			     pwrdm->prcm_offs, pwrstctrl_reg_offs);
 
 	return 0;
 }
@@ -676,8 +678,8 @@ int pwrdm_read_logic_pwrst(struct powerdomain *pwrdm)
 	if (!pwrdm)
 		return -EINVAL;
 
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs,
-				 pwrstst_reg_offs, OMAP3430_LOGICSTATEST);
+	return prm_read_mod_bits_shift(pwrdm->prcm_offs, pwrstst_reg_offs,
+				       OMAP3430_LOGICSTATEST_MASK);
 }
 
 /**
@@ -700,7 +702,7 @@ int pwrdm_read_prev_logic_pwrst(struct powerdomain *pwrdm)
 	 * powerdomain.
 	 */
 	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP3430_PM_PREPWSTST,
-					OMAP3430_LASTLOGICSTATEENTERED);
+					OMAP3430_LASTLOGICSTATEENTERED_MASK);
 }
 
 /**
@@ -723,7 +725,7 @@ int pwrdm_read_logic_retst(struct powerdomain *pwrdm)
 	 * powerdomain.
 	 */
 	return prm_read_mod_bits_shift(pwrdm->prcm_offs, pwrstctrl_reg_offs,
-					OMAP3430_LOGICSTATEST);
+				       OMAP3430_LOGICSTATEST_MASK);
 }
 
 /**
