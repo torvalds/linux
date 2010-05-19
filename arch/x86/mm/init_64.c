@@ -98,6 +98,36 @@ static int __init nonx32_setup(char *str)
 __setup("noexec32=", nonx32_setup);
 
 /*
+ * When memory was added/removed make sure all the processes MM have
+ * suitable PGD entries in the local PGD level page.
+ */
+void sync_global_pgds(unsigned long start, unsigned long end)
+{
+       unsigned long address;
+
+       for (address = start; address <= end; address += PGDIR_SIZE) {
+	       const pgd_t *pgd_ref = pgd_offset_k(address);
+	       unsigned long flags;
+	       struct page *page;
+
+	       if (pgd_none(*pgd_ref))
+		       continue;
+
+	       spin_lock_irqsave(&pgd_lock, flags);
+	       list_for_each_entry(page, &pgd_list, lru) {
+		       pgd_t *pgd;
+		       pgd = (pgd_t *)page_address(page) + pgd_index(address);
+		       if (pgd_none(*pgd))
+			       set_pgd(pgd, *pgd_ref);
+		       else
+			       BUG_ON(pgd_page_vaddr(*pgd)
+					!= pgd_page_vaddr(*pgd_ref));
+	       }
+	       spin_unlock_irqrestore(&pgd_lock, flags);
+       }
+}
+
+/*
  * NOTE: This function is marked __ref because it calls __init function
  * (alloc_bootmem_pages). It's safe to do it ONLY when after_bootmem == 0.
  */
