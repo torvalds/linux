@@ -67,38 +67,61 @@ static const struct clksel *_omap2_get_clksel_by_parent(struct clk *clk,
 	return clks;
 }
 
-/*
- * Converts encoded control register address into a full address
- * On error, the return value (parent_div) will be 0.
+/**
+ * _omap2_clksel_get_src_field - find the new clksel divisor to use
+ * @src_clk: planned new parent struct clk *
+ * @clk: struct clk * that is being reparented
+ * @field_val: pointer to a u32 to contain the register data for the divisor
+ *
+ * Given an intended new parent struct clk * @src_clk, and the struct
+ * clk * @clk to the clock that is being reparented, find the
+ * appropriate rate divisor for the new clock (returned as the return
+ * value), and the corresponding register bitfield data to program to
+ * reach that divisor (returned in the u32 pointed to by @field_val).
+ * Returns 0 on error, or returns the newly-selected divisor upon
+ * success (in this latter case, the corresponding register bitfield
+ * value is passed back in the variable pointed to by @field_val)
  */
-static u32 _omap2_clksel_get_src_field(struct clk *src_clk, struct clk *clk,
-				       u32 *field_val)
+static u8 _omap2_clksel_get_src_field(struct clk *src_clk, struct clk *clk,
+				      u32 *field_val)
 {
 	const struct clksel *clks;
-	const struct clksel_rate *clkr;
+	const struct clksel_rate *clkr, *max_clkr;
+	u8 max_div = 0;
 
 	clks = _omap2_get_clksel_by_parent(clk, src_clk);
 	if (!clks)
 		return 0;
 
+	/*
+	 * Find the highest divisor (e.g., the one resulting in the
+	 * lowest rate) to use as the default.  This should avoid
+	 * clock rates that are too high for the device.  XXX A better
+	 * solution here would be to try to determine if there is a
+	 * divisor matching the original clock rate before the parent
+	 * switch, and if it cannot be found, to fall back to the
+	 * highest divisor.
+	 */
 	for (clkr = clks->rates; clkr->div; clkr++) {
-		if (clkr->flags & cpu_mask && clkr->flags & DEFAULT_RATE)
-			break; /* Found the default rate for this platform */
+		if (!(clkr->flags & cpu_mask))
+			continue;
+
+		if (clkr->div > max_div) {
+			max_div = clkr->div;
+			max_clkr = clkr;
+		}
 	}
 
-	if (!clkr->div) {
-		printk(KERN_ERR "clock: Could not find default rate for "
+	if (max_div == 0) {
+		WARN(1, "clock: Could not find divisor for "
 		       "clock %s parent %s\n", clk->name,
 		       src_clk->parent->name);
 		return 0;
 	}
 
-	/* Should never happen.  Add a clksel mask to the struct clk. */
-	WARN_ON(clk->clksel_mask == 0);
+	*field_val = max_clkr->val;
 
-	*field_val = clkr->val;
-
-	return clkr->div;
+	return max_div;
 }
 
 
@@ -177,8 +200,6 @@ unsigned long omap2_clksel_recalc(struct clk *clk)
  *
  * Finds 'best' divider value in an array based on the source and target
  * rates.  The divider array must be sorted with smallest divider first.
- * Note that this will not work for clocks which are part of CONFIG_PARTICIPANT,
- * they are only settable as part of virtual_prcm set.
  *
  * Returns the rounded clock rate or returns 0xffffffff on error.
  */
@@ -380,7 +401,7 @@ int omap2_clksel_set_parent(struct clk *clk, struct clk *new_parent)
 {
 	u32 field_val, v, parent_div;
 
-	if (!clk->clksel)
+	if (!clk->clksel || !clk->clksel_mask)
 		return -EINVAL;
 
 	parent_div = _omap2_clksel_get_src_field(new_parent, clk, &field_val);
