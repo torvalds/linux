@@ -231,7 +231,8 @@ static struct padata_priv *padata_get_next(struct parallel_data *pd)
 		goto out;
 	}
 
-	if (next_nr % num_cpus == next_queue->cpu_index) {
+	queue = per_cpu_ptr(pd->queue, smp_processor_id());
+	if (queue->cpu_index == next_queue->cpu_index) {
 		padata = ERR_PTR(-ENODATA);
 		goto out;
 	}
@@ -247,9 +248,8 @@ static void padata_reorder(struct parallel_data *pd)
 	struct padata_queue *queue;
 	struct padata_instance *pinst = pd->pinst;
 
-try_again:
 	if (!spin_trylock_bh(&pd->lock))
-		goto out;
+		return;
 
 	while (1) {
 		padata = padata_get_next(pd);
@@ -258,8 +258,9 @@ try_again:
 			break;
 
 		if (PTR_ERR(padata) == -ENODATA) {
+			del_timer(&pd->timer);
 			spin_unlock_bh(&pd->lock);
-			goto out;
+			return;
 		}
 
 		queue = per_cpu_ptr(pd->queue, padata->cb_cpu);
@@ -273,11 +274,20 @@ try_again:
 
 	spin_unlock_bh(&pd->lock);
 
-	if (atomic_read(&pd->reorder_objects))
-		goto try_again;
+	if (atomic_read(&pd->reorder_objects)
+			&& !(pinst->flags & PADATA_RESET))
+		mod_timer(&pd->timer, jiffies + HZ);
+	else
+		del_timer(&pd->timer);
 
-out:
 	return;
+}
+
+static void padata_reorder_timer(unsigned long arg)
+{
+	struct parallel_data *pd = (struct parallel_data *)arg;
+
+	padata_reorder(pd);
 }
 
 static void padata_serial_worker(struct work_struct *work)
@@ -383,6 +393,7 @@ static struct parallel_data *padata_alloc_pd(struct padata_instance *pinst,
 	num_cpus = cpumask_weight(pd->cpumask);
 	pd->max_seq_nr = (MAX_SEQ_NR / num_cpus) * num_cpus - 1;
 
+	setup_timer(&pd->timer, padata_reorder_timer, (unsigned long)pd);
 	atomic_set(&pd->seq_nr, -1);
 	atomic_set(&pd->reorder_objects, 0);
 	atomic_set(&pd->refcnt, 0);

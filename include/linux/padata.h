@@ -24,6 +24,7 @@
 #include <linux/workqueue.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/timer.h>
 
 struct padata_priv {
 	struct list_head	list;
@@ -60,6 +61,7 @@ struct parallel_data {
 	unsigned int		max_seq_nr;
 	cpumask_var_t		cpumask;
 	spinlock_t              lock;
+	struct timer_list       timer;
 };
 
 struct padata_instance {
