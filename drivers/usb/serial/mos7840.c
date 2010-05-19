@@ -714,7 +714,6 @@ static void mos7840_bulk_in_callback(struct urb *urb)
 	mos7840_port = urb->context;
 	if (!mos7840_port) {
 		dbg("%s", "NULL mos7840_port pointer");
-		mos7840_port->read_urb_busy = false;
 		return;
 	}
 
