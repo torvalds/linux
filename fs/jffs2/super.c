@@ -63,7 +63,9 @@ static void jffs2_write_super(struct super_block *sb)
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		D1(printk(KERN_DEBUG "jffs2_write_super()\n"));
+		spin_lock(&c->erase_completion_lock);
 		jffs2_garbage_collect_trigger(c);
+		spin_unlock(&c->erase_completion_lock);
 		jffs2_erase_pending_blocks(c, 0);
 		jffs2_flush_wbuf_gc(c, 0);
 	}

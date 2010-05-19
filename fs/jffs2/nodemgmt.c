@@ -481,7 +481,9 @@ struct jffs2_raw_node_ref *jffs2_add_physical_node_ref(struct jffs2_sb_info *c,
 void jffs2_complete_reservation(struct jffs2_sb_info *c)
 {
 	D1(printk(KERN_DEBUG "jffs2_complete_reservation()\n"));
+	spin_lock(&c->erase_completion_lock);
 	jffs2_garbage_collect_trigger(c);
+	spin_unlock(&c->erase_completion_lock);
 	mutex_unlock(&c->alloc_sem);
 }
 
