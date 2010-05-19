@@ -2786,10 +2786,6 @@ ath5k_tasklet_calibrate(unsigned long data)
 	/* Only full calibration for now */
 	ah->ah_cal_mask |= AR5K_CALIBRATION_FULL;
 
-	/* Stop queues so that calibration
-	 * doesn't interfere with tx */
-	ieee80211_stop_queues(sc->hw);
-
 	ATH5K_DBG(sc, ATH5K_DEBUG_CALIBRATE, "channel %u/%x\n",
 		ieee80211_frequency_to_channel(sc->curchan->center_freq),
 		sc->curchan->hw_value);
@@ -2807,8 +2803,13 @@ ath5k_tasklet_calibrate(unsigned long data)
 			ieee80211_frequency_to_channel(
 				sc->curchan->center_freq));
 
+	/* TODO: We don't need to run noise floor calibration as often
+	 * as I/Q calibration.*/
+
+	/* Noise floor calibration interrupts rx/tx path while I/Q calibration
+	 * doesn't. Stop queues so that calibration doesn't interfere with tx */
+	ieee80211_stop_queues(sc->hw);
 	ath5k_hw_update_noise_floor(ah);
-	/* Wake queues */
 	ieee80211_wake_queues(sc->hw);
 
 	ah->ah_cal_mask &= ~AR5K_CALIBRATION_FULL;
