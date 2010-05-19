@@ -83,7 +83,7 @@ static int do_subdinfo_ioctl(struct comedi_device *dev,
 static int do_chaninfo_ioctl(struct comedi_device *dev,
 			     struct comedi_chaninfo __user *arg);
 static int do_bufinfo_ioctl(struct comedi_device *dev,
-			    struct comedi_bufinfo __user *arg);
+			    struct comedi_bufinfo __user *arg, void *file);
 static int do_cmd_ioctl(struct comedi_device *dev,
 			struct comedi_cmd __user *arg, void *file);
 static int do_lock_ioctl(struct comedi_device *dev, unsigned int arg,
@@ -169,7 +169,8 @@ static long comedi_unlocked_ioctl(struct file *file, unsigned int cmd,
 		break;
 	case COMEDI_BUFINFO:
 		rc = do_bufinfo_ioctl(dev,
-				      (struct comedi_bufinfo __user *)arg);
+				      (struct comedi_bufinfo __user *)arg,
+				      file);
 		break;
 	case COMEDI_LOCK:
 		rc = do_lock_ioctl(dev, arg, file);
@@ -563,7 +564,7 @@ static int do_chaninfo_ioctl(struct comedi_device *dev,
 
   */
 static int do_bufinfo_ioctl(struct comedi_device *dev,
-			    struct comedi_bufinfo __user *arg)
+			    struct comedi_bufinfo __user *arg, void *file)
 {
 	struct comedi_bufinfo bi;
 	struct comedi_subdevice *s;
@@ -576,6 +577,10 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 		return -EINVAL;
 
 	s = dev->subdevices + bi.subdevice;
+
+	if (s->lock && s->lock != file)
+		return -EACCES;
+
 	async = s->async;
 
 	if (!async) {
@@ -588,6 +593,13 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 		bi.bytes_written = 0;
 		goto copyback;
 	}
+	if (!s->busy) {
+		bi.bytes_read = 0;
+		bi.bytes_written = 0;
+		goto copyback_position;
+	}
+	if (s->busy != file)
+		return -EACCES;
 
 	if (bi.bytes_read && (s->subdev_flags & SDF_CMD_READ)) {
 		bi.bytes_read = comedi_buf_read_alloc(async, bi.bytes_read);
@@ -606,6 +618,7 @@ static int do_bufinfo_ioctl(struct comedi_device *dev,
 		comedi_buf_write_free(async, bi.bytes_written);
 	}
 
+copyback_position:
 	bi.buf_write_count = async->buf_write_count;
 	bi.buf_write_ptr = async->buf_write_ptr;
 	bi.buf_read_count = async->buf_read_count;
