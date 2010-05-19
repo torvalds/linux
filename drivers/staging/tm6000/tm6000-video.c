@@ -311,9 +311,11 @@ static int copy_packet(struct urb *urb, u32 header, u8 **ptr, u8 *endp,
 		case TM6000_URB_MSG_PTS:
 			break;
 		case TM6000_URB_MSG_AUDIO:
-/* Need some code to process audio */
-printk ("%ld: cmd=%s, size=%d\n", jiffies,
+			/* Need some code to process audio */
+			printk ("%ld: cmd=%s, size=%d\n", jiffies,
 				tm6000_msg_type[cmd],size);
+			break;
+		case TM6000_URB_MSG_VBI:
 			break;
 		default:
 			dprintk (dev, V4L2_DEBUG_ISOC, "cmd=%s, size=%d\n",
