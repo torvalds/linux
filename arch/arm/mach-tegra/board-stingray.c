@@ -25,6 +25,7 @@
 #include <linux/fsl_devices.h>
 #include <linux/pda_power.h>
 #include <linux/gpio.h>
+#include <linux/delay.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -37,6 +38,7 @@
 #include <mach/iomap.h>
 #include <mach/sdhci.h>
 #include <mach/gpio.h>
+#include <mach/clk.h>
 
 #include <linux/usb/android_composite.h>
 
@@ -285,6 +287,29 @@ static struct platform_device bq24617_device = {
 	.num_resources = ARRAY_SIZE(bq24617_resources),
 };
 
+static struct resource tegra_gart_resources[] = {
+    {
+        .name = "mc",
+        .flags = IORESOURCE_MEM,
+	.start = TEGRA_MC_BASE,
+	.end = TEGRA_MC_BASE + TEGRA_MC_SIZE - 1,
+    },
+    {
+        .name = "gart",
+        .flags = IORESOURCE_MEM,
+	.start = 0x58000000,
+	.end = 0x58000000 - 1 + 32 * 1024 * 1024,
+    }
+};
+
+
+static struct platform_device tegra_gart_dev = {
+    .name = "tegra_gart",
+    .id = -1,
+    .num_resources = ARRAY_SIZE(tegra_gart_resources),
+    .resource = tegra_gart_resources
+};
+
 static struct platform_device *stingray_devices[] __initdata = {
 	&debug_uart,
 	&tegra_otg,
@@ -302,6 +327,7 @@ static struct platform_device *stingray_devices[] __initdata = {
 	&tegra_spi_device2,
 	&tegra_spi_device3,
 	&tegra_spi_device4,
+	&tegra_gart_dev,
 };
 
 extern struct tegra_sdhci_platform_data stingray_wifi_data; /* sdhci2 */
@@ -322,6 +348,10 @@ static struct tegra_sdhci_platform_data stingray_sdhci_platform_data4 = {
 static __initdata struct tegra_clk_init_table stingray_clk_init_table[] = {
 	/* name		parent		rate		enabled */
 	{ "uartb",	"clk_m",	26000000,	true},
+	{ "host1x",	"pll_m",	100000000,	true},
+	{ "2d",		"pll_m",	100000000,	true},
+	{ "epp",	"pll_m",	100000000,	true},
+	{ "vi",		"pll_m",	100000000,	true},
 	{ NULL,		NULL,		0,		0},
 };
 
@@ -419,6 +449,15 @@ static void __init tegra_stingray_init(void)
 
 	clk = tegra_get_clock_by_name("uartb");
 	debug_uart_platform_data[0].uartclk = clk_get_rate(clk);
+
+	clk = clk_get_sys("3d", NULL);
+	tegra_periph_reset_assert(clk);
+	writel(0x101, IO_ADDRESS(TEGRA_PMC_BASE) + 0x30);
+	clk_enable(clk);
+	udelay(10);
+	writel(1 << 1, IO_ADDRESS(TEGRA_PMC_BASE) + 0x34);
+	tegra_periph_reset_deassert(clk);
+	clk_put(clk);
 
 	platform_add_devices(stingray_devices, ARRAY_SIZE(stingray_devices));
 
