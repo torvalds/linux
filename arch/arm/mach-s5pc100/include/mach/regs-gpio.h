@@ -3,11 +3,11 @@
  * Copyright 2009 Samsung Electronics Co.
  *      Byungho Min <bhmin@samsung.com>
  *
- * S5PC1XX - GPIO register definitions
+ * S5PC100 - GPIO register definitions
  */
 
-#ifndef __ASM_PLAT_S5PC1XX_REGS_GPIO_H
-#define __ASM_PLAT_S5PC1XX_REGS_GPIO_H __FILE__
+#ifndef __ASM_MACH_S5PC100_REGS_GPIO_H
+#define __ASM_MACH_S5PC100_REGS_GPIO_H __FILE__
 
 #include <mach/map.h>
 
@@ -66,5 +66,5 @@
 #define S5PC100_GPx_OUTPUT(__gpio)	(0x1 << ((__gpio) * 4))
 #define S5PC100_GPx_CONMASK(__gpio)	(0xf << ((__gpio) * 4))
 
-#endif /* __ASM_PLAT_S5PC1XX_REGS_GPIO_H */
+#endif /* __ASM_MACH_S5PC100_REGS_GPIO_H */
 

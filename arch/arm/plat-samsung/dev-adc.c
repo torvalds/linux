@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s3c64xx/dev-adc.c
+/* linux/arch/arm/plat-samsung/dev-adc.c
  *
  * Copyright 2010 Maurus Cuelenaere
  *
@@ -22,8 +22,8 @@
 
 static struct resource s3c_adc_resource[] = {
 	[0] = {
-		.start = S3C64XX_PA_ADC,
-		.end   = S3C64XX_PA_ADC + SZ_256 - 1,
+		.start = SAMSUNG_PA_ADC,
+		.end   = SAMSUNG_PA_ADC + SZ_256 - 1,
 		.flags = IORESOURCE_MEM,
 	},
 	[1] = {
@@ -39,7 +39,7 @@ static struct resource s3c_adc_resource[] = {
 };
 
 struct platform_device s3c_device_adc = {
-	.name		= "s3c64xx-adc",
+	.name		= "samsung-adc",
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(s3c_adc_resource),
 	.resource	= s3c_adc_resource,

@@ -1,9 +1,9 @@
-/* linux/arch/arm/plat-s5pc1xx/setup-i2c0.c
+/* linux/arch/arm/mach-s5p6442/setup-i2c0.c
  *
- * Copyright 2009 Samsung Electronics Co.
- *	Byungho Min <bhmin@samsung.com>
+ * Copyright (c) 2009 Samsung Electronics Co., Ltd.
+ *		http://www.samsung.com/
  *
- * Base S5PC1XX I2C bus 0 gpio configuration
+ * I2C0 GPIO configuration.
  *
  * Based on plat-s3c64xx/setup-i2c0.c
  *
@@ -17,14 +17,9 @@
 
 struct platform_device; /* don't need the contents */
 
-#include <linux/gpio.h>
 #include <plat/iic.h>
-#include <plat/gpio-cfg.h>
 
 void s3c_i2c0_cfg_gpio(struct platform_device *dev)
 {
-	s3c_gpio_cfgpin(S5PC100_GPD(3), S3C_GPIO_SFN(2));
-	s3c_gpio_setpull(S5PC100_GPD(3), S3C_GPIO_PULL_UP);
-	s3c_gpio_cfgpin(S5PC100_GPD(4), S3C_GPIO_SFN(2));
-	s3c_gpio_setpull(S5PC100_GPD(4), S3C_GPIO_PULL_UP);
+	/* Will be populated later */
 }

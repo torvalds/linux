@@ -34,6 +34,8 @@
 
 #include <mach/regs-gpio.h>
 
+#include <plat/gpio-core.h>
+
 /* gpiolib wrappers until these are totally eliminated */
 
 void s3c2410_gpio_pullup(unsigned int pin, unsigned int to)
@@ -68,10 +70,10 @@ EXPORT_SYMBOL(s3c2410_gpio_setpin);
 
 unsigned int s3c2410_gpio_getpin(unsigned int pin)
 {
-	void __iomem *base = S3C24XX_GPIO_BASE(pin);
-	unsigned long offs = S3C2410_GPIO_OFFSET(pin);
+	struct s3c_gpio_chip *chip = s3c_gpiolib_getchip(pin);
+	unsigned long offs = pin - chip->chip.base;
 
-	return __raw_readl(base + 0x04) & (1<< offs);
+	return __raw_readl(chip->base + 0x04) & (1<< offs);
 }
 
 EXPORT_SYMBOL(s3c2410_gpio_getpin);

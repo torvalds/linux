@@ -17,11 +17,11 @@
 #include <linux/gpio.h>
 
 #include <mach/map.h>
+#include <mach/regs-gpio.h>
 
 #include <plat/gpio-core.h>
 #include <plat/gpio-cfg.h>
 #include <plat/gpio-cfg-helpers.h>
-#include <plat/regs-gpio.h>
 
 /* S5PC100 GPIO bank summary:
  *
@@ -61,74 +61,7 @@
  * L3	8	4Bit	None
  */
 
-#define OFF_GPCON	(0x00)
-#define OFF_GPDAT	(0x04)
-
-#define con_4bit_shift(__off) ((__off) * 4)
-
-#if 1
-#define gpio_dbg(x...) do { } while (0)
-#else
-#define gpio_dbg(x...) printk(KERN_DEBUG x)
-#endif
-
-/* The s5pc1xx_gpiolib routines are to control the gpio banks where
- * the gpio configuration register (GPxCON) has 4 bits per GPIO, as the
- * following example:
- *
- * base + 0x00: Control register, 4 bits per gpio
- *	        gpio n: 4 bits starting at (4*n)
- *		0000 = input, 0001 = output, others mean special-function
- * base + 0x04: Data register, 1 bit per gpio
- *		bit n: data bit n
- *
- * Note, since the data register is one bit per gpio and is at base + 0x4
- * we can use s3c_gpiolib_get and s3c_gpiolib_set to change the state of
- * the output.
- */
-
-static int s5pc1xx_gpiolib_input(struct gpio_chip *chip, unsigned offset)
-{
-	struct s3c_gpio_chip *ourchip = to_s3c_gpio(chip);
-	void __iomem *base = ourchip->base;
-	unsigned long con;
-
-	con = __raw_readl(base + OFF_GPCON);
-	con &= ~(0xf << con_4bit_shift(offset));
-	__raw_writel(con, base + OFF_GPCON);
-
-	gpio_dbg("%s: %p: CON now %08lx\n", __func__, base, con);
-
-	return 0;
-}
-
-static int s5pc1xx_gpiolib_output(struct gpio_chip *chip,
-				       unsigned offset, int value)
-{
-	struct s3c_gpio_chip *ourchip = to_s3c_gpio(chip);
-	void __iomem *base = ourchip->base;
-	unsigned long con;
-	unsigned long dat;
-
-	con = __raw_readl(base + OFF_GPCON);
-	con &= ~(0xf << con_4bit_shift(offset));
-	con |= 0x1 << con_4bit_shift(offset);
-
-	dat = __raw_readl(base + OFF_GPDAT);
-	if (value)
-		dat |= 1 << offset;
-	else
-		dat &= ~(1 << offset);
-
-	__raw_writel(dat, base + OFF_GPDAT);
-	__raw_writel(con, base + OFF_GPCON);
-	__raw_writel(dat, base + OFF_GPDAT);
-
-	gpio_dbg("%s: %p: CON %08lx, DAT %08lx\n", __func__, base, con, dat);
-
-	return 0;
-}
-
+#if 0
 static int s5pc1xx_gpiolib_to_irq(struct gpio_chip *chip, unsigned int offset)
 {
 	return S3C_IRQ_GPIO(chip->base + offset);
@@ -152,7 +85,7 @@ static int s5pc1xx_gpiolib_to_eint(struct gpio_chip *chip, unsigned int offset)
 		return IRQ_EINT(24 + offset);
 	return -EINVAL;
 }
-
+#endif
 static struct s3c_gpio_cfg gpio_cfg = {
 	.set_config	= s3c_gpio_setcfg_s3c64xx_4bit,
 	.set_pull	= s3c_gpio_setpull_updown,
@@ -452,12 +385,9 @@ static struct s3c_gpio_chip s5pc100_gpio_chips[] = {
 extern struct irq_chip s5pc1xx_gpioint;
 extern void s5pc1xx_irq_gpioint_handler(unsigned int irq, struct irq_desc *desc);
 
-static __init void s5pc1xx_gpiolib_link(struct s3c_gpio_chip *chip)
+static __init void s5pc100_gpiolib_link(struct s3c_gpio_chip *chip)
 {
-	chip->chip.direction_input = s5pc1xx_gpiolib_input;
-	chip->chip.direction_output = s5pc1xx_gpiolib_output;
-	chip->pm = __gpio_pm(&s3c_gpio_pm_4bit);
-
+#if 0
 	/* Interrupt */
 	if (chip->config == &gpio_cfg) {
 		int i, irq;
@@ -473,31 +403,26 @@ static __init void s5pc1xx_gpiolib_link(struct s3c_gpio_chip *chip)
 		}
 	} else if (chip->config == &gpio_cfg_eint)
 		chip->chip.to_irq = s5pc1xx_gpiolib_to_eint;
-}
-
-static __init void s5pc1xx_gpiolib_add(struct s3c_gpio_chip *chips,
-				       int nr_chips,
-				       void (*fn)(struct s3c_gpio_chip *))
-{
-	for (; nr_chips > 0; nr_chips--, chips++) {
-		if (fn)
-			(fn)(chips);
-		s3c_gpiolib_add(chips);
-	}
+#endif
 }
 
 static __init int s5pc1xx_gpiolib_init(void)
 {
-	struct s3c_gpio_chip *chips;
+	struct s3c_gpio_chip *chip;
 	int nr_chips;
 
-		chips = s5pc100_gpio_chips;
-		nr_chips = ARRAY_SIZE(s5pc100_gpio_chips);
+	chip = s5pc100_gpio_chips;
+	nr_chips = ARRAY_SIZE(s5pc100_gpio_chips);
 
-	s5pc1xx_gpiolib_add(chips, nr_chips, s5pc1xx_gpiolib_link);
+	for (; nr_chips > 0; nr_chips--, chip++)
+		s5pc100_gpiolib_link(chip);
+
+	samsung_gpiolib_add_4bit_chips(s5pc100_gpio_chips,
+				       ARRAY_SIZE(s5pc100_gpio_chips));
+#if 0
 	/* Interrupt */
 	set_irq_chained_handler(IRQ_GPIOINT, s5pc1xx_irq_gpioint_handler);
-
+#endif
 	return 0;
 }
 core_initcall(s5pc1xx_gpiolib_init);

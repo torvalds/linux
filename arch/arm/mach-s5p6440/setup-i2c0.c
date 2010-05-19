@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s5p/setup-i2c0.c
+/* linux/arch/arm/mach-s5p6440/setup-i2c0.c
  *
  * Copyright (c) 2009 Samsung Electronics Co., Ltd.
  *		http://www.samsung.com/

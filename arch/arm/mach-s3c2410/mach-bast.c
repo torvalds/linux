@@ -633,7 +633,7 @@ static void __init bast_map_io(void)
 
 	s3c24xx_register_clocks(bast_clocks, ARRAY_SIZE(bast_clocks));
 
-	s3c_device_hwmon.dev.platform_data = &bast_hwmon_info;
+	s3c_hwmon_set_platdata(&bast_hwmon_info);
 
 	s3c24xx_init_io(bast_iodesc, ARRAY_SIZE(bast_iodesc));
 	s3c24xx_init_clocks(0);

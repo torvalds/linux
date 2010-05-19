@@ -74,6 +74,7 @@ extern struct clk clk_ext;
 extern struct clk clk_h2;
 extern struct clk clk_27m;
 extern struct clk clk_48m;
+extern struct clk clk_xusbxti;
 
 extern int clk_default_setrate(struct clk *clk, unsigned long rate);
 extern struct clk_ops clk_ops_def_setrate;

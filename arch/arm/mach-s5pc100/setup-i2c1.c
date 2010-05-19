@@ -1,9 +1,9 @@
-/* linux/arch/arm/plat-s3c64xx/setup-i2c1.c
+/* linux/arch/arm/mach-s5pc100/setup-i2c1.c
  *
  * Copyright 2009 Samsung Electronics Co.
  *	Byungho Min <bhmin@samsung.com>
  *
- * Base S5PC1XX I2C bus 1 gpio configuration
+ * Base S5PC100 I2C bus 1 gpio configuration
  *
  * Based on plat-s3c64xx/setup-i2c1.c
  *
