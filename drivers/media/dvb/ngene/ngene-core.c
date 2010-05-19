@@ -570,11 +570,7 @@ static int ngene_command_stream_control(struct ngene *dev, u8 stream,
 	u16 BsSPI = ((stream & 1) ? 0x9800 : 0x9700);
 	u16 BsSDO = 0x9B00;
 
-	/* down(&dev->stream_mutex); */
-	while (down_trylock(&dev->stream_mutex)) {
-		printk(KERN_INFO DEVICE_NAME ": SC locked\n");
-		msleep(1);
-	}
+	down(&dev->stream_mutex);
 	memset(&com, 0, sizeof(com));
 	com.cmd.hdr.Opcode = CMD_CONTROL;
 	com.cmd.hdr.Length = sizeof(struct FW_STREAM_CONTROL) - 2;
