@@ -50,7 +50,8 @@ int mrst_timer_options __cpuinitdata;
 
 static u32 sfi_mtimer_usage[SFI_MTMR_MAX_NUM];
 static struct sfi_timer_table_entry sfi_mtimer_array[SFI_MTMR_MAX_NUM];
-static int mrst_cpu_chip;
+enum mrst_cpu_type __mrst_cpu_chip;
+EXPORT_SYMBOL_GPL(__mrst_cpu_chip);
 
 int sfi_mtimer_num;
 
@@ -233,25 +234,19 @@ void __init mrst_rtc_init(void)
 	sfi_table_parse(SFI_SIG_MRTC, NULL, NULL, sfi_parse_mrtc);
 }
 
-int mrst_identify_cpu(void)
-{
-	return mrst_cpu_chip;
-}
-EXPORT_SYMBOL_GPL(mrst_identify_cpu);
-
 void __cpuinit mrst_arch_setup(void)
 {
 	if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 0x27)
-		mrst_cpu_chip = MRST_CPU_CHIP_PENWELL;
+		__mrst_cpu_chip = MRST_CPU_CHIP_PENWELL;
 	else if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 0x26)
-		mrst_cpu_chip = MRST_CPU_CHIP_LINCROFT;
+		__mrst_cpu_chip = MRST_CPU_CHIP_LINCROFT;
 	else {
 		pr_err("Unknown Moorestown CPU (%d:%d), default to Lincroft\n",
 			boot_cpu_data.x86, boot_cpu_data.x86_model);
-		mrst_cpu_chip = MRST_CPU_CHIP_LINCROFT;
+		__mrst_cpu_chip = MRST_CPU_CHIP_LINCROFT;
 	}
 	pr_debug("Moorestown CPU %s identified\n",
-		(mrst_cpu_chip == MRST_CPU_CHIP_LINCROFT) ?
+		(__mrst_cpu_chip == MRST_CPU_CHIP_LINCROFT) ?
 		"Lincroft" : "Penwell");
 }
 

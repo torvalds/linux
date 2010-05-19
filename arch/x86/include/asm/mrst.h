@@ -11,7 +11,6 @@
 #ifndef _ASM_X86_MRST_H
 #define _ASM_X86_MRST_H
 extern int pci_mrst_init(void);
-extern int mrst_identify_cpu(void);
 extern int mrst_timer_options __cpuinitdata;
 int __init sfi_parse_mrtc(struct sfi_table_header *table);
 
@@ -26,6 +25,12 @@ enum mrst_cpu_type {
 	MRST_CPU_CHIP_LINCROFT = 1,
 	MRST_CPU_CHIP_PENWELL,
 };
+
+extern enum mrst_cpu_type __mrst_cpu_chip;
+static enum mrst_cpu_type mrst_identify_cpu(void)
+{
+	return __mrst_cpu_chip;
+}
 
 enum mrst_timer_options {
 	MRST_TIMER_DEFAULT,
