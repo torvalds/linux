@@ -2190,7 +2190,7 @@ void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 		if (ATH_TXQ_SETUP(sc, i)) {
 			txq = &sc->tx.txq[i];
 
-			spin_lock_bh(&txq->axq_lock);
+			spin_lock(&txq->axq_lock);
 
 			list_for_each_entry_safe(ac,
 					ac_tmp, &txq->axq_acq, list) {
@@ -2211,7 +2211,7 @@ void ath_tx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 				}
 			}
 
-			spin_unlock_bh(&txq->axq_lock);
+			spin_unlock(&txq->axq_lock);
 		}
 	}
 }
