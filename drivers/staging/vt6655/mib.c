@@ -471,7 +471,7 @@ STAvUpdateTDStatCounter (
         pStatistic->CustomStat.ullTsrAllOK =
             (pStatistic->ullTsrOK[TYPE_AC0DMA] + pStatistic->ullTsrOK[TYPE_TXDMA0]);
         // update counters in case that successful transmit
-        if (IS_BROADCAST_ADDRESS(pbyDestAddr)) {
+        if (is_broadcast_ether_addr(pbyDestAddr)) {
             pStatistic->ullTxBroadcastFrames[uIdx]++;
             pStatistic->ullTxBroadcastBytes[uIdx] += (ULONGLONG)cbFrameLength;
         }
@@ -495,7 +495,7 @@ STAvUpdateTDStatCounter (
             pStatistic->dwTsrACKData[uIdx]++;
     }
 
-    if (IS_BROADCAST_ADDRESS(pbyDestAddr))
+    if (is_broadcast_ether_addr(pbyDestAddr))
         pStatistic->dwTsrBroadcast[uIdx]++;
     else if (is_multicast_ether_addr(pbyDestAddr))
         pStatistic->dwTsrMulticast[uIdx]++;

@@ -1395,7 +1395,7 @@ s_cbFillTxBufHead (
         (pDevice->eOPMode == OP_MODE_AP)) {
 
         if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])) ||
-            IS_BROADCAST_ADDRESS(&(psEthHeader->abyDstAddr[0]))) {
+            is_broadcast_ether_addr(&(psEthHeader->abyDstAddr[0]))) {
             bNeedACK = FALSE;
         }
         else {
@@ -2124,7 +2124,7 @@ vGenerateFIFOHeader (
     if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
         (pDevice->eOPMode == OP_MODE_AP)) {
         if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])) ||
-            IS_BROADCAST_ADDRESS(&(psEthHeader->abyDstAddr[0]))) {
+            is_broadcast_ether_addr(&(psEthHeader->abyDstAddr[0]))) {
             bNeedACK = FALSE;
             pTxBufHead->wFIFOCtl = pTxBufHead->wFIFOCtl & (~FIFOCTL_NEEDACK);
         }
@@ -2425,7 +2425,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
 
 
     if (is_multicast_ether_addr(&(pPacket->p80211Header->sA3.abyAddr1[0])) ||
-        IS_BROADCAST_ADDRESS(&(pPacket->p80211Header->sA3.abyAddr1[0]))) {
+        is_broadcast_ether_addr(&(pPacket->p80211Header->sA3.abyAddr1[0]))) {
         bNeedACK = FALSE;
     }
     else {
@@ -2761,7 +2761,7 @@ cbGetFragCount (
     if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
         (pDevice->eOPMode == OP_MODE_AP)) {
         if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])) ||
-            IS_BROADCAST_ADDRESS(&(psEthHeader->abyDstAddr[0]))) {
+            is_broadcast_ether_addr(&(psEthHeader->abyDstAddr[0]))) {
             bNeedACK = FALSE;
         }
         else {
@@ -2939,7 +2939,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, PBYTE pbMPDU, UINT cbMPDU
 
 
     if (is_multicast_ether_addr(&(p80211Header->sA3.abyAddr1[0])) ||
-        IS_BROADCAST_ADDRESS(&(p80211Header->sA3.abyAddr1[0]))) {
+        is_broadcast_ether_addr(&(p80211Header->sA3.abyAddr1[0]))) {
         bNeedACK = FALSE;
         if (pDevice->bEnableHostWEP) {
             uNodeIndex = 0;

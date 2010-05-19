@@ -351,8 +351,8 @@ spin_lock_irq(&pDevice->lock);
     }
 
    // spin_lock_irq(&pDevice->lock);
-    if (IS_BROADCAST_ADDRESS(&param->addr[0]) || (param->addr == NULL)) {
-        // If IS_BROADCAST_ADDRESS, set the key as every key entry's group key.
+    if (is_broadcast_ether_addr(&param->addr[0]) || (param->addr == NULL)) {
+        // If is_broadcast_ether_addr, set the key as every key entry's group key.
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Groupe Key Assign.\n");
 
         if ((KeybSetAllGroupKey(&(pDevice->sKey),

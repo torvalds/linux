@@ -188,11 +188,6 @@ S802_11Header, *PS802_11Header;
 /*---------------------  Export Macros ------------------------------*/
 // Frame type macro
 
-#define IS_BROADCAST_ADDRESS(pbyEtherAddr) (        \
-    (*(PDWORD)(pbyEtherAddr) == 0xFFFFFFFFL) &&     \
-    (*(PWORD)((PBYTE)(pbyEtherAddr) + 4) == 0xFFFF) \
-)
-
 #define IS_NULL_ADDRESS(pbyEtherAddr) (             \
     (*(PDWORD)(pbyEtherAddr) == 0L) &&              \
     (*(PWORD)((PBYTE)(pbyEtherAddr) + 4) == 0)      \

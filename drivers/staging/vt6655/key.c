@@ -371,7 +371,7 @@ BOOL KeybRemoveKey (
 {
     int  i;
 
-    if (IS_BROADCAST_ADDRESS(pbyBSSID)) {
+    if (is_broadcast_ether_addr(pbyBSSID)) {
         // dealte all key
         if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
             for (i=0;i<MAX_KEY_TABLE;i++) {
