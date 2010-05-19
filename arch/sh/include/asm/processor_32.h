@@ -27,8 +27,6 @@
 #define CCN_CVR		0xff000040
 #define CCN_PRR		0xff000044
 
-asmlinkage void __init sh_cpu_init(void);
-
 /*
  * User space process size: 2GB.
  *

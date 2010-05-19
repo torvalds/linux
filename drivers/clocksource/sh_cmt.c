@@ -150,13 +150,12 @@ static void sh_cmt_start_stop_ch(struct sh_cmt_priv *p, int start)
 
 static int sh_cmt_enable(struct sh_cmt_priv *p, unsigned long *rate)
 {
-	struct sh_timer_config *cfg = p->pdev->dev.platform_data;
 	int ret;
 
 	/* enable clock */
 	ret = clk_enable(p->clk);
 	if (ret) {
-		pr_err("sh_cmt: cannot enable clock \"%s\"\n", cfg->clk);
+		dev_err(&p->pdev->dev, "cannot enable clock\n");
 		return ret;
 	}
 
@@ -279,7 +278,7 @@ static void sh_cmt_clock_event_program_verify(struct sh_cmt_priv *p,
 			delay = 1;
 
 		if (!delay)
-			pr_warning("sh_cmt: too long delay\n");
+			dev_warn(&p->pdev->dev, "too long delay\n");
 
 	} while (delay);
 }
@@ -289,7 +288,7 @@ static void sh_cmt_set_next(struct sh_cmt_priv *p, unsigned long delta)
 	unsigned long flags;
 
 	if (delta > p->max_match_value)
-		pr_warning("sh_cmt: delta out of range\n");
+		dev_warn(&p->pdev->dev, "delta out of range\n");
 
 	spin_lock_irqsave(&p->lock, flags);
 	p->next_match_value = delta;
@@ -451,7 +450,7 @@ static int sh_cmt_register_clocksource(struct sh_cmt_priv *p,
 	cs->resume = sh_cmt_clocksource_resume;
 	cs->mask = CLOCKSOURCE_MASK(sizeof(unsigned long) * 8);
 	cs->flags = CLOCK_SOURCE_IS_CONTINUOUS;
-	pr_info("sh_cmt: %s used as clock source\n", cs->name);
+	dev_info(&p->pdev->dev, "used as clock source\n");
 	clocksource_register(cs);
 	return 0;
 }
@@ -497,13 +496,11 @@ static void sh_cmt_clock_event_mode(enum clock_event_mode mode,
 
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		pr_info("sh_cmt: %s used for periodic clock events\n",
-			ced->name);
+		dev_info(&p->pdev->dev, "used for periodic clock events\n");
 		sh_cmt_clock_event_start(p, 1);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
-		pr_info("sh_cmt: %s used for oneshot clock events\n",
-			ced->name);
+		dev_info(&p->pdev->dev, "used for oneshot clock events\n");
 		sh_cmt_clock_event_start(p, 0);
 		break;
 	case CLOCK_EVT_MODE_SHUTDOWN:
@@ -544,7 +541,7 @@ static void sh_cmt_register_clockevent(struct sh_cmt_priv *p,
 	ced->set_next_event = sh_cmt_clock_event_next;
 	ced->set_mode = sh_cmt_clock_event_mode;
 
-	pr_info("sh_cmt: %s used for clock events\n", ced->name);
+	dev_info(&p->pdev->dev, "used for clock events\n");
 	clockevents_register_device(ced);
 }
 
@@ -601,22 +598,27 @@ static int sh_cmt_setup(struct sh_cmt_priv *p, struct platform_device *pdev)
 	/* map memory, let mapbase point to our channel */
 	p->mapbase = ioremap_nocache(res->start, resource_size(res));
 	if (p->mapbase == NULL) {
-		pr_err("sh_cmt: failed to remap I/O memory\n");
+		dev_err(&p->pdev->dev, "failed to remap I/O memory\n");
 		goto err0;
 	}
 
 	/* request irq using setup_irq() (too early for request_irq()) */
-	p->irqaction.name = cfg->name;
+	p->irqaction.name = dev_name(&p->pdev->dev);
 	p->irqaction.handler = sh_cmt_interrupt;
 	p->irqaction.dev_id = p;
-	p->irqaction.flags = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL;
+	p->irqaction.flags = IRQF_DISABLED | IRQF_TIMER | \
+			     IRQF_IRQPOLL  | IRQF_NOBALANCING;
 
 	/* get hold of clock */
-	p->clk = clk_get(&p->pdev->dev, cfg->clk);
+	p->clk = clk_get(&p->pdev->dev, "cmt_fck");
 	if (IS_ERR(p->clk)) {
-		pr_err("sh_cmt: cannot get clock \"%s\"\n", cfg->clk);
-		ret = PTR_ERR(p->clk);
-		goto err1;
+		dev_warn(&p->pdev->dev, "using deprecated clock lookup\n");
+		p->clk = clk_get(&p->pdev->dev, cfg->clk);
+		if (IS_ERR(p->clk)) {
+			dev_err(&p->pdev->dev, "cannot get clock\n");
+			ret = PTR_ERR(p->clk);
+			goto err1;
+		}
 	}
 
 	if (resource_size(res) == 6) {
@@ -629,17 +631,17 @@ static int sh_cmt_setup(struct sh_cmt_priv *p, struct platform_device *pdev)
 		p->clear_bits = ~0xc000;
 	}
 
-	ret = sh_cmt_register(p, cfg->name,
+	ret = sh_cmt_register(p, (char *)dev_name(&p->pdev->dev),
 			      cfg->clockevent_rating,
 			      cfg->clocksource_rating);
 	if (ret) {
-		pr_err("sh_cmt: registration failed\n");
+		dev_err(&p->pdev->dev, "registration failed\n");
 		goto err1;
 	}
 
 	ret = setup_irq(irq, &p->irqaction);
 	if (ret) {
-		pr_err("sh_cmt: failed to request irq %d\n", irq);
+		dev_err(&p->pdev->dev, "failed to request irq %d\n", irq);
 		goto err1;
 	}
 
@@ -654,11 +656,10 @@ err0:
 static int __devinit sh_cmt_probe(struct platform_device *pdev)
 {
 	struct sh_cmt_priv *p = platform_get_drvdata(pdev);
-	struct sh_timer_config *cfg = pdev->dev.platform_data;
 	int ret;
 
 	if (p) {
-		pr_info("sh_cmt: %s kept as earlytimer\n", cfg->name);
+		dev_info(&pdev->dev, "kept as earlytimer\n");
 		return 0;
 	}
 

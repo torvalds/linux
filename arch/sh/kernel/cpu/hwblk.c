@@ -146,6 +146,11 @@ int __init sh_hwblk_clk_register(struct clk *clks, int nr)
 
 	for (k = 0; !ret && (k < nr); k++) {
 		clkp = clks + k;
+
+		/* skip over clocks using hwblk 0 (HWBLK_UNKNOWN) */
+		if (!clkp->arch_flags)
+			continue;
+
 		clkp->ops = &sh_hwblk_clk_ops;
 		ret |= clk_register(clkp);
 	}

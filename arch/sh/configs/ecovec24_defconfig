@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Linux kernel version: 2.6.34-rc2
-# Mon Mar 29 02:21:58 2010
+# Linux kernel version: 2.6.34-rc5
+# Tue May 18 15:17:28 2010
 #
 CONFIG_SUPERH=y
 CONFIG_SUPERH32=y
@@ -336,6 +336,7 @@ CONFIG_SECCOMP=y
 # CONFIG_PREEMPT_VOLUNTARY is not set
 CONFIG_PREEMPT=y
 CONFIG_GUSA=y
+# CONFIG_INTC_USERIMASK is not set
 
 #
 # Boot options
@@ -762,6 +763,7 @@ CONFIG_WLAN=y
 # CONFIG_USB_PEGASUS is not set
 # CONFIG_USB_RTL8150 is not set
 # CONFIG_USB_USBNET is not set
+# CONFIG_USB_IPHETH is not set
 # CONFIG_WAN is not set
 # CONFIG_PPP is not set
 # CONFIG_SLIP is not set
@@ -1755,6 +1757,7 @@ CONFIG_CRYPTO_CBC=y
 #
 # CONFIG_CRYPTO_ANSI_CPRNG is not set
 CONFIG_CRYPTO_HW=y
+# CONFIG_VIRTUALIZATION is not set
 # CONFIG_BINARY_PRINTF is not set
 
 #
