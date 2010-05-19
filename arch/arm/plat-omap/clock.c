@@ -138,11 +138,6 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	unsigned long flags;
 	int ret = -EINVAL;
 
-	if (cpu_is_omap44xx()) {
-		WARN(1, "clock: %s: not supported yet on OMAP4\n", __func__);
-		return 0;
-	}
-
 	if (clk == NULL || IS_ERR(clk) || parent == NULL || IS_ERR(parent))
 		return ret;
 
