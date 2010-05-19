@@ -70,6 +70,7 @@ struct tmio_mmc_data {
 	unsigned int			hclk;
 	unsigned long			capabilities;
 	unsigned long			flags;
+	u32				ocr_mask;	/* available voltages */
 	struct tmio_mmc_dma		*dma;
 	void (*set_pwr)(struct platform_device *host, int state);
 	void (*set_clk_div)(struct platform_device *host, int state);

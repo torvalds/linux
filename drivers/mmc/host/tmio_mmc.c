@@ -847,7 +847,10 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 	mmc->caps |= pdata->capabilities;
 	mmc->f_max = pdata->hclk;
 	mmc->f_min = mmc->f_max / 512;
-	mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
+	if (pdata->ocr_mask)
+		mmc->ocr_avail = pdata->ocr_mask;
+	else
+		mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
 	/* Tell the MFD core we are ready to be enabled */
 	if (cell->enable) {
