@@ -24,6 +24,8 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/backlight.h>
+#include <video/platform_lcd.h>
 
 #include <asm/mach/arch.h>
 
@@ -103,12 +105,6 @@ static struct gpio_led gpio_leds[] = {
 		.active_low		= 1,
 		.gpio			= GPIO_PORTF | 19,
 	},
-	{
-		.name			= "backlight",
-		.default_trigger	= "backlight",
-		.active_low		= 0,
-		.gpio			= GPIO_PORTE | 5,
-	},
 };
 
 static struct gpio_led_platform_data gpio_led_info = {
@@ -151,6 +147,47 @@ static struct imx_fb_platform_data eukrea_mbimx27_fb_data = {
 	.pwmr		= 0x00A903FF,
 	.lscr1		= 0x00120300,
 	.dmacr		= 0x00040060,
+};
+
+static void eukrea_mbimx27_bl_set_intensity(int intensity)
+{
+	if (intensity)
+		gpio_direction_output(GPIO_PORTE | 5, 1);
+	else
+		gpio_direction_output(GPIO_PORTE | 5, 0);
+}
+
+static struct generic_bl_info eukrea_mbimx27_bl_info = {
+	.name			= "eukrea_mbimx27-bl",
+	.max_intensity		= 0xff,
+	.default_intensity	= 0xff,
+	.set_bl_intensity	= eukrea_mbimx27_bl_set_intensity,
+};
+
+static struct platform_device eukrea_mbimx27_bl_dev = {
+	.name			= "generic-bl",
+	.id			= 1,
+	.dev = {
+		.platform_data	= &eukrea_mbimx27_bl_info,
+	},
+};
+
+static void eukrea_mbimx27_lcd_power_set(struct plat_lcd_data *pd,
+				   unsigned int power)
+{
+	if (power)
+		gpio_direction_output(GPIO_PORTA | 25, 1);
+	else
+		gpio_direction_output(GPIO_PORTA | 25, 0);
+}
+
+static struct plat_lcd_data eukrea_mbimx27_lcd_power_data = {
+	.set_power		= eukrea_mbimx27_lcd_power_set,
+};
+
+static struct platform_device eukrea_mbimx27_lcd_powerdev = {
+	.name			= "platform-lcd",
+	.dev.platform_data	= &eukrea_mbimx27_lcd_power_data,
 };
 
 static struct imxuart_platform_data uart_pdata[] = {
@@ -244,6 +281,12 @@ void __init eukrea_mbimx27_baseboard_init(void)
 	mxc_gpio_mode(GPIO_PORTF | 19 | GPIO_GPIO | GPIO_OUT);
 	/* Backlight */
 	mxc_gpio_mode(GPIO_PORTE | 5 | GPIO_GPIO | GPIO_OUT);
+	gpio_request(GPIO_PORTE | 5, "backlight");
+	platform_device_register(&eukrea_mbimx27_bl_dev);
+	/* LCD Reset */
+	mxc_gpio_mode(GPIO_PORTA | 25 | GPIO_GPIO | GPIO_OUT);
+	gpio_request(GPIO_PORTA | 25, "lcd_enable");
+	platform_device_register(&eukrea_mbimx27_lcd_powerdev);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 }
