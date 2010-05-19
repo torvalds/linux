@@ -197,20 +197,17 @@ extern void perf_trace_disable(int event_id);
 extern int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 				     char *filter_str);
 extern void ftrace_profile_free_filter(struct perf_event *event);
-extern void *
-perf_trace_buf_prepare(int size, unsigned short type, int *rctxp,
-			 unsigned long *irq_flags);
+extern void *perf_trace_buf_prepare(int size, unsigned short type,
+				    struct pt_regs *regs, int *rctxp);
 
 static inline void
 perf_trace_buf_submit(void *raw_data, int size, int rctx, u64 addr,
-		       u64 count, unsigned long irq_flags, struct pt_regs *regs,
-		       void *event)
+		       u64 count, struct pt_regs *regs, void *event)
 {
 	struct trace_entry *entry = raw_data;
 
 	perf_tp_event(entry->type, addr, count, raw_data, size, regs, event);
 	perf_swevent_put_recursion_context(rctx);
-	local_irq_restore(irq_flags);
 }
 #endif
 

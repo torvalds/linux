@@ -768,7 +768,6 @@ perf_trace_templ_##call(struct ftrace_event_call *event_call,		\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
 	struct ftrace_raw_##call *entry;				\
 	u64 __addr = 0, __count = 1;					\
-	unsigned long irq_flags;					\
 	int __entry_size;						\
 	int __data_size;						\
 	int rctx;							\
@@ -781,17 +780,18 @@ perf_trace_templ_##call(struct ftrace_event_call *event_call,		\
 	if (WARN_ONCE(__entry_size > PERF_MAX_TRACE_SIZE,		\
 		      "profile buffer not large enough"))		\
 		return;							\
+									\
 	entry = (struct ftrace_raw_##call *)perf_trace_buf_prepare(	\
-		__entry_size, event_call->id, &rctx, &irq_flags);	\
+		__entry_size, event_call->id, __regs, &rctx);		\
 	if (!entry)							\
 		return;							\
+									\
 	tstruct								\
 									\
 	{ assign; }							\
 									\
 	perf_trace_buf_submit(entry, __entry_size, rctx, __addr,	\
-			       __count, irq_flags, __regs, 		\
-			      event_call->perf_data);			\
+			       __count, __regs, event_call->perf_data);	\
 }
 
 #undef DEFINE_EVENT
@@ -799,13 +799,10 @@ perf_trace_templ_##call(struct ftrace_event_call *event_call,		\
 static notrace void perf_trace_##call(proto)				\
 {									\
 	struct ftrace_event_call *event_call = &event_##call;		\
-	struct pt_regs *__regs = &get_cpu_var(perf_trace_regs);		\
+	struct pt_regs __regs;						\
 									\
-	perf_fetch_caller_regs(__regs, 1);				\
-									\
-	perf_trace_templ_##template(event_call, __regs, args);		\
-									\
-	put_cpu_var(perf_trace_regs);					\
+	perf_fetch_caller_regs(&__regs, 1);				\
+	perf_trace_templ_##template(event_call, &__regs, args);		\
 }
 
 #undef DEFINE_EVENT_PRINT
