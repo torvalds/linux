@@ -48,7 +48,7 @@
 #define TM6000_MIN_BUF 4
 #define TM6000_DEF_BUF 8
 
-#define TM6000_MAX_ISO_PACKETS	40	/* Max number of ISO packets */
+#define TM6000_MAX_ISO_PACKETS	46	/* Max number of ISO packets */
 
 /* Declare static vars that will be used as parameters */
 static unsigned int vid_limit = 16;	/* Video memory limit, in Mb */
@@ -620,7 +620,7 @@ static void tm6000_uninit_isoc(struct tm6000_core *dev)
 static int tm6000_prepare_isoc(struct tm6000_core *dev, unsigned int framesize)
 {
 	struct tm6000_dmaqueue *dma_q = &dev->vidq;
-	int i, j, sb_size, pipe, size, max_packets, num_bufs = 5;
+	int i, j, sb_size, pipe, size, max_packets, num_bufs = 8;
 	struct urb *urb;
 
 	/* De-allocates all pending stuff */
