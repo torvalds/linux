@@ -1131,6 +1131,10 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 	list_for_each_entry(pos, head, node) {
 		if (with_hits && !pos->hit)
 			continue;
+		if (pos->has_build_id) {
+			have_build_id = true;
+			continue;
+		}
 		if (filename__read_build_id(pos->long_name, pos->build_id,
 					    sizeof(pos->build_id)) > 0) {
 			have_build_id	  = true;
