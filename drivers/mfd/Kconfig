@@ -420,11 +420,12 @@ config EZX_PCAP
 	  This enables the PCAP ASIC present on EZX Phones. This is
 	  needed for MMC, TouchScreen, Sound, USB, etc..
 
-config AB4500_CORE
-	tristate "ST-Ericsson's AB4500 Mixed Signal Power management chip"
-	depends on SPI
+config AB8500_CORE
+	bool "ST-Ericsson AB8500 Mixed Signal Power Management chip"
+	depends on SPI=y && GENERIC_HARDIRQS
+	select MFD_CORE
 	help
-	  Select this option to enable access to AB4500 power management
+	  Select this option to enable access to AB8500 power management
 	  chip. This connects to U8500 on the SSP/SPI bus and exports
 	  read/write functions for the devices to get access to this chip.
 	  This chip embeds various other multimedia funtionalities as well.
