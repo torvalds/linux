@@ -424,7 +424,7 @@ config KEYBOARD_W90P910
 	  module will be called w90p910_keypad.
 config KEYBOARD_RK28ADC	 
 	tristate "RK2818 ADC Keypad support"
-	depends on ARCH_RK2818
+	depends on RK28_ADC
 	default y
 	help
 	  Say Y here to enable the adc keypad on SDK board

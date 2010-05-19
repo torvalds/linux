@@ -376,7 +376,7 @@ static int rk28_adc_probe(struct platform_device *pdev)
 	
 	rk28_adc_int_disable(adc);
 	pAdcDev = adc;
-	printk("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
+	printk(KERN_INFO "rk2818 adc: driver initialized\n");
 	return 0;
 
  err_clk:
@@ -452,7 +452,6 @@ static int __init adc_init(void)
 	ret = platform_driver_register(&rk28_adc_driver);
 	if (ret)
 		printk(KERN_ERR "%s: failed to add adc driver\n", __func__);
-	printk("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
 	return ret;
 }
 

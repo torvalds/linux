@@ -110,4 +110,9 @@ config CHARGER_PCF50633
 	help
 	 Say Y to include support for NXP PCF50633 Main Battery Charger.
 
+config BATTERY_RK2818
+	tristate "RK2818 battery"
+	depends on KEYBOARD_RK28ADC
+	help
+	  Say Y to enable support for the battery on the RK2818.
 endif # POWER_SUPPLY

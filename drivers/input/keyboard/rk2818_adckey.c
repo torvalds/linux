@@ -23,10 +23,10 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-
+#include <mach/gpio.h>
 #include <mach/adc.h>
 
-#if 0
+#if 1
 #define DBG(x...)   printk(x)
 #else
 #define DBG(x...)
@@ -34,14 +34,16 @@
 
 //ROCKCHIP AD KEY CODE ,for demo board
 //      key		--->	EV	
-#define AD2KEY1			114   ///VOLUME_DOWN 
-#define AD2KEY2 		115   ///VOLUME_UP
-#define AD2KEY3 		59    ///MENU
-#define AD2KEY4 		102   ///HOME
-#define AD2KEY5 		158   ///BACK
-#define AD2KEY6 		61    ///CALL
+#define AD2KEY1                 114   ///VOLUME_DOWN
+#define AD2KEY2                 115   ///VOLUME_UP
+#define AD2KEY3                 59    ///MENU
+#define AD2KEY4                 102   ///HOME
+#define AD2KEY5                 158   ///BACK
+#define AD2KEY6                 61    ///CALL
 
-#define KEYMENU			AD2KEY6
+#define	KEYSTART		28			//ENTER
+#define KEYMENU			AD2KEY6		///CALL
+#define KEY_PLAYON_PIN	RK2818_PIN_PE1
 #define ENDCALL			62
 
 #define Valuedrift		50
@@ -56,6 +58,7 @@
 volatile int gADSampleTimes = 0;
 volatile int gAdcChanel = 0;
 volatile int gAdcValue[4]={0, 0, 0, 0};	//0->ch0 1->ch1 2->ch2 3->ch3
+volatile int gStatePlaykey = 0;
 
 volatile unsigned int gCodeCount = 0;
 volatile unsigned int gThisCode = 0;
@@ -94,7 +97,6 @@ struct rk28_adckey
 	struct input_dev *input_dev;
 	struct timer_list timer;
 	unsigned char keycodes[ADKEYNUM];
-	struct clk *clk;
 	void __iomem *mmio_base;
 };
 
@@ -110,6 +112,17 @@ unsigned int rk28_get_keycode(unsigned int advalue,pADC_keyst ptab)
 	}
 
 	return 0;
+}
+
+static irqreturn_t rk2818_playkey_irq(int irq, void *handle)
+{ 
+	input_report_key(pRk28AdcKey->input_dev,KEYSTART,1);
+	input_sync(pRk28AdcKey->input_dev);
+	input_report_key(pRk28AdcKey->input_dev,KEYSTART,0);
+	input_sync(pRk28AdcKey->input_dev);
+	printk("Enter::%s,LINE=%d,KEYSTART=%d,0\n",__FUNCTION__,__LINE__,KEYSTART);
+	
+	return IRQ_HANDLED;
 }
 
 static int rk28_adckey_open(struct input_dev *dev)
@@ -128,26 +141,20 @@ static void rk28_adckey_close(struct input_dev *dev)
 #ifdef CONFIG_PM
 static int rk28_adckey_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct rk28_adckey *adckey = platform_get_drvdata(pdev);
+	//struct rk28_adckey *adckey = platform_get_drvdata(pdev);
 
-	clk_disable(adckey->clk);
 	return 0;
 }
 
 static int rk28_adckey_resume(struct platform_device *pdev)
 {
-	struct rk28_adckey *adckey = platform_get_drvdata(pdev);
-	struct input_dev *input_dev = adckey->input_dev;
-
+	//struct rk28_adckey *adckey = platform_get_drvdata(pdev);
+	//struct input_dev *input_dev = adckey->input_dev;
+#if 0
 	mutex_lock(&input_dev->mutex);
 
-	if (input_dev->users) {
-		/* Enable unit clock */
-		clk_enable(adckey->clk);
-	}
-
 	mutex_unlock(&input_dev->mutex);
-
+#endif
 	return 0;
 }
 #else
@@ -267,7 +274,7 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 	if (!input_dev) {
 		dev_err(&pdev->dev, "failed to allocate input device\n");
 		error = -ENOMEM;
-		goto failed_put_clk;
+		goto failed_free;
 	}
 
 	input_dev->name = pdev->name;
@@ -314,17 +321,33 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 		goto failed_free_dev;
 	}
 
+	error = gpio_request(KEY_PLAYON_PIN, "play key gpio");
+	if (error) {
+		dev_err(&pdev->dev, "failed to request play key gpio\n");
+		goto free_gpio;
+	}
+	
+	gpio_pull_updown(KEY_PLAYON_PIN,GPIOPullUp);
+	error = request_irq(gpio_to_irq(KEY_PLAYON_PIN),rk2818_playkey_irq,IRQF_TRIGGER_FALLING,NULL,NULL);  
+	if(error)
+	{
+		printk("unable to request play key irq\n");
+		goto free_gpio_irq;
+	}	
+
 	setup_timer(&adckey->timer, rk28_adkeyscan_timer, (unsigned long)adckey);
 	adckey->timer.expires  = jiffies+50;
 	add_timer(&adckey->timer);
-	DBG("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
+	printk(KERN_INFO "rk2818_adckey: driver initialized\n");
 	return 0;
-
+	
+free_gpio_irq:
+	free_irq(gpio_to_irq(KEY_PLAYON_PIN),NULL);
+free_gpio:	
+	gpio_free(KEY_PLAYON_PIN);
 failed_free_dev:
 	platform_set_drvdata(pdev, NULL);
 	input_free_device(input_dev);
-failed_put_clk:
-	//clk_put(adckey->clk);
 failed_free:
 	kfree(adckey);
 	return error;
@@ -339,6 +362,9 @@ static int __devexit rk28_adckey_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 	rk28_adc_release(adckey->client);
 	kfree(adckey);
+	free_irq(gpio_to_irq(KEY_PLAYON_PIN),NULL);
+	gpio_free(KEY_PLAYON_PIN);
+	
 	return 0;
 }
 
@@ -356,7 +382,6 @@ static struct platform_driver rk28_adckey_driver =
 
  int __init rk28_adckey_init(void)
 {
-	DBG("Enter::%s,LINE=%d\n",__FUNCTION__,__LINE__);
 	return platform_driver_register(&rk28_adckey_driver);
 }
 

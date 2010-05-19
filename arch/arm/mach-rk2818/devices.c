@@ -279,6 +279,11 @@ struct platform_device rk2818_device_adckey = {
 	.dev.parent	= &rk2818_device_adc.dev,
 };
 
+struct platform_device rk2818_device_battery = {
+		.name	= "rk2818-battery",
+		.id 	= -1,
+};
+
 
 /*
  * rk2818 dsp device
