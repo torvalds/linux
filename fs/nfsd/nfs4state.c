@@ -2255,6 +2255,13 @@ find_delegation_file(struct nfs4_file *fp, stateid_t *stid)
 	return NULL;
 }
 
+int share_access_to_flags(u32 share_access)
+{
+	share_access &= ~NFS4_SHARE_WANT_MASK;
+
+	return share_access == NFS4_SHARE_ACCESS_READ ? RD_STATE : WR_STATE;
+}
+
 static __be32
 nfs4_check_deleg(struct nfs4_file *fp, struct nfsd4_open *open,
 		struct nfs4_delegation **dp)
@@ -2265,8 +2272,7 @@ nfs4_check_deleg(struct nfs4_file *fp, struct nfsd4_open *open,
 	*dp = find_delegation_file(fp, &open->op_delegate_stateid);
 	if (*dp == NULL)
 		goto out;
-	flags = open->op_share_access == NFS4_SHARE_ACCESS_READ ?
-						RD_STATE : WR_STATE;
+	flags = share_access_to_flags(open->op_share_access);
 	status = nfs4_check_delegmode(*dp, flags);
 	if (status)
 		*dp = NULL;
@@ -2358,6 +2364,7 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct svc_fh *cur_fh, struct nfs4_sta
 	struct file *filp = stp->st_vfs_file;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 	unsigned int share_access, new_writer;
+	u32 op_share_access;
 	__be32 status;
 
 	set_access(&share_access, stp->st_access_bmap);
@@ -2380,8 +2387,9 @@ nfs4_upgrade_open(struct svc_rqst *rqstp, struct svc_fh *cur_fh, struct nfs4_sta
 		return status;
 	}
 	/* remember the open */
-	filp->f_mode |= open->op_share_access;
-	__set_bit(open->op_share_access, &stp->st_access_bmap);
+	op_share_access = open->op_share_access & ~NFS4_SHARE_WANT_MASK;
+	filp->f_mode |= op_share_access;
+	__set_bit(op_share_access, &stp->st_access_bmap);
 	__set_bit(open->op_share_deny, &stp->st_deny_bmap);
 
 	return nfs_ok;
