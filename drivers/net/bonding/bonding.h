@@ -159,7 +159,6 @@ struct slave {
 	s8     link;    /* one of BOND_LINK_XXXX */
 	s8     new_link;
 	s8     state;   /* one of BOND_STATE_XXXX */
-	u32    original_flags;
 	u32    original_mtu;
 	u32    link_failure_count;
 	u8     perm_hwaddr[ETH_ALEN];

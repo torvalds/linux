@@ -1535,11 +1535,6 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 		goto err_undo_flags;
 	}
 
-	/* save slave's original flags before calling
-	 * netdev_set_master and dev_open
-	 */
-	new_slave->original_flags = slave_dev->flags;
-
 	/* Save slave's original mtu and then set it to match the bond */
 	new_slave->original_mtu = slave_dev->mtu;
 	res = dev_set_mtu(slave_dev, bond->dev->mtu);
