@@ -179,6 +179,8 @@ static void jfs_put_super(struct super_block *sb)
 
 	jfs_info("In jfs_put_super");
 
+	dquot_disable(sb, -1, DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
+
 	lock_kernel();
 
 	rc = jfs_umount(sb);

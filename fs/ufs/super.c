@@ -1227,6 +1227,8 @@ static void ufs_put_super(struct super_block *sb)
 		
 	UFSD("ENTER\n");
 
+	dquot_disable(sb, -1, DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
+
 	if (sb->s_dirt)
 		ufs_write_super(sb);
 

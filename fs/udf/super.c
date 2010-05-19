@@ -2102,6 +2102,8 @@ static void udf_put_super(struct super_block *sb)
 	int i;
 	struct udf_sb_info *sbi;
 
+	dquot_disable(sb, -1, DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
+
 	sbi = UDF_SB(sb);
 
 	lock_kernel();

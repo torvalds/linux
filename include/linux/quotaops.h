@@ -156,16 +156,6 @@ extern const struct quotactl_ops vfs_quotactl_ops;
 #define sb_dquot_ops (&dquot_operations)
 #define sb_quotactl_ops (&vfs_quotactl_ops)
 
-/* Cannot be called inside a transaction */
-static inline int vfs_dq_off(struct super_block *sb, int remount)
-{
-	int ret = -ENOSYS;
-
-	if (sb->s_qcop && sb->s_qcop->quota_off)
-		ret = sb->s_qcop->quota_off(sb, -1, remount);
-	return ret;
-}
-
 #else
 
 static inline int sb_has_quota_usage_enabled(struct super_block *sb, int type)
@@ -230,11 +220,6 @@ static inline int dquot_alloc_inode(const struct inode *inode)
 
 static inline void dquot_free_inode(const struct inode *inode)
 {
-}
-
-static inline int vfs_dq_off(struct super_block *sb, int remount)
-{
-	return 0;
 }
 
 static inline int dquot_transfer(struct inode *inode, struct iattr *iattr)

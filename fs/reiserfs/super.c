@@ -466,6 +466,8 @@ static void reiserfs_put_super(struct super_block *s)
 	struct reiserfs_transaction_handle th;
 	th.t_trans_id = 0;
 
+	dquot_disable(s, -1, DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
+
 	reiserfs_write_lock(s);
 
 	if (s->s_dirt)
