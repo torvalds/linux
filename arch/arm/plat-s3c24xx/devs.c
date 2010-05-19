@@ -343,14 +343,6 @@ struct platform_device s3c_device_adc = {
 	.resource	  = s3c_adc_resource,
 };
 
-/* HWMON */
-
-struct platform_device s3c_device_hwmon = {
-	.name		= "s3c-hwmon",
-	.id		= -1,
-	.dev.parent	= &s3c_device_adc.dev,
-};
-
 /* SDI */
 
 static struct resource s3c_sdi_resource[] = {
