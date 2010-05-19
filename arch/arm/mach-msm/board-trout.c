@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-msm/board-dream.c
+/* linux/arch/arm/mach-msm/board-trout.c
  *
  * Copyright (C) 2009 Google, Inc.
  * Author: Brian Swetland <swetland@google.com>
@@ -28,7 +28,7 @@
 #include <mach/msm_iomap.h>
 
 #include "devices.h"
-#include "board-dream.h"
+#include "board-trout.h"
 
 static struct platform_device *devices[] __initdata = {
 	&msm_device_uart3,
@@ -78,12 +78,14 @@ static void __init trout_map_io(void)
 	writeb(0x80, TROUT_CPLD_BASE + 0x00);
 #endif
 
-	msm_clock_init();
+	msm_clock_init(msm_clocks_7x01a, msm_num_clocks_7x01a);
 }
 
 MACHINE_START(TROUT, "HTC Dream")
+#ifdef CONFIG_MSM_DEBUG_UART
 	.phys_io	= MSM_DEBUG_UART_PHYS,
 	.io_pg_offst	= ((MSM_DEBUG_UART_BASE) >> 18) & 0xfffc,
+#endif
 	.boot_params	= 0x10000100,
 	.fixup		= trout_fixup,
 	.map_io		= trout_map_io,
