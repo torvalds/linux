@@ -480,6 +480,21 @@ static struct dmi_system_id __initdata msi_dmi_table[] = {
 		},
 		.callback = dmi_check_cb
 	},
+	{ }
+};
+
+static struct dmi_system_id __initdata msi_load_scm_models_dmi_table[] = {
+	{
+		.ident = "MSI N034",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR,
+				"MICRO-STAR INTERNATIONAL CO., LTD"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MS-N034"),
+			DMI_MATCH(DMI_CHASSIS_VENDOR,
+			"MICRO-STAR INTERNATIONAL CO., LTD")
+		},
+		.callback = dmi_check_cb
+	},
 	{
 		.ident = "MSI N051",
 		.matches = {
@@ -506,21 +521,6 @@ static struct dmi_system_id __initdata msi_dmi_table[] = {
 			DMI_MATCH(DMI_SYS_VENDOR,
 				"Micro-Star International"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "CR620"),
-		},
-		.callback = dmi_check_cb
-	},
-	{ }
-};
-
-static struct dmi_system_id __initdata msi_load_scm_models_dmi_table[] = {
-	{
-		.ident = "MSI N034",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR,
-				"MICRO-STAR INTERNATIONAL CO., LTD"),
-			DMI_MATCH(DMI_PRODUCT_NAME, "MS-N034"),
-			DMI_MATCH(DMI_CHASSIS_VENDOR,
-			"MICRO-STAR INTERNATIONAL CO., LTD")
 		},
 		.callback = dmi_check_cb
 	},
