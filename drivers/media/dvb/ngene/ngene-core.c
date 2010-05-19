@@ -1300,8 +1300,10 @@ static void ngene_stop(struct ngene *dev)
 	ngwritel(0, NGENE_EVENT);
 	ngwritel(0, NGENE_EVENT_HI);
 	free_irq(dev->pci_dev->irq, dev);
+#ifdef CONFIG_PCI_MSI
 	if (dev->msi_enabled)
 		pci_disable_msi(dev->pci_dev);
+#endif
 }
 
 static int ngene_start(struct ngene *dev)
@@ -1339,7 +1341,7 @@ static int ngene_start(struct ngene *dev)
 
 #ifdef CONFIG_PCI_MSI
 	/* enable MSI if kernel and card support it */
-	if (dev->card_info->msi_supported) {
+	if (pci_msi_enabled() && dev->card_info->msi_supported) {
 		ngwritel(0, NGENE_INT_ENABLE);
 		free_irq(dev->pci_dev->irq, dev);
 		stat = pci_enable_msi(dev->pci_dev);
@@ -1391,9 +1393,11 @@ static int ngene_start(struct ngene *dev)
 fail:
 	ngwritel(0, NGENE_INT_ENABLE);
 	free_irq(dev->pci_dev->irq, dev);
+#ifdef CONFIG_PCI_MSI
 fail2:
 	if (dev->msi_enabled)
 		pci_disable_msi(dev->pci_dev);
+#endif
 	return stat;
 }
 
