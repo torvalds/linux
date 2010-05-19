@@ -2315,13 +2315,13 @@ int ata_pci_sff_init_host(struct ata_host *host)
 EXPORT_SYMBOL_GPL(ata_pci_sff_init_host);
 
 /**
- *	ata_pci_sff_prepare_host - helper to prepare native PCI ATA host
+ *	ata_pci_sff_prepare_host - helper to prepare PCI PIO-only SFF ATA host
  *	@pdev: target PCI device
  *	@ppi: array of port_info, must be enough for two ports
  *	@r_host: out argument for the initialized ATA host
  *
- *	Helper to allocate ATA host for @pdev, acquire all native PCI
- *	resources and initialize it accordingly in one go.
+ *	Helper to allocate PIO-only SFF ATA host for @pdev, acquire
+ *	all PCI resources and initialize it accordingly in one go.
  *
  *	LOCKING:
  *	Inherited from calling layer (may sleep).
@@ -2350,9 +2350,6 @@ int ata_pci_sff_prepare_host(struct pci_dev *pdev,
 	rc = ata_pci_sff_init_host(host);
 	if (rc)
 		goto err_out;
-
-	/* init DMA related stuff */
-	ata_pci_bmdma_init(host);
 
 	devres_remove_group(&pdev->dev, NULL);
 	*r_host = host;
@@ -2458,8 +2455,21 @@ out:
 }
 EXPORT_SYMBOL_GPL(ata_pci_sff_activate_host);
 
+static const struct ata_port_info *ata_sff_find_valid_pi(
+					const struct ata_port_info * const *ppi)
+{
+	int i;
+
+	/* look up the first valid port_info */
+	for (i = 0; i < 2 && ppi[i]; i++)
+		if (ppi[i]->port_ops != &ata_dummy_port_ops)
+			return ppi[i];
+
+	return NULL;
+}
+
 /**
- *	ata_pci_sff_init_one - Initialize/register PCI IDE host controller
+ *	ata_pci_sff_init_one - Initialize/register PIO-only PCI IDE controller
  *	@pdev: Controller to be initialized
  *	@ppi: array of port_info, must be enough for two ports
  *	@sht: scsi_host_template to use when registering the host
@@ -2468,11 +2478,7 @@ EXPORT_SYMBOL_GPL(ata_pci_sff_activate_host);
  *
  *	This is a helper function which can be called from a driver's
  *	xxx_init_one() probe function if the hardware uses traditional
- *	IDE taskfile registers.
- *
- *	This function calls pci_enable_device(), reserves its register
- *	regions, sets the dma mask, enables bus master mode, and calls
- *	ata_device_add()
+ *	IDE taskfile registers and is PIO only.
  *
  *	ASSUMPTION:
  *	Nobody makes a single channel controller that appears solely as
@@ -2489,20 +2495,13 @@ int ata_pci_sff_init_one(struct pci_dev *pdev,
 		 struct scsi_host_template *sht, void *host_priv, int hflag)
 {
 	struct device *dev = &pdev->dev;
-	const struct ata_port_info *pi = NULL;
+	const struct ata_port_info *pi;
 	struct ata_host *host = NULL;
-	int i, rc;
+	int rc;
 
 	DPRINTK("ENTER\n");
 
-	/* look up the first valid port_info */
-	for (i = 0; i < 2 && ppi[i]; i++) {
-		if (ppi[i]->port_ops != &ata_dummy_port_ops) {
-			pi = ppi[i];
-			break;
-		}
-	}
-
+	pi = ata_sff_find_valid_pi(ppi);
 	if (!pi) {
 		dev_printk(KERN_ERR, &pdev->dev,
 			   "no valid port_info specified\n");
@@ -2523,8 +2522,7 @@ int ata_pci_sff_init_one(struct pci_dev *pdev,
 	host->private_data = host_priv;
 	host->flags |= hflag;
 
-	pci_set_master(pdev);
-	rc = ata_pci_sff_activate_host(host, ata_bmdma_interrupt, sht);
+	rc = ata_pci_sff_activate_host(host, ata_sff_interrupt, sht);
 out:
 	if (rc == 0)
 		devres_remove_group(&pdev->dev, NULL);
@@ -3195,6 +3193,98 @@ void ata_pci_bmdma_init(struct ata_host *host)
 	}
 }
 EXPORT_SYMBOL_GPL(ata_pci_bmdma_init);
+
+/**
+ *	ata_pci_bmdma_prepare_host - helper to prepare PCI BMDMA ATA host
+ *	@pdev: target PCI device
+ *	@ppi: array of port_info, must be enough for two ports
+ *	@r_host: out argument for the initialized ATA host
+ *
+ *	Helper to allocate BMDMA ATA host for @pdev, acquire all PCI
+ *	resources and initialize it accordingly in one go.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ *
+ *	RETURNS:
+ *	0 on success, -errno otherwise.
+ */
+int ata_pci_bmdma_prepare_host(struct pci_dev *pdev,
+			       const struct ata_port_info * const * ppi,
+			       struct ata_host **r_host)
+{
+	int rc;
+
+	rc = ata_pci_sff_prepare_host(pdev, ppi, r_host);
+	if (rc)
+		return rc;
+
+	ata_pci_bmdma_init(*r_host);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ata_pci_bmdma_prepare_host);
+
+/**
+ *	ata_pci_bmdma_init_one - Initialize/register BMDMA PCI IDE controller
+ *	@pdev: Controller to be initialized
+ *	@ppi: array of port_info, must be enough for two ports
+ *	@sht: scsi_host_template to use when registering the host
+ *	@host_priv: host private_data
+ *	@hflags: host flags
+ *
+ *	This function is similar to ata_pci_sff_init_one() but also
+ *	takes care of BMDMA initialization.
+ *
+ *	LOCKING:
+ *	Inherited from PCI layer (may sleep).
+ *
+ *	RETURNS:
+ *	Zero on success, negative on errno-based value on error.
+ */
+int ata_pci_bmdma_init_one(struct pci_dev *pdev,
+			   const struct ata_port_info * const * ppi,
+			   struct scsi_host_template *sht, void *host_priv,
+			   int hflags)
+{
+	struct device *dev = &pdev->dev;
+	const struct ata_port_info *pi;
+	struct ata_host *host = NULL;
+	int rc;
+
+	DPRINTK("ENTER\n");
+
+	pi = ata_sff_find_valid_pi(ppi);
+	if (!pi) {
+		dev_printk(KERN_ERR, &pdev->dev,
+			   "no valid port_info specified\n");
+		return -EINVAL;
+	}
+
+	if (!devres_open_group(dev, NULL, GFP_KERNEL))
+		return -ENOMEM;
+
+	rc = pcim_enable_device(pdev);
+	if (rc)
+		goto out;
+
+	/* prepare and activate BMDMA host */
+	rc = ata_pci_bmdma_prepare_host(pdev, ppi, &host);
+	if (rc)
+		goto out;
+	host->private_data = host_priv;
+	host->flags |= hflags;
+
+	pci_set_master(pdev);
+	rc = ata_pci_sff_activate_host(host, ata_bmdma_interrupt, sht);
+ out:
+	if (rc == 0)
+		devres_remove_group(&pdev->dev, NULL);
+	else
+		devres_release_group(&pdev->dev, NULL);
+
+	return rc;
+}
+EXPORT_SYMBOL_GPL(ata_pci_bmdma_init_one);
 
 #endif /* CONFIG_PCI */
 

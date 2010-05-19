@@ -1644,6 +1644,13 @@ extern int ata_bmdma_port_start32(struct ata_port *ap);
 #ifdef CONFIG_PCI
 extern int ata_pci_bmdma_clear_simplex(struct pci_dev *pdev);
 extern void ata_pci_bmdma_init(struct ata_host *host);
+extern int ata_pci_bmdma_prepare_host(struct pci_dev *pdev,
+				      const struct ata_port_info * const * ppi,
+				      struct ata_host **r_host);
+extern int ata_pci_bmdma_init_one(struct pci_dev *pdev,
+				  const struct ata_port_info * const * ppi,
+				  struct scsi_host_template *sht,
+				  void *host_priv, int hflags);
 #endif /* CONFIG_PCI */
 
 /**

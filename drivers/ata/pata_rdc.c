@@ -344,7 +344,7 @@ static int __devinit rdc_init_one(struct pci_dev *pdev,
 	 */
 	pci_read_config_dword(pdev, 0x54, &hpriv->saved_iocfg);
 
-	rc = ata_pci_sff_prepare_host(pdev, ppi, &host);
+	rc = ata_pci_bmdma_prepare_host(pdev, ppi, &host);
 	if (rc)
 		return rc;
 	host->private_data = hpriv;
