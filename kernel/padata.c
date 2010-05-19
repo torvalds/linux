@@ -417,6 +417,29 @@ static void padata_free_pd(struct parallel_data *pd)
 	kfree(pd);
 }
 
+static void padata_flush_queues(struct parallel_data *pd)
+{
+	int cpu;
+	struct padata_queue *queue;
+
+	for_each_cpu(cpu, pd->cpumask) {
+		queue = per_cpu_ptr(pd->queue, cpu);
+		flush_work(&queue->pwork);
+	}
+
+	del_timer_sync(&pd->timer);
+
+	if (atomic_read(&pd->reorder_objects))
+		padata_reorder(pd);
+
+	for_each_cpu(cpu, pd->cpumask) {
+		queue = per_cpu_ptr(pd->queue, cpu);
+		flush_work(&queue->swork);
+	}
+
+	BUG_ON(atomic_read(&pd->refcnt) != 0);
+}
+
 static void padata_replace(struct padata_instance *pinst,
 			   struct parallel_data *pd_new)
 {
@@ -428,11 +451,7 @@ static void padata_replace(struct padata_instance *pinst,
 
 	synchronize_rcu();
 
-	while (atomic_read(&pd_old->refcnt) != 0)
-		yield();
-
-	flush_workqueue(pinst->wq);
-
+	padata_flush_queues(pd_old);
 	padata_free_pd(pd_old);
 
 	pinst->flags &= ~PADATA_RESET;
@@ -695,12 +714,10 @@ void padata_free(struct padata_instance *pinst)
 
 	synchronize_rcu();
 
-	while (atomic_read(&pinst->pd->refcnt) != 0)
-		yield();
-
 #ifdef CONFIG_HOTPLUG_CPU
 	unregister_hotcpu_notifier(&pinst->cpu_notifier);
 #endif
+	padata_flush_queues(pinst->pd);
 	padata_free_pd(pinst->pd);
 	free_cpumask_var(pinst->cpumask);
 	kfree(pinst);
