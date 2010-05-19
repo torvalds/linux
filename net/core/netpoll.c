@@ -49,7 +49,6 @@ static atomic_t trapped;
 		(MAX_UDP_CHUNK + sizeof(struct udphdr) + \
 				sizeof(struct iphdr) + sizeof(struct ethhdr))
 
-static void zap_completion_queue(void);
 static void arp_reply(struct sk_buff *skb);
 
 static unsigned int carrier_timeout = 4;
@@ -197,7 +196,6 @@ void netpoll_poll_dev(struct net_device *dev)
 
 	service_arp_queue(dev->npinfo);
 
-	zap_completion_queue();
 }
 
 void netpoll_poll(struct netpoll *np)
@@ -221,40 +219,11 @@ static void refill_skbs(void)
 	spin_unlock_irqrestore(&skb_pool.lock, flags);
 }
 
-static void zap_completion_queue(void)
-{
-	unsigned long flags;
-	struct softnet_data *sd = &get_cpu_var(softnet_data);
-
-	if (sd->completion_queue) {
-		struct sk_buff *clist;
-
-		local_irq_save(flags);
-		clist = sd->completion_queue;
-		sd->completion_queue = NULL;
-		local_irq_restore(flags);
-
-		while (clist != NULL) {
-			struct sk_buff *skb = clist;
-			clist = clist->next;
-			if (skb->destructor) {
-				atomic_inc(&skb->users);
-				dev_kfree_skb_any(skb); /* put this one back */
-			} else {
-				__kfree_skb(skb);
-			}
-		}
-	}
-
-	put_cpu_var(softnet_data);
-}
-
 static struct sk_buff *find_skb(struct netpoll *np, int len, int reserve)
 {
 	int count = 0;
 	struct sk_buff *skb;
 
-	zap_completion_queue();
 	refill_skbs();
 repeat:
 
