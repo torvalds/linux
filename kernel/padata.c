@@ -763,7 +763,10 @@ void padata_free(struct padata_instance *pinst)
 #ifdef CONFIG_HOTPLUG_CPU
 	unregister_hotcpu_notifier(&pinst->cpu_notifier);
 #endif
+	get_online_cpus();
 	padata_flush_queues(pinst->pd);
+	put_online_cpus();
+
 	padata_free_pd(pinst->pd);
 	free_cpumask_var(pinst->cpumask);
 	kfree(pinst);
