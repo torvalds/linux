@@ -702,7 +702,7 @@ int prom_putchar(char c)
 	} while ((lsrval & 0x20) == 0);
 
 	/* Write the byte */
-	cvmx_write_csr(CVMX_MIO_UARTX_THR(octeon_uart), c);
+	cvmx_write_csr(CVMX_MIO_UARTX_THR(octeon_uart), c & 0xffull);
 	return 1;
 }
 
