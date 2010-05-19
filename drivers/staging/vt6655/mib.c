@@ -341,10 +341,10 @@ void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
     if (WLAN_GET_FC_MOREFRAG(pHeader->wFrameCtl))
         pStatistic->dwRsrRxFragment++;
 
-    if (cbFrameLength < MIN_PACKET_LEN + 4) {
+    if (cbFrameLength < ETH_ZLEN + 4) {
         pStatistic->dwRsrRunt++;
     }
-    else if (cbFrameLength == MIN_PACKET_LEN + 4) {
+    else if (cbFrameLength == ETH_ZLEN + 4) {
         pStatistic->dwRsrRxFrmLen64++;
     }
     else if ((65 <= cbFrameLength) && (cbFrameLength <= 127)) {
