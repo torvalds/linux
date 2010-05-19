@@ -1,7 +1,7 @@
 /*
  * Freescale SEC (talitos) device register and descriptor header defines
  *
- * Copyright (c) 2006-2008 Freescale Semiconductor, Inc.
+ * Copyright (c) 2006-2010 Freescale Semiconductor, Inc.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -164,6 +164,7 @@
 #define	DESC_HDR_MODE0_MDEU_INIT	cpu_to_be32(0x01000000)
 #define	DESC_HDR_MODE0_MDEU_HMAC	cpu_to_be32(0x00800000)
 #define	DESC_HDR_MODE0_MDEU_PAD		cpu_to_be32(0x00400000)
+#define	DESC_HDR_MODE0_MDEU_SHA224	cpu_to_be32(0x00300000)
 #define	DESC_HDR_MODE0_MDEU_MD5		cpu_to_be32(0x00200000)
 #define	DESC_HDR_MODE0_MDEU_SHA256	cpu_to_be32(0x00100000)
 #define	DESC_HDR_MODE0_MDEU_SHA1	cpu_to_be32(0x00000000)
@@ -187,6 +188,7 @@
 #define	DESC_HDR_MODE1_MDEU_INIT	cpu_to_be32(0x00001000)
 #define	DESC_HDR_MODE1_MDEU_HMAC	cpu_to_be32(0x00000800)
 #define	DESC_HDR_MODE1_MDEU_PAD		cpu_to_be32(0x00000400)
+#define	DESC_HDR_MODE1_MDEU_SHA224	cpu_to_be32(0x00000300)
 #define	DESC_HDR_MODE1_MDEU_MD5		cpu_to_be32(0x00000200)
 #define	DESC_HDR_MODE1_MDEU_SHA256	cpu_to_be32(0x00000100)
 #define	DESC_HDR_MODE1_MDEU_SHA1	cpu_to_be32(0x00000000)
