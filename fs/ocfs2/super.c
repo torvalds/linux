@@ -964,7 +964,7 @@ static void ocfs2_disable_quotas(struct ocfs2_super *osb)
 
 /* Handle quota on quotactl */
 static int ocfs2_quota_on(struct super_block *sb, int type, int format_id,
-			  char *path, int remount)
+			  char *path)
 {
 	unsigned int feature[MAXQUOTAS] = { OCFS2_FEATURE_RO_COMPAT_USRQUOTA,
 					     OCFS2_FEATURE_RO_COMPAT_GRPQUOTA};
@@ -972,19 +972,13 @@ static int ocfs2_quota_on(struct super_block *sb, int type, int format_id,
 	if (!OCFS2_HAS_RO_COMPAT_FEATURE(sb, feature[type]))
 		return -EINVAL;
 
-	if (remount)
-		return 0;	/* Just ignore it has been handled in
-				 * ocfs2_remount() */
 	return vfs_quota_enable(sb_dqopt(sb)->files[type], type,
 				    format_id, DQUOT_LIMITS_ENABLED);
 }
 
 /* Handle quota off quotactl */
-static int ocfs2_quota_off(struct super_block *sb, int type, int remount)
+static int ocfs2_quota_off(struct super_block *sb, int type)
 {
-	if (remount)
-		return 0;	/* Ignore now and handle later in
-				 * ocfs2_remount() */
 	return dquot_disable(sb, type, DQUOT_LIMITS_ENABLED);
 }
 

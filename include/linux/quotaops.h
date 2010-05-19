@@ -67,14 +67,14 @@ int dquot_mark_dquot_dirty(struct dquot *dquot);
 int dquot_file_open(struct inode *inode, struct file *file);
 
 int vfs_quota_on(struct super_block *sb, int type, int format_id,
- 	char *path, int remount);
+	char *path);
 int vfs_quota_enable(struct inode *inode, int type, int format_id,
 	unsigned int flags);
 int vfs_quota_on_path(struct super_block *sb, int type, int format_id,
  	struct path *path);
 int vfs_quota_on_mount(struct super_block *sb, char *qf_name,
  	int format_id, int type);
-int vfs_quota_off(struct super_block *sb, int type, int remount);
+int vfs_quota_off(struct super_block *sb, int type);
 int vfs_quota_sync(struct super_block *sb, int type, int wait);
 int vfs_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
 int vfs_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);

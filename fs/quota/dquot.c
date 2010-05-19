@@ -1997,9 +1997,8 @@ put_inodes:
 }
 EXPORT_SYMBOL(dquot_disable);
 
-int vfs_quota_off(struct super_block *sb, int type, int remount)
+int vfs_quota_off(struct super_block *sb, int type)
 {
-	BUG_ON(remount);
 	return dquot_disable(sb, type,
 			     DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
 }
@@ -2175,13 +2174,10 @@ int vfs_quota_on_path(struct super_block *sb, int type, int format_id,
 }
 EXPORT_SYMBOL(vfs_quota_on_path);
 
-int vfs_quota_on(struct super_block *sb, int type, int format_id, char *name,
-		 int remount)
+int vfs_quota_on(struct super_block *sb, int type, int format_id, char *name)
 {
 	struct path path;
 	int error;
-
-	BUG_ON(remount);
 
 	error = kern_path(name, LOOKUP_FOLLOW, &path);
 	if (!error) {
