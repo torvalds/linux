@@ -204,6 +204,7 @@
 #define AR5K_TUNE_TPC_TXPOWER			false
 #define ATH5K_TUNE_CALIBRATION_INTERVAL_FULL    10000   /* 10 sec */
 #define ATH5K_TUNE_CALIBRATION_INTERVAL_ANI	1000	/* 1 sec */
+#define ATH5K_TUNE_CALIBRATION_INTERVAL_NF	60000	/* 60 sec */
 
 #define AR5K_INIT_CARR_SENSE_EN			1
 
@@ -1118,6 +1119,7 @@ struct ath5k_hw {
 	/* Calibration timestamp */
 	unsigned long		ah_cal_next_full;
 	unsigned long		ah_cal_next_ani;
+	unsigned long		ah_cal_next_nf;
 
 	/* Calibration mask */
 	u8			ah_cal_mask;

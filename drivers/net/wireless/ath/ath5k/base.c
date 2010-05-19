@@ -2803,14 +2803,16 @@ ath5k_tasklet_calibrate(unsigned long data)
 			ieee80211_frequency_to_channel(
 				sc->curchan->center_freq));
 
-	/* TODO: We don't need to run noise floor calibration as often
-	 * as I/Q calibration.*/
-
 	/* Noise floor calibration interrupts rx/tx path while I/Q calibration
-	 * doesn't. Stop queues so that calibration doesn't interfere with tx */
-	ieee80211_stop_queues(sc->hw);
-	ath5k_hw_update_noise_floor(ah);
-	ieee80211_wake_queues(sc->hw);
+	 * doesn't. We stop the queues so that calibration doesn't interfere
+	 * with TX and don't run it as often */
+	if (time_is_before_eq_jiffies(ah->ah_cal_next_nf)) {
+		ah->ah_cal_next_nf = jiffies +
+			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_NF);
+		ieee80211_stop_queues(sc->hw);
+		ath5k_hw_update_noise_floor(ah);
+		ieee80211_wake_queues(sc->hw);
+	}
 
 	ah->ah_cal_mask &= ~AR5K_CALIBRATION_FULL;
 }
@@ -2931,6 +2933,8 @@ ath5k_reset(struct ath5k_softc *sc, struct ieee80211_channel *chan)
 
 	ah->ah_cal_next_full = jiffies;
 	ah->ah_cal_next_ani = jiffies;
+	ah->ah_cal_next_nf = jiffies;
+
 	/*
 	 * Change channels and update the h/w rate map if we're switching;
 	 * e.g. 11a to 11b/g.
