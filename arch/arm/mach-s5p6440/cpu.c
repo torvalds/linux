@@ -88,7 +88,7 @@ void __init s5p6440_init_irq(void)
 	s5p_init_irq(vic, ARRAY_SIZE(vic));
 }
 
-static struct sysdev_class s5p6440_sysclass = {
+struct sysdev_class s5p6440_sysclass = {
 	.name	= "s5p6440-core",
 };
 
