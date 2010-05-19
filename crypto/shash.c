@@ -37,7 +37,7 @@ static int shash_setkey_unaligned(struct crypto_shash *tfm, const u8 *key,
 	u8 *buffer, *alignbuffer;
 	int err;
 
-	absize = keylen + (alignmask & ~(CRYPTO_MINALIGN - 1));
+	absize = keylen + (alignmask & ~(crypto_tfm_ctx_alignment() - 1));
 	buffer = kmalloc(absize, GFP_KERNEL);
 	if (!buffer)
 		return -ENOMEM;
