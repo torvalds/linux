@@ -78,7 +78,7 @@ BOOL WCTLbIsDuplicate (PSCache pCache, PS802_11Header pMACHeader)
         for (ii = 0; ii < DUPLICATE_RX_CACHE_LENGTH; ii++) {
             pCacheEntry = &(pCache->asCacheEntry[uIndex]);
             if ((pCacheEntry->wFmSequence == pMACHeader->wSeqCtl) &&
-                (IS_ETH_ADDRESS_EQUAL (&(pCacheEntry->abyAddr2[0]), &(pMACHeader->abyAddr2[0])))
+                (!compare_ether_addr(&(pCacheEntry->abyAddr2[0]), &(pMACHeader->abyAddr2[0])))
                 ) {
                 /* Duplicate match */
                 return TRUE;
@@ -114,7 +114,7 @@ UINT ii;
 
     for(ii=0;ii<pDevice->cbDFCB;ii++) {
         if ((pDevice->sRxDFCB[ii].bInUse == TRUE) &&
-            (IS_ETH_ADDRESS_EQUAL (&(pDevice->sRxDFCB[ii].abyAddr2[0]), &(pMACHeader->abyAddr2[0])))
+            (!compare_ether_addr(&(pDevice->sRxDFCB[ii].abyAddr2[0]), &(pMACHeader->abyAddr2[0])))
             ) {
             //
             return(ii);

@@ -408,7 +408,7 @@ spin_lock_irq(&pDevice->lock);
 
         } else {
             // Key Table Full
-            if (IS_ETH_ADDRESS_EQUAL(&param->addr[0], pDevice->abyBSSID)) {
+            if (!compare_ether_addr(&param->addr[0], pDevice->abyBSSID)) {
                 //DBG_PRN_WLAN03(("return NDIS_STATUS_INVALID_DATA -Key Table Full.2\n"));
                 //spin_unlock_irq(&pDevice->lock);
                 return -EINVAL;

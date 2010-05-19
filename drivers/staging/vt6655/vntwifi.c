@@ -800,7 +800,7 @@ VNTWIFIbRadarPresent(
         (byChannel == (BYTE) pMgmt->uCurrChannel) &&
         (pMgmt->bSwitchChannel != TRUE) &&
         (pMgmt->b11hEnable == TRUE)) {
-        if (IS_ETH_ADDRESS_EQUAL(pMgmt->abyIBSSDFSOwner, CARDpGetCurrentAddress(pMgmt->pAdapter))) {
+        if (!compare_ether_addr(pMgmt->abyIBSSDFSOwner, CARDpGetCurrentAddress(pMgmt->pAdapter))) {
             pMgmt->byNewChannel = CARDbyAutoChannelSelect(pMgmt->pAdapter,(BYTE) pMgmt->uCurrChannel);
             pMgmt->bSwitchChannel = TRUE;
         }

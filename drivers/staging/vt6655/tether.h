@@ -186,13 +186,6 @@ typedef struct tagS802_11Header {
 S802_11Header, *PS802_11Header;
 
 /*---------------------  Export Macros ------------------------------*/
-// Frame type macro
-
-#define IS_ETH_ADDRESS_EQUAL(pbyAddr1, pbyAddr2) (  \
-    (*(PDWORD)(pbyAddr1) == *(PDWORD)(pbyAddr2)) && \
-    (*(PWORD)((PBYTE)(pbyAddr1) + 4) ==             \
-    *(PWORD)((PBYTE)(pbyAddr2) + 4))                \
-)
 
 /*---------------------  Export Classes  ----------------------------*/
 

@@ -145,7 +145,7 @@ BOOL KeybGetKey (
     *pKey = NULL;
     for (i=0;i<MAX_KEY_TABLE;i++) {
         if ((pTable->KeyTable[i].bInUse == TRUE) &&
-            IS_ETH_ADDRESS_EQUAL(pTable->KeyTable[i].abyBSSID,pbyBSSID)) {
+            !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
             if (dwKeyIndex == 0xFFFFFFFF) {
                 if (pTable->KeyTable[i].PairwiseKey.bKeyValid == TRUE) {
                     *pKey = &(pTable->KeyTable[i].PairwiseKey);
@@ -216,7 +216,7 @@ BOOL KeybSetKey (
             j = i;
         }
         if ((pTable->KeyTable[i].bInUse == TRUE) &&
-            IS_ETH_ADDRESS_EQUAL(pTable->KeyTable[i].abyBSSID,pbyBSSID)) {
+            !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
             // found table already exist
             if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
                 // Pairwise key
@@ -398,7 +398,7 @@ BOOL KeybRemoveKey (
 
     for (i=0;i<MAX_KEY_TABLE;i++) {
         if ((pTable->KeyTable[i].bInUse == TRUE) &&
-            IS_ETH_ADDRESS_EQUAL(pTable->KeyTable[i].abyBSSID,pbyBSSID)) {
+            !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
             if ((dwKeyIndex & PAIRWISE_KEY) != 0) {
                 pTable->KeyTable[i].PairwiseKey.bKeyValid = FALSE;
                 s_vCheckKeyTableValid(pTable, dwIoBase);
@@ -445,7 +445,7 @@ BOOL KeybRemoveAllKey (
 
     for (i=0;i<MAX_KEY_TABLE;i++) {
         if ((pTable->KeyTable[i].bInUse == TRUE) &&
-            IS_ETH_ADDRESS_EQUAL(pTable->KeyTable[i].abyBSSID,pbyBSSID)) {
+            !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
             pTable->KeyTable[i].PairwiseKey.bKeyValid = FALSE;
             for(u=0;u<MAX_GROUP_KEY;u++) {
                 pTable->KeyTable[i].GroupKey[u].bKeyValid = FALSE;
@@ -529,7 +529,7 @@ BOOL KeybGetTransmitKey (
     *pKey = NULL;
     for (i=0;i<MAX_KEY_TABLE;i++) {
         if ((pTable->KeyTable[i].bInUse == TRUE) &&
-            IS_ETH_ADDRESS_EQUAL(pTable->KeyTable[i].abyBSSID,pbyBSSID)) {
+            !compare_ether_addr(pTable->KeyTable[i].abyBSSID, pbyBSSID)) {
 
             if (dwKeyType == PAIRWISE_KEY) {
 
