@@ -393,15 +393,16 @@ static void serial_write(struct file *f, struct serial_data data)
 	}
 }
 
-static void serial_2002_open(struct comedi_device *dev)
+static int serial_2002_open(struct comedi_device *dev)
 {
+	int result;
 	char port[20];
 
 	sprintf(port, "/dev/ttyS%d", devpriv->port);
 	devpriv->tty = filp_open(port, O_RDWR, 0);
 	if (IS_ERR(devpriv->tty)) {
-		printk("serial_2002: file open error = %ld\n",
-		       PTR_ERR(devpriv->tty));
+		result = (int)PTR_ERR(devpriv->tty);
+		printk("serial_2002: file open error = %d\n", result);
 	} else {
 		struct config_t {
 
@@ -673,7 +674,9 @@ static void serial_2002_open(struct comedi_device *dev)
 				}
 			}
 		}
+		result = 0;
 	}
+	return result;
 }
 
 static void serial_2002_close(struct comedi_device *dev)

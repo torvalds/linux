@@ -285,7 +285,7 @@ struct comedi_device {
 
 	struct fasync_struct *async_queue;
 
-	void (*open) (struct comedi_device *dev);
+	int (*open) (struct comedi_device *dev);
 	void (*close) (struct comedi_device *dev);
 };
 
