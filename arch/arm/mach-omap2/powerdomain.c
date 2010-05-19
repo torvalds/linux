@@ -1004,7 +1004,7 @@ int pwrdm_wait_transition(struct powerdomain *pwrdm)
 
 	/* XXX Is this udelay() value meaningful? */
 	while ((prm_read_mod_reg(pwrdm->prcm_offs, pwrstst_reg_offs) &
-		OMAP_INTRANSITION) &&
+		OMAP_INTRANSITION_MASK) &&
 	       (c++ < PWRDM_TRANSITION_BAILOUT))
 			udelay(1);
 

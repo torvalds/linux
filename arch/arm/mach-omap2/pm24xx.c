@@ -70,8 +70,8 @@ static int omap2_fclks_active(void)
 	f2 = cm_read_mod_reg(CORE_MOD, OMAP24XX_CM_FCLKEN2);
 
 	/* Ignore UART clocks.  These are handled by UART core (serial.c) */
-	f1 &= ~(OMAP24XX_EN_UART1 | OMAP24XX_EN_UART2);
-	f2 &= ~OMAP24XX_EN_UART3;
+	f1 &= ~(OMAP24XX_EN_UART1_MASK | OMAP24XX_EN_UART2_MASK);
+	f2 &= ~OMAP24XX_EN_UART3_MASK;
 
 	if (f1 | f2)
 		return 1;
@@ -181,13 +181,13 @@ static int omap2_allow_mpu_retention(void)
 
 	/* Check for MMC, UART2, UART1, McSPI2, McSPI1 and DSS1. */
 	l = cm_read_mod_reg(CORE_MOD, CM_FCLKEN1);
-	if (l & (OMAP2420_EN_MMC | OMAP24XX_EN_UART2 |
-		 OMAP24XX_EN_UART1 | OMAP24XX_EN_MCSPI2 |
-		 OMAP24XX_EN_MCSPI1 | OMAP24XX_EN_DSS1_MASK))
+	if (l & (OMAP2420_EN_MMC_MASK | OMAP24XX_EN_UART2_MASK |
+		 OMAP24XX_EN_UART1_MASK | OMAP24XX_EN_MCSPI2_MASK |
+		 OMAP24XX_EN_MCSPI1_MASK | OMAP24XX_EN_DSS1_MASK))
 		return 0;
 	/* Check for UART3. */
 	l = cm_read_mod_reg(CORE_MOD, OMAP24XX_CM_FCLKEN2);
-	if (l & OMAP24XX_EN_UART3)
+	if (l & OMAP24XX_EN_UART3_MASK)
 		return 0;
 	if (sti_console_enabled)
 		return 0;
@@ -215,12 +215,12 @@ static void omap2_enter_mpu_retention(void)
 
 		/* Try to enter MPU retention */
 		prm_write_mod_reg((0x01 << OMAP_POWERSTATE_SHIFT) |
-				  OMAP_LOGICRETSTATE,
+				  OMAP_LOGICRETSTATE_MASK,
 				  MPU_MOD, OMAP2_PM_PWSTCTRL);
 	} else {
 		/* Block MPU retention */
 
-		prm_write_mod_reg(OMAP_LOGICRETSTATE, MPU_MOD,
+		prm_write_mod_reg(OMAP_LOGICRETSTATE_MASK, MPU_MOD,
 						 OMAP2_PM_PWSTCTRL);
 		only_idle = 1;
 	}
@@ -288,7 +288,8 @@ static int omap2_pm_suspend(void)
 	u32 wken_wkup, mir1;
 
 	wken_wkup = prm_read_mod_reg(WKUP_MOD, PM_WKEN);
-	prm_write_mod_reg(wken_wkup & ~OMAP24XX_EN_GPT1, WKUP_MOD, PM_WKEN);
+	wken_wkup &= ~OMAP24XX_EN_GPT1_MASK;
+	prm_write_mod_reg(wken_wkup, WKUP_MOD, PM_WKEN);
 
 	/* Mask GPT1 */
 	mir1 = omap_readl(0x480fe0a4);
@@ -469,7 +470,7 @@ static void __init prcm_setup_regs(void)
 			  OMAP24XX_GR_MOD, OMAP2_PRCM_VOLTCTRL_OFFSET);
 
 	/* Enable wake-up events */
-	prm_write_mod_reg(OMAP24XX_EN_GPIOS | OMAP24XX_EN_GPT1,
+	prm_write_mod_reg(OMAP24XX_EN_GPIOS_MASK | OMAP24XX_EN_GPT1_MASK,
 			  WKUP_MOD, PM_WKEN);
 }
 
