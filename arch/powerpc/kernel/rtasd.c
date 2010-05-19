@@ -490,6 +490,12 @@ static int __init rtas_init(void)
 		return -ENODEV;
 	}
 
+	if (!rtas_event_scan_rate) {
+		/* Broken firmware: take a rate of zero to mean don't scan */
+		printk(KERN_DEBUG "rtasd: scan rate is 0, not scanning\n");
+		return 0;
+	}
+
 	/* Make room for the sequence number */
 	rtas_error_log_max = rtas_get_error_log_max();
 	rtas_error_log_buffer_max = rtas_error_log_max + sizeof(int);
