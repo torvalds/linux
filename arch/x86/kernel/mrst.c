@@ -27,6 +27,8 @@
 
 static u32 sfi_mtimer_usage[SFI_MTMR_MAX_NUM];
 static struct sfi_timer_table_entry sfi_mtimer_array[SFI_MTMR_MAX_NUM];
+static int mrst_cpu_chip;
+
 int sfi_mtimer_num;
 
 struct sfi_rtc_table_entry sfi_mrtc_array[SFI_MRTC_MAX];
@@ -216,6 +218,28 @@ static void __init mrst_setup_boot_clock(void)
 		setup_boot_APIC_clock();
 };
 
+int mrst_identify_cpu(void)
+{
+	return mrst_cpu_chip;
+}
+EXPORT_SYMBOL_GPL(mrst_identify_cpu);
+
+void __cpuinit mrst_arch_setup(void)
+{
+	if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 0x27)
+		mrst_cpu_chip = MRST_CPU_CHIP_PENWELL;
+	else if (boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model == 0x26)
+		mrst_cpu_chip = MRST_CPU_CHIP_LINCROFT;
+	else {
+		pr_err("Unknown Moorestown CPU (%d:%d), default to Lincroft\n",
+			boot_cpu_data.x86, boot_cpu_data.x86_model);
+		mrst_cpu_chip = MRST_CPU_CHIP_LINCROFT;
+	}
+	pr_debug("Moorestown CPU %s identified\n",
+		(mrst_cpu_chip == MRST_CPU_CHIP_LINCROFT) ?
+		"Lincroft" : "Penwell");
+}
+
 /*
  * Moorestown specific x86_init function overrides and early setup
  * calls.
@@ -229,6 +253,8 @@ void __init x86_mrst_early_setup(void)
 	x86_init.timers.setup_percpu_clockev = mrst_setup_boot_clock;
 
 	x86_init.irqs.pre_vector_init = x86_init_noop;
+
+	x86_init.oem.arch_setup = mrst_arch_setup;
 
 	x86_cpuinit.setup_percpu_clockev = mrst_setup_secondary_clock;
 
