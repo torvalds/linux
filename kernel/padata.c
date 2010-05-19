@@ -88,7 +88,7 @@ static void padata_parallel_worker(struct work_struct *work)
 	local_bh_enable();
 }
 
-/*
+/**
  * padata_do_parallel - padata parallelization function
  *
  * @pinst: padata instance
@@ -152,6 +152,23 @@ out:
 }
 EXPORT_SYMBOL(padata_do_parallel);
 
+/*
+ * padata_get_next - Get the next object that needs serialization.
+ *
+ * Return values are:
+ *
+ * A pointer to the control struct of the next object that needs
+ * serialization, if present in one of the percpu reorder queues.
+ *
+ * NULL, if all percpu reorder queues are empty.
+ *
+ * -EINPROGRESS, if the next object that needs serialization will
+ *  be parallel processed by another cpu and is not yet present in
+ *  the cpu's reorder queue.
+ *
+ * -ENODATA, if this cpu has to do the parallel processing for
+ *  the next object.
+ */
 static struct padata_priv *padata_get_next(struct parallel_data *pd)
 {
 	int cpu, num_cpus, empty, calc_seq_nr;
@@ -173,7 +190,7 @@ static struct padata_priv *padata_get_next(struct parallel_data *pd)
 
 		/*
 		 * Calculate the seq_nr of the object that should be
-		 * next in this queue.
+		 * next in this reorder queue.
 		 */
 		overrun = 0;
 		calc_seq_nr = (atomic_read(&queue->num_obj) * num_cpus)
@@ -248,15 +265,36 @@ static void padata_reorder(struct parallel_data *pd)
 	struct padata_queue *queue;
 	struct padata_instance *pinst = pd->pinst;
 
+	/*
+	 * We need to ensure that only one cpu can work on dequeueing of
+	 * the reorder queue the time. Calculating in which percpu reorder
+	 * queue the next object will arrive takes some time. A spinlock
+	 * would be highly contended. Also it is not clear in which order
+	 * the objects arrive to the reorder queues. So a cpu could wait to
+	 * get the lock just to notice that there is nothing to do at the
+	 * moment. Therefore we use a trylock and let the holder of the lock
+	 * care for all the objects enqueued during the holdtime of the lock.
+	 */
 	if (!spin_trylock_bh(&pd->lock))
 		return;
 
 	while (1) {
 		padata = padata_get_next(pd);
 
+		/*
+		 * All reorder queues are empty, or the next object that needs
+		 * serialization is parallel processed by another cpu and is
+		 * still on it's way to the cpu's reorder queue, nothing to
+		 * do for now.
+		 */
 		if (!padata || PTR_ERR(padata) == -EINPROGRESS)
 			break;
 
+		/*
+		 * This cpu has to do the parallel processing of the next
+		 * object. It's waiting in the cpu's parallelization queue,
+		 * so exit imediately.
+		 */
 		if (PTR_ERR(padata) == -ENODATA) {
 			del_timer(&pd->timer);
 			spin_unlock_bh(&pd->lock);
@@ -274,6 +312,11 @@ static void padata_reorder(struct parallel_data *pd)
 
 	spin_unlock_bh(&pd->lock);
 
+	/*
+	 * The next object that needs serialization might have arrived to
+	 * the reorder queues in the meantime, we will be called again
+	 * from the timer function if noone else cares for it.
+	 */
 	if (atomic_read(&pd->reorder_objects)
 			&& !(pinst->flags & PADATA_RESET))
 		mod_timer(&pd->timer, jiffies + HZ);
@@ -318,7 +361,7 @@ static void padata_serial_worker(struct work_struct *work)
 	local_bh_enable();
 }
 
-/*
+/**
  * padata_do_serial - padata serialization function
  *
  * @padata: object to be serialized.
@@ -348,6 +391,7 @@ void padata_do_serial(struct padata_priv *padata)
 }
 EXPORT_SYMBOL(padata_do_serial);
 
+/* Allocate and initialize the internal cpumask dependend resources. */
 static struct parallel_data *padata_alloc_pd(struct padata_instance *pinst,
 					     const struct cpumask *cpumask)
 {
@@ -417,6 +461,7 @@ static void padata_free_pd(struct parallel_data *pd)
 	kfree(pd);
 }
 
+/* Flush all objects out of the padata queues. */
 static void padata_flush_queues(struct parallel_data *pd)
 {
 	int cpu;
@@ -440,6 +485,7 @@ static void padata_flush_queues(struct parallel_data *pd)
 	BUG_ON(atomic_read(&pd->refcnt) != 0);
 }
 
+/* Replace the internal control stucture with a new one. */
 static void padata_replace(struct padata_instance *pinst,
 			   struct parallel_data *pd_new)
 {
@@ -457,7 +503,7 @@ static void padata_replace(struct padata_instance *pinst,
 	pinst->flags &= ~PADATA_RESET;
 }
 
-/*
+/**
  * padata_set_cpumask - set the cpumask that padata should use
  *
  * @pinst: padata instance
@@ -507,7 +553,7 @@ static int __padata_add_cpu(struct padata_instance *pinst, int cpu)
 	return 0;
 }
 
-/*
+/**
  * padata_add_cpu - add a cpu to the padata cpumask
  *
  * @pinst: padata instance
@@ -545,7 +591,7 @@ static int __padata_remove_cpu(struct padata_instance *pinst, int cpu)
 	return 0;
 }
 
-/*
+/**
  * padata_remove_cpu - remove a cpu from the padata cpumask
  *
  * @pinst: padata instance
@@ -568,7 +614,7 @@ int padata_remove_cpu(struct padata_instance *pinst, int cpu)
 }
 EXPORT_SYMBOL(padata_remove_cpu);
 
-/*
+/**
  * padata_start - start the parallel processing
  *
  * @pinst: padata instance to start
@@ -581,7 +627,7 @@ void padata_start(struct padata_instance *pinst)
 }
 EXPORT_SYMBOL(padata_start);
 
-/*
+/**
  * padata_stop - stop the parallel processing
  *
  * @pinst: padata instance to stop
@@ -648,7 +694,7 @@ static int padata_cpu_callback(struct notifier_block *nfb,
 }
 #endif
 
-/*
+/**
  * padata_alloc - allocate and initialize a padata instance
  *
  * @cpumask: cpumask that padata uses for parallelization
@@ -703,10 +749,10 @@ err:
 }
 EXPORT_SYMBOL(padata_alloc);
 
-/*
+/**
  * padata_free - free a padata instance
  *
- * @ padata_inst: padata instance to free
+ * @padata_inst: padata instance to free
  */
 void padata_free(struct padata_instance *pinst)
 {
