@@ -485,6 +485,9 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 		return -ENOENT;
 	}
 
+	pr_debug("%s type is %s.\n",
+		 dwarf_diename(vr_die), dwarf_diename(&type));
+
 	if (cast && strcmp(cast, "string") == 0) {	/* String type */
 		ret = dwarf_tag(&type);
 		if (ret != DW_TAG_pointer_type &&
@@ -553,16 +556,44 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 	struct kprobe_trace_arg_ref *ref = *ref_ptr;
 	Dwarf_Die type;
 	Dwarf_Word offs;
-	int ret;
+	int ret, tag;
 
 	pr_debug("converting %s in %s\n", field->name, varname);
 	if (die_get_real_type(vr_die, &type) == NULL) {
 		pr_warning("Failed to get the type of %s.\n", varname);
 		return -ENOENT;
 	}
+	pr_debug2("Var real type: (%x)\n", (unsigned)dwarf_dieoffset(&type));
+	tag = dwarf_tag(&type);
 
-	/* Check the pointer and dereference */
-	if (dwarf_tag(&type) == DW_TAG_pointer_type) {
+	if (field->name[0] == '[' &&
+	    (tag == DW_TAG_array_type || tag == DW_TAG_pointer_type)) {
+		if (field->next)
+			/* Save original type for next field */
+			memcpy(die_mem, &type, sizeof(*die_mem));
+		/* Get the type of this array */
+		if (die_get_real_type(&type, &type) == NULL) {
+			pr_warning("Failed to get the type of %s.\n", varname);
+			return -ENOENT;
+		}
+		pr_debug2("Array real type: (%x)\n",
+			 (unsigned)dwarf_dieoffset(&type));
+		if (tag == DW_TAG_pointer_type) {
+			ref = zalloc(sizeof(struct kprobe_trace_arg_ref));
+			if (ref == NULL)
+				return -ENOMEM;
+			if (*ref_ptr)
+				(*ref_ptr)->next = ref;
+			else
+				*ref_ptr = ref;
+		}
+		ref->offset += die_get_byte_size(&type) * field->index;
+		if (!field->next)
+			/* Save vr_die for converting types */
+			memcpy(die_mem, vr_die, sizeof(*die_mem));
+		goto next;
+	} else if (tag == DW_TAG_pointer_type) {
+		/* Check the pointer and dereference */
 		if (!field->ref) {
 			pr_err("Semantic error: %s must be referred by '->'\n",
 			       field->name);
@@ -588,8 +619,13 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 			*ref_ptr = ref;
 	} else {
 		/* Verify it is a data structure  */
-		if (dwarf_tag(&type) != DW_TAG_structure_type) {
+		if (tag != DW_TAG_structure_type) {
 			pr_warning("%s is not a data structure.\n", varname);
+			return -EINVAL;
+		}
+		if (field->name[0] == '[') {
+			pr_err("Semantic error: %s is not a pointor nor array.",
+			       varname);
 			return -EINVAL;
 		}
 		if (field->ref) {
@@ -618,6 +654,7 @@ static int convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
 	}
 	ref->offset += (long)offs;
 
+next:
 	/* Converting next field */
 	if (field->next)
 		return convert_variable_fields(die_mem, field->name,
@@ -667,7 +704,6 @@ static int find_variable(Dwarf_Die *sp_die, struct probe_finder *pf)
 	char buf[32], *ptr;
 	int ret;
 
-	/* TODO: Support arrays */
 	if (pf->pvar->name)
 		pf->tvar->name = strdup(pf->pvar->name);
 	else {

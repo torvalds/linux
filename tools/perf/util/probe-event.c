@@ -557,7 +557,7 @@ static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 /* Parse perf-probe event argument */
 static int parse_perf_probe_arg(char *str, struct perf_probe_arg *arg)
 {
-	char *tmp;
+	char *tmp, *goodname;
 	struct perf_probe_arg_field **fieldp;
 
 	pr_debug("parsing arg: %s into ", str);
@@ -580,7 +580,7 @@ static int parse_perf_probe_arg(char *str, struct perf_probe_arg *arg)
 		pr_debug("type:%s ", arg->type);
 	}
 
-	tmp = strpbrk(str, "-.");
+	tmp = strpbrk(str, "-.[");
 	if (!is_c_varname(str) || !tmp) {
 		/* A variable, register, symbol or special value */
 		arg->var = strdup(str);
@@ -590,10 +590,11 @@ static int parse_perf_probe_arg(char *str, struct perf_probe_arg *arg)
 		return 0;
 	}
 
-	/* Structure fields */
+	/* Structure fields or array element */
 	arg->var = strndup(str, tmp - str);
 	if (arg->var == NULL)
 		return -ENOMEM;
+	goodname = arg->var;
 	pr_debug("%s, ", arg->var);
 	fieldp = &arg->field;
 
@@ -601,22 +602,38 @@ static int parse_perf_probe_arg(char *str, struct perf_probe_arg *arg)
 		*fieldp = zalloc(sizeof(struct perf_probe_arg_field));
 		if (*fieldp == NULL)
 			return -ENOMEM;
-		if (*tmp == '.') {
-			str = tmp + 1;
-			(*fieldp)->ref = false;
-		} else if (tmp[1] == '>') {
-			str = tmp + 2;
+		if (*tmp == '[') {	/* Array */
+			str = tmp;
+			(*fieldp)->index = strtol(str + 1, &tmp, 0);
 			(*fieldp)->ref = true;
-		} else {
-			semantic_error("Argument parse error: %s\n", str);
-			return -EINVAL;
+			if (*tmp != ']' || tmp == str + 1) {
+				semantic_error("Array index must be a"
+						" number.\n");
+				return -EINVAL;
+			}
+			tmp++;
+			if (*tmp == '\0')
+				tmp = NULL;
+		} else {		/* Structure */
+			if (*tmp == '.') {
+				str = tmp + 1;
+				(*fieldp)->ref = false;
+			} else if (tmp[1] == '>') {
+				str = tmp + 2;
+				(*fieldp)->ref = true;
+			} else {
+				semantic_error("Argument parse error: %s\n",
+					       str);
+				return -EINVAL;
+			}
+			tmp = strpbrk(str, "-.[");
 		}
-
-		tmp = strpbrk(str, "-.");
 		if (tmp) {
 			(*fieldp)->name = strndup(str, tmp - str);
 			if ((*fieldp)->name == NULL)
 				return -ENOMEM;
+			if (*str != '[')
+				goodname = (*fieldp)->name;
 			pr_debug("%s(%d), ", (*fieldp)->name, (*fieldp)->ref);
 			fieldp = &(*fieldp)->next;
 		}
@@ -624,11 +641,13 @@ static int parse_perf_probe_arg(char *str, struct perf_probe_arg *arg)
 	(*fieldp)->name = strdup(str);
 	if ((*fieldp)->name == NULL)
 		return -ENOMEM;
+	if (*str != '[')
+		goodname = (*fieldp)->name;
 	pr_debug("%s(%d)\n", (*fieldp)->name, (*fieldp)->ref);
 
-	/* If no name is specified, set the last field name */
+	/* If no name is specified, set the last field name (not array index)*/
 	if (!arg->name) {
-		arg->name = strdup((*fieldp)->name);
+		arg->name = strdup(goodname);
 		if (arg->name == NULL)
 			return -ENOMEM;
 	}
@@ -776,8 +795,11 @@ int synthesize_perf_probe_arg(struct perf_probe_arg *pa, char *buf, size_t len)
 	len -= ret;
 
 	while (field) {
-		ret = e_snprintf(tmp, len, "%s%s", field->ref ? "->" : ".",
-				 field->name);
+		if (field->name[0] == '[')
+			ret = e_snprintf(tmp, len, "%s", field->name);
+		else
+			ret = e_snprintf(tmp, len, "%s%s",
+					 field->ref ? "->" : ".", field->name);
 		if (ret <= 0)
 			goto error;
 		tmp += ret;
