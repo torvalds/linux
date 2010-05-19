@@ -280,6 +280,40 @@ struct platform_device rk2818_device_adckey = {
 };
 
 
+/*
+ * rk2818 dsp device
+ */
+ static struct resource resources_dsp[] = {
+        [0] = {
+                .start = RK2818_DSP_PHYS,
+                .end   = RK2818_DSP_PHYS + 0x5fffff,
+                .flags = IORESOURCE_DMA,
+        },
+        [1] = {
+                .start  = IRQ_NR_PIUCMD,
+                .end    = IRQ_NR_PIUCMD,
+                .flags  = IORESOURCE_IRQ,
+        },
+        [2] = {
+                .start  = IRQ_NR_DSPSWI,
+                .end    = IRQ_NR_DSPSWI,
+                .flags  = IORESOURCE_IRQ,
+        },
+};
+static u64 rk2818_device_dsp_dmamask = 0xffffffffUL;
+struct platform_device rk2818_device_dsp = {
+        .name             = "rk28-dsp",
+        .id               = 0,
+        .num_resources    = ARRAY_SIZE(resources_dsp),
+        .resource         = resources_dsp,
+        .dev              = {
+                .dma_mask = &rk2818_device_dsp_dmamask,
+                .coherent_dma_mask = 0xffffffffUL
+        }
+};
+
+
+
 #if defined(CONFIG_ANDROID_PMEM)
 static struct android_pmem_platform_data pmem_pdata = {
 	.name = "pmem",

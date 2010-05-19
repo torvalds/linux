@@ -44,3 +44,4 @@ obj-$(CONFIG_VME_BUS)		+= vme/
 obj-$(CONFIG_RAR_REGISTER)	+= rar/
 obj-$(CONFIG_DX_SEP)		+= sep/
 obj-$(CONFIG_IIO)		+= iio/
+obj-$(CONFIG_RK2818_DSP)        += rk2818/rk2818_dsp/

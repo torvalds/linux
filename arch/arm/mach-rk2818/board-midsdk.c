@@ -290,8 +290,9 @@ static struct platform_device *devices[] __initdata = {
 	&rk2818_device_pmem,
 	&rk2818_device_adc,
 	&rk2818_device_adckey,
-  &rk2818_device_fb,    
+    &rk2818_device_fb,    
     &rk2818_device_backlight,
+	&rk2818_device_dsp,
 };
 
 extern struct sys_timer rk2818_timer;
