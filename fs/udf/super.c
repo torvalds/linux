@@ -54,7 +54,6 @@
 #include <linux/vmalloc.h>
 #include <linux/errno.h>
 #include <linux/mount.h>
-#include <linux/quotaops.h>
 #include <linux/seq_file.h>
 #include <linux/bitmap.h>
 #include <linux/crc-itu-t.h>
@@ -587,17 +586,10 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
 		goto out_unlock;
 
-	if (*flags & MS_RDONLY) {
+	if (*flags & MS_RDONLY)
 		udf_close_lvid(sb);
-
-		error = dquot_suspend(sb, -1);
-	} else {
+	else
 		udf_open_lvid(sb);
-
-		/* mark the fs r/w for quota activity */
-		sb->s_flags &= ~MS_RDONLY;
-		dquot_resume(sb, -1);
-	}
 
 out_unlock:
 	unlock_kernel();
@@ -1948,10 +1940,6 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	/* Fill in the rest of the superblock */
 	sb->s_op = &udf_sb_ops;
 	sb->s_export_op = &udf_export_ops;
-#ifdef CONFIG_QUOTA
-	sb->s_qcop = &dquot_quotactl_ops;
-	sb->dq_op = NULL; /* &dquot_operations */
-#endif
 
 	sb->s_dirt = 0;
 	sb->s_magic = UDF_SUPER_MAGIC;
@@ -2105,8 +2093,6 @@ static void udf_put_super(struct super_block *sb)
 {
 	int i;
 	struct udf_sb_info *sbi;
-
-	dquot_disable(sb, -1, DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
 
 	sbi = UDF_SB(sb);
 
