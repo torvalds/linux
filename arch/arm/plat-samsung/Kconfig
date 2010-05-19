@@ -185,6 +185,12 @@ config S3C_DEV_USB_HSOTG
 	help
 	  Compile in platform device definition for USB high-speed OtG
 
+config S3C_DEV_WDT
+	bool
+	default y if ARCH_S3C2410
+	help
+	  Complie in platform device definition for Watchdog Timer
+
 config S3C_DEV_NAND
 	bool
 	help
