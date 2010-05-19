@@ -167,6 +167,7 @@ static struct snd_soc_dai_link sdp4430_dai = {
 	.cpu_dai = &omap_mcpdm_dai,
 	.codec_dai = &twl6040_dai,
 	.init = sdp4430_twl6040_init,
+	.ops = &sdp4430_ops,
 };
 
 /* Audio machine driver */
