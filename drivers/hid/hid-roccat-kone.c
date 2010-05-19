@@ -928,14 +928,15 @@ static int kone_raw_event(struct hid_device *hdev, struct hid_report *report,
 		return 0;
 
 	/*
-	 * Firmware 1.38 introduced new behaviour for tilt buttons.
-	 * Pressed tilt button is reported in each movement event.
+	 * Firmware 1.38 introduced new behaviour for tilt and special buttons.
+	 * Pressed button is reported in each movement event.
 	 * Workaround sends only one event per press.
 	 */
-	if (kone->last_tilt_state == event->tilt)
-		event->tilt = 0;
+	if (memcmp(&kone->last_mouse_event.tilt, &event->tilt, 5))
+		memcpy(&kone->last_mouse_event, event,
+				sizeof(struct kone_mouse_event));
 	else
-		kone->last_tilt_state = event->tilt;
+		memset(&event->tilt, 0, 5);
 
 	/*
 	 * handle special events and keep actual profile and dpi values

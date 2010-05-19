@@ -83,6 +83,17 @@ enum kone_button_info_types {
 	kone_button_info_type_multimedia_volume_down = 0x27
 };
 
+enum kone_button_info_numbers {
+	kone_button_top = 1,
+	kone_button_wheel_tilt_left = 2,
+	kone_button_wheel_tilt_right = 3,
+	kone_button_forward = 4,
+	kone_button_backward = 5,
+	kone_button_middle = 6,
+	kone_button_plus = 7,
+	kone_button_minus = 8,
+};
+
 struct kone_light_info {
 	uint8_t number; /* number of light 1-5 */
 	uint8_t mod;   /* 1 = on, 2 = off */
@@ -120,6 +131,7 @@ struct kone_profile {
 	uint8_t light_effect_speed; /* range 0-255 */
 
 	struct kone_light_info light_infos[5];
+	/* offset is kone_button_info_numbers - 1 */
 	struct kone_button_info button_infos[8];
 
 	uint16_t checksum; /* \brief holds checksum of struct */
@@ -165,7 +177,7 @@ enum kone_mouse_events {
 	/* TODO clarify meaning and occurence of kone_mouse_event_calibration */
 	kone_mouse_event_calibration = 0xc0,
 	kone_mouse_event_call_overlong_macro = 0xe0,
-	/* switch events notify if user changed values wiht mousebutton click */
+	/* switch events notify if user changed values with mousebutton click */
 	kone_mouse_event_switch_dpi = 0xf0,
 	kone_mouse_event_switch_profile = 0xf1
 };
@@ -188,8 +200,9 @@ struct kone_device {
 	 * is no way of getting this information from the device on demand
 	 */
 	int actual_profile, actual_dpi;
-	/* Used for neutralizing abnormal tilt button behaviour */
-	int last_tilt_state;
+	/* Used for neutralizing abnormal button behaviour */
+	struct kone_mouse_event last_mouse_event;
+
 	/*
 	 * It's unlikely that multiple sysfs attributes are accessed at a time,
 	 * so only one mutex is used to secure hardware access and profiles and
