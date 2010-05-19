@@ -760,7 +760,6 @@ config ARCH_NOMADIK
 
 config ARCH_DAVINCI
 	bool "TI DaVinci"
-	select CPU_ARM926T
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
 	select ZONE_DMA

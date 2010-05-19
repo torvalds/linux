@@ -22,6 +22,7 @@
 
 #include <mach/hardware.h>
 
+#include <mach/clock.h>
 #include <mach/psc.h>
 #include <mach/cputype.h>
 #include "clock.h"
@@ -42,7 +43,8 @@ static void __clk_enable(struct clk *clk)
 	if (clk->parent)
 		__clk_enable(clk->parent);
 	if (clk->usecount++ == 0 && (clk->flags & CLK_PSC))
-		davinci_psc_config(psc_domain(clk), clk->gpsc, clk->lpsc, 1);
+		davinci_psc_config(psc_domain(clk), clk->gpsc, clk->lpsc,
+				PSC_STATE_ENABLE);
 }
 
 static void __clk_disable(struct clk *clk)
@@ -51,7 +53,9 @@ static void __clk_disable(struct clk *clk)
 		return;
 	if (--clk->usecount == 0 && !(clk->flags & CLK_PLL) &&
 	    (clk->flags & CLK_PSC))
-		davinci_psc_config(psc_domain(clk), clk->gpsc, clk->lpsc, 0);
+		davinci_psc_config(psc_domain(clk), clk->gpsc, clk->lpsc,
+				(clk->flags & PSC_SWRSTDISABLE) ?
+				PSC_STATE_SWRSTDISABLE : PSC_STATE_DISABLE);
 	if (clk->parent)
 		__clk_disable(clk->parent);
 }
@@ -233,7 +237,10 @@ static int __init clk_disable_unused(void)
 			continue;
 
 		pr_info("Clocks: disable unused %s\n", ck->name);
-		davinci_psc_config(psc_domain(ck), ck->gpsc, ck->lpsc, 0);
+
+		davinci_psc_config(psc_domain(ck), ck->gpsc, ck->lpsc,
+				(ck->flags & PSC_SWRSTDISABLE) ?
+				PSC_STATE_SWRSTDISABLE : PSC_STATE_DISABLE);
 	}
 	spin_unlock_irq(&clockfw_lock);
 
@@ -272,7 +279,7 @@ static unsigned long clk_sysclk_recalc(struct clk *clk)
 
 	v = __raw_readl(pll->base + clk->div_reg);
 	if (v & PLLDIV_EN) {
-		plldiv = (v & PLLDIV_RATIO_MASK) + 1;
+		plldiv = (v & pll->div_ratio_mask) + 1;
 		if (plldiv)
 			rate /= plldiv;
 	}
@@ -295,7 +302,6 @@ static unsigned long clk_pllclk_recalc(struct clk *clk)
 	struct pll_data *pll = clk->pll_data;
 	unsigned long rate = clk->rate;
 
-	pll->base = IO_ADDRESS(pll->phys_base);
 	ctrl = __raw_readl(pll->base + PLLCTL);
 	rate = pll->input_rate = clk->parent->rate;
 
@@ -312,7 +318,7 @@ static unsigned long clk_pllclk_recalc(struct clk *clk)
 	if (pll->flags & PLL_HAS_PREDIV) {
 		prediv = __raw_readl(pll->base + PREDIV);
 		if (prediv & PLLDIV_EN)
-			prediv = (prediv & PLLDIV_RATIO_MASK) + 1;
+			prediv = (prediv & pll->div_ratio_mask) + 1;
 		else
 			prediv = 1;
 	}
@@ -324,7 +330,7 @@ static unsigned long clk_pllclk_recalc(struct clk *clk)
 	if (pll->flags & PLL_HAS_POSTDIV) {
 		postdiv = __raw_readl(pll->base + POSTDIV);
 		if (postdiv & PLLDIV_EN)
-			postdiv = (postdiv & PLLDIV_RATIO_MASK) + 1;
+			postdiv = (postdiv & pll->div_ratio_mask) + 1;
 		else
 			postdiv = 1;
 	}
@@ -449,6 +455,18 @@ int __init davinci_clk_init(struct clk_lookup *clocks)
 			/* Otherwise, it is a leaf clock (PSC clock) */
 			else if (clk->parent)
 				clk->recalc = clk_leafclk_recalc;
+		}
+
+		if (clk->pll_data) {
+			struct pll_data *pll = clk->pll_data;
+
+			if (!pll->div_ratio_mask)
+				pll->div_ratio_mask = PLLDIV_RATIO_MASK;
+
+			if (pll->phys_base && !pll->base) {
+				pll->base = ioremap(pll->phys_base, SZ_4K);
+				WARN_ON(!pll->base);
+			}
 		}
 
 		if (clk->recalc)
