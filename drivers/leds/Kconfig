@@ -295,6 +295,13 @@ config LEDS_DELL_NETBOOKS
 	  This adds support for the Latitude 2100 and similar
 	  notebooks that have an external LED.
 
+config LEDS_MC13783
+	tristate "LED Support for MC13783 PMIC"
+	depends on MFD_MC13783
+	help
+	  This option enable support for on-chip LED drivers found
+	  on Freescale Semiconductor MC13783 PMIC.
+
 config LEDS_TRIGGERS
 	bool "LED Trigger support"
 	help
