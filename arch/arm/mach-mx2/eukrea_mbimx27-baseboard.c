@@ -286,6 +286,10 @@ static struct platform_device *platform_devices[] __initdata = {
 	&leds_gpio,
 };
 
+static struct imxmmc_platform_data sdhc_pdata = {
+	.dat3_card_detect = 1,
+};
+
 /*
  * system init for baseboard usage. Will be called by cpuimx27 init.
  *
@@ -304,7 +308,7 @@ void __init eukrea_mbimx27_baseboard_init(void)
 #endif
 
 	mxc_register_device(&mxc_fb_device, &eukrea_mbimx27_fb_data);
-	mxc_register_device(&mxc_sdhc_device0, NULL);
+	mxc_register_device(&mxc_sdhc_device0, &sdhc_pdata);
 
 #if defined(CONFIG_TOUCHSCREEN_ADS7846) \
 	|| defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
