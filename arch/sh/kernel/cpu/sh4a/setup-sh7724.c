@@ -18,13 +18,13 @@
 #include <linux/mm.h>
 #include <linux/serial_sci.h>
 #include <linux/uio_driver.h>
+#include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
 #include <linux/io.h>
 #include <linux/notifier.h>
 
 #include <asm/suspend.h>
 #include <asm/clock.h>
-#include <asm/dmaengine.h>
 #include <asm/mmzone.h>
 
 #include <cpu/dma-register.h>
