@@ -53,6 +53,8 @@
 #include <asm/pmac_low_i2c.h>
 #include <asm/pmac_pfunc.h>
 
+#include "pmac.h"
+
 #undef DEBUG
 
 #ifdef DEBUG
@@ -878,10 +880,9 @@ int smp_core99_cpu_disable(void)
 	return 0;
 }
 
-extern void low_cpu_die(void) __attribute__((noreturn)); /* in sleep.S */
 static int cpu_dead[NR_CPUS];
 
-void cpu_die(void)
+void pmac32_cpu_die(void)
 {
 	local_irq_disable();
 	cpu_dead[smp_processor_id()] = 1;

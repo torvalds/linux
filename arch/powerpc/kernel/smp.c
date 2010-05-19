@@ -648,4 +648,10 @@ void cpu_hotplug_driver_unlock()
 {
 	mutex_unlock(&powerpc_cpu_hotplug_driver_mutex);
 }
+
+void cpu_die(void)
+{
+	if (ppc_md.cpu_die)
+		ppc_md.cpu_die();
+}
 #endif

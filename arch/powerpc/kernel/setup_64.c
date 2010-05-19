@@ -573,12 +573,6 @@ void ppc64_boot_msg(unsigned int src, const char *msg)
 	printk("[boot]%04x %s\n", src, msg);
 }
 
-void cpu_die(void)
-{
-	if (ppc_md.cpu_die)
-		ppc_md.cpu_die();
-}
-
 #ifdef CONFIG_SMP
 #define PCPU_DYN_SIZE		()
 
