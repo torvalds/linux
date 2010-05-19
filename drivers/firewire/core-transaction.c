@@ -580,6 +580,41 @@ static void free_response_callback(struct fw_packet *packet,
 	kfree(request);
 }
 
+int fw_get_response_length(struct fw_request *r)
+{
+	int tcode, ext_tcode, data_length;
+
+	tcode = HEADER_GET_TCODE(r->request_header[0]);
+
+	switch (tcode) {
+	case TCODE_WRITE_QUADLET_REQUEST:
+	case TCODE_WRITE_BLOCK_REQUEST:
+		return 0;
+
+	case TCODE_READ_QUADLET_REQUEST:
+		return 4;
+
+	case TCODE_READ_BLOCK_REQUEST:
+		data_length = HEADER_GET_DATA_LENGTH(r->request_header[3]);
+		return data_length;
+
+	case TCODE_LOCK_REQUEST:
+		ext_tcode = HEADER_GET_EXTENDED_TCODE(r->request_header[3]);
+		data_length = HEADER_GET_DATA_LENGTH(r->request_header[3]);
+		switch (ext_tcode) {
+		case EXTCODE_FETCH_ADD:
+		case EXTCODE_LITTLE_ADD:
+			return data_length;
+		default:
+			return data_length / 2;
+		}
+
+	default:
+		WARN(1, KERN_ERR "wrong tcode %d", tcode);
+		return 0;
+	}
+}
+
 void fw_fill_response(struct fw_packet *response, u32 *request_header,
 		      int rcode, void *payload, size_t length)
 {
@@ -713,7 +748,8 @@ void fw_send_response(struct fw_card *card,
 
 	if (rcode == RCODE_COMPLETE)
 		fw_fill_response(&request->response, request->request_header,
-				 rcode, request->data, request->length);
+				 rcode, request->data,
+				 fw_get_response_length(request));
 	else
 		fw_fill_response(&request->response, request->request_header,
 				 rcode, NULL, 0);

@@ -756,9 +756,12 @@ static int ioctl_send_response(struct client *client, union ioctl_arg *arg)
 	if (is_fcp_request(r->request))
 		goto out;
 
-	if (a->length < r->length)
-		r->length = a->length;
-	if (copy_from_user(r->data, u64_to_uptr(a->data), r->length)) {
+	if (a->length != fw_get_response_length(r->request)) {
+		ret = -EINVAL;
+		kfree(r->request);
+		goto out;
+	}
+	if (copy_from_user(r->data, u64_to_uptr(a->data), a->length)) {
 		ret = -EFAULT;
 		kfree(r->request);
 		goto out;

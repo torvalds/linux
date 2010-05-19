@@ -218,6 +218,7 @@ static inline bool is_next_generation(int new_generation, int old_generation)
 
 void fw_core_handle_request(struct fw_card *card, struct fw_packet *request);
 void fw_core_handle_response(struct fw_card *card, struct fw_packet *packet);
+int fw_get_response_length(struct fw_request *request);
 void fw_fill_response(struct fw_packet *response, u32 *request_header,
 		      int rcode, void *payload, size_t length);
 void fw_send_phy_config(struct fw_card *card,
