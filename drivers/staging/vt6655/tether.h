@@ -188,11 +188,6 @@ S802_11Header, *PS802_11Header;
 /*---------------------  Export Macros ------------------------------*/
 // Frame type macro
 
-#define IS_NULL_ADDRESS(pbyEtherAddr) (             \
-    (*(PDWORD)(pbyEtherAddr) == 0L) &&              \
-    (*(PWORD)((PBYTE)(pbyEtherAddr) + 4) == 0)      \
-)
-
 #define IS_ETH_ADDRESS_EQUAL(pbyAddr1, pbyAddr2) (  \
     (*(PDWORD)(pbyAddr1) == *(PDWORD)(pbyAddr2)) && \
     (*(PWORD)((PBYTE)(pbyAddr1) + 4) ==             \

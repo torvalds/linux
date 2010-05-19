@@ -1319,7 +1319,7 @@ BOOL CARDbSetBSSID(void *pDeviceHandler, PBYTE pbyBSSID, CARD_OP_MODE eOPMode)
         pDevice->byRxMode &= ~RCR_BSSID;
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "wcmd: rx_mode = %x\n", pDevice->byRxMode );
     } else {
-        if (IS_NULL_ADDRESS(pDevice->abyBSSID) == FALSE) {
+        if (is_zero_ether_addr(pDevice->abyBSSID) == FALSE) {
             MACvRegBitsOn(pDevice->PortOffset, MAC_REG_RCR, RCR_BSSID);
             pDevice->bBSSIDFilter = TRUE;
             pDevice->byRxMode |= RCR_BSSID;
