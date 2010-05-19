@@ -378,8 +378,6 @@ enum ath5k_rfgain ath5k_hw_gainf_calibrate(struct ath5k_hw *ah)
 	u32 data, type;
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 
-	ATH5K_TRACE(ah->ah_sc);
-
 	if (ah->ah_rf_banks == NULL ||
 	ah->ah_gain.g_state == AR5K_RFGAIN_INACTIVE)
 		return AR5K_RFGAIN_INACTIVE;
@@ -1353,7 +1351,6 @@ ath5k_hw_rf511x_iq_calibrate(struct ath5k_hw *ah)
 	u32 i_pwr, q_pwr;
 	s32 iq_corr, i_coff, i_coffd, q_coff, q_coffd;
 	int i;
-	ATH5K_TRACE(ah->ah_sc);
 
 	if (!ah->ah_calibration ||
 		ath5k_hw_reg_read(ah, AR5K_PHY_IQ) & AR5K_PHY_IQ_RUN)
@@ -1680,7 +1677,6 @@ ath5k_hw_set_spur_mitigation_filter(struct ath5k_hw *ah,
 
 int ath5k_hw_phy_disable(struct ath5k_hw *ah)
 {
-	ATH5K_TRACE(ah->ah_sc);
 	/*Just a try M.F.*/
 	ath5k_hw_reg_write(ah, AR5K_PHY_ACT_DISABLE, AR5K_PHY_ACT);
 
@@ -1695,8 +1691,6 @@ u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan)
 	unsigned int i;
 	u32 srev;
 	u16 ret;
-
-	ATH5K_TRACE(ah->ah_sc);
 
 	/*
 	 * Set the radio chip access register
@@ -1742,8 +1736,6 @@ u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan)
 static void /*TODO:Boundary check*/
 ath5k_hw_set_def_antenna(struct ath5k_hw *ah, u8 ant)
 {
-	ATH5K_TRACE(ah->ah_sc);
-
 	if (ah->ah_version != AR5K_AR5210)
 		ath5k_hw_reg_write(ah, ant & 0x7, AR5K_DEFAULT_ANTENNA);
 }
@@ -1802,8 +1794,6 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 	u32 sta_id1 = 0;
 
 	def_ant = ah->ah_def_ant;
-
-	ATH5K_TRACE(ah->ah_sc);
 
 	switch (channel->hw_value & CHANNEL_MODES) {
 	case CHANNEL_A:
@@ -2968,7 +2958,6 @@ ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
 	u8 type;
 	int ret;
 
-	ATH5K_TRACE(ah->ah_sc);
 	if (txpower > AR5K_TUNE_MAX_TXPOWER) {
 		ATH5K_ERR(ah->ah_sc, "invalid tx power: %u\n", txpower);
 		return -EINVAL;
@@ -3063,8 +3052,6 @@ int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 	/*Just a try M.F.*/
 	struct ieee80211_channel *channel = ah->ah_current_channel;
 	u8 ee_mode;
-
-	ATH5K_TRACE(ah->ah_sc);
 
 	switch (channel->hw_value & CHANNEL_MODES) {
 	case CHANNEL_A:

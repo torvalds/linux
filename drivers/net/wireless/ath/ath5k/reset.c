@@ -201,8 +201,6 @@ static int ath5k_hw_nic_reset(struct ath5k_hw *ah, u32 val)
 	int ret;
 	u32 mask = val ? val : ~0U;
 
-	ATH5K_TRACE(ah->ah_sc);
-
 	/* Read-and-clear RX Descriptor Pointer*/
 	ath5k_hw_reg_read(ah, AR5K_RXDP);
 
@@ -246,7 +244,6 @@ static int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 	unsigned int i;
 	u32 staid, data;
 
-	ATH5K_TRACE(ah->ah_sc);
 	staid = ath5k_hw_reg_read(ah, AR5K_STA_ID1);
 
 	switch (mode) {
@@ -392,8 +389,6 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 	turbo = 0;
 	mode = 0;
 	clock = 0;
-
-	ATH5K_TRACE(ah->ah_sc);
 
 	/* Wakeup the device */
 	ret = ath5k_hw_set_power(ah, AR5K_PM_AWAKE, true, 0);
@@ -895,8 +890,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	u32 phy_tst1;
 	u8 mode, freq, ee_mode, ant[2];
 	int i, ret;
-
-	ATH5K_TRACE(ah->ah_sc);
 
 	s_ant = 0;
 	ee_mode = 0;

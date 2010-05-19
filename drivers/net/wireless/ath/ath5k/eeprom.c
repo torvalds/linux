@@ -35,7 +35,6 @@ static int ath5k_hw_eeprom_read(struct ath5k_hw *ah, u32 offset, u16 *data)
 {
 	u32 status, timeout;
 
-	ATH5K_TRACE(ah->ah_sc);
 	/*
 	 * Initialize EEPROM access
 	 */
