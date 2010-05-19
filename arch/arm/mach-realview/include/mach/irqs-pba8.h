@@ -23,12 +23,6 @@
 
 #define IRQ_PBA8_GIC_START			32
 
-/* L220
-#define IRQ_PBA8_L220_EVENT	(IRQ_PBA8_GIC_START + 29)
-#define IRQ_PBA8_L220_SLAVE	(IRQ_PBA8_GIC_START + 30)
-#define IRQ_PBA8_L220_DECODE	(IRQ_PBA8_GIC_START + 31)
-*/
-
 /*
  * PB-A8 on-board gic irq sources
  */
@@ -64,6 +58,8 @@
 #define IRQ_PBA8_USB		(IRQ_PBA8_GIC_START + 29)	/* USB controller */
 #define IRQ_PBA8_TSPEN		(IRQ_PBA8_GIC_START + 30)	/* Touchscreen pen */
 #define IRQ_PBA8_TSKPAD		(IRQ_PBA8_GIC_START + 31)	/* Touchscreen keypad */
+
+#define IRQ_PBA8_PMU		(IRQ_PBA8_GIC_START + 47)	/* Cortex-A8 PMU */
 
 /* ... */
 #define IRQ_PBA8_PCI0		(IRQ_PBA8_GIC_START + 50)

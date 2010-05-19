@@ -43,7 +43,6 @@
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/bootmem.h>
 
 #include <plat/common.h>
 #include <plat/cpu.h>

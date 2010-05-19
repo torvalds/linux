@@ -586,6 +586,12 @@ F:	drivers/mtd/nand/bcm_umi_bch.c
 F:	drivers/mtd/nand/bcm_umi_hamming.c
 F:	drivers/mtd/nand/nand_bcm_umi.h
 
+ARM/CAVIUM NETWORKS CNS3XXX MACHINE SUPPORT
+M:	Anton Vorontsov <avorontsov@mvista.com>
+S:	Maintained
+F:	arch/arm/mach-cns3xxx/
+T:	git git://git.infradead.org/users/cbou/linux-cns3xxx.git
+
 ARM/CIRRUS LOGIC EP93XX ARM ARCHITECTURE
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
 M:	Ryan Mallon <ryan@bluewatersys.com>
@@ -775,11 +781,10 @@ M:	Philipp Zabel <philipp.zabel@gmail.com>
 S:	Maintained
 
 ARM/Marvell Loki/Kirkwood/MV78xx0/Orion SOC support
-M:	Lennert Buytenhek <buytenh@marvell.com>
-M:	Nicolas Pitre <nico@marvell.com>
+M:	Lennert Buytenhek <kernel@wantstofly.org>
+M:	Nicolas Pitre <nico@fluxnic.net>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-T:	git git://git.marvell.com/orion
-S:	Maintained
+S:	Odd Fixes
 F:	arch/arm/mach-loki/
 F:	arch/arm/mach-kirkwood/
 F:	arch/arm/mach-mv78xx0/
@@ -993,6 +998,20 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	arch/arm/vfp/
+
+ARM/VOIPAC PXA270 SUPPORT
+M:	Marek Vasut <marek.vasut@gmail.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-pxa/vpac270.c
+F:	arch/arm/mach-pxa/include/mach-pxa/vpac270.h
+
+ARM/ZIPIT Z2 SUPPORT
+M:	Marek Vasut <marek.vasut@gmail.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-pxa/z2.c
+F:	arch/arm/mach-pxa/include/mach-pxa/z2.h
 
 ASC7621 HARDWARE MONITOR DRIVER
 M:	George Joseph <george.joseph@fairview5.com>
@@ -3635,7 +3654,8 @@ F:	drivers/net/wireless/mwl8k.c
 
 MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
-S:	Maintained
+S:	Odd Fixes
+F: drivers/mmc/host/mvsdio.*
 
 MARVELL YUKON / SYSKONNECT DRIVER
 M:	Mirko Lindner <mlindner@syskonnect.de>
@@ -5133,7 +5153,7 @@ F:	mm/sl?b.c
 
 SMC91x ETHERNET DRIVER
 M:	Nicolas Pitre <nico@fluxnic.net>
-S:	Maintained
+S:	Odd Fixes
 F:	drivers/net/smc91x.*
 
 SMSC47B397 HARDWARE MONITOR DRIVER
@@ -5263,6 +5283,46 @@ F:	drivers/serial/sunsab.h
 F:	drivers/serial/sunsu.c
 F:	drivers/serial/sunzilog.c
 F:	drivers/serial/sunzilog.h
+
+SPEAR PLATFORM SUPPORT
+M:	Viresh Kumar <viresh.kumar@st.com>
+W:	http://www.st.com/spear
+S:	Maintained
+F:	arch/arm/plat-spear/
+
+SPEAR3XX MACHINE SUPPORT
+M:	Viresh Kumar <viresh.kumar@st.com>
+W:	http://www.st.com/spear
+S:	Maintained
+F:	arch/arm/mach-spear3xx/
+
+SPEAR6XX MACHINE SUPPORT
+M:	Rajeev Kumar <rajeev-dlh.kumar@st.com>
+W:	http://www.st.com/spear
+S:	Maintained
+F:	arch/arm/mach-spear6xx/
+
+SPEAR CLOCK FRAMEWORK SUPPORT
+M:	Viresh Kumar <viresh.kumar@st.com>
+W:	http://www.st.com/spear
+S:	Maintained
+F:	arch/arm/mach-spear*/clock.c
+F:	arch/arm/mach-spear*/include/mach/clkdev.h
+F:	arch/arm/plat-spear/clock.c
+F:	arch/arm/plat-spear/include/plat/clock.h and clkdev.h
+
+SPEAR PAD MULTIPLEXING SUPPORT
+M:	Viresh Kumar <viresh.kumar@st.com>
+W:	http://www.st.com/spear
+S:	Maintained
+F:	arch/arm/plat-spear/include/plat/padmux.h
+F:	arch/arm/plat-spear/padmux.c
+F:	arch/arm/mach-spear*/spear*xx.c
+F:	arch/arm/mach-spear*/include/mach/generic.h
+F:	arch/arm/mach-spear3xx/spear3*0.c
+F:	arch/arm/mach-spear3xx/spear3*0_evb.c
+F:	arch/arm/mach-spear6xx/spear600.c
+F:	arch/arm/mach-spear6xx/spear600_evb.c
 
 SPECIALIX IO8+ MULTIPORT SERIAL CARD DRIVER
 M:	Roger Wolff <R.E.Wolff@BitWizard.nl>

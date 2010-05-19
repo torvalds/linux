@@ -77,6 +77,17 @@ struct s3c_gpio_cfg {
  */
 extern int s3c_gpio_cfgpin(unsigned int pin, unsigned int to);
 
+/**
+ * s3c_gpio_getcfg - Read the current function for a GPIO pin
+ * @pin: The pin to read the configuration value for.
+ *
+ * Read the configuration state of the given @pin, returning a value that
+ * could be passed back to s3c_gpio_cfgpin().
+ *
+ * @sa s3c_gpio_cfgpin
+ */
+extern unsigned s3c_gpio_getcfg(unsigned int pin);
+
 /* Define values for the pull-{up,down} available for each gpio pin.
  *
  * These values control the state of the weak pull-{up,down} resistors

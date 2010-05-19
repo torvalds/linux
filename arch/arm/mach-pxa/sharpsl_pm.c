@@ -28,7 +28,6 @@
 #include <asm/mach-types.h>
 #include <mach/pm.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/pxa2xx-gpio.h>
 #include <mach/regs-rtc.h>
 #include <mach/sharpsl.h>
 #include <mach/sharpsl_pm.h>
