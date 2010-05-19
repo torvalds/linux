@@ -106,6 +106,21 @@ config HID_CHICONY
 	---help---
 	Support for Chicony Tactical pad.
 
+config HID_PRODIKEYS
+	tristate "Prodikeys PC-MIDI Keyboard support"
+	depends on USB_HID && SND
+	select SND_RAWMIDI
+	---help---
+	Support for Prodikeys PC-MIDI Keyboard device support.
+	Say Y here to enable support for this device.
+	- Prodikeys PC-MIDI keyboard.
+	  The Prodikeys PC-MIDI acts as a USB Audio device, with one MIDI
+	  input and one MIDI output. These MIDI jacks appear as
+	  a sound "card" in the ALSA sound system.
+	  Note: if you say N here, this device will still function as a basic
+	  multimedia keyboard, but will lack support for the musical keyboard
+	  and some additional multimedia keys.
+
 config HID_CYPRESS
 	tristate "Cypress" if EMBEDDED
 	depends on USB_HID
@@ -274,11 +289,75 @@ config HID_PETALYNX
 	---help---
 	Support for Petalynx Maxter remote control.
 
+config HID_PICOLCD
+	tristate "PicoLCD (graphic version)"
+	depends on USB_HID
+	---help---
+	  This provides support for Minibox PicoLCD devices, currently
+	  only the graphical ones are supported.
+
+	  This includes support for the following device features:
+	  - Keypad
+	  - Switching between Firmware and Flash mode
+	  - EEProm / Flash access     (via debugfs)
+	  Features selectively enabled:
+	  - Framebuffer for monochrome 256x64 display
+	  - Backlight control
+	  - Contrast control
+	  - General purpose outputs
+	  Features that are not (yet) supported:
+	  - IR
+
+config HID_PICOLCD_FB
+	bool "Framebuffer support" if EMBEDDED
+	default !EMBEDDED
+	depends on HID_PICOLCD
+	depends on HID_PICOLCD=FB || FB=y
+	select FB_DEFERRED_IO
+	select FB_SYS_FILLRECT
+	select FB_SYS_COPYAREA
+	select FB_SYS_IMAGEBLIT
+	select FB_SYS_FOPS
+	---help---
+	  Provide access to PicoLCD's 256x64 monochrome display via a
+	  frambuffer device.
+
+config HID_PICOLCD_BACKLIGHT
+	bool "Backlight control" if EMBEDDED
+	default !EMBEDDED
+	depends on HID_PICOLCD
+	depends on HID_PICOLCD=BACKLIGHT_CLASS_DEVICE || BACKLIGHT_CLASS_DEVICE=y
+	---help---
+	  Provide access to PicoLCD's backlight control via backlight
+	  class.
+
+config HID_PICOLCD_LCD
+	bool "Contrast control" if EMBEDDED
+	default !EMBEDDED
+	depends on HID_PICOLCD
+	depends on HID_PICOLCD=LCD_CLASS_DEVICE || LCD_CLASS_DEVICE=y
+	---help---
+	  Provide access to PicoLCD's LCD contrast via lcd class.
+
+config HID_PICOLCD_LEDS
+	bool "GPO via leds class" if EMBEDDED
+	default !EMBEDDED
+	depends on HID_PICOLCD
+	depends on HID_PICOLCD=LEDS_CLASS || LEDS_CLASS=y
+	---help---
+	  Provide access to PicoLCD's GPO pins via leds class.
+
 config HID_QUANTA
 	tristate "Quanta Optical Touch"
 	depends on USB_HID
 	---help---
 	Support for Quanta Optical Touch dual-touch panels.
+
+config HID_ROCCAT_KONE
+	tristate "Roccat Kone Mouse support"
+	depends on USB_HID
+	---help---
+	Support for Roccat Kone mouse.
 
 config HID_SAMSUNG
 	tristate "Samsung" if EMBEDDED

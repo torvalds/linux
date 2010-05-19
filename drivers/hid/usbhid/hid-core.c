@@ -623,6 +623,7 @@ int usbhid_wait_io(struct hid_device *hid)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(usbhid_wait_io);
 
 static int hid_set_idle(struct usb_device *dev, int ifnum, int report, int idle)
 {
