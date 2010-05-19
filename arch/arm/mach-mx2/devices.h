@@ -40,3 +40,4 @@ extern struct platform_device mxc_spi_device2;
 extern struct platform_device mx21_usbhc_device;
 extern struct platform_device imx_ssi_device0;
 extern struct platform_device imx_ssi_device1;
+extern struct platform_device imx_kpp_device;
