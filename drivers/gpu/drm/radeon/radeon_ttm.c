@@ -451,7 +451,7 @@ static int radeon_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_
 			/* RADEON_IS_AGP is set only if AGP is active */
 			mem->bus.offset = mem->mm_node->start << PAGE_SHIFT;
 			mem->bus.base = rdev->mc.agp_base;
-			mem->bus.is_iomem = true;
+			mem->bus.is_iomem = !rdev->ddev->agp->cant_use_aperture;
 		}
 #endif
 		break;
