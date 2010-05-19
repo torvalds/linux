@@ -177,13 +177,13 @@ virtual console (ALT+Fn) and then back again should also help.
 
 *  I hit SysRq, but nothing seems to happen, what's wrong?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-There are some keyboards that send different scancodes for SysRq than the
-pre-defined 0x54. So if SysRq doesn't work out of the box for a certain
-keyboard, run 'showkey -s' to find out the proper scancode sequence. Then
-use 'setkeycodes <sequence> 84' to define this sequence to the usual SysRq
-code (84 is decimal for 0x54). It's probably best to put this command in a
-boot script. Oh, and by the way, you exit 'showkey' by not typing anything
-for ten seconds.
+There are some keyboards that produce a different keycode for SysRq than the
+pre-defined value of 99 (see KEY_SYSRQ in include/linux/input.h), or which
+don't have a SysRq key at all. In these cases, run 'showkey -s' to find an
+appropriate scancode sequence, and use 'setkeycodes <sequence> 99' to map
+this sequence to the usual SysRq code (e.g., 'setkeycodes e05b 99'). It's
+probably best to put this command in a boot script. Oh, and by the way, you
+exit 'showkey' by not typing anything for ten seconds.
 
 *  I want to add SysRQ key events to a module, how does it work?
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
