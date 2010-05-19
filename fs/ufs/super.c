@@ -1291,11 +1291,11 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	 * fs was mouted as rw, remounting ro
 	 */
 	if (*mount_flags & MS_RDONLY) {
-		err = vfs_dq_off(sb, 1);
-		if (err < 0 && err != -ENOSYS) {
+		err = dquot_suspend(sb, -1);
+		if (err < 0) {
 			unlock_super(sb);
 			unlock_kernel();
-			return -EBUSY;
+			return err;
 		}
 
 		ufs_put_super_internal(sb);
@@ -1343,7 +1343,7 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	unlock_super(sb);
 	unlock_kernel();
 	if (enable_quota)
-		vfs_dq_quota_on_remount(sb);
+		dquot_resume(sb, -1);
 	return 0;
 }
 

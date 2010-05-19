@@ -50,6 +50,14 @@ int dquot_alloc_inode(const struct inode *inode);
 int dquot_claim_space_nodirty(struct inode *inode, qsize_t number);
 void dquot_free_inode(const struct inode *inode);
 
+int dquot_disable(struct super_block *sb, int type, unsigned int flags);
+/* Suspend quotas on remount RO */
+static inline int dquot_suspend(struct super_block *sb, int type)
+{
+	return dquot_disable(sb, type, DQUOT_SUSPENDED);
+}
+int dquot_resume(struct super_block *sb, int type);
+
 int dquot_commit(struct dquot *dquot);
 int dquot_acquire(struct dquot *dquot);
 int dquot_release(struct dquot *dquot);
@@ -67,7 +75,6 @@ int vfs_quota_on_path(struct super_block *sb, int type, int format_id,
 int vfs_quota_on_mount(struct super_block *sb, char *qf_name,
  	int format_id, int type);
 int vfs_quota_off(struct super_block *sb, int type, int remount);
-int vfs_quota_disable(struct super_block *sb, int type, unsigned int flags);
 int vfs_quota_sync(struct super_block *sb, int type, int wait);
 int vfs_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
 int vfs_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
@@ -78,7 +85,6 @@ int vfs_set_dqblk(struct super_block *sb, int type, qid_t id,
 
 int __dquot_transfer(struct inode *inode, struct dquot **transfer_to);
 int dquot_transfer(struct inode *inode, struct iattr *iattr);
-int vfs_dq_quota_on_remount(struct super_block *sb);
 
 static inline struct mem_dqinfo *sb_dqinfo(struct super_block *sb, int type)
 {
@@ -231,11 +237,6 @@ static inline int vfs_dq_off(struct super_block *sb, int remount)
 	return 0;
 }
 
-static inline int vfs_dq_quota_on_remount(struct super_block *sb)
-{
-	return 0;
-}
-
 static inline int dquot_transfer(struct inode *inode, struct iattr *iattr)
 {
 	return 0;
@@ -259,6 +260,22 @@ static inline void __dquot_free_space(struct inode *inode, qsize_t number,
 static inline int dquot_claim_space_nodirty(struct inode *inode, qsize_t number)
 {
 	inode_add_bytes(inode, number);
+	return 0;
+}
+
+static inline int dquot_disable(struct super_block *sb, int type,
+		unsigned int flags)
+{
+	return 0;
+}
+
+static inline int dquot_suspend(struct super_block *sb, int type)
+{
+	return 0;
+}
+
+static inline int dquot_resume(struct super_block *sb, int type)
+{
 	return 0;
 }
 

@@ -401,14 +401,14 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 		sb->s_flags &= ~MS_RDONLY;
 
 		unlock_kernel();
-		vfs_dq_quota_on_remount(sb);
+		dquot_resume(sb, -1);
 		return ret;
 	}
 	if ((!(sb->s_flags & MS_RDONLY)) && (*flags & MS_RDONLY)) {
-		rc = vfs_dq_off(sb, 1);
-		if (rc < 0 && rc != -ENOSYS) {
+		rc = dquot_suspend(sb, -1);
+		if (rc < 0) {
 			unlock_kernel();
-			return -EBUSY;
+			return rc;
 		}
 		rc = jfs_umount_rw(sb);
 		JFS_SBI(sb)->flag = flag;

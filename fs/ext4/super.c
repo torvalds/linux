@@ -3631,11 +3631,9 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 		}
 
 		if (*flags & MS_RDONLY) {
-			err = vfs_dq_off(sb, 1);
-			if (err < 0 && err != -ENOSYS) {
-				err = -EBUSY;
+			err = dquot_suspend(sb, -1);
+			if (err < 0)
 				goto restore_opts;
-			}
 
 			/*
 			 * First of all, the unconditional stuff we have to do
@@ -3722,7 +3720,7 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 	unlock_super(sb);
 	unlock_kernel();
 	if (enable_quota)
-		vfs_dq_quota_on_remount(sb);
+		dquot_resume(sb, -1);
 	return 0;
 
 restore_opts:

@@ -590,15 +590,13 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 	if (*flags & MS_RDONLY) {
 		udf_close_lvid(sb);
 
-		error = vfs_dq_off(sb, 1);
-		if (error < 0 && error != -ENOSYS)
-			error = -EBUSY;
+		error = dquot_suspend(sb, -1);
 	} else {
 		udf_open_lvid(sb);
 
 		/* mark the fs r/w for quota activity */
 		sb->s_flags &= ~MS_RDONLY;
-		vfs_dq_quota_on_remount(sb);
+		dquot_resume(sb, -1);
 	}
 
 out_unlock:
