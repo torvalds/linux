@@ -354,7 +354,7 @@ static int __devinit rdc_init_one(struct pci_dev *pdev,
 	host->flags |= ATA_HOST_PARALLEL_SCAN;
 
 	pci_set_master(pdev);
-	return ata_pci_sff_activate_host(host, ata_sff_interrupt, &rdc_sht);
+	return ata_pci_sff_activate_host(host, ata_bmdma_interrupt, &rdc_sht);
 }
 
 static void rdc_remove_one(struct pci_dev *pdev)

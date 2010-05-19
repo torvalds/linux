@@ -920,7 +920,7 @@ static int nv_host_intr(struct ata_port *ap, u8 irq_stat)
 	}
 
 	/* handle interrupt */
-	return ata_sff_host_intr(ap, qc);
+	return ata_bmdma_port_intr(ap, qc);
 }
 
 static irqreturn_t nv_adma_interrupt(int irq, void *dev_instance)
@@ -1505,7 +1505,7 @@ static irqreturn_t nv_generic_interrupt(int irq, void *dev_instance)
 
 		qc = ata_qc_from_tag(ap, ap->link.active_tag);
 		if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
-			handled += ata_sff_host_intr(ap, qc);
+			handled += ata_bmdma_port_intr(ap, qc);
 		} else {
 			/*
 			 * No request pending?  Clear interrupt status

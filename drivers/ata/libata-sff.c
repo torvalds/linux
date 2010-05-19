@@ -1469,27 +1469,27 @@ bool ata_sff_qc_fill_rtf(struct ata_queued_cmd *qc)
 }
 EXPORT_SYMBOL_GPL(ata_sff_qc_fill_rtf);
 
-/**
- *	ata_sff_host_intr - Handle host interrupt for given (port, task)
- *	@ap: Port on which interrupt arrived (possibly...)
- *	@qc: Taskfile currently active in engine
- *
- *	Handle host interrupt for given queued command.  Currently,
- *	only DMA interrupts are handled.  All other commands are
- *	handled via polling with interrupts disabled (nIEN bit).
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- *
- *	RETURNS:
- *	One if interrupt was handled, zero if not (shared irq).
- */
-unsigned int ata_sff_host_intr(struct ata_port *ap,
-				      struct ata_queued_cmd *qc)
+static unsigned int ata_sff_idle_irq(struct ata_port *ap)
 {
-	struct ata_eh_info *ehi = &ap->link.eh_info;
-	u8 status, host_stat = 0;
-	bool bmdma_stopped = false;
+	ap->stats.idle_irq++;
+
+#ifdef ATA_IRQ_TRAP
+	if ((ap->stats.idle_irq % 1000) == 0) {
+		ap->ops->sff_check_status(ap);
+		if (ap->ops->sff_irq_clear)
+			ap->ops->sff_irq_clear(ap);
+		ata_port_printk(ap, KERN_WARNING, "irq trap\n");
+		return 1;
+	}
+#endif
+	return 0;	/* irq not handled */
+}
+
+static unsigned int __ata_sff_port_intr(struct ata_port *ap,
+					struct ata_queued_cmd *qc,
+					bool hsmv_on_idle)
+{
+	u8 status;
 
 	VPRINTK("ata%u: protocol %d task_state %d\n",
 		ap->print_id, qc->tf.protocol, ap->hsm_task_state);
@@ -1506,47 +1506,24 @@ unsigned int ata_sff_host_intr(struct ata_port *ap,
 		 * need to check ata_is_atapi(qc->tf.protocol) again.
 		 */
 		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
-			goto idle_irq;
-		break;
-	case HSM_ST_LAST:
-		if (qc->tf.protocol == ATA_PROT_DMA ||
-		    qc->tf.protocol == ATAPI_PROT_DMA) {
-			/* check status of DMA engine */
-			host_stat = ap->ops->bmdma_status(ap);
-			VPRINTK("ata%u: host_stat 0x%X\n",
-				ap->print_id, host_stat);
-
-			/* if it's not our irq... */
-			if (!(host_stat & ATA_DMA_INTR))
-				goto idle_irq;
-
-			/* before we do anything else, clear DMA-Start bit */
-			ap->ops->bmdma_stop(qc);
-			bmdma_stopped = true;
-
-			if (unlikely(host_stat & ATA_DMA_ERR)) {
-				/* error when transfering data to/from memory */
-				qc->err_mask |= AC_ERR_HOST_BUS;
-				ap->hsm_task_state = HSM_ST_ERR;
-			}
-		}
+			return ata_sff_idle_irq(ap);
 		break;
 	case HSM_ST:
+	case HSM_ST_LAST:
 		break;
 	default:
-		goto idle_irq;
+		return ata_sff_idle_irq(ap);
 	}
-
 
 	/* check main status, clearing INTRQ if needed */
 	status = ata_sff_irq_status(ap);
 	if (status & ATA_BUSY) {
-		if (bmdma_stopped) {
+		if (hsmv_on_idle) {
 			/* BMDMA engine is already stopped, we're screwed */
 			qc->err_mask |= AC_ERR_HSM;
 			ap->hsm_task_state = HSM_ST_ERR;
 		} else
-			goto idle_irq;
+			return ata_sff_idle_irq(ap);
 	}
 
 	/* clear irq events */
@@ -1555,43 +1532,30 @@ unsigned int ata_sff_host_intr(struct ata_port *ap,
 
 	ata_sff_hsm_move(ap, qc, status, 0);
 
-	if (unlikely(qc->err_mask) && (qc->tf.protocol == ATA_PROT_DMA ||
-				       qc->tf.protocol == ATAPI_PROT_DMA))
-		ata_ehi_push_desc(ehi, "BMDMA stat 0x%x", host_stat);
-
 	return 1;	/* irq handled */
-
-idle_irq:
-	ap->stats.idle_irq++;
-
-#ifdef ATA_IRQ_TRAP
-	if ((ap->stats.idle_irq % 1000) == 0) {
-		ap->ops->sff_check_status(ap);
-		if (ap->ops->sff_irq_clear)
-			ap->ops->sff_irq_clear(ap);
-		ata_port_printk(ap, KERN_WARNING, "irq trap\n");
-		return 1;
-	}
-#endif
-	return 0;	/* irq not handled */
 }
-EXPORT_SYMBOL_GPL(ata_sff_host_intr);
 
 /**
- *	ata_sff_interrupt - Default ATA host interrupt handler
- *	@irq: irq line (unused)
- *	@dev_instance: pointer to our ata_host information structure
+ *	ata_sff_port_intr - Handle SFF port interrupt
+ *	@ap: Port on which interrupt arrived (possibly...)
+ *	@qc: Taskfile currently active in engine
  *
- *	Default interrupt handler for PCI IDE devices.  Calls
- *	ata_sff_host_intr() for each port that is not disabled.
+ *	Handle port interrupt for given queued command.
  *
  *	LOCKING:
- *	Obtains host lock during operation.
+ *	spin_lock_irqsave(host lock)
  *
  *	RETURNS:
- *	IRQ_NONE or IRQ_HANDLED.
+ *	One if interrupt was handled, zero if not (shared irq).
  */
-irqreturn_t ata_sff_interrupt(int irq, void *dev_instance)
+unsigned int ata_sff_port_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
+{
+	return __ata_sff_port_intr(ap, qc, false);
+}
+EXPORT_SYMBOL_GPL(ata_sff_port_intr);
+
+static inline irqreturn_t __ata_sff_interrupt(int irq, void *dev_instance,
+	unsigned int (*port_intr)(struct ata_port *, struct ata_queued_cmd *))
 {
 	struct ata_host *host = dev_instance;
 	bool retried = false;
@@ -1611,7 +1575,7 @@ retry:
 		qc = ata_qc_from_tag(ap, ap->link.active_tag);
 		if (qc) {
 			if (!(qc->tf.flags & ATA_TFLAG_POLLING))
-				handled |= ata_sff_host_intr(ap, qc);
+				handled |= port_intr(ap, qc);
 			else
 				polling |= 1 << i;
 		} else
@@ -1661,6 +1625,25 @@ retry:
 
 	return IRQ_RETVAL(handled);
 }
+
+/**
+ *	ata_sff_interrupt - Default SFF ATA host interrupt handler
+ *	@irq: irq line (unused)
+ *	@dev_instance: pointer to our ata_host information structure
+ *
+ *	Default interrupt handler for PCI IDE devices.  Calls
+ *	ata_sff_port_intr() for each port that is not disabled.
+ *
+ *	LOCKING:
+ *	Obtains host lock during operation.
+ *
+ *	RETURNS:
+ *	IRQ_NONE or IRQ_HANDLED.
+ */
+irqreturn_t ata_sff_interrupt(int irq, void *dev_instance)
+{
+	return __ata_sff_interrupt(irq, dev_instance, ata_sff_port_intr);
+}
 EXPORT_SYMBOL_GPL(ata_sff_interrupt);
 
 /**
@@ -1698,7 +1681,7 @@ void ata_sff_lost_interrupt(struct ata_port *ap)
 								status);
 	/* Run the host interrupt logic as if the interrupt had not been
 	   lost */
-	ata_sff_host_intr(ap, qc);
+	ata_sff_port_intr(ap, qc);
 }
 EXPORT_SYMBOL_GPL(ata_sff_lost_interrupt);
 
@@ -2541,7 +2524,7 @@ int ata_pci_sff_init_one(struct pci_dev *pdev,
 	host->flags |= hflag;
 
 	pci_set_master(pdev);
-	rc = ata_pci_sff_activate_host(host, ata_sff_interrupt, sht);
+	rc = ata_pci_sff_activate_host(host, ata_bmdma_interrupt, sht);
 out:
 	if (rc == 0)
 		devres_remove_group(&pdev->dev, NULL);
@@ -2786,6 +2769,75 @@ unsigned int ata_bmdma_qc_issue(struct ata_queued_cmd *qc)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(ata_bmdma_qc_issue);
+
+/**
+ *	ata_bmdma_port_intr - Handle BMDMA port interrupt
+ *	@ap: Port on which interrupt arrived (possibly...)
+ *	@qc: Taskfile currently active in engine
+ *
+ *	Handle port interrupt for given queued command.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ *
+ *	RETURNS:
+ *	One if interrupt was handled, zero if not (shared irq).
+ */
+unsigned int ata_bmdma_port_intr(struct ata_port *ap, struct ata_queued_cmd *qc)
+{
+	struct ata_eh_info *ehi = &ap->link.eh_info;
+	u8 host_stat = 0;
+	bool bmdma_stopped = false;
+	unsigned int handled;
+
+	if (ap->hsm_task_state == HSM_ST_LAST && ata_is_dma(qc->tf.protocol)) {
+		/* check status of DMA engine */
+		host_stat = ap->ops->bmdma_status(ap);
+		VPRINTK("ata%u: host_stat 0x%X\n", ap->print_id, host_stat);
+
+		/* if it's not our irq... */
+		if (!(host_stat & ATA_DMA_INTR))
+			return ata_sff_idle_irq(ap);
+
+		/* before we do anything else, clear DMA-Start bit */
+		ap->ops->bmdma_stop(qc);
+		bmdma_stopped = true;
+
+		if (unlikely(host_stat & ATA_DMA_ERR)) {
+			/* error when transfering data to/from memory */
+			qc->err_mask |= AC_ERR_HOST_BUS;
+			ap->hsm_task_state = HSM_ST_ERR;
+		}
+	}
+
+	handled = __ata_sff_port_intr(ap, qc, bmdma_stopped);
+
+	if (unlikely(qc->err_mask) && ata_is_dma(qc->tf.protocol))
+		ata_ehi_push_desc(ehi, "BMDMA stat 0x%x", host_stat);
+
+	return handled;
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_port_intr);
+
+/**
+ *	ata_bmdma_interrupt - Default BMDMA ATA host interrupt handler
+ *	@irq: irq line (unused)
+ *	@dev_instance: pointer to our ata_host information structure
+ *
+ *	Default interrupt handler for PCI IDE devices.  Calls
+ *	ata_bmdma_port_intr() for each port that is not disabled.
+ *
+ *	LOCKING:
+ *	Obtains host lock during operation.
+ *
+ *	RETURNS:
+ *	IRQ_NONE or IRQ_HANDLED.
+ */
+irqreturn_t ata_bmdma_interrupt(int irq, void *dev_instance)
+{
+	return __ata_sff_interrupt(irq, dev_instance, ata_bmdma_port_intr);
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_interrupt);
 
 /**
  *	ata_bmdma_error_handler - Stock error handler for BMDMA controller

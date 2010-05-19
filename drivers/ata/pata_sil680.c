@@ -374,7 +374,7 @@ static int __devinit sil680_init_one(struct pci_dev *pdev,
 	ata_sff_std_ports(&host->ports[1]->ioaddr);
 
 	/* Register & activate */
-	return ata_host_activate(host, pdev->irq, ata_sff_interrupt,
+	return ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,
 				 IRQF_SHARED, &sil680_sht);
 
 use_ioports:

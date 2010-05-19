@@ -454,7 +454,7 @@ static inline unsigned int qs_intr_mmio(struct ata_host *host)
 		if (!pp || pp->state != qs_state_mmio)
 			continue;
 		if (!(qc->tf.flags & ATA_TFLAG_POLLING))
-			handled |= ata_sff_host_intr(ap, qc);
+			handled |= ata_sff_port_intr(ap, qc);
 	}
 	return handled;
 }

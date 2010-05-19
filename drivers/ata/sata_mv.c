@@ -2811,7 +2811,7 @@ static void mv_port_intr(struct ata_port *ap, u32 port_cause)
 	} else if (!edma_was_enabled) {
 		struct ata_queued_cmd *qc = mv_get_active_qc(ap);
 		if (qc)
-			ata_sff_host_intr(ap, qc);
+			ata_bmdma_port_intr(ap, qc);
 		else
 			mv_unexpected_intr(ap, edma_was_enabled);
 	}

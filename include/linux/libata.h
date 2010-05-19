@@ -1593,7 +1593,7 @@ extern int ata_sff_hsm_move(struct ata_port *ap, struct ata_queued_cmd *qc,
 extern void ata_sff_queue_pio_task(struct ata_port *ap, unsigned long delay);
 extern unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc);
 extern bool ata_sff_qc_fill_rtf(struct ata_queued_cmd *qc);
-extern unsigned int ata_sff_host_intr(struct ata_port *ap,
+extern unsigned int ata_sff_port_intr(struct ata_port *ap,
 				      struct ata_queued_cmd *qc);
 extern irqreturn_t ata_sff_interrupt(int irq, void *dev_instance);
 extern void ata_sff_lost_interrupt(struct ata_port *ap);
@@ -1628,6 +1628,9 @@ extern int ata_pci_sff_init_one(struct pci_dev *pdev,
 extern void ata_bmdma_qc_prep(struct ata_queued_cmd *qc);
 extern unsigned int ata_bmdma_qc_issue(struct ata_queued_cmd *qc);
 extern void ata_bmdma_dumb_qc_prep(struct ata_queued_cmd *qc);
+extern unsigned int ata_bmdma_port_intr(struct ata_port *ap,
+				      struct ata_queued_cmd *qc);
+extern irqreturn_t ata_bmdma_interrupt(int irq, void *dev_instance);
 extern void ata_bmdma_error_handler(struct ata_port *ap);
 extern void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc);
 extern void ata_bmdma_irq_clear(struct ata_port *ap);
