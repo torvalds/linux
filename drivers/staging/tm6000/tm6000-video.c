@@ -205,7 +205,11 @@ static int copy_packet(struct urb *urb, u32 header, u8 **ptr, u8 *endp,
 		c = (header >> 24) & 0xff;
 
 		/* split the header fields */
-		size  = (((header & 0x7e) << 1) -1) *4;
+		size  = ((header & 0x7e) << 1);
+
+		if (size > 0)
+			size -= 4;
+
 		block = (header >> 7) & 0xf;
 		field = (header >> 11) & 0x1;
 		line  = (header >> 12) & 0x1ff;
