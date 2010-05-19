@@ -406,14 +406,50 @@ static Dwarf_Die *die_find_member(Dwarf_Die *st_die, const char *name,
  * Probe finder related functions
  */
 
-/* Show a location */
-static int convert_location(Dwarf_Op *op, struct probe_finder *pf)
+static struct kprobe_trace_arg_ref *alloc_trace_arg_ref(long offs)
 {
+	struct kprobe_trace_arg_ref *ref;
+	ref = zalloc(sizeof(struct kprobe_trace_arg_ref));
+	if (ref != NULL)
+		ref->offset = offs;
+	return ref;
+}
+
+/* Show a location */
+static int convert_variable_location(Dwarf_Die *vr_die, struct probe_finder *pf)
+{
+	Dwarf_Attribute attr;
+	Dwarf_Op *op;
+	size_t nops;
 	unsigned int regn;
 	Dwarf_Word offs = 0;
 	bool ref = false;
 	const char *regs;
 	struct kprobe_trace_arg *tvar = pf->tvar;
+	int ret;
+
+	/* TODO: handle more than 1 exprs */
+	if (dwarf_attr(vr_die, DW_AT_location, &attr) == NULL ||
+	    dwarf_getlocation_addr(&attr, pf->addr, &op, &nops, 1) <= 0 ||
+	    nops == 0) {
+		/* TODO: Support const_value */
+		pr_err("Failed to find the location of %s at this address.\n"
+		       " Perhaps, it has been optimized out.\n", pf->pvar->var);
+		return -ENOENT;
+	}
+
+	if (op->atom == DW_OP_addr) {
+		/* Static variables on memory (not stack), make @varname */
+		ret = strlen(dwarf_diename(vr_die));
+		tvar->value = zalloc(ret + 2);
+		if (tvar->value == NULL)
+			return -ENOMEM;
+		snprintf(tvar->value, ret + 2, "@%s", dwarf_diename(vr_die));
+		tvar->ref = alloc_trace_arg_ref((long)offs);
+		if (tvar->ref == NULL)
+			return -ENOMEM;
+		return 0;
+	}
 
 	/* If this is based on frame buffer, set the offset */
 	if (op->atom == DW_OP_fbreg) {
@@ -455,10 +491,9 @@ static int convert_location(Dwarf_Op *op, struct probe_finder *pf)
 		return -ENOMEM;
 
 	if (ref) {
-		tvar->ref = zalloc(sizeof(struct kprobe_trace_arg_ref));
+		tvar->ref = alloc_trace_arg_ref((long)offs);
 		if (tvar->ref == NULL)
 			return -ENOMEM;
-		tvar->ref->offset = (long)offs;
 	}
 	return 0;
 }
@@ -666,20 +701,13 @@ next:
 /* Show a variables in kprobe event format */
 static int convert_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 {
-	Dwarf_Attribute attr;
 	Dwarf_Die die_mem;
-	Dwarf_Op *expr;
-	size_t nexpr;
 	int ret;
 
-	if (dwarf_attr(vr_die, DW_AT_location, &attr) == NULL)
-		goto error;
-	/* TODO: handle more than 1 exprs */
-	ret = dwarf_getlocation_addr(&attr, pf->addr, &expr, &nexpr, 1);
-	if (ret <= 0 || nexpr == 0)
-		goto error;
+	pr_debug("Converting variable %s into trace event.\n",
+		 dwarf_diename(vr_die));
 
-	ret = convert_location(expr, pf);
+	ret = convert_variable_location(vr_die, pf);
 	if (ret == 0 && pf->pvar->field) {
 		ret = convert_variable_fields(vr_die, pf->pvar->var,
 					      pf->pvar->field, &pf->tvar->ref,
@@ -690,19 +718,14 @@ static int convert_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 		ret = convert_variable_type(vr_die, pf->tvar, pf->pvar->type);
 	/* *expr will be cached in libdw. Don't free it. */
 	return ret;
-error:
-	/* TODO: Support const_value */
-	pr_err("Failed to find the location of %s at this address.\n"
-	       " Perhaps, it has been optimized out.\n", pf->pvar->var);
-	return -ENOENT;
 }
 
 /* Find a variable in a subprogram die */
 static int find_variable(Dwarf_Die *sp_die, struct probe_finder *pf)
 {
-	Dwarf_Die vr_die;
+	Dwarf_Die vr_die, *scopes;
 	char buf[32], *ptr;
-	int ret;
+	int ret, nscopes;
 
 	if (pf->pvar->name)
 		pf->tvar->name = strdup(pf->pvar->name);
@@ -730,12 +753,26 @@ static int find_variable(Dwarf_Die *sp_die, struct probe_finder *pf)
 	pr_debug("Searching '%s' variable in context.\n",
 		 pf->pvar->var);
 	/* Search child die for local variables and parameters. */
-	if (!die_find_variable(sp_die, pf->pvar->var, &vr_die)) {
+	if (die_find_variable(sp_die, pf->pvar->var, &vr_die))
+		ret = convert_variable(&vr_die, pf);
+	else {
+		/* Search upper class */
+		nscopes = dwarf_getscopes_die(sp_die, &scopes);
+		if (nscopes > 0) {
+			ret = dwarf_getscopevar(scopes, nscopes, pf->pvar->var,
+						0, NULL, 0, 0, &vr_die);
+			if (ret >= 0)
+				ret = convert_variable(&vr_die, pf);
+			else
+				ret = -ENOENT;
+			free(scopes);
+		} else
+			ret = -ENOENT;
+	}
+	if (ret < 0)
 		pr_warning("Failed to find '%s' in this function.\n",
 			   pf->pvar->var);
-		return -ENOENT;
-	}
-	return convert_variable(&vr_die, pf);
+	return ret;
 }
 
 /* Show a probe point to output buffer */

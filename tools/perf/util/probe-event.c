@@ -926,6 +926,7 @@ out:
 static int synthesize_kprobe_trace_arg(struct kprobe_trace_arg *arg,
 				       char *buf, size_t buflen)
 {
+	struct kprobe_trace_arg_ref *ref = arg->ref;
 	int ret, depth = 0;
 	char *tmp = buf;
 
@@ -939,16 +940,24 @@ static int synthesize_kprobe_trace_arg(struct kprobe_trace_arg *arg,
 	buf += ret;
 	buflen -= ret;
 
+	/* Special case: @XXX */
+	if (arg->value[0] == '@' && arg->ref)
+			ref = ref->next;
+
 	/* Dereferencing arguments */
-	if (arg->ref) {
-		depth = __synthesize_kprobe_trace_arg_ref(arg->ref, &buf,
+	if (ref) {
+		depth = __synthesize_kprobe_trace_arg_ref(ref, &buf,
 							  &buflen, 1);
 		if (depth < 0)
 			return depth;
 	}
 
 	/* Print argument value */
-	ret = e_snprintf(buf, buflen, "%s", arg->value);
+	if (arg->value[0] == '@' && arg->ref)
+		ret = e_snprintf(buf, buflen, "%s%+ld", arg->value,
+				 arg->ref->offset);
+	else
+		ret = e_snprintf(buf, buflen, "%s", arg->value);
 	if (ret < 0)
 		return ret;
 	buf += ret;
