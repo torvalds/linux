@@ -162,8 +162,8 @@ static struct s3c2410fb_display h1940_lcd __initdata = {
 	.xres =		240,
 	.yres =		320,
 	.bpp =		16,
-	.left_margin =	20,
-	.right_margin =	8,
+	.left_margin =	8,
+	.right_margin =	20,
 	.hsync_len =	4,
 	.upper_margin =	8,
 	.lower_margin = 7,
@@ -271,7 +271,6 @@ static struct platform_device h1940_lcd_powerdev = {
 };
 
 static struct platform_device *h1940_devices[] __initdata = {
-	&s3c_device_ts,
 	&s3c_device_ohci,
 	&s3c_device_lcd,
 	&s3c_device_wdt,
@@ -285,6 +284,8 @@ static struct platform_device *h1940_devices[] __initdata = {
 	&s3c_device_timer[0],
 	&h1940_backlight,
 	&h1940_lcd_powerdev,
+	&s3c_device_adc,
+	&s3c_device_ts,
 };
 
 static void __init h1940_map_io(void)
@@ -337,7 +338,7 @@ static void __init h1940_init(void)
 }
 
 MACHINE_START(H1940, "IPAQ-H1940")
-	/* Maintainer: Ben Dooks <ben@fluff.org> */
+	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
 	.phys_io	= S3C2410_PA_UART,
 	.io_pg_offst	= (((u32)S3C24XX_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C2410_SDRAM_PA + 0x100,
