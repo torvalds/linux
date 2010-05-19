@@ -70,6 +70,8 @@ static u8 is_command_allowed_in_ps(u16 cmd)
 	switch (cmd) {
 	case CMD_802_11_RSSI:
 		return 1;
+	case CMD_802_11_HOST_SLEEP_CFG:
+		return 1;
 	default:
 		break;
 	}
@@ -185,6 +187,23 @@ out:
 	return ret;
 }
 
+static int lbs_ret_host_sleep_cfg(struct lbs_private *priv, unsigned long dummy,
+			struct cmd_header *resp)
+{
+	lbs_deb_enter(LBS_DEB_CMD);
+	if (priv->wol_criteria == EHS_REMOVE_WAKEUP) {
+		priv->is_host_sleep_configured = 0;
+		if (priv->psstate == PS_STATE_FULL_POWER) {
+			priv->is_host_sleep_activated = 0;
+			wake_up_interruptible(&priv->host_sleep_q);
+		}
+	} else {
+		priv->is_host_sleep_configured = 1;
+	}
+	lbs_deb_leave(LBS_DEB_CMD);
+	return 0;
+}
+
 int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
 		struct wol_config *p_wol_config)
 {
@@ -202,12 +221,11 @@ int lbs_host_sleep_cfg(struct lbs_private *priv, uint32_t criteria,
 	else
 		cmd_config.wol_conf.action = CMD_ACT_ACTION_NONE;
 
-	ret = lbs_cmd_with_response(priv, CMD_802_11_HOST_SLEEP_CFG, &cmd_config);
+	ret = __lbs_cmd(priv, CMD_802_11_HOST_SLEEP_CFG, &cmd_config.hdr,
+			le16_to_cpu(cmd_config.hdr.size),
+			lbs_ret_host_sleep_cfg, 0);
 	if (!ret) {
-		if (criteria) {
-			lbs_deb_cmd("Set WOL criteria to %x\n", criteria);
-			priv->wol_criteria = criteria;
-		} else
+		if (p_wol_config)
 			memcpy((uint8_t *) p_wol_config,
 					(uint8_t *)&cmd_config.wol_conf,
 					sizeof(struct wol_config));
@@ -711,6 +729,10 @@ static void lbs_queue_cmd(struct lbs_private *priv,
 				addtail = 0;
 		}
 	}
+
+	if (le16_to_cpu(cmdnode->cmdbuf->command) ==
+			CMD_802_11_WAKEUP_CONFIRM)
+		addtail = 0;
 
 	spin_lock_irqsave(&priv->driver_lock, flags);
 
@@ -1352,6 +1374,11 @@ static void lbs_send_confirmsleep(struct lbs_private *priv)
 
 	/* We don't get a response on the sleep-confirmation */
 	priv->dnld_sent = DNLD_RES_RECEIVED;
+
+	if (priv->is_host_sleep_configured) {
+		priv->is_host_sleep_activated = 1;
+		wake_up_interruptible(&priv->host_sleep_q);
+	}
 
 	/* If nothing to do, go back to sleep (?) */
 	if (!kfifo_len(&priv->event_fifo) && !priv->resp_len[priv->resp_idx])

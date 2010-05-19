@@ -625,16 +625,13 @@ static int lbs_thread(void *data)
 	return 0;
 }
 
-static int lbs_suspend_callback(struct lbs_private *priv, unsigned long dummy,
-				struct cmd_header *cmd)
+static int lbs_ret_host_sleep_activate(struct lbs_private *priv,
+		unsigned long dummy,
+		struct cmd_header *cmd)
 {
 	lbs_deb_enter(LBS_DEB_FW);
-
-	netif_device_detach(priv->dev);
-	if (priv->mesh_dev)
-		netif_device_detach(priv->mesh_dev);
-
-	priv->fw_ready = 0;
+	priv->is_host_sleep_activated = 1;
+	wake_up_interruptible(&priv->host_sleep_q);
 	lbs_deb_leave(LBS_DEB_FW);
 	return 0;
 }
@@ -646,39 +643,65 @@ int lbs_suspend(struct lbs_private *priv)
 
 	lbs_deb_enter(LBS_DEB_FW);
 
-	if (priv->wol_criteria == 0xffffffff) {
-		lbs_pr_info("Suspend attempt without configuring wake params!\n");
-		return -EINVAL;
+	if (priv->is_deep_sleep) {
+		ret = lbs_set_deep_sleep(priv, 0);
+		if (ret) {
+			lbs_pr_err("deep sleep cancellation failed: %d\n", ret);
+			return ret;
+		}
+		priv->deep_sleep_required = 1;
 	}
 
 	memset(&cmd, 0, sizeof(cmd));
+	ret = lbs_host_sleep_cfg(priv, priv->wol_criteria,
+						(struct wol_config *)NULL);
+	if (ret) {
+		lbs_pr_info("Host sleep configuration failed: %d\n", ret);
+		return ret;
+	}
+	if (priv->psstate == PS_STATE_FULL_POWER) {
+		ret = __lbs_cmd(priv, CMD_802_11_HOST_SLEEP_ACTIVATE, &cmd,
+				sizeof(cmd), lbs_ret_host_sleep_activate, 0);
+		if (ret)
+			lbs_pr_info("HOST_SLEEP_ACTIVATE failed: %d\n", ret);
+	}
 
-	ret = __lbs_cmd(priv, CMD_802_11_HOST_SLEEP_ACTIVATE, &cmd,
-			sizeof(cmd), lbs_suspend_callback, 0);
-	if (ret)
-		lbs_pr_info("HOST_SLEEP_ACTIVATE failed: %d\n", ret);
+	if (!wait_event_interruptible_timeout(priv->host_sleep_q,
+				priv->is_host_sleep_activated, (10 * HZ))) {
+		lbs_pr_err("host_sleep_q: timer expired\n");
+		ret = -1;
+	}
+	netif_device_detach(priv->dev);
+	if (priv->mesh_dev)
+		netif_device_detach(priv->mesh_dev);
 
 	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
 	return ret;
 }
 EXPORT_SYMBOL_GPL(lbs_suspend);
 
-void lbs_resume(struct lbs_private *priv)
+int lbs_resume(struct lbs_private *priv)
 {
+	int ret;
+	uint32_t criteria = EHS_REMOVE_WAKEUP;
+
 	lbs_deb_enter(LBS_DEB_FW);
 
-	priv->fw_ready = 1;
-
-	/* Firmware doesn't seem to give us RX packets any more
-	   until we send it some command. Might as well update */
-	lbs_prepare_and_send_command(priv, CMD_802_11_RSSI, 0,
-				     0, 0, NULL);
+	ret = lbs_host_sleep_cfg(priv, criteria, (struct wol_config *)NULL);
 
 	netif_device_attach(priv->dev);
 	if (priv->mesh_dev)
 		netif_device_attach(priv->mesh_dev);
 
-	lbs_deb_leave(LBS_DEB_FW);
+	if (priv->deep_sleep_required) {
+		priv->deep_sleep_required = 0;
+		ret = lbs_set_deep_sleep(priv, 1);
+		if (ret)
+			lbs_pr_err("deep sleep activation failed: %d\n", ret);
+	}
+
+	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(lbs_resume);
 
@@ -834,10 +857,13 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	priv->psstate = PS_STATE_FULL_POWER;
 	priv->is_deep_sleep = 0;
 	priv->is_auto_deep_sleep_enabled = 0;
+	priv->deep_sleep_required = 0;
 	priv->wakeup_dev_required = 0;
 	init_waitqueue_head(&priv->ds_awake_q);
 	priv->authtype_auto = 1;
-
+	priv->is_host_sleep_configured = 0;
+	priv->is_host_sleep_activated = 0;
+	init_waitqueue_head(&priv->host_sleep_q);
 	mutex_init(&priv->lock);
 
 	setup_timer(&priv->command_timer, lbs_cmd_timeout_handler,
@@ -976,6 +1002,7 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 
 	priv->wol_criteria = 0xffffffff;
 	priv->wol_gpio = 0xff;
+	priv->wol_gap = 20;
 
 	goto done;
 
@@ -1030,6 +1057,10 @@ void lbs_remove_card(struct lbs_private *priv)
 		priv->is_deep_sleep = 0;
 		wake_up_interruptible(&priv->ds_awake_q);
 	}
+
+	priv->is_host_sleep_configured = 0;
+	priv->is_host_sleep_activated = 0;
+	wake_up_interruptible(&priv->host_sleep_q);
 
 	/* Stop the thread servicing the interrupts */
 	priv->surpriseremoved = 1;
