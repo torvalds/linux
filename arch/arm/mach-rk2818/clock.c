@@ -364,11 +364,15 @@ static int pll_clk_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
+static int arm_clk_set_rate(struct clk *clk, unsigned long rate);
+
 static struct clk arm_clk = {
 	.name		= "arm",
 	.parent		= &arm_pll_clk,
 	.recalc		= clksel_recalc,
-//	.set_rate	= arm_clk_set_rate,
+#ifdef CONFIG_CPU_FREQ
+	.set_rate	= arm_clk_set_rate,
+#endif
 	.gate_idx	= -1,
 	.clksel_reg	= CLKSEL2_REG,
 	.clksel_mask	= 0xF,
@@ -1252,8 +1256,153 @@ static void clk_enable_init_clocks(void)
 #ifdef CONFIG_CPU_FREQ
 #include <linux/cpufreq.h>
 
+struct rk2818_freq_info {
+	u16	arm_mhz;
+	u16	ddr_mhz;
+	u32	apll_con;
+	u8	clk48m : 4;
+	u8	hclk : 2;
+	u8	pclk : 2;
+};
+
+#define CLK_HCLK_PCLK_11	0
+#define CLK_HCLK_PCLK_21	1
+#define CLK_HCLK_PCLK_41	2
+
+#define CLK_ARM_HCLK_11		0
+#define CLK_ARM_HCLK_21		1
+#define CLK_ARM_HCLK_31		2
+#define CLK_ARM_HCLK_41		3
+
+#define OP(_arm_mhz, _ddr_mhz, nf, nr, od, _clk48m, _hclk, _pclk) \
+{							\
+	.arm_mhz	= _arm_mhz,			\
+	.ddr_mhz	= _ddr_mhz,			\
+	.apll_con	= PLL_SAT | PLL_FAST | PLL_CLKR(nr-1) | PLL_CLKF(nf-1) | PLL_CLKOD(od-1), \
+	.clk48m		= _clk48m - 1,			\
+	.hclk		= CLK_ARM_HCLK_##_hclk,		\
+	.pclk		= CLK_HCLK_PCLK_##_pclk,	\
+}
+
+/*
+ * F = 24MHz * NF / NR / OD
+ * 97.7KHz < 24MHz / NR < 800MHz
+ * 160MHz < 24MHz / NR * NF < 800MHz
+ */
+static struct rk2818_freq_info rk2818_freqs[] = {
+	/* ARM  DDR   NF  NR OD 48M HCLK PCLK */
+//X	OP(768, 350, 768, 24, 1, 16,  41,  41),
+//	OP(720, 350, 720, 24, 1, 15,  41,  21),
+//	OP(672, 350, 672, 24, 1, 14,  41,  21),
+//	OP(624, 350, 624, 24, 1, 13,  41,  21),
+//	OP(600, 350, 600, 24, 1, 12,  41,  21),
+//	OP(576, 350, 576, 24, 1, 12,  41,  21),
+	OP(528, 350, 528, 24, 1, 11,  41,  21),
+//	OP(480, 350, 480, 24, 1, 10,  41,  21),
+//	OP(450, 350, 432, 24, 1,  9,  31,  21),
+//	OP(432, 350, 432, 24, 1,  9,  31,  21),
+//	OP(384, 350, 384, 24, 1,  8,  31,  21),
+//	OP(336, 350, 336, 24, 1,  7,  31,  21),
+	OP(288, 350, 288, 24, 1,  6,  41,  21),
+};
+
+/* CPU_APB_REG5 */
+#define MEMTYPEMASK   (0x3 << 11) 
+#define SDRAM         (0x0 << 11)
+#define Mobile_SDRAM  (0x1 << 11)
+#define DDRII         (0x2 << 11)
+#define Mobile_DDR    (0x3 << 11)
+
+static int arm_clk_set_rate(struct clk *clk, unsigned long rate)
+{
+	int i;
+	struct rk2818_freq_info *freq;
+	unsigned int arm_mhz = rate / 1000000;
+	u32 *reg = &scu_register_base->scu_pll_config[arm_pll_clk.pll_idx];
+	u32 v = readl(reg);
+	u32 mem_type;
+	u32 unit;
+
+	for (i = 0; i < ARRAY_SIZE(rk2818_freqs); i++) {
+		if (rk2818_freqs[i].arm_mhz == arm_mhz) {
+			break;
+		}
+	}
+
+	if (i == ARRAY_SIZE(rk2818_freqs))
+		return -EINVAL;
+
+	freq = &rk2818_freqs[i];
+
+	mem_type = readl(RK2818_REGFILE_BASE + CPU_APB_REG0) & MEMTYPEMASK;
+	if ((mem_type == DDRII || mem_type == Mobile_DDR) && (ddr_clk.parent == &arm_pll_clk)) {
+		pr_debug("clock: no set arm clk rate when ddr parent is arm_pll\n");
+		return -EINVAL;
+	}
+
+	pll_clk_slow_mode(&arm_pll_clk, 1);
+	v &= ~PLL_PD;
+	writel(v, reg);
+
+	/* XXX:delay for pll state , for 0.3ms , clkf will lock clkf*/
+	writel(freq->apll_con, reg);
+
+	v = readl(arm_hclk.clksel_reg) & ~arm_hclk.clksel_mask;
+	v |= freq->hclk << arm_hclk.clksel_shift;
+	writel(v, arm_hclk.clksel_reg);
+
+	v = readl(arm_pclk.clksel_reg) & ~arm_pclk.clksel_mask;
+	v |= freq->pclk << arm_pclk.clksel_shift;
+	writel(v, arm_pclk.clksel_reg);
+
+	v = readl(clk48m.clksel_reg) & ~clk48m.clksel_mask;
+	v |= freq->clk48m << clk48m.clksel_shift;
+	writel(v, clk48m.clksel_reg);
+
+	/* arm run at 24m */
+	unit = 7200;  /* 24m,0.3ms , 24*300*/
+	while (unit-- > 0) {
+		v = readl(RK2818_REGFILE_BASE + CPU_APB_REG0);
+		if (v & 0x80u)
+			break;
+	}
+	pll_clk_slow_mode(&arm_pll_clk, 0);
+
+	pr_debug("clock: set %s to %ld MHz, delay count=%d\n", clk->name, rate/1000000, unit);
+
+	arm_pll_clk.rate = arm_pll_clk.recalc(&arm_pll_clk);
+	{
+		struct clk *clkp;
+
+		list_for_each_entry(clkp, &arm_pll_clk.children, sibling) {
+			if (clkp == &arm_clk)
+				continue;
+			if (clkp->recalc)
+				clkp->rate = clkp->recalc(clkp);
+			propagate_rate(clkp);
+		}
+	}
+
+	//FIXME: change sdram freq
+
+	return 0;
+}
+
+static struct cpufreq_frequency_table freq_table[ARRAY_SIZE(rk2818_freqs) + 1];
+
 void clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 {
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(rk2818_freqs); i++) {
+		freq_table[i].index = i;
+		freq_table[i].frequency = rk2818_freqs[i].arm_mhz * 1000; /* kHz */
+	}
+
+	freq_table[i].index = i;
+	freq_table[i].frequency = CPUFREQ_TABLE_END;
+
+	*table = freq_table;
 }
 EXPORT_SYMBOL(clk_init_cpufreq_table);
 #endif /* CONFIG_CPU_FREQ */
@@ -1282,7 +1431,7 @@ __setup("armclk=", clk_setup);
  * Switch the arm_clk rate if specified on cmdline.
  * We cannot do this early until cmdline is parsed.
  */
-static int __init rk28_clk_arch_init(void)
+static int __init rk2818_clk_arch_init(void)
 {
 	if (!armclk)
 		return -EINVAL;
@@ -1301,7 +1450,7 @@ static int __init rk28_clk_arch_init(void)
 
 	return 0;
 }
-arch_initcall(rk28_clk_arch_init);
+core_initcall_sync(rk2818_clk_arch_init);
 
 void __init rk2818_clock_init(void)
 {
