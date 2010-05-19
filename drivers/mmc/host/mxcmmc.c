@@ -119,6 +119,7 @@ struct mxcmci_host {
 	int			detect_irq;
 	int			dma;
 	int			do_dma;
+	int			default_irq_mask;
 	int			use_sdio;
 	unsigned int		power_mode;
 	struct imxmmc_platform_data *pdata;
@@ -228,7 +229,7 @@ static int mxcmci_setup_data(struct mxcmci_host *host, struct mmc_data *data)
 static int mxcmci_start_cmd(struct mxcmci_host *host, struct mmc_command *cmd,
 		unsigned int cmdat)
 {
-	u32 int_cntr;
+	u32 int_cntr = host->default_irq_mask;
 	unsigned long flags;
 
 	WARN_ON(host->cmd != NULL);
@@ -275,7 +276,7 @@ static int mxcmci_start_cmd(struct mxcmci_host *host, struct mmc_command *cmd,
 static void mxcmci_finish_request(struct mxcmci_host *host,
 		struct mmc_request *req)
 {
-	u32 int_cntr = 0;
+	u32 int_cntr = host->default_irq_mask;
 	unsigned long flags;
 
 	spin_lock_irqsave(&host->lock, flags);
@@ -585,6 +586,9 @@ static irqreturn_t mxcmci_irq(int irq, void *devid)
 		  (stat & (STATUS_DATA_TRANS_DONE | STATUS_WRITE_OP_DONE)))
 		mxcmci_data_done(host, stat);
 #endif
+	if (host->default_irq_mask &&
+		  (stat & (STATUS_CARD_INSERTION | STATUS_CARD_REMOVAL)))
+		mmc_detect_change(host->mmc, msecs_to_jiffies(200));
 	return IRQ_HANDLED;
 }
 
@@ -809,6 +813,12 @@ static int mxcmci_probe(struct platform_device *pdev)
 	else
 		mmc->ocr_avail = MMC_VDD_32_33 | MMC_VDD_33_34;
 
+	if (host->pdata && host->pdata->dat3_card_detect)
+		host->default_irq_mask =
+			INT_CARD_INSERTION_EN | INT_CARD_REMOVAL_EN;
+	else
+		host->default_irq_mask = 0;
+
 	host->res = r;
 	host->irq = irq;
 
@@ -835,7 +845,7 @@ static int mxcmci_probe(struct platform_device *pdev)
 	/* recommended in data sheet */
 	writew(0x2db4, host->base + MMC_REG_READ_TO);
 
-	writel(0, host->base + MMC_REG_INT_CNTR);
+	writel(host->default_irq_mask, host->base + MMC_REG_INT_CNTR);
 
 #ifdef HAS_DMA
 	host->dma = imx_dma_request_by_prio(DRIVER_NAME, DMA_PRIO_LOW);
