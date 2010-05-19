@@ -1,6 +1,7 @@
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
 #include <linux/thread_info.h>
+#include <linux/ftrace.h>
 #include <linux/module.h>
 #include <asm/ptrace.h>
 #include <asm/stacktrace.h>
@@ -12,6 +13,10 @@ static void __save_stack_trace(struct thread_info *tp,
 			       bool skip_sched)
 {
 	unsigned long ksp, fp;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	struct task_struct *t;
+	int graph = 0;
+#endif
 
 	if (tp == current_thread_info()) {
 		stack_trace_flush();
@@ -21,6 +26,9 @@ static void __save_stack_trace(struct thread_info *tp,
 	}
 
 	fp = ksp + STACK_BIAS;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	t = tp->task;
+#endif
 	do {
 		struct sparc_stackf *sf;
 		struct pt_regs *regs;
@@ -44,8 +52,21 @@ static void __save_stack_trace(struct thread_info *tp,
 
 		if (trace->skip > 0)
 			trace->skip--;
-		else if (!skip_sched || !in_sched_functions(pc))
+		else if (!skip_sched || !in_sched_functions(pc)) {
 			trace->entries[trace->nr_entries++] = pc;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+			if ((pc + 8UL) == (unsigned long) &return_to_handler) {
+				int index = t->curr_ret_stack;
+				if (t->ret_stack && index >= graph) {
+					pc = t->ret_stack[index - graph].ret;
+					if (trace->nr_entries <
+					    trace->max_entries)
+						trace->entries[trace->nr_entries++] = pc;
+					graph++;
+				}
+			}
+#endif
+		}
 	} while (trace->nr_entries < trace->max_entries);
 }
 
