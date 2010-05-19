@@ -464,16 +464,59 @@ static int convert_location(Dwarf_Op *op, struct probe_finder *pf)
 }
 
 static int convert_variable_type(Dwarf_Die *vr_die,
-				 struct kprobe_trace_arg *targ)
+				 struct kprobe_trace_arg *tvar,
+				 const char *cast)
 {
+	struct kprobe_trace_arg_ref **ref_ptr = &tvar->ref;
 	Dwarf_Die type;
 	char buf[16];
 	int ret;
+
+	/* TODO: check all types */
+	if (cast && strcmp(cast, "string") != 0) {
+		/* Non string type is OK */
+		tvar->type = strdup(cast);
+		return (tvar->type == NULL) ? -ENOMEM : 0;
+	}
 
 	if (die_get_real_type(vr_die, &type) == NULL) {
 		pr_warning("Failed to get a type information of %s.\n",
 			   dwarf_diename(vr_die));
 		return -ENOENT;
+	}
+
+	if (cast && strcmp(cast, "string") == 0) {	/* String type */
+		ret = dwarf_tag(&type);
+		if (ret != DW_TAG_pointer_type &&
+		    ret != DW_TAG_array_type) {
+			pr_warning("Failed to cast into string: "
+				   "%s(%s) is not a pointer nor array.",
+				   dwarf_diename(vr_die), dwarf_diename(&type));
+			return -EINVAL;
+		}
+		if (ret == DW_TAG_pointer_type) {
+			if (die_get_real_type(&type, &type) == NULL) {
+				pr_warning("Failed to get a type information.");
+				return -ENOENT;
+			}
+			while (*ref_ptr)
+				ref_ptr = &(*ref_ptr)->next;
+			/* Add new reference with offset +0 */
+			*ref_ptr = zalloc(sizeof(struct kprobe_trace_arg_ref));
+			if (*ref_ptr == NULL) {
+				pr_warning("Out of memory error\n");
+				return -ENOMEM;
+			}
+		}
+		if (die_compare_name(&type, "char") != 0 &&
+		    die_compare_name(&type, "unsigned char") != 0) {
+			pr_warning("Failed to cast into string: "
+				   "%s is not (unsigned) char *.",
+				   dwarf_diename(vr_die));
+			return -EINVAL;
+		}
+		tvar->type = strdup(cast);
+		return (tvar->type == NULL) ? -ENOMEM : 0;
 	}
 
 	ret = die_get_byte_size(&type) * 8;
@@ -495,8 +538,8 @@ static int convert_variable_type(Dwarf_Die *vr_die,
 				   strerror(-ret));
 			return ret;
 		}
-		targ->type = strdup(buf);
-		if (targ->type == NULL)
+		tvar->type = strdup(buf);
+		if (tvar->type == NULL)
 			return -ENOMEM;
 	}
 	return 0;
@@ -606,14 +649,8 @@ static int convert_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 					      &die_mem);
 		vr_die = &die_mem;
 	}
-	if (ret == 0) {
-		if (pf->pvar->type) {
-			pf->tvar->type = strdup(pf->pvar->type);
-			if (pf->tvar->type == NULL)
-				ret = -ENOMEM;
-		} else
-			ret = convert_variable_type(vr_die, pf->tvar);
-	}
+	if (ret == 0)
+		ret = convert_variable_type(vr_die, pf->tvar, pf->pvar->type);
 	/* *expr will be cached in libdw. Don't free it. */
 	return ret;
 error:
