@@ -532,19 +532,20 @@ static int synaptics_validate_byte(unsigned char packet[], int idx, unsigned cha
 		return 0;
 
 	switch (pkt_type) {
-		case SYN_NEWABS:
-		case SYN_NEWABS_RELAXED:
-			return (packet[idx] & newabs_rel_mask[idx]) == newabs_rslt[idx];
 
-		case SYN_NEWABS_STRICT:
-			return (packet[idx] & newabs_mask[idx]) == newabs_rslt[idx];
+	case SYN_NEWABS:
+	case SYN_NEWABS_RELAXED:
+		return (packet[idx] & newabs_rel_mask[idx]) == newabs_rslt[idx];
 
-		case SYN_OLDABS:
-			return (packet[idx] & oldabs_mask[idx]) == oldabs_rslt[idx];
+	case SYN_NEWABS_STRICT:
+		return (packet[idx] & newabs_mask[idx]) == newabs_rslt[idx];
 
-		default:
-			printk(KERN_ERR "synaptics: unknown packet type %d\n", pkt_type);
-			return 0;
+	case SYN_OLDABS:
+		return (packet[idx] & oldabs_mask[idx]) == oldabs_rslt[idx];
+
+	default:
+		printk(KERN_ERR "synaptics: unknown packet type %d\n", pkt_type);
+		return 0;
 	}
 }
 
