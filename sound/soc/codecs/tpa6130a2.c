@@ -371,8 +371,8 @@ static const struct snd_soc_dapm_widget tpa6130a2_dapm_widgets[] = {
 			0, 0, tpa6130a2_supply_event,
 			SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD),
 	/* Outputs */
-	SND_SOC_DAPM_HP("TPA6130A2 Headphone Left", NULL),
-	SND_SOC_DAPM_HP("TPA6130A2 Headphone Right", NULL),
+	SND_SOC_DAPM_OUTPUT("TPA6130A2 Headphone Left"),
+	SND_SOC_DAPM_OUTPUT("TPA6130A2 Headphone Right"),
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
