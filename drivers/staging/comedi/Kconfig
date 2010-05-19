@@ -1267,8 +1267,8 @@ config COMEDI_MITE
 
 config COMEDI_NI_TIO
 	tristate "NI general purpose counter support"
+	depends on COMEDI_MITE
 	select COMEDI_8255
-	select COMEDI_MITE
 	default N
 	---help---
 	  Enable support for National Instruments general purpose counters.
