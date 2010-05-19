@@ -98,28 +98,28 @@
 #define ELEMENT_ID_CF_PARAMETER_SET         4
 #define ELEMENT_ID_TIM                      5
 #define ELEMENT_ID_IBSS_PARAMETER_SET       6
-// 7~15 reserverd
+/* 7~15 reserverd */
 #define ELEMENT_ID_CHALLENGE_TEXT           16
-// 17~31 reserved for challenge text extension
-// 32~255 reserved
-//--  11G  --
+/* 17~31 reserved for challenge text extension */
+/* 32~255 reserved */
+/*--  11G  -- */
 #define ELEMENT_ID_ERP_INFORMATION			42
 #define ELEMENT_ID_EXTENDED_SUPPORTED_RATES 50
 
-//--  WPA  --
+/* --  WPA  -- */
 
 #define ELEMENT_ID_RSN_WPA					221
 #ifdef _WPA2_
 #define ELEMENT_ID_RSN_WPA2				    48
-#endif //endif WPA2
+#endif /* endif WPA2 */
 
 #define WLAN_MAX_PAIRWISE_CIPHER_SUITE_COUNT    ((u16) 6)
 #define WLAN_MAX_AUTH_KEY_MGT_SUITE_LIST_COUNT  ((u16) 2)
 
-//===================================================================
-//  Reason Code (Table 18): indicate the reason of DisAssoc, DeAuthen
-//  length of ReasonCode is 2 Octs.
-//===================================================================
+/* ===================================================================
+*  Reason Code (Table 18): indicate the reason of DisAssoc, DeAuthen
+*  length of ReasonCode is 2 Octs.
+* =================================================================== */
 #define REASON_REASERED             0
 #define REASON_UNSPECIDIED          1
 #define REASON_PREAUTH_INVALID      2
@@ -433,7 +433,7 @@ struct suite_selector
 	};
 };
 
-//--  WPA  --
+/* --  WPA  -- */
 struct	RSN_Information_Element
 {
 	u8					Element_ID;
