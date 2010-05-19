@@ -110,6 +110,12 @@ typedef struct xfs_log_iovec {
 	uint		i_type;		/* type of region */
 } xfs_log_iovec_t;
 
+struct xfs_log_vec {
+	struct xfs_log_vec	*lv_next;	/* next lv in build list */
+	int			lv_niovecs;	/* number of iovecs in lv */
+	struct xfs_log_iovec	*lv_iovecp;	/* iovec array */
+};
+
 /*
  * Structure used to pass callback function and the function's argument
  * to the log manager.
@@ -126,6 +132,13 @@ typedef struct xfs_log_callback {
 struct xfs_mount;
 struct xlog_in_core;
 struct xlog_ticket;
+struct xfs_log_item;
+struct xfs_item_ops;
+
+void	xfs_log_item_init(struct xfs_mount	*mp,
+			struct xfs_log_item	*item,
+			int			type,
+			struct xfs_item_ops	*ops);
 
 xfs_lsn_t xfs_log_done(struct xfs_mount *mp,
 		       struct xlog_ticket *ticket,

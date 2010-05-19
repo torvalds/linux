@@ -41,7 +41,6 @@
 #include "xfs_alloc.h"
 #include "xfs_bmap.h"
 #include "xfs_attr.h"
-#include "xfs_attr_sf.h"
 #include "xfs_attr_leaf.h"
 #include "xfs_log_priv.h"
 #include "xfs_buf_item.h"
@@ -50,6 +49,9 @@
 #include "xfs_aops.h"
 #include "quota/xfs_dquot_item.h"
 #include "quota/xfs_dquot.h"
+#include "xfs_log_recover.h"
+#include "xfs_buf_item.h"
+#include "xfs_inode_item.h"
 
 /*
  * We include this last to have the helpers above available for the trace
