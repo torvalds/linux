@@ -1217,7 +1217,8 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 		mdev->p_uuid = NULL;
 		if (get_ldev(mdev)) {
 			if ((ns.role == R_PRIMARY || ns.peer == R_PRIMARY) &&
-			    mdev->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE)
+			    mdev->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE &&
+			    !atomic_read(&mdev->new_c_uuid))
 				atomic_set(&mdev->new_c_uuid, 2);
 			put_ldev(mdev);
 		}
@@ -1225,7 +1226,8 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 	if (ns.pdsk < D_INCONSISTENT && get_ldev(mdev)) {
 		/* Diskless peer becomes primary or got connected do diskless, primary peer. */
-		if (ns.peer == R_PRIMARY && mdev->ldev->md.uuid[UI_BITMAP] == 0)
+		if (ns.peer == R_PRIMARY && mdev->ldev->md.uuid[UI_BITMAP] == 0 &&
+		    !atomic_read(&mdev->new_c_uuid))
 			atomic_set(&mdev->new_c_uuid, 2);
 
 		/* D_DISKLESS Peer becomes secondary */
@@ -1353,12 +1355,14 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 static int w_new_current_uuid(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
 	if (get_ldev(mdev)) {
-		drbd_uuid_new_current(mdev);
-		if (get_net_conf(mdev)) {
-			drbd_send_uuids(mdev);
-			put_net_conf(mdev);
+		if (mdev->ldev->md.uuid[UI_BITMAP] == 0) {
+			drbd_uuid_new_current(mdev);
+			if (get_net_conf(mdev)) {
+				drbd_send_uuids(mdev);
+				put_net_conf(mdev);
+			}
+			drbd_md_sync(mdev);
 		}
-		drbd_md_sync(mdev);
 		put_ldev(mdev);
 	}
 	atomic_dec(&mdev->new_c_uuid);
