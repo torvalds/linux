@@ -463,7 +463,7 @@ device_receive_frame (
         return FALSE;
     }
 
-    if (!IS_MULTICAST_ADDRESS(pbyFrame) && !IS_BROADCAST_ADDRESS(pbyFrame)) {
+    if (!is_multicast_ether_addr(pbyFrame) && !IS_BROADCAST_ADDRESS(pbyFrame)) {
         if (WCTLbIsDuplicate(&(pDevice->sDupRxCache), (PS802_11Header) (skb->data + 4))) {
             pDevice->s802_11Counter.FrameDuplicateCount++;
             return FALSE;
@@ -1460,7 +1460,7 @@ static BOOL s_bAPModeRxData (
     if (FrameSize > CB_MAX_BUF_SIZE)
         return FALSE;
     // check DA
-    if(IS_MULTICAST_ADDRESS((PBYTE)(skb->data+cbHeaderOffset))) {
+    if(is_multicast_ether_addr((PBYTE)(skb->data+cbHeaderOffset))) {
        if (pMgmt->sNodeDBTable[0].bPSEnable) {
 
            skbcpy = dev_alloc_skb((int)pDevice->rx_buf_sz);

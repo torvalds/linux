@@ -2307,7 +2307,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
             spin_unlock_irq(&pDevice->lock);
             return 0;
         }
-        if (IS_MULTICAST_ADDRESS((PBYTE)(skb->data))) {
+        if (is_multicast_ether_addr((PBYTE)(skb->data))) {
             uNodeIndex = 0;
             bNodeExist = TRUE;
             if (pMgmt->sNodeDBTable[0].bPSEnable) {

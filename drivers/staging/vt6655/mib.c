@@ -475,7 +475,7 @@ STAvUpdateTDStatCounter (
             pStatistic->ullTxBroadcastFrames[uIdx]++;
             pStatistic->ullTxBroadcastBytes[uIdx] += (ULONGLONG)cbFrameLength;
         }
-        else if (IS_MULTICAST_ADDRESS(pbyDestAddr)) {
+        else if (is_multicast_ether_addr(pbyDestAddr)) {
             pStatistic->ullTxMulticastFrames[uIdx]++;
             pStatistic->ullTxMulticastBytes[uIdx] += (ULONGLONG)cbFrameLength;
         }
@@ -497,7 +497,7 @@ STAvUpdateTDStatCounter (
 
     if (IS_BROADCAST_ADDRESS(pbyDestAddr))
         pStatistic->dwTsrBroadcast[uIdx]++;
-    else if (IS_MULTICAST_ADDRESS(pbyDestAddr))
+    else if (is_multicast_ether_addr(pbyDestAddr))
         pStatistic->dwTsrMulticast[uIdx]++;
     else
         pStatistic->dwTsrDirected[uIdx]++;

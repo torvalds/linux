@@ -29,7 +29,7 @@
 #ifndef __TETHER_H__
 #define __TETHER_H__
 
-#include <linux/if_ether.h>
+#include <linux/etherdevice.h>
 #include "ttype.h"
 
 /*---------------------  Export Definitions -------------------------*/
@@ -187,9 +187,6 @@ S802_11Header, *PS802_11Header;
 
 /*---------------------  Export Macros ------------------------------*/
 // Frame type macro
-
-#define IS_MULTICAST_ADDRESS(pbyEtherAddr)          \
-    ((*(PBYTE)(pbyEtherAddr) & 0x01) == 1)
 
 #define IS_BROADCAST_ADDRESS(pbyEtherAddr) (        \
     (*(PDWORD)(pbyEtherAddr) == 0xFFFFFFFFL) &&     \

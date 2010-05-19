@@ -1394,7 +1394,7 @@ s_cbFillTxBufHead (
     if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
         (pDevice->eOPMode == OP_MODE_AP)) {
 
-        if (IS_MULTICAST_ADDRESS(&(psEthHeader->abyDstAddr[0])) ||
+        if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])) ||
             IS_BROADCAST_ADDRESS(&(psEthHeader->abyDstAddr[0]))) {
             bNeedACK = FALSE;
         }
@@ -2123,7 +2123,7 @@ vGenerateFIFOHeader (
 
     if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
         (pDevice->eOPMode == OP_MODE_AP)) {
-        if (IS_MULTICAST_ADDRESS(&(psEthHeader->abyDstAddr[0])) ||
+        if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])) ||
             IS_BROADCAST_ADDRESS(&(psEthHeader->abyDstAddr[0]))) {
             bNeedACK = FALSE;
             pTxBufHead->wFIFOCtl = pTxBufHead->wFIFOCtl & (~FIFOCTL_NEEDACK);
@@ -2424,7 +2424,7 @@ CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket) {
     pTxBufHead->wTimeStamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
 
 
-    if (IS_MULTICAST_ADDRESS(&(pPacket->p80211Header->sA3.abyAddr1[0])) ||
+    if (is_multicast_ether_addr(&(pPacket->p80211Header->sA3.abyAddr1[0])) ||
         IS_BROADCAST_ADDRESS(&(pPacket->p80211Header->sA3.abyAddr1[0]))) {
         bNeedACK = FALSE;
     }
@@ -2760,7 +2760,7 @@ cbGetFragCount (
 
     if ((pDevice->eOPMode == OP_MODE_ADHOC) ||
         (pDevice->eOPMode == OP_MODE_AP)) {
-        if (IS_MULTICAST_ADDRESS(&(psEthHeader->abyDstAddr[0])) ||
+        if (is_multicast_ether_addr(&(psEthHeader->abyDstAddr[0])) ||
             IS_BROADCAST_ADDRESS(&(psEthHeader->abyDstAddr[0]))) {
             bNeedACK = FALSE;
         }
@@ -2938,7 +2938,7 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, PBYTE pbMPDU, UINT cbMPDU
     pTxBufHead->wTimeStamp = cpu_to_le16(DEFAULT_MGN_LIFETIME_RES_64us);
 
 
-    if (IS_MULTICAST_ADDRESS(&(p80211Header->sA3.abyAddr1[0])) ||
+    if (is_multicast_ether_addr(&(p80211Header->sA3.abyAddr1[0])) ||
         IS_BROADCAST_ADDRESS(&(p80211Header->sA3.abyAddr1[0]))) {
         bNeedACK = FALSE;
         if (pDevice->bEnableHostWEP) {
