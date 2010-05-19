@@ -137,6 +137,38 @@ static struct imx_fb_videomode eukrea_mbimx27_modes[] = {
 		},
 		.pcr		= 0xFAD08B80,
 		.bpp		= 16,
+	}, {
+		.mode = {
+			.name		= "DVI-VGA",
+			.refresh	= 60,
+			.xres		= 640,
+			.yres		= 480,
+			.pixclock	= 32000,
+			.hsync_len	= 1,
+			.left_margin	= 35,
+			.right_margin	= 0,
+			.vsync_len	= 1,
+			.upper_margin	= 7,
+			.lower_margin	= 0,
+		},
+		.pcr		= 0xFA208B80,
+		.bpp		= 16,
+	}, {
+		.mode = {
+			.name		= "DVI-SVGA",
+			.refresh	= 60,
+			.xres		= 800,
+			.yres		= 600,
+			.pixclock	= 25000,
+			.hsync_len	= 1,
+			.left_margin	= 35,
+			.right_margin	= 0,
+			.vsync_len	= 1,
+			.upper_margin	= 7,
+			.lower_margin	= 0,
+		},
+		.pcr		= 0xFA208B80,
+		.bpp		= 16,
 	},
 };
 
