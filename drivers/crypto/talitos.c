@@ -1479,14 +1479,17 @@ static int ablkcipher_decrypt(struct ablkcipher_request *areq)
 }
 
 struct talitos_alg_template {
-	struct crypto_alg alg;
+	u32 type;
+	union {
+		struct crypto_alg crypto;
+	} alg;
 	__be32 desc_hdr_template;
 };
 
 static struct talitos_alg_template driver_algs[] = {
 	/* AEAD algorithms.  These use a single-pass ipsec_esp descriptor */
-	{
-		.alg = {
+	{	.type = CRYPTO_ALG_TYPE_AEAD,
+		.alg.crypto = {
 			.cra_name = "authenc(hmac(sha1),cbc(aes))",
 			.cra_driver_name = "authenc-hmac-sha1-cbc-aes-talitos",
 			.cra_blocksize = AES_BLOCK_SIZE,
@@ -1511,8 +1514,8 @@ static struct talitos_alg_template driver_algs[] = {
 		                     DESC_HDR_MODE1_MDEU_PAD |
 		                     DESC_HDR_MODE1_MDEU_SHA1_HMAC,
 	},
-	{
-		.alg = {
+	{	.type = CRYPTO_ALG_TYPE_AEAD,
+		.alg.crypto = {
 			.cra_name = "authenc(hmac(sha1),cbc(des3_ede))",
 			.cra_driver_name = "authenc-hmac-sha1-cbc-3des-talitos",
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
@@ -1538,8 +1541,8 @@ static struct talitos_alg_template driver_algs[] = {
 		                     DESC_HDR_MODE1_MDEU_PAD |
 		                     DESC_HDR_MODE1_MDEU_SHA1_HMAC,
 	},
-	{
-		.alg = {
+	{	.type = CRYPTO_ALG_TYPE_AEAD,
+		.alg.crypto = {
 			.cra_name = "authenc(hmac(sha256),cbc(aes))",
 			.cra_driver_name = "authenc-hmac-sha256-cbc-aes-talitos",
 			.cra_blocksize = AES_BLOCK_SIZE,
@@ -1564,8 +1567,8 @@ static struct talitos_alg_template driver_algs[] = {
 		                     DESC_HDR_MODE1_MDEU_PAD |
 		                     DESC_HDR_MODE1_MDEU_SHA256_HMAC,
 	},
-	{
-		.alg = {
+	{	.type = CRYPTO_ALG_TYPE_AEAD,
+		.alg.crypto = {
 			.cra_name = "authenc(hmac(sha256),cbc(des3_ede))",
 			.cra_driver_name = "authenc-hmac-sha256-cbc-3des-talitos",
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
@@ -1591,8 +1594,8 @@ static struct talitos_alg_template driver_algs[] = {
 		                     DESC_HDR_MODE1_MDEU_PAD |
 		                     DESC_HDR_MODE1_MDEU_SHA256_HMAC,
 	},
-	{
-		.alg = {
+	{	.type = CRYPTO_ALG_TYPE_AEAD,
+		.alg.crypto = {
 			.cra_name = "authenc(hmac(md5),cbc(aes))",
 			.cra_driver_name = "authenc-hmac-md5-cbc-aes-talitos",
 			.cra_blocksize = AES_BLOCK_SIZE,
@@ -1617,8 +1620,8 @@ static struct talitos_alg_template driver_algs[] = {
 		                     DESC_HDR_MODE1_MDEU_PAD |
 		                     DESC_HDR_MODE1_MDEU_MD5_HMAC,
 	},
-	{
-		.alg = {
+	{	.type = CRYPTO_ALG_TYPE_AEAD,
+		.alg.crypto = {
 			.cra_name = "authenc(hmac(md5),cbc(des3_ede))",
 			.cra_driver_name = "authenc-hmac-md5-cbc-3des-talitos",
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
@@ -1645,8 +1648,8 @@ static struct talitos_alg_template driver_algs[] = {
 		                     DESC_HDR_MODE1_MDEU_MD5_HMAC,
 	},
 	/* ABLKCIPHER algorithms. */
-	{
-		.alg = {
+	{	.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
+		.alg.crypto = {
 			.cra_name = "cbc(aes)",
 			.cra_driver_name = "cbc-aes-talitos",
 			.cra_blocksize = AES_BLOCK_SIZE,
@@ -1667,8 +1670,8 @@ static struct talitos_alg_template driver_algs[] = {
 				     DESC_HDR_SEL0_AESU |
 				     DESC_HDR_MODE0_AESU_CBC,
 	},
-	{
-		.alg = {
+	{	.type = CRYPTO_ALG_TYPE_ABLKCIPHER,
+		.alg.crypto = {
 			.cra_name = "cbc(des3_ede)",
 			.cra_driver_name = "cbc-3des-talitos",
 			.cra_blocksize = DES3_EDE_BLOCK_SIZE,
@@ -1789,7 +1792,7 @@ static struct talitos_crypto_alg *talitos_alg_alloc(struct device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	alg = &t_alg->crypto_alg;
-	*alg = template->alg;
+	*alg = template->alg.crypto;
 
 	alg->cra_module = THIS_MODULE;
 	alg->cra_init = talitos_cra_init;
