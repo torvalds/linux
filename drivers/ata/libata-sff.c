@@ -798,11 +798,15 @@ static void atapi_send_cdb(struct ata_port *ap, struct ata_queued_cmd *qc)
 	case ATAPI_PROT_NODATA:
 		ap->hsm_task_state = HSM_ST_LAST;
 		break;
+#ifdef CONFIG_ATA_BMDMA
 	case ATAPI_PROT_DMA:
 		ap->hsm_task_state = HSM_ST_LAST;
 		/* initiate bmdma */
 		ap->ops->bmdma_start(qc);
 		break;
+#endif /* CONFIG_ATA_BMDMA */
+	default:
+		BUG();
 	}
 }
 
@@ -2535,6 +2539,12 @@ EXPORT_SYMBOL_GPL(ata_pci_sff_init_one);
 
 #endif /* CONFIG_PCI */
 
+/*
+ *	BMDMA support
+ */
+
+#ifdef CONFIG_ATA_BMDMA
+
 const struct ata_port_operations ata_bmdma_port_ops = {
 	.inherits		= &ata_sff_port_ops,
 
@@ -3287,6 +3297,7 @@ int ata_pci_bmdma_init_one(struct pci_dev *pdev,
 EXPORT_SYMBOL_GPL(ata_pci_bmdma_init_one);
 
 #endif /* CONFIG_PCI */
+#endif /* CONFIG_ATA_BMDMA */
 
 /**
  *	ata_sff_port_init - Initialize SFF/BMDMA ATA port
