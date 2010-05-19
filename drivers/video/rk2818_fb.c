@@ -60,13 +60,13 @@
 #define WIN1_USE_DOUBLE_BUF     1       //win1 use double buf to accelerate display
 #define LANDSCAPE_USE_ROTATE    1       //rotate win1 in landscape with mcu panel
 
-#if 1
+#if 0
 	#define fbprintk(msg...)	printk(msg);
 #else
 	#define fbprintk(msg...)
 #endif
 
-
+ 
 #if 0
 	#define fbprintk2(msg...)	printk(msg);
 #else
@@ -497,7 +497,7 @@ void load_screen(struct fb_info *info, bool initscreen)
     struct rk2818fb_inf *inf = dev_get_drvdata(info->device);
     struct rk28fb_screen *screen = inf->cur_screen;
     u16 face = screen->face;
-    u16 mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend;
+
     u16 right_margin = screen->right_margin, lower_margin = screen->lower_margin;
     u16 x_res = screen->x_res, y_res = screen->y_res;
     u32 clk_rate = 0;
@@ -505,32 +505,9 @@ void load_screen(struct fb_info *info, bool initscreen)
         
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
-//	if(OUT_P16BPP4==face)   face = OUT_P565;
-
     // set the rgb or mcu
     LcdMskReg(inf, MCU_TIMING_CTRL, m_MCU_OUTPUT_SELECT, v_MCU_OUTPUT_SELECT((SCREEN_MCU==screen->type)?(1):(0)));
-    /*
 
-	// set out format and mcu timing
-    mcu_total  = (screen->mcu_wrperiod*150*1000)/1000000;
-    if(mcu_total>31)    mcu_total = 31;
-    if(mcu_total<3)     mcu_total = 3;
-    mcu_rwstart = (mcu_total+1)/4 - 1;
-    mcu_rwend = ((mcu_total+1)*3)/4 - 1;
-    mcu_csstart = (mcu_rwstart>2) ? (mcu_rwstart-3) : (0);
-    mcu_csend = (mcu_rwend>15) ? (mcu_rwend-1) : (mcu_rwend);
-
-    fbprintk(">> mcu_total=%d, mcu_rwstart=%d, mcu_csstart=%d, mcu_rwend=%d, mcu_csend=%d \n",
-        mcu_total, mcu_rwstart, mcu_csstart, mcu_rwend, mcu_csend);
-
-    LcdMskReg(inf, MCU_TIMING_CTRL,
-             m_MCU_CS_ST | m_MCU_CS_END| m_MCU_RW_ST | m_MCU_RW_END |
-             m_MCU_WRITE_PERIOD | m_MCU_HOLDMODE_SELECT | m_MCU_HOLDMODE_FRAME_ST,
-            v_MCU_CS_ST(mcu_csstart) | v_MCU_CS_END(mcu_csend) | v_MCU_RW_ST(mcu_rwstart) |
-            v_MCU_RW_END(mcu_rwend) |  v_MCU_WRITE_PERIOD(mcu_total) |
-            v_MCU_HOLDMODE_SELECT((SCREEN_MCU==screen->type)?(1):(0)) | v_MCU_HOLDMODE_FRAME_ST(0)
-           );
-*/
 	// set synchronous pin polarity and data pin swap rule
      LcdMskReg(inf, DSP_CTRL0,
         m_DISPLAY_FORMAT | m_HSYNC_POLARITY | m_VSYNC_POLARITY | m_DEN_POLARITY |
@@ -795,7 +772,6 @@ static int win0fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 static int win0fb_set_par(struct fb_info *info)
 {
     struct rk2818fb_inf *inf = dev_get_drvdata(info->device);
-    struct rk28fb_screen *screen = inf->cur_screen;
     struct fb_var_screeninfo *var = &info->var;
     struct fb_fix_screeninfo *fix = &info->fix;
     struct win0_par *par = info->par;
@@ -1390,7 +1366,6 @@ static int win1fb_set_par(struct fb_info *info)
     struct fb_var_screeninfo *var = &info->var;
     struct fb_fix_screeninfo *fix = &info->fix;
     struct rk28fb_screen *screen = inf->cur_screen;
-    struct win1_par *par = info->par;
 
     u8 format = 0;
     dma_addr_t map_dma;
@@ -1402,7 +1377,6 @@ static int win1fb_set_par(struct fb_info *info)
     // u8 trspmode = TRSP_CLOSE;    // 不使用硬件的半透操作.
     u8 trspmode = TRSP_CLOSE;        // 将指定的 像素 value (缺省是 黑色(0, 0, 0) ), 设置为 全透.
     u8 trspval = 1;	//(var->grayscale) & 0xff;
-    u32 i;
 
     //the below code is not correct, make we can't see alpha picture.
     //u8 trspmode = (var->grayscale>>8) & 0xff;
@@ -1514,12 +1488,9 @@ static int win1fb_set_par(struct fb_info *info)
 static int win1fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
     struct rk2818fb_inf *inf = dev_get_drvdata(info->device);
-    struct rk28fb_screen *screen = inf->cur_screen;
     struct fb_var_screeninfo *var1 = &info->var;
     struct fb_fix_screeninfo *fix1 = &info->fix;
-    struct win1_par *par = info->par;
     u32 offset = 0, addr = 0;
-    u32 i=0;
     
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
@@ -2159,9 +2130,6 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
 
     return ret;
 
-release_fmkirq:
-    if(mach_info->gpio->mcu_fmk_pin)        
-        free_irq(gpio_to_irq(mach_info->gpio->mcu_fmk_pin), pdev);
 release_irq:
 	if(irq>=0)
     	free_irq(irq, pdev);  
@@ -2311,7 +2279,7 @@ static int rk2818fb_suspend(struct platform_device *pdev, pm_message_t msg)
 }
 
 
-static int rk2818fb_resume(struct platform_device *pdev)
+int rk2818fb_resume(struct platform_device *pdev)
 {
     struct rk2818fb_inf *inf = platform_get_drvdata(pdev);
     struct rk28fb_screen *screen = inf->cur_screen;
