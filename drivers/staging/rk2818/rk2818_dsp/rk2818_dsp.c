@@ -82,6 +82,7 @@ struct rk28dsp_inf {
 	struct clk *clk;
 };
 
+#define USE_CLOCK_FUN		1
 
 #define SET_BOOT_VECTOR(v)  __raw_writel(v,RK2818_REGFILE_BASE + 0x18);
 #define DSP_BOOT_CTRL() __raw_writel(__raw_readl(RK2818_REGFILE_BASE + 0x14) | (1<<4),RK2818_REGFILE_BASE + 0x14);
@@ -163,7 +164,7 @@ static int CheckDSPLIBHead(char *buff)
 
 void dsp_set_clk(int clkrate)
 {
-#if 1
+#if USE_CLOCK_FUN
 	struct rk28dsp_inf *inf = g_inf;
     if(!inf)      return;
     if(clkrate > 24 && clkrate < 600) {
@@ -202,28 +203,38 @@ void dsp_powerctl(int ctl, int arg)
         break;
     case DPC_NORMAL:
         {
+#if USE_CLOCK_FUN
+			clk_enable(inf->clk);
+#else
             /* dsp clock enable 0x12*/
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) & (~0x02)) , RK2818_SCU_BASE+0x1c);
+			/* dsp pll enable */
+            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x04) & (~(0x01u<<22))) , RK2818_SCU_BASE+0x04);
+			udelay(10);
+#endif
+			/* dsp set clk */
+			dsp_set_clk(arg);
+
             /* dsp ahb bus clock enable*/
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x24) & (~0x04)) , RK2818_SCU_BASE+0x24);
             /* sram arm clock enable */
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) & (~0x08)) , RK2818_SCU_BASE+0x1c);
             /* sram dsp clock enable */
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) & (~0x10)) , RK2818_SCU_BASE+0x1c);
+
             /* dsp core peripheral rest then not rest */
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) | 0x02000030) , RK2818_SCU_BASE+0x28);
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) & (~0x02000020)) , RK2818_SCU_BASE+0x28);
             mdelay(15);
+
             /* dsp work mode :slow mode*/
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x0c) & (~0x03)) , RK2818_SCU_BASE+0x0c);
             mdelay(15);
 
-			/* dsp set clk */
-			dsp_set_clk(arg);
-
             /* dsp subsys power on 0x21*/
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x10) & (~0x21)) , RK2818_SCU_BASE+0x10);
             mdelay(15);
+
             /* change dsp & arm to normal mode */
             __raw_writel(0x5, RK2818_SCU_BASE+0x0c);
         }
@@ -234,8 +245,7 @@ void dsp_powerctl(int ctl, int arg)
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x0c) & (~0x03)) , RK2818_SCU_BASE+0x0c);
             /* dsp core/peripheral rest*/
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x28) | 0x02000030) , RK2818_SCU_BASE+0x28);
-            /* dsp clock disable */
-            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) | (0x02)) , RK2818_SCU_BASE+0x1c);
+
             /* dsp ahb bus clock disable */
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x24) | (0x04)) , RK2818_SCU_BASE+0x24);
             /* sram arm clock disable */
@@ -243,9 +253,16 @@ void dsp_powerctl(int ctl, int arg)
             /* sram dsp clock disable */
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) | (0x10)) , RK2818_SCU_BASE+0x1c);
             udelay(10);
+
+#if USE_CLOCK_FUN
+			clk_disable(inf->clk);
+#else
+            /* dsp clock disable */
+            __raw_writel((__raw_readl(RK2818_SCU_BASE+0x1c) | (0x02)) , RK2818_SCU_BASE+0x1c);
             /* dsp pll disable */
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x04) | (0x01u<<22)) , RK2818_SCU_BASE+0x04);
             udelay(10);
+#endif
             /* dsp subsys power off 0x21*/
             __raw_writel((__raw_readl(RK2818_SCU_BASE+0x10) | (0x21)) , RK2818_SCU_BASE+0x10);
         }
@@ -290,9 +307,9 @@ static int _down_firmware(char *fwname, struct rk28dsp_inf *inf)
 
         __raw_writel((__raw_readl(RK2818_REGFILE_BASE + 0x10) | (0x6d8)), RK2818_REGFILE_BASE + 0x10);  // 0x6d8
         dsp_powerctl(DPC_NORMAL, inf->cur_freq);
-        dspprintk("\nrequest_firmware ... \n");
 
 		/* down dsp boot */
+		dspprintk("\nrequest_firmware ... \n");
 		ret = request_firmware(&fw, "DspBoot.rkl", &inf->dev);
 	    if (ret) {
 	    	printk(KERN_ERR "Failed to load boot image \"DspBoot.rkl\" err %d\n",ret);
@@ -418,11 +435,9 @@ void dsptimer_callback(unsigned long arg)
         break;
     case DS_SLOW:
         if(++sec_cnt>=5) {
-#if 0     	
             dsp_powerctl(DPC_SLEEP, 0);
             inf->dsp_status = DS_SLEEP;
             printk("dsp work mode : sleep mode \n");
-#endif            
         }
         break;
     case DS_SLEEP:
@@ -517,6 +532,7 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			inf->cur_req = req.reqno;
 			inf->cur_pid = current->tgid;
 			inf->cur_freq = req.freq;
+			if(inf->cur_freq<24 || inf->cur_freq>600)	inf->cur_freq = 500;
 			if(1==req.reqno)	strcpy(inf->req1fwname, req.fwname);
 		}
 		else if(1==inf->cur_req && !inf->req_waited && inf->cur_req!=req.reqno)
@@ -531,6 +547,7 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			inf->cur_req = req.reqno;
 			inf->cur_pid = current->tgid;
 			inf->cur_freq = req.freq;
+			if(inf->cur_freq<24 || inf->cur_freq>600)	inf->cur_freq = 500;
 		} else {
 		    ret = -EBUSY;
 		}
@@ -628,6 +645,7 @@ static long dsp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 		{
 			dsp_set_clk((int)arg);
 			inf->cur_freq = (int)arg;
+			if(inf->cur_freq<24 || inf->cur_freq>600)	inf->cur_freq = 500;
         }
         break;
 
