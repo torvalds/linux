@@ -62,6 +62,7 @@ struct rk2818bl_info{
     u32 pwm_id;
     u32 pw_pin;
     u32 bl_ref;
+    char *pw_iomux;
     struct timer_list timer;  
     struct notifier_block freq_transition;
 };
