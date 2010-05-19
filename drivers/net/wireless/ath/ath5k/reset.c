@@ -850,7 +850,6 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 			AR5K_PHY_NF_THRESH62,
 			ee->ee_thr_62[ee_mode]);
 
-
 	/* False detect backoff for channels
 	 * that have spur noise. Write the new
 	 * cyclic power RSSI threshold. */

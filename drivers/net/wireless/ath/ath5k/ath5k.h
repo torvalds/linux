@@ -1150,6 +1150,9 @@ struct ath5k_hw {
 int ath5k_hw_attach(struct ath5k_softc *sc);
 void ath5k_hw_detach(struct ath5k_hw *ah);
 
+int ath5k_sysfs_register(struct ath5k_softc *sc);
+void ath5k_sysfs_unregister(struct ath5k_softc *sc);
+
 /* LED functions */
 int ath5k_init_leds(struct ath5k_softc *sc);
 void ath5k_led_enable(struct ath5k_softc *sc);

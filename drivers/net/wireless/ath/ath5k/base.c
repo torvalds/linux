@@ -862,6 +862,8 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 
 	ath5k_init_leds(sc);
 
+	ath5k_sysfs_register(sc);
+
 	return 0;
 err_queues:
 	ath5k_txq_release(sc);
@@ -897,6 +899,7 @@ ath5k_detach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	ath5k_hw_release_tx_queue(sc->ah, sc->bhalq);
 	ath5k_unregister_leds(sc);
 
+	ath5k_sysfs_unregister(sc);
 	/*
 	 * NB: can't reclaim these until after ieee80211_ifdetach
 	 * returns because we'll get called back to reclaim node
