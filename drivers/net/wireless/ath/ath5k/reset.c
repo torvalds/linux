@@ -1087,22 +1087,17 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		/* Write OFDM timings on 5212*/
 		if (ah->ah_version == AR5K_AR5212 &&
 			channel->hw_value & CHANNEL_OFDM) {
-			struct ath5k_eeprom_info *ee =
-					&ah->ah_capabilities.cap_eeprom;
 
 			ret = ath5k_hw_write_ofdm_timings(ah, channel);
 			if (ret)
 				return ret;
 
-			/* Note: According to docs we can have a newer
-			 * EEPROM on old hardware, so we need to verify
-			 * that our hardware is new enough to have spur
-			 * mitigation registers (delta phase etc) */
-			if (ah->ah_mac_srev >= AR5K_SREV_AR5424 ||
-			(ah->ah_mac_srev >= AR5K_SREV_AR5424 &&
-			ee->ee_version >= AR5K_EEPROM_VERSION_5_3))
+			/* Spur info is available only from EEPROM versions
+			 * bigger than 5.3 but but the EEPOM routines will use
+			 * static values for older versions */
+			if (ah->ah_mac_srev >= AR5K_SREV_AR5424)
 				ath5k_hw_set_spur_mitigation_filter(ah,
-								channel);
+								    channel);
 		}
 
 		/*Enable/disable 802.11b mode on 5111
