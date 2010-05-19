@@ -766,7 +766,7 @@ static int build_input(struct hda_codec *codec)
 		for (n = 0; n < AUTO_PIN_LAST; n++) {
 			if (!spec->adc_nid[n])
 				continue;
-			err = snd_hda_add_nid(codec, kctl, 0, spec->adc_nid[i]);
+			err = snd_hda_add_nid(codec, kctl, 0, spec->adc_nid[n]);
 			if (err < 0)
 				return err;
 		}

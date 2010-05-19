@@ -162,12 +162,14 @@ radeon_connector_analog_encoder_conflict_solve(struct drm_connector *connector,
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_connector *conflict;
+	struct radeon_connector *radeon_conflict;
 	int i;
 
 	list_for_each_entry(conflict, &dev->mode_config.connector_list, head) {
 		if (conflict == connector)
 			continue;
 
+		radeon_conflict = to_radeon_connector(conflict);
 		for (i = 0; i < DRM_CONNECTOR_MAX_ENCODER; i++) {
 			if (conflict->encoder_ids[i] == 0)
 				break;
@@ -175,6 +177,9 @@ radeon_connector_analog_encoder_conflict_solve(struct drm_connector *connector,
 			/* if the IDs match */
 			if (conflict->encoder_ids[i] == encoder->base.id) {
 				if (conflict->status != connector_status_connected)
+					continue;
+
+				if (radeon_conflict->use_digital)
 					continue;
 
 				if (priority == true) {
@@ -287,6 +292,7 @@ int radeon_connector_set_property(struct drm_connector *connector, struct drm_pr
 
 	if (property == rdev->mode_info.coherent_mode_property) {
 		struct radeon_encoder_atom_dig *dig;
+		bool new_coherent_mode;
 
 		/* need to find digital encoder on connector */
 		encoder = radeon_find_encoder(connector, DRM_MODE_ENCODER_TMDS);
@@ -299,8 +305,11 @@ int radeon_connector_set_property(struct drm_connector *connector, struct drm_pr
 			return 0;
 
 		dig = radeon_encoder->enc_priv;
-		dig->coherent_mode = val ? true : false;
-		radeon_property_change_mode(&radeon_encoder->base);
+		new_coherent_mode = val ? true : false;
+		if (dig->coherent_mode != new_coherent_mode) {
+			dig->coherent_mode = new_coherent_mode;
+			radeon_property_change_mode(&radeon_encoder->base);
+		}
 	}
 
 	if (property == rdev->mode_info.tv_std_property) {
@@ -1307,6 +1316,8 @@ radeon_add_legacy_connector(struct drm_device *dev,
 			radeon_connector->ddc_bus = radeon_i2c_create(dev, i2c_bus, "DVI");
 			if (!radeon_connector->ddc_bus)
 				goto failed;
+		}
+		if (connector_type == DRM_MODE_CONNECTOR_DVII) {
 			radeon_connector->dac_load_detect = true;
 			drm_connector_attach_property(&radeon_connector->base,
 						      rdev->mode_info.load_detect_property,

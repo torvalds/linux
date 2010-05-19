@@ -324,13 +324,12 @@ void r300_gpu_init(struct radeon_device *rdev)
 	uint32_t gb_tile_config, tmp;
 
 	r100_hdp_reset(rdev);
-	/* FIXME: rv380 one pipes ? */
 	if ((rdev->family == CHIP_R300 && rdev->pdev->device != 0x4144) ||
-	    (rdev->family == CHIP_R350)) {
+	    (rdev->family == CHIP_R350 && rdev->pdev->device != 0x4148)) {
 		/* r300,r350 */
 		rdev->num_gb_pipes = 2;
 	} else {
-		/* rv350,rv370,rv380,r300 AD */
+		/* rv350,rv370,rv380,r300 AD, r350 AH */
 		rdev->num_gb_pipes = 1;
 	}
 	rdev->num_z_pipes = 1;
@@ -730,6 +729,12 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		/* VAP_VF_MAX_VTX_INDX */
 		track->max_indx = idx_value & 0x00FFFFFFUL;
 		break;
+	case 0x2088:
+		/* VAP_ALT_NUM_VERTICES - only valid on r500 */
+		if (p->rdev->family < CHIP_RV515)
+			goto fail;
+		track->vap_alt_nverts = idx_value & 0xFFFFFF;
+		break;
 	case 0x43E4:
 		/* SC_SCISSOR1 */
 		track->maxy = ((idx_value >> 13) & 0x1FFF) + 1;
@@ -767,7 +772,6 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		tmp = idx_value & ~(0x7 << 16);
 		tmp |= tile_flags;
 		ib[idx] = tmp;
-
 		i = (reg - 0x4E38) >> 2;
 		track->cb[i].pitch = idx_value & 0x3FFE;
 		switch (((idx_value >> 21) & 0xF)) {
@@ -1040,7 +1044,7 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 		break;
 	case 0x4d1c:
 		/* ZB_BW_CNTL */
-		track->fastfill = !!(idx_value & (1 << 2));
+		track->zb_cb_clear = !!(idx_value & (1 << 5));
 		break;
 	case 0x4e04:
 		/* RB3D_BLENDCNTL */
@@ -1052,11 +1056,13 @@ static int r300_packet0_check(struct radeon_cs_parser *p,
 			break;
 		/* fallthrough do not move */
 	default:
-		printk(KERN_ERR "Forbidden register 0x%04X in cs at %d\n",
-		       reg, idx);
-		return -EINVAL;
+		goto fail;
 	}
 	return 0;
+fail:
+	printk(KERN_ERR "Forbidden register 0x%04X in cs at %d\n",
+	       reg, idx);
+	return -EINVAL;
 }
 
 static int r300_packet3_check(struct radeon_cs_parser *p,

@@ -724,7 +724,7 @@ int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	int ret, tmp_width;
 	struct overlay_registers *regs;
 	bool scale_changed = false;
-	struct drm_i915_gem_object *bo_priv = new_bo->driver_private;
+	struct drm_i915_gem_object *bo_priv = to_intel_bo(new_bo);
 	struct drm_device *dev = overlay->dev;
 
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
@@ -809,7 +809,7 @@ int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	intel_overlay_continue(overlay, scale_changed);
 
 	overlay->old_vid_bo = overlay->vid_bo;
-	overlay->vid_bo = new_bo->driver_private;
+	overlay->vid_bo = to_intel_bo(new_bo);
 
 	return 0;
 
@@ -1344,7 +1344,7 @@ void intel_setup_overlay(struct drm_device *dev)
 	reg_bo = drm_gem_object_alloc(dev, PAGE_SIZE);
 	if (!reg_bo)
 		goto out_free;
-	overlay->reg_bo = reg_bo->driver_private;
+	overlay->reg_bo = to_intel_bo(reg_bo);
 
 	if (OVERLAY_NONPHYSICAL(dev)) {
 		ret = i915_gem_object_pin(reg_bo, PAGE_SIZE);

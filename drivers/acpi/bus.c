@@ -527,7 +527,7 @@ int acpi_bus_generate_proc_event4(const char *device_class, const char *bus_id, 
 	if (!event_is_open)
 		return 0;
 
-	event = kmalloc(sizeof(struct acpi_bus_event), GFP_ATOMIC);
+	event = kzalloc(sizeof(struct acpi_bus_event), GFP_ATOMIC);
 	if (!event)
 		return -ENOMEM;
 

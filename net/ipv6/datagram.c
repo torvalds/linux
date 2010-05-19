@@ -222,6 +222,8 @@ void ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 	if (!skb)
 		return;
 
+	skb->protocol = htons(ETH_P_IPV6);
+
 	serr = SKB_EXT_ERR(skb);
 	serr->ee.ee_errno = err;
 	serr->ee.ee_origin = SO_EE_ORIGIN_ICMP6;
@@ -254,6 +256,8 @@ void ipv6_local_error(struct sock *sk, int err, struct flowi *fl, u32 info)
 	skb = alloc_skb(sizeof(struct ipv6hdr), GFP_ATOMIC);
 	if (!skb)
 		return;
+
+	skb->protocol = htons(ETH_P_IPV6);
 
 	skb_put(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
@@ -319,7 +323,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 		sin->sin6_flowinfo = 0;
 		sin->sin6_port = serr->port;
 		sin->sin6_scope_id = 0;
-		if (serr->ee.ee_origin == SO_EE_ORIGIN_ICMP6) {
+		if (skb->protocol == htons(ETH_P_IPV6)) {
 			ipv6_addr_copy(&sin->sin6_addr,
 				  (struct in6_addr *)(nh + serr->addr_offset));
 			if (np->sndflow)
@@ -341,7 +345,7 @@ int ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len)
 		sin->sin6_family = AF_INET6;
 		sin->sin6_flowinfo = 0;
 		sin->sin6_scope_id = 0;
-		if (serr->ee.ee_origin == SO_EE_ORIGIN_ICMP6) {
+		if (skb->protocol == htons(ETH_P_IPV6)) {
 			ipv6_addr_copy(&sin->sin6_addr, &ipv6_hdr(skb)->saddr);
 			if (np->rxopt.all)
 				datagram_recv_ctl(sk, msg, skb);

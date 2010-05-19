@@ -349,6 +349,9 @@ int wm831x_auxadc_read(struct wm831x *wm831x, enum wm831x_auxadc input)
 		goto disable;
 	}
 
+	/* If an interrupt arrived late clean up after it */
+	try_wait_for_completion(&wm831x->auxadc_done);
+
 	/* Ignore the result to allow us to soldier on without IRQ hookup */
 	wait_for_completion_timeout(&wm831x->auxadc_done, msecs_to_jiffies(5));
 

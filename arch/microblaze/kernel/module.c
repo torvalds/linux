@@ -16,6 +16,7 @@
 #include <linux/string.h>
 
 #include <asm/pgtable.h>
+#include <asm/cacheflush.h>
 
 void *module_alloc(unsigned long size)
 {
@@ -151,6 +152,7 @@ int apply_relocate_add(Elf32_Shdr *sechdrs, const char *strtab,
 int module_finalize(const Elf32_Ehdr *hdr, const Elf_Shdr *sechdrs,
 		struct module *module)
 {
+	flush_dcache();
 	return 0;
 }
 

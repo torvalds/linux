@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/mempool.h>
 #include <linux/pagemap.h>
+#include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/writeback.h>
 #include <linux/slab.h>
@@ -715,8 +716,7 @@ extern int ceph_update_snap_trace(struct ceph_mds_client *m,
 extern void ceph_handle_snap(struct ceph_mds_client *mdsc,
 			     struct ceph_mds_session *session,
 			     struct ceph_msg *msg);
-extern void ceph_queue_cap_snap(struct ceph_inode_info *ci,
-				struct ceph_snap_context *snapc);
+extern void ceph_queue_cap_snap(struct ceph_inode_info *ci);
 extern int __ceph_finish_cap_snap(struct ceph_inode_info *ci,
 				  struct ceph_cap_snap *capsnap);
 extern void ceph_cleanup_empty_realms(struct ceph_mds_client *mdsc);

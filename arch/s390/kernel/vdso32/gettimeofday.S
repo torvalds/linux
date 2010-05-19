@@ -35,13 +35,13 @@ __kernel_gettimeofday:
 	sl	%r1,__VDSO_XTIME_STAMP+4(%r5)
 	brc	3,3f
 	ahi	%r0,-1
-3:	mhi	%r0,1000			/* cyc2ns(clock,cycle_delta) */
+3:	ms	%r0,__VDSO_NTP_MULT(%r5)	/* cyc2ns(clock,cycle_delta) */
 	st	%r0,24(%r15)
-	lhi	%r0,1000
+	l	%r0,__VDSO_NTP_MULT(%r5)
 	ltr	%r1,%r1
 	mr	%r0,%r0
 	jnm	4f
-	ahi	%r0,1000
+	a	%r0,__VDSO_NTP_MULT(%r5)
 4:	al	%r0,24(%r15)
 	srdl	%r0,12
 	al	%r0,__VDSO_XTIME_NSEC(%r5)	/*  + xtime */

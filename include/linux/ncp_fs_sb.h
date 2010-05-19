@@ -12,6 +12,7 @@
 #include <linux/ncp_mount.h>
 #include <linux/net.h>
 #include <linux/mutex.h>
+#include <linux/backing-dev.h>
 
 #ifdef __KERNEL__
 
@@ -127,6 +128,7 @@ struct ncp_server {
 		size_t len;
 		__u8 data[128];
 	} unexpected_packet;
+	struct backing_dev_info bdi;
 };
 
 extern void ncp_tcp_rcv_proc(struct work_struct *work);

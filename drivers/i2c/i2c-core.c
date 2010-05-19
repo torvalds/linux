@@ -40,12 +40,11 @@
 #include "i2c-core.h"
 
 
-/* core_lock protects i2c_adapter_idr, userspace_devices, and guarantees
+/* core_lock protects i2c_adapter_idr, and guarantees
    that device detection, deletion of detected devices, and attach_adapter
    and detach_adapter calls are serialized */
 static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
-static LIST_HEAD(userspace_devices);
 
 static struct device_type i2c_client_type;
 static int i2c_check_addr(struct i2c_adapter *adapter, int addr);
@@ -117,8 +116,10 @@ static int i2c_device_probe(struct device *dev)
 	dev_dbg(dev, "probe\n");
 
 	status = driver->probe(client, i2c_match_id(driver->id_table, client));
-	if (status)
+	if (status) {
 		client->driver = NULL;
+		i2c_set_clientdata(client, NULL);
+	}
 	return status;
 }
 
@@ -139,8 +140,10 @@ static int i2c_device_remove(struct device *dev)
 		dev->driver = NULL;
 		status = 0;
 	}
-	if (status == 0)
+	if (status == 0) {
 		client->driver = NULL;
+		i2c_set_clientdata(client, NULL);
+	}
 	return status;
 }
 
@@ -538,9 +541,9 @@ i2c_sysfs_new_device(struct device *dev, struct device_attribute *attr,
 		return -EEXIST;
 
 	/* Keep track of the added device */
-	mutex_lock(&core_lock);
-	list_add_tail(&client->detected, &userspace_devices);
-	mutex_unlock(&core_lock);
+	i2c_lock_adapter(adap);
+	list_add_tail(&client->detected, &adap->userspace_clients);
+	i2c_unlock_adapter(adap);
 	dev_info(dev, "%s: Instantiated device %s at 0x%02hx\n", "new_device",
 		 info.type, info.addr);
 
@@ -579,9 +582,10 @@ i2c_sysfs_delete_device(struct device *dev, struct device_attribute *attr,
 
 	/* Make sure the device was added through sysfs */
 	res = -ENOENT;
-	mutex_lock(&core_lock);
-	list_for_each_entry_safe(client, next, &userspace_devices, detected) {
-		if (client->addr == addr && client->adapter == adap) {
+	i2c_lock_adapter(adap);
+	list_for_each_entry_safe(client, next, &adap->userspace_clients,
+				 detected) {
+		if (client->addr == addr) {
 			dev_info(dev, "%s: Deleting device %s at 0x%02hx\n",
 				 "delete_device", client->name, client->addr);
 
@@ -591,7 +595,7 @@ i2c_sysfs_delete_device(struct device *dev, struct device_attribute *attr,
 			break;
 		}
 	}
-	mutex_unlock(&core_lock);
+	i2c_unlock_adapter(adap);
 
 	if (res < 0)
 		dev_err(dev, "%s: Can't find device in list\n",
@@ -673,6 +677,7 @@ static int i2c_register_adapter(struct i2c_adapter *adap)
 	}
 
 	rt_mutex_init(&adap->bus_lock);
+	INIT_LIST_HEAD(&adap->userspace_clients);
 
 	/* Set default timeout to 1 second if not already set */
 	if (adap->timeout == 0)
@@ -875,14 +880,15 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 		return res;
 
 	/* Remove devices instantiated from sysfs */
-	list_for_each_entry_safe(client, next, &userspace_devices, detected) {
-		if (client->adapter == adap) {
-			dev_dbg(&adap->dev, "Removing %s at 0x%x\n",
-				client->name, client->addr);
-			list_del(&client->detected);
-			i2c_unregister_device(client);
-		}
+	i2c_lock_adapter(adap);
+	list_for_each_entry_safe(client, next, &adap->userspace_clients,
+				 detected) {
+		dev_dbg(&adap->dev, "Removing %s at 0x%x\n", client->name,
+			client->addr);
+		list_del(&client->detected);
+		i2c_unregister_device(client);
 	}
+	i2c_unlock_adapter(adap);
 
 	/* Detach any active clients. This can't fail, thus we do not
 	   checking the returned value. */
@@ -1260,12 +1266,23 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 		return 0;
 
 	/* Make sure there is something at this address */
-	if (i2c_smbus_xfer(adapter, addr, 0, 0, 0, I2C_SMBUS_QUICK, NULL) < 0)
-		return 0;
+	if (addr == 0x73 && (adapter->class & I2C_CLASS_HWMON)) {
+		/* Special probe for FSC hwmon chips */
+		union i2c_smbus_data dummy;
 
-	/* Prevent 24RF08 corruption */
-	if ((addr & ~0x0f) == 0x50)
-		i2c_smbus_xfer(adapter, addr, 0, 0, 0, I2C_SMBUS_QUICK, NULL);
+		if (i2c_smbus_xfer(adapter, addr, 0, I2C_SMBUS_READ, 0,
+				   I2C_SMBUS_BYTE_DATA, &dummy) < 0)
+			return 0;
+	} else {
+		if (i2c_smbus_xfer(adapter, addr, 0, I2C_SMBUS_WRITE, 0,
+				   I2C_SMBUS_QUICK, NULL) < 0)
+			return 0;
+
+		/* Prevent 24RF08 corruption */
+		if ((addr & ~0x0f) == 0x50)
+			i2c_smbus_xfer(adapter, addr, 0, I2C_SMBUS_WRITE, 0,
+				       I2C_SMBUS_QUICK, NULL);
+	}
 
 	/* Finally call the custom detection function */
 	memset(&info, 0, sizeof(struct i2c_board_info));

@@ -356,9 +356,6 @@ static int hexium_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_d
 
 	DEB_EE((".\n"));
 
-	ret = saa7146_vv_devinit(dev);
-	if (ret)
-		return ret;
 	hexium = kzalloc(sizeof(struct hexium), GFP_KERNEL);
 	if (NULL == hexium) {
 		printk("hexium_gemini: not enough kernel memory in hexium_attach().\n");

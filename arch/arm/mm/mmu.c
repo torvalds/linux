@@ -1054,10 +1054,12 @@ void setup_mm_for_reboot(char mode)
 	pgd_t *pgd;
 	int i;
 
-	if (current->mm && current->mm->pgd)
-		pgd = current->mm->pgd;
-	else
-		pgd = init_mm.pgd;
+	/*
+	 * We need to access to user-mode page tables here. For kernel threads
+	 * we don't have any user-mode mappings so we use the context that we
+	 * "borrowed".
+	 */
+	pgd = current->active_mm->pgd;
 
 	base_pmdval = PMD_SECT_AP_WRITE | PMD_SECT_AP_READ | PMD_TYPE_SECT;
 	if (cpu_architecture() <= CPU_ARCH_ARMv5TEJ && !cpu_is_xscale())

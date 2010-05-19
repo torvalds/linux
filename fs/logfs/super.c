@@ -12,6 +12,7 @@
 #include "logfs.h"
 #include <linux/bio.h>
 #include <linux/slab.h>
+#include <linux/blkdev.h>
 #include <linux/mtd/mtd.h>
 #include <linux/statfs.h>
 #include <linux/buffer_head.h>
@@ -137,6 +138,10 @@ static int logfs_sb_set(struct super_block *sb, void *_super)
 	sb->s_fs_info = super;
 	sb->s_mtd = super->s_mtd;
 	sb->s_bdev = super->s_bdev;
+	if (sb->s_bdev)
+		sb->s_bdi = &bdev_get_queue(sb->s_bdev)->backing_dev_info;
+	if (sb->s_mtd)
+		sb->s_bdi = sb->s_mtd->backing_dev_info;
 	return 0;
 }
 
@@ -328,27 +333,27 @@ static int logfs_get_sb_final(struct super_block *sb, struct vfsmount *mnt)
 		goto fail;
 
 	sb->s_root = d_alloc_root(rootdir);
-	if (!sb->s_root)
-		goto fail2;
+	if (!sb->s_root) {
+		iput(rootdir);
+		goto fail;
+	}
 
 	super->s_erase_page = alloc_pages(GFP_KERNEL, 0);
 	if (!super->s_erase_page)
-		goto fail2;
+		goto fail;
 	memset(page_address(super->s_erase_page), 0xFF, PAGE_SIZE);
 
 	/* FIXME: check for read-only mounts */
 	err = logfs_make_writeable(sb);
 	if (err)
-		goto fail3;
+		goto fail1;
 
 	log_super("LogFS: Finished mounting\n");
 	simple_set_mnt(mnt, sb);
 	return 0;
 
-fail3:
+fail1:
 	__free_page(super->s_erase_page);
-fail2:
-	iput(rootdir);
 fail:
 	iput(logfs_super(sb)->s_master_inode);
 	return -EIO;
@@ -452,6 +457,8 @@ static int logfs_read_sb(struct super_block *sb, int read_only)
 
 	btree_init_mempool64(&super->s_shadow_tree.new, super->s_btree_pool);
 	btree_init_mempool64(&super->s_shadow_tree.old, super->s_btree_pool);
+	btree_init_mempool32(&super->s_shadow_tree.segment_map,
+			super->s_btree_pool);
 
 	ret = logfs_init_mapping(sb);
 	if (ret)
@@ -516,8 +523,8 @@ static void logfs_kill_sb(struct super_block *sb)
 	if (super->s_erase_page)
 		__free_page(super->s_erase_page);
 	super->s_devops->put_device(sb);
-	mempool_destroy(super->s_btree_pool);
-	mempool_destroy(super->s_alias_pool);
+	logfs_mempool_destroy(super->s_btree_pool);
+	logfs_mempool_destroy(super->s_alias_pool);
 	kfree(super);
 	log_super("LogFS: Finished unmounting\n");
 }

@@ -2891,7 +2891,7 @@ static int r100_cs_track_texture_check(struct radeon_device *rdev,
 {
 	struct radeon_bo *robj;
 	unsigned long size;
-	unsigned u, i, w, h;
+	unsigned u, i, w, h, d;
 	int ret;
 
 	for (u = 0; u < track->num_texture; u++) {
@@ -2923,20 +2923,25 @@ static int r100_cs_track_texture_check(struct radeon_device *rdev,
 			h = h / (1 << i);
 			if (track->textures[u].roundup_h)
 				h = roundup_pow_of_two(h);
+			if (track->textures[u].tex_coord_type == 1) {
+				d = (1 << track->textures[u].txdepth) / (1 << i);
+				if (!d)
+					d = 1;
+			} else {
+				d = 1;
+			}
 			if (track->textures[u].compress_format) {
 
-				size += r100_track_compress_size(track->textures[u].compress_format, w, h);
+				size += r100_track_compress_size(track->textures[u].compress_format, w, h) * d;
 				/* compressed textures are block based */
 			} else
-				size += w * h;
+				size += w * h * d;
 		}
 		size *= track->textures[u].cpp;
 
 		switch (track->textures[u].tex_coord_type) {
 		case 0:
-			break;
 		case 1:
-			size *= (1 << track->textures[u].txdepth);
 			break;
 		case 2:
 			if (track->separate_cube) {
@@ -2970,7 +2975,7 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 
 	for (i = 0; i < track->num_cb; i++) {
 		if (track->cb[i].robj == NULL) {
-			if (!(track->fastfill || track->color_channel_mask ||
+			if (!(track->zb_cb_clear || track->color_channel_mask ||
 			      track->blend_read_enable)) {
 				continue;
 			}
@@ -3007,7 +3012,11 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 		}
 	}
 	prim_walk = (track->vap_vf_cntl >> 4) & 0x3;
-	nverts = (track->vap_vf_cntl >> 16) & 0xFFFF;
+	if (track->vap_vf_cntl & (1 << 14)) {
+		nverts = track->vap_alt_nverts;
+	} else {
+		nverts = (track->vap_vf_cntl >> 16) & 0xFFFF;
+	}
 	switch (prim_walk) {
 	case 1:
 		for (i = 0; i < track->num_arrays; i++) {

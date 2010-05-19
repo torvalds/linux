@@ -9,6 +9,8 @@
 #include <asm/ptrace.h>
 #include <asm/user.h>
 
+struct task_struct;
+
 typedef unsigned long elf_greg_t;
 typedef unsigned long elf_freg_t[3];
 

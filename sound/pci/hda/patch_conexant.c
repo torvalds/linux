@@ -1195,10 +1195,12 @@ static int patch_cxt5045(struct hda_codec *codec)
 
 	switch (codec->subsystem_id >> 16) {
 	case 0x103c:
+	case 0x1631:
 	case 0x1734:
-		/* HP & Fujitsu-Siemens laptops have really bad sound over 0dB
-		 * on NID 0x17. Fix max PCM level to 0 dB
-		 * (originally it has 0x2b steps with 0dB offset 0x14)
+	case 0x17aa:
+		/* HP, Packard Bell, Fujitsu-Siemens & Lenovo laptops have
+		 * really bad sound over 0dB on NID 0x17. Fix max PCM level to
+		 * 0 dB (originally it has 0x2b steps with 0dB offset 0x14)
 		 */
 		snd_hda_override_amp_caps(codec, 0x17, HDA_INPUT,
 					  (0x14 << AC_AMPCAP_OFFSET_SHIFT) |
@@ -2842,6 +2844,10 @@ static struct snd_pci_quirk cxt5066_cfg_tbl[] = {
 		      CXT5066_DELL_LAPTOP),
 	SND_PCI_QUIRK(0x152d, 0x0833, "OLPC XO-1.5", CXT5066_OLPC_XO_1_5),
 	SND_PCI_QUIRK(0x1028, 0x0402, "Dell Vostro", CXT5066_DELL_VOSTO),
+	SND_PCI_QUIRK(0x1028, 0x0408, "Dell Inspiron One 19T", CXT5066_IDEAPAD),
+	SND_PCI_QUIRK(0x1179, 0xff50, "Toshiba Satellite P500-PSPGSC-01800T", CXT5066_OLPC_XO_1_5),
+	SND_PCI_QUIRK(0x1179, 0xffe0, "Toshiba Satellite Pro T130-15F", CXT5066_OLPC_XO_1_5),
+	SND_PCI_QUIRK(0x17aa, 0x21b2, "Thinkpad X100e", CXT5066_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x3a0d, "ideapad", CXT5066_IDEAPAD),
 	{}
 };

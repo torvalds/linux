@@ -71,7 +71,12 @@ static void imx_ssi_dma_callback(int channel, void *data)
 
 static void snd_imx_dma_err_callback(int channel, void *data, int err)
 {
-	pr_err("DMA error callback called\n");
+	struct snd_pcm_substream *substream = data;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct imx_pcm_dma_params *dma_params = rtd->dai->cpu_dai->dma_data;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
+	int ret;
 
 	pr_err("DMA timeout on channel %d -%s%s%s%s\n",
 		 channel,
@@ -79,6 +84,14 @@ static void snd_imx_dma_err_callback(int channel, void *data, int err)
 		 err & IMX_DMA_ERR_REQUEST ?  " request" : "",
 		 err & IMX_DMA_ERR_TRANSFER ? " transfer" : "",
 		 err & IMX_DMA_ERR_BUFFER ?   " buffer" : "");
+
+	imx_dma_disable(iprtd->dma);
+	ret = imx_dma_setup_sg(iprtd->dma, iprtd->sg_list, iprtd->sg_count,
+			IMX_DMA_LENGTH_LOOP, dma_params->dma_addr,
+			substream->stream == SNDRV_PCM_STREAM_PLAYBACK ?
+			DMA_MODE_WRITE : DMA_MODE_READ);
+	if (!ret)
+		imx_dma_enable(iprtd->dma);
 }
 
 static int imx_ssi_dma_alloc(struct snd_pcm_substream *substream)

@@ -44,8 +44,6 @@ static struct extent_io_ops btree_extent_io_ops;
 static void end_workqueue_fn(struct btrfs_work *work);
 static void free_fs_root(struct btrfs_root *root);
 
-static atomic_t btrfs_bdi_num = ATOMIC_INIT(0);
-
 /*
  * end_io_wq structs are used to do processing in task context when an IO is
  * complete.  This is used during reads to verify checksums, and it is used
@@ -1375,18 +1373,10 @@ static int setup_bdi(struct btrfs_fs_info *info, struct backing_dev_info *bdi)
 {
 	int err;
 
-	bdi->name = "btrfs";
 	bdi->capabilities = BDI_CAP_MAP_COPY;
-	err = bdi_init(bdi);
+	err = bdi_setup_and_register(bdi, "btrfs", BDI_CAP_MAP_COPY);
 	if (err)
 		return err;
-
-	err = bdi_register(bdi, NULL, "btrfs-%d",
-				atomic_inc_return(&btrfs_bdi_num));
-	if (err) {
-		bdi_destroy(bdi);
-		return err;
-	}
 
 	bdi->ra_pages	= default_backing_dev_info.ra_pages;
 	bdi->unplug_io_fn	= btrfs_unplug_io_fn;
