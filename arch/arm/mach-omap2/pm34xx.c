@@ -901,8 +901,9 @@ static void __init prcm_setup_regs(void)
 			  OMAP3430_EN_GPT1_MASK | OMAP3430_EN_GPT12_MASK,
 			  WKUP_MOD, PM_WKEN);
 	/* No need to write EN_IO, that is always enabled */
-	prm_write_mod_reg(OMAP3430_EN_GPIO1_MASK | OMAP3430_EN_GPT1_MASK |
-			  OMAP3430_EN_GPT12_MASK,
+	prm_write_mod_reg(OMAP3430_GRPSEL_GPIO1_MASK |
+			  OMAP3430_GRPSEL_GPT1_MASK |
+			  OMAP3430_GRPSEL_GPT12_MASK,
 			  WKUP_MOD, OMAP3430_PM_MPUGRPSEL);
 	/* For some reason IO doesn't generate wakeup event even if
 	 * it is selected to mpu wakeup goup */
@@ -921,11 +922,15 @@ static void __init prcm_setup_regs(void)
 			  OMAP3430_EN_MCBSP4_MASK,
 			  OMAP3430_PER_MOD, PM_WKEN);
 	/* and allow them to wake up MPU */
-	prm_write_mod_reg(OMAP3430_GRPSEL_GPIO2_MASK | OMAP3430_EN_GPIO3_MASK |
-			  OMAP3430_GRPSEL_GPIO4_MASK | OMAP3430_EN_GPIO5_MASK |
-			  OMAP3430_GRPSEL_GPIO6_MASK | OMAP3430_EN_UART3_MASK |
-			  OMAP3430_EN_MCBSP2_MASK | OMAP3430_EN_MCBSP3_MASK |
-			  OMAP3430_EN_MCBSP4_MASK,
+	prm_write_mod_reg(OMAP3430_GRPSEL_GPIO2_MASK |
+			  OMAP3430_GRPSEL_GPIO3_MASK |
+			  OMAP3430_GRPSEL_GPIO4_MASK |
+			  OMAP3430_GRPSEL_GPIO5_MASK |
+			  OMAP3430_GRPSEL_GPIO6_MASK |
+			  OMAP3430_GRPSEL_UART3_MASK |
+			  OMAP3430_GRPSEL_MCBSP2_MASK |
+			  OMAP3430_GRPSEL_MCBSP3_MASK |
+			  OMAP3430_GRPSEL_MCBSP4_MASK,
 			  OMAP3430_PER_MOD, OMAP3430_PM_MPUGRPSEL);
 
 	/* Don't attach IVA interrupts */
