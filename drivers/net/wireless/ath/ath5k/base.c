@@ -579,7 +579,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	spin_lock_init(&sc->block);
 
 	/* Set private data */
-	pci_set_drvdata(pdev, hw);
+	pci_set_drvdata(pdev, sc);
 
 	/* Setup interrupt handler */
 	ret = request_irq(pdev->irq, ath5k_intr, IRQF_SHARED, "ath", sc);
@@ -695,25 +695,23 @@ err:
 static void __devexit
 ath5k_pci_remove(struct pci_dev *pdev)
 {
-	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
-	struct ath5k_softc *sc = hw->priv;
+	struct ath5k_softc *sc = pci_get_drvdata(pdev);
 
 	ath5k_debug_finish_device(sc);
-	ath5k_detach(pdev, hw);
+	ath5k_detach(pdev, sc->hw);
 	ath5k_hw_detach(sc->ah);
 	kfree(sc->ah);
 	free_irq(pdev->irq, sc);
 	pci_iounmap(pdev, sc->iobase);
 	pci_release_region(pdev, 0);
 	pci_disable_device(pdev);
-	ieee80211_free_hw(hw);
+	ieee80211_free_hw(sc->hw);
 }
 
 #ifdef CONFIG_PM
 static int ath5k_pci_suspend(struct device *dev)
 {
-	struct ieee80211_hw *hw = pci_get_drvdata(to_pci_dev(dev));
-	struct ath5k_softc *sc = hw->priv;
+	struct ath5k_softc *sc = pci_get_drvdata(to_pci_dev(dev));
 
 	ath5k_led_off(sc);
 	return 0;
@@ -722,8 +720,7 @@ static int ath5k_pci_suspend(struct device *dev)
 static int ath5k_pci_resume(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
-	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
-	struct ath5k_softc *sc = hw->priv;
+	struct ath5k_softc *sc = pci_get_drvdata(pdev);
 
 	/*
 	 * Suspend/Resume resets the PCI configuration space, so we have to
