@@ -1046,7 +1046,7 @@ magic_found:
 	sb->s_op = &ufs_super_ops;
 	sb->s_export_op = &ufs_export_ops;
 #ifdef CONFIG_QUOTA
-	sb->s_qcop = &vfs_quotactl_ops;
+	sb->s_qcop = &dquot_quotactl_ops;
 	sb->dq_op = NULL; /* &dquot_operations */
 #endif
 

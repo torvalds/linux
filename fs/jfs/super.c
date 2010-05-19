@@ -483,7 +483,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_export_op = &jfs_export_operations;
 #ifdef CONFIG_QUOTA
 	sb->dq_op = &dquot_operations;
-	sb->s_qcop = &vfs_quotactl_ops;
+	sb->s_qcop = &dquot_quotactl_ops;
 #endif
 
 	/*

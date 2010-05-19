@@ -66,21 +66,21 @@ int dquot_mark_dquot_dirty(struct dquot *dquot);
 
 int dquot_file_open(struct inode *inode, struct file *file);
 
-int vfs_quota_on(struct super_block *sb, int type, int format_id,
+int dquot_quota_on(struct super_block *sb, int type, int format_id,
 	char *path);
-int vfs_quota_enable(struct inode *inode, int type, int format_id,
+int dquot_enable(struct inode *inode, int type, int format_id,
 	unsigned int flags);
-int vfs_quota_on_path(struct super_block *sb, int type, int format_id,
+int dquot_quota_on_path(struct super_block *sb, int type, int format_id,
  	struct path *path);
-int vfs_quota_on_mount(struct super_block *sb, char *qf_name,
+int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
  	int format_id, int type);
-int vfs_quota_off(struct super_block *sb, int type);
-int vfs_quota_sync(struct super_block *sb, int type, int wait);
-int vfs_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
-int vfs_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
-int vfs_get_dqblk(struct super_block *sb, int type, qid_t id,
+int dquot_quota_off(struct super_block *sb, int type);
+int dquot_quota_sync(struct super_block *sb, int type, int wait);
+int dquot_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
+int dquot_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
+int dquot_get_dqblk(struct super_block *sb, int type, qid_t id,
 		struct fs_disk_quota *di);
-int vfs_set_dqblk(struct super_block *sb, int type, qid_t id,
+int dquot_set_dqblk(struct super_block *sb, int type, qid_t id,
 		struct fs_disk_quota *di);
 
 int __dquot_transfer(struct inode *inode, struct dquot **transfer_to);
@@ -151,7 +151,7 @@ static inline unsigned sb_any_quota_active(struct super_block *sb)
  * Operations supported for diskquotas.
  */
 extern const struct dquot_operations dquot_operations;
-extern const struct quotactl_ops vfs_quotactl_ops;
+extern const struct quotactl_ops dquot_quotactl_ops;
 
 #else
 

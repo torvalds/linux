@@ -1068,7 +1068,7 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 
 #ifdef CONFIG_QUOTA
 	sb->dq_op = &dquot_operations;
-	sb->s_qcop = &vfs_quotactl_ops;
+	sb->s_qcop = &dquot_quotactl_ops;
 #endif
 
 	root = ext2_iget(sb, EXT2_ROOT_INO);

@@ -305,7 +305,7 @@ static int finish_unfinished(struct super_block *s)
 	/* Turn quotas off */
 	for (i = 0; i < MAXQUOTAS; i++) {
 		if (sb_dqopt(s)->files[i])
-			vfs_quota_off(s, i);
+			dquot_quota_off(s, i);
 	}
 	if (ms_active_set)
 		/* Restore the flag back */
@@ -636,12 +636,12 @@ static const struct dquot_operations reiserfs_quota_operations = {
 
 static const struct quotactl_ops reiserfs_qctl_operations = {
 	.quota_on = reiserfs_quota_on,
-	.quota_off = vfs_quota_off,
-	.quota_sync = vfs_quota_sync,
-	.get_info = vfs_get_dqinfo,
-	.set_info = vfs_set_dqinfo,
-	.get_dqblk = vfs_get_dqblk,
-	.set_dqblk = vfs_set_dqblk,
+	.quota_off = dquot_quota_off,
+	.quota_sync = dquot_quota_sync,
+	.get_info = dquot_get_dqinfo,
+	.set_info = dquot_set_dqinfo,
+	.get_dqblk = dquot_get_dqblk,
+	.set_dqblk = dquot_set_dqblk,
 };
 #endif
 
@@ -2030,8 +2030,8 @@ static int reiserfs_write_info(struct super_block *sb, int type)
  */
 static int reiserfs_quota_on_mount(struct super_block *sb, int type)
 {
-	return vfs_quota_on_mount(sb, REISERFS_SB(sb)->s_qf_names[type],
-				  REISERFS_SB(sb)->s_jquota_fmt, type);
+	return dquot_quota_on_mount(sb, REISERFS_SB(sb)->s_qf_names[type],
+					REISERFS_SB(sb)->s_jquota_fmt, type);
 }
 
 /*
@@ -2091,7 +2091,7 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 		if (err)
 			goto out;
 	}
-	err = vfs_quota_on_path(sb, type, format_id, &path);
+	err = dquot_quota_on_path(sb, type, format_id, &path);
 out:
 	path_put(&path);
 	return err;

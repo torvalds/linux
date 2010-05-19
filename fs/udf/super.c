@@ -1949,7 +1949,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	sb->s_op = &udf_sb_ops;
 	sb->s_export_op = &udf_export_ops;
 #ifdef CONFIG_QUOTA
-	sb->s_qcop = &vfs_quotactl_ops;
+	sb->s_qcop = &dquot_quotactl_ops;
 	sb->dq_op = NULL; /* &dquot_operations */
 #endif
 

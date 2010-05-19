@@ -584,7 +584,7 @@ out:
 }
 EXPORT_SYMBOL(dquot_scan_active);
 
-int vfs_quota_sync(struct super_block *sb, int type, int wait)
+int dquot_quota_sync(struct super_block *sb, int type, int wait)
 {
 	struct list_head *dirty;
 	struct dquot *dquot;
@@ -656,7 +656,7 @@ int vfs_quota_sync(struct super_block *sb, int type, int wait)
 
 	return 0;
 }
-EXPORT_SYMBOL(vfs_quota_sync);
+EXPORT_SYMBOL(dquot_quota_sync);
 
 /* Free unused dquots from cache */
 static void prune_dqcache(int count)
@@ -1998,12 +1998,12 @@ put_inodes:
 }
 EXPORT_SYMBOL(dquot_disable);
 
-int vfs_quota_off(struct super_block *sb, int type)
+int dquot_quota_off(struct super_block *sb, int type)
 {
 	return dquot_disable(sb, type,
 			     DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
 }
-EXPORT_SYMBOL(vfs_quota_off);
+EXPORT_SYMBOL(dquot_quota_off);
 
 /*
  *	Turn quotas on on a device
@@ -2158,7 +2158,7 @@ int dquot_resume(struct super_block *sb, int type)
 }
 EXPORT_SYMBOL(dquot_resume);
 
-int vfs_quota_on_path(struct super_block *sb, int type, int format_id,
+int dquot_quota_on_path(struct super_block *sb, int type, int format_id,
 		      struct path *path)
 {
 	int error = security_quota_on(path->dentry);
@@ -2173,28 +2173,28 @@ int vfs_quota_on_path(struct super_block *sb, int type, int format_id,
 					     DQUOT_LIMITS_ENABLED);
 	return error;
 }
-EXPORT_SYMBOL(vfs_quota_on_path);
+EXPORT_SYMBOL(dquot_quota_on_path);
 
-int vfs_quota_on(struct super_block *sb, int type, int format_id, char *name)
+int dquot_quota_on(struct super_block *sb, int type, int format_id, char *name)
 {
 	struct path path;
 	int error;
 
 	error = kern_path(name, LOOKUP_FOLLOW, &path);
 	if (!error) {
-		error = vfs_quota_on_path(sb, type, format_id, &path);
+		error = dquot_quota_on_path(sb, type, format_id, &path);
 		path_put(&path);
 	}
 	return error;
 }
-EXPORT_SYMBOL(vfs_quota_on);
+EXPORT_SYMBOL(dquot_quota_on);
 
 /*
  * More powerful function for turning on quotas allowing setting
  * of individual quota flags
  */
-int vfs_quota_enable(struct inode *inode, int type, int format_id,
-		unsigned int flags)
+int dquot_enable(struct inode *inode, int type, int format_id,
+		 unsigned int flags)
 {
 	int ret = 0;
 	struct super_block *sb = inode->i_sb;
@@ -2234,13 +2234,13 @@ out_lock:
 load_quota:
 	return vfs_load_quota_inode(inode, type, format_id, flags);
 }
-EXPORT_SYMBOL(vfs_quota_enable);
+EXPORT_SYMBOL(dquot_enable);
 
 /*
  * This function is used when filesystem needs to initialize quotas
  * during mount time.
  */
-int vfs_quota_on_mount(struct super_block *sb, char *qf_name,
+int dquot_quota_on_mount(struct super_block *sb, char *qf_name,
 		int format_id, int type)
 {
 	struct dentry *dentry;
@@ -2266,7 +2266,7 @@ out:
 	dput(dentry);
 	return error;
 }
-EXPORT_SYMBOL(vfs_quota_on_mount);
+EXPORT_SYMBOL(dquot_quota_on_mount);
 
 static inline qsize_t qbtos(qsize_t blocks)
 {
@@ -2301,8 +2301,8 @@ static void do_get_dqblk(struct dquot *dquot, struct fs_disk_quota *di)
 	spin_unlock(&dq_data_lock);
 }
 
-int vfs_get_dqblk(struct super_block *sb, int type, qid_t id,
-		  struct fs_disk_quota *di)
+int dquot_get_dqblk(struct super_block *sb, int type, qid_t id,
+		    struct fs_disk_quota *di)
 {
 	struct dquot *dquot;
 
@@ -2314,7 +2314,7 @@ int vfs_get_dqblk(struct super_block *sb, int type, qid_t id,
 
 	return 0;
 }
-EXPORT_SYMBOL(vfs_get_dqblk);
+EXPORT_SYMBOL(dquot_get_dqblk);
 
 #define VFS_FS_DQ_MASK \
 	(FS_DQ_BCOUNT | FS_DQ_BSOFT | FS_DQ_BHARD | \
@@ -2413,7 +2413,7 @@ static int do_set_dqblk(struct dquot *dquot, struct fs_disk_quota *di)
 	return 0;
 }
 
-int vfs_set_dqblk(struct super_block *sb, int type, qid_t id,
+int dquot_set_dqblk(struct super_block *sb, int type, qid_t id,
 		  struct fs_disk_quota *di)
 {
 	struct dquot *dquot;
@@ -2429,10 +2429,10 @@ int vfs_set_dqblk(struct super_block *sb, int type, qid_t id,
 out:
 	return rc;
 }
-EXPORT_SYMBOL(vfs_set_dqblk);
+EXPORT_SYMBOL(dquot_set_dqblk);
 
 /* Generic routine for getting common part of quota file information */
-int vfs_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii)
+int dquot_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii)
 {
 	struct mem_dqinfo *mi;
   
@@ -2451,10 +2451,10 @@ int vfs_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii)
 	mutex_unlock(&sb_dqopt(sb)->dqonoff_mutex);
 	return 0;
 }
-EXPORT_SYMBOL(vfs_get_dqinfo);
+EXPORT_SYMBOL(dquot_get_dqinfo);
 
 /* Generic routine for setting common part of quota file information */
-int vfs_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii)
+int dquot_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii)
 {
 	struct mem_dqinfo *mi;
 	int err = 0;
@@ -2481,18 +2481,18 @@ out:
 	mutex_unlock(&sb_dqopt(sb)->dqonoff_mutex);
 	return err;
 }
-EXPORT_SYMBOL(vfs_set_dqinfo);
+EXPORT_SYMBOL(dquot_set_dqinfo);
 
-const struct quotactl_ops vfs_quotactl_ops = {
-	.quota_on	= vfs_quota_on,
-	.quota_off	= vfs_quota_off,
-	.quota_sync	= vfs_quota_sync,
-	.get_info	= vfs_get_dqinfo,
-	.set_info	= vfs_set_dqinfo,
-	.get_dqblk	= vfs_get_dqblk,
-	.set_dqblk	= vfs_set_dqblk
+const struct quotactl_ops dquot_quotactl_ops = {
+	.quota_on	= dquot_quota_on,
+	.quota_off	= dquot_quota_off,
+	.quota_sync	= dquot_quota_sync,
+	.get_info	= dquot_get_dqinfo,
+	.set_info	= dquot_set_dqinfo,
+	.get_dqblk	= dquot_get_dqblk,
+	.set_dqblk	= dquot_set_dqblk
 };
-EXPORT_SYMBOL(vfs_quotactl_ops);
+EXPORT_SYMBOL(dquot_quotactl_ops);
 
 static int do_proc_dqstats(struct ctl_table *table, int write,
 		     void __user *buffer, size_t *lenp, loff_t *ppos)

@@ -918,8 +918,8 @@ static int ocfs2_enable_quotas(struct ocfs2_super *osb)
 			status = -ENOENT;
 			goto out_quota_off;
 		}
-		status = vfs_quota_enable(inode[type], type, QFMT_OCFS2,
-						DQUOT_USAGE_ENABLED);
+		status = dquot_enable(inode[type], type, QFMT_OCFS2,
+				      DQUOT_USAGE_ENABLED);
 		if (status < 0)
 			goto out_quota_off;
 	}
@@ -972,8 +972,8 @@ static int ocfs2_quota_on(struct super_block *sb, int type, int format_id,
 	if (!OCFS2_HAS_RO_COMPAT_FEATURE(sb, feature[type]))
 		return -EINVAL;
 
-	return vfs_quota_enable(sb_dqopt(sb)->files[type], type,
-				    format_id, DQUOT_LIMITS_ENABLED);
+	return dquot_enable(sb_dqopt(sb)->files[type], type,
+			    format_id, DQUOT_LIMITS_ENABLED);
 }
 
 /* Handle quota off quotactl */
@@ -985,11 +985,11 @@ static int ocfs2_quota_off(struct super_block *sb, int type)
 static const struct quotactl_ops ocfs2_quotactl_ops = {
 	.quota_on	= ocfs2_quota_on,
 	.quota_off	= ocfs2_quota_off,
-	.quota_sync	= vfs_quota_sync,
-	.get_info	= vfs_get_dqinfo,
-	.set_info	= vfs_set_dqinfo,
-	.get_dqblk	= vfs_get_dqblk,
-	.set_dqblk	= vfs_set_dqblk,
+	.quota_sync	= dquot_quota_sync,
+	.get_info	= dquot_get_dqinfo,
+	.set_info	= dquot_set_dqinfo,
+	.get_dqblk	= dquot_get_dqblk,
+	.set_dqblk	= dquot_set_dqblk,
 };
 
 static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
