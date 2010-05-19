@@ -1242,6 +1242,13 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 		if (s->s_flags & MS_RDONLY)
 			/* it is read-only already */
 			goto out_ok;
+
+		err = vfs_dq_off(s, 1);
+		if (err < 0 && err != -ENOSYS) {
+			err = -EBUSY;
+			goto out_err;
+		}
+
 		/* try to remount file system with read-only permissions */
 		if (sb_umount_state(rs) == REISERFS_VALID_FS
 		    || REISERFS_SB(s)->s_mount_state != REISERFS_VALID_FS) {
@@ -1295,6 +1302,7 @@ static int reiserfs_remount(struct super_block *s, int *mount_flags, char *arg)
 	s->s_dirt = 0;
 
 	if (!(*mount_flags & MS_RDONLY)) {
+		vfs_dq_quota_on_remount(s);
 		finish_unfinished(s);
 		reiserfs_xattr_init(s, *mount_flags);
 	}

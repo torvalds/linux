@@ -54,6 +54,7 @@
 #include <linux/vmalloc.h>
 #include <linux/errno.h>
 #include <linux/mount.h>
+#include <linux/quotaops.h>
 #include <linux/seq_file.h>
 #include <linux/bitmap.h>
 #include <linux/crc-itu-t.h>
@@ -557,6 +558,7 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 {
 	struct udf_options uopt;
 	struct udf_sb_info *sbi = UDF_SB(sb);
+	int error = 0;
 
 	uopt.flags = sbi->s_flags;
 	uopt.uid   = sbi->s_uid;
@@ -582,17 +584,26 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 			*flags |= MS_RDONLY;
 	}
 
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
-		unlock_kernel();
-		return 0;
-	}
-	if (*flags & MS_RDONLY)
+	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
+		goto out_unlock;
+
+	if (*flags & MS_RDONLY) {
 		udf_close_lvid(sb);
-	else
+
+		error = vfs_dq_off(sb, 1);
+		if (error < 0 && error != -ENOSYS)
+			error = -EBUSY;
+	} else {
 		udf_open_lvid(sb);
 
+		/* mark the fs r/w for quota activity */
+		sb->s_flags &= ~MS_RDONLY;
+		vfs_dq_quota_on_remount(sb);
+	}
+
+out_unlock:
 	unlock_kernel();
-	return 0;
+	return error;
 }
 
 /* Check Volume Structure Descriptors (ECMA 167 2/9.1) */

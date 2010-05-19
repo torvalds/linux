@@ -1241,6 +1241,7 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 			spin_unlock(&sbi->s_lock);
 			return 0;
 		}
+
 		/*
 		 * OK, we are remounting a valid rw partition rdonly, so set
 		 * the rdonly flag and then mark the partition as valid again.
@@ -1248,6 +1249,14 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 		es->s_state = cpu_to_le16(sbi->s_mount_state);
 		es->s_mtime = cpu_to_le32(get_seconds());
 		spin_unlock(&sbi->s_lock);
+
+		err = vfs_dq_off(sb, 1);
+		if (err < 0 && err != -ENOSYS) {
+			err = -EBUSY;
+			spin_lock(&sbi->s_lock);
+			goto restore_opts;
+		}
+
 		ext2_sync_super(sb, es, 1);
 	} else {
 		__le32 ret = EXT2_HAS_RO_COMPAT_FEATURE(sb,
@@ -1269,8 +1278,12 @@ static int ext2_remount (struct super_block * sb, int * flags, char * data)
 		if (!ext2_setup_super (sb, es, 0))
 			sb->s_flags &= ~MS_RDONLY;
 		spin_unlock(&sbi->s_lock);
+
 		ext2_write_super(sb);
+
+		vfs_dq_quota_on_remount(sb);
 	}
+
 	return 0;
 restore_opts:
 	sbi->s_mount_opt = old_opts.s_mount_opt;

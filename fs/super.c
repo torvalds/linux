@@ -524,7 +524,7 @@ rescan:
 int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 {
 	int retval;
-	int remount_rw, remount_ro;
+	int remount_ro;
 
 	if (sb->s_frozen != SB_UNFROZEN)
 		return -EBUSY;
@@ -540,7 +540,6 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	sync_filesystem(sb);
 
 	remount_ro = (flags & MS_RDONLY) && !(sb->s_flags & MS_RDONLY);
-	remount_rw = !(flags & MS_RDONLY) && (sb->s_flags & MS_RDONLY);
 
 	/* If we are remounting RDONLY and current sb is read/write,
 	   make sure there are no rw files opened */
@@ -548,9 +547,6 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 		if (force)
 			mark_files_ro(sb);
 		else if (!fs_may_remount_ro(sb))
-			return -EBUSY;
-		retval = vfs_dq_off(sb, 1);
-		if (retval < 0 && retval != -ENOSYS)
 			return -EBUSY;
 	}
 
@@ -560,8 +556,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 			return retval;
 	}
 	sb->s_flags = (sb->s_flags & ~MS_RMT_MASK) | (flags & MS_RMT_MASK);
-	if (remount_rw)
-		vfs_dq_quota_on_remount(sb);
+
 	/*
 	 * Some filesystems modify their metadata via some other path than the
 	 * bdev buffer cache (eg. use a private mapping, or directories in

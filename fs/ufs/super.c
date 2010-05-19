@@ -1248,7 +1248,9 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	struct ufs_super_block_first * usb1;
 	struct ufs_super_block_third * usb3;
 	unsigned new_mount_opt, ufstype;
+	int enable_quota = 0;
 	unsigned flags;
+	int err;
 
 	lock_kernel();
 	lock_super(sb);
@@ -1289,6 +1291,13 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 	 * fs was mouted as rw, remounting ro
 	 */
 	if (*mount_flags & MS_RDONLY) {
+		err = vfs_dq_off(sb, 1);
+		if (err < 0 && err != -ENOSYS) {
+			unlock_super(sb);
+			unlock_kernel();
+			return -EBUSY;
+		}
+
 		ufs_put_super_internal(sb);
 		usb1->fs_time = cpu_to_fs32(sb, get_seconds());
 		if ((flags & UFS_ST_MASK) == UFS_ST_SUN
@@ -1327,11 +1336,14 @@ static int ufs_remount (struct super_block *sb, int *mount_flags, char *data)
 			return -EPERM;
 		}
 		sb->s_flags &= ~MS_RDONLY;
+		enable_quota = 1;
 #endif
 	}
 	UFS_SB(sb)->s_mount_opt = new_mount_opt;
 	unlock_super(sb);
 	unlock_kernel();
+	if (enable_quota)
+		vfs_dq_quota_on_remount(sb);
 	return 0;
 }
 
