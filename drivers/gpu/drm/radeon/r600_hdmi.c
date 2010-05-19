@@ -539,7 +539,7 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	uint8_t offset;
+	uint32_t offset;
 
 	if (ASIC_IS_DCE4(rdev))
 		return;
