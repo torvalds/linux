@@ -155,7 +155,6 @@ config DEBUG_SHIRQ
 config LOCKUP_DETECTOR
 	bool "Detect Hard and Soft Lockups"
 	depends on DEBUG_KERNEL && !S390
-	default y
 	help
 	  Say Y here to enable the kernel to act as a watchdog to detect
 	  hard and soft lockups.
