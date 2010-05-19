@@ -1645,7 +1645,9 @@ the amount of locking which needs to be done.
       all the readers who were traversing the list when we deleted the
       element are finished.  We use <function>call_rcu()</function> to
       register a callback which will actually destroy the object once
-      the readers are finished.
+      all pre-existing readers are finished.  Alternatively,
+      <function>synchronize_rcu()</function> may be used to block until
+      all pre-existing are finished.
     </para>
     <para>
       But how does Read Copy Update know when the readers are
@@ -1714,7 +1716,7 @@ the amount of locking which needs to be done.
 -        object_put(obj);
 +        list_del_rcu(&amp;obj-&gt;list);
          cache_num--;
-+        call_rcu(&amp;obj-&gt;rcu, cache_delete_rcu, obj);
++        call_rcu(&amp;obj-&gt;rcu, cache_delete_rcu);
  }
 
  /* Must be holding cache_lock */
