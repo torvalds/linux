@@ -261,6 +261,7 @@ struct radeon_bo_list {
 	unsigned		rdomain;
 	unsigned		wdomain;
 	u32			tiling_flags;
+	bool			reserved;
 };
 
 /*

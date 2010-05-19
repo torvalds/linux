@@ -301,6 +301,7 @@ int radeon_bo_list_reserve(struct list_head *head)
 		r = radeon_bo_reserve(lobj->bo, false);
 		if (unlikely(r != 0))
 			return r;
+		lobj->reserved = true;
 	}
 	return 0;
 }
@@ -311,7 +312,7 @@ void radeon_bo_list_unreserve(struct list_head *head)
 
 	list_for_each_entry(lobj, head, list) {
 		/* only unreserve object we successfully reserved */
-		if (radeon_bo_is_reserved(lobj->bo))
+		if (lobj->reserved && radeon_bo_is_reserved(lobj->bo))
 			radeon_bo_unreserve(lobj->bo);
 	}
 }
@@ -322,6 +323,9 @@ int radeon_bo_list_validate(struct list_head *head)
 	struct radeon_bo *bo;
 	int r;
 
+	list_for_each_entry(lobj, head, list) {
+		lobj->reserved = false;
+	}
 	r = radeon_bo_list_reserve(head);
 	if (unlikely(r != 0)) {
 		return r;
