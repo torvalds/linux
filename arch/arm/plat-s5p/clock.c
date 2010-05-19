@@ -74,6 +74,13 @@ struct clk clk_fout_epll = {
 	.ctrlbit	= (1 << 31),
 };
 
+/* VPLL clock output */
+struct clk clk_fout_vpll = {
+	.name		= "fout_vpll",
+	.id		= -1,
+	.ctrlbit	= (1 << 31),
+};
+
 /* ARM clock */
 struct clk clk_arm = {
 	.name		= "armclk",
@@ -138,6 +145,7 @@ static struct clk *s5p_clks[] __initdata = {
 	&clk_fout_apll,
 	&clk_fout_mpll,
 	&clk_fout_epll,
+	&clk_fout_vpll,
 	&clk_arm,
 	&clk_vpll,
 };
