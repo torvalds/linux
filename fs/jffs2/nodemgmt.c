@@ -229,7 +229,7 @@ static int jffs2_find_nextblock(struct jffs2_sb_info *c)
 			ejeb = list_entry(c->erasable_list.next, struct jffs2_eraseblock, list);
 			list_move_tail(&ejeb->list, &c->erase_pending_list);
 			c->nr_erasing_blocks++;
-			jffs2_erase_pending_trigger(c);
+			jffs2_garbage_collect_trigger(c);
 			D1(printk(KERN_DEBUG "jffs2_find_nextblock: Triggering erase of erasable block at 0x%08x\n",
 				  ejeb->offset));
 		}
@@ -625,7 +625,7 @@ void jffs2_mark_node_obsolete(struct jffs2_sb_info *c, struct jffs2_raw_node_ref
 				D1(printk(KERN_DEBUG "...and adding to erase_pending_list\n"));
 				list_add_tail(&jeb->list, &c->erase_pending_list);
 				c->nr_erasing_blocks++;
-				jffs2_erase_pending_trigger(c);
+				jffs2_garbage_collect_trigger(c);
 			} else {
 				/* Sometimes, however, we leave it elsewhere so it doesn't get
 				   immediately reused, and we spread the load a bit. */

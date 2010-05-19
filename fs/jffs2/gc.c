@@ -448,7 +448,7 @@ int jffs2_garbage_collect_pass(struct jffs2_sb_info *c)
 		list_add_tail(&c->gcblock->list, &c->erase_pending_list);
 		c->gcblock = NULL;
 		c->nr_erasing_blocks++;
-		jffs2_erase_pending_trigger(c);
+		jffs2_garbage_collect_trigger(c);
 	}
 	spin_unlock(&c->erase_completion_lock);
 
