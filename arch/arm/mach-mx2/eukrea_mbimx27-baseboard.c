@@ -127,7 +127,7 @@ static struct platform_device leds_gpio = {
 static struct imx_fb_videomode eukrea_mbimx27_modes[] = {
 	{
 		.mode = {
-			.name		= "CMO-QGVA",
+			.name		= "CMO-QVGA",
 			.refresh	= 60,
 			.xres		= 320,
 			.yres		= 240,
