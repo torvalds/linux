@@ -768,6 +768,7 @@ perf_trace_templ_##call(struct ftrace_event_call *event_call,		\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
 	struct ftrace_raw_##call *entry;				\
 	u64 __addr = 0, __count = 1;					\
+	struct hlist_head *head;					\
 	int __entry_size;						\
 	int __data_size;						\
 	int rctx;							\
@@ -790,8 +791,9 @@ perf_trace_templ_##call(struct ftrace_event_call *event_call,		\
 									\
 	{ assign; }							\
 									\
+	head = per_cpu_ptr(event_call->perf_events, smp_processor_id());\
 	perf_trace_buf_submit(entry, __entry_size, rctx, __addr,	\
-			       __count, __regs, event_call->perf_data);	\
+		__count, __regs, head);					\
 }
 
 #undef DEFINE_EVENT
