@@ -186,7 +186,6 @@ int wpa_set_wpadev(PSDevice pDevice, int val)
 		return wpa_release_wpadev(pDevice);
 }
 
-
 /*
  * Description:
  *      Set WPA algorithm & keys
@@ -647,9 +646,9 @@ static int wpa_get_scan(PSDevice pDevice,
 
     for (ii = 0; ii < MAX_BSS_NUM; ii++) {
 
-         for(jj=0;jj<MAX_BSS_NUM-ii-1;jj++) {
+	for (jj = 0; jj < MAX_BSS_NUM - ii - 1; jj++) {
 
-           if((pMgmt->sBSSList[jj].bActive!=TRUE) ||
+		if ((pMgmt->sBSSList[jj].bActive != TRUE) ||
 
                 ((pMgmt->sBSSList[jj].uRSSI>pMgmt->sBSSList[jj+1].uRSSI) &&(pMgmt->sBSSList[jj+1].bActive!=FALSE))) {
 

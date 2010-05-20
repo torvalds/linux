@@ -72,7 +72,7 @@ void s_vResetCounter(PKnownNodeDB psNodeDBTable)
     BYTE            ii;
 
     // clear statistic counter for auto_rate
-    for(ii=0;ii<=MAX_RATE;ii++) {
+    for (ii = 0; ii <= MAX_RATE; ii++) {
         psNodeDBTable->uTxOk[ii] = 0;
         psNodeDBTable->uTxFail[ii] = 0;
     }
@@ -337,7 +337,7 @@ DWORD           dwTxDiff = 0;
         psNodeDBTable->uTimeCount = 0;
     }
 
-    for(ii=0;ii<MAX_RATE;ii++) {
+    for (ii = 0; ii < MAX_RATE; ii++) {
         if (psNodeDBTable->wSuppRate & (0x0001<<ii)) {
             if (bAutoRate[ii] == TRUE) {
                 wIdxUpRate = (WORD) ii;
@@ -347,7 +347,7 @@ DWORD           dwTxDiff = 0;
         }
     }
 
-    for(ii=0;ii<=psNodeDBTable->wTxDataRate;ii++) {
+    for (ii = 0; ii <= psNodeDBTable->wTxDataRate; ii++) {
         if ( (psNodeDBTable->uTxOk[ii] != 0) ||
              (psNodeDBTable->uTxFail[ii] != 0) ) {
             dwThroughputTbl[ii] *= psNodeDBTable->uTxOk[ii];
@@ -362,7 +362,7 @@ DWORD           dwTxDiff = 0;
     dwThroughput = dwThroughputTbl[psNodeDBTable->wTxDataRate];
 
     wIdxDownRate = psNodeDBTable->wTxDataRate;
-    for(ii = psNodeDBTable->wTxDataRate; ii > 0;) {
+    for (ii = psNodeDBTable->wTxDataRate; ii > 0;) {
         ii--;
         if ( (dwThroughputTbl[ii] > dwThroughput) &&
              (bAutoRate[ii]==TRUE) ) {
@@ -400,7 +400,7 @@ long  ldBm;
         return;
     }
 
-    for(ii=0;ii<MAX_RATE;ii++) {
+    for (ii = 0; ii < MAX_RATE; ii++) {
         if (psNodeDBTable->wSuppRate & (0x0001<<ii)) {
             if (bAutoRate[ii] == TRUE) {
                 wIdxUpRate = (WORD) ii;

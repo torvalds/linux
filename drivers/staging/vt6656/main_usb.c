@@ -407,8 +407,8 @@ static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 
     sInitCmd.byInitClass = (BYTE)InitType;
     sInitCmd.bExistSWNetAddr = (BYTE) pDevice->bExistSWNetAddr;
-    for(ii=0;ii<6;ii++)
-        sInitCmd.bySWNetAddr[ii] = pDevice->abyCurrentNetAddr[ii];
+    for (ii = 0; ii < 6; ii++)
+	sInitCmd.bySWNetAddr[ii] = pDevice->abyCurrentNetAddr[ii];
     sInitCmd.byShortRetryLimit = pDevice->byShortRetryLimit;
     sInitCmd.byLongRetryLimit = pDevice->byLongRetryLimit;
 
@@ -487,10 +487,10 @@ static BOOL device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
           if(((pDevice->abyEEPROM[EEP_OFS_ZONETYPE] == ZoneType_Japan) ||
 	        (pDevice->abyEEPROM[EEP_OFS_ZONETYPE] == ZoneType_Europe))&&
 	     (pDevice->byOriginalZonetype == ZoneType_USA)) {
-	    for(ii=11;ii<14;ii++) {
-                pDevice->abyCCKPwrTbl[ii] = pDevice->abyCCKPwrTbl[10];
-	       pDevice->abyOFDMPwrTbl[ii] = pDevice->abyOFDMPwrTbl[10];
-	    }
+		for (ii = 11; ii < 14; ii++) {
+			pDevice->abyCCKPwrTbl[ii] = pDevice->abyCCKPwrTbl[10];
+			pDevice->abyOFDMPwrTbl[ii] = pDevice->abyOFDMPwrTbl[10];
+		}
 	  }
 
         //{{ RobertYu: 20041124
@@ -1234,10 +1234,10 @@ device_release_WPADEV(pDevice);
         pMgmt->bShareKeyAlgorithm = FALSE;
         pDevice->bEncryptionEnable = FALSE;
         pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
-            spin_lock_irq(&pDevice->lock);
-            for(uu=0;uu<MAX_KEY_TABLE;uu++)
+	spin_lock_irq(&pDevice->lock);
+	for (uu = 0; uu < MAX_KEY_TABLE; uu++)
                 MACvDisableKeyEntry(pDevice,uu);
-            spin_unlock_irq(&pDevice->lock);
+	spin_unlock_irq(&pDevice->lock);
 
     if ((pDevice->flags & DEVICE_FLAGS_UNPLUG) == FALSE) {
         MACbShutdown(pDevice);
@@ -1447,12 +1447,12 @@ static int Config_FileGetParameter(unsigned char *string,
 	return FALSE;
 
 //check if current config line is marked by "#" ??
-for(ii=1;;ii++) {
-  if(memcmp(start_p-ii,"\n",1)==0)
-      break;
-  if(memcmp(start_p-ii,"#",1)==0)
-      return FALSE;
-}
+    for (ii = 1; ; ii++) {
+	if (memcmp(start_p - ii, "\n", 1) == 0)
+		break;
+	if (memcmp(start_p - ii, "#", 1) == 0)
+		return FALSE;
+    }
 
 //find target string end point
      end_p = kstrstr(start_p,"\n");

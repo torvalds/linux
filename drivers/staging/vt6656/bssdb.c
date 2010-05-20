@@ -699,12 +699,14 @@ BOOL BSSbUpdateToBSSList(void *hDeviceContext,
         pBSSList->byRSSIStatCnt %= RSSI_STAT_COUNT;
         pBSSList->ldBmAverage[pBSSList->byRSSIStatCnt] = ldBm;
         ldBmSum = 0;
-        for(ii=0, jj=0;ii<RSSI_STAT_COUNT;ii++) {
-            if (pBSSList->ldBmAverage[ii] != 0) {
-                pBSSList->ldBmMAX = max(pBSSList->ldBmAverage[ii], ldBm);
-                ldBmSum += pBSSList->ldBmAverage[ii];
-                jj++;
-            }
+	for (ii = 0, jj = 0; ii < RSSI_STAT_COUNT; ii++) {
+		if (pBSSList->ldBmAverage[ii] != 0) {
+			pBSSList->ldBmMAX =
+				max(pBSSList->ldBmAverage[ii], ldBm);
+			ldBmSum +=
+				pBSSList->ldBmAverage[ii];
+			jj++;
+		}
         }
         pBSSList->ldBmAverRange = ldBmSum /jj;
     }
@@ -1422,21 +1424,25 @@ void BSSvUpdateNodeTxCounter(void *hDeviceContext,
                      (wRate < RATE_18M) ) {
                     pMgmt->sNodeDBTable[0].uTxFail[wRate]+=byTxRetry;
                 } else if (byFallBack == AUTO_FB_0) {
-                    for(ii=0;ii<byTxRetry;ii++) {
-                        if (ii < 5)
-                            wFallBackRate = awHWRetry0[wRate-RATE_18M][ii];
-                        else
-                            wFallBackRate = awHWRetry0[wRate-RATE_18M][4];
-                        pMgmt->sNodeDBTable[0].uTxFail[wFallBackRate]++;
-                    }
+			for (ii = 0; ii < byTxRetry; ii++) {
+				if (ii < 5)
+					wFallBackRate =
+						awHWRetry0[wRate-RATE_18M][ii];
+				else
+					wFallBackRate =
+						awHWRetry0[wRate-RATE_18M][4];
+				pMgmt->sNodeDBTable[0].uTxFail[wFallBackRate]++;
+			}
                 } else if (byFallBack == AUTO_FB_1) {
-                    for(ii=0;ii<byTxRetry;ii++) {
-                        if (ii < 5)
-                            wFallBackRate = awHWRetry1[wRate-RATE_18M][ii];
-                        else
-                            wFallBackRate = awHWRetry1[wRate-RATE_18M][4];
-                        pMgmt->sNodeDBTable[0].uTxFail[wFallBackRate]++;
-                    }
+			for (ii = 0; ii < byTxRetry; ii++) {
+				if (ii < 5)
+					wFallBackRate =
+						awHWRetry1[wRate-RATE_18M][ii];
+				else
+					wFallBackRate =
+						awHWRetry1[wRate-RATE_18M][4];
+				pMgmt->sNodeDBTable[0].uTxFail[wFallBackRate]++;
+			}
                 }
             }
         };
@@ -1476,21 +1482,23 @@ void BSSvUpdateNodeTxCounter(void *hDeviceContext,
                          (wRate < RATE_18M) ) {
                         pMgmt->sNodeDBTable[uNodeIndex].uTxFail[wRate]+=byTxRetry;
                     } else if (byFallBack == AUTO_FB_0) {
-                        for(ii=0;ii<byTxRetry;ii++) {
-                            if (ii < 5)
-                                wFallBackRate = awHWRetry0[wRate-RATE_18M][ii];
-                            else
-                                wFallBackRate = awHWRetry0[wRate-RATE_18M][4];
-                            pMgmt->sNodeDBTable[uNodeIndex].uTxFail[wFallBackRate]++;
+			for (ii = 0; ii < byTxRetry; ii++) {
+				if (ii < 5)
+					wFallBackRate =
+						awHWRetry0[wRate-RATE_18M][ii];
+				else
+					wFallBackRate =
+						awHWRetry0[wRate-RATE_18M][4];
+				pMgmt->sNodeDBTable[uNodeIndex].uTxFail[wFallBackRate]++;
                         }
                     } else if (byFallBack == AUTO_FB_1) {
-                        for(ii=0;ii<byTxRetry;ii++) {
-                            if (ii < 5)
+		      for (ii = 0; ii < byTxRetry; ii++) {
+			if (ii < 5)
                                 wFallBackRate = awHWRetry1[wRate-RATE_18M][ii];
-                            else
+			else
                                 wFallBackRate = awHWRetry1[wRate-RATE_18M][4];
-                            pMgmt->sNodeDBTable[uNodeIndex].uTxFail[wFallBackRate]++;
-                        }
+			pMgmt->sNodeDBTable[uNodeIndex].uTxFail[wFallBackRate]++;
+		      }
                     }
                 }
             };

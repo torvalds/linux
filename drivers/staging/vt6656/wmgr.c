@@ -353,9 +353,9 @@ void vMgrObjectInit(void *hDeviceContext)
     pMgmt->pbyPSPacketPool = &pMgmt->byPSPacketPool[0];
     pMgmt->pbyMgmtPacketPool = &pMgmt->byMgmtPacketPool[0];
     pMgmt->uCurrChannel = pDevice->uChannel;
-    for(ii=0;ii<WLAN_BSSID_LEN;ii++) {
-        pMgmt->abyDesireBSSID[ii] = 0xFF;
-    }
+    for (ii = 0; ii < WLAN_BSSID_LEN; ii++)
+	pMgmt->abyDesireBSSID[ii] = 0xFF;
+
     pMgmt->sAssocInfo.AssocInfo.Length = sizeof(NDIS_802_11_ASSOCIATION_INFORMATION);
     //memset(pMgmt->abyDesireSSID, 0, WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN +1);
     pMgmt->byCSSPK = KEY_CTL_NONE;
@@ -4795,21 +4795,21 @@ s_bCipherMatch (
             byMulticastCipher = KEY_CTL_INVALID;
         }
 
-        // check Pairwise Key Cipher
-        for(i=0;i<pBSSNode->wCSSPKCount;i++) {
-            if ((pBSSNode->abyCSSPK[i] == WLAN_11i_CSS_WEP40) ||
-                (pBSSNode->abyCSSPK[i] == WLAN_11i_CSS_WEP104)) {
-                // this should not happen as defined 802.11i
-                byCipherMask |= 0x01;
-            } else if (pBSSNode->abyCSSPK[i] == WLAN_11i_CSS_TKIP) {
-                byCipherMask |= 0x02;
-            } else if (pBSSNode->abyCSSPK[i] == WLAN_11i_CSS_CCMP) {
-                byCipherMask |= 0x04;
-            } else if (pBSSNode->abyCSSPK[i] == WLAN_11i_CSS_USE_GROUP) {
-                // use group key only ignore all others
-                byCipherMask = 0;
-                i = pBSSNode->wCSSPKCount;
-            }
+	/* check Pairwise Key Cipher */
+	for (i = 0; i < pBSSNode->wCSSPKCount; i++) {
+		if ((pBSSNode->abyCSSPK[i] == WLAN_11i_CSS_WEP40) ||
+		    (pBSSNode->abyCSSPK[i] == WLAN_11i_CSS_WEP104)) {
+			/* this should not happen as defined 802.11i */
+			byCipherMask |= 0x01;
+		} else if (pBSSNode->abyCSSPK[i] == WLAN_11i_CSS_TKIP) {
+			byCipherMask |= 0x02;
+		} else if (pBSSNode->abyCSSPK[i] == WLAN_11i_CSS_CCMP) {
+			byCipherMask |= 0x04;
+		} else if (pBSSNode->abyCSSPK[i] == WLAN_11i_CSS_USE_GROUP) {
+			/* use group key only ignore all others */
+			byCipherMask = 0;
+			i = pBSSNode->wCSSPKCount;
+		}
         }
 
     } else if ((WLAN_GET_CAP_INFO_PRIVACY(pBSSNode->wCapInfo) != 0) &&
@@ -4828,17 +4828,17 @@ s_bCipherMatch (
             byMulticastCipher = KEY_CTL_INVALID;
         }
 
-        // check Pairwise Key Cipher
-        for(i=0;i<pBSSNode->wPKCount;i++) {
-            if (pBSSNode->abyPKType[i] == WPA_TKIP) {
-                byCipherMask |= 0x02;
-            } else if (pBSSNode->abyPKType[i] == WPA_AESCCMP) {
-                byCipherMask |= 0x04;
-            } else if (pBSSNode->abyPKType[i] == WPA_NONE) {
-                // use group key only ignore all others
-                byCipherMask = 0;
-                i = pBSSNode->wPKCount;
-            }
+	/* check Pairwise Key Cipher */
+	for (i = 0; i < pBSSNode->wPKCount; i++) {
+		if (pBSSNode->abyPKType[i] == WPA_TKIP) {
+			byCipherMask |= 0x02;
+		} else if (pBSSNode->abyPKType[i] == WPA_AESCCMP) {
+			byCipherMask |= 0x04;
+		} else if (pBSSNode->abyPKType[i] == WPA_NONE) {
+			/* use group key only ignore all others */
+			byCipherMask = 0;
+			i = pBSSNode->wPKCount;
+		}
         }
     }
 

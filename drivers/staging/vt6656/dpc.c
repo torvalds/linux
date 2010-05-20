@@ -758,10 +758,11 @@ RXbBulkInProcessData (
         pMgmt->pCurrBSS->byRSSIStatCnt++;
         pMgmt->pCurrBSS->byRSSIStatCnt %= RSSI_STAT_COUNT;
         pMgmt->pCurrBSS->ldBmAverage[pMgmt->pCurrBSS->byRSSIStatCnt] = ldBm;
-        for(ii=0;ii<RSSI_STAT_COUNT;ii++) {
-            if (pMgmt->pCurrBSS->ldBmAverage[ii] != 0) {
-            pMgmt->pCurrBSS->ldBmMAX = max(pMgmt->pCurrBSS->ldBmAverage[ii], ldBm);
-            }
+	for (ii = 0; ii < RSSI_STAT_COUNT; ii++) {
+		if (pMgmt->pCurrBSS->ldBmAverage[ii] != 0) {
+			pMgmt->pCurrBSS->ldBmMAX =
+				max(pMgmt->pCurrBSS->ldBmAverage[ii], ldBm);
+		}
         }
     }
 */

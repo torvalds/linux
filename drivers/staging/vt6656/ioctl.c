@@ -232,10 +232,10 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
             pDevice->bEncryptionEnable = FALSE;
             pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
             spin_lock_irq(&pDevice->lock);
-            for(uu=0;uu<MAX_KEY_TABLE;uu++)
-                MACvDisableKeyEntry(pDevice,uu);
+	    for (uu = 0; uu < MAX_KEY_TABLE; uu++)
+		MACvDisableKeyEntry(pDevice, uu);
             spin_unlock_irq(&pDevice->lock);
-            DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WEP function disable. \n");
+	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "WEP function disable.\n");
             break;
         }
 

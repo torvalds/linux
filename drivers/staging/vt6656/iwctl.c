@@ -653,7 +653,7 @@ int iwctl_giwrange(struct net_device *dev,
 		// Should be based on cap_rid.country to give only
 		//  what the current card support
 		k = 0;
-		for(i = 0; i < 14; i++) {
+		for (i = 0; i < 14; i++) {
 			range->freq[k].i = i + 1; // List index
 			range->freq[k].m = frequency_list[i] * 100000;
 			range->freq[k++].e = 1;	// Values in table in MHz -> * 10^5 * 10
@@ -669,7 +669,7 @@ int iwctl_giwrange(struct net_device *dev,
 		range->max_qual.noise = 0;
 		range->sensitivity = 255;
 
-		for(i = 0 ; i < 13 ; i++) {
+		for (i = 0 ; i < 13 ; i++) {
 			range->bitrate[i] = abySupportedRates[i] * 500000;
 			if(range->bitrate[i] == 0)
 				break;
@@ -1057,7 +1057,7 @@ int iwctl_siwrate(struct net_device *dev,
 		u8	normvalue = (u8) (wrq->value/500000);
 
 		// Check if rate is valid
-		for(i = 0 ; i < 13 ; i++) {
+		for (i = 0 ; i < 13 ; i++) {
 			if(normvalue == abySupportedRates[i]) {
 				brate = i;
 				break;
@@ -1067,7 +1067,7 @@ int iwctl_siwrate(struct net_device *dev,
 	// -1 designed the max rate (mostly auto mode)
 	if(wrq->value == -1) {
 		// Get the highest available rate
-		for(i = 0 ; i < 13 ; i++) {
+		for (i = 0 ; i < 13 ; i++) {
 			if(abySupportedRates[i] == 0)
 				break;
 		}
@@ -1405,8 +1405,8 @@ int iwctl_siwencode(struct net_device *dev,
         pDevice->eEncryptionStatus = Ndis802_11EncryptionDisabled;
         if (pDevice->flags & DEVICE_FLAGS_OPENED) {
             spin_lock_irq(&pDevice->lock);
-            for(uu=0;uu<MAX_KEY_TABLE;uu++)
-                MACvDisableKeyEntry(pDevice,uu);
+	    for (uu = 0; uu < MAX_KEY_TABLE; uu++)
+		MACvDisableKeyEntry(pDevice, uu);
             spin_unlock_irq(&pDevice->lock);
         }
 	}
@@ -1935,14 +1935,14 @@ printk("param->u.wpa_key.set_tx =%d\n",param->u.wpa_key.set_tx);
 printk("param->u.wpa_key.key_index =%d\n",param->u.wpa_key.key_index);
 printk("param->u.wpa_key.key_len =%d\n",param->u.wpa_key.key_len);
 printk("param->u.wpa_key.key =");
-for(ii=0;ii<param->u.wpa_key.key_len;ii++)
-	printk("%02x:",param->u.wpa_key.key[ii]);
-         printk("\n");
+for (ii = 0; ii < param->u.wpa_key.key_len; ii++)
+	printk(KERN_DEBUG "%02x:", param->u.wpa_key.key[ii]);
+printk("\n");
 printk("param->u.wpa_key.seq_len =%d\n",param->u.wpa_key.seq_len);
 printk("param->u.wpa_key.seq =");
-for(ii=0;ii<param->u.wpa_key.seq_len;ii++)
-	printk("%02x:",param->u.wpa_key.seq[ii]);
-         printk("\n");
+for (ii = 0; ii < param->u.wpa_key.seq_len; ii++)
+	printk(KERN_DEBUG "%02x:", param->u.wpa_key.seq[ii]);
+printk("\n");
 
 printk("...........\n");
 #endif

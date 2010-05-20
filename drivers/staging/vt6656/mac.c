@@ -306,8 +306,8 @@ BYTE            pbyData[24];
     pbyData[5] = (BYTE)(dwData2>>8);
     pbyData[6] = (BYTE)(dwData2>>16);
     pbyData[7] = (BYTE)(dwData2>>24);
-    for(ii=8;ii<24;ii++)
-        pbyData[ii] = *pbyKey++;
+    for (ii = 8; ii < 24; ii++)
+	pbyData[ii] = *pbyKey++;
 
     CONTROLnsRequestOut(pDevice,
                         MESSAGE_TYPE_SETKEY,

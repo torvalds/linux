@@ -485,9 +485,9 @@ BOOL KeybRemoveAllKey(
         if ((pTable->KeyTable[i].bInUse == TRUE) &&
             IS_ETH_ADDRESS_EQUAL(pTable->KeyTable[i].abyBSSID,pbyBSSID)) {
             pTable->KeyTable[i].PairwiseKey.bKeyValid = FALSE;
-            for(u=0;u<MAX_GROUP_KEY;u++) {
-                pTable->KeyTable[i].GroupKey[u].bKeyValid = FALSE;
-            }
+	    for (u = 0; u < MAX_GROUP_KEY; u++)
+		pTable->KeyTable[i].GroupKey[u].bKeyValid = FALSE;
+
             pTable->KeyTable[i].dwGTKeyIndex = 0;
             s_vCheckKeyTableValid(pDevice, pTable);
             return (TRUE);
@@ -531,19 +531,13 @@ void KeyvRemoveWEPKey(
     return;
 }
 
-void KeyvRemoveAllWEPKey(
-    void *pDeviceHandler,
-    PSKeyManagement pTable
-    )
+void KeyvRemoveAllWEPKey(void *pDeviceHandler, PSKeyManagement pTable)
 {
-    PSDevice    pDevice = (PSDevice) pDeviceHandler;
+	PSDevice pDevice = (PSDevice) pDeviceHandler;
+	int i;
 
-    int i;
-
-    for(i=0;i<MAX_GROUP_KEY;i++) {
-        KeyvRemoveWEPKey(pDevice,pTable, i);
-    }
-
+	for (i = 0; i < MAX_GROUP_KEY; i++)
+		KeyvRemoveWEPKey(pDevice, pTable, i);
 }
 
 /*
