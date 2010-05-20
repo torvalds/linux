@@ -832,10 +832,13 @@ static const struct file_operations btrfs_ctl_fops = {
 };
 
 static struct miscdevice btrfs_misc = {
-	.minor		= MISC_DYNAMIC_MINOR,
+	.minor		= BTRFS_MINOR,
 	.name		= "btrfs-control",
 	.fops		= &btrfs_ctl_fops
 };
+
+MODULE_ALIAS_MISCDEV(BTRFS_MINOR);
+MODULE_ALIAS("devname:btrfs-control");
 
 static int btrfs_interface_init(void)
 {
