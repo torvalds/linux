@@ -147,6 +147,7 @@ static u32 omap2_iommu_fault_isr(struct iommu *obj, u32 *ra)
 	printk("\n");
 
 	iommu_write_reg(obj, stat, MMU_IRQSTATUS);
+	omap2_iommu_disable(obj);
 	return stat;
 }
 
@@ -184,7 +185,7 @@ static struct cr_regs *omap2_alloc_cr(struct iommu *obj, struct iotlb_entry *e)
 	if (!cr)
 		return ERR_PTR(-ENOMEM);
 
-	cr->cam = (e->da & MMU_CAM_VATAG_MASK) | e->prsvd | e->pgsz;
+	cr->cam = (e->da & MMU_CAM_VATAG_MASK) | e->prsvd | e->pgsz | e->valid;
 	cr->ram = e->pa | e->endian | e->elsz | e->mixed;
 
 	return cr;
@@ -212,7 +213,8 @@ static ssize_t omap2_dump_cr(struct iommu *obj, struct cr_regs *cr, char *buf)
 	char *p = buf;
 
 	/* FIXME: Need more detail analysis of cam/ram */
-	p += sprintf(p, "%08x %08x\n", cr->cam, cr->ram);
+	p += sprintf(p, "%08x %08x %01x\n", cr->cam, cr->ram,
+					(cr->cam & MMU_CAM_P) ? 1 : 0);
 
 	return p - buf;
 }
