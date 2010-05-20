@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s5pc1xx/include/plat/regs-gpio.h
+/* linux/arch/arm/plat-s5pc100/include/plat/regs-gpio.h
  *
  * Copyright 2009 Samsung Electronics Co.
  *      Byungho Min <bhmin@samsung.com>
@@ -12,7 +12,7 @@
 #include <mach/map.h>
 
 /* S5PC100 */
-#define S5PC100_GPIO_BASE	S5PC1XX_VA_GPIO
+#define S5PC100_GPIO_BASE	S5P_VA_GPIO
 #define S5PC100_GPA0_BASE	(S5PC100_GPIO_BASE + 0x0000)
 #define S5PC100_GPA1_BASE	(S5PC100_GPIO_BASE + 0x0020)
 #define S5PC100_GPB_BASE	(S5PC100_GPIO_BASE + 0x0040)
@@ -47,24 +47,29 @@
 #define S5PC100_GPL2_BASE	(S5PC100_GPIO_BASE + 0x0360)
 #define S5PC100_GPL3_BASE	(S5PC100_GPIO_BASE + 0x0380)
 #define S5PC100_GPL4_BASE	(S5PC100_GPIO_BASE + 0x03A0)
-#define S5PC100_EINT_BASE	(S5PC100_GPIO_BASE + 0x0E00)
 
-#define S5PC100_UHOST		(S5PC100_GPIO_BASE + 0x0B68)
-#define S5PC100_PDNEN		(S5PC100_GPIO_BASE + 0x0F80)
+#define S5PC100EINT30CON		(S5P_VA_GPIO + 0xE00)
+#define S5P_EINT_CON(x)			(S5PC100EINT30CON + ((x) * 0x4))
 
-/* PDNEN */
-#define S5PC100_PDNEN_CFG_PDNEN	(1 << 1)
-#define S5PC100_PDNEN_CFG_AUTO	(0 << 1)
-#define S5PC100_PDNEN_POWERDOWN	(1 << 0)
-#define S5PC100_PDNEN_NORMAL	(0 << 0)
+#define S5PC100EINT30FLTCON0		(S5P_VA_GPIO + 0xE80)
+#define S5P_EINT_FLTCON(x)		(S5PC100EINT30FLTCON0 + ((x) * 0x4))
 
-/* Common part */
-/* External interrupt base is same at both s5pc100 and s5pc110 */
-#define S5PC1XX_EINT_BASE	(S5PC100_EINT_BASE)
+#define S5PC100EINT30MASK		(S5P_VA_GPIO + 0xF00)
+#define S5P_EINT_MASK(x)		(S5PC100EINT30MASK + ((x) * 0x4))
 
-#define S5PC100_GPx_INPUT(__gpio)	(0x0 << ((__gpio) * 4))
-#define S5PC100_GPx_OUTPUT(__gpio)	(0x1 << ((__gpio) * 4))
-#define S5PC100_GPx_CONMASK(__gpio)	(0xf << ((__gpio) * 4))
+#define S5PC100EINT30PEND		(S5P_VA_GPIO + 0xF40)
+#define S5P_EINT_PEND(x)		(S5PC100EINT30PEND + ((x) * 0x4))
+
+#define EINT_REG_NR(x)			(EINT_OFFSET(x) >> 3)
+
+#define eint_irq_to_bit(irq)		(1 << (EINT_OFFSET(irq) & 0x7))
+
+/* values for S5P_EXTINT0 */
+#define S5P_EXTINT_LOWLEV		(0x00)
+#define S5P_EXTINT_HILEV		(0x01)
+#define S5P_EXTINT_FALLEDGE		(0x02)
+#define S5P_EXTINT_RISEEDGE		(0x03)
+#define S5P_EXTINT_BOTHEDGE		(0x04)
 
 #endif /* __ASM_MACH_S5PC100_REGS_GPIO_H */
 
