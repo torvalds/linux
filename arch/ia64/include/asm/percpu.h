@@ -39,7 +39,10 @@ extern void *per_cpu_init(void);
  * On the positive side, using __ia64_per_cpu_var() instead of __get_cpu_var() is slightly
  * more efficient.
  */
-#define __ia64_per_cpu_var(var)	var
+#define __ia64_per_cpu_var(var) (*({					\
+	__verify_pcpu_ptr(&(var));					\
+	((typeof(var) __kernel __force *)&(var));			\
+}))
 
 #include <asm-generic/percpu.h>
 
