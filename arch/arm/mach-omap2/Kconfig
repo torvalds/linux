@@ -10,6 +10,7 @@ config ARCH_OMAP2420
 config ARCH_OMAP2430
 	bool "OMAP2430 support"
 	depends on ARCH_OMAP2
+	select ARCH_OMAP_OTG
 
 config ARCH_OMAP3430
 	bool "OMAP3430 support"

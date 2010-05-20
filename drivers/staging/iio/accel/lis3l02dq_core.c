@@ -618,7 +618,7 @@ static int lis3l02dq_thresh_handler_th(struct iio_dev *dev_info,
 static void lis3l02dq_thresh_handler_bh_no_check(struct work_struct *work_s)
 {
 	struct iio_work_cont *wc
-		= container_of(work_s, struct iio_work_cont, ws_nocheck);
+		= container_of(work_s, struct iio_work_cont, ws);
 	struct lis3l02dq_state *st = wc->st;
 	u8 t;
 
