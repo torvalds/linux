@@ -164,40 +164,44 @@ static loff_t snd_info_entry_llseek(struct file *file, loff_t offset, int orig)
 {
 	struct snd_info_private_data *data;
 	struct snd_info_entry *entry;
-	loff_t ret;
+	loff_t ret = -EINVAL, size;
 
 	data = file->private_data;
 	entry = data->entry;
-	lock_kernel();
-	switch (entry->content) {
-	case SNDRV_INFO_CONTENT_TEXT:
-		switch (orig) {
-		case SEEK_SET:
-			file->f_pos = offset;
-			ret = file->f_pos;
-			goto out;
-		case SEEK_CUR:
-			file->f_pos += offset;
-			ret = file->f_pos;
-			goto out;
-		case SEEK_END:
-		default:
-			ret = -EINVAL;
-			goto out;
-		}
-		break;
-	case SNDRV_INFO_CONTENT_DATA:
-		if (entry->c.ops->llseek) {
-			ret = entry->c.ops->llseek(entry,
-						    data->file_private_data,
-						    file, offset, orig);
-			goto out;
-		}
-		break;
+	mutex_lock(&entry->access);
+	if (entry->content == SNDRV_INFO_CONTENT_DATA &&
+	    entry->c.ops->llseek) {
+		offset = entry->c.ops->llseek(entry,
+					      data->file_private_data,
+					      file, offset, orig);
+		goto out;
 	}
-	ret = -ENXIO;
-out:
-	unlock_kernel();
+	if (entry->content == SNDRV_INFO_CONTENT_DATA)
+		size = entry->size;
+	else
+		size = 0;
+	switch (orig) {
+	case SEEK_SET:
+		break;
+	case SEEK_CUR:
+		offset += file->f_pos;
+		break;
+	case SEEK_END:
+		if (!size)
+			goto out;
+		offset += size;
+		break;
+	default:
+		goto out;
+	}
+	if (offset < 0)
+		goto out;
+	if (size && offset > size)
+		offset = size;
+	file->f_pos = offset;
+	ret = offset;
+ out:
+	mutex_unlock(&entry->access);
 	return ret;
 }
 
@@ -232,10 +236,15 @@ static ssize_t snd_info_entry_read(struct file *file, char __user *buffer,
 			return -EFAULT;
 		break;
 	case SNDRV_INFO_CONTENT_DATA:
-		if (entry->c.ops->read)
+		if (pos >= entry->size)
+			return 0;
+		if (entry->c.ops->read) {
+			size = entry->size - pos;
+			size = min(count, size);
 			size = entry->c.ops->read(entry,
 						  data->file_private_data,
-						  file, buffer, count, pos);
+						  file, buffer, size, pos);
+		}
 		break;
 	}
 	if ((ssize_t) size > 0)
@@ -282,10 +291,13 @@ static ssize_t snd_info_entry_write(struct file *file, const char __user *buffer
 		size = count;
 		break;
 	case SNDRV_INFO_CONTENT_DATA:
-		if (entry->c.ops->write)
+		if (entry->c.ops->write && count > 0) {
+			size_t maxsize = entry->size - pos;
+			count = min(count, maxsize);
 			size = entry->c.ops->write(entry,
 						   data->file_private_data,
 						   file, buffer, count, pos);
+		}
 		break;
 	}
 	if ((ssize_t) size > 0)

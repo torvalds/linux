@@ -1956,11 +1956,10 @@ static int __devinit aureon_add_controls(struct snd_ice1712 *ice)
 	return 0;
 }
 
-
 /*
- * initialize the chip
+ * reset the chip
  */
-static int __devinit aureon_init(struct snd_ice1712 *ice)
+static int aureon_reset(struct snd_ice1712 *ice)
 {
 	static const unsigned short wm_inits_aureon[] = {
 		/* These come first to reduce init pop noise */
@@ -2047,30 +2046,10 @@ static int __devinit aureon_init(struct snd_ice1712 *ice)
 		0x0605, /* slave, 24bit, MSB on second OSCLK, SDOUT for right channel when OLRCK is high */
 		(unsigned short)-1
 	};
-	struct aureon_spec *spec;
 	unsigned int tmp;
 	const unsigned short *p;
-	int err, i;
-
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
-	if (!spec)
-		return -ENOMEM;
-	ice->spec = spec;
-
-	if (ice->eeprom.subvendor == VT1724_SUBDEVICE_AUREON51_SKY) {
-		ice->num_total_dacs = 6;
-		ice->num_total_adcs = 2;
-	} else {
-		/* aureon 7.1 and prodigy 7.1 */
-		ice->num_total_dacs = 8;
-		ice->num_total_adcs = 2;
-	}
-
-	/* to remeber the register values of CS8415 */
-	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
-	if (!ice->akm)
-		return -ENOMEM;
-	ice->akm_codecs = 1;
+	int err;
+	struct aureon_spec *spec = ice->spec;
 
 	err = aureon_ac97_init(ice);
 	if (err != 0)
@@ -2118,6 +2097,61 @@ static int __devinit aureon_init(struct snd_ice1712 *ice)
 	/* initialize PCA9554 pin directions & set default input */
 	aureon_pca9554_write(ice, PCA9554_DIR, 0x00);
 	aureon_pca9554_write(ice, PCA9554_OUT, 0x00);   /* internal AUX */
+	return 0;
+}
+
+/*
+ * suspend/resume
+ */
+#ifdef CONFIG_PM
+static int aureon_resume(struct snd_ice1712 *ice)
+{
+	struct aureon_spec *spec = ice->spec;
+	int err, i;
+
+	err = aureon_reset(ice);
+	if (err != 0)
+		return err;
+
+	/* workaround for poking volume with alsamixer after resume:
+	 * just set stored volume again */
+	for (i = 0; i < ice->num_total_dacs; i++)
+		wm_set_vol(ice, i, spec->vol[i], spec->master[i % 2]);
+	return 0;
+}
+#endif
+
+/*
+ * initialize the chip
+ */
+static int __devinit aureon_init(struct snd_ice1712 *ice)
+{
+	struct aureon_spec *spec;
+	int i, err;
+
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (!spec)
+		return -ENOMEM;
+	ice->spec = spec;
+
+	if (ice->eeprom.subvendor == VT1724_SUBDEVICE_AUREON51_SKY) {
+		ice->num_total_dacs = 6;
+		ice->num_total_adcs = 2;
+	} else {
+		/* aureon 7.1 and prodigy 7.1 */
+		ice->num_total_dacs = 8;
+		ice->num_total_adcs = 2;
+	}
+
+	/* to remeber the register values of CS8415 */
+	ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
+	if (!ice->akm)
+		return -ENOMEM;
+	ice->akm_codecs = 1;
+
+	err = aureon_reset(ice);
+	if (err != 0)
+		return err;
 
 	spec->master[0] = WM_VOL_MUTE;
 	spec->master[1] = WM_VOL_MUTE;
@@ -2125,6 +2159,11 @@ static int __devinit aureon_init(struct snd_ice1712 *ice)
 		spec->vol[i] = WM_VOL_MUTE;
 		wm_set_vol(ice, i, spec->vol[i], spec->master[i % 2]);
 	}
+
+#ifdef CONFIG_PM
+	ice->pm_resume = aureon_resume;
+	ice->pm_suspend_enabled = 1;
+#endif
 
 	return 0;
 }
