@@ -830,6 +830,7 @@ static bool ath9k_rx_accept(struct ath_common *common,
 {
 	struct ath_hw *ah = common->ah;
 	__le16 fc;
+	u8 rx_status_len = ah->caps.rx_status_len;
 
 	fc = hdr->frame_control;
 
@@ -840,7 +841,7 @@ static bool ath9k_rx_accept(struct ath_common *common,
          * we can take a hint that hardware corrupted it, so ignore
          * those frames.
          */
-	if (rx_stats->rs_datalen > common->rx_bufsize)
+	if (rx_stats->rs_datalen > (common->rx_bufsize - rx_status_len))
 		return false;
 
 	/*
