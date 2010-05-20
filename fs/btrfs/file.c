@@ -1189,8 +1189,15 @@ static const struct vm_operations_struct btrfs_file_vm_ops = {
 
 static int btrfs_file_mmap(struct file	*filp, struct vm_area_struct *vma)
 {
-	vma->vm_ops = &btrfs_file_vm_ops;
+	struct address_space *mapping = filp->f_mapping;
+
+	if (!mapping->a_ops->readpage)
+		return -ENOEXEC;
+
 	file_accessed(filp);
+	vma->vm_ops = &btrfs_file_vm_ops;
+	vma->vm_flags |= VM_CAN_NONLINEAR;
+
 	return 0;
 }
 
