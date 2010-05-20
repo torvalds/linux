@@ -180,3 +180,34 @@ config MACH_HMT
 	select HAVE_PWM
 	help
 	  Machine support for the Airgoo HMT
+
+config MACH_SMARTQ
+	bool
+	select CPU_S3C6410
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_FB
+	select S3C_DEV_HWMON
+	select S3C_DEV_RTC
+	select S3C_DEV_USB_HSOTG
+	select S3C_DEV_USB_HOST
+	select S3C64XX_SETUP_SDHCI
+	select S3C64XX_SETUP_FB_24BPP
+	select SAMSUNG_DEV_ADC
+	select SAMSUNG_DEV_TS
+	select HAVE_PWM
+	help
+	    Shared machine support for SmartQ 5/7
+
+config MACH_SMARTQ5
+	bool "SmartQ 5"
+	select MACH_SMARTQ
+	help
+	    Machine support for the SmartQ 5
+
+config MACH_SMARTQ7
+	bool "SmartQ 7"
+	select MACH_SMARTQ
+	help
+	    Machine support for the SmartQ 7
