@@ -434,7 +434,7 @@ struct t4_cq {
 	struct c4iw_rdev *rdev;
 	u64 ugts;
 	size_t memsize;
-	u64 timestamp;
+	__be64 bits_type_ts;
 	u32 cqid;
 	u16 size; /* including status page */
 	u16 cidx;
@@ -487,6 +487,7 @@ static inline void t4_swcq_consume(struct t4_cq *cq)
 
 static inline void t4_hwcq_consume(struct t4_cq *cq)
 {
+	cq->bits_type_ts = cq->queue[cq->cidx].bits_type_ts;
 	cq->cidx_inc++;
 	if (++cq->cidx == cq->size) {
 		cq->cidx = 0;
@@ -501,20 +502,23 @@ static inline int t4_valid_cqe(struct t4_cq *cq, struct t4_cqe *cqe)
 
 static inline int t4_next_hw_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 {
-	int ret = 0;
-	u64 bits_type_ts = be64_to_cpu(cq->queue[cq->cidx].bits_type_ts);
+	int ret;
+	u16 prev_cidx;
 
-	if (G_CQE_GENBIT(bits_type_ts) == cq->gen) {
-		*cqe = &cq->queue[cq->cidx];
-		cq->timestamp = G_CQE_TS(bits_type_ts);
-	} else if (G_CQE_TS(bits_type_ts) > cq->timestamp)
-		ret = -EOVERFLOW;
+	if (cq->cidx == 0)
+		prev_cidx = cq->size - 1;
 	else
-		ret = -ENODATA;
-	if (ret == -EOVERFLOW) {
-		printk(KERN_ERR MOD "cq overflow cqid %u\n", cq->cqid);
+		prev_cidx = cq->cidx - 1;
+
+	if (cq->queue[prev_cidx].bits_type_ts != cq->bits_type_ts) {
+		ret = -EOVERFLOW;
 		cq->error = 1;
-	}
+		printk(KERN_ERR MOD "cq overflow cqid %u\n", cq->cqid);
+	} else if (t4_valid_cqe(cq, &cq->queue[cq->cidx])) {
+		*cqe = &cq->queue[cq->cidx];
+		ret = 0;
+	} else
+		ret = -ENODATA;
 	return ret;
 }
 
