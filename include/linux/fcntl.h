@@ -22,6 +22,12 @@
 #define F_NOTIFY	(F_LINUX_SPECIFIC_BASE+2)
 
 /*
+ * Set and get of pipe page size array
+ */
+#define F_SETPIPE_SZ	(F_LINUX_SPECIFIC_BASE + 7)
+#define F_GETPIPE_SZ	(F_LINUX_SPECIFIC_BASE + 8)
+
+/*
  * Types of directory notifications that may be requested.
  */
 #define DN_ACCESS	0x00000001	/* File accessed */

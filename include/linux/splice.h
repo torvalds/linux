@@ -82,4 +82,11 @@ extern ssize_t splice_to_pipe(struct pipe_inode_info *,
 extern ssize_t splice_direct_to_actor(struct file *, struct splice_desc *,
 				      splice_direct_actor *);
 
+/*
+ * for dynamic pipe sizing
+ */
+extern int splice_grow_spd(struct pipe_inode_info *, struct splice_pipe_desc *);
+extern void splice_shrink_spd(struct pipe_inode_info *,
+				struct splice_pipe_desc *);
+
 #endif
