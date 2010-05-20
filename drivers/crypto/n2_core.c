@@ -1277,8 +1277,11 @@ static int __devinit __n2_register_one_cipher(const struct n2_cipher_tmpl *tmpl)
 	list_add(&p->entry, &cipher_algs);
 	err = crypto_register_alg(alg);
 	if (err) {
+		pr_err("%s alg registration failed\n", alg->cra_name);
 		list_del(&p->entry);
 		kfree(p);
+	} else {
+		pr_info("%s alg registered\n", alg->cra_name);
 	}
 	return err;
 }
@@ -1318,8 +1321,11 @@ static int __devinit __n2_register_one_ahash(const struct n2_hash_tmpl *tmpl)
 	list_add(&p->entry, &ahash_algs);
 	err = crypto_register_ahash(ahash);
 	if (err) {
+		pr_err("%s alg registration failed\n", base->cra_name);
 		list_del(&p->entry);
 		kfree(p);
+	} else {
+		pr_info("%s alg registered\n", base->cra_name);
 	}
 	return err;
 }
