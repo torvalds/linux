@@ -277,8 +277,8 @@ struct omap_video_timings {
  * identify the mode, and does not actually use the configs
  * itself. However, the configs should be something that
  * a normal monitor can also show */
-const extern struct omap_video_timings omap_dss_pal_timings;
-const extern struct omap_video_timings omap_dss_ntsc_timings;
+extern const struct omap_video_timings omap_dss_pal_timings;
+extern const struct omap_video_timings omap_dss_ntsc_timings;
 #endif
 
 struct omap_overlay_info {
