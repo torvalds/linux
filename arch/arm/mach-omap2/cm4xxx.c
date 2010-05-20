@@ -22,23 +22,7 @@
 #include <asm/atomic.h>
 
 #include "cm.h"
-
-/* XXX move this to cm.h */
-/* MAX_MODULE_READY_TIME: max milliseconds for module to leave idle */
-#define MAX_MODULE_READY_TIME			20000
-
-/*
- * OMAP4_PRCM_CM_CLKCTRL_IDLEST_MASK: isolates the IDLEST field in the
- * CM_CLKCTRL register.
- */
-#define OMAP4_PRCM_CM_CLKCTRL_IDLEST_MASK	(0x2 << 16)
-
-/*
- * OMAP4 prcm_mod u32 fields contain packed data: the CM ID in bit 16 and
- * the PRCM module offset address (from the CM module base) in bits 15-0.
- */
-#define OMAP4_PRCM_MOD_CM_ID_SHIFT		16
-#define OMAP4_PRCM_MOD_OFFS_MASK		0xffff
+#include "cm-regbits-44xx.h"
 
 /**
  * omap4_cm_wait_idlest_ready - wait for a module to leave idle or standby

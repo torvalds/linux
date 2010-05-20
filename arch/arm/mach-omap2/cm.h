@@ -144,4 +144,13 @@ static inline u32 cm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
 #define OMAP24XX_CM_IDLEST_VAL		0
 #define OMAP34XX_CM_IDLEST_VAL		1
 
+/*
+ * MAX_MODULE_READY_TIME: max duration in microseconds to wait for the
+ * PRCM to request that a module exit the inactive state in the case of
+ * OMAP2 & 3.
+ * In the case of OMAP4 this is the max duration in microseconds for the
+ * module to reach the functionnal state from an inactive state.
+ */
+#define MAX_MODULE_READY_TIME		2000
+
 #endif
