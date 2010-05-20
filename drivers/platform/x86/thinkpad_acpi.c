@@ -122,8 +122,14 @@ enum {
 	TP_NVRAM_POS_LEVEL_VOLUME	= 0,
 };
 
+/* Misc NVRAM-related */
+enum {
+	TP_NVRAM_LEVEL_VOLUME_MAX = 14,
+};
+
 /* ACPI HIDs */
 #define TPACPI_ACPI_HKEY_HID		"IBM0068"
+#define TPACPI_ACPI_EC_HID		"PNP0C09"
 
 /* Input IDs */
 #define TPACPI_HKEY_INPUT_PRODUCT	0x5054 /* "TP" */
@@ -299,8 +305,8 @@ static struct {
 	u32 hotkey_tablet:1;
 	u32 light:1;
 	u32 light_status:1;
-	u32 bright_16levels:1;
 	u32 bright_acpimode:1;
+	u32 bright_unkfw:1;
 	u32 wan:1;
 	u32 uwb:1;
 	u32 fan_ctrl_status_undef:1;
@@ -362,6 +368,9 @@ struct tpacpi_led_classdev {
 	enum led_status_t new_state;
 	unsigned int led;
 };
+
+/* brightness level capabilities */
+static unsigned int bright_maxlvl;	/* 0 = unknown */
 
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
 static int dbg_wlswemul;
@@ -480,6 +489,15 @@ static unsigned long __init tpacpi_check_quirks(
 	return 0;
 }
 
+static inline bool __pure __init tpacpi_is_lenovo(void)
+{
+	return thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO;
+}
+
+static inline bool __pure __init tpacpi_is_ibm(void)
+{
+	return thinkpad_id.vendor == PCI_VENDOR_ID_IBM;
+}
 
 /****************************************************************************
  ****************************************************************************
@@ -494,21 +512,13 @@ static unsigned long __init tpacpi_check_quirks(
  */
 
 static acpi_handle root_handle;
+static acpi_handle ec_handle;
 
 #define TPACPI_HANDLE(object, parent, paths...)			\
 	static acpi_handle  object##_handle;			\
-	static acpi_handle *object##_parent = &parent##_handle;	\
-	static char        *object##_path;			\
-	static char        *object##_paths[] = { paths }
-
-TPACPI_HANDLE(ec, root, "\\_SB.PCI0.ISA.EC0",	/* 240, 240x */
-	   "\\_SB.PCI.ISA.EC",	/* 570 */
-	   "\\_SB.PCI0.ISA0.EC0",	/* 600e/x, 770e, 770x */
-	   "\\_SB.PCI0.ISA.EC",	/* A21e, A2xm/p, T20-22, X20-21 */
-	   "\\_SB.PCI0.AD4S.EC0",	/* i1400, R30 */
-	   "\\_SB.PCI0.ICH3.EC0",	/* R31 */
-	   "\\_SB.PCI0.LPC.EC",	/* all others */
-	   );
+	static const acpi_handle *object##_parent __initdata =	\
+						&parent##_handle; \
+	static char *object##_paths[] __initdata = { paths }
 
 TPACPI_HANDLE(ecrd, ec, "ECRD");	/* 570 */
 TPACPI_HANDLE(ecwr, ec, "ECWR");	/* 570 */
@@ -528,6 +538,7 @@ TPACPI_HANDLE(vid, root, "\\_SB.PCI.AGP.VGA",	/* 570 */
 	   "\\_SB.PCI0.AGP0.VID0",	/* 600e/x, 770x */
 	   "\\_SB.PCI0.VID0",	/* 770e */
 	   "\\_SB.PCI0.VID",	/* A21e, G4x, R50e, X30, X40 */
+	   "\\_SB.PCI0.AGP.VGA",	/* X100e and a few others */
 	   "\\_SB.PCI0.AGP.VID",	/* all others */
 	   );				/* R30, R31 */
 
@@ -594,9 +605,10 @@ static int acpi_evalf(acpi_handle handle,
 
 	switch (res_type) {
 	case 'd':		/* int */
-		if (res)
+		success = (status == AE_OK &&
+			   out_obj.type == ACPI_TYPE_INTEGER);
+		if (success && res)
 			*(int *)res = out_obj.integer.value;
-		success = status == AE_OK && out_obj.type == ACPI_TYPE_INTEGER;
 		break;
 	case 'v':		/* void */
 		success = status == AE_OK;
@@ -609,8 +621,8 @@ static int acpi_evalf(acpi_handle handle,
 	}
 
 	if (!success && !quiet)
-		printk(TPACPI_ERR "acpi_evalf(%s, %s, ...) failed: %d\n",
-		       method, fmt0, status);
+		printk(TPACPI_ERR "acpi_evalf(%s, %s, ...) failed: %s\n",
+		       method, fmt0, acpi_format_exception(status));
 
 	return success;
 }
@@ -661,11 +673,11 @@ static int issue_thinkpad_cmos_command(int cmos_cmd)
 
 #define TPACPI_ACPIHANDLE_INIT(object) \
 	drv_acpi_handle_init(#object, &object##_handle, *object##_parent, \
-		object##_paths, ARRAY_SIZE(object##_paths), &object##_path)
+		object##_paths, ARRAY_SIZE(object##_paths))
 
-static void drv_acpi_handle_init(char *name,
-			   acpi_handle *handle, acpi_handle parent,
-			   char **paths, int num_paths, char **path)
+static void __init drv_acpi_handle_init(const char *name,
+			   acpi_handle *handle, const acpi_handle parent,
+			   char **paths, const int num_paths)
 {
 	int i;
 	acpi_status status;
@@ -676,10 +688,9 @@ static void drv_acpi_handle_init(char *name,
 	for (i = 0; i < num_paths; i++) {
 		status = acpi_get_handle(parent, paths[i], handle);
 		if (ACPI_SUCCESS(status)) {
-			*path = paths[i];
 			dbg_printk(TPACPI_DBG_INIT,
 				   "Found ACPI handle %s for %s\n",
-				   *path, name);
+				   paths[i], name);
 			return;
 		}
 	}
@@ -687,6 +698,43 @@ static void drv_acpi_handle_init(char *name,
 	vdbg_printk(TPACPI_DBG_INIT, "ACPI handle for %s not found\n",
 		    name);
 	*handle = NULL;
+}
+
+static acpi_status __init tpacpi_acpi_handle_locate_callback(acpi_handle handle,
+			u32 level, void *context, void **return_value)
+{
+	*(acpi_handle *)return_value = handle;
+
+	return AE_CTRL_TERMINATE;
+}
+
+static void __init tpacpi_acpi_handle_locate(const char *name,
+		const char *hid,
+		acpi_handle *handle)
+{
+	acpi_status status;
+	acpi_handle device_found;
+
+	BUG_ON(!name || !hid || !handle);
+	vdbg_printk(TPACPI_DBG_INIT,
+			"trying to locate ACPI handle for %s, using HID %s\n",
+			name, hid);
+
+	memset(&device_found, 0, sizeof(device_found));
+	status = acpi_get_devices(hid, tpacpi_acpi_handle_locate_callback,
+				  (void *)name, &device_found);
+
+	*handle = NULL;
+
+	if (ACPI_SUCCESS(status)) {
+		*handle = device_found;
+		dbg_printk(TPACPI_DBG_INIT,
+			   "Found ACPI handle for %s\n", name);
+	} else {
+		vdbg_printk(TPACPI_DBG_INIT,
+			    "Could not locate an ACPI handle for %s: %s\n",
+			    name, acpi_format_exception(status));
+	}
 }
 
 static void dispatch_acpi_notify(acpi_handle handle, u32 event, void *data)
@@ -736,8 +784,8 @@ static int __init setup_acpi_notify(struct ibm_struct *ibm)
 			       "handling %s events\n", ibm->name);
 		} else {
 			printk(TPACPI_ERR
-			       "acpi_install_notify_handler(%s) failed: %d\n",
-			       ibm->name, status);
+			       "acpi_install_notify_handler(%s) failed: %s\n",
+			       ibm->name, acpi_format_exception(status));
 		}
 		return -ENODEV;
 	}
@@ -1033,80 +1081,6 @@ static void tpacpi_disable_brightness_delay(void)
 	if (acpi_evalf(hkey_handle, NULL, "PWMS", "qvd", 0))
 		printk(TPACPI_NOTICE
 			"ACPI backlight control delay disabled\n");
-}
-
-static int __init tpacpi_query_bcl_levels(acpi_handle handle)
-{
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *obj;
-	int rc;
-
-	if (ACPI_SUCCESS(acpi_evaluate_object(handle, NULL, NULL, &buffer))) {
-		obj = (union acpi_object *)buffer.pointer;
-		if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
-			printk(TPACPI_ERR "Unknown _BCL data, "
-			       "please report this to %s\n", TPACPI_MAIL);
-			rc = 0;
-		} else {
-			rc = obj->package.count;
-		}
-	} else {
-		return 0;
-	}
-
-	kfree(buffer.pointer);
-	return rc;
-}
-
-static acpi_status __init tpacpi_acpi_walk_find_bcl(acpi_handle handle,
-					u32 lvl, void *context, void **rv)
-{
-	char name[ACPI_PATH_SEGMENT_LENGTH];
-	struct acpi_buffer buffer = { sizeof(name), &name };
-
-	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)) &&
-	    !strncmp("_BCL", name, sizeof(name) - 1)) {
-		BUG_ON(!rv || !*rv);
-		**(int **)rv = tpacpi_query_bcl_levels(handle);
-		return AE_CTRL_TERMINATE;
-	} else {
-		return AE_OK;
-	}
-}
-
-/*
- * Returns 0 (no ACPI _BCL or _BCL invalid), or size of brightness map
- */
-static int __init tpacpi_check_std_acpi_brightness_support(void)
-{
-	int status;
-	int bcl_levels = 0;
-	void *bcl_ptr = &bcl_levels;
-
-	if (!vid_handle) {
-		TPACPI_ACPIHANDLE_INIT(vid);
-	}
-	if (!vid_handle)
-		return 0;
-
-	/*
-	 * Search for a _BCL method, and execute it.  This is safe on all
-	 * ThinkPads, and as a side-effect, _BCL will place a Lenovo Vista
-	 * BIOS in ACPI backlight control mode.  We do NOT have to care
-	 * about calling the _BCL method in an enabled video device, any
-	 * will do for our purposes.
-	 */
-
-	status = acpi_walk_namespace(ACPI_TYPE_METHOD, vid_handle, 3,
-				     tpacpi_acpi_walk_find_bcl, NULL, NULL,
-				     &bcl_ptr);
-
-	if (ACPI_SUCCESS(status) && bcl_levels > 2) {
-		tp_features.bright_acpimode = 1;
-		return (bcl_levels - 2);
-	}
-
-	return 0;
 }
 
 static void printk_deprecated_attribute(const char * const what,
@@ -1872,33 +1846,8 @@ static bool __init tpacpi_is_fw_known(void)
  ****************************************************************************/
 
 /*************************************************************************
- * thinkpad-acpi init subdriver
+ * thinkpad-acpi metadata subdriver
  */
-
-static int __init thinkpad_acpi_driver_init(struct ibm_init_struct *iibm)
-{
-	printk(TPACPI_INFO "%s v%s\n", TPACPI_DESC, TPACPI_VERSION);
-	printk(TPACPI_INFO "%s\n", TPACPI_URL);
-
-	printk(TPACPI_INFO "ThinkPad BIOS %s, EC %s\n",
-		(thinkpad_id.bios_version_str) ?
-			thinkpad_id.bios_version_str : "unknown",
-		(thinkpad_id.ec_version_str) ?
-			thinkpad_id.ec_version_str : "unknown");
-
-	if (thinkpad_id.vendor && thinkpad_id.model_str)
-		printk(TPACPI_INFO "%s %s, model %s\n",
-			(thinkpad_id.vendor == PCI_VENDOR_ID_IBM) ?
-				"IBM" : ((thinkpad_id.vendor ==
-						PCI_VENDOR_ID_LENOVO) ?
-					"Lenovo" : "Unknown vendor"),
-			thinkpad_id.model_str,
-			(thinkpad_id.nummodel_str) ?
-				thinkpad_id.nummodel_str : "unknown");
-
-	tpacpi_check_outdated_fw();
-	return 0;
-}
 
 static int thinkpad_acpi_driver_read(struct seq_file *m)
 {
@@ -2405,6 +2354,36 @@ static void hotkey_compare_and_issue_event(struct tp_nvram_state *oldn,
 			tpacpi_hotkey_send_key(__scancode); \
 	} while (0)
 
+	void issue_volchange(const unsigned int oldvol,
+			     const unsigned int newvol)
+	{
+		unsigned int i = oldvol;
+
+		while (i > newvol) {
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEDOWN);
+			i--;
+		}
+		while (i < newvol) {
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEUP);
+			i++;
+		}
+	}
+
+	void issue_brightnesschange(const unsigned int oldbrt,
+				    const unsigned int newbrt)
+	{
+		unsigned int i = oldbrt;
+
+		while (i > newbrt) {
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNEND);
+			i--;
+		}
+		while (i < newbrt) {
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNHOME);
+			i++;
+		}
+	}
+
 	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_THINKPAD, thinkpad_toggle);
 	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_FNSPACE, zoom_toggle);
 	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_FNF7, display_toggle);
@@ -2414,41 +2393,61 @@ static void hotkey_compare_and_issue_event(struct tp_nvram_state *oldn,
 
 	TPACPI_COMPARE_KEY(TP_ACPI_HOTKEYSCAN_FNF8, displayexp_toggle);
 
-	/* handle volume */
-	if (oldn->volume_toggle != newn->volume_toggle) {
-		if (oldn->mute != newn->mute) {
+	/*
+	 * Handle volume
+	 *
+	 * This code is supposed to duplicate the IBM firmware behaviour:
+	 * - Pressing MUTE issues mute hotkey message, even when already mute
+	 * - Pressing Volume up/down issues volume up/down hotkey messages,
+	 *   even when already at maximum or minumum volume
+	 * - The act of unmuting issues volume up/down notification,
+	 *   depending which key was used to unmute
+	 *
+	 * We are constrained to what the NVRAM can tell us, which is not much
+	 * and certainly not enough if more than one volume hotkey was pressed
+	 * since the last poll cycle.
+	 *
+	 * Just to make our life interesting, some newer Lenovo ThinkPads have
+	 * bugs in the BIOS and may fail to update volume_toggle properly.
+	 */
+	if (newn->mute) {
+		/* muted */
+		if (!oldn->mute ||
+		    oldn->volume_toggle != newn->volume_toggle ||
+		    oldn->volume_level != newn->volume_level) {
+			/* recently muted, or repeated mute keypress, or
+			 * multiple presses ending in mute */
+			issue_volchange(oldn->volume_level, newn->volume_level);
 			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_MUTE);
 		}
-		if (oldn->volume_level > newn->volume_level) {
-			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEDOWN);
-		} else if (oldn->volume_level < newn->volume_level) {
+	} else {
+		/* unmute */
+		if (oldn->mute) {
+			/* recently unmuted, issue 'unmute' keypress */
 			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEUP);
-		} else if (oldn->mute == newn->mute) {
-			/* repeated key presses that didn't change state */
-			if (newn->mute) {
-				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_MUTE);
-			} else if (newn->volume_level != 0) {
-				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEUP);
-			} else {
+		}
+		if (oldn->volume_level != newn->volume_level) {
+			issue_volchange(oldn->volume_level, newn->volume_level);
+		} else if (oldn->volume_toggle != newn->volume_toggle) {
+			/* repeated vol up/down keypress at end of scale ? */
+			if (newn->volume_level == 0)
 				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEDOWN);
-			}
+			else if (newn->volume_level >= TP_NVRAM_LEVEL_VOLUME_MAX)
+				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_VOLUMEUP);
 		}
 	}
 
 	/* handle brightness */
-	if (oldn->brightness_toggle != newn->brightness_toggle) {
-		if (oldn->brightness_level < newn->brightness_level) {
-			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNHOME);
-		} else if (oldn->brightness_level > newn->brightness_level) {
+	if (oldn->brightness_level != newn->brightness_level) {
+		issue_brightnesschange(oldn->brightness_level,
+				       newn->brightness_level);
+	} else if (oldn->brightness_toggle != newn->brightness_toggle) {
+		/* repeated key presses that didn't change state */
+		if (newn->brightness_level == 0)
 			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNEND);
-		} else {
-			/* repeated key presses that didn't change state */
-			if (newn->brightness_level != 0) {
-				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNHOME);
-			} else {
-				TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNEND);
-			}
-		}
+		else if (newn->brightness_level >= bright_maxlvl
+				&& !tp_features.bright_unkfw)
+			TPACPI_MAY_SEND_KEY(TP_ACPI_HOTKEYSCAN_FNHOME);
 	}
 
 #undef TPACPI_COMPARE_KEY
@@ -3353,7 +3352,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 		goto err_exit;
 	}
 
-	if (thinkpad_id.vendor == PCI_VENDOR_ID_LENOVO) {
+	if (tpacpi_is_lenovo()) {
 		dbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_HKEY,
 			   "using Lenovo default hot key map\n");
 		memcpy(hotkey_keycode_map, &lenovo_keycode_map,
@@ -3391,11 +3390,8 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	}
 
 	/* Do not issue duplicate brightness change events to
-	 * userspace */
-	if (!tp_features.bright_acpimode)
-		/* update bright_acpimode... */
-		tpacpi_check_std_acpi_brightness_support();
-
+	 * userspace. tpacpi_detect_brightness_capabilities() must have
+	 * been called before this point  */
 	if (tp_features.bright_acpimode && acpi_video_backlight_support()) {
 		printk(TPACPI_INFO
 		       "This ThinkPad has standard ACPI backlight "
@@ -4422,7 +4418,8 @@ static int __init video_init(struct ibm_init_struct *iibm)
 	vdbg_printk(TPACPI_DBG_INIT, "initializing video subdriver\n");
 
 	TPACPI_ACPIHANDLE_INIT(vid);
-	TPACPI_ACPIHANDLE_INIT(vid2);
+	if (tpacpi_is_ibm())
+		TPACPI_ACPIHANDLE_INIT(vid2);
 
 	if (vid2_handle && acpi_evalf(NULL, &ivga, "\\IVGA", "d") && ivga)
 		/* G41, assume IVGA doesn't change */
@@ -4431,10 +4428,12 @@ static int __init video_init(struct ibm_init_struct *iibm)
 	if (!vid_handle)
 		/* video switching not supported on R30, R31 */
 		video_supported = TPACPI_VIDEO_NONE;
-	else if (acpi_evalf(vid_handle, &video_orig_autosw, "SWIT", "qd"))
+	else if (tpacpi_is_ibm() &&
+		 acpi_evalf(vid_handle, &video_orig_autosw, "SWIT", "qd"))
 		/* 570 */
 		video_supported = TPACPI_VIDEO_570;
-	else if (acpi_evalf(vid_handle, &video_orig_autosw, "^VADL", "qd"))
+	else if (tpacpi_is_ibm() &&
+		 acpi_evalf(vid_handle, &video_orig_autosw, "^VADL", "qd"))
 		/* 600e/x, 770e, 770x */
 		video_supported = TPACPI_VIDEO_770;
 	else
@@ -4811,8 +4810,10 @@ static int __init light_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing light subdriver\n");
 
-	TPACPI_ACPIHANDLE_INIT(ledb);
-	TPACPI_ACPIHANDLE_INIT(lght);
+	if (tpacpi_is_ibm()) {
+		TPACPI_ACPIHANDLE_INIT(ledb);
+		TPACPI_ACPIHANDLE_INIT(lght);
+	}
 	TPACPI_ACPIHANDLE_INIT(cmos);
 	INIT_WORK(&tpacpi_led_thinklight.work, light_set_status_worker);
 
@@ -5007,11 +5008,7 @@ enum {	/* For TPACPI_LED_OLD */
 
 static enum led_access_mode led_supported;
 
-TPACPI_HANDLE(led, ec, "SLED",	/* 570 */
-	   "SYSL",		/* 600e/x, 770e, 770x, A21e, A2xm/p, */
-				/* T20-22, X20-21 */
-	   "LED",		/* all others */
-	   );			/* R30, R31 */
+static acpi_handle led_handle;
 
 #define TPACPI_LED_NUMLEDS 16
 static struct tpacpi_led_classdev *tpacpi_leds;
@@ -5271,6 +5268,32 @@ static const struct tpacpi_quirk led_useful_qtable[] __initconst = {
 #undef TPACPI_LEDQ_IBM
 #undef TPACPI_LEDQ_LNV
 
+static enum led_access_mode __init led_init_detect_mode(void)
+{
+	acpi_status status;
+
+	if (tpacpi_is_ibm()) {
+		/* 570 */
+		status = acpi_get_handle(ec_handle, "SLED", &led_handle);
+		if (ACPI_SUCCESS(status))
+			return TPACPI_LED_570;
+
+		/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20-21 */
+		status = acpi_get_handle(ec_handle, "SYSL", &led_handle);
+		if (ACPI_SUCCESS(status))
+			return TPACPI_LED_OLD;
+	}
+
+	/* most others */
+	status = acpi_get_handle(ec_handle, "LED", &led_handle);
+	if (ACPI_SUCCESS(status))
+		return TPACPI_LED_NEW;
+
+	/* R30, R31, and unknown firmwares */
+	led_handle = NULL;
+	return TPACPI_LED_NONE;
+}
+
 static int __init led_init(struct ibm_init_struct *iibm)
 {
 	unsigned int i;
@@ -5279,20 +5302,7 @@ static int __init led_init(struct ibm_init_struct *iibm)
 
 	vdbg_printk(TPACPI_DBG_INIT, "initializing LED subdriver\n");
 
-	TPACPI_ACPIHANDLE_INIT(led);
-
-	if (!led_handle)
-		/* led not supported on R30, R31 */
-		led_supported = TPACPI_LED_NONE;
-	else if (strlencmp(led_path, "SLED") == 0)
-		/* 570 */
-		led_supported = TPACPI_LED_570;
-	else if (strlencmp(led_path, "SYSL") == 0)
-		/* 600e/x, 770e, 770x, A21e, A2xm/p, T20-22, X20-21 */
-		led_supported = TPACPI_LED_OLD;
-	else
-		/* all others */
-		led_supported = TPACPI_LED_NEW;
+	led_supported = led_init_detect_mode();
 
 	vdbg_printk(TPACPI_DBG_INIT, "LED commands are %s, mode %d\n",
 		str_supported(led_supported), led_supported);
@@ -5741,11 +5751,12 @@ static int __init thermal_init(struct ibm_init_struct *iibm)
 			    TPACPI_THERMAL_TPEC_16 : TPACPI_THERMAL_TPEC_8;
 		}
 	} else if (acpi_tmp7) {
-		if (acpi_evalf(ec_handle, NULL, "UPDT", "qv")) {
+		if (tpacpi_is_ibm() &&
+		    acpi_evalf(ec_handle, NULL, "UPDT", "qv")) {
 			/* 600e/x, 770e, 770x */
 			thermal_read_mode = TPACPI_THERMAL_ACPI_UPDT;
 		} else {
-			/* Standard ACPI TMPx access, max 8 sensors */
+			/* IBM/LENOVO DSDT EC.TMPx access, max 8 sensors */
 			thermal_read_mode = TPACPI_THERMAL_ACPI_TMP07;
 		}
 	} else {
@@ -5954,7 +5965,7 @@ static unsigned int tpacpi_brightness_nvram_get(void)
 	lnvram = (nvram_read_byte(TP_NVRAM_ADDR_BRIGHTNESS)
 		  & TP_NVRAM_MASK_LEVEL_BRIGHTNESS)
 		  >> TP_NVRAM_POS_LEVEL_BRIGHTNESS;
-	lnvram &= (tp_features.bright_16levels) ? 0x0f : 0x07;
+	lnvram &= bright_maxlvl;
 
 	return lnvram;
 }
@@ -6063,8 +6074,7 @@ static int brightness_set(unsigned int value)
 {
 	int res;
 
-	if (value > ((tp_features.bright_16levels)? 15 : 7) ||
-	    value < 0)
+	if (value > bright_maxlvl || value < 0)
 		return -EINVAL;
 
 	vdbg_printk(TPACPI_DBG_BRGHT,
@@ -6139,6 +6149,80 @@ static struct backlight_ops ibm_backlight_data = {
 
 /* --------------------------------------------------------------------- */
 
+static int __init tpacpi_query_bcl_levels(acpi_handle handle)
+{
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *obj;
+	int rc;
+
+	if (ACPI_SUCCESS(acpi_evaluate_object(handle, NULL, NULL, &buffer))) {
+		obj = (union acpi_object *)buffer.pointer;
+		if (!obj || (obj->type != ACPI_TYPE_PACKAGE)) {
+			printk(TPACPI_ERR "Unknown _BCL data, "
+			       "please report this to %s\n", TPACPI_MAIL);
+			rc = 0;
+		} else {
+			rc = obj->package.count;
+		}
+	} else {
+		return 0;
+	}
+
+	kfree(buffer.pointer);
+	return rc;
+}
+
+static acpi_status __init tpacpi_acpi_walk_find_bcl(acpi_handle handle,
+					u32 lvl, void *context, void **rv)
+{
+	char name[ACPI_PATH_SEGMENT_LENGTH];
+	struct acpi_buffer buffer = { sizeof(name), &name };
+
+	if (ACPI_SUCCESS(acpi_get_name(handle, ACPI_SINGLE_NAME, &buffer)) &&
+	    !strncmp("_BCL", name, sizeof(name) - 1)) {
+		BUG_ON(!rv || !*rv);
+		**(int **)rv = tpacpi_query_bcl_levels(handle);
+		return AE_CTRL_TERMINATE;
+	} else {
+		return AE_OK;
+	}
+}
+
+/*
+ * Returns 0 (no ACPI _BCL or _BCL invalid), or size of brightness map
+ */
+static unsigned int __init tpacpi_check_std_acpi_brightness_support(void)
+{
+	int status;
+	int bcl_levels = 0;
+	void *bcl_ptr = &bcl_levels;
+
+	if (!vid_handle)
+		TPACPI_ACPIHANDLE_INIT(vid);
+
+	if (!vid_handle)
+		return 0;
+
+	/*
+	 * Search for a _BCL method, and execute it.  This is safe on all
+	 * ThinkPads, and as a side-effect, _BCL will place a Lenovo Vista
+	 * BIOS in ACPI backlight control mode.  We do NOT have to care
+	 * about calling the _BCL method in an enabled video device, any
+	 * will do for our purposes.
+	 */
+
+	status = acpi_walk_namespace(ACPI_TYPE_METHOD, vid_handle, 3,
+				     tpacpi_acpi_walk_find_bcl, NULL, NULL,
+				     &bcl_ptr);
+
+	if (ACPI_SUCCESS(status) && bcl_levels > 2) {
+		tp_features.bright_acpimode = 1;
+		return bcl_levels - 2;
+	}
+
+	return 0;
+}
+
 /*
  * These are only useful for models that have only one possibility
  * of GPU.  If the BIOS model handles both ATI and Intel, don't use
@@ -6169,6 +6253,47 @@ static const struct tpacpi_quirk brightness_quirk_table[] __initconst = {
 	TPACPI_Q_IBM('7', '5', TPACPI_BRGHT_Q_NOEC),	/* X41 Tablet */
 };
 
+/*
+ * Returns < 0 for error, otherwise sets tp_features.bright_*
+ * and bright_maxlvl.
+ */
+static void __init tpacpi_detect_brightness_capabilities(void)
+{
+	unsigned int b;
+
+	vdbg_printk(TPACPI_DBG_INIT,
+		    "detecting firmware brightness interface capabilities\n");
+
+	/* we could run a quirks check here (same table used by
+	 * brightness_init) if needed */
+
+	/*
+	 * We always attempt to detect acpi support, so as to switch
+	 * Lenovo Vista BIOS to ACPI brightness mode even if we are not
+	 * going to publish a backlight interface
+	 */
+	b = tpacpi_check_std_acpi_brightness_support();
+	switch (b) {
+	case 16:
+		bright_maxlvl = 15;
+		printk(TPACPI_INFO
+		       "detected a 16-level brightness capable ThinkPad\n");
+		break;
+	case 8:
+	case 0:
+		bright_maxlvl = 7;
+		printk(TPACPI_INFO
+		       "detected a 8-level brightness capable ThinkPad\n");
+		break;
+	default:
+		printk(TPACPI_ERR
+		       "Unsupported brightness interface, "
+		       "please contact %s\n", TPACPI_MAIL);
+		tp_features.bright_unkfw = 1;
+		bright_maxlvl = b - 1;
+	}
+}
+
 static int __init brightness_init(struct ibm_init_struct *iibm)
 {
 	struct backlight_properties props;
@@ -6182,14 +6307,13 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	quirks = tpacpi_check_quirks(brightness_quirk_table,
 				ARRAY_SIZE(brightness_quirk_table));
 
-	/*
-	 * We always attempt to detect acpi support, so as to switch
-	 * Lenovo Vista BIOS to ACPI brightness mode even if we are not
-	 * going to publish a backlight interface
-	 */
-	b = tpacpi_check_std_acpi_brightness_support();
-	if (b > 0) {
+	/* tpacpi_detect_brightness_capabilities() must have run already */
 
+	/* if it is unknown, we don't handle it: it wouldn't be safe */
+	if (tp_features.bright_unkfw)
+		return 1;
+
+	if (tp_features.bright_acpimode) {
 		if (acpi_video_backlight_support()) {
 			if (brightness_enable > 1) {
 				printk(TPACPI_NOTICE
@@ -6218,15 +6342,6 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 		return 1;
 	}
 
-	if (b > 16) {
-		printk(TPACPI_ERR
-		       "Unsupported brightness interface, "
-		       "please contact %s\n", TPACPI_MAIL);
-		return 1;
-	}
-	if (b == 16)
-		tp_features.bright_16levels = 1;
-
 	/*
 	 * Check for module parameter bogosity, note that we
 	 * init brightness_mode to TPACPI_BRGHT_MODE_MAX in order to be
@@ -6249,7 +6364,7 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	}
 
 	/* Safety */
-	if (thinkpad_id.vendor != PCI_VENDOR_ID_IBM &&
+	if (!tpacpi_is_ibm() &&
 	    (brightness_mode == TPACPI_BRGHT_MODE_ECNVRAM ||
 	     brightness_mode == TPACPI_BRGHT_MODE_EC))
 		return -EINVAL;
@@ -6257,12 +6372,9 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 	if (tpacpi_brightness_get_raw(&b) < 0)
 		return 1;
 
-	if (tp_features.bright_16levels)
-		printk(TPACPI_INFO
-		       "detected a 16-level brightness capable ThinkPad\n");
-
 	memset(&props, 0, sizeof(struct backlight_properties));
-	props.max_brightness = (tp_features.bright_16levels) ? 15 : 7;
+	props.max_brightness = bright_maxlvl;
+	props.brightness = b & TP_EC_BACKLIGHT_LVLMSK;
 	ibm_backlight_device = backlight_device_register(TPACPI_BACKLIGHT_DEV_NAME,
 							 NULL, NULL,
 							 &ibm_backlight_data,
@@ -6285,7 +6397,10 @@ static int __init brightness_init(struct ibm_init_struct *iibm)
 			"or not on your ThinkPad\n", TPACPI_MAIL);
 	}
 
-	ibm_backlight_device->props.brightness = b & TP_EC_BACKLIGHT_LVLMSK;
+	/* Added by mistake in early 2007.  Probably useless, but it could
+	 * be working around some unknown firmware problem where the value
+	 * read at startup doesn't match the real hardware state... so leave
+	 * it in place just in case */
 	backlight_update_status(ibm_backlight_device);
 
 	vdbg_printk(TPACPI_DBG_INIT | TPACPI_DBG_BRGHT,
@@ -6328,9 +6443,8 @@ static int brightness_read(struct seq_file *m)
 	} else {
 		seq_printf(m, "level:\t\t%d\n", level);
 		seq_printf(m, "commands:\tup, down\n");
-		seq_printf(m, "commands:\tlevel <level>"
-			       " (<level> is 0-%d)\n",
-			       (tp_features.bright_16levels) ? 15 : 7);
+		seq_printf(m, "commands:\tlevel <level> (<level> is 0-%d)\n",
+			       bright_maxlvl);
 	}
 
 	return 0;
@@ -6341,7 +6455,6 @@ static int brightness_write(char *buf)
 	int level;
 	int rc;
 	char *cmd;
-	int max_level = (tp_features.bright_16levels) ? 15 : 7;
 
 	level = brightness_get(NULL);
 	if (level < 0)
@@ -6349,13 +6462,13 @@ static int brightness_write(char *buf)
 
 	while ((cmd = next_cmd(&buf))) {
 		if (strlencmp(cmd, "up") == 0) {
-			if (level < max_level)
+			if (level < bright_maxlvl)
 				level++;
 		} else if (strlencmp(cmd, "down") == 0) {
 			if (level > 0)
 				level--;
 		} else if (sscanf(cmd, "level %d", &level) == 1 &&
-			   level >= 0 && level <= max_level) {
+			   level >= 0 && level <= bright_maxlvl) {
 			/* new level set */
 		} else
 			return -EINVAL;
@@ -6669,6 +6782,8 @@ static int volume_alsa_vol_get(struct snd_kcontrol *kcontrol,
 static int volume_alsa_vol_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
+	tpacpi_disclose_usertask("ALSA", "set volume to %ld\n",
+				 ucontrol->value.integer.value[0]);
 	return volume_alsa_set_volume(ucontrol->value.integer.value[0]);
 }
 
@@ -6692,6 +6807,9 @@ static int volume_alsa_mute_get(struct snd_kcontrol *kcontrol,
 static int volume_alsa_mute_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
+	tpacpi_disclose_usertask("ALSA", "%smute\n",
+				 ucontrol->value.integer.value[0] ?
+					"un" : "");
 	return volume_alsa_set_mute(!ucontrol->value.integer.value[0]);
 }
 
@@ -7968,9 +8086,11 @@ static int __init fan_init(struct ibm_init_struct *iibm)
 	tp_features.second_fan = 0;
 	fan_control_desired_level = 7;
 
-	TPACPI_ACPIHANDLE_INIT(fans);
-	TPACPI_ACPIHANDLE_INIT(gfan);
-	TPACPI_ACPIHANDLE_INIT(sfan);
+	if (tpacpi_is_ibm()) {
+		TPACPI_ACPIHANDLE_INIT(fans);
+		TPACPI_ACPIHANDLE_INIT(gfan);
+		TPACPI_ACPIHANDLE_INIT(sfan);
+	}
 
 	quirks = tpacpi_check_quirks(fan_quirk_table,
 				     ARRAY_SIZE(fan_quirk_table));
@@ -8662,6 +8782,10 @@ static int __init probe_for_thinkpad(void)
 	if (acpi_disabled)
 		return -ENODEV;
 
+	/* It would be dangerous to run the driver in this case */
+	if (!tpacpi_is_ibm() && !tpacpi_is_lenovo())
+		return -ENODEV;
+
 	/*
 	 * Non-ancient models have better DMI tagging, but very old models
 	 * don't.  tpacpi_is_fw_known() is a cheat to help in that case.
@@ -8670,8 +8794,8 @@ static int __init probe_for_thinkpad(void)
 		      (thinkpad_id.ec_model != 0) ||
 		      tpacpi_is_fw_known();
 
-	/* ec is required because many other handles are relative to it */
-	TPACPI_ACPIHANDLE_INIT(ec);
+	/* The EC handler is required */
+	tpacpi_acpi_handle_locate("ec", TPACPI_ACPI_EC_HID, &ec_handle);
 	if (!ec_handle) {
 		if (is_thinkpad)
 			printk(TPACPI_ERR
@@ -8685,12 +8809,34 @@ static int __init probe_for_thinkpad(void)
 	return 0;
 }
 
+static void __init thinkpad_acpi_init_banner(void)
+{
+	printk(TPACPI_INFO "%s v%s\n", TPACPI_DESC, TPACPI_VERSION);
+	printk(TPACPI_INFO "%s\n", TPACPI_URL);
+
+	printk(TPACPI_INFO "ThinkPad BIOS %s, EC %s\n",
+		(thinkpad_id.bios_version_str) ?
+			thinkpad_id.bios_version_str : "unknown",
+		(thinkpad_id.ec_version_str) ?
+			thinkpad_id.ec_version_str : "unknown");
+
+	BUG_ON(!thinkpad_id.vendor);
+
+	if (thinkpad_id.model_str)
+		printk(TPACPI_INFO "%s %s, model %s\n",
+			(thinkpad_id.vendor == PCI_VENDOR_ID_IBM) ?
+				"IBM" : ((thinkpad_id.vendor ==
+						PCI_VENDOR_ID_LENOVO) ?
+					"Lenovo" : "Unknown vendor"),
+			thinkpad_id.model_str,
+			(thinkpad_id.nummodel_str) ?
+				thinkpad_id.nummodel_str : "unknown");
+}
 
 /* Module init, exit, parameters */
 
 static struct ibm_init_struct ibms_init[] __initdata = {
 	{
-		.init = thinkpad_acpi_driver_init,
 		.data = &thinkpad_acpi_driver_data,
 	},
 	{
@@ -8960,6 +9106,9 @@ static int __init thinkpad_acpi_module_init(void)
 
 	/* Driver initialization */
 
+	thinkpad_acpi_init_banner();
+	tpacpi_check_outdated_fw();
+
 	TPACPI_ACPIHANDLE_INIT(ecrd);
 	TPACPI_ACPIHANDLE_INIT(ecwr);
 
@@ -9059,13 +9208,16 @@ static int __init thinkpad_acpi_module_init(void)
 		tpacpi_inputdev->name = "ThinkPad Extra Buttons";
 		tpacpi_inputdev->phys = TPACPI_DRVR_NAME "/input0";
 		tpacpi_inputdev->id.bustype = BUS_HOST;
-		tpacpi_inputdev->id.vendor = (thinkpad_id.vendor) ?
-						thinkpad_id.vendor :
-						PCI_VENDOR_ID_IBM;
+		tpacpi_inputdev->id.vendor = thinkpad_id.vendor;
 		tpacpi_inputdev->id.product = TPACPI_HKEY_INPUT_PRODUCT;
 		tpacpi_inputdev->id.version = TPACPI_HKEY_INPUT_VERSION;
 		tpacpi_inputdev->dev.parent = &tpacpi_pdev->dev;
 	}
+
+	/* Init subdriver dependencies */
+	tpacpi_detect_brightness_capabilities();
+
+	/* Init subdrivers */
 	for (i = 0; i < ARRAY_SIZE(ibms_init); i++) {
 		ret = ibm_init(&ibms_init[i]);
 		if (ret >= 0 && *ibms_init[i].param)
