@@ -19,7 +19,6 @@
 #include <linux/pagemap.h>
 #include <linux/mount.h>
 #include <linux/stat.h>
-#include <linux/ext2_fs.h>
 #include <linux/kd.h>
 #include <asm/ioctls.h>
 #include <linux/ip.h>
@@ -1116,15 +1115,6 @@ static int smack_cred_prepare(struct cred *new, const struct cred *old,
 {
 	new->security = old->security;
 	return 0;
-}
-
-/**
- * smack_cred_commit - commit new credentials
- * @new: the new credentials
- * @old: the original credentials
- */
-static void smack_cred_commit(struct cred *new, const struct cred *old)
-{
 }
 
 /**
@@ -3121,7 +3111,6 @@ struct security_operations smack_ops = {
 	.cred_alloc_blank =		smack_cred_alloc_blank,
 	.cred_free =			smack_cred_free,
 	.cred_prepare =			smack_cred_prepare,
-	.cred_commit =			smack_cred_commit,
 	.cred_transfer =		smack_cred_transfer,
 	.kernel_act_as =		smack_kernel_act_as,
 	.kernel_create_files_as =	smack_kernel_create_files_as,

@@ -293,28 +293,28 @@ static void superblock_free_security(struct super_block *sb)
 
 static int sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 {
-	struct sk_security_struct *ssec;
+	struct sk_security_struct *sksec;
 
-	ssec = kzalloc(sizeof(*ssec), priority);
-	if (!ssec)
+	sksec = kzalloc(sizeof(*sksec), priority);
+	if (!sksec)
 		return -ENOMEM;
 
-	ssec->peer_sid = SECINITSID_UNLABELED;
-	ssec->sid = SECINITSID_UNLABELED;
-	sk->sk_security = ssec;
+	sksec->peer_sid = SECINITSID_UNLABELED;
+	sksec->sid = SECINITSID_UNLABELED;
+	sk->sk_security = sksec;
 
-	selinux_netlbl_sk_security_reset(ssec);
+	selinux_netlbl_sk_security_reset(sksec);
 
 	return 0;
 }
 
 static void sk_free_security(struct sock *sk)
 {
-	struct sk_security_struct *ssec = sk->sk_security;
+	struct sk_security_struct *sksec = sk->sk_security;
 
 	sk->sk_security = NULL;
-	selinux_netlbl_sk_security_free(ssec);
-	kfree(ssec);
+	selinux_netlbl_sk_security_free(sksec);
+	kfree(sksec);
 }
 
 /* The security server must be initialized before
@@ -323,7 +323,7 @@ extern int ss_initialized;
 
 /* The file system's label must be initialized prior to use. */
 
-static char *labeling_behaviors[6] = {
+static const char *labeling_behaviors[6] = {
 	"uses xattr",
 	"uses transition SIDs",
 	"uses task SIDs",
@@ -2999,13 +2999,15 @@ static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 	return file_has_perm(cred, file, av);
 }
 
+static int default_noexec;
+
 static int file_map_prot_check(struct file *file, unsigned long prot, int shared)
 {
 	const struct cred *cred = current_cred();
 	int rc = 0;
 
-#ifndef CONFIG_PPC32
-	if ((prot & PROT_EXEC) && (!file || (!shared && (prot & PROT_WRITE)))) {
+	if (default_noexec &&
+	    (prot & PROT_EXEC) && (!file || (!shared && (prot & PROT_WRITE)))) {
 		/*
 		 * We are making executable an anonymous mapping or a
 		 * private file mapping that will also be writable.
@@ -3015,7 +3017,6 @@ static int file_map_prot_check(struct file *file, unsigned long prot, int shared
 		if (rc)
 			goto error;
 	}
-#endif
 
 	if (file) {
 		/* read access is always possible with a mapping */
@@ -3076,8 +3077,8 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 	if (selinux_checkreqprot)
 		prot = reqprot;
 
-#ifndef CONFIG_PPC32
-	if ((prot & PROT_EXEC) && !(vma->vm_flags & VM_EXEC)) {
+	if (default_noexec &&
+	    (prot & PROT_EXEC) && !(vma->vm_flags & VM_EXEC)) {
 		int rc = 0;
 		if (vma->vm_start >= vma->vm_mm->start_brk &&
 		    vma->vm_end <= vma->vm_mm->brk) {
@@ -3099,7 +3100,6 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 		if (rc)
 			return rc;
 	}
-#endif
 
 	return file_map_prot_check(vma->vm_file, prot, vma->vm_flags&VM_SHARED);
 }
@@ -4002,7 +4002,7 @@ static int selinux_socket_unix_stream_connect(struct socket *sock,
 					      struct socket *other,
 					      struct sock *newsk)
 {
-	struct sk_security_struct *ssec;
+	struct sk_security_struct *sksec;
 	struct inode_security_struct *isec;
 	struct inode_security_struct *other_isec;
 	struct common_audit_data ad;
@@ -4021,13 +4021,13 @@ static int selinux_socket_unix_stream_connect(struct socket *sock,
 		return err;
 
 	/* connecting socket */
-	ssec = sock->sk->sk_security;
-	ssec->peer_sid = other_isec->sid;
+	sksec = sock->sk->sk_security;
+	sksec->peer_sid = other_isec->sid;
 
 	/* server child socket */
-	ssec = newsk->sk_security;
-	ssec->peer_sid = isec->sid;
-	err = security_sid_mls_copy(other_isec->sid, ssec->peer_sid, &ssec->sid);
+	sksec = newsk->sk_security;
+	sksec->peer_sid = isec->sid;
+	err = security_sid_mls_copy(other_isec->sid, sksec->peer_sid, &sksec->sid);
 
 	return err;
 }
@@ -4190,7 +4190,7 @@ static int selinux_socket_getpeersec_stream(struct socket *sock, char __user *op
 	int err = 0;
 	char *scontext;
 	u32 scontext_len;
-	struct sk_security_struct *ssec;
+	struct sk_security_struct *sksec;
 	struct inode_security_struct *isec;
 	u32 peer_sid = SECSID_NULL;
 
@@ -4198,8 +4198,8 @@ static int selinux_socket_getpeersec_stream(struct socket *sock, char __user *op
 
 	if (isec->sclass == SECCLASS_UNIX_STREAM_SOCKET ||
 	    isec->sclass == SECCLASS_TCP_SOCKET) {
-		ssec = sock->sk->sk_security;
-		peer_sid = ssec->peer_sid;
+		sksec = sock->sk->sk_security;
+		peer_sid = sksec->peer_sid;
 	}
 	if (peer_sid == SECSID_NULL) {
 		err = -ENOPROTOOPT;
@@ -4266,14 +4266,14 @@ static void selinux_sk_free_security(struct sock *sk)
 
 static void selinux_sk_clone_security(const struct sock *sk, struct sock *newsk)
 {
-	struct sk_security_struct *ssec = sk->sk_security;
-	struct sk_security_struct *newssec = newsk->sk_security;
+	struct sk_security_struct *sksec = sk->sk_security;
+	struct sk_security_struct *newsksec = newsk->sk_security;
 
-	newssec->sid = ssec->sid;
-	newssec->peer_sid = ssec->peer_sid;
-	newssec->sclass = ssec->sclass;
+	newsksec->sid = sksec->sid;
+	newsksec->peer_sid = sksec->peer_sid;
+	newsksec->sclass = sksec->sclass;
 
-	selinux_netlbl_sk_security_reset(newssec);
+	selinux_netlbl_sk_security_reset(newsksec);
 }
 
 static void selinux_sk_getsecid(struct sock *sk, u32 *secid)
@@ -5661,6 +5661,8 @@ static __init int selinux_init(void)
 
 	/* Set the security state for the initial task. */
 	cred_init_security();
+
+	default_noexec = !(VM_DATA_DEFAULT_FLAGS & VM_EXEC);
 
 	sel_inode_cache = kmem_cache_create("selinux_inode_security",
 					    sizeof(struct inode_security_struct),

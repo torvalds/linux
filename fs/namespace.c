@@ -628,7 +628,6 @@ repeat:
 		mnt->mnt_pinned = 0;
 		spin_unlock(&vfsmount_lock);
 		acct_auto_close_mnt(mnt);
-		security_sb_umount_close(mnt);
 		goto repeat;
 	}
 }
@@ -1117,8 +1116,6 @@ static int do_umount(struct vfsmount *mnt, int flags)
 		retval = 0;
 	}
 	spin_unlock(&vfsmount_lock);
-	if (retval)
-		security_sb_umount_busy(mnt);
 	up_write(&namespace_sem);
 	release_mounts(&umount_list);
 	return retval;
@@ -1435,17 +1432,10 @@ static int graft_tree(struct vfsmount *mnt, struct path *path)
 	if (cant_mount(path->dentry))
 		goto out_unlock;
 
-	err = security_sb_check_sb(mnt, path);
-	if (err)
-		goto out_unlock;
-
-	err = -ENOENT;
 	if (!d_unlinked(path->dentry))
 		err = attach_recursive_mnt(mnt, path, NULL);
 out_unlock:
 	mutex_unlock(&path->dentry->d_inode->i_mutex);
-	if (!err)
-		security_sb_post_addmount(mnt, path);
 	return err;
 }
 
@@ -1581,8 +1571,6 @@ static int do_remount(struct path *path, int flags, int mnt_flags,
 	}
 	up_write(&sb->s_umount);
 	if (!err) {
-		security_sb_post_remount(path->mnt, flags, data);
-
 		spin_lock(&vfsmount_lock);
 		touch_mnt_namespace(path->mnt->mnt_ns);
 		spin_unlock(&vfsmount_lock);
@@ -2277,7 +2265,6 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	touch_mnt_namespace(current->nsproxy->mnt_ns);
 	spin_unlock(&vfsmount_lock);
 	chroot_fs_refs(&root, &new);
-	security_sb_post_pivotroot(&root, &new);
 	error = 0;
 	path_put(&root_parent);
 	path_put(&parent_path);
