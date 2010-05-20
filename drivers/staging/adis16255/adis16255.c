@@ -303,7 +303,7 @@ static int spi_adis16255_bringup(struct spi_adis16255_data *spiadis)
 	if (status != 0)
 		goto err;
 	if (value != 0x0800) {
-		dev_warn(&spiadis->spi->dev, "Scale factor is none default"
+		dev_warn(&spiadis->spi->dev, "Scale factor is none default "
 				"value (%.4x)\n", value);
 	}
 
@@ -338,7 +338,7 @@ static int spi_adis16255_bringup(struct spi_adis16255_data *spiadis)
 			status = -ENODEV;
 			goto err;
 		} else if (value & 0x3)	{
-			dev_warn(&spiadis->spi->dev, "Sensor voltage"
+			dev_warn(&spiadis->spi->dev, "Sensor voltage "
 						"out of range.\n");
 			status = -ENODEV;
 			goto err;
