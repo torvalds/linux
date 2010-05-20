@@ -278,10 +278,9 @@ static void i915_handle_rps_change(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 busy_up, busy_down, max_avg, min_avg;
-	u16 rgvswctl;
 	u8 new_delay = dev_priv->cur_delay;
 
-	I915_WRITE(MEMINTRSTS, I915_READ(MEMINTRSTS) & ~MEMINT_EVAL_CHG);
+	I915_WRITE16(MEMINTRSTS, MEMINT_EVAL_CHG);
 	busy_up = I915_READ(RCPREVBSYTUPAVG);
 	busy_down = I915_READ(RCPREVBSYTDNAVG);
 	max_avg = I915_READ(RCBMAXAVG);
@@ -300,27 +299,8 @@ static void i915_handle_rps_change(struct drm_device *dev)
 			new_delay = dev_priv->min_delay;
 	}
 
-	DRM_DEBUG("rps change requested: %d -> %d\n",
-		  dev_priv->cur_delay, new_delay);
-
-	rgvswctl = I915_READ(MEMSWCTL);
-	if (rgvswctl & MEMCTL_CMD_STS) {
-		DRM_ERROR("gpu busy, RCS change rejected\n");
-		return; /* still busy with another command */
-	}
-
-	/* Program the new state */
-	rgvswctl = (MEMCTL_CMD_CHFREQ << MEMCTL_CMD_SHIFT) |
-		(new_delay << MEMCTL_FREQ_SHIFT) | MEMCTL_SFCAVM;
-	I915_WRITE(MEMSWCTL, rgvswctl);
-	POSTING_READ(MEMSWCTL);
-
-	rgvswctl |= MEMCTL_CMD_STS;
-	I915_WRITE(MEMSWCTL, rgvswctl);
-
-	dev_priv->cur_delay = new_delay;
-
-	DRM_DEBUG("rps changed\n");
+	if (ironlake_set_drps(dev, new_delay))
+		dev_priv->cur_delay = new_delay;
 
 	return;
 }
@@ -392,7 +372,7 @@ irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	}
 
 	if (de_iir & DE_PCU_EVENT) {
-		I915_WRITE(MEMINTRSTS, I915_READ(MEMINTRSTS));
+		I915_WRITE16(MEMINTRSTS, I915_READ(MEMINTRSTS));
 		i915_handle_rps_change(dev);
 	}
 

@@ -4459,6 +4459,8 @@ static void intel_idle_update(struct work_struct *work)
 
 	mutex_lock(&dev->struct_mutex);
 
+	i915_update_gfx_val(dev_priv);
+
 	if (IS_I945G(dev) || IS_I945GM(dev)) {
 		DRM_DEBUG_DRIVER("enable memory self refresh on 945\n");
 		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN_MASK | FW_BLC_SELF_EN);
@@ -5045,10 +5047,32 @@ err_unref:
 	return NULL;
 }
 
+bool ironlake_set_drps(struct drm_device *dev, u8 val)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u16 rgvswctl;
+
+	rgvswctl = I915_READ16(MEMSWCTL);
+	if (rgvswctl & MEMCTL_CMD_STS) {
+		DRM_DEBUG("gpu busy, RCS change rejected\n");
+		return false; /* still busy with another command */
+	}
+
+	rgvswctl = (MEMCTL_CMD_CHFREQ << MEMCTL_CMD_SHIFT) |
+		(val << MEMCTL_FREQ_SHIFT) | MEMCTL_SFCAVM;
+	I915_WRITE16(MEMSWCTL, rgvswctl);
+	POSTING_READ16(MEMSWCTL);
+
+	rgvswctl |= MEMCTL_CMD_STS;
+	I915_WRITE16(MEMSWCTL, rgvswctl);
+
+	return true;
+}
+
 void ironlake_enable_drps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 rgvmodectl = I915_READ(MEMMODECTL), rgvswctl;
+	u32 rgvmodectl = I915_READ(MEMMODECTL);
 	u8 fmax, fmin, fstart, vstart;
 	int i = 0;
 
@@ -5067,12 +5091,20 @@ void ironlake_enable_drps(struct drm_device *dev)
 	fmin = (rgvmodectl & MEMMODE_FMIN_MASK);
 	fstart = (rgvmodectl & MEMMODE_FSTART_MASK) >>
 		MEMMODE_FSTART_SHIFT;
+	fstart = fmax;
+
 	vstart = (I915_READ(PXVFREQ_BASE + (fstart * 4)) & PXVFREQ_PX_MASK) >>
 		PXVFREQ_PX_SHIFT;
 
-	dev_priv->max_delay = fstart; /* can't go to fmax w/o IPS */
+	dev_priv->fmax = fstart; /* IPS callback will increase this */
+	dev_priv->fstart = fstart;
+
+	dev_priv->max_delay = fmax;
 	dev_priv->min_delay = fmin;
 	dev_priv->cur_delay = fstart;
+
+	DRM_DEBUG_DRIVER("fmax: %d, fmin: %d, fstart: %d\n", fmax, fmin,
+			 fstart);
 
 	I915_WRITE(MEMINTREN, MEMINT_CX_SUPR_EN | MEMINT_EVAL_CHG_EN);
 
@@ -5095,20 +5127,19 @@ void ironlake_enable_drps(struct drm_device *dev)
 	}
 	msleep(1);
 
-	rgvswctl = (MEMCTL_CMD_CHFREQ << MEMCTL_CMD_SHIFT) |
-		(fstart << MEMCTL_FREQ_SHIFT) | MEMCTL_SFCAVM;
-	I915_WRITE(MEMSWCTL, rgvswctl);
-	POSTING_READ(MEMSWCTL);
+	ironlake_set_drps(dev, fstart);
 
-	rgvswctl |= MEMCTL_CMD_STS;
-	I915_WRITE(MEMSWCTL, rgvswctl);
+	dev_priv->last_count1 = I915_READ(0x112e4) + I915_READ(0x112e8) +
+		I915_READ(0x112e0);
+	dev_priv->last_time1 = jiffies_to_msecs(jiffies);
+	dev_priv->last_count2 = I915_READ(0x112f4);
+	getrawmonotonic(&dev_priv->last_time2);
 }
 
 void ironlake_disable_drps(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 rgvswctl;
-	u8 fstart;
+	u16 rgvswctl = I915_READ16(MEMSWCTL);
 
 	/* Ack interrupts, disable EFC interrupt */
 	I915_WRITE(MEMINTREN, I915_READ(MEMINTREN) & ~MEMINT_EVAL_CHG_EN);
@@ -5118,16 +5149,98 @@ void ironlake_disable_drps(struct drm_device *dev)
 	I915_WRITE(DEIMR, I915_READ(DEIMR) | DE_PCU_EVENT);
 
 	/* Go back to the starting frequency */
-	fstart = (I915_READ(MEMMODECTL) & MEMMODE_FSTART_MASK) >>
-		MEMMODE_FSTART_SHIFT;
-	rgvswctl = (MEMCTL_CMD_CHFREQ << MEMCTL_CMD_SHIFT) |
-		(fstart << MEMCTL_FREQ_SHIFT) | MEMCTL_SFCAVM;
-	I915_WRITE(MEMSWCTL, rgvswctl);
+	ironlake_set_drps(dev, dev_priv->fstart);
 	msleep(1);
 	rgvswctl |= MEMCTL_CMD_STS;
 	I915_WRITE(MEMSWCTL, rgvswctl);
 	msleep(1);
 
+}
+
+static unsigned long intel_pxfreq(u32 vidfreq)
+{
+	unsigned long freq;
+	int div = (vidfreq & 0x3f0000) >> 16;
+	int post = (vidfreq & 0x3000) >> 12;
+	int pre = (vidfreq & 0x7);
+
+	if (!pre)
+		return 0;
+
+	freq = ((div * 133333) / ((1<<post) * pre));
+
+	return freq;
+}
+
+void intel_init_emon(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 lcfuse;
+	u8 pxw[16];
+	int i;
+
+	/* Disable to program */
+	I915_WRITE(ECR, 0);
+	POSTING_READ(ECR);
+
+	/* Program energy weights for various events */
+	I915_WRITE(SDEW, 0x15040d00);
+	I915_WRITE(CSIEW0, 0x007f0000);
+	I915_WRITE(CSIEW1, 0x1e220004);
+	I915_WRITE(CSIEW2, 0x04000004);
+
+	for (i = 0; i < 5; i++)
+		I915_WRITE(PEW + (i * 4), 0);
+	for (i = 0; i < 3; i++)
+		I915_WRITE(DEW + (i * 4), 0);
+
+	/* Program P-state weights to account for frequency power adjustment */
+	for (i = 0; i < 16; i++) {
+		u32 pxvidfreq = I915_READ(PXVFREQ_BASE + (i * 4));
+		unsigned long freq = intel_pxfreq(pxvidfreq);
+		unsigned long vid = (pxvidfreq & PXVFREQ_PX_MASK) >>
+			PXVFREQ_PX_SHIFT;
+		unsigned long val;
+
+		val = vid * vid;
+		val *= (freq / 1000);
+		val *= 255;
+		val /= (127*127*900);
+		if (val > 0xff)
+			DRM_ERROR("bad pxval: %ld\n", val);
+		pxw[i] = val;
+	}
+	/* Render standby states get 0 weight */
+	pxw[14] = 0;
+	pxw[15] = 0;
+
+	for (i = 0; i < 4; i++) {
+		u32 val = (pxw[i*4] << 24) | (pxw[(i*4)+1] << 16) |
+			(pxw[(i*4)+2] << 8) | (pxw[(i*4)+3]);
+		I915_WRITE(PXW + (i * 4), val);
+	}
+
+	/* Adjust magic regs to magic values (more experimental results) */
+	I915_WRITE(OGW0, 0);
+	I915_WRITE(OGW1, 0);
+	I915_WRITE(EG0, 0x00007f00);
+	I915_WRITE(EG1, 0x0000000e);
+	I915_WRITE(EG2, 0x000e0000);
+	I915_WRITE(EG3, 0x68000300);
+	I915_WRITE(EG4, 0x42000000);
+	I915_WRITE(EG5, 0x00140031);
+	I915_WRITE(EG6, 0);
+	I915_WRITE(EG7, 0);
+
+	for (i = 0; i < 8; i++)
+		I915_WRITE(PXWL + (i * 4), 0);
+
+	/* Enable PMON + select events */
+	I915_WRITE(ECR, 0x80000019);
+
+	lcfuse = I915_READ(LCFUSE02);
+
+	dev_priv->corr = (lcfuse & LCFUSE_HIV_MASK);
 }
 
 void intel_init_clock_gating(struct drm_device *dev)
@@ -5376,8 +5489,10 @@ void intel_modeset_init(struct drm_device *dev)
 
 	intel_init_clock_gating(dev);
 
-	if (IS_IRONLAKE_M(dev))
+	if (IS_IRONLAKE_M(dev)) {
 		ironlake_enable_drps(dev);
+		intel_init_emon(dev);
+	}
 
 	INIT_WORK(&dev_priv->idle_work, intel_idle_update);
 	setup_timer(&dev_priv->idle_timer, intel_gpu_idle_timer,

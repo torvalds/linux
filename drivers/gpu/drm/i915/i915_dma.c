@@ -1458,13 +1458,10 @@ void i915_master_destroy(struct drm_device *dev, struct drm_master *master)
 	master->driver_priv = NULL;
 }
 
-static void i915_get_mem_freq(struct drm_device *dev)
+static void i915_pineview_get_mem_freq(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 tmp;
-
-	if (!IS_PINEVIEW(dev))
-		return;
 
 	tmp = I915_READ(CLKCFG);
 
@@ -1495,6 +1492,519 @@ static void i915_get_mem_freq(struct drm_device *dev)
 		break;
 	}
 }
+
+static void i915_ironlake_get_mem_freq(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	u16 ddrpll, csipll;
+
+	ddrpll = I915_READ16(DDRMPLL1);
+	csipll = I915_READ16(CSIPLL0);
+
+	switch (ddrpll & 0xff) {
+	case 0xc:
+		dev_priv->mem_freq = 800;
+		break;
+	case 0x10:
+		dev_priv->mem_freq = 1066;
+		break;
+	case 0x14:
+		dev_priv->mem_freq = 1333;
+		break;
+	case 0x18:
+		dev_priv->mem_freq = 1600;
+		break;
+	default:
+		DRM_DEBUG_DRIVER("unknown memory frequency 0x%02x\n",
+				 ddrpll & 0xff);
+		dev_priv->mem_freq = 0;
+		break;
+	}
+
+	dev_priv->r_t = dev_priv->mem_freq;
+
+	switch (csipll & 0x3ff) {
+	case 0x00c:
+		dev_priv->fsb_freq = 3200;
+		break;
+	case 0x00e:
+		dev_priv->fsb_freq = 3733;
+		break;
+	case 0x010:
+		dev_priv->fsb_freq = 4266;
+		break;
+	case 0x012:
+		dev_priv->fsb_freq = 4800;
+		break;
+	case 0x014:
+		dev_priv->fsb_freq = 5333;
+		break;
+	case 0x016:
+		dev_priv->fsb_freq = 5866;
+		break;
+	case 0x018:
+		dev_priv->fsb_freq = 6400;
+		break;
+	default:
+		DRM_DEBUG_DRIVER("unknown fsb frequency 0x%04x\n",
+				 csipll & 0x3ff);
+		dev_priv->fsb_freq = 0;
+		break;
+	}
+
+	if (dev_priv->fsb_freq == 3200) {
+		dev_priv->c_m = 0;
+	} else if (dev_priv->fsb_freq > 3200 && dev_priv->fsb_freq <= 4800) {
+		dev_priv->c_m = 1;
+	} else {
+		dev_priv->c_m = 2;
+	}
+}
+
+struct v_table {
+	u8 vid;
+	unsigned long vd; /* in .1 mil */
+	unsigned long vm; /* in .1 mil */
+	u8 pvid;
+};
+
+static struct v_table v_table[] = {
+	{ 0, 16125, 15000, 0x7f, },
+	{ 1, 16000, 14875, 0x7e, },
+	{ 2, 15875, 14750, 0x7d, },
+	{ 3, 15750, 14625, 0x7c, },
+	{ 4, 15625, 14500, 0x7b, },
+	{ 5, 15500, 14375, 0x7a, },
+	{ 6, 15375, 14250, 0x79, },
+	{ 7, 15250, 14125, 0x78, },
+	{ 8, 15125, 14000, 0x77, },
+	{ 9, 15000, 13875, 0x76, },
+	{ 10, 14875, 13750, 0x75, },
+	{ 11, 14750, 13625, 0x74, },
+	{ 12, 14625, 13500, 0x73, },
+	{ 13, 14500, 13375, 0x72, },
+	{ 14, 14375, 13250, 0x71, },
+	{ 15, 14250, 13125, 0x70, },
+	{ 16, 14125, 13000, 0x6f, },
+	{ 17, 14000, 12875, 0x6e, },
+	{ 18, 13875, 12750, 0x6d, },
+	{ 19, 13750, 12625, 0x6c, },
+	{ 20, 13625, 12500, 0x6b, },
+	{ 21, 13500, 12375, 0x6a, },
+	{ 22, 13375, 12250, 0x69, },
+	{ 23, 13250, 12125, 0x68, },
+	{ 24, 13125, 12000, 0x67, },
+	{ 25, 13000, 11875, 0x66, },
+	{ 26, 12875, 11750, 0x65, },
+	{ 27, 12750, 11625, 0x64, },
+	{ 28, 12625, 11500, 0x63, },
+	{ 29, 12500, 11375, 0x62, },
+	{ 30, 12375, 11250, 0x61, },
+	{ 31, 12250, 11125, 0x60, },
+	{ 32, 12125, 11000, 0x5f, },
+	{ 33, 12000, 10875, 0x5e, },
+	{ 34, 11875, 10750, 0x5d, },
+	{ 35, 11750, 10625, 0x5c, },
+	{ 36, 11625, 10500, 0x5b, },
+	{ 37, 11500, 10375, 0x5a, },
+	{ 38, 11375, 10250, 0x59, },
+	{ 39, 11250, 10125, 0x58, },
+	{ 40, 11125, 10000, 0x57, },
+	{ 41, 11000, 9875, 0x56, },
+	{ 42, 10875, 9750, 0x55, },
+	{ 43, 10750, 9625, 0x54, },
+	{ 44, 10625, 9500, 0x53, },
+	{ 45, 10500, 9375, 0x52, },
+	{ 46, 10375, 9250, 0x51, },
+	{ 47, 10250, 9125, 0x50, },
+	{ 48, 10125, 9000, 0x4f, },
+	{ 49, 10000, 8875, 0x4e, },
+	{ 50, 9875, 8750, 0x4d, },
+	{ 51, 9750, 8625, 0x4c, },
+	{ 52, 9625, 8500, 0x4b, },
+	{ 53, 9500, 8375, 0x4a, },
+	{ 54, 9375, 8250, 0x49, },
+	{ 55, 9250, 8125, 0x48, },
+	{ 56, 9125, 8000, 0x47, },
+	{ 57, 9000, 7875, 0x46, },
+	{ 58, 8875, 7750, 0x45, },
+	{ 59, 8750, 7625, 0x44, },
+	{ 60, 8625, 7500, 0x43, },
+	{ 61, 8500, 7375, 0x42, },
+	{ 62, 8375, 7250, 0x41, },
+	{ 63, 8250, 7125, 0x40, },
+	{ 64, 8125, 7000, 0x3f, },
+	{ 65, 8000, 6875, 0x3e, },
+	{ 66, 7875, 6750, 0x3d, },
+	{ 67, 7750, 6625, 0x3c, },
+	{ 68, 7625, 6500, 0x3b, },
+	{ 69, 7500, 6375, 0x3a, },
+	{ 70, 7375, 6250, 0x39, },
+	{ 71, 7250, 6125, 0x38, },
+	{ 72, 7125, 6000, 0x37, },
+	{ 73, 7000, 5875, 0x36, },
+	{ 74, 6875, 5750, 0x35, },
+	{ 75, 6750, 5625, 0x34, },
+	{ 76, 6625, 5500, 0x33, },
+	{ 77, 6500, 5375, 0x32, },
+	{ 78, 6375, 5250, 0x31, },
+	{ 79, 6250, 5125, 0x30, },
+	{ 80, 6125, 5000, 0x2f, },
+	{ 81, 6000, 4875, 0x2e, },
+	{ 82, 5875, 4750, 0x2d, },
+	{ 83, 5750, 4625, 0x2c, },
+	{ 84, 5625, 4500, 0x2b, },
+	{ 85, 5500, 4375, 0x2a, },
+	{ 86, 5375, 4250, 0x29, },
+	{ 87, 5250, 4125, 0x28, },
+	{ 88, 5125, 4000, 0x27, },
+	{ 89, 5000, 3875, 0x26, },
+	{ 90, 4875, 3750, 0x25, },
+	{ 91, 4750, 3625, 0x24, },
+	{ 92, 4625, 3500, 0x23, },
+	{ 93, 4500, 3375, 0x22, },
+	{ 94, 4375, 3250, 0x21, },
+	{ 95, 4250, 3125, 0x20, },
+	{ 96, 4125, 3000, 0x1f, },
+	{ 97, 4125, 3000, 0x1e, },
+	{ 98, 4125, 3000, 0x1d, },
+	{ 99, 4125, 3000, 0x1c, },
+	{ 100, 4125, 3000, 0x1b, },
+	{ 101, 4125, 3000, 0x1a, },
+	{ 102, 4125, 3000, 0x19, },
+	{ 103, 4125, 3000, 0x18, },
+	{ 104, 4125, 3000, 0x17, },
+	{ 105, 4125, 3000, 0x16, },
+	{ 106, 4125, 3000, 0x15, },
+	{ 107, 4125, 3000, 0x14, },
+	{ 108, 4125, 3000, 0x13, },
+	{ 109, 4125, 3000, 0x12, },
+	{ 110, 4125, 3000, 0x11, },
+	{ 111, 4125, 3000, 0x10, },
+	{ 112, 4125, 3000, 0x0f, },
+	{ 113, 4125, 3000, 0x0e, },
+	{ 114, 4125, 3000, 0x0d, },
+	{ 115, 4125, 3000, 0x0c, },
+	{ 116, 4125, 3000, 0x0b, },
+	{ 117, 4125, 3000, 0x0a, },
+	{ 118, 4125, 3000, 0x09, },
+	{ 119, 4125, 3000, 0x08, },
+	{ 120, 1125, 0, 0x07, },
+	{ 121, 1000, 0, 0x06, },
+	{ 122, 875, 0, 0x05, },
+	{ 123, 750, 0, 0x04, },
+	{ 124, 625, 0, 0x03, },
+	{ 125, 500, 0, 0x02, },
+	{ 126, 375, 0, 0x01, },
+	{ 127, 0, 0, 0x00, },
+};
+
+struct cparams {
+	int i;
+	int t;
+	int m;
+	int c;
+};
+
+static struct cparams cparams[] = {
+	{ 1, 1333, 301, 28664 },
+	{ 1, 1066, 294, 24460 },
+	{ 1, 800, 294, 25192 },
+	{ 0, 1333, 276, 27605 },
+	{ 0, 1066, 276, 27605 },
+	{ 0, 800, 231, 23784 },
+};
+
+unsigned long i915_chipset_val(struct drm_i915_private *dev_priv)
+{
+	u64 total_count, diff, ret;
+	u32 count1, count2, count3, m = 0, c = 0;
+	unsigned long now = jiffies_to_msecs(jiffies), diff1;
+	int i;
+
+	diff1 = now - dev_priv->last_time1;
+
+	count1 = I915_READ(DMIEC);
+	count2 = I915_READ(DDREC);
+	count3 = I915_READ(CSIEC);
+
+	total_count = count1 + count2 + count3;
+
+	/* FIXME: handle per-counter overflow */
+	if (total_count < dev_priv->last_count1) {
+		diff = ~0UL - dev_priv->last_count1;
+		diff += total_count;
+	} else {
+		diff = total_count - dev_priv->last_count1;
+	}
+
+	for (i = 0; i < ARRAY_SIZE(cparams); i++) {
+		if (cparams[i].i == dev_priv->c_m &&
+		    cparams[i].t == dev_priv->r_t) {
+			m = cparams[i].m;
+			c = cparams[i].c;
+			break;
+		}
+	}
+
+	div_u64(diff, diff1);
+	ret = ((m * diff) + c);
+	div_u64(ret, 10);
+
+	dev_priv->last_count1 = total_count;
+	dev_priv->last_time1 = now;
+
+	return ret;
+}
+
+unsigned long i915_mch_val(struct drm_i915_private *dev_priv)
+{
+	unsigned long m, x, b;
+	u32 tsfs;
+
+	tsfs = I915_READ(TSFS);
+
+	m = ((tsfs & TSFS_SLOPE_MASK) >> TSFS_SLOPE_SHIFT);
+	x = I915_READ8(TR1);
+
+	b = tsfs & TSFS_INTR_MASK;
+
+	return ((m * x) / 127) - b;
+}
+
+static unsigned long pvid_to_extvid(struct drm_i915_private *dev_priv, u8 pxvid)
+{
+	unsigned long val = 0;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(v_table); i++) {
+		if (v_table[i].pvid == pxvid) {
+			if (IS_MOBILE(dev_priv->dev))
+				val = v_table[i].vm;
+			else
+				val = v_table[i].vd;
+		}
+	}
+
+	return val;
+}
+
+void i915_update_gfx_val(struct drm_i915_private *dev_priv)
+{
+	struct timespec now, diff1;
+	u64 diff;
+	unsigned long diffms;
+	u32 count;
+
+	getrawmonotonic(&now);
+	diff1 = timespec_sub(now, dev_priv->last_time2);
+
+	/* Don't divide by 0 */
+	diffms = diff1.tv_sec * 1000 + diff1.tv_nsec / 1000000;
+	if (!diffms)
+		return;
+
+	count = I915_READ(GFXEC);
+
+	if (count < dev_priv->last_count2) {
+		diff = ~0UL - dev_priv->last_count2;
+		diff += count;
+	} else {
+		diff = count - dev_priv->last_count2;
+	}
+
+	dev_priv->last_count2 = count;
+	dev_priv->last_time2 = now;
+
+	/* More magic constants... */
+	diff = diff * 1181;
+	div_u64(diff, diffms * 10);
+	dev_priv->gfx_power = diff;
+}
+
+unsigned long i915_gfx_val(struct drm_i915_private *dev_priv)
+{
+	unsigned long t, corr, state1, corr2, state2;
+	u32 pxvid, ext_v;
+
+	pxvid = I915_READ(PXVFREQ_BASE + (dev_priv->cur_delay * 4));
+	pxvid = (pxvid >> 24) & 0x7f;
+	ext_v = pvid_to_extvid(dev_priv, pxvid);
+
+	state1 = ext_v;
+
+	t = i915_mch_val(dev_priv);
+
+	/* Revel in the empirically derived constants */
+
+	/* Correction factor in 1/100000 units */
+	if (t > 80)
+		corr = ((t * 2349) + 135940);
+	else if (t >= 50)
+		corr = ((t * 964) + 29317);
+	else /* < 50 */
+		corr = ((t * 301) + 1004);
+
+	corr = corr * ((150142 * state1) / 10000 - 78642);
+	corr /= 100000;
+	corr2 = (corr * dev_priv->corr);
+
+	state2 = (corr2 * state1) / 10000;
+	state2 /= 100; /* convert to mW */
+
+	i915_update_gfx_val(dev_priv);
+
+	return dev_priv->gfx_power + state2;
+}
+
+/* Global for IPS driver to get at the current i915 device */
+static struct drm_i915_private *i915_mch_dev;
+/*
+ * Lock protecting IPS related data structures
+ *   - i915_mch_dev
+ *   - dev_priv->max_delay
+ *   - dev_priv->min_delay
+ *   - dev_priv->fmax
+ *   - dev_priv->gpu_busy
+ */
+DEFINE_SPINLOCK(mchdev_lock);
+
+/**
+ * i915_read_mch_val - return value for IPS use
+ *
+ * Calculate and return a value for the IPS driver to use when deciding whether
+ * we have thermal and power headroom to increase CPU or GPU power budget.
+ */
+unsigned long i915_read_mch_val(void)
+{
+  	struct drm_i915_private *dev_priv;
+	unsigned long chipset_val, graphics_val, ret = 0;
+
+  	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev)
+		goto out_unlock;
+	dev_priv = i915_mch_dev;
+
+	chipset_val = i915_chipset_val(dev_priv);
+	graphics_val = i915_gfx_val(dev_priv);
+
+	ret = chipset_val + graphics_val;
+
+out_unlock:
+  	spin_unlock(&mchdev_lock);
+
+  	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_read_mch_val);
+
+/**
+ * i915_gpu_raise - raise GPU frequency limit
+ *
+ * Raise the limit; IPS indicates we have thermal headroom.
+ */
+bool i915_gpu_raise(void)
+{
+  	struct drm_i915_private *dev_priv;
+	bool ret = true;
+
+  	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev) {
+		ret = false;
+		goto out_unlock;
+	}
+	dev_priv = i915_mch_dev;
+
+	if (dev_priv->max_delay > dev_priv->fmax)
+		dev_priv->max_delay--;
+
+out_unlock:
+  	spin_unlock(&mchdev_lock);
+
+  	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_gpu_raise);
+
+/**
+ * i915_gpu_lower - lower GPU frequency limit
+ *
+ * IPS indicates we're close to a thermal limit, so throttle back the GPU
+ * frequency maximum.
+ */
+bool i915_gpu_lower(void)
+{
+  	struct drm_i915_private *dev_priv;
+	bool ret = true;
+
+  	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev) {
+		ret = false;
+		goto out_unlock;
+	}
+	dev_priv = i915_mch_dev;
+
+	if (dev_priv->max_delay < dev_priv->min_delay)
+		dev_priv->max_delay++;
+
+out_unlock:
+  	spin_unlock(&mchdev_lock);
+
+  	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_gpu_lower);
+
+/**
+ * i915_gpu_busy - indicate GPU business to IPS
+ *
+ * Tell the IPS driver whether or not the GPU is busy.
+ */
+bool i915_gpu_busy(void)
+{
+  	struct drm_i915_private *dev_priv;
+	bool ret = false;
+
+  	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev)
+		goto out_unlock;
+	dev_priv = i915_mch_dev;
+
+	ret = dev_priv->busy;
+
+out_unlock:
+  	spin_unlock(&mchdev_lock);
+
+  	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_gpu_busy);
+
+/**
+ * i915_gpu_turbo_disable - disable graphics turbo
+ *
+ * Disable graphics turbo by resetting the max frequency and setting the
+ * current frequency to the default.
+ */
+bool i915_gpu_turbo_disable(void)
+{
+  	struct drm_i915_private *dev_priv;
+	bool ret = true;
+
+  	spin_lock(&mchdev_lock);
+	if (!i915_mch_dev) {
+		ret = false;
+		goto out_unlock;
+	}
+	dev_priv = i915_mch_dev;
+
+	dev_priv->max_delay = dev_priv->fstart;
+
+	if (!ironlake_set_drps(dev_priv->dev, dev_priv->fstart))
+		ret = false;
+
+out_unlock:
+  	spin_unlock(&mchdev_lock);
+
+  	return ret;
+}
+EXPORT_SYMBOL_GPL(i915_gpu_turbo_disable);
 
 /**
  * i915_driver_load - setup chip and create an initial config
@@ -1616,7 +2126,10 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 			goto out_workqueue_free;
 	}
 
-	i915_get_mem_freq(dev);
+	if (IS_PINEVIEW(dev))
+		i915_pineview_get_mem_freq(dev);
+	else if (IS_IRONLAKE(dev))
+		i915_ironlake_get_mem_freq(dev);
 
 	/* On the 945G/GM, the chipset reports the MSI capability on the
 	 * integrated graphics even though the support isn't actually there
@@ -1662,6 +2175,12 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	setup_timer(&dev_priv->hangcheck_timer, i915_hangcheck_elapsed,
 		    (unsigned long) dev);
+
+	spin_lock(&mchdev_lock);
+	i915_mch_dev = dev_priv;
+	dev_priv->mchdev_lock = &mchdev_lock;
+	spin_unlock(&mchdev_lock);
+
 	return 0;
 
 out_workqueue_free:
@@ -1682,6 +2201,10 @@ int i915_driver_unload(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
 	i915_destroy_error_state(dev);
+
+	spin_lock(&mchdev_lock);
+	i915_mch_dev = NULL;
+	spin_unlock(&mchdev_lock);
 
 	destroy_workqueue(dev_priv->wq);
 	del_timer_sync(&dev_priv->hangcheck_timer);

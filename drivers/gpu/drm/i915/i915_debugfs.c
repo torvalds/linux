@@ -491,11 +491,14 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u16 rgvswctl = I915_READ16(MEMSWCTL);
+	u16 rgvstat = I915_READ16(MEMSTAT_ILK);
 
-	seq_printf(m, "Last command: 0x%01x\n", (rgvswctl >> 13) & 0x3);
-	seq_printf(m, "Command status: %d\n", (rgvswctl >> 12) & 1);
-	seq_printf(m, "P%d DELAY 0x%02x\n", (rgvswctl >> 8) & 0xf,
-		   rgvswctl & 0x3f);
+	seq_printf(m, "Requested P-state: %d\n", (rgvswctl >> 8) & 0xf);
+	seq_printf(m, "Requested VID: %d\n", rgvswctl & 0x3f);
+	seq_printf(m, "Current VID: %d\n", (rgvstat & MEMSTAT_VID_MASK) >>
+		   MEMSTAT_VID_SHIFT);
+	seq_printf(m, "Current P-state: %d\n",
+		   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
 
 	return 0;
 }
@@ -510,7 +513,8 @@ static int i915_delayfreq_table(struct seq_file *m, void *unused)
 
 	for (i = 0; i < 16; i++) {
 		delayfreq = I915_READ(PXVFREQ_BASE + i * 4);
-		seq_printf(m, "P%02dVIDFREQ: 0x%08x\n", i, delayfreq);
+		seq_printf(m, "P%02dVIDFREQ: 0x%08x (VID: %d)\n", i, delayfreq,
+			   (delayfreq & PXVFREQ_PX_MASK) >> PXVFREQ_PX_SHIFT);
 	}
 
 	return 0;
@@ -543,6 +547,8 @@ static int i915_drpc_info(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 rgvmodectl = I915_READ(MEMMODECTL);
+	u32 rstdbyctl = I915_READ(MCHBAR_RENDER_STANDBY);
+	u16 crstandvid = I915_READ16(CRSTANDVID);
 
 	seq_printf(m, "HD boost: %s\n", (rgvmodectl & MEMMODE_BOOST_EN) ?
 		   "yes" : "no");
@@ -557,9 +563,13 @@ static int i915_drpc_info(struct seq_file *m, void *unused)
 		   rgvmodectl & MEMMODE_RCLK_GATE ? "yes" : "no");
 	seq_printf(m, "Starting frequency: P%d\n",
 		   (rgvmodectl & MEMMODE_FSTART_MASK) >> MEMMODE_FSTART_SHIFT);
-	seq_printf(m, "Max frequency: P%d\n",
+	seq_printf(m, "Max P-state: P%d\n",
 		   (rgvmodectl & MEMMODE_FMAX_MASK) >> MEMMODE_FMAX_SHIFT);
-	seq_printf(m, "Min frequency: P%d\n", (rgvmodectl & MEMMODE_FMIN_MASK));
+	seq_printf(m, "Min P-state: P%d\n", (rgvmodectl & MEMMODE_FMIN_MASK));
+	seq_printf(m, "RS1 VID: %d\n", (crstandvid & 0x3f));
+	seq_printf(m, "RS2 VID: %d\n", ((crstandvid >> 8) & 0x3f));
+	seq_printf(m, "Render standby enabled: %s\n",
+		   (rstdbyctl & RCX_SW_EXIT) ? "no" : "yes");
 
 	return 0;
 }
@@ -619,6 +629,36 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 
 	seq_printf(m, "self-refresh: %s\n", sr_enabled ? "enabled" :
 		   "disabled");
+
+	return 0;
+}
+
+static int i915_emon_status(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	unsigned long temp, chipset, gfx;
+
+	temp = i915_mch_val(dev_priv);
+	chipset = i915_chipset_val(dev_priv);
+	gfx = i915_gfx_val(dev_priv);
+
+	seq_printf(m, "GMCH temp: %ld\n", temp);
+	seq_printf(m, "Chipset power: %ld\n", chipset);
+	seq_printf(m, "GFX power: %ld\n", gfx);
+	seq_printf(m, "Total power: %ld\n", chipset + gfx);
+
+	return 0;
+}
+
+static int i915_gfxec(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	seq_printf(m, "GFXEC: %ld\n", (unsigned long)I915_READ(0x112f4));
 
 	return 0;
 }
@@ -745,6 +785,8 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_delayfreq_table", i915_delayfreq_table, 0},
 	{"i915_inttoext_table", i915_inttoext_table, 0},
 	{"i915_drpc_info", i915_drpc_info, 0},
+	{"i915_emon_status", i915_emon_status, 0},
+	{"i915_gfxec", i915_gfxec, 0},
 	{"i915_fbc_status", i915_fbc_status, 0},
 	{"i915_sr_status", i915_sr_status, 0},
 };

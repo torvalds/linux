@@ -619,6 +619,18 @@ typedef struct drm_i915_private {
 	u8 cur_delay;
 	u8 min_delay;
 	u8 max_delay;
+	u8 fmax;
+	u8 fstart;
+
+ 	u64 last_count1;
+ 	unsigned long last_time1;
+ 	u64 last_count2;
+ 	struct timespec last_time2;
+ 	unsigned long gfx_power;
+ 	int c_m;
+ 	int r_t;
+ 	u8 corr;
+	spinlock_t *mchdev_lock;
 
 	enum no_fbc_reason no_fbc_reason;
 
@@ -802,6 +814,11 @@ extern int i915_emit_box(struct drm_device *dev,
 			 struct drm_clip_rect *boxes,
 			 int i, int DR1, int DR4);
 extern int i965_reset(struct drm_device *dev, u8 flags);
+extern unsigned long i915_chipset_val(struct drm_i915_private *dev_priv);
+extern unsigned long i915_mch_val(struct drm_i915_private *dev_priv);
+extern unsigned long i915_gfx_val(struct drm_i915_private *dev_priv);
+extern void i915_update_gfx_val(struct drm_i915_private *dev_priv);
+
 
 /* i915_irq.c */
 void i915_hangcheck_elapsed(unsigned long data);
@@ -1005,7 +1022,7 @@ extern void g4x_disable_fbc(struct drm_device *dev);
 extern void intel_disable_fbc(struct drm_device *dev);
 extern void intel_enable_fbc(struct drm_crtc *crtc, unsigned long interval);
 extern bool intel_fbc_enabled(struct drm_device *dev);
-
+extern bool ironlake_set_drps(struct drm_device *dev, u8 val);
 extern void intel_detect_pch (struct drm_device *dev);
 extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
 
@@ -1030,6 +1047,7 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
 #define I915_WRITE64(reg, val)	writeq(val, dev_priv->regs + (reg))
 #define I915_READ64(reg)	readq(dev_priv->regs + (reg))
 #define POSTING_READ(reg)	(void)I915_READ(reg)
+#define POSTING_READ16(reg)	(void)I915_READ16(reg)
 
 #define I915_VERBOSE 0
 

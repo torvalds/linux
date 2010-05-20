@@ -838,6 +838,12 @@
 #define CLKCFG_MEM_800					(3 << 4)
 #define CLKCFG_MEM_MASK					(7 << 4)
 
+#define TR1			0x11006
+#define TSFS			0x11020
+#define   TSFS_SLOPE_MASK	0x0000ff00
+#define   TSFS_SLOPE_SHIFT	8
+#define   TSFS_INTR_MASK	0x000000ff
+
 #define CRSTANDVID		0x11100
 #define PXVFREQ_BASE		0x11110 /* P[0-15]VIDFREQ (0x1114c) (Ironlake) */
 #define   PXVFREQ_PX_MASK	0x7f000000
@@ -976,6 +982,41 @@
 #define   MEMSTAT_SRC_CTL_STDBY 3
 #define RCPREVBSYTUPAVG		0x113b8
 #define RCPREVBSYTDNAVG		0x113bc
+#define SDEW			0x1124c
+#define CSIEW0			0x11250
+#define CSIEW1			0x11254
+#define CSIEW2			0x11258
+#define PEW			0x1125c
+#define DEW			0x11270
+#define MCHAFE			0x112c0
+#define CSIEC			0x112e0
+#define DMIEC			0x112e4
+#define DDREC			0x112e8
+#define PEG0EC			0x112ec
+#define PEG1EC			0x112f0
+#define GFXEC			0x112f4
+#define RPPREVBSYTUPAVG		0x113b8
+#define RPPREVBSYTDNAVG		0x113bc
+#define ECR			0x11600
+#define   ECR_GPFE		(1<<31)
+#define   ECR_IMONE		(1<<30)
+#define   ECR_CAP_MASK		0x0000001f /* Event range, 0-31 */
+#define OGW0			0x11608
+#define OGW1			0x1160c
+#define EG0			0x11610
+#define EG1			0x11614
+#define EG2			0x11618
+#define EG3			0x1161c
+#define EG4			0x11620
+#define EG5			0x11624
+#define EG6			0x11628
+#define EG7			0x1162c
+#define PXW			0x11664
+#define PXWL			0x11680
+#define LCFUSE02		0x116c0
+#define   LCFUSE_HIV_MASK	0x000000ff
+#define CSIPLL0			0x12c10
+#define DDRMPLL1		0X12c20
 #define PEG_BAND_GAP_DATA	0x14d68
 
 /*
