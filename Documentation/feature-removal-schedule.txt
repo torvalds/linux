@@ -589,3 +589,13 @@ Why:	The vtx device nodes have been superseded by vbi device nodes
 	provided by the vtx API, then that functionality should be build
 	around the sliced VBI API instead.
 Who:	Hans Verkuil <hverkuil@xs4all.nl>
+
+----------------------------
+
+What:	IRQF_DISABLED
+When:	2.6.36
+Why:	The flag is a NOOP as we run interrupt handlers with interrupts disabled
+Who:	Thomas Gleixner <tglx@linutronix.de>
+
+----------------------------
+
