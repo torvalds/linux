@@ -25,10 +25,31 @@ config MACH_AQUILA
 	help
 	  Machine support for the Samsung Aquila target based on S5PC110 SoC
 
+config S5PV210_SETUP_I2C1
+	bool
+	help
+	  Common setup code for i2c bus 1.
+
+config S5PV210_SETUP_I2C2
+	bool
+	help
+	  Common setup code for i2c bus 2.
+
 config S5PV210_SETUP_FB_24BPP
 	bool
 	help
           Common setup code for S5PV210 with an 24bpp RGB display helper.
+
+config S5PV210_SETUP_SDHCI
+        bool
+        select S5PV210_SETUP_SDHCI_GPIO
+        help
+          Internal helper functions for S5PV210 based SDHCI systems
+
+config S5PV210_SETUP_SDHCI_GPIO
+	bool
+	help
+	  Common setup code for SDHCI gpio.
 
 config MACH_SMDKV210
 	bool "SMDKV210"
