@@ -1000,11 +1000,18 @@ static int avivo_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 		return -EINVAL;
 	}
 
-	if (tiling_flags & RADEON_TILING_MACRO)
-		fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
+	if (rdev->family >= CHIP_R600) {
+		if (tiling_flags & RADEON_TILING_MACRO)
+			fb_format |= R600_D1GRPH_ARRAY_MODE_2D_TILED_THIN1;
+		else if (tiling_flags & RADEON_TILING_MICRO)
+			fb_format |= R600_D1GRPH_ARRAY_MODE_1D_TILED_THIN1;
+	} else {
+		if (tiling_flags & RADEON_TILING_MACRO)
+			fb_format |= AVIVO_D1GRPH_MACRO_ADDRESS_MODE;
 
-	if (tiling_flags & RADEON_TILING_MICRO)
-		fb_format |= AVIVO_D1GRPH_TILED;
+		if (tiling_flags & RADEON_TILING_MICRO)
+			fb_format |= AVIVO_D1GRPH_TILED;
+	}
 
 	if (radeon_crtc->crtc_id == 0)
 		WREG32(AVIVO_D1VGA_CONTROL, 0);
