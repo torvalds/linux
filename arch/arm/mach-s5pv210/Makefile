@@ -24,3 +24,4 @@ obj-$(CONFIG_MACH_SMDKC110)	+= mach-smdkc110.o
 # device support
 
 obj-y				+= dev-audio.o
+obj-$(CONFIG_S5PV210_SETUP_FB_24BPP)	+= setup-fb-24bpp.o

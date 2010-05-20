@@ -143,4 +143,9 @@
 
 #define NR_IRQS 		(IRQ_EINT(31) + 1)
 
+/* Compatibility */
+#define IRQ_LCD_FIFO		IRQ_LCD0
+#define IRQ_LCD_VSYNC		IRQ_LCD1
+#define IRQ_LCD_SYSTEM		IRQ_LCD2
+
 #endif /* ASM_ARCH_IRQS_H */

@@ -47,6 +47,8 @@
 #define S5PV210_PA_PDMA0	0xE0900000
 #define S5PV210_PA_PDMA1	0xE0A00000
 
+#define S5PV210_PA_FB		(0xF8000000)
+
 #define S5PV210_PA_VIC0		(0xF2000000)
 #define S5P_PA_VIC0		S5PV210_PA_VIC0
 
@@ -78,5 +80,6 @@
 /* compatibiltiy defines. */
 #define S3C_PA_UART		S5PV210_PA_UART
 #define S3C_PA_IIC		S5PV210_PA_IIC0
+#define S3C_PA_FB		S5PV210_PA_FB
 
 #endif /* __ASM_ARCH_MAP_H */
