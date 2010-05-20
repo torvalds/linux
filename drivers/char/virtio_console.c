@@ -1048,7 +1048,7 @@ static void handle_control_message(struct ports_device *portdev,
 	cpkt = (struct virtio_console_control *)(buf->buf + buf->offset);
 
 	port = find_port_by_id(portdev, cpkt->id);
-	if (!port) {
+	if (!port && cpkt->event != VIRTIO_CONSOLE_PORT_ADD) {
 		/* No valid header at start of buffer.  Drop it. */
 		dev_dbg(&portdev->vdev->dev,
 			"Invalid index %u in control packet\n", cpkt->id);
@@ -1056,6 +1056,30 @@ static void handle_control_message(struct ports_device *portdev,
 	}
 
 	switch (cpkt->event) {
+	case VIRTIO_CONSOLE_PORT_ADD:
+		if (port) {
+			/*
+			 * This can happen for port 0: we have to
+			 * create a console port during probe() as was
+			 * the behaviour before the MULTIPORT feature.
+			 * On a newer host, when the host tells us
+			 * that a port 0 is available, we should just
+			 * say we have the port all set up.
+			 */
+			send_control_msg(port, VIRTIO_CONSOLE_PORT_READY, 1);
+			break;
+		}
+		if (cpkt->id >= portdev->config.max_nr_ports) {
+			dev_warn(&portdev->vdev->dev,
+				"Request for adding port with out-of-bound id %u, max. supported id: %u\n",
+				cpkt->id, portdev->config.max_nr_ports - 1);
+			break;
+		}
+		add_port(portdev, cpkt->id);
+		break;
+	case VIRTIO_CONSOLE_PORT_REMOVE:
+		remove_port(port);
+		break;
 	case VIRTIO_CONSOLE_CONSOLE_PORT:
 		if (!cpkt->value)
 			break;
@@ -1113,32 +1137,6 @@ static void handle_control_message(struct ports_device *portdev,
 			 */
 			kobject_uevent(&port->dev->kobj, KOBJ_CHANGE);
 		}
-		break;
-	case VIRTIO_CONSOLE_PORT_REMOVE:
-		/*
-		 * Hot unplug the port.  We don't decrement nr_ports
-		 * since we don't want to deal with extra complexities
-		 * of using the lowest-available port id: We can just
-		 * pick up the nr_ports number as the id and not have
-		 * userspace send it to us.  This helps us in two
-		 * ways:
-		 *
-		 * - We don't need to have a 'port_id' field in the
-		 *   config space when a port is hot-added.  This is a
-		 *   good thing as we might queue up multiple hotplug
-		 *   requests issued in our workqueue.
-		 *
-		 * - Another way to deal with this would have been to
-		 *   use a bitmap of the active ports and select the
-		 *   lowest non-active port from that map.  That
-		 *   bloats the already tight config space and we
-		 *   would end up artificially limiting the
-		 *   max. number of ports to sizeof(bitmap).  Right
-		 *   now we can support 2^32 ports (as the port id is
-		 *   stored in a u32 type).
-		 *
-		 */
-		remove_port(port);
 		break;
 	}
 }
@@ -1347,7 +1345,6 @@ static const struct file_operations portdev_fops = {
 static int __devinit virtcons_probe(struct virtio_device *vdev)
 {
 	struct ports_device *portdev;
-	u32 i;
 	int err;
 	bool multiport;
 
@@ -1376,29 +1373,15 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 	}
 
 	multiport = false;
-	portdev->config.nr_ports = 1;
 	portdev->config.max_nr_ports = 1;
 	if (virtio_has_feature(vdev, VIRTIO_CONSOLE_F_MULTIPORT)) {
 		multiport = true;
 		vdev->features[0] |= 1 << VIRTIO_CONSOLE_F_MULTIPORT;
 
 		vdev->config->get(vdev, offsetof(struct virtio_console_config,
-						 nr_ports),
-				  &portdev->config.nr_ports,
-				  sizeof(portdev->config.nr_ports));
-		vdev->config->get(vdev, offsetof(struct virtio_console_config,
 						 max_nr_ports),
 				  &portdev->config.max_nr_ports,
 				  sizeof(portdev->config.max_nr_ports));
-		if (portdev->config.nr_ports > portdev->config.max_nr_ports) {
-			dev_warn(&vdev->dev,
-				 "More ports (%u) specified than allowed (%u). Will init %u ports.",
-				 portdev->config.nr_ports,
-				 portdev->config.max_nr_ports,
-				 portdev->config.max_nr_ports);
-
-			portdev->config.nr_ports = portdev->config.max_nr_ports;
-		}
 	}
 
 	/* Let the Host know we support multiple ports.*/
@@ -1428,11 +1411,17 @@ static int __devinit virtcons_probe(struct virtio_device *vdev)
 		}
 	}
 
-	for (i = 0; i < portdev->config.nr_ports; i++)
-		add_port(portdev, i);
+	/*
+	 * For backward compatibility: if we're running on an older
+	 * host, we always want to create a console port.
+	 */
+	add_port(portdev, 0);
 
 	/* Start using the new console output. */
 	early_put_chars = NULL;
+
+	__send_control_msg(portdev, VIRTIO_CONSOLE_BAD_ID,
+			   VIRTIO_CONSOLE_DEVICE_READY, 1);
 	return 0;
 
 free_vqs:

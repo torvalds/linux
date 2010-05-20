@@ -23,8 +23,6 @@ struct virtio_console_config {
 	__u16 rows;
 	/* max. number of ports this device can hold */
 	__u32 max_nr_ports;
-	/* number of ports added so far */
-	__u32 nr_ports;
 } __attribute__((packed));
 
 /*
@@ -38,13 +36,14 @@ struct virtio_console_control {
 };
 
 /* Some events for control messages */
-#define VIRTIO_CONSOLE_PORT_READY	0
-#define VIRTIO_CONSOLE_CONSOLE_PORT	1
-#define VIRTIO_CONSOLE_RESIZE		2
-#define VIRTIO_CONSOLE_PORT_OPEN	3
-#define VIRTIO_CONSOLE_PORT_NAME	4
-#define VIRTIO_CONSOLE_PORT_REMOVE	5
-#define VIRTIO_CONSOLE_DEVICE_READY	6
+#define VIRTIO_CONSOLE_DEVICE_READY	0
+#define VIRTIO_CONSOLE_PORT_ADD		1
+#define VIRTIO_CONSOLE_PORT_REMOVE	2
+#define VIRTIO_CONSOLE_PORT_READY	3
+#define VIRTIO_CONSOLE_CONSOLE_PORT	4
+#define VIRTIO_CONSOLE_RESIZE		5
+#define VIRTIO_CONSOLE_PORT_OPEN	6
+#define VIRTIO_CONSOLE_PORT_NAME	7
 
 #ifdef __KERNEL__
 int __init virtio_cons_early_init(int (*put_chars)(u32, const char *, int));
