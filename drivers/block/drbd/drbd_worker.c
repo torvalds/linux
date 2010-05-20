@@ -127,7 +127,7 @@ static void drbd_endio_write_sec_final(struct drbd_epoch_entry *e) __releases(lo
 		drbd_bump_write_ordering(mdev, WO_bdev_flush);
 		spin_lock_irqsave(&mdev->req_lock, flags);
 		list_del(&e->w.list);
-		e->flags |= EE_RESUBMITTED;
+		e->flags = (e->flags & ~EE_WAS_ERROR) | EE_RESUBMITTED;
 		e->w.cb = w_e_reissue;
 		/* put_ldev actually happens below, once we come here again. */
 		__release(local);
