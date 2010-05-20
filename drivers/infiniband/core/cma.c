@@ -79,7 +79,6 @@ static DEFINE_IDR(sdp_ps);
 static DEFINE_IDR(tcp_ps);
 static DEFINE_IDR(udp_ps);
 static DEFINE_IDR(ipoib_ps);
-static int next_port;
 
 struct cma_device {
 	struct list_head	list;
@@ -1677,13 +1676,13 @@ int rdma_set_ib_paths(struct rdma_cm_id *id,
 	if (!cma_comp_exch(id_priv, CMA_ADDR_RESOLVED, CMA_ROUTE_RESOLVED))
 		return -EINVAL;
 
-	id->route.path_rec = kmalloc(sizeof *path_rec * num_paths, GFP_KERNEL);
+	id->route.path_rec = kmemdup(path_rec, sizeof *path_rec * num_paths,
+				     GFP_KERNEL);
 	if (!id->route.path_rec) {
 		ret = -ENOMEM;
 		goto err;
 	}
 
-	memcpy(id->route.path_rec, path_rec, sizeof *path_rec * num_paths);
 	id->route.num_paths = num_paths;
 	return 0;
 err:
@@ -1970,47 +1969,33 @@ err1:
 
 static int cma_alloc_any_port(struct idr *ps, struct rdma_id_private *id_priv)
 {
-	struct rdma_bind_list *bind_list;
-	int port, ret, low, high;
-
-	bind_list = kzalloc(sizeof *bind_list, GFP_KERNEL);
-	if (!bind_list)
-		return -ENOMEM;
-
-retry:
-	/* FIXME: add proper port randomization per like inet_csk_get_port */
-	do {
-		ret = idr_get_new_above(ps, bind_list, next_port, &port);
-	} while ((ret == -EAGAIN) && idr_pre_get(ps, GFP_KERNEL));
-
-	if (ret)
-		goto err1;
+	static unsigned int last_used_port;
+	int low, high, remaining;
+	unsigned int rover;
 
 	inet_get_local_port_range(&low, &high);
-	if (port > high) {
-		if (next_port != low) {
-			idr_remove(ps, port);
-			next_port = low;
-			goto retry;
-		}
-		ret = -EADDRNOTAVAIL;
-		goto err2;
+	remaining = (high - low) + 1;
+	rover = net_random() % remaining + low;
+retry:
+	if (last_used_port != rover &&
+	    !idr_find(ps, (unsigned short) rover)) {
+		int ret = cma_alloc_port(ps, id_priv, rover);
+		/*
+		 * Remember previously used port number in order to avoid
+		 * re-using same port immediately after it is closed.
+		 */
+		if (!ret)
+			last_used_port = rover;
+		if (ret != -EADDRNOTAVAIL)
+			return ret;
 	}
-
-	if (port == high)
-		next_port = low;
-	else
-		next_port = port + 1;
-
-	bind_list->ps = ps;
-	bind_list->port = (unsigned short) port;
-	cma_bind_port(bind_list, id_priv);
-	return 0;
-err2:
-	idr_remove(ps, port);
-err1:
-	kfree(bind_list);
-	return ret;
+	if (--remaining) {
+		rover++;
+		if ((rover < low) || (rover > high))
+			rover = low;
+		goto retry;
+	}
+	return -EADDRNOTAVAIL;
 }
 
 static int cma_use_port(struct idr *ps, struct rdma_id_private *id_priv)
@@ -2995,12 +2980,7 @@ static void cma_remove_one(struct ib_device *device)
 
 static int __init cma_init(void)
 {
-	int ret, low, high, remaining;
-
-	get_random_bytes(&next_port, sizeof next_port);
-	inet_get_local_port_range(&low, &high);
-	remaining = (high - low) + 1;
-	next_port = ((unsigned int) next_port % remaining) + low;
+	int ret;
 
 	cma_wq = create_singlethread_workqueue("rdma_cm");
 	if (!cma_wq)

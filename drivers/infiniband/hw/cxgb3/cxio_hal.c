@@ -174,7 +174,7 @@ int cxio_create_cq(struct cxio_rdev *rdev_p, struct t3_cq *cq, int kernel)
 		kfree(cq->sw_queue);
 		return -ENOMEM;
 	}
-	pci_unmap_addr_set(cq, mapping, cq->dma_addr);
+	dma_unmap_addr_set(cq, mapping, cq->dma_addr);
 	memset(cq->queue, 0, size);
 	setup.id = cq->cqid;
 	setup.base_addr = (u64) (cq->dma_addr);
@@ -297,7 +297,7 @@ int cxio_create_qp(struct cxio_rdev *rdev_p, u32 kernel_domain,
 		goto err4;
 
 	memset(wq->queue, 0, depth * sizeof(union t3_wr));
-	pci_unmap_addr_set(wq, mapping, wq->dma_addr);
+	dma_unmap_addr_set(wq, mapping, wq->dma_addr);
 	wq->doorbell = (void __iomem *)rdev_p->rnic_info.kdb_addr;
 	if (!kernel_domain)
 		wq->udb = (u64)rdev_p->rnic_info.udbell_physbase +
@@ -325,7 +325,7 @@ int cxio_destroy_cq(struct cxio_rdev *rdev_p, struct t3_cq *cq)
 	dma_free_coherent(&(rdev_p->rnic_info.pdev->dev),
 			  (1UL << (cq->size_log2))
 			  * sizeof(struct t3_cqe), cq->queue,
-			  pci_unmap_addr(cq, mapping));
+			  dma_unmap_addr(cq, mapping));
 	cxio_hal_put_cqid(rdev_p->rscp, cq->cqid);
 	return err;
 }
@@ -336,7 +336,7 @@ int cxio_destroy_qp(struct cxio_rdev *rdev_p, struct t3_wq *wq,
 	dma_free_coherent(&(rdev_p->rnic_info.pdev->dev),
 			  (1UL << (wq->size_log2))
 			  * sizeof(union t3_wr), wq->queue,
-			  pci_unmap_addr(wq, mapping));
+			  dma_unmap_addr(wq, mapping));
 	kfree(wq->sq);
 	cxio_hal_rqtpool_free(rdev_p, wq->rq_addr, (1UL << wq->rq_size_log2));
 	kfree(wq->rq);
@@ -537,7 +537,7 @@ static int cxio_hal_init_ctrl_qp(struct cxio_rdev *rdev_p)
 		err = -ENOMEM;
 		goto err;
 	}
-	pci_unmap_addr_set(&rdev_p->ctrl_qp, mapping,
+	dma_unmap_addr_set(&rdev_p->ctrl_qp, mapping,
 			   rdev_p->ctrl_qp.dma_addr);
 	rdev_p->ctrl_qp.doorbell = (void __iomem *)rdev_p->rnic_info.kdb_addr;
 	memset(rdev_p->ctrl_qp.workq, 0,
@@ -583,7 +583,7 @@ static int cxio_hal_destroy_ctrl_qp(struct cxio_rdev *rdev_p)
 	dma_free_coherent(&(rdev_p->rnic_info.pdev->dev),
 			  (1UL << T3_CTRL_QP_SIZE_LOG2)
 			  * sizeof(union t3_wr), rdev_p->ctrl_qp.workq,
-			  pci_unmap_addr(&rdev_p->ctrl_qp, mapping));
+			  dma_unmap_addr(&rdev_p->ctrl_qp, mapping));
 	return cxio_hal_clear_qp_ctx(rdev_p, T3_CTRL_QP_ID);
 }
 
