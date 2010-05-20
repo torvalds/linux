@@ -634,7 +634,6 @@ static int tlv320aic23_resume(struct platform_device *pdev)
 	}
 
 	tlv320aic23_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	tlv320aic23_set_bias_level(codec, codec->suspend_bias_level);
 
 	return 0;
 }

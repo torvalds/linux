@@ -44,6 +44,8 @@ static int snd_soc_4_12_write(struct snd_soc_codec *codec, unsigned int reg,
 		return 0;
 	}
 
+	dev_dbg(codec->dev, "0x%x = 0x%x\n", reg, value);
+
 	ret = codec->hw_write(codec->control_data, data, 2);
 	if (ret == 2)
 		return 0;
@@ -112,6 +114,8 @@ static int snd_soc_7_9_write(struct snd_soc_codec *codec, unsigned int reg,
 		return 0;
 	}
 
+	dev_dbg(codec->dev, "0x%x = 0x%x\n", reg, value);
+
 	ret = codec->hw_write(codec->control_data, data, 2);
 	if (ret == 2)
 		return 0;
@@ -159,7 +163,8 @@ static int snd_soc_8_8_write(struct snd_soc_codec *codec, unsigned int reg,
 
 	BUG_ON(codec->volatile_register);
 
-	data[0] = reg & 0xff;
+	reg &= 0xff;
+	data[0] = reg;
 	data[1] = value & 0xff;
 
 	if (reg < codec->reg_cache_size)
@@ -169,6 +174,8 @@ static int snd_soc_8_8_write(struct snd_soc_codec *codec, unsigned int reg,
 		codec->cache_sync = 1;
 		return 0;
 	}
+
+	dev_dbg(codec->dev, "0x%x = 0x%x\n", reg, value);
 
 	if (codec->hw_write(codec->control_data, data, 2) == 2)
 		return 0;
@@ -180,6 +187,7 @@ static unsigned int snd_soc_8_8_read(struct snd_soc_codec *codec,
 				     unsigned int reg)
 {
 	u8 *cache = codec->reg_cache;
+	reg &= 0xff;
 	if (reg >= codec->reg_cache_size)
 		return -1;
 	return cache[reg];
@@ -203,6 +211,8 @@ static int snd_soc_8_16_write(struct snd_soc_codec *codec, unsigned int reg,
 		return 0;
 	}
 
+	dev_dbg(codec->dev, "0x%x = 0x%x\n", reg, value);
+
 	if (codec->hw_write(codec->control_data, data, 3) == 3)
 		return 0;
 	else
@@ -224,6 +234,40 @@ static unsigned int snd_soc_8_16_read(struct snd_soc_codec *codec,
 		return cache[reg];
 	}
 }
+
+#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
+static unsigned int snd_soc_8_8_read_i2c(struct snd_soc_codec *codec,
+					  unsigned int r)
+{
+	struct i2c_msg xfer[2];
+	u8 reg = r;
+	u8 data;
+	int ret;
+	struct i2c_client *client = codec->control_data;
+
+	/* Write register */
+	xfer[0].addr = client->addr;
+	xfer[0].flags = 0;
+	xfer[0].len = 1;
+	xfer[0].buf = &reg;
+
+	/* Read data */
+	xfer[1].addr = client->addr;
+	xfer[1].flags = I2C_M_RD;
+	xfer[1].len = 1;
+	xfer[1].buf = &data;
+
+	ret = i2c_transfer(client->adapter, xfer, 2);
+	if (ret != 2) {
+		dev_err(&client->dev, "i2c_transfer() returned %d\n", ret);
+		return 0;
+	}
+
+	return data;
+}
+#else
+#define snd_soc_8_8_read_i2c NULL
+#endif
 
 #if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
 static unsigned int snd_soc_8_16_read_i2c(struct snd_soc_codec *codec,
@@ -326,6 +370,8 @@ static int snd_soc_16_8_write(struct snd_soc_codec *codec, unsigned int reg,
 		return 0;
 	}
 
+	dev_dbg(codec->dev, "0x%x = 0x%x\n", reg, value);
+
 	ret = codec->hw_write(codec->control_data, data, 3);
 	if (ret == 3)
 		return 0;
@@ -366,6 +412,86 @@ static int snd_soc_16_8_spi_write(void *control_data, const char *data,
 #define snd_soc_16_8_spi_write NULL
 #endif
 
+#if defined(CONFIG_I2C) || (defined(CONFIG_I2C_MODULE) && defined(MODULE))
+static unsigned int snd_soc_16_16_read_i2c(struct snd_soc_codec *codec,
+					   unsigned int r)
+{
+	struct i2c_msg xfer[2];
+	u16 reg = cpu_to_be16(r);
+	u16 data;
+	int ret;
+	struct i2c_client *client = codec->control_data;
+
+	/* Write register */
+	xfer[0].addr = client->addr;
+	xfer[0].flags = 0;
+	xfer[0].len = 2;
+	xfer[0].buf = (u8 *)&reg;
+
+	/* Read data */
+	xfer[1].addr = client->addr;
+	xfer[1].flags = I2C_M_RD;
+	xfer[1].len = 2;
+	xfer[1].buf = (u8 *)&data;
+
+	ret = i2c_transfer(client->adapter, xfer, 2);
+	if (ret != 2) {
+		dev_err(&client->dev, "i2c_transfer() returned %d\n", ret);
+		return 0;
+	}
+
+	return be16_to_cpu(data);
+}
+#else
+#define snd_soc_16_16_read_i2c NULL
+#endif
+
+static unsigned int snd_soc_16_16_read(struct snd_soc_codec *codec,
+				       unsigned int reg)
+{
+	u16 *cache = codec->reg_cache;
+
+	if (reg >= codec->reg_cache_size ||
+	    snd_soc_codec_volatile_register(codec, reg)) {
+		if (codec->cache_only)
+			return -EINVAL;
+
+		return codec->hw_read(codec, reg);
+	}
+
+	return cache[reg];
+}
+
+static int snd_soc_16_16_write(struct snd_soc_codec *codec, unsigned int reg,
+			       unsigned int value)
+{
+	u16 *cache = codec->reg_cache;
+	u8 data[4];
+	int ret;
+
+	data[0] = (reg >> 8) & 0xff;
+	data[1] = reg & 0xff;
+	data[2] = (value >> 8) & 0xff;
+	data[3] = value & 0xff;
+
+	if (reg < codec->reg_cache_size)
+		cache[reg] = value;
+
+	if (codec->cache_only) {
+		codec->cache_sync = 1;
+		return 0;
+	}
+
+	dev_dbg(codec->dev, "0x%x = 0x%x\n", reg, value);
+
+	ret = codec->hw_write(codec->control_data, data, 4);
+	if (ret == 4)
+		return 0;
+	if (ret < 0)
+		return ret;
+	else
+		return -EIO;
+}
 
 static struct {
 	int addr_bits;
@@ -388,6 +514,7 @@ static struct {
 	{
 		.addr_bits = 8, .data_bits = 8,
 		.write = snd_soc_8_8_write, .read = snd_soc_8_8_read,
+		.i2c_read = snd_soc_8_8_read_i2c,
 	},
 	{
 		.addr_bits = 8, .data_bits = 16,
@@ -399,6 +526,11 @@ static struct {
 		.write = snd_soc_16_8_write, .read = snd_soc_16_8_read,
 		.i2c_read = snd_soc_16_8_read_i2c,
 		.spi_write = snd_soc_16_8_spi_write,
+	},
+	{
+		.addr_bits = 16, .data_bits = 16,
+		.write = snd_soc_16_16_write, .read = snd_soc_16_16_read,
+		.i2c_read = snd_soc_16_16_read_i2c,
 	},
 };
 

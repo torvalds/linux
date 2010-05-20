@@ -415,9 +415,12 @@ static void atmel_pcm_free_dma_buffers(struct snd_pcm *pcm)
 }
 
 #ifdef CONFIG_PM
-static int atmel_pcm_suspend(struct snd_soc_dai *dai)
+static int atmel_pcm_suspend(struct snd_soc_dai_link *dai_link)
 {
-	struct snd_pcm_runtime *runtime = dai->runtime;
+	struct snd_pcm *pcm = dai_link->pcm;
+	struct snd_pcm_str *stream = &pcm->streams[0];
+	struct snd_pcm_substream *substream = stream->substream;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct atmel_runtime_data *prtd;
 	struct atmel_pcm_dma_params *params;
 
@@ -439,9 +442,12 @@ static int atmel_pcm_suspend(struct snd_soc_dai *dai)
 	return 0;
 }
 
-static int atmel_pcm_resume(struct snd_soc_dai *dai)
+static int atmel_pcm_resume(struct snd_soc_dai_link *dai_link)
 {
-	struct snd_pcm_runtime *runtime = dai->runtime;
+	struct snd_pcm *pcm = dai_link->pcm;
+	struct snd_pcm_str *stream = &pcm->streams[0];
+	struct snd_pcm_substream *substream = stream->substream;
+	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct atmel_runtime_data *prtd;
 	struct atmel_pcm_dma_params *params;
 

@@ -764,7 +764,7 @@ static void pll_factors(struct _pll_div *pll_div, unsigned int source)
 static int wm9713_set_pll(struct snd_soc_codec *codec,
 	int pll_id, unsigned int freq_in, unsigned int freq_out)
 {
-	struct wm9713_priv *wm9713 = codec->private_data;
+	struct wm9713_priv *wm9713 = snd_soc_codec_get_drvdata(codec);
 	u16 reg, reg2;
 	struct _pll_div pll_div;
 
@@ -1175,7 +1175,7 @@ static int wm9713_soc_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm9713_priv *wm9713 = codec->private_data;
+	struct wm9713_priv *wm9713 = snd_soc_codec_get_drvdata(codec);
 	int i, ret;
 	u16 *cache = codec->reg_cache;
 
@@ -1201,9 +1201,6 @@ static int wm9713_soc_resume(struct platform_device *pdev)
 		}
 	}
 
-	if (codec->suspend_bias_level == SND_SOC_BIAS_ON)
-		wm9713_set_bias_level(codec, SND_SOC_BIAS_ON);
-
 	return ret;
 }
 
@@ -1228,8 +1225,9 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 	codec->reg_cache_size = sizeof(wm9713_reg);
 	codec->reg_cache_step = 2;
 
-	codec->private_data = kzalloc(sizeof(struct wm9713_priv), GFP_KERNEL);
-	if (codec->private_data == NULL) {
+	snd_soc_codec_set_drvdata(codec, kzalloc(sizeof(struct wm9713_priv),
+						 GFP_KERNEL));
+	if (snd_soc_codec_get_drvdata(codec) == NULL) {
 		ret = -ENOMEM;
 		goto priv_err;
 	}
@@ -1280,7 +1278,7 @@ pcm_err:
 	snd_soc_free_ac97_codec(codec);
 
 codec_err:
-	kfree(codec->private_data);
+	kfree(snd_soc_codec_get_drvdata(codec));
 
 priv_err:
 	kfree(codec->reg_cache);
@@ -1302,7 +1300,7 @@ static int wm9713_soc_remove(struct platform_device *pdev)
 	snd_soc_dapm_free(socdev);
 	snd_soc_free_pcms(socdev);
 	snd_soc_free_ac97_codec(codec);
-	kfree(codec->private_data);
+	kfree(snd_soc_codec_get_drvdata(codec));
 	kfree(codec->reg_cache);
 	kfree(codec);
 	return 0;

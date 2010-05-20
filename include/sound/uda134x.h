@@ -21,6 +21,7 @@ struct uda134x_platform_data {
 #define UDA134X_UDA1340 1
 #define UDA134X_UDA1341 2
 #define UDA134X_UDA1344 3
+#define UDA134X_UDA1345 4
 };
 
 #endif /* _UDA134X_H */

@@ -1102,73 +1102,17 @@ static int snd_mixart_free(struct mixart_mgr *mgr)
 /*
  * proc interface
  */
-static long long snd_mixart_BA0_llseek(struct snd_info_entry *entry,
-				       void *private_file_data,
-				       struct file *file,
-				       long long offset,
-				       int orig)
-{
-	offset = offset & ~3; /* 4 bytes aligned */
-
-	switch(orig) {
-	case SEEK_SET:
-		file->f_pos = offset;
-		break;
-	case SEEK_CUR:
-		file->f_pos += offset;
-		break;
-	case SEEK_END: /* offset is negative */
-		file->f_pos = MIXART_BA0_SIZE + offset;
-		break;
-	default:
-		return -EINVAL;
-	}
-	if(file->f_pos > MIXART_BA0_SIZE)
-		file->f_pos = MIXART_BA0_SIZE;
-	return file->f_pos;
-}
-
-static long long snd_mixart_BA1_llseek(struct snd_info_entry *entry,
-				       void *private_file_data,
-				       struct file *file,
-				       long long offset,
-				       int orig)
-{
-	offset = offset & ~3; /* 4 bytes aligned */
-
-	switch(orig) {
-	case SEEK_SET:
-		file->f_pos = offset;
-		break;
-	case SEEK_CUR:
-		file->f_pos += offset;
-		break;
-	case SEEK_END: /* offset is negative */
-		file->f_pos = MIXART_BA1_SIZE + offset;
-		break;
-	default:
-		return -EINVAL;
-	}
-	if(file->f_pos > MIXART_BA1_SIZE)
-		file->f_pos = MIXART_BA1_SIZE;
-	return file->f_pos;
-}
 
 /*
   mixart_BA0 proc interface for BAR 0 - read callback
  */
-static long snd_mixart_BA0_read(struct snd_info_entry *entry, void *file_private_data,
-				struct file *file, char __user *buf,
-				unsigned long count, unsigned long pos)
+static ssize_t snd_mixart_BA0_read(struct snd_info_entry *entry,
+				   void *file_private_data,
+				   struct file *file, char __user *buf,
+				   size_t count, loff_t pos)
 {
 	struct mixart_mgr *mgr = entry->private_data;
-	unsigned long maxsize;
 
-	if (pos >= MIXART_BA0_SIZE)
-		return 0;
-	maxsize = MIXART_BA0_SIZE - pos;
-	if (count > maxsize)
-		count = maxsize;
 	count = count & ~3; /* make sure the read size is a multiple of 4 bytes */
 	if (copy_to_user_fromio(buf, MIXART_MEM(mgr, pos), count))
 		return -EFAULT;
@@ -1178,18 +1122,13 @@ static long snd_mixart_BA0_read(struct snd_info_entry *entry, void *file_private
 /*
   mixart_BA1 proc interface for BAR 1 - read callback
  */
-static long snd_mixart_BA1_read(struct snd_info_entry *entry, void *file_private_data,
-				struct file *file, char __user *buf,
-				unsigned long count, unsigned long pos)
+static ssize_t snd_mixart_BA1_read(struct snd_info_entry *entry,
+				   void *file_private_data,
+				   struct file *file, char __user *buf,
+				   size_t count, loff_t pos)
 {
 	struct mixart_mgr *mgr = entry->private_data;
-	unsigned long maxsize;
 
-	if (pos > MIXART_BA1_SIZE)
-		return 0;
-	maxsize = MIXART_BA1_SIZE - pos;
-	if (count > maxsize)
-		count = maxsize;
 	count = count & ~3; /* make sure the read size is a multiple of 4 bytes */
 	if (copy_to_user_fromio(buf, MIXART_REG(mgr, pos), count))
 		return -EFAULT;
@@ -1198,12 +1137,10 @@ static long snd_mixart_BA1_read(struct snd_info_entry *entry, void *file_private
 
 static struct snd_info_entry_ops snd_mixart_proc_ops_BA0 = {
 	.read   = snd_mixart_BA0_read,
-	.llseek = snd_mixart_BA0_llseek
 };
 
 static struct snd_info_entry_ops snd_mixart_proc_ops_BA1 = {
 	.read   = snd_mixart_BA1_read,
-	.llseek = snd_mixart_BA1_llseek
 };
 
 

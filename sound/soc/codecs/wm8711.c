@@ -163,7 +163,7 @@ static int wm8711_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8711_priv *wm8711 = codec->private_data;
+	struct wm8711_priv *wm8711 = snd_soc_codec_get_drvdata(codec);
 	u16 iface = snd_soc_read(codec, WM8711_IFACE) & 0xfffc;
 	int i = get_coeff(wm8711->sysclk, params_rate(params));
 	u16 srate = (coeff_div[i].sr << 2) |
@@ -227,7 +227,7 @@ static int wm8711_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8711_priv *wm8711 = codec->private_data;
+	struct wm8711_priv *wm8711 = snd_soc_codec_get_drvdata(codec);
 
 	switch (freq) {
 	case 11289600:
@@ -376,7 +376,7 @@ static int wm8711_resume(struct platform_device *pdev)
 		codec->hw_write(codec->control_data, data, 2);
 	}
 	wm8711_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	wm8711_set_bias_level(codec, codec->suspend_bias_level);
+
 	return 0;
 }
 
@@ -446,7 +446,7 @@ static int wm8711_register(struct wm8711_priv *wm8711,
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8711;
+	snd_soc_codec_set_drvdata(codec, wm8711);
 	codec->name = "WM8711";
 	codec->owner = THIS_MODULE;
 	codec->bias_level = SND_SOC_BIAS_OFF;

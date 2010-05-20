@@ -2657,21 +2657,16 @@ static inline void snd_cs46xx_remove_gameport(struct snd_cs46xx *chip) { }
  *  proc interface
  */
 
-static long snd_cs46xx_io_read(struct snd_info_entry *entry, void *file_private_data,
-			       struct file *file, char __user *buf,
-			       unsigned long count, unsigned long pos)
+static ssize_t snd_cs46xx_io_read(struct snd_info_entry *entry,
+				  void *file_private_data,
+				  struct file *file, char __user *buf,
+				  size_t count, loff_t pos)
 {
-	long size;
 	struct snd_cs46xx_region *region = entry->private_data;
 	
-	size = count;
-	if (pos + (size_t)size > region->size)
-		size = region->size - pos;
-	if (size > 0) {
-		if (copy_to_user_fromio(buf, region->remap_addr + pos, size))
-			return -EFAULT;
-	}
-	return size;
+	if (copy_to_user_fromio(buf, region->remap_addr + pos, count))
+		return -EFAULT;
+	return count;
 }
 
 static struct snd_info_entry_ops snd_cs46xx_proc_io_ops = {

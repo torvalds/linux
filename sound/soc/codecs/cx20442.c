@@ -387,7 +387,7 @@ static int cx20442_register(struct cx20442_priv *cx20442)
 
 	codec->name = "CX20442";
 	codec->owner = THIS_MODULE;
-	codec->private_data = cx20442;
+	snd_soc_codec_set_drvdata(codec, cx20442);
 
 	codec->dai = &cx20442_dai;
 	codec->num_dai = 1;
