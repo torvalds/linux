@@ -33,20 +33,27 @@
 #include <limits.h>
 
 #undef _GNU_SOURCE
+#include "util.h"
 #include "event.h"
 #include "string.h"
 #include "strlist.h"
 #include "debug.h"
 #include "cache.h"
 #include "color.h"
-#include "parse-events.h"  /* For debugfs_path */
+#include "symbol.h"
+#include "thread.h"
+#include "debugfs.h"
+#include "trace-event.h"	/* For __unused */
 #include "probe-event.h"
+#include "probe-finder.h"
 
 #define MAX_CMDLEN 256
 #define MAX_PROBE_ARGS 128
 #define PERFPROBE_GROUP "probe"
 
-#define semantic_error(msg ...) die("Semantic error :" msg)
+bool probe_event_dry_run;	/* Dry run flag */
+
+#define semantic_error(msg ...) pr_err("Semantic error :" msg)
 
 /* If there is no space to write, returns -E2BIG. */
 static int e_snprintf(char *str, size_t size, const char *format, ...)
@@ -64,7 +71,275 @@ static int e_snprintf(char *str, size_t size, const char *format, ...)
 	return ret;
 }
 
-void parse_line_range_desc(const char *arg, struct line_range *lr)
+static char *synthesize_perf_probe_point(struct perf_probe_point *pp);
+static struct machine machine;
+
+/* Initialize symbol maps and path of vmlinux */
+static int init_vmlinux(void)
+{
+	struct dso *kernel;
+	int ret;
+
+	symbol_conf.sort_by_name = true;
+	if (symbol_conf.vmlinux_name == NULL)
+		symbol_conf.try_vmlinux_path = true;
+	else
+		pr_debug("Use vmlinux: %s\n", symbol_conf.vmlinux_name);
+	ret = symbol__init();
+	if (ret < 0) {
+		pr_debug("Failed to init symbol map.\n");
+		goto out;
+	}
+
+	ret = machine__init(&machine, "/", 0);
+	if (ret < 0)
+		goto out;
+
+	kernel = dso__new_kernel(symbol_conf.vmlinux_name);
+	if (kernel == NULL)
+		die("Failed to create kernel dso.");
+
+	ret = __machine__create_kernel_maps(&machine, kernel);
+	if (ret < 0)
+		pr_debug("Failed to create kernel maps.\n");
+
+out:
+	if (ret < 0)
+		pr_warning("Failed to init vmlinux path.\n");
+	return ret;
+}
+
+#ifdef DWARF_SUPPORT
+static int open_vmlinux(void)
+{
+	if (map__load(machine.vmlinux_maps[MAP__FUNCTION], NULL) < 0) {
+		pr_debug("Failed to load kernel map.\n");
+		return -EINVAL;
+	}
+	pr_debug("Try to open %s\n", machine.vmlinux_maps[MAP__FUNCTION]->dso->long_name);
+	return open(machine.vmlinux_maps[MAP__FUNCTION]->dso->long_name, O_RDONLY);
+}
+
+/* Convert trace point to probe point with debuginfo */
+static int convert_to_perf_probe_point(struct kprobe_trace_point *tp,
+				       struct perf_probe_point *pp)
+{
+	struct symbol *sym;
+	int fd, ret = -ENOENT;
+
+	sym = map__find_symbol_by_name(machine.vmlinux_maps[MAP__FUNCTION],
+				       tp->symbol, NULL);
+	if (sym) {
+		fd = open_vmlinux();
+		if (fd >= 0) {
+			ret = find_perf_probe_point(fd,
+						 sym->start + tp->offset, pp);
+			close(fd);
+		}
+	}
+	if (ret <= 0) {
+		pr_debug("Failed to find corresponding probes from "
+			 "debuginfo. Use kprobe event information.\n");
+		pp->function = strdup(tp->symbol);
+		if (pp->function == NULL)
+			return -ENOMEM;
+		pp->offset = tp->offset;
+	}
+	pp->retprobe = tp->retprobe;
+
+	return 0;
+}
+
+/* Try to find perf_probe_event with debuginfo */
+static int try_to_find_kprobe_trace_events(struct perf_probe_event *pev,
+					   struct kprobe_trace_event **tevs,
+					   int max_tevs)
+{
+	bool need_dwarf = perf_probe_event_need_dwarf(pev);
+	int fd, ntevs;
+
+	fd = open_vmlinux();
+	if (fd < 0) {
+		if (need_dwarf) {
+			pr_warning("Failed to open debuginfo file.\n");
+			return fd;
+		}
+		pr_debug("Could not open vmlinux. Try to use symbols.\n");
+		return 0;
+	}
+
+	/* Searching trace events corresponding to probe event */
+	ntevs = find_kprobe_trace_events(fd, pev, tevs, max_tevs);
+	close(fd);
+
+	if (ntevs > 0) {	/* Succeeded to find trace events */
+		pr_debug("find %d kprobe_trace_events.\n", ntevs);
+		return ntevs;
+	}
+
+	if (ntevs == 0)	{	/* No error but failed to find probe point. */
+		pr_warning("Probe point '%s' not found.\n",
+			   synthesize_perf_probe_point(&pev->point));
+		return -ENOENT;
+	}
+	/* Error path : ntevs < 0 */
+	pr_debug("An error occurred in debuginfo analysis (%d).\n", ntevs);
+	if (ntevs == -EBADF) {
+		pr_warning("Warning: No dwarf info found in the vmlinux - "
+			"please rebuild kernel with CONFIG_DEBUG_INFO=y.\n");
+		if (!need_dwarf) {
+			pr_debug("Trying to use symbols.\nn");
+			return 0;
+		}
+	}
+	return ntevs;
+}
+
+#define LINEBUF_SIZE 256
+#define NR_ADDITIONAL_LINES 2
+
+static int show_one_line(FILE *fp, int l, bool skip, bool show_num)
+{
+	char buf[LINEBUF_SIZE];
+	const char *color = PERF_COLOR_BLUE;
+
+	if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
+		goto error;
+	if (!skip) {
+		if (show_num)
+			fprintf(stdout, "%7d  %s", l, buf);
+		else
+			color_fprintf(stdout, color, "         %s", buf);
+	}
+
+	while (strlen(buf) == LINEBUF_SIZE - 1 &&
+	       buf[LINEBUF_SIZE - 2] != '\n') {
+		if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
+			goto error;
+		if (!skip) {
+			if (show_num)
+				fprintf(stdout, "%s", buf);
+			else
+				color_fprintf(stdout, color, "%s", buf);
+		}
+	}
+
+	return 0;
+error:
+	if (feof(fp))
+		pr_warning("Source file is shorter than expected.\n");
+	else
+		pr_warning("File read error: %s\n", strerror(errno));
+
+	return -1;
+}
+
+/*
+ * Show line-range always requires debuginfo to find source file and
+ * line number.
+ */
+int show_line_range(struct line_range *lr)
+{
+	int l = 1;
+	struct line_node *ln;
+	FILE *fp;
+	int fd, ret;
+
+	/* Search a line range */
+	ret = init_vmlinux();
+	if (ret < 0)
+		return ret;
+
+	fd = open_vmlinux();
+	if (fd < 0) {
+		pr_warning("Failed to open debuginfo file.\n");
+		return fd;
+	}
+
+	ret = find_line_range(fd, lr);
+	close(fd);
+	if (ret == 0) {
+		pr_warning("Specified source line is not found.\n");
+		return -ENOENT;
+	} else if (ret < 0) {
+		pr_warning("Debuginfo analysis failed. (%d)\n", ret);
+		return ret;
+	}
+
+	setup_pager();
+
+	if (lr->function)
+		fprintf(stdout, "<%s:%d>\n", lr->function,
+			lr->start - lr->offset);
+	else
+		fprintf(stdout, "<%s:%d>\n", lr->file, lr->start);
+
+	fp = fopen(lr->path, "r");
+	if (fp == NULL) {
+		pr_warning("Failed to open %s: %s\n", lr->path,
+			   strerror(errno));
+		return -errno;
+	}
+	/* Skip to starting line number */
+	while (l < lr->start && ret >= 0)
+		ret = show_one_line(fp, l++, true, false);
+	if (ret < 0)
+		goto end;
+
+	list_for_each_entry(ln, &lr->line_list, list) {
+		while (ln->line > l && ret >= 0)
+			ret = show_one_line(fp, (l++) - lr->offset,
+					    false, false);
+		if (ret >= 0)
+			ret = show_one_line(fp, (l++) - lr->offset,
+					    false, true);
+		if (ret < 0)
+			goto end;
+	}
+
+	if (lr->end == INT_MAX)
+		lr->end = l + NR_ADDITIONAL_LINES;
+	while (l <= lr->end && !feof(fp) && ret >= 0)
+		ret = show_one_line(fp, (l++) - lr->offset, false, false);
+end:
+	fclose(fp);
+	return ret;
+}
+
+#else	/* !DWARF_SUPPORT */
+
+static int convert_to_perf_probe_point(struct kprobe_trace_point *tp,
+					struct perf_probe_point *pp)
+{
+	pp->function = strdup(tp->symbol);
+	if (pp->function == NULL)
+		return -ENOMEM;
+	pp->offset = tp->offset;
+	pp->retprobe = tp->retprobe;
+
+	return 0;
+}
+
+static int try_to_find_kprobe_trace_events(struct perf_probe_event *pev,
+				struct kprobe_trace_event **tevs __unused,
+				int max_tevs __unused)
+{
+	if (perf_probe_event_need_dwarf(pev)) {
+		pr_warning("Debuginfo-analysis is not supported.\n");
+		return -ENOSYS;
+	}
+	return 0;
+}
+
+int show_line_range(struct line_range *lr __unused)
+{
+	pr_warning("Debuginfo-analysis is not supported.\n");
+	return -ENOSYS;
+}
+
+#endif
+
+int parse_line_range_desc(const char *arg, struct line_range *lr)
 {
 	const char *ptr;
 	char *tmp;
@@ -75,29 +350,45 @@ void parse_line_range_desc(const char *arg, struct line_range *lr)
 	 */
 	ptr = strchr(arg, ':');
 	if (ptr) {
-		lr->start = (unsigned int)strtoul(ptr + 1, &tmp, 0);
-		if (*tmp == '+')
-			lr->end = lr->start + (unsigned int)strtoul(tmp + 1,
-								    &tmp, 0);
-		else if (*tmp == '-')
-			lr->end = (unsigned int)strtoul(tmp + 1, &tmp, 0);
+		lr->start = (int)strtoul(ptr + 1, &tmp, 0);
+		if (*tmp == '+') {
+			lr->end = lr->start + (int)strtoul(tmp + 1, &tmp, 0);
+			lr->end--;	/*
+					 * Adjust the number of lines here.
+					 * If the number of lines == 1, the
+					 * the end of line should be equal to
+					 * the start of line.
+					 */
+		} else if (*tmp == '-')
+			lr->end = (int)strtoul(tmp + 1, &tmp, 0);
 		else
-			lr->end = 0;
-		pr_debug("Line range is %u to %u\n", lr->start, lr->end);
-		if (lr->end && lr->start > lr->end)
+			lr->end = INT_MAX;
+		pr_debug("Line range is %d to %d\n", lr->start, lr->end);
+		if (lr->start > lr->end) {
 			semantic_error("Start line must be smaller"
-				       " than end line.");
-		if (*tmp != '\0')
-			semantic_error("Tailing with invalid character '%d'.",
+				       " than end line.\n");
+			return -EINVAL;
+		}
+		if (*tmp != '\0') {
+			semantic_error("Tailing with invalid character '%d'.\n",
 				       *tmp);
+			return -EINVAL;
+		}
 		tmp = strndup(arg, (ptr - arg));
-	} else
+	} else {
 		tmp = strdup(arg);
+		lr->end = INT_MAX;
+	}
+
+	if (tmp == NULL)
+		return -ENOMEM;
 
 	if (strchr(tmp, '.'))
 		lr->file = tmp;
 	else
 		lr->function = tmp;
+
+	return 0;
 }
 
 /* Check the name is good for event/group */
@@ -113,8 +404,9 @@ static bool check_event_name(const char *name)
 }
 
 /* Parse probepoint definition. */
-static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
+static int parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 {
+	struct perf_probe_point *pp = &pev->point;
 	char *ptr, *tmp;
 	char c, nc = 0;
 	/*
@@ -129,13 +421,19 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 	if (ptr && *ptr == '=') {	/* Event name */
 		*ptr = '\0';
 		tmp = ptr + 1;
-		ptr = strchr(arg, ':');
-		if (ptr)	/* Group name is not supported yet. */
-			semantic_error("Group name is not supported yet.");
-		if (!check_event_name(arg))
+		if (strchr(arg, ':')) {
+			semantic_error("Group name is not supported yet.\n");
+			return -ENOTSUP;
+		}
+		if (!check_event_name(arg)) {
 			semantic_error("%s is bad for event name -it must "
-				       "follow C symbol-naming rule.", arg);
-		pp->event = strdup(arg);
+				       "follow C symbol-naming rule.\n", arg);
+			return -EINVAL;
+		}
+		pev->event = strdup(arg);
+		if (pev->event == NULL)
+			return -ENOMEM;
+		pev->group = NULL;
 		arg = tmp;
 	}
 
@@ -145,12 +443,15 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 		*ptr++ = '\0';
 	}
 
+	tmp = strdup(arg);
+	if (tmp == NULL)
+		return -ENOMEM;
+
 	/* Check arg is function or file and copy it */
-	if (strchr(arg, '.'))	/* File */
-		pp->file = strdup(arg);
+	if (strchr(tmp, '.'))	/* File */
+		pp->file = tmp;
 	else			/* Function */
-		pp->function = strdup(arg);
-	DIE_IF(pp->file == NULL && pp->function == NULL);
+		pp->function = tmp;
 
 	/* Parse other options */
 	while (ptr) {
@@ -158,6 +459,8 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 		c = nc;
 		if (c == ';') {	/* Lazy pattern must be the last part */
 			pp->lazy_line = strdup(arg);
+			if (pp->lazy_line == NULL)
+				return -ENOMEM;
 			break;
 		}
 		ptr = strpbrk(arg, ";:+@%");
@@ -168,266 +471,658 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 		switch (c) {
 		case ':':	/* Line number */
 			pp->line = strtoul(arg, &tmp, 0);
-			if (*tmp != '\0')
+			if (*tmp != '\0') {
 				semantic_error("There is non-digit char"
-					       " in line number.");
+					       " in line number.\n");
+				return -EINVAL;
+			}
 			break;
 		case '+':	/* Byte offset from a symbol */
 			pp->offset = strtoul(arg, &tmp, 0);
-			if (*tmp != '\0')
+			if (*tmp != '\0') {
 				semantic_error("There is non-digit character"
-						" in offset.");
+						" in offset.\n");
+				return -EINVAL;
+			}
 			break;
 		case '@':	/* File name */
-			if (pp->file)
-				semantic_error("SRC@SRC is not allowed.");
+			if (pp->file) {
+				semantic_error("SRC@SRC is not allowed.\n");
+				return -EINVAL;
+			}
 			pp->file = strdup(arg);
-			DIE_IF(pp->file == NULL);
+			if (pp->file == NULL)
+				return -ENOMEM;
 			break;
 		case '%':	/* Probe places */
 			if (strcmp(arg, "return") == 0) {
 				pp->retprobe = 1;
-			} else	/* Others not supported yet */
-				semantic_error("%%%s is not supported.", arg);
+			} else {	/* Others not supported yet */
+				semantic_error("%%%s is not supported.\n", arg);
+				return -ENOTSUP;
+			}
 			break;
-		default:
-			DIE_IF("Program has a bug.");
+		default:	/* Buggy case */
+			pr_err("This program has a bug at %s:%d.\n",
+				__FILE__, __LINE__);
+			return -ENOTSUP;
 			break;
 		}
 	}
 
 	/* Exclusion check */
-	if (pp->lazy_line && pp->line)
+	if (pp->lazy_line && pp->line) {
 		semantic_error("Lazy pattern can't be used with line number.");
-
-	if (pp->lazy_line && pp->offset)
-		semantic_error("Lazy pattern can't be used with offset.");
-
-	if (pp->line && pp->offset)
-		semantic_error("Offset can't be used with line number.");
-
-	if (!pp->line && !pp->lazy_line && pp->file && !pp->function)
-		semantic_error("File always requires line number or "
-			       "lazy pattern.");
-
-	if (pp->offset && !pp->function)
-		semantic_error("Offset requires an entry function.");
-
-	if (pp->retprobe && !pp->function)
-		semantic_error("Return probe requires an entry function.");
-
-	if ((pp->offset || pp->line || pp->lazy_line) && pp->retprobe)
-		semantic_error("Offset/Line/Lazy pattern can't be used with "
-			       "return probe.");
-
-	pr_debug("symbol:%s file:%s line:%d offset:%d return:%d lazy:%s\n",
-		 pp->function, pp->file, pp->line, pp->offset, pp->retprobe,
-		 pp->lazy_line);
-}
-
-/* Parse perf-probe event definition */
-void parse_perf_probe_event(const char *str, struct probe_point *pp,
-			    bool *need_dwarf)
-{
-	char **argv;
-	int argc, i;
-
-	*need_dwarf = false;
-
-	argv = argv_split(str, &argc);
-	if (!argv)
-		die("argv_split failed.");
-	if (argc > MAX_PROBE_ARGS + 1)
-		semantic_error("Too many arguments");
-
-	/* Parse probe point */
-	parse_perf_probe_probepoint(argv[0], pp);
-	if (pp->file || pp->line || pp->lazy_line)
-		*need_dwarf = true;
-
-	/* Copy arguments and ensure return probe has no C argument */
-	pp->nr_args = argc - 1;
-	pp->args = zalloc(sizeof(char *) * pp->nr_args);
-	for (i = 0; i < pp->nr_args; i++) {
-		pp->args[i] = strdup(argv[i + 1]);
-		if (!pp->args[i])
-			die("Failed to copy argument.");
-		if (is_c_varname(pp->args[i])) {
-			if (pp->retprobe)
-				semantic_error("You can't specify local"
-						" variable for kretprobe");
-			*need_dwarf = true;
-		}
+		return -EINVAL;
 	}
 
+	if (pp->lazy_line && pp->offset) {
+		semantic_error("Lazy pattern can't be used with offset.");
+		return -EINVAL;
+	}
+
+	if (pp->line && pp->offset) {
+		semantic_error("Offset can't be used with line number.");
+		return -EINVAL;
+	}
+
+	if (!pp->line && !pp->lazy_line && pp->file && !pp->function) {
+		semantic_error("File always requires line number or "
+			       "lazy pattern.");
+		return -EINVAL;
+	}
+
+	if (pp->offset && !pp->function) {
+		semantic_error("Offset requires an entry function.");
+		return -EINVAL;
+	}
+
+	if (pp->retprobe && !pp->function) {
+		semantic_error("Return probe requires an entry function.");
+		return -EINVAL;
+	}
+
+	if ((pp->offset || pp->line || pp->lazy_line) && pp->retprobe) {
+		semantic_error("Offset/Line/Lazy pattern can't be used with "
+			       "return probe.");
+		return -EINVAL;
+	}
+
+	pr_debug("symbol:%s file:%s line:%d offset:%lu return:%d lazy:%s\n",
+		 pp->function, pp->file, pp->line, pp->offset, pp->retprobe,
+		 pp->lazy_line);
+	return 0;
+}
+
+/* Parse perf-probe event argument */
+static int parse_perf_probe_arg(char *str, struct perf_probe_arg *arg)
+{
+	char *tmp;
+	struct perf_probe_arg_field **fieldp;
+
+	pr_debug("parsing arg: %s into ", str);
+
+	tmp = strchr(str, '=');
+	if (tmp) {
+		arg->name = strndup(str, tmp - str);
+		if (arg->name == NULL)
+			return -ENOMEM;
+		pr_debug("name:%s ", arg->name);
+		str = tmp + 1;
+	}
+
+	tmp = strchr(str, ':');
+	if (tmp) {	/* Type setting */
+		*tmp = '\0';
+		arg->type = strdup(tmp + 1);
+		if (arg->type == NULL)
+			return -ENOMEM;
+		pr_debug("type:%s ", arg->type);
+	}
+
+	tmp = strpbrk(str, "-.");
+	if (!is_c_varname(str) || !tmp) {
+		/* A variable, register, symbol or special value */
+		arg->var = strdup(str);
+		if (arg->var == NULL)
+			return -ENOMEM;
+		pr_debug("%s\n", arg->var);
+		return 0;
+	}
+
+	/* Structure fields */
+	arg->var = strndup(str, tmp - str);
+	if (arg->var == NULL)
+		return -ENOMEM;
+	pr_debug("%s, ", arg->var);
+	fieldp = &arg->field;
+
+	do {
+		*fieldp = zalloc(sizeof(struct perf_probe_arg_field));
+		if (*fieldp == NULL)
+			return -ENOMEM;
+		if (*tmp == '.') {
+			str = tmp + 1;
+			(*fieldp)->ref = false;
+		} else if (tmp[1] == '>') {
+			str = tmp + 2;
+			(*fieldp)->ref = true;
+		} else {
+			semantic_error("Argument parse error: %s\n", str);
+			return -EINVAL;
+		}
+
+		tmp = strpbrk(str, "-.");
+		if (tmp) {
+			(*fieldp)->name = strndup(str, tmp - str);
+			if ((*fieldp)->name == NULL)
+				return -ENOMEM;
+			pr_debug("%s(%d), ", (*fieldp)->name, (*fieldp)->ref);
+			fieldp = &(*fieldp)->next;
+		}
+	} while (tmp);
+	(*fieldp)->name = strdup(str);
+	if ((*fieldp)->name == NULL)
+		return -ENOMEM;
+	pr_debug("%s(%d)\n", (*fieldp)->name, (*fieldp)->ref);
+
+	/* If no name is specified, set the last field name */
+	if (!arg->name) {
+		arg->name = strdup((*fieldp)->name);
+		if (arg->name == NULL)
+			return -ENOMEM;
+	}
+	return 0;
+}
+
+/* Parse perf-probe event command */
+int parse_perf_probe_command(const char *cmd, struct perf_probe_event *pev)
+{
+	char **argv;
+	int argc, i, ret = 0;
+
+	argv = argv_split(cmd, &argc);
+	if (!argv) {
+		pr_debug("Failed to split arguments.\n");
+		return -ENOMEM;
+	}
+	if (argc - 1 > MAX_PROBE_ARGS) {
+		semantic_error("Too many probe arguments (%d).\n", argc - 1);
+		ret = -ERANGE;
+		goto out;
+	}
+	/* Parse probe point */
+	ret = parse_perf_probe_point(argv[0], pev);
+	if (ret < 0)
+		goto out;
+
+	/* Copy arguments and ensure return probe has no C argument */
+	pev->nargs = argc - 1;
+	pev->args = zalloc(sizeof(struct perf_probe_arg) * pev->nargs);
+	if (pev->args == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	for (i = 0; i < pev->nargs && ret >= 0; i++) {
+		ret = parse_perf_probe_arg(argv[i + 1], &pev->args[i]);
+		if (ret >= 0 &&
+		    is_c_varname(pev->args[i].var) && pev->point.retprobe) {
+			semantic_error("You can't specify local variable for"
+				       " kretprobe.\n");
+			ret = -EINVAL;
+		}
+	}
+out:
 	argv_free(argv);
+
+	return ret;
+}
+
+/* Return true if this perf_probe_event requires debuginfo */
+bool perf_probe_event_need_dwarf(struct perf_probe_event *pev)
+{
+	int i;
+
+	if (pev->point.file || pev->point.line || pev->point.lazy_line)
+		return true;
+
+	for (i = 0; i < pev->nargs; i++)
+		if (is_c_varname(pev->args[i].var))
+			return true;
+
+	return false;
 }
 
 /* Parse kprobe_events event into struct probe_point */
-void parse_trace_kprobe_event(const char *str, struct probe_point *pp)
+int parse_kprobe_trace_command(const char *cmd, struct kprobe_trace_event *tev)
 {
+	struct kprobe_trace_point *tp = &tev->point;
 	char pr;
 	char *p;
 	int ret, i, argc;
 	char **argv;
 
-	pr_debug("Parsing kprobe_events: %s\n", str);
-	argv = argv_split(str, &argc);
-	if (!argv)
-		die("argv_split failed.");
-	if (argc < 2)
-		semantic_error("Too less arguments.");
+	pr_debug("Parsing kprobe_events: %s\n", cmd);
+	argv = argv_split(cmd, &argc);
+	if (!argv) {
+		pr_debug("Failed to split arguments.\n");
+		return -ENOMEM;
+	}
+	if (argc < 2) {
+		semantic_error("Too few probe arguments.\n");
+		ret = -ERANGE;
+		goto out;
+	}
 
 	/* Scan event and group name. */
 	ret = sscanf(argv[0], "%c:%a[^/ \t]/%a[^ \t]",
-		     &pr, (float *)(void *)&pp->group,
-		     (float *)(void *)&pp->event);
-	if (ret != 3)
-		semantic_error("Failed to parse event name: %s", argv[0]);
-	pr_debug("Group:%s Event:%s probe:%c\n", pp->group, pp->event, pr);
+		     &pr, (float *)(void *)&tev->group,
+		     (float *)(void *)&tev->event);
+	if (ret != 3) {
+		semantic_error("Failed to parse event name: %s\n", argv[0]);
+		ret = -EINVAL;
+		goto out;
+	}
+	pr_debug("Group:%s Event:%s probe:%c\n", tev->group, tev->event, pr);
 
-	pp->retprobe = (pr == 'r');
+	tp->retprobe = (pr == 'r');
 
 	/* Scan function name and offset */
-	ret = sscanf(argv[1], "%a[^+]+%d", (float *)(void *)&pp->function,
-		     &pp->offset);
+	ret = sscanf(argv[1], "%a[^+]+%lu", (float *)(void *)&tp->symbol,
+		     &tp->offset);
 	if (ret == 1)
-		pp->offset = 0;
+		tp->offset = 0;
 
-	/* kprobe_events doesn't have this information */
-	pp->line = 0;
-	pp->file = NULL;
-
-	pp->nr_args = argc - 2;
-	pp->args = zalloc(sizeof(char *) * pp->nr_args);
-	for (i = 0; i < pp->nr_args; i++) {
+	tev->nargs = argc - 2;
+	tev->args = zalloc(sizeof(struct kprobe_trace_arg) * tev->nargs);
+	if (tev->args == NULL) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	for (i = 0; i < tev->nargs; i++) {
 		p = strchr(argv[i + 2], '=');
 		if (p)	/* We don't need which register is assigned. */
-			*p = '\0';
-		pp->args[i] = strdup(argv[i + 2]);
-		if (!pp->args[i])
-			die("Failed to copy argument.");
+			*p++ = '\0';
+		else
+			p = argv[i + 2];
+		tev->args[i].name = strdup(argv[i + 2]);
+		/* TODO: parse regs and offset */
+		tev->args[i].value = strdup(p);
+		if (tev->args[i].name == NULL || tev->args[i].value == NULL) {
+			ret = -ENOMEM;
+			goto out;
+		}
 	}
-
+	ret = 0;
+out:
 	argv_free(argv);
+	return ret;
 }
 
-/* Synthesize only probe point (not argument) */
-int synthesize_perf_probe_point(struct probe_point *pp)
+/* Compose only probe arg */
+int synthesize_perf_probe_arg(struct perf_probe_arg *pa, char *buf, size_t len)
 {
-	char *buf;
-	char offs[64] = "", line[64] = "";
+	struct perf_probe_arg_field *field = pa->field;
 	int ret;
+	char *tmp = buf;
 
-	pp->probes[0] = buf = zalloc(MAX_CMDLEN);
-	pp->found = 1;
-	if (!buf)
-		die("Failed to allocate memory by zalloc.");
+	if (pa->name && pa->var)
+		ret = e_snprintf(tmp, len, "%s=%s", pa->name, pa->var);
+	else
+		ret = e_snprintf(tmp, len, "%s", pa->name ? pa->name : pa->var);
+	if (ret <= 0)
+		goto error;
+	tmp += ret;
+	len -= ret;
+
+	while (field) {
+		ret = e_snprintf(tmp, len, "%s%s", field->ref ? "->" : ".",
+				 field->name);
+		if (ret <= 0)
+			goto error;
+		tmp += ret;
+		len -= ret;
+		field = field->next;
+	}
+
+	if (pa->type) {
+		ret = e_snprintf(tmp, len, ":%s", pa->type);
+		if (ret <= 0)
+			goto error;
+		tmp += ret;
+		len -= ret;
+	}
+
+	return tmp - buf;
+error:
+	pr_debug("Failed to synthesize perf probe argument: %s",
+		 strerror(-ret));
+	return ret;
+}
+
+/* Compose only probe point (not argument) */
+static char *synthesize_perf_probe_point(struct perf_probe_point *pp)
+{
+	char *buf, *tmp;
+	char offs[32] = "", line[32] = "", file[32] = "";
+	int ret, len;
+
+	buf = zalloc(MAX_CMDLEN);
+	if (buf == NULL) {
+		ret = -ENOMEM;
+		goto error;
+	}
 	if (pp->offset) {
-		ret = e_snprintf(offs, 64, "+%d", pp->offset);
+		ret = e_snprintf(offs, 32, "+%lu", pp->offset);
 		if (ret <= 0)
 			goto error;
 	}
 	if (pp->line) {
-		ret = e_snprintf(line, 64, ":%d", pp->line);
+		ret = e_snprintf(line, 32, ":%d", pp->line);
+		if (ret <= 0)
+			goto error;
+	}
+	if (pp->file) {
+		len = strlen(pp->file) - 31;
+		if (len < 0)
+			len = 0;
+		tmp = strchr(pp->file + len, '/');
+		if (!tmp)
+			tmp = pp->file + len;
+		ret = e_snprintf(file, 32, "@%s", tmp + 1);
 		if (ret <= 0)
 			goto error;
 	}
 
 	if (pp->function)
-		ret = e_snprintf(buf, MAX_CMDLEN, "%s%s%s%s", pp->function,
-				 offs, pp->retprobe ? "%return" : "", line);
+		ret = e_snprintf(buf, MAX_CMDLEN, "%s%s%s%s%s", pp->function,
+				 offs, pp->retprobe ? "%return" : "", line,
+				 file);
 	else
-		ret = e_snprintf(buf, MAX_CMDLEN, "%s%s", pp->file, line);
-	if (ret <= 0) {
-error:
-		free(pp->probes[0]);
-		pp->probes[0] = NULL;
-		pp->found = 0;
-	}
-	return ret;
-}
-
-int synthesize_perf_probe_event(struct probe_point *pp)
-{
-	char *buf;
-	int i, len, ret;
-
-	len = synthesize_perf_probe_point(pp);
-	if (len < 0)
-		return 0;
-
-	buf = pp->probes[0];
-	for (i = 0; i < pp->nr_args; i++) {
-		ret = e_snprintf(&buf[len], MAX_CMDLEN - len, " %s",
-				 pp->args[i]);
-		if (ret <= 0)
-			goto error;
-		len += ret;
-	}
-	pp->found = 1;
-
-	return pp->found;
-error:
-	free(pp->probes[0]);
-	pp->probes[0] = NULL;
-
-	return ret;
-}
-
-int synthesize_trace_kprobe_event(struct probe_point *pp)
-{
-	char *buf;
-	int i, len, ret;
-
-	pp->probes[0] = buf = zalloc(MAX_CMDLEN);
-	if (!buf)
-		die("Failed to allocate memory by zalloc.");
-	ret = e_snprintf(buf, MAX_CMDLEN, "%s+%d", pp->function, pp->offset);
+		ret = e_snprintf(buf, MAX_CMDLEN, "%s%s", file, line);
 	if (ret <= 0)
 		goto error;
-	len = ret;
 
-	for (i = 0; i < pp->nr_args; i++) {
+	return buf;
+error:
+	pr_debug("Failed to synthesize perf probe point: %s",
+		 strerror(-ret));
+	if (buf)
+		free(buf);
+	return NULL;
+}
+
+#if 0
+char *synthesize_perf_probe_command(struct perf_probe_event *pev)
+{
+	char *buf;
+	int i, len, ret;
+
+	buf = synthesize_perf_probe_point(&pev->point);
+	if (!buf)
+		return NULL;
+
+	len = strlen(buf);
+	for (i = 0; i < pev->nargs; i++) {
 		ret = e_snprintf(&buf[len], MAX_CMDLEN - len, " %s",
-				 pp->args[i]);
+				 pev->args[i].name);
+		if (ret <= 0) {
+			free(buf);
+			return NULL;
+		}
+		len += ret;
+	}
+
+	return buf;
+}
+#endif
+
+static int __synthesize_kprobe_trace_arg_ref(struct kprobe_trace_arg_ref *ref,
+					     char **buf, size_t *buflen,
+					     int depth)
+{
+	int ret;
+	if (ref->next) {
+		depth = __synthesize_kprobe_trace_arg_ref(ref->next, buf,
+							 buflen, depth + 1);
+		if (depth < 0)
+			goto out;
+	}
+
+	ret = e_snprintf(*buf, *buflen, "%+ld(", ref->offset);
+	if (ret < 0)
+		depth = ret;
+	else {
+		*buf += ret;
+		*buflen -= ret;
+	}
+out:
+	return depth;
+
+}
+
+static int synthesize_kprobe_trace_arg(struct kprobe_trace_arg *arg,
+				       char *buf, size_t buflen)
+{
+	int ret, depth = 0;
+	char *tmp = buf;
+
+	/* Argument name or separator */
+	if (arg->name)
+		ret = e_snprintf(buf, buflen, " %s=", arg->name);
+	else
+		ret = e_snprintf(buf, buflen, " ");
+	if (ret < 0)
+		return ret;
+	buf += ret;
+	buflen -= ret;
+
+	/* Dereferencing arguments */
+	if (arg->ref) {
+		depth = __synthesize_kprobe_trace_arg_ref(arg->ref, &buf,
+							  &buflen, 1);
+		if (depth < 0)
+			return depth;
+	}
+
+	/* Print argument value */
+	ret = e_snprintf(buf, buflen, "%s", arg->value);
+	if (ret < 0)
+		return ret;
+	buf += ret;
+	buflen -= ret;
+
+	/* Closing */
+	while (depth--) {
+		ret = e_snprintf(buf, buflen, ")");
+		if (ret < 0)
+			return ret;
+		buf += ret;
+		buflen -= ret;
+	}
+	/* Print argument type */
+	if (arg->type) {
+		ret = e_snprintf(buf, buflen, ":%s", arg->type);
+		if (ret <= 0)
+			return ret;
+		buf += ret;
+	}
+
+	return buf - tmp;
+}
+
+char *synthesize_kprobe_trace_command(struct kprobe_trace_event *tev)
+{
+	struct kprobe_trace_point *tp = &tev->point;
+	char *buf;
+	int i, len, ret;
+
+	buf = zalloc(MAX_CMDLEN);
+	if (buf == NULL)
+		return NULL;
+
+	len = e_snprintf(buf, MAX_CMDLEN, "%c:%s/%s %s+%lu",
+			 tp->retprobe ? 'r' : 'p',
+			 tev->group, tev->event,
+			 tp->symbol, tp->offset);
+	if (len <= 0)
+		goto error;
+
+	for (i = 0; i < tev->nargs; i++) {
+		ret = synthesize_kprobe_trace_arg(&tev->args[i], buf + len,
+						  MAX_CMDLEN - len);
 		if (ret <= 0)
 			goto error;
 		len += ret;
 	}
-	pp->found = 1;
 
-	return pp->found;
+	return buf;
 error:
-	free(pp->probes[0]);
-	pp->probes[0] = NULL;
+	free(buf);
+	return NULL;
+}
+
+int convert_to_perf_probe_event(struct kprobe_trace_event *tev,
+				struct perf_probe_event *pev)
+{
+	char buf[64] = "";
+	int i, ret;
+
+	/* Convert event/group name */
+	pev->event = strdup(tev->event);
+	pev->group = strdup(tev->group);
+	if (pev->event == NULL || pev->group == NULL)
+		return -ENOMEM;
+
+	/* Convert trace_point to probe_point */
+	ret = convert_to_perf_probe_point(&tev->point, &pev->point);
+	if (ret < 0)
+		return ret;
+
+	/* Convert trace_arg to probe_arg */
+	pev->nargs = tev->nargs;
+	pev->args = zalloc(sizeof(struct perf_probe_arg) * pev->nargs);
+	if (pev->args == NULL)
+		return -ENOMEM;
+	for (i = 0; i < tev->nargs && ret >= 0; i++) {
+		if (tev->args[i].name)
+			pev->args[i].name = strdup(tev->args[i].name);
+		else {
+			ret = synthesize_kprobe_trace_arg(&tev->args[i],
+							  buf, 64);
+			pev->args[i].name = strdup(buf);
+		}
+		if (pev->args[i].name == NULL && ret >= 0)
+			ret = -ENOMEM;
+	}
+
+	if (ret < 0)
+		clear_perf_probe_event(pev);
 
 	return ret;
 }
 
-static int open_kprobe_events(int flags, int mode)
+void clear_perf_probe_event(struct perf_probe_event *pev)
+{
+	struct perf_probe_point *pp = &pev->point;
+	struct perf_probe_arg_field *field, *next;
+	int i;
+
+	if (pev->event)
+		free(pev->event);
+	if (pev->group)
+		free(pev->group);
+	if (pp->file)
+		free(pp->file);
+	if (pp->function)
+		free(pp->function);
+	if (pp->lazy_line)
+		free(pp->lazy_line);
+	for (i = 0; i < pev->nargs; i++) {
+		if (pev->args[i].name)
+			free(pev->args[i].name);
+		if (pev->args[i].var)
+			free(pev->args[i].var);
+		if (pev->args[i].type)
+			free(pev->args[i].type);
+		field = pev->args[i].field;
+		while (field) {
+			next = field->next;
+			if (field->name)
+				free(field->name);
+			free(field);
+			field = next;
+		}
+	}
+	if (pev->args)
+		free(pev->args);
+	memset(pev, 0, sizeof(*pev));
+}
+
+void clear_kprobe_trace_event(struct kprobe_trace_event *tev)
+{
+	struct kprobe_trace_arg_ref *ref, *next;
+	int i;
+
+	if (tev->event)
+		free(tev->event);
+	if (tev->group)
+		free(tev->group);
+	if (tev->point.symbol)
+		free(tev->point.symbol);
+	for (i = 0; i < tev->nargs; i++) {
+		if (tev->args[i].name)
+			free(tev->args[i].name);
+		if (tev->args[i].value)
+			free(tev->args[i].value);
+		if (tev->args[i].type)
+			free(tev->args[i].type);
+		ref = tev->args[i].ref;
+		while (ref) {
+			next = ref->next;
+			free(ref);
+			ref = next;
+		}
+	}
+	if (tev->args)
+		free(tev->args);
+	memset(tev, 0, sizeof(*tev));
+}
+
+static int open_kprobe_events(bool readwrite)
 {
 	char buf[PATH_MAX];
+	const char *__debugfs;
 	int ret;
 
-	ret = e_snprintf(buf, PATH_MAX, "%s/../kprobe_events", debugfs_path);
-	if (ret < 0)
-		die("Failed to make kprobe_events path.");
+	__debugfs = debugfs_find_mountpoint();
+	if (__debugfs == NULL) {
+		pr_warning("Debugfs is not mounted.\n");
+		return -ENOENT;
+	}
 
-	ret = open(buf, flags, mode);
+	ret = e_snprintf(buf, PATH_MAX, "%stracing/kprobe_events", __debugfs);
+	if (ret >= 0) {
+		pr_debug("Opening %s write=%d\n", buf, readwrite);
+		if (readwrite && !probe_event_dry_run)
+			ret = open(buf, O_RDWR, O_APPEND);
+		else
+			ret = open(buf, O_RDONLY, 0);
+	}
+
 	if (ret < 0) {
 		if (errno == ENOENT)
-			die("kprobe_events file does not exist -"
-			    " please rebuild with CONFIG_KPROBE_EVENT.");
+			pr_warning("kprobe_events file does not exist - please"
+				 " rebuild kernel with CONFIG_KPROBE_EVENT.\n");
 		else
-			die("Could not open kprobe_events file: %s",
-			    strerror(errno));
+			pr_warning("Failed to open kprobe_events file: %s\n",
+				   strerror(errno));
 	}
 	return ret;
 }
 
 /* Get raw string list of current kprobe_events */
-static struct strlist *get_trace_kprobe_event_rawlist(int fd)
+static struct strlist *get_kprobe_trace_command_rawlist(int fd)
 {
 	int ret, idx;
 	FILE *fp;
@@ -447,271 +1142,486 @@ static struct strlist *get_trace_kprobe_event_rawlist(int fd)
 		if (p[idx] == '\n')
 			p[idx] = '\0';
 		ret = strlist__add(sl, buf);
-		if (ret < 0)
-			die("strlist__add failed: %s", strerror(-ret));
+		if (ret < 0) {
+			pr_debug("strlist__add failed: %s\n", strerror(-ret));
+			strlist__delete(sl);
+			return NULL;
+		}
 	}
 	fclose(fp);
 
 	return sl;
 }
 
-/* Free and zero clear probe_point */
-static void clear_probe_point(struct probe_point *pp)
-{
-	int i;
-
-	if (pp->event)
-		free(pp->event);
-	if (pp->group)
-		free(pp->group);
-	if (pp->function)
-		free(pp->function);
-	if (pp->file)
-		free(pp->file);
-	if (pp->lazy_line)
-		free(pp->lazy_line);
-	for (i = 0; i < pp->nr_args; i++)
-		free(pp->args[i]);
-	if (pp->args)
-		free(pp->args);
-	for (i = 0; i < pp->found; i++)
-		free(pp->probes[i]);
-	memset(pp, 0, sizeof(*pp));
-}
-
 /* Show an event */
-static void show_perf_probe_event(const char *event, const char *place,
-				  struct probe_point *pp)
+static int show_perf_probe_event(struct perf_probe_event *pev)
 {
 	int i, ret;
 	char buf[128];
+	char *place;
 
-	ret = e_snprintf(buf, 128, "%s:%s", pp->group, event);
+	/* Synthesize only event probe point */
+	place = synthesize_perf_probe_point(&pev->point);
+	if (!place)
+		return -EINVAL;
+
+	ret = e_snprintf(buf, 128, "%s:%s", pev->group, pev->event);
 	if (ret < 0)
-		die("Failed to copy event: %s", strerror(-ret));
-	printf("  %-40s (on %s", buf, place);
+		return ret;
 
-	if (pp->nr_args > 0) {
+	printf("  %-20s (on %s", buf, place);
+
+	if (pev->nargs > 0) {
 		printf(" with");
-		for (i = 0; i < pp->nr_args; i++)
-			printf(" %s", pp->args[i]);
+		for (i = 0; i < pev->nargs; i++) {
+			ret = synthesize_perf_probe_arg(&pev->args[i],
+							buf, 128);
+			if (ret < 0)
+				break;
+			printf(" %s", buf);
+		}
 	}
 	printf(")\n");
+	free(place);
+	return ret;
 }
 
 /* List up current perf-probe events */
-void show_perf_probe_events(void)
+int show_perf_probe_events(void)
 {
-	int fd;
-	struct probe_point pp;
+	int fd, ret;
+	struct kprobe_trace_event tev;
+	struct perf_probe_event pev;
 	struct strlist *rawlist;
 	struct str_node *ent;
 
 	setup_pager();
-	memset(&pp, 0, sizeof(pp));
+	ret = init_vmlinux();
+	if (ret < 0)
+		return ret;
 
-	fd = open_kprobe_events(O_RDONLY, 0);
-	rawlist = get_trace_kprobe_event_rawlist(fd);
+	memset(&tev, 0, sizeof(tev));
+	memset(&pev, 0, sizeof(pev));
+
+	fd = open_kprobe_events(false);
+	if (fd < 0)
+		return fd;
+
+	rawlist = get_kprobe_trace_command_rawlist(fd);
 	close(fd);
+	if (!rawlist)
+		return -ENOENT;
 
 	strlist__for_each(ent, rawlist) {
-		parse_trace_kprobe_event(ent->s, &pp);
-		/* Synthesize only event probe point */
-		synthesize_perf_probe_point(&pp);
-		/* Show an event */
-		show_perf_probe_event(pp.event, pp.probes[0], &pp);
-		clear_probe_point(&pp);
+		ret = parse_kprobe_trace_command(ent->s, &tev);
+		if (ret >= 0) {
+			ret = convert_to_perf_probe_event(&tev, &pev);
+			if (ret >= 0)
+				ret = show_perf_probe_event(&pev);
+		}
+		clear_perf_probe_event(&pev);
+		clear_kprobe_trace_event(&tev);
+		if (ret < 0)
+			break;
 	}
-
 	strlist__delete(rawlist);
+
+	return ret;
 }
 
 /* Get current perf-probe event names */
-static struct strlist *get_perf_event_names(int fd, bool include_group)
+static struct strlist *get_kprobe_trace_event_names(int fd, bool include_group)
 {
 	char buf[128];
 	struct strlist *sl, *rawlist;
 	struct str_node *ent;
-	struct probe_point pp;
+	struct kprobe_trace_event tev;
+	int ret = 0;
 
-	memset(&pp, 0, sizeof(pp));
-	rawlist = get_trace_kprobe_event_rawlist(fd);
+	memset(&tev, 0, sizeof(tev));
 
+	rawlist = get_kprobe_trace_command_rawlist(fd);
 	sl = strlist__new(true, NULL);
 	strlist__for_each(ent, rawlist) {
-		parse_trace_kprobe_event(ent->s, &pp);
+		ret = parse_kprobe_trace_command(ent->s, &tev);
+		if (ret < 0)
+			break;
 		if (include_group) {
-			if (e_snprintf(buf, 128, "%s:%s", pp.group,
-				       pp.event) < 0)
-				die("Failed to copy group:event name.");
-			strlist__add(sl, buf);
+			ret = e_snprintf(buf, 128, "%s:%s", tev.group,
+					tev.event);
+			if (ret >= 0)
+				ret = strlist__add(sl, buf);
 		} else
-			strlist__add(sl, pp.event);
-		clear_probe_point(&pp);
+			ret = strlist__add(sl, tev.event);
+		clear_kprobe_trace_event(&tev);
+		if (ret < 0)
+			break;
 	}
-
 	strlist__delete(rawlist);
 
+	if (ret < 0) {
+		strlist__delete(sl);
+		return NULL;
+	}
 	return sl;
 }
 
-static void write_trace_kprobe_event(int fd, const char *buf)
+static int write_kprobe_trace_event(int fd, struct kprobe_trace_event *tev)
 {
-	int ret;
+	int ret = 0;
+	char *buf = synthesize_kprobe_trace_command(tev);
+
+	if (!buf) {
+		pr_debug("Failed to synthesize kprobe trace event.\n");
+		return -EINVAL;
+	}
 
 	pr_debug("Writing event: %s\n", buf);
-	ret = write(fd, buf, strlen(buf));
-	if (ret <= 0)
-		die("Failed to write event: %s", strerror(errno));
+	if (!probe_event_dry_run) {
+		ret = write(fd, buf, strlen(buf));
+		if (ret <= 0)
+			pr_warning("Failed to write event: %s\n",
+				   strerror(errno));
+	}
+	free(buf);
+	return ret;
 }
 
-static void get_new_event_name(char *buf, size_t len, const char *base,
-			       struct strlist *namelist, bool allow_suffix)
+static int get_new_event_name(char *buf, size_t len, const char *base,
+			      struct strlist *namelist, bool allow_suffix)
 {
 	int i, ret;
 
 	/* Try no suffix */
 	ret = e_snprintf(buf, len, "%s", base);
-	if (ret < 0)
-		die("snprintf() failed: %s", strerror(-ret));
+	if (ret < 0) {
+		pr_debug("snprintf() failed: %s\n", strerror(-ret));
+		return ret;
+	}
 	if (!strlist__has_entry(namelist, buf))
-		return;
+		return 0;
 
 	if (!allow_suffix) {
 		pr_warning("Error: event \"%s\" already exists. "
 			   "(Use -f to force duplicates.)\n", base);
-		die("Can't add new event.");
+		return -EEXIST;
 	}
 
 	/* Try to add suffix */
 	for (i = 1; i < MAX_EVENT_INDEX; i++) {
 		ret = e_snprintf(buf, len, "%s_%d", base, i);
-		if (ret < 0)
-			die("snprintf() failed: %s", strerror(-ret));
+		if (ret < 0) {
+			pr_debug("snprintf() failed: %s\n", strerror(-ret));
+			return ret;
+		}
 		if (!strlist__has_entry(namelist, buf))
 			break;
 	}
-	if (i == MAX_EVENT_INDEX)
-		die("Too many events are on the same function.");
+	if (i == MAX_EVENT_INDEX) {
+		pr_warning("Too many events are on the same function.\n");
+		ret = -ERANGE;
+	}
+
+	return ret;
 }
 
-void add_trace_kprobe_events(struct probe_point *probes, int nr_probes,
-			     bool force_add)
+static int __add_kprobe_trace_events(struct perf_probe_event *pev,
+				     struct kprobe_trace_event *tevs,
+				     int ntevs, bool allow_suffix)
 {
-	int i, j, fd;
-	struct probe_point *pp;
-	char buf[MAX_CMDLEN];
-	char event[64];
+	int i, fd, ret;
+	struct kprobe_trace_event *tev = NULL;
+	char buf[64];
+	const char *event, *group;
 	struct strlist *namelist;
-	bool allow_suffix;
 
-	fd = open_kprobe_events(O_RDWR, O_APPEND);
+	fd = open_kprobe_events(true);
+	if (fd < 0)
+		return fd;
 	/* Get current event names */
-	namelist = get_perf_event_names(fd, false);
-
-	for (j = 0; j < nr_probes; j++) {
-		pp = probes + j;
-		if (!pp->event)
-			pp->event = strdup(pp->function);
-		if (!pp->group)
-			pp->group = strdup(PERFPROBE_GROUP);
-		DIE_IF(!pp->event || !pp->group);
-		/* If force_add is true, suffix search is allowed */
-		allow_suffix = force_add;
-		for (i = 0; i < pp->found; i++) {
-			/* Get an unused new event name */
-			get_new_event_name(event, 64, pp->event, namelist,
-					   allow_suffix);
-			snprintf(buf, MAX_CMDLEN, "%c:%s/%s %s\n",
-				 pp->retprobe ? 'r' : 'p',
-				 pp->group, event,
-				 pp->probes[i]);
-			write_trace_kprobe_event(fd, buf);
-			printf("Added new event:\n");
-			/* Get the first parameter (probe-point) */
-			sscanf(pp->probes[i], "%s", buf);
-			show_perf_probe_event(event, buf, pp);
-			/* Add added event name to namelist */
-			strlist__add(namelist, event);
-			/*
-			 * Probes after the first probe which comes from same
-			 * user input are always allowed to add suffix, because
-			 * there might be several addresses corresponding to
-			 * one code line.
-			 */
-			allow_suffix = true;
-		}
+	namelist = get_kprobe_trace_event_names(fd, false);
+	if (!namelist) {
+		pr_debug("Failed to get current event list.\n");
+		return -EIO;
 	}
-	/* Show how to use the event. */
-	printf("\nYou can now use it on all perf tools, such as:\n\n");
-	printf("\tperf record -e %s:%s -a sleep 1\n\n", PERFPROBE_GROUP, event);
+
+	ret = 0;
+	printf("Add new event%s\n", (ntevs > 1) ? "s:" : ":");
+	for (i = 0; i < ntevs; i++) {
+		tev = &tevs[i];
+		if (pev->event)
+			event = pev->event;
+		else
+			if (pev->point.function)
+				event = pev->point.function;
+			else
+				event = tev->point.symbol;
+		if (pev->group)
+			group = pev->group;
+		else
+			group = PERFPROBE_GROUP;
+
+		/* Get an unused new event name */
+		ret = get_new_event_name(buf, 64, event,
+					 namelist, allow_suffix);
+		if (ret < 0)
+			break;
+		event = buf;
+
+		tev->event = strdup(event);
+		tev->group = strdup(group);
+		if (tev->event == NULL || tev->group == NULL) {
+			ret = -ENOMEM;
+			break;
+		}
+		ret = write_kprobe_trace_event(fd, tev);
+		if (ret < 0)
+			break;
+		/* Add added event name to namelist */
+		strlist__add(namelist, event);
+
+		/* Trick here - save current event/group */
+		event = pev->event;
+		group = pev->group;
+		pev->event = tev->event;
+		pev->group = tev->group;
+		show_perf_probe_event(pev);
+		/* Trick here - restore current event/group */
+		pev->event = (char *)event;
+		pev->group = (char *)group;
+
+		/*
+		 * Probes after the first probe which comes from same
+		 * user input are always allowed to add suffix, because
+		 * there might be several addresses corresponding to
+		 * one code line.
+		 */
+		allow_suffix = true;
+	}
+
+	if (ret >= 0) {
+		/* Show how to use the event. */
+		printf("\nYou can now use it on all perf tools, such as:\n\n");
+		printf("\tperf record -e %s:%s -aR sleep 1\n\n", tev->group,
+			 tev->event);
+	}
 
 	strlist__delete(namelist);
 	close(fd);
+	return ret;
 }
 
-static void __del_trace_kprobe_event(int fd, struct str_node *ent)
+static int convert_to_kprobe_trace_events(struct perf_probe_event *pev,
+					  struct kprobe_trace_event **tevs,
+					  int max_tevs)
+{
+	struct symbol *sym;
+	int ret = 0, i;
+	struct kprobe_trace_event *tev;
+
+	/* Convert perf_probe_event with debuginfo */
+	ret = try_to_find_kprobe_trace_events(pev, tevs, max_tevs);
+	if (ret != 0)
+		return ret;
+
+	/* Allocate trace event buffer */
+	tev = *tevs = zalloc(sizeof(struct kprobe_trace_event));
+	if (tev == NULL)
+		return -ENOMEM;
+
+	/* Copy parameters */
+	tev->point.symbol = strdup(pev->point.function);
+	if (tev->point.symbol == NULL) {
+		ret = -ENOMEM;
+		goto error;
+	}
+	tev->point.offset = pev->point.offset;
+	tev->nargs = pev->nargs;
+	if (tev->nargs) {
+		tev->args = zalloc(sizeof(struct kprobe_trace_arg)
+				   * tev->nargs);
+		if (tev->args == NULL) {
+			ret = -ENOMEM;
+			goto error;
+		}
+		for (i = 0; i < tev->nargs; i++) {
+			if (pev->args[i].name) {
+				tev->args[i].name = strdup(pev->args[i].name);
+				if (tev->args[i].name == NULL) {
+					ret = -ENOMEM;
+					goto error;
+				}
+			}
+			tev->args[i].value = strdup(pev->args[i].var);
+			if (tev->args[i].value == NULL) {
+				ret = -ENOMEM;
+				goto error;
+			}
+			if (pev->args[i].type) {
+				tev->args[i].type = strdup(pev->args[i].type);
+				if (tev->args[i].type == NULL) {
+					ret = -ENOMEM;
+					goto error;
+				}
+			}
+		}
+	}
+
+	/* Currently just checking function name from symbol map */
+	sym = map__find_symbol_by_name(machine.vmlinux_maps[MAP__FUNCTION],
+				       tev->point.symbol, NULL);
+	if (!sym) {
+		pr_warning("Kernel symbol \'%s\' not found.\n",
+			   tev->point.symbol);
+		ret = -ENOENT;
+		goto error;
+	}
+
+	return 1;
+error:
+	clear_kprobe_trace_event(tev);
+	free(tev);
+	*tevs = NULL;
+	return ret;
+}
+
+struct __event_package {
+	struct perf_probe_event		*pev;
+	struct kprobe_trace_event	*tevs;
+	int				ntevs;
+};
+
+int add_perf_probe_events(struct perf_probe_event *pevs, int npevs,
+			  bool force_add, int max_tevs)
+{
+	int i, j, ret;
+	struct __event_package *pkgs;
+
+	pkgs = zalloc(sizeof(struct __event_package) * npevs);
+	if (pkgs == NULL)
+		return -ENOMEM;
+
+	/* Init vmlinux path */
+	ret = init_vmlinux();
+	if (ret < 0)
+		return ret;
+
+	/* Loop 1: convert all events */
+	for (i = 0; i < npevs; i++) {
+		pkgs[i].pev = &pevs[i];
+		/* Convert with or without debuginfo */
+		ret  = convert_to_kprobe_trace_events(pkgs[i].pev,
+						      &pkgs[i].tevs, max_tevs);
+		if (ret < 0)
+			goto end;
+		pkgs[i].ntevs = ret;
+	}
+
+	/* Loop 2: add all events */
+	for (i = 0; i < npevs && ret >= 0; i++)
+		ret = __add_kprobe_trace_events(pkgs[i].pev, pkgs[i].tevs,
+						pkgs[i].ntevs, force_add);
+end:
+	/* Loop 3: cleanup trace events  */
+	for (i = 0; i < npevs; i++)
+		for (j = 0; j < pkgs[i].ntevs; j++)
+			clear_kprobe_trace_event(&pkgs[i].tevs[j]);
+
+	return ret;
+}
+
+static int __del_trace_kprobe_event(int fd, struct str_node *ent)
 {
 	char *p;
 	char buf[128];
+	int ret;
 
 	/* Convert from perf-probe event to trace-kprobe event */
-	if (e_snprintf(buf, 128, "-:%s", ent->s) < 0)
-		die("Failed to copy event.");
+	ret = e_snprintf(buf, 128, "-:%s", ent->s);
+	if (ret < 0)
+		goto error;
+
 	p = strchr(buf + 2, ':');
-	if (!p)
-		die("Internal error: %s should have ':' but not.", ent->s);
+	if (!p) {
+		pr_debug("Internal error: %s should have ':' but not.\n",
+			 ent->s);
+		ret = -ENOTSUP;
+		goto error;
+	}
 	*p = '/';
 
-	write_trace_kprobe_event(fd, buf);
+	pr_debug("Writing event: %s\n", buf);
+	ret = write(fd, buf, strlen(buf));
+	if (ret < 0)
+		goto error;
+
 	printf("Remove event: %s\n", ent->s);
+	return 0;
+error:
+	pr_warning("Failed to delete event: %s\n", strerror(-ret));
+	return ret;
 }
 
-static void del_trace_kprobe_event(int fd, const char *group,
-				   const char *event, struct strlist *namelist)
+static int del_trace_kprobe_event(int fd, const char *group,
+				  const char *event, struct strlist *namelist)
 {
 	char buf[128];
 	struct str_node *ent, *n;
-	int found = 0;
+	int found = 0, ret = 0;
 
-	if (e_snprintf(buf, 128, "%s:%s", group, event) < 0)
-		die("Failed to copy event.");
+	ret = e_snprintf(buf, 128, "%s:%s", group, event);
+	if (ret < 0) {
+		pr_err("Failed to copy event.");
+		return ret;
+	}
 
 	if (strpbrk(buf, "*?")) { /* Glob-exp */
 		strlist__for_each_safe(ent, n, namelist)
 			if (strglobmatch(ent->s, buf)) {
 				found++;
-				__del_trace_kprobe_event(fd, ent);
+				ret = __del_trace_kprobe_event(fd, ent);
+				if (ret < 0)
+					break;
 				strlist__remove(namelist, ent);
 			}
 	} else {
 		ent = strlist__find(namelist, buf);
 		if (ent) {
 			found++;
-			__del_trace_kprobe_event(fd, ent);
-			strlist__remove(namelist, ent);
+			ret = __del_trace_kprobe_event(fd, ent);
+			if (ret >= 0)
+				strlist__remove(namelist, ent);
 		}
 	}
-	if (found == 0)
-		pr_info("Info: event \"%s\" does not exist, could not remove it.\n", buf);
+	if (found == 0 && ret >= 0)
+		pr_info("Info: Event \"%s\" does not exist.\n", buf);
+
+	return ret;
 }
 
-void del_trace_kprobe_events(struct strlist *dellist)
+int del_perf_probe_events(struct strlist *dellist)
 {
-	int fd;
+	int fd, ret = 0;
 	const char *group, *event;
 	char *p, *str;
 	struct str_node *ent;
 	struct strlist *namelist;
 
-	fd = open_kprobe_events(O_RDWR, O_APPEND);
+	fd = open_kprobe_events(true);
+	if (fd < 0)
+		return fd;
+
 	/* Get current event names */
-	namelist = get_perf_event_names(fd, true);
+	namelist = get_kprobe_trace_event_names(fd, true);
+	if (namelist == NULL)
+		return -EINVAL;
 
 	strlist__for_each(ent, dellist) {
 		str = strdup(ent->s);
-		if (!str)
-			die("Failed to copy event.");
+		if (str == NULL) {
+			ret = -ENOMEM;
+			break;
+		}
 		pr_debug("Parsing: %s\n", str);
 		p = strchr(str, ':');
 		if (p) {
@@ -723,80 +1633,14 @@ void del_trace_kprobe_events(struct strlist *dellist)
 			event = str;
 		}
 		pr_debug("Group: %s, Event: %s\n", group, event);
-		del_trace_kprobe_event(fd, group, event, namelist);
+		ret = del_trace_kprobe_event(fd, group, event, namelist);
 		free(str);
+		if (ret < 0)
+			break;
 	}
 	strlist__delete(namelist);
 	close(fd);
+
+	return ret;
 }
 
-#define LINEBUF_SIZE 256
-#define NR_ADDITIONAL_LINES 2
-
-static void show_one_line(FILE *fp, unsigned int l, bool skip, bool show_num)
-{
-	char buf[LINEBUF_SIZE];
-	const char *color = PERF_COLOR_BLUE;
-
-	if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
-		goto error;
-	if (!skip) {
-		if (show_num)
-			fprintf(stdout, "%7u  %s", l, buf);
-		else
-			color_fprintf(stdout, color, "         %s", buf);
-	}
-
-	while (strlen(buf) == LINEBUF_SIZE - 1 &&
-	       buf[LINEBUF_SIZE - 2] != '\n') {
-		if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
-			goto error;
-		if (!skip) {
-			if (show_num)
-				fprintf(stdout, "%s", buf);
-			else
-				color_fprintf(stdout, color, "%s", buf);
-		}
-	}
-	return;
-error:
-	if (feof(fp))
-		die("Source file is shorter than expected.");
-	else
-		die("File read error: %s", strerror(errno));
-}
-
-void show_line_range(struct line_range *lr)
-{
-	unsigned int l = 1;
-	struct line_node *ln;
-	FILE *fp;
-
-	setup_pager();
-
-	if (lr->function)
-		fprintf(stdout, "<%s:%d>\n", lr->function,
-			lr->start - lr->offset);
-	else
-		fprintf(stdout, "<%s:%d>\n", lr->file, lr->start);
-
-	fp = fopen(lr->path, "r");
-	if (fp == NULL)
-		die("Failed to open %s: %s", lr->path, strerror(errno));
-	/* Skip to starting line number */
-	while (l < lr->start)
-		show_one_line(fp, l++, true, false);
-
-	list_for_each_entry(ln, &lr->line_list, list) {
-		while (ln->line > l)
-			show_one_line(fp, (l++) - lr->offset, false, false);
-		show_one_line(fp, (l++) - lr->offset, false, true);
-	}
-
-	if (lr->end == INT_MAX)
-		lr->end = l + NR_ADDITIONAL_LINES;
-	while (l < lr->end && !feof(fp))
-		show_one_line(fp, (l++) - lr->offset, false, false);
-
-	fclose(fp);
-}

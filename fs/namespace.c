@@ -1432,7 +1432,7 @@ static int graft_tree(struct vfsmount *mnt, struct path *path)
 
 	err = -ENOENT;
 	mutex_lock(&path->dentry->d_inode->i_mutex);
-	if (IS_DEADDIR(path->dentry->d_inode))
+	if (cant_mount(path->dentry))
 		goto out_unlock;
 
 	err = security_sb_check_sb(mnt, path);
@@ -1623,7 +1623,7 @@ static int do_move_mount(struct path *path, char *old_name)
 
 	err = -ENOENT;
 	mutex_lock(&path->dentry->d_inode->i_mutex);
-	if (IS_DEADDIR(path->dentry->d_inode))
+	if (cant_mount(path->dentry))
 		goto out1;
 
 	if (d_unlinked(path->dentry))
@@ -2234,7 +2234,7 @@ SYSCALL_DEFINE2(pivot_root, const char __user *, new_root,
 	if (!check_mnt(root.mnt))
 		goto out2;
 	error = -ENOENT;
-	if (IS_DEADDIR(new.dentry->d_inode))
+	if (cant_mount(old.dentry))
 		goto out2;
 	if (d_unlinked(new.dentry))
 		goto out2;

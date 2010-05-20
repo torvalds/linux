@@ -17,7 +17,7 @@
 		.endm
 
 		.macro  get_irqnr_preamble, base, tmp
-		ldr     \base, =IO_ADDRESS(U8500_GIC_CPU_BASE)
+		ldr     \base, =IO_ADDRESS(UX500_GIC_CPU_BASE)
 		.endm
 
 		.macro  arch_ret_to_user, tmp1, tmp2

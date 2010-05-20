@@ -122,7 +122,7 @@ static irqreturn_t loongson2_perfcount_handler(int irq, void *dev_id)
 	 */
 
 	/* Check whether the irq belongs to me */
-	enabled = read_c0_perfcnt() & LOONGSON2_PERFCNT_INT_EN;
+	enabled = read_c0_perfctrl() & LOONGSON2_PERFCNT_INT_EN;
 	if (!enabled)
 		return IRQ_NONE;
 	enabled = reg.cnt1_enabled | reg.cnt2_enabled;

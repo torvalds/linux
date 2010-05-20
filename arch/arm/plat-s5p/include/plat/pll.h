@@ -81,3 +81,25 @@ static inline unsigned long s5p_get_pll90xx(unsigned long baseclk,
 
 	return result;
 }
+
+#define PLL65XX_MDIV_MASK	(0x3FF)
+#define PLL65XX_PDIV_MASK	(0x3F)
+#define PLL65XX_SDIV_MASK	(0x7)
+#define PLL65XX_MDIV_SHIFT	(16)
+#define PLL65XX_PDIV_SHIFT	(8)
+#define PLL65XX_SDIV_SHIFT	(0)
+
+static inline unsigned long s5p_get_pll65xx(unsigned long baseclk, u32 pll_con)
+{
+	u32 mdiv, pdiv, sdiv;
+	u64 fvco = baseclk;
+
+	mdiv = (pll_con >> PLL65XX_MDIV_SHIFT) & PLL65XX_MDIV_MASK;
+	pdiv = (pll_con >> PLL65XX_PDIV_SHIFT) & PLL65XX_PDIV_MASK;
+	sdiv = (pll_con >> PLL65XX_SDIV_SHIFT) & PLL65XX_SDIV_MASK;
+
+	fvco *= mdiv;
+	do_div(fvco, (pdiv << sdiv));
+
+	return (unsigned long)fvco;
+}

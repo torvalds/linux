@@ -16,7 +16,7 @@
 #include <asm/cache.h>
 #include <asm/io.h>
 
-int detect_cpu_and_cache_system(void)
+void __cpuinit cpu_probe(void)
 {
 	unsigned long addr0, addr1, data0, data1, data2, data3;
 
@@ -108,6 +108,4 @@ int detect_cpu_and_cache_system(void)
 	boot_cpu_data.icache = boot_cpu_data.dcache;
 
 	boot_cpu_data.family = CPU_FAMILY_SH3;
-
-	return 0;
 }

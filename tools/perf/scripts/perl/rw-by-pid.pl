@@ -79,12 +79,12 @@ sub trace_end
     printf("%6s  %-20s  %10s  %10s  %10s\n", "------", "--------------------",
 	   "-----------", "----------", "----------");
 
-    foreach my $pid (sort {$reads{$b}{bytes_read} <=>
-			       $reads{$a}{bytes_read}} keys %reads) {
-	my $comm = $reads{$pid}{comm};
-	my $total_reads = $reads{$pid}{total_reads};
-	my $bytes_requested = $reads{$pid}{bytes_requested};
-	my $bytes_read = $reads{$pid}{bytes_read};
+    foreach my $pid (sort { ($reads{$b}{bytes_read} || 0) <=>
+				($reads{$a}{bytes_read} || 0) } keys %reads) {
+	my $comm = $reads{$pid}{comm} || "";
+	my $total_reads = $reads{$pid}{total_reads} || 0;
+	my $bytes_requested = $reads{$pid}{bytes_requested} || 0;
+	my $bytes_read = $reads{$pid}{bytes_read} || 0;
 
 	printf("%6s  %-20s  %10s  %10s  %10s\n", $pid, $comm,
 	       $total_reads, $bytes_requested, $bytes_read);
@@ -96,14 +96,21 @@ sub trace_end
     printf("%6s  %20s  %6s  %10s\n", "------", "--------------------",
 	   "------", "----------");
 
-    foreach my $pid (keys %reads) {
-	my $comm = $reads{$pid}{comm};
-	foreach my $err (sort {$reads{$b}{comm} cmp $reads{$a}{comm}}
-			 keys %{$reads{$pid}{errors}}) {
-	    my $errors = $reads{$pid}{errors}{$err};
+    my @errcounts = ();
 
-	    printf("%6d  %-20s  %6d  %10s\n", $pid, $comm, $err, $errors);
+    foreach my $pid (keys %reads) {
+	foreach my $error (keys %{$reads{$pid}{errors}}) {
+	    my $comm = $reads{$pid}{comm} || "";
+	    my $errcount = $reads{$pid}{errors}{$error} || 0;
+	    push @errcounts, [$pid, $comm, $error, $errcount];
 	}
+    }
+
+    @errcounts = sort { $b->[3] <=> $a->[3] } @errcounts;
+
+    for my $i (0 .. $#errcounts) {
+	printf("%6d  %-20s  %6d  %10s\n", $errcounts[$i][0],
+	       $errcounts[$i][1], $errcounts[$i][2], $errcounts[$i][3]);
     }
 
     printf("\nwrite counts by pid:\n\n");
@@ -113,11 +120,11 @@ sub trace_end
     printf("%6s  %-20s  %10s  %10s\n", "------", "--------------------",
 	   "-----------", "----------");
 
-    foreach my $pid (sort {$writes{$b}{bytes_written} <=>
-			       $writes{$a}{bytes_written}} keys %writes) {
-	my $comm = $writes{$pid}{comm};
-	my $total_writes = $writes{$pid}{total_writes};
-	my $bytes_written = $writes{$pid}{bytes_written};
+    foreach my $pid (sort { ($writes{$b}{bytes_written} || 0) <=>
+			($writes{$a}{bytes_written} || 0)} keys %writes) {
+	my $comm = $writes{$pid}{comm} || "";
+	my $total_writes = $writes{$pid}{total_writes} || 0;
+	my $bytes_written = $writes{$pid}{bytes_written} || 0;
 
 	printf("%6s  %-20s  %10s  %10s\n", $pid, $comm,
 	       $total_writes, $bytes_written);
@@ -129,14 +136,21 @@ sub trace_end
     printf("%6s  %20s  %6s  %10s\n", "------", "--------------------",
 	   "------", "----------");
 
-    foreach my $pid (keys %writes) {
-	my $comm = $writes{$pid}{comm};
-	foreach my $err (sort {$writes{$b}{comm} cmp $writes{$a}{comm}}
-			 keys %{$writes{$pid}{errors}}) {
-	    my $errors = $writes{$pid}{errors}{$err};
+    @errcounts = ();
 
-	    printf("%6d  %-20s  %6d  %10s\n", $pid, $comm, $err, $errors);
+    foreach my $pid (keys %writes) {
+	foreach my $error (keys %{$writes{$pid}{errors}}) {
+	    my $comm = $writes{$pid}{comm} || "";
+	    my $errcount = $writes{$pid}{errors}{$error} || 0;
+	    push @errcounts, [$pid, $comm, $error, $errcount];
 	}
+    }
+
+    @errcounts = sort { $b->[3] <=> $a->[3] } @errcounts;
+
+    for my $i (0 .. $#errcounts) {
+	printf("%6d  %-20s  %6d  %10s\n", $errcounts[$i][0],
+	       $errcounts[$i][1], $errcounts[$i][2], $errcounts[$i][3]);
     }
 
     print_unhandled();

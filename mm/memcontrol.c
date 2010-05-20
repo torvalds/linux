@@ -811,12 +811,10 @@ int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem)
 	 * enabled in "curr" and "curr" is a child of "mem" in *cgroup*
 	 * hierarchy(even if use_hierarchy is disabled in "mem").
 	 */
-	rcu_read_lock();
 	if (mem->use_hierarchy)
 		ret = css_is_ancestor(&curr->css, &mem->css);
 	else
 		ret = (curr == mem);
-	rcu_read_unlock();
 	css_put(&curr->css);
 	return ret;
 }
@@ -1603,7 +1601,6 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 			 * There is a small race that "from" or "to" can be
 			 * freed by rmdir, so we use css_tryget().
 			 */
-			rcu_read_lock();
 			from = mc.from;
 			to = mc.to;
 			if (from && css_tryget(&from->css)) {
@@ -1624,7 +1621,6 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 					do_continue = (to == mem_over_limit);
 				css_put(&to->css);
 			}
-			rcu_read_unlock();
 			if (do_continue) {
 				DEFINE_WAIT(wait);
 				prepare_to_wait(&mc.waitq, &wait,
@@ -2314,9 +2310,7 @@ mem_cgroup_uncharge_swapcache(struct page *page, swp_entry_t ent, bool swapout)
 
 	/* record memcg information */
 	if (do_swap_account && swapout && memcg) {
-		rcu_read_lock();
 		swap_cgroup_record(ent, css_id(&memcg->css));
-		rcu_read_unlock();
 		mem_cgroup_get(memcg);
 	}
 	if (swapout && memcg)
@@ -2373,10 +2367,8 @@ static int mem_cgroup_move_swap_account(swp_entry_t entry,
 {
 	unsigned short old_id, new_id;
 
-	rcu_read_lock();
 	old_id = css_id(&from->css);
 	new_id = css_id(&to->css);
-	rcu_read_unlock();
 
 	if (swap_cgroup_cmpxchg(entry, old_id, new_id) == old_id) {
 		mem_cgroup_swap_statistics(from, false);
@@ -4044,16 +4036,11 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
 			put_page(page);
 	}
 	/* throught */
-	if (ent.val && do_swap_account && !ret) {
-		unsigned short id;
-		rcu_read_lock();
-		id = css_id(&mc.from->css);
-		rcu_read_unlock();
-		if (id == lookup_swap_cgroup(ent)) {
-			ret = MC_TARGET_SWAP;
-			if (target)
-				target->ent = ent;
-		}
+	if (ent.val && do_swap_account && !ret &&
+			css_id(&mc.from->css) == lookup_swap_cgroup(ent)) {
+		ret = MC_TARGET_SWAP;
+		if (target)
+			target->ent = ent;
 	}
 	return ret;
 }

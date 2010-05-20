@@ -154,9 +154,16 @@ static void put_tracing_file(char *file)
 	free(file);
 }
 
+static ssize_t calc_data_size;
+
 static ssize_t write_or_die(const void *buf, size_t len)
 {
 	int ret;
+
+	if (calc_data_size) {
+		calc_data_size += len;
+		return len;
+	}
 
 	ret = write(output_fd, buf, len);
 	if (ret < 0)
@@ -480,6 +487,17 @@ get_tracepoints_path(struct perf_event_attr *pattrs, int nb_events)
 	return nr_tracepoints > 0 ? path.next : NULL;
 }
 
+bool have_tracepoints(struct perf_event_attr *pattrs, int nb_events)
+{
+	int i;
+
+	for (i = 0; i < nb_events; i++)
+		if (pattrs[i].type == PERF_TYPE_TRACEPOINT)
+			return true;
+
+	return false;
+}
+
 int read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events)
 {
 	char buf[BUFSIZ];
@@ -525,4 +543,21 @@ int read_tracing_data(int fd, struct perf_event_attr *pattrs, int nb_events)
 	read_ftrace_printk();
 
 	return 0;
+}
+
+ssize_t read_tracing_data_size(int fd, struct perf_event_attr *pattrs,
+			       int nb_events)
+{
+	ssize_t size;
+	int err = 0;
+
+	calc_data_size = 1;
+	err = read_tracing_data(fd, pattrs, nb_events);
+	size = calc_data_size - 1;
+	calc_data_size = 0;
+
+	if (err < 0)
+		return err;
+
+	return size;
 }

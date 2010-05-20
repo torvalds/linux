@@ -187,7 +187,6 @@ tx_drop:
 	return NETDEV_TX_OK;
 
 rx_drop:
-	kfree_skb(skb);
 	rcv_stats->rx_dropped++;
 	return NETDEV_TX_OK;
 }

@@ -363,6 +363,10 @@ int wm8350_read_auxadc(struct wm8350 *wm8350, int channel, int scale, int vref)
 	reg |= 1 << channel | WM8350_AUXADC_POLL;
 	wm8350_reg_write(wm8350, WM8350_DIGITISER_CONTROL_1, reg);
 
+	/* If a late IRQ left the completion signalled then consume
+	 * the completion. */
+	try_wait_for_completion(&wm8350->auxadc_done);
+
 	/* We ignore the result of the completion and just check for a
 	 * conversion result, allowing us to soldier on if the IRQ
 	 * infrastructure is not set up for the chip. */

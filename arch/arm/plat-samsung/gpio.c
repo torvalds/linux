@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/spinlock.h>
 
 #include <plat/gpio-core.h>
 
@@ -52,14 +53,14 @@ static int s3c_gpiolib_input(struct gpio_chip *chip, unsigned offset)
 	unsigned long flags;
 	unsigned long con;
 
-	local_irq_save(flags);
+	s3c_gpio_lock(ourchip, flags);
 
 	con = __raw_readl(base + 0x00);
 	con &= ~(3 << (offset * 2));
 
 	__raw_writel(con, base + 0x00);
 
-	local_irq_restore(flags);
+	s3c_gpio_unlock(ourchip, flags);
 	return 0;
 }
 
@@ -72,7 +73,7 @@ static int s3c_gpiolib_output(struct gpio_chip *chip,
 	unsigned long dat;
 	unsigned long con;
 
-	local_irq_save(flags);
+	s3c_gpio_lock(ourchip, flags);
 
 	dat = __raw_readl(base + 0x04);
 	dat &= ~(1 << offset);
@@ -87,7 +88,7 @@ static int s3c_gpiolib_output(struct gpio_chip *chip,
 	__raw_writel(con, base + 0x00);
 	__raw_writel(dat, base + 0x04);
 
-	local_irq_restore(flags);
+	s3c_gpio_unlock(ourchip, flags);
 	return 0;
 }
 
@@ -99,7 +100,7 @@ static void s3c_gpiolib_set(struct gpio_chip *chip,
 	unsigned long flags;
 	unsigned long dat;
 
-	local_irq_save(flags);
+	s3c_gpio_lock(ourchip, flags);
 
 	dat = __raw_readl(base + 0x04);
 	dat &= ~(1 << offset);
@@ -107,7 +108,7 @@ static void s3c_gpiolib_set(struct gpio_chip *chip,
 		dat |= 1 << offset;
 	__raw_writel(dat, base + 0x04);
 
-	local_irq_restore(flags);
+	s3c_gpio_unlock(ourchip, flags);
 }
 
 static int s3c_gpiolib_get(struct gpio_chip *chip, unsigned offset)
@@ -130,6 +131,8 @@ __init void s3c_gpiolib_add(struct s3c_gpio_chip *chip)
 	BUG_ON(!chip->base);
 	BUG_ON(!gc->label);
 	BUG_ON(!gc->ngpio);
+
+	spin_lock_init(&chip->lock);
 
 	if (!gc->direction_input)
 		gc->direction_input = s3c_gpiolib_input;

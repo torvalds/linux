@@ -96,7 +96,7 @@ static void colibri_pxa3xx_mci_exit(struct device *dev, void *data)
 }
 
 static struct pxamci_platform_data colibri_pxa3xx_mci_platform_data = {
-	.detect_delay		= 20,
+	.detect_delay_ms	= 200,
 	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
 	.init			= colibri_pxa3xx_mci_init,
 	.exit			= colibri_pxa3xx_mci_exit,

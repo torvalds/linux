@@ -13,8 +13,8 @@
 #include <asm/debug.h>
 #include "chsc.h"
 
-#define QDIO_BUSY_BIT_PATIENCE		100	/* 100 microseconds */
-#define QDIO_INPUT_THRESHOLD		500	/* 500 microseconds */
+#define QDIO_BUSY_BIT_PATIENCE		(100 << 12)	/* 100 microseconds */
+#define QDIO_INPUT_THRESHOLD		(500 << 12)	/* 500 microseconds */
 
 /*
  * if an asynchronous HiperSockets queue runs full, the 10 seconds timer wait
@@ -296,10 +296,8 @@ struct qdio_q {
 	struct qdio_irq *irq_ptr;
 	struct sl *sl;
 	/*
-	 * Warning: Leave this member at the end so it won't be cleared in
-	 * qdio_fill_qs. A page is allocated under this pointer and used for
-	 * slib and sl. slib is 2048 bytes big and sl points to offset
-	 * PAGE_SIZE / 2.
+	 * A page is allocated under this pointer and used for slib and sl.
+	 * slib is 2048 bytes big and sl points to offset PAGE_SIZE / 2.
 	 */
 	struct slib *slib;
 } __attribute__ ((aligned(256)));
@@ -370,11 +368,6 @@ static inline int multicast_outbound(struct qdio_q *q)
 {
 	return (q->irq_ptr->nr_output_qs > 1) &&
 	       (q->nr == q->irq_ptr->nr_output_qs - 1);
-}
-
-static inline unsigned long long get_usecs(void)
-{
-	return monotonic_clock() >> 12;
 }
 
 #define pci_out_supported(q) \

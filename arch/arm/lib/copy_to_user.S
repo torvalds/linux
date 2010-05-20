@@ -93,6 +93,7 @@ WEAK(__copy_to_user)
 #include "copy_template.S"
 
 ENDPROC(__copy_to_user)
+ENDPROC(__copy_to_user_std)
 
 	.pushsection .fixup,"ax"
 	.align 0

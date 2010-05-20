@@ -182,6 +182,39 @@ extern long __user_bad(void);
  * Returns zero on success, or -EFAULT on error.
  * On error, the variable @x is set to zero.
  */
+#define get_user(x, ptr)						\
+	__get_user_check((x), (ptr), sizeof(*(ptr)))
+
+#define __get_user_check(x, ptr, size)					\
+({									\
+	unsigned long __gu_val = 0;					\
+	const typeof(*(ptr)) __user *__gu_addr = (ptr);			\
+	int __gu_err = 0;						\
+									\
+	if (access_ok(VERIFY_READ, __gu_addr, size)) {			\
+		switch (size) {						\
+		case 1:							\
+			__get_user_asm("lbu", __gu_addr, __gu_val,	\
+				       __gu_err);			\
+			break;						\
+		case 2:							\
+			__get_user_asm("lhu", __gu_addr, __gu_val,	\
+				       __gu_err);			\
+			break;						\
+		case 4:							\
+			__get_user_asm("lw", __gu_addr, __gu_val,	\
+				       __gu_err);			\
+			break;						\
+		default:						\
+			__gu_err = __user_bad();			\
+			break;						\
+		}							\
+	} else {							\
+		__gu_err = -EFAULT;					\
+	}								\
+	x = (typeof(*(ptr)))__gu_val;					\
+	__gu_err;							\
+})
 
 #define __get_user(x, ptr)						\
 ({									\
@@ -205,12 +238,6 @@ extern long __user_bad(void);
 	__gu_err;							\
 })
 
-
-#define get_user(x, ptr)						\
-({									\
-	access_ok(VERIFY_READ, (ptr), sizeof(*(ptr)))			\
-		? __get_user((x), (ptr)) : -EFAULT;			\
-})
 
 #define __put_user_asm(insn, __gu_ptr, __gu_val, __gu_err)	\
 ({								\
@@ -266,6 +293,42 @@ extern long __user_bad(void);
  *
  * Returns zero on success, or -EFAULT on error.
  */
+#define put_user(x, ptr)						\
+	__put_user_check((x), (ptr), sizeof(*(ptr)))
+
+#define __put_user_check(x, ptr, size)					\
+({									\
+	typeof(*(ptr)) __pu_val;					\
+	typeof(*(ptr)) __user *__pu_addr = (ptr);			\
+	int __pu_err = 0;						\
+									\
+	__pu_val = (x);							\
+	if (access_ok(VERIFY_WRITE, __pu_addr, size)) {			\
+		switch (size) {						\
+		case 1:							\
+			__put_user_asm("sb", __pu_addr, __pu_val,	\
+				       __pu_err);			\
+			break;						\
+		case 2:							\
+			__put_user_asm("sh", __pu_addr, __pu_val,	\
+				       __pu_err);			\
+			break;						\
+		case 4:							\
+			__put_user_asm("sw", __pu_addr, __pu_val,	\
+				       __pu_err);			\
+			break;						\
+		case 8:							\
+			__put_user_asm_8(__pu_addr, __pu_val, __pu_err);\
+			break;						\
+		default:						\
+			__pu_err = __user_bad();			\
+			break;						\
+		}							\
+	} else {							\
+		__pu_err = -EFAULT;					\
+	}								\
+	__pu_err;							\
+})
 
 #define __put_user(x, ptr)						\
 ({									\
@@ -290,18 +353,6 @@ extern long __user_bad(void);
 	__gu_err;							\
 })
 
-#ifndef CONFIG_MMU
-
-#define put_user(x, ptr)	__put_user((x), (ptr))
-
-#else /* CONFIG_MMU */
-
-#define put_user(x, ptr)						\
-({									\
-	access_ok(VERIFY_WRITE, (ptr), sizeof(*(ptr)))			\
-		? __put_user((x), (ptr)) : -EFAULT;			\
-})
-#endif /* CONFIG_MMU */
 
 /* copy_to_from_user */
 #define __copy_from_user(to, from, n)	\

@@ -71,9 +71,9 @@ sub trace_end
     printf("%3s %6s %6s\t%-20s\n", "---", "---", "----", "----");
     foreach my $pidhash (@cpus) {
 	while ((my $pid, my $wqhash) = each %$pidhash) {
-	    my $ins = $$wqhash{'inserted'};
-	    my $exe = $$wqhash{'executed'};
-	    my $comm = $$wqhash{'comm'};
+	    my $ins = $$wqhash{'inserted'} || 0;
+	    my $exe = $$wqhash{'executed'} || 0;
+	    my $comm = $$wqhash{'comm'} || "";
 	    if ($ins || $exe) {
 		printf("%3u %6u %6u\t%-20s\n", $cpu, $ins, $exe, $comm);
 	    }
@@ -87,9 +87,9 @@ sub trace_end
     printf("%3s %6s %6s\t%-20s\n", "---", "-------", "---------", "----");
     foreach my $pidhash (@cpus) {
 	while ((my $pid, my $wqhash) = each %$pidhash) {
-	    my $created = $$wqhash{'created'};
-	    my $destroyed = $$wqhash{'destroyed'};
-	    my $comm = $$wqhash{'comm'};
+	    my $created = $$wqhash{'created'} || 0;
+	    my $destroyed = $$wqhash{'destroyed'} || 0;
+	    my $comm = $$wqhash{'comm'} || "";
 	    if ($created || $destroyed) {
 		printf("%3u %6u %6u\t%-20s\n", $cpu, $created, $destroyed,
 		       $comm);

@@ -41,7 +41,7 @@ static struct platform_device adssphere_flash = {
 	.resource	= &adssphere_flash_resource,
 };
 
-static struct ep93xx_eth_data adssphere_eth_data = {
+static struct ep93xx_eth_data __initdata adssphere_eth_data = {
 	.phy_id		= 1,
 };
 

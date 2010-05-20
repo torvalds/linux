@@ -366,6 +366,13 @@ rescan:
 	if (is_done)
 		done(ep, req, 0);
 	else if (ep->is_pingpong) {
+		/*
+		 * One dummy read to delay the code because of a HW glitch:
+		 * CSR returns bad RXCOUNT when read too soon after updating
+		 * RX_DATA_BK flags.
+		 */
+		csr = __raw_readl(creg);
+
 		bufferspace -= count;
 		buf += count;
 		goto rescan;
