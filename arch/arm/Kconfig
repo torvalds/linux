@@ -688,6 +688,7 @@ config ARCH_S5P6440
 	select CPU_V6
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Samsung S5P6440 CPU based systems
 
@@ -696,6 +697,7 @@ config ARCH_S5P6442
 	select CPU_V6
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Samsung S5P6442 CPU based systems
 
@@ -705,6 +707,7 @@ config ARCH_S5PC100
 	select HAVE_CLK
 	select CPU_V7
 	select ARM_L1_CACHE_SHIFT_6
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Samsung S5PC100 series based systems
 
@@ -714,6 +717,7 @@ config ARCH_S5PV210
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARM_L1_CACHE_SHIFT_6
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Samsung S5PV210/S5PC110 series based systems
 
