@@ -808,7 +808,7 @@ static int _wait_target_ready(struct omap_hwmod *oh)
 
 	os = *oh->slaves + oh->_mpu_port_index;
 
-	if (!(os->flags & OCPIF_HAS_IDLEST))
+	if (oh->flags & HWMOD_NO_IDLEST)
 		return 0;
 
 	/* XXX check module SIDLEMODE */
