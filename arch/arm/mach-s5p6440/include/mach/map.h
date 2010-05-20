@@ -72,5 +72,6 @@
 /* compatibiltiy defines. */
 #define S3C_PA_UART		S5P6440_PA_UART
 #define S3C_PA_IIC		S5P6440_PA_IIC0
+#define S3C_PA_WDT		S5P6440_PA_WDT
 
 #endif /* __ASM_ARCH_MAP_H */
