@@ -515,7 +515,10 @@ static void ips_disable_cpu_turbo(struct ips_driver *ips)
  */
 static bool ips_gpu_busy(struct ips_driver *ips)
 {
-	return false;
+	if (!ips->gpu_turbo_enabled)
+		return false;
+
+	return ips->gpu_busy();
 }
 
 /**
@@ -627,7 +630,7 @@ static bool cpu_exceeded(struct ips_driver *ips, int cpu)
 	avg = cpu ? ips->ctv2_avg_temp : ips->ctv1_avg_temp;
 	if (avg > (ips->limits->core_temp_limit * 100))
 		ret = true;
-	if (ips->cpu_avg_power > ips->core_power_limit)
+	if (ips->cpu_avg_power > ips->core_power_limit * 100)
 		ret = true;
 	spin_unlock_irqrestore(&ips->turbo_status_lock, flags);
 
@@ -651,6 +654,8 @@ static bool mch_exceeded(struct ips_driver *ips)
 
 	spin_lock_irqsave(&ips->turbo_status_lock, flags);
 	if (ips->mch_avg_temp > (ips->limits->mch_temp_limit * 100))
+		ret = true;
+	if (ips->mch_avg_power > ips->mch_power_limit)
 		ret = true;
 	spin_unlock_irqrestore(&ips->turbo_status_lock, flags);
 
@@ -747,7 +752,7 @@ static int ips_adjust(void *data)
 			ips_disable_gpu_turbo(ips);
 
 		/* We're outside our comfort zone, crank them down */
-		if (!mcp_exceeded(ips)) {
+		if (mcp_exceeded(ips)) {
 			ips_cpu_lower(ips);
 			ips_gpu_lower(ips);
 			goto sleep;
@@ -808,8 +813,7 @@ static u16 read_mgtv(struct ips_driver *ips)
 
 	ret = ((val * slope + 0x40) >> 7) + offset;
 
-
-	return ret;
+	return 0; /* MCH temp reporting buggy */
 }
 
 static u16 read_ptv(struct ips_driver *ips)
@@ -1471,14 +1475,6 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	if (trc & TRC_CORE2_EN)
 		ips->second_cpu = true;
 
-	if (!ips_get_i915_syms(ips)) {
-		dev_err(&dev->dev, "failed to get i915 symbols, graphics turbo disabled\n");
-		ips->gpu_turbo_enabled = false;
-	} else {
-		dev_dbg(&dev->dev, "graphics turbo enabled\n");
-		ips->gpu_turbo_enabled = true;
-	}
-
 	update_turbo_limits(ips);
 	dev_dbg(&dev->dev, "max cpu power clamp: %dW\n",
 		ips->mcp_power_limit / 10);
@@ -1487,6 +1483,14 @@ static int ips_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	/* BIOS may update limits at runtime */
 	if (thm_readl(THM_PSC) & PSP_PBRT)
 		ips->poll_turbo_status = true;
+
+	if (!ips_get_i915_syms(ips)) {
+		dev_err(&dev->dev, "failed to get i915 symbols, graphics turbo disabled\n");
+		ips->gpu_turbo_enabled = false;
+	} else {
+		dev_dbg(&dev->dev, "graphics turbo enabled\n");
+		ips->gpu_turbo_enabled = true;
+	}
 
 	/*
 	 * Check PLATFORM_INFO MSR to make sure this chip is
