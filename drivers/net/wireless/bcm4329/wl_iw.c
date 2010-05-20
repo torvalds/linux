@@ -884,7 +884,7 @@ wl_iw_get_rssi(
 	return error;
 }
 
-static int
+int
 wl_iw_send_priv_event(
 	struct net_device *dev,
 	char *flag

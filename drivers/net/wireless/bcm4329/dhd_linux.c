@@ -302,6 +302,11 @@ module_param(dhd_sysioc, uint, 0);
 uint dhd_watchdog_ms = 10;
 module_param(dhd_watchdog_ms, uint, 0);
 
+#ifdef DHD_DEBUG
+/* Console poll interval */
+uint dhd_console_ms = 0;
+module_param(dhd_console_ms, uint, 0);
+#endif
 
 /* Watchdog thread priority, -1 to use kernel timer */
 int dhd_watchdog_prio = 97;
@@ -949,6 +954,11 @@ dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 		DHD_ERROR(("%s: xmit rejected pub.up=%d busstate=%d\n",
 			 __FUNCTION__, dhd->pub.up, dhd->pub.busstate));
 		netif_stop_queue(net);
+		/* Send Event when bus down detected during data session */
+		if (dhd->pub.busstate == DHD_BUS_DOWN)  {
+			DHD_ERROR(("%s: Event HANG send up\n", __FUNCTION__));
+			wl_iw_send_priv_event(net, "HANG");
+		}
 		return -ENODEV;
 	}
 
@@ -1627,6 +1637,10 @@ dhd_ioctl_entry(struct net_device *net, struct ifreq *ifr, int cmd)
 
 	bcmerror = dhd_prot_ioctl(&dhd->pub, ifidx, (wl_ioctl_t *)&ioc, buf, buflen);
 
+	if (bcmerror == -ETIMEDOUT) {
+		DHD_ERROR(("%s: Event HANG send up\n", __FUNCTION__));
+		wl_iw_send_priv_event(net, "HANG");
+	}
 done:
 	if (!bcmerror && buf && ioc.buf) {
 		if (copy_to_user(ioc.buf, buf, buflen))
@@ -1646,7 +1660,6 @@ dhd_stop(struct net_device *net)
 	dhd_info_t *dhd = *(dhd_info_t **)netdev_priv(net);
 
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
-
 	if (dhd->pub.up == 0) {
 		return 0;
 	}
@@ -2111,6 +2124,8 @@ dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 	printf("%s: Broadcom Dongle Host Driver mac=%.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n", net->name,
 	       dhd->pub.mac.octet[0], dhd->pub.mac.octet[1], dhd->pub.mac.octet[2],
 	       dhd->pub.mac.octet[3], dhd->pub.mac.octet[4], dhd->pub.mac.octet[5]);
+
+#ifdef CONFIG_WIRELESS_EXT
 #ifdef SOFTAP
 	if (ifidx == 0)
 		/* Don't call for SOFTAP Interface in SOFTAP MODE */
@@ -2118,6 +2133,7 @@ dhd_net_attach(dhd_pub_t *dhdp, int ifidx)
 #else
 		wl_iw_iscan_set_scan_broadcast_prep(net, 1);
 #endif /* SOFTAP */
+#endif /* CONFIG_WIRELESS_EXT */
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27))
 	up(&dhd_registration_sem);
@@ -2415,12 +2431,12 @@ void
 dhd_os_wd_timer(void *bus, uint wdtick)
 {
 	dhd_pub_t *pub = bus;
-	dhd_info_t *dhd = (dhd_info_t *)pub->info;
 	static uint save_dhd_watchdog_ms = 0;
+	dhd_info_t *dhd = (dhd_info_t *)pub->info;
 
-	if (pub->busstate == DHD_BUS_DOWN) {
+	/* don't start the wd until fw is loaded */
+	if (pub->busstate == DHD_BUS_DOWN)
 		return;
-	}
 
 	/* Totally stop the timer */
 	if (!wdtick && dhd->wd_timer_valid == TRUE) {

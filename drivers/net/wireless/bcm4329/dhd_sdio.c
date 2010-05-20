@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c,v 1.157.2.27.2.33.2.109 2010/04/22 05:52:46 Exp $
+ * $Id: dhd_sdio.c,v 1.157.2.27.2.33.2.109.2.2 2010/05/18 01:13:11 Exp $
  */
 
 #include <typedefs.h>
@@ -36,14 +36,11 @@
 #include <bcmutils.h>
 #include <bcmendian.h>
 #include <bcmdevs.h>
-
 #include <siutils.h>
 #include <hndpmu.h>
 #include <hndsoc.h>
-#include <hndrte_armtrap.h>
 #include <sbchipc.h>
 #include <sbhnddma.h>
-
 #include <sdio.h>
 #include <sbsdio.h>
 #include <sbsdpcmdev.h>
@@ -60,6 +57,13 @@
 #include <dhd_dbg.h>
 #include <dhdioctl.h>
 #include <sdiovar.h>
+
+#ifdef DHD_DEBUG
+#include <hndrte_cons.h>
+#endif /* DHD_DEBUG */
+#ifdef DHD_DEBUG_TRAP
+#include <hndrte_armtrap.h>
+#endif /* DHD_DEBUG_TRAP */
 
 #define QLEN		256	/* bulk rx and tx queue lengths */
 #define FCHI		(QLEN - 10)
@@ -142,6 +146,17 @@
 DHD_SPINWAIT_SLEEP_INIT(sdioh_spinwait_sleep);
 extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len);
 
+#ifdef DHD_DEBUG
+/* Device console log buffer state */
+typedef struct dhd_console {
+	uint		count;			/* Poll interval msec counter */
+	uint		log_addr;		/* Log struct address (fixed) */
+	hndrte_log_t	log;			/* Log struct (host copy) */
+	uint		bufsize;		/* Size of log buffer */
+	uint8		*buf;			/* Log buffer (host copy) */
+	uint		last;			/* Last buffer read index */
+} dhd_console_t;
+#endif /* DHD_DEBUG */
 
 /* Private data for SDIO bus interaction */
 typedef struct dhd_bus {
@@ -209,6 +224,10 @@ typedef struct dhd_bus {
 	uint		polltick;		/* Tick counter */
 	uint		pollcnt;		/* Count of active polls */
 
+#ifdef DHD_DEBUG
+	dhd_console_t	console;		/* Console output polling support */
+	uint		console_addr;		/* Console address from shared struct */
+#endif /* DHD_DEBUG */
 
 	uint		regfails;		/* Count of R_REG/W_REG failures */
 
@@ -405,7 +424,10 @@ static void dhdsdio_testrcv(dhd_bus_t *bus, void *pkt, uint seq);
 static void dhdsdio_sdtest_set(dhd_bus_t *bus, bool start);
 #endif
 
+#ifdef DHD_DEBUG_TRAP
 static int dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size);
+static int dhdsdio_mem_dump(dhd_bus_t *bus);
+#endif /* DHD_DEBUG_TRAP */
 static int dhdsdio_download_state(dhd_bus_t *bus, bool enter);
 
 static void dhdsdio_release(dhd_bus_t *bus, osl_t *osh);
@@ -1335,17 +1357,21 @@ dhd_bus_rxctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 		         __FUNCTION__, rxlen, msglen));
 	} else if (timeleft == 0) {
 		DHD_ERROR(("%s: resumed on timeout\n", __FUNCTION__));
+#ifdef DHD_DEBUG_TRAP
 		dhd_os_sdlock(bus->dhd);
 		dhdsdio_checkdied(bus, NULL, 0);
 		dhd_os_sdunlock(bus->dhd);
+#endif /* DHD_DEBUG_TRAP */
 	} else if (pending == TRUE) {
 		DHD_CTL(("%s: cancelled\n", __FUNCTION__));
 		return -ERESTARTSYS;
 	} else {
 		DHD_CTL(("%s: resumed for unknown reason?\n", __FUNCTION__));
+#ifdef DHD_DEBUG_TRAP
 		dhd_os_sdlock(bus->dhd);
 		dhdsdio_checkdied(bus, NULL, 0);
 		dhd_os_sdunlock(bus->dhd);
+#endif /* DHD_DEBUG_TRAP */
 	}
 
 	if (rxlen)
@@ -1365,7 +1391,9 @@ enum {
 	IOV_SDCIS,
 	IOV_MEMBYTES,
 	IOV_MEMSIZE,
+#ifdef DHD_DEBUG_TRAP
 	IOV_CHECKDIED,
+#endif
 	IOV_DOWNLOAD,
 	IOV_FORCEEVEN,
 	IOV_SDIOD_DRIVE,
@@ -1416,8 +1444,10 @@ const bcm_iovar_t dhdsdio_iovars[] = {
 	{"rxbound",	IOV_RXBOUND,	0,	IOVT_UINT32,	0 },
 	{"txminmax", IOV_TXMINMAX,	0,	IOVT_UINT32,	0 },
 	{"cpu",		IOV_CPU,	0,	IOVT_BOOL,	0 },
-	{"checkdied",	IOV_CHECKDIED,	0,	IOVT_BUFFER,	0 },
 #endif /* DHD_DEBUG */
+#ifdef DHD_DEBUG_TRAP
+	{"checkdied",	IOV_CHECKDIED,	0,	IOVT_BUFFER,	0 },
+#endif /* DHD_DEBUG_TRAP  */
 #ifdef SDTEST
 	{"extloop",	IOV_EXTLOOP,	0,	IOVT_BOOL,	0 },
 	{"pktgen",	IOV_PKTGEN,	0,	IOVT_BUFFER,	sizeof(dhd_pktgen_t) },
@@ -1646,6 +1676,7 @@ xfer_done:
 	return bcmerror;
 }
 
+#ifdef DHD_DEBUG_TRAP
 static int
 dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 {
@@ -1692,7 +1723,83 @@ dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 
 	return BCME_OK;
 }
+#endif
 
+#define CONSOLE_LINE_MAX	192
+
+#ifdef DHD_DEBUG
+static int
+dhdsdio_readconsole(dhd_bus_t *bus)
+{
+	dhd_console_t *c = &bus->console;
+	uint8 line[CONSOLE_LINE_MAX], ch;
+	uint32 n, idx, addr;
+	int rv;
+
+	/* Don't do anything until FWREADY updates console address */
+	if (bus->console_addr == 0)
+		return 0;
+
+	/* Read console log struct */
+	addr = bus->console_addr + OFFSETOF(hndrte_cons_t, log);
+	if ((rv = dhdsdio_membytes(bus, FALSE, addr, (uint8 *)&c->log, sizeof(c->log))) < 0)
+		return rv;
+
+	/* Allocate console buffer (one time only) */
+	if (c->buf == NULL) {
+		c->bufsize = ltoh32(c->log.buf_size);
+		if ((c->buf = MALLOC(bus->dhd->osh, c->bufsize)) == NULL)
+			return BCME_NOMEM;
+	}
+
+	idx = ltoh32(c->log.idx);
+
+	/* Protect against corrupt value */
+	if (idx > c->bufsize)
+		return BCME_ERROR;
+
+	/* Skip reading the console buffer if the index pointer has not moved */
+	if (idx == c->last)
+		return BCME_OK;
+
+	/* Read the console buffer */
+	addr = ltoh32(c->log.buf);
+	if ((rv = dhdsdio_membytes(bus, FALSE, addr, c->buf, c->bufsize)) < 0)
+		return rv;
+
+	while (c->last != idx) {
+		for (n = 0; n < CONSOLE_LINE_MAX - 2; n++) {
+			if (c->last == idx) {
+				/* This would output a partial line.  Instead, back up
+				 * the buffer pointer and output this line next time around.
+				 */
+				if (c->last >= n)
+					c->last -= n;
+				else
+					c->last = c->bufsize - n;
+				goto break2;
+			}
+			ch = c->buf[c->last];
+			c->last = (c->last + 1) % c->bufsize;
+			if (ch == '\n')
+				break;
+			line[n] = ch;
+		}
+
+		if (n > 0) {
+			if (line[n - 1] == '\r')
+				n--;
+			line[n] = 0;
+			printf("CONSOLE: %s\n", line);
+		}
+	}
+break2:
+
+	return BCME_OK;
+}
+#endif
+
+#ifdef DHD_DEBUG_TRAP
 static int
 dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
 {
@@ -1785,7 +1892,7 @@ dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
 				goto done;
 
 			bcm_bprintf(&strbuf,
-			"Dongle trap type 0x%x @ epc 0x%x, cpsr 0x%x, spsr 0x%x, sp 0x%x,"
+			"Dongle trap type 0x%x @ pc 0x%x, cpsr 0x%x, spsr 0x%x, sp 0x%x,"
 			"lp 0x%x, rpc 0x%x Trap offset 0x%x, "
 			"r0 0x%x, r1 0x%x, r2 0x%x, r3 0x%x, r4 0x%x, r5 0x%x, r6 0x%x, r7 0x%x\n",
 			tr.type, tr.epc, tr.cpsr, tr.spsr, tr.r13, tr.r14, tr.pc,
@@ -1798,6 +1905,11 @@ dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
 		DHD_ERROR(("%s: %s\n", __FUNCTION__, strbuf.origbuf));
 	}
 
+	if (sdpcm_shared.flags & SDPCM_SHARED_TRAP) {
+			/* Mem dump to a file on device */
+			dhdsdio_mem_dump(bus);
+	}
+
 done:
 	if (mbuffer)
 		MFREE(bus->dhd->osh, mbuffer, msize);
@@ -1806,6 +1918,14 @@ done:
 
 	return bcmerror;
 }
+
+static int
+dhdsdio_mem_dump(dhd_bus_t *bus)
+{
+	int ret = 0;
+	return ret;
+}
+#endif /* DHD_DEBUG_TRAP */
 
 int
 dhdsdio_downloadvars(dhd_bus_t *bus, void *arg, int len)
@@ -4489,6 +4609,19 @@ dhd_bus_watchdog(dhd_pub_t *dhdp)
 		bus->lastintrs = bus->intrcount;
 	}
 
+#ifdef DHD_DEBUG
+	/* Poll for console output periodically */
+	if (dhdp->busstate == DHD_BUS_DATA && dhd_console_ms != 0) {
+		bus->console.count += dhd_watchdog_ms;
+		if (bus->console.count >= dhd_console_ms) {
+			bus->console.count -= dhd_console_ms;
+			/* Make sure backplane clock is on */
+			dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
+			if (dhdsdio_readconsole(bus) < 0)
+				dhd_console_ms = 0;	/* On error, stop trying */
+		}
+	}
+#endif /* DHD_DEBUG */
 
 #ifdef SDTEST
 	/* Generate packets if configured */
