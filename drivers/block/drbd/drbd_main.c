@@ -1213,8 +1213,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	&&  (ns.pdsk < D_INCONSISTENT ||
 	     ns.pdsk == D_UNKNOWN ||
 	     ns.pdsk == D_OUTDATED)) {
-		kfree(mdev->p_uuid);
-		mdev->p_uuid = NULL;
 		if (get_ldev(mdev)) {
 			if ((ns.role == R_PRIMARY || ns.peer == R_PRIMARY) &&
 			    mdev->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE &&
