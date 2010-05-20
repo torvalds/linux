@@ -10,6 +10,7 @@ if ARCH_S5PC100
 config CPU_S5PC100
 	bool
 	select PLAT_S5P
+	select S5P_EXT_INT
 	help
 	  Enable S5PC100 CPU support
 
