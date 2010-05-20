@@ -2933,7 +2933,7 @@ again:
 	 */
 
 	if (!local_dec_and_test(&data->nest))
-		return;
+		goto out;
 
 	/*
 	 * Publish the known good head. Rely on the full barrier implied
@@ -2954,6 +2954,7 @@ again:
 	if (handle->wakeup != local_read(&data->wakeup))
 		perf_output_wakeup(handle);
 
+ out:
 	preempt_enable();
 }
 
