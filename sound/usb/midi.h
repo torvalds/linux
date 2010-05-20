@@ -37,6 +37,8 @@ struct snd_usb_midi_endpoint_info {
 
 /* for QUIRK_MIDI_CME, data is NULL */
 
+/* for QUIRK_MIDI_AKAI, data is NULL */
+
 int snd_usbmidi_create(struct snd_card *card,
 		       struct usb_interface *iface,
 		       struct list_head *midi_list,
