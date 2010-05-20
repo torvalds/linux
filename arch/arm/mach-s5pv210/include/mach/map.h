@@ -32,6 +32,8 @@
 
 #define S5PV210_PA_SYSTIMER	(0xE2600000)
 
+#define S5PV210_PA_WATCHDOG	(0xE2700000)
+
 #define S5PV210_PA_UART		(0xE2900000)
 
 #define S5P_PA_UART0		(S5PV210_PA_UART + 0x0)
@@ -78,5 +80,6 @@
 /* compatibiltiy defines. */
 #define S3C_PA_UART		S5PV210_PA_UART
 #define S3C_PA_IIC		S5PV210_PA_IIC0
+#define S3C_PA_WDT		S5PV210_PA_WATCHDOG
 
 #endif /* __ASM_ARCH_MAP_H */
