@@ -4920,6 +4920,13 @@ static int perf_event_set_output(struct perf_event *event, int output_fd)
 	int fput_needed = 0;
 	int ret = -EINVAL;
 
+	/*
+	 * Don't allow output of inherited per-task events. This would
+	 * create performance issues due to cross cpu access.
+	 */
+	if (event->cpu == -1 && event->attr.inherit)
+		return -EINVAL;
+
 	if (!output_fd)
 		goto set;
 
@@ -4938,6 +4945,18 @@ static int perf_event_set_output(struct perf_event *event, int output_fd)
 
 	/* Don't set an output fd when we already have an output channel */
 	if (event->data)
+		goto out;
+
+	/*
+	 * Don't allow cross-cpu buffers
+	 */
+	if (output_event->cpu != event->cpu)
+		goto out;
+
+	/*
+	 * If its not a per-cpu buffer, it must be the same task.
+	 */
+	if (output_event->cpu == -1 && output_event->ctx != event->ctx)
 		goto out;
 
 	atomic_long_inc(&output_file->f_count);
