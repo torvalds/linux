@@ -100,33 +100,44 @@ static int __init omap_i2c_nr_ports(void)
 	return ports;
 }
 
-static int __init omap_i2c_add_bus(int bus_id)
+/* Shared between omap2 and 3 */
+static resource_size_t omap2_i2c_irq[3] __initdata = {
+	INT_24XX_I2C1_IRQ,
+	INT_24XX_I2C2_IRQ,
+	INT_34XX_I2C3_IRQ,
+};
+
+static inline int omap1_i2c_add_bus(struct platform_device *pdev, int bus_id)
 {
-	struct platform_device *pdev;
 	struct omap_i2c_bus_platform_data *pd;
 	struct resource *res;
-	resource_size_t base, irq;
 
-	pdev = &omap_i2c_devices[bus_id - 1];
 	pd = pdev->dev.platform_data;
+	res = pdev->resource;
+	res[0].start = OMAP1_I2C_BASE;
+	res[0].end = res[0].start + OMAP_I2C_SIZE;
+	res[1].start = INT_I2C;
+	omap1_i2c_mux_pins(bus_id);
+
+	return platform_device_register(pdev);
+}
+
+static inline int omap2_i2c_add_bus(struct platform_device *pdev, int bus_id)
+{
+	struct resource *res;
+	resource_size_t *irq;
+
+	res = pdev->resource;
+
+	irq = omap2_i2c_irq;
+
 	if (bus_id == 1) {
-		res = pdev->resource;
-		if (cpu_class_is_omap1()) {
-			base = OMAP1_I2C_BASE;
-			irq = INT_I2C;
-		} else {
-			base = OMAP2_I2C_BASE1;
-			irq = INT_24XX_I2C1_IRQ;
-		}
-		res[0].start = base;
-		res[0].end = base + OMAP_I2C_SIZE;
-		res[1].start = irq;
+		res[0].start = OMAP2_I2C_BASE1;
+		res[0].end = res[0].start + OMAP_I2C_SIZE;
 	}
 
-	if (cpu_class_is_omap1())
-		omap1_i2c_mux_pins(bus_id);
-	if (cpu_class_is_omap2())
-		omap2_i2c_mux_pins(bus_id);
+	res[1].start = irq[bus_id - 1];
+	omap2_i2c_mux_pins(bus_id);
 
 	/*
 	 * When waiting for completion of a i2c transfer, we need to
@@ -134,10 +145,26 @@ static int __init omap_i2c_add_bus(int bus_id)
 	 * ensure quick enough wakeup from idle, when transfer
 	 * completes.
 	 */
-	if (cpu_is_omap34xx())
+	if (cpu_is_omap34xx()) {
+		struct omap_i2c_bus_platform_data *pd;
+
+		pd = pdev->dev.platform_data;
 		pd->set_mpu_wkup_lat = omap_pm_set_max_mpu_wakeup_lat;
+	}
 
 	return platform_device_register(pdev);
+}
+
+static int __init omap_i2c_add_bus(int bus_id)
+{
+	struct platform_device *pdev;
+
+	pdev = &omap_i2c_devices[bus_id - 1];
+
+	if (cpu_class_is_omap1())
+		return omap1_i2c_add_bus(pdev, bus_id);
+	else
+		return omap2_i2c_add_bus(pdev, bus_id);
 }
 
 /**
