@@ -1210,6 +1210,8 @@ free_cdev:
 free_port:
 	kfree(port);
 fail:
+	/* The host might want to notify management sw about port add failure */
+	send_control_msg(port, VIRTIO_CONSOLE_PORT_READY, 0);
 	return err;
 }
 
@@ -1488,6 +1490,9 @@ free_chrdev:
 free:
 	kfree(portdev);
 fail:
+	/* The host might want to notify mgmt sw about device add failure */
+	__send_control_msg(portdev, VIRTIO_CONSOLE_BAD_ID,
+			   VIRTIO_CONSOLE_DEVICE_READY, 0);
 	return err;
 }
 

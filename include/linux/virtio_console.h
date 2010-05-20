@@ -14,6 +14,8 @@
 #define VIRTIO_CONSOLE_F_SIZE	0	/* Does host provide console size? */
 #define VIRTIO_CONSOLE_F_MULTIPORT 1	/* Does host provide multiple ports? */
 
+#define VIRTIO_CONSOLE_BAD_ID		(~(u32)0)
+
 struct virtio_console_config {
 	/* colums of the screens */
 	__u16 cols;
@@ -42,6 +44,7 @@ struct virtio_console_control {
 #define VIRTIO_CONSOLE_PORT_OPEN	3
 #define VIRTIO_CONSOLE_PORT_NAME	4
 #define VIRTIO_CONSOLE_PORT_REMOVE	5
+#define VIRTIO_CONSOLE_DEVICE_READY	6
 
 #ifdef __KERNEL__
 int __init virtio_cons_early_init(int (*put_chars)(u32, const char *, int));
