@@ -374,22 +374,22 @@ out:
 	return ret;
 }
 
-static ssize_t send_control_msg(struct port *port, unsigned int event,
-				unsigned int value)
+static ssize_t __send_control_msg(struct ports_device *portdev, u32 port_id,
+				  unsigned int event, unsigned int value)
 {
 	struct scatterlist sg[1];
 	struct virtio_console_control cpkt;
 	struct virtqueue *vq;
 	unsigned int len;
 
-	if (!use_multiport(port->portdev))
+	if (!use_multiport(portdev))
 		return 0;
 
-	cpkt.id = port->id;
+	cpkt.id = port_id;
 	cpkt.event = event;
 	cpkt.value = value;
 
-	vq = port->portdev->c_ovq;
+	vq = portdev->c_ovq;
 
 	sg_init_one(sg, &cpkt, sizeof(cpkt));
 	if (virtqueue_add_buf(vq, sg, 1, 0, &cpkt) >= 0) {
@@ -398,6 +398,12 @@ static ssize_t send_control_msg(struct port *port, unsigned int event,
 			cpu_relax();
 	}
 	return 0;
+}
+
+static ssize_t send_control_msg(struct port *port, unsigned int event,
+				unsigned int value)
+{
+	return __send_control_msg(port->portdev, port->id, event, value);
 }
 
 static ssize_t send_buf(struct port *port, void *in_buf, size_t in_count)
