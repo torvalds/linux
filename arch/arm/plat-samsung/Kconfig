@@ -201,6 +201,11 @@ config S3C_DEV_NAND
 	help
 	  Compile in platform device definition for NAND controller
 
+config S3C_DEV_ONENAND
+	bool
+	help
+	  Compile in platform device definition for OneNAND controller
+
 config S3C_DEV_RTC
 	bool
 	help

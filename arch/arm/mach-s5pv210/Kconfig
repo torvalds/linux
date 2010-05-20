@@ -62,6 +62,11 @@ config MACH_GONI
 	  Machine support for Samsung GONI board
 	  S5PC110(MCP) is one of package option of S5PV210
 
+config S5PC110_DEV_ONENAND
+	bool
+	help
+	  Compile in platform device definition for OneNAND1 controller
+
 config MACH_SMDKV210
 	bool "SMDKV210"
 	select CPU_S5PV210
