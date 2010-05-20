@@ -2967,20 +2967,11 @@ again:
 	preempt_enable();
 }
 
-void perf_output_copy(struct perf_output_handle *handle,
+__always_inline void perf_output_copy(struct perf_output_handle *handle,
 		      const void *buf, unsigned int len)
 {
-	handle->offset += len;
-
-	/*
-	 * Check we didn't copy past our reservation window, taking the
-	 * possible unsigned int wrap into account.
-	 */
-	if (WARN_ON_ONCE(((long)(handle->head - handle->offset)) < 0))
-		return;
-
 	do {
-		unsigned long size = min(handle->size, len);
+		unsigned long size = min_t(unsigned long, handle->size, len);
 
 		memcpy(handle->addr, buf, size);
 
@@ -3055,15 +3046,12 @@ int perf_output_begin(struct perf_output_handle *handle,
 			goto fail;
 	} while (local_cmpxchg(&data->head, offset, head) != offset);
 
-	handle->offset	= offset;
-	handle->head	= head;
-
 	if (head - local_read(&data->wakeup) > data->watermark)
 		local_add(data->watermark, &data->wakeup);
 
-	handle->page = handle->offset >> (PAGE_SHIFT + page_order(data));
+	handle->page = offset >> (PAGE_SHIFT + page_order(data));
 	handle->page &= data->nr_pages - 1;
-	handle->size = handle->offset & ((PAGE_SIZE << page_order(data)) - 1);
+	handle->size = offset & ((PAGE_SIZE << page_order(data)) - 1);
 	handle->addr = data->data_pages[handle->page];
 	handle->addr += handle->size;
 	handle->size = (PAGE_SIZE << page_order(data)) - handle->size;

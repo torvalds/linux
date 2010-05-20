@@ -803,8 +803,6 @@ struct perf_cpu_context {
 struct perf_output_handle {
 	struct perf_event		*event;
 	struct perf_mmap_data		*data;
-	unsigned long			head;
-	unsigned long			offset;
 	unsigned long			wakeup;
 	unsigned long			size;
 	void				*addr;
