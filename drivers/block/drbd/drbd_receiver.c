@@ -98,6 +98,10 @@ static struct page *page_chain_del(struct page **head, int n)
 	BUG_ON(!head);
 
 	page = *head;
+
+	if (!page)
+		return NULL;
+
 	while (page) {
 		tmp = page_chain_next(page);
 		if (--n == 0)
