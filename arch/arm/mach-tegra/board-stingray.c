@@ -286,6 +286,7 @@ static void __init tegra_stingray_init(void)
 	stingray_i2c_init();
 	stingray_panel_init();
 	stingray_sdhci_init();
+	stingray_sensors_init();
 	stingray_wlan_init();
 }
 
