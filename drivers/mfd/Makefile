@@ -12,6 +12,7 @@ obj-$(CONFIG_HTC_EGPIO)		+= htc-egpio.o
 obj-$(CONFIG_HTC_PASIC3)	+= htc-pasic3.o
 obj-$(CONFIG_HTC_I2CPLD)	+= htc-i2cpld.o
 
+obj-$(CONFIG_MFD_DAVINCI_VOICECODEC)	+= davinci_voicecodec.o
 obj-$(CONFIG_MFD_DM355EVM_MSP)	+= dm355evm_msp.o
 
 obj-$(CONFIG_MFD_T7L66XB)	+= t7l66xb.o tmio_core.o
@@ -25,7 +26,7 @@ wm8350-objs			:= wm8350-core.o wm8350-regmap.o wm8350-gpio.o
 wm8350-objs			+= wm8350-irq.o
 obj-$(CONFIG_MFD_WM8350)	+= wm8350.o
 obj-$(CONFIG_MFD_WM8350_I2C)	+= wm8350-i2c.o
-obj-$(CONFIG_MFD_WM8994)	+= wm8994-core.o
+obj-$(CONFIG_MFD_WM8994)	+= wm8994-core.o wm8994-irq.o
 
 obj-$(CONFIG_TPS65010)		+= tps65010.o
 obj-$(CONFIG_MENELAUS)		+= menelaus.o

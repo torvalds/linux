@@ -362,6 +362,14 @@ static int neo1973_gta02_wm8753_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_disable_pin(codec, "Handset Mic");
 	snd_soc_dapm_disable_pin(codec, "Handset Spk");
 
+	/* allow audio paths from the GSM modem to run during suspend */
+	snd_soc_dapm_ignore_suspend(codec, "Stereo Out");
+	snd_soc_dapm_ignore_suspend(codec, "GSM Line Out");
+	snd_soc_dapm_ignore_suspend(codec, "GSM Line In");
+	snd_soc_dapm_ignore_suspend(codec, "Headset Mic");
+	snd_soc_dapm_ignore_suspend(codec, "Handset Mic");
+	snd_soc_dapm_ignore_suspend(codec, "Handset Spk");
+
 	snd_soc_dapm_sync(codec);
 
 	return 0;

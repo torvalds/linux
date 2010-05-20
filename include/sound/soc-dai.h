@@ -182,6 +182,12 @@ struct snd_soc_dai_ops {
 		struct snd_soc_dai *);
 	int (*trigger)(struct snd_pcm_substream *, int,
 		struct snd_soc_dai *);
+	/*
+	 * For hardware based FIFO caused delay reporting.
+	 * Optional.
+	 */
+	snd_pcm_sframes_t (*delay)(struct snd_pcm_substream *,
+		struct snd_soc_dai *);
 };
 
 /*
@@ -215,7 +221,6 @@ struct snd_soc_dai {
 	unsigned int symmetric_rates:1;
 
 	/* DAI runtime info */
-	struct snd_pcm_runtime *runtime;
 	struct snd_soc_codec *codec;
 	unsigned int active;
 	unsigned char pop_wait:1;

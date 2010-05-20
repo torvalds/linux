@@ -851,7 +851,7 @@ static int wm8753_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8753_priv *wm8753 = codec->private_data;
+	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 
 	switch (freq) {
 	case 11289600:
@@ -914,7 +914,7 @@ static int wm8753_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8753_priv *wm8753 = codec->private_data;
+	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 	u16 voice = wm8753_read_reg_cache(codec, WM8753_PCM) & 0x01f3;
 	u16 srate = wm8753_read_reg_cache(codec, WM8753_SRATE1) & 0x017f;
 
@@ -1148,7 +1148,7 @@ static int wm8753_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8753_priv *wm8753 = codec->private_data;
+	struct wm8753_priv *wm8753 = snd_soc_codec_get_drvdata(codec);
 	u16 srate = wm8753_read_reg_cache(codec, WM8753_SRATE1) & 0x01c0;
 	u16 hifi = wm8753_read_reg_cache(codec, WM8753_HIFI) & 0x01f3;
 	int coeff;
@@ -1646,7 +1646,7 @@ static int wm8753_register(struct wm8753_priv *wm8753)
 	codec->num_dai = 2;
 	codec->reg_cache_size = ARRAY_SIZE(wm8753->reg_cache) + 1;
 	codec->reg_cache = &wm8753->reg_cache;
-	codec->private_data = wm8753;
+	snd_soc_codec_set_drvdata(codec, wm8753);
 
 	memcpy(codec->reg_cache, wm8753_reg, sizeof(wm8753->reg_cache));
 	INIT_DELAYED_WORK(&codec->delayed_work, wm8753_work);

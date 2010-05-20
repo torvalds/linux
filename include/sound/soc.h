@@ -15,6 +15,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <linux/notifier.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -29,10 +30,10 @@
 #define SOC_SINGLE_VALUE(xreg, xshift, xmax, xinvert) \
 	((unsigned long)&(struct soc_mixer_control) \
 	{.reg = xreg, .shift = xshift, .rshift = xshift, .max = xmax, \
-	.invert = xinvert})
+	.platform_max = xmax, .invert = xinvert})
 #define SOC_SINGLE_VALUE_EXT(xreg, xmax, xinvert) \
 	((unsigned long)&(struct soc_mixer_control) \
-	{.reg = xreg, .max = xmax, .invert = xinvert})
+	{.reg = xreg, .max = xmax, .platform_max = xmax, .invert = xinvert})
 #define SOC_SINGLE(xname, reg, shift, max, invert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_volsw, .get = snd_soc_get_volsw,\
@@ -52,14 +53,14 @@
 	.put = snd_soc_put_volsw, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
 		{.reg = xreg, .shift = shift_left, .rshift = shift_right, \
-		 .max = xmax, .invert = xinvert} }
+		 .max = xmax, .platform_max = xmax, .invert = xinvert} }
 #define SOC_DOUBLE_R(xname, reg_left, reg_right, xshift, xmax, xinvert) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
 	.info = snd_soc_info_volsw_2r, \
 	.get = snd_soc_get_volsw_2r, .put = snd_soc_put_volsw_2r, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
 		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
-		.max = xmax, .invert = xinvert} }
+		.max = xmax, .platform_max = xmax, .invert = xinvert} }
 #define SOC_DOUBLE_TLV(xname, xreg, shift_left, shift_right, xmax, xinvert, tlv_array) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
@@ -69,7 +70,7 @@
 	.put = snd_soc_put_volsw, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
 		{.reg = xreg, .shift = shift_left, .rshift = shift_right,\
-		 .max = xmax, .invert = xinvert} }
+		 .max = xmax, .platform_max = xmax, .invert = xinvert} }
 #define SOC_DOUBLE_R_TLV(xname, reg_left, reg_right, xshift, xmax, xinvert, tlv_array) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname),\
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ |\
@@ -79,7 +80,7 @@
 	.get = snd_soc_get_volsw_2r, .put = snd_soc_put_volsw_2r, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
 		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
-		.max = xmax, .invert = xinvert} }
+		.max = xmax, .platform_max = xmax, .invert = xinvert} }
 #define SOC_DOUBLE_S8_TLV(xname, xreg, xmin, xmax, tlv_array) \
 {	.iface  = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
 	.access = SNDRV_CTL_ELEM_ACCESS_TLV_READ | \
@@ -88,7 +89,8 @@
 	.info   = snd_soc_info_volsw_s8, .get = snd_soc_get_volsw_s8, \
 	.put    = snd_soc_put_volsw_s8, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
-		{.reg = xreg, .min = xmin, .max = xmax} }
+		{.reg = xreg, .min = xmin, .max = xmax, \
+		 .platform_max = xmax} }
 #define SOC_ENUM_DOUBLE(xreg, xshift_l, xshift_r, xmax, xtexts) \
 {	.reg = xreg, .shift_l = xshift_l, .shift_r = xshift_r, \
 	.max = xmax, .texts = xtexts }
@@ -125,7 +127,7 @@
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
 		{.reg = xreg, .shift = shift_left, .rshift = shift_right, \
-		 .max = xmax, .invert = xinvert} }
+		 .max = xmax, .platform_max = xmax, .invert = xinvert} }
 #define SOC_SINGLE_EXT_TLV(xname, xreg, xshift, xmax, xinvert,\
 	 xhandler_get, xhandler_put, tlv_array) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
@@ -145,7 +147,7 @@
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
 		{.reg = xreg, .shift = shift_left, .rshift = shift_right, \
-		.max = xmax, .invert = xinvert} }
+		.max = xmax, .platform_max = xmax, .invert = xinvert} }
 #define SOC_DOUBLE_R_EXT_TLV(xname, reg_left, reg_right, xshift, xmax, xinvert,\
 	 xhandler_get, xhandler_put, tlv_array) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = (xname), \
@@ -156,7 +158,7 @@
 	.get = xhandler_get, .put = xhandler_put, \
 	.private_value = (unsigned long)&(struct soc_mixer_control) \
 		{.reg = reg_left, .rreg = reg_right, .shift = xshift, \
-		.max = xmax, .invert = xinvert} }
+		.max = xmax, .platform_max = xmax, .invert = xinvert} }
 #define SOC_SINGLE_BOOL_EXT(xname, xdata, xhandler_get, xhandler_put) \
 {	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
 	.info = snd_soc_info_bool_ext, \
@@ -212,6 +214,7 @@ struct snd_soc_dai_mode;
 struct snd_soc_pcm_runtime;
 struct snd_soc_dai;
 struct snd_soc_platform;
+struct snd_soc_dai_link;
 struct snd_soc_codec;
 struct soc_enum;
 struct snd_soc_ac97_ops;
@@ -260,6 +263,10 @@ int snd_soc_jack_new(struct snd_soc_card *card, const char *id, int type,
 void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask);
 int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 			  struct snd_soc_jack_pin *pins);
+void snd_soc_jack_notifier_register(struct snd_soc_jack *jack,
+				    struct notifier_block *nb);
+void snd_soc_jack_notifier_unregister(struct snd_soc_jack *jack,
+				      struct notifier_block *nb);
 #ifdef CONFIG_GPIOLIB
 int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios);
@@ -320,6 +327,8 @@ int snd_soc_get_volsw_s8(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
 int snd_soc_put_volsw_s8(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol);
+int snd_soc_limit_volume(struct snd_soc_codec *codec,
+	const char *name, int max);
 
 /**
  * struct snd_soc_jack_pin - Describes a pin to update based on jack detection
@@ -363,6 +372,7 @@ struct snd_soc_jack {
 	struct snd_soc_card *card;
 	struct list_head pins;
 	int status;
+	struct blocking_notifier_head notifier;
 };
 
 /* SoC PCM stream information */
@@ -374,7 +384,7 @@ struct snd_soc_pcm_stream {
 	unsigned int rate_max;		/* max rate */
 	unsigned int channels_min;	/* min channels */
 	unsigned int channels_max;	/* max channels */
-	unsigned int active:1;		/* stream is in use */
+	unsigned int active;		/* stream is in use */
 	void *dma_data;			/* used by platform code */
 };
 
@@ -407,7 +417,7 @@ struct snd_soc_codec {
 	struct snd_ac97 *ac97;  /* for ad-hoc ac97 devices */
 	unsigned int active;
 	unsigned int pcm_devs;
-	void *private_data;
+	void *drvdata;
 
 	/* codec IO */
 	void *control_data; /* codec control (i2c/3wire) data */
@@ -462,13 +472,20 @@ struct snd_soc_platform {
 
 	int (*probe)(struct platform_device *pdev);
 	int (*remove)(struct platform_device *pdev);
-	int (*suspend)(struct snd_soc_dai *dai);
-	int (*resume)(struct snd_soc_dai *dai);
+	int (*suspend)(struct snd_soc_dai_link *dai_link);
+	int (*resume)(struct snd_soc_dai_link *dai_link);
 
 	/* pcm creation and destruction */
 	int (*pcm_new)(struct snd_card *, struct snd_soc_dai *,
 		struct snd_pcm *);
 	void (*pcm_free)(struct snd_pcm *);
+
+	/*
+	 * For platform caused delay reporting.
+	 * Optional.
+	 */
+	snd_pcm_sframes_t (*delay)(struct snd_pcm_substream *,
+		struct snd_soc_dai *);
 
 	/* platform stream ops */
 	struct snd_pcm_ops *pcm_ops;
@@ -488,6 +505,9 @@ struct snd_soc_dai_link  {
 
 	/* codec/machine specific init - e.g. add machine controls */
 	int (*init)(struct snd_soc_codec *codec);
+
+	/* Keep DAI active over suspend */
+	unsigned int ignore_suspend:1;
 
 	/* Symmetry requirements */
 	unsigned int symmetric_rates:1;
@@ -553,7 +573,7 @@ struct snd_soc_pcm_runtime {
 
 /* mixer control */
 struct soc_mixer_control {
-	int min, max;
+	int min, max, platform_max;
 	unsigned int reg, rreg, shift, rshift, invert;
 };
 
@@ -581,6 +601,17 @@ static inline unsigned int snd_soc_write(struct snd_soc_codec *codec,
 					 unsigned int reg, unsigned int val)
 {
 	return codec->write(codec, reg, val);
+}
+
+static inline void snd_soc_codec_set_drvdata(struct snd_soc_codec *codec,
+					     void *data)
+{
+	codec->drvdata = data;
+}
+
+static inline void *snd_soc_codec_get_drvdata(struct snd_soc_codec *codec)
+{
+	return codec->drvdata;
 }
 
 #include <sound/soc-dai.h>

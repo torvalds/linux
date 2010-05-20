@@ -140,6 +140,7 @@ SOC_DOUBLE_R("Capture Volume", SSM2602_LINVOL, SSM2602_RINVOL, 0, 31, 0),
 SOC_DOUBLE_R("Capture Switch", SSM2602_LINVOL, SSM2602_RINVOL, 7, 1, 1),
 
 SOC_SINGLE("Mic Boost (+20dB)", SSM2602_APANA, 0, 1, 0),
+SOC_SINGLE("Mic Boost2 (+20dB)", SSM2602_APANA, 7, 1, 0),
 SOC_SINGLE("Mic Switch", SSM2602_APANA, 1, 1, 1),
 
 SOC_SINGLE("Sidetone Playback Volume", SSM2602_APANA, 6, 3, 1),
@@ -277,7 +278,7 @@ static int ssm2602_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct ssm2602_priv *ssm2602 = codec->private_data;
+	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = codec->control_data;
 	u16 iface = ssm2602_read_reg_cache(codec, SSM2602_IFACE) & 0xfff3;
 	int i = get_coeff(ssm2602->sysclk, params_rate(params));
@@ -322,7 +323,7 @@ static int ssm2602_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct ssm2602_priv *ssm2602 = codec->private_data;
+	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = codec->control_data;
 	struct snd_pcm_runtime *master_runtime;
 
@@ -373,7 +374,7 @@ static void ssm2602_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct ssm2602_priv *ssm2602 = codec->private_data;
+	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
 
 	/* deactivate */
 	if (!codec->active)
@@ -401,7 +402,7 @@ static int ssm2602_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct ssm2602_priv *ssm2602 = codec->private_data;
+	struct ssm2602_priv *ssm2602 = snd_soc_codec_get_drvdata(codec);
 	switch (freq) {
 	case 11289600:
 	case 12000000:
@@ -559,7 +560,6 @@ static int ssm2602_resume(struct platform_device *pdev)
 		codec->hw_write(codec->control_data, data, 2);
 	}
 	ssm2602_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	ssm2602_set_bias_level(codec, codec->suspend_bias_level);
 	return 0;
 }
 
@@ -605,8 +605,7 @@ static int ssm2602_init(struct snd_soc_device *socdev)
 	reg = ssm2602_read_reg_cache(codec, SSM2602_ROUT1V);
 	ssm2602_write(codec, SSM2602_ROUT1V, reg | ROUT1V_RLHP_BOTH);
 	/*select Line in as default input*/
-	ssm2602_write(codec, SSM2602_APANA,
-			APANA_ENABLE_MIC_BOOST2 | APANA_SELECT_DAC |
+	ssm2602_write(codec, SSM2602_APANA, APANA_SELECT_DAC |
 			APANA_ENABLE_MIC_BOOST);
 	ssm2602_write(codec, SSM2602_PWR, 0);
 
@@ -727,7 +726,7 @@ static int ssm2602_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	codec->private_data = ssm2602;
+	snd_soc_codec_set_drvdata(codec, ssm2602);
 	socdev->card->codec = codec;
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
@@ -760,7 +759,7 @@ static int ssm2602_remove(struct platform_device *pdev)
 	i2c_unregister_device(codec->control_data);
 	i2c_del_driver(&ssm2602_i2c_driver);
 #endif
-	kfree(codec->private_data);
+	kfree(snd_soc_codec_get_drvdata(codec));
 	kfree(codec);
 
 	return 0;

@@ -222,7 +222,7 @@ static int ak4104_spi_probe(struct spi_device *spi)
 	codec->owner = THIS_MODULE;
 	codec->dai = &ak4104_dai;
 	codec->num_dai = 1;
-	codec->private_data = ak4104;
+	snd_soc_codec_set_drvdata(codec, ak4104);
 	codec->control_data = spi;
 	codec->reg_cache = ak4104->reg_cache;
 	codec->reg_cache_size = AK4104_NUM_REGS;

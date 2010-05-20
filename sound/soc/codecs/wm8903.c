@@ -11,26 +11,27 @@
  *
  * TODO:
  *  - TDM mode configuration.
- *  - Mic detect.
  *  - Digital microphone support.
- *  - Interrupt support (mic detect and sequencer).
  */
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <sound/core.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
+#include <sound/wm8903.h>
 
 #include "wm8903.h"
 
@@ -222,6 +223,14 @@ struct wm8903_priv {
 	int playback_active;
 	int capture_active;
 
+	struct completion wseq;
+
+	struct snd_soc_jack *mic_jack;
+	int mic_det;
+	int mic_short;
+	int mic_last_report;
+	int mic_delay;
+
 	struct snd_pcm_substream *master_substream;
 	struct snd_pcm_substream *slave_substream;
 };
@@ -244,13 +253,14 @@ static int wm8903_run_sequence(struct snd_soc_codec *codec, unsigned int start)
 {
 	u16 reg[5];
 	struct i2c_client *i2c = codec->control_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 
 	BUG_ON(start > 48);
 
-	/* Enable the sequencer */
+	/* Enable the sequencer if it's not already on */
 	reg[0] = snd_soc_read(codec, WM8903_WRITE_SEQUENCER_0);
-	reg[0] |= WM8903_WSEQ_ENA;
-	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_0, reg[0]);
+	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_0,
+		      reg[0] | WM8903_WSEQ_ENA);
 
 	dev_dbg(&i2c->dev, "Starting sequence at %d\n", start);
 
@@ -258,20 +268,19 @@ static int wm8903_run_sequence(struct snd_soc_codec *codec, unsigned int start)
 		     start | WM8903_WSEQ_START);
 
 	/* Wait for it to complete.  If we have the interrupt wired up then
-	 * we could block waiting for an interrupt, though polling may still
-	 * be desirable for diagnostic purposes.
+	 * that will break us out of the poll early.
 	 */
 	do {
-		msleep(10);
+		wait_for_completion_timeout(&wm8903->wseq,
+					    msecs_to_jiffies(10));
 
 		reg[4] = snd_soc_read(codec, WM8903_WRITE_SEQUENCER_4);
 	} while (reg[4] & WM8903_WSEQ_BUSY);
 
 	dev_dbg(&i2c->dev, "Sequence complete\n");
 
-	/* Disable the sequencer again */
-	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_0,
-		     reg[0] & ~WM8903_WSEQ_ENA);
+	/* Disable the sequencer again if we enabled it */
+	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_0, reg[0]);
 
 	return 0;
 }
@@ -412,7 +421,7 @@ static int wm8903_class_w_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_codec *codec = widget->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = codec->control_data;
 	u16 reg;
 	int ret;
@@ -993,7 +1002,7 @@ static int wm8903_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 				 int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 
 	wm8903->sysclk = freq;
 
@@ -1221,7 +1230,7 @@ static int wm8903_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = codec->control_data;
 	struct snd_pcm_runtime *master_runtime;
 
@@ -1257,7 +1266,7 @@ static void wm8903_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		wm8903->playback_active--;
@@ -1277,7 +1286,7 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8903_priv *wm8903 = codec->private_data;
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
 	struct i2c_client *i2c = codec->control_data;
 	int fs = params_rate(params);
 	int bclk;
@@ -1436,6 +1445,116 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+/**
+ * wm8903_mic_detect - Enable microphone detection via the WM8903 IRQ
+ *
+ * @codec:  WM8903 codec
+ * @jack:   jack to report detection events on
+ * @det:    value to report for presence detection
+ * @shrt:   value to report for short detection
+ *
+ * Enable microphone detection via IRQ on the WM8903.  If GPIOs are
+ * being used to bring out signals to the processor then only platform
+ * data configuration is needed for WM8903 and processor GPIOs should
+ * be configured using snd_soc_jack_add_gpios() instead.
+ *
+ * The current threasholds for detection should be configured using
+ * micdet_cfg in the platform data.  Using this function will force on
+ * the microphone bias for the device.
+ */
+int wm8903_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
+		      int det, int shrt)
+{
+	struct wm8903_priv *wm8903 = snd_soc_codec_get_drvdata(codec);
+	int irq_mask = WM8903_MICDET_EINT | WM8903_MICSHRT_EINT;
+
+	dev_dbg(codec->dev, "Enabling microphone detection: %x %x\n",
+		det, shrt);
+
+	/* Store the configuration */
+	wm8903->mic_jack = jack;
+	wm8903->mic_det = det;
+	wm8903->mic_short = shrt;
+
+	/* Enable interrupts we've got a report configured for */
+	if (det)
+		irq_mask &= ~WM8903_MICDET_EINT;
+	if (shrt)
+		irq_mask &= ~WM8903_MICSHRT_EINT;
+
+	snd_soc_update_bits(codec, WM8903_INTERRUPT_STATUS_1_MASK,
+			    WM8903_MICDET_EINT | WM8903_MICSHRT_EINT,
+			    irq_mask);
+
+	if (det && shrt) {
+		/* Enable mic detection, this may not have been set through
+		 * platform data (eg, if the defaults are OK). */
+		snd_soc_update_bits(codec, WM8903_WRITE_SEQUENCER_0,
+				    WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
+		snd_soc_update_bits(codec, WM8903_MIC_BIAS_CONTROL_0,
+				    WM8903_MICDET_ENA, WM8903_MICDET_ENA);
+	} else {
+		snd_soc_update_bits(codec, WM8903_MIC_BIAS_CONTROL_0,
+				    WM8903_MICDET_ENA, 0);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm8903_mic_detect);
+
+static irqreturn_t wm8903_irq(int irq, void *data)
+{
+	struct wm8903_priv *wm8903 = data;
+	struct snd_soc_codec *codec = &wm8903->codec;
+	int mic_report;
+	int int_pol;
+	int int_val = 0;
+	int mask = ~snd_soc_read(codec, WM8903_INTERRUPT_STATUS_1_MASK);
+
+	int_val = snd_soc_read(codec, WM8903_INTERRUPT_STATUS_1) & mask;
+
+	if (int_val & WM8903_WSEQ_BUSY_EINT) {
+		dev_dbg(codec->dev, "Write sequencer done\n");
+		complete(&wm8903->wseq);
+	}
+
+	/*
+	 * The rest is microphone jack detection.  We need to manually
+	 * invert the polarity of the interrupt after each event - to
+	 * simplify the code keep track of the last state we reported
+	 * and just invert the relevant bits in both the report and
+	 * the polarity register.
+	 */
+	mic_report = wm8903->mic_last_report;
+	int_pol = snd_soc_read(codec, WM8903_INTERRUPT_POLARITY_1);
+
+	if (int_val & WM8903_MICSHRT_EINT) {
+		dev_dbg(codec->dev, "Microphone short (pol=%x)\n", int_pol);
+
+		mic_report ^= wm8903->mic_short;
+		int_pol ^= WM8903_MICSHRT_INV;
+	}
+
+	if (int_val & WM8903_MICDET_EINT) {
+		dev_dbg(codec->dev, "Microphone detect (pol=%x)\n", int_pol);
+
+		mic_report ^= wm8903->mic_det;
+		int_pol ^= WM8903_MICDET_INV;
+
+		msleep(wm8903->mic_delay);
+	}
+
+	snd_soc_update_bits(codec, WM8903_INTERRUPT_POLARITY_1,
+			    WM8903_MICSHRT_INV | WM8903_MICDET_INV, int_pol);
+
+	snd_soc_jack_report(wm8903->mic_jack, mic_report,
+			    wm8903->mic_short | wm8903->mic_det);
+
+	wm8903->mic_last_report = mic_report;
+
+	return IRQ_HANDLED;
+}
+
 #define WM8903_PLAYBACK_RATES (SNDRV_PCM_RATE_8000 |\
 			       SNDRV_PCM_RATE_11025 |	\
 			       SNDRV_PCM_RATE_16000 |	\
@@ -1510,7 +1629,6 @@ static int wm8903_resume(struct platform_device *pdev)
 
 	/* Bring the codec back up to standby first to minimise pop/clicks */
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	wm8903_set_bias_level(codec, codec->suspend_bias_level);
 
 	/* Sync back everything else */
 	if (tmp_cache) {
@@ -1530,9 +1648,11 @@ static struct snd_soc_codec *wm8903_codec;
 static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
+	struct wm8903_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct wm8903_priv *wm8903;
 	struct snd_soc_codec *codec;
-	int ret;
+	int ret, i;
+	int trigger, irq_pol;
 	u16 val;
 
 	wm8903 = kzalloc(sizeof(struct wm8903_priv), GFP_KERNEL);
@@ -1554,8 +1674,9 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 	codec->num_dai = 1;
 	codec->reg_cache_size = ARRAY_SIZE(wm8903->reg_cache);
 	codec->reg_cache = &wm8903->reg_cache[0];
-	codec->private_data = wm8903;
+	snd_soc_codec_set_drvdata(codec, wm8903);
 	codec->volatile_register = wm8903_volatile_register;
+	init_completion(&wm8903->wseq);
 
 	i2c_set_clientdata(i2c, codec);
 	codec->control_data = i2c;
@@ -1578,6 +1699,53 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 		 val & WM8903_CHIP_REV_MASK);
 
 	wm8903_reset(codec);
+
+	/* Set up GPIOs and microphone detection */
+	if (pdata) {
+		for (i = 0; i < ARRAY_SIZE(pdata->gpio_cfg); i++) {
+			if (!pdata->gpio_cfg[i])
+				continue;
+
+			snd_soc_write(codec, WM8903_GPIO_CONTROL_1 + i,
+				      pdata->gpio_cfg[i] & 0xffff);
+		}
+
+		snd_soc_write(codec, WM8903_MIC_BIAS_CONTROL_0,
+			      pdata->micdet_cfg);
+
+		/* Microphone detection needs the WSEQ clock */
+		if (pdata->micdet_cfg)
+			snd_soc_update_bits(codec, WM8903_WRITE_SEQUENCER_0,
+					    WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
+
+		wm8903->mic_delay = pdata->micdet_delay;
+	}
+	
+	if (i2c->irq) {
+		if (pdata && pdata->irq_active_low) {
+			trigger = IRQF_TRIGGER_LOW;
+			irq_pol = WM8903_IRQ_POL;
+		} else {
+			trigger = IRQF_TRIGGER_HIGH;
+			irq_pol = 0;
+		}
+
+		snd_soc_update_bits(codec, WM8903_INTERRUPT_CONTROL,
+				    WM8903_IRQ_POL, irq_pol);
+		
+		ret = request_threaded_irq(i2c->irq, NULL, wm8903_irq,
+					   trigger | IRQF_ONESHOT,
+					   "wm8903", wm8903);
+		if (ret != 0) {
+			dev_err(&i2c->dev, "Failed to request IRQ: %d\n",
+				ret);
+			goto err;
+		}
+
+		/* Enable write sequencer interrupts */
+		snd_soc_update_bits(codec, WM8903_INTERRUPT_STATUS_1_MASK,
+				    WM8903_IM_WSEQ_BUSY_EINT, 0);
+	}
 
 	/* power on device */
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -1619,7 +1787,7 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
-		goto err;
+		goto err_irq;
 	}
 
 	ret = snd_soc_register_dai(&wm8903_dai);
@@ -1632,6 +1800,9 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 
 err_codec:
 	snd_soc_unregister_codec(codec);
+err_irq:
+	if (i2c->irq)
+		free_irq(i2c->irq, wm8903);
 err:
 	wm8903_codec = NULL;
 	kfree(wm8903);
@@ -1641,13 +1812,17 @@ err:
 static __devexit int wm8903_i2c_remove(struct i2c_client *client)
 {
 	struct snd_soc_codec *codec = i2c_get_clientdata(client);
+	struct wm8903_priv *priv = snd_soc_codec_get_drvdata(codec);
 
 	snd_soc_unregister_dai(&wm8903_dai);
 	snd_soc_unregister_codec(codec);
 
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_OFF);
 
-	kfree(codec->private_data);
+	if (client->irq)
+		free_irq(client->irq, priv);
+
+	kfree(priv);
 
 	wm8903_codec = NULL;
 	wm8903_dai.dev = NULL;
