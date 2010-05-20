@@ -82,7 +82,7 @@ struct mmap_data {
 	unsigned int		prev;
 };
 
-static struct mmap_data		*mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
+static struct mmap_data		mmap_array[MAX_NR_CPUS];
 
 static unsigned long mmap_read_head(struct mmap_data *md)
 {
@@ -365,18 +365,29 @@ try_again:
 		if (group && group_fd == -1)
 			group_fd = fd[nr_cpu][counter][thread_index];
 
-		event_array[nr_poll].fd = fd[nr_cpu][counter][thread_index];
-		event_array[nr_poll].events = POLLIN;
-		nr_poll++;
+		if (counter || thread_index) {
+			ret = ioctl(fd[nr_cpu][counter][thread_index],
+					PERF_EVENT_IOC_SET_OUTPUT,
+					fd[nr_cpu][0][0]);
+			if (ret) {
+				error("failed to set output: %d (%s)\n", errno,
+						strerror(errno));
+				exit(-1);
+			}
+		} else {
+			mmap_array[nr_cpu].counter = counter;
+			mmap_array[nr_cpu].prev = 0;
+			mmap_array[nr_cpu].mask = mmap_pages*page_size - 1;
+			mmap_array[nr_cpu].base = mmap(NULL, (mmap_pages+1)*page_size,
+				PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter][thread_index], 0);
+			if (mmap_array[nr_cpu].base == MAP_FAILED) {
+				error("failed to mmap with %d (%s)\n", errno, strerror(errno));
+				exit(-1);
+			}
 
-		mmap_array[nr_cpu][counter][thread_index].counter = counter;
-		mmap_array[nr_cpu][counter][thread_index].prev = 0;
-		mmap_array[nr_cpu][counter][thread_index].mask = mmap_pages*page_size - 1;
-		mmap_array[nr_cpu][counter][thread_index].base = mmap(NULL, (mmap_pages+1)*page_size,
-			PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter][thread_index], 0);
-		if (mmap_array[nr_cpu][counter][thread_index].base == MAP_FAILED) {
-			error("failed to mmap with %d (%s)\n", errno, strerror(errno));
-			exit(-1);
+			event_array[nr_poll].fd = fd[nr_cpu][counter][thread_index];
+			event_array[nr_poll].events = POLLIN;
+			nr_poll++;
 		}
 
 		if (filter != NULL) {
@@ -477,16 +488,11 @@ static struct perf_event_header finished_round_event = {
 
 static void mmap_read_all(void)
 {
-	int i, counter, thread;
+	int i;
 
 	for (i = 0; i < nr_cpu; i++) {
-		for (counter = 0; counter < nr_counters; counter++) {
-			for (thread = 0; thread < thread_num; thread++) {
-				if (mmap_array[i][counter][thread].base)
-					mmap_read(&mmap_array[i][counter][thread]);
-			}
-
-		}
+		if (mmap_array[i].base)
+			mmap_read(&mmap_array[i]);
 	}
 
 	if (perf_header__has_feat(&session->header, HEADER_TRACE_INFO))
@@ -861,9 +867,7 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	for (i = 0; i < MAX_NR_CPUS; i++) {
 		for (j = 0; j < MAX_COUNTERS; j++) {
 			fd[i][j] = malloc(sizeof(int)*thread_num);
-			mmap_array[i][j] = zalloc(
-				sizeof(struct mmap_data)*thread_num);
-			if (!fd[i][j] || !mmap_array[i][j])
+			if (!fd[i][j])
 				return -ENOMEM;
 		}
 	}
