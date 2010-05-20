@@ -783,9 +783,10 @@ static int _init_clocks(struct omap_hwmod *oh)
 	ret |= _init_interface_clks(oh);
 	ret |= _init_opt_clks(oh);
 
-	oh->_state = _HWMOD_STATE_CLKS_INITED;
+	if (!ret)
+		oh->_state = _HWMOD_STATE_CLKS_INITED;
 
-	return ret;
+	return 0;
 }
 
 /**
