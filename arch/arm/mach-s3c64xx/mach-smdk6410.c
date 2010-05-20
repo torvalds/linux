@@ -262,6 +262,7 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&smdk6410_lcd_powerdev,
 
 	&smdk6410_smsc911x,
+	&s3c_device_wdt,
 };
 
 #ifdef CONFIG_REGULATOR
