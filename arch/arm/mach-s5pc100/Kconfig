@@ -5,10 +5,11 @@
 
 # Configuration options for the S5PC100 CPU
 
+if ARCH_S5PC100
+
 config CPU_S5PC100
 	bool
-	select CPU_S5PC100_INIT
-	select CPU_S5PC100_CLOCK
+	select PLAT_S5P
 	help
 	  Enable S5PC100 CPU support
 
@@ -46,3 +47,5 @@ config MACH_SMDKC100
 	select S5PC100_SETUP_SDHCI
 	help
 	  Machine support for the Samsung SMDKC100
+
+endif

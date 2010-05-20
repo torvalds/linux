@@ -699,14 +699,14 @@ config ARCH_S5P6442
 	help
 	  Samsung S5P6442 CPU based systems
 
-config ARCH_S5PC1XX
-	bool "Samsung S5PC1XX"
+config ARCH_S5PC100
+	bool "Samsung S5PC100"
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select CPU_V7
 	select ARM_L1_CACHE_SHIFT_6
 	help
-	  Samsung S5PC1XX series based systems
+	  Samsung S5PC100 series based systems
 
 config ARCH_S5PV210
 	bool "Samsung S5PV210/S5PC110"
@@ -890,7 +890,6 @@ source "arch/arm/mach-sa1100/Kconfig"
 source "arch/arm/plat-samsung/Kconfig"
 source "arch/arm/plat-s3c24xx/Kconfig"
 source "arch/arm/plat-s5p/Kconfig"
-source "arch/arm/plat-s5pc1xx/Kconfig"
 
 if ARCH_S3C2410
 source "arch/arm/mach-s3c2400/Kconfig"
@@ -909,9 +908,7 @@ source "arch/arm/mach-s5p6440/Kconfig"
 
 source "arch/arm/mach-s5p6442/Kconfig"
 
-if ARCH_S5PC1XX
 source "arch/arm/mach-s5pc100/Kconfig"
-endif
 
 source "arch/arm/mach-s5pv210/Kconfig"
 

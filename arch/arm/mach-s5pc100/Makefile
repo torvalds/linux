@@ -11,7 +11,7 @@ obj-				:=
 
 # Core support for S5PC100 system
 
-obj-$(CONFIG_CPU_S5PC100)	+= cpu.o gpiolib.o
+obj-$(CONFIG_CPU_S5PC100)	+= cpu.o init.o clock.o gpiolib.o
 obj-$(CONFIG_CPU_S5PC100)	+= setup-i2c0.o
 
 # Helper and device support
@@ -22,4 +22,5 @@ obj-$(CONFIG_S5PC100_SETUP_SDHCI)	+= setup-sdhci.o
 obj-$(CONFIG_S5PC100_SETUP_SDHCI_GPIO)	+= setup-sdhci-gpio.o
 
 # machine support
+
 obj-$(CONFIG_MACH_SMDKC100)	+= mach-smdkc100.o

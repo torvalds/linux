@@ -1,4 +1,4 @@
-/* linux/arch/arm/plat-s5pc1xx/include/plat/regs-gpio.h
+/* linux/arch/arm/plat-s5pc100/include/plat/regs-gpio.h
  *
  * Copyright 2009 Samsung Electronics Co.
  *      Byungho Min <bhmin@samsung.com>
@@ -12,7 +12,7 @@
 #include <mach/map.h>
 
 /* S5PC100 */
-#define S5PC100_GPIO_BASE	S5PC1XX_VA_GPIO
+#define S5PC100_GPIO_BASE	S5P_VA_GPIO
 #define S5PC100_GPA0_BASE	(S5PC100_GPIO_BASE + 0x0000)
 #define S5PC100_GPA1_BASE	(S5PC100_GPIO_BASE + 0x0020)
 #define S5PC100_GPB_BASE	(S5PC100_GPIO_BASE + 0x0040)
@@ -60,7 +60,7 @@
 
 /* Common part */
 /* External interrupt base is same at both s5pc100 and s5pc110 */
-#define S5PC1XX_EINT_BASE	(S5PC100_EINT_BASE)
+#define S5P_EINT_BASE			(S5PC100_EINT_BASE)
 
 #define S5PC100_GPx_INPUT(__gpio)	(0x0 << ((__gpio) * 4))
 #define S5PC100_GPx_OUTPUT(__gpio)	(0x1 << ((__gpio) * 4))
