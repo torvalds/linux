@@ -78,17 +78,14 @@ struct stack_frame_ia32 {
     u32 return_address;
 };
 
-static inline unsigned long rewind_frame_pointer(int n)
+static inline unsigned long caller_frame_pointer(void)
 {
 	struct stack_frame *frame;
 
 	get_bp(frame);
 
 #ifdef CONFIG_FRAME_POINTER
-	while (n--) {
-		if (probe_kernel_address(&frame->next_frame, frame))
-			break;
-	}
+	frame = frame->next_frame;
 #endif
 
 	return (unsigned long)frame;
