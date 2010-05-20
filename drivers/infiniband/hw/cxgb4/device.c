@@ -504,14 +504,12 @@ static void __exit c4iw_exit_module(void)
 {
 	struct c4iw_dev *dev, *tmp;
 
-	cxgb4_unregister_uld(CXGB4_ULD_RDMA);
-
 	mutex_lock(&dev_mutex);
 	list_for_each_entry_safe(dev, tmp, &dev_list, entry) {
 		c4iw_remove(dev);
 	}
 	mutex_unlock(&dev_mutex);
-
+	cxgb4_unregister_uld(CXGB4_ULD_RDMA);
 	c4iw_cm_term();
 	debugfs_remove_recursive(c4iw_debugfs_root);
 }
