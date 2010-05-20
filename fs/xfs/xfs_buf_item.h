@@ -69,6 +69,7 @@ typedef struct xfs_buf_log_format {
 #define	XFS_BLI_LOGGED		0x08
 #define	XFS_BLI_INODE_ALLOC_BUF	0x10
 #define XFS_BLI_STALE_INODE	0x20
+#define	XFS_BLI_INODE_BUF	0x40
 
 #define XFS_BLI_FLAGS \
 	{ XFS_BLI_HOLD,		"HOLD" }, \
@@ -76,7 +77,8 @@ typedef struct xfs_buf_log_format {
 	{ XFS_BLI_STALE,	"STALE" }, \
 	{ XFS_BLI_LOGGED,	"LOGGED" }, \
 	{ XFS_BLI_INODE_ALLOC_BUF, "INODE_ALLOC" }, \
-	{ XFS_BLI_STALE_INODE,	"STALE_INODE" }
+	{ XFS_BLI_STALE_INODE,	"STALE_INODE" }, \
+	{ XFS_BLI_INODE_BUF,	"INODE_BUF" }
 
 
 #ifdef __KERNEL__

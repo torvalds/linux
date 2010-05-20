@@ -792,7 +792,7 @@ xfs_trans_binval(
 	XFS_BUF_UNDELAYWRITE(bp);
 	XFS_BUF_STALE(bp);
 	bip->bli_flags |= XFS_BLI_STALE;
-	bip->bli_flags &= ~(XFS_BLI_LOGGED | XFS_BLI_DIRTY);
+	bip->bli_flags &= ~(XFS_BLI_INODE_BUF | XFS_BLI_LOGGED | XFS_BLI_DIRTY);
 	bip->bli_format.blf_flags &= ~XFS_BLF_INODE_BUF;
 	bip->bli_format.blf_flags |= XFS_BLF_CANCEL;
 	memset((char *)(bip->bli_format.blf_data_map), 0,
@@ -802,16 +802,16 @@ xfs_trans_binval(
 }
 
 /*
- * This call is used to indicate that the buffer contains on-disk
- * inodes which must be handled specially during recovery.  They
- * require special handling because only the di_next_unlinked from
- * the inodes in the buffer should be recovered.  The rest of the
- * data in the buffer is logged via the inodes themselves.
+ * This call is used to indicate that the buffer contains on-disk inodes which
+ * must be handled specially during recovery.  They require special handling
+ * because only the di_next_unlinked from the inodes in the buffer should be
+ * recovered.  The rest of the data in the buffer is logged via the inodes
+ * themselves.
  *
- * All we do is set the XFS_BLI_INODE_BUF flag in the buffer's log
- * format structure so that we'll know what to do at recovery time.
+ * All we do is set the XFS_BLI_INODE_BUF flag in the items flags so it can be
+ * transferred to the buffer's log format structure so that we'll know what to
+ * do at recovery time.
  */
-/* ARGSUSED */
 void
 xfs_trans_inode_buf(
 	xfs_trans_t	*tp,
@@ -826,7 +826,7 @@ xfs_trans_inode_buf(
 	bip = XFS_BUF_FSPRIVATE(bp, xfs_buf_log_item_t *);
 	ASSERT(atomic_read(&bip->bli_refcount) > 0);
 
-	bip->bli_format.blf_flags |= XFS_BLF_INODE_BUF;
+	bip->bli_flags |= XFS_BLI_INODE_BUF;
 }
 
 /*

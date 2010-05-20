@@ -254,6 +254,20 @@ xfs_buf_item_format(
 	vecp++;
 	nvecs = 1;
 
+	/*
+	 * If it is an inode buffer, transfer the in-memory state to the
+	 * format flags and clear the in-memory state. We do not transfer
+	 * this state if the inode buffer allocation has not yet been committed
+	 * to the log as setting the XFS_BLI_INODE_BUF flag will prevent
+	 * correct replay of the inode allocation.
+	 */
+	if (bip->bli_flags & XFS_BLI_INODE_BUF) {
+		if (!((bip->bli_flags & XFS_BLI_INODE_ALLOC_BUF) &&
+		      xfs_log_item_in_current_chkpt(&bip->bli_item)))
+			bip->bli_format.blf_flags |= XFS_BLF_INODE_BUF;
+		bip->bli_flags &= ~XFS_BLI_INODE_BUF;
+	}
+
 	if (bip->bli_flags & XFS_BLI_STALE) {
 		/*
 		 * The buffer is stale, so all we need to log

@@ -200,6 +200,15 @@ xlog_cil_insert(
 	ctx->nvecs += diff_iovecs;
 
 	/*
+	 * If this is the first time the item is being committed to the CIL,
+	 * store the sequence number on the log item so we can tell
+	 * in future commits whether this is the first checkpoint the item is
+	 * being committed into.
+	 */
+	if (!item->li_seq)
+		item->li_seq = ctx->sequence;
+
+	/*
 	 * Now transfer enough transaction reservation to the context ticket
 	 * for the checkpoint. The context ticket is special - the unit
 	 * reservation has to grow as well as the current reservation as we
@@ -325,6 +334,10 @@ xlog_cil_free_logvec(
  * For more specific information about the order of operations in
  * xfs_log_commit_cil() please refer to the comments in
  * xfs_trans_commit_iclog().
+ *
+ * Called with the context lock already held in read mode to lock out
+ * background commit, returns without it held once background commits are
+ * allowed again.
  */
 int
 xfs_log_commit_cil(
@@ -677,4 +690,36 @@ restart:
 	}
 	spin_unlock(&cil->xc_cil_lock);
 	return commit_lsn;
+}
+
+/*
+ * Check if the current log item was first committed in this sequence.
+ * We can't rely on just the log item being in the CIL, we have to check
+ * the recorded commit sequence number.
+ *
+ * Note: for this to be used in a non-racy manner, it has to be called with
+ * CIL flushing locked out. As a result, it should only be used during the
+ * transaction commit process when deciding what to format into the item.
+ */
+bool
+xfs_log_item_in_current_chkpt(
+	struct xfs_log_item *lip)
+{
+	struct xfs_cil_ctx *ctx;
+
+	if (!(lip->li_mountp->m_flags & XFS_MOUNT_DELAYLOG))
+		return false;
+	if (list_empty(&lip->li_cil))
+		return false;
+
+	ctx = lip->li_mountp->m_log->l_cilp->xc_ctx;
+
+	/*
+	 * li_seq is written on the first commit of a log item to record the
+	 * first checkpoint it is written to. Hence if it is different to the
+	 * current sequence, we're in a new checkpoint.
+	 */
+	if (XFS_LSN_CMP(lip->li_seq, ctx->sequence) != 0)
+		return false;
+	return true;
 }
