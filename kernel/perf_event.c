@@ -2961,39 +2961,30 @@ again:
 void perf_output_copy(struct perf_output_handle *handle,
 		      const void *buf, unsigned int len)
 {
-	unsigned int pages_mask;
-	unsigned long offset;
-	unsigned int size;
-	void **pages;
-
-	offset		= handle->offset;
-	pages_mask	= handle->data->nr_pages - 1;
-	pages		= handle->data->data_pages;
-
-	do {
-		unsigned long page_offset;
-		unsigned long page_size;
-		int nr;
-
-		nr	    = (offset >> PAGE_SHIFT) & pages_mask;
-		page_size   = 1UL << (handle->data->data_order + PAGE_SHIFT);
-		page_offset = offset & (page_size - 1);
-		size	    = min_t(unsigned int, page_size - page_offset, len);
-
-		memcpy(pages[nr] + page_offset, buf, size);
-
-		len	    -= size;
-		buf	    += size;
-		offset	    += size;
-	} while (len);
-
-	handle->offset = offset;
+	handle->offset += len;
 
 	/*
 	 * Check we didn't copy past our reservation window, taking the
 	 * possible unsigned int wrap into account.
 	 */
-	WARN_ON_ONCE(((long)(handle->head - handle->offset)) < 0);
+	if (WARN_ON_ONCE(((long)(handle->head - handle->offset)) < 0))
+		return;
+
+	do {
+		unsigned long size = min(handle->size, len);
+
+		memcpy(handle->addr, buf, size);
+
+		len -= size;
+		handle->addr += size;
+		handle->size -= size;
+		if (!handle->size) {
+			handle->page++;
+			handle->page &= handle->data->nr_pages - 1;
+			handle->addr = handle->data->data_pages[handle->page];
+			handle->size = PAGE_SIZE << handle->data->data_order;
+		}
+	} while (len);
 }
 
 int perf_output_begin(struct perf_output_handle *handle,
@@ -3058,6 +3049,13 @@ int perf_output_begin(struct perf_output_handle *handle,
 
 	if (head - local_read(&data->wakeup) > data->watermark)
 		local_add(data->watermark, &data->wakeup);
+
+	handle->page = handle->offset >> (PAGE_SHIFT + data->data_order);
+	handle->page &= data->nr_pages - 1;
+	handle->size = handle->offset & ((PAGE_SIZE << data->data_order) - 1);
+	handle->addr = data->data_pages[handle->page];
+	handle->addr += handle->size;
+	handle->size = (PAGE_SIZE << data->data_order) - handle->size;
 
 	if (have_lost) {
 		lost_event.header.type = PERF_RECORD_LOST;

@@ -806,6 +806,9 @@ struct perf_output_handle {
 	unsigned long			head;
 	unsigned long			offset;
 	unsigned long			wakeup;
+	unsigned long			size;
+	void				*addr;
+	int				page;
 	int				nmi;
 	int				sample;
 };
