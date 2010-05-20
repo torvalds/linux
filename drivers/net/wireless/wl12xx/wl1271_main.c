@@ -1998,7 +1998,7 @@ static struct ieee80211_channel wl1271_channels[] = {
 };
 
 /* mapping to indexes for wl1271_rates */
-const static u8 wl1271_rate_to_idx_2ghz[] = {
+static const u8 wl1271_rate_to_idx_2ghz[] = {
 	/* MCS rates are used only with 11n */
 	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS7 */
 	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS6 */
@@ -2110,7 +2110,7 @@ static struct ieee80211_channel wl1271_channels_5ghz[] = {
 };
 
 /* mapping to indexes for wl1271_rates_5ghz */
-const static u8 wl1271_rate_to_idx_5ghz[] = {
+static const u8 wl1271_rate_to_idx_5ghz[] = {
 	/* MCS rates are used only with 11n */
 	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS7 */
 	CONF_HW_RXTX_RATE_UNSUPPORTED, /* CONF_HW_RXTX_RATE_MCS6 */
@@ -2146,7 +2146,7 @@ static struct ieee80211_supported_band wl1271_band_5ghz = {
 	.n_bitrates = ARRAY_SIZE(wl1271_rates_5ghz),
 };
 
-const static u8 *wl1271_band_rate_to_idx[] = {
+static const u8 *wl1271_band_rate_to_idx[] = {
 	[IEEE80211_BAND_2GHZ] = wl1271_rate_to_idx_2ghz,
 	[IEEE80211_BAND_5GHZ] = wl1271_rate_to_idx_5ghz
 };

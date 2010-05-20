@@ -2417,7 +2417,7 @@ void iwl_update_stats(struct iwl_priv *priv, bool is_tx, __le16 fc, u16 len)
 EXPORT_SYMBOL(iwl_update_stats);
 #endif
 
-const static char *get_csr_string(int cmd)
+static const char *get_csr_string(int cmd)
 {
 	switch (cmd) {
 		IWL_CMD(CSR_HW_IF_CONFIG_REG);
@@ -2488,7 +2488,7 @@ void iwl_dump_csr(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_dump_csr);
 
-const static char *get_fh_string(int cmd)
+static const char *get_fh_string(int cmd)
 {
 	switch (cmd) {
 		IWL_CMD(FH_RSCSR_CHNL0_STTS_WPTR_REG);
