@@ -3780,7 +3780,7 @@ typedef struct _ATOM_ASIC_SS_ASSIGNMENT
 	UCHAR								ucReserved[2];
 }ATOM_ASIC_SS_ASSIGNMENT;
 
-//Define ucClockIndication, SW uses the IDs below to search if the SS is requried/enabled on a clock branch/signal type.
+//Define ucClockIndication, SW uses the IDs below to search if the SS is required/enabled on a clock branch/signal type.
 //SS is not required or enabled if a match is not found.
 #define ASIC_INTERNAL_MEMORY_SS			1
 #define ASIC_INTERNAL_ENGINE_SS			2
@@ -5895,7 +5895,7 @@ typedef struct _ATOM_PPLIB_RS780_CLOCK_INFO
       UCHAR  ucPadding;                   // For proper alignment and size.
       USHORT usVDDC;                      // For the 780, use: None, Low, High, Variable
       UCHAR  ucMaxHTLinkWidth;            // From SBIOS - {2, 4, 8, 16}
-      UCHAR  ucMinHTLinkWidth;            // From SBIOS - {2, 4, 8, 16}. Effective only if CDLW enabled. Minimum down stream width could be bigger as display BW requriement.
+      UCHAR  ucMinHTLinkWidth;            // From SBIOS - {2, 4, 8, 16}. Effective only if CDLW enabled. Minimum down stream width could be bigger as display BW requirement.
       USHORT usHTLinkFreq;                // See definition ATOM_PPLIB_RS780_HTLINKFREQ_xxx or in MHz(>=200).
       ULONG  ulFlags; 
 } ATOM_PPLIB_RS780_CLOCK_INFO;

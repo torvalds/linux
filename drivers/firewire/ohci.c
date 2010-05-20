@@ -1351,7 +1351,7 @@ static void bus_reset_tasklet(unsigned long data)
 	 * was set up before this reset, the old one is now no longer
 	 * in use and we can free it. Update the config rom pointers
 	 * to point to the current config rom and clear the
-	 * next_config_rom pointer so a new udpate can take place.
+	 * next_config_rom pointer so a new update can take place.
 	 */
 
 	if (ohci->next_config_rom != NULL) {

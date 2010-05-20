@@ -136,7 +136,7 @@ raid_disks != 0.
 
 Then uninitialized devices can be added with ADD_NEW_DISK.  The
 structure passed to ADD_NEW_DISK must specify the state of the device
-and it's role in the array.
+and its role in the array.
 
 Once started with RUN_ARRAY, uninitialized spares can be added with
 HOT_ADD_DISK.

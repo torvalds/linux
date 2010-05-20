@@ -76,7 +76,7 @@
  *     xfers-per-ripe, blocks-per-rpipe, rpipes-per-host), at the end
  *     we are going to have to rebuild all this based on an scheduler,
  *     to where we have a list of transactions to do and based on the
- *     availability of the different requried components (blocks,
+ *     availability of the different required components (blocks,
  *     rpipes, segment slots, etc), we go scheduling them. Painful.
  */
 #include <linux/init.h>

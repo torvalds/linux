@@ -22,7 +22,7 @@
  *					overflow.
  *      Carlos Picoto           :       PIMv1 Support
  *	Pavlin Ivanov Radoslavov:	PIMv2 Registers must checksum only PIM header
- *					Relax this requrement to work with older peers.
+ *					Relax this requirement to work with older peers.
  *
  */
 

@@ -126,7 +126,7 @@ o  Tboot then applies an (optional) user-defined launch policy to
 o  Tboot adjusts the e820 table provided by the bootloader to reserve
    its own location in memory as well as to reserve certain other
    TXT-related regions.
-o  As part of it's launch, tboot DMA protects all of RAM (using the
+o  As part of its launch, tboot DMA protects all of RAM (using the
    VT-d PMRs).  Thus, the kernel must be booted with 'intel_iommu=on'
    in order to remove this blanket protection and use VT-d's
    page-level protection.

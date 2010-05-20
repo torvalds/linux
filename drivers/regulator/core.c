@@ -1540,7 +1540,7 @@ EXPORT_SYMBOL_GPL(regulator_count_voltages);
  * Context: can sleep
  *
  * Returns a voltage that can be passed to @regulator_set_voltage(),
- * zero if this selector code can't be used on this sytem, or a
+ * zero if this selector code can't be used on this system, or a
  * negative errno.
  */
 int regulator_list_voltage(struct regulator *regulator, unsigned selector)

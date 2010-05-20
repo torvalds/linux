@@ -905,9 +905,9 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 
 	memset(best_clock, 0, sizeof(*best_clock));
 	max_n = limit->n.max;
-	/* based on hardware requriment prefer smaller n to precision */
+	/* based on hardware requirement, prefer smaller n to precision */
 	for (clock.n = limit->n.min; clock.n <= max_n; clock.n++) {
-		/* based on hardware requirment prefere larger m1,m2 */
+		/* based on hardware requirement, prefere larger m1,m2 */
 		for (clock.m1 = limit->m1.max;
 		     clock.m1 >= limit->m1.min; clock.m1--) {
 			for (clock.m2 = limit->m2.max;

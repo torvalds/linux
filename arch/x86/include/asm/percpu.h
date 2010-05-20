@@ -105,7 +105,7 @@ do {							\
 
 /*
  * Generate a percpu add to memory instruction and optimize code
- * if a one is added or subtracted.
+ * if one is added or subtracted.
  */
 #define percpu_add_op(var, val)						\
 do {									\

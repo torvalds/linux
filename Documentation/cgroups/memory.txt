@@ -263,7 +263,7 @@ some of the pages cached in the cgroup (page cache pages).
 
 4.2 Task migration
 
-When a task migrates from one cgroup to another, it's charge is not
+When a task migrates from one cgroup to another, its charge is not
 carried forward by default. The pages allocated from the original cgroup still
 remain charged to it, the charge is dropped when the page is freed or
 reclaimed.

@@ -96,7 +96,7 @@ static inline int precise_ie(void)
  * post_eurus_cmd helpers
  */
 struct eurus_cmd_arg_info {
-	int pre_arg; /* command requres arg1, arg2 at POST COMMAND */
+	int pre_arg; /* command requires arg1, arg2 at POST COMMAND */
 	int post_arg; /* command requires arg1, arg2 at GET_RESULT */
 };
 

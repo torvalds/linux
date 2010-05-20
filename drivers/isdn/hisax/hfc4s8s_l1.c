@@ -310,7 +310,7 @@ wait_busy(hfc4s8s_hw * a)
 
 /******************************************************/
 /* function to read critical counter registers that   */
-/* may be udpated by the chip during read             */
+/* may be updated by the chip during read             */
 /******************************************************/
 static u_char
 Read_hfc8_stable(hfc4s8s_hw * hw, int reg)

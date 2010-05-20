@@ -223,9 +223,9 @@ enum bfa_status {
 	BFA_STATUS_IM_PVID_NON_ZERO = 140, /*  Port VLAN ID (PVID) is Set to
 					    * Non-Zero Value */
 	BFA_STATUS_IM_INETCFG_LOCK_FAILED = 141, /*  Acquiring Network
-						  * Subsytem Lock Failed.Please
+						  * Subsystem Lock Failed.Please
 						  * try after some time */
-	BFA_STATUS_IM_GET_INETCFG_FAILED = 142, /*  Acquiring Network Subsytem
+	BFA_STATUS_IM_GET_INETCFG_FAILED = 142, /*  Acquiring Network Subsystem
 						 * handle Failed. Please try
 						 * after some time */
 	BFA_STATUS_IM_NOT_BOUND = 143, /*  IM driver is not active */

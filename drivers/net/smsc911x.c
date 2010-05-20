@@ -736,7 +736,7 @@ static void smsc911x_phy_adjust_link(struct net_device *dev)
 			SMSC_TRACE(HW, "configuring for carrier OK");
 			if ((pdata->gpio_orig_setting & GPIO_CFG_LED1_EN_) &&
 			    (!pdata->using_extphy)) {
-				/* Restore orginal GPIO configuration */
+				/* Restore original GPIO configuration */
 				pdata->gpio_setting = pdata->gpio_orig_setting;
 				smsc911x_reg_write(pdata, GPIO_CFG,
 					pdata->gpio_setting);
@@ -750,7 +750,7 @@ static void smsc911x_phy_adjust_link(struct net_device *dev)
 			if ((pdata->gpio_setting & GPIO_CFG_LED1_EN_) &&
 			    (!pdata->using_extphy)) {
 				/* Force 10/100 LED off, after saving
-				 * orginal GPIO configuration */
+				 * original GPIO configuration */
 				pdata->gpio_orig_setting = pdata->gpio_setting;
 
 				pdata->gpio_setting &= ~GPIO_CFG_LED1_EN_;

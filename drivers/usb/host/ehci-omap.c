@@ -181,7 +181,7 @@ struct ehci_hcd_omap {
 	void __iomem		*ehci_base;
 
 	/* Regulators for USB PHYs.
-	 * Each PHY can have a seperate regulator.
+	 * Each PHY can have a separate regulator.
 	 */
 	struct regulator        *regulator[OMAP3_HS_USB_PORTS];
 };

@@ -361,7 +361,7 @@ struct hda_bus_unsolicited {
 };
 
 /*
- * Helper for automatic ping configuration
+ * Helper for automatic pin configuration
  */
 
 enum {

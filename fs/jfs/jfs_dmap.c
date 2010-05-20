@@ -2438,7 +2438,7 @@ dbAdjCtl(struct bmap * bmp, s64 blkno, int newval, int alloc, int level)
 
 	/* check if this is a control page update for an allocation.
 	 * if so, update the leaf to reflect the new leaf value using
-	 * dbSplit(); otherwise (deallocation), use dbJoin() to udpate
+	 * dbSplit(); otherwise (deallocation), use dbJoin() to update
 	 * the leaf with the new value.  in addition to updating the
 	 * leaf, dbSplit() will also split the binary buddy system of
 	 * the leaves, if required, and bubble new values within the

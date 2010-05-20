@@ -43,7 +43,7 @@
  *   wimax_rfkill()             Kernel calling wimax_rfkill()
  *     __wimax_rf_toggle_radio()
  *
- * wimax_rfkill_set_radio_block()  RF-Kill subsytem calling
+ * wimax_rfkill_set_radio_block()  RF-Kill subsystem calling
  *   __wimax_rf_toggle_radio()
  *
  * __wimax_rf_toggle_radio()
