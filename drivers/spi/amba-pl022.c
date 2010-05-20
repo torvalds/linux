@@ -1211,7 +1211,6 @@ static int stop_queue(struct pl022 *pl022)
 	 * A wait_queue on the pl022->busy could be used, but then the common
 	 * execution path (pump_messages) would be required to call wake_up or
 	 * friends on every SPI message. Do this instead */
-	pl022->run = QUEUE_STOPPED;
 	while (!list_empty(&pl022->queue) && pl022->busy && limit--) {
 		spin_unlock_irqrestore(&pl022->queue_lock, flags);
 		msleep(10);
@@ -1220,6 +1219,7 @@ static int stop_queue(struct pl022 *pl022)
 
 	if (!list_empty(&pl022->queue) || pl022->busy)
 		status = -EBUSY;
+	else pl022->run = QUEUE_STOPPED;
 
 	spin_unlock_irqrestore(&pl022->queue_lock, flags);
 
