@@ -36,6 +36,8 @@
  * The x/y limits are taken from the Synaptics TouchPad interfacing Guide,
  * section 2.3.2, which says that they should be valid regardless of the
  * actual size of the sensor.
+ * Note that newer firmware allows querying device for maximum useable
+ * coordinates.
  */
 #define XMIN_NOMINAL 1472
 #define XMAX_NOMINAL 5472
@@ -194,23 +196,33 @@ static int synaptics_identify(struct psmouse *psmouse)
 }
 
 /*
- * Read touchpad resolution
+ * Read touchpad resolution and maximum reported coordinates
  * Resolution is left zero if touchpad does not support the query
  */
 static int synaptics_resolution(struct psmouse *psmouse)
 {
 	struct synaptics_data *priv = psmouse->private;
 	unsigned char res[3];
+	unsigned char max[3];
 
 	if (SYN_ID_MAJOR(priv->identity) < 4)
-		return 0;
 
-	if (synaptics_send_cmd(psmouse, SYN_QUE_RESOLUTION, res))
-		return 0;
+	if (synaptics_send_cmd(psmouse, SYN_QUE_RESOLUTION, res) == 0) {
+		if (res[0] != 0 && (res[1] & 0x80) && res[2] != 0) {
+			priv->x_res = res[0]; /* x resolution in units/mm */
+			priv->y_res = res[2]; /* y resolution in units/mm */
+		}
+	}
 
-	if ((res[0] != 0) && (res[1] & 0x80) && (res[2] != 0)) {
-		priv->x_res = res[0]; /* x resolution in units/mm */
-		priv->y_res = res[2]; /* y resolution in units/mm */
+	if (SYN_EXT_CAP_REQUESTS(priv->capabilities) >= 5 &&
+	    SYN_CAP_MAX_DIMENSIONS(priv->ext_cap_0c)) {
+		if (synaptics_send_cmd(psmouse, SYN_QUE_EXT_DIMENSIONS, max)) {
+			printk(KERN_ERR "Synaptics claims to have dimensions query,"
+			       " but I'm not able to read it.\n");
+		} else {
+			priv->x_max = (max[0] << 5) | ((max[1] & 0x0f) << 1);
+			priv->y_max = (max[2] << 5) | ((max[1] & 0xf0) >> 3);
+		}
 	}
 
 	return 0;
@@ -520,19 +532,20 @@ static int synaptics_validate_byte(unsigned char packet[], int idx, unsigned cha
 		return 0;
 
 	switch (pkt_type) {
-		case SYN_NEWABS:
-		case SYN_NEWABS_RELAXED:
-			return (packet[idx] & newabs_rel_mask[idx]) == newabs_rslt[idx];
 
-		case SYN_NEWABS_STRICT:
-			return (packet[idx] & newabs_mask[idx]) == newabs_rslt[idx];
+	case SYN_NEWABS:
+	case SYN_NEWABS_RELAXED:
+		return (packet[idx] & newabs_rel_mask[idx]) == newabs_rslt[idx];
 
-		case SYN_OLDABS:
-			return (packet[idx] & oldabs_mask[idx]) == oldabs_rslt[idx];
+	case SYN_NEWABS_STRICT:
+		return (packet[idx] & newabs_mask[idx]) == newabs_rslt[idx];
 
-		default:
-			printk(KERN_ERR "synaptics: unknown packet type %d\n", pkt_type);
-			return 0;
+	case SYN_OLDABS:
+		return (packet[idx] & oldabs_mask[idx]) == oldabs_rslt[idx];
+
+	default:
+		printk(KERN_ERR "synaptics: unknown packet type %d\n", pkt_type);
+		return 0;
 	}
 }
 
@@ -578,8 +591,10 @@ static void set_input_params(struct input_dev *dev, struct synaptics_data *priv)
 	int i;
 
 	__set_bit(EV_ABS, dev->evbit);
-	input_set_abs_params(dev, ABS_X, XMIN_NOMINAL, XMAX_NOMINAL, 0, 0);
-	input_set_abs_params(dev, ABS_Y, YMIN_NOMINAL, YMAX_NOMINAL, 0, 0);
+	input_set_abs_params(dev, ABS_X,
+			     XMIN_NOMINAL, priv->x_max ?: XMAX_NOMINAL, 0, 0);
+	input_set_abs_params(dev, ABS_Y,
+			     YMIN_NOMINAL, priv->y_max ?: YMAX_NOMINAL, 0, 0);
 	input_set_abs_params(dev, ABS_PRESSURE, 0, 255, 0, 0);
 	__set_bit(ABS_TOOL_WIDTH, dev->absbit);
 
