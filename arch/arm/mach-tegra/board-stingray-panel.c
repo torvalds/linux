@@ -14,12 +14,18 @@
  *
  */
 
+#include <linux/gpio.h>
+#include <linux/leds-auo-panel-backlight.h>
 #include <linux/resource.h>
 #include <linux/platform_device.h>
 #include <asm/mach-types.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
 #include <mach/tegra_fb.h>
+
+#include "gpio-names.h"
+
+#define STINGRAY_AUO_DISP_BL	TEGRA_GPIO_PD0
 
 /* Framebuffer */
 static struct resource fb_resource[] = {
@@ -49,16 +55,49 @@ static struct tegra_fb_lcd_data tegra_fb_lcd_platform_data = {
 };
 
 static struct platform_device tegra_fb_device = {
-	.name 		= "tegrafb",
-	.id		= 0,
-	.resource	= fb_resource,
-	.num_resources 	= ARRAY_SIZE(fb_resource),
+	.name = "tegrafb",
+	.id	= 0,
+	.resource = fb_resource,
+	.num_resources = ARRAY_SIZE(fb_resource),
 	.dev = {
 		.platform_data = &tegra_fb_lcd_platform_data,
 	},
 };
 
-int __init stingray_panel_init(void) {
+static void stingray_backlight_enable(void)
+{
+	gpio_set_value(STINGRAY_AUO_DISP_BL, 1);
+}
+
+static void stingray_backlight_disable(void)
+{
+	gpio_set_value(STINGRAY_AUO_DISP_BL, 0);
+}
+
+struct auo_panel_bl_platform_data stingray_auo_backlight_data = {
+	.bl_enable = stingray_backlight_enable,
+	.bl_disable = stingray_backlight_disable,
+	.pwm_enable = NULL,
+	.pwm_disable = NULL,
+};
+
+static struct platform_device stingray_panel_bl_driver = {
+	.name = LD_AUO_PANEL_BL_NAME,
+	.id = -1,
+	.dev = {
+		.platform_data = &stingray_auo_backlight_data,
+		},
+};
+
+int __init stingray_panel_init(void)
+{
+	/* Display backlight control */
+	tegra_gpio_enable(STINGRAY_AUO_DISP_BL);
+	gpio_request(STINGRAY_AUO_DISP_BL, "auo_disp_bl");
+	gpio_direction_output(STINGRAY_AUO_DISP_BL, 1);
+
+	platform_device_register(&stingray_panel_bl_driver);
+
 	return platform_device_register(&tegra_fb_device);
 }
 
