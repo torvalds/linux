@@ -115,19 +115,6 @@ struct ath_node {
 	int last_rssi;
 };
 
-int ath9k_cmn_rx_skb_preprocess(struct ath_common *common,
-				struct ieee80211_hw *hw,
-				struct sk_buff *skb,
-				struct ath_rx_status *rx_stats,
-				struct ieee80211_rx_status *rx_status,
-				bool *decrypt_error);
-
-void ath9k_cmn_rx_skb_postprocess(struct ath_common *common,
-				  struct sk_buff *skb,
-				  struct ath_rx_status *rx_stats,
-				  struct ieee80211_rx_status *rxs,
-				  bool decrypt_error);
-
 int ath9k_cmn_padpos(__le16 frame_control);
 int ath9k_cmn_get_hw_crypto_keytype(struct sk_buff *skb);
 void ath9k_cmn_update_ichannel(struct ieee80211_hw *hw,
