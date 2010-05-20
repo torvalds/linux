@@ -57,8 +57,8 @@
 #define DRIVER_VERSION "v1.64 for Linux 2.5"
 #define EMAIL "mark@alpha.dyndns.org"
 #define DRIVER_AUTHOR "Mark McClelland <mark@alpha.dyndns.org> & Bret Wallach \
-	& Orion Sky Lawlor <olawlor@acm.org> & Kevin Moore & Charl P. Botha \
-	<cpbotha@ieee.org> & Claudio Matsuoka <claudio@conectiva.com>"
+& Orion Sky Lawlor <olawlor@acm.org> & Kevin Moore & Charl P. Botha \
+<cpbotha@ieee.org> & Claudio Matsuoka <claudio@conectiva.com>"
 #define DRIVER_DESC "ov511 USB Camera Driver"
 
 #define OV511_I2C_RETRIES 3
@@ -5916,11 +5916,6 @@ ov51x_disconnect(struct usb_interface *intf)
 	mutex_lock(&ov->lock);
 	usb_set_intfdata (intf, NULL);
 
-	if (!ov) {
-		mutex_unlock(&ov->lock);
-		return;
-	}
-
 	/* Free device number */
 	ov511_devused &= ~(1 << ov->nr);
 
@@ -5945,7 +5940,7 @@ ov51x_disconnect(struct usb_interface *intf)
 	ov->dev = NULL;
 
 	/* Free the memory */
-	if (ov && !ov->user) {
+	if (!ov->user) {
 		mutex_lock(&ov->cbuf_lock);
 		kfree(ov->cbuf);
 		ov->cbuf = NULL;

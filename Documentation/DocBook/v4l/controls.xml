@@ -267,6 +267,12 @@ minimum value disables backlight compensation.</entry>
 	    <entry>Chroma automatic gain control.</entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_CID_CHROMA_GAIN</constant></entry>
+	    <entry>integer</entry>
+	    <entry>Adjusts the Chroma gain control (for use when chroma AGC
+	    is disabled).</entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_CID_COLOR_KILLER</constant></entry>
 	    <entry>boolean</entry>
 	    <entry>Enable the color killer (&ie; force a black &amp; white image in case of a weak video signal).</entry>
@@ -277,8 +283,15 @@ minimum value disables backlight compensation.</entry>
 	    <entry>Selects a color effect. Possible values for
 <constant>enum v4l2_colorfx</constant> are:
 <constant>V4L2_COLORFX_NONE</constant> (0),
-<constant>V4L2_COLORFX_BW</constant> (1) and
-<constant>V4L2_COLORFX_SEPIA</constant> (2).</entry>
+<constant>V4L2_COLORFX_BW</constant> (1),
+<constant>V4L2_COLORFX_SEPIA</constant> (2),
+<constant>V4L2_COLORFX_NEGATIVE</constant> (3),
+<constant>V4L2_COLORFX_EMBOSS</constant> (4),
+<constant>V4L2_COLORFX_SKETCH</constant> (5),
+<constant>V4L2_COLORFX_SKY_BLUE</constant> (6),
+<constant>V4L2_COLORFX_GRASS_GREEN</constant> (7),
+<constant>V4L2_COLORFX_SKIN_WHITEN</constant> (8) and
+<constant>V4L2_COLORFX_VIVID</constant> (9).</entry>
 	  </row>
 	  <row>
 	    <entry><constant>V4L2_CID_ROTATE</constant></entry>
@@ -1821,6 +1834,25 @@ explicit request to stop the movement. A positive value moves the zoom lens
 group towards the telephoto direction. A value of zero stops the zoom lens
 group movement. A negative value moves the zoom lens group towards the
 wide-angle direction. The zoom speed unit is driver-specific.</entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_IRIS_ABSOLUTE</constant>&nbsp;</entry>
+	    <entry>integer</entry>
+	  </row><row><entry spanname="descr">This control sets the
+camera's aperture to the specified value. The unit is undefined.
+Larger values open the iris wider, smaller values close it.</entry>
+	  </row>
+	  <row><entry></entry></row>
+
+	  <row>
+	    <entry spanname="id"><constant>V4L2_CID_IRIS_RELATIVE</constant>&nbsp;</entry>
+	    <entry>integer</entry>
+	  </row><row><entry spanname="descr">This control modifies the
+camera's aperture by the specified amount. The unit is undefined.
+Positive values open the iris one step further, negative values close
+it one step further. This is a write-only control.</entry>
 	  </row>
 	  <row><entry></entry></row>
 

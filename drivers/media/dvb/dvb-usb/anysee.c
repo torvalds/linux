@@ -399,7 +399,7 @@ static int anysee_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 	return 0;
 }
 
-static struct dvb_usb_rc_key anysee_rc_keys[] = {
+static struct dvb_usb_rc_key ir_codes_anysee_table[] = {
 	{ 0x0100, KEY_0 },
 	{ 0x0101, KEY_1 },
 	{ 0x0102, KEY_2 },
@@ -518,8 +518,8 @@ static struct dvb_usb_device_properties anysee_properties = {
 		}
 	},
 
-	.rc_key_map       = anysee_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(anysee_rc_keys),
+	.rc_key_map       = ir_codes_anysee_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_anysee_table),
 	.rc_query         = anysee_rc_query,
 	.rc_interval      = 200,  /* windows driver uses 500ms */
 

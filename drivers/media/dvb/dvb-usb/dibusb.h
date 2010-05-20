@@ -124,7 +124,7 @@ extern int dibusb2_0_power_ctrl(struct dvb_usb_device *, int);
 #define DEFAULT_RC_INTERVAL 150
 //#define DEFAULT_RC_INTERVAL 100000
 
-extern struct dvb_usb_rc_key dibusb_rc_keys[];
+extern struct dvb_usb_rc_key ir_codes_dibusb_table[];
 extern int dibusb_rc_query(struct dvb_usb_device *, u32 *, int *);
 extern int dibusb_read_eeprom_byte(struct dvb_usb_device *, u8, u8 *);
 

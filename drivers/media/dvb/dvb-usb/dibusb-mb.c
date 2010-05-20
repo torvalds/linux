@@ -212,7 +212,7 @@ static struct dvb_usb_device_properties dibusb1_1_properties = {
 	.power_ctrl       = dibusb_power_ctrl,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
-	.rc_key_map       = dibusb_rc_keys,
+	.rc_key_map       = ir_codes_dibusb_table,
 	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
@@ -296,7 +296,7 @@ static struct dvb_usb_device_properties dibusb1_1_an2235_properties = {
 	.power_ctrl       = dibusb_power_ctrl,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
-	.rc_key_map       = dibusb_rc_keys,
+	.rc_key_map       = ir_codes_dibusb_table,
 	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
@@ -360,7 +360,7 @@ static struct dvb_usb_device_properties dibusb2_0b_properties = {
 	.power_ctrl       = dibusb2_0_power_ctrl,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
-	.rc_key_map       = dibusb_rc_keys,
+	.rc_key_map       = ir_codes_dibusb_table,
 	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 
@@ -417,7 +417,7 @@ static struct dvb_usb_device_properties artec_t1_usb2_properties = {
 	.power_ctrl       = dibusb2_0_power_ctrl,
 
 	.rc_interval      = DEFAULT_RC_INTERVAL,
-	.rc_key_map       = dibusb_rc_keys,
+	.rc_key_map       = ir_codes_dibusb_table,
 	.rc_key_map_size  = 111, /* wow, that is ugly ... I want to load it to the driver dynamically */
 	.rc_query         = dibusb_rc_query,
 

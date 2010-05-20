@@ -1000,20 +1000,6 @@ int cx2341x_update(void *priv, cx2341x_mbox_func func,
 				  h, w);
 		if (err) return err;
 	}
-
-	if (new->width != 720 || new->height != (new->is_50hz ? 576 : 480)) {
-		/* Adjust temporal filter if necessary. The problem with the
-		   temporal filter is that it works well with full resolution
-		   capturing, but not when the capture window is scaled (the
-		   filter introduces a ghosting effect). So if the capture
-		   window is scaled, then force the filter to 0.
-
-		   For full resolution the filter really improves the video
-		   quality, especially if the original video quality is
-		   suboptimal. */
-		temporal = 0;
-	}
-
 	if (force || NEQ(stream_type)) {
 		err = cx2341x_api(priv, func, CX2341X_ENC_SET_STREAM_TYPE, 1,
 				  mpeg_stream_type[new->stream_type]);

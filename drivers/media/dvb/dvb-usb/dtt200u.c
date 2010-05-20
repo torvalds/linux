@@ -57,7 +57,7 @@ static int dtt200u_pid_filter(struct dvb_usb_adapter *adap, int index, u16 pid, 
 
 /* remote control */
 /* key list for the tiny remote control (Yakumo, don't know about the others) */
-static struct dvb_usb_rc_key dtt200u_rc_keys[] = {
+static struct dvb_usb_rc_key ir_codes_dtt200u_table[] = {
 	{ 0x8001, KEY_MUTE },
 	{ 0x8002, KEY_CHANNELDOWN },
 	{ 0x8003, KEY_VOLUMEDOWN },
@@ -162,8 +162,8 @@ static struct dvb_usb_device_properties dtt200u_properties = {
 	.power_ctrl      = dtt200u_power_ctrl,
 
 	.rc_interval     = 300,
-	.rc_key_map      = dtt200u_rc_keys,
-	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
+	.rc_key_map      = ir_codes_dtt200u_table,
+	.rc_key_map_size = ARRAY_SIZE(ir_codes_dtt200u_table),
 	.rc_query        = dtt200u_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
@@ -207,8 +207,8 @@ static struct dvb_usb_device_properties wt220u_properties = {
 	.power_ctrl      = dtt200u_power_ctrl,
 
 	.rc_interval     = 300,
-	.rc_key_map      = dtt200u_rc_keys,
-	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
+	.rc_key_map      = ir_codes_dtt200u_table,
+	.rc_key_map_size = ARRAY_SIZE(ir_codes_dtt200u_table),
 	.rc_query        = dtt200u_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
@@ -252,8 +252,8 @@ static struct dvb_usb_device_properties wt220u_fc_properties = {
 	.power_ctrl      = dtt200u_power_ctrl,
 
 	.rc_interval     = 300,
-	.rc_key_map      = dtt200u_rc_keys,
-	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
+	.rc_key_map      = ir_codes_dtt200u_table,
+	.rc_key_map_size = ARRAY_SIZE(ir_codes_dtt200u_table),
 	.rc_query        = dtt200u_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
@@ -297,8 +297,8 @@ static struct dvb_usb_device_properties wt220u_zl0353_properties = {
 	.power_ctrl      = dtt200u_power_ctrl,
 
 	.rc_interval     = 300,
-	.rc_key_map      = dtt200u_rc_keys,
-	.rc_key_map_size = ARRAY_SIZE(dtt200u_rc_keys),
+	.rc_key_map      = ir_codes_dtt200u_table,
+	.rc_key_map_size = ARRAY_SIZE(ir_codes_dtt200u_table),
 	.rc_query        = dtt200u_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,

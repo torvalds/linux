@@ -266,8 +266,8 @@ static inline unsigned long soc_camera_bus_param_compatible(
 		common_flags;
 }
 
-static inline void soc_camera_limit_side(unsigned int *start,
-		unsigned int *length, unsigned int start_min,
+static inline void soc_camera_limit_side(int *start, int *length,
+		unsigned int start_min,
 		unsigned int length_min, unsigned int length_max)
 {
 	if (*length < length_min)
@@ -283,5 +283,13 @@ static inline void soc_camera_limit_side(unsigned int *start,
 
 extern unsigned long soc_camera_apply_sensor_flags(struct soc_camera_link *icl,
 						   unsigned long flags);
+
+/* This is only temporary here - until v4l2-subdev begins to link to video_device */
+#include <linux/i2c.h>
+static inline struct video_device *soc_camera_i2c_to_vdev(struct i2c_client *client)
+{
+	struct soc_camera_device *icd = client->dev.platform_data;
+	return icd->vdev;
+}
 
 #endif

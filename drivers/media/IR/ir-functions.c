@@ -24,6 +24,7 @@
 #include <linux/string.h>
 #include <linux/jiffies.h>
 #include <media/ir-common.h>
+#include "ir-core-priv.h"
 
 /* -------------------------------------------------------------------------- */
 

@@ -263,7 +263,7 @@ int cx18_s_ext_ctrls(struct file *file, void *fh, struct v4l2_ext_controls *c)
 	int ret;
 	struct v4l2_control ctrl;
 
-	ret = v4l2_prio_check(&cx->prio, &id->prio);
+	ret = v4l2_prio_check(&cx->prio, id->prio);
 	if (ret)
 		return ret;
 

@@ -99,7 +99,7 @@ static const struct ctrl sd_ctrls[] = {
 	    {
 		.id = V4L2_CID_EXPOSURE,
 		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "exposure",
+		.name = "Exposure",
 		.minimum = PAC207_EXPOSURE_MIN,
 		.maximum = PAC207_EXPOSURE_MAX,
 		.step = 1,
@@ -130,7 +130,7 @@ static const struct ctrl sd_ctrls[] = {
 	    {
 		.id = V4L2_CID_GAIN,
 		.type = V4L2_CTRL_TYPE_INTEGER,
-		.name = "gain",
+		.name = "Gain",
 		.minimum = PAC207_GAIN_MIN,
 		.maximum = PAC207_GAIN_MAX,
 		.step = 1,

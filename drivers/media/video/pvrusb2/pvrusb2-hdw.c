@@ -2028,7 +2028,7 @@ static void pvr2_hdw_cx25840_vbi_hack(struct pvr2_hdw *hdw)
 	memset(&fmt, 0, sizeof(fmt));
 	fmt.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
 	v4l2_device_call_all(&hdw->v4l2_dev, hdw->decoder_client_id,
-			     video, s_fmt, &fmt);
+			     vbi, s_sliced_fmt, &fmt.fmt.sliced);
 }
 
 

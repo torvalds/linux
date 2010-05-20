@@ -5355,6 +5355,79 @@ struct saa7134_board saa7134_boards[] = {
 			.amux = LINE2,
 		},
 	},
+	[SAA7134_BOARD_HAWELL_HW_404M7] = {
+		/* Hawell HW-404M7 & Hawell HW-808M7  */
+		/* Bogoslovskiy Viktor <bogovic@bk.ru> */
+		.name         = "Hawell HW-404M7",
+		.audio_clock   = 0x00200000,
+		.tuner_type    = UNSET,
+		.radio_type    = UNSET,
+		.tuner_addr   = ADDR_UNSET,
+		.radio_addr   = ADDR_UNSET,
+		.gpiomask      = 0x389c00,
+		.inputs       = {{
+			.name = name_comp1,
+			.vmux = 3,
+			.amux = LINE1,
+			.gpio = 0x01fc00,
+		} },
+	},
+	[SAA7134_BOARD_BEHOLD_H7] = {
+		/* Beholder Intl. Ltd. Dmitry Belimov <d.belimov@gmail.com> */
+		.name           = "Beholder BeholdTV H7",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_XC5000,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.mpeg           = SAA7134_MPEG_DVB,
+		.ts_type	= SAA7134_MPEG_TS_PARALLEL,
+		.inputs         = { {
+			.name = name_tv,
+			.vmux = 2,
+			.amux = TV,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 9,
+			.amux = LINE1,
+		} },
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+		},
+	},
+	[SAA7134_BOARD_BEHOLD_A7] = {
+		/* Beholder Intl. Ltd. Dmitry Belimov <d.belimov@gmail.com> */
+		.name           = "Beholder BeholdTV A7",
+		.audio_clock    = 0x00187de7,
+		.tuner_type     = TUNER_XC5000,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.inputs         = { {
+			.name = name_tv,
+			.vmux = 2,
+			.amux = TV,
+			.tv   = 1,
+		}, {
+			.name = name_comp1,
+			.vmux = 0,
+			.amux = LINE1,
+		}, {
+			.name = name_svideo,
+			.vmux = 9,
+			.amux = LINE1,
+		} },
+		.radio = {
+			.name = name_radio,
+			.amux = TV,
+		},
+	},
 
 };
 
@@ -6549,6 +6622,18 @@ struct pci_device_id saa7134_pci_tbl[] = {
 		.subvendor    = PCI_ANY_ID,
 		.subdevice    = PCI_ANY_ID,
 		.driver_data  = SAA7134_BOARD_UNKNOWN,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x5ace, /* Beholder Intl. Ltd. */
+		.subdevice    = 0x7190,
+		.driver_data  = SAA7134_BOARD_BEHOLD_H7,
+	}, {
+		.vendor       = PCI_VENDOR_ID_PHILIPS,
+		.device       = PCI_DEVICE_ID_PHILIPS_SAA7133,
+		.subvendor    = 0x5ace, /* Beholder Intl. Ltd. */
+		.subdevice    = 0x7090,
+		.driver_data  = SAA7134_BOARD_BEHOLD_A7,
 	},{
 		/* --- end of list --- */
 	}
@@ -6602,6 +6687,8 @@ static int saa7134_xc5000_callback(struct saa7134_dev *dev,
 {
 	switch (dev->board) {
 	case SAA7134_BOARD_BEHOLD_X7:
+	case SAA7134_BOARD_BEHOLD_H7:
+	case SAA7134_BOARD_BEHOLD_A7:
 		if (command == XC5000_TUNER_RESET) {
 		/* Down and UP pheripherial RESET pin for reset all chips */
 			saa_writeb(SAA7134_SPECIAL_MODE, 0x00);
@@ -6973,6 +7060,8 @@ int saa7134_board_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_M6_EXTRA:
 	case SAA7134_BOARD_BEHOLD_H6:
 	case SAA7134_BOARD_BEHOLD_X7:
+	case SAA7134_BOARD_BEHOLD_H7:
+	case SAA7134_BOARD_BEHOLD_A7:
 		dev->has_remote = SAA7134_REMOTE_I2C;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A169_B:
@@ -7215,6 +7304,11 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 		       printk(KERN_INFO "%s: P7131 analog only, using "
 						       "entry of %s\n",
 		       dev->name, saa7134_boards[dev->board].name);
+
+			/* IR init has already happened for other cards, so
+			 * we have to catch up. */
+			dev->has_remote = SAA7134_REMOTE_GPIO;
+			saa7134_input_init1(dev);
 	       }
 	       break;
 	case SAA7134_BOARD_HAUPPAUGE_HVR1150:
@@ -7342,6 +7436,23 @@ int saa7134_board_init2(struct saa7134_dev *dev)
 				       "%s: Unable to enable tuner(%i).\n",
 				       dev->name, i);
 		}
+		break;
+	}
+	case SAA7134_BOARD_BEHOLD_H6:
+	{
+		u8 data[] = { 0x09, 0x9f, 0x86, 0x11};
+		struct i2c_msg msg = {.addr = 0x61, .flags = 0, .buf = data,
+							.len = sizeof(data)};
+
+		/* The tuner TUNER_PHILIPS_FMD1216MEX_MK3 after hardware    */
+		/* start has disabled IF and enabled DVB-T. When saa7134    */
+		/* scan I2C devices it not detect IF tda9887 and can`t      */
+		/* watch TV without software reboot. For solve this problem */
+		/* switch the tuner to analog TV mode manually.             */
+		if (i2c_transfer(&dev->i2c_adap, &msg, 1) != 1)
+				printk(KERN_WARNING
+				      "%s: Unable to enable IF of the tuner.\n",
+				       dev->name);
 		break;
 	}
 	} /* switch() */

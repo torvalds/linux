@@ -54,34 +54,34 @@ static void init_controls(struct cx25821_dev *dev, int chan_num);
 
 struct cx25821_fmt formats[] = {
 	{
-	 .name = "8 bpp, gray",
-	 .fourcc = V4L2_PIX_FMT_GREY,
-	 .depth = 8,
-	 .flags = FORMAT_FLAGS_PACKED,
+		.name = "8 bpp, gray",
+		.fourcc = V4L2_PIX_FMT_GREY,
+		.depth = 8,
+		.flags = FORMAT_FLAGS_PACKED,
 	 }, {
-	     .name = "4:1:1, packed, Y41P",
-	     .fourcc = V4L2_PIX_FMT_Y41P,
-	     .depth = 12,
-	     .flags = FORMAT_FLAGS_PACKED,
-	     }, {
-		 .name = "4:2:2, packed, YUYV",
-		 .fourcc = V4L2_PIX_FMT_YUYV,
-		 .depth = 16,
-		 .flags = FORMAT_FLAGS_PACKED,
-		 }, {
-		     .name = "4:2:2, packed, UYVY",
-		     .fourcc = V4L2_PIX_FMT_UYVY,
-		     .depth = 16,
-		     .flags = FORMAT_FLAGS_PACKED,
-		     }, {
-			 .name = "4:2:0, YUV",
-			 .fourcc = V4L2_PIX_FMT_YUV420,
-			 .depth = 12,
-			 .flags = FORMAT_FLAGS_PACKED,
-			 },
+		.name = "4:1:1, packed, Y41P",
+		.fourcc = V4L2_PIX_FMT_Y41P,
+		.depth = 12,
+		.flags = FORMAT_FLAGS_PACKED,
+	}, {
+		.name = "4:2:2, packed, YUYV",
+		.fourcc = V4L2_PIX_FMT_YUYV,
+		.depth = 16,
+		.flags = FORMAT_FLAGS_PACKED,
+	}, {
+		.name = "4:2:2, packed, UYVY",
+		.fourcc = V4L2_PIX_FMT_UYVY,
+		.depth = 16,
+		.flags = FORMAT_FLAGS_PACKED,
+	}, {
+		.name = "4:2:0, YUV",
+		.fourcc = V4L2_PIX_FMT_YUV420,
+		.depth = 12,
+		.flags = FORMAT_FLAGS_PACKED,
+	},
 };
 
-int get_format_size(void)
+int cx25821_get_format_size(void)
 {
 	return ARRAY_SIZE(formats);
 }
@@ -102,7 +102,7 @@ struct cx25821_fmt *format_by_fourcc(unsigned int fourcc)
 	return NULL;
 }
 
-void dump_video_queue(struct cx25821_dev *dev, struct cx25821_dmaqueue *q)
+void cx25821_dump_video_queue(struct cx25821_dev *dev, struct cx25821_dmaqueue *q)
 {
 	struct cx25821_buffer *buf;
 	struct list_head *item;
@@ -212,7 +212,7 @@ static int cx25821_ctrl_query(struct v4l2_queryctrl *qctrl)
 */
 
 // resource management
-int res_get(struct cx25821_dev *dev, struct cx25821_fh *fh, unsigned int bit)
+int cx25821_res_get(struct cx25821_dev *dev, struct cx25821_fh *fh, unsigned int bit)
 {
 	dprintk(1, "%s()\n", __func__);
 	if (fh->resources & bit)
@@ -234,17 +234,17 @@ int res_get(struct cx25821_dev *dev, struct cx25821_fh *fh, unsigned int bit)
 	return 1;
 }
 
-int res_check(struct cx25821_fh *fh, unsigned int bit)
+int cx25821_res_check(struct cx25821_fh *fh, unsigned int bit)
 {
 	return fh->resources & bit;
 }
 
-int res_locked(struct cx25821_dev *dev, unsigned int bit)
+int cx25821_res_locked(struct cx25821_dev *dev, unsigned int bit)
 {
 	return dev->resources & bit;
 }
 
-void res_free(struct cx25821_dev *dev, struct cx25821_fh *fh, unsigned int bits)
+void cx25821_res_free(struct cx25821_dev *dev, struct cx25821_fh *fh, unsigned int bits)
 {
 	BUG_ON((fh->resources & bits) != bits);
 	dprintk(1, "%s()\n", __func__);
@@ -506,7 +506,7 @@ int cx25821_video_register(struct cx25821_dev *dev, int chan_num,
 	return err;
 }
 
-int buffer_setup(struct videobuf_queue *q, unsigned int *count,
+int cx25821_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 		 unsigned int *size)
 {
 	struct cx25821_fh *fh = q->priv_data;
@@ -516,13 +516,13 @@ int buffer_setup(struct videobuf_queue *q, unsigned int *count,
 	if (0 == *count)
 		*count = 32;
 
-	while (*size * *count > vid_limit * 1024 * 1024)
-		(*count)--;
+	if (*size * *count > vid_limit * 1024 * 1024)
+		*count = (vid_limit * 1024 * 1024) / *size;
 
 	return 0;
 }
 
-int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
+int cx25821_buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		   enum v4l2_field field)
 {
 	struct cx25821_fh *fh = q->priv_data;
@@ -648,7 +648,7 @@ int buffer_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	return rc;
 }
 
-void buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
+void cx25821_buffer_release(struct videobuf_queue *q, struct videobuf_buffer *vb)
 {
 	struct cx25821_buffer *buf =
 	    container_of(vb, struct cx25821_buffer, vb);
@@ -667,7 +667,7 @@ struct videobuf_queue *get_queue(struct cx25821_fh *fh)
 	}
 }
 
-int get_resource(struct cx25821_fh *fh, int resource)
+int cx25821_get_resource(struct cx25821_fh *fh, int resource)
 {
 	switch (fh->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
@@ -678,7 +678,7 @@ int get_resource(struct cx25821_fh *fh, int resource)
 	}
 }
 
-int video_mmap(struct file *file, struct vm_area_struct *vma)
+int cx25821_video_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct cx25821_fh *fh = file->private_data;
 
@@ -686,7 +686,7 @@ int video_mmap(struct file *file, struct vm_area_struct *vma)
 }
 
 /* VIDEO IOCTLS                                                       */
-int vidioc_g_fmt_vid_cap(struct file *file, void *priv, struct v4l2_format *f)
+int cx25821_vidioc_g_fmt_vid_cap(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct cx25821_fh *fh = priv;
 
@@ -700,7 +700,7 @@ int vidioc_g_fmt_vid_cap(struct file *file, void *priv, struct v4l2_format *f)
 	return 0;
 }
 
-int vidioc_try_fmt_vid_cap(struct file *file, void *priv, struct v4l2_format *f)
+int cx25821_vidioc_try_fmt_vid_cap(struct file *file, void *priv, struct v4l2_format *f)
 {
 	struct cx25821_fmt *fmt;
 	enum v4l2_field field;
@@ -746,7 +746,7 @@ int vidioc_try_fmt_vid_cap(struct file *file, void *priv, struct v4l2_format *f)
 	return 0;
 }
 
-int vidioc_querycap(struct file *file, void *priv, struct v4l2_capability *cap)
+int cx25821_vidioc_querycap(struct file *file, void *priv, struct v4l2_capability *cap)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 
@@ -761,7 +761,7 @@ int vidioc_querycap(struct file *file, void *priv, struct v4l2_capability *cap)
 	return 0;
 }
 
-int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
+int cx25821_vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 			    struct v4l2_fmtdesc *f)
 {
 	if (unlikely(f->index >= ARRAY_SIZE(formats)))
@@ -774,7 +774,7 @@ int vidioc_enum_fmt_vid_cap(struct file *file, void *priv,
 }
 
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
-int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
+int cx25821_vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
 {
 	struct cx25821_fh *fh = priv;
 	struct videobuf_queue *q;
@@ -801,25 +801,25 @@ int vidiocgmbuf(struct file *file, void *priv, struct video_mbuf *mbuf)
 }
 #endif
 
-int vidioc_reqbufs(struct file *file, void *priv, struct v4l2_requestbuffers *p)
+int cx25821_vidioc_reqbufs(struct file *file, void *priv, struct v4l2_requestbuffers *p)
 {
 	struct cx25821_fh *fh = priv;
 	return videobuf_reqbufs(get_queue(fh), p);
 }
 
-int vidioc_querybuf(struct file *file, void *priv, struct v4l2_buffer *p)
+int cx25821_vidioc_querybuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct cx25821_fh *fh = priv;
 	return videobuf_querybuf(get_queue(fh), p);
 }
 
-int vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
+int cx25821_vidioc_qbuf(struct file *file, void *priv, struct v4l2_buffer *p)
 {
 	struct cx25821_fh *fh = priv;
 	return videobuf_qbuf(get_queue(fh), p);
 }
 
-int vidioc_g_priority(struct file *file, void *f, enum v4l2_priority *p)
+int cx25821_vidioc_g_priority(struct file *file, void *f, enum v4l2_priority *p)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)f)->dev;
 
@@ -828,7 +828,7 @@ int vidioc_g_priority(struct file *file, void *f, enum v4l2_priority *p)
 	return 0;
 }
 
-int vidioc_s_priority(struct file *file, void *f, enum v4l2_priority prio)
+int cx25821_vidioc_s_priority(struct file *file, void *f, enum v4l2_priority prio)
 {
 	struct cx25821_fh *fh = f;
 	struct cx25821_dev *dev = ((struct cx25821_fh *)f)->dev;
@@ -837,7 +837,7 @@ int vidioc_s_priority(struct file *file, void *f, enum v4l2_priority prio)
 }
 
 #ifdef TUNER_FLAG
-int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * tvnorms)
+int cx25821_vidioc_s_std(struct file *file, void *priv, v4l2_std_id * tvnorms)
 {
 	struct cx25821_fh *fh = priv;
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
@@ -846,7 +846,7 @@ int vidioc_s_std(struct file *file, void *priv, v4l2_std_id * tvnorms)
 	dprintk(1, "%s()\n", __func__);
 
 	if (fh) {
-		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		err = v4l2_prio_check(&dev->prio, fh->prio);
 		if (0 != err)
 			return err;
 	}
@@ -891,14 +891,14 @@ int cx25821_enum_input(struct cx25821_dev *dev, struct v4l2_input *i)
 	return 0;
 }
 
-int vidioc_enum_input(struct file *file, void *priv, struct v4l2_input *i)
+int cx25821_vidioc_enum_input(struct file *file, void *priv, struct v4l2_input *i)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 	dprintk(1, "%s()\n", __func__);
 	return cx25821_enum_input(dev, i);
 }
 
-int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
+int cx25821_vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 
@@ -907,7 +907,7 @@ int vidioc_g_input(struct file *file, void *priv, unsigned int *i)
 	return 0;
 }
 
-int vidioc_s_input(struct file *file, void *priv, unsigned int i)
+int cx25821_vidioc_s_input(struct file *file, void *priv, unsigned int i)
 {
 	struct cx25821_fh *fh = priv;
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
@@ -916,7 +916,7 @@ int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 	dprintk(1, "%s(%d)\n", __func__, i);
 
 	if (fh) {
-		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		err = v4l2_prio_check(&dev->prio, fh->prio);
 		if (0 != err)
 			return err;
 	}
@@ -933,7 +933,7 @@ int vidioc_s_input(struct file *file, void *priv, unsigned int i)
 }
 
 #ifdef TUNER_FLAG
-int vidioc_g_frequency(struct file *file, void *priv, struct v4l2_frequency *f)
+int cx25821_vidioc_g_frequency(struct file *file, void *priv, struct v4l2_frequency *f)
 {
 	struct cx25821_fh *fh = priv;
 	struct cx25821_dev *dev = fh->dev;
@@ -960,15 +960,14 @@ int cx25821_set_freq(struct cx25821_dev *dev, struct v4l2_frequency *f)
 	return 0;
 }
 
-int vidioc_s_frequency(struct file *file, void *priv, struct v4l2_frequency *f)
+int cx25821_vidioc_s_frequency(struct file *file, void *priv, struct v4l2_frequency *f)
 {
 	struct cx25821_fh *fh = priv;
 	struct cx25821_dev *dev;
 	int err;
 
 	if (fh) {
-		dev = fh->dev;
-		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		err = v4l2_prio_check(&dev->prio, fh->prio);
 		if (0 != err)
 			return err;
 	}
@@ -978,7 +977,7 @@ int vidioc_s_frequency(struct file *file, void *priv, struct v4l2_frequency *f)
 #endif
 
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-int vidioc_g_register(struct file *file, void *fh,
+int cx25821_vidioc_g_register(struct file *file, void *fh,
 		      struct v4l2_dbg_register *reg)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)fh)->dev;
@@ -991,7 +990,7 @@ int vidioc_g_register(struct file *file, void *fh,
 	return 0;
 }
 
-int vidioc_s_register(struct file *file, void *fh,
+int cx25821_vidioc_s_register(struct file *file, void *fh,
 		      struct v4l2_dbg_register *reg)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)fh)->dev;
@@ -1007,7 +1006,7 @@ int vidioc_s_register(struct file *file, void *fh,
 #endif
 
 #ifdef TUNER_FLAG
-int vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
+int cx25821_vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 
@@ -1025,14 +1024,14 @@ int vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 	return 0;
 }
 
-int vidioc_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
+int cx25821_vidioc_s_tuner(struct file *file, void *priv, struct v4l2_tuner *t)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 	struct cx25821_fh *fh = priv;
 	int err;
 
 	if (fh) {
-		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		err = v4l2_prio_check(&dev->prio, fh->prio);
 		if (0 != err)
 			return err;
 	}
@@ -1108,7 +1107,7 @@ static int cx25821_ctrl_query(struct v4l2_queryctrl *qctrl)
 	return 0;
 }
 
-int vidioc_queryctrl(struct file *file, void *priv,
+int cx25821_vidioc_queryctrl(struct file *file, void *priv,
 		     struct v4l2_queryctrl *qctrl)
 {
 	return cx25821_ctrl_query(qctrl);
@@ -1127,7 +1126,7 @@ static const struct v4l2_queryctrl *ctrl_by_id(unsigned int id)
 	return NULL;
 }
 
-int vidioc_g_ctrl(struct file *file, void *priv, struct v4l2_control *ctl)
+int cx25821_vidioc_g_ctrl(struct file *file, void *priv, struct v4l2_control *ctl)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 
@@ -1216,7 +1215,7 @@ static void init_controls(struct cx25821_dev *dev, int chan_num)
 	}
 }
 
-int vidioc_cropcap(struct file *file, void *priv, struct v4l2_cropcap *cropcap)
+int cx25821_vidioc_cropcap(struct file *file, void *priv, struct v4l2_cropcap *cropcap)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 
@@ -1233,28 +1232,28 @@ int vidioc_cropcap(struct file *file, void *priv, struct v4l2_cropcap *cropcap)
 	return 0;
 }
 
-int vidioc_s_crop(struct file *file, void *priv, struct v4l2_crop *crop)
+int cx25821_vidioc_s_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 {
 	struct cx25821_dev *dev = ((struct cx25821_fh *)priv)->dev;
 	struct cx25821_fh *fh = priv;
 	int err;
 
 	if (fh) {
-		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		err = v4l2_prio_check(&dev->prio, fh->prio);
 		if (0 != err)
 			return err;
 	}
-	// vidioc_s_crop not supported
+	// cx25821_vidioc_s_crop not supported
 	return -EINVAL;
 }
 
-int vidioc_g_crop(struct file *file, void *priv, struct v4l2_crop *crop)
+int cx25821_vidioc_g_crop(struct file *file, void *priv, struct v4l2_crop *crop)
 {
-	// vidioc_g_crop not supported
+	// cx25821_vidioc_g_crop not supported
 	return -EINVAL;
 }
 
-int vidioc_querystd(struct file *file, void *priv, v4l2_std_id * norm)
+int cx25821_vidioc_querystd(struct file *file, void *priv, v4l2_std_id * norm)
 {
 	// medusa does not support video standard sensing of current input
 	*norm = CX25821_NORMS;
@@ -1262,7 +1261,7 @@ int vidioc_querystd(struct file *file, void *priv, v4l2_std_id * norm)
 	return 0;
 }
 
-int is_valid_width(u32 width, v4l2_std_id tvnorm)
+int cx25821_is_valid_width(u32 width, v4l2_std_id tvnorm)
 {
 	if (tvnorm == V4L2_STD_PAL_BG) {
 		if (width == 352 || width == 720)
@@ -1280,7 +1279,7 @@ int is_valid_width(u32 width, v4l2_std_id tvnorm)
 	return 0;
 }
 
-int is_valid_height(u32 height, v4l2_std_id tvnorm)
+int cx25821_is_valid_height(u32 height, v4l2_std_id tvnorm)
 {
 	if (tvnorm == V4L2_STD_PAL_BG) {
 		if (height == 576 || height == 288)

@@ -41,7 +41,7 @@
 
 #include <linux/version.h>
 #include <linux/mutex.h>
-#define CX88_VERSION_CODE KERNEL_VERSION(0,0,7)
+#define CX88_VERSION_CODE KERNEL_VERSION(0, 0, 8)
 
 #define UNSET (-1U)
 
@@ -290,7 +290,7 @@ struct cx88_subid {
 #define RESOURCE_VIDEO         2
 #define RESOURCE_VBI           4
 
-#define BUFFER_TIMEOUT     msecs_to_jiffies(500)  /* 0.5 seconds */
+#define BUFFER_TIMEOUT     msecs_to_jiffies(2000)
 
 /* buffer for one video frame */
 struct cx88_buffer {
@@ -683,8 +683,8 @@ s32 cx88_dsp_detect_stereo_sap(struct cx88_core *core);
 int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci);
 int cx88_ir_fini(struct cx88_core *core);
 void cx88_ir_irq(struct cx88_core *core);
-void cx88_ir_start(struct cx88_core *core, struct cx88_IR *ir);
-void cx88_ir_stop(struct cx88_core *core, struct cx88_IR *ir);
+int cx88_ir_start(struct cx88_core *core);
+void cx88_ir_stop(struct cx88_core *core);
 
 /* ----------------------------------------------------------- */
 /* cx88-mpeg.c                                                 */

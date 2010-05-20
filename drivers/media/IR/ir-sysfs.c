@@ -1,6 +1,6 @@
-/* ir-register.c - handle IR scancode->keycode tables
+/* ir-sysfs.c - sysfs interface for RC devices (/sys/class/rc)
  *
- * Copyright (C) 2009 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (C) 2009-2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
  *
  * This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -15,15 +15,23 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/device.h>
-#include <media/ir-core.h>
+#include "ir-core-priv.h"
 
 #define IRRCV_NUM_DEVICES	256
 
 /* bit array to represent IR sysfs device number */
 static unsigned long ir_core_dev_number;
 
-/* class for /sys/class/irrcv */
-static struct class *ir_input_class;
+/* class for /sys/class/rc */
+static char *ir_devnode(struct device *dev, mode_t *mode)
+{
+	return kasprintf(GFP_KERNEL, "rc/%s", dev_name(dev));
+}
+
+static struct class ir_input_class = {
+	.name		= "rc",
+	.devnode	= ir_devnode,
+};
 
 /**
  * show_protocol() - shows the current IR protocol
@@ -32,7 +40,7 @@ static struct class *ir_input_class;
  * @buf:	a pointer to the output buffer
  *
  * This routine is a callback routine for input read the IR protocol type.
- * it is trigged by reading /sys/class/irrcv/irrcv?/current_protocol.
+ * it is trigged by reading /sys/class/rc/rc?/current_protocol.
  * It returns the protocol name, as understood by the driver.
  */
 static ssize_t show_protocol(struct device *d,
@@ -48,13 +56,17 @@ static ssize_t show_protocol(struct device *d,
 	if (ir_type == IR_TYPE_UNKNOWN)
 		s = "Unknown";
 	else if (ir_type == IR_TYPE_RC5)
-		s = "RC-5";
-	else if (ir_type == IR_TYPE_PD)
-		s = "Pulse/distance";
+		s = "rc-5";
 	else if (ir_type == IR_TYPE_NEC)
-		s = "NEC";
+		s = "nec";
+	else if (ir_type == IR_TYPE_RC6)
+		s = "rc6";
+	else if (ir_type == IR_TYPE_JVC)
+		s = "jvc";
+	else if (ir_type == IR_TYPE_SONY)
+		s = "sony";
 	else
-		s = "Other";
+		s = "other";
 
 	return sprintf(buf, "%s\n", s);
 }
@@ -67,7 +79,7 @@ static ssize_t show_protocol(struct device *d,
  * @len:	length of the input buffer
  *
  * This routine is a callback routine for changing the IR protocol type.
- * it is trigged by reading /sys/class/irrcv/irrcv?/current_protocol.
+ * it is trigged by reading /sys/class/rc/rc?/current_protocol.
  * It changes the IR the protocol name, if the IR type is recognized
  * by the driver.
  * If an unknown protocol name is used, returns -EINVAL.
@@ -78,23 +90,24 @@ static ssize_t store_protocol(struct device *d,
 			      size_t len)
 {
 	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
-	u64 ir_type = IR_TYPE_UNKNOWN;
+	u64 ir_type = 0;
 	int rc = -EINVAL;
 	unsigned long flags;
 	char *buf;
 
-	buf = strsep((char **) &data, "\n");
+	while ((buf = strsep((char **) &data, " \n")) != NULL) {
+		if (!strcasecmp(buf, "rc-5") || !strcasecmp(buf, "rc5"))
+			ir_type |= IR_TYPE_RC5;
+		if (!strcasecmp(buf, "nec"))
+			ir_type |= IR_TYPE_NEC;
+		if (!strcasecmp(buf, "jvc"))
+			ir_type |= IR_TYPE_JVC;
+		if (!strcasecmp(buf, "sony"))
+			ir_type |= IR_TYPE_SONY;
+	}
 
-	if (!strcasecmp(buf, "rc-5"))
-		ir_type = IR_TYPE_RC5;
-	else if (!strcasecmp(buf, "pd"))
-		ir_type = IR_TYPE_PD;
-	else if (!strcasecmp(buf, "nec"))
-		ir_type = IR_TYPE_NEC;
-
-	if (ir_type == IR_TYPE_UNKNOWN) {
-		IR_dprintk(1, "Error setting protocol to %lld\n",
-			   (long long)ir_type);
+	if (!ir_type) {
+		IR_dprintk(1, "Unknown protocol\n");
 		return -EINVAL;
 	}
 
@@ -112,25 +125,87 @@ static ssize_t store_protocol(struct device *d,
 	ir_dev->rc_tab.ir_type = ir_type;
 	spin_unlock_irqrestore(&ir_dev->rc_tab.lock, flags);
 
-	IR_dprintk(1, "Current protocol is %lld\n",
+	IR_dprintk(1, "Current protocol(s) is(are) %lld\n",
 		   (long long)ir_type);
 
 	return len;
 }
 
+static ssize_t show_supported_protocols(struct device *d,
+			     struct device_attribute *mattr, char *buf)
+{
+	char *orgbuf = buf;
+	struct ir_input_dev *ir_dev = dev_get_drvdata(d);
+
+	/* FIXME: doesn't support multiple protocols at the same time */
+	if (ir_dev->props->allowed_protos == IR_TYPE_UNKNOWN)
+		buf += sprintf(buf, "unknown ");
+	if (ir_dev->props->allowed_protos & IR_TYPE_RC5)
+		buf += sprintf(buf, "rc-5 ");
+	if (ir_dev->props->allowed_protos & IR_TYPE_NEC)
+		buf += sprintf(buf, "nec ");
+	if (buf == orgbuf)
+		buf += sprintf(buf, "other ");
+
+	buf += sprintf(buf - 1, "\n");
+
+	return buf - orgbuf;
+}
+
+#define ADD_HOTPLUG_VAR(fmt, val...)					\
+	do {								\
+		int err = add_uevent_var(env, fmt, val);		\
+		if (err)						\
+			return err;					\
+	} while (0)
+
+static int ir_dev_uevent(struct device *device, struct kobj_uevent_env *env)
+{
+	struct ir_input_dev *ir_dev = dev_get_drvdata(device);
+
+	if (ir_dev->rc_tab.name)
+		ADD_HOTPLUG_VAR("NAME=%s", ir_dev->rc_tab.name);
+	if (ir_dev->driver_name)
+		ADD_HOTPLUG_VAR("DRV_NAME=%s", ir_dev->driver_name);
+
+	return 0;
+}
+
 /*
  * Static device attribute struct with the sysfs attributes for IR's
  */
-static DEVICE_ATTR(current_protocol, S_IRUGO | S_IWUSR,
+static DEVICE_ATTR(protocol, S_IRUGO | S_IWUSR,
 		   show_protocol, store_protocol);
 
-static struct attribute *ir_dev_attrs[] = {
-	&dev_attr_current_protocol.attr,
+static DEVICE_ATTR(supported_protocols, S_IRUGO | S_IWUSR,
+		   show_supported_protocols, NULL);
+
+static struct attribute *ir_hw_dev_attrs[] = {
+	&dev_attr_protocol.attr,
+	&dev_attr_supported_protocols.attr,
 	NULL,
 };
 
+static struct attribute_group ir_hw_dev_attr_grp = {
+	.attrs	= ir_hw_dev_attrs,
+};
+
+static const struct attribute_group *ir_hw_dev_attr_groups[] = {
+	&ir_hw_dev_attr_grp,
+	NULL
+};
+
+static struct device_type rc_dev_type = {
+	.groups		= ir_hw_dev_attr_groups,
+	.uevent		= ir_dev_uevent,
+};
+
+static struct device_type ir_raw_dev_type = {
+	.uevent		= ir_dev_uevent,
+};
+
 /**
- * ir_register_class() - creates the sysfs for /sys/class/irrcv/irrcv?
+ * ir_register_class() - creates the sysfs for /sys/class/rc/rc?
  * @input_dev:	the struct input_dev descriptor of the device
  *
  * This routine is used to register the syfs code for IR class
@@ -138,8 +213,7 @@ static struct attribute *ir_dev_attrs[] = {
 int ir_register_class(struct input_dev *input_dev)
 {
 	int rc;
-	struct kobject *kobj;
-
+	const char *path;
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 	int devno = find_first_zero_bit(&ir_core_dev_number,
 					IRRCV_NUM_DEVICES);
@@ -147,18 +221,35 @@ int ir_register_class(struct input_dev *input_dev)
 	if (unlikely(devno < 0))
 		return devno;
 
-	ir_dev->attr.attrs = ir_dev_attrs;
-	ir_dev->class_dev = device_create(ir_input_class, NULL,
-					  input_dev->dev.devt, ir_dev,
-					  "irrcv%d", devno);
-	kobj = &ir_dev->class_dev->kobj;
+	if (ir_dev->props->driver_type == RC_DRIVER_SCANCODE)
+		ir_dev->dev.type = &rc_dev_type;
+	else
+		ir_dev->dev.type = &ir_raw_dev_type;
 
-	printk(KERN_WARNING "Creating IR device %s\n", kobject_name(kobj));
-	rc = sysfs_create_group(kobj, &ir_dev->attr);
-	if (unlikely(rc < 0)) {
-		device_destroy(ir_input_class, input_dev->dev.devt);
-		return -ENOMEM;
+	ir_dev->dev.class = &ir_input_class;
+	ir_dev->dev.parent = input_dev->dev.parent;
+	dev_set_name(&ir_dev->dev, "rc%d", devno);
+	dev_set_drvdata(&ir_dev->dev, ir_dev);
+	rc = device_register(&ir_dev->dev);
+	if (rc)
+		return rc;
+
+
+	input_dev->dev.parent = &ir_dev->dev;
+	rc = input_register_device(input_dev);
+	if (rc < 0) {
+		device_del(&ir_dev->dev);
+		return rc;
 	}
+
+	__module_get(THIS_MODULE);
+
+	path = kobject_get_path(&ir_dev->dev.kobj, GFP_KERNEL);
+	printk(KERN_INFO "%s: %s as %s\n",
+		dev_name(&ir_dev->dev),
+		input_dev->name ? input_dev->name : "Unspecified device",
+		path ? path : "N/A");
+	kfree(path);
 
 	ir_dev->devno = devno;
 	set_bit(devno, &ir_core_dev_number);
@@ -168,7 +259,7 @@ int ir_register_class(struct input_dev *input_dev)
 
 /**
  * ir_unregister_class() - removes the sysfs for sysfs for
- *			   /sys/class/irrcv/irrcv?
+ *			   /sys/class/rc/rc?
  * @input_dev:	the struct input_dev descriptor of the device
  *
  * This routine is used to unregister the syfs code for IR class
@@ -176,36 +267,35 @@ int ir_register_class(struct input_dev *input_dev)
 void ir_unregister_class(struct input_dev *input_dev)
 {
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	struct kobject *kobj;
 
 	clear_bit(ir_dev->devno, &ir_core_dev_number);
+	input_unregister_device(input_dev);
+	device_del(&ir_dev->dev);
 
-	kobj = &ir_dev->class_dev->kobj;
-
-	sysfs_remove_group(kobj, &ir_dev->attr);
-	device_destroy(ir_input_class, input_dev->dev.devt);
-
-	kfree(ir_dev->attr.name);
+	module_put(THIS_MODULE);
 }
 
 /*
- * Init/exit code for the module. Basically, creates/removes /sys/class/irrcv
+ * Init/exit code for the module. Basically, creates/removes /sys/class/rc
  */
 
 static int __init ir_core_init(void)
 {
-	ir_input_class = class_create(THIS_MODULE, "irrcv");
-	if (IS_ERR(ir_input_class)) {
-		printk(KERN_ERR "ir_core: unable to register irrcv class\n");
-		return PTR_ERR(ir_input_class);
+	int rc = class_register(&ir_input_class);
+	if (rc) {
+		printk(KERN_ERR "ir_core: unable to register rc class\n");
+		return rc;
 	}
+
+	/* Initialize/load the decoders/keymap code that will be used */
+	ir_raw_init();
 
 	return 0;
 }
 
 static void __exit ir_core_exit(void)
 {
-	class_destroy(ir_input_class);
+	class_unregister(&ir_input_class);
 }
 
 module_init(ir_core_init);

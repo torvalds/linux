@@ -1,5 +1,5 @@
   0 -> Unknown EM2800 video grabber             (em2800)        [eb1a:2800]
-  1 -> Unknown EM2750/28xx video grabber        (em2820/em2840) [eb1a:2710,eb1a:2820,eb1a:2821,eb1a:2860,eb1a:2861,eb1a:2862,eb1a:2870,eb1a:2881,eb1a:2883,eb1a:2868]
+  1 -> Unknown EM2750/28xx video grabber        (em2820/em2840) [eb1a:2710,eb1a:2820,eb1a:2821,eb1a:2860,eb1a:2861,eb1a:2862,eb1a:2863,eb1a:2870,eb1a:2881,eb1a:2883,eb1a:2868]
   2 -> Terratec Cinergy 250 USB                 (em2820/em2840) [0ccd:0036]
   3 -> Pinnacle PCTV USB 2                      (em2820/em2840) [2304:0208]
   4 -> Hauppauge WinTV USB 2                    (em2820/em2840) [2040:4200,2040:4201]
@@ -27,6 +27,7 @@
  26 -> Hercules Smart TV USB 2.0                (em2820/em2840)
  27 -> Pinnacle PCTV USB 2 (Philips FM1216ME)   (em2820/em2840)
  28 -> Leadtek Winfast USB II Deluxe            (em2820/em2840)
+ 29 -> EM2860/TVP5150 Reference Design          (em2860)
  30 -> Videology 20K14XUSB USB2.0               (em2820/em2840)
  31 -> Usbgear VD204v9                          (em2821)
  32 -> Supercomp USB 2.0 TV                     (em2821)
@@ -70,3 +71,4 @@
  72 -> Gadmei UTV330+                           (em2861)
  73 -> Reddo DVB-C USB TV Box                   (em2870)
  74 -> Actionmaster/LinXcel/Digitus VC211A      (em2800)
+ 75 -> Dikom DK300                              (em2882)

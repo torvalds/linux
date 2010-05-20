@@ -28,7 +28,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/input.h>
 #include <linux/slab.h>
-#include <media/ir-common.h>
+#include <media/ir-core.h>
 
 #include "demux.h"
 #include "dmxdev.h"
@@ -45,6 +45,8 @@
 #include "cx24116.h"
 #include "z0194a.h"
 #include "ds3000.h"
+
+#define MODULE_NAME "dm1105"
 
 #define UNSET (-1U)
 
@@ -265,7 +267,6 @@ static void dm1105_card_list(struct pci_dev *pci)
 /* infrared remote control */
 struct infrared {
 	struct input_dev	*input_dev;
-	struct ir_input_state	ir;
 	char			input_phys[32];
 	struct work_struct	work;
 	u32			ir_command;
@@ -531,8 +532,7 @@ static void dm1105_emit_key(struct work_struct *work)
 
 	data = (ircom >> 8) & 0x7f;
 
-	ir_input_keydown(ir->input_dev, &ir->ir, data);
-	ir_input_nokey(ir->input_dev, &ir->ir);
+	ir_keydown(ir->input_dev, data, 0);
 }
 
 /* work handler */
@@ -594,8 +594,7 @@ static irqreturn_t dm1105_irq(int irq, void *dev_id)
 int __devinit dm1105_ir_init(struct dm1105_dev *dm1105)
 {
 	struct input_dev *input_dev;
-	struct ir_scancode_table *ir_codes = &ir_codes_dm1105_nec_table;
-	u64 ir_type = IR_TYPE_OTHER;
+	char *ir_codes = NULL;
 	int err = -ENOMEM;
 
 	input_dev = input_allocate_device();
@@ -605,12 +604,6 @@ int __devinit dm1105_ir_init(struct dm1105_dev *dm1105)
 	dm1105->ir.input_dev = input_dev;
 	snprintf(dm1105->ir.input_phys, sizeof(dm1105->ir.input_phys),
 		"pci-%s/ir0", pci_name(dm1105->pdev));
-
-	err = ir_input_init(input_dev, &dm1105->ir.ir, ir_type);
-	if (err < 0) {
-		input_free_device(input_dev);
-		return err;
-	}
 
 	input_dev->name = "DVB on-card IR receiver";
 	input_dev->phys = dm1105->ir.input_phys;
@@ -628,9 +621,13 @@ int __devinit dm1105_ir_init(struct dm1105_dev *dm1105)
 
 	INIT_WORK(&dm1105->ir.work, dm1105_emit_key);
 
-	err = ir_input_register(input_dev, ir_codes, NULL);
+	err = ir_input_register(input_dev, ir_codes, NULL, MODULE_NAME);
+	if (err < 0) {
+		input_free_device(input_dev);
+		return err;
+	}
 
-	return err;
+	return 0;
 }
 
 void __devexit dm1105_ir_exit(struct dm1105_dev *dm1105)

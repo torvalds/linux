@@ -96,10 +96,9 @@ int cx231xx_register_extension(struct cx231xx_ops *ops)
 	mutex_lock(&cx231xx_devlist_mutex);
 	mutex_lock(&cx231xx_extension_devlist_lock);
 	list_add_tail(&ops->next, &cx231xx_extension_devlist);
-	list_for_each_entry(dev, &cx231xx_devlist, devlist) {
-		if (dev)
-			ops->init(dev);
-	}
+	list_for_each_entry(dev, &cx231xx_devlist, devlist)
+		ops->init(dev);
+
 	printk(KERN_INFO DRIVER_NAME ": %s initialized\n", ops->name);
 	mutex_unlock(&cx231xx_extension_devlist_lock);
 	mutex_unlock(&cx231xx_devlist_mutex);
@@ -112,10 +111,8 @@ void cx231xx_unregister_extension(struct cx231xx_ops *ops)
 	struct cx231xx *dev = NULL;
 
 	mutex_lock(&cx231xx_devlist_mutex);
-	list_for_each_entry(dev, &cx231xx_devlist, devlist) {
-		if (dev)
-			ops->fini(dev);
-	}
+	list_for_each_entry(dev, &cx231xx_devlist, devlist)
+		ops->fini(dev);
 
 	mutex_lock(&cx231xx_extension_devlist_lock);
 	printk(KERN_INFO DRIVER_NAME ": %s removed\n", ops->name);

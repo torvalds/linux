@@ -1214,6 +1214,24 @@ static void hdpvr_device_release(struct video_device *vdev)
 	struct hdpvr_device *dev = video_get_drvdata(vdev);
 
 	hdpvr_delete(dev);
+	mutex_lock(&dev->io_mutex);
+	destroy_workqueue(dev->workqueue);
+	mutex_unlock(&dev->io_mutex);
+
+	v4l2_device_unregister(&dev->v4l2_dev);
+
+	/* deregister I2C adapter */
+#ifdef CONFIG_I2C
+	mutex_lock(&dev->i2c_mutex);
+	if (dev->i2c_adapter)
+		i2c_del_adapter(dev->i2c_adapter);
+	kfree(dev->i2c_adapter);
+	dev->i2c_adapter = NULL;
+	mutex_unlock(&dev->i2c_mutex);
+#endif /* CONFIG_I2C */
+
+	kfree(dev->usbc_buf);
+	kfree(dev);
 }
 
 static const struct video_device hdpvr_video_template = {
