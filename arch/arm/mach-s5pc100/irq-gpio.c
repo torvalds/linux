@@ -1,9 +1,9 @@
 /*
- * arch/arm/plat-s5pc1xx/irq-gpio.c
+ * arch/arm/mach-s5pc100/irq-gpio.c
  *
  * Copyright (C) 2009 Samsung Electronics
  *
- * S5PC1XX - Interrupt handling for IRQ_GPIO${group}(x)
+ * S5PC100 - Interrupt handling for IRQ_GPIO${group}(x)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -19,7 +19,7 @@
 #include <mach/map.h>
 #include <plat/gpio-cfg.h>
 
-#define S5PC1XX_GPIOREG(x)		(S5PC1XX_VA_GPIO + (x))
+#define S5P_GPIOREG(x)		(S5P_VA_GPIO + (x))
 
 #define CON_OFFSET			0x700
 #define MASK_OFFSET			0x900
@@ -49,7 +49,7 @@ static int group_to_pend_offset(int group)
 	return group << 2;
 }
 
-static int s5pc1xx_get_start(unsigned int group)
+static int s5pc100_get_start(unsigned int group)
 {
 	switch (group) {
 	case 0: return S5PC100_GPIO_A0_START;
@@ -80,7 +80,7 @@ static int s5pc1xx_get_start(unsigned int group)
 	return -EINVAL;
 }
 
-static int s5pc1xx_get_group(unsigned int irq)
+static int s5pc100_get_group(unsigned int irq)
 {
 	irq -= S3C_IRQ_GPIO(0);
 
@@ -134,67 +134,67 @@ static int s5pc1xx_get_group(unsigned int irq)
 	return -EINVAL;
 }
 
-static int s5pc1xx_get_offset(unsigned int irq)
+static int s5pc100_get_offset(unsigned int irq)
 {
 	struct gpio_chip *chip = get_irq_data(irq);
 	return irq - S3C_IRQ_GPIO(chip->base);
 }
 
-static void s5pc1xx_gpioint_ack(unsigned int irq)
+static void s5pc100_gpioint_ack(unsigned int irq)
 {
 	int group, offset, pend_offset;
 	unsigned int value;
 
-	group = s5pc1xx_get_group(irq);
-	offset = s5pc1xx_get_offset(irq);
+	group = s5pc100_get_group(irq);
+	offset = s5pc100_get_offset(irq);
 	pend_offset = group_to_pend_offset(group);
 
-	value = __raw_readl(S5PC1XX_GPIOREG(PEND_OFFSET) + pend_offset);
+	value = __raw_readl(S5P_GPIOREG(PEND_OFFSET) + pend_offset);
 	value |= 1 << offset;
-	__raw_writel(value, S5PC1XX_GPIOREG(PEND_OFFSET) + pend_offset);
+	__raw_writel(value, S5P_GPIOREG(PEND_OFFSET) + pend_offset);
 }
 
-static void s5pc1xx_gpioint_mask(unsigned int irq)
+static void s5pc100_gpioint_mask(unsigned int irq)
 {
 	int group, offset, mask_offset;
 	unsigned int value;
 
-	group = s5pc1xx_get_group(irq);
-	offset = s5pc1xx_get_offset(irq);
+	group = s5pc100_get_group(irq);
+	offset = s5pc100_get_offset(irq);
 	mask_offset = group_to_mask_offset(group);
 
-	value = __raw_readl(S5PC1XX_GPIOREG(MASK_OFFSET) + mask_offset);
+	value = __raw_readl(S5P_GPIOREG(MASK_OFFSET) + mask_offset);
 	value |= 1 << offset;
-	__raw_writel(value, S5PC1XX_GPIOREG(MASK_OFFSET) + mask_offset);
+	__raw_writel(value, S5P_GPIOREG(MASK_OFFSET) + mask_offset);
 }
 
-static void s5pc1xx_gpioint_unmask(unsigned int irq)
+static void s5pc100_gpioint_unmask(unsigned int irq)
 {
 	int group, offset, mask_offset;
 	unsigned int value;
 
-	group = s5pc1xx_get_group(irq);
-	offset = s5pc1xx_get_offset(irq);
+	group = s5pc100_get_group(irq);
+	offset = s5pc100_get_offset(irq);
 	mask_offset = group_to_mask_offset(group);
 
-	value = __raw_readl(S5PC1XX_GPIOREG(MASK_OFFSET) + mask_offset);
+	value = __raw_readl(S5P_GPIOREG(MASK_OFFSET) + mask_offset);
 	value &= ~(1 << offset);
-	__raw_writel(value, S5PC1XX_GPIOREG(MASK_OFFSET) + mask_offset);
+	__raw_writel(value, S5P_GPIOREG(MASK_OFFSET) + mask_offset);
 }
 
-static void s5pc1xx_gpioint_mask_ack(unsigned int irq)
+static void s5pc100_gpioint_mask_ack(unsigned int irq)
 {
-	s5pc1xx_gpioint_mask(irq);
-	s5pc1xx_gpioint_ack(irq);
+	s5pc100_gpioint_mask(irq);
+	s5pc100_gpioint_ack(irq);
 }
 
-static int s5pc1xx_gpioint_set_type(unsigned int irq, unsigned int type)
+static int s5pc100_gpioint_set_type(unsigned int irq, unsigned int type)
 {
 	int group, offset, con_offset;
 	unsigned int value;
 
-	group = s5pc1xx_get_group(irq);
-	offset = s5pc1xx_get_offset(irq);
+	group = s5pc100_get_group(irq);
+	offset = s5pc100_get_offset(irq);
 	con_offset = group_to_con_offset(group);
 
 	switch (type) {
@@ -221,24 +221,24 @@ static int s5pc1xx_gpioint_set_type(unsigned int irq, unsigned int type)
 	}
 
 
-	value = __raw_readl(S5PC1XX_GPIOREG(CON_OFFSET) + con_offset);
+	value = __raw_readl(S5P_GPIOREG(CON_OFFSET) + con_offset);
 	value &= ~(0xf << (offset * 0x4));
 	value |= (type << (offset * 0x4));
-	__raw_writel(value, S5PC1XX_GPIOREG(CON_OFFSET) + con_offset);
+	__raw_writel(value, S5P_GPIOREG(CON_OFFSET) + con_offset);
 
 	return 0;
 }
 
-struct irq_chip s5pc1xx_gpioint = {
+struct irq_chip s5pc100_gpioint = {
 	.name		= "GPIO",
-	.ack		= s5pc1xx_gpioint_ack,
-	.mask		= s5pc1xx_gpioint_mask,
-	.mask_ack	= s5pc1xx_gpioint_mask_ack,
-	.unmask		= s5pc1xx_gpioint_unmask,
-	.set_type	= s5pc1xx_gpioint_set_type,
+	.ack		= s5pc100_gpioint_ack,
+	.mask		= s5pc100_gpioint_mask,
+	.mask_ack	= s5pc100_gpioint_mask_ack,
+	.unmask		= s5pc100_gpioint_unmask,
+	.set_type	= s5pc100_gpioint_set_type,
 };
 
-void s5pc1xx_irq_gpioint_handler(unsigned int irq, struct irq_desc *desc)
+void s5pc100_irq_gpioint_handler(unsigned int irq, struct irq_desc *desc)
 {
 	int group, offset, pend_offset, mask_offset;
 	int real_irq, group_end;
@@ -248,17 +248,17 @@ void s5pc1xx_irq_gpioint_handler(unsigned int irq, struct irq_desc *desc)
 
 	for (group = 0; group < group_end; group++) {
 		pend_offset = group_to_pend_offset(group);
-		pend = __raw_readl(S5PC1XX_GPIOREG(PEND_OFFSET) + pend_offset);
+		pend = __raw_readl(S5P_GPIOREG(PEND_OFFSET) + pend_offset);
 		if (!pend)
 			continue;
 
 		mask_offset = group_to_mask_offset(group);
-		mask = __raw_readl(S5PC1XX_GPIOREG(MASK_OFFSET) + mask_offset);
+		mask = __raw_readl(S5P_GPIOREG(MASK_OFFSET) + mask_offset);
 		pend &= ~mask;
 
 		for (offset = 0; offset < 8; offset++) {
 			if (pend & (1 << offset)) {
-				real_irq = s5pc1xx_get_start(group) + offset;
+				real_irq = s5pc100_get_start(group) + offset;
 				generic_handle_irq(S3C_IRQ_GPIO(real_irq));
 			}
 		}

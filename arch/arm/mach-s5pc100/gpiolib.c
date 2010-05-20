@@ -387,7 +387,6 @@ extern void s5pc100_irq_gpioint_handler(unsigned int irq, struct irq_desc *desc)
 
 static __init void s5pc100_gpiolib_link(struct s3c_gpio_chip *chip)
 {
-#if 0
 	/* Interrupt */
 	if (chip->config == &gpio_cfg) {
 		int i, irq;
@@ -401,9 +400,9 @@ static __init void s5pc100_gpiolib_link(struct s3c_gpio_chip *chip)
 			set_irq_handler(irq, handle_level_irq);
 			set_irq_flags(irq, IRQF_VALID);
 		}
-	} else if (chip->config == &gpio_cfg_eint)
+	} else if (chip->config == &gpio_cfg_eint) {
 		chip->chip.to_irq = s5pc100_gpiolib_to_eint;
-#endif
+	}
 }
 
 static __init int s5pc100_gpiolib_init(void)
@@ -419,10 +418,10 @@ static __init int s5pc100_gpiolib_init(void)
 
 	samsung_gpiolib_add_4bit_chips(s5pc100_gpio_chips,
 				       ARRAY_SIZE(s5pc100_gpio_chips));
-#if 0
+
 	/* Interrupt */
 	set_irq_chained_handler(IRQ_GPIOINT, s5pc100_irq_gpioint_handler);
-#endif
+
 	return 0;
 }
 core_initcall(s5pc100_gpiolib_init);
