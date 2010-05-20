@@ -1094,6 +1094,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 	enum ath9k_rx_qtype qtype;
 	bool edma = !!(ah->caps.hw_caps & ATH9K_HW_CAP_EDMA);
 	int dma_type;
+	u8 rx_status_len = ah->caps.rx_status_len;
 
 	if (edma)
 		dma_type = DMA_BIDIRECTIONAL;
@@ -1121,7 +1122,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp)
 		if (!skb)
 			continue;
 
-		hdr = (struct ieee80211_hdr *) skb->data;
+		hdr = (struct ieee80211_hdr *) (skb->data + rx_status_len);
 		rxs =  IEEE80211_SKB_RXCB(skb);
 
 		hw = ath_get_virt_hw(sc, hdr);
