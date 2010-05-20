@@ -411,9 +411,9 @@ static int _init_main_clk(struct omap_hwmod *oh)
 		return 0;
 
 	c = omap_clk_get_by_name(oh->main_clk);
-	WARN(IS_ERR(c), "omap_hwmod: %s: cannot clk_get main_clk %s\n",
+	WARN(!c, "omap_hwmod: %s: cannot clk_get main_clk %s\n",
 	     oh->name, oh->main_clk);
-	if (IS_ERR(c))
+	if (!c)
 		ret = -EINVAL;
 	oh->_clk = c;
 
@@ -446,9 +446,9 @@ static int _init_interface_clks(struct omap_hwmod *oh)
 			continue;
 
 		c = omap_clk_get_by_name(os->clk);
-		WARN(IS_ERR(c), "omap_hwmod: %s: cannot clk_get "
-		     "interface_clk %s\n", oh->name, os->clk);
-		if (IS_ERR(c))
+		WARN(!c, "omap_hwmod: %s: cannot clk_get interface_clk %s\n",
+		     oh->name, os->clk);
+		if (!c)
 			ret = -EINVAL;
 		os->_clk = c;
 	}
@@ -472,9 +472,9 @@ static int _init_opt_clks(struct omap_hwmod *oh)
 
 	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++) {
 		c = omap_clk_get_by_name(oc->clk);
-		WARN(IS_ERR(c), "omap_hwmod: %s: cannot clk_get opt_clk "
-		     "%s\n", oh->name, oc->clk);
-		if (IS_ERR(c))
+		WARN(!c, "omap_hwmod: %s: cannot clk_get opt_clk %s\n",
+		     oh->name, oc->clk);
+		if (!c)
 			ret = -EINVAL;
 		oc->_clk = c;
 	}
@@ -495,7 +495,7 @@ static int _enable_clocks(struct omap_hwmod *oh)
 
 	pr_debug("omap_hwmod: %s: enabling clocks\n", oh->name);
 
-	if (oh->_clk && !IS_ERR(oh->_clk))
+	if (oh->_clk)
 		clk_enable(oh->_clk);
 
 	if (oh->slaves_cnt > 0) {
@@ -503,7 +503,7 @@ static int _enable_clocks(struct omap_hwmod *oh)
 			struct omap_hwmod_ocp_if *os = oh->slaves[i];
 			struct clk *c = os->_clk;
 
-			if (c && !IS_ERR(c) && (os->flags & OCPIF_SWSUP_IDLE))
+			if (c && (os->flags & OCPIF_SWSUP_IDLE))
 				clk_enable(c);
 		}
 	}
@@ -525,7 +525,7 @@ static int _disable_clocks(struct omap_hwmod *oh)
 
 	pr_debug("omap_hwmod: %s: disabling clocks\n", oh->name);
 
-	if (oh->_clk && !IS_ERR(oh->_clk))
+	if (oh->_clk)
 		clk_disable(oh->_clk);
 
 	if (oh->slaves_cnt > 0) {
@@ -533,7 +533,7 @@ static int _disable_clocks(struct omap_hwmod *oh)
 			struct omap_hwmod_ocp_if *os = oh->slaves[i];
 			struct clk *c = os->_clk;
 
-			if (c && !IS_ERR(c) && (os->flags & OCPIF_SWSUP_IDLE))
+			if (c && (os->flags & OCPIF_SWSUP_IDLE))
 				clk_disable(c);
 		}
 	}
@@ -1013,7 +1013,7 @@ static int _setup(struct omap_hwmod *oh)
 			struct omap_hwmod_ocp_if *os = oh->slaves[i];
 			struct clk *c = os->_clk;
 
-			if (!c || IS_ERR(c))
+			if (!c)
 				continue;
 
 			if (os->flags & OCPIF_SWSUP_IDLE) {
