@@ -51,7 +51,6 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
-#include <pcmcia/mem_op.h>
 
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
@@ -321,10 +320,6 @@ static int ray_probe(struct pcmcia_device *p_dev)
 	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	p_dev->io.IOAddrLines = 5;
 
-	/* Interrupt setup. For PCMCIA, driver takes what's given */
-	p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	p_dev->irq.Handler = &ray_interrupt;
-
 	/* General socket configuration */
 	p_dev->conf.Attributes = CONF_ENABLE_IRQ;
 	p_dev->conf.IntType = INT_MEMORY_AND_IO;
@@ -383,8 +378,7 @@ static void ray_detach(struct pcmcia_device *link)
 	del_timer(&local->timer);
 
 	if (link->priv) {
-		if (link->dev_node)
-			unregister_netdev(dev);
+		unregister_netdev(dev);
 		free_netdev(dev);
 	}
 	dev_dbg(&link->dev, "ray_cs ray_detach ending\n");
@@ -417,10 +411,10 @@ static int ray_config(struct pcmcia_device *link)
 	/* Now allocate an interrupt line.  Note that this does not
 	   actually assign a handler to the interrupt.
 	 */
-	ret = pcmcia_request_irq(link, &link->irq);
+	ret = pcmcia_request_irq(link, ray_interrupt);
 	if (ret)
 		goto failed;
-	dev->irq = link->irq.AssignedIRQ;
+	dev->irq = link->irq;
 
 	/* This actually configures the PCMCIA socket -- setting up
 	   the I/O windows and the interrupt mapping.
@@ -492,9 +486,6 @@ static int ray_config(struct pcmcia_device *link)
 		ray_release(link);
 		return i;
 	}
-
-	strcpy(local->node.dev_name, dev->name);
-	link->dev_node = &local->node;
 
 	printk(KERN_INFO "%s: RayLink, irq %d, hw_addr %pM\n",
 	       dev->name, dev->irq, dev->dev_addr);

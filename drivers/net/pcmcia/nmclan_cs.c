@@ -363,7 +363,6 @@ typedef struct _mace_statistics {
 
 typedef struct _mace_private {
 	struct pcmcia_device	*p_dev;
-    dev_node_t node;
     struct net_device_stats linux_stats; /* Linux statistics counters */
     mace_statistics mace_stats; /* MACE chip statistics counters */
 
@@ -463,8 +462,6 @@ static int nmclan_probe(struct pcmcia_device *link)
     link->io.NumPorts1 = 32;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
     link->io.IOAddrLines = 5;
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    link->irq.Handler = mace_interrupt;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex = 1;
@@ -493,8 +490,7 @@ static void nmclan_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "nmclan_detach\n");
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     nmclan_release(link);
 
@@ -652,14 +648,14 @@ static int nmclan_config(struct pcmcia_device *link)
   ret = pcmcia_request_io(link, &link->io);
   if (ret)
 	  goto failed;
-  ret = pcmcia_request_irq(link, &link->irq);
+  ret = pcmcia_request_exclusive_irq(link, mace_interrupt);
   if (ret)
 	  goto failed;
   ret = pcmcia_request_configuration(link, &link->conf);
   if (ret)
 	  goto failed;
 
-  dev->irq = link->irq.AssignedIRQ;
+  dev->irq = link->irq;
   dev->base_addr = link->io.BasePort1;
 
   ioaddr = dev->base_addr;
@@ -698,17 +694,13 @@ static int nmclan_config(struct pcmcia_device *link)
   else
     printk(KERN_NOTICE "nmclan_cs: invalid if_port requested\n");
 
-  link->dev_node = &lp->node;
   SET_NETDEV_DEV(dev, &link->dev);
 
   i = register_netdev(dev);
   if (i != 0) {
     printk(KERN_NOTICE "nmclan_cs: register_netdev() failed\n");
-    link->dev_node = NULL;
     goto failed;
   }
-
-  strcpy(lp->node.dev_name, dev->name);
 
   printk(KERN_INFO "%s: nmclan: port %#3lx, irq %d, %s port,"
 	 " hw_addr %pM\n",

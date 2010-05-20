@@ -72,7 +72,6 @@ MODULE_FIRMWARE("BT3CPCC.bin");
 
 typedef struct bt3c_info_t {
 	struct pcmcia_device *p_dev;
-	dev_node_t node;
 
 	struct hci_dev *hdev;
 
@@ -661,9 +660,6 @@ static int bt3c_probe(struct pcmcia_device *link)
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	link->io.NumPorts1 = 8;
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-
-	link->irq.Handler = bt3c_interrupt;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
@@ -743,9 +739,9 @@ static int bt3c_config(struct pcmcia_device *link)
 	goto failed;
 
 found_port:
-	i = pcmcia_request_irq(link, &link->irq);
+	i = pcmcia_request_irq(link, &bt3c_interrupt);
 	if (i != 0)
-		link->irq.AssignedIRQ = 0;
+		goto failed;
 
 	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != 0)
@@ -753,9 +749,6 @@ found_port:
 
 	if (bt3c_open(info) != 0)
 		goto failed;
-
-	strcpy(info->node.dev_name, info->hdev->name);
-	link->dev_node = &info->node;
 
 	return 0;
 

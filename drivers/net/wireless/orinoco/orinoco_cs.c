@@ -50,7 +50,6 @@ MODULE_PARM_DESC(ignore_cis_vcc, "Allow voltage mismatch between card and socket
  * struct orinoco_private */
 struct orinoco_pccard {
 	struct pcmcia_device	*p_dev;
-	dev_node_t node;
 
 	/* Used to handle hard reset */
 	/* yuck, we need this hack to work around the insanity of the
@@ -119,10 +118,6 @@ orinoco_cs_probe(struct pcmcia_device *link)
 	card->p_dev = link;
 	link->priv = priv;
 
-	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.Handler = orinoco_interrupt;
-
 	/* General socket configuration defaults can go here.  In this
 	 * client, we assume very little, and rely on the CIS for
 	 * almost everything.  In most clients, many details (i.e.,
@@ -144,8 +139,7 @@ static void orinoco_cs_detach(struct pcmcia_device *link)
 {
 	struct orinoco_private *priv = link->priv;
 
-	if (link->dev_node)
-		orinoco_if_del(priv);
+	orinoco_if_del(priv);
 
 	orinoco_cs_release(link);
 
@@ -230,7 +224,6 @@ static int
 orinoco_cs_config(struct pcmcia_device *link)
 {
 	struct orinoco_private *priv = link->priv;
-	struct orinoco_pccard *card = priv->card;
 	hermes_t *hw = &priv->hw;
 	int ret;
 	void __iomem *mem;
@@ -258,12 +251,7 @@ orinoco_cs_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	/*
-	 * Allocate an interrupt line.  Note that this does not assign
-	 * a handler to the interrupt, unless the 'Handler' member of
-	 * the irq structure is initialized.
-	 */
-	ret = pcmcia_request_irq(link, &link->irq);
+	ret = pcmcia_request_irq(link, orinoco_interrupt);
 	if (ret)
 		goto failed;
 
@@ -285,9 +273,6 @@ orinoco_cs_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	/* Ok, we have the configuration, prepare to register the netdev */
-	card->node.major = card->node.minor = 0;
-
 	/* Initialise the main driver */
 	if (orinoco_init(priv) != 0) {
 		printk(KERN_ERR PFX "orinoco_init() failed\n");
@@ -296,17 +281,11 @@ orinoco_cs_config(struct pcmcia_device *link)
 
 	/* Register an interface with the stack */
 	if (orinoco_if_add(priv, link->io.BasePort1,
-			   link->irq.AssignedIRQ) != 0) {
+			   link->irq) != 0) {
 		printk(KERN_ERR PFX "orinoco_if_add() failed\n");
 		goto failed;
 	}
 
-	/* At this point, the dev_node_t structure(s) needs to be
-	 * initialized and arranged in a linked list at link->dev_node. */
-	strcpy(card->node.dev_name, priv->ndev->name);
-	link->dev_node = &card->node; /* link->dev_node being non-NULL is also
-				       * used to indicate that the
-				       * net_device has been registered */
 	return 0;
 
  failed:

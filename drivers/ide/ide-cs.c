@@ -65,8 +65,7 @@ MODULE_LICENSE("Dual MPL/GPL");
 typedef struct ide_info_t {
 	struct pcmcia_device	*p_dev;
 	struct ide_host		*host;
-    int		ndev;
-    dev_node_t	node;
+	int			ndev;
 } ide_info_t;
 
 static void ide_release(struct pcmcia_device *);
@@ -102,7 +101,6 @@ static int ide_probe(struct pcmcia_device *link)
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.IOAddrLines = 3;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -285,8 +283,7 @@ static int ide_config(struct pcmcia_device *link)
     io_base = link->io.BasePort1;
     ctl_base = stk->ctl_base;
 
-    ret = pcmcia_request_irq(link, &link->irq);
-    if (ret)
+    if (!link->irq)
 	    goto failed;
     ret = pcmcia_request_configuration(link, &link->conf);
     if (ret)
@@ -299,24 +296,21 @@ static int ide_config(struct pcmcia_device *link)
     if (is_kme)
 	outb(0x81, ctl_base+1);
 
-     host = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
+     host = idecs_register(io_base, ctl_base, link->irq, link);
      if (host == NULL && link->io.NumPorts1 == 0x20) {
 	    outb(0x02, ctl_base + 0x10);
 	    host = idecs_register(io_base + 0x10, ctl_base + 0x10,
-				  link->irq.AssignedIRQ, link);
+				  link->irq, link);
     }
 
     if (host == NULL)
 	goto failed;
 
     info->ndev = 1;
-    sprintf(info->node.dev_name, "hd%c", 'a' + host->ports[0]->index * 2);
-    info->node.major = host->ports[0]->major;
-    info->node.minor = 0;
     info->host = host;
-    link->dev_node = &info->node;
-    printk(KERN_INFO "ide-cs: %s: Vpp = %d.%d\n",
-	   info->node.dev_name, link->conf.Vpp / 10, link->conf.Vpp % 10);
+    dev_info(&link->dev, "ide-cs: hd%c: Vpp = %d.%d\n",
+	    'a' + host->ports[0]->index * 2,
+	    link->conf.Vpp / 10, link->conf.Vpp % 10);
 
     kfree(stk);
     return 0;

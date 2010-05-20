@@ -3850,12 +3850,8 @@ wv_pcmcia_config(struct pcmcia_device *	link)
       if (i != 0)
 	  break;
 
-      /*
-       * Now allocate an interrupt line.  Note that this does not
-       * actually assign a handler to the interrupt.
-       */
-      i = pcmcia_request_irq(link, &link->irq);
-      if (i != 0)
+      i = pcmcia_request_interrupt(link, wavelan_interrupt);
+      if (!i)
 	  break;
 
       /*
@@ -3890,7 +3886,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
 	  break;
 
       /* Feed device with this info... */
-      dev->irq = link->irq.AssignedIRQ;
+      dev->irq = link->irq;
       dev->base_addr = link->io.BasePort1;
       netif_start_queue(dev);
 
@@ -4437,10 +4433,6 @@ wavelan_probe(struct pcmcia_device *p_dev)
   p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
   p_dev->io.IOAddrLines = 3;
 
-  /* Interrupt setup */
-  p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-  p_dev->irq.Handler = wavelan_interrupt;
-
   /* General socket configuration */
   p_dev->conf.Attributes = CONF_ENABLE_IRQ;
   p_dev->conf.IntType = INT_MEMORY_AND_IO;
@@ -4487,7 +4479,6 @@ wavelan_probe(struct pcmcia_device *p_dev)
 
   ret = wv_hw_config(dev);
   if (ret) {
-	  dev->irq = 0;
 	  pcmcia_disable_device(p_dev);
 	  return ret;
   }

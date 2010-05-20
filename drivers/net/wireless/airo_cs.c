@@ -75,42 +75,7 @@ static void airo_release(struct pcmcia_device *link);
 
 static void airo_detach(struct pcmcia_device *p_dev);
 
-/*
-   You'll also need to prototype all the functions that will actually
-   be used to talk to your device.  See 'pcmem_cs' for a good example
-   of a fully self-sufficient driver; the other drivers rely more or
-   less on other parts of the kernel.
-*/
-
-/*
-   A linked list of "instances" of the  aironet device.  Each actual
-   PCMCIA card corresponds to one device instance, and is described
-   by one struct pcmcia_device structure (defined in ds.h).
-
-   You may not want to use a linked list for this -- for example, the
-   memory card driver uses an array of struct pcmcia_device pointers,
-   where minor device numbers are used to derive the corresponding
-   array index.
-*/
-
-/*
-   A driver needs to provide a dev_node_t structure for each device
-   on a card.  In some cases, there is only one device per card (for
-   example, ethernet cards, modems).  In other cases, there may be
-   many actual or logical devices (SCSI adapters, memory cards with
-   multiple partitions).  The dev_node_t structures need to be kept
-   in a linked list starting at the 'dev' field of a struct pcmcia_device
-   structure.  We allocate them in the card's private data structure,
-   because they generally shouldn't be allocated dynamically.
-
-   In this case, we also provide a flag to indicate if a device is
-   "stopped" due to a power management event, or card ejection.  The
-   device IO routines can use a flag like this to throttle IO to a
-   card that is not ready to accept it.
-*/
-
 typedef struct local_info_t {
-	dev_node_t	node;
 	struct net_device *eth_dev;
 } local_info_t;
 
@@ -131,10 +96,6 @@ static int airo_probe(struct pcmcia_device *p_dev)
 	local_info_t *local;
 
 	dev_dbg(&p_dev->dev, "airo_attach()\n");
-
-	/* Interrupt setup */
-	p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	p_dev->irq.Handler = NULL;
 
 	/*
 	  General socket configuration defaults can go here.  In this
@@ -212,9 +173,7 @@ static int airo_cs_config_check(struct pcmcia_device *p_dev,
 	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
 		p_dev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
 
-	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
@@ -300,16 +259,8 @@ static int airo_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	/*
-	  Allocate an interrupt line.  Note that this does not assign a
-	  handler to the interrupt, unless the 'Handler' member of the
-	  irq structure is initialized.
-	*/
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
-	}
+	if (!link->irq)
+		goto failed;
 
 	/*
 	  This actually configures the PCMCIA socket -- setting up
@@ -320,26 +271,17 @@ static int airo_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 	((local_info_t *)link->priv)->eth_dev =
-		init_airo_card(link->irq.AssignedIRQ,
+		init_airo_card(link->irq,
 			       link->io.BasePort1, 1, &link->dev);
 	if (!((local_info_t *)link->priv)->eth_dev)
 		goto failed;
 
-	/*
-	  At this point, the dev_node_t structure(s) need to be
-	  initialized and arranged in a linked list at link->dev_node.
-	*/
-	strcpy(dev->node.dev_name, ((local_info_t *)link->priv)->eth_dev->name);
-	dev->node.major = dev->node.minor = 0;
-	link->dev_node = &dev->node;
-
 	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x: ",
-	       dev->node.dev_name, link->conf.ConfigIndex);
+	dev_info(&link->dev, "index 0x%02x: ",
+	       link->conf.ConfigIndex);
 	if (link->conf.Vpp)
 		printk(", Vpp %d.%d", link->conf.Vpp/10, link->conf.Vpp%10);
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %d", link->irq.AssignedIRQ);
+	printk(", irq %d", link->irq);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 		       link->io.BasePort1+link->io.NumPorts1-1);

@@ -61,7 +61,6 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
-#include <pcmcia/mem_op.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -381,10 +380,6 @@ static int netwave_probe(struct pcmcia_device *link)
     /* link->io.NumPorts2 = 16; 
        link->io.Attributes2 = IO_DATA_PATH_WIDTH_16; */
     link->io.IOAddrLines = 5;
-    
-    /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.Handler = &netwave_interrupt;
     
     /* General socket configuration */
     link->conf.Attributes = CONF_ENABLE_IRQ;
@@ -732,7 +727,7 @@ static int netwave_pcmcia_config(struct pcmcia_device *link) {
      *  Now allocate an interrupt line.  Note that this does not
      *  actually assign a handler to the interrupt.
      */
-    ret = pcmcia_request_irq(link, &link->irq);
+    ret = pcmcia_request_irq(link, netwave_interrupt);
     if (ret)
 	    goto failed;
 
@@ -767,7 +762,7 @@ static int netwave_pcmcia_config(struct pcmcia_device *link) {
     ramBase = ioremap(req.Base, 0x8000);
     priv->ramBase = ramBase;
 
-    dev->irq = link->irq.AssignedIRQ;
+    dev->irq = link->irq;
     dev->base_addr = link->io.BasePort1;
     SET_NETDEV_DEV(dev, &link->dev);
 

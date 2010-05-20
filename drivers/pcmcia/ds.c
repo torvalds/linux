@@ -371,8 +371,6 @@ static int pcmcia_device_remove(struct device *dev)
 	if (p_drv->remove)
 		p_drv->remove(p_dev);
 
-	p_dev->dev_node = NULL;
-
 	/* check for proper unloading */
 	if (p_dev->_irq || p_dev->_io || p_dev->_locked)
 		dev_printk(KERN_INFO, dev,
@@ -479,15 +477,6 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 }
 
 
-/* device_add_lock is needed to avoid double registration by cardmgr and kernel.
- * Serializes pcmcia_device_add; will most likely be removed in future.
- *
- * While it has the caveat that adding new PCMCIA devices inside(!) device_register()
- * won't work, this doesn't matter much at the moment: the driver core doesn't
- * support it either.
- */
-static DEFINE_MUTEX(device_add_lock);
-
 struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int function)
 {
 	struct pcmcia_device *p_dev, *tmp_dev;
@@ -496,8 +485,6 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 	s = pcmcia_get_socket(s);
 	if (!s)
 		return NULL;
-
-	mutex_lock(&device_add_lock);
 
 	pr_debug("adding device to %d, function %d\n", s->sock, function);
 
@@ -538,8 +525,8 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 
 	/*
 	 * p_dev->function_config must be the same for all card functions.
-	 * Note that this is serialized by the device_add_lock, so that
-	 * only one such struct will be created.
+	 * Note that this is serialized by ops_mutex, so that only one
+	 * such struct will be created.
 	 */
 	list_for_each_entry(tmp_dev, &s->devices_list, socket_device_list)
 		if (p_dev->func == tmp_dev->func) {
@@ -552,27 +539,30 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 	/* Add to the list in pcmcia_bus_socket */
 	list_add(&p_dev->socket_device_list, &s->devices_list);
 
-	mutex_unlock(&s->ops_mutex);
+	if (pcmcia_setup_irq(p_dev))
+		dev_warn(&p_dev->dev,
+			"IRQ setup failed -- device might not work\n");
 
 	if (!p_dev->function_config) {
 		dev_dbg(&p_dev->dev, "creating config_t\n");
 		p_dev->function_config = kzalloc(sizeof(struct config_t),
 						 GFP_KERNEL);
-		if (!p_dev->function_config)
+		if (!p_dev->function_config) {
+			mutex_unlock(&s->ops_mutex);
 			goto err_unreg;
+		}
 		kref_init(&p_dev->function_config->ref);
 	}
+	mutex_unlock(&s->ops_mutex);
 
 	dev_printk(KERN_NOTICE, &p_dev->dev,
-		   "pcmcia: registering new device %s\n",
-		   p_dev->devname);
+		   "pcmcia: registering new device %s (IRQ: %d)\n",
+		   p_dev->devname, p_dev->irq);
 
 	pcmcia_device_query(p_dev);
 
 	if (device_register(&p_dev->dev))
 		goto err_unreg;
-
-	mutex_unlock(&device_add_lock);
 
 	return p_dev;
 
@@ -591,7 +581,6 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 	kfree(p_dev->devname);
 	kfree(p_dev);
  err_put:
-	mutex_unlock(&device_add_lock);
 	pcmcia_put_socket(s);
 
 	return NULL;
@@ -1258,6 +1247,7 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 		handle_event(skt, event);
 		mutex_lock(&s->ops_mutex);
 		destroy_cis_cache(s);
+		pcmcia_cleanup_irq(s);
 		mutex_unlock(&s->ops_mutex);
 		break;
 

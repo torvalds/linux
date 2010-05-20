@@ -103,7 +103,6 @@ struct smc_private {
     u_short			manfid;
     u_short			cardid;
 
-    dev_node_t			node;
     struct sk_buff		*saved_skb;
     int				packets_waiting;
     void			__iomem *base;
@@ -323,14 +322,11 @@ static int smc91c92_probe(struct pcmcia_device *link)
 	return -ENOMEM;
     smc = netdev_priv(dev);
     smc->p_dev = link;
-    link->priv = dev;
 
     spin_lock_init(&smc->lock);
     link->io.NumPorts1 = 16;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
     link->io.IOAddrLines = 4;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.Handler = &smc_interrupt;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -363,8 +359,7 @@ static void smc91c92_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "smc91c92_detach\n");
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     smc91c92_release(link);
 
@@ -453,7 +448,6 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->io.IOAddrLines = 16;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts2 = 8;
@@ -652,7 +646,6 @@ static int osi_config(struct pcmcia_device *link)
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->io.NumPorts1 = 64;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts2 = 8;
@@ -877,7 +870,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     if (i)
 	    goto config_failed;
 
-    i = pcmcia_request_irq(link, &link->irq);
+    i = pcmcia_request_irq(link, smc_interrupt);
     if (i)
 	    goto config_failed;
     i = pcmcia_request_configuration(link, &link->conf);
@@ -887,7 +880,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     if (smc->manfid == MANFID_MOTOROLA)
 	mot_config(link);
 
-    dev->irq = link->irq.AssignedIRQ;
+    dev->irq = link->irq;
 
     if ((if_port >= 0) && (if_port <= 2))
 	dev->if_port = if_port;
@@ -960,16 +953,12 @@ static int smc91c92_config(struct pcmcia_device *link)
 	SMC_SELECT_BANK(0);
     }
 
-    link->dev_node = &smc->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_ERR "smc91c92_cs: register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto config_undo;
     }
-
-    strcpy(smc->node.dev_name, dev->name);
 
     printk(KERN_INFO "%s: smc91c%s rev %d: io %#3lx, irq %d, "
 	   "hw_addr %pM\n",

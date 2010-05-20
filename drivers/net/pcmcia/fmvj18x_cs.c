@@ -110,7 +110,6 @@ typedef enum { MBH10302, MBH10304, TDK, CONTEC, LA501, UNGERMANN,
 */
 typedef struct local_info_t {
 	struct pcmcia_device	*p_dev;
-    dev_node_t node;
     long open_time;
     uint tx_started:1;
     uint tx_queue;
@@ -254,10 +253,6 @@ static int fmvj18x_probe(struct pcmcia_device *link)
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
     link->io.IOAddrLines = 5;
 
-    /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.Handler = fjn_interrupt;
-
     /* General socket configuration */
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
@@ -278,8 +273,7 @@ static void fmvj18x_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "fmvj18x_detach\n");
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     fmvj18x_release(link);
 
@@ -425,8 +419,6 @@ static int fmvj18x_config(struct pcmcia_device *link)
     }
 
     if (link->io.NumPorts2 != 0) {
-    	link->irq.Attributes =
-		IRQ_TYPE_DYNAMIC_SHARING;
 	ret = mfc_try_io_port(link);
 	if (ret != 0) goto failed;
     } else if (cardtype == UNGERMANN) {
@@ -437,14 +429,14 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	    if (ret)
 		    goto failed;
     }
-    ret = pcmcia_request_irq(link, &link->irq);
+    ret = pcmcia_request_irq(link, fjn_interrupt);
     if (ret)
 	    goto failed;
     ret = pcmcia_request_configuration(link, &link->conf);
     if (ret)
 	    goto failed;
 
-    dev->irq = link->irq.AssignedIRQ;
+    dev->irq = link->irq;
     dev->base_addr = link->io.BasePort1;
 
     if (link->io.BasePort2 != 0) {
@@ -529,16 +521,12 @@ static int fmvj18x_config(struct pcmcia_device *link)
     }
 
     lp->cardtype = cardtype;
-    link->dev_node = &lp->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "fmvj18x_cs: register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto failed;
     }
-
-    strcpy(lp->node.dev_name, dev->name);
 
     /* print current configuration */
     printk(KERN_INFO "%s: %s, sram %s, port %#3lx, irq %d, "

@@ -54,7 +54,6 @@ struct ipw_dev {
 	void __iomem *common_memory;
 	win_req_t request_common_memory;
 
-	dev_node_t nodes[2];
 	/* Reference to attribute memory, containing CIS data */
 	void *attribute_memory;
 

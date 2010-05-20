@@ -87,24 +87,8 @@ static void elsa_cs_release(struct pcmcia_device *link);
 
 static void elsa_cs_detach(struct pcmcia_device *p_dev) __devexit;
 
-/*
-   A driver needs to provide a dev_node_t structure for each device
-   on a card.  In some cases, there is only one device per card (for
-   example, ethernet cards, modems).  In other cases, there may be
-   many actual or logical devices (SCSI adapters, memory cards with
-   multiple partitions).  The dev_node_t structures need to be kept
-   in a linked list starting at the 'dev' field of a struct pcmcia_device
-   structure.  We allocate them in the card's private data structure,
-   because they generally shouldn't be allocated dynamically.
-   In this case, we also provide a flag to indicate if a device is
-   "stopped" due to a power management event, or card ejection.  The
-   device IO routines can use a flag like this to throttle IO to a
-   card that is not ready to accept it.
-*/
-
 typedef struct local_info_t {
 	struct pcmcia_device	*p_dev;
-    dev_node_t          node;
     int                 busy;
     int			cardnr;
 } local_info_t;
@@ -135,10 +119,6 @@ static int __devinit elsa_cs_probe(struct pcmcia_device *link)
     link->priv = local;
 
     local->cardnr = -1;
-
-    /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.Handler = NULL;
 
     /*
       General socket configuration defaults can go here.  In this
@@ -223,28 +203,18 @@ static int __devinit elsa_cs_config(struct pcmcia_device *link)
     if (i != 0)
 	goto failed;
 
-    i = pcmcia_request_irq(link, &link->irq);
-    if (i != 0) {
-        link->irq.AssignedIRQ = 0;
+    if (!link->irq)
 	goto failed;
-    }
 
     i = pcmcia_request_configuration(link, &link->conf);
     if (i != 0)
 	goto failed;
 
-    /* At this point, the dev_node_t structure(s) should be
-       initialized and arranged in a linked list at link->dev. *//*  */
-    sprintf(dev->node.dev_name, "elsa");
-    dev->node.major = dev->node.minor = 0x0;
-
-    link->dev_node = &dev->node;
-
     /* Finally, report what we've done */
-    printk(KERN_INFO "%s: index 0x%02x: ",
-           dev->node.dev_name, link->conf.ConfigIndex);
+    dev_info(&link->dev, "index 0x%02x: ",
+	    link->conf.ConfigIndex);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
-        printk(", irq %d", link->irq.AssignedIRQ);
+	printk(", irq %d", link->irq);
     if (link->io.NumPorts1)
         printk(", io 0x%04x-0x%04x", link->io.BasePort1,
                link->io.BasePort1+link->io.NumPorts1-1);
@@ -253,7 +223,7 @@ static int __devinit elsa_cs_config(struct pcmcia_device *link)
                link->io.BasePort2+link->io.NumPorts2-1);
     printk("\n");
 
-    icard.para[0] = link->irq.AssignedIRQ;
+    icard.para[0] = link->irq;
     icard.para[1] = link->io.BasePort1;
     icard.protocol = protocol;
     icard.typ = ISDN_CTYPE_ELSA_PCMCIA;
