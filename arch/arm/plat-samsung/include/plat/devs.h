@@ -60,6 +60,9 @@ extern struct platform_device s3c_device_spi1;
 extern struct platform_device s3c_device_hwmon;
 
 extern struct platform_device s3c_device_nand;
+extern struct platform_device s3c_device_onenand;
+extern struct platform_device s3c64xx_device_onenand1;
+extern struct platform_device s5pc110_device_onenand;
 
 extern struct platform_device s3c_device_usbgadget;
 extern struct platform_device s3c_device_usb_hsotg;

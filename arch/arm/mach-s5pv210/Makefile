@@ -23,3 +23,4 @@ obj-$(CONFIG_MACH_SMDKC110)	+= mach-smdkc110.o
 # device support
 
 obj-y				+= dev-audio.o
+obj-$(CONFIG_S5PC110_DEV_ONENAND) += dev-onenand.o

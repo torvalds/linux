@@ -21,6 +21,11 @@ choice
 	depends on ARCH_S5PV210
 	default MACH_SMDKV210
 
+config S5PC110_DEV_ONENAND
+	bool
+	help
+	  Compile in platform device definition for OneNAND1 controller
+
 config MACH_SMDKV210
 	bool "SMDKV210"
 	select CPU_S5PV210

@@ -41,6 +41,8 @@
 #include <plat/clock.h>
 #include <plat/sdhci.h>
 #include <plat/iic-core.h>
+#include <plat/onenand-core.h>
+
 #include <plat/s5pc100.h>
 
 /* Initial IO mappings */
@@ -82,6 +84,8 @@ void __init s5pc100_map_io(void)
 	/* the i2c devices are directly compatible with s3c2440 */
 	s3c_i2c0_setname("s3c2440-i2c");
 	s3c_i2c1_setname("s3c2440-i2c");
+
+	s3c_onenand_setname("s5pc100-onenand");
 }
 
 void __init s5pc100_init_clocks(int xtal)

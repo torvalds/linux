@@ -16,6 +16,9 @@
 #include <plat/map-base.h>
 #include <plat/map-s5p.h>
 
+#define S5PC110_PA_ONENAND	(0xB0000000)
+#define S5PC110_PA_ONENAND_DMA	(0xB0600000)
+
 #define S5PV210_PA_CHIPID	(0xE0000000)
 #define S5P_PA_CHIPID		S5PV210_PA_CHIPID
 
