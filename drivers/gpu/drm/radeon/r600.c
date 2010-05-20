@@ -430,7 +430,7 @@ void r600_pm_init_profile(struct radeon_device *rdev)
 				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_ps_idx =
 					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_BATTERY, 0);
 				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_cm_idx = 0;
-				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 2;
+				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_on_cm_idx = 1;
 			} else {
 				rdev->pm.profiles[PM_PROFILE_LOW_SH_IDX].dpms_off_ps_idx =
 					r600_pm_get_type_index(rdev, POWER_STATE_TYPE_PERFORMANCE, 0);
