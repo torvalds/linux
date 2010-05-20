@@ -84,7 +84,7 @@ module_param_array(bdl_pos_adj, int, NULL, 0644);
 MODULE_PARM_DESC(bdl_pos_adj, "BDL position adjustment offset.");
 module_param_array(probe_mask, int, NULL, 0444);
 MODULE_PARM_DESC(probe_mask, "Bitmask to probe codecs (default = -1).");
-module_param_array(probe_only, bool, NULL, 0444);
+module_param_array(probe_only, int, NULL, 0444);
 MODULE_PARM_DESC(probe_only, "Only probing and no codec initialization.");
 module_param(single_cmd, bool, 0444);
 MODULE_PARM_DESC(single_cmd, "Use single command to communicate with codecs "
@@ -174,7 +174,7 @@ MODULE_DESCRIPTION("Intel HDA driver");
 #define   ICH6_GSTS_FSTS	(1 << 1)   /* flush status */
 #define ICH6_REG_INTCTL			0x20
 #define ICH6_REG_INTSTS			0x24
-#define ICH6_REG_WALCLK			0x30
+#define ICH6_REG_WALLCLK		0x30	/* 24Mhz source */
 #define ICH6_REG_SYNC			0x34	
 #define ICH6_REG_CORBLBASE		0x40
 #define ICH6_REG_CORBUBASE		0x44
@@ -340,8 +340,8 @@ struct azx_dev {
 	unsigned int period_bytes; /* size of the period in bytes */
 	unsigned int frags;	/* number for period in the play buffer */
 	unsigned int fifo_size;	/* FIFO size */
-	unsigned long start_jiffies;	/* start + minimum jiffies */
-	unsigned long min_jiffies;	/* minimum jiffies before position is valid */
+	unsigned long start_wallclk;	/* start + minimum wallclk */
+	unsigned long period_wallclk;	/* wallclk for period */
 
 	void __iomem *sd_addr;	/* stream descriptor pointer */
 
@@ -361,7 +361,6 @@ struct azx_dev {
 	unsigned int opened :1;
 	unsigned int running :1;
 	unsigned int irq_pending :1;
-	unsigned int start_flag: 1;	/* stream full start flag */
 	/*
 	 * For VIA:
 	 *  A flag to ensure DMA position is 0
@@ -425,7 +424,7 @@ struct azx {
 	struct snd_dma_buffer posbuf;
 
 	/* flags */
-	int position_fix;
+	int position_fix[2]; /* for both playback/capture streams */
 	int poll_count;
 	unsigned int running :1;
 	unsigned int initialized :1;
@@ -858,9 +857,12 @@ static void azx_power_notify(struct hda_bus *bus);
 #endif
 
 /* reset codec link */
-static int azx_reset(struct azx *chip)
+static int azx_reset(struct azx *chip, int full_reset)
 {
 	int count;
+
+	if (!full_reset)
+		goto __skip;
 
 	/* clear STATESTS */
 	azx_writeb(chip, STATESTS, STATESTS_INT_MASK);
@@ -887,6 +889,7 @@ static int azx_reset(struct azx *chip)
 	/* Brent Chartrand said to wait >= 540us for codecs to initialize */
 	msleep(1);
 
+      __skip:
 	/* check to see if controller is ready */
 	if (!azx_readb(chip, GCTL)) {
 		snd_printd(SFX "azx_reset: controller not ready!\n");
@@ -998,13 +1001,13 @@ static void azx_stream_stop(struct azx *chip, struct azx_dev *azx_dev)
 /*
  * reset and start the controller registers
  */
-static void azx_init_chip(struct azx *chip)
+static void azx_init_chip(struct azx *chip, int full_reset)
 {
 	if (chip->initialized)
 		return;
 
 	/* reset controller */
-	azx_reset(chip);
+	azx_reset(chip, full_reset);
 
 	/* initialize interrupts */
 	azx_int_clear(chip);
@@ -1302,8 +1305,10 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 	azx_sd_writel(azx_dev, SD_BDLPU, upper_32_bits(azx_dev->bdl.addr));
 
 	/* enable the position buffer */
-	if (chip->position_fix == POS_FIX_POSBUF ||
-	    chip->position_fix == POS_FIX_AUTO ||
+	if (chip->position_fix[0] == POS_FIX_POSBUF ||
+	    chip->position_fix[0] == POS_FIX_AUTO ||
+	    chip->position_fix[1] == POS_FIX_POSBUF ||
+	    chip->position_fix[1] == POS_FIX_AUTO ||
 	    chip->via_dmapos_patch) {
 		if (!(azx_readl(chip, DPLBASE) & ICH6_DPLBASE_ENABLE))
 			azx_writel(chip, DPLBASE,
@@ -1348,7 +1353,7 @@ static void azx_bus_reset(struct hda_bus *bus)
 
 	bus->in_reset = 1;
 	azx_stop_chip(chip);
-	azx_init_chip(chip);
+	azx_init_chip(chip, 1);
 #ifdef CONFIG_PM
 	if (chip->initialized) {
 		int i;
@@ -1422,7 +1427,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 				 * get back to the sanity state.
 				 */
 				azx_stop_chip(chip);
-				azx_init_chip(chip);
+				azx_init_chip(chip, 1);
 			}
 		}
 	}
@@ -1670,8 +1675,9 @@ static int azx_pcm_prepare(struct snd_pcm_substream *substream)
 			return err;
 	}
 
-	azx_dev->min_jiffies = (runtime->period_size * HZ) /
-						(runtime->rate * 2);
+	/* wallclk has 24Mhz clock source */
+	azx_dev->period_wallclk = (((runtime->period_size * 24000) /
+						runtime->rate) * 1000);
 	azx_setup_controller(chip, azx_dev);
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		azx_dev->fifo_size = azx_sd_readw(azx_dev, SD_FIFOSIZE) + 1;
@@ -1725,14 +1731,15 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 		if (s->pcm->card != substream->pcm->card)
 			continue;
 		azx_dev = get_azx_dev(s);
-		if (rstart) {
-			azx_dev->start_flag = 1;
-			azx_dev->start_jiffies = jiffies + azx_dev->min_jiffies;
-		}
-		if (start)
+		if (start) {
+			azx_dev->start_wallclk = azx_readl(chip, WALLCLK);
+			if (!rstart)
+				azx_dev->start_wallclk -=
+						azx_dev->period_wallclk;
 			azx_stream_start(chip, azx_dev);
-		else
+		} else {
 			azx_stream_stop(chip, azx_dev);
+		}
 		azx_dev->running = start;
 	}
 	spin_unlock(&chip->reg_lock);
@@ -1843,13 +1850,16 @@ static unsigned int azx_get_position(struct azx *chip,
 
 	if (chip->via_dmapos_patch)
 		pos = azx_via_get_position(chip, azx_dev);
-	else if (chip->position_fix == POS_FIX_POSBUF ||
-		 chip->position_fix == POS_FIX_AUTO) {
-		/* use the position buffer */
-		pos = le32_to_cpu(*azx_dev->posbuf);
-	} else {
-		/* read LPIB */
-		pos = azx_sd_readl(azx_dev, SD_LPIB);
+	else {
+		int stream = azx_dev->substream->stream;
+		if (chip->position_fix[stream] == POS_FIX_POSBUF ||
+		    chip->position_fix[stream] == POS_FIX_AUTO) {
+			/* use the position buffer */
+			pos = le32_to_cpu(*azx_dev->posbuf);
+		} else {
+			/* read LPIB */
+			pos = azx_sd_readl(azx_dev, SD_LPIB);
+		}
 	}
 	if (pos >= azx_dev->bufsize)
 		pos = 0;
@@ -1876,32 +1886,35 @@ static snd_pcm_uframes_t azx_pcm_pointer(struct snd_pcm_substream *substream)
  */
 static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 {
+	u32 wallclk;
 	unsigned int pos;
+	int stream;
 
-	if (azx_dev->start_flag &&
-	    time_before_eq(jiffies, azx_dev->start_jiffies))
+	wallclk = azx_readl(chip, WALLCLK) - azx_dev->start_wallclk;
+	if (wallclk < (azx_dev->period_wallclk * 2) / 3)
 		return -1;	/* bogus (too early) interrupt */
-	azx_dev->start_flag = 0;
 
+	stream = azx_dev->substream->stream;
 	pos = azx_get_position(chip, azx_dev);
-	if (chip->position_fix == POS_FIX_AUTO) {
+	if (chip->position_fix[stream] == POS_FIX_AUTO) {
 		if (!pos) {
 			printk(KERN_WARNING
 			       "hda-intel: Invalid position buffer, "
 			       "using LPIB read method instead.\n");
-			chip->position_fix = POS_FIX_LPIB;
+			chip->position_fix[stream] = POS_FIX_LPIB;
 			pos = azx_get_position(chip, azx_dev);
 		} else
-			chip->position_fix = POS_FIX_POSBUF;
+			chip->position_fix[stream] = POS_FIX_POSBUF;
 	}
 
-	if (!bdl_pos_adj[chip->dev_index])
-		return 1; /* no delayed ack */
 	if (WARN_ONCE(!azx_dev->period_bytes,
 		      "hda-intel: zero azx_dev->period_bytes"))
-		return 0; /* this shouldn't happen! */
-	if (pos % azx_dev->period_bytes > azx_dev->period_bytes / 2)
-		return 0; /* NG - it's below the period boundary */
+		return -1; /* this shouldn't happen! */
+	if (wallclk <= azx_dev->period_wallclk &&
+	    pos % azx_dev->period_bytes > azx_dev->period_bytes / 2)
+		/* NG - it's below the first next period boundary */
+		return bdl_pos_adj[chip->dev_index] ? 0 : -1;
+	azx_dev->start_wallclk = wallclk;
 	return 1; /* OK, it's fine */
 }
 
@@ -1911,7 +1924,7 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 static void azx_irq_pending_work(struct work_struct *work)
 {
 	struct azx *chip = container_of(work, struct azx, irq_pending_work);
-	int i, pending;
+	int i, pending, ok;
 
 	if (!chip->irq_pending_warned) {
 		printk(KERN_WARNING
@@ -1930,11 +1943,14 @@ static void azx_irq_pending_work(struct work_struct *work)
 			    !azx_dev->substream ||
 			    !azx_dev->running)
 				continue;
-			if (azx_position_ok(chip, azx_dev)) {
+			ok = azx_position_ok(chip, azx_dev);
+			if (ok > 0) {
 				azx_dev->irq_pending = 0;
 				spin_unlock(&chip->reg_lock);
 				snd_pcm_period_elapsed(azx_dev->substream);
 				spin_lock(&chip->reg_lock);
+			} else if (ok < 0) {
+				pending = 0;	/* too early */
 			} else
 				pending++;
 		}
@@ -2112,7 +2128,7 @@ static void azx_power_notify(struct hda_bus *bus)
 		}
 	}
 	if (power_on)
-		azx_init_chip(chip);
+		azx_init_chip(chip, 1);
 	else if (chip->running && power_save_controller &&
 		 !bus->power_keep_link_on)
 		azx_stop_chip(chip);
@@ -2182,7 +2198,7 @@ static int azx_resume(struct pci_dev *pci)
 	azx_init_pci(chip);
 
 	if (snd_hda_codecs_inuse(chip->bus))
-		azx_init_chip(chip);
+		azx_init_chip(chip, 1);
 
 	snd_hda_resume(chip->bus);
 	snd_power_change_state(card, SNDRV_CTL_POWER_D0);
@@ -2431,7 +2447,8 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	chip->dev_index = dev;
 	INIT_WORK(&chip->irq_pending_work, azx_irq_pending_work);
 
-	chip->position_fix = check_position_fix(chip, position_fix[dev]);
+	chip->position_fix[0] = chip->position_fix[1] =
+		check_position_fix(chip, position_fix[dev]);
 	check_probe_mask(chip, dev);
 
 	chip->single_cmd = single_cmd;
@@ -2577,7 +2594,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 
 	/* initialize chip */
 	azx_init_pci(chip);
-	azx_init_chip(chip);
+	azx_init_chip(chip, (probe_only[dev] & 2) == 0);
 
 	/* codec detection */
 	if (!chip->codec_mask) {
@@ -2666,7 +2683,7 @@ static int __devinit azx_probe(struct pci_dev *pci,
 			goto out_free;
 	}
 #endif
-	if (!probe_only[dev]) {
+	if ((probe_only[dev] & 1) == 0) {
 		err = azx_codec_configure(chip);
 		if (err < 0)
 			goto out_free;
