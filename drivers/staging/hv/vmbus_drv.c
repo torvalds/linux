@@ -1025,7 +1025,7 @@ static void __exit vmbus_exit(void)
  * installed and/or configured.  We don't do anything else with the table, but
  * it needs to be present.
  */
-const static struct pci_device_id microsoft_hv_pci_table[] = {
+static const struct pci_device_id microsoft_hv_pci_table[] = {
 	{ PCI_DEVICE(0x1414, 0x5353) },	/* VGA compatible controller */
 	{ 0 }
 };
