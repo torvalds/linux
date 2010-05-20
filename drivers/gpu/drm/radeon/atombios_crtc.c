@@ -862,6 +862,11 @@ static int evergreen_crtc_set_base(struct drm_crtc *crtc, int x, int y,
 		return -EINVAL;
 	}
 
+	if (tiling_flags & RADEON_TILING_MACRO)
+		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_2D_TILED_THIN1);
+	else if (tiling_flags & RADEON_TILING_MICRO)
+		fb_format |= EVERGREEN_GRPH_ARRAY_MODE(EVERGREEN_GRPH_ARRAY_1D_TILED_THIN1);
+
 	switch (radeon_crtc->crtc_id) {
 	case 0:
 		WREG32(AVIVO_D1VGA_CONTROL, 0);
