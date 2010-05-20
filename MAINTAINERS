@@ -2747,6 +2747,7 @@ M:	"Ben Dooks (embedded platforms)" <ben-linux@fluff.org>
 L:	linux-i2c@vger.kernel.org
 W:	http://i2c.wiki.kernel.org/
 T:	quilt kernel.org/pub/linux/kernel/people/jdelvare/linux-2.6/jdelvare-i2c/
+T:	git git://git.fluff.org/bjdooks/linux.git
 S:	Maintained
 F:	Documentation/i2c/
 F:	drivers/i2c/
