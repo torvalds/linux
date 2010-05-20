@@ -61,6 +61,8 @@ obj-$(CONFIG_PM)		+= pm.o
 obj-$(CONFIG_PM)		+= pm-gpio.o
 obj-$(CONFIG_SAMSUNG_PM_CHECK)	+= pm-check.o
 
+obj-$(CONFIG_SAMSUNG_WAKEMASK)	+= wakeup-mask.o
+
 # PWM support
 
 obj-$(CONFIG_HAVE_PWM)		+= pwm.o

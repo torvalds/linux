@@ -285,4 +285,12 @@ config SAMSUNG_PM_CHECK_CHUNKSIZE
 
 	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
 
+config SAMSUNG_WAKEMASK
+	bool
+	depends on PM
+	help
+	  Compile support for wakeup-mask controls found on the S3C6400
+	  and above. This code allows a set of interrupt to wakeup-mask
+	  mappings. See <plat/wakeup-mask.h>
+
 endif
