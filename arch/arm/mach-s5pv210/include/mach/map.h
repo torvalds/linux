@@ -75,8 +75,11 @@
 /* AC97 */
 #define S5PV210_PA_AC97		0xE2200000
 
+#define S5PV210_PA_ADC		(0xE1700000)
+
 /* compatibiltiy defines. */
 #define S3C_PA_UART		S5PV210_PA_UART
 #define S3C_PA_IIC		S5PV210_PA_IIC0
+#define SAMSUNG_PA_ADC		S5PV210_PA_ADC
 
 #endif /* __ASM_ARCH_MAP_H */
