@@ -165,7 +165,7 @@ static struct resource smc911x_resources[] = {
 		.end	= 0x16000000 - 1,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.start	= 6,
+		.start	= evt2irq(0x02c0) /* IRQ6A */,
 		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_LOWLEVEL,
 	},
 };
@@ -208,7 +208,7 @@ static struct resource keysc_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 79,
+		.start  = evt2irq(0x0be0), /* KEYSC_KEY */
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -232,7 +232,7 @@ static struct resource sdhi0_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 96,
+		.start  = evt2irq(0x0e00) /* SDHI0 */,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -267,8 +267,7 @@ static struct resource usb1_host_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 215,
-		.end	= 215,
+		.start	= evt2irq(0x1ce0) /* USB1_USB1I0 */,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -294,7 +293,7 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 };
 
 /* TouchScreen (Needs SW3 set to OFF) */
-#define IRQ28	396
+#define IRQ28	evt2irq(0x3380) /* IRQ28A */
 struct tsc2007_platform_data tsc2007_info = {
 	.model			= 2007,
 	.x_plate_ohms		= 180,
