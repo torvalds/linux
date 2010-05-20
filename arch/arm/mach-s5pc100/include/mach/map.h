@@ -55,6 +55,16 @@
 
 #define S5PC100_PA_FB		(0xEE000000)
 
+#define S5PC100_PA_AC97		0xF2300000
+
+/* PCM */
+#define S5PC100_PA_PCM0		0xF2400000
+#define S5PC100_PA_PCM1		0xF2500000
+
+/* KEYPAD */
+#define S5PC100_PA_KEYPAD	(0xF3100000)
+>>>>>>> for-2635-4/s5p-devs:arch/arm/mach-s5pc100/include/mach/map.h
+
 #define S5PC100_PA_HSMMC(x)	(0xED800000 + ((x) * 0x100000))
 
 #define S5PC100_PA_SDRAM	(0x20000000)

@@ -24,3 +24,6 @@ obj-$(CONFIG_S5PC100_SETUP_SDHCI_GPIO)	+= setup-sdhci-gpio.o
 # machine support
 
 obj-$(CONFIG_MACH_SMDKC100)	+= mach-smdkc100.o
+
+# device support
+obj-y				+= dev-audio.o
