@@ -1407,17 +1407,25 @@ struct softnet_data {
 	struct softnet_data	*rps_ipi_next;
 	unsigned int		cpu;
 	unsigned int		input_queue_head;
+	unsigned int		input_queue_tail;
 #endif
 	unsigned		dropped;
 	struct sk_buff_head	input_pkt_queue;
 	struct napi_struct	backlog;
 };
 
-static inline void input_queue_head_add(struct softnet_data *sd,
-					unsigned int len)
+static inline void input_queue_head_incr(struct softnet_data *sd)
 {
 #ifdef CONFIG_RPS
-	sd->input_queue_head += len;
+	sd->input_queue_head++;
+#endif
+}
+
+static inline void input_queue_tail_incr_save(struct softnet_data *sd,
+					      unsigned int *qtail)
+{
+#ifdef CONFIG_RPS
+	*qtail = ++sd->input_queue_tail;
 #endif
 }
 

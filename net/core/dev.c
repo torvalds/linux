@@ -2426,10 +2426,7 @@ static int enqueue_to_backlog(struct sk_buff *skb, int cpu,
 		if (skb_queue_len(&sd->input_pkt_queue)) {
 enqueue:
 			__skb_queue_tail(&sd->input_pkt_queue, skb);
-#ifdef CONFIG_RPS
-			*qtail = sd->input_queue_head +
-					skb_queue_len(&sd->input_pkt_queue);
-#endif
+			input_queue_tail_incr_save(sd, qtail);
 			rps_unlock(sd);
 			local_irq_restore(flags);
 			return NET_RX_SUCCESS;
@@ -2964,7 +2961,7 @@ static void flush_backlog(void *arg)
 		if (skb->dev == dev) {
 			__skb_unlink(skb, &sd->input_pkt_queue);
 			kfree_skb(skb);
-			input_queue_head_add(sd, 1);
+			input_queue_head_incr(sd);
 		}
 	}
 	rps_unlock(sd);
@@ -2973,6 +2970,7 @@ static void flush_backlog(void *arg)
 		if (skb->dev == dev) {
 			__skb_unlink(skb, &sd->process_queue);
 			kfree_skb(skb);
+			input_queue_head_incr(sd);
 		}
 	}
 }
@@ -3328,18 +3326,20 @@ static int process_backlog(struct napi_struct *napi, int quota)
 		while ((skb = __skb_dequeue(&sd->process_queue))) {
 			local_irq_enable();
 			__netif_receive_skb(skb);
-			if (++work >= quota)
-				return work;
 			local_irq_disable();
+			input_queue_head_incr(sd);
+			if (++work >= quota) {
+				local_irq_enable();
+				return work;
+			}
 		}
 
 		rps_lock(sd);
 		qlen = skb_queue_len(&sd->input_pkt_queue);
-		if (qlen) {
-			input_queue_head_add(sd, qlen);
+		if (qlen)
 			skb_queue_splice_tail_init(&sd->input_pkt_queue,
 						   &sd->process_queue);
-		}
+
 		if (qlen < quota - work) {
 			/*
 			 * Inline a custom version of __napi_complete().
@@ -5679,12 +5679,14 @@ static int dev_cpu_callback(struct notifier_block *nfb,
 	local_irq_enable();
 
 	/* Process offline CPU's input_pkt_queue */
+	while ((skb = __skb_dequeue(&oldsd->process_queue))) {
+		netif_rx(skb);
+		input_queue_head_incr(oldsd);
+	}
 	while ((skb = __skb_dequeue(&oldsd->input_pkt_queue))) {
 		netif_rx(skb);
-		input_queue_head_add(oldsd, 1);
+		input_queue_head_incr(oldsd);
 	}
-	while ((skb = __skb_dequeue(&oldsd->process_queue)))
-		netif_rx(skb);
 
 	return NOTIFY_OK;
 }
