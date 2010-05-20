@@ -31,7 +31,13 @@
 #define DMA_MODE_WRITE		1
 #define DMA_MODE_MASK		1
 
-#define DMA_BASE IO_ADDRESS(DMA_BASE_ADDR)
+#define MX1_DMA_REG(offset)	MX1_IO_ADDRESS(MX1_DMA_BASE_ADDR + (offset))
+
+/* DMA Interrupt Mask Register */
+#define MX1_DMA_DIMR		MX1_DMA_REG(0x08)
+
+/* Channel Control Register */
+#define MX1_DMA_CCR(x)		MX1_DMA_REG(0x8c + ((x) << 6))
 
 #define IMX_DMA_MEMSIZE_32	(0 << 4)
 #define IMX_DMA_MEMSIZE_8	(1 << 4)

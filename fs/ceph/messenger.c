@@ -492,7 +492,14 @@ static void prepare_write_message(struct ceph_connection *con)
 		list_move_tail(&m->list_head, &con->out_sent);
 	}
 
-	m->hdr.seq = cpu_to_le64(++con->out_seq);
+	/*
+	 * only assign outgoing seq # if we haven't sent this message
+	 * yet.  if it is requeued, resend with it's original seq.
+	 */
+	if (m->needs_out_seq) {
+		m->hdr.seq = cpu_to_le64(++con->out_seq);
+		m->needs_out_seq = false;
+	}
 
 	dout("prepare_write_message %p seq %lld type %d len %d+%d+%d %d pgs\n",
 	     m, con->out_seq, le16_to_cpu(m->hdr.type),
@@ -1986,6 +1993,8 @@ void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg)
 
 	BUG_ON(msg->front.iov_len != le32_to_cpu(msg->hdr.front_len));
 
+	msg->needs_out_seq = true;
+
 	/* queue */
 	mutex_lock(&con->mutex);
 	BUG_ON(!list_empty(&msg->list_head));
@@ -2085,15 +2094,19 @@ struct ceph_msg *ceph_msg_new(int type, int front_len,
 	kref_init(&m->kref);
 	INIT_LIST_HEAD(&m->list_head);
 
+	m->hdr.tid = 0;
 	m->hdr.type = cpu_to_le16(type);
+	m->hdr.priority = cpu_to_le16(CEPH_MSG_PRIO_DEFAULT);
+	m->hdr.version = 0;
 	m->hdr.front_len = cpu_to_le32(front_len);
 	m->hdr.middle_len = 0;
 	m->hdr.data_len = cpu_to_le32(page_len);
 	m->hdr.data_off = cpu_to_le16(page_off);
-	m->hdr.priority = cpu_to_le16(CEPH_MSG_PRIO_DEFAULT);
+	m->hdr.reserved = 0;
 	m->footer.front_crc = 0;
 	m->footer.middle_crc = 0;
 	m->footer.data_crc = 0;
+	m->footer.flags = 0;
 	m->front_max = front_len;
 	m->front_is_vmalloc = false;
 	m->more_to_follow = false;

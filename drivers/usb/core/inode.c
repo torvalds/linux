@@ -380,6 +380,7 @@ static int usbfs_rmdir(struct inode *dir, struct dentry *dentry)
 	mutex_lock(&inode->i_mutex);
 	dentry_unhash(dentry);
 	if (usbfs_empty(dentry)) {
+		dont_mount(dentry);
 		drop_nlink(dentry->d_inode);
 		drop_nlink(dentry->d_inode);
 		dput(dentry);

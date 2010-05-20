@@ -364,6 +364,9 @@ void trace_function(struct trace_array *tr,
 		    unsigned long ip,
 		    unsigned long parent_ip,
 		    unsigned long flags, int pc);
+void trace_default_header(struct seq_file *m);
+void print_trace_header(struct seq_file *m, struct trace_iterator *iter);
+int trace_empty(struct trace_iterator *iter);
 
 void trace_graph_return(struct ftrace_graph_ret *trace);
 int trace_graph_entry(struct ftrace_graph_ent *trace);
@@ -475,9 +478,29 @@ extern int trace_clock_id;
 
 /* Standard output formatting function used for function return traces */
 #ifdef CONFIG_FUNCTION_GRAPH_TRACER
-extern enum print_line_t print_graph_function(struct trace_iterator *iter);
+
+/* Flag options */
+#define TRACE_GRAPH_PRINT_OVERRUN       0x1
+#define TRACE_GRAPH_PRINT_CPU           0x2
+#define TRACE_GRAPH_PRINT_OVERHEAD      0x4
+#define TRACE_GRAPH_PRINT_PROC          0x8
+#define TRACE_GRAPH_PRINT_DURATION      0x10
+#define TRACE_GRAPH_PRINT_ABS_TIME      0x20
+
+extern enum print_line_t
+print_graph_function_flags(struct trace_iterator *iter, u32 flags);
+extern void print_graph_headers_flags(struct seq_file *s, u32 flags);
 extern enum print_line_t
 trace_print_graph_duration(unsigned long long duration, struct trace_seq *s);
+extern void graph_trace_open(struct trace_iterator *iter);
+extern void graph_trace_close(struct trace_iterator *iter);
+extern int __trace_graph_entry(struct trace_array *tr,
+			       struct ftrace_graph_ent *trace,
+			       unsigned long flags, int pc);
+extern void __trace_graph_return(struct trace_array *tr,
+				 struct ftrace_graph_ret *trace,
+				 unsigned long flags, int pc);
+
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 /* TODO: make this variable */
@@ -508,7 +531,7 @@ static inline int ftrace_graph_addr(unsigned long addr)
 #endif /* CONFIG_DYNAMIC_FTRACE */
 #else /* CONFIG_FUNCTION_GRAPH_TRACER */
 static inline enum print_line_t
-print_graph_function(struct trace_iterator *iter)
+print_graph_function_flags(struct trace_iterator *iter, u32 flags)
 {
 	return TRACE_TYPE_UNHANDLED;
 }

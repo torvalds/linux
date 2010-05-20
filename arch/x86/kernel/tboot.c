@@ -175,6 +175,9 @@ static void add_mac_region(phys_addr_t start, unsigned long size)
 	struct tboot_mac_region *mr;
 	phys_addr_t end = start + size;
 
+	if (tboot->num_mac_regions >= MAX_TB_MAC_REGIONS)
+		panic("tboot: Too many MAC regions\n");
+
 	if (start && size) {
 		mr = &tboot->mac_regions[tboot->num_mac_regions++];
 		mr->start = round_down(start, PAGE_SIZE);
@@ -184,18 +187,17 @@ static void add_mac_region(phys_addr_t start, unsigned long size)
 
 static int tboot_setup_sleep(void)
 {
+	int i;
+
 	tboot->num_mac_regions = 0;
 
-	/* S3 resume code */
-	add_mac_region(acpi_wakeup_address, WAKEUP_SIZE);
+	for (i = 0; i < e820.nr_map; i++) {
+		if ((e820.map[i].type != E820_RAM)
+		 && (e820.map[i].type != E820_RESERVED_KERN))
+			continue;
 
-#ifdef CONFIG_X86_TRAMPOLINE
-	/* AP trampoline code */
-	add_mac_region(virt_to_phys(trampoline_base), TRAMPOLINE_SIZE);
-#endif
-
-	/* kernel code + data + bss */
-	add_mac_region(virt_to_phys(_text), _end - _text);
+		add_mac_region(e820.map[i].addr, e820.map[i].size);
+	}
 
 	tboot->acpi_sinfo.kernel_s3_resume_vector = acpi_wakeup_address;
 

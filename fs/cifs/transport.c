@@ -35,7 +35,6 @@
 #include "cifs_debug.h"
 
 extern mempool_t *cifs_mid_poolp;
-extern struct kmem_cache *cifs_oplock_cachep;
 
 static struct mid_q_entry *
 AllocMidQEntry(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
@@ -43,7 +42,7 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 	struct mid_q_entry *temp;
 
 	if (server == NULL) {
-		cERROR(1, ("Null TCP session in AllocMidQEntry"));
+		cERROR(1, "Null TCP session in AllocMidQEntry");
 		return NULL;
 	}
 
@@ -55,7 +54,7 @@ AllocMidQEntry(const struct smb_hdr *smb_buffer, struct TCP_Server_Info *server)
 		temp->mid = smb_buffer->Mid;	/* always LE */
 		temp->pid = current->pid;
 		temp->command = smb_buffer->Command;
-		cFYI(1, ("For smb_command %d", temp->command));
+		cFYI(1, "For smb_command %d", temp->command);
 	/*	do_gettimeofday(&temp->when_sent);*/ /* easier to use jiffies */
 		/* when mid allocated can be before when sent */
 		temp->when_alloc = jiffies;
@@ -140,7 +139,7 @@ smb_sendv(struct TCP_Server_Info *server, struct kvec *iov, int n_vec)
 		total_len += iov[i].iov_len;
 
 	smb_buffer->smb_buf_length = cpu_to_be32(smb_buffer->smb_buf_length);
-	cFYI(1, ("Sending smb:  total_len %d", total_len));
+	cFYI(1, "Sending smb:  total_len %d", total_len);
 	dump_smb(smb_buffer, len);
 
 	i = 0;
@@ -168,9 +167,8 @@ smb_sendv(struct TCP_Server_Info *server, struct kvec *iov, int n_vec)
 			   reconnect which may clear the network problem.
 			*/
 			if ((i >= 14) || (!server->noblocksnd && (i > 2))) {
-				cERROR(1,
-				   ("sends on sock %p stuck for 15 seconds",
-				    ssocket));
+				cERROR(1, "sends on sock %p stuck for 15 seconds",
+				    ssocket);
 				rc = -EAGAIN;
 				break;
 			}
@@ -184,13 +182,13 @@ smb_sendv(struct TCP_Server_Info *server, struct kvec *iov, int n_vec)
 			total_len = 0;
 			break;
 		} else if (rc > total_len) {
-			cERROR(1, ("sent %d requested %d", rc, total_len));
+			cERROR(1, "sent %d requested %d", rc, total_len);
 			break;
 		}
 		if (rc == 0) {
 			/* should never happen, letting socket clear before
 			   retrying is our only obvious option here */
-			cERROR(1, ("tcp sent no data"));
+			cERROR(1, "tcp sent no data");
 			msleep(500);
 			continue;
 		}
@@ -213,8 +211,8 @@ smb_sendv(struct TCP_Server_Info *server, struct kvec *iov, int n_vec)
 	}
 
 	if ((total_len > 0) && (total_len != smb_buf_length + 4)) {
-		cFYI(1, ("partial send (%d remaining), terminating session",
-			total_len));
+		cFYI(1, "partial send (%d remaining), terminating session",
+			total_len);
 		/* If we have only sent part of an SMB then the next SMB
 		   could be taken as the remainder of this one.  We need
 		   to kill the socket so the server throws away the partial
@@ -223,7 +221,7 @@ smb_sendv(struct TCP_Server_Info *server, struct kvec *iov, int n_vec)
 	}
 
 	if (rc < 0) {
-		cERROR(1, ("Error %d sending data on socket to server", rc));
+		cERROR(1, "Error %d sending data on socket to server", rc);
 	} else
 		rc = 0;
 
@@ -296,7 +294,7 @@ static int allocate_mid(struct cifsSesInfo *ses, struct smb_hdr *in_buf,
 	}
 
 	if (ses->server->tcpStatus == CifsNeedReconnect) {
-		cFYI(1, ("tcp session dead - return to caller to retry"));
+		cFYI(1, "tcp session dead - return to caller to retry");
 		return -EAGAIN;
 	}
 
@@ -348,7 +346,7 @@ static int wait_for_response(struct cifsSesInfo *ses,
 			lrt += time_to_wait;
 			if (time_after(jiffies, lrt)) {
 				/* No replies for time_to_wait. */
-				cERROR(1, ("server not responding"));
+				cERROR(1, "server not responding");
 				return -1;
 			}
 		} else {
@@ -379,7 +377,7 @@ SendReceiveNoRsp(const unsigned int xid, struct cifsSesInfo *ses,
 	iov[0].iov_len = in_buf->smb_buf_length + 4;
 	flags |= CIFS_NO_RESP;
 	rc = SendReceive2(xid, ses, iov, 1, &resp_buf_type, flags);
-	cFYI(DBG2, ("SendRcvNoRsp flags %d rc %d", flags, rc));
+	cFYI(DBG2, "SendRcvNoRsp flags %d rc %d", flags, rc);
 
 	return rc;
 }
@@ -402,7 +400,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 
 	if ((ses == NULL) || (ses->server == NULL)) {
 		cifs_small_buf_release(in_buf);
-		cERROR(1, ("Null session"));
+		cERROR(1, "Null session");
 		return -EIO;
 	}
 
@@ -471,7 +469,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	else if (long_op == CIFS_BLOCKING_OP)
 		timeout = 0x7FFFFFFF; /*  large, but not so large as to wrap */
 	else {
-		cERROR(1, ("unknown timeout flag %d", long_op));
+		cERROR(1, "unknown timeout flag %d", long_op);
 		rc = -EIO;
 		goto out;
 	}
@@ -490,8 +488,8 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	spin_lock(&GlobalMid_Lock);
 
 	if (midQ->resp_buf == NULL) {
-		cERROR(1, ("No response to cmd %d mid %d",
-			midQ->command, midQ->mid));
+		cERROR(1, "No response to cmd %d mid %d",
+			midQ->command, midQ->mid);
 		if (midQ->midState == MID_REQUEST_SUBMITTED) {
 			if (ses->server->tcpStatus == CifsExiting)
 				rc = -EHOSTDOWN;
@@ -504,7 +502,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 		if (rc != -EHOSTDOWN) {
 			if (midQ->midState == MID_RETRY_NEEDED) {
 				rc = -EAGAIN;
-				cFYI(1, ("marking request for retry"));
+				cFYI(1, "marking request for retry");
 			} else {
 				rc = -EIO;
 			}
@@ -521,8 +519,8 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 	receive_len = midQ->resp_buf->smb_buf_length;
 
 	if (receive_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
-		cERROR(1, ("Frame too large received.  Length: %d  Xid: %d",
-			receive_len, xid));
+		cERROR(1, "Frame too large received.  Length: %d  Xid: %d",
+			receive_len, xid);
 		rc = -EIO;
 		goto out;
 	}
@@ -548,7 +546,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 						&ses->server->mac_signing_key,
 						midQ->sequence_number+1);
 			if (rc) {
-				cERROR(1, ("Unexpected SMB signature"));
+				cERROR(1, "Unexpected SMB signature");
 				/* BB FIXME add code to kill session */
 			}
 		}
@@ -569,7 +567,7 @@ SendReceive2(const unsigned int xid, struct cifsSesInfo *ses,
 						   DeleteMidQEntry */
 	} else {
 		rc = -EIO;
-		cFYI(1, ("Bad MID state?"));
+		cFYI(1, "Bad MID state?");
 	}
 
 out:
@@ -591,11 +589,11 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	struct mid_q_entry *midQ;
 
 	if (ses == NULL) {
-		cERROR(1, ("Null smb session"));
+		cERROR(1, "Null smb session");
 		return -EIO;
 	}
 	if (ses->server == NULL) {
-		cERROR(1, ("Null tcp session"));
+		cERROR(1, "Null tcp session");
 		return -EIO;
 	}
 
@@ -607,8 +605,8 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	   use ses->maxReq */
 
 	if (in_buf->smb_buf_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
-		cERROR(1, ("Illegal length, greater than maximum frame, %d",
-			   in_buf->smb_buf_length));
+		cERROR(1, "Illegal length, greater than maximum frame, %d",
+			   in_buf->smb_buf_length);
 		return -EIO;
 	}
 
@@ -665,7 +663,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	else if (long_op == CIFS_BLOCKING_OP)
 		timeout = 0x7FFFFFFF; /* large but no so large as to wrap */
 	else {
-		cERROR(1, ("unknown timeout flag %d", long_op));
+		cERROR(1, "unknown timeout flag %d", long_op);
 		rc = -EIO;
 		goto out;
 	}
@@ -681,8 +679,8 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 
 	spin_lock(&GlobalMid_Lock);
 	if (midQ->resp_buf == NULL) {
-		cERROR(1, ("No response for cmd %d mid %d",
-			  midQ->command, midQ->mid));
+		cERROR(1, "No response for cmd %d mid %d",
+			  midQ->command, midQ->mid);
 		if (midQ->midState == MID_REQUEST_SUBMITTED) {
 			if (ses->server->tcpStatus == CifsExiting)
 				rc = -EHOSTDOWN;
@@ -695,7 +693,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 		if (rc != -EHOSTDOWN) {
 			if (midQ->midState == MID_RETRY_NEEDED) {
 				rc = -EAGAIN;
-				cFYI(1, ("marking request for retry"));
+				cFYI(1, "marking request for retry");
 			} else {
 				rc = -EIO;
 			}
@@ -712,8 +710,8 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 	receive_len = midQ->resp_buf->smb_buf_length;
 
 	if (receive_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
-		cERROR(1, ("Frame too large received.  Length: %d  Xid: %d",
-			receive_len, xid));
+		cERROR(1, "Frame too large received.  Length: %d  Xid: %d",
+			receive_len, xid);
 		rc = -EIO;
 		goto out;
 	}
@@ -736,7 +734,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 						&ses->server->mac_signing_key,
 						midQ->sequence_number+1);
 			if (rc) {
-				cERROR(1, ("Unexpected SMB signature"));
+				cERROR(1, "Unexpected SMB signature");
 				/* BB FIXME add code to kill session */
 			}
 		}
@@ -753,7 +751,7 @@ SendReceive(const unsigned int xid, struct cifsSesInfo *ses,
 			BCC(out_buf) = le16_to_cpu(BCC_LE(out_buf));
 	} else {
 		rc = -EIO;
-		cERROR(1, ("Bad MID state?"));
+		cERROR(1, "Bad MID state?");
 	}
 
 out:
@@ -824,13 +822,13 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 	struct cifsSesInfo *ses;
 
 	if (tcon == NULL || tcon->ses == NULL) {
-		cERROR(1, ("Null smb session"));
+		cERROR(1, "Null smb session");
 		return -EIO;
 	}
 	ses = tcon->ses;
 
 	if (ses->server == NULL) {
-		cERROR(1, ("Null tcp session"));
+		cERROR(1, "Null tcp session");
 		return -EIO;
 	}
 
@@ -842,8 +840,8 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 	   use ses->maxReq */
 
 	if (in_buf->smb_buf_length > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE - 4) {
-		cERROR(1, ("Illegal length, greater than maximum frame, %d",
-			   in_buf->smb_buf_length));
+		cERROR(1, "Illegal length, greater than maximum frame, %d",
+			   in_buf->smb_buf_length);
 		return -EIO;
 	}
 
@@ -933,8 +931,8 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 		spin_unlock(&GlobalMid_Lock);
 		receive_len = midQ->resp_buf->smb_buf_length;
 	} else {
-		cERROR(1, ("No response for cmd %d mid %d",
-			  midQ->command, midQ->mid));
+		cERROR(1, "No response for cmd %d mid %d",
+			  midQ->command, midQ->mid);
 		if (midQ->midState == MID_REQUEST_SUBMITTED) {
 			if (ses->server->tcpStatus == CifsExiting)
 				rc = -EHOSTDOWN;
@@ -947,7 +945,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 		if (rc != -EHOSTDOWN) {
 			if (midQ->midState == MID_RETRY_NEEDED) {
 				rc = -EAGAIN;
-				cFYI(1, ("marking request for retry"));
+				cFYI(1, "marking request for retry");
 			} else {
 				rc = -EIO;
 			}
@@ -958,8 +956,8 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 	}
 
 	if (receive_len > CIFSMaxBufSize + MAX_CIFS_HDR_SIZE) {
-		cERROR(1, ("Frame too large received.  Length: %d  Xid: %d",
-			receive_len, xid));
+		cERROR(1, "Frame too large received.  Length: %d  Xid: %d",
+			receive_len, xid);
 		rc = -EIO;
 		goto out;
 	}
@@ -968,7 +966,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 
 	if ((out_buf == NULL) || (midQ->midState != MID_RESPONSE_RECEIVED)) {
 		rc = -EIO;
-		cERROR(1, ("Bad MID state?"));
+		cERROR(1, "Bad MID state?");
 		goto out;
 	}
 
@@ -986,7 +984,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifsTconInfo *tcon,
 					   &ses->server->mac_signing_key,
 					   midQ->sequence_number+1);
 		if (rc) {
-			cERROR(1, ("Unexpected SMB signature"));
+			cERROR(1, "Unexpected SMB signature");
 			/* BB FIXME add code to kill session */
 		}
 	}

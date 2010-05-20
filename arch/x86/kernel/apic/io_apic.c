@@ -89,6 +89,9 @@ int nr_ioapics;
 /* IO APIC gsi routing info */
 struct mp_ioapic_gsi  mp_gsi_routing[MAX_IO_APICS];
 
+/* The last gsi number used */
+u32 gsi_end;
+
 /* MP IRQ source entries */
 struct mpc_intsrc mp_irqs[MAX_IRQ_SOURCES];
 
@@ -1013,10 +1016,9 @@ static inline int irq_trigger(int idx)
 	return MPBIOS_trigger(idx);
 }
 
-int (*ioapic_renumber_irq)(int ioapic, int irq);
 static int pin_2_irq(int idx, int apic, int pin)
 {
-	int irq, i;
+	int irq;
 	int bus = mp_irqs[idx].srcbus;
 
 	/*
@@ -1028,18 +1030,12 @@ static int pin_2_irq(int idx, int apic, int pin)
 	if (test_bit(bus, mp_bus_not_pci)) {
 		irq = mp_irqs[idx].srcbusirq;
 	} else {
-		/*
-		 * PCI IRQs are mapped in order
-		 */
-		i = irq = 0;
-		while (i < apic)
-			irq += nr_ioapic_registers[i++];
-		irq += pin;
-		/*
-                 * For MPS mode, so far only needed by ES7000 platform
-                 */
-		if (ioapic_renumber_irq)
-			irq = ioapic_renumber_irq(apic, irq);
+		u32 gsi = mp_gsi_routing[apic].gsi_base + pin;
+
+		if (gsi >= NR_IRQS_LEGACY)
+			irq = gsi;
+		else
+			irq = gsi_end + 1 + gsi;
 	}
 
 #ifdef CONFIG_X86_32
@@ -1950,20 +1946,8 @@ static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 
 void __init enable_IO_APIC(void)
 {
-	union IO_APIC_reg_01 reg_01;
 	int i8259_apic, i8259_pin;
 	int apic;
-	unsigned long flags;
-
-	/*
-	 * The number of IO-APIC IRQ registers (== #pins):
-	 */
-	for (apic = 0; apic < nr_ioapics; apic++) {
-		raw_spin_lock_irqsave(&ioapic_lock, flags);
-		reg_01.raw = io_apic_read(apic, 1);
-		raw_spin_unlock_irqrestore(&ioapic_lock, flags);
-		nr_ioapic_registers[apic] = reg_01.bits.entries+1;
-	}
 
 	if (!legacy_pic->nr_legacy_irqs)
 		return;
@@ -3858,27 +3842,20 @@ int __init io_apic_get_redir_entries (int ioapic)
 	reg_01.raw = io_apic_read(ioapic, 1);
 	raw_spin_unlock_irqrestore(&ioapic_lock, flags);
 
-	return reg_01.bits.entries;
+	/* The register returns the maximum index redir index
+	 * supported, which is one less than the total number of redir
+	 * entries.
+	 */
+	return reg_01.bits.entries + 1;
 }
 
 void __init probe_nr_irqs_gsi(void)
 {
-	int nr = 0;
+	int nr;
 
-	nr = acpi_probe_gsi();
-	if (nr > nr_irqs_gsi) {
+	nr = gsi_end + 1 + NR_IRQS_LEGACY;
+	if (nr > nr_irqs_gsi)
 		nr_irqs_gsi = nr;
-	} else {
-		/* for acpi=off or acpi is not compiled in */
-		int idx;
-
-		nr = 0;
-		for (idx = 0; idx < nr_ioapics; idx++)
-			nr += io_apic_get_redir_entries(idx) + 1;
-
-		if (nr > nr_irqs_gsi)
-			nr_irqs_gsi = nr;
-	}
 
 	printk(KERN_DEBUG "nr_irqs_gsi: %d\n", nr_irqs_gsi);
 }
@@ -4085,22 +4062,27 @@ int __init io_apic_get_version(int ioapic)
 	return reg_01.bits.version;
 }
 
-int acpi_get_override_irq(int bus_irq, int *trigger, int *polarity)
+int acpi_get_override_irq(u32 gsi, int *trigger, int *polarity)
 {
-	int i;
+	int ioapic, pin, idx;
 
 	if (skip_ioapic_setup)
 		return -1;
 
-	for (i = 0; i < mp_irq_entries; i++)
-		if (mp_irqs[i].irqtype == mp_INT &&
-		    mp_irqs[i].srcbusirq == bus_irq)
-			break;
-	if (i >= mp_irq_entries)
+	ioapic = mp_find_ioapic(gsi);
+	if (ioapic < 0)
 		return -1;
 
-	*trigger = irq_trigger(i);
-	*polarity = irq_polarity(i);
+	pin = mp_find_ioapic_pin(ioapic, gsi);
+	if (pin < 0)
+		return -1;
+
+	idx = find_irq_entry(ioapic, pin, mp_INT);
+	if (idx < 0)
+		return -1;
+
+	*trigger = irq_trigger(idx);
+	*polarity = irq_polarity(idx);
 	return 0;
 }
 
@@ -4241,7 +4223,7 @@ void __init ioapic_insert_resources(void)
 	}
 }
 
-int mp_find_ioapic(int gsi)
+int mp_find_ioapic(u32 gsi)
 {
 	int i = 0;
 
@@ -4256,7 +4238,7 @@ int mp_find_ioapic(int gsi)
 	return -1;
 }
 
-int mp_find_ioapic_pin(int ioapic, int gsi)
+int mp_find_ioapic_pin(int ioapic, u32 gsi)
 {
 	if (WARN_ON(ioapic == -1))
 		return -1;
@@ -4284,6 +4266,7 @@ static int bad_ioapic(unsigned long address)
 void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 {
 	int idx = 0;
+	int entries;
 
 	if (bad_ioapic(address))
 		return;
@@ -4302,9 +4285,17 @@ void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 	 * Build basic GSI lookup table to facilitate gsi->io_apic lookups
 	 * and to prevent reprogramming of IOAPIC pins (PCI GSIs).
 	 */
+	entries = io_apic_get_redir_entries(idx);
 	mp_gsi_routing[idx].gsi_base = gsi_base;
-	mp_gsi_routing[idx].gsi_end = gsi_base +
-	    io_apic_get_redir_entries(idx);
+	mp_gsi_routing[idx].gsi_end = gsi_base + entries - 1;
+
+	/*
+	 * The number of IO-APIC IRQ registers (== #pins):
+	 */
+	nr_ioapic_registers[idx] = entries;
+
+	if (mp_gsi_routing[idx].gsi_end > gsi_end)
+		gsi_end = mp_gsi_routing[idx].gsi_end;
 
 	printk(KERN_INFO "IOAPIC[%d]: apic_id %d, version %d, address 0x%x, "
 	       "GSI %d-%d\n", idx, mp_ioapics[idx].apicid,

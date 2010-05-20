@@ -113,7 +113,6 @@ struct cpuinfo_x86 {
 	/* Index into per_cpu list: */
 	u16			cpu_index;
 #endif
-	unsigned int		x86_hyper_vendor;
 } __attribute__((__aligned__(SMP_CACHE_BYTES)));
 
 #define X86_VENDOR_INTEL	0
@@ -126,9 +125,6 @@ struct cpuinfo_x86 {
 #define X86_VENDOR_NUM		9
 
 #define X86_VENDOR_UNKNOWN	0xff
-
-#define X86_HYPER_VENDOR_NONE  0
-#define X86_HYPER_VENDOR_VMWARE 1
 
 /*
  * capabilities of CPUs
@@ -380,6 +376,10 @@ union thread_xstate {
 	struct xsave_struct		xsave;
 };
 
+struct fpu {
+	union thread_xstate *state;
+};
+
 #ifdef CONFIG_X86_64
 DECLARE_PER_CPU(struct orig_ist, orig_ist);
 
@@ -457,7 +457,7 @@ struct thread_struct {
 	unsigned long		trap_no;
 	unsigned long		error_code;
 	/* floating point and extended processor state */
-	union thread_xstate	*xstate;
+	struct fpu		fpu;
 #ifdef CONFIG_X86_32
 	/* Virtual 86 mode info */
 	struct vm86_struct __user *vm86_info;

@@ -456,11 +456,15 @@ i915_error_object_create(struct drm_device *dev,
 
 	for (page = 0; page < page_count; page++) {
 		void *s, *d = kmalloc(PAGE_SIZE, GFP_ATOMIC);
+		unsigned long flags;
+
 		if (d == NULL)
 			goto unwind;
-		s = kmap_atomic(src_priv->pages[page], KM_USER0);
+		local_irq_save(flags);
+		s = kmap_atomic(src_priv->pages[page], KM_IRQ0);
 		memcpy(d, s, PAGE_SIZE);
-		kunmap_atomic(s, KM_USER0);
+		kunmap_atomic(s, KM_IRQ0);
+		local_irq_restore(flags);
 		dst->pages[page] = d;
 	}
 	dst->page_count = page_count;

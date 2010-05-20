@@ -464,9 +464,11 @@ static void rcu_bh_torture_synchronize(void)
 {
 	struct rcu_bh_torture_synchronize rcu;
 
+	init_rcu_head_on_stack(&rcu.head);
 	init_completion(&rcu.completion);
 	call_rcu_bh(&rcu.head, rcu_bh_torture_wakeme_after_cb);
 	wait_for_completion(&rcu.completion);
+	destroy_rcu_head_on_stack(&rcu.head);
 }
 
 static struct rcu_torture_ops rcu_bh_ops = {
@@ -669,7 +671,7 @@ static struct rcu_torture_ops sched_expedited_ops = {
 	.sync		= synchronize_sched_expedited,
 	.cb_barrier	= NULL,
 	.fqs		= rcu_sched_force_quiescent_state,
-	.stats		= rcu_expedited_torture_stats,
+	.stats		= NULL,
 	.irq_capable	= 1,
 	.name		= "sched_expedited"
 };

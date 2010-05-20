@@ -4050,19 +4050,46 @@ static inline u64 swevent_hash(u64 type, u32 event_id)
 	return hash_64(val, SWEVENT_HLIST_BITS);
 }
 
-static struct hlist_head *
-find_swevent_head(struct perf_cpu_context *ctx, u64 type, u32 event_id)
+static inline struct hlist_head *
+__find_swevent_head(struct swevent_hlist *hlist, u64 type, u32 event_id)
 {
-	u64 hash;
-	struct swevent_hlist *hlist;
+	u64 hash = swevent_hash(type, event_id);
 
-	hash = swevent_hash(type, event_id);
+	return &hlist->heads[hash];
+}
+
+/* For the read side: events when they trigger */
+static inline struct hlist_head *
+find_swevent_head_rcu(struct perf_cpu_context *ctx, u64 type, u32 event_id)
+{
+	struct swevent_hlist *hlist;
 
 	hlist = rcu_dereference(ctx->swevent_hlist);
 	if (!hlist)
 		return NULL;
 
-	return &hlist->heads[hash];
+	return __find_swevent_head(hlist, type, event_id);
+}
+
+/* For the event head insertion and removal in the hlist */
+static inline struct hlist_head *
+find_swevent_head(struct perf_cpu_context *ctx, struct perf_event *event)
+{
+	struct swevent_hlist *hlist;
+	u32 event_id = event->attr.config;
+	u64 type = event->attr.type;
+
+	/*
+	 * Event scheduling is always serialized against hlist allocation
+	 * and release. Which makes the protected version suitable here.
+	 * The context lock guarantees that.
+	 */
+	hlist = rcu_dereference_protected(ctx->swevent_hlist,
+					  lockdep_is_held(&event->ctx->lock));
+	if (!hlist)
+		return NULL;
+
+	return __find_swevent_head(hlist, type, event_id);
 }
 
 static void do_perf_sw_event(enum perf_type_id type, u32 event_id,
@@ -4079,7 +4106,7 @@ static void do_perf_sw_event(enum perf_type_id type, u32 event_id,
 
 	rcu_read_lock();
 
-	head = find_swevent_head(cpuctx, type, event_id);
+	head = find_swevent_head_rcu(cpuctx, type, event_id);
 
 	if (!head)
 		goto end;
@@ -4162,7 +4189,7 @@ static int perf_swevent_enable(struct perf_event *event)
 		perf_swevent_set_period(event);
 	}
 
-	head = find_swevent_head(cpuctx, event->attr.type, event->attr.config);
+	head = find_swevent_head(cpuctx, event);
 	if (WARN_ON_ONCE(!head))
 		return -EINVAL;
 
@@ -4350,6 +4377,14 @@ static const struct pmu perf_ops_task_clock = {
 	.read		= task_clock_perf_event_read,
 };
 
+/* Deref the hlist from the update side */
+static inline struct swevent_hlist *
+swevent_hlist_deref(struct perf_cpu_context *cpuctx)
+{
+	return rcu_dereference_protected(cpuctx->swevent_hlist,
+					 lockdep_is_held(&cpuctx->hlist_mutex));
+}
+
 static void swevent_hlist_release_rcu(struct rcu_head *rcu_head)
 {
 	struct swevent_hlist *hlist;
@@ -4360,12 +4395,11 @@ static void swevent_hlist_release_rcu(struct rcu_head *rcu_head)
 
 static void swevent_hlist_release(struct perf_cpu_context *cpuctx)
 {
-	struct swevent_hlist *hlist;
+	struct swevent_hlist *hlist = swevent_hlist_deref(cpuctx);
 
-	if (!cpuctx->swevent_hlist)
+	if (!hlist)
 		return;
 
-	hlist = cpuctx->swevent_hlist;
 	rcu_assign_pointer(cpuctx->swevent_hlist, NULL);
 	call_rcu(&hlist->rcu_head, swevent_hlist_release_rcu);
 }
@@ -4402,7 +4436,7 @@ static int swevent_hlist_get_cpu(struct perf_event *event, int cpu)
 
 	mutex_lock(&cpuctx->hlist_mutex);
 
-	if (!cpuctx->swevent_hlist && cpu_online(cpu)) {
+	if (!swevent_hlist_deref(cpuctx) && cpu_online(cpu)) {
 		struct swevent_hlist *hlist;
 
 		hlist = kzalloc(sizeof(*hlist), GFP_KERNEL);

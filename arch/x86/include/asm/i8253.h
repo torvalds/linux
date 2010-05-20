@@ -6,7 +6,7 @@
 #define PIT_CH0			0x40
 #define PIT_CH2			0x42
 
-extern spinlock_t i8253_lock;
+extern raw_spinlock_t i8253_lock;
 
 extern struct clock_event_device *global_clock_event;
 

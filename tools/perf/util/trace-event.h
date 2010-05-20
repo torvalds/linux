@@ -233,7 +233,12 @@ static inline unsigned long long __data2host8(unsigned long long data)
 
 #define data2host2(ptr)		__data2host2(*(unsigned short *)ptr)
 #define data2host4(ptr)		__data2host4(*(unsigned int *)ptr)
-#define data2host8(ptr)		__data2host8(*(unsigned long long *)ptr)
+#define data2host8(ptr)		({				\
+	unsigned long long __val;				\
+								\
+	memcpy(&__val, (ptr), sizeof(unsigned long long));	\
+	__data2host8(__val);					\
+})
 
 extern int header_page_ts_offset;
 extern int header_page_ts_size;
