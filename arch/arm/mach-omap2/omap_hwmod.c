@@ -404,21 +404,20 @@ static int _del_initiator_dep(struct omap_hwmod *oh, struct omap_hwmod *init_oh)
  */
 static int _init_main_clk(struct omap_hwmod *oh)
 {
-	struct clk *c;
 	int ret = 0;
 
 	if (!oh->main_clk)
 		return 0;
 
-	c = omap_clk_get_by_name(oh->main_clk);
-	if (!c)
+	oh->_clk = omap_clk_get_by_name(oh->main_clk);
+	if (!oh->_clk)
 		pr_warning("omap_hwmod: %s: cannot clk_get main_clk %s\n",
 			   oh->name, oh->main_clk);
-		ret = -EINVAL;
-	oh->_clk = c;
+		return -EINVAL;
 
-	WARN(!c->clkdm, "omap_hwmod: %s: missing clockdomain for %s.\n",
-	     oh->main_clk, c->name);
+	if (!oh->_clk->clkdm)
+		pr_warning("omap_hwmod: %s: missing clockdomain for %s.\n",
+			   oh->main_clk, oh->_clk->name);
 
 	return ret;
 }
