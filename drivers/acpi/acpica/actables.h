@@ -107,6 +107,10 @@ u8 acpi_tb_checksum(u8 *buffer, u32 length);
 acpi_status
 acpi_tb_verify_checksum(struct acpi_table_header *table, u32 length);
 
+void acpi_tb_check_dsdt_header(void);
+
+struct acpi_table_header *acpi_tb_copy_dsdt(u32 table_index);
+
 void
 acpi_tb_install_table(acpi_physical_address address,
 		      char *signature, u32 table_index);

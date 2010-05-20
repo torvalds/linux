@@ -292,7 +292,7 @@ acpi_status acpi_ds_get_buffer_arguments(union acpi_operand_object *obj_desc)
 	node = obj_desc->buffer.node;
 	if (!node) {
 		ACPI_ERROR((AE_INFO,
-			    "No pointer back to NS node in buffer obj %p",
+			    "No pointer back to namespace node in buffer object %p",
 			    obj_desc));
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
@@ -336,7 +336,7 @@ acpi_status acpi_ds_get_package_arguments(union acpi_operand_object *obj_desc)
 	node = obj_desc->package.node;
 	if (!node) {
 		ACPI_ERROR((AE_INFO,
-			    "No pointer back to NS node in package %p",
+			    "No pointer back to namespace node in package %p",
 			    obj_desc));
 		return_ACPI_STATUS(AE_AML_INTERNAL);
 	}
@@ -580,7 +580,8 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 	default:
 
 		ACPI_ERROR((AE_INFO,
-			    "Unknown field creation opcode %02x", aml_opcode));
+			    "Unknown field creation opcode 0x%02X",
+			    aml_opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;
 	}
@@ -589,7 +590,7 @@ acpi_ds_init_buffer_field(u16 aml_opcode,
 
 	if ((bit_offset + bit_count) > (8 * (u32) buffer_desc->buffer.length)) {
 		ACPI_ERROR((AE_INFO,
-			    "Field [%4.4s] at %d exceeds Buffer [%4.4s] size %d (bits)",
+			    "Field [%4.4s] at %u exceeds Buffer [%4.4s] size %u (bits)",
 			    acpi_ut_get_node_name(result_desc),
 			    bit_offset + bit_count,
 			    acpi_ut_get_node_name(buffer_desc->buffer.node),
@@ -693,7 +694,7 @@ acpi_ds_eval_buffer_field_operands(struct acpi_walk_state *walk_state,
 	status = acpi_ex_resolve_operands(op->common.aml_opcode,
 					  ACPI_WALK_OPERANDS, walk_state);
 	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR((AE_INFO, "(%s) bad operand(s) (%X)",
+		ACPI_ERROR((AE_INFO, "(%s) bad operand(s), status 0x%X",
 			    acpi_ps_get_opcode_name(op->common.aml_opcode),
 			    status));
 
@@ -1461,7 +1462,7 @@ acpi_ds_exec_end_control_op(struct acpi_walk_state * walk_state,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown control opcode=%X Op=%p",
+		ACPI_ERROR((AE_INFO, "Unknown control opcode=0x%X Op=%p",
 			    op->common.aml_opcode, op));
 
 		status = AE_AML_BAD_OPCODE;

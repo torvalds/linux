@@ -107,7 +107,7 @@ acpi_ns_build_external_path(struct acpi_namespace_node *node,
 
 	if (index != 0) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not construct external pathname; index=%X, size=%X, Path=%s",
+			    "Could not construct external pathname; index=%u, size=%u, Path=%s",
 			    (u32) index, (u32) size, &name_buffer[size]));
 
 		return (AE_BAD_PARAMETER);

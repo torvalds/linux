@@ -765,7 +765,7 @@ static void acpi_bus_set_run_wake_flags(struct acpi_device *device)
 	}
 
 	status = acpi_get_gpe_status(NULL, device->wakeup.gpe_number,
-					ACPI_NOT_ISR, &event_status);
+					&event_status);
 	if (status == AE_OK)
 		device->wakeup.flags.run_wake =
 				!!(event_status & ACPI_EVENT_FLAG_HANDLE);

@@ -69,6 +69,44 @@ static struct dmi_system_id __cpuinitdata power_nocheck_dmi_table[] = {
 };
 
 
+#ifdef CONFIG_X86
+static int set_copy_dsdt(const struct dmi_system_id *id)
+{
+	printk(KERN_NOTICE "%s detected - "
+		"force copy of DSDT to local memory\n", id->ident);
+	acpi_gbl_copy_dsdt_locally = 1;
+	return 0;
+}
+
+static struct dmi_system_id dsdt_dmi_table[] __initdata = {
+	/*
+	 * Insyde BIOS on some TOSHIBA machines corrupt the DSDT.
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=14679
+	 */
+	{
+	 .callback = set_copy_dsdt,
+	 .ident = "TOSHIBA Satellite A505",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Satellite A505"),
+		},
+	},
+	{
+	 .callback = set_copy_dsdt,
+	 .ident = "TOSHIBA Satellite L505D",
+	 .matches = {
+		DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
+		DMI_MATCH(DMI_PRODUCT_NAME, "Satellite L505D"),
+		},
+	},
+	{}
+};
+#else
+static struct dmi_system_id dsdt_dmi_table[] __initdata = {
+	{}
+};
+#endif
+
 /* --------------------------------------------------------------------------
                                 Device Management
    -------------------------------------------------------------------------- */
@@ -812,6 +850,12 @@ void __init acpi_early_init(void)
 		acpi_gbl_enable_interpreter_slack = TRUE;
 
 	acpi_gbl_permanent_mmap = 1;
+
+	/*
+	 * If the machine falls into the DMI check table,
+	 * DSDT will be copied to memory
+	 */
+	dmi_check_system(dsdt_dmi_table);
 
 	status = acpi_reallocate_root_table();
 	if (ACPI_FAILURE(status)) {
