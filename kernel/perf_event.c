@@ -2297,11 +2297,6 @@ unlock:
 	rcu_read_unlock();
 }
 
-static unsigned long perf_data_size(struct perf_mmap_data *data)
-{
-	return data->nr_pages << (PAGE_SHIFT + data->data_order);
-}
-
 #ifndef CONFIG_PERF_USE_VMALLOC
 
 /*
@@ -2359,7 +2354,6 @@ perf_mmap_data_alloc(struct perf_event *event, int nr_pages)
 			goto fail_data_pages;
 	}
 
-	data->data_order = 0;
 	data->nr_pages = nr_pages;
 
 	return data;
@@ -2395,6 +2389,11 @@ static void perf_mmap_data_free(struct perf_mmap_data *data)
 	kfree(data);
 }
 
+static inline int page_order(struct perf_mmap_data *data)
+{
+	return 0;
+}
+
 #else
 
 /*
@@ -2403,10 +2402,15 @@ static void perf_mmap_data_free(struct perf_mmap_data *data)
  * Required for architectures that have d-cache aliasing issues.
  */
 
+static inline int page_order(struct perf_mmap_data *data)
+{
+	return data->page_order;
+}
+
 static struct page *
 perf_mmap_to_page(struct perf_mmap_data *data, unsigned long pgoff)
 {
-	if (pgoff > (1UL << data->data_order))
+	if (pgoff > (1UL << page_order(data)))
 		return NULL;
 
 	return vmalloc_to_page((void *)data->user_page + pgoff * PAGE_SIZE);
@@ -2426,7 +2430,7 @@ static void perf_mmap_data_free_work(struct work_struct *work)
 	int i, nr;
 
 	data = container_of(work, struct perf_mmap_data, work);
-	nr = 1 << data->data_order;
+	nr = 1 << page_order(data);
 
 	base = data->user_page;
 	for (i = 0; i < nr + 1; i++)
@@ -2465,7 +2469,7 @@ perf_mmap_data_alloc(struct perf_event *event, int nr_pages)
 
 	data->user_page = all_buf;
 	data->data_pages[0] = all_buf + PAGE_SIZE;
-	data->data_order = ilog2(nr_pages);
+	data->page_order = ilog2(nr_pages);
 	data->nr_pages = 1;
 
 	return data;
@@ -2478,6 +2482,11 @@ fail:
 }
 
 #endif
+
+static unsigned long perf_data_size(struct perf_mmap_data *data)
+{
+	return data->nr_pages << (PAGE_SHIFT + page_order(data));
+}
 
 static int perf_mmap_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
@@ -2979,10 +2988,12 @@ void perf_output_copy(struct perf_output_handle *handle,
 		handle->addr += size;
 		handle->size -= size;
 		if (!handle->size) {
+			struct perf_mmap_data *data = handle->data;
+
 			handle->page++;
-			handle->page &= handle->data->nr_pages - 1;
-			handle->addr = handle->data->data_pages[handle->page];
-			handle->size = PAGE_SIZE << handle->data->data_order;
+			handle->page &= data->nr_pages - 1;
+			handle->addr = data->data_pages[handle->page];
+			handle->size = PAGE_SIZE << page_order(data);
 		}
 	} while (len);
 }
@@ -3050,12 +3061,12 @@ int perf_output_begin(struct perf_output_handle *handle,
 	if (head - local_read(&data->wakeup) > data->watermark)
 		local_add(data->watermark, &data->wakeup);
 
-	handle->page = handle->offset >> (PAGE_SHIFT + data->data_order);
+	handle->page = handle->offset >> (PAGE_SHIFT + page_order(data));
 	handle->page &= data->nr_pages - 1;
-	handle->size = handle->offset & ((PAGE_SIZE << data->data_order) - 1);
+	handle->size = handle->offset & ((PAGE_SIZE << page_order(data)) - 1);
 	handle->addr = data->data_pages[handle->page];
 	handle->addr += handle->size;
-	handle->size = (PAGE_SIZE << data->data_order) - handle->size;
+	handle->size = (PAGE_SIZE << page_order(data)) - handle->size;
 
 	if (have_lost) {
 		lost_event.header.type = PERF_RECORD_LOST;
