@@ -121,7 +121,7 @@ static struct resource usb_host_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 65,
+		.start	= evt2irq(0xa20), /* USBHS_USHI0 */
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -161,7 +161,7 @@ static struct resource keysc_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 79,
+		.start  = evt2irq(0xbe0), /* KEYSC_KEY */
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -224,7 +224,7 @@ static struct resource irda_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 20,
+		.start  = evt2irq(0x480), /* IRDA */
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -349,7 +349,7 @@ static void __init g3evm_init(void)
 	gpio_request(GPIO_FN_IRDA_OUT, NULL);
 	gpio_request(GPIO_FN_IRDA_IN, NULL);
 	gpio_request(GPIO_FN_IRDA_FIRSEL, NULL);
-	set_irq_type(20, IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(evt2irq(0x480), IRQ_TYPE_LEVEL_LOW);
 
 	sh7367_add_standard_devices();
 
