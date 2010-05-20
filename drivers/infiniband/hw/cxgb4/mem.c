@@ -759,9 +759,6 @@ struct ib_fast_reg_page_list *c4iw_alloc_fastreg_pbl(struct ib_device *device,
 	dma_addr_t dma_addr;
 	int size = sizeof *c4pl + page_list_len * sizeof(u64);
 
-	if (page_list_len > T4_MAX_FR_DEPTH)
-		return ERR_PTR(-EINVAL);
-
 	c4pl = dma_alloc_coherent(&dev->rdev.lldi.pdev->dev, size,
 				  &dma_addr, GFP_KERNEL);
 	if (!c4pl)
