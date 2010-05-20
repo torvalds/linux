@@ -4496,7 +4496,10 @@ static int perf_tp_event_match(struct perf_event *event,
 				struct perf_sample_data *data,
 				struct pt_regs *regs)
 {
-	if (perf_exclude_event(event, regs))
+	/*
+	 * All tracepoints are from kernel-space.
+	 */
+	if (event->attr.exclude_kernel)
 		return 0;
 
 	if (!perf_tp_filter_match(event, data))
