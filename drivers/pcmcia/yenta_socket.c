@@ -880,6 +880,12 @@ static struct cardbus_type cardbus_type[] = {
 		.restore_state	= ti_restore_state,
 		.sock_init	= ti_init,
 	},
+	[CARDBUS_TYPE_ENE]	= {
+		.override	= ene_override,
+		.save_state	= ti_save_state,
+		.restore_state	= ti_restore_state,
+		.sock_init	= ti_init,
+	},
 #endif
 #ifdef CONFIG_YENTA_RICOH
 	[CARDBUS_TYPE_RICOH]	= {
@@ -900,14 +906,6 @@ static struct cardbus_type cardbus_type[] = {
 	[CARDBUS_TYPE_O2MICRO]	= {
 		.override	= o2micro_override,
 		.restore_state	= o2micro_restore_state,
-	},
-#endif
-#ifdef CONFIG_YENTA_TI
-	[CARDBUS_TYPE_ENE]	= {
-		.override	= ene_override,
-		.save_state	= ti_save_state,
-		.restore_state	= ti_restore_state,
-		.sock_init	= ti_init,
 	},
 #endif
 };
