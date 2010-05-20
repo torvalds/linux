@@ -70,12 +70,12 @@ static int omap2_clk_apll_enable(struct clk *clk, u32 status_mask)
 
 static int omap2_clk_apll96_enable(struct clk *clk)
 {
-	return omap2_clk_apll_enable(clk, OMAP24XX_ST_96M_APLL);
+	return omap2_clk_apll_enable(clk, OMAP24XX_ST_96M_APLL_MASK);
 }
 
 static int omap2_clk_apll54_enable(struct clk *clk)
 {
-	return omap2_clk_apll_enable(clk, OMAP24XX_ST_54M_APLL);
+	return omap2_clk_apll_enable(clk, OMAP24XX_ST_54M_APLL_MASK);
 }
 
 /* Stop APLL */

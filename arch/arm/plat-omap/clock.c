@@ -12,14 +12,12 @@
  */
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <linux/module.h>
 #include <linux/list.h>
 #include <linux/errno.h>
 #include <linux/err.h>
 #include <linux/string.h>
 #include <linux/clk.h>
 #include <linux/mutex.h>
-#include <linux/platform_device.h>
 #include <linux/cpufreq.h>
 #include <linux/debugfs.h>
 #include <linux/io.h>
@@ -32,9 +30,9 @@ static DEFINE_SPINLOCK(clockfw_lock);
 
 static struct clk_functions *arch_clock;
 
-/*-------------------------------------------------------------------------
+/*
  * Standard clock functions defined in include/linux/clk.h
- *-------------------------------------------------------------------------*/
+ */
 
 int clk_enable(struct clk *clk)
 {
@@ -92,9 +90,9 @@ unsigned long clk_get_rate(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_rate);
 
-/*-------------------------------------------------------------------------
+/*
  * Optional clock functions defined in include/linux/clk.h
- *-------------------------------------------------------------------------*/
+ */
 
 long clk_round_rate(struct clk *clk, unsigned long rate)
 {
@@ -140,9 +138,6 @@ int clk_set_parent(struct clk *clk, struct clk *parent)
 	unsigned long flags;
 	int ret = -EINVAL;
 
-	if (cpu_is_omap44xx())
-	/* OMAP4 clk framework not supported yet */
-		return 0;
 	if (clk == NULL || IS_ERR(clk) || parent == NULL || IS_ERR(parent))
 		return ret;
 
@@ -169,9 +164,9 @@ struct clk *clk_get_parent(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_get_parent);
 
-/*-------------------------------------------------------------------------
+/*
  * OMAP specific clock functions shared between omap1 and omap2
- *-------------------------------------------------------------------------*/
+ */
 
 int __initdata mpurate;
 
@@ -222,7 +217,7 @@ void clk_reparent(struct clk *child, struct clk *parent)
 }
 
 /* Propagate rate to children */
-void propagate_rate(struct clk * tclk)
+void propagate_rate(struct clk *tclk)
 {
 	struct clk *clkp;
 
@@ -389,7 +384,9 @@ void clk_exit_cpufreq_table(struct cpufreq_frequency_table **table)
 }
 #endif
 
-/*-------------------------------------------------------------------------*/
+/*
+ *
+ */
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
 /*
@@ -404,7 +401,7 @@ static int __init clk_disable_unused(void)
 		if (ck->ops == &clkops_null)
 			continue;
 
-		if (ck->usecount > 0 || ck->enable_reg == 0)
+		if (ck->usecount > 0 || !ck->enable_reg)
 			continue;
 
 		spin_lock_irqsave(&clockfw_lock, flags);

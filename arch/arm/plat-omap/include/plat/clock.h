@@ -196,15 +196,15 @@ extern struct clk dummy_ck;
 #define INVERT_ENABLE		(1 << 4)	/* 0 enables, 1 disables */
 
 /* Clksel_rate flags */
-#define DEFAULT_RATE		(1 << 0)
-#define RATE_IN_242X		(1 << 1)
-#define RATE_IN_243X		(1 << 2)
-#define RATE_IN_343X		(1 << 3)	/* rates common to all 343X */
-#define RATE_IN_3430ES2		(1 << 4)	/* 3430ES2 rates only */
-#define RATE_IN_36XX		(1 << 5)
-#define RATE_IN_4430		(1 << 6)
+#define RATE_IN_242X		(1 << 0)
+#define RATE_IN_243X		(1 << 1)
+#define RATE_IN_3XXX		(1 << 2)	/* rates common to all OMAP3 */
+#define RATE_IN_3430ES2		(1 << 3)	/* 3430ES2 rates only */
+#define RATE_IN_36XX		(1 << 4)
+#define RATE_IN_4430		(1 << 5)
 
 #define RATE_IN_24XX		(RATE_IN_242X | RATE_IN_243X)
 
+#define RATE_IN_3430ES2PLUS	(RATE_IN_3430ES2 | RATE_IN_36XX)
 
 #endif
