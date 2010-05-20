@@ -3056,8 +3056,8 @@ int perf_output_begin(struct perf_output_handle *handle,
 	handle->offset	= offset;
 	handle->head	= head;
 
-	if (head - tail > data->watermark)
-		local_inc(&data->wakeup);
+	if (head - local_read(&data->wakeup) > data->watermark)
+		local_add(data->watermark, &data->wakeup);
 
 	if (have_lost) {
 		lost_event.header.type = PERF_RECORD_LOST;

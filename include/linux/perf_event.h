@@ -599,7 +599,7 @@ struct perf_mmap_data {
 	local_t				head;		/* write position    */
 	local_t				nest;		/* nested writers    */
 	local_t				events;		/* event limit       */
-	local_t				wakeup;		/* needs a wakeup    */
+	local_t				wakeup;		/* wakeup stamp      */
 	local_t				lost;		/* nr records lost   */
 
 	long				watermark;	/* wakeup watermark  */
