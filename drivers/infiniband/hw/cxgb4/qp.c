@@ -588,6 +588,8 @@ int c4iw_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			err = build_fastreg(wqe, wr, &len16);
 			break;
 		case IB_WR_LOCAL_INV:
+			if (wr->send_flags & IB_SEND_FENCE)
+				fw_flags |= FW_RI_LOCAL_FENCE_FLAG;
 			fw_opcode = FW_RI_INV_LSTAG_WR;
 			swsqe->opcode = FW_RI_LOCAL_INV;
 			err = build_inv_stag(wqe, wr, &len16);
