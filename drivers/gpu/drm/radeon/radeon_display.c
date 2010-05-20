@@ -983,8 +983,11 @@ void radeon_update_display_priority(struct radeon_device *rdev)
 		/* set display priority to high for r3xx, rv515 chips
 		 * this avoids flickering due to underflow to the
 		 * display controllers during heavy acceleration.
+		 * Don't force high on rs4xx igp chips as it seems to
+		 * affect the sound card.  See kernel bug 15982.
 		 */
-		if (ASIC_IS_R300(rdev) || (rdev->family == CHIP_RV515))
+		if ((ASIC_IS_R300(rdev) || (rdev->family == CHIP_RV515)) &&
+		    !(rdev->flags & RADEON_IS_IGP))
 			rdev->disp_priority = 2;
 		else
 			rdev->disp_priority = 0;
