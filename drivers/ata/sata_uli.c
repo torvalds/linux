@@ -181,9 +181,7 @@ static int uli_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (rc)
 		return rc;
 
-	rc = ata_pci_bmdma_init(host);
-	if (rc)
-		return rc;
+	ata_pci_bmdma_init(host);
 
 	iomap = host->iomap;
 

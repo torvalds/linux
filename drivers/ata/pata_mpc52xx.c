@@ -64,13 +64,13 @@ struct mpc52xx_ata_priv {
 
 
 /* ATAPI-4 PIO specs (in ns) */
-static const int ataspec_t0[5]    = {600, 383, 240, 180, 120};
-static const int ataspec_t1[5]    = { 70,  50,  30,  30,  25};
-static const int ataspec_t2_8[5]  = {290, 290, 290,  80,  70};
-static const int ataspec_t2_16[5] = {165, 125, 100,  80,  70};
-static const int ataspec_t2i[5]   = {  0,   0,   0,  70,  25};
-static const int ataspec_t4[5]    = { 30,  20,  15,  10,  10};
-static const int ataspec_ta[5]    = { 35,  35,  35,  35,  35};
+static const u16 ataspec_t0[5]		= {600, 383, 240, 180, 120};
+static const u16 ataspec_t1[5]		= { 70,  50,  30,  30,  25};
+static const u16 ataspec_t2_8[5]	= {290, 290, 290,  80,  70};
+static const u16 ataspec_t2_16[5]	= {165, 125, 100,  80,  70};
+static const u16 ataspec_t2i[5]		= {  0,   0,   0,  70,  25};
+static const u16 ataspec_t4[5]		= { 30,  20,  15,  10,  10};
+static const u16 ataspec_ta[5]		= { 35,  35,  35,  35,  35};
 
 #define CALC_CLKCYC(c,v) ((((v)+(c)-1)/(c)))
 
@@ -78,13 +78,13 @@ static const int ataspec_ta[5]    = { 35,  35,  35,  35,  35};
 
 /* ATAPI-4 MDMA specs (in clocks) */
 struct mdmaspec {
-	u32 t0M;
-	u32 td;
-	u32 th;
-	u32 tj;
-	u32 tkw;
-	u32 tm;
-	u32 tn;
+	u8 t0M;
+	u8 td;
+	u8 th;
+	u8 tj;
+	u8 tkw;
+	u8 tm;
+	u8 tn;
 };
 
 static const struct mdmaspec mdmaspec66[3] = {
@@ -101,23 +101,23 @@ static const struct mdmaspec mdmaspec132[3] = {
 
 /* ATAPI-4 UDMA specs (in clocks) */
 struct udmaspec {
-	u32 tcyc;
-	u32 t2cyc;
-	u32 tds;
-	u32 tdh;
-	u32 tdvs;
-	u32 tdvh;
-	u32 tfs;
-	u32 tli;
-	u32 tmli;
-	u32 taz;
-	u32 tzah;
-	u32 tenv;
-	u32 tsr;
-	u32 trfs;
-	u32 trp;
-	u32 tack;
-	u32 tss;
+	u8 tcyc;
+	u8 t2cyc;
+	u8 tds;
+	u8 tdh;
+	u8 tdvs;
+	u8 tdvh;
+	u8 tfs;
+	u8 tli;
+	u8 tmli;
+	u8 taz;
+	u8 tzah;
+	u8 tenv;
+	u8 tsr;
+	u8 trfs;
+	u8 trp;
+	u8 tack;
+	u8 tss;
 };
 
 static const struct udmaspec udmaspec66[6] = {
@@ -270,7 +270,7 @@ mpc52xx_ata_compute_pio_timings(struct mpc52xx_ata_priv *priv, int dev, int pio)
 {
 	struct mpc52xx_ata_timings *timing = &priv->timings[dev];
 	unsigned int ipb_period = priv->ipb_period;
-	unsigned int t0, t1, t2_8, t2_16, t2i, t4, ta;
+	u32 t0, t1, t2_8, t2_16, t2i, t4, ta;
 
 	if ((pio < 0) || (pio > 4))
 		return -EINVAL;
@@ -299,8 +299,8 @@ mpc52xx_ata_compute_mdma_timings(struct mpc52xx_ata_priv *priv, int dev,
 	if (speed < 0 || speed > 2)
 		return -EINVAL;
 
-	t->mdma1 = (s->t0M << 24) | (s->td << 16) | (s->tkw << 8) | (s->tm);
-	t->mdma2 = (s->th << 24) | (s->tj << 16) | (s->tn << 8);
+	t->mdma1 = ((u32)s->t0M << 24) | ((u32)s->td << 16) | ((u32)s->tkw << 8) | s->tm;
+	t->mdma2 = ((u32)s->th << 24) | ((u32)s->tj << 16) | ((u32)s->tn << 8);
 	t->using_udma = 0;
 
 	return 0;
@@ -316,11 +316,11 @@ mpc52xx_ata_compute_udma_timings(struct mpc52xx_ata_priv *priv, int dev,
 	if (speed < 0 || speed > 2)
 		return -EINVAL;
 
-	t->udma1 = (s->t2cyc << 24) | (s->tcyc << 16) | (s->tds << 8) | s->tdh;
-	t->udma2 = (s->tdvs << 24) | (s->tdvh << 16) | (s->tfs << 8) | s->tli;
-	t->udma3 = (s->tmli << 24) | (s->taz << 16) | (s->tenv << 8) | s->tsr;
-	t->udma4 = (s->tss << 24) | (s->trfs << 16) | (s->trp << 8) | s->tack;
-	t->udma5 = (s->tzah << 24);
+	t->udma1 = ((u32)s->t2cyc << 24) | ((u32)s->tcyc << 16) | ((u32)s->tds << 8) | s->tdh;
+	t->udma2 = ((u32)s->tdvs << 24) | ((u32)s->tdvh << 16) | ((u32)s->tfs << 8) | s->tli;
+	t->udma3 = ((u32)s->tmli << 24) | ((u32)s->taz << 16) | ((u32)s->tenv << 8) | s->tsr;
+	t->udma4 = ((u32)s->tss << 24) | ((u32)s->trfs << 16) | ((u32)s->trp << 8) | s->tack;
+	t->udma5 = (u32)s->tzah << 24;
 	t->using_udma = 1;
 
 	return 0;

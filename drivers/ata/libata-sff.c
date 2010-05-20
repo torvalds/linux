@@ -40,10 +40,12 @@
 
 #include "libata.h"
 
+static struct workqueue_struct *ata_sff_wq;
+
 const struct ata_port_operations ata_sff_port_ops = {
 	.inherits		= &ata_base_port_ops,
 
-	.qc_prep		= ata_sff_qc_prep,
+	.qc_prep		= ata_noop_qc_prep,
 	.qc_issue		= ata_sff_qc_issue,
 	.qc_fill_rtf		= ata_sff_qc_fill_rtf,
 
@@ -53,9 +55,7 @@ const struct ata_port_operations ata_sff_port_ops = {
 	.softreset		= ata_sff_softreset,
 	.hardreset		= sata_sff_hardreset,
 	.postreset		= ata_sff_postreset,
-	.drain_fifo		= ata_sff_drain_fifo,
 	.error_handler		= ata_sff_error_handler,
-	.post_internal_cmd	= ata_sff_post_internal_cmd,
 
 	.sff_dev_select		= ata_sff_dev_select,
 	.sff_check_status	= ata_sff_check_status,
@@ -63,177 +63,12 @@ const struct ata_port_operations ata_sff_port_ops = {
 	.sff_tf_read		= ata_sff_tf_read,
 	.sff_exec_command	= ata_sff_exec_command,
 	.sff_data_xfer		= ata_sff_data_xfer,
-	.sff_irq_on		= ata_sff_irq_on,
 	.sff_irq_clear		= ata_sff_irq_clear,
+	.sff_drain_fifo		= ata_sff_drain_fifo,
 
 	.lost_interrupt		= ata_sff_lost_interrupt,
-
-	.port_start		= ata_sff_port_start,
 };
 EXPORT_SYMBOL_GPL(ata_sff_port_ops);
-
-const struct ata_port_operations ata_bmdma_port_ops = {
-	.inherits		= &ata_sff_port_ops,
-
-	.mode_filter		= ata_bmdma_mode_filter,
-
-	.bmdma_setup		= ata_bmdma_setup,
-	.bmdma_start		= ata_bmdma_start,
-	.bmdma_stop		= ata_bmdma_stop,
-	.bmdma_status		= ata_bmdma_status,
-};
-EXPORT_SYMBOL_GPL(ata_bmdma_port_ops);
-
-const struct ata_port_operations ata_bmdma32_port_ops = {
-	.inherits		= &ata_bmdma_port_ops,
-
-	.sff_data_xfer		= ata_sff_data_xfer32,
-	.port_start		= ata_sff_port_start32,
-};
-EXPORT_SYMBOL_GPL(ata_bmdma32_port_ops);
-
-/**
- *	ata_fill_sg - Fill PCI IDE PRD table
- *	@qc: Metadata associated with taskfile to be transferred
- *
- *	Fill PCI IDE PRD (scatter-gather) table with segments
- *	associated with the current disk command.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- *
- */
-static void ata_fill_sg(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	struct scatterlist *sg;
-	unsigned int si, pi;
-
-	pi = 0;
-	for_each_sg(qc->sg, sg, qc->n_elem, si) {
-		u32 addr, offset;
-		u32 sg_len, len;
-
-		/* determine if physical DMA addr spans 64K boundary.
-		 * Note h/w doesn't support 64-bit, so we unconditionally
-		 * truncate dma_addr_t to u32.
-		 */
-		addr = (u32) sg_dma_address(sg);
-		sg_len = sg_dma_len(sg);
-
-		while (sg_len) {
-			offset = addr & 0xffff;
-			len = sg_len;
-			if ((offset + sg_len) > 0x10000)
-				len = 0x10000 - offset;
-
-			ap->prd[pi].addr = cpu_to_le32(addr);
-			ap->prd[pi].flags_len = cpu_to_le32(len & 0xffff);
-			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", pi, addr, len);
-
-			pi++;
-			sg_len -= len;
-			addr += len;
-		}
-	}
-
-	ap->prd[pi - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
-}
-
-/**
- *	ata_fill_sg_dumb - Fill PCI IDE PRD table
- *	@qc: Metadata associated with taskfile to be transferred
- *
- *	Fill PCI IDE PRD (scatter-gather) table with segments
- *	associated with the current disk command. Perform the fill
- *	so that we avoid writing any length 64K records for
- *	controllers that don't follow the spec.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- *
- */
-static void ata_fill_sg_dumb(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	struct scatterlist *sg;
-	unsigned int si, pi;
-
-	pi = 0;
-	for_each_sg(qc->sg, sg, qc->n_elem, si) {
-		u32 addr, offset;
-		u32 sg_len, len, blen;
-
-		/* determine if physical DMA addr spans 64K boundary.
-		 * Note h/w doesn't support 64-bit, so we unconditionally
-		 * truncate dma_addr_t to u32.
-		 */
-		addr = (u32) sg_dma_address(sg);
-		sg_len = sg_dma_len(sg);
-
-		while (sg_len) {
-			offset = addr & 0xffff;
-			len = sg_len;
-			if ((offset + sg_len) > 0x10000)
-				len = 0x10000 - offset;
-
-			blen = len & 0xffff;
-			ap->prd[pi].addr = cpu_to_le32(addr);
-			if (blen == 0) {
-				/* Some PATA chipsets like the CS5530 can't
-				   cope with 0x0000 meaning 64K as the spec
-				   says */
-				ap->prd[pi].flags_len = cpu_to_le32(0x8000);
-				blen = 0x8000;
-				ap->prd[++pi].addr = cpu_to_le32(addr + 0x8000);
-			}
-			ap->prd[pi].flags_len = cpu_to_le32(blen);
-			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", pi, addr, len);
-
-			pi++;
-			sg_len -= len;
-			addr += len;
-		}
-	}
-
-	ap->prd[pi - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
-}
-
-/**
- *	ata_sff_qc_prep - Prepare taskfile for submission
- *	@qc: Metadata associated with taskfile to be prepared
- *
- *	Prepare ATA taskfile for submission.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-void ata_sff_qc_prep(struct ata_queued_cmd *qc)
-{
-	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
-		return;
-
-	ata_fill_sg(qc);
-}
-EXPORT_SYMBOL_GPL(ata_sff_qc_prep);
-
-/**
- *	ata_sff_dumb_qc_prep - Prepare taskfile for submission
- *	@qc: Metadata associated with taskfile to be prepared
- *
- *	Prepare ATA taskfile for submission.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-void ata_sff_dumb_qc_prep(struct ata_queued_cmd *qc)
-{
-	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
-		return;
-
-	ata_fill_sg_dumb(qc);
-}
-EXPORT_SYMBOL_GPL(ata_sff_dumb_qc_prep);
 
 /**
  *	ata_sff_check_status - Read device status reg & clear interrupt
@@ -446,6 +281,27 @@ int ata_sff_wait_ready(struct ata_link *link, unsigned long deadline)
 EXPORT_SYMBOL_GPL(ata_sff_wait_ready);
 
 /**
+ *	ata_sff_set_devctl - Write device control reg
+ *	@ap: port where the device is
+ *	@ctl: value to write
+ *
+ *	Writes ATA taskfile device control register.
+ *
+ *	Note: may NOT be used as the sff_set_devctl() entry in
+ *	ata_port_operations.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+static void ata_sff_set_devctl(struct ata_port *ap, u8 ctl)
+{
+	if (ap->ops->sff_set_devctl)
+		ap->ops->sff_set_devctl(ap, ctl);
+	else
+		iowrite8(ctl, ap->ioaddr.ctl_addr);
+}
+
+/**
  *	ata_sff_dev_select - Select device 0/1 on ATA bus
  *	@ap: ATA channel to manipulate
  *	@device: ATA device (numbered from zero) to select
@@ -491,7 +347,7 @@ EXPORT_SYMBOL_GPL(ata_sff_dev_select);
  *	LOCKING:
  *	caller.
  */
-void ata_dev_select(struct ata_port *ap, unsigned int device,
+static void ata_dev_select(struct ata_port *ap, unsigned int device,
 			   unsigned int wait, unsigned int can_sleep)
 {
 	if (ata_msg_probe(ap))
@@ -517,24 +373,29 @@ void ata_dev_select(struct ata_port *ap, unsigned int device,
  *	Enable interrupts on a legacy IDE device using MMIO or PIO,
  *	wait for idle, clear any pending interrupts.
  *
+ *	Note: may NOT be used as the sff_irq_on() entry in
+ *	ata_port_operations.
+ *
  *	LOCKING:
  *	Inherited from caller.
  */
-u8 ata_sff_irq_on(struct ata_port *ap)
+void ata_sff_irq_on(struct ata_port *ap)
 {
 	struct ata_ioports *ioaddr = &ap->ioaddr;
-	u8 tmp;
+
+	if (ap->ops->sff_irq_on) {
+		ap->ops->sff_irq_on(ap);
+		return;
+	}
 
 	ap->ctl &= ~ATA_NIEN;
 	ap->last_ctl = ap->ctl;
 
-	if (ioaddr->ctl_addr)
-		iowrite8(ap->ctl, ioaddr->ctl_addr);
-	tmp = ata_wait_idle(ap);
+	if (ap->ops->sff_set_devctl || ioaddr->ctl_addr)
+		ata_sff_set_devctl(ap, ap->ctl);
+	ata_wait_idle(ap);
 
 	ap->ops->sff_irq_clear(ap);
-
-	return tmp;
 }
 EXPORT_SYMBOL_GPL(ata_sff_irq_on);
 
@@ -579,7 +440,6 @@ void ata_sff_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 		if (ioaddr->ctl_addr)
 			iowrite8(tf->ctl, ioaddr->ctl_addr);
 		ap->last_ctl = tf->ctl;
-		ata_wait_idle(ap);
 	}
 
 	if (is_addr && (tf->flags & ATA_TFLAG_LBA48)) {
@@ -615,8 +475,6 @@ void ata_sff_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 		iowrite8(tf->device, ioaddr->device_addr);
 		VPRINTK("device 0x%X\n", tf->device);
 	}
-
-	ata_wait_idle(ap);
 }
 EXPORT_SYMBOL_GPL(ata_sff_tf_load);
 
@@ -894,7 +752,7 @@ static void ata_pio_sector(struct ata_queued_cmd *qc)
 				       do_write);
 	}
 
-	if (!do_write)
+	if (!do_write && !PageSlab(page))
 		flush_dcache_page(page);
 
 	qc->curbytes += qc->sect_size;
@@ -1165,7 +1023,7 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 			qc = ata_qc_from_tag(ap, qc->tag);
 			if (qc) {
 				if (likely(!(qc->err_mask & AC_ERR_HSM))) {
-					ap->ops->sff_irq_on(ap);
+					ata_sff_irq_on(ap);
 					ata_qc_complete(qc);
 				} else
 					ata_port_freeze(ap);
@@ -1181,7 +1039,7 @@ static void ata_hsm_qc_complete(struct ata_queued_cmd *qc, int in_wq)
 	} else {
 		if (in_wq) {
 			spin_lock_irqsave(ap->lock, flags);
-			ap->ops->sff_irq_on(ap);
+			ata_sff_irq_on(ap);
 			ata_qc_complete(qc);
 			spin_unlock_irqrestore(ap->lock, flags);
 		} else
@@ -1293,7 +1151,7 @@ fsm_start:
 		if (in_wq)
 			spin_unlock_irqrestore(ap->lock, flags);
 
-		/* if polling, ata_pio_task() handles the rest.
+		/* if polling, ata_sff_pio_task() handles the rest.
 		 * otherwise, interrupt handler takes over from here.
 		 */
 		break;
@@ -1458,13 +1316,37 @@ fsm_start:
 }
 EXPORT_SYMBOL_GPL(ata_sff_hsm_move);
 
-void ata_pio_task(struct work_struct *work)
+void ata_sff_queue_pio_task(struct ata_port *ap, unsigned long delay)
+{
+	/* may fail if ata_sff_flush_pio_task() in progress */
+	queue_delayed_work(ata_sff_wq, &ap->sff_pio_task,
+			   msecs_to_jiffies(delay));
+}
+EXPORT_SYMBOL_GPL(ata_sff_queue_pio_task);
+
+void ata_sff_flush_pio_task(struct ata_port *ap)
+{
+	DPRINTK("ENTER\n");
+
+	cancel_rearming_delayed_work(&ap->sff_pio_task);
+	ap->hsm_task_state = HSM_ST_IDLE;
+
+	if (ata_msg_ctl(ap))
+		ata_port_printk(ap, KERN_DEBUG, "%s: EXIT\n", __func__);
+}
+
+static void ata_sff_pio_task(struct work_struct *work)
 {
 	struct ata_port *ap =
-		container_of(work, struct ata_port, port_task.work);
-	struct ata_queued_cmd *qc = ap->port_task_data;
+		container_of(work, struct ata_port, sff_pio_task.work);
+	struct ata_queued_cmd *qc;
 	u8 status;
 	int poll_next;
+
+	/* qc can be NULL if timeout occurred */
+	qc = ata_qc_from_tag(ap, ap->link.active_tag);
+	if (!qc)
+		return;
 
 fsm_start:
 	WARN_ON_ONCE(ap->hsm_task_state == HSM_ST_IDLE);
@@ -1481,7 +1363,7 @@ fsm_start:
 		msleep(2);
 		status = ata_sff_busy_wait(ap, ATA_BUSY, 10);
 		if (status & ATA_BUSY) {
-			ata_pio_queue_task(ap, qc, ATA_SHORT_PAUSE);
+			ata_sff_queue_pio_task(ap, ATA_SHORT_PAUSE);
 			return;
 		}
 	}
@@ -1497,15 +1379,11 @@ fsm_start:
 }
 
 /**
- *	ata_sff_qc_issue - issue taskfile to device in proto-dependent manner
+ *	ata_sff_qc_issue - issue taskfile to a SFF controller
  *	@qc: command to issue to device
  *
- *	Using various libata functions and hooks, this function
- *	starts an ATA command.  ATA commands are grouped into
- *	classes called "protocols", and issuing each type of protocol
- *	is slightly different.
- *
- *	May be used as the qc_issue() entry in ata_port_operations.
+ *	This function issues a PIO or NODATA command to a SFF
+ *	controller.
  *
  *	LOCKING:
  *	spin_lock_irqsave(host lock)
@@ -1520,23 +1398,8 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 	/* Use polling pio if the LLD doesn't handle
 	 * interrupt driven pio and atapi CDB interrupt.
 	 */
-	if (ap->flags & ATA_FLAG_PIO_POLLING) {
-		switch (qc->tf.protocol) {
-		case ATA_PROT_PIO:
-		case ATA_PROT_NODATA:
-		case ATAPI_PROT_PIO:
-		case ATAPI_PROT_NODATA:
-			qc->tf.flags |= ATA_TFLAG_POLLING;
-			break;
-		case ATAPI_PROT_DMA:
-			if (qc->dev->flags & ATA_DFLAG_CDB_INTR)
-				/* see ata_dma_blacklisted() */
-				BUG();
-			break;
-		default:
-			break;
-		}
-	}
+	if (ap->flags & ATA_FLAG_PIO_POLLING)
+		qc->tf.flags |= ATA_TFLAG_POLLING;
 
 	/* select the device */
 	ata_dev_select(ap, qc->dev->devno, 1, 0);
@@ -1551,17 +1414,8 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 		ap->hsm_task_state = HSM_ST_LAST;
 
 		if (qc->tf.flags & ATA_TFLAG_POLLING)
-			ata_pio_queue_task(ap, qc, 0);
+			ata_sff_queue_pio_task(ap, 0);
 
-		break;
-
-	case ATA_PROT_DMA:
-		WARN_ON_ONCE(qc->tf.flags & ATA_TFLAG_POLLING);
-
-		ap->ops->sff_tf_load(ap, &qc->tf);  /* load tf registers */
-		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
-		ap->ops->bmdma_start(qc);	    /* initiate bmdma */
-		ap->hsm_task_state = HSM_ST_LAST;
 		break;
 
 	case ATA_PROT_PIO:
@@ -1573,20 +1427,21 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 		if (qc->tf.flags & ATA_TFLAG_WRITE) {
 			/* PIO data out protocol */
 			ap->hsm_task_state = HSM_ST_FIRST;
-			ata_pio_queue_task(ap, qc, 0);
+			ata_sff_queue_pio_task(ap, 0);
 
-			/* always send first data block using
-			 * the ata_pio_task() codepath.
+			/* always send first data block using the
+			 * ata_sff_pio_task() codepath.
 			 */
 		} else {
 			/* PIO data in protocol */
 			ap->hsm_task_state = HSM_ST;
 
 			if (qc->tf.flags & ATA_TFLAG_POLLING)
-				ata_pio_queue_task(ap, qc, 0);
+				ata_sff_queue_pio_task(ap, 0);
 
-			/* if polling, ata_pio_task() handles the rest.
-			 * otherwise, interrupt handler takes over from here.
+			/* if polling, ata_sff_pio_task() handles the
+			 * rest.  otherwise, interrupt handler takes
+			 * over from here.
 			 */
 		}
 
@@ -1604,19 +1459,7 @@ unsigned int ata_sff_qc_issue(struct ata_queued_cmd *qc)
 		/* send cdb by polling if no cdb interrupt */
 		if ((!(qc->dev->flags & ATA_DFLAG_CDB_INTR)) ||
 		    (qc->tf.flags & ATA_TFLAG_POLLING))
-			ata_pio_queue_task(ap, qc, 0);
-		break;
-
-	case ATAPI_PROT_DMA:
-		WARN_ON_ONCE(qc->tf.flags & ATA_TFLAG_POLLING);
-
-		ap->ops->sff_tf_load(ap, &qc->tf);  /* load tf registers */
-		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
-		ap->hsm_task_state = HSM_ST_FIRST;
-
-		/* send cdb by polling if no cdb interrupt */
-		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
-			ata_pio_queue_task(ap, qc, 0);
+			ata_sff_queue_pio_task(ap, 0);
 		break;
 
 	default:
@@ -1728,7 +1571,7 @@ unsigned int ata_sff_host_intr(struct ata_port *ap,
 			goto idle_irq;
 	}
 
-	/* ack bmdma irq events */
+	/* clear irq events */
 	ap->ops->sff_irq_clear(ap);
 
 	ata_sff_hsm_move(ap, qc, status, 0);
@@ -1784,9 +1627,6 @@ retry:
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 		struct ata_queued_cmd *qc;
-
-		if (unlikely(ap->flags & ATA_FLAG_DISABLED))
-			continue;
 
 		qc = ata_qc_from_tag(ap, ap->link.active_tag);
 		if (qc) {
@@ -1862,11 +1702,8 @@ void ata_sff_lost_interrupt(struct ata_port *ap)
 
 	/* Only one outstanding command per SFF channel */
 	qc = ata_qc_from_tag(ap, ap->link.active_tag);
-	/* Check we have a live one.. */
-	if (qc == NULL ||  !(qc->flags & ATA_QCFLAG_ACTIVE))
-		return;
-	/* We cannot lose an interrupt on a polled command */
-	if (qc->tf.flags & ATA_TFLAG_POLLING)
+	/* We cannot lose an interrupt on a non-existent or polled command */
+	if (!qc || qc->tf.flags & ATA_TFLAG_POLLING)
 		return;
 	/* See if the controller thinks it is still busy - if so the command
 	   isn't a lost IRQ but is still in progress */
@@ -1888,20 +1725,18 @@ EXPORT_SYMBOL_GPL(ata_sff_lost_interrupt);
  *	ata_sff_freeze - Freeze SFF controller port
  *	@ap: port to freeze
  *
- *	Freeze BMDMA controller port.
+ *	Freeze SFF controller port.
  *
  *	LOCKING:
  *	Inherited from caller.
  */
 void ata_sff_freeze(struct ata_port *ap)
 {
-	struct ata_ioports *ioaddr = &ap->ioaddr;
-
 	ap->ctl |= ATA_NIEN;
 	ap->last_ctl = ap->ctl;
 
-	if (ioaddr->ctl_addr)
-		iowrite8(ap->ctl, ioaddr->ctl_addr);
+	if (ap->ops->sff_set_devctl || ap->ioaddr.ctl_addr)
+		ata_sff_set_devctl(ap, ap->ctl);
 
 	/* Under certain circumstances, some controllers raise IRQ on
 	 * ATA_NIEN manipulation.  Also, many controllers fail to mask
@@ -1927,7 +1762,7 @@ void ata_sff_thaw(struct ata_port *ap)
 	/* clear & re-enable interrupts */
 	ap->ops->sff_check_status(ap);
 	ap->ops->sff_irq_clear(ap);
-	ap->ops->sff_irq_on(ap);
+	ata_sff_irq_on(ap);
 }
 EXPORT_SYMBOL_GPL(ata_sff_thaw);
 
@@ -2301,8 +2136,8 @@ void ata_sff_postreset(struct ata_link *link, unsigned int *classes)
 	}
 
 	/* set up device control */
-	if (ap->ioaddr.ctl_addr) {
-		iowrite8(ap->ctl, ap->ioaddr.ctl_addr);
+	if (ap->ops->sff_set_devctl || ap->ioaddr.ctl_addr) {
+		ata_sff_set_devctl(ap, ap->ctl);
 		ap->last_ctl = ap->ctl;
 	}
 }
@@ -2342,7 +2177,7 @@ void ata_sff_drain_fifo(struct ata_queued_cmd *qc)
 EXPORT_SYMBOL_GPL(ata_sff_drain_fifo);
 
 /**
- *	ata_sff_error_handler - Stock error handler for BMDMA controller
+ *	ata_sff_error_handler - Stock error handler for SFF controller
  *	@ap: port to handle error for
  *
  *	Stock error handler for SFF controller.  It can handle both
@@ -2359,135 +2194,38 @@ void ata_sff_error_handler(struct ata_port *ap)
 	ata_reset_fn_t hardreset = ap->ops->hardreset;
 	struct ata_queued_cmd *qc;
 	unsigned long flags;
-	int thaw = 0;
 
 	qc = __ata_qc_from_tag(ap, ap->link.active_tag);
 	if (qc && !(qc->flags & ATA_QCFLAG_FAILED))
 		qc = NULL;
 
-	/* reset PIO HSM and stop DMA engine */
 	spin_lock_irqsave(ap->lock, flags);
 
-	ap->hsm_task_state = HSM_ST_IDLE;
-
-	if (ap->ioaddr.bmdma_addr &&
-	    qc && (qc->tf.protocol == ATA_PROT_DMA ||
-		   qc->tf.protocol == ATAPI_PROT_DMA)) {
-		u8 host_stat;
-
-		host_stat = ap->ops->bmdma_status(ap);
-
-		/* BMDMA controllers indicate host bus error by
-		 * setting DMA_ERR bit and timing out.  As it wasn't
-		 * really a timeout event, adjust error mask and
-		 * cancel frozen state.
-		 */
-		if (qc->err_mask == AC_ERR_TIMEOUT
-						&& (host_stat & ATA_DMA_ERR)) {
-			qc->err_mask = AC_ERR_HOST_BUS;
-			thaw = 1;
-		}
-
-		ap->ops->bmdma_stop(qc);
-	}
-
-	ata_sff_sync(ap);		/* FIXME: We don't need this */
-	ap->ops->sff_check_status(ap);
-	ap->ops->sff_irq_clear(ap);
-	/* We *MUST* do FIFO draining before we issue a reset as several
-	 * devices helpfully clear their internal state and will lock solid
-	 * if we touch the data port post reset. Pass qc in case anyone wants
-	 *  to do different PIO/DMA recovery or has per command fixups
+	/*
+	 * We *MUST* do FIFO draining before we issue a reset as
+	 * several devices helpfully clear their internal state and
+	 * will lock solid if we touch the data port post reset. Pass
+	 * qc in case anyone wants to do different PIO/DMA recovery or
+	 * has per command fixups
 	 */
-	if (ap->ops->drain_fifo)
-		ap->ops->drain_fifo(qc);
+	if (ap->ops->sff_drain_fifo)
+		ap->ops->sff_drain_fifo(qc);
 
 	spin_unlock_irqrestore(ap->lock, flags);
 
-	if (thaw)
-		ata_eh_thaw_port(ap);
-
-	/* PIO and DMA engines have been stopped, perform recovery */
-
-	/* Ignore ata_sff_softreset if ctl isn't accessible and
-	 * built-in hardresets if SCR access isn't available.
-	 */
+	/* ignore ata_sff_softreset if ctl isn't accessible */
 	if (softreset == ata_sff_softreset && !ap->ioaddr.ctl_addr)
 		softreset = NULL;
-	if (ata_is_builtin_hardreset(hardreset) && !sata_scr_valid(&ap->link))
+
+	/* ignore built-in hardresets if SCR access is not available */
+	if ((hardreset == sata_std_hardreset ||
+	     hardreset == sata_sff_hardreset) && !sata_scr_valid(&ap->link))
 		hardreset = NULL;
 
 	ata_do_eh(ap, ap->ops->prereset, softreset, hardreset,
 		  ap->ops->postreset);
 }
 EXPORT_SYMBOL_GPL(ata_sff_error_handler);
-
-/**
- *	ata_sff_post_internal_cmd - Stock post_internal_cmd for SFF controller
- *	@qc: internal command to clean up
- *
- *	LOCKING:
- *	Kernel thread context (may sleep)
- */
-void ata_sff_post_internal_cmd(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	unsigned long flags;
-
-	spin_lock_irqsave(ap->lock, flags);
-
-	ap->hsm_task_state = HSM_ST_IDLE;
-
-	if (ap->ioaddr.bmdma_addr)
-		ap->ops->bmdma_stop(qc);
-
-	spin_unlock_irqrestore(ap->lock, flags);
-}
-EXPORT_SYMBOL_GPL(ata_sff_post_internal_cmd);
-
-/**
- *	ata_sff_port_start - Set port up for dma.
- *	@ap: Port to initialize
- *
- *	Called just after data structures for each port are
- *	initialized.  Allocates space for PRD table if the device
- *	is DMA capable SFF.
- *
- *	May be used as the port_start() entry in ata_port_operations.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-int ata_sff_port_start(struct ata_port *ap)
-{
-	if (ap->ioaddr.bmdma_addr)
-		return ata_port_start(ap);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ata_sff_port_start);
-
-/**
- *	ata_sff_port_start32 - Set port up for dma.
- *	@ap: Port to initialize
- *
- *	Called just after data structures for each port are
- *	initialized.  Allocates space for PRD table if the device
- *	is DMA capable SFF.
- *
- *	May be used as the port_start() entry in ata_port_operations for
- *	devices that are capable of 32bit PIO.
- *
- *	LOCKING:
- *	Inherited from caller.
- */
-int ata_sff_port_start32(struct ata_port *ap)
-{
-	ap->pflags |= ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32CHANGE;
-	if (ap->ioaddr.bmdma_addr)
-		return ata_port_start(ap);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ata_sff_port_start32);
 
 /**
  *	ata_sff_std_ports - initialize ioaddr with standard port offsets.
@@ -2515,301 +2253,7 @@ void ata_sff_std_ports(struct ata_ioports *ioaddr)
 }
 EXPORT_SYMBOL_GPL(ata_sff_std_ports);
 
-unsigned long ata_bmdma_mode_filter(struct ata_device *adev,
-				    unsigned long xfer_mask)
-{
-	/* Filter out DMA modes if the device has been configured by
-	   the BIOS as PIO only */
-
-	if (adev->link->ap->ioaddr.bmdma_addr == NULL)
-		xfer_mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
-	return xfer_mask;
-}
-EXPORT_SYMBOL_GPL(ata_bmdma_mode_filter);
-
-/**
- *	ata_bmdma_setup - Set up PCI IDE BMDMA transaction
- *	@qc: Info associated with this ATA transaction.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-void ata_bmdma_setup(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
-	u8 dmactl;
-
-	/* load PRD table addr. */
-	mb();	/* make sure PRD table writes are visible to controller */
-	iowrite32(ap->prd_dma, ap->ioaddr.bmdma_addr + ATA_DMA_TABLE_OFS);
-
-	/* specify data direction, triple-check start bit is clear */
-	dmactl = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-	dmactl &= ~(ATA_DMA_WR | ATA_DMA_START);
-	if (!rw)
-		dmactl |= ATA_DMA_WR;
-	iowrite8(dmactl, ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-
-	/* issue r/w command */
-	ap->ops->sff_exec_command(ap, &qc->tf);
-}
-EXPORT_SYMBOL_GPL(ata_bmdma_setup);
-
-/**
- *	ata_bmdma_start - Start a PCI IDE BMDMA transaction
- *	@qc: Info associated with this ATA transaction.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-void ata_bmdma_start(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	u8 dmactl;
-
-	/* start host DMA transaction */
-	dmactl = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-	iowrite8(dmactl | ATA_DMA_START, ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
-
-	/* Strictly, one may wish to issue an ioread8() here, to
-	 * flush the mmio write.  However, control also passes
-	 * to the hardware at this point, and it will interrupt
-	 * us when we are to resume control.  So, in effect,
-	 * we don't care when the mmio write flushes.
-	 * Further, a read of the DMA status register _immediately_
-	 * following the write may not be what certain flaky hardware
-	 * is expected, so I think it is best to not add a readb()
-	 * without first all the MMIO ATA cards/mobos.
-	 * Or maybe I'm just being paranoid.
-	 *
-	 * FIXME: The posting of this write means I/O starts are
-	 * unneccessarily delayed for MMIO
-	 */
-}
-EXPORT_SYMBOL_GPL(ata_bmdma_start);
-
-/**
- *	ata_bmdma_stop - Stop PCI IDE BMDMA transfer
- *	@qc: Command we are ending DMA for
- *
- *	Clears the ATA_DMA_START flag in the dma control register
- *
- *	May be used as the bmdma_stop() entry in ata_port_operations.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-void ata_bmdma_stop(struct ata_queued_cmd *qc)
-{
-	struct ata_port *ap = qc->ap;
-	void __iomem *mmio = ap->ioaddr.bmdma_addr;
-
-	/* clear start/stop bit */
-	iowrite8(ioread8(mmio + ATA_DMA_CMD) & ~ATA_DMA_START,
-		 mmio + ATA_DMA_CMD);
-
-	/* one-PIO-cycle guaranteed wait, per spec, for HDMA1:0 transition */
-	ata_sff_dma_pause(ap);
-}
-EXPORT_SYMBOL_GPL(ata_bmdma_stop);
-
-/**
- *	ata_bmdma_status - Read PCI IDE BMDMA status
- *	@ap: Port associated with this ATA transaction.
- *
- *	Read and return BMDMA status register.
- *
- *	May be used as the bmdma_status() entry in ata_port_operations.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- */
-u8 ata_bmdma_status(struct ata_port *ap)
-{
-	return ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
-}
-EXPORT_SYMBOL_GPL(ata_bmdma_status);
-
-/**
- *	ata_bus_reset - reset host port and associated ATA channel
- *	@ap: port to reset
- *
- *	This is typically the first time we actually start issuing
- *	commands to the ATA channel.  We wait for BSY to clear, then
- *	issue EXECUTE DEVICE DIAGNOSTIC command, polling for its
- *	result.  Determine what devices, if any, are on the channel
- *	by looking at the device 0/1 error register.  Look at the signature
- *	stored in each device's taskfile registers, to determine if
- *	the device is ATA or ATAPI.
- *
- *	LOCKING:
- *	PCI/etc. bus probe sem.
- *	Obtains host lock.
- *
- *	SIDE EFFECTS:
- *	Sets ATA_FLAG_DISABLED if bus reset fails.
- *
- *	DEPRECATED:
- *	This function is only for drivers which still use old EH and
- *	will be removed soon.
- */
-void ata_bus_reset(struct ata_port *ap)
-{
-	struct ata_device *device = ap->link.device;
-	struct ata_ioports *ioaddr = &ap->ioaddr;
-	unsigned int slave_possible = ap->flags & ATA_FLAG_SLAVE_POSS;
-	u8 err;
-	unsigned int dev0, dev1 = 0, devmask = 0;
-	int rc;
-
-	DPRINTK("ENTER, host %u, port %u\n", ap->print_id, ap->port_no);
-
-	/* determine if device 0/1 are present */
-	if (ap->flags & ATA_FLAG_SATA_RESET)
-		dev0 = 1;
-	else {
-		dev0 = ata_devchk(ap, 0);
-		if (slave_possible)
-			dev1 = ata_devchk(ap, 1);
-	}
-
-	if (dev0)
-		devmask |= (1 << 0);
-	if (dev1)
-		devmask |= (1 << 1);
-
-	/* select device 0 again */
-	ap->ops->sff_dev_select(ap, 0);
-
-	/* issue bus reset */
-	if (ap->flags & ATA_FLAG_SRST) {
-		rc = ata_bus_softreset(ap, devmask,
-				       ata_deadline(jiffies, 40000));
-		if (rc && rc != -ENODEV)
-			goto err_out;
-	}
-
-	/*
-	 * determine by signature whether we have ATA or ATAPI devices
-	 */
-	device[0].class = ata_sff_dev_classify(&device[0], dev0, &err);
-	if ((slave_possible) && (err != 0x81))
-		device[1].class = ata_sff_dev_classify(&device[1], dev1, &err);
-
-	/* is double-select really necessary? */
-	if (device[1].class != ATA_DEV_NONE)
-		ap->ops->sff_dev_select(ap, 1);
-	if (device[0].class != ATA_DEV_NONE)
-		ap->ops->sff_dev_select(ap, 0);
-
-	/* if no devices were detected, disable this port */
-	if ((device[0].class == ATA_DEV_NONE) &&
-	    (device[1].class == ATA_DEV_NONE))
-		goto err_out;
-
-	if (ap->flags & (ATA_FLAG_SATA_RESET | ATA_FLAG_SRST)) {
-		/* set up device control for ATA_FLAG_SATA_RESET */
-		iowrite8(ap->ctl, ioaddr->ctl_addr);
-		ap->last_ctl = ap->ctl;
-	}
-
-	DPRINTK("EXIT\n");
-	return;
-
-err_out:
-	ata_port_printk(ap, KERN_ERR, "disabling port\n");
-	ata_port_disable(ap);
-
-	DPRINTK("EXIT\n");
-}
-EXPORT_SYMBOL_GPL(ata_bus_reset);
-
 #ifdef CONFIG_PCI
-
-/**
- *	ata_pci_bmdma_clear_simplex -	attempt to kick device out of simplex
- *	@pdev: PCI device
- *
- *	Some PCI ATA devices report simplex mode but in fact can be told to
- *	enter non simplex mode. This implements the necessary logic to
- *	perform the task on such devices. Calling it on other devices will
- *	have -undefined- behaviour.
- */
-int ata_pci_bmdma_clear_simplex(struct pci_dev *pdev)
-{
-	unsigned long bmdma = pci_resource_start(pdev, 4);
-	u8 simplex;
-
-	if (bmdma == 0)
-		return -ENOENT;
-
-	simplex = inb(bmdma + 0x02);
-	outb(simplex & 0x60, bmdma + 0x02);
-	simplex = inb(bmdma + 0x02);
-	if (simplex & 0x80)
-		return -EOPNOTSUPP;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ata_pci_bmdma_clear_simplex);
-
-/**
- *	ata_pci_bmdma_init - acquire PCI BMDMA resources and init ATA host
- *	@host: target ATA host
- *
- *	Acquire PCI BMDMA resources and initialize @host accordingly.
- *
- *	LOCKING:
- *	Inherited from calling layer (may sleep).
- *
- *	RETURNS:
- *	0 on success, -errno otherwise.
- */
-int ata_pci_bmdma_init(struct ata_host *host)
-{
-	struct device *gdev = host->dev;
-	struct pci_dev *pdev = to_pci_dev(gdev);
-	int i, rc;
-
-	/* No BAR4 allocation: No DMA */
-	if (pci_resource_start(pdev, 4) == 0)
-		return 0;
-
-	/* TODO: If we get no DMA mask we should fall back to PIO */
-	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
-	if (rc)
-		return rc;
-	rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
-	if (rc)
-		return rc;
-
-	/* request and iomap DMA region */
-	rc = pcim_iomap_regions(pdev, 1 << 4, dev_driver_string(gdev));
-	if (rc) {
-		dev_printk(KERN_ERR, gdev, "failed to request/iomap BAR4\n");
-		return -ENOMEM;
-	}
-	host->iomap = pcim_iomap_table(pdev);
-
-	for (i = 0; i < 2; i++) {
-		struct ata_port *ap = host->ports[i];
-		void __iomem *bmdma = host->iomap[4] + 8 * i;
-
-		if (ata_port_is_dummy(ap))
-			continue;
-
-		ap->ioaddr.bmdma_addr = bmdma;
-		if ((!(ap->flags & ATA_FLAG_IGN_SIMPLEX)) &&
-		    (ioread8(bmdma + 2) & 0x80))
-			host->flags |= ATA_HOST_SIMPLEX;
-
-		ata_port_desc(ap, "bmdma 0x%llx",
-		    (unsigned long long)pci_resource_start(pdev, 4) + 8 * i);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ata_pci_bmdma_init);
 
 static int ata_resources_present(struct pci_dev *pdev, int port)
 {
@@ -2942,21 +2386,12 @@ int ata_pci_sff_prepare_host(struct pci_dev *pdev,
 		goto err_out;
 
 	/* init DMA related stuff */
-	rc = ata_pci_bmdma_init(host);
-	if (rc)
-		goto err_bmdma;
+	ata_pci_bmdma_init(host);
 
 	devres_remove_group(&pdev->dev, NULL);
 	*r_host = host;
 	return 0;
 
-err_bmdma:
-	/* This is necessary because PCI and iomap resources are
-	 * merged and releasing the top group won't release the
-	 * acquired resources if some of those have been acquired
-	 * before entering this function.
-	 */
-	pcim_iounmap_regions(pdev, 0xf);
 err_out:
 	devres_release_group(&pdev->dev, NULL);
 	return rc;
@@ -3135,3 +2570,609 @@ out:
 EXPORT_SYMBOL_GPL(ata_pci_sff_init_one);
 
 #endif /* CONFIG_PCI */
+
+const struct ata_port_operations ata_bmdma_port_ops = {
+	.inherits		= &ata_sff_port_ops,
+
+	.error_handler		= ata_bmdma_error_handler,
+	.post_internal_cmd	= ata_bmdma_post_internal_cmd,
+
+	.qc_prep		= ata_bmdma_qc_prep,
+	.qc_issue		= ata_bmdma_qc_issue,
+
+	.bmdma_setup		= ata_bmdma_setup,
+	.bmdma_start		= ata_bmdma_start,
+	.bmdma_stop		= ata_bmdma_stop,
+	.bmdma_status		= ata_bmdma_status,
+
+	.port_start		= ata_bmdma_port_start,
+};
+EXPORT_SYMBOL_GPL(ata_bmdma_port_ops);
+
+const struct ata_port_operations ata_bmdma32_port_ops = {
+	.inherits		= &ata_bmdma_port_ops,
+
+	.sff_data_xfer		= ata_sff_data_xfer32,
+	.port_start		= ata_bmdma_port_start32,
+};
+EXPORT_SYMBOL_GPL(ata_bmdma32_port_ops);
+
+/**
+ *	ata_bmdma_fill_sg - Fill PCI IDE PRD table
+ *	@qc: Metadata associated with taskfile to be transferred
+ *
+ *	Fill PCI IDE PRD (scatter-gather) table with segments
+ *	associated with the current disk command.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ *
+ */
+static void ata_bmdma_fill_sg(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	struct ata_bmdma_prd *prd = ap->bmdma_prd;
+	struct scatterlist *sg;
+	unsigned int si, pi;
+
+	pi = 0;
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
+		u32 addr, offset;
+		u32 sg_len, len;
+
+		/* determine if physical DMA addr spans 64K boundary.
+		 * Note h/w doesn't support 64-bit, so we unconditionally
+		 * truncate dma_addr_t to u32.
+		 */
+		addr = (u32) sg_dma_address(sg);
+		sg_len = sg_dma_len(sg);
+
+		while (sg_len) {
+			offset = addr & 0xffff;
+			len = sg_len;
+			if ((offset + sg_len) > 0x10000)
+				len = 0x10000 - offset;
+
+			prd[pi].addr = cpu_to_le32(addr);
+			prd[pi].flags_len = cpu_to_le32(len & 0xffff);
+			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", pi, addr, len);
+
+			pi++;
+			sg_len -= len;
+			addr += len;
+		}
+	}
+
+	prd[pi - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
+}
+
+/**
+ *	ata_bmdma_fill_sg_dumb - Fill PCI IDE PRD table
+ *	@qc: Metadata associated with taskfile to be transferred
+ *
+ *	Fill PCI IDE PRD (scatter-gather) table with segments
+ *	associated with the current disk command. Perform the fill
+ *	so that we avoid writing any length 64K records for
+ *	controllers that don't follow the spec.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ *
+ */
+static void ata_bmdma_fill_sg_dumb(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	struct ata_bmdma_prd *prd = ap->bmdma_prd;
+	struct scatterlist *sg;
+	unsigned int si, pi;
+
+	pi = 0;
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
+		u32 addr, offset;
+		u32 sg_len, len, blen;
+
+		/* determine if physical DMA addr spans 64K boundary.
+		 * Note h/w doesn't support 64-bit, so we unconditionally
+		 * truncate dma_addr_t to u32.
+		 */
+		addr = (u32) sg_dma_address(sg);
+		sg_len = sg_dma_len(sg);
+
+		while (sg_len) {
+			offset = addr & 0xffff;
+			len = sg_len;
+			if ((offset + sg_len) > 0x10000)
+				len = 0x10000 - offset;
+
+			blen = len & 0xffff;
+			prd[pi].addr = cpu_to_le32(addr);
+			if (blen == 0) {
+				/* Some PATA chipsets like the CS5530 can't
+				   cope with 0x0000 meaning 64K as the spec
+				   says */
+				prd[pi].flags_len = cpu_to_le32(0x8000);
+				blen = 0x8000;
+				prd[++pi].addr = cpu_to_le32(addr + 0x8000);
+			}
+			prd[pi].flags_len = cpu_to_le32(blen);
+			VPRINTK("PRD[%u] = (0x%X, 0x%X)\n", pi, addr, len);
+
+			pi++;
+			sg_len -= len;
+			addr += len;
+		}
+	}
+
+	prd[pi - 1].flags_len |= cpu_to_le32(ATA_PRD_EOT);
+}
+
+/**
+ *	ata_bmdma_qc_prep - Prepare taskfile for submission
+ *	@qc: Metadata associated with taskfile to be prepared
+ *
+ *	Prepare ATA taskfile for submission.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void ata_bmdma_qc_prep(struct ata_queued_cmd *qc)
+{
+	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
+		return;
+
+	ata_bmdma_fill_sg(qc);
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_qc_prep);
+
+/**
+ *	ata_bmdma_dumb_qc_prep - Prepare taskfile for submission
+ *	@qc: Metadata associated with taskfile to be prepared
+ *
+ *	Prepare ATA taskfile for submission.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void ata_bmdma_dumb_qc_prep(struct ata_queued_cmd *qc)
+{
+	if (!(qc->flags & ATA_QCFLAG_DMAMAP))
+		return;
+
+	ata_bmdma_fill_sg_dumb(qc);
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_dumb_qc_prep);
+
+/**
+ *	ata_bmdma_qc_issue - issue taskfile to a BMDMA controller
+ *	@qc: command to issue to device
+ *
+ *	This function issues a PIO, NODATA or DMA command to a
+ *	SFF/BMDMA controller.  PIO and NODATA are handled by
+ *	ata_sff_qc_issue().
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ *
+ *	RETURNS:
+ *	Zero on success, AC_ERR_* mask on failure
+ */
+unsigned int ata_bmdma_qc_issue(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+
+	/* see ata_dma_blacklisted() */
+	BUG_ON((ap->flags & ATA_FLAG_PIO_POLLING) &&
+	       qc->tf.protocol == ATAPI_PROT_DMA);
+
+	/* defer PIO handling to sff_qc_issue */
+	if (!ata_is_dma(qc->tf.protocol))
+		return ata_sff_qc_issue(qc);
+
+	/* select the device */
+	ata_dev_select(ap, qc->dev->devno, 1, 0);
+
+	/* start the command */
+	switch (qc->tf.protocol) {
+	case ATA_PROT_DMA:
+		WARN_ON_ONCE(qc->tf.flags & ATA_TFLAG_POLLING);
+
+		ap->ops->sff_tf_load(ap, &qc->tf);  /* load tf registers */
+		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
+		ap->ops->bmdma_start(qc);	    /* initiate bmdma */
+		ap->hsm_task_state = HSM_ST_LAST;
+		break;
+
+	case ATAPI_PROT_DMA:
+		WARN_ON_ONCE(qc->tf.flags & ATA_TFLAG_POLLING);
+
+		ap->ops->sff_tf_load(ap, &qc->tf);  /* load tf registers */
+		ap->ops->bmdma_setup(qc);	    /* set up bmdma */
+		ap->hsm_task_state = HSM_ST_FIRST;
+
+		/* send cdb by polling if no cdb interrupt */
+		if (!(qc->dev->flags & ATA_DFLAG_CDB_INTR))
+			ata_sff_queue_pio_task(ap, 0);
+		break;
+
+	default:
+		WARN_ON(1);
+		return AC_ERR_SYSTEM;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_qc_issue);
+
+/**
+ *	ata_bmdma_error_handler - Stock error handler for BMDMA controller
+ *	@ap: port to handle error for
+ *
+ *	Stock error handler for BMDMA controller.  It can handle both
+ *	PATA and SATA controllers.  Most BMDMA controllers should be
+ *	able to use this EH as-is or with some added handling before
+ *	and after.
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ */
+void ata_bmdma_error_handler(struct ata_port *ap)
+{
+	struct ata_queued_cmd *qc;
+	unsigned long flags;
+	bool thaw = false;
+
+	qc = __ata_qc_from_tag(ap, ap->link.active_tag);
+	if (qc && !(qc->flags & ATA_QCFLAG_FAILED))
+		qc = NULL;
+
+	/* reset PIO HSM and stop DMA engine */
+	spin_lock_irqsave(ap->lock, flags);
+
+	if (qc && ata_is_dma(qc->tf.protocol)) {
+		u8 host_stat;
+
+		host_stat = ap->ops->bmdma_status(ap);
+
+		/* BMDMA controllers indicate host bus error by
+		 * setting DMA_ERR bit and timing out.  As it wasn't
+		 * really a timeout event, adjust error mask and
+		 * cancel frozen state.
+		 */
+		if (qc->err_mask == AC_ERR_TIMEOUT && (host_stat & ATA_DMA_ERR)) {
+			qc->err_mask = AC_ERR_HOST_BUS;
+			thaw = true;
+		}
+
+		ap->ops->bmdma_stop(qc);
+
+		/* if we're gonna thaw, make sure IRQ is clear */
+		if (thaw) {
+			ap->ops->sff_check_status(ap);
+			ap->ops->sff_irq_clear(ap);
+		}
+	}
+
+	spin_unlock_irqrestore(ap->lock, flags);
+
+	if (thaw)
+		ata_eh_thaw_port(ap);
+
+	ata_sff_error_handler(ap);
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_error_handler);
+
+/**
+ *	ata_bmdma_post_internal_cmd - Stock post_internal_cmd for BMDMA
+ *	@qc: internal command to clean up
+ *
+ *	LOCKING:
+ *	Kernel thread context (may sleep)
+ */
+void ata_bmdma_post_internal_cmd(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	unsigned long flags;
+
+	if (ata_is_dma(qc->tf.protocol)) {
+		spin_lock_irqsave(ap->lock, flags);
+		ap->ops->bmdma_stop(qc);
+		spin_unlock_irqrestore(ap->lock, flags);
+	}
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_post_internal_cmd);
+
+/**
+ *	ata_bmdma_setup - Set up PCI IDE BMDMA transaction
+ *	@qc: Info associated with this ATA transaction.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void ata_bmdma_setup(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	unsigned int rw = (qc->tf.flags & ATA_TFLAG_WRITE);
+	u8 dmactl;
+
+	/* load PRD table addr. */
+	mb();	/* make sure PRD table writes are visible to controller */
+	iowrite32(ap->bmdma_prd_dma, ap->ioaddr.bmdma_addr + ATA_DMA_TABLE_OFS);
+
+	/* specify data direction, triple-check start bit is clear */
+	dmactl = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+	dmactl &= ~(ATA_DMA_WR | ATA_DMA_START);
+	if (!rw)
+		dmactl |= ATA_DMA_WR;
+	iowrite8(dmactl, ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+
+	/* issue r/w command */
+	ap->ops->sff_exec_command(ap, &qc->tf);
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_setup);
+
+/**
+ *	ata_bmdma_start - Start a PCI IDE BMDMA transaction
+ *	@qc: Info associated with this ATA transaction.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void ata_bmdma_start(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	u8 dmactl;
+
+	/* start host DMA transaction */
+	dmactl = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+	iowrite8(dmactl | ATA_DMA_START, ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+
+	/* Strictly, one may wish to issue an ioread8() here, to
+	 * flush the mmio write.  However, control also passes
+	 * to the hardware at this point, and it will interrupt
+	 * us when we are to resume control.  So, in effect,
+	 * we don't care when the mmio write flushes.
+	 * Further, a read of the DMA status register _immediately_
+	 * following the write may not be what certain flaky hardware
+	 * is expected, so I think it is best to not add a readb()
+	 * without first all the MMIO ATA cards/mobos.
+	 * Or maybe I'm just being paranoid.
+	 *
+	 * FIXME: The posting of this write means I/O starts are
+	 * unneccessarily delayed for MMIO
+	 */
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_start);
+
+/**
+ *	ata_bmdma_stop - Stop PCI IDE BMDMA transfer
+ *	@qc: Command we are ending DMA for
+ *
+ *	Clears the ATA_DMA_START flag in the dma control register
+ *
+ *	May be used as the bmdma_stop() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void ata_bmdma_stop(struct ata_queued_cmd *qc)
+{
+	struct ata_port *ap = qc->ap;
+	void __iomem *mmio = ap->ioaddr.bmdma_addr;
+
+	/* clear start/stop bit */
+	iowrite8(ioread8(mmio + ATA_DMA_CMD) & ~ATA_DMA_START,
+		 mmio + ATA_DMA_CMD);
+
+	/* one-PIO-cycle guaranteed wait, per spec, for HDMA1:0 transition */
+	ata_sff_dma_pause(ap);
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_stop);
+
+/**
+ *	ata_bmdma_status - Read PCI IDE BMDMA status
+ *	@ap: Port associated with this ATA transaction.
+ *
+ *	Read and return BMDMA status register.
+ *
+ *	May be used as the bmdma_status() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+u8 ata_bmdma_status(struct ata_port *ap)
+{
+	return ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_STATUS);
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_status);
+
+
+/**
+ *	ata_bmdma_port_start - Set port up for bmdma.
+ *	@ap: Port to initialize
+ *
+ *	Called just after data structures for each port are
+ *	initialized.  Allocates space for PRD table.
+ *
+ *	May be used as the port_start() entry in ata_port_operations.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+int ata_bmdma_port_start(struct ata_port *ap)
+{
+	if (ap->mwdma_mask || ap->udma_mask) {
+		ap->bmdma_prd =
+			dmam_alloc_coherent(ap->host->dev, ATA_PRD_TBL_SZ,
+					    &ap->bmdma_prd_dma, GFP_KERNEL);
+		if (!ap->bmdma_prd)
+			return -ENOMEM;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_port_start);
+
+/**
+ *	ata_bmdma_port_start32 - Set port up for dma.
+ *	@ap: Port to initialize
+ *
+ *	Called just after data structures for each port are
+ *	initialized.  Enables 32bit PIO and allocates space for PRD
+ *	table.
+ *
+ *	May be used as the port_start() entry in ata_port_operations for
+ *	devices that are capable of 32bit PIO.
+ *
+ *	LOCKING:
+ *	Inherited from caller.
+ */
+int ata_bmdma_port_start32(struct ata_port *ap)
+{
+	ap->pflags |= ATA_PFLAG_PIO32 | ATA_PFLAG_PIO32CHANGE;
+	return ata_bmdma_port_start(ap);
+}
+EXPORT_SYMBOL_GPL(ata_bmdma_port_start32);
+
+#ifdef CONFIG_PCI
+
+/**
+ *	ata_pci_bmdma_clear_simplex -	attempt to kick device out of simplex
+ *	@pdev: PCI device
+ *
+ *	Some PCI ATA devices report simplex mode but in fact can be told to
+ *	enter non simplex mode. This implements the necessary logic to
+ *	perform the task on such devices. Calling it on other devices will
+ *	have -undefined- behaviour.
+ */
+int ata_pci_bmdma_clear_simplex(struct pci_dev *pdev)
+{
+	unsigned long bmdma = pci_resource_start(pdev, 4);
+	u8 simplex;
+
+	if (bmdma == 0)
+		return -ENOENT;
+
+	simplex = inb(bmdma + 0x02);
+	outb(simplex & 0x60, bmdma + 0x02);
+	simplex = inb(bmdma + 0x02);
+	if (simplex & 0x80)
+		return -EOPNOTSUPP;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ata_pci_bmdma_clear_simplex);
+
+static void ata_bmdma_nodma(struct ata_host *host, const char *reason)
+{
+	int i;
+
+	dev_printk(KERN_ERR, host->dev, "BMDMA: %s, falling back to PIO\n",
+		   reason);
+
+	for (i = 0; i < 2; i++) {
+		host->ports[i]->mwdma_mask = 0;
+		host->ports[i]->udma_mask = 0;
+	}
+}
+
+/**
+ *	ata_pci_bmdma_init - acquire PCI BMDMA resources and init ATA host
+ *	@host: target ATA host
+ *
+ *	Acquire PCI BMDMA resources and initialize @host accordingly.
+ *
+ *	LOCKING:
+ *	Inherited from calling layer (may sleep).
+ */
+void ata_pci_bmdma_init(struct ata_host *host)
+{
+	struct device *gdev = host->dev;
+	struct pci_dev *pdev = to_pci_dev(gdev);
+	int i, rc;
+
+	/* No BAR4 allocation: No DMA */
+	if (pci_resource_start(pdev, 4) == 0) {
+		ata_bmdma_nodma(host, "BAR4 is zero");
+		return;
+	}
+
+	/*
+	 * Some controllers require BMDMA region to be initialized
+	 * even if DMA is not in use to clear IRQ status via
+	 * ->sff_irq_clear method.  Try to initialize bmdma_addr
+	 * regardless of dma masks.
+	 */
+	rc = pci_set_dma_mask(pdev, ATA_DMA_MASK);
+	if (rc)
+		ata_bmdma_nodma(host, "failed to set dma mask");
+	if (!rc) {
+		rc = pci_set_consistent_dma_mask(pdev, ATA_DMA_MASK);
+		if (rc)
+			ata_bmdma_nodma(host,
+					"failed to set consistent dma mask");
+	}
+
+	/* request and iomap DMA region */
+	rc = pcim_iomap_regions(pdev, 1 << 4, dev_driver_string(gdev));
+	if (rc) {
+		ata_bmdma_nodma(host, "failed to request/iomap BAR4");
+		return;
+	}
+	host->iomap = pcim_iomap_table(pdev);
+
+	for (i = 0; i < 2; i++) {
+		struct ata_port *ap = host->ports[i];
+		void __iomem *bmdma = host->iomap[4] + 8 * i;
+
+		if (ata_port_is_dummy(ap))
+			continue;
+
+		ap->ioaddr.bmdma_addr = bmdma;
+		if ((!(ap->flags & ATA_FLAG_IGN_SIMPLEX)) &&
+		    (ioread8(bmdma + 2) & 0x80))
+			host->flags |= ATA_HOST_SIMPLEX;
+
+		ata_port_desc(ap, "bmdma 0x%llx",
+		    (unsigned long long)pci_resource_start(pdev, 4) + 8 * i);
+	}
+}
+EXPORT_SYMBOL_GPL(ata_pci_bmdma_init);
+
+#endif /* CONFIG_PCI */
+
+/**
+ *	ata_sff_port_init - Initialize SFF/BMDMA ATA port
+ *	@ap: Port to initialize
+ *
+ *	Called on port allocation to initialize SFF/BMDMA specific
+ *	fields.
+ *
+ *	LOCKING:
+ *	None.
+ */
+void ata_sff_port_init(struct ata_port *ap)
+{
+	INIT_DELAYED_WORK(&ap->sff_pio_task, ata_sff_pio_task);
+	ap->ctl = ATA_DEVCTL_OBS;
+	ap->last_ctl = 0xFF;
+}
+
+int __init ata_sff_init(void)
+{
+	/*
+	 * FIXME: In UP case, there is only one workqueue thread and if you
+	 * have more than one PIO device, latency is bloody awful, with
+	 * occasional multi-second "hiccups" as one PIO device waits for
+	 * another.  It's an ugly wart that users DO occasionally complain
+	 * about; luckily most users have at most one PIO polled device.
+	 */
+	ata_sff_wq = create_workqueue("ata_sff");
+	if (!ata_sff_wq)
+		return -ENOMEM;
+
+	return 0;
+}
+
+void __exit ata_sff_exit(void)
+{
+	destroy_workqueue(ata_sff_wq);
+}

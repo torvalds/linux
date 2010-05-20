@@ -190,15 +190,37 @@ static void sil680_set_dmamode(struct ata_port *ap, struct ata_device *adev)
 	pci_write_config_word(pdev, ua, ultra);
 }
 
+/**
+ *	sil680_sff_exec_command - issue ATA command to host controller
+ *	@ap: port to which command is being issued
+ *	@tf: ATA taskfile register set
+ *
+ *	Issues ATA command, with proper synchronization with interrupt
+ *	handler / other threads. Use our MMIO space for PCI posting to avoid
+ *	a hideously slow cycle all the way to the device.
+ *
+ *	LOCKING:
+ *	spin_lock_irqsave(host lock)
+ */
+void sil680_sff_exec_command(struct ata_port *ap,
+					const struct ata_taskfile *tf)
+{
+	DPRINTK("ata%u: cmd 0x%X\n", ap->print_id, tf->command);
+	iowrite8(tf->command, ap->ioaddr.command_addr);
+	ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
+}
+
 static struct scsi_host_template sil680_sht = {
 	ATA_BMDMA_SHT(DRV_NAME),
 };
 
+
 static struct ata_port_operations sil680_port_ops = {
-	.inherits	= &ata_bmdma32_port_ops,
-	.cable_detect	= sil680_cable_detect,
-	.set_piomode	= sil680_set_piomode,
-	.set_dmamode	= sil680_set_dmamode,
+	.inherits		= &ata_bmdma32_port_ops,
+	.sff_exec_command	= sil680_sff_exec_command,
+	.cable_detect		= sil680_cable_detect,
+	.set_piomode		= sil680_set_piomode,
+	.set_dmamode		= sil680_set_dmamode,
 };
 
 /**
