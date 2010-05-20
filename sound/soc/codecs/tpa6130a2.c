@@ -35,22 +35,11 @@
 
 static struct i2c_client *tpa6130a2_client;
 
-#define TPA6130A2_NUM_SUPPLIES 2
-static const char *tpa6130a2_supply_names[TPA6130A2_NUM_SUPPLIES] = {
-	"CPVSS",
-	"Vdd",
-};
-
-static const char *tpa6140a2_supply_names[TPA6130A2_NUM_SUPPLIES] = {
-	"HPVdd",
-	"AVdd",
-};
-
 /* This struct is used to save the context */
 struct tpa6130a2_data {
 	struct mutex mutex;
 	unsigned char regs[TPA6130A2_CACHEREGNUM];
-	struct regulator_bulk_data supplies[TPA6130A2_NUM_SUPPLIES];
+	struct regulator *supply;
 	int power_gpio;
 	unsigned char power_state;
 	enum tpa_model id;
@@ -135,11 +124,10 @@ static int tpa6130a2_power(int power)
 		if (data->power_gpio >= 0)
 			gpio_set_value(data->power_gpio, 1);
 
-		ret = regulator_bulk_enable(ARRAY_SIZE(data->supplies),
-					    data->supplies);
+		ret = regulator_enable(data->supply);
 		if (ret != 0) {
 			dev_err(&tpa6130a2_client->dev,
-				"Failed to enable supplies: %d\n", ret);
+				"Failed to enable supply: %d\n", ret);
 			goto exit;
 		}
 
@@ -160,11 +148,10 @@ static int tpa6130a2_power(int power)
 		if (data->power_gpio >= 0)
 			gpio_set_value(data->power_gpio, 0);
 
-		ret = regulator_bulk_disable(ARRAY_SIZE(data->supplies),
-					     data->supplies);
+		ret = regulator_disable(data->supply);
 		if (ret != 0) {
 			dev_err(&tpa6130a2_client->dev,
-				"Failed to disable supplies: %d\n", ret);
+				"Failed to disable supply: %d\n", ret);
 			goto exit;
 		}
 
@@ -371,8 +358,8 @@ static const struct snd_soc_dapm_widget tpa6130a2_dapm_widgets[] = {
 			0, 0, tpa6130a2_supply_event,
 			SND_SOC_DAPM_POST_PMU|SND_SOC_DAPM_POST_PMD),
 	/* Outputs */
-	SND_SOC_DAPM_HP("TPA6130A2 Headphone Left", NULL),
-	SND_SOC_DAPM_HP("TPA6130A2 Headphone Right", NULL),
+	SND_SOC_DAPM_OUTPUT("TPA6130A2 Headphone Left"),
+	SND_SOC_DAPM_OUTPUT("TPA6130A2 Headphone Right"),
 };
 
 static const struct snd_soc_dapm_route audio_map[] = {
@@ -411,7 +398,8 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 	struct device *dev;
 	struct tpa6130a2_data *data;
 	struct tpa6130a2_platform_data *pdata;
-	int i, ret;
+	const char *regulator;
+	int ret;
 
 	dev = &client->dev;
 
@@ -453,25 +441,21 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 	}
 
 	switch (data->id) {
-	case TPA6130A2:
-		for (i = 0; i < ARRAY_SIZE(data->supplies); i++)
-			data->supplies[i].supply = tpa6130a2_supply_names[i];
-		break;
-	case TPA6140A2:
-		for (i = 0; i < ARRAY_SIZE(data->supplies); i++)
-			data->supplies[i].supply = tpa6140a2_supply_names[i];;
-		break;
 	default:
 		dev_warn(dev, "Unknown TPA model (%d). Assuming 6130A2\n",
 			 pdata->id);
-		for (i = 0; i < ARRAY_SIZE(data->supplies); i++)
-			data->supplies[i].supply = tpa6130a2_supply_names[i];
+	case TPA6130A2:
+		regulator = "Vdd";
+		break;
+	case TPA6140A2:
+		regulator = "AVdd";
+		break;
 	}
 
-	ret = regulator_bulk_get(dev, ARRAY_SIZE(data->supplies),
-				 data->supplies);
-	if (ret != 0) {
-		dev_err(dev, "Failed to request supplies: %d\n", ret);
+	data->supply = regulator_get(dev, regulator);
+	if (IS_ERR(data->supply)) {
+		ret = PTR_ERR(data->supply);
+		dev_err(dev, "Failed to request supply: %d\n", ret);
 		goto err_regulator;
 	}
 
@@ -494,7 +478,7 @@ static int __devinit tpa6130a2_probe(struct i2c_client *client,
 	return 0;
 
 err_power:
-	regulator_bulk_free(ARRAY_SIZE(data->supplies), data->supplies);
+	regulator_put(data->supply);
 err_regulator:
 	if (data->power_gpio >= 0)
 		gpio_free(data->power_gpio);
@@ -515,7 +499,7 @@ static int __devexit tpa6130a2_remove(struct i2c_client *client)
 	if (data->power_gpio >= 0)
 		gpio_free(data->power_gpio);
 
-	regulator_bulk_free(ARRAY_SIZE(data->supplies), data->supplies);
+	regulator_put(data->supply);
 
 	kfree(data);
 	tpa6130a2_client = NULL;
