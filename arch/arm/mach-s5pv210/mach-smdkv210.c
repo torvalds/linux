@@ -78,6 +78,7 @@ static struct platform_device *smdkv210_devices[] __initdata = {
 	&s5pv210_device_ac97,
 	&s3c_device_adc,
 	&s3c_device_ts,
+	&s3c_device_wdt,
 };
 
 static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {

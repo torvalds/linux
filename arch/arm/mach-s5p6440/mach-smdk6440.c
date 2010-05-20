@@ -89,6 +89,7 @@ static struct platform_device *smdk6440_devices[] __initdata = {
 	&s5p6440_device_iis,
 	&s3c_device_adc,
 	&s3c_device_ts,
+	&s3c_device_wdt,
 };
 
 static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
