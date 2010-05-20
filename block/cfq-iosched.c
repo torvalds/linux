@@ -430,6 +430,23 @@ static inline void cic_set_cfqq(struct cfq_io_context *cic,
 	cic->cfqq[is_sync] = cfqq;
 }
 
+#define CIC_DEAD_KEY	1ul
+
+static inline void *cfqd_dead_key(struct cfq_data *cfqd)
+{
+	return (void *)((unsigned long) cfqd | CIC_DEAD_KEY);
+}
+
+static inline struct cfq_data *cic_to_cfqd(struct cfq_io_context *cic)
+{
+	struct cfq_data *cfqd = cic->key;
+
+	if (unlikely((unsigned long) cfqd & CIC_DEAD_KEY))
+		return NULL;
+
+	return cfqd;
+}
+
 /*
  * We regard a request as SYNC, if it's either a read or has the SYNC bit
  * set (in which case it could also be direct WRITE).
@@ -2510,11 +2527,12 @@ static void cfq_cic_free(struct cfq_io_context *cic)
 static void cic_free_func(struct io_context *ioc, struct cfq_io_context *cic)
 {
 	unsigned long flags;
+	unsigned long dead_key = (unsigned long) cic->key;
 
-	BUG_ON(!cic->dead_key);
+	BUG_ON(!(dead_key & CIC_DEAD_KEY));
 
 	spin_lock_irqsave(&ioc->lock, flags);
-	radix_tree_delete(&ioc->radix_root, cic->dead_key);
+	radix_tree_delete(&ioc->radix_root, dead_key & ~CIC_DEAD_KEY);
 	hlist_del_rcu(&cic->cic_list);
 	spin_unlock_irqrestore(&ioc->lock, flags);
 
@@ -2573,11 +2591,10 @@ static void __cfq_exit_single_io_context(struct cfq_data *cfqd,
 	list_del_init(&cic->queue_list);
 
 	/*
-	 * Make sure key == NULL is seen for dead queues
+	 * Make sure dead mark is seen for dead queues
 	 */
 	smp_wmb();
-	cic->dead_key = (unsigned long) cic->key;
-	cic->key = NULL;
+	cic->key = cfqd_dead_key(cfqd);
 
 	if (ioc->ioc_data == cic)
 		rcu_assign_pointer(ioc->ioc_data, NULL);
@@ -2596,7 +2613,7 @@ static void __cfq_exit_single_io_context(struct cfq_data *cfqd,
 static void cfq_exit_single_io_context(struct io_context *ioc,
 				       struct cfq_io_context *cic)
 {
-	struct cfq_data *cfqd = cic->key;
+	struct cfq_data *cfqd = cic_to_cfqd(cic);
 
 	if (cfqd) {
 		struct request_queue *q = cfqd->queue;
@@ -2609,7 +2626,7 @@ static void cfq_exit_single_io_context(struct io_context *ioc,
 		 * race between exiting task and queue
 		 */
 		smp_read_barrier_depends();
-		if (cic->key)
+		if (cic->key == cfqd)
 			__cfq_exit_single_io_context(cfqd, cic);
 
 		spin_unlock_irqrestore(q->queue_lock, flags);
@@ -2689,7 +2706,7 @@ static void cfq_init_prio_data(struct cfq_queue *cfqq, struct io_context *ioc)
 
 static void changed_ioprio(struct io_context *ioc, struct cfq_io_context *cic)
 {
-	struct cfq_data *cfqd = cic->key;
+	struct cfq_data *cfqd = cic_to_cfqd(cic);
 	struct cfq_queue *cfqq;
 	unsigned long flags;
 
@@ -2746,7 +2763,7 @@ static void cfq_init_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 static void changed_cgroup(struct io_context *ioc, struct cfq_io_context *cic)
 {
 	struct cfq_queue *sync_cfqq = cic_to_cfqq(cic, 1);
-	struct cfq_data *cfqd = cic->key;
+	struct cfq_data *cfqd = cic_to_cfqd(cic);
 	unsigned long flags;
 	struct request_queue *q;
 
@@ -2883,6 +2900,7 @@ cfq_drop_dead_cic(struct cfq_data *cfqd, struct io_context *ioc,
 	unsigned long flags;
 
 	WARN_ON(!list_empty(&cic->queue_list));
+	BUG_ON(cic->key != cfqd_dead_key(cfqd));
 
 	spin_lock_irqsave(&ioc->lock, flags);
 
@@ -2900,7 +2918,6 @@ cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 {
 	struct cfq_io_context *cic;
 	unsigned long flags;
-	void *k;
 
 	if (unlikely(!ioc))
 		return NULL;
@@ -2921,9 +2938,7 @@ cfq_cic_lookup(struct cfq_data *cfqd, struct io_context *ioc)
 		rcu_read_unlock();
 		if (!cic)
 			break;
-		/* ->key must be copied to avoid race with cfq_exit_queue() */
-		k = cic->key;
-		if (unlikely(!k)) {
+		if (unlikely(cic->key != cfqd)) {
 			cfq_drop_dead_cic(cfqd, ioc, cic);
 			rcu_read_lock();
 			continue;
