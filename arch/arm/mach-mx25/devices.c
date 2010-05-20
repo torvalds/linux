@@ -500,3 +500,18 @@ struct platform_device mx25_fb_device = {
 		.coherent_dma_mask = 0xFFFFFFFF,
 	},
 };
+
+static struct resource mxc_wdt_resources[] = {
+	{
+		.start = MX25_WDOG_BASE_ADDR,
+		.end = MX25_WDOG_BASE_ADDR + SZ_16K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+struct platform_device mxc_wdt = {
+	.name = "imx2-wdt",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_wdt_resources),
+	.resource = mxc_wdt_resources,
+};

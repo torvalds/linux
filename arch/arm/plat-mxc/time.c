@@ -54,14 +54,14 @@
 #define MX2_TSTAT_COMP		(1 << 0)
 
 /* MX31, MX35, MX25, MXC91231, MX5 */
-#define MX3_TCTL_WAITEN		(1 << 3) /* Wait enable mode */
-#define MX3_TCTL_CLK_IPG	(1 << 6)
-#define MX3_TCTL_FRR		(1 << 9)
-#define MX3_IR			0x0c
-#define MX3_TSTAT		0x08
-#define MX3_TSTAT_OF1		(1 << 0)
-#define MX3_TCN			0x24
-#define MX3_TCMP		0x10
+#define V2_TCTL_WAITEN		(1 << 3) /* Wait enable mode */
+#define V2_TCTL_CLK_IPG		(1 << 6)
+#define V2_TCTL_FRR		(1 << 9)
+#define V2_IR			0x0c
+#define V2_TSTAT		0x08
+#define V2_TSTAT_OF1		(1 << 0)
+#define V2_TCN			0x24
+#define V2_TCMP			0x10
 
 #define timer_is_v1()	(cpu_is_mx1() || cpu_is_mx21() || cpu_is_mx27())
 #define timer_is_v2()	(!timer_is_v1())
@@ -76,7 +76,7 @@ static inline void gpt_irq_disable(void)
 	unsigned int tmp;
 
 	if (timer_is_v2())
-		__raw_writel(0, timer_base + MX3_IR);
+		__raw_writel(0, timer_base + V2_IR);
 	else {
 		tmp = __raw_readl(timer_base + MXC_TCTL);
 		__raw_writel(tmp & ~MX1_2_TCTL_IRQEN, timer_base + MXC_TCTL);
@@ -86,7 +86,7 @@ static inline void gpt_irq_disable(void)
 static inline void gpt_irq_enable(void)
 {
 	if (timer_is_v2())
-		__raw_writel(1<<0, timer_base + MX3_IR);
+		__raw_writel(1<<0, timer_base + V2_IR);
 	else {
 		__raw_writel(__raw_readl(timer_base + MXC_TCTL) | MX1_2_TCTL_IRQEN,
 			timer_base + MXC_TCTL);
@@ -102,7 +102,7 @@ static void gpt_irq_acknowledge(void)
 			__raw_writel(MX2_TSTAT_CAPT | MX2_TSTAT_COMP,
 				timer_base + MX1_2_TSTAT);
 	} else if (timer_is_v2())
-		__raw_writel(MX3_TSTAT_OF1, timer_base + MX3_TSTAT);
+		__raw_writel(V2_TSTAT_OF1, timer_base + V2_TSTAT);
 }
 
 static cycle_t mx1_2_get_cycles(struct clocksource *cs)
@@ -110,9 +110,9 @@ static cycle_t mx1_2_get_cycles(struct clocksource *cs)
 	return __raw_readl(timer_base + MX1_2_TCN);
 }
 
-static cycle_t mx3_get_cycles(struct clocksource *cs)
+static cycle_t v2_get_cycles(struct clocksource *cs)
 {
-	return __raw_readl(timer_base + MX3_TCN);
+	return __raw_readl(timer_base + V2_TCN);
 }
 
 static struct clocksource clocksource_mxc = {
@@ -129,7 +129,7 @@ static int __init mxc_clocksource_init(struct clk *timer_clk)
 	unsigned int c = clk_get_rate(timer_clk);
 
 	if (timer_is_v2())
-		clocksource_mxc.read = mx3_get_cycles;
+		clocksource_mxc.read = v2_get_cycles;
 
 	clocksource_mxc.mult = clocksource_hz2mult(c,
 					clocksource_mxc.shift);
@@ -153,16 +153,16 @@ static int mx1_2_set_next_event(unsigned long evt,
 				-ETIME : 0;
 }
 
-static int mx3_set_next_event(unsigned long evt,
+static int v2_set_next_event(unsigned long evt,
 			      struct clock_event_device *unused)
 {
 	unsigned long tcmp;
 
-	tcmp = __raw_readl(timer_base + MX3_TCN) + evt;
+	tcmp = __raw_readl(timer_base + V2_TCN) + evt;
 
-	__raw_writel(tcmp, timer_base + MX3_TCMP);
+	__raw_writel(tcmp, timer_base + V2_TCMP);
 
-	return (int)(tcmp - __raw_readl(timer_base + MX3_TCN)) < 0 ?
+	return (int)(tcmp - __raw_readl(timer_base + V2_TCN)) < 0 ?
 				-ETIME : 0;
 }
 
@@ -192,8 +192,8 @@ static void mxc_set_mode(enum clock_event_mode mode,
 	if (mode != clockevent_mode) {
 		/* Set event time into far-far future */
 		if (timer_is_v2())
-			__raw_writel(__raw_readl(timer_base + MX3_TCN) - 3,
-					timer_base + MX3_TCMP);
+			__raw_writel(__raw_readl(timer_base + V2_TCN) - 3,
+					timer_base + V2_TCMP);
 		else
 			__raw_writel(__raw_readl(timer_base + MX1_2_TCN) - 3,
 					timer_base + MX1_2_TCMP);
@@ -245,7 +245,7 @@ static irqreturn_t mxc_timer_interrupt(int irq, void *dev_id)
 	uint32_t tstat;
 
 	if (timer_is_v2())
-		tstat = __raw_readl(timer_base + MX3_TSTAT);
+		tstat = __raw_readl(timer_base + V2_TSTAT);
 	else
 		tstat = __raw_readl(timer_base + MX1_2_TSTAT);
 
@@ -276,7 +276,7 @@ static int __init mxc_clockevent_init(struct clk *timer_clk)
 	unsigned int c = clk_get_rate(timer_clk);
 
 	if (timer_is_v2())
-		clockevent_mxc.set_next_event = mx3_set_next_event;
+		clockevent_mxc.set_next_event = v2_set_next_event;
 
 	clockevent_mxc.mult = div_sc(c, NSEC_PER_SEC,
 					clockevent_mxc.shift);
@@ -308,7 +308,7 @@ void __init mxc_timer_init(struct clk *timer_clk, void __iomem *base, int irq)
 	__raw_writel(0, timer_base + MXC_TPRER); /* see datasheet note */
 
 	if (timer_is_v2())
-		tctl_val = MX3_TCTL_CLK_IPG | MX3_TCTL_FRR | MX3_TCTL_WAITEN | MXC_TCTL_TEN;
+		tctl_val = V2_TCTL_CLK_IPG | V2_TCTL_FRR | V2_TCTL_WAITEN | MXC_TCTL_TEN;
 	else
 		tctl_val = MX1_2_TCTL_FRR | MX1_2_TCTL_CLK_PCLK1 | MXC_TCTL_TEN;
 

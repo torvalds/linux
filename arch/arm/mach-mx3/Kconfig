@@ -82,6 +82,7 @@ config MACH_MX31MOBOARD
 config MACH_MX31LILLY
 	bool "Support MX31 LILLY-1131 platforms (INCO startec)"
 	select ARCH_MX31
+	select MXC_ULPI if USB_ULPI
 	help
 	  Include support for mx31 based LILLY1131 modules. This includes
 	  specific configurations for the board and its peripherals.

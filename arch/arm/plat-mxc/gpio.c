@@ -3,7 +3,7 @@
  * Copyright 2008 Juergen Beisert, kernel@pengutronix.de
  *
  * Based on code from Freescale,
- * Copyright 2004-2006 Freescale Semiconductor, Inc. All Rights Reserved.
+ * Copyright (C) 2004-2010 Freescale Semiconductor, Inc. All Rights Reserved.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
@@ -37,7 +37,6 @@ static int gpio_table_size;
 #define GPIO_ICR1	(cpu_is_mx1_mx2() ? 0x28 : 0x0C)
 #define GPIO_ICR2	(cpu_is_mx1_mx2() ? 0x2C : 0x10)
 #define GPIO_IMR	(cpu_is_mx1_mx2() ? 0x30 : 0x14)
-#define GPIO_ISR	(cpu_is_mx1_mx2() ? 0x34 : 0x18)
 #define GPIO_ISR	(cpu_is_mx1_mx2() ? 0x34 : 0x18)
 
 #define GPIO_INT_LOW_LEV	(cpu_is_mx1_mx2() ? 0x3 : 0x0)
@@ -289,7 +288,7 @@ int __init mxc_gpio_init(struct mxc_gpio_port *port, int cnt)
 		/* its a serious configuration bug when it fails */
 		BUG_ON( gpiochip_add(&port[i].chip) < 0 );
 
-		if (cpu_is_mx1() || cpu_is_mx3() || cpu_is_mx25()) {
+		if (cpu_is_mx1() || cpu_is_mx3() || cpu_is_mx25() || cpu_is_mx51()) {
 			/* setup one handler for each entry */
 			set_irq_chained_handler(port[i].irq, mx3_gpio_irq_handler);
 			set_irq_data(port[i].irq, &port[i]);

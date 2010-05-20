@@ -150,6 +150,7 @@ static struct i2c_board_info pcm043_i2c_devices[] = {
 static struct platform_device *devices[] __initdata = {
 	&pcm043_flash,
 	&mxc_fec_device,
+	&imx_wdt_device0,
 };
 
 static struct pad_desc pcm043_pads[] = {

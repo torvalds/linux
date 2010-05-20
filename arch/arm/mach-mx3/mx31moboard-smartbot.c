@@ -23,11 +23,18 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <linux/fsl_devices.h>
+
+#include <linux/usb/otg.h>
+#include <linux/usb/ulpi.h>
 
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
+#include <mach/board-mx31moboard.h>
+#include <mach/mxc_ehci.h>
+#include <mach/ulpi.h>
 
 #include <media/soc_camera.h>
 
@@ -116,10 +123,33 @@ static int __init smartbot_cam_init(void)
 	return 0;
 }
 
+static struct fsl_usb2_platform_data usb_pdata = {
+	.operating_mode	= FSL_USB2_DR_DEVICE,
+	.phy_mode	= FSL_USB2_PHY_ULPI,
+};
+
+#if defined(CONFIG_USB_ULPI)
+
+static struct mxc_usbh_platform_data otg_host_pdata = {
+	.portsc = MXC_EHCI_MODE_ULPI | MXC_EHCI_UTMI_8BIT,
+	.flags	= MXC_EHCI_POWER_PINS_ENABLED,
+};
+
+static int __init smartbot_otg_host_init(void)
+{
+	otg_host_pdata.otg = otg_ulpi_create(&mxc_ulpi_access_ops,
+			USB_OTG_DRV_VBUS | USB_OTG_DRV_VBUS_EXT);
+
+	return mxc_register_device(&mxc_otg_host, &otg_host_pdata);
+}
+#else
+static inline int smartbot_otg_host_init(void) { return 0; }
+#endif
+
 #define POWER_EN IOMUX_TO_GPIO(MX31_PIN_DTR_DCE1)
 #define DSPIC_RST_B IOMUX_TO_GPIO(MX31_PIN_DSR_DCE1)
 #define TRSLAT_RST_B IOMUX_TO_GPIO(MX31_PIN_RI_DCE1)
-#define SEL3 IOMUX_TO_GPIO(MX31_PIN_DCD_DCE1)
+#define TRSLAT_SRC_CHOICE IOMUX_TO_GPIO(MX31_PIN_DCD_DCE1)
 
 static void smartbot_resets_init(void)
 {
@@ -138,15 +168,15 @@ static void smartbot_resets_init(void)
 		gpio_export(TRSLAT_RST_B, false);
 	}
 
-	if (!gpio_request(SEL3, "sel3")) {
-		gpio_direction_input(SEL3);
-		gpio_export(SEL3, true);
+	if (!gpio_request(TRSLAT_SRC_CHOICE, "translator-src-choice")) {
+		gpio_direction_output(TRSLAT_SRC_CHOICE, 0);
+		gpio_export(TRSLAT_SRC_CHOICE, false);
 	}
 }
 /*
  * system init for baseboard usage. Will be called by mx31moboard init.
  */
-void __init mx31moboard_smartbot_init(void)
+void __init mx31moboard_smartbot_init(int board)
 {
 	printk(KERN_INFO "Initializing mx31smartbot peripherals\n");
 
@@ -154,6 +184,19 @@ void __init mx31moboard_smartbot_init(void)
 		"smartbot");
 
 	mxc_register_device(&mxc_uart_device1, &uart_pdata);
+
+
+	switch (board) {
+	case MX31SMARTBOT:
+		mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
+		break;
+	case MX31EYEBOT:
+		smartbot_otg_host_init();
+		break;
+	default:
+		printk(KERN_WARNING "Unknown board %d, USB OTG not initialized",
+			board);
+	}
 
 	smartbot_resets_init();
 

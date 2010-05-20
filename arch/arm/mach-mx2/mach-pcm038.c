@@ -182,6 +182,7 @@ static struct platform_device *platform_devices[] __initdata = {
 	&mxc_w1_master_device,
 	&mxc_fec_device,
 	&pcm038_sram_mtd_device,
+	&mxc_wdt,
 };
 
 /* On pcm038 there's a sram attached to CS1, we enable the chipselect here and
