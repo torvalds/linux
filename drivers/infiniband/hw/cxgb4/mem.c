@@ -712,8 +712,10 @@ struct ib_mr *c4iw_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth)
 	php = to_c4iw_pd(pd);
 	rhp = php->rhp;
 	mhp = kzalloc(sizeof(*mhp), GFP_KERNEL);
-	if (!mhp)
+	if (!mhp) {
+		ret = -ENOMEM;
 		goto err;
+	}
 
 	mhp->rhp = rhp;
 	ret = alloc_pbl(mhp, pbl_depth);
@@ -730,8 +732,10 @@ struct ib_mr *c4iw_alloc_fast_reg_mr(struct ib_pd *pd, int pbl_depth)
 	mhp->attr.state = 1;
 	mmid = (stag) >> 8;
 	mhp->ibmr.rkey = mhp->ibmr.lkey = stag;
-	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid))
+	if (insert_handle(rhp, &rhp->mmidr, mhp, mmid)) {
+		ret = -ENOMEM;
 		goto err3;
+	}
 
 	PDBG("%s mmid 0x%x mhp %p stag 0x%x\n", __func__, mmid, mhp, stag);
 	return &(mhp->ibmr);
