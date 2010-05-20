@@ -1294,6 +1294,9 @@ static int sh_mdio_release(struct net_device *ndev)
 	/* remove mdio bus info from net_device */
 	dev_set_drvdata(&ndev->dev, NULL);
 
+	/* free interrupts memory */
+	kfree(bus->irq);
+
 	/* free bitbang info */
 	free_mdio_bitbang(bus);
 
