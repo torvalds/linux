@@ -37,6 +37,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/time.h>
 
 /*
  * IrDA
@@ -259,9 +260,8 @@ static void __init g3evm_map_io(void)
 {
 	iotable_init(g3evm_io_desc, ARRAY_SIZE(g3evm_io_desc));
 
-	/* setup early devices, clocks and console here as well */
+	/* setup early devices and console here as well */
 	sh7367_add_early_devices();
-	sh7367_clock_init();
 	shmobile_setup_console();
 }
 
@@ -297,9 +297,6 @@ static void __init g3evm_init(void)
 	gpio_request(GPIO_FN_OVCN2, NULL);
 	gpio_request(GPIO_FN_EXTLP, NULL);
 	gpio_request(GPIO_FN_IDIN, NULL);
-
-	/* enable clock in SYMSTPCR2 */
-	__raw_writel(__raw_readl(0xe6158048) & ~(1 << 22), 0xe6158048);
 
 	/* setup USB phy */
 	__raw_writew(0x0300, 0xe605810a);	/* USBCR1 */
@@ -356,11 +353,21 @@ static void __init g3evm_init(void)
 	platform_add_devices(g3evm_devices, ARRAY_SIZE(g3evm_devices));
 }
 
+static void __init g3evm_timer_init(void)
+{
+	sh7367_clock_init();
+	shmobile_timer.init();
+}
+
+static struct sys_timer g3evm_timer = {
+	.init		= g3evm_timer_init,
+};
+
 MACHINE_START(G3EVM, "g3evm")
 	.phys_io	= 0xe6000000,
 	.io_pg_offst	= ((0xe6000000) >> 18) & 0xfffc,
 	.map_io		= g3evm_map_io,
 	.init_irq	= sh7367_init_irq,
 	.init_machine	= g3evm_init,
-	.timer		= &shmobile_timer,
+	.timer		= &g3evm_timer,
 MACHINE_END

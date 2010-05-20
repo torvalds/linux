@@ -7,6 +7,7 @@ config ARCH_SH7367
 	select CPU_V6
 	select HAVE_CLK
 	select COMMON_CLKDEV
+	select SH_CLK_CPG
 	select GENERIC_CLOCKEVENTS
 
 config ARCH_SH7377
