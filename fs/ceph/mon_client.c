@@ -28,7 +28,7 @@
  * resend any outstanding requests.
  */
 
-const static struct ceph_connection_operations mon_con_ops;
+static const struct ceph_connection_operations mon_con_ops;
 
 static int __validate_auth(struct ceph_mon_client *monc);
 
@@ -861,7 +861,7 @@ out:
 	mutex_unlock(&monc->mutex);
 }
 
-const static struct ceph_connection_operations mon_con_ops = {
+static const struct ceph_connection_operations mon_con_ops = {
 	.get = ceph_con_get,
 	.put = ceph_con_put,
 	.dispatch = dispatch,

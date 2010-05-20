@@ -40,7 +40,7 @@
 static void __wake_requests(struct ceph_mds_client *mdsc,
 			    struct list_head *head);
 
-const static struct ceph_connection_operations mds_con_ops;
+static const struct ceph_connection_operations mds_con_ops;
 
 
 /*
@@ -3120,7 +3120,7 @@ static int invalidate_authorizer(struct ceph_connection *con)
 	return ceph_monc_validate_auth(&mdsc->client->monc);
 }
 
-const static struct ceph_connection_operations mds_con_ops = {
+static const struct ceph_connection_operations mds_con_ops = {
 	.get = con_get,
 	.put = con_put,
 	.dispatch = dispatch,
