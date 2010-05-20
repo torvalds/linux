@@ -111,7 +111,6 @@ static irqreturn_t timer_interrupt(int irq, void *dev_id)
 		/* advance the kernel's time tracking system */
 		profile_tick(CPU_PROFILING);
 		do_timer(1);
-		check_rtc_time();
 	}
 
 	write_sequnlock(&xtime_lock);
@@ -138,9 +137,6 @@ void __init time_init(void)
 	       "timestamp counter I/O clock running at %lu.%02lu"
 	       " (calibrated against RTC)\n",
 	       MN10300_TSCCLK / 1000000, (MN10300_TSCCLK / 10000) % 100);
-
-	xtime.tv_sec = get_initial_rtc_time();
-	xtime.tv_nsec = 0;
 
 	mn10300_last_tsc = TMTSCBC;
 

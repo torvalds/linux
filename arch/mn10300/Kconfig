@@ -37,6 +37,9 @@ config GENERIC_HARDIRQS_NO__DO_IRQ
 config GENERIC_CALIBRATE_DELAY
 	def_bool y
 
+config GENERIC_CMOS_UPDATE
+        def_bool y
+
 config GENERIC_FIND_NEXT_BIT
 	def_bool y
 
