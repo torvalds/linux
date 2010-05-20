@@ -11,8 +11,10 @@
 /*
  * osdmap encoding versions
  */
-#define CEPH_OSDMAP_INC_VERSION 4
-#define CEPH_OSDMAP_VERSION     4
+#define CEPH_OSDMAP_INC_VERSION     5
+#define CEPH_OSDMAP_INC_VERSION_EXT 5
+#define CEPH_OSDMAP_VERSION         5
+#define CEPH_OSDMAP_VERSION_EXT     5
 
 /*
  * fs id
@@ -56,6 +58,7 @@ struct ceph_timespec {
 #define CEPH_PG_LAYOUT_LINEAR 2
 #define CEPH_PG_LAYOUT_HYBRID 3
 
+#define CEPH_PG_MAX_SIZE      16  /* max # osds in a single pg */
 
 /*
  * placement group.

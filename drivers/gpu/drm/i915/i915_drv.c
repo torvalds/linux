@@ -69,7 +69,8 @@ const static struct intel_device_info intel_845g_info = {
 };
 
 const static struct intel_device_info intel_i85x_info = {
-	.is_i8xx = 1, .is_mobile = 1, .cursor_needs_physical = 1,
+	.is_i8xx = 1, .is_i85x = 1, .is_mobile = 1,
+	.cursor_needs_physical = 1,
 };
 
 const static struct intel_device_info intel_i865g_info = {
@@ -80,14 +81,14 @@ const static struct intel_device_info intel_i915g_info = {
 	.is_i915g = 1, .is_i9xx = 1, .cursor_needs_physical = 1,
 };
 const static struct intel_device_info intel_i915gm_info = {
-	.is_i9xx = 1,  .is_mobile = 1, .has_fbc = 1,
+	.is_i9xx = 1,  .is_mobile = 1,
 	.cursor_needs_physical = 1,
 };
 const static struct intel_device_info intel_i945g_info = {
 	.is_i9xx = 1, .has_hotplug = 1, .cursor_needs_physical = 1,
 };
 const static struct intel_device_info intel_i945gm_info = {
-	.is_i945gm = 1, .is_i9xx = 1, .is_mobile = 1, .has_fbc = 1,
+	.is_i945gm = 1, .is_i9xx = 1, .is_mobile = 1,
 	.has_hotplug = 1, .cursor_needs_physical = 1,
 };
 
@@ -151,7 +152,7 @@ const static struct pci_device_id pciidlist[] = {
 	INTEL_VGA_DEVICE(0x3577, &intel_i830_info),
 	INTEL_VGA_DEVICE(0x2562, &intel_845g_info),
 	INTEL_VGA_DEVICE(0x3582, &intel_i85x_info),
-	INTEL_VGA_DEVICE(0x35e8, &intel_i85x_info),
+	INTEL_VGA_DEVICE(0x358e, &intel_i85x_info),
 	INTEL_VGA_DEVICE(0x2572, &intel_i865g_info),
 	INTEL_VGA_DEVICE(0x2582, &intel_i915g_info),
 	INTEL_VGA_DEVICE(0x258a, &intel_i915g_info),
@@ -361,7 +362,7 @@ int i965_reset(struct drm_device *dev, u8 flags)
 	    !dev_priv->mm.suspended) {
 		drm_i915_ring_buffer_t *ring = &dev_priv->ring;
 		struct drm_gem_object *obj = ring->ring_obj;
-		struct drm_i915_gem_object *obj_priv = obj->driver_private;
+		struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 		dev_priv->mm.suspended = 0;
 
 		/* Stop the ring if it's running. */

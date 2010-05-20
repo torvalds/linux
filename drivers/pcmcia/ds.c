@@ -335,7 +335,6 @@ static void pcmcia_card_remove(struct pcmcia_socket *s, struct pcmcia_device *le
 
 		mutex_lock(&s->ops_mutex);
 		list_del(&p_dev->socket_device_list);
-		p_dev->_removed = 1;
 		mutex_unlock(&s->ops_mutex);
 
 		dev_dbg(&p_dev->dev, "unregistering device\n");
@@ -654,14 +653,7 @@ static int pcmcia_requery_callback(struct device *dev, void * _data)
 
 static void pcmcia_requery(struct pcmcia_socket *s)
 {
-	int present, has_pfc;
-
-	mutex_lock(&s->ops_mutex);
-	present = s->pcmcia_state.present;
-	mutex_unlock(&s->ops_mutex);
-
-	if (!present)
-		return;
+	int has_pfc;
 
 	if (s->functions == 0) {
 		pcmcia_card_add(s);
@@ -687,12 +679,10 @@ static void pcmcia_requery(struct pcmcia_socket *s)
 			new_funcs = mfc.nfn;
 		else
 			new_funcs = 1;
-		if (old_funcs > new_funcs) {
+		if (old_funcs != new_funcs) {
+			/* we need to re-start */
 			pcmcia_card_remove(s, NULL);
 			pcmcia_card_add(s);
-		} else if (new_funcs > old_funcs) {
-			s->functions = new_funcs;
-			pcmcia_device_add(s, 1);
 		}
 	}
 
@@ -728,6 +718,8 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 	struct pcmcia_socket *s = dev->socket;
 	const struct firmware *fw;
 	int ret = -ENOMEM;
+	cistpl_longlink_mfc_t mfc;
+	int old_funcs, new_funcs = 1;
 
 	if (!filename)
 		return -EINVAL;
@@ -750,6 +742,14 @@ static int pcmcia_load_firmware(struct pcmcia_device *dev, char * filename)
 			goto release;
 		}
 
+		/* we need to re-start if the number of functions changed */
+		old_funcs = s->functions;
+		if (!pccard_read_tuple(s, BIND_FN_ALL, CISTPL_LONGLINK_MFC,
+					&mfc))
+			new_funcs = mfc.nfn;
+
+		if (old_funcs != new_funcs)
+			ret = -EBUSY;
 
 		/* update information */
 		pcmcia_device_query(dev);
@@ -820,11 +820,12 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 	}
 
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO) {
-		if (dev->device_no != did->device_no)
-			return 0;
+		dev_dbg(&dev->dev, "this is a pseudo-multi-function device\n");
 		mutex_lock(&dev->socket->ops_mutex);
 		dev->socket->pcmcia_state.has_pfc = 1;
 		mutex_unlock(&dev->socket->ops_mutex);
+		if (dev->device_no != did->device_no)
+			return 0;
 	}
 
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_FUNC_ID) {
@@ -835,7 +836,7 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 
 		/* if this is a pseudo-multi-function device,
 		 * we need explicit matches */
-		if (did->match_flags & PCMCIA_DEV_ID_MATCH_DEVICE_NO)
+		if (dev->socket->pcmcia_state.has_pfc)
 			return 0;
 		if (dev->device_no)
 			return 0;
@@ -858,10 +859,8 @@ static inline int pcmcia_devmatch(struct pcmcia_device *dev,
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_FAKE_CIS) {
 		dev_dbg(&dev->dev, "device needs a fake CIS\n");
 		if (!dev->socket->fake_cis)
-			pcmcia_load_firmware(dev, did->cisfile);
-
-		if (!dev->socket->fake_cis)
-			return 0;
+			if (pcmcia_load_firmware(dev, did->cisfile))
+				return 0;
 	}
 
 	if (did->match_flags & PCMCIA_DEV_ID_MATCH_ANONYMOUS) {
@@ -1254,9 +1253,7 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 
 	switch (event) {
 	case CS_EVENT_CARD_REMOVAL:
-		mutex_lock(&s->ops_mutex);
-		s->pcmcia_state.present = 0;
-		mutex_unlock(&s->ops_mutex);
+		atomic_set(&skt->present, 0);
 		pcmcia_card_remove(skt, NULL);
 		handle_event(skt, event);
 		mutex_lock(&s->ops_mutex);
@@ -1265,9 +1262,9 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 		break;
 
 	case CS_EVENT_CARD_INSERTION:
+		atomic_set(&skt->present, 1);
 		mutex_lock(&s->ops_mutex);
 		s->pcmcia_state.has_pfc = 0;
-		s->pcmcia_state.present = 1;
 		destroy_cis_cache(s); /* to be on the safe side... */
 		mutex_unlock(&s->ops_mutex);
 		pcmcia_card_add(skt);
@@ -1286,6 +1283,7 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
 			destroy_cis_cache(skt);
 			kfree(skt->fake_cis);
 			skt->fake_cis = NULL;
+			s->functions = 0;
 			mutex_unlock(&s->ops_mutex);
 			/* now, add the new card */
 			ds_event(skt, CS_EVENT_CARD_INSERTION,
@@ -1307,7 +1305,13 @@ static int ds_event(struct pcmcia_socket *skt, event_t event, int priority)
     return 0;
 } /* ds_event */
 
-
+/*
+ * NOTE: This is racy. There's no guarantee the card will still be
+ * physically present, even if the call to this function returns
+ * non-NULL. Furthermore, the device driver most likely is unbound
+ * almost immediately, so the timeframe where pcmcia_dev_present
+ * returns NULL is probably really really small.
+ */
 struct pcmcia_device *pcmcia_dev_present(struct pcmcia_device *_p_dev)
 {
 	struct pcmcia_device *p_dev;
@@ -1317,22 +1321,9 @@ struct pcmcia_device *pcmcia_dev_present(struct pcmcia_device *_p_dev)
 	if (!p_dev)
 		return NULL;
 
-	mutex_lock(&p_dev->socket->ops_mutex);
-	if (!p_dev->socket->pcmcia_state.present)
-		goto out;
+	if (atomic_read(&p_dev->socket->present) != 0)
+		ret = p_dev;
 
-	if (p_dev->socket->pcmcia_state.dead)
-		goto out;
-
-	if (p_dev->_removed)
-		goto out;
-
-	if (p_dev->suspended)
-		goto out;
-
-	ret = p_dev;
- out:
-	mutex_unlock(&p_dev->socket->ops_mutex);
 	pcmcia_put_dev(p_dev);
 	return ret;
 }
@@ -1382,6 +1373,8 @@ static int __devinit pcmcia_bus_add_socket(struct device *dev,
 		return ret;
 	}
 
+	atomic_set(&socket->present, 0);
+
 	return 0;
 }
 
@@ -1392,10 +1385,6 @@ static void pcmcia_bus_remove_socket(struct device *dev,
 
 	if (!socket)
 		return;
-
-	mutex_lock(&socket->ops_mutex);
-	socket->pcmcia_state.dead = 1;
-	mutex_unlock(&socket->ops_mutex);
 
 	pccard_register_pcmcia(socket, NULL);
 

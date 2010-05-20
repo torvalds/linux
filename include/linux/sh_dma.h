@@ -17,7 +17,7 @@
 struct sh_dmae_slave {
 	unsigned int			slave_id; /* Set by the platform */
 	struct device			*dma_dev; /* Set by the platform */
-	struct sh_dmae_slave_config	*config;  /* Set by the driver */
+	const struct sh_dmae_slave_config	*config;  /* Set by the driver */
 };
 
 struct sh_dmae_regs {
@@ -36,6 +36,7 @@ struct sh_desc {
 	int chunks;
 	int mark;
 };
+
 struct sh_dmae_slave_config {
 	unsigned int			slave_id;
 	dma_addr_t			addr;
@@ -50,15 +51,15 @@ struct sh_dmae_channel {
 };
 
 struct sh_dmae_pdata {
-	struct sh_dmae_slave_config *slave;
+	const struct sh_dmae_slave_config *slave;
 	int slave_num;
-	struct sh_dmae_channel *channel;
+	const struct sh_dmae_channel *channel;
 	int channel_num;
 	unsigned int ts_low_shift;
 	unsigned int ts_low_mask;
 	unsigned int ts_high_shift;
 	unsigned int ts_high_mask;
-	unsigned int *ts_shift;
+	const unsigned int *ts_shift;
 	int ts_shift_num;
 	u16 dmaor_init;
 };

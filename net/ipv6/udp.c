@@ -259,8 +259,8 @@ static struct sock *__udp6_lib_lookup(struct net *net,
 			if (hslot->count < hslot2->count)
 				goto begin;
 
-			result = udp6_lib_lookup2(net, &in6addr_any, sport,
-						  daddr, hnum, dif,
+			result = udp6_lib_lookup2(net, saddr, sport,
+						  &in6addr_any, hnum, dif,
 						  hslot2, slot2);
 		}
 		rcu_read_unlock();

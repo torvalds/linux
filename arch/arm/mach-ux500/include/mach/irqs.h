@@ -42,6 +42,7 @@
 #define IRQ_AB4500		(IRQ_SHPI_START + 40)
 #define IRQ_DISP		(IRQ_SHPI_START + 48)
 #define IRQ_SiPI3		(IRQ_SHPI_START + 49)
+#define IRQ_I2C4		(IRQ_SHPI_START + 51)
 #define IRQ_SSP1		(IRQ_SHPI_START + 52)
 #define IRQ_I2C2		(IRQ_SHPI_START + 55)
 #define IRQ_SDMMC0		(IRQ_SHPI_START + 60)
@@ -66,6 +67,12 @@
 /* There are 128 shared peripheral interrupts assigned to
  * INTID[160:32]. The first 32 interrupts are reserved.
  */
-#define NR_IRQS			161
+#define U8500_SOC_NR_IRQS		161
+
+/* After chip-specific IRQ numbers we have the GPIO ones */
+#define NOMADIK_NR_GPIO			288
+#define NOMADIK_GPIO_TO_IRQ(gpio)	((gpio) + U8500_SOC_NR_IRQS)
+#define NOMADIK_IRQ_TO_GPIO(irq)	((irq) - U8500_SOC_NR_IRQS)
+#define NR_IRQS				NOMADIK_GPIO_TO_IRQ(NOMADIK_NR_GPIO)
 
 #endif /*ASM_ARCH_IRQS_H*/

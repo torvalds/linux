@@ -15,6 +15,9 @@
 #include <mach/asp.h>
 #include <media/davinci/vpfe_capture.h>
 
+#define DM355_ASYNC_EMIF_CONTROL_BASE	0x01E10000
+#define DM355_ASYNC_EMIF_DATA_CE0_BASE	0x02000000
+
 #define ASP1_TX_EVT_EN	1
 #define ASP1_RX_EVT_EN	2
 

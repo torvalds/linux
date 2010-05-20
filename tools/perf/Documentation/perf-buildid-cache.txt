@@ -8,7 +8,7 @@ perf-buildid-cache - Manage build-id cache.
 SYNOPSIS
 --------
 [verse]
-'perf buildid-list <options>'
+'perf buildid-cache <options>'
 
 DESCRIPTION
 -----------
@@ -30,4 +30,4 @@ OPTIONS
 
 SEE ALSO
 --------
-linkperf:perf-record[1], linkperf:perf-report[1]
+linkperf:perf-record[1], linkperf:perf-report[1], linkperf:perf-buildid-list[1]

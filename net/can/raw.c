@@ -445,7 +445,7 @@ static int raw_setsockopt(struct socket *sock, int level, int optname,
 				return -EFAULT;
 			}
 		} else if (count == 1) {
-			if (copy_from_user(&sfilter, optval, optlen))
+			if (copy_from_user(&sfilter, optval, sizeof(sfilter)))
 				return -EFAULT;
 		}
 

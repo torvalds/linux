@@ -41,14 +41,6 @@
 #define DM644X_EVM_PHY_MASK		(0x2)
 #define DM644X_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
 
-#define DAVINCI_CFC_ATA_BASE		  0x01C66000
-
-#define DAVINCI_ASYNC_EMIF_CONTROL_BASE   0x01e00000
-#define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE  0x02000000
-#define DAVINCI_ASYNC_EMIF_DATA_CE1_BASE  0x04000000
-#define DAVINCI_ASYNC_EMIF_DATA_CE2_BASE  0x06000000
-#define DAVINCI_ASYNC_EMIF_DATA_CE3_BASE  0x08000000
-
 #define LXT971_PHY_ID	(0x001378e2)
 #define LXT971_PHY_MASK	(0xfffffff0)
 
@@ -92,8 +84,8 @@ static struct physmap_flash_data davinci_evm_norflash_data = {
 /* NOTE: CFI probe will correctly detect flash part as 32M, but EMIF
  * limits addresses to 16M, so using addresses past 16M will wrap */
 static struct resource davinci_evm_norflash_resource = {
-	.start		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE,
-	.end		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
+	.start		= DM644X_ASYNC_EMIF_DATA_CE0_BASE,
+	.end		= DM644X_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
 	.flags		= IORESOURCE_MEM,
 };
 
@@ -111,7 +103,7 @@ static struct platform_device davinci_evm_norflash_device = {
  * It may used instead of the (default) NOR chip to boot, using TI's
  * tools to install the secondary boot loader (UBL) and U-Boot.
  */
-struct mtd_partition davinci_evm_nandflash_partition[] = {
+static struct mtd_partition davinci_evm_nandflash_partition[] = {
 	/* Bootloader layout depends on whose u-boot is installed, but we
 	 * can hide all the details.
 	 *  - block 0 for u-boot environment ... in mainline u-boot
@@ -154,12 +146,12 @@ static struct davinci_nand_pdata davinci_evm_nandflash_data = {
 
 static struct resource davinci_evm_nandflash_resource[] = {
 	{
-		.start		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE,
-		.end		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
+		.start		= DM644X_ASYNC_EMIF_DATA_CE0_BASE,
+		.end		= DM644X_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
 		.flags		= IORESOURCE_MEM,
 	}, {
-		.start		= DAVINCI_ASYNC_EMIF_CONTROL_BASE,
-		.end		= DAVINCI_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
+		.start		= DM644X_ASYNC_EMIF_CONTROL_BASE,
+		.end		= DM644X_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 };
@@ -256,32 +248,6 @@ static struct vpfe_config vpfe_cfg = {
 static struct platform_device rtc_dev = {
 	.name           = "rtc_davinci_evm",
 	.id             = -1,
-};
-
-static struct resource ide_resources[] = {
-	{
-		.start          = DAVINCI_CFC_ATA_BASE,
-		.end            = DAVINCI_CFC_ATA_BASE + 0x7ff,
-		.flags          = IORESOURCE_MEM,
-	},
-	{
-		.start          = IRQ_IDE,
-		.end            = IRQ_IDE,
-		.flags          = IORESOURCE_IRQ,
-	},
-};
-
-static u64 ide_dma_mask = DMA_BIT_MASK(32);
-
-static struct platform_device ide_dev = {
-	.name           = "palm_bk3710",
-	.id             = -1,
-	.resource       = ide_resources,
-	.num_resources  = ARRAY_SIZE(ide_resources),
-	.dev = {
-		.dma_mask		= &ide_dma_mask,
-		.coherent_dma_mask      = DMA_BIT_MASK(32),
-	},
 };
 
 static struct snd_platform_data dm644x_evm_snd_data;
@@ -704,10 +670,7 @@ static __init void davinci_evm_init(void)
 			pr_warning("WARNING: both IDE and Flash are "
 				"enabled, but they share AEMIF pins.\n"
 				"\tDisable IDE for NAND/NOR support.\n");
-		davinci_cfg_reg(DM644X_HPIEN_DISABLE);
-		davinci_cfg_reg(DM644X_ATAEN);
-		davinci_cfg_reg(DM644X_HDIREN);
-		platform_device_register(&ide_dev);
+		davinci_init_ide();
 	} else if (HAS_NAND || HAS_NOR) {
 		davinci_cfg_reg(DM644X_HPIEN_DISABLE);
 		davinci_cfg_reg(DM644X_ATAEN_DISABLE);
@@ -741,18 +704,13 @@ static __init void davinci_evm_init(void)
 
 }
 
-static __init void davinci_evm_irq_init(void)
-{
-	davinci_irq_init();
-}
-
 MACHINE_START(DAVINCI_EVM, "DaVinci DM644x EVM")
 	/* Maintainer: MontaVista Software <source@mvista.com> */
 	.phys_io      = IO_PHYS,
 	.io_pg_offst  = (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params  = (DAVINCI_DDR_BASE + 0x100),
 	.map_io	      = davinci_evm_map_io,
-	.init_irq     = davinci_evm_irq_init,
+	.init_irq     = davinci_irq_init,
 	.timer	      = &davinci_timer,
 	.init_machine = davinci_evm_init,
 MACHINE_END

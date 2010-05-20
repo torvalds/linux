@@ -205,8 +205,6 @@ static int fsl_pq_mdio_find_free(struct mii_bus *new_bus)
 static u32 __iomem *get_gfar_tbipa(struct fsl_pq_mdio __iomem *regs, struct device_node *np)
 {
 	struct gfar __iomem *enet_regs;
-	u32 __iomem *ioremap_tbipa;
-	u64 addr, size;
 
 	/*
 	 * This is mildly evil, but so is our hardware for doing this.
@@ -220,9 +218,7 @@ static u32 __iomem *get_gfar_tbipa(struct fsl_pq_mdio __iomem *regs, struct devi
 		return &enet_regs->tbipa;
 	} else if (of_device_is_compatible(np, "fsl,etsec2-mdio") ||
 			of_device_is_compatible(np, "fsl,etsec2-tbi")) {
-		addr = of_translate_address(np, of_get_address(np, 1, &size, NULL));
-		ioremap_tbipa = ioremap(addr, size);
-		return ioremap_tbipa;
+		return of_iomap(np, 1);
 	} else
 		return NULL;
 }
@@ -279,6 +275,7 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 	u32 __iomem *tbipa;
 	struct mii_bus *new_bus;
 	int tbiaddr = -1;
+	const u32 *addrp;
 	u64 addr = 0, size = 0;
 	int err = 0;
 
@@ -297,8 +294,19 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 	new_bus->priv = priv;
 	fsl_pq_mdio_bus_name(new_bus->id, np);
 
+	addrp = of_get_address(np, 0, &size, NULL);
+	if (!addrp) {
+		err = -EINVAL;
+		goto err_free_bus;
+	}
+
 	/* Set the PHY base address */
-	addr = of_translate_address(np, of_get_address(np, 0, &size, NULL));
+	addr = of_translate_address(np, addrp);
+	if (addr == OF_BAD_ADDR) {
+		err = -EINVAL;
+		goto err_free_bus;
+	}
+
 	map = ioremap(addr, size);
 	if (!map) {
 		err = -ENOMEM;

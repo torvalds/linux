@@ -7,8 +7,10 @@
 
 const struct cpumask *cpu_coregroup_mask(unsigned int cpu);
 
+extern unsigned char cpu_core_id[NR_CPUS];
 extern cpumask_t cpu_core_map[NR_CPUS];
 
+#define topology_core_id(cpu)		(cpu_core_id[cpu])
 #define topology_core_cpumask(cpu)	(&cpu_core_map[cpu])
 
 int topology_set_cpu_management(int fc);

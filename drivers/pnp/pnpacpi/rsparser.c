@@ -280,6 +280,7 @@ static void pnpacpi_parse_allocated_address_space(struct pnp_dev *dev,
 	struct acpi_resource_address64 addr, *p = &addr;
 	acpi_status status;
 	int window;
+	u64 len;
 
 	status = acpi_resource_to_address64(res, p);
 	if (!ACPI_SUCCESS(status)) {
@@ -288,20 +289,19 @@ static void pnpacpi_parse_allocated_address_space(struct pnp_dev *dev,
 		return;
 	}
 
+	/* Windows apparently computes length rather than using _LEN */
+	len = p->maximum - p->minimum + 1;
 	window = (p->producer_consumer == ACPI_PRODUCER) ? 1 : 0;
 
 	if (p->resource_type == ACPI_MEMORY_RANGE)
-		pnpacpi_parse_allocated_memresource(dev,
-			p->minimum, p->address_length,
+		pnpacpi_parse_allocated_memresource(dev, p->minimum, len,
 			p->info.mem.write_protect, window);
 	else if (p->resource_type == ACPI_IO_RANGE)
-		pnpacpi_parse_allocated_ioresource(dev,
-			p->minimum, p->address_length,
+		pnpacpi_parse_allocated_ioresource(dev, p->minimum, len,
 			p->granularity == 0xfff ? ACPI_DECODE_10 :
 				ACPI_DECODE_16, window);
 	else if (p->resource_type == ACPI_BUS_NUMBER_RANGE)
-		pnpacpi_parse_allocated_busresource(dev, p->minimum,
-						    p->address_length);
+		pnpacpi_parse_allocated_busresource(dev, p->minimum, len);
 }
 
 static void pnpacpi_parse_allocated_ext_address_space(struct pnp_dev *dev,
@@ -309,21 +309,21 @@ static void pnpacpi_parse_allocated_ext_address_space(struct pnp_dev *dev,
 {
 	struct acpi_resource_extended_address64 *p = &res->data.ext_address64;
 	int window;
+	u64 len;
 
+	/* Windows apparently computes length rather than using _LEN */
+	len = p->maximum - p->minimum + 1;
 	window = (p->producer_consumer == ACPI_PRODUCER) ? 1 : 0;
 
 	if (p->resource_type == ACPI_MEMORY_RANGE)
-		pnpacpi_parse_allocated_memresource(dev,
-			p->minimum, p->address_length,
+		pnpacpi_parse_allocated_memresource(dev, p->minimum, len,
 			p->info.mem.write_protect, window);
 	else if (p->resource_type == ACPI_IO_RANGE)
-		pnpacpi_parse_allocated_ioresource(dev,
-			p->minimum, p->address_length,
+		pnpacpi_parse_allocated_ioresource(dev, p->minimum, len,
 			p->granularity == 0xfff ? ACPI_DECODE_10 :
 				ACPI_DECODE_16, window);
 	else if (p->resource_type == ACPI_BUS_NUMBER_RANGE)
-		pnpacpi_parse_allocated_busresource(dev, p->minimum,
-						    p->address_length);
+		pnpacpi_parse_allocated_busresource(dev, p->minimum, len);
 }
 
 static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,

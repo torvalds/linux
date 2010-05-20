@@ -236,6 +236,10 @@ static int vq_memory_access_ok(void __user *log_base, struct vhost_memory *mem,
 			       int log_all)
 {
 	int i;
+
+        if (!mem)
+                return 0;
+
 	for (i = 0; i < mem->nregions; ++i) {
 		struct vhost_memory_region *m = mem->regions + i;
 		unsigned long a = m->userspace_addr;
@@ -1031,7 +1035,12 @@ int vhost_add_used(struct vhost_virtqueue *vq, unsigned int head, int len)
 /* This actually signals the guest, using eventfd. */
 void vhost_signal(struct vhost_dev *dev, struct vhost_virtqueue *vq)
 {
-	__u16 flags = 0;
+	__u16 flags;
+	/* Flush out used index updates. This is paired
+	 * with the barrier that the Guest executes when enabling
+	 * interrupts. */
+	smp_mb();
+
 	if (get_user(flags, &vq->avail->flags)) {
 		vq_err(vq, "Failed to get flags");
 		return;

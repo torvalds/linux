@@ -42,15 +42,10 @@ config KPROBES
 	  If in doubt, say "N".
 
 config OPTPROBES
-	bool "Kprobes jump optimization support (EXPERIMENTAL)"
-	default y
-	depends on KPROBES
+	def_bool y
+	depends on KPROBES && HAVE_OPTPROBES
 	depends on !PREEMPT
-	depends on HAVE_OPTPROBES
 	select KALLSYMS_ALL
-	help
-	  This option will allow kprobes to optimize breakpoint to
-	  a jump for reducing its overhead.
 
 config HAVE_EFFICIENT_UNALIGNED_ACCESS
 	bool
@@ -141,6 +136,17 @@ config HAVE_DEFAULT_NO_SPIN_MUTEXES
 config HAVE_HW_BREAKPOINT
 	bool
 	depends on PERF_EVENTS
+
+config HAVE_MIXED_BREAKPOINTS_REGS
+	bool
+	depends on HAVE_HW_BREAKPOINT
+	help
+	  Depending on the arch implementation of hardware breakpoints,
+	  some of them have separate registers for data and instruction
+	  breakpoints addresses, others have mixed registers to store
+	  them but define the access type in a control register.
+	  Select this option if your arch implements breakpoints under the
+	  latter fashion.
 
 config HAVE_USER_RETURN_NOTIFIER
 	bool

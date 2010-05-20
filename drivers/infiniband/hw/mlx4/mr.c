@@ -240,7 +240,7 @@ struct ib_fast_reg_page_list *mlx4_ib_alloc_fast_reg_page_list(struct ib_device 
 	mfrpl->mapped_page_list = dma_alloc_coherent(&dev->dev->pdev->dev,
 						     size, &mfrpl->map,
 						     GFP_KERNEL);
-	if (!mfrpl->ibfrpl.page_list)
+	if (!mfrpl->mapped_page_list)
 		goto err_free;
 
 	WARN_ON(mfrpl->map & 0x3f);

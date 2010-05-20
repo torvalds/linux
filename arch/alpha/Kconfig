@@ -55,6 +55,9 @@ config ARCH_USES_GETTIMEOFFSET
 	bool
 	default y
 
+config GENERIC_CMOS_UPDATE
+        def_bool y
+
 config ZONE_DMA
 	bool
 	default y

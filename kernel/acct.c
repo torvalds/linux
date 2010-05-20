@@ -353,17 +353,18 @@ restart:
 
 void acct_exit_ns(struct pid_namespace *ns)
 {
-	struct bsd_acct_struct *acct;
+	struct bsd_acct_struct *acct = ns->bacct;
 
+	if (acct == NULL)
+		return;
+
+	del_timer_sync(&acct->timer);
 	spin_lock(&acct_lock);
-	acct = ns->bacct;
-	if (acct != NULL) {
-		if (acct->file != NULL)
-			acct_file_reopen(acct, NULL, NULL);
-
-		kfree(acct);
-	}
+	if (acct->file != NULL)
+		acct_file_reopen(acct, NULL, NULL);
 	spin_unlock(&acct_lock);
+
+	kfree(acct);
 }
 
 /*

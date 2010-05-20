@@ -124,7 +124,7 @@ static int chsc_subchannel_prepare(struct subchannel *sch)
 	 * since we don't have a way to clear the subchannel and
 	 * cannot disable it with a request running.
 	 */
-	cc = stsch(sch->schid, &schib);
+	cc = stsch_err(sch->schid, &schib);
 	if (!cc && scsw_stctl(&schib.scsw))
 		return -EAGAIN;
 	return 0;
@@ -803,6 +803,7 @@ static long chsc_ioctl(struct file *filp, unsigned int cmd,
 
 static const struct file_operations chsc_fops = {
 	.owner = THIS_MODULE,
+	.open = nonseekable_open,
 	.unlocked_ioctl = chsc_ioctl,
 	.compat_ioctl = chsc_ioctl,
 };

@@ -49,6 +49,9 @@ struct dcb_gpio_entry {
 	enum dcb_gpio_tag tag;
 	int line;
 	bool invert;
+	uint32_t entry;
+	uint8_t state_default;
+	uint8_t state[2];
 };
 
 struct dcb_gpio_table {
@@ -267,7 +270,6 @@ struct nvbios {
 		bool reset_after_pclk_change;
 		bool dual_link;
 		bool link_c_increment;
-		bool BITbit1;
 		bool if_is_24bit;
 		int duallink_transition_clk;
 		uint8_t strapless_is_24bit;

@@ -648,6 +648,8 @@ static void css_process_crw(struct crw *crw0, struct crw *crw1, int overflow)
 static void __init
 css_generate_pgid(struct channel_subsystem *css, u32 tod_high)
 {
+	struct cpuid cpu_id;
+
 	if (css_general_characteristics.mcss) {
 		css->global_pgid.pgid_high.ext_cssid.version = 0x80;
 		css->global_pgid.pgid_high.ext_cssid.cssid = css->cssid;
@@ -658,8 +660,9 @@ css_generate_pgid(struct channel_subsystem *css, u32 tod_high)
 		css->global_pgid.pgid_high.cpu_addr = 0;
 #endif
 	}
-	css->global_pgid.cpu_id = S390_lowcore.cpu_id.ident;
-	css->global_pgid.cpu_model = S390_lowcore.cpu_id.machine;
+	get_cpu_id(&cpu_id);
+	css->global_pgid.cpu_id = cpu_id.ident;
+	css->global_pgid.cpu_model = cpu_id.machine;
 	css->global_pgid.tod_high = tod_high;
 
 }
@@ -870,15 +873,10 @@ static int __init css_bus_init(void)
 
 	/* Try to enable MSS. */
 	ret = chsc_enable_facility(CHSC_SDA_OC_MSS);
-	switch (ret) {
-	case 0: /* Success. */
-		max_ssid = __MAX_SSID;
-		break;
-	case -ENOMEM:
-		goto out;
-	default:
+	if (ret)
 		max_ssid = 0;
-	}
+	else /* Success. */
+		max_ssid = __MAX_SSID;
 
 	ret = slow_subchannel_init();
 	if (ret)
@@ -1048,6 +1046,11 @@ static int __init channel_subsystem_init_sync(void)
 }
 subsys_initcall_sync(channel_subsystem_init_sync);
 
+void channel_subsystem_reinit(void)
+{
+	chsc_enable_facility(CHSC_SDA_OC_MSS);
+}
+
 #ifdef CONFIG_PROC_FS
 static ssize_t cio_settle_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
@@ -1062,6 +1065,7 @@ static ssize_t cio_settle_write(struct file *file, const char __user *buf,
 }
 
 static const struct file_operations cio_settle_proc_fops = {
+	.open = nonseekable_open,
 	.write = cio_settle_write,
 };
 

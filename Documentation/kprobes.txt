@@ -165,8 +165,8 @@ the user entry_handler invocation is also skipped.
 
 1.4 How Does Jump Optimization Work?
 
-If you configured your kernel with CONFIG_OPTPROBES=y (currently
-this option is supported on x86/x86-64, non-preemptive kernel) and
+If your kernel is built with CONFIG_OPTPROBES=y (currently this flag
+is automatically set 'y' on x86/x86-64, non-preemptive kernel) and
 the "debug.kprobes_optimization" kernel parameter is set to 1 (see
 sysctl(8)), Kprobes tries to reduce probe-hit overhead by using a jump
 instruction instead of a breakpoint instruction at each probepoint.
@@ -271,8 +271,6 @@ tweak the kernel's execution path, you need to suppress optimization,
 using one of the following techniques:
 - Specify an empty function for the kprobe's post_handler or break_handler.
  or
-- Config CONFIG_OPTPROBES=n.
- or
 - Execute 'sysctl -w debug.kprobes_optimization=n'
 
 2. Architectures Supported
@@ -306,10 +304,6 @@ If you need to insert a probe in the middle of a function, you may find
 it useful to "Compile the kernel with debug info" (CONFIG_DEBUG_INFO),
 so you can use "objdump -d -l vmlinux" to see the source-to-object
 code mapping.
-
-If you want to reduce probing overhead, set "Kprobes jump optimization
-support" (CONFIG_OPTPROBES) to "y". You can find this option under the
-"Kprobes" line.
 
 4. API Reference
 

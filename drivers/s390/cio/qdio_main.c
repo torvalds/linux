@@ -336,10 +336,10 @@ again:
 		WARN_ON(queue_type(q) != QDIO_IQDIO_QFMT || cc != 2);
 
 		if (!start_time) {
-			start_time = get_usecs();
+			start_time = get_clock();
 			goto again;
 		}
-		if ((get_usecs() - start_time) < QDIO_BUSY_BIT_PATIENCE)
+		if ((get_clock() - start_time) < QDIO_BUSY_BIT_PATIENCE)
 			goto again;
 	}
 	return cc;
@@ -536,7 +536,7 @@ static int qdio_inbound_q_moved(struct qdio_q *q)
 	if ((bufnr != q->last_move) || q->qdio_error) {
 		q->last_move = bufnr;
 		if (!is_thinint_irq(q->irq_ptr) && MACHINE_IS_LPAR)
-			q->u.in.timestamp = get_usecs();
+			q->u.in.timestamp = get_clock();
 		return 1;
 	} else
 		return 0;
@@ -567,7 +567,7 @@ static inline int qdio_inbound_q_done(struct qdio_q *q)
 	 * At this point we know, that inbound first_to_check
 	 * has (probably) not moved (see qdio_inbound_processing).
 	 */
-	if (get_usecs() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
+	if (get_clock() > q->u.in.timestamp + QDIO_INPUT_THRESHOLD) {
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in done:%02x",
 			      q->first_to_check);
 		return 1;
@@ -606,7 +606,7 @@ static void qdio_kick_handler(struct qdio_q *q)
 static void __qdio_inbound_processing(struct qdio_q *q)
 {
 	qperf_inc(q, tasklet_inbound);
-again:
+
 	if (!qdio_inbound_q_moved(q))
 		return;
 
@@ -615,7 +615,10 @@ again:
 	if (!qdio_inbound_q_done(q)) {
 		/* means poll time is not yet over */
 		qperf_inc(q, tasklet_inbound_resched);
-		goto again;
+		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED)) {
+			tasklet_schedule(&q->tasklet);
+			return;
+		}
 	}
 
 	qdio_stop_polling(q);
@@ -625,7 +628,8 @@ again:
 	 */
 	if (!qdio_inbound_q_done(q)) {
 		qperf_inc(q, tasklet_inbound_resched2);
-		goto again;
+		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED))
+			tasklet_schedule(&q->tasklet);
 	}
 }
 
@@ -955,6 +959,9 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 		return;
 	}
 
+	if (irq_ptr->perf_stat_enabled)
+		irq_ptr->perf_stat.qdio_int++;
+
 	if (IS_ERR(irb)) {
 		switch (PTR_ERR(irb)) {
 		case -EIO:
@@ -1015,30 +1022,6 @@ int qdio_get_ssqd_desc(struct ccw_device *cdev,
 	return qdio_setup_get_ssqd(NULL, &cdev->private->schid, data);
 }
 EXPORT_SYMBOL_GPL(qdio_get_ssqd_desc);
-
-/**
- * qdio_cleanup - shutdown queues and free data structures
- * @cdev: associated ccw device
- * @how: use halt or clear to shutdown
- *
- * This function calls qdio_shutdown() for @cdev with method @how.
- * and qdio_free(). The qdio_free() return value is ignored since
- * !irq_ptr is already checked.
- */
-int qdio_cleanup(struct ccw_device *cdev, int how)
-{
-	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
-	int rc;
-
-	if (!irq_ptr)
-		return -ENODEV;
-
-	rc = qdio_shutdown(cdev, how);
-
-	qdio_free(cdev);
-	return rc;
-}
-EXPORT_SYMBOL_GPL(qdio_cleanup);
 
 static void qdio_shutdown_queues(struct ccw_device *cdev)
 {
@@ -1155,28 +1138,6 @@ int qdio_free(struct ccw_device *cdev)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(qdio_free);
-
-/**
- * qdio_initialize - allocate and establish queues for a qdio subchannel
- * @init_data: initialization data
- *
- * This function first allocates queues via qdio_allocate() and on success
- * establishes them via qdio_establish().
- */
-int qdio_initialize(struct qdio_initialize *init_data)
-{
-	int rc;
-
-	rc = qdio_allocate(init_data);
-	if (rc)
-		return rc;
-
-	rc = qdio_establish(init_data);
-	if (rc)
-		qdio_free(init_data->cdev);
-	return rc;
-}
-EXPORT_SYMBOL_GPL(qdio_initialize);
 
 /**
  * qdio_allocate - allocate qdio queues and associated data

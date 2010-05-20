@@ -72,7 +72,7 @@ nouveau_bo_fixup_align(struct drm_device *dev,
 	 * many small buffers.
 	 */
 	if (dev_priv->card_type == NV_50) {
-		uint32_t block_size = nouveau_mem_fb_amount(dev) >> 15;
+		uint32_t block_size = dev_priv->vram_size >> 15;
 		int i;
 
 		switch (tile_flags) {
@@ -154,7 +154,7 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 
 	nvbo->placement.fpfn = 0;
 	nvbo->placement.lpfn = mappable ? dev_priv->fb_mappable_pages : 0;
-	nouveau_bo_placement_set(nvbo, flags);
+	nouveau_bo_placement_set(nvbo, flags, 0);
 
 	nvbo->channel = chan;
 	ret = ttm_bo_init(&dev_priv->ttm.bdev, &nvbo->bo, size,
@@ -173,26 +173,33 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	return 0;
 }
 
-void
-nouveau_bo_placement_set(struct nouveau_bo *nvbo, uint32_t memtype)
+static void
+set_placement_list(uint32_t *pl, unsigned *n, uint32_t type, uint32_t flags)
 {
-	int n = 0;
+	*n = 0;
 
-	if (memtype & TTM_PL_FLAG_VRAM)
-		nvbo->placements[n++] = TTM_PL_FLAG_VRAM | TTM_PL_MASK_CACHING;
-	if (memtype & TTM_PL_FLAG_TT)
-		nvbo->placements[n++] = TTM_PL_FLAG_TT | TTM_PL_MASK_CACHING;
-	if (memtype & TTM_PL_FLAG_SYSTEM)
-		nvbo->placements[n++] = TTM_PL_FLAG_SYSTEM | TTM_PL_MASK_CACHING;
-	nvbo->placement.placement = nvbo->placements;
-	nvbo->placement.busy_placement = nvbo->placements;
-	nvbo->placement.num_placement = n;
-	nvbo->placement.num_busy_placement = n;
+	if (type & TTM_PL_FLAG_VRAM)
+		pl[(*n)++] = TTM_PL_FLAG_VRAM | flags;
+	if (type & TTM_PL_FLAG_TT)
+		pl[(*n)++] = TTM_PL_FLAG_TT | flags;
+	if (type & TTM_PL_FLAG_SYSTEM)
+		pl[(*n)++] = TTM_PL_FLAG_SYSTEM | flags;
+}
 
-	if (nvbo->pin_refcnt) {
-		while (n--)
-			nvbo->placements[n] |= TTM_PL_FLAG_NO_EVICT;
-	}
+void
+nouveau_bo_placement_set(struct nouveau_bo *nvbo, uint32_t type, uint32_t busy)
+{
+	struct ttm_placement *pl = &nvbo->placement;
+	uint32_t flags = TTM_PL_MASK_CACHING |
+		(nvbo->pin_refcnt ? TTM_PL_FLAG_NO_EVICT : 0);
+
+	pl->placement = nvbo->placements;
+	set_placement_list(nvbo->placements, &pl->num_placement,
+			   type, flags);
+
+	pl->busy_placement = nvbo->busy_placements;
+	set_placement_list(nvbo->busy_placements, &pl->num_busy_placement,
+			   type | busy, flags);
 }
 
 int
@@ -200,7 +207,7 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(nvbo->bo.bdev);
 	struct ttm_buffer_object *bo = &nvbo->bo;
-	int ret, i;
+	int ret;
 
 	if (nvbo->pin_refcnt && !(memtype & (1 << bo->mem.mem_type))) {
 		NV_ERROR(nouveau_bdev(bo->bdev)->dev,
@@ -216,9 +223,7 @@ nouveau_bo_pin(struct nouveau_bo *nvbo, uint32_t memtype)
 	if (ret)
 		goto out;
 
-	nouveau_bo_placement_set(nvbo, memtype);
-	for (i = 0; i < nvbo->placement.num_placement; i++)
-		nvbo->placements[i] |= TTM_PL_FLAG_NO_EVICT;
+	nouveau_bo_placement_set(nvbo, memtype, 0);
 
 	ret = ttm_bo_validate(bo, &nvbo->placement, false, false);
 	if (ret == 0) {
@@ -245,7 +250,7 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 {
 	struct drm_nouveau_private *dev_priv = nouveau_bdev(nvbo->bo.bdev);
 	struct ttm_buffer_object *bo = &nvbo->bo;
-	int ret, i;
+	int ret;
 
 	if (--nvbo->pin_refcnt)
 		return 0;
@@ -254,8 +259,7 @@ nouveau_bo_unpin(struct nouveau_bo *nvbo)
 	if (ret)
 		return ret;
 
-	for (i = 0; i < nvbo->placement.num_placement; i++)
-		nvbo->placements[i] &= ~TTM_PL_FLAG_NO_EVICT;
+	nouveau_bo_placement_set(nvbo, bo->mem.placement, 0);
 
 	ret = ttm_bo_validate(bo, &nvbo->placement, false, false);
 	if (ret == 0) {
@@ -396,8 +400,8 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->io_addr = NULL;
 		man->io_offset = drm_get_resource_start(dev, 1);
 		man->io_size = drm_get_resource_len(dev, 1);
-		if (man->io_size > nouveau_mem_fb_amount(dev))
-			man->io_size = nouveau_mem_fb_amount(dev);
+		if (man->io_size > dev_priv->vram_size)
+			man->io_size = dev_priv->vram_size;
 
 		man->gpu_offset = dev_priv->vm_vram_base;
 		break;
@@ -440,10 +444,11 @@ nouveau_bo_evict_flags(struct ttm_buffer_object *bo, struct ttm_placement *pl)
 
 	switch (bo->mem.mem_type) {
 	case TTM_PL_VRAM:
-		nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_TT);
+		nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_TT,
+					 TTM_PL_FLAG_SYSTEM);
 		break;
 	default:
-		nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_SYSTEM);
+		nouveau_bo_placement_set(nvbo, TTM_PL_FLAG_SYSTEM, 0);
 		break;
 	}
 

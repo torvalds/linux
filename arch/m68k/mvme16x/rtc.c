@@ -9,7 +9,6 @@
 #include <linux/types.h>
 #include <linux/errno.h>
 #include <linux/miscdevice.h>
-#include <linux/smp_lock.h>
 #include <linux/ioport.h>
 #include <linux/capability.h>
 #include <linux/fcntl.h>
@@ -36,8 +35,7 @@ static const unsigned char days_in_mo[] =
 
 static atomic_t rtc_ready = ATOMIC_INIT(1);
 
-static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		     unsigned long arg)
+static long rtc_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	volatile MK48T08ptr_t rtc = (MK48T08ptr_t)MVME_RTC_BASE;
 	unsigned long flags;
@@ -120,22 +118,15 @@ static int rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 }
 
 /*
- *	We enforce only one user at a time here with the open/close.
- *	Also clear the previous interrupt data on an open, and clean
- *	up things on a close.
+ * We enforce only one user at a time here with the open/close.
  */
-
 static int rtc_open(struct inode *inode, struct file *file)
 {
-	lock_kernel();
 	if( !atomic_dec_and_test(&rtc_ready) )
 	{
 		atomic_inc( &rtc_ready );
-		unlock_kernel();
 		return -EBUSY;
 	}
-	unlock_kernel();
-
 	return 0;
 }
 
@@ -150,9 +141,9 @@ static int rtc_release(struct inode *inode, struct file *file)
  */
 
 static const struct file_operations rtc_fops = {
-	.ioctl =	rtc_ioctl,
-	.open =		rtc_open,
-	.release =	rtc_release,
+	.unlocked_ioctl	= rtc_ioctl,
+	.open		= rtc_open,
+	.release	= rtc_release,
 };
 
 static struct miscdevice rtc_dev=

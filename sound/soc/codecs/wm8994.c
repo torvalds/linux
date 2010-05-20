@@ -3008,34 +3008,39 @@ static int wm8994_set_bias_level(struct snd_soc_codec *codec,
 		break;
 
 	case SND_SOC_BIAS_OFF:
-		/* Switch over to startup biases */
-		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
-				    WM8994_BIAS_SRC | WM8994_STARTUP_BIAS_ENA |
-				    WM8994_VMID_BUF_ENA |
-				    WM8994_VMID_RAMP_MASK,
-				    WM8994_BIAS_SRC | WM8994_STARTUP_BIAS_ENA |
-				    WM8994_VMID_BUF_ENA |
-				    (1 << WM8994_VMID_RAMP_SHIFT));
+		if (codec->bias_level == SND_SOC_BIAS_STANDBY) {
+			/* Switch over to startup biases */
+			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+					    WM8994_BIAS_SRC |
+					    WM8994_STARTUP_BIAS_ENA |
+					    WM8994_VMID_BUF_ENA |
+					    WM8994_VMID_RAMP_MASK,
+					    WM8994_BIAS_SRC |
+					    WM8994_STARTUP_BIAS_ENA |
+					    WM8994_VMID_BUF_ENA |
+					    (1 << WM8994_VMID_RAMP_SHIFT));
 
-		/* Disable main biases */
-		snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
-				    WM8994_BIAS_ENA | WM8994_VMID_SEL_MASK, 0);
+			/* Disable main biases */
+			snd_soc_update_bits(codec, WM8994_POWER_MANAGEMENT_1,
+					    WM8994_BIAS_ENA |
+					    WM8994_VMID_SEL_MASK, 0);
 
-		/* Discharge line */
-		snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
-				    WM8994_LINEOUT1_DISCH |
-				    WM8994_LINEOUT2_DISCH,
-				    WM8994_LINEOUT1_DISCH |
-				    WM8994_LINEOUT2_DISCH);
+			/* Discharge line */
+			snd_soc_update_bits(codec, WM8994_ANTIPOP_1,
+					    WM8994_LINEOUT1_DISCH |
+					    WM8994_LINEOUT2_DISCH,
+					    WM8994_LINEOUT1_DISCH |
+					    WM8994_LINEOUT2_DISCH);
 
-		msleep(5);
+			msleep(5);
 
-		/* Switch off startup biases */
-		snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
-				    WM8994_BIAS_SRC | WM8994_STARTUP_BIAS_ENA |
-				    WM8994_VMID_BUF_ENA |
-				    WM8994_VMID_RAMP_MASK, 0);
-
+			/* Switch off startup biases */
+			snd_soc_update_bits(codec, WM8994_ANTIPOP_2,
+					    WM8994_BIAS_SRC |
+					    WM8994_STARTUP_BIAS_ENA |
+					    WM8994_VMID_BUF_ENA |
+					    WM8994_VMID_RAMP_MASK, 0);
+		}
 		break;
 	}
 	codec->bias_level = level;
@@ -3402,7 +3407,7 @@ struct snd_soc_dai wm8994_dai[] = {
 			.rates = WM8994_RATES,
 			.formats = WM8994_FORMATS,
 		},
-		.playback = {
+		.capture = {
 			.stream_name = "AIF3 Capture",
 			.channels_min = 2,
 			.channels_max = 2,
@@ -3731,11 +3736,12 @@ static int wm8994_codec_probe(struct platform_device *pdev)
 	case 3:
 		wm8994->hubs.dcs_codes = -5;
 		wm8994->hubs.hp_startup_mode = 1;
+		wm8994->hubs.dcs_readback_mode = 1;
 		break;
 	default:
+		wm8994->hubs.dcs_readback_mode = 1;
 		break;
 	}
-			   
 
 	/* Remember if AIFnLRCLK is configured as a GPIO.  This should be
 	 * configured on init - if a system wants to do this dynamically

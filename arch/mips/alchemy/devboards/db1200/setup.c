@@ -60,58 +60,22 @@ void __init board_setup(void)
 	wmb();
 }
 
-/* use the hexleds to count the number of times the cpu has entered
- * wait, the dots to indicate whether the CPU is currently idle or
- * active (dots off = sleeping, dots on = working) for cases where
- * the number doesn't change for a long(er) period of time.
- */
-static void db1200_wait(void)
-{
-	__asm__("	.set	push			\n"
-		"	.set	mips3			\n"
-		"	.set	noreorder		\n"
-		"	cache	0x14, 0(%0)		\n"
-		"	cache	0x14, 32(%0)		\n"
-		"	cache	0x14, 64(%0)		\n"
-		/* dots off: we're about to call wait */
-		"	lui	$26, 0xb980		\n"
-		"	ori	$27, $0, 3		\n"
-		"	sb	$27, 0x18($26)		\n"
-		"	sync				\n"
-		"	nop				\n"
-		"	wait				\n"
-		"	nop				\n"
-		"	nop				\n"
-		"	nop				\n"
-		"	nop				\n"
-		"	nop				\n"
-		/* dots on: there's work to do, increment cntr */
-		"	lui	$26, 0xb980		\n"
-		"	sb	$0, 0x18($26)		\n"
-		"	lui	$26, 0xb9c0		\n"
-		"	lb	$27, 0($26)		\n"
-		"	addiu	$27, $27, 1		\n"
-		"	sb	$27, 0($26)		\n"
-		"	sync				\n"
-		"	.set	pop			\n"
-		: : "r" (db1200_wait));
-}
-
 static int __init db1200_arch_init(void)
 {
 	/* GPIO7 is low-level triggered CPLD cascade */
 	set_irq_type(AU1200_GPIO7_INT, IRQF_TRIGGER_LOW);
 	bcsr_init_irq(DB1200_INT_BEGIN, DB1200_INT_END, AU1200_GPIO7_INT);
 
-	/* do not autoenable these: CPLD has broken edge int handling,
-	 * and the CD handler setup requires manual enabling to work
-	 * around that.
+	/* insert/eject pairs: one of both is always screaming.  To avoid
+	 * issues they must not be automatically enabled when initially
+	 * requested.
 	 */
 	irq_to_desc(DB1200_SD0_INSERT_INT)->status |= IRQ_NOAUTOEN;
 	irq_to_desc(DB1200_SD0_EJECT_INT)->status |= IRQ_NOAUTOEN;
-
-	if (cpu_wait)
-		cpu_wait = db1200_wait;
+	irq_to_desc(DB1200_PC0_INSERT_INT)->status |= IRQ_NOAUTOEN;
+	irq_to_desc(DB1200_PC0_EJECT_INT)->status |= IRQ_NOAUTOEN;
+	irq_to_desc(DB1200_PC1_INSERT_INT)->status |= IRQ_NOAUTOEN;
+	irq_to_desc(DB1200_PC1_EJECT_INT)->status |= IRQ_NOAUTOEN;
 
 	return 0;
 }

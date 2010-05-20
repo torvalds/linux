@@ -37,9 +37,9 @@ struct iommu_ops {
 	int (*attach_dev)(struct iommu_domain *domain, struct device *dev);
 	void (*detach_dev)(struct iommu_domain *domain, struct device *dev);
 	int (*map)(struct iommu_domain *domain, unsigned long iova,
-		   phys_addr_t paddr, size_t size, int prot);
-	void (*unmap)(struct iommu_domain *domain, unsigned long iova,
-		      size_t size);
+		   phys_addr_t paddr, int gfp_order, int prot);
+	int (*unmap)(struct iommu_domain *domain, unsigned long iova,
+		     int gfp_order);
 	phys_addr_t (*iova_to_phys)(struct iommu_domain *domain,
 				    unsigned long iova);
 	int (*domain_has_cap)(struct iommu_domain *domain,
@@ -56,10 +56,10 @@ extern int iommu_attach_device(struct iommu_domain *domain,
 			       struct device *dev);
 extern void iommu_detach_device(struct iommu_domain *domain,
 				struct device *dev);
-extern int iommu_map_range(struct iommu_domain *domain, unsigned long iova,
-			   phys_addr_t paddr, size_t size, int prot);
-extern void iommu_unmap_range(struct iommu_domain *domain, unsigned long iova,
-			      size_t size);
+extern int iommu_map(struct iommu_domain *domain, unsigned long iova,
+		     phys_addr_t paddr, int gfp_order, int prot);
+extern int iommu_unmap(struct iommu_domain *domain, unsigned long iova,
+		       int gfp_order);
 extern phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain,
 				      unsigned long iova);
 extern int iommu_domain_has_cap(struct iommu_domain *domain,
@@ -96,16 +96,16 @@ static inline void iommu_detach_device(struct iommu_domain *domain,
 {
 }
 
-static inline int iommu_map_range(struct iommu_domain *domain,
-				  unsigned long iova, phys_addr_t paddr,
-				  size_t size, int prot)
+static inline int iommu_map(struct iommu_domain *domain, unsigned long iova,
+			    phys_addr_t paddr, int gfp_order, int prot)
 {
 	return -ENODEV;
 }
 
-static inline void iommu_unmap_range(struct iommu_domain *domain,
-				     unsigned long iova, size_t size)
+static inline int iommu_unmap(struct iommu_domain *domain, unsigned long iova,
+			      int gfp_order)
 {
+	return -ENODEV;
 }
 
 static inline phys_addr_t iommu_iova_to_phys(struct iommu_domain *domain,

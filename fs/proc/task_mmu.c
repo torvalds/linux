@@ -247,25 +247,6 @@ static void show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
 				} else if (vma->vm_start <= mm->start_stack &&
 					   vma->vm_end >= mm->start_stack) {
 					name = "[stack]";
-				} else {
-					unsigned long stack_start;
-					struct proc_maps_private *pmp;
-
-					pmp = m->private;
-					stack_start = pmp->task->stack_start;
-
-					if (vma->vm_start <= stack_start &&
-					    vma->vm_end >= stack_start) {
-						pad_len_spaces(m, len);
-						seq_printf(m,
-						 "[threadstack:%08lx]",
-#ifdef CONFIG_STACK_GROWSUP
-						 vma->vm_end - stack_start
-#else
-						 stack_start - vma->vm_start
-#endif
-						);
-					}
 				}
 			} else {
 				name = "[vdso]";
@@ -662,31 +643,18 @@ static u64 huge_pte_to_pagemap_entry(pte_t pte, int offset)
 	return pme;
 }
 
-static int pagemap_hugetlb_range(pte_t *pte, unsigned long addr,
-				 unsigned long end, struct mm_walk *walk)
+/* This function walks within one hugetlb entry in the single call */
+static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
+				 unsigned long addr, unsigned long end,
+				 struct mm_walk *walk)
 {
-	struct vm_area_struct *vma;
 	struct pagemapread *pm = walk->private;
-	struct hstate *hs = NULL;
 	int err = 0;
+	u64 pfn;
 
-	vma = find_vma(walk->mm, addr);
-	if (vma)
-		hs = hstate_vma(vma);
 	for (; addr != end; addr += PAGE_SIZE) {
-		u64 pfn = PM_NOT_PRESENT;
-
-		if (vma && (addr >= vma->vm_end)) {
-			vma = find_vma(walk->mm, addr);
-			if (vma)
-				hs = hstate_vma(vma);
-		}
-
-		if (vma && (vma->vm_start <= addr) && is_vm_hugetlb_page(vma)) {
-			/* calculate pfn of the "raw" page in the hugepage. */
-			int offset = (addr & ~huge_page_mask(hs)) >> PAGE_SHIFT;
-			pfn = huge_pte_to_pagemap_entry(*pte, offset);
-		}
+		int offset = (addr & ~hmask) >> PAGE_SHIFT;
+		pfn = huge_pte_to_pagemap_entry(*pte, offset);
 		err = add_to_pagemap(addr, pfn, pm);
 		if (err)
 			return err;

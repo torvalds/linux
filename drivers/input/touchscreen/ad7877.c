@@ -156,9 +156,14 @@ struct ser_req {
 	u16			reset;
 	u16			ref_on;
 	u16			command;
-	u16			sample;
 	struct spi_message	msg;
 	struct spi_transfer	xfer[6];
+
+	/*
+	 * DMA (thus cache coherency maintenance) requires the
+	 * transfer buffers to live in their own cache lines.
+	 */
+	u16 sample ____cacheline_aligned;
 };
 
 struct ad7877 {
@@ -182,8 +187,6 @@ struct ad7877 {
 	u8			averaging;
 	u8			pen_down_acc_interval;
 
-	u16			conversion_data[AD7877_NR_SENSE];
-
 	struct spi_transfer	xfer[AD7877_NR_SENSE + 2];
 	struct spi_message	msg;
 
@@ -195,6 +198,12 @@ struct ad7877 {
 	spinlock_t		lock;
 	struct timer_list	timer;		/* P: lock */
 	unsigned		pending:1;	/* P: lock */
+
+	/*
+	 * DMA (thus cache coherency maintenance) requires the
+	 * transfer buffers to live in their own cache lines.
+	 */
+	u16 conversion_data[AD7877_NR_SENSE] ____cacheline_aligned;
 };
 
 static int gpio3;

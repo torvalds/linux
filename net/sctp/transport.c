@@ -108,6 +108,8 @@ static struct sctp_transport *sctp_transport_init(struct sctp_transport *peer,
 			(unsigned long)peer);
 	setup_timer(&peer->hb_timer, sctp_generate_heartbeat_event,
 			(unsigned long)peer);
+	setup_timer(&peer->proto_unreach_timer,
+		    sctp_generate_proto_unreach_event, (unsigned long)peer);
 
 	/* Initialize the 64-bit random nonce sent with heartbeat. */
 	get_random_bytes(&peer->hb_nonce, sizeof(peer->hb_nonce));
@@ -171,6 +173,10 @@ void sctp_transport_free(struct sctp_transport *transport)
 	    del_timer(&transport->T3_rtx_timer))
 		sctp_transport_put(transport);
 
+	/* Delete the ICMP proto unreachable timer if it's active. */
+	if (timer_pending(&transport->proto_unreach_timer) &&
+	    del_timer(&transport->proto_unreach_timer))
+		sctp_association_put(transport->asoc);
 
 	sctp_transport_put(transport);
 }

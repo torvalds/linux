@@ -470,6 +470,8 @@ EXPORT_SYMBOL(iwl_init_scan_params);
 
 static int iwl_scan_initiate(struct iwl_priv *priv)
 {
+	WARN_ON(!mutex_is_locked(&priv->mutex));
+
 	IWL_DEBUG_INFO(priv, "Starting scan...\n");
 	set_bit(STATUS_SCANNING, &priv->status);
 	priv->is_internal_short_scan = false;
@@ -547,24 +549,31 @@ EXPORT_SYMBOL(iwl_mac_hw_scan);
  * internal short scan, this function should only been called while associated.
  * It will reset and tune the radio to prevent possible RF related problem
  */
-int iwl_internal_short_hw_scan(struct iwl_priv *priv)
+void iwl_internal_short_hw_scan(struct iwl_priv *priv)
 {
-	int ret = 0;
+	queue_work(priv->workqueue, &priv->start_internal_scan);
+}
+
+static void iwl_bg_start_internal_scan(struct work_struct *work)
+{
+	struct iwl_priv *priv =
+		container_of(work, struct iwl_priv, start_internal_scan);
+
+	mutex_lock(&priv->mutex);
 
 	if (!iwl_is_ready_rf(priv)) {
-		ret = -EIO;
 		IWL_DEBUG_SCAN(priv, "not ready or exit pending\n");
-		goto out;
+		goto unlock;
 	}
+
 	if (test_bit(STATUS_SCANNING, &priv->status)) {
 		IWL_DEBUG_SCAN(priv, "Scan already in progress.\n");
-		ret = -EAGAIN;
-		goto out;
+		goto unlock;
 	}
+
 	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
 		IWL_DEBUG_SCAN(priv, "Scan request while abort pending\n");
-		ret = -EAGAIN;
-		goto out;
+		goto unlock;
 	}
 
 	priv->scan_bands = 0;
@@ -577,9 +586,8 @@ int iwl_internal_short_hw_scan(struct iwl_priv *priv)
 	set_bit(STATUS_SCANNING, &priv->status);
 	priv->is_internal_short_scan = true;
 	queue_work(priv->workqueue, &priv->request_scan);
-
-out:
-	return ret;
+ unlock:
+	mutex_unlock(&priv->mutex);
 }
 EXPORT_SYMBOL(iwl_internal_short_hw_scan);
 
@@ -805,16 +813,29 @@ static void iwl_bg_request_scan(struct work_struct *data)
 			rate = IWL_RATE_1M_PLCP;
 			rate_flags = RATE_MCS_CCK_MSK;
 		}
-		scan->good_CRC_th = 0;
+		scan->good_CRC_th = IWL_GOOD_CRC_TH_DISABLED;
 	} else if (priv->scan_bands & BIT(IEEE80211_BAND_5GHZ)) {
 		band = IEEE80211_BAND_5GHZ;
 		rate = IWL_RATE_6M_PLCP;
 		/*
-		 * If active scaning is requested but a certain channel
-		 * is marked passive, we can do active scanning if we
-		 * detect transmissions.
+		 * If active scanning is requested but a certain channel is
+		 * marked passive, we can do active scanning if we detect
+		 * transmissions.
+		 *
+		 * There is an issue with some firmware versions that triggers
+		 * a sysassert on a "good CRC threshold" of zero (== disabled),
+		 * on a radar channel even though this means that we should NOT
+		 * send probes.
+		 *
+		 * The "good CRC threshold" is the number of frames that we
+		 * need to receive during our dwell time on a channel before
+		 * sending out probes -- setting this to a huge value will
+		 * mean we never reach it, but at the same time work around
+		 * the aforementioned issue. Thus use IWL_GOOD_CRC_TH_NEVER
+		 * here instead of IWL_GOOD_CRC_TH_DISABLED.
 		 */
-		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH : 0;
+		scan->good_CRC_th = is_active ? IWL_GOOD_CRC_TH_DEFAULT :
+						IWL_GOOD_CRC_TH_NEVER;
 
 		/* Force use of chains B and C (0x6) for scan Rx for 4965
 		 * Avoid A (0x1) because of its off-channel reception on A-band.
@@ -965,6 +986,7 @@ void iwl_setup_scan_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->scan_completed, iwl_bg_scan_completed);
 	INIT_WORK(&priv->request_scan, iwl_bg_request_scan);
 	INIT_WORK(&priv->abort_scan, iwl_bg_abort_scan);
+	INIT_WORK(&priv->start_internal_scan, iwl_bg_start_internal_scan);
 	INIT_DELAYED_WORK(&priv->scan_check, iwl_bg_scan_check);
 }
 EXPORT_SYMBOL(iwl_setup_scan_deferred_work);

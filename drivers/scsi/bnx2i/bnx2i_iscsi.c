@@ -820,6 +820,11 @@ struct bnx2i_hba *bnx2i_alloc_hba(struct cnic_dev *cnic)
 
 	spin_lock_init(&hba->lock);
 	mutex_init(&hba->net_dev_lock);
+	init_waitqueue_head(&hba->eh_wait);
+	if (test_bit(BNX2I_NX2_DEV_57710, &hba->cnic_dev_type))
+		hba->hba_shutdown_tmo = 240 * HZ;
+	else	/* 5706/5708/5709 */
+		hba->hba_shutdown_tmo = 30 * HZ;
 
 	if (iscsi_host_add(shost, &hba->pcidev->dev))
 		goto free_dump_mem;
@@ -1658,8 +1663,8 @@ static struct iscsi_endpoint *bnx2i_ep_connect(struct Scsi_Host *shost,
 		 */
 		hba = bnx2i_check_route(dst_addr);
 
-	if (!hba) {
-		rc = -ENOMEM;
+	if (!hba || test_bit(ADAPTER_STATE_GOING_DOWN, &hba->adapter_state)) {
+		rc = -EINVAL;
 		goto check_busy;
 	}
 
@@ -1804,7 +1809,7 @@ static int bnx2i_ep_poll(struct iscsi_endpoint *ep, int timeout_ms)
 					       (bnx2i_ep->state ==
 						EP_STATE_CONNECT_COMPL)),
 					      msecs_to_jiffies(timeout_ms));
-	if (!rc || (bnx2i_ep->state == EP_STATE_OFLD_FAILED))
+	if (bnx2i_ep->state == EP_STATE_OFLD_FAILED)
 		rc = -1;
 
 	if (rc > 0)
@@ -1957,6 +1962,8 @@ return_bnx2i_ep:
 
 	if (!hba->ofld_conns_active)
 		bnx2i_unreg_dev_all();
+
+	wake_up_interruptible(&hba->eh_wait);
 }
 
 

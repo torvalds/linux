@@ -305,7 +305,6 @@ xprt_setup_rdma(struct xprt_create *args)
 	/* 60 second timeout, no retries */
 	xprt->timeout = &xprt_rdma_default_timeout;
 	xprt->bind_timeout = (60U * HZ);
-	xprt->connect_timeout = (60U * HZ);
 	xprt->reestablish_timeout = (5U * HZ);
 	xprt->idle_timeout = (5U * 60 * HZ);
 
@@ -449,21 +448,19 @@ xprt_rdma_connect(struct rpc_task *task)
 	struct rpc_xprt *xprt = (struct rpc_xprt *)task->tk_xprt;
 	struct rpcrdma_xprt *r_xprt = rpcx_to_rdmax(xprt);
 
-	if (!xprt_test_and_set_connecting(xprt)) {
-		if (r_xprt->rx_ep.rep_connected != 0) {
-			/* Reconnect */
-			schedule_delayed_work(&r_xprt->rdma_connect,
-				xprt->reestablish_timeout);
-			xprt->reestablish_timeout <<= 1;
-			if (xprt->reestablish_timeout > (30 * HZ))
-				xprt->reestablish_timeout = (30 * HZ);
-			else if (xprt->reestablish_timeout < (5 * HZ))
-				xprt->reestablish_timeout = (5 * HZ);
-		} else {
-			schedule_delayed_work(&r_xprt->rdma_connect, 0);
-			if (!RPC_IS_ASYNC(task))
-				flush_scheduled_work();
-		}
+	if (r_xprt->rx_ep.rep_connected != 0) {
+		/* Reconnect */
+		schedule_delayed_work(&r_xprt->rdma_connect,
+			xprt->reestablish_timeout);
+		xprt->reestablish_timeout <<= 1;
+		if (xprt->reestablish_timeout > (30 * HZ))
+			xprt->reestablish_timeout = (30 * HZ);
+		else if (xprt->reestablish_timeout < (5 * HZ))
+			xprt->reestablish_timeout = (5 * HZ);
+	} else {
+		schedule_delayed_work(&r_xprt->rdma_connect, 0);
+		if (!RPC_IS_ASYNC(task))
+			flush_scheduled_work();
 	}
 }
 
@@ -677,7 +674,7 @@ xprt_rdma_send_request(struct rpc_task *task)
 	if (rpcrdma_ep_post(&r_xprt->rx_ia, &r_xprt->rx_ep, req))
 		goto drop_connection;
 
-	task->tk_bytes_sent += rqst->rq_snd_buf.len;
+	rqst->rq_xmit_bytes_sent += rqst->rq_snd_buf.len;
 	rqst->rq_bytes_sent = 0;
 	return 0;
 

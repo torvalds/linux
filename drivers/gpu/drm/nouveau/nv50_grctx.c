@@ -55,12 +55,12 @@
 #define CP_FLAG_AUTO_LOAD             ((2 * 32) + 5)
 #define CP_FLAG_AUTO_LOAD_NOT_PENDING 0
 #define CP_FLAG_AUTO_LOAD_PENDING     1
+#define CP_FLAG_NEWCTX                ((2 * 32) + 10)
+#define CP_FLAG_NEWCTX_BUSY           0
+#define CP_FLAG_NEWCTX_DONE           1
 #define CP_FLAG_XFER                  ((2 * 32) + 11)
 #define CP_FLAG_XFER_IDLE             0
 #define CP_FLAG_XFER_BUSY             1
-#define CP_FLAG_NEWCTX                ((2 * 32) + 12)
-#define CP_FLAG_NEWCTX_BUSY           0
-#define CP_FLAG_NEWCTX_DONE           1
 #define CP_FLAG_ALWAYS                ((2 * 32) + 13)
 #define CP_FLAG_ALWAYS_FALSE          0
 #define CP_FLAG_ALWAYS_TRUE           1
@@ -177,6 +177,7 @@ nv50_grctx_init(struct nouveau_grctx *ctx)
 	case 0x96:
 	case 0x98:
 	case 0xa0:
+	case 0xa3:
 	case 0xa5:
 	case 0xa8:
 	case 0xaa:
@@ -364,6 +365,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 	case 0xac:
 		gr_def(ctx, 0x401c00, 0x042500df);
 		break;
+	case 0xa3:
 	case 0xa5:
 	case 0xa8:
 		gr_def(ctx, 0x401c00, 0x142500df);
@@ -418,6 +420,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 		break;
 	case 0x84:
 	case 0xa0:
+	case 0xa3:
 	case 0xa5:
 	case 0xa8:
 	case 0xaa:
@@ -792,6 +795,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 				case 0xa5:
 					gr_def(ctx, offset + 0x1c, 0x310c0000);
 					break;
+				case 0xa3:
 				case 0xa8:
 				case 0xaa:
 				case 0xac:
@@ -859,6 +863,8 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 			else
 				gr_def(ctx, offset + 0x8, 0x05010202);
 			gr_def(ctx, offset + 0xc, 0x00030201);
+			if (dev_priv->chipset == 0xa3)
+				cp_ctx(ctx, base + 0x36c, 1);
 
 			cp_ctx(ctx, base + 0x400, 2);
 			gr_def(ctx, base + 0x404, 0x00000040);
@@ -1159,7 +1165,9 @@ nv50_graph_construct_xfer1(struct nouveau_grctx *ctx)
 		nv50_graph_construct_gene_unk8(ctx);
 		if (dev_priv->chipset == 0xa0)
 			xf_emit(ctx, 0x189, 0);
-		else if (dev_priv->chipset < 0xa8)
+		else if (dev_priv->chipset == 0xa3)
+			xf_emit(ctx, 0xd5, 0);
+		else if (dev_priv->chipset == 0xa5)
 			xf_emit(ctx, 0x99, 0);
 		else if (dev_priv->chipset == 0xaa)
 			xf_emit(ctx, 0x65, 0);
@@ -1197,6 +1205,8 @@ nv50_graph_construct_xfer1(struct nouveau_grctx *ctx)
 		ctx->ctxvals_pos = offset + 4;
 		if (dev_priv->chipset == 0xa0)
 			xf_emit(ctx, 0xa80, 0);
+		else if (dev_priv->chipset == 0xa3)
+			xf_emit(ctx, 0xa7c, 0);
 		else
 			xf_emit(ctx, 0xa7a, 0);
 		xf_emit(ctx, 1, 0x3fffff);
@@ -1341,6 +1351,7 @@ nv50_graph_construct_gene_unk1(struct nouveau_grctx *ctx)
 		xf_emit(ctx, 0x942, 0);
 		break;
 	case 0xa0:
+	case 0xa3:
 		xf_emit(ctx, 0x2042, 0);
 		break;
 	case 0xa5:

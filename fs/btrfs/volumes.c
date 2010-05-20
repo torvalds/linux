@@ -2250,6 +2250,12 @@ again:
 	if (!looped)
 		calc_size = max_t(u64, min_stripe_size, calc_size);
 
+	/*
+	 * we're about to do_div by the stripe_len so lets make sure
+	 * we end up with something bigger than a stripe
+	 */
+	calc_size = max_t(u64, calc_size, stripe_len * 4);
+
 	do_div(calc_size, stripe_len);
 	calc_size *= stripe_len;
 

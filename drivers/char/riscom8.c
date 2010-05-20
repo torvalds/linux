@@ -909,6 +909,7 @@ static int rc_open(struct tty_struct *tty, struct file *filp)
 	if (error)
 		return error;
 
+	tty->driver_data = port;
 	return tty_port_open(&port->port, tty, filp);
 }
 

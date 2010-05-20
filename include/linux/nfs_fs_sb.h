@@ -44,7 +44,6 @@ struct nfs_client {
 
 #ifdef CONFIG_NFS_V4
 	u64			cl_clientid;	/* constant */
-	nfs4_verifier		cl_confirm;
 	unsigned long		cl_state;
 
 	struct rb_root		cl_openowner_id;
@@ -176,6 +175,7 @@ struct nfs_server {
 #define NFS_CAP_ATIME		(1U << 11)
 #define NFS_CAP_CTIME		(1U << 12)
 #define NFS_CAP_MTIME		(1U << 13)
+#define NFS_CAP_POSIX_LOCK	(1U << 14)
 
 
 /* maximum number of slots to use */

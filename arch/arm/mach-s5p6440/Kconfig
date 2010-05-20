@@ -9,6 +9,7 @@ if ARCH_S5P6440
 
 config CPU_S5P6440
 	bool
+	select S3C_PL330_DMA
 	help
 	  Enable S5P6440 CPU support
 

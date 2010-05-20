@@ -445,7 +445,7 @@ static int zcore_memmap_open(struct inode *inode, struct file *filp)
 	}
 	kfree(chunk_array);
 	filp->private_data = buf;
-	return 0;
+	return nonseekable_open(inode, filp);
 }
 
 static int zcore_memmap_release(struct inode *inode, struct file *filp)
@@ -473,7 +473,7 @@ static ssize_t zcore_reipl_write(struct file *filp, const char __user *buf,
 
 static int zcore_reipl_open(struct inode *inode, struct file *filp)
 {
-	return 0;
+	return nonseekable_open(inode, filp);
 }
 
 static int zcore_reipl_release(struct inode *inode, struct file *filp)
@@ -638,11 +638,7 @@ static int __init zcore_reipl_init(void)
 		rc = memcpy_hsa_kernel(ipl_block, ipib_info.ipib, PAGE_SIZE);
 	else
 		rc = memcpy_real(ipl_block, (void *) ipib_info.ipib, PAGE_SIZE);
-	if (rc) {
-		free_page((unsigned long) ipl_block);
-		return rc;
-	}
-	if (csum_partial(ipl_block, ipl_block->hdr.len, 0) !=
+	if (rc || csum_partial(ipl_block, ipl_block->hdr.len, 0) !=
 	    ipib_info.checksum) {
 		TRACE("Checksum does not match\n");
 		free_page((unsigned long) ipl_block);

@@ -373,6 +373,7 @@ extern atomic_t init_deasserted;
 extern int wakeup_secondary_cpu_via_nmi(int apicid, unsigned long start_eip);
 #endif
 
+#ifdef CONFIG_X86_LOCAL_APIC
 static inline u32 apic_read(u32 reg)
 {
 	return apic->read(reg);
@@ -403,10 +404,19 @@ static inline u32 safe_apic_wait_icr_idle(void)
 	return apic->safe_wait_icr_idle();
 }
 
+#else /* CONFIG_X86_LOCAL_APIC */
+
+static inline u32 apic_read(u32 reg) { return 0; }
+static inline void apic_write(u32 reg, u32 val) { }
+static inline u64 apic_icr_read(void) { return 0; }
+static inline void apic_icr_write(u32 low, u32 high) { }
+static inline void apic_wait_icr_idle(void) { }
+static inline u32 safe_apic_wait_icr_idle(void) { return 0; }
+
+#endif /* CONFIG_X86_LOCAL_APIC */
 
 static inline void ack_APIC_irq(void)
 {
-#ifdef CONFIG_X86_LOCAL_APIC
 	/*
 	 * ack_APIC_irq() actually gets compiled as a single instruction
 	 * ... yummie.
@@ -414,7 +424,6 @@ static inline void ack_APIC_irq(void)
 
 	/* Docs say use 0 for future compatibility */
 	apic_write(APIC_EOI, 0);
-#endif
 }
 
 static inline unsigned default_get_apic_id(unsigned long x)

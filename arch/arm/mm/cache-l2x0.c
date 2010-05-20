@@ -27,6 +27,7 @@
 
 static void __iomem *l2x0_base;
 static DEFINE_SPINLOCK(l2x0_lock);
+static uint32_t l2x0_way_mask;	/* Bitmask of active ways */
 
 static inline void cache_wait(void __iomem *reg, unsigned long mask)
 {
@@ -108,8 +109,8 @@ static inline void l2x0_inv_all(void)
 
 	/* invalidate all ways */
 	spin_lock_irqsave(&l2x0_lock, flags);
-	writel(0xff, l2x0_base + L2X0_INV_WAY);
-	cache_wait(l2x0_base + L2X0_INV_WAY, 0xff);
+	writel(l2x0_way_mask, l2x0_base + L2X0_INV_WAY);
+	cache_wait(l2x0_base + L2X0_INV_WAY, l2x0_way_mask);
 	cache_sync();
 	spin_unlock_irqrestore(&l2x0_lock, flags);
 }
@@ -208,8 +209,36 @@ static void l2x0_flush_range(unsigned long start, unsigned long end)
 void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
 {
 	__u32 aux;
+	__u32 cache_id;
+	int ways;
+	const char *type;
 
 	l2x0_base = base;
+
+	cache_id = readl(l2x0_base + L2X0_CACHE_ID);
+	aux = readl(l2x0_base + L2X0_AUX_CTRL);
+
+	/* Determine the number of ways */
+	switch (cache_id & L2X0_CACHE_ID_PART_MASK) {
+	case L2X0_CACHE_ID_PART_L310:
+		if (aux & (1 << 16))
+			ways = 16;
+		else
+			ways = 8;
+		type = "L310";
+		break;
+	case L2X0_CACHE_ID_PART_L210:
+		ways = (aux >> 13) & 0xf;
+		type = "L210";
+		break;
+	default:
+		/* Assume unknown chips have 8 ways */
+		ways = 8;
+		type = "L2x0 series";
+		break;
+	}
+
+	l2x0_way_mask = (1 << ways) - 1;
 
 	/*
 	 * Check if l2x0 controller is already enabled.
@@ -219,8 +248,6 @@ void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
 	if (!(readl(l2x0_base + L2X0_CTRL) & 1)) {
 
 		/* l2x0 controller is disabled */
-
-		aux = readl(l2x0_base + L2X0_AUX_CTRL);
 		aux &= aux_mask;
 		aux |= aux_val;
 		writel(aux, l2x0_base + L2X0_AUX_CTRL);
@@ -236,5 +263,7 @@ void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
 	outer_cache.flush_range = l2x0_flush_range;
 	outer_cache.sync = l2x0_cache_sync;
 
-	printk(KERN_INFO "L2X0 cache controller enabled\n");
+	printk(KERN_INFO "%s cache controller enabled\n", type);
+	printk(KERN_INFO "l2x0: %d ways, CACHE_ID 0x%08x, AUX_CTRL 0x%08x\n",
+			 ways, cache_id, aux);
 }

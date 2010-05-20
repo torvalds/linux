@@ -2,7 +2,7 @@
  * linux/arch/sh/mm/init.c
  *
  *  Copyright (C) 1999  Niibe Yutaka
- *  Copyright (C) 2002 - 2007  Paul Mundt
+ *  Copyright (C) 2002 - 2010  Paul Mundt
  *
  *  Based on linux/arch/i386/mm/init.c:
  *   Copyright (C) 1995  Linus Torvalds
@@ -16,16 +16,30 @@
 #include <linux/pagemap.h>
 #include <linux/percpu.h>
 #include <linux/io.h>
+#include <linux/lmb.h>
 #include <linux/dma-mapping.h>
 #include <asm/mmu_context.h>
+#include <asm/mmzone.h>
+#include <asm/kexec.h>
 #include <asm/tlb.h>
 #include <asm/cacheflush.h>
 #include <asm/sections.h>
+#include <asm/setup.h>
 #include <asm/cache.h>
 #include <asm/sizes.h>
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
+
+void __init generic_mem_init(void)
+{
+	lmb_add(__MEMORY_START, __MEMORY_SIZE);
+}
+
+void __init __weak plat_mem_setup(void)
+{
+	/* Nothing to see here, move along. */
+}
 
 #ifdef CONFIG_MMU
 static pte_t *__get_pte_phys(unsigned long addr)
@@ -152,14 +166,165 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
 }
 #endif	/* CONFIG_MMU */
 
-/*
- * paging_init() sets up the page tables
- */
+void __init allocate_pgdat(unsigned int nid)
+{
+	unsigned long start_pfn, end_pfn;
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+	unsigned long phys;
+#endif
+
+	get_pfn_range_for_nid(nid, &start_pfn, &end_pfn);
+
+#ifdef CONFIG_NEED_MULTIPLE_NODES
+	phys = __lmb_alloc_base(sizeof(struct pglist_data),
+				SMP_CACHE_BYTES, end_pfn << PAGE_SHIFT);
+	/* Retry with all of system memory */
+	if (!phys)
+		phys = __lmb_alloc_base(sizeof(struct pglist_data),
+					SMP_CACHE_BYTES, lmb_end_of_DRAM());
+	if (!phys)
+		panic("Can't allocate pgdat for node %d\n", nid);
+
+	NODE_DATA(nid) = __va(phys);
+	memset(NODE_DATA(nid), 0, sizeof(struct pglist_data));
+
+	NODE_DATA(nid)->bdata = &bootmem_node_data[nid];
+#endif
+
+	NODE_DATA(nid)->node_start_pfn = start_pfn;
+	NODE_DATA(nid)->node_spanned_pages = end_pfn - start_pfn;
+}
+
+static void __init bootmem_init_one_node(unsigned int nid)
+{
+	unsigned long total_pages, paddr;
+	unsigned long end_pfn;
+	struct pglist_data *p;
+	int i;
+
+	p = NODE_DATA(nid);
+
+	/* Nothing to do.. */
+	if (!p->node_spanned_pages)
+		return;
+
+	end_pfn = p->node_start_pfn + p->node_spanned_pages;
+
+	total_pages = bootmem_bootmap_pages(p->node_spanned_pages);
+
+	paddr = lmb_alloc(total_pages << PAGE_SHIFT, PAGE_SIZE);
+	if (!paddr)
+		panic("Can't allocate bootmap for nid[%d]\n", nid);
+
+	init_bootmem_node(p, paddr >> PAGE_SHIFT, p->node_start_pfn, end_pfn);
+
+	free_bootmem_with_active_regions(nid, end_pfn);
+
+	/*
+	 * XXX Handle initial reservations for the system memory node
+	 * only for the moment, we'll refactor this later for handling
+	 * reservations in other nodes.
+	 */
+	if (nid == 0) {
+		/* Reserve the sections we're already using. */
+		for (i = 0; i < lmb.reserved.cnt; i++)
+			reserve_bootmem(lmb.reserved.region[i].base,
+					lmb_size_bytes(&lmb.reserved, i),
+					BOOTMEM_DEFAULT);
+	}
+
+	sparse_memory_present_with_active_regions(nid);
+}
+
+static void __init do_init_bootmem(void)
+{
+	int i;
+
+	/* Add active regions with valid PFNs. */
+	for (i = 0; i < lmb.memory.cnt; i++) {
+		unsigned long start_pfn, end_pfn;
+		start_pfn = lmb.memory.region[i].base >> PAGE_SHIFT;
+		end_pfn = start_pfn + lmb_size_pages(&lmb.memory, i);
+		__add_active_range(0, start_pfn, end_pfn);
+	}
+
+	/* All of system RAM sits in node 0 for the non-NUMA case */
+	allocate_pgdat(0);
+	node_set_online(0);
+
+	plat_mem_setup();
+
+	for_each_online_node(i)
+		bootmem_init_one_node(i);
+
+	sparse_init();
+}
+
+static void __init early_reserve_mem(void)
+{
+	unsigned long start_pfn;
+
+	/*
+	 * Partially used pages are not usable - thus
+	 * we are rounding upwards:
+	 */
+	start_pfn = PFN_UP(__pa(_end));
+
+	/*
+	 * Reserve the kernel text and Reserve the bootmem bitmap. We do
+	 * this in two steps (first step was init_bootmem()), because
+	 * this catches the (definitely buggy) case of us accidentally
+	 * initializing the bootmem allocator with an invalid RAM area.
+	 */
+	lmb_reserve(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET,
+		    (PFN_PHYS(start_pfn) + PAGE_SIZE - 1) -
+		    (__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET));
+
+	/*
+	 * Reserve physical pages below CONFIG_ZERO_PAGE_OFFSET.
+	 */
+	if (CONFIG_ZERO_PAGE_OFFSET != 0)
+		lmb_reserve(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET);
+
+	/*
+	 * Handle additional early reservations
+	 */
+	check_for_initrd();
+	reserve_crashkernel();
+}
+
 void __init paging_init(void)
 {
 	unsigned long max_zone_pfns[MAX_NR_ZONES];
 	unsigned long vaddr, end;
 	int nid;
+
+	lmb_init();
+
+	sh_mv.mv_mem_init();
+
+	early_reserve_mem();
+
+	lmb_enforce_memory_limit(memory_limit);
+	lmb_analyze();
+
+	lmb_dump_all();
+
+	/*
+	 * Determine low and high memory ranges:
+	 */
+	max_low_pfn = max_pfn = lmb_end_of_DRAM() >> PAGE_SHIFT;
+	min_low_pfn = __MEMORY_START >> PAGE_SHIFT;
+
+	nodes_clear(node_online_map);
+
+	memory_start = (unsigned long)__va(__MEMORY_START);
+	memory_end = memory_start + (memory_limit ?: lmb_phys_mem_size());
+
+	uncached_init();
+	pmb_init();
+	do_init_bootmem();
+	ioremap_fixed_init();
 
 	/* We don't need to map the kernel through the TLB, as
 	 * it is permanatly mapped using P1. So clear the

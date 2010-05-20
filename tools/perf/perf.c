@@ -13,8 +13,9 @@
 #include "util/quote.h"
 #include "util/run-command.h"
 #include "util/parse-events.h"
-#include "util/string.h"
 #include "util/debugfs.h"
+
+bool use_browser;
 
 const char perf_usage_string[] =
 	"perf [--version] [--help] COMMAND [ARGS]";
@@ -262,6 +263,8 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	set_debugfs_path();
 
 	status = p->fn(argc, argv, prefix);
+	exit_browser(status);
+
 	if (status)
 		return status & 0xff;
 
@@ -304,6 +307,9 @@ static void handle_internal_command(int argc, const char **argv)
 		{ "probe",	cmd_probe,	0 },
 		{ "kmem",	cmd_kmem,	0 },
 		{ "lock",	cmd_lock,	0 },
+		{ "kvm",	cmd_kvm,	0 },
+		{ "test",	cmd_test,	0 },
+		{ "inject",	cmd_inject,	0 },
 	};
 	unsigned int i;
 	static const char ext[] = STRIP_EXTENSION;

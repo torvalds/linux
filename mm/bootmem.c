@@ -304,9 +304,22 @@ unsigned long __init free_all_bootmem_node(pg_data_t *pgdat)
 unsigned long __init free_all_bootmem(void)
 {
 #ifdef CONFIG_NO_BOOTMEM
-	return free_all_memory_core_early(NODE_DATA(0)->node_id);
+	/*
+	 * We need to use MAX_NUMNODES instead of NODE_DATA(0)->node_id
+	 *  because in some case like Node0 doesnt have RAM installed
+	 *  low ram will be on Node1
+	 * Use MAX_NUMNODES will make sure all ranges in early_node_map[]
+	 *  will be used instead of only Node0 related
+	 */
+	return free_all_memory_core_early(MAX_NUMNODES);
 #else
-	return free_all_bootmem_core(NODE_DATA(0)->bdata);
+	unsigned long total_pages = 0;
+	bootmem_data_t *bdata;
+
+	list_for_each_entry(bdata, &bdata_list, list)
+		total_pages += free_all_bootmem_core(bdata);
+
+	return total_pages;
 #endif
 }
 

@@ -40,7 +40,9 @@ Synopsis of kprobe_events
   $stack	: Fetch stack address.
   $retval	: Fetch return value.(*)
   +|-offs(FETCHARG) : Fetch memory at FETCHARG +|- offs address.(**)
-  NAME=FETCHARG: Set NAME as the argument name of FETCHARG.
+  NAME=FETCHARG : Set NAME as the argument name of FETCHARG.
+  FETCHARG:TYPE : Set TYPE as the type of FETCHARG. Currently, basic types
+		  (u8/u16/u32/u64/s8/s16/s32/s64) are supported.
 
   (*) only for return probe.
   (**) this is useful for fetching a field of data structures.

@@ -430,25 +430,6 @@ static void inode_write_block(struct logfs_block *block)
 	}
 }
 
-static gc_level_t inode_block_level(struct logfs_block *block)
-{
-	BUG_ON(block->inode->i_ino == LOGFS_INO_MASTER);
-	return GC_LEVEL(LOGFS_MAX_LEVELS);
-}
-
-static gc_level_t indirect_block_level(struct logfs_block *block)
-{
-	struct page *page;
-	struct inode *inode;
-	u64 bix;
-	level_t level;
-
-	page = block->page;
-	inode = page->mapping->host;
-	logfs_unpack_index(page->index, &bix, &level);
-	return expand_level(inode->i_ino, level);
-}
-
 /*
  * This silences a false, yet annoying gcc warning.  I hate it when my editor
  * jumps into bitops.h each time I recompile this file.
@@ -587,14 +568,12 @@ static void indirect_free_block(struct super_block *sb,
 
 static struct logfs_block_ops inode_block_ops = {
 	.write_block = inode_write_block,
-	.block_level = inode_block_level,
 	.free_block = inode_free_block,
 	.write_alias = inode_write_alias,
 };
 
 struct logfs_block_ops indirect_block_ops = {
 	.write_block = indirect_write_block,
-	.block_level = indirect_block_level,
 	.free_block = indirect_free_block,
 	.write_alias = indirect_write_alias,
 };
@@ -913,6 +892,8 @@ u64 logfs_seek_hole(struct inode *inode, u64 bix)
 		return bix;
 	else if (li->li_data[INDIRECT_INDEX] & LOGFS_FULLY_POPULATED)
 		bix = maxbix(li->li_height);
+	else if (bix >= maxbix(li->li_height))
+		return bix;
 	else {
 		bix = seek_holedata_loop(inode, bix, 0);
 		if (bix < maxbix(li->li_height))
@@ -1114,17 +1095,25 @@ static int logfs_reserve_bytes(struct inode *inode, int bytes)
 int get_page_reserve(struct inode *inode, struct page *page)
 {
 	struct logfs_super *super = logfs_super(inode->i_sb);
+	struct logfs_block *block = logfs_block(page);
 	int ret;
 
-	if (logfs_block(page) && logfs_block(page)->reserved_bytes)
+	if (block && block->reserved_bytes)
 		return 0;
 
 	logfs_get_wblocks(inode->i_sb, page, WF_LOCK);
-	ret = logfs_reserve_bytes(inode, 6 * LOGFS_MAX_OBJECTSIZE);
+	while ((ret = logfs_reserve_bytes(inode, 6 * LOGFS_MAX_OBJECTSIZE)) &&
+			!list_empty(&super->s_writeback_list)) {
+		block = list_entry(super->s_writeback_list.next,
+				struct logfs_block, alias_list);
+		block->ops->write_block(block);
+	}
 	if (!ret) {
 		alloc_data_block(inode, page);
-		logfs_block(page)->reserved_bytes += 6 * LOGFS_MAX_OBJECTSIZE;
+		block = logfs_block(page);
+		block->reserved_bytes += 6 * LOGFS_MAX_OBJECTSIZE;
 		super->s_dirty_pages += 6 * LOGFS_MAX_OBJECTSIZE;
+		list_move_tail(&block->alias_list, &super->s_writeback_list);
 	}
 	logfs_put_wblocks(inode->i_sb, page, WF_LOCK);
 	return ret;
@@ -1241,6 +1230,18 @@ static void free_shadow(struct inode *inode, struct logfs_shadow *shadow)
 	mempool_free(shadow, super->s_shadow_pool);
 }
 
+static void mark_segment(struct shadow_tree *tree, u32 segno)
+{
+	int err;
+
+	if (!btree_lookup32(&tree->segment_map, segno)) {
+		err = btree_insert32(&tree->segment_map, segno, (void *)1,
+				GFP_NOFS);
+		BUG_ON(err);
+		tree->no_shadowed_segments++;
+	}
+}
+
 /**
  * fill_shadow_tree - Propagate shadow tree changes due to a write
  * @inode:	Inode owning the page
@@ -1288,6 +1289,8 @@ static void fill_shadow_tree(struct inode *inode, struct page *page,
 
 		super->s_dirty_used_bytes += shadow->new_len;
 		super->s_dirty_free_bytes += shadow->old_len;
+		mark_segment(tree, shadow->old_ofs >> super->s_segshift);
+		mark_segment(tree, shadow->new_ofs >> super->s_segshift);
 	}
 }
 
@@ -1845,19 +1848,37 @@ static int __logfs_truncate(struct inode *inode, u64 size)
 	return logfs_truncate_direct(inode, size);
 }
 
-int logfs_truncate(struct inode *inode, u64 size)
+/*
+ * Truncate, by changing the segment file, can consume a fair amount
+ * of resources.  So back off from time to time and do some GC.
+ * 8 or 2048 blocks should be well within safety limits even if
+ * every single block resided in a different segment.
+ */
+#define TRUNCATE_STEP	(8 * 1024 * 1024)
+int logfs_truncate(struct inode *inode, u64 target)
 {
 	struct super_block *sb = inode->i_sb;
-	int err;
+	u64 size = i_size_read(inode);
+	int err = 0;
 
-	logfs_get_wblocks(sb, NULL, 1);
-	err = __logfs_truncate(inode, size);
-	if (!err)
-		err = __logfs_write_inode(inode, 0);
-	logfs_put_wblocks(sb, NULL, 1);
+	size = ALIGN(size, TRUNCATE_STEP);
+	while (size > target) {
+		if (size > TRUNCATE_STEP)
+			size -= TRUNCATE_STEP;
+		else
+			size = 0;
+		if (size < target)
+			size = target;
+
+		logfs_get_wblocks(sb, NULL, 1);
+		err = __logfs_truncate(inode, size);
+		if (!err)
+			err = __logfs_write_inode(inode, 0);
+		logfs_put_wblocks(sb, NULL, 1);
+	}
 
 	if (!err)
-		err = vmtruncate(inode, size);
+		err = vmtruncate(inode, target);
 
 	/* I don't trust error recovery yet. */
 	WARN_ON(err);
@@ -2238,6 +2259,7 @@ int logfs_init_rw(struct super_block *sb)
 	int min_fill = 3 * super->s_no_blocks;
 
 	INIT_LIST_HEAD(&super->s_object_alias);
+	INIT_LIST_HEAD(&super->s_writeback_list);
 	mutex_init(&super->s_write_mutex);
 	super->s_block_pool = mempool_create_kmalloc_pool(min_fill,
 			sizeof(struct logfs_block));
@@ -2251,8 +2273,6 @@ void logfs_cleanup_rw(struct super_block *sb)
 	struct logfs_super *super = logfs_super(sb);
 
 	destroy_meta_inode(super->s_segfile_inode);
-	if (super->s_block_pool)
-		mempool_destroy(super->s_block_pool);
-	if (super->s_shadow_pool)
-		mempool_destroy(super->s_shadow_pool);
+	logfs_mempool_destroy(super->s_block_pool);
+	logfs_mempool_destroy(super->s_shadow_pool);
 }

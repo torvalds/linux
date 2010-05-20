@@ -59,9 +59,6 @@ config NEED_DMA_MAP_STATE
 config SWIOTLB
        bool
 
-config IOMMU_HELPER
-       bool
-
 config GENERIC_LOCKBREAK
 	def_bool n
 

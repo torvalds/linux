@@ -21,6 +21,7 @@
 #include <linux/ioport.h>
 #include <linux/soundcard.h>
 #include <linux/interrupt.h>
+#include <linux/platform_device.h>
 
 #include <asm/uaccess.h>
 #include <asm/setup.h>
@@ -710,31 +711,41 @@ static MACHINE machAmiga = {
 /*** Config & Setup **********************************************************/
 
 
-static int __init dmasound_paula_init(void)
+static int __init amiga_audio_probe(struct platform_device *pdev)
 {
-	int err;
-
-	if (MACH_IS_AMIGA && AMIGAHW_PRESENT(AMI_AUDIO)) {
-	    if (!request_mem_region(CUSTOM_PHYSADDR+0xa0, 0x40,
-				    "dmasound [Paula]"))
-		return -EBUSY;
-	    dmasound.mach = machAmiga;
-	    dmasound.mach.default_hard = def_hard ;
-	    dmasound.mach.default_soft = def_soft ;
-	    err = dmasound_init();
-	    if (err)
-		release_mem_region(CUSTOM_PHYSADDR+0xa0, 0x40);
-	    return err;
-	} else
-	    return -ENODEV;
+	dmasound.mach = machAmiga;
+	dmasound.mach.default_hard = def_hard ;
+	dmasound.mach.default_soft = def_soft ;
+	return dmasound_init();
 }
 
-static void __exit dmasound_paula_cleanup(void)
+static int __exit amiga_audio_remove(struct platform_device *pdev)
 {
 	dmasound_deinit();
-	release_mem_region(CUSTOM_PHYSADDR+0xa0, 0x40);
+	return 0;
 }
 
-module_init(dmasound_paula_init);
-module_exit(dmasound_paula_cleanup);
+static struct platform_driver amiga_audio_driver = {
+	.remove = __exit_p(amiga_audio_remove),
+	.driver   = {
+		.name	= "amiga-audio",
+		.owner	= THIS_MODULE,
+	},
+};
+
+static int __init amiga_audio_init(void)
+{
+	return platform_driver_probe(&amiga_audio_driver, amiga_audio_probe);
+}
+
+module_init(amiga_audio_init);
+
+static void __exit amiga_audio_exit(void)
+{
+	platform_driver_unregister(&amiga_audio_driver);
+}
+
+module_exit(amiga_audio_exit);
+
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:amiga-audio");

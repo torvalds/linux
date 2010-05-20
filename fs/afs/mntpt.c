@@ -138,9 +138,9 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 {
 	struct afs_super_info *super;
 	struct vfsmount *mnt;
-	struct page *page = NULL;
+	struct page *page;
 	size_t size;
-	char *buf, *devname = NULL, *options = NULL;
+	char *buf, *devname, *options;
 	int ret;
 
 	_enter("{%s}", mntpt->d_name.name);
@@ -150,22 +150,22 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 	ret = -EINVAL;
 	size = mntpt->d_inode->i_size;
 	if (size > PAGE_SIZE - 1)
-		goto error;
+		goto error_no_devname;
 
 	ret = -ENOMEM;
 	devname = (char *) get_zeroed_page(GFP_KERNEL);
 	if (!devname)
-		goto error;
+		goto error_no_devname;
 
 	options = (char *) get_zeroed_page(GFP_KERNEL);
 	if (!options)
-		goto error;
+		goto error_no_options;
 
 	/* read the contents of the AFS special symlink */
 	page = read_mapping_page(mntpt->d_inode->i_mapping, 0, NULL);
 	if (IS_ERR(page)) {
 		ret = PTR_ERR(page);
-		goto error;
+		goto error_no_page;
 	}
 
 	ret = -EIO;
@@ -196,12 +196,12 @@ static struct vfsmount *afs_mntpt_do_automount(struct dentry *mntpt)
 	return mnt;
 
 error:
-	if (page)
-		page_cache_release(page);
-	if (devname)
-		free_page((unsigned long) devname);
-	if (options)
-		free_page((unsigned long) options);
+	page_cache_release(page);
+error_no_page:
+	free_page((unsigned long) options);
+error_no_options:
+	free_page((unsigned long) devname);
+error_no_devname:
 	_leave(" = %d", ret);
 	return ERR_PTR(ret);
 }

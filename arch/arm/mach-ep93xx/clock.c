@@ -96,6 +96,10 @@ static struct clk clk_keypad = {
 	.enable_mask	= EP93XX_SYSCON_KEYTCHCLKDIV_KEN,
 	.set_rate	= set_keytchclk_rate,
 };
+static struct clk clk_spi = {
+	.parent		= &clk_xtali,
+	.rate		= EP93XX_EXT_CLK_RATE,
+};
 static struct clk clk_pwm = {
 	.parent		= &clk_xtali,
 	.rate		= EP93XX_EXT_CLK_RATE,
@@ -186,6 +190,7 @@ static struct clk_lookup clocks[] = {
 	INIT_CK("ep93xx-ohci",		NULL,		&clk_usb_host),
 	INIT_CK("ep93xx-keypad",	NULL,		&clk_keypad),
 	INIT_CK("ep93xx-fb",		NULL,		&clk_video),
+	INIT_CK("ep93xx-spi.0",		NULL,		&clk_spi),
 	INIT_CK(NULL,			"pwm_clk",	&clk_pwm),
 	INIT_CK(NULL,			"m2p0",		&clk_m2p0),
 	INIT_CK(NULL,			"m2p1",		&clk_m2p1),
@@ -472,6 +477,14 @@ static int __init ep93xx_clock_init(void)
 
 	/* Initialize the pll2 derived clocks */
 	clk_usb_host.rate = clk_pll2.rate / (((value >> 28) & 0xf) + 1);
+
+	/*
+	 * EP93xx SSP clock rate was doubled in version E2. For more information
+	 * see:
+	 *     http://www.cirrus.com/en/pubs/appNote/AN273REV4.pdf
+	 */
+	if (ep93xx_chip_revision() < EP93XX_CHIP_REV_E2)
+		clk_spi.rate /= 2;
 
 	pr_info("PLL1 running at %ld MHz, PLL2 at %ld MHz\n",
 		clk_pll1.rate / 1000000, clk_pll2.rate / 1000000);

@@ -15,7 +15,7 @@
 #include <linux/cpu.h>
 #include <linux/device.h>
 #include <linux/swap.h>
-#include <linux/gfp.h>
+#include <linux/slab.h>
 
 static struct sysdev_class_attribute *node_state_attrs[];
 

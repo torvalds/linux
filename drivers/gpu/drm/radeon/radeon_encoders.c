@@ -254,6 +254,53 @@ radeon_get_atom_connector_priv_from_encoder(struct drm_encoder *encoder)
 	return dig_connector;
 }
 
+void radeon_panel_mode_fixup(struct drm_encoder *encoder,
+			     struct drm_display_mode *adjusted_mode)
+{
+	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct drm_device *dev = encoder->dev;
+	struct radeon_device *rdev = dev->dev_private;
+	struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
+	unsigned hblank = native_mode->htotal - native_mode->hdisplay;
+	unsigned vblank = native_mode->vtotal - native_mode->vdisplay;
+	unsigned hover = native_mode->hsync_start - native_mode->hdisplay;
+	unsigned vover = native_mode->vsync_start - native_mode->vdisplay;
+	unsigned hsync_width = native_mode->hsync_end - native_mode->hsync_start;
+	unsigned vsync_width = native_mode->vsync_end - native_mode->vsync_start;
+
+	adjusted_mode->clock = native_mode->clock;
+	adjusted_mode->flags = native_mode->flags;
+
+	if (ASIC_IS_AVIVO(rdev)) {
+		adjusted_mode->hdisplay = native_mode->hdisplay;
+		adjusted_mode->vdisplay = native_mode->vdisplay;
+	}
+
+	adjusted_mode->htotal = native_mode->hdisplay + hblank;
+	adjusted_mode->hsync_start = native_mode->hdisplay + hover;
+	adjusted_mode->hsync_end = adjusted_mode->hsync_start + hsync_width;
+
+	adjusted_mode->vtotal = native_mode->vdisplay + vblank;
+	adjusted_mode->vsync_start = native_mode->vdisplay + vover;
+	adjusted_mode->vsync_end = adjusted_mode->vsync_start + vsync_width;
+
+	drm_mode_set_crtcinfo(adjusted_mode, CRTC_INTERLACE_HALVE_V);
+
+	if (ASIC_IS_AVIVO(rdev)) {
+		adjusted_mode->crtc_hdisplay = native_mode->hdisplay;
+		adjusted_mode->crtc_vdisplay = native_mode->vdisplay;
+	}
+
+	adjusted_mode->crtc_htotal = adjusted_mode->crtc_hdisplay + hblank;
+	adjusted_mode->crtc_hsync_start = adjusted_mode->crtc_hdisplay + hover;
+	adjusted_mode->crtc_hsync_end = adjusted_mode->crtc_hsync_start + hsync_width;
+
+	adjusted_mode->crtc_vtotal = adjusted_mode->crtc_vdisplay + vblank;
+	adjusted_mode->crtc_vsync_start = adjusted_mode->crtc_vdisplay + vover;
+	adjusted_mode->crtc_vsync_end = adjusted_mode->crtc_vsync_start + vsync_width;
+
+}
+
 static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 				   struct drm_display_mode *mode,
 				   struct drm_display_mode *adjusted_mode)
@@ -275,18 +322,8 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 		adjusted_mode->crtc_vsync_start = adjusted_mode->crtc_vdisplay + 2;
 
 	/* get the native mode for LVDS */
-	if (radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
-		struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
-		int mode_id = adjusted_mode->base.id;
-		*adjusted_mode = *native_mode;
-		if (!ASIC_IS_AVIVO(rdev)) {
-			adjusted_mode->hdisplay = mode->hdisplay;
-			adjusted_mode->vdisplay = mode->vdisplay;
-			adjusted_mode->crtc_hdisplay = mode->hdisplay;
-			adjusted_mode->crtc_vdisplay = mode->vdisplay;
-		}
-		adjusted_mode->base.id = mode_id;
-	}
+	if (radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT))
+		radeon_panel_mode_fixup(encoder, adjusted_mode);
 
 	/* get the native mode for TV */
 	if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT)) {
@@ -317,12 +354,8 @@ atombios_dac_setup(struct drm_encoder *encoder, int action)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
 	DAC_ENCODER_CONTROL_PS_ALLOCATION args;
-	int index = 0, num = 0;
+	int index = 0;
 	struct radeon_encoder_atom_dac *dac_info = radeon_encoder->enc_priv;
-	enum radeon_tv_std tv_std = TV_STD_NTSC;
-
-	if (dac_info->tv_std)
-		tv_std = dac_info->tv_std;
 
 	memset(&args, 0, sizeof(args));
 
@@ -330,12 +363,10 @@ atombios_dac_setup(struct drm_encoder *encoder, int action)
 	case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC1:
 		index = GetIndexIntoMasterTable(COMMAND, DAC1EncoderControl);
-		num = 1;
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
 		index = GetIndexIntoMasterTable(COMMAND, DAC2EncoderControl);
-		num = 2;
 		break;
 	}
 
@@ -346,7 +377,7 @@ atombios_dac_setup(struct drm_encoder *encoder, int action)
 	else if (radeon_encoder->active_device & (ATOM_DEVICE_CV_SUPPORT))
 		args.ucDacStandard = ATOM_DAC1_CV;
 	else {
-		switch (tv_std) {
+		switch (dac_info->tv_std) {
 		case TV_STD_PAL:
 		case TV_STD_PAL_M:
 		case TV_STD_SCART_PAL:
@@ -377,10 +408,6 @@ atombios_tv_setup(struct drm_encoder *encoder, int action)
 	TV_ENCODER_CONTROL_PS_ALLOCATION args;
 	int index = 0;
 	struct radeon_encoder_atom_dac *dac_info = radeon_encoder->enc_priv;
-	enum radeon_tv_std tv_std = TV_STD_NTSC;
-
-	if (dac_info->tv_std)
-		tv_std = dac_info->tv_std;
 
 	memset(&args, 0, sizeof(args));
 
@@ -391,7 +418,7 @@ atombios_tv_setup(struct drm_encoder *encoder, int action)
 	if (radeon_encoder->active_device & (ATOM_DEVICE_CV_SUPPORT))
 		args.sTVEncoder.ucTvStandard = ATOM_TV_CV;
 	else {
-		switch (tv_std) {
+		switch (dac_info->tv_std) {
 		case TV_STD_NTSC:
 			args.sTVEncoder.ucTvStandard = ATOM_TV_NTSC;
 			break;
@@ -875,6 +902,8 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
 			if (dig->coherent_mode)
 				args.v3.acConfig.fCoherentMode = 1;
+			if (radeon_encoder->pixel_clock > 165000)
+				args.v3.acConfig.fDualLinkConnector = 1;
 		}
 	} else if (ASIC_IS_DCE32(rdev)) {
 		args.v2.acConfig.ucEncoderSel = dig->dig_encoder;
@@ -898,6 +927,8 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		else if (radeon_encoder->devices & (ATOM_DEVICE_DFP_SUPPORT)) {
 			if (dig->coherent_mode)
 				args.v2.acConfig.fCoherentMode = 1;
+			if (radeon_encoder->pixel_clock > 165000)
+				args.v2.acConfig.fDualLinkConnector = 1;
 		}
 	} else {
 		args.v1.ucConfig = ATOM_TRANSMITTER_CONFIG_CLKSRC_PPLL;
@@ -1332,7 +1363,7 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 
 	radeon_encoder->pixel_clock = adjusted_mode->clock;
 
-	if (ASIC_IS_AVIVO(rdev)) {
+	if (ASIC_IS_AVIVO(rdev) && !ASIC_IS_DCE4(rdev)) {
 		if (radeon_encoder->active_device & (ATOM_DEVICE_CV_SUPPORT | ATOM_DEVICE_TV_SUPPORT))
 			atombios_yuv_setup(encoder, true);
 		else
@@ -1383,8 +1414,12 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_DAC2:
 		atombios_dac_setup(encoder, ATOM_ENABLE);
-		if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
-			atombios_tv_setup(encoder, ATOM_ENABLE);
+		if (radeon_encoder->devices & (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT)) {
+			if (radeon_encoder->active_device & (ATOM_DEVICE_TV_SUPPORT | ATOM_DEVICE_CV_SUPPORT))
+				atombios_tv_setup(encoder, ATOM_ENABLE);
+			else
+				atombios_tv_setup(encoder, ATOM_DISABLE);
+		}
 		break;
 	}
 	atombios_apply_encoder_quirks(encoder, adjusted_mode);
@@ -1558,12 +1593,14 @@ static const struct drm_encoder_funcs radeon_atom_enc_funcs = {
 struct radeon_encoder_atom_dac *
 radeon_atombios_set_dac_info(struct radeon_encoder *radeon_encoder)
 {
+	struct drm_device *dev = radeon_encoder->base.dev;
+	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder_atom_dac *dac = kzalloc(sizeof(struct radeon_encoder_atom_dac), GFP_KERNEL);
 
 	if (!dac)
 		return NULL;
 
-	dac->tv_std = TV_STD_NTSC;
+	dac->tv_std = radeon_atombios_get_tv_info(rdev);
 	return dac;
 }
 
@@ -1641,6 +1678,7 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t su
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC1:
 		drm_encoder_init(dev, encoder, &radeon_atom_enc_funcs, DRM_MODE_ENCODER_DAC);
+		radeon_encoder->enc_priv = radeon_atombios_set_dac_info(radeon_encoder);
 		drm_encoder_helper_add(encoder, &radeon_atom_dac_helper_funcs);
 		break;
 	case ENCODER_OBJECT_ID_INTERNAL_DAC2:

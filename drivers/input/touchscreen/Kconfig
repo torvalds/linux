@@ -99,22 +99,6 @@ config TOUCHSCREEN_BITSY
 	  To compile this driver as a module, choose M here: the
 	  module will be called h3600_ts_input.
 
-config TOUCHSCREEN_CORGI
-	tristate "SharpSL (Corgi and Spitz series) touchscreen driver (DEPRECATED)"
-	depends on PXA_SHARPSL
-	select CORGI_SSP_DEPRECATED
-	help
-	  Say Y here to enable the driver for the touchscreen on the
-	  Sharp SL-C7xx and SL-Cxx00 series of PDAs.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called corgi_ts.
-
-	  NOTE: this driver is deprecated, try enable SPI and generic
-	  ADS7846-based touchscreen driver.
-
 config TOUCHSCREEN_DA9034
 	tristate "Touchscreen support for Dialog Semiconductor DA9034"
 	depends on PMIC_DA903X
@@ -158,8 +142,8 @@ config TOUCHSCREEN_FUJITSU
 	  module will be called fujitsu-ts.
 
 config TOUCHSCREEN_S3C2410
-	tristate "Samsung S3C2410 touchscreen input driver"
-	depends on ARCH_S3C2410
+	tristate "Samsung S3C2410/generic touchscreen input driver"
+	depends on ARCH_S3C2410 || SAMSUNG_DEV_TS
 	select S3C24XX_ADC
 	help
 	  Say Y here if you have the s3c2410 touchscreen.
