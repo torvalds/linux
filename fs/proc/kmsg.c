@@ -53,6 +53,7 @@ static const struct file_operations proc_kmsg_operations = {
 	.poll		= kmsg_poll,
 	.open		= kmsg_open,
 	.release	= kmsg_release,
+	.llseek		= generic_file_llseek,
 };
 
 static int __init proc_kmsg_init(void)
