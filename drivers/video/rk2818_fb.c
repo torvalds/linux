@@ -589,6 +589,7 @@ void load_screen(struct fb_info *info, bool initscreen)
   
     clk_enable(inf->dclk);
     clk_enable(inf->clk);
+    clk_enable(inf->clk_share_mem);
 
     // init screen panel
     if(screen->init && initscreen)
@@ -661,6 +662,7 @@ int rk2818_set_cursor(struct fb_info *info, struct fb_cursor *cursor)
         LcdWrReg(inf, HWC_DSP_ST, v_BIT11LO(x)|v_BIT11HI(y));        
     }
 
+
     if (cursor->set & FB_CUR_SETCMAP) 
     {
         unsigned int bg_col = cursor->image.bg_color;
@@ -670,14 +672,15 @@ int rk2818_set_cursor(struct fb_info *info, struct fb_cursor *cursor)
             __func__, bg_col, fg_col);
 
         LcdMskReg(inf, HWC_COLOR_LUT0, m_HWC_R|m_HWC_G|m_HWC_B, 
-                  v_HWC_R(info->cmap.red[bg_col]) | v_HWC_G(info->cmap.green[bg_col]) | v_HWC_B(info->cmap.blue[bg_col]));
+                  v_HWC_R(info->cmap.red[bg_col]>>8) | v_HWC_G(info->cmap.green[bg_col]>>8) | v_HWC_B(info->cmap.blue[bg_col]>>8));
 
         LcdMskReg(inf, HWC_COLOR_LUT2, m_HWC_R|m_HWC_G|m_HWC_B, 
-                         v_HWC_R(info->cmap.red[fg_col]) | v_HWC_G(info->cmap.green[fg_col]) | v_HWC_B(info->cmap.blue[fg_col]));
+                         v_HWC_R(info->cmap.red[fg_col]>>8) | v_HWC_G(info->cmap.green[fg_col]>>8) | v_HWC_B(info->cmap.blue[fg_col]>>8));
     }
 
-    if (cursor->set & FB_CUR_SETSIZE ||
+    if ((cursor->set & FB_CUR_SETSIZE ||
         cursor->set & (FB_CUR_SETIMAGE | FB_CUR_SETSHAPE))
+        && info->screen_base && info->fix.smem_start && info->fix.smem_len)
     {
         /* rk2818 cursor is a 2 bpp 32x32 bitmap this routine
          * clears it to transparent then combines the cursor
@@ -732,6 +735,7 @@ int rk2818_set_cursor(struct fb_info *info, struct fb_cursor *cursor)
         }
         LcdSetBit(inf, SYS_CONFIG, m_HWC_RELOAD_EN);
     }
+
     return 0;
 }
 
@@ -902,7 +906,7 @@ static int win0fb_set_par(struct fb_info *info)
     u32 pre_y_addr = 0, pre_uv_addr = 0, nxt_y_addr = 0, nxt_uv_addr = 0;
 
     u32 actWidth = 0; 
-    u32 actHeight = 0; 
+    u32 actHeight = 0;     
 
 	u32 xact = var->xres;			    /* visible resolution		*/
 	u32 yact = var->yres;
@@ -1032,7 +1036,7 @@ static int win0fb_set_par(struct fb_info *info)
         if ( (smem_len != fix->smem_len) || !info->screen_base )     // buffer need realloc
         {
             fbprintk(">>>>>> win0 buffer size is change! remap memory!\n");
-            fbprintk(">>>>>> smem_len %d = %d * %d + %d + %d\n", smem_len, fix->line_length, yvir, cblen, crlen);
+            fbprintk(">>>>>> smem_len %d = %d * %d + %d + %d + %d\n", smem_len, fix->line_length, yvir, cblen, crlen, i2p_len);
             fbprintk(">>>>>> map_size = %d\n", map_size);
             LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(0));
             LcdWrReg(inf, REG_CFG_DONE, 0x01);
@@ -1044,7 +1048,7 @@ static int win0fb_set_par(struct fb_info *info)
 	            fix->smem_start = 0;
 	            fix->smem_len = 0;
                 fix->reserved[1] = 0;
-                fix->reserved[2]= 0;
+                fix->reserved[2] = 0;
     	    }
 
     	    info->screen_base = dma_alloc_writecombine(NULL, map_size, &map_dma, GFP_KERNEL);
@@ -1063,9 +1067,9 @@ static int win0fb_set_par(struct fb_info *info)
             }   
             else
             {
-                fix->reserved[1] = fix->reserved[2]= 0;
+                fix->reserved[1] = fix->reserved[2] = 0;
             }
-            fbprintk(">>>>>> alloc succ, smem_start=%08x, smem_len=%d, mmio_start=%d!\n",
+            fbprintk(">>>>>> alloc succ, smem_start=%08x, smem_len=%d, mmio_start=%08x!\n",
                 (u32)fix->smem_start, fix->smem_len, (u32)fix->mmio_start);
         }
     }
@@ -1088,12 +1092,12 @@ static int win0fb_set_par(struct fb_info *info)
         }
         else if(!i2p_polarity && (var->rotate==0))  //odd
         {                                        
-             y_addr = fix->reserved[1] + (yact_st*xvir+xact_st);
-             uv_addr = fix->reserved[2] + (yact_st/data_format*xvir+xact_st);
+             y_addr =  fix->smem_start + (yact_st*xvir+xact_st);
+             uv_addr = fix->mmio_start + (yact_st/data_format*xvir+xact_st);
              pre_y_addr = y_addr + xvir;
              pre_uv_addr = uv_addr + xvir; 
-             nxt_y_addr = fix->smem_start+ (yact_st*xvir+xact_st) + xvir; 
-             nxt_uv_addr = fix->mmio_start + (yact_st/data_format*xvir+xact_st) + xvir; 
+             nxt_y_addr = fix->reserved[1] + (yact_st*xvir+xact_st) + xvir; 
+             nxt_uv_addr = fix->reserved[2] + (yact_st/data_format*xvir+xact_st) + xvir; 
         }
         else if(i2p_polarity && (var->rotate==270))  //even
         {        
@@ -1106,12 +1110,12 @@ static int win0fb_set_par(struct fb_info *info)
         }
         else if(!i2p_polarity&& (var->rotate==270))  //odd
         {        
-             y_addr = fix->reserved[1]+ (yact_st*xvir+xact_st) + xvir*(yact-2);
-             uv_addr = fix->reserved[2]+ (yact_st/data_format*xvir+xact_st) + xvir*(yact/data_format-2);
-             pre_y_addr = fix->reserved[1]+ (yact_st*xvir+xact_st) + xvir*(yact-1);
-             pre_uv_addr = fix->reserved[2]+ (yact_st/data_format*xvir+xact_st) + xvir*(yact/data_format-1);                     
-             nxt_y_addr = fix->smem_start + (yact_st*xvir+xact_st) + xvir*(yact-1);
-             nxt_uv_addr = fix->mmio_start + (yact_st/data_format*xvir+xact_st) + xvir*(yact/data_format-1); 
+             y_addr = fix->smem_start + (yact_st*xvir+xact_st) + xvir*(yact-2);
+             uv_addr = fix->mmio_start  + (yact_st/data_format*xvir+xact_st) + xvir*(yact/data_format-2);
+             pre_y_addr = fix->smem_start + (yact_st*xvir+xact_st) + xvir*(yact-1);
+             pre_uv_addr = fix->mmio_start + (yact_st/data_format*xvir+xact_st) + xvir*(yact/data_format-1);                     
+             nxt_y_addr =  fix->reserved[1]+ (yact_st*xvir+xact_st) + xvir*(yact-1);
+             nxt_uv_addr = fix->reserved[2] + (yact_st/data_format*xvir+xact_st) + xvir*(yact/data_format-1); 
         }               
     }
     else
@@ -1210,6 +1214,8 @@ static int win0fb_set_par(struct fb_info *info)
 
     LcdWrReg(inf, WIN0_YRGB_MST, y_addr);
     LcdWrReg(inf, WIN0_CBR_MST, uv_addr);
+    LcdWrReg(inf, WIN0_YRGB_VIR_MST, fix->smem_start);
+    LcdWrReg(inf, WIN0_CBR_VIR_MST, fix->mmio_start);
 
     LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE | m_W0_FORMAT | m_W0_ROTATE | m_MPEG2_I2P_EN,
         v_W0_ENABLE(win0_en) | v_W0_FORMAT(format) | v_W0_ROTATE(var->rotate==270) | v_MPEG2_I2P_EN(i2p_mode));
@@ -1231,18 +1237,20 @@ static int win0fb_set_par(struct fb_info *info)
     LcdWrReg(inf, I2P_REF1_MST_Y, nxt_y_addr);
     LcdWrReg(inf, I2P_REF1_MST_CBR, nxt_uv_addr);
 
+    // when win0 is open, enable win1 color key and set the color to black(rgb=0)
+    if(win0_en){       
+        LcdMskReg(inf, WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR, v_COLORKEY_EN(1) | v_KEYCOLOR(0));  
+    }else{
+        LcdMskReg(inf, WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN , v_COLORKEY_EN(0)); 
+    }
+        
     switch(format)
-    {
-    case 0:
-         LcdMskReg(inf, SWAP_CTRL, m_W0_YRGB_8_SWAP | m_W0_YRGB_16_SWAP | m_W0_YRGB_R_SHIFT_SWAP | m_W0_565_RB_SWAP | m_W0_YRGB_M8_SWAP | m_W0_CBR_8_SWAP | m_W0_YRGB_HL8_SWAP,
-            v_W0_YRGB_8_SWAP(0) | v_W0_YRGB_16_SWAP(0) | v_W0_YRGB_R_SHIFT_SWAP(0) | v_W0_565_RB_SWAP(0)| v_W0_YRGB_M8_SWAP(0)| v_W0_CBR_8_SWAP(0) | v_W0_YRGB_HL8_SWAP(0) );
-        break;
-    case 1:
+    {   
+    case 1:  //rgb565
         LcdMskReg(inf, SWAP_CTRL, m_W0_YRGB_8_SWAP | m_W0_YRGB_16_SWAP | m_W0_YRGB_R_SHIFT_SWAP | m_W0_565_RB_SWAP | m_W0_YRGB_M8_SWAP | m_W0_CBR_8_SWAP  | m_W0_YRGB_HL8_SWAP,
             v_W0_YRGB_8_SWAP(0) | v_W0_YRGB_16_SWAP(0) | v_W0_YRGB_R_SHIFT_SWAP(0) | v_W0_565_RB_SWAP(1) | v_W0_YRGB_M8_SWAP(0) | v_W0_CBR_8_SWAP(0) | v_W0_YRGB_HL8_SWAP(0) );
-        break;
-   
-    case 4:
+        break;   
+    case 4:   //yuv4201
         LcdMskReg(inf, SWAP_CTRL, m_W0_YRGB_8_SWAP | m_W0_YRGB_16_SWAP | m_W0_YRGB_R_SHIFT_SWAP | m_W0_565_RB_SWAP | m_W0_YRGB_M8_SWAP | m_W0_CBR_8_SWAP | m_W0_YRGB_HL8_SWAP,
             v_W0_YRGB_8_SWAP(0) | v_W0_YRGB_16_SWAP(0) | v_W0_YRGB_R_SHIFT_SWAP(0) | v_W0_565_RB_SWAP(0) | 
             v_W0_YRGB_M8_SWAP((var->rotate==0)) | v_W0_CBR_8_SWAP(0) | v_W0_YRGB_HL8_SWAP(var->rotate!=0));
@@ -1337,6 +1345,8 @@ int win0fb_rotate(struct fb_info *fbi, int rotate)
 {
     struct fb_var_screeninfo *var = &fbi->var;
     u32 SrcFmt = var->nonstd&0xff;
+
+    fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
     
     if(rotate == 0)
     {
@@ -1656,6 +1666,8 @@ static int win1fb_set_par(struct fb_info *info)
     u16 ypos = (var->nonstd>>20) & 0xfff;
     u16 xsize = var->xres;//(var->grayscale>>8) & 0xfff;    //visiable size in panel
     u16 ysize = var->yres;//(var->grayscale>>20) & 0xfff;   
+    u8 trspmode = TRSP_CLOSE;
+    u8 trspval = 0;
 
     //the below code is not correct, make we can't see alpha picture.
     //u8 trspmode = (var->grayscale>>8) & 0xff;
@@ -1746,11 +1758,9 @@ static int win1fb_set_par(struct fb_info *info)
 
     LcdMskReg(inf, WIN1_SCL_FACTOR, m_HSCALE_FACTOR | m_VSCALE_FACTOR, v_HSCALE_FACTOR(ScaleX) | v_VSCALE_FACTOR(ScaleY));
 
-//    LcdMskReg(inf, BLEND_CTRL, m_W1_BLEND_EN | m_W1_BLEND_FACTOR_SELECT | m_W1_BLEND_FACTOR,
- //       v_W1_BLEND_EN((TRSP_FMREG==trspmode) || (TRSP_MASK==trspmode)) | 
-//        v_W1_BLEND_FACTOR_SELECT(TRSP_FMRAM==trspmode) | v_W1_BLEND_FACTOR(trspval));    
-
-    LcdMskReg(inf, WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR, v_COLORKEY_EN(1) | v_KEYCOLOR(0));  //open color key and set the color to 0
+    LcdMskReg(inf, BLEND_CTRL, m_W1_BLEND_EN | m_W1_BLEND_FACTOR_SELECT | m_W1_BLEND_FACTOR,
+        v_W1_BLEND_EN((TRSP_FMREG==trspmode) || (TRSP_MASK==trspmode)) | 
+        v_W1_BLEND_FACTOR_SELECT(TRSP_FMRAM==trspmode) | v_W1_BLEND_FACTOR(trspval));    
         
     if(1==format) //rgb565
     {
@@ -2235,6 +2245,9 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
     inf->win1fb->screen_base     = 0;
 
     memset(inf->win1fb->par, 0, sizeof(struct win1_par));
+	ret = fb_alloc_cmap(&inf->win1fb->cmap, 256, 0);
+	if (ret < 0)
+		goto release_cmap;
 
     /* Prepare win0 info */
     fbprintk(">> Prepare win0 info \n");
@@ -2325,7 +2338,7 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
 		goto unregister_win1fb;
 	}
    
-    inf->clk_share_mem= clk_get(&pdev->dev, "lcdc_share_memory");
+    inf->clk_share_mem = clk_get(&pdev->dev, "lcdc_share_memory");
     if (!inf->clk_share_mem || IS_ERR(inf->clk_share_mem))
     {
 		dev_err(&pdev->dev,  "failed to get lcd clock clk_share_mem source \n");
@@ -2414,6 +2427,7 @@ static int __init rk2818fb_probe (struct platform_device *pdev)
     }
 
     printk(" %s ok\n", __FUNCTION__);
+    
     return ret;
 
 release_irq:
@@ -2425,6 +2439,9 @@ release_win0fb:
 	if(inf->win0fb)
 		framebuffer_release(inf->win0fb);
 	inf->win0fb = NULL;
+release_cmap:
+    if(&inf->win1fb->cmap)
+        fb_dealloc_cmap(&inf->win1fb->cmap);
 release_win1fb:
 	if(inf->win1fb)
 		framebuffer_release(inf->win1fb);
