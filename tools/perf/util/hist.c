@@ -1,3 +1,4 @@
+#include "build-id.h"
 #include "util.h"
 #include "hist.h"
 #include "session.h"
@@ -988,22 +989,35 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head)
 	struct symbol *sym = self->ms.sym;
 	struct map *map = self->ms.map;
 	struct dso *dso = map->dso;
-	const char *filename = dso->long_name;
+	char *filename = dso__build_id_filename(dso, NULL, 0);
 	char command[PATH_MAX * 2];
 	FILE *file;
+	int err = -1;
 	u64 len;
 
-	if (!filename)
-		return -1;
+	if (filename == NULL) {
+		if (dso->has_build_id) {
+			pr_err("Can't annotate %s: not enough memory\n",
+			       sym->name);
+			return -1;
+		}
+		/*
+		 * If we don't have build-ids, well, lets hope that this
+		 * DSO is the same as when 'perf record' ran.
+		 */
+		filename = dso->long_name;
+	}
 
 	if (dso->origin == DSO__ORIG_KERNEL) {
-		if (dso->annotate_warned)
-			return 0;
+		if (dso->annotate_warned) {
+			err = 0;
+			goto out_free_filename;
+		}
 		dso->annotate_warned = 1;
 		pr_err("Can't annotate %s: No vmlinux file was found in the "
 		       "path:\n", sym->name);
 		vmlinux_path__fprintf(stderr);
-		return -1;
+		goto out_free_filename;
 	}
 
 	pr_debug("%s: filename=%s, sym=%s, start=%#Lx, end=%#Lx\n", __func__,
@@ -1025,14 +1039,18 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head)
 
 	file = popen(command, "r");
 	if (!file)
-		return -1;
+		goto out_free_filename;
 
 	while (!feof(file))
 		if (hist_entry__parse_objdump_line(self, file, head) < 0)
 			break;
 
 	pclose(file);
-	return 0;
+	err = 0;
+out_free_filename:
+	if (dso->has_build_id)
+		free(filename);
+	return err;
 }
 
 void hists__inc_nr_events(struct hists *self, u32 type)

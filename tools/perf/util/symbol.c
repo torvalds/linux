@@ -11,6 +11,7 @@
 #include <sys/param.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include "build-id.h"
 #include "symbol.h"
 #include "strlist.h"
 
@@ -1293,7 +1294,6 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 	int size = PATH_MAX;
 	char *name;
 	u8 build_id[BUILD_ID_SIZE];
-	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
 	int ret = -1;
 	int fd;
 	struct machine *machine;
@@ -1325,15 +1325,8 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 	}
 
 	self->origin = DSO__ORIG_BUILD_ID_CACHE;
-
-	if (self->has_build_id) {
-		build_id__sprintf(self->build_id, sizeof(self->build_id),
-				  build_id_hex);
-		snprintf(name, size, "%s/%s/.build-id/%.2s/%s",
-			 getenv("HOME"), DEBUG_CACHE_DIR,
-			 build_id_hex, build_id_hex + 2);
+	if (dso__build_id_filename(self, name, size) != NULL)
 		goto open_file;
-	}
 more:
 	do {
 		self->origin++;
@@ -1349,6 +1342,7 @@ more:
 		case DSO__ORIG_BUILDID:
 			if (filename__read_build_id(self->long_name, build_id,
 						    sizeof(build_id))) {
+				char build_id_hex[BUILD_ID_SIZE * 2 + 1];
 				build_id__sprintf(build_id, sizeof(build_id),
 						  build_id_hex);
 				snprintf(name, size,

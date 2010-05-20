@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <math.h>
 
+#include "util.h"
 #include "callchain.h"
 
 bool ip_callchain__valid(struct ip_callchain *chain, event_t *event)
