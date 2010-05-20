@@ -479,9 +479,9 @@ static ssize_t fill_readbuf(struct port *port, char *out_buf, size_t out_count,
 }
 
 /* The condition that must be true for polling to end */
-static bool wait_is_over(struct port *port)
+static bool will_read_block(struct port *port)
 {
-	return port_has_data(port) || !port->host_connected;
+	return !port_has_data(port) && port->host_connected;
 }
 
 static ssize_t port_fops_read(struct file *filp, char __user *ubuf,
@@ -504,7 +504,7 @@ static ssize_t port_fops_read(struct file *filp, char __user *ubuf,
 			return -EAGAIN;
 
 		ret = wait_event_interruptible(port->waitqueue,
-					       wait_is_over(port));
+					       !will_read_block(port));
 		if (ret < 0)
 			return ret;
 	}
