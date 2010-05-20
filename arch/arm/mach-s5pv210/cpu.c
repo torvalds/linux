@@ -76,7 +76,9 @@ static void s5pv210_idle(void)
 
 void __init s5pv210_map_io(void)
 {
+#ifdef CONFIG_S3C_DEV_ADC
 	s3c_device_adc.name	= "s3c64xx-adc";
+#endif
 
 	iotable_init(s5pv210_iodesc, ARRAY_SIZE(s5pv210_iodesc));
 
