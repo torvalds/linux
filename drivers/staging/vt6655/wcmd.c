@@ -408,7 +408,7 @@ vCommandTimer (
 
             } else {
 //2008-8-4 <add> by chester
-                 if (!ChannelValid(pDevice->byZoneType, pMgmt->uScanChannel)) {
+		if (!ChannelValid(pMgmt->uScanChannel)) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Invalid channel pMgmt->uScanChannel = %d \n",pMgmt->uScanChannel);
                     s_bCommandComplete(pDevice);
                     return;
@@ -441,7 +441,7 @@ vCommandTimer (
       //          printk("chester-ch=%d\n",pMgmt->uScanChannel);
 	pMgmt->uScanChannel++;
 //2008-8-4 <modify> by chester
-	 if (!ChannelValid(pDevice->byZoneType, pMgmt->uScanChannel) &&
+		if (!ChannelValid(pMgmt->uScanChannel) &&
                         pMgmt->uScanChannel <= pDevice->byMaxChannel ){
                     pMgmt->uScanChannel=pDevice->byMaxChannel+1;
 		 pMgmt->eCommandState = WLAN_CMD_SCAN_END;

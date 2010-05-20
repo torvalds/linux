@@ -86,7 +86,7 @@ typedef enum _CARD_OP_MODE {
 
 /*---------------------  Export Functions  --------------------------*/
 
-BOOL ChannelValid(UINT CountryCode, UINT ChannelIndex);
+BOOL ChannelValid(UINT ChannelIndex);
 void CARDvSetRSPINF(void *pDeviceHandler, CARD_PHY_TYPE ePHYType);
 void vUpdateIFS(void *pDeviceHandler);
 void CARDvUpdateBasicTopRate(void *pDeviceHandler);

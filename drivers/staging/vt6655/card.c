@@ -440,8 +440,7 @@ s_vCaculateOFDMRParameter(
 /*---------------------  Export function  -------------------------*/
 /************************************************************************
  * Country Channel Valid
- *  Input:  CountryCode, ChannelNum
- *          ChanneIndex is defined as VT3253 MAC channel:
+ *  Input:  ChannelIndex is defined as VT3253 MAC channel:
  *              1   = 2.4G channel 1
  *              2   = 2.4G channel 2
  *              ...
@@ -458,7 +457,7 @@ s_vCaculateOFDMRParameter(
  ************************************************************************/
 //2008-8-4 <add> by chester
 BOOL
-ChannelValid(UINT CountryCode, UINT ChannelIndex)
+ChannelValid(UINT ChannelIndex)
 {
     BOOL    bValid;
 
