@@ -177,7 +177,7 @@ static struct clk func_54m_ck = {
 	.clkdm_name	= "wkup_clkdm",
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
-	.clksel_mask	= OMAP24XX_54M_SOURCE,
+	.clksel_mask	= OMAP24XX_54M_SOURCE_MASK,
 	.clksel		= func_54m_clksel,
 	.recalc		= &omap2_clksel_recalc,
 };
@@ -214,7 +214,7 @@ static struct clk func_96m_ck = {
 	.clkdm_name	= "wkup_clkdm",
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
-	.clksel_mask	= OMAP2430_96M_SOURCE,
+	.clksel_mask	= OMAP2430_96M_SOURCE_MASK,
 	.clksel		= func_96m_clksel,
 	.recalc		= &omap2_clksel_recalc,
 };
@@ -244,7 +244,7 @@ static struct clk func_48m_ck = {
 	.clkdm_name	= "wkup_clkdm",
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
-	.clksel_mask	= OMAP24XX_48M_SOURCE,
+	.clksel_mask	= OMAP24XX_48M_SOURCE_MASK,
 	.clksel		= func_48m_clksel,
 	.recalc		= &omap2_clksel_recalc,
 	.round_rate	= &omap2_clksel_round_rate,
