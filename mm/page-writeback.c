@@ -694,6 +694,7 @@ int dirty_writeback_centisecs_handler(ctl_table *table, int write,
 	return 0;
 }
 
+#ifdef CONFIG_BLOCK
 void laptop_mode_timer_fn(unsigned long data)
 {
 	struct request_queue *q = (struct request_queue *)data;
@@ -735,6 +736,7 @@ void laptop_sync_completion(void)
 
 	rcu_read_unlock();
 }
+#endif
 
 /*
  * If ratelimit_pages is too high then we can get into dirty-data overload
