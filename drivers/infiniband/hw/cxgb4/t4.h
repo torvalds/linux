@@ -449,25 +449,17 @@ struct t4_cq {
 static inline int t4_arm_cq(struct t4_cq *cq, int se)
 {
 	u32 val;
-	u16 inc;
 
-	do {
-		/*
-		 * inc must be less the both the max update value -and-
-		 * the size of the CQ.
-		 */
-		inc = cq->cidx_inc <= CIDXINC_MASK ? cq->cidx_inc :
-						     CIDXINC_MASK;
-		inc = inc <= (cq->size - 1) ? inc : (cq->size - 1);
-		if (inc == cq->cidx_inc)
-			val = SEINTARM(se) | CIDXINC(inc) | TIMERREG(6) |
-			      INGRESSQID(cq->cqid);
-		else
-			val = SEINTARM(0) | CIDXINC(inc) | TIMERREG(7) |
-			      INGRESSQID(cq->cqid);
-		cq->cidx_inc -= inc;
+	while (cq->cidx_inc > CIDXINC_MASK) {
+		val = SEINTARM(0) | CIDXINC(CIDXINC_MASK) | TIMERREG(7) |
+		      INGRESSQID(cq->cqid);
 		writel(val, cq->gts);
-	} while (cq->cidx_inc);
+		cq->cidx_inc -= CIDXINC_MASK;
+	}
+	val = SEINTARM(se) | CIDXINC(cq->cidx_inc) | TIMERREG(6) |
+	      INGRESSQID(cq->cqid);
+	writel(val, cq->gts);
+	cq->cidx_inc = 0;
 	return 0;
 }
 
@@ -488,7 +480,8 @@ static inline void t4_swcq_consume(struct t4_cq *cq)
 static inline void t4_hwcq_consume(struct t4_cq *cq)
 {
 	cq->bits_type_ts = cq->queue[cq->cidx].bits_type_ts;
-	cq->cidx_inc++;
+	if (++cq->cidx_inc == cq->size)
+		cq->cidx_inc = 0;
 	if (++cq->cidx == cq->size) {
 		cq->cidx = 0;
 		cq->gen ^= 1;
