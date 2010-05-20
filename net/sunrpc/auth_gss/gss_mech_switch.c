@@ -249,14 +249,15 @@ EXPORT_SYMBOL_GPL(gss_mech_put);
 int
 gss_import_sec_context(const void *input_token, size_t bufsize,
 		       struct gss_api_mech	*mech,
-		       struct gss_ctx		**ctx_id)
+		       struct gss_ctx		**ctx_id,
+		       gfp_t gfp_mask)
 {
-	if (!(*ctx_id = kzalloc(sizeof(**ctx_id), GFP_KERNEL)))
+	if (!(*ctx_id = kzalloc(sizeof(**ctx_id), gfp_mask)))
 		return -ENOMEM;
 	(*ctx_id)->mech_type = gss_mech_get(mech);
 
 	return mech->gm_ops
-		->gss_import_sec_context(input_token, bufsize, *ctx_id);
+		->gss_import_sec_context(input_token, bufsize, *ctx_id, gfp_mask);
 }
 
 /* gss_get_mic: compute a mic over message and return mic_token. */
@@ -285,6 +286,20 @@ gss_verify_mic(struct gss_ctx		*context_handle,
 				 mic_token);
 }
 
+/*
+ * This function is called from both the client and server code.
+ * Each makes guarantees about how much "slack" space is available
+ * for the underlying function in "buf"'s head and tail while
+ * performing the wrap.
+ *
+ * The client and server code allocate RPC_MAX_AUTH_SIZE extra
+ * space in both the head and tail which is available for use by
+ * the wrap function.
+ *
+ * Underlying functions should verify they do not use more than
+ * RPC_MAX_AUTH_SIZE of extra space in either the head or tail
+ * when performing the wrap.
+ */
 u32
 gss_wrap(struct gss_ctx	*ctx_id,
 	 int		offset,

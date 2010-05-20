@@ -44,7 +44,6 @@ struct nfs_client {
 
 #ifdef CONFIG_NFS_V4
 	u64			cl_clientid;	/* constant */
-	nfs4_verifier		cl_confirm;
 	unsigned long		cl_state;
 
 	struct rb_root		cl_openowner_id;

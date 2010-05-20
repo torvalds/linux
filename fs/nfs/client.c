@@ -934,7 +934,6 @@ static int nfs_probe_fsinfo(struct nfs_server *server, struct nfs_fh *mntfh, str
 	}
 
 	fsinfo.fattr = fattr;
-	nfs_fattr_init(fattr);
 	error = clp->rpc_ops->fsinfo(server, mntfh, &fsinfo);
 	if (error < 0)
 		goto out_error;
@@ -1047,12 +1046,17 @@ struct nfs_server *nfs_create_server(const struct nfs_parsed_mount_data *data,
 				     struct nfs_fh *mntfh)
 {
 	struct nfs_server *server;
-	struct nfs_fattr fattr;
+	struct nfs_fattr *fattr;
 	int error;
 
 	server = nfs_alloc_server();
 	if (!server)
 		return ERR_PTR(-ENOMEM);
+
+	error = -ENOMEM;
+	fattr = nfs_alloc_fattr();
+	if (fattr == NULL)
+		goto error;
 
 	/* Get a client representation */
 	error = nfs_init_server(server, data);
@@ -1064,7 +1068,7 @@ struct nfs_server *nfs_create_server(const struct nfs_parsed_mount_data *data,
 	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
 
 	/* Probe the root fh to retrieve its FSID */
-	error = nfs_probe_fsinfo(server, mntfh, &fattr);
+	error = nfs_probe_fsinfo(server, mntfh, fattr);
 	if (error < 0)
 		goto error;
 	if (server->nfs_client->rpc_ops->version == 3) {
@@ -1077,14 +1081,14 @@ struct nfs_server *nfs_create_server(const struct nfs_parsed_mount_data *data,
 			server->namelen = NFS2_MAXNAMLEN;
 	}
 
-	if (!(fattr.valid & NFS_ATTR_FATTR)) {
-		error = server->nfs_client->rpc_ops->getattr(server, mntfh, &fattr);
+	if (!(fattr->valid & NFS_ATTR_FATTR)) {
+		error = server->nfs_client->rpc_ops->getattr(server, mntfh, fattr);
 		if (error < 0) {
 			dprintk("nfs_create_server: getattr error = %d\n", -error);
 			goto error;
 		}
 	}
-	memcpy(&server->fsid, &fattr.fsid, sizeof(server->fsid));
+	memcpy(&server->fsid, &fattr->fsid, sizeof(server->fsid));
 
 	dprintk("Server FSID: %llx:%llx\n",
 		(unsigned long long) server->fsid.major,
@@ -1096,9 +1100,11 @@ struct nfs_server *nfs_create_server(const struct nfs_parsed_mount_data *data,
 	spin_unlock(&nfs_client_lock);
 
 	server->mount_time = jiffies;
+	nfs_free_fattr(fattr);
 	return server;
 
 error:
+	nfs_free_fattr(fattr);
 	nfs_free_server(server);
 	return ERR_PTR(error);
 }
@@ -1340,7 +1346,7 @@ error:
 struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 				      struct nfs_fh *mntfh)
 {
-	struct nfs_fattr fattr;
+	struct nfs_fattr *fattr;
 	struct nfs_server *server;
 	int error;
 
@@ -1349,6 +1355,11 @@ struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 	server = nfs_alloc_server();
 	if (!server)
 		return ERR_PTR(-ENOMEM);
+
+	error = -ENOMEM;
+	fattr = nfs_alloc_fattr();
+	if (fattr == NULL)
+		goto error;
 
 	/* set up the general RPC client */
 	error = nfs4_init_server(server, data);
@@ -1364,7 +1375,7 @@ struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 		goto error;
 
 	/* Probe the root fh to retrieve its FSID */
-	error = nfs4_path_walk(server, mntfh, data->nfs_server.export_path);
+	error = nfs4_get_rootfh(server, mntfh);
 	if (error < 0)
 		goto error;
 
@@ -1375,7 +1386,7 @@ struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 
 	nfs4_session_set_rwsize(server);
 
-	error = nfs_probe_fsinfo(server, mntfh, &fattr);
+	error = nfs_probe_fsinfo(server, mntfh, fattr);
 	if (error < 0)
 		goto error;
 
@@ -1389,9 +1400,11 @@ struct nfs_server *nfs4_create_server(const struct nfs_parsed_mount_data *data,
 
 	server->mount_time = jiffies;
 	dprintk("<-- nfs4_create_server() = %p\n", server);
+	nfs_free_fattr(fattr);
 	return server;
 
 error:
+	nfs_free_fattr(fattr);
 	nfs_free_server(server);
 	dprintk("<-- nfs4_create_server() = error %d\n", error);
 	return ERR_PTR(error);
@@ -1405,7 +1418,7 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 {
 	struct nfs_client *parent_client;
 	struct nfs_server *server, *parent_server;
-	struct nfs_fattr fattr;
+	struct nfs_fattr *fattr;
 	int error;
 
 	dprintk("--> nfs4_create_referral_server()\n");
@@ -1413,6 +1426,11 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	server = nfs_alloc_server();
 	if (!server)
 		return ERR_PTR(-ENOMEM);
+
+	error = -ENOMEM;
+	fattr = nfs_alloc_fattr();
+	if (fattr == NULL)
+		goto error;
 
 	parent_server = NFS_SB(data->sb);
 	parent_client = parent_server->nfs_client;
@@ -1443,12 +1461,12 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 	BUG_ON(!server->nfs_client->rpc_ops->file_inode_ops);
 
 	/* Probe the root fh to retrieve its FSID and filehandle */
-	error = nfs4_path_walk(server, mntfh, data->mnt_path);
+	error = nfs4_get_rootfh(server, mntfh);
 	if (error < 0)
 		goto error;
 
 	/* probe the filesystem info for this server filesystem */
-	error = nfs_probe_fsinfo(server, mntfh, &fattr);
+	error = nfs_probe_fsinfo(server, mntfh, fattr);
 	if (error < 0)
 		goto error;
 
@@ -1466,10 +1484,12 @@ struct nfs_server *nfs4_create_referral_server(struct nfs_clone_mount *data,
 
 	server->mount_time = jiffies;
 
+	nfs_free_fattr(fattr);
 	dprintk("<-- nfs_create_referral_server() = %p\n", server);
 	return server;
 
 error:
+	nfs_free_fattr(fattr);
 	nfs_free_server(server);
 	dprintk("<-- nfs4_create_referral_server() = error %d\n", error);
 	return ERR_PTR(error);
@@ -1485,7 +1505,7 @@ struct nfs_server *nfs_clone_server(struct nfs_server *source,
 				    struct nfs_fattr *fattr)
 {
 	struct nfs_server *server;
-	struct nfs_fattr fattr_fsinfo;
+	struct nfs_fattr *fattr_fsinfo;
 	int error;
 
 	dprintk("--> nfs_clone_server(,%llx:%llx,)\n",
@@ -1495,6 +1515,11 @@ struct nfs_server *nfs_clone_server(struct nfs_server *source,
 	server = nfs_alloc_server();
 	if (!server)
 		return ERR_PTR(-ENOMEM);
+
+	error = -ENOMEM;
+	fattr_fsinfo = nfs_alloc_fattr();
+	if (fattr_fsinfo == NULL)
+		goto out_free_server;
 
 	/* Copy data from the source */
 	server->nfs_client = source->nfs_client;
@@ -1512,7 +1537,7 @@ struct nfs_server *nfs_clone_server(struct nfs_server *source,
 		nfs_init_server_aclclient(server);
 
 	/* probe the filesystem info for this server filesystem */
-	error = nfs_probe_fsinfo(server, fh, &fattr_fsinfo);
+	error = nfs_probe_fsinfo(server, fh, fattr_fsinfo);
 	if (error < 0)
 		goto out_free_server;
 
@@ -1534,10 +1559,12 @@ struct nfs_server *nfs_clone_server(struct nfs_server *source,
 
 	server->mount_time = jiffies;
 
+	nfs_free_fattr(fattr_fsinfo);
 	dprintk("<-- nfs_clone_server() = %p\n", server);
 	return server;
 
 out_free_server:
+	nfs_free_fattr(fattr_fsinfo);
 	nfs_free_server(server);
 	dprintk("<-- nfs_clone_server() = error %d\n", error);
 	return ERR_PTR(error);

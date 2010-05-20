@@ -25,7 +25,6 @@
 
 #ifdef RPC_DEBUG
 #define RPCDBG_FACILITY		RPCDBG_SCHED
-#define RPC_TASK_MAGIC_ID	0xf00baa
 #endif
 
 /*
@@ -237,7 +236,6 @@ static void rpc_task_set_debuginfo(struct rpc_task *task)
 {
 	static atomic_t rpc_pid;
 
-	task->tk_magic = RPC_TASK_MAGIC_ID;
 	task->tk_pid = atomic_inc_return(&rpc_pid);
 }
 #else
@@ -360,9 +358,6 @@ static void __rpc_do_wake_up_task(struct rpc_wait_queue *queue, struct rpc_task 
 	dprintk("RPC: %5u __rpc_wake_up_task (now %lu)\n",
 			task->tk_pid, jiffies);
 
-#ifdef RPC_DEBUG
-	BUG_ON(task->tk_magic != RPC_TASK_MAGIC_ID);
-#endif
 	/* Has the task been executed yet? If not, we cannot wake it up! */
 	if (!RPC_IS_ACTIVATED(task)) {
 		printk(KERN_ERR "RPC: Inactive task (%p) being woken up!\n", task);
@@ -834,7 +829,7 @@ static void rpc_init_task(struct rpc_task *task, const struct rpc_task_setup *ta
 	}
 
 	/* starting timestamp */
-	task->tk_start = jiffies;
+	task->tk_start = ktime_get();
 
 	dprintk("RPC:       new task initialized, procpid %u\n",
 				task_pid_nr(current));
@@ -856,16 +851,23 @@ struct rpc_task *rpc_new_task(const struct rpc_task_setup *setup_data)
 
 	if (task == NULL) {
 		task = rpc_alloc_task();
-		if (task == NULL)
-			goto out;
+		if (task == NULL) {
+			rpc_release_calldata(setup_data->callback_ops,
+					setup_data->callback_data);
+			return ERR_PTR(-ENOMEM);
+		}
 		flags = RPC_TASK_DYNAMIC;
 	}
 
 	rpc_init_task(task, setup_data);
+	if (task->tk_status < 0) {
+		int err = task->tk_status;
+		rpc_put_task(task);
+		return ERR_PTR(err);
+	}
 
 	task->tk_flags |= flags;
 	dprintk("RPC:       allocated task %p\n", task);
-out:
 	return task;
 }
 
@@ -909,9 +911,6 @@ EXPORT_SYMBOL_GPL(rpc_put_task);
 
 static void rpc_release_task(struct rpc_task *task)
 {
-#ifdef RPC_DEBUG
-	BUG_ON(task->tk_magic != RPC_TASK_MAGIC_ID);
-#endif
 	dprintk("RPC: %5u release task\n", task->tk_pid);
 
 	if (!list_empty(&task->tk_task)) {
@@ -923,9 +922,6 @@ static void rpc_release_task(struct rpc_task *task)
 	}
 	BUG_ON (RPC_IS_QUEUED(task));
 
-#ifdef RPC_DEBUG
-	task->tk_magic = 0;
-#endif
 	/* Wake up anyone who is waiting for task completion */
 	rpc_mark_complete_task(task);
 
