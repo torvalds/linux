@@ -244,7 +244,7 @@ struct uac_selector_unit_descriptor {
 static inline __u8 uac_selector_unit_iSelector(struct uac_selector_unit_descriptor *desc)
 {
 	__u8 *raw = (__u8 *) desc;
-	return raw[desc->bLength - 1];
+	return raw[9 + desc->bLength - 1];
 }
 
 /* 4.3.2.5 Feature Unit Descriptor */
@@ -456,7 +456,7 @@ struct uac_iso_endpoint_descriptor {
 	__u8  bmAttributes;
 	__u8  bLockDelayUnits;
 	__le16 wLockDelay;
-};
+} __attribute__((packed));
 #define UAC_ISO_ENDPOINT_DESC_SIZE	7
 
 #define UAC_EP_CS_ATTR_SAMPLE_RATE	0x01
@@ -487,6 +487,21 @@ struct uac_iso_endpoint_descriptor {
 #define UAC_FU_DELAY		(1 << (UAC_DELAY_CONTROL - 1))
 #define UAC_FU_BASS_BOOST	(1 << (UAC_BASS_BOOST_CONTROL - 1))
 #define UAC_FU_LOUDNESS		(1 << (UAC_LOUDNESS_CONTROL - 1))
+
+/* status word format (3.7.1.1) */
+
+#define UAC1_STATUS_TYPE_ORIG_MASK		0x0f
+#define UAC1_STATUS_TYPE_ORIG_AUDIO_CONTROL_IF	0x0
+#define UAC1_STATUS_TYPE_ORIG_AUDIO_STREAM_IF	0x1
+#define UAC1_STATUS_TYPE_ORIG_AUDIO_STREAM_EP	0x2
+
+#define UAC1_STATUS_TYPE_IRQ_PENDING		(1 << 7)
+#define UAC1_STATUS_TYPE_MEM_CHANGED		(1 << 6)
+
+struct uac1_status_word {
+	__u8 bStatusType;
+	__u8 bOriginator;
+} __attribute__((packed));
 
 #ifdef __KERNEL__
 
