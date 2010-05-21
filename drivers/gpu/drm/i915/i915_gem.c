@@ -4378,7 +4378,7 @@ i915_gem_idle(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 
-	if (dev_priv->mm.suspended || dev_priv->ring.ring_obj == NULL) {
+	if (dev_priv->mm.suspended || dev_priv->render_ring.ring_obj == NULL) {
 		mutex_unlock(&dev->struct_mutex);
 		return 0;
 	}

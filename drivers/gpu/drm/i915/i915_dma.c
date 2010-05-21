@@ -95,7 +95,7 @@ void i915_kernel_lost_context(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv;
-	drm_i915_ring_buffer_t *ring = &(dev_priv->ring);
+	drm_i915_ring_buffer_t *ring = &(dev_priv->render_ring);
 
 	/*
 	 * We should never lose context on the ring with modesetting
@@ -128,11 +128,11 @@ static int i915_dma_cleanup(struct drm_device * dev)
 	if (dev->irq_enabled)
 		drm_irq_uninstall(dev);
 
-	if (dev_priv->ring.virtual_start) {
-		drm_core_ioremapfree(&dev_priv->ring.map, dev);
-		dev_priv->ring.virtual_start = NULL;
-		dev_priv->ring.map.handle = NULL;
-		dev_priv->ring.map.size = 0;
+	if (dev_priv->render_ring.virtual_start) {
+		drm_core_ioremapfree(&dev_priv->render_ring.map, dev);
+		dev_priv->render_ring.virtual_start = NULL;
+		dev_priv->render_ring.map.handle = NULL;
+		dev_priv->render_ring.map.size = 0;
 	}
 
 	/* Clear the HWS virtual address at teardown */
@@ -156,24 +156,24 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 	}
 
 	if (init->ring_size != 0) {
-		if (dev_priv->ring.ring_obj != NULL) {
+		if (dev_priv->render_ring.ring_obj != NULL) {
 			i915_dma_cleanup(dev);
 			DRM_ERROR("Client tried to initialize ringbuffer in "
 				  "GEM mode\n");
 			return -EINVAL;
 		}
 
-		dev_priv->ring.Size = init->ring_size;
+		dev_priv->render_ring.Size = init->ring_size;
 
-		dev_priv->ring.map.offset = init->ring_start;
-		dev_priv->ring.map.size = init->ring_size;
-		dev_priv->ring.map.type = 0;
-		dev_priv->ring.map.flags = 0;
-		dev_priv->ring.map.mtrr = 0;
+		dev_priv->render_ring.map.offset = init->ring_start;
+		dev_priv->render_ring.map.size = init->ring_size;
+		dev_priv->render_ring.map.type = 0;
+		dev_priv->render_ring.map.flags = 0;
+		dev_priv->render_ring.map.mtrr = 0;
 
-		drm_core_ioremap_wc(&dev_priv->ring.map, dev);
+		drm_core_ioremap_wc(&dev_priv->render_ring.map, dev);
 
-		if (dev_priv->ring.map.handle == NULL) {
+		if (dev_priv->render_ring.map.handle == NULL) {
 			i915_dma_cleanup(dev);
 			DRM_ERROR("can not ioremap virtual address for"
 				  " ring buffer\n");
@@ -181,7 +181,7 @@ static int i915_initialize(struct drm_device * dev, drm_i915_init_t * init)
 		}
 	}
 
-	dev_priv->ring.virtual_start = dev_priv->ring.map.handle;
+	dev_priv->render_ring.virtual_start = dev_priv->render_ring.map.handle;
 
 	dev_priv->cpp = init->cpp;
 	dev_priv->back_offset = init->back_offset;
@@ -203,7 +203,7 @@ static int i915_dma_resume(struct drm_device * dev)
 
 	DRM_DEBUG_DRIVER("%s\n", __func__);
 
-	if (dev_priv->ring.map.handle == NULL) {
+	if (dev_priv->render_ring.map.handle == NULL) {
 		DRM_ERROR("can not ioremap virtual address for"
 			  " ring buffer\n");
 		return -ENOMEM;
@@ -332,7 +332,7 @@ static int i915_emit_cmds(struct drm_device * dev, int *buffer, int dwords)
 	int i;
 	RING_LOCALS;
 
-	if ((dwords+1) * sizeof(int) >= dev_priv->ring.Size - 8)
+	if ((dwords+1) * sizeof(int) >= dev_priv->render_ring.Size - 8)
 		return -EINVAL;
 
 	BEGIN_LP_RING((dwords+1)&~1);
@@ -563,7 +563,7 @@ static int i915_quiescent(struct drm_device * dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	i915_kernel_lost_context(dev);
-	return i915_wait_ring(dev, dev_priv->ring.Size - 8, __func__);
+	return i915_wait_ring(dev, dev_priv->render_ring.Size - 8, __func__);
 }
 
 static int i915_flush_ioctl(struct drm_device *dev, void *data,

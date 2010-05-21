@@ -244,7 +244,7 @@ typedef struct drm_i915_private {
 	void __iomem *regs;
 
 	struct pci_dev *bridge_dev;
-	drm_i915_ring_buffer_t ring;
+	drm_i915_ring_buffer_t render_ring;
 
 	drm_dma_handle_t *status_page_dmah;
 	void *hw_status_page;
@@ -1044,7 +1044,7 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
  * has access to the ring.
  */
 #define RING_LOCK_TEST_WITH_RETURN(dev, file_priv) do {			\
-	if (((drm_i915_private_t *)dev->dev_private)->ring.ring_obj == NULL) \
+	if (((drm_i915_private_t *)dev->dev_private)->render_ring.ring_obj == NULL) \
 		LOCK_TEST_WITH_RETURN(dev, file_priv);			\
 } while (0)
 
@@ -1066,15 +1066,15 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
 	int bytes__ = 4*(n);						\
 	if (I915_VERBOSE) DRM_DEBUG("BEGIN_LP_RING(%d)\n", (n));	\
 	/* a wrap must occur between instructions so pad beforehand */	\
-	if (unlikely (dev_priv->ring.tail + bytes__ > dev_priv->ring.Size)) \
+	if (unlikely (dev_priv->render_ring.tail + bytes__ > dev_priv->render_ring.Size)) \
 		i915_wrap_ring(dev);					\
-	if (unlikely (dev_priv->ring.space < bytes__))			\
+	if (unlikely (dev_priv->render_ring.space < bytes__))			\
 		i915_wait_ring(dev, bytes__, __func__);			\
 	ring_virt__ = (unsigned int *)					\
-	        (dev_priv->ring.virtual_start + dev_priv->ring.tail);	\
-	dev_priv->ring.tail += bytes__;					\
-	dev_priv->ring.tail &= dev_priv->ring.Size - 1;			\
-	dev_priv->ring.space -= bytes__;				\
+	        (dev_priv->render_ring.virtual_start + dev_priv->render_ring.tail);	\
+	dev_priv->render_ring.tail += bytes__;					\
+	dev_priv->render_ring.tail &= dev_priv->render_ring.Size - 1;			\
+	dev_priv->render_ring.space -= bytes__;				\
 } while (0)
 
 #define OUT_RING(n) do {						\
@@ -1084,8 +1084,8 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
 
 #define ADVANCE_LP_RING() do {						\
 	if (I915_VERBOSE)						\
-		DRM_DEBUG("ADVANCE_LP_RING %x\n", dev_priv->ring.tail);	\
-	I915_WRITE(PRB0_TAIL, dev_priv->ring.tail);			\
+		DRM_DEBUG("ADVANCE_LP_RING %x\n", dev_priv->render_ring.tail);	\
+	I915_WRITE(PRB0_TAIL, dev_priv->render_ring.tail);			\
 } while(0)
 
 /**

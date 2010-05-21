@@ -536,17 +536,17 @@ i915_ringbuffer_last_batch(struct drm_device *dev)
 	 */
 	bbaddr = 0;
 	head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
-	ring = (u32 *)(dev_priv->ring.virtual_start + head);
+	ring = (u32 *)(dev_priv->render_ring.virtual_start + head);
 
-	while (--ring >= (u32 *)dev_priv->ring.virtual_start) {
+	while (--ring >= (u32 *)dev_priv->render_ring.virtual_start) {
 		bbaddr = i915_get_bbaddr(dev, ring);
 		if (bbaddr)
 			break;
 	}
 
 	if (bbaddr == 0) {
-		ring = (u32 *)(dev_priv->ring.virtual_start + dev_priv->ring.Size);
-		while (--ring >= (u32 *)dev_priv->ring.virtual_start) {
+		ring = (u32 *)(dev_priv->render_ring.virtual_start + dev_priv->render_ring.Size);
+		while (--ring >= (u32 *)dev_priv->render_ring.virtual_start) {
 			bbaddr = i915_get_bbaddr(dev, ring);
 			if (bbaddr)
 				break;
@@ -639,7 +639,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 	error->batchbuffer[1] = i915_error_object_create(dev, batchbuffer[1]);
 
 	/* Record the ringbuffer */
-	error->ringbuffer = i915_error_object_create(dev, dev_priv->ring.ring_obj);
+	error->ringbuffer = i915_error_object_create(dev, dev_priv->render_ring.ring_obj);
 
 	/* Record buffers on the active list. */
 	error->active_bo = NULL;
@@ -1056,7 +1056,7 @@ int i915_irq_emit(struct drm_device *dev, void *data,
 	drm_i915_irq_emit_t *emit = data;
 	int result;
 
-	if (!dev_priv || !dev_priv->ring.virtual_start) {
+	if (!dev_priv || !dev_priv->render_ring.virtual_start) {
 		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}

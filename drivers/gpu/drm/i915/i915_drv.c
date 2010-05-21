@@ -389,7 +389,7 @@ int i965_reset(struct drm_device *dev, u8 flags)
 	 */
 	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
 	    !dev_priv->mm.suspended) {
-		drm_i915_ring_buffer_t *ring = &dev_priv->ring;
+		drm_i915_ring_buffer_t *ring = &dev_priv->render_ring;
 		struct drm_gem_object *obj = ring->ring_obj;
 		struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 		dev_priv->mm.suspended = 0;

@@ -368,7 +368,7 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_gem_object *obj;
 	struct drm_i915_gem_object *obj_priv;
-	drm_i915_ring_buffer_t *ring = &dev_priv->ring;
+	drm_i915_ring_buffer_t *ring = &dev_priv->render_ring;
 	int ret;
 	u32 head;
 
@@ -403,7 +403,7 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	drm_core_ioremap_wc(&ring->map, dev);
 	if (ring->map.handle == NULL) {
 		DRM_ERROR("Failed to map ringbuffer.\n");
-		memset(&dev_priv->ring, 0, sizeof(dev_priv->ring));
+		memset(&dev_priv->render_ring, 0, sizeof(dev_priv->render_ring));
 		i915_gem_object_unpin(obj);
 		drm_gem_object_unreference(obj);
 		i915_gem_cleanup_hws(dev);
@@ -481,15 +481,15 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	if (dev_priv->ring.ring_obj == NULL)
+	if (dev_priv->render_ring.ring_obj == NULL)
 		return;
 
-	drm_core_ioremapfree(&dev_priv->ring.map, dev);
+	drm_core_ioremapfree(&dev_priv->render_ring.map, dev);
 
-	i915_gem_object_unpin(dev_priv->ring.ring_obj);
-	drm_gem_object_unreference(dev_priv->ring.ring_obj);
-	dev_priv->ring.ring_obj = NULL;
-	memset(&dev_priv->ring, 0, sizeof(dev_priv->ring));
+	i915_gem_object_unpin(dev_priv->render_ring.ring_obj);
+	drm_gem_object_unreference(dev_priv->render_ring.ring_obj);
+	dev_priv->render_ring.ring_obj = NULL;
+	memset(&dev_priv->render_ring, 0, sizeof(dev_priv->render_ring));
 
 	i915_gem_cleanup_hws(dev);
 }
@@ -503,21 +503,21 @@ int i915_wrap_ring(struct drm_device *dev)
 	volatile unsigned int *virt;
 	int rem;
 
-	rem = dev_priv->ring.Size - dev_priv->ring.tail;
-	if (dev_priv->ring.space < rem) {
+	rem = dev_priv->render_ring.Size - dev_priv->render_ring.tail;
+	if (dev_priv->render_ring.space < rem) {
 		int ret = i915_wait_ring(dev, rem, __func__);
 		if (ret)
 			return ret;
 	}
-	dev_priv->ring.space -= rem;
+	dev_priv->render_ring.space -= rem;
 
 	virt = (unsigned int *)
-		(dev_priv->ring.virtual_start + dev_priv->ring.tail);
+		(dev_priv->render_ring.virtual_start + dev_priv->render_ring.tail);
 	rem /= 4;
 	while (rem--)
 		*virt++ = MI_NOOP;
 
-	dev_priv->ring.tail = 0;
+	dev_priv->render_ring.tail = 0;
 
 	return 0;
 }
@@ -525,7 +525,7 @@ int i915_wrap_ring(struct drm_device *dev)
 int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	drm_i915_ring_buffer_t *ring = &(dev_priv->ring);
+	drm_i915_ring_buffer_t *ring = &(dev_priv->render_ring);
 	u32 acthd_reg = IS_I965G(dev) ? ACTHD_I965 : ACTHD;
 	u32 last_acthd = I915_READ(acthd_reg);
 	u32 acthd;

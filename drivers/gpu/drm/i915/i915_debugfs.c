@@ -317,14 +317,14 @@ static int i915_ringbuffer_data(struct seq_file *m, void *data)
 	u8 *virt;
 	uint32_t *ptr, off;
 
-	if (!dev_priv->ring.ring_obj) {
+	if (!dev_priv->render_ring.ring_obj) {
 		seq_printf(m, "No ringbuffer setup\n");
 		return 0;
 	}
 
-	virt = dev_priv->ring.virtual_start;
+	virt = dev_priv->render_ring.virtual_start;
 
-	for (off = 0; off < dev_priv->ring.Size; off += 4) {
+	for (off = 0; off < dev_priv->render_ring.Size; off += 4) {
 		ptr = (uint32_t *)(virt + off);
 		seq_printf(m, "%08x :  %08x\n", off, *ptr);
 	}
@@ -344,7 +344,7 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "RingHead :  %08x\n", head);
 	seq_printf(m, "RingTail :  %08x\n", tail);
-	seq_printf(m, "RingSize :  %08lx\n", dev_priv->ring.Size);
+	seq_printf(m, "RingSize :  %08lx\n", dev_priv->render_ring.Size);
 	seq_printf(m, "Acthd :     %08x\n", I915_READ(IS_I965G(dev) ? ACTHD_I965 : ACTHD));
 
 	return 0;
