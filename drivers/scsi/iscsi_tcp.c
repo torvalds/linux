@@ -601,7 +601,7 @@ static void iscsi_sw_tcp_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
 	write_unlock_bh(&tcp_sw_conn->sock->sk->sk_callback_lock);
 
-	if (sk_sleep(sock->sk) && waitqueue_active(sk_sleep(sock->sk))) {
+	if (sk_sleep(sock->sk)) {
 		sock->sk->sk_err = EIO;
 		wake_up_interruptible(sk_sleep(sock->sk));
 	}
