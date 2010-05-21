@@ -15,6 +15,7 @@
  * has asm/spinlock.h, or 2.4, which has linux/spinlock.h
  */
 #include <linux/sched.h>
+#include <linux/mutex.h>
 
 typedef enum {
 	FL_READY,
@@ -74,8 +75,7 @@ struct flchip {
 	unsigned int erase_suspended:1;
 	unsigned long in_progress_block_addr;
 
-	spinlock_t *mutex;
-	spinlock_t _spinlock; /* We do it like this because sometimes they'll be shared. */
+	struct mutex mutex;
 	wait_queue_head_t wq; /* Wait on here when we're waiting for the chip
 			     to be ready */
 	int word_write_time;

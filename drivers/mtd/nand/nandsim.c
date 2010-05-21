@@ -80,6 +80,9 @@
 #ifndef CONFIG_NANDSIM_DBG
 #define CONFIG_NANDSIM_DBG        0
 #endif
+#ifndef CONFIG_NANDSIM_MAX_PARTS
+#define CONFIG_NANDSIM_MAX_PARTS  32
+#endif
 
 static uint first_id_byte  = CONFIG_NANDSIM_FIRST_ID_BYTE;
 static uint second_id_byte = CONFIG_NANDSIM_SECOND_ID_BYTE;
@@ -94,7 +97,7 @@ static uint bus_width      = CONFIG_NANDSIM_BUS_WIDTH;
 static uint do_delays      = CONFIG_NANDSIM_DO_DELAYS;
 static uint log            = CONFIG_NANDSIM_LOG;
 static uint dbg            = CONFIG_NANDSIM_DBG;
-static unsigned long parts[MAX_MTD_DEVICES];
+static unsigned long parts[CONFIG_NANDSIM_MAX_PARTS];
 static unsigned int parts_num;
 static char *badblocks = NULL;
 static char *weakblocks = NULL;
@@ -135,8 +138,8 @@ MODULE_PARM_DESC(fourth_id_byte, "The fourth byte returned by NAND Flash 'read I
 MODULE_PARM_DESC(access_delay,   "Initial page access delay (microseconds)");
 MODULE_PARM_DESC(programm_delay, "Page programm delay (microseconds");
 MODULE_PARM_DESC(erase_delay,    "Sector erase delay (milliseconds)");
-MODULE_PARM_DESC(output_cycle,   "Word output (from flash) time (nanodeconds)");
-MODULE_PARM_DESC(input_cycle,    "Word input (to flash) time (nanodeconds)");
+MODULE_PARM_DESC(output_cycle,   "Word output (from flash) time (nanoseconds)");
+MODULE_PARM_DESC(input_cycle,    "Word input (to flash) time (nanoseconds)");
 MODULE_PARM_DESC(bus_width,      "Chip's bus width (8- or 16-bit)");
 MODULE_PARM_DESC(do_delays,      "Simulate NAND delays using busy-waits if not zero");
 MODULE_PARM_DESC(log,            "Perform logging if not zero");
@@ -288,7 +291,7 @@ union ns_mem {
  * The structure which describes all the internal simulator data.
  */
 struct nandsim {
-	struct mtd_partition partitions[MAX_MTD_DEVICES];
+	struct mtd_partition partitions[CONFIG_NANDSIM_MAX_PARTS];
 	unsigned int nbparts;
 
 	uint busw;              /* flash chip bus width (8 or 16) */
@@ -312,7 +315,7 @@ struct nandsim {
 	union ns_mem buf;
 
 	/* NAND flash "geometry" */
-	struct nandsin_geometry {
+	struct {
 		uint64_t totsz;     /* total flash size, bytes */
 		uint32_t secsz;     /* flash sector (erase block) size, bytes */
 		uint pgsz;          /* NAND flash page size, bytes */
@@ -331,7 +334,7 @@ struct nandsim {
 	} geom;
 
 	/* NAND flash internal registers */
-	struct nandsim_regs {
+	struct {
 		unsigned command; /* the command register */
 		u_char   status;  /* the status register */
 		uint     row;     /* the page number */
@@ -342,7 +345,7 @@ struct nandsim {
 	} regs;
 
 	/* NAND flash lines state */
-        struct ns_lines_status {
+        struct {
                 int ce;  /* chip Enable */
                 int cle; /* command Latch Enable */
                 int ale; /* address Latch Enable */
