@@ -102,6 +102,8 @@ struct uart_sunzilog_port {
 #endif
 };
 
+static void sunzilog_putchar(struct uart_port *port, int ch);
+
 #define ZILOG_CHANNEL_FROM_PORT(PORT)	((struct zilog_channel __iomem *)((PORT)->membase))
 #define UART_ZILOG(PORT)		((struct uart_sunzilog_port *)(PORT))
 
@@ -996,6 +998,50 @@ static int sunzilog_verify_port(struct uart_port *port, struct serial_struct *se
 	return -EINVAL;
 }
 
+#ifdef CONFIG_CONSOLE_POLL
+static int sunzilog_get_poll_char(struct uart_port *port)
+{
+	unsigned char ch, r1;
+	struct uart_sunzilog_port *up = (struct uart_sunzilog_port *) port;
+	struct zilog_channel __iomem *channel
+		= ZILOG_CHANNEL_FROM_PORT(&up->port);
+
+
+	r1 = read_zsreg(channel, R1);
+	if (r1 & (PAR_ERR | Rx_OVR | CRC_ERR)) {
+		writeb(ERR_RES, &channel->control);
+		ZSDELAY();
+		ZS_WSYNC(channel);
+	}
+
+	ch = readb(&channel->control);
+	ZSDELAY();
+
+	/* This funny hack depends upon BRK_ABRT not interfering
+	 * with the other bits we care about in R1.
+	 */
+	if (ch & BRK_ABRT)
+		r1 |= BRK_ABRT;
+
+	if (!(ch & Rx_CH_AV))
+		return NO_POLL_CHAR;
+
+	ch = readb(&channel->data);
+	ZSDELAY();
+
+	ch &= up->parity_mask;
+	return ch;
+}
+
+static void sunzilog_put_poll_char(struct uart_port *port,
+			unsigned char ch)
+{
+	struct uart_sunzilog_port *up = (struct uart_sunzilog_port *)port;
+
+	sunzilog_putchar(&up->port, ch);
+}
+#endif /* CONFIG_CONSOLE_POLL */
+
 static struct uart_ops sunzilog_pops = {
 	.tx_empty	=	sunzilog_tx_empty,
 	.set_mctrl	=	sunzilog_set_mctrl,
@@ -1013,6 +1059,10 @@ static struct uart_ops sunzilog_pops = {
 	.request_port	=	sunzilog_request_port,
 	.config_port	=	sunzilog_config_port,
 	.verify_port	=	sunzilog_verify_port,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char	=	sunzilog_get_poll_char,
+	.poll_put_char	=	sunzilog_put_poll_char,
+#endif
 };
 
 static int uart_chip_count;
