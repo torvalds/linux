@@ -707,7 +707,7 @@ void laptop_mode_timer_fn(unsigned long data)
 	 */
 
 	if (bdi_has_dirty_io(&q->backing_dev_info))
-		bdi_start_writeback(&q->backing_dev_info, NULL, 0, nr_pages);
+		bdi_start_writeback(&q->backing_dev_info, NULL, nr_pages, 0);
 }
 
 /*
