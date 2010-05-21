@@ -4613,12 +4613,10 @@ void perf_tp_event(u64 addr, u64 count, void *record, int entry_size,
 	perf_sample_data_init(&data, addr);
 	data.raw = &raw;
 
-	rcu_read_lock();
 	hlist_for_each_entry_rcu(event, node, head, hlist_entry) {
 		if (perf_tp_event_match(event, &data, regs))
 			perf_swevent_add(event, count, 1, &data, regs);
 	}
-	rcu_read_unlock();
 
 	perf_swevent_put_recursion_context(rctx);
 }
