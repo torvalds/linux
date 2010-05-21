@@ -624,13 +624,13 @@ static void ati_remote_irq_in(struct urb *urb)
 static int ati_remote_alloc_buffers(struct usb_device *udev,
 				    struct ati_remote *ati_remote)
 {
-	ati_remote->inbuf = usb_buffer_alloc(udev, DATA_BUFSIZE, GFP_ATOMIC,
-					     &ati_remote->inbuf_dma);
+	ati_remote->inbuf = usb_alloc_coherent(udev, DATA_BUFSIZE, GFP_ATOMIC,
+					       &ati_remote->inbuf_dma);
 	if (!ati_remote->inbuf)
 		return -1;
 
-	ati_remote->outbuf = usb_buffer_alloc(udev, DATA_BUFSIZE, GFP_ATOMIC,
-					      &ati_remote->outbuf_dma);
+	ati_remote->outbuf = usb_alloc_coherent(udev, DATA_BUFSIZE, GFP_ATOMIC,
+					        &ati_remote->outbuf_dma);
 	if (!ati_remote->outbuf)
 		return -1;
 
@@ -653,10 +653,10 @@ static void ati_remote_free_buffers(struct ati_remote *ati_remote)
 	usb_free_urb(ati_remote->irq_urb);
 	usb_free_urb(ati_remote->out_urb);
 
-	usb_buffer_free(ati_remote->udev, DATA_BUFSIZE,
+	usb_free_coherent(ati_remote->udev, DATA_BUFSIZE,
 		ati_remote->inbuf, ati_remote->inbuf_dma);
 
-	usb_buffer_free(ati_remote->udev, DATA_BUFSIZE,
+	usb_free_coherent(ati_remote->udev, DATA_BUFSIZE,
 		ati_remote->outbuf, ati_remote->outbuf_dma);
 }
 

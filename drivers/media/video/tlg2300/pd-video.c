@@ -478,10 +478,10 @@ static int prepare_iso_urb(struct video_data *video)
 			goto out;
 
 		video->urb_array[i] = urb;
-		mem = usb_buffer_alloc(udev,
-					ISO_PKT_SIZE * PK_PER_URB,
-					GFP_KERNEL,
-					&urb->transfer_dma);
+		mem = usb_alloc_coherent(udev,
+					 ISO_PKT_SIZE * PK_PER_URB,
+					 GFP_KERNEL,
+					 &urb->transfer_dma);
 
 		urb->complete	= urb_complete_iso;	/* handler */
 		urb->dev	= udev;
@@ -521,8 +521,8 @@ int alloc_bulk_urbs_generic(struct urb **urb_array, int num,
 		if (urb == NULL)
 			return i;
 
-		mem = usb_buffer_alloc(udev, buf_size, gfp_flags,
-					&urb->transfer_dma);
+		mem = usb_alloc_coherent(udev, buf_size, gfp_flags,
+					 &urb->transfer_dma);
 		if (mem == NULL)
 			return i;
 
@@ -542,7 +542,7 @@ void free_all_urb_generic(struct urb **urb_array, int num)
 	for (i = 0; i < num; i++) {
 		urb = urb_array[i];
 		if (urb) {
-			usb_buffer_free(urb->dev,
+			usb_free_coherent(urb->dev,
 					urb->transfer_buffer_length,
 					urb->transfer_buffer,
 					urb->transfer_dma);

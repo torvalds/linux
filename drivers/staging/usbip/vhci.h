@@ -18,7 +18,7 @@
  */
 
 #include <linux/platform_device.h>
-#include "../../usb/core/hcd.h"
+#include <linux/usb/hcd.h>
 
 
 struct vhci_device {

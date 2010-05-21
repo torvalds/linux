@@ -1,16 +1,15 @@
-#ifndef __LINUX_HUB_H
-#define __LINUX_HUB_H
-
 /*
- * Hub protocol and driver data structures.
+ * This file holds Hub protocol constants and data structures that are
+ * defined in chapter 11 (Hub Specification) of the USB 2.0 specification.
  *
- * Some of these are known to the "virtual root hub" code
- * in host controller drivers.
+ * It is used/shared between the USB core, the HCDs and couple of other USB
+ * drivers.
  */
 
-#include <linux/list.h>
-#include <linux/workqueue.h>
-#include <linux/compiler.h>	/* likely()/unlikely() */
+#ifndef __LINUX_CH11_H
+#define __LINUX_CH11_H
+
+#include <linux/types.h>	/* __u8 etc */
 
 /*
  * Hub request types
@@ -46,11 +45,7 @@
 #define USB_PORT_FEAT_RESET		4
 #define USB_PORT_FEAT_L1		5	/* L1 suspend */
 #define USB_PORT_FEAT_POWER		8
-#define USB_PORT_FEAT_LOWSPEED		9
-/* This value was never in Table 11-17 */
-#define USB_PORT_FEAT_HIGHSPEED		10
-/* This value is also fake */
-#define USB_PORT_FEAT_SUPERSPEED	11
+#define USB_PORT_FEAT_LOWSPEED		9	/* Should never be used */
 #define USB_PORT_FEAT_C_CONNECTION	16
 #define USB_PORT_FEAT_C_ENABLE		17
 #define USB_PORT_FEAT_C_SUSPEND		18
@@ -86,6 +81,7 @@ struct usb_port_status {
 #define USB_PORT_STAT_TEST              0x0800
 #define USB_PORT_STAT_INDICATOR         0x1000
 /* bits 13 to 15 are reserved */
+#define USB_PORT_STAT_SUPER_SPEED	0x8000	/* Linux-internal */
 
 /*
  * wPortChange bit field
@@ -162,44 +158,10 @@ enum hub_led_mode {
 	INDICATOR_ALT_BLINK, INDICATOR_ALT_BLINK_OFF
 } __attribute__ ((packed));
 
-struct usb_device;
-
 /* Transaction Translator Think Times, in bits */
 #define HUB_TTTT_8_BITS		0x00
 #define HUB_TTTT_16_BITS	0x20
 #define HUB_TTTT_24_BITS	0x40
 #define HUB_TTTT_32_BITS	0x60
 
-/*
- * As of USB 2.0, full/low speed devices are segregated into trees.
- * One type grows from USB 1.1 host controllers (OHCI, UHCI etc).
- * The other type grows from high speed hubs when they connect to
- * full/low speed devices using "Transaction Translators" (TTs).
- *
- * TTs should only be known to the hub driver, and high speed bus
- * drivers (only EHCI for now).  They affect periodic scheduling and
- * sometimes control/bulk error recovery.
- */
-struct usb_tt {
-	struct usb_device	*hub;	/* upstream highspeed hub */
-	int			multi;	/* true means one TT per port */
-	unsigned		think_time;	/* think time in ns */
-
-	/* for control/bulk error recovery (CLEAR_TT_BUFFER) */
-	spinlock_t		lock;
-	struct list_head	clear_list;	/* of usb_tt_clear */
-	struct work_struct	clear_work;
-};
-
-struct usb_tt_clear {
-	struct list_head	clear_list;
-	unsigned		tt;
-	u16			devinfo;
-	struct usb_hcd		*hcd;
-	struct usb_host_endpoint	*ep;
-};
-
-extern int usb_hub_clear_tt_buffer(struct urb *urb);
-extern void usb_ep0_reinit(struct usb_device *);
-
-#endif /* __LINUX_HUB_H */
+#endif /* __LINUX_CH11_H */

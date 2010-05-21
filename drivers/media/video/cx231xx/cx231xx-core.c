@@ -676,11 +676,11 @@ void cx231xx_uninit_isoc(struct cx231xx *dev)
 				usb_unlink_urb(urb);
 
 			if (dev->video_mode.isoc_ctl.transfer_buffer[i]) {
-				usb_buffer_free(dev->udev,
-						urb->transfer_buffer_length,
-						dev->video_mode.isoc_ctl.
-						transfer_buffer[i],
-						urb->transfer_dma);
+				usb_free_coherent(dev->udev,
+						  urb->transfer_buffer_length,
+						  dev->video_mode.isoc_ctl.
+						  transfer_buffer[i],
+						  urb->transfer_dma);
 			}
 			usb_free_urb(urb);
 			dev->video_mode.isoc_ctl.urb[i] = NULL;
@@ -767,8 +767,8 @@ int cx231xx_init_isoc(struct cx231xx *dev, int max_packets,
 		dev->video_mode.isoc_ctl.urb[i] = urb;
 
 		dev->video_mode.isoc_ctl.transfer_buffer[i] =
-		    usb_buffer_alloc(dev->udev, sb_size, GFP_KERNEL,
-				     &urb->transfer_dma);
+		    usb_alloc_coherent(dev->udev, sb_size, GFP_KERNEL,
+				       &urb->transfer_dma);
 		if (!dev->video_mode.isoc_ctl.transfer_buffer[i]) {
 			cx231xx_err("unable to allocate %i bytes for transfer"
 				    " buffer %i%s\n",

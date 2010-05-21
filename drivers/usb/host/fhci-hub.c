@@ -22,9 +22,9 @@
 #include <linux/errno.h>
 #include <linux/io.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/gpio.h>
 #include <asm/qe.h>
-#include "../core/hcd.h"
 #include "fhci.h"
 
 /* virtual root hub specific descriptor */

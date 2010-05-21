@@ -215,7 +215,7 @@ resubmit:
 	return;
 
 free:
-	usb_buffer_free(aru->udev, 64, urb->transfer_buffer, urb->transfer_dma);
+	usb_free_coherent(aru->udev, 64, urb->transfer_buffer, urb->transfer_dma);
 }
 
 static void ar9170_usb_rx_completed(struct urb *urb)
@@ -296,7 +296,7 @@ static int ar9170_usb_alloc_rx_irq_urb(struct ar9170_usb *aru)
 	if (!urb)
 		goto out;
 
-	ibuf = usb_buffer_alloc(aru->udev, 64, GFP_KERNEL, &urb->transfer_dma);
+	ibuf = usb_alloc_coherent(aru->udev, 64, GFP_KERNEL, &urb->transfer_dma);
 	if (!ibuf)
 		goto out;
 
@@ -309,8 +309,8 @@ static int ar9170_usb_alloc_rx_irq_urb(struct ar9170_usb *aru)
 	err = usb_submit_urb(urb, GFP_KERNEL);
 	if (err) {
 		usb_unanchor_urb(urb);
-		usb_buffer_free(aru->udev, 64, urb->transfer_buffer,
-				urb->transfer_dma);
+		usb_free_coherent(aru->udev, 64, urb->transfer_buffer,
+				  urb->transfer_dma);
 	}
 
 out:

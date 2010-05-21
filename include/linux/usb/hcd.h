@@ -126,7 +126,7 @@ struct usb_hcd {
 
 
 #define HCD_BUFFER_POOLS	4
-	struct dma_pool		*pool [HCD_BUFFER_POOLS];
+	struct dma_pool		*pool[HCD_BUFFER_POOLS];
 
 	int			state;
 #	define	__ACTIVE		0x01
@@ -219,12 +219,12 @@ struct hc_driver {
 				struct urb *urb, int status);
 
 	/* hw synch, freeing endpoint resources that urb_dequeue can't */
-	void 	(*endpoint_disable)(struct usb_hcd *hcd,
+	void	(*endpoint_disable)(struct usb_hcd *hcd,
 			struct usb_host_endpoint *ep);
 
 	/* (optional) reset any endpoint state such as sequence number
 	   and current window */
-	void 	(*endpoint_reset)(struct usb_hcd *hcd,
+	void	(*endpoint_reset)(struct usb_hcd *hcd,
 			struct usb_host_endpoint *ep);
 
 	/* root hub support */
@@ -250,21 +250,33 @@ struct hc_driver {
 	int	(*alloc_dev)(struct usb_hcd *, struct usb_device *);
 		/* Called by usb_disconnect to free HC device structures */
 	void	(*free_dev)(struct usb_hcd *, struct usb_device *);
+	/* Change a group of bulk endpoints to support multiple stream IDs */
+	int	(*alloc_streams)(struct usb_hcd *hcd, struct usb_device *udev,
+		struct usb_host_endpoint **eps, unsigned int num_eps,
+		unsigned int num_streams, gfp_t mem_flags);
+	/* Reverts a group of bulk endpoints back to not using stream IDs.
+	 * Can fail if we run out of memory.
+	 */
+	int	(*free_streams)(struct usb_hcd *hcd, struct usb_device *udev,
+		struct usb_host_endpoint **eps, unsigned int num_eps,
+		gfp_t mem_flags);
 
 	/* Bandwidth computation functions */
 	/* Note that add_endpoint() can only be called once per endpoint before
 	 * check_bandwidth() or reset_bandwidth() must be called.
 	 * drop_endpoint() can only be called once per endpoint also.
-	 * A call to xhci_drop_endpoint() followed by a call to xhci_add_endpoint() will
-	 * add the endpoint to the schedule with possibly new parameters denoted by a
-	 * different endpoint descriptor in usb_host_endpoint.
-	 * A call to xhci_add_endpoint() followed by a call to xhci_drop_endpoint() is
-	 * not allowed.
+	 * A call to xhci_drop_endpoint() followed by a call to
+	 * xhci_add_endpoint() will add the endpoint to the schedule with
+	 * possibly new parameters denoted by a different endpoint descriptor
+	 * in usb_host_endpoint.  A call to xhci_add_endpoint() followed by a
+	 * call to xhci_drop_endpoint() is not allowed.
 	 */
 		/* Allocate endpoint resources and add them to a new schedule */
-	int 	(*add_endpoint)(struct usb_hcd *, struct usb_device *, struct usb_host_endpoint *);
+	int	(*add_endpoint)(struct usb_hcd *, struct usb_device *,
+				struct usb_host_endpoint *);
 		/* Drop an endpoint from a new schedule */
-	int 	(*drop_endpoint)(struct usb_hcd *, struct usb_device *, struct usb_host_endpoint *);
+	int	(*drop_endpoint)(struct usb_hcd *, struct usb_device *,
+				 struct usb_host_endpoint *);
 		/* Check that a new hardware configuration, set using
 		 * endpoint_enable and endpoint_disable, does not exceed bus
 		 * bandwidth.  This must be called before any set configuration
@@ -374,7 +386,42 @@ extern void usb_destroy_configuration(struct usb_device *dev);
  * HCD Root Hub support
  */
 
-#include "hub.h"
+#include <linux/usb/ch11.h>
+
+/*
+ * As of USB 2.0, full/low speed devices are segregated into trees.
+ * One type grows from USB 1.1 host controllers (OHCI, UHCI etc).
+ * The other type grows from high speed hubs when they connect to
+ * full/low speed devices using "Transaction Translators" (TTs).
+ *
+ * TTs should only be known to the hub driver, and high speed bus
+ * drivers (only EHCI for now).  They affect periodic scheduling and
+ * sometimes control/bulk error recovery.
+ */
+
+struct usb_device;
+
+struct usb_tt {
+	struct usb_device	*hub;	/* upstream highspeed hub */
+	int			multi;	/* true means one TT per port */
+	unsigned		think_time;	/* think time in ns */
+
+	/* for control/bulk error recovery (CLEAR_TT_BUFFER) */
+	spinlock_t		lock;
+	struct list_head	clear_list;	/* of usb_tt_clear */
+	struct work_struct	clear_work;
+};
+
+struct usb_tt_clear {
+	struct list_head	clear_list;
+	unsigned		tt;
+	u16			devinfo;
+	struct usb_hcd		*hcd;
+	struct usb_host_endpoint	*ep;
+};
+
+extern int usb_hub_clear_tt_buffer(struct urb *urb);
+extern void usb_ep0_reinit(struct usb_device *);
 
 /* (shifted) direction/type/recipient from the USB 2.0 spec, table 9.2 */
 #define DeviceRequest \
@@ -439,8 +486,8 @@ extern void usb_destroy_configuration(struct usb_device *dev);
 #define HS_NSECS_ISO(bytes) (((38 * 8 * 2083) \
 	+ (2083UL * (3 + BitTime(bytes))))/1000 \
 	+ USB2_HOST_DELAY)
-#define HS_USECS(bytes) NS_TO_US (HS_NSECS(bytes))
-#define HS_USECS_ISO(bytes) NS_TO_US (HS_NSECS_ISO(bytes))
+#define HS_USECS(bytes)		NS_TO_US(HS_NSECS(bytes))
+#define HS_USECS_ISO(bytes)	NS_TO_US(HS_NSECS_ISO(bytes))
 
 extern long usb_calc_bus_time(int speed, int is_input,
 			int isoc, int bytecount);
@@ -551,7 +598,7 @@ static inline void usbmon_urb_complete(struct usb_bus *bus, struct urb *urb,
 
 /* hub.h ... DeviceRemovable in 2.4.2-ac11, gone in 2.4.10 */
 /* bleech -- resurfaced in 2.4.11 or 2.4.12 */
-#define bitmap 	DeviceRemovable
+#define bitmap	DeviceRemovable
 
 
 /*-------------------------------------------------------------------------*/

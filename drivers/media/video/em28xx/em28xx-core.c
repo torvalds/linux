@@ -970,7 +970,7 @@ void em28xx_uninit_isoc(struct em28xx *dev)
 				usb_unlink_urb(urb);
 
 			if (dev->isoc_ctl.transfer_buffer[i]) {
-				usb_buffer_free(dev->udev,
+				usb_free_coherent(dev->udev,
 					urb->transfer_buffer_length,
 					dev->isoc_ctl.transfer_buffer[i],
 					urb->transfer_dma);
@@ -1045,7 +1045,7 @@ int em28xx_init_isoc(struct em28xx *dev, int max_packets,
 		}
 		dev->isoc_ctl.urb[i] = urb;
 
-		dev->isoc_ctl.transfer_buffer[i] = usb_buffer_alloc(dev->udev,
+		dev->isoc_ctl.transfer_buffer[i] = usb_alloc_coherent(dev->udev,
 			sb_size, GFP_KERNEL, &urb->transfer_dma);
 		if (!dev->isoc_ctl.transfer_buffer[i]) {
 			em28xx_err("unable to allocate %i bytes for transfer"

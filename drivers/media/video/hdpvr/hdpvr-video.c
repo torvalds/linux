@@ -92,8 +92,8 @@ static int hdpvr_free_queue(struct list_head *q)
 		buf = list_entry(p, struct hdpvr_buffer, buff_list);
 
 		urb = buf->urb;
-		usb_buffer_free(urb->dev, urb->transfer_buffer_length,
-				urb->transfer_buffer, urb->transfer_dma);
+		usb_free_coherent(urb->dev, urb->transfer_buffer_length,
+				  urb->transfer_buffer, urb->transfer_dma);
 		usb_free_urb(urb);
 		tmp = p->next;
 		list_del(p);
@@ -143,8 +143,8 @@ int hdpvr_alloc_buffers(struct hdpvr_device *dev, uint count)
 		}
 		buf->urb = urb;
 
-		mem = usb_buffer_alloc(dev->udev, dev->bulk_in_size, GFP_KERNEL,
-				       &urb->transfer_dma);
+		mem = usb_alloc_coherent(dev->udev, dev->bulk_in_size, GFP_KERNEL,
+					 &urb->transfer_dma);
 		if (!mem) {
 			v4l2_err(&dev->v4l2_dev,
 				 "cannot allocate usb transfer buffer\n");

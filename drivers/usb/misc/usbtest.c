@@ -202,7 +202,7 @@ static struct urb *simple_alloc_urb (
 	urb->transfer_flags = URB_NO_TRANSFER_DMA_MAP;
 	if (usb_pipein (pipe))
 		urb->transfer_flags |= URB_SHORT_NOT_OK;
-	urb->transfer_buffer = usb_buffer_alloc (udev, bytes, GFP_KERNEL,
+	urb->transfer_buffer = usb_alloc_coherent (udev, bytes, GFP_KERNEL,
 			&urb->transfer_dma);
 	if (!urb->transfer_buffer) {
 		usb_free_urb (urb);
@@ -272,8 +272,8 @@ static inline int simple_check_buf(struct usbtest_dev *tdev, struct urb *urb)
 
 static void simple_free_urb (struct urb *urb)
 {
-	usb_buffer_free (urb->dev, urb->transfer_buffer_length,
-			urb->transfer_buffer, urb->transfer_dma);
+	usb_free_coherent(urb->dev, urb->transfer_buffer_length,
+			  urb->transfer_buffer, urb->transfer_dma);
 	usb_free_urb (urb);
 }
 
@@ -977,15 +977,13 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 		if (!u)
 			goto cleanup;
 
-		reqp = usb_buffer_alloc (udev, sizeof *reqp, GFP_KERNEL,
-				&u->setup_dma);
+		reqp = kmalloc(sizeof *reqp, GFP_KERNEL);
 		if (!reqp)
 			goto cleanup;
 		reqp->setup = req;
 		reqp->number = i % NUM_SUBCASES;
 		reqp->expected = expected;
 		u->setup_packet = (char *) &reqp->setup;
-		u->transfer_flags |= URB_NO_SETUP_DMA_MAP;
 
 		u->context = &context;
 		u->complete = ctrl_complete;
@@ -1017,10 +1015,7 @@ cleanup:
 		if (!urb [i])
 			continue;
 		urb [i]->dev = udev;
-		if (urb [i]->setup_packet)
-			usb_buffer_free (udev, sizeof (struct usb_ctrlrequest),
-					urb [i]->setup_packet,
-					urb [i]->setup_dma);
+		kfree(urb[i]->setup_packet);
 		simple_free_urb (urb [i]);
 	}
 	kfree (urb);
@@ -1421,7 +1416,7 @@ static struct urb *iso_alloc_urb (
 
 	urb->number_of_packets = packets;
 	urb->transfer_buffer_length = bytes;
-	urb->transfer_buffer = usb_buffer_alloc (udev, bytes, GFP_KERNEL,
+	urb->transfer_buffer = usb_alloc_coherent (udev, bytes, GFP_KERNEL,
 			&urb->transfer_dma);
 	if (!urb->transfer_buffer) {
 		usb_free_urb (urb);

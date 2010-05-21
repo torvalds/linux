@@ -32,16 +32,10 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <asm/mach-types.h>
-#include <mach/hardware.h>
 #include <plat/mux.h>
 
 #include "musb_core.h"
 #include "omap2430.h"
-
-#ifdef CONFIG_ARCH_OMAP3430
-#define	get_cpu_rev()	2
-#endif
 
 
 static struct timer_list musb_idle_timer;
@@ -145,10 +139,6 @@ void musb_platform_enable(struct musb *musb)
 void musb_platform_disable(struct musb *musb)
 {
 }
-static void omap_vbus_power(struct musb *musb, int is_on, int sleeping)
-{
-}
-
 static void omap_set_vbus(struct musb *musb, int is_on)
 {
 	u8		devctl;
@@ -199,9 +189,10 @@ int musb_platform_set_mode(struct musb *musb, u8 musb_mode)
 	return 0;
 }
 
-int __init musb_platform_init(struct musb *musb)
+int __init musb_platform_init(struct musb *musb, void *board_data)
 {
 	u32 l;
+	struct omap_musb_board_data *data = board_data;
 
 #if defined(CONFIG_ARCH_OMAP2430)
 	omap_cfg_reg(AE5_2430_USB0HS_STP);
@@ -235,7 +226,15 @@ int __init musb_platform_init(struct musb *musb)
 	musb_writel(musb->mregs, OTG_SYSCONFIG, l);
 
 	l = musb_readl(musb->mregs, OTG_INTERFSEL);
-	l |= ULPI_12PIN;
+
+	if (data->interface_type == MUSB_INTERFACE_UTMI) {
+		/* OMAP4 uses Internal PHY GS70 which uses UTMI interface */
+		l &= ~ULPI_12PIN;       /* Disable ULPI */
+		l |= UTMI_8BIT;         /* Enable UTMI  */
+	} else {
+		l |= ULPI_12PIN;
+	}
+
 	musb_writel(musb->mregs, OTG_INTERFSEL, l);
 
 	pr_debug("HS USB OTG: revision 0x%x, sysconfig 0x%02x, "
@@ -245,8 +244,6 @@ int __init musb_platform_init(struct musb *musb)
 			musb_readl(musb->mregs, OTG_SYSSTATUS),
 			musb_readl(musb->mregs, OTG_INTERFSEL),
 			musb_readl(musb->mregs, OTG_SIMENABLE));
-
-	omap_vbus_power(musb, musb->board_mode == MUSB_HOST, 1);
 
 	if (is_host_enabled(musb))
 		musb->board_set_vbus = omap_set_vbus;
@@ -272,7 +269,7 @@ void musb_platform_restore_context(struct musb *musb,
 }
 #endif
 
-int musb_platform_suspend(struct musb *musb)
+static int musb_platform_suspend(struct musb *musb)
 {
 	u32 l;
 
@@ -326,8 +323,6 @@ static int musb_platform_resume(struct musb *musb)
 
 int musb_platform_exit(struct musb *musb)
 {
-
-	omap_vbus_power(musb, 0 /*off*/, 1);
 
 	musb_platform_suspend(musb);
 

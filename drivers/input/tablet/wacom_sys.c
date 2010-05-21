@@ -465,8 +465,8 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 		goto fail1;
 	}
 
-	wacom_wac->data = usb_buffer_alloc(dev, WACOM_PKGLEN_MAX,
-					   GFP_KERNEL, &wacom->data_dma);
+	wacom_wac->data = usb_alloc_coherent(dev, WACOM_PKGLEN_MAX,
+					     GFP_KERNEL, &wacom->data_dma);
 	if (!wacom_wac->data) {
 		error = -ENOMEM;
 		goto fail1;
@@ -536,7 +536,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
  fail4:	wacom_remove_shared_data(wacom_wac);
  fail3:	usb_free_urb(wacom->irq);
- fail2:	usb_buffer_free(dev, WACOM_PKGLEN_MAX, wacom_wac->data, wacom->data_dma);
+ fail2:	usb_free_coherent(dev, WACOM_PKGLEN_MAX, wacom_wac->data, wacom->data_dma);
  fail1:	input_free_device(input_dev);
 	kfree(wacom);
 	return error;
@@ -551,7 +551,7 @@ static void wacom_disconnect(struct usb_interface *intf)
 	usb_kill_urb(wacom->irq);
 	input_unregister_device(wacom->wacom_wac.input);
 	usb_free_urb(wacom->irq);
-	usb_buffer_free(interface_to_usbdev(intf), WACOM_PKGLEN_MAX,
+	usb_free_coherent(interface_to_usbdev(intf), WACOM_PKGLEN_MAX,
 			wacom->wacom_wac.data, wacom->data_dma);
 	wacom_remove_shared_data(&wacom->wacom_wac);
 	kfree(wacom);

@@ -155,7 +155,7 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 		goto fail1;
 	}
 
-	acecad->data = usb_buffer_alloc(dev, 8, GFP_KERNEL, &acecad->data_dma);
+	acecad->data = usb_alloc_coherent(dev, 8, GFP_KERNEL, &acecad->data_dma);
 	if (!acecad->data) {
 		err= -ENOMEM;
 		goto fail1;
@@ -235,7 +235,7 @@ static int usb_acecad_probe(struct usb_interface *intf, const struct usb_device_
 
 	return 0;
 
- fail2:	usb_buffer_free(dev, 8, acecad->data, acecad->data_dma);
+ fail2:	usb_free_coherent(dev, 8, acecad->data, acecad->data_dma);
  fail1: input_free_device(input_dev);
 	kfree(acecad);
 	return err;
@@ -249,7 +249,7 @@ static void usb_acecad_disconnect(struct usb_interface *intf)
 
 	input_unregister_device(acecad->input);
 	usb_free_urb(acecad->irq);
-	usb_buffer_free(acecad->usbdev, 8, acecad->data, acecad->data_dma);
+	usb_free_coherent(acecad->usbdev, 8, acecad->data, acecad->data_dma);
 	kfree(acecad);
 }
 

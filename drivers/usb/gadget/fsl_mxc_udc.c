@@ -50,12 +50,14 @@ int fsl_udc_clk_init(struct platform_device *pdev)
 		goto egusb;
 	}
 
-	freq = clk_get_rate(mxc_usb_clk);
-	if (pdata->phy_mode != FSL_USB2_PHY_ULPI &&
-	    (freq < 59999000 || freq > 60001000)) {
-		dev_err(&pdev->dev, "USB_CLK=%lu, should be 60MHz\n", freq);
-		ret = -EINVAL;
-		goto eclkrate;
+	if (!cpu_is_mx51()) {
+		freq = clk_get_rate(mxc_usb_clk);
+		if (pdata->phy_mode != FSL_USB2_PHY_ULPI &&
+		    (freq < 59999000 || freq > 60001000)) {
+			dev_err(&pdev->dev, "USB_CLK=%lu, should be 60MHz\n", freq);
+			ret = -EINVAL;
+			goto eclkrate;
+		}
 	}
 
 	ret = clk_enable(mxc_usb_clk);

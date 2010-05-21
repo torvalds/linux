@@ -58,9 +58,7 @@
 #include <linux/mutex.h>
 #include <linux/kref.h>
 #include <linux/workqueue.h>
-/* FIXME: Yes, I know: BAD--it's not my fault the USB HC iface is not
- *        public */
-#include <linux/../../drivers/usb/core/hcd.h>
+#include <linux/usb/hcd.h>
 #include <linux/uwb.h>
 #include <linux/usb/wusb.h>
 

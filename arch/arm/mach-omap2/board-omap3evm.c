@@ -702,6 +702,9 @@ static void __init omap3_evm_init(void)
 		omap_mux_init_gpio(21, OMAP_PIN_INPUT_PULLUP);
 		ehci_pdata.reset_gpio_port[1] = 21;
 
+		/* EVM REV >= E can supply 500mA with EXTVBUS programming */
+		musb_board_data.power = 500;
+		musb_board_data.extvbus = 1;
 	} else {
 		/* setup EHCI phy reset on MDC */
 		omap_mux_init_gpio(135, OMAP_PIN_OUTPUT);

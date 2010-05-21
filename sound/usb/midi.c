@@ -1048,8 +1048,8 @@ static struct snd_rawmidi_ops snd_usbmidi_input_ops = {
 static void free_urb_and_buffer(struct snd_usb_midi *umidi, struct urb *urb,
 				unsigned int buffer_length)
 {
-	usb_buffer_free(umidi->dev, buffer_length,
-			urb->transfer_buffer, urb->transfer_dma);
+	usb_free_coherent(umidi->dev, buffer_length,
+			  urb->transfer_buffer, urb->transfer_dma);
 	usb_free_urb(urb);
 }
 
@@ -1100,8 +1100,8 @@ static int snd_usbmidi_in_endpoint_create(struct snd_usb_midi* umidi,
 		pipe = usb_rcvbulkpipe(umidi->dev, ep_info->in_ep);
 	length = usb_maxpacket(umidi->dev, pipe, 0);
 	for (i = 0; i < INPUT_URBS; ++i) {
-		buffer = usb_buffer_alloc(umidi->dev, length, GFP_KERNEL,
-					  &ep->urbs[i]->transfer_dma);
+		buffer = usb_alloc_coherent(umidi->dev, length, GFP_KERNEL,
+					    &ep->urbs[i]->transfer_dma);
 		if (!buffer) {
 			snd_usbmidi_in_endpoint_delete(ep);
 			return -ENOMEM;
@@ -1191,9 +1191,9 @@ static int snd_usbmidi_out_endpoint_create(struct snd_usb_midi* umidi,
 		break;
 	}
 	for (i = 0; i < OUTPUT_URBS; ++i) {
-		buffer = usb_buffer_alloc(umidi->dev,
-					  ep->max_transfer, GFP_KERNEL,
-					  &ep->urbs[i].urb->transfer_dma);
+		buffer = usb_alloc_coherent(umidi->dev,
+					    ep->max_transfer, GFP_KERNEL,
+					    &ep->urbs[i].urb->transfer_dma);
 		if (!buffer) {
 			snd_usbmidi_out_endpoint_delete(ep);
 			return -ENOMEM;

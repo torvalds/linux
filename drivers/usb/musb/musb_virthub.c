@@ -183,8 +183,8 @@ static void musb_port_reset(struct musb *musb, bool do_reset)
 
 void musb_root_disconnect(struct musb *musb)
 {
-	musb->port1_status = (1 << USB_PORT_FEAT_POWER)
-			| (1 << USB_PORT_FEAT_C_CONNECTION);
+	musb->port1_status = USB_PORT_STAT_POWER
+			| (USB_PORT_STAT_C_CONNECTION << 16);
 
 	usb_hcd_poll_rh_status(musb_to_hcd(musb));
 	musb->is_active = 0;
