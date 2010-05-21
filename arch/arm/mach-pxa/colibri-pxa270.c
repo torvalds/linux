@@ -54,6 +54,10 @@ static mfp_cfg_t colibri_pxa270_pin_config[] __initdata = {
 	GPIO111_MMC_DAT_3,
 	GPIO112_MMC_CMD,
 	GPIO0_GPIO,	/* SD detect */
+
+	/* FFUART */
+	GPIO39_FFUART_TXD,
+	GPIO34_FFUART_RXD,
 };
 
 /******************************************************************************
