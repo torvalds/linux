@@ -25,10 +25,10 @@
 #include "sort.h"
 
 extern regex_t parent_regex;
-extern char *sort_order;
-extern char default_parent_pattern[];
-extern char *parent_pattern;
-extern char default_sort_order[];
+extern const char *sort_order;
+extern const char default_parent_pattern[];
+extern const char *parent_pattern;
+extern const char default_sort_order[];
 extern int sort__need_collapse;
 extern int sort__has_parent;
 extern char *field_sep;

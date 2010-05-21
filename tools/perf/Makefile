@@ -558,15 +558,19 @@ else
 endif # PERF_HAVE_DWARF_REGS
 endif # NO_DWARF
 
+ifdef NO_NEWT
+	BASIC_CFLAGS += -DNO_NEWT_SUPPORT
+else
 ifneq ($(shell sh -c "(echo '\#include <newt.h>'; echo 'int main(void) { newtInit(); newtCls(); return newtFinished(); }') | $(CC) -x c - $(ALL_CFLAGS) -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -lnewt -o $(BITBUCKET) $(ALL_LDFLAGS) $(EXTLIBS) "$(QUIET_STDERR)" && echo y"), y)
 	msg := $(warning newt not found, disables TUI support. Please install newt-devel or libnewt-dev);
 	BASIC_CFLAGS += -DNO_NEWT_SUPPORT
 else
 	# Fedora has /usr/include/slang/slang.h, but ubuntu /usr/include/slang.h
 	BASIC_CFLAGS += -I/usr/include/slang
-	EXTLIBS += -lnewt
+	EXTLIBS += -lnewt -lslang
 	LIB_OBJS += $(OUTPUT)util/newt.o
 endif
+endif # NO_NEWT
 
 ifndef NO_LIBPERL
 PERL_EMBED_LDOPTS = `perl -MExtUtils::Embed -e ldopts 2>/dev/null`

@@ -78,7 +78,7 @@ struct symbol_conf {
 			*default_guest_kallsyms,
 			*default_guest_modules;
 	const char	*guestmount;
-	char		*dso_list_str,
+	const char	*dso_list_str,
 			*comm_list_str,
 			*sym_list_str,
 			*col_width_list_str;
@@ -170,6 +170,7 @@ int machine__load_vmlinux_path(struct machine *self, enum map_type type,
 
 size_t __dsos__fprintf(struct list_head *head, FILE *fp);
 
+size_t machine__fprintf_dsos_buildid(struct machine *self, FILE *fp, bool with_hits);
 size_t machines__fprintf_dsos(struct rb_root *self, FILE *fp);
 size_t machines__fprintf_dsos_buildid(struct rb_root *self, FILE *fp, bool with_hits);
 

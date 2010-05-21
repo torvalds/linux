@@ -674,6 +674,7 @@ static struct zorro_device_id a2065_zorro_tbl[] __devinitdata = {
 	{ ZORRO_PROD_AMERISTAR_A2065 },
 	{ 0 }
 };
+MODULE_DEVICE_TABLE(zorro, a2065_zorro_tbl);
 
 static struct zorro_driver a2065_driver = {
 	.name		= "a2065",

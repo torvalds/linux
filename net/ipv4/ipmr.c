@@ -754,7 +754,8 @@ ipmr_cache_unresolved(struct net *net, vifi_t vifi, struct sk_buff *skb)
 		c->next = mfc_unres_queue;
 		mfc_unres_queue = c;
 
-		mod_timer(&ipmr_expire_timer, c->mfc_un.unres.expires);
+		if (atomic_read(&net->ipv4.cache_resolve_queue_len) == 1)
+			mod_timer(&ipmr_expire_timer, c->mfc_un.unres.expires);
 	}
 
 	/*

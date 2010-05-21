@@ -294,7 +294,6 @@ static int __cpuinit cpu_stop_cpu_callback(struct notifier_block *nfb,
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
 	unsigned int cpu = (unsigned long)hcpu;
 	struct cpu_stopper *stopper = &per_cpu(cpu_stopper, cpu);
-	struct cpu_stop_work *work;
 	struct task_struct *p;
 
 	switch (action & ~CPU_TASKS_FROZEN) {
@@ -323,6 +322,9 @@ static int __cpuinit cpu_stop_cpu_callback(struct notifier_block *nfb,
 #ifdef CONFIG_HOTPLUG_CPU
 	case CPU_UP_CANCELED:
 	case CPU_DEAD:
+	{
+		struct cpu_stop_work *work;
+
 		/* kill the stopper */
 		kthread_stop(stopper->thread);
 		/* drain remaining works */
@@ -335,6 +337,7 @@ static int __cpuinit cpu_stop_cpu_callback(struct notifier_block *nfb,
 		put_task_struct(stopper->thread);
 		stopper->thread = NULL;
 		break;
+	}
 #endif
 	}
 

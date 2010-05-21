@@ -273,16 +273,11 @@ bad_area_nosemaphore:
  * us unable to handle the page fault gracefully.
  */
 out_of_memory:
-	if (current->pid == 1) {
-		yield();
-		down_read(&mm->mmap_sem);
-		goto survive;
-	}
 	up_read(&mm->mmap_sem);
-	printk(KERN_WARNING "VM: killing process %s\n", current->comm);
-	if (user_mode(regs))
-		do_exit(SIGKILL);
-	bad_page_fault(regs, address, SIGKILL);
+	if (!user_mode(regs))
+		bad_page_fault(regs, address, SIGKILL);
+	else
+		pagefault_out_of_memory();
 	return;
 
 do_sigbus:

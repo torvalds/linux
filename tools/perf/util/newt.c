@@ -1,7 +1,15 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #undef _GNU_SOURCE
-
+/*
+ * slang versions <= 2.0.6 have a "#if HAVE_LONG_LONG" that breaks
+ * the build if it isn't defined. Use the equivalent one that glibc
+ * has on features.h.
+ */
+#include <features.h>
+#ifndef HAVE_LONG_LONG
+#define HAVE_LONG_LONG __GLIBC_HAVE_LONG_LONG
+#endif
 #include <slang.h>
 #include <stdlib.h>
 #include <newt.h>
@@ -13,6 +21,17 @@
 #include "session.h"
 #include "sort.h"
 #include "symbol.h"
+
+#if SLANG_VERSION < 20104
+#define slsmg_printf(msg, args...) SLsmg_printf((char *)msg, ##args)
+#define slsmg_write_nstring(msg, len) SLsmg_write_nstring((char *)msg, len)
+#define sltt_set_color(obj, name, fg, bg) SLtt_set_color(obj,(char *)name,\
+							 (char *)fg, (char *)bg)
+#else
+#define slsmg_printf SLsmg_printf
+#define slsmg_write_nstring SLsmg_write_nstring
+#define sltt_set_color SLtt_set_color
+#endif
 
 struct ui_progress {
 	newtComponent form, scale;
@@ -118,6 +137,7 @@ int browser__show_help(const char *format, va_list ap)
 
 static void newt_form__set_exit_keys(newtComponent self)
 {
+	newtFormAddHotKey(self, NEWT_KEY_LEFT);
 	newtFormAddHotKey(self, NEWT_KEY_ESCAPE);
 	newtFormAddHotKey(self, 'Q');
 	newtFormAddHotKey(self, 'q');
@@ -161,6 +181,48 @@ static int popup_menu(int argc, char * const argv[])
 	if (es.reason == NEWT_EXIT_HOTKEY)
 		rc = -1;
 	newtPopWindow();
+out_destroy_form:
+	newtFormDestroy(form);
+	return rc;
+}
+
+static int ui__help_window(const char *text)
+{
+	struct newtExitStruct es;
+	newtComponent tb, form = newt_form__new();
+	int rc = -1;
+	int max_len = 0, nr_lines = 0;
+	const char *t;
+
+	if (form == NULL)
+		return -1;
+
+	t = text;
+	while (1) {
+		const char *sep = strchr(t, '\n');
+		int len;
+
+		if (sep == NULL)
+			sep = strchr(t, '\0');
+		len = sep - t;
+		if (max_len < len)
+			max_len = len;
+		++nr_lines;
+		if (*sep == '\0')
+			break;
+		t = sep + 1;
+	}
+
+	tb = newtTextbox(0, 0, max_len, nr_lines, 0);
+	if (tb == NULL)
+		goto out_destroy_form;
+
+	newtTextboxSetText(tb, text);
+	newtFormAddComponent(form, tb);
+	newtCenteredWindow(max_len, nr_lines, NULL);
+	newtFormRun(form, &es);
+	newtPopWindow();
+	rc = 0;
 out_destroy_form:
 	newtFormDestroy(form);
 	return rc;
@@ -249,21 +311,21 @@ static int objdump_line__show(struct objdump_line *self, struct list_head *head,
 
 		color = ui_browser__percent_color(percent, current_entry);
 		SLsmg_set_color(color);
-		SLsmg_printf(" %7.2f ", percent);
+		slsmg_printf(" %7.2f ", percent);
 		if (!current_entry)
 			SLsmg_set_color(HE_COLORSET_CODE);
 	} else {
 		int color = ui_browser__percent_color(0, current_entry);
 		SLsmg_set_color(color);
-		SLsmg_write_nstring(" ", 9);
+		slsmg_write_nstring(" ", 9);
 	}
 
 	SLsmg_write_char(':');
-	SLsmg_write_nstring(" ", 8);
+	slsmg_write_nstring(" ", 8);
 	if (!*self->line)
-		SLsmg_write_nstring(" ", width - 18);
+		slsmg_write_nstring(" ", width - 18);
 	else
-		SLsmg_write_nstring(self->line, width - 18);
+		slsmg_write_nstring(self->line, width - 18);
 
 	return 0;
 }
@@ -321,9 +383,9 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 	newtFormAddHotKey(self->form, NEWT_KEY_DOWN);
 	newtFormAddHotKey(self->form, NEWT_KEY_PGUP);
 	newtFormAddHotKey(self->form, NEWT_KEY_PGDN);
+	newtFormAddHotKey(self->form, ' ');
 	newtFormAddHotKey(self->form, NEWT_KEY_HOME);
 	newtFormAddHotKey(self->form, NEWT_KEY_END);
-	newtFormAddHotKey(self->form, NEWT_KEY_LEFT);
 
 	if (ui_browser__refresh_entries(self) < 0)
 		return -1;
@@ -358,6 +420,7 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 			}
 			break;
 		case NEWT_KEY_PGDN:
+		case ' ':
 			if (self->first_visible_entry_idx + self->height > self->nr_entries - 1)
 				break;
 
@@ -756,8 +819,11 @@ static int hist_browser__populate(struct hist_browser *self, struct hists *hists
 	newtFormAddHotKey(self->form, 'd');
 	newtFormAddHotKey(self->form, 'T');
 	newtFormAddHotKey(self->form, 't');
+	newtFormAddHotKey(self->form, '?');
+	newtFormAddHotKey(self->form, 'H');
+	newtFormAddHotKey(self->form, 'h');
+	newtFormAddHotKey(self->form, NEWT_KEY_F1);
 	newtFormAddHotKey(self->form, NEWT_KEY_RIGHT);
-	newtFormAddHotKey(self->form, NEWT_KEY_LEFT);
 	newtFormAddComponents(self->form, self->tree, NULL);
 	self->selection = newt__symbol_tree_get_current(self->tree);
 
@@ -843,6 +909,9 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 		dso = browser->selection->map ? browser->selection->map->dso : NULL;
 
 		if (es.reason == NEWT_EXIT_HOTKEY) {
+			if (es.u.key == NEWT_KEY_F1)
+				goto do_help;
+
 			switch (toupper(es.u.key)) {
 			case 'A':
 				goto do_annotate;
@@ -850,6 +919,17 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 				goto zoom_dso;
 			case 'T':
 				goto zoom_thread;
+			case 'H':
+			case '?':
+do_help:
+				ui__help_window("->        Zoom into DSO/Threads & Annotate current symbol\n"
+						"<-        Zoom out\n"
+						"a         Annotate current symbol\n"
+						"h/?/F1    Show this window\n"
+						"d         Zoom into current DSO\n"
+						"t         Zoom into current Thread\n"
+						"q/CTRL+C  Exit browser");
+				continue;
 			default:;
 			}
 			if (toupper(es.u.key) == 'Q' ||
@@ -988,23 +1068,26 @@ static struct newtPercentTreeColors {
 void setup_browser(void)
 {
 	struct newtPercentTreeColors *c = &defaultPercentTreeColors;
-	if (!isatty(1))
-		return;
 
-	use_browser = true;
+	if (!isatty(1) || !use_browser) {
+		setup_pager();
+		return;
+	}
+
+	use_browser = 1;
 	newtInit();
 	newtCls();
 	ui_helpline__puts(" ");
-	SLtt_set_color(HE_COLORSET_TOP, NULL, c->topColorFg, c->topColorBg);
-	SLtt_set_color(HE_COLORSET_MEDIUM, NULL, c->mediumColorFg, c->mediumColorBg);
-	SLtt_set_color(HE_COLORSET_NORMAL, NULL, c->normalColorFg, c->normalColorBg);
-	SLtt_set_color(HE_COLORSET_SELECTED, NULL, c->selColorFg, c->selColorBg);
-	SLtt_set_color(HE_COLORSET_CODE, NULL, c->codeColorFg, c->codeColorBg);
+	sltt_set_color(HE_COLORSET_TOP, NULL, c->topColorFg, c->topColorBg);
+	sltt_set_color(HE_COLORSET_MEDIUM, NULL, c->mediumColorFg, c->mediumColorBg);
+	sltt_set_color(HE_COLORSET_NORMAL, NULL, c->normalColorFg, c->normalColorBg);
+	sltt_set_color(HE_COLORSET_SELECTED, NULL, c->selColorFg, c->selColorBg);
+	sltt_set_color(HE_COLORSET_CODE, NULL, c->codeColorFg, c->codeColorBg);
 }
 
 void exit_browser(bool wait_for_ok)
 {
-	if (use_browser) {
+	if (use_browser > 0) {
 		if (wait_for_ok) {
 			char title[] = "Fatal Error", ok[] = "Ok";
 			newtWinMessage(title, ok, browser__last_msg);

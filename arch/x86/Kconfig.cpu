@@ -338,6 +338,10 @@ config X86_F00F_BUG
 	def_bool y
 	depends on M586MMX || M586TSC || M586 || M486 || M386
 
+config X86_INVD_BUG
+	def_bool y
+	depends on M486 || M386
+
 config X86_WP_WORKS_OK
 	def_bool y
 	depends on !M386

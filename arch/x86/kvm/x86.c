@@ -1713,6 +1713,7 @@ static int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 	if (copy_from_user(cpuid_entries, entries,
 			   cpuid->nent * sizeof(struct kvm_cpuid_entry)))
 		goto out_free;
+	vcpu_load(vcpu);
 	for (i = 0; i < cpuid->nent; i++) {
 		vcpu->arch.cpuid_entries[i].function = cpuid_entries[i].function;
 		vcpu->arch.cpuid_entries[i].eax = cpuid_entries[i].eax;
@@ -1730,6 +1731,7 @@ static int kvm_vcpu_ioctl_set_cpuid(struct kvm_vcpu *vcpu,
 	r = 0;
 	kvm_apic_set_version(vcpu);
 	kvm_x86_ops->cpuid_update(vcpu);
+	vcpu_put(vcpu);
 
 out_free:
 	vfree(cpuid_entries);
@@ -1750,9 +1752,11 @@ static int kvm_vcpu_ioctl_set_cpuid2(struct kvm_vcpu *vcpu,
 	if (copy_from_user(&vcpu->arch.cpuid_entries, entries,
 			   cpuid->nent * sizeof(struct kvm_cpuid_entry2)))
 		goto out;
+	vcpu_load(vcpu);
 	vcpu->arch.cpuid_nent = cpuid->nent;
 	kvm_apic_set_version(vcpu);
 	kvm_x86_ops->cpuid_update(vcpu);
+	vcpu_put(vcpu);
 	return 0;
 
 out:

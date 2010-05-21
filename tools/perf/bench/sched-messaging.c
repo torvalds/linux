@@ -256,10 +256,8 @@ static const struct option options[] = {
 		    "Use pipe() instead of socketpair()"),
 	OPT_BOOLEAN('t', "thread", &thread_mode,
 		    "Be multi thread instead of multi process"),
-	OPT_INTEGER('g', "group", &num_groups,
-		    "Specify number of groups"),
-	OPT_INTEGER('l', "loop", &loops,
-		    "Specify number of loops"),
+	OPT_UINTEGER('g', "group", &num_groups, "Specify number of groups"),
+	OPT_UINTEGER('l', "loop", &loops, "Specify number of loops"),
 	OPT_END()
 };
 

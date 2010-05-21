@@ -1601,7 +1601,6 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 			 * There is a small race that "from" or "to" can be
 			 * freed by rmdir, so we use css_tryget().
 			 */
-			rcu_read_lock();
 			from = mc.from;
 			to = mc.to;
 			if (from && css_tryget(&from->css)) {
@@ -1622,7 +1621,6 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 					do_continue = (to == mem_over_limit);
 				css_put(&to->css);
 			}
-			rcu_read_unlock();
 			if (do_continue) {
 				DEFINE_WAIT(wait);
 				prepare_to_wait(&mc.waitq, &wait,

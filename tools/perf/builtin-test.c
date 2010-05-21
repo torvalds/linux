@@ -257,7 +257,7 @@ static const char * const test_usage[] = {
 };
 
 static const struct option test_options[] = {
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INTEGER('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_END()
 };

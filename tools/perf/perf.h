@@ -80,6 +80,7 @@ void get_term_dimensions(struct winsize *ws);
 
 #include "../../include/linux/perf_event.h"
 #include "util/types.h"
+#include <stdbool.h>
 
 /*
  * prctl(PR_TASK_PERF_EVENTS_DISABLE) will (cheaply) disable all
@@ -131,6 +132,6 @@ struct ip_callchain {
 	u64 ips[0];
 };
 
-extern int perf_host, perf_guest;
+extern bool perf_host, perf_guest;
 
 #endif

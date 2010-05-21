@@ -28,19 +28,19 @@
  */
 
 #ifdef CONFIG_SMP
-#define LOCK_PREFIX \
+#define LOCK_PREFIX_HERE \
 		".section .smp_locks,\"a\"\n"	\
-		_ASM_ALIGN "\n"			\
-		_ASM_PTR "661f\n" /* address */	\
+		".balign 4\n"			\
+		".long 671f - .\n" /* offset */	\
 		".previous\n"			\
-		"661:\n\tlock; "
+		"671:"
+
+#define LOCK_PREFIX LOCK_PREFIX_HERE "\n\tlock; "
 
 #else /* ! CONFIG_SMP */
+#define LOCK_PREFIX_HERE ""
 #define LOCK_PREFIX ""
 #endif
-
-/* This must be included *after* the definition of LOCK_PREFIX */
-#include <asm/cpufeature.h>
 
 struct alt_instr {
 	u8 *instr;		/* original instruction */
@@ -94,6 +94,12 @@ static inline int alternatives_text_reserved(void *start, void *end)
       ".section .altinstr_replacement, \"ax\"\n"			\
       "663:\n\t" newinstr "\n664:\n"		/* replacement     */	\
       ".previous"
+
+/*
+ * This must be included *after* the definition of ALTERNATIVE due to
+ * <asm/arch_hweight.h>
+ */
+#include <asm/cpufeature.h>
 
 /*
  * Alternative instructions for different CPU types or capabilities.

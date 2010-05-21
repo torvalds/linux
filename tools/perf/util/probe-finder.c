@@ -668,6 +668,7 @@ static int convert_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 	ret = dwarf_getlocation_addr(&fb_attr, pf->addr, &pf->fb_ops, &nops, 1);
 	if (ret <= 0 || nops == 0) {
 		pf->fb_ops = NULL;
+#if _ELFUTILS_PREREQ(0, 142)
 	} else if (nops == 1 && pf->fb_ops[0].atom == DW_OP_call_frame_cfa &&
 		   pf->cfi != NULL) {
 		Dwarf_Frame *frame;
@@ -677,6 +678,7 @@ static int convert_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 				   (uintmax_t)pf->addr);
 			return -ENOENT;
 		}
+#endif
 	}
 
 	/* Find each argument */
@@ -741,32 +743,36 @@ static int find_lazy_match_lines(struct list_head *head,
 				 const char *fname, const char *pat)
 {
 	char *fbuf, *p1, *p2;
-	int fd, ret, line, nlines = 0;
+	int fd, line, nlines = -1;
 	struct stat st;
 
 	fd = open(fname, O_RDONLY);
 	if (fd < 0) {
 		pr_warning("Failed to open %s: %s\n", fname, strerror(-fd));
-		return fd;
+		return -errno;
 	}
 
-	ret = fstat(fd, &st);
-	if (ret < 0) {
+	if (fstat(fd, &st) < 0) {
 		pr_warning("Failed to get the size of %s: %s\n",
 			   fname, strerror(errno));
-		return ret;
+		nlines = -errno;
+		goto out_close;
 	}
-	fbuf = xmalloc(st.st_size + 2);
-	ret = read(fd, fbuf, st.st_size);
-	if (ret < 0) {
+
+	nlines = -ENOMEM;
+	fbuf = malloc(st.st_size + 2);
+	if (fbuf == NULL)
+		goto out_close;
+	if (read(fd, fbuf, st.st_size) < 0) {
 		pr_warning("Failed to read %s: %s\n", fname, strerror(errno));
-		return ret;
+		nlines = -errno;
+		goto out_free_fbuf;
 	}
-	close(fd);
 	fbuf[st.st_size] = '\n';	/* Dummy line */
 	fbuf[st.st_size + 1] = '\0';
 	p1 = fbuf;
 	line = 1;
+	nlines = 0;
 	while ((p2 = strchr(p1, '\n')) != NULL) {
 		*p2 = '\0';
 		if (strlazymatch(p1, pat)) {
@@ -776,7 +782,10 @@ static int find_lazy_match_lines(struct list_head *head,
 		line++;
 		p1 = p2 + 1;
 	}
+out_free_fbuf:
 	free(fbuf);
+out_close:
+	close(fd);
 	return nlines;
 }
 
@@ -953,11 +962,15 @@ int find_kprobe_trace_events(int fd, struct perf_probe_event *pev,
 	if (!dbg) {
 		pr_warning("No dwarf info found in the vmlinux - "
 			"please rebuild with CONFIG_DEBUG_INFO=y.\n");
+		free(pf.tevs);
+		*tevs = NULL;
 		return -EBADF;
 	}
 
+#if _ELFUTILS_PREREQ(0, 142)
 	/* Get the call frame information from this dwarf */
 	pf.cfi = dwarf_getcfi(dbg);
+#endif
 
 	off = 0;
 	line_list__init(&pf.lcache);

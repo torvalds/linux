@@ -102,6 +102,7 @@ static struct zorro_device_id zorro8390_zorro_tbl[] __devinitdata = {
     { ZORRO_PROD_INDIVIDUAL_COMPUTERS_X_SURF, },
     { 0 }
 };
+MODULE_DEVICE_TABLE(zorro, zorro8390_zorro_tbl);
 
 static struct zorro_driver zorro8390_driver = {
     .name	= "zorro8390",

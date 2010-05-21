@@ -2030,7 +2030,8 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 				continue;
 
 			if (wk->type != IEEE80211_WORK_DIRECT_PROBE &&
-			    wk->type != IEEE80211_WORK_AUTH)
+			    wk->type != IEEE80211_WORK_AUTH &&
+			    wk->type != IEEE80211_WORK_ASSOC)
 				continue;
 
 			if (memcmp(req->bss->bssid, wk->filter_ta, ETH_ALEN))
