@@ -50,8 +50,8 @@ NILFS2 supports the following mount options:
 (*) == default
 
 nobarrier		Disables barriers.
-errors=continue(*)	Keep going on a filesystem error.
-errors=remount-ro	Remount the filesystem read-only on an error.
+errors=continue		Keep going on a filesystem error.
+errors=remount-ro(*)	Remount the filesystem read-only on an error.
 errors=panic		Panic and halt the machine if an error occurs.
 cp=n			Specify the checkpoint-number of the snapshot to be
 			mounted.  Checkpoints and snapshots are listed by lscp
