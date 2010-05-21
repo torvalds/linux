@@ -24,6 +24,7 @@
 
 static u16 control_pbias_offset;
 static u16 control_devconf1_offset;
+static u16 control_mmc1;
 
 #define HSMMC_NAME_LEN	9
 
@@ -42,7 +43,7 @@ static int hsmmc_get_context_loss(struct device *dev)
 #define hsmmc_get_context_loss NULL
 #endif
 
-static void hsmmc1_before_set_reg(struct device *dev, int slot,
+static void omap_hsmmc1_before_set_reg(struct device *dev, int slot,
 				  int power_on, int vdd)
 {
 	u32 reg, prog_io;
@@ -95,7 +96,7 @@ static void hsmmc1_before_set_reg(struct device *dev, int slot,
 	}
 }
 
-static void hsmmc1_after_set_reg(struct device *dev, int slot,
+static void omap_hsmmc1_after_set_reg(struct device *dev, int slot,
 				 int power_on, int vdd)
 {
 	u32 reg;
@@ -115,6 +116,60 @@ static void hsmmc1_after_set_reg(struct device *dev, int slot,
 		reg = omap_ctrl_readl(control_pbias_offset);
 		reg |= (OMAP2_PBIASSPEEDCTRL0 | OMAP2_PBIASLITEPWRDNZ0 |
 			OMAP2_PBIASLITEVMODE0);
+		omap_ctrl_writel(reg, control_pbias_offset);
+	}
+}
+
+static void omap4_hsmmc1_before_set_reg(struct device *dev, int slot,
+				  int power_on, int vdd)
+{
+	u32 reg;
+
+	/*
+	 * Assume we power both OMAP VMMC1 (for CMD, CLK, DAT0..3) and the
+	 * card with Vcc regulator (from twl4030 or whatever).  OMAP has both
+	 * 1.8V and 3.0V modes, controlled by the PBIAS register.
+	 *
+	 * In 8-bit modes, OMAP VMMC1A (for DAT4..7) needs a supply, which
+	 * is most naturally TWL VSIM; those pins also use PBIAS.
+	 *
+	 * FIXME handle VMMC1A as needed ...
+	 */
+	reg = omap_ctrl_readl(control_pbias_offset);
+	reg &= ~(OMAP4_MMC1_PBIASLITE_PWRDNZ | OMAP4_MMC1_PWRDNZ |
+					OMAP4_USBC1_ICUSB_PWRDNZ);
+	omap_ctrl_writel(reg, control_pbias_offset);
+}
+
+static void omap4_hsmmc1_after_set_reg(struct device *dev, int slot,
+				 int power_on, int vdd)
+{
+	u32 reg;
+
+	if (power_on) {
+		reg = omap_ctrl_readl(control_pbias_offset);
+		reg |= OMAP4_MMC1_PBIASLITE_PWRDNZ;
+		if ((1 << vdd) <= MMC_VDD_165_195)
+			reg &= ~OMAP4_MMC1_PBIASLITE_VMODE;
+		else
+			reg |= OMAP4_MMC1_PBIASLITE_VMODE;
+		reg |= (OMAP4_MMC1_PBIASLITE_PWRDNZ | OMAP4_MMC1_PWRDNZ |
+						OMAP4_USBC1_ICUSB_PWRDNZ);
+		omap_ctrl_writel(reg, control_pbias_offset);
+		/* 4 microsec delay for comparator to generate an error*/
+		udelay(4);
+		reg = omap_ctrl_readl(control_pbias_offset);
+		if (reg & OMAP4_MMC1_PBIASLITE_VMODE_ERROR) {
+			pr_err("Pbias Voltage is not same as LDO\n");
+			/* Caution : On VMODE_ERROR Power Down MMC IO */
+			reg &= ~(OMAP4_MMC1_PWRDNZ | OMAP4_USBC1_ICUSB_PWRDNZ);
+			omap_ctrl_writel(reg, control_pbias_offset);
+		}
+	} else {
+		reg = omap_ctrl_readl(control_pbias_offset);
+		 reg |= (OMAP4_MMC1_PBIASLITE_PWRDNZ |
+			OMAP4_MMC1_PBIASLITE_VMODE | OMAP4_MMC1_PWRDNZ |
+			OMAP4_USBC1_ICUSB_PWRDNZ);
 		omap_ctrl_writel(reg, control_pbias_offset);
 	}
 }
@@ -139,6 +194,12 @@ static void hsmmc23_before_set_reg(struct device *dev, int slot,
 	}
 }
 
+static int nop_mmc_set_power(struct device *dev, int slot, int power_on,
+							int vdd)
+{
+	return 0;
+}
+
 static struct omap_mmc_platform_data *hsmmc_data[OMAP34XX_NR_MMC] __initdata;
 
 void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
@@ -146,13 +207,28 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 	struct omap2_hsmmc_info *c;
 	int nr_hsmmc = ARRAY_SIZE(hsmmc_data);
 	int i;
+	u32 reg;
 
-	if (cpu_is_omap2430()) {
-		control_pbias_offset = OMAP243X_CONTROL_PBIAS_LITE;
-		control_devconf1_offset = OMAP243X_CONTROL_DEVCONF1;
+	if (!cpu_is_omap44xx()) {
+		if (cpu_is_omap2430()) {
+			control_pbias_offset = OMAP243X_CONTROL_PBIAS_LITE;
+			control_devconf1_offset = OMAP243X_CONTROL_DEVCONF1;
+		} else {
+			control_pbias_offset = OMAP343X_CONTROL_PBIAS_LITE;
+			control_devconf1_offset = OMAP343X_CONTROL_DEVCONF1;
+		}
 	} else {
-		control_pbias_offset = OMAP343X_CONTROL_PBIAS_LITE;
-		control_devconf1_offset = OMAP343X_CONTROL_DEVCONF1;
+		control_pbias_offset = OMAP44XX_CONTROL_PBIAS_LITE;
+		control_mmc1 = OMAP44XX_CONTROL_MMC1;
+		reg = omap_ctrl_readl(control_mmc1);
+		reg |= (OMAP4_CONTROL_SDMMC1_PUSTRENGTHGRP0 |
+			OMAP4_CONTROL_SDMMC1_PUSTRENGTHGRP1);
+		reg &= ~(OMAP4_CONTROL_SDMMC1_PUSTRENGTHGRP2 |
+			OMAP4_CONTROL_SDMMC1_PUSTRENGTHGRP3);
+		reg |= (OMAP4_CONTROL_SDMMC1_DR0_SPEEDCTRL |
+			OMAP4_CONTROL_SDMMC1_DR1_SPEEDCTRL |
+			OMAP4_CONTROL_SDMMC1_DR2_SPEEDCTRL);
+		omap_ctrl_writel(reg, control_mmc1);
 	}
 
 	for (c = controllers; c->mmc; c++) {
@@ -216,11 +292,27 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 		 */
 		mmc->slots[0].ocr_mask = c->ocr_mask;
 
+		if (cpu_is_omap3517() || cpu_is_omap3505())
+			mmc->slots[0].set_power = nop_mmc_set_power;
+		else
+			mmc->slots[0].features |= HSMMC_HAS_PBIAS;
+
 		switch (c->mmc) {
 		case 1:
-			/* on-chip level shifting via PBIAS0/PBIAS1 */
-			mmc->slots[0].before_set_reg = hsmmc1_before_set_reg;
-			mmc->slots[0].after_set_reg = hsmmc1_after_set_reg;
+			if (mmc->slots[0].features & HSMMC_HAS_PBIAS) {
+				/* on-chip level shifting via PBIAS0/PBIAS1 */
+				if (cpu_is_omap44xx()) {
+					mmc->slots[0].before_set_reg =
+						omap4_hsmmc1_before_set_reg;
+					mmc->slots[0].after_set_reg =
+						omap4_hsmmc1_after_set_reg;
+				} else {
+					mmc->slots[0].before_set_reg =
+						omap_hsmmc1_before_set_reg;
+					mmc->slots[0].after_set_reg =
+						omap_hsmmc1_after_set_reg;
+				}
+			}
 
 			/* Omap3630 HSMMC1 supports only 4-bit */
 			if (cpu_is_omap3630() && c->wires > 4) {
@@ -235,9 +327,11 @@ void __init omap2_hsmmc_init(struct omap2_hsmmc_info *controllers)
 				c->wires = 4;
 			/* FALLTHROUGH */
 		case 3:
-			/* off-chip level shifting, or none */
-			mmc->slots[0].before_set_reg = hsmmc23_before_set_reg;
-			mmc->slots[0].after_set_reg = NULL;
+			if (mmc->slots[0].features & HSMMC_HAS_PBIAS) {
+				/* off-chip level shifting, or none */
+				mmc->slots[0].before_set_reg = hsmmc23_before_set_reg;
+				mmc->slots[0].after_set_reg = NULL;
+			}
 			break;
 		default:
 			pr_err("MMC%d configuration not supported!\n", c->mmc);

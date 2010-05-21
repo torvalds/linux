@@ -20,27 +20,21 @@
 #include <linux/types.h>
 #include <linux/serial_reg.h>
 
+#include <asm/memory.h>
 #include <asm/mach-types.h>
 
 #include <plat/serial.h>
-
-static volatile u8 *uart1_base;
-static int uart1_shift;
 
 static volatile u8 *uart_base;
 static int uart_shift;
 
 /*
- * Store the DEBUG_LL uart number into UART1 scratchpad register.
+ * Store the DEBUG_LL uart number into memory.
  * See also debug-macro.S, and serial.c for related code.
- *
- * Please note that we currently assume that:
- * - UART1 clocks are enabled for register access
- * - UART1 scratchpad register can be used
  */
-static void set_uart1_scratchpad(unsigned char port)
+static void set_omap_uart_info(unsigned char port)
 {
-	uart1_base[UART_SCR << uart1_shift] = port;
+	*(volatile u32 *)OMAP_UART_INFO = port;
 }
 
 static void putc(int c)
@@ -60,42 +54,38 @@ static inline void flush(void)
 /*
  * Macros to configure UART1 and debug UART
  */
-#define _DEBUG_LL_ENTRY(mach, uart1_phys, uart1_shft,			\
-			dbg_uart, dbg_shft, dbg_id)			\
+#define _DEBUG_LL_ENTRY(mach, dbg_uart, dbg_shft, dbg_id)		\
 	if (machine_is_##mach()) {					\
-		uart1_base = (volatile u8 *)(uart1_phys);		\
-		uart1_shift = (uart1_shft);				\
 		uart_base = (volatile u8 *)(dbg_uart);			\
 		uart_shift = (dbg_shft);				\
 		port = (dbg_id);					\
-		set_uart1_scratchpad(port);				\
+		set_omap_uart_info(port);				\
 		break;							\
 	}
 
 #define DEBUG_LL_OMAP7XX(p, mach)					\
-	_DEBUG_LL_ENTRY(mach, OMAP1_UART1_BASE, OMAP7XX_PORT_SHIFT,	\
-		OMAP1_UART##p##_BASE, OMAP7XX_PORT_SHIFT, OMAP1UART##p)
+	_DEBUG_LL_ENTRY(mach, OMAP1_UART##p##_BASE, OMAP7XX_PORT_SHIFT,	\
+		OMAP1UART##p)
 
 #define DEBUG_LL_OMAP1(p, mach)						\
-	_DEBUG_LL_ENTRY(mach, OMAP1_UART1_BASE, OMAP_PORT_SHIFT,	\
-		OMAP1_UART##p##_BASE, OMAP_PORT_SHIFT, OMAP1UART##p)
+	_DEBUG_LL_ENTRY(mach, OMAP1_UART##p##_BASE, OMAP_PORT_SHIFT,	\
+		OMAP1UART##p)
 
 #define DEBUG_LL_OMAP2(p, mach)						\
-	_DEBUG_LL_ENTRY(mach, OMAP2_UART1_BASE, OMAP_PORT_SHIFT,	\
-		OMAP2_UART##p##_BASE, OMAP_PORT_SHIFT, OMAP2UART##p)
+	_DEBUG_LL_ENTRY(mach, OMAP2_UART##p##_BASE, OMAP_PORT_SHIFT,	\
+		OMAP2UART##p)
 
 #define DEBUG_LL_OMAP3(p, mach)						\
-	_DEBUG_LL_ENTRY(mach, OMAP3_UART1_BASE, OMAP_PORT_SHIFT,	\
-		OMAP3_UART##p##_BASE, OMAP_PORT_SHIFT, OMAP3UART##p)
+	_DEBUG_LL_ENTRY(mach, OMAP3_UART##p##_BASE, OMAP_PORT_SHIFT,	\
+		OMAP3UART##p)
 
 #define DEBUG_LL_OMAP4(p, mach)						\
-	_DEBUG_LL_ENTRY(mach, OMAP4_UART1_BASE, OMAP_PORT_SHIFT,	\
-		OMAP4_UART##p##_BASE, OMAP_PORT_SHIFT, OMAP4UART##p)
+	_DEBUG_LL_ENTRY(mach, OMAP4_UART##p##_BASE, OMAP_PORT_SHIFT,	\
+		OMAP4UART##p)
 
 /* Zoom2/3 shift is different for UART1 and external port */
 #define DEBUG_LL_ZOOM(mach)						\
-	_DEBUG_LL_ENTRY(mach, OMAP2_UART1_BASE, OMAP_PORT_SHIFT,	\
-		ZOOM_UART_BASE, ZOOM_PORT_SHIFT, ZOOM_UART)
+	_DEBUG_LL_ENTRY(mach, ZOOM_UART_BASE, ZOOM_PORT_SHIFT, ZOOM_UART)
 
 static inline void __arch_decomp_setup(unsigned long arch_id)
 {

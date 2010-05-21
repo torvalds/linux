@@ -127,7 +127,7 @@ static struct omap_hwmod_ocp_if *omap2430_mpu_masters[] = {
 
 /* MPU */
 static struct omap_hwmod omap2430_mpu_hwmod = {
-	.name		= "mpu_hwmod",
+	.name		= "mpu",
 	.class		= &mpu_hwmod_class,
 	.main_clk	= "mpu_ck",
 	.masters	= omap2430_mpu_masters,

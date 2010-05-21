@@ -428,4 +428,8 @@ void omap3_intc_resume_idle(void);
 
 #include <mach/hardware.h>
 
+#ifdef CONFIG_FIQ
+#define FIQ_START		1024
+#endif
+
 #endif

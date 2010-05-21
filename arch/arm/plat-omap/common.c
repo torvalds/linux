@@ -47,9 +47,6 @@
 struct omap_board_config_kernel *omap_board_config;
 int omap_board_config_size;
 
-/* used by omap-smp.c and board-4430sdp.c */
-void __iomem *gic_cpu_base_addr;
-
 static const void *get_config(u16 tag, size_t len, int skip, size_t *len_out)
 {
 	struct omap_board_config_kernel *kinfo = NULL;
