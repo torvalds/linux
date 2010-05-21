@@ -38,7 +38,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 /* base address register in PCI config space */
 #define SIS96x_BAR 0x04

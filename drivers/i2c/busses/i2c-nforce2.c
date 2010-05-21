@@ -57,7 +57,7 @@
 #include <linux/dmi.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR ("Hans-Frieder Vogt <hfvogt@gmx.net>");
