@@ -1768,6 +1768,14 @@ rb_reset_tail(struct ring_buffer_per_cpu *cpu_buffer,
 	 * must fill the old tail_page with padding.
 	 */
 	if (tail >= BUF_PAGE_SIZE) {
+		/*
+		 * If the page was filled, then we still need
+		 * to update the real_end. Reset it to zero
+		 * and the reader will ignore it.
+		 */
+		if (tail == BUF_PAGE_SIZE)
+			tail_page->real_end = 0;
+
 		local_sub(length, &tail_page->write);
 		return;
 	}
