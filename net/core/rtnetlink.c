@@ -1199,8 +1199,10 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		struct nlattr *attr;
 		int rem;
 		nla_for_each_nested(attr, tb[IFLA_VFINFO_LIST], rem) {
-			if (nla_type(attr) != IFLA_VF_INFO)
+			if (nla_type(attr) != IFLA_VF_INFO) {
+				err = -EINVAL;
 				goto errout;
+			}
 			err = do_setvfinfo(dev, attr);
 			if (err < 0)
 				goto errout;
