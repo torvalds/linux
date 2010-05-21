@@ -263,7 +263,7 @@ static int kone_get_firmware_version(struct usb_device *usb_dev, int *result)
 	return 0;
 }
 
-static ssize_t kone_sysfs_read_settings(struct kobject *kobj,
+static ssize_t kone_sysfs_read_settings(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -287,7 +287,7 @@ static ssize_t kone_sysfs_read_settings(struct kobject *kobj,
  * This function keeps values in kone_device up to date and assumes that in
  * case of error the old data is still valid
  */
-static ssize_t kone_sysfs_write_settings(struct kobject *kobj,
+static ssize_t kone_sysfs_write_settings(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -342,31 +342,31 @@ static ssize_t kone_sysfs_read_profilex(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t kone_sysfs_read_profile1(struct kobject *kobj,
+static ssize_t kone_sysfs_read_profile1(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 1);
 }
 
-static ssize_t kone_sysfs_read_profile2(struct kobject *kobj,
+static ssize_t kone_sysfs_read_profile2(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 2);
 }
 
-static ssize_t kone_sysfs_read_profile3(struct kobject *kobj,
+static ssize_t kone_sysfs_read_profile3(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 3);
 }
 
-static ssize_t kone_sysfs_read_profile4(struct kobject *kobj,
+static ssize_t kone_sysfs_read_profile4(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 4);
 }
 
-static ssize_t kone_sysfs_read_profile5(struct kobject *kobj,
+static ssize_t kone_sysfs_read_profile5(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 5);
@@ -404,31 +404,31 @@ static ssize_t kone_sysfs_write_profilex(struct kobject *kobj,
 	return sizeof(struct kone_profile);
 }
 
-static ssize_t kone_sysfs_write_profile1(struct kobject *kobj,
+static ssize_t kone_sysfs_write_profile1(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 1);
 }
 
-static ssize_t kone_sysfs_write_profile2(struct kobject *kobj,
+static ssize_t kone_sysfs_write_profile2(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 2);
 }
 
-static ssize_t kone_sysfs_write_profile3(struct kobject *kobj,
+static ssize_t kone_sysfs_write_profile3(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 3);
 }
 
-static ssize_t kone_sysfs_write_profile4(struct kobject *kobj,
+static ssize_t kone_sysfs_write_profile4(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 4);
 }
 
-static ssize_t kone_sysfs_write_profile5(struct kobject *kobj,
+static ssize_t kone_sysfs_write_profile5(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 5);
