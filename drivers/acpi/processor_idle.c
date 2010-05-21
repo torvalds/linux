@@ -727,19 +727,9 @@ static int acpi_processor_power_seq_show(struct seq_file *seq, void *offset)
 			break;
 		}
 
-		if (pr->power.states[i].promotion.state)
-			seq_printf(seq, "promotion[C%zd] ",
-				   (pr->power.states[i].promotion.state -
-				    pr->power.states));
-		else
-			seq_puts(seq, "promotion[--] ");
+		seq_puts(seq, "promotion[--] ");
 
-		if (pr->power.states[i].demotion.state)
-			seq_printf(seq, "demotion[C%zd] ",
-				   (pr->power.states[i].demotion.state -
-				    pr->power.states));
-		else
-			seq_puts(seq, "demotion[--] ");
+		seq_puts(seq, "demotion[--] ");
 
 		seq_printf(seq, "latency[%03d] usage[%08d] duration[%020llu]\n",
 			   pr->power.states[i].latency,
