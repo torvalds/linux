@@ -15,6 +15,7 @@
 #include <linux/console.h>
 #include <linux/cpu.h>
 #include <linux/syscalls.h>
+#include <linux/gfp.h>
 
 #include "power.h"
 

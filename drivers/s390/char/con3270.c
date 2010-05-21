@@ -12,6 +12,7 @@
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/reboot.h>
 

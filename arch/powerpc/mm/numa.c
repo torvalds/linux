@@ -242,10 +242,11 @@ EXPORT_SYMBOL_GPL(of_node_to_nid);
  */
 static int __init find_min_common_depth(void)
 {
-	int depth;
+	int depth, index;
 	const unsigned int *ref_points;
 	struct device_node *rtas_root;
 	unsigned int len;
+	struct device_node *options;
 
 	rtas_root = of_find_node_by_path("/rtas");
 
@@ -258,11 +259,23 @@ static int __init find_min_common_depth(void)
 	 * configuration (should be all 0's) and the second is for a normal
 	 * NUMA configuration.
 	 */
+	index = 1;
 	ref_points = of_get_property(rtas_root,
 			"ibm,associativity-reference-points", &len);
 
+	/*
+	 * For type 1 affinity information we want the first field
+	 */
+	options = of_find_node_by_path("/options");
+	if (options) {
+		const char *str;
+		str = of_get_property(options, "ibm,associativity-form", NULL);
+		if (str && !strcmp(str, "1"))
+                        index = 0;
+	}
+
 	if ((len >= 2 * sizeof(unsigned int)) && ref_points) {
-		depth = ref_points[1];
+		depth = ref_points[index];
 	} else {
 		dbg("NUMA: ibm,associativity-reference-points not found.\n");
 		depth = -1;

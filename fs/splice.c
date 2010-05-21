@@ -30,6 +30,7 @@
 #include <linux/syscalls.h>
 #include <linux/uio.h>
 #include <linux/security.h>
+#include <linux/gfp.h>
 
 /*
  * Attempt to steal a page from a pipe buffer. This should perhaps go into

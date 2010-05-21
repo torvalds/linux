@@ -32,6 +32,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/init.h>
 #include <linux/rbtree.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/gen_stats.h>
 

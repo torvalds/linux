@@ -262,7 +262,7 @@ acpi_ds_method_data_get_node(u8 type,
 
 		if (index > ACPI_METHOD_MAX_LOCAL) {
 			ACPI_ERROR((AE_INFO,
-				    "Local index %d is invalid (max %d)",
+				    "Local index %u is invalid (max %u)",
 				    index, ACPI_METHOD_MAX_LOCAL));
 			return_ACPI_STATUS(AE_AML_INVALID_INDEX);
 		}
@@ -276,7 +276,7 @@ acpi_ds_method_data_get_node(u8 type,
 
 		if (index > ACPI_METHOD_MAX_ARG) {
 			ACPI_ERROR((AE_INFO,
-				    "Arg index %d is invalid (max %d)",
+				    "Arg index %u is invalid (max %u)",
 				    index, ACPI_METHOD_MAX_ARG));
 			return_ACPI_STATUS(AE_AML_INVALID_INDEX);
 		}
@@ -287,7 +287,7 @@ acpi_ds_method_data_get_node(u8 type,
 		break;
 
 	default:
-		ACPI_ERROR((AE_INFO, "Type %d is invalid", type));
+		ACPI_ERROR((AE_INFO, "Type %u is invalid", type));
 		return_ACPI_STATUS(AE_TYPE);
 	}
 
@@ -424,7 +424,7 @@ acpi_ds_method_data_get_value(u8 type,
 			case ACPI_REFCLASS_ARG:
 
 				ACPI_ERROR((AE_INFO,
-					    "Uninitialized Arg[%d] at node %p",
+					    "Uninitialized Arg[%u] at node %p",
 					    index, node));
 
 				return_ACPI_STATUS(AE_AML_UNINITIALIZED_ARG);
@@ -440,7 +440,7 @@ acpi_ds_method_data_get_value(u8 type,
 			default:
 
 				ACPI_ERROR((AE_INFO,
-					    "Not a Arg/Local opcode: %X",
+					    "Not a Arg/Local opcode: 0x%X",
 					    type));
 				return_ACPI_STATUS(AE_AML_INTERNAL);
 			}

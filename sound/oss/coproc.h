@@ -4,7 +4,7 @@
  */
 
 /*
- * Coprocessor access types 
+ * Coprocessor access types
  */
 #define COPR_CUSTOM		0x0001	/* Custom applications */
 #define COPR_MIDI		0x0002	/* MIDI (MPU-401) emulation */

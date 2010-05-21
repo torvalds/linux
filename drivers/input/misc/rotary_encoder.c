@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/rotary_encoder.h>
+#include <linux/slab.h>
 
 #define DRV_NAME "rotary-encoder"
 

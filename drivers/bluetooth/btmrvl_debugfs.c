@@ -19,6 +19,7 @@
  **/
 
 #include <linux/debugfs.h>
+#include <linux/slab.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>

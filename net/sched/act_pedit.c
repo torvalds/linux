@@ -17,6 +17,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
 #include <linux/tc_act/tc_pedit.h>
@@ -157,11 +158,13 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 			}
 
 			if (offset % 4) {
-				printk("offset must be on 32 bit boundaries\n");
+				pr_info("tc filter pedit"
+					" offset must be on 32 bit boundaries\n");
 				goto bad;
 			}
 			if (offset > 0 && offset > skb->len) {
-				printk("offset %d cant exceed pkt length %d\n",
+				pr_info("tc filter pedit"
+					" offset %d cant exceed pkt length %d\n",
 				       offset, skb->len);
 				goto bad;
 			}
@@ -175,9 +178,8 @@ static int tcf_pedit(struct sk_buff *skb, struct tc_action *a,
 		if (munged)
 			skb->tc_verd = SET_TC_MUNGED(skb->tc_verd);
 		goto done;
-	} else {
-		printk("pedit BUG: index %d\n", p->tcf_index);
-	}
+	} else
+		WARN(1, "pedit BUG: index %d\n", p->tcf_index);
 
 bad:
 	p->tcf_qstats.overlimits++;

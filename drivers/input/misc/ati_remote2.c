@@ -10,6 +10,7 @@
  */
 
 #include <linux/usb/input.h>
+#include <linux/slab.h>
 
 #define DRIVER_DESC    "ATI/Philips USB RF remote driver"
 #define DRIVER_VERSION "0.3"
@@ -474,10 +475,11 @@ static void ati_remote2_complete_key(struct urb *urb)
 }
 
 static int ati_remote2_getkeycode(struct input_dev *idev,
-				  int scancode, int *keycode)
+				  unsigned int scancode, unsigned int *keycode)
 {
 	struct ati_remote2 *ar2 = input_get_drvdata(idev);
-	int index, mode;
+	unsigned int mode;
+	int index;
 
 	mode = scancode >> 8;
 	if (mode > ATI_REMOTE2_PC || !((1 << mode) & ar2->mode_mask))
@@ -491,10 +493,12 @@ static int ati_remote2_getkeycode(struct input_dev *idev,
 	return 0;
 }
 
-static int ati_remote2_setkeycode(struct input_dev *idev, int scancode, int keycode)
+static int ati_remote2_setkeycode(struct input_dev *idev,
+				  unsigned int scancode, unsigned int keycode)
 {
 	struct ati_remote2 *ar2 = input_get_drvdata(idev);
-	int index, mode, old_keycode;
+	unsigned int mode, old_keycode;
+	int index;
 
 	mode = scancode >> 8;
 	if (mode > ATI_REMOTE2_PC || !((1 << mode) & ar2->mode_mask))
@@ -502,9 +506,6 @@ static int ati_remote2_setkeycode(struct input_dev *idev, int scancode, int keyc
 
 	index = ati_remote2_lookup(scancode & 0xFF);
 	if (index < 0)
-		return -EINVAL;
-
-	if (keycode < KEY_RESERVED || keycode > KEY_MAX)
 		return -EINVAL;
 
 	old_keycode = ar2->keycode[mode][index];
@@ -588,7 +589,7 @@ static int ati_remote2_urb_init(struct ati_remote2 *ar2)
 	int i, pipe, maxp;
 
 	for (i = 0; i < 2; i++) {
-		ar2->buf[i] = usb_buffer_alloc(udev, 4, GFP_KERNEL, &ar2->buf_dma[i]);
+		ar2->buf[i] = usb_alloc_coherent(udev, 4, GFP_KERNEL, &ar2->buf_dma[i]);
 		if (!ar2->buf[i])
 			return -ENOMEM;
 
@@ -616,7 +617,7 @@ static void ati_remote2_urb_cleanup(struct ati_remote2 *ar2)
 
 	for (i = 0; i < 2; i++) {
 		usb_free_urb(ar2->urb[i]);
-		usb_buffer_free(ar2->udev, 4, ar2->buf[i], ar2->buf_dma[i]);
+		usb_free_coherent(ar2->udev, 4, ar2->buf[i], ar2->buf_dma[i]);
 	}
 }
 

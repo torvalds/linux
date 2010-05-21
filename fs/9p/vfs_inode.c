@@ -34,6 +34,7 @@
 #include <linux/namei.h>
 #include <linux/idr.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -431,6 +432,7 @@ error:
 
 static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 {
+	int retval;
 	struct inode *file_inode;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *v9fid;
@@ -444,7 +446,10 @@ static int v9fs_remove(struct inode *dir, struct dentry *file, int rmdir)
 	if (IS_ERR(v9fid))
 		return PTR_ERR(v9fid);
 
-	return p9_client_remove(v9fid);
+	retval = p9_client_remove(v9fid);
+	if (!retval)
+		drop_nlink(file_inode);
+	return retval;
 }
 
 static int
@@ -655,6 +660,9 @@ static struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 
 	P9_DPRINTK(P9_DEBUG_VFS, "dir: %p dentry: (%s) %p nameidata: %p\n",
 		dir, dentry->d_name.name, dentry, nameidata);
+
+	if (dentry->d_name.len > NAME_MAX)
+		return ERR_PTR(-ENAMETOOLONG);
 
 	sb = dir->i_sb;
 	v9ses = v9fs_inode2v9ses(dir);

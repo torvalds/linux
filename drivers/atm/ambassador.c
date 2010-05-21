@@ -36,6 +36,7 @@
 #include <linux/mutex.h>
 #include <linux/firmware.h>
 #include <linux/ihex.h>
+#include <linux/slab.h>
 
 #include <asm/atomic.h>
 #include <asm/io.h>

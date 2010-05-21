@@ -417,8 +417,9 @@ static int radeon_do_wait_for_idle(drm_radeon_private_t * dev_priv)
 	return -EBUSY;
 }
 
-static void radeon_init_pipes(drm_radeon_private_t *dev_priv)
+static void radeon_init_pipes(struct drm_device *dev)
 {
+	drm_radeon_private_t *dev_priv = dev->dev_private;
 	uint32_t gb_tile_config, gb_pipe_sel = 0;
 
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV530) {
@@ -434,13 +435,19 @@ static void radeon_init_pipes(drm_radeon_private_t *dev_priv)
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R420) {
 		gb_pipe_sel = RADEON_READ(R400_GB_PIPE_SELECT);
 		dev_priv->num_gb_pipes = ((gb_pipe_sel >> 12) & 0x3) + 1;
+		/* SE cards have 1 pipe */
+		if ((dev->pdev->device == 0x5e4c) ||
+		    (dev->pdev->device == 0x5e4f))
+			dev_priv->num_gb_pipes = 1;
 	} else {
 		/* R3xx */
-		if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R300) ||
-		    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R350)) {
+		if (((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R300 &&
+		     dev->pdev->device != 0x4144) ||
+		    ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_R350 &&
+		     dev->pdev->device != 0x4148)) {
 			dev_priv->num_gb_pipes = 2;
 		} else {
-			/* R3Vxx */
+			/* RV3xx/R300 AD/R350 AH */
 			dev_priv->num_gb_pipes = 1;
 		}
 	}
@@ -736,7 +743,7 @@ static int radeon_do_engine_reset(struct drm_device * dev)
 
 	/* setup the raster pipes */
 	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R300)
-	    radeon_init_pipes(dev_priv);
+	    radeon_init_pipes(dev);
 
 	/* Reset the CP ring */
 	radeon_do_cp_reset(dev_priv);

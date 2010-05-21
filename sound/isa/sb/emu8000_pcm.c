@@ -20,6 +20,7 @@
 
 #include "emu8000_local.h"
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <sound/initval.h>
 #include <sound/pcm.h>
 

@@ -36,6 +36,7 @@
 #include <linux/lmb.h>
 #include <linux/of_platform.h>
 #include <asm/io.h>
+#include <asm/paca.h>
 #include <asm/prom.h>
 #include <asm/processor.h>
 #include <asm/vdso_datapage.h>
@@ -493,6 +494,8 @@ void __init smp_setup_cpu_maps(void)
 	 * here will have to be reworked
 	 */
 	cpu_init_thread_core_maps(nthreads);
+
+	free_unused_pacas();
 }
 #endif /* CONFIG_SMP */
 

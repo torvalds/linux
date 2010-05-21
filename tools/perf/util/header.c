@@ -99,13 +99,6 @@ int perf_header__add_attr(struct perf_header *self,
 	return 0;
 }
 
-#define MAX_EVENT_NAME 64
-
-struct perf_trace_event_type {
-	u64	event_id;
-	char	name[MAX_EVENT_NAME];
-};
-
 static int event_count;
 static struct perf_trace_event_type *events;
 
@@ -197,7 +190,8 @@ static int write_padded(int fd, const void *bf, size_t count,
 			continue;		\
 		else
 
-static int __dsos__write_buildid_table(struct list_head *head, u16 misc, int fd)
+static int __dsos__write_buildid_table(struct list_head *head, pid_t pid,
+				u16 misc, int fd)
 {
 	struct dso *pos;
 
@@ -212,6 +206,7 @@ static int __dsos__write_buildid_table(struct list_head *head, u16 misc, int fd)
 		len = ALIGN(len, NAME_ALIGN);
 		memset(&b, 0, sizeof(b));
 		memcpy(&b.build_id, pos->build_id, sizeof(pos->build_id));
+		b.pid = pid;
 		b.header.misc = misc;
 		b.header.size = sizeof(b) + len;
 		err = do_write(fd, &b, sizeof(b));
@@ -226,13 +221,32 @@ static int __dsos__write_buildid_table(struct list_head *head, u16 misc, int fd)
 	return 0;
 }
 
-static int dsos__write_buildid_table(int fd)
+static int dsos__write_buildid_table(struct perf_header *header, int fd)
 {
-	int err = __dsos__write_buildid_table(&dsos__kernel,
-					      PERF_RECORD_MISC_KERNEL, fd);
-	if (err == 0)
-		err = __dsos__write_buildid_table(&dsos__user,
-						  PERF_RECORD_MISC_USER, fd);
+	struct perf_session *session = container_of(header,
+			struct perf_session, header);
+	struct rb_node *nd;
+	int err = 0;
+	u16 kmisc, umisc;
+
+	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		if (machine__is_host(pos)) {
+			kmisc = PERF_RECORD_MISC_KERNEL;
+			umisc = PERF_RECORD_MISC_USER;
+		} else {
+			kmisc = PERF_RECORD_MISC_GUEST_KERNEL;
+			umisc = PERF_RECORD_MISC_GUEST_USER;
+		}
+
+		err = __dsos__write_buildid_table(&pos->kernel_dsos, pos->pid,
+						  kmisc, fd);
+		if (err == 0)
+			err = __dsos__write_buildid_table(&pos->user_dsos,
+							  pos->pid, umisc, fd);
+		if (err)
+			break;
+	}
 	return err;
 }
 
@@ -349,9 +363,12 @@ static int __dsos__cache_build_ids(struct list_head *head, const char *debugdir)
 	return err;
 }
 
-static int dsos__cache_build_ids(void)
+static int dsos__cache_build_ids(struct perf_header *self)
 {
-	int err_kernel, err_user;
+	struct perf_session *session = container_of(self,
+			struct perf_session, header);
+	struct rb_node *nd;
+	int ret = 0;
 	char debugdir[PATH_MAX];
 
 	snprintf(debugdir, sizeof(debugdir), "%s/%s", getenv("HOME"),
@@ -360,9 +377,28 @@ static int dsos__cache_build_ids(void)
 	if (mkdir(debugdir, 0755) != 0 && errno != EEXIST)
 		return -1;
 
-	err_kernel = __dsos__cache_build_ids(&dsos__kernel, debugdir);
-	err_user   = __dsos__cache_build_ids(&dsos__user, debugdir);
-	return err_kernel || err_user ? -1 : 0;
+	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		ret |= __dsos__cache_build_ids(&pos->kernel_dsos, debugdir);
+		ret |= __dsos__cache_build_ids(&pos->user_dsos, debugdir);
+	}
+	return ret ? -1 : 0;
+}
+
+static bool dsos__read_build_ids(struct perf_header *self, bool with_hits)
+{
+	bool ret = false;
+	struct perf_session *session = container_of(self,
+			struct perf_session, header);
+	struct rb_node *nd;
+
+	for (nd = rb_first(&session->machines); nd; nd = rb_next(nd)) {
+		struct machine *pos = rb_entry(nd, struct machine, rb_node);
+		ret |= __dsos__read_build_ids(&pos->kernel_dsos, with_hits);
+		ret |= __dsos__read_build_ids(&pos->user_dsos, with_hits);
+	}
+
+	return ret;
 }
 
 static int perf_header__adds_write(struct perf_header *self, int fd)
@@ -373,7 +409,7 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 	u64 sec_start;
 	int idx = 0, err;
 
-	if (dsos__read_build_ids(true))
+	if (dsos__read_build_ids(self, true))
 		perf_header__set_feat(self, HEADER_BUILD_ID);
 
 	nr_sections = bitmap_weight(self->adds_features, HEADER_FEAT_BITS);
@@ -400,7 +436,6 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 		trace_sec->size = lseek(fd, 0, SEEK_CUR) - trace_sec->offset;
 	}
 
-
 	if (perf_header__has_feat(self, HEADER_BUILD_ID)) {
 		struct perf_file_section *buildid_sec;
 
@@ -408,14 +443,14 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 
 		/* Write build-ids */
 		buildid_sec->offset = lseek(fd, 0, SEEK_CUR);
-		err = dsos__write_buildid_table(fd);
+		err = dsos__write_buildid_table(self, fd);
 		if (err < 0) {
 			pr_debug("failed to write buildid table\n");
 			goto out_free;
 		}
 		buildid_sec->size = lseek(fd, 0, SEEK_CUR) -
 					  buildid_sec->offset;
-		dsos__cache_build_ids();
+		dsos__cache_build_ids(self);
 	}
 
 	lseek(fd, sec_start, SEEK_SET);
@@ -425,6 +460,25 @@ static int perf_header__adds_write(struct perf_header *self, int fd)
 out_free:
 	free(feat_sec);
 	return err;
+}
+
+int perf_header__write_pipe(int fd)
+{
+	struct perf_pipe_file_header f_header;
+	int err;
+
+	f_header = (struct perf_pipe_file_header){
+		.magic	   = PERF_MAGIC,
+		.size	   = sizeof(f_header),
+	};
+
+	err = do_write(fd, &f_header, sizeof(f_header));
+	if (err < 0) {
+		pr_debug("failed to write perf pipe header\n");
+		return err;
+	}
+
+	return 0;
 }
 
 int perf_header__write(struct perf_header *self, int fd, bool at_exit)
@@ -518,25 +572,10 @@ int perf_header__write(struct perf_header *self, int fd, bool at_exit)
 	return 0;
 }
 
-static int do_read(int fd, void *buf, size_t size)
-{
-	while (size) {
-		int ret = read(fd, buf, size);
-
-		if (ret <= 0)
-			return -1;
-
-		size -= ret;
-		buf += ret;
-	}
-
-	return 0;
-}
-
 static int perf_header__getbuffer64(struct perf_header *self,
 				    int fd, void *buf, size_t size)
 {
-	if (do_read(fd, buf, size))
+	if (do_read(fd, buf, size) <= 0)
 		return -1;
 
 	if (self->needs_swap)
@@ -592,7 +631,7 @@ int perf_file_header__read(struct perf_file_header *self,
 {
 	lseek(fd, 0, SEEK_SET);
 
-	if (do_read(fd, self, sizeof(*self)) ||
+	if (do_read(fd, self, sizeof(*self)) <= 0 ||
 	    memcmp(&self->magic, __perf_magic, sizeof(self->magic)))
 		return -1;
 
@@ -636,6 +675,93 @@ int perf_file_header__read(struct perf_file_header *self,
 	return 0;
 }
 
+static int __event_process_build_id(struct build_id_event *bev,
+				    char *filename,
+				    struct perf_session *session)
+{
+	int err = -1;
+	struct list_head *head;
+	struct machine *machine;
+	u16 misc;
+	struct dso *dso;
+	enum dso_kernel_type dso_type;
+
+	machine = perf_session__findnew_machine(session, bev->pid);
+	if (!machine)
+		goto out;
+
+	misc = bev->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
+
+	switch (misc) {
+	case PERF_RECORD_MISC_KERNEL:
+		dso_type = DSO_TYPE_KERNEL;
+		head = &machine->kernel_dsos;
+		break;
+	case PERF_RECORD_MISC_GUEST_KERNEL:
+		dso_type = DSO_TYPE_GUEST_KERNEL;
+		head = &machine->kernel_dsos;
+		break;
+	case PERF_RECORD_MISC_USER:
+	case PERF_RECORD_MISC_GUEST_USER:
+		dso_type = DSO_TYPE_USER;
+		head = &machine->user_dsos;
+		break;
+	default:
+		goto out;
+	}
+
+	dso = __dsos__findnew(head, filename);
+	if (dso != NULL) {
+		char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+
+		dso__set_build_id(dso, &bev->build_id);
+
+		if (filename[0] == '[')
+			dso->kernel = dso_type;
+
+		build_id__sprintf(dso->build_id, sizeof(dso->build_id),
+				  sbuild_id);
+		pr_debug("build id event received for %s: %s\n",
+			 dso->long_name, sbuild_id);
+	}
+
+	err = 0;
+out:
+	return err;
+}
+
+static int perf_header__read_build_ids(struct perf_header *self,
+			int input, u64 offset, u64 size)
+{
+	struct perf_session *session = container_of(self,
+			struct perf_session, header);
+	struct build_id_event bev;
+	char filename[PATH_MAX];
+	u64 limit = offset + size;
+	int err = -1;
+
+	while (offset < limit) {
+		ssize_t len;
+
+		if (read(input, &bev, sizeof(bev)) != sizeof(bev))
+			goto out;
+
+		if (self->needs_swap)
+			perf_event_header__bswap(&bev.header);
+
+		len = bev.header.size - sizeof(bev);
+		if (read(input, filename, len) != len)
+			goto out;
+
+		__event_process_build_id(&bev, filename, session);
+
+		offset += bev.header.size;
+	}
+	err = 0;
+out:
+	return err;
+}
+
 static int perf_file_section__process(struct perf_file_section *self,
 				      struct perf_header *ph,
 				      int feat, int fd)
@@ -648,7 +774,7 @@ static int perf_file_section__process(struct perf_file_section *self,
 
 	switch (feat) {
 	case HEADER_TRACE_INFO:
-		trace_report(fd);
+		trace_report(fd, false);
 		break;
 
 	case HEADER_BUILD_ID:
@@ -662,12 +788,55 @@ static int perf_file_section__process(struct perf_file_section *self,
 	return 0;
 }
 
-int perf_header__read(struct perf_header *self, int fd)
+static int perf_file_header__read_pipe(struct perf_pipe_file_header *self,
+				       struct perf_header *ph, int fd,
+				       bool repipe)
 {
+	if (do_read(fd, self, sizeof(*self)) <= 0 ||
+	    memcmp(&self->magic, __perf_magic, sizeof(self->magic)))
+		return -1;
+
+	if (repipe && do_write(STDOUT_FILENO, self, sizeof(*self)) < 0)
+		return -1;
+
+	if (self->size != sizeof(*self)) {
+		u64 size = bswap_64(self->size);
+
+		if (size != sizeof(*self))
+			return -1;
+
+		ph->needs_swap = true;
+	}
+
+	return 0;
+}
+
+static int perf_header__read_pipe(struct perf_session *session, int fd)
+{
+	struct perf_header *self = &session->header;
+	struct perf_pipe_file_header f_header;
+
+	if (perf_file_header__read_pipe(&f_header, self, fd,
+					session->repipe) < 0) {
+		pr_debug("incompatible file format\n");
+		return -EINVAL;
+	}
+
+	session->fd = fd;
+
+	return 0;
+}
+
+int perf_header__read(struct perf_session *session, int fd)
+{
+	struct perf_header *self = &session->header;
 	struct perf_file_header	f_header;
 	struct perf_file_attr	f_attr;
 	u64			f_id;
 	int nr_attrs, nr_ids, i, j;
+
+	if (session->fd_pipe)
+		return perf_header__read_pipe(session, fd);
 
 	if (perf_file_header__read(&f_header, self, fd) < 0) {
 		pr_debug("incompatible file format\n");
@@ -753,6 +922,14 @@ perf_header__find_attr(u64 id, struct perf_header *header)
 {
 	int i;
 
+	/*
+	 * We set id to -1 if the data file doesn't contain sample
+	 * ids. Check for this and avoid walking through the entire
+	 * list of ids which may be large.
+	 */
+	if (id == -1ULL)
+		return NULL;
+
 	for (i = 0; i < header->attrs; i++) {
 		struct perf_header_attr *attr = header->attr[i];
 		int j;
@@ -764,4 +941,232 @@ perf_header__find_attr(u64 id, struct perf_header *header)
 	}
 
 	return NULL;
+}
+
+int event__synthesize_attr(struct perf_event_attr *attr, u16 ids, u64 *id,
+			   event__handler_t process,
+			   struct perf_session *session)
+{
+	event_t *ev;
+	size_t size;
+	int err;
+
+	size = sizeof(struct perf_event_attr);
+	size = ALIGN(size, sizeof(u64));
+	size += sizeof(struct perf_event_header);
+	size += ids * sizeof(u64);
+
+	ev = malloc(size);
+
+	ev->attr.attr = *attr;
+	memcpy(ev->attr.id, id, ids * sizeof(u64));
+
+	ev->attr.header.type = PERF_RECORD_HEADER_ATTR;
+	ev->attr.header.size = size;
+
+	err = process(ev, session);
+
+	free(ev);
+
+	return err;
+}
+
+int event__synthesize_attrs(struct perf_header *self,
+			    event__handler_t process,
+			    struct perf_session *session)
+{
+	struct perf_header_attr	*attr;
+	int i, err = 0;
+
+	for (i = 0; i < self->attrs; i++) {
+		attr = self->attr[i];
+
+		err = event__synthesize_attr(&attr->attr, attr->ids, attr->id,
+					     process, session);
+		if (err) {
+			pr_debug("failed to create perf header attribute\n");
+			return err;
+		}
+	}
+
+	return err;
+}
+
+int event__process_attr(event_t *self, struct perf_session *session)
+{
+	struct perf_header_attr *attr;
+	unsigned int i, ids, n_ids;
+
+	attr = perf_header_attr__new(&self->attr.attr);
+	if (attr == NULL)
+		return -ENOMEM;
+
+	ids = self->header.size;
+	ids -= (void *)&self->attr.id - (void *)self;
+	n_ids = ids / sizeof(u64);
+
+	for (i = 0; i < n_ids; i++) {
+		if (perf_header_attr__add_id(attr, self->attr.id[i]) < 0) {
+			perf_header_attr__delete(attr);
+			return -ENOMEM;
+		}
+	}
+
+	if (perf_header__add_attr(&session->header, attr) < 0) {
+		perf_header_attr__delete(attr);
+		return -ENOMEM;
+	}
+
+	perf_session__update_sample_type(session);
+
+	return 0;
+}
+
+int event__synthesize_event_type(u64 event_id, char *name,
+				 event__handler_t process,
+				 struct perf_session *session)
+{
+	event_t ev;
+	size_t size = 0;
+	int err = 0;
+
+	memset(&ev, 0, sizeof(ev));
+
+	ev.event_type.event_type.event_id = event_id;
+	memset(ev.event_type.event_type.name, 0, MAX_EVENT_NAME);
+	strncpy(ev.event_type.event_type.name, name, MAX_EVENT_NAME - 1);
+
+	ev.event_type.header.type = PERF_RECORD_HEADER_EVENT_TYPE;
+	size = strlen(name);
+	size = ALIGN(size, sizeof(u64));
+	ev.event_type.header.size = sizeof(ev.event_type) -
+		(sizeof(ev.event_type.event_type.name) - size);
+
+	err = process(&ev, session);
+
+	return err;
+}
+
+int event__synthesize_event_types(event__handler_t process,
+				  struct perf_session *session)
+{
+	struct perf_trace_event_type *type;
+	int i, err = 0;
+
+	for (i = 0; i < event_count; i++) {
+		type = &events[i];
+
+		err = event__synthesize_event_type(type->event_id, type->name,
+						   process, session);
+		if (err) {
+			pr_debug("failed to create perf header event type\n");
+			return err;
+		}
+	}
+
+	return err;
+}
+
+int event__process_event_type(event_t *self,
+			      struct perf_session *session __unused)
+{
+	if (perf_header__push_event(self->event_type.event_type.event_id,
+				    self->event_type.event_type.name) < 0)
+		return -ENOMEM;
+
+	return 0;
+}
+
+int event__synthesize_tracing_data(int fd, struct perf_event_attr *pattrs,
+				   int nb_events,
+				   event__handler_t process,
+				   struct perf_session *session __unused)
+{
+	event_t ev;
+	ssize_t size = 0, aligned_size = 0, padding;
+	int err = 0;
+
+	memset(&ev, 0, sizeof(ev));
+
+	ev.tracing_data.header.type = PERF_RECORD_HEADER_TRACING_DATA;
+	size = read_tracing_data_size(fd, pattrs, nb_events);
+	if (size <= 0)
+		return size;
+	aligned_size = ALIGN(size, sizeof(u64));
+	padding = aligned_size - size;
+	ev.tracing_data.header.size = sizeof(ev.tracing_data);
+	ev.tracing_data.size = aligned_size;
+
+	process(&ev, session);
+
+	err = read_tracing_data(fd, pattrs, nb_events);
+	write_padded(fd, NULL, 0, padding);
+
+	return aligned_size;
+}
+
+int event__process_tracing_data(event_t *self,
+				struct perf_session *session)
+{
+	ssize_t size_read, padding, size = self->tracing_data.size;
+	off_t offset = lseek(session->fd, 0, SEEK_CUR);
+	char buf[BUFSIZ];
+
+	/* setup for reading amidst mmap */
+	lseek(session->fd, offset + sizeof(struct tracing_data_event),
+	      SEEK_SET);
+
+	size_read = trace_report(session->fd, session->repipe);
+
+	padding = ALIGN(size_read, sizeof(u64)) - size_read;
+
+	if (read(session->fd, buf, padding) < 0)
+		die("reading input file");
+	if (session->repipe) {
+		int retw = write(STDOUT_FILENO, buf, padding);
+		if (retw <= 0 || retw != padding)
+			die("repiping tracing data padding");
+	}
+
+	if (size_read + padding != size)
+		die("tracing data size mismatch");
+
+	return size_read + padding;
+}
+
+int event__synthesize_build_id(struct dso *pos, u16 misc,
+			       event__handler_t process,
+			       struct machine *machine,
+			       struct perf_session *session)
+{
+	event_t ev;
+	size_t len;
+	int err = 0;
+
+	if (!pos->hit)
+		return err;
+
+	memset(&ev, 0, sizeof(ev));
+
+	len = pos->long_name_len + 1;
+	len = ALIGN(len, NAME_ALIGN);
+	memcpy(&ev.build_id.build_id, pos->build_id, sizeof(pos->build_id));
+	ev.build_id.header.type = PERF_RECORD_HEADER_BUILD_ID;
+	ev.build_id.header.misc = misc;
+	ev.build_id.pid = machine->pid;
+	ev.build_id.header.size = sizeof(ev.build_id) + len;
+	memcpy(&ev.build_id.filename, pos->long_name, pos->long_name_len);
+
+	err = process(&ev, session);
+
+	return err;
+}
+
+int event__process_build_id(event_t *self,
+			    struct perf_session *session)
+{
+	__event_process_build_id(&self->build_id,
+				 self->build_id.filename,
+				 session);
+	return 0;
 }

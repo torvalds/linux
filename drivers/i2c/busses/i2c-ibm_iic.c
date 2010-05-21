@@ -668,12 +668,12 @@ static int __devinit iic_request_irq(struct of_device *ofdev,
 	int irq;
 
 	if (iic_force_poll)
-		return NO_IRQ;
+		return 0;
 
 	irq = irq_of_parse_and_map(np, 0);
-	if (irq == NO_IRQ) {
+	if (!irq) {
 		dev_err(&ofdev->dev, "irq_of_parse_and_map failed\n");
-		return NO_IRQ;
+		return 0;
 	}
 
 	/* Disable interrupts until we finish initialization, assumes
@@ -683,7 +683,7 @@ static int __devinit iic_request_irq(struct of_device *ofdev,
 	if (request_irq(irq, iic_handler, 0, "IBM IIC", dev)) {
 		dev_err(&ofdev->dev, "request_irq %d failed\n", irq);
 		/* Fallback to the polling mode */
-		return NO_IRQ;
+		return 0;
 	}
 
 	return irq;
@@ -719,7 +719,7 @@ static int __devinit iic_probe(struct of_device *ofdev,
 	init_waitqueue_head(&dev->wq);
 
 	dev->irq = iic_request_irq(ofdev, dev);
-	if (dev->irq == NO_IRQ)
+	if (!dev->irq)
 		dev_warn(&ofdev->dev, "using polling mode\n");
 
 	/* Board specific settings */
@@ -766,7 +766,7 @@ static int __devinit iic_probe(struct of_device *ofdev,
 	return 0;
 
 error_cleanup:
-	if (dev->irq != NO_IRQ) {
+	if (dev->irq) {
 		iic_interrupt_mode(dev, 0);
 		free_irq(dev->irq, dev);
 	}
@@ -790,7 +790,7 @@ static int __devexit iic_remove(struct of_device *ofdev)
 
 	i2c_del_adapter(&dev->adap);
 
-	if (dev->irq != NO_IRQ) {
+	if (dev->irq) {
 		iic_interrupt_mode(dev, 0);
 		free_irq(dev->irq, dev);
 	}

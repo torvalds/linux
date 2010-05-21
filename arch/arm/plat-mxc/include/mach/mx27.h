@@ -21,8 +21,12 @@
  * MA  02110-1301, USA.
  */
 
-#ifndef __ASM_ARCH_MXC_MX27_H__
-#define __ASM_ARCH_MXC_MX27_H__
+#ifndef __MACH_MX27_H__
+#define __MACH_MX27_H__
+
+#ifndef __ASSEMBLER__
+#include <linux/io.h>
+#endif
 
 #define MX27_AIPI_BASE_ADDR		0x10000000
 #define MX27_AIPI_BASE_ADDR_VIRT	0xf4000000
@@ -109,10 +113,30 @@
 #define MX27_M3IF_BASE_ADDR			(MX27_X_MEMC_BASE_ADDR + 0x3000)
 #define MX27_PCMCIA_CTL_BASE_ADDR		(MX27_X_MEMC_BASE_ADDR + 0x4000)
 
+#define MX27_WEIM_CSCRx_BASE_ADDR(cs)	(MX27_WEIM_BASE_ADDR + (cs) * 0x10)
+#define MX27_WEIM_CSCRxU(cs)			(MX27_WEIM_CSCRx_BASE_ADDR(cs))
+#define MX27_WEIM_CSCRxL(cs)			(MX27_WEIM_CSCRx_BASE_ADDR(cs) + 0x4)
+#define MX27_WEIM_CSCRxA(cs)			(MX27_WEIM_CSCRx_BASE_ADDR(cs) + 0x8)
+
 #define MX27_PCMCIA_MEM_BASE_ADDR	0xdc000000
 
 /* IRAM */
 #define MX27_IRAM_BASE_ADDR		0xffff4c00	/* internal ram */
+
+#define MX27_IO_ADDRESS(x) (						\
+	IMX_IO_ADDRESS(x, MX27_AIPI) ?:					\
+	IMX_IO_ADDRESS(x, MX27_SAHB1) ?:				\
+	IMX_IO_ADDRESS(x, MX27_X_MEMC))
+
+#ifndef __ASSEMBLER__
+static inline void mx27_setup_weimcs(size_t cs,
+		unsigned upper, unsigned lower, unsigned addional)
+{
+	__raw_writel(upper, MX27_IO_ADDRESS(MX27_WEIM_CSCRxU(cs)));
+	__raw_writel(lower, MX27_IO_ADDRESS(MX27_WEIM_CSCRxL(cs)));
+	__raw_writel(addional, MX27_IO_ADDRESS(MX27_WEIM_CSCRxA(cs)));
+}
+#endif
 
 /* fixed interrupt numbers */
 #define MX27_INT_I2C2		1
@@ -225,6 +249,7 @@
 extern int mx27_revision(void);
 #endif
 
+#ifdef IMX_NEEDS_DEPRECATED_SYMBOLS
 /* these should go away */
 #define MSHC_BASE_ADDR MX27_MSHC_BASE_ADDR
 #define GPT5_BASE_ADDR MX27_GPT5_BASE_ADDR
@@ -292,5 +317,6 @@ extern int mx27_revision(void);
 #define DMA_REQ_UART6_RX MX27_DMA_REQ_UART6_RX
 #define DMA_REQ_SDHC3 MX27_DMA_REQ_SDHC3
 #define DMA_REQ_NFC MX27_DMA_REQ_NFC
+#endif
 
-#endif /* __ASM_ARCH_MXC_MX27_H__ */
+#endif /* ifndef __MACH_MX27_H__ */

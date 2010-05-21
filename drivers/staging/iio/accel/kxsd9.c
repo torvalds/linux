@@ -25,6 +25,7 @@
 #include <linux/sysfs.h>
 #include <linux/rtc.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include "../iio.h"
 #include "../sysfs.h"

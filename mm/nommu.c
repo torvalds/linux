@@ -146,7 +146,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			(VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
 
 	for (i = 0; i < nr_pages; i++) {
-		vma = find_extend_vma(mm, start);
+		vma = find_vma(mm, start);
 		if (!vma)
 			goto finish_or_fault;
 
@@ -162,7 +162,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		}
 		if (vmas)
 			vmas[i] = vma;
-		start += PAGE_SIZE;
+		start = (start + PAGE_SIZE) & PAGE_MASK;
 	}
 
 	return i;
@@ -764,7 +764,7 @@ EXPORT_SYMBOL(find_vma);
  */
 struct vm_area_struct *find_extend_vma(struct mm_struct *mm, unsigned long addr)
 {
-	return find_vma(mm, addr & PAGE_MASK);
+	return find_vma(mm, addr);
 }
 
 /*
@@ -1040,10 +1040,9 @@ static int do_mmap_shared_file(struct vm_area_struct *vma)
 	if (ret != -ENOSYS)
 		return ret;
 
-	/* getting an ENOSYS error indicates that direct mmap isn't
-	 * possible (as opposed to tried but failed) so we'll fall
-	 * through to making a private copy of the data and mapping
-	 * that if we can */
+	/* getting -ENOSYS indicates that direct mmap isn't possible (as
+	 * opposed to tried but failed) so we can only give a suitable error as
+	 * it's not possible to make a private copy if MAP_SHARED was given */
 	return -ENODEV;
 }
 
@@ -1427,6 +1426,30 @@ SYSCALL_DEFINE6(mmap_pgoff, unsigned long, addr, unsigned long, len,
 out:
 	return retval;
 }
+
+#ifdef __ARCH_WANT_SYS_OLD_MMAP
+struct mmap_arg_struct {
+	unsigned long addr;
+	unsigned long len;
+	unsigned long prot;
+	unsigned long flags;
+	unsigned long fd;
+	unsigned long offset;
+};
+
+SYSCALL_DEFINE1(old_mmap, struct mmap_arg_struct __user *, arg)
+{
+	struct mmap_arg_struct a;
+
+	if (copy_from_user(&a, arg, sizeof(a)))
+		return -EFAULT;
+	if (a.offset & ~PAGE_MASK)
+		return -EINVAL;
+
+	return sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd,
+			      a.offset >> PAGE_SHIFT);
+}
+#endif /* __ARCH_WANT_SYS_OLD_MMAP */
 
 /*
  * split a vma into two pieces at address 'addr', a new vma is allocated either

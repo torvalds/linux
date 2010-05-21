@@ -33,6 +33,7 @@
 #include <linux/debugfs.h>
 #include <linux/io.h>
 #include <linux/memory.h>
+#include <linux/gfp.h>
 
 #include <asm/cacheflush.h>
 #include <asm/div64.h>
@@ -1250,9 +1251,7 @@ msmsdcc_resume(struct platform_device *dev)
 
 		if (mmc->card && mmc->card->type != MMC_TYPE_SDIO)
 			mmc_resume_host(mmc);
-			if (host->stat_irq)
-				enable_irq(host->stat_irq);
-		else if (host->stat_irq)
+		if (host->stat_irq)
 			enable_irq(host->stat_irq);
 	}
 	return 0;

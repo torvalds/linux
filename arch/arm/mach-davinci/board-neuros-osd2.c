@@ -31,6 +31,7 @@
 #include <asm/mach/arch.h>
 
 #include <mach/dm644x.h>
+#include <mach/common.h>
 #include <mach/i2c.h>
 #include <mach/serial.h>
 #include <mach/mux.h>
@@ -40,11 +41,6 @@
 
 #define NEUROS_OSD2_PHY_MASK		0x2
 #define NEUROS_OSD2_MDIO_FREQUENCY	2200000 /* PHY bus frequency */
-
-#define DAVINCI_CFC_ATA_BASE		 0x01C66000
-
-#define DAVINCI_ASYNC_EMIF_CONTROL_BASE	 0x01e00000
-#define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE 0x02000000
 
 #define LXT971_PHY_ID			0x001378e2
 #define LXT971_PHY_MASK			0xfffffff0
@@ -60,7 +56,7 @@
 
 #define NAND_BLOCK_SIZE		SZ_128K
 
-struct mtd_partition davinci_ntosd2_nandflash_partition[] = {
+static struct mtd_partition davinci_ntosd2_nandflash_partition[] = {
 	{
 		/* UBL (a few copies) plus U-Boot */
 		.name		= "bootloader",
@@ -98,12 +94,12 @@ static struct davinci_nand_pdata davinci_ntosd2_nandflash_data = {
 
 static struct resource davinci_ntosd2_nandflash_resource[] = {
 	{
-		.start		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE,
-		.end		= DAVINCI_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
+		.start		= DM644X_ASYNC_EMIF_DATA_CE0_BASE,
+		.end		= DM644X_ASYNC_EMIF_DATA_CE0_BASE + SZ_16M - 1,
 		.flags		= IORESOURCE_MEM,
 	}, {
-		.start		= DAVINCI_ASYNC_EMIF_CONTROL_BASE,
-		.end		= DAVINCI_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
+		.start		= DM644X_ASYNC_EMIF_CONTROL_BASE,
+		.end		= DM644X_ASYNC_EMIF_CONTROL_BASE + SZ_4K - 1,
 		.flags		= IORESOURCE_MEM,
 	},
 };
@@ -128,32 +124,6 @@ static struct platform_device davinci_fb_device = {
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 	},
 	.num_resources = 0,
-};
-
-static struct resource ide_resources[] = {
-	{
-		.start		= DAVINCI_CFC_ATA_BASE,
-		.end		= DAVINCI_CFC_ATA_BASE + 0x7ff,
-		.flags		= IORESOURCE_MEM,
-	},
-	{
-		.start		= IRQ_IDE,
-		.end		= IRQ_IDE,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static u64 ide_dma_mask = DMA_BIT_MASK(32);
-
-static struct platform_device ide_dev = {
-	.name		= "palm_bk3710",
-	.id		= -1,
-	.resource	= ide_resources,
-	.num_resources	= ARRAY_SIZE(ide_resources),
-	.dev = {
-		.dma_mask		= &ide_dma_mask,
-		.coherent_dma_mask	= DMA_BIT_MASK(32),
-	},
 };
 
 static struct snd_platform_data dm644x_ntosd2_snd_data;
@@ -259,10 +229,7 @@ static __init void davinci_ntosd2_init(void)
 			pr_warning("WARNING: both IDE and Flash are "
 				"enabled, but they share AEMIF pins.\n"
 				"\tDisable IDE for NAND/NOR support.\n");
-		davinci_cfg_reg(DM644X_HPIEN_DISABLE);
-		davinci_cfg_reg(DM644X_ATAEN);
-		davinci_cfg_reg(DM644X_HDIREN);
-		platform_device_register(&ide_dev);
+		davinci_init_ide();
 	} else if (HAS_NAND) {
 		davinci_cfg_reg(DM644X_HPIEN_DISABLE);
 		davinci_cfg_reg(DM644X_ATAEN_DISABLE);
@@ -306,18 +273,13 @@ static __init void davinci_ntosd2_init(void)
 	davinci_setup_mmc(0, &davinci_ntosd2_mmc_config);
 }
 
-static __init void davinci_ntosd2_irq_init(void)
-{
-	davinci_irq_init();
-}
-
 MACHINE_START(NEUROS_OSD2, "Neuros OSD2")
 	/* Maintainer: Neuros Technologies <neuros@groups.google.com> */
 	.phys_io	= IO_PHYS,
 	.io_pg_offst	= (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params	= (DAVINCI_DDR_BASE + 0x100),
 	.map_io		 = davinci_ntosd2_map_io,
-	.init_irq	= davinci_ntosd2_irq_init,
+	.init_irq	= davinci_irq_init,
 	.timer		= &davinci_timer,
 	.init_machine = davinci_ntosd2_init,
 MACHINE_END

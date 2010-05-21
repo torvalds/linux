@@ -167,7 +167,7 @@ static int vmi_timer_next_event(unsigned long delta,
 {
 	/* Unfortunately, set_next_event interface only passes relative
 	 * expiry, but we want absolute expiry.  It'd be better if were
-	 * were passed an aboslute expiry, since a bunch of time may
+	 * were passed an absolute expiry, since a bunch of time may
 	 * have been stolen between the time the delta is computed and
 	 * when we set the alarm below. */
 	cycle_t now = vmi_timer_ops.get_cycle_counter(vmi_counter(VMI_ONESHOT));

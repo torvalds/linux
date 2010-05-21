@@ -15,6 +15,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/mISDNif.h>
 #include <linux/kthread.h>
 #include <linux/smp_lock.h>

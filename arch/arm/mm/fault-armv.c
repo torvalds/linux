@@ -16,6 +16,7 @@
 #include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/pagemap.h>
+#include <linux/gfp.h>
 
 #include <asm/bugs.h>
 #include <asm/cacheflush.h>
@@ -133,8 +134,6 @@ make_coherent(struct address_space *mapping, struct vm_area_struct *vma,
 	flush_dcache_mmap_unlock(mapping);
 	if (aliases)
 		do_adjust_pte(vma, addr, pfn, ptep);
-	else
-		flush_cache_page(vma, addr, pfn);
 }
 
 /*

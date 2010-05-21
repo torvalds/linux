@@ -47,6 +47,7 @@
 #include <linux/bootmem.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
+#include <linux/slab.h>
 
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>

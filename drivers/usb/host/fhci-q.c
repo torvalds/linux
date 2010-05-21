@@ -19,9 +19,10 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/errno.h>
+#include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/usb.h>
-#include "../core/hcd.h"
+#include <linux/usb/hcd.h>
 #include "fhci.h"
 
 /* maps the hardware error code to the USB error code */

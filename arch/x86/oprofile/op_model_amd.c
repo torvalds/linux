@@ -30,13 +30,10 @@
 #include "op_counter.h"
 
 #define NUM_COUNTERS 4
-#define NUM_CONTROLS 4
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 #define NUM_VIRT_COUNTERS 32
-#define NUM_VIRT_CONTROLS 32
 #else
 #define NUM_VIRT_COUNTERS NUM_COUNTERS
-#define NUM_VIRT_CONTROLS NUM_CONTROLS
 #endif
 
 #define OP_EVENT_MASK			0x0FFF
@@ -45,17 +42,6 @@
 #define MSR_AMD_EVENTSEL_RESERVED	((0xFFFFFCF0ULL<<32)|(1ULL<<21))
 
 static unsigned long reset_value[NUM_VIRT_COUNTERS];
-
-/* IbsFetchCtl bits/masks */
-#define IBS_FETCH_RAND_EN		(1ULL<<57)
-#define IBS_FETCH_VAL			(1ULL<<49)
-#define IBS_FETCH_ENABLE		(1ULL<<48)
-#define IBS_FETCH_CNT_MASK		0xFFFF0000ULL
-
-/* IbsOpCtl bits */
-#define IBS_OP_CNT_CTL			(1ULL<<19)
-#define IBS_OP_VAL			(1ULL<<18)
-#define IBS_OP_ENABLE			(1ULL<<17)
 
 #define IBS_FETCH_SIZE			6
 #define IBS_OP_SIZE			12
@@ -114,102 +100,6 @@ static u32 get_ibs_caps(void)
 		return IBS_CAPS_AVAIL;
 
 	return ibs_caps;
-}
-
-#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
-
-static void op_mux_switch_ctrl(struct op_x86_model_spec const *model,
-			       struct op_msrs const * const msrs)
-{
-	u64 val;
-	int i;
-
-	/* enable active counters */
-	for (i = 0; i < NUM_COUNTERS; ++i) {
-		int virt = op_x86_phys_to_virt(i);
-		if (!reset_value[virt])
-			continue;
-		rdmsrl(msrs->controls[i].addr, val);
-		val &= model->reserved;
-		val |= op_x86_get_ctrl(model, &counter_config[virt]);
-		wrmsrl(msrs->controls[i].addr, val);
-	}
-}
-
-#endif
-
-/* functions for op_amd_spec */
-
-static void op_amd_fill_in_addresses(struct op_msrs * const msrs)
-{
-	int i;
-
-	for (i = 0; i < NUM_COUNTERS; i++) {
-		if (reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i))
-			msrs->counters[i].addr = MSR_K7_PERFCTR0 + i;
-	}
-
-	for (i = 0; i < NUM_CONTROLS; i++) {
-		if (reserve_evntsel_nmi(MSR_K7_EVNTSEL0 + i))
-			msrs->controls[i].addr = MSR_K7_EVNTSEL0 + i;
-	}
-}
-
-static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
-			      struct op_msrs const * const msrs)
-{
-	u64 val;
-	int i;
-
-	/* setup reset_value */
-	for (i = 0; i < NUM_VIRT_COUNTERS; ++i) {
-		if (counter_config[i].enabled
-		    && msrs->counters[op_x86_virt_to_phys(i)].addr)
-			reset_value[i] = counter_config[i].count;
-		else
-			reset_value[i] = 0;
-	}
-
-	/* clear all counters */
-	for (i = 0; i < NUM_CONTROLS; ++i) {
-		if (unlikely(!msrs->controls[i].addr)) {
-			if (counter_config[i].enabled && !smp_processor_id())
-				/*
-				 * counter is reserved, this is on all
-				 * cpus, so report only for cpu #0
-				 */
-				op_x86_warn_reserved(i);
-			continue;
-		}
-		rdmsrl(msrs->controls[i].addr, val);
-		if (val & ARCH_PERFMON_EVENTSEL0_ENABLE)
-			op_x86_warn_in_use(i);
-		val &= model->reserved;
-		wrmsrl(msrs->controls[i].addr, val);
-	}
-
-	/* avoid a false detection of ctr overflows in NMI handler */
-	for (i = 0; i < NUM_COUNTERS; ++i) {
-		if (unlikely(!msrs->counters[i].addr))
-			continue;
-		wrmsrl(msrs->counters[i].addr, -1LL);
-	}
-
-	/* enable active counters */
-	for (i = 0; i < NUM_COUNTERS; ++i) {
-		int virt = op_x86_phys_to_virt(i);
-		if (!reset_value[virt])
-			continue;
-
-		/* setup counter registers */
-		wrmsrl(msrs->counters[i].addr, -(u64)reset_value[virt]);
-
-		/* setup control registers */
-		rdmsrl(msrs->controls[i].addr, val);
-		val &= model->reserved;
-		val |= op_x86_get_ctrl(model, &counter_config[virt]);
-		wrmsrl(msrs->controls[i].addr, val);
-	}
 }
 
 /*
@@ -290,7 +180,7 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 			oprofile_write_commit(&entry);
 
 			/* reenable the IRQ */
-			ctl &= ~(IBS_FETCH_VAL | IBS_FETCH_CNT_MASK);
+			ctl &= ~(IBS_FETCH_VAL | IBS_FETCH_CNT);
 			ctl |= IBS_FETCH_ENABLE;
 			wrmsrl(MSR_AMD64_IBSFETCHCTL, ctl);
 		}
@@ -330,7 +220,7 @@ static inline void op_amd_start_ibs(void)
 		return;
 
 	if (ibs_config.fetch_enabled) {
-		val = (ibs_config.max_cnt_fetch >> 4) & 0xFFFF;
+		val = (ibs_config.max_cnt_fetch >> 4) & IBS_FETCH_MAX_CNT;
 		val |= ibs_config.rand_en ? IBS_FETCH_RAND_EN : 0;
 		val |= IBS_FETCH_ENABLE;
 		wrmsrl(MSR_AMD64_IBSFETCHCTL, val);
@@ -352,7 +242,7 @@ static inline void op_amd_start_ibs(void)
 			 * avoid underflows.
 			 */
 			ibs_op_ctl = min(ibs_op_ctl + IBS_RANDOM_MAXCNT_OFFSET,
-					 0xFFFFULL);
+					 IBS_OP_MAX_CNT);
 		}
 		if (ibs_caps & IBS_CAPS_OPCNT && ibs_config.dispatched_ops)
 			ibs_op_ctl |= IBS_OP_CNT_CTL;
@@ -374,6 +264,125 @@ static void op_amd_stop_ibs(void)
 	if (ibs_config.op_enabled)
 		/* clear max count and enable */
 		wrmsrl(MSR_AMD64_IBSOPCTL, 0);
+}
+
+#ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
+
+static void op_mux_switch_ctrl(struct op_x86_model_spec const *model,
+			       struct op_msrs const * const msrs)
+{
+	u64 val;
+	int i;
+
+	/* enable active counters */
+	for (i = 0; i < NUM_COUNTERS; ++i) {
+		int virt = op_x86_phys_to_virt(i);
+		if (!reset_value[virt])
+			continue;
+		rdmsrl(msrs->controls[i].addr, val);
+		val &= model->reserved;
+		val |= op_x86_get_ctrl(model, &counter_config[virt]);
+		wrmsrl(msrs->controls[i].addr, val);
+	}
+}
+
+#endif
+
+/* functions for op_amd_spec */
+
+static void op_amd_shutdown(struct op_msrs const * const msrs)
+{
+	int i;
+
+	for (i = 0; i < NUM_COUNTERS; ++i) {
+		if (!msrs->counters[i].addr)
+			continue;
+		release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
+		release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
+	}
+}
+
+static int op_amd_fill_in_addresses(struct op_msrs * const msrs)
+{
+	int i;
+
+	for (i = 0; i < NUM_COUNTERS; i++) {
+		if (!reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i))
+			goto fail;
+		if (!reserve_evntsel_nmi(MSR_K7_EVNTSEL0 + i)) {
+			release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
+			goto fail;
+		}
+		/* both registers must be reserved */
+		msrs->counters[i].addr = MSR_K7_PERFCTR0 + i;
+		msrs->controls[i].addr = MSR_K7_EVNTSEL0 + i;
+		continue;
+	fail:
+		if (!counter_config[i].enabled)
+			continue;
+		op_x86_warn_reserved(i);
+		op_amd_shutdown(msrs);
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
+static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
+			      struct op_msrs const * const msrs)
+{
+	u64 val;
+	int i;
+
+	/* setup reset_value */
+	for (i = 0; i < NUM_VIRT_COUNTERS; ++i) {
+		if (counter_config[i].enabled
+		    && msrs->counters[op_x86_virt_to_phys(i)].addr)
+			reset_value[i] = counter_config[i].count;
+		else
+			reset_value[i] = 0;
+	}
+
+	/* clear all counters */
+	for (i = 0; i < NUM_COUNTERS; ++i) {
+		if (!msrs->controls[i].addr)
+			continue;
+		rdmsrl(msrs->controls[i].addr, val);
+		if (val & ARCH_PERFMON_EVENTSEL_ENABLE)
+			op_x86_warn_in_use(i);
+		val &= model->reserved;
+		wrmsrl(msrs->controls[i].addr, val);
+		/*
+		 * avoid a false detection of ctr overflows in NMI
+		 * handler
+		 */
+		wrmsrl(msrs->counters[i].addr, -1LL);
+	}
+
+	/* enable active counters */
+	for (i = 0; i < NUM_COUNTERS; ++i) {
+		int virt = op_x86_phys_to_virt(i);
+		if (!reset_value[virt])
+			continue;
+
+		/* setup counter registers */
+		wrmsrl(msrs->counters[i].addr, -(u64)reset_value[virt]);
+
+		/* setup control registers */
+		rdmsrl(msrs->controls[i].addr, val);
+		val &= model->reserved;
+		val |= op_x86_get_ctrl(model, &counter_config[virt]);
+		wrmsrl(msrs->controls[i].addr, val);
+	}
+
+	if (ibs_caps)
+		setup_APIC_eilvt_ibs(0, APIC_EILVT_MSG_NMI, 0);
+}
+
+static void op_amd_cpu_shutdown(void)
+{
+	if (ibs_caps)
+		setup_APIC_eilvt_ibs(0, APIC_EILVT_MSG_FIX, 1);
 }
 
 static int op_amd_check_ctrs(struct pt_regs * const regs,
@@ -409,7 +418,7 @@ static void op_amd_start(struct op_msrs const * const msrs)
 		if (!reset_value[op_x86_phys_to_virt(i)])
 			continue;
 		rdmsrl(msrs->controls[i].addr, val);
-		val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+		val |= ARCH_PERFMON_EVENTSEL_ENABLE;
 		wrmsrl(msrs->controls[i].addr, val);
 	}
 
@@ -429,49 +438,23 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 		if (!reset_value[op_x86_phys_to_virt(i)])
 			continue;
 		rdmsrl(msrs->controls[i].addr, val);
-		val &= ~ARCH_PERFMON_EVENTSEL0_ENABLE;
+		val &= ~ARCH_PERFMON_EVENTSEL_ENABLE;
 		wrmsrl(msrs->controls[i].addr, val);
 	}
 
 	op_amd_stop_ibs();
 }
 
-static void op_amd_shutdown(struct op_msrs const * const msrs)
-{
-	int i;
-
-	for (i = 0; i < NUM_COUNTERS; ++i) {
-		if (msrs->counters[i].addr)
-			release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
-	}
-	for (i = 0; i < NUM_CONTROLS; ++i) {
-		if (msrs->controls[i].addr)
-			release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
-	}
-}
-
-static u8 ibs_eilvt_off;
-
-static inline void apic_init_ibs_nmi_per_cpu(void *arg)
-{
-	ibs_eilvt_off = setup_APIC_eilvt_ibs(0, APIC_EILVT_MSG_NMI, 0);
-}
-
-static inline void apic_clear_ibs_nmi_per_cpu(void *arg)
-{
-	setup_APIC_eilvt_ibs(0, APIC_EILVT_MSG_FIX, 1);
-}
-
-static int init_ibs_nmi(void)
+static int __init_ibs_nmi(void)
 {
 #define IBSCTL_LVTOFFSETVAL		(1 << 8)
 #define IBSCTL				0x1cc
 	struct pci_dev *cpu_cfg;
 	int nodes;
 	u32 value = 0;
+	u8 ibs_eilvt_off;
 
-	/* per CPU setup */
-	on_each_cpu(apic_init_ibs_nmi_per_cpu, NULL, 1);
+	ibs_eilvt_off = setup_APIC_eilvt_ibs(0, APIC_EILVT_MSG_FIX, 1);
 
 	nodes = 0;
 	cpu_cfg = NULL;
@@ -501,36 +484,21 @@ static int init_ibs_nmi(void)
 	return 0;
 }
 
-/* uninitialize the APIC for the IBS interrupts if needed */
-static void clear_ibs_nmi(void)
-{
-	if (ibs_caps)
-		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
-}
-
 /* initialize the APIC for the IBS interrupts if available */
-static void ibs_init(void)
+static void init_ibs(void)
 {
 	ibs_caps = get_ibs_caps();
 
 	if (!ibs_caps)
 		return;
 
-	if (init_ibs_nmi()) {
+	if (__init_ibs_nmi()) {
 		ibs_caps = 0;
 		return;
 	}
 
 	printk(KERN_INFO "oprofile: AMD IBS detected (0x%08x)\n",
 	       (unsigned)ibs_caps);
-}
-
-static void ibs_exit(void)
-{
-	if (!ibs_caps)
-		return;
-
-	clear_ibs_nmi();
 }
 
 static int (*create_arch_files)(struct super_block *sb, struct dentry *root);
@@ -581,27 +549,22 @@ static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 
 static int op_amd_init(struct oprofile_operations *ops)
 {
-	ibs_init();
+	init_ibs();
 	create_arch_files = ops->create_files;
 	ops->create_files = setup_ibs_files;
 	return 0;
 }
 
-static void op_amd_exit(void)
-{
-	ibs_exit();
-}
-
 struct op_x86_model_spec op_amd_spec = {
 	.num_counters		= NUM_COUNTERS,
-	.num_controls		= NUM_CONTROLS,
+	.num_controls		= NUM_COUNTERS,
 	.num_virt_counters	= NUM_VIRT_COUNTERS,
 	.reserved		= MSR_AMD_EVENTSEL_RESERVED,
 	.event_mask		= OP_EVENT_MASK,
 	.init			= op_amd_init,
-	.exit			= op_amd_exit,
 	.fill_in_addresses	= &op_amd_fill_in_addresses,
 	.setup_ctrs		= &op_amd_setup_ctrs,
+	.cpu_down		= &op_amd_cpu_shutdown,
 	.check_ctrs		= &op_amd_check_ctrs,
 	.start			= &op_amd_start,
 	.stop			= &op_amd_stop,

@@ -44,7 +44,7 @@ u32 booke_wdt_period = WDT_PERIOD_DEFAULT;
 
 #ifdef	CONFIG_FSL_BOOKE
 #define WDTP(x)		((((x)&0x3)<<30)|(((x)&0x3c)<<15))
-#define WDTP_MASK	(WDTP(0))
+#define WDTP_MASK	(WDTP(0x3f))
 #else
 #define WDTP(x)		(TCR_WP(x))
 #define WDTP_MASK	(TCR_WP_MASK)

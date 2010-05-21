@@ -8,8 +8,8 @@
  * published by the Free Software Foundation.
  */
 
-#ifndef __ASM_ARCH_MXC_MX31_H__
-#define __ASM_ARCH_MXC_MX31_H__
+#ifndef __MACH_MX3x_H__
+#define __MACH_MX3x_H__
 
 /*
  * MX31 memory map:
@@ -269,6 +269,7 @@ static inline int mx31_revision(void)
 }
 #endif
 
+#ifdef IMX_NEEDS_DEPRECATED_SYMBOLS
 /* these should go away */
 #define L2CC_BASE_ADDR MX3x_L2CC_BASE_ADDR
 #define L2CC_SIZE MX3x_L2CC_SIZE
@@ -401,5 +402,6 @@ static inline int mx31_revision(void)
 #define CHIP_REV_3_2 MX3x_CHIP_REV_3_2
 #define SYSTEM_REV_MIN MX3x_SYSTEM_REV_MIN
 #define SYSTEM_REV_NUM MX3x_SYSTEM_REV_NUM
+#endif
 
-#endif /*  __ASM_ARCH_MXC_MX31_H__ */
+#endif /* ifndef __MACH_MX3x_H__ */

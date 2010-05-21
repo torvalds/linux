@@ -26,6 +26,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/input.h>
 #include <acpi/acpi_drivers.h>
@@ -142,7 +143,7 @@ static struct key_entry *dell_wmi_keymap = dell_legacy_wmi_keymap;
 
 static struct input_dev *dell_wmi_input_dev;
 
-static struct key_entry *dell_wmi_get_entry_by_scancode(int code)
+static struct key_entry *dell_wmi_get_entry_by_scancode(unsigned int code)
 {
 	struct key_entry *key;
 
@@ -153,7 +154,7 @@ static struct key_entry *dell_wmi_get_entry_by_scancode(int code)
 	return NULL;
 }
 
-static struct key_entry *dell_wmi_get_entry_by_keycode(int keycode)
+static struct key_entry *dell_wmi_get_entry_by_keycode(unsigned int keycode)
 {
 	struct key_entry *key;
 
@@ -164,8 +165,8 @@ static struct key_entry *dell_wmi_get_entry_by_keycode(int keycode)
 	return NULL;
 }
 
-static int dell_wmi_getkeycode(struct input_dev *dev, int scancode,
-			       int *keycode)
+static int dell_wmi_getkeycode(struct input_dev *dev,
+				unsigned int scancode, unsigned int *keycode)
 {
 	struct key_entry *key = dell_wmi_get_entry_by_scancode(scancode);
 
@@ -177,13 +178,11 @@ static int dell_wmi_getkeycode(struct input_dev *dev, int scancode,
 	return -EINVAL;
 }
 
-static int dell_wmi_setkeycode(struct input_dev *dev, int scancode, int keycode)
+static int dell_wmi_setkeycode(struct input_dev *dev,
+				unsigned int scancode, unsigned int keycode)
 {
 	struct key_entry *key;
-	int old_keycode;
-
-	if (keycode < 0 || keycode > KEY_MAX)
-		return -EINVAL;
+	unsigned int old_keycode;
 
 	key = dell_wmi_get_entry_by_scancode(scancode);
 	if (key && key->type == KE_KEY) {
@@ -218,6 +217,7 @@ static void dell_wmi_notify(u32 value, void *context)
 		if (dell_new_hk_type && (buffer_entry[1] != 0x10)) {
 			printk(KERN_INFO "dell-wmi: Received unknown WMI event"
 					 " (0x%x)\n", buffer_entry[1]);
+			kfree(obj);
 			return;
 		}
 
@@ -235,7 +235,7 @@ static void dell_wmi_notify(u32 value, void *context)
 			    key->keycode == KEY_BRIGHTNESSDOWN) && acpi_video) {
 			/* Don't report brightness notifications that will also
 			 * come via ACPI */
-			return;
+			;
 		} else {
 			input_report_key(dell_wmi_input_dev, key->keycode, 1);
 			input_sync(dell_wmi_input_dev);

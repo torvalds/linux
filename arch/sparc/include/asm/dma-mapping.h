@@ -8,7 +8,6 @@
 #define DMA_ERROR_CODE	(~(dma_addr_t)0x0)
 
 extern int dma_supported(struct device *dev, u64 mask);
-extern int dma_set_mask(struct device *dev, u64 dma_mask);
 
 #define dma_alloc_noncoherent(d, s, h, f) dma_alloc_coherent(d, s, h, f)
 #define dma_free_noncoherent(d, s, v, h) dma_free_coherent(d, s, v, h)
@@ -60,6 +59,19 @@ static inline int dma_get_cache_alignment(void)
 	 * the maximum possible, to be safe
 	 */
 	return (1 << INTERNODE_CACHE_SHIFT);
+}
+
+static inline int dma_set_mask(struct device *dev, u64 mask)
+{
+#ifdef CONFIG_PCI
+	if (dev->bus == &pci_bus_type) {
+		if (!dev->dma_mask || !dma_supported(dev, mask))
+			return -EINVAL;
+		*dev->dma_mask = mask;
+		return 0;
+	}
+#endif
+	return -EINVAL;
 }
 
 #endif

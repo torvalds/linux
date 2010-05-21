@@ -55,6 +55,7 @@
 #include <linux/init.h>
 #include <linux/kfifo.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 
 #include <linux/delay.h>

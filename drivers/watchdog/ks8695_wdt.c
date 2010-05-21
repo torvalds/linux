@@ -145,7 +145,7 @@ static int ks8695_wdt_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct watchdog_info ks8695_wdt_info = {
+static const struct watchdog_info ks8695_wdt_info = {
 	.identity	= "ks8695 watchdog",
 	.options	= WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 };

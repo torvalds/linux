@@ -28,6 +28,7 @@
 #include "usbdrv.h"
 
 #include <linux/netlink.h>
+#include <linux/slab.h>
 #include <net/iw_handler.h>
 
 extern void zfLnxInitUsbTxQ(zdev_t *dev);

@@ -21,6 +21,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include "osd.h"
 #include "logging.h"
@@ -305,9 +306,9 @@ void HvCleanup(void)
 	DPRINT_ENTER(VMBUS);
 
 	if (gHvContext.SignalEventBuffer) {
+		kfree(gHvContext.SignalEventBuffer);
 		gHvContext.SignalEventBuffer = NULL;
 		gHvContext.SignalEventParam = NULL;
-		kfree(gHvContext.SignalEventBuffer);
 	}
 
 	if (gHvContext.HypercallPage) {

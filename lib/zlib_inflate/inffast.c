@@ -8,21 +8,6 @@
 #include "inflate.h"
 #include "inffast.h"
 
-/* Only do the unaligned "Faster" variant when
- * CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS is set
- *
- * On powerpc, it won't be as we don't include autoconf.h
- * automatically for the boot wrapper, which is intended as
- * we run in an environment where we may not be able to deal
- * with (even rare) alignment faults. In addition, we do not
- * define __KERNEL__ for arch/powerpc/boot unlike x86
- */
-
-#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
-#include <asm/unaligned.h>
-#include <asm/byteorder.h>
-#endif
-
 #ifndef ASMINF
 
 /* Allow machine dependent optimization for post-increment or pre-increment.
@@ -36,14 +21,31 @@
    - Pentium III (Anderson)
    - M68060 (Nikl)
  */
+union uu {
+	unsigned short us;
+	unsigned char b[2];
+};
+
+/* Endian independed version */
+static inline unsigned short
+get_unaligned16(const unsigned short *p)
+{
+	union uu  mm;
+	unsigned char *b = (unsigned char *)p;
+
+	mm.b[0] = b[0];
+	mm.b[1] = b[1];
+	return mm.us;
+}
+
 #ifdef POSTINC
 #  define OFF 0
 #  define PUP(a) *(a)++
-#  define UP_UNALIGNED(a) get_unaligned((a)++)
+#  define UP_UNALIGNED(a) get_unaligned16((a)++)
 #else
 #  define OFF 1
 #  define PUP(a) *++(a)
-#  define UP_UNALIGNED(a) get_unaligned(++(a))
+#  define UP_UNALIGNED(a) get_unaligned16(++(a))
 #endif
 
 /*
@@ -256,7 +258,6 @@ void inflate_fast(z_streamp strm, unsigned start)
                     }
                 }
                 else {
-#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 		    unsigned short *sout;
 		    unsigned long loops;
 
@@ -274,22 +275,25 @@ void inflate_fast(z_streamp strm, unsigned start)
 			sfrom = (unsigned short *)(from - OFF);
 			loops = len >> 1;
 			do
+#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+			    PUP(sout) = PUP(sfrom);
+#else
 			    PUP(sout) = UP_UNALIGNED(sfrom);
+#endif
 			while (--loops);
 			out = (unsigned char *)sout + OFF;
 			from = (unsigned char *)sfrom + OFF;
 		    } else { /* dist == 1 or dist == 2 */
 			unsigned short pat16;
 
-			pat16 = *(sout-2+2*OFF);
-			if (dist == 1)
-#if defined(__BIG_ENDIAN)
-			    pat16 = (pat16 & 0xff) | ((pat16 & 0xff) << 8);
-#elif defined(__LITTLE_ENDIAN)
-			    pat16 = (pat16 & 0xff00) | ((pat16 & 0xff00) >> 8);
-#else
-#error __BIG_ENDIAN nor __LITTLE_ENDIAN is defined
-#endif
+			pat16 = *(sout-1+OFF);
+			if (dist == 1) {
+				union uu mm;
+				/* copy one char pattern to both bytes */
+				mm.us = pat16;
+				mm.b[0] = mm.b[1];
+				pat16 = mm.us;
+			}
 			loops = len >> 1;
 			do
 			    PUP(sout) = pat16;
@@ -298,20 +302,6 @@ void inflate_fast(z_streamp strm, unsigned start)
 		    }
 		    if (len & 1)
 			PUP(out) = PUP(from);
-#else /* CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS */
-                    from = out - dist;          /* copy direct from output */
-                    do {                        /* minimum length is three */
-			 PUP(out) = PUP(from);
-			 PUP(out) = PUP(from);
-			 PUP(out) = PUP(from);
-			 len -= 3;
-                    } while (len > 2);
-                    if (len) {
-			 PUP(out) = PUP(from);
-			 if (len > 1)
-			     PUP(out) = PUP(from);
-                    }
-#endif /* !CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS */
                 }
             }
             else if ((op & 64) == 0) {          /* 2nd level distance code */

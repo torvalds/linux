@@ -120,12 +120,12 @@ static inline void direct_qirr_info(int n_cpu, u8 value)
 
 /* LPAR low level accessors */
 
-static inline unsigned int lpar_xirr_info_get(void)
+static inline unsigned int lpar_xirr_info_get(unsigned char cppr)
 {
 	unsigned long lpar_rc;
 	unsigned long return_value;
 
-	lpar_rc = plpar_xirr(&return_value);
+	lpar_rc = plpar_xirr(&return_value, cppr);
 	if (lpar_rc != H_SUCCESS)
 		panic(" bad return code xirr - rc = %lx\n", lpar_rc);
 	return (unsigned int)return_value;
@@ -331,7 +331,8 @@ static unsigned int xics_get_irq_direct(void)
 
 static unsigned int xics_get_irq_lpar(void)
 {
-	unsigned int xirr = lpar_xirr_info_get();
+	struct xics_cppr *os_cppr = &__get_cpu_var(xics_cppr);
+	unsigned int xirr = lpar_xirr_info_get(os_cppr->stack[os_cppr->index]);
 	unsigned int vec = xics_xirr_vector(xirr);
 	unsigned int irq;
 

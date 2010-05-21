@@ -34,6 +34,7 @@
 #include <linux/of_platform.h>
 #include <linux/io.h>
 #include <linux/xilinxfb.h>
+#include <linux/slab.h>
 #include <asm/dcr.h>
 
 #define DRIVER_NAME		"xilinxfb"

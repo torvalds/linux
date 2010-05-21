@@ -110,30 +110,60 @@ lockdep_count_backward_deps(struct lock_class *class)
 #endif
 
 #ifdef CONFIG_DEBUG_LOCKDEP
+
+#include <asm/local.h>
 /*
- * Various lockdep statistics:
+ * Various lockdep statistics.
+ * We want them per cpu as they are often accessed in fast path
+ * and we want to avoid too much cache bouncing.
  */
-extern atomic_t chain_lookup_hits;
-extern atomic_t chain_lookup_misses;
-extern atomic_t hardirqs_on_events;
-extern atomic_t hardirqs_off_events;
-extern atomic_t redundant_hardirqs_on;
-extern atomic_t redundant_hardirqs_off;
-extern atomic_t softirqs_on_events;
-extern atomic_t softirqs_off_events;
-extern atomic_t redundant_softirqs_on;
-extern atomic_t redundant_softirqs_off;
-extern atomic_t nr_unused_locks;
-extern atomic_t nr_cyclic_checks;
-extern atomic_t nr_cyclic_check_recursions;
-extern atomic_t nr_find_usage_forwards_checks;
-extern atomic_t nr_find_usage_forwards_recursions;
-extern atomic_t nr_find_usage_backwards_checks;
-extern atomic_t nr_find_usage_backwards_recursions;
-# define debug_atomic_inc(ptr)		atomic_inc(ptr)
-# define debug_atomic_dec(ptr)		atomic_dec(ptr)
-# define debug_atomic_read(ptr)		atomic_read(ptr)
+struct lockdep_stats {
+	int	chain_lookup_hits;
+	int	chain_lookup_misses;
+	int	hardirqs_on_events;
+	int	hardirqs_off_events;
+	int	redundant_hardirqs_on;
+	int	redundant_hardirqs_off;
+	int	softirqs_on_events;
+	int	softirqs_off_events;
+	int	redundant_softirqs_on;
+	int	redundant_softirqs_off;
+	int	nr_unused_locks;
+	int	nr_cyclic_checks;
+	int	nr_cyclic_check_recursions;
+	int	nr_find_usage_forwards_checks;
+	int	nr_find_usage_forwards_recursions;
+	int	nr_find_usage_backwards_checks;
+	int	nr_find_usage_backwards_recursions;
+};
+
+DECLARE_PER_CPU(struct lockdep_stats, lockdep_stats);
+
+#define __debug_atomic_inc(ptr)					\
+	this_cpu_inc(lockdep_stats.ptr);
+
+#define debug_atomic_inc(ptr)			{		\
+	WARN_ON_ONCE(!irqs_disabled());				\
+	__this_cpu_inc(lockdep_stats.ptr);			\
+}
+
+#define debug_atomic_dec(ptr)			{		\
+	WARN_ON_ONCE(!irqs_disabled());				\
+	__this_cpu_dec(lockdep_stats.ptr);			\
+}
+
+#define debug_atomic_read(ptr)		({				\
+	struct lockdep_stats *__cpu_lockdep_stats;			\
+	unsigned long long __total = 0;					\
+	int __cpu;							\
+	for_each_possible_cpu(__cpu) {					\
+		__cpu_lockdep_stats = &per_cpu(lockdep_stats, __cpu);	\
+		__total += __cpu_lockdep_stats->ptr;			\
+	}								\
+	__total;							\
+})
 #else
+# define __debug_atomic_inc(ptr)	do { } while (0)
 # define debug_atomic_inc(ptr)		do { } while (0)
 # define debug_atomic_dec(ptr)		do { } while (0)
 # define debug_atomic_read(ptr)		0

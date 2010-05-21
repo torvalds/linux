@@ -115,7 +115,6 @@ struct ttm_backend {
 	struct ttm_backend_func *func;
 };
 
-#define TTM_PAGE_FLAG_VMALLOC         (1 << 0)
 #define TTM_PAGE_FLAG_USER            (1 << 1)
 #define TTM_PAGE_FLAG_USER_DIRTY      (1 << 2)
 #define TTM_PAGE_FLAG_WRITE           (1 << 3)
@@ -789,34 +788,6 @@ extern void ttm_bo_unreserve(struct ttm_buffer_object *bo);
  */
 extern int ttm_bo_wait_unreserved(struct ttm_buffer_object *bo,
 				  bool interruptible);
-
-/**
- * ttm_bo_block_reservation
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- * @interruptible: Use interruptible sleep when waiting.
- * @no_wait: Don't sleep, but rather return -EBUSY.
- *
- * Block reservation for validation by simply reserving the buffer.
- * This is intended for single buffer use only without eviction,
- * and thus needs no deadlock protection.
- *
- * Returns:
- * -EBUSY: If no_wait == 1 and the buffer is already reserved.
- * -ERESTARTSYS: If interruptible == 1 and the process received a signal
- * while sleeping.
- */
-extern int ttm_bo_block_reservation(struct ttm_buffer_object *bo,
-				    bool interruptible, bool no_wait);
-
-/**
- * ttm_bo_unblock_reservation
- *
- * @bo: A pointer to a struct ttm_buffer_object.
- *
- * Unblocks reservation leaving lru lists untouched.
- */
-extern void ttm_bo_unblock_reservation(struct ttm_buffer_object *bo);
 
 /*
  * ttm_bo_util.c

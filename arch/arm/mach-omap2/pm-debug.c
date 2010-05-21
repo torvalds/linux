@@ -25,6 +25,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <plat/clock.h>
 #include <plat/board.h>

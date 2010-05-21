@@ -50,33 +50,9 @@ static struct omap_board_config_kernel sdp4430_config[] __initdata = {
 };
 
 #ifdef CONFIG_CACHE_L2X0
-noinline void omap_smc1(u32 fn, u32 arg)
-{
-	register u32 r12 asm("r12") = fn;
-	register u32 r0 asm("r0") = arg;
-
-	/* This is common routine cache secure monitor API used to
-	 * modify the PL310 secure registers.
-	 * r0 contains the value to be modified and "r12" contains
-	 * the monitor API number. It uses few CPU registers
-	 * internally and hence they need be backed up including
-	 * link register "lr".
-	 * Explicitly save r11 and r12 the compiler generated code
-	 * won't save it.
-	 */
-	asm volatile(
-		"stmfd r13!, {r11,r12}\n"
-		"dsb\n"
-		"smc\n"
-		"ldmfd r13!, {r11,r12}\n"
-		: "+r" (r0), "+r" (r12)
-		:
-		: "r4", "r5", "r10", "lr", "cc");
-}
-EXPORT_SYMBOL(omap_smc1);
-
 static int __init omap_l2_cache_init(void)
 {
+	extern void omap_smc1(u32 fn, u32 arg);
 	void __iomem *l2cache_base;
 
 	/* To avoid code running on other OMAPs in

@@ -50,7 +50,6 @@
 
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
-#include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/kernel.h>
 

@@ -22,7 +22,7 @@
  */
 #include <linux/of.h>
 #include <linux/init.h>
-#include <linux/gfp.h>
+#include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/proc_fs.h>
 #include <linux/module.h>

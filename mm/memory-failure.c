@@ -44,6 +44,7 @@
 #include <linux/migrate.h>
 #include <linux/page-isolation.h>
 #include <linux/suspend.h>
+#include <linux/slab.h>
 #include "internal.h"
 
 int sysctl_memory_failure_early_kill __read_mostly = 0;

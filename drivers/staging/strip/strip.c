@@ -107,6 +107,7 @@ static const char StripVersion[] = "1.3A-STUART.CHESHIRE";
 #include <linux/serialP.h>
 #include <linux/rcupdate.h>
 #include <linux/compat.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 #include <net/net_namespace.h>
 

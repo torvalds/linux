@@ -42,7 +42,7 @@ struct io_context {
 	unsigned short ioprio;
 	unsigned short ioprio_changed;
 
-#ifdef CONFIG_BLK_CGROUP
+#if defined(CONFIG_BLK_CGROUP) || defined(CONFIG_BLK_CGROUP_MODULE)
 	unsigned short cgroup_changed;
 #endif
 

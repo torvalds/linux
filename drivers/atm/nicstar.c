@@ -49,6 +49,7 @@
 #include <linux/timer.h>
 #include <linux/interrupt.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <asm/atomic.h>

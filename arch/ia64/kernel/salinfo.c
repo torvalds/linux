@@ -404,10 +404,9 @@ static void
 call_on_cpu(int cpu, void (*fn)(void *), void *arg)
 {
 	cpumask_t save_cpus_allowed = current->cpus_allowed;
-	cpumask_t new_cpus_allowed = cpumask_of_cpu(cpu);
-	set_cpus_allowed(current, new_cpus_allowed);
+	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 	(*fn)(arg);
-	set_cpus_allowed(current, save_cpus_allowed);
+	set_cpus_allowed_ptr(current, &save_cpus_allowed);
 }
 
 static void

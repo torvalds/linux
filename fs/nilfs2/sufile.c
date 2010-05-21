@@ -18,7 +18,7 @@
  * Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  *
  * Written by Koji Sato <koji@osrg.net>.
- * Rivised by Ryusuke Konishi <ryusuke@osrg.net>.
+ * Revised by Ryusuke Konishi <ryusuke@osrg.net>.
  */
 
 #include <linux/kernel.h>

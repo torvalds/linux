@@ -366,6 +366,13 @@ rescan:
 	if (is_done)
 		done(ep, req, 0);
 	else if (ep->is_pingpong) {
+		/*
+		 * One dummy read to delay the code because of a HW glitch:
+		 * CSR returns bad RXCOUNT when read too soon after updating
+		 * RX_DATA_BK flags.
+		 */
+		csr = __raw_readl(creg);
+
 		bufferspace -= count;
 		buf += count;
 		goto rescan;
@@ -1370,6 +1377,12 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc)
 {
 	struct at91_udc		*udc = _udc;
 	u32			rescans = 5;
+	int			disable_clock = 0;
+
+	if (!udc->clocked) {
+		clk_on(udc);
+		disable_clock = 1;
+	}
 
 	while (rescans--) {
 		u32 status;
@@ -1457,6 +1470,9 @@ static irqreturn_t at91_udc_irq (int irq, void *_udc)
 			}
 		}
 	}
+
+	if (disable_clock)
+		clk_off(udc);
 
 	return IRQ_HANDLED;
 }

@@ -34,6 +34,7 @@
 #include <linux/fb.h>
 #include <linux/pci.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/console.h>
 #include <linux/screen_info.h>

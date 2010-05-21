@@ -110,6 +110,7 @@ static const unsigned long mfpr_lpm[] = {
 	MFPR_LPM_PULL_LOW,
 	MFPR_LPM_PULL_HIGH,
 	MFPR_LPM_FLOAT,
+	MFPR_LPM_INPUT,
 };
 
 /* mapping of MFP_PULL_* definitions to MFPR_PULL_* register bits */

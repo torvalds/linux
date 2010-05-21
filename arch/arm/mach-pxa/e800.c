@@ -35,6 +35,14 @@
 
 /* ------------------------ e800 LCD definitions ------------------------- */
 
+static unsigned long e800_pin_config[] __initdata = {
+	/* AC97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
+};
+
 static struct w100_gen_regs e800_lcd_regs = {
 	.lcd_format =            0x00008003,
 	.lcdd_cntl1 =            0x02a00000,
@@ -195,6 +203,7 @@ static struct platform_device *devices[] __initdata = {
 
 static void __init e800_init(void)
 {
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(e800_pin_config));
 	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);

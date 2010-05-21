@@ -22,6 +22,10 @@
 #define MXC_EHCI_POWER_PINS_ENABLED	(1 << 5)
 #define MXC_EHCI_TTL_ENABLED		(1 << 6)
 
+#define MXC_EHCI_INTERNAL_PHY		(1 << 7)
+#define MXC_EHCI_IPPUE_DOWN		(1 << 8)
+#define MXC_EHCI_IPPUE_UP		(1 << 9)
+
 struct mxc_usbh_platform_data {
 	int (*init)(struct platform_device *pdev);
 	int (*exit)(struct platform_device *pdev);

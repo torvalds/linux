@@ -36,6 +36,10 @@
 #define DAVINCI_DMA_VC_TX		2
 #define DAVINCI_DMA_VC_RX		3
 
+#define DM365_ASYNC_EMIF_CONTROL_BASE	0x01D10000
+#define DM365_ASYNC_EMIF_DATA_CE0_BASE	0x02000000
+#define DM365_ASYNC_EMIF_DATA_CE1_BASE	0x04000000
+
 void __init dm365_init(void);
 void __init dm365_init_asp(struct snd_platform_data *pdata);
 void __init dm365_init_vc(struct snd_platform_data *pdata);

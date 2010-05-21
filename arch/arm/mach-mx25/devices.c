@@ -438,3 +438,65 @@ struct platform_device mx25_fec_device = {
 	.num_resources	= ARRAY_SIZE(mx25_fec_resources),
 	.resource	= mx25_fec_resources,
 };
+
+static struct resource mxc_nand_resources[] = {
+	{
+		.start	= MX25_NFC_BASE_ADDR,
+		.end	= MX25_NFC_BASE_ADDR + 0x1fff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= MX25_INT_NANDFC,
+		.end	= MX25_INT_NANDFC,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxc_nand_device = {
+	.name		= "mxc_nand",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(mxc_nand_resources),
+	.resource	= mxc_nand_resources,
+};
+
+static struct resource mx25_rtc_resources[] = {
+	{
+		.start	= MX25_DRYICE_BASE_ADDR,
+		.end	= MX25_DRYICE_BASE_ADDR + 0x40,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= MX25_INT_DRYICE,
+		.flags	= IORESOURCE_IRQ
+	},
+};
+
+struct platform_device mx25_rtc_device = {
+	.name	= "imxdi_rtc",
+	.id	= 0,
+	.num_resources	= ARRAY_SIZE(mx25_rtc_resources),
+	.resource	= mx25_rtc_resources,
+};
+
+static struct resource mx25_fb_resources[] = {
+	{
+		.start	= MX25_LCDC_BASE_ADDR,
+		.end	= MX25_LCDC_BASE_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= MX25_INT_LCDC,
+		.end	= MX25_INT_LCDC,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mx25_fb_device = {
+	.name		= "imx-fb",
+	.id		= 0,
+	.resource	= mx25_fb_resources,
+	.num_resources	= ARRAY_SIZE(mx25_fb_resources),
+	.dev		= {
+		.coherent_dma_mask = 0xFFFFFFFF,
+	},
+};

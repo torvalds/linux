@@ -90,8 +90,7 @@ extern int read_tsk_short(struct task_struct *, unsigned long,
 			 unsigned short *);
 
 #define arch_has_single_step()	(1)
-extern void user_enable_single_step(struct task_struct *);
-extern void user_disable_single_step(struct task_struct *);
+
 #endif /* __KERNEL__ */
 
 #endif /* _ASM_SCORE_PTRACE_H */

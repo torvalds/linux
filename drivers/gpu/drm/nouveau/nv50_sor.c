@@ -211,7 +211,7 @@ nv50_sor_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 			mode_ctl = 0x0200;
 		break;
 	case OUTPUT_DP:
-		mode_ctl |= 0x00050000;
+		mode_ctl |= (nv_encoder->dp.mc_unknown << 16);
 		if (nv_encoder->dcb->sorconf.link & 1)
 			mode_ctl |= 0x00000800;
 		else
@@ -274,6 +274,7 @@ static const struct drm_encoder_funcs nv50_sor_encoder_funcs = {
 int
 nv50_sor_create(struct drm_device *dev, struct dcb_entry *entry)
 {
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_encoder *nv_encoder = NULL;
 	struct drm_encoder *encoder;
 	bool dum;
@@ -318,6 +319,28 @@ nv50_sor_create(struct drm_device *dev, struct dcb_entry *entry)
 
 	encoder->possible_crtcs = entry->heads;
 	encoder->possible_clones = 0;
+
+	if (nv_encoder->dcb->type == OUTPUT_DP) {
+		uint32_t mc, or = nv_encoder->or;
+
+		if (dev_priv->chipset < 0x90 ||
+		    dev_priv->chipset == 0x92 || dev_priv->chipset == 0xa0)
+			mc = nv_rd32(dev, NV50_PDISPLAY_SOR_MODE_CTRL_C(or));
+		else
+			mc = nv_rd32(dev, NV90_PDISPLAY_SOR_MODE_CTRL_C(or));
+
+		switch ((mc & 0x00000f00) >> 8) {
+		case 8:
+		case 9:
+			nv_encoder->dp.mc_unknown = (mc & 0x000f0000) >> 16;
+			break;
+		default:
+			break;
+		}
+
+		if (!nv_encoder->dp.mc_unknown)
+			nv_encoder->dp.mc_unknown = 5;
+	}
 
 	return 0;
 }

@@ -53,6 +53,7 @@
 #include <linux/mtd/nand_ecc.h>
 #include <linux/mtd/partitions.h>
 
+#include <plat/gpio-cfg.h>
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
@@ -102,10 +103,10 @@ static void mini2440_udc_pullup(enum s3c2410_udc_cmd_e cmd)
 
 	switch (cmd) {
 		case S3C2410_UDC_P_ENABLE :
-			s3c2410_gpio_setpin(S3C2410_GPC(5), 1);
+			gpio_set_value(S3C2410_GPC(5), 1);
 			break;
 		case S3C2410_UDC_P_DISABLE :
-			s3c2410_gpio_setpin(S3C2410_GPC(5), 0);
+			gpio_set_value(S3C2410_GPC(5), 0);
 			break;
 		case S3C2410_UDC_P_RESET :
 			break;
@@ -506,9 +507,8 @@ static struct i2c_board_info mini2440_i2c_devs[] __initdata = {
 };
 
 static struct platform_device *mini2440_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_wdt,
-/*	&s3c_device_adc,*/ /* ADC doesn't like living with touchscreen ! */
 	&s3c_device_i2c0,
 	&s3c_device_rtc,
 	&s3c_device_usbgadget,
@@ -522,8 +522,6 @@ static struct platform_device *mini2440_devices[] __initdata = {
 	&s3c_device_sdi,
 	&s3c_device_iis,
 	&mini2440_audio,
-/*	&s3c_device_timer[0],*/	/* buzzer pwm, no API for it */
-	/* remaining devices are optional */
 };
 
 static void __init mini2440_map_io(void)
@@ -531,8 +529,6 @@ static void __init mini2440_map_io(void)
 	s3c24xx_init_io(mini2440_iodesc, ARRAY_SIZE(mini2440_iodesc));
 	s3c24xx_init_clocks(12000000);
 	s3c24xx_init_uarts(mini2440_uartcfgs, ARRAY_SIZE(mini2440_uartcfgs));
-
-	s3c_device_sdi.dev.platform_data = &mini2440_mmc_cfg;
 }
 
 /*
@@ -637,25 +633,25 @@ static void __init mini2440_init(void)
 	mini2440_parse_features(&features, mini2440_features_str);
 
 	/* turn LCD on */
-	s3c2410_gpio_cfgpin(S3C2410_GPC(0), S3C2410_GPC0_LEND);
+	s3c_gpio_cfgpin(S3C2410_GPC(0), S3C2410_GPC0_LEND);
 
 	/* Turn the backlight early on */
-	s3c2410_gpio_setpin(S3C2410_GPG(4), 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPG(4), S3C2410_GPIO_OUTPUT);
+	WARN_ON(gpio_request(S3C2410_GPG(4), "backlight"));
+	gpio_direction_output(S3C2410_GPG(4), 1);
 
 	/* remove pullup on optional PWM backlight -- unused on 3.5 and 7"s */
-	s3c2410_gpio_pullup(S3C2410_GPB(1), 0);
+	s3c_gpio_setpull(S3C2410_GPB(1), S3C_GPIO_PULL_UP);
 	s3c2410_gpio_setpin(S3C2410_GPB(1), 0);
-	s3c2410_gpio_cfgpin(S3C2410_GPB(1), S3C2410_GPIO_INPUT);
+	s3c_gpio_cfgpin(S3C2410_GPB(1), S3C2410_GPIO_INPUT);
 
 	/* Make sure the D+ pullup pin is output */
-	s3c2410_gpio_cfgpin(S3C2410_GPC(5), S3C2410_GPIO_OUTPUT);
+	WARN_ON(gpio_request(S3C2410_GPC(5), "udc pup"));
+	gpio_direction_output(S3C2410_GPC(5), 0);
 
 	/* mark the key as input, without pullups (there is one on the board) */
 	for (i = 0; i < ARRAY_SIZE(mini2440_buttons); i++) {
-		s3c2410_gpio_pullup(mini2440_buttons[i].gpio, 0);
-		s3c2410_gpio_cfgpin(mini2440_buttons[i].gpio,
-					S3C2410_GPIO_INPUT);
+		s3c_gpio_setpull(mini2440_buttons[i].gpio, S3C_GPIO_PULL_UP);
+		s3c_gpio_cfgpin(mini2440_buttons[i].gpio, S3C2410_GPIO_INPUT);
 	}
 	if (features.lcd_index != -1) {
 		int li;
@@ -678,6 +674,7 @@ static void __init mini2440_init(void)
 	}
 
 	s3c24xx_udc_set_platdata(&mini2440_udc_cfg);
+	s3c24xx_mci_set_platdata(&mini2440_mmc_cfg);
 	s3c_nand_set_platdata(&mini2440_nand_info);
 	s3c_i2c0_set_platdata(NULL);
 

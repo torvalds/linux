@@ -26,6 +26,7 @@
 #include <linux/miscdevice.h>
 #include <linux/kmod.h>
 #include <linux/reboot.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/of.h>
 #include <linux/of_device.h>

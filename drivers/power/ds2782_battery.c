@@ -19,6 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/idr.h>
 #include <linux/power_supply.h>
+#include <linux/slab.h>
 
 #define DS2782_REG_RARC		0x06	/* Remaining active relative capacity */
 

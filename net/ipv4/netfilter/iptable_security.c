@@ -17,6 +17,7 @@
  */
 #include <linux/module.h>
 #include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 
 MODULE_LICENSE("GPL");

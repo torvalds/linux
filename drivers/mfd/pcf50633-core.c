@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
 
 #include <linux/mfd/pcf50633/core.h>
 

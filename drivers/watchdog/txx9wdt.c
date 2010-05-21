@@ -13,7 +13,6 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/fs.h>
-#include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/uaccess.h>
 #include <linux/platform_device.h>
@@ -166,14 +165,6 @@ static long txx9wdt_ioctl(struct file *file, unsigned int cmd,
 	}
 }
 
-static int txx9wdt_notify_sys(struct notifier_block *this, unsigned long code,
-	void *unused)
-{
-	if (code == SYS_DOWN || code == SYS_HALT)
-		txx9wdt_stop();
-	return NOTIFY_DONE;
-}
-
 static const struct file_operations txx9wdt_fops = {
 	.owner		=	THIS_MODULE,
 	.llseek		=	no_llseek,
@@ -187,10 +178,6 @@ static struct miscdevice txx9wdt_miscdev = {
 	.minor	=	WATCHDOG_MINOR,
 	.name	=	"watchdog",
 	.fops	=	&txx9wdt_fops,
-};
-
-static struct notifier_block txx9wdt_notifier = {
-	.notifier_call = txx9wdt_notify_sys,
 };
 
 static int __init txx9wdt_probe(struct platform_device *dev)
@@ -221,13 +208,8 @@ static int __init txx9wdt_probe(struct platform_device *dev)
 	if (!txx9wdt_reg)
 		goto exit_busy;
 
-	ret = register_reboot_notifier(&txx9wdt_notifier);
-	if (ret)
-		goto exit;
-
 	ret = misc_register(&txx9wdt_miscdev);
 	if (ret) {
-		unregister_reboot_notifier(&txx9wdt_notifier);
 		goto exit;
 	}
 
@@ -249,14 +231,19 @@ exit:
 static int __exit txx9wdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&txx9wdt_miscdev);
-	unregister_reboot_notifier(&txx9wdt_notifier);
 	clk_disable(txx9_imclk);
 	clk_put(txx9_imclk);
 	return 0;
 }
 
+static void txx9wdt_shutdown(struct platform_device *dev)
+{
+	txx9wdt_stop();
+}
+
 static struct platform_driver txx9wdt_driver = {
 	.remove = __exit_p(txx9wdt_remove),
+	.shutdown = txx9wdt_shutdown,
 	.driver = {
 		.name = "txx9wdt",
 		.owner = THIS_MODULE,

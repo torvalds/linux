@@ -29,6 +29,7 @@
 #include <linux/syscalls.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 
 #include "vme.h"
 #include "vme_bridge.h"

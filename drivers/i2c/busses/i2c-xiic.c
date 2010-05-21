@@ -32,12 +32,14 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
+#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/interrupt.h>
 #include <linux/wait.h>
 #include <linux/i2c-xiic.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #define DRIVER_NAME "xiic-i2c"
 

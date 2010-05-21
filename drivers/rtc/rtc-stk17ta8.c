@@ -1,7 +1,7 @@
 /*
  * A RTC driver for the Simtek STK17TA8
  *
- * By Thomas Hommel <thomas.hommel@gefanuc.com>
+ * By Thomas Hommel <thomas.hommel@ge.com>
  *
  * Based on the DS1553 driver from
  * Atsushi Nemoto <anemo@mba.ocn.ne.jp>
@@ -14,6 +14,7 @@
 #include <linux/bcd.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 #include <linux/interrupt.h>
@@ -381,7 +382,7 @@ static __exit void stk17ta8_exit(void)
 module_init(stk17ta8_init);
 module_exit(stk17ta8_exit);
 
-MODULE_AUTHOR("Thomas Hommel <thomas.hommel@gefanuc.com>");
+MODULE_AUTHOR("Thomas Hommel <thomas.hommel@ge.com>");
 MODULE_DESCRIPTION("Simtek STK17TA8 RTC driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);

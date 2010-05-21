@@ -11,6 +11,7 @@
 
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/idr.h>
 #include <linux/usb.h>
 #include "usb.h"

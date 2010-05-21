@@ -34,6 +34,7 @@
 #include <linux/usb.h>
 #include <linux/crc32.h>
 #include <linux/usb/usbnet.h>
+#include <linux/slab.h>
 
 #define DRIVER_VERSION "14-Jun-2006"
 static const char driver_name [] = "asix";
@@ -54,6 +55,7 @@ static const char driver_name [] = "asix";
 #define AX_CMD_WRITE_IPG0		0x12
 #define AX_CMD_WRITE_IPG1		0x13
 #define AX_CMD_READ_NODE_ID		0x13
+#define AX_CMD_WRITE_NODE_ID		0x14
 #define AX_CMD_WRITE_IPG2		0x14
 #define AX_CMD_WRITE_MULTI_FILTER	0x16
 #define AX88172_CMD_READ_NODE_ID	0x17
@@ -165,6 +167,7 @@ static const char driver_name [] = "asix";
 /* This structure cannot exceed sizeof(unsigned long [5]) AKA 20 bytes */
 struct asix_data {
 	u8 multi_filter[AX_MCAST_FILTER_SIZE];
+	u8 mac_addr[ETH_ALEN];
 	u8 phymode;
 	u8 ledmode;
 	u8 eeprom_len;
@@ -221,10 +224,9 @@ static int asix_write_cmd(struct usbnet *dev, u8 cmd, u16 value, u16 index,
 		   cmd, value, index, size);
 
 	if (data) {
-		buf = kmalloc(size, GFP_KERNEL);
+		buf = kmemdup(data, size, GFP_KERNEL);
 		if (!buf)
 			goto out;
-		memcpy(buf, data, size);
 	}
 
 	err = usb_control_msg(
@@ -319,8 +321,29 @@ static int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		/* get the packet length */
 		size = (u16) (header & 0x0000ffff);
 
-		if ((skb->len) - ((size + 1) & 0xfffe) == 0)
+		if ((skb->len) - ((size + 1) & 0xfffe) == 0) {
+			u8 alignment = (u32)skb->data & 0x3;
+			if (alignment != 0x2) {
+				/*
+				 * not 16bit aligned so use the room provided by
+				 * the 32 bit header to align the data
+				 *
+				 * note we want 16bit alignment as MAC header is
+				 * 14bytes thus ip header will be aligned on
+				 * 32bit boundary so accessing ipheader elements
+				 * using a cast to struct ip header wont cause
+				 * an unaligned accesses.
+				 */
+				u8 realignment = (alignment + 2) & 0x3;
+				memmove(skb->data - realignment,
+					skb->data,
+					size);
+				skb->data -= realignment;
+				skb_set_tail_pointer(skb, size);
+			}
 			return 2;
+		}
+
 		if (size > ETH_FRAME_LEN) {
 			netdev_err(dev->net, "asix_rx_fixup() Bad RX Length %d\n",
 				   size);
@@ -328,7 +351,18 @@ static int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		}
 		ax_skb = skb_clone(skb, GFP_ATOMIC);
 		if (ax_skb) {
+			u8 alignment = (u32)packet & 0x3;
 			ax_skb->len = size;
+
+			if (alignment != 0x2) {
+				/*
+				 * not 16bit aligned use the room provided by
+				 * the 32 bit header to align the data
+				 */
+				u8 realignment = (alignment + 2) & 0x3;
+				memmove(packet - realignment, packet, size);
+				packet -= realignment;
+			}
 			ax_skb->data = packet;
 			skb_set_tail_pointer(ax_skb, size);
 			usbnet_skb_return(dev, ax_skb);
@@ -555,16 +589,14 @@ static void asix_set_multicast(struct net_device *net)
 		 * for our 8 byte filter buffer
 		 * to avoid allocating memory that
 		 * is tricky to free later */
-		struct dev_mc_list *mc_list;
+		struct netdev_hw_addr *ha;
 		u32 crc_bits;
 
 		memset(data->multi_filter, 0, AX_MCAST_FILTER_SIZE);
 
 		/* Build the multicast hash filter. */
-		netdev_for_each_mc_addr(mc_list, net) {
-			crc_bits =
-			    ether_crc(ETH_ALEN,
-				      mc_list->dmi_addr) >> 26;
+		netdev_for_each_mc_addr(ha, net) {
+			crc_bits = ether_crc(ETH_ALEN, ha->addr) >> 26;
 			data->multi_filter[crc_bits >> 3] |=
 			    1 << (crc_bits & 7);
 		}
@@ -732,6 +764,30 @@ static int asix_ioctl (struct net_device *net, struct ifreq *rq, int cmd)
 	return generic_mii_ioctl(&dev->mii, if_mii(rq), cmd, NULL);
 }
 
+static int asix_set_mac_address(struct net_device *net, void *p)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct asix_data *data = (struct asix_data *)&dev->data;
+	struct sockaddr *addr = p;
+
+	if (netif_running(net))
+		return -EBUSY;
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	memcpy(net->dev_addr, addr->sa_data, ETH_ALEN);
+
+	/* We use the 20 byte dev->data
+	 * for our 6 byte mac buffer
+	 * to avoid allocating memory that
+	 * is tricky to free later */
+	memcpy(data->mac_addr, addr->sa_data, ETH_ALEN);
+	asix_write_cmd_async(dev, AX_CMD_WRITE_NODE_ID, 0, 0, ETH_ALEN,
+							data->mac_addr);
+
+	return 0;
+}
+
 /* We need to override some ethtool_ops so we require our
    own structure so we don't interfere with other usbnet
    devices that may be connected at the same time. */
@@ -767,16 +823,14 @@ static void ax88172_set_multicast(struct net_device *net)
 		 * for our 8 byte filter buffer
 		 * to avoid allocating memory that
 		 * is tricky to free later */
-		struct dev_mc_list *mc_list;
+		struct netdev_hw_addr *ha;
 		u32 crc_bits;
 
 		memset(data->multi_filter, 0, AX_MCAST_FILTER_SIZE);
 
 		/* Build the multicast hash filter. */
-		netdev_for_each_mc_addr(mc_list, net) {
-			crc_bits =
-			    ether_crc(ETH_ALEN,
-				      mc_list->dmi_addr) >> 26;
+		netdev_for_each_mc_addr(ha, net) {
+			crc_bits = ether_crc(ETH_ALEN, ha->addr) >> 26;
 			data->multi_filter[crc_bits >> 3] |=
 			    1 << (crc_bits & 7);
 		}
@@ -919,7 +973,7 @@ static const struct net_device_ops ax88772_netdev_ops = {
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
 	.ndo_change_mtu		= usbnet_change_mtu,
-	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_set_mac_address 	= asix_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= asix_ioctl,
 	.ndo_set_multicast_list = asix_set_multicast,
@@ -1213,7 +1267,7 @@ static const struct net_device_ops ax88178_netdev_ops = {
 	.ndo_stop		= usbnet_stop,
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
-	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_set_mac_address 	= asix_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_multicast_list = asix_set_multicast,
 	.ndo_do_ioctl 		= asix_ioctl,

@@ -97,7 +97,7 @@ static void zorro_seq_stop(struct seq_file *m, void *v)
 
 static int zorro_seq_show(struct seq_file *m, void *v)
 {
-	u_int slot = *(loff_t *)v;
+	unsigned int slot = *(loff_t *)v;
 	struct zorro_dev *z = &zorro_autocon[slot];
 
 	seq_printf(m, "%02x\t%08x\t%08lx\t%08lx\t%02x\n", slot, z->id,
@@ -129,7 +129,7 @@ static const struct file_operations zorro_devices_proc_fops = {
 
 static struct proc_dir_entry *proc_bus_zorro_dir;
 
-static int __init zorro_proc_attach_device(u_int slot)
+static int __init zorro_proc_attach_device(unsigned int slot)
 {
 	struct proc_dir_entry *entry;
 	char name[4];
@@ -146,7 +146,7 @@ static int __init zorro_proc_attach_device(u_int slot)
 
 static int __init zorro_proc_init(void)
 {
-	u_int slot;
+	unsigned int slot;
 
 	if (MACH_IS_AMIGA && AMIGAHW_PRESENT(ZORRO)) {
 		proc_bus_zorro_dir = proc_mkdir("bus/zorro", NULL);

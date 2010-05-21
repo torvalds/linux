@@ -24,6 +24,7 @@
 #include <linux/acpi.h>
 #include <linux/mm.h>
 #include <linux/i8042.h>
+#include <linux/slab.h>
 #include "../../firmware/dcdbas.h"
 
 #define BRIGHTNESS_TOKEN 0x7d
@@ -559,10 +560,14 @@ static int __init dell_init(void)
 	release_buffer();
 
 	if (max_intensity) {
-		dell_backlight_device = backlight_device_register(
-			"dell_backlight",
-			&platform_device->dev, NULL,
-			&dell_ops);
+		struct backlight_properties props;
+		memset(&props, 0, sizeof(struct backlight_properties));
+		props.max_brightness = max_intensity;
+		dell_backlight_device = backlight_device_register("dell_backlight",
+								  &platform_device->dev,
+								  NULL,
+								  &dell_ops,
+								  &props);
 
 		if (IS_ERR(dell_backlight_device)) {
 			ret = PTR_ERR(dell_backlight_device);
@@ -570,7 +575,6 @@ static int __init dell_init(void)
 			goto fail_backlight;
 		}
 
-		dell_backlight_device->props.max_brightness = max_intensity;
 		dell_backlight_device->props.brightness =
 			dell_get_intensity(dell_backlight_device);
 		backlight_update_status(dell_backlight_device);

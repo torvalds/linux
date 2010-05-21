@@ -18,7 +18,6 @@
 #include <linux/sched.h>
 #include <linux/ptrace.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/init.h>
 #include <linux/irq.h>

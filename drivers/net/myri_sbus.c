@@ -14,7 +14,6 @@ static char version[] =
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -26,6 +25,7 @@ static char version[] =
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/firmware.h>
+#include <linux/gfp.h>
 
 #include <net/dst.h>
 #include <net/arp.h>
@@ -865,7 +865,7 @@ static inline void determine_reg_space_size(struct myri_eth *mp)
 		printk("myricom: AIEEE weird cpu version %04x assuming pre4.0\n",
 		       mp->eeprom.cpuvers);
 		mp->reg_size = (3 * 128 * 1024) + 4096;
-	};
+	}
 }
 
 #ifdef DEBUG_DETECT

@@ -21,6 +21,7 @@
 #include <linux/module.h>
 #include <linux/cdev.h>
 #include <linux/idr.h>
+#include <linux/slab.h>
 
 #include "iio.h"
 #include "ring_generic.h"

@@ -46,6 +46,7 @@
 #include <linux/compat.h>
 #include <linux/sched.h>
 #include <linux/semaphore.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 
@@ -780,7 +781,7 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 {
 	struct ib_umad_port *port;
 	struct ib_umad_file *file;
-	int ret = 0;
+	int ret;
 
 	port = container_of(inode->i_cdev, struct ib_umad_port, cdev);
 	if (port)
@@ -812,6 +813,8 @@ static int ib_umad_open(struct inode *inode, struct file *filp)
 	filp->private_data = file;
 
 	list_add_tail(&file->port_list, &port->file_list);
+
+	ret = nonseekable_open(inode, filp);
 
 out:
 	mutex_unlock(&port->file_mutex);
@@ -865,7 +868,8 @@ static const struct file_operations umad_fops = {
 	.compat_ioctl	= ib_umad_compat_ioctl,
 #endif
 	.open		= ib_umad_open,
-	.release	= ib_umad_close
+	.release	= ib_umad_close,
+	.llseek		= no_llseek,
 };
 
 static int ib_umad_sm_open(struct inode *inode, struct file *filp)
@@ -902,7 +906,7 @@ static int ib_umad_sm_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = port;
 
-	return 0;
+	return nonseekable_open(inode, filp);
 
 fail:
 	kref_put(&port->umad_dev->ref, ib_umad_release_dev);
@@ -932,7 +936,8 @@ static int ib_umad_sm_close(struct inode *inode, struct file *filp)
 static const struct file_operations umad_sm_fops = {
 	.owner	 = THIS_MODULE,
 	.open	 = ib_umad_sm_open,
-	.release = ib_umad_sm_close
+	.release = ib_umad_sm_close,
+	.llseek	 = no_llseek,
 };
 
 static struct ib_client umad_client = {
@@ -965,11 +970,8 @@ static ssize_t show_port(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(port, S_IRUGO, show_port, NULL);
 
-static ssize_t show_abi_version(struct class *class, char *buf)
-{
-	return sprintf(buf, "%d\n", IB_USER_MAD_ABI_VERSION);
-}
-static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
+static CLASS_ATTR_STRING(abi_version, S_IRUGO,
+			 __stringify(IB_USER_MAD_ABI_VERSION));
 
 static dev_t overflow_maj;
 static DECLARE_BITMAP(overflow_map, IB_UMAD_MAX_PORTS);
@@ -1194,7 +1196,7 @@ static int __init ib_umad_init(void)
 		goto out_chrdev;
 	}
 
-	ret = class_create_file(umad_class, &class_attr_abi_version);
+	ret = class_create_file(umad_class, &class_attr_abi_version.attr);
 	if (ret) {
 		printk(KERN_ERR "user_mad: couldn't create abi_version attribute\n");
 		goto out_class;

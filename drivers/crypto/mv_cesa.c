@@ -14,6 +14,7 @@
 #include <linux/kthread.h>
 #include <linux/platform_device.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 
 #include "mv_cesa.h"
 /*

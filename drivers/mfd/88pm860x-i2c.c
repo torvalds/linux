@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 #include <linux/mfd/88pm860x.h>
+#include <linux/slab.h>
 
 static inline int pm860x_read_device(struct i2c_client *i2c,
 				     int reg, int bytes, void *dest)

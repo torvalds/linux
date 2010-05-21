@@ -58,6 +58,7 @@ Notes:
 
 #include "../comedidev.h"
 
+#include <linux/gfp.h>
 #include <linux/ioport.h>
 #include <linux/interrupt.h>
 #include <asm/dma.h>

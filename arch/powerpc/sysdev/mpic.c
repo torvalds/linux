@@ -26,6 +26,7 @@
 #include <linux/bootmem.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 #include <asm/ptrace.h>
 #include <asm/signal.h>

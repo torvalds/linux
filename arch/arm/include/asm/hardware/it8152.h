@@ -75,6 +75,18 @@ extern unsigned long it8152_base_address;
   IT8152_PD_IRQ(1)  USB (USBR)
   IT8152_PD_IRQ(0)  Audio controller (ACR)
  */
+#define IT8152_IRQ(x)   (IRQ_BOARD_END + (x))
+
+/* IRQ-sources in 3 groups - local devices, LPC (serial), and external PCI */
+#define IT8152_LD_IRQ_COUNT     9
+#define IT8152_LP_IRQ_COUNT     16
+#define IT8152_PD_IRQ_COUNT     15
+
+/* Priorities: */
+#define IT8152_PD_IRQ(i)        IT8152_IRQ(i)
+#define IT8152_LP_IRQ(i)        (IT8152_IRQ(i) + IT8152_PD_IRQ_COUNT)
+#define IT8152_LD_IRQ(i)        (IT8152_IRQ(i) + IT8152_PD_IRQ_COUNT + IT8152_LP_IRQ_COUNT)
+
 /* frequently used interrupts */
 #define IT8152_PCISERR		IT8152_PD_IRQ(14)
 #define IT8152_H2PTADR		IT8152_PD_IRQ(13)

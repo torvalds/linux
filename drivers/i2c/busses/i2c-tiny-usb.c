@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 
 /* include interfaces to usb layer */

@@ -11,6 +11,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/mount.h>
 #include <linux/module.h>
 #include <linux/kobject.h>
@@ -57,6 +58,8 @@ static int sysfs_do_create_link(struct kobject *kobj, struct kobject *target,
 	if (!sd)
 		goto out_put;
 
+	if (sysfs_ns_type(parent_sd))
+		sd->s_ns = target->ktype->namespace(target);
 	sd->s_symlink.target_sd = target_sd;
 	target_sd = NULL;	/* reference is now owned by the symlink */
 
@@ -120,7 +123,52 @@ void sysfs_remove_link(struct kobject * kobj, const char * name)
 	else
 		parent_sd = kobj->sd;
 
-	sysfs_hash_and_remove(parent_sd, name);
+	sysfs_hash_and_remove(parent_sd, NULL, name);
+}
+
+/**
+ *	sysfs_rename_link - rename symlink in object's directory.
+ *	@kobj:	object we're acting for.
+ *	@targ:	object we're pointing to.
+ *	@old:	previous name of the symlink.
+ *	@new:	new name of the symlink.
+ *
+ *	A helper function for the common rename symlink idiom.
+ */
+int sysfs_rename_link(struct kobject *kobj, struct kobject *targ,
+			const char *old, const char *new)
+{
+	struct sysfs_dirent *parent_sd, *sd = NULL;
+	const void *old_ns = NULL, *new_ns = NULL;
+	int result;
+
+	if (!kobj)
+		parent_sd = &sysfs_root;
+	else
+		parent_sd = kobj->sd;
+
+	if (targ->sd)
+		old_ns = targ->sd->s_ns;
+
+	result = -ENOENT;
+	sd = sysfs_get_dirent(parent_sd, old_ns, old);
+	if (!sd)
+		goto out;
+
+	result = -EINVAL;
+	if (sysfs_type(sd) != SYSFS_KOBJ_LINK)
+		goto out;
+	if (sd->s_symlink.target_sd->s_dir.kobj != targ)
+		goto out;
+
+	if (sysfs_ns_type(parent_sd))
+		new_ns = targ->ktype->namespace(targ);
+
+	result = sysfs_rename(sd, parent_sd, new_ns, new);
+
+out:
+	sysfs_put(sd);
+	return result;
 }
 
 static int sysfs_get_target_path(struct sysfs_dirent *parent_sd,
@@ -222,3 +270,4 @@ const struct inode_operations sysfs_symlink_inode_operations = {
 
 EXPORT_SYMBOL_GPL(sysfs_create_link);
 EXPORT_SYMBOL_GPL(sysfs_remove_link);
+EXPORT_SYMBOL_GPL(sysfs_rename_link);

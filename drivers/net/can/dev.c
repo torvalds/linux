@@ -19,6 +19,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/can.h>

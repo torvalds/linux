@@ -68,7 +68,7 @@ Compaq adapters (not tested):
 =======================
 
 From v2.01 on, the driver is integrated in the linux kernel sources.
-Therefor, the installation is the same as for any other adapter
+Therefore, the installation is the same as for any other adapter
 supported by the kernel.
 Refer to the manual of your distribution about the installation
 of network adapters.

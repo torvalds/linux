@@ -9,6 +9,7 @@
  */
 
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <linux/ethtool.h>
 #include <linux/etherdevice.h>
 
@@ -186,7 +187,6 @@ tx_drop:
 	return NETDEV_TX_OK;
 
 rx_drop:
-	kfree_skb(skb);
 	rcv_stats->rx_dropped++;
 	return NETDEV_TX_OK;
 }

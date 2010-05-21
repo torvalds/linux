@@ -30,6 +30,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/firmware.h>
+#include <linux/slab.h>
 
 #include <scsi/scsi_host.h>
 

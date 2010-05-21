@@ -13,6 +13,7 @@
 #include <linux/device.h>
 #include <linux/types.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #ifdef CONFIG_W1_SLAVE_DS2433_CRC
 #include <linux/crc16.h>
 

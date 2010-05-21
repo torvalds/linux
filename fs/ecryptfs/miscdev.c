@@ -24,6 +24,7 @@
 #include <linux/random.h>
 #include <linux/miscdevice.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/module.h>
 #include "ecryptfs_kernel.h"

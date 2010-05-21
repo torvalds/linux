@@ -10,6 +10,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <sound/soc.h>
 #include <sound/initval.h>
@@ -90,12 +91,10 @@ static int ak4104_spi_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (reg >= codec->reg_cache_size)
 		return -EINVAL;
 
-	reg &= AK4104_REG_MASK;
-	reg |= AK4104_WRITE;
-
 	/* only write to the hardware if value has changed */
 	if (cache[reg] != value) {
-		u8 tmp[2] = { reg, value };
+		u8 tmp[2] = { (reg & AK4104_REG_MASK) | AK4104_WRITE, value };
+
 		if (spi_write(spi, tmp, sizeof(tmp))) {
 			dev_err(&spi->dev, "SPI write failed\n");
 			return -EIO;
@@ -223,7 +222,7 @@ static int ak4104_spi_probe(struct spi_device *spi)
 	codec->owner = THIS_MODULE;
 	codec->dai = &ak4104_dai;
 	codec->num_dai = 1;
-	codec->private_data = ak4104;
+	snd_soc_codec_set_drvdata(codec, ak4104);
 	codec->control_data = spi;
 	codec->reg_cache = ak4104->reg_cache;
 	codec->reg_cache_size = AK4104_NUM_REGS;

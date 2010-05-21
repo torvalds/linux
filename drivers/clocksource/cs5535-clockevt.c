@@ -154,14 +154,14 @@ static int __init cs5535_mfgpt_init(void)
 	if (cs5535_mfgpt_setup_irq(timer, MFGPT_CMP2, &timer_irq)) {
 		printk(KERN_ERR DRV_NAME ": Could not set up IRQ %d\n",
 				timer_irq);
-		return -EIO;
+		goto err_timer;
 	}
 
 	/* And register it with the kernel */
 	ret = setup_irq(timer_irq, &mfgptirq);
 	if (ret) {
 		printk(KERN_ERR DRV_NAME ": Unable to set up the interrupt.\n");
-		goto err;
+		goto err_irq;
 	}
 
 	/* Set the clock scale and enable the event mode for CMP2 */
@@ -184,8 +184,10 @@ static int __init cs5535_mfgpt_init(void)
 
 	return 0;
 
-err:
+err_irq:
 	cs5535_mfgpt_release_irq(cs5535_event_clock, MFGPT_CMP2, &timer_irq);
+err_timer:
+	cs5535_mfgpt_free_timer(cs5535_event_clock);
 	printk(KERN_ERR DRV_NAME ": Unable to set up the MFGPT clock source\n");
 	return -EIO;
 }

@@ -5,6 +5,7 @@
 #include <linux/moduleparam.h>
 #include <linux/firmware.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 
 #ifdef CONFIG_OLPC
@@ -132,8 +133,6 @@ static void if_usb_write_bulk_callback(struct urb *urb)
 		/* print the failure status number for debug */
 		lbs_pr_info("URB in failure status: %d\n", urb->status);
 	}
-
-	return;
 }
 
 /**
@@ -650,8 +649,6 @@ static void if_usb_receive_fwload(struct urb *urb)
 	if_usb_submit_rx_urb_fwload(cardp);
 
 	kfree(syncfwheader);
-
-	return;
 }
 
 #define MRVDRV_MIN_PKT_LEN	30

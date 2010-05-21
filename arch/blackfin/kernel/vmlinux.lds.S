@@ -15,7 +15,12 @@ _jiffies = _jiffies_64;
 
 SECTIONS
 {
+#ifdef CONFIG_RAMKERNEL
 	. = CONFIG_BOOT_LOAD;
+#else
+	. = CONFIG_ROM_BASE;
+#endif
+
 	/* Neither the text, ro_data or bss section need to be aligned
 	 * So pack them back to back
 	 */
@@ -31,6 +36,12 @@ SECTIONS
 		LOCK_TEXT
 		IRQENTRY_TEXT
 		KPROBES_TEXT
+#ifdef CONFIG_ROMKERNEL
+		__sinittext = .;
+		INIT_TEXT
+		__einittext = .;
+		EXIT_TEXT
+#endif
 		*(.text.*)
 		*(.fixup)
 
@@ -50,8 +61,14 @@ SECTIONS
 
 	/* Just in case the first read only is a 32-bit access */
 	RO_DATA(4)
+	__rodata_end = .;
 
+#ifdef CONFIG_ROMKERNEL
+	. = CONFIG_BOOT_LOAD;
+	.bss : AT(__rodata_end)
+#else
 	.bss :
+#endif
 	{
 		. = ALIGN(4);
 		___bss_start = .;
@@ -67,7 +84,11 @@ SECTIONS
 		___bss_stop = .;
 	}
 
+#if defined(CONFIG_ROMKERNEL)
+	.data : AT(LOADADDR(.bss) + SIZEOF(.bss))
+#else
 	.data :
+#endif
 	{
 		__sdata = .;
 		/* This gets done first, so the glob doesn't suck it in */
@@ -94,6 +115,8 @@ SECTIONS
 
 		__edata = .;
 	}
+	__data_lma = LOADADDR(.data);
+	__data_len = SIZEOF(.data);
 
 	/* The init section should be last, so when we free it, it goes into
 	 * the general memory pool, and (hopefully) will decrease fragmentation
@@ -103,25 +126,58 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	___init_begin = .;
 
+#ifdef CONFIG_RAMKERNEL
 	INIT_TEXT_SECTION(PAGE_SIZE)
-	. = ALIGN(16);
-	INIT_DATA_SECTION(16)
-	PERCPU(4)
 
-	/* we have to discard exit text and such at runtime, not link time, to
+	/* We have to discard exit text and such at runtime, not link time, to
 	 * handle embedded cross-section references (alt instructions, bug
-	 * table, eh_frame, etc...)
+	 * table, eh_frame, etc...).  We need all of our .text up front and
+	 * .data after it for PCREL call issues.
 	 */
 	.exit.text :
 	{
 		EXIT_TEXT
 	}
+
+	. = ALIGN(16);
+	INIT_DATA_SECTION(16)
+	PERCPU(4)
+
 	.exit.data :
 	{
 		EXIT_DATA
 	}
 
 	.text_l1 L1_CODE_START : AT(LOADADDR(.exit.data) + SIZEOF(.exit.data))
+#else
+	.init.data : AT(__data_lma + __data_len)
+	{
+		__sinitdata = .;
+		INIT_DATA
+		INIT_SETUP(16)
+		INIT_CALLS
+		CON_INITCALL
+		SECURITY_INITCALL
+		INIT_RAM_FS
+
+		. = ALIGN(4);
+		___per_cpu_load = .;
+		___per_cpu_start = .;
+		*(.data.percpu.first)
+		*(.data.percpu.page_aligned)
+		*(.data.percpu)
+		*(.data.percpu.shared_aligned)
+		___per_cpu_end = .;
+
+		EXIT_DATA
+		__einitdata = .;
+	}
+	__init_data_lma = LOADADDR(.init.data);
+	__init_data_len = SIZEOF(.init.data);
+	__init_data_end = .;
+
+	.text_l1 L1_CODE_START : AT(__init_data_lma + __init_data_len)
+#endif
 	{
 		. = ALIGN(4);
 		__stext_l1 = .;
@@ -202,7 +258,11 @@ SECTIONS
 	/* Force trailing alignment of our init section so that when we
 	 * free our init memory, we don't leave behind a partial page.
 	 */
+#ifdef CONFIG_RAMKERNEL
 	. = __l2_lma + __l2_len;
+#else
+	. = __init_data_end;
+#endif
 	. = ALIGN(PAGE_SIZE);
 	___init_end = .;
 

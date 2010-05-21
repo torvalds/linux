@@ -20,6 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/pci.h>
 #include <linux/i2c-gpio.h>
+#include <linux/slab.h>
 
 #include <linux/sm501.h>
 #include <linux/sm501-regs.h>
@@ -523,7 +524,7 @@ unsigned long sm501_set_clock(struct device *dev,
 	unsigned long clock = readl(sm->regs + SM501_CURRENT_CLOCK);
 	unsigned char reg;
 	unsigned int pll_reg = 0;
-	unsigned long sm501_freq; /* the actual frequency acheived */
+	unsigned long sm501_freq; /* the actual frequency achieved */
 
 	struct sm501_clock to;
 
@@ -533,7 +534,7 @@ unsigned long sm501_set_clock(struct device *dev,
 
 	switch (clksrc) {
 	case SM501_CLOCK_P2XCLK:
-		/* This clock is divided in half so to achive the
+		/* This clock is divided in half so to achieve the
 		 * requested frequency the value must be multiplied by
 		 * 2. This clock also has an additional pre divisor */
 
@@ -562,7 +563,7 @@ unsigned long sm501_set_clock(struct device *dev,
 		break;
 
 	case SM501_CLOCK_V2XCLK:
-		/* This clock is divided in half so to achive the
+		/* This clock is divided in half so to achieve the
 		 * requested frequency the value must be multiplied by 2. */
 
 		sm501_freq = (sm501_select_clock(2 * req_freq, &to, 3) / 2);
@@ -648,7 +649,7 @@ unsigned long sm501_find_clock(struct device *dev,
 			       unsigned long req_freq)
 {
 	struct sm501_devdata *sm = dev_get_drvdata(dev);
-	unsigned long sm501_freq; /* the frequency achiveable by the 501 */
+	unsigned long sm501_freq; /* the frequency achieveable by the 501 */
 	struct sm501_clock to;
 
 	switch (clksrc) {
@@ -1430,7 +1431,7 @@ static int __devinit sm501_plat_probe(struct platform_device *dev)
 	}
 
 	sm->regs_claim = request_mem_region(sm->io_res->start,
-					    resource_size(sm->io_res), "sm501");
+					    0x100, "sm501");
 
 	if (sm->regs_claim == NULL) {
 		dev_err(&dev->dev, "cannot claim registers\n");
@@ -1644,7 +1645,7 @@ static int __devinit sm501_pci_probe(struct pci_dev *dev,
 	sm->mem_res = &dev->resource[0];
 
 	sm->regs_claim = request_mem_region(sm->io_res->start,
-					    resource_size(sm->io_res), "sm501");
+					    0x100, "sm501");
 	if (sm->regs_claim == NULL) {
 		dev_err(&dev->dev, "cannot claim registers\n");
 		err= -EBUSY;

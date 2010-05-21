@@ -48,7 +48,7 @@ static int sh_cpufreq_target(struct cpufreq_policy *policy,
 		return -ENODEV;
 
 	cpus_allowed = current->cpus_allowed;
-	set_cpus_allowed(current, cpumask_of_cpu(cpu));
+	set_cpus_allowed_ptr(current, cpumask_of(cpu));
 
 	BUG_ON(smp_processor_id() != cpu);
 
@@ -66,7 +66,7 @@ static int sh_cpufreq_target(struct cpufreq_policy *policy,
 	freqs.flags	= 0;
 
 	cpufreq_notify_transition(&freqs, CPUFREQ_PRECHANGE);
-	set_cpus_allowed(current, cpus_allowed);
+	set_cpus_allowed_ptr(current, &cpus_allowed);
 	clk_set_rate(cpuclk, freq);
 	cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
 

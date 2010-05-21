@@ -15,6 +15,7 @@
  * Common management module
  */
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include "megaraid_mm.h"
 

@@ -21,7 +21,6 @@
 
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/isa.h>
 #include <linux/pnp.h>

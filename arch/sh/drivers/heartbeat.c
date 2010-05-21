@@ -24,6 +24,7 @@
 #include <linux/sched.h>
 #include <linux/timer.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <asm/heartbeat.h>
 
 #define DRV_NAME "heartbeat"

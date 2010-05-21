@@ -36,7 +36,6 @@
 #include <asm/dma.h>
 #include <asm/io.h>
 #include <linux/wait.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/major.h>
 #include <linux/delay.h>

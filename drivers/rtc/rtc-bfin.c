@@ -51,6 +51,7 @@
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include <asm/blackfin.h>
 

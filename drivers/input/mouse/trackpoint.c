@@ -8,6 +8,7 @@
  * Trademarks are the property of their respective owners.
  */
 
+#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/serio.h>
 #include <linux/module.h>

@@ -29,6 +29,7 @@
 #include <linux/netdevice.h>
 #include <linux/in6.h>
 #include <linux/icmpv6.h>
+#include <linux/slab.h>
 
 #include <net/dst.h>
 #include <net/sock.h>

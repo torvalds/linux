@@ -20,6 +20,7 @@
 
 #include <linux/kernel.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/mmc/host.h>
 #include <linux/mfd/core.h>

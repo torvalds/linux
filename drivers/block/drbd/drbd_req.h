@@ -57,7 +57,7 @@
  *
  *  It may me handed over to the local disk subsystem.
  *  It may be completed by the local disk subsystem,
- *    either sucessfully or with io-error.
+ *    either successfully or with io-error.
  *  In case it is a READ request, and it failed locally,
  *    it may be retried remotely.
  *

@@ -99,6 +99,9 @@
 /* Number of entries posted */
 #define DB_MCCQ_NUM_POSTED_SHIFT	(16)	/* bits 16 - 29 */
 
+/********** SRIOV VF PCICFG OFFSET ********/
+#define SRIOV_VF_PCICFG_OFFSET		(4096)
+
 /* Flashrom related descriptors */
 #define IMAGE_TYPE_FIRMWARE		160
 #define IMAGE_TYPE_BOOTCODE		224
@@ -114,8 +117,7 @@
 #define IMG_TYPE_ISCSI_BACKUP		9
 #define IMG_TYPE_FCOE_FW_ACTIVE		10
 #define IMG_TYPE_FCOE_FW_BACKUP 	11
-#define IMG_TYPE_NCSI_BITFILE		13
-#define IMG_TYPE_NCSI_8051		14
+#define IMG_TYPE_NCSI_FW		13
 
 #define FLASHROM_OPER_FLASH		1
 #define FLASHROM_OPER_SAVE		2
@@ -127,6 +129,7 @@
 #define FLASH_IMAGE_MAX_SIZE_g3            (2097152) /* Max fw image size */
 #define FLASH_BIOS_IMAGE_MAX_SIZE_g3       (524288)  /* Max OPTION ROM img sz */
 #define FLASH_REDBOOT_IMAGE_MAX_SIZE_g3	  (1048576)  /* Max Redboot image sz */
+#define FLASH_NCSI_IMAGE_MAX_SIZE_g3       (262144)  /* Max NSCI image sz */
 
 #define FLASH_NCSI_MAGIC		(0x16032009)
 #define FLASH_NCSI_DISABLED		(0)
@@ -144,6 +147,7 @@
 #define FLASH_FCoE_BIOS_START_g2           (524288)
 #define FLASH_REDBOOT_START_g2		  (0)
 
+#define FLASH_NCSI_START_g3		   (15990784)
 #define FLASH_iSCSI_PRIMARY_IMAGE_START_g3 (2097152)
 #define FLASH_iSCSI_BACKUP_IMAGE_START_g3  (4194304)
 #define FLASH_FCoE_PRIMARY_IMAGE_START_g3  (6291456)

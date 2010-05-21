@@ -166,7 +166,8 @@
 #define U2DMACSR_BUSERRTYPE	(7 << 10)	/* PX Bus Error Type */
 #define U2DMACSR_EORINTR	(1 << 9)	/* End Of Receive */
 #define U2DMACSR_REQPEND	(1 << 8)	/* Request Pending */
-#define U2DMACSR_RASINTR	(1 << 4)	/* Request After Channel Stopped (read / write 1 clear) */#define U2DMACSR_STOPINTR	(1 << 3)	/* Stop Interrupt (read only) */
+#define U2DMACSR_RASINTR	(1 << 4)	/* Request After Channel Stopped (read / write 1 clear) */
+#define U2DMACSR_STOPINTR	(1 << 3)	/* Stop Interrupt (read only) */
 #define U2DMACSR_ENDINTR	(1 << 2)	/* End Interrupt (read / write 1 clear) */
 #define U2DMACSR_STARTINTR	(1 << 1)	/* Start Interrupt (read / write 1 clear) */
 #define U2DMACSR_BUSERRINTR	(1 << 0)	/* Bus Error Interrupt (read / write 1 clear) */

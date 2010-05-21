@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/highmem.h>
 #include <linux/lmb.h>
+#include <linux/slab.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>

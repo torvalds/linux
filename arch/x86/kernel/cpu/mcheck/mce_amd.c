@@ -21,6 +21,7 @@
 #include <linux/errno.h>
 #include <linux/sched.h>
 #include <linux/sysfs.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/cpu.h>
 #include <linux/smp.h>
@@ -388,7 +389,7 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 	return ret;
 }
 
-static struct sysfs_ops threshold_ops = {
+static const struct sysfs_ops threshold_ops = {
 	.show			= show,
 	.store			= store,
 };

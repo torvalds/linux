@@ -285,8 +285,8 @@ int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 		}
 
 		if (r == SS_NO_UP_TO_DATE_DISK && force &&
-		    (mdev->state.disk == D_INCONSISTENT ||
-		     mdev->state.disk == D_OUTDATED)) {
+		    (mdev->state.disk < D_UP_TO_DATE &&
+		     mdev->state.disk >= D_INCONSISTENT)) {
 			mask.disk = D_MASK;
 			val.disk  = D_UP_TO_DATE;
 			forced = 1;
@@ -407,7 +407,7 @@ static int drbd_nl_primary(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	}
 
 	reply->ret_code =
-		drbd_set_role(mdev, R_PRIMARY, primary_args.overwrite_peer);
+		drbd_set_role(mdev, R_PRIMARY, primary_args.primary_force);
 
 	return 0;
 }
@@ -941,6 +941,25 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 
 	drbd_md_set_sector_offsets(mdev, nbc);
 
+	/* allocate a second IO page if logical_block_size != 512 */
+	logical_block_size = bdev_logical_block_size(nbc->md_bdev);
+	if (logical_block_size == 0)
+		logical_block_size = MD_SECTOR_SIZE;
+
+	if (logical_block_size != MD_SECTOR_SIZE) {
+		if (!mdev->md_io_tmpp) {
+			struct page *page = alloc_page(GFP_NOIO);
+			if (!page)
+				goto force_diskless_dec;
+
+			dev_warn(DEV, "Meta data's bdev logical_block_size = %d != %d\n",
+			     logical_block_size, MD_SECTOR_SIZE);
+			dev_warn(DEV, "Workaround engaged (has performance impact).\n");
+
+			mdev->md_io_tmpp = page;
+		}
+	}
+
 	if (!mdev->bitmap) {
 		if (drbd_bm_init(mdev)) {
 			retcode = ERR_NOMEM;
@@ -978,25 +997,6 @@ static int drbd_nl_disk_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp
 	if (!drbd_al_read_log(mdev, nbc)) {
 		retcode = ERR_IO_MD_DISK;
 		goto force_diskless_dec;
-	}
-
-	/* allocate a second IO page if logical_block_size != 512 */
-	logical_block_size = bdev_logical_block_size(nbc->md_bdev);
-	if (logical_block_size == 0)
-		logical_block_size = MD_SECTOR_SIZE;
-
-	if (logical_block_size != MD_SECTOR_SIZE) {
-		if (!mdev->md_io_tmpp) {
-			struct page *page = alloc_page(GFP_NOIO);
-			if (!page)
-				goto force_diskless_dec;
-
-			dev_warn(DEV, "Meta data's bdev logical_block_size = %d != %d\n",
-			     logical_block_size, MD_SECTOR_SIZE);
-			dev_warn(DEV, "Workaround engaged (has performance impact).\n");
-
-			mdev->md_io_tmpp = page;
-		}
 	}
 
 	/* Reset the "barriers don't work" bits here, then force meta data to

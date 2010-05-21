@@ -325,7 +325,7 @@ sys_call_table:
 	PTR	sys32_sigreturn
 	PTR	sys32_clone			/* 4120 */
 	PTR	sys_setdomainname
-	PTR	sys_32_newuname
+	PTR	sys_newuname
 	PTR	sys_ni_syscall			/* sys_modify_ldt */
 	PTR	compat_sys_adjtimex
 	PTR	sys_mprotect			/* 4125 */

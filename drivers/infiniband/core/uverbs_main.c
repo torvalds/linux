@@ -44,6 +44,7 @@
 #include <linux/file.h>
 #include <linux/cdev.h>
 #include <linux/anon_inodes.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 
@@ -368,7 +369,8 @@ static const struct file_operations uverbs_event_fops = {
 	.read	 = ib_uverbs_event_read,
 	.poll    = ib_uverbs_event_poll,
 	.release = ib_uverbs_event_close,
-	.fasync  = ib_uverbs_event_fasync
+	.fasync  = ib_uverbs_event_fasync,
+	.llseek	 = no_llseek,
 };
 
 void ib_uverbs_comp_handler(struct ib_cq *cq, void *cq_context)
@@ -622,7 +624,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = file;
 
-	return 0;
+	return nonseekable_open(inode, filp);
 
 err_module:
 	module_put(dev->ib_dev->owner);
@@ -650,7 +652,8 @@ static const struct file_operations uverbs_fops = {
 	.owner	 = THIS_MODULE,
 	.write	 = ib_uverbs_write,
 	.open	 = ib_uverbs_open,
-	.release = ib_uverbs_close
+	.release = ib_uverbs_close,
+	.llseek	 = no_llseek,
 };
 
 static const struct file_operations uverbs_mmap_fops = {
@@ -658,7 +661,8 @@ static const struct file_operations uverbs_mmap_fops = {
 	.write	 = ib_uverbs_write,
 	.mmap    = ib_uverbs_mmap,
 	.open	 = ib_uverbs_open,
-	.release = ib_uverbs_close
+	.release = ib_uverbs_close,
+	.llseek	 = no_llseek,
 };
 
 static struct ib_client uverbs_client = {
@@ -691,11 +695,8 @@ static ssize_t show_dev_abi_version(struct device *device,
 }
 static DEVICE_ATTR(abi_version, S_IRUGO, show_dev_abi_version, NULL);
 
-static ssize_t show_abi_version(struct class *class, char *buf)
-{
-	return sprintf(buf, "%d\n", IB_USER_VERBS_ABI_VERSION);
-}
-static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
+static CLASS_ATTR_STRING(abi_version, S_IRUGO,
+			 __stringify(IB_USER_VERBS_ABI_VERSION));
 
 static dev_t overflow_maj;
 static DECLARE_BITMAP(overflow_map, IB_UVERBS_MAX_DEVICES);
@@ -841,7 +842,7 @@ static int __init ib_uverbs_init(void)
 		goto out_chrdev;
 	}
 
-	ret = class_create_file(uverbs_class, &class_attr_abi_version);
+	ret = class_create_file(uverbs_class, &class_attr_abi_version.attr);
 	if (ret) {
 		printk(KERN_ERR "user_verbs: couldn't create abi_version attribute\n");
 		goto out_class;

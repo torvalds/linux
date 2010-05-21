@@ -24,6 +24,8 @@
  * along with this driver.  If not, see <http://www.gnu.org/licenses/>.
  **********************************************************************/
 
+#include <linux/slab.h>
+
 #include "crystalhd_misc.h"
 #include "crystalhd_lnx.h"
 

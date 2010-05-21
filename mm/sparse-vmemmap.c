@@ -22,6 +22,7 @@
 #include <linux/bootmem.h>
 #include <linux/highmem.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
 #include <linux/sched.h>

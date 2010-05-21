@@ -6,6 +6,7 @@
  * Copyright (C) 2009 Cavium Networks
  */
 
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -87,6 +88,7 @@ static int octeon_mdiobus_write(struct mii_bus *bus, int phy_id,
 static int __init octeon_mdiobus_probe(struct platform_device *pdev)
 {
 	struct octeon_mdiobus *bus;
+	union cvmx_smix_en smi_en;
 	int i;
 	int err = -ENOENT;
 
@@ -101,6 +103,10 @@ static int __init octeon_mdiobus_probe(struct platform_device *pdev)
 
 	if (!bus->mii_bus)
 		goto err;
+
+	smi_en.u64 = 0;
+	smi_en.s.en = 1;
+	cvmx_write_csr(CVMX_SMIX_EN(bus->unit), smi_en.u64);
 
 	/*
 	 * Standard Octeon evaluation boards don't support phy
@@ -132,17 +138,22 @@ err_register:
 
 err:
 	devm_kfree(&pdev->dev, bus);
+	smi_en.u64 = 0;
+	cvmx_write_csr(CVMX_SMIX_EN(bus->unit), smi_en.u64);
 	return err;
 }
 
 static int __exit octeon_mdiobus_remove(struct platform_device *pdev)
 {
 	struct octeon_mdiobus *bus;
+	union cvmx_smix_en smi_en;
 
 	bus = dev_get_drvdata(&pdev->dev);
 
 	mdiobus_unregister(bus->mii_bus);
 	mdiobus_free(bus->mii_bus);
+	smi_en.u64 = 0;
+	cvmx_write_csr(CVMX_SMIX_EN(bus->unit), smi_en.u64);
 	return 0;
 }
 

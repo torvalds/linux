@@ -254,6 +254,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 #include <scsi/scsicam.h>
 
 #include "scsi.h"

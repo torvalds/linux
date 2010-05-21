@@ -44,6 +44,7 @@ Devices: [Fastwel] UNIOxx-5 (unioxx5),
 
 #include "../comedidev.h"
 #include <linux/ioport.h>
+#include <linux/slab.h>
 
 #define DRIVER_NAME "unioxx5"
 #define UNIOXX5_SIZE 0x10

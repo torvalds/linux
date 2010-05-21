@@ -10,13 +10,13 @@
  */
 #include <linux/module.h>
 #include <linux/cred.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/key.h>
 #include <linux/keyctl.h>
 #include <linux/init_task.h>
 #include <linux/security.h>
 #include <linux/cn_proc.h>
-#include "cred-internals.h"
 
 #if 0
 #define kdebug(FMT, ...) \
@@ -364,7 +364,7 @@ struct cred *prepare_usermodehelper_creds(void)
 
 	new = kmem_cache_alloc(cred_jar, GFP_ATOMIC);
 	if (!new)
-		return NULL;
+		goto free_tgcred;
 
 	kdebug("prepare_usermodehelper_creds() alloc %p", new);
 
@@ -397,6 +397,12 @@ struct cred *prepare_usermodehelper_creds(void)
 
 error:
 	put_cred(new);
+	return NULL;
+
+free_tgcred:
+#ifdef CONFIG_KEYS
+	kfree(tgcred);
+#endif
 	return NULL;
 }
 
@@ -516,8 +522,6 @@ int commit_creds(struct cred *new)
 #endif
 	BUG_ON(atomic_read(&new->usage) < 1);
 
-	security_commit_creds(new, old);
-
 	get_cred(new); /* we will require a ref for the subj creds too */
 
 	/* dumpability changes */
@@ -552,8 +556,6 @@ int commit_creds(struct cred *new)
 	if (new->user != old->user)
 		atomic_dec(&old->user->processes);
 	alter_cred_subscribers(old, -2);
-
-	sched_switch_user(task);
 
 	/* send notifications */
 	if (new->uid   != old->uid  ||
@@ -785,8 +787,6 @@ EXPORT_SYMBOL(set_create_files_as);
 bool creds_are_invalid(const struct cred *cred)
 {
 	if (cred->magic != CRED_MAGIC)
-		return true;
-	if (atomic_read(&cred->usage) < atomic_read(&cred->subscribers))
 		return true;
 #ifdef CONFIG_SECURITY_SELINUX
 	if (selinux_is_enabled()) {

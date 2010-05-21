@@ -19,6 +19,7 @@
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/cache.h>
+#include <asm/pgtable.h>
 
 #define PGDIR_ORDER	0
 
@@ -107,22 +108,7 @@ extern inline void free_pgd_slow(pgd_t *pgd)
 #define pmd_alloc_one_fast(mm, address)	({ BUG(); ((pmd_t *)1); })
 #define pmd_alloc_one(mm, address)	({ BUG(); ((pmd_t *)2); })
 
-static inline pte_t *pte_alloc_one_kernel(struct mm_struct *mm,
-		unsigned long address)
-{
-	pte_t *pte;
-	extern int mem_init_done;
-	extern void *early_get_page(void);
-	if (mem_init_done) {
-		pte = (pte_t *)__get_free_page(GFP_KERNEL |
-					__GFP_REPEAT | __GFP_ZERO);
-	} else {
-		pte = (pte_t *)early_get_page();
-		if (pte)
-			clear_page(pte);
-	}
-	return pte;
-}
+extern pte_t *pte_alloc_one_kernel(struct mm_struct *mm, unsigned long addr);
 
 static inline struct page *pte_alloc_one(struct mm_struct *mm,
 		unsigned long address)

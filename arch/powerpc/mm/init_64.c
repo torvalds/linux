@@ -42,6 +42,7 @@
 #include <linux/poison.h>
 #include <linux/lmb.h>
 #include <linux/hugetlb.h>
+#include <linux/slab.h>
 
 #include <asm/pgalloc.h>
 #include <asm/page.h>

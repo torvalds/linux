@@ -11,6 +11,7 @@ extern unsigned long free_mem_end_ptr;
 extern void error(char *);
 
 #define STATIC static
+#define STATIC_RW_DATA	/* non-static please */
 
 #define ARCH_HAS_DECOMP_WDOG
 
@@ -37,6 +38,10 @@ extern void error(char *);
 
 #ifdef CONFIG_KERNEL_LZO
 #include "../../../../lib/decompress_unlzo.c"
+#endif
+
+#ifdef CONFIG_KERNEL_LZMA
+#include "../../../../lib/decompress_unlzma.c"
 #endif
 
 void do_decompress(u8 *input, int len, u8 *output, void (*error)(char *x))

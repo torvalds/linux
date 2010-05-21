@@ -18,6 +18,7 @@
 #include <linux/bcd.h>
 #include <linux/delay.h>
 #include <linux/mfd/core.h>
+#include <linux/slab.h>
 
 #include <linux/mfd/wm831x/core.h>
 #include <linux/mfd/wm831x/pdata.h>
@@ -347,6 +348,9 @@ int wm831x_auxadc_read(struct wm831x *wm831x, enum wm831x_auxadc input)
 		dev_err(wm831x->dev, "Failed to start AUXADC: %d\n", ret);
 		goto disable;
 	}
+
+	/* If an interrupt arrived late clean up after it */
+	try_wait_for_completion(&wm831x->auxadc_done);
 
 	/* Ignore the result to allow us to soldier on without IRQ hookup */
 	wait_for_completion_timeout(&wm831x->auxadc_done, msecs_to_jiffies(5));

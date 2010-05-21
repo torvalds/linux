@@ -53,10 +53,10 @@ config MMU
 	bool
 	default y
 
-config SWIOTLB
-       bool
+config NEED_DMA_MAP_STATE
+	def_bool y
 
-config IOMMU_HELPER
+config SWIOTLB
        bool
 
 config GENERIC_LOCKBREAK

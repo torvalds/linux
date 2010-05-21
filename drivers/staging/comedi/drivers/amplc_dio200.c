@@ -206,6 +206,7 @@ order they appear in the channel list.
 */
 
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 #include "../comedidev.h"
 

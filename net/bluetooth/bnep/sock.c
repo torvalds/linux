@@ -30,7 +30,6 @@
 #include <linux/capability.h>
 #include <linux/errno.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/poll.h>
 #include <linux/fcntl.h>
 #include <linux/skbuff.h>
@@ -39,6 +38,7 @@
 #include <linux/file.h>
 #include <linux/init.h>
 #include <linux/compat.h>
+#include <linux/gfp.h>
 #include <net/sock.h>
 
 #include <asm/system.h>

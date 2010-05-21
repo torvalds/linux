@@ -22,6 +22,7 @@
 
 #include <linux/device.h>
 #include <linux/firmware.h>
+#include <linux/slab.h>
 #include <linux/vmalloc.h>
 #include <sound/core.h>
 #include <sound/hwdep.h>

@@ -22,6 +22,7 @@
 #include <linux/magic.h>
 #include <linux/dcache.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 
 #include "autofs_i.h"
 

@@ -9,6 +9,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/mfd/core.h>

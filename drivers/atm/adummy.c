@@ -13,6 +13,7 @@
 #include <linux/mm.h>
 #include <linux/timer.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 #include <asm/byteorder.h>
 #include <asm/uaccess.h>

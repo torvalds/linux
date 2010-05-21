@@ -24,6 +24,7 @@
 #include <linux/notifier.h>
 #include <linux/ioctl.h>
 #include <linux/fb.h>
+#include <linux/slab.h>
 
 #include <asm/firmware.h>
 #include <asm/ps3av.h>

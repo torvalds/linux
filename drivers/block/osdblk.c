@@ -63,6 +63,7 @@
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <scsi/osd_initiator.h>
 #include <scsi/osd_attributes.h>
 #include <scsi/osd_sec.h>
@@ -476,7 +477,9 @@ static void class_osdblk_release(struct class *cls)
 	kfree(cls);
 }
 
-static ssize_t class_osdblk_list(struct class *c, char *data)
+static ssize_t class_osdblk_list(struct class *c,
+				struct class_attribute *attr,
+				char *data)
 {
 	int n = 0;
 	struct list_head *tmp;
@@ -500,7 +503,9 @@ static ssize_t class_osdblk_list(struct class *c, char *data)
 	return n;
 }
 
-static ssize_t class_osdblk_add(struct class *c, const char *buf, size_t count)
+static ssize_t class_osdblk_add(struct class *c,
+				struct class_attribute *attr,
+				const char *buf, size_t count)
 {
 	struct osdblk_device *osdev;
 	ssize_t rc;
@@ -592,7 +597,9 @@ err_out_mod:
 	return rc;
 }
 
-static ssize_t class_osdblk_remove(struct class *c, const char *buf,
+static ssize_t class_osdblk_remove(struct class *c,
+					struct class_attribute *attr,
+					const char *buf,
 					size_t count)
 {
 	struct osdblk_device *osdev = NULL;

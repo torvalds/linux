@@ -24,6 +24,7 @@
 #include <linux/proc_fs.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <asm/iseries/hv_lp_config.h>
 #include <asm/lppaca.h>

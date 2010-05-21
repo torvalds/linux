@@ -27,8 +27,10 @@
  */
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "radeon_drm.h"
 #include "rv770d.h"
 #include "atom.h"
@@ -125,9 +127,9 @@ void rv770_pcie_gart_disable(struct radeon_device *rdev)
 
 void rv770_pcie_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	rv770_pcie_gart_disable(rdev);
 	radeon_gart_table_vram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 
@@ -647,10 +649,13 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 
 	WREG32(CC_RB_BACKEND_DISABLE,      cc_rb_backend_disable);
 	WREG32(CC_GC_SHADER_PIPE_CONFIG,   cc_gc_shader_pipe_config);
+	WREG32(GC_USER_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
 	WREG32(CC_SYS_RB_BACKEND_DISABLE,  cc_rb_backend_disable);
 
 	WREG32(CGTS_SYS_TCC_DISABLE, 0);
 	WREG32(CGTS_TCC_DISABLE, 0);
+	WREG32(CGTS_USER_SYS_TCC_DISABLE, 0);
+	WREG32(CGTS_USER_TCC_DISABLE, 0);
 
 	num_qd_pipes =
 		R7XX_MAX_PIPES - r600_count_pipe_bits((cc_gc_shader_pipe_config & INACTIVE_QD_PIPES_MASK) >> 8);
@@ -864,7 +869,6 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 
 int rv770_mc_init(struct radeon_device *rdev)
 {
-	fixed20_12 a;
 	u32 tmp;
 	int chansize, numchan;
 
@@ -908,12 +912,8 @@ int rv770_mc_init(struct radeon_device *rdev)
 		rdev->mc.real_vram_size = rdev->mc.aper_size;
 	}
 	r600_vram_gtt_location(rdev, &rdev->mc);
-	/* FIXME: we should enforce default clock in case GPU is not in
-	 * default setup
-	 */
-	a.full = rfixed_const(100);
-	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
-	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+	radeon_update_bandwidth_info(rdev);
+
 	return 0;
 }
 
@@ -1013,6 +1013,13 @@ int rv770_resume(struct radeon_device *rdev)
 		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
 		return r;
 	}
+
+	r = r600_audio_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "radeon: audio init failed\n");
+		return r;
+	}
+
 	return r;
 
 }
@@ -1021,6 +1028,7 @@ int rv770_suspend(struct radeon_device *rdev)
 {
 	int r;
 
+	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
 	rdev->cp.ready = false;
@@ -1144,11 +1152,19 @@ int rv770_init(struct radeon_device *rdev)
 			}
 		}
 	}
+
+	r = r600_audio_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "radeon: audio init failed\n");
+		return r;
+	}
+
 	return 0;
 }
 
 void rv770_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r600_blit_fini(rdev);
 	r600_cp_fini(rdev);
 	r600_wb_fini(rdev);

@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #include <asm/udbg.h>
 #include <asm/lv1call.h>

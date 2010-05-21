@@ -47,7 +47,6 @@ static const char driver_name[DEV_NAME_LEN]  = "sl811_cs";
 
 typedef struct local_info_t {
 	struct pcmcia_device	*p_dev;
-	dev_node_t		node;
 } local_info_t;
 
 static void sl811_cs_release(struct pcmcia_device * link);
@@ -163,8 +162,7 @@ static int sl811_cs_config_check(struct pcmcia_device *p_dev,
 			dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
 
 	/* we need an interrupt */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
@@ -186,7 +184,6 @@ static int sl811_cs_config_check(struct pcmcia_device *p_dev,
 static int sl811_cs_config(struct pcmcia_device *link)
 {
 	struct device		*parent = &link->dev;
-	local_info_t		*dev = link->priv;
 	int			ret;
 
 	dev_dbg(&link->dev, "sl811_cs_config\n");
@@ -197,31 +194,24 @@ static int sl811_cs_config(struct pcmcia_device *link)
 	/* require an IRQ and two registers */
 	if (!link->io.NumPorts1 || link->io.NumPorts1 < 2)
 		goto failed;
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
-	} else
+
+	if (!link->irq)
 		goto failed;
 
 	ret = pcmcia_request_configuration(link, &link->conf);
 	if (ret)
 		goto failed;
 
-	sprintf(dev->node.dev_name, driver_name);
-	dev->node.major = dev->node.minor = 0;
-	link->dev_node = &dev->node;
-
-	printk(KERN_INFO "%s: index 0x%02x: ",
-	       dev->node.dev_name, link->conf.ConfigIndex);
+	dev_info(&link->dev, "index 0x%02x: ",
+		link->conf.ConfigIndex);
 	if (link->conf.Vpp)
 		printk(", Vpp %d.%d", link->conf.Vpp/10, link->conf.Vpp%10);
-	printk(", irq %d", link->irq.AssignedIRQ);
+	printk(", irq %d", link->irq);
 	printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 	       link->io.BasePort1+link->io.NumPorts1-1);
 	printk("\n");
 
-	if (sl811_hc_init(parent, link->io.BasePort1, link->irq.AssignedIRQ)
+	if (sl811_hc_init(parent, link->io.BasePort1, link->irq)
 			< 0) {
 failed:
 		printk(KERN_WARNING "sl811_cs_config failed\n");
@@ -240,10 +230,6 @@ static int sl811_cs_probe(struct pcmcia_device *link)
 		return -ENOMEM;
 	local->p_dev = link;
 	link->priv = local;
-
-	/* Initialize */
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-	link->irq.Handler = NULL;
 
 	link->conf.Attributes = 0;
 	link->conf.IntType = INT_MEMORY_AND_IO;

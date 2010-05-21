@@ -145,7 +145,7 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 #endif
 }
 
-struct hw_breakpoint {
+static struct hw_breakpoint {
 	unsigned int occupied:1;
 	unsigned int skip:1;
 	unsigned int enabled:1;
@@ -155,7 +155,7 @@ struct hw_breakpoint {
 	unsigned int addr;
 } breakinfo[HW_WATCHPOINT_NUM];
 
-int bfin_set_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
+static int bfin_set_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 {
 	int breakno;
 	int bfin_type;
@@ -202,7 +202,7 @@ int bfin_set_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 	return -ENOSPC;
 }
 
-int bfin_remove_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
+static int bfin_remove_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 {
 	int breakno;
 	int bfin_type;
@@ -230,7 +230,7 @@ int bfin_remove_hw_break(unsigned long addr, int len, enum kgdb_bptype type)
 	return 0;
 }
 
-void bfin_remove_all_hw_break(void)
+static void bfin_remove_all_hw_break(void)
 {
 	int breakno;
 
@@ -242,7 +242,7 @@ void bfin_remove_all_hw_break(void)
 		breakinfo[breakno].type = TYPE_DATA_WATCHPOINT;
 }
 
-void bfin_correct_hw_break(void)
+static void bfin_correct_hw_break(void)
 {
 	int breakno;
 	unsigned int wpiactl = 0;

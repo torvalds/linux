@@ -22,6 +22,7 @@
 #include <linux/ctype.h>
 #include <linux/mutex.h>
 #include <linux/perf_event.h>
+#include <linux/slab.h>
 
 #include "trace.h"
 #include "trace_output.h"
@@ -1397,7 +1398,7 @@ int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 	}
 
 	err = -EINVAL;
-	if (!call)
+	if (&call->list == &ftrace_events)
 		goto out_unlock;
 
 	err = -EEXIST;

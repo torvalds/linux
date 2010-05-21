@@ -30,6 +30,7 @@
 #include <linux/delay.h>
 #include <linux/hdlc.h>
 #include <linux/ioport.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 
 #include <asm/irq.h>

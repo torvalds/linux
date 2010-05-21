@@ -109,7 +109,6 @@ static const int multicast_filter_limit = 32;
 #include <linux/timer.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/netdevice.h>
@@ -480,7 +479,7 @@ typhoon_hello(struct typhoon *tp)
 		typhoon_inc_cmd_index(&ring->lastWrite, 1);
 
 		INIT_COMMAND_NO_RESPONSE(cmd, TYPHOON_CMD_HELLO_RESP);
-		smp_wmb();
+		wmb();
 		iowrite32(ring->lastWrite, tp->ioaddr + TYPHOON_REG_CMD_READY);
 		spin_unlock(&tp->command_lock);
 	}
@@ -882,8 +881,6 @@ typhoon_start_tx(struct sk_buff *skb, struct net_device *dev)
 	wmb();
 	iowrite32(txRing->lastWrite, tp->tx_ioaddr + txRing->writeRegister);
 
-	dev->trans_start = jiffies;
-
 	/* If we don't have room to put the worst case packet on the
 	 * queue, then we must stop the queue. We need 2 extra
 	 * descriptors -- one to prevent ring wrap, and one for the
@@ -921,11 +918,11 @@ typhoon_set_rx_mode(struct net_device *dev)
 		/* Too many to match, or accept all multicasts. */
 		filter |= TYPHOON_RX_FILTER_ALL_MCAST;
 	} else if (!netdev_mc_empty(dev)) {
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		netdev_for_each_mc_addr(mclist, dev) {
-			int bit = ether_crc(ETH_ALEN, mclist->dmi_addr) & 0x3f;
+		netdev_for_each_mc_addr(ha, dev) {
+			int bit = ether_crc(ETH_ALEN, ha->addr) & 0x3f;
 			mc_filter[bit >> 5] |= 1 << (bit & 0x1f);
 		}
 
@@ -1311,13 +1308,15 @@ typhoon_init_interface(struct typhoon *tp)
 
 	tp->txlo_dma_addr = le32_to_cpu(iface->txLoAddr);
 	tp->card_state = Sleeping;
-	smp_wmb();
 
 	tp->offload = TYPHOON_OFFLOAD_IP_CHKSUM | TYPHOON_OFFLOAD_TCP_CHKSUM;
 	tp->offload |= TYPHOON_OFFLOAD_UDP_CHKSUM | TSO_OFFLOAD_ON;
 
 	spin_lock_init(&tp->command_lock);
 	spin_lock_init(&tp->state_lock);
+
+	/* Force the writes to the shared memory area out before continuing. */
+	wmb();
 }
 
 static void
@@ -2096,7 +2095,7 @@ typhoon_tx_timeout(struct net_device *dev)
 
 	if(typhoon_reset(tp->ioaddr, WaitNoSleep) < 0) {
 		netdev_warn(dev, "could not reset in tx timeout\n");
-		goto truely_dead;
+		goto truly_dead;
 	}
 
 	/* If we ever start using the Hi ring, it will need cleaning too */
@@ -2105,13 +2104,13 @@ typhoon_tx_timeout(struct net_device *dev)
 
 	if(typhoon_start_runtime(tp) < 0) {
 		netdev_err(dev, "could not start runtime in tx timeout\n");
-		goto truely_dead;
+		goto truly_dead;
         }
 
 	netif_wake_queue(dev);
 	return;
 
-truely_dead:
+truly_dead:
 	/* Reset the hardware, and turn off carrier to avoid more timeouts */
 	typhoon_reset(tp->ioaddr, NoWait);
 	netif_carrier_off(dev);

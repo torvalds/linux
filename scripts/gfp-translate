@@ -19,7 +19,7 @@ usage() {
 	exit 0
 }
 
-# Parse command-line arguements
+# Parse command-line arguments
 while [ $# -gt 0 ]; do
 	case $1 in
 		--source)

@@ -39,7 +39,8 @@ static void query_silicon_parameter(void)
 	 * the silicon revision very early we read it here to
 	 * avoid any further hooks
 	*/
-	val = __raw_readl(IO_ADDRESS(SYSCTRL_BASE_ADDR) + SYS_CHIP_ID);
+	val = __raw_readl(MX27_IO_ADDRESS(MX27_SYSCTRL_BASE_ADDR
+				+ SYS_CHIP_ID));
 
 	cpu_silicon_rev = (int)(val >> 28);
 	cpu_partnumber = (int)((val >> 12) & 0xFFFF);

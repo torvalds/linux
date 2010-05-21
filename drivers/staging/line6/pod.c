@@ -11,6 +11,8 @@
 
 #include "driver.h"
 
+#include <linux/slab.h>
+
 #include "audio.h"
 #include "capture.h"
 #include "control.h"

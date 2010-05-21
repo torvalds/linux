@@ -24,6 +24,7 @@
 #include <linux/regulator/machine.h>
 #include <linux/i2c.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 /* Register definitions */
 #define	TPS6507X_REG_PPATH1				0X01

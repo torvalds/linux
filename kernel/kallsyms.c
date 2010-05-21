@@ -21,6 +21,7 @@
 #include <linux/sched.h>	/* for cond_resched */
 #include <linux/mm.h>
 #include <linux/ctype.h>
+#include <linux/slab.h>
 
 #include <asm/sections.h>
 

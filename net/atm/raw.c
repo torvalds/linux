@@ -10,6 +10,7 @@
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 
 #include "common.h"
 #include "protocols.h"

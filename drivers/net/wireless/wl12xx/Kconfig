@@ -51,3 +51,27 @@ config WL1271
 
 	  If you choose to build a module, it'll be called wl1271. Say N if
 	  unsure.
+
+config WL1271_SPI
+	tristate "TI wl1271 SPI support"
+	depends on WL1271 && SPI_MASTER
+	---help---
+	  This module adds support for the SPI interface of adapters using
+	  TI wl1271 chipset.  Select this if your platform is using
+	  the SPI bus.
+
+	  If you choose to build a module, it'll be called wl1251_spi.
+	  Say N if unsure.
+
+config WL1271_SDIO
+	tristate "TI wl1271 SDIO support"
+	depends on WL1271 && MMC && ARM
+	---help---
+	  This module adds support for the SDIO interface of adapters using
+	  TI wl1271 chipset.  Select this if your platform is using
+	  the SDIO bus.
+
+	  If you choose to build a module, it'll be called
+	  wl1271_sdio. Say N if unsure.
+
+

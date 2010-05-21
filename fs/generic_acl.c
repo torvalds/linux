@@ -7,6 +7,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/gfp.h>
 #include <linux/fs.h>
 #include <linux/generic_acl.h>
 #include <linux/posix_acl.h>

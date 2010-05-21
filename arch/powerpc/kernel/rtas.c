@@ -23,6 +23,7 @@
 #include <linux/completion.h>
 #include <linux/cpumask.h>
 #include <linux/lmb.h>
+#include <linux/slab.h>
 
 #include <asm/prom.h>
 #include <asm/rtas.h>

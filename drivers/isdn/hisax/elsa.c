@@ -19,6 +19,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include "hisax.h"
 #include "arcofi.h"
 #include "isac.h"

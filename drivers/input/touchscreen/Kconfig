@@ -24,17 +24,18 @@ config TOUCHSCREEN_88PM860X
 	  module will be called 88pm860x-ts.
 
 config TOUCHSCREEN_ADS7846
-	tristate "ADS7846/TSC2046 and ADS7843 based touchscreens"
+	tristate "ADS7846/TSC2046/AD7873 and AD(S)7843 based touchscreens"
 	depends on SPI_MASTER
 	depends on HWMON = n || HWMON
 	help
 	  Say Y here if you have a touchscreen interface using the
-	  ADS7846/TSC2046 or ADS7843 controller, and your board-specific
-	  setup code includes that in its table of SPI devices.
+	  ADS7846/TSC2046/AD7873 or ADS7843/AD7843 controller,
+	  and your board-specific setup code includes that in its
+	  table of SPI devices.
 
 	  If HWMON is selected, and the driver is told the reference voltage
 	  on your board, you will also get hwmon interfaces for the voltage
-	  (and on ads7846/tsc2046, temperature) sensors of this chip.
+	  (and on ads7846/tsc2046/ad7873, temperature) sensors of this chip.
 
 	  If unsure, say N (but it's safe to say "Y").
 
@@ -98,22 +99,6 @@ config TOUCHSCREEN_BITSY
 	  To compile this driver as a module, choose M here: the
 	  module will be called h3600_ts_input.
 
-config TOUCHSCREEN_CORGI
-	tristate "SharpSL (Corgi and Spitz series) touchscreen driver (DEPRECATED)"
-	depends on PXA_SHARPSL
-	select CORGI_SSP_DEPRECATED
-	help
-	  Say Y here to enable the driver for the touchscreen on the
-	  Sharp SL-C7xx and SL-Cxx00 series of PDAs.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called corgi_ts.
-
-	  NOTE: this driver is deprecated, try enable SPI and generic
-	  ADS7846-based touchscreen driver.
-
 config TOUCHSCREEN_DA9034
 	tristate "Touchscreen support for Dialog Semiconductor DA9034"
 	depends on PMIC_DA903X
@@ -133,6 +118,18 @@ config TOUCHSCREEN_DYNAPRO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called dynapro.
+
+config TOUCHSCREEN_HAMPSHIRE
+	tristate "Hampshire serial touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have a Hampshire serial touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hampshire.
 
 config TOUCHSCREEN_EETI
 	tristate "EETI touchscreen panel support"
@@ -157,8 +154,8 @@ config TOUCHSCREEN_FUJITSU
 	  module will be called fujitsu-ts.
 
 config TOUCHSCREEN_S3C2410
-	tristate "Samsung S3C2410 touchscreen input driver"
-	depends on ARCH_S3C2410
+	tristate "Samsung S3C2410/generic touchscreen input driver"
+	depends on ARCH_S3C2410 || SAMSUNG_DEV_TS
 	select S3C24XX_ADC
 	help
 	  Say Y here if you have the s3c2410 touchscreen.

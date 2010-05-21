@@ -255,7 +255,7 @@ int mls_context_to_sid(struct policydb *pol,
 
 	if (!pol->mls_enabled) {
 		if (def_sid != SECSID_NULL && oldc)
-			*scontext += strlen(*scontext)+1;
+			*scontext += strlen(*scontext) + 1;
 		return 0;
 	}
 

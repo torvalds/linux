@@ -23,6 +23,7 @@
 #include <linux/device.h>
 #include <linux/genhd.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 #include <linux/lzo.h>
 #include <linux/string.h>
 #include <linux/swap.h>

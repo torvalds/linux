@@ -120,9 +120,15 @@ fixup_bp_irq_link(unsigned long bp, unsigned long *stack,
 {
 #ifdef CONFIG_FRAME_POINTER
 	struct stack_frame *frame = (struct stack_frame *)bp;
+	unsigned long next;
 
-	if (!in_irq_stack(stack, irq_stack, irq_stack_end))
-		return (unsigned long)frame->next_frame;
+	if (!in_irq_stack(stack, irq_stack, irq_stack_end)) {
+		if (!probe_kernel_address(&frame->next_frame, next))
+			return next;
+		else
+			WARN_ONCE(1, "Perf: bad frame pointer = %p in "
+				  "callchain\n", &frame->next_frame);
+	}
 #endif
 	return bp;
 }
@@ -202,7 +208,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 			if (in_irq_stack(stack, irq_stack, irq_stack_end)) {
 				if (ops->stack(data, "IRQ") < 0)
 					break;
-				bp = print_context_stack(tinfo, stack, bp,
+				bp = ops->walk_stack(tinfo, stack, bp,
 					ops, data, irq_stack_end, &graph);
 				/*
 				 * We link to the next stack (which would be
@@ -223,7 +229,7 @@ void dump_trace(struct task_struct *task, struct pt_regs *regs,
 	/*
 	 * This handles the process stack:
 	 */
-	bp = print_context_stack(tinfo, stack, bp, ops, data, NULL, &graph);
+	bp = ops->walk_stack(tinfo, stack, bp, ops, data, NULL, &graph);
 	put_cpu();
 }
 EXPORT_SYMBOL(dump_trace);

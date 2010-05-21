@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <sound/initval.h>
 #include <sound/control.h>

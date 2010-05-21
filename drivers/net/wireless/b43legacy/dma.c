@@ -37,6 +37,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <net/dst.h>
 
 /* 32bit DMA ops. */

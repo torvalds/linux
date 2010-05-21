@@ -17,7 +17,6 @@
 #include <linux/types.h>
 #include <linux/ptrace.h>
 #include <linux/mman.h>
-#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/swap.h>
@@ -27,6 +26,7 @@
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/bootmem.h>
+#include <linux/gfp.h>
 
 #include <asm/processor.h>
 #include <asm/system.h>

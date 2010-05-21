@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/delay.h>
 #include <linux/acpi.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 
 MODULE_LICENSE("GPL");

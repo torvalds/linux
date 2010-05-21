@@ -38,14 +38,10 @@ struct cache_info {
 	 * 2. those in the physical page number.
 	 */
 	unsigned int alias_mask;
-
 	unsigned int n_aliases;		/* Number of aliases */
 
 	unsigned long flags;
 };
-
-int __init detect_cpu_and_cache_system(void);
-
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* __ASM_SH_CACHE_H */

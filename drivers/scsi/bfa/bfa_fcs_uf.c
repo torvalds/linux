@@ -93,13 +93,7 @@ bfa_fcs_uf_recv(void *cbarg, struct bfa_uf_s *uf)
 }
 
 void
-bfa_fcs_uf_modinit(struct bfa_fcs_s *fcs)
+bfa_fcs_uf_attach(struct bfa_fcs_s *fcs)
 {
 	bfa_uf_recv_register(fcs->bfa, bfa_fcs_uf_recv, fcs);
-}
-
-void
-bfa_fcs_uf_modexit(struct bfa_fcs_s *fcs)
-{
-	bfa_fcs_modexit_comp(fcs);
 }

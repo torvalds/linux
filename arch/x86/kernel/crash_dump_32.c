@@ -5,6 +5,7 @@
  *	Copyright (C) IBM Corporation, 2004. All rights reserved
  */
 
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/highmem.h>
 #include <linux/crash_dump.h>

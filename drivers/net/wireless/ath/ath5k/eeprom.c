@@ -21,6 +21,8 @@
 * EEPROM access functions and helpers *
 \*************************************/
 
+#include <linux/slab.h>
+
 #include "ath5k.h"
 #include "reg.h"
 #include "debug.h"
@@ -329,7 +331,8 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 	ee->ee_x_gain[mode]		= (val >> 1) & 0xf;
 	ee->ee_xpd[mode]		= val & 0x1;
 
-	if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_4_0)
+	if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_4_0 &&
+	    mode != AR5K_EEPROM_MODE_11B)
 		ee->ee_fixed_bias[mode] = (val >> 13) & 0x1;
 
 	if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_3_3) {
@@ -339,6 +342,7 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 		if (mode == AR5K_EEPROM_MODE_11A)
 			ee->ee_xr_power[mode] = val & 0x3f;
 		else {
+			/* b_DB_11[bg] and b_OB_11[bg] */
 			ee->ee_ob[mode][0] = val & 0x7;
 			ee->ee_db[mode][0] = (val >> 3) & 0x7;
 		}
@@ -429,8 +433,8 @@ static int ath5k_eeprom_read_modes(struct ath5k_hw *ah, u32 *offset,
 			ee->ee_margin_tx_rx[mode] = (val >> 8) & 0x3f;
 
 		AR5K_EEPROM_READ(o++, val);
-		ee->ee_i_cal[mode] = (val >> 8) & 0x3f;
-		ee->ee_q_cal[mode] = (val >> 3) & 0x1f;
+		ee->ee_i_cal[mode] = (val >> 5) & 0x3f;
+		ee->ee_q_cal[mode] = val & 0x1f;
 
 		if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_4_2) {
 			AR5K_EEPROM_READ(o++, val);

@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include "../pci.h"
 
 struct legacy_slot {
@@ -73,7 +74,7 @@ static void legacy_release(struct kobject *kobj)
 }
 
 static struct kobj_type legacy_ktype = {
-	.sysfs_ops = &(struct sysfs_ops){
+	.sysfs_ops = &(const struct sysfs_ops){
 		.store = legacy_store, .show = legacy_show
 	},
 	.release = &legacy_release,

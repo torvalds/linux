@@ -14,6 +14,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/sysfs.h>
+#include <linux/slab.h>
 #include "ctcm_main.h"
 
 /*

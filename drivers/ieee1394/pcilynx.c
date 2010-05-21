@@ -1452,7 +1452,7 @@ static int __devinit add_card(struct pci_dev *dev,
                                 PRINT(KERN_ERR, lynx->id, "unable to read bus info block from i2c");
                         } else {
                                 PRINT(KERN_INFO, lynx->id, "got bus info block from serial eeprom");
-				/* FIXME: probably we shoud rewrite the max_rec, max_ROM(1394a),
+				/* FIXME: probably we should rewrite the max_rec, max_ROM(1394a),
 				 * generation(1394a) and link_spd(1394a) field and recalculate
 				 * the CRC */
 

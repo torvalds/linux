@@ -102,6 +102,7 @@
 
 #include <linux/fs.h>
 #include <linux/quotaops.h>
+#include <linux/slab.h>
 #include "jfs_incore.h"
 #include "jfs_superblock.h"
 #include "jfs_filsys.h"

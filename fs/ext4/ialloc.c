@@ -263,7 +263,7 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 					ext4_group_t f;
 
 					f = ext4_flex_group(sbi, block_group);
-					atomic_dec(&sbi->s_flex_groups[f].free_inodes);
+					atomic_dec(&sbi->s_flex_groups[f].used_dirs);
 				}
 
 			}
@@ -773,7 +773,7 @@ static int ext4_claim_inode(struct super_block *sb,
 		if (sbi->s_log_groups_per_flex) {
 			ext4_group_t f = ext4_flex_group(sbi, group);
 
-			atomic_inc(&sbi->s_flex_groups[f].free_inodes);
+			atomic_inc(&sbi->s_flex_groups[f].used_dirs);
 		}
 	}
 	gdp->bg_checksum = ext4_group_desc_csum(sbi, group, gdp);

@@ -359,7 +359,9 @@ void unwind_backtrace(struct pt_regs *regs, struct task_struct *tsk)
 		frame.fp = regs->ARM_fp;
 		frame.sp = regs->ARM_sp;
 		frame.lr = regs->ARM_lr;
-		frame.pc = regs->ARM_pc;
+		/* PC might be corrupted, use LR in that case. */
+		frame.pc = kernel_text_address(regs->ARM_pc)
+			 ? regs->ARM_pc : regs->ARM_lr;
 	} else if (tsk == current) {
 		frame.fp = (unsigned long)__builtin_frame_address(0);
 		frame.sp = current_sp;

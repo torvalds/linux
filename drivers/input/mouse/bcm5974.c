@@ -715,15 +715,15 @@ static int bcm5974_probe(struct usb_interface *iface,
 	if (!dev->tp_urb)
 		goto err_free_bt_urb;
 
-	dev->bt_data = usb_buffer_alloc(dev->udev,
-					dev->cfg.bt_datalen, GFP_KERNEL,
-					&dev->bt_urb->transfer_dma);
+	dev->bt_data = usb_alloc_coherent(dev->udev,
+					  dev->cfg.bt_datalen, GFP_KERNEL,
+					  &dev->bt_urb->transfer_dma);
 	if (!dev->bt_data)
 		goto err_free_urb;
 
-	dev->tp_data = usb_buffer_alloc(dev->udev,
-					dev->cfg.tp_datalen, GFP_KERNEL,
-					&dev->tp_urb->transfer_dma);
+	dev->tp_data = usb_alloc_coherent(dev->udev,
+					  dev->cfg.tp_datalen, GFP_KERNEL,
+					  &dev->tp_urb->transfer_dma);
 	if (!dev->tp_data)
 		goto err_free_bt_buffer;
 
@@ -765,10 +765,10 @@ static int bcm5974_probe(struct usb_interface *iface,
 	return 0;
 
 err_free_buffer:
-	usb_buffer_free(dev->udev, dev->cfg.tp_datalen,
+	usb_free_coherent(dev->udev, dev->cfg.tp_datalen,
 		dev->tp_data, dev->tp_urb->transfer_dma);
 err_free_bt_buffer:
-	usb_buffer_free(dev->udev, dev->cfg.bt_datalen,
+	usb_free_coherent(dev->udev, dev->cfg.bt_datalen,
 		dev->bt_data, dev->bt_urb->transfer_dma);
 err_free_urb:
 	usb_free_urb(dev->tp_urb);
@@ -788,10 +788,10 @@ static void bcm5974_disconnect(struct usb_interface *iface)
 	usb_set_intfdata(iface, NULL);
 
 	input_unregister_device(dev->input);
-	usb_buffer_free(dev->udev, dev->cfg.tp_datalen,
-			dev->tp_data, dev->tp_urb->transfer_dma);
-	usb_buffer_free(dev->udev, dev->cfg.bt_datalen,
-			dev->bt_data, dev->bt_urb->transfer_dma);
+	usb_free_coherent(dev->udev, dev->cfg.tp_datalen,
+			  dev->tp_data, dev->tp_urb->transfer_dma);
+	usb_free_coherent(dev->udev, dev->cfg.bt_datalen,
+			  dev->bt_data, dev->bt_urb->transfer_dma);
 	usb_free_urb(dev->tp_urb);
 	usb_free_urb(dev->bt_urb);
 	kfree(dev);
@@ -803,7 +803,6 @@ static struct usb_driver bcm5974_driver = {
 	.disconnect		= bcm5974_disconnect,
 	.suspend		= bcm5974_suspend,
 	.resume			= bcm5974_resume,
-	.reset_resume		= bcm5974_resume,
 	.id_table		= bcm5974_table,
 	.supports_autosuspend	= 1,
 };

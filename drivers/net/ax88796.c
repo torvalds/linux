@@ -25,6 +25,7 @@
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/slab.h>
 
 #include <net/ax88796.h>
 
@@ -302,7 +303,6 @@ static void ax_block_output(struct net_device *dev, int count,
 
 	ei_outb(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */
 	ei_status.dmaing &= ~0x01;
-	return;
 }
 
 /* definitions for accessing MII/EEPROM interface */

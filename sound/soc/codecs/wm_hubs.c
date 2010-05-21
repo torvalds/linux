@@ -62,21 +62,27 @@ static const char *speaker_mode_text[] = {
 static const struct soc_enum speaker_mode =
 	SOC_ENUM_SINGLE(WM8993_SPKMIXR_ATTENUATION, 8, 2, speaker_mode_text);
 
-static void wait_for_dc_servo(struct snd_soc_codec *codec)
+static void wait_for_dc_servo(struct snd_soc_codec *codec, unsigned int op)
 {
 	unsigned int reg;
 	int count = 0;
+	unsigned int val;
+
+	val = op | WM8993_DCS_ENA_CHAN_0 | WM8993_DCS_ENA_CHAN_1;
+
+	/* Trigger the command */
+	snd_soc_write(codec, WM8993_DC_SERVO_0, val);
 
 	dev_dbg(codec->dev, "Waiting for DC servo...\n");
 
 	do {
 		count++;
 		msleep(1);
-		reg = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_0);
+		reg = snd_soc_read(codec, WM8993_DC_SERVO_0);
 		dev_dbg(codec->dev, "DC servo: %x\n", reg);
-	} while (reg & WM8993_DCS_DATAPATH_BUSY);
+	} while (reg & op && count < 400);
 
-	if (reg & WM8993_DCS_DATAPATH_BUSY)
+	if (reg & op)
 		dev_err(codec->dev, "Timed out waiting for DC Servo\n");
 }
 
@@ -85,52 +91,63 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec)
  */
 static void calibrate_dc_servo(struct snd_soc_codec *codec)
 {
-	struct wm_hubs_data *hubs = codec->private_data;
-	u16 reg, dcs_cfg;
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
+	u16 reg, reg_l, reg_r, dcs_cfg;
 
 	/* Set for 32 series updates */
 	snd_soc_update_bits(codec, WM8993_DC_SERVO_1,
 			    WM8993_DCS_SERIES_NO_01_MASK,
 			    32 << WM8993_DCS_SERIES_NO_01_SHIFT);
-
-	/* Enable the DC servo.  Write all bits to avoid triggering startup
-	 * or write calibration.
-	 */
-	snd_soc_update_bits(codec, WM8993_DC_SERVO_0,
-			    0xFFFF,
-			    WM8993_DCS_ENA_CHAN_0 |
-			    WM8993_DCS_ENA_CHAN_1 |
-			    WM8993_DCS_TRIG_SERIES_1 |
-			    WM8993_DCS_TRIG_SERIES_0);
-
-	wait_for_dc_servo(codec);
+	wait_for_dc_servo(codec,
+			  WM8993_DCS_TRIG_SERIES_0 | WM8993_DCS_TRIG_SERIES_1);
 
 	/* Apply correction to DC servo result */
 	if (hubs->dcs_codes) {
 		dev_dbg(codec->dev, "Applying %d code DC servo correction\n",
 			hubs->dcs_codes);
 
+		/* Different chips in the family support different
+		 * readback methods.
+		 */
+		switch (hubs->dcs_readback_mode) {
+		case 0:
+			reg_l = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_1)
+				& WM8993_DCS_INTEG_CHAN_0_MASK;;
+			reg_r = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_2)
+				& WM8993_DCS_INTEG_CHAN_1_MASK;
+			break;
+		case 1:
+			reg = snd_soc_read(codec, WM8993_DC_SERVO_3);
+			reg_l = (reg & WM8993_DCS_DAC_WR_VAL_1_MASK)
+				>> WM8993_DCS_DAC_WR_VAL_1_SHIFT;
+			reg_r = reg & WM8993_DCS_DAC_WR_VAL_0_MASK;
+			break;
+		default:
+			WARN(1, "Unknown DCS readback method");
+			break;
+		}
+
+		dev_dbg(codec->dev, "DCS input: %x %x\n", reg_l, reg_r);
+
 		/* HPOUT1L */
-		reg = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_1) &
-			WM8993_DCS_INTEG_CHAN_0_MASK;;
-		reg += hubs->dcs_codes;
-		dcs_cfg = reg << WM8993_DCS_DAC_WR_VAL_1_SHIFT;
+		if (reg_l + hubs->dcs_codes > 0 &&
+		    reg_l + hubs->dcs_codes < 0xff)
+			reg_l += hubs->dcs_codes;
+		dcs_cfg = reg_l << WM8993_DCS_DAC_WR_VAL_1_SHIFT;
 
 		/* HPOUT1R */
-		reg = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_2) &
-			WM8993_DCS_INTEG_CHAN_1_MASK;
-		reg += hubs->dcs_codes;
-		dcs_cfg |= reg;
+		if (reg_r + hubs->dcs_codes > 0 &&
+		    reg_r + hubs->dcs_codes < 0xff)
+			reg_r += hubs->dcs_codes;
+		dcs_cfg |= reg_r;
+
+		dev_dbg(codec->dev, "DCS result: %x\n", dcs_cfg);
 
 		/* Do it */
 		snd_soc_write(codec, WM8993_DC_SERVO_3, dcs_cfg);
-		snd_soc_update_bits(codec, WM8993_DC_SERVO_0,
-				    WM8993_DCS_TRIG_DAC_WR_0 |
-				    WM8993_DCS_TRIG_DAC_WR_1,
-				    WM8993_DCS_TRIG_DAC_WR_0 |
-				    WM8993_DCS_TRIG_DAC_WR_1);
-
-		wait_for_dc_servo(codec);
+		wait_for_dc_servo(codec,
+				  WM8993_DCS_TRIG_DAC_WR_0 |
+				  WM8993_DCS_TRIG_DAC_WR_1);
 	}
 }
 
@@ -141,9 +158,15 @@ static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	ret = snd_soc_put_volsw_2r(kcontrol, ucontrol);
+
+	/* If we're applying an offset correction then updating the
+	 * callibration would be likely to introduce further offsets. */
+	if (hubs->dcs_codes)
+		return ret;
 
 	/* Only need to do this if the outputs are active */
 	if (snd_soc_read(codec, WM8993_POWER_MANAGEMENT_1)
@@ -308,7 +331,7 @@ static int hp_supply_event(struct snd_soc_dapm_widget *w,
 			   struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	struct wm_hubs_data *hubs = codec->private_data;
+	struct wm_hubs_data *hubs = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -378,14 +401,14 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 
 	case SND_SOC_DAPM_PRE_PMD:
 		snd_soc_update_bits(codec, WM8993_ANALOGUE_HP_0,
-				    WM8993_HPOUT1L_DLY |
-				    WM8993_HPOUT1R_DLY |
+				    WM8993_HPOUT1L_OUTP |
+				    WM8993_HPOUT1R_OUTP |
 				    WM8993_HPOUT1L_RMV_SHORT |
 				    WM8993_HPOUT1R_RMV_SHORT, 0);
 
 		snd_soc_update_bits(codec, WM8993_ANALOGUE_HP_0,
-				    WM8993_HPOUT1L_OUTP |
-				    WM8993_HPOUT1R_OUTP, 0);
+				    WM8993_HPOUT1L_DLY |
+				    WM8993_HPOUT1R_DLY, 0);
 
 		snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_1,
 				    WM8993_HPOUT1L_ENA | WM8993_HPOUT1R_ENA,

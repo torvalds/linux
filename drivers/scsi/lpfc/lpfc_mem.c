@@ -20,6 +20,7 @@
  *******************************************************************/
 
 #include <linux/mempool.h>
+#include <linux/slab.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
 

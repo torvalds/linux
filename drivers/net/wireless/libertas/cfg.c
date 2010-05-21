@@ -6,6 +6,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <net/cfg80211.h>
 
 #include "cfg.h"
@@ -78,6 +79,7 @@ static const u32 cipher_suites[] = {
 
 
 static int lbs_cfg_set_channel(struct wiphy *wiphy,
+	struct net_device *netdev,
 	struct ieee80211_channel *chan,
 	enum nl80211_channel_type channel_type)
 {
@@ -172,6 +174,8 @@ int lbs_cfg_register(struct lbs_private *priv)
 	if (ret < 0)
 		lbs_pr_err("cannot register wiphy device\n");
 
+	priv->wiphy_registered = true;
+
 	ret = register_netdev(priv->dev);
 	if (ret)
 		lbs_pr_err("cannot register network device\n");
@@ -190,9 +194,11 @@ void lbs_cfg_free(struct lbs_private *priv)
 	if (!wdev)
 		return;
 
-	if (wdev->wiphy) {
+	if (priv->wiphy_registered)
 		wiphy_unregister(wdev->wiphy);
+
+	if (wdev->wiphy)
 		wiphy_free(wdev->wiphy);
-	}
+
 	kfree(wdev);
 }

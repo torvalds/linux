@@ -26,6 +26,7 @@
 #include <linux/sysctl.h>
 #include <linux/pci.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 #include "VersionInfo.h"
 #include "osd.h"
 #include "logging.h"

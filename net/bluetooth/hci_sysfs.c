@@ -1,19 +1,18 @@
 /* Bluetooth HCI driver model support. */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/debugfs.h>
+#include <linux/seq_file.h>
 
 #include <net/bluetooth/bluetooth.h>
 #include <net/bluetooth/hci_core.h>
 
-struct class *bt_class = NULL;
-EXPORT_SYMBOL_GPL(bt_class);
+static struct class *bt_class;
 
 struct dentry *bt_debugfs = NULL;
 EXPORT_SYMBOL_GPL(bt_debugfs);
-
-static struct workqueue_struct *bt_workq;
 
 static inline char *link_typetostr(int type)
 {
@@ -160,14 +159,14 @@ void hci_conn_add_sysfs(struct hci_conn *conn)
 {
 	BT_DBG("conn %p", conn);
 
-	queue_work(bt_workq, &conn->work_add);
+	queue_work(conn->hdev->workqueue, &conn->work_add);
 }
 
 void hci_conn_del_sysfs(struct hci_conn *conn)
 {
 	BT_DBG("conn %p", conn);
 
-	queue_work(bt_workq, &conn->work_del);
+	queue_work(conn->hdev->workqueue, &conn->work_del);
 }
 
 static inline char *host_bustostr(int bus)
@@ -282,11 +281,9 @@ static ssize_t show_idle_timeout(struct device *dev, struct device_attribute *at
 static ssize_t store_idle_timeout(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	char *ptr;
-	__u32 val;
+	unsigned long val;
 
-	val = simple_strtoul(buf, &ptr, 10);
-	if (ptr == buf)
+	if (strict_strtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	if (val != 0 && (val < 500 || val > 3600000))
@@ -306,11 +303,9 @@ static ssize_t show_sniff_max_interval(struct device *dev, struct device_attribu
 static ssize_t store_sniff_max_interval(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	char *ptr;
-	__u16 val;
+	unsigned long val;
 
-	val = simple_strtoul(buf, &ptr, 10);
-	if (ptr == buf)
+	if (strict_strtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	if (val < 0x0002 || val > 0xFFFE || val % 2)
@@ -333,11 +328,9 @@ static ssize_t show_sniff_min_interval(struct device *dev, struct device_attribu
 static ssize_t store_sniff_min_interval(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	char *ptr;
-	__u16 val;
+	unsigned long val;
 
-	val = simple_strtoul(buf, &ptr, 10);
-	if (ptr == buf)
+	if (strict_strtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	if (val < 0x0002 || val > 0xFFFE || val % 2)
@@ -405,20 +398,11 @@ static struct device_type bt_host = {
 	.release = bt_host_release,
 };
 
-static int inquiry_cache_open(struct inode *inode, struct file *file)
+static int inquiry_cache_show(struct seq_file *f, void *p)
 {
-	file->private_data = inode->i_private;
-	return 0;
-}
-
-static ssize_t inquiry_cache_read(struct file *file, char __user *userbuf,
-						size_t count, loff_t *ppos)
-{
-	struct hci_dev *hdev = file->private_data;
+	struct hci_dev *hdev = f->private;
 	struct inquiry_cache *cache = &hdev->inq_cache;
 	struct inquiry_entry *e;
-	char buf[4096];
-	int n = 0;
 
 	hci_dev_lock_bh(hdev);
 
@@ -426,23 +410,30 @@ static ssize_t inquiry_cache_read(struct file *file, char __user *userbuf,
 		struct inquiry_data *data = &e->data;
 		bdaddr_t bdaddr;
 		baswap(&bdaddr, &data->bdaddr);
-		n += sprintf(buf + n, "%s %d %d %d 0x%.2x%.2x%.2x 0x%.4x %d %d %u\n",
-				batostr(&bdaddr),
-				data->pscan_rep_mode, data->pscan_period_mode,
-				data->pscan_mode, data->dev_class[2],
-				data->dev_class[1], data->dev_class[0],
-				__le16_to_cpu(data->clock_offset),
-				data->rssi, data->ssp_mode, e->timestamp);
+		seq_printf(f, "%s %d %d %d 0x%.2x%.2x%.2x 0x%.4x %d %d %u\n",
+			   batostr(&bdaddr),
+			   data->pscan_rep_mode, data->pscan_period_mode,
+			   data->pscan_mode, data->dev_class[2],
+			   data->dev_class[1], data->dev_class[0],
+			   __le16_to_cpu(data->clock_offset),
+			   data->rssi, data->ssp_mode, e->timestamp);
 	}
 
 	hci_dev_unlock_bh(hdev);
 
-	return simple_read_from_buffer(userbuf, count, ppos, buf, n);
+	return 0;
+}
+
+static int inquiry_cache_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, inquiry_cache_show, inode->i_private);
 }
 
 static const struct file_operations inquiry_cache_fops = {
-	.open = inquiry_cache_open,
-	.read = inquiry_cache_read,
+	.open		= inquiry_cache_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
 
 int hci_register_sysfs(struct hci_dev *hdev)
@@ -488,17 +479,11 @@ void hci_unregister_sysfs(struct hci_dev *hdev)
 
 int __init bt_sysfs_init(void)
 {
-	bt_workq = create_singlethread_workqueue("bluetooth");
-	if (!bt_workq)
-		return -ENOMEM;
-
 	bt_debugfs = debugfs_create_dir("bluetooth", NULL);
 
 	bt_class = class_create(THIS_MODULE, "bluetooth");
-	if (IS_ERR(bt_class)) {
-		destroy_workqueue(bt_workq);
+	if (IS_ERR(bt_class))
 		return PTR_ERR(bt_class);
-	}
 
 	return 0;
 }
@@ -508,6 +493,4 @@ void bt_sysfs_cleanup(void)
 	class_destroy(bt_class);
 
 	debugfs_remove_recursive(bt_debugfs);
-
-	destroy_workqueue(bt_workq);
 }

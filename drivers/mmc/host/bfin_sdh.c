@@ -17,6 +17,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mmc/host.h>
 #include <linux/proc_fs.h>
+#include <linux/gfp.h>
 
 #include <asm/cacheflush.h>
 #include <asm/dma.h>

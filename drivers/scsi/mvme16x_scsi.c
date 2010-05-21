@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <asm/mvme16xhw.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>

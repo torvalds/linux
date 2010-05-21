@@ -13,6 +13,8 @@
  *
  */
 
+#include <linux/clk.h>
+#include <linux/err.h>
 #include <linux/io.h>
 #include <linux/interrupt.h>
 #include <mach/dma.h>
@@ -26,6 +28,7 @@ enum {
 };
 
 static DEFINE_SPINLOCK(msm_dmov_lock);
+static struct clk *msm_dmov_clk;
 static unsigned int channel_active;
 static struct list_head ready_commands[MSM_DMOV_CHANNEL_COUNT];
 static struct list_head active_commands[MSM_DMOV_CHANNEL_COUNT];
@@ -54,6 +57,9 @@ void msm_dmov_enqueue_cmd(unsigned id, struct msm_dmov_cmd *cmd)
 	unsigned int status;
 
 	spin_lock_irqsave(&msm_dmov_lock, irq_flags);
+	if (!channel_active)
+		clk_enable(msm_dmov_clk);
+	dsb();
 	status = readl(DMOV_STATUS(id));
 	if (list_empty(&ready_commands[id]) &&
 		(status & DMOV_STATUS_CMD_PTR_RDY)) {
@@ -70,6 +76,8 @@ void msm_dmov_enqueue_cmd(unsigned id, struct msm_dmov_cmd *cmd)
 		channel_active |= 1U << id;
 		writel(cmd->cmdptr, DMOV_CMD_PTR(id));
 	} else {
+		if (!channel_active)
+			clk_disable(msm_dmov_clk);
 		if (list_empty(&active_commands[id]))
 			PRINT_ERROR("msm_dmov_enqueue_cmd(%d), error datamover stalled, status %x\n", id, status);
 
@@ -165,6 +173,7 @@ static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 					"for %p, result %x\n", id, cmd, ch_result);
 				if (cmd) {
 					list_del(&cmd->list);
+					dsb();
 					cmd->complete_func(cmd, ch_result, NULL);
 				}
 			}
@@ -181,6 +190,7 @@ static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 				PRINT_FLOW("msm_datamover_irq_handler id %d, flush, result %x, flush0 %x\n", id, ch_result, errdata.flush[0]);
 				if (cmd) {
 					list_del(&cmd->list);
+					dsb();
 					cmd->complete_func(cmd, ch_result, &errdata);
 				}
 			}
@@ -198,6 +208,7 @@ static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 				PRINT_ERROR("msm_datamover_irq_handler id %d, error, result %x, flush0 %x\n", id, ch_result, errdata.flush[0]);
 				if (cmd) {
 					list_del(&cmd->list);
+					dsb();
 					cmd->complete_func(cmd, ch_result, &errdata);
 				}
 				/* this does not seem to work, once we get an error */
@@ -219,8 +230,10 @@ static irqreturn_t msm_datamover_irq_handler(int irq, void *dev_id)
 		PRINT_FLOW("msm_datamover_irq_handler id %d, status %x\n", id, ch_status);
 	}
 
-	if (!channel_active)
-		disable_irq(INT_ADM_AARM);
+	if (!channel_active) {
+		disable_irq_nosync(INT_ADM_AARM);
+		clk_disable(msm_dmov_clk);
+	}
 
 	spin_unlock_irqrestore(&msm_dmov_lock, irq_flags);
 	return IRQ_HANDLED;
@@ -230,11 +243,17 @@ static int __init msm_init_datamover(void)
 {
 	int i;
 	int ret;
+	struct clk *clk;
+
 	for (i = 0; i < MSM_DMOV_CHANNEL_COUNT; i++) {
 		INIT_LIST_HEAD(&ready_commands[i]);
 		INIT_LIST_HEAD(&active_commands[i]);
 		writel(DMOV_CONFIG_IRQ_EN | DMOV_CONFIG_FORCE_TOP_PTR_RSLT | DMOV_CONFIG_FORCE_FLUSH_RSLT, DMOV_CONFIG(i));
 	}
+	clk = clk_get(NULL, "adm_clk");
+	if (IS_ERR(clk))
+		return PTR_ERR(clk);
+	msm_dmov_clk = clk;
 	ret = request_irq(INT_ADM_AARM, msm_datamover_irq_handler, 0, "msmdatamover", NULL);
 	if (ret)
 		return ret;

@@ -519,7 +519,7 @@ static ssize_t ibft_show_attribute(struct kobject *kobj,
 	return ret;
 }
 
-static struct sysfs_ops ibft_attr_ops = {
+static const struct sysfs_ops ibft_attr_ops = {
 	.show = ibft_show_attribute,
 };
 

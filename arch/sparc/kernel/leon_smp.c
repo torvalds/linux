@@ -22,6 +22,7 @@
 #include <linux/profile.h>
 #include <linux/pm.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 
 #include <asm/cacheflush.h>
 #include <asm/tlbflush.h>

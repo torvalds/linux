@@ -26,6 +26,7 @@
 #include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/resource.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include <pcmcia/cs_types.h>
@@ -145,7 +146,6 @@ static irqreturn_t db1200_pcmcia_cdirq(int irq, void *data)
 static int db1x_pcmcia_setup_irqs(struct db1x_pcmcia_sock *sock)
 {
 	int ret;
-	unsigned long flags;
 
 	if (sock->stschg_irq != -1) {
 		ret = request_irq(sock->stschg_irq, db1000_pcmcia_stschgirq,
@@ -161,8 +161,6 @@ static int db1x_pcmcia_setup_irqs(struct db1x_pcmcia_sock *sock)
 	 * active one disabled.
 	 */
 	if (sock->board_type == BOARD_TYPE_DB1200) {
-		local_irq_save(flags);
-
 		ret = request_irq(sock->insert_irq, db1200_pcmcia_cdirq,
 				  IRQF_DISABLED, "pcmcia_insert", sock);
 		if (ret)
@@ -172,17 +170,14 @@ static int db1x_pcmcia_setup_irqs(struct db1x_pcmcia_sock *sock)
 				  IRQF_DISABLED, "pcmcia_eject", sock);
 		if (ret) {
 			free_irq(sock->insert_irq, sock);
-			local_irq_restore(flags);
 			goto out1;
 		}
 
-		/* disable the currently active one */
+		/* enable the currently silent one */
 		if (db1200_card_inserted(sock))
-			disable_irq_nosync(sock->insert_irq);
+			enable_irq(sock->eject_irq);
 		else
-			disable_irq_nosync(sock->eject_irq);
-
-		local_irq_restore(flags);
+			enable_irq(sock->insert_irq);
 	} else {
 		/* all other (older) Db1x00 boards use a GPIO to show
 		 * card detection status:  use both-edge triggers.
@@ -558,37 +553,10 @@ static int __devexit db1x_pcmcia_socket_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int db1x_pcmcia_suspend(struct device *dev)
-{
-	return pcmcia_socket_dev_suspend(dev);
-}
-
-static int db1x_pcmcia_resume(struct device *dev)
-{
-	return pcmcia_socket_dev_resume(dev);
-}
-
-static struct dev_pm_ops db1x_pcmcia_pmops = {
-	.resume		= db1x_pcmcia_resume,
-	.suspend	= db1x_pcmcia_suspend,
-	.thaw		= db1x_pcmcia_resume,
-	.freeze		= db1x_pcmcia_suspend,
-};
-
-#define DB1XXX_SS_PMOPS &db1x_pcmcia_pmops
-
-#else
-
-#define DB1XXX_SS_PMOPS NULL
-
-#endif
-
 static struct platform_driver db1x_pcmcia_socket_driver = {
 	.driver	= {
 		.name	= "db1xxx_pcmcia",
 		.owner	= THIS_MODULE,
-		.pm	= DB1XXX_SS_PMOPS
 	},
 	.probe		= db1x_pcmcia_socket_probe,
 	.remove		= __devexit_p(db1x_pcmcia_socket_remove),

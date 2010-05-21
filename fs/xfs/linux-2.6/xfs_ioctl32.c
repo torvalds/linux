@@ -18,6 +18,7 @@
 #include <linux/compat.h>
 #include <linux/ioctl.h>
 #include <linux/mount.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include "xfs.h"
 #include "xfs_fs.h"
@@ -418,6 +419,10 @@ xfs_compat_attrmulti_by_handle(
 	if (copy_from_user(&am_hreq, arg,
 			   sizeof(compat_xfs_fsop_attrmulti_handlereq_t)))
 		return -XFS_ERROR(EFAULT);
+
+	/* overflow check */
+	if (am_hreq.opcount >= INT_MAX / sizeof(compat_xfs_attr_multiop_t))
+		return -E2BIG;
 
 	dentry = xfs_compat_handlereq_to_dentry(parfilp, &am_hreq.hreq);
 	if (IS_ERR(dentry))

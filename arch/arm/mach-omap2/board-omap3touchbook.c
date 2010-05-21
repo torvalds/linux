@@ -493,7 +493,7 @@ static void __init omap3touchbook_flash_init(void)
 	}
 }
 
-static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
+static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 
 	.port_mode[0] = EHCI_HCD_OMAP_MODE_PHY,
 	.port_mode[1] = EHCI_HCD_OMAP_MODE_PHY,
@@ -518,14 +518,14 @@ static void omap3_touchbook_poweroff(void)
 	gpio_direction_output(TB_KILL_POWER_GPIO, 0);
 }
 
-static void __init early_touchbook_revision(char **p)
+static int __init early_touchbook_revision(char *p)
 {
-	if (!*p)
-		return;
+	if (!p)
+		return 0;
 
-	strict_strtoul(*p, 10, &touchbook_revision);
+	return strict_strtoul(p, 10, &touchbook_revision);
 }
-__early_param("tbr=", early_touchbook_revision);
+early_param("tbr", early_touchbook_revision);
 
 static struct omap_musb_board_data musb_board_data = {
 	.interface_type		= MUSB_INTERFACE_ULPI,

@@ -764,7 +764,7 @@ static void sch_create_and_recog_new_device(struct subchannel *sch)
 static void io_subchannel_register(struct ccw_device *cdev)
 {
 	struct subchannel *sch;
-	int ret;
+	int ret, adjust_init_count = 1;
 	unsigned long flags;
 
 	sch = to_subchannel(cdev->dev.parent);
@@ -793,6 +793,7 @@ static void io_subchannel_register(struct ccw_device *cdev)
 					      cdev->private->dev_id.ssid,
 					      cdev->private->dev_id.devno);
 		}
+		adjust_init_count = 0;
 		goto out;
 	}
 	/*
@@ -818,7 +819,7 @@ out:
 	cdev->private->flags.recog_done = 1;
 	wake_up(&cdev->private->wait_q);
 out_err:
-	if (atomic_dec_and_test(&ccw_device_init_count))
+	if (adjust_init_count && atomic_dec_and_test(&ccw_device_init_count))
 		wake_up(&ccw_device_init_wq);
 }
 

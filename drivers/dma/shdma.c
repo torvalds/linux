@@ -19,14 +19,14 @@
 
 #include <linux/init.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/dmaengine.h>
 #include <linux/delay.h>
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-
-#include <asm/dmaengine.h>
+#include <linux/sh_dma.h>
 
 #include "shdma.h"
 
@@ -44,7 +44,7 @@ enum sh_dmae_desc_status {
 #define LOG2_DEFAULT_XFER_SIZE	2
 
 /* A bitmask with bits enough for enum sh_dmae_slave_chan_id */
-static unsigned long sh_dmae_slave_used[BITS_TO_LONGS(SHDMA_SLAVE_NUMBER)];
+static unsigned long sh_dmae_slave_used[BITS_TO_LONGS(SH_DMA_SLAVE_NUMBER)];
 
 static void sh_dmae_chan_ld_cleanup(struct sh_dmae_chan *sh_chan, bool all);
 
@@ -189,7 +189,7 @@ static int dmae_set_dmars(struct sh_dmae_chan *sh_chan, u16 val)
 	struct sh_dmae_device *shdev = container_of(sh_chan->common.device,
 						struct sh_dmae_device, common);
 	struct sh_dmae_pdata *pdata = shdev->pdata;
-	struct sh_dmae_channel *chan_pdata = &pdata->channel[sh_chan->id];
+	const struct sh_dmae_channel *chan_pdata = &pdata->channel[sh_chan->id];
 	u16 __iomem *addr = shdev->dmars + chan_pdata->dmars / sizeof(u16);
 	int shift = chan_pdata->dmars_bit;
 
@@ -265,8 +265,8 @@ static struct sh_desc *sh_dmae_get_desc(struct sh_dmae_chan *sh_chan)
 	return NULL;
 }
 
-static struct sh_dmae_slave_config *sh_dmae_find_slave(
-	struct sh_dmae_chan *sh_chan, enum sh_dmae_slave_chan_id slave_id)
+static const struct sh_dmae_slave_config *sh_dmae_find_slave(
+	struct sh_dmae_chan *sh_chan, struct sh_dmae_slave *param)
 {
 	struct dma_device *dma_dev = sh_chan->common.device;
 	struct sh_dmae_device *shdev = container_of(dma_dev,
@@ -274,11 +274,11 @@ static struct sh_dmae_slave_config *sh_dmae_find_slave(
 	struct sh_dmae_pdata *pdata = shdev->pdata;
 	int i;
 
-	if ((unsigned)slave_id >= SHDMA_SLAVE_NUMBER)
+	if (param->slave_id >= SH_DMA_SLAVE_NUMBER)
 		return NULL;
 
 	for (i = 0; i < pdata->slave_num; i++)
-		if (pdata->slave[i].slave_id == slave_id)
+		if (pdata->slave[i].slave_id == param->slave_id)
 			return pdata->slave + i;
 
 	return NULL;
@@ -289,6 +289,7 @@ static int sh_dmae_alloc_chan_resources(struct dma_chan *chan)
 	struct sh_dmae_chan *sh_chan = to_sh_chan(chan);
 	struct sh_desc *desc;
 	struct sh_dmae_slave *param = chan->private;
+	int ret;
 
 	pm_runtime_get_sync(sh_chan->dev);
 
@@ -297,14 +298,18 @@ static int sh_dmae_alloc_chan_resources(struct dma_chan *chan)
 	 * never runs concurrently with itself or free_chan_resources.
 	 */
 	if (param) {
-		struct sh_dmae_slave_config *cfg;
+		const struct sh_dmae_slave_config *cfg;
 
-		cfg = sh_dmae_find_slave(sh_chan, param->slave_id);
-		if (!cfg)
-			return -EINVAL;
+		cfg = sh_dmae_find_slave(sh_chan, param);
+		if (!cfg) {
+			ret = -EINVAL;
+			goto efindslave;
+		}
 
-		if (test_and_set_bit(param->slave_id, sh_dmae_slave_used))
-			return -EBUSY;
+		if (test_and_set_bit(param->slave_id, sh_dmae_slave_used)) {
+			ret = -EBUSY;
+			goto etestused;
+		}
 
 		param->config = cfg;
 
@@ -333,10 +338,20 @@ static int sh_dmae_alloc_chan_resources(struct dma_chan *chan)
 	}
 	spin_unlock_bh(&sh_chan->desc_lock);
 
-	if (!sh_chan->descs_allocated)
-		pm_runtime_put(sh_chan->dev);
+	if (!sh_chan->descs_allocated) {
+		ret = -ENOMEM;
+		goto edescalloc;
+	}
 
 	return sh_chan->descs_allocated;
+
+edescalloc:
+	if (param)
+		clear_bit(param->slave_id, sh_dmae_slave_used);
+etestused:
+efindslave:
+	pm_runtime_put(sh_chan->dev);
+	return ret;
 }
 
 /*
@@ -558,12 +573,14 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_slave_sg(
 {
 	struct sh_dmae_slave *param;
 	struct sh_dmae_chan *sh_chan;
+	dma_addr_t slave_addr;
 
 	if (!chan)
 		return NULL;
 
 	sh_chan = to_sh_chan(chan);
 	param = chan->private;
+	slave_addr = param->config->addr;
 
 	/* Someone calling slave DMA on a public channel? */
 	if (!param || !sg_len) {
@@ -576,7 +593,7 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_slave_sg(
 	 * if (param != NULL), this is a successfully requested slave channel,
 	 * therefore param->config != NULL too.
 	 */
-	return sh_dmae_prep_sg(sh_chan, sgl, sg_len, &param->config->addr,
+	return sh_dmae_prep_sg(sh_chan, sgl, sg_len, &slave_addr,
 			       direction, flags);
 }
 
@@ -857,7 +874,7 @@ static int __devinit sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 					int irq, unsigned long flags)
 {
 	int err;
-	struct sh_dmae_channel *chan_pdata = &shdev->pdata->channel[id];
+	const struct sh_dmae_channel *chan_pdata = &shdev->pdata->channel[id];
 	struct platform_device *pdev = to_platform_device(shdev->common.dev);
 	struct sh_dmae_chan *new_sh_chan;
 

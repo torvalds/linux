@@ -23,6 +23,7 @@
 #include <linux/pm.h>
 #include <linux/suspend.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include "aerdrv.h"
 
 static int forceload;

@@ -37,6 +37,103 @@ static int slot1_cover_open;
 static int slot2_cover_open;
 static struct device *mmc_device;
 
+#define TUSB6010_ASYNC_CS	1
+#define TUSB6010_SYNC_CS	4
+#define TUSB6010_GPIO_INT	58
+#define TUSB6010_GPIO_ENABLE	0
+#define TUSB6010_DMACHAN	0x3f
+
+#if defined(CONFIG_USB_TUSB6010) || \
+	defined(CONFIG_USB_TUSB6010_MODULE)
+/*
+ * Enable or disable power to TUSB6010. When enabling, turn on 3.3 V and
+ * 1.5 V voltage regulators of PM companion chip. Companion chip will then
+ * provide then PGOOD signal to TUSB6010 which will release it from reset.
+ */
+static int tusb_set_power(int state)
+{
+	int i, retval = 0;
+
+	if (state) {
+		gpio_set_value(TUSB6010_GPIO_ENABLE, 1);
+		msleep(1);
+
+		/* Wait until TUSB6010 pulls INT pin down */
+		i = 100;
+		while (i && gpio_get_value(TUSB6010_GPIO_INT)) {
+			msleep(1);
+			i--;
+		}
+
+		if (!i) {
+			printk(KERN_ERR "tusb: powerup failed\n");
+			retval = -ENODEV;
+		}
+	} else {
+		gpio_set_value(TUSB6010_GPIO_ENABLE, 0);
+		msleep(10);
+	}
+
+	return retval;
+}
+
+static struct musb_hdrc_config musb_config = {
+	.multipoint	= 1,
+	.dyn_fifo	= 1,
+	.num_eps	= 16,
+	.ram_bits	= 12,
+};
+
+static struct musb_hdrc_platform_data tusb_data = {
+#if defined(CONFIG_USB_MUSB_OTG)
+	.mode		= MUSB_OTG,
+#elif defined(CONFIG_USB_MUSB_PERIPHERAL)
+	.mode		= MUSB_PERIPHERAL,
+#else /* defined(CONFIG_USB_MUSB_HOST) */
+	.mode		= MUSB_HOST,
+#endif
+	.set_power	= tusb_set_power,
+	.min_power	= 25,	/* x2 = 50 mA drawn from VBUS as peripheral */
+	.power		= 100,	/* Max 100 mA VBUS for host mode */
+	.config		= &musb_config,
+};
+
+static void __init n8x0_usb_init(void)
+{
+	int ret = 0;
+	static char	announce[] __initdata = KERN_INFO "TUSB 6010\n";
+
+	/* PM companion chip power control pin */
+	ret = gpio_request(TUSB6010_GPIO_ENABLE, "TUSB6010 enable");
+	if (ret != 0) {
+		printk(KERN_ERR "Could not get TUSB power GPIO%i\n",
+		       TUSB6010_GPIO_ENABLE);
+		return;
+	}
+	gpio_direction_output(TUSB6010_GPIO_ENABLE, 0);
+
+	tusb_set_power(0);
+
+	ret = tusb6010_setup_interface(&tusb_data, TUSB6010_REFCLK_19, 2,
+					TUSB6010_ASYNC_CS, TUSB6010_SYNC_CS,
+					TUSB6010_GPIO_INT, TUSB6010_DMACHAN);
+	if (ret != 0)
+		goto err;
+
+	printk(announce);
+
+	return;
+
+err:
+	gpio_free(TUSB6010_GPIO_ENABLE);
+}
+#else
+
+static void __init n8x0_usb_init(void) {}
+
+#endif /*CONFIG_USB_TUSB6010 */
+
+
 static struct omap2_mcspi_device_config p54spi_mcspi_config = {
 	.turbo_mode	= 0,
 	.single_channel = 1,
@@ -119,7 +216,7 @@ static void __init n8x0_onenand_init(void) {}
  */
 #define N8X0_SLOT_SWITCH_GPIO	96
 #define N810_EMMC_VSD_GPIO	23
-#define NN810_EMMC_VIO_GPIO	9
+#define N810_EMMC_VIO_GPIO	9
 
 static int n8x0_mmc_switch_slot(struct device *dev, int slot)
 {
@@ -207,10 +304,10 @@ static void n810_set_power_emmc(struct device *dev,
 	if (power_on) {
 		gpio_set_value(N810_EMMC_VSD_GPIO, 1);
 		msleep(1);
-		gpio_set_value(NN810_EMMC_VIO_GPIO, 1);
+		gpio_set_value(N810_EMMC_VIO_GPIO, 1);
 		msleep(1);
 	} else {
-		gpio_set_value(NN810_EMMC_VIO_GPIO, 0);
+		gpio_set_value(N810_EMMC_VIO_GPIO, 0);
 		msleep(50);
 		gpio_set_value(N810_EMMC_VSD_GPIO, 0);
 		msleep(50);
@@ -371,7 +468,7 @@ static void n8x0_mmc_cleanup(struct device *dev)
 
 	if (machine_is_nokia_n810()) {
 		gpio_free(N810_EMMC_VSD_GPIO);
-		gpio_free(NN810_EMMC_VIO_GPIO);
+		gpio_free(N810_EMMC_VIO_GPIO);
 	}
 }
 
@@ -432,7 +529,7 @@ void __init n8x0_mmc_init(void)
 
 	err = gpio_request(N8X0_SLOT_SWITCH_GPIO, "MMC slot switch");
 	if (err)
-		return err;
+		return;
 
 	gpio_direction_output(N8X0_SLOT_SWITCH_GPIO, 0);
 
@@ -440,17 +537,17 @@ void __init n8x0_mmc_init(void)
 		err = gpio_request(N810_EMMC_VSD_GPIO, "MMC slot 2 Vddf");
 		if (err) {
 			gpio_free(N8X0_SLOT_SWITCH_GPIO);
-			return err;
+			return;
 		}
 		gpio_direction_output(N810_EMMC_VSD_GPIO, 0);
 
-		err = gpio_request(NN810_EMMC_VIO_GPIO, "MMC slot 2 Vdd");
+		err = gpio_request(N810_EMMC_VIO_GPIO, "MMC slot 2 Vdd");
 		if (err) {
 			gpio_free(N8X0_SLOT_SWITCH_GPIO);
 			gpio_free(N810_EMMC_VSD_GPIO);
-			return err;
+			return;
 		}
-		gpio_direction_output(NN810_EMMC_VIO_GPIO, 0);
+		gpio_direction_output(N810_EMMC_VIO_GPIO, 0);
 	}
 
 	mmc_data[0] = &mmc1_data;
@@ -562,6 +659,7 @@ static void __init n8x0_init_machine(void)
 	n8x0_menelaus_init();
 	n8x0_onenand_init();
 	n8x0_mmc_init();
+	n8x0_usb_init();
 }
 
 MACHINE_START(NOKIA_N800, "Nokia N800")

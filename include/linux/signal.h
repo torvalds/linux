@@ -7,6 +7,8 @@
 #ifdef __KERNEL__
 #include <linux/list.h>
 
+/* for sysctl */
+extern int print_fatal_signals;
 /*
  * Real Time signals may be queued.
  */

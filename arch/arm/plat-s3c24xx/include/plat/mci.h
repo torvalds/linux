@@ -40,4 +40,13 @@ struct s3c24xx_mci_pdata {
 				     unsigned short vdd);
 };
 
+/**
+ * s3c24xx_mci_set_platdata - set platform data for mmc/sdi device
+ * @pdata: The platform data
+ *
+ * Copy the platform data supplied by @pdata so that this can be marked
+ * __initdata.
+ */
+extern void s3c24xx_mci_set_platdata(struct s3c24xx_mci_pdata *pdata);
+
 #endif /* _ARCH_NCI_H */

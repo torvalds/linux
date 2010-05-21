@@ -64,6 +64,7 @@
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/tty_flip.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -626,7 +627,6 @@ static irqreturn_t cd2401_rx_interrupt(int irq, void *dev_id)
 	char data;
 	int char_count;
 	int save_cnt;
-	int len;
 
 	/* determine the channel and change to that context */
 	channel = (u_short) (base_addr[CyLICR] >> 2);
@@ -1527,7 +1527,6 @@ static int
 cy_ioctl(struct tty_struct *tty, struct file *file,
 	 unsigned int cmd, unsigned long arg)
 {
-	unsigned long val;
 	struct cyclades_port *info = tty->driver_data;
 	int ret_val = 0;
 	void __user *argp = (void __user *)arg;
@@ -1989,7 +1988,7 @@ void mvme167_serial_console_setup(int cflag)
 	/*
 	 * Attempt to set up all channels to something reasonable, and
 	 * bang out a INIT_CHAN command.  We should then be able to limit
-	 * the ammount of fiddling we have to do in normal running.
+	 * the amount of fiddling we have to do in normal running.
 	 */
 
 	for (ch = 3; ch >= 0; ch--) {

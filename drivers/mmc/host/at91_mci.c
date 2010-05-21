@@ -65,6 +65,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/clk.h>
 #include <linux/atmel_pdc.h>
+#include <linux/gfp.h>
 
 #include <linux/mmc/host.h>
 
@@ -313,8 +314,8 @@ static void at91_mci_post_dma_read(struct at91mci_host *host)
 			dmabuf = (unsigned *)tmpv;
 		}
 
+		flush_kernel_dcache_page(sg_page(sg));
 		kunmap_atomic(sgbuffer, KM_BIO_SRC_IRQ);
-		dmac_flush_range((void *)sgbuffer, ((void *)sgbuffer) + amount);
 		data->bytes_xfered += amount;
 		if (size == 0)
 			break;

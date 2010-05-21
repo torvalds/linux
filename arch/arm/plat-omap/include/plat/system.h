@@ -22,7 +22,7 @@ static inline void arch_idle(void)
 	cpu_do_idle();
 }
 
-static inline void omap1_arch_reset(char mode)
+static inline void omap1_arch_reset(char mode, const char *cmd)
 {
 	/*
 	 * Workaround for 5912/1611b bug mentioned in sprz209d.pdf p. 28
@@ -43,9 +43,9 @@ static inline void omap1_arch_reset(char mode)
 static inline void arch_reset(char mode, const char *cmd)
 {
 	if (!cpu_class_is_omap2())
-		omap1_arch_reset(mode);
+		omap1_arch_reset(mode, cmd);
 	else
-		omap_prcm_arch_reset(mode);
+		omap_prcm_arch_reset(mode, cmd);
 }
 
 #endif

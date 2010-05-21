@@ -12,7 +12,7 @@
 #endif
 
 NL_PACKET(primary, 1,
-       NL_BIT(		1,	T_MAY_IGNORE,	overwrite_peer)
+       NL_BIT(		1,	T_MAY_IGNORE,	primary_force)
 )
 
 NL_PACKET(secondary, 2, )
@@ -63,6 +63,7 @@ NL_PACKET(net_conf, 5,
 	NL_BIT(		41,	T_MAY_IGNORE,	always_asbp)
 	NL_BIT(		61,	T_MAY_IGNORE,	no_cork)
 	NL_BIT(		62,	T_MANDATORY,	auto_sndbuf_size)
+	NL_BIT(		70,	T_MANDATORY,	dry_run)
 )
 
 NL_PACKET(disconnect, 6, )

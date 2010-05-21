@@ -37,6 +37,7 @@
 
 #include "rt_config.h"
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 /* Following information will be show when you run 'modinfo' */
 /* *** If you have a solution for the bug in current version of driver, please mail to me. */

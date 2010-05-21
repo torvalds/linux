@@ -16,6 +16,7 @@
 #include <linux/clk.h>
 #include <linux/input.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 /* ADC controller bit defines */
 #define ADC_DELAY	0xf00

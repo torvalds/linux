@@ -925,7 +925,7 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 	iinfo = UDF_I(inode);
 	inode->i_mode = S_IFLNK | S_IRWXUGO;
 	inode->i_data.a_ops = &udf_symlink_aops;
-	inode->i_op = &page_symlink_inode_operations;
+	inode->i_op = &udf_symlink_inode_operations;
 
 	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB) {
 		struct kernel_lb_addr eloc;
@@ -1393,6 +1393,7 @@ const struct export_operations udf_export_ops = {
 const struct inode_operations udf_dir_inode_operations = {
 	.lookup				= udf_lookup,
 	.create				= udf_create,
+	.setattr			= udf_setattr,
 	.link				= udf_link,
 	.unlink				= udf_unlink,
 	.symlink			= udf_symlink,
@@ -1400,4 +1401,10 @@ const struct inode_operations udf_dir_inode_operations = {
 	.rmdir				= udf_rmdir,
 	.mknod				= udf_mknod,
 	.rename				= udf_rename,
+};
+const struct inode_operations udf_symlink_inode_operations = {
+	.readlink	= generic_readlink,
+	.follow_link	= page_follow_link_light,
+	.put_link	= page_put_link,
+	.setattr	= udf_setattr,
 };

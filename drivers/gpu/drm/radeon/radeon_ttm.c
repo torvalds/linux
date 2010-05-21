@@ -36,6 +36,7 @@
 #include <drm/drmP.h>
 #include <drm/radeon_drm.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include "radeon_reg.h"
 #include "radeon.h"
 

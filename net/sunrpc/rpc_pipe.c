@@ -587,6 +587,8 @@ static struct dentry *__rpc_lookup_create_exclusive(struct dentry *parent,
 	struct dentry *dentry;
 
 	dentry = __rpc_lookup_create(parent, name);
+	if (IS_ERR(dentry))
+		return dentry;
 	if (dentry->d_inode == NULL)
 		return dentry;
 	dput(dentry);

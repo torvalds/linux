@@ -95,6 +95,7 @@
 #define I365_CSC_DETECT	0x08
 #define I365_CSC_ANY	0x0F
 #define I365_CSC_GPI	0x10
+#define I365_CSC_IRQ_MASK	0xF0
 
 /* Flags for I365_ADDRWIN */
 #define I365_ENA_IO(map)	(0x40 << (map))

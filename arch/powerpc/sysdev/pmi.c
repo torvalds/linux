@@ -25,6 +25,7 @@
  */
 
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>

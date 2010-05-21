@@ -17,6 +17,7 @@
 #include <linux/input.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 #define DRIVER_NAME		"synaptics_i2c"
 /* maximum product id is 15 characters */

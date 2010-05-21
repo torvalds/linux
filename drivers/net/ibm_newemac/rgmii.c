@@ -21,6 +21,7 @@
  * option) any later version.
  *
  */
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/ethtool.h>
 #include <asm/io.h>

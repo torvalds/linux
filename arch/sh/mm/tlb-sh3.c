@@ -77,3 +77,22 @@ void local_flush_tlb_one(unsigned long asid, unsigned long page)
 	for (i = 0; i < ways; i++)
 		__raw_writel(data, addr + (i << 8));
 }
+
+void local_flush_tlb_all(void)
+{
+	unsigned long flags, status;
+
+	/*
+	 * Flush all the TLB.
+	 *
+	 * Write to the MMU control register's bit:
+	 *	TF-bit for SH-3, TI-bit for SH-4.
+	 *      It's same position, bit #2.
+	 */
+	local_irq_save(flags);
+	status = __raw_readl(MMUCR);
+	status |= 0x04;
+	__raw_writel(status, MMUCR);
+	ctrl_barrier();
+	local_irq_restore(flags);
+}

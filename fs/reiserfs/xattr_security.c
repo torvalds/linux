@@ -3,6 +3,7 @@
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/xattr.h>
+#include <linux/slab.h>
 #include <linux/reiserfs_xattr.h>
 #include <linux/security.h>
 #include <asm/uaccess.h>
@@ -76,7 +77,7 @@ int reiserfs_security_init(struct inode *dir, struct inode *inode,
 		return error;
 	}
 
-	if (sec->length) {
+	if (sec->length && reiserfs_xattrs_initialized(inode->i_sb)) {
 		blocks = reiserfs_xattr_jcreate_nblocks(inode) +
 			 reiserfs_xattr_nblocks(inode, sec->length);
 		/* We don't want to count the directories twice if we have

@@ -264,6 +264,9 @@ static inline void user_enable_single_step(struct task_struct *task)
 static inline void user_disable_single_step(struct task_struct *task)
 {
 }
+#else
+extern void user_enable_single_step(struct task_struct *);
+extern void user_disable_single_step(struct task_struct *);
 #endif	/* arch_has_single_step */
 
 #ifndef arch_has_block_step
@@ -291,6 +294,8 @@ static inline void user_enable_block_step(struct task_struct *task)
 {
 	BUG();			/* This can never be called.  */
 }
+#else
+extern void user_enable_block_step(struct task_struct *);
 #endif	/* arch_has_block_step */
 
 #ifdef ARCH_HAS_USER_SINGLE_STEP_INFO
@@ -338,18 +343,6 @@ static inline void user_single_step_siginfo(struct task_struct *tsk,
  * indicated by arch_ptrace_stop_needed().
  */
 #define arch_ptrace_stop(code, info)		do { } while (0)
-#endif
-
-#ifndef arch_ptrace_untrace
-/*
- * Do machine-specific work before untracing child.
- *
- * This is called for a normal detach as well as from ptrace_exit()
- * when the tracing task dies.
- *
- * Called with write_lock(&tasklist_lock) held.
- */
-#define arch_ptrace_untrace(task)		do { } while (0)
 #endif
 
 extern int task_current_syscall(struct task_struct *target, long *callno,

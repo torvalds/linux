@@ -40,6 +40,7 @@
 #include <linux/udp.h>
 #include <linux/moduleparam.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 
 #include <xen/xen.h>

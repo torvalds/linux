@@ -32,6 +32,7 @@
 #include <linux/sched.h>
 #include <linux/inet.h>
 #include <linux/idr.h>
+#include <linux/slab.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -74,6 +75,15 @@ static inline int dt_type(struct p9_wstat *mistat)
 		rettype = DT_LNK;
 
 	return rettype;
+}
+
+static void p9stat_init(struct p9_wstat *stbuf)
+{
+	stbuf->name  = NULL;
+	stbuf->uid   = NULL;
+	stbuf->gid   = NULL;
+	stbuf->muid  = NULL;
+	stbuf->extension = NULL;
 }
 
 /**
@@ -121,6 +131,8 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	rdir = (struct p9_rdir *) fid->rdir;
 
 	err = mutex_lock_interruptible(&rdir->mutex);
+	if (err)
+		return err;
 	while (err == 0) {
 		if (rdir->tail == rdir->head) {
 			err = v9fs_file_readn(filp, rdir->buf, NULL,
@@ -131,8 +143,8 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 			rdir->head = 0;
 			rdir->tail = err;
 		}
-
 		while (rdir->head < rdir->tail) {
+			p9stat_init(&st);
 			err = p9stat_read(rdir->buf + rdir->head,
 						buflen - rdir->head, &st,
 						fid->clnt->proto_version);

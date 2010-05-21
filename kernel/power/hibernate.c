@@ -22,6 +22,7 @@
 #include <linux/console.h>
 #include <linux/cpu.h>
 #include <linux/freezer.h>
+#include <linux/gfp.h>
 #include <scsi/scsi_scan.h>
 #include <asm/suspend.h>
 

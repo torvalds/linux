@@ -15,6 +15,7 @@
 #include <linux/of.h>
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 #define MPC8XXX_GPIO_PINS	32
 

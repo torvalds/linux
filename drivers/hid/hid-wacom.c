@@ -21,6 +21,7 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include "hid-ids.h"
 
@@ -276,7 +277,6 @@ static int __init wacom_init(void)
 	ret = hid_register_driver(&wacom_driver);
 	if (ret)
 		printk(KERN_ERR "can't register wacom driver\n");
-	printk(KERN_ERR "wacom driver registered\n");
 	return ret;
 }
 

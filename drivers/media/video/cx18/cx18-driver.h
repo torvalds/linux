@@ -42,6 +42,7 @@
 #include <linux/pagemap.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 
 #include <linux/dvb/video.h>

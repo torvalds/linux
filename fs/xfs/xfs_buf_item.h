@@ -26,7 +26,7 @@ extern kmem_zone_t	*xfs_buf_item_zone;
  * have been logged.
  * For 6.2 and beyond, this is XFS_LI_BUF.  We use this to log everything.
  */
-typedef struct xfs_buf_log_format_t {
+typedef struct xfs_buf_log_format {
 	unsigned short	blf_type;	/* buf log item type indicator */
 	unsigned short	blf_size;	/* size of this item */
 	ushort		blf_flags;	/* misc state */

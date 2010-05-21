@@ -37,6 +37,7 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 
 #include <crypto/algapi.h>
 #include <crypto/aes.h>

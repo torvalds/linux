@@ -71,7 +71,7 @@ void ieee80211_configure_filter(struct ieee80211_local *local)
 	spin_lock_bh(&local->filter_lock);
 	changed_flags = local->filter_flags ^ new_flags;
 
-	mc = drv_prepare_multicast(local, local->mc_count, local->mc_list);
+	mc = drv_prepare_multicast(local, &local->mc_list);
 	spin_unlock_bh(&local->filter_lock);
 
 	/* be a bit nasty */
@@ -111,7 +111,7 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		channel_type = local->tmp_channel_type;
 	} else {
 		chan = local->oper_channel;
-		channel_type = local->oper_channel_type;
+		channel_type = local->_oper_channel_type;
 	}
 
 	if (chan != local->hw.conf.channel ||
@@ -225,11 +225,11 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 			switch (sdata->vif.type) {
 			case NL80211_IFTYPE_AP:
 				sdata->vif.bss_conf.enable_beacon =
-					!!rcu_dereference(sdata->u.ap.beacon);
+					!!sdata->u.ap.beacon;
 				break;
 			case NL80211_IFTYPE_ADHOC:
 				sdata->vif.bss_conf.enable_beacon =
-					!!rcu_dereference(sdata->u.ibss.presp);
+					!!sdata->u.ibss.presp;
 				break;
 			case NL80211_IFTYPE_MESH_POINT:
 				sdata->vif.bss_conf.enable_beacon = true;
@@ -308,6 +308,8 @@ static void ieee80211_restart_work(struct work_struct *work)
 void ieee80211_restart_hw(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
+
+	trace_api_restart_hw(local);
 
 	/* use this reason, __ieee80211_resume will unblock it */
 	ieee80211_stop_queues_by_reason(hw,
@@ -388,6 +390,9 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	local->uapsd_max_sp_len = IEEE80211_DEFAULT_MAX_SP_LEN;
 
 	INIT_LIST_HEAD(&local->interfaces);
+
+	__hw_addr_init(&local->mc_list);
+
 	mutex_init(&local->iflist_mtx);
 	mutex_init(&local->scan_mtx);
 
@@ -437,7 +442,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	struct ieee80211_local *local = hw_to_local(hw);
 	int result;
 	enum ieee80211_band band;
-	int channels, i, j, max_bitrates;
+	int channels, max_bitrates;
 	bool supp_ht;
 	static const u32 cipher_suites[] = {
 		WLAN_CIPHER_SUITE_WEP40,
@@ -567,6 +572,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	local->hw.conf.listen_interval = local->hw.max_listen_interval;
 
+	local->hw.conf.dynamic_ps_forced_timeout = -1;
+
 	result = sta_info_start(local);
 	if (result < 0)
 		goto fail_sta_info;
@@ -600,21 +607,6 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	rtnl_unlock();
 
 	ieee80211_led_init(local);
-
-	/* alloc internal scan request */
-	i = 0;
-	local->int_scan_req->ssids = &local->scan_ssid;
-	local->int_scan_req->n_ssids = 1;
-	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
-		if (!hw->wiphy->bands[band])
-			continue;
-		for (j = 0; j < hw->wiphy->bands[band]->n_channels; j++) {
-			local->int_scan_req->channels[i] =
-				&hw->wiphy->bands[band]->channels[j];
-			i++;
-		}
-	}
-	local->int_scan_req->n_channels = i;
 
 	local->network_latency_notifier.notifier_call =
 		ieee80211_max_network_latency;

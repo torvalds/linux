@@ -50,7 +50,6 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
-#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
@@ -58,6 +57,7 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #include <linux/timex.h>
 #include <linux/timer.h>
 #include <linux/pci.h>
+#include <linux/gfp.h>
 #include "../../comedidev.h"
 #include <asm/io.h>
 #if defined(CONFIG_APCI_1710) || defined(CONFIG_APCI_3200) || defined(CONFIG_APCI_3300)

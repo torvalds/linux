@@ -29,6 +29,13 @@
 #include <linux/buffer_head.h>
 #include <linux/fs.h>
 
+/**
+ * nilfs_palloc_entries_per_group - get the number of entries per group
+ * @inode: inode of metadata file using this allocator
+ *
+ * The number of entries per group is defined by the number of bits
+ * that a bitmap block can maintain.
+ */
 static inline unsigned long
 nilfs_palloc_entries_per_group(const struct inode *inode)
 {
@@ -42,7 +49,7 @@ void *nilfs_palloc_block_get_entry(const struct inode *, __u64,
 				   const struct buffer_head *, void *);
 
 /**
- * nilfs_palloc_req - persistent alloctor request and reply
+ * nilfs_palloc_req - persistent allocator request and reply
  * @pr_entry_nr: entry number (vblocknr or inode number)
  * @pr_desc_bh: buffer head of the buffer containing block group descriptors
  * @pr_bitmap_bh: buffer head of the buffer containing a block group bitmap

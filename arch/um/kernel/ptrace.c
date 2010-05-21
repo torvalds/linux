@@ -12,16 +12,25 @@
 #endif
 #include "skas_ptrace.h"
 
-static inline void set_singlestepping(struct task_struct *child, int on)
+
+
+void user_enable_single_step(struct task_struct *child)
 {
-	if (on)
-		child->ptrace |= PT_DTRACE;
-	else
-		child->ptrace &= ~PT_DTRACE;
+	child->ptrace |= PT_DTRACE;
 	child->thread.singlestep_syscall = 0;
 
 #ifdef SUBARCH_SET_SINGLESTEPPING
-	SUBARCH_SET_SINGLESTEPPING(child, on);
+	SUBARCH_SET_SINGLESTEPPING(child, 1);
+#endif
+}
+
+void user_disable_single_step(struct task_struct *child)
+{
+	child->ptrace &= ~PT_DTRACE;
+	child->thread.singlestep_syscall = 0;
+
+#ifdef SUBARCH_SET_SINGLESTEPPING
+	SUBARCH_SET_SINGLESTEPPING(child, 0);
 #endif
 }
 
@@ -30,7 +39,7 @@ static inline void set_singlestepping(struct task_struct *child, int on)
  */
 void ptrace_disable(struct task_struct *child)
 {
-	set_singlestepping(child,0);
+	user_disable_single_step(child);
 }
 
 extern int peek_user(struct task_struct * child, long addr, long data);
@@ -68,53 +77,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	case PTRACE_SYSEMU_SINGLESTEP:
 		ret = -EIO;
 		break;
-
-	/* continue and stop at next (return from) syscall */
-	case PTRACE_SYSCALL:
-	/* restart after signal. */
-	case PTRACE_CONT: {
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-
-		set_singlestepping(child, 0);
-		if (request == PTRACE_SYSCALL)
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		else clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		child->exit_code = data;
-		wake_up_process(child);
-		ret = 0;
-		break;
-	}
-
-/*
- * make the child exit.  Best I can do is send it a sigkill.
- * perhaps it should be put in the status that it wants to
- * exit.
- */
-	case PTRACE_KILL: {
-		ret = 0;
-		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
-			break;
-
-		set_singlestepping(child, 0);
-		child->exit_code = SIGKILL;
-		wake_up_process(child);
-		break;
-	}
-
-	case PTRACE_SINGLESTEP: {  /* set the trap flag. */
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		set_singlestepping(child, 1);
-		child->exit_code = data;
-		/* give it a chance to run. */
-		wake_up_process(child);
-		ret = 0;
-		break;
-	}
 
 #ifdef PTRACE_GETREGS
 	case PTRACE_GETREGS: { /* Get all gp regs from the child. */

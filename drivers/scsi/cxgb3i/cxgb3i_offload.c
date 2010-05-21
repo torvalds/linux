@@ -13,6 +13,7 @@
  */
 
 #include <linux/if_vlan.h>
+#include <linux/slab.h>
 #include <linux/version.h>
 
 #include "cxgb3_defs.h"

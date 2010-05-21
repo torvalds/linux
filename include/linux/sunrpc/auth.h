@@ -54,6 +54,7 @@ struct rpc_cred {
 #define RPCAUTH_CRED_NEW	0
 #define RPCAUTH_CRED_UPTODATE	1
 #define RPCAUTH_CRED_HASHED	2
+#define RPCAUTH_CRED_NEGATIVE	3
 
 #define RPCAUTH_CRED_MAGIC	0x0f4aa4f0
 

@@ -35,6 +35,7 @@
 #include <linux/clocksource.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
+#include <linux/ftrace.h>
 
 #include <asm/oplib.h>
 #include <asm/timer.h>
@@ -717,7 +718,7 @@ static struct clock_event_device sparc64_clockevent = {
 };
 static DEFINE_PER_CPU(struct clock_event_device, sparc64_events);
 
-void timer_interrupt(int irq, struct pt_regs *regs)
+void __irq_entry timer_interrupt(int irq, struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
 	unsigned long tick_mask = tick_ops->softint_mask;
@@ -728,6 +729,7 @@ void timer_interrupt(int irq, struct pt_regs *regs)
 
 	irq_enter();
 
+	local_cpu_data().irq0_irqs++;
 	kstat_incr_irqs_this_cpu(0, irq_to_desc(0));
 
 	if (unlikely(!evt->event_handler)) {

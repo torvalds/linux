@@ -1,6 +1,7 @@
 /* Glue code to lib/swiotlb.c */
 
 #include <linux/pci.h>
+#include <linux/gfp.h>
 #include <linux/cache.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>

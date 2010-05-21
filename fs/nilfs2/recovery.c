@@ -23,6 +23,7 @@
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/swap.h>
+#include <linux/slab.h>
 #include <linux/crc32.h>
 #include "nilfs.h"
 #include "segment.h"
@@ -104,6 +105,8 @@ static void store_segsum_info(struct nilfs_segsum_info *ssi,
 
 	ssi->nsumblk = DIV_ROUND_UP(ssi->sumbytes, blocksize);
 	ssi->nfileblk = ssi->nblocks - ssi->nsumblk - !!NILFS_SEG_HAS_SR(ssi);
+
+	/* need to verify ->ss_bytes field if read ->ss_cno */
 }
 
 /**

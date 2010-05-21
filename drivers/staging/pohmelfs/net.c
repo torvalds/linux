@@ -20,6 +20,7 @@
 #include <linux/kthread.h>
 #include <linux/pagemap.h>
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/swap.h>
 #include <linux/syscalls.h>
 #include <linux/vmalloc.h>

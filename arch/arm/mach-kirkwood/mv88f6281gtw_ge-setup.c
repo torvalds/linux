@@ -74,9 +74,9 @@ static struct gpio_keys_button mv88f6281gtw_ge_button_pins[] = {
 		.desc		= "SWR Button",
 		.active_low	= 1,
 	}, {
-		.code		= KEY_F1,
+		.code		= KEY_WPS_BUTTON,
 		.gpio		= 46,
-		.desc		= "WPS Button(F1)",
+		.desc		= "WPS Button",
 		.active_low	= 1,
 	},
 };

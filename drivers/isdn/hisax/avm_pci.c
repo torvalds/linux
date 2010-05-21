@@ -17,6 +17,7 @@
 #include "isac.h"
 #include "isdnl1.h"
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/isapnp.h>
 #include <linux/interrupt.h>
 

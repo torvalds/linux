@@ -20,6 +20,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/slab.h>
 #include "main.h"
 #include "device.h"
 #include "send.h"

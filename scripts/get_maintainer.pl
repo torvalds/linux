@@ -284,7 +284,7 @@ foreach my $file (@ARGV) {
 	my $file_cnt = @files;
 	my $lastfile;
 
-	open(my $patch, '<', $file)
+	open(my $patch, "< $file")
 	    or die "$P: Can't open $file: $!\n";
 	while (<$patch>) {
 	    my $patch_line = $_;

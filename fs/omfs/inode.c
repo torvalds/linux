@@ -3,9 +3,9 @@
  * Copyright (C) 2006 Bob Copeland <me@bobcopeland.com>
  * Released under GPL v2.
  */
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/vfs.h>
 #include <linux/parser.h>

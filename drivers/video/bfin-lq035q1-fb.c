@@ -13,6 +13,7 @@
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/fb.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/interrupt.h>
@@ -22,7 +23,6 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
-#include <linux/dma-mapping.h>
 
 #include <asm/blackfin.h>
 #include <asm/irq.h>

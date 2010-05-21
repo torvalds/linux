@@ -20,7 +20,6 @@
 #include <linux/poll.h>
 #include <linux/rtnetlink.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 
 
 static int raw_ioctl(struct net_device *dev, struct ifreq *ifr);

@@ -28,13 +28,14 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include <linux/vmalloc.h>
 #include <linux/sched.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
 #include <linux/file.h>
 #include <linux/swap.h>
+#include <linux/slab.h>
 #include "drm_cache.h"
+#include "drm_mem_util.h"
 #include "ttm/ttm_module.h"
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_placement.h"
@@ -43,32 +44,15 @@ static int ttm_tt_swapin(struct ttm_tt *ttm);
 
 /**
  * Allocates storage for pointers to the pages that back the ttm.
- *
- * Uses kmalloc if possible. Otherwise falls back to vmalloc.
  */
 static void ttm_tt_alloc_page_directory(struct ttm_tt *ttm)
 {
-	unsigned long size = ttm->num_pages * sizeof(*ttm->pages);
-	ttm->pages = NULL;
-
-	if (size <= PAGE_SIZE)
-		ttm->pages = kzalloc(size, GFP_KERNEL);
-
-	if (!ttm->pages) {
-		ttm->pages = vmalloc_user(size);
-		if (ttm->pages)
-			ttm->page_flags |= TTM_PAGE_FLAG_VMALLOC;
-	}
+	ttm->pages = drm_calloc_large(ttm->num_pages, sizeof(*ttm->pages));
 }
 
 static void ttm_tt_free_page_directory(struct ttm_tt *ttm)
 {
-	if (ttm->page_flags & TTM_PAGE_FLAG_VMALLOC) {
-		vfree(ttm->pages);
-		ttm->page_flags &= ~TTM_PAGE_FLAG_VMALLOC;
-	} else {
-		kfree(ttm->pages);
-	}
+	drm_free_large(ttm->pages);
 	ttm->pages = NULL;
 }
 

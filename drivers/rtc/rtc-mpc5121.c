@@ -15,6 +15,7 @@
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 struct mpc5121_rtc_regs {
 	u8 set_time;		/* RTC + 0x00 */

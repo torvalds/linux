@@ -35,6 +35,7 @@
 #include <linux/interrupt.h>
 #include <linux/tboot.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 
 #define PREFIX "DMAR: "
 

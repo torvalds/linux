@@ -53,6 +53,7 @@
 #include <linux/list.h>
 #include <linux/threads.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 #include <net/neighbour.h>
 #include <net/route.h>

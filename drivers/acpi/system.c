@@ -25,6 +25,7 @@
 
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/string.h>
 #include <asm/uaccess.h>
@@ -101,6 +102,7 @@ static void acpi_table_attr_init(struct acpi_table_attr *table_attr,
 	struct acpi_table_header *header = NULL;
 	struct acpi_table_attr *attr = NULL;
 
+	sysfs_attr_init(&table_attr->attr.attr);
 	if (table_header->signature[0] != '\0')
 		memcpy(table_attr->name, table_header->signature,
 			ACPI_NAME_SIZE);
@@ -301,8 +303,7 @@ static int get_status(u32 index, acpi_event_status *status, acpi_handle *handle)
 				"Invalid GPE 0x%x\n", index));
 			goto end;
 		}
-		result = acpi_get_gpe_status(*handle, index,
-						ACPI_NOT_ISR, status);
+		result = acpi_get_gpe_status(*handle, index, status);
 	} else if (index < (num_gpes + ACPI_NUM_FIXED_EVENTS))
 		result = acpi_get_event_status(index - num_gpes, status);
 
@@ -393,7 +394,7 @@ static ssize_t counter_set(struct kobject *kobj,
 			result = acpi_set_gpe(handle, index, ACPI_GPE_ENABLE);
 		else if (!strcmp(buf, "clear\n") &&
 				(status & ACPI_EVENT_FLAG_SET))
-			result = acpi_clear_gpe(handle, index, ACPI_NOT_ISR);
+			result = acpi_clear_gpe(handle, index);
 		else
 			all_counters[index].count = strtoul(buf, NULL, 0);
 	} else if (index < num_gpes + ACPI_NUM_FIXED_EVENTS) {
@@ -475,6 +476,7 @@ void acpi_irq_stats_init(void)
 			goto fail;
 		strncpy(name, buffer, strlen(buffer) + 1);
 
+		sysfs_attr_init(&counter_attrs[i].attr);
 		counter_attrs[i].attr.name = name;
 		counter_attrs[i].attr.mode = 0644;
 		counter_attrs[i].show = counter_show;

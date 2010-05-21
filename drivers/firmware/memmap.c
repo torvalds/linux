@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/bootmem.h>
+#include <linux/slab.h>
 
 /*
  * Data types ------------------------------------------------------------------
@@ -74,7 +75,7 @@ static struct attribute *def_attrs[] = {
 	NULL
 };
 
-static struct sysfs_ops memmap_attr_ops = {
+static const struct sysfs_ops memmap_attr_ops = {
 	.show = memmap_attr_show,
 };
 

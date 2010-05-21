@@ -152,9 +152,9 @@
 #define R600_AUDIO_STATUS_BITS            0x73d8
 
 /* HDMI base register addresses */
-#define R600_HDMI_TMDS1                   0x7400
-#define R600_HDMI_TMDS2                   0x7700
-#define R600_HDMI_DIG                     0x7800
+#define R600_HDMI_BLOCK1                  0x7400
+#define R600_HDMI_BLOCK2                  0x7700
+#define R600_HDMI_BLOCK3                  0x7800
 
 /* HDMI registers */
 #define R600_HDMI_ENABLE           0x00
@@ -184,5 +184,9 @@
 #define R600_HDMI_AUDIO_DEBUG_1    0xe4
 #define R600_HDMI_AUDIO_DEBUG_2    0xe8
 #define R600_HDMI_AUDIO_DEBUG_3    0xec
+
+/* HDMI additional config base register addresses */
+#define R600_HDMI_CONFIG1                 0x7600
+#define R600_HDMI_CONFIG2                 0x7a00
 
 #endif

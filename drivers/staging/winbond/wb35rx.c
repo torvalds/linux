@@ -9,6 +9,7 @@
 //
 //============================================================================
 #include <linux/usb.h>
+#include <linux/slab.h>
 
 #include "core.h"
 #include "sysdef.h"

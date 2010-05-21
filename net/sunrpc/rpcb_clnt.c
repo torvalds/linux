@@ -21,6 +21,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <net/ipv6.h>
 
 #include <linux/sunrpc/clnt.h>

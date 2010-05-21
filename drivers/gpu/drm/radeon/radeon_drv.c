@@ -42,9 +42,11 @@
  * KMS wrapper.
  * - 2.0.0 - initial interface
  * - 2.1.0 - add square tiling interface
+ * - 2.2.0 - add r6xx/r7xx const buffer support
+ * - 2.3.0 - add MSPOS + 3D texture + r500 VAP regs
  */
 #define KMS_DRIVER_MAJOR	2
-#define KMS_DRIVER_MINOR	1
+#define KMS_DRIVER_MINOR	3
 #define KMS_DRIVER_PATCHLEVEL	0
 int radeon_driver_load_kms(struct drm_device *dev, unsigned long flags);
 int radeon_driver_unload_kms(struct drm_device *dev);
@@ -91,6 +93,8 @@ int radeon_tv = 1;
 int radeon_new_pll = -1;
 int radeon_dynpm = -1;
 int radeon_audio = 1;
+int radeon_disp_priority = 0;
+int radeon_hw_i2c = 0;
 
 MODULE_PARM_DESC(no_wb, "Disable AGP writeback for scratch registers");
 module_param_named(no_wb, radeon_no_wb, int, 0444);
@@ -133,6 +137,12 @@ module_param_named(dynpm, radeon_dynpm, int, 0444);
 
 MODULE_PARM_DESC(audio, "Audio enable (0 = disable)");
 module_param_named(audio, radeon_audio, int, 0444);
+
+MODULE_PARM_DESC(disp_priority, "Display Priority (0 = auto, 1 = normal, 2 = high)");
+module_param_named(disp_priority, radeon_disp_priority, int, 0444);
+
+MODULE_PARM_DESC(hw_i2c, "hw i2c engine enable (0 = disable)");
+module_param_named(hw_i2c, radeon_hw_i2c, int, 0444);
 
 static int radeon_suspend(struct drm_device *dev, pm_message_t state)
 {
@@ -206,6 +216,7 @@ static struct drm_driver driver_old = {
 		 .mmap = drm_mmap,
 		 .poll = drm_poll,
 		 .fasync = drm_fasync,
+		 .read = drm_read,
 #ifdef CONFIG_COMPAT
 		 .compat_ioctl = radeon_compat_ioctl,
 #endif
@@ -294,6 +305,7 @@ static struct drm_driver kms_driver = {
 		 .mmap = radeon_mmap,
 		 .poll = drm_poll,
 		 .fasync = drm_fasync,
+		 .read = drm_read,
 #ifdef CONFIG_COMPAT
 		 .compat_ioctl = radeon_kms_compat_ioctl,
 #endif

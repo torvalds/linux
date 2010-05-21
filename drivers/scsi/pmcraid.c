@@ -41,6 +41,7 @@
 #include <linux/hdreg.h>
 #include <linux/version.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <asm/irq.h>
 #include <asm/processor.h>
 #include <linux/libata.h>
@@ -3747,12 +3748,6 @@ static int pmcraid_check_ioctl_buffer(
 		    sizeof(hdr->signature));
 	if (rc) {
 		pmcraid_err("signature verification failed\n");
-		return -EINVAL;
-	}
-
-	/* buffer length can't be negetive */
-	if (hdr->buffer_length < 0) {
-		pmcraid_err("ioctl: invalid buffer length specified\n");
 		return -EINVAL;
 	}
 

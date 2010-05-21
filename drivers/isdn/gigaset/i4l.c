@@ -592,15 +592,13 @@ void gigaset_isdn_stop(struct cardstate *cs)
 }
 
 /**
- * gigaset_isdn_register() - register to LL
+ * gigaset_isdn_regdev() - register to LL
  * @cs:		device descriptor structure.
  * @isdnid:	device name.
  *
- * Called by main module to register the device with the LL.
- *
  * Return value: 1 for success, 0 for failure
  */
-int gigaset_isdn_register(struct cardstate *cs, const char *isdnid)
+int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 {
 	isdn_if *iif;
 
@@ -650,15 +648,29 @@ int gigaset_isdn_register(struct cardstate *cs, const char *isdnid)
 }
 
 /**
- * gigaset_isdn_unregister() - unregister from LL
+ * gigaset_isdn_unregdev() - unregister device from LL
  * @cs:		device descriptor structure.
- *
- * Called by main module to unregister the device from the LL.
  */
-void gigaset_isdn_unregister(struct cardstate *cs)
+void gigaset_isdn_unregdev(struct cardstate *cs)
 {
 	gig_dbg(DEBUG_CMD, "sending UNLOAD");
 	gigaset_i4l_cmd(cs, ISDN_STAT_UNLOAD);
 	kfree(cs->iif);
 	cs->iif = NULL;
+}
+
+/**
+ * gigaset_isdn_regdrv() - register driver to LL
+ */
+void gigaset_isdn_regdrv(void)
+{
+	/* nothing to do */
+}
+
+/**
+ * gigaset_isdn_unregdrv() - unregister driver from LL
+ */
+void gigaset_isdn_unregdrv(void)
+{
+	/* nothing to do */
 }

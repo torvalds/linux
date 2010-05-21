@@ -10,6 +10,7 @@
 
 #include <linux/kernel.h>
 #include <linux/rtnetlink.h>
+#include <linux/slab.h>
 #include "rate.h"
 #include "ieee80211_i.h"
 #include "debugfs.h"

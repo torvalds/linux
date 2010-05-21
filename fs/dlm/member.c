@@ -312,7 +312,7 @@ int dlm_ls_stop(struct dlm_ls *ls)
 	/*
 	 * This in_recovery lock does two things:
 	 * 1) Keeps this function from returning until all threads are out
-	 *    of locking routines and locking is truely stopped.
+	 *    of locking routines and locking is truly stopped.
 	 * 2) Keeps any new requests from being processed until it's unlocked
 	 *    when recovery is complete.
 	 */

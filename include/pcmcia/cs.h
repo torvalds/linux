@@ -85,6 +85,7 @@ typedef struct config_req_t {
 #define CONF_ENABLE_IRQ		0x01
 #define CONF_ENABLE_DMA		0x02
 #define CONF_ENABLE_SPKR	0x04
+#define CONF_ENABLE_PULSE_IRQ	0x08
 #define CONF_VALID_CLIENT	0x100
 
 /* IntType field */
@@ -113,25 +114,7 @@ typedef struct io_req_t {
 #define IO_DATA_PATH_WIDTH_16	0x08
 #define IO_DATA_PATH_WIDTH_AUTO	0x10
 
-/* For RequestIRQ and ReleaseIRQ */
-typedef struct irq_req_t {
-	u_int		Attributes;
-	u_int		AssignedIRQ;
-	irq_handler_t	Handler;
-} irq_req_t;
-
-/* Attributes for RequestIRQ and ReleaseIRQ */
-#define IRQ_TYPE			0x03
-#define IRQ_TYPE_EXCLUSIVE		0x00
-#define IRQ_TYPE_TIME			0x01
-#define IRQ_TYPE_DYNAMIC_SHARING	0x02
-#define IRQ_FORCED_PULSE		0x04
-#define IRQ_FIRST_SHARED		0x08 /* unused */
-#define IRQ_HANDLE_PRESENT		0x10 /* unused */
-#define IRQ_PULSE_ALLOCATED		0x100
-
 /* Bits in IRQInfo1 field */
-#define IRQ_MASK		0x0f
 #define IRQ_NMI_ID		0x01
 #define IRQ_IOCK_ID		0x02
 #define IRQ_BERR_ID		0x04

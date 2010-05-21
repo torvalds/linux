@@ -47,10 +47,10 @@ enum print_line_t print_syscall_exit(struct trace_iterator *iter, int flags);
 #endif
 
 #ifdef CONFIG_PERF_EVENTS
-int prof_sysenter_enable(struct ftrace_event_call *call);
-void prof_sysenter_disable(struct ftrace_event_call *call);
-int prof_sysexit_enable(struct ftrace_event_call *call);
-void prof_sysexit_disable(struct ftrace_event_call *call);
+int perf_sysenter_enable(struct ftrace_event_call *call);
+void perf_sysenter_disable(struct ftrace_event_call *call);
+int perf_sysexit_enable(struct ftrace_event_call *call);
+void perf_sysexit_disable(struct ftrace_event_call *call);
 #endif
 
 #endif /* _TRACE_SYSCALL_H */

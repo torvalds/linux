@@ -11,6 +11,7 @@
  *  isofs directory handling functions
  */
 #include <linux/smp_lock.h>
+#include <linux/gfp.h>
 #include "isofs.h"
 
 int isofs_name_translate(struct iso_directory_record *de, char *new, struct inode *inode)

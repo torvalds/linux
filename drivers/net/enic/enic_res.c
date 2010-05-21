@@ -103,11 +103,6 @@ int enic_get_vnic_config(struct enic *enic)
 	return 0;
 }
 
-void enic_add_station_addr(struct enic *enic)
-{
-	vnic_dev_add_addr(enic->vdev, enic->mac_addr);
-}
-
 void enic_add_multicast_addr(struct enic *enic, u8 *addr)
 {
 	vnic_dev_add_addr(enic->vdev, addr);

@@ -14,6 +14,7 @@
 
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <linux/slab.h>
 #include "gaccess.h"
 #include "kvm-s390.h"
 

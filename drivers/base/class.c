@@ -31,7 +31,7 @@ static ssize_t class_attr_show(struct kobject *kobj, struct attribute *attr,
 	ssize_t ret = -EIO;
 
 	if (class_attr->show)
-		ret = class_attr->show(cp->class, buf);
+		ret = class_attr->show(cp->class, class_attr, buf);
 	return ret;
 }
 
@@ -43,7 +43,7 @@ static ssize_t class_attr_store(struct kobject *kobj, struct attribute *attr,
 	ssize_t ret = -EIO;
 
 	if (class_attr->store)
-		ret = class_attr->store(cp->class, buf, count);
+		ret = class_attr->store(cp->class, class_attr, buf, count);
 	return ret;
 }
 
@@ -63,7 +63,15 @@ static void class_release(struct kobject *kobj)
 	kfree(cp);
 }
 
-static struct sysfs_ops class_sysfs_ops = {
+static const struct kobj_ns_type_operations *class_child_ns_type(struct kobject *kobj)
+{
+	struct class_private *cp = to_class(kobj);
+	struct class *class = cp->class;
+
+	return class->ns_type;
+}
+
+static const struct sysfs_ops class_sysfs_ops = {
 	.show	= class_attr_show,
 	.store	= class_attr_store,
 };
@@ -71,6 +79,7 @@ static struct sysfs_ops class_sysfs_ops = {
 static struct kobj_type class_ktype = {
 	.sysfs_ops	= &class_sysfs_ops,
 	.release	= class_release,
+	.child_ns_type	= class_child_ns_type,
 };
 
 /* Hotplug events for classes go to the class class_subsys */
@@ -218,6 +227,8 @@ static void class_create_release(struct class *cls)
  *
  * This is used to create a struct class pointer that can then be used
  * in calls to device_create().
+ *
+ * Returns &struct class pointer on success, or ERR_PTR() on error.
  *
  * Note, the pointer created here is to be destroyed when finished by
  * making a call to class_destroy().
@@ -489,6 +500,16 @@ void class_interface_unregister(struct class_interface *class_intf)
 
 	class_put(parent);
 }
+
+ssize_t show_class_attr_string(struct class *class, struct class_attribute *attr,
+                        	char *buf)
+{
+	struct class_attribute_string *cs;
+	cs = container_of(attr, struct class_attribute_string, attr);
+	return snprintf(buf, PAGE_SIZE, "%s\n", cs->str);
+}
+
+EXPORT_SYMBOL_GPL(show_class_attr_string);
 
 struct class_compat {
 	struct kobject *kobj;

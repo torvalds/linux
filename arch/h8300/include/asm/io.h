@@ -25,7 +25,7 @@
  * memory location directly.
  */
 /* ++roman: The assignments to temp. vars avoid that gcc sometimes generates
- * two accesses to memory, which may be undesireable for some devices.
+ * two accesses to memory, which may be undesirable for some devices.
  */
 
 /*

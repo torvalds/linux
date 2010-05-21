@@ -669,13 +669,15 @@ int netxen_alloc_hw_resources(struct netxen_adapter *adapter)
 		}
 		sds_ring->desc_head = (struct status_desc *)addr;
 
-		sds_ring->crb_sts_consumer =
-			netxen_get_ioaddr(adapter,
-			recv_crb_registers[port].crb_sts_consumer[ring]);
+		if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+			sds_ring->crb_sts_consumer =
+				netxen_get_ioaddr(adapter,
+				recv_crb_registers[port].crb_sts_consumer[ring]);
 
-		sds_ring->crb_intr_mask =
-			netxen_get_ioaddr(adapter,
-			recv_crb_registers[port].sw_int_mask[ring]);
+			sds_ring->crb_intr_mask =
+				netxen_get_ioaddr(adapter,
+				recv_crb_registers[port].sw_int_mask[ring]);
+		}
 	}
 
 

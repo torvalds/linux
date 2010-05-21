@@ -37,6 +37,7 @@
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>

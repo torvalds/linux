@@ -177,7 +177,21 @@
 #define __PSS_LMEM_INIT_EN               0x00000100
 #define __PSS_LPU1_RESET                 0x00000002
 #define __PSS_LPU0_RESET                 0x00000001
-
+#define PSS_ERR_STATUS_REG		 0x00018810
+#define __PSS_LMEM1_CORR_ERR		 0x00000800
+#define __PSS_LMEM0_CORR_ERR             0x00000400
+#define __PSS_LMEM1_UNCORR_ERR           0x00000200
+#define __PSS_LMEM0_UNCORR_ERR           0x00000100
+#define __PSS_BAL_PERR                   0x00000080
+#define __PSS_DIP_IF_ERR                 0x00000040
+#define __PSS_IOH_IF_ERR                 0x00000020
+#define __PSS_TDS_IF_ERR                 0x00000010
+#define __PSS_RDS_IF_ERR                 0x00000008
+#define __PSS_SGM_IF_ERR                 0x00000004
+#define __PSS_LPU1_RAM_ERR               0x00000002
+#define __PSS_LPU0_RAM_ERR               0x00000001
+#define ERR_SET_REG			 0x00018818
+#define __PSS_ERR_STATUS_SET		 0x00000fff
 
 /*
  * These definitions are either in error/missing in spec. Its auto-generated

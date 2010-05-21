@@ -92,10 +92,10 @@ static int wbsoft_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static u64 wbsoft_prepare_multicast(struct ieee80211_hw *hw, int mc_count,
-				    struct dev_addr_list *mc_list)
+static u64 wbsoft_prepare_multicast(struct ieee80211_hw *hw,
+				    struct netdev_hw_addr_list *mc_list)
 {
-	return mc_count;
+	return netdev_hw_addr_list_count(mc_list);
 }
 
 static void wbsoft_configure_filter(struct ieee80211_hw *dev,

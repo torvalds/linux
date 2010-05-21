@@ -17,7 +17,6 @@
  */
 #include <linux/init.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/kernel_stat.h>
 #include <asm/mips-boards/simint.h>

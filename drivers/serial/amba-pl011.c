@@ -47,6 +47,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/sizes.h>

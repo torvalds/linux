@@ -158,7 +158,6 @@ void gfs2_set_iop(struct inode *inode)
  * @sb: The super block
  * @no_addr: The inode number
  * @type: The type of the inode
- * @skip_freeing: set this not return an inode if it is currently being freed.
  *
  * Returns: A VFS inode, or an error
  */
@@ -166,17 +165,14 @@ void gfs2_set_iop(struct inode *inode)
 struct inode *gfs2_inode_lookup(struct super_block *sb,
 				unsigned int type,
 				u64 no_addr,
-				u64 no_formal_ino, int skip_freeing)
+				u64 no_formal_ino)
 {
 	struct inode *inode;
 	struct gfs2_inode *ip;
 	struct gfs2_glock *io_gl;
 	int error;
 
-	if (skip_freeing)
-		inode = gfs2_iget_skip(sb, no_addr);
-	else
-		inode = gfs2_iget(sb, no_addr);
+	inode = gfs2_iget(sb, no_addr);
 	ip = GFS2_I(inode);
 
 	if (!inode)
@@ -234,11 +230,98 @@ fail_glock:
 fail_iopen:
 	gfs2_glock_put(io_gl);
 fail_put:
+	if (inode->i_state & I_NEW)
+		ip->i_gl->gl_object = NULL;
+	gfs2_glock_put(ip->i_gl);
+fail:
+	if (inode->i_state & I_NEW)
+		iget_failed(inode);
+	else
+		iput(inode);
+	return ERR_PTR(error);
+}
+
+/**
+ * gfs2_unlinked_inode_lookup - Lookup an unlinked inode for reclamation
+ * @sb: The super block
+ * no_addr: The inode number
+ * @@inode: A pointer to the inode found, if any
+ *
+ * Returns: 0 and *inode if no errors occurred.  If an error occurs,
+ *          the resulting *inode may or may not be NULL.
+ */
+
+int gfs2_unlinked_inode_lookup(struct super_block *sb, u64 no_addr,
+			       struct inode **inode)
+{
+	struct gfs2_sbd *sdp;
+	struct gfs2_inode *ip;
+	struct gfs2_glock *io_gl;
+	int error;
+	struct gfs2_holder gh;
+
+	*inode = gfs2_iget_skip(sb, no_addr);
+
+	if (!(*inode))
+		return -ENOBUFS;
+
+	if (!((*inode)->i_state & I_NEW))
+		return -ENOBUFS;
+
+	ip = GFS2_I(*inode);
+	sdp = GFS2_SB(*inode);
+	ip->i_no_formal_ino = -1;
+
+	error = gfs2_glock_get(sdp, no_addr, &gfs2_inode_glops, CREATE, &ip->i_gl);
+	if (unlikely(error))
+		goto fail;
+	ip->i_gl->gl_object = ip;
+
+	error = gfs2_glock_get(sdp, no_addr, &gfs2_iopen_glops, CREATE, &io_gl);
+	if (unlikely(error))
+		goto fail_put;
+
+	set_bit(GIF_INVALID, &ip->i_flags);
+	error = gfs2_glock_nq_init(io_gl, LM_ST_SHARED, LM_FLAG_TRY | GL_EXACT,
+				   &ip->i_iopen_gh);
+	if (unlikely(error)) {
+		if (error == GLR_TRYFAILED)
+			error = 0;
+		goto fail_iopen;
+	}
+	ip->i_iopen_gh.gh_gl->gl_object = ip;
+	gfs2_glock_put(io_gl);
+
+	(*inode)->i_mode = DT2IF(DT_UNKNOWN);
+
+	/*
+	 * We must read the inode in order to work out its type in
+	 * this case. Note that this doesn't happen often as we normally
+	 * know the type beforehand. This code path only occurs during
+	 * unlinked inode recovery (where it is safe to do this glock,
+	 * which is not true in the general case).
+	 */
+	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, LM_FLAG_TRY,
+				   &gh);
+	if (unlikely(error)) {
+		if (error == GLR_TRYFAILED)
+			error = 0;
+		goto fail_glock;
+	}
+	/* Inode is now uptodate */
+	gfs2_glock_dq_uninit(&gh);
+	gfs2_set_iop(*inode);
+
+	return 0;
+fail_glock:
+	gfs2_glock_dq(&ip->i_iopen_gh);
+fail_iopen:
+	gfs2_glock_put(io_gl);
+fail_put:
 	ip->i_gl->gl_object = NULL;
 	gfs2_glock_put(ip->i_gl);
 fail:
-	iget_failed(inode);
-	return ERR_PTR(error);
+	return error;
 }
 
 static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)
@@ -862,7 +945,7 @@ struct inode *gfs2_createi(struct gfs2_holder *ghs, const struct qstr *name,
 		goto fail_gunlock2;
 
 	inode = gfs2_inode_lookup(dir->i_sb, IF2DT(mode), inum.no_addr,
-				  inum.no_formal_ino, 0);
+				  inum.no_formal_ino);
 	if (IS_ERR(inode))
 		goto fail_gunlock2;
 

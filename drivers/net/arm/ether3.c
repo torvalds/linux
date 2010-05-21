@@ -529,7 +529,6 @@ ether3_sendpacket(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_BUSY;	/* unable to queue */
 	}
 
-	dev->trans_start = jiffies;
 	ptr		 = 0x600 * priv(dev)->tx_head;
 	priv(dev)->tx_head = next_ptr;
 	next_ptr	*= 0x600;

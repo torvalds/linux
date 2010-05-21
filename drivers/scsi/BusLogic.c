@@ -42,6 +42,7 @@
 #include <linux/spinlock.h>
 #include <linux/jiffies.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <scsi/scsicam.h>
 
 #include <asm/dma.h>

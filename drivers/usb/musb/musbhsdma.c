@@ -33,6 +33,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include "musb_core.h"
 #include "musbhsdma.h"
 

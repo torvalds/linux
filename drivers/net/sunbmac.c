@@ -11,7 +11,6 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -25,6 +24,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/gfp.h>
 
 #include <asm/auxio.h>
 #include <asm/byteorder.h>
@@ -362,7 +362,7 @@ static void bigmac_tcvr_write(struct bigmac *bp, void __iomem *tregs,
 	default:
 		printk(KERN_ERR "bigmac_tcvr_read: Whoops, no known transceiver type.\n");
 		return;
-	};
+	}
 
 	idle_transceiver(tregs);
 	write_tcvr_bit(bp, tregs, 0);
@@ -401,7 +401,7 @@ static unsigned short bigmac_tcvr_read(struct bigmac *bp,
 	default:
 		printk(KERN_ERR "bigmac_tcvr_read: Whoops, no known transceiver type.\n");
 		return 0xffff;
-	};
+	}
 
 	idle_transceiver(tregs);
 	write_tcvr_bit(bp, tregs, 0);
@@ -982,8 +982,6 @@ static int bigmac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	sbus_writel(CREG_CTRL_TWAKEUP, bp->creg + CREG_CTRL);
 
 
-	dev->trans_start = jiffies;
-
 	return NETDEV_TX_OK;
 }
 
@@ -999,7 +997,7 @@ static void bigmac_set_multicast(struct net_device *dev)
 {
 	struct bigmac *bp = netdev_priv(dev);
 	void __iomem *bregs = bp->bregs;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	char *addrs;
 	int i;
 	u32 tmp, crc;
@@ -1028,8 +1026,8 @@ static void bigmac_set_multicast(struct net_device *dev)
 		for (i = 0; i < 4; i++)
 			hash_table[i] = 0;
 
-		netdev_for_each_mc_addr(dmi, dev) {
-			addrs = dmi->dmi_addr;
+		netdev_for_each_mc_addr(ha, dev) {
+			addrs = ha->addr;
 
 			if (!(*addrs & 1))
 				continue;

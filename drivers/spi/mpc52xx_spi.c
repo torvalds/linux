@@ -21,6 +21,7 @@
 #include <linux/of_spi.h>
 #include <linux/io.h>
 #include <linux/of_gpio.h>
+#include <linux/slab.h>
 #include <asm/time.h>
 #include <asm/mpc52xx.h>
 

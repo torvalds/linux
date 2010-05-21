@@ -10,6 +10,7 @@
 #include <linux/mutex.h>
 #include <linux/list.h>
 #include <linux/notifier.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/platform_device.h>
 #include <linux/device.h>

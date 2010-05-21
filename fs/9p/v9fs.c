@@ -29,6 +29,7 @@
 #include <linux/sched.h>
 #include <linux/parser.h>
 #include <linux/idr.h>
+#include <linux/slab.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include <net/9p/transport.h>
@@ -237,11 +238,18 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		return ERR_PTR(-ENOMEM);
 	}
 
+	rc = bdi_setup_and_register(&v9ses->bdi, "9p", BDI_CAP_MAP_COPY);
+	if (rc) {
+		__putname(v9ses->aname);
+		__putname(v9ses->uname);
+		return ERR_PTR(rc);
+	}
+
 	spin_lock(&v9fs_sessionlist_lock);
 	list_add(&v9ses->slist, &v9fs_sessionlist);
 	spin_unlock(&v9fs_sessionlist_lock);
 
-	v9ses->flags = V9FS_PROTO_2000U | V9FS_ACCESS_USER;
+	v9ses->flags = V9FS_ACCESS_USER;
 	strcpy(v9ses->uname, V9FS_DEFUSER);
 	strcpy(v9ses->aname, V9FS_DEFANAME);
 	v9ses->uid = ~0;
@@ -262,8 +270,10 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		goto error;
 	}
 
-	if (!p9_is_proto_dotu(v9ses->clnt))
-		v9ses->flags &= ~V9FS_PROTO_2000U;
+	if (p9_is_proto_dotl(v9ses->clnt))
+		v9ses->flags |= V9FS_PROTO_2000L;
+	else if (p9_is_proto_dotu(v9ses->clnt))
+		v9ses->flags |= V9FS_PROTO_2000U;
 
 	v9ses->maxdata = v9ses->clnt->msize - P9_IOHDRSZ;
 
@@ -298,6 +308,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	return fid;
 
 error:
+	bdi_destroy(&v9ses->bdi);
 	return ERR_PTR(retval);
 }
 
@@ -323,6 +334,8 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
 	__putname(v9ses->uname);
 	__putname(v9ses->aname);
 
+	bdi_destroy(&v9ses->bdi);
+
 	spin_lock(&v9fs_sessionlist_lock);
 	list_del(&v9ses->slist);
 	spin_unlock(&v9fs_sessionlist_lock);
@@ -338,6 +351,19 @@ void v9fs_session_close(struct v9fs_session_info *v9ses)
 void v9fs_session_cancel(struct v9fs_session_info *v9ses) {
 	P9_DPRINTK(P9_DEBUG_ERROR, "cancel session %p\n", v9ses);
 	p9_client_disconnect(v9ses->clnt);
+}
+
+/**
+ * v9fs_session_begin_cancel - Begin terminate of a session
+ * @v9ses: session to terminate
+ *
+ * After this call we don't allow any request other than clunk.
+ */
+
+void v9fs_session_begin_cancel(struct v9fs_session_info *v9ses)
+{
+	P9_DPRINTK(P9_DEBUG_ERROR, "begin cancel session %p\n", v9ses);
+	p9_client_begin_disconnect(v9ses->clnt);
 }
 
 extern int v9fs_error_init(void);

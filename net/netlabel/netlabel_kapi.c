@@ -30,6 +30,7 @@
 
 #include <linux/init.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/audit.h>
 #include <linux/in.h>
 #include <linux/in6.h>

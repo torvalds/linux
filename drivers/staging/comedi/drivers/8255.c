@@ -81,6 +81,7 @@ I/O port base address can be found in the output of 'lspci -v'.
 #include "../comedidev.h"
 
 #include <linux/ioport.h>
+#include <linux/slab.h>
 
 #define _8255_SIZE 4
 

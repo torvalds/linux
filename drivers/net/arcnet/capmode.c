@@ -27,6 +27,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/if_arp.h>
 #include <net/arp.h>

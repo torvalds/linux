@@ -14,6 +14,7 @@
 
 #include <linux/perf_event.h>
 #include <linux/kprobes.h>
+#include <linux/ftrace.h>
 #include <linux/kernel.h>
 #include <linux/kdebug.h>
 #include <linux/mutex.h>
@@ -1189,7 +1190,7 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 
 	regs = args->regs;
 
-	data.addr = 0;
+	perf_sample_data_init(&data, 0);
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -1276,6 +1277,9 @@ static void perf_callchain_kernel(struct pt_regs *regs,
 				  struct perf_callchain_entry *entry)
 {
 	unsigned long ksp, fp;
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+	int graph = 0;
+#endif
 
 	callchain_store(entry, PERF_CONTEXT_KERNEL);
 	callchain_store(entry, regs->tpc);
@@ -1303,6 +1307,16 @@ static void perf_callchain_kernel(struct pt_regs *regs,
 			fp = (unsigned long)sf->fp + STACK_BIAS;
 		}
 		callchain_store(entry, pc);
+#ifdef CONFIG_FUNCTION_GRAPH_TRACER
+		if ((pc + 8UL) == (unsigned long) &return_to_handler) {
+			int index = current->curr_ret_stack;
+			if (current->ret_stack && index >= graph) {
+				pc = current->ret_stack[index - graph].ret;
+				callchain_store(entry, pc);
+				graph++;
+			}
+		}
+#endif
 	} while (entry->nr < PERF_MAX_STACK_DEPTH);
 }
 
@@ -1337,7 +1351,7 @@ static void perf_callchain_user_32(struct pt_regs *regs,
 	callchain_store(entry, PERF_CONTEXT_USER);
 	callchain_store(entry, regs->tpc);
 
-	ufp = regs->u_regs[UREG_I6];
+	ufp = regs->u_regs[UREG_I6] & 0xffffffffUL;
 	do {
 		struct sparc_stackf32 *usf, sf;
 		unsigned long pc;
@@ -1353,7 +1367,7 @@ static void perf_callchain_user_32(struct pt_regs *regs,
 }
 
 /* Like powerpc we can't get PMU interrupts within the PMU handler,
- * so no need for seperate NMI and IRQ chains as on x86.
+ * so no need for separate NMI and IRQ chains as on x86.
  */
 static DEFINE_PER_CPU(struct perf_callchain_entry, callchain);
 

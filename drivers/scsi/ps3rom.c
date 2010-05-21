@@ -20,6 +20,7 @@
 
 #include <linux/cdrom.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>

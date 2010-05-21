@@ -22,6 +22,7 @@
 #include <linux/delay.h>
 #include <linux/firmware.h>
 #include <linux/pm_runtime.h>
+#include <linux/slab.h>
 
 #include <asm/clock.h>
 #include <asm/siu.h>

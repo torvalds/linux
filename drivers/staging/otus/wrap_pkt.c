@@ -28,6 +28,7 @@
 #include "usbdrv.h"
 
 #include <linux/netlink.h>
+#include <linux/gfp.h>
 #include <net/iw_handler.h>
 
 

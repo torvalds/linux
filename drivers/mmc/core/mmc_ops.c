@@ -9,6 +9,7 @@
  * your option) any later version.
  */
 
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/scatterlist.h>
 

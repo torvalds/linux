@@ -150,7 +150,8 @@ static int omap_mcpdm_dai_hw_params(struct snd_pcm_substream *substream,
 	int stream = substream->stream;
 	int channels, err, link_mask = 0;
 
-	cpu_dai->dma_data = &omap_mcpdm_dai_dma_params[stream];
+	snd_soc_dai_set_dma_data(cpu_dai, substream,
+				 &omap_mcpdm_dai_dma_params[stream]);
 
 	channels = params_channels(params);
 	switch (channels) {

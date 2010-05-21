@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/of_platform.h>

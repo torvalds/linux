@@ -52,6 +52,13 @@
  * and change SW41 to use 720p
  */
 
+/*
+ * about sound
+ *
+ * This setup.c supports FSI slave mode.
+ * Please change J20, J21, J22 pin to 1-2 connection.
+ */
+
 /* Heartbeat */
 static struct resource heartbeat_resource = {
 	.start  = PA_LED,
@@ -269,13 +276,12 @@ static struct clk_ops fsimck_clk_ops = {
 };
 
 static struct clk fsimcka_clk = {
-	.name		= "fsimcka_clk",
-	.id		= -1,
 	.ops		= &fsimck_clk_ops,
 	.enable_reg	= (void __iomem *)FCLKACR,
 	.rate		= 0, /* unknown */
 };
 
+/* change J20, J21, J22 pin to 1-2 connection to use slave mode */
 struct sh_fsi_platform_info fsi_info = {
 	.porta_flags = SH_FSI_BRS_INV |
 		       SH_FSI_OUT_SLAVE_MODE |
@@ -763,16 +769,20 @@ static int __init devices_setup(void)
 
 	/* set SPU2 clock to 83.4 MHz */
 	clk = clk_get(NULL, "spu_clk");
-	clk_set_rate(clk, clk_round_rate(clk, 83333333));
-	clk_put(clk);
+	if (clk) {
+		clk_set_rate(clk, clk_round_rate(clk, 83333333));
+		clk_put(clk);
+	}
 
 	/* change parent of FSI A */
 	clk = clk_get(NULL, "fsia_clk");
-	clk_register(&fsimcka_clk);
-	clk_set_parent(clk, &fsimcka_clk);
-	clk_set_rate(clk, 11000);
-	clk_set_rate(&fsimcka_clk, 11000);
-	clk_put(clk);
+	if (clk) {
+		clk_register(&fsimcka_clk);
+		clk_set_parent(clk, &fsimcka_clk);
+		clk_set_rate(clk, 11000);
+		clk_set_rate(&fsimcka_clk, 11000);
+		clk_put(clk);
+	}
 
 	/* SDHI0 connected to cn7 */
 	gpio_request(GPIO_FN_SDHI0CD, NULL);

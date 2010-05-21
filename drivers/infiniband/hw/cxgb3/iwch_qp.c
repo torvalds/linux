@@ -30,6 +30,7 @@
  * SOFTWARE.
  */
 #include <linux/sched.h>
+#include <linux/gfp.h>
 #include "iwch_provider.h"
 #include "iwch.h"
 #include "iwch_cm.h"

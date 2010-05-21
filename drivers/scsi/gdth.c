@@ -121,6 +121,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/list.h>
 #include <linux/smp_lock.h>
+#include <linux/slab.h>
 
 #ifdef GDTH_RTC
 #include <linux/mc146818rtc.h>
@@ -3841,7 +3842,7 @@ int __init option_setup(char *str)
 
     TRACE2(("option_setup() str %s\n", str ? str:"NULL")); 
 
-    while (cur && isdigit(*cur) && i <= MAXHA) {
+    while (cur && isdigit(*cur) && i < MAXHA) {
         ints[i++] = simple_strtoul(cur, NULL, 0);
         if ((cur = strchr(cur, ',')) != NULL) cur++;
     }

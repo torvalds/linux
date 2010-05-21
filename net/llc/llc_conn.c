@@ -13,6 +13,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <net/llc_sap.h>
 #include <net/llc_conn.h>
 #include <net/sock.h>
@@ -827,7 +828,8 @@ void llc_conn_handler(struct llc_sap *sap, struct sk_buff *skb)
 	else {
 		dprintk("%s: adding to backlog...\n", __func__);
 		llc_set_backlog_type(skb, LLC_PACKET);
-		sk_add_backlog(sk, skb);
+		if (sk_add_backlog(sk, skb))
+			goto drop_unlock;
 	}
 out:
 	bh_unlock_sock(sk);

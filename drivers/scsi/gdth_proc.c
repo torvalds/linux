@@ -3,6 +3,7 @@
  */
 
 #include <linux/completion.h>
+#include <linux/slab.h>
 
 int gdth_proc_info(struct Scsi_Host *host, char *buffer,char **start,off_t offset,int length,   
                    int inout)

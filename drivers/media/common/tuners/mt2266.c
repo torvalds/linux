@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/dvb/frontend.h>
 #include <linux/i2c.h>
+#include <linux/slab.h>
 
 #include "dvb_frontend.h"
 #include "mt2266.h"

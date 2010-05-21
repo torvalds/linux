@@ -23,7 +23,8 @@
 #define CHCR_TS_HIGH_MASK	0
 #define CHCR_TS_HIGH_SHIFT	0
 #elif defined(CONFIG_CPU_SUBTYPE_SH7722) || \
-	defined(CONFIG_CPU_SUBTYPE_SH7724)
+	defined(CONFIG_CPU_SUBTYPE_SH7724) || \
+	defined(CONFIG_CPU_SUBTYPE_SH7786)
 #define CHCR_TS_LOW_MASK	0x00000018
 #define CHCR_TS_LOW_SHIFT	3
 #define CHCR_TS_HIGH_MASK	0x00300000
@@ -76,7 +77,7 @@ enum {
 }
 
 #define TS_INDEX2VAL(i)	((((i) & 3) << CHCR_TS_LOW_SHIFT) | \
-			 ((((i) >> 2) & 3) << CHCR_TS_HIGH_SHIFT))
+			 (((i) & 0xc) << CHCR_TS_HIGH_SHIFT))
 
 #else /* CONFIG_CPU_SH4A */
 

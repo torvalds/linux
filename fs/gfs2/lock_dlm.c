@@ -9,6 +9,7 @@
 
 #include <linux/fs.h>
 #include <linux/dlm.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/gfs2_ondisk.h>
 

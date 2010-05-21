@@ -25,12 +25,14 @@
  *          Alex Deucher
  *          Jerome Glisse
  */
+#include <linux/slab.h>
 #include <linux/seq_file.h>
 #include <linux/firmware.h>
 #include <linux/platform_device.h>
 #include "drmP.h"
 #include "radeon_drm.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "radeon_mode.h"
 #include "r600d.h"
 #include "atom.h"
@@ -491,9 +493,9 @@ void r600_pcie_gart_disable(struct radeon_device *rdev)
 
 void r600_pcie_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	r600_pcie_gart_disable(rdev);
 	radeon_gart_table_vram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 void r600_agp_enable(struct radeon_device *rdev)
@@ -675,7 +677,6 @@ void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 
 int r600_mc_init(struct radeon_device *rdev)
 {
-	fixed20_12 a;
 	u32 tmp;
 	int chansize, numchan;
 
@@ -719,14 +720,10 @@ int r600_mc_init(struct radeon_device *rdev)
 		rdev->mc.real_vram_size = rdev->mc.aper_size;
 	}
 	r600_vram_gtt_location(rdev, &rdev->mc);
-	/* FIXME: we should enforce default clock in case GPU is not in
-	 * default setup
-	 */
-	a.full = rfixed_const(100);
-	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
-	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+
 	if (rdev->flags & RADEON_IS_IGP)
 		rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
+	radeon_update_bandwidth_info(rdev);
 	return 0;
 }
 
@@ -1132,6 +1129,7 @@ void r600_gpu_init(struct radeon_device *rdev)
 	/* Setup pipes */
 	WREG32(CC_RB_BACKEND_DISABLE, cc_rb_backend_disable);
 	WREG32(CC_GC_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
+	WREG32(GC_USER_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
 
 	tmp = R6XX_MAX_PIPES - r600_count_pipe_bits((cc_gc_shader_pipe_config & INACTIVE_QD_PIPES_MASK) >> 8);
 	WREG32(VGT_OUT_DEALLOC_CNTL, (tmp * 4) & DEALLOC_DIST_MASK);
@@ -2119,6 +2117,7 @@ int r600_init(struct radeon_device *rdev)
 
 void r600_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r600_audio_fini(rdev);
 	r600_blit_fini(rdev);
 	r600_cp_fini(rdev);
@@ -2398,19 +2397,19 @@ static void r600_disable_interrupt_state(struct radeon_device *rdev)
 		WREG32(DC_HPD4_INT_CONTROL, tmp);
 		if (ASIC_IS_DCE32(rdev)) {
 			tmp = RREG32(DC_HPD5_INT_CONTROL) & DC_HPDx_INT_POLARITY;
-			WREG32(DC_HPD5_INT_CONTROL, 0);
+			WREG32(DC_HPD5_INT_CONTROL, tmp);
 			tmp = RREG32(DC_HPD6_INT_CONTROL) & DC_HPDx_INT_POLARITY;
-			WREG32(DC_HPD6_INT_CONTROL, 0);
+			WREG32(DC_HPD6_INT_CONTROL, tmp);
 		}
 	} else {
 		WREG32(DACA_AUTODETECT_INT_CONTROL, 0);
 		WREG32(DACB_AUTODETECT_INT_CONTROL, 0);
 		tmp = RREG32(DC_HOT_PLUG_DETECT1_INT_CONTROL) & DC_HOT_PLUG_DETECTx_INT_POLARITY;
-		WREG32(DC_HOT_PLUG_DETECT1_INT_CONTROL, 0);
+		WREG32(DC_HOT_PLUG_DETECT1_INT_CONTROL, tmp);
 		tmp = RREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL) & DC_HOT_PLUG_DETECTx_INT_POLARITY;
-		WREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL, 0);
+		WREG32(DC_HOT_PLUG_DETECT2_INT_CONTROL, tmp);
 		tmp = RREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL) & DC_HOT_PLUG_DETECTx_INT_POLARITY;
-		WREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL, 0);
+		WREG32(DC_HOT_PLUG_DETECT3_INT_CONTROL, tmp);
 	}
 }
 
@@ -2765,6 +2764,7 @@ restart_ih:
 			case 0: /* D1 vblank */
 				if (disp_int & LB_D1_VBLANK_INTERRUPT) {
 					drm_handle_vblank(rdev->ddev, 0);
+					rdev->pm.vblank_sync = true;
 					wake_up(&rdev->irq.vblank_queue);
 					disp_int &= ~LB_D1_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D1 vblank\n");
@@ -2786,6 +2786,7 @@ restart_ih:
 			case 0: /* D2 vblank */
 				if (disp_int & LB_D2_VBLANK_INTERRUPT) {
 					drm_handle_vblank(rdev->ddev, 1);
+					rdev->pm.vblank_sync = true;
 					wake_up(&rdev->irq.vblank_queue);
 					disp_int &= ~LB_D2_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D2 vblank\n");
@@ -2834,14 +2835,14 @@ restart_ih:
 				break;
 			case 10:
 				if (disp_int_cont2 & DC_HPD5_INTERRUPT) {
-					disp_int_cont &= ~DC_HPD5_INTERRUPT;
+					disp_int_cont2 &= ~DC_HPD5_INTERRUPT;
 					queue_hotplug = true;
 					DRM_DEBUG("IH: HPD5\n");
 				}
 				break;
 			case 12:
 				if (disp_int_cont2 & DC_HPD6_INTERRUPT) {
-					disp_int_cont &= ~DC_HPD6_INTERRUPT;
+					disp_int_cont2 &= ~DC_HPD6_INTERRUPT;
 					queue_hotplug = true;
 					DRM_DEBUG("IH: HPD6\n");
 				}

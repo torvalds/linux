@@ -22,12 +22,15 @@
 #define EF_BFIN_CODE_IN_L2	0x00000040	/* --code-in-l2 */
 #define EF_BFIN_DATA_IN_L2	0x00000080	/* --data-in-l2 */
 
+#if 1	/* core dumps not supported, but linux/elfcore.h needs these */
 typedef unsigned long elf_greg_t;
 
-#define ELF_NGREG 40 /* (sizeof(struct user_regs_struct) / sizeof(elf_greg_t)) */
+#define ELF_NGREG (sizeof(struct pt_regs) / sizeof(elf_greg_t))
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
 typedef struct { } elf_fpregset_t;
+#endif
+
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
@@ -55,6 +58,9 @@ do {											\
 	_regs->p2	= _dynamic_addr;				\
 } while(0)
 
+#if 0
+#define CORE_DUMP_USE_REGSET
+#endif
 #define ELF_FDPIC_CORE_EFLAGS	EF_BFIN_FDPIC
 #define ELF_EXEC_PAGESIZE	4096
 

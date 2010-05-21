@@ -7,7 +7,8 @@
 #include <linux/sched.h>
 #include <linux/thread_info.h>
 
-#define COMPAT_USER_HZ 100
+#define COMPAT_USER_HZ 		100
+#define COMPAT_UTS_MACHINE	"parisc\0\0"
 
 typedef u32	compat_size_t;
 typedef s32	compat_ssize_t;

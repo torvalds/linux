@@ -24,6 +24,7 @@
 
 #include <linux/fs.h>
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/fiemap.h>
 
@@ -453,7 +454,7 @@ static int ocfs2_get_clusters_nocache(struct inode *inode,
 	if (i == -1) {
 		/*
 		 * Holes can be larger than the maximum size of an
-		 * extent, so we return their lengths in a seperate
+		 * extent, so we return their lengths in a separate
 		 * field.
 		 */
 		if (hole_len) {

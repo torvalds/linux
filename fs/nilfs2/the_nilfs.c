@@ -386,7 +386,7 @@ static int nilfs_store_disk_layout(struct the_nilfs *nilfs,
 
 	nilfs->ns_blocks_per_segment = le32_to_cpu(sbp->s_blocks_per_segment);
 	if (nilfs->ns_blocks_per_segment < NILFS_SEG_MIN_BLOCKS) {
-		printk(KERN_ERR "NILFS: too short segment. \n");
+		printk(KERN_ERR "NILFS: too short segment.\n");
 		return -EINVAL;
 	}
 
@@ -486,11 +486,15 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
 		printk(KERN_WARNING
 		       "NILFS warning: unable to read secondary superblock\n");
 
+	/*
+	 * Compare two super blocks and set 1 in swp if the secondary
+	 * super block is valid and newer.  Otherwise, set 0 in swp.
+	 */
 	valid[0] = nilfs_valid_sb(sbp[0]);
 	valid[1] = nilfs_valid_sb(sbp[1]);
-	swp = valid[1] &&
-		(!valid[0] ||
-		 le64_to_cpu(sbp[1]->s_wtime) > le64_to_cpu(sbp[0]->s_wtime));
+	swp = valid[1] && (!valid[0] ||
+			   le64_to_cpu(sbp[1]->s_last_cno) >
+			   le64_to_cpu(sbp[0]->s_last_cno));
 
 	if (valid[swp] && nilfs_sb2_bad_offset(sbp[swp], sb2off)) {
 		brelse(sbh[1]);

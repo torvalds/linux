@@ -19,6 +19,7 @@
 #include <linux/device.h>
 #include <linux/hid.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/usb.h>
 
 #include "hid-ids.h"
@@ -75,7 +76,7 @@ static int sony_set_operational_usb(struct hid_device *hdev)
 
 static int sony_set_operational_bt(struct hid_device *hdev)
 {
-	unsigned char buf[] = { 0x53, 0xf4,  0x42, 0x03, 0x00, 0x00 };
+	unsigned char buf[] = { 0xf4,  0x42, 0x03, 0x00, 0x00 };
 	return hdev->hid_output_raw_report(hdev, buf, sizeof(buf), HID_FEATURE_REPORT);
 }
 

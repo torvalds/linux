@@ -35,6 +35,7 @@
 #include <linux/pm.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

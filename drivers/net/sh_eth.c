@@ -31,6 +31,7 @@
 #include <linux/cache.h>
 #include <linux/io.h>
 #include <linux/pm_runtime.h>
+#include <linux/slab.h>
 #include <asm/cacheflush.h>
 
 #include "sh_eth.h"
@@ -1146,8 +1147,6 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	if (!(ctrl_inl(ndev->base_addr + EDTRR) & EDTRR_TRNS))
 		ctrl_outl(EDTRR_TRNS, ndev->base_addr + EDTRR);
-
-	ndev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 }

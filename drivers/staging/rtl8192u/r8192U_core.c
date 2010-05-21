@@ -70,6 +70,7 @@ double __extendsfdf2(float a) {return a;}
 #include "r8192U_dm.h"
 //#include "r8192xU_phyreg.h"
 #include <linux/usb.h>
+#include <linux/slab.h>
 // FIXME: check if 2.6.7 is ok
 
 #ifdef CONFIG_RTL8192_PM

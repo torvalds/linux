@@ -6,6 +6,7 @@
 #include "linux/irqreturn.h"
 #include "linux/kd.h"
 #include "linux/sched.h"
+#include "linux/slab.h"
 #include "chan_kern.h"
 #include "irq_kern.h"
 #include "irq_user.h"
@@ -18,7 +19,6 @@ static irqreturn_t line_interrupt(int irq, void *data)
 {
 	struct chan *chan = data;
 	struct line *line = chan->line;
-	struct tty_struct *tty;
 
 	if (line)
 		chan_interrupt(&line->chan_list, &line->task, line->tty, irq);

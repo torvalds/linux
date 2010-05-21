@@ -116,6 +116,7 @@
 #include <linux/if_vlan.h>
 #include <linux/rtnetlink.h>
 #include <linux/jiffies.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/uaccess.h>

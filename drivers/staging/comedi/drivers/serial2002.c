@@ -36,6 +36,7 @@ Status: in development
 #include <linux/delay.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include <asm/termios.h>
 #include <asm/ioctls.h>

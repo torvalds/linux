@@ -84,6 +84,7 @@ Ip_u2s3u1(_lw);
 Ip_u1u2u3(_mfc0);
 Ip_u1u2u3(_mtc0);
 Ip_u2u1u3(_ori);
+Ip_u3u1u2(_or);
 Ip_u2s3u1(_pref);
 Ip_0(_rfe);
 Ip_u2s3u1(_sc);
@@ -102,6 +103,7 @@ Ip_0(_tlbwr);
 Ip_u3u1u2(_xor);
 Ip_u2u1u3(_xori);
 Ip_u2u1msbu3(_dins);
+Ip_u1(_syscall);
 
 /* Handle labels. */
 struct uasm_label {
@@ -164,6 +166,24 @@ static inline void __cpuinit uasm_l##lb(struct uasm_label **lab, u32 *addr) \
 #define uasm_i_nop(buf) uasm_i_sll(buf, 0, 0, 0)
 #define uasm_i_ssnop(buf) uasm_i_sll(buf, 0, 0, 1)
 #define uasm_i_ehb(buf) uasm_i_sll(buf, 0, 0, 3)
+
+static inline void uasm_i_dsrl_safe(u32 **p, unsigned int a1,
+				    unsigned int a2, unsigned int a3)
+{
+	if (a3 < 32)
+		uasm_i_dsrl(p, a1, a2, a3);
+	else
+		uasm_i_dsrl32(p, a1, a2, a3 - 32);
+}
+
+static inline void uasm_i_dsll_safe(u32 **p, unsigned int a1,
+				    unsigned int a2, unsigned int a3)
+{
+	if (a3 < 32)
+		uasm_i_dsll(p, a1, a2, a3);
+	else
+		uasm_i_dsll32(p, a1, a2, a3 - 32);
+}
 
 /* Handle relocations. */
 struct uasm_reloc {

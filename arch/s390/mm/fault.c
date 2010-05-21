@@ -48,10 +48,6 @@
 #define __PF_RES_FIELD 0x8000000000000000ULL
 #endif /* CONFIG_64BIT */
 
-#ifdef CONFIG_SYSCTL
-extern int sysctl_userprocess_debug;
-#endif
-
 #define VM_FAULT_BADCONTEXT	0x010000
 #define VM_FAULT_BADMAP		0x020000
 #define VM_FAULT_BADACCESS	0x040000
@@ -120,6 +116,22 @@ static inline int user_space_fault(unsigned long trans_exc_code)
 	return trans_exc_code != 3;
 }
 
+static inline void report_user_fault(struct pt_regs *regs, long int_code,
+				     int signr, unsigned long address)
+{
+	if ((task_pid_nr(current) > 1) && !show_unhandled_signals)
+		return;
+	if (!unhandled_signal(current, signr))
+		return;
+	if (!printk_ratelimit())
+		return;
+	printk("User process fault: interruption code 0x%lX ", int_code);
+	print_vma_addr(KERN_CONT "in ", regs->psw.addr & PSW_ADDR_INSN);
+	printk("\n");
+	printk("failing address: %lX\n", address);
+	show_regs(regs);
+}
+
 /*
  * Send SIGSEGV to task.  This is an external routine
  * to keep the stack usage of do_page_fault small.
@@ -133,17 +145,7 @@ static noinline void do_sigsegv(struct pt_regs *regs, long int_code,
 	address = trans_exc_code & __FAIL_ADDR_MASK;
 	current->thread.prot_addr = address;
 	current->thread.trap_no = int_code;
-#if defined(CONFIG_SYSCTL) || defined(CONFIG_PROCESS_DEBUG)
-#if defined(CONFIG_SYSCTL)
-	if (sysctl_userprocess_debug)
-#endif
-	{
-		printk("User process fault: interruption code 0x%lX\n",
-		       int_code);
-		printk("failing address: %lX\n", address);
-		show_regs(regs);
-	}
-#endif
+	report_user_fault(regs, int_code, SIGSEGV, address);
 	si.si_signo = SIGSEGV;
 	si.si_code = si_code;
 	si.si_addr = (void __user *) address;

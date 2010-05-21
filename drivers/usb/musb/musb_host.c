@@ -1689,7 +1689,7 @@ void musb_host_rx(struct musb *musb, u8 epnum)
 				dma->desired_mode = 1;
 			if (rx_count < hw_ep->max_packet_sz_rx) {
 				length = rx_count;
-				dma->bDesiredMode = 0;
+				dma->desired_mode = 0;
 			} else {
 				length = urb->transfer_buffer_length;
 			}
@@ -2042,6 +2042,7 @@ static int musb_urb_enqueue(
 		 * odd, rare, error prone, but legal.
 		 */
 		kfree(qh);
+		qh = NULL;
 		ret = 0;
 	} else
 		ret = musb_schedule(musb, qh,

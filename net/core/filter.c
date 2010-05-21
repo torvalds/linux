@@ -25,6 +25,7 @@
 #include <linux/inet.h>
 #include <linux/netdevice.h>
 #include <linux/if_packet.h>
+#include <linux/gfp.h>
 #include <net/ip.h>
 #include <net/protocol.h>
 #include <net/netlink.h>
@@ -301,6 +302,8 @@ load_b:
 			A = skb->pkt_type;
 			continue;
 		case SKF_AD_IFINDEX:
+			if (!skb->dev)
+				return 0;
 			A = skb->dev->ifindex;
 			continue;
 		case SKF_AD_MARK:
@@ -308,6 +311,11 @@ load_b:
 			continue;
 		case SKF_AD_QUEUE:
 			A = skb->queue_mapping;
+			continue;
+		case SKF_AD_HATYPE:
+			if (!skb->dev)
+				return 0;
+			A = skb->dev->type;
 			continue;
 		case SKF_AD_NLATTR: {
 			struct nlattr *nla;

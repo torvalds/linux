@@ -30,6 +30,7 @@
 #include <linux/wireless.h>
 #include <linux/skbuff.h>
 #include <linux/udp.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/inet_common.h>
 #include <linux/stat.h>

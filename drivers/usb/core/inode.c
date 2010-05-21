@@ -40,9 +40,9 @@
 #include <linux/notifier.h>
 #include <linux/seq_file.h>
 #include <linux/smp_lock.h>
+#include <linux/usb/hcd.h>
 #include <asm/byteorder.h>
 #include "usb.h"
-#include "hcd.h"
 
 #define USBFS_DEFAULT_DEVMODE (S_IWUSR | S_IRUGO)
 #define USBFS_DEFAULT_BUSMODE (S_IXUGO | S_IRUGO)
@@ -380,6 +380,7 @@ static int usbfs_rmdir(struct inode *dir, struct dentry *dentry)
 	mutex_lock(&inode->i_mutex);
 	dentry_unhash(dentry);
 	if (usbfs_empty(dentry)) {
+		dont_mount(dentry);
 		drop_nlink(dentry->d_inode);
 		drop_nlink(dentry->d_inode);
 		dput(dentry);
@@ -515,13 +516,13 @@ static int fs_create_by_name (const char *name, mode_t mode,
 	*dentry = NULL;
 	mutex_lock(&parent->d_inode->i_mutex);
 	*dentry = lookup_one_len(name, parent, strlen(name));
-	if (!IS_ERR(dentry)) {
+	if (!IS_ERR(*dentry)) {
 		if ((mode & S_IFMT) == S_IFDIR)
 			error = usbfs_mkdir (parent->d_inode, *dentry, mode);
 		else 
 			error = usbfs_create (parent->d_inode, *dentry, mode);
 	} else
-		error = PTR_ERR(dentry);
+		error = PTR_ERR(*dentry);
 	mutex_unlock(&parent->d_inode->i_mutex);
 
 	return error;

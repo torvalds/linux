@@ -43,7 +43,6 @@
 #include <linux/err.h>
 #include <linux/list.h>
 #include <linux/mutex.h>
-#include <linux/bootmem.h>
 
 #include <plat/common.h>
 #include <plat/cpu.h>
@@ -1510,6 +1509,9 @@ struct powerdomain *omap_hwmod_get_pwrdm(struct omap_hwmod *oh)
 			return NULL;
 		c = oh->slaves[oh->_mpu_port_index]->_clk;
 	}
+
+	if (!c->clkdm)
+		return NULL;
 
 	return c->clkdm->pwrdm.ptr;
 

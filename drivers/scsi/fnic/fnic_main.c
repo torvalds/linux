@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/mempool.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/init.h>
 #include <linux/pci.h>
@@ -555,7 +556,7 @@ static int __devinit fnic_probe(struct pci_dev *pdev,
 	}
 	host->max_lun = fnic->config.luns_per_tgt;
 	host->max_id = FNIC_MAX_FCP_TARGET;
-	host->max_cmd_len = FNIC_MAX_CMD_LEN;
+	host->max_cmd_len = FCOE_MAX_CMD_LEN;
 
 	fnic_get_res_counts(fnic);
 

@@ -103,6 +103,7 @@
       the two sets of lengths.
  */
 #include <linux/compiler.h>
+#include <linux/slab.h>
 
 #ifdef RCSID
 static char rcsid[] = "#Id: inflate.c,v 0.14 1993/06/10 13:27:04 jloup Exp #";

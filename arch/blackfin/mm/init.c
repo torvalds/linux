@@ -4,6 +4,7 @@
  * Licensed under the GPL-2 or later.
  */
 
+#include <linux/gfp.h>
 #include <linux/swap.h>
 #include <linux/bootmem.h>
 #include <linux/uaccess.h>

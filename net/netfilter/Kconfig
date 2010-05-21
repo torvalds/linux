@@ -314,7 +314,38 @@ config NETFILTER_XTABLES
 
 if NETFILTER_XTABLES
 
+comment "Xtables combined modules"
+
+config NETFILTER_XT_MARK
+	tristate 'nfmark target and match support'
+	default m if NETFILTER_ADVANCED=n
+	---help---
+	This option adds the "MARK" target and "mark" match.
+
+	Netfilter mark matching allows you to match packets based on the
+	"nfmark" value in the packet.
+	The target allows you to create rules in the "mangle" table which alter
+	the netfilter mark (nfmark) field associated with the packet.
+
+	Prior to routing, the nfmark can influence the routing method (see
+	"Use netfilter MARK value as routing key") and can also be used by
+	other subsystems to change their behavior.
+
+config NETFILTER_XT_CONNMARK
+	tristate 'ctmark target and match support'
+	depends on NF_CONNTRACK
+	depends on NETFILTER_ADVANCED
+	select NF_CONNTRACK_MARK
+	---help---
+	This option adds the "CONNMARK" target and "connmark" match.
+
+	Netfilter allows you to store a mark value per connection (a.k.a.
+	ctmark), similarly to the packet mark (nfmark). Using this
+	target and match, you can set and match on this mark.
+
 # alphabetically ordered list of targets
+
+comment "Xtables targets"
 
 config NETFILTER_XT_TARGET_CLASSIFY
 	tristate '"CLASSIFY" target support'
@@ -332,15 +363,11 @@ config NETFILTER_XT_TARGET_CONNMARK
 	tristate  '"CONNMARK" target support'
 	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
-	select NF_CONNTRACK_MARK
-	help
-	  This option adds a `CONNMARK' target, which allows one to manipulate
-	  the connection mark value.  Similar to the MARK target, but
-	  affects the connection mark value rather than the packet mark value.
-
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  The module will be called
-	  ipt_CONNMARK.  If unsure, say `N'.
+	select NETFILTER_XT_CONNMARK
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_CONNMARK (combined connmark/CONNMARK module).
 
 config NETFILTER_XT_TARGET_CONNSECMARK
 	tristate '"CONNSECMARK" target support'
@@ -423,16 +450,12 @@ config NETFILTER_XT_TARGET_LED
 
 config NETFILTER_XT_TARGET_MARK
 	tristate '"MARK" target support'
-	default m if NETFILTER_ADVANCED=n
-	help
-	  This option adds a `MARK' target, which allows you to create rules
-	  in the `mangle' table which alter the netfilter mark (nfmark) field
-	  associated with the packet prior to routing. This can change
-	  the routing method (see `Use netfilter MARK value as routing
-	  key') and can also be used by other subsystems to change their
-	  behavior.
-
-	  To compile it as a module, choose M here.  If unsure, say N.
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_XT_MARK
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_MARK (combined mark/MARK module).
 
 config NETFILTER_XT_TARGET_NFLOG
 	tristate '"NFLOG" target support'
@@ -478,6 +501,15 @@ config NETFILTER_XT_TARGET_RATEEST
 	  used to match on the measured rates.
 
 	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_TARGET_TEE
+	tristate '"TEE" - packet cloning to alternate destiantion'
+	depends on NETFILTER_ADVANCED
+	depends on (IPV6 || IPV6=n)
+	depends on !NF_CONNTRACK || NF_CONNTRACK
+	---help---
+	This option adds a "TEE" target with which a packet can be cloned and
+	this clone be rerouted to another nexthop.
 
 config NETFILTER_XT_TARGET_TPROXY
 	tristate '"TPROXY" target support (EXPERIMENTAL)'
@@ -552,6 +584,10 @@ config NETFILTER_XT_TARGET_TCPOPTSTRIP
 	  This option adds a "TCPOPTSTRIP" target, which allows you to strip
 	  TCP options from TCP packets.
 
+# alphabetically ordered list of matches
+
+comment "Xtables matches"
+
 config NETFILTER_XT_MATCH_CLUSTER
 	tristate '"cluster" match support'
 	depends on NF_CONNTRACK
@@ -602,14 +638,11 @@ config NETFILTER_XT_MATCH_CONNMARK
 	tristate  '"connmark" connection mark match support'
 	depends on NF_CONNTRACK
 	depends on NETFILTER_ADVANCED
-	select NF_CONNTRACK_MARK
-	help
-	  This option adds a `connmark' match, which allows you to match the
-	  connection mark value previously set for the session by `CONNMARK'. 
-
-	  If you want to compile it as a module, say M here and read
-	  <file:Documentation/kbuild/modules.txt>.  The module will be called
-	  ipt_connmark.  If unsure, say `N'.
+	select NETFILTER_XT_CONNMARK
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_CONNMARK (combined connmark/CONNMARK module).
 
 config NETFILTER_XT_MATCH_CONNTRACK
 	tristate '"conntrack" connection tracking match support'
@@ -733,13 +766,12 @@ config NETFILTER_XT_MATCH_MAC
 
 config NETFILTER_XT_MATCH_MARK
 	tristate '"mark" match support'
-	default m if NETFILTER_ADVANCED=n
-	help
-	  Netfilter mark matching allows you to match packets based on the
-	  `nfmark' value in the packet.  This can be set by the MARK target
-	  (see below).
-
-	  To compile it as a module, choose M here.  If unsure, say N.
+	depends on NETFILTER_ADVANCED
+	select NETFILTER_XT_MARK
+	---help---
+	This is a backwards-compat option for the user's convenience
+	(e.g. when running oldconfig). It selects
+	CONFIG_NETFILTER_XT_MARK (combined mark/MARK module).
 
 config NETFILTER_XT_MATCH_MULTIPORT
 	tristate '"multiport" Multiple port match support'
@@ -748,6 +780,19 @@ config NETFILTER_XT_MATCH_MULTIPORT
 	  Multiport matching allows you to match TCP or UDP packets based on
 	  a series of source or destination ports: normally a rule can only
 	  match a single range of ports.
+
+	  To compile it as a module, choose M here.  If unsure, say N.
+
+config NETFILTER_XT_MATCH_OSF
+	tristate '"osf" Passive OS fingerprint match'
+	depends on NETFILTER_ADVANCED && NETFILTER_NETLINK
+	help
+	  This option selects the Passive OS Fingerprinting match module
+	  that allows to passively match the remote operating system by
+	  analyzing incoming TCP SYN packets.
+
+	  Rules and loading software can be downloaded from
+	  http://www.ioremap.net/projects/osf
 
 	  To compile it as a module, choose M here.  If unsure, say N.
 
@@ -835,13 +880,6 @@ config NETFILTER_XT_MATCH_RECENT
 
 	Short options are available by using 'iptables -m recent -h'
 	Official Website: <http://snowman.net/projects/ipt_recent/>
-
-config NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
-	bool 'Enable obsolete /proc/net/ipt_recent'
-	depends on NETFILTER_XT_MATCH_RECENT && PROC_FS
-	---help---
-	This option enables the old /proc/net/ipt_recent interface,
-	which has been obsoleted by /proc/net/xt_recent.
 
 config NETFILTER_XT_MATCH_SCTP
 	tristate  '"sctp" protocol match support (EXPERIMENTAL)'
@@ -941,19 +979,6 @@ config NETFILTER_XT_MATCH_U32
 	  lengths.
 
 	  Details and examples are in the kernel module source.
-
-config NETFILTER_XT_MATCH_OSF
-	tristate '"osf" Passive OS fingerprint match'
-	depends on NETFILTER_ADVANCED && NETFILTER_NETLINK
-	help
-	  This option selects the Passive OS Fingerprinting match module
-	  that allows to passively match the remote operating system by
-	  analyzing incoming TCP SYN packets.
-
-	  Rules and loading software can be downloaded from
-	  http://www.ioremap.net/projects/osf
-
-	  To compile it as a module, choose M here.  If unsure, say N.
 
 endif # NETFILTER_XTABLES
 

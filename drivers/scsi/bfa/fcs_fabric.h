@@ -29,6 +29,7 @@
 /*
 * fcs friend functions: only between fcs modules
  */
+void		bfa_fcs_fabric_attach(struct bfa_fcs_s *fcs);
 void            bfa_fcs_fabric_modinit(struct bfa_fcs_s *fcs);
 void            bfa_fcs_fabric_modexit(struct bfa_fcs_s *fcs);
 void            bfa_fcs_fabric_modsusp(struct bfa_fcs_s *fcs);
@@ -46,6 +47,7 @@ void            bfa_fcs_fabric_uf_recv(struct bfa_fcs_fabric_s *fabric,
 			struct fchs_s *fchs, u16 len);
 u16        bfa_fcs_fabric_vport_count(struct bfa_fcs_fabric_s *fabric);
 bfa_boolean_t   bfa_fcs_fabric_is_loopback(struct bfa_fcs_fabric_s *fabric);
+bfa_boolean_t	bfa_fcs_fabric_is_auth_failed(struct bfa_fcs_fabric_s *fabric);
 enum bfa_pport_type bfa_fcs_fabric_port_type(struct bfa_fcs_fabric_s *fabric);
 void     	bfa_fcs_fabric_psymb_init(struct bfa_fcs_fabric_s *fabric);
 void bfa_fcs_fabric_port_delete_comp(struct bfa_fcs_fabric_s *fabric);

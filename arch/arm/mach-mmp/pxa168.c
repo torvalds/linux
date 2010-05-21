@@ -72,6 +72,11 @@ static APBC_CLK(pwm1, PXA168_PWM1, 1, 13000000);
 static APBC_CLK(pwm2, PXA168_PWM2, 1, 13000000);
 static APBC_CLK(pwm3, PXA168_PWM3, 1, 13000000);
 static APBC_CLK(pwm4, PXA168_PWM4, 1, 13000000);
+static APBC_CLK(ssp1, PXA168_SSP1, 4, 0);
+static APBC_CLK(ssp2, PXA168_SSP2, 4, 0);
+static APBC_CLK(ssp3, PXA168_SSP3, 4, 0);
+static APBC_CLK(ssp4, PXA168_SSP4, 4, 0);
+static APBC_CLK(ssp5, PXA168_SSP5, 4, 0);
 
 static APMU_CLK(nand, NAND, 0x01db, 208000000);
 
@@ -85,6 +90,11 @@ static struct clk_lookup pxa168_clkregs[] = {
 	INIT_CLKREG(&clk_pwm2, "pxa168-pwm.1", NULL),
 	INIT_CLKREG(&clk_pwm3, "pxa168-pwm.2", NULL),
 	INIT_CLKREG(&clk_pwm4, "pxa168-pwm.3", NULL),
+	INIT_CLKREG(&clk_ssp1, "pxa168-ssp.0", NULL),
+	INIT_CLKREG(&clk_ssp2, "pxa168-ssp.1", NULL),
+	INIT_CLKREG(&clk_ssp3, "pxa168-ssp.2", NULL),
+	INIT_CLKREG(&clk_ssp4, "pxa168-ssp.3", NULL),
+	INIT_CLKREG(&clk_ssp5, "pxa168-ssp.4", NULL),
 	INIT_CLKREG(&clk_nand, "pxa3xx-nand", NULL),
 };
 
@@ -132,3 +142,8 @@ PXA168_DEVICE(pwm2, "pxa168-pwm", 1, NONE, 0xd401a400, 0x10);
 PXA168_DEVICE(pwm3, "pxa168-pwm", 2, NONE, 0xd401a800, 0x10);
 PXA168_DEVICE(pwm4, "pxa168-pwm", 3, NONE, 0xd401ac00, 0x10);
 PXA168_DEVICE(nand, "pxa3xx-nand", -1, NAND, 0xd4283000, 0x80, 97, 99);
+PXA168_DEVICE(ssp1, "pxa168-ssp", 0, SSP1, 0xd401b000, 0x40, 52, 53);
+PXA168_DEVICE(ssp2, "pxa168-ssp", 1, SSP2, 0xd401c000, 0x40, 54, 55);
+PXA168_DEVICE(ssp3, "pxa168-ssp", 2, SSP3, 0xd401f000, 0x40, 56, 57);
+PXA168_DEVICE(ssp4, "pxa168-ssp", 3, SSP4, 0xd4020000, 0x40, 58, 59);
+PXA168_DEVICE(ssp5, "pxa168-ssp", 4, SSP5, 0xd4021000, 0x40, 60, 61);

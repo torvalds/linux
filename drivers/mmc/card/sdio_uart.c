@@ -34,10 +34,10 @@
 #include <linux/seq_file.h>
 #include <linux/serial_reg.h>
 #include <linux/circ_buf.h>
-#include <linux/gfp.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/kfifo.h>
+#include <linux/slab.h>
 
 #include <linux/mmc/core.h>
 #include <linux/mmc/card.h>
@@ -575,7 +575,7 @@ static int uart_carrier_raised(struct tty_port *tport)
 	struct sdio_uart_port *port =
 			container_of(tport, struct sdio_uart_port, port);
 	unsigned int ret = sdio_uart_claim_func(port);
-	if (ret)	/* Missing hardware shoudn't block for carrier */
+	if (ret)	/* Missing hardware shouldn't block for carrier */
 		return 1;
 	ret = sdio_uart_get_mctrl(port);
 	sdio_uart_release_func(port);

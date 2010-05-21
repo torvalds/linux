@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <linux/kthread.h>
 #include <linux/string.h>
 #include <linux/mm.h>

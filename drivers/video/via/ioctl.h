@@ -75,7 +75,7 @@
 /*SAMM operation flag*/
 #define OP_SAMM            0x80
 
-#define LCD_PANEL_ID_MAXIMUM	22
+#define LCD_PANEL_ID_MAXIMUM	23
 
 #define STATE_ON            0x1
 #define STATE_OFF           0x0

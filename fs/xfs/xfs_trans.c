@@ -45,23 +45,12 @@
 #include "xfs_trans_space.h"
 #include "xfs_inode_item.h"
 
-
-STATIC void	xfs_trans_apply_sb_deltas(xfs_trans_t *);
-STATIC uint	xfs_trans_count_vecs(xfs_trans_t *);
-STATIC void	xfs_trans_fill_vecs(xfs_trans_t *, xfs_log_iovec_t *);
-STATIC void	xfs_trans_uncommit(xfs_trans_t *, uint);
-STATIC void	xfs_trans_committed(xfs_trans_t *, int);
-STATIC void	xfs_trans_chunk_committed(xfs_log_item_chunk_t *, xfs_lsn_t, int);
-STATIC void	xfs_trans_free(xfs_trans_t *);
-
 kmem_zone_t	*xfs_trans_zone;
-
 
 /*
  * Reservation functions here avoid a huge stack in xfs_trans_init
  * due to register overflow from temporaries in the calculations.
  */
-
 STATIC uint
 xfs_calc_write_reservation(xfs_mount_t *mp)
 {
@@ -258,6 +247,19 @@ _xfs_trans_alloc(
 	xfs_lic_init(&(tp->t_items));
 	XFS_LBC_INIT(&(tp->t_busy));
 	return tp;
+}
+
+/*
+ * Free the transaction structure.  If there is more clean up
+ * to do when the structure is freed, add it here.
+ */
+STATIC void
+xfs_trans_free(
+	xfs_trans_t	*tp)
+{
+	atomic_dec(&tp->t_mountp->m_active_trans);
+	xfs_trans_free_dqinfo(tp);
+	kmem_zone_free(xfs_trans_zone, tp);
 }
 
 /*
@@ -764,94 +766,278 @@ xfs_trans_unreserve_and_mod_sb(
 	}
 }
 
+/*
+ * Total up the number of log iovecs needed to commit this
+ * transaction.  The transaction itself needs one for the
+ * transaction header.  Ask each dirty item in turn how many
+ * it needs to get the total.
+ */
+static uint
+xfs_trans_count_vecs(
+	struct xfs_trans	*tp)
+{
+	int			nvecs;
+	xfs_log_item_desc_t	*lidp;
+
+	nvecs = 1;
+	lidp = xfs_trans_first_item(tp);
+	ASSERT(lidp != NULL);
+
+	/* In the non-debug case we need to start bailing out if we
+	 * didn't find a log_item here, return zero and let trans_commit
+	 * deal with it.
+	 */
+	if (lidp == NULL)
+		return 0;
+
+	while (lidp != NULL) {
+		/*
+		 * Skip items which aren't dirty in this transaction.
+		 */
+		if (!(lidp->lid_flags & XFS_LID_DIRTY)) {
+			lidp = xfs_trans_next_item(tp, lidp);
+			continue;
+		}
+		lidp->lid_size = IOP_SIZE(lidp->lid_item);
+		nvecs += lidp->lid_size;
+		lidp = xfs_trans_next_item(tp, lidp);
+	}
+
+	return nvecs;
+}
 
 /*
- * xfs_trans_commit
+ * Fill in the vector with pointers to data to be logged
+ * by this transaction.  The transaction header takes
+ * the first vector, and then each dirty item takes the
+ * number of vectors it indicated it needed in xfs_trans_count_vecs().
  *
- * Commit the given transaction to the log a/synchronously.
- *
- * XFS disk error handling mechanism is not based on a typical
- * transaction abort mechanism. Logically after the filesystem
- * gets marked 'SHUTDOWN', we can't let any new transactions
- * be durable - ie. committed to disk - because some metadata might
- * be inconsistent. In such cases, this returns an error, and the
- * caller may assume that all locked objects joined to the transaction
- * have already been unlocked as if the commit had succeeded.
- * Do not reference the transaction structure after this call.
+ * As each item fills in the entries it needs, also pin the item
+ * so that it cannot be flushed out until the log write completes.
  */
- /*ARGSUSED*/
-int
-_xfs_trans_commit(
-	xfs_trans_t	*tp,
-	uint		flags,
-	int		*log_flushed)
+static void
+xfs_trans_fill_vecs(
+	struct xfs_trans	*tp,
+	struct xfs_log_iovec	*log_vector)
 {
-	xfs_log_iovec_t		*log_vector;
-	int			nvec;
-	xfs_mount_t		*mp;
-	xfs_lsn_t		commit_lsn;
-	/* REFERENCED */
-	int			error;
-	int			log_flags;
-	int			sync;
-#define	XFS_TRANS_LOGVEC_COUNT	16
-	xfs_log_iovec_t		log_vector_fast[XFS_TRANS_LOGVEC_COUNT];
-	struct xlog_in_core	*commit_iclog;
-	int			shutdown;
-
-	commit_lsn = -1;
+	xfs_log_item_desc_t	*lidp;
+	struct xfs_log_iovec	*vecp;
+	uint			nitems;
 
 	/*
-	 * Determine whether this commit is releasing a permanent
-	 * log reservation or not.
+	 * Skip over the entry for the transaction header, we'll
+	 * fill that in at the end.
 	 */
-	if (flags & XFS_TRANS_RELEASE_LOG_RES) {
-		ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
-		log_flags = XFS_LOG_REL_PERM_RESERV;
-	} else {
-		log_flags = 0;
-	}
-	mp = tp->t_mountp;
+	vecp = log_vector + 1;
 
-	/*
-	 * If there is nothing to be logged by the transaction,
-	 * then unlock all of the items associated with the
-	 * transaction and free the transaction structure.
-	 * Also make sure to return any reserved blocks to
-	 * the free pool.
-	 */
-shut_us_down:
-	shutdown = XFS_FORCED_SHUTDOWN(mp) ? EIO : 0;
-	if (!(tp->t_flags & XFS_TRANS_DIRTY) || shutdown) {
-		xfs_trans_unreserve_and_mod_sb(tp);
-		/*
-		 * It is indeed possible for the transaction to be
-		 * not dirty but the dqinfo portion to be. All that
-		 * means is that we have some (non-persistent) quota
-		 * reservations that need to be unreserved.
-		 */
-		xfs_trans_unreserve_and_mod_dquots(tp);
-		if (tp->t_ticket) {
-			commit_lsn = xfs_log_done(mp, tp->t_ticket,
-							NULL, log_flags);
-			if (commit_lsn == -1 && !shutdown)
-				shutdown = XFS_ERROR(EIO);
+	nitems = 0;
+	lidp = xfs_trans_first_item(tp);
+	ASSERT(lidp);
+	while (lidp) {
+		/* Skip items which aren't dirty in this transaction. */
+		if (!(lidp->lid_flags & XFS_LID_DIRTY)) {
+			lidp = xfs_trans_next_item(tp, lidp);
+			continue;
 		}
-		current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
-		xfs_trans_free_items(tp, shutdown? XFS_TRANS_ABORT : 0);
-		xfs_trans_free_busy(tp);
-		xfs_trans_free(tp);
-		XFS_STATS_INC(xs_trans_empty);
-		return (shutdown);
+
+		/*
+		 * The item may be marked dirty but not log anything.  This can
+		 * be used to get called when a transaction is committed.
+		 */
+		if (lidp->lid_size)
+			nitems++;
+		IOP_FORMAT(lidp->lid_item, vecp);
+		vecp += lidp->lid_size;
+		IOP_PIN(lidp->lid_item);
+		lidp = xfs_trans_next_item(tp, lidp);
 	}
-	ASSERT(tp->t_ticket != NULL);
 
 	/*
-	 * If we need to update the superblock, then do it now.
+	 * Now that we've counted the number of items in this transaction, fill
+	 * in the transaction header. Note that the transaction header does not
+	 * have a log item.
 	 */
-	if (tp->t_flags & XFS_TRANS_SB_DIRTY)
-		xfs_trans_apply_sb_deltas(tp);
-	xfs_trans_apply_dquot_deltas(tp);
+	tp->t_header.th_magic = XFS_TRANS_HEADER_MAGIC;
+	tp->t_header.th_type = tp->t_type;
+	tp->t_header.th_num_items = nitems;
+	log_vector->i_addr = (xfs_caddr_t)&tp->t_header;
+	log_vector->i_len = sizeof(xfs_trans_header_t);
+	log_vector->i_type = XLOG_REG_TYPE_TRANSHDR;
+}
+
+/*
+ * The committed item processing consists of calling the committed routine of
+ * each logged item, updating the item's position in the AIL if necessary, and
+ * unpinning each item.  If the committed routine returns -1, then do nothing
+ * further with the item because it may have been freed.
+ *
+ * Since items are unlocked when they are copied to the incore log, it is
+ * possible for two transactions to be completing and manipulating the same
+ * item simultaneously.  The AIL lock will protect the lsn field of each item.
+ * The value of this field can never go backwards.
+ *
+ * We unpin the items after repositioning them in the AIL, because otherwise
+ * they could be immediately flushed and we'd have to race with the flusher
+ * trying to pull the item from the AIL as we add it.
+ */
+static void
+xfs_trans_item_committed(
+	struct xfs_log_item	*lip,
+	xfs_lsn_t		commit_lsn,
+	int			aborted)
+{
+	xfs_lsn_t		item_lsn;
+	struct xfs_ail		*ailp;
+
+	if (aborted)
+		lip->li_flags |= XFS_LI_ABORTED;
+	item_lsn = IOP_COMMITTED(lip, commit_lsn);
+
+	/* If the committed routine returns -1, item has been freed. */
+	if (XFS_LSN_CMP(item_lsn, (xfs_lsn_t)-1) == 0)
+		return;
+
+	/*
+	 * If the returned lsn is greater than what it contained before, update
+	 * the location of the item in the AIL.  If it is not, then do nothing.
+	 * Items can never move backwards in the AIL.
+	 *
+	 * While the new lsn should usually be greater, it is possible that a
+	 * later transaction completing simultaneously with an earlier one
+	 * using the same item could complete first with a higher lsn.  This
+	 * would cause the earlier transaction to fail the test below.
+	 */
+	ailp = lip->li_ailp;
+	spin_lock(&ailp->xa_lock);
+	if (XFS_LSN_CMP(item_lsn, lip->li_lsn) > 0) {
+		/*
+		 * This will set the item's lsn to item_lsn and update the
+		 * position of the item in the AIL.
+		 *
+		 * xfs_trans_ail_update() drops the AIL lock.
+		 */
+		xfs_trans_ail_update(ailp, lip, item_lsn);
+	} else {
+		spin_unlock(&ailp->xa_lock);
+	}
+
+	/*
+	 * Now that we've repositioned the item in the AIL, unpin it so it can
+	 * be flushed. Pass information about buffer stale state down from the
+	 * log item flags, if anyone else stales the buffer we do not want to
+	 * pay any attention to it.
+	 */
+	IOP_UNPIN(lip);
+}
+
+/* Clear all the per-AG busy list items listed in this transaction */
+static void
+xfs_trans_clear_busy_extents(
+	struct xfs_trans	*tp)
+{
+	xfs_log_busy_chunk_t	*lbcp;
+	xfs_log_busy_slot_t	*lbsp;
+	int			i;
+
+	for (lbcp = &tp->t_busy; lbcp != NULL; lbcp = lbcp->lbc_next) {
+		i = 0;
+		for (lbsp = lbcp->lbc_busy; i < lbcp->lbc_unused; i++, lbsp++) {
+			if (XFS_LBC_ISFREE(lbcp, i))
+				continue;
+			xfs_alloc_clear_busy(tp, lbsp->lbc_ag, lbsp->lbc_idx);
+		}
+	}
+	xfs_trans_free_busy(tp);
+}
+
+/*
+ * This is typically called by the LM when a transaction has been fully
+ * committed to disk.  It needs to unpin the items which have
+ * been logged by the transaction and update their positions
+ * in the AIL if necessary.
+ *
+ * This also gets called when the transactions didn't get written out
+ * because of an I/O error. Abortflag & XFS_LI_ABORTED is set then.
+ */
+STATIC void
+xfs_trans_committed(
+	struct xfs_trans	*tp,
+	int			abortflag)
+{
+	xfs_log_item_desc_t	*lidp;
+	xfs_log_item_chunk_t	*licp;
+	xfs_log_item_chunk_t	*next_licp;
+
+	/* Call the transaction's completion callback if there is one. */
+	if (tp->t_callback != NULL)
+		tp->t_callback(tp, tp->t_callarg);
+
+	for (lidp = xfs_trans_first_item(tp);
+	     lidp != NULL;
+	     lidp = xfs_trans_next_item(tp, lidp)) {
+		xfs_trans_item_committed(lidp->lid_item, tp->t_lsn, abortflag);
+	}
+
+	/* free the item chunks, ignoring the embedded chunk */
+	for (licp = tp->t_items.lic_next; licp != NULL; licp = next_licp) {
+		next_licp = licp->lic_next;
+		kmem_free(licp);
+	}
+
+	xfs_trans_clear_busy_extents(tp);
+	xfs_trans_free(tp);
+}
+
+/*
+ * Called from the trans_commit code when we notice that
+ * the filesystem is in the middle of a forced shutdown.
+ */
+STATIC void
+xfs_trans_uncommit(
+	struct xfs_trans	*tp,
+	uint			flags)
+{
+	xfs_log_item_desc_t	*lidp;
+
+	for (lidp = xfs_trans_first_item(tp);
+	     lidp != NULL;
+	     lidp = xfs_trans_next_item(tp, lidp)) {
+		/*
+		 * Unpin all but those that aren't dirty.
+		 */
+		if (lidp->lid_flags & XFS_LID_DIRTY)
+			IOP_UNPIN_REMOVE(lidp->lid_item, tp);
+	}
+
+	xfs_trans_unreserve_and_mod_sb(tp);
+	xfs_trans_unreserve_and_mod_dquots(tp);
+
+	xfs_trans_free_items(tp, flags);
+	xfs_trans_free_busy(tp);
+	xfs_trans_free(tp);
+}
+
+/*
+ * Format the transaction direct to the iclog. This isolates the physical
+ * transaction commit operation from the logical operation and hence allows
+ * other methods to be introduced without affecting the existing commit path.
+ */
+static int
+xfs_trans_commit_iclog(
+	struct xfs_mount	*mp,
+	struct xfs_trans	*tp,
+	xfs_lsn_t		*commit_lsn,
+	int			flags)
+{
+	int			shutdown;
+	int			error;
+	int			log_flags = 0;
+	struct xlog_in_core	*commit_iclog;
+#define XFS_TRANS_LOGVEC_COUNT  16
+	struct xfs_log_iovec	log_vector_fast[XFS_TRANS_LOGVEC_COUNT];
+	struct xfs_log_iovec	*log_vector;
+	uint			nvec;
+
 
 	/*
 	 * Ask each log item how many log_vector entries it will
@@ -861,8 +1047,7 @@ shut_us_down:
 	 */
 	nvec = xfs_trans_count_vecs(tp);
 	if (nvec == 0) {
-		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
-		goto shut_us_down;
+		return ENOMEM;	/* triggers a shutdown! */
 	} else if (nvec <= XFS_TRANS_LOGVEC_COUNT) {
 		log_vector = log_vector_fast;
 	} else {
@@ -877,6 +1062,9 @@ shut_us_down:
 	 */
 	xfs_trans_fill_vecs(tp, log_vector);
 
+	if (flags & XFS_TRANS_RELEASE_LOG_RES)
+		log_flags = XFS_LOG_REL_PERM_RESERV;
+
 	error = xfs_log_write(mp, log_vector, nvec, tp->t_ticket, &(tp->t_lsn));
 
 	/*
@@ -884,18 +1072,17 @@ shut_us_down:
 	 * at any time after this call.  However, all the items associated
 	 * with the transaction are still locked and pinned in memory.
 	 */
-	commit_lsn = xfs_log_done(mp, tp->t_ticket, &commit_iclog, log_flags);
+	*commit_lsn = xfs_log_done(mp, tp->t_ticket, &commit_iclog, log_flags);
 
-	tp->t_commit_lsn = commit_lsn;
-	if (nvec > XFS_TRANS_LOGVEC_COUNT) {
+	tp->t_commit_lsn = *commit_lsn;
+	if (nvec > XFS_TRANS_LOGVEC_COUNT)
 		kmem_free(log_vector);
-	}
 
 	/*
 	 * If we got a log write error. Unpin the logitems that we
 	 * had pinned, clean up, free trans structure, and return error.
 	 */
-	if (error || commit_lsn == -1) {
+	if (error || *commit_lsn == -1) {
 		current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 		xfs_trans_uncommit(tp, flags|XFS_TRANS_ABORT);
 		return XFS_ERROR(EIO);
@@ -908,8 +1095,6 @@ shut_us_down:
 	 * version.  Do that now.
 	 */
 	xfs_trans_unreserve_and_mod_sb(tp);
-
-	sync = tp->t_flags & XFS_TRANS_SYNC;
 
 	/*
 	 * Tell the LM to call the transaction completion routine
@@ -953,7 +1138,7 @@ shut_us_down:
 	 * the commit lsn of this transaction for dependency tracking
 	 * purposes.
 	 */
-	xfs_trans_unlock_items(tp, commit_lsn);
+	xfs_trans_unlock_items(tp, *commit_lsn);
 
 	/*
 	 * If we detected a log error earlier, finish committing
@@ -973,7 +1158,75 @@ shut_us_down:
 	 * and the items are released we can finally allow the iclog to
 	 * go to disk.
 	 */
-	error = xfs_log_release_iclog(mp, commit_iclog);
+	return xfs_log_release_iclog(mp, commit_iclog);
+}
+
+
+/*
+ * xfs_trans_commit
+ *
+ * Commit the given transaction to the log a/synchronously.
+ *
+ * XFS disk error handling mechanism is not based on a typical
+ * transaction abort mechanism. Logically after the filesystem
+ * gets marked 'SHUTDOWN', we can't let any new transactions
+ * be durable - ie. committed to disk - because some metadata might
+ * be inconsistent. In such cases, this returns an error, and the
+ * caller may assume that all locked objects joined to the transaction
+ * have already been unlocked as if the commit had succeeded.
+ * Do not reference the transaction structure after this call.
+ */
+int
+_xfs_trans_commit(
+	struct xfs_trans	*tp,
+	uint			flags,
+	int			*log_flushed)
+{
+	struct xfs_mount	*mp = tp->t_mountp;
+	xfs_lsn_t		commit_lsn = -1;
+	int			error = 0;
+	int			log_flags = 0;
+	int			sync = tp->t_flags & XFS_TRANS_SYNC;
+
+	/*
+	 * Determine whether this commit is releasing a permanent
+	 * log reservation or not.
+	 */
+	if (flags & XFS_TRANS_RELEASE_LOG_RES) {
+		ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
+		log_flags = XFS_LOG_REL_PERM_RESERV;
+	}
+
+	/*
+	 * If there is nothing to be logged by the transaction,
+	 * then unlock all of the items associated with the
+	 * transaction and free the transaction structure.
+	 * Also make sure to return any reserved blocks to
+	 * the free pool.
+	 */
+	if (!(tp->t_flags & XFS_TRANS_DIRTY))
+		goto out_unreserve;
+
+	if (XFS_FORCED_SHUTDOWN(mp)) {
+		error = XFS_ERROR(EIO);
+		goto out_unreserve;
+	}
+
+	ASSERT(tp->t_ticket != NULL);
+
+	/*
+	 * If we need to update the superblock, then do it now.
+	 */
+	if (tp->t_flags & XFS_TRANS_SB_DIRTY)
+		xfs_trans_apply_sb_deltas(tp);
+	xfs_trans_apply_dquot_deltas(tp);
+
+	error = xfs_trans_commit_iclog(mp, tp, &commit_lsn, flags);
+	if (error == ENOMEM) {
+		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
+		error = XFS_ERROR(EIO);
+		goto out_unreserve;
+	}
 
 	/*
 	 * If the transaction needs to be synchronous, then force the
@@ -989,140 +1242,30 @@ shut_us_down:
 		XFS_STATS_INC(xs_trans_async);
 	}
 
-	return (error);
-}
+	return error;
 
-
-/*
- * Total up the number of log iovecs needed to commit this
- * transaction.  The transaction itself needs one for the
- * transaction header.  Ask each dirty item in turn how many
- * it needs to get the total.
- */
-STATIC uint
-xfs_trans_count_vecs(
-	xfs_trans_t	*tp)
-{
-	int			nvecs;
-	xfs_log_item_desc_t	*lidp;
-
-	nvecs = 1;
-	lidp = xfs_trans_first_item(tp);
-	ASSERT(lidp != NULL);
-
-	/* In the non-debug case we need to start bailing out if we
-	 * didn't find a log_item here, return zero and let trans_commit
-	 * deal with it.
-	 */
-	if (lidp == NULL)
-		return 0;
-
-	while (lidp != NULL) {
-		/*
-		 * Skip items which aren't dirty in this transaction.
-		 */
-		if (!(lidp->lid_flags & XFS_LID_DIRTY)) {
-			lidp = xfs_trans_next_item(tp, lidp);
-			continue;
-		}
-		lidp->lid_size = IOP_SIZE(lidp->lid_item);
-		nvecs += lidp->lid_size;
-		lidp = xfs_trans_next_item(tp, lidp);
-	}
-
-	return nvecs;
-}
-
-/*
- * Called from the trans_commit code when we notice that
- * the filesystem is in the middle of a forced shutdown.
- */
-STATIC void
-xfs_trans_uncommit(
-	xfs_trans_t	*tp,
-	uint		flags)
-{
-	xfs_log_item_desc_t	*lidp;
-
-	for (lidp = xfs_trans_first_item(tp);
-	     lidp != NULL;
-	     lidp = xfs_trans_next_item(tp, lidp)) {
-		/*
-		 * Unpin all but those that aren't dirty.
-		 */
-		if (lidp->lid_flags & XFS_LID_DIRTY)
-			IOP_UNPIN_REMOVE(lidp->lid_item, tp);
-	}
-
+out_unreserve:
 	xfs_trans_unreserve_and_mod_sb(tp);
-	xfs_trans_unreserve_and_mod_dquots(tp);
 
-	xfs_trans_free_items(tp, flags);
+	/*
+	 * It is indeed possible for the transaction to be not dirty but
+	 * the dqinfo portion to be.  All that means is that we have some
+	 * (non-persistent) quota reservations that need to be unreserved.
+	 */
+	xfs_trans_unreserve_and_mod_dquots(tp);
+	if (tp->t_ticket) {
+		commit_lsn = xfs_log_done(mp, tp->t_ticket, NULL, log_flags);
+		if (commit_lsn == -1 && !error)
+			error = XFS_ERROR(EIO);
+	}
+	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+	xfs_trans_free_items(tp, error ? XFS_TRANS_ABORT : 0);
 	xfs_trans_free_busy(tp);
 	xfs_trans_free(tp);
+
+	XFS_STATS_INC(xs_trans_empty);
+	return error;
 }
-
-/*
- * Fill in the vector with pointers to data to be logged
- * by this transaction.  The transaction header takes
- * the first vector, and then each dirty item takes the
- * number of vectors it indicated it needed in xfs_trans_count_vecs().
- *
- * As each item fills in the entries it needs, also pin the item
- * so that it cannot be flushed out until the log write completes.
- */
-STATIC void
-xfs_trans_fill_vecs(
-	xfs_trans_t		*tp,
-	xfs_log_iovec_t		*log_vector)
-{
-	xfs_log_item_desc_t	*lidp;
-	xfs_log_iovec_t		*vecp;
-	uint			nitems;
-
-	/*
-	 * Skip over the entry for the transaction header, we'll
-	 * fill that in at the end.
-	 */
-	vecp = log_vector + 1;		/* pointer arithmetic */
-
-	nitems = 0;
-	lidp = xfs_trans_first_item(tp);
-	ASSERT(lidp != NULL);
-	while (lidp != NULL) {
-		/*
-		 * Skip items which aren't dirty in this transaction.
-		 */
-		if (!(lidp->lid_flags & XFS_LID_DIRTY)) {
-			lidp = xfs_trans_next_item(tp, lidp);
-			continue;
-		}
-		/*
-		 * The item may be marked dirty but not log anything.
-		 * This can be used to get called when a transaction
-		 * is committed.
-		 */
-		if (lidp->lid_size) {
-			nitems++;
-		}
-		IOP_FORMAT(lidp->lid_item, vecp);
-		vecp += lidp->lid_size;		/* pointer arithmetic */
-		IOP_PIN(lidp->lid_item);
-		lidp = xfs_trans_next_item(tp, lidp);
-	}
-
-	/*
-	 * Now that we've counted the number of items in this
-	 * transaction, fill in the transaction header.
-	 */
-	tp->t_header.th_magic = XFS_TRANS_HEADER_MAGIC;
-	tp->t_header.th_type = tp->t_type;
-	tp->t_header.th_num_items = nitems;
-	log_vector->i_addr = (xfs_caddr_t)&tp->t_header;
-	log_vector->i_len = sizeof(xfs_trans_header_t);
-	log_vector->i_type = XLOG_REG_TYPE_TRANSHDR;
-}
-
 
 /*
  * Unlock all of the transaction's items and free the transaction.
@@ -1200,20 +1343,6 @@ xfs_trans_cancel(
 	xfs_trans_free(tp);
 }
 
-
-/*
- * Free the transaction structure.  If there is more clean up
- * to do when the structure is freed, add it here.
- */
-STATIC void
-xfs_trans_free(
-	xfs_trans_t	*tp)
-{
-	atomic_dec(&tp->t_mountp->m_active_trans);
-	xfs_trans_free_dqinfo(tp);
-	kmem_zone_free(xfs_trans_zone, tp);
-}
-
 /*
  * Roll from one trans in the sequence of PERMANENT transactions to
  * the next: permanent transactions are only flushed out when
@@ -1282,175 +1411,4 @@ xfs_trans_roll(
 	xfs_trans_ijoin(trans, dp, XFS_ILOCK_EXCL);
 	xfs_trans_ihold(trans, dp);
 	return 0;
-}
-
-/*
- * THIS SHOULD BE REWRITTEN TO USE xfs_trans_next_item().
- *
- * This is typically called by the LM when a transaction has been fully
- * committed to disk.  It needs to unpin the items which have
- * been logged by the transaction and update their positions
- * in the AIL if necessary.
- * This also gets called when the transactions didn't get written out
- * because of an I/O error. Abortflag & XFS_LI_ABORTED is set then.
- *
- * Call xfs_trans_chunk_committed() to process the items in
- * each chunk.
- */
-STATIC void
-xfs_trans_committed(
-	xfs_trans_t	*tp,
-	int		abortflag)
-{
-	xfs_log_item_chunk_t	*licp;
-	xfs_log_item_chunk_t	*next_licp;
-	xfs_log_busy_chunk_t	*lbcp;
-	xfs_log_busy_slot_t	*lbsp;
-	int			i;
-
-	/*
-	 * Call the transaction's completion callback if there
-	 * is one.
-	 */
-	if (tp->t_callback != NULL) {
-		tp->t_callback(tp, tp->t_callarg);
-	}
-
-	/*
-	 * Special case the chunk embedded in the transaction.
-	 */
-	licp = &(tp->t_items);
-	if (!(xfs_lic_are_all_free(licp))) {
-		xfs_trans_chunk_committed(licp, tp->t_lsn, abortflag);
-	}
-
-	/*
-	 * Process the items in each chunk in turn.
-	 */
-	licp = licp->lic_next;
-	while (licp != NULL) {
-		ASSERT(!xfs_lic_are_all_free(licp));
-		xfs_trans_chunk_committed(licp, tp->t_lsn, abortflag);
-		next_licp = licp->lic_next;
-		kmem_free(licp);
-		licp = next_licp;
-	}
-
-	/*
-	 * Clear all the per-AG busy list items listed in this transaction
-	 */
-	lbcp = &tp->t_busy;
-	while (lbcp != NULL) {
-		for (i = 0, lbsp = lbcp->lbc_busy; i < lbcp->lbc_unused; i++, lbsp++) {
-			if (!XFS_LBC_ISFREE(lbcp, i)) {
-				xfs_alloc_clear_busy(tp, lbsp->lbc_ag,
-						     lbsp->lbc_idx);
-			}
-		}
-		lbcp = lbcp->lbc_next;
-	}
-	xfs_trans_free_busy(tp);
-
-	/*
-	 * That's it for the transaction structure.  Free it.
-	 */
-	xfs_trans_free(tp);
-}
-
-/*
- * This is called to perform the commit processing for each
- * item described by the given chunk.
- *
- * The commit processing consists of unlocking items which were
- * held locked with the SYNC_UNLOCK attribute, calling the committed
- * routine of each logged item, updating the item's position in the AIL
- * if necessary, and unpinning each item.  If the committed routine
- * returns -1, then do nothing further with the item because it
- * may have been freed.
- *
- * Since items are unlocked when they are copied to the incore
- * log, it is possible for two transactions to be completing
- * and manipulating the same item simultaneously.  The AIL lock
- * will protect the lsn field of each item.  The value of this
- * field can never go backwards.
- *
- * We unpin the items after repositioning them in the AIL, because
- * otherwise they could be immediately flushed and we'd have to race
- * with the flusher trying to pull the item from the AIL as we add it.
- */
-STATIC void
-xfs_trans_chunk_committed(
-	xfs_log_item_chunk_t	*licp,
-	xfs_lsn_t		lsn,
-	int			aborted)
-{
-	xfs_log_item_desc_t	*lidp;
-	xfs_log_item_t		*lip;
-	xfs_lsn_t		item_lsn;
-	int			i;
-
-	lidp = licp->lic_descs;
-	for (i = 0; i < licp->lic_unused; i++, lidp++) {
-		struct xfs_ail		*ailp;
-
-		if (xfs_lic_isfree(licp, i)) {
-			continue;
-		}
-
-		lip = lidp->lid_item;
-		if (aborted)
-			lip->li_flags |= XFS_LI_ABORTED;
-
-		/*
-		 * Send in the ABORTED flag to the COMMITTED routine
-		 * so that it knows whether the transaction was aborted
-		 * or not.
-		 */
-		item_lsn = IOP_COMMITTED(lip, lsn);
-
-		/*
-		 * If the committed routine returns -1, make
-		 * no more references to the item.
-		 */
-		if (XFS_LSN_CMP(item_lsn, (xfs_lsn_t)-1) == 0) {
-			continue;
-		}
-
-		/*
-		 * If the returned lsn is greater than what it
-		 * contained before, update the location of the
-		 * item in the AIL.  If it is not, then do nothing.
-		 * Items can never move backwards in the AIL.
-		 *
-		 * While the new lsn should usually be greater, it
-		 * is possible that a later transaction completing
-		 * simultaneously with an earlier one using the
-		 * same item could complete first with a higher lsn.
-		 * This would cause the earlier transaction to fail
-		 * the test below.
-		 */
-		ailp = lip->li_ailp;
-		spin_lock(&ailp->xa_lock);
-		if (XFS_LSN_CMP(item_lsn, lip->li_lsn) > 0) {
-			/*
-			 * This will set the item's lsn to item_lsn
-			 * and update the position of the item in
-			 * the AIL.
-			 *
-			 * xfs_trans_ail_update() drops the AIL lock.
-			 */
-			xfs_trans_ail_update(ailp, lip, item_lsn);
-		} else {
-			spin_unlock(&ailp->xa_lock);
-		}
-
-		/*
-		 * Now that we've repositioned the item in the AIL,
-		 * unpin it so it can be flushed. Pass information
-		 * about buffer stale state down from the log item
-		 * flags, if anyone else stales the buffer we do not
-		 * want to pay any attention to it.
-		 */
-		IOP_UNPIN(lip, lidp->lid_flags & XFS_LID_BUF_STALE);
-	}
 }

@@ -38,6 +38,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/uaccess.h>
 #include <linux/proc_fs.h>
 #include <linux/of.h>

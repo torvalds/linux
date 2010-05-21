@@ -1,8 +1,8 @@
 /*
  *  HID driver for N-Trig touchscreens
  *
- *  Copyright (c) 2008 Rafi Rubin
- *  Copyright (c) 2009 Stephane Chatty
+ *  Copyright (c) 2008-2010 Rafi Rubin
+ *  Copyright (c) 2009-2010 Stephane Chatty
  *
  */
 
@@ -15,23 +15,25 @@
 
 #include <linux/device.h>
 #include <linux/hid.h>
+#include <linux/usb.h>
+#include "usbhid/usbhid.h"
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include "hid-ids.h"
 
 #define NTRIG_DUPLICATE_USAGES	0x001
 
-#define nt_map_key_clear(c)	hid_map_usage_clear(hi, usage, bit, max, \
-					EV_KEY, (c))
-
 struct ntrig_data {
 	/* Incoming raw values for a single contact */
 	__u16 x, y, w, h;
 	__u16 id;
-	__u8 confidence;
+
+	bool tipswitch;
+	bool confidence;
+	bool first_contact_touch;
 
 	bool reading_mt;
-	__u8 first_contact_confidence;
 
 	__u8 mt_footer[4];
 	__u8 mt_foot_count;
@@ -138,8 +140,12 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 		case 0xff000001:
 			/* Tag indicating the start of a multitouch group */
 			nd->reading_mt = 1;
-			nd->first_contact_confidence = 0;
+			nd->first_contact_touch = 0;
 			break;
+		case HID_DG_TIPSWITCH:
+			nd->tipswitch = value;
+			/* Prevent emission of touch until validated */
+			return 1;
 		case HID_DG_CONFIDENCE:
 			nd->confidence = value;
 			break;
@@ -165,8 +171,14 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			 * to emit a normal (X, Y) position
 			 */
 			if (!nd->reading_mt) {
+				/*
+				 * TipSwitch indicates the presence of a
+				 * finger in single touch mode.
+				 */
+				input_report_key(input, BTN_TOUCH,
+						 nd->tipswitch);
 				input_report_key(input, BTN_TOOL_DOUBLETAP,
-						 (nd->confidence != 0));
+						 nd->tipswitch);
 				input_event(input, EV_ABS, ABS_X, nd->x);
 				input_event(input, EV_ABS, ABS_Y, nd->y);
 			}
@@ -205,7 +217,13 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 
 			/* emit a normal (X, Y) for the first point only */
 			if (nd->id == 0) {
-				nd->first_contact_confidence = nd->confidence;
+				/*
+				 * TipSwitch is superfluous in multitouch
+				 * mode.  The footer events tell us
+				 * if there is a finger on the screen or
+				 * not.
+				 */
+				nd->first_contact_touch = nd->confidence;
 				input_event(input, EV_ABS, ABS_X, nd->x);
 				input_event(input, EV_ABS, ABS_Y, nd->y);
 			}
@@ -235,30 +253,12 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 
 			nd->reading_mt = 0;
 
-			if (nd->first_contact_confidence) {
-				switch (value) {
-				case 0:	/* for single touch devices */
-				case 1:
-					input_report_key(input,
-							BTN_TOOL_DOUBLETAP, 1);
-					break;
-				case 2:
-					input_report_key(input,
-							BTN_TOOL_TRIPLETAP, 1);
-					break;
-				case 3:
-				default:
-					input_report_key(input,
-							BTN_TOOL_QUADTAP, 1);
-				}
+			if (nd->first_contact_touch) {
+				input_report_key(input, BTN_TOOL_DOUBLETAP, 1);
 				input_report_key(input, BTN_TOUCH, 1);
 			} else {
-				input_report_key(input,
-						BTN_TOOL_DOUBLETAP, 0);
-				input_report_key(input,
-						BTN_TOOL_TRIPLETAP, 0);
-				input_report_key(input,
-						BTN_TOOL_QUADTAP, 0);
+				input_report_key(input, BTN_TOOL_DOUBLETAP, 0);
+				input_report_key(input, BTN_TOUCH, 0);
 			}
 			break;
 
@@ -281,6 +281,7 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 	struct ntrig_data *nd;
 	struct hid_input *hidinput;
 	struct input_dev *input;
+	struct hid_report *report;
 
 	if (id->driver_data)
 		hdev->quirks |= HID_QUIRK_MULTI_INPUT;
@@ -308,20 +309,21 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 
 	list_for_each_entry(hidinput, &hdev->inputs, list) {
+		if (hidinput->report->maxfield < 1)
+			continue;
+
 		input = hidinput->input;
 		switch (hidinput->report->field[0]->application) {
 		case HID_DG_PEN:
 			input->name = "N-Trig Pen";
 			break;
 		case HID_DG_TOUCHSCREEN:
+			/* These keys are redundant for fingers, clear them
+			 * to prevent incorrect identification */
 			__clear_bit(BTN_TOOL_PEN, input->keybit);
-			/*
-			 * A little something special to enable
-			 * two and three finger taps.
-			 */
+			__clear_bit(BTN_TOOL_FINGER, input->keybit);
+			__clear_bit(BTN_0, input->keybit);
 			__set_bit(BTN_TOOL_DOUBLETAP, input->keybit);
-			__set_bit(BTN_TOOL_TRIPLETAP, input->keybit);
-			__set_bit(BTN_TOOL_QUADTAP, input->keybit);
 			/*
 			 * The physical touchscreen (single touch)
 			 * input has a value for physical, whereas
@@ -336,6 +338,12 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 			break;
 		}
 	}
+
+	/* This is needed for devices with more recent firmware versions */
+	report = hdev->report_enum[HID_FEATURE_REPORT].report_id_hash[0x0a];
+	if (report)
+		usbhid_submit_report(hdev, report, USB_DIR_OUT);
+
 
 	return 0;
 err_free:

@@ -724,7 +724,7 @@ int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	int ret, tmp_width;
 	struct overlay_registers *regs;
 	bool scale_changed = false;
-	struct drm_i915_gem_object *bo_priv = new_bo->driver_private;
+	struct drm_i915_gem_object *bo_priv = to_intel_bo(new_bo);
 	struct drm_device *dev = overlay->dev;
 
 	BUG_ON(!mutex_is_locked(&dev->struct_mutex));
@@ -809,7 +809,7 @@ int intel_overlay_do_put_image(struct intel_overlay *overlay,
 	intel_overlay_continue(overlay, scale_changed);
 
 	overlay->old_vid_bo = overlay->vid_bo;
-	overlay->vid_bo = new_bo->driver_private;
+	overlay->vid_bo = to_intel_bo(new_bo);
 
 	return 0;
 
@@ -1068,14 +1068,18 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 
 	drmmode_obj = drm_mode_object_find(dev, put_image_rec->crtc_id,
                         DRM_MODE_OBJECT_CRTC);
-	if (!drmmode_obj)
-		return -ENOENT;
+	if (!drmmode_obj) {
+		ret = -ENOENT;
+		goto out_free;
+	}
 	crtc = to_intel_crtc(obj_to_crtc(drmmode_obj));
 
 	new_bo = drm_gem_object_lookup(dev, file_priv,
 			put_image_rec->bo_handle);
-	if (!new_bo)
-		return -ENOENT;
+	if (!new_bo) {
+		ret = -ENOENT;
+		goto out_free;
+	}
 
 	mutex_lock(&dev->mode_config.mutex);
 	mutex_lock(&dev->struct_mutex);
@@ -1165,6 +1169,7 @@ out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	mutex_unlock(&dev->mode_config.mutex);
 	drm_gem_object_unreference_unlocked(new_bo);
+out_free:
 	kfree(params);
 
 	return ret;
@@ -1339,7 +1344,7 @@ void intel_setup_overlay(struct drm_device *dev)
 	reg_bo = drm_gem_object_alloc(dev, PAGE_SIZE);
 	if (!reg_bo)
 		goto out_free;
-	overlay->reg_bo = reg_bo->driver_private;
+	overlay->reg_bo = to_intel_bo(reg_bo);
 
 	if (OVERLAY_NONPHYSICAL(dev)) {
 		ret = i915_gem_object_pin(reg_bo, PAGE_SIZE);

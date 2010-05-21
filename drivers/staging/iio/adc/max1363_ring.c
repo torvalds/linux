@@ -12,6 +12,7 @@
 #include <linux/gpio.h>
 #include <linux/workqueue.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/sysfs.h>
 #include <linux/list.h>

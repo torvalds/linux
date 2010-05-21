@@ -29,6 +29,7 @@
 #include <linux/serial.h>
 #include <linux/sysrq.h>
 #include <linux/console.h>
+#include <linux/slab.h>
 #ifdef CONFIG_SERIO
 #include <linux/serio.h>
 #endif
@@ -1453,8 +1454,10 @@ static int __devinit su_probe(struct of_device *op, const struct of_device_id *m
 	if (up->su_type == SU_PORT_KBD || up->su_type == SU_PORT_MS) {
 		err = sunsu_kbd_ms_init(up);
 		if (err) {
+			of_iounmap(&op->resource[0],
+				   up->port.membase, up->reg_size);
 			kfree(up);
-			goto out_unmap;
+			return err;
 		}
 		dev_set_drvdata(&op->dev, up);
 

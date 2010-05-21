@@ -205,8 +205,8 @@ struct atp {
 	bool			overflow_warned;
 	int			x_old;		/* last reported x/y, */
 	int			y_old;		/* used for smoothing */
-	signed char		xy_cur[ATP_XSENSORS + ATP_YSENSORS];
-	signed char		xy_old[ATP_XSENSORS + ATP_YSENSORS];
+	u8			xy_cur[ATP_XSENSORS + ATP_YSENSORS];
+	u8			xy_old[ATP_XSENSORS + ATP_YSENSORS];
 	int			xy_acc[ATP_XSENSORS + ATP_YSENSORS];
 	int			idlecount;	/* number of empty packets */
 	struct work_struct	work;
@@ -531,7 +531,7 @@ static void atp_complete_geyser_1_2(struct urb *urb)
 
 	for (i = 0; i < ATP_XSENSORS + ATP_YSENSORS; i++) {
 		/* accumulate the change */
-		signed char change = dev->xy_old[i] - dev->xy_cur[i];
+		int change = dev->xy_old[i] - dev->xy_cur[i];
 		dev->xy_acc[i] -= change;
 
 		/* prevent down drifting */
@@ -806,8 +806,8 @@ static int atp_probe(struct usb_interface *iface,
 	if (!dev->urb)
 		goto err_free_devs;
 
-	dev->data = usb_buffer_alloc(dev->udev, dev->info->datalen, GFP_KERNEL,
-				     &dev->urb->transfer_dma);
+	dev->data = usb_alloc_coherent(dev->udev, dev->info->datalen, GFP_KERNEL,
+				       &dev->urb->transfer_dma);
 	if (!dev->data)
 		goto err_free_urb;
 
@@ -862,8 +862,8 @@ static int atp_probe(struct usb_interface *iface,
 	return 0;
 
  err_free_buffer:
-	usb_buffer_free(dev->udev, dev->info->datalen,
-			dev->data, dev->urb->transfer_dma);
+	usb_free_coherent(dev->udev, dev->info->datalen,
+			  dev->data, dev->urb->transfer_dma);
  err_free_urb:
 	usb_free_urb(dev->urb);
  err_free_devs:
@@ -881,8 +881,8 @@ static void atp_disconnect(struct usb_interface *iface)
 	if (dev) {
 		usb_kill_urb(dev->urb);
 		input_unregister_device(dev->input);
-		usb_buffer_free(dev->udev, dev->info->datalen,
-				dev->data, dev->urb->transfer_dma);
+		usb_free_coherent(dev->udev, dev->info->datalen,
+				  dev->data, dev->urb->transfer_dma);
 		usb_free_urb(dev->urb);
 		kfree(dev);
 	}

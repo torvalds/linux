@@ -43,6 +43,7 @@
 #include <asm/smp.h>
 #include <asm/system.h>
 #include <asm/mmu.h>
+#include <asm/paca.h>
 #include <asm/pgtable.h>
 #include <asm/pci.h>
 #include <asm/iommu.h>
@@ -720,6 +721,8 @@ void __init early_init_devtree(void *params)
 	/* We may need to relocate the flat tree, do it now.
 	 * FIXME .. and the initrd too? */
 	move_device_tree();
+
+	allocate_pacas();
 
 	DBG("Scanning CPUs ...\n");
 

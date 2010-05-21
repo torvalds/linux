@@ -263,6 +263,7 @@ static void mcf_set_termios(struct uart_port *port, struct ktermios *termios,
 	}
 
 	spin_lock_irqsave(&port->lock, flags);
+	uart_update_timeout(port, termios->c_cflag, baud);
 	writeb(MCFUART_UCR_CMDRESETRX, port->membase + MCFUART_UCR);
 	writeb(MCFUART_UCR_CMDRESETTX, port->membase + MCFUART_UCR);
 	writeb(MCFUART_UCR_CMDRESETMRPTR, port->membase + MCFUART_UCR);
@@ -379,6 +380,7 @@ static irqreturn_t mcf_interrupt(int irq, void *data)
 static void mcf_config_port(struct uart_port *port, int flags)
 {
 	port->type = PORT_MCF;
+	port->fifosize = MCFUART_TXFIFOSIZE;
 
 	/* Clear mask, so no surprise interrupts. */
 	writeb(0, port->membase + MCFUART_UIMR);
@@ -424,7 +426,7 @@ static int mcf_verify_port(struct uart_port *port, struct serial_struct *ser)
 /*
  *	Define the basic serial functions we support.
  */
-static struct uart_ops mcf_uart_ops = {
+static const struct uart_ops mcf_uart_ops = {
 	.tx_empty	= mcf_tx_empty,
 	.get_mctrl	= mcf_get_mctrl,
 	.set_mctrl	= mcf_set_mctrl,
@@ -443,7 +445,7 @@ static struct uart_ops mcf_uart_ops = {
 	.verify_port	= mcf_verify_port,
 };
 
-static struct mcf_uart mcf_ports[3];
+static struct mcf_uart mcf_ports[4];
 
 #define	MCF_MAXPORTS	ARRAY_SIZE(mcf_ports)
 

@@ -18,6 +18,7 @@
 #include <linux/rtnetlink.h>
 #include <linux/ip.h>
 #include <linux/uaccess.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 #include <linux/atm.h>
 #include <linux/atmdev.h>
@@ -445,7 +446,6 @@ error:
 	net_dev->stats.rx_errors++;
 free_skb:
 	dev_kfree_skb(skb);
-	return;
 }
 
 /*

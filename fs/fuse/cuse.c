@@ -44,6 +44,7 @@
 #include <linux/magic.h>
 #include <linux/miscdevice.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/stat.h>
 

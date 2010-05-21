@@ -49,17 +49,17 @@ static struct platform_device simone_flash = {
 	},
 };
 
-static struct ep93xx_eth_data simone_eth_data = {
+static struct ep93xx_eth_data __initdata simone_eth_data = {
 	.phy_id		= 1,
 };
 
-static struct ep93xxfb_mach_info simone_fb_info = {
+static struct ep93xxfb_mach_info __initdata simone_fb_info = {
 	.num_modes	= EP93XXFB_USE_MODEDB,
 	.bpp		= 16,
 	.flags		= EP93XXFB_USE_SDCSN0 | EP93XXFB_PCLK_FALLING,
 };
 
-static struct i2c_gpio_platform_data simone_i2c_gpio_data = {
+static struct i2c_gpio_platform_data __initdata simone_i2c_gpio_data = {
 	.sda_pin		= EP93XX_GPIO_LINE_EEDAT,
 	.sda_is_open_drain	= 0,
 	.scl_pin		= EP93XX_GPIO_LINE_EECLK,

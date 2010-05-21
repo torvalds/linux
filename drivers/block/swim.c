@@ -18,6 +18,7 @@
 
 #include <linux/module.h>
 #include <linux/fd.h>
+#include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/hdreg.h>
 #include <linux/kernel.h>

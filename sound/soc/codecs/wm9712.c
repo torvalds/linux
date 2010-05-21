@@ -11,6 +11,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
@@ -630,9 +631,6 @@ static int wm9712_soc_resume(struct platform_device *pdev)
 			soc_ac97_ops.write(codec->ac97, i, cache[i>>1]);
 		}
 	}
-
-	if (codec->suspend_bias_level == SND_SOC_BIAS_ON)
-		wm9712_set_bias_level(codec, SND_SOC_BIAS_ON);
 
 	return ret;
 }

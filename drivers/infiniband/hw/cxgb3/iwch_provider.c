@@ -42,6 +42,7 @@
 #include <linux/ethtool.h>
 #include <linux/rtnetlink.h>
 #include <linux/inetdevice.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>

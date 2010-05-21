@@ -220,6 +220,16 @@ void __init bfin_relocate_l1_mem(void)
 		memcpy(_stext_l2, _l2_lma, l2_len);
 }
 
+#ifdef CONFIG_ROMKERNEL
+void __init bfin_relocate_xip_data(void)
+{
+	early_shadow_stamp();
+
+	memcpy(_sdata, _data_lma, (unsigned long)_data_len - THREAD_SIZE + sizeof(struct thread_info));
+	memcpy(_sinitdata, _init_data_lma, (unsigned long)_init_data_len);
+}
+#endif
+
 /* add_memory_region to memmap */
 static void __init add_memory_region(unsigned long long start,
 			      unsigned long long size, int type)
@@ -504,7 +514,7 @@ static __init void memory_setup(void)
 #endif
 	unsigned long max_mem;
 
-	_rambase = (unsigned long)_stext;
+	_rambase = CONFIG_BOOT_LOAD;
 	_ramstart = (unsigned long)_end;
 
 	if (DMA_UNCACHED_REGION > (_ramend - _ramstart)) {
@@ -597,7 +607,12 @@ static __init void memory_setup(void)
 	}
 
 #ifdef CONFIG_MPU
+#if defined(CONFIG_ROMFS_ON_MTD) && defined(CONFIG_MTD_ROM)
+	page_mask_nelts = (((_ramend + ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE -
+					ASYNC_BANK0_BASE) >> PAGE_SHIFT) + 31) / 32;
+#else
 	page_mask_nelts = ((_ramend >> PAGE_SHIFT) + 31) / 32;
+#endif
 	page_mask_order = get_order(3 * page_mask_nelts * sizeof(long));
 #endif
 
@@ -630,7 +645,7 @@ static __init void memory_setup(void)
 		__bss_start, __bss_stop,
 		_sdata, _edata,
 		(void *)&init_thread_union,
-		(void *)((int)(&init_thread_union) + 0x2000),
+		(void *)((int)(&init_thread_union) + THREAD_SIZE),
 		__init_begin, __init_end,
 		(void *)_ramstart, (void *)memory_end
 #ifdef CONFIG_MTD_UCLINUX
@@ -792,9 +807,16 @@ static inline int __init get_mem_size(void)
 	BUG();
 }
 
+__attribute__((weak))
+void __init native_machine_early_platform_add_devices(void)
+{
+}
+
 void __init setup_arch(char **cmdline_p)
 {
 	unsigned long sclk, cclk;
+
+	native_machine_early_platform_add_devices();
 
 	enable_shadow_console();
 
@@ -1217,10 +1239,10 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   dsup_banks, BFIN_DSUBBANKS, BFIN_DWAYS,
 		   BFIN_DLINES);
 #ifdef __ARCH_SYNC_CORE_DCACHE
-	seq_printf(m, "SMP Dcache Flushes\t: %lu\n\n", cpudata->dcache_invld_count);
+	seq_printf(m, "SMP Dcache Flushes\t: %lu\n\n", dcache_invld_count[cpu_num]);
 #endif
 #ifdef __ARCH_SYNC_CORE_ICACHE
-	seq_printf(m, "SMP Icache Flushes\t: %lu\n\n", cpudata->icache_invld_count);
+	seq_printf(m, "SMP Icache Flushes\t: %lu\n\n", icache_invld_count[cpu_num]);
 #endif
 
 	if (cpu_num != num_possible_cpus() - 1)
@@ -1249,8 +1271,8 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	seq_printf(m, "board memory\t: %ld kB (0x%p -> 0x%p)\n",
 		 physical_mem_end >> 10, (void *)0, (void *)physical_mem_end);
 	seq_printf(m, "kernel memory\t: %d kB (0x%p -> 0x%p)\n",
-		((int)memory_end - (int)_stext) >> 10,
-		_stext,
+		((int)memory_end - (int)_rambase) >> 10,
+		(void *)_rambase,
 		(void *)memory_end);
 	seq_printf(m, "\n");
 

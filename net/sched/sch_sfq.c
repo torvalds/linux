@@ -20,6 +20,7 @@
 #include <linux/ipv6.h>
 #include <linux/skbuff.h>
 #include <linux/jhash.h>
+#include <linux/slab.h>
 #include <net/ip.h>
 #include <net/netlink.h>
 #include <net/pkt_sched.h>
@@ -122,8 +123,8 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 	case htons(ETH_P_IP):
 	{
 		const struct iphdr *iph = ip_hdr(skb);
-		h = iph->daddr;
-		h2 = iph->saddr ^ iph->protocol;
+		h = (__force u32)iph->daddr;
+		h2 = (__force u32)iph->saddr ^ iph->protocol;
 		if (!(iph->frag_off&htons(IP_MF|IP_OFFSET)) &&
 		    (iph->protocol == IPPROTO_TCP ||
 		     iph->protocol == IPPROTO_UDP ||
@@ -137,8 +138,8 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 	case htons(ETH_P_IPV6):
 	{
 		struct ipv6hdr *iph = ipv6_hdr(skb);
-		h = iph->daddr.s6_addr32[3];
-		h2 = iph->saddr.s6_addr32[3] ^ iph->nexthdr;
+		h = (__force u32)iph->daddr.s6_addr32[3];
+		h2 = (__force u32)iph->saddr.s6_addr32[3] ^ iph->nexthdr;
 		if (iph->nexthdr == IPPROTO_TCP ||
 		    iph->nexthdr == IPPROTO_UDP ||
 		    iph->nexthdr == IPPROTO_UDPLITE ||
@@ -149,7 +150,7 @@ static unsigned sfq_hash(struct sfq_sched_data *q, struct sk_buff *skb)
 		break;
 	}
 	default:
-		h = (unsigned long)skb_dst(skb) ^ skb->protocol;
+		h = (unsigned long)skb_dst(skb) ^ (__force u32)skb->protocol;
 		h2 = (unsigned long)skb->sk;
 	}
 

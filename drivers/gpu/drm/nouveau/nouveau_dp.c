@@ -483,7 +483,7 @@ nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 	ctrl |= (cmd << NV50_AUXCH_CTRL_CMD_SHIFT);
 	ctrl |= ((data_nr - 1) << NV50_AUXCH_CTRL_LEN_SHIFT);
 
-	for (;;) {
+	for (i = 0; i < 16; i++) {
 		nv_wr32(dev, NV50_AUXCH_CTRL(index), ctrl | 0x80000000);
 		nv_wr32(dev, NV50_AUXCH_CTRL(index), ctrl);
 		nv_wr32(dev, NV50_AUXCH_CTRL(index), ctrl | 0x00010000);
@@ -500,6 +500,12 @@ nouveau_dp_auxch(struct nouveau_i2c_chan *auxch, int cmd, int addr,
 		if ((stat & NV50_AUXCH_STAT_REPLY_AUX) !=
 			    NV50_AUXCH_STAT_REPLY_AUX_DEFER)
 			break;
+	}
+
+	if (i == 16) {
+		NV_ERROR(dev, "auxch DEFER too many times, bailing\n");
+		ret = -EREMOTEIO;
+		goto out;
 	}
 
 	if (cmd & 1) {

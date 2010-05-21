@@ -16,6 +16,7 @@
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
 #include <linux/idr.h>
+#include <linux/gfp.h>
 
 #include "../w1.h"
 #include "../w1_int.h"
