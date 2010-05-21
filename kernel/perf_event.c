@@ -1736,6 +1736,11 @@ static void __perf_event_read(void *info)
 	event->pmu->read(event);
 }
 
+static inline u64 perf_event_count(struct perf_event *event)
+{
+	return atomic64_read(&event->count);
+}
+
 static u64 perf_event_read(struct perf_event *event)
 {
 	/*
@@ -1755,7 +1760,7 @@ static u64 perf_event_read(struct perf_event *event)
 		raw_spin_unlock_irqrestore(&ctx->lock, flags);
 	}
 
-	return atomic64_read(&event->count);
+	return perf_event_count(event);
 }
 
 /*
@@ -2352,7 +2357,7 @@ void perf_event_update_userpage(struct perf_event *event)
 	++userpg->lock;
 	barrier();
 	userpg->index = perf_event_index(event);
-	userpg->offset = atomic64_read(&event->count);
+	userpg->offset = perf_event_count(event);
 	if (event->state == PERF_EVENT_STATE_ACTIVE)
 		userpg->offset -= atomic64_read(&event->hw.prev_count);
 
@@ -3211,7 +3216,7 @@ static void perf_output_read_one(struct perf_output_handle *handle,
 	u64 values[4];
 	int n = 0;
 
-	values[n++] = atomic64_read(&event->count);
+	values[n++] = perf_event_count(event);
 	if (read_format & PERF_FORMAT_TOTAL_TIME_ENABLED) {
 		values[n++] = event->total_time_enabled +
 			atomic64_read(&event->child_total_time_enabled);
@@ -3248,7 +3253,7 @@ static void perf_output_read_group(struct perf_output_handle *handle,
 	if (leader != event)
 		leader->pmu->read(leader);
 
-	values[n++] = atomic64_read(&leader->count);
+	values[n++] = perf_event_count(leader);
 	if (read_format & PERF_FORMAT_ID)
 		values[n++] = primary_event_id(leader);
 
@@ -3260,7 +3265,7 @@ static void perf_output_read_group(struct perf_output_handle *handle,
 		if (sub != event)
 			sub->pmu->read(sub);
 
-		values[n++] = atomic64_read(&sub->count);
+		values[n++] = perf_event_count(sub);
 		if (read_format & PERF_FORMAT_ID)
 			values[n++] = primary_event_id(sub);
 
@@ -5369,7 +5374,7 @@ static void sync_child_event(struct perf_event *child_event,
 	if (child_event->attr.inherit_stat)
 		perf_event_read_event(child_event, child);
 
-	child_val = atomic64_read(&child_event->count);
+	child_val = perf_event_count(child_event);
 
 	/*
 	 * Add back the child's count to the parent's count:
