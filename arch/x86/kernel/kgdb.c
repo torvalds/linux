@@ -199,6 +199,8 @@ static struct hw_breakpoint {
 	struct perf_event	**pev;
 } breakinfo[4];
 
+static unsigned long early_dr7;
+
 static void kgdb_correct_hw_break(void)
 {
 	int breakno;
@@ -210,6 +212,14 @@ static void kgdb_correct_hw_break(void)
 		int cpu = raw_smp_processor_id();
 		if (!breakinfo[breakno].enabled)
 			continue;
+		if (dbg_is_early) {
+			set_debugreg(breakinfo[breakno].addr, breakno);
+			early_dr7 |= encode_dr7(breakno,
+						breakinfo[breakno].len,
+						breakinfo[breakno].type);
+			set_debugreg(early_dr7, 7);
+			continue;
+		}
 		bp = *per_cpu_ptr(breakinfo[breakno].pev, cpu);
 		info = counter_arch_bp(bp);
 		if (bp->attr.disabled != 1)
@@ -224,7 +234,8 @@ static void kgdb_correct_hw_break(void)
 		if (!val)
 			bp->attr.disabled = 0;
 	}
-	hw_breakpoint_restore();
+	if (!dbg_is_early)
+		hw_breakpoint_restore();
 }
 
 static int hw_break_reserve_slot(int breakno)
@@ -232,6 +243,9 @@ static int hw_break_reserve_slot(int breakno)
 	int cpu;
 	int cnt = 0;
 	struct perf_event **pevent;
+
+	if (dbg_is_early)
+		return 0;
 
 	for_each_online_cpu(cpu) {
 		cnt++;
@@ -257,6 +271,9 @@ static int hw_break_release_slot(int breakno)
 {
 	struct perf_event **pevent;
 	int cpu;
+
+	if (dbg_is_early)
+		return 0;
 
 	for_each_online_cpu(cpu) {
 		pevent = per_cpu_ptr(breakinfo[breakno].pev, cpu);
@@ -302,7 +319,11 @@ static void kgdb_remove_all_hw_break(void)
 		bp = *per_cpu_ptr(breakinfo[i].pev, cpu);
 		if (bp->attr.disabled == 1)
 			continue;
-		arch_uninstall_hw_breakpoint(bp);
+		if (dbg_is_early)
+			early_dr7 &= ~encode_dr7(i, breakinfo[i].len,
+						 breakinfo[i].type);
+		else
+			arch_uninstall_hw_breakpoint(bp);
 		bp->attr.disabled = 1;
 	}
 }
@@ -379,6 +400,11 @@ void kgdb_disable_hw_debug(struct pt_regs *regs)
 	for (i = 0; i < 4; i++) {
 		if (!breakinfo[i].enabled)
 			continue;
+		if (dbg_is_early) {
+			early_dr7 &= ~encode_dr7(i, breakinfo[i].len,
+						 breakinfo[i].type);
+			continue;
+		}
 		bp = *per_cpu_ptr(breakinfo[i].pev, cpu);
 		if (bp->attr.disabled == 1)
 			continue;
