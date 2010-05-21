@@ -30,6 +30,9 @@
 #include <linux/i2c/pca953x.h>
 
 #include <linux/mfd/da903x.h>
+#include <linux/regulator/machine.h>
+#include <linux/power_supply.h>
+#include <linux/apm-emulation.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_gpio.h>
@@ -430,7 +433,7 @@ static inline void cm_x300_init_nand(void) {}
 
 #if defined(CONFIG_MMC) || defined(CONFIG_MMC_MODULE)
 static struct pxamci_platform_data cm_x300_mci_platform_data = {
-	.detect_delay		= 20,
+	.detect_delay_ms	= 200,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.gpio_card_detect	= GPIO82_MMC_IRQ,
 	.gpio_card_ro		= GPIO85_MMC_WP,
@@ -451,7 +454,7 @@ static void cm_x300_mci2_exit(struct device *dev, void *data)
 }
 
 static struct pxamci_platform_data cm_x300_mci2_platform_data = {
-	.detect_delay		= 20,
+	.detect_delay_ms	= 200,
 	.ocr_mask		= MMC_VDD_32_33|MMC_VDD_33_34,
 	.init 			= cm_x300_mci2_init,
 	.exit			= cm_x300_mci2_exit,
@@ -584,12 +587,87 @@ static void __init cm_x300_init_rtc(void)
 static inline void cm_x300_init_rtc(void) {}
 #endif
 
+/* Battery */
+struct power_supply_info cm_x300_psy_info = {
+	.name = "battery",
+	.technology = POWER_SUPPLY_TECHNOLOGY_LIPO,
+	.voltage_max_design = 4200000,
+	.voltage_min_design = 3000000,
+	.use_for_apm = 1,
+};
+
+static void cm_x300_battery_low(void)
+{
+#if defined(CONFIG_APM_EMULATION)
+	apm_queue_event(APM_LOW_BATTERY);
+#endif
+}
+
+static void cm_x300_battery_critical(void)
+{
+#if defined(CONFIG_APM_EMULATION)
+	apm_queue_event(APM_CRITICAL_SUSPEND);
+#endif
+}
+
+struct da9030_battery_info cm_x300_battery_info = {
+	.battery_info = &cm_x300_psy_info,
+
+	.charge_milliamp = 1000,
+	.charge_millivolt = 4200,
+
+	.vbat_low = 3600,
+	.vbat_crit = 3400,
+	.vbat_charge_start = 4100,
+	.vbat_charge_stop = 4200,
+	.vbat_charge_restart = 4000,
+
+	.vcharge_min = 3200,
+	.vcharge_max = 5500,
+
+	.tbat_low = 197,
+	.tbat_high = 78,
+	.tbat_restart = 100,
+
+	.batmon_interval = 0,
+
+	.battery_low = cm_x300_battery_low,
+	.battery_critical = cm_x300_battery_critical,
+};
+
+static struct regulator_consumer_supply buck2_consumers[] = {
+	{
+		.dev = NULL,
+		.supply = "vcc_core",
+	},
+};
+
+static struct regulator_init_data buck2_data = {
+	.constraints = {
+		.min_uV = 1375000,
+		.max_uV = 1375000,
+		.state_mem = {
+			.enabled = 0,
+		},
+		.valid_ops_mask = REGULATOR_CHANGE_VOLTAGE,
+		.apply_uV = 1,
+	},
+	.num_consumer_supplies = ARRAY_SIZE(buck2_consumers),
+	.consumer_supplies = buck2_consumers,
+};
+
 /* DA9030 */
 struct da903x_subdev_info cm_x300_da9030_subdevs[] = {
 	{
-		.name = "da903x-backlight",
-		.id = DA9030_ID_WLED,
-	}
+		.name = "da903x-battery",
+		.id = DA9030_ID_BAT,
+		.platform_data = &cm_x300_battery_info,
+	},
+	{
+		.name = "da903x-regulator",
+		.id = DA9030_ID_BUCK2,
+		.platform_data = &buck2_data,
+	},
 };
 
 static struct da903x_platform_data cm_x300_da9030_info = {
@@ -599,7 +677,7 @@ static struct da903x_platform_data cm_x300_da9030_info = {
 
 static struct i2c_board_info cm_x300_pmic_info = {
 	I2C_BOARD_INFO("da9030", 0x49),
-	.irq = IRQ_GPIO(0),
+	.irq = IRQ_WAKEUP0,
 	.platform_data = &cm_x300_da9030_info,
 };
 
@@ -689,13 +767,13 @@ static void __init cm_x300_init(void)
 static void __init cm_x300_fixup(struct machine_desc *mdesc, struct tag *tags,
 				 char **cmdline, struct meminfo *mi)
 {
-	mi->nr_banks = 2;
-	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].node = 0;
-	mi->bank[0].size = (64*1024*1024);
-	mi->bank[1].start = 0xc0000000;
-	mi->bank[1].node = 0;
-	mi->bank[1].size = (64*1024*1024);
+	/* Make sure that mi->bank[0].start = PHYS_ADDR */
+	for (; tags->hdr.size; tags = tag_next(tags))
+		if (tags->hdr.tag == ATAG_MEM &&
+			tags->u.mem.start == 0x80000000) {
+			tags->u.mem.start = 0xa0000000;
+			break;
+		}
 }
 
 MACHINE_START(CM_X300, "CM-X300 module")

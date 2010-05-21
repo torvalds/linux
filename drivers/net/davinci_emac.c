@@ -952,13 +952,14 @@ static void emac_dev_mcast_set(struct net_device *ndev)
 			emac_add_mcast(priv, EMAC_ALL_MULTI_SET, NULL);
 		}
 		if (!netdev_mc_empty(ndev)) {
-			struct dev_mc_list *mc_ptr;
+			struct netdev_hw_addr *ha;
+
 			mbp_enable = (mbp_enable | EMAC_MBP_RXMCAST);
 			emac_add_mcast(priv, EMAC_ALL_MULTI_CLR, NULL);
 			/* program multicast address list into EMAC hardware */
-			netdev_for_each_mc_addr(mc_ptr, ndev) {
+			netdev_for_each_mc_addr(ha, ndev) {
 				emac_add_mcast(priv, EMAC_MULTICAST_ADD,
-					       (u8 *) mc_ptr->dmi_addr);
+					       (u8 *) ha->addr);
 			}
 		} else {
 			mbp_enable = (mbp_enable & ~EMAC_MBP_RXMCAST);
@@ -1467,7 +1468,6 @@ static int emac_dev_xmit(struct sk_buff *skb, struct net_device *ndev)
 	tx_buf.length = skb->len;
 	tx_buf.buf_token = (void *)skb;
 	tx_buf.data_ptr = skb->data;
-	ndev->trans_start = jiffies;
 	ret_code = emac_send(priv, &tx_packet, EMAC_DEF_TX_CH);
 	if (unlikely(ret_code != 0)) {
 		if (ret_code == EMAC_ERR_TX_OUT_OF_BD) {

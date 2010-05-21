@@ -191,6 +191,10 @@
 #define MCSR_DCFP	0x01000000 /* D-Cache Flush Parity Error */
 #define MCSR_IMPE	0x00800000 /* Imprecise Machine Check Exception */
 
+#define PPC47x_MCSR_GPR	0x01000000 /* GPR parity error */
+#define PPC47x_MCSR_FPR	0x00800000 /* FPR parity error */
+#define PPC47x_MCSR_IPR	0x00400000 /* Imprecise Machine Check Exception */
+
 #ifdef CONFIG_E500
 #define MCSR_MCP 	0x80000000UL /* Machine Check Input Pin */
 #define MCSR_ICPERR 	0x40000000UL /* I-Cache Parity Error */
@@ -604,5 +608,25 @@
 #define DBCR_JOI	0x00000002	/* JTAG Serial Outbound Int. Enable */
 #define DBCR_JII	0x00000001	/* JTAG Serial Inbound Int. Enable */
 #endif /* 403GCX */
+
+/* Some 476 specific registers */
+#define SPRN_SSPCR		830
+#define SPRN_USPCR		831
+#define SPRN_ISPCR		829
+#define SPRN_MMUBE0		820
+#define MMUBE0_IBE0_SHIFT	24
+#define MMUBE0_IBE1_SHIFT	16
+#define MMUBE0_IBE2_SHIFT	8
+#define MMUBE0_VBE0		0x00000004
+#define MMUBE0_VBE1		0x00000002
+#define MMUBE0_VBE2		0x00000001
+#define SPRN_MMUBE1		821
+#define MMUBE1_IBE3_SHIFT	24
+#define MMUBE1_IBE4_SHIFT	16
+#define MMUBE1_IBE5_SHIFT	8
+#define MMUBE1_VBE3		0x00000004
+#define MMUBE1_VBE4		0x00000002
+#define MMUBE1_VBE5		0x00000001
+
 #endif /* __ASM_POWERPC_REG_BOOKE_H__ */
 #endif /* __KERNEL__ */

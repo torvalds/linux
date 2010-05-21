@@ -469,8 +469,8 @@ static void rds_iw_send_ack(struct rds_iw_connection *ic, unsigned int adv_credi
 		set_bit(IB_ACK_REQUESTED, &ic->i_ack_flags);
 
 		rds_iw_stats_inc(s_iw_ack_send_failure);
-		/* Need to finesse this later. */
-		BUG();
+
+		rds_iw_conn_error(ic->conn, "sending ack failed\n");
 	} else
 		rds_iw_stats_inc(s_iw_ack_sent);
 }

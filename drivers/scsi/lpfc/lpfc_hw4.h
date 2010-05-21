@@ -41,8 +41,14 @@
  * Or clear that bit field:
  *	bf_set(example_bit_field, &t1, 0);
  */
+#define bf_get_le32(name, ptr) \
+	((le32_to_cpu((ptr)->name##_WORD) >> name##_SHIFT) & name##_MASK)
 #define bf_get(name, ptr) \
 	(((ptr)->name##_WORD >> name##_SHIFT) & name##_MASK)
+#define bf_set_le32(name, ptr, value) \
+	((ptr)->name##_WORD = cpu_to_le32(((((value) & \
+	name##_MASK) << name##_SHIFT) | (le32_to_cpu((ptr)->name##_WORD) & \
+	~(name##_MASK << name##_SHIFT)))))
 #define bf_set(name, ptr, value) \
 	((ptr)->name##_WORD = ((((value) & name##_MASK) << name##_SHIFT) | \
 		 ((ptr)->name##_WORD & ~(name##_MASK << name##_SHIFT))))
@@ -781,6 +787,7 @@ struct mbox_header {
 #define LPFC_MBOX_OPCODE_EQ_DESTROY		0x37
 #define LPFC_MBOX_OPCODE_QUERY_FW_CFG		0x3A
 #define LPFC_MBOX_OPCODE_FUNCTION_RESET		0x3D
+#define LPFC_MBOX_OPCODE_MQ_CREATE_EXT		0x5A
 
 /* FCoE Opcodes */
 #define LPFC_MBOX_OPCODE_FCOE_WQ_CREATE			0x01
@@ -1100,6 +1107,39 @@ struct lpfc_mbx_mq_create {
 #define lpfc_mbx_mq_create_q_id_WORD	word0
 		} response;
 	} u;
+};
+
+struct lpfc_mbx_mq_create_ext {
+	struct mbox_header header;
+	union {
+		struct {
+			uint32_t word0;
+#define lpfc_mbx_mq_create_ext_num_pages_SHIFT		0
+#define lpfc_mbx_mq_create_ext_num_pages_MASK		0x0000FFFF
+#define lpfc_mbx_mq_create_ext_num_pages_WORD		word0
+			uint32_t async_evt_bmap;
+#define lpfc_mbx_mq_create_ext_async_evt_link_SHIFT	LPFC_TRAILER_CODE_LINK
+#define lpfc_mbx_mq_create_ext_async_evt_link_MASK	0x00000001
+#define lpfc_mbx_mq_create_ext_async_evt_link_WORD	async_evt_bmap
+#define lpfc_mbx_mq_create_ext_async_evt_fcfste_SHIFT	LPFC_TRAILER_CODE_FCOE
+#define lpfc_mbx_mq_create_ext_async_evt_fcfste_MASK	0x00000001
+#define lpfc_mbx_mq_create_ext_async_evt_fcfste_WORD	async_evt_bmap
+#define lpfc_mbx_mq_create_ext_async_evt_group5_SHIFT	LPFC_TRAILER_CODE_GRP5
+#define lpfc_mbx_mq_create_ext_async_evt_group5_MASK	0x00000001
+#define lpfc_mbx_mq_create_ext_async_evt_group5_WORD	async_evt_bmap
+			struct mq_context context;
+			struct dma_address page[LPFC_MAX_MQ_PAGE];
+		} request;
+		struct {
+			uint32_t word0;
+#define lpfc_mbx_mq_create_q_id_SHIFT	0
+#define lpfc_mbx_mq_create_q_id_MASK	0x0000FFFF
+#define lpfc_mbx_mq_create_q_id_WORD	word0
+		} response;
+	} u;
+#define LPFC_ASYNC_EVENT_LINK_STATE	0x2
+#define LPFC_ASYNC_EVENT_FCF_STATE	0x4
+#define LPFC_ASYNC_EVENT_GROUP5		0x20
 };
 
 struct lpfc_mbx_mq_destroy {
@@ -1428,8 +1468,8 @@ struct lpfc_mbx_reg_vfi {
 #define lpfc_reg_vfi_fcfi_WORD		word2
 	uint32_t wwn[2];
 	struct ulp_bde64 bde;
-	uint32_t word8_rsvd;
-	uint32_t word9_rsvd;
+	uint32_t e_d_tov;
+	uint32_t r_a_tov;
 	uint32_t word10;
 #define lpfc_reg_vfi_nport_id_SHIFT		0
 #define lpfc_reg_vfi_nport_id_MASK		0x00FFFFFF
@@ -1940,6 +1980,7 @@ struct lpfc_mbx_sli4_params {
 #define rdma_MASK				0x00000001
 #define rdma_WORD				word3
 	uint32_t sge_supp_len;
+#define SLI4_PAGE_SIZE 4096
 	uint32_t word5;
 #define if_page_sz_SHIFT			0
 #define if_page_sz_MASK				0x0000ffff
@@ -2041,6 +2082,7 @@ struct lpfc_mqe {
 		struct lpfc_mbx_reg_fcfi reg_fcfi;
 		struct lpfc_mbx_unreg_fcfi unreg_fcfi;
 		struct lpfc_mbx_mq_create mq_create;
+		struct lpfc_mbx_mq_create_ext mq_create_ext;
 		struct lpfc_mbx_eq_create eq_create;
 		struct lpfc_mbx_cq_create cq_create;
 		struct lpfc_mbx_wq_create wq_create;
@@ -2099,6 +2141,7 @@ struct lpfc_mcqe {
 #define LPFC_TRAILER_CODE_LINK	0x1
 #define LPFC_TRAILER_CODE_FCOE	0x2
 #define LPFC_TRAILER_CODE_DCBX	0x3
+#define LPFC_TRAILER_CODE_GRP5	0x5
 };
 
 struct lpfc_acqe_link {
@@ -2164,6 +2207,19 @@ struct lpfc_acqe_fcoe {
 struct lpfc_acqe_dcbx {
 	uint32_t tlv_ttl;
 	uint32_t reserved;
+	uint32_t event_tag;
+	uint32_t trailer;
+};
+
+struct lpfc_acqe_grp5 {
+	uint32_t word0;
+#define lpfc_acqe_grp5_pport_SHIFT	0
+#define lpfc_acqe_grp5_pport_MASK	0x000000FF
+#define lpfc_acqe_grp5_pport_WORD	word0
+	uint32_t word1;
+#define lpfc_acqe_grp5_llink_spd_SHIFT	16
+#define lpfc_acqe_grp5_llink_spd_MASK	0x0000FFFF
+#define lpfc_acqe_grp5_llink_spd_WORD	word1
 	uint32_t event_tag;
 	uint32_t trailer;
 };

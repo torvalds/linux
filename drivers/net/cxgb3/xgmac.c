@@ -311,16 +311,16 @@ int t3_mac_set_rx_mode(struct cmac *mac, struct net_device *dev)
 	if (dev->flags & IFF_ALLMULTI)
 		hash_lo = hash_hi = 0xffffffff;
 	else {
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 		int exact_addr_idx = mac->nucast;
 
 		hash_lo = hash_hi = 0;
-		netdev_for_each_mc_addr(dmi, dev)
+		netdev_for_each_mc_addr(ha, dev)
 			if (exact_addr_idx < EXACT_ADDR_FILTERS)
 				set_addr_filter(mac, exact_addr_idx++,
-						dmi->dmi_addr);
+						ha->addr);
 			else {
-				int hash = hash_hw_addr(dmi->dmi_addr);
+				int hash = hash_hw_addr(ha->addr);
 
 				if (hash < 32)
 					hash_lo |= (1 << hash);

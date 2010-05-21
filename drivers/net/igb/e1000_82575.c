@@ -104,6 +104,12 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	case E1000_DEV_ID_82580_COPPER_DUAL:
 		mac->type = e1000_82580;
 		break;
+	case E1000_DEV_ID_I350_COPPER:
+	case E1000_DEV_ID_I350_FIBER:
+	case E1000_DEV_ID_I350_SERDES:
+	case E1000_DEV_ID_I350_SGMII:
+		mac->type = e1000_i350;
+		break;
 	default:
 		return -E1000_ERR_MAC_INIT;
 		break;
@@ -153,8 +159,10 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		mac->rar_entry_count = E1000_RAR_ENTRIES_82576;
 	if (mac->type == e1000_82580)
 		mac->rar_entry_count = E1000_RAR_ENTRIES_82580;
+	if (mac->type == e1000_i350)
+		mac->rar_entry_count = E1000_RAR_ENTRIES_I350;
 	/* reset */
-	if (mac->type == e1000_82580)
+	if (mac->type >= e1000_82580)
 		mac->ops.reset_hw = igb_reset_hw_82580;
 	else
 		mac->ops.reset_hw = igb_reset_hw_82575;
@@ -225,7 +233,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		phy->ops.reset              = igb_phy_hw_reset_sgmii_82575;
 		phy->ops.read_reg           = igb_read_phy_reg_sgmii_82575;
 		phy->ops.write_reg          = igb_write_phy_reg_sgmii_82575;
-	} else if (hw->mac.type == e1000_82580) {
+	} else if (hw->mac.type >= e1000_82580) {
 		phy->ops.reset              = igb_phy_hw_reset;
 		phy->ops.read_reg           = igb_read_phy_reg_82580;
 		phy->ops.write_reg          = igb_write_phy_reg_82580;
@@ -261,6 +269,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 		phy->ops.set_d3_lplu_state  = igb_set_d3_lplu_state;
 		break;
 	case I82580_I_PHY_ID:
+	case I350_I_PHY_ID:
 		phy->type                   = e1000_phy_82580;
 		phy->ops.force_speed_duplex = igb_phy_force_speed_duplex_82580;
 		phy->ops.get_cable_length   = igb_get_cable_length_82580;
@@ -1205,8 +1214,6 @@ void igb_power_down_phy_copper_82575(struct e1000_hw *hw)
 	/* If the management interface is not enabled, then power down */
 	if (!(igb_enable_mng_pass_thru(hw) || igb_check_reset_block(hw)))
 		igb_power_down_phy_copper(hw);
-
-	return;
 }
 
 /**
@@ -1445,22 +1452,12 @@ void igb_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable)
  **/
 static s32 igb_read_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 *data)
 {
-	u32 mdicnfg = 0;
 	s32 ret_val;
 
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		goto out;
-
-	/*
-	 * We config the phy address in MDICNFG register now. Same bits
-	 * as before. The values in MDIC can be written but will be
-	 * ignored. This allows us to call the old function after
-	 * configuring the PHY address in the new register
-	 */
-	mdicnfg = (hw->phy.addr << E1000_MDIC_PHY_SHIFT);
-	wr32(E1000_MDICNFG, mdicnfg);
 
 	ret_val = igb_read_phy_reg_mdic(hw, offset, data);
 
@@ -1480,22 +1477,12 @@ out:
  **/
 static s32 igb_write_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 data)
 {
-	u32 mdicnfg = 0;
 	s32 ret_val;
 
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		goto out;
-
-	/*
-	 * We config the phy address in MDICNFG register now. Same bits
-	 * as before. The values in MDIC can be written but will be
-	 * ignored. This allows us to call the old function after
-	 * configuring the PHY address in the new register
-	 */
-	mdicnfg = (hw->phy.addr << E1000_MDIC_PHY_SHIFT);
-	wr32(E1000_MDICNFG, mdicnfg);
 
 	ret_val = igb_write_phy_reg_mdic(hw, offset, data);
 

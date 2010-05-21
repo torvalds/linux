@@ -5,6 +5,7 @@
 #include <linux/device.h>
 #include <linux/string.h>
 #include <linux/pm_runtime.h>
+#include <asm/atomic.h>
 #include "power.h"
 
 /*
@@ -143,7 +144,59 @@ wake_store(struct device * dev, struct device_attribute *attr,
 
 static DEVICE_ATTR(wakeup, 0644, wake_show, wake_store);
 
-#ifdef CONFIG_PM_SLEEP_ADVANCED_DEBUG
+#ifdef CONFIG_PM_ADVANCED_DEBUG
+#ifdef CONFIG_PM_RUNTIME
+
+static ssize_t rtpm_usagecount_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", atomic_read(&dev->power.usage_count));
+}
+
+static ssize_t rtpm_children_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", dev->power.ignore_children ?
+		0 : atomic_read(&dev->power.child_count));
+}
+
+static ssize_t rtpm_enabled_show(struct device *dev,
+				 struct device_attribute *attr, char *buf)
+{
+	if ((dev->power.disable_depth) && (dev->power.runtime_auto == false))
+		return sprintf(buf, "disabled & forbidden\n");
+	else if (dev->power.disable_depth)
+		return sprintf(buf, "disabled\n");
+	else if (dev->power.runtime_auto == false)
+		return sprintf(buf, "forbidden\n");
+	return sprintf(buf, "enabled\n");
+}
+
+static ssize_t rtpm_status_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	if (dev->power.runtime_error)
+		return sprintf(buf, "error\n");
+	switch (dev->power.runtime_status) {
+	case RPM_SUSPENDED:
+		return sprintf(buf, "suspended\n");
+	case RPM_SUSPENDING:
+		return sprintf(buf, "suspending\n");
+	case RPM_RESUMING:
+		return sprintf(buf, "resuming\n");
+	case RPM_ACTIVE:
+		return sprintf(buf, "active\n");
+	}
+	return -EIO;
+}
+
+static DEVICE_ATTR(runtime_usage, 0444, rtpm_usagecount_show, NULL);
+static DEVICE_ATTR(runtime_active_kids, 0444, rtpm_children_show, NULL);
+static DEVICE_ATTR(runtime_status, 0444, rtpm_status_show, NULL);
+static DEVICE_ATTR(runtime_enabled, 0444, rtpm_enabled_show, NULL);
+
+#endif
+
 static ssize_t async_show(struct device *dev, struct device_attribute *attr,
 			  char *buf)
 {
@@ -170,15 +223,21 @@ static ssize_t async_store(struct device *dev, struct device_attribute *attr,
 }
 
 static DEVICE_ATTR(async, 0644, async_show, async_store);
-#endif /* CONFIG_PM_SLEEP_ADVANCED_DEBUG */
+#endif /* CONFIG_PM_ADVANCED_DEBUG */
 
 static struct attribute * power_attrs[] = {
 #ifdef CONFIG_PM_RUNTIME
 	&dev_attr_control.attr,
 #endif
 	&dev_attr_wakeup.attr,
-#ifdef CONFIG_PM_SLEEP_ADVANCED_DEBUG
+#ifdef CONFIG_PM_ADVANCED_DEBUG
 	&dev_attr_async.attr,
+#ifdef CONFIG_PM_RUNTIME
+	&dev_attr_runtime_usage.attr,
+	&dev_attr_runtime_active_kids.attr,
+	&dev_attr_runtime_status.attr,
+	&dev_attr_runtime_enabled.attr,
+#endif
 #endif
 	NULL,
 };

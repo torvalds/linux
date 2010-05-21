@@ -26,6 +26,7 @@
  *          Jerome Glisse
  */
 #include "drmP.h"
+#include "drm_crtc_helper.h"
 #include "radeon_drm.h"
 #include "radeon_reg.h"
 #include "radeon.h"
@@ -55,7 +56,7 @@ static void radeon_hotplug_work_func(struct work_struct *work)
 			radeon_connector_hotplug(connector);
 	}
 	/* Just fire off a uevent and let userspace tell us what to do */
-	drm_sysfs_hotplug_event(dev);
+	drm_helper_hpd_irq_event(dev);
 }
 
 void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
@@ -67,6 +68,7 @@ void radeon_driver_irq_preinstall_kms(struct drm_device *dev)
 
 	/* Disable *all* interrupts */
 	rdev->irq.sw_int = false;
+	rdev->irq.gui_idle = false;
 	for (i = 0; i < rdev->num_crtc; i++)
 		rdev->irq.crtc_vblank_int[i] = false;
 	for (i = 0; i < 6; i++)
@@ -96,6 +98,7 @@ void radeon_driver_irq_uninstall_kms(struct drm_device *dev)
 	}
 	/* Disable *all* interrupts */
 	rdev->irq.sw_int = false;
+	rdev->irq.gui_idle = false;
 	for (i = 0; i < rdev->num_crtc; i++)
 		rdev->irq.crtc_vblank_int[i] = false;
 	for (i = 0; i < 6; i++)

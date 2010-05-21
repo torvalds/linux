@@ -309,6 +309,7 @@ static void dlm_shuffle_lists(struct dlm_ctxt *dlm,
 	 * spinlock, and because we know that it is not migrating/
 	 * recovering/in-progress, it is fine to reserve asts and
 	 * basts right before queueing them all throughout */
+	assert_spin_locked(&dlm->ast_lock);
 	assert_spin_locked(&res->spinlock);
 	BUG_ON((res->state & (DLM_LOCK_RES_MIGRATING|
 			      DLM_LOCK_RES_RECOVERING|
@@ -337,7 +338,7 @@ converting:
 			/* queue the BAST if not already */
 			if (lock->ml.highest_blocked == LKM_IVMODE) {
 				__dlm_lockres_reserve_ast(res);
-				dlm_queue_bast(dlm, lock);
+				__dlm_queue_bast(dlm, lock);
 			}
 			/* update the highest_blocked if needed */
 			if (lock->ml.highest_blocked < target->ml.convert_type)
@@ -355,7 +356,7 @@ converting:
 			can_grant = 0;
 			if (lock->ml.highest_blocked == LKM_IVMODE) {
 				__dlm_lockres_reserve_ast(res);
-				dlm_queue_bast(dlm, lock);
+				__dlm_queue_bast(dlm, lock);
 			}
 			if (lock->ml.highest_blocked < target->ml.convert_type)
 				lock->ml.highest_blocked =
@@ -383,7 +384,7 @@ converting:
 		spin_unlock(&target->spinlock);
 
 		__dlm_lockres_reserve_ast(res);
-		dlm_queue_ast(dlm, target);
+		__dlm_queue_ast(dlm, target);
 		/* go back and check for more */
 		goto converting;
 	}
@@ -402,7 +403,7 @@ blocked:
 			can_grant = 0;
 			if (lock->ml.highest_blocked == LKM_IVMODE) {
 				__dlm_lockres_reserve_ast(res);
-				dlm_queue_bast(dlm, lock);
+				__dlm_queue_bast(dlm, lock);
 			}
 			if (lock->ml.highest_blocked < target->ml.type)
 				lock->ml.highest_blocked = target->ml.type;
@@ -418,7 +419,7 @@ blocked:
 			can_grant = 0;
 			if (lock->ml.highest_blocked == LKM_IVMODE) {
 				__dlm_lockres_reserve_ast(res);
-				dlm_queue_bast(dlm, lock);
+				__dlm_queue_bast(dlm, lock);
 			}
 			if (lock->ml.highest_blocked < target->ml.type)
 				lock->ml.highest_blocked = target->ml.type;
@@ -444,7 +445,7 @@ blocked:
 		spin_unlock(&target->spinlock);
 
 		__dlm_lockres_reserve_ast(res);
-		dlm_queue_ast(dlm, target);
+		__dlm_queue_ast(dlm, target);
 		/* go back and check for more */
 		goto converting;
 	}
@@ -674,6 +675,7 @@ static int dlm_thread(void *data)
 		 	/* lockres can be re-dirtied/re-added to the
 			 * dirty_list in this gap, but that is ok */
 
+			spin_lock(&dlm->ast_lock);
 			spin_lock(&res->spinlock);
 			if (res->owner != dlm->node_num) {
 				__dlm_print_one_lock_resource(res);
@@ -694,6 +696,7 @@ static int dlm_thread(void *data)
 				/* move it to the tail and keep going */
 				res->state &= ~DLM_LOCK_RES_DIRTY;
 				spin_unlock(&res->spinlock);
+				spin_unlock(&dlm->ast_lock);
 				mlog(0, "delaying list shuffling for in-"
 				     "progress lockres %.*s, state=%d\n",
 				     res->lockname.len, res->lockname.name,
@@ -715,6 +718,7 @@ static int dlm_thread(void *data)
 			dlm_shuffle_lists(dlm, res);
 			res->state &= ~DLM_LOCK_RES_DIRTY;
 			spin_unlock(&res->spinlock);
+			spin_unlock(&dlm->ast_lock);
 
 			dlm_lockres_calc_usage(dlm, res);
 

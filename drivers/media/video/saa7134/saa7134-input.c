@@ -28,6 +28,8 @@
 #include "saa7134-reg.h"
 #include "saa7134.h"
 
+#define MODULE_NAME "saa7134"
+
 static unsigned int disable_ir;
 module_param(disable_ir, int, 0444);
 MODULE_PARM_DESC(disable_ir,"disable infrared remote support");
@@ -66,6 +68,7 @@ MODULE_PARM_DESC(disable_other_ir, "disable full codes of "
 /* Helper functions for RC5 and NEC decoding at GPIO16 or GPIO18 */
 static int saa7134_rc5_irq(struct saa7134_dev *dev);
 static int saa7134_nec_irq(struct saa7134_dev *dev);
+static int saa7134_raw_decode_irq(struct saa7134_dev *dev);
 static void nec_task(unsigned long data);
 static void saa7134_nec_timer(unsigned long data);
 
@@ -397,14 +400,23 @@ static int get_key_pinnacle_color(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 
 void saa7134_input_irq(struct saa7134_dev *dev)
 {
-	struct card_ir *ir = dev->remote;
+	struct card_ir *ir;
+
+	if (!dev || !dev->remote)
+		return;
+
+	ir = dev->remote;
+	if (!ir->running)
+		return;
 
 	if (ir->nec_gpio) {
 		saa7134_nec_irq(dev);
-	} else if (!ir->polling && !ir->rc5_gpio) {
+	} else if (!ir->polling && !ir->rc5_gpio && !ir->raw_decode) {
 		build_key(dev);
 	} else if (ir->rc5_gpio) {
 		saa7134_rc5_irq(dev);
+	} else if (ir->raw_decode) {
+		saa7134_raw_decode_irq(dev);
 	}
 }
 
@@ -417,8 +429,32 @@ static void saa7134_input_timer(unsigned long data)
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
 }
 
-void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
+void ir_raw_decode_timer_end(unsigned long data)
 {
+	struct saa7134_dev *dev = (struct saa7134_dev *)data;
+	struct card_ir *ir = dev->remote;
+
+	ir_raw_event_handle(dev->remote->dev);
+
+	ir->active = 0;
+}
+
+static int __saa7134_ir_start(void *priv)
+{
+	struct saa7134_dev *dev = priv;
+	struct card_ir *ir;
+
+	if (!dev)
+		return -EINVAL;
+
+	ir  = dev->remote;
+	if (!ir)
+		return -EINVAL;
+
+	if (ir->running)
+		return 0;
+
+	ir->running = 1;
 	if (ir->polling) {
 		setup_timer(&ir->timer, saa7134_input_timer,
 			    (unsigned long)dev);
@@ -441,26 +477,125 @@ void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
 		setup_timer(&ir->timer_keyup, saa7134_nec_timer,
 			    (unsigned long)dev);
 		tasklet_init(&ir->tlet, nec_task, (unsigned long)dev);
+	} else if (ir->raw_decode) {
+		/* set timer_end for code completion */
+		init_timer(&ir->timer_end);
+		ir->timer_end.function = ir_raw_decode_timer_end;
+		ir->timer_end.data = (unsigned long)dev;
+		ir->active = 0;
 	}
+
+	return 0;
+}
+
+static void __saa7134_ir_stop(void *priv)
+{
+	struct saa7134_dev *dev = priv;
+	struct card_ir *ir;
+
+	if (!dev)
+		return;
+
+	ir  = dev->remote;
+	if (!ir)
+		return;
+
+	if (!ir->running)
+		return;
+	if (dev->remote->polling)
+		del_timer_sync(&dev->remote->timer);
+	else if (ir->rc5_gpio)
+		del_timer_sync(&ir->timer_end);
+	else if (ir->nec_gpio)
+		tasklet_kill(&ir->tlet);
+	else if (ir->raw_decode) {
+		del_timer_sync(&ir->timer_end);
+		ir->active = 0;
+	}
+
+	ir->running = 0;
+
+	return;
+}
+
+int saa7134_ir_start(struct saa7134_dev *dev)
+{
+	if (dev->remote->users)
+		return __saa7134_ir_start(dev);
+
+	return 0;
 }
 
 void saa7134_ir_stop(struct saa7134_dev *dev)
 {
-	if (dev->remote->polling)
-		del_timer_sync(&dev->remote->timer);
+	if (dev->remote->users)
+		__saa7134_ir_stop(dev);
+}
+
+static int saa7134_ir_open(void *priv)
+{
+	struct saa7134_dev *dev = priv;
+
+	dev->remote->users++;
+	return __saa7134_ir_start(dev);
+}
+
+static void saa7134_ir_close(void *priv)
+{
+	struct saa7134_dev *dev = priv;
+
+	dev->remote->users--;
+	if (!dev->remote->users)
+		__saa7134_ir_stop(dev);
+}
+
+
+int saa7134_ir_change_protocol(void *priv, u64 ir_type)
+{
+	struct saa7134_dev *dev = priv;
+	struct card_ir *ir = dev->remote;
+	u32 nec_gpio, rc5_gpio;
+
+	if (ir_type == IR_TYPE_RC5) {
+		dprintk("Changing protocol to RC5\n");
+		nec_gpio = 0;
+		rc5_gpio = 1;
+	} else if (ir_type == IR_TYPE_NEC) {
+		dprintk("Changing protocol to NEC\n");
+		nec_gpio = 1;
+		rc5_gpio = 0;
+	} else {
+		dprintk("IR protocol type %ud is not supported\n",
+			(unsigned)ir_type);
+		return -EINVAL;
+	}
+
+	if (ir->running) {
+		saa7134_ir_stop(dev);
+		ir->nec_gpio = nec_gpio;
+		ir->rc5_gpio = rc5_gpio;
+		saa7134_ir_start(dev);
+	} else {
+		ir->nec_gpio = nec_gpio;
+		ir->rc5_gpio = rc5_gpio;
+	}
+
+	return 0;
 }
 
 int saa7134_input_init1(struct saa7134_dev *dev)
 {
 	struct card_ir *ir;
 	struct input_dev *input_dev;
-	struct ir_scancode_table *ir_codes = NULL;
+	char *ir_codes = NULL;
 	u32 mask_keycode = 0;
 	u32 mask_keydown = 0;
 	u32 mask_keyup   = 0;
 	int polling      = 0;
 	int rc5_gpio	 = 0;
 	int nec_gpio	 = 0;
+	int raw_decode   = 0;
+	int allow_protocol_change = 0;
 	u64 ir_type = IR_TYPE_OTHER;
 	int err;
 
@@ -476,27 +611,27 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_FLYTVPLATINUM_FM:
 	case SAA7134_BOARD_FLYTVPLATINUM_MINI2:
 	case SAA7134_BOARD_ROVERMEDIA_LINK_PRO_FM:
-		ir_codes     = &ir_codes_flyvideo_table;
+		ir_codes     = RC_MAP_FLYVIDEO;
 		mask_keycode = 0xEC00000;
 		mask_keydown = 0x0040000;
 		break;
 	case SAA7134_BOARD_CINERGY400:
 	case SAA7134_BOARD_CINERGY600:
 	case SAA7134_BOARD_CINERGY600_MK3:
-		ir_codes     = &ir_codes_cinergy_table;
+		ir_codes     = RC_MAP_CINERGY;
 		mask_keycode = 0x00003f;
 		mask_keyup   = 0x040000;
 		break;
 	case SAA7134_BOARD_ECS_TVP3XP:
 	case SAA7134_BOARD_ECS_TVP3XP_4CB5:
-		ir_codes     = &ir_codes_eztv_table;
+		ir_codes     = RC_MAP_EZTV;
 		mask_keycode = 0x00017c;
 		mask_keyup   = 0x000002;
 		polling      = 50; // ms
 		break;
 	case SAA7134_BOARD_KWORLD_XPERT:
 	case SAA7134_BOARD_AVACSSMARTTV:
-		ir_codes     = &ir_codes_pixelview_table;
+		ir_codes     = RC_MAP_PIXELVIEW;
 		mask_keycode = 0x00001F;
 		mask_keyup   = 0x000020;
 		polling      = 50; // ms
@@ -513,7 +648,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVERMEDIA_GO_007_FM:
 	case SAA7134_BOARD_AVERMEDIA_M102:
 	case SAA7134_BOARD_AVERMEDIA_GO_007_FM_PLUS:
-		ir_codes     = &ir_codes_avermedia_table;
+		ir_codes     = RC_MAP_AVERMEDIA;
 		mask_keycode = 0x0007C8;
 		mask_keydown = 0x000010;
 		polling      = 50; // ms
@@ -522,14 +657,15 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		saa_setb(SAA7134_GPIO_GPSTATUS0, 0x4);
 		break;
 	case SAA7134_BOARD_AVERMEDIA_M135A:
-		ir_codes     = &ir_codes_avermedia_m135a_table;
-		mask_keydown = 0x0040000;
-		mask_keycode = 0x00013f;
-		nec_gpio     = 1;
+		ir_codes     = RC_MAP_AVERMEDIA_M135A_RM_JX;
+		mask_keydown = 0x0040000;	/* Enable GPIO18 line on both edges */
+		mask_keyup   = 0x0040000;
+		mask_keycode = 0xffff;
+		raw_decode   = 1;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_777:
 	case SAA7134_BOARD_AVERMEDIA_A16AR:
-		ir_codes     = &ir_codes_avermedia_table;
+		ir_codes     = RC_MAP_AVERMEDIA;
 		mask_keycode = 0x02F200;
 		mask_keydown = 0x000400;
 		polling      = 50; // ms
@@ -538,7 +674,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		saa_setb(SAA7134_GPIO_GPSTATUS1, 0x1);
 		break;
 	case SAA7134_BOARD_AVERMEDIA_A16D:
-		ir_codes     = &ir_codes_avermedia_a16d_table;
+		ir_codes     = RC_MAP_AVERMEDIA_A16D;
 		mask_keycode = 0x02F200;
 		mask_keydown = 0x000400;
 		polling      = 50; /* ms */
@@ -547,14 +683,14 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		saa_setb(SAA7134_GPIO_GPSTATUS1, 0x1);
 		break;
 	case SAA7134_BOARD_KWORLD_TERMINATOR:
-		ir_codes     = &ir_codes_pixelview_table;
+		ir_codes     = RC_MAP_PIXELVIEW;
 		mask_keycode = 0x00001f;
 		mask_keyup   = 0x000060;
 		polling      = 50; // ms
 		break;
 	case SAA7134_BOARD_MANLI_MTV001:
 	case SAA7134_BOARD_MANLI_MTV002:
-		ir_codes     = &ir_codes_manli_table;
+		ir_codes     = RC_MAP_MANLI;
 		mask_keycode = 0x001f00;
 		mask_keyup   = 0x004000;
 		polling      = 50; /* ms */
@@ -574,25 +710,25 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_507_9FM:
 	case SAA7134_BOARD_BEHOLD_507RDS_MK3:
 	case SAA7134_BOARD_BEHOLD_507RDS_MK5:
-		ir_codes     = &ir_codes_manli_table;
+		ir_codes     = RC_MAP_MANLI;
 		mask_keycode = 0x003f00;
 		mask_keyup   = 0x004000;
 		polling      = 50; /* ms */
 		break;
 	case SAA7134_BOARD_BEHOLD_COLUMBUS_TVFM:
-		ir_codes     = &ir_codes_behold_columbus_table;
+		ir_codes     = RC_MAP_BEHOLD_COLUMBUS;
 		mask_keycode = 0x003f00;
 		mask_keyup   = 0x004000;
 		polling      = 50; // ms
 		break;
 	case SAA7134_BOARD_SEDNA_PC_TV_CARDBUS:
-		ir_codes     = &ir_codes_pctv_sedna_table;
+		ir_codes     = RC_MAP_PCTV_SEDNA;
 		mask_keycode = 0x001f00;
 		mask_keyup   = 0x004000;
 		polling      = 50; // ms
 		break;
 	case SAA7134_BOARD_GOTVIEW_7135:
-		ir_codes     = &ir_codes_gotview7135_table;
+		ir_codes     = RC_MAP_GOTVIEW7135;
 		mask_keycode = 0x0003CC;
 		mask_keydown = 0x000010;
 		polling	     = 5; /* ms */
@@ -601,80 +737,80 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	case SAA7134_BOARD_VIDEOMATE_TV_PVR:
 	case SAA7134_BOARD_VIDEOMATE_GOLD_PLUS:
 	case SAA7134_BOARD_VIDEOMATE_TV_GOLD_PLUSII:
-		ir_codes     = &ir_codes_videomate_tv_pvr_table;
+		ir_codes     = RC_MAP_VIDEOMATE_TV_PVR;
 		mask_keycode = 0x00003F;
 		mask_keyup   = 0x400000;
 		polling      = 50; // ms
 		break;
 	case SAA7134_BOARD_PROTEUS_2309:
-		ir_codes     = &ir_codes_proteus_2309_table;
+		ir_codes     = RC_MAP_PROTEUS_2309;
 		mask_keycode = 0x00007F;
 		mask_keyup   = 0x000080;
 		polling      = 50; // ms
 		break;
 	case SAA7134_BOARD_VIDEOMATE_DVBT_300:
 	case SAA7134_BOARD_VIDEOMATE_DVBT_200:
-		ir_codes     = &ir_codes_videomate_tv_pvr_table;
+		ir_codes     = RC_MAP_VIDEOMATE_TV_PVR;
 		mask_keycode = 0x003F00;
 		mask_keyup   = 0x040000;
 		break;
 	case SAA7134_BOARD_FLYDVBS_LR300:
 	case SAA7134_BOARD_FLYDVBT_LR301:
 	case SAA7134_BOARD_FLYDVBTDUO:
-		ir_codes     = &ir_codes_flydvb_table;
+		ir_codes     = RC_MAP_FLYDVB;
 		mask_keycode = 0x0001F00;
 		mask_keydown = 0x0040000;
 		break;
 	case SAA7134_BOARD_ASUSTeK_P7131_DUAL:
 	case SAA7134_BOARD_ASUSTeK_P7131_HYBRID_LNA:
 	case SAA7134_BOARD_ASUSTeK_P7131_ANALOG:
-		ir_codes     = &ir_codes_asus_pc39_table;
+		ir_codes     = RC_MAP_ASUS_PC39;
 		mask_keydown = 0x0040000;
 		rc5_gpio = 1;
 		break;
 	case SAA7134_BOARD_ENCORE_ENLTV:
 	case SAA7134_BOARD_ENCORE_ENLTV_FM:
-		ir_codes     = &ir_codes_encore_enltv_table;
+		ir_codes     = RC_MAP_ENCORE_ENLTV;
 		mask_keycode = 0x00007f;
 		mask_keyup   = 0x040000;
 		polling      = 50; // ms
 		break;
 	case SAA7134_BOARD_ENCORE_ENLTV_FM53:
-		ir_codes     = &ir_codes_encore_enltv_fm53_table;
+		ir_codes     = RC_MAP_ENCORE_ENLTV_FM53;
 		mask_keydown = 0x0040000;
 		mask_keycode = 0x00007f;
 		nec_gpio = 1;
 		break;
 	case SAA7134_BOARD_10MOONSTVMASTER3:
-		ir_codes     = &ir_codes_encore_enltv_table;
+		ir_codes     = RC_MAP_ENCORE_ENLTV;
 		mask_keycode = 0x5f80000;
 		mask_keyup   = 0x8000000;
 		polling      = 50; //ms
 		break;
 	case SAA7134_BOARD_GENIUS_TVGO_A11MCE:
-		ir_codes     = &ir_codes_genius_tvgo_a11mce_table;
+		ir_codes     = RC_MAP_GENIUS_TVGO_A11MCE;
 		mask_keycode = 0xff;
 		mask_keydown = 0xf00000;
 		polling = 50; /* ms */
 		break;
 	case SAA7134_BOARD_REAL_ANGEL_220:
-		ir_codes     = &ir_codes_real_audio_220_32_keys_table;
+		ir_codes     = RC_MAP_REAL_AUDIO_220_32_KEYS;
 		mask_keycode = 0x3f00;
 		mask_keyup   = 0x4000;
 		polling = 50; /* ms */
 		break;
 	case SAA7134_BOARD_KWORLD_PLUS_TV_ANALOG:
-		ir_codes     = &ir_codes_kworld_plus_tv_analog_table;
+		ir_codes     = RC_MAP_KWORLD_PLUS_TV_ANALOG;
 		mask_keycode = 0x7f;
 		polling = 40; /* ms */
 		break;
 	case SAA7134_BOARD_VIDEOMATE_S350:
-		ir_codes     = &ir_codes_videomate_s350_table;
+		ir_codes     = RC_MAP_VIDEOMATE_S350;
 		mask_keycode = 0x003f00;
 		mask_keydown = 0x040000;
 		break;
 	case SAA7134_BOARD_LEADTEK_WINFAST_DTV1000S:
-		ir_codes     = &ir_codes_winfast_table;
+		ir_codes     = RC_MAP_WINFAST;
 		mask_keycode = 0x5f00;
 		mask_keyup   = 0x020000;
 		polling      = 50; /* ms */
@@ -695,6 +831,9 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	}
 
 	ir->dev = input_dev;
+	dev->remote = ir;
+
+	ir->running = 0;
 
 	/* init hardware-specific stuff */
 	ir->mask_keycode = mask_keycode;
@@ -703,12 +842,26 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	ir->polling      = polling;
 	ir->rc5_gpio	 = rc5_gpio;
 	ir->nec_gpio	 = nec_gpio;
+	ir->raw_decode	 = raw_decode;
 
 	/* init input device */
 	snprintf(ir->name, sizeof(ir->name), "saa7134 IR (%s)",
 		 saa7134_boards[dev->board].name);
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(dev->pci));
+
+
+	ir->props.priv = dev;
+	ir->props.open = saa7134_ir_open;
+	ir->props.close = saa7134_ir_close;
+
+	if (raw_decode)
+		ir->props.driver_type = RC_DRIVER_IR_RAW;
+
+	if (!raw_decode && allow_protocol_change) {
+		ir->props.allowed_protos = IR_TYPE_RC5 | IR_TYPE_NEC;
+		ir->props.change_protocol = saa7134_ir_change_protocol;
+	}
 
 	err = ir_input_init(input_dev, &ir->ir, ir_type);
 	if (err < 0)
@@ -727,12 +880,9 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	}
 	input_dev->dev.parent = &dev->pci->dev;
 
-	dev->remote = ir;
-	saa7134_ir_start(dev, ir);
-
-	err = ir_input_register(ir->dev, ir_codes, NULL);
+	err = ir_input_register(ir->dev, ir_codes, &ir->props, MODULE_NAME);
 	if (err)
-		goto err_out_stop;
+		goto err_out_free;
 
 	/* the remote isn't as bouncy as a keyboard */
 	ir->dev->rep[REP_DELAY] = repeat_delay;
@@ -740,10 +890,8 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 
 	return 0;
 
- err_out_stop:
-	saa7134_ir_stop(dev);
+err_out_free:
 	dev->remote = NULL;
- err_out_free:
 	kfree(ir);
 	return err;
 }
@@ -787,24 +935,24 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 		dev->init_data.name = "Pinnacle PCTV";
 		if (pinnacle_remote == 0) {
 			dev->init_data.get_key = get_key_pinnacle_color;
-			dev->init_data.ir_codes = &ir_codes_pinnacle_color_table;
+			dev->init_data.ir_codes = RC_MAP_PINNACLE_COLOR;
 			info.addr = 0x47;
 		} else {
 			dev->init_data.get_key = get_key_pinnacle_grey;
-			dev->init_data.ir_codes = &ir_codes_pinnacle_grey_table;
+			dev->init_data.ir_codes = RC_MAP_PINNACLE_GREY;
 			info.addr = 0x47;
 		}
 		break;
 	case SAA7134_BOARD_UPMOST_PURPLE_TV:
 		dev->init_data.name = "Purple TV";
 		dev->init_data.get_key = get_key_purpletv;
-		dev->init_data.ir_codes = &ir_codes_purpletv_table;
+		dev->init_data.ir_codes = RC_MAP_PURPLETV;
 		info.addr = 0x7a;
 		break;
 	case SAA7134_BOARD_MSI_TVATANYWHERE_PLUS:
 		dev->init_data.name = "MSI TV@nywhere Plus";
 		dev->init_data.get_key = get_key_msi_tvanywhere_plus;
-		dev->init_data.ir_codes = &ir_codes_msi_tvanywhere_plus_table;
+		dev->init_data.ir_codes = RC_MAP_MSI_TVANYWHERE_PLUS;
 		info.addr = 0x30;
 		/* MSI TV@nywhere Plus controller doesn't seem to
 		   respond to probes unless we read something from
@@ -818,7 +966,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	case SAA7134_BOARD_HAUPPAUGE_HVR1110:
 		dev->init_data.name = "HVR 1110";
 		dev->init_data.get_key = get_key_hvr1110;
-		dev->init_data.ir_codes = &ir_codes_hauppauge_new_table;
+		dev->init_data.ir_codes = RC_MAP_HAUPPAUGE_NEW;
 		info.addr = 0x71;
 		break;
 	case SAA7134_BOARD_BEHOLD_607FM_MK3:
@@ -834,9 +982,12 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	case SAA7134_BOARD_BEHOLD_M6_EXTRA:
 	case SAA7134_BOARD_BEHOLD_H6:
 	case SAA7134_BOARD_BEHOLD_X7:
+	case SAA7134_BOARD_BEHOLD_H7:
+	case SAA7134_BOARD_BEHOLD_A7:
 		dev->init_data.name = "BeholdTV";
 		dev->init_data.get_key = get_key_beholdm6xx;
-		dev->init_data.ir_codes = &ir_codes_behold_table;
+		dev->init_data.ir_codes = RC_MAP_BEHOLD;
+		dev->init_data.type = IR_TYPE_NEC;
 		info.addr = 0x2d;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_501:
@@ -846,7 +997,7 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	case SAA7134_BOARD_FLYDVB_TRIO:
 		dev->init_data.name = "FlyDVB Trio";
 		dev->init_data.get_key = get_key_flydvb_trio;
-		dev->init_data.ir_codes = &ir_codes_flydvb_table;
+		dev->init_data.ir_codes = RC_MAP_FLYDVB;
 		info.addr = 0x0b;
 		break;
 	default:
@@ -857,6 +1008,33 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	if (dev->init_data.name)
 		info.platform_data = &dev->init_data;
 	i2c_new_device(&dev->i2c_adap, &info);
+}
+
+static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
+{
+	struct card_ir	*ir = dev->remote;
+	unsigned long 	timeout;
+	int space;
+
+	/* Generate initial event */
+	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+	space = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2) & ir->mask_keydown;
+	ir_raw_event_store_edge(dev->remote->dev, space ? IR_SPACE : IR_PULSE);
+
+
+	/*
+	 * Wait 15 ms from the start of the first IR event before processing
+	 * the event. This time is enough for NEC protocol. May need adjustments
+	 * to work with other protocols.
+	 */
+	if (!ir->active) {
+		timeout = jiffies + jiffies_to_msecs(15);
+		mod_timer(&ir->timer_end, timeout);
+		ir->active = 1;
+	}
+
+	return 1;
 }
 
 static int saa7134_rc5_irq(struct saa7134_dev *dev)
@@ -900,7 +1078,6 @@ static int saa7134_rc5_irq(struct saa7134_dev *dev)
 
 	return 1;
 }
-
 
 /* On NEC protocol, One has 2.25 ms, and zero has 1.125 ms
    The first pulse (start) has 9 + 4.5 ms
@@ -1011,14 +1188,14 @@ static void nec_task(unsigned long data)
 	/* Keep repeating the last key */
 	mod_timer(&ir->timer_keyup, jiffies + msecs_to_jiffies(150));
 
-	saa_setl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18);
+	saa_setl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18_P);
 }
 
 static int saa7134_nec_irq(struct saa7134_dev *dev)
 {
 	struct card_ir *ir = dev->remote;
 
-	saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18);
+	saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18_P);
 	tasklet_schedule(&ir->tlet);
 
 	return 1;

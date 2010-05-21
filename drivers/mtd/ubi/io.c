@@ -64,9 +64,9 @@
  * device, e.g., make @ubi->min_io_size = 512 in the example above?
  *
  * A: because when writing a sub-page, MTD still writes a full 2K page but the
- * bytes which are no relevant to the sub-page are 0xFF. So, basically, writing
- * 4x512 sub-pages is 4 times slower then writing one 2KiB NAND page. Thus, we
- * prefer to use sub-pages only for EV and VID headers.
+ * bytes which are not relevant to the sub-page are 0xFF. So, basically,
+ * writing 4x512 sub-pages is 4 times slower than writing one 2KiB NAND page.
+ * Thus, we prefer to use sub-pages only for EC and VID headers.
  *
  * As it was noted above, the VID header may start at a non-aligned offset.
  * For example, in case of a 2KiB page NAND flash with a 512 bytes sub-page,

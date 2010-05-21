@@ -97,7 +97,11 @@ init_stack_addr:
 decompress_kernel_addr:
 	.long	decompress_kernel
 kernel_start_addr:
+#ifdef CONFIG_32BIT
+	.long	___pa(_text+PAGE_SIZE)
+#else
 	.long	_text+PAGE_SIZE
+#endif
 
 	.align	9
 fake_headers_as_bzImage:

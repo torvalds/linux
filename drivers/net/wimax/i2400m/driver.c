@@ -75,25 +75,6 @@
 #include "debug-levels.h"
 
 
-int i2400m_idle_mode_disabled;	/* 0 (idle mode enabled) by default */
-module_param_named(idle_mode_disabled, i2400m_idle_mode_disabled, int, 0644);
-MODULE_PARM_DESC(idle_mode_disabled,
-		 "If true, the device will not enable idle mode negotiation "
-		 "with the base station (when connected) to save power.");
-
-int i2400m_rx_reorder_disabled;	/* 0 (rx reorder enabled) by default */
-module_param_named(rx_reorder_disabled, i2400m_rx_reorder_disabled, int, 0644);
-MODULE_PARM_DESC(rx_reorder_disabled,
-		 "If true, RX reordering will be disabled.");
-
-int i2400m_power_save_disabled;	/* 0 (power saving enabled) by default */
-module_param_named(power_save_disabled, i2400m_power_save_disabled, int, 0644);
-MODULE_PARM_DESC(power_save_disabled,
-		 "If true, the driver will not tell the device to enter "
-		 "power saving mode when it reports it is ready for it. "
-		 "False by default (so the device is told to do power "
-		 "saving).");
-
 static char i2400m_debug_params[128];
 module_param_string(debug, i2400m_debug_params, sizeof(i2400m_debug_params),
 		    0644);
@@ -395,6 +376,16 @@ retry:
 	result = i2400m_dev_initialize(i2400m);
 	if (result < 0)
 		goto error_dev_initialize;
+
+	/* We don't want any additional unwanted error recovery triggered
+	 * from any other context so if anything went wrong before we come
+	 * here, let's keep i2400m->error_recovery untouched and leave it to
+	 * dev_reset_handle(). See dev_reset_handle(). */
+
+	atomic_dec(&i2400m->error_recovery);
+	/* Every thing works so far, ok, now we are ready to
+	 * take error recovery if it's required. */
+
 	/* At this point, reports will come for the device and set it
 	 * to the right state if it is different than UNINITIALIZED */
 	d_fnend(3, dev, "(net_dev %p [i2400m %p]) = %d\n",
@@ -403,10 +394,10 @@ retry:
 
 error_dev_initialize:
 error_check_mac_addr:
+error_fw_check:
 	i2400m->ready = 0;
 	wmb();		/* see i2400m->ready's documentation  */
 	flush_workqueue(i2400m->work_queue);
-error_fw_check:
 	if (i2400m->bus_dev_stop)
 		i2400m->bus_dev_stop(i2400m);
 error_bus_dev_start:
@@ -436,7 +427,8 @@ int i2400m_dev_start(struct i2400m *i2400m, enum i2400m_bri bm_flags)
 		result = __i2400m_dev_start(i2400m, bm_flags);
 		if (result >= 0) {
 			i2400m->updown = 1;
-			wmb();	/* see i2400m->updown's documentation */
+			i2400m->alive = 1;
+			wmb();/* see i2400m->updown and i2400m->alive's doc */
 		}
 	}
 	mutex_unlock(&i2400m->init_mutex);
@@ -497,7 +489,8 @@ void i2400m_dev_stop(struct i2400m *i2400m)
 	if (i2400m->updown) {
 		__i2400m_dev_stop(i2400m);
 		i2400m->updown = 0;
-		wmb();	/* see i2400m->updown's documentation  */
+		i2400m->alive = 0;
+		wmb();	/* see i2400m->updown and i2400m->alive's doc */
 	}
 	mutex_unlock(&i2400m->init_mutex);
 }
@@ -617,12 +610,12 @@ int i2400m_post_reset(struct i2400m *i2400m)
 error_dev_start:
 	if (i2400m->bus_release)
 		i2400m->bus_release(i2400m);
-error_bus_setup:
 	/* even if the device was up, it could not be recovered, so we
 	 * mark it as down. */
 	i2400m->updown = 0;
 	wmb();		/* see i2400m->updown's documentation  */
 	mutex_unlock(&i2400m->init_mutex);
+error_bus_setup:
 	d_fnend(3, dev, "(i2400m %p) = %d\n", i2400m, result);
 	return result;
 }
@@ -669,6 +662,9 @@ void __i2400m_dev_reset_handle(struct work_struct *ws)
 
 	d_fnstart(3, dev, "(ws %p i2400m %p reason %s)\n", ws, i2400m, reason);
 
+	i2400m->boot_mode = 1;
+	wmb();		/* Make sure i2400m_msg_to_dev() sees boot_mode */
+
 	result = 0;
 	if (mutex_trylock(&i2400m->init_mutex) == 0) {
 		/* We are still in i2400m_dev_start() [let it fail] or
@@ -679,39 +675,68 @@ void __i2400m_dev_reset_handle(struct work_struct *ws)
 		complete(&i2400m->msg_completion);
 		goto out;
 	}
-	if (i2400m->updown == 0)  {
-		dev_info(dev, "%s: device is down, doing nothing\n", reason);
-		goto out_unlock;
-	}
+
 	dev_err(dev, "%s: reinitializing driver\n", reason);
-	__i2400m_dev_stop(i2400m);
-	result = __i2400m_dev_start(i2400m,
-				    I2400M_BRI_SOFT | I2400M_BRI_MAC_REINIT);
-	if (result < 0) {
+	rmb();
+	if (i2400m->updown) {
+		__i2400m_dev_stop(i2400m);
 		i2400m->updown = 0;
 		wmb();		/* see i2400m->updown's documentation  */
-		dev_err(dev, "%s: cannot start the device: %d\n",
-			reason, result);
-		result = -EUCLEAN;
 	}
-out_unlock:
+
+	if (i2400m->alive) {
+		result = __i2400m_dev_start(i2400m,
+				    I2400M_BRI_SOFT | I2400M_BRI_MAC_REINIT);
+		if (result < 0) {
+			dev_err(dev, "%s: cannot start the device: %d\n",
+				reason, result);
+			result = -EUCLEAN;
+			if (atomic_read(&i2400m->bus_reset_retries)
+					>= I2400M_BUS_RESET_RETRIES) {
+				result = -ENODEV;
+				dev_err(dev, "tried too many times to "
+					"reset the device, giving up\n");
+			}
+		}
+	}
+
 	if (i2400m->reset_ctx) {
 		ctx->result = result;
 		complete(&ctx->completion);
 	}
 	mutex_unlock(&i2400m->init_mutex);
 	if (result == -EUCLEAN) {
+		/*
+		 * We come here because the reset during operational mode
+		 * wasn't successully done and need to proceed to a bus
+		 * reset. For the dev_reset_handle() to be able to handle
+		 * the reset event later properly, we restore boot_mode back
+		 * to the state before previous reset. ie: just like we are
+		 * issuing the bus reset for the first time
+		 */
+		i2400m->boot_mode = 0;
+		wmb();
+
+		atomic_inc(&i2400m->bus_reset_retries);
 		/* ops, need to clean up [w/ init_mutex not held] */
 		result = i2400m_reset(i2400m, I2400M_RT_BUS);
 		if (result >= 0)
 			result = -ENODEV;
+	} else {
+		rmb();
+		if (i2400m->alive) {
+			/* great, we expect the device state up and
+			 * dev_start() actually brings the device state up */
+			i2400m->updown = 1;
+			wmb();
+			atomic_set(&i2400m->bus_reset_retries, 0);
+		}
 	}
 out:
 	i2400m_put(i2400m);
 	kfree(iw);
 	d_fnend(3, dev, "(ws %p i2400m %p reason %s) = void\n",
 		ws, i2400m, reason);
-	return;
 }
 
 
@@ -729,13 +754,71 @@ out:
  */
 int i2400m_dev_reset_handle(struct i2400m *i2400m, const char *reason)
 {
-	i2400m->boot_mode = 1;
-	wmb();		/* Make sure i2400m_msg_to_dev() sees boot_mode */
 	return i2400m_schedule_work(i2400m, __i2400m_dev_reset_handle,
 				    GFP_ATOMIC, &reason, sizeof(reason));
 }
 EXPORT_SYMBOL_GPL(i2400m_dev_reset_handle);
 
+
+ /*
+ * The actual work of error recovery.
+ *
+ * The current implementation of error recovery is to trigger a bus reset.
+ */
+static
+void __i2400m_error_recovery(struct work_struct *ws)
+{
+	struct i2400m_work *iw = container_of(ws, struct i2400m_work, ws);
+	struct i2400m *i2400m = iw->i2400m;
+
+	i2400m_reset(i2400m, I2400M_RT_BUS);
+
+	i2400m_put(i2400m);
+	kfree(iw);
+	return;
+}
+
+/*
+ * Schedule a work struct for error recovery.
+ *
+ * The intention of error recovery is to bring back the device to some
+ * known state whenever TX sees -110 (-ETIMEOUT) on copying the data to
+ * the device. The TX failure could mean a device bus stuck, so the current
+ * error recovery implementation is to trigger a bus reset to the device
+ * and hopefully it can bring back the device.
+ *
+ * The actual work of error recovery has to be in a thread context because
+ * it is kicked off in the TX thread (i2400ms->tx_workqueue) which is to be
+ * destroyed by the error recovery mechanism (currently a bus reset).
+ *
+ * Also, there may be already a queue of TX works that all hit
+ * the -ETIMEOUT error condition because the device is stuck already.
+ * Since bus reset is used as the error recovery mechanism and we don't
+ * want consecutive bus resets simply because the multiple TX works
+ * in the queue all hit the same device erratum, the flag "error_recovery"
+ * is introduced for preventing unwanted consecutive bus resets.
+ *
+ * Error recovery shall only be invoked again if previous one was completed.
+ * The flag error_recovery is set when error recovery mechanism is scheduled,
+ * and is checked when we need to schedule another error recovery. If it is
+ * in place already, then we shouldn't schedule another one.
+ */
+void i2400m_error_recovery(struct i2400m *i2400m)
+{
+	struct device *dev = i2400m_dev(i2400m);
+
+	if (atomic_add_return(1, &i2400m->error_recovery) == 1) {
+		if (i2400m_schedule_work(i2400m, __i2400m_error_recovery,
+			GFP_ATOMIC, NULL, 0) < 0) {
+			dev_err(dev, "run out of memory for "
+				"scheduling an error recovery ?\n");
+			atomic_dec(&i2400m->error_recovery);
+		}
+	} else
+		atomic_dec(&i2400m->error_recovery);
+	return;
+}
+EXPORT_SYMBOL_GPL(i2400m_error_recovery);
 
 /*
  * Alloc the command and ack buffers for boot mode
@@ -803,6 +886,13 @@ void i2400m_init(struct i2400m *i2400m)
 
 	mutex_init(&i2400m->init_mutex);
 	/* wake_tx_ws is initialized in i2400m_tx_setup() */
+	atomic_set(&i2400m->bus_reset_retries, 0);
+
+	i2400m->alive = 0;
+
+	/* initialize error_recovery to 1 for denoting we
+	 * are not yet ready to take any error recovery */
+	atomic_set(&i2400m->error_recovery, 1);
 }
 EXPORT_SYMBOL_GPL(i2400m_init);
 
@@ -996,7 +1086,6 @@ void __exit i2400m_driver_exit(void)
 	/* for scheds i2400m_dev_reset_handle() */
 	flush_scheduled_work();
 	i2400m_barker_db_exit();
-	return;
 }
 module_exit(i2400m_driver_exit);
 

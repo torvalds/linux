@@ -14,6 +14,14 @@ static inline struct quota_info *sb_dqopt(struct super_block *sb)
 	return &sb->s_dquot;
 }
 
+/* i_mutex must being held */
+static inline bool is_quota_modification(struct inode *inode, struct iattr *ia)
+{
+	return (ia->ia_valid & ATTR_SIZE && ia->ia_size != inode->i_size) ||
+		(ia->ia_valid & ATTR_UID && ia->ia_uid != inode->i_uid) ||
+		(ia->ia_valid & ATTR_GID && ia->ia_gid != inode->i_gid);
+}
+
 #if defined(CONFIG_QUOTA)
 
 /*
@@ -63,9 +71,12 @@ int vfs_quota_disable(struct super_block *sb, int type, unsigned int flags);
 int vfs_quota_sync(struct super_block *sb, int type, int wait);
 int vfs_get_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
 int vfs_set_dqinfo(struct super_block *sb, int type, struct if_dqinfo *ii);
-int vfs_get_dqblk(struct super_block *sb, int type, qid_t id, struct if_dqblk *di);
-int vfs_set_dqblk(struct super_block *sb, int type, qid_t id, struct if_dqblk *di);
+int vfs_get_dqblk(struct super_block *sb, int type, qid_t id,
+		struct fs_disk_quota *di);
+int vfs_set_dqblk(struct super_block *sb, int type, qid_t id,
+		struct fs_disk_quota *di);
 
+int __dquot_transfer(struct inode *inode, struct dquot **transfer_to);
 int dquot_transfer(struct inode *inode, struct iattr *iattr);
 int vfs_dq_quota_on_remount(struct super_block *sb);
 

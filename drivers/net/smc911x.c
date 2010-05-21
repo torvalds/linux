@@ -382,7 +382,7 @@ static inline void	 smc911x_rcv(struct net_device *dev)
 	DBG(SMC_DEBUG_FUNC | SMC_DEBUG_RX, "%s: --> %s\n",
 		dev->name, __func__);
 	status = SMC_GET_RX_STS_FIFO(lp);
-	DBG(SMC_DEBUG_RX, "%s: Rx pkt len %d status 0x%08x \n",
+	DBG(SMC_DEBUG_RX, "%s: Rx pkt len %d status 0x%08x\n",
 		dev->name, (status & 0x3fff0000) >> 16, status & 0xc000ffff);
 	pkt_len = (status & RX_STS_PKT_LEN_) >> 16;
 	if (status & RX_STS_ES_) {
@@ -1135,7 +1135,7 @@ static irqreturn_t smc911x_interrupt(int irq, void *dev_id)
 		}
 #else
 		if (status & INT_STS_TSFL_) {
-			DBG(SMC_DEBUG_TX, "%s: TX status FIFO limit (%d) irq \n", dev->name, );
+			DBG(SMC_DEBUG_TX, "%s: TX status FIFO limit (%d) irq\n", dev->name, );
 			smc911x_tx(dev);
 			SMC_ACK_INT(lp, INT_STS_TSFL_);
 		}
@@ -1274,7 +1274,7 @@ static void smc911x_timeout(struct net_device *dev)
 	status = SMC_GET_INT(lp);
 	mask = SMC_GET_INT_EN(lp);
 	spin_unlock_irqrestore(&lp->lock, flags);
-	DBG(SMC_DEBUG_MISC, "%s: INT 0x%02x MASK 0x%02x \n",
+	DBG(SMC_DEBUG_MISC, "%s: INT 0x%02x MASK 0x%02x\n",
 		dev->name, status, mask);
 
 	/* Dump the current TX FIFO contents and restart */
@@ -1289,7 +1289,7 @@ static void smc911x_timeout(struct net_device *dev)
 		schedule_work(&lp->phy_configure);
 
 	/* We can accept TX packets again */
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 
@@ -1340,7 +1340,7 @@ static void smc911x_set_multicast_list(struct net_device *dev)
 	 * within that register.
 	 */
 	else if (!netdev_mc_empty(dev)) {
-		struct dev_mc_list *cur_addr;
+		struct netdev_hw_addr *ha;
 
 		/* Set the Hash perfec mode */
 		mcr |= MAC_CR_HPFILT_;
@@ -1348,19 +1348,16 @@ static void smc911x_set_multicast_list(struct net_device *dev)
 		/* start with a table of all zeros: reject all */
 		memset(multicast_table, 0, sizeof(multicast_table));
 
-		netdev_for_each_mc_addr(cur_addr, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			u32 position;
 
-			/* do we have a pointer here? */
-			if (!cur_addr)
-				break;
 			/* make sure this is a multicast address -
 				shouldn't this be a given if we have it here ? */
-			if (!(*cur_addr->dmi_addr & 1))
-				 continue;
+			if (!(*ha->addr & 1))
+				continue;
 
 			/* upper 6 bits are used as hash index */
-			position = ether_crc(ETH_ALEN, cur_addr->dmi_addr)>>26;
+			position = ether_crc(ETH_ALEN, ha->addr)>>26;
 
 			multicast_table[position>>5] |= 1 << (position&0x1f);
 		}

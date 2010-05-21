@@ -380,6 +380,46 @@ int machine_check_440A(struct pt_regs *regs)
 	}
 	return 0;
 }
+
+int machine_check_47x(struct pt_regs *regs)
+{
+	unsigned long reason = get_mc_reason(regs);
+	u32 mcsr;
+
+	printk(KERN_ERR "Machine check in kernel mode.\n");
+	if (reason & ESR_IMCP) {
+		printk(KERN_ERR
+		       "Instruction Synchronous Machine Check exception\n");
+		mtspr(SPRN_ESR, reason & ~ESR_IMCP);
+		return 0;
+	}
+	mcsr = mfspr(SPRN_MCSR);
+	if (mcsr & MCSR_IB)
+		printk(KERN_ERR "Instruction Read PLB Error\n");
+	if (mcsr & MCSR_DRB)
+		printk(KERN_ERR "Data Read PLB Error\n");
+	if (mcsr & MCSR_DWB)
+		printk(KERN_ERR "Data Write PLB Error\n");
+	if (mcsr & MCSR_TLBP)
+		printk(KERN_ERR "TLB Parity Error\n");
+	if (mcsr & MCSR_ICP) {
+		flush_instruction_cache();
+		printk(KERN_ERR "I-Cache Parity Error\n");
+	}
+	if (mcsr & MCSR_DCSP)
+		printk(KERN_ERR "D-Cache Search Parity Error\n");
+	if (mcsr & PPC47x_MCSR_GPR)
+		printk(KERN_ERR "GPR Parity Error\n");
+	if (mcsr & PPC47x_MCSR_FPR)
+		printk(KERN_ERR "FPR Parity Error\n");
+	if (mcsr & PPC47x_MCSR_IPR)
+		printk(KERN_ERR "Machine Check exception is imprecise\n");
+
+	/* Clear MCSR */
+	mtspr(SPRN_MCSR, mcsr);
+
+	return 0;
+}
 #elif defined(CONFIG_E500)
 int machine_check_e500(struct pt_regs *regs)
 {
@@ -815,11 +855,14 @@ void __kprobes program_check_exception(struct pt_regs *regs)
 		return;
 	}
 	if (reason & REASON_TRAP) {
+		/* Debugger is first in line to stop recursive faults in
+		 * rcu_lock, notify_die, or atomic_notifier_call_chain */
+		if (debugger_bpt(regs))
+			return;
+
 		/* trap exception */
 		if (notify_die(DIE_BPT, "breakpoint", regs, 5, 5, SIGTRAP)
 				== NOTIFY_STOP)
-			return;
-		if (debugger_bpt(regs))
 			return;
 
 		if (!(regs->msr & MSR_PR) &&  /* not user-mode */

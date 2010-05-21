@@ -338,14 +338,12 @@ static struct dvb_tuner_ops stv6110x_ops = {
 		.frequency_max	= 2150000,
 		.frequency_step	= 0,
 	},
-
-	.init			= stv6110x_init,
-	.sleep          	= stv6110x_sleep,
 	.release		= stv6110x_release
 };
 
 static struct stv6110x_devctl stv6110x_ctl = {
 	.tuner_init		= stv6110x_init,
+	.tuner_sleep		= stv6110x_sleep,
 	.tuner_set_mode		= stv6110x_set_mode,
 	.tuner_set_frequency	= stv6110x_set_frequency,
 	.tuner_get_frequency	= stv6110x_get_frequency,
@@ -363,11 +361,10 @@ struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
 {
 	struct stv6110x_state *stv6110x;
 	u8 default_regs[] = {0x07, 0x11, 0xdc, 0x85, 0x17, 0x01, 0xe6, 0x1e};
-	int ret;
 
 	stv6110x = kzalloc(sizeof (struct stv6110x_state), GFP_KERNEL);
-	if (stv6110x == NULL)
-		goto error;
+	if (!stv6110x)
+		return NULL;
 
 	stv6110x->i2c		= i2c;
 	stv6110x->config	= config;
@@ -392,34 +389,11 @@ struct stv6110x_devctl *stv6110x_attach(struct dvb_frontend *fe,
 		break;
 	}
 
-	if (fe->ops.i2c_gate_ctrl) {
-		ret = fe->ops.i2c_gate_ctrl(fe, 1);
-		if (ret < 0)
-			goto error;
-	}
-
-	ret = stv6110x_write_regs(stv6110x, 0, stv6110x->regs,
-				  ARRAY_SIZE(stv6110x->regs));
-	if (ret < 0) {
-		dprintk(FE_ERROR, 1, "Initialization failed");
-		goto error;
-	}
-
-	if (fe->ops.i2c_gate_ctrl) {
-		ret = fe->ops.i2c_gate_ctrl(fe, 0);
-		if (ret < 0)
-			goto error;
-	}
-
 	fe->tuner_priv		= stv6110x;
 	fe->ops.tuner_ops	= stv6110x_ops;
 
-	printk("%s: Attaching STV6110x \n", __func__);
+	printk(KERN_INFO "%s: Attaching STV6110x\n", __func__);
 	return stv6110x->devctl;
-
-error:
-	kfree(stv6110x);
-	return NULL;
 }
 EXPORT_SYMBOL(stv6110x_attach);
 

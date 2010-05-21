@@ -120,7 +120,7 @@ static struct sk_buff *tipc_disc_init_msg(u32 type,
 
 	if (buf) {
 		msg = buf_msg(buf);
-		msg_init(msg, LINK_CONFIG, type, DSC_H_SIZE, dest_domain);
+		tipc_msg_init(msg, LINK_CONFIG, type, DSC_H_SIZE, dest_domain);
 		msg_set_non_seq(msg, 1);
 		msg_set_req_links(msg, req_links);
 		msg_set_dest_domain(msg, dest_domain);
@@ -144,7 +144,7 @@ static void disc_dupl_alert(struct bearer *b_ptr, u32 node_addr,
 	char media_addr_str[64];
 	struct print_buf pb;
 
-	addr_string_fill(node_addr_str, node_addr);
+	tipc_addr_string_fill(node_addr_str, node_addr);
 	tipc_printbuf_init(&pb, media_addr_str, sizeof(media_addr_str));
 	tipc_media_addr_printf(&pb, media_addr);
 	tipc_printbuf_validate(&pb);
@@ -183,7 +183,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 			disc_dupl_alert(b_ptr, tipc_own_addr, &media_addr);
 		return;
 	}
-	if (!in_scope(dest, tipc_own_addr))
+	if (!tipc_in_scope(dest, tipc_own_addr))
 		return;
 	if (is_slave(tipc_own_addr) && is_slave(orig))
 		return;
@@ -224,7 +224,7 @@ void tipc_disc_recv_msg(struct sk_buff *buf, struct bearer *b_ptr)
 			memcpy(addr, &media_addr, sizeof(*addr));
 			tipc_link_reset(link);
 		}
-		link_fully_up = (link->state == WORKING_WORKING);
+		link_fully_up = link_working_working(link);
 		spin_unlock_bh(&n_ptr->lock);
 		if ((type == DSC_RESP_MSG) || link_fully_up)
 			return;

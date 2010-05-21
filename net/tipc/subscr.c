@@ -274,7 +274,7 @@ static void subscr_cancel(struct tipc_subscr *s,
 {
 	struct subscription *sub;
 	struct subscription *sub_temp;
-	__u32 type, lower, upper;
+	__u32 type, lower, upper, timeout, filter;
 	int found = 0;
 
 	/* Find first matching subscription, exit if not found */
@@ -282,12 +282,18 @@ static void subscr_cancel(struct tipc_subscr *s,
 	type = ntohl(s->seq.type);
 	lower = ntohl(s->seq.lower);
 	upper = ntohl(s->seq.upper);
+	timeout = ntohl(s->timeout);
+	filter = ntohl(s->filter) & ~TIPC_SUB_CANCEL;
 
 	list_for_each_entry_safe(sub, sub_temp, &subscriber->subscription_list,
 				 subscription_list) {
 			if ((type == sub->seq.type) &&
 			    (lower == sub->seq.lower) &&
-			    (upper == sub->seq.upper)) {
+			    (upper == sub->seq.upper) &&
+			    (timeout == sub->timeout) &&
+                            (filter == sub->filter) &&
+                             !memcmp(s->usr_handle,sub->evt.s.usr_handle,
+				     sizeof(s->usr_handle)) ){
 				found = 1;
 				break;
 			}
@@ -304,7 +310,7 @@ static void subscr_cancel(struct tipc_subscr *s,
 		k_term_timer(&sub->timer);
 		spin_lock_bh(subscriber->lock);
 	}
-	dbg("Cancel: removing sub %u,%u,%u from subscriber %x list\n",
+	dbg("Cancel: removing sub %u,%u,%u from subscriber %p list\n",
 	    sub->seq.type, sub->seq.lower, sub->seq.upper, subscriber);
 	subscr_del(sub);
 }
@@ -352,8 +358,7 @@ static struct subscription *subscr_subscribe(struct tipc_subscr *s,
 	sub->seq.upper = ntohl(s->seq.upper);
 	sub->timeout = ntohl(s->timeout);
 	sub->filter = ntohl(s->filter);
-	if ((!(sub->filter & TIPC_SUB_PORTS) ==
-	     !(sub->filter & TIPC_SUB_SERVICE)) ||
+	if ((sub->filter && (sub->filter != TIPC_SUB_PORTS)) ||
 	    (sub->seq.lower > sub->seq.upper)) {
 		warn("Subscription rejected, illegal request\n");
 		kfree(sub);

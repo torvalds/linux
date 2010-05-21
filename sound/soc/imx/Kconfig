@@ -11,3 +11,11 @@ config SND_IMX_SOC
 config SND_MXC_SOC_SSI
 	tristate
 
+config SND_MXC_SOC_WM1133_EV1
+	tristate "Audio on the the i.MX31ADS with WM1133-EV1 fitted"
+	depends on SND_IMX_SOC && EXPERIMENTAL
+	select SND_SOC_WM8350
+	select SND_MXC_SOC_SSI
+	help
+	  Enable support for audio on the i.MX31ADS with the WM1133-EV1
+	  PMIC board with WM8835x fitted.

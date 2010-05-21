@@ -31,6 +31,7 @@
 #define PWRDM_MAX_PWRSTS	4
 
 /* Powerdomain allowable state bitfields */
+#define PWRSTS_ON		(1 << PWRDM_POWER_ON)
 #define PWRSTS_OFF_ON		((1 << PWRDM_POWER_OFF) | \
 				 (1 << PWRDM_POWER_ON))
 
@@ -49,6 +50,12 @@
 					  * in MEM bank 1 position. This is
 					  * true for OMAP3430
 					  */
+#define PWRDM_HAS_LOWPOWERSTATECHANGE	(1 << 2) /*
+						  * support to transition from a
+						  * sleep state to a lower sleep
+						  * state without waking up the
+						  * powerdomain
+						  */
 
 /*
  * Number of memory banks that are power-controllable.	On OMAP4430, the

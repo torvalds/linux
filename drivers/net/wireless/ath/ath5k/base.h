@@ -50,6 +50,7 @@
 
 #include "ath5k.h"
 #include "debug.h"
+#include "ani.h"
 
 #include "../regd.h"
 #include "../ath.h"
@@ -105,6 +106,38 @@ struct ath5k_rfkill {
 	struct tasklet_struct toggleq;
 };
 
+/* statistics */
+struct ath5k_statistics {
+	/* antenna use */
+	unsigned int antenna_rx[5];	/* frames count per antenna RX */
+	unsigned int antenna_tx[5];	/* frames count per antenna TX */
+
+	/* frame errors */
+	unsigned int rx_all_count;	/* all RX frames, including errors */
+	unsigned int tx_all_count;	/* all TX frames, including errors */
+	unsigned int rxerr_crc;
+	unsigned int rxerr_phy;
+	unsigned int rxerr_phy_code[32];
+	unsigned int rxerr_fifo;
+	unsigned int rxerr_decrypt;
+	unsigned int rxerr_mic;
+	unsigned int rxerr_proc;
+	unsigned int rxerr_jumbo;
+	unsigned int txerr_retry;
+	unsigned int txerr_fifo;
+	unsigned int txerr_filt;
+
+	/* MIB counters */
+	unsigned int ack_fail;
+	unsigned int rts_fail;
+	unsigned int rts_ok;
+	unsigned int fcs_error;
+	unsigned int beacons;
+
+	unsigned int mib_intr;
+	unsigned int rxorn_intr;
+};
+
 #if CHAN_DEBUG
 #define ATH_CHAN_MAX	(26+26+26+200+200)
 #else
@@ -117,7 +150,6 @@ struct ath5k_softc {
 	struct pci_dev		*pdev;		/* for dma mapping */
 	void __iomem		*iobase;	/* address of the device */
 	struct mutex		lock;		/* dev-level lock */
-	struct ieee80211_low_level_stats ll_stats;
 	struct ieee80211_hw	*hw;		/* IEEE 802.11 common */
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 	struct ieee80211_channel channels[ATH_CHAN_MAX];
@@ -191,6 +223,11 @@ struct ath5k_softc {
 	int 			power_level;	/* Requested tx power in dbm */
 	bool			assoc;		/* associate state */
 	bool			enable_beacon;	/* true if beacons are on */
+
+	struct ath5k_statistics	stats;
+
+	struct ath5k_ani_state	ani_state;
+	struct tasklet_struct	ani_tasklet;	/* ANI calibration */
 };
 
 #define ath5k_hw_hasbssidmask(_ah) \

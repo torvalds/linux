@@ -229,7 +229,7 @@ static void lbs_tx_timeout(struct net_device *dev)
 
 	lbs_pr_err("tx watch dog timeout\n");
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 
 	if (priv->currenttxskb)
 		lbs_send_tx_feedback(priv, 0);
@@ -319,7 +319,7 @@ static int lbs_add_mcast_addrs(struct cmd_ds_mac_multicast_adr *cmd,
 			       struct net_device *dev, int nr_addrs)
 {
 	int i = nr_addrs;
-	struct dev_mc_list *mc_list;
+	struct netdev_hw_addr *ha;
 	int cnt;
 
 	if ((dev->flags & (IFF_UP|IFF_MULTICAST)) != (IFF_UP|IFF_MULTICAST))
@@ -327,19 +327,19 @@ static int lbs_add_mcast_addrs(struct cmd_ds_mac_multicast_adr *cmd,
 
 	netif_addr_lock_bh(dev);
 	cnt = netdev_mc_count(dev);
-	netdev_for_each_mc_addr(mc_list, dev) {
-		if (mac_in_list(cmd->maclist, nr_addrs, mc_list->dmi_addr)) {
+	netdev_for_each_mc_addr(ha, dev) {
+		if (mac_in_list(cmd->maclist, nr_addrs, ha->addr)) {
 			lbs_deb_net("mcast address %s:%pM skipped\n", dev->name,
-				    mc_list->dmi_addr);
+				    ha->addr);
 			cnt--;
 			continue;
 		}
 
 		if (i == MRVDRV_MAX_MULTICAST_LIST_SIZE)
 			break;
-		memcpy(&cmd->maclist[6*i], mc_list->dmi_addr, ETH_ALEN);
+		memcpy(&cmd->maclist[6*i], ha->addr, ETH_ALEN);
 		lbs_deb_net("mcast address %s:%pM added to filter\n", dev->name,
-			    mc_list->dmi_addr);
+			    ha->addr);
 		i++;
 		cnt--;
 	}
@@ -836,6 +836,7 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	priv->is_auto_deep_sleep_enabled = 0;
 	priv->wakeup_dev_required = 0;
 	init_waitqueue_head(&priv->ds_awake_q);
+	priv->authtype_auto = 1;
 
 	mutex_init(&priv->lock);
 

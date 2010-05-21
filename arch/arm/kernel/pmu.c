@@ -2,6 +2,7 @@
  *  linux/arch/arm/kernel/pmu.c
  *
  *  Copyright (C) 2009 picoChip Designs Ltd, Jamie Iles
+ *  Copyright (C) 2010 ARM Ltd, Will Deacon
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -9,65 +10,78 @@
  *
  */
 
+#define pr_fmt(fmt) "PMU: " fmt
+
 #include <linux/cpumask.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/platform_device.h>
 
 #include <asm/pmu.h>
 
-/*
- * Define the IRQs for the system. We could use something like a platform
- * device but that seems fairly heavyweight for this. Also, the performance
- * counters can't be removed or hotplugged.
- *
- * Ordering is important: init_pmu() will use the ordering to set the affinity
- * to the corresponding core. e.g. the first interrupt will go to cpu 0, the
- * second goes to cpu 1 etc.
- */
-static const int irqs[] = {
-#if defined(CONFIG_ARCH_OMAP2)
-	3,
-#elif defined(CONFIG_ARCH_BCMRING)
-	IRQ_PMUIRQ,
-#elif defined(CONFIG_MACH_REALVIEW_EB)
-	IRQ_EB11MP_PMU_CPU0,
-	IRQ_EB11MP_PMU_CPU1,
-	IRQ_EB11MP_PMU_CPU2,
-	IRQ_EB11MP_PMU_CPU3,
-#elif defined(CONFIG_ARCH_OMAP3)
-	INT_34XX_BENCH_MPU_EMUL,
-#elif defined(CONFIG_ARCH_IOP32X)
-	IRQ_IOP32X_CORE_PMU,
-#elif defined(CONFIG_ARCH_IOP33X)
-	IRQ_IOP33X_CORE_PMU,
-#elif defined(CONFIG_ARCH_PXA)
-	IRQ_PMU,
-#endif
-};
-
-static const struct pmu_irqs pmu_irqs = {
-	.irqs	    = irqs,
-	.num_irqs   = ARRAY_SIZE(irqs),
-};
-
 static volatile long pmu_lock;
 
-const struct pmu_irqs *
-reserve_pmu(void)
+static struct platform_device *pmu_devices[ARM_NUM_PMU_DEVICES];
+
+static int __devinit pmu_device_probe(struct platform_device *pdev)
 {
-	return test_and_set_bit_lock(0, &pmu_lock) ? ERR_PTR(-EBUSY) :
-		&pmu_irqs;
+
+	if (pdev->id < 0 || pdev->id >= ARM_NUM_PMU_DEVICES) {
+		pr_warning("received registration request for unknown "
+				"device %d\n", pdev->id);
+		return -EINVAL;
+	}
+
+	if (pmu_devices[pdev->id])
+		pr_warning("registering new PMU device type %d overwrites "
+				"previous registration!\n", pdev->id);
+	else
+		pr_info("registered new PMU device of type %d\n",
+				pdev->id);
+
+	pmu_devices[pdev->id] = pdev;
+	return 0;
+}
+
+static struct platform_driver pmu_driver = {
+	.driver		= {
+		.name	= "arm-pmu",
+	},
+	.probe		= pmu_device_probe,
+};
+
+static int __init register_pmu_driver(void)
+{
+	return platform_driver_register(&pmu_driver);
+}
+device_initcall(register_pmu_driver);
+
+struct platform_device *
+reserve_pmu(enum arm_pmu_type device)
+{
+	struct platform_device *pdev;
+
+	if (test_and_set_bit_lock(device, &pmu_lock)) {
+		pdev = ERR_PTR(-EBUSY);
+	} else if (pmu_devices[device] == NULL) {
+		clear_bit_unlock(device, &pmu_lock);
+		pdev = ERR_PTR(-ENODEV);
+	} else {
+		pdev = pmu_devices[device];
+	}
+
+	return pdev;
 }
 EXPORT_SYMBOL_GPL(reserve_pmu);
 
 int
-release_pmu(const struct pmu_irqs *irqs)
+release_pmu(struct platform_device *pdev)
 {
-	if (WARN_ON(irqs != &pmu_irqs))
+	if (WARN_ON(pdev != pmu_devices[pdev->id]))
 		return -EINVAL;
-	clear_bit_unlock(0, &pmu_lock);
+	clear_bit_unlock(pdev->id, &pmu_lock);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(release_pmu);
@@ -87,15 +101,40 @@ set_irq_affinity(int irq,
 #endif
 }
 
-int
-init_pmu(void)
+static int
+init_cpu_pmu(void)
 {
 	int i, err = 0;
+	struct platform_device *pdev = pmu_devices[ARM_PMU_DEVICE_CPU];
 
-	for (i = 0; i < pmu_irqs.num_irqs; ++i) {
-		err = set_irq_affinity(pmu_irqs.irqs[i], i);
+	if (!pdev) {
+		err = -ENODEV;
+		goto out;
+	}
+
+	for (i = 0; i < pdev->num_resources; ++i) {
+		err = set_irq_affinity(platform_get_irq(pdev, i), i);
 		if (err)
 			break;
+	}
+
+out:
+	return err;
+}
+
+int
+init_pmu(enum arm_pmu_type device)
+{
+	int err = 0;
+
+	switch (device) {
+	case ARM_PMU_DEVICE_CPU:
+		err = init_cpu_pmu();
+		break;
+	default:
+		pr_warning("attempt to initialise unknown device %d\n",
+				device);
+		err = -EINVAL;
 	}
 
 	return err;

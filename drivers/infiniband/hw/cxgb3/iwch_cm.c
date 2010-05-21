@@ -102,12 +102,9 @@ static unsigned int cong_flavor = 1;
 module_param(cong_flavor, uint, 0644);
 MODULE_PARM_DESC(cong_flavor, "TCP Congestion control flavor (default=1)");
 
-static void process_work(struct work_struct *work);
 static struct workqueue_struct *workq;
-static DECLARE_WORK(skb_work, process_work);
 
 static struct sk_buff_head rxq;
-static cxgb3_cpl_handler_func work_handlers[NUM_CPL_CMDS];
 
 static struct sk_buff *get_skb(struct sk_buff *skb, int len, gfp_t gfp);
 static void ep_timeout(unsigned long arg);
@@ -151,7 +148,7 @@ int iwch_l2t_send(struct t3cdev *tdev, struct sk_buff *skb, struct l2t_entry *l2
 		return -EIO;
 	}
 	error = l2t_send(tdev, skb, l2e);
-	if (error)
+	if (error < 0)
 		kfree_skb(skb);
 	return error;
 }
@@ -167,7 +164,7 @@ int iwch_cxgb3_ofld_send(struct t3cdev *tdev, struct sk_buff *skb)
 		return -EIO;
 	}
 	error = cxgb3_ofld_send(tdev, skb);
-	if (error)
+	if (error < 0)
 		kfree_skb(skb);
 	return error;
 }
@@ -300,27 +297,6 @@ static void release_ep_resources(struct iwch_ep *ep)
 	PDBG("%s ep %p tid %d\n", __func__, ep, ep->hwtid);
 	set_bit(RELEASE_RESOURCES, &ep->com.flags);
 	put_ep(&ep->com);
-}
-
-static void process_work(struct work_struct *work)
-{
-	struct sk_buff *skb = NULL;
-	void *ep;
-	struct t3cdev *tdev;
-	int ret;
-
-	while ((skb = skb_dequeue(&rxq))) {
-		ep = *((void **) (skb->cb));
-		tdev = *((struct t3cdev **) (skb->cb + sizeof(void *)));
-		ret = work_handlers[G_OPCODE(ntohl((__force __be32)skb->csum))](tdev, skb, ep);
-		if (ret & CPL_RET_BUF_DONE)
-			kfree_skb(skb);
-
-		/*
-		 * ep was referenced in sched(), and is freed here.
-		 */
-		put_ep((struct iwch_ep_common *)ep);
-	}
 }
 
 static int status2errno(int status)
@@ -2157,7 +2133,49 @@ int iwch_ep_redirect(void *ctx, struct dst_entry *old, struct dst_entry *new,
 
 /*
  * All the CM events are handled on a work queue to have a safe context.
+ * These are the real handlers that are called from the work queue.
  */
+static const cxgb3_cpl_handler_func work_handlers[NUM_CPL_CMDS] = {
+	[CPL_ACT_ESTABLISH]	= act_establish,
+	[CPL_ACT_OPEN_RPL]	= act_open_rpl,
+	[CPL_RX_DATA]		= rx_data,
+	[CPL_TX_DMA_ACK]	= tx_ack,
+	[CPL_ABORT_RPL_RSS]	= abort_rpl,
+	[CPL_ABORT_RPL]		= abort_rpl,
+	[CPL_PASS_OPEN_RPL]	= pass_open_rpl,
+	[CPL_CLOSE_LISTSRV_RPL]	= close_listsrv_rpl,
+	[CPL_PASS_ACCEPT_REQ]	= pass_accept_req,
+	[CPL_PASS_ESTABLISH]	= pass_establish,
+	[CPL_PEER_CLOSE]	= peer_close,
+	[CPL_ABORT_REQ_RSS]	= peer_abort,
+	[CPL_CLOSE_CON_RPL]	= close_con_rpl,
+	[CPL_RDMA_TERMINATE]	= terminate,
+	[CPL_RDMA_EC_STATUS]	= ec_status,
+};
+
+static void process_work(struct work_struct *work)
+{
+	struct sk_buff *skb = NULL;
+	void *ep;
+	struct t3cdev *tdev;
+	int ret;
+
+	while ((skb = skb_dequeue(&rxq))) {
+		ep = *((void **) (skb->cb));
+		tdev = *((struct t3cdev **) (skb->cb + sizeof(void *)));
+		ret = work_handlers[G_OPCODE(ntohl((__force __be32)skb->csum))](tdev, skb, ep);
+		if (ret & CPL_RET_BUF_DONE)
+			kfree_skb(skb);
+
+		/*
+		 * ep was referenced in sched(), and is freed here.
+		 */
+		put_ep((struct iwch_ep_common *)ep);
+	}
+}
+
+static DECLARE_WORK(skb_work, process_work);
+
 static int sched(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 {
 	struct iwch_ep_common *epc = ctx;
@@ -2189,6 +2207,29 @@ static int set_tcb_rpl(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	return CPL_RET_BUF_DONE;
 }
 
+/*
+ * All upcalls from the T3 Core go to sched() to schedule the
+ * processing on a work queue.
+ */
+cxgb3_cpl_handler_func t3c_handlers[NUM_CPL_CMDS] = {
+	[CPL_ACT_ESTABLISH]	= sched,
+	[CPL_ACT_OPEN_RPL]	= sched,
+	[CPL_RX_DATA]		= sched,
+	[CPL_TX_DMA_ACK]	= sched,
+	[CPL_ABORT_RPL_RSS]	= sched,
+	[CPL_ABORT_RPL]		= sched,
+	[CPL_PASS_OPEN_RPL]	= sched,
+	[CPL_CLOSE_LISTSRV_RPL]	= sched,
+	[CPL_PASS_ACCEPT_REQ]	= sched,
+	[CPL_PASS_ESTABLISH]	= sched,
+	[CPL_PEER_CLOSE]	= sched,
+	[CPL_CLOSE_CON_RPL]	= sched,
+	[CPL_ABORT_REQ_RSS]	= sched,
+	[CPL_RDMA_TERMINATE]	= sched,
+	[CPL_RDMA_EC_STATUS]	= sched,
+	[CPL_SET_TCB_RPL]	= set_tcb_rpl,
+};
+
 int __init iwch_cm_init(void)
 {
 	skb_queue_head_init(&rxq);
@@ -2197,46 +2238,6 @@ int __init iwch_cm_init(void)
 	if (!workq)
 		return -ENOMEM;
 
-	/*
-	 * All upcalls from the T3 Core go to sched() to
-	 * schedule the processing on a work queue.
-	 */
-	t3c_handlers[CPL_ACT_ESTABLISH] = sched;
-	t3c_handlers[CPL_ACT_OPEN_RPL] = sched;
-	t3c_handlers[CPL_RX_DATA] = sched;
-	t3c_handlers[CPL_TX_DMA_ACK] = sched;
-	t3c_handlers[CPL_ABORT_RPL_RSS] = sched;
-	t3c_handlers[CPL_ABORT_RPL] = sched;
-	t3c_handlers[CPL_PASS_OPEN_RPL] = sched;
-	t3c_handlers[CPL_CLOSE_LISTSRV_RPL] = sched;
-	t3c_handlers[CPL_PASS_ACCEPT_REQ] = sched;
-	t3c_handlers[CPL_PASS_ESTABLISH] = sched;
-	t3c_handlers[CPL_PEER_CLOSE] = sched;
-	t3c_handlers[CPL_CLOSE_CON_RPL] = sched;
-	t3c_handlers[CPL_ABORT_REQ_RSS] = sched;
-	t3c_handlers[CPL_RDMA_TERMINATE] = sched;
-	t3c_handlers[CPL_RDMA_EC_STATUS] = sched;
-	t3c_handlers[CPL_SET_TCB_RPL] = set_tcb_rpl;
-
-	/*
-	 * These are the real handlers that are called from a
-	 * work queue.
-	 */
-	work_handlers[CPL_ACT_ESTABLISH] = act_establish;
-	work_handlers[CPL_ACT_OPEN_RPL] = act_open_rpl;
-	work_handlers[CPL_RX_DATA] = rx_data;
-	work_handlers[CPL_TX_DMA_ACK] = tx_ack;
-	work_handlers[CPL_ABORT_RPL_RSS] = abort_rpl;
-	work_handlers[CPL_ABORT_RPL] = abort_rpl;
-	work_handlers[CPL_PASS_OPEN_RPL] = pass_open_rpl;
-	work_handlers[CPL_CLOSE_LISTSRV_RPL] = close_listsrv_rpl;
-	work_handlers[CPL_PASS_ACCEPT_REQ] = pass_accept_req;
-	work_handlers[CPL_PASS_ESTABLISH] = pass_establish;
-	work_handlers[CPL_PEER_CLOSE] = peer_close;
-	work_handlers[CPL_ABORT_REQ_RSS] = peer_abort;
-	work_handlers[CPL_CLOSE_CON_RPL] = close_con_rpl;
-	work_handlers[CPL_RDMA_TERMINATE] = terminate;
-	work_handlers[CPL_RDMA_EC_STATUS] = ec_status;
 	return 0;
 }
 

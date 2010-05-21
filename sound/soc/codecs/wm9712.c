@@ -632,9 +632,6 @@ static int wm9712_soc_resume(struct platform_device *pdev)
 		}
 	}
 
-	if (codec->suspend_bias_level == SND_SOC_BIAS_ON)
-		wm9712_set_bias_level(codec, SND_SOC_BIAS_ON);
-
 	return ret;
 }
 

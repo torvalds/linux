@@ -44,7 +44,6 @@ static void ingress_put(struct Qdisc *sch, unsigned long cl)
 
 static void ingress_walk(struct Qdisc *sch, struct qdisc_walker *walker)
 {
-	return;
 }
 
 static struct tcf_proto **ingress_find_tcf(struct Qdisc *sch, unsigned long cl)

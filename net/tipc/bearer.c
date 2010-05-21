@@ -467,6 +467,18 @@ int tipc_bearer_resolve_congestion(struct bearer *b_ptr, struct link *l_ptr)
 	return res;
 }
 
+/**
+ * tipc_bearer_congested - determines if bearer is currently congested
+ */
+
+int tipc_bearer_congested(struct bearer *b_ptr, struct link *l_ptr)
+{
+	if (unlikely(b_ptr->publ.blocked))
+		return 1;
+	if (likely(list_empty(&b_ptr->cong_links)))
+		return 0;
+	return !tipc_bearer_resolve_congestion(b_ptr, l_ptr);
+}
 
 /**
  * tipc_enable_bearer - enable bearer with the given name
@@ -493,7 +505,7 @@ int tipc_enable_bearer(const char *name, u32 bcast_scope, u32 priority)
 		return -EINVAL;
 	}
 	if (!tipc_addr_domain_valid(bcast_scope) ||
-	    !in_scope(bcast_scope, tipc_own_addr)) {
+	    !tipc_in_scope(bcast_scope, tipc_own_addr)) {
 		warn("Bearer <%s> rejected, illegal broadcast scope\n", name);
 		return -EINVAL;
 	}
@@ -571,7 +583,7 @@ restart:
 	spin_lock_init(&b_ptr->publ.lock);
 	write_unlock_bh(&tipc_net_lock);
 	info("Enabled bearer <%s>, discovery domain %s, priority %u\n",
-	     name, addr_string_fill(addr_string, bcast_scope), priority);
+	     name, tipc_addr_string_fill(addr_string, bcast_scope), priority);
 	return 0;
 failed:
 	write_unlock_bh(&tipc_net_lock);

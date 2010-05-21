@@ -426,7 +426,7 @@ static void dvb_dmx_swfilter_packet(struct dvb_demux *demux, const u8 *buf)
 		};
 	};
 
-	if (demux->cnt_storage) {
+	if (demux->cnt_storage && dvb_demux_tscheck) {
 		/* check pkt counter */
 		if (pid < MAX_PID) {
 			if (buf[1] & 0x80)
@@ -1248,12 +1248,9 @@ int dvb_dmx_init(struct dvb_demux *dvbdemux)
 		dvbdemux->feed[i].index = i;
 	}
 
-	if (dvb_demux_tscheck) {
-		dvbdemux->cnt_storage = vmalloc(MAX_PID + 1);
-
-		if (!dvbdemux->cnt_storage)
-			printk(KERN_WARNING "Couldn't allocate memory for TS/TEI check. Disabling it\n");
-	}
+	dvbdemux->cnt_storage = vmalloc(MAX_PID + 1);
+	if (!dvbdemux->cnt_storage)
+		printk(KERN_WARNING "Couldn't allocate memory for TS/TEI check. Disabling it\n");
 
 	INIT_LIST_HEAD(&dvbdemux->frontend_list);
 

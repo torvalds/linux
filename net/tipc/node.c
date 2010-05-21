@@ -268,7 +268,7 @@ struct tipc_node *tipc_node_attach_link(struct link *l_ptr)
 
 		if (n_ptr->link_cnt >= 2) {
 			err("Attempt to create third link to %s\n",
-			    addr_string_fill(addr_string, n_ptr->addr));
+			    tipc_addr_string_fill(addr_string, n_ptr->addr));
 			return NULL;
 		}
 
@@ -278,9 +278,9 @@ struct tipc_node *tipc_node_attach_link(struct link *l_ptr)
 			n_ptr->link_cnt++;
 			return n_ptr;
 		}
-		err("Attempt to establish second link on <%s> to %s \n",
+		err("Attempt to establish second link on <%s> to %s\n",
 		    l_ptr->b_ptr->publ.name,
-		    addr_string_fill(addr_string, l_ptr->addr));
+		    tipc_addr_string_fill(addr_string, l_ptr->addr));
 	}
 	return NULL;
 }
@@ -439,7 +439,7 @@ static void node_lost_contact(struct tipc_node *n_ptr)
 		return;
 
 	info("Lost contact with %s\n",
-	     addr_string_fill(addr_string, n_ptr->addr));
+	     tipc_addr_string_fill(addr_string, n_ptr->addr));
 
 	/* Abort link changeover */
 	for (i = 0; i < MAX_BEARERS; i++) {
@@ -602,7 +602,7 @@ u32 tipc_available_nodes(const u32 domain)
 
 	read_lock_bh(&tipc_net_lock);
 	for (n_ptr = tipc_nodes; n_ptr; n_ptr = n_ptr->next) {
-		if (!in_scope(domain, n_ptr->addr))
+		if (!tipc_in_scope(domain, n_ptr->addr))
 			continue;
 		if (tipc_node_is_up(n_ptr))
 			cnt++;
@@ -651,7 +651,7 @@ struct sk_buff *tipc_node_get_nodes(const void *req_tlv_area, int req_tlv_space)
 	/* Add TLVs for all nodes in scope */
 
 	for (n_ptr = tipc_nodes; n_ptr; n_ptr = n_ptr->next) {
-		if (!in_scope(domain, n_ptr->addr))
+		if (!tipc_in_scope(domain, n_ptr->addr))
 			continue;
 		node_info.addr = htonl(n_ptr->addr);
 		node_info.up = htonl(tipc_node_is_up(n_ptr));
@@ -711,7 +711,7 @@ struct sk_buff *tipc_node_get_links(const void *req_tlv_area, int req_tlv_space)
 	for (n_ptr = tipc_nodes; n_ptr; n_ptr = n_ptr->next) {
 		u32 i;
 
-		if (!in_scope(domain, n_ptr->addr))
+		if (!tipc_in_scope(domain, n_ptr->addr))
 			continue;
 		tipc_node_lock(n_ptr);
 		for (i = 0; i < MAX_BEARERS; i++) {

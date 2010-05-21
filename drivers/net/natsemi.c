@@ -1905,7 +1905,7 @@ static void ns_tx_timeout(struct net_device *dev)
 	spin_unlock_irq(&np->lock);
 	enable_irq(dev->irq);
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	np->stats.tx_errors++;
 	netif_wake_queue(dev);
 }
@@ -2118,8 +2118,6 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 		np->stats.tx_dropped++;
 	}
 	spin_unlock_irqrestore(&np->lock, flags);
-
-	dev->trans_start = jiffies;
 
 	if (netif_msg_tx_queued(np)) {
 		printk(KERN_DEBUG "%s: Transmit frame #%d queued in slot %d.\n",
@@ -2493,12 +2491,12 @@ static void __set_rx_mode(struct net_device *dev)
 		rx_mode = RxFilterEnable | AcceptBroadcast
 			| AcceptAllMulticast | AcceptMyPhys;
 	} else {
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		int i;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		netdev_for_each_mc_addr(mclist, dev) {
-			int b = (ether_crc(ETH_ALEN, mclist->dmi_addr) >> 23) & 0x1ff;
+		netdev_for_each_mc_addr(ha, dev) {
+			int b = (ether_crc(ETH_ALEN, ha->addr) >> 23) & 0x1ff;
 			mc_filter[b/8] |= (1 << (b & 0x07));
 		}
 		rx_mode = RxFilterEnable | AcceptBroadcast

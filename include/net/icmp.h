@@ -48,15 +48,4 @@ extern void	icmp_out_count(struct net *net, unsigned char type);
 /* Move into dst.h ? */
 extern int 	xrlim_allow(struct dst_entry *dst, int timeout);
 
-struct raw_sock {
-	/* inet_sock has to be the first member */
-	struct inet_sock   inet;
-	struct icmp_filter filter;
-};
-
-static inline struct raw_sock *raw_sk(const struct sock *sk)
-{
-	return (struct raw_sock *)sk;
-}
-
 #endif	/* _ICMP_H */

@@ -39,7 +39,7 @@ struct init_command {
 };
 
 /* V4L2 controls supported by the driver */
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 };
 
 /* How to change the resolution of any of the VGA cams is unknown */

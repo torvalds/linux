@@ -145,6 +145,7 @@ static struct zorro_device_id ariadne_zorro_tbl[] __devinitdata = {
     { ZORRO_PROD_VILLAGE_TRONIC_ARIADNE },
     { 0 }
 };
+MODULE_DEVICE_TABLE(zorro, ariadne_zorro_tbl);
 
 static struct zorro_driver ariadne_driver = {
     .name	= "ariadne",
@@ -675,8 +676,6 @@ static netdev_tx_t ariadne_start_xmit(struct sk_buff *skb,
     /* Trigger an immediate send poll. */
     lance->RAP = CSR0;		/* PCnet-ISA Controller Status */
     lance->RDP = INEA|TDMD;
-
-    dev->trans_start = jiffies;
 
     if (lowb(priv->tx_ring[(entry+1) % TX_RING_SIZE]->TMD1) != 0) {
 	netif_stop_queue(dev);

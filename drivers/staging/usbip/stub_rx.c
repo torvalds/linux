@@ -21,7 +21,7 @@
 
 #include "usbip_common.h"
 #include "stub.h"
-#include "../../usb/core/hcd.h"
+#include <linux/usb/hcd.h>
 
 
 static int is_clear_halt_cmd(struct urb *urb)

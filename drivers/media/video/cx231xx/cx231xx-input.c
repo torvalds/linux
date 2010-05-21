@@ -35,6 +35,8 @@ static unsigned int ir_debug;
 module_param(ir_debug, int, 0644);
 MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 
+#define MODULE_NAME "cx231xx"
+
 #define i2cdprintk(fmt, arg...) \
 	if (ir_debug) { \
 		printk(KERN_DEBUG "%s/ir: " fmt, ir->name , ## arg); \
@@ -59,7 +61,6 @@ struct cx231xx_ir_poll_result {
 struct cx231xx_IR {
 	struct cx231xx *dev;
 	struct input_dev *input;
-	struct ir_input_state ir;
 	char name[32];
 	char phys[32];
 
@@ -67,9 +68,7 @@ struct cx231xx_IR {
 	int polling;
 	struct work_struct work;
 	struct timer_list timer;
-	unsigned int last_toggle:1;
 	unsigned int last_readcount;
-	unsigned int repeat_interval;
 
 	int (*get_key) (struct cx231xx_IR *, struct cx231xx_ir_poll_result *);
 };
@@ -81,7 +80,6 @@ struct cx231xx_IR {
 static void cx231xx_ir_handle_key(struct cx231xx_IR *ir)
 {
 	int result;
-	int do_sendkey = 0;
 	struct cx231xx_ir_poll_result poll_result;
 
 	/* read the registers containing the IR status */
@@ -95,44 +93,23 @@ static void cx231xx_ir_handle_key(struct cx231xx_IR *ir)
 		poll_result.toggle_bit, poll_result.read_count,
 		ir->last_readcount, poll_result.rc_data[0]);
 
-	if (ir->dev->chip_id == CHIP_ID_EM2874) {
+	if (poll_result.read_count > 0 &&
+	    poll_result.read_count != ir->last_readcount)
+		ir_keydown(ir->input,
+			   poll_result.rc_data[0],
+			   poll_result.toggle_bit);
+
+	if (ir->dev->chip_id == CHIP_ID_EM2874)
 		/* The em2874 clears the readcount field every time the
 		   register is read.  The em2860/2880 datasheet says that it
 		   is supposed to clear the readcount, but it doesn't.  So with
 		   the em2874, we are looking for a non-zero read count as
 		   opposed to a readcount that is incrementing */
 		ir->last_readcount = 0;
+	else
+		ir->last_readcount = poll_result.read_count;
+
 	}
-
-	if (poll_result.read_count == 0) {
-		/* The button has not been pressed since the last read */
-	} else if (ir->last_toggle != poll_result.toggle_bit) {
-		/* A button has been pressed */
-		dprintk("button has been pressed\n");
-		ir->last_toggle = poll_result.toggle_bit;
-		ir->repeat_interval = 0;
-		do_sendkey = 1;
-	} else if (poll_result.toggle_bit == ir->last_toggle &&
-		   poll_result.read_count > 0 &&
-		   poll_result.read_count != ir->last_readcount) {
-		/* The button is still being held down */
-		dprintk("button being held down\n");
-
-		/* Debouncer for first keypress */
-		if (ir->repeat_interval++ > 9) {
-			/* Start repeating after 1 second */
-			do_sendkey = 1;
-		}
-	}
-
-	if (do_sendkey) {
-		dprintk("sending keypress\n");
-		ir_input_keydown(ir->input, &ir->ir, poll_result.rc_data[0]);
-		ir_input_nokey(ir->input, &ir->ir);
-	}
-
-	ir->last_readcount = poll_result.read_count;
-	return;
 }
 
 static void ir_timer(unsigned long data)
@@ -198,10 +175,6 @@ int cx231xx_ir_init(struct cx231xx *dev)
 	usb_make_path(dev->udev, ir->phys, sizeof(ir->phys));
 	strlcat(ir->phys, "/input0", sizeof(ir->phys));
 
-	err = ir_input_init(input_dev, &ir->ir, IR_TYPE_OTHER);
-	if (err < 0)
-		goto err_out_free;
-
 	input_dev->name = ir->name;
 	input_dev->phys = ir->phys;
 	input_dev->id.bustype = BUS_USB;
@@ -217,7 +190,8 @@ int cx231xx_ir_init(struct cx231xx *dev)
 	cx231xx_ir_start(ir);
 
 	/* all done */
-	err = ir_input_register(ir->input, dev->board.ir_codes, NULL);
+	err = __ir_input_register(ir->input, dev->board.ir_codes,
+				NULL, MODULE_NAME);
 	if (err)
 		goto err_out_stop;
 

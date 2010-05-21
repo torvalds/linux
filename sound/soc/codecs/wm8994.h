@@ -23,4 +23,12 @@ extern struct snd_soc_dai wm8994_dai[];
 #define WM8994_FLL1 1
 #define WM8994_FLL2 2
 
+#define WM8994_FLL_SRC_MCLK1  1
+#define WM8994_FLL_SRC_MCLK2  2
+#define WM8994_FLL_SRC_LRCLK  3
+#define WM8994_FLL_SRC_BCLK   4
+
+int wm8994_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
+		      int micbias, int det, int shrt);
+
 #endif

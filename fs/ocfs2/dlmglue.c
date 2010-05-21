@@ -3897,7 +3897,8 @@ static int ocfs2_refresh_qinfo(struct ocfs2_mem_dqinfo *oinfo)
 		oinfo->dqi_gi.dqi_free_entry =
 					be32_to_cpu(lvb->lvb_free_entry);
 	} else {
-		status = ocfs2_read_quota_block(oinfo->dqi_gqinode, 0, &bh);
+		status = ocfs2_read_quota_phys_block(oinfo->dqi_gqinode,
+						     oinfo->dqi_giblk, &bh);
 		if (status) {
 			mlog_errno(status);
 			goto bail;

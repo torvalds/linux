@@ -69,10 +69,10 @@ void __init wii_memory_fixups(void)
 
 	/*
 	 * This is part of a workaround to allow the use of two
-	 * discontiguous RAM ranges on the Wii, even if this is
+	 * discontinuous RAM ranges on the Wii, even if this is
 	 * currently unsupported on 32-bit PowerPC Linux.
 	 *
-	 * We coealesce the two memory ranges of the Wii into a
+	 * We coalesce the two memory ranges of the Wii into a
 	 * single range, then create a reservation for the "hole"
 	 * between both ranges.
 	 */

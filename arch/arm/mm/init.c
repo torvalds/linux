@@ -15,7 +15,6 @@
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 #include <linux/initrd.h>
-#include <linux/sort.h>
 #include <linux/highmem.h>
 #include <linux/gfp.h>
 
@@ -86,9 +85,6 @@ void show_mem(void)
 	printk("Mem-info:\n");
 	show_free_areas();
 	for_each_online_node(node) {
-		pg_data_t *n = NODE_DATA(node);
-		struct page *map = pgdat_page_nr(n, 0) - n->node_start_pfn;
-
 		for_each_nodebank (i,mi,node) {
 			struct membank *bank = &mi->bank[i];
 			unsigned int pfn1, pfn2;
@@ -97,8 +93,8 @@ void show_mem(void)
 			pfn1 = bank_pfn_start(bank);
 			pfn2 = bank_pfn_end(bank);
 
-			page = map + pfn1;
-			end  = map + pfn2;
+			page = pfn_to_page(pfn1);
+			end  = pfn_to_page(pfn2 - 1) + 1;
 
 			do {
 				total++;
@@ -227,20 +223,6 @@ static int __init check_initrd(struct meminfo *mi)
 	return initrd_node;
 }
 
-static inline void map_memory_bank(struct membank *bank)
-{
-#ifdef CONFIG_MMU
-	struct map_desc map;
-
-	map.pfn = bank_pfn_start(bank);
-	map.virtual = __phys_to_virt(bank_phys_start(bank));
-	map.length = bank_phys_size(bank);
-	map.type = MT_MEMORY;
-
-	create_mapping(&map);
-#endif
-}
-
 static void __init bootmem_init_node(int node, struct meminfo *mi,
 	unsigned long start_pfn, unsigned long end_pfn)
 {
@@ -248,16 +230,6 @@ static void __init bootmem_init_node(int node, struct meminfo *mi,
 	unsigned int boot_pages;
 	pg_data_t *pgdat;
 	int i;
-
-	/*
-	 * Map the memory banks for this node.
-	 */
-	for_each_nodebank(i, mi, node) {
-		struct membank *bank = &mi->bank[i];
-
-		if (!bank->highmem)
-			map_memory_bank(bank);
-	}
 
 	/*
 	 * Allocate the bootmem bitmap page.
@@ -388,20 +360,11 @@ static void arm_memory_present(struct meminfo *mi, int node)
 }
 #endif
 
-static int __init meminfo_cmp(const void *_a, const void *_b)
-{
-	const struct membank *a = _a, *b = _b;
-	long cmp = bank_pfn_start(a) - bank_pfn_start(b);
-	return cmp < 0 ? -1 : cmp > 0 ? 1 : 0;
-}
-
 void __init bootmem_init(void)
 {
 	struct meminfo *mi = &meminfo;
 	unsigned long min, max_low, max_high;
 	int node, initrd_node;
-
-	sort(&mi->bank, mi->nr_banks, sizeof(mi->bank[0]), meminfo_cmp, NULL);
 
 	/*
 	 * Locate which node contains the ramdisk image, if any.
@@ -603,9 +566,6 @@ void __init mem_init(void)
 	reserved_pages = free_pages = 0;
 
 	for_each_online_node(node) {
-		pg_data_t *n = NODE_DATA(node);
-		struct page *map = pgdat_page_nr(n, 0) - n->node_start_pfn;
-
 		for_each_nodebank(i, &meminfo, node) {
 			struct membank *bank = &meminfo.bank[i];
 			unsigned int pfn1, pfn2;
@@ -614,8 +574,8 @@ void __init mem_init(void)
 			pfn1 = bank_pfn_start(bank);
 			pfn2 = bank_pfn_end(bank);
 
-			page = map + pfn1;
-			end  = map + pfn2;
+			page = pfn_to_page(pfn1);
+			end  = pfn_to_page(pfn2 - 1) + 1;
 
 			do {
 				if (PageReserved(page))

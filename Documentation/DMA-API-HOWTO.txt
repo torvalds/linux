@@ -742,7 +742,7 @@ failure can be determined by:
 
 			   Closing
 
-This document, and the API itself, would not be in it's current
+This document, and the API itself, would not be in its current
 form without the feedback and suggestions from numerous individuals.
 We would like to specifically mention, in no particular order, the
 following people:

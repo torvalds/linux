@@ -1069,12 +1069,15 @@ netdev_tx_t usbnet_start_xmit (struct sk_buff *skb,
 	 * NOTE:  strictly conforming cdc-ether devices should expect
 	 * the ZLP here, but ignore the one-byte packet.
 	 */
-	if (!(info->flags & FLAG_SEND_ZLP) && (length % dev->maxpacket) == 0) {
-		urb->transfer_buffer_length++;
-		if (skb_tailroom(skb)) {
-			skb->data[skb->len] = 0;
-			__skb_put(skb, 1);
-		}
+	if (length % dev->maxpacket == 0) {
+		if (!(info->flags & FLAG_SEND_ZLP)) {
+			urb->transfer_buffer_length++;
+			if (skb_tailroom(skb)) {
+				skb->data[skb->len] = 0;
+				__skb_put(skb, 1);
+			}
+		} else
+			urb->transfer_flags |= URB_ZERO_PACKET;
 	}
 
 	spin_lock_irqsave(&dev->txq.lock, flags);

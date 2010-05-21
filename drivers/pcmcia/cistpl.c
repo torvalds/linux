@@ -129,6 +129,8 @@ static void __iomem *set_cis_map(struct pcmcia_socket *s,
 
 /**
  * pcmcia_read_cis_mem() - low-level function to read CIS memory
+ *
+ * must be called with ops_mutex held
  */
 int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 		 u_int len, void *ptr)
@@ -138,7 +140,6 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 
 	dev_dbg(&s->dev, "pcmcia_read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
-	mutex_lock(&s->ops_mutex);
 	if (attr & IS_INDIRECT) {
 		/* Indirect accesses use a bunch of special registers at fixed
 		   locations in common memory */
@@ -153,7 +154,6 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 		if (!sys) {
 			dev_dbg(&s->dev, "could not map memory\n");
 			memset(ptr, 0xff, len);
-			mutex_unlock(&s->ops_mutex);
 			return -1;
 		}
 
@@ -184,7 +184,6 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 			if (!sys) {
 				dev_dbg(&s->dev, "could not map memory\n");
 				memset(ptr, 0xff, len);
-				mutex_unlock(&s->ops_mutex);
 				return -1;
 			}
 			end = sys + s->map_size;
@@ -198,7 +197,6 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 			addr = 0;
 		}
 	}
-	mutex_unlock(&s->ops_mutex);
 	dev_dbg(&s->dev, "  %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
 		*(u_char *)(ptr+0), *(u_char *)(ptr+1),
 		*(u_char *)(ptr+2), *(u_char *)(ptr+3));
@@ -209,7 +207,8 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 /**
  * pcmcia_write_cis_mem() - low-level function to write CIS memory
  *
- * Probably only useful for writing one-byte registers.
+ * Probably only useful for writing one-byte registers. Must be called
+ * with ops_mutex held.
  */
 void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 		   u_int len, void *ptr)
@@ -220,7 +219,6 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	dev_dbg(&s->dev,
 		"pcmcia_write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
-	mutex_lock(&s->ops_mutex);
 	if (attr & IS_INDIRECT) {
 		/* Indirect accesses use a bunch of special registers at fixed
 		   locations in common memory */
@@ -234,7 +232,6 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 				((cis_width) ? MAP_16BIT : 0));
 		if (!sys) {
 			dev_dbg(&s->dev, "could not map memory\n");
-			mutex_unlock(&s->ops_mutex);
 			return; /* FIXME: Error */
 		}
 
@@ -260,7 +257,6 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 			sys = set_cis_map(s, card_offset, flags);
 			if (!sys) {
 				dev_dbg(&s->dev, "could not map memory\n");
-				mutex_unlock(&s->ops_mutex);
 				return; /* FIXME: error */
 			}
 
@@ -275,7 +271,6 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 			addr = 0;
 		}
 	}
-	mutex_unlock(&s->ops_mutex);
 }
 
 
@@ -314,7 +309,6 @@ static int read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
 			return 0;
 		}
 	}
-	mutex_unlock(&s->ops_mutex);
 
 	ret = pcmcia_read_cis_mem(s, attr, addr, len, ptr);
 
@@ -326,11 +320,11 @@ static int read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
 			cis->len = len;
 			cis->attr = attr;
 			memcpy(cis->cache, ptr, len);
-			mutex_lock(&s->ops_mutex);
 			list_add(&cis->node, &s->cis_cache);
-			mutex_unlock(&s->ops_mutex);
 		}
 	}
+	mutex_unlock(&s->ops_mutex);
+
 	return ret;
 }
 
@@ -386,6 +380,7 @@ int verify_cis_cache(struct pcmcia_socket *s)
 			   "no memory for verifying CIS\n");
 		return -ENOMEM;
 	}
+	mutex_lock(&s->ops_mutex);
 	list_for_each_entry(cis, &s->cis_cache, node) {
 		int len = cis->len;
 
@@ -395,10 +390,12 @@ int verify_cis_cache(struct pcmcia_socket *s)
 		ret = pcmcia_read_cis_mem(s, cis->attr, cis->addr, len, buf);
 		if (ret || memcmp(buf, cis->cache, len) != 0) {
 			kfree(buf);
+			mutex_unlock(&s->ops_mutex);
 			return -1;
 		}
 	}
 	kfree(buf);
+	mutex_unlock(&s->ops_mutex);
 	return 0;
 }
 
@@ -1362,106 +1359,6 @@ EXPORT_SYMBOL(pcmcia_parse_tuple);
 
 
 /**
- * pccard_read_tuple() - internal CIS tuple access
- * @s:		the struct pcmcia_socket where the card is inserted
- * @function:	the device function we loop for
- * @code:	which CIS code shall we look for?
- * @parse:	buffer where the tuple shall be parsed (or NULL, if no parse)
- *
- * pccard_read_tuple() reads out one tuple and attempts to parse it
- */
-int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function,
-		cisdata_t code, void *parse)
-{
-	tuple_t tuple;
-	cisdata_t *buf;
-	int ret;
-
-	buf = kmalloc(256, GFP_KERNEL);
-	if (buf == NULL) {
-		dev_printk(KERN_WARNING, &s->dev, "no memory to read tuple\n");
-		return -ENOMEM;
-	}
-	tuple.DesiredTuple = code;
-	tuple.Attributes = 0;
-	if (function == BIND_FN_ALL)
-		tuple.Attributes = TUPLE_RETURN_COMMON;
-	ret = pccard_get_first_tuple(s, function, &tuple);
-	if (ret != 0)
-		goto done;
-	tuple.TupleData = buf;
-	tuple.TupleOffset = 0;
-	tuple.TupleDataMax = 255;
-	ret = pccard_get_tuple_data(s, &tuple);
-	if (ret != 0)
-		goto done;
-	ret = pcmcia_parse_tuple(&tuple, parse);
-done:
-	kfree(buf);
-	return ret;
-}
-
-
-/**
- * pccard_loop_tuple() - loop over tuples in the CIS
- * @s:		the struct pcmcia_socket where the card is inserted
- * @function:	the device function we loop for
- * @code:	which CIS code shall we look for?
- * @parse:	buffer where the tuple shall be parsed (or NULL, if no parse)
- * @priv_data:	private data to be passed to the loop_tuple function.
- * @loop_tuple:	function to call for each CIS entry of type @function. IT
- *		gets passed the raw tuple, the paresed tuple (if @parse is
- *		set) and @priv_data.
- *
- * pccard_loop_tuple() loops over all CIS entries of type @function, and
- * calls the @loop_tuple function for each entry. If the call to @loop_tuple
- * returns 0, the loop exits. Returns 0 on success or errorcode otherwise.
- */
-int pccard_loop_tuple(struct pcmcia_socket *s, unsigned int function,
-		      cisdata_t code, cisparse_t *parse, void *priv_data,
-		      int (*loop_tuple) (tuple_t *tuple,
-					 cisparse_t *parse,
-					 void *priv_data))
-{
-	tuple_t tuple;
-	cisdata_t *buf;
-	int ret;
-
-	buf = kzalloc(256, GFP_KERNEL);
-	if (buf == NULL) {
-		dev_printk(KERN_WARNING, &s->dev, "no memory to read tuple\n");
-		return -ENOMEM;
-	}
-
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = 255;
-	tuple.TupleOffset = 0;
-	tuple.DesiredTuple = code;
-	tuple.Attributes = 0;
-
-	ret = pccard_get_first_tuple(s, function, &tuple);
-	while (!ret) {
-		if (pccard_get_tuple_data(s, &tuple))
-			goto next_entry;
-
-		if (parse)
-			if (pcmcia_parse_tuple(&tuple, parse))
-				goto next_entry;
-
-		ret = loop_tuple(&tuple, parse, priv_data);
-		if (!ret)
-			break;
-
-next_entry:
-		ret = pccard_get_next_tuple(s, function, &tuple);
-	}
-
-	kfree(buf);
-	return ret;
-}
-
-
-/**
  * pccard_validate_cis() - check whether card has a sensible CIS
  * @s:		the struct pcmcia_socket we are to check
  * @info:	returns the number of tuples in the (valid) CIS, or 0
@@ -1634,7 +1531,7 @@ static ssize_t pccard_extract_cis(struct pcmcia_socket *s, char *buf,
 }
 
 
-static ssize_t pccard_show_cis(struct kobject *kobj,
+static ssize_t pccard_show_cis(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr,
 			       char *buf, loff_t off, size_t count)
 {
@@ -1665,7 +1562,7 @@ static ssize_t pccard_show_cis(struct kobject *kobj,
 }
 
 
-static ssize_t pccard_store_cis(struct kobject *kobj,
+static ssize_t pccard_store_cis(struct file *filp, struct kobject *kobj,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t off, size_t count)
 {

@@ -891,7 +891,6 @@ static int hss_hdlc_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	wmb();
 	queue_put_desc(queue_ids[port->id].tx, tx_desc_phys(port, n), desc);
-	dev->trans_start = jiffies;
 
 	if (qmgr_stat_below_low_watermark(txreadyq)) { /* empty */
 #if DEBUG_TX

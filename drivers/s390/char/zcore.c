@@ -445,7 +445,7 @@ static int zcore_memmap_open(struct inode *inode, struct file *filp)
 	}
 	kfree(chunk_array);
 	filp->private_data = buf;
-	return 0;
+	return nonseekable_open(inode, filp);
 }
 
 static int zcore_memmap_release(struct inode *inode, struct file *filp)
@@ -473,7 +473,7 @@ static ssize_t zcore_reipl_write(struct file *filp, const char __user *buf,
 
 static int zcore_reipl_open(struct inode *inode, struct file *filp)
 {
-	return 0;
+	return nonseekable_open(inode, filp);
 }
 
 static int zcore_reipl_release(struct inode *inode, struct file *filp)

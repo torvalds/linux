@@ -451,7 +451,7 @@ static int __init au1xxx_nand_init(void)
 	u32 nand_phys;
 
 	/* Allocate memory for MTD device structure and private data */
-	au1550_mtd = kmalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip), GFP_KERNEL);
+	au1550_mtd = kzalloc(sizeof(struct mtd_info) + sizeof(struct nand_chip), GFP_KERNEL);
 	if (!au1550_mtd) {
 		printk("Unable to allocate NAND MTD dev structure.\n");
 		return -ENOMEM;
@@ -459,10 +459,6 @@ static int __init au1xxx_nand_init(void)
 
 	/* Get pointer to private data */
 	this = (struct nand_chip *)(&au1550_mtd[1]);
-
-	/* Initialize structures */
-	memset(au1550_mtd, 0, sizeof(struct mtd_info));
-	memset(this, 0, sizeof(struct nand_chip));
 
 	/* Link the private data with the MTD structure */
 	au1550_mtd->priv = this;
@@ -544,7 +540,7 @@ static int __init au1xxx_nand_init(void)
 	}
 	nand_phys = (mem_staddr << 4) & 0xFFFC0000;
 
-	p_nand = (void __iomem *)ioremap(nand_phys, 0x1000);
+	p_nand = ioremap(nand_phys, 0x1000);
 
 	/* make controller and MTD agree */
 	if (NAND_CS == 0)
@@ -589,7 +585,7 @@ static int __init au1xxx_nand_init(void)
 	return 0;
 
  outio:
-	iounmap((void *)p_nand);
+	iounmap(p_nand);
 
  outmem:
 	kfree(au1550_mtd);
@@ -610,7 +606,7 @@ static void __exit au1550_cleanup(void)
 	kfree(au1550_mtd);
 
 	/* Unmap */
-	iounmap((void *)p_nand);
+	iounmap(p_nand);
 }
 
 module_exit(au1550_cleanup);

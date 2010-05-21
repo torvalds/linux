@@ -371,6 +371,10 @@ static inline void __flush_icache_all(void)
 #ifdef CONFIG_ARM_ERRATA_411920
 	extern void v6_icache_inval_all(void);
 	v6_icache_inval_all();
+#elif defined(CONFIG_SMP) && __LINUX_ARM_ARCH__ >= 7
+	asm("mcr	p15, 0, %0, c7, c1, 0	@ invalidate I-cache inner shareable\n"
+	    :
+	    : "r" (0));
 #else
 	asm("mcr	p15, 0, %0, c7, c5, 0	@ invalidate I-cache\n"
 	    :

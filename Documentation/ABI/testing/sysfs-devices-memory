@@ -43,7 +43,7 @@ Date:		September 2008
 Contact:	Badari Pulavarty <pbadari@us.ibm.com>
 Description:
 		The file /sys/devices/system/memory/memoryX/state
-		is read-write.  When read, it's contents show the
+		is read-write.  When read, its contents show the
 		online/offline state of the memory section.  When written,
 		root can toggle the the online/offline state of a removable
 		memory section (see removable file description above)

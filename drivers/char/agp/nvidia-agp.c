@@ -310,6 +310,7 @@ static const struct agp_bridge_driver nvidia_driver = {
 	.aperture_sizes		= nvidia_generic_sizes,
 	.size_type		= U8_APER_SIZE,
 	.num_aperture_sizes	= 5,
+	.needs_scratch_page	= true,
 	.configure		= nvidia_configure,
 	.fetch_size		= nvidia_fetch_size,
 	.cleanup		= nvidia_cleanup,

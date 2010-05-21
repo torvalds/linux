@@ -56,9 +56,6 @@ struct subscr_data {
 struct manager {
 	u32 user_ref;
 	u32 port_ref;
-	u32 subscr_ref;
-	u32 link_subscriptions;
-	struct list_head link_subscribers;
 };
 
 static struct manager mng = { 0};
@@ -68,12 +65,6 @@ static DEFINE_SPINLOCK(config_lock);
 static const void *req_tlv_area;	/* request message TLV area */
 static int req_tlv_space;		/* request message TLV area size */
 static int rep_headroom;		/* reply message headroom to use */
-
-
-void tipc_cfg_link_event(u32 addr, char *name, int up)
-{
-	/* TIPC DOESN'T HANDLE LINK EVENT SUBSCRIPTIONS AT THE MOMENT */
-}
 
 
 struct sk_buff *tipc_cfg_reply_alloc(int payload_size)
@@ -130,11 +121,23 @@ struct sk_buff *tipc_cfg_reply_string_type(u16 tlv_type, char *string)
 }
 
 
-
-
 #if 0
 
 /* Now obsolete code for handling commands not yet implemented the new way */
+
+/*
+ * Some of this code assumed that the manager structure contains two added
+ * fields:
+ *	u32 link_subscriptions;
+ *	struct list_head link_subscribers;
+ * which are currently not present.  These fields may need to be re-introduced
+ * if and when support for link subscriptions is added.
+ */
+
+void tipc_cfg_link_event(u32 addr, char *name, int up)
+{
+	/* TIPC DOESN'T HANDLE LINK EVENT SUBSCRIPTIONS AT THE MOMENT */
+}
 
 int tipc_cfg_cmd(const struct tipc_cmd_msg * msg,
 		 char *data,
@@ -243,12 +246,47 @@ static void cfg_cmd_event(struct tipc_cmd_msg *msg,
 	default:
 		rv = tipc_cfg_cmd(msg, data, sz, (u32 *)&msg_sect[1].iov_len, orig);
 	}
-	exit:
+exit:
 	rmsg.result_len = htonl(msg_sect[1].iov_len);
 	rmsg.retval = htonl(rv);
 	tipc_cfg_respond(msg_sect, 2u, orig);
 }
 #endif
+
+#define MAX_STATS_INFO 2000
+
+static struct sk_buff *tipc_show_stats(void)
+{
+	struct sk_buff *buf;
+	struct tlv_desc *rep_tlv;
+	struct print_buf pb;
+	int str_len;
+	u32 value;
+
+	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_UNSIGNED))
+		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
+
+	value = ntohl(*(u32 *)TLV_DATA(req_tlv_area));
+	if (value != 0)
+		return tipc_cfg_reply_error_string("unsupported argument");
+
+	buf = tipc_cfg_reply_alloc(TLV_SPACE(MAX_STATS_INFO));
+	if (buf == NULL)
+		return NULL;
+
+	rep_tlv = (struct tlv_desc *)buf->data;
+	tipc_printbuf_init(&pb, (char *)TLV_DATA(rep_tlv), MAX_STATS_INFO);
+
+	tipc_printf(&pb, "TIPC version " TIPC_MOD_VER "\n");
+
+	/* Use additional tipc_printf()'s to return more info ... */
+
+	str_len = tipc_printbuf_validate(&pb);
+	skb_put(buf, TLV_SPACE(str_len));
+	TLV_SET(rep_tlv, TIPC_TLV_ULTRA_STRING, NULL, str_len);
+
+	return buf;
+}
 
 static struct sk_buff *cfg_enable_bearer(void)
 {
@@ -533,6 +571,9 @@ struct sk_buff *tipc_cfg_do_cmd(u32 orig_node, u16 cmd, const void *request_area
 	case TIPC_CMD_DUMP_LOG:
 		rep_tlv_buf = tipc_log_dump();
 		break;
+	case TIPC_CMD_SHOW_STATS:
+		rep_tlv_buf = tipc_show_stats();
+		break;
 	case TIPC_CMD_SET_LINK_TOL:
 	case TIPC_CMD_SET_LINK_PRI:
 	case TIPC_CMD_SET_LINK_WINDOW:
@@ -666,9 +707,6 @@ int tipc_cfg_init(void)
 {
 	struct tipc_name_seq seq;
 	int res;
-
-	memset(&mng, 0, sizeof(mng));
-	INIT_LIST_HEAD(&mng.link_subscribers);
 
 	res = tipc_attach(&mng.user_ref, NULL, NULL);
 	if (res)

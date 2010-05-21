@@ -47,7 +47,7 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 
 	xid = GetXid();
 
-	cFYI(1, ("ioctl file %p  cmd %u  arg %lu", filep, command, arg));
+	cFYI(1, "ioctl file %p  cmd %u  arg %lu", filep, command, arg);
 
 	cifs_sb = CIFS_SB(inode->i_sb);
 
@@ -64,12 +64,12 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 
 	switch (command) {
 		case CIFS_IOC_CHECKUMOUNT:
-			cFYI(1, ("User unmount attempted"));
+			cFYI(1, "User unmount attempted");
 			if (cifs_sb->mnt_uid == current_uid())
 				rc = 0;
 			else {
 				rc = -EACCES;
-				cFYI(1, ("uids do not match"));
+				cFYI(1, "uids do not match");
 			}
 			break;
 #ifdef CONFIG_CIFS_POSIX
@@ -97,11 +97,11 @@ long cifs_ioctl(struct file *filep, unsigned int command, unsigned long arg)
 				/* rc= CIFSGetExtAttr(xid,tcon,pSMBFile->netfid,
 					extAttrBits, &ExtAttrMask);*/
 			}
-			cFYI(1, ("set flags not implemented yet"));
+			cFYI(1, "set flags not implemented yet");
 			break;
 #endif /* CONFIG_CIFS_POSIX */
 		default:
-			cFYI(1, ("unsupported ioctl"));
+			cFYI(1, "unsupported ioctl");
 			break;
 	}
 

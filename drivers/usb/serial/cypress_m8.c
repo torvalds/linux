@@ -64,6 +64,7 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 #include <linux/serial.h>
+#include <linux/kfifo.h>
 #include <linux/delay.h>
 #include <linux/uaccess.h>
 #include <asm/unaligned.h>
@@ -79,13 +80,12 @@ static int unstable_bauds;
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v1.09"
+#define DRIVER_VERSION "v1.10"
 #define DRIVER_AUTHOR "Lonnie Mendez <dignome@gmail.com>, Neil Whelchel <koyama@firstlight.net>"
 #define DRIVER_DESC "Cypress USB to Serial Driver"
 
 /* write buffer size defines */
 #define CYPRESS_BUF_SIZE	1024
-#define CYPRESS_CLOSING_WAIT	(30*HZ)
 
 static const struct usb_device_id id_table_earthmate[] = {
 	{ USB_DEVICE(VENDOR_ID_DELORME, PRODUCT_ID_EARTHMATEUSB) },
@@ -135,7 +135,7 @@ struct cypress_private {
 	int bytes_out;			   /* used for statistics */
 	int cmd_count;			   /* used for statistics */
 	int cmd_ctrl;			   /* always set this to 1 before issuing a command */
-	struct cypress_buf *buf;	   /* write buffer */
+	struct kfifo write_fifo;	   /* write fifo */
 	int write_urb_in_use;		   /* write urb in use indicator */
 	int write_urb_interval;            /* interval to use for write urb */
 	int read_urb_interval;             /* interval to use for read urb */
@@ -155,14 +155,6 @@ struct cypress_private {
 	/* we pass a pointer to this as the argument sent to
 	   cypress_set_termios old_termios */
 	struct ktermios tmp_termios; 	   /* stores the old termios settings */
-};
-
-/* write buffer structure */
-struct cypress_buf {
-	unsigned int	buf_size;
-	char		*buf_buf;
-	char		*buf_get;
-	char		*buf_put;
 };
 
 /* function prototypes for the Cypress USB to serial device */
@@ -190,17 +182,6 @@ static void cypress_unthrottle(struct tty_struct *tty);
 static void cypress_set_dead(struct usb_serial_port *port);
 static void cypress_read_int_callback(struct urb *urb);
 static void cypress_write_int_callback(struct urb *urb);
-/* write buffer functions */
-static struct cypress_buf *cypress_buf_alloc(unsigned int size);
-static void cypress_buf_free(struct cypress_buf *cb);
-static void cypress_buf_clear(struct cypress_buf *cb);
-static unsigned int cypress_buf_data_avail(struct cypress_buf *cb);
-static unsigned int cypress_buf_space_avail(struct cypress_buf *cb);
-static unsigned int cypress_buf_put(struct cypress_buf *cb,
-					const char *buf, unsigned int count);
-static unsigned int cypress_buf_get(struct cypress_buf *cb,
-					char *buf, unsigned int count);
-
 
 static struct usb_serial_driver cypress_earthmate_device = {
 	.driver = {
@@ -503,8 +484,7 @@ static int generic_startup(struct usb_serial *serial)
 
 	priv->comm_is_ok = !0;
 	spin_lock_init(&priv->lock);
-	priv->buf = cypress_buf_alloc(CYPRESS_BUF_SIZE);
-	if (priv->buf == NULL) {
+	if (kfifo_alloc(&priv->write_fifo, CYPRESS_BUF_SIZE, GFP_KERNEL)) {
 		kfree(priv);
 		return -ENOMEM;
 	}
@@ -627,7 +607,7 @@ static void cypress_release(struct usb_serial *serial)
 	priv = usb_get_serial_port_data(serial->port[0]);
 
 	if (priv) {
-		cypress_buf_free(priv->buf);
+		kfifo_free(&priv->write_fifo);
 		kfree(priv);
 	}
 }
@@ -704,6 +684,7 @@ static void cypress_dtr_rts(struct usb_serial_port *port, int on)
 static void cypress_close(struct usb_serial_port *port)
 {
 	struct cypress_private *priv = usb_get_serial_port_data(port);
+	unsigned long flags;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -713,11 +694,13 @@ static void cypress_close(struct usb_serial_port *port)
 		mutex_unlock(&port->serial->disc_mutex);
 		return;
 	}
-	cypress_buf_clear(priv->buf);
+	spin_lock_irqsave(&priv->lock, flags);
+	kfifo_reset_out(&priv->write_fifo);
+	spin_unlock_irqrestore(&priv->lock, flags);
+
 	dbg("%s - stopping urbs", __func__);
 	usb_kill_urb(port->interrupt_in_urb);
 	usb_kill_urb(port->interrupt_out_urb);
-
 
 	if (stats)
 		dev_info(&port->dev, "Statistics: %d Bytes In | %d Bytes Out | %d Commands Issued\n",
@@ -730,7 +713,6 @@ static int cypress_write(struct tty_struct *tty, struct usb_serial_port *port,
 					const unsigned char *buf, int count)
 {
 	struct cypress_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
 
 	dbg("%s - port %d, %d bytes", __func__, port->number, count);
 
@@ -745,9 +727,7 @@ static int cypress_write(struct tty_struct *tty, struct usb_serial_port *port,
 	if (!count)
 		return count;
 
-	spin_lock_irqsave(&priv->lock, flags);
-	count = cypress_buf_put(priv->buf, buf, count);
-	spin_unlock_irqrestore(&priv->lock, flags);
+	count = kfifo_in_locked(&priv->write_fifo, buf, count, &priv->lock);
 
 finish:
 	cypress_send(port);
@@ -807,9 +787,10 @@ static void cypress_send(struct usb_serial_port *port)
 	} else
 		spin_unlock_irqrestore(&priv->lock, flags);
 
-	count = cypress_buf_get(priv->buf, &port->interrupt_out_buffer[offset],
-				port->interrupt_out_size-offset);
-
+	count = kfifo_out_locked(&priv->write_fifo,
+					&port->interrupt_out_buffer[offset],
+					port->interrupt_out_size - offset,
+					&priv->lock);
 	if (count == 0)
 		return;
 
@@ -875,7 +856,7 @@ static int cypress_write_room(struct tty_struct *tty)
 	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	room = cypress_buf_space_avail(priv->buf);
+	room = kfifo_avail(&priv->write_fifo);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	dbg("%s - returns %d", __func__, room);
@@ -1143,7 +1124,7 @@ static int cypress_chars_in_buffer(struct tty_struct *tty)
 	dbg("%s - port %d", __func__, port->number);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	chars = cypress_buf_data_avail(priv->buf);
+	chars = kfifo_len(&priv->write_fifo);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	dbg("%s - returns %d", __func__, chars);
@@ -1309,7 +1290,7 @@ static void cypress_read_int_callback(struct urb *urb)
 	/* process read if there is data other than line status */
 	if (tty && bytes > i) {
 		tty_insert_flip_string_fixed_flag(tty, data + i,
-				bytes - i, tty_flag);
+				tty_flag, bytes - i);
 		tty_flip_buffer_push(tty);
 	}
 
@@ -1395,193 +1376,6 @@ static void cypress_write_int_callback(struct urb *urb)
 	cypress_send(port);
 }
 
-
-/*****************************************************************************
- * Write buffer functions - buffering code from pl2303 used
- *****************************************************************************/
-
-/*
- * cypress_buf_alloc
- *
- * Allocate a circular buffer and all associated memory.
- */
-
-static struct cypress_buf *cypress_buf_alloc(unsigned int size)
-{
-
-	struct cypress_buf *cb;
-
-
-	if (size == 0)
-		return NULL;
-
-	cb = kmalloc(sizeof(struct cypress_buf), GFP_KERNEL);
-	if (cb == NULL)
-		return NULL;
-
-	cb->buf_buf = kmalloc(size, GFP_KERNEL);
-	if (cb->buf_buf == NULL) {
-		kfree(cb);
-		return NULL;
-	}
-
-	cb->buf_size = size;
-	cb->buf_get = cb->buf_put = cb->buf_buf;
-
-	return cb;
-
-}
-
-
-/*
- * cypress_buf_free
- *
- * Free the buffer and all associated memory.
- */
-
-static void cypress_buf_free(struct cypress_buf *cb)
-{
-	if (cb) {
-		kfree(cb->buf_buf);
-		kfree(cb);
-	}
-}
-
-
-/*
- * cypress_buf_clear
- *
- * Clear out all data in the circular buffer.
- */
-
-static void cypress_buf_clear(struct cypress_buf *cb)
-{
-	if (cb != NULL)
-		cb->buf_get = cb->buf_put;
-		/* equivalent to a get of all data available */
-}
-
-
-/*
- * cypress_buf_data_avail
- *
- * Return the number of bytes of data available in the circular
- * buffer.
- */
-
-static unsigned int cypress_buf_data_avail(struct cypress_buf *cb)
-{
-	if (cb != NULL)
-		return (cb->buf_size + cb->buf_put - cb->buf_get)
-							% cb->buf_size;
-	else
-		return 0;
-}
-
-
-/*
- * cypress_buf_space_avail
- *
- * Return the number of bytes of space available in the circular
- * buffer.
- */
-
-static unsigned int cypress_buf_space_avail(struct cypress_buf *cb)
-{
-	if (cb != NULL)
-		return (cb->buf_size + cb->buf_get - cb->buf_put - 1)
-							% cb->buf_size;
-	else
-		return 0;
-}
-
-
-/*
- * cypress_buf_put
- *
- * Copy data data from a user buffer and put it into the circular buffer.
- * Restrict to the amount of space available.
- *
- * Return the number of bytes copied.
- */
-
-static unsigned int cypress_buf_put(struct cypress_buf *cb, const char *buf,
-	unsigned int count)
-{
-
-	unsigned int len;
-
-
-	if (cb == NULL)
-		return 0;
-
-	len  = cypress_buf_space_avail(cb);
-	if (count > len)
-		count = len;
-
-	if (count == 0)
-		return 0;
-
-	len = cb->buf_buf + cb->buf_size - cb->buf_put;
-	if (count > len) {
-		memcpy(cb->buf_put, buf, len);
-		memcpy(cb->buf_buf, buf+len, count - len);
-		cb->buf_put = cb->buf_buf + count - len;
-	} else {
-		memcpy(cb->buf_put, buf, count);
-		if (count < len)
-			cb->buf_put += count;
-		else /* count == len */
-			cb->buf_put = cb->buf_buf;
-	}
-
-	return count;
-
-}
-
-
-/*
- * cypress_buf_get
- *
- * Get data from the circular buffer and copy to the given buffer.
- * Restrict to the amount of data available.
- *
- * Return the number of bytes copied.
- */
-
-static unsigned int cypress_buf_get(struct cypress_buf *cb, char *buf,
-	unsigned int count)
-{
-
-	unsigned int len;
-
-
-	if (cb == NULL)
-		return 0;
-
-	len = cypress_buf_data_avail(cb);
-	if (count > len)
-		count = len;
-
-	if (count == 0)
-		return 0;
-
-	len = cb->buf_buf + cb->buf_size - cb->buf_get;
-	if (count > len) {
-		memcpy(buf, cb->buf_get, len);
-		memcpy(buf+len, cb->buf_buf, count - len);
-		cb->buf_get = cb->buf_buf + count - len;
-	} else {
-		memcpy(buf, cb->buf_get, count);
-		if (count < len)
-			cb->buf_get += count;
-		else /* count == len */
-			cb->buf_get = cb->buf_buf;
-	}
-
-	return count;
-
-}
 
 /*****************************************************************************
  * Module functions

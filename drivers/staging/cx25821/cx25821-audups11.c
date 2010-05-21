@@ -88,10 +88,10 @@ static void buffer_queue(struct videobuf_queue *vq, struct videobuf_buffer *vb)
 }
 
 static struct videobuf_queue_ops cx25821_video_qops = {
-	.buf_setup = buffer_setup,
-	.buf_prepare = buffer_prepare,
+	.buf_setup = cx25821_buffer_setup,
+	.buf_prepare = cx25821_buffer_prepare,
 	.buf_queue = buffer_queue,
-	.buf_release = buffer_release,
+	.buf_release = cx25821_buffer_release,
 };
 
 static int video_open(struct file *file)
@@ -145,7 +145,7 @@ static ssize_t video_read(struct file *file, char __user * data, size_t count,
 
 	switch (fh->type) {
 	case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		if (res_locked(fh->dev, RESOURCE_VIDEO11))
+		if (cx25821_res_locked(fh->dev, RESOURCE_VIDEO11))
 			return -EBUSY;
 
 		return videobuf_read_one(&fh->vidq, data, count, ppos,
@@ -163,7 +163,7 @@ static unsigned int video_poll(struct file *file,
 	struct cx25821_fh *fh = file->private_data;
 	struct cx25821_buffer *buf;
 
-	if (res_check(fh, RESOURCE_VIDEO11)) {
+	if (cx25821_res_check(fh, RESOURCE_VIDEO11)) {
 		/* streaming capture */
 		if (list_empty(&fh->vidq.stream))
 			return POLLERR;
@@ -191,19 +191,19 @@ static int video_release(struct file *file)
 	//cx_write(channel11->dma_ctl, 0);
 
 	/* stop video capture */
-	if (res_check(fh, RESOURCE_VIDEO11)) {
+	if (cx25821_res_check(fh, RESOURCE_VIDEO11)) {
 		videobuf_queue_cancel(&fh->vidq);
-		res_free(dev, fh, RESOURCE_VIDEO11);
+		cx25821_res_free(dev, fh, RESOURCE_VIDEO11);
 	}
 
 	if (fh->vidq.read_buf) {
-		buffer_release(&fh->vidq, fh->vidq.read_buf);
+		cx25821_buffer_release(&fh->vidq, fh->vidq.read_buf);
 		kfree(fh->vidq.read_buf);
 	}
 
 	videobuf_mmap_free(&fh->vidq);
 
-	v4l2_prio_close(&dev->prio, &fh->prio);
+	v4l2_prio_close(&dev->prio, fh->prio);
 
 	file->private_data = NULL;
 	kfree(fh);
@@ -224,7 +224,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 		return -EINVAL;
 	}
 
-	if (unlikely(!res_get(dev, fh, get_resource(fh, RESOURCE_VIDEO11)))) {
+	if (unlikely(!cx25821_res_get(dev, fh, cx25821_get_resource(fh, RESOURCE_VIDEO11)))) {
 		return -EBUSY;
 	}
 
@@ -242,11 +242,11 @@ static int vidioc_streamoff(struct file *file, void *priv, enum v4l2_buf_type i)
 	if (i != fh->type)
 		return -EINVAL;
 
-	res = get_resource(fh, RESOURCE_VIDEO11);
+	res = cx25821_get_resource(fh, RESOURCE_VIDEO11);
 	err = videobuf_streamoff(get_queue(fh));
 	if (err < 0)
 		return err;
-	res_free(dev, fh, res);
+	cx25821_res_free(dev, fh, res);
 	return 0;
 }
 
@@ -258,13 +258,13 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	int err;
 
 	if (fh) {
-		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		err = v4l2_prio_check(&dev->prio, fh->prio);
 		if (0 != err)
 			return err;
 	}
 
 	dprintk(2, "%s()\n", __func__);
-	err = vidioc_try_fmt_vid_cap(file, priv, f);
+	err = cx25821_vidioc_try_fmt_vid_cap(file, priv, f);
 
 	if (0 != err)
 		return err;
@@ -350,7 +350,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 
 	if (fh) {
 		dev = fh->dev;
-		err = v4l2_prio_check(&dev->prio, &fh->prio);
+		err = v4l2_prio_check(&dev->prio, fh->prio);
 		if (0 != err)
 			return err;
 	}
@@ -364,50 +364,50 @@ static const struct v4l2_file_operations video_fops = {
 	.release = video_release,
 	.read = video_read,
 	.poll = video_poll,
-	.mmap = video_mmap,
+	.mmap = cx25821_video_mmap,
 	.ioctl = video_ioctl_upstream11,
 };
 
 static const struct v4l2_ioctl_ops video_ioctl_ops = {
-	.vidioc_querycap = vidioc_querycap,
-	.vidioc_enum_fmt_vid_cap = vidioc_enum_fmt_vid_cap,
-	.vidioc_g_fmt_vid_cap = vidioc_g_fmt_vid_cap,
-	.vidioc_try_fmt_vid_cap = vidioc_try_fmt_vid_cap,
+	.vidioc_querycap = cx25821_vidioc_querycap,
+	.vidioc_enum_fmt_vid_cap = cx25821_vidioc_enum_fmt_vid_cap,
+	.vidioc_g_fmt_vid_cap = cx25821_vidioc_g_fmt_vid_cap,
+	.vidioc_try_fmt_vid_cap = cx25821_vidioc_try_fmt_vid_cap,
 	.vidioc_s_fmt_vid_cap = vidioc_s_fmt_vid_cap,
-	.vidioc_reqbufs = vidioc_reqbufs,
-	.vidioc_querybuf = vidioc_querybuf,
-	.vidioc_qbuf = vidioc_qbuf,
+	.vidioc_reqbufs = cx25821_vidioc_reqbufs,
+	.vidioc_querybuf = cx25821_vidioc_querybuf,
+	.vidioc_qbuf = cx25821_vidioc_qbuf,
 	.vidioc_dqbuf = vidioc_dqbuf,
 #ifdef TUNER_FLAG
-	.vidioc_s_std = vidioc_s_std,
-	.vidioc_querystd = vidioc_querystd,
+	.vidioc_s_std = cx25821_vidioc_s_std,
+	.vidioc_querystd = cx25821_vidioc_querystd,
 #endif
-	.vidioc_cropcap = vidioc_cropcap,
-	.vidioc_s_crop = vidioc_s_crop,
-	.vidioc_g_crop = vidioc_g_crop,
-	.vidioc_enum_input = vidioc_enum_input,
-	.vidioc_g_input = vidioc_g_input,
-	.vidioc_s_input = vidioc_s_input,
-	.vidioc_g_ctrl = vidioc_g_ctrl,
+	.vidioc_cropcap = cx25821_vidioc_cropcap,
+	.vidioc_s_crop = cx25821_vidioc_s_crop,
+	.vidioc_g_crop = cx25821_vidioc_g_crop,
+	.vidioc_enum_input = cx25821_vidioc_enum_input,
+	.vidioc_g_input = cx25821_vidioc_g_input,
+	.vidioc_s_input = cx25821_vidioc_s_input,
+	.vidioc_g_ctrl = cx25821_vidioc_g_ctrl,
 	.vidioc_s_ctrl = vidioc_s_ctrl,
-	.vidioc_queryctrl = vidioc_queryctrl,
+	.vidioc_queryctrl = cx25821_vidioc_queryctrl,
 	.vidioc_streamon = vidioc_streamon,
 	.vidioc_streamoff = vidioc_streamoff,
 	.vidioc_log_status = vidioc_log_status,
-	.vidioc_g_priority = vidioc_g_priority,
-	.vidioc_s_priority = vidioc_s_priority,
+	.vidioc_g_priority = cx25821_vidioc_g_priority,
+	.vidioc_s_priority = cx25821_vidioc_s_priority,
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
-	.vidiocgmbuf = vidiocgmbuf,
+	.vidiocgmbuf = cx25821_vidiocgmbuf,
 #endif
 #ifdef TUNER_FLAG
-	.vidioc_g_tuner = vidioc_g_tuner,
-	.vidioc_s_tuner = vidioc_s_tuner,
-	.vidioc_g_frequency = vidioc_g_frequency,
-	.vidioc_s_frequency = vidioc_s_frequency,
+	.vidioc_g_tuner = cx25821_vidioc_g_tuner,
+	.vidioc_s_tuner = cx25821_vidioc_s_tuner,
+	.vidioc_g_frequency = cx25821_vidioc_g_frequency,
+	.vidioc_s_frequency = cx25821_vidioc_s_frequency,
 #endif
 #ifdef CONFIG_VIDEO_ADV_DEBUG
-	.vidioc_g_register = vidioc_g_register,
-	.vidioc_s_register = vidioc_s_register,
+	.vidioc_g_register = cx25821_vidioc_g_register,
+	.vidioc_s_register = cx25821_vidioc_s_register,
 #endif
 };
 

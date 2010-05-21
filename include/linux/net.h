@@ -59,6 +59,7 @@ typedef enum {
 #include <linux/wait.h>
 #include <linux/fcntl.h>	/* For O_CLOEXEC and O_NONBLOCK */
 #include <linux/kmemcheck.h>
+#include <linux/rcupdate.h>
 
 struct poll_table_struct;
 struct pipe_inode_info;
@@ -116,6 +117,12 @@ enum sock_shutdown_cmd {
 	SHUT_RDWR	= 2,
 };
 
+struct socket_wq {
+	wait_queue_head_t	wait;
+	struct fasync_struct	*fasync_list;
+	struct rcu_head		rcu;
+} ____cacheline_aligned_in_smp;
+
 /**
  *  struct socket - general BSD socket
  *  @state: socket state (%SS_CONNECTED, etc)
@@ -135,11 +142,8 @@ struct socket {
 	kmemcheck_bitfield_end(type);
 
 	unsigned long		flags;
-	/*
-	 * Please keep fasync_list & wait fields in the same cache line
-	 */
-	struct fasync_struct	*fasync_list;
-	wait_queue_head_t	wait;
+
+	struct socket_wq	*wq;
 
 	struct file		*file;
 	struct sock		*sk;

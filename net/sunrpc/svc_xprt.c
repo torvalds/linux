@@ -744,8 +744,10 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 		if (rqstp->rq_deferred) {
 			svc_xprt_received(xprt);
 			len = svc_deferred_recv(rqstp);
-		} else
+		} else {
 			len = xprt->xpt_ops->xpo_recvfrom(rqstp);
+			svc_xprt_received(xprt);
+		}
 		dprintk("svc: got len=%d\n", len);
 	}
 
@@ -893,12 +895,12 @@ void svc_delete_xprt(struct svc_xprt *xprt)
 	 */
 	if (test_bit(XPT_TEMP, &xprt->xpt_flags))
 		serv->sv_tmpcnt--;
+	spin_unlock_bh(&serv->sv_lock);
 
 	while ((dr = svc_deferred_dequeue(xprt)) != NULL)
 		kfree(dr);
 
 	svc_xprt_put(xprt);
-	spin_unlock_bh(&serv->sv_lock);
 }
 
 void svc_close_xprt(struct svc_xprt *xprt)

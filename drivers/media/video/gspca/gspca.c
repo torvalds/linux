@@ -1,7 +1,7 @@
 /*
  * Main USB camera driver
  *
- * Copyright (C) 2008-2009 Jean-Francois Moine (http://moinejf.free.fr)
+ * Copyright (C) 2008-2010 Jean-François Moine <http://moinejf.free.fr>
  *
  * Camera button input handling by Márton Németh
  * Copyright (C) 2009-2010 Márton Németh <nm127@freemail.hu>
@@ -35,12 +35,12 @@
 #include <linux/io.h>
 #include <asm/page.h>
 #include <linux/uaccess.h>
-#include <linux/jiffies.h>
+#include <linux/ktime.h>
 #include <media/v4l2-ioctl.h>
 
 #include "gspca.h"
 
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 #include <linux/input.h>
 #include <linux/usb/input.h>
 #endif
@@ -51,7 +51,7 @@
 #error "DEF_NURBS too big"
 #endif
 
-MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
+MODULE_AUTHOR("Jean-François Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
@@ -115,7 +115,7 @@ static const struct vm_operations_struct gspca_vm_ops = {
 /*
  * Input and interrupt endpoint handling functions
  */
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 static void int_irq(struct urb *urb)
 {
 	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
@@ -199,7 +199,7 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 	void *buffer = NULL;
 	int ret = -EINVAL;
 
-	buffer_len = ep->wMaxPacketSize;
+	buffer_len = le16_to_cpu(ep->wMaxPacketSize);
 	interval = ep->bInterval;
 	PDEBUG(D_PROBE, "found int in endpoint: 0x%x, "
 		"buffer_len=%u, interval=%u",
@@ -213,7 +213,7 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 		goto error;
 	}
 
-	buffer = usb_buffer_alloc(dev, ep->wMaxPacketSize,
+	buffer = usb_alloc_coherent(dev, buffer_len,
 				GFP_KERNEL, &urb->transfer_dma);
 	if (!buffer) {
 		ret = -ENOMEM;
@@ -232,10 +232,10 @@ static int alloc_and_submit_int_urb(struct gspca_dev *gspca_dev,
 	return ret;
 
 error_submit:
-	usb_buffer_free(dev,
-			urb->transfer_buffer_length,
-			urb->transfer_buffer,
-			urb->transfer_dma);
+	usb_free_coherent(dev,
+			  urb->transfer_buffer_length,
+			  urb->transfer_buffer,
+			  urb->transfer_dma);
 error_buffer:
 	usb_free_urb(urb);
 error:
@@ -272,17 +272,26 @@ static void gspca_input_destroy_urb(struct gspca_dev *gspca_dev)
 	if (urb) {
 		gspca_dev->int_urb = NULL;
 		usb_kill_urb(urb);
-		usb_buffer_free(gspca_dev->dev,
-				urb->transfer_buffer_length,
-				urb->transfer_buffer,
-				urb->transfer_dma);
+		usb_free_coherent(gspca_dev->dev,
+				  urb->transfer_buffer_length,
+				  urb->transfer_buffer,
+				  urb->transfer_dma);
 		usb_free_urb(urb);
 	}
 }
 #else
-#define gspca_input_connect(gspca_dev)		0
-#define gspca_input_create_urb(gspca_dev)
-#define gspca_input_destroy_urb(gspca_dev)
+static inline void gspca_input_destroy_urb(struct gspca_dev *gspca_dev)
+{
+}
+
+static inline void gspca_input_create_urb(struct gspca_dev *gspca_dev)
+{
+}
+
+static inline int gspca_input_connect(struct gspca_dev *dev)
+{
+	return 0;
+}
 #endif
 
 /* get the current input frame buffer */
@@ -442,8 +451,7 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 	 * is not queued, discard the whole frame */
 	if (packet_type == FIRST_PACKET) {
 		frame->data_end = frame->data;
-		jiffies_to_timeval(get_jiffies_64(),
-				   &frame->v4l2_buf.timestamp);
+		frame->v4l2_buf.timestamp = ktime_to_timeval(ktime_get());
 		frame->v4l2_buf.sequence = ++gspca_dev->sequence;
 	} else if (gspca_dev->last_packet_type == DISCARD_PACKET) {
 		if (packet_type == LAST_PACKET)
@@ -597,12 +605,43 @@ static void destroy_urbs(struct gspca_dev *gspca_dev)
 		gspca_dev->urb[i] = NULL;
 		usb_kill_urb(urb);
 		if (urb->transfer_buffer != NULL)
-			usb_buffer_free(gspca_dev->dev,
-					urb->transfer_buffer_length,
-					urb->transfer_buffer,
-					urb->transfer_dma);
+			usb_free_coherent(gspca_dev->dev,
+					  urb->transfer_buffer_length,
+					  urb->transfer_buffer,
+					  urb->transfer_dma);
 		usb_free_urb(urb);
 	}
+}
+
+static int gspca_set_alt0(struct gspca_dev *gspca_dev)
+{
+	int ret;
+
+	if (gspca_dev->alt == 0)
+		return 0;
+	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, 0);
+	if (ret < 0)
+		PDEBUG(D_ERR|D_STREAM, "set alt 0 err %d", ret);
+	return ret;
+}
+
+/* Note: both the queue and the usb locks should be held when calling this */
+static void gspca_stream_off(struct gspca_dev *gspca_dev)
+{
+	gspca_dev->streaming = 0;
+	if (gspca_dev->present) {
+		if (gspca_dev->sd_desc->stopN)
+			gspca_dev->sd_desc->stopN(gspca_dev);
+		destroy_urbs(gspca_dev);
+		gspca_input_destroy_urb(gspca_dev);
+		gspca_set_alt0(gspca_dev);
+		gspca_input_create_urb(gspca_dev);
+	}
+
+	/* always call stop0 to free the subdriver's resources */
+	if (gspca_dev->sd_desc->stop0)
+		gspca_dev->sd_desc->stop0(gspca_dev);
+	PDEBUG(D_STREAM, "stream off OK");
 }
 
 /*
@@ -721,13 +760,13 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 			return -ENOMEM;
 		}
 		gspca_dev->urb[n] = urb;
-		urb->transfer_buffer = usb_buffer_alloc(gspca_dev->dev,
+		urb->transfer_buffer = usb_alloc_coherent(gspca_dev->dev,
 						bsize,
 						GFP_KERNEL,
 						&urb->transfer_dma);
 
 		if (urb->transfer_buffer == NULL) {
-			err("usb_buffer_alloc failed");
+			err("usb_alloc_coherent failed");
 			return -ENOMEM;
 		}
 		urb->dev = gspca_dev->dev;
@@ -830,8 +869,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 		}
 		if (ret >= 0)
 			break;
-		gspca_dev->streaming = 0;
-		destroy_urbs(gspca_dev);
+		gspca_stream_off(gspca_dev);
 		if (ret != -ENOSPC) {
 			PDEBUG(D_ERR|D_STREAM,
 				"usb_submit_urb alt %d err %d",
@@ -859,37 +897,6 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 out:
 	mutex_unlock(&gspca_dev->usb_lock);
 	return ret;
-}
-
-static int gspca_set_alt0(struct gspca_dev *gspca_dev)
-{
-	int ret;
-
-	if (gspca_dev->alt == 0)
-		return 0;
-	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, 0);
-	if (ret < 0)
-		PDEBUG(D_ERR|D_STREAM, "set alt 0 err %d", ret);
-	return ret;
-}
-
-/* Note: both the queue and the usb locks should be held when calling this */
-static void gspca_stream_off(struct gspca_dev *gspca_dev)
-{
-	gspca_dev->streaming = 0;
-	if (gspca_dev->present) {
-		if (gspca_dev->sd_desc->stopN)
-			gspca_dev->sd_desc->stopN(gspca_dev);
-		destroy_urbs(gspca_dev);
-		gspca_input_destroy_urb(gspca_dev);
-		gspca_set_alt0(gspca_dev);
-		gspca_input_create_urb(gspca_dev);
-	}
-
-	/* always call stop0 to free the subdriver's resources */
-	if (gspca_dev->sd_desc->stop0)
-		gspca_dev->sd_desc->stop0(gspca_dev);
-	PDEBUG(D_STREAM, "stream off OK");
 }
 
 static void gspca_set_default_mode(struct gspca_dev *gspca_dev)
@@ -1495,7 +1502,7 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 			  struct v4l2_requestbuffers *rb)
 {
 	struct gspca_dev *gspca_dev = priv;
-	int i, ret = 0;
+	int i, ret = 0, streaming;
 
 	switch (rb->memory) {
 	case GSPCA_MEMORY_READ:			/* (internal call) */
@@ -1530,7 +1537,8 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	}
 
 	/* stop streaming */
-	if (gspca_dev->streaming) {
+	streaming = gspca_dev->streaming;
+	if (streaming) {
 		mutex_lock(&gspca_dev->usb_lock);
 		gspca_dev->usb_err = 0;
 		gspca_stream_off(gspca_dev);
@@ -1549,6 +1557,8 @@ static int vidioc_reqbufs(struct file *file, void *priv,
 	if (ret == 0) {
 		rb->count = gspca_dev->nframes;
 		gspca_dev->capt_file = file;
+		if (streaming)
+			ret = gspca_init_transfer(gspca_dev);
 	}
 out:
 	mutex_unlock(&gspca_dev->queue_lock);
@@ -1581,6 +1591,12 @@ static int vidioc_streamon(struct file *file, void *priv,
 		return -EINVAL;
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
+
+	/* check the capture file */
+	if (gspca_dev->capt_file != file) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	if (gspca_dev->nframes == 0
 	    || !(gspca_dev->frame[0].v4l2_buf.flags & V4L2_BUF_FLAG_QUEUED)) {
@@ -1618,6 +1634,12 @@ static int vidioc_streamoff(struct file *file, void *priv,
 		return 0;
 	if (mutex_lock_interruptible(&gspca_dev->queue_lock))
 		return -ERESTARTSYS;
+
+	/* check the capture file */
+	if (gspca_dev->capt_file != file) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	/* stop streaming */
 	if (mutex_lock_interruptible(&gspca_dev->usb_lock)) {
@@ -2124,7 +2146,7 @@ static ssize_t dev_read(struct file *file, char __user *data,
 	}
 
 	/* get a frame */
-	jiffies_to_timeval(get_jiffies_64(), &timestamp);
+	timestamp = ktime_to_timeval(ktime_get());
 	timestamp.tv_sec--;
 	n = 2;
 	for (;;) {
@@ -2315,7 +2337,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 
 	return 0;
 out:
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	if (gspca_dev->input_dev)
 		input_unregister_device(gspca_dev->input_dev);
 #endif
@@ -2334,7 +2356,7 @@ EXPORT_SYMBOL(gspca_dev_probe);
 void gspca_disconnect(struct usb_interface *intf)
 {
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	struct input_dev *input_dev;
 #endif
 
@@ -2348,7 +2370,7 @@ void gspca_disconnect(struct usb_interface *intf)
 		wake_up_interruptible(&gspca_dev->wq);
 	}
 
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	gspca_input_destroy_urb(gspca_dev);
 	input_dev = gspca_dev->input_dev;
 	if (input_dev) {

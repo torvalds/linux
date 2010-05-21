@@ -1063,7 +1063,8 @@ static ssize_t metrics_misc_show(struct device *fbdev,
 			atomic_read(&dev->lost_pixels) ? "yes" : "no");
 }
 
-static ssize_t edid_show(struct kobject *kobj, struct bin_attribute *a,
+static ssize_t edid_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *a,
 			 char *buf, loff_t off, size_t count) {
 	struct device *fbdev = container_of(kobj, struct device, kobj);
 	struct fb_info *fb_info = dev_get_drvdata(fbdev);
@@ -1508,8 +1509,8 @@ static void dlfb_free_urb_list(struct dlfb_data *dev)
 		urb = unode->urb;
 
 		/* Free each separately allocated piece */
-		usb_buffer_free(urb->dev, dev->urbs.size,
-			urb->transfer_buffer, urb->transfer_dma);
+		usb_free_coherent(urb->dev, dev->urbs.size,
+				  urb->transfer_buffer, urb->transfer_dma);
 		usb_free_urb(urb);
 		kfree(node);
 	}
@@ -1543,8 +1544,8 @@ static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size)
 		}
 		unode->urb = urb;
 
-		buf = usb_buffer_alloc(dev->udev, MAX_TRANSFER, GFP_KERNEL,
-					&urb->transfer_dma);
+		buf = usb_alloc_coherent(dev->udev, MAX_TRANSFER, GFP_KERNEL,
+					 &urb->transfer_dma);
 		if (!buf) {
 			kfree(unode);
 			usb_free_urb(urb);

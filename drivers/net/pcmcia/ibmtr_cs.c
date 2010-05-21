@@ -104,7 +104,6 @@ static void ibmtr_detach(struct pcmcia_device *p_dev);
 typedef struct ibmtr_dev_t {
 	struct pcmcia_device	*p_dev;
     struct net_device	*dev;
-    dev_node_t          node;
     window_handle_t     sram_win_handle;
     struct tok_info	*ti;
 } ibmtr_dev_t;
@@ -156,8 +155,6 @@ static int __devinit ibmtr_attach(struct pcmcia_device *link)
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts1 = 4;
     link->io.IOAddrLines = 16;
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    link->irq.Handler = ibmtr_interrupt;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
@@ -192,8 +189,7 @@ static void ibmtr_detach(struct pcmcia_device *link)
      */
     ti->sram_phys |= 1;
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
     
     del_timer_sync(&(ti->tr_timer));
 
@@ -238,11 +234,11 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     }
     dev->base_addr = link->io.BasePort1;
 
-    ret = pcmcia_request_irq(link, &link->irq);
+    ret = pcmcia_request_exclusive_irq(link, ibmtr_interrupt);
     if (ret)
 	    goto failed;
-    dev->irq = link->irq.AssignedIRQ;
-    ti->irq = link->irq.AssignedIRQ;
+    dev->irq = link->irq;
+    ti->irq = link->irq;
     ti->global_int_enable=GLOBAL_INT_ENABLE+((dev->irq==9) ? 2 : dev->irq);
 
     /* Allocate the MMIO memory window */
@@ -291,17 +287,13 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
         Adapters Technical Reference"  SC30-3585 for this info.  */
     ibmtr_hw_setup(dev, mmiobase);
 
-    link->dev_node = &info->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     i = ibmtr_probe_card(dev);
     if (i != 0) {
 	printk(KERN_NOTICE "ibmtr_cs: register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto failed;
     }
-
-    strcpy(info->node.dev_name, dev->name);
 
     printk(KERN_INFO
 	   "%s: port %#3lx, irq %d,  mmio %#5lx, sram %#5lx, hwaddr=%pM\n",
@@ -402,8 +394,6 @@ static void ibmtr_hw_setup(struct net_device *dev, u_int mmiobase)
 
     /* 0x40 will release the card for use */
     outb(0x40, dev->base_addr);
-
-    return;
 }
 
 static struct pcmcia_device_id ibmtr_ids[] = {

@@ -42,7 +42,7 @@ static int debug;
  * Version information
  */
 
-#define DRIVER_VERSION "v0.5"
+#define DRIVER_VERSION "v0.6"
 #define DRIVER_AUTHOR "Bart Hartgers <bart.hartgers+ark3116@gmail.com>"
 #define DRIVER_DESC "USB ARK3116 serial/IrDA driver"
 #define DRIVER_DEV_DESC "ARK3116 RS232/IrDA"
@@ -355,14 +355,11 @@ static void ark3116_close(struct usb_serial_port *port)
 		/* deactivate interrupts */
 		ark3116_write_reg(serial, UART_IER, 0);
 
-		/* shutdown any bulk reads that might be going on */
-		if (serial->num_bulk_out)
-			usb_kill_urb(port->write_urb);
-		if (serial->num_bulk_in)
-			usb_kill_urb(port->read_urb);
+		usb_serial_generic_close(port);
 		if (serial->num_interrupt_in)
 			usb_kill_urb(port->interrupt_in_urb);
 	}
+
 }
 
 static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port)
@@ -675,87 +672,45 @@ static void ark3116_read_int_callback(struct urb *urb)
  * error for the next block of data as well...
  * For now, let's pretend this can't happen.
  */
-
-static void send_to_tty(struct tty_struct *tty,
-			const unsigned char *chars,
-			size_t size, char flag)
+static void ark3116_process_read_urb(struct urb *urb)
 {
-	if (size == 0)
-		return;
-	if (flag == TTY_NORMAL) {
-		tty_insert_flip_string(tty, chars, size);
-	} else {
-		int i;
-		for (i = 0; i < size; ++i)
-			tty_insert_flip_char(tty, chars[i], flag);
-	}
-}
-
-static void ark3116_read_bulk_callback(struct urb *urb)
-{
-	struct usb_serial_port *port =  urb->context;
+	struct usb_serial_port *port = urb->context;
 	struct ark3116_private *priv = usb_get_serial_port_data(port);
-	const __u8 *data = urb->transfer_buffer;
-	int status = urb->status;
 	struct tty_struct *tty;
+	unsigned char *data = urb->transfer_buffer;
+	char tty_flag = TTY_NORMAL;
 	unsigned long flags;
-	int result;
-	char flag;
 	__u32 lsr;
 
-	switch (status) {
-	case -ECONNRESET:
-	case -ENOENT:
-	case -ESHUTDOWN:
-		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d",
-		    __func__, status);
+	/* update line status */
+	spin_lock_irqsave(&priv->status_lock, flags);
+	lsr = priv->lsr;
+	priv->lsr &= ~UART_LSR_BRK_ERROR_BITS;
+	spin_unlock_irqrestore(&priv->status_lock, flags);
+
+	if (!urb->actual_length)
 		return;
-	default:
-		dbg("%s - nonzero urb status received: %d",
-		    __func__, status);
-		break;
-	case 0: /* success */
 
-		spin_lock_irqsave(&priv->status_lock, flags);
-		lsr = priv->lsr;
-		/* clear error bits */
-		priv->lsr &= ~UART_LSR_BRK_ERROR_BITS;
-		spin_unlock_irqrestore(&priv->status_lock, flags);
+	tty = tty_port_tty_get(&port->port);
+	if (!tty)
+		return;
 
-		if (unlikely(lsr & UART_LSR_BI))
-			flag = TTY_BREAK;
-		else if (unlikely(lsr & UART_LSR_PE))
-			flag = TTY_PARITY;
-		else if (unlikely(lsr & UART_LSR_FE))
-			flag = TTY_FRAME;
-		else
-			flag = TTY_NORMAL;
+	if (lsr & UART_LSR_BRK_ERROR_BITS) {
+		if (lsr & UART_LSR_BI)
+			tty_flag = TTY_BREAK;
+		else if (lsr & UART_LSR_PE)
+			tty_flag = TTY_PARITY;
+		else if (lsr & UART_LSR_FE)
+			tty_flag = TTY_FRAME;
 
-		tty = tty_port_tty_get(&port->port);
-		if (tty) {
-			/* overrun is special, not associated with a char */
-			if (unlikely(lsr & UART_LSR_OE))
-				tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-			send_to_tty(tty, data, urb->actual_length, flag);
-			tty_flip_buffer_push(tty);
-			tty_kref_put(tty);
-		}
-
-		/* Throttle the device if requested by tty */
-		spin_lock_irqsave(&port->lock, flags);
-		port->throttled = port->throttle_req;
-		if (port->throttled) {
-			spin_unlock_irqrestore(&port->lock, flags);
-			return;
-		} else
-			spin_unlock_irqrestore(&port->lock, flags);
+		/* overrun is special, not associated with a char */
+		if (lsr & UART_LSR_OE)
+			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 	}
-	/* Continue reading from device */
-	result = usb_submit_urb(urb, GFP_ATOMIC);
-	if (result)
-		dev_err(&urb->dev->dev, "%s - failed resubmitting"
-			" read urb, error %d\n", __func__, result);
+	tty_insert_flip_string_fixed_flag(tty, data, tty_flag,
+							urb->actual_length);
+	tty_flip_buffer_push(tty);
+	tty_kref_put(tty);
 }
 
 static struct usb_driver ark3116_driver = {
@@ -785,7 +740,7 @@ static struct usb_serial_driver ark3116_device = {
 	.close =		ark3116_close,
 	.break_ctl = 		ark3116_break_ctl,
 	.read_int_callback = 	ark3116_read_int_callback,
-	.read_bulk_callback =	ark3116_read_bulk_callback,
+	.process_read_urb =	ark3116_process_read_urb,
 };
 
 static int __init ark3116_init(void)

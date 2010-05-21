@@ -646,8 +646,10 @@ static int sh_sir_open(struct net_device *ndev)
 	sh_sir_set_baudrate(self, 9600);
 
 	self->irlap = irlap_open(ndev, &self->qos, DRIVER_NAME);
-	if (!self->irlap)
+	if (!self->irlap) {
+		err = -ENODEV;
 		goto open_err;
+	}
 
 	/*
 	 * Now enable the interrupt then start the queue
@@ -707,7 +709,6 @@ static int __devinit sh_sir_probe(struct platform_device *pdev)
 	struct sh_sir_self *self;
 	struct resource *res;
 	char clk_name[8];
-	void __iomem *base;
 	unsigned int irq;
 	int err = -ENOMEM;
 
@@ -722,14 +723,14 @@ static int __devinit sh_sir_probe(struct platform_device *pdev)
 	if (!ndev)
 		goto exit;
 
-	base = ioremap_nocache(res->start, resource_size(res));
-	if (!base) {
+	self = netdev_priv(ndev);
+	self->membase = ioremap_nocache(res->start, resource_size(res));
+	if (!self->membase) {
 		err = -ENXIO;
 		dev_err(&pdev->dev, "Unable to ioremap.\n");
 		goto err_mem_1;
 	}
 
-	self = netdev_priv(ndev);
 	err = sh_sir_init_iobuf(self, IRDA_SKB_MAX_MTU, IRDA_SIR_MAX_FRAME);
 	if (err)
 		goto err_mem_2;
@@ -746,7 +747,6 @@ static int __devinit sh_sir_probe(struct platform_device *pdev)
 	ndev->netdev_ops	= &sh_sir_ndo;
 	ndev->irq		= irq;
 
-	self->membase			= base;
 	self->ndev			= ndev;
 	self->qos.baud_rate.bits	&= IR_9600; /* FIXME */
 	self->qos.min_turn_time.bits	= 1; /* 10 ms or more */

@@ -116,8 +116,6 @@ static void radeon_legacy_lvds_dpms(struct drm_encoder *encoder, int mode)
 	else
 		radeon_combios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
 
-	/* adjust pm to dpms change */
-	radeon_pm_compute_clocks(rdev);
 }
 
 static void radeon_legacy_lvds_prepare(struct drm_encoder *encoder)
@@ -217,27 +215,14 @@ static bool radeon_legacy_mode_fixup(struct drm_encoder *encoder,
 				     struct drm_display_mode *adjusted_mode)
 {
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
-	struct drm_device *dev = encoder->dev;
-	struct radeon_device *rdev = dev->dev_private;
-
-	/* adjust pm to upcoming mode change */
-	radeon_pm_compute_clocks(rdev);
 
 	/* set the active encoder to connector routing */
 	radeon_encoder_set_active_device(encoder);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
 
 	/* get the native mode for LVDS */
-	if (radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT)) {
-		struct drm_display_mode *native_mode = &radeon_encoder->native_mode;
-		int mode_id = adjusted_mode->base.id;
-		*adjusted_mode = *native_mode;
-		adjusted_mode->hdisplay = mode->hdisplay;
-		adjusted_mode->vdisplay = mode->vdisplay;
-		adjusted_mode->crtc_hdisplay = mode->hdisplay;
-		adjusted_mode->crtc_vdisplay = mode->vdisplay;
-		adjusted_mode->base.id = mode_id;
-	}
+	if (radeon_encoder->active_device & (ATOM_DEVICE_LCD_SUPPORT))
+		radeon_panel_mode_fixup(encoder, adjusted_mode);
 
 	return true;
 }
@@ -294,8 +279,6 @@ static void radeon_legacy_primary_dac_dpms(struct drm_encoder *encoder, int mode
 	else
 		radeon_combios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
 
-	/* adjust pm to dpms change */
-	radeon_pm_compute_clocks(rdev);
 }
 
 static void radeon_legacy_primary_dac_prepare(struct drm_encoder *encoder)
@@ -482,8 +465,6 @@ static void radeon_legacy_tmds_int_dpms(struct drm_encoder *encoder, int mode)
 	else
 		radeon_combios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
 
-	/* adjust pm to dpms change */
-	radeon_pm_compute_clocks(rdev);
 }
 
 static void radeon_legacy_tmds_int_prepare(struct drm_encoder *encoder)
@@ -650,8 +631,6 @@ static void radeon_legacy_tmds_ext_dpms(struct drm_encoder *encoder, int mode)
 	else
 		radeon_combios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
 
-	/* adjust pm to dpms change */
-	radeon_pm_compute_clocks(rdev);
 }
 
 static void radeon_legacy_tmds_ext_prepare(struct drm_encoder *encoder)
@@ -860,8 +839,6 @@ static void radeon_legacy_tv_dac_dpms(struct drm_encoder *encoder, int mode)
 	else
 		radeon_combios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
 
-	/* adjust pm to dpms change */
-	radeon_pm_compute_clocks(rdev);
 }
 
 static void radeon_legacy_tv_dac_prepare(struct drm_encoder *encoder)

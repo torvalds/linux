@@ -320,7 +320,7 @@ static unsigned int hpt3x2n_qc_issue(struct ata_queued_cmd *qc)
 
 		hpt3x2n_set_clock(ap, dpll ? 0x21 : 0x23);
 	}
-	return ata_sff_qc_issue(qc);
+	return ata_bmdma_qc_issue(qc);
 }
 
 static struct scsi_host_template hpt3x2n_sht = {

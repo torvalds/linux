@@ -18,7 +18,8 @@
  * Foundation, Inc.,
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
-
+#include <linux/via-core.h>
+#include <linux/via_i2c.h>
 #include "global.h"
 #include "lcdtbl.h"
 
@@ -172,18 +173,16 @@ static bool lvds_identify_integratedlvds(void)
 
 int viafb_lvds_trasmitter_identify(void)
 {
-	viaparinfo->shared->i2c_stuff.i2c_port = I2CPORTINDEX;
-	if (viafb_lvds_identify_vt1636()) {
-		viaparinfo->chip_info->lvds_chip_info.i2c_port = I2CPORTINDEX;
+	if (viafb_lvds_identify_vt1636(VIA_PORT_31)) {
+		viaparinfo->chip_info->lvds_chip_info.i2c_port = VIA_PORT_31;
 		DEBUG_MSG(KERN_INFO
-			  "Found VIA VT1636 LVDS on port i2c 0x31 \n");
+			  "Found VIA VT1636 LVDS on port i2c 0x31\n");
 	} else {
-		viaparinfo->shared->i2c_stuff.i2c_port = GPIOPORTINDEX;
-		if (viafb_lvds_identify_vt1636()) {
+		if (viafb_lvds_identify_vt1636(VIA_PORT_2C)) {
 			viaparinfo->chip_info->lvds_chip_info.i2c_port =
-				GPIOPORTINDEX;
+				VIA_PORT_2C;
 			DEBUG_MSG(KERN_INFO
-				  "Found VIA VT1636 LVDS on port gpio 0x2c \n");
+				  "Found VIA VT1636 LVDS on port gpio 0x2c\n");
 		}
 	}
 
@@ -398,6 +397,15 @@ static void fp_id_to_vindex(int panel_id)
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
 		break;
+	case 0x17:
+		/* OLPC XO-1.5 panel */
+		viaparinfo->lvds_setting_info->lcd_panel_hres = 1200;
+		viaparinfo->lvds_setting_info->lcd_panel_vres = 900;
+		viaparinfo->lvds_setting_info->lcd_panel_id =
+			LCD_PANEL_IDD_1200X900;
+		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
+		viaparinfo->lvds_setting_info->LCDDithering = 0;
+		break;
 	default:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 800;
 		viaparinfo->lvds_setting_info->lcd_panel_vres = 600;
@@ -412,9 +420,8 @@ static int lvds_register_read(int index)
 {
 	u8 data;
 
-	viaparinfo->shared->i2c_stuff.i2c_port = GPIOPORTINDEX;
-	viafb_i2c_readbyte((u8) viaparinfo->chip_info->
-	    lvds_chip_info.lvds_chip_slave_addr,
+	viafb_i2c_readbyte(VIA_PORT_2C,
+			(u8) viaparinfo->chip_info->lvds_chip_info.lvds_chip_slave_addr,
 			(u8) index, &data);
 	return data;
 }

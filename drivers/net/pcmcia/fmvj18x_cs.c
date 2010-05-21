@@ -110,7 +110,6 @@ typedef enum { MBH10302, MBH10304, TDK, CONTEC, LA501, UNGERMANN,
 */
 typedef struct local_info_t {
 	struct pcmcia_device	*p_dev;
-    dev_node_t node;
     long open_time;
     uint tx_started:1;
     uint tx_queue;
@@ -254,10 +253,6 @@ static int fmvj18x_probe(struct pcmcia_device *link)
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
     link->io.IOAddrLines = 5;
 
-    /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.Handler = fjn_interrupt;
-
     /* General socket configuration */
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
@@ -278,8 +273,7 @@ static void fmvj18x_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "fmvj18x_detach\n");
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     fmvj18x_release(link);
 
@@ -425,8 +419,6 @@ static int fmvj18x_config(struct pcmcia_device *link)
     }
 
     if (link->io.NumPorts2 != 0) {
-    	link->irq.Attributes =
-		IRQ_TYPE_DYNAMIC_SHARING;
 	ret = mfc_try_io_port(link);
 	if (ret != 0) goto failed;
     } else if (cardtype == UNGERMANN) {
@@ -437,14 +429,14 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	    if (ret)
 		    goto failed;
     }
-    ret = pcmcia_request_irq(link, &link->irq);
+    ret = pcmcia_request_irq(link, fjn_interrupt);
     if (ret)
 	    goto failed;
     ret = pcmcia_request_configuration(link, &link->conf);
     if (ret)
 	    goto failed;
 
-    dev->irq = link->irq.AssignedIRQ;
+    dev->irq = link->irq;
     dev->base_addr = link->io.BasePort1;
 
     if (link->io.BasePort2 != 0) {
@@ -529,16 +521,12 @@ static int fmvj18x_config(struct pcmcia_device *link)
     }
 
     lp->cardtype = cardtype;
-    link->dev_node = &lp->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "fmvj18x_cs: register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto failed;
     }
-
-    strcpy(lp->node.dev_name, dev->name);
 
     /* print current configuration */
     printk(KERN_INFO "%s: %s, sram %s, port %#3lx, irq %d, "
@@ -890,7 +878,6 @@ static netdev_tx_t fjn_start_xmit(struct sk_buff *skb,
 	    lp->sent = lp->tx_queue ;
 	    lp->tx_queue = 0;
 	    lp->tx_queue_len = 0;
-	    dev->trans_start = jiffies;
 	    lp->tx_started = 1;
 	    netif_start_queue(dev);
 	} else {
@@ -1082,8 +1069,6 @@ static void fjn_rx(struct net_device *dev)
 		  "%d ticks.\n", dev->name, inb(ioaddr + RX_MODE), i);
     }
 */
-
-    return;
 } /* fjn_rx */
 
 /*====================================================================*/
@@ -1196,11 +1181,11 @@ static void set_rx_mode(struct net_device *dev)
 	memset(mc_filter, 0x00, sizeof(mc_filter));
 	outb(1, ioaddr + RX_MODE);	/* Ignore almost all multicasts. */
     } else {
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 
 	memset(mc_filter, 0, sizeof(mc_filter));
-	netdev_for_each_mc_addr(mclist, dev) {
-	    unsigned int bit = ether_crc_le(ETH_ALEN, mclist->dmi_addr) >> 26;
+	netdev_for_each_mc_addr(ha, dev) {
+	    unsigned int bit = ether_crc_le(ETH_ALEN, ha->addr) >> 26;
 	    mc_filter[bit >> 3] |= (1 << (bit & 7));
 	}
 	outb(2, ioaddr + RX_MODE);	/* Use normal mode. */

@@ -36,8 +36,7 @@
 #include <asm/delay.h>
 
 #include <mach/dma.h>
-#include <mach/regs-ssp.h>
-#include <mach/ssp.h>
+#include <plat/ssp.h>
 #include <mach/pxa2xx_spi.h>
 
 MODULE_AUTHOR("Stephen Street");
@@ -1318,14 +1317,14 @@ static int setup(struct spi_device *spi)
 	/* NOTE:  PXA25x_SSP _could_ use external clocking ... */
 	if (drv_data->ssp_type != PXA25x_SSP)
 		dev_dbg(&spi->dev, "%ld Hz actual, %s\n",
-				clk_get_rate(ssp->clk)
-					/ (1 + ((chip->cr0 & SSCR0_SCR) >> 8)),
-				chip->enable_dma ? "DMA" : "PIO");
+			clk_get_rate(ssp->clk)
+				/ (1 + ((chip->cr0 & SSCR0_SCR(0xfff)) >> 8)),
+			chip->enable_dma ? "DMA" : "PIO");
 	else
 		dev_dbg(&spi->dev, "%ld Hz actual, %s\n",
-				clk_get_rate(ssp->clk) / 2
-					/ (1 + ((chip->cr0 & SSCR0_SCR) >> 8)),
-				chip->enable_dma ? "DMA" : "PIO");
+			clk_get_rate(ssp->clk) / 2
+				/ (1 + ((chip->cr0 & SSCR0_SCR(0x0ff)) >> 8)),
+			chip->enable_dma ? "DMA" : "PIO");
 
 	if (spi->bits_per_word <= 8) {
 		chip->n_bytes = 1;
@@ -1466,7 +1465,7 @@ static int __init pxa2xx_spi_probe(struct platform_device *pdev)
 
 	platform_info = dev->platform_data;
 
-	ssp = ssp_request(pdev->id, pdev->name);
+	ssp = pxa_ssp_request(pdev->id, pdev->name);
 	if (ssp == NULL) {
 		dev_err(&pdev->dev, "failed to request SSP%d\n", pdev->id);
 		return -ENODEV;
@@ -1476,7 +1475,7 @@ static int __init pxa2xx_spi_probe(struct platform_device *pdev)
 	master = spi_alloc_master(dev, sizeof(struct driver_data) + 16);
 	if (!master) {
 		dev_err(&pdev->dev, "cannot alloc spi_master\n");
-		ssp_free(ssp);
+		pxa_ssp_free(ssp);
 		return -ENOMEM;
 	}
 	drv_data = spi_master_get_devdata(master);
@@ -1558,7 +1557,7 @@ static int __init pxa2xx_spi_probe(struct platform_device *pdev)
 	write_SSCR1(SSCR1_RxTresh(RX_THRESH_DFLT) |
 				SSCR1_TxTresh(TX_THRESH_DFLT),
 				drv_data->ioaddr);
-	write_SSCR0(SSCR0_SerClkDiv(2)
+	write_SSCR0(SSCR0_SCR(2)
 			| SSCR0_Motorola
 			| SSCR0_DataSize(8),
 			drv_data->ioaddr);
@@ -1605,7 +1604,7 @@ out_error_irq_alloc:
 
 out_error_master_alloc:
 	spi_master_put(master);
-	ssp_free(ssp);
+	pxa_ssp_free(ssp);
 	return status;
 }
 
@@ -1649,7 +1648,7 @@ static int pxa2xx_spi_remove(struct platform_device *pdev)
 	free_irq(ssp->irq, drv_data);
 
 	/* Release SSP */
-	ssp_free(ssp);
+	pxa_ssp_free(ssp);
 
 	/* Disconnect from the SPI framework */
 	spi_unregister_master(drv_data->master);

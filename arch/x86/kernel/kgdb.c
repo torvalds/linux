@@ -47,19 +47,7 @@
 #include <asm/debugreg.h>
 #include <asm/apicdef.h>
 #include <asm/system.h>
-
 #include <asm/apic.h>
-
-/*
- * Put the error code here just in case the user cares:
- */
-static int gdb_x86errcode;
-
-/*
- * Likewise, the vector number here (since GDB only gets the signal
- * number through the usual means, and that's not very specific):
- */
-static int gdb_x86vector = -1;
 
 /**
  *	pt_regs_to_gdb_regs - Convert ptrace regs to GDB regs
@@ -211,6 +199,8 @@ static struct hw_breakpoint {
 	struct perf_event	**pev;
 } breakinfo[4];
 
+static unsigned long early_dr7;
+
 static void kgdb_correct_hw_break(void)
 {
 	int breakno;
@@ -222,6 +212,14 @@ static void kgdb_correct_hw_break(void)
 		int cpu = raw_smp_processor_id();
 		if (!breakinfo[breakno].enabled)
 			continue;
+		if (dbg_is_early) {
+			set_debugreg(breakinfo[breakno].addr, breakno);
+			early_dr7 |= encode_dr7(breakno,
+						breakinfo[breakno].len,
+						breakinfo[breakno].type);
+			set_debugreg(early_dr7, 7);
+			continue;
+		}
 		bp = *per_cpu_ptr(breakinfo[breakno].pev, cpu);
 		info = counter_arch_bp(bp);
 		if (bp->attr.disabled != 1)
@@ -236,7 +234,8 @@ static void kgdb_correct_hw_break(void)
 		if (!val)
 			bp->attr.disabled = 0;
 	}
-	hw_breakpoint_restore();
+	if (!dbg_is_early)
+		hw_breakpoint_restore();
 }
 
 static int hw_break_reserve_slot(int breakno)
@@ -244,6 +243,9 @@ static int hw_break_reserve_slot(int breakno)
 	int cpu;
 	int cnt = 0;
 	struct perf_event **pevent;
+
+	if (dbg_is_early)
+		return 0;
 
 	for_each_online_cpu(cpu) {
 		cnt++;
@@ -269,6 +271,9 @@ static int hw_break_release_slot(int breakno)
 {
 	struct perf_event **pevent;
 	int cpu;
+
+	if (dbg_is_early)
+		return 0;
 
 	for_each_online_cpu(cpu) {
 		pevent = per_cpu_ptr(breakinfo[breakno].pev, cpu);
@@ -314,7 +319,11 @@ static void kgdb_remove_all_hw_break(void)
 		bp = *per_cpu_ptr(breakinfo[i].pev, cpu);
 		if (bp->attr.disabled == 1)
 			continue;
-		arch_uninstall_hw_breakpoint(bp);
+		if (dbg_is_early)
+			early_dr7 &= ~encode_dr7(i, breakinfo[i].len,
+						 breakinfo[i].type);
+		else
+			arch_uninstall_hw_breakpoint(bp);
 		bp->attr.disabled = 1;
 	}
 }
@@ -391,29 +400,17 @@ void kgdb_disable_hw_debug(struct pt_regs *regs)
 	for (i = 0; i < 4; i++) {
 		if (!breakinfo[i].enabled)
 			continue;
+		if (dbg_is_early) {
+			early_dr7 &= ~encode_dr7(i, breakinfo[i].len,
+						 breakinfo[i].type);
+			continue;
+		}
 		bp = *per_cpu_ptr(breakinfo[i].pev, cpu);
 		if (bp->attr.disabled == 1)
 			continue;
 		arch_uninstall_hw_breakpoint(bp);
 		bp->attr.disabled = 1;
 	}
-}
-
-/**
- *	kgdb_post_primary_code - Save error vector/code numbers.
- *	@regs: Original pt_regs.
- *	@e_vector: Original error vector.
- *	@err_code: Original error code.
- *
- *	This is needed on architectures which support SMP and KGDB.
- *	This function is called after all the slave cpus have been put
- *	to a know spin state and the primary CPU has control over KGDB.
- */
-void kgdb_post_primary_code(struct pt_regs *regs, int e_vector, int err_code)
-{
-	/* primary processor is completely in the debugger */
-	gdb_x86vector = e_vector;
-	gdb_x86errcode = err_code;
 }
 
 #ifdef CONFIG_SMP
@@ -567,13 +564,33 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 			return NOTIFY_DONE;
 	}
 
-	if (kgdb_handle_exception(args->trapnr, args->signr, args->err, regs))
+	if (kgdb_handle_exception(args->trapnr, args->signr, cmd, regs))
 		return NOTIFY_DONE;
 
 	/* Must touch watchdog before return to normal operation */
 	touch_nmi_watchdog();
 	return NOTIFY_STOP;
 }
+
+#ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
+int kgdb_ll_trap(int cmd, const char *str,
+		 struct pt_regs *regs, long err, int trap, int sig)
+{
+	struct die_args args = {
+		.regs	= regs,
+		.str	= str,
+		.err	= err,
+		.trapnr	= trap,
+		.signr	= sig,
+
+	};
+
+	if (!kgdb_io_module_registered)
+		return NOTIFY_DONE;
+
+	return __kgdb_notify(&args, cmd);
+}
+#endif /* CONFIG_KGDB_LOW_LEVEL_TRAP */
 
 static int
 kgdb_notify(struct notifier_block *self, unsigned long cmd, void *ptr)
@@ -605,14 +622,15 @@ static struct notifier_block kgdb_notifier = {
  */
 int kgdb_arch_init(void)
 {
+	return register_die_notifier(&kgdb_notifier);
+}
+
+void kgdb_arch_late(void)
+{
 	int i, cpu;
-	int ret;
 	struct perf_event_attr attr;
 	struct perf_event **pevent;
 
-	ret = register_die_notifier(&kgdb_notifier);
-	if (ret != 0)
-		return ret;
 	/*
 	 * Pre-allocate the hw breakpoint structions in the non-atomic
 	 * portion of kgdb because this operation requires mutexs to
@@ -624,12 +642,15 @@ int kgdb_arch_init(void)
 	attr.bp_type = HW_BREAKPOINT_W;
 	attr.disabled = 1;
 	for (i = 0; i < 4; i++) {
+		if (breakinfo[i].pev)
+			continue;
 		breakinfo[i].pev = register_wide_hw_breakpoint(&attr, NULL);
 		if (IS_ERR(breakinfo[i].pev)) {
-			printk(KERN_ERR "kgdb: Could not allocate hw breakpoints\n");
+			printk(KERN_ERR "kgdb: Could not allocate hw"
+			       "breakpoints\nDisabling the kernel debugger\n");
 			breakinfo[i].pev = NULL;
 			kgdb_arch_exit();
-			return -1;
+			return;
 		}
 		for_each_online_cpu(cpu) {
 			pevent = per_cpu_ptr(breakinfo[i].pev, cpu);
@@ -640,7 +661,6 @@ int kgdb_arch_init(void)
 			}
 		}
 	}
-	return ret;
 }
 
 /**
@@ -688,6 +708,11 @@ unsigned long kgdb_arch_pc(int exception, struct pt_regs *regs)
 	if (exception == 3)
 		return instruction_pointer(regs) - 1;
 	return instruction_pointer(regs);
+}
+
+void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long ip)
+{
+	regs->ip = ip;
 }
 
 struct kgdb_arch arch_kgdb_ops = {

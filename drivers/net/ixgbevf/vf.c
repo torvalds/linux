@@ -252,22 +252,18 @@ static s32 ixgbevf_set_rar_vf(struct ixgbe_hw *hw, u32 index, u8 *addr,
 /**
  *  ixgbevf_update_mc_addr_list_vf - Update Multicast addresses
  *  @hw: pointer to the HW structure
- *  @mc_addr_list: array of multicast addresses to program
- *  @mc_addr_count: number of multicast addresses to program
- *  @next: caller supplied function to return next address in list
+ *  @netdev: pointer to net device structure
  *
  *  Updates the Multicast Table Array.
  **/
-static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw, u8 *mc_addr_list,
-					u32 mc_addr_count,
-					ixgbe_mc_addr_itr next)
+static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw,
+					  struct net_device *netdev)
 {
+	struct netdev_hw_addr *ha;
 	struct ixgbe_mbx_info *mbx = &hw->mbx;
 	u32 msgbuf[IXGBE_VFMAILBOX_SIZE];
 	u16 *vector_list = (u16 *)&msgbuf[1];
-	u32 vector;
 	u32 cnt, i;
-	u32 vmdq;
 
 	/* Each entry in the list uses 1 16 bit word.  We have 30
 	 * 16 bit words available in our HW msg buffer (minus 1 for the
@@ -278,13 +274,17 @@ static s32 ixgbevf_update_mc_addr_list_vf(struct ixgbe_hw *hw, u8 *mc_addr_list,
 	 * addresses except for in large enterprise network environments.
 	 */
 
-	cnt = (mc_addr_count > 30) ? 30 : mc_addr_count;
+	cnt = netdev_mc_count(netdev);
+	if (cnt > 30)
+		cnt = 30;
 	msgbuf[0] = IXGBE_VF_SET_MULTICAST;
 	msgbuf[0] |= cnt << IXGBE_VT_MSGINFO_SHIFT;
 
-	for (i = 0; i < cnt; i++) {
-		vector = ixgbevf_mta_vector(hw, next(hw, &mc_addr_list, &vmdq));
-		vector_list[i] = vector;
+	i = 0;
+	netdev_for_each_mc_addr(ha, netdev) {
+		if (i == cnt)
+			break;
+		vector_list[i++] = ixgbevf_mta_vector(hw, ha->addr);
 	}
 
 	mbx->ops.write_posted(hw, msgbuf, IXGBE_VFMAILBOX_SIZE);
@@ -359,7 +359,8 @@ static s32 ixgbevf_check_mac_link_vf(struct ixgbe_hw *hw,
 	else
 		*link_up = false;
 
-	if (links_reg & IXGBE_LINKS_SPEED)
+	if ((links_reg & IXGBE_LINKS_SPEED_82599) ==
+	    IXGBE_LINKS_SPEED_10G_82599)
 		*speed = IXGBE_LINK_SPEED_10GB_FULL;
 	else
 		*speed = IXGBE_LINK_SPEED_1GB_FULL;

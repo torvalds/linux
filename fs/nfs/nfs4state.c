@@ -62,6 +62,7 @@ static LIST_HEAD(nfs4_clientid_list);
 
 int nfs4_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
 {
+	struct nfs4_setclientid_res clid;
 	unsigned short port;
 	int status;
 
@@ -69,11 +70,15 @@ int nfs4_init_clientid(struct nfs_client *clp, struct rpc_cred *cred)
 	if (clp->cl_addr.ss_family == AF_INET6)
 		port = nfs_callback_tcpport6;
 
-	status = nfs4_proc_setclientid(clp, NFS4_CALLBACK, port, cred);
-	if (status == 0)
-		status = nfs4_proc_setclientid_confirm(clp, cred);
-	if (status == 0)
-		nfs4_schedule_state_renewal(clp);
+	status = nfs4_proc_setclientid(clp, NFS4_CALLBACK, port, cred, &clid);
+	if (status != 0)
+		goto out;
+	status = nfs4_proc_setclientid_confirm(clp, &clid, cred);
+	if (status != 0)
+		goto out;
+	clp->cl_clientid = clid.clientid;
+	nfs4_schedule_state_renewal(clp);
+out:
 	return status;
 }
 
@@ -361,7 +366,7 @@ nfs4_alloc_state_owner(void)
 {
 	struct nfs4_state_owner *sp;
 
-	sp = kzalloc(sizeof(*sp),GFP_KERNEL);
+	sp = kzalloc(sizeof(*sp),GFP_NOFS);
 	if (!sp)
 		return NULL;
 	spin_lock_init(&sp->so_lock);
@@ -435,7 +440,7 @@ nfs4_alloc_open_state(void)
 {
 	struct nfs4_state *state;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kzalloc(sizeof(*state), GFP_NOFS);
 	if (!state)
 		return NULL;
 	atomic_set(&state->count, 1);
@@ -537,7 +542,8 @@ void nfs4_put_open_state(struct nfs4_state *state)
 /*
  * Close the current file.
  */
-static void __nfs4_close(struct path *path, struct nfs4_state *state, fmode_t fmode, int wait)
+static void __nfs4_close(struct path *path, struct nfs4_state *state,
+		fmode_t fmode, gfp_t gfp_mask, int wait)
 {
 	struct nfs4_state_owner *owner = state->owner;
 	int call_close = 0;
@@ -578,17 +584,17 @@ static void __nfs4_close(struct path *path, struct nfs4_state *state, fmode_t fm
 		nfs4_put_open_state(state);
 		nfs4_put_state_owner(owner);
 	} else
-		nfs4_do_close(path, state, wait);
+		nfs4_do_close(path, state, gfp_mask, wait);
 }
 
 void nfs4_close_state(struct path *path, struct nfs4_state *state, fmode_t fmode)
 {
-	__nfs4_close(path, state, fmode, 0);
+	__nfs4_close(path, state, fmode, GFP_NOFS, 0);
 }
 
 void nfs4_close_sync(struct path *path, struct nfs4_state *state, fmode_t fmode)
 {
-	__nfs4_close(path, state, fmode, 1);
+	__nfs4_close(path, state, fmode, GFP_KERNEL, 1);
 }
 
 /*
@@ -618,7 +624,7 @@ static struct nfs4_lock_state *nfs4_alloc_lock_state(struct nfs4_state *state, f
 	struct nfs4_lock_state *lsp;
 	struct nfs_client *clp = state->owner->so_client;
 
-	lsp = kzalloc(sizeof(*lsp), GFP_KERNEL);
+	lsp = kzalloc(sizeof(*lsp), GFP_NOFS);
 	if (lsp == NULL)
 		return NULL;
 	rpc_init_wait_queue(&lsp->ls_sequence.wait, "lock_seqid_waitqueue");
@@ -754,11 +760,11 @@ void nfs4_copy_stateid(nfs4_stateid *dst, struct nfs4_state *state, fl_owner_t f
 	nfs4_put_lock_state(lsp);
 }
 
-struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter)
+struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter, gfp_t gfp_mask)
 {
 	struct nfs_seqid *new;
 
-	new = kmalloc(sizeof(*new), GFP_KERNEL);
+	new = kmalloc(sizeof(*new), gfp_mask);
 	if (new != NULL) {
 		new->sequence = counter;
 		INIT_LIST_HEAD(&new->list);
@@ -1347,7 +1353,7 @@ static int nfs4_recall_slot(struct nfs_client *clp)
 
 	nfs4_begin_drain_session(clp);
 	new = kmalloc(fc_tbl->target_max_slots * sizeof(struct nfs4_slot),
-		      GFP_KERNEL);
+		      GFP_NOFS);
         if (!new)
 		return -ENOMEM;
 

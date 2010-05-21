@@ -40,7 +40,7 @@ behavior looks very much the same as st to the userspace applications.
 
 History
 -------
-In the first place, osst shared it's identity very much with st. That meant
+In the first place, osst shared its identity very much with st. That meant
 that it used the same kernel structures and the same device node as st.
 So you could only have either of them being present in the kernel. This has
 been fixed by registering an own device, now.

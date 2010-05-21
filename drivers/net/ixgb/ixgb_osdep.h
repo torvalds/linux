@@ -41,20 +41,8 @@
 
 #undef ASSERT
 #define ASSERT(x)	BUG_ON(!(x))
-#define MSGOUT(S, A, B)	printk(KERN_DEBUG S "\n", A, B)
 
-#ifdef DBG
-#define DEBUGOUT(S)		printk(KERN_DEBUG S "\n")
-#define DEBUGOUT1(S, A...)	printk(KERN_DEBUG S "\n", A)
-#else
-#define DEBUGOUT(S)
-#define DEBUGOUT1(S, A...)
-#endif
-
-#define DEBUGFUNC(F) DEBUGOUT(F)
-#define DEBUGOUT2 DEBUGOUT1
-#define DEBUGOUT3 DEBUGOUT2
-#define DEBUGOUT7 DEBUGOUT3
+#define ENTER() pr_debug("%s\n", __func__);
 
 #define IXGB_WRITE_REG(a, reg, value) ( \
 	writel((value), ((a)->hw_addr + IXGB_##reg)))

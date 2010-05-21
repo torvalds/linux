@@ -128,26 +128,14 @@ config SND_CS4236
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-cs4236.
 
-config SND_ES968
-	tristate "Generic ESS ES968 driver"
-	depends on PNP
-	select ISAPNP
-	select SND_MPU401_UART
-	select SND_SB8_DSP
-	help
-	  Say Y here to include support for ESS AudioDrive ES968 chips.
-
-	  To compile this driver as a module, choose M here: the module
-	  will be called snd-es968.
-
 config SND_ES1688
-	tristate "Generic ESS ES688/ES1688 driver"
+	tristate "Generic ESS ES688/ES1688 and ES968 PnP driver"
 	select SND_OPL3_LIB
 	select SND_MPU401_UART
 	select SND_PCM
 	help
 	  Say Y here to include support for ESS AudioDrive ES688 or
-	  ES1688 chips.
+	  ES1688 chips. Also, this module support cards with ES968 PnP chip.
 
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-es1688.

@@ -10,7 +10,7 @@
 #include "sysdep/syscalls.h"
 
 extern int syscall_table_size;
-#define NR_syscalls (syscall_table_size / sizeof(void *))
+#define NR_SYSCALLS (syscall_table_size / sizeof(void *))
 
 void handle_syscall(struct uml_pt_regs *r)
 {
@@ -30,7 +30,7 @@ void handle_syscall(struct uml_pt_regs *r)
 	 * in case it's a compiler bug.
 	 */
 	syscall = UPT_SYSCALL_NR(r);
-	if ((syscall >= NR_syscalls) || (syscall < 0))
+	if ((syscall >= NR_SYSCALLS) || (syscall < 0))
 		result = -ENOSYS;
 	else result = EXECUTE_SYSCALL(syscall, regs);
 

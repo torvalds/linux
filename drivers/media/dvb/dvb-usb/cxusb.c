@@ -461,7 +461,7 @@ static int cxusb_d680_dmb_rc_query(struct dvb_usb_device *d, u32 *event,
 	return 0;
 }
 
-static struct dvb_usb_rc_key dvico_mce_rc_keys[] = {
+static struct dvb_usb_rc_key ir_codes_dvico_mce_table[] = {
 	{ 0xfe02, KEY_TV },
 	{ 0xfe0e, KEY_MP3 },
 	{ 0xfe1a, KEY_DVD },
@@ -509,7 +509,7 @@ static struct dvb_usb_rc_key dvico_mce_rc_keys[] = {
 	{ 0xfe4e, KEY_POWER },
 };
 
-static struct dvb_usb_rc_key dvico_portable_rc_keys[] = {
+static struct dvb_usb_rc_key ir_codes_dvico_portable_table[] = {
 	{ 0xfc02, KEY_SETUP },       /* Profile */
 	{ 0xfc43, KEY_POWER2 },
 	{ 0xfc06, KEY_EPG },
@@ -548,7 +548,7 @@ static struct dvb_usb_rc_key dvico_portable_rc_keys[] = {
 	{ 0xfc00, KEY_UNKNOWN },    /* HD */
 };
 
-static struct dvb_usb_rc_key d680_dmb_rc_keys[] = {
+static struct dvb_usb_rc_key ir_codes_d680_dmb_table[] = {
 	{ 0x0038, KEY_UNKNOWN },	/* TV/AV */
 	{ 0x080c, KEY_ZOOM },
 	{ 0x0800, KEY_0 },
@@ -1025,8 +1025,9 @@ static int cxusb_dualdig4_rev2_frontend_attach(struct dvb_usb_adapter *adap)
 
 	cxusb_bluebird_gpio_pulse(adap->dev, 0x02, 1);
 
-	dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 1, 18,
-				 &cxusb_dualdig4_rev2_config);
+	if (dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 1, 18,
+				 &cxusb_dualdig4_rev2_config) < 0)
+		return -ENODEV;
 
 	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80,
 			      &cxusb_dualdig4_rev2_config);
@@ -1449,8 +1450,8 @@ static struct dvb_usb_device_properties cxusb_bluebird_lgh064f_properties = {
 	.i2c_algo         = &cxusb_i2c_algo,
 
 	.rc_interval      = 100,
-	.rc_key_map       = dvico_portable_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
+	.rc_key_map       = ir_codes_dvico_portable_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_portable_table),
 	.rc_query         = cxusb_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
@@ -1500,8 +1501,8 @@ static struct dvb_usb_device_properties cxusb_bluebird_dee1601_properties = {
 	.i2c_algo         = &cxusb_i2c_algo,
 
 	.rc_interval      = 150,
-	.rc_key_map       = dvico_mce_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_mce_rc_keys),
+	.rc_key_map       = ir_codes_dvico_mce_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_mce_table),
 	.rc_query         = cxusb_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
@@ -1559,8 +1560,8 @@ static struct dvb_usb_device_properties cxusb_bluebird_lgz201_properties = {
 	.i2c_algo         = &cxusb_i2c_algo,
 
 	.rc_interval      = 100,
-	.rc_key_map       = dvico_portable_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
+	.rc_key_map       = ir_codes_dvico_portable_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_portable_table),
 	.rc_query         = cxusb_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
@@ -1609,8 +1610,8 @@ static struct dvb_usb_device_properties cxusb_bluebird_dtt7579_properties = {
 	.i2c_algo         = &cxusb_i2c_algo,
 
 	.rc_interval      = 100,
-	.rc_key_map       = dvico_portable_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
+	.rc_key_map       = ir_codes_dvico_portable_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_portable_table),
 	.rc_query         = cxusb_rc_query,
 
 	.generic_bulk_ctrl_endpoint = 0x01,
@@ -1658,8 +1659,8 @@ static struct dvb_usb_device_properties cxusb_bluebird_dualdig4_properties = {
 	.generic_bulk_ctrl_endpoint = 0x01,
 
 	.rc_interval      = 100,
-	.rc_key_map       = dvico_mce_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_mce_rc_keys),
+	.rc_key_map       = ir_codes_dvico_mce_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_mce_table),
 	.rc_query         = cxusb_bluebird2_rc_query,
 
 	.num_device_descs = 1,
@@ -1706,8 +1707,8 @@ static struct dvb_usb_device_properties cxusb_bluebird_nano2_properties = {
 	.generic_bulk_ctrl_endpoint = 0x01,
 
 	.rc_interval      = 100,
-	.rc_key_map       = dvico_portable_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
+	.rc_key_map       = ir_codes_dvico_portable_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_portable_table),
 	.rc_query         = cxusb_bluebird2_rc_query,
 
 	.num_device_descs = 1,
@@ -1756,8 +1757,8 @@ static struct dvb_usb_device_properties cxusb_bluebird_nano2_needsfirmware_prope
 	.generic_bulk_ctrl_endpoint = 0x01,
 
 	.rc_interval      = 100,
-	.rc_key_map       = dvico_portable_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_portable_rc_keys),
+	.rc_key_map       = ir_codes_dvico_portable_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_portable_table),
 	.rc_query         = cxusb_rc_query,
 
 	.num_device_descs = 1,
@@ -1847,8 +1848,8 @@ struct dvb_usb_device_properties cxusb_bluebird_dualdig4_rev2_properties = {
 	.generic_bulk_ctrl_endpoint = 0x01,
 
 	.rc_interval      = 100,
-	.rc_key_map       = dvico_mce_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(dvico_mce_rc_keys),
+	.rc_key_map       = ir_codes_dvico_mce_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_dvico_mce_table),
 	.rc_query         = cxusb_rc_query,
 
 	.num_device_descs = 1,
@@ -1895,8 +1896,8 @@ static struct dvb_usb_device_properties cxusb_d680_dmb_properties = {
 	.generic_bulk_ctrl_endpoint = 0x01,
 
 	.rc_interval      = 100,
-	.rc_key_map       = d680_dmb_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(d680_dmb_rc_keys),
+	.rc_key_map       = ir_codes_d680_dmb_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_d680_dmb_table),
 	.rc_query         = cxusb_d680_dmb_rc_query,
 
 	.num_device_descs = 1,
@@ -1944,8 +1945,8 @@ static struct dvb_usb_device_properties cxusb_mygica_d689_properties = {
 	.generic_bulk_ctrl_endpoint = 0x01,
 
 	.rc_interval      = 100,
-	.rc_key_map       = d680_dmb_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(d680_dmb_rc_keys),
+	.rc_key_map       = ir_codes_d680_dmb_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_d680_dmb_table),
 	.rc_query         = cxusb_d680_dmb_rc_query,
 
 	.num_device_descs = 1,

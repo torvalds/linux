@@ -21,6 +21,7 @@
  */
 
 #include <linux/irq.h>
+#include <linux/log2.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/slab.h>
@@ -352,11 +353,7 @@ void xhci_event_ring_work(unsigned long arg)
 		if (!xhci->devs[i])
 			continue;
 		for (j = 0; j < 31; ++j) {
-			struct xhci_ring *ring = xhci->devs[i]->eps[j].ring;
-			if (!ring)
-				continue;
-			xhci_dbg(xhci, "Dev %d endpoint ring %d:\n", i, j);
-			xhci_debug_segment(xhci, ring->deq_seg);
+			xhci_dbg_ep_rings(xhci, i, j, &xhci->devs[i]->eps[j]);
 		}
 	}
 
@@ -726,8 +723,21 @@ int xhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb, gfp_t mem_flags)
 		spin_lock_irqsave(&xhci->lock, flags);
 		if (xhci->xhc_state & XHCI_STATE_DYING)
 			goto dying;
-		ret = xhci_queue_bulk_tx(xhci, GFP_ATOMIC, urb,
-				slot_id, ep_index);
+		if (xhci->devs[slot_id]->eps[ep_index].ep_state &
+				EP_GETTING_STREAMS) {
+			xhci_warn(xhci, "WARN: Can't enqueue URB while bulk ep "
+					"is transitioning to using streams.\n");
+			ret = -EINVAL;
+		} else if (xhci->devs[slot_id]->eps[ep_index].ep_state &
+				EP_GETTING_NO_STREAMS) {
+			xhci_warn(xhci, "WARN: Can't enqueue URB while bulk ep "
+					"is transitioning to "
+					"not having streams.\n");
+			ret = -EINVAL;
+		} else {
+			ret = xhci_queue_bulk_tx(xhci, GFP_ATOMIC, urb,
+					slot_id, ep_index);
+		}
 		spin_unlock_irqrestore(&xhci->lock, flags);
 	} else if (usb_endpoint_xfer_int(&urb->ep->desc)) {
 		spin_lock_irqsave(&xhci->lock, flags);
@@ -825,7 +835,12 @@ int xhci_urb_dequeue(struct usb_hcd *hcd, struct urb *urb, int status)
 	xhci_debug_ring(xhci, xhci->event_ring);
 	ep_index = xhci_get_endpoint_index(&urb->ep->desc);
 	ep = &xhci->devs[urb->dev->slot_id]->eps[ep_index];
-	ep_ring = ep->ring;
+	ep_ring = xhci_urb_to_transfer_ring(xhci, urb);
+	if (!ep_ring) {
+		ret = -EINVAL;
+		goto done;
+	}
+
 	xhci_dbg(xhci, "Endpoint ring:\n");
 	xhci_debug_ring(xhci, ep_ring);
 	td = (struct xhci_td *) urb->hcpriv;
@@ -1369,7 +1384,7 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 	 * or it will attempt to resend it on the next doorbell ring.
 	 */
 	xhci_find_new_dequeue_state(xhci, udev->slot_id,
-			ep_index, ep->stopped_td,
+			ep_index, ep->stopped_stream, ep->stopped_td,
 			&deq_state);
 
 	/* HW with the reset endpoint quirk will use the saved dequeue state to
@@ -1378,10 +1393,12 @@ void xhci_cleanup_stalled_ring(struct xhci_hcd *xhci,
 	if (!(xhci->quirks & XHCI_RESET_EP_QUIRK)) {
 		xhci_dbg(xhci, "Queueing new dequeue state\n");
 		xhci_queue_new_dequeue_state(xhci, udev->slot_id,
-				ep_index, &deq_state);
+				ep_index, ep->stopped_stream, &deq_state);
 	} else {
 		/* Better hope no one uses the input context between now and the
 		 * reset endpoint completion!
+		 * XXX: No idea how this hardware will react when stream rings
+		 * are enabled.
 		 */
 		xhci_dbg(xhci, "Setting up input context for "
 				"configure endpoint command\n");
@@ -1438,10 +1455,389 @@ void xhci_endpoint_reset(struct usb_hcd *hcd,
 		kfree(virt_ep->stopped_td);
 		xhci_ring_cmd_db(xhci);
 	}
+	virt_ep->stopped_td = NULL;
+	virt_ep->stopped_trb = NULL;
+	virt_ep->stopped_stream = 0;
 	spin_unlock_irqrestore(&xhci->lock, flags);
 
 	if (ret)
 		xhci_warn(xhci, "FIXME allocate a new ring segment\n");
+}
+
+static int xhci_check_streams_endpoint(struct xhci_hcd *xhci,
+		struct usb_device *udev, struct usb_host_endpoint *ep,
+		unsigned int slot_id)
+{
+	int ret;
+	unsigned int ep_index;
+	unsigned int ep_state;
+
+	if (!ep)
+		return -EINVAL;
+	ret = xhci_check_args(xhci_to_hcd(xhci), udev, ep, 1, __func__);
+	if (ret <= 0)
+		return -EINVAL;
+	if (ep->ss_ep_comp.bmAttributes == 0) {
+		xhci_warn(xhci, "WARN: SuperSpeed Endpoint Companion"
+				" descriptor for ep 0x%x does not support streams\n",
+				ep->desc.bEndpointAddress);
+		return -EINVAL;
+	}
+
+	ep_index = xhci_get_endpoint_index(&ep->desc);
+	ep_state = xhci->devs[slot_id]->eps[ep_index].ep_state;
+	if (ep_state & EP_HAS_STREAMS ||
+			ep_state & EP_GETTING_STREAMS) {
+		xhci_warn(xhci, "WARN: SuperSpeed bulk endpoint 0x%x "
+				"already has streams set up.\n",
+				ep->desc.bEndpointAddress);
+		xhci_warn(xhci, "Send email to xHCI maintainer and ask for "
+				"dynamic stream context array reallocation.\n");
+		return -EINVAL;
+	}
+	if (!list_empty(&xhci->devs[slot_id]->eps[ep_index].ring->td_list)) {
+		xhci_warn(xhci, "Cannot setup streams for SuperSpeed bulk "
+				"endpoint 0x%x; URBs are pending.\n",
+				ep->desc.bEndpointAddress);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static void xhci_calculate_streams_entries(struct xhci_hcd *xhci,
+		unsigned int *num_streams, unsigned int *num_stream_ctxs)
+{
+	unsigned int max_streams;
+
+	/* The stream context array size must be a power of two */
+	*num_stream_ctxs = roundup_pow_of_two(*num_streams);
+	/*
+	 * Find out how many primary stream array entries the host controller
+	 * supports.  Later we may use secondary stream arrays (similar to 2nd
+	 * level page entries), but that's an optional feature for xHCI host
+	 * controllers. xHCs must support at least 4 stream IDs.
+	 */
+	max_streams = HCC_MAX_PSA(xhci->hcc_params);
+	if (*num_stream_ctxs > max_streams) {
+		xhci_dbg(xhci, "xHCI HW only supports %u stream ctx entries.\n",
+				max_streams);
+		*num_stream_ctxs = max_streams;
+		*num_streams = max_streams;
+	}
+}
+
+/* Returns an error code if one of the endpoint already has streams.
+ * This does not change any data structures, it only checks and gathers
+ * information.
+ */
+static int xhci_calculate_streams_and_bitmask(struct xhci_hcd *xhci,
+		struct usb_device *udev,
+		struct usb_host_endpoint **eps, unsigned int num_eps,
+		unsigned int *num_streams, u32 *changed_ep_bitmask)
+{
+	unsigned int max_streams;
+	unsigned int endpoint_flag;
+	int i;
+	int ret;
+
+	for (i = 0; i < num_eps; i++) {
+		ret = xhci_check_streams_endpoint(xhci, udev,
+				eps[i], udev->slot_id);
+		if (ret < 0)
+			return ret;
+
+		max_streams = USB_SS_MAX_STREAMS(
+				eps[i]->ss_ep_comp.bmAttributes);
+		if (max_streams < (*num_streams - 1)) {
+			xhci_dbg(xhci, "Ep 0x%x only supports %u stream IDs.\n",
+					eps[i]->desc.bEndpointAddress,
+					max_streams);
+			*num_streams = max_streams+1;
+		}
+
+		endpoint_flag = xhci_get_endpoint_flag(&eps[i]->desc);
+		if (*changed_ep_bitmask & endpoint_flag)
+			return -EINVAL;
+		*changed_ep_bitmask |= endpoint_flag;
+	}
+	return 0;
+}
+
+static u32 xhci_calculate_no_streams_bitmask(struct xhci_hcd *xhci,
+		struct usb_device *udev,
+		struct usb_host_endpoint **eps, unsigned int num_eps)
+{
+	u32 changed_ep_bitmask = 0;
+	unsigned int slot_id;
+	unsigned int ep_index;
+	unsigned int ep_state;
+	int i;
+
+	slot_id = udev->slot_id;
+	if (!xhci->devs[slot_id])
+		return 0;
+
+	for (i = 0; i < num_eps; i++) {
+		ep_index = xhci_get_endpoint_index(&eps[i]->desc);
+		ep_state = xhci->devs[slot_id]->eps[ep_index].ep_state;
+		/* Are streams already being freed for the endpoint? */
+		if (ep_state & EP_GETTING_NO_STREAMS) {
+			xhci_warn(xhci, "WARN Can't disable streams for "
+					"endpoint 0x%x\n, "
+					"streams are being disabled already.",
+					eps[i]->desc.bEndpointAddress);
+			return 0;
+		}
+		/* Are there actually any streams to free? */
+		if (!(ep_state & EP_HAS_STREAMS) &&
+				!(ep_state & EP_GETTING_STREAMS)) {
+			xhci_warn(xhci, "WARN Can't disable streams for "
+					"endpoint 0x%x\n, "
+					"streams are already disabled!",
+					eps[i]->desc.bEndpointAddress);
+			xhci_warn(xhci, "WARN xhci_free_streams() called "
+					"with non-streams endpoint\n");
+			return 0;
+		}
+		changed_ep_bitmask |= xhci_get_endpoint_flag(&eps[i]->desc);
+	}
+	return changed_ep_bitmask;
+}
+
+/*
+ * The USB device drivers use this function (though the HCD interface in USB
+ * core) to prepare a set of bulk endpoints to use streams.  Streams are used to
+ * coordinate mass storage command queueing across multiple endpoints (basically
+ * a stream ID == a task ID).
+ *
+ * Setting up streams involves allocating the same size stream context array
+ * for each endpoint and issuing a configure endpoint command for all endpoints.
+ *
+ * Don't allow the call to succeed if one endpoint only supports one stream
+ * (which means it doesn't support streams at all).
+ *
+ * Drivers may get less stream IDs than they asked for, if the host controller
+ * hardware or endpoints claim they can't support the number of requested
+ * stream IDs.
+ */
+int xhci_alloc_streams(struct usb_hcd *hcd, struct usb_device *udev,
+		struct usb_host_endpoint **eps, unsigned int num_eps,
+		unsigned int num_streams, gfp_t mem_flags)
+{
+	int i, ret;
+	struct xhci_hcd *xhci;
+	struct xhci_virt_device *vdev;
+	struct xhci_command *config_cmd;
+	unsigned int ep_index;
+	unsigned int num_stream_ctxs;
+	unsigned long flags;
+	u32 changed_ep_bitmask = 0;
+
+	if (!eps)
+		return -EINVAL;
+
+	/* Add one to the number of streams requested to account for
+	 * stream 0 that is reserved for xHCI usage.
+	 */
+	num_streams += 1;
+	xhci = hcd_to_xhci(hcd);
+	xhci_dbg(xhci, "Driver wants %u stream IDs (including stream 0).\n",
+			num_streams);
+
+	config_cmd = xhci_alloc_command(xhci, true, true, mem_flags);
+	if (!config_cmd) {
+		xhci_dbg(xhci, "Could not allocate xHCI command structure.\n");
+		return -ENOMEM;
+	}
+
+	/* Check to make sure all endpoints are not already configured for
+	 * streams.  While we're at it, find the maximum number of streams that
+	 * all the endpoints will support and check for duplicate endpoints.
+	 */
+	spin_lock_irqsave(&xhci->lock, flags);
+	ret = xhci_calculate_streams_and_bitmask(xhci, udev, eps,
+			num_eps, &num_streams, &changed_ep_bitmask);
+	if (ret < 0) {
+		xhci_free_command(xhci, config_cmd);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return ret;
+	}
+	if (num_streams <= 1) {
+		xhci_warn(xhci, "WARN: endpoints can't handle "
+				"more than one stream.\n");
+		xhci_free_command(xhci, config_cmd);
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return -EINVAL;
+	}
+	vdev = xhci->devs[udev->slot_id];
+	/* Mark each endpoint as being in transistion, so
+	 * xhci_urb_enqueue() will reject all URBs.
+	 */
+	for (i = 0; i < num_eps; i++) {
+		ep_index = xhci_get_endpoint_index(&eps[i]->desc);
+		vdev->eps[ep_index].ep_state |= EP_GETTING_STREAMS;
+	}
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	/* Setup internal data structures and allocate HW data structures for
+	 * streams (but don't install the HW structures in the input context
+	 * until we're sure all memory allocation succeeded).
+	 */
+	xhci_calculate_streams_entries(xhci, &num_streams, &num_stream_ctxs);
+	xhci_dbg(xhci, "Need %u stream ctx entries for %u stream IDs.\n",
+			num_stream_ctxs, num_streams);
+
+	for (i = 0; i < num_eps; i++) {
+		ep_index = xhci_get_endpoint_index(&eps[i]->desc);
+		vdev->eps[ep_index].stream_info = xhci_alloc_stream_info(xhci,
+				num_stream_ctxs,
+				num_streams, mem_flags);
+		if (!vdev->eps[ep_index].stream_info)
+			goto cleanup;
+		/* Set maxPstreams in endpoint context and update deq ptr to
+		 * point to stream context array. FIXME
+		 */
+	}
+
+	/* Set up the input context for a configure endpoint command. */
+	for (i = 0; i < num_eps; i++) {
+		struct xhci_ep_ctx *ep_ctx;
+
+		ep_index = xhci_get_endpoint_index(&eps[i]->desc);
+		ep_ctx = xhci_get_ep_ctx(xhci, config_cmd->in_ctx, ep_index);
+
+		xhci_endpoint_copy(xhci, config_cmd->in_ctx,
+				vdev->out_ctx, ep_index);
+		xhci_setup_streams_ep_input_ctx(xhci, ep_ctx,
+				vdev->eps[ep_index].stream_info);
+	}
+	/* Tell the HW to drop its old copy of the endpoint context info
+	 * and add the updated copy from the input context.
+	 */
+	xhci_setup_input_ctx_for_config_ep(xhci, config_cmd->in_ctx,
+			vdev->out_ctx, changed_ep_bitmask, changed_ep_bitmask);
+
+	/* Issue and wait for the configure endpoint command */
+	ret = xhci_configure_endpoint(xhci, udev, config_cmd,
+			false, false);
+
+	/* xHC rejected the configure endpoint command for some reason, so we
+	 * leave the old ring intact and free our internal streams data
+	 * structure.
+	 */
+	if (ret < 0)
+		goto cleanup;
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	for (i = 0; i < num_eps; i++) {
+		ep_index = xhci_get_endpoint_index(&eps[i]->desc);
+		vdev->eps[ep_index].ep_state &= ~EP_GETTING_STREAMS;
+		xhci_dbg(xhci, "Slot %u ep ctx %u now has streams.\n",
+			 udev->slot_id, ep_index);
+		vdev->eps[ep_index].ep_state |= EP_HAS_STREAMS;
+	}
+	xhci_free_command(xhci, config_cmd);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	/* Subtract 1 for stream 0, which drivers can't use */
+	return num_streams - 1;
+
+cleanup:
+	/* If it didn't work, free the streams! */
+	for (i = 0; i < num_eps; i++) {
+		ep_index = xhci_get_endpoint_index(&eps[i]->desc);
+		xhci_free_stream_info(xhci, vdev->eps[ep_index].stream_info);
+		vdev->eps[ep_index].stream_info = NULL;
+		/* FIXME Unset maxPstreams in endpoint context and
+		 * update deq ptr to point to normal string ring.
+		 */
+		vdev->eps[ep_index].ep_state &= ~EP_GETTING_STREAMS;
+		vdev->eps[ep_index].ep_state &= ~EP_HAS_STREAMS;
+		xhci_endpoint_zero(xhci, vdev, eps[i]);
+	}
+	xhci_free_command(xhci, config_cmd);
+	return -ENOMEM;
+}
+
+/* Transition the endpoint from using streams to being a "normal" endpoint
+ * without streams.
+ *
+ * Modify the endpoint context state, submit a configure endpoint command,
+ * and free all endpoint rings for streams if that completes successfully.
+ */
+int xhci_free_streams(struct usb_hcd *hcd, struct usb_device *udev,
+		struct usb_host_endpoint **eps, unsigned int num_eps,
+		gfp_t mem_flags)
+{
+	int i, ret;
+	struct xhci_hcd *xhci;
+	struct xhci_virt_device *vdev;
+	struct xhci_command *command;
+	unsigned int ep_index;
+	unsigned long flags;
+	u32 changed_ep_bitmask;
+
+	xhci = hcd_to_xhci(hcd);
+	vdev = xhci->devs[udev->slot_id];
+
+	/* Set up a configure endpoint command to remove the streams rings */
+	spin_lock_irqsave(&xhci->lock, flags);
+	changed_ep_bitmask = xhci_calculate_no_streams_bitmask(xhci,
+			udev, eps, num_eps);
+	if (changed_ep_bitmask == 0) {
+		spin_unlock_irqrestore(&xhci->lock, flags);
+		return -EINVAL;
+	}
+
+	/* Use the xhci_command structure from the first endpoint.  We may have
+	 * allocated too many, but the driver may call xhci_free_streams() for
+	 * each endpoint it grouped into one call to xhci_alloc_streams().
+	 */
+	ep_index = xhci_get_endpoint_index(&eps[0]->desc);
+	command = vdev->eps[ep_index].stream_info->free_streams_command;
+	for (i = 0; i < num_eps; i++) {
+		struct xhci_ep_ctx *ep_ctx;
+
+		ep_index = xhci_get_endpoint_index(&eps[i]->desc);
+		ep_ctx = xhci_get_ep_ctx(xhci, command->in_ctx, ep_index);
+		xhci->devs[udev->slot_id]->eps[ep_index].ep_state |=
+			EP_GETTING_NO_STREAMS;
+
+		xhci_endpoint_copy(xhci, command->in_ctx,
+				vdev->out_ctx, ep_index);
+		xhci_setup_no_streams_ep_input_ctx(xhci, ep_ctx,
+				&vdev->eps[ep_index]);
+	}
+	xhci_setup_input_ctx_for_config_ep(xhci, command->in_ctx,
+			vdev->out_ctx, changed_ep_bitmask, changed_ep_bitmask);
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	/* Issue and wait for the configure endpoint command,
+	 * which must succeed.
+	 */
+	ret = xhci_configure_endpoint(xhci, udev, command,
+			false, true);
+
+	/* xHC rejected the configure endpoint command for some reason, so we
+	 * leave the streams rings intact.
+	 */
+	if (ret < 0)
+		return ret;
+
+	spin_lock_irqsave(&xhci->lock, flags);
+	for (i = 0; i < num_eps; i++) {
+		ep_index = xhci_get_endpoint_index(&eps[i]->desc);
+		xhci_free_stream_info(xhci, vdev->eps[ep_index].stream_info);
+		vdev->eps[ep_index].stream_info = NULL;
+		/* FIXME Unset maxPstreams in endpoint context and
+		 * update deq ptr to point to normal string ring.
+		 */
+		vdev->eps[ep_index].ep_state &= ~EP_GETTING_NO_STREAMS;
+		vdev->eps[ep_index].ep_state &= ~EP_HAS_STREAMS;
+	}
+	spin_unlock_irqrestore(&xhci->lock, flags);
+
+	return 0;
 }
 
 /*

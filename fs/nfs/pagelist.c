@@ -60,16 +60,10 @@ nfs_create_request(struct nfs_open_context *ctx, struct inode *inode,
 {
 	struct nfs_page		*req;
 
-	for (;;) {
-		/* try to allocate the request struct */
-		req = nfs_page_alloc();
-		if (req != NULL)
-			break;
-
-		if (fatal_signal_pending(current))
-			return ERR_PTR(-ERESTARTSYS);
-		yield();
-	}
+	/* try to allocate the request struct */
+	req = nfs_page_alloc();
+	if (req == NULL)
+		return ERR_PTR(-ENOMEM);
 
 	/* Initialize the request struct. Initially, we assume a
 	 * long write-back delay. This will be adjusted in

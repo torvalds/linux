@@ -1894,7 +1894,7 @@ static struct scsi_host_template mptsas_driver_template = {
 	.module				= THIS_MODULE,
 	.proc_name			= "mptsas",
 	.proc_info			= mptscsih_proc_info,
-	.name				= "MPT SPI Host",
+	.name				= "MPT SAS Host",
 	.info				= mptscsih_info,
 	.queuecommand			= mptsas_qcmd,
 	.target_alloc			= mptsas_target_alloc,
@@ -2038,11 +2038,13 @@ static int mptsas_phy_reset(struct sas_phy *phy, int hard_reset)
 
 	timeleft = wait_for_completion_timeout(&ioc->sas_mgmt.done,
 			10 * HZ);
-	if (!timeleft) {
-		/* On timeout reset the board */
+	if (!(ioc->sas_mgmt.status & MPT_MGMT_STATUS_COMMAND_GOOD)) {
+		error = -ETIME;
 		mpt_free_msg_frame(ioc, mf);
-		mpt_HardResetHandler(ioc, CAN_SLEEP);
-		error = -ETIMEDOUT;
+		if (ioc->sas_mgmt.status & MPT_MGMT_STATUS_DID_IOCRESET)
+			goto out_unlock;
+		if (!timeleft)
+			mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 		goto out_unlock;
 	}
 
@@ -2223,11 +2225,14 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	mpt_put_msg_frame(mptsasMgmtCtx, ioc, mf);
 
 	timeleft = wait_for_completion_timeout(&ioc->sas_mgmt.done, 10 * HZ);
-	if (!timeleft) {
-		printk(MYIOC_s_ERR_FMT "%s: smp timeout!\n", ioc->name, __func__);
-		/* On timeout reset the board */
-		mpt_HardResetHandler(ioc, CAN_SLEEP);
-		ret = -ETIMEDOUT;
+	if (!(ioc->sas_mgmt.status & MPT_MGMT_STATUS_COMMAND_GOOD)) {
+		ret = -ETIME;
+		mpt_free_msg_frame(ioc, mf);
+		mf = NULL;
+		if (ioc->sas_mgmt.status & MPT_MGMT_STATUS_DID_IOCRESET)
+			goto unmap;
+		if (!timeleft)
+			mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 		goto unmap;
 	}
 	mf = NULL;
@@ -2518,6 +2523,12 @@ mptsas_sas_device_pg0(MPT_ADAPTER *ioc, struct mptsas_devinfo *device_info,
 	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 
 	error = mpt_config(ioc, &cfg);
+
+	if (error == MPI_IOCSTATUS_CONFIG_INVALID_PAGE) {
+		error = -ENODEV;
+		goto out_free_consistent;
+	}
+
 	if (error)
 		goto out_free_consistent;
 
@@ -2594,13 +2605,13 @@ mptsas_sas_expander_pg0(MPT_ADAPTER *ioc, struct mptsas_portinfo *port_info,
 	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 
 	error = mpt_config(ioc, &cfg);
-	if (error)
-		goto out_free_consistent;
-
-	if (!buffer->NumPhys) {
+	if (error == MPI_IOCSTATUS_CONFIG_INVALID_PAGE) {
 		error = -ENODEV;
 		goto out_free_consistent;
 	}
+
+	if (error)
+		goto out_free_consistent;
 
 	/* save config data */
 	port_info->num_phys = (buffer->NumPhys) ? buffer->NumPhys : 1;
@@ -2677,7 +2688,7 @@ mptsas_sas_expander_pg1(MPT_ADAPTER *ioc, struct mptsas_phyinfo *phy_info,
 
 	if (error == MPI_IOCSTATUS_CONFIG_INVALID_PAGE) {
 		error = -ENODEV;
-		goto out;
+		goto out_free_consistent;
 	}
 
 	if (error)
@@ -2833,7 +2844,7 @@ mptsas_exp_repmanufacture_info(MPT_ADAPTER *ioc,
 		if (ioc->sas_mgmt.status & MPT_MGMT_STATUS_DID_IOCRESET)
 			goto out_free;
 		if (!timeleft)
-			mpt_HardResetHandler(ioc, CAN_SLEEP);
+			mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 		goto out_free;
 	}
 
@@ -4098,6 +4109,7 @@ mptsas_adding_inactive_raid_components(MPT_ADAPTER *ioc, u8 channel, u8 id)
 	cfg.pageAddr = (channel << 8) + id;
 	cfg.cfghdr.hdr = &hdr;
 	cfg.action = MPI_CONFIG_ACTION_PAGE_HEADER;
+	cfg.timeout = SAS_CONFIG_PAGE_TIMEOUT;
 
 	if (mpt_config(ioc, &cfg) != 0)
 		goto out;
@@ -4717,7 +4729,7 @@ mptsas_broadcast_primative_work(struct fw_event_work *fw_event)
 	if (issue_reset) {
 		printk(MYIOC_s_WARN_FMT "Issuing Reset from %s!!\n",
 		    ioc->name, __func__);
-		mpt_HardResetHandler(ioc, CAN_SLEEP);
+		mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 	}
 	mptsas_free_fw_event(ioc, fw_event);
 }
@@ -4778,6 +4790,9 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 	int sz, event_data_sz;
 	struct fw_event_work *fw_event;
 	unsigned long delay;
+
+	if (ioc->bus_type != SAS)
+		return 0;
 
 	/* events turned off due to host reset or driver unloading */
 	if (ioc->fw_events_off)
@@ -5072,6 +5087,12 @@ static void __devexit mptsas_remove(struct pci_dev *pdev)
 	MPT_ADAPTER *ioc = pci_get_drvdata(pdev);
 	struct mptsas_portinfo *p, *n;
 	int i;
+
+	if (!ioc->sh) {
+		printk(MYIOC_s_INFO_FMT "IOC is in Target mode\n", ioc->name);
+		mpt_detach(pdev);
+		return;
+	}
 
 	mptsas_shutdown(pdev);
 

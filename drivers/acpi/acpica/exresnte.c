@@ -252,7 +252,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 			/* No named references are allowed here */
 
 			ACPI_ERROR((AE_INFO,
-				    "Unsupported Reference type %X",
+				    "Unsupported Reference type 0x%X",
 				    source_desc->reference.class));
 
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
@@ -264,7 +264,7 @@ acpi_ex_resolve_node_to_value(struct acpi_namespace_node **object_ptr,
 		/* Default case is for unknown types */
 
 		ACPI_ERROR((AE_INFO,
-			    "Node %p - Unknown object type %X",
+			    "Node %p - Unknown object type 0x%X",
 			    node, entry_type));
 
 		return_ACPI_STATUS(AE_AML_OPERAND_TYPE);

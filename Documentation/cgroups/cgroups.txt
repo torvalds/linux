@@ -572,7 +572,7 @@ void cancel_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
 
 Called when a task attach operation has failed after can_attach() has succeeded.
 A subsystem whose can_attach() has some side-effects should provide this
-function, so that the subsytem can implement a rollback. If not, not necessary.
+function, so that the subsystem can implement a rollback. If not, not necessary.
 This will be called only about subsystems whose can_attach() operation have
 succeeded.
 

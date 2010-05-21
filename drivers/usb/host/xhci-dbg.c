@@ -364,6 +364,30 @@ void xhci_debug_ring(struct xhci_hcd *xhci, struct xhci_ring *ring)
 		xhci_debug_segment(xhci, seg);
 }
 
+void xhci_dbg_ep_rings(struct xhci_hcd *xhci,
+		unsigned int slot_id, unsigned int ep_index,
+		struct xhci_virt_ep *ep)
+{
+	int i;
+	struct xhci_ring *ring;
+
+	if (ep->ep_state & EP_HAS_STREAMS) {
+		for (i = 1; i < ep->stream_info->num_streams; i++) {
+			ring = ep->stream_info->stream_rings[i];
+			xhci_dbg(xhci, "Dev %d endpoint %d stream ID %d:\n",
+				slot_id, ep_index, i);
+			xhci_debug_segment(xhci, ring->deq_seg);
+		}
+	} else {
+		ring = ep->ring;
+		if (!ring)
+			return;
+		xhci_dbg(xhci, "Dev %d endpoint ring %d:\n",
+				slot_id, ep_index);
+		xhci_debug_segment(xhci, ring->deq_seg);
+	}
+}
+
 void xhci_dbg_erst(struct xhci_hcd *xhci, struct xhci_erst *erst)
 {
 	u32 addr = (u32) erst->erst_dma_addr;

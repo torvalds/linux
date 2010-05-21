@@ -402,9 +402,7 @@ int ocfs2_commit_trans(struct ocfs2_super *osb,
 }
 
 /*
- * 'nblocks' is what you want to add to the current
- * transaction. extend_trans will either extend the current handle by
- * nblocks, or commit it and start a new one with nblocks credits.
+ * 'nblocks' is what you want to add to the current transaction.
  *
  * This might call jbd2_journal_restart() which will commit dirty buffers
  * and then restart the transaction. Before calling
@@ -422,11 +420,15 @@ int ocfs2_commit_trans(struct ocfs2_super *osb,
  */
 int ocfs2_extend_trans(handle_t *handle, int nblocks)
 {
-	int status;
+	int status, old_nblocks;
 
 	BUG_ON(!handle);
-	BUG_ON(!nblocks);
+	BUG_ON(nblocks < 0);
 
+	if (!nblocks)
+		return 0;
+
+	old_nblocks = handle->h_buffer_credits;
 	mlog_entry_void();
 
 	mlog(0, "Trying to extend transaction by %d blocks\n", nblocks);
@@ -445,7 +447,8 @@ int ocfs2_extend_trans(handle_t *handle, int nblocks)
 		mlog(0,
 		     "jbd2_journal_extend failed, trying "
 		     "jbd2_journal_restart\n");
-		status = jbd2_journal_restart(handle, nblocks);
+		status = jbd2_journal_restart(handle,
+					      old_nblocks + nblocks);
 		if (status < 0) {
 			mlog_errno(status);
 			goto bail;
@@ -734,8 +737,7 @@ int ocfs2_journal_access(handle_t *handle, struct ocfs2_caching_info *ci,
 	return __ocfs2_journal_access(handle, ci, bh, NULL, type);
 }
 
-int ocfs2_journal_dirty(handle_t *handle,
-			struct buffer_head *bh)
+void ocfs2_journal_dirty(handle_t *handle, struct buffer_head *bh)
 {
 	int status;
 
@@ -743,13 +745,9 @@ int ocfs2_journal_dirty(handle_t *handle,
 		   (unsigned long long)bh->b_blocknr);
 
 	status = jbd2_journal_dirty_metadata(handle, bh);
-	if (status < 0)
-		mlog(ML_ERROR, "Could not dirty metadata buffer. "
-		     "(bh->b_blocknr=%llu)\n",
-		     (unsigned long long)bh->b_blocknr);
+	BUG_ON(status);
 
-	mlog_exit(status);
-	return status;
+	mlog_exit_void();
 }
 
 #define OCFS2_DEFAULT_COMMIT_INTERVAL	(HZ * JBD2_DEFAULT_MAX_COMMIT_AGE)

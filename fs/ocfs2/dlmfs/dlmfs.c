@@ -112,20 +112,20 @@ MODULE_PARM_DESC(capabilities, DLMFS_CAPABILITIES);
  * O_RDONLY -> PRMODE level
  * O_WRONLY -> EXMODE level
  *
- * O_NONBLOCK -> LKM_NOQUEUE
+ * O_NONBLOCK -> NOQUEUE
  */
 static int dlmfs_decode_open_flags(int open_flags,
 				   int *level,
 				   int *flags)
 {
 	if (open_flags & (O_WRONLY|O_RDWR))
-		*level = LKM_EXMODE;
+		*level = DLM_LOCK_EX;
 	else
-		*level = LKM_PRMODE;
+		*level = DLM_LOCK_PR;
 
 	*flags = 0;
 	if (open_flags & O_NONBLOCK)
-		*flags |= LKM_NOQUEUE;
+		*flags |= DLM_LKF_NOQUEUE;
 
 	return 0;
 }
@@ -166,7 +166,7 @@ static int dlmfs_file_open(struct inode *inode,
 		 * to be able userspace to be able to distinguish a
 		 * valid lock request from one that simply couldn't be
 		 * granted. */
-		if (flags & LKM_NOQUEUE && status == -EAGAIN)
+		if (flags & DLM_LKF_NOQUEUE && status == -EAGAIN)
 			status = -ETXTBSY;
 		kfree(fp);
 		goto bail;
@@ -193,7 +193,7 @@ static int dlmfs_file_release(struct inode *inode,
 	status = 0;
 	if (fp) {
 		level = fp->fp_lock_level;
-		if (level != LKM_IVMODE)
+		if (level != DLM_LOCK_IV)
 			user_dlm_cluster_unlock(&ip->ip_lockres, level);
 
 		kfree(fp);
@@ -262,7 +262,7 @@ static ssize_t dlmfs_file_read(struct file *filp,
 	if ((count + *ppos) > i_size_read(inode))
 		readlen = i_size_read(inode) - *ppos;
 	else
-		readlen = count - *ppos;
+		readlen = count;
 
 	lvb_buf = kmalloc(readlen, GFP_NOFS);
 	if (!lvb_buf)

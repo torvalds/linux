@@ -28,7 +28,7 @@ config CRYPTO_FIPS
 	  This options enables the fips boot option which is
 	  required if you want to system to operate in a FIPS 200
 	  certification.  You should say no unless you know what
-	  this is. Note that CRYPTO_ANSI_CPRNG is requred if this
+	  this is. Note that CRYPTO_ANSI_CPRNG is required if this
 	  option is selected
 
 config CRYPTO_ALGAPI

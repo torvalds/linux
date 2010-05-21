@@ -125,6 +125,9 @@ struct onenand_chip {
 	flstate_t		state;
 	unsigned char		*page_buf;
 	unsigned char		*oob_buf;
+#ifdef CONFIG_MTD_ONENAND_VERIFY_WRITE
+	unsigned char		*verify_buf;
+#endif
 
 	int			subpagesize;
 	struct nand_ecclayout	*ecclayout;
@@ -175,9 +178,13 @@ struct onenand_chip {
 #define ONENAND_HAS_CONT_LOCK		(0x0001)
 #define ONENAND_HAS_UNLOCK_ALL		(0x0002)
 #define ONENAND_HAS_2PLANE		(0x0004)
+#define ONENAND_HAS_4KB_PAGE		(0x0008)
 #define ONENAND_SKIP_UNLOCK_CHECK	(0x0100)
 #define ONENAND_PAGEBUF_ALLOC		(0x1000)
 #define ONENAND_OOBBUF_ALLOC		(0x2000)
+
+#define ONENAND_IS_4KB_PAGE(this)					\
+	(this->options & ONENAND_HAS_4KB_PAGE)
 
 /*
  * OneNAND Flash Manufacturer ID Codes
@@ -205,6 +212,8 @@ struct mtd_partition;
 
 struct onenand_platform_data {
 	void		(*mmcontrol)(struct mtd_info *mtd, int sync_read);
+	int		(*read_bufferram)(struct mtd_info *mtd, int area,
+			unsigned char *buffer, int offset, size_t count);
 	struct mtd_partition *parts;
 	unsigned int	nr_parts;
 };

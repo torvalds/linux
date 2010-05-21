@@ -590,9 +590,16 @@ int iwl_eeprom_init(struct iwl_priv *priv)
 			e[addr / 2] = cpu_to_le16(r >> 16);
 		}
 	}
+
+	IWL_DEBUG_INFO(priv, "NVM Type: %s, version: 0x%x\n",
+		       (priv->nvm_device_type == NVM_DEVICE_TYPE_OTP)
+		       ? "OTP" : "EEPROM",
+		       iwl_eeprom_query16(priv, EEPROM_VERSION));
+
 	ret = 0;
 done:
 	priv->cfg->ops->lib->eeprom_ops.release_semaphore(priv);
+
 err:
 	if (ret)
 		iwl_eeprom_free(priv);

@@ -1007,25 +1007,20 @@ xfs_bwrite(
 	struct xfs_mount	*mp,
 	struct xfs_buf		*bp)
 {
-	int			iowait = (bp->b_flags & XBF_ASYNC) == 0;
-	int			error = 0;
+	int			error;
 
 	bp->b_strat = xfs_bdstrat_cb;
 	bp->b_mount = mp;
 	bp->b_flags |= XBF_WRITE;
-	if (!iowait)
-		bp->b_flags |= _XBF_RUN_QUEUES;
+	bp->b_flags &= ~(XBF_ASYNC | XBF_READ);
 
 	xfs_buf_delwri_dequeue(bp);
 	xfs_buf_iostrategy(bp);
 
-	if (iowait) {
-		error = xfs_buf_iowait(bp);
-		if (error)
-			xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
-		xfs_buf_relse(bp);
-	}
-
+	error = xfs_buf_iowait(bp);
+	if (error)
+		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
+	xfs_buf_relse(bp);
 	return error;
 }
 
@@ -1614,7 +1609,8 @@ xfs_mapping_buftarg(
 
 STATIC int
 xfs_alloc_delwrite_queue(
-	xfs_buftarg_t		*btp)
+	xfs_buftarg_t		*btp,
+	const char		*fsname)
 {
 	int	error = 0;
 
@@ -1622,7 +1618,7 @@ xfs_alloc_delwrite_queue(
 	INIT_LIST_HEAD(&btp->bt_delwrite_queue);
 	spin_lock_init(&btp->bt_delwrite_lock);
 	btp->bt_flags = 0;
-	btp->bt_task = kthread_run(xfsbufd, btp, "xfsbufd");
+	btp->bt_task = kthread_run(xfsbufd, btp, "xfsbufd/%s", fsname);
 	if (IS_ERR(btp->bt_task)) {
 		error = PTR_ERR(btp->bt_task);
 		goto out_error;
@@ -1635,7 +1631,8 @@ out_error:
 xfs_buftarg_t *
 xfs_alloc_buftarg(
 	struct block_device	*bdev,
-	int			external)
+	int			external,
+	const char		*fsname)
 {
 	xfs_buftarg_t		*btp;
 
@@ -1647,7 +1644,7 @@ xfs_alloc_buftarg(
 		goto error;
 	if (xfs_mapping_buftarg(btp, bdev))
 		goto error;
-	if (xfs_alloc_delwrite_queue(btp))
+	if (xfs_alloc_delwrite_queue(btp, fsname))
 		goto error;
 	xfs_alloc_bufhash(btp, external);
 	return btp;

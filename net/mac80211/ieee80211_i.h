@@ -317,6 +317,7 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_MFP_ENABLED	= BIT(6),
 	IEEE80211_STA_UAPSD_ENABLED	= BIT(7),
 	IEEE80211_STA_NULLFUNC_ACKED	= BIT(8),
+	IEEE80211_STA_RESET_SIGNAL_AVE	= BIT(9),
 };
 
 struct ieee80211_if_managed {
@@ -327,7 +328,7 @@ struct ieee80211_if_managed {
 	struct work_struct work;
 	struct work_struct monitor_work;
 	struct work_struct chswitch_work;
-	struct work_struct beacon_loss_work;
+	struct work_struct beacon_connection_loss_work;
 
 	unsigned long probe_timeout;
 	int probe_send_count;
@@ -359,6 +360,24 @@ struct ieee80211_if_managed {
 	int wmm_last_param_set;
 
 	u8 use_4addr;
+
+	/* Signal strength from the last Beacon frame in the current BSS. */
+	int last_beacon_signal;
+
+	/*
+	 * Weighted average of the signal strength from Beacon frames in the
+	 * current BSS. This is in units of 1/16 of the signal unit to maintain
+	 * accuracy and to speed up calculations, i.e., the value need to be
+	 * divided by 16 to get the actual value.
+	 */
+	int ave_beacon_signal;
+
+	/*
+	 * Last Beacon frame signal strength average (ave_beacon_signal / 16)
+	 * that triggered a cqm event. 0 indicates that no event has been
+	 * generated for the current association.
+	 */
+	int last_cqm_event_signal;
 };
 
 enum ieee80211_ibss_request {
@@ -646,8 +665,7 @@ struct ieee80211_local {
 	struct work_struct recalc_smps;
 
 	/* aggregated multicast list */
-	struct dev_addr_list *mc_list;
-	int mc_count;
+	struct netdev_hw_addr_list mc_list;
 
 	bool tim_in_locked_section; /* see ieee80211_beacon_get() */
 
@@ -745,10 +763,11 @@ struct ieee80211_local {
 	int scan_channel_idx;
 	int scan_ies_len;
 
+	unsigned long leave_oper_channel_time;
 	enum mac80211_scan_state next_scan_state;
 	struct delayed_work scan_work;
 	struct ieee80211_sub_if_data *scan_sdata;
-	enum nl80211_channel_type oper_channel_type;
+	enum nl80211_channel_type _oper_channel_type;
 	struct ieee80211_channel *oper_channel, *csa_channel;
 
 	/* Temporary remain-on-channel for off-channel operations */
@@ -979,7 +998,8 @@ int ieee80211_max_network_latency(struct notifier_block *nb,
 				  unsigned long data, void *dummy);
 void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 				      struct ieee80211_channel_sw_ie *sw_elem,
-				      struct ieee80211_bss *bss);
+				      struct ieee80211_bss *bss,
+				      u64 timestamp);
 void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata);
 
@@ -1000,7 +1020,8 @@ void ieee80211_ibss_restart(struct ieee80211_sub_if_data *sdata);
 /* scan/BSS handling */
 void ieee80211_scan_work(struct work_struct *work);
 int ieee80211_request_internal_scan(struct ieee80211_sub_if_data *sdata,
-				    const u8 *ssid, u8 ssid_len);
+				    const u8 *ssid, u8 ssid_len,
+				    struct ieee80211_channel *chan);
 int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 			   struct cfg80211_scan_request *req);
 void ieee80211_scan_cancel(struct ieee80211_local *local);
@@ -1078,8 +1099,6 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 			       enum ieee80211_smps_mode smps, const u8 *da,
 			       const u8 *bssid);
 
-void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *da,
-				u16 tid, u16 initiator, u16 reason);
 void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 				    u16 initiator, u16 reason);
 void ieee80211_sta_tear_down_BA_sessions(struct sta_info *sta);
@@ -1155,7 +1174,7 @@ void ieee80211_send_nullfunc(struct ieee80211_local *local,
 			     int powersave);
 void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_hdr *hdr);
-void ieee80211_beacon_loss_work(struct work_struct *work);
+void ieee80211_beacon_connection_loss_work(struct work_struct *work);
 
 void ieee80211_wake_queues_by_reason(struct ieee80211_hw *hw,
 				     enum queue_stop_reason reason);
@@ -1209,6 +1228,20 @@ int ieee80211_wk_remain_on_channel(struct ieee80211_sub_if_data *sdata,
 				   unsigned int duration, u64 *cookie);
 int ieee80211_wk_cancel_remain_on_channel(
 	struct ieee80211_sub_if_data *sdata, u64 cookie);
+
+/* channel management */
+enum ieee80211_chan_mode {
+	CHAN_MODE_UNDEFINED,
+	CHAN_MODE_HOPPING,
+	CHAN_MODE_FIXED,
+};
+
+enum ieee80211_chan_mode
+ieee80211_get_channel_mode(struct ieee80211_local *local,
+			   struct ieee80211_sub_if_data *ignore);
+bool ieee80211_set_channel_type(struct ieee80211_local *local,
+				struct ieee80211_sub_if_data *sdata,
+				enum nl80211_channel_type chantype);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

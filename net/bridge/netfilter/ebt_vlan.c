@@ -26,22 +26,17 @@
 #include <linux/netfilter_bridge/ebtables.h>
 #include <linux/netfilter_bridge/ebt_vlan.h>
 
-static int debug;
 #define MODULE_VERS "0.6"
 
-module_param(debug, int, 0);
-MODULE_PARM_DESC(debug, "debug=1 is turn on debug messages");
 MODULE_AUTHOR("Nick Fedchik <nick@fedchik.org.ua>");
 MODULE_DESCRIPTION("Ebtables: 802.1Q VLAN tag match");
 MODULE_LICENSE("GPL");
 
-
-#define DEBUG_MSG(args...) if (debug) printk (KERN_DEBUG "ebt_vlan: " args)
 #define GET_BITMASK(_BIT_MASK_) info->bitmask & _BIT_MASK_
 #define EXIT_ON_MISMATCH(_MATCH_,_MASK_) {if (!((info->_MATCH_ == _MATCH_)^!!(info->invflags & _MASK_))) return false; }
 
 static bool
-ebt_vlan_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+ebt_vlan_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct ebt_vlan_info *info = par->matchinfo;
 	const struct vlan_hdr *fp;
@@ -84,32 +79,31 @@ ebt_vlan_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-static bool ebt_vlan_mt_check(const struct xt_mtchk_param *par)
+static int ebt_vlan_mt_check(const struct xt_mtchk_param *par)
 {
 	struct ebt_vlan_info *info = par->matchinfo;
 	const struct ebt_entry *e = par->entryinfo;
 
 	/* Is it 802.1Q frame checked? */
 	if (e->ethproto != htons(ETH_P_8021Q)) {
-		DEBUG_MSG
-		    ("passed entry proto %2.4X is not 802.1Q (8100)\n",
-		     (unsigned short) ntohs(e->ethproto));
-		return false;
+		pr_debug("passed entry proto %2.4X is not 802.1Q (8100)\n",
+			 ntohs(e->ethproto));
+		return -EINVAL;
 	}
 
 	/* Check for bitmask range
 	 * True if even one bit is out of mask */
 	if (info->bitmask & ~EBT_VLAN_MASK) {
-		DEBUG_MSG("bitmask %2X is out of mask (%2X)\n",
-			  info->bitmask, EBT_VLAN_MASK);
-		return false;
+		pr_debug("bitmask %2X is out of mask (%2X)\n",
+			 info->bitmask, EBT_VLAN_MASK);
+		return -EINVAL;
 	}
 
 	/* Check for inversion flags range */
 	if (info->invflags & ~EBT_VLAN_MASK) {
-		DEBUG_MSG("inversion flags %2X is out of mask (%2X)\n",
-			  info->invflags, EBT_VLAN_MASK);
-		return false;
+		pr_debug("inversion flags %2X is out of mask (%2X)\n",
+			 info->invflags, EBT_VLAN_MASK);
+		return -EINVAL;
 	}
 
 	/* Reserved VLAN ID (VID) values
@@ -121,10 +115,9 @@ static bool ebt_vlan_mt_check(const struct xt_mtchk_param *par)
 	if (GET_BITMASK(EBT_VLAN_ID)) {
 		if (!!info->id) { /* if id!=0 => check vid range */
 			if (info->id > VLAN_GROUP_ARRAY_LEN) {
-				DEBUG_MSG
-				    ("id %d is out of range (1-4096)\n",
-				     info->id);
-				return false;
+				pr_debug("id %d is out of range (1-4096)\n",
+					 info->id);
+				return -EINVAL;
 			}
 			/* Note: This is valid VLAN-tagged frame point.
 			 * Any value of user_priority are acceptable,
@@ -137,9 +130,9 @@ static bool ebt_vlan_mt_check(const struct xt_mtchk_param *par)
 
 	if (GET_BITMASK(EBT_VLAN_PRIO)) {
 		if ((unsigned char) info->prio > 7) {
-			DEBUG_MSG("prio %d is out of range (0-7)\n",
-			     info->prio);
-			return false;
+			pr_debug("prio %d is out of range (0-7)\n",
+				 info->prio);
+			return -EINVAL;
 		}
 	}
 	/* Check for encapsulated proto range - it is possible to be
@@ -147,14 +140,13 @@ static bool ebt_vlan_mt_check(const struct xt_mtchk_param *par)
 	 * if_ether.h:  ETH_ZLEN        60   -  Min. octets in frame sans FCS */
 	if (GET_BITMASK(EBT_VLAN_ENCAP)) {
 		if ((unsigned short) ntohs(info->encap) < ETH_ZLEN) {
-			DEBUG_MSG
-			    ("encap frame length %d is less than minimal\n",
-			     ntohs(info->encap));
-			return false;
+			pr_debug("encap frame length %d is less than "
+				 "minimal\n", ntohs(info->encap));
+			return -EINVAL;
 		}
 	}
 
-	return true;
+	return 0;
 }
 
 static struct xt_match ebt_vlan_mt_reg __read_mostly = {
@@ -169,9 +161,7 @@ static struct xt_match ebt_vlan_mt_reg __read_mostly = {
 
 static int __init ebt_vlan_init(void)
 {
-	DEBUG_MSG("ebtables 802.1Q extension module v"
-		  MODULE_VERS "\n");
-	DEBUG_MSG("module debug=%d\n", !!debug);
+	pr_debug("ebtables 802.1Q extension module v" MODULE_VERS "\n");
 	return xt_register_match(&ebt_vlan_mt_reg);
 }
 

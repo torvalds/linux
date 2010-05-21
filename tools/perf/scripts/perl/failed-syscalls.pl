@@ -11,6 +11,8 @@ use Perf::Trace::Core;
 use Perf::Trace::Context;
 use Perf::Trace::Util;
 
+my $for_comm = shift;
+
 my %failed_syscalls;
 
 sub raw_syscalls::sys_exit
@@ -33,6 +35,8 @@ sub trace_end
 
     foreach my $comm (sort {$failed_syscalls{$b} <=> $failed_syscalls{$a}}
 		      keys %failed_syscalls) {
-	    printf("%-20s  %10s\n", $comm, $failed_syscalls{$comm});
+	next if ($for_comm && $comm ne $for_comm);
+
+	printf("%-20s  %10s\n", $comm, $failed_syscalls{$comm});
     }
 }

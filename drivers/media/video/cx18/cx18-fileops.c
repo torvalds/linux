@@ -700,7 +700,7 @@ int cx18_v4l2_close(struct file *filp)
 
 	CX18_DEBUG_IOCTL("close() of %s\n", s->name);
 
-	v4l2_prio_close(&cx->prio, &id->prio);
+	v4l2_prio_close(&cx->prio, id->prio);
 
 	/* Easy case first: this stream was never claimed by us */
 	if (s->id != id->open_id) {

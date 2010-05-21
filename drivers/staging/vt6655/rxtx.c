@@ -25,19 +25,19 @@
  * Date: May 20, 2003
  *
  * Functions:
- *      s_vGenerateTxParameter - Generate tx dma requried parameter.
+ *      s_vGenerateTxParameter - Generate tx dma required parameter.
  *      vGenerateMACHeader - Translate 802.3 to 802.11 header
- *      cbGetFragCount - Caculate fragement number count
+ *      cbGetFragCount - Caculate fragment number count
  *      csBeacon_xmit - beacon tx function
  *      csMgmt_xmit - management tx function
  *      s_cbFillTxBufHead - fulfill tx dma buffer header
  *      s_uGetDataDuration - get tx data required duration
  *      s_uFillDataHead- fulfill tx data duration header
- *      s_uGetRTSCTSDuration- get rtx/cts requried duration
+ *      s_uGetRTSCTSDuration- get rtx/cts required duration
  *      s_uGetRTSCTSRsvTime- get rts/cts reserved time
  *      s_uGetTxRsvTime- get frame reserved time
  *      s_vFillCTSHead- fulfill CTS ctl header
- *      s_vFillFragParameter- Set fragement ctl parameter.
+ *      s_vFillFragParameter- Set fragment ctl parameter.
  *      s_vFillRTSHead- fulfill RTS ctl header
  *      s_vFillTxKey- fulfill tx encrypt key
  *      s_vSWencryption- Software encrypt header
@@ -877,7 +877,7 @@ s_vFillRTSHead (
     }
 
     // Note: So far RTSHead dosen't appear in ATIM & Beacom DMA, so we don't need to take them into account.
-    //       Otherwise, we need to modified codes for them.
+    //       Otherwise, we need to modify codes for them.
     if (byPktType == PK_TYPE_11GB || byPktType == PK_TYPE_11GA) {
         if (byFBOption == AUTO_FB_NONE) {
             PSRTS_g pBuf = (PSRTS_g)pvRTS;
@@ -1133,7 +1133,7 @@ s_vFillCTSHead (
  *
  * Parameters:
  *  In:
- *      pDevice         - Pointer to adpater
+ *      pDevice         - Pointer to adapter
  *      pTxDataHead     - Transmit Data Buffer
  *      pTxBufHead      - pTxBufHead
  *      pvRrvTime        - pvRrvTime
@@ -2252,7 +2252,7 @@ vGenerateFIFOHeader (
  *
  * Parameters:
  *  In:
- *      pDevice         - Pointer to adpater
+ *      pDevice         - Pointer to adapter
  *      dwTxBufferAddr  - Transmit Buffer
  *      pPacket         - Packet from upper layer
  *      cbPacketSize    - Transmit Data Length

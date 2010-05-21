@@ -244,7 +244,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 	  we have to check if OLDPAGE/NEWPAGE is a valid page after commit().
 
 8. LRU
-        Each memcg has its own private LRU. Now, it's handling is under global
+        Each memcg has its own private LRU. Now, its handling is under global
 	VM's control (means that it's handled under global zone->lru_lock).
 	Almost all routines around memcg's LRU is called by global LRU's
 	list management functions under zone->lru_lock().

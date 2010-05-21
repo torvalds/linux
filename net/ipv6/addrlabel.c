@@ -422,10 +422,6 @@ static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh,
 	    ifal->ifal_prefixlen > 128)
 		return -EINVAL;
 
-	if (ifal->ifal_index &&
-	    !__dev_get_by_index(net, ifal->ifal_index))
-		return -EINVAL;
-
 	if (!tb[IFAL_ADDRESS])
 		return -EINVAL;
 
@@ -441,6 +437,10 @@ static int ip6addrlbl_newdel(struct sk_buff *skb, struct nlmsghdr *nlh,
 
 	switch(nlh->nlmsg_type) {
 	case RTM_NEWADDRLABEL:
+		if (ifal->ifal_index &&
+		    !__dev_get_by_index(net, ifal->ifal_index))
+			return -EINVAL;
+
 		err = ip6addrlbl_add(net, pfx, ifal->ifal_prefixlen,
 				     ifal->ifal_index, label,
 				     nlh->nlmsg_flags & NLM_F_REPLACE);

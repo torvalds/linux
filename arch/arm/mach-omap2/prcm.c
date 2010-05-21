@@ -158,10 +158,10 @@ void omap_prcm_arch_reset(char mode, const char *cmd)
 		WARN_ON(1);
 
 	if (cpu_is_omap24xx() || cpu_is_omap34xx())
-		prm_set_mod_reg_bits(OMAP_RST_DPLL3, prcm_offs,
+		prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, prcm_offs,
 						 OMAP2_RM_RSTCTRL);
 	if (cpu_is_omap44xx())
-		prm_set_mod_reg_bits(OMAP_RST_DPLL3, prcm_offs,
+		prm_set_mod_reg_bits(OMAP_RST_DPLL3_MASK, prcm_offs,
 						 OMAP4_RM_RSTCTRL);
 }
 

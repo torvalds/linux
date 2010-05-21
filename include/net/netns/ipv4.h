@@ -55,19 +55,14 @@ struct netns_ipv4 {
 	int sysctl_rt_cache_rebuild_count;
 	int current_rt_cache_rebuild_count;
 
-	struct timer_list rt_secret_timer;
 	atomic_t rt_genid;
 
 #ifdef CONFIG_IP_MROUTE
-	struct sock		*mroute_sk;
-	struct mfc_cache	**mfc_cache_array;
-	struct vif_device	*vif_table;
-	int			maxvif;
-	atomic_t		cache_resolve_queue_len;
-	int			mroute_do_assert;
-	int			mroute_do_pim;
-#if defined(CONFIG_IP_PIMSM_V1) || defined(CONFIG_IP_PIMSM_V2)
-	int			mroute_reg_vif_num;
+#ifndef CONFIG_IP_MROUTE_MULTIPLE_TABLES
+	struct mr_table		*mrt;
+#else
+	struct list_head	mr_tables;
+	struct fib_rules_ops	*mr_rules_ops;
 #endif
 #endif
 };

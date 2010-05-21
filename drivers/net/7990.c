@@ -262,7 +262,7 @@ static int lance_reset (struct net_device *dev)
 
         load_csrs (lp);
         lance_init_ring (dev);
-        dev->trans_start = jiffies;
+        dev->trans_start = jiffies; /* prevent tx timeout */
         status = init_restart_lance (lp);
 #ifdef DEBUG_DRIVER
         printk ("Lance restart=%d\n", status);
@@ -526,7 +526,7 @@ void lance_tx_timeout(struct net_device *dev)
 {
 	printk("lance_tx_timeout\n");
 	lance_reset(dev);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 EXPORT_SYMBOL_GPL(lance_tx_timeout);
@@ -574,7 +574,6 @@ int lance_start_xmit (struct sk_buff *skb, struct net_device *dev)
         outs++;
         /* Kick the lance: transmit now */
         WRITERDP(lp, LE_C0_INEA | LE_C0_TDMD);
-        dev->trans_start = jiffies;
         dev_kfree_skb (skb);
 
 	spin_lock_irqsave (&lp->devlock, flags);
@@ -594,7 +593,7 @@ static void lance_load_multicast (struct net_device *dev)
         struct lance_private *lp = netdev_priv(dev);
         volatile struct lance_init_block *ib = lp->init_block;
         volatile u16 *mcast_table = (u16 *)&ib->filter;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
         char *addrs;
         u32 crc;
 
@@ -609,8 +608,8 @@ static void lance_load_multicast (struct net_device *dev)
         ib->filter [1] = 0;
 
         /* Add addresses */
-	netdev_for_each_mc_addr(dmi, dev) {
-                addrs = dmi->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		addrs = ha->addr;
 
                 /* multicast address? */
                 if (!(*addrs & 1))
@@ -620,7 +619,6 @@ static void lance_load_multicast (struct net_device *dev)
                 crc = crc >> 26;
                 mcast_table [crc >> 4] |= 1 << (crc & 0xf);
         }
-        return;
 }
 
 

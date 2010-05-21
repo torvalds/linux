@@ -99,6 +99,9 @@
 /* Number of entries posted */
 #define DB_MCCQ_NUM_POSTED_SHIFT	(16)	/* bits 16 - 29 */
 
+/********** SRIOV VF PCICFG OFFSET ********/
+#define SRIOV_VF_PCICFG_OFFSET		(4096)
+
 /* Flashrom related descriptors */
 #define IMAGE_TYPE_FIRMWARE		160
 #define IMAGE_TYPE_BOOTCODE		224

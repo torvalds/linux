@@ -65,7 +65,7 @@ struct thread_info {
 #define TIF_NEED_RESCHED	7	/* rescheduling necessary */
 #define TIF_DELAYED_TRACE	14	/* single step a syscall */
 #define TIF_SYSCALL_TRACE	15	/* syscall trace active */
-#define TIF_MEMDIE		16
+#define TIF_MEMDIE		16	/* is terminating due to OOM killer */
 #define TIF_FREEZE		17	/* thread is freezing for suspend */
 
 #endif	/* _ASM_M68K_THREAD_INFO_H */

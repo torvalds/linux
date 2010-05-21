@@ -83,6 +83,21 @@
 #define D_SUBMODULE control
 #include "debug-levels.h"
 
+static int i2400m_idle_mode_disabled;/* 0 (idle mode enabled) by default */
+module_param_named(idle_mode_disabled, i2400m_idle_mode_disabled, int, 0644);
+MODULE_PARM_DESC(idle_mode_disabled,
+		 "If true, the device will not enable idle mode negotiation "
+		 "with the base station (when connected) to save power.");
+
+/* 0 (power saving enabled) by default */
+static int i2400m_power_save_disabled;
+module_param_named(power_save_disabled, i2400m_power_save_disabled, int, 0644);
+MODULE_PARM_DESC(power_save_disabled,
+		 "If true, the driver will not tell the device to enter "
+		 "power saving mode when it reports it is ready for it. "
+		 "False by default (so the device is told to do power "
+		 "saving).");
+
 int i2400m_passive_mode;	/* 0 (passive mode disabled) by default */
 module_param_named(passive_mode, i2400m_passive_mode, int, 0644);
 MODULE_PARM_DESC(passive_mode,
@@ -346,7 +361,7 @@ void i2400m_report_tlv_system_state(struct i2400m *i2400m,
 			i2400m_state);
 		i2400m_reset(i2400m, I2400M_RT_WARM);
 		break;
-	};
+	}
 	d_fnend(3, dev, "(i2400m %p ss %p [%u]) = void\n",
 		i2400m, ss, i2400m_state);
 }
@@ -395,7 +410,7 @@ void i2400m_report_tlv_media_status(struct i2400m *i2400m,
 	default:
 		dev_err(dev, "HW BUG? unknown media status %u\n",
 			status);
-	};
+	}
 	d_fnend(3, dev, "(i2400m %p ms %p [%u]) = void\n",
 		i2400m, ms, status);
 }
@@ -524,7 +539,7 @@ void i2400m_report_hook(struct i2400m *i2400m,
 			}
 		}
 		break;
-	};
+	}
 	d_fnend(3, dev, "(i2400m %p l3l4_hdr %p size %zu) = void\n",
 		i2400m, l3l4_hdr, size);
 }
@@ -567,8 +582,7 @@ void i2400m_msg_ack_hook(struct i2400m *i2400m,
 					 size);
 		}
 		break;
-	};
-	return;
+	}
 }
 
 
@@ -740,7 +754,7 @@ struct sk_buff *i2400m_msg_to_dev(struct i2400m *i2400m,
 		break;
 	default:
 		ack_timeout = HZ;
-	};
+	}
 
 	if (unlikely(i2400m->trace_msg_from_user))
 		wimax_msg(&i2400m->wimax_dev, "echo", buf, buf_len, GFP_KERNEL);
@@ -1419,5 +1433,4 @@ void i2400m_dev_shutdown(struct i2400m *i2400m)
 
 	d_fnstart(3, dev, "(i2400m %p)\n", i2400m);
 	d_fnend(3, dev, "(i2400m %p) = void\n", i2400m);
-	return;
 }

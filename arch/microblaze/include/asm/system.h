@@ -12,6 +12,7 @@
 #include <asm/registers.h>
 #include <asm/setup.h>
 #include <asm/irqflags.h>
+#include <asm/cache.h>
 
 #include <asm-generic/cmpxchg.h>
 #include <asm-generic/cmpxchg-local.h>
@@ -95,5 +96,15 @@ extern struct dentry *of_debugfs_root;
 #endif
 
 #define arch_align_stack(x) (x)
+
+/*
+ * MicroBlaze doesn't handle unaligned accesses in hardware.
+ *
+ * Based on this we force the IP header alignment in network drivers.
+ * We also modify NET_SKB_PAD to be a cacheline in size, thus maintaining
+ * cacheline alignment of buffers.
+ */
+#define NET_IP_ALIGN	2
+#define NET_SKB_PAD	L1_CACHE_BYTES
 
 #endif /* _ASM_MICROBLAZE_SYSTEM_H */

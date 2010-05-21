@@ -1118,7 +1118,6 @@ static void dmfe_ethtool_get_wol(struct net_device *dev,
 
 	wolinfo->supported = WAKE_PHY | WAKE_MAGIC;
 	wolinfo->wolopts = db->wol_mode;
-	return;
 }
 
 
@@ -1180,11 +1179,11 @@ static void dmfe_timer(unsigned long data)
 
 	/* TX polling kick monitor */
 	if ( db->tx_packet_cnt &&
-	     time_after(jiffies, dev->trans_start + DMFE_TX_KICK) ) {
+	     time_after(jiffies, dev_trans_start(dev) + DMFE_TX_KICK) ) {
 		outl(0x1, dev->base_addr + DCR1);   /* Tx polling again */
 
 		/* TX Timeout */
-		if ( time_after(jiffies, dev->trans_start + DMFE_TX_TIMEOUT) ) {
+		if (time_after(jiffies, dev_trans_start(dev) + DMFE_TX_TIMEOUT) ) {
 			db->reset_TXtimeout++;
 			db->wait_reset = 1;
 			dev_warn(&dev->dev, "Tx timeout - resetting\n");
@@ -1453,7 +1452,7 @@ static void update_cr6(u32 cr6_data, unsigned long ioaddr)
 
 static void dm9132_id_table(struct DEVICE *dev)
 {
-	struct dev_mc_list *mcptr;
+	struct netdev_hw_addr *ha;
 	u16 * addrptr;
 	unsigned long ioaddr = dev->base_addr+0xc0;		/* ID Table */
 	u32 hash_val;
@@ -1477,8 +1476,8 @@ static void dm9132_id_table(struct DEVICE *dev)
 	hash_table[3] = 0x8000;
 
 	/* the multicast address in Hash Table : 64 bits */
-	netdev_for_each_mc_addr(mcptr, dev) {
-		hash_val = cal_CRC((char *) mcptr->dmi_addr, 6, 0) & 0x3f;
+	netdev_for_each_mc_addr(ha, dev) {
+		hash_val = cal_CRC((char *) ha->addr, 6, 0) & 0x3f;
 		hash_table[hash_val / 16] |= (u16) 1 << (hash_val % 16);
 	}
 
@@ -1496,7 +1495,7 @@ static void dm9132_id_table(struct DEVICE *dev)
 static void send_filter_frame(struct DEVICE *dev)
 {
 	struct dmfe_board_info *db = netdev_priv(dev);
-	struct dev_mc_list *mcptr;
+	struct netdev_hw_addr *ha;
 	struct tx_desc *txptr;
 	u16 * addrptr;
 	u32 * suptr;
@@ -1519,8 +1518,8 @@ static void send_filter_frame(struct DEVICE *dev)
 	*suptr++ = 0xffff;
 
 	/* fit the multicast address */
-	netdev_for_each_mc_addr(mcptr, dev) {
-		addrptr = (u16 *) mcptr->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		addrptr = (u16 *) ha->addr;
 		*suptr++ = addrptr[0];
 		*suptr++ = addrptr[1];
 		*suptr++ = addrptr[2];

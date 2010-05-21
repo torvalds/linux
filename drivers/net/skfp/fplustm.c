@@ -1352,7 +1352,7 @@ void rtm_set_timer(struct s_smc *smc)
 	/*
 	 * MIB timer and hardware timer have the same resolution of 80nS
 	 */
-	DB_RMT("RMT: setting new fddiPATHT_Rmode, t = %d ns \n",
+	DB_RMT("RMT: setting new fddiPATHT_Rmode, t = %d ns\n",
 		(int) smc->mib.a[PATH0].fddiPATHT_Rmode,0) ;
 	outpd(ADDR(B2_RTM_INI),smc->mib.a[PATH0].fddiPATHT_Rmode) ;
 }

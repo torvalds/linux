@@ -542,7 +542,7 @@ minstrel_free(void *priv)
 	kfree(priv);
 }
 
-static struct rate_control_ops mac80211_minstrel = {
+struct rate_control_ops mac80211_minstrel = {
 	.name = "minstrel",
 	.tx_status = minstrel_tx_status,
 	.get_rate = minstrel_get_rate,

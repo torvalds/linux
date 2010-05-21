@@ -70,9 +70,6 @@ struct cfg80211_registered_device {
 	struct work_struct conn_work;
 	struct work_struct event_work;
 
-	/* current channel */
-	struct ieee80211_channel *channel;
-
 	/* must be last because of the way we do wiphy_priv(),
 	 * and it should at least be aligned to NETDEV_ALIGN */
 	struct wiphy wiphy __attribute__((__aligned__(NETDEV_ALIGN)));
@@ -293,13 +290,15 @@ int __cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 			 const u8 *bssid,
 			 const u8 *ssid, int ssid_len,
 			 const u8 *ie, int ie_len,
-			 const u8 *key, int key_len, int key_idx);
+			 const u8 *key, int key_len, int key_idx,
+			 bool local_state_change);
 int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev, struct ieee80211_channel *chan,
 		       enum nl80211_auth_type auth_type, const u8 *bssid,
 		       const u8 *ssid, int ssid_len,
 		       const u8 *ie, int ie_len,
-		       const u8 *key, int key_len, int key_idx);
+		       const u8 *key, int key_len, int key_idx,
+		       bool local_state_change);
 int __cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			  struct net_device *dev,
 			  struct ieee80211_channel *chan,
@@ -315,13 +314,16 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct cfg80211_crypto_settings *crypt);
 int __cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 			   struct net_device *dev, const u8 *bssid,
-			   const u8 *ie, int ie_len, u16 reason);
+			   const u8 *ie, int ie_len, u16 reason,
+			   bool local_state_change);
 int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev, const u8 *bssid,
-			 const u8 *ie, int ie_len, u16 reason);
+			 const u8 *ie, int ie_len, u16 reason,
+			 bool local_state_change);
 int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 			   struct net_device *dev, const u8 *bssid,
-			   const u8 *ie, int ie_len, u16 reason);
+			   const u8 *ie, int ie_len, u16 reason,
+			   bool local_state_change);
 void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
 			struct net_device *dev);
 void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
@@ -383,14 +385,11 @@ int cfg80211_change_iface(struct cfg80211_registered_device *rdev,
 void cfg80211_process_rdev_events(struct cfg80211_registered_device *rdev);
 
 struct ieee80211_channel *
-rdev_fixed_channel(struct cfg80211_registered_device *rdev,
-		   struct wireless_dev *for_wdev);
-struct ieee80211_channel *
 rdev_freq_to_chan(struct cfg80211_registered_device *rdev,
 		  int freq, enum nl80211_channel_type channel_type);
-int rdev_set_freq(struct cfg80211_registered_device *rdev,
-		  struct wireless_dev *for_wdev,
-		  int freq, enum nl80211_channel_type channel_type);
+int cfg80211_set_freq(struct cfg80211_registered_device *rdev,
+		      struct wireless_dev *wdev, int freq,
+		      enum nl80211_channel_type channel_type);
 
 u16 cfg80211_calculate_bitrate(struct rate_info *rate);
 

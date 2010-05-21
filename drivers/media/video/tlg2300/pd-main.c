@@ -24,7 +24,6 @@
  *  Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#include <linux/version.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -55,8 +54,8 @@ int debug_mode;
 module_param(debug_mode, int, 0644);
 MODULE_PARM_DESC(debug_mode, "0 = disable, 1 = enable, 2 = verbose");
 
-const char *firmware_name = "tlg2300_firmware.bin";
-struct usb_driver poseidon_driver;
+static const char *firmware_name = "tlg2300_firmware.bin";
+static struct usb_driver poseidon_driver;
 static LIST_HEAD(pd_device_list);
 
 /*
@@ -455,8 +454,8 @@ static int poseidon_probe(struct usb_interface *interface,
 
 	device_init_wakeup(&udev->dev, 1);
 #ifdef CONFIG_PM
-	pd->udev->autosuspend_disabled = 0;
 	pd->udev->autosuspend_delay = HZ * PM_SUSPEND_DELAY;
+	usb_enable_autosuspend(pd->udev);
 
 	if (in_hibernation(pd)) {
 		INIT_WORK(&pd->pm_work, hibernation_resume);
@@ -501,7 +500,7 @@ static void poseidon_disconnect(struct usb_interface *interface)
 	kref_put(&pd->kref, poseidon_delete);
 }
 
-struct usb_driver poseidon_driver = {
+static struct usb_driver poseidon_driver = {
 	.name		= "poseidon",
 	.probe		= poseidon_probe,
 	.disconnect	= poseidon_disconnect,

@@ -94,7 +94,6 @@ int __ref cb_alloc(struct pcmcia_socket *s)
 	pci_enable_bridges(bus);
 	pci_bus_add_devices(bus);
 
-	s->irq.AssignedIRQ = s->pci_irq;
 	return 0;
 }
 

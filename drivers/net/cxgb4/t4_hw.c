@@ -53,8 +53,8 @@
  *	at the time it indicated completion is stored there.  Returns 0 if the
  *	operation completes and	-EAGAIN	otherwise.
  */
-int t4_wait_op_done_val(struct adapter *adapter, int reg, u32 mask,
-			int polarity, int attempts, int delay, u32 *valp)
+static int t4_wait_op_done_val(struct adapter *adapter, int reg, u32 mask,
+			       int polarity, int attempts, int delay, u32 *valp)
 {
 	while (1) {
 		u32 val = t4_read_reg(adapter, reg);
@@ -109,9 +109,9 @@ void t4_set_reg_field(struct adapter *adapter, unsigned int addr, u32 mask,
  *	Reads registers that are accessed indirectly through an address/data
  *	register pair.
  */
-void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
-		      unsigned int data_reg, u32 *vals, unsigned int nregs,
-		      unsigned int start_idx)
+static void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
+			     unsigned int data_reg, u32 *vals,
+			     unsigned int nregs, unsigned int start_idx)
 {
 	while (nregs--) {
 		t4_write_reg(adap, addr_reg, start_idx);
@@ -120,6 +120,7 @@ void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
 	}
 }
 
+#if 0
 /**
  *	t4_write_indirect - write indirectly addressed registers
  *	@adap: the adapter
@@ -132,15 +133,16 @@ void t4_read_indirect(struct adapter *adap, unsigned int addr_reg,
  *	Writes a sequential block of registers that are accessed indirectly
  *	through an address/data register pair.
  */
-void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
-		       unsigned int data_reg, const u32 *vals,
-		       unsigned int nregs, unsigned int start_idx)
+static void t4_write_indirect(struct adapter *adap, unsigned int addr_reg,
+			      unsigned int data_reg, const u32 *vals,
+			      unsigned int nregs, unsigned int start_idx)
 {
 	while (nregs--) {
 		t4_write_reg(adap, addr_reg, start_idx++);
 		t4_write_reg(adap, data_reg, *vals++);
 	}
 }
+#endif
 
 /*
  * Get the reply to a mailbox command and store it in @rpl in big-endian order.
@@ -345,33 +347,21 @@ int t4_edc_read(struct adapter *adap, int idx, u32 addr, __be32 *data, u64 *ecc)
 	return 0;
 }
 
-#define VPD_ENTRY(name, len) \
-	u8 name##_kword[2]; u8 name##_len; u8 name##_data[len]
-
 /*
  * Partial EEPROM Vital Product Data structure.  Includes only the ID and
- * VPD-R sections.
+ * VPD-R header.
  */
-struct t4_vpd {
+struct t4_vpd_hdr {
 	u8  id_tag;
 	u8  id_len[2];
 	u8  id_data[ID_LEN];
 	u8  vpdr_tag;
 	u8  vpdr_len[2];
-	VPD_ENTRY(pn, 16);                     /* part number */
-	VPD_ENTRY(ec, EC_LEN);                 /* EC level */
-	VPD_ENTRY(sn, SERNUM_LEN);             /* serial number */
-	VPD_ENTRY(na, 12);                     /* MAC address base */
-	VPD_ENTRY(port_type, 8);               /* port types */
-	VPD_ENTRY(gpio, 14);                   /* GPIO usage */
-	VPD_ENTRY(cclk, 6);                    /* core clock */
-	VPD_ENTRY(port_addr, 8);               /* port MDIO addresses */
-	VPD_ENTRY(rv, 1);                      /* csum */
-	u32 pad;                  /* for multiple-of-4 sizing and alignment */
 };
 
 #define EEPROM_STAT_ADDR   0x7bfc
 #define VPD_BASE           0
+#define VPD_LEN            512
 
 /**
  *	t4_seeprom_wp - enable/disable EEPROM write protection
@@ -396,16 +386,36 @@ int t4_seeprom_wp(struct adapter *adapter, bool enable)
  */
 static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
-	int ret;
-	struct t4_vpd vpd;
-	u8 *q = (u8 *)&vpd, csum;
+	int i, ret;
+	int ec, sn, v2;
+	u8 vpd[VPD_LEN], csum;
+	unsigned int vpdr_len;
+	const struct t4_vpd_hdr *v;
 
-	ret = pci_read_vpd(adapter->pdev, VPD_BASE, sizeof(vpd), &vpd);
+	ret = pci_read_vpd(adapter->pdev, VPD_BASE, sizeof(vpd), vpd);
 	if (ret < 0)
 		return ret;
 
-	for (csum = 0; q <= vpd.rv_data; q++)
-		csum += *q;
+	v = (const struct t4_vpd_hdr *)vpd;
+	vpdr_len = pci_vpd_lrdt_size(&v->vpdr_tag);
+	if (vpdr_len + sizeof(struct t4_vpd_hdr) > VPD_LEN) {
+		dev_err(adapter->pdev_dev, "bad VPD-R length %u\n", vpdr_len);
+		return -EINVAL;
+	}
+
+#define FIND_VPD_KW(var, name) do { \
+	var = pci_vpd_find_info_keyword(&v->id_tag, sizeof(struct t4_vpd_hdr), \
+					vpdr_len, name); \
+	if (var < 0) { \
+		dev_err(adapter->pdev_dev, "missing VPD keyword " name "\n"); \
+		return -EINVAL; \
+	} \
+	var += PCI_VPD_INFO_FLD_HDR_SIZE; \
+} while (0)
+
+	FIND_VPD_KW(i, "RV");
+	for (csum = 0; i >= 0; i--)
+		csum += vpd[i];
 
 	if (csum) {
 		dev_err(adapter->pdev_dev,
@@ -413,12 +423,18 @@ static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 		return -EINVAL;
 	}
 
-	p->cclk = simple_strtoul(vpd.cclk_data, NULL, 10);
-	memcpy(p->id, vpd.id_data, sizeof(vpd.id_data));
+	FIND_VPD_KW(ec, "EC");
+	FIND_VPD_KW(sn, "SN");
+	FIND_VPD_KW(v2, "V2");
+#undef FIND_VPD_KW
+
+	p->cclk = simple_strtoul(vpd + v2, NULL, 10);
+	memcpy(p->id, v->id_data, ID_LEN);
 	strim(p->id);
-	memcpy(p->ec, vpd.ec_data, sizeof(vpd.ec_data));
+	memcpy(p->ec, vpd + ec, EC_LEN);
 	strim(p->ec);
-	memcpy(p->sn, vpd.sn_data, sizeof(vpd.sn_data));
+	i = pci_vpd_info_field_size(vpd + sn - PCI_VPD_INFO_FLD_HDR_SIZE);
+	memcpy(p->sn, vpd + sn, min(i, SERNUM_LEN));
 	strim(p->sn);
 	return 0;
 }
@@ -537,8 +553,8 @@ static int flash_wait_op(struct adapter *adapter, int attempts, int delay)
  *	(i.e., big-endian), otherwise as 32-bit words in the platform's
  *	natural endianess.
  */
-int t4_read_flash(struct adapter *adapter, unsigned int addr,
-		  unsigned int nwords, u32 *data, int byte_oriented)
+static int t4_read_flash(struct adapter *adapter, unsigned int addr,
+			 unsigned int nwords, u32 *data, int byte_oriented)
 {
 	int ret;
 
@@ -868,22 +884,6 @@ int t4_restart_aneg(struct adapter *adap, unsigned int mbox, unsigned int port)
 				  FW_LEN16(c));
 	c.u.l1cfg.rcap = htonl(FW_PORT_CAP_ANEG);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
-}
-
-/**
- *	t4_set_vlan_accel - configure HW VLAN extraction
- *	@adap: the adapter
- *	@ports: bitmap of adapter ports to operate on
- *	@on: enable (1) or disable (0) HW VLAN extraction
- *
- *	Enables or disables HW extraction of VLAN tags for the ports specified
- *	by @ports.  @ports is a bitmap with the ith bit designating the port
- *	associated with the ith adapter channel.
- */
-void t4_set_vlan_accel(struct adapter *adap, unsigned int ports, int on)
-{
-	ports <<= VLANEXTENABLE_SHIFT;
-	t4_set_reg_field(adap, TP_OUT_CONFIG, ports, on ? ports : 0);
 }
 
 struct intr_info {
@@ -2608,12 +2608,14 @@ int t4_free_vi(struct adapter *adap, unsigned int mbox, unsigned int pf,
  *	@promisc: 1 to enable promiscuous mode, 0 to disable it, -1 no change
  *	@all_multi: 1 to enable all-multi mode, 0 to disable it, -1 no change
  *	@bcast: 1 to enable broadcast Rx, 0 to disable it, -1 no change
+ *	@vlanex: 1 to enable HW VLAN extraction, 0 to disable it, -1 no change
  *	@sleep_ok: if true we may sleep while awaiting command completion
  *
  *	Sets Rx properties of a virtual interface.
  */
 int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
-		  int mtu, int promisc, int all_multi, int bcast, bool sleep_ok)
+		  int mtu, int promisc, int all_multi, int bcast, int vlanex,
+		  bool sleep_ok)
 {
 	struct fw_vi_rxmode_cmd c;
 
@@ -2626,15 +2628,18 @@ int t4_set_rxmode(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		all_multi = FW_VI_RXMODE_CMD_ALLMULTIEN_MASK;
 	if (bcast < 0)
 		bcast = FW_VI_RXMODE_CMD_BROADCASTEN_MASK;
+	if (vlanex < 0)
+		vlanex = FW_VI_RXMODE_CMD_VLANEXEN_MASK;
 
 	memset(&c, 0, sizeof(c));
 	c.op_to_viid = htonl(FW_CMD_OP(FW_VI_RXMODE_CMD) | FW_CMD_REQUEST |
 			     FW_CMD_WRITE | FW_VI_RXMODE_CMD_VIID(viid));
 	c.retval_len16 = htonl(FW_LEN16(c));
-	c.mtu_to_broadcasten = htonl(FW_VI_RXMODE_CMD_MTU(mtu) |
-				     FW_VI_RXMODE_CMD_PROMISCEN(promisc) |
-				     FW_VI_RXMODE_CMD_ALLMULTIEN(all_multi) |
-				     FW_VI_RXMODE_CMD_BROADCASTEN(bcast));
+	c.mtu_to_vlanexen = htonl(FW_VI_RXMODE_CMD_MTU(mtu) |
+				  FW_VI_RXMODE_CMD_PROMISCEN(promisc) |
+				  FW_VI_RXMODE_CMD_ALLMULTIEN(all_multi) |
+				  FW_VI_RXMODE_CMD_BROADCASTEN(bcast) |
+				  FW_VI_RXMODE_CMD_VLANEXEN(vlanex));
 	return t4_wr_mbox_meat(adap, mbox, &c, sizeof(c), NULL, sleep_ok);
 }
 

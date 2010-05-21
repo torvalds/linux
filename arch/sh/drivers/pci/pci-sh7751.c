@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include "pci-sh4.h"
 #include <asm/addrspace.h>
+#include <asm/sizes.h>
 
 static int __init __area_sdram_check(struct pci_channel *chan,
 				     unsigned int area)
@@ -47,8 +48,8 @@ static int __init __area_sdram_check(struct pci_channel *chan,
 static struct resource sh7751_pci_resources[] = {
 	{
 		.name	= "SH7751_IO",
-		.start	= SH7751_PCI_IO_BASE,
-		.end	= SH7751_PCI_IO_BASE + SH7751_PCI_IO_SIZE - 1,
+		.start	= 0x1000,
+		.end	= SZ_4M - 1,
 		.flags	= IORESOURCE_IO
 	}, {
 		.name	= "SH7751_mem",

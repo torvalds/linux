@@ -58,6 +58,7 @@ struct ceph_timespec {
 #define CEPH_PG_LAYOUT_LINEAR 2
 #define CEPH_PG_LAYOUT_HYBRID 3
 
+#define CEPH_PG_MAX_SIZE      16  /* max # osds in a single pg */
 
 /*
  * placement group.

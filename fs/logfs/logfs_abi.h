@@ -50,9 +50,9 @@ static inline void check_##type(void)				\
  * 12	- gc recycled blocks, long-lived data
  * 13	- replacement blocks, short-lived data
  *
- * Levels 1-11 are necessary for robust gc operations and help seperate
+ * Levels 1-11 are necessary for robust gc operations and help separate
  * short-lived metadata from longer-lived file data.  In the future,
- * file data should get seperated into several segments based on simple
+ * file data should get separated into several segments based on simple
  * heuristics.  Old data recycled during gc operation is expected to be
  * long-lived.  New data is of uncertain life expectancy.  New data
  * used to replace older blocks in existing files is expected to be
@@ -117,7 +117,7 @@ static inline void check_##type(void)				\
 #define pure_ofs(ofs) (ofs & ~LOGFS_FULLY_POPULATED)
 
 /*
- * LogFS needs to seperate data into levels.  Each level is defined as the
+ * LogFS needs to separate data into levels.  Each level is defined as the
  * maximal possible distance from the master inode (inode of the inode file).
  * Data blocks reside on level 0, 1x indirect block on level 1, etc.
  * Inodes reside on level 6, indirect blocks for the inode file on levels 7-11.
@@ -204,7 +204,7 @@ SIZE_CHECK(logfs_segment_header, LOGFS_SEGMENT_HEADERSIZE);
  * @ds_crc:			crc32 of structure starting with the next field
  * @ds_ifile_levels:		maximum number of levels for ifile
  * @ds_iblock_levels:		maximum number of levels for regular files
- * @ds_data_levels:		number of seperate levels for data
+ * @ds_data_levels:		number of separate levels for data
  * @pad0:			reserved, must be 0
  * @ds_feature_incompat:	incompatible filesystem features
  * @ds_feature_ro_compat:	read-only compatible filesystem features
@@ -456,7 +456,7 @@ enum logfs_vim {
  * @vim:			life expectancy of data
  *
  * "Areas" are segments currently being used for writing.  There is at least
- * one area per GC level.  Several may be used to seperate long-living from
+ * one area per GC level.  Several may be used to separate long-living from
  * short-living data.  If an area with unknown vim is encountered, it can
  * simply be closed.
  * The write buffer immediately follow this header.

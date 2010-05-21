@@ -7,7 +7,6 @@ config ARCH_SH7367
 	select CPU_V6
 	select HAVE_CLK
 	select COMMON_CLKDEV
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 
 config ARCH_SH7377
@@ -15,7 +14,6 @@ config ARCH_SH7377
 	select CPU_V7
 	select HAVE_CLK
 	select COMMON_CLKDEV
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 
 config ARCH_SH7372
@@ -23,7 +21,6 @@ config ARCH_SH7372
 	select CPU_V7
 	select HAVE_CLK
 	select COMMON_CLKDEV
-	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 
 comment "SH-Mobile Board Type"

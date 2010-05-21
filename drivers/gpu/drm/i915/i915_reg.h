@@ -1764,6 +1764,14 @@
 #define   DP_LINK_TRAIN_MASK		(3 << 28)
 #define   DP_LINK_TRAIN_SHIFT		28
 
+/* CPT Link training mode */
+#define   DP_LINK_TRAIN_PAT_1_CPT	(0 << 8)
+#define   DP_LINK_TRAIN_PAT_2_CPT	(1 << 8)
+#define   DP_LINK_TRAIN_PAT_IDLE_CPT	(2 << 8)
+#define   DP_LINK_TRAIN_OFF_CPT		(3 << 8)
+#define   DP_LINK_TRAIN_MASK_CPT	(7 << 8)
+#define   DP_LINK_TRAIN_SHIFT_CPT	8
+
 /* Signal voltages. These are mostly controlled by the other end */
 #define   DP_VOLTAGE_0_4		(0 << 25)
 #define   DP_VOLTAGE_0_6		(1 << 25)
@@ -1924,7 +1932,10 @@
 /* Display & cursor control */
 
 /* dithering flag on Ironlake */
-#define PIPE_ENABLE_DITHER	(1 << 4)
+#define PIPE_ENABLE_DITHER		(1 << 4)
+#define PIPE_DITHER_TYPE_MASK		(3 << 2)
+#define PIPE_DITHER_TYPE_SPATIAL	(0 << 2)
+#define PIPE_DITHER_TYPE_ST01		(1 << 2)
 /* Pipe A */
 #define PIPEADSL		0x70000
 #define PIPEACONF		0x70008
@@ -1988,15 +1999,24 @@
 
 #define DSPFW1			0x70034
 #define   DSPFW_SR_SHIFT	23
+#define   DSPFW_SR_MASK 	(0x1ff<<23)
 #define   DSPFW_CURSORB_SHIFT	16
+#define   DSPFW_CURSORB_MASK	(0x3f<<16)
 #define   DSPFW_PLANEB_SHIFT	8
+#define   DSPFW_PLANEB_MASK	(0x7f<<8)
+#define   DSPFW_PLANEA_MASK	(0x7f)
 #define DSPFW2			0x70038
 #define   DSPFW_CURSORA_MASK	0x00003f00
 #define   DSPFW_CURSORA_SHIFT	8
+#define   DSPFW_PLANEC_MASK	(0x7f)
 #define DSPFW3			0x7003c
 #define   DSPFW_HPLL_SR_EN	(1<<31)
 #define   DSPFW_CURSOR_SR_SHIFT	24
 #define   PINEVIEW_SELF_REFRESH_EN	(1<<30)
+#define   DSPFW_CURSOR_SR_MASK		(0x3f<<24)
+#define   DSPFW_HPLL_CURSOR_SHIFT	16
+#define   DSPFW_HPLL_CURSOR_MASK	(0x3f<<16)
+#define   DSPFW_HPLL_SR_MASK		(0x1ff)
 
 /* FIFO watermark sizes etc */
 #define G4X_FIFO_LINE_SIZE	64
@@ -2022,6 +2042,43 @@
 #define PINEVIEW_CURSOR_MAX_WM	0x3f
 #define PINEVIEW_CURSOR_DFT_WM	0
 #define PINEVIEW_CURSOR_GUARD_WM	5
+
+
+/* define the Watermark register on Ironlake */
+#define WM0_PIPEA_ILK		0x45100
+#define  WM0_PIPE_PLANE_MASK	(0x7f<<16)
+#define  WM0_PIPE_PLANE_SHIFT	16
+#define  WM0_PIPE_SPRITE_MASK	(0x3f<<8)
+#define  WM0_PIPE_SPRITE_SHIFT	8
+#define  WM0_PIPE_CURSOR_MASK	(0x1f)
+
+#define WM0_PIPEB_ILK		0x45104
+#define WM1_LP_ILK		0x45108
+#define  WM1_LP_SR_EN		(1<<31)
+#define  WM1_LP_LATENCY_SHIFT	24
+#define  WM1_LP_LATENCY_MASK	(0x7f<<24)
+#define  WM1_LP_SR_MASK		(0x1ff<<8)
+#define  WM1_LP_SR_SHIFT	8
+#define  WM1_LP_CURSOR_MASK	(0x3f)
+
+/* Memory latency timer register */
+#define MLTR_ILK		0x11222
+/* the unit of memory self-refresh latency time is 0.5us */
+#define  ILK_SRLT_MASK		0x3f
+
+/* define the fifo size on Ironlake */
+#define ILK_DISPLAY_FIFO	128
+#define ILK_DISPLAY_MAXWM	64
+#define ILK_DISPLAY_DFTWM	8
+
+#define ILK_DISPLAY_SR_FIFO	512
+#define ILK_DISPLAY_MAX_SRWM	0x1ff
+#define ILK_DISPLAY_DFT_SRWM	0x3f
+#define ILK_CURSOR_SR_FIFO	64
+#define ILK_CURSOR_MAX_SRWM	0x3f
+#define ILK_CURSOR_DFT_SRWM	8
+
+#define ILK_FIFO_LINE_SIZE	64
 
 /*
  * The two pipe frame counter registers are not synchronized, so
@@ -2304,8 +2361,15 @@
 #define GTIIR   0x44018
 #define GTIER   0x4401c
 
+#define ILK_DISPLAY_CHICKEN2	0x42004
+#define  ILK_DPARB_GATE	(1<<22)
+#define  ILK_VSDPFD_FULL	(1<<21)
+#define ILK_DSPCLK_GATE		0x42020
+#define  ILK_DPARB_CLK_GATE	(1<<5)
+
 #define DISP_ARB_CTL	0x45000
 #define  DISP_TILE_SURFACE_SWIZZLING	(1<<13)
+#define  DISP_FBC_WM_DIS		(1<<15)
 
 /* PCH */
 
@@ -2316,6 +2380,11 @@
 #define SDE_PORTB_HOTPLUG       (1 << 8)
 #define SDE_SDVOB_HOTPLUG       (1 << 6)
 #define SDE_HOTPLUG_MASK	(0xf << 8)
+/* CPT */
+#define SDE_CRT_HOTPLUG_CPT	(1 << 19)
+#define SDE_PORTD_HOTPLUG_CPT	(1 << 23)
+#define SDE_PORTC_HOTPLUG_CPT	(1 << 22)
+#define SDE_PORTB_HOTPLUG_CPT	(1 << 21)
 
 #define SDEISR  0xc4000
 #define SDEIMR  0xc4004
@@ -2407,6 +2476,17 @@
 #define PCH_SSC4_PARMS          0xc6210
 #define PCH_SSC4_AUX_PARMS      0xc6214
 
+#define PCH_DPLL_SEL		0xc7000
+#define  TRANSA_DPLL_ENABLE	(1<<3)
+#define	 TRANSA_DPLLB_SEL	(1<<0)
+#define	 TRANSA_DPLLA_SEL	0
+#define  TRANSB_DPLL_ENABLE	(1<<7)
+#define	 TRANSB_DPLLB_SEL	(1<<4)
+#define	 TRANSB_DPLLA_SEL	(0)
+#define  TRANSC_DPLL_ENABLE	(1<<11)
+#define	 TRANSC_DPLLB_SEL	(1<<8)
+#define	 TRANSC_DPLLA_SEL	(0)
+
 /* transcoder */
 
 #define TRANS_HTOTAL_A          0xe0000
@@ -2493,6 +2573,19 @@
 #define  FDI_LINK_TRAIN_PRE_EMPHASIS_1_5X (1<<22)
 #define  FDI_LINK_TRAIN_PRE_EMPHASIS_2X   (2<<22)
 #define  FDI_LINK_TRAIN_PRE_EMPHASIS_3X   (3<<22)
+/* ILK always use 400mV 0dB for voltage swing and pre-emphasis level.
+   SNB has different settings. */
+/* SNB A-stepping */
+#define  FDI_LINK_TRAIN_400MV_0DB_SNB_A		(0x38<<22)
+#define  FDI_LINK_TRAIN_400MV_6DB_SNB_A		(0x02<<22)
+#define  FDI_LINK_TRAIN_600MV_3_5DB_SNB_A	(0x01<<22)
+#define  FDI_LINK_TRAIN_800MV_0DB_SNB_A		(0x0<<22)
+/* SNB B-stepping */
+#define  FDI_LINK_TRAIN_400MV_0DB_SNB_B		(0x0<<22)
+#define  FDI_LINK_TRAIN_400MV_6DB_SNB_B		(0x3a<<22)
+#define  FDI_LINK_TRAIN_600MV_3_5DB_SNB_B	(0x39<<22)
+#define  FDI_LINK_TRAIN_800MV_0DB_SNB_B		(0x38<<22)
+#define  FDI_LINK_TRAIN_VOL_EMP_MASK		(0x3f<<22)
 #define  FDI_DP_PORT_WIDTH_X1           (0<<19)
 #define  FDI_DP_PORT_WIDTH_X2           (1<<19)
 #define  FDI_DP_PORT_WIDTH_X3           (2<<19)
@@ -2525,6 +2618,13 @@
 #define  FDI_RX_ENHANCE_FRAME_ENABLE    (1<<6)
 #define  FDI_SEL_RAWCLK                 (0<<4)
 #define  FDI_SEL_PCDCLK                 (1<<4)
+/* CPT */
+#define  FDI_AUTO_TRAINING			(1<<10)
+#define  FDI_LINK_TRAIN_PATTERN_1_CPT		(0<<8)
+#define  FDI_LINK_TRAIN_PATTERN_2_CPT		(1<<8)
+#define  FDI_LINK_TRAIN_PATTERN_IDLE_CPT	(2<<8)
+#define  FDI_LINK_TRAIN_NORMAL_CPT		(3<<8)
+#define  FDI_LINK_TRAIN_PATTERN_MASK_CPT	(3<<8)
 
 #define FDI_RXA_MISC            0xf0010
 #define FDI_RXB_MISC            0xf1010
@@ -2596,6 +2696,9 @@
 #define  HSYNC_ACTIVE_HIGH      (1 << 3)
 #define  PORT_DETECTED          (1 << 2)
 
+/* PCH SDVOB multiplex with HDMIB */
+#define PCH_SDVOB	HDMIB
+
 #define HDMIC   0xe1150
 #define HDMID   0xe1160
 
@@ -2652,5 +2755,43 @@
 #define PCH_DPD_AUX_CH_DATA3	0xe431c
 #define PCH_DPD_AUX_CH_DATA4	0xe4320
 #define PCH_DPD_AUX_CH_DATA5	0xe4324
+
+/* CPT */
+#define  PORT_TRANS_A_SEL_CPT	0
+#define  PORT_TRANS_B_SEL_CPT	(1<<29)
+#define  PORT_TRANS_C_SEL_CPT	(2<<29)
+#define  PORT_TRANS_SEL_MASK	(3<<29)
+
+#define TRANS_DP_CTL_A		0xe0300
+#define TRANS_DP_CTL_B		0xe1300
+#define TRANS_DP_CTL_C		0xe2300
+#define  TRANS_DP_OUTPUT_ENABLE	(1<<31)
+#define  TRANS_DP_PORT_SEL_B	(0<<29)
+#define  TRANS_DP_PORT_SEL_C	(1<<29)
+#define  TRANS_DP_PORT_SEL_D	(2<<29)
+#define  TRANS_DP_PORT_SEL_MASK	(3<<29)
+#define  TRANS_DP_AUDIO_ONLY	(1<<26)
+#define  TRANS_DP_ENH_FRAMING	(1<<18)
+#define  TRANS_DP_8BPC		(0<<9)
+#define  TRANS_DP_10BPC		(1<<9)
+#define  TRANS_DP_6BPC		(2<<9)
+#define  TRANS_DP_12BPC		(3<<9)
+#define  TRANS_DP_VSYNC_ACTIVE_HIGH	(1<<4)
+#define  TRANS_DP_VSYNC_ACTIVE_LOW	0
+#define  TRANS_DP_HSYNC_ACTIVE_HIGH	(1<<3)
+#define  TRANS_DP_HSYNC_ACTIVE_LOW	0
+
+/* SNB eDP training params */
+/* SNB A-stepping */
+#define  EDP_LINK_TRAIN_400MV_0DB_SNB_A		(0x38<<22)
+#define  EDP_LINK_TRAIN_400MV_6DB_SNB_A		(0x02<<22)
+#define  EDP_LINK_TRAIN_600MV_3_5DB_SNB_A	(0x01<<22)
+#define  EDP_LINK_TRAIN_800MV_0DB_SNB_A		(0x0<<22)
+/* SNB B-stepping */
+#define  EDP_LINK_TRAIN_400MV_0DB_SNB_B		(0x0<<22)
+#define  EDP_LINK_TRAIN_400MV_6DB_SNB_B		(0x3a<<22)
+#define  EDP_LINK_TRAIN_600MV_3_5DB_SNB_B	(0x39<<22)
+#define  EDP_LINK_TRAIN_800MV_0DB_SNB_B		(0x38<<22)
+#define  EDP_LINK_TRAIN_VOL_EMP_MASK_SNB	(0x3f<<22)
 
 #endif /* _I915_REG_H_ */

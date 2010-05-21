@@ -32,6 +32,8 @@
 #include "mantis_reg.h"
 #include "mantis_uart.h"
 
+#define MODULE_NAME "mantis_core"
+
 static struct ir_scancode mantis_ir_table[] = {
 	{ 0x29, KEY_POWER	},
 	{ 0x28, KEY_FAVORITES	},
@@ -126,7 +128,7 @@ int mantis_input_init(struct mantis_pci *mantis)
 	rc->id.version	= 1;
 	rc->dev		= mantis->pdev->dev;
 
-	err = ir_input_register(rc, &ir_mantis, NULL);
+	err = __ir_input_register(rc, &ir_mantis, NULL, MODULE_NAME);
 	if (err) {
 		dprintk(MANTIS_ERROR, 1, "IR device registration failed, ret = %d", err);
 		input_free_device(rc);

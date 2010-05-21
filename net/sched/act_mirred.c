@@ -164,8 +164,8 @@ static int tcf_mirred(struct sk_buff *skb, struct tc_action *a,
 	dev = m->tcfm_dev;
 	if (!(dev->flags & IFF_UP)) {
 		if (net_ratelimit())
-			printk("mirred to Houston: device %s is gone!\n",
-			       dev->name);
+			pr_notice("tc mirred to Houston: device %s is gone!\n",
+				  dev->name);
 		goto out;
 	}
 
@@ -252,7 +252,7 @@ MODULE_LICENSE("GPL");
 
 static int __init mirred_init_module(void)
 {
-	printk("Mirror/redirect action on\n");
+	pr_info("Mirror/redirect action on\n");
 	return tcf_register_action(&act_mirred_ops);
 }
 

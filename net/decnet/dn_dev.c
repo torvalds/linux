@@ -350,7 +350,7 @@ static void dn_dev_del_ifa(struct dn_dev *dn_db, struct dn_ifaddr **ifap, int de
 	if (dn_db->dev->type == ARPHRD_ETHER) {
 		if (ifa1->ifa_local != dn_eth2dn(dev->dev_addr)) {
 			dn_dn2eth(mac_addr, ifa1->ifa_local);
-			dev_mc_delete(dev, mac_addr, ETH_ALEN, 0);
+			dev_mc_del(dev, mac_addr);
 		}
 	}
 
@@ -381,7 +381,7 @@ static int dn_dev_insert_ifa(struct dn_dev *dn_db, struct dn_ifaddr *ifa)
 	if (dev->type == ARPHRD_ETHER) {
 		if (ifa->ifa_local != dn_eth2dn(dev->dev_addr)) {
 			dn_dn2eth(mac_addr, ifa->ifa_local);
-			dev_mc_add(dev, mac_addr, ETH_ALEN, 0);
+			dev_mc_add(dev, mac_addr);
 		}
 	}
 
@@ -1001,9 +1001,9 @@ static int dn_eth_up(struct net_device *dev)
 	struct dn_dev *dn_db = dev->dn_ptr;
 
 	if (dn_db->parms.forwarding == 0)
-		dev_mc_add(dev, dn_rt_all_end_mcast, ETH_ALEN, 0);
+		dev_mc_add(dev, dn_rt_all_end_mcast);
 	else
-		dev_mc_add(dev, dn_rt_all_rt_mcast, ETH_ALEN, 0);
+		dev_mc_add(dev, dn_rt_all_rt_mcast);
 
 	dn_db->use_long = 1;
 
@@ -1015,9 +1015,9 @@ static void dn_eth_down(struct net_device *dev)
 	struct dn_dev *dn_db = dev->dn_ptr;
 
 	if (dn_db->parms.forwarding == 0)
-		dev_mc_delete(dev, dn_rt_all_end_mcast, ETH_ALEN, 0);
+		dev_mc_del(dev, dn_rt_all_end_mcast);
 	else
-		dev_mc_delete(dev, dn_rt_all_rt_mcast, ETH_ALEN, 0);
+		dev_mc_del(dev, dn_rt_all_rt_mcast);
 }
 
 static void dn_dev_set_timer(struct net_device *dev);
@@ -1220,17 +1220,14 @@ void dn_dev_down(struct net_device *dev)
 
 void dn_dev_init_pkt(struct sk_buff *skb)
 {
-	return;
 }
 
 void dn_dev_veri_pkt(struct sk_buff *skb)
 {
-	return;
 }
 
 void dn_dev_hello(struct sk_buff *skb)
 {
-	return;
 }
 
 void dn_dev_devices_off(void)

@@ -90,7 +90,8 @@ In order to facilitate early boot debugging, use boot option:
 
 	trace_event=[event-list]
 
-The format of this boot option is the same as described in section 2.1.
+event-list is a comma separated list of events. See section 2.1 for event
+format.
 
 3. Defining an event-enabled tracepoint
 =======================================
@@ -238,7 +239,7 @@ subsystem's filter file.
 
 For convenience, filters for every event in a subsystem can be set or
 cleared as a group by writing a filter expression into the filter file
-at the root of the subsytem.  Note however, that if a filter for any
+at the root of the subsystem.  Note however, that if a filter for any
 event within the subsystem lacks a field specified in the subsystem
 filter, or if the filter can't be applied for any other reason, the
 filter for that event will retain its previous setting.  This can
@@ -250,7 +251,7 @@ fields can be guaranteed to propagate successfully to all events.
 Here are a few subsystem filter examples that also illustrate the
 above points:
 
-Clear the filters on all events in the sched subsytem:
+Clear the filters on all events in the sched subsystem:
 
 # cd /sys/kernel/debug/tracing/events/sched
 # echo 0 > filter
@@ -260,7 +261,7 @@ none
 none
 
 Set a filter using only common fields for all events in the sched
-subsytem (all events end up with the same filter):
+subsystem (all events end up with the same filter):
 
 # cd /sys/kernel/debug/tracing/events/sched
 # echo common_pid == 0 > filter
@@ -270,7 +271,7 @@ common_pid == 0
 common_pid == 0
 
 Attempt to set a filter using a non-common field for all events in the
-sched subsytem (all events but those that have a prev_pid field retain
+sched subsystem (all events but those that have a prev_pid field retain
 their old filters):
 
 # cd /sys/kernel/debug/tracing/events/sched

@@ -69,6 +69,7 @@ module_param_named(debug, ath5k_debug, uint, 0);
 
 #include <linux/seq_file.h>
 #include "reg.h"
+#include "ani.h"
 
 static struct dentry *ath5k_global_debugfs;
 
@@ -307,6 +308,7 @@ static const struct {
 	{ ATH5K_DEBUG_DUMP_TX,	"dumptx",	"print transmit skb content" },
 	{ ATH5K_DEBUG_DUMPBANDS, "dumpbands",	"dump bands" },
 	{ ATH5K_DEBUG_TRACE,	"trace",	"trace function calls" },
+	{ ATH5K_DEBUG_ANI,	"ani",		"adaptive noise immunity" },
 	{ ATH5K_DEBUG_ANY,	"all",		"show all debug levels" },
 };
 
@@ -364,6 +366,369 @@ static const struct file_operations fops_debug = {
 };
 
 
+/* debugfs: antenna */
+
+static ssize_t read_file_antenna(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct ath5k_softc *sc = file->private_data;
+	char buf[700];
+	unsigned int len = 0;
+	unsigned int i;
+	unsigned int v;
+
+	len += snprintf(buf+len, sizeof(buf)-len, "antenna mode\t%d\n",
+		sc->ah->ah_ant_mode);
+	len += snprintf(buf+len, sizeof(buf)-len, "default antenna\t%d\n",
+		sc->ah->ah_def_ant);
+	len += snprintf(buf+len, sizeof(buf)-len, "tx antenna\t%d\n",
+		sc->ah->ah_tx_ant);
+
+	len += snprintf(buf+len, sizeof(buf)-len, "\nANTENNA\t\tRX\tTX\n");
+	for (i = 1; i < ARRAY_SIZE(sc->stats.antenna_rx); i++) {
+		len += snprintf(buf+len, sizeof(buf)-len,
+			"[antenna %d]\t%d\t%d\n",
+			i, sc->stats.antenna_rx[i], sc->stats.antenna_tx[i]);
+	}
+	len += snprintf(buf+len, sizeof(buf)-len, "[invalid]\t%d\t%d\n",
+			sc->stats.antenna_rx[0], sc->stats.antenna_tx[0]);
+
+	v = ath5k_hw_reg_read(sc->ah, AR5K_DEFAULT_ANTENNA);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"\nAR5K_DEFAULT_ANTENNA\t0x%08x\n", v);
+
+	v = ath5k_hw_reg_read(sc->ah, AR5K_STA_ID1);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"AR5K_STA_ID1_DEFAULT_ANTENNA\t%d\n",
+		(v & AR5K_STA_ID1_DEFAULT_ANTENNA) != 0);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"AR5K_STA_ID1_DESC_ANTENNA\t%d\n",
+		(v & AR5K_STA_ID1_DESC_ANTENNA) != 0);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"AR5K_STA_ID1_RTS_DEF_ANTENNA\t%d\n",
+		(v & AR5K_STA_ID1_RTS_DEF_ANTENNA) != 0);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"AR5K_STA_ID1_SELFGEN_DEF_ANT\t%d\n",
+		(v & AR5K_STA_ID1_SELFGEN_DEF_ANT) != 0);
+
+	v = ath5k_hw_reg_read(sc->ah, AR5K_PHY_AGCCTL);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"\nAR5K_PHY_AGCCTL_OFDM_DIV_DIS\t%d\n",
+		(v & AR5K_PHY_AGCCTL_OFDM_DIV_DIS) != 0);
+
+	v = ath5k_hw_reg_read(sc->ah, AR5K_PHY_RESTART);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"AR5K_PHY_RESTART_DIV_GC\t\t%x\n",
+		(v & AR5K_PHY_RESTART_DIV_GC) >> AR5K_PHY_RESTART_DIV_GC_S);
+
+	v = ath5k_hw_reg_read(sc->ah, AR5K_PHY_FAST_ANT_DIV);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"AR5K_PHY_FAST_ANT_DIV_EN\t%d\n",
+		(v & AR5K_PHY_FAST_ANT_DIV_EN) != 0);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_antenna(struct file *file,
+				 const char __user *userbuf,
+				 size_t count, loff_t *ppos)
+{
+	struct ath5k_softc *sc = file->private_data;
+	unsigned int i;
+	char buf[20];
+
+	if (copy_from_user(buf, userbuf, min(count, sizeof(buf))))
+		return -EFAULT;
+
+	if (strncmp(buf, "diversity", 9) == 0) {
+		ath5k_hw_set_antenna_mode(sc->ah, AR5K_ANTMODE_DEFAULT);
+		printk(KERN_INFO "ath5k debug: enable diversity\n");
+	} else if (strncmp(buf, "fixed-a", 7) == 0) {
+		ath5k_hw_set_antenna_mode(sc->ah, AR5K_ANTMODE_FIXED_A);
+		printk(KERN_INFO "ath5k debugfs: fixed antenna A\n");
+	} else if (strncmp(buf, "fixed-b", 7) == 0) {
+		ath5k_hw_set_antenna_mode(sc->ah, AR5K_ANTMODE_FIXED_B);
+		printk(KERN_INFO "ath5k debug: fixed antenna B\n");
+	} else if (strncmp(buf, "clear", 5) == 0) {
+		for (i = 0; i < ARRAY_SIZE(sc->stats.antenna_rx); i++) {
+			sc->stats.antenna_rx[i] = 0;
+			sc->stats.antenna_tx[i] = 0;
+		}
+		printk(KERN_INFO "ath5k debug: cleared antenna stats\n");
+	}
+	return count;
+}
+
+static const struct file_operations fops_antenna = {
+	.read = read_file_antenna,
+	.write = write_file_antenna,
+	.open = ath5k_debugfs_open,
+	.owner = THIS_MODULE,
+};
+
+
+/* debugfs: frameerrors */
+
+static ssize_t read_file_frameerrors(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct ath5k_softc *sc = file->private_data;
+	struct ath5k_statistics *st = &sc->stats;
+	char buf[700];
+	unsigned int len = 0;
+	int i;
+
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"RX\n---------------------\n");
+	len += snprintf(buf+len, sizeof(buf)-len, "CRC\t%d\t(%d%%)\n",
+			st->rxerr_crc,
+			st->rx_all_count > 0 ?
+				st->rxerr_crc*100/st->rx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "PHY\t%d\t(%d%%)\n",
+			st->rxerr_phy,
+			st->rx_all_count > 0 ?
+				st->rxerr_phy*100/st->rx_all_count : 0);
+	for (i = 0; i < 32; i++) {
+		if (st->rxerr_phy_code[i])
+			len += snprintf(buf+len, sizeof(buf)-len,
+				" phy_err[%d]\t%d\n",
+				i, st->rxerr_phy_code[i]);
+	}
+
+	len += snprintf(buf+len, sizeof(buf)-len, "FIFO\t%d\t(%d%%)\n",
+			st->rxerr_fifo,
+			st->rx_all_count > 0 ?
+				st->rxerr_fifo*100/st->rx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "decrypt\t%d\t(%d%%)\n",
+			st->rxerr_decrypt,
+			st->rx_all_count > 0 ?
+				st->rxerr_decrypt*100/st->rx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "MIC\t%d\t(%d%%)\n",
+			st->rxerr_mic,
+			st->rx_all_count > 0 ?
+				st->rxerr_mic*100/st->rx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "process\t%d\t(%d%%)\n",
+			st->rxerr_proc,
+			st->rx_all_count > 0 ?
+				st->rxerr_proc*100/st->rx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "jumbo\t%d\t(%d%%)\n",
+			st->rxerr_jumbo,
+			st->rx_all_count > 0 ?
+				st->rxerr_jumbo*100/st->rx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "[RX all\t%d]\n",
+			st->rx_all_count);
+
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"\nTX\n---------------------\n");
+	len += snprintf(buf+len, sizeof(buf)-len, "retry\t%d\t(%d%%)\n",
+			st->txerr_retry,
+			st->tx_all_count > 0 ?
+				st->txerr_retry*100/st->tx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "FIFO\t%d\t(%d%%)\n",
+			st->txerr_fifo,
+			st->tx_all_count > 0 ?
+				st->txerr_fifo*100/st->tx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "filter\t%d\t(%d%%)\n",
+			st->txerr_filt,
+			st->tx_all_count > 0 ?
+				st->txerr_filt*100/st->tx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "[TX all\t%d]\n",
+			st->tx_all_count);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_frameerrors(struct file *file,
+				 const char __user *userbuf,
+				 size_t count, loff_t *ppos)
+{
+	struct ath5k_softc *sc = file->private_data;
+	struct ath5k_statistics *st = &sc->stats;
+	char buf[20];
+
+	if (copy_from_user(buf, userbuf, min(count, sizeof(buf))))
+		return -EFAULT;
+
+	if (strncmp(buf, "clear", 5) == 0) {
+		st->rxerr_crc = 0;
+		st->rxerr_phy = 0;
+		st->rxerr_fifo = 0;
+		st->rxerr_decrypt = 0;
+		st->rxerr_mic = 0;
+		st->rxerr_proc = 0;
+		st->rxerr_jumbo = 0;
+		st->rx_all_count = 0;
+		st->txerr_retry = 0;
+		st->txerr_fifo = 0;
+		st->txerr_filt = 0;
+		st->tx_all_count = 0;
+		printk(KERN_INFO "ath5k debug: cleared frameerrors stats\n");
+	}
+	return count;
+}
+
+static const struct file_operations fops_frameerrors = {
+	.read = read_file_frameerrors,
+	.write = write_file_frameerrors,
+	.open = ath5k_debugfs_open,
+	.owner = THIS_MODULE,
+};
+
+
+/* debugfs: ani */
+
+static ssize_t read_file_ani(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct ath5k_softc *sc = file->private_data;
+	struct ath5k_statistics *st = &sc->stats;
+	struct ath5k_ani_state *as = &sc->ani_state;
+
+	char buf[700];
+	unsigned int len = 0;
+
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"HW has PHY error counters:\t%s\n",
+			sc->ah->ah_capabilities.cap_has_phyerr_counters ?
+			"yes" : "no");
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"HW max spur immunity level:\t%d\n",
+			as->max_spur_level);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"\nANI state\n--------------------------------------------\n");
+	len += snprintf(buf+len, sizeof(buf)-len, "operating mode:\t\t\t");
+	switch (as->ani_mode) {
+	case ATH5K_ANI_MODE_OFF:
+		len += snprintf(buf+len, sizeof(buf)-len, "OFF\n");
+		break;
+	case ATH5K_ANI_MODE_MANUAL_LOW:
+		len += snprintf(buf+len, sizeof(buf)-len,
+			"MANUAL LOW\n");
+		break;
+	case ATH5K_ANI_MODE_MANUAL_HIGH:
+		len += snprintf(buf+len, sizeof(buf)-len,
+			"MANUAL HIGH\n");
+		break;
+	case ATH5K_ANI_MODE_AUTO:
+		len += snprintf(buf+len, sizeof(buf)-len, "AUTO\n");
+		break;
+	default:
+		len += snprintf(buf+len, sizeof(buf)-len,
+			"??? (not good)\n");
+		break;
+	}
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"noise immunity level:\t\t%d\n",
+			as->noise_imm_level);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"spur immunity level:\t\t%d\n",
+			as->spur_level);
+	len += snprintf(buf+len, sizeof(buf)-len, "firstep level:\t\t\t%d\n",
+			as->firstep_level);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"OFDM weak signal detection:\t%s\n",
+			as->ofdm_weak_sig ? "on" : "off");
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"CCK weak signal detection:\t%s\n",
+			as->cck_weak_sig ? "on" : "off");
+
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"\nMIB INTERRUPTS:\t\t%u\n",
+			st->mib_intr);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"beacon RSSI average:\t%d\n",
+			sc->ah->ah_beacon_rssi_avg.avg);
+	len += snprintf(buf+len, sizeof(buf)-len, "profcnt tx\t\t%u\t(%d%%)\n",
+			as->pfc_tx,
+			as->pfc_cycles > 0 ?
+			as->pfc_tx*100/as->pfc_cycles : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "profcnt rx\t\t%u\t(%d%%)\n",
+			as->pfc_rx,
+			as->pfc_cycles > 0 ?
+			as->pfc_rx*100/as->pfc_cycles : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "profcnt busy\t\t%u\t(%d%%)\n",
+			as->pfc_busy,
+			as->pfc_cycles > 0 ?
+			as->pfc_busy*100/as->pfc_cycles : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "profcnt cycles\t\t%u\n",
+			as->pfc_cycles);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"listen time\t\t%d\tlast: %d\n",
+			as->listen_time, as->last_listen);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"OFDM errors\t\t%u\tlast: %u\tsum: %u\n",
+			as->ofdm_errors, as->last_ofdm_errors,
+			as->sum_ofdm_errors);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"CCK errors\t\t%u\tlast: %u\tsum: %u\n",
+			as->cck_errors, as->last_cck_errors,
+			as->sum_cck_errors);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"AR5K_PHYERR_CNT1\t%x\t(=%d)\n",
+			ath5k_hw_reg_read(sc->ah, AR5K_PHYERR_CNT1),
+			ATH5K_ANI_OFDM_TRIG_HIGH - (ATH5K_PHYERR_CNT_MAX -
+			ath5k_hw_reg_read(sc->ah, AR5K_PHYERR_CNT1)));
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"AR5K_PHYERR_CNT2\t%x\t(=%d)\n",
+			ath5k_hw_reg_read(sc->ah, AR5K_PHYERR_CNT2),
+			ATH5K_ANI_CCK_TRIG_HIGH - (ATH5K_PHYERR_CNT_MAX -
+			ath5k_hw_reg_read(sc->ah, AR5K_PHYERR_CNT2)));
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_ani(struct file *file,
+				 const char __user *userbuf,
+				 size_t count, loff_t *ppos)
+{
+	struct ath5k_softc *sc = file->private_data;
+	char buf[20];
+
+	if (copy_from_user(buf, userbuf, min(count, sizeof(buf))))
+		return -EFAULT;
+
+	if (strncmp(buf, "sens-low", 8) == 0) {
+		ath5k_ani_init(sc->ah, ATH5K_ANI_MODE_MANUAL_HIGH);
+	} else if (strncmp(buf, "sens-high", 9) == 0) {
+		ath5k_ani_init(sc->ah, ATH5K_ANI_MODE_MANUAL_LOW);
+	} else if (strncmp(buf, "ani-off", 7) == 0) {
+		ath5k_ani_init(sc->ah, ATH5K_ANI_MODE_OFF);
+	} else if (strncmp(buf, "ani-on", 6) == 0) {
+		ath5k_ani_init(sc->ah, ATH5K_ANI_MODE_AUTO);
+	} else if (strncmp(buf, "noise-low", 9) == 0) {
+		ath5k_ani_set_noise_immunity_level(sc->ah, 0);
+	} else if (strncmp(buf, "noise-high", 10) == 0) {
+		ath5k_ani_set_noise_immunity_level(sc->ah,
+						   ATH5K_ANI_MAX_NOISE_IMM_LVL);
+	} else if (strncmp(buf, "spur-low", 8) == 0) {
+		ath5k_ani_set_spur_immunity_level(sc->ah, 0);
+	} else if (strncmp(buf, "spur-high", 9) == 0) {
+		ath5k_ani_set_spur_immunity_level(sc->ah,
+						  sc->ani_state.max_spur_level);
+	} else if (strncmp(buf, "fir-low", 7) == 0) {
+		ath5k_ani_set_firstep_level(sc->ah, 0);
+	} else if (strncmp(buf, "fir-high", 8) == 0) {
+		ath5k_ani_set_firstep_level(sc->ah, ATH5K_ANI_MAX_FIRSTEP_LVL);
+	} else if (strncmp(buf, "ofdm-off", 8) == 0) {
+		ath5k_ani_set_ofdm_weak_signal_detection(sc->ah, false);
+	} else if (strncmp(buf, "ofdm-on", 7) == 0) {
+		ath5k_ani_set_ofdm_weak_signal_detection(sc->ah, true);
+	} else if (strncmp(buf, "cck-off", 7) == 0) {
+		ath5k_ani_set_cck_weak_signal_detection(sc->ah, false);
+	} else if (strncmp(buf, "cck-on", 6) == 0) {
+		ath5k_ani_set_cck_weak_signal_detection(sc->ah, true);
+	}
+	return count;
+}
+
+static const struct file_operations fops_ani = {
+	.read = read_file_ani,
+	.write = write_file_ani,
+	.open = ath5k_debugfs_open,
+	.owner = THIS_MODULE,
+};
+
+
 /* init */
 
 void
@@ -393,6 +758,20 @@ ath5k_debug_init_device(struct ath5k_softc *sc)
 
 	sc->debug.debugfs_reset = debugfs_create_file("reset", S_IWUSR,
 				sc->debug.debugfs_phydir, sc, &fops_reset);
+
+	sc->debug.debugfs_antenna = debugfs_create_file("antenna",
+				S_IWUSR | S_IRUSR,
+				sc->debug.debugfs_phydir, sc, &fops_antenna);
+
+	sc->debug.debugfs_frameerrors = debugfs_create_file("frameerrors",
+				S_IWUSR | S_IRUSR,
+				sc->debug.debugfs_phydir, sc,
+				&fops_frameerrors);
+
+	sc->debug.debugfs_ani = debugfs_create_file("ani",
+				S_IWUSR | S_IRUSR,
+				sc->debug.debugfs_phydir, sc,
+				&fops_ani);
 }
 
 void
@@ -408,6 +787,9 @@ ath5k_debug_finish_device(struct ath5k_softc *sc)
 	debugfs_remove(sc->debug.debugfs_registers);
 	debugfs_remove(sc->debug.debugfs_beacon);
 	debugfs_remove(sc->debug.debugfs_reset);
+	debugfs_remove(sc->debug.debugfs_antenna);
+	debugfs_remove(sc->debug.debugfs_frameerrors);
+	debugfs_remove(sc->debug.debugfs_ani);
 	debugfs_remove(sc->debug.debugfs_phydir);
 }
 

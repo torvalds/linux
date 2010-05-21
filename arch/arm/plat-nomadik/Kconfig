@@ -19,4 +19,9 @@ config HAS_MTU
 	  to multiple interrupt generating programmable
 	  32-bit free running decrementing counters.
 
+config NOMADIK_GPIO
+	bool
+	help
+	  Support for the Nomadik GPIO controller.
+
 endif

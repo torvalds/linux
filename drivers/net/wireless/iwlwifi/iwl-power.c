@@ -318,10 +318,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 	update_chains = priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE ||
 			priv->chain_noise_data.state == IWL_CHAIN_NOISE_ALIVE;
 
-	if (priv->vif)
-		dtimper = priv->hw->conf.ps_dtim_period;
-	else
-		dtimper = 1;
+	dtimper = priv->hw->conf.ps_dtim_period ?: 1;
 
 	if (priv->cfg->broken_powersave)
 		iwl_power_sleep_cam_cmd(priv, &cmd);
@@ -384,10 +381,10 @@ EXPORT_SYMBOL(iwl_ht_enabled);
 
 bool iwl_within_ct_kill_margin(struct iwl_priv *priv)
 {
-	s32 temp = priv->temperature; /* degrees CELSIUS except 4965 */
+	s32 temp = priv->temperature; /* degrees CELSIUS except specified */
 	bool within_margin = false;
 
-	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
+	if (priv->cfg->temperature_kelvin)
 		temp = KELVIN_TO_CELSIUS(priv->temperature);
 
 	if (!priv->thermal_throttle.advanced_tt)
@@ -840,12 +837,12 @@ EXPORT_SYMBOL(iwl_tt_exit_ct_kill);
 static void iwl_bg_tt_work(struct work_struct *work)
 {
 	struct iwl_priv *priv = container_of(work, struct iwl_priv, tt_work);
-	s32 temp = priv->temperature; /* degrees CELSIUS except 4965 */
+	s32 temp = priv->temperature; /* degrees CELSIUS except specified */
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
-	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)
+	if (priv->cfg->temperature_kelvin)
 		temp = KELVIN_TO_CELSIUS(priv->temperature);
 
 	if (!priv->thermal_throttle.advanced_tt)
@@ -875,7 +872,7 @@ void iwl_tt_initialize(struct iwl_priv *priv)
 	int size = sizeof(struct iwl_tt_trans) * (IWL_TI_STATE_MAX - 1);
 	struct iwl_tt_trans *transaction;
 
-	IWL_DEBUG_POWER(priv, "Initialize Thermal Throttling \n");
+	IWL_DEBUG_POWER(priv, "Initialize Thermal Throttling\n");
 
 	memset(tt, 0, sizeof(struct iwl_tt_mgmt));
 

@@ -32,6 +32,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/of.h>
+#include <linux/ratelimit.h>
 
 #include <asm/types.h>
 #include <asm/io.h>
@@ -584,14 +585,9 @@ static inline struct device_node *xlate_iomm_address(
 
 	orig_addr = (unsigned long __force)addr;
 	if ((orig_addr < BASE_IO_MEMORY) || (orig_addr >= max_io_memory)) {
-		static unsigned long last_jiffies;
-		static int num_printed;
+		static DEFINE_RATELIMIT_STATE(ratelimit, 60 * HZ, 10);
 
-		if (time_after(jiffies, last_jiffies + 60 * HZ)) {
-			last_jiffies = jiffies;
-			num_printed = 0;
-		}
-		if (num_printed++ < 10)
+		if (__ratelimit(&ratelimit))
 			printk(KERN_ERR
 				"iSeries_%s: invalid access at IO address %p\n",
 				func, addr);

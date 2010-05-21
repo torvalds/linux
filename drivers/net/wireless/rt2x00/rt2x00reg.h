@@ -101,6 +101,16 @@ enum ifs {
 };
 
 /*
+ * IFS backoff values for HT devices
+ */
+enum txop {
+	TXOP_HTTXOP = 0,
+	TXOP_PIFS = 1,
+	TXOP_SIFS = 2,
+	TXOP_BACKOFF = 3,
+};
+
+/*
  * Cipher types for hardware encryption
  */
 enum cipher {

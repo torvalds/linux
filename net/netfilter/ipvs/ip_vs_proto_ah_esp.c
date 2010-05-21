@@ -136,12 +136,11 @@ ah_esp_debug_packet_v4(struct ip_vs_protocol *pp, const struct sk_buff *skb,
 
 	ih = skb_header_pointer(skb, offset, sizeof(_iph), &_iph);
 	if (ih == NULL)
-		sprintf(buf, "%s TRUNCATED", pp->name);
+		sprintf(buf, "TRUNCATED");
 	else
-		sprintf(buf, "%s %pI4->%pI4",
-			pp->name, &ih->saddr, &ih->daddr);
+		sprintf(buf, "%pI4->%pI4", &ih->saddr, &ih->daddr);
 
-	pr_debug("%s: %s\n", msg, buf);
+	pr_debug("%s: %s %s\n", msg, pp->name, buf);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -154,12 +153,11 @@ ah_esp_debug_packet_v6(struct ip_vs_protocol *pp, const struct sk_buff *skb,
 
 	ih = skb_header_pointer(skb, offset, sizeof(_iph), &_iph);
 	if (ih == NULL)
-		sprintf(buf, "%s TRUNCATED", pp->name);
+		sprintf(buf, "TRUNCATED");
 	else
-		sprintf(buf, "%s %pI6->%pI6",
-			pp->name, &ih->saddr, &ih->daddr);
+		sprintf(buf, "%pI6->%pI6", &ih->saddr, &ih->daddr);
 
-	pr_debug("%s: %s\n", msg, buf);
+	pr_debug("%s: %s %s\n", msg, pp->name, buf);
 }
 #endif
 

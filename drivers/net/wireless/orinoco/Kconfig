@@ -27,6 +27,17 @@ config HERMES
 	  configure your card and that /etc/pcmcia/wireless.opts works :
 	  <http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/Tools.html>
 
+config HERMES_PRISM
+	bool "Support Prism 2/2.5 chipset"
+	depends on HERMES
+	---help---
+
+	  Say Y to enable support for Prism 2 and 2.5 chipsets.  These
+	  chipsets are better handled by the hostap driver.  This driver
+	  would not support WPA or firmware download for Prism chipset.
+
+	  If you are not sure, say N.
+
 config HERMES_CACHE_FW_ON_INIT
 	bool "Cache Hermes firmware on driver initialisation"
 	depends on HERMES
@@ -86,7 +97,7 @@ config NORTEL_HERMES
 
 config PCI_HERMES
 	tristate "Prism 2.5 PCI 802.11b adaptor support"
-	depends on PCI && HERMES
+	depends on PCI && HERMES && HERMES_PRISM
 	help
 	  Enable support for PCI and mini-PCI 802.11b wireless NICs based on
 	  the Prism 2.5 chipset.  These are true PCI cards, not the 802.11b
@@ -121,3 +132,10 @@ config PCMCIA_SPECTRUM
 	  This driver requires firmware download on startup.  Utilities
 	  for downloading Symbol firmware are available at
 	  <http://sourceforge.net/projects/orinoco/>
+
+config ORINOCO_USB
+	tristate "Agere Orinoco USB support"
+	depends on USB && HERMES
+	select FW_LOADER
+	---help---
+	  This driver is for USB versions of the Agere Orinoco card.

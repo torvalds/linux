@@ -138,9 +138,8 @@ nf_nat_fn(unsigned int hooknum,
 				ret = nf_nat_rule_find(skb, hooknum, in, out,
 						       ct);
 
-			if (ret != NF_ACCEPT) {
+			if (ret != NF_ACCEPT)
 				return ret;
-			}
 		} else
 			pr_debug("Already setup manip %s for ct %p\n",
 				 maniptype == IP_NAT_MANIP_SRC ? "SRC" : "DST",
@@ -294,12 +293,12 @@ static int __init nf_nat_standalone_init(void)
 #endif
 	ret = nf_nat_rule_init();
 	if (ret < 0) {
-		printk("nf_nat_init: can't setup rules.\n");
+		pr_err("nf_nat_init: can't setup rules.\n");
 		goto cleanup_decode_session;
 	}
 	ret = nf_register_hooks(nf_nat_ops, ARRAY_SIZE(nf_nat_ops));
 	if (ret < 0) {
-		printk("nf_nat_init: can't register hooks.\n");
+		pr_err("nf_nat_init: can't register hooks.\n");
 		goto cleanup_rule_init;
 	}
 	return ret;

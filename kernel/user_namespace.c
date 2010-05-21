@@ -54,8 +54,8 @@ int create_user_ns(struct cred *new)
 #endif
 	/* tgcred will be cleared in our caller bc CLONE_THREAD won't be set */
 
-	/* alloc_uid() incremented the userns refcount.  Just set it to 1 */
-	kref_set(&ns->kref, 1);
+	/* root_user holds a reference to ns, our reference can be dropped */
+	put_user_ns(ns);
 
 	return 0;
 }

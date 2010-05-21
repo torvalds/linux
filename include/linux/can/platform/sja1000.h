@@ -26,7 +26,7 @@
 #define OCR_TX_SHIFT      2
 
 struct sja1000_platform_data {
-	u32 clock;	/* CAN bus oscillator frequency in Hz */
+	u32 osc_freq;	/* CAN bus oscillator frequency in Hz */
 
 	u8 ocr;		/* output control register */
 	u8 cdr;		/* clock divider register */

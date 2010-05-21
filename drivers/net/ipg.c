@@ -570,7 +570,7 @@ static int ipg_config_autoneg(struct net_device *dev)
 static void ipg_nic_set_multicast_list(struct net_device *dev)
 {
 	void __iomem *ioaddr = ipg_ioaddr(dev);
-	struct dev_mc_list *mc_list_ptr;
+	struct netdev_hw_addr *ha;
 	unsigned int hashindex;
 	u32 hashtable[2];
 	u8 receivemode;
@@ -609,9 +609,9 @@ static void ipg_nic_set_multicast_list(struct net_device *dev)
 	hashtable[1] = 0x00000000;
 
 	/* Cycle through all multicast addresses to filter. */
-	netdev_for_each_mc_addr(mc_list_ptr, dev) {
+	netdev_for_each_mc_addr(ha, dev) {
 		/* Calculate CRC result for each multicast address. */
-		hashindex = crc32_le(0xffffffff, mc_list_ptr->dmi_addr,
+		hashindex = crc32_le(0xffffffff, ha->addr,
 				     ETH_ALEN);
 
 		/* Use only the least significant 6 bits. */
@@ -1548,8 +1548,6 @@ static void ipg_reset_after_host_error(struct work_struct *work)
 		container_of(work, struct ipg_nic_private, task.work);
 	struct net_device *dev = sp->dev;
 
-	IPG_DDEBUG_MSG("DMACtrl = %8.8x\n", ioread32(sp->ioaddr + IPG_DMACTRL));
-
 	/*
 	 * Acknowledge HostError interrupt by resetting
 	 * IPG DMA and HOST.
@@ -1826,9 +1824,6 @@ static int ipg_nic_stop(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	IPG_DDEBUG_MSG("RFDlistendCount = %i\n", sp->RFDlistendCount);
-	IPG_DDEBUG_MSG("RFDListCheckedCount = %i\n", sp->rxdCheckedCount);
-	IPG_DDEBUG_MSG("EmptyRFDListCount = %i\n", sp->EmptyRFDListCount);
 	IPG_DUMPTFDLIST(dev);
 
 	do {

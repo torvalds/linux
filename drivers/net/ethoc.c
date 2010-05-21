@@ -756,7 +756,7 @@ static void ethoc_set_multicast_list(struct net_device *dev)
 {
 	struct ethoc *priv = netdev_priv(dev);
 	u32 mode = ethoc_read(priv, MODER);
-	struct dev_mc_list *mc;
+	struct netdev_hw_addr *ha;
 	u32 hash[2] = { 0, 0 };
 
 	/* set loopback mode if requested */
@@ -784,8 +784,8 @@ static void ethoc_set_multicast_list(struct net_device *dev)
 		hash[0] = 0xffffffff;
 		hash[1] = 0xffffffff;
 	} else {
-		netdev_for_each_mc_addr(mc, dev) {
-			u32 crc = ether_crc(ETH_ALEN, mc->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			u32 crc = ether_crc(ETH_ALEN, ha->addr);
 			int bit = (crc >> 26) & 0x3f;
 			hash[bit >> 5] |= 1 << (bit & 0x1f);
 		}
@@ -851,7 +851,6 @@ static netdev_tx_t ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	}
 
-	dev->trans_start = jiffies;
 	spin_unlock_irq(&priv->lock);
 out:
 	dev_kfree_skb(skb);
@@ -1040,7 +1039,6 @@ static int ethoc_probe(struct platform_device *pdev)
 	netdev->features |= 0;
 
 	/* setup NAPI */
-	memset(&priv->napi, 0, sizeof(priv->napi));
 	netif_napi_add(netdev, &priv->napi, ethoc_poll, 64);
 
 	spin_lock_init(&priv->rx_lock);

@@ -114,8 +114,10 @@ enum buffer_type {
 #define bf_isretried(bf)	(bf->bf_state.bf_type & BUF_RETRY)
 #define bf_isxretried(bf)	(bf->bf_state.bf_type & BUF_XRETRY)
 
+#define ATH_TXSTATUS_RING_SIZE 64
+
 struct ath_descdma {
-	struct ath_desc *dd_desc;
+	void *dd_desc;
 	dma_addr_t dd_desc_paddr;
 	u32 dd_desc_len;
 	struct ath_buf *dd_bufptr;
@@ -123,7 +125,7 @@ struct ath_descdma {
 
 int ath_descdma_setup(struct ath_softc *sc, struct ath_descdma *dd,
 		      struct list_head *head, const char *name,
-		      int nbuf, int ndesc);
+		      int nbuf, int ndesc, bool is_tx);
 void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 			 struct list_head *head);
 
@@ -178,9 +180,6 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 #define BAW_WITHIN(_start, _bawsz, _seqno) \
 	((((_seqno) - (_start)) & 4095) < (_bawsz))
 
-#define ATH_DS_BA_SEQ(_ds)         ((_ds)->ds_us.tx.ts_seqnum)
-#define ATH_DS_BA_BITMAP(_ds)      (&(_ds)->ds_us.tx.ba_low)
-#define ATH_DS_TX_BA(_ds)          ((_ds)->ds_us.tx.ts_flags & ATH9K_TX_BA)
 #define ATH_AN_2_TID(_an, _tidno)  (&(_an)->tid[(_tidno)])
 
 #define ATH_TX_COMPLETE_POLL_INT	1000
@@ -191,6 +190,7 @@ enum ATH_AGGR_STATUS {
 	ATH_AGGR_LIMITED,
 };
 
+#define ATH_TXFIFO_DEPTH 8
 struct ath_txq {
 	u32 axq_qnum;
 	u32 *axq_link;
@@ -200,6 +200,10 @@ struct ath_txq {
 	bool stopped;
 	bool axq_tx_inprogress;
 	struct list_head axq_acq;
+	struct list_head txq_fifo[ATH_TXFIFO_DEPTH];
+	struct list_head txq_fifo_pending;
+	u8 txq_headidx;
+	u8 txq_tailidx;
 };
 
 #define AGGR_CLEANUP         BIT(1)
@@ -226,6 +230,12 @@ struct ath_tx {
 	struct ath_descdma txdma;
 };
 
+struct ath_rx_edma {
+	struct sk_buff_head rx_fifo;
+	struct sk_buff_head rx_buffers;
+	u32 rx_fifo_hwsize;
+};
+
 struct ath_rx {
 	u8 defant;
 	u8 rxotherant;
@@ -235,6 +245,8 @@ struct ath_rx {
 	spinlock_t rxbuflock;
 	struct list_head rxbuf;
 	struct ath_descdma rxdma;
+	struct ath_buf *rx_bufptr;
+	struct ath_rx_edma rx_edma[ATH9K_RX_QUEUE_MAX];
 };
 
 int ath_startrecv(struct ath_softc *sc);
@@ -243,7 +255,7 @@ void ath_flushrecv(struct ath_softc *sc);
 u32 ath_calcrxfilter(struct ath_softc *sc);
 int ath_rx_init(struct ath_softc *sc, int nbufs);
 void ath_rx_cleanup(struct ath_softc *sc);
-int ath_rx_tasklet(struct ath_softc *sc, int flush);
+int ath_rx_tasklet(struct ath_softc *sc, int flush, bool hp);
 struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype);
 void ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq);
 int ath_tx_setup(struct ath_softc *sc, int haltype);
@@ -261,6 +273,7 @@ int ath_txq_update(struct ath_softc *sc, int qnum,
 int ath_tx_start(struct ieee80211_hw *hw, struct sk_buff *skb,
 		 struct ath_tx_control *txctl);
 void ath_tx_tasklet(struct ath_softc *sc);
+void ath_tx_edma_tasklet(struct ath_softc *sc);
 void ath_tx_cabq(struct ieee80211_hw *hw, struct sk_buff *skb);
 bool ath_tx_aggr_check(struct ath_softc *sc, struct ath_node *an, u8 tidno);
 void ath_tx_aggr_start(struct ath_softc *sc, struct ieee80211_sta *sta,
@@ -483,7 +496,6 @@ struct ath_softc {
 	bool ps_enabled;
 	bool ps_idle;
 	unsigned long ps_usecount;
-	enum ath9k_int imask;
 
 	struct ath_config config;
 	struct ath_rx rx;
@@ -511,6 +523,8 @@ struct ath_softc {
 	struct ath_beacon_config cur_beacon_conf;
 	struct delayed_work tx_complete_work;
 	struct ath_btcoex btcoex;
+
+	struct ath_descdma txsdma;
 };
 
 struct ath_wiphy {

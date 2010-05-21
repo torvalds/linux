@@ -8,6 +8,26 @@ struct device_node;
 
 #ifdef CONFIG_NUMA
 
+/*
+ * Before going off node we want the VM to try and reclaim from the local
+ * node. It does this if the remote distance is larger than RECLAIM_DISTANCE.
+ * With the default REMOTE_DISTANCE of 20 and the default RECLAIM_DISTANCE of
+ * 20, we never reclaim and go off node straight away.
+ *
+ * To fix this we choose a smaller value of RECLAIM_DISTANCE.
+ */
+#define RECLAIM_DISTANCE 10
+
+/*
+ * Before going off node we want the VM to try and reclaim from the local
+ * node. It does this if the remote distance is larger than RECLAIM_DISTANCE.
+ * With the default REMOTE_DISTANCE of 20 and the default RECLAIM_DISTANCE of
+ * 20, we never reclaim and go off node straight away.
+ *
+ * To fix this we choose a smaller value of RECLAIM_DISTANCE.
+ */
+#define RECLAIM_DISTANCE 10
+
 #include <asm/mmzone.h>
 
 static inline int cpu_to_node(int cpu)
@@ -19,7 +39,7 @@ static inline int cpu_to_node(int cpu)
 
 #define cpumask_of_node(node) ((node) == -1 ?				\
 			       cpu_all_mask :				\
-			       &numa_cpumask_lookup_table[node])
+			       node_to_cpumask_map[node])
 
 int of_node_to_nid(struct device_node *device);
 
@@ -102,8 +122,8 @@ static inline void sysfs_remove_device_from_node(struct sys_device *dev,
 #ifdef CONFIG_PPC64
 #include <asm/smp.h>
 
-#define topology_thread_cpumask(cpu)	(&per_cpu(cpu_sibling_map, cpu))
-#define topology_core_cpumask(cpu)	(&per_cpu(cpu_core_map, cpu))
+#define topology_thread_cpumask(cpu)	(per_cpu(cpu_sibling_map, cpu))
+#define topology_core_cpumask(cpu)	(per_cpu(cpu_core_map, cpu))
 #define topology_core_id(cpu)		(cpu_to_core_id(cpu))
 #endif
 #endif

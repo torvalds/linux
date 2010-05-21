@@ -35,6 +35,8 @@ struct ath_buf;
  * struct ath_interrupt_stats - Contains statistics about interrupts
  * @total: Total no. of interrupts generated so far
  * @rxok: RX with no errors
+ * @rxlp: RX with low priority RX
+ * @rxhp: RX with high priority, uapsd only
  * @rxeol: RX with no more RXDESC available
  * @rxorn: RX FIFO overrun
  * @txok: TX completed at the requested rate
@@ -55,6 +57,8 @@ struct ath_buf;
 struct ath_interrupt_stats {
 	u32 total;
 	u32 rxok;
+	u32 rxlp;
+	u32 rxhp;
 	u32 rxeol;
 	u32 rxorn;
 	u32 txok;
@@ -149,13 +153,7 @@ struct ath_stats {
 
 struct ath9k_debug {
 	struct dentry *debugfs_phy;
-	struct dentry *debugfs_debug;
-	struct dentry *debugfs_dma;
-	struct dentry *debugfs_interrupt;
-	struct dentry *debugfs_rcstat;
-	struct dentry *debugfs_wiphy;
-	struct dentry *debugfs_xmit;
-	struct dentry *debugfs_recv;
+	u32 regidx;
 	struct ath_stats stats;
 };
 
@@ -167,8 +165,8 @@ void ath9k_debug_remove_root(void);
 void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
 void ath_debug_stat_rc(struct ath_softc *sc, int final_rate);
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
-		       struct ath_buf *bf);
-void ath_debug_stat_rx(struct ath_softc *sc, struct ath_buf *bf);
+		       struct ath_buf *bf, struct ath_tx_status *ts);
+void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs);
 void ath_debug_stat_retries(struct ath_softc *sc, int rix,
 			    int xretries, int retries, u8 per);
 
@@ -204,12 +202,13 @@ static inline void ath_debug_stat_rc(struct ath_softc *sc,
 
 static inline void ath_debug_stat_tx(struct ath_softc *sc,
 				     struct ath_txq *txq,
-				     struct ath_buf *bf)
+				     struct ath_buf *bf,
+				     struct ath_tx_status *ts)
 {
 }
 
 static inline void ath_debug_stat_rx(struct ath_softc *sc,
-				     struct ath_buf *bf)
+				     struct ath_rx_status *rs)
 {
 }
 

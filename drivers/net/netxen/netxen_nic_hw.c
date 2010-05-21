@@ -32,7 +32,6 @@
 #define MASK(n) ((1ULL<<(n))-1)
 #define MN_WIN(addr) (((addr & 0x1fc0000) >> 1) | ((addr >> 25) & 0x3ff))
 #define OCM_WIN(addr) (((addr & 0x1ff0000) >> 1) | ((addr >> 25) & 0x3ff))
-#define OCM_WIN_P3P(addr) (addr & 0xffc0000)
 #define MS_WIN(addr) (addr & 0x0ffc0000)
 
 #define GET_MEM_OFFS_2M(addr) (addr & MASK(18))
@@ -62,9 +61,6 @@ static inline void writeq(u64 val, void __iomem *addr)
 	writel(((u32) (val >> 32)), (addr + 4));
 }
 #endif
-
-#define ADDR_IN_RANGE(addr, low, high)	\
-	(((addr) < (high)) && ((addr) >= (low)))
 
 #define PCI_OFFSET_FIRST_RANGE(adapter, off)    \
 	((adapter)->ahw.pci_base0 + (off))
@@ -538,7 +534,7 @@ netxen_nic_set_mcast_addr(struct netxen_adapter *adapter,
 void netxen_p2_nic_set_multi(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u8 null_addr[6];
 	int i;
 
@@ -572,8 +568,8 @@ void netxen_p2_nic_set_multi(struct net_device *netdev)
 	netxen_nic_enable_mcast_filter(adapter);
 
 	i = 0;
-	netdev_for_each_mc_addr(mc_ptr, netdev)
-		netxen_nic_set_mcast_addr(adapter, i++, mc_ptr->dmi_addr);
+	netdev_for_each_mc_addr(ha, netdev)
+		netxen_nic_set_mcast_addr(adapter, i++, ha->addr);
 
 	/* Clear out remaining addresses */
 	while (i < adapter->max_mc_count)
@@ -681,7 +677,7 @@ static int nx_p3_nic_add_mac(struct netxen_adapter *adapter,
 void netxen_p3_nic_set_multi(struct net_device *netdev)
 {
 	struct netxen_adapter *adapter = netdev_priv(netdev);
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	u32 mode = VPORT_MISS_MODE_DROP;
 	LIST_HEAD(del_list);
@@ -708,8 +704,8 @@ void netxen_p3_nic_set_multi(struct net_device *netdev)
 	}
 
 	if (!netdev_mc_empty(netdev)) {
-		netdev_for_each_mc_addr(mc_ptr, netdev)
-			nx_p3_nic_add_mac(adapter, mc_ptr->dmi_addr, &del_list);
+		netdev_for_each_mc_addr(ha, netdev)
+			nx_p3_nic_add_mac(adapter, ha->addr, &del_list);
 	}
 
 send_fw_cmd:
@@ -1391,18 +1387,8 @@ netxen_nic_pci_set_window_2M(struct netxen_adapter *adapter,
 		u64 addr, u32 *start)
 {
 	u32 window;
-	struct pci_dev *pdev = adapter->pdev;
 
-	if ((addr & 0x00ff800) == 0xff800) {
-		if (printk_ratelimit())
-			dev_warn(&pdev->dev, "QM access not handled\n");
-		return -EIO;
-	}
-
-	if (NX_IS_REVISION_P3P(adapter->ahw.revision_id))
-		window = OCM_WIN_P3P(addr);
-	else
-		window = OCM_WIN(addr);
+	window = OCM_WIN(addr);
 
 	writel(window, adapter->ahw.ocm_win_crb);
 	/* read back to flush */
@@ -1419,7 +1405,7 @@ netxen_nic_pci_mem_access_direct(struct netxen_adapter *adapter, u64 off,
 {
 	void __iomem *addr, *mem_ptr = NULL;
 	resource_size_t mem_base;
-	int ret = -EIO;
+	int ret;
 	u32 start;
 
 	spin_lock(&adapter->ahw.mem_lock);
@@ -1428,20 +1414,23 @@ netxen_nic_pci_mem_access_direct(struct netxen_adapter *adapter, u64 off,
 	if (ret != 0)
 		goto unlock;
 
-	addr = pci_base_offset(adapter, start);
-	if (addr)
-		goto noremap;
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		addr = adapter->ahw.pci_base0 + start;
+	} else {
+		addr = pci_base_offset(adapter, start);
+		if (addr)
+			goto noremap;
 
-	mem_base = pci_resource_start(adapter->pdev, 0) + (start & PAGE_MASK);
+		mem_base = pci_resource_start(adapter->pdev, 0) +
+					(start & PAGE_MASK);
+		mem_ptr = ioremap(mem_base, PAGE_SIZE);
+		if (mem_ptr == NULL) {
+			ret = -EIO;
+			goto unlock;
+		}
 
-	mem_ptr = ioremap(mem_base, PAGE_SIZE);
-	if (mem_ptr == NULL) {
-		ret = -EIO;
-		goto unlock;
+		addr = mem_ptr + (start & (PAGE_SIZE-1));
 	}
-
-	addr = mem_ptr + (start & (PAGE_SIZE - 1));
-
 noremap:
 	if (op == 0)	/* read */
 		*data = readq(addr);
@@ -1454,6 +1443,28 @@ unlock:
 	if (mem_ptr)
 		iounmap(mem_ptr);
 	return ret;
+}
+
+void
+netxen_pci_camqm_read_2M(struct netxen_adapter *adapter, u64 off, u64 *data)
+{
+	void __iomem *addr = adapter->ahw.pci_base0 +
+		NETXEN_PCI_CAMQM_2M_BASE + (off - NETXEN_PCI_CAMQM);
+
+	spin_lock(&adapter->ahw.mem_lock);
+	*data = readq(addr);
+	spin_unlock(&adapter->ahw.mem_lock);
+}
+
+void
+netxen_pci_camqm_write_2M(struct netxen_adapter *adapter, u64 off, u64 data)
+{
+	void __iomem *addr = adapter->ahw.pci_base0 +
+		NETXEN_PCI_CAMQM_2M_BASE + (off - NETXEN_PCI_CAMQM);
+
+	spin_lock(&adapter->ahw.mem_lock);
+	writeq(data, addr);
+	spin_unlock(&adapter->ahw.mem_lock);
 }
 
 #define MAX_CTL_CHECK   1000
@@ -1621,9 +1632,8 @@ static int
 netxen_nic_pci_mem_write_2M(struct netxen_adapter *adapter,
 		u64 off, u64 data)
 {
-	int i, j, ret;
+	int j, ret;
 	u32 temp, off8;
-	u64 stride;
 	void __iomem *mem_crb;
 
 	/* Only 64-bit aligned access */
@@ -1650,44 +1660,17 @@ netxen_nic_pci_mem_write_2M(struct netxen_adapter *adapter,
 	return -EIO;
 
 correct:
-	stride = NX_IS_REVISION_P3P(adapter->ahw.revision_id) ? 16 : 8;
-
-	off8 = off & ~(stride-1);
+	off8 = off & 0xfffffff8;
 
 	spin_lock(&adapter->ahw.mem_lock);
 
 	writel(off8, (mem_crb + MIU_TEST_AGT_ADDR_LO));
 	writel(0, (mem_crb + MIU_TEST_AGT_ADDR_HI));
 
-	i = 0;
-	if (stride == 16) {
-		writel(TA_CTL_ENABLE, (mem_crb + TEST_AGT_CTRL));
-		writel((TA_CTL_START | TA_CTL_ENABLE),
-				(mem_crb + TEST_AGT_CTRL));
-
-		for (j = 0; j < MAX_CTL_CHECK; j++) {
-			temp = readl(mem_crb + TEST_AGT_CTRL);
-			if ((temp & TA_CTL_BUSY) == 0)
-				break;
-		}
-
-		if (j >= MAX_CTL_CHECK) {
-			ret = -EIO;
-			goto done;
-		}
-
-		i = (off & 0xf) ? 0 : 2;
-		writel(readl(mem_crb + MIU_TEST_AGT_RDDATA(i)),
-				mem_crb + MIU_TEST_AGT_WRDATA(i));
-		writel(readl(mem_crb + MIU_TEST_AGT_RDDATA(i+1)),
-				mem_crb + MIU_TEST_AGT_WRDATA(i+1));
-		i = (off & 0xf) ? 2 : 0;
-	}
-
 	writel(data & 0xffffffff,
-			mem_crb + MIU_TEST_AGT_WRDATA(i));
+			mem_crb + MIU_TEST_AGT_WRDATA_LO);
 	writel((data >> 32) & 0xffffffff,
-			mem_crb + MIU_TEST_AGT_WRDATA(i+1));
+			mem_crb + MIU_TEST_AGT_WRDATA_HI);
 
 	writel((TA_CTL_ENABLE | TA_CTL_WRITE), (mem_crb + TEST_AGT_CTRL));
 	writel((TA_CTL_START | TA_CTL_ENABLE | TA_CTL_WRITE),
@@ -1707,7 +1690,6 @@ correct:
 	} else
 		ret = 0;
 
-done:
 	spin_unlock(&adapter->ahw.mem_lock);
 
 	return ret;
@@ -1719,7 +1701,7 @@ netxen_nic_pci_mem_read_2M(struct netxen_adapter *adapter,
 {
 	int j, ret;
 	u32 temp, off8;
-	u64 val, stride;
+	u64 val;
 	void __iomem *mem_crb;
 
 	/* Only 64-bit aligned access */
@@ -1748,9 +1730,7 @@ netxen_nic_pci_mem_read_2M(struct netxen_adapter *adapter,
 	return -EIO;
 
 correct:
-	stride = NX_IS_REVISION_P3P(adapter->ahw.revision_id) ? 16 : 8;
-
-	off8 = off & ~(stride-1);
+	off8 = off & 0xfffffff8;
 
 	spin_lock(&adapter->ahw.mem_lock);
 
@@ -1771,13 +1751,8 @@ correct:
 					"failed to read through agent\n");
 		ret = -EIO;
 	} else {
-		off8 = MIU_TEST_AGT_RDDATA_LO;
-		if ((stride == 16) && (off & 0xf))
-			off8 = MIU_TEST_AGT_RDDATA_UPPER_LO;
-
-		temp = readl(mem_crb + off8 + 4);
-		val = (u64)temp << 32;
-		val |= readl(mem_crb + off8);
+		val = (u64)(readl(mem_crb + MIU_TEST_AGT_RDDATA_HI)) << 32;
+		val |= readl(mem_crb + MIU_TEST_AGT_RDDATA_LO);
 		*data = val;
 		ret = 0;
 	}

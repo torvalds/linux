@@ -178,7 +178,6 @@ error_submit:
 out:
 	d_fnend(4, dev, "(urb %p status %d actual_length %d) = void\n",
 		urb, urb->status, urb->actual_length);
-	return;
 }
 
 

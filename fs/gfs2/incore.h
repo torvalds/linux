@@ -439,9 +439,6 @@ struct gfs2_args {
 struct gfs2_tune {
 	spinlock_t gt_spin;
 
-	unsigned int gt_incore_log_blocks;
-	unsigned int gt_log_flush_secs;
-
 	unsigned int gt_logd_secs;
 
 	unsigned int gt_quota_simul_sync; /* Max quotavals to sync at once */
@@ -462,6 +459,7 @@ enum {
 	SDF_SHUTDOWN		= 2,
 	SDF_NOBARRIERS		= 3,
 	SDF_NORECOVERY		= 4,
+	SDF_DEMOTE		= 5,
 };
 
 #define GFS2_FSNAME_LEN		256
@@ -618,6 +616,7 @@ struct gfs2_sbd {
 	unsigned int sd_log_commited_databuf;
 	int sd_log_commited_revoke;
 
+	atomic_t sd_log_pinned;
 	unsigned int sd_log_num_buf;
 	unsigned int sd_log_num_revoke;
 	unsigned int sd_log_num_rg;
@@ -629,15 +628,17 @@ struct gfs2_sbd {
 	struct list_head sd_log_le_databuf;
 	struct list_head sd_log_le_ordered;
 
+	atomic_t sd_log_thresh1;
+	atomic_t sd_log_thresh2;
 	atomic_t sd_log_blks_free;
-	struct mutex sd_log_reserve_mutex;
+	wait_queue_head_t sd_log_waitq;
+	wait_queue_head_t sd_logd_waitq;
 
 	u64 sd_log_sequence;
 	unsigned int sd_log_head;
 	unsigned int sd_log_tail;
 	int sd_log_idle;
 
-	unsigned long sd_log_flush_time;
 	struct rw_semaphore sd_log_flush_lock;
 	atomic_t sd_log_in_flight;
 	wait_queue_head_t sd_log_flush_wait;

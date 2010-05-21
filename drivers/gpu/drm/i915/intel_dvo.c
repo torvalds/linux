@@ -96,39 +96,11 @@ static void intel_dvo_dpms(struct drm_encoder *encoder, int mode)
 	}
 }
 
-static void intel_dvo_save(struct drm_connector *connector)
-{
-	struct drm_i915_private *dev_priv = connector->dev->dev_private;
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct intel_dvo_device *dvo = intel_encoder->dev_priv;
-
-	/* Each output should probably just save the registers it touches,
-	 * but for now, use more overkill.
-	 */
-	dev_priv->saveDVOA = I915_READ(DVOA);
-	dev_priv->saveDVOB = I915_READ(DVOB);
-	dev_priv->saveDVOC = I915_READ(DVOC);
-
-	dvo->dev_ops->save(dvo);
-}
-
-static void intel_dvo_restore(struct drm_connector *connector)
-{
-	struct drm_i915_private *dev_priv = connector->dev->dev_private;
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct intel_dvo_device *dvo = intel_encoder->dev_priv;
-
-	dvo->dev_ops->restore(dvo);
-
-	I915_WRITE(DVOA, dev_priv->saveDVOA);
-	I915_WRITE(DVOB, dev_priv->saveDVOB);
-	I915_WRITE(DVOC, dev_priv->saveDVOC);
-}
-
 static int intel_dvo_mode_valid(struct drm_connector *connector,
 				struct drm_display_mode *mode)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_dvo_device *dvo = intel_encoder->dev_priv;
 
 	if (mode->flags & DRM_MODE_FLAG_DBLSCAN)
@@ -241,7 +213,8 @@ static void intel_dvo_mode_set(struct drm_encoder *encoder,
  */
 static enum drm_connector_status intel_dvo_detect(struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_dvo_device *dvo = intel_encoder->dev_priv;
 
 	return dvo->dev_ops->detect(dvo);
@@ -249,7 +222,8 @@ static enum drm_connector_status intel_dvo_detect(struct drm_connector *connecto
 
 static int intel_dvo_get_modes(struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_dvo_device *dvo = intel_encoder->dev_priv;
 
 	/* We should probably have an i2c driver get_modes function for those
@@ -257,7 +231,7 @@ static int intel_dvo_get_modes(struct drm_connector *connector)
 	 * (TV-out, for example), but for now with just TMDS and LVDS,
 	 * that's not the case.
 	 */
-	intel_ddc_get_modes(intel_encoder);
+	intel_ddc_get_modes(connector, intel_encoder->ddc_bus);
 	if (!list_empty(&connector->probed_modes))
 		return 1;
 
@@ -275,38 +249,10 @@ static int intel_dvo_get_modes(struct drm_connector *connector)
 
 static void intel_dvo_destroy (struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct intel_dvo_device *dvo = intel_encoder->dev_priv;
-
-	if (dvo) {
-		if (dvo->dev_ops->destroy)
-			dvo->dev_ops->destroy(dvo);
-		if (dvo->panel_fixed_mode)
-			kfree(dvo->panel_fixed_mode);
-		/* no need, in i830_dvoices[] now */
-		//kfree(dvo);
-	}
-	if (intel_encoder->i2c_bus)
-		intel_i2c_destroy(intel_encoder->i2c_bus);
-	if (intel_encoder->ddc_bus)
-		intel_i2c_destroy(intel_encoder->ddc_bus);
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
-	kfree(intel_encoder);
+	kfree(connector);
 }
-
-#ifdef RANDR_GET_CRTC_INTERFACE
-static struct drm_crtc *intel_dvo_get_crtc(struct drm_connector *connector)
-{
-	struct drm_device *dev = connector->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct intel_dvo_device *dvo = intel_encoder->dev_priv;
-	int pipe = !!(I915_READ(dvo->dvo_reg) & SDVO_PIPE_B_SELECT);
-
-	return intel_pipe_to_crtc(pScrn, pipe);
-}
-#endif
 
 static const struct drm_encoder_helper_funcs intel_dvo_helper_funcs = {
 	.dpms = intel_dvo_dpms,
@@ -318,8 +264,6 @@ static const struct drm_encoder_helper_funcs intel_dvo_helper_funcs = {
 
 static const struct drm_connector_funcs intel_dvo_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = intel_dvo_save,
-	.restore = intel_dvo_restore,
 	.detect = intel_dvo_detect,
 	.destroy = intel_dvo_destroy,
 	.fill_modes = drm_helper_probe_single_connector_modes,
@@ -328,12 +272,26 @@ static const struct drm_connector_funcs intel_dvo_connector_funcs = {
 static const struct drm_connector_helper_funcs intel_dvo_connector_helper_funcs = {
 	.mode_valid = intel_dvo_mode_valid,
 	.get_modes = intel_dvo_get_modes,
-	.best_encoder = intel_best_encoder,
+	.best_encoder = intel_attached_encoder,
 };
 
 static void intel_dvo_enc_destroy(struct drm_encoder *encoder)
 {
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct intel_dvo_device *dvo = intel_encoder->dev_priv;
+
+	if (dvo) {
+		if (dvo->dev_ops->destroy)
+			dvo->dev_ops->destroy(dvo);
+		if (dvo->panel_fixed_mode)
+			kfree(dvo->panel_fixed_mode);
+	}
+	if (intel_encoder->i2c_bus)
+		intel_i2c_destroy(intel_encoder->i2c_bus);
+	if (intel_encoder->ddc_bus)
+		intel_i2c_destroy(intel_encoder->ddc_bus);
 	drm_encoder_cleanup(encoder);
+	kfree(intel_encoder);
 }
 
 static const struct drm_encoder_funcs intel_dvo_enc_funcs = {
@@ -352,7 +310,8 @@ intel_dvo_get_current_mode (struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_dvo_device *dvo = intel_encoder->dev_priv;
 	uint32_t dvo_reg = dvo->dvo_reg;
 	uint32_t dvo_val = I915_READ(dvo_reg);
@@ -384,6 +343,7 @@ intel_dvo_get_current_mode (struct drm_connector *connector)
 void intel_dvo_init(struct drm_device *dev)
 {
 	struct intel_encoder *intel_encoder;
+	struct intel_connector *intel_connector;
 	struct intel_dvo_device *dvo;
 	struct i2c_adapter *i2cbus = NULL;
 	int ret = 0;
@@ -393,6 +353,12 @@ void intel_dvo_init(struct drm_device *dev)
 	if (!intel_encoder)
 		return;
 
+	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
+	if (!intel_connector) {
+		kfree(intel_encoder);
+		return;
+	}
+
 	/* Set up the DDC bus */
 	intel_encoder->ddc_bus = intel_i2c_create(dev, GPIOD, "DVODDC_D");
 	if (!intel_encoder->ddc_bus)
@@ -400,7 +366,7 @@ void intel_dvo_init(struct drm_device *dev)
 
 	/* Now, try to find a controller */
 	for (i = 0; i < ARRAY_SIZE(intel_dvo_devices); i++) {
-		struct drm_connector *connector = &intel_encoder->base;
+		struct drm_connector *connector = &intel_connector->base;
 		int gpio;
 
 		dvo = &intel_dvo_devices[i];
@@ -471,7 +437,7 @@ void intel_dvo_init(struct drm_device *dev)
 		drm_encoder_helper_add(&intel_encoder->enc,
 				       &intel_dvo_helper_funcs);
 
-		drm_mode_connector_attach_encoder(&intel_encoder->base,
+		drm_mode_connector_attach_encoder(&intel_connector->base,
 						  &intel_encoder->enc);
 		if (dvo->type == INTEL_DVO_CHIP_LVDS) {
 			/* For our LVDS chipsets, we should hopefully be able
@@ -496,4 +462,5 @@ void intel_dvo_init(struct drm_device *dev)
 		intel_i2c_destroy(i2cbus);
 free_intel:
 	kfree(intel_encoder);
+	kfree(intel_connector);
 }

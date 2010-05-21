@@ -3591,20 +3591,20 @@ wv_82593_config(struct net_device *	dev)
     /* If roaming is enabled, join the "Beacon Request" multicast group... */
     /* But only if it's not in there already! */
   if(do_roaming)
-    dev_mc_add(dev,WAVELAN_BEACON_ADDRESS, WAVELAN_ADDR_SIZE, 1);
+    dev_mc_add(dev, WAVELAN_BEACON_ADDRESS);
 #endif	/* WAVELAN_ROAMING */
 
   /* If any multicast address to set */
   if(lp->mc_count)
     {
-      struct dev_mc_list *dmi;
+      struct netdev_hw_addr *ha;
       int			addrs_len = WAVELAN_ADDR_SIZE * lp->mc_count;
 
 #ifdef DEBUG_CONFIG_INFO
       printk(KERN_DEBUG "%s: wv_hw_config(): set %d multicast addresses:\n",
 	     dev->name, lp->mc_count);
-      netdev_for_each_mc_addr(dmi, dev)
-	printk(KERN_DEBUG " %pM\n", dmi->dmi_addr);
+      netdev_for_each_mc_addr(ha, dev)
+	printk(KERN_DEBUG " %pM\n", ha->addr);
 #endif
 
       /* Initialize adapter's ethernet multicast addresses */
@@ -3612,8 +3612,8 @@ wv_82593_config(struct net_device *	dev)
       outb(((TX_BASE >> 8) & PIORH_MASK) | PIORH_SEL_TX, PIORH(base));
       outb(addrs_len & 0xff, PIOP(base));	/* byte count lsb */
       outb((addrs_len >> 8), PIOP(base));	/* byte count msb */
-      netdev_for_each_mc_addr(dmi, dev)
-	outsb(PIOP(base), dmi->dmi_addr, dmi->dmi_addrlen);
+      netdev_for_each_mc_addr(ha, dev)
+	outsb(PIOP(base), ha->addr, dev->addr_len);
 
       /* reset transmit DMA pointer */
       hacr_write_slow(base, HACR_PWR_STAT | HACR_TX_DMA_RESET);
@@ -3850,12 +3850,8 @@ wv_pcmcia_config(struct pcmcia_device *	link)
       if (i != 0)
 	  break;
 
-      /*
-       * Now allocate an interrupt line.  Note that this does not
-       * actually assign a handler to the interrupt.
-       */
-      i = pcmcia_request_irq(link, &link->irq);
-      if (i != 0)
+      i = pcmcia_request_interrupt(link, wavelan_interrupt);
+      if (!i)
 	  break;
 
       /*
@@ -3890,7 +3886,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
 	  break;
 
       /* Feed device with this info... */
-      dev->irq = link->irq.AssignedIRQ;
+      dev->irq = link->irq;
       dev->base_addr = link->io.BasePort1;
       netif_start_queue(dev);
 
@@ -4437,10 +4433,6 @@ wavelan_probe(struct pcmcia_device *p_dev)
   p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
   p_dev->io.IOAddrLines = 3;
 
-  /* Interrupt setup */
-  p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-  p_dev->irq.Handler = wavelan_interrupt;
-
   /* General socket configuration */
   p_dev->conf.Attributes = CONF_ENABLE_IRQ;
   p_dev->conf.IntType = INT_MEMORY_AND_IO;
@@ -4487,7 +4479,6 @@ wavelan_probe(struct pcmcia_device *p_dev)
 
   ret = wv_hw_config(dev);
   if (ret) {
-	  dev->irq = 0;
 	  pcmcia_disable_device(p_dev);
 	  return ret;
   }

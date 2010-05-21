@@ -203,12 +203,6 @@ static void em28xx_copy_video(struct em28xx *dev,
 	if (dma_q->pos + len > buf->vb.size)
 		len = buf->vb.size - dma_q->pos;
 
-	if (p[0] != 0x88 && p[0] != 0x22) {
-		em28xx_isocdbg("frame is not complete\n");
-		len += 4;
-	} else
-		p += 4;
-
 	startread = p;
 	remain = len;
 
@@ -308,14 +302,6 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 
 	if (dma_q->pos + len > buf->vb.size)
 		len = buf->vb.size - dma_q->pos;
-
-	if ((p[0] == 0x33 && p[1] == 0x95) ||
-	    (p[0] == 0x88 && p[1] == 0x88)) {
-		/* Header field, advance past it */
-		p += 4;
-	} else {
-		len += 4;
-	}
 
 	startread = p;
 
@@ -507,8 +493,15 @@ static inline int em28xx_isoc_copy(struct em28xx *dev, struct urb *urb)
 
 			dma_q->pos = 0;
 		}
-		if (buf != NULL)
+		if (buf != NULL) {
+			if (p[0] != 0x88 && p[0] != 0x22) {
+				em28xx_isocdbg("frame is not complete\n");
+				len += 4;
+			} else {
+				p += 4;
+			}
 			em28xx_copy_video(dev, dma_q, buf, p, outp, len);
+		}
 	}
 	return rc;
 }
@@ -555,8 +548,7 @@ static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
 				continue;
 		}
 
-		len = urb->iso_frame_desc[i].actual_length - 4;
-
+		len = urb->iso_frame_desc[i].actual_length;
 		if (urb->iso_frame_desc[i].actual_length <= 0) {
 			/* em28xx_isocdbg("packet %d is empty",i); - spammy */
 			continue;
@@ -577,6 +569,17 @@ static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
 			dev->vbi_read = 0;
 			em28xx_isocdbg("VBI START HEADER!!!\n");
 			dev->cur_field = p[2];
+			p += 4;
+			len -= 4;
+		} else if (p[0] == 0x88 && p[1] == 0x88 &&
+			   p[2] == 0x88 && p[3] == 0x88) {
+			/* continuation */
+			p += 4;
+			len -= 4;
+		} else if (p[0] == 0x22 && p[1] == 0x5a) {
+			/* start video */
+			p += 4;
+			len -= 4;
 		}
 
 		vbi_size = dev->vbi_width * dev->vbi_height;
@@ -631,9 +634,6 @@ static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
 
 		if (dev->capture_type == 1) {
 			dev->capture_type = 2;
-			em28xx_isocdbg("Video frame %d, length=%i, %s\n", p[2],
-				       len, (p[2] & 1) ? "odd" : "even");
-
 			if (dev->progressive || !(dev->cur_field & 1)) {
 				if (buf != NULL)
 					buffer_filled(dev, dma_q, buf);
@@ -652,8 +652,25 @@ static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
 
 			dma_q->pos = 0;
 		}
-		if (buf != NULL && dev->capture_type == 2)
-			em28xx_copy_video(dev, dma_q, buf, p, outp, len);
+
+		if (buf != NULL && dev->capture_type == 2) {
+			if (len > 4 && p[0] == 0x88 && p[1] == 0x88 &&
+			    p[2] == 0x88 && p[3] == 0x88) {
+				p += 4;
+				len -= 4;
+			}
+			if (len > 4 && p[0] == 0x22 && p[1] == 0x5a) {
+				em28xx_isocdbg("Video frame %d, len=%i, %s\n",
+					       p[2], len, (p[2] & 1) ?
+					       "odd" : "even");
+				p += 4;
+				len -= 4;
+			}
+
+			if (len > 0)
+				em28xx_copy_video(dev, dma_q, buf, p, outp,
+						  len);
+		}
 	}
 	return rc;
 }
@@ -1483,6 +1500,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 		return -EINVAL;
 
 	strcpy(t->name, "Tuner");
+	t->type = V4L2_TUNER_ANALOG_TV;
 
 	mutex_lock(&dev->lock);
 	v4l2_device_call_all(&dev->v4l2_dev, 0, tuner, g_tuner, t);
@@ -1814,7 +1832,7 @@ static int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *priv,
 	mutex_lock(&dev->lock);
 
 	f->fmt.sliced.service_set = 0;
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, g_fmt, f);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, vbi, g_sliced_fmt, &f->fmt.sliced);
 
 	if (f->fmt.sliced.service_set == 0)
 		rc = -EINVAL;
@@ -1836,7 +1854,7 @@ static int vidioc_try_set_sliced_vbi_cap(struct file *file, void *priv,
 		return rc;
 
 	mutex_lock(&dev->lock);
-	v4l2_device_call_all(&dev->v4l2_dev, 0, video, g_fmt, f);
+	v4l2_device_call_all(&dev->v4l2_dev, 0, vbi, g_sliced_fmt, &f->fmt.sliced);
 	mutex_unlock(&dev->lock);
 
 	if (f->fmt.sliced.service_set == 0)

@@ -19,6 +19,7 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/via-core.h>
 #include "global.h"
 struct res_map_refresh res_map_refresh_tbl[] = {
 /*hres, vres, vclock, vmode_refresh*/
@@ -66,6 +67,7 @@ struct res_map_refresh res_map_refresh_tbl[] = {
 	{1088, 612, RES_1088X612_60HZ_PIXCLOCK, 60},
 	{1152, 720, RES_1152X720_60HZ_PIXCLOCK, 60},
 	{1200, 720, RES_1200X720_60HZ_PIXCLOCK, 60},
+	{1200, 900, RES_1200X900_60HZ_PIXCLOCK, 60},
 	{1280, 600, RES_1280X600_60HZ_PIXCLOCK, 60},
 	{1280, 720, RES_1280X720_50HZ_PIXCLOCK, 50},
 	{1280, 768, RES_1280X768_50HZ_PIXCLOCK, 50},
@@ -759,6 +761,16 @@ struct crt_mode_table CRTM1200x720[] = {
 	 {1568, 1200, 1200, 368, 1256, 128, 746, 720, 720, 26, 721, 3} }
 };
 
+/* 1200x900 (DCON) */
+struct crt_mode_table DCON1200x900[] = {
+	/* r_rate,          vclk,               hsp,               vsp   */
+	{REFRESH_60, CLK_57_275M, M1200X900_R60_HSP, M1200X900_R60_VSP,
+	/* The correct htotal is 1240, but this doesn't raster on VX855. */
+	/* Via suggested changing to a multiple of 16, hence 1264.       */
+	/*  HT,   HA,  HBS, HBE,  HSS, HSE,  VT,  VA, VBS, VBE, VSS, VSE */
+	 {1264, 1200, 1200,  64, 1211,  32, 912, 900, 900,  12, 901, 10} }
+};
+
 /* 1280x600 (GTF) */
 struct crt_mode_table CRTM1280x600[] = {
 	/* r_rate,          vclk,              hsp,             vsp   */
@@ -936,6 +948,9 @@ struct VideoModeTable viafb_modes[] = {
 
 	/* Display : 1200x720 (GTF) */
 	{CRTM1200x720, ARRAY_SIZE(CRTM1200x720)},
+
+	/* Display : 1200x900 (DCON) */
+	{DCON1200x900, ARRAY_SIZE(DCON1200x900)},
 
 	/* Display : 1280x600 (GTF) */
 	{CRTM1280x600, ARRAY_SIZE(CRTM1280x600)},

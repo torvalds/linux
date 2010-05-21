@@ -33,6 +33,17 @@ config KVM
 
 	  If unsure, say N.
 
+config KVM_AWARE_CMF
+	depends on KVM
+	bool "KVM aware sampling"
+	---help---
+	  This option enhances the sampling data from the CPU Measurement
+	  Facility with additional information, that allows to distinguish
+	  guest(s) and host when using the kernel based virtual machine
+	  functionality.
+
+	  If unsure, say N.
+
 # OK, it's a little counter-intuitive to do this, but it puts it neatly under
 # the virtualization menu.
 source drivers/vhost/Kconfig

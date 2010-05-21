@@ -51,8 +51,9 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 0
-#define QLCNIC_LINUX_VERSIONID  "5.0.0"
+#define _QLCNIC_LINUX_SUBVERSION 2
+#define QLCNIC_LINUX_VERSIONID  "5.0.2"
+#define QLCNIC_DRV_IDC_VER  0x01
 
 #define QLCNIC_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
 #define _major(v)	(((v) >> 24) & 0xff)
@@ -98,8 +99,6 @@
 #define QLCNIC_CT_DEFAULT_RX_BUF_LEN	2048
 #define QLCNIC_LRO_BUFFER_EXTRA		2048
 
-#define QLCNIC_RX_LRO_BUFFER_LENGTH		(8060)
-
 /* Opcodes to be used with the commands */
 #define TX_ETHER_PKT	0x01
 #define TX_TCP_PKT	0x02
@@ -133,7 +132,6 @@
 
 #define RCV_RING_NORMAL 0
 #define RCV_RING_JUMBO	1
-#define RCV_RING_LRO	2
 
 #define MIN_CMD_DESCRIPTORS		64
 #define MIN_RCV_DESCRIPTORS		64
@@ -144,15 +142,12 @@
 #define MAX_RCV_DESCRIPTORS_10G 	8192
 #define MAX_JUMBO_RCV_DESCRIPTORS_1G	512
 #define MAX_JUMBO_RCV_DESCRIPTORS_10G	1024
-#define MAX_LRO_RCV_DESCRIPTORS		8
 
 #define DEFAULT_RCV_DESCRIPTORS_1G	2048
 #define DEFAULT_RCV_DESCRIPTORS_10G	4096
 
 #define get_next_index(index, length)	\
 	(((index) + 1) & ((length) - 1))
-
-#define MPORT_MULTI_FUNCTION_MODE 0x2222
 
 /*
  * Following data structures describe the descriptors that will be used.
@@ -399,13 +394,9 @@ struct qlcnic_hardware_context {
 
 	unsigned long pci_len0;
 
-	u32 ocm_win;
-	u32 crb_win;
-
 	rwlock_t crb_lock;
 	struct mutex mem_lock;
 
-	u8 cut_through;
 	u8 revision_id;
 	u8 pci_func;
 	u8 linkup;
@@ -428,6 +419,10 @@ struct qlcnic_adapter_stats {
 	u64  xmit_on;
 	u64  xmit_off;
 	u64  skb_alloc_failure;
+	u64  null_skb;
+	u64  null_rxbuf;
+	u64  rx_dma_map_error;
+	u64  tx_dma_map_error;
 };
 
 /*
@@ -916,14 +911,12 @@ struct qlcnic_adapter {
 	u16 num_txd;
 	u16 num_rxd;
 	u16 num_jumbo_rxd;
-	u16 num_lro_rxd;
 
 	u8 max_rds_rings;
 	u8 max_sds_rings;
 	u8 driver_mismatch;
 	u8 msix_supported;
 	u8 rx_csum;
-	u8 pci_using_dac;
 	u8 portnum;
 	u8 physical_port;
 
@@ -958,10 +951,14 @@ struct qlcnic_adapter {
 	u8 dev_state;
 	u8 diag_test;
 	u8 diag_cnt;
+	u8 reset_ack_timeo;
+	u8 dev_init_timeo;
 	u8 rsrd1;
-	u16 rsrd2;
+	u16 msg_enable;
 
 	u8 mac_addr[ETH_ALEN];
+
+	u64 dev_rst_time;
 
 	struct qlcnic_adapter_stats stats;
 
@@ -994,6 +991,11 @@ u32 qlcnic_hw_read_wx_2M(struct qlcnic_adapter *adapter, ulong off);
 int qlcnic_hw_write_wx_2M(struct qlcnic_adapter *, ulong off, u32 data);
 int qlcnic_pci_mem_write_2M(struct qlcnic_adapter *, u64 off, u64 data);
 int qlcnic_pci_mem_read_2M(struct qlcnic_adapter *, u64 off, u64 *data);
+void qlcnic_pci_camqm_read_2M(struct qlcnic_adapter *, u64, u64 *);
+void qlcnic_pci_camqm_write_2M(struct qlcnic_adapter *, u64, u64);
+
+#define ADDR_IN_RANGE(addr, low, high)	\
+	(((addr) < (high)) && ((addr) >= (low)))
 
 #define QLCRD32(adapter, off) \
 	(qlcnic_hw_read_wx_2M(adapter, off))
@@ -1035,6 +1037,7 @@ int qlcnic_need_fw_reset(struct qlcnic_adapter *adapter);
 void qlcnic_request_firmware(struct qlcnic_adapter *adapter);
 void qlcnic_release_firmware(struct qlcnic_adapter *adapter);
 int qlcnic_pinit_from_rom(struct qlcnic_adapter *adapter);
+int qlcnic_setup_idc_param(struct qlcnic_adapter *adapter);
 
 int qlcnic_rom_fast_read(struct qlcnic_adapter *adapter, int addr, int *valp);
 int qlcnic_rom_fast_read_words(struct qlcnic_adapter *adapter, int addr,
@@ -1127,5 +1130,12 @@ static inline u32 qlcnic_tx_avail(struct qlcnic_host_tx_ring *tx_ring)
 }
 
 extern const struct ethtool_ops qlcnic_ethtool_ops;
+
+#define QLCDB(adapter, lvl, _fmt, _args...) do {	\
+	if (NETIF_MSG_##lvl & adapter->msg_enable)	\
+		printk(KERN_INFO "%s: %s: " _fmt,	\
+			 dev_name(&adapter->pdev->dev),	\
+			__func__, ##_args);		\
+	} while (0)
 
 #endif				/* __QLCNIC_H_ */

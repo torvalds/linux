@@ -128,7 +128,7 @@ static const struct rtc_class_ops ds1742_rtc_ops = {
 	.set_time	= ds1742_rtc_set_time,
 };
 
-static ssize_t ds1742_nvram_read(struct kobject *kobj,
+static ssize_t ds1742_nvram_read(struct file *filp, struct kobject *kobj,
 				 struct bin_attribute *bin_attr,
 				 char *buf, loff_t pos, size_t size)
 {
@@ -143,7 +143,7 @@ static ssize_t ds1742_nvram_read(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t ds1742_nvram_write(struct kobject *kobj,
+static ssize_t ds1742_nvram_write(struct file *filp, struct kobject *kobj,
 				  struct bin_attribute *bin_attr,
 				  char *buf, loff_t pos, size_t size)
 {

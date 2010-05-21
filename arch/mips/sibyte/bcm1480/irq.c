@@ -253,7 +253,7 @@ void __init init_bcm1480_irqs(void)
  * On the second cpu, everything is set to IP5, which is
  * ignored, EXCEPT the mailbox interrupt.  That one is
  * set to IP[2] so it is handled.  This is needed so we
- * can do cross-cpu function calls, as requred by SMP
+ * can do cross-cpu function calls, as required by SMP
  */
 
 #define IMR_IP2_VAL	K_BCM1480_INT_MAP_I0

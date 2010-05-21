@@ -134,8 +134,6 @@ make_coherent(struct address_space *mapping, struct vm_area_struct *vma,
 	flush_dcache_mmap_unlock(mapping);
 	if (aliases)
 		do_adjust_pte(vma, addr, pfn, ptep);
-	else
-		flush_cache_page(vma, addr, pfn);
 }
 
 /*

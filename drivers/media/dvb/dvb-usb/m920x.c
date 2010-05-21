@@ -589,7 +589,7 @@ static struct m920x_inits pinnacle310e_init[] = {
 };
 
 /* ir keymaps */
-static struct dvb_usb_rc_key megasky_rc_keys [] = {
+static struct dvb_usb_rc_key ir_codes_megasky_table [] = {
 	{ 0x0012, KEY_POWER },
 	{ 0x001e, KEY_CYCLEWINDOWS }, /* min/max */
 	{ 0x0002, KEY_CHANNELUP },
@@ -608,7 +608,7 @@ static struct dvb_usb_rc_key megasky_rc_keys [] = {
 	{ 0x000e, KEY_COFFEE }, /* "MTS" */
 };
 
-static struct dvb_usb_rc_key tvwalkertwin_rc_keys [] = {
+static struct dvb_usb_rc_key ir_codes_tvwalkertwin_table [] = {
 	{ 0x0001, KEY_ZOOM }, /* Full Screen */
 	{ 0x0002, KEY_CAMERA }, /* snapshot */
 	{ 0x0003, KEY_MUTE },
@@ -628,7 +628,7 @@ static struct dvb_usb_rc_key tvwalkertwin_rc_keys [] = {
 	{ 0x001e, KEY_VOLUMEUP },
 };
 
-static struct dvb_usb_rc_key pinnacle310e_rc_keys[] = {
+static struct dvb_usb_rc_key ir_codes_pinnacle310e_table[] = {
 	{ 0x16, KEY_POWER },
 	{ 0x17, KEY_FAVORITES },
 	{ 0x0f, KEY_TEXT },
@@ -785,8 +785,8 @@ static struct dvb_usb_device_properties megasky_properties = {
 	.download_firmware = m920x_firmware_download,
 
 	.rc_interval      = 100,
-	.rc_key_map       = megasky_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(megasky_rc_keys),
+	.rc_key_map       = ir_codes_megasky_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_megasky_table),
 	.rc_query         = m920x_rc_query,
 
 	.size_of_priv     = sizeof(struct m920x_state),
@@ -886,8 +886,8 @@ static struct dvb_usb_device_properties tvwalkertwin_properties = {
 	.download_firmware = m920x_firmware_download,
 
 	.rc_interval      = 100,
-	.rc_key_map       = tvwalkertwin_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(tvwalkertwin_rc_keys),
+	.rc_key_map       = ir_codes_tvwalkertwin_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_tvwalkertwin_table),
 	.rc_query         = m920x_rc_query,
 
 	.size_of_priv     = sizeof(struct m920x_state),
@@ -993,8 +993,8 @@ static struct dvb_usb_device_properties pinnacle_pctv310e_properties = {
 	.download_firmware = NULL,
 
 	.rc_interval      = 100,
-	.rc_key_map       = pinnacle310e_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(pinnacle310e_rc_keys),
+	.rc_key_map       = ir_codes_pinnacle310e_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_pinnacle310e_table),
 	.rc_query         = m920x_rc_query,
 
 	.size_of_priv     = sizeof(struct m920x_state),

@@ -28,7 +28,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
-#include <linux/bootmem.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
 

@@ -807,7 +807,7 @@ el3_tx_timeout (struct net_device *dev)
 		   dev->name, inb(ioaddr + TX_STATUS), inw(ioaddr + EL3_STATUS),
 		   inw(ioaddr + TX_FREE));
 	dev->stats.tx_errors++;
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	/* Issue TX_RESET and TX_START commands. */
 	outw(TxReset, ioaddr + EL3_CMD);
 	outw(TxEnable, ioaddr + EL3_CMD);
@@ -868,7 +868,6 @@ el3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* ... and the packet rounded to a doubleword. */
 	outsl(ioaddr + TX_FIFO, skb->data, (skb->len + 3) >> 2);
 
-	dev->trans_start = jiffies;
 	if (inw(ioaddr + TX_FREE) > 1536)
 		netif_start_queue(dev);
 	else
@@ -1038,7 +1037,6 @@ static void update_stats(struct net_device *dev)
 	/* Back to window 1, and turn statistics back on. */
 	EL3WINDOW(1);
 	outw(StatsEnable, ioaddr + EL3_CMD);
-	return;
 }
 
 static int

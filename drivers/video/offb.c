@@ -285,7 +285,7 @@ static void offb_destroy(struct fb_info *info)
 {
 	if (info->screen_base)
 		iounmap(info->screen_base);
-	release_mem_region(info->aperture_base, info->aperture_size);
+	release_mem_region(info->apertures->ranges[0].base, info->apertures->ranges[0].size);
 	framebuffer_release(info);
 }
 
@@ -491,8 +491,11 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 	var->vmode = FB_VMODE_NONINTERLACED;
 
 	/* set offb aperture size for generic probing */
-	info->aperture_base = address;
-	info->aperture_size = fix->smem_len;
+	info->apertures = alloc_apertures(1);
+	if (!info->apertures)
+		goto out_aper;
+	info->apertures->ranges[0].base = address;
+	info->apertures->ranges[0].size = fix->smem_len;
 
 	info->fbops = &offb_ops;
 	info->screen_base = ioremap(address, fix->smem_len);
@@ -501,17 +504,20 @@ static void __init offb_init_fb(const char *name, const char *full_name,
 
 	fb_alloc_cmap(&info->cmap, 256, 0);
 
-	if (register_framebuffer(info) < 0) {
-		iounmap(par->cmap_adr);
-		par->cmap_adr = NULL;
-		iounmap(info->screen_base);
-		framebuffer_release(info);
-		release_mem_region(res_start, res_size);
-		return;
-	}
+	if (register_framebuffer(info) < 0)
+		goto out_err;
 
 	printk(KERN_INFO "fb%d: Open Firmware frame buffer device on %s\n",
 	       info->node, full_name);
+	return;
+
+out_err:
+	iounmap(info->screen_base);
+out_aper:
+	iounmap(par->cmap_adr);
+	par->cmap_adr = NULL;
+	framebuffer_release(info);
+	release_mem_region(res_start, res_size);
 }
 
 

@@ -13,6 +13,7 @@
 #include <linux/pci.h>
 #include <linux/module.h>
 #include <linux/slab.h>
+#include <linux/random.h>
 #include "net_driver.h"
 #include "bitfield.h"
 #include "efx.h"
@@ -274,6 +275,9 @@ static int siena_probe_nic(struct efx_nic *efx)
 		goto fail5;
 	}
 
+	get_random_bytes(&nic_data->ipv6_rss_key,
+			 sizeof(nic_data->ipv6_rss_key));
+
 	return 0;
 
 fail5:
@@ -293,6 +297,7 @@ fail1:
  */
 static int siena_init_nic(struct efx_nic *efx)
 {
+	struct siena_nic_data *nic_data = efx->nic_data;
 	efx_oword_t temp;
 	int rc;
 
@@ -318,6 +323,20 @@ static int siena_init_nic(struct efx_nic *efx)
 	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_DESC_PUSH_EN, 0);
 	EFX_SET_OWORD_FIELD(temp, FRF_BZ_RX_INGR_EN, 1);
 	efx_writeo(efx, &temp, FR_AZ_RX_CFG);
+
+	/* Enable IPv6 RSS */
+	BUILD_BUG_ON(sizeof(nic_data->ipv6_rss_key) !=
+		     2 * sizeof(temp) + FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8 ||
+		     FRF_CZ_RX_RSS_IPV6_TKEY_HI_LBN != 0);
+	memcpy(&temp, nic_data->ipv6_rss_key, sizeof(temp));
+	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG1);
+	memcpy(&temp, nic_data->ipv6_rss_key + sizeof(temp), sizeof(temp));
+	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG2);
+	EFX_POPULATE_OWORD_2(temp, FRF_CZ_RX_RSS_IPV6_THASH_ENABLE, 1,
+			     FRF_CZ_RX_RSS_IPV6_IP_THASH_ENABLE, 1);
+	memcpy(&temp, nic_data->ipv6_rss_key + 2 * sizeof(temp),
+	       FRF_CZ_RX_RSS_IPV6_TKEY_HI_WIDTH / 8);
+	efx_writeo(efx, &temp, FR_CZ_RX_RSS_IPV6_REG3);
 
 	if (efx_nic_rx_xoff_thresh >= 0 || efx_nic_rx_xon_thresh >= 0)
 		/* No MCDI operation has been defined to set thresholds */

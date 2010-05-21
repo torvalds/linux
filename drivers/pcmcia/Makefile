@@ -2,15 +2,18 @@
 # Makefile for the kernel pcmcia subsystem (c/o David Hinds)
 #
 
-pcmcia_core-y					+= cs.o rsrc_mgr.o socket_sysfs.o
+pcmcia_core-y					+= cs.o socket_sysfs.o
 pcmcia_core-$(CONFIG_CARDBUS)			+= cardbus.o
 obj-$(CONFIG_PCCARD)				+= pcmcia_core.o
 
-pcmcia-y					+= ds.o pcmcia_resource.o cistpl.o
+pcmcia-y					+= ds.o pcmcia_resource.o cistpl.o pcmcia_cis.o
 pcmcia-$(CONFIG_PCMCIA_IOCTL)			+= pcmcia_ioctl.o
 obj-$(CONFIG_PCMCIA)				+= pcmcia.o
 
-obj-$(CONFIG_PCCARD_NONSTATIC)			+= rsrc_nonstatic.o
+pcmcia_rsrc-y					+= rsrc_mgr.o
+pcmcia_rsrc-$(CONFIG_PCCARD_NONSTATIC)		+= rsrc_nonstatic.o
+pcmcia_rsrc-$(CONFIG_PCCARD_IODYN)		+= rsrc_iodyn.o
+obj-$(CONFIG_PCCARD)				+= pcmcia_rsrc.o
 
 
 # socket drivers
@@ -66,6 +69,7 @@ pxa2xx-obj-$(CONFIG_MACH_PALMTC)		+= pxa2xx_palmtc.o
 pxa2xx-obj-$(CONFIG_MACH_PALMLD)		+= pxa2xx_palmld.o
 pxa2xx-obj-$(CONFIG_MACH_E740)			+= pxa2xx_e740.o
 pxa2xx-obj-$(CONFIG_MACH_STARGATE2)		+= pxa2xx_stargate2.o
+pxa2xx-obj-$(CONFIG_MACH_VPAC270)		+= pxa2xx_vpac270.o
 
 obj-$(CONFIG_PCMCIA_PXA2XX)			+= pxa2xx_base.o $(pxa2xx-obj-y)
 

@@ -297,31 +297,9 @@ static void xirc2ps_detach(struct pcmcia_device *p_dev);
 
 static irqreturn_t xirc2ps_interrupt(int irq, void *dev_id);
 
-/****************
- * A linked list of "instances" of the device.  Each actual
- * PCMCIA card corresponds to one device instance, and is described
- * by one struct pcmcia_device structure (defined in ds.h).
- *
- * You may not want to use a linked list for this -- for example, the
- * memory card driver uses an array of struct pcmcia_device pointers, where minor
- * device numbers are used to derive the corresponding array index.
- */
-
-/****************
- * A driver needs to provide a dev_node_t structure for each device
- * on a card.  In some cases, there is only one device per card (for
- * example, ethernet cards, modems).  In other cases, there may be
- * many actual or logical devices (SCSI adapters, memory cards with
- * multiple partitions).  The dev_node_t structures need to be kept
- * in a linked list starting at the 'dev' field of a struct pcmcia_device
- * structure.  We allocate them in the card's private data structure,
- * because they generally can't be allocated dynamically.
- */
-
 typedef struct local_info_t {
 	struct net_device	*dev;
 	struct pcmcia_device	*p_dev;
-    dev_node_t node;
 
     int card_type;
     int probe_port;
@@ -555,7 +533,6 @@ xirc2ps_probe(struct pcmcia_device *link)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex = 1;
-    link->irq.Handler = xirc2ps_interrupt;
 
     /* Fill in card specific entries */
     dev->netdev_ops = &netdev_ops;
@@ -580,8 +557,7 @@ xirc2ps_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "detach\n");
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     xirc2ps_release(link);
 
@@ -841,7 +817,6 @@ xirc2ps_config(struct pcmcia_device * link)
 	    link->conf.Attributes |= CONF_ENABLE_SPKR;
 	    link->conf.Status |= CCSR_AUDIO_ENA;
 	}
-	link->irq.Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
 	link->io.NumPorts2 = 8;
 	link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
 	if (local->dingo) {
@@ -866,7 +841,6 @@ xirc2ps_config(struct pcmcia_device * link)
 	}
 	printk(KNOT_XIRC "no ports available\n");
     } else {
-	link->irq.Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
 	link->io.NumPorts1 = 16;
 	for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
 	    link->io.BasePort1 = ioaddr;
@@ -885,7 +859,7 @@ xirc2ps_config(struct pcmcia_device * link)
      * Now allocate an interrupt line.	Note that this does not
      * actually assign a handler to the interrupt.
      */
-    if ((err=pcmcia_request_irq(link, &link->irq)))
+    if ((err=pcmcia_request_irq(link, xirc2ps_interrupt)))
 	goto config_error;
 
     /****************
@@ -982,22 +956,18 @@ xirc2ps_config(struct pcmcia_device * link)
 	printk(KNOT_XIRC "invalid if_port requested\n");
 
     /* we can now register the device with the net subsystem */
-    dev->irq = link->irq.AssignedIRQ;
+    dev->irq = link->irq;
     dev->base_addr = link->io.BasePort1;
 
     if (local->dingo)
 	do_reset(dev, 1); /* a kludge to make the cem56 work */
 
-    link->dev_node = &local->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     if ((err=register_netdev(dev))) {
 	printk(KNOT_XIRC "register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto config_error;
     }
-
-    strcpy(local->node.dev_name, dev->name);
 
     /* give some infos about the hardware */
     printk(KERN_INFO "%s: %s: port %#3lx, irq %d, hwaddr %pM\n",
@@ -1295,7 +1265,7 @@ xirc2ps_tx_timeout_task(struct work_struct *work)
 	struct net_device *dev = local->dev;
     /* reset the card */
     do_reset(dev,1);
-    dev->trans_start = jiffies;
+    dev->trans_start = jiffies; /* prevent tx timeout */
     netif_wake_queue(dev);
 }
 
@@ -1358,7 +1328,6 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	PutByte(XIRCREG_CR, TransmitPacket|EnableIntr);
 
     dev_kfree_skb (skb);
-    dev->trans_start = jiffies;
     dev->stats.tx_bytes += pktlen;
     netif_start_queue(dev);
     return NETDEV_TX_OK;
@@ -1398,7 +1367,7 @@ static void set_addresses(struct net_device *dev)
 {
 	unsigned int ioaddr = dev->base_addr;
 	local_info_t *lp = netdev_priv(dev);
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	struct set_address_info sa_info;
 	int i;
 
@@ -1413,10 +1382,10 @@ static void set_addresses(struct net_device *dev)
 
 	set_address(&sa_info, dev->dev_addr);
 	i = 0;
-	netdev_for_each_mc_addr(dmi, dev) {
+	netdev_for_each_mc_addr(ha, dev) {
 		if (i++ == 9)
 			break;
-		set_address(&sa_info, dmi->dmi_addr);
+		set_address(&sa_info, ha->addr);
 	}
 	while (i++ < 9)
 		set_address(&sa_info, dev->dev_addr);

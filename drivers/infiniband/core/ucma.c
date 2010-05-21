@@ -1220,7 +1220,8 @@ static int ucma_open(struct inode *inode, struct file *filp)
 
 	filp->private_data = file;
 	file->filp = filp;
-	return 0;
+
+	return nonseekable_open(inode, filp);
 }
 
 static int ucma_close(struct inode *inode, struct file *filp)
@@ -1250,6 +1251,7 @@ static const struct file_operations ucma_fops = {
 	.release = ucma_close,
 	.write	 = ucma_write,
 	.poll    = ucma_poll,
+	.llseek	 = no_llseek,
 };
 
 static struct miscdevice ucma_misc = {

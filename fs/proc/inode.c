@@ -232,9 +232,9 @@ static long proc_reg_unlocked_ioctl(struct file *file, unsigned int cmd, unsigne
 		if (rv == -ENOIOCTLCMD)
 			rv = -EINVAL;
 	} else if (ioctl) {
-		lock_kernel();
+		WARN_ONCE(1, "Procfs ioctl handlers must use unlocked_ioctl, "
+			  "%pf will be called without the Bkl held\n", ioctl);
 		rv = ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
-		unlock_kernel();
 	}
 
 	pde_users_dec(pde);

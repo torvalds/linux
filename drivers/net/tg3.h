@@ -23,11 +23,8 @@
 #define TG3_BDINFO_NIC_ADDR		0xcUL /* 32-bit */
 #define TG3_BDINFO_SIZE			0x10UL
 
-#define RX_COPY_THRESHOLD  		256
-
 #define TG3_RX_INTERNAL_RING_SZ_5906	32
 
-#define RX_STD_MAX_SIZE			1536
 #define RX_STD_MAX_SIZE_5705		512
 #define RX_JUMBO_MAX_SIZE		0xdeadbeef /* XXX */
 
@@ -183,6 +180,7 @@
 #define   METAL_REV_B2			 0x02
 #define TG3PCI_DMA_RW_CTRL		0x0000006c
 #define  DMA_RWCTRL_DIS_CACHE_ALIGNMENT  0x00000001
+#define  DMA_RWCTRL_CRDRDR_RDMA_MRRS_MSK 0x00000380
 #define  DMA_RWCTRL_READ_BNDRY_MASK	 0x00000700
 #define  DMA_RWCTRL_READ_BNDRY_DISAB	 0x00000000
 #define  DMA_RWCTRL_READ_BNDRY_16	 0x00000100
@@ -252,7 +250,7 @@
 /* 0x94 --> 0x98 unused */
 #define TG3PCI_STD_RING_PROD_IDX	0x00000098 /* 64-bit */
 #define TG3PCI_RCV_RET_RING_CON_IDX	0x000000a0 /* 64-bit */
-/* 0xa0 --> 0xb8 unused */
+/* 0xa8 --> 0xb8 unused */
 #define TG3PCI_DUAL_MAC_CTRL		0x000000b8
 #define  DUAL_MAC_CTRL_CH_MASK		 0x00000003
 #define  DUAL_MAC_CTRL_ID		 0x00000004
@@ -1854,6 +1852,8 @@
 #define TG3_PCIE_TLDLPL_PORT		0x00007c00
 #define TG3_PCIE_PL_LO_PHYCTL1		 0x00000004
 #define TG3_PCIE_PL_LO_PHYCTL1_L1PLLPD_EN	  0x00001000
+#define TG3_PCIE_PL_LO_PHYCTL5		 0x00000014
+#define TG3_PCIE_PL_LO_PHYCTL5_DIS_L2CLKREQ	  0x80000000
 
 /* OTP bit definitions */
 #define TG3_OTP_AGCTGT_MASK		0x000000e0
@@ -2082,7 +2082,7 @@
 #define MII_TG3_DSP_AADJ1CH0		0x001f
 #define MII_TG3_DSP_AADJ1CH3		0x601f
 #define  MII_TG3_DSP_AADJ1CH3_ADCCKADJ	0x0002
-#define MII_TG3_DSP_EXP8		0x0708
+#define MII_TG3_DSP_EXP8		0x0f08
 #define  MII_TG3_DSP_EXP8_REJ2MHz	0x0001
 #define  MII_TG3_DSP_EXP8_AEDW		0x0200
 #define MII_TG3_DSP_EXP75		0x0f75
@@ -2512,7 +2512,7 @@ struct tg3_hw_stats {
  */
 struct ring_info {
 	struct sk_buff			*skb;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
+	DEFINE_DMA_UNMAP_ADDR(mapping);
 };
 
 struct tg3_config_info {
@@ -2561,7 +2561,7 @@ struct tg3_bufmgr_config {
 
 struct tg3_ethtool_stats {
 	/* Statistics maintained by Receive MAC. */
-	u64 	    	rx_octets;
+	u64		rx_octets;
 	u64		rx_fragments;
 	u64		rx_ucast_packets;
 	u64		rx_mcast_packets;
@@ -2751,9 +2751,11 @@ struct tg3 {
 	struct tg3_napi			napi[TG3_IRQ_MAX_VECS];
 	void				(*write32_rx_mbox) (struct tg3 *, u32,
 							    u32);
+	u32				rx_copy_thresh;
 	u32				rx_pending;
 	u32				rx_jumbo_pending;
 	u32				rx_std_max_post;
+	u32				rx_offset;
 	u32				rx_pkt_map_sz;
 #if TG3_VLAN_TAG_USED
 	struct vlan_group		*vlgrp;
@@ -2773,7 +2775,6 @@ struct tg3 {
 	unsigned long			last_event_jiffies;
 	};
 
-	u32				rx_offset;
 	u32				tg3_flags;
 #define TG3_FLAG_TAGGED_STATUS		0x00000001
 #define TG3_FLAG_TXD_MBOX_HWBUG		0x00000002

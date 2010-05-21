@@ -215,6 +215,7 @@ union external_hw_config_reg {
 /*  Mailbox command definitions */
 #define MBOX_CMD_ABOUT_FW			0x0009
 #define MBOX_CMD_PING				0x000B
+#define MBOX_CMD_ABORT_TASK			0x0015
 #define MBOX_CMD_LUN_RESET			0x0016
 #define MBOX_CMD_TARGET_WARM_RESET		0x0017
 #define MBOX_CMD_GET_MANAGEMENT_DATA		0x001E
@@ -258,13 +259,15 @@ union external_hw_config_reg {
 /* Mailbox 1 */
 #define FW_STATE_READY				0x0000
 #define FW_STATE_CONFIG_WAIT			0x0001
-#define FW_STATE_WAIT_LOGIN			0x0002
+#define FW_STATE_WAIT_AUTOCONNECT		0x0002
 #define FW_STATE_ERROR				0x0004
-#define FW_STATE_DHCP_IN_PROGRESS		0x0008
+#define FW_STATE_CONFIGURING_IP			0x0008
 
 /* Mailbox 3 */
 #define FW_ADDSTATE_OPTICAL_MEDIA		0x0001
-#define FW_ADDSTATE_DHCP_ENABLED		0x0002
+#define FW_ADDSTATE_DHCPv4_ENABLED		0x0002
+#define FW_ADDSTATE_DHCPv4_LEASE_ACQUIRED	0x0004
+#define FW_ADDSTATE_DHCPv4_LEASE_EXPIRED	0x0008
 #define FW_ADDSTATE_LINK_UP			0x0010
 #define FW_ADDSTATE_ISNS_SVC_ENABLED		0x0020
 #define MBOX_CMD_GET_DATABASE_ENTRY_DEFAULTS	0x006B
@@ -320,6 +323,8 @@ union external_hw_config_reg {
 /* Host Adapter Initialization Control Block (from host) */
 struct addr_ctrl_blk {
 	uint8_t version;	/* 00 */
+#define  IFCB_VER_MIN			0x01
+#define  IFCB_VER_MAX			0x02
 	uint8_t control;	/* 01 */
 
 	uint16_t fw_options;	/* 02-03 */
@@ -351,11 +356,16 @@ struct addr_ctrl_blk {
 	uint16_t iscsi_opts;	/* 30-31 */
 	uint16_t ipv4_tcp_opts;	/* 32-33 */
 	uint16_t ipv4_ip_opts;	/* 34-35 */
+#define  IPOPT_IPv4_PROTOCOL_ENABLE	0x8000
 
 	uint16_t iscsi_max_pdu_size;	/* 36-37 */
 	uint8_t ipv4_tos;	/* 38 */
 	uint8_t ipv4_ttl;	/* 39 */
 	uint8_t acb_version;	/* 3A */
+#define ACB_NOT_SUPPORTED		0x00
+#define ACB_SUPPORTED			0x02 /* Capable of ACB Version 2
+						Features */
+
 	uint8_t res2;	/* 3B */
 	uint16_t def_timeout;	/* 3C-3D */
 	uint16_t iscsi_fburst_len;	/* 3E-3F */
@@ -397,16 +407,35 @@ struct addr_ctrl_blk {
 	uint32_t cookie;	/* 200-203 */
 	uint16_t ipv6_port;	/* 204-205 */
 	uint16_t ipv6_opts;	/* 206-207 */
+#define IPV6_OPT_IPV6_PROTOCOL_ENABLE	0x8000
+
 	uint16_t ipv6_addtl_opts;	/* 208-209 */
+#define IPV6_ADDOPT_NEIGHBOR_DISCOVERY_ADDR_ENABLE	0x0002 /* Pri ACB
+								  Only */
+#define IPV6_ADDOPT_AUTOCONFIG_LINK_LOCAL_ADDR		0x0001
+
 	uint16_t ipv6_tcp_opts;	/* 20A-20B */
 	uint8_t ipv6_tcp_wsf;	/* 20C */
 	uint16_t ipv6_flow_lbl;	/* 20D-20F */
-	uint8_t ipv6_gw_addr[16];	/* 210-21F */
+	uint8_t ipv6_dflt_rtr_addr[16]; /* 210-21F */
 	uint16_t ipv6_vlan_tag;	/* 220-221 */
 	uint8_t ipv6_lnk_lcl_addr_state;/* 222 */
 	uint8_t ipv6_addr0_state;	/* 223 */
 	uint8_t ipv6_addr1_state;	/* 224 */
-	uint8_t ipv6_gw_state;	/* 225 */
+#define IP_ADDRSTATE_UNCONFIGURED	0
+#define IP_ADDRSTATE_INVALID		1
+#define IP_ADDRSTATE_ACQUIRING		2
+#define IP_ADDRSTATE_TENTATIVE		3
+#define IP_ADDRSTATE_DEPRICATED		4
+#define IP_ADDRSTATE_PREFERRED		5
+#define IP_ADDRSTATE_DISABLING		6
+
+	uint8_t ipv6_dflt_rtr_state;    /* 225 */
+#define IPV6_RTRSTATE_UNKNOWN                   0
+#define IPV6_RTRSTATE_MANUAL                    1
+#define IPV6_RTRSTATE_ADVERTISED                3
+#define IPV6_RTRSTATE_STALE                     4
+
 	uint8_t ipv6_traffic_class;	/* 226 */
 	uint8_t ipv6_hop_limit;	/* 227 */
 	uint8_t ipv6_if_id[8];	/* 228-22F */
@@ -424,7 +453,7 @@ struct addr_ctrl_blk {
 
 struct init_fw_ctrl_blk {
 	struct addr_ctrl_blk pri;
-	struct addr_ctrl_blk sec;
+/*	struct addr_ctrl_blk sec;*/
 };
 
 /*************************************************************************/
@@ -433,6 +462,9 @@ struct dev_db_entry {
 	uint16_t options;	/* 00-01 */
 #define DDB_OPT_DISC_SESSION  0x10
 #define DDB_OPT_TARGET	      0x02 /* device is a target */
+#define DDB_OPT_IPV6_DEVICE	0x100
+#define DDB_OPT_IPV6_NULL_LINK_LOCAL		0x800 /* post connection */
+#define DDB_OPT_IPV6_FW_DEFINED_LINK_LOCAL	0x800 /* pre connection */
 
 	uint16_t exec_throttle;	/* 02-03 */
 	uint16_t exec_count;	/* 04-05 */
@@ -468,7 +500,7 @@ struct dev_db_entry {
 					 * pointer to a string so we
 					 * don't have to reserve soooo
 					 * much RAM */
-	uint8_t ipv6_addr[0x10];/* 1A0-1AF */
+	uint8_t link_local_ipv6_addr[0x10]; /* 1A0-1AF */
 	uint8_t res5[0x10];	/* 1B0-1BF */
 	uint16_t ddb_link;	/* 1C0-1C1 */
 	uint16_t chap_tbl_idx;	/* 1C2-1C3 */

@@ -1014,8 +1014,6 @@ static netdev_tx_t b44_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (TX_BUFFS_AVAIL(bp) < 1)
 		netif_stop_queue(dev);
 
-	dev->trans_start = jiffies;
-
 out_unlock:
 	spin_unlock_irqrestore(&bp->lock, flags);
 
@@ -1681,15 +1679,15 @@ static struct net_device_stats *b44_get_stats(struct net_device *dev)
 
 static int __b44_load_mcast(struct b44 *bp, struct net_device *dev)
 {
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	int i, num_ents;
 
 	num_ents = min_t(int, netdev_mc_count(dev), B44_MCAST_TABLE_SIZE);
 	i = 0;
-	netdev_for_each_mc_addr(mclist, dev) {
+	netdev_for_each_mc_addr(ha, dev) {
 		if (i == num_ents)
 			break;
-		__b44_cam_write(bp, mclist->dmi_addr, i++ + 1);
+		__b44_cam_write(bp, ha->addr, i++ + 1);
 	}
 	return i+1;
 }

@@ -2912,7 +2912,7 @@ typedef struct _ATOM_ANALOG_TV_INFO_V1_2
   UCHAR                    ucTV_BootUpDefaultStandard; 
   UCHAR                    ucExt_TV_ASIC_ID;
   UCHAR                    ucExt_TV_ASIC_SlaveAddr;
-  ATOM_DTD_FORMAT          aModeTimings[MAX_SUPPORTED_TV_TIMING];
+  ATOM_DTD_FORMAT          aModeTimings[MAX_SUPPORTED_TV_TIMING_V1_2];
 }ATOM_ANALOG_TV_INFO_V1_2;
 
 typedef struct _ATOM_DPCD_INFO
@@ -3780,7 +3780,7 @@ typedef struct _ATOM_ASIC_SS_ASSIGNMENT
 	UCHAR								ucReserved[2];
 }ATOM_ASIC_SS_ASSIGNMENT;
 
-//Define ucClockIndication, SW uses the IDs below to search if the SS is requried/enabled on a clock branch/signal type.
+//Define ucClockIndication, SW uses the IDs below to search if the SS is required/enabled on a clock branch/signal type.
 //SS is not required or enabled if a match is not found.
 #define ASIC_INTERNAL_MEMORY_SS			1
 #define ASIC_INTERNAL_ENGINE_SS			2
@@ -5742,12 +5742,35 @@ typedef struct _ATOM_PPLIB_THERMALCONTROLLER
 #define ATOM_PP_THERMALCONTROLLER_RV6xx     7
 #define ATOM_PP_THERMALCONTROLLER_RV770     8
 #define ATOM_PP_THERMALCONTROLLER_ADT7473   9
+#define ATOM_PP_THERMALCONTROLLER_EXTERNAL_GPIO     11
+#define ATOM_PP_THERMALCONTROLLER_EVERGREEN 12
+#define ATOM_PP_THERMALCONTROLLER_ADT7473_WITH_INTERNAL   0x89    // ADT7473 Fan Control + Internal Thermal Controller
 
 typedef struct _ATOM_PPLIB_STATE
 {
     UCHAR ucNonClockStateIndex;
     UCHAR ucClockStateIndices[1]; // variable-sized
 } ATOM_PPLIB_STATE;
+
+typedef struct _ATOM_PPLIB_FANTABLE
+{
+    UCHAR   ucFanTableFormat;                // Change this if the table format changes or version changes so that the other fields are not the same.
+    UCHAR   ucTHyst;                         // Temperature hysteresis. Integer.
+    USHORT  usTMin;                          // The temperature, in 0.01 centigrades, below which we just run at a minimal PWM.
+    USHORT  usTMed;                          // The middle temperature where we change slopes.
+    USHORT  usTHigh;                         // The high point above TMed for adjusting the second slope.
+    USHORT  usPWMMin;                        // The minimum PWM value in percent (0.01% increments).
+    USHORT  usPWMMed;                        // The PWM value (in percent) at TMed.
+    USHORT  usPWMHigh;                       // The PWM value at THigh.
+} ATOM_PPLIB_FANTABLE;
+
+typedef struct _ATOM_PPLIB_EXTENDEDHEADER
+{
+    USHORT  usSize;
+    ULONG   ulMaxEngineClock;   // For Overdrive.
+    ULONG   ulMaxMemoryClock;   // For Overdrive.
+    // Add extra system parameters here, always adjust size to include all fields.
+} ATOM_PPLIB_EXTENDEDHEADER;
 
 //// ATOM_PPLIB_POWERPLAYTABLE::ulPlatformCaps
 #define ATOM_PP_PLATFORM_CAP_BACKBIAS 1
@@ -5762,6 +5785,12 @@ typedef struct _ATOM_PPLIB_STATE
 #define ATOM_PP_PLATFORM_CAP_SIDEPORTCONTROL 512
 #define ATOM_PP_PLATFORM_CAP_TURNOFFPLL_ASPML1 1024
 #define ATOM_PP_PLATFORM_CAP_HTLINKCONTROL 2048
+#define ATOM_PP_PLATFORM_CAP_MVDDCONTROL 4096
+#define ATOM_PP_PLATFORM_CAP_GOTO_BOOT_ON_ALERT 0x2000              // Go to boot state on alerts, e.g. on an AC->DC transition.
+#define ATOM_PP_PLATFORM_CAP_DONT_WAIT_FOR_VBLANK_ON_ALERT 0x4000   // Do NOT wait for VBLANK during an alert (e.g. AC->DC transition).
+#define ATOM_PP_PLATFORM_CAP_VDDCI_CONTROL 0x8000                   // Does the driver control VDDCI independently from VDDC.
+#define ATOM_PP_PLATFORM_CAP_REGULATOR_HOT 0x00010000               // Enable the 'regulator hot' feature.
+#define ATOM_PP_PLATFORM_CAP_BACO          0x00020000               // Does the driver supports BACO state.
 
 typedef struct _ATOM_PPLIB_POWERPLAYTABLE
 {
@@ -5797,6 +5826,21 @@ typedef struct _ATOM_PPLIB_POWERPLAYTABLE
 
 } ATOM_PPLIB_POWERPLAYTABLE;
 
+typedef struct _ATOM_PPLIB_POWERPLAYTABLE2
+{
+    ATOM_PPLIB_POWERPLAYTABLE basicTable;
+    UCHAR   ucNumCustomThermalPolicy;
+    USHORT  usCustomThermalPolicyArrayOffset;
+}ATOM_PPLIB_POWERPLAYTABLE2, *LPATOM_PPLIB_POWERPLAYTABLE2;
+
+typedef struct _ATOM_PPLIB_POWERPLAYTABLE3
+{
+    ATOM_PPLIB_POWERPLAYTABLE2 basicTable2;
+    USHORT                     usFormatID;                      // To be used ONLY by PPGen.
+    USHORT                     usFanTableOffset;
+    USHORT                     usExtendendedHeaderOffset;
+} ATOM_PPLIB_POWERPLAYTABLE3, *LPATOM_PPLIB_POWERPLAYTABLE3;
+
 //// ATOM_PPLIB_NONCLOCK_INFO::usClassification
 #define ATOM_PPLIB_CLASSIFICATION_UI_MASK          0x0007
 #define ATOM_PPLIB_CLASSIFICATION_UI_SHIFT         0
@@ -5816,7 +5860,9 @@ typedef struct _ATOM_PPLIB_POWERPLAYTABLE
 #define ATOM_PPLIB_CLASSIFICATION_UVDSTATE               0x0400
 #define ATOM_PPLIB_CLASSIFICATION_3DLOW                  0x0800
 #define ATOM_PPLIB_CLASSIFICATION_ACPI                   0x1000
-// remaining 3 bits are reserved
+#define ATOM_PPLIB_CLASSIFICATION_HD2STATE               0x2000
+#define ATOM_PPLIB_CLASSIFICATION_HDSTATE                0x4000
+#define ATOM_PPLIB_CLASSIFICATION_SDSTATE                0x8000
 
 //// ATOM_PPLIB_NONCLOCK_INFO::ulCapsAndSettings
 #define ATOM_PPLIB_SINGLE_DISPLAY_ONLY           0x00000001
@@ -5840,9 +5886,15 @@ typedef struct _ATOM_PPLIB_POWERPLAYTABLE
 
 #define ATOM_PPLIB_SOFTWARE_DISABLE_LOADBALANCING        0x00001000
 #define ATOM_PPLIB_SOFTWARE_ENABLE_SLEEP_FOR_TIMESTAMPS  0x00002000
+#define ATOM_PPLIB_DISALLOW_ON_DC                        0x00004000
 #define ATOM_PPLIB_ENABLE_VARIBRIGHT                     0x00008000
 
-#define ATOM_PPLIB_DISALLOW_ON_DC                       0x00004000
+//memory related flags
+#define ATOM_PPLIB_SWSTATE_MEMORY_DLL_OFF               0x000010000
+
+//M3 Arb    //2bits, current 3 sets of parameters in total
+#define ATOM_PPLIB_M3ARB_MASK                       0x00060000
+#define ATOM_PPLIB_M3ARB_SHIFT                      17
 
 // Contained in an array starting at the offset
 // in ATOM_PPLIB_POWERPLAYTABLE::usNonClockInfoArrayOffset.
@@ -5860,6 +5912,9 @@ typedef struct _ATOM_PPLIB_NONCLOCK_INFO
 // Contained in an array starting at the offset
 // in ATOM_PPLIB_POWERPLAYTABLE::usClockInfoArrayOffset.
 // referenced from ATOM_PPLIB_STATE::ucClockStateIndices
+#define ATOM_PPLIB_NONCLOCKINFO_VER1      12
+#define ATOM_PPLIB_NONCLOCKINFO_VER2      24
+
 typedef struct _ATOM_PPLIB_R600_CLOCK_INFO
 {
       USHORT usEngineClockLow;
@@ -5882,6 +5937,23 @@ typedef struct _ATOM_PPLIB_R600_CLOCK_INFO
 #define ATOM_PPLIB_R600_FLAGS_BACKBIASENABLE    4
 #define ATOM_PPLIB_R600_FLAGS_MEMORY_ODT_OFF    8
 #define ATOM_PPLIB_R600_FLAGS_MEMORY_DLL_OFF    16
+#define ATOM_PPLIB_R600_FLAGS_LOWPOWER         32   // On the RV770 use 'low power' setting (sequencer S0).
+
+typedef struct _ATOM_PPLIB_EVERGREEN_CLOCK_INFO
+{
+      USHORT usEngineClockLow;
+      UCHAR  ucEngineClockHigh;
+
+      USHORT usMemoryClockLow;
+      UCHAR  ucMemoryClockHigh;
+
+      USHORT usVDDC;
+      USHORT usVDDCI;
+      USHORT usUnused;
+
+      ULONG ulFlags; // ATOM_PPLIB_R600_FLAGS_*
+
+} ATOM_PPLIB_EVERGREEN_CLOCK_INFO;
 
 typedef struct _ATOM_PPLIB_RS780_CLOCK_INFO
 
@@ -5895,7 +5967,7 @@ typedef struct _ATOM_PPLIB_RS780_CLOCK_INFO
       UCHAR  ucPadding;                   // For proper alignment and size.
       USHORT usVDDC;                      // For the 780, use: None, Low, High, Variable
       UCHAR  ucMaxHTLinkWidth;            // From SBIOS - {2, 4, 8, 16}
-      UCHAR  ucMinHTLinkWidth;            // From SBIOS - {2, 4, 8, 16}. Effective only if CDLW enabled. Minimum down stream width could be bigger as display BW requriement.
+      UCHAR  ucMinHTLinkWidth;            // From SBIOS - {2, 4, 8, 16}. Effective only if CDLW enabled. Minimum down stream width could be bigger as display BW requirement.
       USHORT usHTLinkFreq;                // See definition ATOM_PPLIB_RS780_HTLINKFREQ_xxx or in MHz(>=200).
       ULONG  ulFlags; 
 } ATOM_PPLIB_RS780_CLOCK_INFO;

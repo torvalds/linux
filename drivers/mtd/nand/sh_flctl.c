@@ -855,7 +855,7 @@ static int __devinit flctl_probe(struct platform_device *pdev)
 		nand->read_word = flctl_read_word;
 	}
 
-	ret = nand_scan_ident(flctl_mtd, 1);
+	ret = nand_scan_ident(flctl_mtd, 1, NULL);
 	if (ret)
 		goto err;
 

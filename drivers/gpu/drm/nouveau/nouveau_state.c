@@ -34,6 +34,7 @@
 
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
+#include "nouveau_fbcon.h"
 #include "nv50_display.h"
 
 static void nouveau_stub_takedown(struct drm_device *dev) {}
@@ -515,8 +516,10 @@ nouveau_card_init(struct drm_device *dev)
 
 	dev_priv->init_state = NOUVEAU_CARD_INIT_DONE;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		drm_helper_initial_config(dev);
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		nouveau_fbcon_init(dev);
+		drm_kms_helper_poll_init(dev);
+	}
 
 	return 0;
 
@@ -563,6 +566,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 	NV_DEBUG(dev, "prev state = %d\n", dev_priv->init_state);
 
 	if (dev_priv->init_state != NOUVEAU_CARD_INIT_DOWN) {
+
 		nouveau_backlight_exit(dev);
 
 		if (dev_priv->channel) {
@@ -635,6 +639,48 @@ static void nouveau_OF_copy_vbios_to_ramin(struct drm_device *dev)
 		NV_INFO(dev, "Unable to get the OF bios\n");
 	}
 #endif
+}
+
+static struct apertures_struct *nouveau_get_apertures(struct drm_device *dev)
+{
+	struct pci_dev *pdev = dev->pdev;
+	struct apertures_struct *aper = alloc_apertures(3);
+	if (!aper)
+		return NULL;
+
+	aper->ranges[0].base = pci_resource_start(pdev, 1);
+	aper->ranges[0].size = pci_resource_len(pdev, 1);
+	aper->count = 1;
+
+	if (pci_resource_len(pdev, 2)) {
+		aper->ranges[aper->count].base = pci_resource_start(pdev, 2);
+		aper->ranges[aper->count].size = pci_resource_len(pdev, 2);
+		aper->count++;
+	}
+
+	if (pci_resource_len(pdev, 3)) {
+		aper->ranges[aper->count].base = pci_resource_start(pdev, 3);
+		aper->ranges[aper->count].size = pci_resource_len(pdev, 3);
+		aper->count++;
+	}
+
+	return aper;
+}
+
+static int nouveau_remove_conflicting_drivers(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	bool primary = false;
+	dev_priv->apertures = nouveau_get_apertures(dev);
+	if (!dev_priv->apertures)
+		return -ENOMEM;
+
+#ifdef CONFIG_X86
+	primary = dev->pdev->resource[PCI_ROM_RESOURCE].flags & IORESOURCE_ROM_SHADOW;
+#endif
+	
+	remove_conflicting_framebuffers(dev_priv->apertures, "nouveaufb", primary);
+	return 0;
 }
 
 int nouveau_load(struct drm_device *dev, unsigned long flags)
@@ -724,6 +770,12 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	NV_INFO(dev, "Detected an NV%2x generation card (0x%08x)\n",
 		dev_priv->card_type, reg0);
 
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		int ret = nouveau_remove_conflicting_drivers(dev);
+		if (ret)
+			return ret;
+	}
+
 	/* map larger RAMIN aperture on NV40 cards */
 	dev_priv->ramin  = NULL;
 	if (dev_priv->card_type >= NV_40) {
@@ -794,6 +846,8 @@ int nouveau_unload(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		drm_kms_helper_poll_fini(dev);
+		nouveau_fbcon_fini(dev);
 		if (dev_priv->card_type >= NV_50)
 			nv50_display_destroy(dev);
 		else

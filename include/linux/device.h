@@ -22,7 +22,6 @@
 #include <linux/types.h>
 #include <linux/module.h>
 #include <linux/pm.h>
-#include <linux/semaphore.h>
 #include <asm/atomic.h>
 #include <asm/device.h>
 
@@ -202,6 +201,9 @@ struct class {
 
 	int (*suspend)(struct device *dev, pm_message_t state);
 	int (*resume)(struct device *dev);
+
+	const struct kobj_ns_type_operations *ns_type;
+	const void *(*namespace)(struct device *dev);
 
 	const struct dev_pm_ops *pm;
 
@@ -404,7 +406,7 @@ struct device {
 	const char		*init_name; /* initial name of the device */
 	struct device_type	*type;
 
-	struct semaphore	sem;	/* semaphore to synchronize calls to
+	struct mutex		mutex;	/* mutex to synchronize calls to
 					 * its driver.
 					 */
 
@@ -451,6 +453,10 @@ struct device {
 
 static inline const char *dev_name(const struct device *dev)
 {
+	/* Use the init name until the kobject becomes available */
+	if (dev->init_name)
+		return dev->init_name;
+
 	return kobject_name(&dev->kobj);
 }
 
@@ -510,17 +516,17 @@ static inline bool device_async_suspend_enabled(struct device *dev)
 
 static inline void device_lock(struct device *dev)
 {
-	down(&dev->sem);
+	mutex_lock(&dev->mutex);
 }
 
 static inline int device_trylock(struct device *dev)
 {
-	return down_trylock(&dev->sem);
+	return mutex_trylock(&dev->mutex);
 }
 
 static inline void device_unlock(struct device *dev)
 {
-	up(&dev->sem);
+	mutex_unlock(&dev->mutex);
 }
 
 void driver_init(void);

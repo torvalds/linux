@@ -1352,7 +1352,7 @@ static int sdla_set_config(struct net_device *dev, struct ifmap *map)
 		return(-EINVAL);
 
 	if (!request_region(map->base_addr, SDLA_IO_EXTENTS, dev->name)){
-		printk(KERN_WARNING "SDLA: io-port 0x%04lx in use \n", dev->base_addr);
+		printk(KERN_WARNING "SDLA: io-port 0x%04lx in use\n", dev->base_addr);
 		return(-EINVAL);
 	}
 	base = map->base_addr;

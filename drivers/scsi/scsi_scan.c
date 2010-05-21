@@ -459,8 +459,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	found_target->reap_ref++;
 	spin_unlock_irqrestore(shost->host_lock, flags);
 	if (found_target->state != STARGET_DEL) {
-		put_device(parent);
-		kfree(starget);
+		put_device(dev);
 		return found_target;
 	}
 	/* Unfortunately, we found a dying target; need to

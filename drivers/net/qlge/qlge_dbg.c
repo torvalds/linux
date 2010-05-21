@@ -1340,7 +1340,7 @@ void ql_mpi_core_to_log(struct work_struct *work)
 
 	for (i = 0; i < count; i += 8) {
 		printk(KERN_ERR "%.08x: %.08x %.08x %.08x %.08x %.08x "
-			"%.08x %.08x %.08x \n", i,
+			"%.08x %.08x %.08x\n", i,
 			tmp[i + 0],
 			tmp[i + 1],
 			tmp[i + 2],
@@ -2058,7 +2058,7 @@ void ql_dump_ob_mac_iocb(struct ob_mac_iocb_req *ob_mac_iocb)
 	       ob_mac_tso_iocb->flags2 & OB_MAC_TSO_IOCB_LSO ? "LSO" : "",
 	       ob_mac_tso_iocb->flags2 & OB_MAC_TSO_IOCB_UC ? "UC" : "",
 	       ob_mac_tso_iocb->flags2 & OB_MAC_TSO_IOCB_TC ? "TC" : "");
-	printk(KERN_ERR PFX "flags3          = %s %s %s \n",
+	printk(KERN_ERR PFX "flags3          = %s %s %s\n",
 	       ob_mac_tso_iocb->flags3 & OB_MAC_TSO_IOCB_IC ? "IC" : "",
 	       ob_mac_tso_iocb->flags3 & OB_MAC_TSO_IOCB_DFP ? "DFP" : "",
 	       ob_mac_tso_iocb->flags3 & OB_MAC_TSO_IOCB_V ? "V" : "");

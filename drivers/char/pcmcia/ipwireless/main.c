@@ -195,9 +195,6 @@ static int config_ipwireless(struct ipw_dev *ipw)
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.Handler = ipwireless_interrupt;
-
 	INIT_WORK(&ipw->work_reboot, signalled_reboot_work);
 
 	ipwireless_init_hardware_v1(ipw->hardware, link->io.BasePort1,
@@ -205,8 +202,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 				    ipw->is_v2_card, signalled_reboot_callback,
 				    ipw);
 
-	ret = pcmcia_request_irq(link, &link->irq);
-
+	ret = pcmcia_request_irq(link, ipwireless_interrupt);
 	if (ret != 0)
 		goto exit;
 
@@ -217,7 +213,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 			(unsigned int) link->io.BasePort1,
 			(unsigned int) (link->io.BasePort1 +
 				link->io.NumPorts1 - 1),
-			(unsigned int) link->irq.AssignedIRQ);
+			(unsigned int) link->irq);
 	if (ipw->attr_memory && ipw->common_memory)
 		printk(KERN_INFO IPWIRELESS_PCCARD_NAME
 			": attr memory 0x%08lx-0x%08lx, common memory 0x%08lx-0x%08lx\n",
@@ -232,8 +228,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 	if (!ipw->network)
 		goto exit;
 
-	ipw->tty = ipwireless_tty_create(ipw->hardware, ipw->network,
-			ipw->nodes);
+	ipw->tty = ipwireless_tty_create(ipw->hardware, ipw->network);
 	if (!ipw->tty)
 		goto exit;
 
@@ -247,8 +242,6 @@ static int config_ipwireless(struct ipw_dev *ipw)
 
 	if (ret != 0)
 		goto exit;
-
-	link->dev_node = &ipw->nodes[0];
 
 	return 0;
 
@@ -271,8 +264,6 @@ exit:
 
 static void release_ipwireless(struct ipw_dev *ipw)
 {
-	pcmcia_disable_device(ipw->link);
-
 	if (ipw->common_memory) {
 		release_mem_region(ipw->request_common_memory.Base,
 				ipw->request_common_memory.Size);
@@ -288,7 +279,6 @@ static void release_ipwireless(struct ipw_dev *ipw)
 	if (ipw->attr_memory)
 		pcmcia_release_window(ipw->link, ipw->handle_attr_memory);
 
-	/* Break the link with Card Services */
 	pcmcia_disable_device(ipw->link);
 }
 
@@ -312,9 +302,6 @@ static int ipwireless_attach(struct pcmcia_device *link)
 
 	ipw->link = link;
 	link->priv = ipw;
-
-	/* Link this device into our device list. */
-	link->dev_node = &ipw->nodes[0];
 
 	ipw->hardware = ipwireless_hardware_create();
 	if (!ipw->hardware) {

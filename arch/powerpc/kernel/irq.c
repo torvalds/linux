@@ -53,7 +53,6 @@
 #include <linux/bootmem.h>
 #include <linux/pci.h>
 #include <linux/debugfs.h>
-#include <linux/perf_event.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -144,11 +143,6 @@ notrace void raw_local_irq_restore(unsigned long en)
 			iseries_handle_interrupts();
 	}
 #endif /* CONFIG_PPC_STD_MMU_64 */
-
-	if (test_perf_event_pending()) {
-		clear_perf_event_pending();
-		perf_event_do_pending();
-	}
 
 	/*
 	 * if (get_paca()->hard_enabled) return;
@@ -290,29 +284,32 @@ u64 arch_irq_stat_cpu(unsigned int cpu)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-void fixup_irqs(cpumask_t map)
+void fixup_irqs(const struct cpumask *map)
 {
 	struct irq_desc *desc;
 	unsigned int irq;
 	static int warned;
+	cpumask_var_t mask;
+
+	alloc_cpumask_var(&mask, GFP_KERNEL);
 
 	for_each_irq(irq) {
-		cpumask_t mask;
-
 		desc = irq_to_desc(irq);
 		if (desc && desc->status & IRQ_PER_CPU)
 			continue;
 
-		cpumask_and(&mask, desc->affinity, &map);
-		if (any_online_cpu(mask) == NR_CPUS) {
+		cpumask_and(mask, desc->affinity, map);
+		if (cpumask_any(mask) >= nr_cpu_ids) {
 			printk("Breaking affinity for irq %i\n", irq);
-			mask = map;
+			cpumask_copy(mask, map);
 		}
 		if (desc->chip->set_affinity)
-			desc->chip->set_affinity(irq, &mask);
+			desc->chip->set_affinity(irq, mask);
 		else if (desc->action && !(warned++))
 			printk("Cannot set affinity for irq %i\n", irq);
 	}
+
+	free_cpumask_var(mask);
 
 	local_irq_enable();
 	mdelay(1);

@@ -101,11 +101,11 @@ static int msm_irq_set_type(unsigned int irq, unsigned int flow_type)
 
 	if (flow_type & (IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING)) {
 		writel(readl(treg) | b, treg);
-		set_irq_handler(irq, handle_edge_irq);
+		irq_desc[irq].handle_irq = handle_edge_irq;
 	}
 	if (flow_type & (IRQF_TRIGGER_HIGH | IRQF_TRIGGER_LOW)) {
 		writel(readl(treg) & (~b), treg);
-		set_irq_handler(irq, handle_level_irq);
+		irq_desc[irq].handle_irq = handle_level_irq;
 	}
 	return 0;
 }

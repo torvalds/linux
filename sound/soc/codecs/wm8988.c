@@ -495,7 +495,7 @@ static int wm8988_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8988_priv *wm8988 = codec->private_data;
+	struct wm8988_priv *wm8988 = snd_soc_codec_get_drvdata(codec);
 
 	switch (freq) {
 	case 11289600:
@@ -585,7 +585,7 @@ static int wm8988_pcm_startup(struct snd_pcm_substream *substream,
 			      struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8988_priv *wm8988 = codec->private_data;
+	struct wm8988_priv *wm8988 = snd_soc_codec_get_drvdata(codec);
 
 	/* The set of sample rates that can be supported depends on the
 	 * MCLK supplied to the CODEC - enforce this.
@@ -610,7 +610,7 @@ static int wm8988_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8988_priv *wm8988 = codec->private_data;
+	struct wm8988_priv *wm8988 = snd_soc_codec_get_drvdata(codec);
 	u16 iface = snd_soc_read(codec, WM8988_IFACE) & 0x1f3;
 	u16 srate = snd_soc_read(codec, WM8988_SRATE) & 0x180;
 	int coeff;
@@ -833,7 +833,7 @@ static int wm8988_register(struct wm8988_priv *wm8988,
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8988;
+	snd_soc_codec_set_drvdata(codec, wm8988);
 	codec->name = "WM8988";
 	codec->owner = THIS_MODULE;
 	codec->dai = &wm8988_dai;

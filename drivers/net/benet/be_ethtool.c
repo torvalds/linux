@@ -276,8 +276,6 @@ be_get_ethtool_stats(struct net_device *netdev,
 		data[i] = (et_stats[i].size == sizeof(u64)) ?
 				*(u64 *)p: *(u32 *)p;
 	}
-
-	return;
 }
 
 static void
@@ -466,7 +464,6 @@ be_get_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
 	else
 		wol->wolopts = 0;
 	memset(&wol->sopass, 0, sizeof(wol->sopass));
-	return;
 }
 
 static int
@@ -496,7 +493,7 @@ be_test_ddr_dma(struct be_adapter *adapter)
 	ddrdma_cmd.va = pci_alloc_consistent(adapter->pdev, ddrdma_cmd.size,
 					&ddrdma_cmd.dma);
 	if (!ddrdma_cmd.va) {
-		dev_err(&adapter->pdev->dev, "Memory allocation failure \n");
+		dev_err(&adapter->pdev->dev, "Memory allocation failure\n");
 		return -ENOMEM;
 	}
 

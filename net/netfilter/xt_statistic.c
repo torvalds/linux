@@ -30,7 +30,7 @@ MODULE_ALIAS("ip6t_statistic");
 static DEFINE_SPINLOCK(nth_lock);
 
 static bool
-statistic_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+statistic_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_statistic_info *info = par->matchinfo;
 	bool ret = info->flags & XT_STATISTIC_INVERT;
@@ -53,22 +53,20 @@ statistic_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return ret;
 }
 
-static bool statistic_mt_check(const struct xt_mtchk_param *par)
+static int statistic_mt_check(const struct xt_mtchk_param *par)
 {
 	struct xt_statistic_info *info = par->matchinfo;
 
 	if (info->mode > XT_STATISTIC_MODE_MAX ||
 	    info->flags & ~XT_STATISTIC_MASK)
-		return false;
+		return -EINVAL;
 
 	info->master = kzalloc(sizeof(*info->master), GFP_KERNEL);
-	if (info->master == NULL) {
-		printk(KERN_ERR KBUILD_MODNAME ": Out of memory\n");
-		return false;
-	}
+	if (info->master == NULL)
+		return -ENOMEM;
 	info->master->count = info->u.nth.count;
 
-	return true;
+	return 0;
 }
 
 static void statistic_mt_destroy(const struct xt_mtdtor_param *par)

@@ -229,14 +229,16 @@ int __pm_runtime_suspend(struct device *dev, bool from_wq)
 
 	if (retval) {
 		dev->power.runtime_status = RPM_ACTIVE;
-		pm_runtime_cancel_pending(dev);
-
 		if (retval == -EAGAIN || retval == -EBUSY) {
-			notify = true;
+			if (dev->power.timer_expires == 0)
+				notify = true;
 			dev->power.runtime_error = 0;
+		} else {
+			pm_runtime_cancel_pending(dev);
 		}
 	} else {
 		dev->power.runtime_status = RPM_SUSPENDED;
+		pm_runtime_deactivate_timer(dev);
 
 		if (dev->parent) {
 			parent = dev->parent;
@@ -659,8 +661,6 @@ int pm_schedule_suspend(struct device *dev, unsigned int delay)
 
 	if (dev->power.runtime_status == RPM_SUSPENDED)
 		retval = 1;
-	else if (dev->power.runtime_status == RPM_SUSPENDING)
-		retval = -EINPROGRESS;
 	else if (atomic_read(&dev->power.usage_count) > 0
 	    || dev->power.disable_depth > 0)
 		retval = -EAGAIN;

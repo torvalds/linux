@@ -44,23 +44,6 @@ struct zfcp_reqlist;
 /********************* SCSI SPECIFIC DEFINES *********************************/
 #define ZFCP_SCSI_ER_TIMEOUT                    (10*HZ)
 
-/********************* CIO/QDIO SPECIFIC DEFINES *****************************/
-
-/* DMQ bug workaround: don't use last SBALE */
-#define ZFCP_MAX_SBALES_PER_SBAL	(QDIO_MAX_ELEMENTS_PER_BUFFER - 1)
-
-/* index of last SBALE (with respect to DMQ bug workaround) */
-#define ZFCP_LAST_SBALE_PER_SBAL	(ZFCP_MAX_SBALES_PER_SBAL - 1)
-
-/* max. number of (data buffer) SBALEs in largest SBAL chain */
-#define ZFCP_MAX_SBALES_PER_REQ		\
-	(FSF_MAX_SBALS_PER_REQ * ZFCP_MAX_SBALES_PER_SBAL - 2)
-        /* request ID + QTCB in SBALE 0 + 1 of first SBAL in chain */
-
-#define ZFCP_MAX_SECTORS (ZFCP_MAX_SBALES_PER_REQ * 8)
-        /* max. number of (data buffer) SBALEs in largest SBAL chain
-           multiplied with number of sectors per 4k block */
-
 /********************* FSF SPECIFIC DEFINES *********************************/
 
 /* ATTENTION: value must not be used by hardware */
@@ -181,6 +164,7 @@ struct zfcp_adapter {
 						      stack abort/command
 						      completion races */
 	atomic_t		stat_miss;	   /* # missing status reads*/
+	unsigned int		stat_read_buf_num;
 	struct work_struct	stat_work;
 	atomic_t		status;	           /* status of this adapter */
 	struct list_head	erp_ready_head;	   /* error recovery for this
@@ -205,6 +189,7 @@ struct zfcp_adapter {
 	struct work_struct	scan_work;
 	struct service_level	service_level;
 	struct workqueue_struct	*work_queue;
+	struct device_dma_parameters dma_parms;
 };
 
 struct zfcp_port {

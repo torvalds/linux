@@ -579,6 +579,7 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 
 	u8 afe_mux_cfg;
 	u8 adc2_cfg;
+	u8 input_mode;
 	u32 afe_cfg;
 	int i;
 
@@ -589,6 +590,30 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 	    vid_input <= CX18_AV_COMPOSITE8) {
 		afe_mux_cfg = 0xf0 + (vid_input - CX18_AV_COMPOSITE1);
 		ch[0] = CVBS;
+		input_mode = 0x0;
+	} else if (vid_input >= CX18_AV_COMPONENT_LUMA1) {
+		int luma = vid_input & 0xf000;
+		int r_chroma = vid_input & 0xf0000;
+		int b_chroma = vid_input & 0xf00000;
+
+		if ((vid_input & ~0xfff000) ||
+		    luma < CX18_AV_COMPONENT_LUMA1 ||
+		    luma > CX18_AV_COMPONENT_LUMA8 ||
+		    r_chroma < CX18_AV_COMPONENT_R_CHROMA4 ||
+		    r_chroma > CX18_AV_COMPONENT_R_CHROMA6 ||
+		    b_chroma < CX18_AV_COMPONENT_B_CHROMA7 ||
+		    b_chroma > CX18_AV_COMPONENT_B_CHROMA8) {
+			CX18_ERR_DEV(sd, "0x%06x is not a valid video input!\n",
+				     vid_input);
+			return -EINVAL;
+		}
+		afe_mux_cfg = (luma - CX18_AV_COMPONENT_LUMA1) >> 12;
+		ch[0] = Y;
+		afe_mux_cfg |= (r_chroma - CX18_AV_COMPONENT_R_CHROMA4) >> 12;
+		ch[1] = Pr;
+		afe_mux_cfg |= (b_chroma - CX18_AV_COMPONENT_B_CHROMA7) >> 14;
+		ch[2] = Pb;
+		input_mode = 0x6;
 	} else {
 		int luma = vid_input & 0xf0;
 		int chroma = vid_input & 0xf00;
@@ -598,7 +623,7 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 		    luma > CX18_AV_SVIDEO_LUMA8 ||
 		    chroma < CX18_AV_SVIDEO_CHROMA4 ||
 		    chroma > CX18_AV_SVIDEO_CHROMA8) {
-			CX18_ERR_DEV(sd, "0x%04x is not a valid video input!\n",
+			CX18_ERR_DEV(sd, "0x%06x is not a valid video input!\n",
 				     vid_input);
 			return -EINVAL;
 		}
@@ -613,8 +638,8 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 			afe_mux_cfg |= (chroma - CX18_AV_SVIDEO_CHROMA4) >> 4;
 			ch[1] = C;
 		}
+		input_mode = 0x2;
 	}
-	/* TODO: LeadTek WinFast DVR3100 H & WinFast PVR2100 can do Y/Pb/Pr */
 
 	switch (aud_input) {
 	case CX18_AV_AUDIO_SERIAL1:
@@ -650,8 +675,8 @@ static int set_input(struct cx18 *cx, enum cx18_av_video_input vid_input,
 
 	/* Set up analog front end multiplexers */
 	cx18_av_write_expect(cx, 0x103, afe_mux_cfg, afe_mux_cfg, 0xf7);
-	/* Set INPUT_MODE to Composite (0) or S-Video (1) */
-	cx18_av_and_or(cx, 0x401, ~0x6, ch[0] == CVBS ? 0 : 0x02);
+	/* Set INPUT_MODE to Composite, S-Video, or Component */
+	cx18_av_and_or(cx, 0x401, ~0x6, input_mode);
 
 	/* Set CH_SEL_ADC2 to 1 if input comes from CH3 */
 	adc2_cfg = cx18_av_read(cx, 0x102);
@@ -998,9 +1023,9 @@ static int cx18_av_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 
 static int cx18_av_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 {
-	struct cx18 *cx = v4l2_get_subdevdata(sd);
-
-	return cx18_av_vbi_g_fmt(cx, fmt);
+	if (fmt->type != V4L2_BUF_TYPE_SLICED_VBI_CAPTURE)
+		return -EINVAL;
+	return cx18_av_g_sliced_fmt(sd, &fmt->fmt.sliced);
 }
 
 static int cx18_av_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
@@ -1072,12 +1097,6 @@ static int cx18_av_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 		/* VS_INTRLACE=1 VFILT=filter */
 		cx18_av_write(cx, 0x41e, 0x8 | filter);
 		break;
-
-	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx18_av_vbi_s_fmt(cx, fmt);
-
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		return cx18_av_vbi_s_fmt(cx, fmt);
 
 	default:
 		return -EINVAL;
@@ -1378,10 +1397,16 @@ static const struct v4l2_subdev_audio_ops cx18_av_audio_ops = {
 
 static const struct v4l2_subdev_video_ops cx18_av_video_ops = {
 	.s_routing = cx18_av_s_video_routing,
-	.decode_vbi_line = cx18_av_decode_vbi_line,
 	.s_stream = cx18_av_s_stream,
 	.g_fmt = cx18_av_g_fmt,
 	.s_fmt = cx18_av_s_fmt,
+};
+
+static const struct v4l2_subdev_vbi_ops cx18_av_vbi_ops = {
+	.decode_vbi_line = cx18_av_decode_vbi_line,
+	.g_sliced_fmt = cx18_av_g_sliced_fmt,
+	.s_sliced_fmt = cx18_av_s_sliced_fmt,
+	.s_raw_fmt = cx18_av_s_raw_fmt,
 };
 
 static const struct v4l2_subdev_ops cx18_av_ops = {
@@ -1389,6 +1414,7 @@ static const struct v4l2_subdev_ops cx18_av_ops = {
 	.tuner = &cx18_av_tuner_ops,
 	.audio = &cx18_av_audio_ops,
 	.video = &cx18_av_video_ops,
+	.vbi = &cx18_av_vbi_ops,
 };
 
 int cx18_av_probe(struct cx18 *cx)

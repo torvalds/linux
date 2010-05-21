@@ -80,7 +80,7 @@ int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
 	u8 inbuf[MC_CMD_MAC_STATS_IN_LEN];
 	int rc;
 	efx_dword_t *cmd_ptr;
-	int period = 1000;
+	int period = enable ? 1000 : 0;
 	u32 addr_hi;
 	u32 addr_lo;
 
@@ -92,21 +92,14 @@ int efx_mcdi_mac_stats(struct efx_nic *efx, dma_addr_t dma_addr,
 	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_DMA_ADDR_LO, addr_lo);
 	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_DMA_ADDR_HI, addr_hi);
 	cmd_ptr = (efx_dword_t *)MCDI_PTR(inbuf, MAC_STATS_IN_CMD);
-	if (enable)
-		EFX_POPULATE_DWORD_6(*cmd_ptr,
-				     MC_CMD_MAC_STATS_CMD_DMA, 1,
-				     MC_CMD_MAC_STATS_CMD_CLEAR, clear,
-				     MC_CMD_MAC_STATS_CMD_PERIODIC_CHANGE, 1,
-				     MC_CMD_MAC_STATS_CMD_PERIODIC_ENABLE, 1,
-				     MC_CMD_MAC_STATS_CMD_PERIODIC_CLEAR, 0,
-				     MC_CMD_MAC_STATS_CMD_PERIOD_MS, period);
-	else
-		EFX_POPULATE_DWORD_5(*cmd_ptr,
-				     MC_CMD_MAC_STATS_CMD_DMA, 0,
-				     MC_CMD_MAC_STATS_CMD_CLEAR, clear,
-				     MC_CMD_MAC_STATS_CMD_PERIODIC_CHANGE, 1,
-				     MC_CMD_MAC_STATS_CMD_PERIODIC_ENABLE, 0,
-				     MC_CMD_MAC_STATS_CMD_PERIODIC_CLEAR, 0);
+	EFX_POPULATE_DWORD_7(*cmd_ptr,
+			     MC_CMD_MAC_STATS_CMD_DMA, !!enable,
+			     MC_CMD_MAC_STATS_CMD_CLEAR, clear,
+			     MC_CMD_MAC_STATS_CMD_PERIODIC_CHANGE, 1,
+			     MC_CMD_MAC_STATS_CMD_PERIODIC_ENABLE, !!enable,
+			     MC_CMD_MAC_STATS_CMD_PERIODIC_CLEAR, 0,
+			     MC_CMD_MAC_STATS_CMD_PERIODIC_NOEVENT, 1,
+			     MC_CMD_MAC_STATS_CMD_PERIOD_MS, period);
 	MCDI_SET_DWORD(inbuf, MAC_STATS_IN_DMA_LEN, dma_len);
 
 	rc = efx_mcdi_rpc(efx, MC_CMD_MAC_STATS, inbuf, sizeof(inbuf),

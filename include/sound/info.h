@@ -51,18 +51,18 @@ struct snd_info_entry_ops {
 		    unsigned short mode, void **file_private_data);
 	int (*release)(struct snd_info_entry *entry,
 		       unsigned short mode, void *file_private_data);
-	long (*read)(struct snd_info_entry *entry, void *file_private_data,
-		     struct file *file, char __user *buf,
-		     unsigned long count, unsigned long pos);
-	long (*write)(struct snd_info_entry *entry, void *file_private_data,
-		      struct file *file, const char __user *buf,
-		      unsigned long count, unsigned long pos);
-	long long (*llseek)(struct snd_info_entry *entry,
-			    void *file_private_data, struct file *file,
-			    long long offset, int orig);
-	unsigned int(*poll)(struct snd_info_entry *entry,
-			    void *file_private_data, struct file *file,
-			    poll_table *wait);
+	ssize_t (*read)(struct snd_info_entry *entry, void *file_private_data,
+			struct file *file, char __user *buf,
+			size_t count, loff_t pos);
+	ssize_t (*write)(struct snd_info_entry *entry, void *file_private_data,
+			 struct file *file, const char __user *buf,
+			 size_t count, loff_t pos);
+	loff_t (*llseek)(struct snd_info_entry *entry,
+			 void *file_private_data, struct file *file,
+			 loff_t offset, int orig);
+	unsigned int (*poll)(struct snd_info_entry *entry,
+			     void *file_private_data, struct file *file,
+			     poll_table *wait);
 	int (*ioctl)(struct snd_info_entry *entry, void *file_private_data,
 		     struct file *file, unsigned int cmd, unsigned long arg);
 	int (*mmap)(struct snd_info_entry *entry, void *file_private_data,

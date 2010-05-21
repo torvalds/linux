@@ -1,7 +1,7 @@
 /*
  * This file is part of wl1271
  *
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2010 Nokia Corporation
  *
  * Contact: Luciano Coelho <luciano.coelho@nokia.com>
  *
@@ -27,7 +27,6 @@
 #include "wl1271_acx.h"
 #include "wl1271_reg.h"
 #include "wl1271_boot.h"
-#include "wl1271_spi.h"
 #include "wl1271_io.h"
 #include "wl1271_event.h"
 
@@ -230,6 +229,14 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 	nvs_len = sizeof(wl->nvs->nvs);
 	nvs_ptr = (u8 *)wl->nvs->nvs;
 
+	/* update current MAC address to NVS */
+	nvs_ptr[11] = wl->mac_addr[0];
+	nvs_ptr[10] = wl->mac_addr[1];
+	nvs_ptr[6] = wl->mac_addr[2];
+	nvs_ptr[5] = wl->mac_addr[3];
+	nvs_ptr[4] = wl->mac_addr[4];
+	nvs_ptr[3] = wl->mac_addr[5];
+
 	/*
 	 * Layout before the actual NVS tables:
 	 * 1 byte : burst length.
@@ -300,7 +307,7 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 
 static void wl1271_boot_enable_interrupts(struct wl1271 *wl)
 {
-	enable_irq(wl->irq);
+	wl1271_enable_interrupts(wl);
 	wl1271_write32(wl, ACX_REG_INTERRUPT_MASK,
 		       WL1271_ACX_INTR_ALL & ~(WL1271_INTR_MASK));
 	wl1271_write32(wl, HI_CFG, HI_CFG_DEF_VAL);
@@ -344,7 +351,7 @@ static int wl1271_boot_soft_reset(struct wl1271 *wl)
 static int wl1271_boot_run_firmware(struct wl1271 *wl)
 {
 	int loop, ret;
-	u32 chip_id, interrupt;
+	u32 chip_id, intr;
 
 	wl1271_boot_set_ecpu_ctrl(wl, ECPU_CONTROL_HALT);
 
@@ -361,15 +368,15 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 	loop = 0;
 	while (loop++ < INIT_LOOP) {
 		udelay(INIT_LOOP_DELAY);
-		interrupt = wl1271_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
+		intr = wl1271_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
 
-		if (interrupt == 0xffffffff) {
+		if (intr == 0xffffffff) {
 			wl1271_error("error reading hardware complete "
 				     "init indication");
 			return -EIO;
 		}
 		/* check that ACX_INTR_INIT_COMPLETE is enabled */
-		else if (interrupt & WL1271_ACX_INTR_INIT_COMPLETE) {
+		else if (intr & WL1271_ACX_INTR_INIT_COMPLETE) {
 			wl1271_write32(wl, ACX_REG_INTERRUPT_ACK,
 				       WL1271_ACX_INTR_INIT_COMPLETE);
 			break;
@@ -404,7 +411,10 @@ static int wl1271_boot_run_firmware(struct wl1271 *wl)
 	/* unmask required mbox events  */
 	wl->event_mask = BSS_LOSE_EVENT_ID |
 		SCAN_COMPLETE_EVENT_ID |
-		PS_REPORT_EVENT_ID;
+		PS_REPORT_EVENT_ID |
+		JOIN_EVENT_COMPLETE_ID |
+		DISCONNECT_EVENT_COMPLETE_ID |
+		RSSI_SNR_TRIGGER_0_EVENT_ID;
 
 	ret = wl1271_event_unmask(wl);
 	if (ret < 0) {
@@ -431,10 +441,22 @@ static int wl1271_boot_write_irq_polarity(struct wl1271 *wl)
 	return 0;
 }
 
+static void wl1271_boot_hw_version(struct wl1271 *wl)
+{
+	u32 fuse;
+
+	fuse = wl1271_top_reg_read(wl, REG_FUSE_DATA_2_1);
+	fuse = (fuse & PG_VER_MASK) >> PG_VER_OFFSET;
+
+	wl->hw_pg_ver = (s8)fuse;
+}
+
 int wl1271_boot(struct wl1271 *wl)
 {
 	int ret = 0;
 	u32 tmp, clk, pause;
+
+	wl1271_boot_hw_version(wl);
 
 	if (REF_CLOCK == 0 || REF_CLOCK == 2 || REF_CLOCK == 4)
 		/* ref clk: 19.2/38.4/38.4-XTAL */
@@ -445,11 +467,15 @@ int wl1271_boot(struct wl1271 *wl)
 
 	if (REF_CLOCK != 0) {
 		u16 val;
-		/* Set clock type */
+		/* Set clock type (open drain) */
 		val = wl1271_top_reg_read(wl, OCP_REG_CLK_TYPE);
 		val &= FREF_CLK_TYPE_BITS;
-		val |= CLK_REQ_PRCM;
 		wl1271_top_reg_write(wl, OCP_REG_CLK_TYPE, val);
+
+		/* Set clock pull mode (no pull) */
+		val = wl1271_top_reg_read(wl, OCP_REG_CLK_PULL);
+		val |= NO_PULL;
+		wl1271_top_reg_write(wl, OCP_REG_CLK_PULL, val);
 	} else {
 		u16 val;
 		/* Set clock polarity */

@@ -306,7 +306,7 @@ static void *proc_key_users_start(struct seq_file *p, loff_t *_pos)
 static void *proc_key_users_next(struct seq_file *p, void *v, loff_t *_pos)
 {
 	(*_pos)++;
-	return key_user_next((struct rb_node *) v);
+	return key_user_next((struct rb_node *)v);
 }
 
 static void proc_key_users_stop(struct seq_file *p, void *v)

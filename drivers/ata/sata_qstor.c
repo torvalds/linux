@@ -147,7 +147,6 @@ static struct ata_port_operations qs_ata_ops = {
 	.prereset		= qs_prereset,
 	.softreset		= ATA_OP_NULL,
 	.error_handler		= qs_error_handler,
-	.post_internal_cmd	= ATA_OP_NULL,
 	.lost_interrupt		= ATA_OP_NULL,
 
 	.scr_read		= qs_scr_read,
@@ -255,7 +254,7 @@ static int qs_scr_read(struct ata_link *link, unsigned int sc_reg, u32 *val)
 static void qs_error_handler(struct ata_port *ap)
 {
 	qs_enter_reg_mode(ap);
-	ata_std_error_handler(ap);
+	ata_sff_error_handler(ap);
 }
 
 static int qs_scr_write(struct ata_link *link, unsigned int sc_reg, u32 val)
@@ -304,10 +303,8 @@ static void qs_qc_prep(struct ata_queued_cmd *qc)
 	VPRINTK("ENTER\n");
 
 	qs_enter_reg_mode(qc->ap);
-	if (qc->tf.protocol != ATA_PROT_DMA) {
-		ata_sff_qc_prep(qc);
+	if (qc->tf.protocol != ATA_PROT_DMA)
 		return;
-	}
 
 	nelem = qs_fill_sg(qc);
 
@@ -404,26 +401,24 @@ static inline unsigned int qs_intr_pkt(struct ata_host *host)
 			u8 sHST = sff1 & 0x3f;	/* host status */
 			unsigned int port_no = (sff1 >> 8) & 0x03;
 			struct ata_port *ap = host->ports[port_no];
+			struct qs_port_priv *pp = ap->private_data;
+			struct ata_queued_cmd *qc;
 
 			DPRINTK("SFF=%08x%08x: sCHAN=%u sHST=%d sDST=%02x\n",
 					sff1, sff0, port_no, sHST, sDST);
 			handled = 1;
-			if (ap && !(ap->flags & ATA_FLAG_DISABLED)) {
-				struct ata_queued_cmd *qc;
-				struct qs_port_priv *pp = ap->private_data;
-				if (!pp || pp->state != qs_state_pkt)
-					continue;
-				qc = ata_qc_from_tag(ap, ap->link.active_tag);
-				if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
-					switch (sHST) {
-					case 0: /* successful CPB */
-					case 3: /* device error */
-						qs_enter_reg_mode(qc->ap);
-						qs_do_or_die(qc, sDST);
-						break;
-					default:
-						break;
-					}
+			if (!pp || pp->state != qs_state_pkt)
+				continue;
+			qc = ata_qc_from_tag(ap, ap->link.active_tag);
+			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
+				switch (sHST) {
+				case 0: /* successful CPB */
+				case 3: /* device error */
+					qs_enter_reg_mode(qc->ap);
+					qs_do_or_die(qc, sDST);
+					break;
+				default:
+					break;
 				}
 			}
 		}
@@ -436,33 +431,30 @@ static inline unsigned int qs_intr_mmio(struct ata_host *host)
 	unsigned int handled = 0, port_no;
 
 	for (port_no = 0; port_no < host->n_ports; ++port_no) {
-		struct ata_port *ap;
-		ap = host->ports[port_no];
-		if (ap &&
-		    !(ap->flags & ATA_FLAG_DISABLED)) {
-			struct ata_queued_cmd *qc;
-			struct qs_port_priv *pp;
-			qc = ata_qc_from_tag(ap, ap->link.active_tag);
-			if (!qc || !(qc->flags & ATA_QCFLAG_ACTIVE)) {
-				/*
-				 * The qstor hardware generates spurious
-				 * interrupts from time to time when switching
-				 * in and out of packet mode.
-				 * There's no obvious way to know if we're
-				 * here now due to that, so just ack the irq
-				 * and pretend we knew it was ours.. (ugh).
-				 * This does not affect packet mode.
-				 */
-				ata_sff_check_status(ap);
-				handled = 1;
-				continue;
-			}
-			pp = ap->private_data;
-			if (!pp || pp->state != qs_state_mmio)
-				continue;
-			if (!(qc->tf.flags & ATA_TFLAG_POLLING))
-				handled |= ata_sff_host_intr(ap, qc);
+		struct ata_port *ap = host->ports[port_no];
+		struct qs_port_priv *pp = ap->private_data;
+		struct ata_queued_cmd *qc;
+
+		qc = ata_qc_from_tag(ap, ap->link.active_tag);
+		if (!qc) {
+			/*
+			 * The qstor hardware generates spurious
+			 * interrupts from time to time when switching
+			 * in and out of packet mode.  There's no
+			 * obvious way to know if we're here now due
+			 * to that, so just ack the irq and pretend we
+			 * knew it was ours.. (ugh).  This does not
+			 * affect packet mode.
+			 */
+			ata_sff_check_status(ap);
+			handled = 1;
+			continue;
 		}
+
+		if (!pp || pp->state != qs_state_mmio)
+			continue;
+		if (!(qc->tf.flags & ATA_TFLAG_POLLING))
+			handled |= ata_sff_host_intr(ap, qc);
 	}
 	return handled;
 }
@@ -509,11 +501,7 @@ static int qs_port_start(struct ata_port *ap)
 	void __iomem *mmio_base = qs_mmio_base(ap->host);
 	void __iomem *chan = mmio_base + (ap->port_no * 0x4000);
 	u64 addr;
-	int rc;
 
-	rc = ata_port_start(ap);
-	if (rc)
-		return rc;
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)
 		return -ENOMEM;

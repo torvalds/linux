@@ -64,7 +64,7 @@
 extern u32 libipw_debug_level;
 #define LIBIPW_DEBUG(level, fmt, args...) \
 do { if (libipw_debug_level & (level)) \
-  printk(KERN_DEBUG "ieee80211: %c %s " fmt, \
+  printk(KERN_DEBUG "libipw: %c %s " fmt, \
          in_interrupt() ? 'I' : 'U', __func__ , ## args); } while (0)
 static inline bool libipw_ratelimit_debug(u32 level)
 {
@@ -116,8 +116,8 @@ static inline bool libipw_ratelimit_debug(u32 level)
 #define LIBIPW_DL_RX            (1<<9)
 #define LIBIPW_DL_QOS           (1<<31)
 
-#define LIBIPW_ERROR(f, a...) printk(KERN_ERR "ieee80211: " f, ## a)
-#define LIBIPW_WARNING(f, a...) printk(KERN_WARNING "ieee80211: " f, ## a)
+#define LIBIPW_ERROR(f, a...) printk(KERN_ERR "libipw: " f, ## a)
+#define LIBIPW_WARNING(f, a...) printk(KERN_WARNING "libipw: " f, ## a)
 #define LIBIPW_DEBUG_INFO(f, a...)   LIBIPW_DEBUG(LIBIPW_DL_INFO, f, ## a)
 
 #define LIBIPW_DEBUG_WX(f, a...)     LIBIPW_DEBUG(LIBIPW_DL_WX, f, ## a)
@@ -905,7 +905,7 @@ struct libipw_device {
 				       struct libipw_reassoc_request * req);
 
 	/* This must be the last item so that it points to the data
-	 * allocated beyond this structure by alloc_ieee80211 */
+	 * allocated beyond this structure by alloc_libipw */
 	u8 priv[0];
 };
 
@@ -1017,9 +1017,9 @@ static inline int libipw_is_cck_rate(u8 rate)
 	return 0;
 }
 
-/* ieee80211.c */
-extern void free_ieee80211(struct net_device *dev, int monitor);
-extern struct net_device *alloc_ieee80211(int sizeof_priv, int monitor);
+/* libipw.c */
+extern void free_libipw(struct net_device *dev, int monitor);
+extern struct net_device *alloc_libipw(int sizeof_priv, int monitor);
 extern int libipw_change_mtu(struct net_device *dev, int new_mtu);
 
 extern void libipw_networks_age(struct libipw_device *ieee,

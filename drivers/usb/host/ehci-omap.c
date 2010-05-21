@@ -116,6 +116,8 @@
 #define	OMAP_UHH_DEBUG_CSR				(0x44)
 
 /* EHCI Register Set */
+#define EHCI_INSNREG04					(0xA0)
+#define EHCI_INSNREG04_DISABLE_UNSUSPEND		(1 << 5)
 #define	EHCI_INSNREG05_ULPI				(0xA4)
 #define	EHCI_INSNREG05_ULPI_CONTROL_SHIFT		31
 #define	EHCI_INSNREG05_ULPI_PORTSEL_SHIFT		24
@@ -181,7 +183,7 @@ struct ehci_hcd_omap {
 	void __iomem		*ehci_base;
 
 	/* Regulators for USB PHYs.
-	 * Each PHY can have a seperate regulator.
+	 * Each PHY can have a separate regulator.
 	 */
 	struct regulator        *regulator[OMAP3_HS_USB_PORTS];
 };
@@ -352,8 +354,8 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 		reg &= ~OMAP_UHH_HOSTCONFIG_P3_CONNECT_STATUS;
 
 	/* Bypass the TLL module for PHY mode operation */
-	 if (omap_rev() <= OMAP3430_REV_ES2_1) {
-		dev_dbg(omap->dev, "OMAP3 ES version <= ES2.1 \n");
+	if (cpu_is_omap3430() && (omap_rev() <= OMAP3430_REV_ES2_1)) {
+		dev_dbg(omap->dev, "OMAP3 ES version <= ES2.1\n");
 		if ((omap->port_mode[0] == EHCI_HCD_OMAP_MODE_PHY) ||
 			(omap->port_mode[1] == EHCI_HCD_OMAP_MODE_PHY) ||
 				(omap->port_mode[2] == EHCI_HCD_OMAP_MODE_PHY))
@@ -381,6 +383,18 @@ static int omap_start_ehc(struct ehci_hcd_omap *omap, struct usb_hcd *hcd)
 	ehci_omap_writel(omap->uhh_base, OMAP_UHH_HOSTCONFIG, reg);
 	dev_dbg(omap->dev, "UHH setup done, uhh_hostconfig=%x\n", reg);
 
+
+	/*
+	 * An undocumented "feature" in the OMAP3 EHCI controller,
+	 * causes suspended ports to be taken out of suspend when
+	 * the USBCMD.Run/Stop bit is cleared (for example when
+	 * we do ehci_bus_suspend).
+	 * This breaks suspend-resume if the root-hub is allowed
+	 * to suspend. Writing 1 to this undocumented register bit
+	 * disables this feature and restores normal behavior.
+	 */
+	ehci_omap_writel(omap->ehci_base, EHCI_INSNREG04,
+				EHCI_INSNREG04_DISABLE_UNSUSPEND);
 
 	if ((omap->port_mode[0] == EHCI_HCD_OMAP_MODE_TLL) ||
 		(omap->port_mode[1] == EHCI_HCD_OMAP_MODE_TLL) ||
@@ -658,6 +672,9 @@ static int ehci_hcd_omap_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "failed to add hcd with err %d\n", ret);
 		goto err_add_hcd;
 	}
+
+	/* root ports should always stay powered */
+	ehci_port_power(omap->ehci, 1);
 
 	return 0;
 

@@ -702,7 +702,7 @@ static int ak4671_register(struct ak4671_priv *ak4671,
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = ak4671;
+	snd_soc_codec_set_drvdata(codec,  ak4671);
 	codec->name = "AK4671";
 	codec->owner = THIS_MODULE;
 	codec->bias_level = SND_SOC_BIAS_OFF;

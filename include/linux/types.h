@@ -188,12 +188,12 @@ typedef u32 phys_addr_t;
 typedef phys_addr_t resource_size_t;
 
 typedef struct {
-	volatile int counter;
+	int counter;
 } atomic_t;
 
 #ifdef CONFIG_64BIT
 typedef struct {
-	volatile long counter;
+	long counter;
 } atomic64_t;
 #endif
 

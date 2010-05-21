@@ -270,6 +270,8 @@ static void __ieee80211_wake_queue(struct ieee80211_hw *hw, int queue,
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 
+	trace_wake_queue(local, queue, reason);
+
 	if (WARN_ON(queue >= hw->queues))
 		return;
 
@@ -311,6 +313,8 @@ static void __ieee80211_stop_queue(struct ieee80211_hw *hw, int queue,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
+
+	trace_stop_queue(local, queue, reason);
 
 	if (WARN_ON(queue >= hw->queues))
 		return;
@@ -796,6 +800,11 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 
 		drv_conf_tx(local, queue, &qparam);
 	}
+
+	/* after reinitialize QoS TX queues setting to default,
+	 * disable QoS at all */
+	local->hw.conf.flags &=	~IEEE80211_CONF_QOS;
+	drv_config(local, IEEE80211_CONF_CHANGE_QOS);
 }
 
 void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
@@ -1135,7 +1144,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	if (hw->flags & IEEE80211_HW_AMPDU_AGGREGATION) {
 		list_for_each_entry_rcu(sta, &local->sta_list, list) {
-			clear_sta_flags(sta, WLAN_STA_SUSPEND);
+			clear_sta_flags(sta, WLAN_STA_BLOCK_BA);
 		}
 	}
 
@@ -1151,18 +1160,33 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	/* Finally also reconfigure all the BSS information */
 	list_for_each_entry(sdata, &local->interfaces, list) {
-		u32 changed = ~0;
+		u32 changed;
+
 		if (!ieee80211_sdata_running(sdata))
 			continue;
+
+		/* common change flags for all interface types */
+		changed = BSS_CHANGED_ERP_CTS_PROT |
+			  BSS_CHANGED_ERP_PREAMBLE |
+			  BSS_CHANGED_ERP_SLOT |
+			  BSS_CHANGED_HT |
+			  BSS_CHANGED_BASIC_RATES |
+			  BSS_CHANGED_BEACON_INT |
+			  BSS_CHANGED_BSSID |
+			  BSS_CHANGED_CQM;
+
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
-			/* disable beacon change bits */
-			changed &= ~(BSS_CHANGED_BEACON |
-				     BSS_CHANGED_BEACON_ENABLED);
-			/* fall through */
+			changed |= BSS_CHANGED_ASSOC;
+			ieee80211_bss_info_change_notify(sdata, changed);
+			break;
 		case NL80211_IFTYPE_ADHOC:
+			changed |= BSS_CHANGED_IBSS;
+			/* fall through */
 		case NL80211_IFTYPE_AP:
 		case NL80211_IFTYPE_MESH_POINT:
+			changed |= BSS_CHANGED_BEACON |
+				   BSS_CHANGED_BEACON_ENABLED;
 			ieee80211_bss_info_change_notify(sdata, changed);
 			break;
 		case NL80211_IFTYPE_WDS:

@@ -12,11 +12,13 @@
 #include "pd-common.h"
 #include "vendorcmds.h"
 
+#ifdef CONFIG_PM
 static int pm_video_suspend(struct poseidon *pd);
 static int pm_video_resume(struct poseidon *pd);
+#endif
 static void iso_bubble_handler(struct work_struct *w);
 
-int usb_transfer_mode;
+static int usb_transfer_mode;
 module_param(usb_transfer_mode, int, 0644);
 MODULE_PARM_DESC(usb_transfer_mode, "0 = Bulk, 1 = Isochronous");
 
@@ -476,10 +478,10 @@ static int prepare_iso_urb(struct video_data *video)
 			goto out;
 
 		video->urb_array[i] = urb;
-		mem = usb_buffer_alloc(udev,
-					ISO_PKT_SIZE * PK_PER_URB,
-					GFP_KERNEL,
-					&urb->transfer_dma);
+		mem = usb_alloc_coherent(udev,
+					 ISO_PKT_SIZE * PK_PER_URB,
+					 GFP_KERNEL,
+					 &urb->transfer_dma);
 
 		urb->complete	= urb_complete_iso;	/* handler */
 		urb->dev	= udev;
@@ -519,8 +521,8 @@ int alloc_bulk_urbs_generic(struct urb **urb_array, int num,
 		if (urb == NULL)
 			return i;
 
-		mem = usb_buffer_alloc(udev, buf_size, gfp_flags,
-					&urb->transfer_dma);
+		mem = usb_alloc_coherent(udev, buf_size, gfp_flags,
+					 &urb->transfer_dma);
 		if (mem == NULL)
 			return i;
 
@@ -540,7 +542,7 @@ void free_all_urb_generic(struct urb **urb_array, int num)
 	for (i = 0; i < num; i++) {
 		urb = urb_array[i];
 		if (urb) {
-			usb_buffer_free(urb->dev,
+			usb_free_coherent(urb->dev,
 					urb->transfer_buffer_length,
 					urb->transfer_buffer,
 					urb->transfer_dma);
@@ -617,7 +619,7 @@ static int pd_buf_prepare(struct videobuf_queue *q, struct videobuf_buffer *vb,
 	return 0;
 }
 
-int fire_all_urb(struct video_data *video)
+static int fire_all_urb(struct video_data *video)
 {
 	int i, ret;
 
@@ -877,7 +879,7 @@ out:
 	return ret;
 }
 
-int vidioc_s_std(struct file *file, void *fh, v4l2_std_id *norm)
+static int vidioc_s_std(struct file *file, void *fh, v4l2_std_id *norm)
 {
 	struct front_face *front = fh;
 	logs(front);
@@ -1020,7 +1022,7 @@ static int vidioc_enumaudio(struct file *file, void *fh, struct v4l2_audio *a)
 	return 0;
 }
 
-int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
+static int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
 {
 	a->index = 0;
 	a->capability = V4L2_AUDCAP_STEREO;
@@ -1029,7 +1031,7 @@ int vidioc_g_audio(struct file *file, void *fh, struct v4l2_audio *a)
 	return 0;
 }
 
-int vidioc_s_audio(struct file *file, void *fh, struct v4l2_audio *a)
+static int vidioc_s_audio(struct file *file, void *fh, struct v4l2_audio *a)
 {
 	return (0 == a->index) ? 0 : -EINVAL;
 }
@@ -1189,7 +1191,7 @@ static int vidioc_dqbuf(struct file *file, void *fh, struct v4l2_buffer *b)
 }
 
 /* Just stop the URBs, do not free the URBs */
-int usb_transfer_stop(struct video_data *video)
+static int usb_transfer_stop(struct video_data *video)
 {
 	if (video->is_streaming) {
 		int i;
@@ -1518,13 +1520,13 @@ static int pd_video_mmap(struct file *file, struct vm_area_struct *vma)
 	return  videobuf_mmap_mapper(&front->q, vma);
 }
 
-unsigned int pd_video_poll(struct file *file, poll_table *table)
+static unsigned int pd_video_poll(struct file *file, poll_table *table)
 {
 	struct front_face *front = file->private_data;
 	return videobuf_poll_stream(file, &front->q, table);
 }
 
-ssize_t pd_video_read(struct file *file, char __user *buffer,
+static ssize_t pd_video_read(struct file *file, char __user *buffer,
 			size_t count, loff_t *ppos)
 {
 	struct front_face *front = file->private_data;

@@ -1233,7 +1233,7 @@ static void fealnx_tx_timeout(struct net_device *dev)
 
 	spin_unlock_irqrestore(&np->lock, flags);
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	np->stats.tx_errors++;
 	netif_wake_queue(dev); /* or .._start_.. ?? */
 }
@@ -1374,7 +1374,6 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	++np->really_tx_count;
 	iowrite32(0, np->mem + TXPDR);
-	dev->trans_start = jiffies;
 
 	spin_unlock_irqrestore(&np->lock, flags);
 	return NETDEV_TX_OK;
@@ -1791,12 +1790,12 @@ static void __set_rx_mode(struct net_device *dev)
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		rx_mode = CR_W_AB | CR_W_AM;
 	} else {
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		netdev_for_each_mc_addr(mclist, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			unsigned int bit;
-			bit = (ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26) ^ 0x3F;
+			bit = (ether_crc(ETH_ALEN, ha->addr) >> 26) ^ 0x3F;
 			mc_filter[bit >> 5] |= (1 << bit);
 		}
 		rx_mode = CR_W_AB | CR_W_AM;

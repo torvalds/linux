@@ -5064,7 +5064,7 @@ mptbase_sas_persist_operation(MPT_ADAPTER *ioc, u8 persist_opcode)
 		if (!timeleft) {
 			printk(KERN_DEBUG "%s: Issuing Reset from %s!!\n",
 			    ioc->name, __func__);
-			mpt_HardResetHandler(ioc, CAN_SLEEP);
+			mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 			mpt_free_msg_frame(ioc, mf);
 		}
 		goto out;
@@ -6456,10 +6456,15 @@ out:
 		issue_hard_reset = 0;
 		printk(MYIOC_s_WARN_FMT "Issuing Reset from %s!!\n",
 		    ioc->name, __func__);
-		mpt_HardResetHandler(ioc, CAN_SLEEP);
+		if (retry_count == 0) {
+			if (mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP) != 0)
+				retry_count++;
+		} else
+			mpt_HardResetHandler(ioc, CAN_SLEEP);
+
 		mpt_free_msg_frame(ioc, mf);
 		/* attempt one retry for a timed out command */
-		if (!retry_count) {
+		if (retry_count < 2) {
 			printk(MYIOC_s_INFO_FMT
 			    "Attempting Retry Config request"
 			    " type 0x%x, page 0x%x,"
@@ -6903,6 +6908,172 @@ mpt_halt_firmware(MPT_ADAPTER *ioc)
 	}
 }
 EXPORT_SYMBOL(mpt_halt_firmware);
+
+/**
+ *	mpt_SoftResetHandler - Issues a less expensive reset
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *	@sleepFlag: Indicates if sleep or schedule must be called.
+
+ *
+ *	Returns 0 for SUCCESS or -1 if FAILED.
+ *
+ *	Message Unit Reset - instructs the IOC to reset the Reply Post and
+ *	Free FIFO's. All the Message Frames on Reply Free FIFO are discarded.
+ *	All posted buffers are freed, and event notification is turned off.
+ *	IOC doesnt reply to any outstanding request. This will transfer IOC
+ *	to READY state.
+ **/
+int
+mpt_SoftResetHandler(MPT_ADAPTER *ioc, int sleepFlag)
+{
+	int		 rc;
+	int		 ii;
+	u8		 cb_idx;
+	unsigned long	 flags;
+	u32		 ioc_state;
+	unsigned long	 time_count;
+
+	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT "SoftResetHandler Entered!\n",
+		ioc->name));
+
+	ioc_state = mpt_GetIocState(ioc, 0) & MPI_IOC_STATE_MASK;
+
+	if (mpt_fwfault_debug)
+		mpt_halt_firmware(ioc);
+
+	if (ioc_state == MPI_IOC_STATE_FAULT ||
+	    ioc_state == MPI_IOC_STATE_RESET) {
+		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		    "skipping, either in FAULT or RESET state!\n", ioc->name));
+		return -1;
+	}
+
+	if (ioc->bus_type == FC) {
+		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		    "skipping, because the bus type is FC!\n", ioc->name));
+		return -1;
+	}
+
+	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
+	if (ioc->ioc_reset_in_progress) {
+		spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
+		return -1;
+	}
+	ioc->ioc_reset_in_progress = 1;
+	spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
+
+	rc = -1;
+
+	for (cb_idx = MPT_MAX_PROTOCOL_DRIVERS-1; cb_idx; cb_idx--) {
+		if (MptResetHandlers[cb_idx])
+			mpt_signal_reset(cb_idx, ioc, MPT_IOC_SETUP_RESET);
+	}
+
+	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
+	if (ioc->taskmgmt_in_progress) {
+		spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
+		return -1;
+	}
+	spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
+	/* Disable reply interrupts (also blocks FreeQ) */
+	CHIPREG_WRITE32(&ioc->chip->IntMask, 0xFFFFFFFF);
+	ioc->active = 0;
+	time_count = jiffies;
+
+	rc = SendIocReset(ioc, MPI_FUNCTION_IOC_MESSAGE_UNIT_RESET, sleepFlag);
+
+	for (cb_idx = MPT_MAX_PROTOCOL_DRIVERS-1; cb_idx; cb_idx--) {
+		if (MptResetHandlers[cb_idx])
+			mpt_signal_reset(cb_idx, ioc, MPT_IOC_PRE_RESET);
+	}
+
+	if (rc)
+		goto out;
+
+	ioc_state = mpt_GetIocState(ioc, 0) & MPI_IOC_STATE_MASK;
+	if (ioc_state != MPI_IOC_STATE_READY)
+		goto out;
+
+	for (ii = 0; ii < 5; ii++) {
+		/* Get IOC facts! Allow 5 retries */
+		rc = GetIocFacts(ioc, sleepFlag,
+			MPT_HOSTEVENT_IOC_RECOVER);
+		if (rc == 0)
+			break;
+		if (sleepFlag == CAN_SLEEP)
+			msleep(100);
+		else
+			mdelay(100);
+	}
+	if (ii == 5)
+		goto out;
+
+	rc = PrimeIocFifos(ioc);
+	if (rc != 0)
+		goto out;
+
+	rc = SendIocInit(ioc, sleepFlag);
+	if (rc != 0)
+		goto out;
+
+	rc = SendEventNotification(ioc, 1, sleepFlag);
+	if (rc != 0)
+		goto out;
+
+	if (ioc->hard_resets < -1)
+		ioc->hard_resets++;
+
+	/*
+	 * At this point, we know soft reset succeeded.
+	 */
+
+	ioc->active = 1;
+	CHIPREG_WRITE32(&ioc->chip->IntMask, MPI_HIM_DIM);
+
+ out:
+	spin_lock_irqsave(&ioc->taskmgmt_lock, flags);
+	ioc->ioc_reset_in_progress = 0;
+	ioc->taskmgmt_quiesce_io = 0;
+	ioc->taskmgmt_in_progress = 0;
+	spin_unlock_irqrestore(&ioc->taskmgmt_lock, flags);
+
+	if (ioc->active) {	/* otherwise, hard reset coming */
+		for (cb_idx = MPT_MAX_PROTOCOL_DRIVERS-1; cb_idx; cb_idx--) {
+			if (MptResetHandlers[cb_idx])
+				mpt_signal_reset(cb_idx, ioc,
+					MPT_IOC_POST_RESET);
+		}
+	}
+
+	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		"SoftResetHandler: completed (%d seconds): %s\n",
+		ioc->name, jiffies_to_msecs(jiffies - time_count)/1000,
+		((rc == 0) ? "SUCCESS" : "FAILED")));
+
+	return rc;
+}
+
+/**
+ *	mpt_Soft_Hard_ResetHandler - Try less expensive reset
+ *	@ioc: Pointer to MPT_ADAPTER structure
+ *	@sleepFlag: Indicates if sleep or schedule must be called.
+
+ *
+ *	Returns 0 for SUCCESS or -1 if FAILED.
+ *	Try for softreset first, only if it fails go for expensive
+ *	HardReset.
+ **/
+int
+mpt_Soft_Hard_ResetHandler(MPT_ADAPTER *ioc, int sleepFlag) {
+	int ret = -1;
+
+	ret = mpt_SoftResetHandler(ioc, sleepFlag);
+	if (ret == 0)
+		return ret;
+	ret = mpt_HardResetHandler(ioc, sleepFlag);
+	return ret;
+}
+EXPORT_SYMBOL(mpt_Soft_Hard_ResetHandler);
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
 /*

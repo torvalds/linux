@@ -78,6 +78,11 @@ __volatile__ unsigned int *master_l10_counter;
 
 u32 (*do_arch_gettimeoffset)(void);
 
+int update_persistent_clock(struct timespec now)
+{
+	return set_rtc_mmss(now.tv_sec);
+}
+
 /*
  * timer_interrupt() needs to keep up the real-time clock,
  * as well as call the "do_timer()" routine every clocktick
@@ -87,9 +92,6 @@ u32 (*do_arch_gettimeoffset)(void);
 
 static irqreturn_t timer_interrupt(int dummy, void *dev_id)
 {
-	/* last time the cmos clock got updated */
-	static long last_rtc_update;
-
 #ifndef CONFIG_SMP
 	profile_tick(CPU_PROFILING);
 #endif
@@ -101,16 +103,6 @@ static irqreturn_t timer_interrupt(int dummy, void *dev_id)
 
 	do_timer(1);
 
-	/* Determine when to update the Mostek clock. */
-	if (ntp_synced() &&
-	    xtime.tv_sec > last_rtc_update + 660 &&
-	    (xtime.tv_nsec / 1000) >= 500000 - ((unsigned) TICK_SIZE) / 2 &&
-	    (xtime.tv_nsec / 1000) <= 500000 + ((unsigned) TICK_SIZE) / 2) {
-	  if (set_rtc_mmss(xtime.tv_sec) == 0)
-	    last_rtc_update = xtime.tv_sec;
-	  else
-	    last_rtc_update = xtime.tv_sec - 600; /* do it again in 60 s */
-	}
 	write_sequnlock(&xtime_lock);
 
 #ifndef CONFIG_SMP

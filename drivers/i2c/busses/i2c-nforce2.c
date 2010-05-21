@@ -57,7 +57,7 @@
 #include <linux/dmi.h>
 #include <linux/acpi.h>
 #include <linux/slab.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR ("Hans-Frieder Vogt <hfvogt@gmx.net>");
@@ -404,10 +404,9 @@ static int __devinit nforce2_probe(struct pci_dev *dev, const struct pci_device_
 
 	/* SMBus adapter 1 */
 	res1 = nforce2_probe_smb(dev, 4, NFORCE_PCI_SMB1, &smbuses[0], "SMB1");
-	if (res1 < 0) {
-		dev_err(&dev->dev, "Error probing SMB1.\n");
+	if (res1 < 0)
 		smbuses[0].base = 0;	/* to have a check value */
-	}
+
 	/* SMBus adapter 2 */
 	if (dmi_check_system(nforce2_dmi_blacklist2)) {
 		dev_err(&dev->dev, "Disabling SMB2 for safety reasons.\n");
@@ -416,11 +415,10 @@ static int __devinit nforce2_probe(struct pci_dev *dev, const struct pci_device_
 	} else {
 		res2 = nforce2_probe_smb(dev, 5, NFORCE_PCI_SMB2, &smbuses[1],
 					 "SMB2");
-		if (res2 < 0) {
-			dev_err(&dev->dev, "Error probing SMB2.\n");
+		if (res2 < 0)
 			smbuses[1].base = 0;	/* to have a check value */
-		}
 	}
+
 	if ((res1 < 0) && (res2 < 0)) {
 		/* we did not find even one of the SMBuses, so we give up */
 		kfree(smbuses);

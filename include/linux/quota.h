@@ -174,6 +174,8 @@ enum {
 #include <linux/rwsem.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
+#include <linux/percpu.h>
+#include <linux/smp.h>
 
 #include <linux/dqblk_xfs.h>
 #include <linux/dqblk_v1.h>
@@ -238,18 +240,42 @@ static inline int info_dirty(struct mem_dqinfo *info)
 	return test_bit(DQF_INFO_DIRTY_B, &info->dqi_flags);
 }
 
-struct dqstats {
-	int lookups;
-	int drops;
-	int reads;
-	int writes;
-	int cache_hits;
-	int allocated_dquots;
-	int free_dquots;
-	int syncs;
+enum {
+	DQST_LOOKUPS,
+	DQST_DROPS,
+	DQST_READS,
+	DQST_WRITES,
+	DQST_CACHE_HITS,
+	DQST_ALLOC_DQUOTS,
+	DQST_FREE_DQUOTS,
+	DQST_SYNCS,
+	_DQST_DQSTAT_LAST
 };
 
+struct dqstats {
+	int stat[_DQST_DQSTAT_LAST];
+};
+
+extern struct dqstats *dqstats_pcpu;
 extern struct dqstats dqstats;
+
+static inline void dqstats_inc(unsigned int type)
+{
+#ifdef CONFIG_SMP
+	per_cpu_ptr(dqstats_pcpu, smp_processor_id())->stat[type]++;
+#else
+	dqstats.stat[type]++;
+#endif
+}
+
+static inline void dqstats_dec(unsigned int type)
+{
+#ifdef CONFIG_SMP
+	per_cpu_ptr(dqstats_pcpu, smp_processor_id())->stat[type]--;
+#else
+	dqstats.stat[type]--;
+#endif
+}
 
 #define DQ_MOD_B	0	/* dquot modified since read */
 #define DQ_BLKS_B	1	/* uid/gid has been warned about blk limit */
@@ -311,12 +337,10 @@ struct quotactl_ops {
 	int (*quota_sync)(struct super_block *, int, int);
 	int (*get_info)(struct super_block *, int, struct if_dqinfo *);
 	int (*set_info)(struct super_block *, int, struct if_dqinfo *);
-	int (*get_dqblk)(struct super_block *, int, qid_t, struct if_dqblk *);
-	int (*set_dqblk)(struct super_block *, int, qid_t, struct if_dqblk *);
+	int (*get_dqblk)(struct super_block *, int, qid_t, struct fs_disk_quota *);
+	int (*set_dqblk)(struct super_block *, int, qid_t, struct fs_disk_quota *);
 	int (*get_xstate)(struct super_block *, struct fs_quota_stat *);
 	int (*set_xstate)(struct super_block *, unsigned int, int);
-	int (*get_xquota)(struct super_block *, int, qid_t, struct fs_disk_quota *);
-	int (*set_xquota)(struct super_block *, int, qid_t, struct fs_disk_quota *);
 };
 
 struct quota_format_type {

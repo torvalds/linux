@@ -374,7 +374,7 @@ static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setcomptarget(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcomptarget(struct gspca_dev *gspca_dev, __s32 *val);
 
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -861,7 +861,7 @@ static int save_camera_state(struct gspca_dev *gspca_dev)
 	return do_command(gspca_dev, CPIA_COMMAND_GetExposure, 0, 0, 0, 0);
 }
 
-int command_setformat(struct gspca_dev *gspca_dev)
+static int command_setformat(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int ret;
@@ -878,7 +878,7 @@ int command_setformat(struct gspca_dev *gspca_dev)
 			  sd->params.roi.rowStart, sd->params.roi.rowEnd);
 }
 
-int command_setcolourparams(struct gspca_dev *gspca_dev)
+static int command_setcolourparams(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	return do_command(gspca_dev, CPIA_COMMAND_SetColourParams,
@@ -887,7 +887,7 @@ int command_setcolourparams(struct gspca_dev *gspca_dev)
 			  sd->params.colourParams.saturation, 0);
 }
 
-int command_setapcor(struct gspca_dev *gspca_dev)
+static int command_setapcor(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	return do_command(gspca_dev, CPIA_COMMAND_SetApcor,
@@ -897,7 +897,7 @@ int command_setapcor(struct gspca_dev *gspca_dev)
 			  sd->params.apcor.gain8);
 }
 
-int command_setvloffset(struct gspca_dev *gspca_dev)
+static int command_setvloffset(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	return do_command(gspca_dev, CPIA_COMMAND_SetVLOffset,
@@ -907,7 +907,7 @@ int command_setvloffset(struct gspca_dev *gspca_dev)
 			  sd->params.vlOffset.gain8);
 }
 
-int command_setexposure(struct gspca_dev *gspca_dev)
+static int command_setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int ret;
@@ -943,7 +943,7 @@ int command_setexposure(struct gspca_dev *gspca_dev)
 	return ret;
 }
 
-int command_setcolourbalance(struct gspca_dev *gspca_dev)
+static int command_setcolourbalance(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -973,7 +973,7 @@ int command_setcolourbalance(struct gspca_dev *gspca_dev)
 	return -EINVAL;
 }
 
-int command_setcompressiontarget(struct gspca_dev *gspca_dev)
+static int command_setcompressiontarget(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -983,7 +983,7 @@ int command_setcompressiontarget(struct gspca_dev *gspca_dev)
 			  sd->params.compressionTarget.targetQ, 0);
 }
 
-int command_setyuvtresh(struct gspca_dev *gspca_dev)
+static int command_setyuvtresh(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -992,7 +992,7 @@ int command_setyuvtresh(struct gspca_dev *gspca_dev)
 			  sd->params.yuvThreshold.uvThreshold, 0, 0);
 }
 
-int command_setcompressionparams(struct gspca_dev *gspca_dev)
+static int command_setcompressionparams(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -1009,7 +1009,7 @@ int command_setcompressionparams(struct gspca_dev *gspca_dev)
 			    sd->params.compressionParams.decimationThreshMod);
 }
 
-int command_setcompression(struct gspca_dev *gspca_dev)
+static int command_setcompression(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -1018,7 +1018,7 @@ int command_setcompression(struct gspca_dev *gspca_dev)
 			  sd->params.compression.decimation, 0, 0);
 }
 
-int command_setsensorfps(struct gspca_dev *gspca_dev)
+static int command_setsensorfps(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -1027,7 +1027,7 @@ int command_setsensorfps(struct gspca_dev *gspca_dev)
 			  sd->params.sensorFps.baserate, 0, 0);
 }
 
-int command_setflickerctrl(struct gspca_dev *gspca_dev)
+static int command_setflickerctrl(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -1038,7 +1038,7 @@ int command_setflickerctrl(struct gspca_dev *gspca_dev)
 			  0);
 }
 
-int command_setecptiming(struct gspca_dev *gspca_dev)
+static int command_setecptiming(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -1046,12 +1046,12 @@ int command_setecptiming(struct gspca_dev *gspca_dev)
 			  sd->params.ecpTiming, 0, 0, 0);
 }
 
-int command_pause(struct gspca_dev *gspca_dev)
+static int command_pause(struct gspca_dev *gspca_dev)
 {
 	return do_command(gspca_dev, CPIA_COMMAND_EndStreamCap, 0, 0, 0, 0);
 }
 
-int command_resume(struct gspca_dev *gspca_dev)
+static int command_resume(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -1059,7 +1059,8 @@ int command_resume(struct gspca_dev *gspca_dev)
 			  0, sd->params.streamStartLine, 0, 0);
 }
 
-int command_setlights(struct gspca_dev *gspca_dev)
+#if 0 /* Currently unused */
+static int command_setlights(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int ret, p1, p2;
@@ -1078,6 +1079,7 @@ int command_setlights(struct gspca_dev *gspca_dev)
 	return do_command(gspca_dev, CPIA_COMMAND_WriteMCPort, 2, 0,
 			  p1 | p2 | 0xE0, 0);
 }
+#endif
 
 static int set_flicker(struct gspca_dev *gspca_dev, int on, int apply)
 {

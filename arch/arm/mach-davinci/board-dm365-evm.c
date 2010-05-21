@@ -54,11 +54,6 @@ static inline int have_tvp7002(void)
 	return 0;
 }
 
-
-#define DM365_ASYNC_EMIF_CONTROL_BASE	0x01d10000
-#define DM365_ASYNC_EMIF_DATA_CE0_BASE	0x02000000
-#define DM365_ASYNC_EMIF_DATA_CE1_BASE	0x04000000
-
 #define DM365_EVM_PHY_MASK		(0x2)
 #define DM365_EVM_MDIO_FREQUENCY	(2200000) /* PHY bus frequency */
 
@@ -605,7 +600,11 @@ static __init void dm365_evm_init(void)
 	/* maybe setup mmc1/etc ... _after_ mmc0 */
 	evm_init_cpld();
 
+#ifdef CONFIG_SND_DM365_AIC3X_CODEC
 	dm365_init_asp(&dm365_evm_snd_data);
+#elif defined(CONFIG_SND_DM365_VOICE_CODEC)
+	dm365_init_vc(&dm365_evm_snd_data);
+#endif
 	dm365_init_rtc();
 	dm365_init_ks(&dm365evm_ks_data);
 
@@ -613,17 +612,12 @@ static __init void dm365_evm_init(void)
 			ARRAY_SIZE(dm365_evm_spi_info));
 }
 
-static __init void dm365_evm_irq_init(void)
-{
-	davinci_irq_init();
-}
-
 MACHINE_START(DAVINCI_DM365_EVM, "DaVinci DM365 EVM")
 	.phys_io	= IO_PHYS,
 	.io_pg_offst	= (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params	= (0x80000100),
 	.map_io		= dm365_evm_map_io,
-	.init_irq	= dm365_evm_irq_init,
+	.init_irq	= davinci_irq_init,
 	.timer		= &davinci_timer,
 	.init_machine	= dm365_evm_init,
 MACHINE_END

@@ -258,7 +258,7 @@ acpi_status acpi_ut_acquire_mutex(acpi_mutex_handle mutex_id)
 		acpi_gbl_mutex_info[mutex_id].thread_id = this_thread_id;
 	} else {
 		ACPI_EXCEPTION((AE_INFO, status,
-				"Thread %p could not acquire Mutex [%X]",
+				"Thread %p could not acquire Mutex [0x%X]",
 				ACPI_CAST_PTR(void, this_thread_id), mutex_id));
 	}
 
@@ -297,7 +297,7 @@ acpi_status acpi_ut_release_mutex(acpi_mutex_handle mutex_id)
 	 */
 	if (acpi_gbl_mutex_info[mutex_id].thread_id == ACPI_MUTEX_NOT_ACQUIRED) {
 		ACPI_ERROR((AE_INFO,
-			    "Mutex [%X] is not acquired, cannot release",
+			    "Mutex [0x%X] is not acquired, cannot release",
 			    mutex_id));
 
 		return (AE_NOT_ACQUIRED);

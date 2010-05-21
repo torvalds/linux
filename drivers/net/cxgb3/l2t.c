@@ -207,7 +207,6 @@ again:
 		 */
 		neigh_event_send(e->neigh, NULL);
 	}
-	return;
 }
 
 EXPORT_SYMBOL(t3_l2t_send_event);

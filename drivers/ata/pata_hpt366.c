@@ -182,7 +182,7 @@ static unsigned long hpt366_filter(struct ata_device *adev, unsigned long mask)
 	} else if (adev->class == ATA_DEV_ATAPI)
 		mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
 
-	return ata_bmdma_mode_filter(adev, mask);
+	return mask;
 }
 
 static int hpt36x_cable_detect(struct ata_port *ap)

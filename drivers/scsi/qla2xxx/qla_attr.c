@@ -12,13 +12,11 @@
 #include <linux/delay.h>
 
 static int qla24xx_vport_disable(struct fc_vport *, bool);
-static int qla84xx_reset(scsi_qla_host_t *, struct msg_echo_lb *, struct fc_bsg_job *);
-int qla84xx_reset_chip(scsi_qla_host_t *, uint16_t, uint16_t *);
-static int qla84xx_mgmt_cmd(scsi_qla_host_t *, struct msg_echo_lb *, struct fc_bsg_job *);
+
 /* SYSFS attributes --------------------------------------------------------- */
 
 static ssize_t
-qla2x00_sysfs_read_fw_dump(struct kobject *kobj,
+qla2x00_sysfs_read_fw_dump(struct file *filp, struct kobject *kobj,
 			   struct bin_attribute *bin_attr,
 			   char *buf, loff_t off, size_t count)
 {
@@ -34,7 +32,7 @@ qla2x00_sysfs_read_fw_dump(struct kobject *kobj,
 }
 
 static ssize_t
-qla2x00_sysfs_write_fw_dump(struct kobject *kobj,
+qla2x00_sysfs_write_fw_dump(struct file *filp, struct kobject *kobj,
 			    struct bin_attribute *bin_attr,
 			    char *buf, loff_t off, size_t count)
 {
@@ -42,6 +40,12 @@ qla2x00_sysfs_write_fw_dump(struct kobject *kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
 	int reading;
+
+	if (IS_QLA82XX(ha)) {
+		DEBUG2(qla_printk(KERN_INFO, ha,
+			"Firmware dump not supported for ISP82xx\n"));
+		return count;
+	}
 
 	if (off != 0)
 		return (0);
@@ -88,7 +92,7 @@ static struct bin_attribute sysfs_fw_dump_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_nvram(struct kobject *kobj,
+qla2x00_sysfs_read_nvram(struct file *filp, struct kobject *kobj,
 			 struct bin_attribute *bin_attr,
 			 char *buf, loff_t off, size_t count)
 {
@@ -107,7 +111,7 @@ qla2x00_sysfs_read_nvram(struct kobject *kobj,
 }
 
 static ssize_t
-qla2x00_sysfs_write_nvram(struct kobject *kobj,
+qla2x00_sysfs_write_nvram(struct file *filp, struct kobject *kobj,
 			  struct bin_attribute *bin_attr,
 			  char *buf, loff_t off, size_t count)
 {
@@ -173,7 +177,7 @@ static struct bin_attribute sysfs_nvram_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_optrom(struct kobject *kobj,
+qla2x00_sysfs_read_optrom(struct file *filp, struct kobject *kobj,
 			  struct bin_attribute *bin_attr,
 			  char *buf, loff_t off, size_t count)
 {
@@ -189,7 +193,7 @@ qla2x00_sysfs_read_optrom(struct kobject *kobj,
 }
 
 static ssize_t
-qla2x00_sysfs_write_optrom(struct kobject *kobj,
+qla2x00_sysfs_write_optrom(struct file *filp, struct kobject *kobj,
 			   struct bin_attribute *bin_attr,
 			   char *buf, loff_t off, size_t count)
 {
@@ -220,7 +224,7 @@ static struct bin_attribute sysfs_optrom_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
+qla2x00_sysfs_write_optrom_ctl(struct file *filp, struct kobject *kobj,
 			       struct bin_attribute *bin_attr,
 			       char *buf, loff_t off, size_t count)
 {
@@ -277,6 +281,12 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 			return count;
 		}
 
+		if (qla2x00_wait_for_hba_online(vha) != QLA_SUCCESS) {
+			qla_printk(KERN_WARNING, ha,
+				"HBA not online, failing NVRAM update.\n");
+			return -EAGAIN;
+		}
+
 		DEBUG2(qla_printk(KERN_INFO, ha,
 		    "Reading flash region -- 0x%x/0x%x.\n",
 		    ha->optrom_region_start, ha->optrom_region_size));
@@ -315,8 +325,8 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 		else if (start == (ha->flt_region_boot * 4) ||
 		    start == (ha->flt_region_fw * 4))
 			valid = 1;
-		else if (IS_QLA25XX(ha) || IS_QLA81XX(ha))
-		    valid = 1;
+		else if (IS_QLA25XX(ha) || IS_QLA8XXX_TYPE(ha))
+			valid = 1;
 		if (!valid) {
 			qla_printk(KERN_WARNING, ha,
 			    "Invalid start region 0x%x/0x%x.\n", start, size);
@@ -377,7 +387,7 @@ static struct bin_attribute sysfs_optrom_ctl_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_vpd(struct kobject *kobj,
+qla2x00_sysfs_read_vpd(struct file *filp, struct kobject *kobj,
 		       struct bin_attribute *bin_attr,
 		       char *buf, loff_t off, size_t count)
 {
@@ -398,7 +408,7 @@ qla2x00_sysfs_read_vpd(struct kobject *kobj,
 }
 
 static ssize_t
-qla2x00_sysfs_write_vpd(struct kobject *kobj,
+qla2x00_sysfs_write_vpd(struct file *filp, struct kobject *kobj,
 			struct bin_attribute *bin_attr,
 			char *buf, loff_t off, size_t count)
 {
@@ -451,7 +461,7 @@ static struct bin_attribute sysfs_vpd_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_sfp(struct kobject *kobj,
+qla2x00_sysfs_read_sfp(struct file *filp, struct kobject *kobj,
 		       struct bin_attribute *bin_attr,
 		       char *buf, loff_t off, size_t count)
 {
@@ -512,13 +522,14 @@ static struct bin_attribute sysfs_sfp_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_write_reset(struct kobject *kobj,
+qla2x00_sysfs_write_reset(struct file *filp, struct kobject *kobj,
 			struct bin_attribute *bin_attr,
 			char *buf, loff_t off, size_t count)
 {
 	struct scsi_qla_host *vha = shost_priv(dev_to_shost(container_of(kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
+	struct scsi_qla_host *base_vha = pci_get_drvdata(ha->pdev);
 	int type;
 
 	if (off != 0)
@@ -553,6 +564,20 @@ qla2x00_sysfs_write_reset(struct kobject *kobj,
 			    "MPI reset failed on (%ld).\n", vha->host_no);
 		scsi_unblock_requests(vha->host);
 		break;
+	case 0x2025e:
+		if (!IS_QLA82XX(ha) || vha != base_vha) {
+			qla_printk(KERN_INFO, ha,
+			    "FCoE ctx reset not supported for host%ld.\n",
+			    vha->host_no);
+			return count;
+		}
+
+		qla_printk(KERN_INFO, ha,
+		    "Issuing FCoE CTX reset on host%ld.\n", vha->host_no);
+		set_bit(FCOE_CTX_RESET_NEEDED, &vha->dpc_flags);
+		qla2xxx_wake_dpc(vha);
+		qla2x00_wait_for_fcoe_ctx_reset(vha);
+		break;
 	}
 	return count;
 }
@@ -567,7 +592,7 @@ static struct bin_attribute sysfs_reset_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_write_edc(struct kobject *kobj,
+qla2x00_sysfs_write_edc(struct file *filp, struct kobject *kobj,
 			struct bin_attribute *bin_attr,
 			char *buf, loff_t off, size_t count)
 {
@@ -625,7 +650,7 @@ static struct bin_attribute sysfs_edc_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_write_edc_status(struct kobject *kobj,
+qla2x00_sysfs_write_edc_status(struct file *filp, struct kobject *kobj,
 			struct bin_attribute *bin_attr,
 			char *buf, loff_t off, size_t count)
 {
@@ -675,7 +700,7 @@ qla2x00_sysfs_write_edc_status(struct kobject *kobj,
 }
 
 static ssize_t
-qla2x00_sysfs_read_edc_status(struct kobject *kobj,
+qla2x00_sysfs_read_edc_status(struct file *filp, struct kobject *kobj,
 			   struct bin_attribute *bin_attr,
 			   char *buf, loff_t off, size_t count)
 {
@@ -705,7 +730,7 @@ static struct bin_attribute sysfs_edc_status_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_xgmac_stats(struct kobject *kobj,
+qla2x00_sysfs_read_xgmac_stats(struct file *filp, struct kobject *kobj,
 		       struct bin_attribute *bin_attr,
 		       char *buf, loff_t off, size_t count)
 {
@@ -757,7 +782,7 @@ static struct bin_attribute sysfs_xgmac_stats_attr = {
 };
 
 static ssize_t
-qla2x00_sysfs_read_dcbx_tlv(struct kobject *kobj,
+qla2x00_sysfs_read_dcbx_tlv(struct file *filp, struct kobject *kobj,
 		       struct bin_attribute *bin_attr,
 		       char *buf, loff_t off, size_t count)
 {
@@ -838,7 +863,7 @@ qla2x00_alloc_sysfs_attr(scsi_qla_host_t *vha)
 			continue;
 		if (iter->is4GBp_only == 2 && !IS_QLA25XX(vha->hw))
 			continue;
-		if (iter->is4GBp_only == 3 && !IS_QLA81XX(vha->hw))
+		if (iter->is4GBp_only == 3 && !(IS_QLA8XXX_TYPE(vha->hw)))
 			continue;
 
 		ret = sysfs_create_bin_file(&host->shost_gendev.kobj,
@@ -862,7 +887,7 @@ qla2x00_free_sysfs_attr(scsi_qla_host_t *vha)
 			continue;
 		if (iter->is4GBp_only == 2 && !IS_QLA25XX(ha))
 			continue;
-		if (iter->is4GBp_only == 3 && !IS_QLA81XX(ha))
+		if (iter->is4GBp_only == 3 && !!(IS_QLA8XXX_TYPE(vha->hw)))
 			continue;
 
 		sysfs_remove_bin_file(&host->shost_gendev.kobj,
@@ -968,7 +993,8 @@ qla2x00_link_state_show(struct device *dev, struct device_attribute *attr,
 	int len = 0;
 
 	if (atomic_read(&vha->loop_state) == LOOP_DOWN ||
-	    atomic_read(&vha->loop_state) == LOOP_DEAD)
+	    atomic_read(&vha->loop_state) == LOOP_DEAD ||
+	    vha->device_flags & DFLG_NO_CABLE)
 		len = snprintf(buf, PAGE_SIZE, "Link Down\n");
 	else if (atomic_read(&vha->loop_state) != LOOP_READY ||
 	    test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
@@ -1179,15 +1205,15 @@ qla24xx_84xx_fw_version_show(struct device *dev,
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	struct qla_hw_data *ha = vha->hw;
 
-	if (IS_QLA84XX(ha) && ha->cs84xx) {
-		if (ha->cs84xx->op_fw_version == 0) {
-			rval = qla84xx_verify_chip(vha, status);
-	}
+	if (!IS_QLA84XX(ha))
+		return snprintf(buf, PAGE_SIZE, "\n");
+
+	if (ha->cs84xx && ha->cs84xx->op_fw_version == 0)
+		rval = qla84xx_verify_chip(vha, status);
 
 	if ((rval == QLA_SUCCESS) && (status[0] == 0))
 		return snprintf(buf, PAGE_SIZE, "%u\n",
 			(uint32_t)ha->cs84xx->op_fw_version);
-	}
 
 	return snprintf(buf, PAGE_SIZE, "\n");
 }
@@ -1237,7 +1263,7 @@ qla2x00_vlan_id_show(struct device *dev, struct device_attribute *attr,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 
-	if (!IS_QLA81XX(vha->hw))
+	if (!IS_QLA8XXX_TYPE(vha->hw))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%d\n", vha->fcoe_vlan_id);
@@ -1249,7 +1275,7 @@ qla2x00_vn_port_mac_address_show(struct device *dev,
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 
-	if (!IS_QLA81XX(vha->hw))
+	if (!IS_QLA8XXX_TYPE(vha->hw))
 		return snprintf(buf, PAGE_SIZE, "\n");
 
 	return snprintf(buf, PAGE_SIZE, "%02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -1706,6 +1732,22 @@ qla24xx_vport_create(struct fc_vport *fc_vport, bool disable)
 			fc_vport_set_state(fc_vport, FC_VPORT_LINKDOWN);
 	}
 
+	if (IS_QLA25XX(ha) && ql2xenabledif) {
+		if (ha->fw_attributes & BIT_4) {
+			vha->flags.difdix_supported = 1;
+			DEBUG18(qla_printk(KERN_INFO, ha,
+			    "Registering for DIF/DIX type 1 and 3"
+			    " protection.\n"));
+			scsi_host_set_prot(vha->host,
+			    SHOST_DIF_TYPE1_PROTECTION
+			    | SHOST_DIF_TYPE3_PROTECTION
+			    | SHOST_DIX_TYPE1_PROTECTION
+			    | SHOST_DIX_TYPE3_PROTECTION);
+			scsi_host_set_guard(vha->host, SHOST_DIX_GUARD_CRC);
+		} else
+			vha->flags.difdix_supported = 0;
+	}
+
 	if (scsi_add_host_with_dma(vha->host, &fc_vport->dev,
 				   &ha->pdev->dev)) {
 		DEBUG15(printk("scsi(%ld): scsi_add_host failure for VP[%d].\n",
@@ -1825,582 +1867,6 @@ qla24xx_vport_disable(struct fc_vport *fc_vport, bool disable)
 	return 0;
 }
 
-/* BSG support for ELS/CT pass through */
-inline srb_t *
-qla2x00_get_ctx_bsg_sp(scsi_qla_host_t *vha, fc_port_t *fcport, size_t size)
-{
-	srb_t *sp;
-	struct qla_hw_data *ha = vha->hw;
-	struct srb_bsg_ctx *ctx;
-
-	sp = mempool_alloc(ha->srb_mempool, GFP_KERNEL);
-	if (!sp)
-		goto done;
-	ctx = kzalloc(size, GFP_KERNEL);
-	if (!ctx) {
-		mempool_free(sp, ha->srb_mempool);
-		goto done;
-	}
-
-	memset(sp, 0, sizeof(*sp));
-	sp->fcport = fcport;
-	sp->ctx = ctx;
-done:
-	return sp;
-}
-
-static int
-qla2x00_process_els(struct fc_bsg_job *bsg_job)
-{
-	struct fc_rport *rport;
-	fc_port_t *fcport;
-	struct Scsi_Host *host;
-	scsi_qla_host_t *vha;
-	struct qla_hw_data *ha;
-	srb_t *sp;
-	const char *type;
-	int req_sg_cnt, rsp_sg_cnt;
-	int rval =  (DRIVER_ERROR << 16);
-	uint16_t nextlid = 0;
-	struct srb_bsg *els;
-
-	/*  Multiple SG's are not supported for ELS requests */
-        if (bsg_job->request_payload.sg_cnt > 1 ||
-		bsg_job->reply_payload.sg_cnt > 1) {
-		DEBUG2(printk(KERN_INFO
-		    "multiple SG's are not supported for ELS requests"
-		    " [request_sg_cnt: %x reply_sg_cnt: %x]\n",
-		    bsg_job->request_payload.sg_cnt,
-		    bsg_job->reply_payload.sg_cnt));
-		rval = -EPERM;
-		goto done;
-        }
-
-	/* ELS request for rport */
-	if (bsg_job->request->msgcode == FC_BSG_RPT_ELS) {
-		rport = bsg_job->rport;
-		fcport = *(fc_port_t **) rport->dd_data;
-		host = rport_to_shost(rport);
-		vha = shost_priv(host);
-		ha = vha->hw;
-		type = "FC_BSG_RPT_ELS";
-
-		/* make sure the rport is logged in,
-		 * if not perform fabric login
-		 */
-		if (qla2x00_fabric_login(vha, fcport, &nextlid)) {
-			DEBUG2(qla_printk(KERN_WARNING, ha,
-			    "failed to login port %06X for ELS passthru\n",
-			    fcport->d_id.b24));
-			rval = -EIO;
-			goto done;
-		}
-	} else {
-		host = bsg_job->shost;
-		vha = shost_priv(host);
-		ha = vha->hw;
-		type = "FC_BSG_HST_ELS_NOLOGIN";
-
-		/* Allocate a dummy fcport structure, since functions
-		 * preparing the IOCB and mailbox command retrieves port
-		 * specific information from fcport structure. For Host based
-		 * ELS commands there will be no fcport structure allocated
-		 */
-		fcport = qla2x00_alloc_fcport(vha, GFP_KERNEL);
-		if (!fcport) {
-			rval = -ENOMEM;
-			goto done;
-		}
-
-		/* Initialize all required  fields of fcport */
-		fcport->vha = vha;
-		fcport->vp_idx = vha->vp_idx;
-		fcport->d_id.b.al_pa =
-		    bsg_job->request->rqst_data.h_els.port_id[0];
-		fcport->d_id.b.area =
-		    bsg_job->request->rqst_data.h_els.port_id[1];
-		fcport->d_id.b.domain =
-		    bsg_job->request->rqst_data.h_els.port_id[2];
-		fcport->loop_id =
-		    (fcport->d_id.b.al_pa == 0xFD) ?
-		    NPH_FABRIC_CONTROLLER : NPH_F_PORT;
-	}
-
-	if (!vha->flags.online) {
-		DEBUG2(qla_printk(KERN_WARNING, ha,
-		    "host not online\n"));
-		rval = -EIO;
-		goto done;
-	}
-
-        req_sg_cnt =
-	    dma_map_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
-	    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
-        if (!req_sg_cnt) {
-		rval = -ENOMEM;
-		goto done_free_fcport;
-	}
-        rsp_sg_cnt = dma_map_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
-	    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
-        if (!rsp_sg_cnt) {
-		rval = -ENOMEM;
-                goto done_free_fcport;
-	}
-
-	if ((req_sg_cnt !=  bsg_job->request_payload.sg_cnt) ||
-	    (rsp_sg_cnt != bsg_job->reply_payload.sg_cnt))
-	{
-		DEBUG2(printk(KERN_INFO
-		    "dma mapping resulted in different sg counts \
-		    [request_sg_cnt: %x dma_request_sg_cnt: %x\
-		    reply_sg_cnt: %x dma_reply_sg_cnt: %x]\n",
-		    bsg_job->request_payload.sg_cnt, req_sg_cnt,
-		    bsg_job->reply_payload.sg_cnt, rsp_sg_cnt));
-		rval = -EAGAIN;
-                goto done_unmap_sg;
-	}
-
-	/* Alloc SRB structure */
-	sp = qla2x00_get_ctx_bsg_sp(vha, fcport, sizeof(struct srb_bsg));
-	if (!sp) {
-		rval = -ENOMEM;
-                goto done_unmap_sg;
-	}
-
-	els = sp->ctx;
-	els->ctx.type =
-	    (bsg_job->request->msgcode == FC_BSG_RPT_ELS ?
-	    SRB_ELS_CMD_RPT : SRB_ELS_CMD_HST);
-	els->bsg_job = bsg_job;
-
-	DEBUG2(qla_printk(KERN_INFO, ha,
-	    "scsi(%ld:%x): bsg rqst type: %s els type: %x - loop-id=%x "
-	    "portid=%02x%02x%02x.\n", vha->host_no, sp->handle, type,
-	    bsg_job->request->rqst_data.h_els.command_code,
-	    fcport->loop_id, fcport->d_id.b.domain, fcport->d_id.b.area,
-	    fcport->d_id.b.al_pa));
-
-	rval = qla2x00_start_sp(sp);
-	if (rval != QLA_SUCCESS) {
-		kfree(sp->ctx);
-		mempool_free(sp, ha->srb_mempool);
-		rval = -EIO;
-		goto done_unmap_sg;
-	}
-	return rval;
-
-done_unmap_sg:
-	dma_unmap_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
-		bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
-	dma_unmap_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
-		bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
-	goto done_free_fcport;
-
-done_free_fcport:
-	if (bsg_job->request->msgcode == FC_BSG_HST_ELS_NOLOGIN)
-		kfree(fcport);
-done:
-	return rval;
-}
-
-static int
-qla2x00_process_ct(struct fc_bsg_job *bsg_job)
-{
-	srb_t *sp;
-	struct Scsi_Host *host = bsg_job->shost;
-	scsi_qla_host_t *vha = shost_priv(host);
-	struct qla_hw_data *ha = vha->hw;
-	int rval = (DRIVER_ERROR << 16);
-	int req_sg_cnt, rsp_sg_cnt;
-	uint16_t loop_id;
-	struct fc_port *fcport;
-	char  *type = "FC_BSG_HST_CT";
-	struct srb_bsg *ct;
-
-	/* pass through is supported only for ISP 4Gb or higher */
-        if (!IS_FWI2_CAPABLE(ha)) {
-		DEBUG2(qla_printk(KERN_INFO, ha,
-		    "scsi(%ld):Firmware is not capable to support FC "
-		    "CT pass thru\n", vha->host_no));
-		rval = -EPERM;
-                goto done;
-	}
-
-        req_sg_cnt =
-	    dma_map_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
-	    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
-        if (!req_sg_cnt) {
-		rval = -ENOMEM;
-		goto done;
-	}
-
-        rsp_sg_cnt = dma_map_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
-            bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
-        if (!rsp_sg_cnt) {
-		rval = -ENOMEM;
-                goto done;
-	}
-
-	if ((req_sg_cnt !=  bsg_job->request_payload.sg_cnt) ||
-		(rsp_sg_cnt != bsg_job->reply_payload.sg_cnt))
-	{
-		DEBUG2(qla_printk(KERN_WARNING, ha,
-		    "dma mapping resulted in different sg counts \
-		    [request_sg_cnt: %x dma_request_sg_cnt: %x\
-		    reply_sg_cnt: %x dma_reply_sg_cnt: %x]\n",
-		    bsg_job->request_payload.sg_cnt, req_sg_cnt,
-		    bsg_job->reply_payload.sg_cnt, rsp_sg_cnt));
-		rval = -EAGAIN;
-                goto done_unmap_sg;
-	}
-
-	if (!vha->flags.online) {
-		DEBUG2(qla_printk(KERN_WARNING, ha,
-		    "host not online\n"));
-		rval = -EIO;
-                goto done_unmap_sg;
-	}
-
-	loop_id =
-	    (bsg_job->request->rqst_data.h_ct.preamble_word1 & 0xFF000000)
-	    >> 24;
-	switch (loop_id) {
-		case 0xFC:
-			loop_id = cpu_to_le16(NPH_SNS);
-			break;
-		case 0xFA:
-			loop_id = vha->mgmt_svr_loop_id;
-			break;
-		default:
-			DEBUG2(qla_printk(KERN_INFO, ha,
-			    "Unknown loop id: %x\n", loop_id));
-			rval = -EINVAL;
-			goto done_unmap_sg;
-	}
-
-	/* Allocate a dummy fcport structure, since functions preparing the
-	 * IOCB and mailbox command retrieves port specific information
-	 * from fcport structure. For Host based ELS commands there will be
-	 * no fcport structure allocated
-	 */
-	fcport = qla2x00_alloc_fcport(vha, GFP_KERNEL);
-	if (!fcport)
-	{
-		rval = -ENOMEM;
-		goto  done_unmap_sg;
-	}
-
-	/* Initialize all required  fields of fcport */
-	fcport->vha = vha;
-	fcport->vp_idx = vha->vp_idx;
-	fcport->d_id.b.al_pa = bsg_job->request->rqst_data.h_ct.port_id[0];
-	fcport->d_id.b.area = bsg_job->request->rqst_data.h_ct.port_id[1];
-	fcport->d_id.b.domain = bsg_job->request->rqst_data.h_ct.port_id[2];
-	fcport->loop_id = loop_id;
-
-	/* Alloc SRB structure */
-	sp = qla2x00_get_ctx_bsg_sp(vha, fcport, sizeof(struct srb_bsg));
-	if (!sp) {
-		rval = -ENOMEM;
-		goto done_free_fcport;
-	}
-
-	ct = sp->ctx;
-	ct->ctx.type = SRB_CT_CMD;
-	ct->bsg_job = bsg_job;
-
-	DEBUG2(qla_printk(KERN_INFO, ha,
-	    "scsi(%ld:%x): bsg rqst type: %s els type: %x - loop-id=%x "
-	    "portid=%02x%02x%02x.\n", vha->host_no, sp->handle, type,
-	    (bsg_job->request->rqst_data.h_ct.preamble_word2 >> 16),
-	    fcport->loop_id, fcport->d_id.b.domain, fcport->d_id.b.area,
-	    fcport->d_id.b.al_pa));
-
-	rval = qla2x00_start_sp(sp);
-	if (rval != QLA_SUCCESS) {
-		kfree(sp->ctx);
-		mempool_free(sp, ha->srb_mempool);
-		rval = -EIO;
-		goto done_free_fcport;
-	}
-	return rval;
-
-done_free_fcport:
-	kfree(fcport);
-done_unmap_sg:
-	dma_unmap_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
-	    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
-	dma_unmap_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
-	    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
-done:
-	return rval;
-}
-
-static int
-qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
-{
-	struct Scsi_Host *host = bsg_job->shost;
-	scsi_qla_host_t *vha = shost_priv(host);
-	struct qla_hw_data *ha = vha->hw;
-	int rval;
-	uint8_t command_sent;
-	uint32_t vendor_cmd;
-	char *type;
-	struct msg_echo_lb elreq;
-	uint16_t response[MAILBOX_REGISTER_COUNT];
-	uint8_t* fw_sts_ptr;
-	uint8_t *req_data;
-	dma_addr_t req_data_dma;
-	uint32_t req_data_len;
-	uint8_t *rsp_data;
-	dma_addr_t rsp_data_dma;
-	uint32_t rsp_data_len;
-
-	if (test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
-	    test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
-	    test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
-		rval = -EBUSY;
-		goto done;
-	}
-
-	if (!vha->flags.online) {
-		DEBUG2(qla_printk(KERN_WARNING, ha,
-		    "host not online\n"));
-		rval = -EIO;
-                goto done;
-	}
-
-        elreq.req_sg_cnt =
-	    dma_map_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
-	    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
-        if (!elreq.req_sg_cnt) {
-		rval = -ENOMEM;
-		goto done;
-	}
-        elreq.rsp_sg_cnt =
-	    dma_map_sg(&ha->pdev->dev, bsg_job->reply_payload.sg_list,
-	    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
-        if (!elreq.rsp_sg_cnt) {
-		rval = -ENOMEM;
-                goto done;
-	}
-
-	if ((elreq.req_sg_cnt !=  bsg_job->request_payload.sg_cnt) ||
-	    (elreq.rsp_sg_cnt != bsg_job->reply_payload.sg_cnt))
-	{
-		DEBUG2(printk(KERN_INFO
-		    "dma mapping resulted in different sg counts \
-		    [request_sg_cnt: %x dma_request_sg_cnt: %x\
-		    reply_sg_cnt: %x dma_reply_sg_cnt: %x]\n",
-		    bsg_job->request_payload.sg_cnt, elreq.req_sg_cnt,
-		    bsg_job->reply_payload.sg_cnt, elreq.rsp_sg_cnt));
-		rval = -EAGAIN;
-                goto done_unmap_sg;
-	}
-	req_data_len = rsp_data_len = bsg_job->request_payload.payload_len;
-	req_data = dma_alloc_coherent(&ha->pdev->dev, req_data_len,
-	    &req_data_dma, GFP_KERNEL);
-
-	rsp_data = dma_alloc_coherent(&ha->pdev->dev, rsp_data_len,
-	    &rsp_data_dma, GFP_KERNEL);
-
-	/* Copy the request buffer in req_data now */
-	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
-	    bsg_job->request_payload.sg_cnt, req_data,
-	    req_data_len);
-
-	elreq.send_dma = req_data_dma;
-	elreq.rcv_dma = rsp_data_dma;
-	elreq.transfer_size = req_data_len;
-
-	/* Vendor cmd : loopback or ECHO diagnostic
-	 * Options:
-	 * 	Loopback : Either internal or external loopback
-	 * 	ECHO: ECHO ELS or Vendor specific FC4  link data
-	 */
-	vendor_cmd = bsg_job->request->rqst_data.h_vendor.vendor_cmd[0];
-	elreq.options =
-	    *(((uint32_t *)bsg_job->request->rqst_data.h_vendor.vendor_cmd)
-	    + 1);
-
-	switch (bsg_job->request->rqst_data.h_vendor.vendor_cmd[0]) {
-	case QL_VND_LOOPBACK:
-		if (ha->current_topology != ISP_CFG_F) {
-			type = "FC_BSG_HST_VENDOR_LOOPBACK";
-
-			DEBUG2(qla_printk(KERN_INFO, ha,
-				"scsi(%ld) bsg rqst type: %s vendor rqst type: %x options: %x.\n",
-				vha->host_no, type, vendor_cmd, elreq.options));
-
-			command_sent = INT_DEF_LB_LOOPBACK_CMD;
-			rval = qla2x00_loopback_test(vha, &elreq, response);
-			if (IS_QLA81XX(ha)) {
-				if (response[0] == MBS_COMMAND_ERROR && response[1] == MBS_LB_RESET) {
-					DEBUG2(printk(KERN_ERR "%s(%ld): ABORTing "
-						"ISP\n", __func__, vha->host_no));
-					set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-					qla2xxx_wake_dpc(vha);
-				 }
-			}
-		} else {
-			type = "FC_BSG_HST_VENDOR_ECHO_DIAG";
-			DEBUG2(qla_printk(KERN_INFO, ha,
-				"scsi(%ld) bsg rqst type: %s vendor rqst type: %x options: %x.\n",
-				vha->host_no, type, vendor_cmd, elreq.options));
-
-			command_sent = INT_DEF_LB_ECHO_CMD;
-			rval = qla2x00_echo_test(vha, &elreq, response);
-		}
-		break;
-	case QLA84_RESET:
-		if (!IS_QLA84XX(vha->hw)) {
-			rval = -EINVAL;
-			DEBUG16(printk(
-				"%s(%ld): 8xxx exiting.\n",
-				__func__, vha->host_no));
-			return rval;
-		}
-		rval = qla84xx_reset(vha, &elreq, bsg_job);
-		break;
-	case QLA84_MGMT_CMD:
-		if (!IS_QLA84XX(vha->hw)) {
-			rval = -EINVAL;
-			DEBUG16(printk(
-				"%s(%ld): 8xxx exiting.\n",
-				__func__, vha->host_no));
-			return rval;
-		}
-		rval = qla84xx_mgmt_cmd(vha, &elreq, bsg_job);
-		break;
-	default:
-		rval = -ENOSYS;
-	}
-
-	if (rval != QLA_SUCCESS) {
-		DEBUG2(qla_printk(KERN_WARNING, ha,
-			"scsi(%ld) Vendor request %s failed\n", vha->host_no, type));
-		rval = 0;
-		bsg_job->reply->result = (DID_ERROR << 16);
-		bsg_job->reply->reply_payload_rcv_len = 0;
-		fw_sts_ptr = ((uint8_t*)bsg_job->req->sense) + sizeof(struct fc_bsg_reply);
-		memcpy( fw_sts_ptr, response, sizeof(response));
-		fw_sts_ptr += sizeof(response);
-                *fw_sts_ptr = command_sent;
-	} else {
-		DEBUG2(qla_printk(KERN_WARNING, ha,
-			"scsi(%ld) Vendor request %s completed\n", vha->host_no, type));
-		rval = bsg_job->reply->result = 0;
-		bsg_job->reply_len = sizeof(struct fc_bsg_reply) + sizeof(response) + sizeof(uint8_t);
-		bsg_job->reply->reply_payload_rcv_len = bsg_job->reply_payload.payload_len;
-		fw_sts_ptr = ((uint8_t*)bsg_job->req->sense) + sizeof(struct fc_bsg_reply);
-		memcpy(fw_sts_ptr, response, sizeof(response));
-		fw_sts_ptr += sizeof(response);
-		*fw_sts_ptr = command_sent;
-		sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
-		bsg_job->reply_payload.sg_cnt, rsp_data,
-		rsp_data_len);
-	}
-	bsg_job->job_done(bsg_job);
-
-done_unmap_sg:
-
-	if(req_data)
-		dma_free_coherent(&ha->pdev->dev, req_data_len,
-			req_data, req_data_dma);
-	dma_unmap_sg(&ha->pdev->dev,
-	    bsg_job->request_payload.sg_list,
-	    bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
-	dma_unmap_sg(&ha->pdev->dev,
-	    bsg_job->reply_payload.sg_list,
-	    bsg_job->reply_payload.sg_cnt, DMA_FROM_DEVICE);
-
-done:
-        return rval;
-}
-
-static int
-qla24xx_bsg_request(struct fc_bsg_job *bsg_job)
-{
-        int ret = -EINVAL;
-
-        switch (bsg_job->request->msgcode) {
-		case FC_BSG_RPT_ELS:
-		case FC_BSG_HST_ELS_NOLOGIN:
-			ret = qla2x00_process_els(bsg_job);
-			break;
-		case FC_BSG_HST_CT:
-			ret = qla2x00_process_ct(bsg_job);
-			break;
-		case FC_BSG_HST_VENDOR:
-			ret = qla2x00_process_vendor_specific(bsg_job);
-			break;
-		case FC_BSG_HST_ADD_RPORT:
-		case FC_BSG_HST_DEL_RPORT:
-		case FC_BSG_RPT_CT:
-		default:
-			DEBUG2(printk("qla2xxx: unsupported BSG request\n"));
-			break;
-        }
-	return ret;
-}
-
-static int
-qla24xx_bsg_timeout(struct fc_bsg_job *bsg_job)
-{
-        scsi_qla_host_t *vha = shost_priv(bsg_job->shost);
-        struct qla_hw_data *ha = vha->hw;
-        srb_t *sp;
-        int cnt, que;
-        unsigned long flags;
-        struct req_que *req;
-	struct srb_bsg *sp_bsg;
-
-	/* find the bsg job from the active list of commands */
-        spin_lock_irqsave(&ha->hardware_lock, flags);
-	for (que = 0; que < ha->max_req_queues; que++) {
-		req = ha->req_q_map[que];
-		if (!req)
-			continue;
-
-		for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++ ) {
-			sp = req->outstanding_cmds[cnt];
-
-			if (sp) {
-				sp_bsg = (struct srb_bsg*)sp->ctx;
-
-				if (((sp_bsg->ctx.type == SRB_CT_CMD) ||
-				    (sp_bsg->ctx.type == SRB_ELS_CMD_RPT)
-				    || ( sp_bsg->ctx.type == SRB_ELS_CMD_HST)) &&
-				    (sp_bsg->bsg_job == bsg_job)) {
-					if (ha->isp_ops->abort_command(sp)) {
-						DEBUG2(qla_printk(KERN_INFO, ha,
-						"scsi(%ld): mbx abort_command failed\n", vha->host_no));
-						bsg_job->req->errors = bsg_job->reply->result = -EIO;
-					} else {
-						DEBUG2(qla_printk(KERN_INFO, ha,
-						"scsi(%ld): mbx abort_command success\n", vha->host_no));
-						bsg_job->req->errors = bsg_job->reply->result = 0;
-					}
-					goto done;
-				}
-			}
-		}
-	}
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	DEBUG2(qla_printk(KERN_INFO, ha,
-		"scsi(%ld) SRB not found to abort\n", vha->host_no));
-	bsg_job->req->errors = bsg_job->reply->result = -ENXIO;
-	return 0;
-
-done:
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-	if (bsg_job->request->msgcode == FC_BSG_HST_CT)
-		kfree(sp->fcport);
-	kfree(sp->ctx);
-	mempool_free(sp, ha->srb_mempool);
-	return 0;
-}
-
 struct fc_function_template qla2xxx_transport_functions = {
 
 	.show_host_node_name = 1,
@@ -2502,7 +1968,7 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	fc_host_max_npiv_vports(vha->host) = ha->max_npiv_vports;
 	fc_host_npiv_vports_inuse(vha->host) = ha->cur_vport_count;
 
-	if (IS_QLA81XX(ha))
+	if (IS_QLA8XXX_TYPE(ha))
 		speed = FC_PORTSPEED_10GBIT;
 	else if (IS_QLA25XX(ha))
 		speed = FC_PORTSPEED_8GBIT | FC_PORTSPEED_4GBIT |
@@ -2515,126 +1981,4 @@ qla2x00_init_host_attr(scsi_qla_host_t *vha)
 	else
 		speed = FC_PORTSPEED_1GBIT;
 	fc_host_supported_speeds(vha->host) = speed;
-}
-static int
-qla84xx_reset(scsi_qla_host_t *ha, struct msg_echo_lb *mreq, struct fc_bsg_job *bsg_job)
-{
-	int             ret = 0;
-	int             cmd;
-	uint16_t        cmd_status;
-
-	DEBUG16(printk("%s(%ld): entered.\n", __func__, ha->host_no));
-
-	cmd = (*((bsg_job->request->rqst_data.h_vendor.vendor_cmd) + 2))
-			== A84_RESET_FLAG_ENABLE_DIAG_FW ?
-				A84_ISSUE_RESET_DIAG_FW : A84_ISSUE_RESET_OP_FW;
-	ret = qla84xx_reset_chip(ha, cmd == A84_ISSUE_RESET_DIAG_FW,
-	&cmd_status);
-	return ret;
-}
-
-static int
-qla84xx_mgmt_cmd(scsi_qla_host_t *ha, struct msg_echo_lb *mreq, struct fc_bsg_job *bsg_job)
-{
-	struct access_chip_84xx *mn;
-	dma_addr_t mn_dma, mgmt_dma;
-	void *mgmt_b = NULL;
-	int ret = 0;
-	int rsp_hdr_len, len = 0;
-	struct qla84_msg_mgmt *ql84_mgmt;
-
-	ql84_mgmt = (struct qla84_msg_mgmt *) vmalloc(sizeof(struct qla84_msg_mgmt));
-	ql84_mgmt->cmd =
-		*((uint16_t *)(bsg_job->request->rqst_data.h_vendor.vendor_cmd + 2));
-	ql84_mgmt->mgmtp.u.mem.start_addr =
-		*((uint32_t *)(bsg_job->request->rqst_data.h_vendor.vendor_cmd + 3));
-	ql84_mgmt->len =
-		*((uint32_t *)(bsg_job->request->rqst_data.h_vendor.vendor_cmd + 4));
-	ql84_mgmt->mgmtp.u.config.id =
-		*((uint32_t *)(bsg_job->request->rqst_data.h_vendor.vendor_cmd + 5));
-	ql84_mgmt->mgmtp.u.config.param0 =
-		*((uint32_t *)(bsg_job->request->rqst_data.h_vendor.vendor_cmd + 6));
-	ql84_mgmt->mgmtp.u.config.param1 =
-		*((uint32_t *)(bsg_job->request->rqst_data.h_vendor.vendor_cmd + 7));
-	ql84_mgmt->mgmtp.u.info.type =
-		*((uint32_t *)(bsg_job->request->rqst_data.h_vendor.vendor_cmd + 8));
-	ql84_mgmt->mgmtp.u.info.context =
-		*((uint32_t *)(bsg_job->request->rqst_data.h_vendor.vendor_cmd + 9));
-
-	rsp_hdr_len = bsg_job->request_payload.payload_len;
-
-	mn = dma_pool_alloc(ha->hw->s_dma_pool, GFP_KERNEL, &mn_dma);
-	if (mn == NULL) {
-		DEBUG2(printk(KERN_ERR "%s: dma alloc for fw buffer "
-		"failed%lu\n", __func__, ha->host_no));
-		return -ENOMEM;
-	}
-
-	memset(mn, 0, sizeof (struct access_chip_84xx));
-
-	mn->entry_type = ACCESS_CHIP_IOCB_TYPE;
-	mn->entry_count = 1;
-
-	switch (ql84_mgmt->cmd) {
-	case QLA84_MGMT_READ_MEM:
-		mn->options = cpu_to_le16(ACO_DUMP_MEMORY);
-		mn->parameter1 = cpu_to_le32(ql84_mgmt->mgmtp.u.mem.start_addr);
-		break;
-	case QLA84_MGMT_WRITE_MEM:
-		mn->options = cpu_to_le16(ACO_LOAD_MEMORY);
-		mn->parameter1 = cpu_to_le32(ql84_mgmt->mgmtp.u.mem.start_addr);
-		break;
-	case QLA84_MGMT_CHNG_CONFIG:
-		mn->options = cpu_to_le16(ACO_CHANGE_CONFIG_PARAM);
-		mn->parameter1 = cpu_to_le32(ql84_mgmt->mgmtp.u.config.id);
-		mn->parameter2 = cpu_to_le32(ql84_mgmt->mgmtp.u.config.param0);
-		mn->parameter3 = cpu_to_le32(ql84_mgmt->mgmtp.u.config.param1);
-		break;
-	case QLA84_MGMT_GET_INFO:
-		mn->options = cpu_to_le16(ACO_REQUEST_INFO);
-		mn->parameter1 = cpu_to_le32(ql84_mgmt->mgmtp.u.info.type);
-		mn->parameter2 = cpu_to_le32(ql84_mgmt->mgmtp.u.info.context);
-		break;
-	default:
-		ret = -EIO;
-		goto exit_mgmt0;
-	}
-
-	if ((len == ql84_mgmt->len) &&
-		ql84_mgmt->cmd != QLA84_MGMT_CHNG_CONFIG) {
-		mgmt_b = dma_alloc_coherent(&ha->hw->pdev->dev, len,
-				&mgmt_dma, GFP_KERNEL);
-		if (mgmt_b == NULL) {
-			DEBUG2(printk(KERN_ERR "%s: dma alloc mgmt_b "
-			"failed%lu\n", __func__, ha->host_no));
-			ret = -ENOMEM;
-			goto exit_mgmt0;
-		}
-		mn->total_byte_cnt = cpu_to_le32(ql84_mgmt->len);
-		mn->dseg_count = cpu_to_le16(1);
-		mn->dseg_address[0] = cpu_to_le32(LSD(mgmt_dma));
-		mn->dseg_address[1] = cpu_to_le32(MSD(mgmt_dma));
-		mn->dseg_length = cpu_to_le32(len);
-
-		if (ql84_mgmt->cmd == QLA84_MGMT_WRITE_MEM) {
-			memcpy(mgmt_b, ql84_mgmt->payload, len);
-		}
-	}
-
-	ret = qla2x00_issue_iocb(ha, mn, mn_dma, 0);
-	if ((ret != QLA_SUCCESS) || (ql84_mgmt->cmd == QLA84_MGMT_WRITE_MEM)
-		|| (ql84_mgmt->cmd == QLA84_MGMT_CHNG_CONFIG)) {
-			if (ret != QLA_SUCCESS)
-				DEBUG2(printk(KERN_ERR "%s(%lu): failed\n",
-					__func__, ha->host_no));
-	} else if ((ql84_mgmt->cmd == QLA84_MGMT_READ_MEM) ||
-			(ql84_mgmt->cmd == QLA84_MGMT_GET_INFO)) {
-	}
-
-	if (mgmt_b)
-		dma_free_coherent(&ha->hw->pdev->dev, len, mgmt_b, mgmt_dma);
-
-exit_mgmt0:
-	dma_pool_free(ha->hw->s_dma_pool, mn, mn_dma);
-	return ret;
 }

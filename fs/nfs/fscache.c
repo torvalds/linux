@@ -467,7 +467,8 @@ int __nfs_readpages_from_fscache(struct nfs_open_context *ctx,
 				 struct list_head *pages,
 				 unsigned *nr_pages)
 {
-	int ret, npages = *nr_pages;
+	unsigned npages = *nr_pages;
+	int ret;
 
 	dfprintk(FSCACHE, "NFS: nfs_getpages_from_fscache (0x%p/%u/0x%p)\n",
 		 NFS_I(inode)->fscache, npages, inode);

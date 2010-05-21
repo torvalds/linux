@@ -2332,15 +2332,26 @@ more information.</para>
 	</listitem>
       </orderedlist>
     </section>
-   </section>
+    <section>
+      <title>V4L2 in Linux 2.6.34</title>
+      <orderedlist>
+	<listitem>
+	  <para>Added
+<constant>V4L2_CID_IRIS_ABSOLUTE</constant> and
+<constant>V4L2_CID_IRIS_RELATIVE</constant> controls to the
+	    <link linkend="camera-controls">Camera controls class</link>.
+	  </para>
+	</listitem>
+      </orderedlist>
+    </section>
 
-   <section id="other">
-     <title>Relation of V4L2 to other Linux multimedia APIs</title>
+    <section id="other">
+      <title>Relation of V4L2 to other Linux multimedia APIs</title>
 
-    <section id="xvideo">
-      <title>X Video Extension</title>
+      <section id="xvideo">
+        <title>X Video Extension</title>
 
-      <para>The X Video Extension (abbreviated XVideo or just Xv) is
+        <para>The X Video Extension (abbreviated XVideo or just Xv) is
 an extension of the X Window system, implemented for example by the
 XFree86 project. Its scope is similar to V4L2, an API to video capture
 and output devices for X clients. Xv allows applications to display
@@ -2351,7 +2362,7 @@ capture or output still images in XPixmaps<footnote>
 extension available across many operating systems and
 architectures.</para>
 
-      <para>Because the driver is embedded into the X server Xv has a
+        <para>Because the driver is embedded into the X server Xv has a
 number of advantages over the V4L2 <link linkend="overlay">video
 overlay interface</link>. The driver can easily determine the overlay
 target, &ie; visible graphics memory or off-screen buffers for a
@@ -2360,16 +2371,16 @@ overlay, scaling or color-keying, or the clipping functions of the
 video capture hardware, always in sync with drawing operations or
 windows moving or changing their stacking order.</para>
 
-      <para>To combine the advantages of Xv and V4L a special Xv
+        <para>To combine the advantages of Xv and V4L a special Xv
 driver exists in XFree86 and XOrg, just programming any overlay capable
 Video4Linux device it finds. To enable it
 <filename>/etc/X11/XF86Config</filename> must contain these lines:</para>
-      <para><screen>
+        <para><screen>
 Section "Module"
     Load "v4l"
 EndSection</screen></para>
 
-      <para>As of XFree86 4.2 this driver still supports only V4L
+        <para>As of XFree86 4.2 this driver still supports only V4L
 ioctls, however it should work just fine with all V4L2 devices through
 the V4L2 backward-compatibility layer. Since V4L2 permits multiple
 opens it is possible (if supported by the V4L2 driver) to capture
@@ -2377,83 +2388,84 @@ video while an X client requested video overlay. Restrictions of
 simultaneous capturing and overlay are discussed in <xref
 	  linkend="overlay" /> apply.</para>
 
-      <para>Only marginally related to V4L2, XFree86 extended Xv to
+        <para>Only marginally related to V4L2, XFree86 extended Xv to
 support hardware YUV to RGB conversion and scaling for faster video
 playback, and added an interface to MPEG-2 decoding hardware. This API
 is useful to display images captured with V4L2 devices.</para>
-    </section>
+      </section>
 
-    <section>
-      <title>Digital Video</title>
+      <section>
+        <title>Digital Video</title>
 
-      <para>V4L2 does not support digital terrestrial, cable or
+        <para>V4L2 does not support digital terrestrial, cable or
 satellite broadcast. A separate project aiming at digital receivers
 exists. You can find its homepage at <ulink
 url="http://linuxtv.org">http://linuxtv.org</ulink>. The Linux DVB API
 has no connection to the V4L2 API except that drivers for hybrid
 hardware may support both.</para>
+      </section>
+
+      <section>
+        <title>Audio Interfaces</title>
+
+        <para>[to do - OSS/ALSA]</para>
+      </section>
     </section>
 
-    <section>
-      <title>Audio Interfaces</title>
+    <section id="experimental">
+      <title>Experimental API Elements</title>
 
-      <para>[to do - OSS/ALSA]</para>
-    </section>
-  </section>
-
-  <section id="experimental">
-    <title>Experimental API Elements</title>
-
-    <para>The following V4L2 API elements are currently experimental
+      <para>The following V4L2 API elements are currently experimental
 and may change in the future.</para>
 
-    <itemizedlist>
-      <listitem>
-	<para>Video Output Overlay (OSD) Interface, <xref
+      <itemizedlist>
+        <listitem>
+	  <para>Video Output Overlay (OSD) Interface, <xref
 	    linkend="osd" />.</para>
-      </listitem>
+        </listitem>
 	<listitem>
-	<para><constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY</constant>,
+	  <para><constant>V4L2_BUF_TYPE_VIDEO_OUTPUT_OVERLAY</constant>,
 	&v4l2-buf-type;, <xref linkend="v4l2-buf-type" />.</para>
-      </listitem>
-      <listitem>
-	<para><constant>V4L2_CAP_VIDEO_OUTPUT_OVERLAY</constant>,
+        </listitem>
+        <listitem>
+	  <para><constant>V4L2_CAP_VIDEO_OUTPUT_OVERLAY</constant>,
 &VIDIOC-QUERYCAP; ioctl, <xref linkend="device-capabilities" />.</para>
-      </listitem>
-      <listitem>
-	<para>&VIDIOC-ENUM-FRAMESIZES; and
+        </listitem>
+        <listitem>
+	  <para>&VIDIOC-ENUM-FRAMESIZES; and
 &VIDIOC-ENUM-FRAMEINTERVALS; ioctls.</para>
-      </listitem>
-      <listitem>
-	<para>&VIDIOC-G-ENC-INDEX; ioctl.</para>
-      </listitem>
-      <listitem>
-	<para>&VIDIOC-ENCODER-CMD; and &VIDIOC-TRY-ENCODER-CMD;
+        </listitem>
+        <listitem>
+	  <para>&VIDIOC-G-ENC-INDEX; ioctl.</para>
+        </listitem>
+        <listitem>
+	  <para>&VIDIOC-ENCODER-CMD; and &VIDIOC-TRY-ENCODER-CMD;
 ioctls.</para>
-      </listitem>
-      <listitem>
-	<para>&VIDIOC-DBG-G-REGISTER; and &VIDIOC-DBG-S-REGISTER;
+        </listitem>
+        <listitem>
+	  <para>&VIDIOC-DBG-G-REGISTER; and &VIDIOC-DBG-S-REGISTER;
 ioctls.</para>
-      </listitem>
-      <listitem>
-	<para>&VIDIOC-DBG-G-CHIP-IDENT; ioctl.</para>
-      </listitem>
-    </itemizedlist>
-  </section>
+        </listitem>
+        <listitem>
+	  <para>&VIDIOC-DBG-G-CHIP-IDENT; ioctl.</para>
+        </listitem>
+      </itemizedlist>
+    </section>
 
-  <section id="obsolete">
-    <title>Obsolete API Elements</title>
+    <section id="obsolete">
+      <title>Obsolete API Elements</title>
 
-    <para>The following V4L2 API elements were superseded by new
+      <para>The following V4L2 API elements were superseded by new
 interfaces and should not be implemented in new drivers.</para>
 
-    <itemizedlist>
-      <listitem>
-	<para><constant>VIDIOC_G_MPEGCOMP</constant> and
+      <itemizedlist>
+        <listitem>
+	  <para><constant>VIDIOC_G_MPEGCOMP</constant> and
 <constant>VIDIOC_S_MPEGCOMP</constant> ioctls. Use Extended Controls,
 <xref linkend="extended-controls" />.</para>
-      </listitem>
-    </itemizedlist>
+        </listitem>
+      </itemizedlist>
+    </section>
   </section>
 
   <!--

@@ -1669,7 +1669,7 @@ static int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *priv,
 
 	f->fmt.sliced.service_set = 0;
 
-	call_all(dev, video, g_fmt, f);
+	call_all(dev, vbi, g_sliced_fmt, &f->fmt.sliced);
 
 	if (f->fmt.sliced.service_set == 0)
 		rc = -EINVAL;
@@ -1690,7 +1690,7 @@ static int vidioc_try_set_sliced_vbi_cap(struct file *file, void *priv,
 		return rc;
 
 	mutex_lock(&dev->lock);
-	call_all(dev, video, g_fmt, f);
+	call_all(dev, vbi, g_sliced_fmt, &f->fmt.sliced);
 	mutex_unlock(&dev->lock);
 
 	if (f->fmt.sliced.service_set == 0)
@@ -1902,9 +1902,12 @@ static int radio_queryctrl(struct file *file, void *priv,
 	if (c->id < V4L2_CID_BASE || c->id >= V4L2_CID_LASTP1)
 		return -EINVAL;
 	if (c->id == V4L2_CID_AUDIO_MUTE) {
-		for (i = 0; i < CX231XX_CTLS; i++)
+		for (i = 0; i < CX231XX_CTLS; i++) {
 			if (cx231xx_ctls[i].v.id == c->id)
 				break;
+		}
+		if (i == CX231XX_CTLS)
+			return -EINVAL;
 		*c = cx231xx_ctls[i].v;
 	} else
 		*c = no_ctl;
