@@ -290,17 +290,15 @@ void r600_hdmi_audio_workaround(struct drm_encoder *encoder)
 	if (!offset)
 		return;
 
-	if (r600_hdmi_is_audio_buffer_filled(encoder)) {
-		/* disable audio workaround and start delivering of audio frames */
+	if (!radeon_encoder->hdmi_audio_workaround ||
+		r600_hdmi_is_audio_buffer_filled(encoder)) {
+
+		/* disable audio workaround */
 		WREG32_P(offset+R600_HDMI_CNTL, 0x00000001, ~0x00001001);
 
-	} else if (radeon_encoder->hdmi_audio_workaround) {
-		/* enable audio workaround and start delivering of audio frames */
-		WREG32_P(offset+R600_HDMI_CNTL, 0x00001001, ~0x00001001);
-
 	} else {
-		/* disable audio workaround and stop delivering of audio frames */
-		WREG32_P(offset+R600_HDMI_CNTL, 0x00000000, ~0x00001001);
+		/* enable audio workaround */
+		WREG32_P(offset+R600_HDMI_CNTL, 0x00001001, ~0x00001001);
 	}
 }
 
@@ -345,24 +343,22 @@ void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mod
 
 	/* audio packets per line, does anyone know how to calc this ? */
 	WREG32_P(offset+R600_HDMI_CNTL, 0x00040000, ~0x001F0000);
-
-	/* update? reset? don't realy know */
-	WREG32_P(offset+R600_HDMI_CNTL, 0x14000000, ~0x14000000);
 }
 
 /*
  * update settings with current parameters from audio engine
  */
-void r600_hdmi_update_audio_settings(struct drm_encoder *encoder,
-				     int channels,
-				     int rate,
-				     int bps,
-				     uint8_t status_bits,
-				     uint8_t category_code)
+void r600_hdmi_update_audio_settings(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	uint32_t offset = to_radeon_encoder(encoder)->hdmi_offset;
+
+	int channels = r600_audio_channels(rdev);
+	int rate = r600_audio_rate(rdev);
+	int bps = r600_audio_bits_per_sample(rdev);
+	uint8_t status_bits = r600_audio_status_bits(rdev);
+	uint8_t category_code = r600_audio_category_code(rdev);
 
 	uint32_t iec;
 
@@ -415,9 +411,6 @@ void r600_hdmi_update_audio_settings(struct drm_encoder *encoder,
 	r600_hdmi_audioinfoframe(encoder, channels-1, 0, 0, 0, 0, 0, 0, 0);
 
 	r600_hdmi_audio_workaround(encoder);
-
-	/* update? reset? don't realy know */
-	WREG32_P(offset+R600_HDMI_CNTL, 0x04000000, ~0x04000000);
 }
 
 static int r600_hdmi_find_free_block(struct drm_device *dev)
@@ -486,6 +479,7 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	uint32_t offset;
 
 	if (ASIC_IS_DCE4(rdev))
 		return;
@@ -499,10 +493,10 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 		}
 	}
 
+	offset = radeon_encoder->hdmi_offset;
 	if (ASIC_IS_DCE32(rdev) && !ASIC_IS_DCE4(rdev)) {
 		WREG32_P(radeon_encoder->hdmi_config_offset + 0x4, 0x1, ~0x1);
 	} else if (rdev->family >= CHIP_R600 && !ASIC_IS_DCE3(rdev)) {
-		int offset = radeon_encoder->hdmi_offset;
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
 			WREG32_P(AVIVO_TMDSA_CNTL, 0x4, ~0x4);
@@ -518,6 +512,21 @@ void r600_hdmi_enable(struct drm_encoder *encoder)
 		}
 	}
 
+	if (rdev->irq.installed
+	    && rdev->family != CHIP_RS600
+	    && rdev->family != CHIP_RS690
+	    && rdev->family != CHIP_RS740) {
+
+		/* if irq is available use it */
+		rdev->irq.hdmi[offset == R600_HDMI_BLOCK1 ? 0 : 1] = true;
+		radeon_irq_set(rdev);
+
+		r600_audio_disable_polling(encoder);
+	} else {
+		/* if not fallback to polling */
+		r600_audio_enable_polling(encoder);
+	}
+
 	DRM_DEBUG("Enabling HDMI interface @ 0x%04X for encoder 0x%x\n",
 		radeon_encoder->hdmi_offset, radeon_encoder->encoder_id);
 }
@@ -530,22 +539,30 @@ void r600_hdmi_disable(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	uint32_t offset;
 
 	if (ASIC_IS_DCE4(rdev))
 		return;
 
-	if (!radeon_encoder->hdmi_offset) {
+	offset = radeon_encoder->hdmi_offset;
+	if (!offset) {
 		dev_err(rdev->dev, "Disabling not enabled HDMI\n");
 		return;
 	}
 
 	DRM_DEBUG("Disabling HDMI interface @ 0x%04X for encoder 0x%x\n",
-		radeon_encoder->hdmi_offset, radeon_encoder->encoder_id);
+		offset, radeon_encoder->encoder_id);
+
+	/* disable irq */
+	rdev->irq.hdmi[offset == R600_HDMI_BLOCK1 ? 0 : 1] = false;
+	radeon_irq_set(rdev);
+
+	/* disable polling */
+	r600_audio_disable_polling(encoder);
 
 	if (ASIC_IS_DCE32(rdev) && !ASIC_IS_DCE4(rdev)) {
 		WREG32_P(radeon_encoder->hdmi_config_offset + 0x4, 0, ~0x1);
 	} else if (rdev->family >= CHIP_R600 && !ASIC_IS_DCE3(rdev)) {
-		int offset = radeon_encoder->hdmi_offset;
 		switch (radeon_encoder->encoder_id) {
 		case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
 			WREG32_P(AVIVO_TMDSA_CNTL, 0, ~0x4);

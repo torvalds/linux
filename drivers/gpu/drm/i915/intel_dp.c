@@ -48,8 +48,6 @@ struct intel_dp_priv {
 	uint32_t output_reg;
 	uint32_t DP;
 	uint8_t  link_configuration[DP_LINK_CONFIGURATION_SIZE];
-	uint32_t save_DP;
-	uint8_t  save_link_configuration[DP_LINK_CONFIGURATION_SIZE];
 	bool has_audio;
 	int dpms_mode;
 	uint8_t link_bw;
@@ -141,7 +139,8 @@ static int
 intel_dp_mode_valid(struct drm_connector *connector,
 		    struct drm_display_mode *mode)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_encoder));
 	int max_lanes = intel_dp_max_lane_count(intel_encoder);
 
@@ -215,7 +214,7 @@ intel_dp_aux_ch(struct intel_encoder *intel_encoder,
 {
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
 	uint32_t output_reg = dp_priv->output_reg;
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_device *dev = intel_encoder->enc.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t ch_ctl = output_reg + 0x10;
 	uint32_t ch_data = ch_ctl + 4;
@@ -224,18 +223,26 @@ intel_dp_aux_ch(struct intel_encoder *intel_encoder,
 	uint32_t ctl;
 	uint32_t status;
 	uint32_t aux_clock_divider;
-	int try;
+	int try, precharge;
 
 	/* The clock divider is based off the hrawclk,
 	 * and would like to run at 2MHz. So, take the
 	 * hrawclk value and divide by 2 and use that
 	 */
-	if (IS_eDP(intel_encoder))
-		aux_clock_divider = 225; /* eDP input clock at 450Mhz */
-	else if (HAS_PCH_SPLIT(dev))
+	if (IS_eDP(intel_encoder)) {
+		if (IS_GEN6(dev))
+			aux_clock_divider = 200; /* SNB eDP input clock at 400Mhz */
+		else
+			aux_clock_divider = 225; /* eDP input clock at 450Mhz */
+	} else if (HAS_PCH_SPLIT(dev))
 		aux_clock_divider = 62; /* IRL input clock fixed at 125Mhz */
 	else
 		aux_clock_divider = intel_hrawclk(dev) / 2;
+
+	if (IS_GEN6(dev))
+		precharge = 3;
+	else
+		precharge = 5;
 
 	/* Must try at least 3 times according to DP spec */
 	for (try = 0; try < 5; try++) {
@@ -249,7 +256,7 @@ intel_dp_aux_ch(struct intel_encoder *intel_encoder,
 		ctl = (DP_AUX_CH_CTL_SEND_BUSY |
 		       DP_AUX_CH_CTL_TIME_OUT_400us |
 		       (send_bytes << DP_AUX_CH_CTL_MESSAGE_SIZE_SHIFT) |
-		       (5 << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
+		       (precharge << DP_AUX_CH_CTL_PRECHARGE_2US_SHIFT) |
 		       (aux_clock_divider << DP_AUX_CH_CTL_BIT_CLOCK_2X_SHIFT) |
 		       DP_AUX_CH_CTL_DONE |
 		       DP_AUX_CH_CTL_TIME_OUT_ERROR |
@@ -465,7 +472,8 @@ intel_dp_i2c_aux_ch(struct i2c_adapter *adapter, int mode,
 }
 
 static int
-intel_dp_i2c_init(struct intel_encoder *intel_encoder, const char *name)
+intel_dp_i2c_init(struct intel_encoder *intel_encoder,
+		  struct intel_connector *intel_connector, const char *name)
 {
 	struct intel_dp_priv   *dp_priv = intel_encoder->dev_priv;
 
@@ -480,7 +488,7 @@ intel_dp_i2c_init(struct intel_encoder *intel_encoder, const char *name)
 	strncpy (dp_priv->adapter.name, name, sizeof(dp_priv->adapter.name) - 1);
 	dp_priv->adapter.name[sizeof(dp_priv->adapter.name) - 1] = '\0';
 	dp_priv->adapter.algo_data = &dp_priv->algo;
-	dp_priv->adapter.dev.parent = &intel_encoder->base.kdev;
+	dp_priv->adapter.dev.parent = &intel_connector->base.kdev;
 	
 	return i2c_dp_aux_add_bus(&dp_priv->adapter);
 }
@@ -555,7 +563,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 {
 	struct drm_device *dev = crtc->dev;
 	struct drm_mode_config *mode_config = &dev->mode_config;
-	struct drm_connector *connector;
+	struct drm_encoder *encoder;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int lane_count = 4;
@@ -564,12 +572,15 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	/*
 	 * Find the lane count in the intel_encoder private
 	 */
-	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-		struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
+	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
+		struct intel_encoder *intel_encoder;
+		struct intel_dp_priv *dp_priv;
 
-		if (!connector->encoder || connector->encoder->crtc != crtc)
+		if (!encoder || encoder->crtc != crtc)
 			continue;
+
+		intel_encoder = enc_to_intel_encoder(encoder);
+		dp_priv = intel_encoder->dev_priv;
 
 		if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT) {
 			lane_count = dp_priv->lane_count;
@@ -626,16 +637,24 @@ static void
 intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		  struct drm_display_mode *adjusted_mode)
 {
+	struct drm_device *dev = encoder->dev;
 	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
 	struct drm_crtc *crtc = intel_encoder->enc.crtc;
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 
-	dp_priv->DP = (DP_LINK_TRAIN_OFF |
-			DP_VOLTAGE_0_4 |
-			DP_PRE_EMPHASIS_0 |
-			DP_SYNC_VS_HIGH |
-			DP_SYNC_HS_HIGH);
+	dp_priv->DP = (DP_VOLTAGE_0_4 |
+		       DP_PRE_EMPHASIS_0);
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_PHSYNC)
+		dp_priv->DP |= DP_SYNC_HS_HIGH;
+	if (adjusted_mode->flags & DRM_MODE_FLAG_PVSYNC)
+		dp_priv->DP |= DP_SYNC_VS_HIGH;
+
+	if (HAS_PCH_CPT(dev) && !IS_eDP(intel_encoder))
+		dp_priv->DP |= DP_LINK_TRAIN_OFF_CPT;
+	else
+		dp_priv->DP |= DP_LINK_TRAIN_OFF;
 
 	switch (dp_priv->lane_count) {
 	case 1:
@@ -664,7 +683,8 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		dp_priv->DP |= DP_ENHANCED_FRAMING;
 	}
 
-	if (intel_crtc->pipe == 1)
+	/* CPT DP's pipe select is decided in TRANS_DP_CTL */
+	if (intel_crtc->pipe == 1 && !HAS_PCH_CPT(dev))
 		dp_priv->DP |= DP_PIPEB_SELECT;
 
 	if (IS_eDP(intel_encoder)) {
@@ -704,7 +724,7 @@ intel_dp_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_device *dev = encoder->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	uint32_t dp_reg = I915_READ(dp_priv->output_reg);
 
@@ -747,20 +767,6 @@ intel_dp_link_status(uint8_t link_status[DP_LINK_STATUS_SIZE],
 		     int r)
 {
 	return link_status[r - DP_LANE0_1_STATUS];
-}
-
-static void
-intel_dp_save(struct drm_connector *connector)
-{
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct drm_device *dev = intel_encoder->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
-
-	dp_priv->save_DP = I915_READ(dp_priv->output_reg);
-	intel_dp_aux_native_read(intel_encoder, DP_LINK_BW_SET,
-				 dp_priv->save_link_configuration,
-				 sizeof (dp_priv->save_link_configuration));
 }
 
 static uint8_t
@@ -892,6 +898,25 @@ intel_dp_signal_levels(uint8_t train_set, int lane_count)
 	return signal_levels;
 }
 
+/* Gen6's DP voltage swing and pre-emphasis control */
+static uint32_t
+intel_gen6_edp_signal_levels(uint8_t train_set)
+{
+	switch (train_set & (DP_TRAIN_VOLTAGE_SWING_MASK|DP_TRAIN_PRE_EMPHASIS_MASK)) {
+	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_0:
+		return EDP_LINK_TRAIN_400MV_0DB_SNB_B;
+	case DP_TRAIN_VOLTAGE_SWING_400 | DP_TRAIN_PRE_EMPHASIS_6:
+		return EDP_LINK_TRAIN_400MV_6DB_SNB_B;
+	case DP_TRAIN_VOLTAGE_SWING_600 | DP_TRAIN_PRE_EMPHASIS_3_5:
+		return EDP_LINK_TRAIN_600MV_3_5DB_SNB_B;
+	case DP_TRAIN_VOLTAGE_SWING_800 | DP_TRAIN_PRE_EMPHASIS_0:
+		return EDP_LINK_TRAIN_800MV_0DB_SNB_B;
+	default:
+		DRM_DEBUG_KMS("Unsupported voltage swing/pre-emphasis level\n");
+		return EDP_LINK_TRAIN_400MV_0DB_SNB_B;
+	}
+}
+
 static uint8_t
 intel_get_lane_status(uint8_t link_status[DP_LINK_STATUS_SIZE],
 		      int lane)
@@ -948,7 +973,7 @@ intel_dp_set_link_train(struct intel_encoder *intel_encoder,
 			uint8_t train_set[4],
 			bool first)
 {
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_device *dev = intel_encoder->enc.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
 	int ret;
@@ -974,7 +999,7 @@ static void
 intel_dp_link_train(struct intel_encoder *intel_encoder, uint32_t DP,
 		    uint8_t link_configuration[DP_LINK_CONFIGURATION_SIZE])
 {
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_device *dev = intel_encoder->enc.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
 	uint8_t	train_set[4];
@@ -985,23 +1010,38 @@ intel_dp_link_train(struct intel_encoder *intel_encoder, uint32_t DP,
 	bool channel_eq = false;
 	bool first = true;
 	int tries;
+	u32 reg;
 
 	/* Write the link configuration data */
-	intel_dp_aux_native_write(intel_encoder, 0x100,
+	intel_dp_aux_native_write(intel_encoder, DP_LINK_BW_SET,
 				  link_configuration, DP_LINK_CONFIGURATION_SIZE);
 
 	DP |= DP_PORT_EN;
-	DP &= ~DP_LINK_TRAIN_MASK;
+	if (HAS_PCH_CPT(dev) && !IS_eDP(intel_encoder))
+		DP &= ~DP_LINK_TRAIN_MASK_CPT;
+	else
+		DP &= ~DP_LINK_TRAIN_MASK;
 	memset(train_set, 0, 4);
 	voltage = 0xff;
 	tries = 0;
 	clock_recovery = false;
 	for (;;) {
 		/* Use train_set[0] to set the voltage and pre emphasis values */
-		uint32_t    signal_levels = intel_dp_signal_levels(train_set[0], dp_priv->lane_count);
-		DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
+		uint32_t    signal_levels;
+		if (IS_GEN6(dev) && IS_eDP(intel_encoder)) {
+			signal_levels = intel_gen6_edp_signal_levels(train_set[0]);
+			DP = (DP & ~EDP_LINK_TRAIN_VOL_EMP_MASK_SNB) | signal_levels;
+		} else {
+			signal_levels = intel_dp_signal_levels(train_set[0], dp_priv->lane_count);
+			DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
+		}
 
-		if (!intel_dp_set_link_train(intel_encoder, DP | DP_LINK_TRAIN_PAT_1,
+		if (HAS_PCH_CPT(dev) && !IS_eDP(intel_encoder))
+			reg = DP | DP_LINK_TRAIN_PAT_1_CPT;
+		else
+			reg = DP | DP_LINK_TRAIN_PAT_1;
+
+		if (!intel_dp_set_link_train(intel_encoder, reg,
 					     DP_TRAINING_PATTERN_1, train_set, first))
 			break;
 		first = false;
@@ -1041,11 +1081,23 @@ intel_dp_link_train(struct intel_encoder *intel_encoder, uint32_t DP,
 	channel_eq = false;
 	for (;;) {
 		/* Use train_set[0] to set the voltage and pre emphasis values */
-		uint32_t    signal_levels = intel_dp_signal_levels(train_set[0], dp_priv->lane_count);
-		DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
+		uint32_t    signal_levels;
+
+		if (IS_GEN6(dev) && IS_eDP(intel_encoder)) {
+			signal_levels = intel_gen6_edp_signal_levels(train_set[0]);
+			DP = (DP & ~EDP_LINK_TRAIN_VOL_EMP_MASK_SNB) | signal_levels;
+		} else {
+			signal_levels = intel_dp_signal_levels(train_set[0], dp_priv->lane_count);
+			DP = (DP & ~(DP_VOLTAGE_MASK|DP_PRE_EMPHASIS_MASK)) | signal_levels;
+		}
+
+		if (HAS_PCH_CPT(dev) && !IS_eDP(intel_encoder))
+			reg = DP | DP_LINK_TRAIN_PAT_2_CPT;
+		else
+			reg = DP | DP_LINK_TRAIN_PAT_2;
 
 		/* channel eq pattern */
-		if (!intel_dp_set_link_train(intel_encoder, DP | DP_LINK_TRAIN_PAT_2,
+		if (!intel_dp_set_link_train(intel_encoder, reg,
 					     DP_TRAINING_PATTERN_2, train_set,
 					     false))
 			break;
@@ -1068,7 +1120,12 @@ intel_dp_link_train(struct intel_encoder *intel_encoder, uint32_t DP,
 		++tries;
 	}
 
-	I915_WRITE(dp_priv->output_reg, DP | DP_LINK_TRAIN_OFF);
+	if (HAS_PCH_CPT(dev) && !IS_eDP(intel_encoder))
+		reg = DP | DP_LINK_TRAIN_OFF_CPT;
+	else
+		reg = DP | DP_LINK_TRAIN_OFF;
+
+	I915_WRITE(dp_priv->output_reg, reg);
 	POSTING_READ(dp_priv->output_reg);
 	intel_dp_aux_native_write_1(intel_encoder,
 				    DP_TRAINING_PATTERN_SET, DP_TRAINING_PATTERN_DISABLE);
@@ -1077,7 +1134,7 @@ intel_dp_link_train(struct intel_encoder *intel_encoder, uint32_t DP,
 static void
 intel_dp_link_down(struct intel_encoder *intel_encoder, uint32_t DP)
 {
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_device *dev = intel_encoder->enc.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
 
@@ -1090,9 +1147,15 @@ intel_dp_link_down(struct intel_encoder *intel_encoder, uint32_t DP)
 		udelay(100);
 	}
 
-	DP &= ~DP_LINK_TRAIN_MASK;
-	I915_WRITE(dp_priv->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE);
-	POSTING_READ(dp_priv->output_reg);
+	if (HAS_PCH_CPT(dev) && !IS_eDP(intel_encoder)) {
+		DP &= ~DP_LINK_TRAIN_MASK_CPT;
+		I915_WRITE(dp_priv->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE_CPT);
+		POSTING_READ(dp_priv->output_reg);
+	} else {
+		DP &= ~DP_LINK_TRAIN_MASK;
+		I915_WRITE(dp_priv->output_reg, DP | DP_LINK_TRAIN_PAT_IDLE);
+		POSTING_READ(dp_priv->output_reg);
+	}
 
 	udelay(17000);
 
@@ -1100,18 +1163,6 @@ intel_dp_link_down(struct intel_encoder *intel_encoder, uint32_t DP)
 		DP |= DP_LINK_TRAIN_OFF;
 	I915_WRITE(dp_priv->output_reg, DP & ~DP_PORT_EN);
 	POSTING_READ(dp_priv->output_reg);
-}
-
-static void
-intel_dp_restore(struct drm_connector *connector)
-{
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
-
-	if (dp_priv->save_DP & DP_PORT_EN)
-		intel_dp_link_train(intel_encoder, dp_priv->save_DP, dp_priv->save_link_configuration);
-	else
-		intel_dp_link_down(intel_encoder,  dp_priv->save_DP);
 }
 
 /*
@@ -1144,7 +1195,8 @@ intel_dp_check_link_status(struct intel_encoder *intel_encoder)
 static enum drm_connector_status
 ironlake_dp_detect(struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
 	enum drm_connector_status status;
 
@@ -1168,8 +1220,9 @@ ironlake_dp_detect(struct drm_connector *connector)
 static enum drm_connector_status
 intel_dp_detect(struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct drm_device *dev = intel_encoder->enc.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
 	uint32_t temp, bit;
@@ -1179,16 +1232,6 @@ intel_dp_detect(struct drm_connector *connector)
 
 	if (HAS_PCH_SPLIT(dev))
 		return ironlake_dp_detect(connector);
-
-	temp = I915_READ(PORT_HOTPLUG_EN);
-
-	I915_WRITE(PORT_HOTPLUG_EN,
-	       temp |
-	       DPB_HOTPLUG_INT_EN |
-	       DPC_HOTPLUG_INT_EN |
-	       DPD_HOTPLUG_INT_EN);
-
-	POSTING_READ(PORT_HOTPLUG_EN);
 
 	switch (dp_priv->output_reg) {
 	case DP_B:
@@ -1222,15 +1265,16 @@ intel_dp_detect(struct drm_connector *connector)
 
 static int intel_dp_get_modes(struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_encoder *encoder = intel_attached_encoder(connector);
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+	struct drm_device *dev = intel_encoder->enc.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
 	/* We should parse the EDID data and find out if it has an audio sink
 	 */
 
-	ret = intel_ddc_get_modes(intel_encoder);
+	ret = intel_ddc_get_modes(connector, intel_encoder->ddc_bus);
 	if (ret)
 		return ret;
 
@@ -1249,13 +1293,9 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 static void
 intel_dp_destroy (struct drm_connector *connector)
 {
-	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
-
-	if (intel_encoder->i2c_bus)
-		intel_i2c_destroy(intel_encoder->i2c_bus);
 	drm_sysfs_connector_remove(connector);
 	drm_connector_cleanup(connector);
-	kfree(intel_encoder);
+	kfree(connector);
 }
 
 static const struct drm_encoder_helper_funcs intel_dp_helper_funcs = {
@@ -1268,8 +1308,6 @@ static const struct drm_encoder_helper_funcs intel_dp_helper_funcs = {
 
 static const struct drm_connector_funcs intel_dp_connector_funcs = {
 	.dpms = drm_helper_connector_dpms,
-	.save = intel_dp_save,
-	.restore = intel_dp_restore,
 	.detect = intel_dp_detect,
 	.fill_modes = drm_helper_probe_single_connector_modes,
 	.destroy = intel_dp_destroy,
@@ -1278,12 +1316,17 @@ static const struct drm_connector_funcs intel_dp_connector_funcs = {
 static const struct drm_connector_helper_funcs intel_dp_connector_helper_funcs = {
 	.get_modes = intel_dp_get_modes,
 	.mode_valid = intel_dp_mode_valid,
-	.best_encoder = intel_best_encoder,
+	.best_encoder = intel_attached_encoder,
 };
 
 static void intel_dp_enc_destroy(struct drm_encoder *encoder)
 {
+	struct intel_encoder *intel_encoder = enc_to_intel_encoder(encoder);
+
+	if (intel_encoder->i2c_bus)
+		intel_i2c_destroy(intel_encoder->i2c_bus);
 	drm_encoder_cleanup(encoder);
+	kfree(intel_encoder);
 }
 
 static const struct drm_encoder_funcs intel_dp_enc_funcs = {
@@ -1299,12 +1342,35 @@ intel_dp_hot_plug(struct intel_encoder *intel_encoder)
 		intel_dp_check_link_status(intel_encoder);
 }
 
+/* Return which DP Port should be selected for Transcoder DP control */
+int
+intel_trans_dp_port_sel (struct drm_crtc *crtc)
+{
+	struct drm_device *dev = crtc->dev;
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct drm_encoder *encoder;
+	struct intel_encoder *intel_encoder = NULL;
+
+	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
+		if (!encoder || encoder->crtc != crtc)
+			continue;
+
+		intel_encoder = enc_to_intel_encoder(encoder);
+		if (intel_encoder->type == INTEL_OUTPUT_DISPLAYPORT) {
+			struct intel_dp_priv *dp_priv = intel_encoder->dev_priv;
+			return dp_priv->output_reg;
+		}
+	}
+	return -1;
+}
+
 void
 intel_dp_init(struct drm_device *dev, int output_reg)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_connector *connector;
 	struct intel_encoder *intel_encoder;
+	struct intel_connector *intel_connector;
 	struct intel_dp_priv *dp_priv;
 	const char *name = NULL;
 
@@ -1313,12 +1379,20 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	if (!intel_encoder)
 		return;
 
+	intel_connector = kzalloc(sizeof(struct intel_connector), GFP_KERNEL);
+	if (!intel_connector) {
+		kfree(intel_encoder);
+		return;
+	}
+
 	dp_priv = (struct intel_dp_priv *)(intel_encoder + 1);
 
-	connector = &intel_encoder->base;
+	connector = &intel_connector->base;
 	drm_connector_init(dev, connector, &intel_dp_connector_funcs,
 			   DRM_MODE_CONNECTOR_DisplayPort);
 	drm_connector_helper_add(connector, &intel_dp_connector_helper_funcs);
+
+	connector->polled = DRM_CONNECTOR_POLL_HPD;
 
 	if (output_reg == DP_A)
 		intel_encoder->type = INTEL_OUTPUT_EDP;
@@ -1349,7 +1423,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			 DRM_MODE_ENCODER_TMDS);
 	drm_encoder_helper_add(&intel_encoder->enc, &intel_dp_helper_funcs);
 
-	drm_mode_connector_attach_encoder(&intel_encoder->base,
+	drm_mode_connector_attach_encoder(&intel_connector->base,
 					  &intel_encoder->enc);
 	drm_sysfs_connector_add(connector);
 
@@ -1378,7 +1452,7 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			break;
 	}
 
-	intel_dp_i2c_init(intel_encoder, name);
+	intel_dp_i2c_init(intel_encoder, intel_connector, name);
 
 	intel_encoder->ddc_bus = &dp_priv->adapter;
 	intel_encoder->hot_plug = intel_dp_hot_plug;

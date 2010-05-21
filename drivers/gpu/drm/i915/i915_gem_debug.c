@@ -39,7 +39,7 @@ i915_verify_inactive(struct drm_device *dev, char *file, int line)
 	struct drm_i915_gem_object *obj_priv;
 
 	list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, list) {
-		obj = obj_priv->obj;
+		obj = &obj_priv->base;
 		if (obj_priv->pin_count || obj_priv->active ||
 		    (obj->write_domain & ~(I915_GEM_DOMAIN_CPU |
 					   I915_GEM_DOMAIN_GTT)))

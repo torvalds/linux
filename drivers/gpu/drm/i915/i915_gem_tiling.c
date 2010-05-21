@@ -283,6 +283,11 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 
+	if (obj_priv->pin_count) {
+		drm_gem_object_unreference_unlocked(obj);
+		return -EBUSY;
+	}
+
 	if (args->tiling_mode == I915_TILING_NONE) {
 		args->swizzle_mode = I915_BIT_6_SWIZZLE_NONE;
 		args->stride = 0;

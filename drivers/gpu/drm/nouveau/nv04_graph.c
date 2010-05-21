@@ -532,9 +532,82 @@ nv04_graph_mthd_set_ref(struct nouveau_channel *chan, int grclass,
 	return 0;
 }
 
-static int
-nv04_graph_mthd_set_operation(struct nouveau_channel *chan, int grclass,
-			      int mthd, uint32_t data)
+/*
+ * Software methods, why they are needed, and how they all work:
+ *
+ * NV04 and NV05 keep most of the state in PGRAPH context itself, but some
+ * 2d engine settings are kept inside the grobjs themselves. The grobjs are
+ * 3 words long on both. grobj format on NV04 is:
+ *
+ * word 0:
+ *  - bits 0-7: class
+ *  - bit 12: color key active
+ *  - bit 13: clip rect active
+ *  - bit 14: if set, destination surface is swizzled and taken from buffer 5
+ *            [set by NV04_SWIZZLED_SURFACE], otherwise it's linear and taken
+ *            from buffer 0 [set by NV04_CONTEXT_SURFACES_2D or
+ *            NV03_CONTEXT_SURFACE_DST].
+ *  - bits 15-17: 2d operation [aka patch config]
+ *  - bit 24: patch valid [enables rendering using this object]
+ *  - bit 25: surf3d valid [for tex_tri and multitex_tri only]
+ * word 1:
+ *  - bits 0-1: mono format
+ *  - bits 8-13: color format
+ *  - bits 16-31: DMA_NOTIFY instance
+ * word 2:
+ *  - bits 0-15: DMA_A instance
+ *  - bits 16-31: DMA_B instance
+ *
+ * On NV05 it's:
+ *
+ * word 0:
+ *  - bits 0-7: class
+ *  - bit 12: color key active
+ *  - bit 13: clip rect active
+ *  - bit 14: if set, destination surface is swizzled and taken from buffer 5
+ *            [set by NV04_SWIZZLED_SURFACE], otherwise it's linear and taken
+ *            from buffer 0 [set by NV04_CONTEXT_SURFACES_2D or
+ *            NV03_CONTEXT_SURFACE_DST].
+ *  - bits 15-17: 2d operation [aka patch config]
+ *  - bits 20-22: dither mode
+ *  - bit 24: patch valid [enables rendering using this object]
+ *  - bit 25: surface_dst/surface_color/surf2d/surf3d valid
+ *  - bit 26: surface_src/surface_zeta valid
+ *  - bit 27: pattern valid
+ *  - bit 28: rop valid
+ *  - bit 29: beta1 valid
+ *  - bit 30: beta4 valid
+ * word 1:
+ *  - bits 0-1: mono format
+ *  - bits 8-13: color format
+ *  - bits 16-31: DMA_NOTIFY instance
+ * word 2:
+ *  - bits 0-15: DMA_A instance
+ *  - bits 16-31: DMA_B instance
+ *
+ * NV05 will set/unset the relevant valid bits when you poke the relevant
+ * object-binding methods with object of the proper type, or with the NULL
+ * type. It'll only allow rendering using the grobj if all needed objects
+ * are bound. The needed set of objects depends on selected operation: for
+ * example rop object is needed by ROP_AND, but not by SRCCOPY_AND.
+ *
+ * NV04 doesn't have these methods implemented at all, and doesn't have the
+ * relevant bits in grobj. Instead, it'll allow rendering whenever bit 24
+ * is set. So we have to emulate them in software, internally keeping the
+ * same bits as NV05 does. Since grobjs are aligned to 16 bytes on nv04,
+ * but the last word isn't actually used for anything, we abuse it for this
+ * purpose.
+ *
+ * Actually, NV05 can optionally check bit 24 too, but we disable this since
+ * there's no use for it.
+ *
+ * For unknown reasons, NV04 implements surf3d binding in hardware as an
+ * exception. Also for unknown reasons, NV04 doesn't implement the clipping
+ * methods on the surf3d object, so we have to emulate them too.
+ */
+
+static void
+nv04_graph_set_ctx1(struct nouveau_channel *chan, uint32_t mask, uint32_t value)
 {
 	struct drm_device *dev = chan->dev;
 	uint32_t instance = (nv_rd32(dev, NV04_PGRAPH_CTX_SWITCH4) & 0xffff) << 4;
@@ -542,13 +615,320 @@ nv04_graph_mthd_set_operation(struct nouveau_channel *chan, int grclass,
 	uint32_t tmp;
 
 	tmp  = nv_ri32(dev, instance);
-	tmp &= ~0x00038000;
-	tmp |= ((data & 7) << 15);
+	tmp &= ~mask;
+	tmp |= value;
 
 	nv_wi32(dev, instance, tmp);
 	nv_wr32(dev, NV04_PGRAPH_CTX_SWITCH1, tmp);
 	nv_wr32(dev, NV04_PGRAPH_CTX_CACHE1 + (subc<<2), tmp);
+}
+
+static void
+nv04_graph_set_ctx_val(struct nouveau_channel *chan, uint32_t mask, uint32_t value)
+{
+	struct drm_device *dev = chan->dev;
+	uint32_t instance = (nv_rd32(dev, NV04_PGRAPH_CTX_SWITCH4) & 0xffff) << 4;
+	uint32_t tmp, ctx1;
+	int class, op, valid = 1;
+
+	ctx1 = nv_ri32(dev, instance);
+	class = ctx1 & 0xff;
+	op = (ctx1 >> 15) & 7;
+	tmp  = nv_ri32(dev, instance + 0xc);
+	tmp &= ~mask;
+	tmp |= value;
+	nv_wi32(dev, instance + 0xc, tmp);
+
+	/* check for valid surf2d/surf_dst/surf_color */
+	if (!(tmp & 0x02000000))
+		valid = 0;
+	/* check for valid surf_src/surf_zeta */
+	if ((class == 0x1f || class == 0x48) && !(tmp & 0x04000000))
+		valid = 0;
+
+	switch (op) {
+	/* SRCCOPY_AND, SRCCOPY: no extra objects required */
+	case 0:
+	case 3:
+		break;
+	/* ROP_AND: requires pattern and rop */
+	case 1:
+		if (!(tmp & 0x18000000))
+			valid = 0;
+		break;
+	/* BLEND_AND: requires beta1 */
+	case 2:
+		if (!(tmp & 0x20000000))
+			valid = 0;
+		break;
+	/* SRCCOPY_PREMULT, BLEND_PREMULT: beta4 required */
+	case 4:
+	case 5:
+		if (!(tmp & 0x40000000))
+			valid = 0;
+		break;
+	}
+
+	nv04_graph_set_ctx1(chan, 0x01000000, valid << 24);
+}
+
+static int
+nv04_graph_mthd_set_operation(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	if (data > 5)
+		return 1;
+	/* Old versions of the objects only accept first three operations. */
+	if (data > 2 && grclass < 0x40)
+		return 1;
+	nv04_graph_set_ctx1(chan, 0x00038000, data << 15);
+	/* changing operation changes set of objects needed for validation */
+	nv04_graph_set_ctx_val(chan, 0, 0);
 	return 0;
+}
+
+static int
+nv04_graph_mthd_surf3d_clip_h(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	uint32_t min = data & 0xffff, max;
+	uint32_t w = data >> 16;
+	if (min & 0x8000)
+		/* too large */
+		return 1;
+	if (w & 0x8000)
+		/* yes, it accepts negative for some reason. */
+		w |= 0xffff0000;
+	max = min + w;
+	max &= 0x3ffff;
+	nv_wr32(chan->dev, 0x40053c, min);
+	nv_wr32(chan->dev, 0x400544, max);
+	return 0;
+}
+
+static int
+nv04_graph_mthd_surf3d_clip_v(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	uint32_t min = data & 0xffff, max;
+	uint32_t w = data >> 16;
+	if (min & 0x8000)
+		/* too large */
+		return 1;
+	if (w & 0x8000)
+		/* yes, it accepts negative for some reason. */
+		w |= 0xffff0000;
+	max = min + w;
+	max &= 0x3ffff;
+	nv_wr32(chan->dev, 0x400540, min);
+	nv_wr32(chan->dev, 0x400548, max);
+	return 0;
+}
+
+static int
+nv04_graph_mthd_bind_surf2d(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	switch (nv_ri32(chan->dev, data << 4) & 0xff) {
+	case 0x30:
+		nv04_graph_set_ctx1(chan, 0x00004000, 0);
+		nv04_graph_set_ctx_val(chan, 0x02000000, 0);
+		return 0;
+	case 0x42:
+		nv04_graph_set_ctx1(chan, 0x00004000, 0);
+		nv04_graph_set_ctx_val(chan, 0x02000000, 0x02000000);
+		return 0;
+	}
+	return 1;
+}
+
+static int
+nv04_graph_mthd_bind_surf2d_swzsurf(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	switch (nv_ri32(chan->dev, data << 4) & 0xff) {
+	case 0x30:
+		nv04_graph_set_ctx1(chan, 0x00004000, 0);
+		nv04_graph_set_ctx_val(chan, 0x02000000, 0);
+		return 0;
+	case 0x42:
+		nv04_graph_set_ctx1(chan, 0x00004000, 0);
+		nv04_graph_set_ctx_val(chan, 0x02000000, 0x02000000);
+		return 0;
+	case 0x52:
+		nv04_graph_set_ctx1(chan, 0x00004000, 0x00004000);
+		nv04_graph_set_ctx_val(chan, 0x02000000, 0x02000000);
+		return 0;
+	}
+	return 1;
+}
+
+static int
+nv04_graph_mthd_bind_nv01_patt(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	switch (nv_ri32(chan->dev, data << 4) & 0xff) {
+	case 0x30:
+		nv04_graph_set_ctx_val(chan, 0x08000000, 0);
+		return 0;
+	case 0x18:
+		nv04_graph_set_ctx_val(chan, 0x08000000, 0x08000000);
+		return 0;
+	}
+	return 1;
+}
+
+static int
+nv04_graph_mthd_bind_nv04_patt(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	switch (nv_ri32(chan->dev, data << 4) & 0xff) {
+	case 0x30:
+		nv04_graph_set_ctx_val(chan, 0x08000000, 0);
+		return 0;
+	case 0x44:
+		nv04_graph_set_ctx_val(chan, 0x08000000, 0x08000000);
+		return 0;
+	}
+	return 1;
+}
+
+static int
+nv04_graph_mthd_bind_rop(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	switch (nv_ri32(chan->dev, data << 4) & 0xff) {
+	case 0x30:
+		nv04_graph_set_ctx_val(chan, 0x10000000, 0);
+		return 0;
+	case 0x43:
+		nv04_graph_set_ctx_val(chan, 0x10000000, 0x10000000);
+		return 0;
+	}
+	return 1;
+}
+
+static int
+nv04_graph_mthd_bind_beta1(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	switch (nv_ri32(chan->dev, data << 4) & 0xff) {
+	case 0x30:
+		nv04_graph_set_ctx_val(chan, 0x20000000, 0);
+		return 0;
+	case 0x12:
+		nv04_graph_set_ctx_val(chan, 0x20000000, 0x20000000);
+		return 0;
+	}
+	return 1;
+}
+
+static int
+nv04_graph_mthd_bind_beta4(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	switch (nv_ri32(chan->dev, data << 4) & 0xff) {
+	case 0x30:
+		nv04_graph_set_ctx_val(chan, 0x40000000, 0);
+		return 0;
+	case 0x72:
+		nv04_graph_set_ctx_val(chan, 0x40000000, 0x40000000);
+		return 0;
+	}
+	return 1;
+}
+
+static int
+nv04_graph_mthd_bind_surf_dst(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	switch (nv_ri32(chan->dev, data << 4) & 0xff) {
+	case 0x30:
+		nv04_graph_set_ctx_val(chan, 0x02000000, 0);
+		return 0;
+	case 0x58:
+		nv04_graph_set_ctx_val(chan, 0x02000000, 0x02000000);
+		return 0;
+	}
+	return 1;
+}
+
+static int
+nv04_graph_mthd_bind_surf_src(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	switch (nv_ri32(chan->dev, data << 4) & 0xff) {
+	case 0x30:
+		nv04_graph_set_ctx_val(chan, 0x04000000, 0);
+		return 0;
+	case 0x59:
+		nv04_graph_set_ctx_val(chan, 0x04000000, 0x04000000);
+		return 0;
+	}
+	return 1;
+}
+
+static int
+nv04_graph_mthd_bind_surf_color(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	switch (nv_ri32(chan->dev, data << 4) & 0xff) {
+	case 0x30:
+		nv04_graph_set_ctx_val(chan, 0x02000000, 0);
+		return 0;
+	case 0x5a:
+		nv04_graph_set_ctx_val(chan, 0x02000000, 0x02000000);
+		return 0;
+	}
+	return 1;
+}
+
+static int
+nv04_graph_mthd_bind_surf_zeta(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	switch (nv_ri32(chan->dev, data << 4) & 0xff) {
+	case 0x30:
+		nv04_graph_set_ctx_val(chan, 0x04000000, 0);
+		return 0;
+	case 0x5b:
+		nv04_graph_set_ctx_val(chan, 0x04000000, 0x04000000);
+		return 0;
+	}
+	return 1;
+}
+
+static int
+nv04_graph_mthd_bind_clip(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	switch (nv_ri32(chan->dev, data << 4) & 0xff) {
+	case 0x30:
+		nv04_graph_set_ctx1(chan, 0x2000, 0);
+		return 0;
+	case 0x19:
+		nv04_graph_set_ctx1(chan, 0x2000, 0x2000);
+		return 0;
+	}
+	return 1;
+}
+
+static int
+nv04_graph_mthd_bind_chroma(struct nouveau_channel *chan, int grclass,
+			      int mthd, uint32_t data)
+{
+	switch (nv_ri32(chan->dev, data << 4) & 0xff) {
+	case 0x30:
+		nv04_graph_set_ctx1(chan, 0x1000, 0);
+		return 0;
+	/* Yes, for some reason even the old versions of objects
+	 * accept 0x57 and not 0x17. Consistency be damned.
+	 */
+	case 0x57:
+		nv04_graph_set_ctx1(chan, 0x1000, 0x1000);
+		return 0;
+	}
+	return 1;
 }
 
 static struct nouveau_pgraph_object_method nv04_graph_mthds_sw[] = {
@@ -556,28 +936,188 @@ static struct nouveau_pgraph_object_method nv04_graph_mthds_sw[] = {
 	{}
 };
 
-static struct nouveau_pgraph_object_method nv04_graph_mthds_set_operation[] = {
+static struct nouveau_pgraph_object_method nv04_graph_mthds_nv03_gdirect[] = {
+	{ 0x0184, nv04_graph_mthd_bind_nv01_patt },
+	{ 0x0188, nv04_graph_mthd_bind_rop },
+	{ 0x018c, nv04_graph_mthd_bind_beta1 },
+	{ 0x0190, nv04_graph_mthd_bind_surf_dst },
 	{ 0x02fc, nv04_graph_mthd_set_operation },
 	{},
 };
 
+static struct nouveau_pgraph_object_method nv04_graph_mthds_nv04_gdirect[] = {
+	{ 0x0188, nv04_graph_mthd_bind_nv04_patt },
+	{ 0x018c, nv04_graph_mthd_bind_rop },
+	{ 0x0190, nv04_graph_mthd_bind_beta1 },
+	{ 0x0194, nv04_graph_mthd_bind_beta4 },
+	{ 0x0198, nv04_graph_mthd_bind_surf2d },
+	{ 0x02fc, nv04_graph_mthd_set_operation },
+	{},
+};
+
+static struct nouveau_pgraph_object_method nv04_graph_mthds_nv01_imageblit[] = {
+	{ 0x0184, nv04_graph_mthd_bind_chroma },
+	{ 0x0188, nv04_graph_mthd_bind_clip },
+	{ 0x018c, nv04_graph_mthd_bind_nv01_patt },
+	{ 0x0190, nv04_graph_mthd_bind_rop },
+	{ 0x0194, nv04_graph_mthd_bind_beta1 },
+	{ 0x0198, nv04_graph_mthd_bind_surf_dst },
+	{ 0x019c, nv04_graph_mthd_bind_surf_src },
+	{ 0x02fc, nv04_graph_mthd_set_operation },
+	{},
+};
+
+static struct nouveau_pgraph_object_method nv04_graph_mthds_nv04_imageblit_ifc[] = {
+	{ 0x0184, nv04_graph_mthd_bind_chroma },
+	{ 0x0188, nv04_graph_mthd_bind_clip },
+	{ 0x018c, nv04_graph_mthd_bind_nv04_patt },
+	{ 0x0190, nv04_graph_mthd_bind_rop },
+	{ 0x0194, nv04_graph_mthd_bind_beta1 },
+	{ 0x0198, nv04_graph_mthd_bind_beta4 },
+	{ 0x019c, nv04_graph_mthd_bind_surf2d },
+	{ 0x02fc, nv04_graph_mthd_set_operation },
+	{},
+};
+
+static struct nouveau_pgraph_object_method nv04_graph_mthds_nv04_iifc[] = {
+	{ 0x0188, nv04_graph_mthd_bind_chroma },
+	{ 0x018c, nv04_graph_mthd_bind_clip },
+	{ 0x0190, nv04_graph_mthd_bind_nv04_patt },
+	{ 0x0194, nv04_graph_mthd_bind_rop },
+	{ 0x0198, nv04_graph_mthd_bind_beta1 },
+	{ 0x019c, nv04_graph_mthd_bind_beta4 },
+	{ 0x01a0, nv04_graph_mthd_bind_surf2d_swzsurf },
+	{ 0x03e4, nv04_graph_mthd_set_operation },
+	{},
+};
+
+static struct nouveau_pgraph_object_method nv04_graph_mthds_nv01_ifc[] = {
+	{ 0x0184, nv04_graph_mthd_bind_chroma },
+	{ 0x0188, nv04_graph_mthd_bind_clip },
+	{ 0x018c, nv04_graph_mthd_bind_nv01_patt },
+	{ 0x0190, nv04_graph_mthd_bind_rop },
+	{ 0x0194, nv04_graph_mthd_bind_beta1 },
+	{ 0x0198, nv04_graph_mthd_bind_surf_dst },
+	{ 0x02fc, nv04_graph_mthd_set_operation },
+	{},
+};
+
+static struct nouveau_pgraph_object_method nv04_graph_mthds_nv03_sifc[] = {
+	{ 0x0184, nv04_graph_mthd_bind_chroma },
+	{ 0x0188, nv04_graph_mthd_bind_nv01_patt },
+	{ 0x018c, nv04_graph_mthd_bind_rop },
+	{ 0x0190, nv04_graph_mthd_bind_beta1 },
+	{ 0x0194, nv04_graph_mthd_bind_surf_dst },
+	{ 0x02fc, nv04_graph_mthd_set_operation },
+	{},
+};
+
+static struct nouveau_pgraph_object_method nv04_graph_mthds_nv04_sifc[] = {
+	{ 0x0184, nv04_graph_mthd_bind_chroma },
+	{ 0x0188, nv04_graph_mthd_bind_nv04_patt },
+	{ 0x018c, nv04_graph_mthd_bind_rop },
+	{ 0x0190, nv04_graph_mthd_bind_beta1 },
+	{ 0x0194, nv04_graph_mthd_bind_beta4 },
+	{ 0x0198, nv04_graph_mthd_bind_surf2d },
+	{ 0x02fc, nv04_graph_mthd_set_operation },
+	{},
+};
+
+static struct nouveau_pgraph_object_method nv04_graph_mthds_nv03_sifm[] = {
+	{ 0x0188, nv04_graph_mthd_bind_nv01_patt },
+	{ 0x018c, nv04_graph_mthd_bind_rop },
+	{ 0x0190, nv04_graph_mthd_bind_beta1 },
+	{ 0x0194, nv04_graph_mthd_bind_surf_dst },
+	{ 0x0304, nv04_graph_mthd_set_operation },
+	{},
+};
+
+static struct nouveau_pgraph_object_method nv04_graph_mthds_nv04_sifm[] = {
+	{ 0x0188, nv04_graph_mthd_bind_nv04_patt },
+	{ 0x018c, nv04_graph_mthd_bind_rop },
+	{ 0x0190, nv04_graph_mthd_bind_beta1 },
+	{ 0x0194, nv04_graph_mthd_bind_beta4 },
+	{ 0x0198, nv04_graph_mthd_bind_surf2d_swzsurf },
+	{ 0x0304, nv04_graph_mthd_set_operation },
+	{},
+};
+
+static struct nouveau_pgraph_object_method nv04_graph_mthds_nv01_shape[] = {
+	{ 0x0184, nv04_graph_mthd_bind_clip },
+	{ 0x0188, nv04_graph_mthd_bind_nv01_patt },
+	{ 0x018c, nv04_graph_mthd_bind_rop },
+	{ 0x0190, nv04_graph_mthd_bind_beta1 },
+	{ 0x0194, nv04_graph_mthd_bind_surf_dst },
+	{ 0x02fc, nv04_graph_mthd_set_operation },
+	{},
+};
+
+static struct nouveau_pgraph_object_method nv04_graph_mthds_nv04_shape[] = {
+	{ 0x0184, nv04_graph_mthd_bind_clip },
+	{ 0x0188, nv04_graph_mthd_bind_nv04_patt },
+	{ 0x018c, nv04_graph_mthd_bind_rop },
+	{ 0x0190, nv04_graph_mthd_bind_beta1 },
+	{ 0x0194, nv04_graph_mthd_bind_beta4 },
+	{ 0x0198, nv04_graph_mthd_bind_surf2d },
+	{ 0x02fc, nv04_graph_mthd_set_operation },
+	{},
+};
+
+static struct nouveau_pgraph_object_method nv04_graph_mthds_nv03_tex_tri[] = {
+	{ 0x0188, nv04_graph_mthd_bind_clip },
+	{ 0x018c, nv04_graph_mthd_bind_surf_color },
+	{ 0x0190, nv04_graph_mthd_bind_surf_zeta },
+	{},
+};
+
+static struct nouveau_pgraph_object_method nv04_graph_mthds_surf3d[] = {
+	{ 0x02f8, nv04_graph_mthd_surf3d_clip_h },
+	{ 0x02fc, nv04_graph_mthd_surf3d_clip_v },
+	{},
+};
+
 struct nouveau_pgraph_object_class nv04_graph_grclass[] = {
-	{ 0x0039, false, NULL },
-	{ 0x004a, false, nv04_graph_mthds_set_operation }, /* gdirect */
-	{ 0x005f, false, nv04_graph_mthds_set_operation }, /* imageblit */
-	{ 0x0061, false, nv04_graph_mthds_set_operation }, /* ifc */
-	{ 0x0077, false, nv04_graph_mthds_set_operation }, /* sifm */
+	{ 0x0038, false, NULL }, /* dvd subpicture */
+	{ 0x0039, false, NULL }, /* m2mf */
+	{ 0x004b, false, nv04_graph_mthds_nv03_gdirect }, /* nv03 gdirect */
+	{ 0x004a, false, nv04_graph_mthds_nv04_gdirect }, /* nv04 gdirect */
+	{ 0x001f, false, nv04_graph_mthds_nv01_imageblit }, /* nv01 imageblit */
+	{ 0x005f, false, nv04_graph_mthds_nv04_imageblit_ifc }, /* nv04 imageblit */
+	{ 0x0060, false, nv04_graph_mthds_nv04_iifc }, /* nv04 iifc */
+	{ 0x0064, false, NULL }, /* nv05 iifc */
+	{ 0x0021, false, nv04_graph_mthds_nv01_ifc }, /* nv01 ifc */
+	{ 0x0061, false, nv04_graph_mthds_nv04_imageblit_ifc }, /* nv04 ifc */
+	{ 0x0065, false, NULL }, /* nv05 ifc */
+	{ 0x0036, false, nv04_graph_mthds_nv03_sifc }, /* nv03 sifc */
+	{ 0x0076, false, nv04_graph_mthds_nv04_sifc }, /* nv04 sifc */
+	{ 0x0066, false, NULL }, /* nv05 sifc */
+	{ 0x0037, false, nv04_graph_mthds_nv03_sifm }, /* nv03 sifm */
+	{ 0x0077, false, nv04_graph_mthds_nv04_sifm }, /* nv04 sifm */
 	{ 0x0030, false, NULL }, /* null */
 	{ 0x0042, false, NULL }, /* surf2d */
 	{ 0x0043, false, NULL }, /* rop */
 	{ 0x0012, false, NULL }, /* beta1 */
 	{ 0x0072, false, NULL }, /* beta4 */
 	{ 0x0019, false, NULL }, /* cliprect */
-	{ 0x0044, false, NULL }, /* pattern */
+	{ 0x0018, false, NULL }, /* nv01 pattern */
+	{ 0x0044, false, NULL }, /* nv04 pattern */
 	{ 0x0052, false, NULL }, /* swzsurf */
-	{ 0x0053, false, NULL }, /* surf3d */
+	{ 0x0053, false, nv04_graph_mthds_surf3d }, /* surf3d */
+	{ 0x0048, false, nv04_graph_mthds_nv03_tex_tri }, /* nv03 tex_tri */
 	{ 0x0054, false, NULL }, /* tex_tri */
 	{ 0x0055, false, NULL }, /* multitex_tri */
+	{ 0x0017, false, NULL }, /* nv01 chroma */
+	{ 0x0057, false, NULL }, /* nv04 chroma */
+	{ 0x0058, false, NULL }, /* surf_dst */
+	{ 0x0059, false, NULL }, /* surf_src */
+	{ 0x005a, false, NULL }, /* surf_color */
+	{ 0x005b, false, NULL }, /* surf_zeta */
+	{ 0x001c, false, nv04_graph_mthds_nv01_shape }, /* nv01 line */
+	{ 0x005c, false, nv04_graph_mthds_nv04_shape }, /* nv04 line */
+	{ 0x001d, false, nv04_graph_mthds_nv01_shape }, /* nv01 tri */
+	{ 0x005d, false, nv04_graph_mthds_nv04_shape }, /* nv04 tri */
+	{ 0x001e, false, nv04_graph_mthds_nv01_shape }, /* nv01 rect */
+	{ 0x005e, false, nv04_graph_mthds_nv04_shape }, /* nv04 rect */
 	{ 0x506e, true, nv04_graph_mthds_sw },
 	{}
 };
