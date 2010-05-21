@@ -29,7 +29,6 @@
 #include <linux/slab.h>
 #include <linux/statfs.h>
 #include <linux/writeback.h>
-#include <linux/quotaops.h>
 
 #include "netfs.h"
 
@@ -967,13 +966,6 @@ int pohmelfs_setattr_raw(struct inode *inode, struct iattr *attr)
 	if (err) {
 		dprintk("%s: ino: %llu, inode changes are not allowed.\n", __func__, POHMELFS_I(inode)->ino);
 		goto err_out_exit;
-	}
-
-	if ((attr->ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
-	    (attr->ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {
-		err = dquot_transfer(inode, attr);
-		if (err)
-			goto err_out_exit;
 	}
 
 	err = inode_setattr(inode, attr);
