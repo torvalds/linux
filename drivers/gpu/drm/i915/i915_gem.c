@@ -1730,7 +1730,7 @@ i915_seqno_passed(uint32_t seq1, uint32_t seq2)
 
 uint32_t
 i915_get_gem_seqno(struct drm_device *dev,
-		struct intel_ring_buffer *ring)
+		   struct intel_ring_buffer *ring)
 {
 	return ring->get_gem_seqno(dev, ring);
 }
@@ -1792,8 +1792,13 @@ i915_gem_retire_work_handler(struct work_struct *work)
 	mutex_lock(&dev->struct_mutex);
 	i915_gem_retire_requests(dev, &dev_priv->render_ring);
 
+	if (HAS_BSD(dev))
+		i915_gem_retire_requests(dev, &dev_priv->bsd_ring);
+
 	if (!dev_priv->mm.suspended &&
-			(!list_empty(&dev_priv->render_ring.request_list)))
+		(!list_empty(&dev_priv->render_ring.request_list) ||
+			(HAS_BSD(dev) &&
+			 !list_empty(&dev_priv->bsd_ring.request_list))))
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, HZ);
 	mutex_unlock(&dev->struct_mutex);
 }
@@ -1883,6 +1888,11 @@ i915_gem_flush(struct drm_device *dev,
 	dev_priv->render_ring.flush(dev, &dev_priv->render_ring,
 			invalidate_domains,
 			flush_domains);
+
+	if (HAS_BSD(dev))
+		dev_priv->bsd_ring.flush(dev, &dev_priv->bsd_ring,
+				invalidate_domains,
+				flush_domains);
 }
 
 static void
@@ -2039,12 +2049,14 @@ i915_gpu_idle(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	bool lists_empty;
-	uint32_t seqno;
+	uint32_t seqno1, seqno2;
 	int ret;
 
 	spin_lock(&dev_priv->mm.active_list_lock);
-	lists_empty = list_empty(&dev_priv->mm.flushing_list) &&
-		      list_empty(&dev_priv->render_ring.active_list);
+	lists_empty = (list_empty(&dev_priv->mm.flushing_list) &&
+		       list_empty(&dev_priv->render_ring.active_list) &&
+		       (!HAS_BSD(dev) ||
+			list_empty(&dev_priv->bsd_ring.active_list)));
 	spin_unlock(&dev_priv->mm.active_list_lock);
 
 	if (lists_empty)
@@ -2052,11 +2064,23 @@ i915_gpu_idle(struct drm_device *dev)
 
 	/* Flush everything onto the inactive list. */
 	i915_gem_flush(dev, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
-	seqno = i915_add_request(dev, NULL, I915_GEM_GPU_DOMAINS,
+	seqno1 = i915_add_request(dev, NULL, I915_GEM_GPU_DOMAINS,
 			&dev_priv->render_ring);
-	if (seqno == 0)
+	if (seqno1 == 0)
 		return -ENOMEM;
-	ret = i915_wait_request(dev, seqno, &dev_priv->render_ring);
+	ret = i915_wait_request(dev, seqno1, &dev_priv->render_ring);
+
+	if (HAS_BSD(dev)) {
+		seqno2 = i915_add_request(dev, NULL, I915_GEM_GPU_DOMAINS,
+				&dev_priv->bsd_ring);
+		if (seqno2 == 0)
+			return -ENOMEM;
+
+		ret = i915_wait_request(dev, seqno2, &dev_priv->bsd_ring);
+		if (ret)
+			return ret;
+	}
+
 
 	return ret;
 }
@@ -2071,7 +2095,9 @@ i915_gem_evict_everything(struct drm_device *dev)
 	spin_lock(&dev_priv->mm.active_list_lock);
 	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
 		       list_empty(&dev_priv->mm.flushing_list) &&
-		       list_empty(&dev_priv->render_ring.active_list));
+		       list_empty(&dev_priv->render_ring.active_list) &&
+		       (!HAS_BSD(dev)
+			|| list_empty(&dev_priv->bsd_ring.active_list)));
 	spin_unlock(&dev_priv->mm.active_list_lock);
 
 	if (lists_empty)
@@ -2091,7 +2117,9 @@ i915_gem_evict_everything(struct drm_device *dev)
 	spin_lock(&dev_priv->mm.active_list_lock);
 	lists_empty = (list_empty(&dev_priv->mm.inactive_list) &&
 		       list_empty(&dev_priv->mm.flushing_list) &&
-		       list_empty(&dev_priv->render_ring.active_list));
+		       list_empty(&dev_priv->render_ring.active_list) &&
+		       (!HAS_BSD(dev)
+			|| list_empty(&dev_priv->bsd_ring.active_list)));
 	spin_unlock(&dev_priv->mm.active_list_lock);
 	BUG_ON(!lists_empty);
 
@@ -2106,8 +2134,12 @@ i915_gem_evict_something(struct drm_device *dev, int min_size)
 	int ret;
 
 	struct intel_ring_buffer *render_ring = &dev_priv->render_ring;
+	struct intel_ring_buffer *bsd_ring = &dev_priv->bsd_ring;
 	for (;;) {
 		i915_gem_retire_requests(dev, render_ring);
+
+		if (HAS_BSD(dev))
+			i915_gem_retire_requests(dev, bsd_ring);
 
 		/* If there's an inactive buffer available now, grab it
 		 * and be done.
@@ -2135,6 +2167,21 @@ i915_gem_evict_something(struct drm_device *dev, int min_size)
 			struct drm_i915_gem_request *request;
 
 			request = list_first_entry(&render_ring->request_list,
+						   struct drm_i915_gem_request,
+						   list);
+
+			ret = i915_wait_request(dev,
+					request->seqno, request->ring);
+			if (ret)
+				return ret;
+
+			continue;
+		}
+
+		if (HAS_BSD(dev) && !list_empty(&bsd_ring->request_list)) {
+			struct drm_i915_gem_request *request;
+
+			request = list_first_entry(&bsd_ring->request_list,
 						   struct drm_i915_gem_request,
 						   list);
 
@@ -3641,6 +3688,16 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	DRM_INFO("buffers_ptr %d buffer_count %d len %08x\n",
 		  (int) args->buffers_ptr, args->buffer_count, args->batch_len);
 #endif
+	if (args->flags & I915_EXEC_BSD) {
+		if (!HAS_BSD(dev)) {
+			DRM_ERROR("execbuf with wrong flag\n");
+			return -EINVAL;
+		}
+		ring = &dev_priv->bsd_ring;
+	} else {
+		ring = &dev_priv->render_ring;
+	}
+
 
 	if (args->buffer_count < 1) {
 		DRM_ERROR("execbuf with %d buffers\n", args->buffer_count);
@@ -3693,8 +3750,6 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		ret = -EBUSY;
 		goto pre_mutex_err;
 	}
-
-	ring = &dev_priv->render_ring;
 
 	/* Look up object handles */
 	flips = 0;
@@ -3834,6 +3889,10 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 					dev->flush_domains,
 					&dev_priv->render_ring);
 
+			if (HAS_BSD(dev))
+				(void)i915_add_request(dev, file_priv,
+						dev->flush_domains,
+						&dev_priv->bsd_ring);
 		}
 	}
 
@@ -4267,6 +4326,9 @@ i915_gem_busy_ioctl(struct drm_device *dev, void *data,
 	 */
 	i915_gem_retire_requests(dev, &dev_priv->render_ring);
 
+	if (HAS_BSD(dev))
+		i915_gem_retire_requests(dev, &dev_priv->bsd_ring);
+
 	obj_priv = to_intel_bo(obj);
 	/* Don't count being on the flushing list against the object being
 	 * done.  Otherwise, a buffer left on the flushing list but not getting
@@ -4433,7 +4495,9 @@ i915_gem_idle(struct drm_device *dev)
 	mutex_lock(&dev->struct_mutex);
 
 	if (dev_priv->mm.suspended ||
-			dev_priv->render_ring.gem_object == NULL) {
+			(dev_priv->render_ring.gem_object == NULL) ||
+			(HAS_BSD(dev) &&
+			 dev_priv->bsd_ring.gem_object == NULL)) {
 		mutex_unlock(&dev->struct_mutex);
 		return 0;
 	}
@@ -4550,6 +4614,10 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 			return ret;
 	}
 	ret = intel_init_ring_buffer(dev, &dev_priv->render_ring);
+	if (!ret && HAS_BSD(dev)) {
+		dev_priv->bsd_ring = bsd_ring;
+		ret = intel_init_ring_buffer(dev, &dev_priv->bsd_ring);
+	}
 	return ret;
 }
 
@@ -4559,6 +4627,8 @@ i915_gem_cleanup_ringbuffer(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
 	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
+	if (HAS_BSD(dev))
+		intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
 	if (HAS_PIPE_CONTROL(dev))
 		i915_gem_cleanup_pipe_control(dev);
 }
@@ -4589,11 +4659,13 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 
 	spin_lock(&dev_priv->mm.active_list_lock);
 	BUG_ON(!list_empty(&dev_priv->render_ring.active_list));
+	BUG_ON(HAS_BSD(dev) && !list_empty(&dev_priv->bsd_ring.active_list));
 	spin_unlock(&dev_priv->mm.active_list_lock);
 
 	BUG_ON(!list_empty(&dev_priv->mm.flushing_list));
 	BUG_ON(!list_empty(&dev_priv->mm.inactive_list));
 	BUG_ON(!list_empty(&dev_priv->render_ring.request_list));
+	BUG_ON(HAS_BSD(dev) && !list_empty(&dev_priv->bsd_ring.request_list));
 	mutex_unlock(&dev->struct_mutex);
 
 	drm_irq_install(dev);
@@ -4638,6 +4710,10 @@ i915_gem_load(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
 	INIT_LIST_HEAD(&dev_priv->render_ring.active_list);
 	INIT_LIST_HEAD(&dev_priv->render_ring.request_list);
+	if (HAS_BSD(dev)) {
+		INIT_LIST_HEAD(&dev_priv->bsd_ring.active_list);
+		INIT_LIST_HEAD(&dev_priv->bsd_ring.request_list);
+	}
 	for (i = 0; i < 16; i++)
 		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
 	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,
@@ -4874,6 +4950,8 @@ i915_gpu_is_active(struct drm_device *dev)
 	spin_lock(&dev_priv->mm.active_list_lock);
 	lists_empty = list_empty(&dev_priv->mm.flushing_list) &&
 		      list_empty(&dev_priv->render_ring.active_list);
+	if (HAS_BSD(dev))
+		lists_empty &= list_empty(&dev_priv->bsd_ring.active_list);
 	spin_unlock(&dev_priv->mm.active_list_lock);
 
 	return !lists_empty;
@@ -4919,6 +4997,9 @@ rescan:
 
 		spin_unlock(&shrink_list_lock);
 		i915_gem_retire_requests(dev, &dev_priv->render_ring);
+
+		if (HAS_BSD(dev))
+			i915_gem_retire_requests(dev, &dev_priv->bsd_ring);
 
 		list_for_each_entry_safe(obj_priv, next_obj,
 					 &dev_priv->mm.inactive_list,

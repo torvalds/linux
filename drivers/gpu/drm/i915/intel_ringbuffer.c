@@ -340,6 +340,119 @@ static void render_setup_status_page(struct drm_device *dev,
 
 }
 
+void
+bsd_ring_flush(struct drm_device *dev,
+		struct intel_ring_buffer *ring,
+		u32     invalidate_domains,
+		u32     flush_domains)
+{
+	intel_ring_begin(dev, ring, 8);
+	intel_ring_emit(dev, ring, MI_FLUSH);
+	intel_ring_emit(dev, ring, MI_NOOP);
+	intel_ring_advance(dev, ring);
+}
+
+static inline unsigned int bsd_ring_get_head(struct drm_device *dev,
+		struct intel_ring_buffer *ring)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	return I915_READ(BSD_RING_HEAD) & HEAD_ADDR;
+}
+
+static inline unsigned int bsd_ring_get_tail(struct drm_device *dev,
+		struct intel_ring_buffer *ring)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	return I915_READ(BSD_RING_TAIL) & TAIL_ADDR;
+}
+
+static inline unsigned int bsd_ring_get_active_head(struct drm_device *dev,
+		struct intel_ring_buffer *ring)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	return I915_READ(BSD_RING_ACTHD);
+}
+
+static inline void bsd_ring_advance_ring(struct drm_device *dev,
+		struct intel_ring_buffer *ring)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	I915_WRITE(BSD_RING_TAIL, ring->tail);
+}
+
+static int init_bsd_ring(struct drm_device *dev,
+		struct intel_ring_buffer *ring)
+{
+	return init_ring_common(dev, ring);
+}
+
+static u32
+bsd_ring_add_request(struct drm_device *dev,
+		struct intel_ring_buffer *ring,
+		struct drm_file *file_priv,
+		u32 flush_domains)
+{
+	u32 seqno;
+	seqno = intel_ring_get_seqno(dev, ring);
+	intel_ring_begin(dev, ring, 4);
+	intel_ring_emit(dev, ring, MI_STORE_DWORD_INDEX);
+	intel_ring_emit(dev, ring,
+			I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
+	intel_ring_emit(dev, ring, seqno);
+	intel_ring_emit(dev, ring, MI_USER_INTERRUPT);
+	intel_ring_advance(dev, ring);
+
+	DRM_DEBUG_DRIVER("%s %d\n", ring->name, seqno);
+
+	return seqno;
+}
+
+static void bsd_setup_status_page(struct drm_device *dev,
+		struct  intel_ring_buffer *ring)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	I915_WRITE(BSD_HWS_PGA, ring->status_page.gfx_addr);
+	I915_READ(BSD_HWS_PGA);
+}
+
+static void
+bsd_ring_get_user_irq(struct drm_device *dev,
+		struct intel_ring_buffer *ring)
+{
+	/* do nothing */
+}
+static void
+bsd_ring_put_user_irq(struct drm_device *dev,
+		struct intel_ring_buffer *ring)
+{
+	/* do nothing */
+}
+
+static u32
+bsd_ring_get_gem_seqno(struct drm_device *dev,
+		struct intel_ring_buffer *ring)
+{
+	return intel_read_status_page(ring, I915_GEM_HWS_INDEX);
+}
+
+static int
+bsd_ring_dispatch_gem_execbuffer(struct drm_device *dev,
+		struct intel_ring_buffer *ring,
+		struct drm_i915_gem_execbuffer2 *exec,
+		struct drm_clip_rect *cliprects,
+		uint64_t exec_offset)
+{
+	uint32_t exec_start;
+	exec_start = (uint32_t) exec_offset + exec->batch_start_offset;
+	intel_ring_begin(dev, ring, 2);
+	intel_ring_emit(dev, ring, MI_BATCH_BUFFER_START |
+			(2 << 6) | MI_BATCH_NON_SECURE_I965);
+	intel_ring_emit(dev, ring, exec_start);
+	intel_ring_advance(dev, ring);
+	return 0;
+}
+
+
 static int
 render_ring_dispatch_gem_execbuffer(struct drm_device *dev,
 		struct intel_ring_buffer *ring,
@@ -588,6 +701,7 @@ int intel_wait_ring_buffer(struct drm_device *dev,
 			if (master_priv->sarea_priv)
 				master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
 		}
+
 		yield();
 	} while (!time_after(jiffies, end));
 	trace_i915_ring_wait_end (dev);
@@ -679,6 +793,45 @@ struct intel_ring_buffer render_ring = {
 	.user_irq_get		= render_ring_get_user_irq,
 	.user_irq_put		= render_ring_put_user_irq,
 	.dispatch_gem_execbuffer = render_ring_dispatch_gem_execbuffer,
+	.status_page		= {NULL, 0, NULL},
+	.map			= {0,}
+};
+
+/* ring buffer for bit-stream decoder */
+
+struct intel_ring_buffer bsd_ring = {
+	.name                   = "bsd ring",
+	.regs			= {
+		.ctl = BSD_RING_CTL,
+		.head = BSD_RING_HEAD,
+		.tail = BSD_RING_TAIL,
+		.start = BSD_RING_START
+	},
+	.ring_flag		= I915_EXEC_BSD,
+	.size			= 32 * PAGE_SIZE,
+	.alignment		= PAGE_SIZE,
+	.virtual_start		= NULL,
+	.dev			= NULL,
+	.gem_object		= NULL,
+	.head			= 0,
+	.tail			= 0,
+	.space			= 0,
+	.next_seqno		= 1,
+	.user_irq_refcount	= 0,
+	.irq_gem_seqno		= 0,
+	.waiting_gem_seqno	= 0,
+	.setup_status_page	= bsd_setup_status_page,
+	.init			= init_bsd_ring,
+	.get_head		= bsd_ring_get_head,
+	.get_tail		= bsd_ring_get_tail,
+	.get_active_head	= bsd_ring_get_active_head,
+	.advance_ring		= bsd_ring_advance_ring,
+	.flush			= bsd_ring_flush,
+	.add_request		= bsd_ring_add_request,
+	.get_gem_seqno		= bsd_ring_get_gem_seqno,
+	.user_irq_get		= bsd_ring_get_user_irq,
+	.user_irq_put		= bsd_ring_put_user_irq,
+	.dispatch_gem_execbuffer = bsd_ring_dispatch_gem_execbuffer,
 	.status_page		= {NULL, 0, NULL},
 	.map			= {0,}
 };

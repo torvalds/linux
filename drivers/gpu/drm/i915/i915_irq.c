@@ -53,7 +53,7 @@
 	 I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT)
 
 /** Interrupts that we mask and unmask at runtime. */
-#define I915_INTERRUPT_ENABLE_VAR (I915_USER_INTERRUPT)
+#define I915_INTERRUPT_ENABLE_VAR (I915_USER_INTERRUPT | I915_BSD_USER_INTERRUPT)
 
 #define I915_PIPE_VBLANK_STATUS	(PIPE_START_VBLANK_INTERRUPT_STATUS |\
 				 PIPE_VBLANK_INTERRUPT_STATUS)
@@ -362,6 +362,9 @@ irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 		dev_priv->hangcheck_count = 0;
 		mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
 	}
+	if (gt_iir & GT_BSD_USER_INTERRUPT)
+		DRM_WAKEUP(&dev_priv->bsd_ring.irq_queue);
+
 
 	if (de_iir & DE_GSE)
 		ironlake_opregion_gse_intr(dev);
@@ -944,6 +947,9 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 			mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
 		}
 
+		if (HAS_BSD(dev) && (iir & I915_BSD_USER_INTERRUPT))
+			DRM_WAKEUP(&dev_priv->bsd_ring.irq_queue);
+
 		if (iir & I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT)
 			intel_prepare_page_flip(dev, 0);
 
@@ -1297,7 +1303,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	/* enable kind of interrupts always enabled */
 	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
 			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE;
-	u32 render_mask = GT_PIPE_NOTIFY;
+	u32 render_mask = GT_PIPE_NOTIFY | GT_BSD_USER_INTERRUPT;
 	u32 hotplug_mask = SDE_CRT_HOTPLUG | SDE_PORTB_HOTPLUG |
 			   SDE_PORTC_HOTPLUG | SDE_PORTD_HOTPLUG;
 
@@ -1375,6 +1381,9 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	u32 error_mask;
 
 	DRM_INIT_WAITQUEUE(&dev_priv->render_ring.irq_queue);
+
+	if (HAS_BSD(dev))
+		DRM_INIT_WAITQUEUE(&dev_priv->bsd_ring.irq_queue);
 
 	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
 

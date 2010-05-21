@@ -130,6 +130,8 @@ static int i915_dma_cleanup(struct drm_device * dev)
 		drm_irq_uninstall(dev);
 
 	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
+	if (HAS_BSD(dev))
+		intel_cleanup_ring_buffer(dev, &dev_priv->bsd_ring);
 
 	/* Clear the HWS virtual address at teardown */
 	if (I915_NEED_GFX_HWS(dev))

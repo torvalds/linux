@@ -334,6 +334,7 @@
 #define   I915_DEBUG_INTERRUPT				(1<<2)
 #define   I915_USER_INTERRUPT				(1<<1)
 #define   I915_ASLE_INTERRUPT				(1<<0)
+#define   I915_BSD_USER_INTERRUPT                      (1<<25)
 #define EIR		0x020b0
 #define EMR		0x020b4
 #define ESR		0x020b8
@@ -368,6 +369,17 @@
 #define BB_ADDR		0x02140 /* 8 bytes */
 #define GFX_FLSH_CNTL	0x02170 /* 915+ only */
 
+/*
+ * BSD (bit stream decoder instruction and interrupt control register defines
+ * (G4X and Ironlake only)
+ */
+
+#define BSD_RING_TAIL          0x04030
+#define BSD_RING_HEAD          0x04034
+#define BSD_RING_START         0x04038
+#define BSD_RING_CTL           0x0403c
+#define BSD_RING_ACTHD         0x04074
+#define BSD_HWS_PGA            0x04080
 
 /*
  * Framebuffer compression (915+ only)
@@ -2355,6 +2367,8 @@
 #define GT_PIPE_NOTIFY		(1 << 4)
 #define GT_SYNC_STATUS          (1 << 2)
 #define GT_USER_INTERRUPT       (1 << 0)
+#define GT_BSD_USER_INTERRUPT   (1 << 5)
+
 
 #define GTISR   0x44010
 #define GTIMR   0x44014

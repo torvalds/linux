@@ -235,6 +235,7 @@ typedef struct drm_i915_private {
 
 	struct pci_dev *bridge_dev;
 	struct intel_ring_buffer render_ring;
+	struct intel_ring_buffer bsd_ring;
 
 	drm_dma_handle_t *status_page_dmah;
 	void *hw_status_page;
@@ -1121,6 +1122,7 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
 			 (dev)->pci_device == 0x2A42 ||		\
 			 (dev)->pci_device == 0x2E42)
 
+#define HAS_BSD(dev)            (IS_IRONLAKE(dev) || IS_G4X(dev))
 #define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
