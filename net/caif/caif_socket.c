@@ -292,53 +292,42 @@ static void caif_check_flow_release(struct sock *sk)
 			caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_ON_REQ);
 	}
 }
-/*
- * Copied from sock.c:sock_queue_rcv_skb(), and added check that user buffer
- * has sufficient size.
- */
 
+/*
+ * Copied from unix_dgram_recvmsg, but removed credit checks,
+ * changed locking, address handling and added MSG_TRUNC.
+ */
 static int caif_seqpkt_recvmsg(struct kiocb *iocb, struct socket *sock,
-				struct msghdr *m, size_t buf_len, int flags)
+				struct msghdr *m, size_t len, int flags)
 
 {
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
-	int ret = 0;
-	int len;
+	int ret;
+	int copylen;
 
-	if (unlikely(!buf_len))
-		return -EINVAL;
+	ret = -EOPNOTSUPP;
+	if (m->msg_flags&MSG_OOB)
+		goto read_error;
 
 	skb = skb_recv_datagram(sk, flags, 0 , &ret);
 	if (!skb)
 		goto read_error;
-
-	len = skb->len;
-
-	if (skb && skb->len > buf_len && !(flags & MSG_PEEK)) {
-		len = buf_len;
-		/*
-		 * Push skb back on receive queue if buffer too small.
-		 * This has a built-in race where multi-threaded receive
-		 * may get packet in wrong order, but multiple read does
-		 * not really guarantee ordered delivery anyway.
-		 * Let's optimize for speed without taking locks.
-		 */
-
-		skb_queue_head(&sk->sk_receive_queue, skb);
-		ret = -EMSGSIZE;
-		goto read_error;
+	copylen = skb->len;
+	if (len < copylen) {
+		m->msg_flags |= MSG_TRUNC;
+		copylen = len;
 	}
 
-	ret = skb_copy_datagram_iovec(skb, 0, m->msg_iov, len);
+	ret = skb_copy_datagram_iovec(skb, 0, m->msg_iov, copylen);
 	if (ret)
-		goto read_error;
+		goto out_free;
 
+	ret = (flags & MSG_TRUNC) ? skb->len : copylen;
+out_free:
 	skb_free_datagram(sk, skb);
-
 	caif_check_flow_release(sk);
-
-	return len;
+	return ret;
 
 read_error:
 	return ret;
