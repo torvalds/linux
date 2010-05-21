@@ -37,6 +37,7 @@
 #include <mach/ohci.h>
 #include <mach/pxa27x-udc.h>
 #include <mach/udc.h>
+#include <mach/pata_pxa.h>
 
 #include <plat/i2c.h>
 
@@ -538,9 +539,10 @@ static inline void vpac270_lcd_init(void) {}
 /******************************************************************************
  * PATA IDE
  ******************************************************************************/
-#if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
-static struct pata_platform_info vpac270_pata_pdata = {
-	.ioport_shift	= 1,
+#if defined(CONFIG_PATA_PXA) || defined(CONFIG_PATA_PXA_MODULE)
+static struct pata_pxa_pdata vpac270_pata_pdata = {
+	.reg_shift	= 1,
+	.dma_dreq	= 1,
 	.irq_flags	= IRQF_TRIGGER_RISING,
 };
 
@@ -555,7 +557,12 @@ static struct resource vpac270_ide_resources[] = {
 	       .end	= PXA_CS3_PHYS + 0x15f,
 	       .flags	= IORESOURCE_MEM
 	},
-	[2] = {	/* IDE IRQ pin */
+	[2] = {	/* DMA Base address */
+	       .start	= PXA_CS3_PHYS + 0x20,
+	       .end	= PXA_CS3_PHYS + 0x2f,
+	       .flags	= IORESOURCE_DMA
+	},
+	[3] = {	/* IDE IRQ pin */
 	       .start	= gpio_to_irq(GPIO36_VPAC270_IDE_IRQ),
 	       .end	= gpio_to_irq(GPIO36_VPAC270_IDE_IRQ),
 	       .flags	= IORESOURCE_IRQ
@@ -563,11 +570,12 @@ static struct resource vpac270_ide_resources[] = {
 };
 
 static struct platform_device vpac270_ide_device = {
-	.name		= "pata_platform",
+	.name		= "pata_pxa",
 	.num_resources	= ARRAY_SIZE(vpac270_ide_resources),
 	.resource	= vpac270_ide_resources,
 	.dev		= {
 		.platform_data	= &vpac270_pata_pdata,
+		.coherent_dma_mask	= 0xffffffff,
 	}
 };
 
