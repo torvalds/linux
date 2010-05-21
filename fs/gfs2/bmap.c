@@ -71,11 +71,13 @@ static int gfs2_unstuffer_page(struct gfs2_inode *ip, struct buffer_head *dibh,
 
 	if (!PageUptodate(page)) {
 		void *kaddr = kmap(page);
+		u64 dsize = i_size_read(inode);
+ 
+		if (dsize > (dibh->b_size - sizeof(struct gfs2_dinode)))
+			dsize = dibh->b_size - sizeof(struct gfs2_dinode);
 
-		memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode),
-		       ip->i_disksize);
-		memset(kaddr + ip->i_disksize, 0,
-		       PAGE_CACHE_SIZE - ip->i_disksize);
+		memcpy(kaddr, dibh->b_data + sizeof(struct gfs2_dinode), dsize);
+		memset(kaddr + dsize, 0, PAGE_CACHE_SIZE - dsize);
 		kunmap(page);
 
 		SetPageUptodate(page);
@@ -1038,13 +1040,14 @@ static int trunc_start(struct gfs2_inode *ip, u64 size)
 		goto out;
 
 	if (gfs2_is_stuffed(ip)) {
-		ip->i_disksize = size;
+		u64 dsize = size + sizeof(struct gfs2_inode);
 		ip->i_inode.i_mtime = ip->i_inode.i_ctime = CURRENT_TIME;
 		gfs2_trans_add_bh(ip->i_gl, dibh, 1);
 		gfs2_dinode_out(ip, dibh->b_data);
-		gfs2_buffer_clear_tail(dibh, sizeof(struct gfs2_dinode) + size);
+		if (dsize > dibh->b_size)
+			dsize = dibh->b_size;
+		gfs2_buffer_clear_tail(dibh, dsize);
 		error = 1;
-
 	} else {
 		if (size & (u64)(sdp->sd_sb.sb_bsize - 1))
 			error = gfs2_block_truncate_page(ip->i_inode.i_mapping);
