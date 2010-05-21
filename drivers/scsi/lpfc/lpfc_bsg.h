@@ -91,11 +91,12 @@ struct get_mgmt_rev_reply {
 	struct MgmtRevInfo info;
 };
 
+#define BSG_MBOX_SIZE 4096 /* mailbox command plus extended data */
 struct dfc_mbox_req {
 	uint32_t command;
+	uint32_t mbOffset;
 	uint32_t inExtWLen;
 	uint32_t outExtWLen;
-	uint8_t mbOffset;
 };
 
 /* Used for menlo command or menlo data. The xri is only used for menlo data */

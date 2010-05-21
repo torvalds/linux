@@ -3,7 +3,7 @@
  *
  * Interface to the FSF support functions.
  *
- * Copyright IBM Corporation 2002, 2009
+ * Copyright IBM Corporation 2002, 2010
  */
 
 #ifndef FSF_H
@@ -152,7 +152,12 @@
 #define FSF_CLASS_3				0x00000003
 
 /* SBAL chaining */
-#define FSF_MAX_SBALS_PER_REQ			36
+#define ZFCP_FSF_MAX_SBALS_PER_REQ		36
+
+/* max. number of (data buffer) SBALEs in largest SBAL chain
+ * request ID + QTCB in SBALE 0 + 1 of first SBAL in chain   */
+#define ZFCP_FSF_MAX_SBALES_PER_REQ	\
+	(ZFCP_FSF_MAX_SBALS_PER_REQ * ZFCP_QDIO_MAX_SBALES_PER_SBAL - 2)
 
 /* logging space behind QTCB */
 #define FSF_QTCB_LOG_SIZE			1024
@@ -361,7 +366,7 @@ struct fsf_qtcb_bottom_config {
 	u32 adapter_type;
 	u8 res0;
 	u8 peer_d_id[3];
-	u8 res1[2];
+	u16 status_read_buf_num;
 	u16 timer_interval;
 	u8 res2[9];
 	u8 s_id[3];

@@ -27,6 +27,9 @@
 /* #define QL_DEBUG_LEVEL_15 */ /* Output NPIV trace msgs */
 /* #define QL_DEBUG_LEVEL_16 */ /* Output ISP84XX trace msgs */
 /* #define QL_DEBUG_LEVEL_17 */ /* Output EEH trace messages */
+/* #define QL_DEBUG_LEVEL_18 */ /* Output T10 CRC trace messages */
+
+/* #define QL_PRINTK_BUF */ /* Captures printk to buffer */
 
 /*
 * Macros use for debugging the driver.
@@ -138,6 +141,13 @@
 #else
 #define DEBUG17(x)	do {} while (0)
 #endif
+
+#if defined(QL_DEBUG_LEVEL_18)
+#define DEBUG18(x)	do {if (ql2xextended_error_logging) x; } while (0)
+#else
+#define DEBUG18(x)	do {} while (0)
+#endif
+
 
 /*
  * Firmware Dump structure definition

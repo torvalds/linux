@@ -966,6 +966,16 @@ static void aac_handle_aif(struct aac_dev * dev, struct fib * fibptr)
 			device_config_needed =
 			  (((__le32 *)aifcmd->data)[0] ==
 			    cpu_to_le32(AifEnAddJBOD)) ? ADD : DELETE;
+			if (device_config_needed == ADD) {
+				device = scsi_device_lookup(dev->scsi_host_ptr,
+					channel,
+					id,
+					lun);
+				if (device) {
+					scsi_remove_device(device);
+					scsi_device_put(device);
+				}
+			}
 			break;
 
 		case AifEnEnclosureManagement:
@@ -1123,6 +1133,9 @@ retry_next:
 	if (device) {
 		switch (device_config_needed) {
 		case DELETE:
+#if (defined(AAC_DEBUG_INSTRUMENT_AIF_DELETE))
+			scsi_remove_device(device);
+#else
 			if (scsi_device_online(device)) {
 				scsi_device_set_state(device, SDEV_OFFLINE);
 				sdev_printk(KERN_INFO, device,
@@ -1131,6 +1144,7 @@ retry_next:
 						"array deleted" :
 						"enclosure services event");
 			}
+#endif
 			break;
 		case ADD:
 			if (!scsi_device_online(device)) {
@@ -1145,12 +1159,16 @@ retry_next:
 		case CHANGE:
 			if ((channel == CONTAINER_CHANNEL)
 			 && (!dev->fsa_dev[container].valid)) {
+#if (defined(AAC_DEBUG_INSTRUMENT_AIF_DELETE))
+				scsi_remove_device(device);
+#else
 				if (!scsi_device_online(device))
 					break;
 				scsi_device_set_state(device, SDEV_OFFLINE);
 				sdev_printk(KERN_INFO, device,
 					"Device offlined - %s\n",
 					"array failed");
+#endif
 				break;
 			}
 			scsi_rescan_device(&device->sdev_gendev);

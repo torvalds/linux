@@ -1030,8 +1030,6 @@ int __sas_task_abort(struct sas_task *task)
 void sas_task_abort(struct sas_task *task)
 {
 	struct scsi_cmnd *sc = task->uldd_task;
-	struct request_queue *q = sc->device->request_queue;
-	unsigned long flags;
 
 	/* Escape for libsas internal commands */
 	if (!sc) {
@@ -1043,13 +1041,15 @@ void sas_task_abort(struct sas_task *task)
 
 	if (dev_is_sata(task->dev)) {
 		sas_ata_task_abort(task);
-		return;
-	}
+	} else {
+		struct request_queue *q = sc->device->request_queue;
+		unsigned long flags;
 
-	spin_lock_irqsave(q->queue_lock, flags);
-	blk_abort_request(sc->request);
-	spin_unlock_irqrestore(q->queue_lock, flags);
-	scsi_schedule_eh(sc->device->host);
+		spin_lock_irqsave(q->queue_lock, flags);
+		blk_abort_request(sc->request);
+		spin_unlock_irqrestore(q->queue_lock, flags);
+		scsi_schedule_eh(sc->device->host);
+	}
 }
 
 int sas_slave_alloc(struct scsi_device *scsi_dev)

@@ -400,6 +400,7 @@ struct cmd_type_6 {
 	struct scsi_lun lun;		/* FCP LUN (BE). */
 
 	uint16_t control_flags;		/* Control flags. */
+#define CF_DIF_SEG_DESCR_ENABLE		BIT_3
 #define CF_DATA_SEG_DESCR_ENABLE	BIT_2
 #define CF_READ_DATA			BIT_1
 #define CF_WRITE_DATA			BIT_0
@@ -466,6 +467,43 @@ struct cmd_type_7 {
 	uint32_t dseg_0_len;		/* Data segment 0 length. */
 };
 
+#define COMMAND_TYPE_CRC_2	0x6A	/* Command Type CRC_2 (Type 6)
+					 * (T10-DIF) */
+struct cmd_type_crc_2 {
+	uint8_t entry_type;		/* Entry type. */
+	uint8_t entry_count;		/* Entry count. */
+	uint8_t sys_define;		/* System defined. */
+	uint8_t entry_status;		/* Entry Status. */
+
+	uint32_t handle;		/* System handle. */
+
+	uint16_t nport_handle;		/* N_PORT handle. */
+	uint16_t timeout;		/* Command timeout. */
+
+	uint16_t dseg_count;		/* Data segment count. */
+
+	uint16_t fcp_rsp_dseg_len;	/* FCP_RSP DSD length. */
+
+	struct scsi_lun lun;		/* FCP LUN (BE). */
+
+	uint16_t control_flags;		/* Control flags. */
+
+	uint16_t fcp_cmnd_dseg_len;		/* Data segment length. */
+	uint32_t fcp_cmnd_dseg_address[2];	/* Data segment address. */
+
+	uint32_t fcp_rsp_dseg_address[2];	/* Data segment address. */
+
+	uint32_t byte_count;		/* Total byte count. */
+
+	uint8_t port_id[3];		/* PortID of destination port. */
+	uint8_t vp_index;
+
+	uint32_t crc_context_address[2];	/* Data segment address. */
+	uint16_t crc_context_len;		/* Data segment length. */
+	uint16_t reserved_1;			/* MUST be set to 0. */
+};
+
+
 /*
  * ISP queue - status entry structure definition.
  */
@@ -496,9 +534,16 @@ struct sts_entry_24xx {
 
 	uint32_t sense_len;		/* FCP SENSE length. */
 	uint32_t rsp_data_len;		/* FCP response data length. */
-
 	uint8_t data[28];		/* FCP response/sense information. */
+	/*
+	 * If DIF Error is set in comp_status, these additional fields are
+	 * defined:
+	 * &data[10] : uint8_t report_runt_bg[2];	- computed guard
+	 * &data[12] : uint8_t actual_dif[8];		- DIF Data recieved
+	 * &data[20] : uint8_t expected_dif[8];		- DIF Data computed
+	*/
 };
+
 
 /*
  * Status entry completion status
@@ -841,6 +886,8 @@ struct device_reg_24xx {
 #define FA_HW_EVENT_ENTRY_SIZE	4
 #define FA_NPIV_CONF0_ADDR	0x5C000
 #define FA_NPIV_CONF1_ADDR	0x5D000
+#define FA_FCP_PRIO0_ADDR	0x10000
+#define FA_FCP_PRIO1_ADDR	0x12000
 
 /*
  * Flash Error Log Event Codes.
@@ -1274,6 +1321,8 @@ struct qla_flt_header {
 #define FLT_REG_NPIV_CONF_0	0x29
 #define FLT_REG_NPIV_CONF_1	0x2a
 #define FLT_REG_GOLD_FW		0x2f
+#define FLT_REG_FCP_PRIO_0	0x87
+#define FLT_REG_FCP_PRIO_1	0x88
 
 struct qla_flt_region {
 	uint32_t code;
@@ -1749,6 +1798,61 @@ struct ex_init_cb_81xx {
 
 #define FARX_ACCESS_FLASH_CONF_81XX	0x7FFD0000
 #define FARX_ACCESS_FLASH_DATA_81XX	0x7F800000
+
+/* FCP priority config defines *************************************/
+/* operations */
+#define QLFC_FCP_PRIO_DISABLE           0x0
+#define QLFC_FCP_PRIO_ENABLE            0x1
+#define QLFC_FCP_PRIO_GET_CONFIG        0x2
+#define QLFC_FCP_PRIO_SET_CONFIG        0x3
+
+struct qla_fcp_prio_entry {
+	uint16_t flags;         /* Describes parameter(s) in FCP        */
+	/* priority entry that are valid        */
+#define FCP_PRIO_ENTRY_VALID            0x1
+#define FCP_PRIO_ENTRY_TAG_VALID        0x2
+#define FCP_PRIO_ENTRY_SPID_VALID       0x4
+#define FCP_PRIO_ENTRY_DPID_VALID       0x8
+#define FCP_PRIO_ENTRY_LUNB_VALID       0x10
+#define FCP_PRIO_ENTRY_LUNE_VALID       0x20
+#define FCP_PRIO_ENTRY_SWWN_VALID       0x40
+#define FCP_PRIO_ENTRY_DWWN_VALID       0x80
+	uint8_t  tag;           /* Priority value                   */
+	uint8_t  reserved;      /* Reserved for future use          */
+	uint32_t src_pid;       /* Src port id. high order byte     */
+				/* unused; -1 (wild card)           */
+	uint32_t dst_pid;       /* Src port id. high order byte     */
+	/* unused; -1 (wild card)           */
+	uint16_t lun_beg;       /* 1st lun num of lun range.        */
+				/* -1 (wild card)                   */
+	uint16_t lun_end;       /* 2nd lun num of lun range.        */
+				/* -1 (wild card)                   */
+	uint8_t  src_wwpn[8];   /* Source WWPN: -1 (wild card)      */
+	uint8_t  dst_wwpn[8];   /* Destination WWPN: -1 (wild card) */
+};
+
+struct qla_fcp_prio_cfg {
+	uint8_t  signature[4];  /* "HQOS" signature of config data  */
+	uint16_t version;       /* 1: Initial version               */
+	uint16_t length;        /* config data size in num bytes    */
+	uint16_t checksum;      /* config data bytes checksum       */
+	uint16_t num_entries;   /* Number of entries                */
+	uint16_t size_of_entry; /* Size of each entry in num bytes  */
+	uint8_t  attributes;    /* enable/disable, persistence      */
+#define FCP_PRIO_ATTR_DISABLE   0x0
+#define FCP_PRIO_ATTR_ENABLE    0x1
+#define FCP_PRIO_ATTR_PERSIST   0x2
+	uint8_t  reserved;      /* Reserved for future use          */
+#define FCP_PRIO_CFG_HDR_SIZE   0x10
+	struct qla_fcp_prio_entry entry[1];     /* fcp priority entries  */
+#define FCP_PRIO_CFG_ENTRY_SIZE 0x20
+};
+
+#define FCP_PRIO_CFG_SIZE       (32*1024) /* fcp prio data per port*/
+
+/* 25XX Support ****************************************************/
+#define FA_FCP_PRIO0_ADDR_25	0x3C000
+#define FA_FCP_PRIO1_ADDR_25	0x3E000
 
 /* 81XX Flash locations -- occupies second 2MB region. */
 #define FA_BOOT_CODE_ADDR_81	0x80000

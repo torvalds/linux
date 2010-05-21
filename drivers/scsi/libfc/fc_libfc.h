@@ -45,9 +45,9 @@ extern unsigned int fc_debug_logging;
 
 #define FC_LPORT_DBG(lport, fmt, args...)				\
 	FC_CHECK_LOGGING(FC_LPORT_LOGGING,				\
-			 printk(KERN_INFO "host%u: lport %6x: " fmt,	\
+			 printk(KERN_INFO "host%u: lport %6.6x: " fmt,	\
 				(lport)->host->host_no,			\
-				fc_host_port_id((lport)->host), ##args))
+				(lport)->port_id, ##args))
 
 #define FC_DISC_DBG(disc, fmt, args...)				\
 	FC_CHECK_LOGGING(FC_DISC_LOGGING,			\
@@ -57,7 +57,7 @@ extern unsigned int fc_debug_logging;
 
 #define FC_RPORT_ID_DBG(lport, port_id, fmt, args...)			\
 	FC_CHECK_LOGGING(FC_RPORT_LOGGING,				\
-			 printk(KERN_INFO "host%u: rport %6x: " fmt,	\
+			 printk(KERN_INFO "host%u: rport %6.6x: " fmt,	\
 				(lport)->host->host_no,			\
 				(port_id), ##args))
 
@@ -66,7 +66,7 @@ extern unsigned int fc_debug_logging;
 
 #define FC_FCP_DBG(pkt, fmt, args...)					\
 	FC_CHECK_LOGGING(FC_FCP_LOGGING,				\
-			 printk(KERN_INFO "host%u: fcp: %6x: " fmt,	\
+			 printk(KERN_INFO "host%u: fcp: %6.6x: " fmt,	\
 				(pkt)->lp->host->host_no,		\
 				pkt->rport->port_id, ##args))
 
