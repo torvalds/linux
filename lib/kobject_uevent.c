@@ -83,6 +83,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_NET
 static int kobj_bcast_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 {
 	struct kobject *kobj = data;
@@ -98,6 +99,7 @@ static int kobj_bcast_filter(struct sock *dsk, struct sk_buff *skb, void *data)
 
 	return 0;
 }
+#endif
 
 static int kobj_usermode_filter(struct kobject *kobj)
 {
