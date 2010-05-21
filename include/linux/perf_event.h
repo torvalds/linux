@@ -487,6 +487,7 @@ struct perf_guest_info_callbacks {
 #include <linux/cpu.h>
 #include <asm/atomic.h>
 #include <asm/local.h>
+#include <asm/local64.h>
 
 #define PERF_MAX_STACK_DEPTH		255
 
@@ -536,10 +537,10 @@ struct hw_perf_event {
 		struct arch_hw_breakpoint	info;
 #endif
 	};
-	atomic64_t			prev_count;
+	local64_t			prev_count;
 	u64				sample_period;
 	u64				last_period;
-	atomic64_t			period_left;
+	local64_t			period_left;
 	u64				interrupts;
 
 	u64				freq_time_stamp;
@@ -670,7 +671,7 @@ struct perf_event {
 
 	enum perf_event_active_state	state;
 	unsigned int			attach_state;
-	atomic64_t			count;
+	local64_t			count;
 	atomic64_t			child_count;
 
 	/*

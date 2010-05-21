@@ -1148,9 +1148,9 @@ static void __perf_event_sync_stat(struct perf_event *event,
 	 * In order to keep per-task stats reliable we need to flip the event
 	 * values when we flip the contexts.
 	 */
-	value = atomic64_read(&next_event->count);
-	value = atomic64_xchg(&event->count, value);
-	atomic64_set(&next_event->count, value);
+	value = local64_read(&next_event->count);
+	value = local64_xchg(&event->count, value);
+	local64_set(&next_event->count, value);
 
 	swap(event->total_time_enabled, next_event->total_time_enabled);
 	swap(event->total_time_running, next_event->total_time_running);
@@ -1540,10 +1540,10 @@ static void perf_adjust_period(struct perf_event *event, u64 nsec, u64 count)
 
 	hwc->sample_period = sample_period;
 
-	if (atomic64_read(&hwc->period_left) > 8*sample_period) {
+	if (local64_read(&hwc->period_left) > 8*sample_period) {
 		perf_disable();
 		perf_event_stop(event);
-		atomic64_set(&hwc->period_left, 0);
+		local64_set(&hwc->period_left, 0);
 		perf_event_start(event);
 		perf_enable();
 	}
@@ -1584,7 +1584,7 @@ static void perf_ctx_adjust_freq(struct perf_event_context *ctx)
 
 		perf_disable();
 		event->pmu->read(event);
-		now = atomic64_read(&event->count);
+		now = local64_read(&event->count);
 		delta = now - hwc->freq_count_stamp;
 		hwc->freq_count_stamp = now;
 
@@ -1738,7 +1738,7 @@ static void __perf_event_read(void *info)
 
 static inline u64 perf_event_count(struct perf_event *event)
 {
-	return atomic64_read(&event->count) + atomic64_read(&event->child_count);
+	return local64_read(&event->count) + atomic64_read(&event->child_count);
 }
 
 static u64 perf_event_read(struct perf_event *event)
@@ -2141,7 +2141,7 @@ static unsigned int perf_poll(struct file *file, poll_table *wait)
 static void perf_event_reset(struct perf_event *event)
 {
 	(void)perf_event_read(event);
-	atomic64_set(&event->count, 0);
+	local64_set(&event->count, 0);
 	perf_event_update_userpage(event);
 }
 
@@ -2359,7 +2359,7 @@ void perf_event_update_userpage(struct perf_event *event)
 	userpg->index = perf_event_index(event);
 	userpg->offset = perf_event_count(event);
 	if (event->state == PERF_EVENT_STATE_ACTIVE)
-		userpg->offset -= atomic64_read(&event->hw.prev_count);
+		userpg->offset -= local64_read(&event->hw.prev_count);
 
 	userpg->time_enabled = event->total_time_enabled +
 			atomic64_read(&event->child_total_time_enabled);
@@ -4035,14 +4035,14 @@ static u64 perf_swevent_set_period(struct perf_event *event)
 	hwc->last_period = hwc->sample_period;
 
 again:
-	old = val = atomic64_read(&hwc->period_left);
+	old = val = local64_read(&hwc->period_left);
 	if (val < 0)
 		return 0;
 
 	nr = div64_u64(period + val, period);
 	offset = nr * period;
 	val -= offset;
-	if (atomic64_cmpxchg(&hwc->period_left, old, val) != old)
+	if (local64_cmpxchg(&hwc->period_left, old, val) != old)
 		goto again;
 
 	return nr;
@@ -4081,7 +4081,7 @@ static void perf_swevent_add(struct perf_event *event, u64 nr,
 {
 	struct hw_perf_event *hwc = &event->hw;
 
-	atomic64_add(nr, &event->count);
+	local64_add(nr, &event->count);
 
 	if (!regs)
 		return;
@@ -4092,7 +4092,7 @@ static void perf_swevent_add(struct perf_event *event, u64 nr,
 	if (nr == 1 && hwc->sample_period == 1 && !event->attr.freq)
 		return perf_swevent_overflow(event, 1, nmi, data, regs);
 
-	if (atomic64_add_negative(nr, &hwc->period_left))
+	if (local64_add_negative(nr, &hwc->period_left))
 		return;
 
 	perf_swevent_overflow(event, 0, nmi, data, regs);
@@ -4383,8 +4383,8 @@ static void cpu_clock_perf_event_update(struct perf_event *event)
 	u64 now;
 
 	now = cpu_clock(cpu);
-	prev = atomic64_xchg(&event->hw.prev_count, now);
-	atomic64_add(now - prev, &event->count);
+	prev = local64_xchg(&event->hw.prev_count, now);
+	local64_add(now - prev, &event->count);
 }
 
 static int cpu_clock_perf_event_enable(struct perf_event *event)
@@ -4392,7 +4392,7 @@ static int cpu_clock_perf_event_enable(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	int cpu = raw_smp_processor_id();
 
-	atomic64_set(&hwc->prev_count, cpu_clock(cpu));
+	local64_set(&hwc->prev_count, cpu_clock(cpu));
 	perf_swevent_start_hrtimer(event);
 
 	return 0;
@@ -4424,9 +4424,9 @@ static void task_clock_perf_event_update(struct perf_event *event, u64 now)
 	u64 prev;
 	s64 delta;
 
-	prev = atomic64_xchg(&event->hw.prev_count, now);
+	prev = local64_xchg(&event->hw.prev_count, now);
 	delta = now - prev;
-	atomic64_add(delta, &event->count);
+	local64_add(delta, &event->count);
 }
 
 static int task_clock_perf_event_enable(struct perf_event *event)
@@ -4436,7 +4436,7 @@ static int task_clock_perf_event_enable(struct perf_event *event)
 
 	now = event->ctx->time;
 
-	atomic64_set(&hwc->prev_count, now);
+	local64_set(&hwc->prev_count, now);
 
 	perf_swevent_start_hrtimer(event);
 
@@ -4879,7 +4879,7 @@ perf_event_alloc(struct perf_event_attr *attr,
 		hwc->sample_period = 1;
 	hwc->last_period = hwc->sample_period;
 
-	atomic64_set(&hwc->period_left, hwc->sample_period);
+	local64_set(&hwc->period_left, hwc->sample_period);
 
 	/*
 	 * we currently do not support PERF_FORMAT_GROUP on inherited events
@@ -5313,7 +5313,7 @@ inherit_event(struct perf_event *parent_event,
 		hwc->sample_period = sample_period;
 		hwc->last_period   = sample_period;
 
-		atomic64_set(&hwc->period_left, sample_period);
+		local64_set(&hwc->period_left, sample_period);
 	}
 
 	child_event->overflow_handler = parent_event->overflow_handler;
