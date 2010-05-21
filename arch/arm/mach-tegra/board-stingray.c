@@ -184,23 +184,34 @@ static struct platform_device androidusb_device = {
 	},
 };
 
-/* PDA power */
-static struct pda_power_pdata pda_power_pdata = {
+/* bq24617 charger */
+static struct resource bq24617_resources[] = {
+	[0] = {
+		.name  = "stat1",
+		.flags = IORESOURCE_IRQ,
+		.start = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV5),
+		.end   = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV5),
+	},
+	[1] = {
+		.name  = "stat2",
+		.flags = IORESOURCE_IRQ,
+		.start = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV6),
+		.end   = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PV6),
+	},
 };
 
-static struct platform_device pda_power_device = {
-	.name   = "pda_power",
+static struct platform_device bq24617_device = {
+	.name   = "bq24617",
 	.id     = -1,
-	.dev    = {
-		.platform_data  = &pda_power_pdata,
-	},
+	.resource      = bq24617_resources,
+	.num_resources = ARRAY_SIZE(bq24617_resources),
 };
 
 static struct platform_device *stingray_devices[] __initdata = {
 	&debug_uart,
 	&tegra_otg,
 	&androidusb_device,
-	&pda_power_device,
+	&bq24617_device,
 	&hsuart,
 	&tegra_i2c_device1,
 	&tegra_i2c_device2,
@@ -269,9 +280,16 @@ static void __init tegra_stingray_init(void)
 	   unless a factory cable is used, the factory jumper is set, or the
 	   usb_data_en gpio is set.
 	 */
+	tegra_gpio_enable(TEGRA_GPIO_PV4);
+	gpio_request(TEGRA_GPIO_PV4, "usb_data_en");
+	gpio_direction_output(TEGRA_GPIO_PV4, 1);
+
+	/* Enable charging */
+	tegra_gpio_enable(TEGRA_GPIO_PV5);
 	tegra_gpio_enable(TEGRA_GPIO_PV6);
-	gpio_request(TEGRA_GPIO_PV6, "usb_data_en");
-	gpio_direction_output(TEGRA_GPIO_PV6, 1);
+	tegra_gpio_enable(TEGRA_GPIO_PJ0);
+	gpio_request(TEGRA_GPIO_PJ0, "chg_disable");
+	gpio_direction_output(TEGRA_GPIO_PJ0, 0);
 
 	stingray_pinmux_init();
 
