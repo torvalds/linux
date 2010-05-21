@@ -78,7 +78,7 @@ enum {
 	IRQTF_AFFINITY,
 };
 
-/**
+/*
  * These values can be returned by request_any_context_irq() and
  * describe the context the interrupt will be run in.
  *
