@@ -132,8 +132,9 @@ void perf_trace_destroy(struct perf_event *p_event)
 	struct ftrace_event_call *tp_event = p_event->tp_event;
 	int i;
 
+	mutex_lock(&event_mutex);
 	if (--tp_event->perf_refcount > 0)
-		return;
+		goto out;
 
 	if (tp_event->class->reg)
 		tp_event->class->reg(tp_event, TRACE_REG_PERF_UNREGISTER);
@@ -157,6 +158,8 @@ void perf_trace_destroy(struct perf_event *p_event)
 			perf_trace_buf[i] = NULL;
 		}
 	}
+out:
+	mutex_unlock(&event_mutex);
 }
 
 __kprobes void *perf_trace_buf_prepare(int size, unsigned short type,
