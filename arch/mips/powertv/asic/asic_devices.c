@@ -180,9 +180,9 @@ static void __init fs_update(int pe, int md, int sdiv, int disable_div_by_3)
 	val = ((sdiv << 29) | (md << 24) | (pe<<8) | (sout<<3) | (byp<<2) |
 		(nsb<<1) | (disable_div_by_3<<5));
 
-	asic_write(val, usb_fs);
-	asic_write(val | (en_prg<<4), usb_fs);
-	asic_write(val | (en_prg<<4) | pwr, usb_fs);
+	asic_write(val, fs432x4b4_usb_ctl);
+	asic_write(val | (en_prg<<4), fs432x4b4_usb_ctl);
+	asic_write(val | (en_prg<<4) | pwr, fs432x4b4_usb_ctl);
 }
 
 /*
