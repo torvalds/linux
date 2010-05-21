@@ -223,6 +223,25 @@ static struct kgdb_io kgdboc_io_ops = {
 	.post_exception		= kgdboc_post_exp_handler,
 };
 
+#ifdef CONFIG_KGDB_SERIAL_CONSOLE
+/* This is only available if kgdboc is a built in for early debugging */
+int __init kgdboc_early_init(char *opt)
+{
+	/* save the first character of the config string because the
+	 * init routine can destroy it.
+	 */
+	char save_ch;
+
+	kgdboc_option_setup(opt);
+	save_ch = config[0];
+	init_kgdboc();
+	config[0] = save_ch;
+	return 0;
+}
+
+early_param("ekgdboc", kgdboc_early_init);
+#endif /* CONFIG_KGDB_SERIAL_CONSOLE */
+
 module_init(init_kgdboc);
 module_exit(cleanup_kgdboc);
 module_param_call(kgdboc, param_set_kgdboc_var, param_get_string, &kps, 0644);
