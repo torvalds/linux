@@ -1029,10 +1029,14 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 void i8xx_disable_fbc(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	unsigned long timeout = jiffies + msecs_to_jiffies(1);
 	u32 fbc_ctl;
 
 	if (!I915_HAS_FBC(dev))
 		return;
+
+	if (!(I915_READ(FBC_CONTROL) & FBC_CTL_EN))
+		return;	/* Already off, just return */
 
 	/* Disable compression */
 	fbc_ctl = I915_READ(FBC_CONTROL);
@@ -1040,8 +1044,13 @@ void i8xx_disable_fbc(struct drm_device *dev)
 	I915_WRITE(FBC_CONTROL, fbc_ctl);
 
 	/* Wait for compressing bit to clear */
-	while (I915_READ(FBC_STATUS) & FBC_STAT_COMPRESSING)
-		; /* nothing */
+	while (I915_READ(FBC_STATUS) & FBC_STAT_COMPRESSING) {
+		if (time_after(jiffies, timeout)) {
+			DRM_DEBUG_DRIVER("FBC idle timed out\n");
+			break;
+		}
+		; /* do nothing */
+	}
 
 	intel_wait_for_vblank(dev);
 
