@@ -24,6 +24,7 @@
 #include <media/media-entity.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-dev.h>
+#include <media/v4l2-fh.h>
 #include <media/v4l2-mediabus.h>
 
 /* generic v4l2_device notify callback notification values */
@@ -480,6 +481,34 @@ struct v4l2_subdev {
 	container_of(ent, struct v4l2_subdev, entity)
 #define vdev_to_v4l2_subdev(vdev) \
 	container_of(vdev, struct v4l2_subdev, devnode)
+
+/*
+ * Used for storing subdev information per file handle
+ */
+struct v4l2_subdev_fh {
+	struct v4l2_fh vfh;
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+	struct v4l2_mbus_framefmt *try_fmt;
+	struct v4l2_rect *try_crop;
+#endif
+};
+
+#define to_v4l2_subdev_fh(fh)	\
+	container_of(fh, struct v4l2_subdev_fh, vfh)
+
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+static inline struct v4l2_mbus_framefmt *
+v4l2_subdev_get_try_format(struct v4l2_subdev_fh *fh, unsigned int pad)
+{
+	return &fh->try_fmt[pad];
+}
+
+static inline struct v4l2_rect *
+v4l2_subdev_get_try_crop(struct v4l2_subdev_fh *fh, unsigned int pad)
+{
+	return &fh->try_crop[pad];
+}
+#endif
 
 extern const struct v4l2_file_operations v4l2_subdev_fops;
 
