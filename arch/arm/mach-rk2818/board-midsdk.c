@@ -295,6 +295,7 @@ static struct platform_device *devices[] __initdata = {
     &rk2818_device_fb,    
     &rk2818_device_backlight,
 	&rk2818_device_dsp,
+	&rk2818_nand_device,
 };
 
 extern struct sys_timer rk2818_timer;
@@ -335,7 +336,7 @@ MACHINE_START(RK2818, "RK28board")
 /* UART for LL DEBUG */
 	.phys_io	= 0x18002000,
 	.io_pg_offst	= ((0xFF100000) >> 18) & 0xfffc,
-	.boot_params	= RK2818_SDRAM_PHYS + 0x100,
+	.boot_params	= RK2818_SDRAM_PHYS + 0xf8000,
 	.map_io		= machine_rk2818_mapio,
 	.init_irq	= machine_rk2818_init_irq,
 	.init_machine	= machine_rk2818_board_init,

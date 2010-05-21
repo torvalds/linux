@@ -33,4 +33,5 @@ extern struct platform_device rk2818_device_adckey;
 extern struct platform_device rk2818_device_battery;
 extern struct platform_device rk2818_device_backlight;
 extern struct platform_device rk2818_device_dsp;
+extern struct platform_device rk2818_nand_device;
 #endif

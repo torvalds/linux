@@ -27,6 +27,7 @@
 
 #include <linux/dm9000.h>
 #include <mach/gpio.h>
+#include <mach/rk2818_nand.h>
 
 static struct resource resources_i2c0[] = {
 	{
@@ -351,5 +352,29 @@ struct platform_device rk2818_device_pmem_dsp = {
 };
 
 
+#endif
+#if defined(CONFIG_MTD_NAND_RK2818)  
+static struct resource nand_resources[] = {
+	{
+		.start	= RK2818_NANDC_PHYS,
+		.end	= 	RK2818_NANDC_PHYS+RK2818_NANDC_SIZE -1,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+static struct rk2818_nand_platform_data rk2818_nand_data = {
+        .width 		= 1,     /* data bus width in bytes */
+        .hw_ecc	 	= 1,     /* hw ecc 0: soft ecc */
+	 .num_flash    = 1,
+};
+struct platform_device rk2818_nand_device = {
+	.name	= "rk2818-nand",
+	.id		=  -1, 
+	.resource	= nand_resources,
+	.num_resources= ARRAY_SIZE(nand_resources),
+	.dev	= {
+		.platform_data= &rk2818_nand_data,
+	},
+	
+};
 #endif
 
