@@ -874,19 +874,16 @@ void pci_assign_unassigned_bridge_resources(struct pci_dev *bridge)
 again:
 	pci_bus_size_bridges(parent);
 	__pci_bridge_assign_resources(bridge, &head);
-	retval = pci_reenable_device(bridge);
-	pci_set_master(bridge);
-	pci_enable_bridges(parent);
 
 	tried_times++;
 
 	if (!head.next)
-		return;
+		goto enable_all;
 
 	if (tried_times >= 2) {
 		/* still fail, don't need to try more */
 		free_failed_list(&head);
-		return;
+		goto enable_all;
 	}
 
 	printk(KERN_DEBUG "PCI: No. %d try to assign unassigned res\n",
@@ -919,5 +916,10 @@ again:
 	free_failed_list(&head);
 
 	goto again;
+
+enable_all:
+	retval = pci_reenable_device(bridge);
+	pci_set_master(bridge);
+	pci_enable_bridges(parent);
 }
 EXPORT_SYMBOL_GPL(pci_assign_unassigned_bridge_resources);
