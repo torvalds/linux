@@ -211,7 +211,7 @@ static int __init i2c_gpio_init(void)
 
 	return ret;
 }
-module_init(i2c_gpio_init);
+subsys_initcall(i2c_gpio_init);
 
 static void __exit i2c_gpio_exit(void)
 {

@@ -32,7 +32,7 @@
 #include <linux/delay.h>
 #include <linux/mutex.h>
 #include <linux/slab.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include <linux/scx200.h>
 
@@ -552,7 +552,7 @@ static int __init scx200_create_isa(const char *text, unsigned long base,
  * the name and the BAR where the I/O address resource is located.  ISA
  * devices are flagged with a bar value of -1 */
 
-static struct pci_device_id scx200_pci[] = {
+static const struct pci_device_id scx200_pci[] __initconst = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SCx200_BRIDGE),
 	  .driver_data = 0 },
 	{ PCI_DEVICE(PCI_VENDOR_ID_NS, PCI_DEVICE_ID_NS_SC1100_BRIDGE),

@@ -27,7 +27,13 @@ Authors:
 Module Parameters
 -----------------
 
-None.
+* disable_features (bit vector)
+Disable selected features normally supported by the device. This makes it
+possible to work around possible driver or hardware bugs if the feature in
+question doesn't work as intended for whatever reason. Bit values:
+  1  disable SMBus PEC
+  2  disable the block buffer
+  8  disable the I2C block read functionality
 
 
 Description

@@ -35,9 +35,9 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/slab.h>
+#include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/io.h>
 
 #include <plat/regs-iic.h>
 #include <plat/iic.h>
