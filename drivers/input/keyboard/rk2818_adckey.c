@@ -26,7 +26,7 @@
 #include <mach/gpio.h>
 #include <mach/adc.h>
 
-#if 1
+#if 0
 #define DBG(x...)   printk(x)
 #else
 #define DBG(x...)
@@ -56,8 +56,6 @@
 #define KEY_PHYS_NAME	"rk2818_adckey/input0"
 
 volatile int gADSampleTimes = 0;
-volatile int gAdcChanel = 0;
-volatile int gAdcValue[4]={0, 0, 0, 0};	//0->ch0 1->ch1 2->ch2 3->ch3
 volatile int gStatePlaykey = 0;
 
 volatile unsigned int gCodeCount = 0;
@@ -161,24 +159,6 @@ static int rk28_adckey_resume(struct platform_device *pdev)
 #define rk28_adckey_suspend	NULL
 #define rk28_adckey_resume	NULL
 #endif
-
-//read four ADC chanel
-static int rk28_read_adc(struct rk28_adckey *adckey)
-{
-	int ret;
-
-	ret = down_interruptible(&adckey->lock);
-	if (ret < 0)
-		return ret;	
-	if(gAdcChanel > 3)
-		gAdcChanel = 0;
-	gAdcValue[gAdcChanel] = rk28_adc_read(adckey->client, gAdcChanel);
-	//DBG("Enter::%s,LINE=%d,gAdcValue[%d]=%d\n",__FUNCTION__,__LINE__,gAdcChanel,gAdcValue[gAdcChanel]);
-	gAdcChanel++;
-	up(&adckey->lock);
-	return ret;
-}
-
 static void rk28_adkeyscan_timer(unsigned long data)
 {
 	unsigned int adcvalue = -1, code;
@@ -194,7 +174,7 @@ static void rk28_adkeyscan_timer(unsigned long data)
 	
 	gADSampleTimes = 0;
 
-	rk28_read_adc(pRk28AdcKey);	
+	//rk28_read_adc(pRk28AdcKey);	
 	adcvalue = gAdcValue[ADKEYCH];
 	if((adcvalue > ADEmpty) || (adcvalue < ADInvalid))
 	{
@@ -297,20 +277,10 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 	adckey->input_dev = input_dev;
 	input_set_drvdata(input_dev, adckey);
 
-	input_dev->evbit[0] = BIT_MASK(EV_KEY) ;
+	input_dev->evbit[0] = BIT_MASK(EV_KEY);
 
 //	rk28_adckey_build_keycode(adckey);
 	platform_set_drvdata(pdev, adckey);
-
-	init_MUTEX(&adckey->lock);
-
-	/* Register with the core ADC driver. */
-	adckey->client = rk28_adc_register(pdev, NULL, NULL, 0);
-	if (IS_ERR(adckey->client)) {
-		dev_err(&pdev->dev, "cannot register adc\n");
-		error = PTR_ERR(adckey->client);
-		goto failed_free;
-	}
 
 	pRk28AdcKey = adckey;
 
@@ -360,7 +330,6 @@ static int __devexit rk28_adckey_remove(struct platform_device *pdev)
 	input_unregister_device(adckey->input_dev);
 	input_free_device(adckey->input_dev);
 	platform_set_drvdata(pdev, NULL);
-	rk28_adc_release(adckey->client);
 	kfree(adckey);
 	free_irq(gpio_to_irq(KEY_PLAYON_PIN),NULL);
 	gpio_free(KEY_PLAYON_PIN);

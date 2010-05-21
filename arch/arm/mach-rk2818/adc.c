@@ -29,12 +29,17 @@
  * and stores information such as the necessary functions to callback when
  * action is required.
  */
+ 
+#if 1
+#define DBG(x...)   printk(x)
+#else
+#define DBG(x...)
+#endif
 
 struct rk28_adc_client {
 	struct platform_device	*pdev;
 	struct list_head	 pend;
 	wait_queue_head_t	*wait;
-
 	unsigned int		 nr_samples;
 	int			 result;
 	unsigned char		 is_ts;
@@ -47,18 +52,22 @@ struct rk28_adc_client {
 };
 
 struct adc_device {
+	struct semaphore	lock;
 	struct platform_device	*pdev;
 	struct platform_device	*owner;
 	struct clk		*clk;
+	struct rk28_adc_client	*client;
 	struct rk28_adc_client	*cur;
 	struct rk28_adc_client	*ts_pend;
 	void __iomem		*regs;
-
+	struct timer_list timer;
 	unsigned int		 pre_con;
 	int			 irq;
 };
 
 static struct adc_device *pAdcDev;
+volatile int gAdcChanel = 0;
+volatile int gAdcValue[4]={0, 0, 0, 0};	//0->ch0 1->ch1 2->ch2 3->ch3
 
 static LIST_HEAD(adc_pending);
 
@@ -278,6 +287,34 @@ void rk28_adc_release(struct rk28_adc_client *client)
 }
 EXPORT_SYMBOL_GPL(rk28_adc_release);
 
+
+//read four ADC chanel
+static int rk28_read_adc(struct adc_device *adc)
+{
+	int ret = 0,i;
+	
+	ret = down_interruptible(&adc->lock);
+	if (ret < 0)
+		return ret;	
+
+	for(i=0; i<4; i++)
+	{
+		gAdcValue[i] = rk28_adc_read(adc->client, i);
+		//DBG("gAdcValue[%d]=%d\n",i,gAdcValue[i]);
+	}
+
+	up(&adc->lock);
+	return ret;
+}
+
+static void rk28_adcscan_timer(unsigned long data)
+{
+	pAdcDev->timer.expires  = jiffies + msecs_to_jiffies(30);
+	add_timer(&pAdcDev->timer);
+
+	rk28_read_adc(pAdcDev);
+}
+
 static irqreturn_t rk28_adc_irq(int irq, void *pw)
 {
 	struct adc_device *adc = pw;
@@ -373,9 +410,23 @@ static int rk28_adc_probe(struct platform_device *pdev)
 	dev_info(dev, "attached adc driver\n");
 	
 	platform_set_drvdata(pdev, adc);
+
+	init_MUTEX(&adc->lock);
 	
+	/* Register with the core ADC driver. */
+	adc->client = rk28_adc_register(pdev, NULL, NULL, 0);
+	if (IS_ERR(adc->client)) {
+		dev_err(dev, "cannot register adc\n");
+		ret = PTR_ERR(adc->client);
+		goto err_clk;
+	}
+
 	rk28_adc_int_disable(adc);
 	pAdcDev = adc;
+	
+	setup_timer(&adc->timer, rk28_adcscan_timer, (unsigned long)adc);
+	adc->timer.expires  = jiffies + 50;
+	add_timer(&adc->timer);
 	printk(KERN_INFO "rk2818 adc: driver initialized\n");
 	return 0;
 
@@ -394,6 +445,7 @@ static int rk28_adc_remove(struct platform_device *pdev)
 {
 	struct adc_device *adc = platform_get_drvdata(pdev);
 	rk28_adc_power_down(adc);
+	rk28_adc_release(adc->client);
 	iounmap(adc->regs);
 	free_irq(adc->irq, adc);
 	clk_disable(adc->clk);
