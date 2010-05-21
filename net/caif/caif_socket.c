@@ -60,7 +60,7 @@ struct debug_fs_counter {
 	atomic_t num_rx_flow_off;
 	atomic_t num_rx_flow_on;
 };
-struct debug_fs_counter cnt;
+static struct debug_fs_counter cnt;
 #define	dbfs_atomic_inc(v) atomic_inc(v)
 #define	dbfs_atomic_dec(v) atomic_dec(v)
 #else
@@ -128,13 +128,13 @@ static void caif_read_unlock(struct sock *sk)
 	mutex_unlock(&cf_sk->readlock);
 }
 
-int sk_rcvbuf_lowwater(struct caifsock *cf_sk)
+static int sk_rcvbuf_lowwater(struct caifsock *cf_sk)
 {
 	/* A quarter of full buffer is used a low water mark */
 	return cf_sk->sk.sk_rcvbuf / 4;
 }
 
-void caif_flow_ctrl(struct sock *sk, int mode)
+static void caif_flow_ctrl(struct sock *sk, int mode)
 {
 	struct caifsock *cf_sk;
 	cf_sk = container_of(sk, struct caifsock, sk);
@@ -146,7 +146,7 @@ void caif_flow_ctrl(struct sock *sk, int mode)
  * Copied from sock.c:sock_queue_rcv_skb(), but changed so packets are
  * not dropped, but CAIF is sending flow off instead.
  */
-int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	int err;
 	int skb_len;
@@ -1184,7 +1184,7 @@ static struct net_proto_family caif_family_ops = {
 	.owner = THIS_MODULE,
 };
 
-int af_caif_init(void)
+static int af_caif_init(void)
 {
 	int err = sock_register(&caif_family_ops);
 	if (!err)
