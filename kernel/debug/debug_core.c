@@ -445,6 +445,10 @@ static int kgdb_reenter_check(struct kgdb_state *ks)
 	}
 
 	printk(KERN_CRIT "KGDB: re-enter exception: ALL breakpoints killed\n");
+#ifdef CONFIG_KGDB_KDB
+	/* Allow kdb to debug itself one level */
+	return 0;
+#endif
 	dump_stack();
 	panic("Recursive entry to debugger");
 
@@ -488,6 +492,9 @@ acquirelock:
 	 * our cpu_in_kgdb[] flag setting does:
 	 */
 	atomic_inc(&cpu_in_kgdb[cpu]);
+
+	if (exception_level == 1)
+		goto cpu_master_loop;
 
 	/*
 	 * CPU will loop if it is a slave or request to become a kgdb
