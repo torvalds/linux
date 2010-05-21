@@ -505,18 +505,7 @@ typedef struct drm_i915_private {
 		 */
 		struct list_head shrink_list;
 
-		/**
-		 * List of objects currently involved in rendering from the
-		 * ringbuffer.
-		 *
-		 * Includes buffers having the contents of their GPU caches
-		 * flushed, not necessarily primitives.  last_rendering_seqno
-		 * represents when the rendering involved will be completed.
-		 *
-		 * A reference is held on the buffer while on this list.
-		 */
 		spinlock_t active_list_lock;
-		struct list_head active_list;
 
 		/**
 		 * List of objects which are not in the ringbuffer but which
@@ -552,12 +541,6 @@ typedef struct drm_i915_private {
 
 		/** LRU list of objects with fence regs on them. */
 		struct list_head fence_list;
-
-		/**
-		 * List of breadcrumbs associated with GPU requests currently
-		 * outstanding.
-		 */
-		struct list_head request_list;
 
 		/**
 		 * We leave the user IRQ off as much as possible,
@@ -683,6 +666,9 @@ struct drm_i915_gem_object {
 	 */
 	uint32_t gtt_offset;
 
+	/* Which ring is refering to is this object */
+	struct intel_ring_buffer *ring;
+
 	/**
 	 * Fake offset for use by mmap(2)
 	 */
@@ -756,6 +742,9 @@ struct drm_i915_gem_object {
  * an emission time with seqnos for tracking how far ahead of the GPU we are.
  */
 struct drm_i915_gem_request {
+	/** On Which ring this request was generated */
+	struct intel_ring_buffer *ring;
+
 	/** GEM sequence number associated with this request. */
 	uint32_t seqno;
 
@@ -916,11 +905,13 @@ void i915_gem_object_unpin(struct drm_gem_object *obj);
 int i915_gem_object_unbind(struct drm_gem_object *obj);
 void i915_gem_release_mmap(struct drm_gem_object *obj);
 void i915_gem_lastclose(struct drm_device *dev);
-uint32_t i915_get_gem_seqno(struct drm_device *dev);
+uint32_t i915_get_gem_seqno(struct drm_device *dev,
+		struct intel_ring_buffer *ring);
 bool i915_seqno_passed(uint32_t seq1, uint32_t seq2);
 int i915_gem_object_get_fence_reg(struct drm_gem_object *obj);
 int i915_gem_object_put_fence_reg(struct drm_gem_object *obj);
-void i915_gem_retire_requests(struct drm_device *dev);
+void i915_gem_retire_requests(struct drm_device *dev,
+		 struct intel_ring_buffer *ring);
 void i915_gem_retire_work_handler(struct work_struct *work);
 void i915_gem_clflush_object(struct drm_gem_object *obj);
 int i915_gem_object_set_domain(struct drm_gem_object *obj,
@@ -931,9 +922,13 @@ void i915_gem_cleanup_ringbuffer(struct drm_device *dev);
 int i915_gem_do_init(struct drm_device *dev, unsigned long start,
 		     unsigned long end);
 int i915_gem_idle(struct drm_device *dev);
-uint32_t i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
-			  uint32_t flush_domains);
-int i915_do_wait_request(struct drm_device *dev, uint32_t seqno, int interruptible);
+uint32_t i915_add_request(struct drm_device *dev,
+		struct drm_file *file_priv,
+		uint32_t flush_domains,
+		struct intel_ring_buffer *ring);
+int i915_do_wait_request(struct drm_device *dev,
+		uint32_t seqno, int interruptible,
+		struct intel_ring_buffer *ring);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
 				      int write);

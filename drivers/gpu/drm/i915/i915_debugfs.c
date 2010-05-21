@@ -77,7 +77,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	case ACTIVE_LIST:
 		seq_printf(m, "Active:\n");
 		lock = &dev_priv->mm.active_list_lock;
-		head = &dev_priv->mm.active_list;
+		head = &dev_priv->render_ring.active_list;
 		break;
 	case INACTIVE_LIST:
 		seq_printf(m, "Inactive:\n");
@@ -129,7 +129,8 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 	struct drm_i915_gem_request *gem_request;
 
 	seq_printf(m, "Request:\n");
-	list_for_each_entry(gem_request, &dev_priv->mm.request_list, list) {
+	list_for_each_entry(gem_request, &dev_priv->render_ring.request_list,
+			list) {
 		seq_printf(m, "    %d @ %d\n",
 			   gem_request->seqno,
 			   (int) (jiffies - gem_request->emitted_jiffies));
@@ -145,7 +146,7 @@ static int i915_gem_seqno_info(struct seq_file *m, void *data)
 
 	if (dev_priv->hw_status_page != NULL) {
 		seq_printf(m, "Current sequence: %d\n",
-			   i915_get_gem_seqno(dev));
+			   i915_get_gem_seqno(dev,  &dev_priv->render_ring));
 	} else {
 		seq_printf(m, "Current sequence: hws uninitialized\n");
 	}
@@ -197,7 +198,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 		   atomic_read(&dev_priv->irq_received));
 	if (dev_priv->hw_status_page != NULL) {
 		seq_printf(m, "Current sequence:    %d\n",
-			   i915_get_gem_seqno(dev));
+			   i915_get_gem_seqno(dev,  &dev_priv->render_ring));
 	} else {
 		seq_printf(m, "Current sequence:    hws uninitialized\n");
 	}
@@ -287,7 +288,8 @@ static int i915_batchbuffer_info(struct seq_file *m, void *data)
 
 	spin_lock(&dev_priv->mm.active_list_lock);
 
-	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, list) {
+	list_for_each_entry(obj_priv, &dev_priv->render_ring.active_list,
+			list) {
 		obj = &obj_priv->base;
 		if (obj->read_domains & I915_GEM_DOMAIN_COMMAND) {
 		    ret = i915_gem_object_get_pages(obj, 0);

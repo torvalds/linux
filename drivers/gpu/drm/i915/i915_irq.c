@@ -331,6 +331,7 @@ irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	int ret = IRQ_NONE;
 	u32 de_iir, gt_iir, de_ier, pch_iir;
 	struct drm_i915_master_private *master_priv;
+	struct intel_ring_buffer *render_ring = &dev_priv->render_ring;
 
 	/* disable master interrupt before clearing iir  */
 	de_ier = I915_READ(DEIER);
@@ -354,10 +355,10 @@ irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	}
 
 	if (gt_iir & GT_PIPE_NOTIFY) {
-		u32 seqno = i915_get_gem_seqno(dev);
-		dev_priv->mm.irq_gem_seqno = seqno;
+		u32 seqno = render_ring->get_gem_seqno(dev, render_ring);
+		render_ring->irq_gem_seqno = seqno;
 		trace_i915_gem_request_complete(dev, seqno);
-		DRM_WAKEUP(&dev_priv->irq_queue);
+		DRM_WAKEUP(&dev_priv->render_ring.irq_queue);
 		dev_priv->hangcheck_count = 0;
 		mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
 	}
@@ -588,7 +589,7 @@ static void i915_capture_error_state(struct drm_device *dev)
 		return;
 	}
 
-	error->seqno = i915_get_gem_seqno(dev);
+	error->seqno = i915_get_gem_seqno(dev, &dev_priv->render_ring);
 	error->eir = I915_READ(EIR);
 	error->pgtbl_er = I915_READ(PGTBL_ER);
 	error->pipeastat = I915_READ(PIPEASTAT);
@@ -616,7 +617,9 @@ static void i915_capture_error_state(struct drm_device *dev)
 	batchbuffer[0] = NULL;
 	batchbuffer[1] = NULL;
 	count = 0;
-	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, list) {
+	list_for_each_entry(obj_priv,
+			&dev_priv->render_ring.active_list, list) {
+
 		struct drm_gem_object *obj = &obj_priv->base;
 
 		if (batchbuffer[0] == NULL &&
@@ -653,7 +656,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 
 	if (error->active_bo) {
 		int i = 0;
-		list_for_each_entry(obj_priv, &dev_priv->mm.active_list, list) {
+		list_for_each_entry(obj_priv,
+				&dev_priv->render_ring.active_list, list) {
 			struct drm_gem_object *obj = &obj_priv->base;
 
 			error->active_bo[i].size = obj->size;
@@ -831,7 +835,7 @@ static void i915_handle_error(struct drm_device *dev, bool wedged)
 		/*
 		 * Wakeup waiting processes so they don't hang
 		 */
-		DRM_WAKEUP(&dev_priv->irq_queue);
+		DRM_WAKEUP(&dev_priv->render_ring.irq_queue);
 	}
 
 	queue_work(dev_priv->wq, &dev_priv->error_work);
@@ -850,6 +854,7 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	unsigned long irqflags;
 	int irq_received;
 	int ret = IRQ_NONE;
+	struct intel_ring_buffer *render_ring = &dev_priv->render_ring;
 
 	atomic_inc(&dev_priv->irq_received);
 
@@ -930,10 +935,11 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		}
 
 		if (iir & I915_USER_INTERRUPT) {
-			u32 seqno = i915_get_gem_seqno(dev);
-			dev_priv->mm.irq_gem_seqno = seqno;
+			u32 seqno =
+				render_ring->get_gem_seqno(dev, render_ring);
+			render_ring->irq_gem_seqno = seqno;
 			trace_i915_gem_request_complete(dev, seqno);
-			DRM_WAKEUP(&dev_priv->irq_queue);
+			DRM_WAKEUP(&dev_priv->render_ring.irq_queue);
 			dev_priv->hangcheck_count = 0;
 			mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
 		}
@@ -1038,7 +1044,7 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 		master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
 
 	render_ring->user_irq_get(dev, render_ring);
-	DRM_WAIT_ON(ret, dev_priv->irq_queue, 3 * DRM_HZ,
+	DRM_WAIT_ON(ret, dev_priv->render_ring.irq_queue, 3 * DRM_HZ,
 		    READ_BREADCRUMB(dev_priv) >= irq_nr);
 	render_ring->user_irq_put(dev, render_ring);
 
@@ -1205,9 +1211,12 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 	return -EINVAL;
 }
 
-struct drm_i915_gem_request *i915_get_tail_request(struct drm_device *dev) {
+struct drm_i915_gem_request *
+i915_get_tail_request(struct drm_device *dev)
+{
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	return list_entry(dev_priv->mm.request_list.prev, struct drm_i915_gem_request, list);
+	return list_entry(dev_priv->render_ring.request_list.prev,
+			struct drm_i915_gem_request, list);
 }
 
 /**
@@ -1232,8 +1241,10 @@ void i915_hangcheck_elapsed(unsigned long data)
 		acthd = I915_READ(ACTHD_I965);
 
 	/* If all work is done then ACTHD clearly hasn't advanced. */
-	if (list_empty(&dev_priv->mm.request_list) ||
-		       i915_seqno_passed(i915_get_gem_seqno(dev), i915_get_tail_request(dev)->seqno)) {
+	if (list_empty(&dev_priv->render_ring.request_list) ||
+		i915_seqno_passed(i915_get_gem_seqno(dev,
+				&dev_priv->render_ring),
+			i915_get_tail_request(dev)->seqno)) {
 		dev_priv->hangcheck_count = 0;
 		return;
 	}
@@ -1300,7 +1311,7 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 	(void) I915_READ(DEIER);
 
 	/* user interrupt should be enabled, but masked initial */
-	dev_priv->gt_irq_mask_reg = 0xffffffff;
+	dev_priv->gt_irq_mask_reg = ~render_mask;
 	dev_priv->gt_irq_enable_reg = render_mask;
 
 	I915_WRITE(GTIIR, I915_READ(GTIIR));
@@ -1363,7 +1374,7 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	u32 enable_mask = I915_INTERRUPT_ENABLE_FIX | I915_INTERRUPT_ENABLE_VAR;
 	u32 error_mask;
 
-	DRM_INIT_WAITQUEUE(&dev_priv->irq_queue);
+	DRM_INIT_WAITQUEUE(&dev_priv->render_ring.irq_queue);
 
 	dev_priv->vblank_pipe = DRM_I915_VBLANK_PIPE_A | DRM_I915_VBLANK_PIPE_B;
 

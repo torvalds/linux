@@ -82,7 +82,8 @@ static void i915_free_hws(struct drm_device *dev)
 		dev_priv->status_page_dmah = NULL;
 	}
 
-	if (dev_priv->status_gfx_addr) {
+	if (dev_priv->render_ring.status_page.gfx_addr) {
+		dev_priv->render_ring.status_page.gfx_addr = 0;
 		dev_priv->status_gfx_addr = 0;
 		drm_core_ioremapfree(&dev_priv->hws_map, dev);
 	}
@@ -835,9 +836,9 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	I915_WRITE(HWS_PGA, ring->status_page.gfx_addr);
 
 	DRM_DEBUG_DRIVER("load hws HWS_PGA with gfx mem 0x%x\n",
-				dev_priv->status_gfx_addr);
+			dev_priv->status_gfx_addr);
 	DRM_DEBUG_DRIVER("load hws at %p\n",
-				dev_priv->hw_status_page);
+			dev_priv->hw_status_page);
 	return 0;
 }
 
@@ -1510,7 +1511,6 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	resource_size_t base, size;
 	int ret = 0, mmio_bar;
 	uint32_t agp_size, prealloc_size, prealloc_start;
-
 	/* i915 has 4 more counters */
 	dev->counters += 4;
 	dev->types[6] = _DRM_STAT_IRQ;
