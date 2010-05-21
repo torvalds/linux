@@ -75,12 +75,6 @@ struct kmem_cache {
 	int offset;		/* Free pointer offset. */
 	struct kmem_cache_order_objects oo;
 
-	/*
-	 * Avoid an extra cache line for UP, SMP and for the node local to
-	 * struct kmem_cache.
-	 */
-	struct kmem_cache_node local_node;
-
 	/* Allocation and freeing of slabs */
 	struct kmem_cache_order_objects max;
 	struct kmem_cache_order_objects min;
@@ -102,6 +96,9 @@ struct kmem_cache {
 	 */
 	int remote_node_defrag_ratio;
 	struct kmem_cache_node *node[MAX_NUMNODES];
+#else
+	/* Avoid an extra cache line for UP */
+	struct kmem_cache_node local_node;
 #endif
 };
 
