@@ -321,18 +321,23 @@ nv50_sor_create(struct drm_device *dev, struct dcb_entry *entry)
 	encoder->possible_clones = 0;
 
 	if (nv_encoder->dcb->type == OUTPUT_DP) {
-		uint32_t mc, or = nv_encoder->or;
+		int or = nv_encoder->or, link = !(entry->dpconf.sor.link & 1);
+		uint32_t tmp;
 
 		if (dev_priv->chipset < 0x90 ||
 		    dev_priv->chipset == 0x92 || dev_priv->chipset == 0xa0)
-			mc = nv_rd32(dev, NV50_PDISPLAY_SOR_MODE_CTRL_C(or));
+			tmp = nv_rd32(dev, NV50_PDISPLAY_SOR_MODE_CTRL_C(or));
 		else
-			mc = nv_rd32(dev, NV90_PDISPLAY_SOR_MODE_CTRL_C(or));
+			tmp = nv_rd32(dev, NV90_PDISPLAY_SOR_MODE_CTRL_C(or));
 
-		switch ((mc & 0x00000f00) >> 8) {
+		switch ((tmp & 0x00000f00) >> 8) {
 		case 8:
 		case 9:
-			nv_encoder->dp.mc_unknown = (mc & 0x000f0000) >> 16;
+			nv_encoder->dp.mc_unknown = (tmp & 0x000f0000) >> 16;
+			tmp = nv_rd32(dev, NV50_SOR_DP_CTRL(or, link));
+			nv_encoder->dp.unk0 = tmp & 0x000001fc;
+			tmp = nv_rd32(dev, NV50_SOR_DP_UNK128(or, link));
+			nv_encoder->dp.unk1 = tmp & 0x010f7f3f;
 			break;
 		default:
 			break;

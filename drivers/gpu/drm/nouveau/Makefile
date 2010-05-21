@@ -22,7 +22,8 @@ nouveau-y := nouveau_drv.o nouveau_state.o nouveau_channel.o nouveau_mem.o \
              nv50_cursor.o nv50_display.o nv50_fbcon.o \
              nv04_dac.o nv04_dfp.o nv04_tv.o nv17_tv.o nv17_tv_modes.o \
              nv04_crtc.o nv04_display.o nv04_cursor.o nv04_fbcon.o \
-             nv17_gpio.o nv50_gpio.o
+             nv17_gpio.o nv50_gpio.o \
+	     nv50_calc.o
 
 nouveau-$(CONFIG_DRM_NOUVEAU_DEBUG) += nouveau_debugfs.o
 nouveau-$(CONFIG_COMPAT) += nouveau_ioc32.o

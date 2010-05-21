@@ -236,7 +236,7 @@ nv04_fbcon_accel_init(struct fb_info *info)
 	if (ret)
 		return ret;
 
-	ret = nv04_fbcon_grobj_new(dev, dev_priv->card_type >= NV_10 ?
+	ret = nv04_fbcon_grobj_new(dev, dev_priv->chipset >= 0x11 ?
 				   0x009f : 0x005f, NvImageBlit);
 	if (ret)
 		return ret;

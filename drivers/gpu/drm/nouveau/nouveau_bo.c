@@ -160,11 +160,11 @@ nouveau_bo_new(struct drm_device *dev, struct nouveau_channel *chan,
 	ret = ttm_bo_init(&dev_priv->ttm.bdev, &nvbo->bo, size,
 			  ttm_bo_type_device, &nvbo->placement, align, 0,
 			  false, NULL, size, nouveau_bo_del_ttm);
-	nvbo->channel = NULL;
 	if (ret) {
 		/* ttm will call nouveau_bo_del_ttm if it fails.. */
 		return ret;
 	}
+	nvbo->channel = NULL;
 
 	spin_lock(&dev_priv->ttm.bo_list_lock);
 	list_add_tail(&nvbo->head, &dev_priv->ttm.bo_list);

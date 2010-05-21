@@ -1170,6 +1170,12 @@ int nv17_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
 int nv50_gpio_get(struct drm_device *dev, enum dcb_gpio_tag tag);
 int nv50_gpio_set(struct drm_device *dev, enum dcb_gpio_tag tag, int state);
 
+/* nv50_calc. */
+int nv50_calc_pll(struct drm_device *, struct pll_lims *, int clk,
+		  int *N1, int *M1, int *N2, int *M2, int *P);
+int nv50_calc_pll2(struct drm_device *, struct pll_lims *,
+		   int clk, int *N, int *fN, int *M, int *P);
+
 #ifndef ioread32_native
 #ifdef __BIG_ENDIAN
 #define ioread16_native ioread16be
