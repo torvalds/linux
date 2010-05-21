@@ -87,9 +87,6 @@ static struct sctp_association *sctp_association_init(struct sctp_association *a
 	/* Retrieve the SCTP per socket area.  */
 	sp = sctp_sk((struct sock *)sk);
 
-	/* Init all variables to a known value.  */
-	memset(asoc, 0, sizeof(struct sctp_association));
-
 	/* Discarding const is appropriate here.  */
 	asoc->ep = (struct sctp_endpoint *)ep;
 	sctp_endpoint_hold(asoc->ep);
@@ -762,7 +759,8 @@ struct sctp_transport *sctp_assoc_add_peer(struct sctp_association *asoc,
 		asoc->peer.retran_path = peer;
 	}
 
-	if (asoc->peer.active_path == asoc->peer.retran_path) {
+	if (asoc->peer.active_path == asoc->peer.retran_path &&
+	    peer->state != SCTP_UNCONFIRMED) {
 		asoc->peer.retran_path = peer;
 	}
 
@@ -818,8 +816,6 @@ void sctp_assoc_del_nonprimary_peers(struct sctp_association *asoc,
 		if (t != primary)
 			sctp_assoc_rm_peer(asoc, t);
 	}
-
-	return;
 }
 
 /* Engage in transport control operations.
@@ -1320,12 +1316,13 @@ void sctp_assoc_update_retran_path(struct sctp_association *asoc)
 			/* Keep track of the next transport in case
 			 * we don't find any active transport.
 			 */
-			if (!next)
+			if (t->state != SCTP_UNCONFIRMED && !next)
 				next = t;
 		}
 	}
 
-	asoc->peer.retran_path = t;
+	if (t)
+		asoc->peer.retran_path = t;
 
 	SCTP_DEBUG_PRINTK_IPADDR("sctp_assoc_update_retran_path:association"
 				 " %p addr: ",
@@ -1485,7 +1482,7 @@ void sctp_assoc_rwnd_decrease(struct sctp_association *asoc, unsigned len)
 	if (asoc->rwnd >= len) {
 		asoc->rwnd -= len;
 		if (over) {
-			asoc->rwnd_press = asoc->rwnd;
+			asoc->rwnd_press += asoc->rwnd;
 			asoc->rwnd = 0;
 		}
 	} else {

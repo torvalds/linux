@@ -4,7 +4,7 @@
  *	Authors:
  *	Manohar Castelino <manohar.r.castelino@intel.com>
  *	Kuo-Lang Tseng <kuo-lang.tseng@intel.com>
- *	Jan Engelhardt <jengelh@computergmbh.de>
+ *	Jan Engelhardt <jengelh@medozas.de>
  *
  * Summary:
  * This is just a modification of the IPv4 code written by
@@ -28,15 +28,13 @@ struct tcpudphdr {
 };
 
 static bool
-ebt_ip6_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+ebt_ip6_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct ebt_ip6_info *info = par->matchinfo;
 	const struct ipv6hdr *ih6;
 	struct ipv6hdr _ip6h;
 	const struct tcpudphdr *pptr;
 	struct tcpudphdr _ports;
-	struct in6_addr tmp_addr;
-	int i;
 
 	ih6 = skb_header_pointer(skb, 0, sizeof(_ip6h), &_ip6h);
 	if (ih6 == NULL)
@@ -44,18 +42,10 @@ ebt_ip6_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	if (info->bitmask & EBT_IP6_TCLASS &&
 	   FWINV(info->tclass != ipv6_get_dsfield(ih6), EBT_IP6_TCLASS))
 		return false;
-	for (i = 0; i < 4; i++)
-		tmp_addr.in6_u.u6_addr32[i] = ih6->saddr.in6_u.u6_addr32[i] &
-			info->smsk.in6_u.u6_addr32[i];
-	if (info->bitmask & EBT_IP6_SOURCE &&
-		FWINV((ipv6_addr_cmp(&tmp_addr, &info->saddr) != 0),
-			EBT_IP6_SOURCE))
-		return false;
-	for (i = 0; i < 4; i++)
-		tmp_addr.in6_u.u6_addr32[i] = ih6->daddr.in6_u.u6_addr32[i] &
-			info->dmsk.in6_u.u6_addr32[i];
-	if (info->bitmask & EBT_IP6_DEST &&
-	   FWINV((ipv6_addr_cmp(&tmp_addr, &info->daddr) != 0), EBT_IP6_DEST))
+	if (FWINV(ipv6_masked_addr_cmp(&ih6->saddr, &info->smsk,
+				       &info->saddr), EBT_IP6_SOURCE) ||
+	    FWINV(ipv6_masked_addr_cmp(&ih6->daddr, &info->dmsk,
+				       &info->daddr), EBT_IP6_DEST))
 		return false;
 	if (info->bitmask & EBT_IP6_PROTO) {
 		uint8_t nexthdr = ih6->nexthdr;
@@ -90,30 +80,30 @@ ebt_ip6_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-static bool ebt_ip6_mt_check(const struct xt_mtchk_param *par)
+static int ebt_ip6_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct ebt_entry *e = par->entryinfo;
 	struct ebt_ip6_info *info = par->matchinfo;
 
 	if (e->ethproto != htons(ETH_P_IPV6) || e->invflags & EBT_IPROTO)
-		return false;
+		return -EINVAL;
 	if (info->bitmask & ~EBT_IP6_MASK || info->invflags & ~EBT_IP6_MASK)
-		return false;
+		return -EINVAL;
 	if (info->bitmask & (EBT_IP6_DPORT | EBT_IP6_SPORT)) {
 		if (info->invflags & EBT_IP6_PROTO)
-			return false;
+			return -EINVAL;
 		if (info->protocol != IPPROTO_TCP &&
 		    info->protocol != IPPROTO_UDP &&
 		    info->protocol != IPPROTO_UDPLITE &&
 		    info->protocol != IPPROTO_SCTP &&
 		    info->protocol != IPPROTO_DCCP)
-			return false;
+			return -EINVAL;
 	}
 	if (info->bitmask & EBT_IP6_DPORT && info->dport[0] > info->dport[1])
-		return false;
+		return -EINVAL;
 	if (info->bitmask & EBT_IP6_SPORT && info->sport[0] > info->sport[1])
-		return false;
-	return true;
+		return -EINVAL;
+	return 0;
 }
 
 static struct xt_match ebt_ip6_mt_reg __read_mostly = {
@@ -139,4 +129,5 @@ static void __exit ebt_ip6_fini(void)
 module_init(ebt_ip6_init);
 module_exit(ebt_ip6_fini);
 MODULE_DESCRIPTION("Ebtables: IPv6 protocol packet match");
+MODULE_AUTHOR("Kuo-Lang Tseng <kuo-lang.tseng@intel.com>");
 MODULE_LICENSE("GPL");

@@ -616,10 +616,10 @@ static int efx_test_loopbacks(struct efx_nic *efx, struct efx_self_tests *tests,
 			goto out;
 		}
 
-		/* Test every TX queue */
-		efx_for_each_tx_queue(tx_queue, efx) {
-			state->offload_csum = (tx_queue->queue ==
-					       EFX_TX_QUEUE_OFFLOAD_CSUM);
+		/* Test both types of TX queue */
+		efx_for_each_channel_tx_queue(tx_queue, &efx->channel[0]) {
+			state->offload_csum = (tx_queue->queue &
+					       EFX_TXQ_TYPE_OFFLOAD);
 			rc = efx_test_loopback(tx_queue,
 					       &tests->loopback[mode]);
 			if (rc)

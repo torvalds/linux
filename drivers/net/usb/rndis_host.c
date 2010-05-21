@@ -104,8 +104,10 @@ static void rndis_msg_indicate(struct usbnet *dev, struct rndis_indicate *msg,
 int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf, int buflen)
 {
 	struct cdc_state	*info = (void *) &dev->data;
+	struct usb_cdc_notification notification;
 	int			master_ifnum;
 	int			retval;
+	int			partial;
 	unsigned		count;
 	__le32			rsp;
 	u32			xid = 0, msg_len, request_id;
@@ -133,13 +135,17 @@ int rndis_command(struct usbnet *dev, struct rndis_msg_hdr *buf, int buflen)
 	if (unlikely(retval < 0 || xid == 0))
 		return retval;
 
-	// FIXME Seems like some devices discard responses when
-	// we time out and cancel our "get response" requests...
-	// so, this is fragile.  Probably need to poll for status.
+	/* Some devices don't respond on the control channel until
+	 * polled on the status channel, so do that first. */
+	retval = usb_interrupt_msg(
+		dev->udev,
+		usb_rcvintpipe(dev->udev, dev->status->desc.bEndpointAddress),
+		&notification, sizeof(notification), &partial,
+		RNDIS_CONTROL_TIMEOUT_MS);
+	if (unlikely(retval < 0))
+		return retval;
 
-	/* ignore status endpoint, just poll the control channel;
-	 * the request probably completed immediately
-	 */
+	/* Poll the control channel; the request probably completed immediately */
 	rsp = buf->msg_type | RNDIS_MSG_COMPLETION;
 	for (count = 0; count < 10; count++) {
 		memset(buf, 0, CONTROL_BUFFER_SIZE);

@@ -1507,7 +1507,6 @@ call_refreshresult(struct rpc_task *task)
 	task->tk_action = call_refresh;
 	if (status != -ETIMEDOUT)
 		rpc_delay(task, 3*HZ);
-	return;
 }
 
 static __be32 *

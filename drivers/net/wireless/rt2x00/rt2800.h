@@ -56,15 +56,20 @@
 #define RF3021				0x0007
 #define RF3022				0x0008
 #define RF3052				0x0009
+#define RF3320				0x000b
 
 /*
- * Chipset version.
+ * Chipset revisions.
  */
-#define RT2860C_VERSION			0x0100
-#define RT2860D_VERSION			0x0101
-#define RT2880E_VERSION			0x0200
-#define RT2883_VERSION			0x0300
-#define RT3070_VERSION			0x0200
+#define REV_RT2860C			0x0100
+#define REV_RT2860D			0x0101
+#define REV_RT2870D			0x0101
+#define REV_RT2872E			0x0200
+#define REV_RT3070E			0x0200
+#define REV_RT3070F			0x0201
+#define REV_RT3071E			0x0211
+#define REV_RT3090E			0x0211
+#define REV_RT3390E			0x0211
 
 /*
  * Signal information.
@@ -90,13 +95,19 @@
 #define NUM_TX_QUEUES			4
 
 /*
- * USB registers.
+ * Registers.
  */
+
+/*
+ * OPT_14: Unknown register used by rt3xxx devices.
+ */
+#define OPT_14_CSR			0x0114
+#define OPT_14_CSR_BIT0			FIELD32(0x00000001)
 
 /*
  * INT_SOURCE_CSR: Interrupt source register.
  * Write one to clear corresponding bit.
- * TX_FIFO_STATUS: FIFO Statistics is full, sw should read 0x171c
+ * TX_FIFO_STATUS: FIFO Statistics is full, sw should read TX_STA_FIFO
  */
 #define INT_SOURCE_CSR			0x0200
 #define INT_SOURCE_CSR_RXDELAYINT	FIELD32(0x00000001)
@@ -396,6 +407,31 @@
  * EFUSE_DATA3
  */
 #define EFUSE_DATA3			0x059c
+
+/*
+ * LDO_CFG0
+ */
+#define LDO_CFG0			0x05d4
+#define LDO_CFG0_DELAY3			FIELD32(0x000000ff)
+#define LDO_CFG0_DELAY2			FIELD32(0x0000ff00)
+#define LDO_CFG0_DELAY1			FIELD32(0x00ff0000)
+#define LDO_CFG0_BGSEL			FIELD32(0x03000000)
+#define LDO_CFG0_LDO_CORE_VLEVEL	FIELD32(0x1c000000)
+#define LD0_CFG0_LDO25_LEVEL		FIELD32(0x60000000)
+#define LDO_CFG0_LDO25_LARGEA		FIELD32(0x80000000)
+
+/*
+ * GPIO_SWITCH
+ */
+#define GPIO_SWITCH			0x05dc
+#define GPIO_SWITCH_0			FIELD32(0x00000001)
+#define GPIO_SWITCH_1			FIELD32(0x00000002)
+#define GPIO_SWITCH_2			FIELD32(0x00000004)
+#define GPIO_SWITCH_3			FIELD32(0x00000008)
+#define GPIO_SWITCH_4			FIELD32(0x00000010)
+#define GPIO_SWITCH_5			FIELD32(0x00000020)
+#define GPIO_SWITCH_6			FIELD32(0x00000040)
+#define GPIO_SWITCH_7			FIELD32(0x00000080)
 
 /*
  * MAC Control/Status Registers(CSR).
@@ -809,7 +845,7 @@
  * TX_BAND_CFG: 0x1 use upper 20MHz, 0x0 use lower 20MHz
  */
 #define TX_BAND_CFG			0x132c
-#define TX_BAND_CFG_HT40_PLUS		FIELD32(0x00000001)
+#define TX_BAND_CFG_HT40_MINUS		FIELD32(0x00000001)
 #define TX_BAND_CFG_A			FIELD32(0x00000002)
 #define TX_BAND_CFG_BG			FIELD32(0x00000004)
 
@@ -1483,7 +1519,7 @@ struct mac_iveiv_entry {
  * BBP 3: RX Antenna
  */
 #define BBP3_RX_ANTENNA			FIELD8(0x18)
-#define BBP3_HT40_PLUS			FIELD8(0x20)
+#define BBP3_HT40_MINUS			FIELD8(0x20)
 
 /*
  * BBP 4: Bandwidth
@@ -1492,14 +1528,32 @@ struct mac_iveiv_entry {
 #define BBP4_BANDWIDTH			FIELD8(0x18)
 
 /*
+ * BBP 138: Unknown
+ */
+#define BBP138_RX_ADC1			FIELD8(0x02)
+#define BBP138_RX_ADC2			FIELD8(0x04)
+#define BBP138_TX_DAC1			FIELD8(0x20)
+#define BBP138_TX_DAC2			FIELD8(0x40)
+
+/*
  * RFCSR registers
  * The wordsize of the RFCSR is 8 bits.
  */
 
 /*
+ * RFCSR 1:
+ */
+#define RFCSR1_RF_BLOCK_EN		FIELD8(0x01)
+#define RFCSR1_RX0_PD			FIELD8(0x04)
+#define RFCSR1_TX0_PD			FIELD8(0x08)
+#define RFCSR1_RX1_PD			FIELD8(0x10)
+#define RFCSR1_TX1_PD			FIELD8(0x20)
+
+/*
  * RFCSR 6:
  */
-#define RFCSR6_R			FIELD8(0x03)
+#define RFCSR6_R1			FIELD8(0x03)
+#define RFCSR6_R2			FIELD8(0x40)
 
 /*
  * RFCSR 7:
@@ -1512,6 +1566,33 @@ struct mac_iveiv_entry {
 #define RFCSR12_TX_POWER		FIELD8(0x1f)
 
 /*
+ * RFCSR 13:
+ */
+#define RFCSR13_TX_POWER		FIELD8(0x1f)
+
+/*
+ * RFCSR 15:
+ */
+#define RFCSR15_TX_LO2_EN		FIELD8(0x08)
+
+/*
+ * RFCSR 17:
+ */
+#define RFCSR17_TXMIXER_GAIN		FIELD8(0x07)
+#define RFCSR17_TX_LO1_EN		FIELD8(0x08)
+#define RFCSR17_R			FIELD8(0x20)
+
+/*
+ * RFCSR 20:
+ */
+#define RFCSR20_RX_LO1_EN		FIELD8(0x08)
+
+/*
+ * RFCSR 21:
+ */
+#define RFCSR21_RX_LO2_EN		FIELD8(0x08)
+
+/*
  * RFCSR 22:
  */
 #define RFCSR22_BASEBAND_LOOPBACK	FIELD8(0x01)
@@ -1520,6 +1601,14 @@ struct mac_iveiv_entry {
  * RFCSR 23:
  */
 #define RFCSR23_FREQ_OFFSET		FIELD8(0x7f)
+
+/*
+ * RFCSR 27:
+ */
+#define RFCSR27_R1			FIELD8(0x03)
+#define RFCSR27_R2			FIELD8(0x04)
+#define RFCSR27_R3			FIELD8(0x30)
+#define RFCSR27_R4			FIELD8(0x40)
 
 /*
  * RFCSR 30:
@@ -1603,6 +1692,8 @@ struct mac_iveiv_entry {
 #define EEPROM_NIC_WPS_PBC		FIELD16(0x0080)
 #define EEPROM_NIC_BW40M_BG		FIELD16(0x0100)
 #define EEPROM_NIC_BW40M_A		FIELD16(0x0200)
+#define EEPROM_NIC_ANT_DIVERSITY	FIELD16(0x0800)
+#define EEPROM_NIC_DAC_TEST		FIELD16(0x8000)
 
 /*
  * EEPROM frequency
@@ -1657,6 +1748,12 @@ struct mac_iveiv_entry {
 #define EEPROM_RSSI_BG2			0x0024
 #define EEPROM_RSSI_BG2_OFFSET2		FIELD16(0x00ff)
 #define EEPROM_RSSI_BG2_LNA_A1		FIELD16(0xff00)
+
+/*
+ * EEPROM TXMIXER GAIN BG offset (note overlaps with EEPROM RSSI BG2).
+ */
+#define EEPROM_TXMIXER_GAIN_BG		0x0024
+#define EEPROM_TXMIXER_GAIN_BG_VAL	FIELD16(0x0007)
 
 /*
  * EEPROM RSSI A offset

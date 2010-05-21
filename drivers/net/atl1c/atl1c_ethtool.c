@@ -263,8 +263,6 @@ static void atl1c_get_wol(struct net_device *netdev,
 		wol->wolopts |= WAKE_MAGIC;
 	if (adapter->wol & AT_WUFC_LNKC)
 		wol->wolopts |= WAKE_PHY;
-
-	return;
 }
 
 static int atl1c_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)

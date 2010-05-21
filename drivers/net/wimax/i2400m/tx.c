@@ -258,8 +258,10 @@ enum {
 	 * Doc says maximum transaction is 16KiB. If we had 16KiB en
 	 * route and 16KiB being queued, it boils down to needing
 	 * 32KiB.
+	 * 32KiB is insufficient for 1400 MTU, hence increasing
+	 * tx buffer size to 64KiB.
 	 */
-	I2400M_TX_BUF_SIZE = 32768,
+	I2400M_TX_BUF_SIZE = 65536,
 	/**
 	 * Message header and payload descriptors have to be 16
 	 * aligned (16 + 4 * N = 16 * M). If we take that average sent
@@ -270,10 +272,21 @@ enum {
 	 * at the end there are less, we pad up to the nearest
 	 * multiple of 16.
 	 */
-	I2400M_TX_PLD_MAX = 12,
+	/*
+	 * According to Intel Wimax i3200, i5x50 and i6x50 specification
+	 * documents, the maximum number of payloads per message can be
+	 * up to 60. Increasing the number of payloads to 60 per message
+	 * helps to accommodate smaller payloads in a single transaction.
+	 */
+	I2400M_TX_PLD_MAX = 60,
 	I2400M_TX_PLD_SIZE = sizeof(struct i2400m_msg_hdr)
 	+ I2400M_TX_PLD_MAX * sizeof(struct i2400m_pld),
 	I2400M_TX_SKIP = 0x80000000,
+	/*
+	 * According to Intel Wimax i3200, i5x50 and i6x50 specification
+	 * documents, the maximum size of each message can be up to 16KiB.
+	 */
+	I2400M_TX_MSG_SIZE = 16384,
 };
 
 #define TAIL_FULL ((void *)~(unsigned long)NULL)
@@ -328,6 +341,14 @@ size_t __i2400m_tx_tail_room(struct i2400m *i2400m)
  * @padding: ensure that there is at least this many bytes of free
  *     contiguous space in the fifo. This is needed because later on
  *     we might need to add padding.
+ * @try_head: specify either to allocate head room or tail room space
+ *     in the TX FIFO. This boolean is required to avoids a system hang
+ *     due to an infinite loop caused by i2400m_tx_fifo_push().
+ *     The caller must always try to allocate tail room space first by
+ *     calling this routine with try_head = 0. In case if there
+ *     is not enough tail room space but there is enough head room space,
+ *     (i2400m_tx_fifo_push() returns TAIL_FULL) try to allocate head
+ *     room space, by calling this routine again with try_head = 1.
  *
  * Returns:
  *
@@ -359,6 +380,48 @@ size_t __i2400m_tx_tail_room(struct i2400m *i2400m)
  * fail and return TAIL_FULL and let the caller figure out if we wants to
  * skip the tail room and try to allocate from the head.
  *
+ * There is a corner case, wherein i2400m_tx_new() can get into
+ * an infinite loop calling i2400m_tx_fifo_push().
+ * In certain situations, tx_in would have reached on the top of TX FIFO
+ * and i2400m_tx_tail_room() returns 0, as described below:
+ *
+ * N  ___________ tail room is zero
+ *   |<-  IN   ->|
+ *   |           |
+ *   |           |
+ *   |           |
+ *   |   data    |
+ *   |<-  OUT  ->|
+ *   |           |
+ *   |           |
+ *   | head room |
+ * 0  -----------
+ * During such a time, where tail room is zero in the TX FIFO and if there
+ * is a request to add a payload to TX FIFO, which calls:
+ * i2400m_tx()
+ *         ->calls i2400m_tx_close()
+ *         ->calls i2400m_tx_skip_tail()
+ *         goto try_new;
+ *         ->calls i2400m_tx_new()
+ *                    |----> [try_head:]
+ *     infinite loop  |     ->calls i2400m_tx_fifo_push()
+ *                    |                if (tail_room < needed)
+ *                    |                   if (head_room => needed)
+ *                    |                       return TAIL_FULL;
+ *                    |<----  goto try_head;
+ *
+ * i2400m_tx() calls i2400m_tx_close() to close the message, since there
+ * is no tail room to accommodate the payload and calls
+ * i2400m_tx_skip_tail() to skip the tail space. Now i2400m_tx() calls
+ * i2400m_tx_new() to allocate space for new message header calling
+ * i2400m_tx_fifo_push() that returns TAIL_FULL, since there is no tail space
+ * to accommodate the message header, but there is enough head space.
+ * The i2400m_tx_new() keeps re-retrying by calling i2400m_tx_fifo_push()
+ * ending up in a loop causing system freeze.
+ *
+ * This corner case is avoided by using a try_head boolean,
+ * as an argument to i2400m_tx_fifo_push().
+ *
  * Note:
  *
  *     Assumes i2400m->tx_lock is taken, and we use that as a barrier
@@ -367,7 +430,8 @@ size_t __i2400m_tx_tail_room(struct i2400m *i2400m)
  *     pop data off the queue
  */
 static
-void *i2400m_tx_fifo_push(struct i2400m *i2400m, size_t size, size_t padding)
+void *i2400m_tx_fifo_push(struct i2400m *i2400m, size_t size,
+			  size_t padding, bool try_head)
 {
 	struct device *dev = i2400m_dev(i2400m);
 	size_t room, tail_room, needed_size;
@@ -382,9 +446,21 @@ void *i2400m_tx_fifo_push(struct i2400m *i2400m, size_t size, size_t padding)
 	}
 	/* Is there space at the tail? */
 	tail_room = __i2400m_tx_tail_room(i2400m);
-	if (tail_room < needed_size) {
-		if (i2400m->tx_out % I2400M_TX_BUF_SIZE
-		    < i2400m->tx_in % I2400M_TX_BUF_SIZE) {
+	if (!try_head && tail_room < needed_size) {
+		/*
+		 * If the tail room space is not enough to push the message
+		 * in the TX FIFO, then there are two possibilities:
+		 * 1. There is enough head room space to accommodate
+		 * this message in the TX FIFO.
+		 * 2. There is not enough space in the head room and
+		 * in tail room of the TX FIFO to accommodate the message.
+		 * In the case (1), return TAIL_FULL so that the caller
+		 * can figure out, if the caller wants to push the message
+		 * into the head room space.
+		 * In the case (2), return NULL, indicating that the TX FIFO
+		 * cannot accommodate the message.
+		 */
+		if (room - tail_room >= needed_size) {
 			d_printf(2, dev, "fifo push %zu/%zu: tail full\n",
 				 size, padding);
 			return TAIL_FULL;	/* There might be head space */
@@ -485,14 +561,25 @@ void i2400m_tx_new(struct i2400m *i2400m)
 {
 	struct device *dev = i2400m_dev(i2400m);
 	struct i2400m_msg_hdr *tx_msg;
+	bool try_head = 0;
 	BUG_ON(i2400m->tx_msg != NULL);
+	/*
+	 * In certain situations, TX queue might have enough space to
+	 * accommodate the new message header I2400M_TX_PLD_SIZE, but
+	 * might not have enough space to accommodate the payloads.
+	 * Adding bus_tx_room_min padding while allocating a new TX message
+	 * increases the possibilities of including at least one payload of the
+	 * size <= bus_tx_room_min.
+	 */
 try_head:
-	tx_msg = i2400m_tx_fifo_push(i2400m, I2400M_TX_PLD_SIZE, 0);
+	tx_msg = i2400m_tx_fifo_push(i2400m, I2400M_TX_PLD_SIZE,
+				     i2400m->bus_tx_room_min, try_head);
 	if (tx_msg == NULL)
 		goto out;
 	else if (tx_msg == TAIL_FULL) {
 		i2400m_tx_skip_tail(i2400m);
 		d_printf(2, dev, "new TX message: tail full, trying head\n");
+		try_head = 1;
 		goto try_head;
 	}
 	memset(tx_msg, 0, I2400M_TX_PLD_SIZE);
@@ -566,7 +653,7 @@ void i2400m_tx_close(struct i2400m *i2400m)
 	aligned_size = ALIGN(tx_msg_moved->size, i2400m->bus_tx_block_size);
 	padding = aligned_size - tx_msg_moved->size;
 	if (padding > 0) {
-		pad_buf = i2400m_tx_fifo_push(i2400m, padding, 0);
+		pad_buf = i2400m_tx_fifo_push(i2400m, padding, 0, 0);
 		if (unlikely(WARN_ON(pad_buf == NULL
 				     || pad_buf == TAIL_FULL))) {
 			/* This should not happen -- append should verify
@@ -632,6 +719,7 @@ int i2400m_tx(struct i2400m *i2400m, const void *buf, size_t buf_len,
 	unsigned long flags;
 	size_t padded_len;
 	void *ptr;
+	bool try_head = 0;
 	unsigned is_singleton = pl_type == I2400M_PT_RESET_WARM
 		|| pl_type == I2400M_PT_RESET_COLD;
 
@@ -643,9 +731,11 @@ int i2400m_tx(struct i2400m *i2400m, const void *buf, size_t buf_len,
 	 * current one is out of payload slots or we have a singleton,
 	 * close it and start a new one */
 	spin_lock_irqsave(&i2400m->tx_lock, flags);
-	result = -ESHUTDOWN;
-	if (i2400m->tx_buf == NULL)
+	/* If tx_buf is NULL, device is shutdown */
+	if (i2400m->tx_buf == NULL) {
+		result = -ESHUTDOWN;
 		goto error_tx_new;
+	}
 try_new:
 	if (unlikely(i2400m->tx_msg == NULL))
 		i2400m_tx_new(i2400m);
@@ -659,7 +749,13 @@ try_new:
 	}
 	if (i2400m->tx_msg == NULL)
 		goto error_tx_new;
-	if (i2400m->tx_msg->size + padded_len > I2400M_TX_BUF_SIZE / 2) {
+	/*
+	 * Check if this skb will fit in the TX queue's current active
+	 * TX message. The total message size must not exceed the maximum
+	 * size of each message I2400M_TX_MSG_SIZE. If it exceeds,
+	 * close the current message and push this skb into the new message.
+	 */
+	if (i2400m->tx_msg->size + padded_len > I2400M_TX_MSG_SIZE) {
 		d_printf(2, dev, "TX: message too big, going new\n");
 		i2400m_tx_close(i2400m);
 		i2400m_tx_new(i2400m);
@@ -669,11 +765,12 @@ try_new:
 	/* So we have a current message header; now append space for
 	 * the message -- if there is not enough, try the head */
 	ptr = i2400m_tx_fifo_push(i2400m, padded_len,
-				  i2400m->bus_tx_block_size);
+				  i2400m->bus_tx_block_size, try_head);
 	if (ptr == TAIL_FULL) {	/* Tail is full, try head */
 		d_printf(2, dev, "pl append: tail full\n");
 		i2400m_tx_close(i2400m);
 		i2400m_tx_skip_tail(i2400m);
+		try_head = 1;
 		goto try_new;
 	} else if (ptr == NULL) {	/* All full */
 		result = -ENOSPC;
@@ -689,7 +786,7 @@ try_new:
 			 pl_type, buf_len);
 		tx_msg->num_pls = le16_to_cpu(num_pls+1);
 		tx_msg->size += padded_len;
-		d_printf(2, dev, "TX: appended %zu b (up to %u b) pl #%u \n",
+		d_printf(2, dev, "TX: appended %zu b (up to %u b) pl #%u\n",
 			padded_len, tx_msg->size, num_pls+1);
 		d_printf(2, dev,
 			 "TX: appended hdr @%zu %zu b pl #%u @%zu %zu/%zu b\n",
@@ -860,25 +957,43 @@ EXPORT_SYMBOL_GPL(i2400m_tx_msg_sent);
  * i2400m_tx_setup - Initialize the TX queue and infrastructure
  *
  * Make sure we reset the TX sequence to zero, as when this function
- * is called, the firmware has been just restarted.
+ * is called, the firmware has been just restarted. Same rational
+ * for tx_in, tx_out, tx_msg_size and tx_msg. We reset them since
+ * the memory for TX queue is reallocated.
  */
 int i2400m_tx_setup(struct i2400m *i2400m)
 {
-	int result;
+	int result = 0;
+	void *tx_buf;
+	unsigned long flags;
 
 	/* Do this here only once -- can't do on
 	 * i2400m_hard_start_xmit() as we'll cause race conditions if
 	 * the WS was scheduled on another CPU */
 	INIT_WORK(&i2400m->wake_tx_ws, i2400m_wake_tx_work);
 
-	i2400m->tx_sequence = 0;
-	i2400m->tx_buf = kmalloc(I2400M_TX_BUF_SIZE, GFP_KERNEL);
-	if (i2400m->tx_buf == NULL)
+	tx_buf = kmalloc(I2400M_TX_BUF_SIZE, GFP_ATOMIC);
+	if (tx_buf == NULL) {
 		result = -ENOMEM;
-	else
-		result = 0;
+		goto error_kmalloc;
+	}
+
+	/*
+	 * Fail the build if we can't fit at least two maximum size messages
+	 * on the TX FIFO [one being delivered while one is constructed].
+	 */
+	BUILD_BUG_ON(2 * I2400M_TX_MSG_SIZE > I2400M_TX_BUF_SIZE);
+	spin_lock_irqsave(&i2400m->tx_lock, flags);
+	i2400m->tx_sequence = 0;
+	i2400m->tx_in = 0;
+	i2400m->tx_out = 0;
+	i2400m->tx_msg_size = 0;
+	i2400m->tx_msg = NULL;
+	i2400m->tx_buf = tx_buf;
+	spin_unlock_irqrestore(&i2400m->tx_lock, flags);
 	/* Huh? the bus layer has to define this... */
 	BUG_ON(i2400m->bus_tx_block_size == 0);
+error_kmalloc:
 	return result;
 
 }

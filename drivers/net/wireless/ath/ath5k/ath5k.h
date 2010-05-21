@@ -202,7 +202,8 @@
 #define AR5K_TUNE_MAX_TXPOWER			63
 #define AR5K_TUNE_DEFAULT_TXPOWER		25
 #define AR5K_TUNE_TPC_TXPOWER			false
-#define AR5K_TUNE_HWTXTRIES			4
+#define ATH5K_TUNE_CALIBRATION_INTERVAL_FULL    10000   /* 10 sec */
+#define ATH5K_TUNE_CALIBRATION_INTERVAL_ANI	1000	/* 1 sec */
 
 #define AR5K_INIT_CARR_SENSE_EN			1
 
@@ -614,28 +615,6 @@ struct ath5k_rx_status {
 #define AR5K_BEACON_ENA		0x00800000 /*enable beacon xmit*/
 #define AR5K_BEACON_RESET_TSF	0x01000000 /*force a TSF reset*/
 
-#if 0
-/**
- * struct ath5k_beacon_state - Per-station beacon timer state.
- * @bs_interval: in TU's, can also include the above flags
- * @bs_cfp_max_duration: if non-zero hw is setup to coexist with a
- * 	Point Coordination Function capable AP
- */
-struct ath5k_beacon_state {
-	u32	bs_next_beacon;
-	u32	bs_next_dtim;
-	u32	bs_interval;
-	u8	bs_dtim_period;
-	u8	bs_cfp_period;
-	u16	bs_cfp_max_duration;
-	u16	bs_cfp_du_remain;
-	u16	bs_tim_offset;
-	u16	bs_sleep_duration;
-	u16	bs_bmiss_threshold;
-	u32  	bs_cfp_next;
-};
-#endif
-
 
 /*
  * TSF to TU conversion:
@@ -822,9 +801,9 @@ struct ath5k_athchan_2ghz {
  * @AR5K_INT_TXURN: received when we should increase the TX trigger threshold
  * 	We currently do increments on interrupt by
  * 	(AR5K_TUNE_MAX_TX_FIFO_THRES - current_trigger_level) / 2
- * @AR5K_INT_MIB: Indicates the Management Information Base counters should be
- * 	checked. We should do this with ath5k_hw_update_mib_counters() but
- * 	it seems we should also then do some noise immunity work.
+ * @AR5K_INT_MIB: Indicates the either Management Information Base counters or
+ *	one of the PHY error counters reached the maximum value and should be
+ *	read and cleared.
  * @AR5K_INT_RXPHY: RX PHY Error
  * @AR5K_INT_RXKCM: RX Key cache miss
  * @AR5K_INT_SWBA: SoftWare Beacon Alert - indicates its time to send a
@@ -912,10 +891,11 @@ enum ath5k_int {
 	AR5K_INT_NOCARD	= 0xffffffff
 };
 
-/* Software interrupts used for calibration */
-enum ath5k_software_interrupt {
-	AR5K_SWI_FULL_CALIBRATION = 0x01,
-	AR5K_SWI_SHORT_CALIBRATION = 0x02,
+/* mask which calibration is active at the moment */
+enum ath5k_calibration_mask {
+	AR5K_CALIBRATION_FULL = 0x01,
+	AR5K_CALIBRATION_SHORT = 0x02,
+	AR5K_CALIBRATION_ANI = 0x04,
 };
 
 /*
@@ -1004,6 +984,8 @@ struct ath5k_capabilities {
 	struct {
 		u8	q_tx_num;
 	} cap_queues;
+
+	bool cap_has_phyerr_counters;
 };
 
 /* size of noise floor history (keep it a power of two) */
@@ -1014,6 +996,15 @@ struct ath5k_nfcal_hist
 	s16 nfval[ATH5K_NF_CAL_HIST_MAX];	/* last few noise floors */
 };
 
+/**
+ * struct avg_val - Helper structure for average calculation
+ * @avg: contains the actual average value
+ * @avg_weight: is used internally during calculation to prevent rounding errors
+ */
+struct ath5k_avg_val {
+	int avg;
+	int avg_weight;
+};
 
 /***************************************\
   HARDWARE ABSTRACTION LAYER STRUCTURE
@@ -1028,7 +1019,6 @@ struct ath5k_nfcal_hist
 
 /* TODO: Clean up and merge with ath5k_softc */
 struct ath5k_hw {
-	u32			ah_magic;
 	struct ath_common       common;
 
 	struct ath5k_softc	*ah_sc;
@@ -1036,7 +1026,6 @@ struct ath5k_hw {
 
 	enum ath5k_int		ah_imr;
 
-	enum nl80211_iftype	ah_op_mode;
 	struct ieee80211_channel *ah_current_channel;
 	bool			ah_turbo;
 	bool			ah_calibration;
@@ -1049,7 +1038,6 @@ struct ath5k_hw {
 	u32			ah_phy;
 	u32			ah_mac_srev;
 	u16			ah_mac_version;
-	u16			ah_mac_revision;
 	u16			ah_phy_revision;
 	u16			ah_radio_5ghz_revision;
 	u16			ah_radio_2ghz_revision;
@@ -1070,8 +1058,6 @@ struct ath5k_hw {
 	u8			ah_tx_ant;
 	u8			ah_def_ant;
 	bool			ah_software_retry;
-
-	int			ah_gpio_npins;
 
 	struct ath5k_capabilities ah_capabilities;
 
@@ -1123,17 +1109,18 @@ struct ath5k_hw {
 
 	struct ath5k_nfcal_hist ah_nfcal_hist;
 
+	/* average beacon RSSI in our BSS (used by ANI) */
+	struct ath5k_avg_val	ah_beacon_rssi_avg;
+
 	/* noise floor from last periodic calibration */
 	s32			ah_noise_floor;
 
 	/* Calibration timestamp */
-	unsigned long		ah_cal_tstamp;
+	unsigned long		ah_cal_next_full;
+	unsigned long		ah_cal_next_ani;
 
-	/* Calibration interval (secs) */
-	u8			ah_cal_intval;
-
-	/* Software interrupt mask */
-	u8			ah_swi_mask;
+	/* Calibration mask */
+	u8			ah_cal_mask;
 
 	/*
 	 * Function pointers
@@ -1141,9 +1128,9 @@ struct ath5k_hw {
 	int (*ah_setup_rx_desc)(struct ath5k_hw *ah, struct ath5k_desc *desc,
 				u32 size, unsigned int flags);
 	int (*ah_setup_tx_desc)(struct ath5k_hw *, struct ath5k_desc *,
-		unsigned int, unsigned int, enum ath5k_pkt_type, unsigned int,
+		unsigned int, unsigned int, int, enum ath5k_pkt_type,
 		unsigned int, unsigned int, unsigned int, unsigned int,
-		unsigned int, unsigned int, unsigned int);
+		unsigned int, unsigned int, unsigned int, unsigned int);
 	int (*ah_setup_mrr_tx_desc)(struct ath5k_hw *, struct ath5k_desc *,
 		unsigned int, unsigned int, unsigned int, unsigned int,
 		unsigned int, unsigned int);
@@ -1158,158 +1145,145 @@ struct ath5k_hw {
  */
 
 /* Attach/Detach Functions */
-extern int ath5k_hw_attach(struct ath5k_softc *sc);
-extern void ath5k_hw_detach(struct ath5k_hw *ah);
+int ath5k_hw_attach(struct ath5k_softc *sc);
+void ath5k_hw_detach(struct ath5k_hw *ah);
 
 /* LED functions */
-extern int ath5k_init_leds(struct ath5k_softc *sc);
-extern void ath5k_led_enable(struct ath5k_softc *sc);
-extern void ath5k_led_off(struct ath5k_softc *sc);
-extern void ath5k_unregister_leds(struct ath5k_softc *sc);
+int ath5k_init_leds(struct ath5k_softc *sc);
+void ath5k_led_enable(struct ath5k_softc *sc);
+void ath5k_led_off(struct ath5k_softc *sc);
+void ath5k_unregister_leds(struct ath5k_softc *sc);
 
 /* Reset Functions */
-extern int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial);
-extern int ath5k_hw_on_hold(struct ath5k_hw *ah);
-extern int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode, struct ieee80211_channel *channel, bool change_channel);
+int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial);
+int ath5k_hw_on_hold(struct ath5k_hw *ah);
+int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
+		   struct ieee80211_channel *channel, bool change_channel);
+int ath5k_hw_register_timeout(struct ath5k_hw *ah, u32 reg, u32 flag, u32 val,
+			      bool is_set);
 /* Power management functions */
-extern int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode, bool set_chip, u16 sleep_duration);
 
 /* DMA Related Functions */
-extern void ath5k_hw_start_rx_dma(struct ath5k_hw *ah);
-extern int ath5k_hw_stop_rx_dma(struct ath5k_hw *ah);
-extern u32 ath5k_hw_get_rxdp(struct ath5k_hw *ah);
-extern void ath5k_hw_set_rxdp(struct ath5k_hw *ah, u32 phys_addr);
-extern int ath5k_hw_start_tx_dma(struct ath5k_hw *ah, unsigned int queue);
-extern int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue);
-extern u32 ath5k_hw_get_txdp(struct ath5k_hw *ah, unsigned int queue);
-extern int ath5k_hw_set_txdp(struct ath5k_hw *ah, unsigned int queue,
+void ath5k_hw_start_rx_dma(struct ath5k_hw *ah);
+int ath5k_hw_stop_rx_dma(struct ath5k_hw *ah);
+u32 ath5k_hw_get_rxdp(struct ath5k_hw *ah);
+void ath5k_hw_set_rxdp(struct ath5k_hw *ah, u32 phys_addr);
+int ath5k_hw_start_tx_dma(struct ath5k_hw *ah, unsigned int queue);
+int ath5k_hw_stop_tx_dma(struct ath5k_hw *ah, unsigned int queue);
+u32 ath5k_hw_get_txdp(struct ath5k_hw *ah, unsigned int queue);
+int ath5k_hw_set_txdp(struct ath5k_hw *ah, unsigned int queue,
 				u32 phys_addr);
-extern int ath5k_hw_update_tx_triglevel(struct ath5k_hw *ah, bool increase);
+int ath5k_hw_update_tx_triglevel(struct ath5k_hw *ah, bool increase);
 /* Interrupt handling */
-extern bool ath5k_hw_is_intr_pending(struct ath5k_hw *ah);
-extern int ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask);
-extern enum ath5k_int ath5k_hw_set_imr(struct ath5k_hw *ah, enum
-ath5k_int new_mask);
-extern void ath5k_hw_update_mib_counters(struct ath5k_hw *ah, struct ieee80211_low_level_stats *stats);
+bool ath5k_hw_is_intr_pending(struct ath5k_hw *ah);
+int ath5k_hw_get_isr(struct ath5k_hw *ah, enum ath5k_int *interrupt_mask);
+enum ath5k_int ath5k_hw_set_imr(struct ath5k_hw *ah, enum ath5k_int new_mask);
+void ath5k_hw_update_mib_counters(struct ath5k_hw *ah);
 
 /* EEPROM access functions */
-extern int ath5k_eeprom_init(struct ath5k_hw *ah);
-extern void ath5k_eeprom_detach(struct ath5k_hw *ah);
-extern int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac);
-extern bool ath5k_eeprom_is_hb63(struct ath5k_hw *ah);
+int ath5k_eeprom_init(struct ath5k_hw *ah);
+void ath5k_eeprom_detach(struct ath5k_hw *ah);
+int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac);
 
 /* Protocol Control Unit Functions */
-extern int ath5k_hw_set_opmode(struct ath5k_hw *ah);
-extern void ath5k_hw_set_coverage_class(struct ath5k_hw *ah, u8 coverage_class);
+extern int ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype opmode);
+void ath5k_hw_set_coverage_class(struct ath5k_hw *ah, u8 coverage_class);
 /* BSSID Functions */
-extern int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac);
-extern void ath5k_hw_set_associd(struct ath5k_hw *ah);
-extern void ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask);
+int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac);
+void ath5k_hw_set_associd(struct ath5k_hw *ah);
+void ath5k_hw_set_bssid_mask(struct ath5k_hw *ah, const u8 *mask);
 /* Receive start/stop functions */
-extern void ath5k_hw_start_rx_pcu(struct ath5k_hw *ah);
-extern void ath5k_hw_stop_rx_pcu(struct ath5k_hw *ah);
+void ath5k_hw_start_rx_pcu(struct ath5k_hw *ah);
+void ath5k_hw_stop_rx_pcu(struct ath5k_hw *ah);
 /* RX Filter functions */
-extern void ath5k_hw_set_mcast_filter(struct ath5k_hw *ah, u32 filter0, u32 filter1);
-extern int ath5k_hw_set_mcast_filter_idx(struct ath5k_hw *ah, u32 index);
-extern int ath5k_hw_clear_mcast_filter_idx(struct ath5k_hw *ah, u32 index);
-extern u32 ath5k_hw_get_rx_filter(struct ath5k_hw *ah);
-extern void ath5k_hw_set_rx_filter(struct ath5k_hw *ah, u32 filter);
+void ath5k_hw_set_mcast_filter(struct ath5k_hw *ah, u32 filter0, u32 filter1);
+u32 ath5k_hw_get_rx_filter(struct ath5k_hw *ah);
+void ath5k_hw_set_rx_filter(struct ath5k_hw *ah, u32 filter);
 /* Beacon control functions */
-extern u32 ath5k_hw_get_tsf32(struct ath5k_hw *ah);
-extern u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah);
-extern void ath5k_hw_set_tsf64(struct ath5k_hw *ah, u64 tsf64);
-extern void ath5k_hw_reset_tsf(struct ath5k_hw *ah);
-extern void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval);
-#if 0
-extern int ath5k_hw_set_beacon_timers(struct ath5k_hw *ah, const struct ath5k_beacon_state *state);
-extern void ath5k_hw_reset_beacon(struct ath5k_hw *ah);
-extern int ath5k_hw_beaconq_finish(struct ath5k_hw *ah, unsigned long phys_addr);
-#endif
+u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah);
+void ath5k_hw_set_tsf64(struct ath5k_hw *ah, u64 tsf64);
+void ath5k_hw_reset_tsf(struct ath5k_hw *ah);
+void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval);
 /* ACK bit rate */
 void ath5k_hw_set_ack_bitrate_high(struct ath5k_hw *ah, bool high);
-/* ACK/CTS Timeouts */
-extern int ath5k_hw_set_ack_timeout(struct ath5k_hw *ah, unsigned int timeout);
-extern unsigned int ath5k_hw_get_ack_timeout(struct ath5k_hw *ah);
-extern int ath5k_hw_set_cts_timeout(struct ath5k_hw *ah, unsigned int timeout);
-extern unsigned int ath5k_hw_get_cts_timeout(struct ath5k_hw *ah);
 /* Clock rate related functions */
 unsigned int ath5k_hw_htoclock(struct ath5k_hw *ah, unsigned int usec);
 unsigned int ath5k_hw_clocktoh(struct ath5k_hw *ah, unsigned int clock);
 unsigned int ath5k_hw_get_clockrate(struct ath5k_hw *ah);
 /* Key table (WEP) functions */
-extern int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry);
-extern int ath5k_hw_is_key_valid(struct ath5k_hw *ah, u16 entry);
-extern int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry, const struct ieee80211_key_conf *key, const u8 *mac);
-extern int ath5k_hw_set_key_lladdr(struct ath5k_hw *ah, u16 entry, const u8 *mac);
+int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry);
+int ath5k_hw_set_key(struct ath5k_hw *ah, u16 entry,
+		     const struct ieee80211_key_conf *key, const u8 *mac);
+int ath5k_hw_set_key_lladdr(struct ath5k_hw *ah, u16 entry, const u8 *mac);
 
 /* Queue Control Unit, DFS Control Unit Functions */
-extern int ath5k_hw_get_tx_queueprops(struct ath5k_hw *ah, int queue, struct ath5k_txq_info *queue_info);
-extern int ath5k_hw_set_tx_queueprops(struct ath5k_hw *ah, int queue,
-				const struct ath5k_txq_info *queue_info);
-extern int ath5k_hw_setup_tx_queue(struct ath5k_hw *ah,
-				enum ath5k_tx_queue queue_type,
-				struct ath5k_txq_info *queue_info);
-extern u32 ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue);
-extern void ath5k_hw_release_tx_queue(struct ath5k_hw *ah, unsigned int queue);
-extern int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue);
-extern unsigned int ath5k_hw_get_slot_time(struct ath5k_hw *ah);
-extern int ath5k_hw_set_slot_time(struct ath5k_hw *ah, unsigned int slot_time);
+int ath5k_hw_get_tx_queueprops(struct ath5k_hw *ah, int queue,
+			       struct ath5k_txq_info *queue_info);
+int ath5k_hw_set_tx_queueprops(struct ath5k_hw *ah, int queue,
+			       const struct ath5k_txq_info *queue_info);
+int ath5k_hw_setup_tx_queue(struct ath5k_hw *ah,
+			    enum ath5k_tx_queue queue_type,
+			    struct ath5k_txq_info *queue_info);
+u32 ath5k_hw_num_tx_pending(struct ath5k_hw *ah, unsigned int queue);
+void ath5k_hw_release_tx_queue(struct ath5k_hw *ah, unsigned int queue);
+int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue);
+int ath5k_hw_set_slot_time(struct ath5k_hw *ah, unsigned int slot_time);
 
 /* Hardware Descriptor Functions */
-extern int ath5k_hw_init_desc_functions(struct ath5k_hw *ah);
+int ath5k_hw_init_desc_functions(struct ath5k_hw *ah);
 
 /* GPIO Functions */
-extern void ath5k_hw_set_ledstate(struct ath5k_hw *ah, unsigned int state);
-extern int ath5k_hw_set_gpio_input(struct ath5k_hw *ah, u32 gpio);
-extern int ath5k_hw_set_gpio_output(struct ath5k_hw *ah, u32 gpio);
-extern u32 ath5k_hw_get_gpio(struct ath5k_hw *ah, u32 gpio);
-extern int ath5k_hw_set_gpio(struct ath5k_hw *ah, u32 gpio, u32 val);
-extern void ath5k_hw_set_gpio_intr(struct ath5k_hw *ah, unsigned int gpio, u32 interrupt_level);
+void ath5k_hw_set_ledstate(struct ath5k_hw *ah, unsigned int state);
+int ath5k_hw_set_gpio_input(struct ath5k_hw *ah, u32 gpio);
+int ath5k_hw_set_gpio_output(struct ath5k_hw *ah, u32 gpio);
+u32 ath5k_hw_get_gpio(struct ath5k_hw *ah, u32 gpio);
+int ath5k_hw_set_gpio(struct ath5k_hw *ah, u32 gpio, u32 val);
+void ath5k_hw_set_gpio_intr(struct ath5k_hw *ah, unsigned int gpio,
+			    u32 interrupt_level);
 
 /* rfkill Functions */
-extern void ath5k_rfkill_hw_start(struct ath5k_hw *ah);
-extern void ath5k_rfkill_hw_stop(struct ath5k_hw *ah);
+void ath5k_rfkill_hw_start(struct ath5k_hw *ah);
+void ath5k_rfkill_hw_stop(struct ath5k_hw *ah);
 
 /* Misc functions */
 int ath5k_hw_set_capabilities(struct ath5k_hw *ah);
-extern int ath5k_hw_get_capability(struct ath5k_hw *ah, enum ath5k_capability_type cap_type, u32 capability, u32 *result);
-extern int ath5k_hw_enable_pspoll(struct ath5k_hw *ah, u8 *bssid, u16 assoc_id);
-extern int ath5k_hw_disable_pspoll(struct ath5k_hw *ah);
+int ath5k_hw_get_capability(struct ath5k_hw *ah,
+			    enum ath5k_capability_type cap_type, u32 capability,
+			    u32 *result);
+int ath5k_hw_enable_pspoll(struct ath5k_hw *ah, u8 *bssid, u16 assoc_id);
+int ath5k_hw_disable_pspoll(struct ath5k_hw *ah);
 
 /* Initial register settings functions */
-extern int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel);
+int ath5k_hw_write_initvals(struct ath5k_hw *ah, u8 mode, bool change_channel);
 
 /* Initialize RF */
-extern int ath5k_hw_rfregs_init(struct ath5k_hw *ah,
-				struct ieee80211_channel *channel,
-				unsigned int mode);
-extern int ath5k_hw_rfgain_init(struct ath5k_hw *ah, unsigned int freq);
-extern enum ath5k_rfgain ath5k_hw_gainf_calibrate(struct ath5k_hw *ah);
-extern int ath5k_hw_rfgain_opt_init(struct ath5k_hw *ah);
+int ath5k_hw_rfregs_init(struct ath5k_hw *ah,
+			 struct ieee80211_channel *channel,
+			 unsigned int mode);
+int ath5k_hw_rfgain_init(struct ath5k_hw *ah, unsigned int freq);
+enum ath5k_rfgain ath5k_hw_gainf_calibrate(struct ath5k_hw *ah);
+int ath5k_hw_rfgain_opt_init(struct ath5k_hw *ah);
 /* PHY/RF channel functions */
-extern bool ath5k_channel_ok(struct ath5k_hw *ah, u16 freq, unsigned int flags);
-extern int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel);
+bool ath5k_channel_ok(struct ath5k_hw *ah, u16 freq, unsigned int flags);
+int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel);
 /* PHY calibration */
 void ath5k_hw_init_nfcal_hist(struct ath5k_hw *ah);
-extern int ath5k_hw_phy_calibrate(struct ath5k_hw *ah, struct ieee80211_channel *channel);
-extern int ath5k_hw_noise_floor_calibration(struct ath5k_hw *ah, short freq);
-extern s16 ath5k_hw_get_noise_floor(struct ath5k_hw *ah);
-extern void ath5k_hw_calibration_poll(struct ath5k_hw *ah);
+int ath5k_hw_phy_calibrate(struct ath5k_hw *ah,
+			   struct ieee80211_channel *channel);
 /* Spur mitigation */
 bool ath5k_hw_chan_has_spur_noise(struct ath5k_hw *ah,
-				struct ieee80211_channel *channel);
+				  struct ieee80211_channel *channel);
 void ath5k_hw_set_spur_mitigation_filter(struct ath5k_hw *ah,
-				struct ieee80211_channel *channel);
+					 struct ieee80211_channel *channel);
 /* Misc PHY functions */
-extern u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan);
-extern int ath5k_hw_phy_disable(struct ath5k_hw *ah);
+u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan);
+int ath5k_hw_phy_disable(struct ath5k_hw *ah);
 /* Antenna control */
-extern void ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode);
-extern void ath5k_hw_set_def_antenna(struct ath5k_hw *ah, u8 ant);
-extern unsigned int ath5k_hw_get_def_antenna(struct ath5k_hw *ah);
+void ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode);
 /* TX power setup */
-extern int ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel, u8 ee_mode, u8 txpower);
-extern int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower);
+int ath5k_hw_txpower(struct ath5k_hw *ah, struct ieee80211_channel *channel,
+		     u8 ee_mode, u8 txpower);
+int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower);
 
 /*
  * Functions used internaly
@@ -1335,29 +1309,6 @@ static inline void ath5k_hw_reg_write(struct ath5k_hw *ah, u32 val, u16 reg)
 	iowrite32(val, ah->ah_iobase + reg);
 }
 
-#if defined(_ATH5K_RESET) || defined(_ATH5K_PHY)
-/*
- * Check if a register write has been completed
- */
-static int ath5k_hw_register_timeout(struct ath5k_hw *ah, u32 reg, u32 flag,
-		u32 val, bool is_set)
-{
-	int i;
-	u32 data;
-
-	for (i = AR5K_TUNE_REGISTER_TIMEOUT; i > 0; i--) {
-		data = ath5k_hw_reg_read(ah, reg);
-		if (is_set && (data & flag))
-			break;
-		else if ((data & flag) == val)
-			break;
-		udelay(15);
-	}
-
-	return (i <= 0) ? -EAGAIN : 0;
-}
-#endif
-
 static inline u32 ath5k_hw_bitswap(u32 val, unsigned int bits)
 {
 	u32 retval = 0, bit, i;
@@ -1370,9 +1321,27 @@ static inline u32 ath5k_hw_bitswap(u32 val, unsigned int bits)
 	return retval;
 }
 
-static inline int ath5k_pad_size(int hdrlen)
+#define AVG_SAMPLES	8
+#define AVG_FACTOR	1000
+
+/**
+ * ath5k_moving_average -  Exponentially weighted moving average
+ * @avg: average structure
+ * @val: current value
+ *
+ * This implementation make use of a struct ath5k_avg_val to prevent rounding
+ * errors.
+ */
+static inline struct ath5k_avg_val
+ath5k_moving_average(const struct ath5k_avg_val avg, const int val)
 {
-	return (hdrlen < 24) ? 0 : hdrlen & 3;
+	struct ath5k_avg_val new;
+	new.avg_weight = avg.avg_weight  ?
+		(((avg.avg_weight * ((AVG_SAMPLES) - 1)) +
+			(val * (AVG_FACTOR))) / (AVG_SAMPLES)) :
+		(val * (AVG_FACTOR));
+	new.avg = new.avg_weight / (AVG_FACTOR);
+	return new;
 }
 
 #endif

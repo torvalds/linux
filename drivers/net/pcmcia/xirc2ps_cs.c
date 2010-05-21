@@ -1265,7 +1265,7 @@ xirc2ps_tx_timeout_task(struct work_struct *work)
 	struct net_device *dev = local->dev;
     /* reset the card */
     do_reset(dev,1);
-    dev->trans_start = jiffies;
+    dev->trans_start = jiffies; /* prevent tx timeout */
     netif_wake_queue(dev);
 }
 
@@ -1328,7 +1328,6 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	PutByte(XIRCREG_CR, TransmitPacket|EnableIntr);
 
     dev_kfree_skb (skb);
-    dev->trans_start = jiffies;
     dev->stats.tx_bytes += pktlen;
     netif_start_queue(dev);
     return NETDEV_TX_OK;
@@ -1368,7 +1367,7 @@ static void set_addresses(struct net_device *dev)
 {
 	unsigned int ioaddr = dev->base_addr;
 	local_info_t *lp = netdev_priv(dev);
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	struct set_address_info sa_info;
 	int i;
 
@@ -1383,10 +1382,10 @@ static void set_addresses(struct net_device *dev)
 
 	set_address(&sa_info, dev->dev_addr);
 	i = 0;
-	netdev_for_each_mc_addr(dmi, dev) {
+	netdev_for_each_mc_addr(ha, dev) {
 		if (i++ == 9)
 			break;
-		set_address(&sa_info, dmi->dmi_addr);
+		set_address(&sa_info, ha->addr);
 	}
 	while (i++ < 9)
 		set_address(&sa_info, dev->dev_addr);

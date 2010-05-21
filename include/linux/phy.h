@@ -24,6 +24,7 @@
 #include <linux/mii.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/mod_devicetable.h>
 
 #include <asm/atomic.h>
 
@@ -81,6 +82,10 @@ typedef enum {
  */
 #define MII_BUS_ID_SIZE	(20 - 3)
 
+/* Or MII_ADDR_C45 into regnum for read/write on mii_bus to enable the 21 bit
+   IEEE 802.3ae clause 45 addressing mode used by 10GIGE phy chips. */
+#define MII_ADDR_C45 (1<<30)
+
 /*
  * The Bus class for PHYs.  Devices which provide access to
  * PHYs should register using this structure
@@ -127,8 +132,8 @@ int mdiobus_register(struct mii_bus *bus);
 void mdiobus_unregister(struct mii_bus *bus);
 void mdiobus_free(struct mii_bus *bus);
 struct phy_device *mdiobus_scan(struct mii_bus *bus, int addr);
-int mdiobus_read(struct mii_bus *bus, int addr, u16 regnum);
-int mdiobus_write(struct mii_bus *bus, int addr, u16 regnum, u16 val);
+int mdiobus_read(struct mii_bus *bus, int addr, u32 regnum);
+int mdiobus_write(struct mii_bus *bus, int addr, u32 regnum, u16 val);
 
 
 #define PHY_INTERRUPT_DISABLED	0x0
@@ -422,7 +427,7 @@ struct phy_fixup {
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
-static inline int phy_read(struct phy_device *phydev, u16 regnum)
+static inline int phy_read(struct phy_device *phydev, u32 regnum)
 {
 	return mdiobus_read(phydev->bus, phydev->addr, regnum);
 }
@@ -437,7 +442,7 @@ static inline int phy_read(struct phy_device *phydev, u16 regnum)
  * because the bus read/write functions may wait for an interrupt
  * to conclude the operation.
  */
-static inline int phy_write(struct phy_device *phydev, u16 regnum, u16 val)
+static inline int phy_write(struct phy_device *phydev, u32 regnum, u16 val)
 {
 	return mdiobus_write(phydev->bus, phydev->addr, regnum, val);
 }

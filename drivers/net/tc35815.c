@@ -1357,8 +1357,6 @@ static int tc35815_send_packet(struct sk_buff *skb, struct net_device *dev)
 	}
 	lp->tfd_start = (lp->tfd_start + 1) % TX_FD_NUM;
 
-	dev->trans_start = jiffies;
-
 	/* If we just used up the very last entry in the
 	 * TX ring on this device, tell the queueing
 	 * layer to send no more.
@@ -1954,16 +1952,16 @@ tc35815_set_multicast_list(struct net_device *dev)
 		/* Disable promiscuous mode, use normal mode. */
 		tc_writel(CAM_CompEn | CAM_BroadAcc | CAM_GroupAcc, &tr->CAM_Ctl);
 	} else if (!netdev_mc_empty(dev)) {
-		struct dev_mc_list *cur_addr;
+		struct netdev_hw_addr *ha;
 		int i;
 		int ena_bits = CAM_Ena_Bit(CAM_ENTRY_SOURCE);
 
 		tc_writel(0, &tr->CAM_Ctl);
 		/* Walk the address list, and load the filter */
 		i = 0;
-		netdev_for_each_mc_addr(cur_addr, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			/* entry 0,1 is reserved. */
-			tc35815_set_cam_entry(dev, i + 2, cur_addr->dmi_addr);
+			tc35815_set_cam_entry(dev, i + 2, ha->addr);
 			ena_bits |= CAM_Ena_Bit(i + 2);
 			i++;
 		}

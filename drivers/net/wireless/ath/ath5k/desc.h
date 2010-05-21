@@ -112,15 +112,32 @@ struct ath5k_hw_rx_error {
 #define AR5K_RX_DESC_ERROR1_PHY_ERROR_CODE	0x0000ff00
 #define AR5K_RX_DESC_ERROR1_PHY_ERROR_CODE_S	8
 
-/* PHY Error codes */
-#define AR5K_DESC_RX_PHY_ERROR_NONE		0x00
-#define AR5K_DESC_RX_PHY_ERROR_TIMING		0x20
-#define AR5K_DESC_RX_PHY_ERROR_PARITY		0x40
-#define AR5K_DESC_RX_PHY_ERROR_RATE		0x60
-#define AR5K_DESC_RX_PHY_ERROR_LENGTH		0x80
-#define AR5K_DESC_RX_PHY_ERROR_64QAM		0xa0
-#define AR5K_DESC_RX_PHY_ERROR_SERVICE		0xc0
-#define AR5K_DESC_RX_PHY_ERROR_TRANSMITOVR	0xe0
+/**
+ * enum ath5k_phy_error_code - PHY Error codes
+ */
+enum ath5k_phy_error_code {
+	AR5K_RX_PHY_ERROR_UNDERRUN		= 0,	/* Transmit underrun */
+	AR5K_RX_PHY_ERROR_TIMING		= 1,	/* Timing error */
+	AR5K_RX_PHY_ERROR_PARITY		= 2,	/* Illegal parity */
+	AR5K_RX_PHY_ERROR_RATE			= 3,	/* Illegal rate */
+	AR5K_RX_PHY_ERROR_LENGTH		= 4,	/* Illegal length */
+	AR5K_RX_PHY_ERROR_RADAR			= 5,	/* Radar detect */
+	AR5K_RX_PHY_ERROR_SERVICE		= 6,	/* Illegal service */
+	AR5K_RX_PHY_ERROR_TOR			= 7,	/* Transmit override receive */
+	/* these are specific to the 5212 */
+	AR5K_RX_PHY_ERROR_OFDM_TIMING		= 17,
+	AR5K_RX_PHY_ERROR_OFDM_SIGNAL_PARITY	= 18,
+	AR5K_RX_PHY_ERROR_OFDM_RATE_ILLEGAL	= 19,
+	AR5K_RX_PHY_ERROR_OFDM_LENGTH_ILLEGAL	= 20,
+	AR5K_RX_PHY_ERROR_OFDM_POWER_DROP	= 21,
+	AR5K_RX_PHY_ERROR_OFDM_SERVICE		= 22,
+	AR5K_RX_PHY_ERROR_OFDM_RESTART		= 23,
+	AR5K_RX_PHY_ERROR_CCK_TIMING		= 25,
+	AR5K_RX_PHY_ERROR_CCK_HEADER_CRC	= 26,
+	AR5K_RX_PHY_ERROR_CCK_RATE_ILLEGAL	= 27,
+	AR5K_RX_PHY_ERROR_CCK_SERVICE		= 30,
+	AR5K_RX_PHY_ERROR_CCK_RESTART		= 31,
+};
 
 /*
  * 5210/5211 hardware 2-word TX control descriptor

@@ -23,7 +23,6 @@
 
 #include "wl1271_reg.h"
 #include "wl1271_ps.h"
-#include "wl1271_spi.h"
 #include "wl1271_io.h"
 
 #define WL1271_WAKEUP_TIMEOUT 500
@@ -41,7 +40,8 @@ void wl1271_elp_work(struct work_struct *work)
 	mutex_lock(&wl->mutex);
 
 	if (test_bit(WL1271_FLAG_IN_ELP, &wl->flags) ||
-	    !test_bit(WL1271_FLAG_PSM, &wl->flags))
+	    (!test_bit(WL1271_FLAG_PSM, &wl->flags) &&
+	     !test_bit(WL1271_FLAG_IDLE, &wl->flags)))
 		goto out;
 
 	wl1271_debug(DEBUG_PSM, "chip to elp");
@@ -57,7 +57,8 @@ out:
 /* Routines to toggle sleep mode while in ELP */
 void wl1271_ps_elp_sleep(struct wl1271 *wl)
 {
-	if (test_bit(WL1271_FLAG_PSM, &wl->flags)) {
+	if (test_bit(WL1271_FLAG_PSM, &wl->flags) ||
+	    test_bit(WL1271_FLAG_IDLE, &wl->flags)) {
 		cancel_delayed_work(&wl->elp_work);
 		ieee80211_queue_delayed_work(wl->hw, &wl->elp_work,
 					msecs_to_jiffies(ELP_ENTRY_DELAY));

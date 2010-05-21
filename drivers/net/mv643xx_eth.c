@@ -882,7 +882,6 @@ static netdev_tx_t mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		txq->tx_bytes += skb->len;
 		txq->tx_packets++;
-		dev->trans_start = jiffies;
 
 		entries_left = txq->tx_ring_size - txq->tx_desc_count;
 		if (entries_left < MAX_SKB_FRAGS + 1)
@@ -1770,7 +1769,7 @@ static void mv643xx_eth_program_multicast_filter(struct net_device *dev)
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	u32 *mc_spec;
 	u32 *mc_other;
-	struct dev_addr_list *addr;
+	struct netdev_hw_addr *ha;
 	int i;
 
 	if (dev->flags & (IFF_PROMISC | IFF_ALLMULTI)) {
@@ -1795,8 +1794,8 @@ oom:
 	memset(mc_spec, 0, 0x100);
 	memset(mc_other, 0, 0x100);
 
-	netdev_for_each_mc_addr(addr, dev) {
-		u8 *a = addr->da_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		u8 *a = ha->addr;
 		u32 *table;
 		int entry;
 
@@ -2609,10 +2608,9 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 		goto out;
 
 	ret = -ENOMEM;
-	msp = kmalloc(sizeof(*msp), GFP_KERNEL);
+	msp = kzalloc(sizeof(*msp), GFP_KERNEL);
 	if (msp == NULL)
 		goto out;
-	memset(msp, 0, sizeof(*msp));
 
 	msp->base = ioremap(res->start, res->end - res->start + 1);
 	if (msp->base == NULL)

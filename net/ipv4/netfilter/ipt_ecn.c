@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <net/ip.h>
@@ -67,7 +67,7 @@ static inline bool match_tcp(const struct sk_buff *skb,
 	return true;
 }
 
-static bool ecn_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+static bool ecn_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct ipt_ecn_info *info = par->matchinfo;
 
@@ -78,32 +78,31 @@ static bool ecn_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	if (info->operation & (IPT_ECN_OP_MATCH_ECE|IPT_ECN_OP_MATCH_CWR)) {
 		if (ip_hdr(skb)->protocol != IPPROTO_TCP)
 			return false;
-		if (!match_tcp(skb, info, par->hotdrop))
+		if (!match_tcp(skb, info, &par->hotdrop))
 			return false;
 	}
 
 	return true;
 }
 
-static bool ecn_mt_check(const struct xt_mtchk_param *par)
+static int ecn_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct ipt_ecn_info *info = par->matchinfo;
 	const struct ipt_ip *ip = par->entryinfo;
 
 	if (info->operation & IPT_ECN_OP_MATCH_MASK)
-		return false;
+		return -EINVAL;
 
 	if (info->invert & IPT_ECN_OP_MATCH_MASK)
-		return false;
+		return -EINVAL;
 
 	if (info->operation & (IPT_ECN_OP_MATCH_ECE|IPT_ECN_OP_MATCH_CWR) &&
 	    ip->proto != IPPROTO_TCP) {
-		printk(KERN_WARNING "ipt_ecn: can't match TCP bits in rule for"
-		       " non-tcp packets\n");
-		return false;
+		pr_info("cannot match TCP bits in rule for non-tcp packets\n");
+		return -EINVAL;
 	}
 
-	return true;
+	return 0;
 }
 
 static struct xt_match ecn_mt_reg __read_mostly = {

@@ -508,12 +508,13 @@ EXPORT_SYMBOL_GPL(rds_send_get_message);
  */
 void rds_send_remove_from_sock(struct list_head *messages, int status)
 {
-	unsigned long flags = 0; /* silence gcc :P */
+	unsigned long flags;
 	struct rds_sock *rs = NULL;
 	struct rds_message *rm;
 
-	local_irq_save(flags);
 	while (!list_empty(messages)) {
+		int was_on_sock = 0;
+
 		rm = list_entry(messages->next, struct rds_message,
 				m_conn_item);
 		list_del_init(&rm->m_conn_item);
@@ -528,20 +529,19 @@ void rds_send_remove_from_sock(struct list_head *messages, int status)
 		 * while we're messing with it. It does not prevent the
 		 * message from being removed from the socket, though.
 		 */
-		spin_lock(&rm->m_rs_lock);
+		spin_lock_irqsave(&rm->m_rs_lock, flags);
 		if (!test_bit(RDS_MSG_ON_SOCK, &rm->m_flags))
 			goto unlock_and_drop;
 
 		if (rs != rm->m_rs) {
 			if (rs) {
-				spin_unlock(&rs->rs_lock);
 				rds_wake_sk_sleep(rs);
 				sock_put(rds_rs_to_sk(rs));
 			}
 			rs = rm->m_rs;
-			spin_lock(&rs->rs_lock);
 			sock_hold(rds_rs_to_sk(rs));
 		}
+		spin_lock(&rs->rs_lock);
 
 		if (test_and_clear_bit(RDS_MSG_ON_SOCK, &rm->m_flags)) {
 			struct rds_rdma_op *ro = rm->m_rdma_op;
@@ -558,21 +558,22 @@ void rds_send_remove_from_sock(struct list_head *messages, int status)
 					notifier->n_status = status;
 				rm->m_rdma_op->r_notifier = NULL;
 			}
-			rds_message_put(rm);
+			was_on_sock = 1;
 			rm->m_rs = NULL;
 		}
+		spin_unlock(&rs->rs_lock);
 
 unlock_and_drop:
-		spin_unlock(&rm->m_rs_lock);
+		spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 		rds_message_put(rm);
+		if (was_on_sock)
+			rds_message_put(rm);
 	}
 
 	if (rs) {
-		spin_unlock(&rs->rs_lock);
 		rds_wake_sk_sleep(rs);
 		sock_put(rds_rs_to_sk(rs));
 	}
-	local_irq_restore(flags);
 }
 
 /*
@@ -634,9 +635,6 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		list_move(&rm->m_sock_item, &list);
 		rds_send_sndbuf_remove(rs, rm);
 		clear_bit(RDS_MSG_ON_SOCK, &rm->m_flags);
-
-		/* If this is a RDMA operation, notify the app. */
-		__rds_rdma_send_complete(rs, rm, RDS_RDMA_CANCELED);
 	}
 
 	/* order flag updates with the rs lock */
@@ -645,9 +643,6 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 
 	spin_unlock_irqrestore(&rs->rs_lock, flags);
 
-	if (wake)
-		rds_wake_sk_sleep(rs);
-
 	conn = NULL;
 
 	/* now remove the messages from the conn list as needed */
@@ -655,6 +650,10 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		/* We do this here rather than in the loop above, so that
 		 * we don't have to nest m_rs_lock under rs->rs_lock */
 		spin_lock_irqsave(&rm->m_rs_lock, flags2);
+		/* If this is a RDMA operation, notify the app. */
+		spin_lock(&rs->rs_lock);
+		__rds_rdma_send_complete(rs, rm, RDS_RDMA_CANCELED);
+		spin_unlock(&rs->rs_lock);
 		rm->m_rs = NULL;
 		spin_unlock_irqrestore(&rm->m_rs_lock, flags2);
 
@@ -682,6 +681,9 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 
 	if (conn)
 		spin_unlock_irqrestore(&conn->c_lock, flags);
+
+	if (wake)
+		rds_wake_sk_sleep(rs);
 
 	while (!list_empty(&list)) {
 		rm = list_entry(list.next, struct rds_message, m_sock_item);
@@ -816,7 +818,7 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	int ret = 0;
 	int queued = 0, allocated_mr = 0;
 	int nonblock = msg->msg_flags & MSG_DONTWAIT;
-	long timeo = sock_rcvtimeo(sk, nonblock);
+	long timeo = sock_sndtimeo(sk, nonblock);
 
 	/* Mirror Linux UDP mirror of BSD error message compatibility */
 	/* XXX: Perhaps MSG_MORE someday */
@@ -895,8 +897,10 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 		queue_delayed_work(rds_wq, &conn->c_conn_w, 0);
 
 	ret = rds_cong_wait(conn->c_fcong, dport, nonblock, rs);
-	if (ret)
+	if (ret) {
+		rs->rs_seen_congestion = 1;
 		goto out;
+	}
 
 	while (!rds_send_queue_rm(rs, conn, rm, rs->rs_bound_port,
 				  dport, &queued)) {
@@ -911,7 +915,7 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 			goto out;
 		}
 
-		timeo = wait_event_interruptible_timeout(*sk->sk_sleep,
+		timeo = wait_event_interruptible_timeout(*sk_sleep(sk),
 					rds_send_queue_rm(rs, conn, rm,
 							  rs->rs_bound_port,
 							  dport,

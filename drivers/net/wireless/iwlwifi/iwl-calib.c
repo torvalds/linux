@@ -593,7 +593,7 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 	IWL_DEBUG_CALIB(priv, "rx_enable_time = %u usecs\n", rx_enable_time);
 
 	if (!rx_enable_time) {
-		IWL_DEBUG_CALIB(priv, "<< RX Enable Time == 0! \n");
+		IWL_DEBUG_CALIB(priv, "<< RX Enable Time == 0!\n");
 		return;
 	}
 
@@ -638,8 +638,6 @@ void iwl_sensitivity_calibration(struct iwl_priv *priv,
 	iwl_sens_auto_corr_ofdm(priv, norm_fa_ofdm, rx_enable_time);
 	iwl_sens_energy_cck(priv, norm_fa_cck, rx_enable_time, &statis);
 	iwl_sensitivity_write(priv);
-
-	return;
 }
 EXPORT_SYMBOL(iwl_sensitivity_calibration);
 

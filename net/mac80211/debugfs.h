@@ -7,7 +7,6 @@ extern int mac80211_open_file_generic(struct inode *inode, struct file *file);
 #else
 static inline void debugfs_hw_add(struct ieee80211_local *local)
 {
-	return;
 }
 #endif
 

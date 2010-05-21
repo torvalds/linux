@@ -95,7 +95,6 @@ struct iwl3945_rs_sta {
 	u8 tgg;
 	u8 flush_pending;
 	u8 start_rate;
-	u8 ibss_sta_added;
 	struct timer_list rate_scale_flush;
 	struct iwl3945_rate_scale_data win[IWL_RATE_COUNT_3945];
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -107,7 +106,12 @@ struct iwl3945_rs_sta {
 };
 
 
+/*
+ * The common struct MUST be first because it is shared between
+ * 3945 and agn!
+ */
 struct iwl3945_sta_priv {
+	struct iwl_station_priv_common common;
 	struct iwl3945_rs_sta rs_sta;
 };
 
@@ -212,13 +216,6 @@ extern int iwl3945_dump_nic_event_log(struct iwl_priv *priv, bool full_log,
 				       char **buf, bool display);
 extern void iwl3945_dump_nic_error_log(struct iwl_priv *priv);
 
-/*
- * Currently used by iwl-3945-rs... look at restructuring so that it doesn't
- * call this... todo... fix that.
-*/
-extern u8 iwl3945_sync_station(struct iwl_priv *priv, int sta_id,
-			   u16 tx_rate, u8 flags);
-
 /******************************************************************************
  *
  * Functions implemented in iwl-[34]*.c which are forward declared here
@@ -265,10 +262,14 @@ extern int iwl3945_hw_reg_send_txpower(struct iwl_priv *priv);
 extern int iwl3945_hw_reg_set_txpower(struct iwl_priv *priv, s8 power);
 extern void iwl3945_hw_rx_statistics(struct iwl_priv *priv,
 				 struct iwl_rx_mem_buffer *rxb);
+void iwl3945_reply_statistics(struct iwl_priv *priv,
+			      struct iwl_rx_mem_buffer *rxb);
 extern void iwl3945_disable_events(struct iwl_priv *priv);
 extern int iwl4965_get_temperature(const struct iwl_priv *priv);
-extern void iwl3945_post_associate(struct iwl_priv *priv);
-extern void iwl3945_config_ap(struct iwl_priv *priv);
+extern void iwl3945_post_associate(struct iwl_priv *priv,
+				   struct ieee80211_vif *vif);
+extern void iwl3945_config_ap(struct iwl_priv *priv,
+			      struct ieee80211_vif *vif);
 
 /**
  * iwl3945_hw_find_station - Find station id for a given BSSID
@@ -287,13 +288,14 @@ extern __le32 iwl3945_get_antenna_flags(const struct iwl_priv *priv);
 extern int iwl3945_init_hw_rate_table(struct iwl_priv *priv);
 extern void iwl3945_reg_txpower_periodic(struct iwl_priv *priv);
 extern int iwl3945_txpower_set_from_eeprom(struct iwl_priv *priv);
-extern u8 iwl3945_sync_sta(struct iwl_priv *priv, int sta_id,
-		 u16 tx_rate, u8 flags);
 
 extern const struct iwl_channel_info *iwl3945_get_channel_info(
 	const struct iwl_priv *priv, enum ieee80211_band band, u16 channel);
 
 extern int iwl3945_rs_next_rate(struct iwl_priv *priv, int rate);
+
+/* scanning */
+void iwl3945_request_scan(struct iwl_priv *priv, struct ieee80211_vif *vif);
 
 /* Requires full declaration of iwl_priv before including */
 #include "iwl-io.h"

@@ -750,7 +750,6 @@ mwl8k_rxd_8366_ap_process(void *_rxd, struct ieee80211_rx_status *status,
 	memset(status, 0, sizeof(*status));
 
 	status->signal = -rxd->rssi;
-	status->noise = -rxd->noise_floor;
 
 	if (rxd->rate & MWL8K_8366_AP_RATE_INFO_MCS_FORMAT) {
 		status->flag |= RX_FLAG_HT;
@@ -852,7 +851,6 @@ mwl8k_rxd_sta_process(void *_rxd, struct ieee80211_rx_status *status,
 	memset(status, 0, sizeof(*status));
 
 	status->signal = -rxd->rssi;
-	status->noise = -rxd->noise_level;
 	status->antenna = MWL8K_STA_RATE_INFO_ANTSELECT(rate_info);
 	status->rate_idx = MWL8K_STA_RATE_INFO_RATEID(rate_info);
 
@@ -1939,11 +1937,15 @@ struct mwl8k_cmd_mac_multicast_adr {
 
 static struct mwl8k_cmd_pkt *
 __mwl8k_cmd_mac_multicast_adr(struct ieee80211_hw *hw, int allmulti,
-			      int mc_count, struct dev_addr_list *mclist)
+			      struct netdev_hw_addr_list *mc_list)
 {
 	struct mwl8k_priv *priv = hw->priv;
 	struct mwl8k_cmd_mac_multicast_adr *cmd;
 	int size;
+	int mc_count = 0;
+
+	if (mc_list)
+		mc_count = netdev_hw_addr_list_count(mc_list);
 
 	if (allmulti || mc_count > priv->num_mcaddrs) {
 		allmulti = 1;
@@ -1964,17 +1966,13 @@ __mwl8k_cmd_mac_multicast_adr(struct ieee80211_hw *hw, int allmulti,
 	if (allmulti) {
 		cmd->action |= cpu_to_le16(MWL8K_ENABLE_RX_ALL_MULTICAST);
 	} else if (mc_count) {
-		int i;
+		struct netdev_hw_addr *ha;
+		int i = 0;
 
 		cmd->action |= cpu_to_le16(MWL8K_ENABLE_RX_MULTICAST);
 		cmd->numaddr = cpu_to_le16(mc_count);
-		for (i = 0; i < mc_count && mclist; i++) {
-			if (mclist->da_addrlen != ETH_ALEN) {
-				kfree(cmd);
-				return NULL;
-			}
-			memcpy(cmd->addr[i], mclist->da_addr, ETH_ALEN);
-			mclist = mclist->next;
+		netdev_hw_addr_list_for_each(ha, mc_list) {
+			memcpy(cmd->addr[i], ha->addr, ETH_ALEN);
 		}
 	}
 
@@ -3553,7 +3551,7 @@ mwl8k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 static u64 mwl8k_prepare_multicast(struct ieee80211_hw *hw,
-				   int mc_count, struct dev_addr_list *mclist)
+				   struct netdev_hw_addr_list *mc_list)
 {
 	struct mwl8k_cmd_pkt *cmd;
 
@@ -3564,7 +3562,7 @@ static u64 mwl8k_prepare_multicast(struct ieee80211_hw *hw,
 	 * we'll end up throwing this packet away and creating a new
 	 * one in mwl8k_configure_filter().
 	 */
-	cmd = __mwl8k_cmd_mac_multicast_adr(hw, 0, mc_count, mclist);
+	cmd = __mwl8k_cmd_mac_multicast_adr(hw, 0, mc_list);
 
 	return (unsigned long)cmd;
 }
@@ -3687,7 +3685,7 @@ static void mwl8k_configure_filter(struct ieee80211_hw *hw,
 	 */
 	if (*total_flags & FIF_ALLMULTI) {
 		kfree(cmd);
-		cmd = __mwl8k_cmd_mac_multicast_adr(hw, 1, 0, NULL);
+		cmd = __mwl8k_cmd_mac_multicast_adr(hw, 1, NULL);
 	}
 
 	if (cmd != NULL) {
@@ -3984,8 +3982,8 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 
 	hw->queues = MWL8K_TX_QUEUES;
 
-	/* Set rssi and noise values to dBm */
-	hw->flags |= IEEE80211_HW_SIGNAL_DBM | IEEE80211_HW_NOISE_DBM;
+	/* Set rssi values to dBm */
+	hw->flags |= IEEE80211_HW_SIGNAL_DBM;
 	hw->vif_data_size = sizeof(struct mwl8k_vif);
 	hw->sta_data_size = sizeof(struct mwl8k_sta);
 

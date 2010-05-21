@@ -1262,24 +1262,21 @@ s32 e1000e_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed, u16 *dup
 	u32 status;
 
 	status = er32(STATUS);
-	if (status & E1000_STATUS_SPEED_1000) {
+	if (status & E1000_STATUS_SPEED_1000)
 		*speed = SPEED_1000;
-		e_dbg("1000 Mbs, ");
-	} else if (status & E1000_STATUS_SPEED_100) {
+	else if (status & E1000_STATUS_SPEED_100)
 		*speed = SPEED_100;
-		e_dbg("100 Mbs, ");
-	} else {
+	else
 		*speed = SPEED_10;
-		e_dbg("10 Mbs, ");
-	}
 
-	if (status & E1000_STATUS_FD) {
+	if (status & E1000_STATUS_FD)
 		*duplex = FULL_DUPLEX;
-		e_dbg("Full Duplex\n");
-	} else {
+	else
 		*duplex = HALF_DUPLEX;
-		e_dbg("Half Duplex\n");
-	}
+
+	e_dbg("%u Mbps, %s Duplex\n",
+	      *speed == SPEED_1000 ? 1000 : *speed == SPEED_100 ? 100 : 10,
+	      *duplex == FULL_DUPLEX ? "Full" : "Half");
 
 	return 0;
 }
@@ -2275,6 +2272,11 @@ static s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
 	u32 hicr;
 	u8 i;
 
+	if (!(hw->mac.arc_subsystem_valid)) {
+		e_dbg("ARC subsystem not valid.\n");
+		return -E1000_ERR_HOST_INTERFACE_COMMAND;
+	}
+
 	/* Check that the host interface is enabled. */
 	hicr = er32(HICR);
 	if ((hicr & E1000_HICR_EN) == 0) {
@@ -2518,10 +2520,11 @@ s32 e1000e_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length)
 }
 
 /**
- *  e1000e_enable_mng_pass_thru - Enable processing of ARP's
+ *  e1000e_enable_mng_pass_thru - Check if management passthrough is needed
  *  @hw: pointer to the HW structure
  *
- *  Verifies the hardware needs to allow ARPs to be processed by the host.
+ *  Verifies the hardware needs to leave interface enabled so that frames can
+ *  be directed to and from the management interface.
  **/
 bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 {
@@ -2531,11 +2534,10 @@ bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 
 	manc = er32(MANC);
 
-	if (!(manc & E1000_MANC_RCV_TCO_EN) ||
-	    !(manc & E1000_MANC_EN_MAC_ADDR_FILTER))
-		return ret_val;
+	if (!(manc & E1000_MANC_RCV_TCO_EN))
+		goto out;
 
-	if (hw->mac.arc_subsystem_valid) {
+	if (hw->mac.has_fwsm) {
 		fwsm = er32(FWSM);
 		factps = er32(FACTPS);
 
@@ -2543,16 +2545,28 @@ bool e1000e_enable_mng_pass_thru(struct e1000_hw *hw)
 		    ((fwsm & E1000_FWSM_MODE_MASK) ==
 		     (e1000_mng_mode_pt << E1000_FWSM_MODE_SHIFT))) {
 			ret_val = true;
-			return ret_val;
+			goto out;
 		}
-	} else {
-		if ((manc & E1000_MANC_SMBUS_EN) &&
+	} else if ((hw->mac.type == e1000_82574) ||
+		   (hw->mac.type == e1000_82583)) {
+		u16 data;
+
+		factps = er32(FACTPS);
+		e1000_read_nvm(hw, NVM_INIT_CONTROL2_REG, 1, &data);
+
+		if (!(factps & E1000_FACTPS_MNGCG) &&
+		    ((data & E1000_NVM_INIT_CTRL2_MNGM) ==
+		     (e1000_mng_mode_pt << 13))) {
+			ret_val = true;
+			goto out;
+		}
+	} else if ((manc & E1000_MANC_SMBUS_EN) &&
 		    !(manc & E1000_MANC_ASF_EN)) {
 			ret_val = true;
-			return ret_val;
-		}
+			goto out;
 	}
 
+out:
 	return ret_val;
 }
 

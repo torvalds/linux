@@ -1467,7 +1467,6 @@ static netdev_tx_t rr_start_xmit(struct sk_buff *skb,
 
 	spin_unlock_irqrestore(&rrpriv->lock, flags);
 
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 

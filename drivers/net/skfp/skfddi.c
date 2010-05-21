@@ -844,7 +844,6 @@ static void skfp_ctl_set_multicast_list(struct net_device *dev)
 	spin_lock_irqsave(&bp->DriverLock, Flags);
 	skfp_ctl_set_multicast_list_wo_lock(dev);
 	spin_unlock_irqrestore(&bp->DriverLock, Flags);
-	return;
 }				// skfp_ctl_set_multicast_list
 
 
@@ -852,7 +851,7 @@ static void skfp_ctl_set_multicast_list(struct net_device *dev)
 static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
 {
 	struct s_smc *smc = netdev_priv(dev);
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 
 	/* Enable promiscuous mode, if necessary */
 	if (dev->flags & IFF_PROMISC) {
@@ -876,13 +875,13 @@ static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
 				/* use exact filtering */
 
 				// point to first multicast addr
-				netdev_for_each_mc_addr(dmi, dev) {
-					mac_add_multicast(smc, 
-							  (struct fddi_addr *)dmi->dmi_addr, 
-							  1);
+				netdev_for_each_mc_addr(ha, dev) {
+					mac_add_multicast(smc,
+						(struct fddi_addr *)ha->addr,
+						1);
 
 					pr_debug(KERN_INFO "ENABLE MC ADDRESS: %pMF\n",
-						dmi->dmi_addr);
+						ha->addr);
 				}
 
 			} else {	// more MC addresses than HW supports
@@ -898,7 +897,6 @@ static void skfp_ctl_set_multicast_list_wo_lock(struct net_device *dev)
 		/* Update adapter filters */
 		mac_update_multicast(smc);
 	}
-	return;
 }				// skfp_ctl_set_multicast_list_wo_lock
 
 
@@ -1076,7 +1074,6 @@ static netdev_tx_t skfp_send_pkt(struct sk_buff *skb,
 	if (bp->QueueSkb == 0) {
 		netif_stop_queue(dev);
 	}
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 
 }				// skfp_send_pkt

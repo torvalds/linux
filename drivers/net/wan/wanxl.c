@@ -298,7 +298,6 @@ static netdev_tx_t wanxl_xmit(struct sk_buff *skb, struct net_device *dev)
 	desc->stat = PACKET_FULL;
 	writel(1 << (DOORBELL_TO_CARD_TX_0 + port->node),
 	       port->card->plx + PLX_DOORBELL_TO_CARD);
-	dev->trans_start = jiffies;
 
 	port->tx_out = (port->tx_out + 1) % TX_BUFFERS;
 

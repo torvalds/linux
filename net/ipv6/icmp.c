@@ -481,8 +481,9 @@ route_done:
 			      len + sizeof(struct icmp6hdr),
 			      sizeof(struct icmp6hdr), hlimit,
 			      np->tclass, NULL, &fl, (struct rt6_info*)dst,
-			      MSG_DONTWAIT);
+			      MSG_DONTWAIT, np->dontfrag);
 	if (err) {
+		ICMP6_INC_STATS_BH(net, idev, ICMP6_MIB_OUTMSGS);
 		ip6_flush_pending_frames(sk);
 		goto out_put;
 	}
@@ -560,9 +561,11 @@ static void icmpv6_echo_reply(struct sk_buff *skb)
 
 	err = ip6_append_data(sk, icmpv6_getfrag, &msg, skb->len + sizeof(struct icmp6hdr),
 				sizeof(struct icmp6hdr), hlimit, np->tclass, NULL, &fl,
-				(struct rt6_info*)dst, MSG_DONTWAIT);
+				(struct rt6_info*)dst, MSG_DONTWAIT,
+				np->dontfrag);
 
 	if (err) {
+		ICMP6_INC_STATS_BH(net, idev, ICMP6_MIB_OUTMSGS);
 		ip6_flush_pending_frames(sk);
 		goto out_put;
 	}

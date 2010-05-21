@@ -144,12 +144,6 @@ static struct packet_type llc_tr_packet_type __read_mostly = {
 
 static int __init llc_init(void)
 {
-	struct net_device *dev;
-
-	dev = first_net_device(&init_net);
-	if (dev != NULL)
-		dev = next_net_device(dev);
-
 	dev_add_pack(&llc_packet_type);
 	dev_add_pack(&llc_tr_packet_type);
 	return 0;

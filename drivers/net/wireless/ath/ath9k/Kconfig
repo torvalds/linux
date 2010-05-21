@@ -32,3 +32,24 @@ config ATH9K_DEBUGFS
 
 	  Also required for changing debug message flags at run time.
 
+config ATH9K_HTC
+       tristate "Atheros HTC based wireless cards support"
+       depends on USB && MAC80211
+       select ATH9K_HW
+       select MAC80211_LEDS
+       select LEDS_CLASS
+       select NEW_LEDS
+       select ATH9K_COMMON
+       ---help---
+	 Support for Atheros HTC based cards.
+	 Chipsets supported: AR9271
+
+	 For more information: http://wireless.kernel.org/en/users/Drivers/ath9k_htc
+
+	 The built module will be ath9k_htc.
+
+config ATH9K_HTC_DEBUGFS
+	bool "Atheros ath9k_htc debugging"
+	depends on ATH9K_HTC && DEBUG_FS
+	---help---
+	  Say Y, if you need access to ath9k_htc's statistics.

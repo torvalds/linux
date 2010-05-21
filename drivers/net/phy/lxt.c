@@ -173,3 +173,11 @@ static void __exit lxt_exit(void)
 
 module_init(lxt_init);
 module_exit(lxt_exit);
+
+static struct mdio_device_id lxt_tbl[] = {
+	{ 0x78100000, 0xfffffff0 },
+	{ 0x001378e0, 0xfffffff0 },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(mdio, lxt_tbl);

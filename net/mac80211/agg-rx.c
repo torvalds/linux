@@ -19,23 +19,25 @@
 #include "ieee80211_i.h"
 #include "driver-ops.h"
 
-void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
-				    u16 initiator, u16 reason)
+static void ___ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
+					    u16 initiator, u16 reason,
+					    bool from_timer)
 {
 	struct ieee80211_local *local = sta->local;
+	struct tid_ampdu_rx *tid_rx;
 	int i;
 
-	/* check if TID is in operational state */
 	spin_lock_bh(&sta->lock);
-	if (sta->ampdu_mlme.tid_state_rx[tid] != HT_AGG_STATE_OPERATIONAL) {
+
+	/* check if TID is in operational state */
+	if (!sta->ampdu_mlme.tid_active_rx[tid]) {
 		spin_unlock_bh(&sta->lock);
 		return;
 	}
 
-	sta->ampdu_mlme.tid_state_rx[tid] =
-		HT_AGG_STATE_REQ_STOP_BA_MSK |
-		(initiator << HT_AGG_STATE_INITIATOR_SHIFT);
-	spin_unlock_bh(&sta->lock);
+	sta->ampdu_mlme.tid_active_rx[tid] = false;
+
+	tid_rx = sta->ampdu_mlme.tid_rx[tid];
 
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "Rx BA session stop requested for %pM tid %u\n",
@@ -47,61 +49,42 @@ void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
 		printk(KERN_DEBUG "HW problem - can not stop rx "
 				"aggregation for tid %d\n", tid);
 
-	/* shutdown timer has not expired */
-	if (initiator != WLAN_BACK_TIMER)
-		del_timer_sync(&sta->ampdu_mlme.tid_rx[tid]->session_timer);
-
 	/* check if this is a self generated aggregation halt */
-	if (initiator == WLAN_BACK_RECIPIENT || initiator == WLAN_BACK_TIMER)
+	if (initiator == WLAN_BACK_RECIPIENT)
 		ieee80211_send_delba(sta->sdata, sta->sta.addr,
 				     tid, 0, reason);
 
 	/* free the reordering buffer */
-	for (i = 0; i < sta->ampdu_mlme.tid_rx[tid]->buf_size; i++) {
-		if (sta->ampdu_mlme.tid_rx[tid]->reorder_buf[i]) {
+	for (i = 0; i < tid_rx->buf_size; i++) {
+		if (tid_rx->reorder_buf[i]) {
 			/* release the reordered frames */
-			dev_kfree_skb(sta->ampdu_mlme.tid_rx[tid]->reorder_buf[i]);
-			sta->ampdu_mlme.tid_rx[tid]->stored_mpdu_num--;
-			sta->ampdu_mlme.tid_rx[tid]->reorder_buf[i] = NULL;
+			dev_kfree_skb(tid_rx->reorder_buf[i]);
+			tid_rx->stored_mpdu_num--;
+			tid_rx->reorder_buf[i] = NULL;
 		}
 	}
 
-	spin_lock_bh(&sta->lock);
 	/* free resources */
-	kfree(sta->ampdu_mlme.tid_rx[tid]->reorder_buf);
-	kfree(sta->ampdu_mlme.tid_rx[tid]->reorder_time);
+	kfree(tid_rx->reorder_buf);
+	kfree(tid_rx->reorder_time);
+	sta->ampdu_mlme.tid_rx[tid] = NULL;
 
-	if (!sta->ampdu_mlme.tid_rx[tid]->shutdown) {
-		kfree(sta->ampdu_mlme.tid_rx[tid]);
-		sta->ampdu_mlme.tid_rx[tid] = NULL;
-	}
-
-	sta->ampdu_mlme.tid_state_rx[tid] = HT_AGG_STATE_IDLE;
 	spin_unlock_bh(&sta->lock);
+
+	if (!from_timer)
+		del_timer_sync(&tid_rx->session_timer);
+	kfree(tid_rx);
 }
 
-void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *ra, u16 tid,
-					u16 initiator, u16 reason)
+void __ieee80211_stop_rx_ba_session(struct sta_info *sta, u16 tid,
+				    u16 initiator, u16 reason)
 {
-	struct sta_info *sta;
-
-	rcu_read_lock();
-
-	sta = sta_info_get(sdata, ra);
-	if (!sta) {
-		rcu_read_unlock();
-		return;
-	}
-
-	__ieee80211_stop_rx_ba_session(sta, tid, initiator, reason);
-
-	rcu_read_unlock();
+	___ieee80211_stop_rx_ba_session(sta, tid, initiator, reason, false);
 }
 
 /*
  * After accepting the AddBA Request we activated a timer,
  * resetting it after each frame that arrives from the originator.
- * if this timer expires ieee80211_sta_stop_rx_ba_session will be executed.
  */
 static void sta_rx_agg_session_timer_expired(unsigned long data)
 {
@@ -117,9 +100,8 @@ static void sta_rx_agg_session_timer_expired(unsigned long data)
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "rx session timer expired on tid %d\n", (u16)*ptid);
 #endif
-	ieee80211_sta_stop_rx_ba_session(sta->sdata, sta->sta.addr,
-					 (u16)*ptid, WLAN_BACK_TIMER,
-					 WLAN_REASON_QSTA_TIMEOUT);
+	___ieee80211_stop_rx_ba_session(sta, *ptid, WLAN_BACK_RECIPIENT,
+					WLAN_REASON_QSTA_TIMEOUT, true);
 }
 
 static void ieee80211_send_addba_resp(struct ieee80211_sub_if_data *sdata, u8 *da, u16 tid,
@@ -194,7 +176,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 	status = WLAN_STATUS_REQUEST_DECLINED;
 
-	if (test_sta_flags(sta, WLAN_STA_SUSPEND)) {
+	if (test_sta_flags(sta, WLAN_STA_BLOCK_BA)) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		printk(KERN_DEBUG "Suspend in progress. "
 		       "Denying ADDBA request\n");
@@ -232,7 +214,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	/* examine state machine */
 	spin_lock_bh(&sta->lock);
 
-	if (sta->ampdu_mlme.tid_state_rx[tid] != HT_AGG_STATE_IDLE) {
+	if (sta->ampdu_mlme.tid_active_rx[tid]) {
 #ifdef CONFIG_MAC80211_HT_DEBUG
 		if (net_ratelimit())
 			printk(KERN_DEBUG "unexpected AddBA Req from "
@@ -294,7 +276,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 	}
 
 	/* change state and send addba resp */
-	sta->ampdu_mlme.tid_state_rx[tid] = HT_AGG_STATE_OPERATIONAL;
+	sta->ampdu_mlme.tid_active_rx[tid] = true;
 	tid_agg_rx->dialog_token = dialog_token;
 	tid_agg_rx->ssn = start_seq_num;
 	tid_agg_rx->head_seq_num = start_seq_num;

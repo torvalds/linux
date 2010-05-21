@@ -142,11 +142,9 @@ static int mcs7830_set_reg(struct usbnet *dev, u16 index, u16 size, const void *
 	int ret;
 	void *buffer;
 
-	buffer = kmalloc(size, GFP_NOIO);
+	buffer = kmemdup(data, size, GFP_NOIO);
 	if (buffer == NULL)
 		return -ENOMEM;
-
-	memcpy(buffer, data, size);
 
 	ret = usb_control_msg(xdev, usb_sndctrlpipe(xdev, 0), MCS7830_WR_BREQ,
 			      MCS7830_WR_BMREQ, 0x0000, index, buffer,
@@ -453,12 +451,12 @@ static void mcs7830_data_set_multicast(struct net_device *net)
 		 * for our 8 byte filter buffer
 		 * to avoid allocating memory that
 		 * is tricky to free later */
-		struct dev_mc_list *mc_list;
+		struct netdev_hw_addr *ha;
 		u32 crc_bits;
 
 		/* Build the multicast hash filter. */
-		netdev_for_each_mc_addr(mc_list, net) {
-			crc_bits = ether_crc(ETH_ALEN, mc_list->dmi_addr) >> 26;
+		netdev_for_each_mc_addr(ha, net) {
+			crc_bits = ether_crc(ETH_ALEN, ha->addr) >> 26;
 			data->multi_filter[crc_bits >> 3] |= 1 << (crc_bits & 7);
 		}
 	}

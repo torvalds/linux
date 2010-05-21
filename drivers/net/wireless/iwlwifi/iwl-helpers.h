@@ -31,6 +31,9 @@
 #define __iwl_helpers_h__
 
 #include <linux/ctype.h>
+#include <net/mac80211.h>
+
+#include "iwl-io.h"
 
 #define IWL_MASK(lo, hi) ((1 << (hi)) | ((1 << (hi)) - (1 << (lo))))
 

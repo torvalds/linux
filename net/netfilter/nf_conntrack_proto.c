@@ -14,12 +14,10 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
-#include <linux/skbuff.h>
 #include <linux/vmalloc.h>
 #include <linux/stddef.h>
 #include <linux/err.h>
 #include <linux/percpu.h>
-#include <linux/moduleparam.h>
 #include <linux/notifier.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -119,9 +117,13 @@ void nf_ct_l3proto_module_put(unsigned short l3proto)
 {
 	struct nf_conntrack_l3proto *p;
 
-	/* rcu_read_lock not necessary since the caller holds a reference */
+	/* rcu_read_lock not necessary since the caller holds a reference, but
+	 * taken anyways to avoid lockdep warnings in __nf_ct_l3proto_find()
+	 */
+	rcu_read_lock();
 	p = __nf_ct_l3proto_find(l3proto);
 	module_put(p->me);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(nf_ct_l3proto_module_put);
 

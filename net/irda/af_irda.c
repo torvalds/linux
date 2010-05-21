@@ -347,7 +347,7 @@ static void irda_flow_indication(void *instance, void *sap, LOCAL_FLOW flow)
 		self->tx_flow = flow;
 		IRDA_DEBUG(1, "%s(), IrTTP wants us to start again\n",
 			   __func__);
-		wake_up_interruptible(sk->sk_sleep);
+		wake_up_interruptible(sk_sleep(sk));
 		break;
 	default:
 		IRDA_DEBUG(0, "%s(), Unknown flow command!\n", __func__);
@@ -900,7 +900,7 @@ static int irda_accept(struct socket *sock, struct socket *newsock, int flags)
 		if (flags & O_NONBLOCK)
 			goto out;
 
-		err = wait_event_interruptible(*(sk->sk_sleep),
+		err = wait_event_interruptible(*(sk_sleep(sk)),
 					skb_peek(&sk->sk_receive_queue));
 		if (err)
 			goto out;
@@ -1066,7 +1066,7 @@ static int irda_connect(struct socket *sock, struct sockaddr *uaddr,
 		goto out;
 
 	err = -ERESTARTSYS;
-	if (wait_event_interruptible(*(sk->sk_sleep),
+	if (wait_event_interruptible(*(sk_sleep(sk)),
 				     (sk->sk_state != TCP_SYN_SENT)))
 		goto out;
 
@@ -1318,7 +1318,7 @@ static int irda_sendmsg(struct kiocb *iocb, struct socket *sock,
 
 	/* Check if IrTTP is wants us to slow down */
 
-	if (wait_event_interruptible(*(sk->sk_sleep),
+	if (wait_event_interruptible(*(sk_sleep(sk)),
 	    (self->tx_flow != FLOW_STOP  ||  sk->sk_state != TCP_ESTABLISHED))) {
 		err = -ERESTARTSYS;
 		goto out;
@@ -1477,7 +1477,7 @@ static int irda_recvmsg_stream(struct kiocb *iocb, struct socket *sock,
 			if (copied >= target)
 				break;
 
-			prepare_to_wait_exclusive(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+			prepare_to_wait_exclusive(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
 			/*
 			 *	POSIX 1003.1g mandates this order.
@@ -1497,7 +1497,7 @@ static int irda_recvmsg_stream(struct kiocb *iocb, struct socket *sock,
 				/* Wait process until data arrives */
 				schedule();
 
-			finish_wait(sk->sk_sleep, &wait);
+			finish_wait(sk_sleep(sk), &wait);
 
 			if (err)
 				goto out;
@@ -1787,7 +1787,7 @@ static unsigned int irda_poll(struct file * file, struct socket *sock,
 	IRDA_DEBUG(4, "%s()\n", __func__);
 
 	lock_kernel();
-	poll_wait(file, sk->sk_sleep, wait);
+	poll_wait(file, sk_sleep(sk), wait);
 	mask = 0;
 
 	/* Exceptional events? */

@@ -328,7 +328,7 @@ static int cpmac_config(struct net_device *dev, struct ifmap *map)
 
 static void cpmac_set_multicast_list(struct net_device *dev)
 {
-	struct dev_mc_list *iter;
+	struct netdev_hw_addr *ha;
 	u8 tmp;
 	u32 mbp, bit, hash[2] = { 0, };
 	struct cpmac_priv *priv = netdev_priv(dev);
@@ -348,19 +348,19 @@ static void cpmac_set_multicast_list(struct net_device *dev)
 			 * cpmac uses some strange mac address hashing
 			 * (not crc32)
 			 */
-			netdev_for_each_mc_addr(iter, dev) {
+			netdev_for_each_mc_addr(ha, dev) {
 				bit = 0;
-				tmp = iter->dmi_addr[0];
+				tmp = ha->addr[0];
 				bit  ^= (tmp >> 2) ^ (tmp << 4);
-				tmp = iter->dmi_addr[1];
+				tmp = ha->addr[1];
 				bit  ^= (tmp >> 4) ^ (tmp << 2);
-				tmp = iter->dmi_addr[2];
+				tmp = ha->addr[2];
 				bit  ^= (tmp >> 6) ^ tmp;
-				tmp = iter->dmi_addr[3];
+				tmp = ha->addr[3];
 				bit  ^= (tmp >> 2) ^ (tmp << 4);
-				tmp = iter->dmi_addr[4];
+				tmp = ha->addr[4];
 				bit  ^= (tmp >> 4) ^ (tmp << 2);
-				tmp = iter->dmi_addr[5];
+				tmp = ha->addr[5];
 				bit  ^= (tmp >> 6) ^ tmp;
 				bit &= 0x3f;
 				hash[bit / 32] |= 1 << (bit % 32);
@@ -579,7 +579,6 @@ static int cpmac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	spin_lock(&priv->lock);
-	dev->trans_start = jiffies;
 	spin_unlock(&priv->lock);
 	desc->dataflags = CPMAC_SOP | CPMAC_EOP | CPMAC_OWN;
 	desc->skb = skb;

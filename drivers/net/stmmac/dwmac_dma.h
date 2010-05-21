@@ -95,6 +95,7 @@
 #define DMA_STATUS_TU	0x00000004	/* Transmit Buffer Unavailable */
 #define DMA_STATUS_TPS	0x00000002	/* Transmit Process Stopped */
 #define DMA_STATUS_TI	0x00000001	/* Transmit Interrupt */
+#define DMA_CONTROL_FTF		0x00100000 /* Flush transmit FIFO */
 
 extern void dwmac_enable_dma_transmission(unsigned long ioaddr);
 extern void dwmac_enable_dma_irq(unsigned long ioaddr);

@@ -652,7 +652,6 @@ static void mdio_write(struct net_device *dev, int phy_id, int loc, int value)
 		if ((inl(ioaddr + MIICtrl) & MII_WRITEOP) == 0)
 			break;
 	}
-	return;
 }
 
 
@@ -840,7 +839,6 @@ static void epic_restart(struct net_device *dev)
 		   " interrupt %4.4x.\n",
 		   dev->name, (int)inl(ioaddr + COMMAND), (int)inl(ioaddr + GENCTL),
 		   (int)inl(ioaddr + INTSTAT));
-	return;
 }
 
 static void check_media(struct net_device *dev)
@@ -908,7 +906,7 @@ static void epic_tx_timeout(struct net_device *dev)
 		outl(TxQueued, dev->base_addr + COMMAND);
 	}
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	ep->stats.tx_errors++;
 	if (!ep->tx_full)
 		netif_wake_queue(dev);
@@ -958,7 +956,6 @@ static void epic_init_ring(struct net_device *dev)
 			(i+1)*sizeof(struct epic_tx_desc);
 	}
 	ep->tx_ring[i-1].next = ep->tx_ring_dma;
-	return;
 }
 
 static netdev_tx_t epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -1006,7 +1003,6 @@ static netdev_tx_t epic_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* Trigger an immediate transmit demand. */
 	outl(TxQueued, dev->base_addr + COMMAND);
 
-	dev->trans_start = jiffies;
 	if (debug > 4)
 		printk(KERN_DEBUG "%s: Queued Tx packet size %d to slot %d, "
 			   "flag %2.2x Tx status %8.8x.\n",
@@ -1399,12 +1395,12 @@ static void set_rx_mode(struct net_device *dev)
 		outl(0x0004, ioaddr + RxCtrl);
 		return;
 	} else {					/* Never executed, for now. */
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		netdev_for_each_mc_addr(mclist, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			unsigned int bit_nr =
-				ether_crc_le(ETH_ALEN, mclist->dmi_addr) & 0x3f;
+				ether_crc_le(ETH_ALEN, ha->addr) & 0x3f;
 			mc_filter[bit_nr >> 3] |= (1 << bit_nr);
 		}
 	}
@@ -1414,7 +1410,6 @@ static void set_rx_mode(struct net_device *dev)
 			outw(((u16 *)mc_filter)[i], ioaddr + MC0 + i*4);
 		memcpy(ep->mc_filter, mc_filter, sizeof(mc_filter));
 	}
-	return;
 }
 
 static void netdev_get_drvinfo (struct net_device *dev, struct ethtool_drvinfo *info)

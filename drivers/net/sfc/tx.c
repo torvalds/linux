@@ -30,32 +30,46 @@
  */
 #define EFX_TXQ_THRESHOLD (EFX_TXQ_MASK / 2u)
 
-/* We want to be able to nest calls to netif_stop_queue(), since each
- * channel can have an individual stop on the queue.
- */
-void efx_stop_queue(struct efx_nic *efx)
+/* We need to be able to nest calls to netif_tx_stop_queue(), partly
+ * because of the 2 hardware queues associated with each core queue,
+ * but also so that we can inhibit TX for reasons other than a full
+ * hardware queue. */
+void efx_stop_queue(struct efx_channel *channel)
 {
-	spin_lock_bh(&efx->netif_stop_lock);
+	struct efx_nic *efx = channel->efx;
+
+	if (!channel->tx_queue)
+		return;
+
+	spin_lock_bh(&channel->tx_stop_lock);
 	EFX_TRACE(efx, "stop TX queue\n");
 
-	atomic_inc(&efx->netif_stop_count);
-	netif_stop_queue(efx->net_dev);
+	atomic_inc(&channel->tx_stop_count);
+	netif_tx_stop_queue(
+		netdev_get_tx_queue(
+			efx->net_dev,
+			channel->tx_queue->queue / EFX_TXQ_TYPES));
 
-	spin_unlock_bh(&efx->netif_stop_lock);
+	spin_unlock_bh(&channel->tx_stop_lock);
 }
 
-/* Wake netif's TX queue
- * We want to be able to nest calls to netif_stop_queue(), since each
- * channel can have an individual stop on the queue.
- */
-void efx_wake_queue(struct efx_nic *efx)
+/* Decrement core TX queue stop count and wake it if the count is 0 */
+void efx_wake_queue(struct efx_channel *channel)
 {
+	struct efx_nic *efx = channel->efx;
+
+	if (!channel->tx_queue)
+		return;
+
 	local_bh_disable();
-	if (atomic_dec_and_lock(&efx->netif_stop_count,
-				&efx->netif_stop_lock)) {
+	if (atomic_dec_and_lock(&channel->tx_stop_count,
+				&channel->tx_stop_lock)) {
 		EFX_TRACE(efx, "waking TX queue\n");
-		netif_wake_queue(efx->net_dev);
-		spin_unlock(&efx->netif_stop_lock);
+		netif_tx_wake_queue(
+			netdev_get_tx_queue(
+				efx->net_dev,
+				channel->tx_queue->queue / EFX_TXQ_TYPES));
+		spin_unlock(&channel->tx_stop_lock);
 	}
 	local_bh_enable();
 }
@@ -298,7 +312,7 @@ netdev_tx_t efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb)
 	rc = NETDEV_TX_BUSY;
 
 	if (tx_queue->stopped == 1)
-		efx_stop_queue(efx);
+		efx_stop_queue(tx_queue->channel);
 
  unwind:
 	/* Work backwards until we hit the original insert pointer value */
@@ -374,10 +388,9 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 	if (unlikely(efx->port_inhibited))
 		return NETDEV_TX_BUSY;
 
+	tx_queue = &efx->tx_queue[EFX_TXQ_TYPES * skb_get_queue_mapping(skb)];
 	if (likely(skb->ip_summed == CHECKSUM_PARTIAL))
-		tx_queue = &efx->tx_queue[EFX_TX_QUEUE_OFFLOAD_CSUM];
-	else
-		tx_queue = &efx->tx_queue[EFX_TX_QUEUE_NO_CSUM];
+		tx_queue += EFX_TXQ_TYPE_OFFLOAD;
 
 	return efx_enqueue_skb(tx_queue, skb);
 }
@@ -405,7 +418,7 @@ void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
 			netif_tx_lock(efx->net_dev);
 			if (tx_queue->stopped) {
 				tx_queue->stopped = 0;
-				efx_wake_queue(efx);
+				efx_wake_queue(tx_queue->channel);
 			}
 			netif_tx_unlock(efx->net_dev);
 		}
@@ -488,7 +501,7 @@ void efx_fini_tx_queue(struct efx_tx_queue *tx_queue)
 	/* Release queue's stop on port, if any */
 	if (tx_queue->stopped) {
 		tx_queue->stopped = 0;
-		efx_wake_queue(tx_queue->efx);
+		efx_wake_queue(tx_queue->channel);
 	}
 }
 
@@ -1120,7 +1133,7 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 
 	/* Stop the queue if it wasn't stopped before. */
 	if (tx_queue->stopped == 1)
-		efx_stop_queue(efx);
+		efx_stop_queue(tx_queue->channel);
 
  unwind:
 	/* Free the DMA mapping we were in the process of writing out */

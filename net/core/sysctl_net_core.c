@@ -11,11 +11,71 @@
 #include <linux/socket.h>
 #include <linux/netdevice.h>
 #include <linux/ratelimit.h>
+#include <linux/vmalloc.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 
 #include <net/ip.h>
 #include <net/sock.h>
+
+#ifdef CONFIG_RPS
+static int rps_sock_flow_sysctl(ctl_table *table, int write,
+				void __user *buffer, size_t *lenp, loff_t *ppos)
+{
+	unsigned int orig_size, size;
+	int ret, i;
+	ctl_table tmp = {
+		.data = &size,
+		.maxlen = sizeof(size),
+		.mode = table->mode
+	};
+	struct rps_sock_flow_table *orig_sock_table, *sock_table;
+	static DEFINE_MUTEX(sock_flow_mutex);
+
+	mutex_lock(&sock_flow_mutex);
+
+	orig_sock_table = rps_sock_flow_table;
+	size = orig_size = orig_sock_table ? orig_sock_table->mask + 1 : 0;
+
+	ret = proc_dointvec(&tmp, write, buffer, lenp, ppos);
+
+	if (write) {
+		if (size) {
+			if (size > 1<<30) {
+				/* Enforce limit to prevent overflow */
+				mutex_unlock(&sock_flow_mutex);
+				return -EINVAL;
+			}
+			size = roundup_pow_of_two(size);
+			if (size != orig_size) {
+				sock_table =
+				    vmalloc(RPS_SOCK_FLOW_TABLE_SIZE(size));
+				if (!sock_table) {
+					mutex_unlock(&sock_flow_mutex);
+					return -ENOMEM;
+				}
+
+				sock_table->mask = size - 1;
+			} else
+				sock_table = orig_sock_table;
+
+			for (i = 0; i < size; i++)
+				sock_table->ents[i] = RPS_NO_CPU;
+		} else
+			sock_table = NULL;
+
+		if (sock_table != orig_sock_table) {
+			rcu_assign_pointer(rps_sock_flow_table, sock_table);
+			synchronize_rcu();
+			vfree(orig_sock_table);
+		}
+	}
+
+	mutex_unlock(&sock_flow_mutex);
+
+	return ret;
+}
+#endif /* CONFIG_RPS */
 
 static struct ctl_table net_core_table[] = {
 #ifdef CONFIG_NET
@@ -62,6 +122,13 @@ static struct ctl_table net_core_table[] = {
 		.proc_handler	= proc_dointvec
 	},
 	{
+		.procname	= "netdev_tstamp_prequeue",
+		.data		= &netdev_tstamp_prequeue,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec
+	},
+	{
 		.procname	= "message_cost",
 		.data		= &net_ratelimit_state.interval,
 		.maxlen		= sizeof(int),
@@ -82,6 +149,14 @@ static struct ctl_table net_core_table[] = {
 		.mode		= 0644,
 		.proc_handler	= proc_dointvec
 	},
+#ifdef CONFIG_RPS
+	{
+		.procname	= "rps_sock_flow_entries",
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= rps_sock_flow_sysctl
+	},
+#endif
 #endif /* CONFIG_NET */
 	{
 		.procname	= "netdev_budget",

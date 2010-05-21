@@ -303,7 +303,6 @@ static unsigned long prio_bind(struct Qdisc *sch, unsigned long parent, u32 clas
 
 static void prio_put(struct Qdisc *q, unsigned long cl)
 {
-	return;
 }
 
 static int prio_dump_class(struct Qdisc *sch, unsigned long cl, struct sk_buff *skb,

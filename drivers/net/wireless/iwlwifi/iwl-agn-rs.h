@@ -403,7 +403,6 @@ struct iwl_lq_sta {
 	u8 is_green;
 	u8 is_dup;
 	enum ieee80211_band band;
-	u8 ibss_sta_added;
 
 	/* The following are bitmaps of rates; IWL_RATE_6M_MASK, etc. */
 	u32 supp_rates;
@@ -411,7 +410,6 @@ struct iwl_lq_sta {
 	u16 active_siso_rate;
 	u16 active_mimo2_rate;
 	u16 active_mimo3_rate;
-	u16 active_rate_basic;
 	s8 max_rate_idx;     /* Max rate set by user */
 	u8 missed_rate_counter;
 
@@ -478,6 +476,12 @@ static inline u8 iwl3945_get_prev_ieee_rate(u8 rate_index)
  * the associated with, including A, B, G, and G w/ TGG protection
  */
 extern void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id);
+
+/* Initialize station's rate scaling information after adding station */
+extern void iwl_rs_rate_init(struct iwl_priv *priv,
+			     struct ieee80211_sta *sta, u8 sta_id);
+extern void iwl3945_rs_rate_init(struct iwl_priv *priv,
+				 struct ieee80211_sta *sta, u8 sta_id);
 
 /**
  * iwl_rate_control_register - Register the rate control algorithm callbacks

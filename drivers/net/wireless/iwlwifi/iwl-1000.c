@@ -42,9 +42,11 @@
 #include "iwl-core.h"
 #include "iwl-io.h"
 #include "iwl-sta.h"
+#include "iwl-agn.h"
 #include "iwl-helpers.h"
-#include "iwl-5000-hw.h"
+#include "iwl-agn-hw.h"
 #include "iwl-agn-led.h"
+#include "iwl-agn-debugfs.h"
 
 /* Highest firmware API version supported */
 #define IWL1000_UCODE_API_MAX 3
@@ -117,7 +119,7 @@ static struct iwl_sensitivity_ranges iwl1000_sensitivity = {
 static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
-	    priv->cfg->mod_params->num_of_queues <= IWL50_NUM_QUEUES)
+	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
 		priv->cfg->num_of_queues =
 			priv->cfg->mod_params->num_of_queues;
 
@@ -125,13 +127,13 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
 			priv->cfg->num_of_queues *
-			sizeof(struct iwl5000_scd_bc_tbl);
+			sizeof(struct iwlagn_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
 	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
 
-	priv->hw_params.max_data_size = IWL50_RTC_DATA_SIZE;
-	priv->hw_params.max_inst_size = IWL50_RTC_INST_SIZE;
+	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
+	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
 
 	priv->hw_params.max_bsm_size = 0;
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
@@ -161,25 +163,25 @@ static int iwl1000_hw_set_hw_params(struct iwl_priv *priv)
 
 static struct iwl_lib_ops iwl1000_lib = {
 	.set_hw_params = iwl1000_hw_set_hw_params,
-	.txq_update_byte_cnt_tbl = iwl5000_txq_update_byte_cnt_tbl,
-	.txq_inval_byte_cnt_tbl = iwl5000_txq_inval_byte_cnt_tbl,
-	.txq_set_sched = iwl5000_txq_set_sched,
-	.txq_agg_enable = iwl5000_txq_agg_enable,
-	.txq_agg_disable = iwl5000_txq_agg_disable,
+	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
+	.txq_inval_byte_cnt_tbl = iwlagn_txq_inval_byte_cnt_tbl,
+	.txq_set_sched = iwlagn_txq_set_sched,
+	.txq_agg_enable = iwlagn_txq_agg_enable,
+	.txq_agg_disable = iwlagn_txq_agg_disable,
 	.txq_attach_buf_to_tfd = iwl_hw_txq_attach_buf_to_tfd,
 	.txq_free_tfd = iwl_hw_txq_free_tfd,
 	.txq_init = iwl_hw_tx_queue_init,
-	.rx_handler_setup = iwl5000_rx_handler_setup,
-	.setup_deferred_work = iwl5000_setup_deferred_work,
-	.is_valid_rtc_data_addr = iwl5000_hw_valid_rtc_data_addr,
-	.load_ucode = iwl5000_load_ucode,
+	.rx_handler_setup = iwlagn_rx_handler_setup,
+	.setup_deferred_work = iwlagn_setup_deferred_work,
+	.is_valid_rtc_data_addr = iwlagn_hw_valid_rtc_data_addr,
+	.load_ucode = iwlagn_load_ucode,
 	.dump_nic_event_log = iwl_dump_nic_event_log,
 	.dump_nic_error_log = iwl_dump_nic_error_log,
 	.dump_csr = iwl_dump_csr,
 	.dump_fh = iwl_dump_fh,
-	.init_alive_start = iwl5000_init_alive_start,
-	.alive_notify = iwl5000_alive_notify,
-	.send_tx_power = iwl5000_send_tx_power,
+	.init_alive_start = iwlagn_init_alive_start,
+	.alive_notify = iwlagn_alive_notify,
+	.send_tx_power = iwlagn_send_tx_power,
 	.update_chain_flags = iwl_update_chain_flags,
 	.apm_ops = {
 		.init = iwl_apm_init,
@@ -189,40 +191,47 @@ static struct iwl_lib_ops iwl1000_lib = {
 	},
 	.eeprom_ops = {
 		.regulatory_bands = {
-			EEPROM_5000_REG_BAND_1_CHANNELS,
-			EEPROM_5000_REG_BAND_2_CHANNELS,
-			EEPROM_5000_REG_BAND_3_CHANNELS,
-			EEPROM_5000_REG_BAND_4_CHANNELS,
-			EEPROM_5000_REG_BAND_5_CHANNELS,
-			EEPROM_5000_REG_BAND_24_HT40_CHANNELS,
-			EEPROM_5000_REG_BAND_52_HT40_CHANNELS
+			EEPROM_REG_BAND_1_CHANNELS,
+			EEPROM_REG_BAND_2_CHANNELS,
+			EEPROM_REG_BAND_3_CHANNELS,
+			EEPROM_REG_BAND_4_CHANNELS,
+			EEPROM_REG_BAND_5_CHANNELS,
+			EEPROM_REG_BAND_24_HT40_CHANNELS,
+			EEPROM_REG_BAND_52_HT40_CHANNELS
 		},
 		.verify_signature  = iwlcore_eeprom_verify_signature,
 		.acquire_semaphore = iwlcore_eeprom_acquire_semaphore,
 		.release_semaphore = iwlcore_eeprom_release_semaphore,
-		.calib_version	= iwl5000_eeprom_calib_version,
-		.query_addr = iwl5000_eeprom_query_addr,
+		.calib_version	= iwlagn_eeprom_calib_version,
+		.query_addr = iwlagn_eeprom_query_addr,
 	},
 	.post_associate = iwl_post_associate,
 	.isr = iwl_isr_ict,
 	.config_ap = iwl_config_ap,
 	.temp_ops = {
-		.temperature = iwl5000_temperature,
+		.temperature = iwlagn_temperature,
 		.set_ct_kill = iwl1000_set_ct_threshold,
 	 },
-	.add_bcast_station = iwl_add_bcast_station,
+	.manage_ibss_station = iwlagn_manage_ibss_station,
+	.debugfs_ops = {
+		.rx_stats_read = iwl_ucode_rx_stats_read,
+		.tx_stats_read = iwl_ucode_tx_stats_read,
+		.general_stats_read = iwl_ucode_general_stats_read,
+	},
+	.recover_from_tx_stall = iwl_bg_monitor_recover,
+	.check_plcp_health = iwl_good_plcp_health,
+	.check_ack_health = iwl_good_ack_health,
 };
 
 static const struct iwl_ops iwl1000_ops = {
-	.ucode = &iwl5000_ucode,
 	.lib = &iwl1000_lib,
-	.hcmd = &iwl5000_hcmd,
-	.utils = &iwl5000_hcmd_utils,
+	.hcmd = &iwlagn_hcmd,
+	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
 };
 
 struct iwl_cfg iwl1000_bgn_cfg = {
-	.name = "1000 Series BGN",
+	.name = "Intel(R) Centrino(R) Wireless-N 1000 BGN",
 	.fw_name_pre = IWL1000_FW_PRE,
 	.ucode_api_max = IWL1000_UCODE_API_MAX,
 	.ucode_api_min = IWL1000_UCODE_API_MIN,
@@ -230,10 +239,10 @@ struct iwl_cfg iwl1000_bgn_cfg = {
 	.ops = &iwl1000_ops,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
@@ -248,10 +257,15 @@ struct iwl_cfg iwl1000_bgn_cfg = {
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 128,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 struct iwl_cfg iwl1000_bg_cfg = {
-	.name = "1000 Series BG",
+	.name = "Intel(R) Centrino(R) Wireless-N 1000 BG",
 	.fw_name_pre = IWL1000_FW_PRE,
 	.ucode_api_max = IWL1000_UCODE_API_MAX,
 	.ucode_api_min = IWL1000_UCODE_API_MIN,
@@ -259,10 +273,10 @@ struct iwl_cfg iwl1000_bg_cfg = {
 	.ops = &iwl1000_ops,
 	.eeprom_size = OTP_LOW_IMAGE_SIZE,
 	.eeprom_ver = EEPROM_1000_EEPROM_VERSION,
-	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.eeprom_calib_ver = EEPROM_1000_TX_POWER_VERSION,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
@@ -270,12 +284,16 @@ struct iwl_cfg iwl1000_bg_cfg = {
 	.use_bsm = false,
 	.max_ll_items = OTP_MAX_LL_ITEMS_1000,
 	.shadow_ram_support = false,
-	.ht_greenfield_support = true,
 	.led_compensation = 51,
 	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
+	.max_event_log_size = 128,
+	.ucode_tracing = true,
+	.sensitivity_calib_by_driver = true,
+	.chain_noise_calib_by_driver = true,
 };
 
 MODULE_FIRMWARE(IWL1000_MODULE_FIRMWARE(IWL1000_UCODE_API_MAX));

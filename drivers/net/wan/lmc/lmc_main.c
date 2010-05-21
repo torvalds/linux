@@ -1506,8 +1506,6 @@ static netdev_tx_t lmc_start_xmit(struct sk_buff *skb,
     /* send now! */
     LMC_CSR_WRITE (sc, csr_txpoll, 0);
 
-    dev->trans_start = jiffies;
-
     spin_unlock_irqrestore(&sc->lmc_lock, flags);
 
     lmc_trace(dev, "lmc_start_xmit_out");
@@ -2103,7 +2101,7 @@ static void lmc_driver_timeout(struct net_device *dev)
     printk("%s: Xmitter busy|\n", dev->name);
 
     sc->extra_stats.tx_tbusy_calls++;
-    if (jiffies - dev->trans_start < TX_TIMEOUT)
+    if (jiffies - dev_trans_start(dev) < TX_TIMEOUT)
 	    goto bug_out;
 
     /*
@@ -2135,7 +2133,7 @@ static void lmc_driver_timeout(struct net_device *dev)
     sc->lmc_device->stats.tx_errors++;
     sc->extra_stats.tx_ProcTimeout++; /* -baz */
 
-    dev->trans_start = jiffies;
+    dev->trans_start = jiffies; /* prevent tx timeout */
 
 bug_out:
 

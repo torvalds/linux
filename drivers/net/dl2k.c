@@ -596,8 +596,6 @@ alloc_list (struct net_device *dev)
 	/* Set RFDListPtr */
 	writel (np->rx_ring_dma, dev->base_addr + RFDListPtr0);
 	writel (0, dev->base_addr + RFDListPtr1);
-
-	return;
 }
 
 static netdev_tx_t
@@ -1132,14 +1130,14 @@ set_multicast (struct net_device *dev)
 		/* Receive broadcast and multicast frames */
 		rx_mode = ReceiveBroadcast | ReceiveMulticast | ReceiveUnicast;
 	} else if (!netdev_mc_empty(dev)) {
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		/* Receive broadcast frames and multicast frames filtering
 		   by Hashtable */
 		rx_mode =
 		    ReceiveBroadcast | ReceiveMulticastHash | ReceiveUnicast;
-		netdev_for_each_mc_addr(mclist, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			int bit, index = 0;
-			int crc = ether_crc_le (ETH_ALEN, mclist->dmi_addr);
+			int crc = ether_crc_le(ETH_ALEN, ha->addr);
 			/* The inverted high significant 6 bits of CRC are
 			   used as an index to hashtable */
 			for (bit = 0; bit < 6; bit++)

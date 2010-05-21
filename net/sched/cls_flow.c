@@ -602,7 +602,6 @@ static unsigned long flow_get(struct tcf_proto *tp, u32 handle)
 
 static void flow_put(struct tcf_proto *tp, unsigned long f)
 {
-	return;
 }
 
 static int flow_dump(struct tcf_proto *tp, unsigned long fh,

@@ -161,39 +161,29 @@ static void mlx4_en_do_set_mac(struct work_struct *work)
 static void mlx4_en_clear_list(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct dev_mc_list *plist = priv->mc_list;
-	struct dev_mc_list *next;
 
-	while (plist) {
-		next = plist->next;
-		kfree(plist);
-		plist = next;
-	}
-	priv->mc_list = NULL;
+	kfree(priv->mc_addrs);
+	priv->mc_addrs_cnt = 0;
 }
 
 static void mlx4_en_cache_mclist(struct net_device *dev)
 {
 	struct mlx4_en_priv *priv = netdev_priv(dev);
-	struct dev_mc_list *mclist;
-	struct dev_mc_list *tmp;
-	struct dev_mc_list *plist = NULL;
+	struct netdev_hw_addr *ha;
+	char *mc_addrs;
+	int mc_addrs_cnt = netdev_mc_count(dev);
+	int i;
 
-	for (mclist = dev->mc_list; mclist; mclist = mclist->next) {
-		tmp = kmalloc(sizeof(struct dev_mc_list), GFP_ATOMIC);
-		if (!tmp) {
-			en_err(priv, "failed to allocate multicast list\n");
-			mlx4_en_clear_list(dev);
-			return;
-		}
-		memcpy(tmp, mclist, sizeof(struct dev_mc_list));
-		tmp->next = NULL;
-		if (plist)
-			plist->next = tmp;
-		else
-			priv->mc_list = tmp;
-		plist = tmp;
+	mc_addrs = kmalloc(mc_addrs_cnt * ETH_ALEN, GFP_ATOMIC);
+	if (!mc_addrs) {
+		en_err(priv, "failed to allocate multicast list\n");
+		return;
 	}
+	i = 0;
+	netdev_for_each_mc_addr(ha, dev)
+		memcpy(mc_addrs + i++ * ETH_ALEN, ha->addr, ETH_ALEN);
+	priv->mc_addrs = mc_addrs;
+	priv->mc_addrs_cnt = mc_addrs_cnt;
 }
 
 
@@ -213,7 +203,6 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 						 mcast_task);
 	struct mlx4_en_dev *mdev = priv->mdev;
 	struct net_device *dev = priv->dev;
-	struct dev_mc_list *mclist;
 	u64 mcast_addr = 0;
 	int err;
 
@@ -289,6 +278,8 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 		if (err)
 			en_err(priv, "Failed disabling multicast filter\n");
 	} else {
+		int i;
+
 		err = mlx4_SET_MCAST_FLTR(mdev->dev, priv->port, 0,
 					  0, MLX4_MCAST_DISABLE);
 		if (err)
@@ -303,8 +294,9 @@ static void mlx4_en_do_set_multicast(struct work_struct *work)
 		netif_tx_lock_bh(dev);
 		mlx4_en_cache_mclist(dev);
 		netif_tx_unlock_bh(dev);
-		for (mclist = priv->mc_list; mclist; mclist = mclist->next) {
-			mcast_addr = mlx4_en_mac_to_u64(mclist->dmi_addr);
+		for (i = 0; i < priv->mc_addrs_cnt; i++) {
+			mcast_addr =
+			      mlx4_en_mac_to_u64(priv->mc_addrs + i * ETH_ALEN);
 			mlx4_SET_MCAST_FLTR(mdev->dev, priv->port,
 					    mcast_addr, 0, MLX4_MCAST_CONFIG);
 		}
@@ -512,7 +504,7 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 
 	err = mlx4_en_DUMP_ETH_STATS(mdev, priv->port, 0);
 	if (err)
-		en_dbg(HW, priv, "Could not update stats \n");
+		en_dbg(HW, priv, "Could not update stats\n");
 
 	mutex_lock(&mdev->state_lock);
 	if (mdev->device_up) {
@@ -985,7 +977,6 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	priv->flags = prof->flags;
 	priv->tx_ring_num = prof->tx_ring_num;
 	priv->rx_ring_num = prof->rx_ring_num;
-	priv->mc_list = NULL;
 	priv->mac_index = -1;
 	priv->msg_enable = MLX4_EN_MSG_LEVEL;
 	spin_lock_init(&priv->stats_lock);

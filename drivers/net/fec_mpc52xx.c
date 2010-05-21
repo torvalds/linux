@@ -327,7 +327,6 @@ static int mpc52xx_fec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	dev->trans_start = jiffies;
 
 	bd = (struct bcom_fec_bd *)
 		bcom_prepare_next_buffer(priv->tx_dmatsk);
@@ -436,7 +435,6 @@ static irqreturn_t mpc52xx_fec_rx_interrupt(int irq, void *dev_id)
 				 DMA_FROM_DEVICE);
 		length = status & BCOM_FEC_RX_BD_LEN_MASK;
 		skb_put(rskb, length - 4);	/* length without CRC32 */
-		rskb->dev = dev;
 		rskb->protocol = eth_type_trans(rskb, dev);
 		netif_rx(rskb);
 
@@ -576,12 +574,12 @@ static void mpc52xx_fec_set_multicast_list(struct net_device *dev)
 			out_be32(&fec->gaddr2, 0xffffffff);
 		} else {
 			u32 crc;
-			struct dev_mc_list *dmi;
+			struct netdev_hw_addr *ha;
 			u32 gaddr1 = 0x00000000;
 			u32 gaddr2 = 0x00000000;
 
-			netdev_for_each_mc_addr(dmi, dev) {
-				crc = ether_crc_le(6, dmi->dmi_addr) >> 26;
+			netdev_for_each_mc_addr(ha, dev) {
+				crc = ether_crc_le(6, ha->addr) >> 26;
 				if (crc >= 32)
 					gaddr1 |= 1 << (crc-32);
 				else

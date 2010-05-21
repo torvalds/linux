@@ -605,7 +605,7 @@ static void tulip_tx_timeout(struct net_device *dev)
 
 out_unlock:
 	spin_unlock_irqrestore (&tp->lock, flags);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 
@@ -706,8 +706,6 @@ tulip_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	iowrite32(0, tp->base_addr + CSR1);
 
 	spin_unlock_irqrestore(&tp->lock, flags);
-
-	dev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 }
@@ -991,15 +989,15 @@ static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
 {
 	struct tulip_private *tp = netdev_priv(dev);
 	u16 hash_table[32];
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	int i;
 	u16 *eaddrs;
 
 	memset(hash_table, 0, sizeof(hash_table));
 	set_bit_le(255, hash_table); 			/* Broadcast entry */
 	/* This should work on big-endian machines as well. */
-	netdev_for_each_mc_addr(mclist, dev) {
-		int index = ether_crc_le(ETH_ALEN, mclist->dmi_addr) & 0x1ff;
+	netdev_for_each_mc_addr(ha, dev) {
+		int index = ether_crc_le(ETH_ALEN, ha->addr) & 0x1ff;
 
 		set_bit_le(index, hash_table);
 	}
@@ -1019,13 +1017,13 @@ static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
 static void build_setup_frame_perfect(u16 *setup_frm, struct net_device *dev)
 {
 	struct tulip_private *tp = netdev_priv(dev);
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	u16 *eaddrs;
 
 	/* We have <= 14 addresses so we can use the wonderful
 	   16 address perfect filtering of the Tulip. */
-	netdev_for_each_mc_addr(mclist, dev) {
-		eaddrs = (u16 *)mclist->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		eaddrs = (u16 *) ha->addr;
 		*setup_frm++ = *eaddrs; *setup_frm++ = *eaddrs++;
 		*setup_frm++ = *eaddrs; *setup_frm++ = *eaddrs++;
 		*setup_frm++ = *eaddrs; *setup_frm++ = *eaddrs++;
@@ -1062,7 +1060,7 @@ static void set_rx_mode(struct net_device *dev)
 	} else	if (tp->flags & MC_HASH_ONLY) {
 		/* Some work-alikes have only a 64-entry hash filter table. */
 		/* Should verify correctness on big-endian/__powerpc__ */
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		if (netdev_mc_count(dev) > 64) {
 			/* Arbitrary non-effective limit. */
 			tp->csr6 |= AcceptAllMulticast;
@@ -1070,18 +1068,21 @@ static void set_rx_mode(struct net_device *dev)
 		} else {
 			u32 mc_filter[2] = {0, 0};		 /* Multicast hash filter */
 			int filterbit;
-			netdev_for_each_mc_addr(mclist, dev) {
+			netdev_for_each_mc_addr(ha, dev) {
 				if (tp->flags & COMET_MAC_ADDR)
-					filterbit = ether_crc_le(ETH_ALEN, mclist->dmi_addr);
+					filterbit = ether_crc_le(ETH_ALEN,
+								 ha->addr);
 				else
-					filterbit = ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26;
+					filterbit = ether_crc(ETH_ALEN,
+							      ha->addr) >> 26;
 				filterbit &= 0x3f;
 				mc_filter[filterbit >> 5] |= 1 << (filterbit & 31);
 				if (tulip_debug > 2)
 					dev_info(&dev->dev,
 						 "Added filter for %pM  %08x bit %d\n",
-						 mclist->dmi_addr,
-						 ether_crc(ETH_ALEN, mclist->dmi_addr), filterbit);
+						 ha->addr,
+						 ether_crc(ETH_ALEN, ha->addr),
+						 filterbit);
 			}
 			if (mc_filter[0] == tp->mc_filter[0]  &&
 				mc_filter[1] == tp->mc_filter[1])

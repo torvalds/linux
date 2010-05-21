@@ -240,9 +240,9 @@ static int set_addr_filters(const struct net_device *dev, bool sleep)
 	u16 filt_idx[7];
 	const u8 *addr[7];
 	int ret, naddr = 0;
-	const struct dev_addr_list *d;
 	const struct netdev_hw_addr *ha;
 	int uc_cnt = netdev_uc_count(dev);
+	int mc_cnt = netdev_mc_count(dev);
 	const struct port_info *pi = netdev_priv(dev);
 
 	/* first do the secondary unicast addresses */
@@ -260,9 +260,9 @@ static int set_addr_filters(const struct net_device *dev, bool sleep)
 	}
 
 	/* next set up the multicast addresses */
-	netdev_for_each_mc_addr(d, dev) {
-		addr[naddr++] = d->dmi_addr;
-		if (naddr >= ARRAY_SIZE(addr) || d->next == NULL) {
+	netdev_for_each_mc_addr(ha, dev) {
+		addr[naddr++] = ha->addr;
+		if (--mc_cnt == 0 || naddr >= ARRAY_SIZE(addr)) {
 			ret = t4_alloc_mac_filt(pi->adapter, 0, pi->viid, free,
 					naddr, addr, filt_idx, &mhash, sleep);
 			if (ret < 0)
@@ -290,7 +290,7 @@ static int set_rxmode(struct net_device *dev, int mtu, bool sleep_ok)
 	if (ret == 0)
 		ret = t4_set_rxmode(pi->adapter, 0, pi->viid, mtu,
 				    (dev->flags & IFF_PROMISC) ? 1 : 0,
-				    (dev->flags & IFF_ALLMULTI) ? 1 : 0, 1,
+				    (dev->flags & IFF_ALLMULTI) ? 1 : 0, 1, -1,
 				    sleep_ok);
 	return ret;
 }
@@ -311,11 +311,11 @@ static int link_start(struct net_device *dev)
 	 * that step explicitly.
 	 */
 	ret = t4_set_rxmode(pi->adapter, 0, pi->viid, dev->mtu, -1, -1, -1,
-			    true);
+			    pi->vlan_grp != NULL, true);
 	if (ret == 0) {
 		ret = t4_change_mac(pi->adapter, 0, pi->viid,
 				    pi->xact_addr_filt, dev->dev_addr, true,
-				    false);
+				    true);
 		if (ret >= 0) {
 			pi->xact_addr_filt = ret;
 			ret = 0;
@@ -859,6 +859,8 @@ static char stats_strings[][ETH_GSTRING_LEN] = {
 	"RxCsumGood         ",
 	"VLANextractions    ",
 	"VLANinsertions     ",
+	"GROpackets         ",
+	"GROmerged          ",
 };
 
 static int get_sset_count(struct net_device *dev, int sset)
@@ -922,6 +924,8 @@ struct queue_port_stats {
 	u64 rx_csum;
 	u64 vlan_ex;
 	u64 vlan_ins;
+	u64 gro_pkts;
+	u64 gro_merged;
 };
 
 static void collect_sge_port_stats(const struct adapter *adap,
@@ -938,6 +942,8 @@ static void collect_sge_port_stats(const struct adapter *adap,
 		s->rx_csum += rx->stats.rx_cso;
 		s->vlan_ex += rx->stats.vlan_ex;
 		s->vlan_ins += tx->vlan_ins;
+		s->gro_pkts += rx->stats.lro_pkts;
+		s->gro_merged += rx->stats.lro_merged;
 	}
 }
 
@@ -1711,6 +1717,18 @@ static int set_tso(struct net_device *dev, u32 value)
 	return 0;
 }
 
+static int set_flags(struct net_device *dev, u32 flags)
+{
+	if (flags & ~ETH_FLAG_RXHASH)
+		return -EOPNOTSUPP;
+
+	if (flags & ETH_FLAG_RXHASH)
+		dev->features |= NETIF_F_RXHASH;
+	else
+		dev->features &= ~NETIF_F_RXHASH;
+	return 0;
+}
+
 static struct ethtool_ops cxgb_ethtool_ops = {
 	.get_settings      = get_settings,
 	.set_settings      = set_settings,
@@ -1741,6 +1759,7 @@ static struct ethtool_ops cxgb_ethtool_ops = {
 	.get_wol           = get_wol,
 	.set_wol           = set_wol,
 	.set_tso           = set_tso,
+	.set_flags         = set_flags,
 	.flash_device      = set_flash,
 };
 
@@ -2308,6 +2327,9 @@ static void uld_attach(struct adapter *adap, unsigned int uld)
 		register_netevent_notifier(&cxgb4_netevent_nb);
 		netevent_registered = true;
 	}
+
+	if (adap->flags & FULL_INIT_DONE)
+		ulds[uld].state_change(handle, CXGB4_STATE_UP);
 }
 
 static void attach_ulds(struct adapter *adap)
@@ -2414,23 +2436,17 @@ EXPORT_SYMBOL(cxgb4_unregister_uld);
  */
 static int cxgb_up(struct adapter *adap)
 {
-	int err = 0;
+	int err;
 
-	if (!(adap->flags & FULL_INIT_DONE)) {
-		err = setup_sge_queues(adap);
-		if (err)
-			goto out;
-		err = setup_rss(adap);
-		if (err) {
-			t4_free_sge_resources(adap);
-			goto out;
-		}
-		if (adap->flags & USING_MSIX)
-			name_msix_vecs(adap);
-		adap->flags |= FULL_INIT_DONE;
-	}
+	err = setup_sge_queues(adap);
+	if (err)
+		goto out;
+	err = setup_rss(adap);
+	if (err)
+		goto freeq;
 
 	if (adap->flags & USING_MSIX) {
+		name_msix_vecs(adap);
 		err = request_irq(adap->msix_info[0].vec, t4_nondata_intr, 0,
 				  adap->msix_info[0].desc, adap);
 		if (err)
@@ -2451,11 +2467,14 @@ static int cxgb_up(struct adapter *adap)
 	enable_rx(adap);
 	t4_sge_start(adap);
 	t4_intr_enable(adap);
+	adap->flags |= FULL_INIT_DONE;
 	notify_ulds(adap, CXGB4_STATE_UP);
  out:
 	return err;
  irq_err:
 	dev_err(adap->pdev_dev, "request_irq failed, err %d\n", err);
+ freeq:
+	t4_free_sge_resources(adap);
 	goto out;
 }
 
@@ -2471,6 +2490,9 @@ static void cxgb_down(struct adapter *adapter)
 	} else
 		free_irq(adapter->pdev->irq, adapter);
 	quiesce_rx(adapter);
+	t4_sge_stop(adapter);
+	t4_free_sge_resources(adapter);
+	adapter->flags &= ~FULL_INIT_DONE;
 }
 
 /*
@@ -2482,11 +2504,13 @@ static int cxgb_open(struct net_device *dev)
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 
-	if (!adapter->open_device_map && (err = cxgb_up(adapter)) < 0)
-		return err;
+	if (!(adapter->flags & FULL_INIT_DONE)) {
+		err = cxgb_up(adapter);
+		if (err < 0)
+			return err;
+	}
 
 	dev->real_num_tx_queues = pi->nqsets;
-	set_bit(pi->tx_chan, &adapter->open_device_map);
 	link_start(dev);
 	netif_tx_start_all_queues(dev);
 	return 0;
@@ -2494,19 +2518,12 @@ static int cxgb_open(struct net_device *dev)
 
 static int cxgb_close(struct net_device *dev)
 {
-	int ret;
 	struct port_info *pi = netdev_priv(dev);
 	struct adapter *adapter = pi->adapter;
 
 	netif_tx_stop_all_queues(dev);
 	netif_carrier_off(dev);
-	ret = t4_enable_vi(adapter, 0, pi->viid, false, false);
-
-	clear_bit(pi->tx_chan, &adapter->open_device_map);
-
-	if (!adapter->open_device_map)
-		cxgb_down(adapter);
-	return 0;
+	return t4_enable_vi(adapter, 0, pi->viid, false, false);
 }
 
 static struct net_device_stats *cxgb_get_stats(struct net_device *dev)
@@ -2601,7 +2618,7 @@ static int cxgb_change_mtu(struct net_device *dev, int new_mtu)
 
 	if (new_mtu < 81 || new_mtu > MAX_MTU)         /* accommodate SACK */
 		return -EINVAL;
-	ret = t4_set_rxmode(pi->adapter, 0, pi->viid, new_mtu, -1, -1, -1,
+	ret = t4_set_rxmode(pi->adapter, 0, pi->viid, new_mtu, -1, -1, -1, -1,
 			    true);
 	if (!ret)
 		dev->mtu = new_mtu;
@@ -2632,7 +2649,8 @@ static void vlan_rx_register(struct net_device *dev, struct vlan_group *grp)
 	struct port_info *pi = netdev_priv(dev);
 
 	pi->vlan_grp = grp;
-	t4_set_vlan_accel(pi->adapter, 1 << pi->tx_chan, grp != NULL);
+	t4_set_rxmode(pi->adapter, 0, pi->viid, -1, -1, -1, -1, grp != NULL,
+		      true);
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -3066,6 +3084,12 @@ static void __devinit print_port_info(struct adapter *adap)
 
 	int i;
 	char buf[80];
+	const char *spd = "";
+
+	if (adap->params.pci.speed == PCI_EXP_LNKSTA_CLS_2_5GB)
+		spd = " 2.5 GT/s";
+	else if (adap->params.pci.speed == PCI_EXP_LNKSTA_CLS_5_0GB)
+		spd = " 5 GT/s";
 
 	for_each_port(adap, i) {
 		struct net_device *dev = adap->port[i];
@@ -3085,10 +3109,10 @@ static void __devinit print_port_info(struct adapter *adap)
 			--bufp;
 		sprintf(bufp, "BASE-%s", base[pi->port_type]);
 
-		netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s\n",
+		netdev_info(dev, "Chelsio %s rev %d %s %sNIC PCIe x%d%s%s\n",
 			    adap->params.vpd.id, adap->params.rev,
 			    buf, is_offload(adap) ? "R" : "",
-			    adap->params.pci.width,
+			    adap->params.pci.width, spd,
 			    (adap->flags & USING_MSIX) ? " MSI-X" :
 			    (adap->flags & USING_MSI) ? " MSI" : "");
 		if (adap->name == dev->name)
@@ -3203,7 +3227,7 @@ static int __devinit init_one(struct pci_dev *pdev,
 
 		netdev->features |= NETIF_F_SG | NETIF_F_TSO | NETIF_F_TSO6;
 		netdev->features |= NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
-		netdev->features |= NETIF_F_GRO | highdma;
+		netdev->features |= NETIF_F_GRO | NETIF_F_RXHASH | highdma;
 		netdev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_RX;
 		netdev->vlan_features = netdev->features & VLAN_FEAT;
 
@@ -3334,8 +3358,8 @@ static void __devexit remove_one(struct pci_dev *pdev)
 		if (adapter->debugfs_root)
 			debugfs_remove_recursive(adapter->debugfs_root);
 
-		t4_sge_stop(adapter);
-		t4_free_sge_resources(adapter);
+		if (adapter->flags & FULL_INIT_DONE)
+			cxgb_down(adapter);
 		t4_free_mem(adapter->l2t);
 		t4_free_mem(adapter->tids.tid_tab);
 		disable_msi(adapter);

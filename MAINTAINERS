@@ -1521,9 +1521,10 @@ M:	Andy Whitcroft <apw@canonical.com>
 S:	Supported
 F:	scripts/checkpatch.pl
 
-CISCO 10G ETHERNET DRIVER
+CISCO VIC ETHERNET NIC DRIVER
 M:	Scott Feldman <scofeldm@cisco.com>
-M:	Joe Eykholt <jeykholt@cisco.com>
+M:	Vasanthy Kolluri <vkolluri@cisco.com>
+M:	Roopa Prabhu <roprabhu@cisco.com>
 S:	Supported
 F:	drivers/net/enic/
 
@@ -3044,10 +3045,9 @@ F:	net/ipv4/netfilter/ipt_MASQUERADE.c
 IP1000A 10/100/1000 GIGABIT ETHERNET DRIVER
 M:	Francois Romieu <romieu@fr.zoreil.com>
 M:	Sorbica Shieh <sorbica@icplus.com.tw>
-M:	Jesse Huang <jesse@icplus.com.tw>
 L:	netdev@vger.kernel.org
 S:	Maintained
-F:	drivers/net/ipg.c
+F:	drivers/net/ipg.*
 
 IPATH DRIVER
 M:	Ralph Campbell <infinipath@qlogic.com>
@@ -3895,7 +3895,6 @@ M:	Ramkrishna Vepa <ram.vepa@neterion.com>
 M:	Rastapur Santosh <santosh.rastapur@neterion.com>
 M:	Sivakumar Subramani <sivakumar.subramani@neterion.com>
 M:	Sreenivasa Honnur <sreenivasa.honnur@neterion.com>
-M:	Anil Murthy <anil.murthy@neterion.com>
 L:	netdev@vger.kernel.org
 W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/Linux?Anonymous
 W:	http://trac.neterion.com/cgi-bin/trac.cgi/wiki/X3100Linux?Anonymous
@@ -4000,6 +3999,7 @@ F:	net/rfkill/
 F:	net/wireless/
 F:	include/net/ieee80211*
 F:	include/linux/wireless.h
+F:	include/linux/iw_handler.h
 F:	drivers/net/wireless/
 
 NETWORKING DRIVERS
@@ -4631,6 +4631,7 @@ F:	drivers/net/qla3xxx.*
 
 QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
 M:	Amit Kumar Salecha <amit.salecha@qlogic.com>
+M:	Anirban Chakraborty <anirban.chakraborty@qlogic.com>
 M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
 S:	Supported

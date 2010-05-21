@@ -631,7 +631,6 @@ static void ne2k_pci_block_output(struct net_device *dev, int count,
 
 	outb(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */
 	ei_status.dmaing &= ~0x01;
-	return;
 }
 
 static void ne2k_pci_get_drvinfo(struct net_device *dev,

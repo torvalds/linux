@@ -719,30 +719,30 @@ static u32 mii_check_media_mode(struct mac_regs __iomem *regs)
 	u32 status = 0;
 	u16 ANAR;
 
-	if (!MII_REG_BITS_IS_ON(BMSR_LNK, MII_REG_BMSR, regs))
+	if (!MII_REG_BITS_IS_ON(BMSR_LSTATUS, MII_BMSR, regs))
 		status |= VELOCITY_LINK_FAIL;
 
-	if (MII_REG_BITS_IS_ON(G1000CR_1000FD, MII_REG_G1000CR, regs))
+	if (MII_REG_BITS_IS_ON(ADVERTISE_1000FULL, MII_CTRL1000, regs))
 		status |= VELOCITY_SPEED_1000 | VELOCITY_DUPLEX_FULL;
-	else if (MII_REG_BITS_IS_ON(G1000CR_1000, MII_REG_G1000CR, regs))
+	else if (MII_REG_BITS_IS_ON(ADVERTISE_1000HALF, MII_CTRL1000, regs))
 		status |= (VELOCITY_SPEED_1000);
 	else {
-		velocity_mii_read(regs, MII_REG_ANAR, &ANAR);
-		if (ANAR & ANAR_TXFD)
+		velocity_mii_read(regs, MII_ADVERTISE, &ANAR);
+		if (ANAR & ADVERTISE_100FULL)
 			status |= (VELOCITY_SPEED_100 | VELOCITY_DUPLEX_FULL);
-		else if (ANAR & ANAR_TX)
+		else if (ANAR & ADVERTISE_100HALF)
 			status |= VELOCITY_SPEED_100;
-		else if (ANAR & ANAR_10FD)
+		else if (ANAR & ADVERTISE_10FULL)
 			status |= (VELOCITY_SPEED_10 | VELOCITY_DUPLEX_FULL);
 		else
 			status |= (VELOCITY_SPEED_10);
 	}
 
-	if (MII_REG_BITS_IS_ON(BMCR_AUTO, MII_REG_BMCR, regs)) {
-		velocity_mii_read(regs, MII_REG_ANAR, &ANAR);
-		if ((ANAR & (ANAR_TXFD | ANAR_TX | ANAR_10FD | ANAR_10))
-		    == (ANAR_TXFD | ANAR_TX | ANAR_10FD | ANAR_10)) {
-			if (MII_REG_BITS_IS_ON(G1000CR_1000 | G1000CR_1000FD, MII_REG_G1000CR, regs))
+	if (MII_REG_BITS_IS_ON(BMCR_ANENABLE, MII_BMCR, regs)) {
+		velocity_mii_read(regs, MII_ADVERTISE, &ANAR);
+		if ((ANAR & (ADVERTISE_100FULL | ADVERTISE_100HALF | ADVERTISE_10FULL | ADVERTISE_10HALF))
+		    == (ADVERTISE_100FULL | ADVERTISE_100HALF | ADVERTISE_10FULL | ADVERTISE_10HALF)) {
+			if (MII_REG_BITS_IS_ON(ADVERTISE_1000HALF | ADVERTISE_1000FULL, MII_CTRL1000, regs))
 				status |= VELOCITY_AUTONEG_ENABLE;
 		}
 	}
@@ -801,23 +801,23 @@ static void set_mii_flow_control(struct velocity_info *vptr)
 	/*Enable or Disable PAUSE in ANAR */
 	switch (vptr->options.flow_cntl) {
 	case FLOW_CNTL_TX:
-		MII_REG_BITS_OFF(ANAR_PAUSE, MII_REG_ANAR, vptr->mac_regs);
-		MII_REG_BITS_ON(ANAR_ASMDIR, MII_REG_ANAR, vptr->mac_regs);
+		MII_REG_BITS_OFF(ADVERTISE_PAUSE_CAP, MII_ADVERTISE, vptr->mac_regs);
+		MII_REG_BITS_ON(ADVERTISE_PAUSE_ASYM, MII_ADVERTISE, vptr->mac_regs);
 		break;
 
 	case FLOW_CNTL_RX:
-		MII_REG_BITS_ON(ANAR_PAUSE, MII_REG_ANAR, vptr->mac_regs);
-		MII_REG_BITS_ON(ANAR_ASMDIR, MII_REG_ANAR, vptr->mac_regs);
+		MII_REG_BITS_ON(ADVERTISE_PAUSE_CAP, MII_ADVERTISE, vptr->mac_regs);
+		MII_REG_BITS_ON(ADVERTISE_PAUSE_ASYM, MII_ADVERTISE, vptr->mac_regs);
 		break;
 
 	case FLOW_CNTL_TX_RX:
-		MII_REG_BITS_ON(ANAR_PAUSE, MII_REG_ANAR, vptr->mac_regs);
-		MII_REG_BITS_OFF(ANAR_ASMDIR, MII_REG_ANAR, vptr->mac_regs);
+		MII_REG_BITS_ON(ADVERTISE_PAUSE_CAP, MII_ADVERTISE, vptr->mac_regs);
+		MII_REG_BITS_OFF(ADVERTISE_PAUSE_ASYM, MII_ADVERTISE, vptr->mac_regs);
 		break;
 
 	case FLOW_CNTL_DISABLE:
-		MII_REG_BITS_OFF(ANAR_PAUSE, MII_REG_ANAR, vptr->mac_regs);
-		MII_REG_BITS_OFF(ANAR_ASMDIR, MII_REG_ANAR, vptr->mac_regs);
+		MII_REG_BITS_OFF(ADVERTISE_PAUSE_CAP, MII_ADVERTISE, vptr->mac_regs);
+		MII_REG_BITS_OFF(ADVERTISE_PAUSE_ASYM, MII_ADVERTISE, vptr->mac_regs);
 		break;
 	default:
 		break;
@@ -832,10 +832,10 @@ static void set_mii_flow_control(struct velocity_info *vptr)
  */
 static void mii_set_auto_on(struct velocity_info *vptr)
 {
-	if (MII_REG_BITS_IS_ON(BMCR_AUTO, MII_REG_BMCR, vptr->mac_regs))
-		MII_REG_BITS_ON(BMCR_REAUTO, MII_REG_BMCR, vptr->mac_regs);
+	if (MII_REG_BITS_IS_ON(BMCR_ANENABLE, MII_BMCR, vptr->mac_regs))
+		MII_REG_BITS_ON(BMCR_ANRESTART, MII_BMCR, vptr->mac_regs);
 	else
-		MII_REG_BITS_ON(BMCR_AUTO, MII_REG_BMCR, vptr->mac_regs);
+		MII_REG_BITS_ON(BMCR_ANENABLE, MII_BMCR, vptr->mac_regs);
 }
 
 static u32 check_connection_type(struct mac_regs __iomem *regs)
@@ -860,11 +860,11 @@ static u32 check_connection_type(struct mac_regs __iomem *regs)
 	else
 		status |= VELOCITY_SPEED_100;
 
-	if (MII_REG_BITS_IS_ON(BMCR_AUTO, MII_REG_BMCR, regs)) {
-		velocity_mii_read(regs, MII_REG_ANAR, &ANAR);
-		if ((ANAR & (ANAR_TXFD | ANAR_TX | ANAR_10FD | ANAR_10))
-		    == (ANAR_TXFD | ANAR_TX | ANAR_10FD | ANAR_10)) {
-			if (MII_REG_BITS_IS_ON(G1000CR_1000 | G1000CR_1000FD, MII_REG_G1000CR, regs))
+	if (MII_REG_BITS_IS_ON(BMCR_ANENABLE, MII_BMCR, regs)) {
+		velocity_mii_read(regs, MII_ADVERTISE, &ANAR);
+		if ((ANAR & (ADVERTISE_100FULL | ADVERTISE_100HALF | ADVERTISE_10FULL | ADVERTISE_10HALF))
+		    == (ADVERTISE_100FULL | ADVERTISE_100HALF | ADVERTISE_10FULL | ADVERTISE_10HALF)) {
+			if (MII_REG_BITS_IS_ON(ADVERTISE_1000HALF | ADVERTISE_1000FULL, MII_CTRL1000, regs))
 				status |= VELOCITY_AUTONEG_ENABLE;
 		}
 	}
@@ -905,7 +905,7 @@ static int velocity_set_media_mode(struct velocity_info *vptr, u32 mii_status)
 	 */
 
 	if (PHYID_GET_PHY_ID(vptr->phy_id) == PHYID_CICADA_CS8201)
-		MII_REG_BITS_ON(AUXCR_MDPPS, MII_REG_AUXCR, vptr->mac_regs);
+		MII_REG_BITS_ON(AUXCR_MDPPS, MII_NCONFIG, vptr->mac_regs);
 
 	/*
 	 *	If connection type is AUTO
@@ -915,9 +915,9 @@ static int velocity_set_media_mode(struct velocity_info *vptr, u32 mii_status)
 		/* clear force MAC mode bit */
 		BYTE_REG_BITS_OFF(CHIPGCR_FCMODE, &regs->CHIPGCR);
 		/* set duplex mode of MAC according to duplex mode of MII */
-		MII_REG_BITS_ON(ANAR_TXFD | ANAR_TX | ANAR_10FD | ANAR_10, MII_REG_ANAR, vptr->mac_regs);
-		MII_REG_BITS_ON(G1000CR_1000FD | G1000CR_1000, MII_REG_G1000CR, vptr->mac_regs);
-		MII_REG_BITS_ON(BMCR_SPEED1G, MII_REG_BMCR, vptr->mac_regs);
+		MII_REG_BITS_ON(ADVERTISE_100FULL | ADVERTISE_100HALF | ADVERTISE_10FULL | ADVERTISE_10HALF, MII_ADVERTISE, vptr->mac_regs);
+		MII_REG_BITS_ON(ADVERTISE_1000FULL | ADVERTISE_1000HALF, MII_CTRL1000, vptr->mac_regs);
+		MII_REG_BITS_ON(BMCR_SPEED1000, MII_BMCR, vptr->mac_regs);
 
 		/* enable AUTO-NEGO mode */
 		mii_set_auto_on(vptr);
@@ -952,31 +952,31 @@ static int velocity_set_media_mode(struct velocity_info *vptr, u32 mii_status)
 				BYTE_REG_BITS_ON(TCR_TB2BDIS, &regs->TCR);
 		}
 
-		MII_REG_BITS_OFF(G1000CR_1000FD | G1000CR_1000, MII_REG_G1000CR, vptr->mac_regs);
+		MII_REG_BITS_OFF(ADVERTISE_1000FULL | ADVERTISE_1000HALF, MII_CTRL1000, vptr->mac_regs);
 
 		if (!(mii_status & VELOCITY_DUPLEX_FULL) && (mii_status & VELOCITY_SPEED_10))
 			BYTE_REG_BITS_OFF(TESTCFG_HBDIS, &regs->TESTCFG);
 		else
 			BYTE_REG_BITS_ON(TESTCFG_HBDIS, &regs->TESTCFG);
 
-		/* MII_REG_BITS_OFF(BMCR_SPEED1G, MII_REG_BMCR, vptr->mac_regs); */
-		velocity_mii_read(vptr->mac_regs, MII_REG_ANAR, &ANAR);
-		ANAR &= (~(ANAR_TXFD | ANAR_TX | ANAR_10FD | ANAR_10));
+		/* MII_REG_BITS_OFF(BMCR_SPEED1000, MII_BMCR, vptr->mac_regs); */
+		velocity_mii_read(vptr->mac_regs, MII_ADVERTISE, &ANAR);
+		ANAR &= (~(ADVERTISE_100FULL | ADVERTISE_100HALF | ADVERTISE_10FULL | ADVERTISE_10HALF));
 		if (mii_status & VELOCITY_SPEED_100) {
 			if (mii_status & VELOCITY_DUPLEX_FULL)
-				ANAR |= ANAR_TXFD;
+				ANAR |= ADVERTISE_100FULL;
 			else
-				ANAR |= ANAR_TX;
+				ANAR |= ADVERTISE_100HALF;
 		} else {
 			if (mii_status & VELOCITY_DUPLEX_FULL)
-				ANAR |= ANAR_10FD;
+				ANAR |= ADVERTISE_10FULL;
 			else
-				ANAR |= ANAR_10;
+				ANAR |= ADVERTISE_10HALF;
 		}
-		velocity_mii_write(vptr->mac_regs, MII_REG_ANAR, ANAR);
+		velocity_mii_write(vptr->mac_regs, MII_ADVERTISE, ANAR);
 		/* enable AUTO-NEGO mode */
 		mii_set_auto_on(vptr);
-		/* MII_REG_BITS_ON(BMCR_AUTO, MII_REG_BMCR, vptr->mac_regs); */
+		/* MII_REG_BITS_ON(BMCR_ANENABLE, MII_BMCR, vptr->mac_regs); */
 	}
 	/* vptr->mii_status=mii_check_media_mode(vptr->mac_regs); */
 	/* vptr->mii_status=check_connection_type(vptr->mac_regs); */
@@ -1126,7 +1126,7 @@ static void velocity_set_multi(struct net_device *dev)
 	struct mac_regs __iomem *regs = vptr->mac_regs;
 	u8 rx_mode;
 	int i;
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 
 	if (dev->flags & IFF_PROMISC) {	/* Set promiscuous. */
 		writel(0xffffffff, &regs->MARCAM[0]);
@@ -1142,8 +1142,8 @@ static void velocity_set_multi(struct net_device *dev)
 		mac_get_cam_mask(regs, vptr->mCAMmask);
 
 		i = 0;
-		netdev_for_each_mc_addr(mclist, dev) {
-			mac_set_cam(regs, i + offset, mclist->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			mac_set_cam(regs, i + offset, ha->addr);
 			vptr->mCAMmask[(offset + i) / 8] |= 1 << ((offset + i) & 7);
 			i++;
 		}
@@ -1178,36 +1178,36 @@ static void mii_init(struct velocity_info *vptr, u32 mii_status)
 		/*
 		 *	Reset to hardware default
 		 */
-		MII_REG_BITS_OFF((ANAR_ASMDIR | ANAR_PAUSE), MII_REG_ANAR, vptr->mac_regs);
+		MII_REG_BITS_OFF((ADVERTISE_PAUSE_ASYM | ADVERTISE_PAUSE_CAP), MII_ADVERTISE, vptr->mac_regs);
 		/*
 		 *	Turn on ECHODIS bit in NWay-forced full mode and turn it
 		 *	off it in NWay-forced half mode for NWay-forced v.s.
 		 *	legacy-forced issue.
 		 */
 		if (vptr->mii_status & VELOCITY_DUPLEX_FULL)
-			MII_REG_BITS_ON(TCSR_ECHODIS, MII_REG_TCSR, vptr->mac_regs);
+			MII_REG_BITS_ON(TCSR_ECHODIS, MII_SREVISION, vptr->mac_regs);
 		else
-			MII_REG_BITS_OFF(TCSR_ECHODIS, MII_REG_TCSR, vptr->mac_regs);
+			MII_REG_BITS_OFF(TCSR_ECHODIS, MII_SREVISION, vptr->mac_regs);
 		/*
 		 *	Turn on Link/Activity LED enable bit for CIS8201
 		 */
-		MII_REG_BITS_ON(PLED_LALBE, MII_REG_PLED, vptr->mac_regs);
+		MII_REG_BITS_ON(PLED_LALBE, MII_TPISTATUS, vptr->mac_regs);
 		break;
 	case PHYID_VT3216_32BIT:
 	case PHYID_VT3216_64BIT:
 		/*
 		 *	Reset to hardware default
 		 */
-		MII_REG_BITS_ON((ANAR_ASMDIR | ANAR_PAUSE), MII_REG_ANAR, vptr->mac_regs);
+		MII_REG_BITS_ON((ADVERTISE_PAUSE_ASYM | ADVERTISE_PAUSE_CAP), MII_ADVERTISE, vptr->mac_regs);
 		/*
 		 *	Turn on ECHODIS bit in NWay-forced full mode and turn it
 		 *	off it in NWay-forced half mode for NWay-forced v.s.
 		 *	legacy-forced issue
 		 */
 		if (vptr->mii_status & VELOCITY_DUPLEX_FULL)
-			MII_REG_BITS_ON(TCSR_ECHODIS, MII_REG_TCSR, vptr->mac_regs);
+			MII_REG_BITS_ON(TCSR_ECHODIS, MII_SREVISION, vptr->mac_regs);
 		else
-			MII_REG_BITS_OFF(TCSR_ECHODIS, MII_REG_TCSR, vptr->mac_regs);
+			MII_REG_BITS_OFF(TCSR_ECHODIS, MII_SREVISION, vptr->mac_regs);
 		break;
 
 	case PHYID_MARVELL_1000:
@@ -1219,15 +1219,15 @@ static void mii_init(struct velocity_info *vptr, u32 mii_status)
 		/*
 		 *	Reset to hardware default
 		 */
-		MII_REG_BITS_ON((ANAR_ASMDIR | ANAR_PAUSE), MII_REG_ANAR, vptr->mac_regs);
+		MII_REG_BITS_ON((ADVERTISE_PAUSE_ASYM | ADVERTISE_PAUSE_CAP), MII_ADVERTISE, vptr->mac_regs);
 		break;
 	default:
 		;
 	}
-	velocity_mii_read(vptr->mac_regs, MII_REG_BMCR, &BMCR);
-	if (BMCR & BMCR_ISO) {
-		BMCR &= ~BMCR_ISO;
-		velocity_mii_write(vptr->mac_regs, MII_REG_BMCR, BMCR);
+	velocity_mii_read(vptr->mac_regs, MII_BMCR, &BMCR);
+	if (BMCR & BMCR_ISOLATE) {
+		BMCR &= ~BMCR_ISOLATE;
+		velocity_mii_write(vptr->mac_regs, MII_BMCR, BMCR);
 	}
 }
 
@@ -2606,7 +2606,6 @@ static netdev_tx_t velocity_xmit(struct sk_buff *skb,
 	td_ptr->td_buf[0].size |= TD_QUEUE;
 	mac_tx_queue_wake(vptr->mac_regs, qnum);
 
-	dev->trans_start = jiffies;
 	spin_unlock_irqrestore(&vptr->lock, flags);
 out:
 	return NETDEV_TX_OK;
@@ -2953,13 +2952,13 @@ static int velocity_set_wol(struct velocity_info *vptr)
 
 	if (vptr->mii_status & VELOCITY_AUTONEG_ENABLE) {
 		if (PHYID_GET_PHY_ID(vptr->phy_id) == PHYID_CICADA_CS8201)
-			MII_REG_BITS_ON(AUXCR_MDPPS, MII_REG_AUXCR, vptr->mac_regs);
+			MII_REG_BITS_ON(AUXCR_MDPPS, MII_NCONFIG, vptr->mac_regs);
 
-		MII_REG_BITS_OFF(G1000CR_1000FD | G1000CR_1000, MII_REG_G1000CR, vptr->mac_regs);
+		MII_REG_BITS_OFF(ADVERTISE_1000FULL | ADVERTISE_1000HALF, MII_CTRL1000, vptr->mac_regs);
 	}
 
 	if (vptr->mii_status & VELOCITY_SPEED_1000)
-		MII_REG_BITS_ON(BMCR_REAUTO, MII_REG_BMCR, vptr->mac_regs);
+		MII_REG_BITS_ON(BMCR_ANRESTART, MII_BMCR, vptr->mac_regs);
 
 	BYTE_REG_BITS_ON(CHIPGCR_FCMODE, &regs->CHIPGCR);
 

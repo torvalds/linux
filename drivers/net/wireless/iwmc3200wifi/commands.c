@@ -507,7 +507,7 @@ static int iwm_target_read(struct iwm_priv *iwm, __le32 address,
 		return ret;
 	}
 
-	/* When succeding, the send_target routine returns the seq number */
+	/* When succeeding, the send_target routine returns the seq number */
 	seq_num = ret;
 
 	ret = wait_event_interruptible_timeout(iwm->nonwifi_queue,
@@ -782,10 +782,9 @@ int iwm_send_mlme_profile(struct iwm_priv *iwm)
 	return 0;
 }
 
-int iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
+int __iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
 {
 	struct iwm_umac_invalidate_profile invalid;
-	int ret;
 
 	invalid.hdr.oid = UMAC_WIFI_IF_CMD_INVALIDATE_PROFILE;
 	invalid.hdr.buf_size =
@@ -794,7 +793,14 @@ int iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
 
 	invalid.reason = WLAN_REASON_UNSPECIFIED;
 
-	ret = iwm_send_wifi_if_cmd(iwm, &invalid, sizeof(invalid), 1);
+	return iwm_send_wifi_if_cmd(iwm, &invalid, sizeof(invalid), 1);
+}
+
+int iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
+{
+	int ret;
+
+	ret = __iwm_invalidate_mlme_profile(iwm);
 	if (ret)
 		return ret;
 

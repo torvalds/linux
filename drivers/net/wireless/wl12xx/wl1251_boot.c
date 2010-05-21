@@ -497,7 +497,8 @@ int wl1251_boot(struct wl1251 *wl)
 	/* 2. start processing NVS file */
 	if (wl->use_eeprom) {
 		wl1251_reg_write32(wl, ACX_REG_EE_START, START_EEPROM_MGR);
-		msleep(4000);
+		/* Wait for EEPROM NVS burst read to complete */
+		msleep(40);
 		wl1251_reg_write32(wl, ACX_EEPROMLESS_IND_REG, USE_EEPROM);
 	} else {
 		ret = wl1251_boot_upload_nvs(wl);

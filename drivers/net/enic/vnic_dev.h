@@ -103,11 +103,14 @@ int vnic_dev_stats_dump(struct vnic_dev *vdev, struct vnic_stats **stats);
 int vnic_dev_hang_notify(struct vnic_dev *vdev);
 void vnic_dev_packet_filter(struct vnic_dev *vdev, int directed, int multicast,
 	int broadcast, int promisc, int allmulti);
-void vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr);
-void vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr);
+int vnic_dev_add_addr(struct vnic_dev *vdev, u8 *addr);
+int vnic_dev_del_addr(struct vnic_dev *vdev, u8 *addr);
 int vnic_dev_mac_addr(struct vnic_dev *vdev, u8 *mac_addr);
 int vnic_dev_raise_intr(struct vnic_dev *vdev, u16 intr);
+int vnic_dev_notify_setcmd(struct vnic_dev *vdev,
+	void *notify_addr, dma_addr_t notify_pa, u16 intr);
 int vnic_dev_notify_set(struct vnic_dev *vdev, u16 intr);
+void vnic_dev_notify_unsetcmd(struct vnic_dev *vdev);
 void vnic_dev_notify_unset(struct vnic_dev *vdev);
 int vnic_dev_link_status(struct vnic_dev *vdev);
 u32 vnic_dev_port_speed(struct vnic_dev *vdev);
@@ -121,6 +124,9 @@ int vnic_dev_disable(struct vnic_dev *vdev);
 int vnic_dev_open(struct vnic_dev *vdev, int arg);
 int vnic_dev_open_done(struct vnic_dev *vdev, int *done);
 int vnic_dev_init(struct vnic_dev *vdev, int arg);
+int vnic_dev_init_done(struct vnic_dev *vdev, int *done, int *err);
+int vnic_dev_init_prov(struct vnic_dev *vdev, u8 *buf, u32 len);
+int vnic_dev_deinit(struct vnic_dev *vdev);
 int vnic_dev_soft_reset(struct vnic_dev *vdev, int arg);
 int vnic_dev_soft_reset_done(struct vnic_dev *vdev, int *done);
 void vnic_dev_set_intr_mode(struct vnic_dev *vdev,

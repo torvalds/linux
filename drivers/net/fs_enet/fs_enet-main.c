@@ -674,8 +674,6 @@ static int fs_enet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 				skb->data, skb->len, DMA_TO_DEVICE));
 	CBDW_DATLEN(bdp, skb->len);
 
-	dev->trans_start = jiffies;
-
 	/*
 	 * If this was the last BD in the ring, start at the beginning again.
 	 */

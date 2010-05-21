@@ -723,14 +723,10 @@ static int ip6_tnl_rcv(struct sk_buff *skb, __u16 protocol,
 		skb->protocol = htons(protocol);
 		skb->pkt_type = PACKET_HOST;
 		memset(skb->cb, 0, sizeof(struct inet6_skb_parm));
-		skb->dev = t->dev;
-		skb_dst_drop(skb);
-		nf_reset(skb);
+
+		skb_tunnel_rx(skb, t->dev);
 
 		dscp_ecn_decapsulate(t, ipv6h, skb);
-
-		t->dev->stats.rx_packets++;
-		t->dev->stats.rx_bytes += skb->len;
 		netif_rx(skb);
 		rcu_read_unlock();
 		return 0;

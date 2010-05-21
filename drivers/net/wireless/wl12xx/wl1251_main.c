@@ -147,8 +147,8 @@ static void wl1251_fw_wakeup(struct wl1251 *wl)
 	u32 elp_reg;
 
 	elp_reg = ELPCTRL_WAKE_UP;
-	wl1251_write32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, elp_reg);
-	elp_reg = wl1251_read32(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
+	wl1251_write_elp(wl, HW_ACCESS_ELP_CTRL_REG_ADDR, elp_reg);
+	elp_reg = wl1251_read_elp(wl, HW_ACCESS_ELP_CTRL_REG_ADDR);
 
 	if (!(elp_reg & ELPCTRL_WLAN_READY))
 		wl1251_warning("WLAN not ready");
@@ -202,8 +202,8 @@ static int wl1251_chip_wakeup(struct wl1251 *wl)
 			goto out;
 	}
 
-	/* No NVS from netlink, try to get it from the filesystem */
-	if (wl->nvs == NULL) {
+	if (wl->nvs == NULL && !wl->use_eeprom) {
+		/* No NVS from netlink, try to get it from the filesystem */
 		ret = wl1251_fetch_nvs(wl);
 		if (ret < 0)
 			goto out;
@@ -857,6 +857,7 @@ out:
 }
 
 static int wl1251_op_hw_scan(struct ieee80211_hw *hw,
+			     struct ieee80211_vif *vif,
 			     struct cfg80211_scan_request *req)
 {
 	struct wl1251 *wl = hw->priv;
@@ -1196,6 +1197,66 @@ static const struct ieee80211_ops wl1251_ops = {
 	.conf_tx = wl1251_op_conf_tx,
 };
 
+static int wl1251_read_eeprom_byte(struct wl1251 *wl, off_t offset, u8 *data)
+{
+	unsigned long timeout;
+
+	wl1251_reg_write32(wl, EE_ADDR, offset);
+	wl1251_reg_write32(wl, EE_CTL, EE_CTL_READ);
+
+	/* EE_CTL_READ clears when data is ready */
+	timeout = jiffies + msecs_to_jiffies(100);
+	while (1) {
+		if (!(wl1251_reg_read32(wl, EE_CTL) & EE_CTL_READ))
+			break;
+
+		if (time_after(jiffies, timeout))
+			return -ETIMEDOUT;
+
+		msleep(1);
+	}
+
+	*data = wl1251_reg_read32(wl, EE_DATA);
+	return 0;
+}
+
+static int wl1251_read_eeprom(struct wl1251 *wl, off_t offset,
+			      u8 *data, size_t len)
+{
+	size_t i;
+	int ret;
+
+	wl1251_reg_write32(wl, EE_START, 0);
+
+	for (i = 0; i < len; i++) {
+		ret = wl1251_read_eeprom_byte(wl, offset + i, &data[i]);
+		if (ret < 0)
+			return ret;
+	}
+
+	return 0;
+}
+
+static int wl1251_read_eeprom_mac(struct wl1251 *wl)
+{
+	u8 mac[ETH_ALEN];
+	int i, ret;
+
+	wl1251_set_partition(wl, 0, 0, REGISTERS_BASE, REGISTERS_DOWN_SIZE);
+
+	ret = wl1251_read_eeprom(wl, 0x1c, mac, sizeof(mac));
+	if (ret < 0) {
+		wl1251_warning("failed to read MAC address from EEPROM");
+		return ret;
+	}
+
+	/* MAC is stored in reverse order */
+	for (i = 0; i < ETH_ALEN; i++)
+		wl->mac_addr[i] = mac[ETH_ALEN - i - 1];
+
+	return 0;
+}
+
 static int wl1251_register_hw(struct wl1251 *wl)
 {
 	int ret;
@@ -1231,7 +1292,6 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	wl->hw->channel_change_time = 10000;
 
 	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM |
-		IEEE80211_HW_NOISE_DBM |
 		IEEE80211_HW_SUPPORTS_PS |
 		IEEE80211_HW_BEACON_FILTER |
 		IEEE80211_HW_SUPPORTS_UAPSD;
@@ -1241,6 +1301,9 @@ int wl1251_init_ieee80211(struct wl1251 *wl)
 	wl->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &wl1251_band_2ghz;
 
 	wl->hw->queues = 4;
+
+	if (wl->use_eeprom)
+		wl1251_read_eeprom_mac(wl);
 
 	ret = wl1251_register_hw(wl);
 	if (ret)

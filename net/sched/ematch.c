@@ -527,7 +527,8 @@ pop_stack:
 
 stack_overflow:
 	if (net_ratelimit())
-		printk("Local stack overflow, increase NET_EMATCH_STACK\n");
+		printk(KERN_WARNING "tc ematch: local stack overflow,"
+			" increase NET_EMATCH_STACK\n");
 	return -1;
 }
 EXPORT_SYMBOL(__tcf_em_tree_match);

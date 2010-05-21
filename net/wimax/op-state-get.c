@@ -53,7 +53,6 @@ int wimax_gnl_doit_state_get(struct sk_buff *skb, struct genl_info *info)
 {
 	int result, ifindex;
 	struct wimax_dev *wimax_dev;
-	struct device *dev;
 
 	d_fnstart(3, NULL, "(skb %p info %p)\n", skb, info);
 	result = -ENODEV;
@@ -66,7 +65,6 @@ int wimax_gnl_doit_state_get(struct sk_buff *skb, struct genl_info *info)
 	wimax_dev = wimax_dev_get_by_genl_info(info, ifindex);
 	if (wimax_dev == NULL)
 		goto error_no_wimax_dev;
-	dev = wimax_dev_to_dev(wimax_dev);
 	/* Execute the operation and send the result back to user space */
 	result = wimax_state_get(wimax_dev);
 	dev_put(wimax_dev->net_dev);

@@ -93,8 +93,6 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 		antenna = ((sc->beacon.ast_be_xmit / sc->nbcnvifs) & 1 ? 2 : 1);
 	}
 
-	ds->ds_data = bf->bf_buf_addr;
-
 	sband = &sc->sbands[common->hw->conf.channel->band];
 	rate = sband->bitrates[rateidx].hw_value;
 	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
@@ -109,7 +107,8 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 
 	/* NB: beacon's BufLen must be a multiple of 4 bytes */
 	ath9k_hw_filltxdesc(ah, ds, roundup(skb->len, 4),
-			    true, true, ds);
+			    true, true, ds, bf->bf_buf_addr,
+			    sc->beacon.beaconq);
 
 	memset(series, 0, sizeof(struct ath9k_11n_rate_series) * 4);
 	series[0].Tries = 1;
@@ -524,6 +523,7 @@ static void ath9k_beacon_init(struct ath_softc *sc,
 static void ath_beacon_config_ap(struct ath_softc *sc,
 				 struct ath_beacon_config *conf)
 {
+	struct ath_hw *ah = sc->sc_ah;
 	u32 nexttbtt, intval;
 
 	/* NB: the beacon interval is kept internally in TU's */
@@ -539,15 +539,15 @@ static void ath_beacon_config_ap(struct ath_softc *sc,
 	 * prepare beacon frames.
 	 */
 	intval |= ATH9K_BEACON_ENA;
-	sc->imask |= ATH9K_INT_SWBA;
+	ah->imask |= ATH9K_INT_SWBA;
 	ath_beaconq_config(sc);
 
 	/* Set the computed AP beacon timers */
 
-	ath9k_hw_set_interrupts(sc->sc_ah, 0);
+	ath9k_hw_set_interrupts(ah, 0);
 	ath9k_beacon_init(sc, nexttbtt, intval);
 	sc->beacon.bmisscnt = 0;
-	ath9k_hw_set_interrupts(sc->sc_ah, sc->imask);
+	ath9k_hw_set_interrupts(ah, ah->imask);
 
 	/* Clear the reset TSF flag, so that subsequent beacon updation
 	   will not reset the HW TSF. */
@@ -566,7 +566,8 @@ static void ath_beacon_config_ap(struct ath_softc *sc,
 static void ath_beacon_config_sta(struct ath_softc *sc,
 				  struct ath_beacon_config *conf)
 {
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_beacon_state bs;
 	int dtimperiod, dtimcount, sleepduration;
 	int cfpperiod, cfpcount;
@@ -605,7 +606,7 @@ static void ath_beacon_config_sta(struct ath_softc *sc,
 	 * Pull nexttbtt forward to reflect the current
 	 * TSF and calculate dtim+cfp state for the result.
 	 */
-	tsf = ath9k_hw_gettsf64(sc->sc_ah);
+	tsf = ath9k_hw_gettsf64(ah);
 	tsftu = TSF_TO_TU(tsf>>32, tsf) + FUDGE;
 
 	num_beacons = tsftu / intval + 1;
@@ -678,17 +679,18 @@ static void ath_beacon_config_sta(struct ath_softc *sc,
 
 	/* Set the computed STA beacon timers */
 
-	ath9k_hw_set_interrupts(sc->sc_ah, 0);
-	ath9k_hw_set_sta_beacon_timers(sc->sc_ah, &bs);
-	sc->imask |= ATH9K_INT_BMISS;
-	ath9k_hw_set_interrupts(sc->sc_ah, sc->imask);
+	ath9k_hw_set_interrupts(ah, 0);
+	ath9k_hw_set_sta_beacon_timers(ah, &bs);
+	ah->imask |= ATH9K_INT_BMISS;
+	ath9k_hw_set_interrupts(ah, ah->imask);
 }
 
 static void ath_beacon_config_adhoc(struct ath_softc *sc,
 				    struct ath_beacon_config *conf,
 				    struct ieee80211_vif *vif)
 {
-	struct ath_common *common = ath9k_hw_common(sc->sc_ah);
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
 	u64 tsf;
 	u32 tsftu, intval, nexttbtt;
 
@@ -703,7 +705,7 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
         else if (intval)
                 nexttbtt = roundup(nexttbtt, intval);
 
-	tsf = ath9k_hw_gettsf64(sc->sc_ah);
+	tsf = ath9k_hw_gettsf64(ah);
 	tsftu = TSF_TO_TU((u32)(tsf>>32), (u32)tsf) + FUDGE;
 	do {
 		nexttbtt += intval;
@@ -719,20 +721,20 @@ static void ath_beacon_config_adhoc(struct ath_softc *sc,
 	 * self-linked tx descriptor and let the hardware deal with things.
 	 */
 	intval |= ATH9K_BEACON_ENA;
-	if (!(sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_VEOL))
-		sc->imask |= ATH9K_INT_SWBA;
+	if (!(ah->caps.hw_caps & ATH9K_HW_CAP_VEOL))
+		ah->imask |= ATH9K_INT_SWBA;
 
 	ath_beaconq_config(sc);
 
 	/* Set the computed ADHOC beacon timers */
 
-	ath9k_hw_set_interrupts(sc->sc_ah, 0);
+	ath9k_hw_set_interrupts(ah, 0);
 	ath9k_beacon_init(sc, nexttbtt, intval);
 	sc->beacon.bmisscnt = 0;
-	ath9k_hw_set_interrupts(sc->sc_ah, sc->imask);
+	ath9k_hw_set_interrupts(ah, ah->imask);
 
 	/* FIXME: Handle properly when vif is NULL */
-	if (vif && sc->sc_ah->caps.hw_caps & ATH9K_HW_CAP_VEOL)
+	if (vif && ah->caps.hw_caps & ATH9K_HW_CAP_VEOL)
 		ath_beacon_start_adhoc(sc, vif);
 }
 

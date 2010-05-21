@@ -47,7 +47,6 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 
-#include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
 #include <linux/can/platform/ti_hecc.h>

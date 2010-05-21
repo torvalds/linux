@@ -488,7 +488,6 @@ static void ixgbe_dcbnl_setpfcstate(struct net_device *netdev, u8 state)
 	if (adapter->temp_dcb_cfg.pfc_mode_enable !=
 		adapter->dcb_cfg.pfc_mode_enable)
 		adapter->dcb_set_bitmap |= BIT_PFC;
-	return;
 }
 
 /**

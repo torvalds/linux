@@ -69,6 +69,14 @@ static const struct qlcnic_stats qlcnic_gstrings_stats[] = {
 		QLC_SIZEOF(stats.xmit_off), QLC_OFF(stats.xmit_off)},
 	{"skb_alloc_failure", QLC_SIZEOF(stats.skb_alloc_failure),
 		QLC_OFF(stats.skb_alloc_failure)},
+	{"null skb",
+		QLC_SIZEOF(stats.null_skb), QLC_OFF(stats.null_skb)},
+	{"null rxbuf",
+		QLC_SIZEOF(stats.null_rxbuf), QLC_OFF(stats.null_rxbuf)},
+	{"rx dma map error", QLC_SIZEOF(stats.rx_dma_map_error),
+					 QLC_OFF(stats.rx_dma_map_error)},
+	{"tx dma map error", QLC_SIZEOF(stats.tx_dma_map_error),
+					 QLC_OFF(stats.tx_dma_map_error)},
 
 };
 
@@ -404,7 +412,6 @@ qlcnic_get_ringparam(struct net_device *dev,
 
 	ring->rx_pending = adapter->num_rxd;
 	ring->rx_jumbo_pending = adapter->num_jumbo_rxd;
-	ring->rx_jumbo_pending += adapter->num_lro_rxd;
 	ring->tx_pending = adapter->num_txd;
 
 	if (adapter->ahw.port_type == QLCNIC_GBE) {
@@ -598,17 +605,10 @@ qlcnic_set_pauseparam(struct net_device *netdev,
 static int qlcnic_reg_test(struct net_device *dev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
-	u32 data_read, data_written;
+	u32 data_read;
 
 	data_read = QLCRD32(adapter, QLCNIC_PCIX_PH_REG(0));
 	if ((data_read & 0xffff) != adapter->pdev->vendor)
-		return 1;
-
-	data_written = (u32)0xa5a5a5a5;
-
-	QLCWR32(adapter, CRB_SCRATCHPAD_TEST, data_written);
-	data_read = QLCRD32(adapter, CRB_SCRATCHPAD_TEST);
-	if (data_written != data_read)
 		return 1;
 
 	return 0;
@@ -998,6 +998,20 @@ static int qlcnic_set_flags(struct net_device *netdev, u32 data)
 	return 0;
 }
 
+static u32 qlcnic_get_msglevel(struct net_device *netdev)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+
+	return adapter->msg_enable;
+}
+
+static void qlcnic_set_msglevel(struct net_device *netdev, u32 msglvl)
+{
+	struct qlcnic_adapter *adapter = netdev_priv(netdev);
+
+	adapter->msg_enable = msglvl;
+}
+
 const struct ethtool_ops qlcnic_ethtool_ops = {
 	.get_settings = qlcnic_get_settings,
 	.set_settings = qlcnic_set_settings,
@@ -1029,4 +1043,6 @@ const struct ethtool_ops qlcnic_ethtool_ops = {
 	.get_flags = ethtool_op_get_flags,
 	.set_flags = qlcnic_set_flags,
 	.phys_id = qlcnic_blink_led,
+	.set_msglevel = qlcnic_set_msglevel,
+	.get_msglevel = qlcnic_get_msglevel,
 };

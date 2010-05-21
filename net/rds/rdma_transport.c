@@ -101,7 +101,7 @@ int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 		break;
 
 	case RDMA_CM_EVENT_DISCONNECTED:
-		printk(KERN_WARNING "RDS/RDMA: DISCONNECT event - dropping connection "
+		rdsdebug("DISCONNECT event - dropping connection "
 			"%pI4->%pI4\n", &conn->c_laddr,
 			 &conn->c_faddr);
 		rds_conn_drop(conn);
@@ -109,8 +109,7 @@ int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 
 	default:
 		/* things like device disconnect? */
-		printk(KERN_ERR "unknown event %u\n", event->event);
-		BUG();
+		printk(KERN_ERR "RDS: unknown event %u!\n", event->event);
 		break;
 	}
 

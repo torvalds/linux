@@ -9,7 +9,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/ip.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
@@ -22,23 +22,23 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Svenning Soerensen <svenning@post5.tele.dk>");
 MODULE_DESCRIPTION("Xtables: 1:1 NAT mapping of IPv4 subnets");
 
-static bool netmap_tg_check(const struct xt_tgchk_param *par)
+static int netmap_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct nf_nat_multi_range_compat *mr = par->targinfo;
 
 	if (!(mr->range[0].flags & IP_NAT_RANGE_MAP_IPS)) {
-		pr_debug("NETMAP:check: bad MAP_IPS.\n");
-		return false;
+		pr_debug("bad MAP_IPS.\n");
+		return -EINVAL;
 	}
 	if (mr->rangesize != 1) {
-		pr_debug("NETMAP:check: bad rangesize %u.\n", mr->rangesize);
-		return false;
+		pr_debug("bad rangesize %u.\n", mr->rangesize);
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static unsigned int
-netmap_tg(struct sk_buff *skb, const struct xt_target_param *par)
+netmap_tg(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;

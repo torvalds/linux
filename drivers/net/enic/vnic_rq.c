@@ -168,10 +168,10 @@ int vnic_rq_disable(struct vnic_rq *rq)
 	iowrite32(0, &rq->ctrl->enable);
 
 	/* Wait for HW to ACK disable request */
-	for (wait = 0; wait < 100; wait++) {
+	for (wait = 0; wait < 1000; wait++) {
 		if (!(ioread32(&rq->ctrl->running)))
 			return 0;
-		udelay(1);
+		udelay(10);
 	}
 
 	printk(KERN_ERR "Failed to disable RQ[%d]\n", rq->index);

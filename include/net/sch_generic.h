@@ -73,6 +73,7 @@ struct Qdisc {
 	struct sk_buff_head	q;
 	struct gnet_stats_basic_packed bstats;
 	struct gnet_stats_queue	qstats;
+	struct rcu_head     rcu_head;
 };
 
 struct Qdisc_class_ops {
