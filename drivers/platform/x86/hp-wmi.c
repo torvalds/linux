@@ -352,7 +352,9 @@ static void hp_wmi_notify(u32 value, void *context)
 	struct acpi_buffer response = { ACPI_ALLOCATE_BUFFER, NULL };
 	static struct key_entry *key;
 	union acpi_object *obj;
-	int eventcode, key_code;
+	u32 event_id, event_data;
+	int key_code;
+	u32 *location;
 	acpi_status status;
 
 	status = wmi_get_event_data(value, &response);
@@ -363,15 +365,33 @@ static void hp_wmi_notify(u32 value, void *context)
 
 	obj = (union acpi_object *)response.pointer;
 
-	if (!obj || obj->type != ACPI_TYPE_BUFFER || obj->buffer.length != 8) {
-		printk(KERN_INFO PREFIX "Unknown response received\n");
+	if (obj || obj->type != ACPI_TYPE_BUFFER) {
+		printk(KERN_INFO "hp-wmi: Unknown response received %d\n",
+		       obj->type);
 		kfree(obj);
 		return;
 	}
 
-	eventcode = *((u8 *) obj->buffer.pointer);
+	/*
+	 * Depending on ACPI version the concatenation of id and event data
+	 * inside _WED function will result in a 8 or 16 byte buffer.
+	 */
+	location = (u32 *)obj->buffer.pointer;
+	if (obj->buffer.length == 8) {
+		event_id = *location;
+		event_data = *(location + 1);
+	} else if (obj->buffer.length == 16) {
+		event_id = *location;
+		event_data = *(location + 2);
+	} else {
+		printk(KERN_INFO "hp-wmi: Unknown buffer length %d\n",
+		       obj->buffer.length);
+		kfree(obj);
+		return;
+	}
 	kfree(obj);
-	switch (eventcode) {
+
+	switch (event_id) {
 	case HPWMI_DOCK_EVENT:
 		input_report_switch(hp_wmi_input_dev, SW_DOCK,
 				    hp_wmi_dock_state());
@@ -423,8 +443,8 @@ static void hp_wmi_notify(u32 value, void *context)
 	case HPWMI_LOCK_SWITCH:
 		break;
 	default:
-		printk(KERN_INFO PREFIX "Unknown eventcode - %d\n",
-		       eventcode);
+		printk(KERN_INFO PREFIX "Unknown event_id - %d - 0x%x\n",
+		       event_id, event_data);
 		break;
 	}
 }
