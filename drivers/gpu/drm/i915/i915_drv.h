@@ -31,6 +31,7 @@
 #define _I915_DRV_H_
 
 #include "i915_reg.h"
+#include "i915_drm.h"
 #include "intel_bios.h"
 #include <linux/io-mapping.h>
 
@@ -54,6 +55,8 @@ enum plane {
 };
 
 #define I915_NUM_PIPE	2
+
+#define I915_GEM_GPU_DOMAINS	(~(I915_GEM_DOMAIN_CPU | I915_GEM_DOMAIN_GTT))
 
 /* Interface history:
  *
@@ -849,6 +852,9 @@ extern u32 gm45_get_vblank_counter(struct drm_device *dev, int crtc);
 extern int i915_vblank_swap(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 extern void i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask);
+extern void i915_disable_irq(drm_i915_private_t *dev_priv, u32 mask);
+void ironlake_enable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask);
+void ironlake_disable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask);
 
 void
 i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
@@ -956,6 +962,8 @@ void i915_gem_object_flush_write_domain(struct drm_gem_object *obj);
 
 void i915_gem_shrinker_init(void);
 void i915_gem_shrinker_exit(void);
+int i915_gem_init_pipe_control(struct drm_device *dev);
+void i915_gem_cleanup_pipe_control(struct drm_device *dev);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
@@ -1005,6 +1013,16 @@ static inline void opregion_asle_intr(struct drm_device *dev) { return; }
 static inline void ironlake_opregion_gse_intr(struct drm_device *dev) { return; }
 static inline void opregion_enable_asle(struct drm_device *dev) { return; }
 #endif
+
+/* intel_ringbuffer.c */
+extern void i915_gem_flush(struct drm_device *dev,
+			   uint32_t invalidate_domains,
+			   uint32_t flush_domains);
+extern int i915_dispatch_gem_execbuffer(struct drm_device *dev,
+					struct drm_i915_gem_execbuffer2 *exec,
+					struct drm_clip_rect *cliprects,
+					uint64_t exec_offset);
+extern uint32_t i915_ring_add_request(struct drm_device *dev);
 
 /* modesetting */
 extern void intel_modeset_init(struct drm_device *dev);

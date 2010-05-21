@@ -74,7 +74,7 @@ ironlake_enable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask)
 	}
 }
 
-static inline void
+void
 ironlake_disable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
 	if ((dev_priv->gt_irq_mask_reg & mask) != mask) {
@@ -115,7 +115,7 @@ i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask)
 	}
 }
 
-static inline void
+void
 i915_disable_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
 	if ((dev_priv->irq_mask_reg & mask) != mask) {
@@ -1004,37 +1004,6 @@ static int i915_emit_irq(struct drm_device * dev)
 	ADVANCE_LP_RING();
 
 	return dev_priv->counter;
-}
-
-void i915_user_irq_get(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-	if (dev->irq_enabled && (++dev_priv->user_irq_refcount == 1)) {
-		if (HAS_PCH_SPLIT(dev))
-			ironlake_enable_graphics_irq(dev_priv, GT_PIPE_NOTIFY);
-		else
-			i915_enable_irq(dev_priv, I915_USER_INTERRUPT);
-	}
-	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
-}
-
-void i915_user_irq_put(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
-	unsigned long irqflags;
-
-	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-	BUG_ON(dev->irq_enabled && dev_priv->user_irq_refcount <= 0);
-	if (dev->irq_enabled && (--dev_priv->user_irq_refcount == 0)) {
-		if (HAS_PCH_SPLIT(dev))
-			ironlake_disable_graphics_irq(dev_priv, GT_PIPE_NOTIFY);
-		else
-			i915_disable_irq(dev_priv, I915_USER_INTERRUPT);
-	}
-	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 }
 
 void i915_trace_irq_get(struct drm_device *dev, u32 seqno)
