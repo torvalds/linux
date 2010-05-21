@@ -817,6 +817,7 @@
 #define PVR_403GC	0x00200200
 #define PVR_403GCX	0x00201400
 #define PVR_405GP	0x40110000
+#define PVR_476		0x11a52000
 #define PVR_STB03XXX	0x40310000
 #define PVR_NP405H	0x41410000
 #define PVR_NP405L	0x41610000
@@ -852,6 +853,9 @@
 #define PVR_8240	0x00810100
 #define PVR_8245	0x80811014
 #define PVR_8260	PVR_8240
+
+/* 476 Simulator seems to currently have the PVR of the 602... */
+#define PVR_476_ISS	0x00052000
 
 /* 64-bit processors */
 /* XXX the prefix should be PVR_, we'll do a global sweep to fix it one day */

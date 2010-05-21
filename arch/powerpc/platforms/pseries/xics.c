@@ -163,29 +163,37 @@ static inline void lpar_qirr_info(int n_cpu , u8 value)
 /* Interface to generic irq subsystem */
 
 #ifdef CONFIG_SMP
-static int get_irq_server(unsigned int virq, cpumask_t cpumask,
+/*
+ * For the moment we only implement delivery to all cpus or one cpu.
+ *
+ * If the requested affinity is cpu_all_mask, we set global affinity.
+ * If not we set it to the first cpu in the mask, even if multiple cpus
+ * are set. This is so things like irqbalance (which set core and package
+ * wide affinities) do the right thing.
+ */
+static int get_irq_server(unsigned int virq, const struct cpumask *cpumask,
 			  unsigned int strict_check)
 {
-	int server;
-	/* For the moment only implement delivery to all cpus or one cpu */
-	cpumask_t tmp = CPU_MASK_NONE;
 
 	if (!distribute_irqs)
 		return default_server;
 
-	if (!cpus_equal(cpumask, CPU_MASK_ALL)) {
-		cpus_and(tmp, cpu_online_map, cpumask);
+	if (!cpumask_equal(cpumask, cpu_all_mask)) {
+		int server = cpumask_first_and(cpu_online_mask, cpumask);
 
-		server = first_cpu(tmp);
-
-		if (server < NR_CPUS)
+		if (server < nr_cpu_ids)
 			return get_hard_smp_processor_id(server);
 
 		if (strict_check)
 			return -1;
 	}
 
-	if (cpus_equal(cpu_online_map, cpu_present_map))
+	/*
+	 * Workaround issue with some versions of JS20 firmware that
+	 * deliver interrupts to cpus which haven't been started. This
+	 * happens when using the maxcpus= boot option.
+	 */
+	if (cpumask_equal(cpu_online_mask, cpu_present_mask))
 		return default_distrib_server;
 
 	return default_server;
@@ -207,7 +215,7 @@ static void xics_unmask_irq(unsigned int virq)
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 		return;
 
-	server = get_irq_server(virq, *(irq_to_desc(virq)->affinity), 0);
+	server = get_irq_server(virq, irq_to_desc(virq)->affinity, 0);
 
 	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, irq, server,
 				DEFAULT_PRIORITY);
@@ -398,11 +406,7 @@ static int xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 		return -1;
 	}
 
-	/*
-	 * For the moment only implement delivery to all cpus or one cpu.
-	 * Get current irq_server for the given irq
-	 */
-	irq_server = get_irq_server(virq, *cpumask, 1);
+	irq_server = get_irq_server(virq, cpumask, 1);
 	if (irq_server == -1) {
 		char cpulist[128];
 		cpumask_scnprintf(cpulist, sizeof(cpulist), cpumask);
@@ -611,7 +615,7 @@ int __init smp_xics_probe(void)
 {
 	xics_request_ipi();
 
-	return cpus_weight(cpu_possible_map);
+	return cpumask_weight(cpu_possible_mask);
 }
 
 #endif /* CONFIG_SMP */

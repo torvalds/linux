@@ -183,6 +183,7 @@ int main(void)
 #endif /* CONFIG_PPC_STD_MMU_64 */
 	DEFINE(PACAEMERGSP, offsetof(struct paca_struct, emergency_sp));
 	DEFINE(PACAHWCPUID, offsetof(struct paca_struct, hw_cpu_id));
+	DEFINE(PACAKEXECSTATE, offsetof(struct paca_struct, kexec_state));
 	DEFINE(PACA_STARTPURR, offsetof(struct paca_struct, startpurr));
 	DEFINE(PACA_STARTSPURR, offsetof(struct paca_struct, startspurr));
 	DEFINE(PACA_USER_TIME, offsetof(struct paca_struct, user_time));
@@ -446,6 +447,14 @@ int main(void)
 #ifdef CONFIG_44x
 	DEFINE(PGD_T_LOG2, PGD_T_LOG2);
 	DEFINE(PTE_T_LOG2, PTE_T_LOG2);
+#endif
+#ifdef CONFIG_FSL_BOOKE
+	DEFINE(TLBCAM_SIZE, sizeof(struct tlbcam));
+	DEFINE(TLBCAM_MAS0, offsetof(struct tlbcam, MAS0));
+	DEFINE(TLBCAM_MAS1, offsetof(struct tlbcam, MAS1));
+	DEFINE(TLBCAM_MAS2, offsetof(struct tlbcam, MAS2));
+	DEFINE(TLBCAM_MAS3, offsetof(struct tlbcam, MAS3));
+	DEFINE(TLBCAM_MAS7, offsetof(struct tlbcam, MAS7));
 #endif
 
 #ifdef CONFIG_KVM_EXIT_TIMING
