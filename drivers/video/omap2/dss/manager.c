@@ -843,6 +843,7 @@ static void configure_manager(enum omap_channel channel)
 
 	c = &dss_cache.manager_cache[channel];
 
+	dispc_set_default_color(channel, c->default_color);
 	dispc_set_trans_key(channel, c->trans_key_type, c->trans_key);
 	dispc_enable_trans_key(channel, c->trans_enabled);
 	dispc_enable_alpha_blending(channel, c->alpha_enabled);
@@ -940,6 +941,22 @@ static int configure_dispc(void)
 	return r;
 }
 
+/* Make the coordinates even. There are some strange problems with OMAP and
+ * partial DSI update when the update widths are odd. */
+static void make_even(u16 *x, u16 *w)
+{
+	u16 x1, x2;
+
+	x1 = *x;
+	x2 = *x + *w;
+
+	x1 &= ~1;
+	x2 = ALIGN(x2, 2);
+
+	*x = x1;
+	*w = x2 - x1;
+}
+
 /* Configure dispc for partial update. Return possibly modified update
  * area */
 void dss_setup_partial_planes(struct omap_dss_device *dssdev,
@@ -967,6 +984,8 @@ void dss_setup_partial_planes(struct omap_dss_device *dssdev,
 		DSSDBG("no manager\n");
 		return;
 	}
+
+	make_even(&x, &w);
 
 	spin_lock_irqsave(&dss_cache.lock, flags);
 
@@ -1028,6 +1047,8 @@ void dss_setup_partial_planes(struct omap_dss_device *dssdev,
 		y = y1;
 		w = x2 - x1;
 		h = y2 - y1;
+
+		make_even(&x, &w);
 
 		DSSDBG("changing upd area due to ovl(%d) scaling %d,%d %dx%d\n",
 				i, x, y, w, h);
