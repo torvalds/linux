@@ -2730,6 +2730,7 @@ int skb_gro_receive(struct sk_buff **head, struct sk_buff *skb)
 	*NAPI_GRO_CB(nskb) = *NAPI_GRO_CB(p);
 	skb_shinfo(nskb)->frag_list = p;
 	skb_shinfo(nskb)->gso_size = pinfo->gso_size;
+	pinfo->gso_size = 0;
 	skb_header_release(p);
 	nskb->prev = p;
 
