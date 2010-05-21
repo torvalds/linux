@@ -53,6 +53,7 @@ MODULE_ALIAS("wmi:5FB7F034-2C63-45e9-BE91-3D44E2C707E4");
 #define HPWMI_HOTKEY_QUERY 0xc
 
 #define PREFIX "HP WMI: "
+#define UNIMP "Unimplemented "
 
 enum hp_wmi_radio {
 	HPWMI_WIFI = 0,
@@ -62,8 +63,12 @@ enum hp_wmi_radio {
 
 enum hp_wmi_event_ids {
 	HPWMI_DOCK_EVENT = 1,
+	HPWMI_PARK_HDD = 2,
+	HPWMI_SMART_ADAPTER = 3,
 	HPWMI_BEZEL_BUTTON = 4,
 	HPWMI_WIRELESS = 5,
+	HPWMI_CPU_BATTERY_THROTTLE = 6,
+	HPWMI_LOCK_SWITCH = 7,
 };
 
 static int __devinit hp_wmi_bios_setup(struct platform_device *device);
@@ -374,6 +379,10 @@ static void hp_wmi_notify(u32 value, void *context)
 				    hp_wmi_tablet_state());
 		input_sync(hp_wmi_input_dev);
 		break;
+	case HPWMI_PARK_HDD:
+		break;
+	case HPWMI_SMART_ADAPTER:
+		break;
 	case HPWMI_BEZEL_BUTTON:
 		key_code = hp_wmi_perform_query(HPWMI_HOTKEY_QUERY, 0,
 						 0);
@@ -406,6 +415,12 @@ static void hp_wmi_notify(u32 value, void *context)
 			rfkill_set_states(wwan_rfkill,
 					  hp_wmi_get_sw_state(HPWMI_WWAN),
 					  hp_wmi_get_hw_state(HPWMI_WWAN));
+		break;
+	case HPWMI_CPU_BATTERY_THROTTLE:
+		printk(KERN_INFO PREFIX UNIMP "CPU throttle because of 3 Cell"
+		       " battery event detected\n");
+		break;
+	case HPWMI_LOCK_SWITCH:
 		break;
 	default:
 		printk(KERN_INFO PREFIX "Unknown eventcode - %d\n",
