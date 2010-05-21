@@ -37,6 +37,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
+#include <asm/mach/time.h>
 
 /*
  * SDHI
@@ -259,9 +260,8 @@ static void __init g4evm_map_io(void)
 {
 	iotable_init(g4evm_io_desc, ARRAY_SIZE(g4evm_io_desc));
 
-	/* setup early devices, clocks and console here as well */
+	/* setup early devices and console here as well */
 	sh7377_add_early_devices();
-	sh7367_clock_init(); /* use g3 clocks for now */
 	shmobile_setup_console();
 }
 
@@ -327,9 +327,6 @@ static void __init g4evm_init(void)
 	gpio_request(GPIO_FN_EXTLP, NULL);
 	gpio_request(GPIO_FN_IDIN, NULL);
 
-	/* enable clock in SMSTPCR3 */
-	__raw_writel(__raw_readl(0xe615013c) & ~(1 << 22), 0xe615013c);
-
 	/* setup USB phy */
 	__raw_writew(0x0200, 0xe605810a);       /* USBCR1 */
 	__raw_writew(0x00e0, 0xe60581c0);       /* CPFCH */
@@ -384,11 +381,21 @@ static void __init g4evm_init(void)
 	platform_add_devices(g4evm_devices, ARRAY_SIZE(g4evm_devices));
 }
 
+static void __init g4evm_timer_init(void)
+{
+	sh7377_clock_init();
+	shmobile_timer.init();
+}
+
+static struct sys_timer g4evm_timer = {
+	.init		= g4evm_timer_init,
+};
+
 MACHINE_START(G4EVM, "g4evm")
 	.phys_io	= 0xe6000000,
 	.io_pg_offst	= ((0xe6000000) >> 18) & 0xfffc,
 	.map_io		= g4evm_map_io,
 	.init_irq	= sh7377_init_irq,
 	.init_machine	= g4evm_init,
-	.timer		= &shmobile_timer,
+	.timer		= &g4evm_timer,
 MACHINE_END
