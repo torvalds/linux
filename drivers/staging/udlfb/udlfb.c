@@ -58,17 +58,17 @@ static struct usb_device_id id_table[] = {
 MODULE_DEVICE_TABLE(usb, id_table);
 
 #ifndef CONFIG_FB_DEFERRED_IO
-#warning message "kernel FB_DEFFERRED_IO option to support generic fbdev apps"
+#warning Please set CONFIG_FB_DEFFERRED_IO option to support generic fbdev apps
 #endif
 
 #ifndef CONFIG_FB_SYS_IMAGEBLIT
 #ifndef CONFIG_FB_SYS_IMAGEBLIT_MODULE
-#warning message "FB_SYS_* in kernel or module option to support fb console"
+#warning Please set CONFIG_FB_SYS_IMAGEBLIT option to support fb console
 #endif
 #endif
 
 #ifndef CONFIG_FB_MODE_HELPERS
-#warning message "kernel FB_MODE_HELPERS required. Expect build break"
+#warning CONFIG_FB_MODE_HELPERS required. Expect build break
 #endif
 
 /* dlfb keeps a list of urbs for efficient bulk transfers */
@@ -366,32 +366,32 @@ static int dlfb_trim_hline(const u8 *bback, const u8 **bfront, int *width_bytes)
 }
 
 /*
-Render a command stream for an encoded horizontal line segment of pixels.
-
-A command buffer holds several commands.
-It always begins with a fresh command header
-(the protocol doesn't require this, but we enforce it to allow
-multiple buffers to be potentially encoded and sent in parallel).
-A single command encodes one contiguous horizontal line of pixels
-
-The function relies on the client to do all allocation, so that
-rendering can be done directly to output buffers (e.g. USB URBs).
-The function fills the supplied command buffer, providing information
-on where it left off, so the client may call in again with additional
-buffers if the line will take several buffers to complete.
-
-A single command can transmit a maximum of 256 pixels,
-regardless of the compression ratio (protocol design limit).
-To the hardware, 0 for a size byte means 256
-
-Rather than 256 pixel commands which are either rl or raw encoded,
-the rlx command simply assumes alternating raw and rl spans within one cmd.
-This has a slightly larger header overhead, but produces more even results.
-It also processes all data (read and write) in a single pass.
-Performance benchmarks of common cases show it having just slightly better
-compression than 256 pixel raw -or- rle commands, with similar CPU consumpion.
-But for very rl friendly data, will compress not quite as well.
-*/
+ * Render a command stream for an encoded horizontal line segment of pixels.
+ *
+ * A command buffer holds several commands.
+ * It always begins with a fresh command header
+ * (the protocol doesn't require this, but we enforce it to allow
+ * multiple buffers to be potentially encoded and sent in parallel).
+ * A single command encodes one contiguous horizontal line of pixels
+ *
+ * The function relies on the client to do all allocation, so that
+ * rendering can be done directly to output buffers (e.g. USB URBs).
+ * The function fills the supplied command buffer, providing information
+ * on where it left off, so the client may call in again with additional
+ * buffers if the line will take several buffers to complete.
+ *
+ * A single command can transmit a maximum of 256 pixels,
+ * regardless of the compression ratio (protocol design limit).
+ * To the hardware, 0 for a size byte means 256
+ * 
+ * Rather than 256 pixel commands which are either rl or raw encoded,
+ * the rlx command simply assumes alternating raw and rl spans within one cmd.
+ * This has a slightly larger header overhead, but produces more even results.
+ * It also processes all data (read and write) in a single pass.
+ * Performance benchmarks of common cases show it having just slightly better
+ * compression than 256 pixel raw -or- rle commands, with similar CPU consumpion.
+ * But for very rl friendly data, will compress not quite as well.
+ */
 static void dlfb_compress_hline(
 	const uint16_t **pixel_start_ptr,
 	const uint16_t *const pixel_end,
@@ -1439,7 +1439,7 @@ static int __init dlfb_module_init(void)
 	if (res)
 		err("usb_register failed. Error number %d", res);
 
-	printk("VMODES initialized\n");
+	printk(KERN_INFO "VMODES initialized\n");
 
 	return res;
 }
@@ -1568,7 +1568,7 @@ static int dlfb_alloc_urb_list(struct dlfb_data *dev, int count, size_t size)
 
 	kref_get(&dev->kref); /* released in free_render_urbs() */
 
-	dl_notice("allocated %d %d byte urbs \n", i, (int) size);
+	dl_notice("allocated %d %d byte urbs\n", i, (int) size);
 
 	return i;
 }

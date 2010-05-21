@@ -49,7 +49,6 @@
 #include <linux/uaccess.h>
 #include <asm/byteorder.h>
 #include <linux/if_ether.h>
-#include <linux/bitops.h>
 
 #include "p80211types.h"
 #include "p80211hdr.h"
@@ -74,7 +73,7 @@ static u8 p80211_mhz_to_channel(u16 mhz)
 	if (mhz >= 5000)
 		return (mhz - 5000) / 5;
 
-	if (mhz == 2482)
+	if (mhz == 2484)
 		return 14;
 
 	if (mhz >= 2407)
@@ -126,18 +125,38 @@ static int qual_as_percent(int snr)
 	return 100;
 }
 
-static int p80211wext_dorequest(wlandevice_t *wlandev, u32 did, u32 data)
+static int p80211wext_setmib(wlandevice_t *wlandev, u32 did, u32 data)
 {
 	p80211msg_dot11req_mibset_t msg;
-	p80211item_uint32_t mibitem;
+	p80211item_uint32_t *mibitem =
+		(p80211item_uint32_t *)&msg.mibattribute.data;
 	int result;
 
 	msg.msgcode = DIDmsg_dot11req_mibset;
-	memset(&mibitem, 0, sizeof(mibitem));
-	mibitem.did = did;
-	mibitem.data = data;
-	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
+	memset(mibitem, 0, sizeof(*mibitem));
+	mibitem->did = did;
+	mibitem->data = data;
 	result = p80211req_dorequest(wlandev, (u8 *) &msg);
+
+	return result;
+}
+
+/*
+ * get a 32 bit mib value
+ */
+static int p80211wext_getmib(wlandevice_t *wlandev, u32 did, u32 *data)
+{
+	p80211msg_dot11req_mibset_t msg;
+	p80211item_uint32_t *mibitem =
+		(p80211item_uint32_t *)&msg.mibattribute.data;
+	int result;
+
+	msg.msgcode = DIDmsg_dot11req_mibget;
+	memset(mibitem, 0, sizeof(*mibitem));
+	mibitem->did = did;
+	result = p80211req_dorequest(wlandev, (u8 *) &msg);
+	if (!result)
+		*data = mibitem->data;
 
 	return result;
 }
@@ -263,32 +282,26 @@ static int p80211wext_giwfreq(netdevice_t *dev,
 			      struct iw_freq *freq, char *extra)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
-	p80211item_uint32_t mibitem;
-	p80211msg_dot11req_mibset_t msg;
 	int result;
 	int err = 0;
+	unsigned int value;
 
-	msg.msgcode = DIDmsg_dot11req_mibget;
-	memset(&mibitem, 0, sizeof(mibitem));
-	mibitem.did = DIDmib_dot11phy_dot11PhyDSSSTable_dot11CurrentChannel;
-	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
-	result = p80211req_dorequest(wlandev, (u8 *) &msg);
-
+	result = p80211wext_getmib(wlandev,
+				   DIDmib_dot11phy_dot11PhyDSSSTable_dot11CurrentChannel,
+				   &value);
 	if (result) {
 		err = -EFAULT;
 		goto exit;
 	}
 
-	memcpy(&mibitem, &msg.mibattribute.data, sizeof(mibitem));
-
-	if (mibitem.data > NUM_CHANNELS) {
+	if (value > NUM_CHANNELS) {
 		err = -EFAULT;
 		goto exit;
 	}
 
 	/* convert into frequency instead of a channel */
 	freq->e = 1;
-	freq->m = p80211_channel_to_mhz(mibitem.data, 0) * 100000;
+	freq->m = p80211_channel_to_mhz(value, 0) * 100000;
 
 exit:
 	return err;
@@ -299,28 +312,23 @@ static int p80211wext_siwfreq(netdevice_t *dev,
 			      struct iw_freq *freq, char *extra)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
-	p80211item_uint32_t mibitem;
-	p80211msg_dot11req_mibset_t msg;
 	int result;
 	int err = 0;
+	unsigned int value;
 
 	if (!wlan_wext_write) {
-		err = (-EOPNOTSUPP);
+		err = -EOPNOTSUPP;
 		goto exit;
 	}
 
-	msg.msgcode = DIDmsg_dot11req_mibset;
-	memset(&mibitem, 0, sizeof(mibitem));
-	mibitem.did = DIDmib_dot11phy_dot11PhyDSSSTable_dot11CurrentChannel;
-	mibitem.status = P80211ENUM_msgitem_status_data_ok;
-
 	if ((freq->e == 0) && (freq->m <= 1000))
-		mibitem.data = freq->m;
+		value = freq->m;
 	else
-		mibitem.data = p80211_mhz_to_channel(freq->m);
+		value = p80211_mhz_to_channel(freq->m);
 
-	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
-	result = p80211req_dorequest(wlandev, (u8 *) &msg);
+	result = p80211wext_setmib(wlandev,
+			     DIDmib_dot11phy_dot11PhyDSSSTable_dot11CurrentChannel,
+			     value);
 
 	if (result) {
 		err = -EFAULT;
@@ -360,13 +368,11 @@ static int p80211wext_siwmode(netdevice_t *dev,
 			      __u32 *mode, char *extra)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
-	p80211item_uint32_t mibitem;
-	p80211msg_dot11req_mibset_t msg;
 	int result;
 	int err = 0;
 
 	if (!wlan_wext_write) {
-		err = (-EOPNOTSUPP);
+		err = -EOPNOTSUPP;
 		goto exit;
 	}
 
@@ -397,16 +403,11 @@ static int p80211wext_siwmode(netdevice_t *dev,
 	}
 
 	/* Set Operation mode to the PORT TYPE RID */
-	msg.msgcode = DIDmsg_dot11req_mibset;
-	memset(&mibitem, 0, sizeof(mibitem));
-	mibitem.did = DIDmib_p2_p2Static_p2CnfPortType;
-	mibitem.data = (*mode == IW_MODE_ADHOC) ? 0 : 1;
-	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
-	result = p80211req_dorequest(wlandev, (u8 *) &msg);
-
+	result = p80211wext_setmib(wlandev,
+				DIDmib_p2_p2Static_p2CnfPortType,
+				(*mode == IW_MODE_ADHOC) ? 0 : 1);
 	if (result)
 		err = -EFAULT;
-
 exit:
 	return err;
 }
@@ -563,9 +564,9 @@ static int p80211wext_siwencode(netdevice_t *dev,
 		/* Set current key number only if no keys are given */
 		if (erq->flags & IW_ENCODE_NOKEY) {
 			result =
-			    p80211wext_dorequest(wlandev,
-						 DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID,
-						 i);
+				p80211wext_setmib(wlandev,
+						  DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID,
+						  i);
 
 			if (result) {
 				err = -EFAULT;
@@ -587,7 +588,6 @@ static int p80211wext_siwencode(netdevice_t *dev,
 		 -------------------------------------------------------------*/
 
 		if (erq->length > 0) {
-
 			/* copy the key from the driver cache as the keys are read-only MIBs */
 			wlandev->wep_keylens[i] = erq->length;
 			memcpy(wlandev->wep_keys[i], key, erq->length);
@@ -637,12 +637,12 @@ static int p80211wext_siwencode(netdevice_t *dev,
 	/* Check the PrivacyInvoked flag */
 	if (erq->flags & IW_ENCODE_DISABLED) {
 		result =
-		    p80211wext_dorequest(wlandev,
+		    p80211wext_setmib(wlandev,
 					 DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked,
 					 P80211ENUM_truth_false);
 	} else {
 		result =
-		    p80211wext_dorequest(wlandev,
+		    p80211wext_setmib(wlandev,
 					 DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked,
 					 P80211ENUM_truth_true);
 	}
@@ -661,12 +661,12 @@ static int p80211wext_siwencode(netdevice_t *dev,
 	 */
 	if (erq->flags & IW_ENCODE_RESTRICTED) {
 		result =
-		    p80211wext_dorequest(wlandev,
+		    p80211wext_setmib(wlandev,
 					 DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted,
 					 P80211ENUM_truth_true);
 	} else if (erq->flags & IW_ENCODE_OPEN) {
 		result =
-		    p80211wext_dorequest(wlandev,
+		    p80211wext_setmib(wlandev,
 					 DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted,
 					 P80211ENUM_truth_false);
 	}
@@ -768,23 +768,15 @@ static int p80211wext_giwrate(netdevice_t *dev,
 			      struct iw_param *rrq, char *extra)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
-	p80211item_uint32_t mibitem;
-	p80211msg_dot11req_mibset_t msg;
 	int result;
 	int err = 0;
+	unsigned int value;
 
-	msg.msgcode = DIDmsg_dot11req_mibget;
-	memset(&mibitem, 0, sizeof(mibitem));
-	mibitem.did = DIDmib_p2_p2MAC_p2CurrentTxRate;
-	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
-	result = p80211req_dorequest(wlandev, (u8 *) &msg);
-
+	result = p80211wext_getmib(wlandev, DIDmib_p2_p2MAC_p2CurrentTxRate, &value);
 	if (result) {
 		err = -EFAULT;
 		goto exit;
 	}
-
-	memcpy(&mibitem, &msg.mibattribute.data, sizeof(mibitem));
 
 	rrq->fixed = 0;		/* can it change? */
 	rrq->disabled = 0;
@@ -795,7 +787,7 @@ static int p80211wext_giwrate(netdevice_t *dev,
 #define		HFA384x_RATEBIT_5dot5			((u16)4)
 #define		HFA384x_RATEBIT_11			((u16)8)
 
-	switch (mibitem.data) {
+	switch (value) {
 	case HFA384x_RATEBIT_1:
 		rrq->value = 1000000;
 		break;
@@ -820,25 +812,19 @@ static int p80211wext_giwrts(netdevice_t *dev,
 			     struct iw_param *rts, char *extra)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
-	p80211item_uint32_t mibitem;
-	p80211msg_dot11req_mibset_t msg;
 	int result;
 	int err = 0;
+	unsigned int value;
 
-	msg.msgcode = DIDmsg_dot11req_mibget;
-	memset(&mibitem, 0, sizeof(mibitem));
-	mibitem.did = DIDmib_dot11mac_dot11OperationTable_dot11RTSThreshold;
-	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
-	result = p80211req_dorequest(wlandev, (u8 *) &msg);
-
+	result = p80211wext_getmib(wlandev,
+				   DIDmib_dot11mac_dot11OperationTable_dot11RTSThreshold,
+				   &value);
 	if (result) {
 		err = -EFAULT;
 		goto exit;
 	}
 
-	memcpy(&mibitem, &msg.mibattribute.data, sizeof(mibitem));
-
-	rts->value = mibitem.data;
+	rts->value = value;
 	rts->disabled = (rts->value == 2347);
 	rts->fixed = 1;
 
@@ -851,27 +837,23 @@ static int p80211wext_siwrts(netdevice_t *dev,
 			     struct iw_param *rts, char *extra)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
-	p80211item_uint32_t mibitem;
-	p80211msg_dot11req_mibset_t msg;
 	int result;
 	int err = 0;
+	unsigned int value;
 
 	if (!wlan_wext_write) {
-		err = (-EOPNOTSUPP);
+		err = -EOPNOTSUPP;
 		goto exit;
 	}
 
-	msg.msgcode = DIDmsg_dot11req_mibget;
-	memset(&mibitem, 0, sizeof(mibitem));
-	mibitem.did = DIDmib_dot11mac_dot11OperationTable_dot11RTSThreshold;
 	if (rts->disabled)
-		mibitem.data = 2347;
+		value = 2347;
 	else
-		mibitem.data = rts->value;
+		value = rts->value;
 
-	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
-	result = p80211req_dorequest(wlandev, (u8 *) &msg);
-
+	result = p80211wext_setmib(wlandev,
+				   DIDmib_dot11mac_dot11OperationTable_dot11RTSThreshold,
+				   value);
 	if (result) {
 		err = -EFAULT;
 		goto exit;
@@ -886,26 +868,19 @@ static int p80211wext_giwfrag(netdevice_t *dev,
 			      struct iw_param *frag, char *extra)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
-	p80211item_uint32_t mibitem;
-	p80211msg_dot11req_mibset_t msg;
 	int result;
 	int err = 0;
+	unsigned int value;
 
-	msg.msgcode = DIDmsg_dot11req_mibget;
-	memset(&mibitem, 0, sizeof(mibitem));
-	mibitem.did =
-	    DIDmib_dot11mac_dot11OperationTable_dot11FragmentationThreshold;
-	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
-	result = p80211req_dorequest(wlandev, (u8 *) &msg);
-
+	result = p80211wext_getmib(wlandev,
+				   DIDmib_dot11mac_dot11OperationTable_dot11FragmentationThreshold,
+				   &value);
 	if (result) {
 		err = -EFAULT;
 		goto exit;
 	}
 
-	memcpy(&mibitem, &msg.mibattribute.data, sizeof(mibitem));
-
-	frag->value = mibitem.data;
+	frag->value = value;
 	frag->disabled = (frag->value == 2346);
 	frag->fixed = 1;
 
@@ -918,28 +893,23 @@ static int p80211wext_siwfrag(netdevice_t *dev,
 			      struct iw_param *frag, char *extra)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
-	p80211item_uint32_t mibitem;
-	p80211msg_dot11req_mibset_t msg;
 	int result;
 	int err = 0;
+	int value;
 
 	if (!wlan_wext_write) {
 		err = (-EOPNOTSUPP);
 		goto exit;
 	}
 
-	msg.msgcode = DIDmsg_dot11req_mibset;
-	memset(&mibitem, 0, sizeof(mibitem));
-	mibitem.did =
-	    DIDmib_dot11mac_dot11OperationTable_dot11FragmentationThreshold;
-
 	if (frag->disabled)
-		mibitem.data = 2346;
+		value = 2346;
 	else
-		mibitem.data = frag->value;
+		value = frag->value;
 
-	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
-	result = p80211req_dorequest(wlandev, (u8 *) &msg);
+	result = p80211wext_setmib(wlandev,
+		   DIDmib_dot11mac_dot11OperationTable_dot11FragmentationThreshold,
+				      value);
 
 	if (result) {
 		err = -EFAULT;
@@ -963,56 +933,40 @@ static int p80211wext_giwretry(netdevice_t *dev,
 			       struct iw_param *rrq, char *extra)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
-	p80211item_uint32_t mibitem;
-	p80211msg_dot11req_mibset_t msg;
 	int result;
 	int err = 0;
 	u16 shortretry, longretry, lifetime;
+	unsigned int value;
 
-	msg.msgcode = DIDmsg_dot11req_mibget;
-	memset(&mibitem, 0, sizeof(mibitem));
-	mibitem.did = DIDmib_dot11mac_dot11OperationTable_dot11ShortRetryLimit;
-
-	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
-	result = p80211req_dorequest(wlandev, (u8 *) &msg);
-
+	result = p80211wext_getmib(wlandev,
+				   DIDmib_dot11mac_dot11OperationTable_dot11ShortRetryLimit,
+				   &value);
 	if (result) {
 		err = -EFAULT;
 		goto exit;
 	}
 
-	memcpy(&mibitem, &msg.mibattribute.data, sizeof(mibitem));
+	shortretry = value;
 
-	shortretry = mibitem.data;
-
-	mibitem.did = DIDmib_dot11mac_dot11OperationTable_dot11LongRetryLimit;
-
-	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
-	result = p80211req_dorequest(wlandev, (u8 *) &msg);
-
+	result = p80211wext_getmib(wlandev,
+				   DIDmib_dot11mac_dot11OperationTable_dot11LongRetryLimit,
+				   &value);
 	if (result) {
 		err = -EFAULT;
 		goto exit;
 	}
 
-	memcpy(&mibitem, &msg.mibattribute.data, sizeof(mibitem));
+	longretry = value;
 
-	longretry = mibitem.data;
-
-	mibitem.did =
-	    DIDmib_dot11mac_dot11OperationTable_dot11MaxTransmitMSDULifetime;
-
-	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
-	result = p80211req_dorequest(wlandev, (u8 *) &msg);
-
+	result = p80211wext_getmib(wlandev,
+				   DIDmib_dot11mac_dot11OperationTable_dot11MaxTransmitMSDULifetime,
+				   &value);
 	if (result) {
 		err = -EFAULT;
 		goto exit;
 	}
 
-	memcpy(&mibitem, &msg.mibattribute.data, sizeof(mibitem));
-
-	lifetime = mibitem.data;
+	lifetime = value;
 
 	rrq->disabled = 0;
 
@@ -1045,8 +999,7 @@ static int p80211wext_siwretry(netdevice_t *dev,
 	p80211msg_dot11req_mibset_t msg;
 	int result;
 	int err = 0;
-
-	memset(&mibitem, 0, sizeof(mibitem));
+	unsigned int value;
 
 	if (!wlan_wext_write) {
 		err = (-EOPNOTSUPP);
@@ -1061,26 +1014,20 @@ static int p80211wext_siwretry(netdevice_t *dev,
 	msg.msgcode = DIDmsg_dot11req_mibset;
 
 	if ((rrq->flags & IW_RETRY_TYPE) == IW_RETRY_LIFETIME) {
-		mibitem.did =
-		    DIDmib_dot11mac_dot11OperationTable_dot11MaxTransmitMSDULifetime;
-		mibitem.data = rrq->value /= 1024;
 
-		memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
-		result = p80211req_dorequest(wlandev, (u8 *) &msg);
-
+		value = rrq->value /= 1024;
+		result = p80211wext_setmib(wlandev,
+					   DIDmib_dot11mac_dot11OperationTable_dot11MaxTransmitMSDULifetime,
+					   value);
 		if (result) {
 			err = -EFAULT;
 			goto exit;
 		}
 	} else {
 		if (rrq->flags & IW_RETRY_LONG) {
-			mibitem.did =
-			    DIDmib_dot11mac_dot11OperationTable_dot11LongRetryLimit;
-			mibitem.data = rrq->value;
-
-			memcpy(&msg.mibattribute.data, &mibitem,
-			       sizeof(mibitem));
-			result = p80211req_dorequest(wlandev, (u8 *) &msg);
+			result = p80211wext_setmib(wlandev,
+						   DIDmib_dot11mac_dot11OperationTable_dot11LongRetryLimit,
+						   rrq->value);
 
 			if (result) {
 				err = -EFAULT;
@@ -1089,13 +1036,9 @@ static int p80211wext_siwretry(netdevice_t *dev,
 		}
 
 		if (rrq->flags & IW_RETRY_SHORT) {
-			mibitem.did =
-			    DIDmib_dot11mac_dot11OperationTable_dot11ShortRetryLimit;
-			mibitem.data = rrq->value;
-
-			memcpy(&msg.mibattribute.data, &mibitem,
-			       sizeof(mibitem));
-			result = p80211req_dorequest(wlandev, (u8 *) &msg);
+			result = p80211wext_setmib(wlandev,
+						   DIDmib_dot11mac_dot11OperationTable_dot11ShortRetryLimit,
+						   rrq->value);
 
 			if (result) {
 				err = -EFAULT;
@@ -1118,22 +1061,20 @@ static int p80211wext_siwtxpow(netdevice_t *dev,
 	p80211msg_dot11req_mibset_t msg;
 	int result;
 	int err = 0;
+	unsigned int value;
 
 	if (!wlan_wext_write) {
 		err = (-EOPNOTSUPP);
 		goto exit;
 	}
 
-	msg.msgcode = DIDmsg_dot11req_mibset;
-	memset(&mibitem, 0, sizeof(mibitem));
-	mibitem.did =
-	    DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel;
 	if (rrq->fixed == 0)
-		mibitem.data = 30;
+		value = 30;
 	else
-		mibitem.data = rrq->value;
-	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
-	result = p80211req_dorequest(wlandev, (u8 *) &msg);
+		value = rrq->value;
+	result = p80211wext_setmib(wlandev,
+				   DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel,
+				   value);
 
 	if (result) {
 		err = -EFAULT;
@@ -1149,33 +1090,25 @@ static int p80211wext_giwtxpow(netdevice_t *dev,
 			       struct iw_param *rrq, char *extra)
 {
 	wlandevice_t *wlandev = dev->ml_priv;
-	p80211item_uint32_t mibitem;
-	p80211msg_dot11req_mibset_t msg;
 	int result;
 	int err = 0;
+	unsigned int value;
 
-	msg.msgcode = DIDmsg_dot11req_mibget;
-
-	memset(&mibitem, 0, sizeof(mibitem));
-	mibitem.did =
-	    DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel;
-
-	memcpy(&msg.mibattribute.data, &mibitem, sizeof(mibitem));
-	result = p80211req_dorequest(wlandev, (u8 *) &msg);
+	result = p80211wext_getmib(wlandev,
+				   DIDmib_dot11phy_dot11PhyTxPowerTable_dot11CurrentTxPowerLevel,
+				   &value);
 
 	if (result) {
 		err = -EFAULT;
 		goto exit;
 	}
 
-	memcpy(&mibitem, &msg.mibattribute.data, sizeof(mibitem));
-
 	/* XXX handle OFF by setting disabled = 1; */
 
 	rrq->flags = 0;		/* IW_TXPOW_DBM; */
 	rrq->disabled = 0;
 	rrq->fixed = 0;
-	rrq->value = mibitem.data;
+	rrq->value = value;
 
 exit:
 	return err;
@@ -1480,7 +1413,7 @@ static int p80211wext_set_encodeext(struct net_device *dev,
 		}
 		pr_debug("setting default key (%d)\n", idx);
 		result =
-		    p80211wext_dorequest(wlandev,
+		    p80211wext_setmib(wlandev,
 					 DIDmib_dot11smt_dot11PrivacyTable_dot11WEPDefaultKeyID,
 					 idx);
 		if (result)
@@ -1600,12 +1533,12 @@ static int p80211_wext_set_iwauth(struct net_device *dev,
 		pr_debug("drop_unencrypted %d\n", param->value);
 		if (param->value)
 			result =
-			    p80211wext_dorequest(wlandev,
+			    p80211wext_setmib(wlandev,
 						 DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted,
 						 P80211ENUM_truth_true);
 		else
 			result =
-			    p80211wext_dorequest(wlandev,
+			    p80211wext_setmib(wlandev,
 						 DIDmib_dot11smt_dot11PrivacyTable_dot11ExcludeUnencrypted,
 						 P80211ENUM_truth_false);
 		break;
@@ -1614,12 +1547,12 @@ static int p80211_wext_set_iwauth(struct net_device *dev,
 		pr_debug("privacy invoked %d\n", param->value);
 		if (param->value)
 			result =
-			    p80211wext_dorequest(wlandev,
+			    p80211wext_setmib(wlandev,
 						 DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked,
 						 P80211ENUM_truth_true);
 		else
 			result =
-			    p80211wext_dorequest(wlandev,
+			    p80211wext_setmib(wlandev,
 						 DIDmib_dot11smt_dot11PrivacyTable_dot11PrivacyInvoked,
 						 P80211ENUM_truth_false);
 
@@ -1681,64 +1614,50 @@ static int p80211_wext_get_iwauth(struct net_device *dev,
 	return result;
 }
 
-static iw_handler p80211wext_handlers[] = {
-	(iw_handler) p80211wext_siwcommit,	/* SIOCSIWCOMMIT */
-	(iw_handler) p80211wext_giwname,	/* SIOCGIWNAME */
-	(iw_handler) NULL,	/* SIOCSIWNWID */
-	(iw_handler) NULL,	/* SIOCGIWNWID */
-	(iw_handler) p80211wext_siwfreq,	/* SIOCSIWFREQ */
-	(iw_handler) p80211wext_giwfreq,	/* SIOCGIWFREQ */
-	(iw_handler) p80211wext_siwmode,	/* SIOCSIWMODE */
-	(iw_handler) p80211wext_giwmode,	/* SIOCGIWMODE */
-	(iw_handler) NULL,	/* SIOCSIWSENS */
-	(iw_handler) NULL,	/* SIOCGIWSENS */
-	(iw_handler) NULL,	/* not used *//* SIOCSIWRANGE */
-	(iw_handler) p80211wext_giwrange,	/* SIOCGIWRANGE */
-	(iw_handler) NULL,	/* not used *//* SIOCSIWPRIV */
-	(iw_handler) NULL,	/* kernel code *//* SIOCGIWPRIV */
-	(iw_handler) NULL,	/* not used *//* SIOCSIWSTATS */
-	(iw_handler) NULL,	/* kernel code *//* SIOCGIWSTATS */
-	(iw_handler) p80211wext_siwspy,	/* SIOCSIWSPY */
-	(iw_handler) p80211wext_giwspy,	/* SIOCGIWSPY */
-	(iw_handler) NULL,	/* -- hole -- */
-	(iw_handler) NULL,	/* -- hole -- */
-	(iw_handler) NULL,	/* SIOCSIWAP */
-	(iw_handler) p80211wext_giwap,	/* SIOCGIWAP */
-	(iw_handler) NULL,	/* -- hole -- */
-	(iw_handler) NULL,	/* SIOCGIWAPLIST */
-	(iw_handler) p80211wext_siwscan,	/* SIOCSIWSCAN */
-	(iw_handler) p80211wext_giwscan,	/* SIOCGIWSCAN */
-	(iw_handler) p80211wext_siwessid,	/* SIOCSIWESSID */
-	(iw_handler) p80211wext_giwessid,	/* SIOCGIWESSID */
-	(iw_handler) NULL,	/* SIOCSIWNICKN */
-	(iw_handler) p80211wext_giwessid,	/* SIOCGIWNICKN */
-	(iw_handler) NULL,	/* -- hole -- */
-	(iw_handler) NULL,	/* -- hole -- */
-	(iw_handler) NULL,	/* SIOCSIWRATE */
-	(iw_handler) p80211wext_giwrate,	/* SIOCGIWRATE */
-	(iw_handler) p80211wext_siwrts,	/* SIOCSIWRTS */
-	(iw_handler) p80211wext_giwrts,	/* SIOCGIWRTS */
-	(iw_handler) p80211wext_siwfrag,	/* SIOCSIWFRAG */
-	(iw_handler) p80211wext_giwfrag,	/* SIOCGIWFRAG */
-	(iw_handler) p80211wext_siwtxpow,	/* SIOCSIWTXPOW */
-	(iw_handler) p80211wext_giwtxpow,	/* SIOCGIWTXPOW */
-	(iw_handler) p80211wext_siwretry,	/* SIOCSIWRETRY */
-	(iw_handler) p80211wext_giwretry,	/* SIOCGIWRETRY */
-	(iw_handler) p80211wext_siwencode,	/* SIOCSIWENCODE */
-	(iw_handler) p80211wext_giwencode,	/* SIOCGIWENCODE */
-	(iw_handler) NULL,	/* SIOCSIWPOWER */
-	(iw_handler) NULL,	/* SIOCGIWPOWER */
-/* WPA operations */
-	(iw_handler) NULL,	/* -- hole -- */
-	(iw_handler) NULL,	/* -- hole -- */
-	(iw_handler) NULL,	/* SIOCSIWGENIE      set generic IE */
-	(iw_handler) NULL,	/* SIOCGIWGENIE      get generic IE */
-	(iw_handler) p80211_wext_set_iwauth,	/* SIOCSIWAUTH     set authentication mode params */
-	(iw_handler) p80211_wext_get_iwauth,	/* SIOCGIWAUTH     get authentication mode params */
+#define IW_IOCTL(x) [(x)-SIOCSIWCOMMIT]
 
-	(iw_handler) p80211wext_set_encodeext,	/* SIOCSIWENCODEEXT  set encoding token & mode */
-	(iw_handler) p80211wext_get_encodeext,	/* SIOCGIWENCODEEXT  get encoding token & mode */
-	(iw_handler) NULL,	/* SIOCSIWPMKSA      PMKSA cache operation */
+static iw_handler p80211wext_handlers[] = {
+	IW_IOCTL(SIOCSIWCOMMIT) = (iw_handler) p80211wext_siwcommit,
+	IW_IOCTL(SIOCGIWNAME) = (iw_handler) p80211wext_giwname,
+/* SIOCSIWNWID,SIOCGIWNWID */
+	IW_IOCTL(SIOCSIWFREQ) = (iw_handler) p80211wext_siwfreq,
+	IW_IOCTL(SIOCGIWFREQ) = (iw_handler) p80211wext_giwfreq,
+	IW_IOCTL(SIOCSIWMODE) = (iw_handler) p80211wext_siwmode,
+	IW_IOCTL(SIOCGIWMODE) = (iw_handler) p80211wext_giwmode,
+/* SIOCSIWSENS,SIOCGIWSENS,SIOCSIWRANGE */
+	IW_IOCTL(SIOCGIWRANGE) = (iw_handler) p80211wext_giwrange,
+/* SIOCSIWPRIV,SIOCGIWPRIV,SIOCSIWSTATS,SIOCGIWSTATS */
+	IW_IOCTL(SIOCSIWSPY) = (iw_handler) p80211wext_siwspy,
+	IW_IOCTL(SIOCGIWSPY) = (iw_handler) p80211wext_giwspy,
+/* SIOCSIWAP */
+	IW_IOCTL(SIOCGIWAP) = (iw_handler) p80211wext_giwap,
+/* SIOCGIWAPLIST */
+	IW_IOCTL(SIOCSIWSCAN) = (iw_handler) p80211wext_siwscan,
+	IW_IOCTL(SIOCGIWSCAN) = (iw_handler) p80211wext_giwscan,
+	IW_IOCTL(SIOCSIWESSID) = (iw_handler) p80211wext_siwessid,
+	IW_IOCTL(SIOCGIWESSID) = (iw_handler) p80211wext_giwessid,
+/* SIOCSIWNICKN */
+	IW_IOCTL(SIOCGIWNICKN) = (iw_handler) p80211wext_giwessid,
+/* SIOCSIWRATE */
+	IW_IOCTL(SIOCGIWRATE) = (iw_handler) p80211wext_giwrate,
+	IW_IOCTL(SIOCSIWRTS) = (iw_handler) p80211wext_siwrts,
+	IW_IOCTL(SIOCGIWRTS) = (iw_handler) p80211wext_giwrts,
+	IW_IOCTL(SIOCSIWFRAG) = (iw_handler) p80211wext_siwfrag,
+	IW_IOCTL(SIOCGIWFRAG) = (iw_handler) p80211wext_giwfrag,
+	IW_IOCTL(SIOCSIWTXPOW) = (iw_handler) p80211wext_siwtxpow,
+	IW_IOCTL(SIOCGIWTXPOW) = (iw_handler) p80211wext_giwtxpow,
+	IW_IOCTL(SIOCSIWRETRY) = (iw_handler) p80211wext_siwretry,
+	IW_IOCTL(SIOCGIWRETRY) = (iw_handler) p80211wext_giwretry,
+	IW_IOCTL(SIOCSIWENCODE) = (iw_handler) p80211wext_siwencode,
+	IW_IOCTL(SIOCGIWENCODE) = (iw_handler) p80211wext_giwencode,
+/* SIOCSIWPOWER,SIOCGIWPOWER */
+/* WPA operations */
+/* SIOCSIWGENIE,SIOCGIWGENIE generic IE */
+	IW_IOCTL(SIOCSIWAUTH) = (iw_handler) p80211_wext_set_iwauth, /*set authentication mode params */
+	IW_IOCTL(SIOCGIWAUTH) = (iw_handler) p80211_wext_get_iwauth, /*get authentication mode params */
+	IW_IOCTL(SIOCSIWENCODEEXT) = (iw_handler) p80211wext_set_encodeext, /*set encoding token & mode */
+	IW_IOCTL(SIOCGIWENCODEEXT) = (iw_handler) p80211wext_get_encodeext, /*get encoding token & mode */
+/* SIOCSIWPMKSA      PMKSA cache operation */
 };
 
 struct iw_handler_def p80211wext_handler_def = {
