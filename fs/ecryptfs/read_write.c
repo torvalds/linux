@@ -93,7 +93,7 @@ int ecryptfs_write_lower_page_segment(struct inode *ecryptfs_inode,
 
 /**
  * ecryptfs_write
- * @ecryptfs_file: The eCryptfs file into which to write
+ * @ecryptfs_inode: The eCryptfs file into which to write
  * @data: Virtual address where data to write is located
  * @offset: Offset in the eCryptfs file at which to begin writing the
  *          data from @data
@@ -109,12 +109,11 @@ int ecryptfs_write_lower_page_segment(struct inode *ecryptfs_inode,
  *
  * Returns zero on success; non-zero otherwise
  */
-int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
+int ecryptfs_write(struct inode *ecryptfs_inode, char *data, loff_t offset,
 		   size_t size)
 {
 	struct page *ecryptfs_page;
 	struct ecryptfs_crypt_stat *crypt_stat;
-	struct inode *ecryptfs_inode = ecryptfs_file->f_dentry->d_inode;
 	char *ecryptfs_page_virt;
 	loff_t ecryptfs_file_size = i_size_read(ecryptfs_inode);
 	loff_t data_offset = 0;
