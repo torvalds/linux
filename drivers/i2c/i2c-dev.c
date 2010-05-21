@@ -138,7 +138,7 @@ static ssize_t i2cdev_read (struct file *file, char __user *buf, size_t count,
 	char *tmp;
 	int ret;
 
-	struct i2c_client *client = (struct i2c_client *)file->private_data;
+	struct i2c_client *client = file->private_data;
 
 	if (count > 8192)
 		count = 8192;
@@ -162,7 +162,7 @@ static ssize_t i2cdev_write (struct file *file, const char __user *buf, size_t c
 {
 	int ret;
 	char *tmp;
-	struct i2c_client *client = (struct i2c_client *)file->private_data;
+	struct i2c_client *client = file->private_data;
 
 	if (count > 8192)
 		count = 8192;
@@ -369,7 +369,7 @@ static noinline int i2cdev_ioctl_smbus(struct i2c_client *client,
 
 static long i2cdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct i2c_client *client = (struct i2c_client *)file->private_data;
+	struct i2c_client *client = file->private_data;
 	unsigned long funcs;
 
 	dev_dbg(&client->adapter->dev, "ioctl, cmd=0x%02x, arg=0x%02lx\n",
