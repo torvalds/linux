@@ -77,29 +77,6 @@ config BLK_DEV_INTEGRITY
 	T10/SCSI Data Integrity Field or the T13/ATA External Path
 	Protection.  If in doubt, say N.
 
-config BLK_CGROUP
-	tristate "Block cgroup support"
-	depends on CGROUPS
-	depends on CFQ_GROUP_IOSCHED
-	default n
-	---help---
-	Generic block IO controller cgroup interface. This is the common
-	cgroup interface which should be used by various IO controlling
-	policies.
-
-	Currently, CFQ IO scheduler uses it to recognize task groups and
-	control disk bandwidth allocation (proportional time slice allocation)
-	to such task groups.
-
-config DEBUG_BLK_CGROUP
-	bool
-	depends on BLK_CGROUP
-	default n
-	---help---
-	Enable some debugging help. Currently it stores the cgroup path
-	in the blk group which can be used by cfq for tracing various
-	group related activity.
-
 endif # BLOCK
 
 config BLOCK_COMPAT

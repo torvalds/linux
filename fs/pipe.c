@@ -11,6 +11,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/fs.h>
+#include <linux/log2.h>
 #include <linux/mount.h>
 #include <linux/pipe_fs_i.h>
 #include <linux/uio.h>
@@ -18,9 +19,16 @@
 #include <linux/pagemap.h>
 #include <linux/audit.h>
 #include <linux/syscalls.h>
+#include <linux/fcntl.h>
 
 #include <asm/uaccess.h>
 #include <asm/ioctls.h>
+
+/*
+ * The max size that a non-root user is allowed to grow the pipe. Can
+ * be set by root in /proc/sys/fs/pipe-max-pages
+ */
+unsigned int pipe_max_pages = PIPE_DEF_BUFFERS * 16;
 
 /*
  * We use a start+len construction, which provides full use of the 
@@ -390,7 +398,7 @@ redo:
 			if (!buf->len) {
 				buf->ops = NULL;
 				ops->release(pipe, buf);
-				curbuf = (curbuf + 1) & (PIPE_BUFFERS-1);
+				curbuf = (curbuf + 1) & (pipe->buffers - 1);
 				pipe->curbuf = curbuf;
 				pipe->nrbufs = --bufs;
 				do_wakeup = 1;
@@ -472,7 +480,7 @@ pipe_write(struct kiocb *iocb, const struct iovec *_iov,
 	chars = total_len & (PAGE_SIZE-1); /* size of the last buffer */
 	if (pipe->nrbufs && chars != 0) {
 		int lastbuf = (pipe->curbuf + pipe->nrbufs - 1) &
-							(PIPE_BUFFERS-1);
+							(pipe->buffers - 1);
 		struct pipe_buffer *buf = pipe->bufs + lastbuf;
 		const struct pipe_buf_operations *ops = buf->ops;
 		int offset = buf->offset + buf->len;
@@ -518,8 +526,8 @@ redo1:
 			break;
 		}
 		bufs = pipe->nrbufs;
-		if (bufs < PIPE_BUFFERS) {
-			int newbuf = (pipe->curbuf + bufs) & (PIPE_BUFFERS-1);
+		if (bufs < pipe->buffers) {
+			int newbuf = (pipe->curbuf + bufs) & (pipe->buffers-1);
 			struct pipe_buffer *buf = pipe->bufs + newbuf;
 			struct page *page = pipe->tmp_page;
 			char *src;
@@ -580,7 +588,7 @@ redo2:
 			if (!total_len)
 				break;
 		}
-		if (bufs < PIPE_BUFFERS)
+		if (bufs < pipe->buffers)
 			continue;
 		if (filp->f_flags & O_NONBLOCK) {
 			if (!ret)
@@ -640,7 +648,7 @@ static long pipe_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			nrbufs = pipe->nrbufs;
 			while (--nrbufs >= 0) {
 				count += pipe->bufs[buf].len;
-				buf = (buf+1) & (PIPE_BUFFERS-1);
+				buf = (buf+1) & (pipe->buffers - 1);
 			}
 			mutex_unlock(&inode->i_mutex);
 
@@ -671,7 +679,7 @@ pipe_poll(struct file *filp, poll_table *wait)
 	}
 
 	if (filp->f_mode & FMODE_WRITE) {
-		mask |= (nrbufs < PIPE_BUFFERS) ? POLLOUT | POLLWRNORM : 0;
+		mask |= (nrbufs < pipe->buffers) ? POLLOUT | POLLWRNORM : 0;
 		/*
 		 * Most Unices do not set POLLERR for FIFOs but on Linux they
 		 * behave exactly like pipes for poll().
@@ -877,25 +885,32 @@ struct pipe_inode_info * alloc_pipe_info(struct inode *inode)
 
 	pipe = kzalloc(sizeof(struct pipe_inode_info), GFP_KERNEL);
 	if (pipe) {
-		init_waitqueue_head(&pipe->wait);
-		pipe->r_counter = pipe->w_counter = 1;
-		pipe->inode = inode;
+		pipe->bufs = kzalloc(sizeof(struct pipe_buffer) * PIPE_DEF_BUFFERS, GFP_KERNEL);
+		if (pipe->bufs) {
+			init_waitqueue_head(&pipe->wait);
+			pipe->r_counter = pipe->w_counter = 1;
+			pipe->inode = inode;
+			pipe->buffers = PIPE_DEF_BUFFERS;
+			return pipe;
+		}
+		kfree(pipe);
 	}
 
-	return pipe;
+	return NULL;
 }
 
 void __free_pipe_info(struct pipe_inode_info *pipe)
 {
 	int i;
 
-	for (i = 0; i < PIPE_BUFFERS; i++) {
+	for (i = 0; i < pipe->buffers; i++) {
 		struct pipe_buffer *buf = pipe->bufs + i;
 		if (buf->ops)
 			buf->ops->release(pipe, buf);
 	}
 	if (pipe->tmp_page)
 		__free_page(pipe->tmp_page);
+	kfree(pipe->bufs);
 	kfree(pipe);
 }
 
@@ -1091,6 +1106,89 @@ SYSCALL_DEFINE2(pipe2, int __user *, fildes, int, flags)
 SYSCALL_DEFINE1(pipe, int __user *, fildes)
 {
 	return sys_pipe2(fildes, 0);
+}
+
+/*
+ * Allocate a new array of pipe buffers and copy the info over. Returns the
+ * pipe size if successful, or return -ERROR on error.
+ */
+static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
+{
+	struct pipe_buffer *bufs;
+
+	/*
+	 * Must be a power-of-2 currently
+	 */
+	if (!is_power_of_2(arg))
+		return -EINVAL;
+
+	/*
+	 * We can shrink the pipe, if arg >= pipe->nrbufs. Since we don't
+	 * expect a lot of shrink+grow operations, just free and allocate
+	 * again like we would do for growing. If the pipe currently
+	 * contains more buffers than arg, then return busy.
+	 */
+	if (arg < pipe->nrbufs)
+		return -EBUSY;
+
+	bufs = kcalloc(arg, sizeof(struct pipe_buffer), GFP_KERNEL);
+	if (unlikely(!bufs))
+		return -ENOMEM;
+
+	/*
+	 * The pipe array wraps around, so just start the new one at zero
+	 * and adjust the indexes.
+	 */
+	if (pipe->nrbufs) {
+		const unsigned int tail = pipe->nrbufs & (pipe->buffers - 1);
+		const unsigned int head = pipe->nrbufs - tail;
+
+		if (head)
+			memcpy(bufs, pipe->bufs + pipe->curbuf, head * sizeof(struct pipe_buffer));
+		if (tail)
+			memcpy(bufs + head, pipe->bufs + pipe->curbuf, tail * sizeof(struct pipe_buffer));
+	}
+
+	pipe->curbuf = 0;
+	kfree(pipe->bufs);
+	pipe->bufs = bufs;
+	pipe->buffers = arg;
+	return arg;
+}
+
+long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	struct pipe_inode_info *pipe;
+	long ret;
+
+	pipe = file->f_path.dentry->d_inode->i_pipe;
+	if (!pipe)
+		return -EBADF;
+
+	mutex_lock(&pipe->inode->i_mutex);
+
+	switch (cmd) {
+	case F_SETPIPE_SZ:
+		if (!capable(CAP_SYS_ADMIN) && arg > pipe_max_pages)
+			return -EINVAL;
+		/*
+		 * The pipe needs to be at least 2 pages large to
+		 * guarantee POSIX behaviour.
+		 */
+		if (arg < 2)
+			return -EINVAL;
+		ret = pipe_set_size(pipe, arg);
+		break;
+	case F_GETPIPE_SZ:
+		ret = pipe->buffers;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	mutex_unlock(&pipe->inode->i_mutex);
+	return ret;
 }
 
 /*

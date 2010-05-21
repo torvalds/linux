@@ -275,6 +275,7 @@ void invalidate_bdev(struct block_device *bdev)
 		return;
 
 	invalidate_bh_lrus();
+	lru_add_drain_all();	/* make sure all lru add caches are flushed */
 	invalidate_mapping_pages(mapping, 0, -1);
 }
 EXPORT_SYMBOL(invalidate_bdev);

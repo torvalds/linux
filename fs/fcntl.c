@@ -14,6 +14,7 @@
 #include <linux/dnotify.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/pipe_fs_i.h>
 #include <linux/security.h>
 #include <linux/ptrace.h>
 #include <linux/signal.h>
@@ -411,6 +412,10 @@ static long do_fcntl(int fd, unsigned int cmd, unsigned long arg,
 		break;
 	case F_NOTIFY:
 		err = fcntl_dirnotify(fd, filp, arg);
+		break;
+	case F_SETPIPE_SZ:
+	case F_GETPIPE_SZ:
+		err = pipe_fcntl(filp, cmd, arg);
 		break;
 	default:
 		break;
