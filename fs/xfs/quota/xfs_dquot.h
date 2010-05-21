@@ -33,40 +33,23 @@
  * The hash chain headers (hash buckets)
  */
 typedef struct xfs_dqhash {
-	struct xfs_dquot *qh_next;
+	struct list_head  qh_list;
 	struct mutex	  qh_lock;
 	uint		  qh_version;	/* ever increasing version */
 	uint		  qh_nelems;	/* number of dquots on the list */
 } xfs_dqhash_t;
 
-typedef struct xfs_dqlink {
-	struct xfs_dquot  *ql_next;	/* forward link */
-	struct xfs_dquot **ql_prevp;	/* pointer to prev ql_next */
-} xfs_dqlink_t;
-
 struct xfs_mount;
 struct xfs_trans;
-
-/*
- * This is the marker which is designed to occupy the first few
- * bytes of the xfs_dquot_t structure. Even inside this, the freelist pointers
- * must come first.
- * This serves as the marker ("sentinel") when we have to restart list
- * iterations because of locking considerations.
- */
-typedef struct xfs_dqmarker {
-	struct xfs_dquot*dqm_flnext;	/* link to freelist: must be first */
-	struct xfs_dquot*dqm_flprev;
-	xfs_dqlink_t	 dqm_mplist;	/* link to mount's list of dquots */
-	xfs_dqlink_t	 dqm_hashlist;	/* link to the hash chain */
-	uint		 dqm_flags;	/* various flags (XFS_DQ_*) */
-} xfs_dqmarker_t;
 
 /*
  * The incore dquot structure
  */
 typedef struct xfs_dquot {
-	xfs_dqmarker_t	 q_lists;	/* list ptrs, q_flags (marker) */
+	uint		 dq_flags;	/* various flags (XFS_DQ_*) */
+	struct list_head q_freelist;	/* global free list of dquots */
+	struct list_head q_mplist;	/* mount's list of dquots */
+	struct list_head q_hashlist;	/* gloabl hash list of dquots */
 	xfs_dqhash_t	*q_hash;	/* the hashchain header */
 	struct xfs_mount*q_mount;	/* filesystem this relates to */
 	struct xfs_trans*q_transp;	/* trans this belongs to currently */
@@ -86,13 +69,6 @@ typedef struct xfs_dquot {
 	atomic_t          q_pincount;	/* dquot pin count */
 	wait_queue_head_t q_pinwait;	/* dquot pinning wait queue */
 } xfs_dquot_t;
-
-
-#define dq_flnext	q_lists.dqm_flnext
-#define dq_flprev	q_lists.dqm_flprev
-#define dq_mplist	q_lists.dqm_mplist
-#define dq_hashlist	q_lists.dqm_hashlist
-#define dq_flags	q_lists.dqm_flags
 
 /*
  * Lock hierarchy for q_qlock:
@@ -127,7 +103,6 @@ static inline void xfs_dqfunlock(xfs_dquot_t *dqp)
 }
 
 #define XFS_DQ_IS_LOCKED(dqp)	(mutex_is_locked(&((dqp)->q_qlock)))
-#define XFS_DQ_IS_ON_FREELIST(dqp)  ((dqp)->dq_flnext != (dqp))
 #define XFS_DQ_IS_DIRTY(dqp)	((dqp)->dq_flags & XFS_DQ_DIRTY)
 #define XFS_QM_ISUDQ(dqp)	((dqp)->dq_flags & XFS_DQ_USER)
 #define XFS_QM_ISPDQ(dqp)	((dqp)->dq_flags & XFS_DQ_PROJ)

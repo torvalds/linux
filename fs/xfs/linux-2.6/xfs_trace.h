@@ -32,6 +32,10 @@ struct xfs_da_node_entry;
 struct xfs_dquot;
 struct xlog_ticket;
 struct log;
+struct xlog_recover;
+struct xlog_recover_item;
+struct xfs_buf_log_format;
+struct xfs_inode_log_format;
 
 DECLARE_EVENT_CLASS(xfs_attr_list_class,
 	TP_PROTO(struct xfs_attr_list_context *ctx),
@@ -562,18 +566,21 @@ DECLARE_EVENT_CLASS(xfs_inode_class,
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
 		__field(int, count)
+		__field(int, pincount)
 		__field(unsigned long, caller_ip)
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
 		__entry->count = atomic_read(&VFS_I(ip)->i_count);
+		__entry->pincount = atomic_read(&ip->i_pincount);
 		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d ino 0x%llx count %d caller %pf",
+	TP_printk("dev %d:%d ino 0x%llx count %d pincount %d caller %pf",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->count,
+		  __entry->pincount,
 		  (char *)__entry->caller_ip)
 )
 
@@ -583,6 +590,10 @@ DEFINE_EVENT(xfs_inode_class, name, \
 	TP_ARGS(ip, caller_ip))
 DEFINE_INODE_EVENT(xfs_ihold);
 DEFINE_INODE_EVENT(xfs_irele);
+DEFINE_INODE_EVENT(xfs_inode_pin);
+DEFINE_INODE_EVENT(xfs_inode_unpin);
+DEFINE_INODE_EVENT(xfs_inode_unpin_nowait);
+
 /* the old xfs_itrace_entry tracer - to be replaced by s.th. in the VFS */
 DEFINE_INODE_EVENT(xfs_inode);
 #define xfs_itrace_entry(ip)    \
@@ -642,8 +653,6 @@ DEFINE_EVENT(xfs_dquot_class, name, \
 	TP_PROTO(struct xfs_dquot *dqp), \
 	TP_ARGS(dqp))
 DEFINE_DQUOT_EVENT(xfs_dqadjust);
-DEFINE_DQUOT_EVENT(xfs_dqshake_dirty);
-DEFINE_DQUOT_EVENT(xfs_dqshake_unlink);
 DEFINE_DQUOT_EVENT(xfs_dqreclaim_want);
 DEFINE_DQUOT_EVENT(xfs_dqreclaim_dirty);
 DEFINE_DQUOT_EVENT(xfs_dqreclaim_unlink);
@@ -658,7 +667,6 @@ DEFINE_DQUOT_EVENT(xfs_dqread_fail);
 DEFINE_DQUOT_EVENT(xfs_dqlookup_found);
 DEFINE_DQUOT_EVENT(xfs_dqlookup_want);
 DEFINE_DQUOT_EVENT(xfs_dqlookup_freelist);
-DEFINE_DQUOT_EVENT(xfs_dqlookup_move);
 DEFINE_DQUOT_EVENT(xfs_dqlookup_done);
 DEFINE_DQUOT_EVENT(xfs_dqget_hit);
 DEFINE_DQUOT_EVENT(xfs_dqget_miss);
@@ -1494,6 +1502,140 @@ DEFINE_EVENT(xfs_swap_extent_class, name, \
 
 DEFINE_SWAPEXT_EVENT(xfs_swap_extent_before);
 DEFINE_SWAPEXT_EVENT(xfs_swap_extent_after);
+
+DECLARE_EVENT_CLASS(xfs_log_recover_item_class,
+	TP_PROTO(struct log *log, struct xlog_recover *trans,
+		struct xlog_recover_item *item, int pass),
+	TP_ARGS(log, trans, item, pass),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(unsigned long, item)
+		__field(xlog_tid_t, tid)
+		__field(int, type)
+		__field(int, pass)
+		__field(int, count)
+		__field(int, total)
+	),
+	TP_fast_assign(
+		__entry->dev = log->l_mp->m_super->s_dev;
+		__entry->item = (unsigned long)item;
+		__entry->tid = trans->r_log_tid;
+		__entry->type = ITEM_TYPE(item);
+		__entry->pass = pass;
+		__entry->count = item->ri_cnt;
+		__entry->total = item->ri_total;
+	),
+	TP_printk("dev %d:%d trans 0x%x, pass %d, item 0x%p, item type %s "
+		  "item region count/total %d/%d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->tid,
+		  __entry->pass,
+		  (void *)__entry->item,
+		  __print_symbolic(__entry->type, XFS_LI_TYPE_DESC),
+		  __entry->count,
+		  __entry->total)
+)
+
+#define DEFINE_LOG_RECOVER_ITEM(name) \
+DEFINE_EVENT(xfs_log_recover_item_class, name, \
+	TP_PROTO(struct log *log, struct xlog_recover *trans, \
+		struct xlog_recover_item *item, int pass), \
+	TP_ARGS(log, trans, item, pass))
+
+DEFINE_LOG_RECOVER_ITEM(xfs_log_recover_item_add);
+DEFINE_LOG_RECOVER_ITEM(xfs_log_recover_item_add_cont);
+DEFINE_LOG_RECOVER_ITEM(xfs_log_recover_item_reorder_head);
+DEFINE_LOG_RECOVER_ITEM(xfs_log_recover_item_reorder_tail);
+DEFINE_LOG_RECOVER_ITEM(xfs_log_recover_item_recover);
+
+DECLARE_EVENT_CLASS(xfs_log_recover_buf_item_class,
+	TP_PROTO(struct log *log, struct xfs_buf_log_format *buf_f),
+	TP_ARGS(log, buf_f),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(__int64_t, blkno)
+		__field(unsigned short, len)
+		__field(unsigned short, flags)
+		__field(unsigned short, size)
+		__field(unsigned int, map_size)
+	),
+	TP_fast_assign(
+		__entry->dev = log->l_mp->m_super->s_dev;
+		__entry->blkno = buf_f->blf_blkno;
+		__entry->len = buf_f->blf_len;
+		__entry->flags = buf_f->blf_flags;
+		__entry->size = buf_f->blf_size;
+		__entry->map_size = buf_f->blf_map_size;
+	),
+	TP_printk("dev %d:%d blkno 0x%llx, len %u, flags 0x%x, size %d, "
+			"map_size %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->blkno,
+		  __entry->len,
+		  __entry->flags,
+		  __entry->size,
+		  __entry->map_size)
+)
+
+#define DEFINE_LOG_RECOVER_BUF_ITEM(name) \
+DEFINE_EVENT(xfs_log_recover_buf_item_class, name, \
+	TP_PROTO(struct log *log, struct xfs_buf_log_format *buf_f), \
+	TP_ARGS(log, buf_f))
+
+DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_not_cancel);
+DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_cancel);
+DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_cancel_add);
+DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_cancel_ref_inc);
+DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_recover);
+DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_inode_buf);
+DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_reg_buf);
+DEFINE_LOG_RECOVER_BUF_ITEM(xfs_log_recover_buf_dquot_buf);
+
+DECLARE_EVENT_CLASS(xfs_log_recover_ino_item_class,
+	TP_PROTO(struct log *log, struct xfs_inode_log_format *in_f),
+	TP_ARGS(log, in_f),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(xfs_ino_t, ino)
+		__field(unsigned short, size)
+		__field(int, fields)
+		__field(unsigned short, asize)
+		__field(unsigned short, dsize)
+		__field(__int64_t, blkno)
+		__field(int, len)
+		__field(int, boffset)
+	),
+	TP_fast_assign(
+		__entry->dev = log->l_mp->m_super->s_dev;
+		__entry->ino = in_f->ilf_ino;
+		__entry->size = in_f->ilf_size;
+		__entry->fields = in_f->ilf_fields;
+		__entry->asize = in_f->ilf_asize;
+		__entry->dsize = in_f->ilf_dsize;
+		__entry->blkno = in_f->ilf_blkno;
+		__entry->len = in_f->ilf_len;
+		__entry->boffset = in_f->ilf_boffset;
+	),
+	TP_printk("dev %d:%d ino 0x%llx, size %u, fields 0x%x, asize %d, "
+			"dsize %d, blkno 0x%llx, len %d, boffset %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __entry->size,
+		  __entry->fields,
+		  __entry->asize,
+		  __entry->dsize,
+		  __entry->blkno,
+		  __entry->len,
+		  __entry->boffset)
+)
+#define DEFINE_LOG_RECOVER_INO_ITEM(name) \
+DEFINE_EVENT(xfs_log_recover_ino_item_class, name, \
+	TP_PROTO(struct log *log, struct xfs_inode_log_format *in_f), \
+	TP_ARGS(log, in_f))
+
+DEFINE_LOG_RECOVER_INO_ITEM(xfs_log_recover_inode_recover);
+DEFINE_LOG_RECOVER_INO_ITEM(xfs_log_recover_inode_cancel);
+DEFINE_LOG_RECOVER_INO_ITEM(xfs_log_recover_inode_skip);
 
 #endif /* _TRACE_XFS_H */
 
