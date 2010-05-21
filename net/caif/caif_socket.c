@@ -138,7 +138,7 @@ void caif_flow_ctrl(struct sock *sk, int mode)
 {
 	struct caifsock *cf_sk;
 	cf_sk = container_of(sk, struct caifsock, sk);
-	if (cf_sk->layer.dn)
+	if (cf_sk->layer.dn && cf_sk->layer.dn->modemcmd)
 		cf_sk->layer.dn->modemcmd(cf_sk->layer.dn, mode);
 }
 
@@ -162,9 +162,8 @@ int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 			atomic_read(&cf_sk->sk.sk_rmem_alloc),
 			sk_rcvbuf_lowwater(cf_sk));
 		set_rx_flow_off(cf_sk);
-		if (cf_sk->layer.dn)
-			cf_sk->layer.dn->modemcmd(cf_sk->layer.dn,
-						CAIF_MODEMCMD_FLOW_OFF_REQ);
+		dbfs_atomic_inc(&cnt.num_rx_flow_off);
+		caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_OFF_REQ);
 	}
 
 	err = sk_filter(sk, skb);
@@ -175,9 +174,8 @@ int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		trace_printk("CAIF: %s():"
 			" sending flow OFF due to rmem_schedule\n",
 			__func__);
-		if (cf_sk->layer.dn)
-			cf_sk->layer.dn->modemcmd(cf_sk->layer.dn,
-						CAIF_MODEMCMD_FLOW_OFF_REQ);
+		dbfs_atomic_inc(&cnt.num_rx_flow_off);
+		caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_OFF_REQ);
 	}
 	skb->dev = NULL;
 	skb_set_owner_r(skb, sk);
@@ -285,16 +283,13 @@ static void caif_check_flow_release(struct sock *sk)
 {
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
 
-	if (cf_sk->layer.dn == NULL || cf_sk->layer.dn->modemcmd == NULL)
-		return;
 	if (rx_flow_is_on(cf_sk))
 		return;
 
 	if (atomic_read(&sk->sk_rmem_alloc) <= sk_rcvbuf_lowwater(cf_sk)) {
 			dbfs_atomic_inc(&cnt.num_rx_flow_on);
 			set_rx_flow_on(cf_sk);
-			cf_sk->layer.dn->modemcmd(cf_sk->layer.dn,
-						CAIF_MODEMCMD_FLOW_ON_REQ);
+			caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_ON_REQ);
 	}
 }
 /*
@@ -1017,10 +1012,6 @@ static unsigned int caif_poll(struct file *file,
 	if (!skb_queue_empty(&sk->sk_receive_queue) ||
 		(sk->sk_shutdown & RCV_SHUTDOWN))
 		mask |= POLLIN | POLLRDNORM;
-
-	/* Connection-based need to check for termination and startup */
-	if (sk->sk_state == CAIF_DISCONNECTED)
-		mask |= POLLHUP;
 
 	/*
 	 * we set writable also when the other side has shut down the
