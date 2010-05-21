@@ -386,7 +386,9 @@ static void hp_wmi_notify(u32 value, void *context)
 				input_sync(hp_wmi_input_dev);
 				break;
 			}
-		}
+		} else
+			printk(KERN_INFO "HP WMI: Unknown key code - 0x%x\n",
+			       key_code);
 		break;
 	case HPWMI_WIRELESS:
 		if (wifi_rfkill)
@@ -403,8 +405,8 @@ static void hp_wmi_notify(u32 value, void *context)
 					  hp_wmi_get_hw_state(HPWMI_WWAN));
 		break;
 	default:
-		printk(KERN_INFO "HP WMI: Unknown key pressed - %x\n",
-			eventcode);
+		printk(KERN_INFO "HP WMI: Unknown eventcode - %d\n",
+		       eventcode);
 		break;
 	}
 }
