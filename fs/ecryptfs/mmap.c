@@ -44,17 +44,9 @@
  * Returns locked and up-to-date page (if ok), with increased
  * refcnt.
  */
-struct page *ecryptfs_get_locked_page(struct file *file, loff_t index)
+struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index)
 {
-	struct dentry *dentry;
-	struct inode *inode;
-	struct address_space *mapping;
-	struct page *page;
-
-	dentry = file->f_path.dentry;
-	inode = dentry->d_inode;
-	mapping = inode->i_mapping;
-	page = read_mapping_page(mapping, index, (void *)file);
+	struct page *page = read_mapping_page(inode->i_mapping, index, NULL);
 	if (!IS_ERR(page))
 		lock_page(page);
 	return page;

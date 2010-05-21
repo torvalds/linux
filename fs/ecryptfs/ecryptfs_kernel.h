@@ -739,7 +739,7 @@ int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
 				     pgoff_t page_index,
 				     size_t offset_in_page, size_t size,
 				     struct inode *ecryptfs_inode);
-struct page *ecryptfs_get_locked_page(struct file *file, loff_t index);
+struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index);
 int ecryptfs_exorcise_daemon(struct ecryptfs_daemon *daemon);
 int ecryptfs_find_daemon_by_euid(struct ecryptfs_daemon **daemon, uid_t euid,
 				 struct user_namespace *user_ns);
