@@ -238,6 +238,10 @@ config MACH_COLIBRI
 	bool "Toradex Colibri PXA270"
 	select PXA27x
 
+config MACH_COLIBRI_PXA270_EVALBOARD
+	bool "Toradex Colibri Evaluation Carrier Board support (PXA270)"
+	depends on MACH_COLIBRI
+
 config MACH_COLIBRI300
 	bool "Toradex Colibri PXA300/310"
 	select PXA3xx

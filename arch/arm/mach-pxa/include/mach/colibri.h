@@ -5,6 +5,20 @@
 #include <mach/mfp.h>
 
 /*
+ * base board glue for PXA270 module
+ */
+
+enum {
+	COLIBRI_PXA270_EVALBOARD = 0,
+};
+
+#if defined(CONFIG_MACH_COLIBRI_PXA270_EVALBOARD)
+extern void colibri_pxa270_evalboard_init(void);
+#else
+static inline void colibri_pxa270_evalboard_init(void) {}
+#endif
+
+/*
  * common settings for all modules
  */
 
