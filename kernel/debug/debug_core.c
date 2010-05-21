@@ -78,6 +78,8 @@ static DEFINE_SPINLOCK(kgdb_registration_lock);
 static int kgdb_con_registered;
 /* determine if kgdb console output should be used */
 static int kgdb_use_con;
+/* Flag for alternate operations for early debugging */
+bool dbg_is_early = true;
 /* Next cpu to become the master debug core */
 int dbg_switch_cpu;
 
@@ -777,11 +779,25 @@ static struct notifier_block kgdb_panic_event_nb = {
        .priority	= INT_MAX,
 };
 
+void __weak kgdb_arch_late(void)
+{
+}
+
+void __init dbg_late_init(void)
+{
+	dbg_is_early = false;
+	if (kgdb_io_module_registered)
+		kgdb_arch_late();
+	kdb_init(KDB_INIT_FULL);
+}
+
 static void kgdb_register_callbacks(void)
 {
 	if (!kgdb_io_module_registered) {
 		kgdb_io_module_registered = 1;
 		kgdb_arch_init();
+		if (!dbg_is_early)
+			kgdb_arch_late();
 		atomic_notifier_chain_register(&panic_notifier_list,
 					       &kgdb_panic_event_nb);
 #ifdef CONFIG_MAGIC_SYSRQ
