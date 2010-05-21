@@ -188,16 +188,12 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 	     monc->want_next_osdmap);
 	if ((__sub_expired(monc) && !monc->sub_sent) ||
 	    monc->want_next_osdmap == 1) {
-		struct ceph_msg *msg;
+		struct ceph_msg *msg = monc->m_subscribe;
 		struct ceph_mon_subscribe_item *i;
 		void *p, *end;
 
-		msg = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE, 96, GFP_NOFS);
-		if (!msg)
-			return;
-
 		p = msg->front.iov_base;
-		end = p + msg->front.iov_len;
+		end = p + msg->front_max;
 
 		dout("__send_subscribe to 'mdsmap' %u+\n",
 		     (unsigned)monc->have_mdsmap);
@@ -227,7 +223,8 @@ static void __send_subscribe(struct ceph_mon_client *monc)
 
 		msg->front.iov_len = p - msg->front.iov_base;
 		msg->hdr.front_len = cpu_to_le32(msg->front.iov_len);
-		ceph_con_send(monc->con, msg);
+		ceph_con_revoke(monc->con, msg);
+		ceph_con_send(monc->con, ceph_msg_get(msg));
 
 		monc->sub_sent = jiffies | 1;  /* never 0 */
 	}
@@ -631,7 +628,7 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 		CEPH_ENTITY_TYPE_AUTH | CEPH_ENTITY_TYPE_MON |
 		CEPH_ENTITY_TYPE_OSD | CEPH_ENTITY_TYPE_MDS;
 
-	/* msg pools */
+	/* msgs */
 	err = -ENOMEM;
 	monc->m_subscribe_ack = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE_ACK,
 				     sizeof(struct ceph_mon_subscribe_ack),
@@ -639,9 +636,13 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 	if (!monc->m_subscribe_ack)
 		goto out_monmap;
 
+	monc->m_subscribe = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE, 96, GFP_NOFS);
+	if (!monc->m_subscribe)
+		goto out_subscribe_ack;
+
 	monc->m_auth_reply = ceph_msg_new(CEPH_MSG_AUTH_REPLY, 4096, GFP_NOFS);
 	if (!monc->m_auth_reply)
-		goto out_subscribe_ack;
+		goto out_subscribe;
 
 	monc->m_auth = ceph_msg_new(CEPH_MSG_AUTH, 4096, GFP_NOFS);
 	monc->pending_auth = 0;
@@ -665,6 +666,8 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 
 out_auth_reply:
 	ceph_msg_put(monc->m_auth_reply);
+out_subscribe:
+	ceph_msg_put(monc->m_subscribe);
 out_subscribe_ack:
 	ceph_msg_put(monc->m_subscribe_ack);
 out_monmap:
@@ -691,6 +694,7 @@ void ceph_monc_stop(struct ceph_mon_client *monc)
 
 	ceph_msg_put(monc->m_auth);
 	ceph_msg_put(monc->m_auth_reply);
+	ceph_msg_put(monc->m_subscribe);
 	ceph_msg_put(monc->m_subscribe_ack);
 
 	kfree(monc->monmap);
