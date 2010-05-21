@@ -242,34 +242,38 @@ fail:
 }
 
 /**
- * gfs2_unlinked_inode_lookup - Lookup an unlinked inode for reclamation
+ * gfs2_process_unlinked_inode - Lookup an unlinked inode for reclamation
+ *                               and try to reclaim it by doing iput.
+ *
+ * This function assumes no rgrp locks are currently held.
+ *
  * @sb: The super block
  * no_addr: The inode number
- * @@inode: A pointer to the inode found, if any
  *
- * Returns: 0 and *inode if no errors occurred.  If an error occurs,
- *          the resulting *inode may or may not be NULL.
  */
 
-int gfs2_unlinked_inode_lookup(struct super_block *sb, u64 no_addr,
-			       struct inode **inode)
+void gfs2_process_unlinked_inode(struct super_block *sb, u64 no_addr)
 {
 	struct gfs2_sbd *sdp;
 	struct gfs2_inode *ip;
 	struct gfs2_glock *io_gl;
 	int error;
 	struct gfs2_holder gh;
+	struct inode *inode;
 
-	*inode = gfs2_iget_skip(sb, no_addr);
+	inode = gfs2_iget_skip(sb, no_addr);
 
-	if (!(*inode))
-		return -ENOBUFS;
+	if (!inode)
+		return;
 
-	if (!((*inode)->i_state & I_NEW))
-		return -ENOBUFS;
+	/* If it's not a new inode, someone's using it, so leave it alone. */
+	if (!(inode->i_state & I_NEW)) {
+		iput(inode);
+		return;
+	}
 
-	ip = GFS2_I(*inode);
-	sdp = GFS2_SB(*inode);
+	ip = GFS2_I(inode);
+	sdp = GFS2_SB(inode);
 	ip->i_no_formal_ino = -1;
 
 	error = gfs2_glock_get(sdp, no_addr, &gfs2_inode_glops, CREATE, &ip->i_gl);
@@ -284,15 +288,13 @@ int gfs2_unlinked_inode_lookup(struct super_block *sb, u64 no_addr,
 	set_bit(GIF_INVALID, &ip->i_flags);
 	error = gfs2_glock_nq_init(io_gl, LM_ST_SHARED, LM_FLAG_TRY | GL_EXACT,
 				   &ip->i_iopen_gh);
-	if (unlikely(error)) {
-		if (error == GLR_TRYFAILED)
-			error = 0;
+	if (unlikely(error))
 		goto fail_iopen;
-	}
+
 	ip->i_iopen_gh.gh_gl->gl_object = ip;
 	gfs2_glock_put(io_gl);
 
-	(*inode)->i_mode = DT2IF(DT_UNKNOWN);
+	inode->i_mode = DT2IF(DT_UNKNOWN);
 
 	/*
 	 * We must read the inode in order to work out its type in
@@ -303,16 +305,17 @@ int gfs2_unlinked_inode_lookup(struct super_block *sb, u64 no_addr,
 	 */
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, LM_FLAG_TRY,
 				   &gh);
-	if (unlikely(error)) {
-		if (error == GLR_TRYFAILED)
-			error = 0;
+	if (unlikely(error))
 		goto fail_glock;
-	}
+
 	/* Inode is now uptodate */
 	gfs2_glock_dq_uninit(&gh);
-	gfs2_set_iop(*inode);
+	gfs2_set_iop(inode);
 
-	return 0;
+	/* The iput will cause it to be deleted. */
+	iput(inode);
+	return;
+
 fail_glock:
 	gfs2_glock_dq(&ip->i_iopen_gh);
 fail_iopen:
@@ -321,7 +324,8 @@ fail_put:
 	ip->i_gl->gl_object = NULL;
 	gfs2_glock_put(ip->i_gl);
 fail:
-	return error;
+	iget_failed(inode);
+	return;
 }
 
 static int gfs2_dinode_in(struct gfs2_inode *ip, const void *buf)

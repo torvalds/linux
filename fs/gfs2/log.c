@@ -696,7 +696,7 @@ static void gfs2_ordered_wait(struct gfs2_sbd *sdp)
  *
  */
 
-void __gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
+void gfs2_log_flush(struct gfs2_sbd *sdp, struct gfs2_glock *gl)
 {
 	struct gfs2_ail *ai;
 
