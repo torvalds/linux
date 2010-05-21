@@ -2311,15 +2311,9 @@ static int cxgb_extension_ioctl(struct net_device *dev, void __user *useraddr)
 		if (copy_from_user(&t, useraddr, sizeof(t)))
 			return -EFAULT;
 		/* Check t.len sanity ? */
-		fw_data = kmalloc(t.len, GFP_KERNEL);
-		if (!fw_data)
-			return -ENOMEM;
-
-		if (copy_from_user
-			(fw_data, useraddr + sizeof(t), t.len)) {
-			kfree(fw_data);
-			return -EFAULT;
-		}
+		fw_data = memdup_user(useraddr + sizeof(t), t.len);
+		if (IS_ERR(fw_data))
+			return PTR_ERR(fw_data);
 
 		ret = t3_load_fw(adapter, fw_data, t.len);
 		kfree(fw_data);
