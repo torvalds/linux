@@ -1210,6 +1210,10 @@ static int taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 	int r;
 
 	mutex_lock(&td->lock);
+
+	if (td->te_enabled == enable)
+		goto end;
+
 	dsi_bus_lock();
 
 	if (td->enabled) {
@@ -1221,6 +1225,7 @@ static int taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 	td->te_enabled = enable;
 
 	dsi_bus_unlock();
+end:
 	mutex_unlock(&td->lock);
 
 	return 0;
@@ -1251,6 +1256,10 @@ static int taal_rotate(struct omap_dss_device *dssdev, u8 rotate)
 	dev_dbg(&dssdev->dev, "rotate %d\n", rotate);
 
 	mutex_lock(&td->lock);
+
+	if (td->rotate == rotate)
+		goto end;
+
 	dsi_bus_lock();
 
 	if (td->enabled) {
@@ -1262,6 +1271,7 @@ static int taal_rotate(struct omap_dss_device *dssdev, u8 rotate)
 	td->rotate = rotate;
 
 	dsi_bus_unlock();
+end:
 	mutex_unlock(&td->lock);
 	return 0;
 err:
@@ -1290,6 +1300,10 @@ static int taal_mirror(struct omap_dss_device *dssdev, bool enable)
 	dev_dbg(&dssdev->dev, "mirror %d\n", enable);
 
 	mutex_lock(&td->lock);
+
+	if (td->mirror == enable)
+		goto end;
+
 	dsi_bus_lock();
 	if (td->enabled) {
 		r = taal_set_addr_mode(td->rotate, enable);
@@ -1300,6 +1314,7 @@ static int taal_mirror(struct omap_dss_device *dssdev, bool enable)
 	td->mirror = enable;
 
 	dsi_bus_unlock();
+end:
 	mutex_unlock(&td->lock);
 	return 0;
 err:
