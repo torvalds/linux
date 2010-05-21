@@ -70,16 +70,23 @@ struct trace_iterator {
 };
 
 
+struct trace_event;
+
 typedef enum print_line_t (*trace_print_func)(struct trace_iterator *iter,
-					      int flags);
-struct trace_event {
-	struct hlist_node	node;
-	struct list_head	list;
-	int			type;
+				      int flags, struct trace_event *event);
+
+struct trace_event_functions {
 	trace_print_func	trace;
 	trace_print_func	raw;
 	trace_print_func	hex;
 	trace_print_func	binary;
+};
+
+struct trace_event {
+	struct hlist_node		node;
+	struct list_head		list;
+	int				type;
+	struct trace_event_functions	*funcs;
 };
 
 extern int register_ftrace_event(struct trace_event *event);
@@ -113,29 +120,70 @@ void tracing_record_cmdline(struct task_struct *tsk);
 
 struct event_filter;
 
+enum trace_reg {
+	TRACE_REG_REGISTER,
+	TRACE_REG_UNREGISTER,
+	TRACE_REG_PERF_REGISTER,
+	TRACE_REG_PERF_UNREGISTER,
+};
+
+struct ftrace_event_call;
+
+struct ftrace_event_class {
+	char			*system;
+	void			*probe;
+#ifdef CONFIG_PERF_EVENTS
+	void			*perf_probe;
+#endif
+	int			(*reg)(struct ftrace_event_call *event,
+				       enum trace_reg type);
+	int			(*define_fields)(struct ftrace_event_call *);
+	struct list_head	*(*get_fields)(struct ftrace_event_call *);
+	struct list_head	fields;
+	int			(*raw_init)(struct ftrace_event_call *);
+};
+
+enum {
+	TRACE_EVENT_FL_ENABLED_BIT,
+	TRACE_EVENT_FL_FILTERED_BIT,
+};
+
+enum {
+	TRACE_EVENT_FL_ENABLED	= (1 << TRACE_EVENT_FL_ENABLED_BIT),
+	TRACE_EVENT_FL_FILTERED	= (1 << TRACE_EVENT_FL_FILTERED_BIT),
+};
+
 struct ftrace_event_call {
 	struct list_head	list;
+	struct ftrace_event_class *class;
 	char			*name;
-	char			*system;
 	struct dentry		*dir;
-	struct trace_event	*event;
-	int			enabled;
-	int			(*regfunc)(struct ftrace_event_call *);
-	void			(*unregfunc)(struct ftrace_event_call *);
-	int			id;
+	struct trace_event	event;
 	const char		*print_fmt;
-	int			(*raw_init)(struct ftrace_event_call *);
-	int			(*define_fields)(struct ftrace_event_call *);
-	struct list_head	fields;
-	int			filter_active;
 	struct event_filter	*filter;
 	void			*mod;
 	void			*data;
 
+	/*
+	 * 32 bit flags:
+	 *   bit 1:		enabled
+	 *   bit 2:		filter_active
+	 *
+	 * Changes to flags must hold the event_mutex.
+	 *
+	 * Note: Reads of flags do not hold the event_mutex since
+	 * they occur in critical sections. But the way flags
+	 * is currently used, these changes do no affect the code
+	 * except that when a change is made, it may have a slight
+	 * delay in propagating the changes to other CPUs due to
+	 * caching and such.
+	 */
+	unsigned int		flags;
+
+#ifdef CONFIG_PERF_EVENTS
 	int			perf_refcount;
 	struct hlist_head	*perf_events;
-	int			(*perf_event_enable)(struct ftrace_event_call *);
-	void			(*perf_event_disable)(struct ftrace_event_call *);
+#endif
 };
 
 #define PERF_MAX_TRACE_SIZE	2048

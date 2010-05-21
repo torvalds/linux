@@ -143,7 +143,7 @@ static void branch_trace_reset(struct trace_array *tr)
 }
 
 static enum print_line_t trace_branch_print(struct trace_iterator *iter,
-					    int flags)
+					    int flags, struct trace_event *event)
 {
 	struct trace_branch *field;
 
@@ -167,9 +167,13 @@ static void branch_print_header(struct seq_file *s)
 		"    |\n");
 }
 
+static struct trace_event_functions trace_branch_funcs = {
+	.trace		= trace_branch_print,
+};
+
 static struct trace_event trace_branch_event = {
 	.type		= TRACE_BRANCH,
-	.trace		= trace_branch_print,
+	.funcs		= &trace_branch_funcs,
 };
 
 static struct tracer branch_trace __read_mostly =
