@@ -25,6 +25,7 @@
 #include <linux/dm9000.h>
 #include <linux/ucb1400.h>
 #include <linux/ata_platform.h>
+#include <linux/regulator/max1586.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -465,7 +466,6 @@ static struct i2c_board_info __initdata vpac270_i2c_devs[] = {
 
 static void __init vpac270_rtc_init(void)
 {
-	pxa_set_i2c_info(NULL);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(vpac270_i2c_devs));
 }
 #else
@@ -588,6 +588,59 @@ static inline void vpac270_ide_init(void) {}
 #endif
 
 /******************************************************************************
+ * Core power regulator
+ ******************************************************************************/
+#if defined(CONFIG_REGULATOR_MAX1586) || \
+    defined(CONFIG_REGULATOR_MAX1586_MODULE)
+static struct regulator_consumer_supply vpac270_max1587a_consumers[] = {
+	{
+		.supply	= "vcc_core",
+	}
+};
+
+static struct regulator_init_data vpac270_max1587a_v3_info = {
+	.constraints = {
+		.name		= "vcc_core range",
+		.min_uV		= 900000,
+		.max_uV		= 1705000,
+		.always_on	= 1,
+		.valid_ops_mask	= REGULATOR_CHANGE_VOLTAGE,
+	},
+	.consumer_supplies	= vpac270_max1587a_consumers,
+	.num_consumer_supplies	= ARRAY_SIZE(vpac270_max1587a_consumers),
+};
+
+static struct max1586_subdev_data vpac270_max1587a_subdevs[] = {
+	{
+		.name		= "vcc_core",
+		.id		= MAX1586_V3,
+		.platform_data	= &vpac270_max1587a_v3_info,
+	}
+};
+
+static struct max1586_platform_data vpac270_max1587a_info = {
+	.subdevs     = vpac270_max1587a_subdevs,
+	.num_subdevs = ARRAY_SIZE(vpac270_max1587a_subdevs),
+	.v3_gain     = MAX1586_GAIN_R24_3k32, /* 730..1550 mV */
+};
+
+static struct i2c_board_info __initdata vpac270_pi2c_board_info[] = {
+	{
+		I2C_BOARD_INFO("max1586", 0x14),
+		.platform_data	= &vpac270_max1587a_info,
+	},
+};
+
+static void __init vpac270_pmic_init(void)
+{
+	i2c_register_board_info(1, ARRAY_AND_SIZE(vpac270_pi2c_board_info));
+}
+#else
+static inline void vpac270_pmic_init(void) {}
+#endif
+
+
+/******************************************************************************
  * Machine init
  ******************************************************************************/
 static void __init vpac270_init(void)
@@ -597,7 +650,10 @@ static void __init vpac270_init(void)
 	pxa_set_ffuart_info(NULL);
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
+	pxa_set_i2c_info(NULL);
+	pxa27x_set_i2c_power_info(NULL);
 
+	vpac270_pmic_init();
 	vpac270_lcd_init();
 	vpac270_mmc_init();
 	vpac270_nor_init();
