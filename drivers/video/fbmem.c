@@ -1491,7 +1491,10 @@ static bool fb_do_apertures_overlap(struct apertures_struct *gena,
 		for (j = 0; j < gena->count; ++j) {
 			struct aperture *g = &gena->ranges[j];
 			printk(KERN_DEBUG "checking generic (%llx %llx) vs hw (%llx %llx)\n",
-				g->base, g->size, h->base, h->size);
+				(unsigned long long)g->base,
+				(unsigned long long)g->size,
+				(unsigned long long)h->base,
+				(unsigned long long)h->size);
 			if (apertures_overlap(g, h))
 				return true;
 		}
