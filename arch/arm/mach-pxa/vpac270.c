@@ -493,7 +493,55 @@ static struct pxafb_mode_info vpac270_lcd_modes[] = {
 	.vsync_len	= 2,
 
 	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
-},
+}, {	/* CRT 640x480 */
+	.pixclock	= 35000,
+	.xres		= 640,
+	.yres		= 480,
+	.bpp		= 16,
+	.depth		= 16,
+
+	.left_margin	= 96,
+	.right_margin	= 48,
+	.upper_margin	= 33,
+	.lower_margin	= 10,
+
+	.hsync_len	= 48,
+	.vsync_len	= 1,
+
+	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+}, {	/* CRT 800x600 H=30kHz V=48HZ */
+	.pixclock	= 25000,
+	.xres		= 800,
+	.yres		= 600,
+	.bpp		= 16,
+	.depth		= 16,
+
+	.left_margin	= 50,
+	.right_margin	= 1,
+	.upper_margin	= 21,
+	.lower_margin	= 12,
+
+	.hsync_len	= 8,
+	.vsync_len	= 1,
+
+	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+}, {	/* CRT 1024x768 H=40kHz V=50Hz */
+	.pixclock	= 15000,
+	.xres		= 1024,
+	.yres		= 768,
+	.bpp		= 16,
+	.depth		= 16,
+
+	.left_margin	= 220,
+	.right_margin	= 8,
+	.upper_margin	= 33,
+	.lower_margin	= 2,
+
+	.hsync_len	= 48,
+	.vsync_len	= 1,
+
+	.sync		= FB_SYNC_HOR_HIGH_ACT | FB_SYNC_VERT_HIGH_ACT,
+}
 };
 
 static struct pxafb_mach_info vpac270_lcd_screen = {
