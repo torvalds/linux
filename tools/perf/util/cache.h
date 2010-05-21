@@ -30,7 +30,7 @@ extern const char *pager_program;
 extern int pager_in_use(void);
 extern int pager_use_color;
 
-extern bool use_browser;
+extern int use_browser;
 
 #ifdef NO_NEWT_SUPPORT
 static inline void setup_browser(void)

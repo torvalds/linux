@@ -1066,10 +1066,13 @@ static struct newtPercentTreeColors {
 void setup_browser(void)
 {
 	struct newtPercentTreeColors *c = &defaultPercentTreeColors;
-	if (!isatty(1))
-		return;
 
-	use_browser = true;
+	if (!isatty(1) || !use_browser) {
+		setup_pager();
+		return;
+	}
+
+	use_browser = 1;
 	newtInit();
 	newtCls();
 	ui_helpline__puts(" ");
@@ -1082,7 +1085,7 @@ void setup_browser(void)
 
 void exit_browser(bool wait_for_ok)
 {
-	if (use_browser) {
+	if (use_browser > 0) {
 		if (wait_for_ok) {
 			char title[] = "Fatal Error", ok[] = "Ok";
 			newtWinMessage(title, ok, browser__last_msg);

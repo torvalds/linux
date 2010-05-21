@@ -116,7 +116,7 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	 * so we don't allocated the extra space needed because the stdio
 	 * code will not use it.
 	 */
-	if (use_browser)
+	if (use_browser > 0)
 		err = hist_entry__inc_addr_samples(he, al->addr);
 out_free_syms:
 	free(syms);
@@ -330,7 +330,7 @@ static int __cmd_report(void)
 		hists = rb_entry(next, struct hists, rb_node);
 		hists__collapse_resort(hists);
 		hists__output_resort(hists);
-		if (use_browser)
+		if (use_browser > 0)
 			hists__browse(hists, help, input_name);
 		else {
 			const char *evname = NULL;
@@ -347,7 +347,7 @@ static int __cmd_report(void)
 		next = rb_next(&hists->rb_node);
 	}
 
-	if (!use_browser && sort_order == default_sort_order &&
+	if (use_browser <= 0 && sort_order == default_sort_order &&
 	    parent_pattern == default_parent_pattern) {
 		fprintf(stdout, "#\n# (%s)\n#\n", help);
 
@@ -491,7 +491,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	 * so don't allocate extra space that won't be used in the stdio
 	 * implementation.
 	 */
-	if (use_browser)
+	if (use_browser > 0)
 		symbol_conf.priv_size = sizeof(struct sym_priv);
 
 	if (symbol__init() < 0)
