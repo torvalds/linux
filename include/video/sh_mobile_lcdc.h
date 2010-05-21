@@ -3,24 +3,27 @@
 
 #include <linux/fb.h>
 
-enum { RGB8,   /* 24bpp, 8:8:8 */
-       RGB9,   /* 18bpp, 9:9 */
-       RGB12A, /* 24bpp, 12:12 */
-       RGB12B, /* 12bpp */
-       RGB16,  /* 16bpp */
-       RGB18,  /* 18bpp */
-       RGB24,  /* 24bpp */
-       SYS8A,  /* 24bpp, 8:8:8 */
-       SYS8B,  /* 18bpp, 8:8:2 */
-       SYS8C,  /* 18bpp, 2:8:8 */
-       SYS8D,  /* 16bpp, 8:8 */
-       SYS9,   /* 18bpp, 9:9 */
-       SYS12,  /* 24bpp, 12:12 */
-       SYS16A, /* 16bpp */
-       SYS16B, /* 18bpp, 16:2 */
-       SYS16C, /* 18bpp, 2:16 */
-       SYS18,  /* 18bpp */
-       SYS24 };/* 24bpp */
+enum {
+	RGB8,   /* 24bpp, 8:8:8 */
+	RGB9,   /* 18bpp, 9:9 */
+	RGB12A, /* 24bpp, 12:12 */
+	RGB12B, /* 12bpp */
+	RGB16,  /* 16bpp */
+	RGB18,  /* 18bpp */
+	RGB24,  /* 24bpp */
+	YUV422, /* 16bpp */
+	SYS8A,  /* 24bpp, 8:8:8 */
+	SYS8B,  /* 18bpp, 8:8:2 */
+	SYS8C,  /* 18bpp, 2:8:8 */
+	SYS8D,  /* 16bpp, 8:8 */
+	SYS9,   /* 18bpp, 9:9 */
+	SYS12,  /* 24bpp, 12:12 */
+	SYS16A, /* 16bpp */
+	SYS16B, /* 18bpp, 16:2 */
+	SYS16C, /* 18bpp, 2:16 */
+	SYS18,  /* 18bpp */
+	SYS24,  /* 24bpp */
+};
 
 enum { LCDC_CHAN_DISABLED = 0,
        LCDC_CHAN_MAINLCD,
