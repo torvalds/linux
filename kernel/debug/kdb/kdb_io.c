@@ -673,6 +673,14 @@ kdb_printit:
 	if (!dbg_kdb_mode && kgdb_connected) {
 		gdbstub_msg_write(kdb_buffer, retlen);
 	} else {
+		if (!dbg_io_ops->is_console) {
+			len = strlen(kdb_buffer);
+			cp = kdb_buffer;
+			while (len--) {
+				dbg_io_ops->write_char(*cp);
+				cp++;
+			}
+		}
 		while (c) {
 			c->write(c, kdb_buffer, retlen);
 			touch_nmi_watchdog();
@@ -719,6 +727,14 @@ kdb_printit:
 		kdb_input_flush();
 		c = console_drivers;
 
+		if (!dbg_io_ops->is_console) {
+			len = strlen(moreprompt);
+			cp = moreprompt;
+			while (len--) {
+				dbg_io_ops->write_char(*cp);
+				cp++;
+			}
+		}
 		while (c) {
 			c->write(c, moreprompt, strlen(moreprompt));
 			touch_nmi_watchdog();

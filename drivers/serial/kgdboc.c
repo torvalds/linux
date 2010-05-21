@@ -16,6 +16,7 @@
 #include <linux/kgdb.h>
 #include <linux/kdb.h>
 #include <linux/tty.h>
+#include <linux/console.h>
 
 #define MAX_CONFIG_LEN		40
 
@@ -93,12 +94,14 @@ static int configure_kgdboc(void)
 	int tty_line = 0;
 	int err;
 	char *cptr = config;
+	struct console *cons;
 
 	err = kgdboc_option_setup(config);
 	if (err || !strlen(config) || isspace(config[0]))
 		goto noconfig;
 
 	err = -ENODEV;
+	kgdboc_io_ops.is_console = 0;
 	kgdb_tty_driver = NULL;
 
 	if (kgdboc_register_kbd(&cptr))
@@ -107,6 +110,17 @@ static int configure_kgdboc(void)
 	p = tty_find_polling_driver(cptr, &tty_line);
 	if (!p)
 		goto noconfig;
+
+	cons = console_drivers;
+	while (cons) {
+		int idx;
+		if (cons->device && cons->device(cons, &idx) == p &&
+		    idx == tty_line) {
+			kgdboc_io_ops.is_console = 1;
+			break;
+		}
+		cons = cons->next;
+	}
 
 	kgdb_tty_driver = p;
 	kgdb_tty_line = tty_line;
