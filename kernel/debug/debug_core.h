@@ -38,6 +38,8 @@ struct debuggerinfo_struct {
 	void			*debuggerinfo;
 	struct task_struct	*task;
 	int			exception_state;
+	int			ret_state;
+	int			irq_depth;
 };
 
 extern struct debuggerinfo_struct kgdb_info[];
@@ -47,9 +49,31 @@ extern int dbg_remove_all_break(void);
 extern int dbg_set_sw_break(unsigned long addr);
 extern int dbg_remove_sw_break(unsigned long addr);
 extern int dbg_activate_sw_breakpoints(void);
+extern int dbg_deactivate_sw_breakpoints(void);
+
+/* polled character access to i/o module */
+extern int dbg_io_get_char(void);
+
+/* stub return value for switching between the gdbstub and kdb */
+#define DBG_PASS_EVENT -12345
+/* Switch from one cpu to another */
+#define DBG_SWITCH_CPU_EVENT -123456
+extern int dbg_switch_cpu;
 
 /* gdbstub interface functions */
 extern int gdb_serial_stub(struct kgdb_state *ks);
 extern void gdbstub_msg_write(const char *s, int len);
+
+/* gdbstub functions used for kdb <-> gdbstub transition */
+extern int gdbstub_state(struct kgdb_state *ks, char *cmd);
+
+#ifdef CONFIG_KGDB_KDB
+extern int kdb_stub(struct kgdb_state *ks);
+#else /* ! CONFIG_KGDB_KDB */
+static inline int kdb_stub(struct kgdb_state *ks)
+{
+	return DBG_PASS_EVENT;
+}
+#endif /* CONFIG_KGDB_KDB */
 
 #endif /* _DEBUG_CORE_H_ */

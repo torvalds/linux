@@ -887,6 +887,13 @@ int gdb_serial_stub(struct kgdb_state *ks)
 		case 'Z': /* Break point set */
 			gdb_cmd_break(ks);
 			break;
+#ifdef CONFIG_KGDB_KDB
+		case '3': /* Escape into back into kdb */
+			if (remcom_in_buffer[1] == '\0') {
+				gdb_cmd_detachkill(ks);
+				return DBG_PASS_EVENT;
+			}
+#endif
 		case 'C': /* Exception passing */
 			tmp = gdb_cmd_exception_pass(ks);
 			if (tmp > 0)
@@ -931,4 +938,33 @@ kgdb_exit:
 	if (ks->pass_exception)
 		error = 1;
 	return error;
+}
+
+int gdbstub_state(struct kgdb_state *ks, char *cmd)
+{
+	int error;
+
+	switch (cmd[0]) {
+	case 'e':
+		error = kgdb_arch_handle_exception(ks->ex_vector,
+						   ks->signo,
+						   ks->err_code,
+						   remcom_in_buffer,
+						   remcom_out_buffer,
+						   ks->linux_regs);
+		return error;
+	case 's':
+	case 'c':
+		strcpy(remcom_in_buffer, cmd);
+		return 0;
+	case '?':
+		gdb_cmd_status(ks);
+		break;
+	case '\0':
+		strcpy(remcom_out_buffer, "");
+		break;
+	}
+	dbg_io_ops->write_char('+');
+	put_packet(remcom_out_buffer);
+	return 0;
 }

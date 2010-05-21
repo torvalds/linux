@@ -43,6 +43,7 @@
 #include <linux/sysrq.h>
 #include <linux/init.h>
 #include <linux/kgdb.h>
+#include <linux/kdb.h>
 #include <linux/pid.h>
 #include <linux/smp.h>
 #include <linux/mm.h>
@@ -77,6 +78,11 @@ static DEFINE_SPINLOCK(kgdb_registration_lock);
 static int kgdb_con_registered;
 /* determine if kgdb console output should be used */
 static int kgdb_use_con;
+/* Next cpu to become the master debug core */
+int dbg_switch_cpu;
+
+/* Use kdb or gdbserver mode */
+static int dbg_kdb_mode = 1;
 
 static int __init opt_kgdb_con(char *str)
 {
@@ -100,6 +106,7 @@ static struct kgdb_bkpt		kgdb_break[KGDB_MAX_BREAKPOINTS] = {
  * The CPU# of the active CPU, or -1 if none:
  */
 atomic_t			kgdb_active = ATOMIC_INIT(-1);
+EXPORT_SYMBOL_GPL(kgdb_active);
 
 /*
  * We use NR_CPUs not PERCPU, in case kgdb is used to debug early
@@ -301,7 +308,7 @@ int dbg_set_sw_break(unsigned long addr)
 	return 0;
 }
 
-static int kgdb_deactivate_sw_breakpoints(void)
+int dbg_deactivate_sw_breakpoints(void)
 {
 	unsigned long addr;
 	int error;
@@ -395,8 +402,14 @@ static int kgdb_io_ready(int print_wait)
 		return 1;
 	if (atomic_read(&kgdb_setting_breakpoint))
 		return 1;
-	if (print_wait)
+	if (print_wait) {
+#ifdef CONFIG_KGDB_KDB
+		if (!dbg_kdb_mode)
+			printk(KERN_CRIT "KGDB: waiting... or $3#33 for KDB\n");
+#else
 		printk(KERN_CRIT "KGDB: Waiting for remote debugger\n");
+#endif
+	}
 	return 1;
 }
 
@@ -410,7 +423,7 @@ static int kgdb_reenter_check(struct kgdb_state *ks)
 	/* Panic on recursive debugger calls: */
 	exception_level++;
 	addr = kgdb_arch_pc(ks->ex_vector, ks->linux_regs);
-	kgdb_deactivate_sw_breakpoints();
+	dbg_deactivate_sw_breakpoints();
 
 	/*
 	 * If the break point removed ok at the place exception
@@ -443,11 +456,24 @@ static int kgdb_reenter_check(struct kgdb_state *ks)
 	return 1;
 }
 
+static void dbg_cpu_switch(int cpu, int next_cpu)
+{
+	/* Mark the cpu we are switching away from as a slave when it
+	 * holds the kgdb_active token.  This must be done so that the
+	 * that all the cpus wait in for the debug core will not enter
+	 * again as the master. */
+	if (cpu == atomic_read(&kgdb_active)) {
+		kgdb_info[cpu].exception_state |= DCPU_IS_SLAVE;
+		kgdb_info[cpu].exception_state &= ~DCPU_WANT_MASTER;
+	}
+	kgdb_info[next_cpu].exception_state |= DCPU_NEXT_MASTER;
+}
+
 static int kgdb_cpu_enter(struct kgdb_state *ks, struct pt_regs *regs)
 {
 	unsigned long flags;
 	int sstep_tries = 100;
-	int error = 0;
+	int error;
 	int i, cpu;
 	int trace_on = 0;
 acquirelock:
@@ -460,6 +486,8 @@ acquirelock:
 	cpu = ks->cpu;
 	kgdb_info[cpu].debuggerinfo = regs;
 	kgdb_info[cpu].task = current;
+	kgdb_info[cpu].ret_state = 0;
+	kgdb_info[cpu].irq_depth = hardirq_count() >> HARDIRQ_SHIFT;
 	/*
 	 * Make sure the above info reaches the primary CPU before
 	 * our cpu_in_kgdb[] flag setting does:
@@ -471,7 +499,11 @@ acquirelock:
 	 * master cpu and acquire the kgdb_active lock:
 	 */
 	while (1) {
-		if (kgdb_info[cpu].exception_state & DCPU_WANT_MASTER) {
+cpu_loop:
+		if (kgdb_info[cpu].exception_state & DCPU_NEXT_MASTER) {
+			kgdb_info[cpu].exception_state &= ~DCPU_NEXT_MASTER;
+			goto cpu_master_loop;
+		} else if (kgdb_info[cpu].exception_state & DCPU_WANT_MASTER) {
 			if (atomic_cmpxchg(&kgdb_active, -1, cpu) == cpu)
 				break;
 		} else if (kgdb_info[cpu].exception_state & DCPU_IS_SLAVE) {
@@ -513,7 +545,7 @@ return_normal:
 	}
 
 	if (!kgdb_io_ready(1)) {
-		error = 1;
+		kgdb_info[cpu].ret_state = 1;
 		goto kgdb_restore; /* No I/O connection, resume the system */
 	}
 
@@ -548,7 +580,7 @@ return_normal:
 	 * Wait for the other CPUs to be notified and be waiting for us:
 	 */
 	for_each_online_cpu(i) {
-		while (!atomic_read(&cpu_in_kgdb[i]))
+		while (kgdb_do_roundup && !atomic_read(&cpu_in_kgdb[i]))
 			cpu_relax();
 	}
 
@@ -557,7 +589,7 @@ return_normal:
 	 * in the debugger and all secondary CPUs are quiescent
 	 */
 	kgdb_post_primary_code(ks->linux_regs, ks->ex_vector, ks->err_code);
-	kgdb_deactivate_sw_breakpoints();
+	dbg_deactivate_sw_breakpoints();
 	kgdb_single_step = 0;
 	kgdb_contthread = current;
 	exception_level = 0;
@@ -565,8 +597,26 @@ return_normal:
 	if (trace_on)
 		tracing_off();
 
-	/* Talk to debugger with gdbserial protocol */
-	error = gdb_serial_stub(ks);
+	while (1) {
+cpu_master_loop:
+		if (dbg_kdb_mode) {
+			kgdb_connected = 1;
+			error = kdb_stub(ks);
+		} else {
+			error = gdb_serial_stub(ks);
+		}
+
+		if (error == DBG_PASS_EVENT) {
+			dbg_kdb_mode = !dbg_kdb_mode;
+			kgdb_connected = 0;
+		} else if (error == DBG_SWITCH_CPU_EVENT) {
+			dbg_cpu_switch(cpu, dbg_switch_cpu);
+			goto cpu_loop;
+		} else {
+			kgdb_info[cpu].ret_state = error;
+			break;
+		}
+	}
 
 	/* Call the I/O driver's post_exception routine */
 	if (dbg_io_ops->post_exception)
@@ -578,11 +628,16 @@ return_normal:
 		for (i = NR_CPUS-1; i >= 0; i--)
 			atomic_dec(&passive_cpu_wait[i]);
 		/*
-		 * Wait till all the CPUs have quit
-		 * from the debugger.
+		 * Wait till all the CPUs have quit from the debugger,
+		 * but allow a CPU that hit an exception and is
+		 * waiting to become the master to remain in the debug
+		 * core.
 		 */
 		for_each_online_cpu(i) {
-			while (atomic_read(&cpu_in_kgdb[i]))
+			while (kgdb_do_roundup &&
+			       atomic_read(&cpu_in_kgdb[i]) &&
+			       !(kgdb_info[i].exception_state &
+				 DCPU_WANT_MASTER))
 				cpu_relax();
 		}
 	}
@@ -603,7 +658,7 @@ kgdb_restore:
 	clocksource_touch_watchdog();
 	local_irq_restore(flags);
 
-	return error;
+	return kgdb_info[cpu].ret_state;
 }
 
 /*
@@ -632,7 +687,8 @@ kgdb_handle_exception(int evector, int signo, int ecode, struct pt_regs *regs)
 		return 0; /* Ouch, double exception ! */
 	kgdb_info[ks->cpu].exception_state |= DCPU_WANT_MASTER;
 	ret = kgdb_cpu_enter(ks, regs);
-	kgdb_info[ks->cpu].exception_state &= ~DCPU_WANT_MASTER;
+	kgdb_info[ks->cpu].exception_state &= ~(DCPU_WANT_MASTER |
+						DCPU_IS_SLAVE);
 	return ret;
 }
 
@@ -665,7 +721,7 @@ static void kgdb_console_write(struct console *co, const char *s,
 
 	/* If we're debugging, or KGDB has not connected, don't try
 	 * and print. */
-	if (!kgdb_connected || atomic_read(&kgdb_active) != -1)
+	if (!kgdb_connected || atomic_read(&kgdb_active) != -1 || dbg_kdb_mode)
 		return;
 
 	local_irq_save(flags);
@@ -687,8 +743,14 @@ static void sysrq_handle_dbg(int key, struct tty_struct *tty)
 		printk(KERN_CRIT "ERROR: No KGDB I/O module available\n");
 		return;
 	}
-	if (!kgdb_connected)
+	if (!kgdb_connected) {
+#ifdef CONFIG_KGDB_KDB
+		if (!dbg_kdb_mode)
+			printk(KERN_CRIT "KGDB or $3#33 for KDB\n");
+#else
 		printk(KERN_CRIT "Entering KGDB\n");
+#endif
+	}
 
 	kgdb_breakpoint();
 }
@@ -817,6 +879,16 @@ void kgdb_unregister_io_module(struct kgdb_io *old_dbg_io_ops)
 }
 EXPORT_SYMBOL_GPL(kgdb_unregister_io_module);
 
+int dbg_io_get_char(void)
+{
+	int ret = dbg_io_ops->read_char();
+	if (!dbg_kdb_mode)
+		return ret;
+	if (ret == 127)
+		return 8;
+	return ret;
+}
+
 /**
  * kgdb_breakpoint - generate breakpoint exception
  *
@@ -839,6 +911,7 @@ static int __init opt_kgdb_wait(char *str)
 {
 	kgdb_break_asap = 1;
 
+	kdb_init(KDB_INIT_EARLY);
 	if (kgdb_io_module_registered)
 		kgdb_initial_breakpoint();
 

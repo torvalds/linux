@@ -309,6 +309,11 @@ void gdb_regs_to_pt_regs(unsigned long *gdb_regs, struct pt_regs *regs)
 	       (unsigned long)(((void *)gdb_regs) + NUMREGBYTES));
 }
 
+void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc)
+{
+	regs->nip = pc;
+}
+
 /*
  * This function does PowerPC specific procesing for interfacing to gdb.
  */

@@ -3,7 +3,7 @@ config HAVE_ARCH_KGDB
 	bool
 
 menuconfig KGDB
-	bool "KGDB: kernel debugging with remote gdb"
+	bool "KGDB: kernel debugger"
 	depends on HAVE_ARCH_KGDB
 	depends on DEBUG_KERNEL && EXPERIMENTAL
 	help
@@ -56,5 +56,11 @@ config KGDB_TESTS_BOOT_STRING
 	  boot.  See the drivers/misc/kgdbts.c for detailed
 	  information about other strings you could use beyond the
 	  default of V1F100.
+
+config KGDB_KDB
+	bool "KGDB_KDB: include kdb frontend for kgdb"
+	default n
+	help
+	  KDB frontend for kernel
 
 endif # KGDB
