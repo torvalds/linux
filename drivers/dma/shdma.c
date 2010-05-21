@@ -1188,6 +1188,7 @@ static struct platform_driver sh_dmae_driver = {
 	.remove		= __exit_p(sh_dmae_remove),
 	.shutdown	= sh_dmae_shutdown,
 	.driver = {
+		.owner	= THIS_MODULE,
 		.name	= "sh-dma-engine",
 	},
 };
