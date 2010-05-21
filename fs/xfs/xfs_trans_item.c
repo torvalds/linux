@@ -299,6 +299,7 @@ xfs_trans_next_item(xfs_trans_t *tp, xfs_log_item_desc_t *lidp)
 void
 xfs_trans_free_items(
 	xfs_trans_t	*tp,
+	xfs_lsn_t	commit_lsn,
 	int		flags)
 {
 	xfs_log_item_chunk_t	*licp;
@@ -311,7 +312,7 @@ xfs_trans_free_items(
 	 * Special case the embedded chunk so we don't free it below.
 	 */
 	if (!xfs_lic_are_all_free(licp)) {
-		(void) xfs_trans_unlock_chunk(licp, 1, abort, NULLCOMMITLSN);
+		(void) xfs_trans_unlock_chunk(licp, 1, abort, commit_lsn);
 		xfs_lic_all_free(licp);
 		licp->lic_unused = 0;
 	}
@@ -322,7 +323,7 @@ xfs_trans_free_items(
 	 */
 	while (licp != NULL) {
 		ASSERT(!xfs_lic_are_all_free(licp));
-		(void) xfs_trans_unlock_chunk(licp, 1, abort, NULLCOMMITLSN);
+		(void) xfs_trans_unlock_chunk(licp, 1, abort, commit_lsn);
 		next_licp = licp->lic_next;
 		kmem_free(licp);
 		licp = next_licp;
