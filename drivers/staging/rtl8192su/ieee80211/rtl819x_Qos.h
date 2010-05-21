@@ -1,7 +1,6 @@
 #ifndef __INC_QOS_TYPE_H
 #define __INC_QOS_TYPE_H
 
-//#include "EndianFree.h"
 #define BIT0                    0x00000001
 #define BIT1                    0x00000002
 #define BIT2                    0x00000004

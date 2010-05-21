@@ -142,8 +142,9 @@ u16_t zfHpInit(zdev_t* dev, u32_t frequency)
     if (wd->modeMDKEnable)
     {
         /* download the MDK firmware */
-        if ((ret = zfFirmwareDownload(dev, (u32_t*)zcDKFwImage,
-                (u32_t)zcDKFwImageSize, ZM_FIRMWARE_WLAN_ADDR)) != ZM_SUCCESS)
+        ret = zfFirmwareDownload(dev, (u32_t*)zcDKFwImage,
+                (u32_t)zcDKFwImageSize, ZM_FIRMWARE_WLAN_ADDR);
+        if (ret != ZM_SUCCESS)
         {
             /* TODO : exception handling */
             //return 1;
@@ -153,8 +154,9 @@ u16_t zfHpInit(zdev_t* dev, u32_t frequency)
     {
     #ifndef ZM_OTUS_LINUX_PHASE_2
         /* download the normal firmware */
-        if ((ret = zfFirmwareDownload(dev, (u32_t*)zcFwImage,
-                (u32_t)zcFwImageSize, ZM_FIRMWARE_WLAN_ADDR)) != ZM_SUCCESS)
+        ret = zfFirmwareDownload(dev, (u32_t*)zcFwImage,
+                (u32_t)zcFwImageSize, ZM_FIRMWARE_WLAN_ADDR);
+        if (ret != ZM_SUCCESS)
         {
             /* TODO : exception handling */
             //return 1;
@@ -162,16 +164,18 @@ u16_t zfHpInit(zdev_t* dev, u32_t frequency)
     #else
 
         // 1-PH fw: ReadMac() store some global variable
-        if ((ret = zfFirmwareDownloadNotJump(dev, (u32_t*)zcFwBufImage,
-                (u32_t)zcFwBufImageSize, 0x102800)) != ZM_SUCCESS)
+        ret = zfFirmwareDownloadNotJump(dev, (u32_t*)zcFwBufImage,
+                (u32_t)zcFwBufImageSize, 0x102800);
+        if (ret != ZM_SUCCESS)
         {
             DbgPrint("Dl zcFwBufImage failed!");
         }
 
         zfwSleep(dev, 1000);
 
-        if ((ret = zfFirmwareDownload(dev, (u32_t*)zcFwImage,
-                (u32_t)zcFwImageSize, ZM_FIRMWARE_WLAN_ADDR)) != ZM_SUCCESS)
+        ret = zfFirmwareDownload(dev, (u32_t*)zcFwImage,
+                (u32_t)zcFwImageSize, ZM_FIRMWARE_WLAN_ADDR);
+        if (ret != ZM_SUCCESS)
         {
             DbgPrint("Dl zcFwBufImage failed!");
         }
@@ -249,15 +253,17 @@ u16_t zfHpReinit(zdev_t* dev, u32_t frequency)
 
     #ifndef ZM_OTUS_LINUX_PHASE_2
     /* Download firmware */
-    if ((ret = zfFirmwareDownload(dev, (u32_t*)zcFwImage,
-            (u32_t)zcFwImageSize, ZM_FIRMWARE_WLAN_ADDR)) != ZM_SUCCESS)
+    ret = zfFirmwareDownload(dev, (u32_t*)zcFwImage,
+            (u32_t)zcFwImageSize, ZM_FIRMWARE_WLAN_ADDR);
+    if (ret != ZM_SUCCESS)
     {
         /* TODO : exception handling */
         //return 1;
     }
     #else
-    if ((ret = zfFirmwareDownload(dev, (u32_t*)zcP2FwImage,
-            (u32_t)zcP2FwImageSize, ZM_FIRMWARE_WLAN_ADDR)) != ZM_SUCCESS)
+    ret = zfFirmwareDownload(dev, (u32_t*)zcP2FwImage,
+            (u32_t)zcP2FwImageSize, ZM_FIRMWARE_WLAN_ADDR);
+    if (ret != ZM_SUCCESS)
     {
         /* TODO : exception handling */
         //return 1;

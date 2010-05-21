@@ -253,14 +253,12 @@ void et131x_isr_handler(struct work_struct *work)
 	 * exit.
 	 */
 	/* Handle all the completed Transmit interrupts */
-	if (status & ET_INTR_TXDMA_ISR) {
+	if (status & ET_INTR_TXDMA_ISR)
 		et131x_handle_send_interrupt(etdev);
-	}
 
 	/* Handle all the completed Receives interrupts */
-	if (status & ET_INTR_RXDMA_XFR_DONE) {
+	if (status & ET_INTR_RXDMA_XFR_DONE)
 		et131x_handle_recv_interrupt(etdev);
-	}
 
 	status &= 0xffffffd7;
 

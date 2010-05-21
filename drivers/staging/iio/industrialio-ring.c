@@ -20,18 +20,10 @@
 #include <linux/poll.h>
 #include <linux/module.h>
 #include <linux/cdev.h>
-#include <linux/idr.h>
 #include <linux/slab.h>
 
 #include "iio.h"
 #include "ring_generic.h"
-
-/* IDR for ring buffer identifier */
-static DEFINE_IDR(iio_ring_idr);
-/* IDR for ring event identifier */
-static DEFINE_IDR(iio_ring_event_idr);
-/* IDR for ring access identifier */
-static DEFINE_IDR(iio_ring_access_idr);
 
 int iio_push_ring_event(struct iio_ring_buffer *ring_buf,
 		       int event_code,
@@ -66,7 +58,7 @@ EXPORT_SYMBOL(iio_push_or_escallate_ring_event);
  * This function relies on all ring buffer implementations having an
  * iio_ring_buffer as their first element.
  **/
-int iio_ring_open(struct inode *inode, struct file *filp)
+static int iio_ring_open(struct inode *inode, struct file *filp)
 {
 	struct iio_handler *hand
 		= container_of(inode->i_cdev, struct iio_handler, chrdev);
@@ -85,7 +77,7 @@ int iio_ring_open(struct inode *inode, struct file *filp)
  * This function relies on all ring buffer implementations having an
  * iio_ring_buffer as their first element.
  **/
-int iio_ring_release(struct inode *inode, struct file *filp)
+static int iio_ring_release(struct inode *inode, struct file *filp)
 {
 	struct cdev *cd = inode->i_cdev;
 	struct iio_handler *hand = iio_cdev_to_handler(cd);
@@ -104,10 +96,8 @@ int iio_ring_release(struct inode *inode, struct file *filp)
  * This function relies on all ring buffer implementations having an
  * iio_ring _bufer as their first element.
  **/
-ssize_t iio_ring_rip_outer(struct file *filp,
-			   char *buf,
-			   size_t count,
-			   loff_t *f_ps)
+static ssize_t iio_ring_rip_outer(struct file *filp, char __user *buf,
+				  size_t count, loff_t *f_ps)
 {
 	struct iio_ring_buffer *rb = filp->private_data;
 	int ret, dead_offset, copied;
@@ -158,25 +148,21 @@ __iio_request_ring_buffer_event_chrdev(struct iio_ring_buffer *buf,
 				       struct device *dev)
 {
 	int ret;
-	ret = iio_get_new_idr_val(&iio_ring_event_idr);
-	if (ret < 0)
-		goto error_ret;
-	else
-		buf->ev_int.id = ret;
 
-	snprintf(buf->ev_int._name, 20,
-		 "ring_event_line%d",
+	buf->ev_int.id = id;
+
+	snprintf(buf->ev_int._name, sizeof(buf->ev_int._name),
+		 "%s:event%d",
+		 dev_name(&buf->dev),
 		 buf->ev_int.id);
 	ret = iio_setup_ev_int(&(buf->ev_int),
 			       buf->ev_int._name,
 			       owner,
 			       dev);
 	if (ret)
-		goto error_free_id;
+		goto error_ret;
 	return 0;
 
-error_free_id:
-	iio_free_idr_val(&iio_ring_event_idr, buf->ev_int.id);
 error_ret:
 	return ret;
 }
@@ -185,7 +171,6 @@ static inline void
 __iio_free_ring_buffer_event_chrdev(struct iio_ring_buffer *buf)
 {
 	iio_free_ev_int(&(buf->ev_int));
-	iio_free_idr_val(&iio_ring_event_idr, buf->ev_int.id);
 }
 
 static void iio_ring_access_release(struct device *dev)
@@ -210,7 +195,7 @@ __iio_request_ring_buffer_access_chrdev(struct iio_ring_buffer *buf,
 	buf->access_handler.flags = 0;
 
 	buf->access_dev.parent = &buf->dev;
-	buf->access_dev.class = &iio_class;
+	buf->access_dev.bus = &iio_bus_type;
 	buf->access_dev.type = &iio_ring_access_type;
 	device_initialize(&buf->access_dev);
 
@@ -221,16 +206,16 @@ __iio_request_ring_buffer_access_chrdev(struct iio_ring_buffer *buf,
 	}
 	buf->access_dev.devt = MKDEV(MAJOR(iio_devt), minor);
 
-	ret = iio_get_new_idr_val(&iio_ring_access_idr);
-	if (ret < 0)
-		goto error_device_put;
-	else
-		buf->access_id = ret;
-	dev_set_name(&buf->access_dev, "ring_access%d", buf->access_id);
+
+	buf->access_id = id;
+
+	dev_set_name(&buf->access_dev, "%s:access%d",
+		     dev_name(&buf->dev),
+		     buf->access_id);
 	ret = device_add(&buf->access_dev);
 	if (ret < 0) {
 		printk(KERN_ERR "failed to add the ring access dev\n");
-		goto error_free_idr;
+		goto error_device_put;
 	}
 
 	cdev_init(&buf->access_handler.chrdev, &iio_ring_fileops);
@@ -242,10 +227,9 @@ __iio_request_ring_buffer_access_chrdev(struct iio_ring_buffer *buf,
 		goto error_device_unregister;
 	}
 	return 0;
+
 error_device_unregister:
 	device_unregister(&buf->access_dev);
-error_free_idr:
-	iio_free_idr_val(&iio_ring_access_idr, buf->access_id);
 error_device_put:
 	put_device(&buf->access_dev);
 
@@ -254,7 +238,6 @@ error_device_put:
 
 static void __iio_free_ring_buffer_access_chrdev(struct iio_ring_buffer *buf)
 {
-	iio_free_idr_val(&iio_ring_access_idr, buf->access_id);
 	device_unregister(&buf->access_dev);
 }
 
@@ -266,22 +249,23 @@ void iio_ring_buffer_init(struct iio_ring_buffer *ring,
 	ring->indio_dev = dev_info;
 	ring->ev_int.private = ring;
 	ring->access_handler.private = ring;
+	ring->shared_ev_pointer.ev_p = NULL;
+	spin_lock_init(&ring->shared_ev_pointer.lock);
 }
 EXPORT_SYMBOL(iio_ring_buffer_init);
 
-int iio_ring_buffer_register(struct iio_ring_buffer *ring)
+int iio_ring_buffer_register(struct iio_ring_buffer *ring, int id)
 {
 	int ret;
-	ret = iio_get_new_idr_val(&iio_ring_idr);
-	if (ret < 0)
-		goto error_ret;
-	else
-		ring->id = ret;
 
-	dev_set_name(&ring->dev, "ring_buffer%d", ring->id);
+	ring->id = id;
+
+	dev_set_name(&ring->dev, "%s:buffer%d",
+		     dev_name(ring->dev.parent),
+		     ring->id);
 	ret = device_add(&ring->dev);
 	if (ret)
-		goto error_free_id;
+		goto error_ret;
 
 	ret = __iio_request_ring_buffer_event_chrdev(ring,
 						     0,
@@ -302,8 +286,6 @@ error_free_ring_buffer_event_chrdev:
 	__iio_free_ring_buffer_event_chrdev(ring);
 error_remove_device:
 	device_del(&ring->dev);
-error_free_id:
-	iio_free_idr_val(&iio_ring_idr, ring->id);
 error_ret:
 	return ret;
 }
@@ -314,7 +296,6 @@ void iio_ring_buffer_unregister(struct iio_ring_buffer *ring)
 	__iio_free_ring_buffer_access_chrdev(ring);
 	__iio_free_ring_buffer_event_chrdev(ring);
 	device_del(&ring->dev);
-	iio_free_idr_val(&iio_ring_idr, ring->id);
 }
 EXPORT_SYMBOL(iio_ring_buffer_unregister);
 

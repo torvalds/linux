@@ -103,7 +103,7 @@ static int wpa_init_wpadev(PSDevice pDevice)
 
     wpadev_priv = netdev_priv(pDevice->wpadev);
     *wpadev_priv = *pDevice;
-	memcpy(pDevice->wpadev->dev_addr, dev->dev_addr, U_ETHER_ADDR_LEN);
+	memcpy(pDevice->wpadev->dev_addr, dev->dev_addr, ETH_ALEN);
          pDevice->wpadev->base_addr = dev->base_addr;
 	pDevice->wpadev->irq = dev->irq;
 	pDevice->wpadev->mem_start = dev->mem_start;
@@ -489,7 +489,7 @@ static int wpa_set_disassociate(PSDevice pDevice,
     spin_lock_irq(&pDevice->lock);
     if (pDevice->bLinkPass) {
         if (!memcmp(param->addr, pMgmt->abyCurrBSSID, 6))
-            bScheduleCommand((HANDLE)pDevice, WLAN_CMD_DISASSOCIATE, NULL);
+		bScheduleCommand((void *) pDevice, WLAN_CMD_DISASSOCIATE, NULL);
     }
     spin_unlock_irq(&pDevice->lock);
 
@@ -513,7 +513,7 @@ static int wpa_set_disassociate(PSDevice pDevice,
  */
 
 static int wpa_set_scan(PSDevice pDevice,
-				     struct viawget_wpa_param *param)
+			struct viawget_wpa_param *param)
 {
 	int ret = 0;
 
@@ -531,9 +531,11 @@ memcpy(pItemSSID->abySSID, param->u.scan_req.ssid, param->u.scan_req.ssid_len);
 pItemSSID->len = param->u.scan_req.ssid_len;
 
     spin_lock_irq(&pDevice->lock);
-    BSSvClearBSSList((HANDLE)pDevice, pDevice->bLinkPass);
-  //  bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
-        bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
+    BSSvClearBSSList((void *) pDevice, pDevice->bLinkPass);
+    /* bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL); */
+    bScheduleCommand((void *) pDevice,
+		     WLAN_CMD_BSSID_SCAN,
+		     pMgmt->abyDesireSSID);
     spin_unlock_irq(&pDevice->lock);
 
     return ret;
@@ -676,13 +678,12 @@ static int wpa_get_scan(PSDevice pDevice,
         count++;
     };
 
-    pBuf = kmalloc(sizeof(struct viawget_scan_result) * count, (int)GFP_ATOMIC);
+    pBuf = kcalloc(count, sizeof(struct viawget_scan_result), (int)GFP_ATOMIC);
 
     if (pBuf == NULL) {
         ret = -ENOMEM;
         return ret;
     }
-   	memset(pBuf, 0, sizeof(struct viawget_scan_result) * count);
     scan_buf = (struct viawget_scan_result *)pBuf;
 	pBSS = &(pMgmt->sBSSList[0]);
     for (ii = 0, jj = 0; ii < MAX_BSS_NUM ; ii++) {
@@ -886,12 +887,14 @@ static int wpa_set_associate(PSDevice pDevice,
 
     if (pCurr == NULL){
     printk("wpa_set_associate---->hidden mode site survey before associate.......\n");
-    bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
+    bScheduleCommand((void *) pDevice,
+		     WLAN_CMD_BSSID_SCAN,
+		     pMgmt->abyDesireSSID);
   };
 }
 /****************************************************************/
 
-    bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, NULL);
+    bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL);
     spin_unlock_irq(&pDevice->lock);
 
     return ret;
@@ -922,7 +925,7 @@ int wpa_ioctl(PSDevice pDevice, struct iw_point *p)
 	    p->length > VIAWGET_WPA_MAX_BUF_SIZE || !p->pointer)
 		return -EINVAL;
 
-	param = (struct viawget_wpa_param *) kmalloc((int)p->length, (int)GFP_KERNEL);
+	param = kmalloc((int)p->length, (int)GFP_KERNEL);
 	if (param == NULL)
 		return -ENOMEM;
 

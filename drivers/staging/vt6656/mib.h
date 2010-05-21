@@ -52,32 +52,34 @@ typedef struct tagSUSBCounter {
 
 
 typedef struct tagSDot11Counters {
-//    ULONG       Length;             // Length of structure
-    ULONGLONG   TransmittedFragmentCount;
-    ULONGLONG   MulticastTransmittedFrameCount;
-    ULONGLONG   FailedCount;
-    ULONGLONG   RetryCount;
-    ULONGLONG   MultipleRetryCount;
-    ULONGLONG   RTSSuccessCount;
-    ULONGLONG   RTSFailureCount;
-    ULONGLONG   ACKFailureCount;
-    ULONGLONG   FrameDuplicateCount;
-    ULONGLONG   ReceivedFragmentCount;
-    ULONGLONG   MulticastReceivedFrameCount;
-    ULONGLONG   FCSErrorCount;
-    ULONGLONG   TKIPLocalMICFailures;
-    ULONGLONG   TKIPRemoteMICFailures;
-    ULONGLONG   TKIPICVErrors;
-    ULONGLONG   TKIPCounterMeasuresInvoked;
-    ULONGLONG   TKIPReplays;
-    ULONGLONG   CCMPFormatErrors;
-    ULONGLONG   CCMPReplays;
-    ULONGLONG   CCMPDecryptErrors;
-    ULONGLONG   FourWayHandshakeFailures;
-//    ULONGLONG   WEPUndecryptableCount;
-//    ULONGLONG   WEPICVErrorCount;
-//    ULONGLONG   DecryptSuccessCount;
-//    ULONGLONG   DecryptFailureCount;
+  /* unsigned long Length; // Length of structure */
+    unsigned long long   TransmittedFragmentCount;
+    unsigned long long   MulticastTransmittedFrameCount;
+    unsigned long long   FailedCount;
+    unsigned long long   RetryCount;
+    unsigned long long   MultipleRetryCount;
+    unsigned long long   RTSSuccessCount;
+    unsigned long long   RTSFailureCount;
+    unsigned long long   ACKFailureCount;
+    unsigned long long   FrameDuplicateCount;
+    unsigned long long   ReceivedFragmentCount;
+    unsigned long long   MulticastReceivedFrameCount;
+    unsigned long long   FCSErrorCount;
+    unsigned long long   TKIPLocalMICFailures;
+    unsigned long long   TKIPRemoteMICFailures;
+    unsigned long long   TKIPICVErrors;
+    unsigned long long   TKIPCounterMeasuresInvoked;
+    unsigned long long   TKIPReplays;
+    unsigned long long   CCMPFormatErrors;
+    unsigned long long   CCMPReplays;
+    unsigned long long   CCMPDecryptErrors;
+    unsigned long long   FourWayHandshakeFailures;
+  /*
+   * unsigned long long   WEPUndecryptableCount;
+   * unsigned long long   WEPICVErrorCount;
+   * unsigned long long   DecryptSuccessCount;
+   * unsigned long long   DecryptFailureCount;
+   */
 } SDot11Counters, *PSDot11Counters;
 
 
@@ -85,15 +87,15 @@ typedef struct tagSDot11Counters {
 // MIB2 counter
 //
 typedef struct tagSMib2Counter {
-    LONG    ifIndex;
+    signed long    ifIndex;
     char    ifDescr[256];               // max size 255 plus zero ending
                                         // e.g. "interface 1"
-    LONG    ifType;
-    LONG    ifMtu;
+    signed long    ifType;
+    signed long    ifMtu;
     DWORD   ifSpeed;
-    BYTE    ifPhysAddress[U_ETHER_ADDR_LEN];
-    LONG    ifAdminStatus;
-    LONG    ifOperStatus;
+    BYTE    ifPhysAddress[ETH_ALEN];
+    signed long    ifAdminStatus;
+    signed long    ifOperStatus;
     DWORD   ifLastChange;
     DWORD   ifInOctets;
     DWORD   ifInUcastPkts;
@@ -124,7 +126,7 @@ typedef struct tagSMib2Counter {
 // RMON counter
 //
 typedef struct tagSRmonCounter {
-    LONG    etherStatsIndex;
+    signed long    etherStatsIndex;
     DWORD   etherStatsDataSource;
     DWORD   etherStatsDropEvents;
     DWORD   etherStatsOctets;
@@ -151,37 +153,37 @@ typedef struct tagSRmonCounter {
 // Custom counter
 //
 typedef struct tagSCustomCounters {
-    ULONG       Length;
+    unsigned long       Length;
 
-    ULONGLONG   ullTsrAllOK;
+    unsigned long long   ullTsrAllOK;
 
-    ULONGLONG   ullRsr11M;
-    ULONGLONG   ullRsr5M;
-    ULONGLONG   ullRsr2M;
-    ULONGLONG   ullRsr1M;
+    unsigned long long   ullRsr11M;
+    unsigned long long   ullRsr5M;
+    unsigned long long   ullRsr2M;
+    unsigned long long   ullRsr1M;
 
-    ULONGLONG   ullRsr11MCRCOk;
-    ULONGLONG   ullRsr5MCRCOk;
-    ULONGLONG   ullRsr2MCRCOk;
-    ULONGLONG   ullRsr1MCRCOk;
+    unsigned long long   ullRsr11MCRCOk;
+    unsigned long long   ullRsr5MCRCOk;
+    unsigned long long   ullRsr2MCRCOk;
+    unsigned long long   ullRsr1MCRCOk;
 
-    ULONGLONG   ullRsr54M;
-    ULONGLONG   ullRsr48M;
-    ULONGLONG   ullRsr36M;
-    ULONGLONG   ullRsr24M;
-    ULONGLONG   ullRsr18M;
-    ULONGLONG   ullRsr12M;
-    ULONGLONG   ullRsr9M;
-    ULONGLONG   ullRsr6M;
+    unsigned long long   ullRsr54M;
+    unsigned long long   ullRsr48M;
+    unsigned long long   ullRsr36M;
+    unsigned long long   ullRsr24M;
+    unsigned long long   ullRsr18M;
+    unsigned long long   ullRsr12M;
+    unsigned long long   ullRsr9M;
+    unsigned long long   ullRsr6M;
 
-    ULONGLONG   ullRsr54MCRCOk;
-    ULONGLONG   ullRsr48MCRCOk;
-    ULONGLONG   ullRsr36MCRCOk;
-    ULONGLONG   ullRsr24MCRCOk;
-    ULONGLONG   ullRsr18MCRCOk;
-    ULONGLONG   ullRsr12MCRCOk;
-    ULONGLONG   ullRsr9MCRCOk;
-    ULONGLONG   ullRsr6MCRCOk;
+    unsigned long long   ullRsr54MCRCOk;
+    unsigned long long   ullRsr48MCRCOk;
+    unsigned long long   ullRsr36MCRCOk;
+    unsigned long long   ullRsr24MCRCOk;
+    unsigned long long   ullRsr18MCRCOk;
+    unsigned long long   ullRsr12MCRCOk;
+    unsigned long long   ullRsr9MCRCOk;
+    unsigned long long   ullRsr6MCRCOk;
 
 } SCustomCounters, *PSCustomCounters;
 
@@ -190,7 +192,7 @@ typedef struct tagSCustomCounters {
 // Custom counter
 //
 typedef struct tagSISRCounters {
-    ULONG   Length;
+    unsigned long   Length;
 
     DWORD   dwIsrTx0OK;
     DWORD   dwIsrAC0TxOK;
@@ -231,7 +233,7 @@ typedef struct tagSTxPktInfo {
     BYTE    byBroadMultiUni;
     WORD    wLength;
     WORD    wFIFOCtl;
-    BYTE    abyDestAddr[U_ETHER_ADDR_LEN];
+    BYTE    abyDestAddr[ETH_ALEN];
 } STxPktInfo, *PSTxPktInfo;
 
 
@@ -277,15 +279,15 @@ typedef struct tagSStatCounter {
     DWORD   dwRsrMulticast;
     DWORD   dwRsrDirected;
     // 64-bit OID
-    ULONGLONG   ullRsrOK;
+    unsigned long long   ullRsrOK;
 
     // for some optional OIDs (64 bits) and DMI support
-    ULONGLONG   ullRxBroadcastBytes;
-    ULONGLONG   ullRxMulticastBytes;
-    ULONGLONG   ullRxDirectedBytes;
-    ULONGLONG   ullRxBroadcastFrames;
-    ULONGLONG   ullRxMulticastFrames;
-    ULONGLONG   ullRxDirectedFrames;
+    unsigned long long   ullRxBroadcastBytes;
+    unsigned long long   ullRxMulticastBytes;
+    unsigned long long   ullRxDirectedBytes;
+    unsigned long long   ullRxBroadcastFrames;
+    unsigned long long   ullRxMulticastFrames;
+    unsigned long long   ullRxDirectedFrames;
 
     DWORD   dwRsrRxFragment;
     DWORD   dwRsrRxFrmLen64;
@@ -330,15 +332,15 @@ typedef struct tagSStatCounter {
 
 
     // 64-bit OID
-    ULONGLONG   ullTsrOK;
+    unsigned long long   ullTsrOK;
 
     // for some optional OIDs (64 bits) and DMI support
-    ULONGLONG   ullTxBroadcastFrames;
-    ULONGLONG   ullTxMulticastFrames;
-    ULONGLONG   ullTxDirectedFrames;
-    ULONGLONG   ullTxBroadcastBytes;
-    ULONGLONG   ullTxMulticastBytes;
-    ULONGLONG   ullTxDirectedBytes;
+    unsigned long long   ullTxBroadcastFrames;
+    unsigned long long   ullTxMulticastFrames;
+    unsigned long long   ullTxDirectedFrames;
+    unsigned long long   ullTxBroadcastBytes;
+    unsigned long long   ullTxMulticastBytes;
+    unsigned long long   ullTxDirectedBytes;
 
     // for autorate
     DWORD   dwTxOk[MAX_RATE+1];
@@ -356,15 +358,15 @@ typedef struct tagSStatCounter {
 
    #ifdef Calcu_LinkQual
        //Tx count:
-    ULONG TxNoRetryOkCount;         //success tx no retry !
-    ULONG TxRetryOkCount;              //success tx but retry !
-    ULONG TxFailCount;                      //fail tx ?
+  unsigned long TxNoRetryOkCount;         /* success tx no retry ! */
+  unsigned long TxRetryOkCount;           /* success tx but retry ! */
+  unsigned long TxFailCount;              /* fail tx ? */
       //Rx count:
-    ULONG RxOkCnt;                          //success rx !
-    ULONG RxFcsErrCnt;                    //fail rx ?
+  unsigned long RxOkCnt;                  /* success rx ! */
+  unsigned long RxFcsErrCnt;              /* fail rx ? */
       //statistic
-    ULONG SignalStren;
-    ULONG LinkQuality;
+    unsigned long SignalStren;
+    unsigned long LinkQuality;
    #endif
 
 } SStatCounter, *PSStatCounter;
@@ -382,13 +384,14 @@ void STAvClearAllCounter(PSStatCounter pStatistic);
 void STAvUpdateIsrStatCounter (PSStatCounter pStatistic, BYTE byIsr0, BYTE byIsr1);
 
 void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
-                              BYTE byRSR, BYTE byNewRSR, BYTE byRxSts, BYTE byRxRate,
-                              PBYTE pbyBuffer, UINT cbFrameLength);
+			     BYTE byRSR, BYTE byNewRSR, BYTE byRxSts,
+			     BYTE byRxRate, PBYTE pbyBuffer,
+			     unsigned int cbFrameLength);
 
 void STAvUpdateRDStatCounterEx(PSStatCounter pStatistic,
-                              BYTE byRSR, BYTE byNewRSR, BYTE byRxSts, BYTE byRxRate,
-                              PBYTE pbyBuffer, UINT cbFrameLength);
-
+			       BYTE byRSR, BYTE byNewRSR, BYTE byRxSts,
+			       BYTE byRxRate, PBYTE pbyBuffer,
+			       unsigned int cbFrameLength);
 
 void
 STAvUpdateTDStatCounter (
@@ -417,7 +420,4 @@ STAvUpdateUSBCounter(
     NTSTATUS        ntStatus
     );
 
-#endif // __MIB_H__
-
-
-
+#endif /* __MIB_H__ */

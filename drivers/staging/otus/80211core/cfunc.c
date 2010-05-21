@@ -1072,7 +1072,8 @@ u16_t zfFindCleanFrequency(zdev_t* dev, u32_t adhocMode)
 
     zmw_get_wlan_dev(dev);
 
-    if ((pBssInfo = wd->sta.bssList.head) == NULL)
+    pBssInfo = wd->sta.bssList.head;
+    if (pBssInfo == NULL)
     {
         if( adhocMode == ZM_ADHOCBAND_B || adhocMode == ZM_ADHOCBAND_G ||
             adhocMode == ZM_ADHOCBAND_BG || adhocMode == ZM_ADHOCBAND_ABG )

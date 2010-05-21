@@ -177,8 +177,8 @@ struct usbduxfastsub_s {
 	int16_t *insnBuffer;	/* input buffer for single insn */
 	int ifnum;		/* interface number */
 	struct usb_interface *interface;	/* interface structure */
-	struct comedi_device *comedidev;	/* comedi device for the interrupt
-						   context */
+	/* comedi device for the interrupt context */
+	struct comedi_device *comedidev;
 	short int ai_cmd_running;	/* asynchronous command is running */
 	short int ai_continous;	/* continous aquisition */
 	long int ai_sample_count;	/* number of samples to acquire */
@@ -271,7 +271,8 @@ static int usbduxfast_ai_stop(struct usbduxfastsub_s *udfs, int do_unlink)
 	udfs->ai_cmd_running = 0;
 
 	if (do_unlink)
-		ret = usbduxfastsub_unlink_InURBs(udfs);	/* stop aquistion */
+		/* stop aquistion */
+		ret = usbduxfastsub_unlink_InURBs(udfs);
 
 	return ret;
 }
@@ -451,13 +452,15 @@ static int usbduxfastsub_start(struct usbduxfastsub_s *udfs)
 
 	/* 7f92 to zero */
 	local_transfer_buffer[0] = 0;
-	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0), USBDUXFASTSUB_FIRMWARE,	/* bRequest, "Firmware" */
-			      VENDOR_DIR_OUT,	/* bmRequestType */
-			      USBDUXFASTSUB_CPUCS,	/* Value */
-			      0x0000,	/* Index */
-			      local_transfer_buffer,	/* address of the transfer buffer */
-			      1,	/* Length */
-			      EZTIMEOUT);	/* Timeout */
+	/* bRequest, "Firmware" */
+	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0), USBDUXFASTSUB_FIRMWARE,
+				VENDOR_DIR_OUT,	/* bmRequestType */
+				USBDUXFASTSUB_CPUCS,	/* Value */
+				0x0000,	/* Index */
+				/* address of the transfer buffer */
+				local_transfer_buffer,
+				1,	/* Length */
+				EZTIMEOUT);	/* Timeout */
 	if (ret < 0) {
 		printk("comedi_: usbduxfast_: control msg failed (start)\n");
 		return ret;
@@ -473,7 +476,8 @@ static int usbduxfastsub_stop(struct usbduxfastsub_s *udfs)
 
 	/* 7f92 to one */
 	local_transfer_buffer[0] = 1;
-	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0), USBDUXFASTSUB_FIRMWARE,	/* bRequest, "Firmware" */
+	/* bRequest, "Firmware" */
+	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0), USBDUXFASTSUB_FIRMWARE,
 			      VENDOR_DIR_OUT,	/* bmRequestType */
 			      USBDUXFASTSUB_CPUCS,	/* Value */
 			      0x0000,	/* Index */
@@ -499,13 +503,15 @@ static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,
 	printk(KERN_DEBUG " to addr %d, first byte=%d.\n",
 	       startAddr, local_transfer_buffer[0]);
 #endif
-	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0), USBDUXFASTSUB_FIRMWARE,	/* brequest, firmware */
-			      VENDOR_DIR_OUT,	/* bmRequestType */
-			      startAddr,	/* value */
-			      0x0000,	/* index */
-			      local_transfer_buffer,	/* our local safe buffer */
-			      len,	/* length */
-			      EZTIMEOUT);	/* timeout */
+	/* brequest, firmware */
+	ret = usb_control_msg(udfs->usbdev, usb_sndctrlpipe(udfs->usbdev, 0), USBDUXFASTSUB_FIRMWARE,
+				VENDOR_DIR_OUT,	/* bmRequestType */
+				startAddr,	/* value */
+				0x0000,	/* index */
+				/* our local safe buffer */
+				local_transfer_buffer,
+				len,	/* length */
+				EZTIMEOUT);	/* timeout */
 
 #ifdef CONFIG_COMEDI_DEBUG
 	printk(KERN_DEBUG "comedi_: usbduxfast: result=%d\n", ret);
@@ -519,7 +525,7 @@ static int usbduxfastsub_upload(struct usbduxfastsub_s *udfs,
 	return 0;
 }
 
-int usbduxfastsub_submit_InURBs(struct usbduxfastsub_s *udfs)
+static int usbduxfastsub_submit_InURBs(struct usbduxfastsub_s *udfs)
 {
 	int ret;
 
@@ -1347,7 +1353,7 @@ static int usbduxfast_ai_insn_read(struct comedi_device *dev,
 #define FIRMWARE_MAX_LEN 0x2000
 
 static int firmwareUpload(struct usbduxfastsub_s *usbduxfastsub,
-			  const u8 * firmwareBinary, int sizeFirmware)
+			  const u8 *firmwareBinary, int sizeFirmware)
 {
 	int ret;
 	uint8_t *fwBuf;
@@ -1362,13 +1368,12 @@ static int firmwareUpload(struct usbduxfastsub_s *usbduxfastsub,
 	}
 
 	/* we generate a local buffer for the firmware */
-	fwBuf = kzalloc(sizeFirmware, GFP_KERNEL);
+	fwBuf = kmemdup(firmwareBinary, sizeFirmware, GFP_KERNEL);
 	if (!fwBuf) {
 		dev_err(&usbduxfastsub->interface->dev,
 			"comedi_: mem alloc for firmware failed\n");
 		return -ENOMEM;
 	}
-	memcpy(fwBuf, firmwareBinary, sizeFirmware);
 
 	ret = usbduxfastsub_stop(usbduxfastsub);
 	if (ret < 0) {

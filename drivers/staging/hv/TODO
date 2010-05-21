@@ -1,7 +1,5 @@
 TODO:
 	- fix remaining checkpatch warnings and errors
-	- use of /** when it is not a kerneldoc header
-	- remove RingBuffer.c to us in-kernel ringbuffer functions instead.
 	- audit the vmbus to verify it is working properly with the
 	  driver model
 	- convert vmbus driver interface function pointer tables
@@ -9,7 +7,6 @@ TODO:
 	- see if the vmbus can be merged with the other virtual busses
 	  in the kernel
 	- audit the network driver
-	  - use existing net_device_stats struct in network device
 	  - checking for carrier inside open is wrong, network device API
             confusion??
 	- audit the block driver

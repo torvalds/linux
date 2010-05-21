@@ -79,20 +79,20 @@
 BOOL IFRFbWriteEmbeded(DWORD_PTR dwIoBase, DWORD dwData);
 BOOL RFbSelectChannel(DWORD_PTR dwIoBase, BYTE byRFType, BYTE byChannel);
 BOOL RFbInit (
-    IN  PSDevice  pDevice
+    PSDevice  pDevice
     );
 BOOL RFvWriteWakeProgSyn(DWORD_PTR dwIoBase, BYTE byRFType, UINT uChannel);
 BOOL RFbSetPower(PSDevice pDevice, UINT uRATE, UINT uCH);
 BOOL RFbRawSetPower(
-    IN  PSDevice  pDevice,
-    IN  BYTE      byPwr,
-    IN  UINT      uRATE
+    PSDevice  pDevice,
+    BYTE      byPwr,
+    UINT      uRATE
     );
 
-VOID
+void
 RFvRSSITodBm(
-    IN  PSDevice pDevice,
-    IN  BYTE     byCurrRSSI,
+    PSDevice pDevice,
+    BYTE     byCurrRSSI,
     long    *pldBm
     );
 

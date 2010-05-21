@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2006 Silicon Motion Technology Corp.
  * Authors:	Ge Wang, gewang@siliconmotion.com
- *	 	Boyod boyod.yang@siliconmotion.com.cn
+ *		Boyod boyod.yang@siliconmotion.com.cn
  *
  * Copyright (C) 2009 Lemote, Inc.
  * Author: Wu Zhangjin, wuzhangjin@gmail.com

@@ -145,6 +145,7 @@ void subdev_700_interrupt(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	comedi_event(dev, s);
 }
+EXPORT_SYMBOL(subdev_700_interrupt);
 
 static int subdev_700_cb(int dir, int port, int data, unsigned long arg)
 {
@@ -326,6 +327,7 @@ int subdev_700_init(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	return 0;
 }
+EXPORT_SYMBOL(subdev_700_init);
 
 int subdev_700_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 			int (*cb) (int, int, int, unsigned long),
@@ -345,6 +347,7 @@ int subdev_700_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	return 0;
 }
+EXPORT_SYMBOL(subdev_700_init_irq);
 
 void subdev_700_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
 {
@@ -353,11 +356,7 @@ void subdev_700_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
 
 			kfree(s->private);
 }
-
-EXPORT_SYMBOL(subdev_700_init);
-EXPORT_SYMBOL(subdev_700_init_irq);
 EXPORT_SYMBOL(subdev_700_cleanup);
-EXPORT_SYMBOL(subdev_700_interrupt);
 
 static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
@@ -709,8 +708,12 @@ static struct pcmcia_device_id dio700_cs_ids[] = {
 	PCMCIA_DEVICE_NULL
 };
 
-MODULE_LICENSE("GPL");
+
 MODULE_DEVICE_TABLE(pcmcia, dio700_cs_ids);
+MODULE_AUTHOR("Fred Brooks <nsaspook@nsaspook.com>");
+MODULE_DESCRIPTION("Comedi driver for National Instruments "
+		   "PCMCIA DAQCard-700 DIO");
+MODULE_LICENSE("GPL");
 
 struct pcmcia_driver dio700_cs_driver = {
 	.probe = dio700_cs_attach,

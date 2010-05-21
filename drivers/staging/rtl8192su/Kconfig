@@ -3,5 +3,6 @@ config RTL8192SU
 	depends on PCI && WLAN && USB
 	select WIRELESS_EXT
 	select WEXT_PRIV
+	select EEPROM_93CX6
 	default N
 	---help---

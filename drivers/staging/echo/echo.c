@@ -603,7 +603,7 @@ int16_t oslec_update(struct oslec_state *ec, int16_t tx, int16_t rx)
 }
 EXPORT_SYMBOL_GPL(oslec_update);
 
-/* This function is seperated from the echo canceller is it is usually called
+/* This function is separated from the echo canceller is it is usually called
    as part of the tx process.  See rx HP (DC blocking) filter above, it's
    the same design.
 

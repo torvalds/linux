@@ -57,7 +57,7 @@ static int debug;
 #define QT2_HW_FLOW_CONTROL_MASK		0xc5
 #define QT2_SW_FLOW_CONTROL_MASK		0xc6
 #define QT2_SW_FLOW_CONTROL_DISABLE		0xc7
-#define QT2_BREAK_CONTROL 			0xc8
+#define QT2_BREAK_CONTROL			0xc8
 #define QT2_STOP_RECEIVE			0xe0
 #define QT2_FLUSH_DEVICE			0xc4
 #define QT2_GET_SET_QMCR			0xe1
@@ -207,7 +207,7 @@ struct quatech2_dev {
 	bool	ReadBulkStopped;
 	char	open_ports;
 	struct usb_serial_port *current_port;
-	int 	buffer_size;
+	int	buffer_size;
 };
 
 /* structure which holds line and modem status flags */
@@ -1648,10 +1648,10 @@ __func__);
 			} /*endif*/
 			if (tty_st && urb->actual_length) {
 				tty_buffer_request_room(tty_st, 1);
-				tty_insert_flip_string(tty_st,
-					&((unsigned char *)(urb->transfer_buffer)
-						)[i],
-					1);
+				tty_insert_flip_string(tty_st, &(
+						(unsigned char *)
+						(urb->transfer_buffer)
+					)[i], 1);
 			}
 		} /*endfor*/
 		tty_flip_buffer_push(tty_st);

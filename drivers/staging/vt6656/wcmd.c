@@ -69,21 +69,21 @@ static int          msglevel                =MSG_LEVEL_INFO;
 /*---------------------  Static Functions  --------------------------*/
 
 static
-VOID
+void
 s_vProbeChannel(
-    IN PSDevice pDevice
+     PSDevice pDevice
     );
 
 
 static
 PSTxMgmtPacket
 s_MgrMakeProbeRequest(
-    IN PSDevice pDevice,
-    IN PSMgmtObject pMgmt,
-    IN PBYTE pScanBSSID,
-    IN PWLAN_IE_SSID pSSID,
-    IN PWLAN_IE_SUPP_RATES pCurrRates,
-    IN PWLAN_IE_SUPP_RATES pCurrExtSuppRates
+     PSDevice pDevice,
+     PSMgmtObject pMgmt,
+     PBYTE pScanBSSID,
+     PWLAN_IE_SSID pSSID,
+     PWLAN_IE_SUPP_RATES pCurrRates,
+     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
     );
 
 
@@ -94,17 +94,11 @@ s_bCommandComplete (
     );
 
 
-static
-BOOL s_bClearBSSID_SCAN (
-    IN HANDLE hDeviceContext
-    );
+static BOOL s_bClearBSSID_SCAN(void *hDeviceContext);
 
 /*---------------------  Export Variables  --------------------------*/
 
-
 /*---------------------  Export Functions  --------------------------*/
-
-
 
 /*
  * Description:
@@ -119,6 +113,7 @@ BOOL s_bClearBSSID_SCAN (
  * Return Value: none
  *
  */
+
 static
 void
 vAdHocBeaconStop(PSDevice  pDevice)
@@ -210,9 +205,9 @@ vAdHocBeaconRestart(PSDevice pDevice)
 -*/
 
 static
-VOID
+void
 s_vProbeChannel(
-    IN PSDevice pDevice
+     PSDevice pDevice
     )
 {
                                                      //1M,   2M,   5M,   11M,  18M,  24M,  36M,  54M
@@ -224,7 +219,7 @@ s_vProbeChannel(
     PBYTE           pbyRate;
     PSTxMgmtPacket  pTxPacket;
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
-    UINT            ii;
+    unsigned int            ii;
 
 
     if (pDevice->byBBType == BB_TYPE_11A) {
@@ -275,12 +270,12 @@ s_vProbeChannel(
 
 PSTxMgmtPacket
 s_MgrMakeProbeRequest(
-    IN PSDevice pDevice,
-    IN PSMgmtObject pMgmt,
-    IN PBYTE pScanBSSID,
-    IN PWLAN_IE_SSID pSSID,
-    IN PWLAN_IE_SUPP_RATES pCurrRates,
-    IN PWLAN_IE_SUPP_RATES pCurrExtSuppRates
+     PSDevice pDevice,
+     PSMgmtObject pMgmt,
+     PBYTE pScanBSSID,
+     PWLAN_IE_SSID pSSID,
+     PWLAN_IE_SUPP_RATES pCurrRates,
+     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
 
     )
 {
@@ -321,41 +316,27 @@ s_MgrMakeProbeRequest(
     return pTxPacket;
 }
 
-
-
-
-
-VOID
-vCommandTimerWait(
-    IN HANDLE    hDeviceContext,
-    IN UINT MSecond
-    )
+void vCommandTimerWait(void *hDeviceContext, unsigned int MSecond)
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
 
     init_timer(&pDevice->sTimerCommand);
-    pDevice->sTimerCommand.data = (ULONG)pDevice;
+    pDevice->sTimerCommand.data = (unsigned long)pDevice;
     pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
     // RUN_AT :1 msec ~= (HZ/1024)
-    pDevice->sTimerCommand.expires = (UINT)RUN_AT((MSecond * HZ) >> 10);
+    pDevice->sTimerCommand.expires = (unsigned int)RUN_AT((MSecond * HZ) >> 10);
     add_timer(&pDevice->sTimerCommand);
     return;
 }
 
-
-
-
-VOID
-vRunCommand(
-    IN  HANDLE      hDeviceContext
-    )
+void vRunCommand(void *hDeviceContext)
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
     PWLAN_IE_SSID   pItemSSID;
     PWLAN_IE_SSID   pItemSSIDCurr;
     CMD_STATUS      Status;
-    UINT            ii;
+    unsigned int            ii;
     BYTE            byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
     struct sk_buff  *skb;
     BYTE            byData;
@@ -435,7 +416,8 @@ vRunCommand(
                     pMgmt->abyScanBSSID[5] = 0xFF;
                     pItemSSID->byElementID = WLAN_EID_SSID;
                     // clear bssid list
-                    // BSSvClearBSSList((HANDLE)pDevice, pDevice->bLinkPass);
+		    /* BSSvClearBSSList((void *) pDevice,
+		       pDevice->bLinkPass); */
                     pMgmt->eScanState = WMAC_IS_SCANNING;
                     pDevice->byScanBBType = pDevice->byBBType;  //lucas
                     pDevice->bStopDataPkt = TRUE;
@@ -480,11 +462,11 @@ vRunCommand(
                     (pMgmt->uScanChannel < CB_MAX_CHANNEL_24G)) {
                     s_vProbeChannel(pDevice);
                     spin_unlock_irq(&pDevice->lock);
-		     vCommandTimerWait((HANDLE)pDevice, 100);
+		     vCommandTimerWait((void *) pDevice, 100);
                     return;
                 } else {
                     spin_unlock_irq(&pDevice->lock);
-                    vCommandTimerWait((HANDLE)pDevice, WCMD_PASSIVE_SCAN_TIME);
+		    vCommandTimerWait((void *) pDevice, WCMD_PASSIVE_SCAN_TIME);
                     return;
                 }
 
@@ -552,7 +534,11 @@ vRunCommand(
 
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Send Disassociation Packet..\n");
                 // reason = 8 : disassoc because sta has left
-                vMgrDisassocBeginSta((HANDLE)pDevice, pMgmt, pMgmt->abyCurrBSSID, (8), &Status);
+		vMgrDisassocBeginSta((void *) pDevice,
+				     pMgmt,
+				     pMgmt->abyCurrBSSID,
+				     (8),
+				     &Status);
                 pDevice->bLinkPass = FALSE;
                 ControlvMaskByte(pDevice,MESSAGE_REQUEST_MACREG,MAC_REG_PAPEDELAY,LEDSTS_STS,LEDSTS_SLOW);
                 // unlock command busy
@@ -614,22 +600,26 @@ vRunCommand(
             // set initial state
             pMgmt->eCurrState = WMAC_STATE_IDLE;
             pMgmt->eCurrMode = WMAC_MODE_STANDBY;
-            PSvDisablePowerSaving((HANDLE)pDevice);
+	    PSvDisablePowerSaving((void *) pDevice);
             BSSvClearNodeDBTable(pDevice, 0);
-            vMgrJoinBSSBegin((HANDLE)pDevice, &Status);
+	    vMgrJoinBSSBegin((void *) pDevice, &Status);
             // if Infra mode
             if ((pMgmt->eCurrMode == WMAC_MODE_ESS_STA) && (pMgmt->eCurrState == WMAC_STATE_JOINTED)) {
                 // Call mgr to begin the deauthentication
                 // reason = (3) beacuse sta has left ESS
-                if (pMgmt->eCurrState>= WMAC_STATE_AUTH) {
-                    vMgrDeAuthenBeginSta((HANDLE)pDevice, pMgmt, pMgmt->abyCurrBSSID, (3), &Status);
-                }
+	      if (pMgmt->eCurrState >= WMAC_STATE_AUTH) {
+		vMgrDeAuthenBeginSta((void *)pDevice,
+				     pMgmt,
+				     pMgmt->abyCurrBSSID,
+				     (3),
+				     &Status);
+	      }
                 // Call mgr to begin the authentication
-                vMgrAuthenBeginSta((HANDLE)pDevice, pMgmt, &Status);
+		vMgrAuthenBeginSta((void *) pDevice, pMgmt, &Status);
                 if (Status == CMD_STATUS_SUCCESS) {
 		   pDevice->byLinkWaitCount = 0;
                     pDevice->eCommandState = WLAN_AUTHENTICATE_WAIT;
-                    vCommandTimerWait((HANDLE)pDevice, AUTHENTICATE_TIMEOUT);
+		    vCommandTimerWait((void *) pDevice, AUTHENTICATE_TIMEOUT);
                     spin_unlock_irq(&pDevice->lock);
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Set eCommandState = WLAN_AUTHENTICATE_WAIT\n");
                     return;
@@ -648,10 +638,12 @@ vRunCommand(
                 }
                 else {
                     // start own IBSS
-                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "CreateOwn IBSS by CurrMode = IBSS_STA \n");
-                    vMgrCreateOwnIBSS((HANDLE)pDevice, &Status);
+		    DBG_PRT(MSG_LEVEL_DEBUG,
+			    KERN_INFO "CreateOwn IBSS by CurrMode = IBSS_STA\n");
+		    vMgrCreateOwnIBSS((void *) pDevice, &Status);
                     if (Status != CMD_STATUS_SUCCESS){
-                        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " WLAN_CMD_IBSS_CREATE fail ! \n");
+			DBG_PRT(MSG_LEVEL_DEBUG,
+				KERN_INFO "WLAN_CMD_IBSS_CREATE fail!\n");
                     };
                     BSSvAddMulticastNode(pDevice);
                 }
@@ -662,10 +654,12 @@ vRunCommand(
                 if (pMgmt->eConfigMode == WMAC_CONFIG_IBSS_STA ||
                     pMgmt->eConfigMode == WMAC_CONFIG_AUTO) {
                     // start own IBSS
-                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "CreateOwn IBSS by CurrMode = STANDBY \n");
-                    vMgrCreateOwnIBSS((HANDLE)pDevice, &Status);
+			DBG_PRT(MSG_LEVEL_DEBUG,
+				KERN_INFO "CreateOwn IBSS by CurrMode = STANDBY\n");
+		    vMgrCreateOwnIBSS((void *) pDevice, &Status);
                     if (Status != CMD_STATUS_SUCCESS){
-                        DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" WLAN_CMD_IBSS_CREATE fail ! \n");
+			DBG_PRT(MSG_LEVEL_DEBUG,
+				KERN_INFO "WLAN_CMD_IBSS_CREATE fail!\n");
                     };
                     BSSvAddMulticastNode(pDevice);
                     s_bClearBSSID_SCAN(pDevice);
@@ -701,12 +695,12 @@ vRunCommand(
 		pDevice->byLinkWaitCount = 0;
                 // Call mgr to begin the association
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCurrState == WMAC_STATE_AUTH\n");
-                vMgrAssocBeginSta((HANDLE)pDevice, pMgmt, &Status);
+		vMgrAssocBeginSta((void *) pDevice, pMgmt, &Status);
                 if (Status == CMD_STATUS_SUCCESS) {
                     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCommandState = WLAN_ASSOCIATE_WAIT\n");
 		  pDevice->byLinkWaitCount = 0;
                     pDevice->eCommandState = WLAN_ASSOCIATE_WAIT;
-                    vCommandTimerWait((HANDLE)pDevice, ASSOCIATE_TIMEOUT);
+		    vCommandTimerWait((void *) pDevice, ASSOCIATE_TIMEOUT);
                     spin_unlock_irq(&pDevice->lock);
                     return;
                 }
@@ -718,7 +712,7 @@ vRunCommand(
                 pDevice->byLinkWaitCount ++;
 	       printk("WLAN_AUTHENTICATE_WAIT:wait %d times!!\n",pDevice->byLinkWaitCount);
 	       spin_unlock_irq(&pDevice->lock);
-	       vCommandTimerWait((HANDLE)pDevice, AUTHENTICATE_TIMEOUT/2);
+	       vCommandTimerWait((void *) pDevice, AUTHENTICATE_TIMEOUT/2);
 	       return;
 	   }
 	          pDevice->byLinkWaitCount = 0;
@@ -742,7 +736,8 @@ vRunCommand(
             if (pMgmt->eCurrState == WMAC_STATE_ASSOC) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"eCurrState == WMAC_STATE_ASSOC\n");
                 if (pDevice->ePSMode != WMAC_POWER_CAM) {
-                    PSvEnablePowerSaving((HANDLE)pDevice, pMgmt->wListenInterval);
+			PSvEnablePowerSaving((void *) pDevice,
+					     pMgmt->wListenInterval);
                 }
 /*
                 if (pMgmt->eAuthenMode >= WMAC_AUTH_WPA) {
@@ -765,7 +760,7 @@ vRunCommand(
                      // printk("Re-initial TxDataTimer****\n");
 		    del_timer(&pDevice->sTimerTxData);
                       init_timer(&pDevice->sTimerTxData);
-                      pDevice->sTimerTxData.data = (ULONG)pDevice;
+			pDevice->sTimerTxData.data = (unsigned long) pDevice;
                       pDevice->sTimerTxData.function = (TimerFunction)BSSvSecondTxData;
                       pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
                       pDevice->fTxDataInSleep = FALSE;
@@ -786,7 +781,7 @@ vRunCommand(
                 pDevice->byLinkWaitCount ++;
 	       printk("WLAN_ASSOCIATE_WAIT:wait %d times!!\n",pDevice->byLinkWaitCount);
 	       spin_unlock_irq(&pDevice->lock);
-	       vCommandTimerWait((HANDLE)pDevice, ASSOCIATE_TIMEOUT/2);
+	       vCommandTimerWait((void *) pDevice, ASSOCIATE_TIMEOUT/2);
 	       return;
 	   }
 	          pDevice->byLinkWaitCount = 0;
@@ -823,9 +818,10 @@ vRunCommand(
                 pMgmt->eCurrState = WMAC_STATE_IDLE;
                 pDevice->bFixRate = FALSE;
 
-                vMgrCreateOwnIBSS((HANDLE)pDevice, &Status);
-                if (Status != CMD_STATUS_SUCCESS){
-                    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO " vMgrCreateOwnIBSS fail ! \n");
+		vMgrCreateOwnIBSS((void *) pDevice, &Status);
+		if (Status != CMD_STATUS_SUCCESS) {
+			DBG_PRT(MSG_LEVEL_DEBUG,
+				KERN_INFO "vMgrCreateOwnIBSS fail!\n");
                 };
                 // alway turn off unicast bit
                 MACvRegBitsOff(pDevice, MAC_REG_RCR, RCR_UNICAST);
@@ -948,7 +944,11 @@ vRunCommand(
 
 	  if (pDevice->bLinkPass == TRUE) {
                 // reason = 8 : disassoc because sta has left
-                       vMgrDisassocBeginSta((HANDLE)pDevice, pMgmt, pMgmt->abyCurrBSSID, (8), &Status);
+		vMgrDisassocBeginSta((void *) pDevice,
+				     pMgmt,
+				     pMgmt->abyCurrBSSID,
+				     (8),
+				     &Status);
                        pDevice->bLinkPass = FALSE;
                 // unlock command busy
                         pMgmt->eCurrState = WMAC_STATE_IDLE;
@@ -1185,18 +1185,15 @@ s_bCommandComplete (
                 break;
 
         }
-
-        vCommandTimerWait((HANDLE)pDevice, 0);
+	vCommandTimerWait((void *) pDevice, 0);
     }
 
     return TRUE;
 }
 
-BOOL bScheduleCommand (
-    IN HANDLE hDeviceContext,
-    IN CMD_CODE    eCommand,
-    IN PBYTE       pbyItem0
-    )
+BOOL bScheduleCommand(void *hDeviceContext,
+		      CMD_CODE eCommand,
+		      PBYTE pbyItem0)
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
 
@@ -1264,14 +1261,11 @@ BOOL bScheduleCommand (
  * Return Value: TRUE if success; otherwise FALSE
  *
  */
-static
-BOOL s_bClearBSSID_SCAN (
-    IN HANDLE hDeviceContext
-    )
+static BOOL s_bClearBSSID_SCAN(void *hDeviceContext)
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
-    UINT            uCmdDequeueIdx = pDevice->uCmdDequeueIdx;
-    UINT            ii;
+    unsigned int            uCmdDequeueIdx = pDevice->uCmdDequeueIdx;
+    unsigned int            ii;
 
     if ((pDevice->cbFreeCmdQueue < CMD_Q_SIZE) && (uCmdDequeueIdx != pDevice->uCmdEnqueueIdx)) {
         for (ii = 0; ii < (CMD_Q_SIZE - pDevice->cbFreeCmdQueue); ii ++) {
@@ -1287,10 +1281,7 @@ BOOL s_bClearBSSID_SCAN (
 
 
 //mike add:reset command timer
-VOID
-vResetCommandTimer(
-    IN HANDLE      hDeviceContext
-    )
+void vResetCommandTimer(void *hDeviceContext)
 {
   PSDevice        pDevice = (PSDevice)hDeviceContext;
 
@@ -1298,7 +1289,7 @@ vResetCommandTimer(
       del_timer(&pDevice->sTimerCommand);
   //init timer
       init_timer(&pDevice->sTimerCommand);
-    pDevice->sTimerCommand.data = (ULONG)pDevice;
+    pDevice->sTimerCommand.data = (unsigned long)pDevice;
     pDevice->sTimerCommand.function = (TimerFunction)vRunCommand;
     pDevice->sTimerCommand.expires = RUN_AT(HZ);
     pDevice->cbFreeCmdQueue = CMD_Q_SIZE;
@@ -1311,10 +1302,7 @@ vResetCommandTimer(
 
 //2007-0115-08<Add>by MikeLiu
 #ifdef TxInSleep
-VOID
-BSSvSecondTxData(
-    IN  HANDLE      hDeviceContext
-    )
+void BSSvSecondTxData(void *hDeviceContext)
 {
   PSDevice        pDevice = (PSDevice)hDeviceContext;
   PSMgmtObject  pMgmt = &(pDevice->sMgmtObj);

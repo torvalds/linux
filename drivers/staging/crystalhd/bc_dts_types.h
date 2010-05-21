@@ -25,17 +25,8 @@
 #ifndef _BC_DTS_TYPES_H_
 #define _BC_DTS_TYPES_H_
 
-#ifdef __LINUX_USER__  // Don't include these for KERNEL..
+#ifdef __LINUX_USER__  /* Don't include these for KERNEL.. */
 #include <stdint.h>
-#endif
-
-#if defined(_WIN64) || defined(_WIN32)
-typedef uint32_t		U32;
-typedef int32_t			S32;
-typedef uint16_t		U16;
-typedef int16_t			S16;
-typedef unsigned char		U8;
-typedef char			S8;
 #endif
 
 #ifndef PVOID
@@ -44,20 +35,6 @@ typedef void	*PVOID;
 
 #ifndef BOOL
 typedef int	BOOL;
-#endif
-
-#ifdef WIN32
-    typedef unsigned __int64	U64;
-#elif defined(_WIN64)
-    typedef uint64_t U64;
-#endif
-
-#ifdef _WIN64
-#if !(defined(POINTER_32))
-#define POINTER_32	__ptr32
-#endif
-#else	/* _WIN32 */
-#define POINTER_32
 #endif
 
 #if defined(__KERNEL__) || defined(__LINUX_USER__)

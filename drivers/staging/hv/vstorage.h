@@ -28,7 +28,7 @@
 #define REVISION_STRING(REVISION_) #REVISION_
 #define FILL_VMSTOR_REVISION(RESULT_LVALUE_)				\
 {									\
-	char *revisionString = REVISION_STRING($Revision: 6 $) + 11;	\
+	char *revisionString = REVISION_STRING($Revision : 6 $) + 11;	\
 	RESULT_LVALUE_ = 0;						\
 	while (*revisionString >= '0' && *revisionString <= '9') {	\
 		RESULT_LVALUE_ *= 10;					\

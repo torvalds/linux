@@ -232,7 +232,8 @@ typedef struct tagDEVICE_RD_INFO {
 /*
 static inline PDEVICE_RD_INFO alloc_rd_info(void) {
     PDEVICE_RD_INFO  ptr;
-    if ((ptr = kmalloc(sizeof(DEVICE_RD_INFO), GFP_ATOMIC)) == NULL)
+    ptr = kmalloc(sizeof(DEVICE_RD_INFO), GFP_ATOMIC);
+    if (ptr == NULL)
         return NULL;
     else {
         memset(ptr,0,sizeof(DEVICE_RD_INFO));
@@ -361,7 +362,8 @@ typedef struct tagDEVICE_TD_INFO{
 /*
 static inline PDEVICE_TD_INFO alloc_td_info(void) {
     PDEVICE_TD_INFO  ptr;
-    if ((ptr = kmalloc(sizeof(DEVICE_TD_INFO),GFP_ATOMIC))==NULL)
+    ptr = kmalloc(sizeof(DEVICE_TD_INFO),GFP_ATOMIC);
+    if (ptr == NULL)
         return NULL;
     else {
         memset(ptr,0,sizeof(DEVICE_TD_INFO));
@@ -444,8 +446,8 @@ typedef const SRrvTime_atim *PCSRrvTime_atim;
 typedef struct tagSRTSData {
     WORD    wFrameControl;
     WORD    wDurationID;
-    BYTE    abyRA[U_ETHER_ADDR_LEN];
-    BYTE    abyTA[U_ETHER_ADDR_LEN];
+    BYTE    abyRA[ETH_ALEN];
+    BYTE    abyTA[ETH_ALEN];
 }__attribute__ ((__packed__))
 SRTSData, *PSRTSData;
 typedef const SRTSData *PCSRTSData;
@@ -520,7 +522,7 @@ typedef const SRTS_a_FB *PCSRTS_a_FB;
 typedef struct tagSCTSData {
     WORD    wFrameControl;
     WORD    wDurationID;
-    BYTE    abyRA[U_ETHER_ADDR_LEN];
+    BYTE    abyRA[ETH_ALEN];
     WORD    wReserved;
 }__attribute__ ((__packed__))
 SCTSData, *PSCTSData;

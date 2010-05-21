@@ -294,6 +294,7 @@ static int wis_tw9903_probe(struct i2c_client *client,
 
 	if (write_regs(client, initial_registers) < 0) {
 		printk(KERN_ERR "wis-tw9903: error initializing TW9903\n");
+		i2c_set_clientdata(client, NULL);
 		kfree(dec);
 		return -ENODEV;
 	}

@@ -116,7 +116,7 @@ static SChannelTblElement sChannelTbl[CB_MAX_CHANNEL+1] =
 static  struct
 {
     BYTE    byChannelCountryCode;             /* The country code         */
-    CHAR    chCountryCode[2];
+    char    chCountryCode[2];
     BYTE    bChannelIdxList[CB_MAX_CHANNEL];  /* Available channels Index */
     BYTE    byPower[CB_MAX_CHANNEL];
 }   ChannelRuleTab[] =
@@ -389,7 +389,7 @@ static  struct
 // 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 149, 153, 157, 161, 165 (Value 23 ~ 56)
  ************************************************************************/
 BOOL
-ChannelValid(UINT CountryCode, UINT ChannelIndex)
+ChannelValid(unsigned int CountryCode, unsigned int ChannelIndex)
 {
     BOOL    bValid;
 
@@ -425,8 +425,8 @@ exit:
  ************************************************************************/
 BOOL
 CHvChannelGetList (
-    IN  UINT       uCountryCodeIdx,
-    OUT PBYTE      pbyChannelTable
+      unsigned int       uCountryCodeIdx,
+     PBYTE      pbyChannelTable
     )
 {
     if (uCountryCodeIdx >= CCODE_MAX) {
@@ -437,11 +437,11 @@ CHvChannelGetList (
 }
 
 
-VOID CHvInitChannelTable (PVOID pDeviceHandler)
+void CHvInitChannelTable(void *pDeviceHandler)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
     BOOL        bMultiBand = FALSE;
-    UINT        ii;
+    unsigned int        ii;
 
     for(ii=1;ii<=CB_MAX_CHANNEL;ii++) {
         sChannelTbl[ii].bValid = FALSE;

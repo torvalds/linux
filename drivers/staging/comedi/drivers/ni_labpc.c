@@ -499,9 +499,8 @@ static struct comedi_driver driver_labpc = {
 
 #ifdef CONFIG_COMEDI_PCI
 static DEFINE_PCI_DEVICE_TABLE(labpc_pci_table) = {
-	{
-	PCI_VENDOR_ID_NATINST, 0x161, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x161)},
+	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, labpc_pci_table);
@@ -536,7 +535,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	printk("\n");
 
 	if (iobase == 0) {
-		printk("io base address is zero!\n");
+		printk(KERN_ERR "io base address is zero!\n");
 		return -EINVAL;
 	}
 	/*  request io regions for isa boards */

@@ -18,6 +18,7 @@ r8192e_pci-objs :=		\
 	r819xE_firmware.o	\
 	r819xE_cmdpkt.o		\
 	r8192E_dm.o		\
+	r8192_pm.o		\
 	ieee80211/ieee80211_rx.o		\
 	ieee80211/ieee80211_softmac.o		\
 	ieee80211/ieee80211_tx.o		\

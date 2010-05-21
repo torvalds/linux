@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2009 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2006-2010 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -68,7 +68,7 @@ void bit_shift(TYPE_OF_WORD *seq_bits, int32_t n)
 	int32_t word_offset, word_num;
 	int32_t i;
 
-	if (n <= 0)
+	if (n <= 0 || n >= TQ_LOCAL_WINDOW_SIZE)
 		return;
 
 	word_offset = n % WORD_BIT_SIZE;/* shift how much inside each word */
@@ -111,48 +111,76 @@ void bit_shift(TYPE_OF_WORD *seq_bits, int32_t n)
 		seq_bits[i] = 0;
 }
 
+static void bit_reset_window(TYPE_OF_WORD *seq_bits)
+{
+	int i;
+	for (i = 0; i < NUM_WORDS; i++)
+		seq_bits[i] = 0;
+}
 
-/* receive and process one packet, returns 1 if received seq_num is considered
- * new, 0 if old  */
+
+/* receive and process one packet within the sequence number window.
+ *
+ * returns:
+ *  1 if the window was moved (either new or very old)
+ *  0 if the window was not moved/shifted.
+ */
 char bit_get_packet(TYPE_OF_WORD *seq_bits, int16_t seq_num_diff,
 		    int8_t set_mark)
 {
-	int i;
+	/* sequence number is slightly older. We already got a sequence number
+	 * higher than this one, so we just mark it. */
 
-	/* we already got a sequence number higher than this one, so we just
-	 * mark it. this should wrap around the integer just fine */
-	if ((seq_num_diff < 0) && (seq_num_diff >= -TQ_LOCAL_WINDOW_SIZE)) {
+	if ((seq_num_diff <= 0) && (seq_num_diff > -TQ_LOCAL_WINDOW_SIZE)) {
 		if (set_mark)
 			bit_mark(seq_bits, -seq_num_diff);
 		return 0;
 	}
 
-	/* it seems we missed a lot of packets or the other host restarted */
-	if ((seq_num_diff > TQ_LOCAL_WINDOW_SIZE) ||
-	    (seq_num_diff < -TQ_LOCAL_WINDOW_SIZE)) {
+	/* sequence number is slightly newer, so we shift the window and
+	 * set the mark if required */
 
-		if (seq_num_diff > TQ_LOCAL_WINDOW_SIZE)
-			bat_dbg(DBG_BATMAN,
-				"We missed a lot of packets (%i) !\n",
-				seq_num_diff-1);
-
-		if (-seq_num_diff > TQ_LOCAL_WINDOW_SIZE)
-			bat_dbg(DBG_BATMAN,
-				"Other host probably restarted !\n");
-
-		for (i = 0; i < NUM_WORDS; i++)
-			seq_bits[i] = 0;
-
-		if (set_mark)
-			seq_bits[0] = 1;  /* we only have the latest packet */
-	} else {
+	if ((seq_num_diff > 0) && (seq_num_diff < TQ_LOCAL_WINDOW_SIZE)) {
 		bit_shift(seq_bits, seq_num_diff);
 
 		if (set_mark)
 			bit_mark(seq_bits, 0);
+		return 1;
 	}
 
-	return 1;
+	/* sequence number is much newer, probably missed a lot of packets */
+
+	if ((seq_num_diff >= TQ_LOCAL_WINDOW_SIZE)
+		|| (seq_num_diff < EXPECTED_SEQNO_RANGE)) {
+		bat_dbg(DBG_BATMAN,
+			"We missed a lot of packets (%i) !\n",
+			seq_num_diff - 1);
+		bit_reset_window(seq_bits);
+		if (set_mark)
+			bit_mark(seq_bits, 0);
+		return 1;
+	}
+
+	/* received a much older packet. The other host either restarted
+	 * or the old packet got delayed somewhere in the network. The
+	 * packet should be dropped without calling this function if the
+	 * seqno window is protected. */
+
+	if ((seq_num_diff <= -TQ_LOCAL_WINDOW_SIZE)
+		|| (seq_num_diff >= EXPECTED_SEQNO_RANGE)) {
+
+		bat_dbg(DBG_BATMAN,
+			"Other host probably restarted!\n");
+
+		bit_reset_window(seq_bits);
+		if (set_mark)
+			bit_mark(seq_bits, 0);
+
+		return 1;
+	}
+
+	/* never reached */
+	return 0;
 }
 
 /* count the hamming weight, how many good packets did we receive? just count

@@ -458,41 +458,39 @@ err_ret:
 	return ret;
 }
 
-static IIO_DEV_ATTR_ACCEL_X_OFFSET(S_IWUSR | S_IRUGO,
-				   lis3l02dq_read_signed,
-				   lis3l02dq_write_signed,
-				   LIS3L02DQ_REG_OFFSET_X_ADDR);
+#define LIS3L02DQ_SIGNED_ATTR(name, reg)	\
+	IIO_DEVICE_ATTR(name,			\
+			S_IWUSR | S_IRUGO,	\
+			lis3l02dq_read_signed,	\
+			lis3l02dq_write_signed, \
+			reg);
 
-static IIO_DEV_ATTR_ACCEL_Y_OFFSET(S_IWUSR | S_IRUGO,
-				   lis3l02dq_read_signed,
-				   lis3l02dq_write_signed,
-				   LIS3L02DQ_REG_OFFSET_Y_ADDR);
+#define LIS3L02DQ_UNSIGNED_ATTR(name, reg)		\
+	IIO_DEVICE_ATTR(name,				\
+			S_IWUSR | S_IRUGO,		\
+			lis3l02dq_read_unsigned,	\
+			lis3l02dq_write_unsigned,	\
+			reg);
 
-static IIO_DEV_ATTR_ACCEL_Z_OFFSET(S_IWUSR | S_IRUGO,
-				   lis3l02dq_read_signed,
-				   lis3l02dq_write_signed,
-				   LIS3L02DQ_REG_OFFSET_Z_ADDR);
+static LIS3L02DQ_SIGNED_ATTR(accel_x_calibbias,
+			     LIS3L02DQ_REG_OFFSET_X_ADDR);
+static LIS3L02DQ_SIGNED_ATTR(accel_y_calibbias,
+			     LIS3L02DQ_REG_OFFSET_Y_ADDR);
+static LIS3L02DQ_SIGNED_ATTR(accel_z_calibbias,
+			     LIS3L02DQ_REG_OFFSET_Z_ADDR);
 
-static IIO_DEV_ATTR_ACCEL_X_GAIN(S_IWUSR | S_IRUGO,
-				 lis3l02dq_read_unsigned,
-				 lis3l02dq_write_unsigned,
-				 LIS3L02DQ_REG_GAIN_X_ADDR);
+static LIS3L02DQ_UNSIGNED_ATTR(accel_x_calibscale,
+			       LIS3L02DQ_REG_GAIN_X_ADDR);
+static LIS3L02DQ_UNSIGNED_ATTR(accel_y_calibscale,
+			       LIS3L02DQ_REG_GAIN_Y_ADDR);
+static LIS3L02DQ_UNSIGNED_ATTR(accel_z_calibscale,
+			       LIS3L02DQ_REG_GAIN_Z_ADDR);
 
-static IIO_DEV_ATTR_ACCEL_Y_GAIN(S_IWUSR | S_IRUGO,
-				 lis3l02dq_read_unsigned,
-				 lis3l02dq_write_unsigned,
-				 LIS3L02DQ_REG_GAIN_Y_ADDR);
-
-static IIO_DEV_ATTR_ACCEL_Z_GAIN(S_IWUSR | S_IRUGO,
-				 lis3l02dq_read_unsigned,
-				 lis3l02dq_write_unsigned,
-				 LIS3L02DQ_REG_GAIN_Z_ADDR);
-
-static IIO_DEV_ATTR_ACCEL_THRESH(S_IWUSR | S_IRUGO,
-				 lis3l02dq_read_16bit_signed,
-				 lis3l02dq_write_16bit_signed,
-				 LIS3L02DQ_REG_THS_L_ADDR);
-
+static IIO_DEVICE_ATTR(accel_mag_either_rising_value,
+		       S_IWUSR | S_IRUGO,
+		       lis3l02dq_read_16bit_signed,
+		       lis3l02dq_write_16bit_signed,
+		       LIS3L02DQ_REG_THS_L_ADDR);
 /* RFC The reading method for these will change depending on whether
  * ring buffer capture is in use. Is it worth making these take two
  * functions and let the core handle which to call, or leave as in this
@@ -512,7 +510,7 @@ static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 			      lis3l02dq_read_frequency,
 			      lis3l02dq_write_frequency);
 
-static IIO_CONST_ATTR_AVAIL_SAMP_FREQ("280 560 1120 4480");
+static IIO_CONST_ATTR_SAMP_FREQ_AVAIL("280 560 1120 4480");
 
 static ssize_t lis3l02dq_read_interrupt_config(struct device *dev,
 					       struct device_attribute *attr,
@@ -522,7 +520,7 @@ static ssize_t lis3l02dq_read_interrupt_config(struct device *dev,
 	s8 val;
 	struct iio_event_attr *this_attr = to_iio_event_attr(attr);
 
-	ret = lis3l02dq_spi_read_reg_8(dev,
+	ret = lis3l02dq_spi_read_reg_8(dev->parent,
 				       LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
 				       (u8 *)&val);
 
@@ -545,7 +543,7 @@ static ssize_t lis3l02dq_write_interrupt_config(struct device *dev,
 
 	mutex_lock(&indio_dev->mlock);
 	/* read current value */
-	ret = lis3l02dq_spi_read_reg_8(dev,
+	ret = lis3l02dq_spi_read_reg_8(dev->parent,
 				       LIS3L02DQ_REG_WAKE_UP_CFG_ADDR,
 				       &valold);
 	if (ret)
@@ -668,43 +666,51 @@ static void lis3l02dq_thresh_handler_bh_no_check(struct work_struct *work_s)
 /* A shared handler for a number of threshold types */
 IIO_EVENT_SH(threshold, &lis3l02dq_thresh_handler_th);
 
-IIO_EVENT_ATTR_ACCEL_X_HIGH_SH(iio_event_threshold,
-			       lis3l02dq_read_interrupt_config,
-			       lis3l02dq_write_interrupt_config,
-			       LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_X_HIGH);
+IIO_EVENT_ATTR_SH(accel_x_mag_pos_rising_en,
+		  iio_event_threshold,
+		  lis3l02dq_read_interrupt_config,
+		  lis3l02dq_write_interrupt_config,
+		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_X_HIGH);
 
-IIO_EVENT_ATTR_ACCEL_Y_HIGH_SH(iio_event_threshold,
-			       lis3l02dq_read_interrupt_config,
-			       lis3l02dq_write_interrupt_config,
-			       LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Y_HIGH);
+IIO_EVENT_ATTR_SH(accel_y_mag_pos_rising_en,
+		  iio_event_threshold,
+		  lis3l02dq_read_interrupt_config,
+		  lis3l02dq_write_interrupt_config,
+		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Y_HIGH);
 
-IIO_EVENT_ATTR_ACCEL_Z_HIGH_SH(iio_event_threshold,
-			       lis3l02dq_read_interrupt_config,
-			       lis3l02dq_write_interrupt_config,
-			       LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Z_HIGH);
+IIO_EVENT_ATTR_SH(accel_z_mag_pos_rising_en,
+		  iio_event_threshold,
+		  lis3l02dq_read_interrupt_config,
+		  lis3l02dq_write_interrupt_config,
+		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Z_HIGH);
 
-IIO_EVENT_ATTR_ACCEL_X_LOW_SH(iio_event_threshold,
-			      lis3l02dq_read_interrupt_config,
-			      lis3l02dq_write_interrupt_config,
-			      LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_X_LOW);
+IIO_EVENT_ATTR_SH(accel_x_mag_neg_rising_en,
+		  iio_event_threshold,
+		  lis3l02dq_read_interrupt_config,
+		  lis3l02dq_write_interrupt_config,
+		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_X_LOW);
 
-IIO_EVENT_ATTR_ACCEL_Y_LOW_SH(iio_event_threshold,
-			      lis3l02dq_read_interrupt_config,
-			      lis3l02dq_write_interrupt_config,
-			      LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Y_LOW);
+IIO_EVENT_ATTR_SH(accel_y_mag_neg_rising_en,
+		  iio_event_threshold,
+		  lis3l02dq_read_interrupt_config,
+		  lis3l02dq_write_interrupt_config,
+		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Y_LOW);
 
-IIO_EVENT_ATTR_ACCEL_Z_LOW_SH(iio_event_threshold,
-			      lis3l02dq_read_interrupt_config,
-			      lis3l02dq_write_interrupt_config,
-			      LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Z_LOW);
+IIO_EVENT_ATTR_SH(accel_z_mag_neg_rising_en,
+		  iio_event_threshold,
+		  lis3l02dq_read_interrupt_config,
+		  lis3l02dq_write_interrupt_config,
+		  LIS3L02DQ_REG_WAKE_UP_CFG_INTERRUPT_Z_LOW);
+
 
 static struct attribute *lis3l02dq_event_attributes[] = {
-	&iio_event_attr_accel_x_high.dev_attr.attr,
-	&iio_event_attr_accel_y_high.dev_attr.attr,
-	&iio_event_attr_accel_z_high.dev_attr.attr,
-	&iio_event_attr_accel_x_low.dev_attr.attr,
-	&iio_event_attr_accel_y_low.dev_attr.attr,
-	&iio_event_attr_accel_z_low.dev_attr.attr,
+	&iio_event_attr_accel_x_mag_pos_rising_en.dev_attr.attr,
+	&iio_event_attr_accel_y_mag_pos_rising_en.dev_attr.attr,
+	&iio_event_attr_accel_z_mag_pos_rising_en.dev_attr.attr,
+	&iio_event_attr_accel_x_mag_neg_rising_en.dev_attr.attr,
+	&iio_event_attr_accel_y_mag_neg_rising_en.dev_attr.attr,
+	&iio_event_attr_accel_z_mag_neg_rising_en.dev_attr.attr,
+	&iio_dev_attr_accel_mag_either_rising_value.dev_attr.attr,
 	NULL
 };
 
@@ -713,20 +719,21 @@ static struct attribute_group lis3l02dq_event_attribute_group = {
 };
 
 static IIO_CONST_ATTR(name, "lis3l02dq");
+static IIO_CONST_ATTR(accel_scale, "0.00958");
 
 static struct attribute *lis3l02dq_attributes[] = {
-	&iio_dev_attr_accel_x_offset.dev_attr.attr,
-	&iio_dev_attr_accel_y_offset.dev_attr.attr,
-	&iio_dev_attr_accel_z_offset.dev_attr.attr,
-	&iio_dev_attr_accel_x_gain.dev_attr.attr,
-	&iio_dev_attr_accel_y_gain.dev_attr.attr,
-	&iio_dev_attr_accel_z_gain.dev_attr.attr,
-	&iio_dev_attr_thresh.dev_attr.attr,
-	&iio_dev_attr_accel_x.dev_attr.attr,
-	&iio_dev_attr_accel_y.dev_attr.attr,
-	&iio_dev_attr_accel_z.dev_attr.attr,
+	&iio_dev_attr_accel_x_calibbias.dev_attr.attr,
+	&iio_dev_attr_accel_y_calibbias.dev_attr.attr,
+	&iio_dev_attr_accel_z_calibbias.dev_attr.attr,
+	&iio_dev_attr_accel_x_calibscale.dev_attr.attr,
+	&iio_dev_attr_accel_y_calibscale.dev_attr.attr,
+	&iio_dev_attr_accel_z_calibscale.dev_attr.attr,
+	&iio_const_attr_accel_scale.dev_attr.attr,
+	&iio_dev_attr_accel_x_raw.dev_attr.attr,
+	&iio_dev_attr_accel_y_raw.dev_attr.attr,
+	&iio_dev_attr_accel_z_raw.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
-	&iio_const_attr_available_sampling_frequency.dev_attr.attr,
+	&iio_const_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_const_attr_name.dev_attr.attr,
 	NULL
 };

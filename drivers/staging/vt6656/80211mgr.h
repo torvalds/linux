@@ -524,8 +524,8 @@ typedef struct _WLAN_IE_IBSS_DFS {
 // prototype structure, all mgmt frame types will start with these members
 typedef struct tagWLAN_FR_MGMT {
 
-    UINT                  uType;
-    UINT                  len;
+    unsigned int                  uType;
+    unsigned int                  len;
     PBYTE                 pBuf;
     PUWLAN_80211HDR       pHdr;
 
@@ -534,8 +534,8 @@ typedef struct tagWLAN_FR_MGMT {
 // Beacon frame
 typedef struct tagWLAN_FR_BEACON {
 
-    UINT                    uType;
-    UINT                    len;
+    unsigned int                    uType;
+    unsigned int                    len;
     PBYTE                   pBuf;
     PUWLAN_80211HDR         pHdr;
     // fixed fields
@@ -566,8 +566,8 @@ typedef struct tagWLAN_FR_BEACON {
 // IBSS ATIM frame
 typedef struct tagWLAN_FR_IBSSATIM {
 
-    UINT                    uType;
-    UINT                    len;
+    unsigned int                    uType;
+    unsigned int                    len;
     PBYTE                   pBuf;
     PUWLAN_80211HDR         pHdr;
 
@@ -580,8 +580,8 @@ typedef struct tagWLAN_FR_IBSSATIM {
 // Disassociation
 typedef struct tagWLAN_FR_DISASSOC {
 
-    UINT                    uType;
-    UINT                    len;
+    unsigned int                    uType;
+    unsigned int                    len;
     PBYTE                   pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
@@ -593,8 +593,8 @@ typedef struct tagWLAN_FR_DISASSOC {
 // Association Request
 typedef struct tagWLAN_FR_ASSOCREQ {
 
-    UINT                    uType;
-    UINT                    len;
+    unsigned int                    uType;
+    unsigned int                    len;
     PBYTE                   pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
@@ -617,8 +617,8 @@ typedef struct tagWLAN_FR_ASSOCREQ {
 // Association Response
 typedef struct tagWLAN_FR_ASSOCRESP {
 
-    UINT                    uType;
-    UINT                    len;
+    unsigned int                    uType;
+    unsigned int                    len;
     PBYTE                   pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
@@ -634,8 +634,8 @@ typedef struct tagWLAN_FR_ASSOCRESP {
 // Reassociation Request
 typedef struct tagWLAN_FR_REASSOCREQ {
 
-    UINT                    uType;
-    UINT                    len;
+    unsigned int                    uType;
+    unsigned int                    len;
     PBYTE                   pBuf;
     PUWLAN_80211HDR         pHdr;
 
@@ -659,8 +659,8 @@ typedef struct tagWLAN_FR_REASSOCREQ {
 // Reassociation Response
 typedef struct tagWLAN_FR_REASSOCRESP {
 
-    UINT                    uType;
-    UINT                    len;
+    unsigned int                    uType;
+    unsigned int                    len;
     PBYTE                   pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
@@ -676,8 +676,8 @@ typedef struct tagWLAN_FR_REASSOCRESP {
 // Probe Request
 typedef struct tagWLAN_FR_PROBEREQ {
 
-    UINT                    uType;
-    UINT                    len;
+    unsigned int                    uType;
+    unsigned int                    len;
     PBYTE                   pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
@@ -691,8 +691,8 @@ typedef struct tagWLAN_FR_PROBEREQ {
 // Probe Response
 typedef struct tagWLAN_FR_PROBERESP {
 
-    UINT                    uType;
-    UINT                    len;
+    unsigned int                    uType;
+    unsigned int                    len;
     PBYTE                   pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
@@ -720,8 +720,8 @@ typedef struct tagWLAN_FR_PROBERESP {
 // Authentication
 typedef struct tagWLAN_FR_AUTHEN {
 
-    UINT                    uType;
-    UINT                    len;
+    unsigned int                    uType;
+    unsigned int                    len;
     PBYTE                   pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
@@ -736,8 +736,8 @@ typedef struct tagWLAN_FR_AUTHEN {
 // Deauthenication
 typedef struct tagWLAN_FR_DEAUTHEN {
 
-    UINT                    uType;
-    UINT                    len;
+    unsigned int                    uType;
+    unsigned int                    len;
     PBYTE                   pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
@@ -748,114 +748,114 @@ typedef struct tagWLAN_FR_DEAUTHEN {
 } WLAN_FR_DEAUTHEN, *PWLAN_FR_DEAUTHEN;
 
 /*---------------------  Export Functions  --------------------------*/
-VOID
+void
 vMgrEncodeBeacon(
-    IN  PWLAN_FR_BEACON  pFrame
+      PWLAN_FR_BEACON  pFrame
      );
 
-VOID
+void
 vMgrDecodeBeacon(
-    IN  PWLAN_FR_BEACON  pFrame
+      PWLAN_FR_BEACON  pFrame
     );
 
-VOID
+void
 vMgrEncodeIBSSATIM(
-    IN  PWLAN_FR_IBSSATIM   pFrame
+      PWLAN_FR_IBSSATIM   pFrame
     );
 
-VOID
+void
 vMgrDecodeIBSSATIM(
-    IN  PWLAN_FR_IBSSATIM   pFrame
+      PWLAN_FR_IBSSATIM   pFrame
     );
 
-VOID
+void
 vMgrEncodeDisassociation(
-    IN  PWLAN_FR_DISASSOC  pFrame
+      PWLAN_FR_DISASSOC  pFrame
     );
 
-VOID
+void
 vMgrDecodeDisassociation(
-    IN  PWLAN_FR_DISASSOC  pFrame
+      PWLAN_FR_DISASSOC  pFrame
     );
 
-VOID
+void
 vMgrEncodeAssocRequest(
-    IN  PWLAN_FR_ASSOCREQ  pFrame
+      PWLAN_FR_ASSOCREQ  pFrame
     );
 
-VOID
+void
 vMgrDecodeAssocRequest(
-    IN  PWLAN_FR_ASSOCREQ  pFrame
+      PWLAN_FR_ASSOCREQ  pFrame
     );
 
-VOID
+void
 vMgrEncodeAssocResponse(
-    IN  PWLAN_FR_ASSOCRESP  pFrame
+      PWLAN_FR_ASSOCRESP  pFrame
     );
 
-VOID
+void
 vMgrDecodeAssocResponse(
-    IN PWLAN_FR_ASSOCRESP  pFrame
+     PWLAN_FR_ASSOCRESP  pFrame
     );
 
-VOID
+void
 vMgrEncodeReassocRequest(
-    IN  PWLAN_FR_REASSOCREQ  pFrame
+      PWLAN_FR_REASSOCREQ  pFrame
     );
 
-VOID
+void
 vMgrDecodeReassocRequest(
-    IN  PWLAN_FR_REASSOCREQ  pFrame
+      PWLAN_FR_REASSOCREQ  pFrame
     );
 
-VOID
+void
 vMgrEncodeProbeRequest(
-    IN PWLAN_FR_PROBEREQ  pFrame
+     PWLAN_FR_PROBEREQ  pFrame
     );
 
-VOID
+void
 vMgrDecodeProbeRequest(
-    IN PWLAN_FR_PROBEREQ  pFrame
+     PWLAN_FR_PROBEREQ  pFrame
     );
 
-VOID
+void
 vMgrEncodeProbeResponse(
-    IN PWLAN_FR_PROBERESP  pFrame
+     PWLAN_FR_PROBERESP  pFrame
     );
 
-VOID
+void
 vMgrDecodeProbeResponse(
-    IN PWLAN_FR_PROBERESP  pFrame
+     PWLAN_FR_PROBERESP  pFrame
     );
 
-VOID
+void
 vMgrEncodeAuthen(
-    IN  PWLAN_FR_AUTHEN  pFrame
+      PWLAN_FR_AUTHEN  pFrame
     );
 
-VOID
+void
 vMgrDecodeAuthen(
-    IN  PWLAN_FR_AUTHEN  pFrame
+      PWLAN_FR_AUTHEN  pFrame
     );
 
-VOID
+void
 vMgrEncodeDeauthen(
-    IN  PWLAN_FR_DEAUTHEN  pFrame
+      PWLAN_FR_DEAUTHEN  pFrame
     );
 
-VOID
+void
 vMgrDecodeDeauthen(
-    IN  PWLAN_FR_DEAUTHEN  pFrame
+      PWLAN_FR_DEAUTHEN  pFrame
     );
 
-VOID
+void
 vMgrEncodeReassocResponse(
-    IN  PWLAN_FR_REASSOCRESP  pFrame
+      PWLAN_FR_REASSOCRESP  pFrame
     );
 
-VOID
+void
 vMgrDecodeReassocResponse(
-    IN  PWLAN_FR_REASSOCRESP  pFrame
+      PWLAN_FR_REASSOCRESP  pFrame
     );
 
 #endif// __80211MGR_H__

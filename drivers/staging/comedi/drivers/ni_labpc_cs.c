@@ -437,6 +437,9 @@ static struct pcmcia_device_id labpc_cs_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(pcmcia, labpc_cs_ids);
+MODULE_AUTHOR("Frank Mori Hess <fmhess@users.sourceforge.net>");
+MODULE_DESCRIPTION("Comedi driver for National Instruments Lab-PC");
+MODULE_LICENSE("GPL");
 
 struct pcmcia_driver labpc_cs_driver = {
 	.probe = labpc_cs_attach,
@@ -478,6 +481,5 @@ void __exit labpc_exit_module(void)
 	comedi_driver_unregister(&driver_labpc_cs);
 }
 
-MODULE_LICENSE("GPL");
 module_init(labpc_init_module);
 module_exit(labpc_exit_module);

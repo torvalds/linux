@@ -34,19 +34,9 @@ MA 02111-1307 USA
 #ifndef _DT3155_INC
 #define _DT3155_INC
 
-#ifdef __KERNEL__
 #include <linux/types.h>
 #include <linux/time.h>		/* struct timeval */
-#else
-#include <sys/ioctl.h>
-#include <sys/param.h>
-#include <sys/time.h>
-#include <unistd.h>
-#endif
 
-
-#define TRUE  1
-#define FALSE 0
 
 /* Uncomment this for 50Hz CCIR */
 #define CCIR 1
@@ -62,15 +52,15 @@ MA 02111-1307 USA
 #ifdef CCIR
 #define DT3155_MAX_ROWS	576
 #define DT3155_MAX_COLS	768
-#define FORMAT50HZ	TRUE
+#define FORMAT50HZ	1
 #else
 #define DT3155_MAX_ROWS	480
 #define DT3155_MAX_COLS	640
-#define FORMAT50HZ	FALSE
+#define FORMAT50HZ	0
 #endif
 
 /* Configuration structure */
-struct dt3155_config_s {
+struct dt3155_config {
 	u32 acq_mode;
 	u32 cols, rows;
 	u32 continuous;
@@ -78,20 +68,20 @@ struct dt3155_config_s {
 
 
 /* hold data for each frame */
-typedef struct {
+struct frame_info {
 	u32 addr;		/* address of the buffer with the frame */
 	u32 tag;		/* unique number for the frame */
 	struct timeval time;	/* time that capture took place */
-} frame_info_t;
+};
 
 /*
  * Structure for interrupt and buffer handling.
  * This is the setup for 1 card
  */
-struct dt3155_fbuffer_s {
+struct dt3155_fbuffer {
 	int    nbuffers;
 
-	frame_info_t frame_info[BOARD_MAX_BUFFS];
+	struct frame_info frame_info[BOARD_MAX_BUFFS];
 
 	int empty_buffers[BOARD_MAX_BUFFS];	/* indexes empty frames */
 	int empty_len;				/* Number of empty buffers */
@@ -120,20 +110,20 @@ struct dt3155_fbuffer_s {
 #define DT3155_ACQ		2
 
 /* There is one status structure for each card. */
-typedef struct dt3155_status_s {
+struct dt3155_status {
 	int fixed_mode;		/* if 1, we are in fixed frame mode */
 	u32 reg_addr;	/* Register address for a single card */
 	u32 mem_addr;	/* Buffer start addr for this card */
 	u32 mem_size;	/* This is the amount of mem available  */
 	u32 irq;		/* this card's irq */
-	struct dt3155_config_s config;		/* configuration struct */
-	struct dt3155_fbuffer_s fbuffer;	/* frame buffer state struct */
+	struct dt3155_config config;		/* configuration struct */
+	struct dt3155_fbuffer fbuffer;	/* frame buffer state struct */
 	u32 state;		/* this card's state */
 	u32 device_installed;	/* Flag if installed. 1=installed */
-} dt3155_status_t;
+};
 
 /* Reference to global status structure */
-extern struct dt3155_status_s dt3155_status[MAXBOARDS];
+extern struct dt3155_status dt3155_status[MAXBOARDS];
 
 #define DT3155_STATE_IDLE	0x00
 #define DT3155_STATE_FRAME	0x01
@@ -144,8 +134,8 @@ extern struct dt3155_status_s dt3155_status[MAXBOARDS];
 
 #define DT3155_IOC_MAGIC	'!'
 
-#define DT3155_SET_CONFIG	_IOW(DT3155_IOC_MAGIC, 1, struct dt3155_config_s)
-#define DT3155_GET_CONFIG	_IOR(DT3155_IOC_MAGIC, 2, struct dt3155_status_s)
+#define DT3155_SET_CONFIG	_IOW(DT3155_IOC_MAGIC, 1, struct dt3155_config)
+#define DT3155_GET_CONFIG	_IOR(DT3155_IOC_MAGIC, 2, struct dt3155_status)
 #define DT3155_STOP		_IO(DT3155_IOC_MAGIC, 3)
 #define DT3155_START		_IO(DT3155_IOC_MAGIC, 4)
 #define DT3155_FLUSH		_IO(DT3155_IOC_MAGIC, 5)
@@ -160,12 +150,12 @@ extern struct dt3155_status_s dt3155_status[MAXBOARDS];
 #define DT_ERR_MASK		0xff0000/* not used but it might be one day */
 
 /* User code will probably want to declare one of these for each card */
-typedef struct dt3155_read_s {
+struct dt3155_read {
 	u32 offset;
 	u32 frame_seq;
 	u32 state;
 
-	frame_info_t frame_info;
-} dt3155_read_t;
+	struct frame_info frame_info;
+};
 
 #endif /* _DT3155_inc */

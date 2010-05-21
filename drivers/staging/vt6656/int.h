@@ -67,17 +67,11 @@ SINTData, *PSINTData;
 
 /*---------------------  Export Functions  --------------------------*/
 
-VOID
-INTvWorkItem(
-    PVOID Context
-    );
+void INTvWorkItem(void *Context);
 
 NTSTATUS
 INTnsProcessData(
-    IN  PSDevice pDevice
+      PSDevice pDevice
     );
 
-#endif // __INT_H__
-
-
-
+#endif /* __INT_H__ */

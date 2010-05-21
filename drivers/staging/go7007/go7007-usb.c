@@ -670,10 +670,9 @@ static int go7007_usb_onboard_write_interrupt(struct go7007 *go,
 		"go7007-usb: WriteInterrupt: %04x %04x\n", addr, data);
 #endif
 
-	tbuf = kmalloc(8, GFP_KERNEL);
+	tbuf = kzalloc(8, GFP_KERNEL);
 	if (tbuf == NULL)
 		return -ENOMEM;
-	memset(tbuf, 0, 8);
 	tbuf[0] = data & 0xff;
 	tbuf[1] = data >> 8;
 	tbuf[2] = addr & 0xff;

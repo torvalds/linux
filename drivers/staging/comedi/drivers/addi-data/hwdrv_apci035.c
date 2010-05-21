@@ -52,9 +52,9 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 +----------------------------------------------------------------------------+
 */
 #include "hwdrv_apci035.h"
-int i_WatchdogNbr = 0;
-int i_Temp = 0;
-int i_Flag = 1;
+static int i_WatchdogNbr = 0;
+static int i_Temp = 0;
+static int i_Flag = 1;
 /*
 +----------------------------------------------------------------------------+
 | Function   Name   : int i_APCI035_ConfigTimerWatchdog                      |

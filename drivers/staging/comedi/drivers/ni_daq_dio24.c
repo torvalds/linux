@@ -461,6 +461,10 @@ static struct pcmcia_device_id dio24_cs_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(pcmcia, dio24_cs_ids);
+MODULE_AUTHOR("Daniel Vecino Castel <dvecino@able.es>");
+MODULE_DESCRIPTION("Comedi driver for National Instruments "
+		   "PCMCIA DAQ-Card DIO-24");
+MODULE_LICENSE("GPL");
 
 struct pcmcia_driver dio24_cs_driver = {
 	.probe = dio24_cs_attach,

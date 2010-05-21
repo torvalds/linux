@@ -1,3 +1,17 @@
+batman-adv 0.2.1:
+
+* support latest kernels (2.6.20 - 2.6.33)
+* receive packets directly using skbs, remove old sockets and threads
+* fix various regressions in the vis server
+* don't disable interrupts while sending
+* replace internal logging mechanism with standard kernel logging
+* move vis formats into userland, one general format remains in the kernel
+* allow MAC address to be set, correctly initialize them
+* code refactoring and cleaning for coding style
+* many bugs (null pointers, locking, hash iterators) squashed
+
+ -- Sun, 21 Mar 2010 20:46:47 +0100
+
 batman-adv 0.2:
 
 * support latest kernels (2.6.20 - 2.6.31)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2009 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -94,13 +94,12 @@ static void update_route(struct orig_node *orig_node,
 
 		/* route changed */
 	} else {
-		bat_dbg(DBG_ROUTES, "Changing route towards: %pM (now via %pM - was via %pM)\n", orig_node->orig, neigh_node->addr, orig_node->router->addr);
+		bat_dbg(DBG_ROUTES,
+			"Changing route towards: %pM "
+			"(now via %pM - was via %pM)\n",
+			orig_node->orig, neigh_node->addr,
+			orig_node->router->addr);
 	}
-
-	if (neigh_node != NULL)
-		orig_node->batman_if = neigh_node->if_incoming;
-	else
-		orig_node->batman_if = NULL;
 
 	orig_node->router = neigh_node;
 }
@@ -210,9 +209,13 @@ static int isBidirectionalNeigh(struct orig_node *orig_node,
 	batman_packet->tq = ((batman_packet->tq *
 			      orig_neigh_node->tq_own *
 			      orig_neigh_node->tq_asym_penalty) /
-			     (TQ_MAX_VALUE *	 TQ_MAX_VALUE));
+			     (TQ_MAX_VALUE * TQ_MAX_VALUE));
 
-	bat_dbg(DBG_BATMAN, "bidirectional: orig = %-15pM neigh = %-15pM => own_bcast = %2i, real recv = %2i, local tq: %3i, asym_penalty: %3i, total tq: %3i \n",
+	bat_dbg(DBG_BATMAN,
+		"bidirectional: "
+		"orig = %-15pM neigh = %-15pM => own_bcast = %2i, "
+		"real recv = %2i, local tq: %3i, asym_penalty: %3i, "
+		"total tq: %3i\n",
 		orig_node->orig, orig_neigh_node->orig, total_count,
 		neigh_node->real_packet_count, orig_neigh_node->tq_own,
 		orig_neigh_node->tq_asym_penalty, batman_packet->tq);
@@ -234,7 +237,8 @@ static void update_orig(struct orig_node *orig_node, struct ethhdr *ethhdr,
 	struct neigh_node *neigh_node = NULL, *tmp_neigh_node = NULL;
 	int tmp_hna_buff_len;
 
-	bat_dbg(DBG_BATMAN, "update_originator(): Searching and updating originator entry of received packet \n");
+	bat_dbg(DBG_BATMAN, "update_originator(): "
+		"Searching and updating originator entry of received packet\n");
 
 	list_for_each_entry(tmp_neigh_node, &orig_node->neigh_list, list) {
 		if (compare_orig(tmp_neigh_node->addr, ethhdr->h_source) &&
@@ -309,6 +313,38 @@ update_hna:
 	update_routes(orig_node, orig_node->router, hna_buff, tmp_hna_buff_len);
 }
 
+/* checks whether the host restarted and is in the protection time.
+ * returns:
+ *  0 if the packet is to be accepted
+ *  1 if the packet is to be ignored.
+ */
+static int window_protected(int16_t seq_num_diff,
+				unsigned long *last_reset)
+{
+	if ((seq_num_diff <= -TQ_LOCAL_WINDOW_SIZE)
+		|| (seq_num_diff >= EXPECTED_SEQNO_RANGE)) {
+		if (time_after(jiffies, *last_reset +
+			msecs_to_jiffies(RESET_PROTECTION_MS))) {
+
+			*last_reset = jiffies;
+			bat_dbg(DBG_BATMAN,
+				"old packet received, start protection\n");
+
+			return 0;
+		} else
+			return 1;
+	}
+	return 0;
+}
+
+/* processes a batman packet for all interfaces, adjusts the sequence number and
+ * finds out whether it is a duplicate.
+ * returns:
+ *   1 the packet is a duplicate
+ *   0 the packet has not yet been received
+ *  -1 the packet is old and has been received while the seqno window
+ *     was protected. Caller should drop it.
+ */
 static char count_real_packets(struct ethhdr *ethhdr,
 			       struct batman_packet *batman_packet,
 			       struct batman_if *if_incoming)
@@ -316,32 +352,42 @@ static char count_real_packets(struct ethhdr *ethhdr,
 	struct orig_node *orig_node;
 	struct neigh_node *tmp_neigh_node;
 	char is_duplicate = 0;
-	uint16_t seq_diff;
+	int16_t seq_diff;
+	int need_update = 0;
+	int set_mark;
 
 	orig_node = get_orig_node(batman_packet->orig);
 	if (orig_node == NULL)
 		return 0;
 
+	seq_diff = batman_packet->seqno - orig_node->last_real_seqno;
+
+	/* signalize caller that the packet is to be dropped. */
+	if (window_protected(seq_diff, &orig_node->batman_seqno_reset))
+		return -1;
+
 	list_for_each_entry(tmp_neigh_node, &orig_node->neigh_list, list) {
 
-		if (!is_duplicate)
-			is_duplicate =
-				get_bit_status(tmp_neigh_node->real_bits,
+		is_duplicate |= get_bit_status(tmp_neigh_node->real_bits,
 					       orig_node->last_real_seqno,
 					       batman_packet->seqno);
-		seq_diff = batman_packet->seqno - orig_node->last_real_seqno;
+
 		if (compare_orig(tmp_neigh_node->addr, ethhdr->h_source) &&
 		    (tmp_neigh_node->if_incoming == if_incoming))
-			bit_get_packet(tmp_neigh_node->real_bits, seq_diff, 1);
+			set_mark = 1;
 		else
-			bit_get_packet(tmp_neigh_node->real_bits, seq_diff, 0);
+			set_mark = 0;
+
+		/* if the window moved, set the update flag. */
+		need_update |= bit_get_packet(tmp_neigh_node->real_bits,
+						seq_diff, set_mark);
 
 		tmp_neigh_node->real_packet_count =
 			bit_packet_count(tmp_neigh_node->real_bits);
 	}
 
-	if (!is_duplicate) {
-		bat_dbg(DBG_BATMAN, "updating last_seqno: old %d, new %d \n",
+	if (need_update) {
+		bat_dbg(DBG_BATMAN, "updating last_seqno: old %d, new %d\n",
 			orig_node->last_real_seqno, batman_packet->seqno);
 		orig_node->last_real_seqno = batman_packet->seqno;
 	}
@@ -385,14 +431,16 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 	is_single_hop_neigh = (compare_orig(ethhdr->h_source,
 					    batman_packet->orig) ? 1 : 0);
 
-	bat_dbg(DBG_BATMAN, "Received BATMAN packet via NB: %pM, IF: %s [%s] (from OG: %pM, via prev OG: %pM, seqno %d, tq %d, TTL %d, V %d, IDF %d) \n",
+	bat_dbg(DBG_BATMAN, "Received BATMAN packet via NB: %pM, IF: %s [%s] "
+		"(from OG: %pM, via prev OG: %pM, seqno %d, tq %d, "
+		"TTL %d, V %d, IDF %d)\n",
 		ethhdr->h_source, if_incoming->dev, if_incoming->addr_str,
 		batman_packet->orig, batman_packet->prev_sender,
 		batman_packet->seqno, batman_packet->tq, batman_packet->ttl,
 		batman_packet->version, has_directlink_flag);
 
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
-		if (batman_if->if_active != IF_ACTIVE)
+		if (batman_if->if_status != IF_ACTIVE)
 			continue;
 
 		if (compare_orig(ethhdr->h_source,
@@ -420,13 +468,16 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 
 	if (is_my_addr) {
 		bat_dbg(DBG_BATMAN,
-			"Drop packet: received my own broadcast (sender: %pM)\n",
+			"Drop packet: received my own broadcast (sender: %pM"
+			")\n",
 			ethhdr->h_source);
 		return;
 	}
 
 	if (is_broadcast) {
-		bat_dbg(DBG_BATMAN, "Drop packet: ignoring all packets with broadcast source addr (sender: %pM) \n", ethhdr->h_source);
+		bat_dbg(DBG_BATMAN, "Drop packet: "
+		"ignoring all packets with broadcast source addr (sender: %pM"
+		")\n", ethhdr->h_source);
 		return;
 	}
 
@@ -454,27 +505,36 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 				bit_packet_count(word);
 		}
 
-		bat_dbg(DBG_BATMAN, "Drop packet: originator packet from myself (via neighbor) \n");
-		return;
-	}
-
-	if (batman_packet->tq == 0) {
-		count_real_packets(ethhdr, batman_packet, if_incoming);
-
-		bat_dbg(DBG_BATMAN, "Drop packet: originator packet with tq equal 0 \n");
+		bat_dbg(DBG_BATMAN, "Drop packet: "
+			"originator packet from myself (via neighbor)\n");
 		return;
 	}
 
 	if (is_my_oldorig) {
-		bat_dbg(DBG_BATMAN, "Drop packet: ignoring all rebroadcast echos (sender: %pM) \n", ethhdr->h_source);
+		bat_dbg(DBG_BATMAN,
+			"Drop packet: ignoring all rebroadcast echos (sender: "
+			"%pM)\n", ethhdr->h_source);
 		return;
 	}
-
-	is_duplicate = count_real_packets(ethhdr, batman_packet, if_incoming);
 
 	orig_node = get_orig_node(batman_packet->orig);
 	if (orig_node == NULL)
 		return;
+
+	is_duplicate = count_real_packets(ethhdr, batman_packet, if_incoming);
+
+	if (is_duplicate == -1) {
+		bat_dbg(DBG_BATMAN,
+			"Drop packet: packet within seqno protection time "
+			"(sender: %pM)\n", ethhdr->h_source);
+		return;
+	}
+
+	if (batman_packet->tq == 0) {
+		bat_dbg(DBG_BATMAN,
+			"Drop packet: originator packet with tq equal 0\n");
+		return;
+	}
 
 	/* avoid temporary routing loops */
 	if ((orig_node->router) &&
@@ -484,7 +544,9 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 	    !(compare_orig(batman_packet->orig, batman_packet->prev_sender)) &&
 	    (compare_orig(orig_node->router->addr,
 			  orig_node->router->orig_node->router->addr))) {
-		bat_dbg(DBG_BATMAN, "Drop packet: ignoring all rebroadcast packets that may make me loop (sender: %pM) \n", ethhdr->h_source);
+		bat_dbg(DBG_BATMAN,
+			"Drop packet: ignoring all rebroadcast packets that "
+			"may make me loop (sender: %pM)\n", ethhdr->h_source);
 		return;
 	}
 
@@ -522,7 +584,8 @@ void receive_bat_packet(struct ethhdr *ethhdr,
 		schedule_forward_packet(orig_node, ethhdr, batman_packet,
 					1, hna_buff_len, if_incoming);
 
-		bat_dbg(DBG_BATMAN, "Forwarding packet: rebroadcast neighbor packet with direct link flag\n");
+		bat_dbg(DBG_BATMAN, "Forwarding packet: "
+			"rebroadcast neighbor packet with direct link flag\n");
 		return;
 	}
 
@@ -549,6 +612,7 @@ int recv_bat_packet(struct sk_buff *skb,
 {
 	struct ethhdr *ethhdr;
 	unsigned long flags;
+	struct sk_buff *skb_old;
 
 	/* drop packet if it has not necessary minimum size */
 	if (skb_headlen(skb) < sizeof(struct batman_packet))
@@ -564,12 +628,20 @@ int recv_bat_packet(struct sk_buff *skb,
 	if (is_bcast(ethhdr->h_source))
 		return NET_RX_DROP;
 
-	spin_lock_irqsave(&orig_hash_lock, flags);
 	/* TODO: we use headlen instead of "length", because
 	 * only this data is paged in. */
-	/* TODO: is another skb_copy needed here? there will be
-	 * written on the data, but nobody (?) should further use
-	 * this data */
+
+	/* create a copy of the skb, if needed, to modify it. */
+	if (!skb_clone_writable(skb, skb_headlen(skb))) {
+		skb_old = skb;
+		skb = skb_copy(skb, GFP_ATOMIC);
+		if (!skb)
+			return NET_RX_DROP;
+		ethhdr = (struct ethhdr *)skb_mac_header(skb);
+		kfree_skb(skb_old);
+	}
+
+	spin_lock_irqsave(&orig_hash_lock, flags);
 	receive_aggr_bat_packet(ethhdr,
 				skb->data,
 				skb_headlen(skb),
@@ -591,8 +663,8 @@ static int recv_my_icmp_packet(struct sk_buff *skb)
 	unsigned long flags;
 	uint8_t dstaddr[ETH_ALEN];
 
-	icmp_packet = (struct icmp_packet *) skb->data;
-	ethhdr = (struct ethhdr *) skb_mac_header(skb);
+	icmp_packet = (struct icmp_packet *)skb->data;
+	ethhdr = (struct ethhdr *)skb_mac_header(skb);
 
 	/* add data to device queue */
 	if (icmp_packet->msg_type != ECHO_REQUEST) {
@@ -608,12 +680,11 @@ static int recv_my_icmp_packet(struct sk_buff *skb)
 	ret = NET_RX_DROP;
 
 	if ((orig_node != NULL) &&
-	    (orig_node->batman_if != NULL) &&
 	    (orig_node->router != NULL)) {
 
 		/* don't lock while sending the packets ... we therefore
 		 * copy the required data before sending */
-		batman_if = orig_node->batman_if;
+		batman_if = orig_node->router->if_incoming;
 		memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 		spin_unlock_irqrestore(&orig_hash_lock, flags);
 
@@ -624,7 +695,9 @@ static int recv_my_icmp_packet(struct sk_buff *skb)
 			skb = skb_copy(skb, GFP_ATOMIC);
 			if (!skb)
 				return NET_RX_DROP;
-			icmp_packet = (struct icmp_packet *) skb->data;
+
+			icmp_packet = (struct icmp_packet *)skb->data;
+			ethhdr = (struct ethhdr *)skb_mac_header(skb);
 			kfree_skb(skb_old);
 		}
 
@@ -658,8 +731,10 @@ static int recv_icmp_ttl_exceeded(struct sk_buff *skb)
 
 	/* send TTL exceeded if packet is an echo request (traceroute) */
 	if (icmp_packet->msg_type != ECHO_REQUEST) {
-		printk(KERN_WARNING "batman-adv:Warning - can't forward icmp packet from %pM to %pM: ttl exceeded\n",
-			icmp_packet->orig, icmp_packet->dst);
+		printk(KERN_WARNING "batman-adv:"
+		       "Warning - can't forward icmp packet from %pM to %pM: "
+		       "ttl exceeded\n",
+		       icmp_packet->orig, icmp_packet->dst);
 		return NET_RX_DROP;
 	}
 
@@ -670,12 +745,11 @@ static int recv_icmp_ttl_exceeded(struct sk_buff *skb)
 	ret = NET_RX_DROP;
 
 	if ((orig_node != NULL) &&
-	    (orig_node->batman_if != NULL) &&
 	    (orig_node->router != NULL)) {
 
 		/* don't lock while sending the packets ... we therefore
 		 * copy the required data before sending */
-		batman_if = orig_node->batman_if;
+		batman_if = orig_node->router->if_incoming;
 		memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 		spin_unlock_irqrestore(&orig_hash_lock, flags);
 
@@ -686,6 +760,7 @@ static int recv_icmp_ttl_exceeded(struct sk_buff *skb)
 			if (!skb)
 				return NET_RX_DROP;
 			icmp_packet = (struct icmp_packet *) skb->data;
+			ethhdr = (struct ethhdr *)skb_mac_header(skb);
 			kfree_skb(skb_old);
 		}
 
@@ -734,7 +809,7 @@ int recv_icmp_packet(struct sk_buff *skb)
 	if (!is_my_mac(ethhdr->h_dest))
 		return NET_RX_DROP;
 
-	icmp_packet = (struct icmp_packet *) skb->data;
+	icmp_packet = (struct icmp_packet *)skb->data;
 
 	/* packet for me */
 	if (is_my_mac(icmp_packet->dst))
@@ -752,12 +827,11 @@ int recv_icmp_packet(struct sk_buff *skb)
 		     hash_find(orig_hash, icmp_packet->dst));
 
 	if ((orig_node != NULL) &&
-	    (orig_node->batman_if != NULL) &&
 	    (orig_node->router != NULL)) {
 
 		/* don't lock while sending the packets ... we therefore
 		 * copy the required data before sending */
-		batman_if = orig_node->batman_if;
+		batman_if = orig_node->router->if_incoming;
 		memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 		spin_unlock_irqrestore(&orig_hash_lock, flags);
 
@@ -767,7 +841,8 @@ int recv_icmp_packet(struct sk_buff *skb)
 			skb = skb_copy(skb, GFP_ATOMIC);
 			if (!skb)
 				return NET_RX_DROP;
-			icmp_packet = (struct icmp_packet *) skb->data;
+			icmp_packet = (struct icmp_packet *)skb->data;
+			ethhdr = (struct ethhdr *)skb_mac_header(skb);
 			kfree_skb(skb_old);
 		}
 
@@ -824,7 +899,9 @@ int recv_unicast_packet(struct sk_buff *skb)
 
 	/* TTL exceeded */
 	if (unicast_packet->ttl < 2) {
-		printk(KERN_WARNING "batman-adv:Warning - can't forward unicast packet from %pM to %pM: ttl exceeded\n",
+		printk(KERN_WARNING "batman-adv:Warning - "
+		       "can't forward unicast packet from %pM to %pM: "
+		       "ttl exceeded\n",
 		       ethhdr->h_source, unicast_packet->dest);
 		return NET_RX_DROP;
 	}
@@ -836,12 +913,11 @@ int recv_unicast_packet(struct sk_buff *skb)
 		     hash_find(orig_hash, unicast_packet->dest));
 
 	if ((orig_node != NULL) &&
-	    (orig_node->batman_if != NULL) &&
 	    (orig_node->router != NULL)) {
 
 		/* don't lock while sending the packets ... we therefore
 		 * copy the required data before sending */
-		batman_if = orig_node->batman_if;
+		batman_if = orig_node->router->if_incoming;
 		memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 		spin_unlock_irqrestore(&orig_hash_lock, flags);
 
@@ -851,7 +927,8 @@ int recv_unicast_packet(struct sk_buff *skb)
 			skb = skb_copy(skb, GFP_ATOMIC);
 			if (!skb)
 				return NET_RX_DROP;
-			unicast_packet = (struct unicast_packet *) skb->data;
+			unicast_packet = (struct unicast_packet *)skb->data;
+			ethhdr = (struct ethhdr *)skb_mac_header(skb);
 			kfree_skb(skb_old);
 		}
 		/* decrement ttl */
@@ -867,13 +944,13 @@ int recv_unicast_packet(struct sk_buff *skb)
 	return ret;
 }
 
-
 int recv_bcast_packet(struct sk_buff *skb)
 {
 	struct orig_node *orig_node;
 	struct bcast_packet *bcast_packet;
 	struct ethhdr *ethhdr;
 	int hdr_size = sizeof(struct bcast_packet);
+	int16_t seq_diff;
 	unsigned long flags;
 
 	/* drop packet if it has not necessary minimum size */
@@ -894,7 +971,7 @@ int recv_bcast_packet(struct sk_buff *skb)
 	if (is_my_mac(ethhdr->h_source))
 		return NET_RX_DROP;
 
-	bcast_packet = (struct bcast_packet *) skb->data;
+	bcast_packet = (struct bcast_packet *)skb->data;
 
 	/* ignore broadcasts originated by myself */
 	if (is_my_mac(bcast_packet->orig))
@@ -909,7 +986,7 @@ int recv_bcast_packet(struct sk_buff *skb)
 		return NET_RX_DROP;
 	}
 
-	/* check flood history */
+	/* check whether the packet is a duplicate */
 	if (get_bit_status(orig_node->bcast_bits,
 			   orig_node->last_bcast_seqno,
 			   ntohs(bcast_packet->seqno))) {
@@ -917,14 +994,20 @@ int recv_bcast_packet(struct sk_buff *skb)
 		return NET_RX_DROP;
 	}
 
-	/* mark broadcast in flood history */
-	if (bit_get_packet(orig_node->bcast_bits,
-			   ntohs(bcast_packet->seqno) -
-			   orig_node->last_bcast_seqno, 1))
+	seq_diff = ntohs(bcast_packet->seqno) - orig_node->last_bcast_seqno;
+
+	/* check whether the packet is old and the host just restarted. */
+	if (window_protected(seq_diff, &orig_node->bcast_seqno_reset)) {
+		spin_unlock_irqrestore(&orig_hash_lock, flags);
+		return NET_RX_DROP;
+	}
+
+	/* mark broadcast in flood history, update window position
+	 * if required. */
+	if (bit_get_packet(orig_node->bcast_bits, seq_diff, 1))
 		orig_node->last_bcast_seqno = ntohs(bcast_packet->seqno);
 
 	spin_unlock_irqrestore(&orig_hash_lock, flags);
-
 	/* rebroadcast packet */
 	add_bcast_packet_to_list(skb);
 
@@ -938,6 +1021,7 @@ int recv_vis_packet(struct sk_buff *skb)
 {
 	struct vis_packet *vis_packet;
 	struct ethhdr *ethhdr;
+	struct bat_priv *bat_priv;
 	int hdr_size = sizeof(struct vis_packet);
 
 	if (skb_headlen(skb) < hdr_size)
@@ -957,15 +1041,20 @@ int recv_vis_packet(struct sk_buff *skb)
 	if (is_my_mac(vis_packet->sender_orig))
 		return NET_RX_DROP;
 
+	/* FIXME: each batman_if will be attached to a softif */
+	bat_priv = netdev_priv(soft_device);
+
 	switch (vis_packet->vis_type) {
 	case VIS_TYPE_SERVER_SYNC:
 		/* TODO: handle fragmented skbs properly */
-		receive_server_sync_packet(vis_packet, skb_headlen(skb));
+		receive_server_sync_packet(bat_priv, vis_packet,
+					   skb_headlen(skb));
 		break;
 
 	case VIS_TYPE_CLIENT_UPDATE:
 		/* TODO: handle fragmented skbs properly */
-		receive_client_update_packet(vis_packet, skb_headlen(skb));
+		receive_client_update_packet(bat_priv, vis_packet,
+					     skb_headlen(skb));
 		break;
 
 	default:	/* ignore unknown packet */

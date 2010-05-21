@@ -773,7 +773,8 @@ void RTMPDeQueuePacket(struct rt_rtmp_adapter *pAd, IN BOOLEAN bIntContext, u8 Q
 
 			/* probe the Queue Head */
 			pQueue = &pAd->TxSwQueue[QueIdx];
-			if ((pEntry = pQueue->Head) == NULL) {
+			pEntry = pQueue->Head;
+			if (pEntry == NULL) {
 				DEQUEUE_UNLOCK(&pAd->irq_lock, bIntContext,
 					       IrqFlags);
 				break;
@@ -824,7 +825,8 @@ void RTMPDeQueuePacket(struct rt_rtmp_adapter *pAd, IN BOOLEAN bIntContext, u8 Q
 				}
 
 				do {
-					if ((pEntry = pQueue->Head) == NULL)
+					pEntry = pQueue->Head;
+					if (pEntry == NULL)
 						break;
 
 					/* For TX_AMSDU_FRAME/TX_RALINK_FRAME, Need to check if next pakcet can do aggregation. */
@@ -1422,7 +1424,7 @@ u32 deaggregate_AMSDU_announce(struct rt_rtmp_adapter *pAd,
 		if ((Header802_3[12] == 0x88) && (Header802_3[13] == 0x8E)) {
 			/* avoid local heap overflow, use dyanamic allocation */
 			struct rt_mlme_queue_elem *Elem =
-			    (struct rt_mlme_queue_elem *)kmalloc(sizeof(struct rt_mlme_queue_elem),
+			    kmalloc(sizeof(struct rt_mlme_queue_elem),
 							MEM_ALLOC_FLAG);
 			if (Elem != NULL) {
 				memmove(Elem->Msg +

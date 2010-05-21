@@ -1,0 +1,19 @@
+TODO:
+
+1. A per-device/tty port context required to support multiple devices
+on same platform.
+
+2. REMOVE the sysfs entry PID passing mechanism, since there should
+be a better way to request user-space to install line discipline.
+
+3. Re-view/Re-work on the locking.
+
+4. Re-structure to make the ldisc driver more generic for chipsets which mux
+multiple connectivity (BT, FM, GPS) upon 1 TTY port.
+
+5. Step up and maintain this driver to ensure that it continues
+to work.  Having the hardware for this is pretty much a
+requirement.  If this does not happen, the will be removed in
+the 2.6.35 kernel release.
+
+Please send patches to Greg Kroah-Hartman <greg@kroah.com>.

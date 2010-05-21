@@ -91,11 +91,11 @@ BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeI
 
     pHeadTD->m_td1TD1.byTCR = (TCR_EDP|TCR_STP);
 
-    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)pbySkbData, U_HEADER_LEN);
+    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)pbySkbData, ETH_HLEN);
 
-    cbFrameBodySize = uDataLen - U_HEADER_LEN;
+    cbFrameBodySize = uDataLen - ETH_HLEN;
 
-    if (ntohs(pDevice->sTxEthHeader.wType) > MAX_DATA_LEN) {
+    if (ntohs(pDevice->sTxEthHeader.wType) > ETH_DATA_LEN) {
         cbFrameBodySize += 8;
     }
 

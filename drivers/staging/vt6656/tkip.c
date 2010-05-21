@@ -183,7 +183,7 @@ unsigned int rotr1(unsigned int a)
  * Return Value: none
  *
  */
-VOID TKIPvMixKey(
+void TKIPvMixKey(
     PBYTE   pbyTKey,
     PBYTE   pbyTA,
     WORD    wTSC15_0,

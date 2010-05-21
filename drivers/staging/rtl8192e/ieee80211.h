@@ -1846,7 +1846,7 @@ struct ieee80211_device {
 	spinlock_t bw_spinlock;
 
 	spinlock_t reorder_spinlock;
-	// for HT operation rate set.  we use this one for HT data rate to seperate different descriptors
+	// for HT operation rate set.  we use this one for HT data rate to separate different descriptors
 	//the way fill this is the same as in the IE
 	u8	Regdot11HTOperationalRateSet[16];		//use RATR format
 	u8	dot11HTOperationalRateSet[16];		//use RATR format

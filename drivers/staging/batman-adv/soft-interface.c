@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2009 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner, Simon Wunderlich
  *
@@ -152,9 +152,13 @@ int interface_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	hna_local_remove(dev->dev_addr, "mac address changed");
+	/* only modify hna-table if it has been initialised before */
+	if (atomic_read(&module_state) == MODULE_ACTIVE) {
+		hna_local_remove(dev->dev_addr, "mac address changed");
+		hna_local_add(addr->sa_data);
+	}
+
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
-	hna_local_add(dev->dev_addr);
 
 	return 0;
 }
@@ -178,12 +182,16 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 	struct ethhdr *ethhdr = (struct ethhdr *)skb->data;
 	struct bat_priv *priv = netdev_priv(dev);
 	struct batman_if *batman_if;
+	struct bat_priv *bat_priv;
 	uint8_t dstaddr[6];
 	int data_len = skb->len;
 	unsigned long flags;
 
 	if (atomic_read(&module_state) != MODULE_ACTIVE)
 		goto dropped;
+
+	/* FIXME: each batman_if will be attached to a softif */
+	bat_priv = netdev_priv(soft_device);
 
 	dev->trans_start = jiffies;
 	/* TODO: check this for locks */
@@ -208,10 +216,10 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 		/* set broadcast sequence number */
 		bcast_packet->seqno = htons(bcast_seqno);
 
-		bcast_seqno++;
+		/* broadcast packet. on success, increase seqno. */
+		if (add_bcast_packet_to_list(skb) == NETDEV_TX_OK)
+			bcast_seqno++;
 
-		/* broadcast packet */
-		add_bcast_packet_to_list(skb);
 		/* a copy is stored in the bcast list, therefore removing
 		 * the original skb. */
 		kfree_skb(skb);
@@ -228,8 +236,9 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 			orig_node = transtable_search(ethhdr->h_dest);
 
 		if ((orig_node) &&
-		    (orig_node->batman_if) &&
 		    (orig_node->router)) {
+			struct neigh_node *router = orig_node->router;
+
 			if (my_skb_push(skb, sizeof(struct unicast_packet)) < 0)
 				goto unlock;
 
@@ -244,14 +253,14 @@ int interface_tx(struct sk_buff *skb, struct net_device *dev)
 			memcpy(unicast_packet->dest, orig_node->orig, ETH_ALEN);
 
 			/* net_dev won't be available when not active */
-			if (orig_node->batman_if->if_active != IF_ACTIVE)
+			if (router->if_incoming->if_status != IF_ACTIVE)
 				goto unlock;
 
 			/* don't lock while sending the packets ... we therefore
 			 * copy the required data before sending */
 
-			batman_if = orig_node->batman_if;
-			memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
+			batman_if = router->if_incoming;
+			memcpy(dstaddr, router->addr, ETH_ALEN);
 			spin_unlock_irqrestore(&orig_hash_lock, flags);
 
 			send_skb_packet(skb, batman_if, dstaddr);
@@ -268,6 +277,7 @@ unlock:
 	spin_unlock_irqrestore(&orig_hash_lock, flags);
 dropped:
 	priv->stats.tx_dropped++;
+	kfree_skb(skb);
 end:
 	return NETDEV_TX_OK;
 }

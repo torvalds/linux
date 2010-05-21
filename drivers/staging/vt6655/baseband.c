@@ -1723,15 +1723,15 @@ ULONG
 s_ulGetRatio(PSDevice pDevice);
 
 static
-VOID
+void
 s_vChangeAntenna(
-    IN PSDevice pDevice
+    PSDevice pDevice
     );
 
 static
-VOID
+void
 s_vChangeAntenna (
-    IN PSDevice pDevice
+    PSDevice pDevice
     )
 {
 
@@ -1778,10 +1778,10 @@ s_vChangeAntenna (
  */
 UINT
 BBuGetFrameTime (
-    IN BYTE byPreambleType,
-    IN BYTE byPktType,
-    IN UINT cbFrameLength,
-    IN WORD wRate
+    BYTE byPreambleType,
+    BYTE byPktType,
+    UINT cbFrameLength,
+    WORD wRate
     )
 {
     UINT uFrameTime;
@@ -1843,15 +1843,15 @@ BBuGetFrameTime (
  * Return Value: none
  *
  */
-VOID
+void
 BBvCaculateParameter (
-    IN  PSDevice pDevice,
-    IN  UINT cbFrameLength,
-    IN  WORD wRate,
-    IN  BYTE byPacketType,
-    OUT PWORD pwPhyLen,
-    OUT PBYTE pbyPhySrv,
-    OUT PBYTE pbyPhySgn
+    PSDevice pDevice,
+    UINT cbFrameLength,
+    WORD wRate,
+    BYTE byPacketType,
+    PWORD pwPhyLen,
+    PBYTE pbyPhySrv,
+    PBYTE pbyPhySgn
     )
 {
     UINT cbBitCount;
@@ -2321,7 +2321,7 @@ BOOL BBbVT3253Init (PSDevice pDevice)
  * Return Value: none
  *
  */
-VOID BBvReadAllRegs (DWORD_PTR dwIoBase, PBYTE pbyBBRegs)
+void BBvReadAllRegs (DWORD_PTR dwIoBase, PBYTE pbyBBRegs)
 {
     int  ii;
     BYTE byBase = 1;
@@ -2438,7 +2438,7 @@ void BBvLoopbackOff (PSDevice pDevice)
  * Return Value: none
  *
  */
-VOID
+void
 BBvSetShortSlotTime (PSDevice pDevice)
 {
     BYTE byBBRxConf=0;
@@ -2462,7 +2462,7 @@ BBvSetShortSlotTime (PSDevice pDevice)
 
 }
 
-VOID BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData)
+void BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData)
 {
     BYTE byBBRxConf=0;
 
@@ -2494,7 +2494,7 @@ VOID BBvSetVGAGainOffset(PSDevice pDevice, BYTE byData)
  * Return Value: none
  *
  */
-VOID
+void
 BBvSoftwareReset (DWORD_PTR dwIoBase)
 {
     BBbWriteEmbeded(dwIoBase, 0x50, 0x40);
@@ -2515,7 +2515,7 @@ BBvSoftwareReset (DWORD_PTR dwIoBase)
  * Return Value: none
  *
  */
-VOID
+void
 BBvPowerSaveModeON (DWORD_PTR dwIoBase)
 {
     BYTE byOrgData;
@@ -2537,7 +2537,7 @@ BBvPowerSaveModeON (DWORD_PTR dwIoBase)
  * Return Value: none
  *
  */
-VOID
+void
 BBvPowerSaveModeOFF (DWORD_PTR dwIoBase)
 {
     BYTE byOrgData;
@@ -2561,7 +2561,7 @@ BBvPowerSaveModeOFF (DWORD_PTR dwIoBase)
  *
  */
 
-VOID
+void
 BBvSetTxAntennaMode (DWORD_PTR dwIoBase, BYTE byAntennaMode)
 {
     BYTE byBBTxConf;
@@ -2603,7 +2603,7 @@ BBvSetTxAntennaMode (DWORD_PTR dwIoBase, BYTE byAntennaMode)
  *
  */
 
-VOID
+void
 BBvSetRxAntennaMode (DWORD_PTR dwIoBase, BYTE byAntennaMode)
 {
     BYTE byBBRxConf;
@@ -2634,14 +2634,14 @@ BBvSetRxAntennaMode (DWORD_PTR dwIoBase, BYTE byAntennaMode)
  * Return Value: none
  *
  */
-VOID
+void
 BBvSetDeepSleep (DWORD_PTR dwIoBase, BYTE byLocalID)
 {
     BBbWriteEmbeded(dwIoBase, 0x0C, 0x17);//CR12
     BBbWriteEmbeded(dwIoBase, 0x0D, 0xB9);//CR13
 }
 
-VOID
+void
 BBvExitDeepSleep (DWORD_PTR dwIoBase, BYTE byLocalID)
 {
     BBbWriteEmbeded(dwIoBase, 0x0C, 0x00);//CR12
@@ -2759,7 +2759,7 @@ ULONG   ulPacketNum;
 }
 
 
-VOID
+void
 BBvClearAntDivSQ3Value (PSDevice pDevice)
 {
     UINT    ii;
@@ -2786,7 +2786,7 @@ BBvClearAntDivSQ3Value (PSDevice pDevice)
  *
  */
 
-VOID
+void
 BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
 {
 
@@ -2876,9 +2876,9 @@ BBvAntennaDiversity (PSDevice pDevice, BYTE byRxRate, BYTE bySQ3)
  *
 -*/
 
-VOID
+void
 TimerSQ3CallBack (
-    IN  HANDLE      hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
@@ -2924,9 +2924,9 @@ TimerSQ3CallBack (
  *
 -*/
 
-VOID
+void
 TimerState1CallBack (
-    IN  HANDLE      hDeviceContext
+    void *hDeviceContext
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;

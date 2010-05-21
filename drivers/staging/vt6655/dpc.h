@@ -43,11 +43,11 @@
 
 BOOL
 device_receive_frame (
-    IN  PSDevice pDevice,
-    IN  PSRxDesc pCurrRD
+    PSDevice pDevice,
+    PSRxDesc pCurrRD
     );
 
-VOID	MngWorkItem(PVOID Context);
+void	MngWorkItem(void *Context);
 
 #endif // __RXTX_H__
 

@@ -107,7 +107,8 @@ int p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf)
 	}
 
 	/* Check Permissions */
-	if (!capable(CAP_NET_ADMIN) && (msg->msgcode != DIDmsg_dot11req_mibget)) {
+	if (!capable(CAP_NET_ADMIN) &&
+	(msg->msgcode != DIDmsg_dot11req_mibget)) {
 		printk(KERN_ERR
 		       "%s: only dot11req_mibget allowed for non-root.\n",
 		       wlandev->name);
@@ -128,7 +129,7 @@ int p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf)
 		wlandev->mlmerequest(wlandev, msg);
 
 	clear_bit(1, &(wlandev->request_pending));
-	return result;		/* if result==0, msg->status still may contain an err */
+	return result;	/* if result==0, msg->status still may contain an err */
 }
 
 /*----------------------------------------------------------------

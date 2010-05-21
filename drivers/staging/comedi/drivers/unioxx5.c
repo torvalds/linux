@@ -285,7 +285,7 @@ static int __unioxx5_subdev_init(struct comedi_subdevice *subdev,
 		return -EIO;
 	}
 
-	usp = (struct unioxx5_subd_priv *)kzalloc(sizeof(*usp), GFP_KERNEL);
+	usp = kzalloc(sizeof(*usp), GFP_KERNEL);
 
 	if (usp == NULL) {
 		printk(KERN_ERR "comedi%d: erorr! --> out of memory!\n", minor);

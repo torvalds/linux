@@ -69,8 +69,8 @@
 
 BOOL WCTLbIsDuplicate (PSCache pCache, PS802_11Header pMACHeader)
 {
-    UINT            uIndex;
-    UINT            ii;
+    unsigned int            uIndex;
+    unsigned int            ii;
     PSCacheEntry    pCacheEntry;
 
     if (IS_FC_RETRY(pMACHeader)) {
@@ -91,7 +91,7 @@ BOOL WCTLbIsDuplicate (PSCache pCache, PS802_11Header pMACHeader)
     /* Not fount in cache - insert */
     pCacheEntry = &pCache->asCacheEntry[pCache->uInPtr];
     pCacheEntry->wFmSequence = pMACHeader->wSeqCtl;
-    memcpy(&(pCacheEntry->abyAddr2[0]), &(pMACHeader->abyAddr2[0]), U_ETHER_ADDR_LEN);
+    memcpy(&(pCacheEntry->abyAddr2[0]), &(pMACHeader->abyAddr2[0]), ETH_ALEN);
     pCacheEntry->wFrameCtl = pMACHeader->wFrameCtl;
     ADD_ONE_WITH_WRAP_AROUND(pCache->uInPtr, DUPLICATE_RX_CACHE_LENGTH);
     return FALSE;
@@ -111,9 +111,9 @@ BOOL WCTLbIsDuplicate (PSCache pCache, PS802_11Header pMACHeader)
  * Return Value: index number in Defragment Database
  *
  */
-UINT WCTLuSearchDFCB (PSDevice pDevice, PS802_11Header pMACHeader)
+unsigned int WCTLuSearchDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
 {
-UINT ii;
+	unsigned int ii;
 
     for(ii=0;ii<pDevice->cbDFCB;ii++) {
         if ((pDevice->sRxDFCB[ii].bInUse == TRUE) &&
@@ -141,9 +141,9 @@ UINT ii;
  * Return Value: index number in Defragment Database
  *
  */
-UINT WCTLuInsertDFCB (PSDevice pDevice, PS802_11Header pMACHeader)
+unsigned int WCTLuInsertDFCB(PSDevice pDevice, PS802_11Header pMACHeader)
 {
-UINT ii;
+	unsigned int ii;
 
     if (pDevice->cbFreeDFCB == 0)
         return(pDevice->cbDFCB);
@@ -154,7 +154,9 @@ UINT ii;
             pDevice->sRxDFCB[ii].bInUse = TRUE;
             pDevice->sRxDFCB[ii].wSequence = (pMACHeader->wSeqCtl >> 4);
             pDevice->sRxDFCB[ii].wFragNum = (pMACHeader->wSeqCtl & 0x000F);
-            memcpy(&(pDevice->sRxDFCB[ii].abyAddr2[0]), &(pMACHeader->abyAddr2[0]), U_ETHER_ADDR_LEN);
+	    memcpy(&(pDevice->sRxDFCB[ii].abyAddr2[0]),
+		   &(pMACHeader->abyAddr2[0]),
+		   ETH_ALEN);
             return(ii);
         }
     }
@@ -178,9 +180,10 @@ UINT ii;
  * Return Value: TRUE if it is valid fragment packet and we have resource to defragment; otherwise FALSE
  *
  */
-BOOL WCTLbHandleFragment (PSDevice pDevice, PS802_11Header pMACHeader, UINT cbFrameLength, BOOL bWEP, BOOL bExtIV)
+BOOL WCTLbHandleFragment(PSDevice pDevice, PS802_11Header pMACHeader,
+			 unsigned int cbFrameLength, BOOL bWEP, BOOL bExtIV)
 {
-UINT            uHeaderSize;
+unsigned int            uHeaderSize;
 
 
     if (bWEP == TRUE) {

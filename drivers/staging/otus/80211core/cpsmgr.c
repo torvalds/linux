@@ -602,7 +602,8 @@ void zfPowerSavingMgrProcessBeacon(zdev_t* dev, zbuf_t* buf)
 
     wd->sta.psMgr.isSleepAllowed = 1;
 
-    if ( (offset=zfFindElement(dev, buf, ZM_WLAN_EID_TIM)) != 0xffff )
+    offset = zfFindElement(dev, buf, ZM_WLAN_EID_TIM);
+    if (offset != 0xffff)
     {
         length = zmw_rx_buf_readb(dev, buf, offset+1);
 

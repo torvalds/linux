@@ -83,8 +83,6 @@ comedi_nonfree_firmware tarball available from http://www.comedi.org
 #define DPRINTK(format, args...)
 #endif
 
-#define PCI_VENDOR_ID_NATINST	0x1093
-
 #define PCI_DIO_SIZE 4096
 #define PCI_MITE_SIZE 4096
 
@@ -379,18 +377,17 @@ static const struct nidio_board nidio_boards[] = {
 #define this_board ((const struct nidio_board *)dev->board_ptr)
 
 static DEFINE_PCI_DEVICE_TABLE(ni_pcidio_pci_table) = {
-	{
-	PCI_VENDOR_ID_NATINST, 0x1150, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_NATINST, 0x1320, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_NATINST, 0x12b0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_NATINST, 0x0160, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_NATINST, 0x1630, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_NATINST, 0x13c0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_NATINST, 0x0400, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_NATINST, 0x1250, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_NATINST, 0x17d0, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_NATINST, 0x1800, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	0}
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1150)},
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1320)},
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x12b0)},
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x0160)},
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1630)},
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x13c0)},
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x0400)},
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1250)},
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x17d0)},
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1800)},
+	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, ni_pcidio_pci_table);
