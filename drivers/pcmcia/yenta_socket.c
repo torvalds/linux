@@ -975,7 +975,7 @@ static irqreturn_t yenta_probe_handler(int irq, void *dev_id)
 /* probes the PCI interrupt, use only on override functions */
 static int yenta_probe_cb_irq(struct yenta_socket *socket)
 {
-	u8 reg;
+	u8 reg = 0;
 
 	if (!socket->cb_irq)
 		return -1;
@@ -989,7 +989,8 @@ static int yenta_probe_cb_irq(struct yenta_socket *socket)
 	}
 
 	/* generate interrupt, wait */
-	reg = exca_readb(socket, I365_CSCINT);
+	if (!socket->dev->irq)
+		reg = exca_readb(socket, I365_CSCINT);
 	exca_writeb(socket, I365_CSCINT, reg | I365_CSC_STSCHG);
 	cb_writel(socket, CB_SOCKET_EVENT, -1);
 	cb_writel(socket, CB_SOCKET_MASK, CB_CSTSMASK);
