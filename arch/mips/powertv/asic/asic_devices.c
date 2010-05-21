@@ -80,8 +80,8 @@ static bool usb_configured;
  * Don't recommend to use it directly, it is usually used by kernel internally.
  * Portable code should be using interfaces such as ioremp, dma_map_single, etc.
  */
-unsigned long phys_to_bus_offset;
-EXPORT_SYMBOL(phys_to_bus_offset);
+unsigned long phys_to_dma_offset;
+EXPORT_SYMBOL(phys_to_dma_offset);
 
 /*
  *
@@ -533,10 +533,10 @@ void __init configure_platform(void)
 
 	switch (asic) {
 	case ASIC_ZEUS:
-		phys_to_bus_offset = 0x30000000;
+		phys_to_dma_offset = 0x30000000;
 		break;
 	case ASIC_CALLIOPE:
-		phys_to_bus_offset = 0x10000000;
+		phys_to_dma_offset = 0x10000000;
 		break;
 	case ASIC_CRONUSLITE:
 		/* Fall through */
@@ -546,10 +546,10 @@ void __init configure_platform(void)
 		 * 0x2XXXXXXX. If 0x10000000 aliases into 0x60000000-
 		 * 0x6XXXXXXX, the offset should be 0x50000000, not 0x10000000.
 		 */
-		phys_to_bus_offset = 0x10000000;
+		phys_to_dma_offset = 0x10000000;
 		break;
 	default:
-		phys_to_bus_offset = 0x00000000;
+		phys_to_dma_offset = 0x00000000;
 		break;
 	}
 }
@@ -603,7 +603,7 @@ void __init platform_alloc_bootmem(void)
 		int size = gp_resources[i].end - gp_resources[i].start + 1;
 		if ((gp_resources[i].start != 0) &&
 			((gp_resources[i].flags & IORESOURCE_MEM) != 0)) {
-			reserve_bootmem(bus_to_phys(gp_resources[i].start),
+			reserve_bootmem(dma_to_phys(gp_resources[i].start),
 				size, 0);
 			total += gp_resources[i].end -
 				gp_resources[i].start + 1;
@@ -627,7 +627,7 @@ void __init platform_alloc_bootmem(void)
 
 			else {
 				gp_resources[i].start =
-					phys_to_bus(virt_to_phys(mem));
+					phys_to_dma(virt_to_phys(mem));
 				gp_resources[i].end =
 					gp_resources[i].start + size - 1;
 				total += size;
@@ -691,7 +691,7 @@ static void __init pmem_setup_resource(void)
 	if (resource && pmemaddr && pmemlen) {
 		/* The address provided by bootloader is in kseg0. Convert to
 		 * a bus address. */
-		resource->start = phys_to_bus(pmemaddr - 0x80000000);
+		resource->start = phys_to_dma(pmemaddr - 0x80000000);
 		resource->end = resource->start + pmemlen - 1;
 
 		pr_info("persistent memory: start=0x%x  end=0x%x\n",
