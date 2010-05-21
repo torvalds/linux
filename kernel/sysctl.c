@@ -2083,20 +2083,20 @@ static void proc_skip_char(char **buf, size_t *size, const char v)
 
 #define TMPBUFLEN 22
 /**
- * proc_get_long - reads an ASCII formated integer from a user buffer
+ * proc_get_long - reads an ASCII formatted integer from a user buffer
  *
- * @buf - a kernel buffer
- * @size - size of the kernel buffer
- * @val - this is where the number will be stored
- * @neg - set to %TRUE if number is negative
- * @perm_tr - a vector which contains the allowed trailers
- * @perm_tr_len - size of the perm_tr vector
- * @tr - pointer to store the trailer character
+ * @buf: a kernel buffer
+ * @size: size of the kernel buffer
+ * @val: this is where the number will be stored
+ * @neg: set to %TRUE if number is negative
+ * @perm_tr: a vector which contains the allowed trailers
+ * @perm_tr_len: size of the perm_tr vector
+ * @tr: pointer to store the trailer character
  *
- * In case of success 0 is returned and buf and size are updated with
- * the amount of bytes read. If tr is non NULL and a trailing
- * character exist (size is non zero after returning from this
- * function) tr is updated with the trailing character.
+ * In case of success %0 is returned and @buf and @size are updated with
+ * the amount of bytes read. If @tr is non-NULL and a trailing
+ * character exists (size is non-zero after returning from this
+ * function), @tr is updated with the trailing character.
  */
 static int proc_get_long(char **buf, size_t *size,
 			  unsigned long *val, bool *neg,
@@ -2147,15 +2147,15 @@ static int proc_get_long(char **buf, size_t *size,
 }
 
 /**
- * proc_put_long - coverts an integer to a decimal ASCII formated string
+ * proc_put_long - converts an integer to a decimal ASCII formatted string
  *
- * @buf - the user buffer
- * @size - the size of the user buffer
- * @val - the integer to be converted
- * @neg - sign of the number, %TRUE for negative
+ * @buf: the user buffer
+ * @size: the size of the user buffer
+ * @val: the integer to be converted
+ * @neg: sign of the number, %TRUE for negative
  *
- * In case of success 0 is returned and buf and size are updated with
- * the amount of bytes read.
+ * In case of success %0 is returned and @buf and @size are updated with
+ * the amount of bytes written.
  */
 static int proc_put_long(void __user **buf, size_t *size, unsigned long val,
 			  bool neg)
