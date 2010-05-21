@@ -1476,8 +1476,8 @@ static int gfs2_quota_get_xstate(struct super_block *sb,
 	return 0;
 }
 
-static int gfs2_xquota_get(struct super_block *sb, int type, qid_t id,
-			   struct fs_disk_quota *fdq)
+static int gfs2_get_dqblk(struct super_block *sb, int type, qid_t id,
+			  struct fs_disk_quota *fdq)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_quota_lvb *qlvb;
@@ -1521,8 +1521,8 @@ out:
 /* GFS2 only supports a subset of the XFS fields */
 #define GFS2_FIELDMASK (FS_DQ_BSOFT|FS_DQ_BHARD)
 
-static int gfs2_xquota_set(struct super_block *sb, int type, qid_t id,
-			   struct fs_disk_quota *fdq)
+static int gfs2_set_dqblk(struct super_block *sb, int type, qid_t id,
+			  struct fs_disk_quota *fdq)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	struct gfs2_inode *ip = GFS2_I(sdp->sd_quota_inode);
@@ -1629,7 +1629,7 @@ out_put:
 const struct quotactl_ops gfs2_quotactl_ops = {
 	.quota_sync     = gfs2_quota_sync,
 	.get_xstate     = gfs2_quota_get_xstate,
-	.get_xquota	= gfs2_xquota_get,
-	.set_xquota	= gfs2_xquota_set,
+	.get_dqblk	= gfs2_get_dqblk,
+	.set_dqblk	= gfs2_set_dqblk,
 };
 
