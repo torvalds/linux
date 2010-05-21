@@ -106,7 +106,17 @@ static inline unsigned int __attribute_const__ read_cpuid_id(void)
 	return read_cpuid(CPUID_ID);
 }
 
-#else /* ifdef CONFIG_CPU_CP15 */
+#elif defined(CONFIG_CPU_V7M)
+
+#include <asm/io.h>
+#include <asm/v7m.h>
+
+static inline unsigned int __attribute_const__ read_cpuid_id(void)
+{
+	return readl(BASEADDR_V7M_SCB + V7M_SCB_CPUID);
+}
+
+#else /* ifdef CONFIG_CPU_CP15 / elif defined(CONFIG_CPU_V7M) */
 
 static inline unsigned int __attribute_const__ read_cpuid_id(void)
 {
