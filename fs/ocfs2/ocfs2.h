@@ -47,6 +47,7 @@
 /* For struct ocfs2_blockcheck_stats */
 #include "blockcheck.h"
 
+#include "reservations.h"
 
 /* Caching of metadata buffers */
 
@@ -341,6 +342,9 @@ struct ocfs2_super
 	 */
 	unsigned int local_alloc_bits;
 	unsigned int local_alloc_default_bits;
+	/* osb_clusters_at_boot can become stale! Do not trust it to
+	 * be up to date. */
+	unsigned int osb_clusters_at_boot;
 
 	enum ocfs2_local_alloc_state local_alloc_state; /* protected
 							 * by osb_lock */
@@ -348,6 +352,11 @@ struct ocfs2_super
 	struct buffer_head *local_alloc_bh;
 
 	u64 la_last_gd;
+
+	struct ocfs2_reservation_map	osb_la_resmap;
+
+	unsigned int	osb_resv_level;
+	unsigned int	osb_dir_resv_level;
 
 	/* Next three fields are for local node slot recovery during
 	 * mount. */
@@ -478,6 +487,13 @@ static inline int ocfs2_meta_ecc(struct ocfs2_super *osb)
 static inline int ocfs2_supports_indexed_dirs(struct ocfs2_super *osb)
 {
 	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_INDEXED_DIRS)
+		return 1;
+	return 0;
+}
+
+static inline int ocfs2_supports_discontig_bg(struct ocfs2_super *osb)
+{
+	if (osb->s_feature_incompat & OCFS2_FEATURE_INCOMPAT_DISCONTIG_BG)
 		return 1;
 	return 0;
 }
@@ -761,6 +777,12 @@ static inline unsigned int ocfs2_megabytes_to_clusters(struct super_block *sb,
 	BUILD_BUG_ON(OCFS2_MAX_CLUSTERSIZE > 1048576);
 
 	return megs << (20 - OCFS2_SB(sb)->s_clustersize_bits);
+}
+
+static inline unsigned int ocfs2_clusters_to_megabytes(struct super_block *sb,
+						       unsigned int clusters)
+{
+	return clusters >> (20 - OCFS2_SB(sb)->s_clustersize_bits);
 }
 
 static inline void _ocfs2_set_bit(unsigned int bit, unsigned long *bitmap)

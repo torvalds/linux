@@ -354,7 +354,8 @@ static enum dlm_status dlm_send_remote_unlock_request(struct dlm_ctxt *dlm,
 			mlog(0, "master was in-progress.  retry\n");
 		ret = status;
 	} else {
-		mlog_errno(tmpret);
+		mlog(ML_ERROR, "Error %d when sending message %u (key 0x%x) to "
+		     "node %u\n", tmpret, DLM_UNLOCK_LOCK_MSG, dlm->key, owner);
 		if (dlm_is_host_down(tmpret)) {
 			/* NOTE: this seems strange, but it is what we want.
 			 * when the master goes down during a cancel or
