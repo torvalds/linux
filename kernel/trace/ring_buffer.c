@@ -3902,12 +3902,12 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 	ret = read;
 
 	cpu_buffer->lost_events = 0;
+
+	commit = local_read(&bpage->commit);
 	/*
 	 * Set a flag in the commit field if we lost events
 	 */
 	if (missed_events) {
-		commit = local_read(&bpage->commit);
-
 		/* If there is room at the end of the page to save the
 		 * missed events, then record it there.
 		 */
@@ -3915,9 +3915,16 @@ int ring_buffer_read_page(struct ring_buffer *buffer,
 			memcpy(&bpage->data[commit], &missed_events,
 			       sizeof(missed_events));
 			local_add(RB_MISSED_STORED, &bpage->commit);
+			commit += sizeof(missed_events);
 		}
 		local_add(RB_MISSED_EVENTS, &bpage->commit);
 	}
+
+	/*
+	 * This page may be off to user land. Zero it out here.
+	 */
+	if (commit < BUF_PAGE_SIZE)
+		memset(&bpage->data[commit], 0, BUF_PAGE_SIZE - commit);
 
  out_unlock:
 	spin_unlock_irqrestore(&cpu_buffer->reader_lock, flags);
