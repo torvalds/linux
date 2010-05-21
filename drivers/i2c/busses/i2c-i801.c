@@ -711,23 +711,17 @@ static int __devinit i801_probe(struct pci_dev *dev, const struct pci_device_id 
 	I801_dev = dev;
 	i801_features = 0;
 	switch (dev->device) {
-	case PCI_DEVICE_ID_INTEL_82801EB_3:
-	case PCI_DEVICE_ID_INTEL_ESB_4:
-	case PCI_DEVICE_ID_INTEL_ICH6_16:
-	case PCI_DEVICE_ID_INTEL_ICH7_17:
-	case PCI_DEVICE_ID_INTEL_ESB2_17:
-	case PCI_DEVICE_ID_INTEL_ICH8_5:
-	case PCI_DEVICE_ID_INTEL_ICH9_6:
-	case PCI_DEVICE_ID_INTEL_TOLAPAI_1:
-	case PCI_DEVICE_ID_INTEL_ICH10_4:
-	case PCI_DEVICE_ID_INTEL_ICH10_5:
-	case PCI_DEVICE_ID_INTEL_PCH_SMBUS:
-	case PCI_DEVICE_ID_INTEL_CPT_SMBUS:
+	default:
 		i801_features |= FEATURE_I2C_BLOCK_READ;
 		/* fall through */
 	case PCI_DEVICE_ID_INTEL_82801DB_3:
 		i801_features |= FEATURE_SMBUS_PEC;
 		i801_features |= FEATURE_BLOCK_BUFFER;
+		/* fall through */
+	case PCI_DEVICE_ID_INTEL_82801CA_3:
+	case PCI_DEVICE_ID_INTEL_82801BA_2:
+	case PCI_DEVICE_ID_INTEL_82801AB_3:
+	case PCI_DEVICE_ID_INTEL_82801AA_3:
 		break;
 	}
 
