@@ -63,4 +63,11 @@ config KGDB_KDB
 	help
 	  KDB frontend for kernel
 
+config KDB_KEYBOARD
+	bool "KGDB_KDB: keyboard as input device"
+	depends on VT && KGDB_KDB
+	default n
+	help
+	  KDB can use a PS/2 type keyboard for an input device
+
 endif # KGDB

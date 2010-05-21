@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/kgdb.h>
+#include <linux/kdb.h>
 #include <linux/tty.h>
 
 #define MAX_CONFIG_LEN		40
@@ -32,6 +33,40 @@ static struct kparam_string kps = {
 static struct tty_driver	*kgdb_tty_driver;
 static int			kgdb_tty_line;
 
+#ifdef CONFIG_KDB_KEYBOARD
+static int kgdboc_register_kbd(char **cptr)
+{
+	if (strncmp(*cptr, "kbd", 3) == 0) {
+		if (kdb_poll_idx < KDB_POLL_FUNC_MAX) {
+			kdb_poll_funcs[kdb_poll_idx] = kdb_get_kbd_char;
+			kdb_poll_idx++;
+			if (cptr[0][3] == ',')
+				*cptr += 4;
+			else
+				return 1;
+		}
+	}
+	return 0;
+}
+
+static void kgdboc_unregister_kbd(void)
+{
+	int i;
+
+	for (i = 0; i < kdb_poll_idx; i++) {
+		if (kdb_poll_funcs[i] == kdb_get_kbd_char) {
+			kdb_poll_idx--;
+			kdb_poll_funcs[i] = kdb_poll_funcs[kdb_poll_idx];
+			kdb_poll_funcs[kdb_poll_idx] = NULL;
+			i--;
+		}
+	}
+}
+#else /* ! CONFIG_KDB_KEYBOARD */
+#define kgdboc_register_kbd(x) 0
+#define kgdboc_unregister_kbd()
+#endif /* ! CONFIG_KDB_KEYBOARD */
+
 static int kgdboc_option_setup(char *opt)
 {
 	if (strlen(opt) > MAX_CONFIG_LEN) {
@@ -45,25 +80,38 @@ static int kgdboc_option_setup(char *opt)
 
 __setup("kgdboc=", kgdboc_option_setup);
 
+static void cleanup_kgdboc(void)
+{
+	kgdboc_unregister_kbd();
+	if (configured == 1)
+		kgdb_unregister_io_module(&kgdboc_io_ops);
+}
+
 static int configure_kgdboc(void)
 {
 	struct tty_driver *p;
 	int tty_line = 0;
 	int err;
+	char *cptr = config;
 
 	err = kgdboc_option_setup(config);
 	if (err || !strlen(config) || isspace(config[0]))
 		goto noconfig;
 
 	err = -ENODEV;
+	kgdb_tty_driver = NULL;
 
-	p = tty_find_polling_driver(config, &tty_line);
+	if (kgdboc_register_kbd(&cptr))
+		goto do_register;
+
+	p = tty_find_polling_driver(cptr, &tty_line);
 	if (!p)
 		goto noconfig;
 
 	kgdb_tty_driver = p;
 	kgdb_tty_line = tty_line;
 
+do_register:
 	err = kgdb_register_io_module(&kgdboc_io_ops);
 	if (err)
 		goto noconfig;
@@ -75,6 +123,7 @@ static int configure_kgdboc(void)
 noconfig:
 	config[0] = 0;
 	configured = 0;
+	cleanup_kgdboc();
 
 	return err;
 }
@@ -88,20 +137,18 @@ static int __init init_kgdboc(void)
 	return configure_kgdboc();
 }
 
-static void cleanup_kgdboc(void)
-{
-	if (configured == 1)
-		kgdb_unregister_io_module(&kgdboc_io_ops);
-}
-
 static int kgdboc_get_char(void)
 {
+	if (!kgdb_tty_driver)
+		return -1;
 	return kgdb_tty_driver->ops->poll_get_char(kgdb_tty_driver,
 						kgdb_tty_line);
 }
 
 static void kgdboc_put_char(u8 chr)
 {
+	if (!kgdb_tty_driver)
+		return;
 	kgdb_tty_driver->ops->poll_put_char(kgdb_tty_driver,
 					kgdb_tty_line, chr);
 }
