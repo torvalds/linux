@@ -3326,15 +3326,16 @@ F:	include/linux/key-type.h
 F:	include/keys/
 F:	security/keys/
 
-KGDB
+KGDB / debug_core
 M:	Jason Wessel <jason.wessel@windriver.com>
+W:	http://kgdb.wiki.kernel.org/
 L:	kgdb-bugreport@lists.sourceforge.net
 S:	Maintained
 F:	Documentation/DocBook/kgdb.tmpl
 F:	drivers/misc/kgdbts.c
 F:	drivers/serial/kgdboc.c
 F:	include/linux/kgdb.h
-F:	kernel/kgdb.c
+F:	kernel/debug/
 
 KMEMCHECK
 M:	Vegard Nossum <vegardno@ifi.uio.no>
