@@ -33,6 +33,7 @@
 
 #include <mach/pxa27x.h>
 #include <mach/colibri.h>
+#include <mach/mmc.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -44,6 +45,15 @@ static mfp_cfg_t colibri_pxa270_pin_config[] __initdata = {
 	/* Ethernet */
 	GPIO78_nCS_2,	/* Ethernet CS */
 	GPIO114_GPIO,	/* Ethernet IRQ */
+
+	/* MMC */
+	GPIO32_MMC_CLK,
+	GPIO92_MMC_DAT_0,
+	GPIO109_MMC_DAT_1,
+	GPIO110_MMC_DAT_2,
+	GPIO111_MMC_DAT_3,
+	GPIO112_MMC_CMD,
+	GPIO0_GPIO,	/* SD detect */
 };
 
 /******************************************************************************
@@ -138,6 +148,26 @@ static void __init colibri_pxa270_eth_init(void)
 static inline void colibri_pxa270_eth_init(void) {}
 #endif
 
+/******************************************************************************
+ * SD/MMC card controller
+ ******************************************************************************/
+#if defined(CONFIG_MMC_PXA) || defined(CONFIG_MMC_PXA_MODULE)
+static struct pxamci_platform_data colibri_pxa270_mci_platform_data = {
+	.ocr_mask		= MMC_VDD_32_33 | MMC_VDD_33_34,
+	.gpio_power		= -1,
+	.gpio_card_detect	= GPIO0_COLIBRI_PXA270_SD_DETECT,
+	.gpio_card_ro		= -1,
+	.detect_delay_ms	= 200,
+};
+
+static void __init colibri_pxa270_mmc_init(void)
+{
+	pxa_set_mci_info(&colibri_pxa270_mci_platform_data);
+}
+#else
+static inline void colibri_pxa270_mmc_init(void) {}
+#endif
+
 static void __init colibri_pxa270_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa270_pin_config));
@@ -147,6 +177,7 @@ static void __init colibri_pxa270_init(void)
 
 	colibri_pxa270_nor_init();
 	colibri_pxa270_eth_init();
+	colibri_pxa270_mmc_init();
 }
 
 MACHINE_START(COLIBRI, "Toradex Colibri PXA270")
