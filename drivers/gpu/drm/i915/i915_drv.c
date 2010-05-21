@@ -388,33 +388,10 @@ int i965_reset(struct drm_device *dev, u8 flags)
 	 * switched away).
 	 */
 	if (drm_core_check_feature(dev, DRIVER_MODESET) ||
-	    !dev_priv->mm.suspended) {
-		drm_i915_ring_buffer_t *ring = &dev_priv->render_ring;
-		struct drm_gem_object *obj = ring->ring_obj;
-		struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+			!dev_priv->mm.suspended) {
+		struct intel_ring_buffer *ring = &dev_priv->render_ring;
 		dev_priv->mm.suspended = 0;
-
-		/* Stop the ring if it's running. */
-		I915_WRITE(PRB0_CTL, 0);
-		I915_WRITE(PRB0_TAIL, 0);
-		I915_WRITE(PRB0_HEAD, 0);
-
-		/* Initialize the ring. */
-		I915_WRITE(PRB0_START, obj_priv->gtt_offset);
-		I915_WRITE(PRB0_CTL,
-			   ((obj->size - 4096) & RING_NR_PAGES) |
-			   RING_NO_REPORT |
-			   RING_VALID);
-		if (!drm_core_check_feature(dev, DRIVER_MODESET))
-			i915_kernel_lost_context(dev);
-		else {
-			ring->head = I915_READ(PRB0_HEAD) & HEAD_ADDR;
-			ring->tail = I915_READ(PRB0_TAIL) & TAIL_ADDR;
-			ring->space = ring->head - (ring->tail + 8);
-			if (ring->space < 0)
-				ring->space += ring->Size;
-		}
-
+		ring->init(dev, ring);
 		mutex_unlock(&dev->struct_mutex);
 		drm_irq_uninstall(dev);
 		drm_irq_install(dev);

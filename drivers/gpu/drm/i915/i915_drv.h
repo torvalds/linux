@@ -31,8 +31,8 @@
 #define _I915_DRV_H_
 
 #include "i915_reg.h"
-#include "i915_drm.h"
 #include "intel_bios.h"
+#include "intel_ringbuffer.h"
 #include <linux/io-mapping.h>
 
 /* General customization:
@@ -91,16 +91,6 @@ struct drm_i915_gem_phys_object {
 	drm_dma_handle_t *handle;
 	struct drm_gem_object *cur_obj;
 };
-
-typedef struct _drm_i915_ring_buffer {
-	unsigned long Size;
-	u8 *virtual_start;
-	int head;
-	int tail;
-	int space;
-	drm_local_map_t map;
-	struct drm_gem_object *ring_obj;
-} drm_i915_ring_buffer_t;
 
 struct mem_block {
 	struct mem_block *next;
@@ -244,7 +234,7 @@ typedef struct drm_i915_private {
 	void __iomem *regs;
 
 	struct pci_dev *bridge_dev;
-	drm_i915_ring_buffer_t render_ring;
+	struct intel_ring_buffer render_ring;
 
 	drm_dma_handle_t *status_page_dmah;
 	void *hw_status_page;
@@ -270,8 +260,6 @@ typedef struct drm_i915_private {
 	atomic_t irq_received;
 	/** Protects user_irq_refcount and irq_mask_reg */
 	spinlock_t user_irq_lock;
-	/** Refcount for i915_user_irq_get() versus i915_user_irq_put(). */
-	int user_irq_refcount;
 	u32 trace_irq_seqno;
 	/** Cached value of IMR to avoid reads in updating the bitfield */
 	u32 irq_mask_reg;
@@ -832,9 +820,7 @@ extern int i915_irq_emit(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
 extern int i915_irq_wait(struct drm_device *dev, void *data,
 			 struct drm_file *file_priv);
-void i915_user_irq_get(struct drm_device *dev);
 void i915_trace_irq_get(struct drm_device *dev, u32 seqno);
-void i915_user_irq_put(struct drm_device *dev);
 extern void i915_enable_interrupt (struct drm_device *dev);
 
 extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
@@ -853,8 +839,10 @@ extern int i915_vblank_swap(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
 extern void i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask);
 extern void i915_disable_irq(drm_i915_private_t *dev_priv, u32 mask);
-void ironlake_enable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask);
-void ironlake_disable_graphics_irq(drm_i915_private_t *dev_priv, u32 mask);
+extern void ironlake_enable_graphics_irq(drm_i915_private_t *dev_priv,
+		u32 mask);
+extern void ironlake_disable_graphics_irq(drm_i915_private_t *dev_priv,
+		u32 mask);
 
 void
 i915_enable_pipestat(drm_i915_private_t *dev_priv, int pipe, u32 mask);
@@ -962,8 +950,6 @@ void i915_gem_object_flush_write_domain(struct drm_gem_object *obj);
 
 void i915_gem_shrinker_init(void);
 void i915_gem_shrinker_exit(void);
-int i915_gem_init_pipe_control(struct drm_device *dev);
-void i915_gem_cleanup_pipe_control(struct drm_device *dev);
 
 /* i915_gem_tiling.c */
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
@@ -1014,16 +1000,6 @@ static inline void ironlake_opregion_gse_intr(struct drm_device *dev) { return; 
 static inline void opregion_enable_asle(struct drm_device *dev) { return; }
 #endif
 
-/* intel_ringbuffer.c */
-extern void i915_gem_flush(struct drm_device *dev,
-			   uint32_t invalidate_domains,
-			   uint32_t flush_domains);
-extern int i915_dispatch_gem_execbuffer(struct drm_device *dev,
-					struct drm_i915_gem_execbuffer2 *exec,
-					struct drm_clip_rect *cliprects,
-					uint64_t exec_offset);
-extern uint32_t i915_ring_add_request(struct drm_device *dev);
-
 /* modesetting */
 extern void intel_modeset_init(struct drm_device *dev);
 extern void intel_modeset_cleanup(struct drm_device *dev);
@@ -1044,7 +1020,8 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
  * has access to the ring.
  */
 #define RING_LOCK_TEST_WITH_RETURN(dev, file_priv) do {			\
-	if (((drm_i915_private_t *)dev->dev_private)->render_ring.ring_obj == NULL) \
+	if (((drm_i915_private_t *)dev->dev_private)->render_ring.gem_object \
+			== NULL)					\
 		LOCK_TEST_WITH_RETURN(dev, file_priv);			\
 } while (0)
 
@@ -1060,32 +1037,27 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
 
 #define I915_VERBOSE 0
 
-#define RING_LOCALS	volatile unsigned int *ring_virt__;
-
-#define BEGIN_LP_RING(n) do {						\
-	int bytes__ = 4*(n);						\
-	if (I915_VERBOSE) DRM_DEBUG("BEGIN_LP_RING(%d)\n", (n));	\
-	/* a wrap must occur between instructions so pad beforehand */	\
-	if (unlikely (dev_priv->render_ring.tail + bytes__ > dev_priv->render_ring.Size)) \
-		i915_wrap_ring(dev);					\
-	if (unlikely (dev_priv->render_ring.space < bytes__))			\
-		i915_wait_ring(dev, bytes__, __func__);			\
-	ring_virt__ = (unsigned int *)					\
-	        (dev_priv->render_ring.virtual_start + dev_priv->render_ring.tail);	\
-	dev_priv->render_ring.tail += bytes__;					\
-	dev_priv->render_ring.tail &= dev_priv->render_ring.Size - 1;			\
-	dev_priv->render_ring.space -= bytes__;				\
+#define BEGIN_LP_RING(n)  do { \
+	drm_i915_private_t *dev_priv = dev->dev_private;                \
+	if (I915_VERBOSE)						\
+		DRM_DEBUG("   BEGIN_LP_RING %x\n", (int)(n));		\
+	intel_ring_begin(dev, &dev_priv->render_ring, 4*(n));		\
 } while (0)
 
-#define OUT_RING(n) do {						\
-	if (I915_VERBOSE) DRM_DEBUG("   OUT_RING %x\n", (int)(n));	\
-	*ring_virt__++ = (n);						\
+
+#define OUT_RING(x) do {						\
+	drm_i915_private_t *dev_priv = dev->dev_private;		\
+	if (I915_VERBOSE)						\
+		DRM_DEBUG("   OUT_RING %x\n", (int)(x));		\
+	intel_ring_emit(dev, &dev_priv->render_ring, x);		\
 } while (0)
 
 #define ADVANCE_LP_RING() do {						\
+	drm_i915_private_t *dev_priv = dev->dev_private;                \
 	if (I915_VERBOSE)						\
-		DRM_DEBUG("ADVANCE_LP_RING %x\n", dev_priv->render_ring.tail);	\
-	I915_WRITE(PRB0_TAIL, dev_priv->render_ring.tail);			\
+		DRM_DEBUG("ADVANCE_LP_RING %x\n",			\
+				dev_priv->render_ring.tail);		\
+	intel_ring_advance(dev, &dev_priv->render_ring);		\
 } while(0)
 
 /**
@@ -1103,13 +1075,11 @@ extern int intel_trans_dp_port_sel (struct drm_crtc *crtc);
  *
  * The area from dword 0x20 to 0x3ff is available for driver usage.
  */
-#define READ_HWSP(dev_priv, reg)  (((volatile u32*)(dev_priv->hw_status_page))[reg])
+#define READ_HWSP(dev_priv, reg)  (((volatile u32 *)\
+			(dev_priv->render_ring.status_page.page_addr))[reg])
 #define READ_BREADCRUMB(dev_priv) READ_HWSP(dev_priv, I915_BREADCRUMB_INDEX)
 #define I915_GEM_HWS_INDEX		0x20
 #define I915_BREADCRUMB_INDEX		0x21
-
-extern int i915_wrap_ring(struct drm_device * dev);
-extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define INTEL_INFO(dev)	(((struct drm_i915_private *) (dev)->dev_private)->info)
 

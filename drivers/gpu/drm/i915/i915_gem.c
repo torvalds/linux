@@ -1590,6 +1590,7 @@ i915_gem_process_flushing_list(struct drm_device *dev,
 		}
 	}
 }
+
 uint32_t
 i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
 		 uint32_t flush_domains)
@@ -1607,7 +1608,8 @@ i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
 	if (request == NULL)
 		return 0;
 
-	seqno = i915_ring_add_request(dev);
+	seqno = dev_priv->render_ring.add_request(dev, &dev_priv->render_ring,
+						  file_priv, flush_domains);
 
 	DRM_DEBUG_DRIVER("%d\n", seqno);
 
@@ -1645,10 +1647,8 @@ i915_add_request(struct drm_device *dev, struct drm_file *file_priv,
 static uint32_t
 i915_retire_commands(struct drm_device *dev)
 {
-	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t cmd = MI_FLUSH | MI_NO_WRITE_FLUSH;
 	uint32_t flush_domains = 0;
-	RING_LOCALS;
 
 	/* The sampler always gets flushed on i965 (sigh) */
 	if (IS_I965G(dev))
@@ -1746,7 +1746,9 @@ i915_gem_retire_requests(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	uint32_t seqno;
 
-	if (!dev_priv->hw_status_page || list_empty(&dev_priv->mm.request_list))
+	struct intel_ring_buffer *ring = &(dev_priv->render_ring);
+	if (!ring->status_page.page_addr
+			|| list_empty(&dev_priv->mm.request_list))
 		return;
 
 	seqno = i915_get_gem_seqno(dev);
@@ -1773,7 +1775,8 @@ i915_gem_retire_requests(struct drm_device *dev)
 
 	if (unlikely (dev_priv->trace_irq_seqno &&
 		      i915_seqno_passed(dev_priv->trace_irq_seqno, seqno))) {
-		i915_user_irq_put(dev);
+
+		ring->user_irq_put(dev, ring);
 		dev_priv->trace_irq_seqno = 0;
 	}
 }
@@ -1803,6 +1806,7 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno, int interruptible)
 	u32 ier;
 	int ret = 0;
 
+	struct intel_ring_buffer *ring = &dev_priv->render_ring;
 	BUG_ON(seqno == 0);
 
 	if (atomic_read(&dev_priv->mm.wedged))
@@ -1823,7 +1827,7 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno, int interruptible)
 		trace_i915_gem_request_wait_begin(dev, seqno);
 
 		dev_priv->mm.waiting_gem_seqno = seqno;
-		i915_user_irq_get(dev);
+		ring->user_irq_get(dev, ring);
 		if (interruptible)
 			ret = wait_event_interruptible(dev_priv->irq_queue,
 				i915_seqno_passed(i915_get_gem_seqno(dev), seqno) ||
@@ -1833,7 +1837,7 @@ i915_do_wait_request(struct drm_device *dev, uint32_t seqno, int interruptible)
 				i915_seqno_passed(i915_get_gem_seqno(dev), seqno) ||
 				atomic_read(&dev_priv->mm.wedged));
 
-		i915_user_irq_put(dev);
+		ring->user_irq_put(dev, ring);
 		dev_priv->mm.waiting_gem_seqno = 0;
 
 		trace_i915_gem_request_wait_end(dev, seqno);
@@ -1866,6 +1870,19 @@ i915_wait_request(struct drm_device *dev, uint32_t seqno)
 	return i915_do_wait_request(dev, seqno, 1);
 }
 
+
+static void
+i915_gem_flush(struct drm_device *dev,
+	       uint32_t invalidate_domains,
+	       uint32_t flush_domains)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	if (flush_domains & I915_GEM_DOMAIN_CPU)
+		drm_agp_chipset_flush(dev);
+	dev_priv->render_ring.flush(dev, &dev_priv->render_ring,
+			invalidate_domains,
+			flush_domains);
+}
 
 /**
  * Ensures that all rendering to the object has completed and the object is
@@ -3820,7 +3837,11 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 #endif
 
 	/* Exec the batchbuffer */
-	ret = i915_dispatch_gem_execbuffer(dev, args, cliprects, exec_offset);
+	ret = dev_priv->render_ring.dispatch_gem_execbuffer(dev,
+							    &dev_priv->render_ring,
+							    args,
+							    cliprects,
+							    exec_offset);
 	if (ret) {
 		DRM_ERROR("dispatch failed %d\n", ret);
 		goto err;
@@ -4378,7 +4399,8 @@ i915_gem_idle(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 
-	if (dev_priv->mm.suspended || dev_priv->render_ring.ring_obj == NULL) {
+	if (dev_priv->mm.suspended ||
+			dev_priv->render_ring.gem_object == NULL) {
 		mutex_unlock(&dev->struct_mutex);
 		return 0;
 	}
@@ -4420,7 +4442,7 @@ i915_gem_idle(struct drm_device *dev)
  * 965+ support PIPE_CONTROL commands, which provide finer grained control
  * over cache flushing.
  */
-int
+static int
 i915_gem_init_pipe_control(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -4459,7 +4481,8 @@ err:
 	return ret;
 }
 
-void
+
+static void
 i915_gem_cleanup_pipe_control(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
@@ -4474,6 +4497,37 @@ i915_gem_cleanup_pipe_control(struct drm_device *dev)
 	dev_priv->seqno_obj = NULL;
 
 	dev_priv->seqno_page = NULL;
+}
+
+int
+i915_gem_init_ringbuffer(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	int ret;
+	dev_priv->render_ring = render_ring;
+	if (!I915_NEED_GFX_HWS(dev)) {
+		dev_priv->render_ring.status_page.page_addr
+			= dev_priv->status_page_dmah->vaddr;
+		memset(dev_priv->render_ring.status_page.page_addr,
+				0, PAGE_SIZE);
+	}
+	if (HAS_PIPE_CONTROL(dev)) {
+		ret = i915_gem_init_pipe_control(dev);
+		if (ret)
+			return ret;
+	}
+	ret = intel_init_ring_buffer(dev, &dev_priv->render_ring);
+	return ret;
+}
+
+void
+i915_gem_cleanup_ringbuffer(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
+	if (HAS_PIPE_CONTROL(dev))
+		i915_gem_cleanup_pipe_control(dev);
 }
 
 int

@@ -4629,7 +4629,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	unsigned long flags;
 	int pipesrc_reg = (intel_crtc->pipe == 0) ? PIPEASRC : PIPEBSRC;
 	int ret, pipesrc;
-	RING_LOCALS;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
 	if (work == NULL)

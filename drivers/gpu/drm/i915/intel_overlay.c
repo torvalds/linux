@@ -211,9 +211,7 @@ static void intel_overlay_unmap_regs_atomic(struct intel_overlay *overlay)
 static int intel_overlay_on(struct intel_overlay *overlay)
 {
 	struct drm_device *dev = overlay->dev;
-        drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
-	RING_LOCALS;
 
 	BUG_ON(overlay->active);
 
@@ -248,7 +246,6 @@ static void intel_overlay_continue(struct intel_overlay *overlay,
         drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 flip_addr = overlay->flip_addr;
 	u32 tmp;
-	RING_LOCALS;
 
 	BUG_ON(!overlay->active);
 
@@ -274,7 +271,6 @@ static int intel_overlay_wait_flip(struct intel_overlay *overlay)
         drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
 	u32 tmp;
-	RING_LOCALS;
 
 	if (overlay->last_flip_req != 0) {
 		ret = i915_do_wait_request(dev, overlay->last_flip_req, 1);
@@ -314,9 +310,7 @@ static int intel_overlay_off(struct intel_overlay *overlay)
 {
 	u32 flip_addr = overlay->flip_addr;
 	struct drm_device *dev = overlay->dev;
-        drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
-	RING_LOCALS;
 
 	BUG_ON(!overlay->active);
 
@@ -390,11 +384,9 @@ int intel_overlay_recover_from_interrupt(struct intel_overlay *overlay,
 					 int interruptible)
 {
 	struct drm_device *dev = overlay->dev;
-        drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_gem_object *obj;
 	u32 flip_addr;
 	int ret;
-	RING_LOCALS;
 
 	if (overlay->hw_wedged == HW_WEDGED)
 		return -EIO;

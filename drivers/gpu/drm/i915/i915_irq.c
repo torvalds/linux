@@ -545,7 +545,8 @@ i915_ringbuffer_last_batch(struct drm_device *dev)
 	}
 
 	if (bbaddr == 0) {
-		ring = (u32 *)(dev_priv->render_ring.virtual_start + dev_priv->render_ring.Size);
+		ring = (u32 *)(dev_priv->render_ring.virtual_start
+				+ dev_priv->render_ring.size);
 		while (--ring >= (u32 *)dev_priv->render_ring.virtual_start) {
 			bbaddr = i915_get_bbaddr(dev, ring);
 			if (bbaddr)
@@ -639,7 +640,8 @@ static void i915_capture_error_state(struct drm_device *dev)
 	error->batchbuffer[1] = i915_error_object_create(dev, batchbuffer[1]);
 
 	/* Record the ringbuffer */
-	error->ringbuffer = i915_error_object_create(dev, dev_priv->render_ring.ring_obj);
+	error->ringbuffer = i915_error_object_create(dev,
+			dev_priv->render_ring.gem_object);
 
 	/* Record buffers on the active list. */
 	error->active_bo = NULL;
@@ -984,7 +986,6 @@ static int i915_emit_irq(struct drm_device * dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
-	RING_LOCALS;
 
 	i915_kernel_lost_context(dev);
 
@@ -1009,9 +1010,10 @@ static int i915_emit_irq(struct drm_device * dev)
 void i915_trace_irq_get(struct drm_device *dev, u32 seqno)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
+	struct intel_ring_buffer *render_ring = &dev_priv->render_ring;
 
 	if (dev_priv->trace_irq_seqno == 0)
-		i915_user_irq_get(dev);
+		render_ring->user_irq_get(dev, render_ring);
 
 	dev_priv->trace_irq_seqno = seqno;
 }
@@ -1021,6 +1023,7 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	struct drm_i915_master_private *master_priv = dev->primary->master->driver_priv;
 	int ret = 0;
+	struct intel_ring_buffer *render_ring = &dev_priv->render_ring;
 
 	DRM_DEBUG_DRIVER("irq_nr=%d breadcrumb=%d\n", irq_nr,
 		  READ_BREADCRUMB(dev_priv));
@@ -1034,10 +1037,10 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 	if (master_priv->sarea_priv)
 		master_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
 
-	i915_user_irq_get(dev);
+	render_ring->user_irq_get(dev, render_ring);
 	DRM_WAIT_ON(ret, dev_priv->irq_queue, 3 * DRM_HZ,
 		    READ_BREADCRUMB(dev_priv) >= irq_nr);
-	i915_user_irq_put(dev);
+	render_ring->user_irq_put(dev, render_ring);
 
 	if (ret == -EBUSY) {
 		DRM_ERROR("EBUSY -- rec: %d emitted: %d\n",
