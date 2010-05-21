@@ -3422,6 +3422,7 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	u32 aeq_info;
 	u32 next_iwarp_state = 0;
+	u32 aeqe_cq_id;
 	u16 async_event_id;
 	u8 tcp_state;
 	u8 iwarp_state;
@@ -3448,6 +3449,14 @@ static void nes_process_iwarp_aeqe(struct nes_device *nesdev,
 			async_event_id,
 			le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]), aeqe,
 			nes_tcp_state_str[tcp_state], nes_iwarp_state_str[iwarp_state]);
+
+	aeqe_cq_id = le32_to_cpu(aeqe->aeqe_words[NES_AEQE_COMP_QP_CQ_ID_IDX]);
+	if (aeq_info & NES_AEQE_QP) {
+		if ((!nes_is_resource_allocated(nesadapter, nesadapter->allocated_qps,
+				aeqe_cq_id)) ||
+				(atomic_read(&nesqp->close_timer_started)))
+			return;
+	}
 
 	switch (async_event_id) {
 		case NES_AEQE_AEID_LLP_FIN_RECEIVED:
