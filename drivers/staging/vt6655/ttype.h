@@ -65,10 +65,6 @@ typedef int             BOOL;
 #define Calcu_LinkQual
 #endif
 
-#ifndef Calcu_LinkQual
-#define Calcu_LinkQual
-#endif
-
 /****** Simple typedefs  ***************************************************/
 
 /* These lines assume that your compiler's longs are 32 bits and
