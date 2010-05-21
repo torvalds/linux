@@ -215,19 +215,13 @@ int sc_ioctl(int card, scs_ioctl *data)
 		pr_debug("%s: DCBIOSETSPID: ioctl received\n",
 				sc_adapter[card]->devicename);
 
-		spid = kmalloc(SCIOC_SPIDSIZE, GFP_KERNEL);
-		if(!spid) {
-			kfree(rcvmsg);
-			return -ENOMEM;
-		}
-
 		/*
 		 * Get the spid from user space
 		 */
-		if (copy_from_user(spid, data->dataptr, SCIOC_SPIDSIZE)) {
+		spid = memdup_user(data->dataptr, SCIOC_SPIDSIZE);
+		if (IS_ERR(spid)) {
 			kfree(rcvmsg);
-			kfree(spid);
-			return -EFAULT;
+			return PTR_ERR(spid);
 		}
 
 		pr_debug("%s: SCIOCSETSPID: setting channel %d spid to %s\n", 
@@ -296,18 +290,13 @@ int sc_ioctl(int card, scs_ioctl *data)
 		pr_debug("%s: SCIOSETDN: ioctl received\n",
 				sc_adapter[card]->devicename);
 
-		dn = kmalloc(SCIOC_DNSIZE, GFP_KERNEL);
-		if (!dn) {
-			kfree(rcvmsg);
-			return -ENOMEM;
-		}
 		/*
 		 * Get the spid from user space
 		 */
-		if (copy_from_user(dn, data->dataptr, SCIOC_DNSIZE)) {
+		dn = memdup_user(data->dataptr, SCIOC_DNSIZE);
+		if (IS_ERR(dn)) {
 			kfree(rcvmsg);
-			kfree(dn);
-			return -EFAULT;
+			return PTR_ERR(dn);
 		}
 
 		pr_debug("%s: SCIOCSETDN: setting channel %d dn to %s\n", 
