@@ -89,6 +89,8 @@ obj-$(CONFIG_PATA_RB532)	+= pata_rb532_cf.o
 obj-$(CONFIG_PATA_RZ1000)	+= pata_rz1000.o
 obj-$(CONFIG_PATA_WINBOND_VLB)	+= pata_winbond.o
 
+obj-$(CONFIG_PATA_PXA)		+= pata_pxa.o
+
 # Should be last but two libata driver
 obj-$(CONFIG_PATA_ACPI)		+= pata_acpi.o
 # Should be last but one libata driver
