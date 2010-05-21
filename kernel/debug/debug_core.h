@@ -66,9 +66,11 @@ extern void gdbstub_msg_write(const char *s, int len);
 
 /* gdbstub functions used for kdb <-> gdbstub transition */
 extern int gdbstub_state(struct kgdb_state *ks, char *cmd);
+extern int dbg_kdb_mode;
 
 #ifdef CONFIG_KGDB_KDB
 extern int kdb_stub(struct kgdb_state *ks);
+extern int kdb_parse(const char *cmdstr);
 #else /* ! CONFIG_KGDB_KDB */
 static inline int kdb_stub(struct kgdb_state *ks)
 {

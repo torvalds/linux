@@ -82,7 +82,7 @@ static int kgdb_use_con;
 int dbg_switch_cpu;
 
 /* Use kdb or gdbserver mode */
-static int dbg_kdb_mode = 1;
+int dbg_kdb_mode = 1;
 
 static int __init opt_kgdb_con(char *str)
 {
