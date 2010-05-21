@@ -460,19 +460,6 @@ static int kgdb_reenter_check(struct kgdb_state *ks)
 	return 1;
 }
 
-static void dbg_cpu_switch(int cpu, int next_cpu)
-{
-	/* Mark the cpu we are switching away from as a slave when it
-	 * holds the kgdb_active token.  This must be done so that the
-	 * that all the cpus wait in for the debug core will not enter
-	 * again as the master. */
-	if (cpu == atomic_read(&kgdb_active)) {
-		kgdb_info[cpu].exception_state |= DCPU_IS_SLAVE;
-		kgdb_info[cpu].exception_state &= ~DCPU_WANT_MASTER;
-	}
-	kgdb_info[next_cpu].exception_state |= DCPU_NEXT_MASTER;
-}
-
 static void dbg_touch_watchdogs(void)
 {
 	touch_softlockup_watchdog_sync();
@@ -638,7 +625,8 @@ cpu_master_loop:
 		if (error == DBG_PASS_EVENT) {
 			dbg_kdb_mode = !dbg_kdb_mode;
 		} else if (error == DBG_SWITCH_CPU_EVENT) {
-			dbg_cpu_switch(cpu, dbg_switch_cpu);
+			kgdb_info[dbg_switch_cpu].exception_state |=
+				DCPU_NEXT_MASTER;
 			goto cpu_loop;
 		} else {
 			kgdb_info[cpu].ret_state = error;

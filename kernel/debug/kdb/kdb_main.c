@@ -1749,13 +1749,13 @@ static int kdb_go(int argc, const char **argv)
 	int nextarg;
 	long offset;
 
+	if (raw_smp_processor_id() != kdb_initial_cpu) {
+		kdb_printf("go must execute on the entry cpu, "
+			   "please use \"cpu %d\" and then execute go\n",
+			   kdb_initial_cpu);
+		return KDB_BADCPUNUM;
+	}
 	if (argc == 1) {
-		if (raw_smp_processor_id() != kdb_initial_cpu) {
-			kdb_printf("go <address> must be issued from the "
-				   "initial cpu, do cpu %d first\n",
-				   kdb_initial_cpu);
-			return KDB_ARGCOUNT;
-		}
 		nextarg = 1;
 		diag = kdbgetaddrarg(argc, argv, &nextarg,
 				     &addr, &offset, NULL);
