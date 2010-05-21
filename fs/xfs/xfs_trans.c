@@ -44,6 +44,7 @@
 #include "xfs_trans_priv.h"
 #include "xfs_trans_space.h"
 #include "xfs_inode_item.h"
+#include "xfs_trace.h"
 
 kmem_zone_t	*xfs_trans_zone;
 
@@ -243,9 +244,8 @@ _xfs_trans_alloc(
 	tp->t_type = type;
 	tp->t_mountp = mp;
 	tp->t_items_free = XFS_LIC_NUM_SLOTS;
-	tp->t_busy_free = XFS_LBC_NUM_SLOTS;
 	xfs_lic_init(&(tp->t_items));
-	XFS_LBC_INIT(&(tp->t_busy));
+	INIT_LIST_HEAD(&tp->t_busy);
 	return tp;
 }
 
@@ -255,8 +255,13 @@ _xfs_trans_alloc(
  */
 STATIC void
 xfs_trans_free(
-	xfs_trans_t	*tp)
+	struct xfs_trans	*tp)
 {
+	struct xfs_busy_extent	*busyp, *n;
+
+	list_for_each_entry_safe(busyp, n, &tp->t_busy, list)
+		xfs_alloc_busy_clear(tp->t_mountp, busyp);
+
 	atomic_dec(&tp->t_mountp->m_active_trans);
 	xfs_trans_free_dqinfo(tp);
 	kmem_zone_free(xfs_trans_zone, tp);
@@ -285,9 +290,8 @@ xfs_trans_dup(
 	ntp->t_type = tp->t_type;
 	ntp->t_mountp = tp->t_mountp;
 	ntp->t_items_free = XFS_LIC_NUM_SLOTS;
-	ntp->t_busy_free = XFS_LBC_NUM_SLOTS;
 	xfs_lic_init(&(ntp->t_items));
-	XFS_LBC_INIT(&(ntp->t_busy));
+	INIT_LIST_HEAD(&ntp->t_busy);
 
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 	ASSERT(tp->t_ticket != NULL);
@@ -422,7 +426,6 @@ undo_blocks:
 
 	return error;
 }
-
 
 /*
  * Record the indicated change to the given field for application
@@ -930,26 +933,6 @@ xfs_trans_item_committed(
 	IOP_UNPIN(lip);
 }
 
-/* Clear all the per-AG busy list items listed in this transaction */
-static void
-xfs_trans_clear_busy_extents(
-	struct xfs_trans	*tp)
-{
-	xfs_log_busy_chunk_t	*lbcp;
-	xfs_log_busy_slot_t	*lbsp;
-	int			i;
-
-	for (lbcp = &tp->t_busy; lbcp != NULL; lbcp = lbcp->lbc_next) {
-		i = 0;
-		for (lbsp = lbcp->lbc_busy; i < lbcp->lbc_unused; i++, lbsp++) {
-			if (XFS_LBC_ISFREE(lbcp, i))
-				continue;
-			xfs_alloc_clear_busy(tp, lbsp->lbc_ag, lbsp->lbc_idx);
-		}
-	}
-	xfs_trans_free_busy(tp);
-}
-
 /*
  * This is typically called by the LM when a transaction has been fully
  * committed to disk.  It needs to unpin the items which have
@@ -984,7 +967,6 @@ xfs_trans_committed(
 		kmem_free(licp);
 	}
 
-	xfs_trans_clear_busy_extents(tp);
 	xfs_trans_free(tp);
 }
 
@@ -1013,7 +995,6 @@ xfs_trans_uncommit(
 	xfs_trans_unreserve_and_mod_dquots(tp);
 
 	xfs_trans_free_items(tp, flags);
-	xfs_trans_free_busy(tp);
 	xfs_trans_free(tp);
 }
 
@@ -1075,6 +1056,8 @@ xfs_trans_commit_iclog(
 	*commit_lsn = xfs_log_done(mp, tp->t_ticket, &commit_iclog, log_flags);
 
 	tp->t_commit_lsn = *commit_lsn;
+	trace_xfs_trans_commit_lsn(tp);
+
 	if (nvec > XFS_TRANS_LOGVEC_COUNT)
 		kmem_free(log_vector);
 
@@ -1260,7 +1243,6 @@ out_unreserve:
 	}
 	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 	xfs_trans_free_items(tp, error ? XFS_TRANS_ABORT : 0);
-	xfs_trans_free_busy(tp);
 	xfs_trans_free(tp);
 
 	XFS_STATS_INC(xs_trans_empty);
@@ -1339,7 +1321,6 @@ xfs_trans_cancel(
 	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
 
 	xfs_trans_free_items(tp, flags);
-	xfs_trans_free_busy(tp);
 	xfs_trans_free(tp);
 }
 

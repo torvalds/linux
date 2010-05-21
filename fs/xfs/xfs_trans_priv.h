@@ -38,10 +38,6 @@ struct xfs_log_item_desc	*xfs_trans_next_item(struct xfs_trans *,
 void				xfs_trans_free_items(struct xfs_trans *, int);
 void				xfs_trans_unlock_items(struct xfs_trans *,
 							xfs_lsn_t);
-void				xfs_trans_free_busy(xfs_trans_t *tp);
-xfs_log_busy_slot_t		*xfs_trans_add_busy(xfs_trans_t *tp,
-						    xfs_agnumber_t ag,
-						    xfs_extlen_t idx);
 
 /*
  * AIL traversal cursor.
