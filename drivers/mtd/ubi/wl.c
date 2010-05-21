@@ -350,7 +350,7 @@ static void prot_queue_add(struct ubi_device *ubi, struct ubi_wl_entry *e)
  * @max: highest possible erase counter
  *
  * This function looks for a wear leveling entry with erase counter closest to
- * @max and less then @max.
+ * @max and less than @max.
  */
 static struct ubi_wl_entry *find_wl_entry(struct rb_root *root, int max)
 {
