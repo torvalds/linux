@@ -36,6 +36,7 @@ static inline void colibri_pxa3xx_init_nand(void) {}
 /* GPIO definitions for Colibri PXA270 */
 #define GPIO114_COLIBRI_PXA270_ETH_IRQ	114
 #define GPIO0_COLIBRI_PXA270_SD_DETECT	0
+#define GPIO113_COLIBRI_PXA270_TS_IRQ	113
 
 #endif /* _COLIBRI_H_ */
 

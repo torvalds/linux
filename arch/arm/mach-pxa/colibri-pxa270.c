@@ -22,6 +22,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
+#include <linux/ucb1400.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
@@ -31,6 +32,7 @@
 #include <asm/mach/irq.h>
 #include <asm/mach/flash.h>
 
+#include <mach/audio.h>
 #include <mach/pxa27x.h>
 #include <mach/colibri.h>
 #include <mach/mmc.h>
@@ -66,6 +68,15 @@ static mfp_cfg_t colibri_pxa270_pin_config[] __initdata = {
 	GPIO89_USBH1_PEN,
 	GPIO119_USBH2_PWR,
 	GPIO120_USBH2_PEN,
+
+	/* AC97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
+	GPIO95_AC97_nRESET,
+	GPIO98_AC97_SYSCLK,
+	GPIO113_GPIO,	/* Touchscreen IRQ */
 };
 
 /******************************************************************************
@@ -205,6 +216,36 @@ static void __init colibri_pxa270_uhc_init(void)
 static inline void colibri_pxa270_uhc_init(void) {}
 #endif
 
+/******************************************************************************
+ * Audio and Touchscreen
+ ******************************************************************************/
+#if	defined(CONFIG_TOUCHSCREEN_UCB1400) || \
+	defined(CONFIG_TOUCHSCREEN_UCB1400_MODULE)
+static pxa2xx_audio_ops_t colibri_pxa270_ac97_pdata = {
+	.reset_gpio	= 95,
+};
+
+static struct ucb1400_pdata colibri_pxa270_ucb1400_pdata = {
+	.irq		= gpio_to_irq(GPIO113_COLIBRI_PXA270_TS_IRQ),
+};
+
+static struct platform_device colibri_pxa270_ucb1400_device = {
+	.name		= "ucb1400_core",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &colibri_pxa270_ucb1400_pdata,
+	},
+};
+
+static void __init colibri_pxa270_tsc_init(void)
+{
+	pxa_set_ac97_info(&colibri_pxa270_ac97_pdata);
+	platform_device_register(&colibri_pxa270_ucb1400_device);
+}
+#else
+static inline void colibri_pxa270_tsc_init(void) {}
+#endif
+
 static void __init colibri_pxa270_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(colibri_pxa270_pin_config));
@@ -216,6 +257,7 @@ static void __init colibri_pxa270_init(void)
 	colibri_pxa270_eth_init();
 	colibri_pxa270_mmc_init();
 	colibri_pxa270_uhc_init();
+	colibri_pxa270_tsc_init();
 }
 
 MACHINE_START(COLIBRI, "Toradex Colibri PXA270")
