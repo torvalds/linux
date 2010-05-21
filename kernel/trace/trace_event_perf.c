@@ -116,7 +116,7 @@ int perf_trace_enable(struct perf_event *p_event)
 	if (WARN_ON_ONCE(!list))
 		return -EINVAL;
 
-	list = per_cpu_ptr(list, smp_processor_id());
+	list = this_cpu_ptr(list);
 	hlist_add_head_rcu(&p_event->hlist_entry, list);
 
 	return 0;
@@ -141,6 +141,12 @@ void perf_trace_destroy(struct perf_event *p_event)
 		tracepoint_probe_unregister(tp_event->name,
 					    tp_event->class->perf_probe,
 					    tp_event);
+
+	/*
+	 * Ensure our callback won't be called anymore. See
+	 * tracepoint_probe_unregister() and __DO_TRACE().
+	 */
+	synchronize_sched();
 
 	free_percpu(tp_event->perf_events);
 	tp_event->perf_events = NULL;
@@ -169,7 +175,7 @@ __kprobes void *perf_trace_buf_prepare(int size, unsigned short type,
 	if (*rctxp < 0)
 		return NULL;
 
-	raw_data = per_cpu_ptr(perf_trace_buf[*rctxp], smp_processor_id());
+	raw_data = this_cpu_ptr(perf_trace_buf[*rctxp]);
 
 	/* zero the dead bytes from align to not leak stack to user */
 	memset(&raw_data[size - sizeof(u64)], 0, sizeof(u64));
