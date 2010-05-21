@@ -538,13 +538,33 @@ static int __kgdb_notify(struct die_args *args, unsigned long cmd)
 			return NOTIFY_DONE;
 	}
 
-	if (kgdb_handle_exception(args->trapnr, args->signr, args->err, regs))
+	if (kgdb_handle_exception(args->trapnr, args->signr, cmd, regs))
 		return NOTIFY_DONE;
 
 	/* Must touch watchdog before return to normal operation */
 	touch_nmi_watchdog();
 	return NOTIFY_STOP;
 }
+
+#ifdef CONFIG_KGDB_LOW_LEVEL_TRAP
+int kgdb_ll_trap(int cmd, const char *str,
+		 struct pt_regs *regs, long err, int trap, int sig)
+{
+	struct die_args args = {
+		.regs	= regs,
+		.str	= str,
+		.err	= err,
+		.trapnr	= trap,
+		.signr	= sig,
+
+	};
+
+	if (!kgdb_io_module_registered)
+		return NOTIFY_DONE;
+
+	return __kgdb_notify(&args, cmd);
+}
+#endif /* CONFIG_KGDB_LOW_LEVEL_TRAP */
 
 static int
 kgdb_notify(struct notifier_block *self, unsigned long cmd, void *ptr)

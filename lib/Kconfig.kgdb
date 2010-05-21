@@ -57,6 +57,15 @@ config KGDB_TESTS_BOOT_STRING
 	  information about other strings you could use beyond the
 	  default of V1F100.
 
+config KGDB_LOW_LEVEL_TRAP
+       bool "KGDB: Allow debugging with traps in notifiers"
+       depends on X86
+       default n
+       help
+         This will add an extra call back to kgdb for the breakpoint
+         exception handler on which will will allow kgdb to step
+         through a notify handler.
+
 config KGDB_KDB
 	bool "KGDB_KDB: include kdb frontend for kgdb"
 	default n
