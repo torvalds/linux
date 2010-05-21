@@ -7,7 +7,66 @@
 
 #ifdef __ASSEMBLY__
 
+#define REG_NUM_INVALID		100
+
+#define REG_TYPE_R64		0
+#define REG_TYPE_XMM		1
+#define REG_TYPE_INVALID	100
+
+	.macro R64_NUM opd r64
+	\opd = REG_NUM_INVALID
+	.ifc \r64,%rax
+	\opd = 0
+	.endif
+	.ifc \r64,%rcx
+	\opd = 1
+	.endif
+	.ifc \r64,%rdx
+	\opd = 2
+	.endif
+	.ifc \r64,%rbx
+	\opd = 3
+	.endif
+	.ifc \r64,%rsp
+	\opd = 4
+	.endif
+	.ifc \r64,%rbp
+	\opd = 5
+	.endif
+	.ifc \r64,%rsi
+	\opd = 6
+	.endif
+	.ifc \r64,%rdi
+	\opd = 7
+	.endif
+	.ifc \r64,%r8
+	\opd = 8
+	.endif
+	.ifc \r64,%r9
+	\opd = 9
+	.endif
+	.ifc \r64,%r10
+	\opd = 10
+	.endif
+	.ifc \r64,%r11
+	\opd = 11
+	.endif
+	.ifc \r64,%r12
+	\opd = 12
+	.endif
+	.ifc \r64,%r13
+	\opd = 13
+	.endif
+	.ifc \r64,%r14
+	\opd = 14
+	.endif
+	.ifc \r64,%r15
+	\opd = 15
+	.endif
+	.endm
+
 	.macro XMM_NUM opd xmm
+	\opd = REG_NUM_INVALID
 	.ifc \xmm,%xmm0
 	\opd = 0
 	.endif
@@ -58,13 +117,25 @@
 	.endif
 	.endm
 
+	.macro REG_TYPE type reg
+	R64_NUM reg_type_r64 \reg
+	XMM_NUM reg_type_xmm \reg
+	.if reg_type_r64 <> REG_NUM_INVALID
+	\type = REG_TYPE_R64
+	.elseif reg_type_xmm <> REG_NUM_INVALID
+	\type = REG_TYPE_XMM
+	.else
+	\type = REG_TYPE_INVALID
+	.endif
+	.endm
+
 	.macro PFX_OPD_SIZE
 	.byte 0x66
 	.endm
 
-	.macro PFX_REX opd1 opd2
-	.if (\opd1 | \opd2) & 8
-	.byte 0x40 | ((\opd1 & 8) >> 3) | ((\opd2 & 8) >> 1)
+	.macro PFX_REX opd1 opd2 W=0
+	.if ((\opd1 | \opd2) & 8) || \W
+	.byte 0x40 | ((\opd1 & 8) >> 3) | ((\opd2 & 8) >> 1) | (\W << 3)
 	.endif
 	.endm
 
@@ -144,6 +215,25 @@
 	PFX_REX aesdeclast_opd1 aesdeclast_opd2
 	.byte 0x0f, 0x38, 0xdf
 	MODRM 0xc0 aesdeclast_opd1 aesdeclast_opd2
+	.endm
+
+	.macro MOVQ_R64_XMM opd1 opd2
+	REG_TYPE movq_r64_xmm_opd1_type \opd1
+	.if movq_r64_xmm_opd1_type == REG_TYPE_XMM
+	XMM_NUM movq_r64_xmm_opd1 \opd1
+	R64_NUM movq_r64_xmm_opd2 \opd2
+	.else
+	R64_NUM movq_r64_xmm_opd1 \opd1
+	XMM_NUM movq_r64_xmm_opd2 \opd2
+	.endif
+	PFX_OPD_SIZE
+	PFX_REX movq_r64_xmm_opd1 movq_r64_xmm_opd2 1
+	.if movq_r64_xmm_opd1_type == REG_TYPE_XMM
+	.byte 0x0f, 0x7e
+	.else
+	.byte 0x0f, 0x6e
+	.endif
+	MODRM 0xc0 movq_r64_xmm_opd1 movq_r64_xmm_opd2
 	.endm
 #endif
 
