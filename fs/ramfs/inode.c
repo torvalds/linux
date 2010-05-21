@@ -214,7 +214,7 @@ static int ramfs_parse_options(char *data, struct ramfs_mount_opts *opts)
 	return 0;
 }
 
-static int ramfs_fill_super(struct super_block * sb, void * data, int silent)
+int ramfs_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct ramfs_fs_info *fsi;
 	struct inode *inode = NULL;

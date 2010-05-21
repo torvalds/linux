@@ -1182,7 +1182,7 @@ struct module_notes_attrs {
 	struct bin_attribute attrs[0];
 };
 
-static ssize_t module_notes_read(struct kobject *kobj,
+static ssize_t module_notes_read(struct file *filp, struct kobject *kobj,
 				 struct bin_attribute *bin_attr,
 				 char *buf, loff_t pos, size_t count)
 {

@@ -94,7 +94,7 @@ void iint_free(struct kref *kref)
 		       iint->opencount);
 		iint->opencount = 0;
 	}
-	kref_set(&iint->refcount, 1);
+	kref_init(&iint->refcount);
 	kmem_cache_free(iint_cache, iint);
 }
 
@@ -133,7 +133,7 @@ static void init_once(void *foo)
 	iint->readcount = 0;
 	iint->writecount = 0;
 	iint->opencount = 0;
-	kref_set(&iint->refcount, 1);
+	kref_init(&iint->refcount);
 }
 
 static int __init ima_iintcache_init(void)

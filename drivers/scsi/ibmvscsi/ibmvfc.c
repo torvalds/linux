@@ -2919,6 +2919,7 @@ static DEVICE_ATTR(log_level, S_IRUGO | S_IWUSR,
 #ifdef CONFIG_SCSI_IBMVFC_TRACE
 /**
  * ibmvfc_read_trace - Dump the adapter trace
+ * @filp:		open sysfs file
  * @kobj:		kobject struct
  * @bin_attr:	bin_attribute struct
  * @buf:		buffer
@@ -2928,7 +2929,7 @@ static DEVICE_ATTR(log_level, S_IRUGO | S_IWUSR,
  * Return value:
  *	number of bytes printed to buffer
  **/
-static ssize_t ibmvfc_read_trace(struct kobject *kobj,
+static ssize_t ibmvfc_read_trace(struct file *filp, struct kobject *kobj,
 				 struct bin_attribute *bin_attr,
 				 char *buf, loff_t off, size_t count)
 {

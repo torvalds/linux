@@ -126,7 +126,8 @@ at25_ee_read(
 }
 
 static ssize_t
-at25_bin_read(struct kobject *kobj, struct bin_attribute *bin_attr,
+at25_bin_read(struct file *filp, struct kobject *kobj,
+	      struct bin_attribute *bin_attr,
 	      char *buf, loff_t off, size_t count)
 {
 	struct device		*dev;
@@ -253,7 +254,8 @@ at25_ee_write(struct at25_data *at25, const char *buf, loff_t off,
 }
 
 static ssize_t
-at25_bin_write(struct kobject *kobj, struct bin_attribute *bin_attr,
+at25_bin_write(struct file *filp, struct kobject *kobj,
+	       struct bin_attribute *bin_attr,
 	       char *buf, loff_t off, size_t count)
 {
 	struct device		*dev;

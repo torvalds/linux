@@ -1766,7 +1766,7 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 		kobject_del(&rdev->kobj);
 		goto fail;
 	}
-	rdev->sysfs_state = sysfs_get_dirent(rdev->kobj.sd, "state");
+	rdev->sysfs_state = sysfs_get_dirent(rdev->kobj.sd, NULL, "state");
 
 	list_add_rcu(&rdev->same_set, &mddev->disks);
 	bd_claim_by_disk(rdev->bdev, rdev->bdev->bd_holder, mddev->gendisk);
@@ -4189,7 +4189,7 @@ static int md_alloc(dev_t dev, char *name)
 	mutex_unlock(&disks_mutex);
 	if (!error) {
 		kobject_uevent(&mddev->kobj, KOBJ_ADD);
-		mddev->sysfs_state = sysfs_get_dirent(mddev->kobj.sd, "array_state");
+		mddev->sysfs_state = sysfs_get_dirent(mddev->kobj.sd, NULL, "array_state");
 	}
 	mddev_put(mddev);
 	return error;
@@ -4398,7 +4398,7 @@ static int do_md_run(mddev_t * mddev)
 			printk(KERN_WARNING
 			       "md: cannot register extra attributes for %s\n",
 			       mdname(mddev));
-		mddev->sysfs_action = sysfs_get_dirent(mddev->kobj.sd, "sync_action");
+		mddev->sysfs_action = sysfs_get_dirent(mddev->kobj.sd, NULL, "sync_action");
 	} else if (mddev->ro == 2) /* auto-readonly not meaningful */
 		mddev->ro = 0;
 
