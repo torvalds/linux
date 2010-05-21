@@ -10,12 +10,19 @@
 
 enum {
 	COLIBRI_PXA270_EVALBOARD = 0,
+	COLIBRI_PXA270_INCOME,
 };
 
 #if defined(CONFIG_MACH_COLIBRI_PXA270_EVALBOARD)
 extern void colibri_pxa270_evalboard_init(void);
 #else
 static inline void colibri_pxa270_evalboard_init(void) {}
+#endif
+
+#if defined(CONFIG_MACH_COLIBRI_PXA270_INCOME)
+extern void colibri_pxa270_income_boardinit(void);
+#else
+static inline void colibri_pxa270_income_boardinit(void) {}
 #endif
 
 /*

@@ -110,17 +110,17 @@ static inline void colibri_pxa270_nor_init(void) {}
  ******************************************************************************/
 #if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
 static struct resource colibri_pxa270_dm9000_resources[] = {
-	[0] = {
+	{
 		.start	= PXA_CS2_PHYS,
 		.end	= PXA_CS2_PHYS + 3,
 		.flags	= IORESOURCE_MEM,
 	},
-	[1] = {
+	{
 		.start	= PXA_CS2_PHYS + 4,
 		.end	= PXA_CS2_PHYS + 4 + 500,
 		.flags	= IORESOURCE_MEM,
 	},
-	[2] = {
+	{
 		.start	= gpio_to_irq(GPIO114_COLIBRI_PXA270_ETH_IRQ),
 		.end	= gpio_to_irq(GPIO114_COLIBRI_PXA270_ETH_IRQ),
 		.flags	= IORESOURCE_IRQ | IRQF_TRIGGER_RISING,
@@ -187,10 +187,23 @@ static void __init colibri_pxa270_init(void)
 	case COLIBRI_PXA270_EVALBOARD:
 		colibri_pxa270_evalboard_init();
 		break;
+	case COLIBRI_PXA270_INCOME:
+		colibri_pxa270_income_boardinit();
+		break;
 	default:
 		printk(KERN_ERR "Illegal colibri_pxa270_baseboard type %d\n",
 				colibri_pxa270_baseboard);
 	}
+}
+
+/* The "Income s.r.o. SH-Dmaster PXA270 SBC" board can be booted either
+ * with the INCOME mach type or with COLIBRI and the kernel parameter
+ * "colibri_pxa270_baseboard=1"
+ */
+static void __init colibri_pxa270_income_init(void)
+{
+	colibri_pxa270_baseboard = COLIBRI_PXA270_INCOME;
+	colibri_pxa270_init();
 }
 
 MACHINE_START(COLIBRI, "Toradex Colibri PXA270")
@@ -198,6 +211,16 @@ MACHINE_START(COLIBRI, "Toradex Colibri PXA270")
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.boot_params	= COLIBRI_SDRAM_BASE + 0x100,
 	.init_machine	= colibri_pxa270_init,
+	.map_io		= pxa_map_io,
+	.init_irq	= pxa27x_init_irq,
+	.timer		= &pxa_timer,
+MACHINE_END
+
+MACHINE_START(INCOME, "Income s.r.o. SH-Dmaster PXA270 SBC")
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
+	.boot_params	= 0xa0000100,
+	.init_machine	= colibri_pxa270_income_init,
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa27x_init_irq,
 	.timer		= &pxa_timer,
