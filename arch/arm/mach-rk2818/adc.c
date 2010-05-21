@@ -30,7 +30,7 @@
  * action is required.
  */
  
-#if 1
+#if 0
 #define DBG(x...)   printk(x)
 #else
 #define DBG(x...)
@@ -59,6 +59,7 @@ struct adc_device {
 	struct rk28_adc_client	*client;
 	struct rk28_adc_client	*cur;
 	struct rk28_adc_client	*ts_pend;
+	struct work_struct 	timer_work;
 	void __iomem		*regs;
 	struct timer_list timer;
 	unsigned int		 pre_con;
@@ -300,19 +301,25 @@ static int rk28_read_adc(struct adc_device *adc)
 	for(i=0; i<4; i++)
 	{
 		gAdcValue[i] = rk28_adc_read(adc->client, i);
-		//DBG("gAdcValue[%d]=%d\n",i,gAdcValue[i]);
+		DBG("gAdcValue[%d]=%d\n",i,gAdcValue[i]);
 	}
 
 	up(&adc->lock);
 	return ret;
 }
 
+static void adc_timer_work(struct work_struct *work)
+{	
+	rk28_read_adc(pAdcDev);
+}
+
+
 static void rk28_adcscan_timer(unsigned long data)
 {
 	pAdcDev->timer.expires  = jiffies + msecs_to_jiffies(30);
 	add_timer(&pAdcDev->timer);
-
-	rk28_read_adc(pAdcDev);
+	schedule_work(&pAdcDev->timer_work);
+	//rk28_read_adc(pAdcDev);
 }
 
 static irqreturn_t rk28_adc_irq(int irq, void *pw)
@@ -412,7 +419,7 @@ static int rk28_adc_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, adc);
 
 	init_MUTEX(&adc->lock);
-	
+	INIT_WORK(&adc->timer_work, adc_timer_work);
 	/* Register with the core ADC driver. */
 	adc->client = rk28_adc_register(pdev, NULL, NULL, 0);
 	if (IS_ERR(adc->client)) {
