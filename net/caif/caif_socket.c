@@ -920,17 +920,17 @@ wait_connect:
 	timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
 
 	release_sock(sk);
-	err = wait_event_interruptible_timeout(*sk_sleep(sk),
+	err = -ERESTARTSYS;
+	timeo = wait_event_interruptible_timeout(*sk_sleep(sk),
 			sk->sk_state != CAIF_CONNECTING,
 			timeo);
 	lock_sock(sk);
-	if (err < 0)
+	if (timeo < 0)
 		goto out; /* -ERESTARTSYS */
-	if (err == 0 && sk->sk_state != CAIF_CONNECTED) {
-		err = -ETIMEDOUT;
-		goto out;
-	}
 
+	err = -ETIMEDOUT;
+	if (timeo == 0 && sk->sk_state != CAIF_CONNECTED)
+		goto out;
 	if (sk->sk_state != CAIF_CONNECTED) {
 		sock->state = SS_UNCONNECTED;
 		err = sock_error(sk);
@@ -944,7 +944,6 @@ out:
 	release_sock(sk);
 	return err;
 }
-
 
 /*
  * caif_release() - Disconnect a CAIF Socket
