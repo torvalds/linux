@@ -198,7 +198,7 @@ out:
 static int ecryptfs_readpage(struct file *file, struct page *page)
 {
 	struct ecryptfs_crypt_stat *crypt_stat =
-		&ecryptfs_inode_to_private(file->f_path.dentry->d_inode)->crypt_stat;
+		&ecryptfs_inode_to_private(page->mapping->host)->crypt_stat;
 	int rc = 0;
 
 	if (!crypt_stat
@@ -300,8 +300,7 @@ static int ecryptfs_write_begin(struct file *file,
 
 	if (!PageUptodate(page)) {
 		struct ecryptfs_crypt_stat *crypt_stat =
-			&ecryptfs_inode_to_private(
-				file->f_path.dentry->d_inode)->crypt_stat;
+			&ecryptfs_inode_to_private(mapping->host)->crypt_stat;
 
 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)
 		    || (crypt_stat->flags & ECRYPTFS_NEW_FILE)) {
@@ -487,7 +486,7 @@ static int ecryptfs_write_end(struct file *file,
 	unsigned to = from + copied;
 	struct inode *ecryptfs_inode = mapping->host;
 	struct ecryptfs_crypt_stat *crypt_stat =
-		&ecryptfs_inode_to_private(file->f_path.dentry->d_inode)->crypt_stat;
+		&ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat;
 	int rc;
 
 	if (crypt_stat->flags & ECRYPTFS_NEW_FILE) {
