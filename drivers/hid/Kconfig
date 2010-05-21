@@ -129,9 +129,8 @@ config HID_CYPRESS
 	Support for cypress mouse and barcode readers.
 
 config HID_DRAGONRISE
-	tristate "DragonRise Inc. support" if EMBEDDED
+	tristate "DragonRise Inc. support"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	Say Y here if you have DragonRise Inc.game controllers.
 
@@ -147,7 +146,7 @@ config HID_EGALAX
 	tristate "eGalax multi-touch panel"
 	depends on USB_HID
 	---help---
-	Support for the eGalax dual-touch panel
+	Support for the eGalax dual-touch panel.
 
 config HID_EZKEY
 	tristate "Ezkey" if EMBEDDED
@@ -164,16 +163,14 @@ config HID_KYE
 	Support for Kye/Genius Ergo Mouse.
 
 config HID_GYRATION
-	tristate "Gyration" if EMBEDDED
+	tristate "Gyration"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	Support for Gyration remote control.
 
 config HID_TWINHAN
-	tristate "Twinhan" if EMBEDDED
+	tristate "Twinhan"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	Support for Twinhan IR remote control.
 
@@ -260,16 +257,14 @@ config HID_NTRIG
 	Support for N-Trig touch screen.
 
 config HID_ORTEK
-	tristate "Ortek" if EMBEDDED
+	tristate "Ortek"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	Support for Ortek WKB-2000 wireless keyboard + mouse trackpad.
 
 config HID_PANTHERLORD
-	tristate "Pantherlord support" if EMBEDDED
+	tristate "Pantherlord support"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	  Say Y here if you have a PantherLord/GreenAsia based game controller
 	  or adapter.
@@ -283,9 +278,8 @@ config PANTHERLORD_FF
 	  or adapter and want to enable force feedback support for it.
 
 config HID_PETALYNX
-	tristate "Petalynx" if EMBEDDED
+	tristate "Petalynx"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	Support for Petalynx Maxter remote control.
 
@@ -360,16 +354,14 @@ config HID_ROCCAT_KONE
 	Support for Roccat Kone mouse.
 
 config HID_SAMSUNG
-	tristate "Samsung" if EMBEDDED
+	tristate "Samsung"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	Support for Samsung InfraRed remote control or keyboards.
 
 config HID_SONY
-	tristate "Sony" if EMBEDDED
+	tristate "Sony"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	Support for Sony PS3 controller.
 
@@ -380,16 +372,14 @@ config HID_STANTUM
 	Support for Stantum multitouch panel.
 
 config HID_SUNPLUS
-	tristate "Sunplus" if EMBEDDED
+	tristate "Sunplus"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	Support for Sunplus wireless desktop.
 
 config HID_GREENASIA
-	tristate "GreenAsia (Product ID 0x12) support" if EMBEDDED
+	tristate "GreenAsia (Product ID 0x12) support"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	  Say Y here if you have a GreenAsia (Product ID 0x12) based game
 	  controller or adapter.
@@ -404,9 +394,8 @@ config GREENASIA_FF
 	and want to enable force feedback support for it.
 
 config HID_SMARTJOYPLUS
-	tristate "SmartJoy PLUS PS2/USB adapter support" if EMBEDDED
+	tristate "SmartJoy PLUS PS2/USB adapter support"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	Support for SmartJoy PLUS PS2/USB adapter.
 
@@ -419,16 +408,14 @@ config SMARTJOYPLUS_FF
 	enable force feedback support for it.
 
 config HID_TOPSEED
-	tristate "TopSeed Cyberlink remote control support" if EMBEDDED
+	tristate "TopSeed Cyberlink remote control support"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	Say Y if you have a TopSeed Cyberlink or BTC Emprex remote control.
 
 config HID_THRUSTMASTER
-	tristate "ThrustMaster devices support" if EMBEDDED
+	tristate "ThrustMaster devices support"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2 or
 	  a THRUSTMASTER Ferrari GT Rumble Wheel.
@@ -457,9 +444,8 @@ config HID_WACOM_POWER_SUPPLY
 	  Wacom Bluetooth devices.
 
 config HID_ZEROPLUS
-	tristate "Zeroplus based game controller support" if EMBEDDED
+	tristate "Zeroplus based game controller support"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	  Say Y here if you have a Zeroplus based game controller.
 
@@ -472,9 +458,8 @@ config ZEROPLUS_FF
 	  to have force feedback support for it.
 
 config HID_ZYDACRON
-	tristate "Zydacron remote control support" if EMBEDDED
+	tristate "Zydacron remote control support"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	Support for Zydacron remote control.
 
