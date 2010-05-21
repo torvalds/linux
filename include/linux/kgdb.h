@@ -204,6 +204,17 @@ kgdb_arch_handle_exception(int vector, int signo, int err_code,
  */
 extern void kgdb_roundup_cpus(unsigned long flags);
 
+/**
+ *	kgdb_arch_set_pc - Generic call back to the program counter
+ *	@regs: Current &struct pt_regs.
+ *  @pc: The new value for the program counter
+ *
+ *	This function handles updating the program counter and requires an
+ *	architecture specific implementation.
+ */
+extern void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc);
+
+
 /* Optional functions. */
 extern int kgdb_validate_break_address(unsigned long addr);
 extern int kgdb_arch_set_breakpoint(unsigned long addr, char *saved_instr);
@@ -264,7 +275,6 @@ extern struct kgdb_arch		arch_kgdb_ops;
 
 extern unsigned long __weak kgdb_arch_pc(int exception, struct pt_regs *regs);
 
-extern void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc);
 extern int kgdb_register_io_module(struct kgdb_io *local_kgdb_io_ops);
 extern void kgdb_unregister_io_module(struct kgdb_io *local_kgdb_io_ops);
 extern struct kgdb_io *dbg_io_ops;
