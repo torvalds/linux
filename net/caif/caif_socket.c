@@ -874,8 +874,7 @@ static int caif_connect(struct socket *sock, struct sockaddr *uaddr,
 	sk_stream_kill_queues(&cf_sk->sk);
 
 	err = -EINVAL;
-	if (addr_len != sizeof(struct sockaddr_caif) ||
-		!uaddr)
+	if (addr_len != sizeof(struct sockaddr_caif))
 		goto out;
 
 	memcpy(&cf_sk->conn_req.sockaddr, uaddr,
