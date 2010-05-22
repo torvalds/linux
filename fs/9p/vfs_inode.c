@@ -1227,6 +1227,8 @@ v9fs_vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t rdev)
 		sprintf(name, "c %u %u", MAJOR(rdev), MINOR(rdev));
 	else if (S_ISFIFO(mode))
 		*name = 0;
+	else if (S_ISSOCK(mode))
+		*name = 0;
 	else {
 		__putname(name);
 		return -EINVAL;
