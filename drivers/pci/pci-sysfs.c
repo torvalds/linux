@@ -979,7 +979,12 @@ static ssize_t reset_store(struct device *dev,
 
 	if (val != 1)
 		return -EINVAL;
-	return pci_reset_function(pdev);
+
+	result = pci_reset_function(pdev);
+	if (result < 0)
+		return result;
+
+	return count;
 }
 
 static struct device_attribute reset_attr = __ATTR(reset, 0200, NULL, reset_store);
@@ -1028,6 +1033,39 @@ error:
 	}
 
 	return retval;
+}
+
+static void pci_remove_slot_links(struct pci_dev *dev)
+{
+	char func[10];
+	struct pci_slot *slot;
+
+	sysfs_remove_link(&dev->dev.kobj, "slot");
+	list_for_each_entry(slot, &dev->bus->slots, list) {
+		if (slot->number != PCI_SLOT(dev->devfn))
+			continue;
+		snprintf(func, 10, "function%d", PCI_FUNC(dev->devfn));
+		sysfs_remove_link(&slot->kobj, func);
+	}
+}
+
+static int pci_create_slot_links(struct pci_dev *dev)
+{
+	int result = 0;
+	char func[10];
+	struct pci_slot *slot;
+
+	list_for_each_entry(slot, &dev->bus->slots, list) {
+		if (slot->number != PCI_SLOT(dev->devfn))
+			continue;
+		result = sysfs_create_link(&dev->dev.kobj, &slot->kobj, "slot");
+		if (result)
+			goto out;
+		snprintf(func, 10, "function%d", PCI_FUNC(dev->devfn));
+		result = sysfs_create_link(&slot->kobj, &dev->dev.kobj, func);
+	}
+out:
+	return result;
 }
 
 int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
@@ -1092,6 +1130,8 @@ int __must_check pci_create_sysfs_dev_files (struct pci_dev *pdev)
 	if (retval)
 		goto err_vga_file;
 
+	pci_create_slot_links(pdev);
+
 	return 0;
 
 err_vga_file:
@@ -1140,6 +1180,8 @@ void pci_remove_sysfs_dev_files(struct pci_dev *pdev)
 
 	if (!sysfs_initialized)
 		return;
+
+	pci_remove_slot_links(pdev);
 
 	pci_remove_capabilities_sysfs(pdev);
 
