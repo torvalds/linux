@@ -239,18 +239,7 @@ static inline bool n2_should_run_async(struct spu_queue *qp, int this_len)
 }
 #endif
 
-struct n2_base_ctx {
-	struct list_head		list;
-};
-
-static void n2_base_ctx_init(struct n2_base_ctx *ctx)
-{
-	INIT_LIST_HEAD(&ctx->list);
-}
-
 struct n2_hash_ctx {
-	struct n2_base_ctx		base;
-
 	struct crypto_ahash		*fallback_tfm;
 };
 
@@ -390,7 +379,6 @@ static int n2_hash_async_digest(struct ahash_request *req,
 				unsigned int result_size, void *hash_loc)
 {
 	struct crypto_ahash *tfm = crypto_ahash_reqtfm(req);
-	struct n2_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 	struct cwq_initial_entry *ent;
 	struct crypto_hash_walk walk;
 	struct spu_queue *qp;
@@ -403,6 +391,7 @@ static int n2_hash_async_digest(struct ahash_request *req,
 	 */
 	if (unlikely(req->nbytes > (1 << 16))) {
 		struct n2_hash_req_ctx *rctx = ahash_request_ctx(req);
+		struct n2_hash_ctx *ctx = crypto_ahash_ctx(tfm);
 
 		ahash_request_set_tfm(&rctx->fallback_req, ctx->fallback_tfm);
 		rctx->fallback_req.base.flags =
@@ -413,8 +402,6 @@ static int n2_hash_async_digest(struct ahash_request *req,
 
 		return crypto_ahash_digest(&rctx->fallback_req);
 	}
-
-	n2_base_ctx_init(&ctx->base);
 
 	nbytes = crypto_hash_walk_first(req, &walk);
 
