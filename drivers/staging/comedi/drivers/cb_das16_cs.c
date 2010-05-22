@@ -719,8 +719,7 @@ static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 	((struct local_info_t *)link->priv)->stop = 1;
 	das16cs_pcmcia_release(link);
 	/* This points to the parent struct local_info_t struct */
-	if (link->priv)
-		kfree(link->priv);
+	kfree(link->priv);
 }				/* das16cs_pcmcia_detach */
 
 

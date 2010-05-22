@@ -537,8 +537,7 @@ static void dio700_cs_detach(struct pcmcia_device *link)
 	dio700_release(link);
 
 	/* This points to the parent struct local_info_t struct */
-	if (link->priv)
-		kfree(link->priv);
+	kfree(link->priv);
 
 }				/* dio700_cs_detach */
 

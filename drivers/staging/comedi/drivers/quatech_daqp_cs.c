@@ -1076,8 +1076,7 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 
 	/* Unlink device structure, and free it */
 	dev_table[dev->table_index] = NULL;
-	if (dev)
-		kfree(dev);
+	kfree(dev);
 
 }				/* daqp_cs_detach */
 
