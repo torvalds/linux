@@ -14,7 +14,7 @@
 
 #include "cpuidle.h"
 
-struct cpuidle_driver *cpuidle_curr_driver;
+static struct cpuidle_driver *cpuidle_curr_driver;
 DEFINE_SPINLOCK(cpuidle_driver_lock);
 
 /**
@@ -38,6 +38,15 @@ int cpuidle_register_driver(struct cpuidle_driver *drv)
 }
 
 EXPORT_SYMBOL_GPL(cpuidle_register_driver);
+
+/**
+ * cpuidle_get_driver - return the current driver
+ */
+struct cpuidle_driver *cpuidle_get_driver(void)
+{
+	return cpuidle_curr_driver;
+}
+EXPORT_SYMBOL_GPL(cpuidle_get_driver);
 
 /**
  * cpuidle_unregister_driver - unregisters a driver
