@@ -458,6 +458,9 @@ static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 		case UNICHROME_K8M890:
 		case UNICHROME_P4M890:
 		case UNICHROME_P4M900:
+		case UNICHROME_CN750:
+		case UNICHROME_VX800:
+		case UNICHROME_VX855:
 			reg_value =
 			    K800_LCD_HOR_SCF_FORMULA(set_hres, panel_hres);
 			/* Horizontal scaling enabled */
@@ -498,6 +501,9 @@ static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 		case UNICHROME_K8M890:
 		case UNICHROME_P4M890:
 		case UNICHROME_P4M900:
+		case UNICHROME_CN750:
+		case UNICHROME_VX800:
+		case UNICHROME_VX855:
 			reg_value =
 			    K800_LCD_VER_SCF_FORMULA(set_vres, panel_vres);
 			/* Vertical scaling enabled */
