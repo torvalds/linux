@@ -1449,7 +1449,7 @@ static int queue_cache_init(void)
 {
 	if (!queue_cache[HV_NCS_QTYPE_MAU - 1])
 		queue_cache[HV_NCS_QTYPE_MAU - 1] =
-			kmem_cache_create("cwq_queue",
+			kmem_cache_create("mau_queue",
 					  (MAU_NUM_ENTRIES *
 					   MAU_ENTRY_SIZE),
 					  MAU_ENTRY_SIZE, 0, NULL);
