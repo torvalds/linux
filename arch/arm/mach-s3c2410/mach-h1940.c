@@ -15,7 +15,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/sysdev.h>
@@ -308,8 +308,8 @@ static void __init h1940_map_io(void)
 /* H1940 and RX3715 need to reserve this for suspend */
 static void __init h1940_reserve(void)
 {
-	reserve_bootmem(0x30003000, 0x1000, BOOTMEM_DEFAULT);
-	reserve_bootmem(0x30081000, 0x1000, BOOTMEM_DEFAULT);
+	memblock_reserve(0x30003000, 0x1000);
+	memblock_reserve(0x30081000, 0x1000);
 }
 
 static void __init h1940_init_irq(void)

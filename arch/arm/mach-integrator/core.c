@@ -14,7 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/sched.h>
 #include <linux/smp.h>
 #include <linux/termios.h>
@@ -225,5 +225,5 @@ EXPORT_SYMBOL(cm_control);
  */
 void __init integrator_reserve(void)
 {
-	reserve_bootmem(PHYS_OFFSET, __pa(swapper_pg_dir) - PHYS_OFFSET, BOOTMEM_DEFAULT);
+	memblock_reserve(PHYS_OFFSET, __pa(swapper_pg_dir) - PHYS_OFFSET);
 }

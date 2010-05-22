@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <linux/init.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/types.h>
 #include <linux/string.h>
 
@@ -33,7 +33,7 @@ extern void edb7211_map_io(void);
 /* Reserve screen memory region at the start of main system memory. */
 static void __init edb7211_reserve(void)
 {
-	reserve_bootmem(PHYS_OFFSET, 0x00020000, BOOTMEM_DEFAULT);
+	memblock_reserve(PHYS_OFFSET, 0x00020000);
 }
 
 static void __init

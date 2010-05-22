@@ -271,7 +271,7 @@ static void arm_memory_present(struct meminfo *mi)
 }
 #endif
 
-void __init arm_memblock_init(struct meminfo *mi)
+void __init arm_memblock_init(struct meminfo *mi, struct machine_desc *mdesc)
 {
 	int i;
 
@@ -297,11 +297,15 @@ void __init arm_memblock_init(struct meminfo *mi)
 
 	arm_mm_memblock_reserve();
 
+	/* reserve any platform specific memblock areas */
+	if (mdesc->reserve)
+		mdesc->reserve();
+
 	memblock_analyze();
 	memblock_dump_all();
 }
 
-void __init bootmem_init(struct machine_desc *mdesc)
+void __init bootmem_init(void)
 {
 	struct meminfo *mi = &meminfo;
 	unsigned long min, max_low, max_high;
@@ -311,9 +315,6 @@ void __init bootmem_init(struct machine_desc *mdesc)
 	find_limits(mi, &min, &max_low, &max_high);
 
 	arm_bootmem_init(mi, min, max_low);
-
-	if (mdesc->reserve)
-		mdesc->reserve();
 
 	/*
 	 * Sparsemem tries to allocate bootmem in memory_present(),

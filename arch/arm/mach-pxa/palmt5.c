@@ -21,7 +21,7 @@
 #include <linux/irq.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
@@ -399,7 +399,7 @@ static void __init palmt5_udc_init(void)
 
 static void __init palmt5_reserve(void)
 {
-	reserve_bootmem(0xa0200000, 0x1000, BOOTMEM_EXCLUSIVE);
+	memblock_reserve(0xa0200000, 0x1000);
 }
 
 static void __init palmt5_init(void)

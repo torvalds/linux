@@ -14,7 +14,7 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <mach/hardware.h>
@@ -33,7 +33,7 @@ static void __init u300_reserve(void)
 #ifdef CONFIG_MACH_U300_SINGLE_RAM
 #if ((CONFIG_MACH_U300_ACCESS_MEM_SIZE & 1) == 1) && \
 	CONFIG_MACH_U300_2MB_ALIGNMENT_FIX
-        reserve_bootmem(PHYS_OFFSET, 0x00100000, BOOTMEM_DEFAULT);
+        memblock_reserve(PHYS_OFFSET, 0x00100000);
 #endif
 #endif
 }

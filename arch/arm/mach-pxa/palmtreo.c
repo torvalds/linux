@@ -20,7 +20,7 @@
 #include <linux/irq.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
@@ -636,8 +636,8 @@ static void __init treo_lcd_power_init(void)
 
 static void __init treo_reserve(void)
 {
-	reserve_bootmem(0xa0000000, 0x1000, BOOTMEM_EXCLUSIVE);
-	reserve_bootmem(0xa2000000, 0x1000, BOOTMEM_EXCLUSIVE);
+	memblock_reserve(0xa0000000, 0x1000);
+	memblock_reserve(0xa2000000, 0x1000);
 }
 
 static void __init treo_init(void)
