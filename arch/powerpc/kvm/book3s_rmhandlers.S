@@ -22,7 +22,10 @@
 #include <asm/reg.h>
 #include <asm/page.h>
 #include <asm/asm-offsets.h>
+
+#ifdef CONFIG_PPC_BOOK3S_64
 #include <asm/exception-64s.h>
+#endif
 
 /*****************************************************************************
  *                                                                           *
@@ -30,6 +33,39 @@
  *                                                                           *
  ****************************************************************************/
 
+#if defined(CONFIG_PPC_BOOK3S_64)
+
+#define LOAD_SHADOW_VCPU(reg)				\
+	mfspr	reg, SPRN_SPRG_PACA
+
+#define SHADOW_VCPU_OFF		PACA_KVM_SVCPU
+#define MSR_NOIRQ		MSR_KERNEL & ~(MSR_IR | MSR_DR)
+#define FUNC(name) 		GLUE(.,name)
+
+#elif defined(CONFIG_PPC_BOOK3S_32)
+
+#define LOAD_SHADOW_VCPU(reg)						\
+	mfspr	reg, SPRN_SPRG_THREAD;					\
+	lwz	reg, THREAD_KVM_SVCPU(reg);				\
+	/* PPC32 can have a NULL pointer - let's check for that */	\
+	mtspr   SPRN_SPRG_SCRATCH1, r12;	/* Save r12 */		\
+	mfcr	r12;							\
+	cmpwi	reg, 0;							\
+	bne	1f;							\
+	mfspr	reg, SPRN_SPRG_SCRATCH0;				\
+	mtcr	r12;							\
+	mfspr	r12, SPRN_SPRG_SCRATCH1;				\
+	b	kvmppc_resume_\intno;					\
+1:;									\
+	mtcr	r12;							\
+	mfspr	r12, SPRN_SPRG_SCRATCH1;				\
+	tophys(reg, reg)
+
+#define SHADOW_VCPU_OFF		0
+#define MSR_NOIRQ		MSR_KERNEL
+#define FUNC(name)		name
+
+#endif
 
 .macro INTERRUPT_TRAMPOLINE intno
 
@@ -42,19 +78,19 @@ kvmppc_trampoline_\intno:
 	 * First thing to do is to find out if we're coming
 	 * from a KVM guest or a Linux process.
 	 *
-	 * To distinguish, we check a magic byte in the PACA
+	 * To distinguish, we check a magic byte in the PACA/current
 	 */
-	mfspr	r13, SPRN_SPRG_PACA		/* r13 = PACA */
-	std	r12, PACA_KVM_SCRATCH0(r13)
+	LOAD_SHADOW_VCPU(r13)
+	PPC_STL	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH0)(r13)
 	mfcr	r12
-	stw	r12, PACA_KVM_SCRATCH1(r13)
-	lbz	r12, PACA_KVM_IN_GUEST(r13)
+	stw	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH1)(r13)
+	lbz	r12, (SHADOW_VCPU_OFF + SVCPU_IN_GUEST)(r13)
 	cmpwi	r12, KVM_GUEST_MODE_NONE
 	bne	..kvmppc_handler_hasmagic_\intno
 	/* No KVM guest? Then jump back to the Linux handler! */
-	lwz	r12, PACA_KVM_SCRATCH1(r13)
+	lwz	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH1)(r13)
 	mtcr	r12
-	ld	r12, PACA_KVM_SCRATCH0(r13)
+	PPC_LL	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH0)(r13)
 	mfspr	r13, SPRN_SPRG_SCRATCH0		/* r13 = original r13 */
 	b	kvmppc_resume_\intno		/* Get back original handler */
 
@@ -76,9 +112,7 @@ kvmppc_trampoline_\intno:
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_SYSTEM_RESET
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_MACHINE_CHECK
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_DATA_STORAGE
-INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_DATA_SEGMENT
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_INST_STORAGE
-INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_INST_SEGMENT
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_EXTERNAL
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_ALIGNMENT
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_PROGRAM
@@ -88,7 +122,14 @@ INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_SYSCALL
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_TRACE
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_PERFMON
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_ALTIVEC
+
+/* Those are only available on 64 bit machines */
+
+#ifdef CONFIG_PPC_BOOK3S_64
+INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_DATA_SEGMENT
+INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_INST_SEGMENT
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_VSX
+#endif
 
 /*
  * Bring us back to the faulting code, but skip the
@@ -99,11 +140,11 @@ INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_VSX
  *
  * Input Registers:
  *
- * R12               = free
- * R13               = PACA
- * PACA.KVM.SCRATCH0 = guest R12
- * PACA.KVM.SCRATCH1 = guest CR
- * SPRG_SCRATCH0     = guest R13
+ * R12            = free
+ * R13            = Shadow VCPU (PACA)
+ * SVCPU.SCRATCH0 = guest R12
+ * SVCPU.SCRATCH1 = guest CR
+ * SPRG_SCRATCH0  = guest R13
  *
  */
 kvmppc_handler_skip_ins:
@@ -114,9 +155,9 @@ kvmppc_handler_skip_ins:
 	mtsrr0	r12
 
 	/* Clean up all state */
-	lwz	r12, PACA_KVM_SCRATCH1(r13)
+	lwz	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH1)(r13)
 	mtcr	r12
-	ld	r12, PACA_KVM_SCRATCH0(r13)
+	PPC_LL	r12, (SHADOW_VCPU_OFF + SVCPU_SCRATCH0)(r13)
 	mfspr	r13, SPRN_SPRG_SCRATCH0
 
 	/* And get back into the code */
@@ -147,41 +188,48 @@ kvmppc_handler_lowmem_trampoline_end:
  *
  * R3 = function
  * R4 = MSR
- * R5 = CTR
+ * R5 = scratch register
  *
  */
 _GLOBAL(kvmppc_rmcall)
-	mtmsr	r4		/* Disable relocation, so mtsrr
+	LOAD_REG_IMMEDIATE(r5, MSR_NOIRQ)
+	mtmsr	r5		/* Disable relocation and interrupts, so mtsrr
 				   doesn't get interrupted */
-	mtctr	r5
+	sync
 	mtsrr0	r3
 	mtsrr1	r4
 	RFI
 
+#if defined(CONFIG_PPC_BOOK3S_32)
+#define STACK_LR	INT_FRAME_SIZE+4
+#elif defined(CONFIG_PPC_BOOK3S_64)
+#define STACK_LR	_LINK
+#endif
+
 /*
  * Activate current's external feature (FPU/Altivec/VSX)
  */
-#define define_load_up(what) 				\
-							\
-_GLOBAL(kvmppc_load_up_ ## what);			\
-	subi	r1, r1, INT_FRAME_SIZE;			\
-	mflr	r3;					\
-	std	r3, _LINK(r1);				\
-	mfmsr	r4;					\
-	std	r31, GPR3(r1);				\
-	mr	r31, r4;				\
-	li	r5, MSR_DR;				\
-	oris	r5, r5, MSR_EE@h;			\
-	andc	r4, r4, r5;				\
-	mtmsr	r4;					\
-							\
-	bl	.load_up_ ## what;			\
-							\
-	mtmsr	r31;					\
-	ld	r3, _LINK(r1);				\
-	ld	r31, GPR3(r1);				\
-	addi	r1, r1, INT_FRAME_SIZE;			\
-	mtlr	r3;					\
+#define define_load_up(what) 					\
+								\
+_GLOBAL(kvmppc_load_up_ ## what);				\
+	PPC_STLU r1, -INT_FRAME_SIZE(r1);			\
+	mflr	r3;						\
+	PPC_STL	r3, STACK_LR(r1);				\
+	PPC_STL	r20, _NIP(r1);					\
+	mfmsr	r20;						\
+	LOAD_REG_IMMEDIATE(r3, MSR_DR|MSR_EE);			\
+	andc	r3,r20,r3;		/* Disable DR,EE */	\
+	mtmsr	r3;						\
+	sync;							\
+								\
+	bl	FUNC(load_up_ ## what);				\
+								\
+	mtmsr	r20;			/* Enable DR,EE */	\
+	sync;							\
+	PPC_LL	r3, STACK_LR(r1);				\
+	PPC_LL	r20, _NIP(r1);					\
+	mtlr	r3;						\
+	addi	r1, r1, INT_FRAME_SIZE;				\
 	blr
 
 define_load_up(fpu)
@@ -194,11 +242,10 @@ define_load_up(vsx)
 
 .global kvmppc_trampoline_lowmem
 kvmppc_trampoline_lowmem:
-	.long kvmppc_handler_lowmem_trampoline - _stext
+	.long kvmppc_handler_lowmem_trampoline - CONFIG_KERNEL_START
 
 .global kvmppc_trampoline_enter
 kvmppc_trampoline_enter:
-	.long kvmppc_handler_trampoline_enter - _stext
+	.long kvmppc_handler_trampoline_enter - CONFIG_KERNEL_START
 
-#include "book3s_64_slb.S"
-
+#include "book3s_segment.S"

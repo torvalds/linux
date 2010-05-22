@@ -24,36 +24,56 @@
 #include <asm/asm-offsets.h>
 #include <asm/exception-64s.h>
 
-#define KVMPPC_HANDLE_EXIT .kvmppc_handle_exit
-#define ULONG_SIZE 8
-#define VCPU_GPR(n)     (VCPU_GPRS + (n * ULONG_SIZE))
+#if defined(CONFIG_PPC_BOOK3S_64)
 
-.macro DISABLE_INTERRUPTS
-       mfmsr   r0
-       rldicl  r0,r0,48,1
-       rotldi  r0,r0,16
-       mtmsrd  r0,1
-.endm
+#define ULONG_SIZE 		8
+#define FUNC(name) 		GLUE(.,name)
 
+#define GET_SHADOW_VCPU(reg)    \
+        addi    reg, r13, PACA_KVM_SVCPU
+
+#define DISABLE_INTERRUPTS	\
+	mfmsr   r0;		\
+	rldicl  r0,r0,48,1;	\
+	rotldi  r0,r0,16;	\
+	mtmsrd  r0,1;		\
+
+#elif defined(CONFIG_PPC_BOOK3S_32)
+
+#define ULONG_SIZE              4
+#define FUNC(name)		name
+
+#define GET_SHADOW_VCPU(reg)    \
+        lwz     reg, (THREAD + THREAD_KVM_SVCPU)(r2)
+
+#define DISABLE_INTERRUPTS	\
+	mfmsr   r0;		\
+	rlwinm  r0,r0,0,17,15;	\
+	mtmsr   r0;		\
+
+#endif /* CONFIG_PPC_BOOK3S_XX */
+
+
+#define VCPU_GPR(n)		(VCPU_GPRS + (n * ULONG_SIZE))
 #define VCPU_LOAD_NVGPRS(vcpu) \
-	ld	r14, VCPU_GPR(r14)(vcpu); \
-	ld	r15, VCPU_GPR(r15)(vcpu); \
-	ld	r16, VCPU_GPR(r16)(vcpu); \
-	ld	r17, VCPU_GPR(r17)(vcpu); \
-	ld	r18, VCPU_GPR(r18)(vcpu); \
-	ld	r19, VCPU_GPR(r19)(vcpu); \
-	ld	r20, VCPU_GPR(r20)(vcpu); \
-	ld	r21, VCPU_GPR(r21)(vcpu); \
-	ld	r22, VCPU_GPR(r22)(vcpu); \
-	ld	r23, VCPU_GPR(r23)(vcpu); \
-	ld	r24, VCPU_GPR(r24)(vcpu); \
-	ld	r25, VCPU_GPR(r25)(vcpu); \
-	ld	r26, VCPU_GPR(r26)(vcpu); \
-	ld	r27, VCPU_GPR(r27)(vcpu); \
-	ld	r28, VCPU_GPR(r28)(vcpu); \
-	ld	r29, VCPU_GPR(r29)(vcpu); \
-	ld	r30, VCPU_GPR(r30)(vcpu); \
-	ld	r31, VCPU_GPR(r31)(vcpu); \
+	PPC_LL	r14, VCPU_GPR(r14)(vcpu); \
+	PPC_LL	r15, VCPU_GPR(r15)(vcpu); \
+	PPC_LL	r16, VCPU_GPR(r16)(vcpu); \
+	PPC_LL	r17, VCPU_GPR(r17)(vcpu); \
+	PPC_LL	r18, VCPU_GPR(r18)(vcpu); \
+	PPC_LL	r19, VCPU_GPR(r19)(vcpu); \
+	PPC_LL	r20, VCPU_GPR(r20)(vcpu); \
+	PPC_LL	r21, VCPU_GPR(r21)(vcpu); \
+	PPC_LL	r22, VCPU_GPR(r22)(vcpu); \
+	PPC_LL	r23, VCPU_GPR(r23)(vcpu); \
+	PPC_LL	r24, VCPU_GPR(r24)(vcpu); \
+	PPC_LL	r25, VCPU_GPR(r25)(vcpu); \
+	PPC_LL	r26, VCPU_GPR(r26)(vcpu); \
+	PPC_LL	r27, VCPU_GPR(r27)(vcpu); \
+	PPC_LL	r28, VCPU_GPR(r28)(vcpu); \
+	PPC_LL	r29, VCPU_GPR(r29)(vcpu); \
+	PPC_LL	r30, VCPU_GPR(r30)(vcpu); \
+	PPC_LL	r31, VCPU_GPR(r31)(vcpu); \
 
 /*****************************************************************************
  *                                                                           *
@@ -69,11 +89,11 @@ _GLOBAL(__kvmppc_vcpu_entry)
 
 kvm_start_entry:
 	/* Write correct stack frame */
-	mflr    r0
-	std     r0,16(r1)
+	mflr	r0
+	PPC_STL	r0,PPC_LR_STKOFF(r1)
 
 	/* Save host state to the stack */
-	stdu	r1, -SWITCH_FRAME_SIZE(r1)
+	PPC_STLU r1, -SWITCH_FRAME_SIZE(r1)
 
 	/* Save r3 (kvm_run) and r4 (vcpu) */
 	SAVE_2GPRS(3, r1)
@@ -82,33 +102,28 @@ kvm_start_entry:
 	SAVE_NVGPRS(r1)
 
 	/* Save LR */
-	std	r0, _LINK(r1)
+	PPC_STL	r0, _LINK(r1)
 
 	/* Load non-volatile guest state from the vcpu */
 	VCPU_LOAD_NVGPRS(r4)
 
+	GET_SHADOW_VCPU(r5)
+
 	/* Save R1/R2 in the PACA */
-	std	r1, PACA_KVM_HOST_R1(r13)
-	std	r2, PACA_KVM_HOST_R2(r13)
+	PPC_STL	r1, SVCPU_HOST_R1(r5)
+	PPC_STL	r2, SVCPU_HOST_R2(r5)
 
 	/* XXX swap in/out on load? */
-	ld	r3, VCPU_HIGHMEM_HANDLER(r4)
-	std	r3, PACA_KVM_VMHANDLER(r13)
+	PPC_LL	r3, VCPU_HIGHMEM_HANDLER(r4)
+	PPC_STL	r3, SVCPU_VMHANDLER(r5)
 
 kvm_start_lightweight:
 
-	ld	r9, VCPU_PC(r4)			/* r9 = vcpu->arch.pc */
-	ld	r10, VCPU_SHADOW_MSR(r4)	/* r10 = vcpu->arch.shadow_msr */
-
-	/* Load some guest state in the respective registers */
-	ld	r5, VCPU_CTR(r4)	/* r5 = vcpu->arch.ctr */
-					/* will be swapped in by rmcall */
-
-	ld	r3, VCPU_LR(r4)		/* r3 = vcpu->arch.lr */
-	mtlr	r3			/* LR = r3 */
+	PPC_LL	r10, VCPU_SHADOW_MSR(r4)	/* r10 = vcpu->arch.shadow_msr */
 
 	DISABLE_INTERRUPTS
 
+#ifdef CONFIG_PPC_BOOK3S_64
 	/* Some guests may need to have dcbz set to 32 byte length.
 	 *
 	 * Usually we ensure that by patching the guest's instructions
@@ -118,7 +133,7 @@ kvm_start_lightweight:
 	 * because that's a lot faster.
 	 */
 
-	ld	r3, VCPU_HFLAGS(r4)
+	PPC_LL	r3, VCPU_HFLAGS(r4)
 	rldicl.	r3, r3, 0, 63		/* CR = ((r3 & 1) == 0) */
 	beq	no_dcbz32_on
 
@@ -128,13 +143,15 @@ kvm_start_lightweight:
 
 no_dcbz32_on:
 
-	ld	r6, VCPU_RMCALL(r4)
+#endif /* CONFIG_PPC_BOOK3S_64 */
+
+	PPC_LL	r6, VCPU_RMCALL(r4)
 	mtctr	r6
 
-	ld	r3, VCPU_TRAMPOLINE_ENTER(r4)
+	PPC_LL	r3, VCPU_TRAMPOLINE_ENTER(r4)
 	LOAD_REG_IMMEDIATE(r4, MSR_KERNEL & ~(MSR_IR | MSR_DR))
 
-	/* Jump to SLB patching handlder and into our guest */
+	/* Jump to segment patching handler and into our guest */
 	bctr
 
 /*
@@ -149,31 +166,20 @@ kvmppc_handler_highmem:
 	/*
 	 * Register usage at this point:
 	 *
-	 * R0         = guest last inst
-	 * R1         = host R1
-	 * R2         = host R2
-	 * R3         = guest PC
-	 * R4         = guest MSR
-	 * R5         = guest DAR
-	 * R6         = guest DSISR
-	 * R13        = PACA
-	 * PACA.KVM.* = guest *
+	 * R1       = host R1
+	 * R2       = host R2
+	 * R12      = exit handler id
+	 * R13      = PACA
+	 * SVCPU.*  = guest *
 	 *
 	 */
 
 	/* R7 = vcpu */
-	ld	r7, GPR4(r1)
+	PPC_LL	r7, GPR4(r1)
 
-	/* Now save the guest state */
+#ifdef CONFIG_PPC_BOOK3S_64
 
-	stw	r0, VCPU_LAST_INST(r7)
-
-	std	r3, VCPU_PC(r7)
-	std	r4, VCPU_SHADOW_SRR1(r7)
-	std	r5, VCPU_FAULT_DEAR(r7)
-	std	r6, VCPU_FAULT_DSISR(r7)
-
-	ld	r5, VCPU_HFLAGS(r7)
+	PPC_LL	r5, VCPU_HFLAGS(r7)
 	rldicl.	r5, r5, 0, 63		/* CR = ((r5 & 1) == 0) */
 	beq	no_dcbz32_off
 
@@ -184,35 +190,29 @@ kvmppc_handler_highmem:
 
 no_dcbz32_off:
 
-	std	r14, VCPU_GPR(r14)(r7)
-	std	r15, VCPU_GPR(r15)(r7)
-	std	r16, VCPU_GPR(r16)(r7)
-	std	r17, VCPU_GPR(r17)(r7)
-	std	r18, VCPU_GPR(r18)(r7)
-	std	r19, VCPU_GPR(r19)(r7)
-	std	r20, VCPU_GPR(r20)(r7)
-	std	r21, VCPU_GPR(r21)(r7)
-	std	r22, VCPU_GPR(r22)(r7)
-	std	r23, VCPU_GPR(r23)(r7)
-	std	r24, VCPU_GPR(r24)(r7)
-	std	r25, VCPU_GPR(r25)(r7)
-	std	r26, VCPU_GPR(r26)(r7)
-	std	r27, VCPU_GPR(r27)(r7)
-	std	r28, VCPU_GPR(r28)(r7)
-	std	r29, VCPU_GPR(r29)(r7)
-	std	r30, VCPU_GPR(r30)(r7)
-	std	r31, VCPU_GPR(r31)(r7)
+#endif /* CONFIG_PPC_BOOK3S_64 */
 
-	/* Save guest CTR */
-	mfctr	r5
-	std	r5, VCPU_CTR(r7)
-
-	/* Save guest LR */
-	mflr	r5
-	std	r5, VCPU_LR(r7)
+	PPC_STL	r14, VCPU_GPR(r14)(r7)
+	PPC_STL	r15, VCPU_GPR(r15)(r7)
+	PPC_STL	r16, VCPU_GPR(r16)(r7)
+	PPC_STL	r17, VCPU_GPR(r17)(r7)
+	PPC_STL	r18, VCPU_GPR(r18)(r7)
+	PPC_STL	r19, VCPU_GPR(r19)(r7)
+	PPC_STL	r20, VCPU_GPR(r20)(r7)
+	PPC_STL	r21, VCPU_GPR(r21)(r7)
+	PPC_STL	r22, VCPU_GPR(r22)(r7)
+	PPC_STL	r23, VCPU_GPR(r23)(r7)
+	PPC_STL	r24, VCPU_GPR(r24)(r7)
+	PPC_STL	r25, VCPU_GPR(r25)(r7)
+	PPC_STL	r26, VCPU_GPR(r26)(r7)
+	PPC_STL	r27, VCPU_GPR(r27)(r7)
+	PPC_STL	r28, VCPU_GPR(r28)(r7)
+	PPC_STL	r29, VCPU_GPR(r29)(r7)
+	PPC_STL	r30, VCPU_GPR(r30)(r7)
+	PPC_STL	r31, VCPU_GPR(r31)(r7)
 
 	/* Restore host msr -> SRR1 */
-	ld	r6, VCPU_HOST_MSR(r7)
+	PPC_LL	r6, VCPU_HOST_MSR(r7)
 
 	/*
 	 * For some interrupts, we need to call the real Linux
@@ -228,9 +228,12 @@ no_dcbz32_off:
 	beq	call_linux_handler
 	cmpwi	r12, BOOK3S_INTERRUPT_DECREMENTER
 	beq	call_linux_handler
+	cmpwi	r12, BOOK3S_INTERRUPT_PERFMON
+	beq	call_linux_handler
 
 	/* Back to EE=1 */
 	mtmsr	r6
+	sync
 	b	kvm_return_point
 
 call_linux_handler:
@@ -249,14 +252,14 @@ call_linux_handler:
 	 */
 
 	/* Restore host IP -> SRR0 */
-	ld	r5, VCPU_HOST_RETIP(r7)
+	PPC_LL	r5, VCPU_HOST_RETIP(r7)
 
 	/* XXX Better move to a safe function?
 	 *     What if we get an HTAB flush in between mtsrr0 and mtsrr1? */
 
 	mtlr	r12
 
-	ld	r4, VCPU_TRAMPOLINE_LOWMEM(r7)
+	PPC_LL	r4, VCPU_TRAMPOLINE_LOWMEM(r7)
 	mtsrr0	r4
 	LOAD_REG_IMMEDIATE(r3, MSR_KERNEL & ~(MSR_IR | MSR_DR))
 	mtsrr1	r3
@@ -274,7 +277,7 @@ kvm_return_point:
 
 	/* Restore r3 (kvm_run) and r4 (vcpu) */
 	REST_2GPRS(3, r1)
-	bl	KVMPPC_HANDLE_EXIT
+	bl	FUNC(kvmppc_handle_exit)
 
 	/* If RESUME_GUEST, get back in the loop */
 	cmpwi	r3, RESUME_GUEST
@@ -285,7 +288,7 @@ kvm_return_point:
 
 kvm_exit_loop:
 
-	ld	r4, _LINK(r1)
+	PPC_LL	r4, _LINK(r1)
 	mtlr	r4
 
 	/* Restore non-volatile host registers (r14 - r31) */
@@ -296,8 +299,8 @@ kvm_exit_loop:
 
 kvm_loop_heavyweight:
 
-	ld	r4, _LINK(r1)
-	std     r4, (16 + SWITCH_FRAME_SIZE)(r1)
+	PPC_LL	r4, _LINK(r1)
+	PPC_STL r4, (PPC_LR_STKOFF + SWITCH_FRAME_SIZE)(r1)
 
 	/* Load vcpu and cpu_run */
 	REST_2GPRS(3, r1)
@@ -315,4 +318,3 @@ kvm_loop_lightweight:
 
 	/* Jump back into the beginning of this function */
 	b	kvm_start_lightweight
-

@@ -17,27 +17,6 @@
  * Authors: Alexander Graf <agraf@suse.de>
  */
 
-#define SHADOW_SLB_ESID(num)	(SLBSHADOW_SAVEAREA + (num * 0x10))
-#define SHADOW_SLB_VSID(num)	(SLBSHADOW_SAVEAREA + (num * 0x10) + 0x8)
-#define UNBOLT_SLB_ENTRY(num) \
-	ld	r9, SHADOW_SLB_ESID(num)(r12); \
-	/* Invalid? Skip. */; \
-	rldicl. r0, r9, 37, 63; \
-	beq	slb_entry_skip_ ## num; \
-	xoris	r9, r9, SLB_ESID_V@h; \
-	std	r9, SHADOW_SLB_ESID(num)(r12); \
-  slb_entry_skip_ ## num:
-
-#define REBOLT_SLB_ENTRY(num) \
-	ld	r10, SHADOW_SLB_ESID(num)(r11); \
-	cmpdi	r10, 0; \
-	beq	slb_exit_skip_ ## num; \
-	oris	r10, r10, SLB_ESID_V@h; \
-	ld	r9, SHADOW_SLB_VSID(num)(r11); \
-	slbmte	r9, r10; \
-	std	r10, SHADOW_SLB_ESID(num)(r11); \
-slb_exit_skip_ ## num:
-
 /******************************************************************************
  *                                                                            *
  *                               Entry code                                   *
@@ -49,7 +28,6 @@ slb_exit_skip_ ## num:
 	/* Required state:
 	 *
 	 * MSR = ~IR|DR
-	 * R13 = PACA
 	 * R1 = host R1
 	 * R2 = host R2
 	 * R3 = shadow vcpu
@@ -60,65 +38,39 @@ slb_exit_skip_ ## num:
 	 * SVCPU[LR]  = guest LR
 	 */
 
-	/* Remove LPAR shadow entries */
+#define XCHG_SR(n)	lwz	r9, (SVCPU_SR+(n*4))(r3);  \
+			mtsr	n, r9
 
-#if SLB_NUM_BOLTED == 3
+	XCHG_SR(0)
+	XCHG_SR(1)
+	XCHG_SR(2)
+	XCHG_SR(3)
+	XCHG_SR(4)
+	XCHG_SR(5)
+	XCHG_SR(6)
+	XCHG_SR(7)
+	XCHG_SR(8)
+	XCHG_SR(9)
+	XCHG_SR(10)
+	XCHG_SR(11)
+	XCHG_SR(12)
+	XCHG_SR(13)
+	XCHG_SR(14)
+	XCHG_SR(15)
 
-	ld	r12, PACA_SLBSHADOWPTR(r13)
+	/* Clear BATs. */
 
-	/* Save off the first entry so we can slbie it later */
-	ld	r10, SHADOW_SLB_ESID(0)(r12)
-	ld	r11, SHADOW_SLB_VSID(0)(r12)
+#define KVM_KILL_BAT(n, reg)		\
+        mtspr   SPRN_IBAT##n##U,reg;	\
+        mtspr   SPRN_IBAT##n##L,reg;	\
+        mtspr   SPRN_DBAT##n##U,reg;	\
+        mtspr   SPRN_DBAT##n##L,reg;	\
 
-	/* Remove bolted entries */
-	UNBOLT_SLB_ENTRY(0)
-	UNBOLT_SLB_ENTRY(1)
-	UNBOLT_SLB_ENTRY(2)
-	
-#else
-#error unknown number of bolted entries
-#endif
-
-	/* Flush SLB */
-
-	slbia
-
-	/* r0 = esid & ESID_MASK */
-	rldicr  r10, r10, 0, 35
-	/* r0 |= CLASS_BIT(VSID) */
-	rldic   r12, r11, 56 - 36, 36
-	or      r10, r10, r12
-	slbie	r10
-
-	isync
-
-	/* Fill SLB with our shadow */
-
-	lbz	r12, SVCPU_SLB_MAX(r3)
-	mulli	r12, r12, 16
-	addi	r12, r12, SVCPU_SLB
-	add	r12, r12, r3
-
-	/* for (r11 = kvm_slb; r11 < kvm_slb + kvm_slb_size; r11+=slb_entry) */
-	li	r11, SVCPU_SLB
-	add	r11, r11, r3
-
-slb_loop_enter:
-
-	ld	r10, 0(r11)
-
-	rldicl. r0, r10, 37, 63
-	beq	slb_loop_enter_skip
-
-	ld	r9, 8(r11)
-	slbmte	r9, r10
-
-slb_loop_enter_skip:
-	addi	r11, r11, 16
-	cmpd	cr0, r11, r12
-	blt	slb_loop_enter
-
-slb_do_enter:
+        li	r9, 0
+	KVM_KILL_BAT(0, r9)
+	KVM_KILL_BAT(1, r9)
+	KVM_KILL_BAT(2, r9)
+	KVM_KILL_BAT(3, r9)
 
 .endm
 
@@ -135,7 +87,7 @@ slb_do_enter:
 	 * R1         = host R1
 	 * R2         = host R2
 	 * R12        = exit handler id
-	 * R13        = shadow vcpu - SHADOW_VCPU_OFF [=PACA on PPC64]
+	 * R13        = shadow vcpu - SHADOW_VCPU_OFF
 	 * SVCPU.*    = guest *
 	 * SVCPU[CR]  = guest CR
 	 * SVCPU[XER] = guest XER
@@ -144,24 +96,48 @@ slb_do_enter:
 	 *
 	 */
 
-	/* Restore bolted entries from the shadow and fix it along the way */
+	/* Restore BATs */
 
-	/* We don't store anything in entry 0, so we don't need to take care of it */
-	slbia
-	isync
+	/* We only overwrite the upper part, so we only restoree
+	   the upper part. */
+#define KVM_LOAD_BAT(n, reg, RA, RB)	\
+	lwz	RA,(n*16)+0(reg);	\
+	lwz	RB,(n*16)+4(reg);	\
+	mtspr	SPRN_IBAT##n##U,RA;	\
+	mtspr	SPRN_IBAT##n##L,RB;	\
+	lwz	RA,(n*16)+8(reg);	\
+	lwz	RB,(n*16)+12(reg);	\
+	mtspr	SPRN_DBAT##n##U,RA;	\
+	mtspr	SPRN_DBAT##n##L,RB;	\
 
-#if SLB_NUM_BOLTED == 3
+	lis     r9, BATS@ha
+	addi    r9, r9, BATS@l
+	tophys(r9, r9)
+	KVM_LOAD_BAT(0, r9, r10, r11)
+	KVM_LOAD_BAT(1, r9, r10, r11)
+	KVM_LOAD_BAT(2, r9, r10, r11)
+	KVM_LOAD_BAT(3, r9, r10, r11)
 
-	ld	r11, PACA_SLBSHADOWPTR(r13)
+	/* Restore Segment Registers */
 
-	REBOLT_SLB_ENTRY(0)
-	REBOLT_SLB_ENTRY(1)
-	REBOLT_SLB_ENTRY(2)
-	
-#else
-#error unknown number of bolted entries
-#endif
+	/* 0xc - 0xf */
 
-slb_do_exit:
+        li      r0, 4
+        mtctr   r0
+	LOAD_REG_IMMEDIATE(r3, 0x20000000 | (0x111 * 0xc))
+        lis     r4, 0xc000
+3:      mtsrin  r3, r4
+        addi    r3, r3, 0x111     /* increment VSID */
+        addis   r4, r4, 0x1000    /* address of next segment */
+        bdnz    3b
+
+	/* 0x0 - 0xb */
+
+	/* 'current->mm' needs to be in r4 */
+	tophys(r4, r2)
+	lwz	r4, MM(r4)
+	tophys(r4, r4)
+	/* This only clobbers r0, r3, r4 and r5 */
+	bl	switch_mmu_context
 
 .endm
