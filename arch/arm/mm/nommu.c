@@ -46,7 +46,7 @@ void __init reserve_special_regions(void)
  */
 void __init paging_init(struct machine_desc *mdesc)
 {
-	bootmem_init();
+	bootmem_init(mdesc);
 }
 
 /*

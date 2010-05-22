@@ -358,7 +358,7 @@ static void arm_memory_present(struct meminfo *mi)
 }
 #endif
 
-void __init bootmem_init(void)
+void __init bootmem_init(struct machine_desc *mdesc)
 {
 	struct meminfo *mi = &meminfo;
 	unsigned long min, max_low, max_high;
@@ -379,6 +379,9 @@ void __init bootmem_init(void)
 	 * Reserve any special regions.
 	 */
 	reserve_special_regions();
+
+	if (mdesc->reserve)
+		mdesc->reserve();
 
 	/*
 	 * If the initrd is present, reserve its memory.

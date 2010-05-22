@@ -28,5 +28,6 @@ extern void __flush_dcache_page(struct address_space *mapping, struct page *page
 
 #endif
 
-void __init bootmem_init(void);
+struct machine_desc;
+void __init bootmem_init(struct machine_desc *);
 void reserve_special_regions(void);

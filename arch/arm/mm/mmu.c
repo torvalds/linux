@@ -17,7 +17,6 @@
 #include <linux/sort.h>
 
 #include <asm/cputype.h>
-#include <asm/mach-types.h>
 #include <asm/sections.h>
 #include <asm/cachetype.h>
 #include <asm/setup.h>
@@ -831,8 +830,6 @@ static inline void prepare_page_table(void)
  */
 void __init reserve_special_regions(void)
 {
-	unsigned long res_size = 0;
-
 	/*
 	 * Register the kernel text and data with bootmem.
 	 * Note that this can only be in node 0.
@@ -850,68 +847,14 @@ void __init reserve_special_regions(void)
 	reserve_bootmem(__pa(swapper_pg_dir),
 			PTRS_PER_PGD * sizeof(pgd_t), BOOTMEM_DEFAULT);
 
-	/*
-	 * Hmm... This should go elsewhere, but we really really need to
-	 * stop things allocating the low memory; ideally we need a better
-	 * implementation of GFP_DMA which does not assume that DMA-able
-	 * memory starts at zero.
-	 */
-	if (machine_is_integrator() || machine_is_cintegrator())
-		res_size = __pa(swapper_pg_dir) - PHYS_OFFSET;
-
-	/*
-	 * These should likewise go elsewhere.  They pre-reserve the
-	 * screen memory region at the start of main system memory.
-	 */
-	if (machine_is_edb7211())
-		res_size = 0x00020000;
-	if (machine_is_p720t())
-		res_size = 0x00014000;
-
-	/* H1940, RX3715 and RX1950 need to reserve this for suspend */
-
-	if (machine_is_h1940() || machine_is_rx3715()
-		|| machine_is_rx1950()) {
-		reserve_bootmem(0x30003000, 0x1000, BOOTMEM_DEFAULT);
-		reserve_bootmem(0x30081000, 0x1000, BOOTMEM_DEFAULT);
-	}
-
-	if (machine_is_palmld() || machine_is_palmtx()) {
-		reserve_bootmem(0xa0000000, 0x1000, BOOTMEM_EXCLUSIVE);
-		reserve_bootmem(0xa0200000, 0x1000, BOOTMEM_EXCLUSIVE);
-	}
-
-	if (machine_is_treo680() || machine_is_centro()) {
-		reserve_bootmem(0xa0000000, 0x1000, BOOTMEM_EXCLUSIVE);
-		reserve_bootmem(0xa2000000, 0x1000, BOOTMEM_EXCLUSIVE);
-	}
-
-	if (machine_is_palmt5())
-		reserve_bootmem(0xa0200000, 0x1000, BOOTMEM_EXCLUSIVE);
-
-	/*
-	 * U300 - This platform family can share physical memory
-	 * between two ARM cpus, one running Linux and the other
-	 * running another OS.
-	 */
-	if (machine_is_u300()) {
-#ifdef CONFIG_MACH_U300_SINGLE_RAM
-#if ((CONFIG_MACH_U300_ACCESS_MEM_SIZE & 1) == 1) &&	\
-	CONFIG_MACH_U300_2MB_ALIGNMENT_FIX
-		res_size = 0x00100000;
-#endif
-#endif
-	}
-
 #ifdef CONFIG_SA1111
 	/*
 	 * Because of the SA1111 DMA bug, we want to preserve our
 	 * precious DMA-able memory...
 	 */
-	res_size = __pa(swapper_pg_dir) - PHYS_OFFSET;
+	reserve_bootmem(PHYS_OFFSET, __pa(swapper_pg_dir) - PHYS_OFFSET,
+			BOOTMEM_DEFAULT);
 #endif
-	if (res_size)
-		reserve_bootmem(PHYS_OFFSET, res_size, BOOTMEM_DEFAULT);
 }
 
 /*
@@ -1056,7 +999,7 @@ void __init paging_init(struct machine_desc *mdesc)
 	sanity_check_meminfo();
 	prepare_page_table();
 	map_lowmem();
-	bootmem_init();
+	bootmem_init(mdesc);
 	devicemaps_init(mdesc);
 	kmap_init();
 
