@@ -44,7 +44,7 @@ static size_t user_list(struct dentry *dentry, char *list, size_t list_size,
 	return len;
 }
 
-struct xattr_handler reiserfs_xattr_user_handler = {
+const struct xattr_handler reiserfs_xattr_user_handler = {
 	.prefix = XATTR_USER_PREFIX,
 	.get = user_get,
 	.set = user_set,

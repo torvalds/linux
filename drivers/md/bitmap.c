@@ -1699,7 +1699,7 @@ int bitmap_create(mddev_t *mddev)
 		 * and bypass the page cache, we must sync the file
 		 * first.
 		 */
-		vfs_fsync(file, file->f_dentry, 1);
+		vfs_fsync(file, 1);
 	}
 	/* read superblock from bitmap file (this sets mddev->bitmap_info.chunksize) */
 	if (!mddev->bitmap_info.external)

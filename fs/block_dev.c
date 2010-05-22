@@ -245,37 +245,14 @@ struct super_block *freeze_bdev(struct block_device *bdev)
 	sb = get_active_super(bdev);
 	if (!sb)
 		goto out;
-	if (sb->s_flags & MS_RDONLY) {
-		sb->s_frozen = SB_FREEZE_TRANS;
-		up_write(&sb->s_umount);
+	error = freeze_super(sb);
+	if (error) {
+		deactivate_super(sb);
+		bdev->bd_fsfreeze_count--;
 		mutex_unlock(&bdev->bd_fsfreeze_mutex);
-		return sb;
+		return ERR_PTR(error);
 	}
-
-	sb->s_frozen = SB_FREEZE_WRITE;
-	smp_wmb();
-
-	sync_filesystem(sb);
-
-	sb->s_frozen = SB_FREEZE_TRANS;
-	smp_wmb();
-
-	sync_blockdev(sb->s_bdev);
-
-	if (sb->s_op->freeze_fs) {
-		error = sb->s_op->freeze_fs(sb);
-		if (error) {
-			printk(KERN_ERR
-				"VFS:Filesystem freeze failed\n");
-			sb->s_frozen = SB_UNFROZEN;
-			deactivate_locked_super(sb);
-			bdev->bd_fsfreeze_count--;
-			mutex_unlock(&bdev->bd_fsfreeze_mutex);
-			return ERR_PTR(error);
-		}
-	}
-	up_write(&sb->s_umount);
-
+	deactivate_super(sb);
  out:
 	sync_blockdev(bdev);
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
@@ -296,40 +273,22 @@ int thaw_bdev(struct block_device *bdev, struct super_block *sb)
 
 	mutex_lock(&bdev->bd_fsfreeze_mutex);
 	if (!bdev->bd_fsfreeze_count)
-		goto out_unlock;
+		goto out;
 
 	error = 0;
 	if (--bdev->bd_fsfreeze_count > 0)
-		goto out_unlock;
+		goto out;
 
 	if (!sb)
-		goto out_unlock;
+		goto out;
 
-	BUG_ON(sb->s_bdev != bdev);
-	down_write(&sb->s_umount);
-	if (sb->s_flags & MS_RDONLY)
-		goto out_unfrozen;
-
-	if (sb->s_op->unfreeze_fs) {
-		error = sb->s_op->unfreeze_fs(sb);
-		if (error) {
-			printk(KERN_ERR
-				"VFS:Filesystem thaw failed\n");
-			sb->s_frozen = SB_FREEZE_TRANS;
-			bdev->bd_fsfreeze_count++;
-			mutex_unlock(&bdev->bd_fsfreeze_mutex);
-			return error;
-		}
+	error = thaw_super(sb);
+	if (error) {
+		bdev->bd_fsfreeze_count++;
+		mutex_unlock(&bdev->bd_fsfreeze_mutex);
+		return error;
 	}
-
-out_unfrozen:
-	sb->s_frozen = SB_UNFROZEN;
-	smp_wmb();
-	wake_up(&sb->s_wait_unfrozen);
-
-	if (sb)
-		deactivate_locked_super(sb);
-out_unlock:
+out:
 	mutex_unlock(&bdev->bd_fsfreeze_mutex);
 	return 0;
 }

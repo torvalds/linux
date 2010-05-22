@@ -75,7 +75,7 @@ int mac_partition(struct parsed_partitions *state)
 			be32_to_cpu(part->block_count) * (secsize/512));
 
 		if (!strnicmp(part->type, "Linux_RAID", 10))
-			state->parts[slot].flags = 1;
+			state->parts[slot].flags = ADDPART_FLAG_RAID;
 #ifdef CONFIG_PPC_PMAC
 		/*
 		 * If this is the first bootable partition, tell the

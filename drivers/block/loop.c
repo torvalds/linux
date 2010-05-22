@@ -485,7 +485,7 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 				goto out;
 			}
 
-			ret = vfs_fsync(file, file->f_path.dentry, 0);
+			ret = vfs_fsync(file, 0);
 			if (unlikely(ret)) {
 				ret = -EIO;
 				goto out;
@@ -495,7 +495,7 @@ static int do_bio_filebacked(struct loop_device *lo, struct bio *bio)
 		ret = lo_send(lo, bio, pos);
 
 		if (barrier && !ret) {
-			ret = vfs_fsync(file, file->f_path.dentry, 0);
+			ret = vfs_fsync(file, 0);
 			if (unlikely(ret))
 				ret = -EIO;
 		}

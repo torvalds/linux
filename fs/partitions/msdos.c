@@ -498,7 +498,7 @@ int msdos_partition(struct parsed_partitions *state)
 		}
 		put_partition(state, slot, start, size);
 		if (SYS_IND(p) == LINUX_RAID_PARTITION)
-			state->parts[slot].flags = 1;
+			state->parts[slot].flags = ADDPART_FLAG_RAID;
 		if (SYS_IND(p) == DM6_PARTITION)
 			printk("[DM]");
 		if (SYS_IND(p) == EZD_PARTITION)

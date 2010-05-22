@@ -221,7 +221,7 @@ void minix_free_inode(struct inode * inode)
 	clear_inode(inode);		/* clear in-memory copy */
 }
 
-struct inode * minix_new_inode(const struct inode * dir, int * error)
+struct inode *minix_new_inode(const struct inode *dir, int mode, int *error)
 {
 	struct super_block *sb = dir->i_sb;
 	struct minix_sb_info *sbi = minix_sb(sb);
@@ -263,8 +263,7 @@ struct inode * minix_new_inode(const struct inode * dir, int * error)
 		iput(inode);
 		return NULL;
 	}
-	inode->i_uid = current_fsuid();
-	inode->i_gid = (dir->i_mode & S_ISGID) ? dir->i_gid : current_fsgid();
+	inode_init_owner(inode, dir, mode);
 	inode->i_ino = j;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
 	inode->i_blocks = 0;
