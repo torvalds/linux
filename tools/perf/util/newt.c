@@ -914,6 +914,9 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 
 			switch (toupper(es.u.key)) {
 			case 'A':
+				if (browser->selection->map == NULL &&
+				    browser->selection->map->dso->annotate_warned)
+					continue;
 				goto do_annotate;
 			case 'D':
 				goto zoom_dso;
@@ -957,6 +960,7 @@ do_help:
 		}
 
 		if (browser->selection->sym != NULL &&
+		    !browser->selection->map->dso->annotate_warned &&
 		    asprintf(&options[nr_options], "Annotate %s",
 			     browser->selection->sym->name) > 0)
 			annotate = nr_options++;
@@ -991,6 +995,7 @@ do_help:
 			struct hist_entry *he;
 do_annotate:
 			if (browser->selection->map->dso->origin == DSO__ORIG_KERNEL) {
+				browser->selection->map->dso->annotate_warned = 1;
 				ui_helpline__puts("No vmlinux file found, can't "
 						 "annotate with just a "
 						 "kallsyms file");
