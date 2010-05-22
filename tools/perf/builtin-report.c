@@ -484,9 +484,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
 	argc = parse_options(argc, argv, options, report_usage, 0);
 
-	if (dump_trace)
-		setup_pager();
-	else if (strcmp(input_name, "-") != 0)
+	if (strcmp(input_name, "-") != 0)
 		setup_browser();
 	/*
 	 * Only in the newt browser we are doing integrated annotation,
