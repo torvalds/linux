@@ -241,7 +241,6 @@ static void mpc8xxx_spi_change_mode(struct spi_device *spi)
 
 	/* Turn off SPI unit prior changing mode */
 	mpc8xxx_spi_write_reg(mode, cs->hw_mode & ~SPMODE_ENABLE);
-	mpc8xxx_spi_write_reg(mode, cs->hw_mode);
 
 	/* When in CPM mode, we need to reinit tx and rx. */
 	if (mspi->flags & SPI_CPM_MODE) {
@@ -258,7 +257,7 @@ static void mpc8xxx_spi_change_mode(struct spi_device *spi)
 			}
 		}
 	}
-
+	mpc8xxx_spi_write_reg(mode, cs->hw_mode);
 	local_irq_restore(flags);
 }
 
@@ -438,7 +437,7 @@ static int mpc8xxx_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 			dev_err(dev, "unable to map tx dma\n");
 			return -ENOMEM;
 		}
-	} else {
+	} else if (t->tx_buf) {
 		mspi->tx_dma = t->tx_dma;
 	}
 
@@ -449,7 +448,7 @@ static int mpc8xxx_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 			dev_err(dev, "unable to map rx dma\n");
 			goto err_rx_dma;
 		}
-	} else {
+	} else if (t->rx_buf) {
 		mspi->rx_dma = t->rx_dma;
 	}
 
