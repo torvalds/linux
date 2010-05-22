@@ -26,7 +26,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/bootmem.h>
+#include <linux/memblock.h>
 #include <linux/io.h>
 #include <linux/omapfb.h>
 
@@ -173,25 +173,27 @@ static int check_fbmem_region(int region_idx, struct omapfb_mem_region *rg,
 
 static int valid_sdram(unsigned long addr, unsigned long size)
 {
-	struct bootmem_data *bdata = NODE_DATA(0)->bdata;
-	unsigned long sdram_start, sdram_end;
+	struct memblock_property res;
 
-	sdram_start = bdata->node_min_pfn << PAGE_SHIFT;
-	sdram_end = bdata->node_low_pfn << PAGE_SHIFT;
-
-	return addr >= sdram_start && sdram_end - addr >= size;
+	res.base = addr;
+	res.size = size;
+	return !memblock_find(&res) && res.base == addr && res.size == size;
 }
 
 static int reserve_sdram(unsigned long addr, unsigned long size)
 {
-	return reserve_bootmem(addr, size, BOOTMEM_EXCLUSIVE);
+	if (memblock_is_region_reserved(addr, size))
+		return -EBUSY;
+	if (memblock_reserve(addr, size))
+		return -ENOMEM;
+	return 0;
 }
 
 /*
  * Called from map_io. We need to call to this early enough so that we
  * can reserve the fixed SDRAM regions before VM could get hold of them.
  */
-void __init omapfb_reserve_sdram(void)
+void __init omapfb_reserve_sdram_memblock(void)
 {
 	unsigned long reserved = 0;
 	int i;
@@ -386,7 +388,10 @@ static inline int omap_init_fb(void)
 
 arch_initcall(omap_init_fb);
 
-void omapfb_reserve_sdram(void) {}
+void omapfb_reserve_sdram_memblock(void)
+{
+}
+
 unsigned long omapfb_reserve_sram(unsigned long sram_pstart,
 				  unsigned long sram_vstart,
 				  unsigned long sram_size,
@@ -402,7 +407,10 @@ void omapfb_set_platform_data(struct omapfb_platform_data *data)
 {
 }
 
-void omapfb_reserve_sdram(void) {}
+void omapfb_reserve_sdram_memblock(void)
+{
+}
+
 unsigned long omapfb_reserve_sram(unsigned long sram_pstart,
 				  unsigned long sram_vstart,
 				  unsigned long sram_size,

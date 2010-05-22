@@ -85,8 +85,8 @@ EXPORT_SYMBOL(omap_get_var_config);
 
 void __init omap_reserve(void)
 {
-	omapfb_reserve_sdram();
-	omap_vram_reserve_sdram();
+	omapfb_reserve_sdram_memblock();
+	omap_vram_reserve_sdram_memblock();
 }
 
 /*
