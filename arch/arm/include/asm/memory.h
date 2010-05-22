@@ -158,7 +158,7 @@
 #endif
 
 #ifndef arch_adjust_zones
-#define arch_adjust_zones(node,size,holes) do { } while (0)
+#define arch_adjust_zones(size,holes) do { } while (0)
 #elif !defined(CONFIG_ZONE_DMA)
 #error "custom arch_adjust_zones() requires CONFIG_ZONE_DMA"
 #endif

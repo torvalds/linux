@@ -61,12 +61,11 @@ void __iomem *gic_cpu_base_addr;
 /*
  * Adjust the zones if there are restrictions for DMA access.
  */
-void __init realview_adjust_zones(int node, unsigned long *size,
-				  unsigned long *hole)
+void __init realview_adjust_zones(unsigned long *size, unsigned long *hole)
 {
 	unsigned long dma_size = SZ_256M >> PAGE_SHIFT;
 
-	if (!machine_is_realview_pbx() || node || (size[0] <= dma_size))
+	if (!machine_is_realview_pbx() || size[0] <= dma_size)
 		return;
 
 	size[ZONE_NORMAL] = size[0] - dma_size;

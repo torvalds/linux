@@ -318,7 +318,7 @@ static void __init arm_bootmem_free(struct meminfo *mi)
 	 * Adjust the sizes according to any special requirements for
 	 * this machine type.
 	 */
-	arch_adjust_zones(0, zone_size, zhole_size);
+	arch_adjust_zones(zone_size, zhole_size);
 
 	free_area_init_node(0, zone_size, min, zhole_size);
 }
