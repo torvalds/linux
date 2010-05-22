@@ -1132,6 +1132,14 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 	switch (request) {
 	case PORT_REQUEST_ASSOCIATE:
 
+		/* If the interface mac addr hasn't been assigned,
+		 * assign a random mac addr before setting port-
+		 * profile.
+		 */
+
+		if (is_zero_ether_addr(netdev->dev_addr))
+			random_ether_addr(netdev->dev_addr);
+
 		if (port[IFLA_PORT_PROFILE])
 			name = nla_data(port[IFLA_PORT_PROFILE]);
 
