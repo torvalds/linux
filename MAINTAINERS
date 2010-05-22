@@ -3503,9 +3503,8 @@ F:	arch/powerpc/platforms/83xx/
 
 LINUX FOR POWERPC PA SEMI PWRFICIENT
 M:	Olof Johansson <olof@lixom.net>
-W:	http://www.pasemi.com/
 L:	linuxppc-dev@ozlabs.org
-S:	Supported
+S:	Maintained
 F:	arch/powerpc/platforms/pasemi/
 F:	drivers/*/*pasemi*
 F:	drivers/*/*/*pasemi*
