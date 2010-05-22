@@ -423,6 +423,33 @@ void  nuc900_fb_set_platdata(struct nuc900fb_mach_info *pd)
 }
 #endif
 
+/* AUDIO controller*/
+static u64 nuc900_device_audio_dmamask = -1;
+static struct resource nuc900_ac97_resource[] = {
+	[0] = {
+		.start = W90X900_PA_ACTL,
+		.end   = W90X900_PA_ACTL + W90X900_SZ_ACTL - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_ACTL,
+		.end   = IRQ_ACTL,
+		.flags = IORESOURCE_IRQ,
+	}
+
+};
+
+struct platform_device nuc900_device_audio = {
+	.name		= "nuc900-audio",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(nuc900_ac97_resource),
+	.resource	= nuc900_ac97_resource,
+	.dev              = {
+		.dma_mask               = &nuc900_device_audio_dmamask,
+		.coherent_dma_mask      = -1,
+	}
+};
+
 /*Here should be your evb resourse,such as LCD*/
 
 static struct platform_device *nuc900_public_dev[] __initdata = {
@@ -434,6 +461,7 @@ static struct platform_device *nuc900_public_dev[] __initdata = {
 	&nuc900_device_emc,
 	&nuc900_device_spi,
 	&nuc900_device_wdt,
+	&nuc900_device_audio,
 };
 
 /* Provide adding specific CPU platform devices API */
