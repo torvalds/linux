@@ -604,6 +604,7 @@ int init_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi, char *data)
 			   when reloading fails. */
 	}
 	nilfs->ns_blocksize_bits = sb->s_blocksize_bits;
+	nilfs->ns_blocksize = blocksize;
 
 	err = nilfs_store_disk_layout(nilfs, sbp);
 	if (err)

@@ -82,6 +82,7 @@ enum {
  * @ns_gc_inodes: dummy inodes to keep live blocks
  * @ns_gc_inodes_h: hash list to keep dummy inode holding live blocks
  * @ns_blocksize_bits: bit length of block size
+ * @ns_blocksize: block size
  * @ns_nsegments: number of segments in filesystem
  * @ns_blocks_per_segment: number of blocks per segment
  * @ns_r_segments_percentage: reserved segments percentage
@@ -168,6 +169,7 @@ struct the_nilfs {
 
 	/* Disk layout information (static) */
 	unsigned int		ns_blocksize_bits;
+	unsigned int		ns_blocksize;
 	unsigned long		ns_nsegments;
 	unsigned long		ns_blocks_per_segment;
 	unsigned long		ns_r_segments_percentage;
