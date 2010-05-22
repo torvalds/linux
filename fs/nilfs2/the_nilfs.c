@@ -159,8 +159,7 @@ void put_nilfs(struct the_nilfs *nilfs)
 	kfree(nilfs);
 }
 
-static int nilfs_load_super_root(struct the_nilfs *nilfs,
-				 struct nilfs_sb_info *sbi, sector_t sr_block)
+static int nilfs_load_super_root(struct the_nilfs *nilfs, sector_t sr_block)
 {
 	struct buffer_head *bh_sr;
 	struct nilfs_super_root *raw_sr;
@@ -169,7 +168,7 @@ static int nilfs_load_super_root(struct the_nilfs *nilfs,
 	unsigned inode_size;
 	int err;
 
-	err = nilfs_read_super_root_block(sbi->s_super, sr_block, &bh_sr, 1);
+	err = nilfs_read_super_root_block(nilfs, sr_block, &bh_sr, 1);
 	if (unlikely(err))
 		return err;
 
@@ -285,13 +284,13 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 
 	nilfs_init_recovery_info(&ri);
 
-	err = nilfs_search_super_root(nilfs, sbi, &ri);
+	err = nilfs_search_super_root(nilfs, &ri);
 	if (unlikely(err)) {
 		printk(KERN_ERR "NILFS: error searching super root.\n");
 		goto failed;
 	}
 
-	err = nilfs_load_super_root(nilfs, sbi, ri.ri_super_root);
+	err = nilfs_load_super_root(nilfs, ri.ri_super_root);
 	if (unlikely(err)) {
 		printk(KERN_ERR "NILFS: error loading super root.\n");
 		goto failed;

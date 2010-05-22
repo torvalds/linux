@@ -234,9 +234,9 @@ extern int nilfs_attach_segment_constructor(struct nilfs_sb_info *);
 extern void nilfs_detach_segment_constructor(struct nilfs_sb_info *);
 
 /* recovery.c */
-extern int nilfs_read_super_root_block(struct super_block *, sector_t,
+extern int nilfs_read_super_root_block(struct the_nilfs *, sector_t,
 				       struct buffer_head **, int);
-extern int nilfs_search_super_root(struct the_nilfs *, struct nilfs_sb_info *,
+extern int nilfs_search_super_root(struct the_nilfs *,
 				   struct nilfs_recovery_info *);
 extern int nilfs_recover_logical_segments(struct the_nilfs *,
 					  struct nilfs_sb_info *,
