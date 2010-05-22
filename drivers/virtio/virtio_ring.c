@@ -110,13 +110,14 @@ struct vring_virtqueue
 static int vring_add_indirect(struct vring_virtqueue *vq,
 			      struct scatterlist sg[],
 			      unsigned int out,
-			      unsigned int in)
+			      unsigned int in,
+			      gfp_t gfp)
 {
 	struct vring_desc *desc;
 	unsigned head;
 	int i;
 
-	desc = kmalloc((out + in) * sizeof(struct vring_desc), GFP_ATOMIC);
+	desc = kmalloc((out + in) * sizeof(struct vring_desc), gfp);
 	if (!desc)
 		return vq->vring.num;
 
@@ -155,11 +156,12 @@ static int vring_add_indirect(struct vring_virtqueue *vq,
 	return head;
 }
 
-static int vring_add_buf(struct virtqueue *_vq,
-			 struct scatterlist sg[],
-			 unsigned int out,
-			 unsigned int in,
-			 void *data)
+int virtqueue_add_buf_gfp(struct virtqueue *_vq,
+			  struct scatterlist sg[],
+			  unsigned int out,
+			  unsigned int in,
+			  void *data,
+			  gfp_t gfp)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 	unsigned int i, avail, head, uninitialized_var(prev);
@@ -171,7 +173,7 @@ static int vring_add_buf(struct virtqueue *_vq,
 	/* If the host supports indirect descriptor tables, and we have multiple
 	 * buffers, then go indirect. FIXME: tune this threshold */
 	if (vq->indirect && (out + in) > 1 && vq->num_free) {
-		head = vring_add_indirect(vq, sg, out, in);
+		head = vring_add_indirect(vq, sg, out, in, gfp);
 		if (head != vq->vring.num)
 			goto add_head;
 	}
@@ -232,8 +234,9 @@ add_head:
 		return vq->num_free ? vq->vring.num : 0;
 	return vq->num_free;
 }
+EXPORT_SYMBOL_GPL(virtqueue_add_buf_gfp);
 
-static void vring_kick(struct virtqueue *_vq)
+void virtqueue_kick(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 	START_USE(vq);
@@ -253,6 +256,7 @@ static void vring_kick(struct virtqueue *_vq)
 
 	END_USE(vq);
 }
+EXPORT_SYMBOL_GPL(virtqueue_kick);
 
 static void detach_buf(struct vring_virtqueue *vq, unsigned int head)
 {
@@ -284,7 +288,7 @@ static inline bool more_used(const struct vring_virtqueue *vq)
 	return vq->last_used_idx != vq->vring.used->idx;
 }
 
-static void *vring_get_buf(struct virtqueue *_vq, unsigned int *len)
+void *virtqueue_get_buf(struct virtqueue *_vq, unsigned int *len)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 	void *ret;
@@ -325,15 +329,17 @@ static void *vring_get_buf(struct virtqueue *_vq, unsigned int *len)
 	END_USE(vq);
 	return ret;
 }
+EXPORT_SYMBOL_GPL(virtqueue_get_buf);
 
-static void vring_disable_cb(struct virtqueue *_vq)
+void virtqueue_disable_cb(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
 	vq->vring.avail->flags |= VRING_AVAIL_F_NO_INTERRUPT;
 }
+EXPORT_SYMBOL_GPL(virtqueue_disable_cb);
 
-static bool vring_enable_cb(struct virtqueue *_vq)
+bool virtqueue_enable_cb(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 
@@ -351,8 +357,9 @@ static bool vring_enable_cb(struct virtqueue *_vq)
 	END_USE(vq);
 	return true;
 }
+EXPORT_SYMBOL_GPL(virtqueue_enable_cb);
 
-static void *vring_detach_unused_buf(struct virtqueue *_vq)
+void *virtqueue_detach_unused_buf(struct virtqueue *_vq)
 {
 	struct vring_virtqueue *vq = to_vvq(_vq);
 	unsigned int i;
@@ -375,6 +382,7 @@ static void *vring_detach_unused_buf(struct virtqueue *_vq)
 	END_USE(vq);
 	return NULL;
 }
+EXPORT_SYMBOL_GPL(virtqueue_detach_unused_buf);
 
 irqreturn_t vring_interrupt(int irq, void *_vq)
 {
@@ -395,15 +403,6 @@ irqreturn_t vring_interrupt(int irq, void *_vq)
 	return IRQ_HANDLED;
 }
 EXPORT_SYMBOL_GPL(vring_interrupt);
-
-static struct virtqueue_ops vring_vq_ops = {
-	.add_buf = vring_add_buf,
-	.get_buf = vring_get_buf,
-	.kick = vring_kick,
-	.disable_cb = vring_disable_cb,
-	.enable_cb = vring_enable_cb,
-	.detach_unused_buf = vring_detach_unused_buf,
-};
 
 struct virtqueue *vring_new_virtqueue(unsigned int num,
 				      unsigned int vring_align,
@@ -429,7 +428,6 @@ struct virtqueue *vring_new_virtqueue(unsigned int num,
 	vring_init(&vq->vring, num, pages, vring_align);
 	vq->vq.callback = callback;
 	vq->vq.vdev = vdev;
-	vq->vq.vq_ops = &vring_vq_ops;
 	vq->vq.name = name;
 	vq->notify = notify;
 	vq->broken = false;

@@ -1012,7 +1012,7 @@ static int wm8990_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8990_priv *wm8990 = codec->private_data;
+	struct wm8990_priv *wm8990 = snd_soc_codec_get_drvdata(codec);
 
 	wm8990->sysclk = freq;
 	return 0;
@@ -1524,7 +1524,7 @@ static int wm8990_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	codec->private_data = wm8990;
+	snd_soc_codec_set_drvdata(codec, wm8990);
 	socdev->card->codec = codec;
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
@@ -1541,7 +1541,7 @@ static int wm8990_probe(struct platform_device *pdev)
 #endif
 
 	if (ret != 0) {
-		kfree(codec->private_data);
+		kfree(snd_soc_codec_get_drvdata(codec));
 		kfree(codec);
 	}
 	return ret;
@@ -1561,7 +1561,7 @@ static int wm8990_remove(struct platform_device *pdev)
 	i2c_unregister_device(codec->control_data);
 	i2c_del_driver(&wm8990_i2c_driver);
 #endif
-	kfree(codec->private_data);
+	kfree(snd_soc_codec_get_drvdata(codec));
 	kfree(codec);
 
 	return 0;

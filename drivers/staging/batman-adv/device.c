@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2009 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2007-2010 B.A.T.M.A.N. contributors:
  *
  * Marek Lindner
  *
@@ -44,10 +44,7 @@ static struct device_client *device_client_hash[256];
 
 void bat_device_init(void)
 {
-	int i;
-
-	for (i = 0; i < 256; i++)
-		device_client_hash[i] = NULL;
+	memset(device_client_hash, 0, sizeof(device_client_hash));
 }
 
 int bat_device_setup(void)
@@ -60,7 +57,8 @@ int bat_device_setup(void)
 	/* register our device - kernel assigns a free major number */
 	tmp_major = register_chrdev(0, DRIVER_DEVICE, &fops);
 	if (tmp_major < 0) {
-		printk(KERN_ERR "batman-adv:Registering the character device failed with %d\n",
+		printk(KERN_ERR "batman-adv:"
+		       "Registering the character device failed with %d\n",
 			  tmp_major);
 		return 0;
 	}
@@ -68,7 +66,8 @@ int bat_device_setup(void)
 	batman_class = class_create(THIS_MODULE, "batman-adv");
 
 	if (IS_ERR(batman_class)) {
-		printk(KERN_ERR "batman-adv:Could not register class 'batman-adv' \n");
+		printk(KERN_ERR "batman-adv:"
+		       "Could not register class 'batman-adv'\n");
 		return 0;
 	}
 
@@ -103,15 +102,17 @@ int bat_device_open(struct inode *inode, struct file *file)
 	if (!device_client)
 		return -ENOMEM;
 
-	for (i = 0; i < 256; i++) {
+	for (i = 0; i < ARRAY_SIZE(device_client_hash); i++) {
 		if (!device_client_hash[i]) {
 			device_client_hash[i] = device_client;
 			break;
 		}
 	}
 
-	if (device_client_hash[i] != device_client) {
-		printk(KERN_ERR "batman-adv:Error - can't add another packet client: maximum number of clients reached \n");
+	if (i == ARRAY_SIZE(device_client_hash)) {
+		printk(KERN_ERR "batman-adv:"
+		       "Error - can't add another packet client: "
+		       "maximum number of clients reached\n");
 		kfree(device_client);
 		return -EXFULL;
 	}
@@ -212,7 +213,9 @@ ssize_t bat_device_write(struct file *file, const char __user *buff,
 	unsigned long flags;
 
 	if (len < sizeof(struct icmp_packet)) {
-		bat_dbg(DBG_BATMAN, "batman-adv:Error - can't send packet from char device: invalid packet size\n");
+		bat_dbg(DBG_BATMAN, "batman-adv:"
+			"Error - can't send packet from char device: "
+			"invalid packet size\n");
 		return -EINVAL;
 	}
 
@@ -223,12 +226,16 @@ ssize_t bat_device_write(struct file *file, const char __user *buff,
 		return -EFAULT;
 
 	if (icmp_packet.packet_type != BAT_ICMP) {
-		bat_dbg(DBG_BATMAN, "batman-adv:Error - can't send packet from char device: got bogus packet type (expected: BAT_ICMP)\n");
+		bat_dbg(DBG_BATMAN, "batman-adv:"
+			"Error - can't send packet from char device: "
+			"got bogus packet type (expected: BAT_ICMP)\n");
 		return -EINVAL;
 	}
 
 	if (icmp_packet.msg_type != ECHO_REQUEST) {
-		bat_dbg(DBG_BATMAN, "batman-adv:Error - can't send packet from char device: got bogus message type (expected: ECHO_REQUEST)\n");
+		bat_dbg(DBG_BATMAN, "batman-adv:"
+			"Error - can't send packet from char device: "
+			"got bogus message type (expected: ECHO_REQUEST)\n");
 		return -EINVAL;
 	}
 
@@ -253,7 +260,7 @@ ssize_t bat_device_write(struct file *file, const char __user *buff,
 	if (!orig_node->router)
 		goto unlock;
 
-	batman_if = orig_node->batman_if;
+	batman_if = orig_node->router->if_incoming;
 	memcpy(dstaddr, orig_node->router->addr, ETH_ALEN);
 
 	spin_unlock_irqrestore(&orig_hash_lock, flags);
@@ -261,7 +268,7 @@ ssize_t bat_device_write(struct file *file, const char __user *buff,
 	if (!batman_if)
 		goto dst_unreach;
 
-	if (batman_if->if_active != IF_ACTIVE)
+	if (batman_if->if_status != IF_ACTIVE)
 		goto dst_unreach;
 
 	memcpy(icmp_packet.orig,

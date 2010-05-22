@@ -66,7 +66,7 @@ static u64 pcsp_timer_update(struct snd_pcsp *chip)
 	timer_cnt = val * CUR_DIV() / 256;
 
 	if (timer_cnt && chip->enable) {
-		spin_lock_irqsave(&i8253_lock, flags);
+		raw_spin_lock_irqsave(&i8253_lock, flags);
 		if (!nforce_wa) {
 			outb_p(chip->val61, 0x61);
 			outb_p(timer_cnt, 0x42);
@@ -75,7 +75,7 @@ static u64 pcsp_timer_update(struct snd_pcsp *chip)
 			outb(chip->val61 ^ 2, 0x61);
 			chip->thalf = 1;
 		}
-		spin_unlock_irqrestore(&i8253_lock, flags);
+		raw_spin_unlock_irqrestore(&i8253_lock, flags);
 	}
 
 	chip->ns_rem = PCSP_PERIOD_NS();
@@ -159,10 +159,10 @@ static int pcsp_start_playing(struct snd_pcsp *chip)
 		return -EIO;
 	}
 
-	spin_lock(&i8253_lock);
+	raw_spin_lock(&i8253_lock);
 	chip->val61 = inb(0x61) | 0x03;
 	outb_p(0x92, 0x43);	/* binary, mode 1, LSB only, ch 2 */
-	spin_unlock(&i8253_lock);
+	raw_spin_unlock(&i8253_lock);
 	atomic_set(&chip->timer_active, 1);
 	chip->thalf = 0;
 
@@ -179,11 +179,11 @@ static void pcsp_stop_playing(struct snd_pcsp *chip)
 		return;
 
 	atomic_set(&chip->timer_active, 0);
-	spin_lock(&i8253_lock);
+	raw_spin_lock(&i8253_lock);
 	/* restore the timer */
 	outb_p(0xb6, 0x43);	/* binary, mode 3, LSB/MSB, ch 2 */
 	outb(chip->val61 & 0xFC, 0x61);
-	spin_unlock(&i8253_lock);
+	raw_spin_unlock(&i8253_lock);
 }
 
 /*

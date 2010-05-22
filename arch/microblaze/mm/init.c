@@ -47,6 +47,7 @@ unsigned long memory_start;
 EXPORT_SYMBOL(memory_start);
 unsigned long memory_end; /* due to mm/nommu.c */
 unsigned long memory_size;
+EXPORT_SYMBOL(memory_size);
 
 /*
  * paging_init() sets up the page tables - in fact we've already done this.

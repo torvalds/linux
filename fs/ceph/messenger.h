@@ -86,6 +86,7 @@ struct ceph_msg {
 	struct kref kref;
 	bool front_is_vmalloc;
 	bool more_to_follow;
+	bool needs_out_seq;
 	int front_max;
 
 	struct ceph_msgpool *pool;

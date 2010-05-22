@@ -629,6 +629,49 @@ static ssize_t rfkill_persistent_show(struct device *dev,
 	return sprintf(buf, "%d\n", rfkill->persistent);
 }
 
+static ssize_t rfkill_hard_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct rfkill *rfkill = to_rfkill(dev);
+
+	return sprintf(buf, "%d\n", (rfkill->state & RFKILL_BLOCK_HW) ? 1 : 0 );
+}
+
+static ssize_t rfkill_soft_show(struct device *dev,
+				 struct device_attribute *attr,
+				 char *buf)
+{
+	struct rfkill *rfkill = to_rfkill(dev);
+
+	return sprintf(buf, "%d\n", (rfkill->state & RFKILL_BLOCK_SW) ? 1 : 0 );
+}
+
+static ssize_t rfkill_soft_store(struct device *dev,
+				  struct device_attribute *attr,
+				  const char *buf, size_t count)
+{
+	struct rfkill *rfkill = to_rfkill(dev);
+	unsigned long state;
+	int err;
+
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
+	err = strict_strtoul(buf, 0, &state);
+	if (err)
+		return err;
+
+	if (state > 1 )
+		return -EINVAL;
+
+	mutex_lock(&rfkill_global_mutex);
+	rfkill_set_block(rfkill, state);
+	mutex_unlock(&rfkill_global_mutex);
+
+	return err ?: count;
+}
+
 static u8 user_state_from_blocked(unsigned long state)
 {
 	if (state & RFKILL_BLOCK_HW)
@@ -644,14 +687,8 @@ static ssize_t rfkill_state_show(struct device *dev,
 				 char *buf)
 {
 	struct rfkill *rfkill = to_rfkill(dev);
-	unsigned long flags;
-	u32 state;
 
-	spin_lock_irqsave(&rfkill->lock, flags);
-	state = rfkill->state;
-	spin_unlock_irqrestore(&rfkill->lock, flags);
-
-	return sprintf(buf, "%d\n", user_state_from_blocked(state));
+	return sprintf(buf, "%d\n", user_state_from_blocked(rfkill->state));
 }
 
 static ssize_t rfkill_state_store(struct device *dev,
@@ -701,6 +738,8 @@ static struct device_attribute rfkill_dev_attrs[] = {
 	__ATTR(persistent, S_IRUGO, rfkill_persistent_show, NULL),
 	__ATTR(state, S_IRUGO|S_IWUSR, rfkill_state_show, rfkill_state_store),
 	__ATTR(claim, S_IRUGO|S_IWUSR, rfkill_claim_show, rfkill_claim_store),
+	__ATTR(soft, S_IRUGO|S_IWUSR, rfkill_soft_show, rfkill_soft_store),
+	__ATTR(hard, S_IRUGO, rfkill_hard_show, NULL),
 	__ATTR_NULL
 };
 

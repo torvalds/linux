@@ -257,7 +257,7 @@ static void __ei_tx_timeout(struct net_device *dev)
 {
 	unsigned long e8390_base = dev->base_addr;
 	struct ei_device *ei_local = (struct ei_device *) netdev_priv(dev);
-	int txsr, isr, tickssofar = jiffies - dev->trans_start;
+	int txsr, isr, tickssofar = jiffies - dev_trans_start(dev);
 	unsigned long flags;
 
 	dev->stats.tx_errors++;
@@ -386,7 +386,6 @@ static netdev_tx_t __ei_start_xmit(struct sk_buff *skb,
 	{
 		ei_local->txing = 1;
 		NS8390_trigger_send(dev, send_length, output_page);
-		dev->trans_start = jiffies;
 		if (output_page == ei_local->tx_start_page)
 		{
 			ei_local->tx1 = -1;
@@ -445,14 +444,14 @@ static irqreturn_t __ei_interrupt(int irq, void *dev_id)
 
 	if (ei_local->irqlock)
 	{
-#if 1 /* This might just be an interrupt for a PCI device sharing this line */
-		/* The "irqlock" check is only for testing. */
-		printk(ei_local->irqlock
-			   ? "%s: Interrupted while interrupts are masked! isr=%#2x imr=%#2x.\n"
-			   : "%s: Reentering the interrupt handler! isr=%#2x imr=%#2x.\n",
+		/*
+		 * This might just be an interrupt for a PCI device sharing
+		 * this line
+		 */
+		printk("%s: Interrupted while interrupts are masked!"
+			   " isr=%#2x imr=%#2x.\n",
 			   dev->name, ei_inb_p(e8390_base + EN0_ISR),
 			   ei_inb_p(e8390_base + EN0_IMR));
-#endif
 		spin_unlock(&ei_local->page_lock);
 		return IRQ_NONE;
 	}
@@ -792,7 +791,6 @@ static void ei_receive(struct net_device *dev)
 	/* We used to also ack ENISR_OVER here, but that would sometimes mask
 	   a real overrun, leaving the 8390 in a stopped state with rec'vr off. */
 	ei_outb_p(ENISR_RX+ENISR_RX_ERR, e8390_base+EN0_ISR);
-	return;
 }
 
 /**
@@ -905,10 +903,10 @@ static struct net_device_stats *__ei_get_stats(struct net_device *dev)
 
 static inline void make_mc_bits(u8 *bits, struct net_device *dev)
 {
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 
-	netdev_for_each_mc_addr(dmi, dev) {
-		u32 crc = ether_crc(ETH_ALEN, dmi->dmi_addr);
+	netdev_for_each_mc_addr(ha, dev) {
+		u32 crc = ether_crc(ETH_ALEN, ha->addr);
 		/*
 		 * The 8390 uses the 6 most significant bits of the
 		 * CRC to index the multicast table.

@@ -430,7 +430,7 @@ static unsigned int it821x_smart_qc_issue(struct ata_queued_cmd *qc)
 		case 0xFC:	/* Internal 'report rebuild state' */
 		/* Arguably should just no-op this one */
 		case ATA_CMD_SET_FEATURES:
-			return ata_sff_qc_issue(qc);
+			return ata_bmdma_qc_issue(qc);
 	}
 	printk(KERN_DEBUG "it821x: can't process command 0x%02X\n", qc->tf.command);
 	return AC_ERR_DEV;
@@ -448,7 +448,7 @@ static unsigned int it821x_smart_qc_issue(struct ata_queued_cmd *qc)
 static unsigned int it821x_passthru_qc_issue(struct ata_queued_cmd *qc)
 {
 	it821x_passthru_dev_select(qc->ap, qc->dev->devno);
-	return ata_sff_qc_issue(qc);
+	return ata_bmdma_qc_issue(qc);
 }
 
 /**
@@ -739,7 +739,7 @@ static int it821x_port_start(struct ata_port *ap)
 	struct it821x_dev *itdev;
 	u8 conf;
 
-	int ret = ata_sff_port_start(ap);
+	int ret = ata_bmdma_port_start(ap);
 	if (ret < 0)
 		return ret;
 

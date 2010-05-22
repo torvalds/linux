@@ -1,7 +1,9 @@
 /*
  * AIRcable USB Bluetooth Dongle Driver.
  *
+ * Copyright (C) 2010 Johan Hovold <jhovold@gmail.com>
  * Copyright (C) 2006 Manuel Francisco Naranjo (naranjo.manuel@gmail.com)
+ *
  * This program is free software; you can redistribute it and/or modify it under
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
@@ -42,10 +44,10 @@
  *
  */
 
+#include <asm/unaligned.h>
 #include <linux/tty.h>
 #include <linux/slab.h>
 #include <linux/tty_flip.h>
-#include <linux/circ_buf.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
@@ -55,16 +57,12 @@ static int debug;
 #define AIRCABLE_VID		0x16CA
 #define AIRCABLE_USB_PID	0x1502
 
-/* write buffer size defines */
-#define AIRCABLE_BUF_SIZE	2048
-
 /* Protocol Stuff */
 #define HCI_HEADER_LENGTH	0x4
 #define TX_HEADER_0		0x20
 #define TX_HEADER_1		0x29
 #define RX_HEADER_0		0x00
 #define RX_HEADER_1		0x20
-#define MAX_HCI_FRAMESIZE	60
 #define HCI_COMPLETE_FRAME	64
 
 /* rx_flags */
@@ -74,8 +72,8 @@ static int debug;
 /*
  * Version Information
  */
-#define DRIVER_VERSION "v1.0b2"
-#define DRIVER_AUTHOR "Naranjo, Manuel Francisco <naranjo.manuel@gmail.com>"
+#define DRIVER_VERSION "v2.0"
+#define DRIVER_AUTHOR "Naranjo, Manuel Francisco <naranjo.manuel@gmail.com>, Johan Hovold <jhovold@gmail.com>"
 #define DRIVER_DESC "AIRcable USB Driver"
 
 /* ID table that will be registered with USB core */
@@ -85,225 +83,20 @@ static const struct usb_device_id id_table[] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-
-/* Internal Structure */
-struct aircable_private {
-	spinlock_t rx_lock;		/* spinlock for the receive lines */
-	struct circ_buf *tx_buf;	/* write buffer */
-	struct circ_buf *rx_buf;	/* read buffer */
-	int rx_flags;			/* for throttilng */
-	struct work_struct rx_work;	/* work cue for the receiving line */
-	struct usb_serial_port *port;	/* USB port with which associated */
-};
-
-/* Private methods */
-
-/* Circular Buffer Methods, code from ti_usb_3410_5052 used */
-/*
- * serial_buf_clear
- *
- * Clear out all data in the circular buffer.
- */
-static void serial_buf_clear(struct circ_buf *cb)
+static int aircable_prepare_write_buffer(struct usb_serial_port *port,
+						void *dest, size_t size)
 {
-	cb->head = cb->tail = 0;
-}
+	int count;
+	unsigned char *buf = dest;
 
-/*
- * serial_buf_alloc
- *
- * Allocate a circular buffer and all associated memory.
- */
-static struct circ_buf *serial_buf_alloc(void)
-{
-	struct circ_buf *cb;
-	cb = kmalloc(sizeof(struct circ_buf), GFP_KERNEL);
-	if (cb == NULL)
-		return NULL;
-	cb->buf = kmalloc(AIRCABLE_BUF_SIZE, GFP_KERNEL);
-	if (cb->buf == NULL) {
-		kfree(cb);
-		return NULL;
-	}
-	serial_buf_clear(cb);
-	return cb;
-}
-
-/*
- * serial_buf_free
- *
- * Free the buffer and all associated memory.
- */
-static void serial_buf_free(struct circ_buf *cb)
-{
-	kfree(cb->buf);
-	kfree(cb);
-}
-
-/*
- * serial_buf_data_avail
- *
- * Return the number of bytes of data available in the circular
- * buffer.
- */
-static int serial_buf_data_avail(struct circ_buf *cb)
-{
-	return CIRC_CNT(cb->head, cb->tail, AIRCABLE_BUF_SIZE);
-}
-
-/*
- * serial_buf_put
- *
- * Copy data data from a user buffer and put it into the circular buffer.
- * Restrict to the amount of space available.
- *
- * Return the number of bytes copied.
- */
-static int serial_buf_put(struct circ_buf *cb, const char *buf, int count)
-{
-	int c, ret = 0;
-	while (1) {
-		c = CIRC_SPACE_TO_END(cb->head, cb->tail, AIRCABLE_BUF_SIZE);
-		if (count < c)
-			c = count;
-		if (c <= 0)
-			break;
-		memcpy(cb->buf + cb->head, buf, c);
-		cb->head = (cb->head + c) & (AIRCABLE_BUF_SIZE-1);
-		buf += c;
-		count -= c;
-		ret = c;
-	}
-	return ret;
-}
-
-/*
- * serial_buf_get
- *
- * Get data from the circular buffer and copy to the given buffer.
- * Restrict to the amount of data available.
- *
- * Return the number of bytes copied.
- */
-static int serial_buf_get(struct circ_buf *cb, char *buf, int count)
-{
-	int c, ret = 0;
-	while (1) {
-		c = CIRC_CNT_TO_END(cb->head, cb->tail, AIRCABLE_BUF_SIZE);
-		if (count < c)
-			c = count;
-		if (c <= 0)
-			break;
-		memcpy(buf, cb->buf + cb->tail, c);
-		cb->tail = (cb->tail + c) & (AIRCABLE_BUF_SIZE-1);
-		buf += c;
-		count -= c;
-		ret = c;
-	}
-	return ret;
-}
-
-/* End of circula buffer methods */
-
-static void aircable_send(struct usb_serial_port *port)
-{
-	int count, result;
-	struct aircable_private *priv = usb_get_serial_port_data(port);
-	unsigned char *buf;
-	__le16 *dbuf;
-	dbg("%s - port %d", __func__, port->number);
-	if (port->write_urb_busy)
-		return;
-
-	count = min(serial_buf_data_avail(priv->tx_buf), MAX_HCI_FRAMESIZE);
-	if (count == 0)
-		return;
-
-	buf = kzalloc(count + HCI_HEADER_LENGTH, GFP_ATOMIC);
-	if (!buf) {
-		dev_err(&port->dev, "%s- kzalloc(%d) failed.\n",
-			__func__, count + HCI_HEADER_LENGTH);
-		return;
-	}
-
+	count = kfifo_out_locked(&port->write_fifo, buf + HCI_HEADER_LENGTH,
+					size - HCI_HEADER_LENGTH, &port->lock);
 	buf[0] = TX_HEADER_0;
 	buf[1] = TX_HEADER_1;
-	dbuf = (__le16 *)&buf[2];
-	*dbuf = cpu_to_le16((u16)count);
-	serial_buf_get(priv->tx_buf, buf + HCI_HEADER_LENGTH,
-							MAX_HCI_FRAMESIZE);
+	put_unaligned_le16(count, &buf[2]);
 
-	memcpy(port->write_urb->transfer_buffer, buf,
-	       count + HCI_HEADER_LENGTH);
-
-	kfree(buf);
-	port->write_urb_busy = 1;
-	usb_serial_debug_data(debug, &port->dev, __func__,
-			      count + HCI_HEADER_LENGTH,
-			      port->write_urb->transfer_buffer);
-	port->write_urb->transfer_buffer_length = count + HCI_HEADER_LENGTH;
-	port->write_urb->dev = port->serial->dev;
-	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
-
-	if (result) {
-		dev_err(&port->dev,
-			"%s - failed submitting write urb, error %d\n",
-			__func__, result);
-		port->write_urb_busy = 0;
-	}
-
-	schedule_work(&port->work);
+	return count + HCI_HEADER_LENGTH;
 }
-
-static void aircable_read(struct work_struct *work)
-{
-	struct aircable_private *priv =
-		container_of(work, struct aircable_private, rx_work);
-	struct usb_serial_port *port = priv->port;
-	struct tty_struct *tty;
-	unsigned char *data;
-	int count;
-	if (priv->rx_flags & THROTTLED) {
-		if (priv->rx_flags & ACTUALLY_THROTTLED)
-			schedule_work(&priv->rx_work);
-		return;
-	}
-
-	/* By now I will flush data to the tty in packages of no more than
-	 * 64 bytes, to ensure I do not get throttled.
-	 * Ask USB mailing list for better aproach.
-	 */
-	tty = tty_port_tty_get(&port->port);
-
-	if (!tty) {
-		schedule_work(&priv->rx_work);
-		dev_err(&port->dev, "%s - No tty available\n", __func__);
-		return ;
-	}
-
-	count = min(64, serial_buf_data_avail(priv->rx_buf));
-
-	if (count <= 0)
-		goto out; /* We have finished sending everything. */
-
-	tty_prepare_flip_string(tty, &data, count);
-	if (!data) {
-		dev_err(&port->dev, "%s- kzalloc(%d) failed.",
-							__func__, count);
-		goto out;
-	}
-
-	serial_buf_get(priv->rx_buf, data, count);
-
-	tty_flip_buffer_push(tty);
-
-	if (serial_buf_data_avail(priv->rx_buf))
-		schedule_work(&priv->rx_work);
-out:		
-	tty_kref_put(tty);
-	return;
-}
-/* End of private methods */
 
 static int aircable_probe(struct usb_serial *serial,
 			  const struct usb_device_id *id)
@@ -330,247 +123,50 @@ static int aircable_probe(struct usb_serial *serial,
 	return 0;
 }
 
-static int aircable_attach(struct usb_serial *serial)
+static int aircable_process_packet(struct tty_struct *tty,
+			struct usb_serial_port *port, int has_headers,
+			char *packet, int len)
 {
-	struct usb_serial_port *port = serial->port[0];
-	struct aircable_private *priv;
-
-	priv = kzalloc(sizeof(struct aircable_private), GFP_KERNEL);
-	if (!priv) {
-		dev_err(&port->dev, "%s- kmalloc(%Zd) failed.\n", __func__,
-			sizeof(struct aircable_private));
-		return -ENOMEM;
+	if (has_headers) {
+		len -= HCI_HEADER_LENGTH;
+		packet += HCI_HEADER_LENGTH;
+	}
+	if (len <= 0) {
+		dbg("%s - malformed packet", __func__);
+		return 0;
 	}
 
-	/* Allocation of Circular Buffers */
-	priv->tx_buf = serial_buf_alloc();
-	if (priv->tx_buf == NULL) {
-		kfree(priv);
-		return -ENOMEM;
-	}
+	tty_insert_flip_string(tty, packet, len);
 
-	priv->rx_buf = serial_buf_alloc();
-	if (priv->rx_buf == NULL) {
-		kfree(priv->tx_buf);
-		kfree(priv);
-		return -ENOMEM;
-	}
-
-	priv->rx_flags &= ~(THROTTLED | ACTUALLY_THROTTLED);
-	priv->port = port;
-	INIT_WORK(&priv->rx_work, aircable_read);
-
-	usb_set_serial_port_data(serial->port[0], priv);
-
-	return 0;
+	return len;
 }
 
-static void aircable_release(struct usb_serial *serial)
-{
-
-	struct usb_serial_port *port = serial->port[0];
-	struct aircable_private *priv = usb_get_serial_port_data(port);
-
-	dbg("%s", __func__);
-
-	if (priv) {
-		serial_buf_free(priv->tx_buf);
-		serial_buf_free(priv->rx_buf);
-		kfree(priv);
-	}
-}
-
-static int aircable_write_room(struct tty_struct *tty)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct aircable_private *priv = usb_get_serial_port_data(port);
-	return serial_buf_data_avail(priv->tx_buf);
-}
-
-static int aircable_write(struct tty_struct *tty, struct usb_serial_port *port,
-			  const unsigned char *source, int count)
-{
-	struct aircable_private *priv = usb_get_serial_port_data(port);
-	int temp;
-
-	dbg("%s - port %d, %d bytes", __func__, port->number, count);
-
-	usb_serial_debug_data(debug, &port->dev, __func__, count, source);
-
-	if (!count) {
-		dbg("%s - write request of 0 bytes", __func__);
-		return count;
-	}
-
-	temp = serial_buf_put(priv->tx_buf, source, count);
-
-	aircable_send(port);
-
-	if (count > AIRCABLE_BUF_SIZE)
-		count = AIRCABLE_BUF_SIZE;
-
-	return count;
-
-}
-
-static void aircable_write_bulk_callback(struct urb *urb)
+static void aircable_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
-	int status = urb->status;
-	int result;
-
-	dbg("%s - urb status: %d", __func__ , status);
-
-	/* This has been taken from cypress_m8.c cypress_write_int_callback */
-	switch (status) {
-	case 0:
-		/* success */
-		break;
-	case -ECONNRESET:
-	case -ENOENT:
-	case -ESHUTDOWN:
-		/* this urb is terminated, clean up */
-		dbg("%s - urb shutting down with status: %d",
-		    __func__, status);
-		port->write_urb_busy = 0;
-		return;
-	default:
-		/* error in the urb, so we have to resubmit it */
-		dbg("%s - Overflow in write", __func__);
-		dbg("%s - nonzero write bulk status received: %d",
-		    __func__, status);
-		port->write_urb->transfer_buffer_length = 1;
-		port->write_urb->dev = port->serial->dev;
-		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
-		if (result)
-			dev_err(&urb->dev->dev,
-			    "%s - failed resubmitting write urb, error %d\n",
-							__func__, result);
-		else
-			return;
-	}
-
-	port->write_urb_busy = 0;
-
-	aircable_send(port);
-}
-
-static void aircable_read_bulk_callback(struct urb *urb)
-{
-	struct usb_serial_port *port = urb->context;
-	struct aircable_private *priv = usb_get_serial_port_data(port);
+	char *data = (char *)urb->transfer_buffer;
 	struct tty_struct *tty;
-	unsigned long no_packages, remaining, package_length, i;
-	int result, shift = 0;
-	unsigned char *temp;
-	int status = urb->status;
-
-	dbg("%s - port %d", __func__, port->number);
-
-	if (status) {
-		dbg("%s - urb status = %d", __func__, status);
-		if (status == -EPROTO) {
-			dbg("%s - caught -EPROTO, resubmitting the urb",
-			    __func__);
-			usb_fill_bulk_urb(port->read_urb, port->serial->dev,
-				usb_rcvbulkpipe(port->serial->dev,
-					port->bulk_in_endpointAddress),
-				port->read_urb->transfer_buffer,
-				port->read_urb->transfer_buffer_length,
-				aircable_read_bulk_callback, port);
-
-			result = usb_submit_urb(urb, GFP_ATOMIC);
-			if (result)
-				dev_err(&urb->dev->dev,
-					"%s - failed resubmitting read urb, error %d\n",
-					__func__, result);
-			return;
-		}
-		dbg("%s - unable to handle the error, exiting.", __func__);
-		return;
-	}
-
-	usb_serial_debug_data(debug, &port->dev, __func__,
-				urb->actual_length, urb->transfer_buffer);
+	int has_headers;
+	int count;
+	int len;
+	int i;
 
 	tty = tty_port_tty_get(&port->port);
-	if (tty && urb->actual_length) {
-		if (urb->actual_length <= 2) {
-			/* This is an incomplete package */
-			serial_buf_put(priv->rx_buf, urb->transfer_buffer,
-				       urb->actual_length);
-		} else {
-			temp = urb->transfer_buffer;
-			if (temp[0] == RX_HEADER_0)
-				shift = HCI_HEADER_LENGTH;
+	if (!tty)
+		return;
 
-			remaining = urb->actual_length;
-			no_packages = urb->actual_length / (HCI_COMPLETE_FRAME);
+	has_headers = (urb->actual_length > 2 && data[0] == RX_HEADER_0);
 
-			if (urb->actual_length % HCI_COMPLETE_FRAME != 0)
-				no_packages++;
-
-			for (i = 0; i < no_packages; i++) {
-				if (remaining > (HCI_COMPLETE_FRAME))
-					package_length = HCI_COMPLETE_FRAME;
-				else
-					package_length = remaining;
-				remaining -= package_length;
-
-				serial_buf_put(priv->rx_buf,
-					urb->transfer_buffer + shift +
-					(HCI_COMPLETE_FRAME) * (i),
-					package_length - shift);
-			}
-		}
-		aircable_read(&priv->rx_work);
+	count = 0;
+	for (i = 0; i < urb->actual_length; i += HCI_COMPLETE_FRAME) {
+		len = min_t(int, urb->actual_length - i, HCI_COMPLETE_FRAME);
+		count += aircable_process_packet(tty, port, has_headers,
+								&data[i], len);
 	}
+
+	if (count)
+		tty_flip_buffer_push(tty);
 	tty_kref_put(tty);
-
-	/* Schedule the next read */
-	usb_fill_bulk_urb(port->read_urb, port->serial->dev,
-			  usb_rcvbulkpipe(port->serial->dev,
-				  port->bulk_in_endpointAddress),
-			  port->read_urb->transfer_buffer,
-			  port->read_urb->transfer_buffer_length,
-			  aircable_read_bulk_callback, port);
-
-	result = usb_submit_urb(urb, GFP_ATOMIC);
-	if (result && result != -EPERM)
-		dev_err(&urb->dev->dev,
-			"%s - failed resubmitting read urb, error %d\n",
-			__func__, result);
-}
-
-/* Based on ftdi_sio.c throttle */
-static void aircable_throttle(struct tty_struct *tty)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct aircable_private *priv = usb_get_serial_port_data(port);
-
-	dbg("%s - port %d", __func__, port->number);
-
-	spin_lock_irq(&priv->rx_lock);
-	priv->rx_flags |= THROTTLED;
-	spin_unlock_irq(&priv->rx_lock);
-}
-
-/* Based on ftdi_sio.c unthrottle */
-static void aircable_unthrottle(struct tty_struct *tty)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	struct aircable_private *priv = usb_get_serial_port_data(port);
-	int actually_throttled;
-
-	dbg("%s - port %d", __func__, port->number);
-
-	spin_lock_irq(&priv->rx_lock);
-	actually_throttled = priv->rx_flags & ACTUALLY_THROTTLED;
-	priv->rx_flags &= ~(THROTTLED | ACTUALLY_THROTTLED);
-	spin_unlock_irq(&priv->rx_lock);
-
-	if (actually_throttled)
-		schedule_work(&priv->rx_work);
 }
 
 static struct usb_driver aircable_driver = {
@@ -589,15 +185,12 @@ static struct usb_serial_driver aircable_device = {
 	.usb_driver = 		&aircable_driver,
 	.id_table = 		id_table,
 	.num_ports =		1,
-	.attach =		aircable_attach,
+	.bulk_out_size =	HCI_COMPLETE_FRAME,
 	.probe =		aircable_probe,
-	.release =		aircable_release,
-	.write =		aircable_write,
-	.write_room =		aircable_write_room,
-	.write_bulk_callback =	aircable_write_bulk_callback,
-	.read_bulk_callback =	aircable_read_bulk_callback,
-	.throttle =		aircable_throttle,
-	.unthrottle =		aircable_unthrottle,
+	.process_read_urb =	aircable_process_read_urb,
+	.prepare_write_buffer =	aircable_prepare_write_buffer,
+	.throttle =		usb_serial_generic_throttle,
+	.unthrottle =		usb_serial_generic_unthrottle,
 };
 
 static int __init aircable_init(void)

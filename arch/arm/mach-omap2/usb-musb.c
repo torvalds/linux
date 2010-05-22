@@ -107,6 +107,7 @@ void __init usb_musb_init(struct omap_musb_board_data *board_data)
 	musb_plat.board_data = board_data;
 	musb_plat.power = board_data->power >> 1;
 	musb_plat.mode = board_data->mode;
+	musb_plat.extvbus = board_data->extvbus;
 
 	if (platform_device_register(&musb_device) < 0)
 		printk(KERN_ERR "Unable to register HS-USB (MUSB) device\n");

@@ -362,6 +362,7 @@ struct bnx2i_hba {
 	u32 num_ccell;
 
 	int ofld_conns_active;
+	wait_queue_head_t eh_wait;
 
 	int max_active_conns;
 	struct iscsi_cid_queue cid_que;
@@ -381,6 +382,7 @@ struct bnx2i_hba {
 	spinlock_t lock;	/* protects hba structure access */
 	struct mutex net_dev_lock;/* sync net device access */
 
+	int hba_shutdown_tmo;
 	/*
 	 * PCI related info.
 	 */

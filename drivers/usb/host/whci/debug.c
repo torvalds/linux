@@ -30,7 +30,7 @@ struct whc_dbg {
 	struct dentry *pzl_f;
 };
 
-void qset_print(struct seq_file *s, struct whc_qset *qset)
+static void qset_print(struct seq_file *s, struct whc_qset *qset)
 {
 	static const char *qh_type[] = {
 		"ctrl", "isoc", "bulk", "intr", "rsvd", "rsvd", "rsvd", "lpintr", };

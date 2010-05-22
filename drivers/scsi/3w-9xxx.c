@@ -1,10 +1,11 @@
 /*
    3w-9xxx.c -- 3ware 9000 Storage Controller device driver for Linux.
 
-   Written By: Adam Radford <linuxraid@amcc.com>
-   Modifications By: Tom Couch <linuxraid@amcc.com>
+   Written By: Adam Radford <linuxraid@lsi.com>
+   Modifications By: Tom Couch <linuxraid@lsi.com>
 
    Copyright (C) 2004-2009 Applied Micro Circuits Corporation.
+   Copyright (C) 2010 LSI Corporation.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,10 +41,10 @@
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
    Bugs/Comments/Suggestions should be mailed to:
-   linuxraid@amcc.com
+   linuxraid@lsi.com
 
    For more information, goto:
-   http://www.amcc.com
+   http://www.lsi.com
 
    Note: This version of the driver does not contain a bundled firmware
          image.
@@ -77,6 +78,7 @@
                  Use pci_resource_len() for ioremap().
    2.26.02.012 - Add power management support.
    2.26.02.013 - Fix bug in twa_load_sgl().
+   2.26.02.014 - Force 60 second timeout default.
 */
 
 #include <linux/module.h>
@@ -102,14 +104,14 @@
 #include "3w-9xxx.h"
 
 /* Globals */
-#define TW_DRIVER_VERSION "2.26.02.013"
+#define TW_DRIVER_VERSION "2.26.02.014"
 static TW_Device_Extension *twa_device_extension_list[TW_MAX_SLOT];
 static unsigned int twa_device_extension_count;
 static int twa_major = -1;
 extern struct timezone sys_tz;
 
 /* Module parameters */
-MODULE_AUTHOR ("AMCC");
+MODULE_AUTHOR ("LSI");
 MODULE_DESCRIPTION ("3ware 9000 Storage Controller Linux Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(TW_DRIVER_VERSION);
@@ -1990,6 +1992,15 @@ static void twa_unmap_scsi_data(TW_Device_Extension *tw_dev, int request_id)
 		scsi_dma_unmap(cmd);
 } /* End twa_unmap_scsi_data() */
 
+/* This function gets called when a disk is coming on-line */
+static int twa_slave_configure(struct scsi_device *sdev)
+{
+	/* Force 60 second timeout */
+	blk_queue_rq_timeout(sdev->request_queue, 60 * HZ);
+
+	return 0;
+} /* End twa_slave_configure() */
+
 /* scsi_host_template initializer */
 static struct scsi_host_template driver_template = {
 	.module			= THIS_MODULE,
@@ -1999,6 +2010,7 @@ static struct scsi_host_template driver_template = {
 	.bios_param		= twa_scsi_biosparam,
 	.change_queue_depth	= twa_change_queue_depth,
 	.can_queue		= TW_Q_LENGTH-2,
+	.slave_configure	= twa_slave_configure,
 	.this_id		= -1,
 	.sg_tablesize		= TW_APACHE_MAX_SGL_LENGTH,
 	.max_sectors		= TW_MAX_SECTORS,

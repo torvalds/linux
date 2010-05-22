@@ -67,7 +67,7 @@ static struct page *get_mapping_page(struct super_block *sb, pgoff_t index,
 	return page;
 }
 
-void __logfs_buf_write(struct logfs_area *area, u64 ofs, void *buf, size_t len,
+int __logfs_buf_write(struct logfs_area *area, u64 ofs, void *buf, size_t len,
 		int use_filler)
 {
 	pgoff_t index = ofs >> PAGE_SHIFT;
@@ -81,8 +81,10 @@ void __logfs_buf_write(struct logfs_area *area, u64 ofs, void *buf, size_t len,
 		copylen = min((ulong)len, PAGE_SIZE - offset);
 
 		page = get_mapping_page(area->a_sb, index, use_filler);
-		SetPageUptodate(page);
+		if (IS_ERR(page))
+			return PTR_ERR(page);
 		BUG_ON(!page); /* FIXME: reserve a pool */
+		SetPageUptodate(page);
 		memcpy(page_address(page) + offset, buf, copylen);
 		SetPagePrivate(page);
 		page_cache_release(page);
@@ -92,6 +94,7 @@ void __logfs_buf_write(struct logfs_area *area, u64 ofs, void *buf, size_t len,
 		offset = 0;
 		index++;
 	} while (len);
+	return 0;
 }
 
 static void pad_partial_page(struct logfs_area *area)
@@ -183,14 +186,8 @@ static int btree_write_alias(struct super_block *sb, struct logfs_block *block,
 	return 0;
 }
 
-static gc_level_t btree_block_level(struct logfs_block *block)
-{
-	return expand_level(block->ino, block->level);
-}
-
 static struct logfs_block_ops btree_block_ops = {
 	.write_block	= btree_write_block,
-	.block_level	= btree_block_level,
 	.free_block	= __free_block,
 	.write_alias	= btree_write_alias,
 };
@@ -919,7 +916,7 @@ err:
 	for (i--; i >= 0; i--)
 		free_area(super->s_area[i]);
 	free_area(super->s_journal_area);
-	mempool_destroy(super->s_alias_pool);
+	logfs_mempool_destroy(super->s_alias_pool);
 	return -ENOMEM;
 }
 

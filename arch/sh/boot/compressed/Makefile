@@ -14,10 +14,16 @@ OBJECTS = $(obj)/head_$(BITS).o $(obj)/misc.o $(obj)/cache.o
 #
 # IMAGE_OFFSET is the load offset of the compression loader
 #
+ifeq ($(CONFIG_32BIT),y)
+IMAGE_OFFSET	:= $(shell /bin/bash -c 'printf "0x%08x" \
+		     $$[$(CONFIG_MEMORY_START)  + \
+			$(CONFIG_BOOT_LINK_OFFSET)]')
+else
 IMAGE_OFFSET	:= $(shell /bin/bash -c 'printf "0x%08x" \
 		     $$[$(CONFIG_PAGE_OFFSET)  + \
 			$(KERNEL_MEMORY) + \
 			$(CONFIG_BOOT_LINK_OFFSET)]')
+endif
 
 LIBGCC	:= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 

@@ -111,7 +111,10 @@ struct vf_data_storage {
 	u16 default_vf_vlan_id;
 	u16 vlans_enabled;
 	bool clear_to_send;
+	bool pf_set_mac;
 	int rar;
+	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
+	u16 pf_qos;
 };
 
 /* wrapper around a pointer to a socket buffer,

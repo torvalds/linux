@@ -1604,14 +1604,9 @@ pack_pfns(unsigned long *buf, struct memory_bitmap *bm)
  *	snapshot_handle structure.  The structure gets updated and a pointer
  *	to it should be passed to this function every next time.
  *
- *	The @count parameter should contain the number of bytes the caller
- *	wants to read from the snapshot.  It must not be zero.
- *
  *	On success the function returns a positive number.  Then, the caller
  *	is allowed to read up to the returned number of bytes from the memory
- *	location computed by the data_of() macro.  The number returned
- *	may be smaller than @count, but this only happens if the read would
- *	cross a page boundary otherwise.
+ *	location computed by the data_of() macro.
  *
  *	The function returns 0 to indicate the end of data stream condition,
  *	and a negative number is returned on error.  In such cases the
@@ -1619,7 +1614,7 @@ pack_pfns(unsigned long *buf, struct memory_bitmap *bm)
  *	any more.
  */
 
-int snapshot_read_next(struct snapshot_handle *handle, size_t count)
+int snapshot_read_next(struct snapshot_handle *handle)
 {
 	if (handle->cur > nr_meta_pages + nr_copy_pages)
 		return 0;
@@ -1630,7 +1625,7 @@ int snapshot_read_next(struct snapshot_handle *handle, size_t count)
 		if (!buffer)
 			return -ENOMEM;
 	}
-	if (!handle->offset) {
+	if (!handle->cur) {
 		int error;
 
 		error = init_header((struct swsusp_info *)buffer);
@@ -1639,42 +1634,30 @@ int snapshot_read_next(struct snapshot_handle *handle, size_t count)
 		handle->buffer = buffer;
 		memory_bm_position_reset(&orig_bm);
 		memory_bm_position_reset(&copy_bm);
-	}
-	if (handle->prev < handle->cur) {
-		if (handle->cur <= nr_meta_pages) {
-			memset(buffer, 0, PAGE_SIZE);
-			pack_pfns(buffer, &orig_bm);
-		} else {
-			struct page *page;
-
-			page = pfn_to_page(memory_bm_next_pfn(&copy_bm));
-			if (PageHighMem(page)) {
-				/* Highmem pages are copied to the buffer,
-				 * because we can't return with a kmapped
-				 * highmem page (we may not be called again).
-				 */
-				void *kaddr;
-
-				kaddr = kmap_atomic(page, KM_USER0);
-				memcpy(buffer, kaddr, PAGE_SIZE);
-				kunmap_atomic(kaddr, KM_USER0);
-				handle->buffer = buffer;
-			} else {
-				handle->buffer = page_address(page);
-			}
-		}
-		handle->prev = handle->cur;
-	}
-	handle->buf_offset = handle->cur_offset;
-	if (handle->cur_offset + count >= PAGE_SIZE) {
-		count = PAGE_SIZE - handle->cur_offset;
-		handle->cur_offset = 0;
-		handle->cur++;
+	} else if (handle->cur <= nr_meta_pages) {
+		memset(buffer, 0, PAGE_SIZE);
+		pack_pfns(buffer, &orig_bm);
 	} else {
-		handle->cur_offset += count;
+		struct page *page;
+
+		page = pfn_to_page(memory_bm_next_pfn(&copy_bm));
+		if (PageHighMem(page)) {
+			/* Highmem pages are copied to the buffer,
+			 * because we can't return with a kmapped
+			 * highmem page (we may not be called again).
+			 */
+			void *kaddr;
+
+			kaddr = kmap_atomic(page, KM_USER0);
+			memcpy(buffer, kaddr, PAGE_SIZE);
+			kunmap_atomic(kaddr, KM_USER0);
+			handle->buffer = buffer;
+		} else {
+			handle->buffer = page_address(page);
+		}
 	}
-	handle->offset += count;
-	return count;
+	handle->cur++;
+	return PAGE_SIZE;
 }
 
 /**
@@ -2133,14 +2116,9 @@ static void *get_buffer(struct memory_bitmap *bm, struct chain_allocator *ca)
  *	snapshot_handle structure.  The structure gets updated and a pointer
  *	to it should be passed to this function every next time.
  *
- *	The @count parameter should contain the number of bytes the caller
- *	wants to write to the image.  It must not be zero.
- *
  *	On success the function returns a positive number.  Then, the caller
  *	is allowed to write up to the returned number of bytes to the memory
- *	location computed by the data_of() macro.  The number returned
- *	may be smaller than @count, but this only happens if the write would
- *	cross a page boundary otherwise.
+ *	location computed by the data_of() macro.
  *
  *	The function returns 0 to indicate the "end of file" condition,
  *	and a negative number is returned on error.  In such cases the
@@ -2148,16 +2126,18 @@ static void *get_buffer(struct memory_bitmap *bm, struct chain_allocator *ca)
  *	any more.
  */
 
-int snapshot_write_next(struct snapshot_handle *handle, size_t count)
+int snapshot_write_next(struct snapshot_handle *handle)
 {
 	static struct chain_allocator ca;
 	int error = 0;
 
 	/* Check if we have already loaded the entire image */
-	if (handle->prev && handle->cur > nr_meta_pages + nr_copy_pages)
+	if (handle->cur > 1 && handle->cur > nr_meta_pages + nr_copy_pages)
 		return 0;
 
-	if (handle->offset == 0) {
+	handle->sync_read = 1;
+
+	if (!handle->cur) {
 		if (!buffer)
 			/* This makes the buffer be freed by swsusp_free() */
 			buffer = get_image_page(GFP_ATOMIC, PG_ANY);
@@ -2166,56 +2146,43 @@ int snapshot_write_next(struct snapshot_handle *handle, size_t count)
 			return -ENOMEM;
 
 		handle->buffer = buffer;
-	}
-	handle->sync_read = 1;
-	if (handle->prev < handle->cur) {
-		if (handle->prev == 0) {
-			error = load_header(buffer);
+	} else if (handle->cur == 1) {
+		error = load_header(buffer);
+		if (error)
+			return error;
+
+		error = memory_bm_create(&copy_bm, GFP_ATOMIC, PG_ANY);
+		if (error)
+			return error;
+
+	} else if (handle->cur <= nr_meta_pages + 1) {
+		error = unpack_orig_pfns(buffer, &copy_bm);
+		if (error)
+			return error;
+
+		if (handle->cur == nr_meta_pages + 1) {
+			error = prepare_image(&orig_bm, &copy_bm);
 			if (error)
 				return error;
 
-			error = memory_bm_create(&copy_bm, GFP_ATOMIC, PG_ANY);
-			if (error)
-				return error;
-
-		} else if (handle->prev <= nr_meta_pages) {
-			error = unpack_orig_pfns(buffer, &copy_bm);
-			if (error)
-				return error;
-
-			if (handle->prev == nr_meta_pages) {
-				error = prepare_image(&orig_bm, &copy_bm);
-				if (error)
-					return error;
-
-				chain_init(&ca, GFP_ATOMIC, PG_SAFE);
-				memory_bm_position_reset(&orig_bm);
-				restore_pblist = NULL;
-				handle->buffer = get_buffer(&orig_bm, &ca);
-				handle->sync_read = 0;
-				if (IS_ERR(handle->buffer))
-					return PTR_ERR(handle->buffer);
-			}
-		} else {
-			copy_last_highmem_page();
+			chain_init(&ca, GFP_ATOMIC, PG_SAFE);
+			memory_bm_position_reset(&orig_bm);
+			restore_pblist = NULL;
 			handle->buffer = get_buffer(&orig_bm, &ca);
+			handle->sync_read = 0;
 			if (IS_ERR(handle->buffer))
 				return PTR_ERR(handle->buffer);
-			if (handle->buffer != buffer)
-				handle->sync_read = 0;
 		}
-		handle->prev = handle->cur;
-	}
-	handle->buf_offset = handle->cur_offset;
-	if (handle->cur_offset + count >= PAGE_SIZE) {
-		count = PAGE_SIZE - handle->cur_offset;
-		handle->cur_offset = 0;
-		handle->cur++;
 	} else {
-		handle->cur_offset += count;
+		copy_last_highmem_page();
+		handle->buffer = get_buffer(&orig_bm, &ca);
+		if (IS_ERR(handle->buffer))
+			return PTR_ERR(handle->buffer);
+		if (handle->buffer != buffer)
+			handle->sync_read = 0;
 	}
-	handle->offset += count;
-	return count;
+	handle->cur++;
+	return PAGE_SIZE;
 }
 
 /**
@@ -2230,7 +2197,7 @@ void snapshot_write_finalize(struct snapshot_handle *handle)
 {
 	copy_last_highmem_page();
 	/* Free only if we have loaded the image entirely */
-	if (handle->prev && handle->cur > nr_meta_pages + nr_copy_pages) {
+	if (handle->cur > 1 && handle->cur > nr_meta_pages + nr_copy_pages) {
 		memory_bm_free(&orig_bm, PG_UNSAFE_CLEAR);
 		free_highmem_data();
 	}

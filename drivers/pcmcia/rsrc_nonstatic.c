@@ -34,8 +34,10 @@
 #include <pcmcia/cistpl.h>
 #include "cs_internal.h"
 
+/* moved to rsrc_mgr.c
 MODULE_AUTHOR("David A. Hinds, Dominik Brodowski");
 MODULE_LICENSE("GPL");
+*/
 
 /* Parameters that can be set with 'insmod' */
 
@@ -70,27 +72,13 @@ struct socket_data {
 ======================================================================*/
 
 static struct resource *
-make_resource(resource_size_t b, resource_size_t n, int flags, const char *name)
-{
-	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
-
-	if (res) {
-		res->name = name;
-		res->start = b;
-		res->end = b + n - 1;
-		res->flags = flags;
-	}
-	return res;
-}
-
-static struct resource *
 claim_region(struct pcmcia_socket *s, resource_size_t base,
 		resource_size_t size, int type, char *name)
 {
 	struct resource *res, *parent;
 
 	parent = type & IORESOURCE_MEM ? &iomem_resource : &ioport_resource;
-	res = make_resource(base, size, type | IORESOURCE_BUSY, name);
+	res = pcmcia_make_resource(base, size, type | IORESOURCE_BUSY, name);
 
 	if (res) {
 #ifdef CONFIG_PCI
@@ -214,7 +202,7 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 		return;
 	}
 	for (i = base, most = 0; i < base+num; i += 8) {
-		res = claim_region(NULL, i, 8, IORESOURCE_IO, "PCMCIA ioprobe");
+		res = claim_region(s, i, 8, IORESOURCE_IO, "PCMCIA ioprobe");
 		if (!res)
 			continue;
 		hole = inb(i);
@@ -231,9 +219,14 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 
 	bad = any = 0;
 	for (i = base; i < base+num; i += 8) {
-		res = claim_region(NULL, i, 8, IORESOURCE_IO, "PCMCIA ioprobe");
-		if (!res)
+		res = claim_region(s, i, 8, IORESOURCE_IO, "PCMCIA ioprobe");
+		if (!res) {
+			if (!any)
+				printk(" excluding");
+			if (!bad)
+				bad = any = i;
 			continue;
+		}
 		for (j = 0; j < 8; j++)
 			if (inb(i+j) != most)
 				break;
@@ -253,6 +246,7 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 	}
 	if (bad) {
 		if ((num > 16) && (bad == base) && (i == base+num)) {
+			sub_interval(&s_data->io_db, bad, i-bad);
 			printk(" nothing: probe failed.\n");
 			return;
 		} else {
@@ -655,8 +649,9 @@ pcmcia_align(void *align_data, const struct resource *res,
  * Adjust an existing IO region allocation, but making sure that we don't
  * encroach outside the resources which the user supplied.
  */
-static int nonstatic_adjust_io_region(struct resource *res, unsigned long r_start,
-				      unsigned long r_end, struct pcmcia_socket *s)
+static int __nonstatic_adjust_io_region(struct pcmcia_socket *s,
+					unsigned long r_start,
+					unsigned long r_end)
 {
 	struct resource_map *m;
 	struct socket_data *s_data = s->resource_data;
@@ -669,8 +664,7 @@ static int nonstatic_adjust_io_region(struct resource *res, unsigned long r_star
 		if (start > r_start || r_end > end)
 			continue;
 
-		ret = adjust_resource(res, r_start, r_end - r_start + 1);
-		break;
+		ret = 0;
 	}
 
 	return ret;
@@ -689,17 +683,16 @@ static int nonstatic_adjust_io_region(struct resource *res, unsigned long r_star
 
 ======================================================================*/
 
-static struct resource *nonstatic_find_io_region(unsigned long base, int num,
-		   unsigned long align, struct pcmcia_socket *s)
+static struct resource *__nonstatic_find_io_region(struct pcmcia_socket *s,
+						unsigned long base, int num,
+						unsigned long align)
 {
-	struct resource *res = make_resource(0, num, IORESOURCE_IO, dev_name(&s->dev));
+	struct resource *res = pcmcia_make_resource(0, num, IORESOURCE_IO,
+						dev_name(&s->dev));
 	struct socket_data *s_data = s->resource_data;
 	struct pcmcia_align_data data;
 	unsigned long min = base;
 	int ret;
-
-	if (align == 0)
-		align = 0x10000;
 
 	data.mask = align - 1;
 	data.offset = base & data.mask;
@@ -721,10 +714,97 @@ static struct resource *nonstatic_find_io_region(unsigned long base, int num,
 	return res;
 }
 
+static int nonstatic_find_io(struct pcmcia_socket *s, unsigned int attr,
+			unsigned int *base, unsigned int num,
+			unsigned int align)
+{
+	int i, ret = 0;
+
+	/* Check for an already-allocated window that must conflict with
+	 * what was asked for.  It is a hack because it does not catch all
+	 * potential conflicts, just the most obvious ones.
+	 */
+	for (i = 0; i < MAX_IO_WIN; i++) {
+		if (!s->io[i].res)
+			continue;
+
+		if (!*base)
+			continue;
+
+		if ((s->io[i].res->start & (align-1)) == *base)
+			return -EBUSY;
+	}
+
+	for (i = 0; i < MAX_IO_WIN; i++) {
+		struct resource *res = s->io[i].res;
+		unsigned int try;
+
+		if (res && (res->flags & IORESOURCE_BITS) !=
+			(attr & IORESOURCE_BITS))
+			continue;
+
+		if (!res) {
+			if (align == 0)
+				align = 0x10000;
+
+			res = s->io[i].res = __nonstatic_find_io_region(s,
+								*base, num,
+								align);
+			if (!res)
+				return -EINVAL;
+
+			*base = res->start;
+			s->io[i].res->flags =
+				((res->flags & ~IORESOURCE_BITS) |
+					(attr & IORESOURCE_BITS));
+			s->io[i].InUse = num;
+			return 0;
+		}
+
+		/* Try to extend top of window */
+		try = res->end + 1;
+		if ((*base == 0) || (*base == try)) {
+			ret =  __nonstatic_adjust_io_region(s, res->start,
+							res->end + num);
+			if (!ret) {
+				ret = adjust_resource(s->io[i].res, res->start,
+					       res->end - res->start + num + 1);
+				if (ret)
+					continue;
+				*base = try;
+				s->io[i].InUse += num;
+				return 0;
+			}
+		}
+
+		/* Try to extend bottom of window */
+		try = res->start - num;
+		if ((*base == 0) || (*base == try)) {
+			ret =  __nonstatic_adjust_io_region(s,
+							res->start - num,
+							res->end);
+			if (!ret) {
+				ret = adjust_resource(s->io[i].res,
+					       res->start - num,
+					       res->end - res->start + num + 1);
+				if (ret)
+					continue;
+				*base = try;
+				s->io[i].InUse += num;
+				return 0;
+			}
+		}
+	}
+
+	return -EINVAL;
+}
+
+
 static struct resource *nonstatic_find_mem_region(u_long base, u_long num,
 		u_long align, int low, struct pcmcia_socket *s)
 {
-	struct resource *res = make_resource(0, num, IORESOURCE_MEM, dev_name(&s->dev));
+	struct resource *res = pcmcia_make_resource(0, num, IORESOURCE_MEM,
+						dev_name(&s->dev));
 	struct socket_data *s_data = s->resource_data;
 	struct pcmcia_align_data data;
 	unsigned long min, max;
@@ -804,7 +884,7 @@ static int adjust_memory(struct pcmcia_socket *s, unsigned int action, unsigned 
 static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long start, unsigned long end)
 {
 	struct socket_data *data = s->resource_data;
-	unsigned long size = end - start + 1;
+	unsigned long size;
 	int ret = 0;
 
 #if defined(CONFIG_X86)
@@ -813,6 +893,8 @@ static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long
 	if (start < 0x100)
 		start = 0x100;
 #endif
+
+	size = end - start + 1;
 
 	if (end < start)
 		return -EINVAL;
@@ -853,23 +935,42 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		return -ENODEV;
 
 #if defined(CONFIG_X86)
-	/* If this is the root bus, the risk of hitting
-	 * some strange system devices which aren't protected
-	 * by either ACPI resource tables or properly requested
-	 * resources is too big. Therefore, don't do auto-adding
-	 * of resources at the moment.
+	/* If this is the root bus, the risk of hitting some strange
+	 * system devices is too high: If a driver isn't loaded, the
+	 * resources are not claimed; even if a driver is loaded, it
+	 * may not request all resources or even the wrong one. We
+	 * can neither trust the rest of the kernel nor ACPI/PNP and
+	 * CRS parsing to get it right. Therefore, use several
+	 * safeguards:
+	 *
+	 * - Do not auto-add resources if the CardBus bridge is on
+	 *   the PCI root bus
+	 *
+	 * - Avoid any I/O ports < 0x100.
+	 *
+	 * - On PCI-PCI bridges, only use resources which are set up
+	 *   exclusively for the secondary PCI bus: the risk of hitting
+	 *   system devices is quite low, as they usually aren't
+	 *   connected to the secondary PCI bus.
 	 */
 	if (s->cb_dev->bus->number == 0)
 		return -EINVAL;
-#endif
 
+	for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; i++) {
+		res = s->cb_dev->bus->resource[i];
+#else
 	pci_bus_for_each_resource(s->cb_dev->bus, res, i) {
+#endif
 		if (!res)
 			continue;
 
 		if (res->flags & IORESOURCE_IO) {
+			/* safeguard against the root resource, where the
+			 * risk of hitting any other device would be too
+			 * high */
 			if (res == &ioport_resource)
 				continue;
+
 			dev_printk(KERN_INFO, &s->cb_dev->dev,
 				   "pcmcia: parent PCI bridge window: %pR\n",
 				   res);
@@ -879,8 +980,12 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		}
 
 		if (res->flags & IORESOURCE_MEM) {
+			/* safeguard against the root resource, where the
+			 * risk of hitting any other device would be too
+			 * high */
 			if (res == &iomem_resource)
 				continue;
+
 			dev_printk(KERN_INFO, &s->cb_dev->dev,
 				   "pcmcia: parent PCI bridge window: %pR\n",
 				   res);
@@ -948,8 +1053,7 @@ static void nonstatic_release_resource_db(struct pcmcia_socket *s)
 
 struct pccard_resource_ops pccard_nonstatic_ops = {
 	.validate_mem = pcmcia_nonstatic_validate_mem,
-	.adjust_io_region = nonstatic_adjust_io_region,
-	.find_io = nonstatic_find_io_region,
+	.find_io = nonstatic_find_io,
 	.find_mem = nonstatic_find_mem_region,
 	.add_io = adjust_io,
 	.add_mem = adjust_memory,

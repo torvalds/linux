@@ -282,7 +282,7 @@ static unsigned long hpt370_filter(struct ata_device *adev, unsigned long mask)
 		if (hpt_dma_blacklisted(adev, "UDMA100", bad_ata100_5))
 			mask &= ~(0xE0 << ATA_SHIFT_UDMA);
 	}
-	return ata_bmdma_mode_filter(adev, mask);
+	return mask;
 }
 
 /**
@@ -298,7 +298,7 @@ static unsigned long hpt370a_filter(struct ata_device *adev, unsigned long mask)
 		if (hpt_dma_blacklisted(adev, "UDMA100", bad_ata100_5))
 			mask &= ~(0xE0 << ATA_SHIFT_UDMA);
 	}
-	return ata_bmdma_mode_filter(adev, mask);
+	return mask;
 }
 
 /**

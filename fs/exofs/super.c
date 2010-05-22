@@ -302,6 +302,7 @@ static void exofs_put_super(struct super_block *sb)
 	_exofs_print_device("Unmounting", NULL, sbi->layout.s_ods[0],
 			    sbi->layout.s_pid);
 
+	bdi_destroy(&sbi->bdi);
 	exofs_free_sbi(sbi);
 	sb->s_fs_info = NULL;
 }
@@ -546,6 +547,10 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!sbi)
 		return -ENOMEM;
 
+	ret = bdi_setup_and_register(&sbi->bdi, "exofs", BDI_CAP_MAP_COPY);
+	if (ret)
+		goto free_bdi;
+
 	/* use mount options to fill superblock */
 	od = osduld_path_lookup(opts->dev_name);
 	if (IS_ERR(od)) {
@@ -612,6 +617,7 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/* set up operation vectors */
+	sb->s_bdi = &sbi->bdi;
 	sb->s_fs_info = sbi;
 	sb->s_op = &exofs_sops;
 	sb->s_export_op = &exofs_export_ops;
@@ -643,6 +649,8 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	return 0;
 
 free_sbi:
+	bdi_destroy(&sbi->bdi);
+free_bdi:
 	EXOFS_ERR("Unable to mount exofs on %s pid=0x%llx err=%d\n",
 		  opts->dev_name, sbi->layout.s_pid, ret);
 	exofs_free_sbi(sbi);

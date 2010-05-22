@@ -374,6 +374,37 @@ struct hermes_multicast {
 /* Timeouts */
 #define HERMES_BAP_BUSY_TIMEOUT (10000) /* In iterations of ~1us */
 
+struct hermes;
+
+/* Functions to access hardware */
+struct hermes_ops {
+	int (*init)(struct hermes *hw);
+	int (*cmd_wait)(struct hermes *hw, u16 cmd, u16 parm0,
+			struct hermes_response *resp);
+	int (*init_cmd_wait)(struct hermes *hw, u16 cmd,
+			     u16 parm0, u16 parm1, u16 parm2,
+			     struct hermes_response *resp);
+	int (*allocate)(struct hermes *hw, u16 size, u16 *fid);
+	int (*read_ltv)(struct hermes *hw, int bap, u16 rid, unsigned buflen,
+			u16 *length, void *buf);
+	int (*write_ltv)(struct hermes *hw, int bap, u16 rid,
+			 u16 length, const void *value);
+	int (*bap_pread)(struct hermes *hw, int bap, void *buf, int len,
+			 u16 id, u16 offset);
+	int (*bap_pwrite)(struct hermes *hw, int bap, const void *buf,
+			  int len, u16 id, u16 offset);
+	int (*read_pda)(struct hermes *hw, __le16 *pda,
+			u32 pda_addr, u16 pda_len);
+	int (*program_init)(struct hermes *hw, u32 entry_point);
+	int (*program_end)(struct hermes *hw);
+	int (*program)(struct hermes *hw, const char *buf,
+		       u32 addr, u32 len);
+	void (*lock_irqsave)(spinlock_t *lock, unsigned long *flags);
+	void (*unlock_irqrestore)(spinlock_t *lock, unsigned long *flags);
+	void (*lock_irq)(spinlock_t *lock);
+	void (*unlock_irq)(spinlock_t *lock);
+};
+
 /* Basic control structure */
 typedef struct hermes {
 	void __iomem *iobase;
@@ -381,6 +412,9 @@ typedef struct hermes {
 #define HERMES_16BIT_REGSPACING	0
 #define HERMES_32BIT_REGSPACING	1
 	u16 inten; /* Which interrupts should be enabled? */
+	bool eeprom_pda;
+	const struct hermes_ops *ops;
+	void *priv;
 } hermes_t;
 
 /* Register access convenience macros */
@@ -394,22 +428,6 @@ typedef struct hermes {
 
 /* Function prototypes */
 void hermes_struct_init(hermes_t *hw, void __iomem *address, int reg_spacing);
-int hermes_init(hermes_t *hw);
-int hermes_docmd_wait(hermes_t *hw, u16 cmd, u16 parm0,
-		      struct hermes_response *resp);
-int hermes_doicmd_wait(hermes_t *hw, u16 cmd,
-		       u16 parm0, u16 parm1, u16 parm2,
-		       struct hermes_response *resp);
-int hermes_allocate(hermes_t *hw, u16 size, u16 *fid);
-
-int hermes_bap_pread(hermes_t *hw, int bap, void *buf, int len,
-		       u16 id, u16 offset);
-int hermes_bap_pwrite(hermes_t *hw, int bap, const void *buf, int len,
-			u16 id, u16 offset);
-int hermes_read_ltv(hermes_t *hw, int bap, u16 rid, unsigned buflen,
-		    u16 *length, void *buf);
-int hermes_write_ltv(hermes_t *hw, int bap, u16 rid,
-		      u16 length, const void *value);
 
 /* Inline functions */
 
@@ -426,13 +444,13 @@ static inline void hermes_set_irqmask(hermes_t *hw, u16 events)
 
 static inline int hermes_enable_port(hermes_t *hw, int port)
 {
-	return hermes_docmd_wait(hw, HERMES_CMD_ENABLE | (port << 8),
+	return hw->ops->cmd_wait(hw, HERMES_CMD_ENABLE | (port << 8),
 				 0, NULL);
 }
 
 static inline int hermes_disable_port(hermes_t *hw, int port)
 {
-	return hermes_docmd_wait(hw, HERMES_CMD_DISABLE | (port << 8),
+	return hw->ops->cmd_wait(hw, HERMES_CMD_DISABLE | (port << 8),
 				 0, NULL);
 }
 
@@ -440,7 +458,7 @@ static inline int hermes_disable_port(hermes_t *hw, int port)
  * information frame in __orinoco_ev_info() */
 static inline int hermes_inquire(hermes_t *hw, u16 rid)
 {
-	return hermes_docmd_wait(hw, HERMES_CMD_INQUIRE, rid, NULL);
+	return hw->ops->cmd_wait(hw, HERMES_CMD_INQUIRE, rid, NULL);
 }
 
 #define HERMES_BYTES_TO_RECLEN(n) ((((n)+1)/2) + 1)
@@ -475,10 +493,10 @@ static inline void hermes_clear_words(struct hermes *hw, int off,
 }
 
 #define HERMES_READ_RECORD(hw, bap, rid, buf) \
-	(hermes_read_ltv((hw), (bap), (rid), sizeof(*buf), NULL, (buf)))
+	(hw->ops->read_ltv((hw), (bap), (rid), sizeof(*buf), NULL, (buf)))
 #define HERMES_WRITE_RECORD(hw, bap, rid, buf) \
-	(hermes_write_ltv((hw), (bap), (rid), \
-			  HERMES_BYTES_TO_RECLEN(sizeof(*buf)), (buf)))
+	(hw->ops->write_ltv((hw), (bap), (rid), \
+			    HERMES_BYTES_TO_RECLEN(sizeof(*buf)), (buf)))
 
 static inline int hermes_read_wordrec(hermes_t *hw, int bap, u16 rid, u16 *word)
 {

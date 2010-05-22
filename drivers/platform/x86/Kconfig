@@ -390,6 +390,8 @@ config EEEPC_WMI
 	depends on ACPI_WMI
 	depends on INPUT
 	depends on EXPERIMENTAL
+	depends on BACKLIGHT_CLASS_DEVICE
+	select INPUT_SPARSEKMAP
 	---help---
 	  Say Y here if you want to support WMI-based hotkeys on Eee PC laptops.
 
@@ -525,5 +527,14 @@ config ACPI_CMPC
 	  Support for Intel Classmate PC ACPI devices, including some
 	  keys as input device, backlight device, tablet and accelerometer
 	  devices.
+
+config INTEL_SCU_IPC
+	bool "Intel SCU IPC Support"
+	depends on X86_MRST
+	default y
+	---help---
+	  IPC is used to bridge the communications between kernel and SCU on
+	  some embedded Intel x86 platforms. This is not needed for PC-type
+	  machines.
 
 endif # X86_PLATFORM_DEVICES

@@ -566,11 +566,9 @@ static int ipip6_rcv(struct sk_buff *skb)
 			kfree_skb(skb);
 			return 0;
 		}
-		tunnel->dev->stats.rx_packets++;
-		tunnel->dev->stats.rx_bytes += skb->len;
-		skb->dev = tunnel->dev;
-		skb_dst_drop(skb);
-		nf_reset(skb);
+
+		skb_tunnel_rx(skb, tunnel->dev);
+
 		ipip6_ecn_decapsulate(iph, skb);
 		netif_rx(skb);
 		rcu_read_unlock();

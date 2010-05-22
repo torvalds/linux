@@ -348,6 +348,5 @@ int wd33c93_queuecommand (struct scsi_cmnd *cmd,
 void wd33c93_intr (struct Scsi_Host *instance);
 int wd33c93_proc_info(struct Scsi_Host *, char *, char **, off_t, int, int);
 int wd33c93_host_reset (struct scsi_cmnd *);
-void wd33c93_release(void);
 
 #endif /* WD33C93_H */

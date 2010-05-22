@@ -331,9 +331,10 @@ static void icmp_push_reply(struct icmp_bxm *icmp_param,
 	if (ip_append_data(sk, icmp_glue_bits, icmp_param,
 			   icmp_param->data_len+icmp_param->head_len,
 			   icmp_param->head_len,
-			   ipc, rt, MSG_DONTWAIT) < 0)
+			   ipc, rt, MSG_DONTWAIT) < 0) {
+		ICMP_INC_STATS_BH(sock_net(sk), ICMP_MIB_OUTERRORS);
 		ip_flush_pending_frames(sk);
-	else if ((skb = skb_peek(&sk->sk_write_queue)) != NULL) {
+	} else if ((skb = skb_peek(&sk->sk_write_queue)) != NULL) {
 		struct icmphdr *icmph = icmp_hdr(skb);
 		__wsum csum = 0;
 		struct sk_buff *skb1;
@@ -586,20 +587,20 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 			err = __ip_route_output_key(net, &rt2, &fl);
 		else {
 			struct flowi fl2 = {};
-			struct dst_entry *odst;
+			unsigned long orefdst;
 
 			fl2.fl4_dst = fl.fl4_src;
 			if (ip_route_output_key(net, &rt2, &fl2))
 				goto relookup_failed;
 
 			/* Ugh! */
-			odst = skb_dst(skb_in);
+			orefdst = skb_in->_skb_refdst; /* save old refdst */
 			err = ip_route_input(skb_in, fl.fl4_dst, fl.fl4_src,
 					     RT_TOS(tos), rt2->u.dst.dev);
 
 			dst_release(&rt2->u.dst);
 			rt2 = skb_rtable(skb_in);
-			skb_dst_set(skb_in, odst);
+			skb_in->_skb_refdst = orefdst; /* restore old refdst */
 		}
 
 		if (err)

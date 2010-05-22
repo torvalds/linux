@@ -963,7 +963,7 @@ static void i596_tx_timeout (struct net_device *dev)
 		lp->last_restart = dev->stats.tx_packets;
 	}
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue (dev);
 }
 
@@ -974,7 +974,6 @@ static int i596_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct tx_cmd *tx_cmd;
 	struct i596_tbd *tbd;
 	short length = skb->len;
-	dev->trans_start = jiffies;
 
 	DEB(DEB_STARTTX, printk(KERN_DEBUG
 				"%s: i596_start_xmit(%x,%p) called\n",
@@ -1092,7 +1091,7 @@ static int __devinit i82596_probe(struct net_device *dev)
 		DMA_FREE(dev->dev.parent, sizeof(struct i596_dma),
 				    (void *)dma, lp->dma_addr);
 		return i;
-	};
+	}
 
 	DEB(DEB_PROBE, printk(KERN_INFO "%s: 82596 at %#3lx, %pM IRQ %d.\n",
 			      dev->name, dev->base_addr, dev->dev_addr,
@@ -1388,7 +1387,7 @@ static void set_multicast_list(struct net_device *dev)
 	}
 
 	if (!netdev_mc_empty(dev)) {
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 		unsigned char *cp;
 		struct mc_cmd *cmd;
 
@@ -1396,10 +1395,10 @@ static void set_multicast_list(struct net_device *dev)
 		cmd->cmd.command = SWAP16(CmdMulticastList);
 		cmd->mc_cnt = SWAP16(netdev_mc_count(dev) * 6);
 		cp = cmd->mc_addrs;
-		netdev_for_each_mc_addr(dmi, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			if (!cnt--)
 				break;
-			memcpy(cp, dmi->dmi_addr, 6);
+			memcpy(cp, ha->addr, 6);
 			if (i596_debug > 1)
 				DEB(DEB_MULTI,
 				    printk(KERN_DEBUG

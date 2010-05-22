@@ -20,7 +20,7 @@ static inline unsigned long bcm63xx_gpio_count(void)
 	}
 }
 
-#define GPIO_DIR_OUT	0x0
-#define GPIO_DIR_IN	0x1
+#define BCM63XX_GPIO_DIR_OUT	0x0
+#define BCM63XX_GPIO_DIR_IN	0x1
 
 #endif /* !BCM63XX_GPIO_H */

@@ -1075,7 +1075,7 @@
 /*---------------------  Export Functions  --------------------------*/
 
 extern WORD TxRate_iwconfig;//2008-5-8 <add> by chester
-VOID MACvReadAllRegs(DWORD_PTR dwIoBase, PBYTE pbyMacRegs);
+void MACvReadAllRegs(DWORD_PTR dwIoBase, PBYTE pbyMacRegs);
 
 BOOL MACbIsRegBitsOn(DWORD_PTR dwIoBase, BYTE byRegOfs, BYTE byTestBits);
 BOOL MACbIsRegBitsOff(DWORD_PTR dwIoBase, BYTE byRegOfs, BYTE byTestBits);
@@ -1083,32 +1083,32 @@ BOOL MACbIsRegBitsOff(DWORD_PTR dwIoBase, BYTE byRegOfs, BYTE byTestBits);
 BOOL MACbIsIntDisable(DWORD_PTR dwIoBase);
 
 BYTE MACbyReadMultiAddr(DWORD_PTR dwIoBase, UINT uByteIdx);
-VOID MACvWriteMultiAddr(DWORD_PTR dwIoBase, UINT uByteIdx, BYTE byData);
-VOID MACvSetMultiAddrByHash(DWORD_PTR dwIoBase, BYTE byHashIdx);
-VOID MACvResetMultiAddrByHash(DWORD_PTR dwIoBase, BYTE byHashIdx);
+void MACvWriteMultiAddr(DWORD_PTR dwIoBase, UINT uByteIdx, BYTE byData);
+void MACvSetMultiAddrByHash(DWORD_PTR dwIoBase, BYTE byHashIdx);
+void MACvResetMultiAddrByHash(DWORD_PTR dwIoBase, BYTE byHashIdx);
 
-VOID MACvSetRxThreshold(DWORD_PTR dwIoBase, BYTE byThreshold);
-VOID MACvGetRxThreshold(DWORD_PTR dwIoBase, PBYTE pbyThreshold);
+void MACvSetRxThreshold(DWORD_PTR dwIoBase, BYTE byThreshold);
+void MACvGetRxThreshold(DWORD_PTR dwIoBase, PBYTE pbyThreshold);
 
-VOID MACvSetTxThreshold(DWORD_PTR dwIoBase, BYTE byThreshold);
-VOID MACvGetTxThreshold(DWORD_PTR dwIoBase, PBYTE pbyThreshold);
+void MACvSetTxThreshold(DWORD_PTR dwIoBase, BYTE byThreshold);
+void MACvGetTxThreshold(DWORD_PTR dwIoBase, PBYTE pbyThreshold);
 
-VOID MACvSetDmaLength(DWORD_PTR dwIoBase, BYTE byDmaLength);
-VOID MACvGetDmaLength(DWORD_PTR dwIoBase, PBYTE pbyDmaLength);
+void MACvSetDmaLength(DWORD_PTR dwIoBase, BYTE byDmaLength);
+void MACvGetDmaLength(DWORD_PTR dwIoBase, PBYTE pbyDmaLength);
 
-VOID MACvSetShortRetryLimit(DWORD_PTR dwIoBase, BYTE byRetryLimit);
-VOID MACvGetShortRetryLimit(DWORD_PTR dwIoBase, PBYTE pbyRetryLimit);
+void MACvSetShortRetryLimit(DWORD_PTR dwIoBase, BYTE byRetryLimit);
+void MACvGetShortRetryLimit(DWORD_PTR dwIoBase, PBYTE pbyRetryLimit);
 
-VOID MACvSetLongRetryLimit(DWORD_PTR dwIoBase, BYTE byRetryLimit);
-VOID MACvGetLongRetryLimit(DWORD_PTR dwIoBase, PBYTE pbyRetryLimit);
+void MACvSetLongRetryLimit(DWORD_PTR dwIoBase, BYTE byRetryLimit);
+void MACvGetLongRetryLimit(DWORD_PTR dwIoBase, PBYTE pbyRetryLimit);
 
-VOID MACvSetLoopbackMode(DWORD_PTR dwIoBase, BYTE byLoopbackMode);
+void MACvSetLoopbackMode(DWORD_PTR dwIoBase, BYTE byLoopbackMode);
 BOOL MACbIsInLoopbackMode(DWORD_PTR dwIoBase);
 
-VOID MACvSetPacketFilter(DWORD_PTR dwIoBase, WORD wFilterType);
+void MACvSetPacketFilter(DWORD_PTR dwIoBase, WORD wFilterType);
 
-VOID MACvSaveContext(DWORD_PTR dwIoBase, PBYTE pbyCxtBuf);
-VOID MACvRestoreContext(DWORD_PTR dwIoBase, PBYTE pbyCxtBuf);
+void MACvSaveContext(DWORD_PTR dwIoBase, PBYTE pbyCxtBuf);
+void MACvRestoreContext(DWORD_PTR dwIoBase, PBYTE pbyCxtBuf);
 BOOL MACbCompareContext(DWORD_PTR dwIoBase, PBYTE pbyCxtBuf);
 
 BOOL MACbSoftwareReset(DWORD_PTR dwIoBase);
@@ -1117,14 +1117,14 @@ BOOL MACbSafeRxOff(DWORD_PTR dwIoBase);
 BOOL MACbSafeTxOff(DWORD_PTR dwIoBase);
 BOOL MACbSafeStop(DWORD_PTR dwIoBase);
 BOOL MACbShutdown(DWORD_PTR dwIoBase);
-VOID MACvInitialize(DWORD_PTR dwIoBase);
-VOID MACvSetCurrRx0DescAddr(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
-VOID MACvSetCurrRx1DescAddr(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
-VOID MACvSetCurrTXDescAddr(int iTxType, DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
-VOID MACvSetCurrTx0DescAddrEx(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
-VOID MACvSetCurrAC0DescAddrEx(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
-VOID MACvSetCurrSyncDescAddrEx(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
-VOID MACvSetCurrATIMDescAddrEx(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
+void MACvInitialize(DWORD_PTR dwIoBase);
+void MACvSetCurrRx0DescAddr(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
+void MACvSetCurrRx1DescAddr(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
+void MACvSetCurrTXDescAddr(int iTxType, DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
+void MACvSetCurrTx0DescAddrEx(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
+void MACvSetCurrAC0DescAddrEx(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
+void MACvSetCurrSyncDescAddrEx(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
+void MACvSetCurrATIMDescAddrEx(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
 void MACvTimer0MicroSDelay(DWORD_PTR dwIoBase, UINT uDelay);
 void MACvOneShotTimer0MicroSec(DWORD_PTR dwIoBase, UINT uDelayTime);
 void MACvOneShotTimer1MicroSec(DWORD_PTR dwIoBase, UINT uDelayTime);

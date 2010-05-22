@@ -75,7 +75,7 @@ static ssize_t lbs_getscantable(struct file *file, char __user *userbuf,
 		return -ENOMEM;
 
 	pos += snprintf(buf+pos, len-pos,
-		"# | ch  | rssi |       bssid       |   cap    | Qual | SSID \n");
+		"# | ch  | rssi |       bssid       |   cap    | Qual | SSID\n");
 
 	mutex_lock(&priv->lock);
 	list_for_each_entry (iter_bss, &priv->network_list, list) {
@@ -757,15 +757,12 @@ void lbs_debugfs_init(void)
 {
 	if (!lbs_dir)
 		lbs_dir = debugfs_create_dir("lbs_wireless", NULL);
-
-	return;
 }
 
 void lbs_debugfs_remove(void)
 {
 	if (lbs_dir)
 		 debugfs_remove(lbs_dir);
-	return;
 }
 
 void lbs_debugfs_init_one(struct lbs_private *priv, struct net_device *dev)

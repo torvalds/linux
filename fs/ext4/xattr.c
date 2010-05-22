@@ -97,7 +97,7 @@ static int ext4_xattr_list(struct dentry *dentry, char *buffer,
 
 static struct mb_cache *ext4_xattr_cache;
 
-static struct xattr_handler *ext4_xattr_handler_map[] = {
+static const struct xattr_handler *ext4_xattr_handler_map[] = {
 	[EXT4_XATTR_INDEX_USER]		     = &ext4_xattr_user_handler,
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
 	[EXT4_XATTR_INDEX_POSIX_ACL_ACCESS]  = &ext4_xattr_acl_access_handler,
@@ -109,7 +109,7 @@ static struct xattr_handler *ext4_xattr_handler_map[] = {
 #endif
 };
 
-struct xattr_handler *ext4_xattr_handlers[] = {
+const struct xattr_handler *ext4_xattr_handlers[] = {
 	&ext4_xattr_user_handler,
 	&ext4_xattr_trusted_handler,
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
@@ -122,10 +122,10 @@ struct xattr_handler *ext4_xattr_handlers[] = {
 	NULL
 };
 
-static inline struct xattr_handler *
+static inline const struct xattr_handler *
 ext4_xattr_handler(int name_index)
 {
-	struct xattr_handler *handler = NULL;
+	const struct xattr_handler *handler = NULL;
 
 	if (name_index > 0 && name_index < ARRAY_SIZE(ext4_xattr_handler_map))
 		handler = ext4_xattr_handler_map[name_index];
@@ -332,7 +332,7 @@ ext4_xattr_list_entries(struct dentry *dentry, struct ext4_xattr_entry *entry,
 	size_t rest = buffer_size;
 
 	for (; !IS_LAST_ENTRY(entry); entry = EXT4_XATTR_NEXT(entry)) {
-		struct xattr_handler *handler =
+		const struct xattr_handler *handler =
 			ext4_xattr_handler(entry->e_name_index);
 
 		if (handler) {

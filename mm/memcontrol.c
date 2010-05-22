@@ -1438,7 +1438,7 @@ static void drain_local_stock(struct work_struct *dummy)
 
 /*
  * Cache charges(val) which is from res_counter, to local per_cpu area.
- * This will be consumed by consumt_stock() function, later.
+ * This will be consumed by consume_stock() function, later.
  */
 static void refill_stock(struct mem_cgroup *mem, int val)
 {
@@ -1601,7 +1601,6 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 			 * There is a small race that "from" or "to" can be
 			 * freed by rmdir, so we use css_tryget().
 			 */
-			rcu_read_lock();
 			from = mc.from;
 			to = mc.to;
 			if (from && css_tryget(&from->css)) {
@@ -1622,7 +1621,6 @@ static int __mem_cgroup_try_charge(struct mm_struct *mm,
 					do_continue = (to == mem_over_limit);
 				css_put(&to->css);
 			}
-			rcu_read_unlock();
 			if (do_continue) {
 				DEFINE_WAIT(wait);
 				prepare_to_wait(&mc.waitq, &wait,
@@ -2429,11 +2427,11 @@ int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
 	}
 	unlock_page_cgroup(pc);
 
+	*ptr = mem;
 	if (mem) {
-		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false);
+		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
 		css_put(&mem->css);
 	}
-	*ptr = mem;
 	return ret;
 }
 

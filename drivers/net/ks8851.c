@@ -9,6 +9,8 @@
  * published by the Free Software Foundation.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #define DEBUG
 
 #include <linux/module.h>
@@ -76,7 +78,9 @@ union ks8851_tx_hdr {
  * @msg_enable: The message flags controlling driver output (see ethtool).
  * @fid: Incrementing frame id tag.
  * @rc_ier: Cached copy of KS_IER.
+ * @rc_ccr: Cached copy of KS_CCR.
  * @rc_rxqcr: Cached copy of KS_RXQCR.
+ * @eeprom_size: Companion eeprom size in Bytes, 0 if no eeprom
  *
  * The @lock ensures that the chip is protected when certain operations are
  * in progress. When the read or write packet transfer is in progress, most
@@ -107,6 +111,8 @@ struct ks8851_net {
 
 	u16			rc_ier;
 	u16			rc_rxqcr;
+	u16			rc_ccr;
+	u16			eeprom_size;
 
 	struct mii_if_info	mii;
 	struct ks8851_rxctrl	rxctrl;
@@ -124,11 +130,6 @@ struct ks8851_net {
 };
 
 static int msg_enable;
-
-#define ks_info(_ks, _msg...) dev_info(&(_ks)->spidev->dev, _msg)
-#define ks_warn(_ks, _msg...) dev_warn(&(_ks)->spidev->dev, _msg)
-#define ks_dbg(_ks, _msg...) dev_dbg(&(_ks)->spidev->dev, _msg)
-#define ks_err(_ks, _msg...) dev_err(&(_ks)->spidev->dev, _msg)
 
 /* shift for byte-enable data */
 #define BYTE_EN(_x)	((_x) << 2)
@@ -167,7 +168,7 @@ static void ks8851_wrreg16(struct ks8851_net *ks, unsigned reg, unsigned val)
 
 	ret = spi_sync(ks->spidev, msg);
 	if (ret < 0)
-		ks_err(ks, "spi_sync() failed\n");
+		netdev_err(ks->netdev, "spi_sync() failed\n");
 }
 
 /**
@@ -197,7 +198,7 @@ static void ks8851_wrreg8(struct ks8851_net *ks, unsigned reg, unsigned val)
 
 	ret = spi_sync(ks->spidev, msg);
 	if (ret < 0)
-		ks_err(ks, "spi_sync() failed\n");
+		netdev_err(ks->netdev, "spi_sync() failed\n");
 }
 
 /**
@@ -263,7 +264,7 @@ static void ks8851_rdreg(struct ks8851_net *ks, unsigned op,
 
 	ret = spi_sync(ks->spidev, msg);
 	if (ret < 0)
-		ks_err(ks, "read: spi_sync() failed\n");
+		netdev_err(ks->netdev, "read: spi_sync() failed\n");
 	else if (ks8851_rx_1msg(ks))
 		memcpy(rxb, trx + 2, rxl);
 	else
@@ -417,8 +418,8 @@ static void ks8851_rdfifo(struct ks8851_net *ks, u8 *buff, unsigned len)
 	u8 txb[1];
 	int ret;
 
-	if (netif_msg_rx_status(ks))
-		ks_dbg(ks, "%s: %d@%p\n", __func__, len, buff);
+	netif_dbg(ks, rx_status, ks->netdev,
+		  "%s: %d@%p\n", __func__, len, buff);
 
 	/* set the operation we're issuing */
 	txb[0] = KS_SPIOP_RXFIFO;
@@ -434,7 +435,7 @@ static void ks8851_rdfifo(struct ks8851_net *ks, u8 *buff, unsigned len)
 
 	ret = spi_sync(ks->spidev, msg);
 	if (ret < 0)
-		ks_err(ks, "%s: spi_sync() failed\n", __func__);
+		netdev_err(ks->netdev, "%s: spi_sync() failed\n", __func__);
 }
 
 /**
@@ -446,10 +447,11 @@ static void ks8851_rdfifo(struct ks8851_net *ks, u8 *buff, unsigned len)
 */
 static void ks8851_dbg_dumpkkt(struct ks8851_net *ks, u8 *rxpkt)
 {
-	ks_dbg(ks, "pkt %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x\n",
-	       rxpkt[4], rxpkt[5], rxpkt[6], rxpkt[7],
-	       rxpkt[8], rxpkt[9], rxpkt[10], rxpkt[11],
-	       rxpkt[12], rxpkt[13], rxpkt[14], rxpkt[15]);
+	netdev_dbg(ks->netdev,
+		   "pkt %02x%02x%02x%02x %02x%02x%02x%02x %02x%02x%02x%02x\n",
+		   rxpkt[4], rxpkt[5], rxpkt[6], rxpkt[7],
+		   rxpkt[8], rxpkt[9], rxpkt[10], rxpkt[11],
+		   rxpkt[12], rxpkt[13], rxpkt[14], rxpkt[15]);
 }
 
 /**
@@ -471,8 +473,8 @@ static void ks8851_rx_pkts(struct ks8851_net *ks)
 
 	rxfc = ks8851_rdreg8(ks, KS_RXFC);
 
-	if (netif_msg_rx_status(ks))
-		ks_dbg(ks, "%s: %d packets\n", __func__, rxfc);
+	netif_dbg(ks, rx_status, ks->netdev,
+		  "%s: %d packets\n", __func__, rxfc);
 
 	/* Currently we're issuing a read per packet, but we could possibly
 	 * improve the code by issuing a single read, getting the receive
@@ -489,9 +491,8 @@ static void ks8851_rx_pkts(struct ks8851_net *ks)
 		rxstat = rxh & 0xffff;
 		rxlen = rxh >> 16;
 
-		if (netif_msg_rx_status(ks))
-			ks_dbg(ks, "rx: stat 0x%04x, len 0x%04x\n",
-				rxstat, rxlen);
+		netif_dbg(ks, rx_status, ks->netdev,
+			  "rx: stat 0x%04x, len 0x%04x\n", rxstat, rxlen);
 
 		/* the length of the packet includes the 32bit CRC */
 
@@ -553,9 +554,8 @@ static void ks8851_irq_work(struct work_struct *work)
 
 	status = ks8851_rdreg16(ks, KS_ISR);
 
-	if (netif_msg_intr(ks))
-		dev_dbg(&ks->spidev->dev, "%s: status 0x%04x\n",
-			__func__, status);
+	netif_dbg(ks, intr, ks->netdev,
+		  "%s: status 0x%04x\n", __func__, status);
 
 	if (status & IRQ_LCI) {
 		/* should do something about checking link status */
@@ -582,8 +582,8 @@ static void ks8851_irq_work(struct work_struct *work)
 		 * system */
 		ks->tx_space = ks8851_rdreg16(ks, KS_TXMIR);
 
-		if (netif_msg_intr(ks))
-			ks_dbg(ks, "%s: txspace %d\n", __func__, ks->tx_space);
+		netif_dbg(ks, intr, ks->netdev,
+			  "%s: txspace %d\n", __func__, ks->tx_space);
 	}
 
 	if (status & IRQ_RXI)
@@ -659,9 +659,8 @@ static void ks8851_wrpkt(struct ks8851_net *ks, struct sk_buff *txp, bool irq)
 	unsigned fid = 0;
 	int ret;
 
-	if (netif_msg_tx_queued(ks))
-		dev_dbg(&ks->spidev->dev, "%s: skb %p, %d@%p, irq %d\n",
-			__func__, txp, txp->len, txp->data, irq);
+	netif_dbg(ks, tx_queued, ks->netdev, "%s: skb %p, %d@%p, irq %d\n",
+		  __func__, txp, txp->len, txp->data, irq);
 
 	fid = ks->fid++;
 	fid &= TXFR_TXFID_MASK;
@@ -685,7 +684,7 @@ static void ks8851_wrpkt(struct ks8851_net *ks, struct sk_buff *txp, bool irq)
 
 	ret = spi_sync(ks->spidev, msg);
 	if (ret < 0)
-		ks_err(ks, "%s: spi_sync() failed\n", __func__);
+		netdev_err(ks->netdev, "%s: spi_sync() failed\n", __func__);
 }
 
 /**
@@ -722,12 +721,14 @@ static void ks8851_tx_work(struct work_struct *work)
 		txb = skb_dequeue(&ks->txq);
 		last = skb_queue_empty(&ks->txq);
 
-		ks8851_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr | RXQCR_SDA);
-		ks8851_wrpkt(ks, txb, last);
-		ks8851_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr);
-		ks8851_wrreg16(ks, KS_TXQCR, TXQCR_METFE);
+		if (txb != NULL) {
+			ks8851_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr | RXQCR_SDA);
+			ks8851_wrpkt(ks, txb, last);
+			ks8851_wrreg16(ks, KS_RXQCR, ks->rc_rxqcr);
+			ks8851_wrreg16(ks, KS_TXQCR, TXQCR_METFE);
 
-		ks8851_done_tx(ks, txb);
+			ks8851_done_tx(ks, txb);
+		}
 	}
 
 	mutex_unlock(&ks->lock);
@@ -744,8 +745,7 @@ static void ks8851_set_powermode(struct ks8851_net *ks, unsigned pwrmode)
 {
 	unsigned pmecr;
 
-	if (netif_msg_hw(ks))
-		ks_dbg(ks, "setting power mode %d\n", pwrmode);
+	netif_dbg(ks, hw, ks->netdev, "setting power mode %d\n", pwrmode);
 
 	pmecr = ks8851_rdreg16(ks, KS_PMECR);
 	pmecr &= ~PMECR_PM_MASK;
@@ -769,8 +769,7 @@ static int ks8851_net_open(struct net_device *dev)
 	 * else at the moment */
 	mutex_lock(&ks->lock);
 
-	if (netif_msg_ifup(ks))
-		ks_dbg(ks, "opening %s\n", dev->name);
+	netif_dbg(ks, ifup, ks->netdev, "opening\n");
 
 	/* bring chip out of any power saving mode it was in */
 	ks8851_set_powermode(ks, PMECR_PM_NORMAL);
@@ -826,8 +825,7 @@ static int ks8851_net_open(struct net_device *dev)
 
 	netif_start_queue(ks->netdev);
 
-	if (netif_msg_ifup(ks))
-		ks_dbg(ks, "network device %s up\n", dev->name);
+	netif_dbg(ks, ifup, ks->netdev, "network device up\n");
 
 	mutex_unlock(&ks->lock);
 	return 0;
@@ -845,8 +843,7 @@ static int ks8851_net_stop(struct net_device *dev)
 {
 	struct ks8851_net *ks = netdev_priv(dev);
 
-	if (netif_msg_ifdown(ks))
-		ks_info(ks, "%s: shutting down\n", dev->name);
+	netif_info(ks, ifdown, dev, "shutting down\n");
 
 	netif_stop_queue(dev);
 
@@ -874,8 +871,8 @@ static int ks8851_net_stop(struct net_device *dev)
 	while (!skb_queue_empty(&ks->txq)) {
 		struct sk_buff *txb = skb_dequeue(&ks->txq);
 
-		if (netif_msg_ifdown(ks))
-			ks_dbg(ks, "%s: freeing txb %p\n", __func__, txb);
+		netif_dbg(ks, ifdown, ks->netdev,
+			  "%s: freeing txb %p\n", __func__, txb);
 
 		dev_kfree_skb(txb);
 	}
@@ -904,9 +901,8 @@ static netdev_tx_t ks8851_start_xmit(struct sk_buff *skb,
 	unsigned needed = calc_txlen(skb->len);
 	netdev_tx_t ret = NETDEV_TX_OK;
 
-	if (netif_msg_tx_queued(ks))
-		ks_dbg(ks, "%s: skb %p, %d@%p\n", __func__,
-		       skb, skb->len, skb->data);
+	netif_dbg(ks, tx_queued, ks->netdev,
+		  "%s: skb %p, %d@%p\n", __func__, skb, skb->len, skb->data);
 
 	spin_lock(&ks->statelock);
 
@@ -966,13 +962,13 @@ static void ks8851_set_rx_mode(struct net_device *dev)
 		rxctrl.rxcr1 = (RXCR1_RXME | RXCR1_RXAE |
 				RXCR1_RXPAFMA | RXCR1_RXMAFMA);
 	} else if (dev->flags & IFF_MULTICAST && !netdev_mc_empty(dev)) {
-		struct dev_mc_list *mcptr;
+		struct netdev_hw_addr *ha;
 		u32 crc;
 
 		/* accept some multicast */
 
-		netdev_for_each_mc_addr(mcptr, dev) {
-			crc = ether_crc(ETH_ALEN, mcptr->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			crc = ether_crc(ETH_ALEN, ha->addr);
 			crc >>= (32 - 6);  /* get top six bits */
 
 			rxctrl.mchash[crc >> 4] |= (1 << (crc & 0xf));
@@ -1038,6 +1034,234 @@ static const struct net_device_ops ks8851_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
+/* Companion eeprom access */
+
+enum {	/* EEPROM programming states */
+	EEPROM_CONTROL,
+	EEPROM_ADDRESS,
+	EEPROM_DATA,
+	EEPROM_COMPLETE
+};
+
+/**
+ * ks8851_eeprom_read - read a 16bits word in ks8851 companion EEPROM
+ * @dev: The network device the PHY is on.
+ * @addr: EEPROM address to read
+ *
+ * eeprom_size: used to define the data coding length. Can be changed
+ * through debug-fs.
+ *
+ * Programs a read on the EEPROM using ks8851 EEPROM SW access feature.
+ * Warning: The READ feature is not supported on ks8851 revision 0.
+ *
+ * Rough programming model:
+ *  - on period start: set clock high and read value on bus
+ *  - on period / 2: set clock low and program value on bus
+ *  - start on period / 2
+ */
+unsigned int ks8851_eeprom_read(struct net_device *dev, unsigned int addr)
+{
+	struct ks8851_net *ks = netdev_priv(dev);
+	int eepcr;
+	int ctrl = EEPROM_OP_READ;
+	int state = EEPROM_CONTROL;
+	int bit_count = EEPROM_OP_LEN - 1;
+	unsigned int data = 0;
+	int dummy;
+	unsigned int addr_len;
+
+	addr_len = (ks->eeprom_size == 128) ? 6 : 8;
+
+	/* start transaction: chip select high, authorize write */
+	mutex_lock(&ks->lock);
+	eepcr = EEPCR_EESA | EEPCR_EESRWA;
+	ks8851_wrreg16(ks, KS_EEPCR, eepcr);
+	eepcr |= EEPCR_EECS;
+	ks8851_wrreg16(ks, KS_EEPCR, eepcr);
+	mutex_unlock(&ks->lock);
+
+	while (state != EEPROM_COMPLETE) {
+		/* falling clock period starts... */
+		/* set EED_IO pin for control and address */
+		eepcr &= ~EEPCR_EEDO;
+		switch (state) {
+		case EEPROM_CONTROL:
+			eepcr |= ((ctrl >> bit_count) & 1) << 2;
+			if (bit_count-- <= 0) {
+				bit_count = addr_len - 1;
+				state = EEPROM_ADDRESS;
+			}
+			break;
+		case EEPROM_ADDRESS:
+			eepcr |= ((addr >> bit_count) & 1) << 2;
+			bit_count--;
+			break;
+		case EEPROM_DATA:
+			/* Change to receive mode */
+			eepcr &= ~EEPCR_EESRWA;
+			break;
+		}
+
+		/* lower clock  */
+		eepcr &= ~EEPCR_EESCK;
+
+		mutex_lock(&ks->lock);
+		ks8851_wrreg16(ks, KS_EEPCR, eepcr);
+		mutex_unlock(&ks->lock);
+
+		/* waitread period / 2 */
+		udelay(EEPROM_SK_PERIOD / 2);
+
+		/* rising clock period starts... */
+
+		/* raise clock */
+		mutex_lock(&ks->lock);
+		eepcr |= EEPCR_EESCK;
+		ks8851_wrreg16(ks, KS_EEPCR, eepcr);
+		mutex_unlock(&ks->lock);
+
+		/* Manage read */
+		switch (state) {
+		case EEPROM_ADDRESS:
+			if (bit_count < 0) {
+				bit_count = EEPROM_DATA_LEN - 1;
+				state = EEPROM_DATA;
+			}
+			break;
+		case EEPROM_DATA:
+			mutex_lock(&ks->lock);
+			dummy = ks8851_rdreg16(ks, KS_EEPCR);
+			mutex_unlock(&ks->lock);
+			data |= ((dummy >> EEPCR_EESB_OFFSET) & 1) << bit_count;
+			if (bit_count-- <= 0)
+				state = EEPROM_COMPLETE;
+			break;
+		}
+
+		/* wait period / 2 */
+		udelay(EEPROM_SK_PERIOD / 2);
+	}
+
+	/* close transaction */
+	mutex_lock(&ks->lock);
+	eepcr &= ~EEPCR_EECS;
+	ks8851_wrreg16(ks, KS_EEPCR, eepcr);
+	eepcr = 0;
+	ks8851_wrreg16(ks, KS_EEPCR, eepcr);
+	mutex_unlock(&ks->lock);
+
+	return data;
+}
+
+/**
+ * ks8851_eeprom_write - write a 16bits word in ks8851 companion EEPROM
+ * @dev: The network device the PHY is on.
+ * @op: operand (can be WRITE, EWEN, EWDS)
+ * @addr: EEPROM address to write
+ * @data: data to write
+ *
+ * eeprom_size: used to define the data coding length. Can be changed
+ * through debug-fs.
+ *
+ * Programs a write on the EEPROM using ks8851 EEPROM SW access feature.
+ *
+ * Note that a write enable is required before writing data.
+ *
+ * Rough programming model:
+ *  - on period start: set clock high
+ *  - on period / 2: set clock low and program value on bus
+ *  - start on period / 2
+ */
+void ks8851_eeprom_write(struct net_device *dev, unsigned int op,
+					unsigned int addr, unsigned int data)
+{
+	struct ks8851_net *ks = netdev_priv(dev);
+	int eepcr;
+	int state = EEPROM_CONTROL;
+	int bit_count = EEPROM_OP_LEN - 1;
+	unsigned int addr_len;
+
+	addr_len = (ks->eeprom_size == 128) ? 6 : 8;
+
+	switch (op) {
+	case EEPROM_OP_EWEN:
+		addr = 0x30;
+	break;
+	case EEPROM_OP_EWDS:
+		addr = 0;
+		break;
+	}
+
+	/* start transaction: chip select high, authorize write */
+	mutex_lock(&ks->lock);
+	eepcr = EEPCR_EESA | EEPCR_EESRWA;
+	ks8851_wrreg16(ks, KS_EEPCR, eepcr);
+	eepcr |= EEPCR_EECS;
+	ks8851_wrreg16(ks, KS_EEPCR, eepcr);
+	mutex_unlock(&ks->lock);
+
+	while (state != EEPROM_COMPLETE) {
+		/* falling clock period starts... */
+		/* set EED_IO pin for control and address */
+		eepcr &= ~EEPCR_EEDO;
+		switch (state) {
+		case EEPROM_CONTROL:
+			eepcr |= ((op >> bit_count) & 1) << 2;
+			if (bit_count-- <= 0) {
+				bit_count = addr_len - 1;
+				state = EEPROM_ADDRESS;
+			}
+			break;
+		case EEPROM_ADDRESS:
+			eepcr |= ((addr >> bit_count) & 1) << 2;
+			if (bit_count-- <= 0) {
+				if (op == EEPROM_OP_WRITE) {
+					bit_count = EEPROM_DATA_LEN - 1;
+					state = EEPROM_DATA;
+				} else {
+					state = EEPROM_COMPLETE;
+				}
+			}
+			break;
+		case EEPROM_DATA:
+			eepcr |= ((data >> bit_count) & 1) << 2;
+			if (bit_count-- <= 0)
+				state = EEPROM_COMPLETE;
+			break;
+		}
+
+		/* lower clock  */
+		eepcr &= ~EEPCR_EESCK;
+
+		mutex_lock(&ks->lock);
+		ks8851_wrreg16(ks, KS_EEPCR, eepcr);
+		mutex_unlock(&ks->lock);
+
+		/* wait period / 2 */
+		udelay(EEPROM_SK_PERIOD / 2);
+
+		/* rising clock period starts... */
+
+		/* raise clock */
+		eepcr |= EEPCR_EESCK;
+		mutex_lock(&ks->lock);
+		ks8851_wrreg16(ks, KS_EEPCR, eepcr);
+		mutex_unlock(&ks->lock);
+
+		/* wait period / 2 */
+		udelay(EEPROM_SK_PERIOD / 2);
+	}
+
+	/* close transaction */
+	mutex_lock(&ks->lock);
+	eepcr &= ~EEPCR_EECS;
+	ks8851_wrreg16(ks, KS_EEPCR, eepcr);
+	eepcr = 0;
+	ks8851_wrreg16(ks, KS_EEPCR, eepcr);
+	mutex_unlock(&ks->lock);
+
+}
+
 /* ethtool support */
 
 static void ks8851_get_drvinfo(struct net_device *dev,
@@ -1084,6 +1308,117 @@ static int ks8851_nway_reset(struct net_device *dev)
 	return mii_nway_restart(&ks->mii);
 }
 
+static int ks8851_get_eeprom_len(struct net_device *dev)
+{
+	struct ks8851_net *ks = netdev_priv(dev);
+	return ks->eeprom_size;
+}
+
+static int ks8851_get_eeprom(struct net_device *dev,
+			    struct ethtool_eeprom *eeprom, u8 *bytes)
+{
+	struct ks8851_net *ks = netdev_priv(dev);
+	u16 *eeprom_buff;
+	int first_word;
+	int last_word;
+	int ret_val = 0;
+	u16 i;
+
+	if (eeprom->len == 0)
+		return -EINVAL;
+
+	if (eeprom->len > ks->eeprom_size)
+		return -EINVAL;
+
+	eeprom->magic = ks8851_rdreg16(ks, KS_CIDER);
+
+	first_word = eeprom->offset >> 1;
+	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
+
+	eeprom_buff = kmalloc(sizeof(u16) *
+			(last_word - first_word + 1), GFP_KERNEL);
+	if (!eeprom_buff)
+		return -ENOMEM;
+
+	for (i = 0; i < last_word - first_word + 1; i++)
+		eeprom_buff[i] = ks8851_eeprom_read(dev, first_word + 1);
+
+	/* Device's eeprom is little-endian, word addressable */
+	for (i = 0; i < last_word - first_word + 1; i++)
+		le16_to_cpus(&eeprom_buff[i]);
+
+	memcpy(bytes, (u8 *)eeprom_buff + (eeprom->offset & 1), eeprom->len);
+	kfree(eeprom_buff);
+
+	return ret_val;
+}
+
+static int ks8851_set_eeprom(struct net_device *dev,
+			    struct ethtool_eeprom *eeprom, u8 *bytes)
+{
+	struct ks8851_net *ks = netdev_priv(dev);
+	u16 *eeprom_buff;
+	void *ptr;
+	int max_len;
+	int first_word;
+	int last_word;
+	int ret_val = 0;
+	u16 i;
+
+	if (eeprom->len == 0)
+		return -EOPNOTSUPP;
+
+	if (eeprom->len > ks->eeprom_size)
+		return -EINVAL;
+
+	if (eeprom->magic != ks8851_rdreg16(ks, KS_CIDER))
+		return -EFAULT;
+
+	first_word = eeprom->offset >> 1;
+	last_word = (eeprom->offset + eeprom->len - 1) >> 1;
+	max_len = (last_word - first_word + 1) * 2;
+	eeprom_buff = kmalloc(max_len, GFP_KERNEL);
+	if (!eeprom_buff)
+		return -ENOMEM;
+
+	ptr = (void *)eeprom_buff;
+
+	if (eeprom->offset & 1) {
+		/* need read/modify/write of first changed EEPROM word */
+		/* only the second byte of the word is being modified */
+		eeprom_buff[0] = ks8851_eeprom_read(dev, first_word);
+		ptr++;
+	}
+	if ((eeprom->offset + eeprom->len) & 1)
+		/* need read/modify/write of last changed EEPROM word */
+		/* only the first byte of the word is being modified */
+		eeprom_buff[last_word - first_word] =
+					ks8851_eeprom_read(dev, last_word);
+
+
+	/* Device's eeprom is little-endian, word addressable */
+	le16_to_cpus(&eeprom_buff[0]);
+	le16_to_cpus(&eeprom_buff[last_word - first_word]);
+
+	memcpy(ptr, bytes, eeprom->len);
+
+	for (i = 0; i < last_word - first_word + 1; i++)
+		eeprom_buff[i] = cpu_to_le16(eeprom_buff[i]);
+
+	ks8851_eeprom_write(dev, EEPROM_OP_EWEN, 0, 0);
+
+	for (i = 0; i < last_word - first_word + 1; i++) {
+		ks8851_eeprom_write(dev, EEPROM_OP_WRITE, first_word + i,
+							eeprom_buff[i]);
+		mdelay(EEPROM_WRITE_TIME);
+	}
+
+	ks8851_eeprom_write(dev, EEPROM_OP_EWDS, 0, 0);
+
+	kfree(eeprom_buff);
+	return ret_val;
+}
+
 static const struct ethtool_ops ks8851_ethtool_ops = {
 	.get_drvinfo	= ks8851_get_drvinfo,
 	.get_msglevel	= ks8851_get_msglevel,
@@ -1092,6 +1427,9 @@ static const struct ethtool_ops ks8851_ethtool_ops = {
 	.set_settings	= ks8851_set_settings,
 	.get_link	= ks8851_get_link,
 	.nway_reset	= ks8851_nway_reset,
+	.get_eeprom_len	= ks8851_get_eeprom_len,
+	.get_eeprom	= ks8851_get_eeprom,
+	.set_eeprom	= ks8851_set_eeprom,
 };
 
 /* MII interface controls */
@@ -1185,17 +1523,17 @@ static int ks8851_read_selftest(struct ks8851_net *ks)
 	rd = ks8851_rdreg16(ks, KS_MBIR);
 
 	if ((rd & both_done) != both_done) {
-		ks_warn(ks, "Memory selftest not finished\n");
+		netdev_warn(ks->netdev, "Memory selftest not finished\n");
 		return 0;
 	}
 
 	if (rd & MBIR_TXMBFA) {
-		ks_err(ks, "TX memory selftest fail\n");
+		netdev_err(ks->netdev, "TX memory selftest fail\n");
 		ret |= 1;
 	}
 
 	if (rd & MBIR_RXMBFA) {
-		ks_err(ks, "RX memory selftest fail\n");
+		netdev_err(ks->netdev, "RX memory selftest fail\n");
 		ret |= 2;
 	}
 
@@ -1277,6 +1615,14 @@ static int __devinit ks8851_probe(struct spi_device *spi)
 		goto err_id;
 	}
 
+	/* cache the contents of the CCR register for EEPROM, etc. */
+	ks->rc_ccr = ks8851_rdreg16(ks, KS_CCR);
+
+	if (ks->rc_ccr & CCR_EEPROM)
+		ks->eeprom_size = 128;
+	else
+		ks->eeprom_size = 0;
+
 	ks8851_read_selftest(ks);
 	ks8851_init_mac(ks);
 
@@ -1293,9 +1639,9 @@ static int __devinit ks8851_probe(struct spi_device *spi)
 		goto err_netdev;
 	}
 
-	dev_info(&spi->dev, "revision %d, MAC %pM, IRQ %d\n",
-		 CIDER_REV_GET(ks8851_rdreg16(ks, KS_CIDER)),
-		 ndev->dev_addr, ndev->irq);
+	netdev_info(ndev, "revision %d, MAC %pM, IRQ %d\n",
+		    CIDER_REV_GET(ks8851_rdreg16(ks, KS_CIDER)),
+		    ndev->dev_addr, ndev->irq);
 
 	return 0;
 
@@ -1314,7 +1660,7 @@ static int __devexit ks8851_remove(struct spi_device *spi)
 	struct ks8851_net *priv = dev_get_drvdata(&spi->dev);
 
 	if (netif_msg_drv(priv))
-		dev_info(&spi->dev, "remove");
+		dev_info(&spi->dev, "remove\n");
 
 	unregister_netdev(priv->netdev);
 	free_irq(spi->irq, priv);

@@ -35,8 +35,8 @@ efx_hard_start_xmit(struct sk_buff *skb, struct net_device *net_dev);
 extern netdev_tx_t
 efx_enqueue_skb(struct efx_tx_queue *tx_queue, struct sk_buff *skb);
 extern void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index);
-extern void efx_stop_queue(struct efx_nic *efx);
-extern void efx_wake_queue(struct efx_nic *efx);
+extern void efx_stop_queue(struct efx_channel *channel);
+extern void efx_wake_queue(struct efx_channel *channel);
 #define EFX_TXQ_SIZE 1024
 #define EFX_TXQ_MASK (EFX_TXQ_SIZE - 1)
 

@@ -406,6 +406,7 @@ int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 				struct buffer_head *bh)
 {
 	int ret = 0;
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)bh->b_data;
 
 	mlog_entry_void();
 
@@ -425,6 +426,7 @@ int ocfs2_write_super_or_backup(struct ocfs2_super *osb,
 
 	get_bh(bh); /* for end_buffer_write_sync() */
 	bh->b_end_io = end_buffer_write_sync;
+	ocfs2_compute_meta_ecc(osb->sb, bh->b_data, &di->i_check);
 	submit_bh(WRITE, bh);
 
 	wait_on_buffer(bh);

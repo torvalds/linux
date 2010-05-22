@@ -827,6 +827,8 @@ static int stli_open(struct tty_struct *tty, struct file *filp)
 		return -ENODEV;
 	if (portp->devnr < 1)
 		return -ENODEV;
+
+	tty->driver_data = portp;
 	return tty_port_open(&portp->port, tty, filp);
 }
 

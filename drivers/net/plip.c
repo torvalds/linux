@@ -979,7 +979,6 @@ plip_tx_packet(struct sk_buff *skb, struct net_device *dev)
 		printk(KERN_DEBUG "%s: send request\n", dev->name);
 
 	spin_lock_irq(&nl->lock);
-	dev->trans_start = jiffies;
 	snd->skb = skb;
 	snd->length.h = skb->len;
 	snd->state = PLIP_PK_TRIGGER;
@@ -1192,8 +1191,6 @@ plip_wakeup(void *handle)
 		/* Clear the data port. */
 		write_data (dev, 0x00);
 	}
-
-	return;
 }
 
 static int
@@ -1309,7 +1306,6 @@ err_parport_unregister:
 	parport_unregister_device(nl->pardev);
 err_free_dev:
 	free_netdev(dev);
-	return;
 }
 
 /* plip_detach() is called (by the parport code) when a port is

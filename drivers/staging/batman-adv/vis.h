@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2009 B.A.T.M.A.N. contributors:
+ * Copyright (C) 2008-2010 B.A.T.M.A.N. contributors:
  *
  * Simon Wunderlich, Marek Lindner
  *
@@ -20,8 +20,6 @@
  */
 
 #define VIS_TIMEOUT		200000
-#define VIS_FORMAT_DD_NAME	"dot_draw"
-#define VIS_FORMAT_JSON_NAME	"json"
 
 struct vis_info {
 	unsigned long       first_seen;
@@ -29,6 +27,7 @@ struct vis_info {
 			    /* list of server-neighbors we received a vis-packet
 			     * from.  we should not reply to them. */
 	struct list_head send_list;
+	struct kref refcount;
 	/* this packet might be part of the vis send queue. */
 	struct vis_packet packet;
 	/* vis_info may follow here*/
@@ -48,15 +47,13 @@ struct recvlist_node {
 extern struct hashtable_t *vis_hash;
 extern spinlock_t vis_hash_lock;
 
-void proc_vis_read_entry(struct seq_file *seq,
-				struct vis_info_entry *entry,
-				struct hlist_head *if_list,
-				uint8_t *vis_orig);
-void proc_vis_read_prim_sec(struct seq_file *seq,
-			    struct hlist_head *if_list);
-void receive_server_sync_packet(struct vis_packet *vis_packet,
+ssize_t vis_fill_buffer_text(struct net_device *net_dev, char *buff,
+			      size_t count, loff_t off);
+void receive_server_sync_packet(struct bat_priv *bat_priv,
+				struct vis_packet *vis_packet,
 				int vis_info_len);
-void receive_client_update_packet(struct vis_packet *vis_packet,
+void receive_client_update_packet(struct bat_priv *bat_priv,
+				  struct vis_packet *vis_packet,
 				  int vis_info_len);
 int vis_init(void);
 void vis_quit(void);

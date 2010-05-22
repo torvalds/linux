@@ -1418,9 +1418,29 @@ static struct dasd_ccw_req *dasd_3990_erp_inspect_alias(
 						struct dasd_ccw_req *erp)
 {
 	struct dasd_ccw_req *cqr = erp->refers;
+	char *sense;
 
 	if (cqr->block &&
 	    (cqr->block->base != cqr->startdev)) {
+
+		sense = dasd_get_sense(&erp->refers->irb);
+		/*
+		 * dynamic pav may have changed base alias mapping
+		 */
+		if (!test_bit(DASD_FLAG_OFFLINE, &cqr->startdev->flags) && sense
+		    && (sense[0] == 0x10) && (sense[7] == 0x0F)
+		    && (sense[8] == 0x67)) {
+			/*
+			 * remove device from alias handling to prevent new
+			 * requests from being scheduled on the
+			 * wrong alias device
+			 */
+			dasd_alias_remove_device(cqr->startdev);
+
+			/* schedule worker to reload device */
+			dasd_reload_device(cqr->startdev);
+		}
+
 		if (cqr->startdev->features & DASD_FEATURE_ERPLOG) {
 			DBF_DEV_EVENT(DBF_ERR, cqr->startdev,
 				    "ERP on alias device for request %p,"
@@ -2309,7 +2329,7 @@ static struct dasd_ccw_req *dasd_3990_erp_add_erp(struct dasd_ccw_req *cqr)
                                      cqr->retries);
 			dasd_block_set_timer(device->block, (HZ << 3));
                 }
-		return cqr;
+		return erp;
 	}
 
 	ccw = cqr->cpaddr;
@@ -2371,6 +2391,9 @@ dasd_3990_erp_additional_erp(struct dasd_ccw_req * cqr)
 
 	/* add erp and initialize with default TIC */
 	erp = dasd_3990_erp_add_erp(cqr);
+
+	if (IS_ERR(erp))
+		return erp;
 
 	/* inspect sense, determine specific ERP if possible */
 	if (erp != cqr) {
@@ -2711,6 +2734,8 @@ dasd_3990_erp_action(struct dasd_ccw_req * cqr)
 	if (erp == NULL) {
 		/* no matching erp found - set up erp */
 		erp = dasd_3990_erp_additional_erp(cqr);
+		if (IS_ERR(erp))
+			return erp;
 	} else {
 		/* matching erp found - set all leading erp's to DONE */
 		erp = dasd_3990_erp_handle_match_erp(cqr, erp);

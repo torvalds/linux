@@ -349,7 +349,7 @@ static void trizeps4_mci_exit(struct device *dev, void *data)
 
 static struct pxamci_platform_data trizeps4_mci_platform_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.detect_delay	= 1,
+	.detect_delay_ms= 10,
 	.init 		= trizeps4_mci_init,
 	.exit		= trizeps4_mci_exit,
 	.get_ro		= NULL,	/* write-protection not supported */

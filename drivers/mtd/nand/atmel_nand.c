@@ -474,7 +474,7 @@ static int __init atmel_nand_probe(struct platform_device *pdev)
 	}
 
 	/* first scan to find the device and get the page size */
-	if (nand_scan_ident(mtd, 1)) {
+	if (nand_scan_ident(mtd, 1, NULL)) {
 		res = -ENXIO;
 		goto err_scan_ident;
 	}

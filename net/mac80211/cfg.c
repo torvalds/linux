@@ -97,9 +97,6 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 					    params->mesh_id_len,
 					    params->mesh_id);
 
-	if (sdata->vif.type != NL80211_IFTYPE_MONITOR || !flags)
-		return 0;
-
 	if (type == NL80211_IFTYPE_AP_VLAN &&
 	    params && params->use_4addr == 0)
 		rcu_assign_pointer(sdata->u.vlan.sta, NULL);
@@ -107,7 +104,9 @@ static int ieee80211_change_iface(struct wiphy *wiphy,
 		 params && params->use_4addr >= 0)
 		sdata->u.mgd.use_4addr = params->use_4addr;
 
-	sdata->u.mntr_flags = *flags;
+	if (sdata->vif.type == NL80211_IFTYPE_MONITOR && flags)
+		sdata->u.mntr_flags = *flags;
+
 	return 0;
 }
 
@@ -409,6 +408,17 @@ static int ieee80211_dump_station(struct wiphy *wiphy, struct net_device *dev,
 	rcu_read_unlock();
 
 	return ret;
+}
+
+static int ieee80211_dump_survey(struct wiphy *wiphy, struct net_device *dev,
+				 int idx, struct survey_info *survey)
+{
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+
+	if (!local->ops->get_survey)
+		return -EOPNOTSUPP;
+
+	return drv_get_survey(local, idx, survey);
 }
 
 static int ieee80211_get_station(struct wiphy *wiphy, struct net_device *dev,
@@ -1104,6 +1114,13 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 		changed |= BSS_CHANGED_BASIC_RATES;
 	}
 
+	if (params->ap_isolate >= 0) {
+		if (params->ap_isolate)
+			sdata->flags |= IEEE80211_SDATA_DONT_BRIDGE_PACKETS;
+		else
+			sdata->flags &= ~IEEE80211_SDATA_DONT_BRIDGE_PACKETS;
+	}
+
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	return 0;
@@ -1137,19 +1154,47 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
+	/* enable WMM or activate new settings */
+	local->hw.conf.flags |= IEEE80211_CONF_QOS;
+	drv_config(local, IEEE80211_CONF_CHANGE_QOS);
+
 	return 0;
 }
 
 static int ieee80211_set_channel(struct wiphy *wiphy,
+				 struct net_device *netdev,
 				 struct ieee80211_channel *chan,
 				 enum nl80211_channel_type channel_type)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_sub_if_data *sdata = NULL;
+
+	if (netdev)
+		sdata = IEEE80211_DEV_TO_SUB_IF(netdev);
+
+	switch (ieee80211_get_channel_mode(local, NULL)) {
+	case CHAN_MODE_HOPPING:
+		return -EBUSY;
+	case CHAN_MODE_FIXED:
+		if (local->oper_channel != chan)
+			return -EBUSY;
+		if (!sdata && local->_oper_channel_type == channel_type)
+			return 0;
+		break;
+	case CHAN_MODE_UNDEFINED:
+		break;
+	}
 
 	local->oper_channel = chan;
-	local->oper_channel_type = channel_type;
 
-	return ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+	if (!ieee80211_set_channel_type(local, sdata, channel_type))
+		return -EBUSY;
+
+	ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_CHANNEL);
+	if (sdata && sdata->vif.type != NL80211_IFTYPE_MONITOR)
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_HT);
+
+	return 0;
 }
 
 #ifdef CONFIG_PM
@@ -1193,6 +1238,20 @@ static int ieee80211_auth(struct wiphy *wiphy, struct net_device *dev,
 static int ieee80211_assoc(struct wiphy *wiphy, struct net_device *dev,
 			   struct cfg80211_assoc_request *req)
 {
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	switch (ieee80211_get_channel_mode(local, sdata)) {
+	case CHAN_MODE_HOPPING:
+		return -EBUSY;
+	case CHAN_MODE_FIXED:
+		if (local->oper_channel == req->bss->channel)
+			break;
+		return -EBUSY;
+	case CHAN_MODE_UNDEFINED:
+		break;
+	}
+
 	return ieee80211_mgd_assoc(IEEE80211_DEV_TO_SUB_IF(dev), req);
 }
 
@@ -1215,7 +1274,21 @@ static int ieee80211_disassoc(struct wiphy *wiphy, struct net_device *dev,
 static int ieee80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 			       struct cfg80211_ibss_params *params)
 {
+	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	switch (ieee80211_get_channel_mode(local, sdata)) {
+	case CHAN_MODE_HOPPING:
+		return -EBUSY;
+	case CHAN_MODE_FIXED:
+		if (!params->channel_fixed)
+			return -EBUSY;
+		if (local->oper_channel == params->channel)
+			break;
+		return -EBUSY;
+	case CHAN_MODE_UNDEFINED:
+		break;
+	}
 
 	return ieee80211_ibss_join(sdata, params);
 }
@@ -1345,7 +1418,7 @@ int __ieee80211_request_smps(struct ieee80211_sub_if_data *sdata,
 	 * association, there's no need to send an action frame.
 	 */
 	if (!sdata->u.mgd.associated ||
-	    sdata->local->oper_channel_type == NL80211_CHAN_NO_HT) {
+	    sdata->vif.bss_conf.channel_type == NL80211_CHAN_NO_HT) {
 		mutex_lock(&sdata->local->iflist_mtx);
 		ieee80211_recalc_smps(sdata->local, sdata);
 		mutex_unlock(&sdata->local->iflist_mtx);
@@ -1384,11 +1457,11 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		return -EOPNOTSUPP;
 
 	if (enabled == sdata->u.mgd.powersave &&
-	    timeout == conf->dynamic_ps_timeout)
+	    timeout == conf->dynamic_ps_forced_timeout)
 		return 0;
 
 	sdata->u.mgd.powersave = enabled;
-	conf->dynamic_ps_timeout = timeout;
+	conf->dynamic_ps_forced_timeout = timeout;
 
 	/* no change, but if automatic follow powersave */
 	mutex_lock(&sdata->u.mgd.mtx);
@@ -1399,6 +1472,35 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 
 	ieee80211_recalc_ps(local, -1);
+
+	return 0;
+}
+
+static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
+					 struct net_device *dev,
+					 s32 rssi_thold, u32 rssi_hyst)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_vif *vif = &sdata->vif;
+	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+
+	if (rssi_thold == bss_conf->cqm_rssi_thold &&
+	    rssi_hyst == bss_conf->cqm_rssi_hyst)
+		return 0;
+
+	bss_conf->cqm_rssi_thold = rssi_thold;
+	bss_conf->cqm_rssi_hyst = rssi_hyst;
+
+	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI)) {
+		if (sdata->vif.type != NL80211_IFTYPE_STATION)
+			return -EOPNOTSUPP;
+		return 0;
+	}
+
+	/* tell the driver upon association, unless already associated */
+	if (sdata->u.mgd.associated)
+		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_CQM);
 
 	return 0;
 }
@@ -1475,6 +1577,7 @@ struct cfg80211_ops mac80211_config_ops = {
 	.change_station = ieee80211_change_station,
 	.get_station = ieee80211_get_station,
 	.dump_station = ieee80211_dump_station,
+	.dump_survey = ieee80211_dump_survey,
 #ifdef CONFIG_MAC80211_MESH
 	.add_mpath = ieee80211_add_mpath,
 	.del_mpath = ieee80211_del_mpath,
@@ -1507,4 +1610,5 @@ struct cfg80211_ops mac80211_config_ops = {
 	.remain_on_channel = ieee80211_remain_on_channel,
 	.cancel_remain_on_channel = ieee80211_cancel_remain_on_channel,
 	.action = ieee80211_action,
+	.set_cqm_rssi_config = ieee80211_set_cqm_rssi_config,
 };

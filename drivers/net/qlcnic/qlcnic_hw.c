@@ -54,21 +54,6 @@ static inline void writeq(u64 val, void __iomem *addr)
 }
 #endif
 
-#define ADDR_IN_RANGE(addr, low, high)	\
-	(((addr) < (high)) && ((addr) >= (low)))
-
-#define PCI_OFFSET_FIRST_RANGE(adapter, off)    \
-	((adapter)->ahw.pci_base0 + (off))
-
-static void __iomem *pci_base_offset(struct qlcnic_adapter *adapter,
-					    unsigned long off)
-{
-	if (ADDR_IN_RANGE(off, FIRST_PAGE_GROUP_START, FIRST_PAGE_GROUP_END))
-		return PCI_OFFSET_FIRST_RANGE(adapter, off);
-
-	return NULL;
-}
-
 static const struct crb_128M_2M_block_map
 crb_128M_2M_map[64] __cacheline_aligned_in_smp = {
     {{{0, 0,         0,         0} } },		/* 0: PCI */
@@ -310,8 +295,12 @@ qlcnic_pcie_sem_lock(struct qlcnic_adapter *adapter, int sem, u32 id_reg)
 		done = QLCRD32(adapter, QLCNIC_PCIE_REG(PCIE_SEM_LOCK(sem)));
 		if (done == 1)
 			break;
-		if (++timeout >= QLCNIC_PCIE_SEM_TIMEOUT)
+		if (++timeout >= QLCNIC_PCIE_SEM_TIMEOUT) {
+			dev_err(&adapter->pdev->dev,
+				"Failed to acquire sem=%d lock;reg_id=%d\n",
+				sem, id_reg);
 			return -EIO;
+		}
 		msleep(1);
 	}
 
@@ -427,7 +416,7 @@ static int qlcnic_nic_add_mac(struct qlcnic_adapter *adapter, u8 *addr)
 void qlcnic_set_multi(struct net_device *netdev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(netdev);
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u8 bcast_addr[ETH_ALEN] = { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 	u32 mode = VPORT_MISS_MODE_DROP;
 
@@ -449,8 +438,8 @@ void qlcnic_set_multi(struct net_device *netdev)
 	}
 
 	if (!netdev_mc_empty(netdev)) {
-		netdev_for_each_mc_addr(mc_ptr, netdev) {
-			qlcnic_nic_add_mac(adapter, mc_ptr->dmi_addr);
+		netdev_for_each_mc_addr(ha, netdev) {
+			qlcnic_nic_add_mac(adapter, ha->addr);
 		}
 	}
 
@@ -787,9 +776,6 @@ qlcnic_pci_set_crbwindow_2M(struct qlcnic_adapter *adapter, ulong off)
 
 	window = CRB_HI(off);
 
-	if (adapter->ahw.crb_win == window)
-		return;
-
 	writel(window, addr);
 	if (readl(addr) != window) {
 		if (printk_ratelimit())
@@ -797,7 +783,6 @@ qlcnic_pci_set_crbwindow_2M(struct qlcnic_adapter *adapter, ulong off)
 				"failed to set CRB window to %d off 0x%lx\n",
 				window, off);
 	}
-	adapter->ahw.crb_win = window;
 }
 
 int
@@ -878,13 +863,6 @@ qlcnic_pci_set_window_2M(struct qlcnic_adapter *adapter,
 		u64 addr, u32 *start)
 {
 	u32 window;
-	struct pci_dev *pdev = adapter->pdev;
-
-	if ((addr & 0x00ff800) == 0xff800) {
-		if (printk_ratelimit())
-			dev_warn(&pdev->dev, "QM access not handled\n");
-		return -EIO;
-	}
 
 	window = OCM_WIN_P3P(addr);
 
@@ -892,7 +870,6 @@ qlcnic_pci_set_window_2M(struct qlcnic_adapter *adapter,
 	/* read back to flush */
 	readl(adapter->ahw.ocm_win_crb);
 
-	adapter->ahw.ocm_win = window;
 	*start = QLCNIC_PCI_OCM0_2M + GET_MEM_OFFS_2M(addr);
 	return 0;
 }
@@ -901,8 +878,7 @@ static int
 qlcnic_pci_mem_access_direct(struct qlcnic_adapter *adapter, u64 off,
 		u64 *data, int op)
 {
-	void __iomem *addr, *mem_ptr = NULL;
-	resource_size_t mem_base;
+	void __iomem *addr;
 	int ret;
 	u32 start;
 
@@ -912,21 +888,8 @@ qlcnic_pci_mem_access_direct(struct qlcnic_adapter *adapter, u64 off,
 	if (ret != 0)
 		goto unlock;
 
-	addr = pci_base_offset(adapter, start);
-	if (addr)
-		goto noremap;
+	addr = adapter->ahw.pci_base0 + start;
 
-	mem_base = pci_resource_start(adapter->pdev, 0) + (start & PAGE_MASK);
-
-	mem_ptr = ioremap(mem_base, PAGE_SIZE);
-	if (mem_ptr == NULL) {
-		ret = -EIO;
-		goto unlock;
-	}
-
-	addr = mem_ptr + (start & (PAGE_SIZE - 1));
-
-noremap:
 	if (op == 0)	/* read */
 		*data = readq(addr);
 	else		/* write */
@@ -935,9 +898,29 @@ noremap:
 unlock:
 	mutex_unlock(&adapter->ahw.mem_lock);
 
-	if (mem_ptr)
-		iounmap(mem_ptr);
 	return ret;
+}
+
+void
+qlcnic_pci_camqm_read_2M(struct qlcnic_adapter *adapter, u64 off, u64 *data)
+{
+	void __iomem *addr = adapter->ahw.pci_base0 +
+		QLCNIC_PCI_CAMQM_2M_BASE + (off - QLCNIC_PCI_CAMQM);
+
+	mutex_lock(&adapter->ahw.mem_lock);
+	*data = readq(addr);
+	mutex_unlock(&adapter->ahw.mem_lock);
+}
+
+void
+qlcnic_pci_camqm_write_2M(struct qlcnic_adapter *adapter, u64 off, u64 data)
+{
+	void __iomem *addr = adapter->ahw.pci_base0 +
+		QLCNIC_PCI_CAMQM_2M_BASE + (off - QLCNIC_PCI_CAMQM);
+
+	mutex_lock(&adapter->ahw.mem_lock);
+	writeq(data, addr);
+	mutex_unlock(&adapter->ahw.mem_lock);
 }
 
 #define MAX_CTL_CHECK   1000
@@ -948,7 +931,6 @@ qlcnic_pci_mem_write_2M(struct qlcnic_adapter *adapter,
 {
 	int i, j, ret;
 	u32 temp, off8;
-	u64 stride;
 	void __iomem *mem_crb;
 
 	/* Only 64-bit aligned access */
@@ -957,7 +939,7 @@ qlcnic_pci_mem_write_2M(struct qlcnic_adapter *adapter,
 
 	/* P3 onward, test agent base for MIU and SIU is same */
 	if (ADDR_IN_RANGE(off, QLCNIC_ADDR_QDR_NET,
-				QLCNIC_ADDR_QDR_NET_MAX_P3)) {
+				QLCNIC_ADDR_QDR_NET_MAX)) {
 		mem_crb = qlcnic_get_ioaddr(adapter,
 				QLCNIC_CRB_QDR_NET+MIU_TEST_AGT_BASE);
 		goto correct;
@@ -975,9 +957,7 @@ qlcnic_pci_mem_write_2M(struct qlcnic_adapter *adapter,
 	return -EIO;
 
 correct:
-	stride = QLCNIC_IS_REVISION_P3P(adapter->ahw.revision_id) ? 16 : 8;
-
-	off8 = off & ~(stride-1);
+	off8 = off & ~0xf;
 
 	mutex_lock(&adapter->ahw.mem_lock);
 
@@ -985,29 +965,27 @@ correct:
 	writel(0, (mem_crb + MIU_TEST_AGT_ADDR_HI));
 
 	i = 0;
-	if (stride == 16) {
-		writel(TA_CTL_ENABLE, (mem_crb + TEST_AGT_CTRL));
-		writel((TA_CTL_START | TA_CTL_ENABLE),
-				(mem_crb + TEST_AGT_CTRL));
+	writel(TA_CTL_ENABLE, (mem_crb + TEST_AGT_CTRL));
+	writel((TA_CTL_START | TA_CTL_ENABLE),
+			(mem_crb + TEST_AGT_CTRL));
 
-		for (j = 0; j < MAX_CTL_CHECK; j++) {
-			temp = readl(mem_crb + TEST_AGT_CTRL);
-			if ((temp & TA_CTL_BUSY) == 0)
-				break;
-		}
-
-		if (j >= MAX_CTL_CHECK) {
-			ret = -EIO;
-			goto done;
-		}
-
-		i = (off & 0xf) ? 0 : 2;
-		writel(readl(mem_crb + MIU_TEST_AGT_RDDATA(i)),
-				mem_crb + MIU_TEST_AGT_WRDATA(i));
-		writel(readl(mem_crb + MIU_TEST_AGT_RDDATA(i+1)),
-				mem_crb + MIU_TEST_AGT_WRDATA(i+1));
-		i = (off & 0xf) ? 2 : 0;
+	for (j = 0; j < MAX_CTL_CHECK; j++) {
+		temp = readl(mem_crb + TEST_AGT_CTRL);
+		if ((temp & TA_CTL_BUSY) == 0)
+			break;
 	}
+
+	if (j >= MAX_CTL_CHECK) {
+		ret = -EIO;
+		goto done;
+	}
+
+	i = (off & 0xf) ? 0 : 2;
+	writel(readl(mem_crb + MIU_TEST_AGT_RDDATA(i)),
+			mem_crb + MIU_TEST_AGT_WRDATA(i));
+	writel(readl(mem_crb + MIU_TEST_AGT_RDDATA(i+1)),
+			mem_crb + MIU_TEST_AGT_WRDATA(i+1));
+	i = (off & 0xf) ? 2 : 0;
 
 	writel(data & 0xffffffff,
 			mem_crb + MIU_TEST_AGT_WRDATA(i));
@@ -1044,7 +1022,7 @@ qlcnic_pci_mem_read_2M(struct qlcnic_adapter *adapter,
 {
 	int j, ret;
 	u32 temp, off8;
-	u64 val, stride;
+	u64 val;
 	void __iomem *mem_crb;
 
 	/* Only 64-bit aligned access */
@@ -1053,7 +1031,7 @@ qlcnic_pci_mem_read_2M(struct qlcnic_adapter *adapter,
 
 	/* P3 onward, test agent base for MIU and SIU is same */
 	if (ADDR_IN_RANGE(off, QLCNIC_ADDR_QDR_NET,
-				QLCNIC_ADDR_QDR_NET_MAX_P3)) {
+				QLCNIC_ADDR_QDR_NET_MAX)) {
 		mem_crb = qlcnic_get_ioaddr(adapter,
 				QLCNIC_CRB_QDR_NET+MIU_TEST_AGT_BASE);
 		goto correct;
@@ -1073,9 +1051,7 @@ qlcnic_pci_mem_read_2M(struct qlcnic_adapter *adapter,
 	return -EIO;
 
 correct:
-	stride = QLCNIC_IS_REVISION_P3P(adapter->ahw.revision_id) ? 16 : 8;
-
-	off8 = off & ~(stride-1);
+	off8 = off & ~0xf;
 
 	mutex_lock(&adapter->ahw.mem_lock);
 
@@ -1097,7 +1073,7 @@ correct:
 		ret = -EIO;
 	} else {
 		off8 = MIU_TEST_AGT_RDDATA_LO;
-		if ((stride == 16) && (off & 0xf))
+		if (off & 0xf)
 			off8 = MIU_TEST_AGT_RDDATA_UPPER_LO;
 
 		temp = readl(mem_crb + off8 + 4);

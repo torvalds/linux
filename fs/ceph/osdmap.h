@@ -120,6 +120,8 @@ extern int ceph_calc_object_layout(struct ceph_object_layout *ol,
 				   const char *oid,
 				   struct ceph_file_layout *fl,
 				   struct ceph_osdmap *osdmap);
+extern int ceph_calc_pg_acting(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
+			       int *acting);
 extern int ceph_calc_pg_primary(struct ceph_osdmap *osdmap,
 				struct ceph_pg pgid);
 

@@ -196,7 +196,7 @@ int dbMount(struct inode *ipbmap)
 	bmp->db_maxag = le32_to_cpu(dbmp_le->dn_maxag);
 	bmp->db_agpref = le32_to_cpu(dbmp_le->dn_agpref);
 	bmp->db_aglevel = le32_to_cpu(dbmp_le->dn_aglevel);
-	bmp->db_agheigth = le32_to_cpu(dbmp_le->dn_agheigth);
+	bmp->db_agheight = le32_to_cpu(dbmp_le->dn_agheight);
 	bmp->db_agwidth = le32_to_cpu(dbmp_le->dn_agwidth);
 	bmp->db_agstart = le32_to_cpu(dbmp_le->dn_agstart);
 	bmp->db_agl2size = le32_to_cpu(dbmp_le->dn_agl2size);
@@ -288,7 +288,7 @@ int dbSync(struct inode *ipbmap)
 	dbmp_le->dn_maxag = cpu_to_le32(bmp->db_maxag);
 	dbmp_le->dn_agpref = cpu_to_le32(bmp->db_agpref);
 	dbmp_le->dn_aglevel = cpu_to_le32(bmp->db_aglevel);
-	dbmp_le->dn_agheigth = cpu_to_le32(bmp->db_agheigth);
+	dbmp_le->dn_agheight = cpu_to_le32(bmp->db_agheight);
 	dbmp_le->dn_agwidth = cpu_to_le32(bmp->db_agwidth);
 	dbmp_le->dn_agstart = cpu_to_le32(bmp->db_agstart);
 	dbmp_le->dn_agl2size = cpu_to_le32(bmp->db_agl2size);
@@ -1441,7 +1441,7 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 	 * tree index of this allocation group within the control page.
 	 */
 	agperlev =
-	    (1 << (L2LPERCTL - (bmp->db_agheigth << 1))) / bmp->db_agwidth;
+	    (1 << (L2LPERCTL - (bmp->db_agheight << 1))) / bmp->db_agwidth;
 	ti = bmp->db_agstart + bmp->db_agwidth * (agno & (agperlev - 1));
 
 	/* dmap control page trees fan-out by 4 and a single allocation
@@ -1460,7 +1460,7 @@ dbAllocAG(struct bmap * bmp, int agno, s64 nblocks, int l2nb, s64 * results)
 		 * the subtree to find the leftmost leaf that describes this
 		 * free space.
 		 */
-		for (k = bmp->db_agheigth; k > 0; k--) {
+		for (k = bmp->db_agheight; k > 0; k--) {
 			for (n = 0, m = (ti << 2) + 1; n < 4; n++) {
 				if (l2nb <= dcp->stree[m + n]) {
 					ti = m + n;
@@ -2438,7 +2438,7 @@ dbAdjCtl(struct bmap * bmp, s64 blkno, int newval, int alloc, int level)
 
 	/* check if this is a control page update for an allocation.
 	 * if so, update the leaf to reflect the new leaf value using
-	 * dbSplit(); otherwise (deallocation), use dbJoin() to udpate
+	 * dbSplit(); otherwise (deallocation), use dbJoin() to update
 	 * the leaf with the new value.  in addition to updating the
 	 * leaf, dbSplit() will also split the binary buddy system of
 	 * the leaves, if required, and bubble new values within the
@@ -3607,7 +3607,7 @@ void dbFinalizeBmap(struct inode *ipbmap)
 	}
 
 	/*
-	 * compute db_aglevel, db_agheigth, db_width, db_agstart:
+	 * compute db_aglevel, db_agheight, db_width, db_agstart:
 	 * an ag is covered in aglevel dmapctl summary tree,
 	 * at agheight level height (from leaf) with agwidth number of nodes
 	 * each, which starts at agstart index node of the smmary tree node
@@ -3616,9 +3616,9 @@ void dbFinalizeBmap(struct inode *ipbmap)
 	bmp->db_aglevel = BMAPSZTOLEV(bmp->db_agsize);
 	l2nl =
 	    bmp->db_agl2size - (L2BPERDMAP + bmp->db_aglevel * L2LPERCTL);
-	bmp->db_agheigth = l2nl >> 1;
-	bmp->db_agwidth = 1 << (l2nl - (bmp->db_agheigth << 1));
-	for (i = 5 - bmp->db_agheigth, bmp->db_agstart = 0, n = 1; i > 0;
+	bmp->db_agheight = l2nl >> 1;
+	bmp->db_agwidth = 1 << (l2nl - (bmp->db_agheight << 1));
+	for (i = 5 - bmp->db_agheight, bmp->db_agstart = 0, n = 1; i > 0;
 	     i--) {
 		bmp->db_agstart += n;
 		n <<= 2;

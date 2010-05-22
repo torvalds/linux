@@ -29,6 +29,8 @@
 #define S5P6440_PA_VIC0		(0xE4000000)
 #define S5P_PA_VIC0		S5P6440_PA_VIC0
 
+#define S5P6440_PA_PDMA		0xE9000000
+
 #define S5P6440_PA_VIC1		(0xE4100000)
 #define S5P_PA_VIC1		S5P6440_PA_VIC1
 
@@ -60,6 +62,12 @@
 
 #define S5P6440_PA_SDRAM	(0x20000000)
 #define S5P_PA_SDRAM		S5P6440_PA_SDRAM
+
+/* I2S */
+#define S5P6440_PA_I2S		0xF2000000
+
+/* PCM */
+#define S5P6440_PA_PCM		0xF2100000
 
 /* compatibiltiy defines. */
 #define S3C_PA_UART		S5P6440_PA_UART

@@ -19,6 +19,7 @@
 
 #include "../ath.h"
 #include <net/cfg80211.h>
+#include "ar9003_eeprom.h"
 
 #define AH_USE_EEPROM   0x1
 
@@ -93,7 +94,6 @@
  */
 #define AR9285_RDEXT_DEFAULT    0x1F
 
-#define AR_EEPROM_MAC(i)	(0x1d+(i))
 #define ATH9K_POW_SM(_r, _s)	(((_r) & 0x3f) << (_s))
 #define FREQ2FBIN(x, y)		((y) ? ((x) - 2300) : (((x) - 4800) / 5))
 #define ath9k_hw_use_flash(_ah)	(!(_ah->ah_flags & AH_USE_EEPROM))
@@ -155,6 +155,7 @@
 #define AR5416_BCHAN_UNUSED             0xFF
 #define AR5416_MAX_PWR_RANGE_IN_HALF_DB 64
 #define AR5416_MAX_CHAINS               3
+#define AR9300_MAX_CHAINS		3
 #define AR5416_PWR_TABLE_OFFSET_DB     -5
 
 /* Rx gain type values */
@@ -249,16 +250,20 @@ enum eeprom_param {
 	EEP_MINOR_REV,
 	EEP_TX_MASK,
 	EEP_RX_MASK,
+	EEP_FSTCLK_5G,
 	EEP_RXGAIN_TYPE,
-	EEP_TXGAIN_TYPE,
 	EEP_OL_PWRCTRL,
+	EEP_TXGAIN_TYPE,
 	EEP_RC_CHAIN_MASK,
 	EEP_DAC_HPWR_5G,
 	EEP_FRAC_N_5G,
 	EEP_DEV_TYPE,
 	EEP_TEMPSENSE_SLOPE,
 	EEP_TEMPSENSE_SLOPE_PAL_ON,
-	EEP_PWR_TABLE_OFFSET
+	EEP_PWR_TABLE_OFFSET,
+	EEP_DRIVE_STRENGTH,
+	EEP_INTERNAL_REGULATOR,
+	EEP_SWREG
 };
 
 enum ar5416_rates {
@@ -295,7 +300,8 @@ struct base_eep_header {
 	u32 binBuildNumber;
 	u8 deviceType;
 	u8 pwdclkind;
-	u8 futureBase_1[2];
+	u8 fastClk5g;
+	u8 divChain;
 	u8 rxGainType;
 	u8 dacHiPwrMode_5G;
 	u8 openLoopPwrCntl;
@@ -656,13 +662,6 @@ struct ath9k_country_entry {
 	u8 iso[3];
 };
 
-enum ath9k_eep_map {
-	EEP_MAP_DEFAULT = 0x0,
-	EEP_MAP_4KBITS,
-	EEP_MAP_AR9287,
-	EEP_MAP_MAX
-};
-
 struct eeprom_ops {
 	int (*check_eeprom)(struct ath_hw *hw);
 	u32 (*get_eeprom)(struct ath_hw *hw, enum eeprom_param param);
@@ -713,6 +712,8 @@ int ath9k_hw_eeprom_init(struct ath_hw *ah);
 
 extern const struct eeprom_ops eep_def_ops;
 extern const struct eeprom_ops eep_4k_ops;
-extern const struct eeprom_ops eep_AR9287_ops;
+extern const struct eeprom_ops eep_ar9287_ops;
+extern const struct eeprom_ops eep_ar9287_ops;
+extern const struct eeprom_ops eep_ar9300_ops;
 
 #endif /* EEPROM_H */

@@ -256,6 +256,31 @@ static int omap_mcbsp_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	return err;
 }
 
+static snd_pcm_sframes_t omap_mcbsp_dai_delay(
+			struct snd_pcm_substream *substream,
+			struct snd_soc_dai *dai)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
+	u16 fifo_use;
+	snd_pcm_sframes_t delay;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		fifo_use = omap_mcbsp_get_tx_delay(mcbsp_data->bus_id);
+	else
+		fifo_use = omap_mcbsp_get_rx_delay(mcbsp_data->bus_id);
+
+	/*
+	 * Divide the used locations with the channel count to get the
+	 * FIFO usage in samples (don't care about partial samples in the
+	 * buffer).
+	 */
+	delay = fifo_use / substream->runtime->channels;
+
+	return delay;
+}
+
 static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 				    struct snd_pcm_hw_params *params,
 				    struct snd_soc_dai *dai)
@@ -295,8 +320,18 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	omap_mcbsp_dai_dma_params[id][substream->stream].dma_req = dma;
 	omap_mcbsp_dai_dma_params[id][substream->stream].port_addr = port;
 	omap_mcbsp_dai_dma_params[id][substream->stream].sync_mode = sync_mode;
-	omap_mcbsp_dai_dma_params[id][substream->stream].data_type =
-							OMAP_DMA_DATA_TYPE_S16;
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S16_LE:
+		omap_mcbsp_dai_dma_params[id][substream->stream].data_type =
+			 OMAP_DMA_DATA_TYPE_S16;
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		omap_mcbsp_dai_dma_params[id][substream->stream].data_type =
+			 OMAP_DMA_DATA_TYPE_S32;
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	snd_soc_dai_set_dma_data(cpu_dai, substream,
 		&omap_mcbsp_dai_dma_params[id][substream->stream]);
@@ -308,7 +343,8 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 
 	format = mcbsp_data->fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 	wpf = channels = params_channels(params);
-	if (channels == 2 && format == SND_SOC_DAIFMT_I2S) {
+	if (channels == 2 && (format == SND_SOC_DAIFMT_I2S ||
+			      format == SND_SOC_DAIFMT_LEFT_J)) {
 		/* Use dual-phase frames */
 		regs->rcr2	|= RPHASE;
 		regs->xcr2	|= XPHASE;
@@ -329,6 +365,14 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 		regs->rcr1	|= RWDLEN1(OMAP_MCBSP_WORD_16);
 		regs->xcr2	|= XWDLEN2(OMAP_MCBSP_WORD_16);
 		regs->xcr1	|= XWDLEN1(OMAP_MCBSP_WORD_16);
+		break;
+	case SNDRV_PCM_FORMAT_S32_LE:
+		/* Set word lengths */
+		wlen = 32;
+		regs->rcr2	|= RWDLEN2(OMAP_MCBSP_WORD_32);
+		regs->rcr1	|= RWDLEN1(OMAP_MCBSP_WORD_32);
+		regs->xcr2	|= XWDLEN2(OMAP_MCBSP_WORD_32);
+		regs->xcr1	|= XWDLEN1(OMAP_MCBSP_WORD_32);
 		break;
 	default:
 		/* Unsupported PCM format */
@@ -353,6 +397,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	/* Set FS period and length in terms of bit clock periods */
 	switch (format) {
 	case SND_SOC_DAIFMT_I2S:
+	case SND_SOC_DAIFMT_LEFT_J:
 		regs->srgr2	|= FPER(framesize - 1);
 		regs->srgr1	|= FWID((framesize >> 1) - 1);
 		break;
@@ -403,6 +448,14 @@ static int omap_mcbsp_dai_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		/* 1-bit data delay */
 		regs->rcr2	|= RDATDLY(1);
 		regs->xcr2	|= XDATDLY(1);
+		break;
+	case SND_SOC_DAIFMT_LEFT_J:
+		/* 0-bit data delay */
+		regs->rcr2	|= RDATDLY(0);
+		regs->xcr2	|= XDATDLY(0);
+		regs->spcr1	|= RJUST(2);
+		/* Invert FS polarity configuration */
+		temp_fmt ^= SND_SOC_DAIFMT_NB_IF;
 		break;
 	case SND_SOC_DAIFMT_DSP_A:
 		/* 1-bit data delay */
@@ -609,6 +662,7 @@ static struct snd_soc_dai_ops omap_mcbsp_dai_ops = {
 	.startup	= omap_mcbsp_dai_startup,
 	.shutdown	= omap_mcbsp_dai_shutdown,
 	.trigger	= omap_mcbsp_dai_trigger,
+	.delay		= omap_mcbsp_dai_delay,
 	.hw_params	= omap_mcbsp_dai_hw_params,
 	.set_fmt	= omap_mcbsp_dai_set_dai_fmt,
 	.set_clkdiv	= omap_mcbsp_dai_set_clkdiv,
@@ -623,13 +677,15 @@ static struct snd_soc_dai_ops omap_mcbsp_dai_ops = {
 		.channels_min = 1,				\
 		.channels_max = 16,				\
 		.rates = OMAP_MCBSP_RATES,			\
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,		\
+		.formats = SNDRV_PCM_FMTBIT_S16_LE |		\
+			   SNDRV_PCM_FMTBIT_S32_LE,		\
 	},							\
 	.capture = {						\
 		.channels_min = 1,				\
 		.channels_max = 16,				\
 		.rates = OMAP_MCBSP_RATES,			\
-		.formats = SNDRV_PCM_FMTBIT_S16_LE,		\
+		.formats = SNDRV_PCM_FMTBIT_S16_LE |		\
+			   SNDRV_PCM_FMTBIT_S32_LE,		\
 	},							\
 	.ops = &omap_mcbsp_dai_ops,				\
 	.private_data = &mcbsp_data[(link_id)].bus_id,		\

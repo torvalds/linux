@@ -204,6 +204,7 @@ static inline void mcspi_write_chconf0(const struct spi_device *spi, u32 val)
 
 	cs->chconf0 = val;
 	mcspi_write_cs_reg(spi, OMAP2_MCSPI_CHCONF0, val);
+	mcspi_read_cs_reg(spi, OMAP2_MCSPI_CHCONF0);
 }
 
 static void omap2_mcspi_set_dma_req(const struct spi_device *spi,
@@ -532,7 +533,7 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 					goto out;
 				}
 #ifdef VERBOSE
-				dev_dbg(&spi->dev, "write-%d %04x\n",
+				dev_dbg(&spi->dev, "write-%d %08x\n",
 						word_len, *tx);
 #endif
 				__raw_writel(*tx++, tx_reg);
@@ -550,7 +551,7 @@ omap2_mcspi_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 					mcspi_write_chconf0(spi, l);
 				*rx++ = __raw_readl(rx_reg);
 #ifdef VERBOSE
-				dev_dbg(&spi->dev, "read-%d %04x\n",
+				dev_dbg(&spi->dev, "read-%d %08x\n",
 						word_len, *(rx - 1));
 #endif
 			}

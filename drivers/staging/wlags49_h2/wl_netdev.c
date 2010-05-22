@@ -463,15 +463,10 @@ static void wl_get_drvinfo(struct net_device *dev, struct ethtool_drvinfo *info)
 //	strncpy(info.fw_version, priv->fw_name,
 //	sizeof(info.fw_version) - 1);
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,20))
     if (dev->dev.parent) {
     	dev_set_name(dev->dev.parent, "%s", info->bus_info);
 	//strncpy(info->bus_info, dev->dev.parent->bus_id,
 	//	sizeof(info->bus_info) - 1);
-#else
-	    if (dev->class_dev.parent) {
-		sizeof(info->bus_info) - 1);
-#endif
     } else {
 	snprintf(info->bus_info, sizeof(info->bus_info) - 1,
 		"PCMCIA FIXME");
@@ -930,8 +925,10 @@ int wl_rx(struct net_device *dev)
         port = ( hfs_stat >> 8 ) & 0x0007;
         DBG_RX( DbgInfo, "Rx frame for port %d\n", port );
 
-        if(( pktlen = lp->hcfCtx.IFB_RxLen ) != 0 ) {
-            if(( skb = ALLOC_SKB( pktlen )) != NULL ) {
+        pktlen = lp->hcfCtx.IFB_RxLen;
+        if (pktlen != 0) {
+            skb = ALLOC_SKB(pktlen);
+            if (skb != NULL) {
                 /* Set the netdev based on the port */
                 switch( port ) {
 #ifdef USE_WDS
@@ -1050,7 +1047,7 @@ void wl_multicast( struct net_device *dev )
 //;?seems reasonable that even an AP-only driver could afford this small additional footprint
 
     int                 x;
-    struct dev_mc_list *mclist;
+    struct netdev_hw_addr *ha;
     struct wl_private   *lp = wl_priv(dev);
     unsigned long       flags;
     /*------------------------------------------------------------------------*/
@@ -1073,9 +1070,9 @@ void wl_multicast( struct net_device *dev )
 
         DBG_PRINT( "  mc_count: %d\n", netdev_mc_count(dev));
 
-	netdev_for_each_mc_addr(mclist, dev)
-            DBG_PRINT( "    %s (%d)\n", DbgHwAddr(mclist->dmi_addr),
-                       mclist->dmi_addrlen );
+	netdev_for_each_mc_addr(ha, dev)
+            DBG_PRINT("    %s (%d)\n", DbgHwAddr(ha->addr),
+		      dev->addr_len);
     }
 #endif /* DBG */
 
@@ -1120,9 +1117,9 @@ void wl_multicast( struct net_device *dev )
                 lp->ltvRecord.typ = CFG_GROUP_ADDR;
 
 		x = 0;
-		netdev_for_each_mc_addr(mclist, dev)
+		netdev_for_each_mc_addr(ha, dev)
                     memcpy(&(lp->ltvRecord.u.u8[x++ * ETH_ALEN]),
-                           mclist->dmi_addr, ETH_ALEN);
+			   ha->addr, ETH_ALEN);
                 DBG_PRINT( "Setting multicast list\n" );
                 hcf_put_info( &( lp->hcfCtx ), (LTVP)&( lp->ltvRecord ));
             } else {
@@ -1177,7 +1174,6 @@ void wl_multicast( struct net_device *dev, int num_addrs, void *addrs )
 
 #endif /* NEW_MULTICAST */
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30))
 static const struct net_device_ops wl_netdev_ops =
 {
     .ndo_start_xmit         = &wl_tx_port0,
@@ -1197,7 +1193,6 @@ static const struct net_device_ops wl_netdev_ops =
     .ndo_poll_controller    = wl_poll,
 #endif
 };
-#endif // (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30))
 
 /*******************************************************************************
  *	wl_device_alloc()
@@ -1251,27 +1246,7 @@ struct net_device * wl_device_alloc( void )
     lp->wireless_data.spy_data = &lp->spy_data;
     dev->wireless_data = &lp->wireless_data;
 
-#if (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30))
     dev->netdev_ops = &wl_netdev_ops;
-#else
-    dev->hard_start_xmit    = &wl_tx_port0;
-
-    dev->set_config         = &wl_config;
-    dev->get_stats          = &wl_stats;
-    dev->set_multicast_list = &wl_multicast;
-
-    dev->init               = &wl_insert;
-    dev->open               = &wl_adapter_open;
-    dev->stop               = &wl_adapter_close;
-    dev->do_ioctl           = &wl_ioctl;
-
-    dev->tx_timeout         = &wl_tx_timeout;
-
-#ifdef CONFIG_NET_POLL_CONTROLLER
-    dev->poll_controller = wl_poll;
-#endif
-
-#endif // (LINUX_VERSION_CODE > KERNEL_VERSION(2,6,30))
 
     dev->watchdog_timeo     = TX_TIMEOUT;
 
@@ -1995,8 +1970,10 @@ int wl_rx_dma( struct net_device *dev )
                 port = ( hfs_stat >> 8 ) & 0x0007;
                 DBG_RX( DbgInfo, "Rx frame for port %d\n", port );
 
-                if(( pktlen = GET_BUF_CNT( desc_next )) != 0 ) {
-                    if(( skb = ALLOC_SKB( pktlen )) != NULL ) {
+                pktlen = GET_BUF_CNT(desc_next);
+                if (pktlen != 0) {
+                    skb = ALLOC_SKB(pktlen);
+                    if (skb != NULL) {
                         switch( port ) {
 #ifdef USE_WDS
                         case 1:

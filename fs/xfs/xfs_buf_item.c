@@ -372,12 +372,12 @@ xfs_buf_item_pin(
  */
 STATIC void
 xfs_buf_item_unpin(
-	xfs_buf_log_item_t	*bip,
-	int			stale)
+	xfs_buf_log_item_t	*bip)
 {
 	struct xfs_ail	*ailp;
 	xfs_buf_t	*bp;
 	int		freed;
+	int		stale = bip->bli_flags & XFS_BLI_STALE;
 
 	bp = bip->bli_buf;
 	ASSERT(bp != NULL);
@@ -428,40 +428,34 @@ xfs_buf_item_unpin_remove(
 	xfs_buf_log_item_t	*bip,
 	xfs_trans_t		*tp)
 {
-	xfs_buf_t		*bp;
-	xfs_log_item_desc_t	*lidp;
-	int			stale = 0;
-
-	bp = bip->bli_buf;
-	/*
-	 * will xfs_buf_item_unpin() call xfs_buf_item_relse()?
-	 */
+	/* will xfs_buf_item_unpin() call xfs_buf_item_relse()? */
 	if ((atomic_read(&bip->bli_refcount) == 1) &&
 	    (bip->bli_flags & XFS_BLI_STALE)) {
+		/*
+		 * yes -- We can safely do some work here and then call
+		 * buf_item_unpin to do the rest because we are
+		 * are holding the buffer locked so no one else will be
+		 * able to bump up the refcount. We have to remove the
+		 * log item from the transaction as we are about to release
+		 * our reference to the buffer. If we don't, the unlock that
+		 * occurs later in the xfs_trans_uncommit() will try to
+		 * reference the buffer which we no longer have a hold on.
+		 */
+		struct xfs_log_item_desc *lidp;
+
 		ASSERT(XFS_BUF_VALUSEMA(bip->bli_buf) <= 0);
 		trace_xfs_buf_item_unpin_stale(bip);
 
-		/*
-		 * yes -- clear the xaction descriptor in-use flag
-		 * and free the chunk if required.  We can safely
-		 * do some work here and then call buf_item_unpin
-		 * to do the rest because if the if is true, then
-		 * we are holding the buffer locked so no one else
-		 * will be able to bump up the refcount.
-		 */
-		lidp = xfs_trans_find_item(tp, (xfs_log_item_t *) bip);
-		stale = lidp->lid_flags & XFS_LID_BUF_STALE;
+		lidp = xfs_trans_find_item(tp, (xfs_log_item_t *)bip);
 		xfs_trans_free_item(tp, lidp);
+
 		/*
-		 * Since the transaction no longer refers to the buffer,
-		 * the buffer should no longer refer to the transaction.
+		 * Since the transaction no longer refers to the buffer, the
+		 * buffer should no longer refer to the transaction.
 		 */
-		XFS_BUF_SET_FSPRIVATE2(bp, NULL);
+		XFS_BUF_SET_FSPRIVATE2(bip->bli_buf, NULL);
 	}
-
-	xfs_buf_item_unpin(bip, stale);
-
-	return;
+	xfs_buf_item_unpin(bip);
 }
 
 /*
@@ -675,7 +669,7 @@ static struct xfs_item_ops xfs_buf_item_ops = {
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_buf_item_format,
 	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_buf_item_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*, int))xfs_buf_item_unpin,
+	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_buf_item_unpin,
 	.iop_unpin_remove = (void(*)(xfs_log_item_t*, xfs_trans_t *))
 					xfs_buf_item_unpin_remove,
 	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_buf_item_trylock,
@@ -733,10 +727,7 @@ xfs_buf_item_init(
 
 	bip = (xfs_buf_log_item_t*)kmem_zone_zalloc(xfs_buf_item_zone,
 						    KM_SLEEP);
-	bip->bli_item.li_type = XFS_LI_BUF;
-	bip->bli_item.li_ops = &xfs_buf_item_ops;
-	bip->bli_item.li_mountp = mp;
-	bip->bli_item.li_ailp = mp->m_ail;
+	xfs_log_item_init(mp, &bip->bli_item, XFS_LI_BUF, &xfs_buf_item_ops);
 	bip->bli_buf = bp;
 	xfs_buf_hold(bp);
 	bip->bli_format.blf_type = XFS_LI_BUF;

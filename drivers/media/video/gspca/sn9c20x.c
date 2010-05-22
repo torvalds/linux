@@ -18,10 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#ifdef CONFIG_USB_GSPCA_SN9C20X_EVDEV
-#include <linux/kthread.h>
-#include <linux/freezer.h>
-#include <linux/usb/input.h>
+#ifdef CONFIG_INPUT
 #include <linux/input.h>
 #include <linux/slab.h>
 #endif
@@ -30,6 +27,7 @@
 #include "jpeg.h"
 
 #include <media/v4l2-chip-ident.h>
+#include <linux/dmi.h>
 
 MODULE_AUTHOR("Brian Johnson <brijohn@gmail.com>, "
 		"microdia project <microdia@googlegroups.com>");
@@ -52,8 +50,14 @@ MODULE_LICENSE("GPL");
 #define SENSOR_MT9V112	7
 #define SENSOR_MT9M001	8
 #define SENSOR_MT9M111	9
-#define SENSOR_HV7131R	10
+#define SENSOR_MT9M112  10
+#define SENSOR_HV7131R	11
 #define SENSOR_MT9VPRB	20
+
+/* camera flags */
+#define HAS_NO_BUTTON	0x1
+#define LED_REVERSE	0x2 /* some cameras unset gpio to turn on leds */
+#define FLIP_DETECT	0x4
 
 /* specific webcam descriptor */
 struct sd {
@@ -88,11 +92,7 @@ struct sd {
 	u8 *jpeg_hdr;
 	u8 quality;
 
-#ifdef CONFIG_USB_GSPCA_SN9C20X_EVDEV
-	struct input_dev *input_dev;
-	u8 input_gpio;
-	struct task_struct *input_task;
-#endif
+	u8 flags;
 };
 
 struct i2c_reg_u8 {
@@ -129,6 +129,39 @@ static int sd_setexposure(struct gspca_dev *gspca_dev, s32 val);
 static int sd_getexposure(struct gspca_dev *gspca_dev, s32 *val);
 static int sd_setautoexposure(struct gspca_dev *gspca_dev, s32 val);
 static int sd_getautoexposure(struct gspca_dev *gspca_dev, s32 *val);
+
+static const struct dmi_system_id flip_dmi_table[] = {
+	{
+		.ident = "MSI MS-1034",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MICRO-STAR INT'L CO.,LTD."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MS-1034"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "0341")
+		}
+	},
+	{
+		.ident = "MSI MS-1632",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "MSI"),
+			DMI_MATCH(DMI_BOARD_NAME, "MS-1632")
+		}
+	},
+	{
+		.ident = "MSI MS-1635X",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "MSI"),
+			DMI_MATCH(DMI_BOARD_NAME, "MS-1635X")
+		}
+	},
+	{
+		.ident = "ASUSTeK W7J",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer Inc."),
+			DMI_MATCH(DMI_BOARD_NAME, "W7J       ")
+		}
+	},
+	{}
+};
 
 static const struct ctrl sd_ctrls[] = {
 	{
@@ -713,6 +746,7 @@ static u16 i2c_ident[] = {
 	V4L2_IDENT_MT9V112,
 	V4L2_IDENT_MT9M001C12ST,
 	V4L2_IDENT_MT9M111,
+	V4L2_IDENT_MT9M112,
 	V4L2_IDENT_HV7131R,
 };
 
@@ -735,7 +769,8 @@ static u16 bridge_init[][2] = {
 	{0x11be, 0xf0},	{0x11bf, 0x00},	{0x118c, 0x1f},
 	{0x118d, 0x1f},	{0x118e, 0x1f},	{0x118f, 0x1f},
 	{0x1180, 0x01},	{0x1181, 0x00},	{0x1182, 0x01},
-	{0x1183, 0x00},	{0x1184, 0x50},	{0x1185, 0x80}
+	{0x1183, 0x00},	{0x1184, 0x50},	{0x1185, 0x80},
+	{0x1007, 0x00}
 };
 
 /* Gain = (bit[3:0] / 16 + 1) * (bit[4] + 1) * (bit[5] + 1) * (bit[6] + 1) */
@@ -914,40 +949,30 @@ static struct i2c_reg_u8 ov9650_init[] = {
 };
 
 static struct i2c_reg_u8 ov9655_init[] = {
-	{0x12, 0x80}, {0x12, 0x01}, {0x0d, 0x00}, {0x0e, 0x61},
-	{0x11, 0x80}, {0x13, 0xba}, {0x14, 0x2e}, {0x16, 0x24},
-	{0x1e, 0x04}, {0x1e, 0x04}, {0x1e, 0x04}, {0x27, 0x08},
-	{0x28, 0x08}, {0x29, 0x15}, {0x2c, 0x08}, {0x32, 0xbf},
-	{0x34, 0x3d}, {0x35, 0x00}, {0x36, 0xf8}, {0x38, 0x12},
-	{0x39, 0x57}, {0x3a, 0x00}, {0x3b, 0xcc}, {0x3c, 0x0c},
-	{0x3d, 0x19}, {0x3e, 0x0c}, {0x3f, 0x01}, {0x41, 0x40},
-	{0x42, 0x80}, {0x45, 0x46}, {0x46, 0x62}, {0x47, 0x2a},
-	{0x48, 0x3c}, {0x4a, 0xf0}, {0x4b, 0xdc}, {0x4c, 0xdc},
-	{0x4d, 0xdc}, {0x4e, 0xdc}, {0x69, 0x02}, {0x6c, 0x04},
-	{0x6f, 0x9e}, {0x70, 0x05}, {0x71, 0x78}, {0x77, 0x02},
-	{0x8a, 0x23}, {0x8c, 0x0d}, {0x90, 0x7e}, {0x91, 0x7c},
-	{0x9f, 0x6e}, {0xa0, 0x6e}, {0xa5, 0x68}, {0xa6, 0x60},
-	{0xa8, 0xc1}, {0xa9, 0xfa}, {0xaa, 0x92}, {0xab, 0x04},
-	{0xac, 0x80}, {0xad, 0x80}, {0xae, 0x80}, {0xaf, 0x80},
-	{0xb2, 0xf2}, {0xb3, 0x20}, {0xb5, 0x00}, {0xb6, 0xaf},
-	{0xbb, 0xae}, {0xbc, 0x44}, {0xbd, 0x44}, {0xbe, 0x3b},
-	{0xbf, 0x3a}, {0xc0, 0xe2}, {0xc1, 0xc8}, {0xc2, 0x01},
+	{0x12, 0x80}, {0x0e, 0x61}, {0x11, 0x80}, {0x13, 0xba},
+	{0x14, 0x2e}, {0x16, 0x24}, {0x1e, 0x04}, {0x27, 0x08},
+	{0x28, 0x08}, {0x29, 0x15}, {0x2c, 0x08}, {0x34, 0x3d},
+	{0x35, 0x00}, {0x38, 0x12}, {0x0f, 0x42}, {0x39, 0x57},
+	{0x3a, 0x00}, {0x3b, 0xcc}, {0x3c, 0x0c}, {0x3d, 0x19},
+	{0x3e, 0x0c}, {0x3f, 0x01}, {0x41, 0x40}, {0x42, 0x80},
+	{0x45, 0x46}, {0x46, 0x62}, {0x47, 0x2a}, {0x48, 0x3c},
+	{0x4a, 0xf0}, {0x4b, 0xdc}, {0x4c, 0xdc}, {0x4d, 0xdc},
+	{0x4e, 0xdc}, {0x6c, 0x04}, {0x6f, 0x9e}, {0x70, 0x05},
+	{0x71, 0x78}, {0x77, 0x02}, {0x8a, 0x23}, {0x90, 0x7e},
+	{0x91, 0x7c}, {0x9f, 0x6e}, {0xa0, 0x6e}, {0xa5, 0x68},
+	{0xa6, 0x60}, {0xa8, 0xc1}, {0xa9, 0xfa}, {0xaa, 0x92},
+	{0xab, 0x04}, {0xac, 0x80}, {0xad, 0x80}, {0xae, 0x80},
+	{0xaf, 0x80}, {0xb2, 0xf2}, {0xb3, 0x20}, {0xb5, 0x00},
+	{0xb6, 0xaf}, {0xbb, 0xae}, {0xbc, 0x44}, {0xbd, 0x44},
+	{0xbe, 0x3b}, {0xbf, 0x3a}, {0xc1, 0xc8}, {0xc2, 0x01},
 	{0xc4, 0x00}, {0xc6, 0x85}, {0xc7, 0x81}, {0xc9, 0xe0},
-	{0xca, 0xe8}, {0xcc, 0xd8}, {0xcd, 0x93}, {0x12, 0x61},
+	{0xca, 0xe8}, {0xcc, 0xd8}, {0xcd, 0x93}, {0x2d, 0x00},
+	{0x2e, 0x00}, {0x01, 0x80}, {0x02, 0x80}, {0x12, 0x61},
 	{0x36, 0xfa}, {0x8c, 0x8d}, {0xc0, 0xaa}, {0x69, 0x0a},
-	{0x03, 0x12}, {0x17, 0x14}, {0x18, 0x00}, {0x19, 0x01},
-	{0x1a, 0x3d}, {0x32, 0xbf}, {0x11, 0x80}, {0x2a, 0x10},
-	{0x2b, 0x0a}, {0x92, 0x00}, {0x93, 0x00}, {0x1e, 0x04},
-	{0x1e, 0x04}, {0x10, 0x7c}, {0x04, 0x03}, {0xa1, 0x00},
-	{0x2d, 0x00}, {0x2e, 0x00}, {0x00, 0x00}, {0x01, 0x80},
-	{0x02, 0x80}, {0x12, 0x61}, {0x36, 0xfa}, {0x8c, 0x8d},
-	{0xc0, 0xaa}, {0x69, 0x0a}, {0x03, 0x12}, {0x17, 0x14},
-	{0x18, 0x00}, {0x19, 0x01}, {0x1a, 0x3d}, {0x32, 0xbf},
-	{0x11, 0x80}, {0x2a, 0x10}, {0x2b, 0x0a}, {0x92, 0x00},
-	{0x93, 0x00}, {0x04, 0x01}, {0x10, 0x1f}, {0xa1, 0x00},
-	{0x00, 0x0a}, {0xa1, 0x00}, {0x10, 0x5d}, {0x04, 0x03},
-	{0x00, 0x01}, {0xa1, 0x00}, {0x10, 0x7c}, {0x04, 0x03},
-	{0x00, 0x03}, {0x00, 0x0a}, {0x00, 0x10}, {0x00, 0x13},
+	{0x03, 0x09}, {0x17, 0x16}, {0x18, 0x6e}, {0x19, 0x01},
+	{0x1a, 0x3e}, {0x32, 0x09}, {0x2a, 0x10}, {0x2b, 0x0a},
+	{0x92, 0x00}, {0x93, 0x00}, {0xa1, 0x00}, {0x10, 0x7c},
+	{0x04, 0x03}, {0x00, 0x13},
 };
 
 static struct i2c_reg_u16 mt9v112_init[] = {
@@ -971,29 +996,12 @@ static struct i2c_reg_u16 mt9v112_init[] = {
 
 static struct i2c_reg_u16 mt9v111_init[] = {
 	{0x01, 0x0004}, {0x0d, 0x0001}, {0x0d, 0x0000},
-	{0x01, 0x0001}, {0x02, 0x0016}, {0x03, 0x01e1},
-	{0x04, 0x0281}, {0x05, 0x0004}, {0x07, 0x3002},
-	{0x21, 0x0000}, {0x25, 0x4024}, {0x26, 0xff03},
-	{0x27, 0xff10}, {0x2b, 0x7828}, {0x2c, 0xb43c},
-	{0x2d, 0xf0a0},	{0x2e, 0x0c64},	{0x2f, 0x0064},
-	{0x67, 0x4010},	{0x06, 0x301e},	{0x08, 0x0480},
-	{0x01, 0x0004},	{0x02, 0x0016}, {0x03, 0x01e6},
-	{0x04, 0x0286},	{0x05, 0x0004}, {0x06, 0x0000},
-	{0x07, 0x3002},	{0x08, 0x0008}, {0x0c, 0x0000},
-	{0x0d, 0x0000}, {0x0e, 0x0000}, {0x0f, 0x0000},
-	{0x10, 0x0000},	{0x11, 0x0000},	{0x12, 0x00b0},
-	{0x13, 0x007c},	{0x14, 0x0000}, {0x15, 0x0000},
-	{0x16, 0x0000}, {0x17, 0x0000},	{0x18, 0x0000},
-	{0x19, 0x0000},	{0x1a, 0x0000},	{0x1b, 0x0000},
-	{0x1c, 0x0000},	{0x1d, 0x0000},	{0x30, 0x0000},
-	{0x30, 0x0005},	{0x31, 0x0000},	{0x02, 0x0016},
-	{0x03, 0x01e1},	{0x04, 0x0281}, {0x05, 0x0004},
-	{0x06, 0x0000},	{0x07, 0x3002},	{0x06, 0x002d},
-	{0x05, 0x0004},	{0x09, 0x0064},	{0x2b, 0x00a0},
-	{0x2c, 0x00a0},	{0x2d, 0x00a0},	{0x2e, 0x00a0},
-	{0x02, 0x0016},	{0x03, 0x01e1},	{0x04, 0x0281},
-	{0x05, 0x0004},	{0x06, 0x002d},	{0x07, 0x3002},
-	{0x0e, 0x0008},	{0x06, 0x002d},	{0x05, 0x0004},
+	{0x01, 0x0001}, {0x05, 0x0004}, {0x2d, 0xe0a0},
+	{0x2e, 0x0c64},	{0x2f, 0x0064}, {0x06, 0x600e},
+	{0x08, 0x0480}, {0x01, 0x0004}, {0x02, 0x0016},
+	{0x03, 0x01e7}, {0x04, 0x0287}, {0x05, 0x0004},
+	{0x06, 0x002d},	{0x07, 0x3002}, {0x08, 0x0008},
+	{0x0e, 0x0008}, {0x20, 0x0000}
 };
 
 static struct i2c_reg_u16 mt9v011_init[] = {
@@ -1037,6 +1045,13 @@ static struct i2c_reg_u16 mt9m001_init[] = {
 };
 
 static struct i2c_reg_u16 mt9m111_init[] = {
+	{0xf0, 0x0000}, {0x0d, 0x0021}, {0x0d, 0x0008},
+	{0xf0, 0x0001}, {0x3a, 0x4300}, {0x9b, 0x4300},
+	{0x06, 0x708e}, {0xf0, 0x0002}, {0x2e, 0x0a1e},
+	{0xf0, 0x0000},
+};
+
+static struct i2c_reg_u16 mt9m112_init[] = {
 	{0xf0, 0x0000}, {0x0d, 0x0021}, {0x0d, 0x0008},
 	{0xf0, 0x0001}, {0x3a, 0x4300}, {0x9b, 0x4300},
 	{0x06, 0x708e}, {0xf0, 0x0002}, {0x2e, 0x0a1e},
@@ -1240,8 +1255,8 @@ static int ov9655_init_sensor(struct gspca_dev *gspca_dev)
 	}
 	/* disable hflip and vflip */
 	gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX);
-	sd->hstart = 0;
-	sd->vstart = 7;
+	sd->hstart = 1;
+	sd->vstart = 2;
 	return 0;
 }
 
@@ -1337,6 +1352,7 @@ static int mt9v_init_sensor(struct gspca_dev *gspca_dev)
 				return -ENODEV;
 			}
 		}
+		gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX) | (1 << GAIN_IDX);
 		sd->hstart = 2;
 		sd->vstart = 2;
 		sd->sensor = SENSOR_MT9V111;
@@ -1367,6 +1383,23 @@ static int mt9v_init_sensor(struct gspca_dev *gspca_dev)
 	}
 
 	return -ENODEV;
+}
+
+static int mt9m112_init_sensor(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int i;
+	for (i = 0; i < ARRAY_SIZE(mt9m112_init); i++) {
+		if (i2c_w2(gspca_dev, mt9m112_init[i].reg,
+				mt9m112_init[i].val) < 0) {
+			err("MT9M112 sensor initialization failed");
+			return -ENODEV;
+		}
+	}
+	gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX) | (1 << GAIN_IDX);
+	sd->hstart = 0;
+	sd->vstart = 2;
+	return 0;
 }
 
 static int mt9m111_init_sensor(struct gspca_dev *gspca_dev)
@@ -1420,87 +1453,6 @@ static int hv7131r_init_sensor(struct gspca_dev *gspca_dev)
 	sd->vstart = 1;
 	return 0;
 }
-
-#ifdef CONFIG_USB_GSPCA_SN9C20X_EVDEV
-static int input_kthread(void *data)
-{
-	struct gspca_dev *gspca_dev = (struct gspca_dev *)data;
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	DECLARE_WAIT_QUEUE_HEAD(wait);
-	set_freezable();
-	for (;;) {
-		if (kthread_should_stop())
-			break;
-
-		if (reg_r(gspca_dev, 0x1005, 1) < 0)
-			continue;
-
-		input_report_key(sd->input_dev,
-				 KEY_CAMERA,
-				 gspca_dev->usb_buf[0] & sd->input_gpio);
-		input_sync(sd->input_dev);
-
-		wait_event_freezable_timeout(wait,
-					     kthread_should_stop(),
-					     msecs_to_jiffies(100));
-	}
-	return 0;
-}
-
-
-static int sn9c20x_input_init(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	if (sd->input_gpio == 0)
-		return 0;
-
-	sd->input_dev = input_allocate_device();
-	if (!sd->input_dev)
-		return -ENOMEM;
-
-	sd->input_dev->name = "SN9C20X Webcam";
-
-	sd->input_dev->phys = kasprintf(GFP_KERNEL, "usb-%s-%s",
-					 gspca_dev->dev->bus->bus_name,
-					 gspca_dev->dev->devpath);
-
-	if (!sd->input_dev->phys)
-		return -ENOMEM;
-
-	usb_to_input_id(gspca_dev->dev, &sd->input_dev->id);
-	sd->input_dev->dev.parent = &gspca_dev->dev->dev;
-
-	set_bit(EV_KEY, sd->input_dev->evbit);
-	set_bit(KEY_CAMERA, sd->input_dev->keybit);
-
-	if (input_register_device(sd->input_dev))
-		return -EINVAL;
-
-	sd->input_task = kthread_run(input_kthread, gspca_dev, "sn9c20x/%s-%s",
-				     gspca_dev->dev->bus->bus_name,
-				     gspca_dev->dev->devpath);
-
-	if (IS_ERR(sd->input_task))
-		return -EINVAL;
-
-	return 0;
-}
-
-static void sn9c20x_input_cleanup(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	if (sd->input_task != NULL && !IS_ERR(sd->input_task))
-		kthread_stop(sd->input_task);
-
-	if (sd->input_dev != NULL) {
-		input_unregister_device(sd->input_dev);
-		kfree(sd->input_dev->phys);
-		input_free_device(sd->input_dev);
-		sd->input_dev = NULL;
-	}
-}
-#endif
 
 static int set_cmatrix(struct gspca_dev *gspca_dev)
 {
@@ -1579,17 +1531,26 @@ static int set_redblue(struct gspca_dev *gspca_dev)
 
 static int set_hvflip(struct gspca_dev *gspca_dev)
 {
-	u8 value, tslb;
+	u8 value, tslb, hflip, vflip;
 	u16 value2;
 	struct sd *sd = (struct sd *) gspca_dev;
+
+	if ((sd->flags & FLIP_DETECT) && dmi_check_system(flip_dmi_table)) {
+		hflip = !sd->hflip;
+		vflip = !sd->vflip;
+	} else {
+		hflip = sd->hflip;
+		vflip = sd->vflip;
+	}
+
 	switch (sd->sensor) {
 	case SENSOR_OV9650:
 		i2c_r1(gspca_dev, 0x1e, &value);
 		value &= ~0x30;
 		tslb = 0x01;
-		if (sd->hflip)
+		if (hflip)
 			value |= 0x20;
-		if (sd->vflip) {
+		if (vflip) {
 			value |= 0x10;
 			tslb = 0x49;
 		}
@@ -1600,28 +1561,29 @@ static int set_hvflip(struct gspca_dev *gspca_dev)
 	case SENSOR_MT9V011:
 		i2c_r2(gspca_dev, 0x20, &value2);
 		value2 &= ~0xc0a0;
-		if (sd->hflip)
+		if (hflip)
 			value2 |= 0x8080;
-		if (sd->vflip)
+		if (vflip)
 			value2 |= 0x4020;
 		i2c_w2(gspca_dev, 0x20, value2);
 		break;
+	case SENSOR_MT9M112:
 	case SENSOR_MT9M111:
 	case SENSOR_MT9V112:
 		i2c_r2(gspca_dev, 0x20, &value2);
 		value2 &= ~0x0003;
-		if (sd->hflip)
+		if (hflip)
 			value2 |= 0x0002;
-		if (sd->vflip)
+		if (vflip)
 			value2 |= 0x0001;
 		i2c_w2(gspca_dev, 0x20, value2);
 		break;
 	case SENSOR_HV7131R:
 		i2c_r1(gspca_dev, 0x01, &value);
 		value &= ~0x03;
-		if (sd->vflip)
+		if (vflip)
 			value |= 0x01;
-		if (sd->hflip)
+		if (hflip)
 			value |= 0x02;
 		i2c_w1(gspca_dev, 0x01, value);
 		break;
@@ -1645,7 +1607,6 @@ static int set_exposure(struct gspca_dev *gspca_dev)
 		break;
 	case SENSOR_MT9M001:
 	case SENSOR_MT9V112:
-	case SENSOR_MT9V111:
 	case SENSOR_MT9V011:
 		exp[0] |= (3 << 4);
 		exp[2] = 0x09;
@@ -1655,9 +1616,9 @@ static int set_exposure(struct gspca_dev *gspca_dev)
 	case SENSOR_HV7131R:
 		exp[0] |= (4 << 4);
 		exp[2] = 0x25;
-		exp[3] = ((sd->exposure * 0xffffff) / 0xffff) >> 16;
-		exp[4] = ((sd->exposure * 0xffffff) / 0xffff) >> 8;
-		exp[5] = ((sd->exposure * 0xffffff) / 0xffff) & 0xff;
+		exp[3] = (sd->exposure >> 5) & 0xff;
+		exp[4] = (sd->exposure << 3) & 0xff;
+		exp[5] = 0;
 		break;
 	default:
 		return 0;
@@ -1680,7 +1641,6 @@ static int set_gain(struct gspca_dev *gspca_dev)
 		gain[3] = ov_gain[sd->gain];
 		break;
 	case SENSOR_MT9V011:
-	case SENSOR_MT9V111:
 		gain[0] |= (3 << 4);
 		gain[2] = 0x35;
 		gain[3] = micron1_gain[sd->gain] >> 8;
@@ -1931,7 +1891,7 @@ static int sd_dbg_g_register(struct gspca_dev *gspca_dev,
 		if (reg->match.addr != sd->i2c_addr)
 			return -EINVAL;
 		if (sd->sensor >= SENSOR_MT9V011 &&
-		    sd->sensor <= SENSOR_MT9M111) {
+		    sd->sensor <= SENSOR_MT9M112) {
 			if (i2c_r2(gspca_dev, reg->reg, (u16 *)&reg->val) < 0)
 				return -EINVAL;
 		} else {
@@ -1960,7 +1920,7 @@ static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
 		if (reg->match.addr != sd->i2c_addr)
 			return -EINVAL;
 		if (sd->sensor >= SENSOR_MT9V011 &&
-		    sd->sensor <= SENSOR_MT9M111) {
+		    sd->sensor <= SENSOR_MT9M112) {
 			if (i2c_w2(gspca_dev, reg->reg, reg->val) < 0)
 				return -EINVAL;
 		} else {
@@ -2005,8 +1965,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	sd->sensor = (id->driver_info >> 8) & 0xff;
 	sd->i2c_addr = id->driver_info & 0xff;
+	sd->flags = (id->driver_info >> 16) & 0xff;
 
 	switch (sd->sensor) {
+	case SENSOR_MT9M112:
 	case SENSOR_MT9M111:
 	case SENSOR_OV9650:
 	case SENSOR_SOI968:
@@ -2039,11 +2001,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	sd->quality = 95;
 
-#ifdef CONFIG_USB_GSPCA_SN9C20X_EVDEV
-	sd->input_gpio = (id->driver_info >> 16) & 0xff;
-	if (sn9c20x_input_init(gspca_dev) < 0)
-		return -ENODEV;
-#endif
 	return 0;
 }
 
@@ -2062,6 +2019,11 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			return -ENODEV;
 		}
 	}
+
+	if (sd->flags & LED_REVERSE)
+		reg_w1(gspca_dev, 0x1006, 0x00);
+	else
+		reg_w1(gspca_dev, 0x1006, 0x20);
 
 	if (reg_w(gspca_dev, 0x10c0, i2c_init, 9) < 0) {
 		err("Device initialization failed");
@@ -2102,6 +2064,11 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		if (mt9m111_init_sensor(gspca_dev) < 0)
 			return -ENODEV;
 		info("MT9M111 sensor detected");
+		break;
+	case SENSOR_MT9M112:
+		if (mt9m112_init_sensor(gspca_dev) < 0)
+			return -ENODEV;
+		info("MT9M112 sensor detected");
 		break;
 	case SENSOR_MT9M001:
 		if (mt9m001_init_sensor(gspca_dev) < 0)
@@ -2162,6 +2129,7 @@ static void configure_sensor_output(struct gspca_dev *gspca_dev, int mode)
 			i2c_w1(gspca_dev, 0x12, (value & 0x7) | 0x40);
 		}
 		break;
+	case SENSOR_MT9M112:
 	case SENSOR_MT9M111:
 		if (mode & MODE_SXGA) {
 			i2c_w2(gspca_dev, 0xf0, 0x0002);
@@ -2243,6 +2211,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	set_exposure(gspca_dev);
 	set_hvflip(gspca_dev);
 
+	reg_w1(gspca_dev, 0x1007, 0x20);
+
 	reg_r(gspca_dev, 0x1061, 1);
 	reg_w1(gspca_dev, 0x1061, gspca_dev->usb_buf[0] | 0x02);
 	return 0;
@@ -2250,6 +2220,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
+	reg_w1(gspca_dev, 0x1007, 0x00);
+
 	reg_r(gspca_dev, 0x1061, 1);
 	reg_w1(gspca_dev, 0x1061, gspca_dev->usb_buf[0] & ~0x02);
 }
@@ -2343,6 +2315,24 @@ static void sd_dqcallback(struct gspca_dev *gspca_dev)
 		do_autoexposure(gspca_dev, avg_lum);
 }
 
+#ifdef CONFIG_INPUT
+static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
+			u8 *data,		/* interrupt packet */
+			int len)		/* interrupt packet length */
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int ret = -EINVAL;
+	if (!(sd->flags & HAS_NO_BUTTON) && len == 1) {
+			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
+			input_sync(gspca_dev->input_dev);
+			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+			input_sync(gspca_dev->input_dev);
+			ret = 0;
+	}
+	return ret;
+}
+#endif
+
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
@@ -2409,6 +2399,9 @@ static const struct sd_desc sd_desc = {
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
+#ifdef CONFIG_INPUT
+	.int_pkt_scan = sd_int_pkt_scan,
+#endif
 	.dq_callback = sd_dqcallback,
 #ifdef CONFIG_VIDEO_ADV_DEBUG
 	.set_register = sd_dbg_s_register,
@@ -2417,8 +2410,8 @@ static const struct sd_desc sd_desc = {
 	.get_chip_ident = sd_chip_ident,
 };
 
-#define SN9C20X(sensor, i2c_addr, button_mask) \
-	.driver_info =  (button_mask << 16) \
+#define SN9C20X(sensor, i2c_addr, flags) \
+	.driver_info =  ((flags & 0xff) << 16) \
 			| (SENSOR_ ## sensor << 8) \
 			| (i2c_addr)
 
@@ -2426,8 +2419,10 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6240), SN9C20X(MT9M001, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6242), SN9C20X(MT9M111, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6248), SN9C20X(OV9655, 0x30, 0)},
-	{USB_DEVICE(0x0c45, 0x624e), SN9C20X(SOI968, 0x30, 0x10)},
-	{USB_DEVICE(0x0c45, 0x624f), SN9C20X(OV9650, 0x30, 0)},
+	{USB_DEVICE(0x0c45, 0x624c), SN9C20X(MT9M112, 0x5d, 0)},
+	{USB_DEVICE(0x0c45, 0x624e), SN9C20X(SOI968, 0x30, LED_REVERSE)},
+	{USB_DEVICE(0x0c45, 0x624f), SN9C20X(OV9650, 0x30,
+					     (FLIP_DETECT | HAS_NO_BUTTON))},
 	{USB_DEVICE(0x0c45, 0x6251), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6253), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6260), SN9C20X(OV7670, 0x21, 0)},
@@ -2438,6 +2433,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6280), SN9C20X(MT9M001, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6282), SN9C20X(MT9M111, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6288), SN9C20X(OV9655, 0x30, 0)},
+	{USB_DEVICE(0x0c45, 0x628c), SN9C20X(MT9M112, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x628e), SN9C20X(SOI968, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x628f), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x62a0), SN9C20X(OV7670, 0x21, 0)},
@@ -2448,6 +2444,8 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x045e, 0x00f4), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x145f, 0x013d), SN9C20X(OV7660, 0x21, 0)},
 	{USB_DEVICE(0x0458, 0x7029), SN9C20X(HV7131R, 0x11, 0)},
+	{USB_DEVICE(0x0458, 0x704a), SN9C20X(MT9M112, 0x5d, 0)},
+	{USB_DEVICE(0x0458, 0x704c), SN9C20X(MT9M112, 0x5d, 0)},
 	{USB_DEVICE(0xa168, 0x0610), SN9C20X(HV7131R, 0x11, 0)},
 	{USB_DEVICE(0xa168, 0x0611), SN9C20X(HV7131R, 0x11, 0)},
 	{USB_DEVICE(0xa168, 0x0613), SN9C20X(HV7131R, 0x11, 0)},
@@ -2467,22 +2465,11 @@ static int sd_probe(struct usb_interface *intf,
 				THIS_MODULE);
 }
 
-static void sd_disconnect(struct usb_interface *intf)
-{
-#ifdef CONFIG_USB_GSPCA_SN9C20X_EVDEV
-	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
-
-	sn9c20x_input_cleanup(gspca_dev);
-#endif
-
-	gspca_disconnect(intf);
-}
-
 static struct usb_driver sd_driver = {
 	.name = MODULE_NAME,
 	.id_table = device_table,
 	.probe = sd_probe,
-	.disconnect = sd_disconnect,
+	.disconnect = gspca_disconnect,
 #ifdef CONFIG_PM
 	.suspend = gspca_suspend,
 	.resume = gspca_resume,

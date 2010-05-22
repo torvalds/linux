@@ -1328,7 +1328,7 @@ bail:
 /**
  * ipath_pe_put_tid - write a TID in chip
  * @dd: the infinipath device
- * @tidptr: pointer to the expected TID (in chip) to udpate
+ * @tidptr: pointer to the expected TID (in chip) to update
  * @tidtype: RCVHQ_RCV_TYPE_EAGER (1) for eager, RCVHQ_RCV_TYPE_EXPECTED (0) for expected
  * @pa: physical address of in memory buffer; ipath_tidinvalid if freeing
  *
@@ -1394,7 +1394,7 @@ static void ipath_pe_put_tid(struct ipath_devdata *dd, u64 __iomem *tidptr,
 /**
  * ipath_pe_put_tid_2 - write a TID in chip, Revision 2 or higher
  * @dd: the infinipath device
- * @tidptr: pointer to the expected TID (in chip) to udpate
+ * @tidptr: pointer to the expected TID (in chip) to update
  * @tidtype: RCVHQ_RCV_TYPE_EAGER (1) for eager, RCVHQ_RCV_TYPE_EXPECTED (0) for expected
  * @pa: physical address of in memory buffer; ipath_tidinvalid if freeing
  *

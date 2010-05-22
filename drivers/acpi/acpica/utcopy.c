@@ -677,16 +677,24 @@ acpi_ut_copy_simple_object(union acpi_operand_object *source_desc,
 	u16 reference_count;
 	union acpi_operand_object *next_object;
 	acpi_status status;
+	acpi_size copy_size;
 
 	/* Save fields from destination that we don't want to overwrite */
 
 	reference_count = dest_desc->common.reference_count;
 	next_object = dest_desc->common.next_object;
 
-	/* Copy the entire source object over the destination object */
+	/*
+	 * Copy the entire source object over the destination object.
+	 * Note: Source can be either an operand object or namespace node.
+	 */
+	copy_size = sizeof(union acpi_operand_object);
+	if (ACPI_GET_DESCRIPTOR_TYPE(source_desc) == ACPI_DESC_TYPE_NAMED) {
+		copy_size = sizeof(struct acpi_namespace_node);
+	}
 
-	ACPI_MEMCPY((char *)dest_desc, (char *)source_desc,
-		    sizeof(union acpi_operand_object));
+	ACPI_MEMCPY(ACPI_CAST_PTR(char, dest_desc),
+		    ACPI_CAST_PTR(char, source_desc), copy_size);
 
 	/* Restore the saved fields */
 

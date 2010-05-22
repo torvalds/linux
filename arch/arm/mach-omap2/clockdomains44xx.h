@@ -131,7 +131,7 @@ static struct clockdomain mpuss_44xx_clkdm = {
 static struct clockdomain mpu0_44xx_clkdm = {
 	.name		  = "mpu0_clkdm",
 	.pwrdm		  = { .name = "cpu0_pwrdm" },
-	.clkstctrl_reg	  = OMAP4430_CM_PDA_CPU0_CLKSTCTRL,
+	.clkstctrl_reg	  = OMAP4430_CM_CPU0_CLKSTCTRL,
 	.clktrctrl_mask	  = OMAP4430_CLKTRCTRL_MASK,
 	.flags		  = CLKDM_CAN_FORCE_WAKEUP | CLKDM_CAN_HWSUP,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP4430),
@@ -140,7 +140,7 @@ static struct clockdomain mpu0_44xx_clkdm = {
 static struct clockdomain mpu1_44xx_clkdm = {
 	.name		  = "mpu1_clkdm",
 	.pwrdm		  = { .name = "cpu1_pwrdm" },
-	.clkstctrl_reg	  = OMAP4430_CM_PDA_CPU1_CLKSTCTRL,
+	.clkstctrl_reg	  = OMAP4430_CM_CPU1_CLKSTCTRL,
 	.clktrctrl_mask	  = OMAP4430_CLKTRCTRL_MASK,
 	.flags		  = CLKDM_CAN_FORCE_WAKEUP | CLKDM_CAN_HWSUP,
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP4430),

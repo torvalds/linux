@@ -75,16 +75,16 @@ error_ret:
 	return ret;
 
 }
-static IIO_SCAN_EL_C(accel_x, LIS3L02DQ_SCAN_ACC_X, IIO_SIGNED(16),
+static IIO_SCAN_EL_C(accel_x, 0, IIO_SIGNED(16),
 		     LIS3L02DQ_REG_OUT_X_L_ADDR,
 		     &lis3l02dq_scan_el_set_state);
-static IIO_SCAN_EL_C(accel_y, LIS3L02DQ_SCAN_ACC_Y, IIO_SIGNED(16),
+static IIO_SCAN_EL_C(accel_y, 1, IIO_SIGNED(16),
 		     LIS3L02DQ_REG_OUT_Y_L_ADDR,
 		     &lis3l02dq_scan_el_set_state);
-static IIO_SCAN_EL_C(accel_z, LIS3L02DQ_SCAN_ACC_Z, IIO_SIGNED(16),
+static IIO_SCAN_EL_C(accel_z, 2, IIO_SIGNED(16),
 		     LIS3L02DQ_REG_OUT_Z_L_ADDR,
 		     &lis3l02dq_scan_el_set_state);
-static IIO_SCAN_EL_TIMESTAMP;
+static IIO_SCAN_EL_TIMESTAMP(3);
 
 static struct attribute *lis3l02dq_scan_el_attrs[] = {
 	&iio_scan_el_accel_x.dev_attr.attr,
@@ -192,8 +192,7 @@ error_ret:
 
 }
 
-static const u8 read_all_tx_array[] =
-{
+static const u8 read_all_tx_array[] = {
 	LIS3L02DQ_READ_REG(LIS3L02DQ_REG_OUT_X_L_ADDR), 0,
 	LIS3L02DQ_READ_REG(LIS3L02DQ_REG_OUT_X_H_ADDR), 0,
 	LIS3L02DQ_READ_REG(LIS3L02DQ_REG_OUT_Y_L_ADDR), 0,
@@ -208,7 +207,7 @@ static const u8 read_all_tx_array[] =
  * @rx_array:	(dma capable) recieve array, must be at least
  *		4*number of channels
  **/
-int lis3l02dq_read_all(struct lis3l02dq_state *st, u8 *rx_array)
+static int lis3l02dq_read_all(struct lis3l02dq_state *st, u8 *rx_array)
 {
 	struct spi_transfer *xfers;
 	struct spi_message msg;
@@ -358,10 +357,10 @@ static int lis3l02dq_data_rdy_ring_predisable(struct iio_dev *indio_dev)
 
 
 /* Caller responsible for locking as necessary. */
-static int __lis3l02dq_write_data_ready_config(struct device *dev,
-					       struct
-					       iio_event_handler_list *list,
-					       bool state)
+static int
+__lis3l02dq_write_data_ready_config(struct device *dev,
+				    struct iio_event_handler_list *list,
+				    bool state)
 {
 	int ret;
 	u8 valold;
@@ -493,6 +492,9 @@ int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 	struct lis3l02dq_state *state = indio_dev->dev_data;
 
 	state->trig = iio_allocate_trigger();
+	if (!state->trig)
+		return -ENOMEM;
+
 	state->trig->name = kmalloc(IIO_TRIGGER_NAME_LENGTH, GFP_KERNEL);
 	if (!state->trig->name) {
 		ret = -ENOMEM;
@@ -581,14 +583,13 @@ error_iio_sw_rb_free:
 
 int lis3l02dq_initialize_ring(struct iio_ring_buffer *ring)
 {
-	return iio_ring_buffer_register(ring);
+	return iio_ring_buffer_register(ring, 0);
 }
 
 void lis3l02dq_uninitialize_ring(struct iio_ring_buffer *ring)
 {
 	iio_ring_buffer_unregister(ring);
 }
-
 
 int lis3l02dq_set_ring_length(struct iio_dev *indio_dev, int length)
 {

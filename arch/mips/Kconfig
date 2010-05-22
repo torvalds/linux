@@ -49,7 +49,7 @@ config AR7
 	  family: TNETD7100, 7200 and 7300.
 
 config BCM47XX
-	bool "BCM47XX based boards"
+	bool "Broadcom BCM47XX based boards"
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
@@ -509,6 +509,7 @@ config SIBYTE_SWARM
 	bool "Sibyte BCM91250A-SWARM"
 	select BOOT_ELF32
 	select DMA_COHERENT
+	select HAVE_PATA_PLATFORM
 	select NR_CPUS_DEFAULT_2
 	select SIBYTE_SB1250
 	select SWAP_IO_SPACE
@@ -523,6 +524,7 @@ config SIBYTE_LITTLESUR
 	depends on EXPERIMENTAL
 	select BOOT_ELF32
 	select DMA_COHERENT
+	select HAVE_PATA_PLATFORM
 	select NR_CPUS_DEFAULT_2
 	select SIBYTE_SB1250
 	select SWAP_IO_SPACE
@@ -1073,6 +1075,8 @@ config CPU_LOONGSON2F
 	bool "Loongson 2F"
 	depends on SYS_HAS_CPU_LOONGSON2F
 	select CPU_LOONGSON2
+	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  The Loongson 2F processor implements the MIPS III instruction set
 	  with many extensions.
@@ -1304,6 +1308,33 @@ config CPU_CAVIUM_OCTEON
 	  Full details can be found at http://www.caviumnetworks.com.
 
 endchoice
+
+if CPU_LOONGSON2F
+config CPU_NOP_WORKAROUNDS
+	bool
+
+config CPU_JUMP_WORKAROUNDS
+	bool
+
+config CPU_LOONGSON2F_WORKAROUNDS
+	bool "Loongson 2F Workarounds"
+	default y
+	select CPU_NOP_WORKAROUNDS
+	select CPU_JUMP_WORKAROUNDS
+	help
+	  Loongson 2F01 / 2F02 processors have the NOP & JUMP issues which
+	  require workarounds.  Without workarounds the system may hang
+	  unexpectedly.  For more information please refer to the gas
+	  -mfix-loongson2f-nop and -mfix-loongson2f-jump options.
+
+	  Loongson 2F03 and later have fixed these issues and no workarounds
+	  are needed.  The workarounds have no significant side effect on them
+	  but may decrease the performance of the system so this option should
+	  be disabled unless the kernel is intended to be run on 2F01 or 2F02
+	  systems.
+
+	  If unsure, please say Y.
+endif # CPU_LOONGSON2F
 
 config SYS_SUPPORTS_ZBOOT
 	bool

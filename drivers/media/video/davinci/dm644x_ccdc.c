@@ -101,6 +101,9 @@ static u32 ccdc_raw_bayer_pix_formats[] =
 static u32 ccdc_raw_yuv_pix_formats[] =
 	{V4L2_PIX_FMT_UYVY, V4L2_PIX_FMT_YUYV};
 
+/* CCDC Save/Restore context */
+static u32 ccdc_ctx[CCDC_REG_END / sizeof(u32)];
+
 /* register access routines */
 static inline u32 regr(u32 offset)
 {
@@ -400,7 +403,11 @@ void ccdc_config_ycbcr(void)
 		 * configure the FID, VD, HD pin polarity,
 		 * fld,hd pol positive, vd negative, 8-bit data
 		 */
-		syn_mode |= CCDC_SYN_MODE_VD_POL_NEGATIVE | CCDC_SYN_MODE_8BITS;
+		syn_mode |= CCDC_SYN_MODE_VD_POL_NEGATIVE;
+		if (ccdc_cfg.if_type == VPFE_BT656_10BIT)
+			syn_mode |= CCDC_SYN_MODE_10BITS;
+		else
+			syn_mode |= CCDC_SYN_MODE_8BITS;
 	} else {
 		/* y/c external sync mode */
 		syn_mode |= (((params->fid_pol & CCDC_FID_POL_MASK) <<
@@ -419,8 +426,13 @@ void ccdc_config_ycbcr(void)
 	 * configure the order of y cb cr in SDRAM, and disable latch
 	 * internal register on vsync
 	 */
-	regw((params->pix_order << CCDC_CCDCFG_Y8POS_SHIFT) |
-		 CCDC_LATCH_ON_VSYNC_DISABLE, CCDC_CCDCFG);
+	if (ccdc_cfg.if_type == VPFE_BT656_10BIT)
+		regw((params->pix_order << CCDC_CCDCFG_Y8POS_SHIFT) |
+			CCDC_LATCH_ON_VSYNC_DISABLE | CCDC_CCDCFG_BW656_10BIT,
+			CCDC_CCDCFG);
+	else
+		regw((params->pix_order << CCDC_CCDCFG_Y8POS_SHIFT) |
+			CCDC_LATCH_ON_VSYNC_DISABLE, CCDC_CCDCFG);
 
 	/*
 	 * configure the horizontal line offset. This should be a
@@ -435,7 +447,6 @@ void ccdc_config_ycbcr(void)
 
 	ccdc_sbl_reset();
 	dev_dbg(ccdc_cfg.dev, "\nEnd of ccdc_config_ycbcr...\n");
-	ccdc_readregs();
 }
 
 static void ccdc_config_black_clamp(struct ccdc_black_clamp *bclamp)
@@ -827,6 +838,7 @@ static int ccdc_set_hw_if_params(struct vpfe_hw_if_param *params)
 	case VPFE_BT656:
 	case VPFE_YCBCR_SYNC_16:
 	case VPFE_YCBCR_SYNC_8:
+	case VPFE_BT656_10BIT:
 		ccdc_cfg.ycbcr.vd_pol = params->vdpol;
 		ccdc_cfg.ycbcr.hd_pol = params->hdpol;
 		break;
@@ -837,6 +849,87 @@ static int ccdc_set_hw_if_params(struct vpfe_hw_if_param *params)
 	return 0;
 }
 
+static void ccdc_save_context(void)
+{
+	ccdc_ctx[CCDC_PCR >> 2] = regr(CCDC_PCR);
+	ccdc_ctx[CCDC_SYN_MODE >> 2] = regr(CCDC_SYN_MODE);
+	ccdc_ctx[CCDC_HD_VD_WID >> 2] = regr(CCDC_HD_VD_WID);
+	ccdc_ctx[CCDC_PIX_LINES >> 2] = regr(CCDC_PIX_LINES);
+	ccdc_ctx[CCDC_HORZ_INFO >> 2] = regr(CCDC_HORZ_INFO);
+	ccdc_ctx[CCDC_VERT_START >> 2] = regr(CCDC_VERT_START);
+	ccdc_ctx[CCDC_VERT_LINES >> 2] = regr(CCDC_VERT_LINES);
+	ccdc_ctx[CCDC_CULLING >> 2] = regr(CCDC_CULLING);
+	ccdc_ctx[CCDC_HSIZE_OFF >> 2] = regr(CCDC_HSIZE_OFF);
+	ccdc_ctx[CCDC_SDOFST >> 2] = regr(CCDC_SDOFST);
+	ccdc_ctx[CCDC_SDR_ADDR >> 2] = regr(CCDC_SDR_ADDR);
+	ccdc_ctx[CCDC_CLAMP >> 2] = regr(CCDC_CLAMP);
+	ccdc_ctx[CCDC_DCSUB >> 2] = regr(CCDC_DCSUB);
+	ccdc_ctx[CCDC_COLPTN >> 2] = regr(CCDC_COLPTN);
+	ccdc_ctx[CCDC_BLKCMP >> 2] = regr(CCDC_BLKCMP);
+	ccdc_ctx[CCDC_FPC >> 2] = regr(CCDC_FPC);
+	ccdc_ctx[CCDC_FPC_ADDR >> 2] = regr(CCDC_FPC_ADDR);
+	ccdc_ctx[CCDC_VDINT >> 2] = regr(CCDC_VDINT);
+	ccdc_ctx[CCDC_ALAW >> 2] = regr(CCDC_ALAW);
+	ccdc_ctx[CCDC_REC656IF >> 2] = regr(CCDC_REC656IF);
+	ccdc_ctx[CCDC_CCDCFG >> 2] = regr(CCDC_CCDCFG);
+	ccdc_ctx[CCDC_FMTCFG >> 2] = regr(CCDC_FMTCFG);
+	ccdc_ctx[CCDC_FMT_HORZ >> 2] = regr(CCDC_FMT_HORZ);
+	ccdc_ctx[CCDC_FMT_VERT >> 2] = regr(CCDC_FMT_VERT);
+	ccdc_ctx[CCDC_FMT_ADDR0 >> 2] = regr(CCDC_FMT_ADDR0);
+	ccdc_ctx[CCDC_FMT_ADDR1 >> 2] = regr(CCDC_FMT_ADDR1);
+	ccdc_ctx[CCDC_FMT_ADDR2 >> 2] = regr(CCDC_FMT_ADDR2);
+	ccdc_ctx[CCDC_FMT_ADDR3 >> 2] = regr(CCDC_FMT_ADDR3);
+	ccdc_ctx[CCDC_FMT_ADDR4 >> 2] = regr(CCDC_FMT_ADDR4);
+	ccdc_ctx[CCDC_FMT_ADDR5 >> 2] = regr(CCDC_FMT_ADDR5);
+	ccdc_ctx[CCDC_FMT_ADDR6 >> 2] = regr(CCDC_FMT_ADDR6);
+	ccdc_ctx[CCDC_FMT_ADDR7 >> 2] = regr(CCDC_FMT_ADDR7);
+	ccdc_ctx[CCDC_PRGEVEN_0 >> 2] = regr(CCDC_PRGEVEN_0);
+	ccdc_ctx[CCDC_PRGEVEN_1 >> 2] = regr(CCDC_PRGEVEN_1);
+	ccdc_ctx[CCDC_PRGODD_0 >> 2] = regr(CCDC_PRGODD_0);
+	ccdc_ctx[CCDC_PRGODD_1 >> 2] = regr(CCDC_PRGODD_1);
+	ccdc_ctx[CCDC_VP_OUT >> 2] = regr(CCDC_VP_OUT);
+}
+
+static void ccdc_restore_context(void)
+{
+	regw(ccdc_ctx[CCDC_SYN_MODE >> 2], CCDC_SYN_MODE);
+	regw(ccdc_ctx[CCDC_HD_VD_WID >> 2], CCDC_HD_VD_WID);
+	regw(ccdc_ctx[CCDC_PIX_LINES >> 2], CCDC_PIX_LINES);
+	regw(ccdc_ctx[CCDC_HORZ_INFO >> 2], CCDC_HORZ_INFO);
+	regw(ccdc_ctx[CCDC_VERT_START >> 2], CCDC_VERT_START);
+	regw(ccdc_ctx[CCDC_VERT_LINES >> 2], CCDC_VERT_LINES);
+	regw(ccdc_ctx[CCDC_CULLING >> 2], CCDC_CULLING);
+	regw(ccdc_ctx[CCDC_HSIZE_OFF >> 2], CCDC_HSIZE_OFF);
+	regw(ccdc_ctx[CCDC_SDOFST >> 2], CCDC_SDOFST);
+	regw(ccdc_ctx[CCDC_SDR_ADDR >> 2], CCDC_SDR_ADDR);
+	regw(ccdc_ctx[CCDC_CLAMP >> 2], CCDC_CLAMP);
+	regw(ccdc_ctx[CCDC_DCSUB >> 2], CCDC_DCSUB);
+	regw(ccdc_ctx[CCDC_COLPTN >> 2], CCDC_COLPTN);
+	regw(ccdc_ctx[CCDC_BLKCMP >> 2], CCDC_BLKCMP);
+	regw(ccdc_ctx[CCDC_FPC >> 2], CCDC_FPC);
+	regw(ccdc_ctx[CCDC_FPC_ADDR >> 2], CCDC_FPC_ADDR);
+	regw(ccdc_ctx[CCDC_VDINT >> 2], CCDC_VDINT);
+	regw(ccdc_ctx[CCDC_ALAW >> 2], CCDC_ALAW);
+	regw(ccdc_ctx[CCDC_REC656IF >> 2], CCDC_REC656IF);
+	regw(ccdc_ctx[CCDC_CCDCFG >> 2], CCDC_CCDCFG);
+	regw(ccdc_ctx[CCDC_FMTCFG >> 2], CCDC_FMTCFG);
+	regw(ccdc_ctx[CCDC_FMT_HORZ >> 2], CCDC_FMT_HORZ);
+	regw(ccdc_ctx[CCDC_FMT_VERT >> 2], CCDC_FMT_VERT);
+	regw(ccdc_ctx[CCDC_FMT_ADDR0 >> 2], CCDC_FMT_ADDR0);
+	regw(ccdc_ctx[CCDC_FMT_ADDR1 >> 2], CCDC_FMT_ADDR1);
+	regw(ccdc_ctx[CCDC_FMT_ADDR2 >> 2], CCDC_FMT_ADDR2);
+	regw(ccdc_ctx[CCDC_FMT_ADDR3 >> 2], CCDC_FMT_ADDR3);
+	regw(ccdc_ctx[CCDC_FMT_ADDR4 >> 2], CCDC_FMT_ADDR4);
+	regw(ccdc_ctx[CCDC_FMT_ADDR5 >> 2], CCDC_FMT_ADDR5);
+	regw(ccdc_ctx[CCDC_FMT_ADDR6 >> 2], CCDC_FMT_ADDR6);
+	regw(ccdc_ctx[CCDC_FMT_ADDR7 >> 2], CCDC_FMT_ADDR7);
+	regw(ccdc_ctx[CCDC_PRGEVEN_0 >> 2], CCDC_PRGEVEN_0);
+	regw(ccdc_ctx[CCDC_PRGEVEN_1 >> 2], CCDC_PRGEVEN_1);
+	regw(ccdc_ctx[CCDC_PRGODD_0 >> 2], CCDC_PRGODD_0);
+	regw(ccdc_ctx[CCDC_PRGODD_1 >> 2], CCDC_PRGODD_1);
+	regw(ccdc_ctx[CCDC_VP_OUT >> 2], CCDC_VP_OUT);
+	regw(ccdc_ctx[CCDC_PCR >> 2], CCDC_PCR);
+}
 static struct ccdc_hw_device ccdc_hw_dev = {
 	.name = "DM6446 CCDC",
 	.owner = THIS_MODULE,
@@ -945,10 +1038,40 @@ static int dm644x_ccdc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static int dm644x_ccdc_suspend(struct device *dev)
+{
+	/* Save CCDC context */
+	ccdc_save_context();
+	/* Disable CCDC */
+	ccdc_enable(0);
+	/* Disable both master and slave clock */
+	clk_disable(ccdc_cfg.mclk);
+	clk_disable(ccdc_cfg.sclk);
+
+	return 0;
+}
+
+static int dm644x_ccdc_resume(struct device *dev)
+{
+	/* Enable both master and slave clock */
+	clk_enable(ccdc_cfg.mclk);
+	clk_enable(ccdc_cfg.sclk);
+	/* Restore CCDC context */
+	ccdc_restore_context();
+
+	return 0;
+}
+
+static const struct dev_pm_ops dm644x_ccdc_pm_ops = {
+	.suspend = dm644x_ccdc_suspend,
+	.resume = dm644x_ccdc_resume,
+};
+
 static struct platform_driver dm644x_ccdc_driver = {
 	.driver = {
 		.name	= "dm644x_ccdc",
 		.owner = THIS_MODULE,
+		.pm = &dm644x_ccdc_pm_ops,
 	},
 	.remove = __devexit_p(dm644x_ccdc_remove),
 	.probe = dm644x_ccdc_probe,

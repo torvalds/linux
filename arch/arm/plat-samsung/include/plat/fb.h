@@ -15,6 +15,13 @@
 #ifndef __PLAT_S3C_FB_H
 #define __PLAT_S3C_FB_H __FILE__
 
+/* S3C_FB_MAX_WIN
+ * Set to the maximum number of windows that any of the supported hardware
+ * can use. Since the platform data uses this for an array size, having it
+ * set to the maximum of any version of the hardware can do is safe.
+ */
+#define S3C_FB_MAX_WIN	(5)
+
 /**
  * struct s3c_fb_pd_win - per window setup data
  * @win_mode: The display parameters to initialise (not for window 0)

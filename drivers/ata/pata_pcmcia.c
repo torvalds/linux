@@ -45,16 +45,6 @@
 #define DRV_NAME "pata_pcmcia"
 #define DRV_VERSION "0.3.5"
 
-/*
- *	Private data structure to glue stuff together
- */
-
-struct ata_pcmcia_info {
-	struct pcmcia_device *pdev;
-	int		ndev;
-	dev_node_t	node;
-};
-
 /**
  *	pcmcia_set_mode	-	PCMCIA specific mode setup
  *	@link: link
@@ -175,7 +165,7 @@ static struct ata_port_operations pcmcia_8bit_port_ops = {
 	.sff_data_xfer	= ata_data_xfer_8bit,
 	.cable_detect	= ata_cable_40wire,
 	.set_mode	= pcmcia_set_mode_8bit,
-	.drain_fifo	= pcmcia_8bit_drain_fifo,
+	.sff_drain_fifo	= pcmcia_8bit_drain_fifo,
 };
 
 
@@ -248,7 +238,6 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 {
 	struct ata_host *host;
 	struct ata_port *ap;
-	struct ata_pcmcia_info *info;
 	struct pcmcia_config_check *stk = NULL;
 	int is_kme = 0, ret = -ENOMEM, p;
 	unsigned long io_base, ctl_base;
@@ -256,19 +245,10 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	int n_ports = 1;
 	struct ata_port_operations *ops = &pcmcia_port_ops;
 
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (info == NULL)
-		return -ENOMEM;
-
-	/* Glue stuff together. FIXME: We may be able to get rid of info with care */
-	info->pdev = pdev;
-	pdev->priv = info;
-
 	/* Set up attributes in order to probe card and get resources */
 	pdev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
 	pdev->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
 	pdev->io.IOAddrLines = 3;
-	pdev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 	pdev->conf.Attributes = CONF_ENABLE_IRQ;
 	pdev->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -293,8 +273,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	}
 	io_base = pdev->io.BasePort1;
 	ctl_base = stk->ctl_base;
-	ret = pcmcia_request_irq(pdev, &pdev->irq);
-	if (ret)
+	if (!pdev->irq)
 		goto failed;
 
 	ret = pcmcia_request_configuration(pdev, &pdev->conf);
@@ -344,21 +323,19 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	}
 
 	/* activate */
-	ret = ata_host_activate(host, pdev->irq.AssignedIRQ, ata_sff_interrupt,
+	ret = ata_host_activate(host, pdev->irq, ata_sff_interrupt,
 				IRQF_SHARED, &pcmcia_sht);
 	if (ret)
 		goto failed;
 
-	info->ndev = 1;
+	pdev->priv = host;
 	kfree(stk);
 	return 0;
 
 failed:
 	kfree(stk);
-	info->ndev = 0;
 	pcmcia_disable_device(pdev);
 out1:
-	kfree(info);
 	return ret;
 }
 
@@ -372,20 +349,12 @@ out1:
 
 static void pcmcia_remove_one(struct pcmcia_device *pdev)
 {
-	struct ata_pcmcia_info *info = pdev->priv;
-	struct device *dev = &pdev->dev;
+	struct ata_host *host = pdev->priv;
 
-	if (info != NULL) {
-		/* If we have attached the device to the ATA layer, detach it */
-		if (info->ndev) {
-			struct ata_host *host = dev_get_drvdata(dev);
-			ata_host_detach(host);
-		}
-		info->ndev = 0;
-		pdev->priv = NULL;
-	}
+	if (host)
+		ata_host_detach(host);
+
 	pcmcia_disable_device(pdev);
-	kfree(info);
 }
 
 static struct pcmcia_device_id pcmcia_devices[] = {
@@ -424,6 +393,8 @@ static struct pcmcia_device_id pcmcia_devices[] = {
 	PCMCIA_DEVICE_PROD_ID12("Hyperstone", "Model1", 0x3d5b9ef5, 0xca6ab420),
 	PCMCIA_DEVICE_PROD_ID12("IBM", "microdrive", 0xb569a6e5, 0xa6d76178),
 	PCMCIA_DEVICE_PROD_ID12("IBM", "IBM17JSSFP20", 0xb569a6e5, 0xf2508753),
+	PCMCIA_DEVICE_PROD_ID12("KINGSTON", "CF CARD 1GB", 0x2e6d1829, 0x55d5bffb),
+	PCMCIA_DEVICE_PROD_ID12("KINGSTON", "CF CARD 4GB", 0x2e6d1829, 0x531e7d10),
 	PCMCIA_DEVICE_PROD_ID12("KINGSTON", "CF8GB", 0x2e6d1829, 0xacbe682e),
 	PCMCIA_DEVICE_PROD_ID12("IO DATA", "CBIDE2      ", 0x547e66dc, 0x8671043b),
 	PCMCIA_DEVICE_PROD_ID12("IO DATA", "PCIDE", 0x547e66dc, 0x5c5ab149),
@@ -444,6 +415,8 @@ static struct pcmcia_device_id pcmcia_devices[] = {
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS1GCF80", 0x709b1bf1, 0x2a54d4b1),
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS2GCF120", 0x709b1bf1, 0x969aa4f2),
 	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS4GCF120", 0x709b1bf1, 0xf54a91c8),
+	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS4GCF133", 0x709b1bf1, 0x7558f133),
+	PCMCIA_DEVICE_PROD_ID12("TRANSCEND", "TS8GCF133", 0x709b1bf1, 0xb2f89b47),
 	PCMCIA_DEVICE_PROD_ID12("WIT", "IDE16", 0x244e5994, 0x3e232852),
 	PCMCIA_DEVICE_PROD_ID12("WEIDA", "TWTTI", 0xcc7cf69c, 0x212bb918),
 	PCMCIA_DEVICE_PROD_ID1("STI Flash", 0xe4a13209),

@@ -167,6 +167,24 @@ static inline void __cpuinit uasm_l##lb(struct uasm_label **lab, u32 *addr) \
 #define uasm_i_ssnop(buf) uasm_i_sll(buf, 0, 0, 1)
 #define uasm_i_ehb(buf) uasm_i_sll(buf, 0, 0, 3)
 
+static inline void uasm_i_dsrl_safe(u32 **p, unsigned int a1,
+				    unsigned int a2, unsigned int a3)
+{
+	if (a3 < 32)
+		uasm_i_dsrl(p, a1, a2, a3);
+	else
+		uasm_i_dsrl32(p, a1, a2, a3 - 32);
+}
+
+static inline void uasm_i_dsll_safe(u32 **p, unsigned int a1,
+				    unsigned int a2, unsigned int a3)
+{
+	if (a3 < 32)
+		uasm_i_dsll(p, a1, a2, a3);
+	else
+		uasm_i_dsll32(p, a1, a2, a3 - 32);
+}
+
 /* Handle relocations. */
 struct uasm_reloc {
 	u32 *addr;

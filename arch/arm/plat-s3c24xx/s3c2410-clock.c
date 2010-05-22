@@ -87,7 +87,7 @@ static int s3c2410_upll_enable(struct clk *clk, int enable)
 
 /* standard clock definitions */
 
-static struct clk init_clocks_disable[] = {
+static struct clk init_clocks_off[] = {
 	{
 		.name		= "nand",
 		.id		= -1,
@@ -249,17 +249,8 @@ int __init s3c2410_baseclk_add(void)
 
 	/* install (and disable) the clocks we do not need immediately */
 
-	clkp = init_clocks_disable;
-	for (ptr = 0; ptr < ARRAY_SIZE(init_clocks_disable); ptr++, clkp++) {
-
-		ret = s3c24xx_register_clock(clkp);
-		if (ret < 0) {
-			printk(KERN_ERR "Failed to register clock %s (%d)\n",
-			       clkp->name, ret);
-		}
-
-		s3c2410_clkcon_enable(clkp, 0);
-	}
+	s3c_register_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
+	s3c_disable_clocks(init_clocks_off, ARRAY_SIZE(init_clocks_off));
 
 	/* show the clock-slow value */
 

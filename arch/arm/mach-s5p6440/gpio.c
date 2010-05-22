@@ -161,12 +161,15 @@ static struct s3c_gpio_cfg s5p6440_gpio_cfgs[] = {
 	}, {
 		.cfg_eint	= 0,
 		.set_config	= s3c_gpio_setcfg_s3c24xx,
+		.get_config	= s3c_gpio_getcfg_s3c24xx,
 	}, {
 		.cfg_eint	= 2,
 		.set_config	= s3c_gpio_setcfg_s3c24xx,
+		.get_config	= s3c_gpio_getcfg_s3c24xx,
 	}, {
 		.cfg_eint	= 3,
 		.set_config	= s3c_gpio_setcfg_s3c24xx,
+		.get_config	= s3c_gpio_getcfg_s3c24xx,
 	},
 };
 
@@ -279,6 +282,8 @@ void __init s5p6440_gpiolib_set_cfg(struct s3c_gpio_cfg *chipcfg, int nr_chips)
 	for (; nr_chips > 0; nr_chips--, chipcfg++) {
 		if (!chipcfg->set_config)
 			chipcfg->set_config	= s3c_gpio_setcfg_s3c64xx_4bit;
+		if (!chipcfg->get_config)
+			chipcfg->get_config	= s3c_gpio_getcfg_s3c64xx_4bit;
 		if (!chipcfg->set_pull)
 			chipcfg->set_pull	= s3c_gpio_setpull_updown;
 		if (!chipcfg->get_pull)

@@ -439,13 +439,13 @@ int rt28xx_open(struct net_device *dev)
 	RTMPInitPCIeLinkCtrlValue(pAd);
 #endif /* RTMP_MAC_PCI // */
 
-	return (retval);
+	return retval;
 
 err:
 /*+++Add by shiang, move from rt28xx_init() to here. */
 	RtmpOSIRQRelease(net_dev);
 /*---Add by shiang, move from rt28xx_init() to here. */
-	return (-1);
+	return -1;
 }				/* End of rt28xx_open */
 
 static const struct net_device_ops rt2860_netdev_ops = {
@@ -534,7 +534,7 @@ int rt28xx_packet_xmit(struct sk_buff *skb)
 	}
 
 	RTMP_SET_PACKET_5VT(pPacket, 0);
-	STASendPackets((void *)pAd, (void **)& pPacket, 1);
+	STASendPackets((void *)pAd, (void **)&pPacket, 1);
 
 	status = NETDEV_TX_OK;
 done:
@@ -571,7 +571,7 @@ static int rt28xx_send_packets(IN struct sk_buff *skb_p,
 		return NETDEV_TX_OK;
 	}
 
-	NdisZeroMemory((u8 *)& skb_p->cb[CB_OFF], 15);
+	NdisZeroMemory((u8 *)&skb_p->cb[CB_OFF], 15);
 	RTMP_SET_PACKET_NET_DEVICE_MBSSID(skb_p, MAIN_MBSSID);
 
 	return rt28xx_packet_xmit(skb_p);
@@ -628,13 +628,13 @@ void tbtt_tasklet(unsigned long data)
     ========================================================================
 
     Routine Description:
-        return ethernet statistics counter
+	return ethernet statistics counter
 
     Arguments:
-        net_dev                     Pointer to net_device
+	net_dev				Pointer to net_device
 
     Return Value:
-        net_device_stats*
+	net_device_stats*
 
     Note:
 
@@ -728,9 +728,9 @@ int AdapterBlockAllocateMemory(void *handle, void ** ppAd)
 
 	if (*ppAd) {
 		NdisZeroMemory(*ppAd, sizeof(struct rt_rtmp_adapter));
-		((struct rt_rtmp_adapter *)* ppAd)->OS_Cookie = handle;
-		return (NDIS_STATUS_SUCCESS);
+		((struct rt_rtmp_adapter *)*ppAd)->OS_Cookie = handle;
+		return NDIS_STATUS_SUCCESS;
 	} else {
-		return (NDIS_STATUS_FAILURE);
+		return NDIS_STATUS_FAILURE;
 	}
 }

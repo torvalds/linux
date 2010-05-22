@@ -752,8 +752,10 @@ static void pmz_break_ctl(struct uart_port *port, int break_state)
 		uap->curregs[R5] = new_reg;
 
 		/* NOTE: Not subject to 'transmitter active' rule. */
-		if (ZS_IS_ASLEEP(uap))
+		if (ZS_IS_ASLEEP(uap)) {
+			spin_unlock_irqrestore(&port->lock, flags);
 			return;
+		}
 		write_zsreg(uap, R5, uap->curregs[R5]);
 	}
 

@@ -545,12 +545,11 @@ unregister them:
 This will remove the device nodes from sysfs (causing udev to remove them
 from /dev).
 
-After video_unregister_device() returns no new opens can be done.
-
-However, in the case of USB devices some application might still have one
-of these device nodes open. You should block all new accesses to read,
-write, poll, etc. except possibly for certain ioctl operations like
-queueing buffers.
+After video_unregister_device() returns no new opens can be done. However,
+in the case of USB devices some application might still have one of these
+device nodes open. So after the unregister all file operations will return
+an error as well, except for the ioctl and unlocked_ioctl file operations:
+those will still be passed on since some buffer ioctls may still be needed.
 
 When the last user of the video device node exits, then the vdev->release()
 callback is called and you can do the final cleanup there.
@@ -609,3 +608,135 @@ scatter/gather method (videobuf-dma-sg), DMA with linear access
 
 Please see Documentation/video4linux/videobuf for more information on how
 to use the videobuf layer.
+
+struct v4l2_fh
+--------------
+
+struct v4l2_fh provides a way to easily keep file handle specific data
+that is used by the V4L2 framework. Using v4l2_fh is optional for
+drivers.
+
+The users of v4l2_fh (in the V4L2 framework, not the driver) know
+whether a driver uses v4l2_fh as its file->private_data pointer by
+testing the V4L2_FL_USES_V4L2_FH bit in video_device->flags.
+
+Useful functions:
+
+- v4l2_fh_init()
+
+  Initialise the file handle. This *MUST* be performed in the driver's
+  v4l2_file_operations->open() handler.
+
+- v4l2_fh_add()
+
+  Add a v4l2_fh to video_device file handle list. May be called after
+  initialising the file handle.
+
+- v4l2_fh_del()
+
+  Unassociate the file handle from video_device(). The file handle
+  exit function may now be called.
+
+- v4l2_fh_exit()
+
+  Uninitialise the file handle. After uninitialisation the v4l2_fh
+  memory can be freed.
+
+struct v4l2_fh is allocated as a part of the driver's own file handle
+structure and is set to file->private_data in the driver's open
+function by the driver. Drivers can extract their own file handle
+structure by using the container_of macro. Example:
+
+struct my_fh {
+	int blah;
+	struct v4l2_fh fh;
+};
+
+...
+
+int my_open(struct file *file)
+{
+	struct my_fh *my_fh;
+	struct video_device *vfd;
+	int ret;
+
+	...
+
+	ret = v4l2_fh_init(&my_fh->fh, vfd);
+	if (ret)
+		return ret;
+
+	v4l2_fh_add(&my_fh->fh);
+
+	file->private_data = &my_fh->fh;
+
+	...
+}
+
+int my_release(struct file *file)
+{
+	struct v4l2_fh *fh = file->private_data;
+	struct my_fh *my_fh = container_of(fh, struct my_fh, fh);
+
+	...
+}
+
+V4L2 events
+-----------
+
+The V4L2 events provide a generic way to pass events to user space.
+The driver must use v4l2_fh to be able to support V4L2 events.
+
+Useful functions:
+
+- v4l2_event_alloc()
+
+  To use events, the driver must allocate events for the file handle. By
+  calling the function more than once, the driver may assure that at least n
+  events in total have been allocated. The function may not be called in
+  atomic context.
+
+- v4l2_event_queue()
+
+  Queue events to video device. The driver's only responsibility is to fill
+  in the type and the data fields. The other fields will be filled in by
+  V4L2.
+
+- v4l2_event_subscribe()
+
+  The video_device->ioctl_ops->vidioc_subscribe_event must check the driver
+  is able to produce events with specified event id. Then it calls
+  v4l2_event_subscribe() to subscribe the event.
+
+- v4l2_event_unsubscribe()
+
+  vidioc_unsubscribe_event in struct v4l2_ioctl_ops. A driver may use
+  v4l2_event_unsubscribe() directly unless it wants to be involved in
+  unsubscription process.
+
+  The special type V4L2_EVENT_ALL may be used to unsubscribe all events. The
+  drivers may want to handle this in a special way.
+
+- v4l2_event_pending()
+
+  Returns the number of pending events. Useful when implementing poll.
+
+Drivers do not initialise events directly. The events are initialised
+through v4l2_fh_init() if video_device->ioctl_ops->vidioc_subscribe_event is
+non-NULL. This *MUST* be performed in the driver's
+v4l2_file_operations->open() handler.
+
+Events are delivered to user space through the poll system call. The driver
+can use v4l2_fh->events->wait wait_queue_head_t as the argument for
+poll_wait().
+
+There are standard and private events. New standard events must use the
+smallest available event type. The drivers must allocate their events from
+their own class starting from class base. Class base is
+V4L2_EVENT_PRIVATE_START + n * 1000 where n is the lowest available number.
+The first event type in the class is reserved for future use, so the first
+available event type is 'class base + 1'.
+
+An example on how the V4L2 events may be used can be found in the OMAP
+3 ISP driver available at <URL:http://gitorious.org/omap3camera> as of
+writing this.

@@ -329,7 +329,7 @@ void s3c_pm_save_gpios(void)
 	struct s3c_gpio_chip *ourchip;
 	unsigned int gpio_nr;
 
-	for (gpio_nr = 0; gpio_nr < S3C_GPIO_END; gpio_nr++) {
+	for (gpio_nr = 0; gpio_nr < S3C_GPIO_END;) {
 		ourchip = s3c_gpiolib_getchip(gpio_nr);
 		if (!ourchip)
 			continue;
@@ -367,7 +367,7 @@ void s3c_pm_restore_gpios(void)
 	struct s3c_gpio_chip *ourchip;
 	unsigned int gpio_nr;
 
-	for (gpio_nr = 0; gpio_nr < S3C_GPIO_END; gpio_nr++) {
+	for (gpio_nr = 0; gpio_nr < S3C_GPIO_END;) {
 		ourchip = s3c_gpiolib_getchip(gpio_nr);
 		if (!ourchip)
 			continue;

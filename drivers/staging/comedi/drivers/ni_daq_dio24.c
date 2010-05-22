@@ -131,7 +131,7 @@ static int dio24_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			return -EIO;
 		iobase = link->io.BasePort1;
 #ifdef incomplete
-		irq = link->irq.AssignedIRQ;
+		irq = link->irq;
 #endif
 		break;
 	default:
@@ -221,7 +221,6 @@ static const dev_info_t dev_info = "ni_daq_dio24";
 
 struct local_info_t {
 	struct pcmcia_device *link;
-	dev_node_t node;
 	int stop;
 	struct bus_operations *bus;
 };
@@ -252,10 +251,6 @@ static int dio24_cs_attach(struct pcmcia_device *link)
 		return -ENOMEM;
 	local->link = link;
 	link->priv = local;
-
-	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.Handler = NULL;
 
 	/*
 	   General socket configuration defaults can go here.  In this
@@ -290,10 +285,8 @@ static void dio24_cs_detach(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "dio24_cs_detach\n");
 
-	if (link->dev_node) {
-		((struct local_info_t *)link->priv)->stop = 1;
-		dio24_release(link);
-	}
+	((struct local_info_t *)link->priv)->stop = 1;
+	dio24_release(link);
 
 	/* This points to the parent local_info_t struct */
 	if (link->priv)
@@ -328,8 +321,7 @@ static int dio24_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	}
 
 	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
@@ -376,7 +368,6 @@ static int dio24_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 static void dio24_config(struct pcmcia_device *link)
 {
-	struct local_info_t *dev = link->priv;
 	int ret;
 	win_req_t req;
 
@@ -390,16 +381,8 @@ static void dio24_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	/*
-	   Allocate an interrupt line.  Note that this does not assign a
-	   handler to the interrupt, unless the 'Handler' member of the
-	   irq structure is initialized.
-	 */
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
-	}
+	if (!link->irq)
+		goto failed;
 
 	/*
 	   This actually configures the PCMCIA socket -- setting up
@@ -410,19 +393,10 @@ static void dio24_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	/*
-	   At this point, the dev_node_t structure(s) need to be
-	   initialized and arranged in a linked list at link->dev.
-	 */
-	sprintf(dev->node.dev_name, "ni_daq_dio24");
-	dev->node.major = dev->node.minor = 0;
-	link->dev_node = &dev->node;
-
 	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x",
-	       dev->node.dev_name, link->conf.ConfigIndex);
+	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %d", link->irq.AssignedIRQ);
+		printk(", irq %d", link->irq);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 		       link->io.BasePort1 + link->io.NumPorts1 - 1);
@@ -487,6 +461,10 @@ static struct pcmcia_device_id dio24_cs_ids[] = {
 };
 
 MODULE_DEVICE_TABLE(pcmcia, dio24_cs_ids);
+MODULE_AUTHOR("Daniel Vecino Castel <dvecino@able.es>");
+MODULE_DESCRIPTION("Comedi driver for National Instruments "
+		   "PCMCIA DAQ-Card DIO-24");
+MODULE_LICENSE("GPL");
 
 struct pcmcia_driver dio24_cs_driver = {
 	.probe = dio24_cs_attach,

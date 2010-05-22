@@ -118,6 +118,7 @@ long long simple_strtoll(const char *cp, char **endp, unsigned int base)
 
 	return simple_strtoull(cp, endp, base);
 }
+EXPORT_SYMBOL(simple_strtoll);
 
 /**
  * strict_strtoul - convert a string to an unsigned long strictly

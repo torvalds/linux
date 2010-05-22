@@ -558,9 +558,11 @@ static int vidioc_s_fbuf(struct file *file, void *fh, struct v4l2_framebuffer *f
 	/* ok, accept it */
 	vv->ov_fb = *fb;
 	vv->ov_fmt = fmt;
-	if (0 == vv->ov_fb.fmt.bytesperline)
-		vv->ov_fb.fmt.bytesperline =
-			vv->ov_fb.fmt.width * fmt->depth / 8;
+
+	if (vv->ov_fb.fmt.bytesperline < vv->ov_fb.fmt.width) {
+		vv->ov_fb.fmt.bytesperline = vv->ov_fb.fmt.width * fmt->depth / 8;
+		DEB_D(("setting bytesperline to %d\n", vv->ov_fb.fmt.bytesperline));
+	}
 
 	mutex_unlock(&dev->lock);
 	return 0;

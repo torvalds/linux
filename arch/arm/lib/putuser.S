@@ -81,11 +81,11 @@ __put_user_bad:
 	mov	pc, lr
 ENDPROC(__put_user_bad)
 
-.section __ex_table, "a"
+.pushsection __ex_table, "a"
 	.long	1b, __put_user_bad
 	.long	2b, __put_user_bad
 	.long	3b, __put_user_bad
 	.long	4b, __put_user_bad
 	.long	5b, __put_user_bad
 	.long	6b, __put_user_bad
-.previous
+.popsection

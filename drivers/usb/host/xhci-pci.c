@@ -54,7 +54,7 @@ static int xhci_pci_setup(struct usb_hcd *hcd)
 	struct pci_dev		*pdev = to_pci_dev(hcd->self.controller);
 	int			retval;
 
-	hcd->self.sg_tablesize = TRBS_PER_SEGMENT - 1;
+	hcd->self.sg_tablesize = TRBS_PER_SEGMENT - 2;
 
 	xhci->cap_regs = hcd->regs;
 	xhci->op_regs = hcd->regs +
@@ -132,6 +132,8 @@ static const struct hc_driver xhci_pci_hc_driver = {
 	.urb_dequeue =		xhci_urb_dequeue,
 	.alloc_dev =		xhci_alloc_dev,
 	.free_dev =		xhci_free_dev,
+	.alloc_streams =	xhci_alloc_streams,
+	.free_streams =		xhci_free_streams,
 	.add_endpoint =		xhci_add_endpoint,
 	.drop_endpoint =	xhci_drop_endpoint,
 	.endpoint_reset =	xhci_endpoint_reset,
@@ -175,12 +177,12 @@ static struct pci_driver xhci_pci_driver = {
 	.shutdown = 	usb_hcd_pci_shutdown,
 };
 
-int xhci_register_pci()
+int xhci_register_pci(void)
 {
 	return pci_register_driver(&xhci_pci_driver);
 }
 
-void xhci_unregister_pci()
+void xhci_unregister_pci(void)
 {
 	pci_unregister_driver(&xhci_pci_driver);
 }

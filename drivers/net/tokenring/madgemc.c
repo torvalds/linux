@@ -109,7 +109,6 @@ static void madgemc_sifwriteb(struct net_device *dev, unsigned short val, unsign
 		SIFWRITEB(val, reg);
 		madgemc_setregpage(dev, 0);
 	}
-	return;
 }
 
 /*
@@ -140,7 +139,6 @@ static void madgemc_sifwritew(struct net_device *dev, unsigned short val, unsign
 		SIFWRITEW(val, reg);
 		madgemc_setregpage(dev, 0);
 	}
-	return;
 }
 
 static struct net_device_ops madgemc_netdev_ops __read_mostly;
@@ -505,8 +503,6 @@ static void madgemc_setregpage(struct net_device *dev, int page)
 		     dev->base_addr + MC_CONTROL_REG1);
 	}
 	reg1 = inb(dev->base_addr + MC_CONTROL_REG1);
-
-	return;
 }
 
 /*
@@ -527,8 +523,6 @@ static void madgemc_setsifsel(struct net_device *dev, int val)
 		     dev->base_addr + MC_CONTROL_REG0);
 	}	
 	reg0 = inb(dev->base_addr + MC_CONTROL_REG0);
-
-	return;
 }
 
 /*
@@ -550,8 +544,6 @@ static void madgemc_setint(struct net_device *dev, int val)
 		outb(reg1 | MC_CONTROL_REG1_SINTEN, 
 		     dev->base_addr + MC_CONTROL_REG1);
 	}
-
-	return;
 }
 
 /*
@@ -594,8 +586,6 @@ static void madgemc_chipset_close(struct net_device *dev)
 	madgemc_setint(dev, 0);
 	/* unmap SIF registers */
 	madgemc_setsifsel(dev, 0);
-
-	return;
 }
 
 /*
@@ -656,8 +646,6 @@ static void madgemc_read_rom(struct net_device *dev, struct card_info *card)
 	/* Restore original register values */
 	outb(reg0, ioaddr + MC_CONTROL_REG0);
 	outb(reg1, ioaddr + MC_CONTROL_REG1);
-	
-	return;
 }
 
 static int madgemc_open(struct net_device *dev)

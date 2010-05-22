@@ -1,5 +1,5 @@
 /*
- * ISDB-T driver for VA1J5JF8007
+ * ISDB-T driver for VA1J5JF8007/VA1J5JF8011
  *
  * Copyright (C) 2009 HIRANO Takahito <hiranotaka@zng.info>
  *
@@ -24,8 +24,14 @@
 #ifndef VA1J5JF8007T_H
 #define VA1J5JF8007T_H
 
+enum va1j5jf8007t_frequency {
+	VA1J5JF8007T_20MHZ,
+	VA1J5JF8007T_25MHZ,
+};
+
 struct va1j5jf8007t_config {
 	u8 demod_address;
+	enum va1j5jf8007t_frequency frequency;
 };
 
 struct i2c_adapter;

@@ -44,7 +44,10 @@ struct sd {
 	u8 gamma;
 	u8 sharpness;
 	u8 freq;
-	u8 whitebalance;
+	u8 red_balance; /* split balance */
+	u8 blue_balance;
+	u8 global_gain; /* aka gain */
+	u8 whitebalance; /* set default r/g/b and activate */
 	u8 mirror;
 	u8 effect;
 
@@ -70,14 +73,24 @@ static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
+
+
 static int sd_setwhitebalance(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getwhitebalance(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setblue_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setglobal_gain(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getglobal_gain(struct gspca_dev *gspca_dev, __s32 *val);
+
 static int sd_setflip(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_seteffect(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_geteffect(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_querymenu(struct gspca_dev *gspca_dev,
 			struct v4l2_querymenu *menu);
+
 
 static const struct ctrl sd_ctrls[] = {
 	{
@@ -139,7 +152,7 @@ static const struct ctrl sd_ctrls[] = {
 	 },
 	{
 	 {
-	  .id = V4L2_CID_GAIN,	/* here, i activate only the lowlight,
+	  .id = V4L2_CID_BACKLIGHT_COMPENSATION, /* Activa lowlight,
 				 * some apps dont bring up the
 				 * backligth_compensation control) */
 	  .type = V4L2_CTRL_TYPE_INTEGER,
@@ -183,7 +196,7 @@ static const struct ctrl sd_ctrls[] = {
 
 	{
 	 {
-	  .id = V4L2_CID_WHITE_BALANCE_TEMPERATURE,
+	  .id =  V4L2_CID_AUTO_WHITE_BALANCE,
 	  .type = V4L2_CTRL_TYPE_INTEGER,
 	  .name = "White Balance",
 	  .minimum = 0,
@@ -222,6 +235,48 @@ static const struct ctrl sd_ctrls[] = {
 	  },
 	 .set = sd_seteffect,
 	 .get = sd_geteffect
+	},
+	{
+	 {
+	    .id      = V4L2_CID_BLUE_BALANCE,
+	    .type    = V4L2_CTRL_TYPE_INTEGER,
+	    .name    = "Blue Balance",
+	    .minimum = 0x10,
+	    .maximum = 0x40,
+	    .step    = 1,
+#define BLUE_BALANCE_DEF 0x20
+	    .default_value = BLUE_BALANCE_DEF,
+	 },
+	.set = sd_setblue_balance,
+	.get = sd_getblue_balance,
+	},
+	{
+	 {
+	    .id      = V4L2_CID_RED_BALANCE,
+	    .type    = V4L2_CTRL_TYPE_INTEGER,
+	    .name    = "Red Balance",
+	    .minimum = 0x10,
+	    .maximum = 0x40,
+	    .step    = 1,
+#define RED_BALANCE_DEF 0x20
+	    .default_value = RED_BALANCE_DEF,
+	 },
+	.set = sd_setred_balance,
+	.get = sd_getred_balance,
+	},
+	{
+	 {
+	    .id      = V4L2_CID_GAIN,
+	    .type    = V4L2_CTRL_TYPE_INTEGER,
+	    .name    = "Gain",
+	    .minimum = 0x10,
+	    .maximum = 0x40,
+	    .step    = 1,
+#define global_gain_DEF  0x20
+	    .default_value = global_gain_DEF,
+	 },
+	.set = sd_setglobal_gain,
+	.get = sd_getglobal_gain,
 	},
 };
 
@@ -523,6 +578,10 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 		u8 *tmpbuf;
 
 		tmpbuf = kmalloc(len, GFP_KERNEL);
+		if (!tmpbuf) {
+			err("Out of memory");
+			return;
+		}
 		memcpy(tmpbuf, buffer, len);
 		usb_control_msg(gspca_dev->dev,
 				usb_sndctrlpipe(gspca_dev->dev, 0),
@@ -542,10 +601,15 @@ static void reg_w_ixbuf(struct gspca_dev *gspca_dev,
 	int i;
 	u8 *p, *tmpbuf;
 
-	if (len * 2 <= USB_BUF_SZ)
+	if (len * 2 <= USB_BUF_SZ) {
 		p = tmpbuf = gspca_dev->usb_buf;
-	else
+	} else {
 		p = tmpbuf = kmalloc(len * 2, GFP_KERNEL);
+		if (!tmpbuf) {
+			err("Out of memory");
+			return;
+		}
+	}
 	i = len;
 	while (--i >= 0) {
 		*p++ = reg++;
@@ -642,6 +706,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->whitebalance = WHITE_BALANCE_DEF;
 	sd->sharpness = SHARPNESS_DEF;
 	sd->effect = EFFECTS_DEF;
+	sd->red_balance = RED_BALANCE_DEF;
+	sd->blue_balance = BLUE_BALANCE_DEF;
+	sd->global_gain = global_gain_DEF;
+
 	return 0;
 }
 
@@ -693,18 +761,40 @@ static void setgamma(struct gspca_dev *gspca_dev)
 	reg_w_ixbuf(gspca_dev, 0x90,
 		gamma_table[sd->gamma], sizeof gamma_table[0]);
 }
+static void setglobalgain(struct gspca_dev *gspca_dev)
+{
 
-static void setwhitebalance(struct gspca_dev *gspca_dev)
+	struct sd *sd = (struct sd *) gspca_dev;
+	reg_w(gspca_dev, (sd->red_balance  << 8) + 0x87);
+	reg_w(gspca_dev, (sd->blue_balance << 8) + 0x88);
+	reg_w(gspca_dev, (sd->global_gain  << 8) + 0x89);
+}
+
+/* Generic fnc for r/b balance, exposure and whitebalance */
+static void setbalance(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	u8 white_balance[8] =
-		{0x87, 0x20, 0x88, 0x20, 0x89, 0x20, 0x80, 0x38};
+	/* on whitebalance leave defaults values */
+	if (sd->whitebalance) {
+		reg_w(gspca_dev, 0x3c80);
+	} else {
+		reg_w(gspca_dev, 0x3880);
+		/* shoud we wait here.. */
+		/* update and reset 'global gain' with webcam parameters */
+		sd->red_balance = reg_r(gspca_dev, 0x0087);
+		sd->blue_balance = reg_r(gspca_dev, 0x0088);
+		sd->global_gain = reg_r(gspca_dev, 0x0089);
+		setglobalgain(gspca_dev);
+	}
 
-	if (sd->whitebalance)
-		white_balance[7] = 0x3c;
+}
 
-	reg_w_buf(gspca_dev, white_balance, sizeof white_balance);
+
+
+static void setwhitebalance(struct gspca_dev *gspca_dev)
+{
+	setbalance(gspca_dev);
 }
 
 static void setsharpness(struct gspca_dev *gspca_dev)
@@ -1017,6 +1107,66 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
 }
+
+
+static int sd_setblue_balance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->blue_balance = val;
+	if (gspca_dev->streaming)
+		reg_w(gspca_dev, (val << 8) + 0x88);
+	return 0;
+}
+
+static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->blue_balance;
+	return 0;
+}
+
+static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->red_balance = val;
+	if (gspca_dev->streaming)
+		reg_w(gspca_dev, (val << 8) + 0x87);
+
+	return 0;
+}
+
+static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->red_balance;
+	return 0;
+}
+
+
+
+static int sd_setglobal_gain(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->global_gain = val;
+	if (gspca_dev->streaming)
+		setglobalgain(gspca_dev);
+
+	return 0;
+}
+
+static int sd_getglobal_gain(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->global_gain;
+	return 0;
+}
+
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 {

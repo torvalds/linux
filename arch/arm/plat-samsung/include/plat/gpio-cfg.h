@@ -25,6 +25,7 @@
 #define __PLAT_GPIO_CFG_H __FILE__
 
 typedef unsigned int __bitwise__ s3c_gpio_pull_t;
+typedef unsigned int __bitwise__ s5p_gpio_drvstr_t;
 
 /* forward declaration if gpio-core.h hasn't been included */
 struct s3c_gpio_chip;
@@ -77,6 +78,17 @@ struct s3c_gpio_cfg {
  */
 extern int s3c_gpio_cfgpin(unsigned int pin, unsigned int to);
 
+/**
+ * s3c_gpio_getcfg - Read the current function for a GPIO pin
+ * @pin: The pin to read the configuration value for.
+ *
+ * Read the configuration state of the given @pin, returning a value that
+ * could be passed back to s3c_gpio_cfgpin().
+ *
+ * @sa s3c_gpio_cfgpin
+ */
+extern unsigned s3c_gpio_getcfg(unsigned int pin);
+
 /* Define values for the pull-{up,down} available for each gpio pin.
  *
  * These values control the state of the weak pull-{up,down} resistors
@@ -106,5 +118,34 @@ extern int s3c_gpio_setpull(unsigned int pin, s3c_gpio_pull_t pull);
  * Read the pull resistor value for the specified pin.
 */
 extern s3c_gpio_pull_t s3c_gpio_getpull(unsigned int pin);
+
+/* Define values for the drvstr available for each gpio pin.
+ *
+ * These values control the value of the output signal driver strength,
+ * configurable on most pins on the S5C series.
+ */
+#define S5P_GPIO_DRVSTR_LV1	((__force s5p_gpio_drvstr_t)0x00)
+#define S5P_GPIO_DRVSTR_LV2	((__force s5p_gpio_drvstr_t)0x01)
+#define S5P_GPIO_DRVSTR_LV3	((__force s5p_gpio_drvstr_t)0x10)
+#define S5P_GPIO_DRVSTR_LV4	((__force s5p_gpio_drvstr_t)0x11)
+
+/**
+ * s5c_gpio_get_drvstr() - get the driver streght value of a gpio pin
+ * @pin: The pin number to get the settings for
+ *
+ * Read the driver streght value for the specified pin.
+*/
+extern s5p_gpio_drvstr_t s5p_gpio_get_drvstr(unsigned int pin);
+
+/**
+ * s3c_gpio_set_drvstr() - set the driver streght value of a gpio pin
+ * @pin: The pin number to configure the driver streght value
+ * @drvstr: The new value of the driver strength
+ *
+ * This function sets the driver strength value for the specified pin.
+ * It will return 0 if successfull, or a negative error code if the pin
+ * cannot support the requested setting.
+*/
+extern int s5p_gpio_set_drvstr(unsigned int pin, s5p_gpio_drvstr_t drvstr);
 
 #endif /* __PLAT_GPIO_CFG_H */

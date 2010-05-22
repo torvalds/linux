@@ -30,34 +30,34 @@
 
 #include "usbdrv.h"
 
-#define ZD_IOCTL_WPA			    (SIOCDEVPRIVATE + 1)
-#define ZD_IOCTL_PARAM			    (SIOCDEVPRIVATE + 2)
-#define ZD_IOCTL_GETWPAIE		    (SIOCDEVPRIVATE + 3)
+#define ZD_IOCTL_WPA			(SIOCDEVPRIVATE + 1)
+#define ZD_IOCTL_PARAM			(SIOCDEVPRIVATE + 2)
+#define ZD_IOCTL_GETWPAIE		(SIOCDEVPRIVATE + 3)
 #ifdef ZM_ENABLE_CENC
-#define ZM_IOCTL_CENC               (SIOCDEVPRIVATE + 4)
+#define ZM_IOCTL_CENC			(SIOCDEVPRIVATE + 4)
 #endif  /* ZM_ENABLE_CENC */
-#define ZD_PARAM_ROAMING		    0x0001
-#define ZD_PARAM_PRIVACY		    0x0002
-#define ZD_PARAM_WPA			    0x0003
+#define ZD_PARAM_ROAMING		0x0001
+#define ZD_PARAM_PRIVACY		0x0002
+#define ZD_PARAM_WPA			0x0003
 #define ZD_PARAM_COUNTERMEASURES	0x0004
 #define ZD_PARAM_DROPUNENCRYPTED	0x0005
-#define ZD_PARAM_AUTH_ALGS		    0x0006
-#define ZD_PARAM_WPS_FILTER		    0x0007
+#define ZD_PARAM_AUTH_ALGS		0x0006
+#define ZD_PARAM_WPS_FILTER		0x0007
 
 #ifdef ZM_ENABLE_CENC
 #define P80211_PACKET_CENCFLAG		0x0001
 #endif  /* ZM_ENABLE_CENC */
-#define P80211_PACKET_SETKEY     	0x0003
+#define P80211_PACKET_SETKEY		0x0003
 
 #define ZD_CMD_SET_ENCRYPT_KEY		0x0001
-#define ZD_CMD_SET_MLME			    0x0002
-#define ZD_CMD_SCAN_REQ			    0x0003
+#define ZD_CMD_SET_MLME			0x0002
+#define ZD_CMD_SCAN_REQ			0x0003
 #define ZD_CMD_SET_GENERIC_ELEMENT	0x0004
-#define ZD_CMD_GET_TSC			    0x0005
+#define ZD_CMD_GET_TSC			0x0005
 
 #define ZD_CRYPT_ALG_NAME_LEN		16
-#define ZD_MAX_KEY_SIZE			    32
-#define ZD_MAX_GENERIC_SIZE		    64
+#define ZD_MAX_KEY_SIZE			32
+#define ZD_MAX_GENERIC_SIZE		64
 
 #include <net/iw_handler.h>
 
@@ -867,6 +867,7 @@ int usbdrvwext_giwscan(struct net_device *dev,
 	char *current_ev = extra;
 	char *end_buf;
 	int i;
+	struct zsBssListV1 *pBssList;
 	/* BssList = wd->sta.pBssList; */
 	/* zmw_get_wlan_dev(dev); */
 
@@ -874,8 +875,10 @@ int usbdrvwext_giwscan(struct net_device *dev,
 		return 0;
 
 	/* struct zsBssList BssList; */
-	struct zsBssListV1 *pBssList = kmalloc(sizeof(struct zsBssListV1),
-								GFP_KERNEL);
+	pBssList = kmalloc(sizeof(struct zsBssListV1), GFP_KERNEL);
+	if (pBssList == NULL)
+		return -ENOMEM;
+
 	if (data->length == 0)
 		end_buf = extra + IW_SCAN_MAX_DATA;
 	else

@@ -395,10 +395,18 @@ void __init mmu_context_init(void)
 	 * the PID/TID comparison is disabled, so we can use a TID of zero
 	 * to represent all kernel pages as shared among all contexts.
 	 * 	-- Dan
+	 *
+	 * The IBM 47x core supports 16-bit PIDs, thus 65535 contexts. We
+	 * should normally never have to steal though the facility is
+	 * present if needed.
+	 *      -- BenH
 	 */
 	if (mmu_has_feature(MMU_FTR_TYPE_8xx)) {
 		first_context = 0;
 		last_context = 15;
+	} else if (mmu_has_feature(MMU_FTR_TYPE_47x)) {
+		first_context = 1;
+		last_context = 65535;
 	} else {
 		first_context = 1;
 		last_context = 255;

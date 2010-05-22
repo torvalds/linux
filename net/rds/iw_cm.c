@@ -157,9 +157,11 @@ static void rds_iw_qp_event_handler(struct ib_event *event, void *data)
 	case IB_EVENT_QP_REQ_ERR:
 	case IB_EVENT_QP_FATAL:
 	default:
-		rds_iw_conn_error(conn, "RDS/IW: Fatal QP Event %u - connection %pI4->%pI4...reconnecting\n",
+		rdsdebug("Fatal QP Event %u "
+			"- connection %pI4->%pI4, reconnecting\n",
 			event->event, &conn->c_laddr,
 			&conn->c_faddr);
+		rds_conn_drop(conn);
 		break;
 	}
 }

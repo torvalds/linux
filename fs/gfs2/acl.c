@@ -335,7 +335,7 @@ out:
 	return error;
 }
 
-struct xattr_handler gfs2_xattr_system_handler = {
+const struct xattr_handler gfs2_xattr_system_handler = {
 	.prefix = XATTR_SYSTEM_PREFIX,
 	.flags  = GFS2_EATYPE_SYS,
 	.get    = gfs2_xattr_system_get,

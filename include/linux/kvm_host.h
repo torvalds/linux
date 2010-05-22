@@ -54,7 +54,7 @@ extern struct kmem_cache *kvm_vcpu_cache;
  */
 struct kvm_io_bus {
 	int                   dev_count;
-#define NR_IOBUS_DEVS 6
+#define NR_IOBUS_DEVS 200
 	struct kvm_io_device *devs[NR_IOBUS_DEVS];
 };
 
@@ -105,6 +105,12 @@ struct kvm_vcpu {
 	struct kvm_vcpu_arch arch;
 };
 
+/*
+ * Some of the bitops functions do not support too long bitmaps.
+ * This number must be determined not to exceed such limits.
+ */
+#define KVM_MEM_MAX_NR_PAGES ((1UL << 31) - 1)
+
 struct kvm_memory_slot {
 	gfn_t base_gfn;
 	unsigned long npages;
@@ -118,6 +124,11 @@ struct kvm_memory_slot {
 	unsigned long userspace_addr;
 	int user_alloc;
 };
+
+static inline unsigned long kvm_dirty_bitmap_bytes(struct kvm_memory_slot *memslot)
+{
+	return ALIGN(memslot->npages, BITS_PER_LONG) / 8;
+}
 
 struct kvm_kernel_irq_routing_entry {
 	u32 gsi;
@@ -232,17 +243,23 @@ void kvm_vcpu_uninit(struct kvm_vcpu *vcpu);
 void vcpu_load(struct kvm_vcpu *vcpu);
 void vcpu_put(struct kvm_vcpu *vcpu);
 
-int kvm_init(void *opaque, unsigned int vcpu_size,
+int kvm_init(void *opaque, unsigned vcpu_size, unsigned vcpu_align,
 		  struct module *module);
 void kvm_exit(void);
 
 void kvm_get_kvm(struct kvm *kvm);
 void kvm_put_kvm(struct kvm *kvm);
 
+static inline struct kvm_memslots *kvm_memslots(struct kvm *kvm)
+{
+	return rcu_dereference_check(kvm->memslots,
+			srcu_read_lock_held(&kvm->srcu)
+			|| lockdep_is_held(&kvm->slots_lock));
+}
+
 #define HPA_MSB ((sizeof(hpa_t) * 8) - 1)
 #define HPA_ERR_MASK ((hpa_t)1 << HPA_MSB)
 static inline int is_error_hpa(hpa_t hpa) { return hpa >> HPA_MSB; }
-struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva);
 
 extern struct page *bad_page;
 extern pfn_t bad_pfn;

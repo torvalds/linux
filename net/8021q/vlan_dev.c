@@ -327,7 +327,7 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 	len = skb->len;
 	ret = dev_queue_xmit(skb);
 
-	if (likely(ret == NET_XMIT_SUCCESS)) {
+	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
 		txq->tx_packets++;
 		txq->tx_bytes += len;
 	} else
@@ -353,7 +353,7 @@ static netdev_tx_t vlan_dev_hwaccel_hard_start_xmit(struct sk_buff *skb,
 	len = skb->len;
 	ret = dev_queue_xmit(skb);
 
-	if (likely(ret == NET_XMIT_SUCCESS)) {
+	if (likely(ret == NET_XMIT_SUCCESS || ret == NET_XMIT_CN)) {
 		txq->tx_packets++;
 		txq->tx_bytes += len;
 	} else
@@ -470,7 +470,7 @@ static int vlan_dev_open(struct net_device *dev)
 		return -ENETDOWN;
 
 	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr)) {
-		err = dev_unicast_add(real_dev, dev->dev_addr);
+		err = dev_uc_add(real_dev, dev->dev_addr);
 		if (err < 0)
 			goto out;
 	}
@@ -499,7 +499,7 @@ clear_allmulti:
 		dev_set_allmulti(real_dev, -1);
 del_unicast:
 	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr))
-		dev_unicast_delete(real_dev, dev->dev_addr);
+		dev_uc_del(real_dev, dev->dev_addr);
 out:
 	netif_carrier_off(dev);
 	return err;
@@ -514,14 +514,14 @@ static int vlan_dev_stop(struct net_device *dev)
 		vlan_gvrp_request_leave(dev);
 
 	dev_mc_unsync(real_dev, dev);
-	dev_unicast_unsync(real_dev, dev);
+	dev_uc_unsync(real_dev, dev);
 	if (dev->flags & IFF_ALLMULTI)
 		dev_set_allmulti(real_dev, -1);
 	if (dev->flags & IFF_PROMISC)
 		dev_set_promiscuity(real_dev, -1);
 
 	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr))
-		dev_unicast_delete(real_dev, dev->dev_addr);
+		dev_uc_del(real_dev, dev->dev_addr);
 
 	netif_carrier_off(dev);
 	return 0;
@@ -540,13 +540,13 @@ static int vlan_dev_set_mac_address(struct net_device *dev, void *p)
 		goto out;
 
 	if (compare_ether_addr(addr->sa_data, real_dev->dev_addr)) {
-		err = dev_unicast_add(real_dev, addr->sa_data);
+		err = dev_uc_add(real_dev, addr->sa_data);
 		if (err < 0)
 			return err;
 	}
 
 	if (compare_ether_addr(dev->dev_addr, real_dev->dev_addr))
-		dev_unicast_delete(real_dev, dev->dev_addr);
+		dev_uc_del(real_dev, dev->dev_addr);
 
 out:
 	memcpy(dev->dev_addr, addr->sa_data, ETH_ALEN);
@@ -663,7 +663,7 @@ static void vlan_dev_change_rx_flags(struct net_device *dev, int change)
 static void vlan_dev_set_rx_mode(struct net_device *vlan_dev)
 {
 	dev_mc_sync(vlan_dev_info(vlan_dev)->real_dev, vlan_dev);
-	dev_unicast_sync(vlan_dev_info(vlan_dev)->real_dev, vlan_dev);
+	dev_uc_sync(vlan_dev_info(vlan_dev)->real_dev, vlan_dev);
 }
 
 /*

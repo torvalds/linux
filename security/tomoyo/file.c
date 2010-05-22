@@ -45,6 +45,37 @@ static const char *tomoyo_path2_keyword[TOMOYO_MAX_PATH2_OPERATION] = {
 	[TOMOYO_TYPE_PIVOT_ROOT] = "pivot_root",
 };
 
+void tomoyo_put_name_union(struct tomoyo_name_union *ptr)
+{
+	if (!ptr)
+		return;
+	if (ptr->is_group)
+		tomoyo_put_path_group(ptr->group);
+	else
+		tomoyo_put_name(ptr->filename);
+}
+
+bool tomoyo_compare_name_union(const struct tomoyo_path_info *name,
+			       const struct tomoyo_name_union *ptr)
+{
+	if (ptr->is_group)
+		return tomoyo_path_matches_group(name, ptr->group, 1);
+	return tomoyo_path_matches_pattern(name, ptr->filename);
+}
+
+static bool tomoyo_compare_name_union_pattern(const struct tomoyo_path_info
+					      *name,
+					      const struct tomoyo_name_union
+					      *ptr, const bool may_use_pattern)
+{
+	if (ptr->is_group)
+		return tomoyo_path_matches_group(name, ptr->group,
+						 may_use_pattern);
+	if (may_use_pattern || !ptr->filename->is_patterned)
+		return tomoyo_path_matches_pattern(name, ptr->filename);
+	return false;
+}
+
 /**
  * tomoyo_path2keyword - Get the name of single path operation.
  *
@@ -100,7 +131,7 @@ static struct tomoyo_path_info *tomoyo_get_path(struct path *path)
 {
 	int error;
 	struct tomoyo_path_info_with_data *buf = kzalloc(sizeof(*buf),
-							 GFP_KERNEL);
+							 GFP_NOFS);
 
 	if (!buf)
 		return NULL;
@@ -164,36 +195,36 @@ LIST_HEAD(tomoyo_globally_readable_list);
 static int tomoyo_update_globally_readable_entry(const char *filename,
 						 const bool is_delete)
 {
-	struct tomoyo_globally_readable_file_entry *entry = NULL;
 	struct tomoyo_globally_readable_file_entry *ptr;
-	const struct tomoyo_path_info *saved_filename;
+	struct tomoyo_globally_readable_file_entry e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
 	if (!tomoyo_is_correct_path(filename, 1, 0, -1))
 		return -EINVAL;
-	saved_filename = tomoyo_get_name(filename);
-	if (!saved_filename)
+	e.filename = tomoyo_get_name(filename);
+	if (!e.filename)
 		return -ENOMEM;
-	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_globally_readable_list, list) {
-		if (ptr->filename != saved_filename)
+		if (ptr->filename != e.filename)
 			continue;
 		ptr->is_deleted = is_delete;
 		error = 0;
 		break;
 	}
-	if (!is_delete && error && tomoyo_memory_ok(entry)) {
-		entry->filename = saved_filename;
-		saved_filename = NULL;
-		list_add_tail_rcu(&entry->list, &tomoyo_globally_readable_list);
-		entry = NULL;
-		error = 0;
+	if (!is_delete && error) {
+		struct tomoyo_globally_readable_file_entry *entry =
+			tomoyo_commit_ok(&e, sizeof(e));
+		if (entry) {
+			list_add_tail_rcu(&entry->list,
+					  &tomoyo_globally_readable_list);
+			error = 0;
+		}
 	}
 	mutex_unlock(&tomoyo_policy_lock);
-	tomoyo_put_name(saved_filename);
-	kfree(entry);
+ out:
+	tomoyo_put_name(e.filename);
 	return error;
 }
 
@@ -311,37 +342,34 @@ LIST_HEAD(tomoyo_pattern_list);
 static int tomoyo_update_file_pattern_entry(const char *pattern,
 					    const bool is_delete)
 {
-	struct tomoyo_pattern_entry *entry = NULL;
 	struct tomoyo_pattern_entry *ptr;
-	const struct tomoyo_path_info *saved_pattern;
+	struct tomoyo_pattern_entry e = { .pattern = tomoyo_get_name(pattern) };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
-	saved_pattern = tomoyo_get_name(pattern);
-	if (!saved_pattern)
+	if (!e.pattern)
 		return error;
-	if (!saved_pattern->is_patterned)
+	if (!e.pattern->is_patterned)
 		goto out;
-	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_pattern_list, list) {
-		if (saved_pattern != ptr->pattern)
+		if (e.pattern != ptr->pattern)
 			continue;
 		ptr->is_deleted = is_delete;
 		error = 0;
 		break;
 	}
-	if (!is_delete && error && tomoyo_memory_ok(entry)) {
-		entry->pattern = saved_pattern;
-		saved_pattern = NULL;
-		list_add_tail_rcu(&entry->list, &tomoyo_pattern_list);
-		entry = NULL;
-		error = 0;
+	if (!is_delete && error) {
+		struct tomoyo_pattern_entry *entry =
+			tomoyo_commit_ok(&e, sizeof(e));
+		if (entry) {
+			list_add_tail_rcu(&entry->list, &tomoyo_pattern_list);
+			error = 0;
+		}
 	}
 	mutex_unlock(&tomoyo_policy_lock);
  out:
-	kfree(entry);
-	tomoyo_put_name(saved_pattern);
+	tomoyo_put_name(e.pattern);
 	return error;
 }
 
@@ -464,36 +492,36 @@ LIST_HEAD(tomoyo_no_rewrite_list);
 static int tomoyo_update_no_rewrite_entry(const char *pattern,
 					  const bool is_delete)
 {
-	struct tomoyo_no_rewrite_entry *entry = NULL;
 	struct tomoyo_no_rewrite_entry *ptr;
-	const struct tomoyo_path_info *saved_pattern;
+	struct tomoyo_no_rewrite_entry e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
 	if (!tomoyo_is_correct_path(pattern, 0, 0, 0))
 		return -EINVAL;
-	saved_pattern = tomoyo_get_name(pattern);
-	if (!saved_pattern)
+	e.pattern = tomoyo_get_name(pattern);
+	if (!e.pattern)
 		return error;
-	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_no_rewrite_list, list) {
-		if (ptr->pattern != saved_pattern)
+		if (ptr->pattern != e.pattern)
 			continue;
 		ptr->is_deleted = is_delete;
 		error = 0;
 		break;
 	}
-	if (!is_delete && error && tomoyo_memory_ok(entry)) {
-		entry->pattern = saved_pattern;
-		saved_pattern = NULL;
-		list_add_tail_rcu(&entry->list, &tomoyo_no_rewrite_list);
-		entry = NULL;
-		error = 0;
+	if (!is_delete && error) {
+		struct tomoyo_no_rewrite_entry *entry =
+			tomoyo_commit_ok(&e, sizeof(e));
+		if (entry) {
+			list_add_tail_rcu(&entry->list,
+					  &tomoyo_no_rewrite_list);
+			error = 0;
+		}
 	}
 	mutex_unlock(&tomoyo_policy_lock);
-	tomoyo_put_name(saved_pattern);
-	kfree(entry);
+ out:
+	tomoyo_put_name(e.pattern);
 	return error;
 }
 
@@ -640,13 +668,9 @@ static int tomoyo_path_acl2(const struct tomoyo_domain_info *domain,
 			if (!(acl->perm_high & (perm >> 16)))
 				continue;
 		}
-		if (may_use_pattern || !acl->filename->is_patterned) {
-			if (!tomoyo_path_matches_pattern(filename,
-							 acl->filename))
-				continue;
-		} else {
+		if (!tomoyo_compare_name_union_pattern(filename, &acl->name,
+                                                       may_use_pattern))
 			continue;
-		}
 		error = 0;
 		break;
 	}
@@ -805,70 +829,64 @@ static int tomoyo_update_path_acl(const u8 type, const char *filename,
 				  struct tomoyo_domain_info *const domain,
 				  const bool is_delete)
 {
-	static const u32 rw_mask =
+	static const u32 tomoyo_rw_mask =
 		(1 << TOMOYO_TYPE_READ) | (1 << TOMOYO_TYPE_WRITE);
-	const struct tomoyo_path_info *saved_filename;
-	struct tomoyo_acl_info *ptr;
-	struct tomoyo_path_acl *entry = NULL;
-	int error = is_delete ? -ENOENT : -ENOMEM;
 	const u32 perm = 1 << type;
+	struct tomoyo_acl_info *ptr;
+	struct tomoyo_path_acl e = {
+		.head.type = TOMOYO_TYPE_PATH_ACL,
+		.perm_high = perm >> 16,
+		.perm = perm
+	};
+	int error = is_delete ? -ENOENT : -ENOMEM;
 
+	if (type == TOMOYO_TYPE_READ_WRITE)
+		e.perm |= tomoyo_rw_mask;
 	if (!domain)
 		return -EINVAL;
-	if (!tomoyo_is_correct_path(filename, 0, 0, 0))
+	if (!tomoyo_parse_name_union(filename, &e.name))
 		return -EINVAL;
-	saved_filename = tomoyo_get_name(filename);
-	if (!saved_filename)
-		return -ENOMEM;
-	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
 		struct tomoyo_path_acl *acl =
 			container_of(ptr, struct tomoyo_path_acl, head);
-		if (ptr->type != TOMOYO_TYPE_PATH_ACL)
-			continue;
-		if (acl->filename != saved_filename)
+		if (!tomoyo_is_same_path_acl(acl, &e))
 			continue;
 		if (is_delete) {
 			if (perm <= 0xFFFF)
 				acl->perm &= ~perm;
 			else
 				acl->perm_high &= ~(perm >> 16);
-			if ((acl->perm & rw_mask) != rw_mask)
+			if ((acl->perm & tomoyo_rw_mask) != tomoyo_rw_mask)
 				acl->perm &= ~(1 << TOMOYO_TYPE_READ_WRITE);
 			else if (!(acl->perm & (1 << TOMOYO_TYPE_READ_WRITE)))
-				acl->perm &= ~rw_mask;
+				acl->perm &= ~tomoyo_rw_mask;
 		} else {
 			if (perm <= 0xFFFF)
 				acl->perm |= perm;
 			else
 				acl->perm_high |= (perm >> 16);
-			if ((acl->perm & rw_mask) == rw_mask)
+			if ((acl->perm & tomoyo_rw_mask) == tomoyo_rw_mask)
 				acl->perm |= 1 << TOMOYO_TYPE_READ_WRITE;
 			else if (acl->perm & (1 << TOMOYO_TYPE_READ_WRITE))
-				acl->perm |= rw_mask;
+				acl->perm |= tomoyo_rw_mask;
 		}
 		error = 0;
 		break;
 	}
-	if (!is_delete && error && tomoyo_memory_ok(entry)) {
-		entry->head.type = TOMOYO_TYPE_PATH_ACL;
-		if (perm <= 0xFFFF)
-			entry->perm = perm;
-		else
-			entry->perm_high = (perm >> 16);
-		if (perm == (1 << TOMOYO_TYPE_READ_WRITE))
-			entry->perm |= rw_mask;
-		entry->filename = saved_filename;
-		saved_filename = NULL;
-		list_add_tail_rcu(&entry->head.list, &domain->acl_info_list);
-		entry = NULL;
-		error = 0;
+	if (!is_delete && error) {
+		struct tomoyo_path_acl *entry =
+			tomoyo_commit_ok(&e, sizeof(e));
+		if (entry) {
+			list_add_tail_rcu(&entry->head.list,
+					  &domain->acl_info_list);
+			error = 0;
+		}
 	}
 	mutex_unlock(&tomoyo_policy_lock);
-	kfree(entry);
-	tomoyo_put_name(saved_filename);
+ out:
+	tomoyo_put_name_union(&e.name);
 	return error;
 }
 
@@ -890,32 +908,25 @@ static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
 				   struct tomoyo_domain_info *const domain,
 				   const bool is_delete)
 {
-	const struct tomoyo_path_info *saved_filename1;
-	const struct tomoyo_path_info *saved_filename2;
-	struct tomoyo_acl_info *ptr;
-	struct tomoyo_path2_acl *entry = NULL;
-	int error = is_delete ? -ENOENT : -ENOMEM;
 	const u8 perm = 1 << type;
+	struct tomoyo_path2_acl e = {
+		.head.type = TOMOYO_TYPE_PATH2_ACL,
+		.perm = perm
+	};
+	struct tomoyo_acl_info *ptr;
+	int error = is_delete ? -ENOENT : -ENOMEM;
 
 	if (!domain)
 		return -EINVAL;
-	if (!tomoyo_is_correct_path(filename1, 0, 0, 0) ||
-	    !tomoyo_is_correct_path(filename2, 0, 0, 0))
-		return -EINVAL;
-	saved_filename1 = tomoyo_get_name(filename1);
-	saved_filename2 = tomoyo_get_name(filename2);
-	if (!saved_filename1 || !saved_filename2)
+	if (!tomoyo_parse_name_union(filename1, &e.name1) ||
+	    !tomoyo_parse_name_union(filename2, &e.name2))
 		goto out;
-	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &domain->acl_info_list, list) {
 		struct tomoyo_path2_acl *acl =
 			container_of(ptr, struct tomoyo_path2_acl, head);
-		if (ptr->type != TOMOYO_TYPE_PATH2_ACL)
-			continue;
-		if (acl->filename1 != saved_filename1 ||
-		    acl->filename2 != saved_filename2)
+		if (!tomoyo_is_same_path2_acl(acl, &e))
 			continue;
 		if (is_delete)
 			acl->perm &= ~perm;
@@ -924,22 +935,19 @@ static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
 		error = 0;
 		break;
 	}
-	if (!is_delete && error && tomoyo_memory_ok(entry)) {
-		entry->head.type = TOMOYO_TYPE_PATH2_ACL;
-		entry->perm = perm;
-		entry->filename1 = saved_filename1;
-		saved_filename1 = NULL;
-		entry->filename2 = saved_filename2;
-		saved_filename2 = NULL;
-		list_add_tail_rcu(&entry->head.list, &domain->acl_info_list);
-		entry = NULL;
-		error = 0;
+	if (!is_delete && error) {
+		struct tomoyo_path2_acl *entry =
+			tomoyo_commit_ok(&e, sizeof(e));
+		if (entry) {
+			list_add_tail_rcu(&entry->head.list,
+					  &domain->acl_info_list);
+			error = 0;
+		}
 	}
 	mutex_unlock(&tomoyo_policy_lock);
  out:
-	tomoyo_put_name(saved_filename1);
-	tomoyo_put_name(saved_filename2);
-	kfree(entry);
+	tomoyo_put_name_union(&e.name1);
+	tomoyo_put_name_union(&e.name2);
 	return error;
 }
 
@@ -992,9 +1000,9 @@ static int tomoyo_path2_acl(const struct tomoyo_domain_info *domain,
 		acl = container_of(ptr, struct tomoyo_path2_acl, head);
 		if (!(acl->perm & perm))
 			continue;
-		if (!tomoyo_path_matches_pattern(filename1, acl->filename1))
+		if (!tomoyo_compare_name_union(filename1, &acl->name1))
 			continue;
-		if (!tomoyo_path_matches_pattern(filename2, acl->filename2))
+		if (!tomoyo_compare_name_union(filename2, &acl->name2))
 			continue;
 		error = 0;
 		break;

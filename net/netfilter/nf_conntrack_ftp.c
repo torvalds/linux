@@ -573,8 +573,8 @@ static int __init nf_conntrack_ftp_init(void)
 				 ftp[i][j].tuple.src.l3num, ports[i]);
 			ret = nf_conntrack_helper_register(&ftp[i][j]);
 			if (ret) {
-				printk("nf_ct_ftp: failed to register helper "
-				       " for pf: %d port: %d\n",
+				printk(KERN_ERR "nf_ct_ftp: failed to register"
+				       " helper for pf: %d port: %d\n",
 					ftp[i][j].tuple.src.l3num, ports[i]);
 				nf_conntrack_ftp_fini();
 				return ret;

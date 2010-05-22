@@ -54,6 +54,7 @@ struct linux_binprm;
 #define TOMOYO_KEYWORD_KEEP_DOMAIN               "keep_domain "
 #define TOMOYO_KEYWORD_NO_INITIALIZE_DOMAIN      "no_initialize_domain "
 #define TOMOYO_KEYWORD_NO_KEEP_DOMAIN            "no_keep_domain "
+#define TOMOYO_KEYWORD_PATH_GROUP                "path_group "
 #define TOMOYO_KEYWORD_SELECT                    "select "
 #define TOMOYO_KEYWORD_USE_PROFILE               "use_profile "
 #define TOMOYO_KEYWORD_IGNORE_GLOBAL_ALLOW_READ  "ignore_global_allow_read"
@@ -204,6 +205,27 @@ struct tomoyo_path_info_with_data {
 	char barrier2[16]; /* Safeguard for overrun. */
 };
 
+struct tomoyo_name_union {
+	const struct tomoyo_path_info *filename;
+	struct tomoyo_path_group *group;
+	u8 is_group;
+};
+
+/* Structure for "path_group" directive. */
+struct tomoyo_path_group {
+	struct list_head list;
+	const struct tomoyo_path_info *group_name;
+	struct list_head member_list;
+	atomic_t users;
+};
+
+/* Structure for "path_group" directive. */
+struct tomoyo_path_group_member {
+	struct list_head list;
+	bool is_deleted;
+	const struct tomoyo_path_info *member_name;
+};
+
 /*
  * tomoyo_acl_info is a structure which is used for holding
  *
@@ -274,7 +296,7 @@ struct tomoyo_domain_info {
  *
  *  (1) "head" which is a "struct tomoyo_acl_info".
  *  (2) "perm" which is a bitmask of permitted operations.
- *  (3) "filename" is the pathname.
+ *  (3) "name" is the pathname.
  *
  * Directives held by this structure are "allow_read/write", "allow_execute",
  * "allow_read", "allow_write", "allow_create", "allow_unlink", "allow_mkdir",
@@ -287,8 +309,7 @@ struct tomoyo_path_acl {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_PATH_ACL */
 	u8 perm_high;
 	u16 perm;
-	/* Pointer to single pathname. */
-	const struct tomoyo_path_info *filename;
+	struct tomoyo_name_union name;
 };
 
 /*
@@ -298,8 +319,8 @@ struct tomoyo_path_acl {
  *
  *  (1) "head" which is a "struct tomoyo_acl_info".
  *  (2) "perm" which is a bitmask of permitted operations.
- *  (3) "filename1" is the source/old pathname.
- *  (4) "filename2" is the destination/new pathname.
+ *  (3) "name1" is the source/old pathname.
+ *  (4) "name2" is the destination/new pathname.
  *
  * Directives held by this structure are "allow_rename", "allow_link" and
  * "allow_pivot_root".
@@ -307,10 +328,8 @@ struct tomoyo_path_acl {
 struct tomoyo_path2_acl {
 	struct tomoyo_acl_info head; /* type = TOMOYO_TYPE_PATH2_ACL */
 	u8 perm;
-	/* Pointer to single pathname. */
-	const struct tomoyo_path_info *filename1;
-	/* Pointer to single pathname. */
-	const struct tomoyo_path_info *filename2;
+	struct tomoyo_name_union name1;
+	struct tomoyo_name_union name2;
 };
 
 /*
@@ -514,6 +533,9 @@ struct tomoyo_policy_manager_entry {
 
 /********** Function prototypes. **********/
 
+/* Check whether the given name matches the given name_union. */
+bool tomoyo_compare_name_union(const struct tomoyo_path_info *name,
+			       const struct tomoyo_name_union *ptr);
 /* Check whether the domain has too many ACL entries to hold. */
 bool tomoyo_domain_quota_is_ok(struct tomoyo_domain_info * const domain);
 /* Transactional sprintf() for policy dump. */
@@ -526,6 +548,12 @@ bool tomoyo_is_correct_path(const char *filename, const s8 start_type,
 			    const s8 pattern_type, const s8 end_type);
 /* Check whether the token can be a domainname. */
 bool tomoyo_is_domain_def(const unsigned char *buffer);
+bool tomoyo_parse_name_union(const char *filename,
+			     struct tomoyo_name_union *ptr);
+/* Check whether the given filename matches the given path_group. */
+bool tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
+			       const struct tomoyo_path_group *group,
+			       const bool may_use_pattern);
 /* Check whether the given filename matches the given pattern. */
 bool tomoyo_path_matches_pattern(const struct tomoyo_path_info *filename,
 				 const struct tomoyo_path_info *pattern);
@@ -540,10 +568,14 @@ bool tomoyo_read_domain_initializer_policy(struct tomoyo_io_buffer *head);
 bool tomoyo_read_domain_keeper_policy(struct tomoyo_io_buffer *head);
 /* Read "file_pattern" entry in exception policy. */
 bool tomoyo_read_file_pattern(struct tomoyo_io_buffer *head);
+/* Read "path_group" entry in exception policy. */
+bool tomoyo_read_path_group_policy(struct tomoyo_io_buffer *head);
 /* Read "allow_read" entry in exception policy. */
 bool tomoyo_read_globally_readable_policy(struct tomoyo_io_buffer *head);
 /* Read "deny_rewrite" entry in exception policy. */
 bool tomoyo_read_no_rewrite_policy(struct tomoyo_io_buffer *head);
+/* Tokenize a line. */
+bool tomoyo_tokenize(char *buffer, char *w[], size_t size);
 /* Write domain policy violation warning message to console? */
 bool tomoyo_verbose_mode(const struct tomoyo_domain_info *domain);
 /* Convert double path operation to operation name. */
@@ -580,12 +612,18 @@ int tomoyo_write_globally_readable_policy(char *data, const bool is_delete);
 int tomoyo_write_no_rewrite_policy(char *data, const bool is_delete);
 /* Create "file_pattern" entry in exception policy. */
 int tomoyo_write_pattern_policy(char *data, const bool is_delete);
+/* Create "path_group" entry in exception policy. */
+int tomoyo_write_path_group_policy(char *data, const bool is_delete);
 /* Find a domain by the given name. */
 struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname);
 /* Find or create a domain by the given name. */
 struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 							    domainname,
 							    const u8 profile);
+
+/* Allocate memory for "struct tomoyo_path_group". */
+struct tomoyo_path_group *tomoyo_get_path_group(const char *group_name);
+
 /* Check mode for specified functionality. */
 unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
 				const u8 index);
@@ -616,6 +654,7 @@ char *tomoyo_realpath_from_path(struct path *path);
 
 /* Check memory quota. */
 bool tomoyo_memory_ok(void *ptr);
+void *tomoyo_commit_ok(void *data, const unsigned int size);
 
 /*
  * Keep the given name on the RAM.
@@ -641,6 +680,9 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 int tomoyo_check_rewrite_permission(struct file *filp);
 int tomoyo_find_next_domain(struct linux_binprm *bprm);
 
+/* Drop refcount on tomoyo_name_union. */
+void tomoyo_put_name_union(struct tomoyo_name_union *ptr);
+
 /* Run garbage collector. */
 void tomoyo_run_gc(void);
 
@@ -654,6 +696,7 @@ extern struct srcu_struct tomoyo_ss;
 /* The list for "struct tomoyo_domain_info". */
 extern struct list_head tomoyo_domain_list;
 
+extern struct list_head tomoyo_path_group_list;
 extern struct list_head tomoyo_domain_initializer_list;
 extern struct list_head tomoyo_domain_keeper_list;
 extern struct list_head tomoyo_alias_list;
@@ -662,7 +705,6 @@ extern struct list_head tomoyo_pattern_list;
 extern struct list_head tomoyo_no_rewrite_list;
 extern struct list_head tomoyo_policy_manager_list;
 extern struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
-extern struct mutex tomoyo_name_list_lock;
 
 /* Lock for protecting policy. */
 extern struct mutex tomoyo_policy_lock;
@@ -725,6 +767,12 @@ static inline void tomoyo_put_name(const struct tomoyo_path_info *name)
 	}
 }
 
+static inline void tomoyo_put_path_group(struct tomoyo_path_group *group)
+{
+	if (group)
+		atomic_dec(&group->users);
+}
+
 static inline struct tomoyo_domain_info *tomoyo_domain(void)
 {
 	return current_cred()->security;
@@ -734,6 +782,59 @@ static inline struct tomoyo_domain_info *tomoyo_real_domain(struct task_struct
 							    *task)
 {
 	return task_cred_xxx(task, security);
+}
+
+static inline bool tomoyo_is_same_acl_head(const struct tomoyo_acl_info *p1,
+					   const struct tomoyo_acl_info *p2)
+{
+	return p1->type == p2->type;
+}
+
+static inline bool tomoyo_is_same_name_union
+(const struct tomoyo_name_union *p1, const struct tomoyo_name_union *p2)
+{
+	return p1->filename == p2->filename && p1->group == p2->group &&
+		p1->is_group == p2->is_group;
+}
+
+static inline bool tomoyo_is_same_path_acl(const struct tomoyo_path_acl *p1,
+					   const struct tomoyo_path_acl *p2)
+{
+	return tomoyo_is_same_acl_head(&p1->head, &p2->head) &&
+		tomoyo_is_same_name_union(&p1->name, &p2->name);
+}
+
+static inline bool tomoyo_is_same_path2_acl(const struct tomoyo_path2_acl *p1,
+					    const struct tomoyo_path2_acl *p2)
+{
+	return tomoyo_is_same_acl_head(&p1->head, &p2->head) &&
+		tomoyo_is_same_name_union(&p1->name1, &p2->name1) &&
+		tomoyo_is_same_name_union(&p1->name2, &p2->name2);
+}
+
+static inline bool tomoyo_is_same_domain_initializer_entry
+(const struct tomoyo_domain_initializer_entry *p1,
+ const struct tomoyo_domain_initializer_entry *p2)
+{
+	return p1->is_not == p2->is_not && p1->is_last_name == p2->is_last_name
+		&& p1->domainname == p2->domainname
+		&& p1->program == p2->program;
+}
+
+static inline bool tomoyo_is_same_domain_keeper_entry
+(const struct tomoyo_domain_keeper_entry *p1,
+ const struct tomoyo_domain_keeper_entry *p2)
+{
+	return p1->is_not == p2->is_not && p1->is_last_name == p2->is_last_name
+		&& p1->domainname == p2->domainname
+		&& p1->program == p2->program;
+}
+
+static inline bool tomoyo_is_same_alias_entry
+(const struct tomoyo_alias_entry *p1, const struct tomoyo_alias_entry *p2)
+{
+	return p1->original_name == p2->original_name &&
+		p1->aliased_name == p2->aliased_name;
 }
 
 /**

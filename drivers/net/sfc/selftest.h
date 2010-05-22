@@ -18,8 +18,8 @@
  */
 
 struct efx_loopback_self_tests {
-	int tx_sent[EFX_TX_QUEUE_COUNT];
-	int tx_done[EFX_TX_QUEUE_COUNT];
+	int tx_sent[EFX_TXQ_TYPES];
+	int tx_done[EFX_TXQ_TYPES];
 	int rx_good;
 	int rx_bad;
 };

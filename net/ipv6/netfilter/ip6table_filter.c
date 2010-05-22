@@ -81,7 +81,7 @@ static int __init ip6table_filter_init(void)
 	int ret;
 
 	if (forward < 0 || forward > NF_MAX_VERDICT) {
-		printk("iptables forward must be 0 or 1\n");
+		pr_err("iptables forward must be 0 or 1\n");
 		return -EINVAL;
 	}
 

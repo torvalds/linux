@@ -36,7 +36,7 @@
 #include "crystalhd_misc.h"
 #include "crystalhd_hw.h"
 
-enum _crystalhd_state{
+enum crystalhd_state{
 	BC_LINK_INVALID		= 0x00,
 	BC_LINK_INIT		= 0x01,
 	BC_LINK_CAP_EN		= 0x02,
@@ -66,23 +66,22 @@ struct crystalhd_cmd {
 	struct crystalhd_hw	hw_ctx;
 };
 
-typedef BC_STATUS (*crystalhd_cmd_proc)(struct crystalhd_cmd *, crystalhd_ioctl_data *);
+typedef enum BC_STATUS(*crystalhd_cmd_proc)(struct crystalhd_cmd *, struct crystalhd_ioctl_data *);
 
-typedef struct _crystalhd_cmd_tbl {
+struct crystalhd_cmd_tbl {
 	uint32_t		cmd_id;
 	const crystalhd_cmd_proc	cmd_proc;
 	uint32_t		block_mon;
-} crystalhd_cmd_tbl_t;
+};
 
-
-BC_STATUS crystalhd_suspend(struct crystalhd_cmd *ctx, crystalhd_ioctl_data *idata);
-BC_STATUS crystalhd_resume(struct crystalhd_cmd *ctx);
+enum BC_STATUS crystalhd_suspend(struct crystalhd_cmd *ctx, struct crystalhd_ioctl_data *idata);
+enum BC_STATUS crystalhd_resume(struct crystalhd_cmd *ctx);
 crystalhd_cmd_proc crystalhd_get_cmd_proc(struct crystalhd_cmd *ctx, uint32_t cmd,
 				      struct crystalhd_user *uc);
-BC_STATUS crystalhd_user_open(struct crystalhd_cmd *ctx, struct crystalhd_user **user_ctx);
-BC_STATUS crystalhd_user_close(struct crystalhd_cmd *ctx, struct crystalhd_user *uc);
-BC_STATUS crystalhd_setup_cmd_context(struct crystalhd_cmd *ctx, struct crystalhd_adp *adp);
-BC_STATUS crystalhd_delete_cmd_context(struct crystalhd_cmd *ctx);
+enum BC_STATUS crystalhd_user_open(struct crystalhd_cmd *ctx, struct crystalhd_user **user_ctx);
+enum BC_STATUS crystalhd_user_close(struct crystalhd_cmd *ctx, struct crystalhd_user *uc);
+enum BC_STATUS crystalhd_setup_cmd_context(struct crystalhd_cmd *ctx, struct crystalhd_adp *adp);
+enum BC_STATUS crystalhd_delete_cmd_context(struct crystalhd_cmd *ctx);
 bool crystalhd_cmd_interrupt(struct crystalhd_cmd *ctx);
 
 #endif

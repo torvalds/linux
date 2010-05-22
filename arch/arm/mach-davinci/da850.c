@@ -27,6 +27,7 @@
 #include <mach/da8xx.h>
 #include <mach/cpufreq.h>
 #include <mach/pm.h>
+#include <mach/gpio.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -781,10 +782,7 @@ static struct map_desc da850_io_desc[] = {
 	},
 };
 
-static void __iomem *da850_psc_bases[] = {
-	IO_ADDRESS(DA8XX_PSC0_BASE),
-	IO_ADDRESS(DA8XX_PSC1_BASE),
-};
+static u32 da850_psc_bases[] = { DA8XX_PSC0_BASE, DA8XX_PSC1_BASE };
 
 /* Contents of JTAG ID register used to identify exact cpu type */
 static struct davinci_id da850_ids[] = {
@@ -799,22 +797,22 @@ static struct davinci_id da850_ids[] = {
 
 static struct davinci_timer_instance da850_timer_instance[4] = {
 	{
-		.base		= IO_ADDRESS(DA8XX_TIMER64P0_BASE),
+		.base		= DA8XX_TIMER64P0_BASE,
 		.bottom_irq	= IRQ_DA8XX_TINT12_0,
 		.top_irq	= IRQ_DA8XX_TINT34_0,
 	},
 	{
-		.base		= IO_ADDRESS(DA8XX_TIMER64P1_BASE),
+		.base		= DA8XX_TIMER64P1_BASE,
 		.bottom_irq	= IRQ_DA8XX_TINT12_1,
 		.top_irq	= IRQ_DA8XX_TINT34_1,
 	},
 	{
-		.base		= IO_ADDRESS(DA850_TIMER64P2_BASE),
+		.base		= DA850_TIMER64P2_BASE,
 		.bottom_irq	= IRQ_DA850_TINT12_2,
 		.top_irq	= IRQ_DA850_TINT34_2,
 	},
 	{
-		.base		= IO_ADDRESS(DA850_TIMER64P3_BASE),
+		.base		= DA850_TIMER64P3_BASE,
 		.bottom_irq	= IRQ_DA850_TINT12_3,
 		.top_irq	= IRQ_DA850_TINT34_3,
 	},
@@ -1072,30 +1070,36 @@ no_ddrpll_mem:
 static struct davinci_soc_info davinci_soc_info_da850 = {
 	.io_desc		= da850_io_desc,
 	.io_desc_num		= ARRAY_SIZE(da850_io_desc),
+	.jtag_id_reg		= DA8XX_SYSCFG0_BASE + DA8XX_JTAG_ID_REG,
 	.ids			= da850_ids,
 	.ids_num		= ARRAY_SIZE(da850_ids),
 	.cpu_clks		= da850_clks,
 	.psc_bases		= da850_psc_bases,
 	.psc_bases_num		= ARRAY_SIZE(da850_psc_bases),
+	.pinmux_base		= DA8XX_SYSCFG0_BASE + 0x120,
 	.pinmux_pins		= da850_pins,
 	.pinmux_pins_num	= ARRAY_SIZE(da850_pins),
-	.intc_base		= (void __iomem *)DA8XX_CP_INTC_VIRT,
+	.intc_base		= DA8XX_CP_INTC_BASE,
 	.intc_type		= DAVINCI_INTC_TYPE_CP_INTC,
 	.intc_irq_prios		= da850_default_priorities,
 	.intc_irq_num		= DA850_N_CP_INTC_IRQ,
 	.timer_info		= &da850_timer_info,
-	.gpio_base		= IO_ADDRESS(DA8XX_GPIO_BASE),
+	.gpio_type		= GPIO_TYPE_DAVINCI,
+	.gpio_base		= DA8XX_GPIO_BASE,
 	.gpio_num		= 144,
 	.gpio_irq		= IRQ_DA8XX_GPIO0,
 	.serial_dev		= &da8xx_serial_device,
 	.emac_pdata		= &da8xx_emac_pdata,
 	.sram_dma		= DA8XX_ARM_RAM_BASE,
 	.sram_len		= SZ_8K,
+	.reset_device		= &da8xx_wdt_device,
 };
 
 void __init da850_init(void)
 {
 	unsigned int v;
+
+	davinci_common_init(&davinci_soc_info_da850);
 
 	da8xx_syscfg0_base = ioremap(DA8XX_SYSCFG0_BASE, SZ_4K);
 	if (WARN(!da8xx_syscfg0_base, "Unable to map syscfg0 module"))
@@ -1104,12 +1108,6 @@ void __init da850_init(void)
 	da8xx_syscfg1_base = ioremap(DA8XX_SYSCFG1_BASE, SZ_4K);
 	if (WARN(!da8xx_syscfg1_base, "Unable to map syscfg1 module"))
 		return;
-
-	davinci_soc_info_da850.jtag_id_base =
-					DA8XX_SYSCFG0_VIRT(DA8XX_JTAG_ID_REG);
-	davinci_soc_info_da850.pinmux_base = DA8XX_SYSCFG0_VIRT(0x120);
-
-	davinci_common_init(&davinci_soc_info_da850);
 
 	/*
 	 * Move the clock source of Async3 domain to PLL1 SYSCLK2.

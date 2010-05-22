@@ -275,7 +275,8 @@ allocate_root:
 
 	err = squashfs_read_inode(root, root_inode);
 	if (err) {
-		iget_failed(root);
+		make_bad_inode(root);
+		iput(root);
 		goto failed_mount;
 	}
 	insert_inode_hash(root);
@@ -353,6 +354,7 @@ static void squashfs_put_super(struct super_block *sb)
 		kfree(sbi->id_table);
 		kfree(sbi->fragment_index);
 		kfree(sbi->meta_index);
+		kfree(sbi->inode_lookup_table);
 		kfree(sb->s_fs_info);
 		sb->s_fs_info = NULL;
 	}

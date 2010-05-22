@@ -3719,12 +3719,9 @@ SCTP_STATIC int sctp_init_sock(struct sock *sk)
 	sp->hmac = NULL;
 
 	SCTP_DBG_OBJCNT_INC(sock);
-	percpu_counter_inc(&sctp_sockets_allocated);
-
-	/* Set socket backlog limit. */
-	sk->sk_backlog.limit = sysctl_sctp_rmem[1];
 
 	local_bh_disable();
+	percpu_counter_inc(&sctp_sockets_allocated);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 	local_bh_enable();
 
@@ -3741,8 +3738,8 @@ SCTP_STATIC void sctp_destroy_sock(struct sock *sk)
 	/* Release our hold on the endpoint. */
 	ep = sctp_sk(sk)->ep;
 	sctp_endpoint_free(ep);
-	percpu_counter_dec(&sctp_sockets_allocated);
 	local_bh_disable();
+	percpu_counter_dec(&sctp_sockets_allocated);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	local_bh_enable();
 }
@@ -4387,7 +4384,7 @@ static int sctp_getsockopt_peer_addrs(struct sock *sk, int len,
 				transports) {
 		memcpy(&temp, &from->ipaddr, sizeof(temp));
 		sctp_get_pf_specific(sk->sk_family)->addr_v4map(sp, &temp);
-		addrlen = sctp_get_af_specific(sk->sk_family)->sockaddr_len;
+		addrlen = sctp_get_af_specific(temp.sa.sa_family)->sockaddr_len;
 		if (space_left < addrlen)
 			return -ENOMEM;
 		if (copy_to_user(to, &temp, addrlen))
@@ -5436,6 +5433,8 @@ static long sctp_get_port_local(struct sock *sk, union sctp_addr *addr)
 			rover++;
 			if ((rover < low) || (rover > high))
 				rover = low;
+			if (inet_is_reserved_local_port(rover))
+				continue;
 			index = sctp_phashfn(rover);
 			head = &sctp_port_hashtable[index];
 			sctp_spin_lock(&head->lock);
@@ -5482,7 +5481,6 @@ pp_found:
 		 */
 		int reuse = sk->sk_reuse;
 		struct sock *sk2;
-		struct hlist_node *node;
 
 		SCTP_DEBUG_PRINTK("sctp_get_port() found a possible match\n");
 		if (pp->fastreuse && sk->sk_reuse &&
@@ -5703,7 +5701,7 @@ unsigned int sctp_poll(struct file *file, struct socket *sock, poll_table *wait)
 	struct sctp_sock *sp = sctp_sk(sk);
 	unsigned int mask;
 
-	poll_wait(file, sk->sk_sleep, wait);
+	poll_wait(file, sk_sleep(sk), wait);
 
 	/* A TCP-style listening socket becomes readable when the accept queue
 	 * is not empty.
@@ -5944,7 +5942,7 @@ static int sctp_wait_for_packet(struct sock * sk, int *err, long *timeo_p)
 	int error;
 	DEFINE_WAIT(wait);
 
-	prepare_to_wait_exclusive(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+	prepare_to_wait_exclusive(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
 	/* Socket errors? */
 	error = sock_error(sk);
@@ -5981,14 +5979,14 @@ static int sctp_wait_for_packet(struct sock * sk, int *err, long *timeo_p)
 	sctp_lock_sock(sk);
 
 ready:
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 	return 0;
 
 interrupted:
 	error = sock_intr_errno(*timeo_p);
 
 out:
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 	*err = error;
 	return error;
 }
@@ -6062,14 +6060,14 @@ static void __sctp_write_space(struct sctp_association *asoc)
 			wake_up_interruptible(&asoc->wait);
 
 		if (sctp_writeable(sk)) {
-			if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
-				wake_up_interruptible(sk->sk_sleep);
+			if (sk_sleep(sk) && waitqueue_active(sk_sleep(sk)))
+				wake_up_interruptible(sk_sleep(sk));
 
 			/* Note that we try to include the Async I/O support
 			 * here by modeling from the current TCP/UDP code.
 			 * We have not tested with it yet.
 			 */
-			if (sock->fasync_list &&
+			if (sock->wq->fasync_list &&
 			    !(sk->sk_shutdown & SEND_SHUTDOWN))
 				sock_wake_async(sock,
 						SOCK_WAKE_SPACE, POLL_OUT);
@@ -6189,6 +6187,19 @@ do_nonblock:
 	goto out;
 }
 
+void sctp_data_ready(struct sock *sk, int len)
+{
+	struct socket_wq *wq;
+
+	rcu_read_lock();
+	wq = rcu_dereference(sk->sk_wq);
+	if (wq_has_sleeper(wq))
+		wake_up_interruptible_sync_poll(&wq->wait, POLLIN |
+						POLLRDNORM | POLLRDBAND);
+	sk_wake_async(sk, SOCK_WAKE_WAITD, POLL_IN);
+	rcu_read_unlock();
+}
+
 /* If socket sndbuf has changed, wake up all per association waiters.  */
 void sctp_write_space(struct sock *sk)
 {
@@ -6297,7 +6308,7 @@ static int sctp_wait_for_accept(struct sock *sk, long timeo)
 
 
 	for (;;) {
-		prepare_to_wait_exclusive(sk->sk_sleep, &wait,
+		prepare_to_wait_exclusive(sk_sleep(sk), &wait,
 					  TASK_INTERRUPTIBLE);
 
 		if (list_empty(&ep->asocs)) {
@@ -6323,7 +6334,7 @@ static int sctp_wait_for_accept(struct sock *sk, long timeo)
 			break;
 	}
 
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 
 	return err;
 }
@@ -6333,7 +6344,7 @@ static void sctp_wait_for_close(struct sock *sk, long timeout)
 	DEFINE_WAIT(wait);
 
 	do {
-		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 		if (list_empty(&sctp_sk(sk)->ep->asocs))
 			break;
 		sctp_release_sock(sk);
@@ -6341,7 +6352,7 @@ static void sctp_wait_for_close(struct sock *sk, long timeout)
 		sctp_lock_sock(sk);
 	} while (!signal_pending(current) && timeout);
 
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 }
 
 static void sctp_skb_set_owner_r_frag(struct sk_buff *skb, struct sock *sk)

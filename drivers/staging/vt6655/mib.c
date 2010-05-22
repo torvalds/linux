@@ -190,7 +190,7 @@ void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
 
         pStatistic->ullRsrOK++;
 
-        if (cbFrameLength >= U_ETHER_ADDR_LEN) {
+        if (cbFrameLength >= ETH_ALEN) {
             // update counters in case that successful transmit
             if (byRSR & RSR_ADDRBROAD) {
                 pStatistic->ullRxBroadcastFrames++;
@@ -359,9 +359,9 @@ void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
     else if ((512 <= cbFrameLength) && (cbFrameLength <= 1023)) {
         pStatistic->dwRsrRxFrmLen512_1023++;
     }
-    else if ((1024 <= cbFrameLength) && (cbFrameLength <= MAX_PACKET_LEN + 4)) {
+    else if ((1024 <= cbFrameLength) && (cbFrameLength <= ETH_FRAME_LEN + 4)) {
         pStatistic->dwRsrRxFrmLen1024_1518++;
-    } else if (cbFrameLength > MAX_PACKET_LEN + 4) {
+    } else if (cbFrameLength > ETH_FRAME_LEN + 4) {
         pStatistic->dwRsrLong++;
     }
 

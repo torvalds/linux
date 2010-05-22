@@ -22,7 +22,7 @@
 #include <pcmcia/cistpl.h>
 #include "cs_internal.h"
 
-static int static_init(struct pcmcia_socket *s)
+int static_init(struct pcmcia_socket *s)
 {
 	/* the good thing about SS_CAP_STATIC_MAP sockets is
 	 * that they don't need a resource database */
@@ -32,11 +32,35 @@ static int static_init(struct pcmcia_socket *s)
 	return 0;
 }
 
+struct resource *pcmcia_make_resource(unsigned long start, unsigned long end,
+				int flags, const char *name)
+{
+	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
+
+	if (res) {
+		res->name = name;
+		res->start = start;
+		res->end = start + end - 1;
+		res->flags = flags;
+	}
+	return res;
+}
+
+static int static_find_io(struct pcmcia_socket *s, unsigned int attr,
+			unsigned int *base, unsigned int num,
+			unsigned int align)
+{
+	if (!s->io_offset)
+		return -EINVAL;
+	*base = s->io_offset | (*base & 0x0fff);
+
+	return 0;
+}
+
 
 struct pccard_resource_ops pccard_static_ops = {
 	.validate_mem = NULL,
-	.adjust_io_region = NULL,
-	.find_io = NULL,
+	.find_io = static_find_io,
 	.find_mem = NULL,
 	.add_io = NULL,
 	.add_mem = NULL,
@@ -46,104 +70,6 @@ struct pccard_resource_ops pccard_static_ops = {
 EXPORT_SYMBOL(pccard_static_ops);
 
 
-#ifdef CONFIG_PCCARD_IODYN
-
-static struct resource *
-make_resource(unsigned long b, unsigned long n, int flags, char *name)
-{
-	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
-
-	if (res) {
-		res->name = name;
-		res->start = b;
-		res->end = b + n - 1;
-		res->flags = flags;
-	}
-	return res;
-}
-
-struct pcmcia_align_data {
-	unsigned long	mask;
-	unsigned long	offset;
-};
-
-static resource_size_t pcmcia_align(void *align_data,
-				const struct resource *res,
-				resource_size_t size, resource_size_t align)
-{
-	struct pcmcia_align_data *data = align_data;
-	resource_size_t start;
-
-	start = (res->start & ~data->mask) + data->offset;
-	if (start < res->start)
-		start += data->mask + 1;
-
-#ifdef CONFIG_X86
-	if (res->flags & IORESOURCE_IO) {
-		if (start & 0x300)
-			start = (start + 0x3ff) & ~0x3ff;
-	}
-#endif
-
-#ifdef CONFIG_M68K
-	if (res->flags & IORESOURCE_IO) {
-		if ((res->start + size - 1) >= 1024)
-			start = res->end;
-	}
-#endif
-
-	return start;
-}
-
-
-static int iodyn_adjust_io_region(struct resource *res, unsigned long r_start,
-				      unsigned long r_end, struct pcmcia_socket *s)
-{
-	return adjust_resource(res, r_start, r_end - r_start + 1);
-}
-
-
-static struct resource *iodyn_find_io_region(unsigned long base, int num,
-		unsigned long align, struct pcmcia_socket *s)
-{
-	struct resource *res = make_resource(0, num, IORESOURCE_IO,
-					     dev_name(&s->dev));
-	struct pcmcia_align_data data;
-	unsigned long min = base;
-	int ret;
-
-	if (align == 0)
-		align = 0x10000;
-
-	data.mask = align - 1;
-	data.offset = base & data.mask;
-
-#ifdef CONFIG_PCI
-	if (s->cb_dev) {
-		ret = pci_bus_alloc_resource(s->cb_dev->bus, res, num, 1,
-					     min, 0, pcmcia_align, &data);
-	} else
-#endif
-		ret = allocate_resource(&ioport_resource, res, num, min, ~0UL,
-					1, pcmcia_align, &data);
-
-	if (ret != 0) {
-		kfree(res);
-		res = NULL;
-	}
-	return res;
-}
-
-struct pccard_resource_ops pccard_iodyn_ops = {
-	.validate_mem = NULL,
-	.adjust_io_region = iodyn_adjust_io_region,
-	.find_io = iodyn_find_io_region,
-	.find_mem = NULL,
-	.add_io = NULL,
-	.add_mem = NULL,
-	.init = static_init,
-	.exit = NULL,
-};
-EXPORT_SYMBOL(pccard_iodyn_ops);
-
-#endif /* CONFIG_PCCARD_IODYN */
+MODULE_AUTHOR("David A. Hinds, Dominik Brodowski");
+MODULE_LICENSE("GPL");
+MODULE_ALIAS("rsrc_nonstatic");

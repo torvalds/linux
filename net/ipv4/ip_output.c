@@ -96,8 +96,8 @@ int __ip_local_out(struct sk_buff *skb)
 
 	iph->tot_len = htons(skb->len);
 	ip_send_check(iph);
-	return nf_hook(PF_INET, NF_INET_LOCAL_OUT, skb, NULL, skb_dst(skb)->dev,
-		       dst_output);
+	return nf_hook(NFPROTO_IPV4, NF_INET_LOCAL_OUT, skb, NULL,
+		       skb_dst(skb)->dev, dst_output);
 }
 
 int ip_local_out(struct sk_buff *skb)
@@ -272,8 +272,8 @@ int ip_mc_output(struct sk_buff *skb)
 		   ) {
 			struct sk_buff *newskb = skb_clone(skb, GFP_ATOMIC);
 			if (newskb)
-				NF_HOOK(PF_INET, NF_INET_POST_ROUTING, newskb,
-					NULL, newskb->dev,
+				NF_HOOK(NFPROTO_IPV4, NF_INET_POST_ROUTING,
+					newskb, NULL, newskb->dev,
 					ip_dev_loopback_xmit);
 		}
 
@@ -288,12 +288,12 @@ int ip_mc_output(struct sk_buff *skb)
 	if (rt->rt_flags&RTCF_BROADCAST) {
 		struct sk_buff *newskb = skb_clone(skb, GFP_ATOMIC);
 		if (newskb)
-			NF_HOOK(PF_INET, NF_INET_POST_ROUTING, newskb, NULL,
-				newskb->dev, ip_dev_loopback_xmit);
+			NF_HOOK(NFPROTO_IPV4, NF_INET_POST_ROUTING, newskb,
+				NULL, newskb->dev, ip_dev_loopback_xmit);
 	}
 
-	return NF_HOOK_COND(PF_INET, NF_INET_POST_ROUTING, skb, NULL, skb->dev,
-			    ip_finish_output,
+	return NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING, skb, NULL,
+			    skb->dev, ip_finish_output,
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }
 
@@ -306,22 +306,24 @@ int ip_output(struct sk_buff *skb)
 	skb->dev = dev;
 	skb->protocol = htons(ETH_P_IP);
 
-	return NF_HOOK_COND(PF_INET, NF_INET_POST_ROUTING, skb, NULL, dev,
+	return NF_HOOK_COND(NFPROTO_IPV4, NF_INET_POST_ROUTING, skb, NULL, dev,
 			    ip_finish_output,
 			    !(IPCB(skb)->flags & IPSKB_REROUTED));
 }
 
-int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
+int ip_queue_xmit(struct sk_buff *skb)
 {
 	struct sock *sk = skb->sk;
 	struct inet_sock *inet = inet_sk(sk);
 	struct ip_options *opt = inet->opt;
 	struct rtable *rt;
 	struct iphdr *iph;
+	int res;
 
 	/* Skip all of this if the packet is already routed,
 	 * f.e. by something like SCTP.
 	 */
+	rcu_read_lock();
 	rt = skb_rtable(skb);
 	if (rt != NULL)
 		goto packet_routed;
@@ -359,7 +361,7 @@ int ip_queue_xmit(struct sk_buff *skb, int ipfragok)
 		}
 		sk_setup_caps(sk, &rt->u.dst);
 	}
-	skb_dst_set(skb, dst_clone(&rt->u.dst));
+	skb_dst_set_noref(skb, &rt->u.dst);
 
 packet_routed:
 	if (opt && opt->is_strictroute && rt->rt_dst != rt->rt_gateway)
@@ -370,7 +372,7 @@ packet_routed:
 	skb_reset_network_header(skb);
 	iph = ip_hdr(skb);
 	*((__be16 *)iph) = htons((4 << 12) | (5 << 8) | (inet->tos & 0xff));
-	if (ip_dont_fragment(sk, &rt->u.dst) && !ipfragok)
+	if (ip_dont_fragment(sk, &rt->u.dst) && !skb->local_df)
 		iph->frag_off = htons(IP_DF);
 	else
 		iph->frag_off = 0;
@@ -391,9 +393,12 @@ packet_routed:
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
 
-	return ip_local_out(skb);
+	res = ip_local_out(skb);
+	rcu_read_unlock();
+	return res;
 
 no_route:
+	rcu_read_unlock();
 	IP_INC_STATS(sock_net(sk), IPSTATS_MIB_OUTNOROUTES);
 	kfree_skb(skb);
 	return -EHOSTUNREACH;
@@ -469,6 +474,10 @@ int ip_fragment(struct sk_buff *skb, int (*output)(struct sk_buff *))
 
 	hlen = iph->ihl * 4;
 	mtu = dst_mtu(&rt->u.dst) - hlen;	/* Size of data space */
+#ifdef CONFIG_BRIDGE_NETFILTER
+	if (skb->nf_bridge)
+		mtu -= nf_bridge_mtu_reduction(skb);
+#endif
 	IPCB(skb)->flags |= IPSKB_FRAG_COMPLETE;
 
 	/* When frag_list is given, use it. First, check its validity:

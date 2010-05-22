@@ -1356,7 +1356,7 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	struct cx23885_dev *dev = fh->dev;
 	struct cx23885_tsport  *tsport = &dev->ts1;
 
-	strcpy(cap->driver, dev->name);
+	strlcpy(cap->driver, dev->name, sizeof(cap->driver));
 	strlcpy(cap->card, cx23885_boards[tsport->dev->board].name,
 		sizeof(cap->card));
 	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));

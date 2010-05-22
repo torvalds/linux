@@ -311,7 +311,7 @@ static struct clk vpif1_clk = {
 	.flags = ALWAYS_ENABLED,
 };
 
-struct clk_lookup dm646x_clks[] = {
+static struct clk_lookup dm646x_clks[] = {
 	CLK(NULL, "ref", &ref_clk),
 	CLK(NULL, "aux", &aux_clkin),
 	CLK(NULL, "pll1", &pll1_clk),
@@ -400,9 +400,6 @@ static struct platform_device dm646x_emac_device = {
 	.num_resources	= ARRAY_SIZE(dm646x_emac_resources),
 	.resource	= dm646x_emac_resources,
 };
-
-#define PINMUX0		0x00
-#define PINMUX1		0x04
 
 /*
  * Device specific mux setup
@@ -596,32 +593,6 @@ static struct platform_device dm646x_edma_device = {
 	.resource		= edma_resources,
 };
 
-static struct resource ide_resources[] = {
-	{
-		.start          = DM646X_ATA_REG_BASE,
-		.end            = DM646X_ATA_REG_BASE + 0x7ff,
-		.flags          = IORESOURCE_MEM,
-	},
-	{
-		.start          = IRQ_DM646X_IDE,
-		.end            = IRQ_DM646X_IDE,
-		.flags          = IORESOURCE_IRQ,
-	},
-};
-
-static u64 ide_dma_mask = DMA_BIT_MASK(32);
-
-static struct platform_device ide_dev = {
-	.name           = "palm_bk3710",
-	.id             = -1,
-	.resource       = ide_resources,
-	.num_resources  = ARRAY_SIZE(ide_resources),
-	.dev = {
-		.dma_mask		= &ide_dma_mask,
-		.coherent_dma_mask      = DMA_BIT_MASK(32),
-	},
-};
-
 static struct resource dm646x_mcasp0_resources[] = {
 	{
 		.name	= "mcasp0",
@@ -787,9 +758,7 @@ static struct davinci_id dm646x_ids[] = {
 	},
 };
 
-static void __iomem *dm646x_psc_bases[] = {
-	IO_ADDRESS(DAVINCI_PWR_SLEEP_CNTRL_BASE),
-};
+static u32 dm646x_psc_bases[] = { DAVINCI_PWR_SLEEP_CNTRL_BASE };
 
 /*
  * T0_BOT: Timer 0, bottom:  clockevent source for hrtimers
@@ -797,7 +766,7 @@ static void __iomem *dm646x_psc_bases[] = {
  * T1_BOT: Timer 1, bottom:  (used by DSP in TI DSPLink code)
  * T1_TOP: Timer 1, top   :  <unused>
  */
-struct davinci_timer_info dm646x_timer_info = {
+static struct davinci_timer_info dm646x_timer_info = {
 	.timers		= davinci_timer_instance,
 	.clockevent_id	= T0_BOT,
 	.clocksource_id	= T0_TOP,
@@ -844,34 +813,30 @@ static struct platform_device dm646x_serial_device = {
 static struct davinci_soc_info davinci_soc_info_dm646x = {
 	.io_desc		= dm646x_io_desc,
 	.io_desc_num		= ARRAY_SIZE(dm646x_io_desc),
-	.jtag_id_base		= IO_ADDRESS(0x01c40028),
+	.jtag_id_reg		= 0x01c40028,
 	.ids			= dm646x_ids,
 	.ids_num		= ARRAY_SIZE(dm646x_ids),
 	.cpu_clks		= dm646x_clks,
 	.psc_bases		= dm646x_psc_bases,
 	.psc_bases_num		= ARRAY_SIZE(dm646x_psc_bases),
-	.pinmux_base		= IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE),
+	.pinmux_base		= DAVINCI_SYSTEM_MODULE_BASE,
 	.pinmux_pins		= dm646x_pins,
 	.pinmux_pins_num	= ARRAY_SIZE(dm646x_pins),
-	.intc_base		= IO_ADDRESS(DAVINCI_ARM_INTC_BASE),
+	.intc_base		= DAVINCI_ARM_INTC_BASE,
 	.intc_type		= DAVINCI_INTC_TYPE_AINTC,
 	.intc_irq_prios		= dm646x_default_priorities,
 	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 	.timer_info		= &dm646x_timer_info,
-	.gpio_base		= IO_ADDRESS(DAVINCI_GPIO_BASE),
+	.gpio_type		= GPIO_TYPE_DAVINCI,
+	.gpio_base		= DAVINCI_GPIO_BASE,
 	.gpio_num		= 43, /* Only 33 usable */
 	.gpio_irq		= IRQ_DM646X_GPIOBNK0,
 	.serial_dev		= &dm646x_serial_device,
 	.emac_pdata		= &dm646x_emac_pdata,
 	.sram_dma		= 0x10010000,
 	.sram_len		= SZ_32K,
+	.reset_device		= &davinci_wdt_device,
 };
-
-void __init dm646x_init_ide()
-{
-	davinci_cfg_reg(DM646X_ATAEN);
-	platform_device_register(&ide_dev);
-}
 
 void __init dm646x_init_mcasp0(struct snd_platform_data *pdata)
 {

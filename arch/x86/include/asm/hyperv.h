@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_KVM_HYPERV_H
-#define _ASM_X86_KVM_HYPERV_H
+#ifndef _ASM_X86_HYPERV_H
+#define _ASM_X86_HYPERV_H
 
 #include <linux/types.h>
 
@@ -13,6 +13,10 @@
 #define HYPERV_CPUID_FEATURES			0x40000003
 #define HYPERV_CPUID_ENLIGHTMENT_INFO		0x40000004
 #define HYPERV_CPUID_IMPLEMENT_LIMITS		0x40000005
+
+#define HYPERV_HYPERVISOR_PRESENT_BIT		0x80000000
+#define HYPERV_CPUID_MIN			0x40000005
+#define HYPERV_CPUID_MAX			0x4000ffff
 
 /*
  * Feature identification. EAX indicates which features are available
@@ -128,6 +132,9 @@
 
 /* MSR used to provide vcpu index */
 #define HV_X64_MSR_VP_INDEX			0x40000002
+
+/* MSR used to read the per-partition time reference counter */
+#define HV_X64_MSR_TIME_REF_COUNT		0x40000020
 
 /* Define the virtual APIC registers */
 #define HV_X64_MSR_EOI				0x40000070

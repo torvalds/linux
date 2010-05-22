@@ -311,11 +311,6 @@ err:
 		processed++;
 	}
 
-	if (processed) {
-		wrw(ep, REG_RXDENQ, processed);
-		wrw(ep, REG_RXSTSENQ, processed);
-	}
-
 	return processed;
 }
 
@@ -350,6 +345,11 @@ poll_some_more:
 			goto poll_some_more;
 	}
 
+	if (rx) {
+		wrw(ep, REG_RXDENQ, rx);
+		wrw(ep, REG_RXSTSENQ, rx);
+	}
+
 	return rx;
 }
 
@@ -373,8 +373,6 @@ static int ep93xx_xmit(struct sk_buff *skb, struct net_device *dev)
 	dma_sync_single_for_cpu(NULL, ep->descs->tdesc[entry].buf_addr,
 				skb->len, DMA_TO_DEVICE);
 	dev_kfree_skb(skb);
-
-	dev->trans_start = jiffies;
 
 	spin_lock_irq(&ep->tx_pending_lock);
 	ep->tx_pending++;

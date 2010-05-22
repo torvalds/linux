@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/sched.h>
+#include <linux/timer.h>
 #include <linux/writeback.h>
 #include <asm/atomic.h>
 
@@ -88,6 +89,8 @@ struct backing_dev_info {
 
 	struct device *dev;
 
+	struct timer_list laptop_mode_wb_timer;
+
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debug_dir;
 	struct dentry *debug_stats;
@@ -101,10 +104,12 @@ int bdi_register(struct backing_dev_info *bdi, struct device *parent,
 		const char *fmt, ...);
 int bdi_register_dev(struct backing_dev_info *bdi, dev_t dev);
 void bdi_unregister(struct backing_dev_info *bdi);
+int bdi_setup_and_register(struct backing_dev_info *, char *, unsigned int);
 void bdi_start_writeback(struct backing_dev_info *bdi, struct super_block *sb,
-				long nr_pages);
+				long nr_pages, int sb_locked);
 int bdi_writeback_task(struct bdi_writeback *wb);
 int bdi_has_dirty_io(struct backing_dev_info *bdi);
+void bdi_arm_supers_timer(void);
 
 extern spinlock_t bdi_lock;
 extern struct list_head bdi_list;
@@ -246,6 +251,7 @@ int bdi_set_max_ratio(struct backing_dev_info *bdi, unsigned int max_ratio);
 #endif
 
 extern struct backing_dev_info default_backing_dev_info;
+extern struct backing_dev_info noop_backing_dev_info;
 void default_unplug_io_fn(struct backing_dev_info *bdi, struct page *page);
 
 int writeback_in_progress(struct backing_dev_info *bdi);

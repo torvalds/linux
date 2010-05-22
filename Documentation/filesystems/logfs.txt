@@ -59,7 +59,7 @@ Levels
 ------
 
 Garbage collection (GC) may fail if all data is written
-indiscriminately.  One requirement of GC is that data is seperated
+indiscriminately.  One requirement of GC is that data is separated
 roughly according to the distance between the tree root and the data.
 Effectively that means all file data is on level 0, indirect blocks
 are on levels 1, 2, 3 4 or 5 for 1x, 2x, 3x, 4x or 5x indirect blocks,
@@ -67,7 +67,7 @@ respectively.  Inode file data is on level 6 for the inodes and 7-11
 for indirect blocks.
 
 Each segment contains objects of a single level only.  As a result,
-each level requires its own seperate segment to be open for writing.
+each level requires its own separate segment to be open for writing.
 
 Inode File
 ----------
@@ -106,9 +106,9 @@ Vim
 ---
 
 By cleverly predicting the life time of data, it is possible to
-seperate long-living data from short-living data and thereby reduce
+separate long-living data from short-living data and thereby reduce
 the GC overhead later.  Each type of distinc life expectency (vim) can
-have a seperate segment open for writing.  Each (level, vim) tupel can
+have a separate segment open for writing.  Each (level, vim) tupel can
 be open just once.  If an open segment with unknown vim is encountered
 at mount time, it is closed and ignored henceforth.
 

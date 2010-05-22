@@ -858,6 +858,8 @@ static int __ceph_is_any_caps(struct ceph_inode_info *ci)
 }
 
 /*
+ * Remove a cap.  Take steps to deal with a racing iterate_session_caps.
+ *
  * caller should hold i_lock.
  * caller will not hold session s_mutex if called from destroy_inode.
  */
@@ -866,14 +868,9 @@ void __ceph_remove_cap(struct ceph_cap *cap)
 	struct ceph_mds_session *session = cap->session;
 	struct ceph_inode_info *ci = cap->ci;
 	struct ceph_mds_client *mdsc = &ceph_client(ci->vfs_inode.i_sb)->mdsc;
+	int removed = 0;
 
 	dout("__ceph_remove_cap %p from %p\n", cap, &ci->vfs_inode);
-
-	/* remove from inode list */
-	rb_erase(&cap->ci_node, &ci->i_caps);
-	cap->ci = NULL;
-	if (ci->i_auth_cap == cap)
-		ci->i_auth_cap = NULL;
 
 	/* remove from session list */
 	spin_lock(&session->s_cap_lock);
@@ -885,10 +882,18 @@ void __ceph_remove_cap(struct ceph_cap *cap)
 		list_del_init(&cap->session_caps);
 		session->s_nr_caps--;
 		cap->session = NULL;
+		removed = 1;
 	}
+	/* protect backpointer with s_cap_lock: see iterate_session_caps */
+	cap->ci = NULL;
 	spin_unlock(&session->s_cap_lock);
 
-	if (cap->session == NULL)
+	/* remove from inode list */
+	rb_erase(&cap->ci_node, &ci->i_caps);
+	if (ci->i_auth_cap == cap)
+		ci->i_auth_cap = NULL;
+
+	if (removed)
 		ceph_put_cap(cap);
 
 	if (!__ceph_is_any_caps(ci) && ci->i_snap_realm) {
@@ -1861,8 +1866,8 @@ static void kick_flushing_capsnaps(struct ceph_mds_client *mdsc,
 		} else {
 			pr_err("%p auth cap %p not mds%d ???\n", inode,
 			       cap, session->s_mds);
-			spin_unlock(&inode->i_lock);
 		}
+		spin_unlock(&inode->i_lock);
 	}
 }
 

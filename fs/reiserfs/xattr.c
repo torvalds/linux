@@ -554,7 +554,7 @@ reiserfs_xattr_set_handle(struct reiserfs_transaction_handle *th,
 	if (!err && new_size < i_size_read(dentry->d_inode)) {
 		struct iattr newattrs = {
 			.ia_ctime = current_fs_time(inode->i_sb),
-			.ia_size = buffer_size,
+			.ia_size = new_size,
 			.ia_valid = ATTR_SIZE | ATTR_CTIME,
 		};
 
@@ -723,11 +723,11 @@ out:
 			(handler) = *(handlers)++)
 
 /* This is the implementation for the xattr plugin infrastructure */
-static inline struct xattr_handler *
-find_xattr_handler_prefix(struct xattr_handler **handlers,
+static inline const struct xattr_handler *
+find_xattr_handler_prefix(const struct xattr_handler **handlers,
 			   const char *name)
 {
-	struct xattr_handler *xah;
+	const struct xattr_handler *xah;
 
 	if (!handlers)
 		return NULL;
@@ -748,7 +748,7 @@ ssize_t
 reiserfs_getxattr(struct dentry * dentry, const char *name, void *buffer,
 		  size_t size)
 {
-	struct xattr_handler *handler;
+	const struct xattr_handler *handler;
 
 	handler = find_xattr_handler_prefix(dentry->d_sb->s_xattr, name);
 
@@ -767,7 +767,7 @@ int
 reiserfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 		  size_t size, int flags)
 {
-	struct xattr_handler *handler;
+	const struct xattr_handler *handler;
 
 	handler = find_xattr_handler_prefix(dentry->d_sb->s_xattr, name);
 
@@ -784,7 +784,7 @@ reiserfs_setxattr(struct dentry *dentry, const char *name, const void *value,
  */
 int reiserfs_removexattr(struct dentry *dentry, const char *name)
 {
-	struct xattr_handler *handler;
+	const struct xattr_handler *handler;
 	handler = find_xattr_handler_prefix(dentry->d_sb->s_xattr, name);
 
 	if (!handler || get_inode_sd_version(dentry->d_inode) == STAT_DATA_V1)
@@ -807,7 +807,7 @@ static int listxattr_filler(void *buf, const char *name, int namelen,
 	size_t size;
 	if (name[0] != '.' ||
 	    (namelen != 1 && (name[1] != '.' || namelen != 2))) {
-		struct xattr_handler *handler;
+		const struct xattr_handler *handler;
 		handler = find_xattr_handler_prefix(b->dentry->d_sb->s_xattr,
 						    name);
 		if (!handler)	/* Unsupported xattr name */
@@ -920,7 +920,7 @@ static int create_privroot(struct dentry *dentry) { return 0; }
 #endif
 
 /* Actual operations that are exported to VFS-land */
-struct xattr_handler *reiserfs_xattr_handlers[] = {
+const struct xattr_handler *reiserfs_xattr_handlers[] = {
 #ifdef CONFIG_REISERFS_FS_XATTR
 	&reiserfs_xattr_user_handler,
 	&reiserfs_xattr_trusted_handler,
@@ -973,21 +973,13 @@ int reiserfs_permission(struct inode *inode, int mask)
 	return generic_permission(inode, mask, NULL);
 }
 
-/* This will catch lookups from the fs root to .reiserfs_priv */
-static int
-xattr_lookup_poison(struct dentry *dentry, struct qstr *q1, struct qstr *name)
+static int xattr_hide_revalidate(struct dentry *dentry, struct nameidata *nd)
 {
-	struct dentry *priv_root = REISERFS_SB(dentry->d_sb)->priv_root;
-	if (container_of(q1, struct dentry, d_name) == priv_root)
-		return -ENOENT;
-	if (q1->len == name->len &&
-		   !memcmp(q1->name, name->name, name->len))
-		return 0;
-	return 1;
+	return -EPERM;
 }
 
 static const struct dentry_operations xattr_lookup_poison_ops = {
-	.d_compare = xattr_lookup_poison,
+	.d_revalidate = xattr_hide_revalidate,
 };
 
 int reiserfs_lookup_privroot(struct super_block *s)
@@ -1001,8 +993,7 @@ int reiserfs_lookup_privroot(struct super_block *s)
 				strlen(PRIVROOT_NAME));
 	if (!IS_ERR(dentry)) {
 		REISERFS_SB(s)->priv_root = dentry;
-		if (!reiserfs_expose_privroot(s))
-			s->s_root->d_op = &xattr_lookup_poison_ops;
+		dentry->d_op = &xattr_lookup_poison_ops;
 		if (dentry->d_inode)
 			dentry->d_inode->i_flags |= S_PRIVATE;
 	} else

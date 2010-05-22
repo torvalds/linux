@@ -316,7 +316,6 @@ static void rt6_probe(struct rt6_info *rt)
 #else
 static inline void rt6_probe(struct rt6_info *rt)
 {
-	return;
 }
 #endif
 
@@ -815,7 +814,7 @@ struct dst_entry * ip6_route_output(struct net *net, struct sock *sk,
 {
 	int flags = 0;
 
-	if (rt6_need_strict(&fl->fl6_dst))
+	if (fl->oif || rt6_need_strict(&fl->fl6_dst))
 		flags |= RT6_LOOKUP_F_IFACE;
 
 	if (!ipv6_addr_any(&fl->fl6_src))
@@ -1553,7 +1552,6 @@ void rt6_redirect(struct in6_addr *dest, struct in6_addr *src,
 
 out:
 	dst_release(&rt->u.dst);
-	return;
 }
 
 /*

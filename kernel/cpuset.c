@@ -2182,19 +2182,52 @@ void __init cpuset_init_smp(void)
 void cpuset_cpus_allowed(struct task_struct *tsk, struct cpumask *pmask)
 {
 	mutex_lock(&callback_mutex);
-	cpuset_cpus_allowed_locked(tsk, pmask);
-	mutex_unlock(&callback_mutex);
-}
-
-/**
- * cpuset_cpus_allowed_locked - return cpus_allowed mask from a tasks cpuset.
- * Must be called with callback_mutex held.
- **/
-void cpuset_cpus_allowed_locked(struct task_struct *tsk, struct cpumask *pmask)
-{
 	task_lock(tsk);
 	guarantee_online_cpus(task_cs(tsk), pmask);
 	task_unlock(tsk);
+	mutex_unlock(&callback_mutex);
+}
+
+int cpuset_cpus_allowed_fallback(struct task_struct *tsk)
+{
+	const struct cpuset *cs;
+	int cpu;
+
+	rcu_read_lock();
+	cs = task_cs(tsk);
+	if (cs)
+		cpumask_copy(&tsk->cpus_allowed, cs->cpus_allowed);
+	rcu_read_unlock();
+
+	/*
+	 * We own tsk->cpus_allowed, nobody can change it under us.
+	 *
+	 * But we used cs && cs->cpus_allowed lockless and thus can
+	 * race with cgroup_attach_task() or update_cpumask() and get
+	 * the wrong tsk->cpus_allowed. However, both cases imply the
+	 * subsequent cpuset_change_cpumask()->set_cpus_allowed_ptr()
+	 * which takes task_rq_lock().
+	 *
+	 * If we are called after it dropped the lock we must see all
+	 * changes in tsk_cs()->cpus_allowed. Otherwise we can temporary
+	 * set any mask even if it is not right from task_cs() pov,
+	 * the pending set_cpus_allowed_ptr() will fix things.
+	 */
+
+	cpu = cpumask_any_and(&tsk->cpus_allowed, cpu_active_mask);
+	if (cpu >= nr_cpu_ids) {
+		/*
+		 * Either tsk->cpus_allowed is wrong (see above) or it
+		 * is actually empty. The latter case is only possible
+		 * if we are racing with remove_tasks_in_empty_cpuset().
+		 * Like above we can temporary set any mask and rely on
+		 * set_cpus_allowed_ptr() as synchronization point.
+		 */
+		cpumask_copy(&tsk->cpus_allowed, cpu_possible_mask);
+		cpu = cpumask_any(cpu_active_mask);
+	}
+
+	return cpu;
 }
 
 void cpuset_init_current_mems_allowed(void)
@@ -2380,22 +2413,6 @@ int __cpuset_node_allowed_hardwall(int node, gfp_t gfp_mask)
 	if (unlikely(test_thread_flag(TIF_MEMDIE)))
 		return 1;
 	return 0;
-}
-
-/**
- * cpuset_lock - lock out any changes to cpuset structures
- *
- * The out of memory (oom) code needs to mutex_lock cpusets
- * from being changed while it scans the tasklist looking for a
- * task in an overlapping cpuset.  Expose callback_mutex via this
- * cpuset_lock() routine, so the oom code can lock it, before
- * locking the task list.  The tasklist_lock is a spinlock, so
- * must be taken inside callback_mutex.
- */
-
-void cpuset_lock(void)
-{
-	mutex_lock(&callback_mutex);
 }
 
 /**

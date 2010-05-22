@@ -629,9 +629,9 @@ static int sn_hwperf_op_cpu(struct sn_hwperf_op_info *op_info)
 		else {
 			/* migrate the task before calling SAL */ 
 			save_allowed = current->cpus_allowed;
-			set_cpus_allowed(current, cpumask_of_cpu(cpu));
+			set_cpus_allowed_ptr(current, cpumask_of(cpu));
 			sn_hwperf_call_sal(op_info);
-			set_cpus_allowed(current, save_allowed);
+			set_cpus_allowed_ptr(current, &save_allowed);
 		}
 	}
 	r = op_info->ret;

@@ -234,9 +234,6 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	mac->mta_reg_count = 128;
 	/* Set rar entry count */
 	mac->rar_entry_count = E1000_RAR_ENTRIES;
-	/* Set if manageability features are enabled. */
-	mac->arc_subsystem_valid = (er32(FWSM) & E1000_FWSM_MODE_MASK)
-	                ? true : false;
 	/* Adaptive IFS supported */
 	mac->adaptive_ifs = true;
 
@@ -271,6 +268,16 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 		func->set_lan_id = e1000_set_lan_id_single_port;
 		func->check_mng_mode = e1000e_check_mng_mode_generic;
 		func->led_on = e1000e_led_on_generic;
+
+		/* FWSM register */
+		mac->has_fwsm = true;
+		/*
+		 * ARC supported; valid only if manageability features are
+		 * enabled.
+		 */
+		mac->arc_subsystem_valid =
+			(er32(FWSM) & E1000_FWSM_MODE_MASK)
+			? true : false;
 		break;
 	case e1000_82574:
 	case e1000_82583:
@@ -281,6 +288,9 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	default:
 		func->check_mng_mode = e1000e_check_mng_mode_generic;
 		func->led_on = e1000e_led_on_generic;
+
+		/* FWSM register */
+		mac->has_fwsm = true;
 		break;
 	}
 
@@ -323,7 +333,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	}
 
 	/*
-	 * Initialze device specific counter of SMBI acquisition
+	 * Initialize device specific counter of SMBI acquisition
 	 * timeouts.
 	 */
 	 hw->dev_spec.e82571.smb_counter = 0;
@@ -336,7 +346,6 @@ static s32 e1000_get_variants_82571(struct e1000_adapter *adapter)
 	struct e1000_hw *hw = &adapter->hw;
 	static int global_quad_port_a; /* global port a indication */
 	struct pci_dev *pdev = adapter->pdev;
-	u16 eeprom_data = 0;
 	int is_port_b = er32(STATUS) & E1000_STATUS_FUNC_1;
 	s32 rc;
 
@@ -387,16 +396,15 @@ static s32 e1000_get_variants_82571(struct e1000_adapter *adapter)
 		if (pdev->device == E1000_DEV_ID_82571EB_SERDES_QUAD)
 			adapter->flags &= ~FLAG_HAS_WOL;
 		break;
-
 	case e1000_82573:
+	case e1000_82574:
+	case e1000_82583:
+		/* Disable ASPM L0s due to hardware errata */
+		e1000e_disable_aspm(adapter->pdev, PCIE_LINK_STATE_L0S);
+
 		if (pdev->device == E1000_DEV_ID_82573L) {
-			if (e1000_read_nvm(&adapter->hw, NVM_INIT_3GIO_3, 1,
-				       &eeprom_data) < 0)
-				break;
-			if (!(eeprom_data & NVM_WORD1A_ASPM_MASK)) {
-				adapter->flags |= FLAG_HAS_JUMBO_FRAMES;
-				adapter->max_hw_frame_size = DEFAULT_JUMBO;
-			}
+			adapter->flags |= FLAG_HAS_JUMBO_FRAMES;
+			adapter->max_hw_frame_size = DEFAULT_JUMBO;
 		}
 		break;
 	default:
@@ -995,9 +1003,10 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	/* ...for both queues. */
 	switch (mac->type) {
 	case e1000_82573:
+		e1000e_enable_tx_pkt_filtering(hw);
+		/* fall through */
 	case e1000_82574:
 	case e1000_82583:
-		e1000e_enable_tx_pkt_filtering(hw);
 		reg_data = er32(GCR);
 		reg_data |= E1000_GCR_L1_ACT_WITHOUT_L0S_RX;
 		ew32(GCR, reg_data);
@@ -1139,8 +1148,6 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	default:
 		break;
 	}
-
-	return;
 }
 
 /**
@@ -1644,8 +1651,6 @@ static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw)
 	/* If the management interface is not enabled, then power down */
 	if (!(mac->ops.check_mng_mode(hw) || phy->ops.check_reset_block(hw)))
 		e1000_power_down_phy_copper(hw);
-
-	return;
 }
 
 /**
@@ -1792,6 +1797,7 @@ struct e1000_info e1000_82571_info = {
 				  | FLAG_RESET_OVERWRITES_LAA /* errata */
 				  | FLAG_TARC_SPEED_MODE_BIT /* errata */
 				  | FLAG_APME_CHECK_PORT_B,
+	.flags2			= FLAG2_DISABLE_ASPM_L1, /* errata 13 */
 	.pba			= 38,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
@@ -1809,6 +1815,7 @@ struct e1000_info e1000_82572_info = {
 				  | FLAG_RX_CSUM_ENABLED
 				  | FLAG_HAS_CTRLEXT_ON_LOAD
 				  | FLAG_TARC_SPEED_MODE_BIT, /* errata */
+	.flags2			= FLAG2_DISABLE_ASPM_L1, /* errata 13 */
 	.pba			= 38,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
@@ -1820,13 +1827,11 @@ struct e1000_info e1000_82572_info = {
 struct e1000_info e1000_82573_info = {
 	.mac			= e1000_82573,
 	.flags			= FLAG_HAS_HW_VLAN_FILTER
-				  | FLAG_HAS_JUMBO_FRAMES
 				  | FLAG_HAS_WOL
 				  | FLAG_APME_IN_CTRL3
 				  | FLAG_RX_CSUM_ENABLED
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
-				  | FLAG_HAS_ERT
 				  | FLAG_HAS_SWSM_ON_LOAD,
 	.pba			= 20,
 	.max_hw_frame_size	= ETH_FRAME_LEN + ETH_FCS_LEN,
@@ -1847,7 +1852,7 @@ struct e1000_info e1000_82574_info = {
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
-	.pba			= 20,
+	.pba			= 36,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
@@ -1864,7 +1869,7 @@ struct e1000_info e1000_82583_info = {
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
-	.pba			= 20,
+	.pba			= 36,
 	.max_hw_frame_size	= ETH_FRAME_LEN + ETH_FCS_LEN,
 	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,

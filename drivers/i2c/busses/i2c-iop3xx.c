@@ -38,8 +38,7 @@
 #include <linux/errno.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
 
 #include "i2c-iop3xx.h"
 

@@ -179,7 +179,7 @@ static unsigned int radisys_qc_issue(struct ata_queued_cmd *qc)
 				radisys_set_piomode(ap, adev);
 		}
 	}
-	return ata_sff_qc_issue(qc);
+	return ata_bmdma_qc_issue(qc);
 }
 
 

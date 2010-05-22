@@ -493,6 +493,9 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	      struct lpfc_iocbq *cmdiocb, uint32_t els_cmd)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_hba    *phba = vport->phba;
+	struct lpfc_vport **vports;
+	int i, active_vlink_present = 0 ;
 
 	/* Put ndlp in NPR state with 1 sec timeout for plogi, ACC logo */
 	/* Only call LOGO ACC for first LOGO, this avoids sending unnecessary
@@ -505,15 +508,44 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		lpfc_els_rsp_acc(vport, ELS_CMD_PRLO, cmdiocb, ndlp, NULL);
 	else
 		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
-	if ((ndlp->nlp_DID == Fabric_DID) &&
-		vport->port_type == LPFC_NPIV_PORT) {
+	if (ndlp->nlp_DID == Fabric_DID) {
+		if (vport->port_state <= LPFC_FDISC)
+			goto out;
 		lpfc_linkdown_port(vport);
-		mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ * 1);
 		spin_lock_irq(shost->host_lock);
-		ndlp->nlp_flag |= NLP_DELAY_TMO;
+		vport->fc_flag |= FC_VPORT_LOGO_RCVD;
 		spin_unlock_irq(shost->host_lock);
+		vports = lpfc_create_vport_work_array(phba);
+		if (vports) {
+			for (i = 0; i <= phba->max_vports && vports[i] != NULL;
+					i++) {
+				if ((!(vports[i]->fc_flag &
+					FC_VPORT_LOGO_RCVD)) &&
+					(vports[i]->port_state > LPFC_FDISC)) {
+					active_vlink_present = 1;
+					break;
+				}
+			}
+			lpfc_destroy_vport_work_array(phba, vports);
+		}
 
-		ndlp->nlp_last_elscmd = ELS_CMD_FDISC;
+		if (active_vlink_present) {
+			/*
+			 * If there are other active VLinks present,
+			 * re-instantiate the Vlink using FDISC.
+			 */
+			mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ);
+			spin_lock_irq(shost->host_lock);
+			ndlp->nlp_flag |= NLP_DELAY_TMO;
+			spin_unlock_irq(shost->host_lock);
+			ndlp->nlp_last_elscmd = ELS_CMD_FDISC;
+			vport->port_state = LPFC_FDISC;
+		} else {
+			spin_lock_irq(shost->host_lock);
+			phba->pport->fc_flag &= ~FC_LOGO_RCVD_DID_CHNG;
+			spin_unlock_irq(shost->host_lock);
+			lpfc_retry_pport_discovery(phba);
+		}
 	} else if ((!(ndlp->nlp_type & NLP_FABRIC) &&
 		((ndlp->nlp_type & NLP_FCP_TARGET) ||
 		!(ndlp->nlp_type & NLP_FCP_INITIATOR))) ||
@@ -526,6 +558,7 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 		ndlp->nlp_last_elscmd = ELS_CMD_PLOGI;
 	}
+out:
 	ndlp->nlp_prev_state = ndlp->nlp_state;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 
@@ -604,11 +637,55 @@ lpfc_disc_set_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	lpfc_unreg_rpi(vport, ndlp);
 	return 0;
 }
+/**
+ * lpfc_release_rpi - Release a RPI by issueing unreg_login mailbox cmd.
+ * @phba : Pointer to lpfc_hba structure.
+ * @vport: Pointer to lpfc_vport structure.
+ * @rpi  : rpi to be release.
+ *
+ * This function will send a unreg_login mailbox command to the firmware
+ * to release a rpi.
+ **/
+void
+lpfc_release_rpi(struct lpfc_hba *phba,
+		struct lpfc_vport *vport,
+		uint16_t rpi)
+{
+	LPFC_MBOXQ_t *pmb;
+	int rc;
+
+	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool,
+			GFP_KERNEL);
+	if (!pmb)
+		lpfc_printf_vlog(vport, KERN_ERR, LOG_MBOX,
+			"2796 mailbox memory allocation failed \n");
+	else {
+		lpfc_unreg_login(phba, vport->vpi, rpi, pmb);
+		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+		if (rc == MBX_NOT_FINISHED)
+			mempool_free(pmb, phba->mbox_mem_pool);
+	}
+}
 
 static uint32_t
 lpfc_disc_illegal(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		  void *arg, uint32_t evt)
 {
+	struct lpfc_hba *phba;
+	LPFC_MBOXQ_t *pmb = (LPFC_MBOXQ_t *) arg;
+	MAILBOX_t *mb;
+	uint16_t rpi;
+
+	phba = vport->phba;
+	/* Release the RPI if reglogin completing */
+	if (!(phba->pport->load_flag & FC_UNLOADING) &&
+		(evt == NLP_EVT_CMPL_REG_LOGIN) &&
+		(!pmb->u.mb.mbxStatus)) {
+		mb = &pmb->u.mb;
+		rpi = pmb->u.mb.un.varWords[0];
+		lpfc_release_rpi(phba, vport, rpi);
+	}
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
 			 "0271 Illegal State Transition: node x%x "
 			 "event x%x, state x%x Data: x%x x%x\n",
@@ -944,6 +1021,18 @@ static uint32_t
 lpfc_cmpl_reglogin_plogi_issue(struct lpfc_vport *vport,
 	struct lpfc_nodelist *ndlp, void *arg, uint32_t evt)
 {
+	struct lpfc_hba *phba;
+	LPFC_MBOXQ_t *pmb = (LPFC_MBOXQ_t *) arg;
+	MAILBOX_t *mb = &pmb->u.mb;
+	uint16_t rpi;
+
+	phba = vport->phba;
+	/* Release the RPI */
+	if (!(phba->pport->load_flag & FC_UNLOADING) &&
+		!mb->mbxStatus) {
+		rpi = pmb->u.mb.un.varWords[0];
+		lpfc_release_rpi(phba, vport, rpi);
+	}
 	return ndlp->nlp_state;
 }
 

@@ -35,6 +35,7 @@
 #include <linux/scatterlist.h>
 #include <linux/hash.h>
 #include <linux/nsproxy.h>
+#include <linux/backing-dev.h>
 
 /* Version verification for shared data structures w/ userspace */
 #define ECRYPTFS_VERSION_MAJOR 0x00
@@ -393,6 +394,7 @@ struct ecryptfs_mount_crypt_stat {
 struct ecryptfs_sb_info {
 	struct super_block *wsi_sb;
 	struct ecryptfs_mount_crypt_stat mount_crypt_stat;
+	struct backing_dev_info bdi;
 };
 
 /* file private data. */
@@ -729,15 +731,14 @@ int ecryptfs_write_lower(struct inode *ecryptfs_inode, char *data,
 int ecryptfs_write_lower_page_segment(struct inode *ecryptfs_inode,
 				      struct page *page_for_lower,
 				      size_t offset_in_page, size_t size);
-int ecryptfs_write(struct file *ecryptfs_file, char *data, loff_t offset,
-		   size_t size);
+int ecryptfs_write(struct inode *inode, char *data, loff_t offset, size_t size);
 int ecryptfs_read_lower(char *data, loff_t offset, size_t size,
 			struct inode *ecryptfs_inode);
 int ecryptfs_read_lower_page_segment(struct page *page_for_ecryptfs,
 				     pgoff_t page_index,
 				     size_t offset_in_page, size_t size,
 				     struct inode *ecryptfs_inode);
-struct page *ecryptfs_get_locked_page(struct file *file, loff_t index);
+struct page *ecryptfs_get_locked_page(struct inode *inode, loff_t index);
 int ecryptfs_exorcise_daemon(struct ecryptfs_daemon *daemon);
 int ecryptfs_find_daemon_by_euid(struct ecryptfs_daemon **daemon, uid_t euid,
 				 struct user_namespace *user_ns);

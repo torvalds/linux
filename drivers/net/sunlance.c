@@ -1003,7 +1003,7 @@ static int lance_reset(struct net_device *dev)
 	}
 	lp->init_ring(dev);
 	load_csrs(lp);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	status = init_restart_lance(lp);
 	return status;
 }
@@ -1054,7 +1054,7 @@ static void lance_piocopy_from_skb(void __iomem *dest, unsigned char *src, int l
 		}
 		src = (char *) p16;
 		break;
-	};
+	}
 	if (len >= 2) {
 		u16 val = src[0] << 8 | src[1];
 		sbus_writew(val, piobuf);
@@ -1160,7 +1160,6 @@ static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irq(&lp->lock);
 
-	dev->trans_start = jiffies;
 	dev_kfree_skb(skb);
 
 	return NETDEV_TX_OK;
@@ -1170,7 +1169,7 @@ static int lance_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static void lance_load_multicast(struct net_device *dev)
 {
 	struct lance_private *lp = netdev_priv(dev);
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	char *addrs;
 	u32 crc;
 	u32 val;
@@ -1195,8 +1194,8 @@ static void lance_load_multicast(struct net_device *dev)
 		return;
 
 	/* Add addresses */
-	netdev_for_each_mc_addr(dmi, dev) {
-		addrs = dmi->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		addrs = ha->addr;
 
 		/* multicast address? */
 		if (!(*addrs & 1))

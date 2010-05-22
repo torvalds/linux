@@ -134,7 +134,6 @@ static void zd1201_usbfree(struct urb *urb)
 
 	kfree(urb->transfer_buffer);
 	usb_free_urb(urb);
-	return;
 }
 
 /* cmdreq message: 
@@ -185,7 +184,6 @@ static void zd1201_usbtx(struct urb *urb)
 {
 	struct zd1201 *zd = urb->context;
 	netif_wake_queue(zd->dev);
-	return;
 }
 
 /* Incoming data */
@@ -407,7 +405,6 @@ exit:
 		wake_up(&zd->rxdataq);
 		kfree(urb->transfer_buffer);
 	}
-	return;
 }
 
 static int zd1201_getconfig(struct zd1201 *zd, int rid, void *riddata,
@@ -827,7 +824,6 @@ static netdev_tx_t zd1201_hard_start_xmit(struct sk_buff *skb,
 	} else {
 		dev->stats.tx_packets++;
 		dev->stats.tx_bytes += skb->len;
-		dev->trans_start = jiffies;
 	}
 	kfree_skb(skb);
 
@@ -845,7 +841,7 @@ static void zd1201_tx_timeout(struct net_device *dev)
 	usb_unlink_urb(zd->tx_urb);
 	dev->stats.tx_errors++;
 	/* Restart the timeout to quiet the watchdog: */
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 }
 
 static int zd1201_set_mac_address(struct net_device *dev, void *p)
@@ -876,7 +872,7 @@ static struct iw_statistics *zd1201_get_wireless_stats(struct net_device *dev)
 static void zd1201_set_multicast(struct net_device *dev)
 {
 	struct zd1201 *zd = netdev_priv(dev);
-	struct dev_mc_list *mc;
+	struct netdev_hw_addr *ha;
 	unsigned char reqbuf[ETH_ALEN*ZD1201_MAXMULTI];
 	int i;
 
@@ -884,8 +880,8 @@ static void zd1201_set_multicast(struct net_device *dev)
 		return;
 
 	i = 0;
-	netdev_for_each_mc_addr(mc, dev)
-		memcpy(reqbuf + i++ * ETH_ALEN, mc->dmi_addr, ETH_ALEN);
+	netdev_for_each_mc_addr(ha, dev)
+		memcpy(reqbuf + i++ * ETH_ALEN, ha->addr, ETH_ALEN);
 	zd1201_setconfig(zd, ZD1201_RID_CNFGROUPADDRESS, reqbuf,
 			 netdev_mc_count(dev) * ETH_ALEN, 0);
 }

@@ -35,7 +35,6 @@
 
 #include <plat/regs-serial.h>
 #include <plat/gpio-cfg.h>
-#include <plat/regs-gpio.h>
 
 #include <plat/clock.h>
 #include <plat/devs.h>

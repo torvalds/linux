@@ -7,6 +7,7 @@ config CP_INTC
 	bool
 
 config ARCH_DAVINCI_DMx
+	select CPU_ARM926T
 	bool
 
 menu "TI DaVinci Implementations"
@@ -41,6 +42,7 @@ config ARCH_DAVINCI_DA850
 	select ARCH_HAS_CPUFREQ
 
 config ARCH_DAVINCI_DA8XX
+	select CPU_ARM926T
 	bool
 
 config ARCH_DAVINCI_DM365

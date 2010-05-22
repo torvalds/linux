@@ -43,6 +43,7 @@
 #include "iwl-debug.h"
 #include "iwl-4965-hw.h"
 #include "iwl-3945-hw.h"
+#include "iwl-agn-hw.h"
 #include "iwl-led.h"
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
@@ -56,6 +57,7 @@ extern struct iwl_cfg iwl5100_bgn_cfg;
 extern struct iwl_cfg iwl5100_abg_cfg;
 extern struct iwl_cfg iwl5150_agn_cfg;
 extern struct iwl_cfg iwl5150_abg_cfg;
+extern struct iwl_cfg iwl6000g2a_2agn_cfg;
 extern struct iwl_cfg iwl6000i_2agn_cfg;
 extern struct iwl_cfg iwl6000i_2abg_cfg;
 extern struct iwl_cfg iwl6000i_2bg_cfg;
@@ -66,45 +68,6 @@ extern struct iwl_cfg iwl1000_bgn_cfg;
 extern struct iwl_cfg iwl1000_bg_cfg;
 
 struct iwl_tx_queue;
-
-/* shared structures from iwl-5000.c */
-extern struct iwl_mod_params iwl50_mod_params;
-extern struct iwl_ucode_ops iwl5000_ucode;
-extern struct iwl_lib_ops iwl5000_lib;
-extern struct iwl_hcmd_ops iwl5000_hcmd;
-extern struct iwl_hcmd_utils_ops iwl5000_hcmd_utils;
-
-/* shared functions from iwl-5000.c */
-extern u16 iwl5000_get_hcmd_size(u8 cmd_id, u16 len);
-extern u16 iwl5000_build_addsta_hcmd(const struct iwl_addsta_cmd *cmd,
-				     u8 *data);
-extern void iwl5000_rts_tx_cmd_flag(struct ieee80211_tx_info *info,
-				    __le32 *tx_flags);
-extern int iwl5000_calc_rssi(struct iwl_priv *priv,
-			     struct iwl_rx_phy_res *rx_resp);
-extern void iwl5000_nic_config(struct iwl_priv *priv);
-extern u16 iwl5000_eeprom_calib_version(struct iwl_priv *priv);
-extern const u8 *iwl5000_eeprom_query_addr(const struct iwl_priv *priv,
-				    size_t offset);
-extern void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
-					    struct iwl_tx_queue *txq,
-					    u16 byte_cnt);
-extern void iwl5000_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
-				    struct iwl_tx_queue *txq);
-extern int iwl5000_load_ucode(struct iwl_priv *priv);
-extern void iwl5000_init_alive_start(struct iwl_priv *priv);
-extern int iwl5000_alive_notify(struct iwl_priv *priv);
-extern int iwl5000_hw_set_hw_params(struct iwl_priv *priv);
-extern int iwl5000_txq_agg_enable(struct iwl_priv *priv, int txq_id,
-			   int tx_fifo, int sta_id, int tid, u16 ssn_idx);
-extern int iwl5000_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
-			    u16 ssn_idx, u8 tx_fifo);
-extern void iwl5000_txq_set_sched(struct iwl_priv *priv, u32 mask);
-extern void iwl5000_setup_deferred_work(struct iwl_priv *priv);
-extern void iwl5000_rx_handler_setup(struct iwl_priv *priv);
-extern int iwl5000_hw_valid_rtc_data_addr(u32 addr);
-extern int iwl5000_send_tx_power(struct iwl_priv *priv);
-extern void iwl5000_temperature(struct iwl_priv *priv);
 
 /* CT-KILL constants */
 #define CT_KILL_THRESHOLD_LEGACY   110 /* in Celsius */
@@ -183,6 +146,10 @@ struct iwl_queue {
 	int n_bd;              /* number of BDs in this queue */
 	int write_ptr;       /* 1-st empty entry (index) host_w*/
 	int read_ptr;         /* last used entry (index) host_r*/
+	/* use for monitoring and recovering the stuck queue */
+	int last_read_ptr;      /* storing the last read_ptr */
+	/* number of time read_ptr and last_read_ptr are the same */
+	u8 repeat_same_read_ptr;
 	dma_addr_t dma_addr;   /* physical addr for BD's */
 	int n_window;	       /* safe queue window */
 	u32 id;
@@ -304,13 +271,11 @@ struct iwl_channel_info {
 	struct iwl3945_scan_power_info scan_pwr_info[IWL_NUM_SCAN_RATES];
 };
 
-#define IWL_TX_FIFO_AC0	0
-#define IWL_TX_FIFO_AC1	1
-#define IWL_TX_FIFO_AC2	2
-#define IWL_TX_FIFO_AC3	3
-#define IWL_TX_FIFO_HCCA_1	5
-#define IWL_TX_FIFO_HCCA_2	6
-#define IWL_TX_FIFO_NONE	7
+#define IWL_TX_FIFO_BK		0
+#define IWL_TX_FIFO_BE		1
+#define IWL_TX_FIFO_VI		2
+#define IWL_TX_FIFO_VO		3
+#define IWL_TX_FIFO_UNUSED	-1
 
 /* Minimum number of queues. MAX_NUM is defined in hw specific files.
  * Set the minimum to accommodate the 4 standard TX queues, 1 command
@@ -360,13 +325,6 @@ enum {
 };
 
 #define DEF_CMD_PAYLOAD_SIZE 320
-
-/*
- * IWL_LINK_HDR_MAX should include ieee80211_hdr, radiotap header,
- * SNAP header and alignment. It should also be big enough for 802.11
- * control frames.
- */
-#define IWL_LINK_HDR_MAX 64
 
 /**
  * struct iwl_device_cmd
@@ -519,38 +477,28 @@ struct iwl_ht_config {
 	u8 non_GF_STA_present;
 };
 
-union iwl_qos_capabity {
-	struct {
-		u8 edca_count:4;	/* bit 0-3 */
-		u8 q_ack:1;		/* bit 4 */
-		u8 queue_request:1;	/* bit 5 */
-		u8 txop_request:1;	/* bit 6 */
-		u8 reserved:1;		/* bit 7 */
-	} q_AP;
-	struct {
-		u8 acvo_APSD:1;		/* bit 0 */
-		u8 acvi_APSD:1;		/* bit 1 */
-		u8 ac_bk_APSD:1;	/* bit 2 */
-		u8 ac_be_APSD:1;	/* bit 3 */
-		u8 q_ack:1;		/* bit 4 */
-		u8 max_len:2;		/* bit 5-6 */
-		u8 more_data_ack:1;	/* bit 7 */
-	} q_STA;
-	u8 val;
-};
-
 /* QoS structures */
 struct iwl_qos_info {
 	int qos_active;
-	union iwl_qos_capabity qos_cap;
 	struct iwl_qosparam_cmd def_qos_parm;
 };
 
+/*
+ * Structure should be accessed with sta_lock held. When station addition
+ * is in progress (IWL_STA_UCODE_INPROGRESS) it is possible to access only
+ * the commands (iwl_addsta_cmd and iwl_link_quality_cmd) without sta_lock
+ * held.
+ */
 struct iwl_station_entry {
 	struct iwl_addsta_cmd sta;
 	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used;
 	struct iwl_hw_key keyinfo;
+	struct iwl_link_quality_cmd *lq;
+};
+
+struct iwl_station_priv_common {
+	u8 sta_id;
 };
 
 /*
@@ -559,12 +507,26 @@ struct iwl_station_entry {
  * When mac80211 creates a station it reserves some space (hw->sta_data_size)
  * in the structure for use by driver. This structure is places in that
  * space.
+ *
+ * The common struct MUST be first because it is shared between
+ * 3945 and agn!
  */
 struct iwl_station_priv {
+	struct iwl_station_priv_common common;
 	struct iwl_lq_sta lq_sta;
 	atomic_t pending_frames;
 	bool client;
 	bool asleep;
+};
+
+/**
+ * struct iwl_vif_priv - driver's private per-interface information
+ *
+ * When mac80211 allocates a virtual interface, it can allocate
+ * space for us to put data into.
+ */
+struct iwl_vif_priv {
+	u8 ibss_bssid_sta_id;
 };
 
 /* one for each uCode image (inst/data, boot/init/runtime) */
@@ -574,7 +536,7 @@ struct fw_desc {
 	u32 len;		/* bytes */
 };
 
-/* uCode file layout */
+/* v1/v2 uCode file layout */
 struct iwl_ucode_header {
 	__le32 ver;	/* major/minor/API/serial */
 	union {
@@ -597,7 +559,62 @@ struct iwl_ucode_header {
 		} v2;
 	} u;
 };
-#define UCODE_HEADER_SIZE(ver) ((ver) == 1 ? 24 : 28)
+
+/*
+ * new TLV uCode file layout
+ *
+ * The new TLV file format contains TLVs, that each specify
+ * some piece of data. To facilitate "groups", for example
+ * different instruction image with different capabilities,
+ * bundled with the same init image, an alternative mechanism
+ * is provided:
+ * When the alternative field is 0, that means that the item
+ * is always valid. When it is non-zero, then it is only
+ * valid in conjunction with items of the same alternative,
+ * in which case the driver (user) selects one alternative
+ * to use.
+ */
+
+enum iwl_ucode_tlv_type {
+	IWL_UCODE_TLV_INVALID		= 0, /* unused */
+	IWL_UCODE_TLV_INST		= 1,
+	IWL_UCODE_TLV_DATA		= 2,
+	IWL_UCODE_TLV_INIT		= 3,
+	IWL_UCODE_TLV_INIT_DATA		= 4,
+	IWL_UCODE_TLV_BOOT		= 5,
+	IWL_UCODE_TLV_PROBE_MAX_LEN	= 6, /* a u32 value */
+};
+
+struct iwl_ucode_tlv {
+	__le16 type;		/* see above */
+	__le16 alternative;	/* see comment */
+	__le32 length;		/* not including type/length fields */
+	u8 data[0];
+} __attribute__ ((packed));
+
+#define IWL_TLV_UCODE_MAGIC	0x0a4c5749
+
+struct iwl_tlv_ucode_header {
+	/*
+	 * The TLV style ucode header is distinguished from
+	 * the v1/v2 style header by first four bytes being
+	 * zero, as such is an invalid combination of
+	 * major/minor/API/serial versions.
+	 */
+	__le32 zero;
+	__le32 magic;
+	u8 human_readable[64];
+	__le32 ver;		/* major/minor/API/serial */
+	__le32 build;
+	__le64 alternatives;	/* bitmask of valid alternatives */
+	/*
+	 * The data contained herein has a TLV layout,
+	 * see above for the TLV header and types.
+	 * Note that each TLV is padded to a length
+	 * that is a multiple of 4 for alignment.
+	 */
+	u8 data[0];
+};
 
 struct iwl4965_ibss_seq {
 	u8 mac[ETH_ALEN];
@@ -1039,6 +1056,11 @@ struct iwl_event_log {
 #define IWL_DELAY_NEXT_FORCE_RF_RESET  (HZ*3)
 #define IWL_DELAY_NEXT_FORCE_FW_RELOAD (HZ*5)
 
+/* timer constants use to monitor and recover stuck tx queues in mSecs */
+#define IWL_MONITORING_PERIOD  (1000)
+#define IWL_ONE_HUNDRED_MSECS   (100)
+#define IWL_SIXTY_SECS          (60000)
+
 enum iwl_reset {
 	IWL_RF_RESET = 0,
 	IWL_FW_RESET,
@@ -1092,10 +1114,6 @@ struct iwl_priv {
 	struct iwl_channel_info *channel_info;	/* channel info array */
 	u8 channel_count;	/* # of channels */
 
-	/* each calibration channel group in the EEPROM has a derived
-	 * clip setting for each rate. 3945 only.*/
-	const struct iwl3945_clip_group clip39_groups[5];
-
 	/* thermal calibration */
 	s32 temperature;	/* degrees Kelvin */
 	s32 last_temperature;
@@ -1104,12 +1122,10 @@ struct iwl_priv {
 	struct iwl_calib_result calib_results[IWL_CALIB_MAX];
 
 	/* Scan related variables */
-	unsigned long next_scan_jiffies;
 	unsigned long scan_start;
-	unsigned long scan_pass_start;
 	unsigned long scan_start_tsf;
-	void *scan;
-	int scan_bands;
+	void *scan_cmd;
+	enum ieee80211_band scan_band;
 	struct cfg80211_scan_request *scan_request;
 	bool is_internal_short_scan;
 	u8 scan_tx_ant[IEEE80211_NUM_BANDS];
@@ -1168,16 +1184,13 @@ struct iwl_priv {
 	u64 led_tpt;
 
 	u16 active_rate;
-	u16 active_rate_basic;
 
-	u8 assoc_station_added;
 	u8 start_calib;
 	struct iwl_sensitivity_data sensitivity_data;
 	struct iwl_chain_noise_data chain_noise_data;
 	__le16 sensitivity_tbl[HD_TABLE_SIZE];
 
 	struct iwl_ht_config current_ht_config;
-	u8 last_phy_res[100];
 
 	/* Rate scaling data */
 	u8 retry_rate;
@@ -1197,9 +1210,6 @@ struct iwl_priv {
 
 	unsigned long status;
 
-	int last_rx_rssi;	/* From Rx packet statistics */
-	int last_rx_noise;	/* From beacon statistics */
-
 	/* counts mgmt, ctl, and data packets */
 	struct traffic_stats tx_stats;
 	struct traffic_stats rx_stats;
@@ -1218,18 +1228,14 @@ struct iwl_priv {
 #endif
 
 	/* context information */
-	u16 rates_mask;
-
-	u8 bssid[ETH_ALEN];
-	u16 rts_threshold;
+	u8 bssid[ETH_ALEN]; /* used only on 3945 but filled by core */
 	u8 mac_addr[ETH_ALEN];
 
 	/*station table variables */
 	spinlock_t sta_lock;
 	int num_stations;
 	struct iwl_station_entry stations[IWL_STATION_COUNT];
-	struct iwl_wep_key wep_keys[WEP_KEYS_MAX];
-	u8 default_wep_key;
+	struct iwl_wep_key wep_keys[WEP_KEYS_MAX]; /* protected by mutex */
 	u8 key_mapping_key;
 	unsigned long ucode_key_table;
 
@@ -1244,10 +1250,6 @@ struct iwl_priv {
 
 	u8 mac80211_registered;
 
-	/* Rx'd packet timing information */
-	u32 last_beacon_time;
-	u64 last_tsf;
-
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;
 	int    nvm_device_type;
@@ -1259,29 +1261,67 @@ struct iwl_priv {
 
 	/* Last Rx'd beacon timestamp */
 	u64 timestamp;
-	u16 beacon_int;
 	struct ieee80211_vif *vif;
 
-	/*Added for 3945 */
-	void *shared_virt;
-	dma_addr_t shared_phys;
-	/*End*/
+	union {
+#if defined(CONFIG_IWL3945) || defined(CONFIG_IWL3945_MODULE)
+		struct {
+			void *shared_virt;
+			dma_addr_t shared_phys;
+
+			struct delayed_work thermal_periodic;
+			struct delayed_work rfkill_poll;
+
+			struct iwl3945_notif_statistics statistics;
+#ifdef CONFIG_IWLWIFI_DEBUG
+			struct iwl3945_notif_statistics accum_statistics;
+			struct iwl3945_notif_statistics delta_statistics;
+			struct iwl3945_notif_statistics max_delta;
+#endif
+
+			u32 sta_supp_rates;
+			int last_rx_rssi;	/* From Rx packet statistics */
+
+			/* Rx'd packet timing information */
+			u32 last_beacon_time;
+			u64 last_tsf;
+
+			/*
+			 * each calibration channel group in the
+			 * EEPROM has a derived clip setting for
+			 * each rate.
+			 */
+			const struct iwl3945_clip_group clip_groups[5];
+
+		} _3945;
+#endif
+#if defined(CONFIG_IWLAGN) || defined(CONFIG_IWLAGN_MODULE)
+		struct {
+			/* INT ICT Table */
+			__le32 *ict_tbl;
+			void *ict_tbl_vir;
+			dma_addr_t ict_tbl_dma;
+			dma_addr_t aligned_ict_tbl_dma;
+			int ict_index;
+			u32 inta;
+			bool use_ict;
+			/*
+			 * reporting the number of tids has AGG on. 0 means
+			 * no AGGREGATION
+			 */
+			u8 agg_tids_count;
+
+			struct iwl_rx_phy_res last_phy_res;
+			bool last_phy_res_valid;
+
+			struct completion firmware_loading_complete;
+		} _agn;
+#endif
+	};
+
 	struct iwl_hw_params hw_params;
 
-	/* INT ICT Table */
-	__le32 *ict_tbl;
-	dma_addr_t ict_tbl_dma;
-	dma_addr_t aligned_ict_tbl_dma;
-	int ict_index;
-	void *ict_tbl_vir;
-	u32 inta;
-	bool use_ict;
-
 	u32 inta_mask;
-	/* Current association information needed to configure the
-	 * hardware */
-	u16 assoc_id;
-	u16 assoc_capability;
 
 	struct iwl_qos_info qos_data;
 
@@ -1291,21 +1331,17 @@ struct iwl_priv {
 	struct work_struct scan_completed;
 	struct work_struct rx_replenish;
 	struct work_struct abort_scan;
-	struct work_struct request_scan;
 	struct work_struct beacon_update;
 	struct work_struct tt_work;
 	struct work_struct ct_enter;
 	struct work_struct ct_exit;
+	struct work_struct start_internal_scan;
 
 	struct tasklet_struct irq_tasklet;
 
 	struct delayed_work init_alive_start;
 	struct delayed_work alive_start;
 	struct delayed_work scan_check;
-
-	/*For 3945 only*/
-	struct delayed_work thermal_periodic;
-	struct delayed_work rfkill_poll;
 
 	/* TX Power */
 	s8 tx_power_user_lmt;
@@ -1338,13 +1374,8 @@ struct iwl_priv {
 	struct work_struct run_time_calib_work;
 	struct timer_list statistics_periodic;
 	struct timer_list ucode_trace;
+	struct timer_list monitor_recover;
 	bool hw_ready;
-	/*For 3945*/
-#define IWL_DEFAULT_TX_POWER 0x0F
-
-	struct iwl3945_notif_statistics statistics_39;
-
-	u32 sta_supp_rates;
 
 	struct iwl_event_log event_log;
 }; /*iwl_priv */

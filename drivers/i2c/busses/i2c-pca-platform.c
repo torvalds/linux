@@ -23,9 +23,9 @@
 #include <linux/i2c-algo-pca.h>
 #include <linux/i2c-pca-platform.h>
 #include <linux/gpio.h>
+#include <linux/io.h>
 
 #include <asm/irq.h>
-#include <asm/io.h>
 
 struct i2c_pca_pf_data {
 	void __iomem			*reg_base;

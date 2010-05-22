@@ -132,10 +132,9 @@ static int read_area(struct super_block *sb, struct logfs_je_area *a)
 
 	ofs = dev_ofs(sb, area->a_segno, area->a_written_bytes);
 	if (super->s_writesize > 1)
-		logfs_buf_recover(area, ofs, a + 1, super->s_writesize);
+		return logfs_buf_recover(area, ofs, a + 1, super->s_writesize);
 	else
-		logfs_buf_recover(area, ofs, NULL, 0);
-	return 0;
+		return logfs_buf_recover(area, ofs, NULL, 0);
 }
 
 static void *unpack(void *from, void *to)
@@ -245,7 +244,7 @@ static int read_je(struct super_block *sb, u64 ofs)
 		read_erasecount(sb, unpack(jh, scratch));
 		break;
 	case JE_AREA:
-		read_area(sb, unpack(jh, scratch));
+		err = read_area(sb, unpack(jh, scratch));
 		break;
 	case JE_OBJ_ALIAS:
 		err = logfs_load_object_aliases(sb, unpack(jh, scratch),
@@ -389,7 +388,10 @@ static void journal_get_erase_count(struct logfs_area *area)
 static int journal_erase_segment(struct logfs_area *area)
 {
 	struct super_block *sb = area->a_sb;
-	struct logfs_segment_header sh;
+	union {
+		struct logfs_segment_header sh;
+		unsigned char c[ALIGN(sizeof(struct logfs_segment_header), 16)];
+	} u;
 	u64 ofs;
 	int err;
 
@@ -397,20 +399,21 @@ static int journal_erase_segment(struct logfs_area *area)
 	if (err)
 		return err;
 
-	sh.pad = 0;
-	sh.type = SEG_JOURNAL;
-	sh.level = 0;
-	sh.segno = cpu_to_be32(area->a_segno);
-	sh.ec = cpu_to_be32(area->a_erase_count);
-	sh.gec = cpu_to_be64(logfs_super(sb)->s_gec);
-	sh.crc = logfs_crc32(&sh, sizeof(sh), 4);
+	memset(&u, 0, sizeof(u));
+	u.sh.pad = 0;
+	u.sh.type = SEG_JOURNAL;
+	u.sh.level = 0;
+	u.sh.segno = cpu_to_be32(area->a_segno);
+	u.sh.ec = cpu_to_be32(area->a_erase_count);
+	u.sh.gec = cpu_to_be64(logfs_super(sb)->s_gec);
+	u.sh.crc = logfs_crc32(&u.sh, sizeof(u.sh), 4);
 
 	/* This causes a bug in segment.c.  Not yet. */
 	//logfs_set_segment_erased(sb, area->a_segno, area->a_erase_count, 0);
 
 	ofs = dev_ofs(sb, area->a_segno, 0);
-	area->a_used_bytes = ALIGN(sizeof(sh), 16);
-	logfs_buf_write(area, ofs, &sh, sizeof(sh));
+	area->a_used_bytes = sizeof(u);
+	logfs_buf_write(area, ofs, &u, sizeof(u));
 	return 0;
 }
 
@@ -494,6 +497,8 @@ static void account_shadows(struct super_block *sb)
 
 	btree_grim_visitor64(&tree->new, (unsigned long)sb, account_shadow);
 	btree_grim_visitor64(&tree->old, (unsigned long)sb, account_shadow);
+	btree_grim_visitor32(&tree->segment_map, 0, NULL);
+	tree->no_shadowed_segments = 0;
 
 	if (li->li_block) {
 		/*
@@ -607,9 +612,9 @@ static size_t __logfs_write_je(struct super_block *sb, void *buf, u16 type,
 	if (len == 0)
 		return logfs_write_header(super, header, 0, type);
 
+	BUG_ON(len > sb->s_blocksize);
 	compr_len = logfs_compress(buf, data, len, sb->s_blocksize);
 	if (compr_len < 0 || type == JE_ANCHOR) {
-		BUG_ON(len > sb->s_blocksize);
 		memcpy(data, buf, len);
 		compr_len = len;
 		compr = COMPR_NONE;
@@ -661,6 +666,7 @@ static int logfs_write_je_buf(struct super_block *sb, void *buf, u16 type,
 	if (ofs < 0)
 		return ofs;
 	logfs_buf_write(area, ofs, super->s_compressed_je, len);
+	BUG_ON(super->s_no_je >= MAX_JOURNAL_ENTRIES);
 	super->s_je_array[super->s_no_je++] = cpu_to_be64(ofs);
 	return 0;
 }

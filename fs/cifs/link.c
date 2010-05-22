@@ -139,7 +139,7 @@ cifs_follow_link(struct dentry *direntry, struct nameidata *nd)
 	if (!full_path)
 		goto out;
 
-	cFYI(1, ("Full path: %s inode = 0x%p", full_path, inode));
+	cFYI(1, "Full path: %s inode = 0x%p", full_path, inode);
 
 	rc = CIFSSMBUnixQuerySymLink(xid, tcon, full_path, &target_path,
 				     cifs_sb->local_nls);
@@ -178,8 +178,8 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 		return rc;
 	}
 
-	cFYI(1, ("Full path: %s", full_path));
-	cFYI(1, ("symname is %s", symname));
+	cFYI(1, "Full path: %s", full_path);
+	cFYI(1, "symname is %s", symname);
 
 	/* BB what if DFS and this volume is on different share? BB */
 	if (pTcon->unix_ext)
@@ -198,8 +198,8 @@ cifs_symlink(struct inode *inode, struct dentry *direntry, const char *symname)
 						 inode->i_sb, xid, NULL);
 
 		if (rc != 0) {
-			cFYI(1, ("Create symlink ok, getinodeinfo fail rc = %d",
-			      rc));
+			cFYI(1, "Create symlink ok, getinodeinfo fail rc = %d",
+			      rc);
 		} else {
 			if (pTcon->nocase)
 				direntry->d_op = &cifs_ci_dentry_ops;

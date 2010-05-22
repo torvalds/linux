@@ -1357,17 +1357,28 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 
 	dev_priv->cfb_size = size;
 
+	intel_disable_fbc(dev);
+	dev_priv->compressed_fb = compressed_fb;
+
 	if (IS_GM45(dev)) {
-		g4x_disable_fbc(dev);
 		I915_WRITE(DPFC_CB_BASE, compressed_fb->start);
 	} else {
-		i8xx_disable_fbc(dev);
 		I915_WRITE(FBC_CFB_BASE, cfb_base);
 		I915_WRITE(FBC_LL_BASE, ll_base);
+		dev_priv->compressed_llb = compressed_llb;
 	}
 
 	DRM_DEBUG("FBC base 0x%08lx, ll base 0x%08lx, size %dM\n", cfb_base,
 		  ll_base, size >> 20);
+}
+
+static void i915_cleanup_compression(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	drm_mm_put_block(dev_priv->compressed_fb);
+	if (!IS_GM45(dev))
+		drm_mm_put_block(dev_priv->compressed_llb);
 }
 
 /* true = enable decode, false = disable decoder */
@@ -1492,8 +1503,8 @@ static int i915_load_modeset_init(struct drm_device *dev,
 
 	I915_WRITE(INSTPM, (1 << 5) | (1 << 21));
 
-	drm_helper_initial_config(dev);
-
+	intel_fbdev_init(dev);
+	drm_kms_helper_poll_init(dev);
 	return 0;
 
 destroy_ringbuffer:
@@ -1579,7 +1590,7 @@ static void i915_get_mem_freq(struct drm_device *dev)
  */
 int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv;
 	resource_size_t base, size;
 	int ret = 0, mmio_bar;
 	uint32_t agp_size, prealloc_size, prealloc_start;
@@ -1711,6 +1722,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	/* Start out suspended */
 	dev_priv->mm.suspended = 1;
 
+	intel_detect_pch(dev);
+
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		ret = i915_load_modeset_init(dev, prealloc_start,
 					     prealloc_size, agp_size);
@@ -1757,6 +1770,8 @@ int i915_driver_unload(struct drm_device *dev)
 	}
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		intel_modeset_cleanup(dev);
+
 		/*
 		 * free the memory space allocated for the child device
 		 * config parsed from VBT
@@ -1780,13 +1795,13 @@ int i915_driver_unload(struct drm_device *dev)
 	intel_opregion_free(dev, 0);
 
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		intel_modeset_cleanup(dev);
-
 		i915_gem_free_all_phys_object(dev);
 
 		mutex_lock(&dev->struct_mutex);
 		i915_gem_cleanup_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
+		if (I915_HAS_FBC(dev) && i915_powersave)
+			i915_cleanup_compression(dev);
 		drm_mm_takedown(&dev_priv->vram);
 		i915_gem_lastclose(dev);
 

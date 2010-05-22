@@ -161,7 +161,7 @@ obj-$(CONFIG_PPP_DEFLATE) += ppp_deflate.o
 obj-$(CONFIG_PPP_BSDCOMP) += bsd_comp.o
 obj-$(CONFIG_PPP_MPPE) += ppp_mppe.o
 obj-$(CONFIG_PPPOE) += pppox.o pppoe.o
-obj-$(CONFIG_PPPOL2TP) += pppox.o pppol2tp.o
+obj-$(CONFIG_PPPOL2TP) += pppox.o
 
 obj-$(CONFIG_SLIP) += slip.o
 obj-$(CONFIG_SLHC) += slhc.o
@@ -273,6 +273,7 @@ obj-$(CONFIG_USB_RTL8150)       += usb/
 obj-$(CONFIG_USB_HSO)		+= usb/
 obj-$(CONFIG_USB_USBNET)        += usb/
 obj-$(CONFIG_USB_ZD1201)        += usb/
+obj-$(CONFIG_USB_IPHETH)        += usb/
 
 obj-y += wireless/
 obj-$(CONFIG_NET_TULIP) += tulip/
@@ -291,5 +292,6 @@ obj-$(CONFIG_VIRTIO_NET) += virtio_net.o
 obj-$(CONFIG_SFC) += sfc/
 
 obj-$(CONFIG_WIMAX) += wimax/
+obj-$(CONFIG_CAIF) += caif/
 
 obj-$(CONFIG_OCTEON_MGMT_ETHERNET) += octeon/

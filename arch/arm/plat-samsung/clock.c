@@ -376,6 +376,21 @@ void __init s3c_register_clocks(struct clk *clkp, int nr_clks)
 	}
 }
 
+/**
+ * s3c_disable_clocks() - disable an array of clocks
+ * @clkp: Pointer to the first clock in the array.
+ * @nr_clks: Number of clocks to register.
+ *
+ * for internal use only at initialisation time. disable the clocks in the
+ * @clkp array.
+ */
+
+void __init s3c_disable_clocks(struct clk *clkp, int nr_clks)
+{
+	for (; nr_clks > 0; nr_clks--, clkp++)
+		(clkp->enable)(clkp, 0);
+}
+
 /* initalise all the clocks */
 
 int __init s3c24xx_register_baseclocks(unsigned long xtal)

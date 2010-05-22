@@ -169,7 +169,6 @@ struct eeepc_laptop {
 	struct backlight_device *backlight_device;
 
 	struct input_dev *inputdev;
-	struct key_entry *keymap;
 
 	struct rfkill *wlan_rfkill;
 	struct rfkill *bluetooth_rfkill;
@@ -1204,8 +1203,8 @@ static int eeepc_input_init(struct eeepc_laptop *eeepc)
 static void eeepc_input_exit(struct eeepc_laptop *eeepc)
 {
 	if (eeepc->inputdev) {
+		sparse_keymap_free(eeepc->inputdev);
 		input_unregister_device(eeepc->inputdev);
-		kfree(eeepc->keymap);
 	}
 }
 

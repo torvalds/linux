@@ -24,7 +24,7 @@
 #include <sound/jack.h>
 #include <sound/core.h>
 
-static int jack_types[] = {
+static int jack_switch_types[] = {
 	SW_HEADPHONE_INSERT,
 	SW_MICROPHONE_INSERT,
 	SW_LINEOUT_INSERT,
@@ -56,7 +56,7 @@ static int snd_jack_dev_register(struct snd_device *device)
 {
 	struct snd_jack *jack = device->device_data;
 	struct snd_card *card = device->card;
-	int err;
+	int err, i;
 
 	snprintf(jack->name, sizeof(jack->name), "%s %s",
 		 card->shortname, jack->id);
@@ -65,6 +65,19 @@ static int snd_jack_dev_register(struct snd_device *device)
 	/* Default to the sound card device. */
 	if (!jack->input_dev->dev.parent)
 		jack->input_dev->dev.parent = snd_card_get_device_link(card);
+
+	/* Add capabilities for any keys that are enabled */
+	for (i = 0; i < ARRAY_SIZE(jack->key); i++) {
+		int testbit = SND_JACK_BTN_0 >> i;
+
+		if (!(jack->type & testbit))
+			continue;
+
+		if (!jack->key[i])
+			jack->key[i] = BTN_0 + i;
+
+		input_set_capability(jack->input_dev, EV_KEY, jack->key[i]);
+	}
 
 	err = input_register_device(jack->input_dev);
 	if (err == 0)
@@ -113,10 +126,10 @@ int snd_jack_new(struct snd_card *card, const char *id, int type,
 
 	jack->type = type;
 
-	for (i = 0; i < ARRAY_SIZE(jack_types); i++)
+	for (i = 0; i < ARRAY_SIZE(jack_switch_types); i++)
 		if (type & (1 << i))
 			input_set_capability(jack->input_dev, EV_SW,
-					     jack_types[i]);
+					     jack_switch_types[i]);
 
 	err = snd_device_new(card, SNDRV_DEV_JACK, jack, &ops);
 	if (err < 0)
@@ -152,6 +165,43 @@ void snd_jack_set_parent(struct snd_jack *jack, struct device *parent)
 EXPORT_SYMBOL(snd_jack_set_parent);
 
 /**
+ * snd_jack_set_key - Set a key mapping on a jack
+ *
+ * @jack:    The jack to configure
+ * @type:    Jack report type for this key
+ * @keytype: Input layer key type to be reported
+ *
+ * Map a SND_JACK_BTN_ button type to an input layer key, allowing
+ * reporting of keys on accessories via the jack abstraction.  If no
+ * mapping is provided but keys are enabled in the jack type then
+ * BTN_n numeric buttons will be reported.
+ *
+ * Note that this is intended to be use by simple devices with small
+ * numbers of keys that can be reported.  It is also possible to
+ * access the input device directly - devices with complex input
+ * capabilities on accessories should consider doing this rather than
+ * using this abstraction.
+ *
+ * This function may only be called prior to registration of the jack.
+ */
+int snd_jack_set_key(struct snd_jack *jack, enum snd_jack_types type,
+		     int keytype)
+{
+	int key = fls(SND_JACK_BTN_0) - fls(type);
+
+	WARN_ON(jack->registered);
+
+	if (!keytype || key >= ARRAY_SIZE(jack->key))
+		return -EINVAL;
+
+	jack->type |= type;
+	jack->key[key] = keytype;
+
+	return 0;
+}
+EXPORT_SYMBOL(snd_jack_set_key);
+
+/**
  * snd_jack_report - Report the current status of a jack
  *
  * @jack:   The jack to report status for
@@ -164,10 +214,19 @@ void snd_jack_report(struct snd_jack *jack, int status)
 	if (!jack)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(jack_types); i++) {
+	for (i = 0; i < ARRAY_SIZE(jack->key); i++) {
+		int testbit = SND_JACK_BTN_0 >> i;
+
+		if (jack->type & testbit)
+			input_report_key(jack->input_dev, jack->key[i],
+					 status & testbit);
+	}
+
+	for (i = 0; i < ARRAY_SIZE(jack_switch_types); i++) {
 		int testbit = 1 << i;
 		if (jack->type & testbit)
-			input_report_switch(jack->input_dev, jack_types[i],
+			input_report_switch(jack->input_dev,
+					    jack_switch_types[i],
 					    status & testbit);
 	}
 

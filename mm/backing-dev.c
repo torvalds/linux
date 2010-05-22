@@ -11,6 +11,8 @@
 #include <linux/writeback.h>
 #include <linux/device.h>
 
+static atomic_long_t bdi_seq = ATOMIC_LONG_INIT(0);
+
 void default_unplug_io_fn(struct backing_dev_info *bdi, struct page *page)
 {
 }
@@ -24,6 +26,11 @@ struct backing_dev_info default_backing_dev_info = {
 	.unplug_io_fn	= default_unplug_io_fn,
 };
 EXPORT_SYMBOL_GPL(default_backing_dev_info);
+
+struct backing_dev_info noop_backing_dev_info = {
+	.name		= "noop",
+};
+EXPORT_SYMBOL_GPL(noop_backing_dev_info);
 
 static struct class *bdi_class;
 
@@ -41,7 +48,6 @@ static struct timer_list sync_supers_timer;
 
 static int bdi_sync_supers(void *);
 static void sync_supers_timer_fn(unsigned long);
-static void arm_supers_timer(void);
 
 static void bdi_add_default_flusher_task(struct backing_dev_info *bdi);
 
@@ -245,7 +251,7 @@ static int __init default_bdi_init(void)
 
 	init_timer(&sync_supers_timer);
 	setup_timer(&sync_supers_timer, sync_supers_timer_fn, 0);
-	arm_supers_timer();
+	bdi_arm_supers_timer();
 
 	err = bdi_init(&default_backing_dev_info);
 	if (!err)
@@ -367,9 +373,12 @@ static int bdi_sync_supers(void *unused)
 	return 0;
 }
 
-static void arm_supers_timer(void)
+void bdi_arm_supers_timer(void)
 {
 	unsigned long next;
+
+	if (!dirty_writeback_interval)
+		return;
 
 	next = msecs_to_jiffies(dirty_writeback_interval * 10) + jiffies;
 	mod_timer(&sync_supers_timer, round_jiffies_up(next));
@@ -378,7 +387,7 @@ static void arm_supers_timer(void)
 static void sync_supers_timer_fn(unsigned long unused)
 {
 	wake_up_process(sync_supers_tsk);
-	arm_supers_timer();
+	bdi_arm_supers_timer();
 }
 
 static int bdi_forker_task(void *ptr)
@@ -421,7 +430,10 @@ static int bdi_forker_task(void *ptr)
 
 			spin_unlock_bh(&bdi_lock);
 			wait = msecs_to_jiffies(dirty_writeback_interval * 10);
-			schedule_timeout(wait);
+			if (wait)
+				schedule_timeout(wait);
+			else
+				schedule();
 			try_to_freeze();
 			continue;
 		}
@@ -714,6 +726,33 @@ void bdi_destroy(struct backing_dev_info *bdi)
 	prop_local_destroy_percpu(&bdi->completions);
 }
 EXPORT_SYMBOL(bdi_destroy);
+
+/*
+ * For use from filesystems to quickly init and register a bdi associated
+ * with dirty writeback
+ */
+int bdi_setup_and_register(struct backing_dev_info *bdi, char *name,
+			   unsigned int cap)
+{
+	char tmp[32];
+	int err;
+
+	bdi->name = name;
+	bdi->capabilities = cap;
+	err = bdi_init(bdi);
+	if (err)
+		return err;
+
+	sprintf(tmp, "%.28s%s", name, "-%d");
+	err = bdi_register(bdi, NULL, tmp, atomic_long_inc_return(&bdi_seq));
+	if (err) {
+		bdi_destroy(bdi);
+		return err;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(bdi_setup_and_register);
 
 static wait_queue_head_t congestion_wqh[2] = {
 		__WAIT_QUEUE_HEAD_INITIALIZER(congestion_wqh[0]),

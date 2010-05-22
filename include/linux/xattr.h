@@ -37,7 +37,7 @@ struct inode;
 struct dentry;
 
 struct xattr_handler {
-	char *prefix;
+	const char *prefix;
 	int flags;	/* fs private flags passed back to the handlers */
 	size_t (*list)(struct dentry *dentry, char *list, size_t list_size,
 		       const char *name, size_t name_len, int handler_flags);

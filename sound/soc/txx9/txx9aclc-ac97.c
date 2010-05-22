@@ -254,3 +254,4 @@ module_exit(txx9aclc_ac97_exit);
 MODULE_AUTHOR("Atsushi Nemoto <anemo@mba.ocn.ne.jp>");
 MODULE_DESCRIPTION("TXx9 ACLC AC97 driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:txx9aclc-ac97");

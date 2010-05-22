@@ -368,14 +368,12 @@ struct qdio_initialize {
 #define QDIO_FLAG_SYNC_OUTPUT		0x02
 #define QDIO_FLAG_PCI_OUT		0x10
 
-extern int qdio_initialize(struct qdio_initialize *);
 extern int qdio_allocate(struct qdio_initialize *);
 extern int qdio_establish(struct qdio_initialize *);
 extern int qdio_activate(struct ccw_device *);
 
 extern int do_QDIO(struct ccw_device *cdev, unsigned int callflags,
 		   int q_nr, unsigned int bufnr, unsigned int count);
-extern int qdio_cleanup(struct ccw_device*, int);
 extern int qdio_shutdown(struct ccw_device*, int);
 extern int qdio_free(struct ccw_device *);
 extern int qdio_get_ssqd_desc(struct ccw_device *dev, struct qdio_ssqd_desc*);

@@ -21,7 +21,7 @@
 
 #include "usbip_common.h"
 #include "stub.h"
-#include "../../usb/core/hcd.h"
+#include <linux/usb/hcd.h>
 
 
 static int is_clear_halt_cmd(struct urb *urb)
@@ -502,13 +502,13 @@ static void stub_recv_cmd_submit(struct stub_device *sdev,
 	}
 
 	/* set priv->urb->setup_packet */
-	priv->urb->setup_packet = kzalloc(8, GFP_KERNEL);
+	priv->urb->setup_packet = kmemdup(&pdu->u.cmd_submit.setup, 8,
+					  GFP_KERNEL);
 	if (!priv->urb->setup_packet) {
 		dev_err(&sdev->interface->dev, "allocate setup_packet\n");
 		usbip_event_add(ud, SDEV_EVENT_ERROR_MALLOC);
 		return;
 	}
-	memcpy(priv->urb->setup_packet, &pdu->u.cmd_submit.setup, 8);
 
 	/* set other members from the base header of pdu */
 	priv->urb->context                = (void *) priv;

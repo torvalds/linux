@@ -1,8 +1,8 @@
 /*
  * An I2C driver for the Epson RX8581 RTC
  *
- * Author: Martyn Welch <martyn.welch@gefanuc.com>
- * Copyright 2008 GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+ * Author: Martyn Welch <martyn.welch@ge.com>
+ * Copyright 2008 GE Intelligent Platforms Embedded Systems, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -272,7 +272,7 @@ static void __exit rx8581_exit(void)
 	i2c_del_driver(&rx8581_driver);
 }
 
-MODULE_AUTHOR("Martyn Welch <martyn.welch@gefanuc.com>");
+MODULE_AUTHOR("Martyn Welch <martyn.welch@ge.com>");
 MODULE_DESCRIPTION("Epson RX-8581 RTC driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_VERSION);

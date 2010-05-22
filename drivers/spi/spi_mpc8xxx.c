@@ -640,7 +640,7 @@ static int mpc8xxx_spi_setup(struct spi_device *spi)
 	}
 	mpc8xxx_spi = spi_master_get_devdata(spi->master);
 
-	hw_mode = cs->hw_mode; /* Save orginal settings */
+	hw_mode = cs->hw_mode; /* Save original settings */
 	cs->hw_mode = mpc8xxx_spi_read_reg(&mpc8xxx_spi->base->mode);
 	/* mask out bits we are going to set */
 	cs->hw_mode &= ~(SPMODE_CP_BEGIN_EDGECLK | SPMODE_CI_INACTIVEHIGH

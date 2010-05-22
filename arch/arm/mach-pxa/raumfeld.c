@@ -714,7 +714,7 @@ static void raumfeld_mci_exit(struct device *dev, void *data)
 static struct pxamci_platform_data raumfeld_mci_platform_data = {
 	.init			= raumfeld_mci_init,
 	.exit			= raumfeld_mci_exit,
-	.detect_delay		= 20,
+	.detect_delay_ms	= 200,
 	.gpio_card_detect	= -1,
 	.gpio_card_ro		= -1,
 	.gpio_power		= -1,
@@ -983,7 +983,7 @@ static void __init raumfeld_common_init(void)
 		int i;
 
 		for (i = 0; i < ARRAY_SIZE(gpio_keys_button); i++)
-			if (!strcmp(gpio_keys_button[i].desc, "on/off button"))
+			if (!strcmp(gpio_keys_button[i].desc, "on_off button"))
 				gpio_keys_button[i].active_low = 1;
 	}
 
@@ -1009,8 +1009,7 @@ static void __init raumfeld_common_init(void)
 		gpio_direction_output(GPIO_W2W_PDN, 0);
 
 	/* this can be used to switch off the device */
-	ret = gpio_request(GPIO_SHUTDOWN_SUPPLY,
-				"supply shutdown");
+	ret = gpio_request(GPIO_SHUTDOWN_SUPPLY, "supply shutdown");
 	if (ret < 0)
 		pr_warning("Unable to request GPIO_SHUTDOWN_SUPPLY\n");
 	else

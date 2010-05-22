@@ -181,7 +181,6 @@ static void * sctp_eps_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void sctp_eps_seq_stop(struct seq_file *seq, void *v)
 {
-	return;
 }
 
 
@@ -286,7 +285,6 @@ static void * sctp_assocs_seq_start(struct seq_file *seq, loff_t *pos)
 
 static void sctp_assocs_seq_stop(struct seq_file *seq, void *v)
 {
-	return;
 }
 
 
@@ -409,7 +407,6 @@ static void *sctp_remaddr_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 
 static void sctp_remaddr_seq_stop(struct seq_file *seq, void *v)
 {
-	return;
 }
 
 static int sctp_remaddr_seq_show(struct seq_file *seq, void *v)

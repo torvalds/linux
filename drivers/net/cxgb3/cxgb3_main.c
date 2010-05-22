@@ -439,7 +439,7 @@ static void free_irq_resources(struct adapter *adapter)
 static int await_mgmt_replies(struct adapter *adap, unsigned long init_cnt,
 			      unsigned long n)
 {
-	int attempts = 5;
+	int attempts = 10;
 
 	while (adap->sge.qs[0].rspq.offload_pkts < init_cnt + n) {
 		if (!--attempts)

@@ -202,7 +202,6 @@ static struct ata_port_operations pata_at91_port_ops = {
 	.sff_data_xfer	= pata_at91_data_xfer_noirq,
 	.set_piomode	= pata_at91_set_piomode,
 	.cable_detect	= ata_cable_40wire,
-	.port_start	= ATA_OP_NULL,
 };
 
 static int __devinit pata_at91_probe(struct platform_device *pdev)

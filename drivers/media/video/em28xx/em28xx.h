@@ -68,6 +68,7 @@
 #define EM2820_BOARD_HERCULES_SMART_TV_USB2	  26
 #define EM2820_BOARD_PINNACLE_USB_2_FM1216ME	  27
 #define EM2820_BOARD_LEADTEK_WINFAST_USBII_DELUXE 28
+#define EM2860_BOARD_TVP5150_REFERENCE_DESIGN	  29
 #define EM2820_BOARD_VIDEOLOGY_20K14XUSB	  30
 #define EM2821_BOARD_USBGEAR_VD204		  31
 #define EM2821_BOARD_SUPERCOMP_USB_2		  32
@@ -140,10 +141,10 @@
 #define EM28XX_NUM_BUFS 5
 
 /* number of packets for each buffer
-   windows requests only 40 packets .. so we better do the same
+   windows requests only 64 packets .. so we better do the same
    this is what I found out for all alternate numbers there!
  */
-#define EM28XX_NUM_PACKETS 40
+#define EM28XX_NUM_PACKETS 64
 
 #define EM28XX_INTERLACED_DEFAULT 1
 
@@ -411,7 +412,7 @@ struct em28xx_board {
 
 	struct em28xx_input       input[MAX_EM28XX_INPUT];
 	struct em28xx_input	  radio;
-	struct ir_scancode_table  *ir_codes;
+	char			  *ir_codes;
 };
 
 struct em28xx_eeprom {

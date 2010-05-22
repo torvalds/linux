@@ -141,10 +141,6 @@ struct pcmcia_socket {
 	u_short				lock_count;
 	pccard_mem_map			cis_mem;
 	void __iomem 			*cis_virt;
-	struct {
-		u_int			AssignedIRQ;
-		u_int			Config;
-	} irq;
 	io_window_t			io[MAX_IO_WIN];
 	pccard_mem_map			win[MAX_WIN];
 	struct list_head		cis_cache;
@@ -224,18 +220,19 @@ struct pcmcia_socket {
 
 	/* 16-bit state: */
 	struct {
-		/* PCMCIA card is present in socket */
-		u8			present:1;
 		/* "master" ioctl is used */
 		u8			busy:1;
-		/* pcmcia module is being unloaded */
-		u8			dead:1;
 		/* the PCMCIA card consists of two pseudo devices */
 		u8			has_pfc:1;
 
-		u8			reserved:4;
+		u8			reserved:6;
 	} pcmcia_state;
 
+	/* non-zero if PCMCIA card is present */
+	atomic_t			present;
+
+	/* IRQ to be used by PCMCIA devices. May not be IRQ 0. */
+	unsigned int			pcmcia_irq;
 
 #ifdef CONFIG_PCMCIA_IOCTL
 	struct user_info_t		*user;

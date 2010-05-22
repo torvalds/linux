@@ -170,15 +170,16 @@ static irqreturn_t blackfin_interrupt(int irq, void *__hci)
 		retval = musb_interrupt(musb);
 	}
 
+	/* Start sampling ID pin, when plug is removed from MUSB */
+	if (is_otg_enabled(musb) && (musb->xceiv->state == OTG_STATE_B_IDLE
+		|| musb->xceiv->state == OTG_STATE_A_WAIT_BCON)) {
+		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
+		musb->a_wait_bcon = TIMER_DELAY;
+	}
+
 	spin_unlock_irqrestore(&musb->lock, flags);
 
-	/* REVISIT we sometimes get spurious IRQs on g_ep0
-	 * not clear why... fall in BF54x too.
-	 */
-	if (retval != IRQ_HANDLED)
-		DBG(5, "spurious?\n");
-
-	return IRQ_HANDLED;
+	return retval;
 }
 
 static void musb_conn_timer_handler(unsigned long _musb)
@@ -186,6 +187,7 @@ static void musb_conn_timer_handler(unsigned long _musb)
 	struct musb *musb = (void *)_musb;
 	unsigned long flags;
 	u16 val;
+	static u8 toggle;
 
 	spin_lock_irqsave(&musb->lock, flags);
 	switch (musb->xceiv->state) {
@@ -193,10 +195,44 @@ static void musb_conn_timer_handler(unsigned long _musb)
 	case OTG_STATE_A_WAIT_BCON:
 		/* Start a new session */
 		val = musb_readw(musb->mregs, MUSB_DEVCTL);
+		val &= ~MUSB_DEVCTL_SESSION;
+		musb_writew(musb->mregs, MUSB_DEVCTL, val);
 		val |= MUSB_DEVCTL_SESSION;
 		musb_writew(musb->mregs, MUSB_DEVCTL, val);
-
+		/* Check if musb is host or peripheral. */
 		val = musb_readw(musb->mregs, MUSB_DEVCTL);
+
+		if (!(val & MUSB_DEVCTL_BDEVICE)) {
+			gpio_set_value(musb->config->gpio_vrsel, 1);
+			musb->xceiv->state = OTG_STATE_A_WAIT_BCON;
+		} else {
+			gpio_set_value(musb->config->gpio_vrsel, 0);
+			/* Ignore VBUSERROR and SUSPEND IRQ */
+			val = musb_readb(musb->mregs, MUSB_INTRUSBE);
+			val &= ~MUSB_INTR_VBUSERROR;
+			musb_writeb(musb->mregs, MUSB_INTRUSBE, val);
+
+			val = MUSB_INTR_SUSPEND | MUSB_INTR_VBUSERROR;
+			musb_writeb(musb->mregs, MUSB_INTRUSB, val);
+			if (is_otg_enabled(musb))
+				musb->xceiv->state = OTG_STATE_B_IDLE;
+			else
+				musb_writeb(musb->mregs, MUSB_POWER, MUSB_POWER_HSENAB);
+		}
+		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
+		break;
+	case OTG_STATE_B_IDLE:
+
+		if (!is_peripheral_enabled(musb))
+			break;
+		/* Start a new session.  It seems that MUSB needs taking
+		 * some time to recognize the type of the plug inserted?
+		 */
+		val = musb_readw(musb->mregs, MUSB_DEVCTL);
+		val |= MUSB_DEVCTL_SESSION;
+		musb_writew(musb->mregs, MUSB_DEVCTL, val);
+		val = musb_readw(musb->mregs, MUSB_DEVCTL);
+
 		if (!(val & MUSB_DEVCTL_BDEVICE)) {
 			gpio_set_value(musb->config->gpio_vrsel, 1);
 			musb->xceiv->state = OTG_STATE_A_WAIT_BCON;
@@ -211,12 +247,27 @@ static void musb_conn_timer_handler(unsigned long _musb)
 			val = MUSB_INTR_SUSPEND | MUSB_INTR_VBUSERROR;
 			musb_writeb(musb->mregs, MUSB_INTRUSB, val);
 
-			val = MUSB_POWER_HSENAB;
-			musb_writeb(musb->mregs, MUSB_POWER, val);
+			/* Toggle the Soft Conn bit, so that we can response to
+			 * the inserting of either A-plug or B-plug.
+			 */
+			if (toggle) {
+				val = musb_readb(musb->mregs, MUSB_POWER);
+				val &= ~MUSB_POWER_SOFTCONN;
+				musb_writeb(musb->mregs, MUSB_POWER, val);
+				toggle = 0;
+			} else {
+				val = musb_readb(musb->mregs, MUSB_POWER);
+				val |= MUSB_POWER_SOFTCONN;
+				musb_writeb(musb->mregs, MUSB_POWER, val);
+				toggle = 1;
+			}
+			/* The delay time is set to 1/4 second by default,
+			 * shortening it, if accelerating A-plug detection
+			 * is needed in OTG mode.
+			 */
+			mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY / 4);
 		}
-		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
 		break;
-
 	default:
 		DBG(1, "%s state not handled\n", otg_state_string(musb));
 		break;
@@ -228,7 +279,7 @@ static void musb_conn_timer_handler(unsigned long _musb)
 
 void musb_platform_enable(struct musb *musb)
 {
-	if (is_host_enabled(musb)) {
+	if (!is_otg_enabled(musb) && is_host_enabled(musb)) {
 		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
 		musb->a_wait_bcon = TIMER_DELAY;
 	}
@@ -238,16 +289,12 @@ void musb_platform_disable(struct musb *musb)
 {
 }
 
-static void bfin_vbus_power(struct musb *musb, int is_on, int sleeping)
-{
-}
-
 static void bfin_set_vbus(struct musb *musb, int is_on)
 {
-	if (is_on)
-		gpio_set_value(musb->config->gpio_vrsel, 1);
-	else
-		gpio_set_value(musb->config->gpio_vrsel, 0);
+	int value = musb->config->gpio_vrsel_active;
+	if (!is_on)
+		value = !value;
+	gpio_set_value(musb->config->gpio_vrsel, value);
 
 	DBG(1, "VBUS %s, devctl %02x "
 		/* otg %3x conf %08x prcm %08x */ "\n",
@@ -262,7 +309,7 @@ static int bfin_set_power(struct otg_transceiver *x, unsigned mA)
 
 void musb_platform_try_idle(struct musb *musb, unsigned long timeout)
 {
-	if (is_host_enabled(musb))
+	if (!is_otg_enabled(musb) && is_host_enabled(musb))
 		mod_timer(&musb_conn_timer, jiffies + TIMER_DELAY);
 }
 
@@ -276,7 +323,7 @@ int musb_platform_set_mode(struct musb *musb, u8 musb_mode)
 	return -EIO;
 }
 
-int __init musb_platform_init(struct musb *musb)
+int __init musb_platform_init(struct musb *musb, void *board_data)
 {
 
 	/*
@@ -345,23 +392,10 @@ int __init musb_platform_init(struct musb *musb)
 	return 0;
 }
 
-int musb_platform_suspend(struct musb *musb)
-{
-	return 0;
-}
-
-int musb_platform_resume(struct musb *musb)
-{
-	return 0;
-}
-
-
 int musb_platform_exit(struct musb *musb)
 {
 
-	bfin_vbus_power(musb, 0 /*off*/, 1);
 	gpio_free(musb->config->gpio_vrsel);
-	musb_platform_suspend(musb);
 
 	return 0;
 }

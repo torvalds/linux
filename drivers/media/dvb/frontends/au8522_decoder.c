@@ -664,6 +664,13 @@ static int au8522_reset(struct v4l2_subdev *sd, u32 val)
 {
 	struct au8522_state *state = to_state(sd);
 
+	state->operational_mode = AU8522_ANALOG_MODE;
+
+	/* Clear out any state associated with the digital side of the
+	   chip, so that when it gets powered back up it won't think
+	   that it is already tuned */
+	state->current_frequency = 0;
+
 	au8522_writereg(state, 0xa4, 1 << 5);
 
 	return 0;

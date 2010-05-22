@@ -165,11 +165,11 @@ static inline int sco_chan_add(struct sco_conn *conn, struct sock *sk, struct so
 	int err = 0;
 
 	sco_conn_lock(conn);
-	if (conn->sk) {
+	if (conn->sk)
 		err = -EBUSY;
-	} else {
+	else
 		__sco_chan_add(conn, sk, parent);
-	}
+
 	sco_conn_unlock(conn);
 	return err;
 }
@@ -241,22 +241,19 @@ static inline int sco_send_frame(struct sock *sk, struct msghdr *msg, int len)
 	BT_DBG("sk %p len %d", sk, len);
 
 	count = min_t(unsigned int, conn->mtu, len);
-	if (!(skb = bt_skb_send_alloc(sk, count, msg->msg_flags & MSG_DONTWAIT, &err)))
+	skb = bt_skb_send_alloc(sk, count,
+			msg->msg_flags & MSG_DONTWAIT, &err);
+	if (!skb)
 		return err;
 
 	if (memcpy_fromiovec(skb_put(skb, count), msg->msg_iov, count)) {
-		err = -EFAULT;
-		goto fail;
+		kfree_skb(skb);
+		return -EFAULT;
 	}
 
-	if ((err = hci_send_sco(conn->hcon, skb)) < 0)
-		return err;
+	hci_send_sco(conn->hcon, skb);
 
 	return count;
-
-fail:
-	kfree_skb(skb);
-	return err;
 }
 
 static inline void sco_recv_frame(struct sco_conn *conn, struct sk_buff *skb)
@@ -276,7 +273,6 @@ static inline void sco_recv_frame(struct sco_conn *conn, struct sk_buff *skb)
 
 drop:
 	kfree_skb(skb);
-	return;
 }
 
 /* -------- Socket interface ---------- */
@@ -567,7 +563,7 @@ static int sco_sock_accept(struct socket *sock, struct socket *newsock, int flag
 	BT_DBG("sk %p timeo %ld", sk, timeo);
 
 	/* Wait for an incoming connection. (wake-one). */
-	add_wait_queue_exclusive(sk->sk_sleep, &wait);
+	add_wait_queue_exclusive(sk_sleep(sk), &wait);
 	while (!(ch = bt_accept_dequeue(sk, newsock))) {
 		set_current_state(TASK_INTERRUPTIBLE);
 		if (!timeo) {
@@ -590,7 +586,7 @@ static int sco_sock_accept(struct socket *sock, struct socket *newsock, int flag
 		}
 	}
 	set_current_state(TASK_RUNNING);
-	remove_wait_queue(sk->sk_sleep, &wait);
+	remove_wait_queue(sk_sleep(sk), &wait);
 
 	if (err)
 		goto done;
@@ -626,7 +622,7 @@ static int sco_sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 			    struct msghdr *msg, size_t len)
 {
 	struct sock *sk = sock->sk;
-	int err = 0;
+	int err;
 
 	BT_DBG("sock %p, sk %p", sock, sk);
 
@@ -851,7 +847,8 @@ static void sco_conn_ready(struct sco_conn *conn)
 
 		bh_lock_sock(parent);
 
-		sk = sco_sock_alloc(sock_net(parent), NULL, BTPROTO_SCO, GFP_ATOMIC);
+		sk = sco_sock_alloc(sock_net(parent), NULL,
+				BTPROTO_SCO, GFP_ATOMIC);
 		if (!sk) {
 			bh_unlock_sock(parent);
 			goto done;

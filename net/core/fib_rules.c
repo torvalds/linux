@@ -39,6 +39,24 @@ int fib_default_rule_add(struct fib_rules_ops *ops,
 }
 EXPORT_SYMBOL(fib_default_rule_add);
 
+u32 fib_default_rule_pref(struct fib_rules_ops *ops)
+{
+	struct list_head *pos;
+	struct fib_rule *rule;
+
+	if (!list_empty(&ops->rules_list)) {
+		pos = ops->rules_list.next;
+		if (pos->next != &ops->rules_list) {
+			rule = list_entry(pos->next, struct fib_rule, list);
+			if (rule->pref)
+				return rule->pref - 1;
+		}
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(fib_default_rule_pref);
+
 static void notify_rule_change(int event, struct fib_rule *rule,
 			       struct fib_rules_ops *ops, struct nlmsghdr *nlh,
 			       u32 pid);
@@ -104,12 +122,12 @@ errout:
 }
 
 struct fib_rules_ops *
-fib_rules_register(struct fib_rules_ops *tmpl, struct net *net)
+fib_rules_register(const struct fib_rules_ops *tmpl, struct net *net)
 {
 	struct fib_rules_ops *ops;
 	int err;
 
-	ops = kmemdup(tmpl, sizeof (*ops), GFP_KERNEL);
+	ops = kmemdup(tmpl, sizeof(*ops), GFP_KERNEL);
 	if (ops == NULL)
 		return ERR_PTR(-ENOMEM);
 
@@ -124,7 +142,6 @@ fib_rules_register(struct fib_rules_ops *tmpl, struct net *net)
 
 	return ops;
 }
-
 EXPORT_SYMBOL_GPL(fib_rules_register);
 
 void fib_rules_cleanup_ops(struct fib_rules_ops *ops)
@@ -158,7 +175,6 @@ void fib_rules_unregister(struct fib_rules_ops *ops)
 
 	call_rcu(&ops->rcu, fib_rules_put_rcu);
 }
-
 EXPORT_SYMBOL_GPL(fib_rules_unregister);
 
 static int fib_rule_match(struct fib_rule *rule, struct fib_rules_ops *ops,
@@ -221,7 +237,6 @@ out:
 
 	return err;
 }
-
 EXPORT_SYMBOL_GPL(fib_rules_lookup);
 
 static int validate_rulemsg(struct fib_rule_hdr *frh, struct nlattr **tb,
@@ -520,6 +535,7 @@ static int fib_nl_fill_rule(struct sk_buff *skb, struct fib_rule *rule,
 		return -EMSGSIZE;
 
 	frh = nlmsg_data(nlh);
+	frh->family = ops->family;
 	frh->table = rule->table;
 	NLA_PUT_U32(skb, FRA_TABLE, rule->table);
 	frh->res1 = 0;
@@ -614,7 +630,7 @@ static int fib_nl_dumprule(struct sk_buff *skb, struct netlink_callback *cb)
 			break;
 
 		cb->args[1] = 0;
-	skip:
+skip:
 		idx++;
 	}
 	rcu_read_unlock();
@@ -686,7 +702,6 @@ static int fib_rules_event(struct notifier_block *this, unsigned long event,
 	struct fib_rules_ops *ops;
 
 	ASSERT_RTNL();
-	rcu_read_lock();
 
 	switch (event) {
 	case NETDEV_REGISTER:
@@ -699,8 +714,6 @@ static int fib_rules_event(struct notifier_block *this, unsigned long event,
 			detach_rules(&ops->rules_list, dev);
 		break;
 	}
-
-	rcu_read_unlock();
 
 	return NOTIFY_DONE;
 }

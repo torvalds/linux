@@ -290,8 +290,6 @@ void cipso_v4_cache_invalidate(void)
 		cipso_v4_cache[iter].size = 0;
 		spin_unlock_bh(&cipso_v4_cache[iter].lock);
 	}
-
-	return;
 }
 
 /**
