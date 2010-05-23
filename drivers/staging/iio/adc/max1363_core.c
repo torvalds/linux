@@ -148,7 +148,7 @@ const struct max1363_mode
 			      mask))
 				return &max1363_mode_table[ci->mode_list[i]];
 	return NULL;
-};
+}
 
 static ssize_t max1363_show_precision(struct device *dev,
 				struct device_attribute *attr,
@@ -935,7 +935,7 @@ static int __devinit max1363_probe(struct i2c_client *client,
 		if (!strcmp(max1363_chip_info_tbl[i].name, id->name)) {
 			st->chip_info = &max1363_chip_info_tbl[i];
 			break;
-		};
+		}
 	/* Unsupported chip */
 	if (!st->chip_info) {
 		dev_err(&client->dev, "%s is not supported\n", id->name);

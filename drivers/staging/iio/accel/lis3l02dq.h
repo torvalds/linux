@@ -199,11 +199,13 @@ int lis3l02dq_initialize_ring(struct iio_ring_buffer *ring);
 void lis3l02dq_uninitialize_ring(struct iio_ring_buffer *ring);
 #else /* CONFIG_IIO_RING_BUFFER */
 
-static inline void lis3l02dq_remove_trigger(struct iio_dev *indio_dev) {};
+static inline void lis3l02dq_remove_trigger(struct iio_dev *indio_dev)
+{
+}
 static inline int lis3l02dq_probe_trigger(struct iio_dev *indio_dev)
 {
 	return 0;
-};
+}
 
 static inline ssize_t
 lis3l02dq_read_accel_from_ring(struct device *dev,
@@ -211,18 +213,21 @@ lis3l02dq_read_accel_from_ring(struct device *dev,
 			       char *buf)
 {
 	return 0;
-};
+}
 
 static int lis3l02dq_configure_ring(struct iio_dev *indio_dev)
 {
 	return 0;
-};
+}
 static inline void lis3l02dq_unconfigure_ring(struct iio_dev *indio_dev)
-{};
+{
+}
 static inline int lis3l02dq_initialize_ring(struct iio_ring_buffer *ring)
 {
 	return 0;
-};
-static inline void lis3l02dq_uninitialize_ring(struct iio_ring_buffer *ring) {};
+}
+static inline void lis3l02dq_uninitialize_ring(struct iio_ring_buffer *ring)
+{
+}
 #endif /* CONFIG_IIO_RING_BUFFER */
 #endif /* SPI_LIS3L02DQ_H_ */

@@ -147,7 +147,7 @@ enum max1363_channels {
 	max1363_in1min0, max1363_in3min2,
 	max1363_in5min4, max1363_in7min6,
 	max1363_in9min8, max1363_in11min10,
-	};
+};
 
 /* This must be maintained along side the max1363_mode_table in max1363_core */
 enum max1363_modes {
@@ -237,25 +237,27 @@ void max1363_uninitialize_ring(struct iio_ring_buffer *ring);
 
 static inline void max1363_uninitialize_ring(struct iio_ring_buffer *ring)
 {
-};
+}
 
 static inline int max1363_initialize_ring(struct iio_ring_buffer *ring)
 {
 	return 0;
-};
+}
 
 int max1363_single_channel_from_ring(long mask, struct max1363_state *st)
 {
 	return -EINVAL;
-};
+}
 
 
 static inline int
 max1363_register_ring_funcs_and_init(struct iio_dev *indio_dev)
 {
 	return 0;
-};
+}
 
-static inline void max1363_ring_cleanup(struct iio_dev *indio_dev) {};
+static inline void max1363_ring_cleanup(struct iio_dev *indio_dev)
+{
+}
 #endif /* CONFIG_MAX1363_RING_BUFFER */
 #endif /* _MAX1363_H_ */

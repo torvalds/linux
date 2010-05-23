@@ -262,9 +262,9 @@ void max1363_ring_cleanup(struct iio_dev *indio_dev)
 void max1363_uninitialize_ring(struct iio_ring_buffer *ring)
 {
 	iio_ring_buffer_unregister(ring);
-};
+}
 
 int max1363_initialize_ring(struct iio_ring_buffer *ring)
 {
 	return iio_ring_buffer_register(ring, 0);
-};
+}
