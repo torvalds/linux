@@ -1307,6 +1307,8 @@ static int mount_ubifs(struct ubifs_info *c)
 			if (err)
 				goto out_orphans;
 			err = ubifs_rcvry_gc_commit(c);
+			if (err)
+				goto out_orphans;
 		} else {
 			err = take_gc_lnum(c);
 			if (err)
