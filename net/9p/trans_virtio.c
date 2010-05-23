@@ -137,7 +137,7 @@ static void req_done(struct virtqueue *vq)
 
 	P9_DPRINTK(P9_DEBUG_TRANS, ": request done\n");
 
-	while ((rc = chan->vq->vq_ops->get_buf(chan->vq, &len)) != NULL) {
+	while ((rc = virtqueue_get_buf(chan->vq, &len)) != NULL) {
 		P9_DPRINTK(P9_DEBUG_TRANS, ": rc %p\n", rc);
 		P9_DPRINTK(P9_DEBUG_TRANS, ": lookup tag %d\n", rc->tag);
 		req = p9_tag_lookup(chan->client, rc->tag);
@@ -209,13 +209,13 @@ p9_virtio_request(struct p9_client *client, struct p9_req_t *req)
 
 	req->status = REQ_STATUS_SENT;
 
-	if (chan->vq->vq_ops->add_buf(chan->vq, chan->sg, out, in, req->tc) < 0) {
+	if (virtqueue_add_buf(chan->vq, chan->sg, out, in, req->tc) < 0) {
 		P9_DPRINTK(P9_DEBUG_TRANS,
 			"9p debug: virtio rpc add_buf returned failure");
 		return -EIO;
 	}
 
-	chan->vq->vq_ops->kick(chan->vq);
+	virtqueue_kick(chan->vq);
 
 	P9_DPRINTK(P9_DEBUG_TRANS, "9p debug: virtio request kicked\n");
 	return 0;

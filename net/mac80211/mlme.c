@@ -47,6 +47,13 @@
  */
 #define IEEE80211_PROBE_WAIT		(HZ / 2)
 
+/*
+ * Weight given to the latest Beacon frame when calculating average signal
+ * strength for Beacon frames received in the current BSS. This must be
+ * between 1 and 15.
+ */
+#define IEEE80211_SIGNAL_AVE_WEIGHT	3
+
 #define TMR_RUNNING_TIMER	0
 #define TMR_RUNNING_CHANSW	1
 
@@ -130,10 +137,13 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 	struct sta_info *sta;
 	u32 changed = 0;
 	u16 ht_opmode;
-	bool enable_ht = true, ht_changed;
+	bool enable_ht = true;
+	enum nl80211_channel_type prev_chantype;
 	enum nl80211_channel_type channel_type = NL80211_CHAN_NO_HT;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+
+	prev_chantype = sdata->vif.bss_conf.channel_type;
 
 	/* HT is not supported */
 	if (!sband->ht_cap.ht_supported)
@@ -165,38 +175,37 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	ht_changed = conf_is_ht(&local->hw.conf) != enable_ht ||
-		     channel_type != local->hw.conf.channel_type;
-
 	if (local->tmp_channel)
 		local->tmp_channel_type = channel_type;
-	local->oper_channel_type = channel_type;
 
-	if (ht_changed) {
-                /* channel_type change automatically detected */
-		ieee80211_hw_config(local, 0);
+	if (!ieee80211_set_channel_type(local, sdata, channel_type)) {
+		/* can only fail due to HT40+/- mismatch */
+		channel_type = NL80211_CHAN_HT20;
+		WARN_ON(!ieee80211_set_channel_type(local, sdata, channel_type));
+	}
 
+	/* channel_type change automatically detected */
+	ieee80211_hw_config(local, 0);
+
+	if (prev_chantype != channel_type) {
 		rcu_read_lock();
 		sta = sta_info_get(sdata, bssid);
 		if (sta)
 			rate_control_rate_update(local, sband, sta,
 						 IEEE80211_RC_HT_CHANGED,
-						 local->oper_channel_type);
+						 channel_type);
 		rcu_read_unlock();
-        }
-
-	/* disable HT */
-	if (!enable_ht)
-		return 0;
+	}
 
 	ht_opmode = le16_to_cpu(hti->operation_mode);
 
 	/* if bss configuration changed store the new one */
-	if (!sdata->ht_opmode_valid ||
-	    sdata->vif.bss_conf.ht_operation_mode != ht_opmode) {
+	if (sdata->ht_opmode_valid != enable_ht ||
+	    sdata->vif.bss_conf.ht_operation_mode != ht_opmode ||
+	    prev_chantype != channel_type) {
 		changed |= BSS_CHANGED_HT;
 		sdata->vif.bss_conf.ht_operation_mode = ht_opmode;
-		sdata->ht_opmode_valid = true;
+		sdata->ht_opmode_valid = enable_ht;
 	}
 
 	return changed;
@@ -206,7 +215,7 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 
 static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 					   const u8 *bssid, u16 stype, u16 reason,
-					   void *cookie)
+					   void *cookie, bool send_frame)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
@@ -243,7 +252,11 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 			cfg80211_send_disassoc(sdata->dev, (u8 *)mgmt, skb->len);
 	if (!(ifmgd->flags & IEEE80211_STA_MFP_ENABLED))
 		IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
-	ieee80211_tx_skb(sdata, skb);
+
+	if (send_frame)
+		ieee80211_tx_skb(sdata, skb);
+	else
+		kfree_skb(skb);
 }
 
 void ieee80211_send_pspoll(struct ieee80211_local *local,
@@ -329,7 +342,11 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 		goto out;
 
 	sdata->local->oper_channel = sdata->local->csa_channel;
-	ieee80211_hw_config(sdata->local, IEEE80211_CONF_CHANGE_CHANNEL);
+	if (!sdata->local->ops->channel_switch) {
+		/* call "hw_config" only if doing sw channel switch */
+		ieee80211_hw_config(sdata->local,
+			IEEE80211_CONF_CHANGE_CHANNEL);
+	}
 
 	/* XXX: shouldn't really modify cfg80211-owned data! */
 	ifmgd->associated->channel = sdata->local->oper_channel;
@@ -340,6 +357,29 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 	ifmgd->flags &= ~IEEE80211_STA_CSA_RECEIVED;
 	mutex_unlock(&ifmgd->mtx);
 }
+
+void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success)
+{
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_if_managed *ifmgd;
+
+	sdata = vif_to_sdata(vif);
+	ifmgd = &sdata->u.mgd;
+
+	trace_api_chswitch_done(sdata, success);
+	if (!success) {
+		/*
+		 * If the channel switch was not successful, stay
+		 * around on the old channel. We currently lack
+		 * good handling of this situation, possibly we
+		 * should just drop the association.
+		 */
+		sdata->local->csa_channel = sdata->local->oper_channel;
+	}
+
+	ieee80211_queue_work(&sdata->local->hw, &ifmgd->chswitch_work);
+}
+EXPORT_SYMBOL(ieee80211_chswitch_done);
 
 static void ieee80211_chswitch_timer(unsigned long data)
 {
@@ -357,7 +397,8 @@ static void ieee80211_chswitch_timer(unsigned long data)
 
 void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 				      struct ieee80211_channel_sw_ie *sw_elem,
-				      struct ieee80211_bss *bss)
+				      struct ieee80211_bss *bss,
+				      u64 timestamp)
 {
 	struct cfg80211_bss *cbss =
 		container_of((void *)bss, struct cfg80211_bss, priv);
@@ -385,10 +426,29 @@ void ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 
 	sdata->local->csa_channel = new_ch;
 
+	if (sdata->local->ops->channel_switch) {
+		/* use driver's channel switch callback */
+		struct ieee80211_channel_switch ch_switch;
+		memset(&ch_switch, 0, sizeof(ch_switch));
+		ch_switch.timestamp = timestamp;
+		if (sw_elem->mode) {
+			ch_switch.block_tx = true;
+			ieee80211_stop_queues_by_reason(&sdata->local->hw,
+					IEEE80211_QUEUE_STOP_REASON_CSA);
+		}
+		ch_switch.channel = new_ch;
+		ch_switch.count = sw_elem->count;
+		ifmgd->flags |= IEEE80211_STA_CSA_RECEIVED;
+		drv_channel_switch(sdata->local, &ch_switch);
+		return;
+	}
+
+	/* channel switch handled in software */
 	if (sw_elem->count <= 1) {
 		ieee80211_queue_work(&sdata->local->hw, &ifmgd->chswitch_work);
 	} else {
-		ieee80211_stop_queues_by_reason(&sdata->local->hw,
+		if (sw_elem->mode)
+			ieee80211_stop_queues_by_reason(&sdata->local->hw,
 					IEEE80211_QUEUE_STOP_REASON_CSA);
 		ifmgd->flags |= IEEE80211_STA_CSA_RECEIVED;
 		mod_timer(&ifmgd->chswitch_timer,
@@ -467,6 +527,7 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 {
 	struct ieee80211_sub_if_data *sdata, *found = NULL;
 	int count = 0;
+	int timeout;
 
 	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_PS)) {
 		local->ps_sdata = NULL;
@@ -495,10 +556,30 @@ void ieee80211_recalc_ps(struct ieee80211_local *local, s32 latency)
 		s32 beaconint_us;
 
 		if (latency < 0)
-			latency = pm_qos_requirement(PM_QOS_NETWORK_LATENCY);
+			latency = pm_qos_request(PM_QOS_NETWORK_LATENCY);
 
 		beaconint_us = ieee80211_tu_to_usec(
 					found->vif.bss_conf.beacon_int);
+
+		timeout = local->hw.conf.dynamic_ps_forced_timeout;
+		if (timeout < 0) {
+			/*
+			 * The 2 second value is there for compatibility until
+			 * the PM_QOS_NETWORK_LATENCY is configured with real
+			 * values.
+			 */
+			if (latency == 2000000000)
+				timeout = 100;
+			else if (latency <= 50000)
+				timeout = 300;
+			else if (latency <= 100000)
+				timeout = 100;
+			else if (latency <= 500000)
+				timeout = 50;
+			else
+				timeout = 0;
+		}
+		local->hw.conf.dynamic_ps_timeout = timeout;
 
 		if (beaconint_us > latency) {
 			local->ps_sdata = NULL;
@@ -592,6 +673,9 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 	int count;
 	u8 *pos, uapsd_queues = 0;
 
+	if (!local->ops->conf_tx)
+		return;
+
 	if (local->hw.queues < 4)
 		return;
 
@@ -666,11 +750,15 @@ static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
 		       params.aifs, params.cw_min, params.cw_max, params.txop,
 		       params.uapsd);
 #endif
-		if (drv_conf_tx(local, queue, &params) && local->ops->conf_tx)
+		if (drv_conf_tx(local, queue, &params))
 			printk(KERN_DEBUG "%s: failed to set TX queue "
 			       "parameters for queue %d\n",
 			       wiphy_name(local->hw.wiphy), queue);
 	}
+
+	/* enable WMM or activate new settings */
+	local->hw.conf.flags |=	IEEE80211_CONF_QOS;
+	drv_config(local, IEEE80211_CONF_CHANGE_QOS);
 }
 
 static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
@@ -731,6 +819,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	sdata->u.mgd.associated = cbss;
 	memcpy(sdata->u.mgd.bssid, cbss->bssid, ETH_ALEN);
 
+	sdata->u.mgd.flags |= IEEE80211_STA_RESET_SIGNAL_AVE;
+
 	/* just to be sure */
 	sdata->u.mgd.flags &= ~(IEEE80211_STA_CONNECTION_POLL |
 				IEEE80211_STA_BEACON_POLL);
@@ -756,6 +846,11 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	/* And the BSSID changed - we're associated now */
 	bss_info_changed |= BSS_CHANGED_BSSID;
 
+	/* Tell the driver to monitor connection quality (if supported) */
+	if ((local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI) &&
+	    sdata->vif.bss_conf.cqm_rssi_thold)
+		bss_info_changed |= BSS_CHANGED_CQM;
+
 	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
 
 	mutex_lock(&local->iflist_mtx);
@@ -767,7 +862,8 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	netif_carrier_on(sdata->dev);
 }
 
-static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata)
+static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
+				   bool remove_sta)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
@@ -819,7 +915,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata)
 	ieee80211_set_wmm_default(sdata);
 
 	/* channel(_type) changes are handled by ieee80211_hw_config */
-	local->oper_channel_type = NL80211_CHAN_NO_HT;
+	WARN_ON(!ieee80211_set_channel_type(local, sdata, NL80211_CHAN_NO_HT));
 
 	/* on the next assoc, re-program HT parameters */
 	sdata->ht_opmode_valid = false;
@@ -836,11 +932,12 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata)
 
 	ieee80211_hw_config(local, config_changed);
 
-	/* And the BSSID changed -- not very interesting here */
-	changed |= BSS_CHANGED_BSSID;
+	/* The BSSID (not really interesting) and HT changed */
+	changed |= BSS_CHANGED_BSSID | BSS_CHANGED_HT;
 	ieee80211_bss_info_change_notify(sdata, changed);
 
-	sta_info_destroy_addr(sdata, bssid);
+	if (remove_sta)
+		sta_info_destroy_addr(sdata, bssid);
 }
 
 void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
@@ -855,6 +952,9 @@ void ieee80211_sta_rx_notify(struct ieee80211_sub_if_data *sdata,
 	 * AP we're connected to.
 	 */
 	if (is_multicast_ether_addr(hdr->addr1))
+		return;
+
+	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
 		return;
 
 	mod_timer(&sdata->u.mgd.conn_mon_timer,
@@ -934,22 +1034,71 @@ static void ieee80211_mgd_probe_ap(struct ieee80211_sub_if_data *sdata,
 	mutex_unlock(&ifmgd->mtx);
 }
 
-void ieee80211_beacon_loss_work(struct work_struct *work)
+static void __ieee80211_connection_loss(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct ieee80211_local *local = sdata->local;
+	u8 bssid[ETH_ALEN];
+
+	mutex_lock(&ifmgd->mtx);
+	if (!ifmgd->associated) {
+		mutex_unlock(&ifmgd->mtx);
+		return;
+	}
+
+	memcpy(bssid, ifmgd->associated->bssid, ETH_ALEN);
+
+	printk(KERN_DEBUG "Connection to AP %pM lost.\n", bssid);
+
+	ieee80211_set_disassoc(sdata, true);
+	ieee80211_recalc_idle(local);
+	mutex_unlock(&ifmgd->mtx);
+	/*
+	 * must be outside lock due to cfg80211,
+	 * but that's not a problem.
+	 */
+	ieee80211_send_deauth_disassoc(sdata, bssid,
+				       IEEE80211_STYPE_DEAUTH,
+				       WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
+				       NULL, true);
+}
+
+void ieee80211_beacon_connection_loss_work(struct work_struct *work)
 {
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data,
-			     u.mgd.beacon_loss_work);
+			     u.mgd.beacon_connection_loss_work);
 
-	ieee80211_mgd_probe_ap(sdata, true);
+	if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
+		__ieee80211_connection_loss(sdata);
+	else
+		ieee80211_mgd_probe_ap(sdata, true);
 }
 
 void ieee80211_beacon_loss(struct ieee80211_vif *vif)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_hw *hw = &sdata->local->hw;
 
-	ieee80211_queue_work(&sdata->local->hw, &sdata->u.mgd.beacon_loss_work);
+	trace_api_beacon_loss(sdata);
+
+	WARN_ON(hw->flags & IEEE80211_HW_CONNECTION_MONITOR);
+	ieee80211_queue_work(hw, &sdata->u.mgd.beacon_connection_loss_work);
 }
 EXPORT_SYMBOL(ieee80211_beacon_loss);
+
+void ieee80211_connection_loss(struct ieee80211_vif *vif)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_hw *hw = &sdata->local->hw;
+
+	trace_api_connection_loss(sdata);
+
+	WARN_ON(!(hw->flags & IEEE80211_HW_CONNECTION_MONITOR));
+	ieee80211_queue_work(hw, &sdata->u.mgd.beacon_connection_loss_work);
+}
+EXPORT_SYMBOL(ieee80211_connection_loss);
+
 
 static enum rx_mgmt_action __must_check
 ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
@@ -971,7 +1120,7 @@ ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 	printk(KERN_DEBUG "%s: deauthenticated from %pM (Reason: %u)\n",
 			sdata->name, bssid, reason_code);
 
-	ieee80211_set_disassoc(sdata);
+	ieee80211_set_disassoc(sdata, true);
 	ieee80211_recalc_idle(sdata->local);
 
 	return RX_MGMT_CFG80211_DEAUTH;
@@ -1001,7 +1150,7 @@ ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 	printk(KERN_DEBUG "%s: disassociated from %pM (Reason: %u)\n",
 			sdata->name, mgmt->sa, reason_code);
 
-	ieee80211_set_disassoc(sdata);
+	ieee80211_set_disassoc(sdata, true);
 	ieee80211_recalc_idle(sdata->local);
 	return RX_MGMT_CFG80211_DISASSOC;
 }
@@ -1215,7 +1364,8 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 							ETH_ALEN) == 0)) {
 		struct ieee80211_channel_sw_ie *sw_elem =
 			(struct ieee80211_channel_sw_ie *)elems->ch_switch_elem;
-		ieee80211_sta_process_chanswitch(sdata, sw_elem, bss);
+		ieee80211_sta_process_chanswitch(sdata, sw_elem,
+						 bss, rx_status->mactime);
 	}
 }
 
@@ -1254,12 +1404,17 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 		mutex_lock(&sdata->local->iflist_mtx);
 		ieee80211_recalc_ps(sdata->local, -1);
 		mutex_unlock(&sdata->local->iflist_mtx);
+
+		if (sdata->local->hw.flags & IEEE80211_HW_CONNECTION_MONITOR)
+			return;
+
 		/*
 		 * We've received a probe response, but are not sure whether
 		 * we have or will be receiving any beacons or data, so let's
 		 * schedule the timers again, just in case.
 		 */
 		mod_beacon_timer(sdata);
+
 		mod_timer(&ifmgd->conn_mon_timer,
 			  round_jiffies_up(jiffies +
 					   IEEE80211_CONNECTION_IDLE_TIME));
@@ -1293,6 +1448,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_rx_status *rx_status)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
 	size_t baselen;
 	struct ieee802_11_elems elems;
 	struct ieee80211_local *local = sdata->local;
@@ -1327,6 +1483,41 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	 */
 	if (memcmp(bssid, mgmt->bssid, ETH_ALEN) != 0)
 		return;
+
+	/* Track average RSSI from the Beacon frames of the current AP */
+	ifmgd->last_beacon_signal = rx_status->signal;
+	if (ifmgd->flags & IEEE80211_STA_RESET_SIGNAL_AVE) {
+		ifmgd->flags &= ~IEEE80211_STA_RESET_SIGNAL_AVE;
+		ifmgd->ave_beacon_signal = rx_status->signal;
+		ifmgd->last_cqm_event_signal = 0;
+	} else {
+		ifmgd->ave_beacon_signal =
+			(IEEE80211_SIGNAL_AVE_WEIGHT * rx_status->signal * 16 +
+			 (16 - IEEE80211_SIGNAL_AVE_WEIGHT) *
+			 ifmgd->ave_beacon_signal) / 16;
+	}
+	if (bss_conf->cqm_rssi_thold &&
+	    !(local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI)) {
+		int sig = ifmgd->ave_beacon_signal / 16;
+		int last_event = ifmgd->last_cqm_event_signal;
+		int thold = bss_conf->cqm_rssi_thold;
+		int hyst = bss_conf->cqm_rssi_hyst;
+		if (sig < thold &&
+		    (last_event == 0 || sig < last_event - hyst)) {
+			ifmgd->last_cqm_event_signal = sig;
+			ieee80211_cqm_rssi_notify(
+				&sdata->vif,
+				NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW,
+				GFP_KERNEL);
+		} else if (sig > thold &&
+			   (last_event == 0 || sig > last_event + hyst)) {
+			ifmgd->last_cqm_event_signal = sig;
+			ieee80211_cqm_rssi_notify(
+				&sdata->vif,
+				NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH,
+				GFP_KERNEL);
+		}
+	}
 
 	if (ifmgd->flags & IEEE80211_STA_BEACON_POLL) {
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
@@ -1506,7 +1697,8 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 
 			ieee80211_sta_process_chanswitch(sdata,
 					&mgmt->u.action.u.chan_switch.sw_elem,
-					(void *)ifmgd->associated->priv);
+					(void *)ifmgd->associated->priv,
+					rx_status->mactime);
 			break;
 		}
 		mutex_unlock(&ifmgd->mtx);
@@ -1613,7 +1805,7 @@ static void ieee80211_sta_work(struct work_struct *work)
 			printk(KERN_DEBUG "No probe response from AP %pM"
 				" after %dms, disconnecting.\n",
 				bssid, (1000 * IEEE80211_PROBE_WAIT)/HZ);
-			ieee80211_set_disassoc(sdata);
+			ieee80211_set_disassoc(sdata, true);
 			ieee80211_recalc_idle(local);
 			mutex_unlock(&ifmgd->mtx);
 			/*
@@ -1623,7 +1815,7 @@ static void ieee80211_sta_work(struct work_struct *work)
 			ieee80211_send_deauth_disassoc(sdata, bssid,
 					IEEE80211_STYPE_DEAUTH,
 					WLAN_REASON_DISASSOC_DUE_TO_INACTIVITY,
-					NULL);
+					NULL, true);
 			mutex_lock(&ifmgd->mtx);
 		}
 	}
@@ -1640,7 +1832,8 @@ static void ieee80211_sta_bcn_mon_timer(unsigned long data)
 	if (local->quiescing)
 		return;
 
-	ieee80211_queue_work(&sdata->local->hw, &sdata->u.mgd.beacon_loss_work);
+	ieee80211_queue_work(&sdata->local->hw,
+			     &sdata->u.mgd.beacon_connection_loss_work);
 }
 
 static void ieee80211_sta_conn_mon_timer(unsigned long data)
@@ -1692,7 +1885,7 @@ void ieee80211_sta_quiesce(struct ieee80211_sub_if_data *sdata)
 	 */
 
 	cancel_work_sync(&ifmgd->work);
-	cancel_work_sync(&ifmgd->beacon_loss_work);
+	cancel_work_sync(&ifmgd->beacon_connection_loss_work);
 	if (del_timer_sync(&ifmgd->timer))
 		set_bit(TMR_RUNNING_TIMER, &ifmgd->timers_running);
 
@@ -1726,7 +1919,8 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	INIT_WORK(&ifmgd->work, ieee80211_sta_work);
 	INIT_WORK(&ifmgd->monitor_work, ieee80211_sta_monitor_work);
 	INIT_WORK(&ifmgd->chswitch_work, ieee80211_chswitch_work);
-	INIT_WORK(&ifmgd->beacon_loss_work, ieee80211_beacon_loss_work);
+	INIT_WORK(&ifmgd->beacon_connection_loss_work,
+		  ieee80211_beacon_connection_loss_work);
 	setup_timer(&ifmgd->timer, ieee80211_sta_timer,
 		    (unsigned long) sdata);
 	setup_timer(&ifmgd->bcn_mon_timer, ieee80211_sta_bcn_mon_timer,
@@ -1804,6 +1998,9 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	const u8 *ssid;
 	struct ieee80211_work *wk;
 	u16 auth_alg;
+
+	if (req->local_state_change)
+		return 0; /* no need to update mac80211 state */
 
 	switch (req->auth_type) {
 	case NL80211_AUTHTYPE_OPEN_SYSTEM:
@@ -1913,7 +2110,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		}
 
 		/* Trying to reassociate - clear previous association state */
-		ieee80211_set_disassoc(sdata);
+		ieee80211_set_disassoc(sdata, true);
 	}
 	mutex_unlock(&ifmgd->mtx);
 
@@ -2017,7 +2214,7 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 
 	if (ifmgd->associated == req->bss) {
 		bssid = req->bss->bssid;
-		ieee80211_set_disassoc(sdata);
+		ieee80211_set_disassoc(sdata, true);
 		mutex_unlock(&ifmgd->mtx);
 	} else {
 		bool not_auth_yet = false;
@@ -2061,9 +2258,9 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 	printk(KERN_DEBUG "%s: deauthenticating from %pM by local choice (reason=%d)\n",
 	       sdata->name, bssid, req->reason_code);
 
-	ieee80211_send_deauth_disassoc(sdata, bssid,
-			IEEE80211_STYPE_DEAUTH, req->reason_code,
-			cookie);
+	ieee80211_send_deauth_disassoc(sdata, bssid, IEEE80211_STYPE_DEAUTH,
+				       req->reason_code, cookie,
+				       !req->local_state_change);
 
 	ieee80211_recalc_idle(sdata->local);
 
@@ -2075,6 +2272,7 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 			   void *cookie)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	u8 bssid[ETH_ALEN];
 
 	mutex_lock(&ifmgd->mtx);
 
@@ -2092,13 +2290,15 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 	printk(KERN_DEBUG "%s: disassociating from %pM by local choice (reason=%d)\n",
 	       sdata->name, req->bss->bssid, req->reason_code);
 
-	ieee80211_set_disassoc(sdata);
+	memcpy(bssid, req->bss->bssid, ETH_ALEN);
+	ieee80211_set_disassoc(sdata, false);
 
 	mutex_unlock(&ifmgd->mtx);
 
 	ieee80211_send_deauth_disassoc(sdata, req->bss->bssid,
 			IEEE80211_STYPE_DISASSOC, req->reason_code,
-			cookie);
+			cookie, !req->local_state_change);
+	sta_info_destroy_addr(sdata, bssid);
 
 	ieee80211_recalc_idle(sdata->local);
 
@@ -2118,7 +2318,7 @@ int ieee80211_mgd_action(struct ieee80211_sub_if_data *sdata,
 	if ((chan != local->tmp_channel ||
 	     channel_type != local->tmp_channel_type) &&
 	    (chan != local->oper_channel ||
-	     channel_type != local->oper_channel_type))
+	     channel_type != local->_oper_channel_type))
 		return -EBUSY;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + len);
@@ -2139,3 +2339,15 @@ int ieee80211_mgd_action(struct ieee80211_sub_if_data *sdata,
 	*cookie = (unsigned long) skb;
 	return 0;
 }
+
+void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
+			       enum nl80211_cqm_rssi_threshold_event rssi_event,
+			       gfp_t gfp)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	trace_api_cqm_rssi_notify(sdata, rssi_event);
+
+	cfg80211_cqm_rssi_notify(sdata->dev, rssi_event, gfp);
+}
+EXPORT_SYMBOL(ieee80211_cqm_rssi_notify);

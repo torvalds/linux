@@ -14,6 +14,7 @@
  * as published by the Free Software Foundation; either version
  * 2 of the License, or (at your option) any later version.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/gfp.h>
 #include <linux/module.h>
@@ -50,7 +51,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 
 	if ((!(ipv6_addr_type(&oip6h->saddr) & IPV6_ADDR_UNICAST)) ||
 	    (!(ipv6_addr_type(&oip6h->daddr) & IPV6_ADDR_UNICAST))) {
-		pr_debug("ip6t_REJECT: addr is not unicast.\n");
+		pr_debug("addr is not unicast.\n");
 		return;
 	}
 
@@ -58,7 +59,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 	tcphoff = ipv6_skip_exthdr(oldskb, ((u8*)(oip6h+1) - oldskb->data), &proto);
 
 	if ((tcphoff < 0) || (tcphoff > oldskb->len)) {
-		pr_debug("ip6t_REJECT: Can't get TCP header.\n");
+		pr_debug("Cannot get TCP header.\n");
 		return;
 	}
 
@@ -66,7 +67,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 
 	/* IP header checks: fragment, too short. */
 	if (proto != IPPROTO_TCP || otcplen < sizeof(struct tcphdr)) {
-		pr_debug("ip6t_REJECT: proto(%d) != IPPROTO_TCP, "
+		pr_debug("proto(%d) != IPPROTO_TCP, "
 			 "or too short. otcplen = %d\n",
 			 proto, otcplen);
 		return;
@@ -77,14 +78,14 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 
 	/* No RST for RST. */
 	if (otcph.rst) {
-		pr_debug("ip6t_REJECT: RST is set\n");
+		pr_debug("RST is set\n");
 		return;
 	}
 
 	/* Check checksum. */
 	if (csum_ipv6_magic(&oip6h->saddr, &oip6h->daddr, otcplen, IPPROTO_TCP,
 			    skb_checksum(oldskb, tcphoff, otcplen, 0))) {
-		pr_debug("ip6t_REJECT: TCP checksum is invalid\n");
+		pr_debug("TCP checksum is invalid\n");
 		return;
 	}
 
@@ -108,7 +109,7 @@ static void send_reset(struct net *net, struct sk_buff *oldskb)
 
 	if (!nskb) {
 		if (net_ratelimit())
-			printk("ip6t_REJECT: Can't alloc skb\n");
+			pr_debug("cannot alloc skb\n");
 		dst_release(dst);
 		return;
 	}
@@ -174,15 +175,12 @@ send_unreach(struct net *net, struct sk_buff *skb_in, unsigned char code,
 }
 
 static unsigned int
-reject_tg6(struct sk_buff *skb, const struct xt_target_param *par)
+reject_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ip6t_reject_info *reject = par->targinfo;
 	struct net *net = dev_net((par->in != NULL) ? par->in : par->out);
 
 	pr_debug("%s: medium point\n", __func__);
-	/* WARNING: This code causes reentry within ip6tables.
-	   This means that the ip6tables jump stack is now crap.  We
-	   must return an absolute verdict. --RR */
 	switch (reject->with) {
 	case IP6T_ICMP6_NO_ROUTE:
 		send_unreach(net, skb, ICMPV6_NOROUTE, par->hooknum);
@@ -207,30 +205,30 @@ reject_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 		break;
 	default:
 		if (net_ratelimit())
-			printk(KERN_WARNING "ip6t_REJECT: case %u not handled yet\n", reject->with);
+			pr_info("case %u not handled yet\n", reject->with);
 		break;
 	}
 
 	return NF_DROP;
 }
 
-static bool reject_tg6_check(const struct xt_tgchk_param *par)
+static int reject_tg6_check(const struct xt_tgchk_param *par)
 {
 	const struct ip6t_reject_info *rejinfo = par->targinfo;
 	const struct ip6t_entry *e = par->entryinfo;
 
 	if (rejinfo->with == IP6T_ICMP6_ECHOREPLY) {
-		printk("ip6t_REJECT: ECHOREPLY is not supported.\n");
-		return false;
+		pr_info("ECHOREPLY is not supported.\n");
+		return -EINVAL;
 	} else if (rejinfo->with == IP6T_TCP_RESET) {
 		/* Must specify that it's a TCP packet */
 		if (e->ipv6.proto != IPPROTO_TCP ||
 		    (e->ipv6.invflags & XT_INV_PROTO)) {
-			printk("ip6t_REJECT: TCP_RESET illegal for non-tcp\n");
-			return false;
+			pr_info("TCP_RESET illegal for non-tcp\n");
+			return -EINVAL;
 		}
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_target reject_tg6_reg __read_mostly = {

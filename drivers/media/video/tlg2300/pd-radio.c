@@ -161,7 +161,8 @@ static const struct v4l2_file_operations poseidon_fm_fops = {
 	.ioctl	       = video_ioctl2,
 };
 
-int tlg_fm_vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *vt)
+static int tlg_fm_vidioc_g_tuner(struct file *file, void *priv,
+				 struct v4l2_tuner *vt)
 {
 	struct tuner_fm_sig_stat_s fm_stat = {};
 	int ret, status, count = 5;
@@ -203,7 +204,8 @@ int tlg_fm_vidioc_g_tuner(struct file *file, void *priv, struct v4l2_tuner *vt)
 	return 0;
 }
 
-int fm_get_freq(struct file *file, void *priv, struct v4l2_frequency *argp)
+static int fm_get_freq(struct file *file, void *priv,
+		       struct v4l2_frequency *argp)
 {
 	struct poseidon *p = file->private_data;
 
@@ -246,7 +248,8 @@ error:
 	return ret;
 }
 
-int fm_set_freq(struct file *file, void *priv, struct v4l2_frequency *argp)
+static int fm_set_freq(struct file *file, void *priv,
+		       struct v4l2_frequency *argp)
 {
 	struct poseidon *p = file->private_data;
 
@@ -258,13 +261,13 @@ int fm_set_freq(struct file *file, void *priv, struct v4l2_frequency *argp)
 	return set_frequency(p, argp->frequency);
 }
 
-int tlg_fm_vidioc_g_ctrl(struct file *file, void *priv,
+static int tlg_fm_vidioc_g_ctrl(struct file *file, void *priv,
 		struct v4l2_control *arg)
 {
 	return 0;
 }
 
-int tlg_fm_vidioc_g_exts_ctrl(struct file *file, void *fh,
+static int tlg_fm_vidioc_g_exts_ctrl(struct file *file, void *fh,
 				struct v4l2_ext_controls *ctrls)
 {
 	struct poseidon *p = file->private_data;
@@ -285,7 +288,7 @@ int tlg_fm_vidioc_g_exts_ctrl(struct file *file, void *fh,
 	return 0;
 }
 
-int tlg_fm_vidioc_s_exts_ctrl(struct file *file, void *fh,
+static int tlg_fm_vidioc_s_exts_ctrl(struct file *file, void *fh,
 			struct v4l2_ext_controls *ctrls)
 {
 	int i;
@@ -312,13 +315,13 @@ int tlg_fm_vidioc_s_exts_ctrl(struct file *file, void *fh,
 	return 0;
 }
 
-int tlg_fm_vidioc_s_ctrl(struct file *file, void *priv,
+static int tlg_fm_vidioc_s_ctrl(struct file *file, void *priv,
 		struct v4l2_control *ctrl)
 {
 	return 0;
 }
 
-int tlg_fm_vidioc_queryctrl(struct file *file, void *priv,
+static int tlg_fm_vidioc_queryctrl(struct file *file, void *priv,
 		struct v4l2_queryctrl *ctrl)
 {
 	if (!(ctrl->id & V4L2_CTRL_FLAG_NEXT_CTRL))
@@ -337,7 +340,7 @@ int tlg_fm_vidioc_queryctrl(struct file *file, void *priv,
 	return -EINVAL;
 }
 
-int tlg_fm_vidioc_querymenu(struct file *file, void *fh,
+static int tlg_fm_vidioc_querymenu(struct file *file, void *fh,
 				struct v4l2_querymenu *qmenu)
 {
 	return v4l2_ctrl_query_menu(qmenu, NULL, NULL);

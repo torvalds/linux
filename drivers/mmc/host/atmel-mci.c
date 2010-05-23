@@ -580,7 +580,7 @@ static void atmci_stop_dma(struct atmel_mci *host)
 	struct dma_chan *chan = host->data_chan;
 
 	if (chan) {
-		chan->device->device_terminate_all(chan);
+	  chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
 		atmci_dma_cleanup(host);
 	} else {
 		/* Data transfer was stopped by the interrupt handler */

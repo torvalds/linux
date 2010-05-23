@@ -141,7 +141,7 @@ int sctp_init_cause_fixed(struct sctp_chunk *chunk, __be16 cause_code,
 	len = sizeof(sctp_errhdr_t) + paylen;
 	err.length  = htons(len);
 
-	if (skb_tailroom(chunk->skb) >  len)
+	if (skb_tailroom(chunk->skb) < len)
 		return -ENOSPC;
 	chunk->subh.err_hdr = sctp_addto_chunk_fixed(chunk,
 						     sizeof(sctp_errhdr_t),
@@ -445,10 +445,17 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 	if (!retval)
 		goto nomem_chunk;
 
-	/* Per the advice in RFC 2960 6.4, send this reply to
-	 * the source of the INIT packet.
+	/* RFC 2960 6.4 Multi-homed SCTP Endpoints
+	 *
+	 * An endpoint SHOULD transmit reply chunks (e.g., SACK,
+	 * HEARTBEAT ACK, * etc.) to the same destination transport
+	 * address from which it received the DATA or control chunk
+	 * to which it is replying.
+	 *
+	 * [INIT ACK back to where the INIT came from.]
 	 */
 	retval->transport = chunk->transport;
+
 	retval->subh.init_hdr =
 		sctp_addto_chunk(retval, sizeof(initack), &initack);
 	retval->param_hdr.v = sctp_addto_chunk(retval, addrs_len, addrs.v);
@@ -486,18 +493,6 @@ struct sctp_chunk *sctp_make_init_ack(const struct sctp_association *asoc,
 
 	/* We need to remove the const qualifier at this point.  */
 	retval->asoc = (struct sctp_association *) asoc;
-
-	/* RFC 2960 6.4 Multi-homed SCTP Endpoints
-	 *
-	 * An endpoint SHOULD transmit reply chunks (e.g., SACK,
-	 * HEARTBEAT ACK, * etc.) to the same destination transport
-	 * address from which it received the DATA or control chunk
-	 * to which it is replying.
-	 *
-	 * [INIT ACK back to where the INIT came from.]
-	 */
-	if (chunk)
-		retval->transport = chunk->transport;
 
 nomem_chunk:
 	kfree(cookie);
@@ -1254,7 +1249,6 @@ struct sctp_chunk *sctp_chunkify(struct sk_buff *skb,
 	INIT_LIST_HEAD(&retval->list);
 	retval->skb		= skb;
 	retval->asoc		= (struct sctp_association *)asoc;
-	retval->resent  	= 0;
 	retval->has_tsn		= 0;
 	retval->has_ssn         = 0;
 	retval->rtt_in_progress	= 0;
@@ -1421,7 +1415,7 @@ void *sctp_addto_chunk(struct sctp_chunk *chunk, int len, const void *data)
 void *sctp_addto_chunk_fixed(struct sctp_chunk *chunk,
 			     int len, const void *data)
 {
-	if (skb_tailroom(chunk->skb) > len)
+	if (skb_tailroom(chunk->skb) >= len)
 		return sctp_addto_chunk(chunk, len, data);
 	else
 		return NULL;

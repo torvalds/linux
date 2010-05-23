@@ -113,7 +113,7 @@ static inline unsigned ecm_bitrate(struct usb_gadget *g)
 
 /* interface descriptor: */
 
-static struct usb_interface_descriptor ecm_control_intf __initdata = {
+static struct usb_interface_descriptor ecm_control_intf = {
 	.bLength =		sizeof ecm_control_intf,
 	.bDescriptorType =	USB_DT_INTERFACE,
 
@@ -126,7 +126,7 @@ static struct usb_interface_descriptor ecm_control_intf __initdata = {
 	/* .iInterface = DYNAMIC */
 };
 
-static struct usb_cdc_header_desc ecm_header_desc __initdata = {
+static struct usb_cdc_header_desc ecm_header_desc = {
 	.bLength =		sizeof ecm_header_desc,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_HEADER_TYPE,
@@ -134,7 +134,7 @@ static struct usb_cdc_header_desc ecm_header_desc __initdata = {
 	.bcdCDC =		cpu_to_le16(0x0110),
 };
 
-static struct usb_cdc_union_desc ecm_union_desc __initdata = {
+static struct usb_cdc_union_desc ecm_union_desc = {
 	.bLength =		sizeof(ecm_union_desc),
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_UNION_TYPE,
@@ -142,7 +142,7 @@ static struct usb_cdc_union_desc ecm_union_desc __initdata = {
 	/* .bSlaveInterface0 =	DYNAMIC */
 };
 
-static struct usb_cdc_ether_desc ecm_desc __initdata = {
+static struct usb_cdc_ether_desc ecm_desc = {
 	.bLength =		sizeof ecm_desc,
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubType =	USB_CDC_ETHERNET_TYPE,
@@ -157,7 +157,7 @@ static struct usb_cdc_ether_desc ecm_desc __initdata = {
 
 /* the default data interface has no endpoints ... */
 
-static struct usb_interface_descriptor ecm_data_nop_intf __initdata = {
+static struct usb_interface_descriptor ecm_data_nop_intf = {
 	.bLength =		sizeof ecm_data_nop_intf,
 	.bDescriptorType =	USB_DT_INTERFACE,
 
@@ -172,7 +172,7 @@ static struct usb_interface_descriptor ecm_data_nop_intf __initdata = {
 
 /* ... but the "real" data interface has two bulk endpoints */
 
-static struct usb_interface_descriptor ecm_data_intf __initdata = {
+static struct usb_interface_descriptor ecm_data_intf = {
 	.bLength =		sizeof ecm_data_intf,
 	.bDescriptorType =	USB_DT_INTERFACE,
 
@@ -187,7 +187,7 @@ static struct usb_interface_descriptor ecm_data_intf __initdata = {
 
 /* full speed support: */
 
-static struct usb_endpoint_descriptor fs_ecm_notify_desc __initdata = {
+static struct usb_endpoint_descriptor fs_ecm_notify_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -197,7 +197,7 @@ static struct usb_endpoint_descriptor fs_ecm_notify_desc __initdata = {
 	.bInterval =		1 << LOG2_STATUS_INTERVAL_MSEC,
 };
 
-static struct usb_endpoint_descriptor fs_ecm_in_desc __initdata = {
+static struct usb_endpoint_descriptor fs_ecm_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -205,7 +205,7 @@ static struct usb_endpoint_descriptor fs_ecm_in_desc __initdata = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 };
 
-static struct usb_endpoint_descriptor fs_ecm_out_desc __initdata = {
+static struct usb_endpoint_descriptor fs_ecm_out_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -213,7 +213,7 @@ static struct usb_endpoint_descriptor fs_ecm_out_desc __initdata = {
 	.bmAttributes =		USB_ENDPOINT_XFER_BULK,
 };
 
-static struct usb_descriptor_header *ecm_fs_function[] __initdata = {
+static struct usb_descriptor_header *ecm_fs_function[] = {
 	/* CDC ECM control descriptors */
 	(struct usb_descriptor_header *) &ecm_control_intf,
 	(struct usb_descriptor_header *) &ecm_header_desc,
@@ -231,7 +231,7 @@ static struct usb_descriptor_header *ecm_fs_function[] __initdata = {
 
 /* high speed support: */
 
-static struct usb_endpoint_descriptor hs_ecm_notify_desc __initdata = {
+static struct usb_endpoint_descriptor hs_ecm_notify_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -240,7 +240,7 @@ static struct usb_endpoint_descriptor hs_ecm_notify_desc __initdata = {
 	.wMaxPacketSize =	cpu_to_le16(ECM_STATUS_BYTECOUNT),
 	.bInterval =		LOG2_STATUS_INTERVAL_MSEC + 4,
 };
-static struct usb_endpoint_descriptor hs_ecm_in_desc __initdata = {
+static struct usb_endpoint_descriptor hs_ecm_in_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -249,7 +249,7 @@ static struct usb_endpoint_descriptor hs_ecm_in_desc __initdata = {
 	.wMaxPacketSize =	cpu_to_le16(512),
 };
 
-static struct usb_endpoint_descriptor hs_ecm_out_desc __initdata = {
+static struct usb_endpoint_descriptor hs_ecm_out_desc = {
 	.bLength =		USB_DT_ENDPOINT_SIZE,
 	.bDescriptorType =	USB_DT_ENDPOINT,
 
@@ -258,7 +258,7 @@ static struct usb_endpoint_descriptor hs_ecm_out_desc __initdata = {
 	.wMaxPacketSize =	cpu_to_le16(512),
 };
 
-static struct usb_descriptor_header *ecm_hs_function[] __initdata = {
+static struct usb_descriptor_header *ecm_hs_function[] = {
 	/* CDC ECM control descriptors */
 	(struct usb_descriptor_header *) &ecm_control_intf,
 	(struct usb_descriptor_header *) &ecm_header_desc,
@@ -597,7 +597,7 @@ static void ecm_close(struct gether *geth)
 
 /* ethernet function driver setup/binding */
 
-static int __init
+static int
 ecm_bind(struct usb_configuration *c, struct usb_function *f)
 {
 	struct usb_composite_dev *cdev = c->cdev;
@@ -763,7 +763,8 @@ ecm_unbind(struct usb_configuration *c, struct usb_function *f)
  * Caller must have called @gether_setup().  Caller is also responsible
  * for calling @gether_cleanup() before module unload.
  */
-int __init ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
+int
+ecm_bind_config(struct usb_configuration *c, u8 ethaddr[ETH_ALEN])
 {
 	struct f_ecm	*ecm;
 	int		status;

@@ -54,7 +54,7 @@ References:
 #include "../comedidev.h"
 #include "comedi_pci.h"
 
-#define PCI6208_DRIVER_NAME 	"adl_pci6208"
+#define PCI6208_DRIVER_NAME	"adl_pci6208"
 
 /* Board descriptions */
 struct pci6208_board {
@@ -134,10 +134,10 @@ static int pci6208_ao_rinsn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,
 			    struct comedi_insn *insn, unsigned int *data);
 /* static int pci6208_dio_insn_bits (struct comedi_device *dev,
- * 					struct comedi_subdevice *s, */
+ *					struct comedi_subdevice *s, */
 /* struct comedi_insn *insn,unsigned int *data); */
 /* static int pci6208_dio_insn_config(struct comedi_device *dev,
- * 					struct comedi_subdevice *s, */
+ *					struct comedi_subdevice *s, */
 /* struct comedi_insn *insn,unsigned int *data); */
 
 /*
@@ -268,7 +268,7 @@ static int pci6208_ao_rinsn(struct comedi_device *dev,
  * This allows packed reading/writing of the DIO channels.  The
  * comedi core can convert between insn_bits and insn_read/write */
 /* static int pci6208_dio_insn_bits(struct comedi_device *dev,
- * 					struct comedi_subdevice *s, */
+ *					struct comedi_subdevice *s, */
 /* struct comedi_insn *insn,unsigned int *data) */
 /* { */
 /* if(insn->n!=2)return -EINVAL; */
@@ -293,7 +293,7 @@ static int pci6208_ao_rinsn(struct comedi_device *dev,
 /* } */
 
 /* static int pci6208_dio_insn_config(struct comedi_device *dev,
- * 					struct comedi_subdevice *s, */
+ *					struct comedi_subdevice *s, */
 /* struct comedi_insn *insn,unsigned int *data) */
 /* { */
 /* int chan=CR_CHAN(insn->chanspec); */

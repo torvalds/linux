@@ -200,7 +200,7 @@ static unsigned int oldpiix_qc_issue(struct ata_queued_cmd *qc)
 		if (ata_dma_enabled(adev))
 			oldpiix_set_dmamode(ap, adev);
 	}
-	return ata_sff_qc_issue(qc);
+	return ata_bmdma_qc_issue(qc);
 }
 
 

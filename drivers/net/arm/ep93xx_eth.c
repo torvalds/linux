@@ -374,8 +374,6 @@ static int ep93xx_xmit(struct sk_buff *skb, struct net_device *dev)
 				skb->len, DMA_TO_DEVICE);
 	dev_kfree_skb(skb);
 
-	dev->trans_start = jiffies;
-
 	spin_lock_irq(&ep->tx_pending_lock);
 	ep->tx_pending++;
 	if (ep->tx_pending == TX_QUEUE_ENTRIES)

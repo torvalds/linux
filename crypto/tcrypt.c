@@ -394,6 +394,17 @@ out:
 	return 0;
 }
 
+static void test_hash_sg_init(struct scatterlist *sg)
+{
+	int i;
+
+	sg_init_table(sg, TVMEMSIZE);
+	for (i = 0; i < TVMEMSIZE; i++) {
+		sg_set_buf(sg + i, tvmem[i], PAGE_SIZE);
+		memset(tvmem[i], 0xff, PAGE_SIZE);
+	}
+}
+
 static void test_hash_speed(const char *algo, unsigned int sec,
 			    struct hash_speed *speed)
 {
@@ -423,12 +434,7 @@ static void test_hash_speed(const char *algo, unsigned int sec,
 		goto out;
 	}
 
-	sg_init_table(sg, TVMEMSIZE);
-	for (i = 0; i < TVMEMSIZE; i++) {
-		sg_set_buf(sg + i, tvmem[i], PAGE_SIZE);
-		memset(tvmem[i], 0xff, PAGE_SIZE);
-	}
-
+	test_hash_sg_init(sg);
 	for (i = 0; speed[i].blen != 0; i++) {
 		if (speed[i].blen > TVMEMSIZE * PAGE_SIZE) {
 			printk(KERN_ERR
@@ -436,6 +442,9 @@ static void test_hash_speed(const char *algo, unsigned int sec,
 			       speed[i].blen, TVMEMSIZE * PAGE_SIZE);
 			goto out;
 		}
+
+		if (speed[i].klen)
+			crypto_hash_setkey(tfm, tvmem[0], speed[i].klen);
 
 		printk(KERN_INFO "test%3u "
 		       "(%5u byte blocks,%5u bytes per update,%4u updates): ",
@@ -456,6 +465,250 @@ static void test_hash_speed(const char *algo, unsigned int sec,
 
 out:
 	crypto_free_hash(tfm);
+}
+
+struct tcrypt_result {
+	struct completion completion;
+	int err;
+};
+
+static void tcrypt_complete(struct crypto_async_request *req, int err)
+{
+	struct tcrypt_result *res = req->data;
+
+	if (err == -EINPROGRESS)
+		return;
+
+	res->err = err;
+	complete(&res->completion);
+}
+
+static inline int do_one_ahash_op(struct ahash_request *req, int ret)
+{
+	if (ret == -EINPROGRESS || ret == -EBUSY) {
+		struct tcrypt_result *tr = req->base.data;
+
+		ret = wait_for_completion_interruptible(&tr->completion);
+		if (!ret)
+			ret = tr->err;
+		INIT_COMPLETION(tr->completion);
+	}
+	return ret;
+}
+
+static int test_ahash_jiffies_digest(struct ahash_request *req, int blen,
+				     char *out, int sec)
+{
+	unsigned long start, end;
+	int bcount;
+	int ret;
+
+	for (start = jiffies, end = start + sec * HZ, bcount = 0;
+	     time_before(jiffies, end); bcount++) {
+		ret = do_one_ahash_op(req, crypto_ahash_digest(req));
+		if (ret)
+			return ret;
+	}
+
+	printk("%6u opers/sec, %9lu bytes/sec\n",
+	       bcount / sec, ((long)bcount * blen) / sec);
+
+	return 0;
+}
+
+static int test_ahash_jiffies(struct ahash_request *req, int blen,
+			      int plen, char *out, int sec)
+{
+	unsigned long start, end;
+	int bcount, pcount;
+	int ret;
+
+	if (plen == blen)
+		return test_ahash_jiffies_digest(req, blen, out, sec);
+
+	for (start = jiffies, end = start + sec * HZ, bcount = 0;
+	     time_before(jiffies, end); bcount++) {
+		ret = crypto_ahash_init(req);
+		if (ret)
+			return ret;
+		for (pcount = 0; pcount < blen; pcount += plen) {
+			ret = do_one_ahash_op(req, crypto_ahash_update(req));
+			if (ret)
+				return ret;
+		}
+		/* we assume there is enough space in 'out' for the result */
+		ret = do_one_ahash_op(req, crypto_ahash_final(req));
+		if (ret)
+			return ret;
+	}
+
+	pr_cont("%6u opers/sec, %9lu bytes/sec\n",
+		bcount / sec, ((long)bcount * blen) / sec);
+
+	return 0;
+}
+
+static int test_ahash_cycles_digest(struct ahash_request *req, int blen,
+				    char *out)
+{
+	unsigned long cycles = 0;
+	int ret, i;
+
+	/* Warm-up run. */
+	for (i = 0; i < 4; i++) {
+		ret = do_one_ahash_op(req, crypto_ahash_digest(req));
+		if (ret)
+			goto out;
+	}
+
+	/* The real thing. */
+	for (i = 0; i < 8; i++) {
+		cycles_t start, end;
+
+		start = get_cycles();
+
+		ret = do_one_ahash_op(req, crypto_ahash_digest(req));
+		if (ret)
+			goto out;
+
+		end = get_cycles();
+
+		cycles += end - start;
+	}
+
+out:
+	if (ret)
+		return ret;
+
+	pr_cont("%6lu cycles/operation, %4lu cycles/byte\n",
+		cycles / 8, cycles / (8 * blen));
+
+	return 0;
+}
+
+static int test_ahash_cycles(struct ahash_request *req, int blen,
+			     int plen, char *out)
+{
+	unsigned long cycles = 0;
+	int i, pcount, ret;
+
+	if (plen == blen)
+		return test_ahash_cycles_digest(req, blen, out);
+
+	/* Warm-up run. */
+	for (i = 0; i < 4; i++) {
+		ret = crypto_ahash_init(req);
+		if (ret)
+			goto out;
+		for (pcount = 0; pcount < blen; pcount += plen) {
+			ret = do_one_ahash_op(req, crypto_ahash_update(req));
+			if (ret)
+				goto out;
+		}
+		ret = do_one_ahash_op(req, crypto_ahash_final(req));
+		if (ret)
+			goto out;
+	}
+
+	/* The real thing. */
+	for (i = 0; i < 8; i++) {
+		cycles_t start, end;
+
+		start = get_cycles();
+
+		ret = crypto_ahash_init(req);
+		if (ret)
+			goto out;
+		for (pcount = 0; pcount < blen; pcount += plen) {
+			ret = do_one_ahash_op(req, crypto_ahash_update(req));
+			if (ret)
+				goto out;
+		}
+		ret = do_one_ahash_op(req, crypto_ahash_final(req));
+		if (ret)
+			goto out;
+
+		end = get_cycles();
+
+		cycles += end - start;
+	}
+
+out:
+	if (ret)
+		return ret;
+
+	pr_cont("%6lu cycles/operation, %4lu cycles/byte\n",
+		cycles / 8, cycles / (8 * blen));
+
+	return 0;
+}
+
+static void test_ahash_speed(const char *algo, unsigned int sec,
+			     struct hash_speed *speed)
+{
+	struct scatterlist sg[TVMEMSIZE];
+	struct tcrypt_result tresult;
+	struct ahash_request *req;
+	struct crypto_ahash *tfm;
+	static char output[1024];
+	int i, ret;
+
+	printk(KERN_INFO "\ntesting speed of async %s\n", algo);
+
+	tfm = crypto_alloc_ahash(algo, 0, 0);
+	if (IS_ERR(tfm)) {
+		pr_err("failed to load transform for %s: %ld\n",
+		       algo, PTR_ERR(tfm));
+		return;
+	}
+
+	if (crypto_ahash_digestsize(tfm) > sizeof(output)) {
+		pr_err("digestsize(%u) > outputbuffer(%zu)\n",
+		       crypto_ahash_digestsize(tfm), sizeof(output));
+		goto out;
+	}
+
+	test_hash_sg_init(sg);
+	req = ahash_request_alloc(tfm, GFP_KERNEL);
+	if (!req) {
+		pr_err("ahash request allocation failure\n");
+		goto out;
+	}
+
+	init_completion(&tresult.completion);
+	ahash_request_set_callback(req, CRYPTO_TFM_REQ_MAY_BACKLOG,
+				   tcrypt_complete, &tresult);
+
+	for (i = 0; speed[i].blen != 0; i++) {
+		if (speed[i].blen > TVMEMSIZE * PAGE_SIZE) {
+			pr_err("template (%u) too big for tvmem (%lu)\n",
+			       speed[i].blen, TVMEMSIZE * PAGE_SIZE);
+			break;
+		}
+
+		pr_info("test%3u "
+			"(%5u byte blocks,%5u bytes per update,%4u updates): ",
+			i, speed[i].blen, speed[i].plen, speed[i].blen / speed[i].plen);
+
+		ahash_request_set_crypt(req, sg, output, speed[i].plen);
+
+		if (sec)
+			ret = test_ahash_jiffies(req, speed[i].blen,
+						 speed[i].plen, output, sec);
+		else
+			ret = test_ahash_cycles(req, speed[i].blen,
+						speed[i].plen, output);
+
+		if (ret) {
+			pr_err("hashing failed ret=%d\n", ret);
+			break;
+		}
+	}
+
+	ahash_request_free(req);
+
+out:
+	crypto_free_ahash(tfm);
 }
 
 static void test_available(void)
@@ -881,7 +1134,85 @@ static int do_test(int m)
 		test_hash_speed("rmd320", sec, generic_hash_speed_template);
 		if (mode > 300 && mode < 400) break;
 
+	case 318:
+		test_hash_speed("ghash-generic", sec, hash_speed_template_16);
+		if (mode > 300 && mode < 400) break;
+
 	case 399:
+		break;
+
+	case 400:
+		/* fall through */
+
+	case 401:
+		test_ahash_speed("md4", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 402:
+		test_ahash_speed("md5", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 403:
+		test_ahash_speed("sha1", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 404:
+		test_ahash_speed("sha256", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 405:
+		test_ahash_speed("sha384", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 406:
+		test_ahash_speed("sha512", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 407:
+		test_ahash_speed("wp256", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 408:
+		test_ahash_speed("wp384", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 409:
+		test_ahash_speed("wp512", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 410:
+		test_ahash_speed("tgr128", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 411:
+		test_ahash_speed("tgr160", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 412:
+		test_ahash_speed("tgr192", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 413:
+		test_ahash_speed("sha224", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 414:
+		test_ahash_speed("rmd128", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 415:
+		test_ahash_speed("rmd160", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 416:
+		test_ahash_speed("rmd256", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 417:
+		test_ahash_speed("rmd320", sec, generic_hash_speed_template);
+		if (mode > 400 && mode < 500) break;
+
+	case 499:
 		break;
 
 	case 1000:

@@ -239,7 +239,7 @@ static int mlx4_eq_int(struct mlx4_dev *dev, struct mlx4_eq *eq)
 			mlx4_warn(dev, "Unhandled event %02x(%02x) on EQ %d at index %u\n",
 				  eqe->type, eqe->subtype, eq->eqn, eq->cons_index);
 			break;
-		};
+		}
 
 		++eq->cons_index;
 		eqes_found = 1;

@@ -2876,7 +2876,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	ai->wep_capable = (cap_rid.softCap & cpu_to_le16(0x02)) ? 1 : 0;
 	ai->max_wep_idx = (cap_rid.softCap & cpu_to_le16(0x80)) ? 3 : 0;
 
-	airo_print_info(dev->name, "Firmware version %x.%x.%02x",
+	airo_print_info(dev->name, "Firmware version %x.%x.%02d",
 	                ((le16_to_cpu(cap_rid.softVer) >> 8) & 0xF),
 	                (le16_to_cpu(cap_rid.softVer) & 0xFF),
 	                le16_to_cpu(cap_rid.softSubVer));
@@ -3193,19 +3193,26 @@ static void airo_print_status(const char *devname, u16 status)
 {
 	u8 reason = status & 0xFF;
 
-	switch (status) {
+	switch (status & 0xFF00) {
 	case STAT_NOBEACON:
-		airo_print_dbg(devname, "link lost (missed beacons)");
-		break;
-	case STAT_MAXRETRIES:
-	case STAT_MAXARL:
-		airo_print_dbg(devname, "link lost (max retries)");
-		break;
-	case STAT_FORCELOSS:
-		airo_print_dbg(devname, "link lost (local choice)");
-		break;
-	case STAT_TSFSYNC:
-		airo_print_dbg(devname, "link lost (TSF sync lost)");
+		switch (status) {
+		case STAT_NOBEACON:
+			airo_print_dbg(devname, "link lost (missed beacons)");
+			break;
+		case STAT_MAXRETRIES:
+		case STAT_MAXARL:
+			airo_print_dbg(devname, "link lost (max retries)");
+			break;
+		case STAT_FORCELOSS:
+			airo_print_dbg(devname, "link lost (local choice)");
+			break;
+		case STAT_TSFSYNC:
+			airo_print_dbg(devname, "link lost (TSF sync lost)");
+			break;
+		default:
+			airo_print_dbg(devname, "unknow status %x\n", status);
+			break;
+		}
 		break;
 	case STAT_DEAUTH:
 		airo_print_dbg(devname, "deauthenticated (reason: %d)", reason);
@@ -3221,7 +3228,11 @@ static void airo_print_status(const char *devname, u16 status)
 		airo_print_dbg(devname, "authentication failed (reason: %d)",
 			       reason);
 		break;
+	case STAT_ASSOC:
+	case STAT_REASSOC:
+		break;
 	default:
+		airo_print_dbg(devname, "unknow status %x\n", status);
 		break;
 	}
 }

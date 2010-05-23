@@ -403,7 +403,6 @@ void __init prom_init(void)
 	const int coreid = cvmx_get_core_num();
 	int i;
 	int argc;
-	struct uart_port octeon_port;
 #ifdef CONFIG_CAVIUM_RESERVE32
 	int64_t addr = -1;
 #endif
@@ -610,30 +609,6 @@ void __init prom_init(void)
 	_machine_restart = octeon_restart;
 	_machine_halt = octeon_halt;
 
-	memset(&octeon_port, 0, sizeof(octeon_port));
-	/*
-	 * For early_serial_setup we don't set the port type or
-	 * UPF_FIXED_TYPE.
-	 */
-	octeon_port.flags = ASYNC_SKIP_TEST | UPF_SHARE_IRQ;
-	octeon_port.iotype = UPIO_MEM;
-	/* I/O addresses are every 8 bytes */
-	octeon_port.regshift = 3;
-	/* Clock rate of the chip */
-	octeon_port.uartclk = mips_hpt_frequency;
-	octeon_port.fifosize = 64;
-	octeon_port.mapbase = 0x0001180000000800ull + (1024 * octeon_uart);
-	octeon_port.membase = cvmx_phys_to_ptr(octeon_port.mapbase);
-	octeon_port.serial_in = octeon_serial_in;
-	octeon_port.serial_out = octeon_serial_out;
-#ifdef CONFIG_CAVIUM_OCTEON_2ND_KERNEL
-	octeon_port.line = 0;
-#else
-	octeon_port.line = octeon_uart;
-#endif
-	octeon_port.irq = 42 + octeon_uart;
-	early_serial_setup(&octeon_port);
-
 	octeon_user_io_init();
 	register_smp_ops(&octeon_smp_ops);
 }
@@ -727,7 +702,7 @@ int prom_putchar(char c)
 	} while ((lsrval & 0x20) == 0);
 
 	/* Write the byte */
-	cvmx_write_csr(CVMX_MIO_UARTX_THR(octeon_uart), c);
+	cvmx_write_csr(CVMX_MIO_UARTX_THR(octeon_uart), c & 0xffull);
 	return 1;
 }
 

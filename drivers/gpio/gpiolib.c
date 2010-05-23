@@ -399,7 +399,7 @@ static int gpio_setup_irq(struct gpio_desc *desc, struct device *dev,
 			goto free_id;
 		}
 
-		pdesc->value_sd = sysfs_get_dirent(dev->kobj.sd, "value");
+		pdesc->value_sd = sysfs_get_dirent(dev->kobj.sd, NULL, "value");
 		if (!pdesc->value_sd) {
 			ret = -ENODEV;
 			goto free_id;

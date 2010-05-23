@@ -132,7 +132,7 @@ static void fc_disc_recv_rscn_req(struct fc_seq *sp, struct fc_frame *fp,
 		switch (fmt) {
 		case ELS_ADDR_FMT_PORT:
 			FC_DISC_DBG(disc, "Port address format for port "
-				    "(%6x)\n", ntoh24(pp->rscn_fid));
+				    "(%6.6x)\n", ntoh24(pp->rscn_fid));
 			dp = kzalloc(sizeof(*dp), GFP_KERNEL);
 			if (!dp) {
 				redisc = 1;
@@ -440,7 +440,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 		ids.port_id = ntoh24(np->fp_fid);
 		ids.port_name = ntohll(np->fp_wwpn);
 
-		if (ids.port_id != fc_host_port_id(lport->host) &&
+		if (ids.port_id != lport->port_id &&
 		    ids.port_name != lport->wwpn) {
 			rdata = lport->tt.rport_create(lport, ids.port_id);
 			if (rdata) {
@@ -449,7 +449,7 @@ static int fc_disc_gpn_ft_parse(struct fc_disc *disc, void *buf, size_t len)
 			} else {
 				printk(KERN_WARNING "libfc: Failed to allocate "
 				       "memory for the newly discovered port "
-				       "(%6x)\n", ids.port_id);
+				       "(%6.6x)\n", ids.port_id);
 				error = -ENOMEM;
 			}
 		}
@@ -607,7 +607,7 @@ static void fc_disc_gpn_id_resp(struct fc_seq *sp, struct fc_frame *fp,
 			rdata->ids.port_name = port_name;
 		else if (rdata->ids.port_name != port_name) {
 			FC_DISC_DBG(disc, "GPN_ID accepted.  WWPN changed. "
-				    "Port-id %x wwpn %llx\n",
+				    "Port-id %6.6x wwpn %16.16llx\n",
 				    rdata->ids.port_id, port_name);
 			lport->tt.rport_logoff(rdata);
 

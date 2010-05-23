@@ -151,7 +151,11 @@ static int sci_poll_get_char(struct uart_port *port)
 			handle_error(port);
 			continue;
 		}
-	} while (!(status & SCxSR_RDxF(port)));
+		break;
+	} while (1);
+
+	if (!(status & SCxSR_RDxF(port)))
+		return NO_POLL_CHAR;
 
 	c = sci_in(port, SCxRDR);
 
@@ -1087,7 +1091,7 @@ static void work_fn_rx(struct work_struct *work)
 		unsigned long flags;
 		int count;
 
-		chan->device->device_terminate_all(chan);
+		chan->device->device_control(chan, DMA_TERMINATE_ALL, 0);
 		dev_dbg(port->dev, "Read %u bytes with cookie %d\n",
 			sh_desc->partial, sh_desc->cookie);
 

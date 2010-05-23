@@ -487,7 +487,7 @@ static int ipw_ioctl(struct tty_struct *linux_tty, struct file *file,
 	return tty_mode_ioctl(linux_tty, file, cmd , arg);
 }
 
-static int add_tty(dev_node_t *nodesp, int j,
+static int add_tty(int j,
 		    struct ipw_hardware *hardware,
 		    struct ipw_network *network, int channel_idx,
 		    int secondary_channel_idx, int tty_type)
@@ -510,19 +510,13 @@ static int add_tty(dev_node_t *nodesp, int j,
 		ipwireless_associate_network_tty(network,
 						 secondary_channel_idx,
 						 ttys[j]);
-	if (nodesp != NULL) {
-		sprintf(nodesp->dev_name, "ttyIPWp%d", j);
-		nodesp->major = ipw_tty_driver->major;
-		nodesp->minor = j + ipw_tty_driver->minor_start;
-	}
 	if (get_tty(j + ipw_tty_driver->minor_start) == ttys[j])
 		report_registering(ttys[j]);
 	return 0;
 }
 
 struct ipw_tty *ipwireless_tty_create(struct ipw_hardware *hardware,
-				      struct ipw_network *network,
-				      dev_node_t *nodes)
+				      struct ipw_network *network)
 {
 	int i, j;
 
@@ -539,25 +533,22 @@ struct ipw_tty *ipwireless_tty_create(struct ipw_hardware *hardware,
 		if (allfree) {
 			j = i;
 
-			if (add_tty(&nodes[0], j, hardware, network,
+			if (add_tty(j, hardware, network,
 					IPW_CHANNEL_DIALLER, IPW_CHANNEL_RAS,
 					TTYTYPE_MODEM))
 				return NULL;
 
 			j += IPWIRELESS_PCMCIA_MINOR_RANGE;
-			if (add_tty(&nodes[1], j, hardware, network,
+			if (add_tty(j, hardware, network,
 					IPW_CHANNEL_DIALLER, -1,
 					TTYTYPE_MONITOR))
 				return NULL;
 
 			j += IPWIRELESS_PCMCIA_MINOR_RANGE;
-			if (add_tty(NULL, j, hardware, network,
+			if (add_tty(j, hardware, network,
 					IPW_CHANNEL_RAS, -1,
 					TTYTYPE_RAS_RAW))
 				return NULL;
-
-			nodes[0].next = &nodes[1];
-			nodes[1].next = NULL;
 
 			return ttys[i];
 		}

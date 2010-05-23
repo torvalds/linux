@@ -265,7 +265,7 @@ static unsigned long pdc2027x_mode_filter(struct ata_device *adev, unsigned long
 	struct ata_device *pair = ata_dev_pair(adev);
 
 	if (adev->class != ATA_DEV_ATA || adev->devno == 0 || pair == NULL)
-		return ata_bmdma_mode_filter(adev, mask);
+		return mask;
 
 	/* Check for slave of a Maxtor at UDMA6 */
 	ata_id_c_string(pair->id, model_num, ATA_ID_PROD,
@@ -274,7 +274,7 @@ static unsigned long pdc2027x_mode_filter(struct ata_device *adev, unsigned long
 	if (strstr(model_num, "Maxtor") == NULL && pair->dma_mode == XFER_UDMA_6)
 		mask &= ~ (1 << (6 + ATA_SHIFT_UDMA));
 
-	return ata_bmdma_mode_filter(adev, mask);
+	return mask;
 }
 
 /**

@@ -217,7 +217,7 @@ int coda_fsync(struct file *coda_file, struct dentry *coda_dentry, int datasync)
 	BUG_ON(!cfi || cfi->cfi_magic != CODA_MAGIC);
 	host_file = cfi->cfi_container;
 
-	err = vfs_fsync(host_file, host_file->f_path.dentry, datasync);
+	err = vfs_fsync(host_file, datasync);
 	if ( !err && !datasync ) {
 		lock_kernel();
 		err = venus_fsync(coda_inode->i_sb, coda_i2f(coda_inode));

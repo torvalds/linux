@@ -141,10 +141,6 @@ struct pcmcia_socket {
 	u_short				lock_count;
 	pccard_mem_map			cis_mem;
 	void __iomem 			*cis_virt;
-	struct {
-		u_int			AssignedIRQ;
-		u_int			Config;
-	} irq;
 	io_window_t			io[MAX_IO_WIN];
 	pccard_mem_map			win[MAX_WIN];
 	struct list_head		cis_cache;
@@ -234,6 +230,9 @@ struct pcmcia_socket {
 
 	/* non-zero if PCMCIA card is present */
 	atomic_t			present;
+
+	/* IRQ to be used by PCMCIA devices. May not be IRQ 0. */
+	unsigned int			pcmcia_irq;
 
 #ifdef CONFIG_PCMCIA_IOCTL
 	struct user_info_t		*user;

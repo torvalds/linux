@@ -1787,7 +1787,7 @@ int __devinit snd_emu10k1_create(struct snd_card *card,
 	else if (subsystem)
 		snd_printdd("Sound card name = %s, "
 			"vendor = 0x%x, device = 0x%x, subsystem = 0x%x. "
-			"Forced to subsytem = 0x%x\n",	c->name,
+			"Forced to subsystem = 0x%x\n",	c->name,
 			pci->vendor, pci->device, emu->serial, c->subsystem);
 	else
 		snd_printdd("Sound card name = %s, "

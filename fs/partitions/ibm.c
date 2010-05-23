@@ -58,9 +58,9 @@ cchhb2blk (struct vtoc_cchhb *ptr, struct hd_geometry *geo) {
 
 /*
  */
-int
-ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
+int ibm_partition(struct parsed_partitions *state)
 {
+	struct block_device *bdev = state->bdev;
 	int blocksize, res;
 	loff_t i_size, offset, size, fmt_size;
 	dasd_information2_t *info;
@@ -100,7 +100,8 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 	/*
 	 * Get volume label, extract name and type.
 	 */
-	data = read_dev_sector(bdev, info->label_block*(blocksize/512), &sect);
+	data = read_part_sector(state, info->label_block*(blocksize/512),
+				&sect);
 	if (data == NULL)
 		goto out_readerr;
 
@@ -193,8 +194,8 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 			 */
 			blk = cchhb2blk(&label->vol.vtoc, geo) + 1;
 			counter = 0;
-			data = read_dev_sector(bdev, blk * (blocksize/512),
-					       &sect);
+			data = read_part_sector(state, blk * (blocksize/512),
+						&sect);
 			while (data != NULL) {
 				struct vtoc_format1_label f1;
 
@@ -208,9 +209,8 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 				    || f1.DS1FMTID == _ascebc['7']
 				    || f1.DS1FMTID == _ascebc['9']) {
 					blk++;
-					data = read_dev_sector(bdev, blk *
-							       (blocksize/512),
-								&sect);
+					data = read_part_sector(state,
+						blk * (blocksize/512), &sect);
 					continue;
 				}
 
@@ -230,9 +230,8 @@ ibm_partition(struct parsed_partitions *state, struct block_device *bdev)
 					      size * (blocksize >> 9));
 				counter++;
 				blk++;
-				data = read_dev_sector(bdev,
-						       blk * (blocksize/512),
-						       &sect);
+				data = read_part_sector(state,
+						blk * (blocksize/512), &sect);
 			}
 
 			if (!data)

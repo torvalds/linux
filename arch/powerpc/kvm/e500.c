@@ -161,7 +161,7 @@ static int __init kvmppc_e500_init(void)
 	flush_icache_range(kvmppc_booke_handlers,
 			kvmppc_booke_handlers + max_ivor + kvmppc_handler_len);
 
-	return kvm_init(NULL, sizeof(struct kvmppc_vcpu_e500), THIS_MODULE);
+	return kvm_init(NULL, sizeof(struct kvmppc_vcpu_e500), 0, THIS_MODULE);
 }
 
 static void __init kvmppc_e500_exit(void)

@@ -1109,14 +1109,14 @@ static int dvb_net_feed_stop(struct net_device *dev)
 }
 
 
-static int dvb_set_mc_filter (struct net_device *dev, struct dev_mc_list *mc)
+static int dvb_set_mc_filter(struct net_device *dev, unsigned char *addr)
 {
 	struct dvb_net_priv *priv = netdev_priv(dev);
 
 	if (priv->multi_num == DVB_NET_MULTICAST_MAX)
 		return -ENOMEM;
 
-	memcpy(priv->multi_macs[priv->multi_num], mc->dmi_addr, 6);
+	memcpy(priv->multi_macs[priv->multi_num], addr, ETH_ALEN);
 
 	priv->multi_num++;
 	return 0;
@@ -1140,8 +1140,7 @@ static void wq_set_multicast_list (struct work_struct *work)
 		dprintk("%s: allmulti mode\n", dev->name);
 		priv->rx_mode = RX_MODE_ALL_MULTI;
 	} else if (!netdev_mc_empty(dev)) {
-		int mci;
-		struct dev_mc_list *mc;
+		struct netdev_hw_addr *ha;
 
 		dprintk("%s: set_mc_list, %d entries\n",
 			dev->name, netdev_mc_count(dev));
@@ -1149,11 +1148,8 @@ static void wq_set_multicast_list (struct work_struct *work)
 		priv->rx_mode = RX_MODE_MULTI;
 		priv->multi_num = 0;
 
-		for (mci = 0, mc=dev->mc_list;
-		     mci < netdev_mc_count(dev);
-		     mc = mc->next, mci++) {
-			dvb_set_mc_filter(dev, mc);
-		}
+		netdev_for_each_mc_addr(ha, dev)
+			dvb_set_mc_filter(dev, ha->addr);
 	}
 
 	netif_addr_unlock_bh(dev);

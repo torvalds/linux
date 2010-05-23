@@ -865,7 +865,7 @@ static inline void determine_reg_space_size(struct myri_eth *mp)
 		printk("myricom: AIEEE weird cpu version %04x assuming pre4.0\n",
 		       mp->eeprom.cpuvers);
 		mp->reg_size = (3 * 128 * 1024) + 4096;
-	};
+	}
 }
 
 #ifdef DEBUG_DETECT

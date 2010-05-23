@@ -1,5 +1,5 @@
 /*
- * ks8842_main.c timberdale KS8842 ethernet driver
+ * ks8842.c timberdale KS8842 ethernet driver
  * Copyright (c) 2009 Intel Corporation
  *
  * This program is free software; you can redistribute it and/or modify
@@ -20,12 +20,15 @@
  * The Micrel KS8842 behind the timberdale FPGA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/ks8842.h>
 
 #define DRV_NAME "ks8842"
 
@@ -302,6 +305,20 @@ static void ks8842_read_mac_addr(struct ks8842_adapter *adapter, u8 *dest)
 	ks8842_write16(adapter, 39, mac, REG_MACAR3);
 }
 
+static void ks8842_write_mac_addr(struct ks8842_adapter *adapter, u8 *mac)
+{
+	unsigned long flags;
+	unsigned i;
+
+	spin_lock_irqsave(&adapter->lock, flags);
+	for (i = 0; i < ETH_ALEN; i++) {
+		ks8842_write8(adapter, 2, mac[ETH_ALEN - i - 1], REG_MARL + i);
+		ks8842_write8(adapter, 39, mac[ETH_ALEN - i - 1],
+			REG_MACAR1 + i);
+	}
+	spin_unlock_irqrestore(&adapter->lock, flags);
+}
+
 static inline u16 ks8842_tx_fifo_space(struct ks8842_adapter *adapter)
 {
 	return ks8842_read16(adapter, 16, REG_TXMIR) & 0x1fff;
@@ -520,13 +537,14 @@ static int ks8842_open(struct net_device *netdev)
 	/* reset the HW */
 	ks8842_reset_hw(adapter);
 
+	ks8842_write_mac_addr(adapter, netdev->dev_addr);
+
 	ks8842_update_link_status(netdev, adapter);
 
 	err = request_irq(adapter->irq, ks8842_irq, IRQF_SHARED, DRV_NAME,
 		adapter);
 	if (err) {
-		printk(KERN_ERR "Failed to request IRQ: %d: %d\n",
-			adapter->irq, err);
+		pr_err("Failed to request IRQ: %d: %d\n", adapter->irq, err);
 		return err;
 	}
 
@@ -567,10 +585,8 @@ static netdev_tx_t ks8842_xmit_frame(struct sk_buff *skb,
 static int ks8842_set_mac(struct net_device *netdev, void *p)
 {
 	struct ks8842_adapter *adapter = netdev_priv(netdev);
-	unsigned long flags;
 	struct sockaddr *addr = p;
 	char *mac = (u8 *)addr->sa_data;
-	int i;
 
 	dev_dbg(&adapter->pdev->dev, "%s: entry\n", __func__);
 
@@ -579,13 +595,7 @@ static int ks8842_set_mac(struct net_device *netdev, void *p)
 
 	memcpy(netdev->dev_addr, mac, netdev->addr_len);
 
-	spin_lock_irqsave(&adapter->lock, flags);
-	for (i = 0; i < ETH_ALEN; i++) {
-		ks8842_write8(adapter, 2, mac[ETH_ALEN - i - 1], REG_MARL + i);
-		ks8842_write8(adapter, 39, mac[ETH_ALEN - i - 1],
-			REG_MACAR1 + i);
-	}
-	spin_unlock_irqrestore(&adapter->lock, flags);
+	ks8842_write_mac_addr(adapter, mac);
 	return 0;
 }
 
@@ -603,6 +613,8 @@ static void ks8842_tx_timeout(struct net_device *netdev)
 	spin_unlock_irqrestore(&adapter->lock, flags);
 
 	ks8842_reset_hw(adapter);
+
+	ks8842_write_mac_addr(adapter, netdev->dev_addr);
 
 	ks8842_update_link_status(netdev, adapter);
 }
@@ -626,7 +638,9 @@ static int __devinit ks8842_probe(struct platform_device *pdev)
 	struct resource *iomem;
 	struct net_device *netdev;
 	struct ks8842_adapter *adapter;
+	struct ks8842_platform_data *pdata = pdev->dev.platform_data;
 	u16 id;
+	unsigned i;
 
 	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!request_mem_region(iomem->start, resource_size(iomem), DRV_NAME))
@@ -657,7 +671,25 @@ static int __devinit ks8842_probe(struct platform_device *pdev)
 	netdev->netdev_ops = &ks8842_netdev_ops;
 	netdev->ethtool_ops = &ks8842_ethtool_ops;
 
-	ks8842_read_mac_addr(adapter, netdev->dev_addr);
+	/* Check if a mac address was given */
+	i = netdev->addr_len;
+	if (pdata) {
+		for (i = 0; i < netdev->addr_len; i++)
+			if (pdata->macaddr[i] != 0)
+				break;
+
+		if (i < netdev->addr_len)
+			/* an address was passed, use it */
+			memcpy(netdev->dev_addr, pdata->macaddr,
+				netdev->addr_len);
+	}
+
+	if (i == netdev->addr_len) {
+		ks8842_read_mac_addr(adapter, netdev->dev_addr);
+
+		if (!is_valid_ether_addr(netdev->dev_addr))
+			random_ether_addr(netdev->dev_addr);
+	}
 
 	id = ks8842_read16(adapter, 32, REG_SW_ID_AND_ENABLE);
 
@@ -668,8 +700,7 @@ static int __devinit ks8842_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, netdev);
 
-	printk(KERN_INFO DRV_NAME
-		" Found chip, family: 0x%x, id: 0x%x, rev: 0x%x\n",
+	pr_info("Found chip, family: 0x%x, id: 0x%x, rev: 0x%x\n",
 		(id >> 8) & 0xff, (id >> 4) & 0xf, (id >> 1) & 0x7);
 
 	return 0;

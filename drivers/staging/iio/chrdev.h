@@ -94,7 +94,7 @@ struct iio_event_interface {
 	struct iio_chrdev_minor_attr		attr;
 	struct module				*owner;
 	void					*private;
-	char					_name[20];
+	char					_name[35];
 	char					_attrname[20];
 };
 

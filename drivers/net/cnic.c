@@ -1143,12 +1143,12 @@ static int cnic_submit_bnx2_kwqes(struct cnic_dev *dev, struct kwqe *wqes[],
 
 	spin_lock_bh(&cp->cnic_ulp_lock);
 	if (num_wqes > cnic_kwq_avail(cp) &&
-	    !(cp->cnic_local_flags & CNIC_LCL_FL_KWQ_INIT)) {
+	    !test_bit(CNIC_LCL_FL_KWQ_INIT, &cp->cnic_local_flags)) {
 		spin_unlock_bh(&cp->cnic_ulp_lock);
 		return -EAGAIN;
 	}
 
-	cp->cnic_local_flags &= ~CNIC_LCL_FL_KWQ_INIT;
+	clear_bit(CNIC_LCL_FL_KWQ_INIT, &cp->cnic_local_flags);
 
 	prod = cp->kwq_prod_idx;
 	sw_prod = prod & MAX_KWQ_IDX;
@@ -2092,7 +2092,6 @@ end:
 		i += j;
 		j = 1;
 	}
-	return;
 }
 
 static u16 cnic_bnx2_next_idx(u16 idx)
@@ -2146,17 +2145,56 @@ static int cnic_get_kcqes(struct cnic_dev *dev, u16 hw_prod, u16 *sw_prod)
 	return last_cnt;
 }
 
+static int cnic_l2_completion(struct cnic_local *cp)
+{
+	u16 hw_cons, sw_cons;
+	union eth_rx_cqe *cqe, *cqe_ring = (union eth_rx_cqe *)
+					(cp->l2_ring + (2 * BCM_PAGE_SIZE));
+	u32 cmd;
+	int comp = 0;
+
+	if (!test_bit(CNIC_F_BNX2X_CLASS, &cp->dev->flags))
+		return 0;
+
+	hw_cons = *cp->rx_cons_ptr;
+	if ((hw_cons & BNX2X_MAX_RCQ_DESC_CNT) == BNX2X_MAX_RCQ_DESC_CNT)
+		hw_cons++;
+
+	sw_cons = cp->rx_cons;
+	while (sw_cons != hw_cons) {
+		u8 cqe_fp_flags;
+
+		cqe = &cqe_ring[sw_cons & BNX2X_MAX_RCQ_DESC_CNT];
+		cqe_fp_flags = cqe->fast_path_cqe.type_error_flags;
+		if (cqe_fp_flags & ETH_FAST_PATH_RX_CQE_TYPE) {
+			cmd = le32_to_cpu(cqe->ramrod_cqe.conn_and_cmd_data);
+			cmd >>= COMMON_RAMROD_ETH_RX_CQE_CMD_ID_SHIFT;
+			if (cmd == RAMROD_CMD_ID_ETH_CLIENT_SETUP ||
+			    cmd == RAMROD_CMD_ID_ETH_HALT)
+				comp++;
+		}
+		sw_cons = BNX2X_NEXT_RCQE(sw_cons);
+	}
+	return comp;
+}
+
 static void cnic_chk_pkt_rings(struct cnic_local *cp)
 {
 	u16 rx_cons = *cp->rx_cons_ptr;
 	u16 tx_cons = *cp->tx_cons_ptr;
+	int comp = 0;
 
 	if (cp->tx_cons != tx_cons || cp->rx_cons != rx_cons) {
+		if (test_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags))
+			comp = cnic_l2_completion(cp);
+
 		cp->tx_cons = tx_cons;
 		cp->rx_cons = rx_cons;
 
 		uio_event_notify(cp->cnic_uinfo);
 	}
+	if (comp)
+		clear_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags);
 }
 
 static int cnic_service_bnx2(void *data, void *status_blk)
@@ -2325,7 +2363,6 @@ done:
 			   status_idx, IGU_INT_ENABLE, 1);
 
 	cp->kcq_prod_idx = sw_prod;
-	return;
 }
 
 static int cnic_service_bnx2x(void *data, void *status_blk)
@@ -3692,7 +3729,7 @@ static int cnic_start_bnx2_hw(struct cnic_dev *dev)
 	cp->max_kwq_idx = MAX_KWQ_IDX;
 	cp->kwq_prod_idx = 0;
 	cp->kwq_con_idx = 0;
-	cp->cnic_local_flags |= CNIC_LCL_FL_KWQ_INIT;
+	set_bit(CNIC_LCL_FL_KWQ_INIT, &cp->cnic_local_flags);
 
 	if (CHIP_NUM(cp) == CHIP_NUM_5706 || CHIP_NUM(cp) == CHIP_NUM_5708)
 		cp->kwq_con_idx_ptr = &sblk->status_rx_quick_consumer_index15;
@@ -4170,6 +4207,8 @@ static void cnic_init_rings(struct cnic_dev *dev)
 		for (i = 0; i < sizeof(struct ustorm_eth_rx_producers) / 4; i++)
 			CNIC_WR(dev, off + i * 4, ((u32 *) &rx_prods)[i]);
 
+		set_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags);
+
 		cnic_init_bnx2x_tx_ring(dev);
 		cnic_init_bnx2x_rx_ring(dev);
 
@@ -4177,6 +4216,15 @@ static void cnic_init_rings(struct cnic_dev *dev)
 		l5_data.phy_address.hi = 0;
 		cnic_submit_kwqe_16(dev, RAMROD_CMD_ID_ETH_CLIENT_SETUP,
 			BNX2X_ISCSI_L2_CID, ETH_CONNECTION_TYPE, &l5_data);
+		i = 0;
+		while (test_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags) &&
+		       ++i < 10)
+			msleep(1);
+
+		if (test_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags))
+			netdev_err(dev->netdev,
+				"iSCSI CLIENT_SETUP did not complete\n");
+		cnic_kwq_completion(dev, 1);
 		cnic_ring_ctl(dev, BNX2X_ISCSI_L2_CID, cli, 1);
 	}
 }
@@ -4189,14 +4237,25 @@ static void cnic_shutdown_rings(struct cnic_dev *dev)
 		struct cnic_local *cp = dev->cnic_priv;
 		u32 cli = BNX2X_ISCSI_CL_ID(CNIC_E1HVN(cp));
 		union l5cm_specific_data l5_data;
+		int i;
 
 		cnic_ring_ctl(dev, BNX2X_ISCSI_L2_CID, cli, 0);
+
+		set_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags);
 
 		l5_data.phy_address.lo = cli;
 		l5_data.phy_address.hi = 0;
 		cnic_submit_kwqe_16(dev, RAMROD_CMD_ID_ETH_HALT,
 			BNX2X_ISCSI_L2_CID, ETH_CONNECTION_TYPE, &l5_data);
-		msleep(10);
+		i = 0;
+		while (test_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags) &&
+		       ++i < 10)
+			msleep(1);
+
+		if (test_bit(CNIC_LCL_FL_L2_WAIT, &cp->cnic_local_flags))
+			netdev_err(dev->netdev,
+				"iSCSI CLIENT_HALT did not complete\n");
+		cnic_kwq_completion(dev, 1);
 
 		memset(&l5_data, 0, sizeof(l5_data));
 		cnic_submit_kwqe_16(dev, RAMROD_CMD_ID_ETH_CFC_DEL,
@@ -4317,7 +4376,15 @@ static void cnic_stop_hw(struct cnic_dev *dev)
 {
 	if (test_bit(CNIC_F_CNIC_UP, &dev->flags)) {
 		struct cnic_local *cp = dev->cnic_priv;
+		int i = 0;
 
+		/* Need to wait for the ring shutdown event to complete
+		 * before clearing the CNIC_UP flag.
+		 */
+		while (cp->uio_dev != -1 && i < 15) {
+			msleep(100);
+			i++;
+		}
 		clear_bit(CNIC_F_CNIC_UP, &dev->flags);
 		rcu_assign_pointer(cp->ulp_ops[CNIC_ULP_L4], NULL);
 		synchronize_rcu();
@@ -4628,7 +4695,6 @@ static void __exit cnic_exit(void)
 {
 	unregister_netdevice_notifier(&cnic_netdev_notifier);
 	cnic_release();
-	return;
 }
 
 module_init(cnic_init);

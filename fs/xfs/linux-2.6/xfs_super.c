@@ -725,7 +725,8 @@ void
 xfs_blkdev_issue_flush(
 	xfs_buftarg_t		*buftarg)
 {
-	blkdev_issue_flush(buftarg->bt_bdev, NULL);
+	blkdev_issue_flush(buftarg->bt_bdev, GFP_KERNEL, NULL,
+			BLKDEV_IFL_WAIT);
 }
 
 STATIC void
@@ -789,18 +790,18 @@ xfs_open_devices(
 	 * Setup xfs_mount buffer target pointers
 	 */
 	error = ENOMEM;
-	mp->m_ddev_targp = xfs_alloc_buftarg(ddev, 0);
+	mp->m_ddev_targp = xfs_alloc_buftarg(ddev, 0, mp->m_fsname);
 	if (!mp->m_ddev_targp)
 		goto out_close_rtdev;
 
 	if (rtdev) {
-		mp->m_rtdev_targp = xfs_alloc_buftarg(rtdev, 1);
+		mp->m_rtdev_targp = xfs_alloc_buftarg(rtdev, 1, mp->m_fsname);
 		if (!mp->m_rtdev_targp)
 			goto out_free_ddev_targ;
 	}
 
 	if (logdev && logdev != ddev) {
-		mp->m_logdev_targp = xfs_alloc_buftarg(logdev, 1);
+		mp->m_logdev_targp = xfs_alloc_buftarg(logdev, 1, mp->m_fsname);
 		if (!mp->m_logdev_targp)
 			goto out_free_rtdev_targ;
 	} else {
@@ -902,7 +903,8 @@ xfsaild_start(
 	struct xfs_ail	*ailp)
 {
 	ailp->xa_target = 0;
-	ailp->xa_task = kthread_run(xfsaild, ailp, "xfsaild");
+	ailp->xa_task = kthread_run(xfsaild, ailp, "xfsaild/%s",
+				    ailp->xa_mount->m_fsname);
 	if (IS_ERR(ailp->xa_task))
 		return -PTR_ERR(ailp->xa_task);
 	return 0;
@@ -1092,6 +1094,7 @@ xfs_fs_write_inode(
 		 * the code will only flush the inode if it isn't already
 		 * being flushed.
 		 */
+		xfs_ioend_wait(ip);
 		xfs_ilock(ip, XFS_ILOCK_SHARED);
 		if (ip->i_update_core) {
 			error = xfs_log_inode(ip);

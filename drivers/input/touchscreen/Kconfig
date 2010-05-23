@@ -119,6 +119,18 @@ config TOUCHSCREEN_DYNAPRO
 	  To compile this driver as a module, choose M here: the
 	  module will be called dynapro.
 
+config TOUCHSCREEN_HAMPSHIRE
+	tristate "Hampshire serial touchscreen"
+	select SERIO
+	help
+	  Say Y here if you have a Hampshire serial touchscreen connected to
+	  your system.
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called hampshire.
+
 config TOUCHSCREEN_EETI
 	tristate "EETI touchscreen panel support"
 	depends on I2C

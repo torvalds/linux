@@ -12,7 +12,7 @@
 /* A global variable is a bit ugly, but it keeps the code simple */
 int sysctl_drop_caches;
 
-static void drop_pagecache_sb(struct super_block *sb)
+static void drop_pagecache_sb(struct super_block *sb, void *unused)
 {
 	struct inode *inode, *toput_inode = NULL;
 
@@ -33,26 +33,6 @@ static void drop_pagecache_sb(struct super_block *sb)
 	iput(toput_inode);
 }
 
-static void drop_pagecache(void)
-{
-	struct super_block *sb;
-
-	spin_lock(&sb_lock);
-restart:
-	list_for_each_entry(sb, &super_blocks, s_list) {
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-		down_read(&sb->s_umount);
-		if (sb->s_root)
-			drop_pagecache_sb(sb);
-		up_read(&sb->s_umount);
-		spin_lock(&sb_lock);
-		if (__put_super_and_need_restart(sb))
-			goto restart;
-	}
-	spin_unlock(&sb_lock);
-}
-
 static void drop_slab(void)
 {
 	int nr_objects;
@@ -68,7 +48,7 @@ int drop_caches_sysctl_handler(ctl_table *table, int write,
 	proc_dointvec_minmax(table, write, buffer, length, ppos);
 	if (write) {
 		if (sysctl_drop_caches & 1)
-			drop_pagecache();
+			iterate_supers(drop_pagecache_sb, NULL);
 		if (sysctl_drop_caches & 2)
 			drop_slab();
 	}

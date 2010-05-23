@@ -441,7 +441,7 @@ static int __devinit cpm_i2c_setup(struct cpm_i2c *cpm)
 	init_waitqueue_head(&cpm->i2c_wait);
 
 	cpm->irq = of_irq_to_resource(ofdev->node, 0, NULL);
-	if (cpm->irq == NO_IRQ)
+	if (!cpm->irq)
 		return -EINVAL;
 
 	/* Install interrupt handler. */

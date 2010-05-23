@@ -533,8 +533,8 @@ static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad)
 	if (xpad->xtype != XTYPE_XBOX360 && xpad->xtype != XTYPE_XBOX)
 		return 0;
 
-	xpad->odata = usb_buffer_alloc(xpad->udev, XPAD_PKT_LEN,
-				       GFP_KERNEL, &xpad->odata_dma);
+	xpad->odata = usb_alloc_coherent(xpad->udev, XPAD_PKT_LEN,
+					 GFP_KERNEL, &xpad->odata_dma);
 	if (!xpad->odata)
 		goto fail1;
 
@@ -554,7 +554,7 @@ static int xpad_init_output(struct usb_interface *intf, struct usb_xpad *xpad)
 
 	return 0;
 
- fail2:	usb_buffer_free(xpad->udev, XPAD_PKT_LEN, xpad->odata, xpad->odata_dma);
+ fail2:	usb_free_coherent(xpad->udev, XPAD_PKT_LEN, xpad->odata, xpad->odata_dma);
  fail1:	return error;
 }
 
@@ -568,7 +568,7 @@ static void xpad_deinit_output(struct usb_xpad *xpad)
 {
 	if (xpad->xtype == XTYPE_XBOX360 || xpad->xtype == XTYPE_XBOX) {
 		usb_free_urb(xpad->irq_out);
-		usb_buffer_free(xpad->udev, XPAD_PKT_LEN,
+		usb_free_coherent(xpad->udev, XPAD_PKT_LEN,
 				xpad->odata, xpad->odata_dma);
 	}
 }
@@ -788,8 +788,8 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
 	if (!xpad || !input_dev)
 		goto fail1;
 
-	xpad->idata = usb_buffer_alloc(udev, XPAD_PKT_LEN,
-				       GFP_KERNEL, &xpad->idata_dma);
+	xpad->idata = usb_alloc_coherent(udev, XPAD_PKT_LEN,
+					 GFP_KERNEL, &xpad->idata_dma);
 	if (!xpad->idata)
 		goto fail1;
 
@@ -942,7 +942,7 @@ static int xpad_probe(struct usb_interface *intf, const struct usb_device_id *id
  fail5:	usb_kill_urb(xpad->irq_in);
  fail4:	usb_free_urb(xpad->irq_in);
  fail3:	xpad_deinit_output(xpad);
- fail2:	usb_buffer_free(udev, XPAD_PKT_LEN, xpad->idata, xpad->idata_dma);
+ fail2:	usb_free_coherent(udev, XPAD_PKT_LEN, xpad->idata, xpad->idata_dma);
  fail1:	input_free_device(input_dev);
 	kfree(xpad);
 	return error;
@@ -964,7 +964,7 @@ static void xpad_disconnect(struct usb_interface *intf)
 			usb_kill_urb(xpad->irq_in);
 		}
 		usb_free_urb(xpad->irq_in);
-		usb_buffer_free(xpad->udev, XPAD_PKT_LEN,
+		usb_free_coherent(xpad->udev, XPAD_PKT_LEN,
 				xpad->idata, xpad->idata_dma);
 		kfree(xpad);
 	}

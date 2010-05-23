@@ -146,6 +146,14 @@ ioremap_flags(phys_addr_t addr, unsigned long size, unsigned long flags)
 	/* we don't want to let _PAGE_USER and _PAGE_EXEC leak out */
 	flags &= ~(_PAGE_USER | _PAGE_EXEC);
 
+#ifdef _PAGE_BAP_SR
+	/* _PAGE_USER contains _PAGE_BAP_SR on BookE using the new PTE format
+	 * which means that we just cleared supervisor access... oops ;-) This
+	 * restores it
+	 */
+	flags |= _PAGE_BAP_SR;
+#endif
+
 	return __ioremap_caller(addr, size, flags, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(ioremap_flags);
@@ -385,11 +393,7 @@ static int __change_page_attr(struct page *page, pgprot_t prot)
 		return -EINVAL;
 	__set_pte_at(&init_mm, address, kpte, mk_pte(page, prot), 0);
 	wmb();
-#ifdef CONFIG_PPC_STD_MMU
-	flush_hash_pages(0, address, pmd_val(*kpmd), 1);
-#else
 	flush_tlb_page(NULL, address);
-#endif
 	pte_unmap(kpte);
 
 	return 0;

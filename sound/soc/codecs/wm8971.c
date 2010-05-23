@@ -415,7 +415,7 @@ static int wm8971_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8971_priv *wm8971 = codec->private_data;
+	struct wm8971_priv *wm8971 = snd_soc_codec_get_drvdata(codec);
 
 	switch (freq) {
 	case 11289600:
@@ -494,7 +494,7 @@ static int wm8971_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8971_priv *wm8971 = codec->private_data;
+	struct wm8971_priv *wm8971 = snd_soc_codec_get_drvdata(codec);
 	u16 iface = snd_soc_read(codec, WM8971_IFACE) & 0x1f3;
 	u16 srate = snd_soc_read(codec, WM8971_SRATE) & 0x1c0;
 	int coeff = get_coeff(wm8971->sysclk, params_rate(params));
@@ -820,7 +820,7 @@ static int wm8971_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	}
 
-	codec->private_data = wm8971;
+	snd_soc_codec_set_drvdata(codec, wm8971);
 	socdev->card->codec = codec;
 	mutex_init(&codec->mutex);
 	INIT_LIST_HEAD(&codec->dapm_widgets);
@@ -830,7 +830,7 @@ static int wm8971_probe(struct platform_device *pdev)
 	INIT_DELAYED_WORK(&codec->delayed_work, wm8971_work);
 	wm8971_workq = create_workqueue("wm8971");
 	if (wm8971_workq == NULL) {
-		kfree(codec->private_data);
+		kfree(snd_soc_codec_get_drvdata(codec));
 		kfree(codec);
 		return -ENOMEM;
 	}
@@ -844,7 +844,7 @@ static int wm8971_probe(struct platform_device *pdev)
 
 	if (ret != 0) {
 		destroy_workqueue(wm8971_workq);
-		kfree(codec->private_data);
+		kfree(snd_soc_codec_get_drvdata(codec));
 		kfree(codec);
 	}
 
@@ -867,7 +867,7 @@ static int wm8971_remove(struct platform_device *pdev)
 	i2c_unregister_device(codec->control_data);
 	i2c_del_driver(&wm8971_i2c_driver);
 #endif
-	kfree(codec->private_data);
+	kfree(snd_soc_codec_get_drvdata(codec));
 	kfree(codec);
 
 	return 0;

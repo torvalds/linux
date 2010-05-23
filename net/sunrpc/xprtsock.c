@@ -1035,8 +1035,6 @@ static inline void xs_tcp_read_common(struct rpc_xprt *xprt,
 		if (transport->tcp_flags & TCP_RCV_LAST_FRAG)
 			transport->tcp_flags &= ~TCP_RCV_COPY_DATA;
 	}
-
-	return;
 }
 
 /*
@@ -2182,7 +2180,6 @@ static int bc_send_request(struct rpc_task *task)
 
 static void bc_close(struct rpc_xprt *xprt)
 {
-	return;
 }
 
 /*
@@ -2192,7 +2189,6 @@ static void bc_close(struct rpc_xprt *xprt)
 
 static void bc_destroy(struct rpc_xprt *xprt)
 {
-	return;
 }
 
 static struct rpc_xprt_ops xs_udp_ops = {

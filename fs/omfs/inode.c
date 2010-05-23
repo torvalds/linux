@@ -3,7 +3,6 @@
  * Copyright (C) 2006 Bob Copeland <me@bobcopeland.com>
  * Released under GPL v2.
  */
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
@@ -38,9 +37,7 @@ struct inode *omfs_new_inode(struct inode *dir, int mode)
 		goto fail;
 
 	inode->i_ino = new_block;
-	inode->i_mode = mode;
-	inode->i_uid = current_fsuid();
-	inode->i_gid = current_fsgid();
+	inode_init_owner(inode, NULL, mode);
 	inode->i_mapping->a_ops = &omfs_aops;
 
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;

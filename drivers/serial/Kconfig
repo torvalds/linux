@@ -1423,8 +1423,8 @@ config SERIAL_SC26XX_CONSOLE
 	  Support for Console on SC2681/SC2692 serial ports.
 
 config SERIAL_BFIN_SPORT
-	tristate "Blackfin SPORT emulate UART (EXPERIMENTAL)"
-	depends on BLACKFIN && EXPERIMENTAL
+	tristate "Blackfin SPORT emulate UART"
+	depends on BLACKFIN
 	select SERIAL_CORE
 	help
 	  Enable SPORT emulate UART on Blackfin series.
@@ -1439,9 +1439,15 @@ config SERIAL_BFIN_SPORT_CONSOLE
 
 config SERIAL_BFIN_SPORT0_UART
 	bool "Enable UART over SPORT0"
-	depends on SERIAL_BFIN_SPORT && !(BF542 || BF542M || BF544 || BF544M)
+	depends on SERIAL_BFIN_SPORT && !(BF542 || BF544)
 	help
 	  Enable UART over SPORT0
+
+config SERIAL_BFIN_SPORT0_UART_CTSRTS
+	bool "Enable UART over SPORT0 hardware flow control"
+	depends on SERIAL_BFIN_SPORT0_UART
+	help
+	  Enable hardware flow control in the driver.
 
 config SERIAL_BFIN_SPORT1_UART
 	bool "Enable UART over SPORT1"
@@ -1449,17 +1455,35 @@ config SERIAL_BFIN_SPORT1_UART
 	help
 	  Enable UART over SPORT1
 
+config SERIAL_BFIN_SPORT1_UART_CTSRTS
+	bool "Enable UART over SPORT1 hardware flow control"
+	depends on SERIAL_BFIN_SPORT1_UART
+	help
+	  Enable hardware flow control in the driver.
+
 config SERIAL_BFIN_SPORT2_UART
 	bool "Enable UART over SPORT2"
 	depends on SERIAL_BFIN_SPORT && (BF54x || BF538 || BF539)
 	help
 	  Enable UART over SPORT2
 
+config SERIAL_BFIN_SPORT2_UART_CTSRTS
+	bool "Enable UART over SPORT2 hardware flow control"
+	depends on SERIAL_BFIN_SPORT2_UART
+	help
+	  Enable hardware flow control in the driver.
+
 config SERIAL_BFIN_SPORT3_UART
 	bool "Enable UART over SPORT3"
 	depends on SERIAL_BFIN_SPORT && (BF54x || BF538 || BF539)
 	help
 	  Enable UART over SPORT3
+
+config SERIAL_BFIN_SPORT3_UART_CTSRTS
+	bool "Enable UART over SPORT3 hardware flow control"
+	depends on SERIAL_BFIN_SPORT3_UART
+	help
+	  Enable hardware flow control in the driver.
 
 config SERIAL_TIMBERDALE
 	tristate "Support for timberdale UART"
@@ -1498,5 +1522,57 @@ config SERIAL_GRLIB_GAISLER_APBUART_CONSOLE
 	select SERIAL_CORE_CONSOLE
 	help
 	Support for running a console on the GRLIB APBUART
+
+config SERIAL_ALTERA_JTAGUART
+	tristate "Altera JTAG UART support"
+	select SERIAL_CORE
+	help
+	  This driver supports the Altera JTAG UART port.
+
+config SERIAL_ALTERA_JTAGUART_CONSOLE
+	bool "Altera JTAG UART console support"
+	depends on SERIAL_ALTERA_JTAGUART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enable a Altera JTAG UART port to be the system console.
+
+config SERIAL_ALTERA_JTAGUART_CONSOLE_BYPASS
+	bool "Bypass output when no connection"
+	depends on SERIAL_ALTERA_JTAGUART_CONSOLE
+	select SERIAL_CORE_CONSOLE
+	help
+	  Bypass console output and keep going even if there is no
+	  JTAG terminal connection with the host.
+
+config SERIAL_ALTERA_UART
+	tristate "Altera UART support"
+	select SERIAL_CORE
+	help
+	  This driver supports the Altera softcore UART port.
+
+config SERIAL_ALTERA_UART_MAXPORTS
+	int "Maximum number of Altera UART ports"
+	depends on SERIAL_ALTERA_UART
+	default 4
+	help
+	  This setting lets you define the maximum number of the Altera
+	  UART ports. The usual default varies from board to board, and
+	  this setting is a way of catering for that.
+
+config SERIAL_ALTERA_UART_BAUDRATE
+	int "Default baudrate for Altera UART ports"
+	depends on SERIAL_ALTERA_UART
+	default 115200
+	help
+	  This setting lets you define what the default baudrate is for the
+	  Altera UART ports. The usual default varies from board to board,
+	  and this setting is a way of catering for that.
+
+config SERIAL_ALTERA_UART_CONSOLE
+	bool "Altera UART console support"
+	depends on SERIAL_ALTERA_UART=y
+	select SERIAL_CORE_CONSOLE
+	help
+	  Enable a Altera UART port to be the system console.
 
 endmenu

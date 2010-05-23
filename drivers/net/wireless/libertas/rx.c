@@ -39,10 +39,10 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	struct sk_buff *skb);
 
 /**
- *  @brief This function computes the avgSNR .
+ *  @brief	This function computes the avgSNR .
  *
- *  @param priv    A pointer to struct lbs_private structure
- *  @return 	   avgSNR
+ *  @param	priv	A pointer to struct lbs_private structure
+ *  @return	avgSNR
  */
 static u8 lbs_getavgsnr(struct lbs_private *priv)
 {
@@ -57,10 +57,10 @@ static u8 lbs_getavgsnr(struct lbs_private *priv)
 }
 
 /**
- *  @brief This function computes the AvgNF
+ *  @brief	This function computes the AvgNF
  *
- *  @param priv    A pointer to struct lbs_private structure
- *  @return 	   AvgNF
+ *  @param	priv	A pointer to struct lbs_private structure
+ *  @return	AvgNF
  */
 static u8 lbs_getavgnf(struct lbs_private *priv)
 {
@@ -75,11 +75,11 @@ static u8 lbs_getavgnf(struct lbs_private *priv)
 }
 
 /**
- *  @brief This function save the raw SNR/NF to our internel buffer
+ *  @brief	This function save the raw SNR/NF to our internel buffer
  *
- *  @param priv    A pointer to struct lbs_private structure
- *  @param prxpd   A pointer to rxpd structure of received packet
- *  @return 	   n/a
+ *  @param	priv	A pointer to struct lbs_private structure
+ *  @param	prxpd	A pointer to rxpd structure of received packet
+ *  @return	n/a
  */
 static void lbs_save_rawSNRNF(struct lbs_private *priv, struct rxpd *p_rx_pd)
 {
@@ -90,15 +90,14 @@ static void lbs_save_rawSNRNF(struct lbs_private *priv, struct rxpd *p_rx_pd)
 	priv->nextSNRNF++;
 	if (priv->nextSNRNF >= DEFAULT_DATA_AVG_FACTOR)
 		priv->nextSNRNF = 0;
-	return;
 }
 
 /**
- *  @brief This function computes the RSSI in received packet.
+ *  @brief	This function computes the RSSI in received packet.
  *
- *  @param priv    A pointer to struct lbs_private structure
- *  @param prxpd   A pointer to rxpd structure of received packet
- *  @return 	   n/a
+ *  @param	priv	A pointer to struct lbs_private structure
+ *  @param	prxpd	A pointer to rxpd structure of received packet
+ *  @return	n/a
  */
 static void lbs_compute_rssi(struct lbs_private *priv, struct rxpd *p_rx_pd)
 {
@@ -135,9 +134,9 @@ static void lbs_compute_rssi(struct lbs_private *priv, struct rxpd *p_rx_pd)
  *  @brief This function processes received packet and forwards it
  *  to kernel/upper layer
  *
- *  @param priv    A pointer to struct lbs_private
- *  @param skb     A pointer to skb which includes the received packet
- *  @return 	   0 or -1
+ *  @param	priv	A pointer to struct lbs_private
+ *  @param	skb		A pointer to skb which includes the received packet
+ *  @return	0 or -1
  */
 int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 {
@@ -197,7 +196,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 		 *    before the snap_type.
 		 */
 		p_ethhdr = (struct ethhdr *)
-		    ((u8 *) & p_rx_pkt->eth803_hdr
+		    ((u8 *) &p_rx_pkt->eth803_hdr
 		     + sizeof(p_rx_pkt->eth803_hdr) + sizeof(p_rx_pkt->rfc1042_hdr)
 		     - sizeof(p_rx_pkt->eth803_hdr.dest_addr)
 		     - sizeof(p_rx_pkt->eth803_hdr.src_addr)
@@ -214,7 +213,7 @@ int lbs_process_rxed_packet(struct lbs_private *priv, struct sk_buff *skb)
 		hdrchop = (u8 *)p_ethhdr - (u8 *)p_rx_pd;
 	} else {
 		lbs_deb_hex(LBS_DEB_RX, "RX Data: LLC/SNAP",
-			(u8 *) & p_rx_pkt->rfc1042_hdr,
+			(u8 *) &p_rx_pkt->rfc1042_hdr,
 			sizeof(p_rx_pkt->rfc1042_hdr));
 
 		/* Chop off the rxpd */
@@ -255,8 +254,8 @@ EXPORT_SYMBOL_GPL(lbs_process_rxed_packet);
  *  @brief This function converts Tx/Rx rates from the Marvell WLAN format
  *  (see Table 2 in Section 3.1) to IEEE80211_RADIOTAP_RATE units (500 Kb/s)
  *
- *  @param rate    Input rate
- *  @return 	   Output Rate (0 if invalid)
+ *  @param	rate	Input rate
+ *  @return	Output Rate (0 if invalid)
  */
 static u8 convert_mv_rate_to_radiotap(u8 rate)
 {
@@ -295,9 +294,9 @@ static u8 convert_mv_rate_to_radiotap(u8 rate)
  *  @brief This function processes a received 802.11 packet and forwards it
  *  to kernel/upper layer
  *
- *  @param priv    A pointer to struct lbs_private
- *  @param skb     A pointer to skb which includes the received packet
- *  @return 	   0 or -1
+ *  @param	priv	A pointer to struct lbs_private
+ *  @param	skb		A pointer to skb which includes the received packet
+ *  @return	0 or -1
  */
 static int process_rxed_802_11_packet(struct lbs_private *priv,
 	struct sk_buff *skb)
@@ -314,7 +313,7 @@ static int process_rxed_802_11_packet(struct lbs_private *priv,
 	p_rx_pkt = (struct rx80211packethdr *) skb->data;
 	prxpd = &p_rx_pkt->rx_pd;
 
-	// lbs_deb_hex(LBS_DEB_RX, "RX Data: Before chop rxpd", skb->data, min(skb->len, 100));
+	/* lbs_deb_hex(LBS_DEB_RX, "RX Data: Before chop rxpd", skb->data, min(skb->len, 100)); */
 
 	if (skb->len < (ETH_HLEN + 8 + sizeof(struct rxpd))) {
 		lbs_deb_rx("rx err: frame received with bad length\n");

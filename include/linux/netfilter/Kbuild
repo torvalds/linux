@@ -16,6 +16,7 @@ header-y += xt_RATEEST.h
 header-y += xt_SECMARK.h
 header-y += xt_TCPMSS.h
 header-y += xt_TCPOPTSTRIP.h
+header-y += xt_TEE.h
 header-y += xt_TPROXY.h
 header-y += xt_comment.h
 header-y += xt_connbytes.h

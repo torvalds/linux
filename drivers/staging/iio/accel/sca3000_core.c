@@ -27,11 +27,9 @@
 
 enum sca3000_variant {
 	d01,
-	d03,
 	e02,
 	e04,
 	e05,
-	l01,
 };
 
 /* Note where option modes are not defined, the chip simply does not
@@ -44,21 +42,20 @@ enum sca3000_variant {
 static const struct sca3000_chip_info sca3000_spi_chip_info_tbl[] = {
 	{
 		.name = "sca3000-d01",
+		.scale = " 0.0073575",
 		.temp_output = true,
 		.measurement_mode_freq = 250,
 		.option_mode_1 = SCA3000_OP_MODE_BYPASS,
 		.option_mode_1_freq = 250,
 	}, {
-		/* No data sheet available - may be the same as the 3100-d03?*/
-		.name = "sca3000-d03",
-		.temp_output = true,
-	}, {
 		.name = "sca3000-e02",
+		.scale = "0.00981",
 		.measurement_mode_freq = 125,
 		.option_mode_1 = SCA3000_OP_MODE_NARROW,
 		.option_mode_1_freq = 63,
 	}, {
 		.name = "sca3000-e04",
+		.scale = "0.01962",
 		.measurement_mode_freq = 100,
 		.option_mode_1 = SCA3000_OP_MODE_NARROW,
 		.option_mode_1_freq = 50,
@@ -66,18 +63,12 @@ static const struct sca3000_chip_info sca3000_spi_chip_info_tbl[] = {
 		.option_mode_2_freq = 400,
 	}, {
 		.name = "sca3000-e05",
+		.scale = "0.0613125",
 		.measurement_mode_freq = 200,
 		.option_mode_1 = SCA3000_OP_MODE_NARROW,
 		.option_mode_1_freq = 50,
 		.option_mode_2 = SCA3000_OP_MODE_WIDE,
 		.option_mode_2_freq = 400,
-	}, {
-		/* No data sheet available.
-		 * Frequencies are unknown.
-		 */
-		.name = "sca3000-l01",
-		.temp_output = true,
-		.option_mode_1 = SCA3000_OP_MODE_BYPASS,
 	},
 };
 
@@ -286,7 +277,7 @@ static int sca3000_check_status(struct device *dev)
 	if (ret < 0)
 		goto error_ret;
 	if (rx[1] & SCA3000_EEPROM_CS_ERROR)
-		dev_err(dev, "eeprom error \n");
+		dev_err(dev, "eeprom error\n");
 	if (rx[1] & SCA3000_SPI_FRAME_ERROR)
 		dev_err(dev, "Previous SPI Frame was corrupt\n");
 	kfree(rx);
@@ -327,6 +318,14 @@ error_ret:
 	return ret ? ret : len;
 }
 
+static ssize_t sca3000_show_scale(struct device *dev,
+				  struct device_attribute *attr,
+				  char *buf)
+{
+	struct iio_dev *dev_info = dev_get_drvdata(dev);
+	struct sca3000_state *st = dev_info->dev_data;
+	return sprintf(buf, "%s\n", st->info->scale);
+}
 
 static ssize_t sca3000_show_name(struct device *dev,
 				 struct device_attribute *attr,
@@ -395,7 +394,7 @@ sca3000_show_available_measurement_modes(struct device *dev,
 		break;
 	}
 	/* always supported */
-	len += sprintf(buf + len, " 3 - motion detection \n");
+	len += sprintf(buf + len, " 3 - motion detection\n");
 
 	return len;
 }
@@ -495,7 +494,7 @@ error_ret:
 /* Not even vaguely standard attributes so defined here rather than
  * in the relevant IIO core headers
  */
-static IIO_DEVICE_ATTR(available_measurement_modes, S_IRUGO,
+static IIO_DEVICE_ATTR(measurement_mode_available, S_IRUGO,
 		       sca3000_show_available_measurement_modes,
 		       NULL, 0);
 
@@ -508,6 +507,8 @@ static IIO_DEVICE_ATTR(measurement_mode, S_IRUGO | S_IWUSR,
 
 static IIO_DEV_ATTR_NAME(sca3000_show_name);
 static IIO_DEV_ATTR_REV(sca3000_show_rev);
+static IIO_DEVICE_ATTR(accel_scale, S_IRUGO, sca3000_show_scale,
+		       NULL, 0);
 
 static IIO_DEV_ATTR_ACCEL_X(sca3000_read_13bit_signed,
 			    SCA3000_REG_ADDR_X_MSB);
@@ -683,7 +684,7 @@ error_free_lock:
 /* Should only really be registered if ring buffer support is compiled in.
  * Does no harm however and doing it right would add a fair bit of complexity
  */
-static IIO_DEV_ATTR_AVAIL_SAMP_FREQ(sca3000_read_av_freq);
+static IIO_DEV_ATTR_SAMP_FREQ_AVAIL(sca3000_read_av_freq);
 
 static IIO_DEV_ATTR_SAMP_FREQ(S_IWUSR | S_IRUGO,
 			      sca3000_read_frequency,
@@ -718,7 +719,10 @@ static ssize_t sca3000_read_temp(struct device *dev,
 error_ret:
 	return ret;
 }
-static IIO_DEV_ATTR_TEMP(sca3000_read_temp);
+static IIO_DEV_ATTR_TEMP_RAW(sca3000_read_temp);
+
+static IIO_CONST_ATTR(temp_scale, "0.555556");
+static IIO_CONST_ATTR(temp_offset, "-214.6");
 
 /**
  * sca3000_show_thresh() sysfs query of a threshold
@@ -770,31 +774,34 @@ static ssize_t sca3000_write_thresh(struct device *dev,
 	return ret ? ret : len;
 }
 
-static IIO_DEV_ATTR_ACCEL_THRESH_X(S_IRUGO | S_IWUSR,
-				   sca3000_show_thresh,
-				   sca3000_write_thresh,
-				   SCA3000_REG_CTRL_SEL_MD_X_TH);
-static IIO_DEV_ATTR_ACCEL_THRESH_Y(S_IRUGO | S_IWUSR,
-				   sca3000_show_thresh,
-				   sca3000_write_thresh,
-				   SCA3000_REG_CTRL_SEL_MD_Y_TH);
-static IIO_DEV_ATTR_ACCEL_THRESH_Z(S_IRUGO | S_IWUSR,
-				   sca3000_show_thresh,
-				   sca3000_write_thresh,
-				   SCA3000_REG_CTRL_SEL_MD_Z_TH);
+static IIO_DEVICE_ATTR(accel_x_mag_either_rising_value,
+		S_IRUGO | S_IWUSR,
+		sca3000_show_thresh,
+		sca3000_write_thresh,
+		SCA3000_REG_CTRL_SEL_MD_X_TH);
+
+static IIO_DEVICE_ATTR(accel_y_mag_either_rising_value,
+		S_IRUGO | S_IWUSR,
+		sca3000_show_thresh,
+		sca3000_write_thresh,
+		SCA3000_REG_CTRL_SEL_MD_Y_TH);
+
+static IIO_DEVICE_ATTR(accel_z_mag_either_rising_value,
+		S_IRUGO | S_IWUSR,
+		sca3000_show_thresh,
+		sca3000_write_thresh,
+		SCA3000_REG_CTRL_SEL_MD_Z_TH);
 
 static struct attribute *sca3000_attributes[] = {
 	&iio_dev_attr_name.dev_attr.attr,
 	&iio_dev_attr_revision.dev_attr.attr,
-	&iio_dev_attr_accel_x.dev_attr.attr,
-	&iio_dev_attr_accel_y.dev_attr.attr,
-	&iio_dev_attr_accel_z.dev_attr.attr,
-	&iio_dev_attr_thresh_accel_x.dev_attr.attr,
-	&iio_dev_attr_thresh_accel_y.dev_attr.attr,
-	&iio_dev_attr_thresh_accel_z.dev_attr.attr,
-	&iio_dev_attr_available_measurement_modes.dev_attr.attr,
+	&iio_dev_attr_accel_scale.dev_attr.attr,
+	&iio_dev_attr_accel_x_raw.dev_attr.attr,
+	&iio_dev_attr_accel_y_raw.dev_attr.attr,
+	&iio_dev_attr_accel_z_raw.dev_attr.attr,
+	&iio_dev_attr_measurement_mode_available.dev_attr.attr,
 	&iio_dev_attr_measurement_mode.dev_attr.attr,
-	&iio_dev_attr_available_sampling_frequency.dev_attr.attr,
+	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	NULL,
 };
@@ -802,18 +809,18 @@ static struct attribute *sca3000_attributes[] = {
 static struct attribute *sca3000_attributes_with_temp[] = {
 	&iio_dev_attr_name.dev_attr.attr,
 	&iio_dev_attr_revision.dev_attr.attr,
-	&iio_dev_attr_accel_x.dev_attr.attr,
-	&iio_dev_attr_accel_y.dev_attr.attr,
-	&iio_dev_attr_accel_z.dev_attr.attr,
-	&iio_dev_attr_thresh_accel_x.dev_attr.attr,
-	&iio_dev_attr_thresh_accel_y.dev_attr.attr,
-	&iio_dev_attr_thresh_accel_z.dev_attr.attr,
-	&iio_dev_attr_available_measurement_modes.dev_attr.attr,
+	&iio_dev_attr_accel_scale.dev_attr.attr,
+	&iio_dev_attr_accel_x_raw.dev_attr.attr,
+	&iio_dev_attr_accel_y_raw.dev_attr.attr,
+	&iio_dev_attr_accel_z_raw.dev_attr.attr,
+	&iio_dev_attr_measurement_mode_available.dev_attr.attr,
 	&iio_dev_attr_measurement_mode.dev_attr.attr,
-	&iio_dev_attr_available_sampling_frequency.dev_attr.attr,
+	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_sampling_frequency.dev_attr.attr,
 	/* Only present if temp sensor is */
-	&iio_dev_attr_temp.dev_attr.attr,
+	&iio_dev_attr_temp_raw.dev_attr.attr,
+	&iio_const_attr_temp_offset.dev_attr.attr,
+	&iio_const_attr_temp_scale.dev_attr.attr,
 	NULL,
 };
 
@@ -910,7 +917,7 @@ static ssize_t sca3000_query_mo_det(struct device *dev,
 				    struct device_attribute *attr,
 				    char *buf)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev->parent);
 	struct sca3000_state *st = indio_dev->dev_data;
 	struct iio_event_attr *this_attr = to_iio_event_attr(attr);
 	int ret, len = 0;
@@ -975,7 +982,7 @@ static ssize_t sca3000_query_ring_int(struct device *dev,
 	struct iio_event_attr *this_attr = to_iio_event_attr(attr);
 	int ret, len;
 	u8 *rx;
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev->parent);
 	struct sca3000_state *st = indio_dev->dev_data;
 	mutex_lock(&st->lock);
 	ret = sca3000_read_data(st, SCA3000_REG_ADDR_INT_MASK, &rx, 1);
@@ -995,7 +1002,7 @@ static ssize_t sca3000_set_ring_int(struct device *dev,
 				      const char *buf,
 				      size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev->parent);
 	struct sca3000_state *st = indio_dev->dev_data;
 	struct iio_event_attr *this_attr = to_iio_event_attr(attr);
 
@@ -1085,7 +1092,7 @@ static ssize_t sca3000_set_mo_det(struct device *dev,
 				  const char *buf,
 				  size_t len)
 {
-	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct iio_dev *indio_dev = dev_get_drvdata(dev->parent);
 	struct sca3000_state *st = indio_dev->dev_data;
 	struct iio_event_attr *this_attr = to_iio_event_attr(attr);
 	long val;
@@ -1155,20 +1162,23 @@ IIO_EVENT_ATTR_FREE_FALL_DETECT_SH(iio_event_all,
 				   0)
 
 /* Motion detector related event attributes */
-IIO_EVENT_ATTR_ACCEL_X_HIGH_SH(iio_event_all,
-			       sca3000_query_mo_det,
-			       sca3000_set_mo_det,
-			       SCA3000_MD_CTRL_OR_X);
+IIO_EVENT_ATTR_SH(accel_x_mag_either_rising_en,
+		  iio_event_all,
+		  sca3000_query_mo_det,
+		  sca3000_set_mo_det,
+		  SCA3000_MD_CTRL_OR_X);
 
-IIO_EVENT_ATTR_ACCEL_Y_HIGH_SH(iio_event_all,
-			       sca3000_query_mo_det,
-			       sca3000_set_mo_det,
-			       SCA3000_MD_CTRL_OR_Y);
+IIO_EVENT_ATTR_SH(accel_y_mag_either_rising_en,
+		  iio_event_all,
+		  sca3000_query_mo_det,
+		  sca3000_set_mo_det,
+		  SCA3000_MD_CTRL_OR_Y);
 
-IIO_EVENT_ATTR_ACCEL_Z_HIGH_SH(iio_event_all,
-			       sca3000_query_mo_det,
-			       sca3000_set_mo_det,
-			       SCA3000_MD_CTRL_OR_Z);
+IIO_EVENT_ATTR_SH(accel_z_mag_either_rising_en,
+		  iio_event_all,
+		  sca3000_query_mo_det,
+		  sca3000_set_mo_det,
+		  SCA3000_MD_CTRL_OR_Z);
 
 /* Hardware ring buffer related event attributes */
 IIO_EVENT_ATTR_RING_50_FULL_SH(iio_event_all,
@@ -1183,11 +1193,14 @@ IIO_EVENT_ATTR_RING_75_FULL_SH(iio_event_all,
 
 static struct attribute *sca3000_event_attributes[] = {
 	&iio_event_attr_free_fall.dev_attr.attr,
-	&iio_event_attr_accel_x_high.dev_attr.attr,
-	&iio_event_attr_accel_y_high.dev_attr.attr,
-	&iio_event_attr_accel_z_high.dev_attr.attr,
+	&iio_event_attr_accel_x_mag_either_rising_en.dev_attr.attr,
+	&iio_event_attr_accel_y_mag_either_rising_en.dev_attr.attr,
+	&iio_event_attr_accel_z_mag_either_rising_en.dev_attr.attr,
 	&iio_event_attr_ring_50_full.dev_attr.attr,
 	&iio_event_attr_ring_75_full.dev_attr.attr,
+	&iio_dev_attr_accel_x_mag_either_rising_value.dev_attr.attr,
+	&iio_dev_attr_accel_y_mag_either_rising_value.dev_attr.attr,
+	&iio_dev_attr_accel_z_mag_either_rising_value.dev_attr.attr,
 	NULL,
 };
 
@@ -1325,7 +1338,7 @@ static int __devinit __sca3000_probe(struct spi_device *spi,
 	if (ret < 0)
 		goto error_free_dev;
 	regdone = 1;
-	ret = iio_ring_buffer_register(st->indio_dev->ring);
+	ret = iio_ring_buffer_register(st->indio_dev->ring, 0);
 	if (ret < 0)
 		goto error_unregister_dev;
 	if (spi->irq && gpio_is_valid(irq_to_gpio(spi->irq)) > 0) {
@@ -1344,9 +1357,10 @@ static int __devinit __sca3000_probe(struct spi_device *spi,
 		 * is overkill.  At very least a simpler registration method
 		 * might be worthwhile.
 		 */
-		iio_add_event_to_list(iio_event_attr_accel_z_high.listel,
-					    &st->indio_dev
-					    ->interrupts[0]->ev_list);
+		iio_add_event_to_list(
+			iio_event_attr_accel_z_mag_either_rising_en.listel,
+			&st->indio_dev
+			->interrupts[0]->ev_list);
 	}
 	sca3000_register_ring_funcs(st->indio_dev);
 	ret = sca3000_clean_setup(st);
@@ -1437,9 +1451,6 @@ static int sca3000_remove(struct spi_device *spi)
 SCA3000_VARIANT_PROBE(d01);
 static SCA3000_VARIANT_SPI_DRIVER(d01);
 
-SCA3000_VARIANT_PROBE(d03);
-static SCA3000_VARIANT_SPI_DRIVER(d03);
-
 SCA3000_VARIANT_PROBE(e02);
 static SCA3000_VARIANT_SPI_DRIVER(e02);
 
@@ -1449,9 +1460,6 @@ static SCA3000_VARIANT_SPI_DRIVER(e04);
 SCA3000_VARIANT_PROBE(e05);
 static SCA3000_VARIANT_SPI_DRIVER(e05);
 
-SCA3000_VARIANT_PROBE(l01);
-static SCA3000_VARIANT_SPI_DRIVER(l01);
-
 static __init int sca3000_init(void)
 {
 	int ret;
@@ -1459,32 +1467,22 @@ static __init int sca3000_init(void)
 	ret = spi_register_driver(&sca3000_d01_driver);
 	if (ret)
 		goto error_ret;
-	ret = spi_register_driver(&sca3000_d03_driver);
-	if (ret)
-		goto error_unreg_d01;
 	ret = spi_register_driver(&sca3000_e02_driver);
 	if (ret)
-		goto error_unreg_d03;
+		goto error_unreg_d01;
 	ret = spi_register_driver(&sca3000_e04_driver);
 	if (ret)
 		goto error_unreg_e02;
 	ret = spi_register_driver(&sca3000_e05_driver);
 	if (ret)
 		goto error_unreg_e04;
-	ret = spi_register_driver(&sca3000_l01_driver);
-	if (ret)
-		goto error_unreg_e05;
 
 	return 0;
 
-error_unreg_e05:
-	spi_unregister_driver(&sca3000_e05_driver);
 error_unreg_e04:
 	spi_unregister_driver(&sca3000_e04_driver);
 error_unreg_e02:
 	spi_unregister_driver(&sca3000_e02_driver);
-error_unreg_d03:
-	spi_unregister_driver(&sca3000_d03_driver);
 error_unreg_d01:
 	spi_unregister_driver(&sca3000_d01_driver);
 error_ret:
@@ -1494,11 +1492,9 @@ error_ret:
 
 static __exit void sca3000_exit(void)
 {
-	spi_unregister_driver(&sca3000_l01_driver);
 	spi_unregister_driver(&sca3000_e05_driver);
 	spi_unregister_driver(&sca3000_e04_driver);
 	spi_unregister_driver(&sca3000_e02_driver);
-	spi_unregister_driver(&sca3000_d03_driver);
 	spi_unregister_driver(&sca3000_d01_driver);
 }
 

@@ -597,12 +597,17 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_slave_sg(
 			       direction, flags);
 }
 
-static void sh_dmae_terminate_all(struct dma_chan *chan)
+static int sh_dmae_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+			   unsigned long arg)
 {
 	struct sh_dmae_chan *sh_chan = to_sh_chan(chan);
 
+	/* Only supports DMA_TERMINATE_ALL */
+	if (cmd != DMA_TERMINATE_ALL)
+		return -ENXIO;
+
 	if (!chan)
-		return;
+		return -EINVAL;
 
 	dmae_halt(sh_chan);
 
@@ -618,6 +623,8 @@ static void sh_dmae_terminate_all(struct dma_chan *chan)
 	spin_unlock_bh(&sh_chan->desc_lock);
 
 	sh_dmae_chan_ld_cleanup(sh_chan, true);
+
+	return 0;
 }
 
 static dma_async_tx_callback __ld_cleanup(struct sh_dmae_chan *sh_chan, bool all)
@@ -749,10 +756,9 @@ static void sh_dmae_memcpy_issue_pending(struct dma_chan *chan)
 	sh_chan_xfer_ld_queue(sh_chan);
 }
 
-static enum dma_status sh_dmae_is_complete(struct dma_chan *chan,
+static enum dma_status sh_dmae_tx_status(struct dma_chan *chan,
 					dma_cookie_t cookie,
-					dma_cookie_t *done,
-					dma_cookie_t *used)
+					struct dma_tx_state *txstate)
 {
 	struct sh_dmae_chan *sh_chan = to_sh_chan(chan);
 	dma_cookie_t last_used;
@@ -764,12 +770,7 @@ static enum dma_status sh_dmae_is_complete(struct dma_chan *chan,
 	last_used = chan->cookie;
 	last_complete = sh_chan->completed_cookie;
 	BUG_ON(last_complete < 0);
-
-	if (done)
-		*done = last_complete;
-
-	if (used)
-		*used = last_used;
+	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
 	spin_lock_bh(&sh_chan->desc_lock);
 
@@ -1041,12 +1042,12 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 		= sh_dmae_alloc_chan_resources;
 	shdev->common.device_free_chan_resources = sh_dmae_free_chan_resources;
 	shdev->common.device_prep_dma_memcpy = sh_dmae_prep_memcpy;
-	shdev->common.device_is_tx_complete = sh_dmae_is_complete;
+	shdev->common.device_tx_status = sh_dmae_tx_status;
 	shdev->common.device_issue_pending = sh_dmae_memcpy_issue_pending;
 
 	/* Compulsory for DMA_SLAVE fields */
 	shdev->common.device_prep_slave_sg = sh_dmae_prep_slave_sg;
-	shdev->common.device_terminate_all = sh_dmae_terminate_all;
+	shdev->common.device_control = sh_dmae_control;
 
 	shdev->common.dev = &pdev->dev;
 	/* Default transfer size of 32 bytes requires 32-byte alignment */

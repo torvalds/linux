@@ -34,7 +34,6 @@
  * DCD, DTR, RTS, CTS which are currently faked.
  * It's good enough for PPP at this point. It's based off all kinds of
  * code found in usb/serial and usb/class
- *
  */
 
 #include <linux/kernel.h>
@@ -52,7 +51,7 @@
 /*
  * Version Information
  */
-#define DRIVER_VERSION	"v0.3"
+#define DRIVER_VERSION	"v0.4"
 #define DRIVER_AUTHOR	"Roelf Diedericks"
 #define DRIVER_DESC	"IPWireless tty driver"
 
@@ -65,8 +64,6 @@
 /* Message sizes */
 #define EVENT_BUFFER_SIZE	0xFF
 #define CHAR2INT16(c1, c0)	(((u32)((c1) & 0xff) << 8) + (u32)((c0) & 0xff))
-#define NUM_BULK_URBS		24
-#define NUM_CONTROL_URBS	16
 
 /* vendor/product pairs that are known work with this driver*/
 #define IPW_VID		0x0bc3
@@ -151,47 +148,6 @@ static struct usb_driver usb_ipw_driver = {
 
 static int debug;
 
-static void ipw_read_bulk_callback(struct urb *urb)
-{
-	struct usb_serial_port *port = urb->context;
-	unsigned char *data = urb->transfer_buffer;
-	struct tty_struct *tty;
-	int result;
-	int status = urb->status;
-
-	dbg("%s - port %d", __func__, port->number);
-
-	if (status) {
-		dbg("%s - nonzero read bulk status received: %d",
-		    __func__, status);
-		return;
-	}
-
-	usb_serial_debug_data(debug, &port->dev, __func__,
-					urb->actual_length, data);
-
-	tty = tty_port_tty_get(&port->port);
-	if (tty && urb->actual_length) {
-		tty_insert_flip_string(tty, data, urb->actual_length);
-		tty_flip_buffer_push(tty);
-	}
-	tty_kref_put(tty);
-
-	/* Continue trying to always read  */
-	usb_fill_bulk_urb(port->read_urb, port->serial->dev,
-			  usb_rcvbulkpipe(port->serial->dev,
-					   port->bulk_in_endpointAddress),
-			  port->read_urb->transfer_buffer,
-			  port->read_urb->transfer_buffer_length,
-			  ipw_read_bulk_callback, port);
-	result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
-	if (result)
-		dev_err(&port->dev,
-			"%s - failed resubmitting read urb, error %d\n",
-							__func__, result);
-	return;
-}
-
 static int ipw_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
 	struct usb_device *dev = port->serial->dev;
@@ -229,15 +185,7 @@ static int ipw_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	/*--2: Start reading from the device */
 	dbg("%s: setting up bulk read callback", __func__);
-	usb_fill_bulk_urb(port->read_urb, dev,
-			  usb_rcvbulkpipe(dev, port->bulk_in_endpointAddress),
-			  port->bulk_in_buffer,
-			  port->bulk_in_size,
-			  ipw_read_bulk_callback, port);
-	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
-	if (result < 0)
-		dbg("%s - usb_submit_urb(read bulk) failed with status %d",
-							__func__, result);
+	usb_serial_generic_open(tty, port);
 
 	/*--3: Tell the modem to open the floodgates on the rx bulk channel */
 	dbg("%s:asking modem for RxRead (RXBULK_ON)", __func__);
@@ -267,35 +215,6 @@ static int ipw_open(struct tty_struct *tty, struct usb_serial_port *port)
 		dev_err(&port->dev,
 			"initial flowcontrol failed (error = %d)\n", result);
 
-
-	/*--5: raise the dtr */
-	dbg("%s:raising dtr", __func__);
-	result = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
-			 IPW_SIO_SET_PIN,
-			 USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT,
-			 IPW_PIN_SETDTR,
-			 0,
-			 NULL,
-			 0,
-			 200000);
-	if (result < 0)
-		dev_err(&port->dev,
-				"setting dtr failed (error = %d)\n", result);
-
-	/*--6: raise the rts */
-	dbg("%s:raising rts", __func__);
-	result = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
-			 IPW_SIO_SET_PIN,
-			 USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT,
-			 IPW_PIN_SETRTS,
-			 0,
-			 NULL,
-			 0,
-			 200000);
-	if (result < 0)
-		dev_err(&port->dev,
-				"setting dtr failed (error = %d)\n", result);
-
 	kfree(buf_flow_init);
 	return 0;
 }
@@ -305,8 +224,8 @@ static void ipw_dtr_rts(struct usb_serial_port *port, int on)
 	struct usb_device *dev = port->serial->dev;
 	int result;
 
-	/*--1: drop the dtr */
-	dbg("%s:dropping dtr", __func__);
+	dbg("%s: on = %d", __func__, on);
+
 	result = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			 IPW_SIO_SET_PIN,
 			 USB_TYPE_VENDOR | USB_RECIP_INTERFACE | USB_DIR_OUT,
@@ -316,22 +235,20 @@ static void ipw_dtr_rts(struct usb_serial_port *port, int on)
 			 0,
 			 200000);
 	if (result < 0)
-		dev_err(&port->dev, "dropping dtr failed (error = %d)\n",
+		dev_err(&port->dev, "setting dtr failed (error = %d)\n",
 								result);
 
-	/*--2: drop the rts */
-	dbg("%s:dropping rts", __func__);
 	result = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			 IPW_SIO_SET_PIN, USB_TYPE_VENDOR |
-			 		USB_RECIP_INTERFACE | USB_DIR_OUT,
+					USB_RECIP_INTERFACE | USB_DIR_OUT,
 			 on ? IPW_PIN_SETRTS : IPW_PIN_CLRRTS,
 			 0,
 			 NULL,
 			 0,
 			 200000);
 	if (result < 0)
-		dev_err(&port->dev,
-				"dropping rts failed (error = %d)\n", result);
+		dev_err(&port->dev, "setting rts failed (error = %d)\n",
+								result);
 }
 
 static void ipw_close(struct usb_serial_port *port)
@@ -368,83 +285,7 @@ static void ipw_close(struct usb_serial_port *port)
 		dev_err(&port->dev,
 			"Disabling bulk RxRead failed (error = %d)\n", result);
 
-	/* shutdown any in-flight urbs that we know about */
-	usb_kill_urb(port->read_urb);
-	usb_kill_urb(port->write_urb);
-}
-
-static void ipw_write_bulk_callback(struct urb *urb)
-{
-	struct usb_serial_port *port = urb->context;
-	int status = urb->status;
-
-	dbg("%s", __func__);
-
-	port->write_urb_busy = 0;
-
-	if (status)
-		dbg("%s - nonzero write bulk status received: %d",
-		    __func__, status);
-
-	usb_serial_port_softint(port);
-}
-
-static int ipw_write(struct tty_struct *tty, struct usb_serial_port *port,
-					const unsigned char *buf, int count)
-{
-	struct usb_device *dev = port->serial->dev;
-	int ret;
-
-	dbg("%s: TOP: count=%d, in_interrupt=%ld", __func__,
-		count, in_interrupt());
-
-	if (count == 0) {
-		dbg("%s - write request of 0 bytes", __func__);
-		return 0;
-	}
-
-	spin_lock_bh(&port->lock);
-	if (port->write_urb_busy) {
-		spin_unlock_bh(&port->lock);
-		dbg("%s - already writing", __func__);
-		return 0;
-	}
-	port->write_urb_busy = 1;
-	spin_unlock_bh(&port->lock);
-
-	count = min(count, port->bulk_out_size);
-	memcpy(port->bulk_out_buffer, buf, count);
-
-	dbg("%s count now:%d", __func__, count);
-
-	usb_fill_bulk_urb(port->write_urb, dev,
-			  usb_sndbulkpipe(dev, port->bulk_out_endpointAddress),
-			  port->write_urb->transfer_buffer,
-			  count,
-			  ipw_write_bulk_callback,
-			  port);
-
-	ret = usb_submit_urb(port->write_urb, GFP_ATOMIC);
-	if (ret != 0) {
-		port->write_urb_busy = 0;
-		dbg("%s - usb_submit_urb(write bulk) failed with error = %d",
-								__func__, ret);
-		return ret;
-	}
-
-	dbg("%s returning %d", __func__, count);
-	return count;
-}
-
-static int ipw_probe(struct usb_serial_port *port)
-{
-	return 0;
-}
-
-static int ipw_disconnect(struct usb_serial_port *port)
-{
-	usb_set_serial_port_data(port, NULL);
-	return 0;
+	usb_serial_generic_close(port);
 }
 
 static struct usb_serial_driver ipw_device = {
@@ -453,17 +294,12 @@ static struct usb_serial_driver ipw_device = {
 		.name =		"ipw",
 	},
 	.description =		"IPWireless converter",
-	.usb_driver = 		&usb_ipw_driver,
+	.usb_driver =		&usb_ipw_driver,
 	.id_table =		usb_ipw_ids,
 	.num_ports =		1,
 	.open =			ipw_open,
 	.close =		ipw_close,
 	.dtr_rts =		ipw_dtr_rts,
-	.port_probe = 		ipw_probe,
-	.port_remove =		ipw_disconnect,
-	.write =		ipw_write,
-	.write_bulk_callback =	ipw_write_bulk_callback,
-	.read_bulk_callback =	ipw_read_bulk_callback,
 };
 
 

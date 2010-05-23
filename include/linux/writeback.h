@@ -65,6 +65,15 @@ struct writeback_control {
 	 * so we use a single control to update them
 	 */
 	unsigned no_nrwrite_index_update:1;
+
+	/*
+	 * For WB_SYNC_ALL, the sb must always be pinned. For WB_SYNC_NONE,
+	 * the writeback code will pin the sb for the caller. However,
+	 * for eg umount, the caller does WB_SYNC_NONE but already has
+	 * the sb pinned. If the below is set, caller already has the
+	 * sb pinned.
+	 */
+	unsigned sb_pinned:1;
 };
 
 /*
@@ -73,6 +82,7 @@ struct writeback_control {
 struct bdi_writeback;
 int inode_wait(void *);
 void writeback_inodes_sb(struct super_block *);
+void writeback_inodes_sb_locked(struct super_block *);
 int writeback_inodes_sb_if_idle(struct super_block *);
 void sync_inodes_sb(struct super_block *);
 void writeback_inodes_wbc(struct writeback_control *wbc);
@@ -96,8 +106,14 @@ static inline void inode_sync_wait(struct inode *inode)
 /*
  * mm/page-writeback.c
  */
-void laptop_io_completion(void);
+#ifdef CONFIG_BLOCK
+void laptop_io_completion(struct backing_dev_info *info);
 void laptop_sync_completion(void);
+void laptop_mode_sync(struct work_struct *work);
+void laptop_mode_timer_fn(unsigned long data);
+#else
+static inline void laptop_sync_completion(void) { }
+#endif
 void throttle_vm_writeout(gfp_t gfp_mask);
 
 /* These are exported to sysctl. */

@@ -22,7 +22,6 @@
 
 /* Forward declarations */
 struct orinoco_private;
-struct dev_addr_list;
 
 int determine_fw_capabilities(struct orinoco_private *priv, char *fw_name,
 			      size_t fw_name_len, u32 *hw_ver);

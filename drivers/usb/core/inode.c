@@ -40,9 +40,9 @@
 #include <linux/notifier.h>
 #include <linux/seq_file.h>
 #include <linux/smp_lock.h>
+#include <linux/usb/hcd.h>
 #include <asm/byteorder.h>
 #include "usb.h"
-#include "hcd.h"
 
 #define USBFS_DEFAULT_DEVMODE (S_IWUSR | S_IRUGO)
 #define USBFS_DEFAULT_BUSMODE (S_IXUGO | S_IRUGO)

@@ -22,8 +22,7 @@ config SND_USB_AUDIO
 	  will be called snd-usb-audio.
 
 config SND_USB_UA101
-	tristate "Edirol UA-101/UA-1000 driver (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Edirol UA-101/UA-1000 driver"
 	select SND_PCM
 	select SND_RAWMIDI
 	help
@@ -65,6 +64,7 @@ config SND_USB_CAIAQ
 	    * Native Instruments Audio 8 DJ
 	    * Native Instruments Guitar Rig Session I/O
 	    * Native Instruments Guitar Rig mobile
+	    * Native Instruments Traktor Kontrol X1
 
 	   To compile this driver as a module, choose M here: the module
 	   will be called snd-usb-caiaq.

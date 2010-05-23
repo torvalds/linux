@@ -39,7 +39,7 @@
 #include <linux/init.h>
 #include <linux/dmi.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 
 /* PIIX4 SMBus address offsets */

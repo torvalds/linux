@@ -141,7 +141,7 @@ extern void vfp_flush_hwstate(struct thread_info *);
 #define TIF_SYSCALL_TRACE	8
 #define TIF_POLLING_NRFLAG	16
 #define TIF_USING_IWMMXT	17
-#define TIF_MEMDIE		18
+#define TIF_MEMDIE		18	/* is terminating due to OOM killer */
 #define TIF_FREEZE		19
 #define TIF_RESTORE_SIGMASK	20
 

@@ -173,9 +173,34 @@ static struct mfd_cell wm8994_regulator_devs[] = {
 	{ .name = "wm8994-ldo", .id = 2 },
 };
 
+static struct resource wm8994_codec_resources[] = {
+	{
+		.start = WM8994_IRQ_TEMP_SHUT,
+		.end   = WM8994_IRQ_TEMP_WARN,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct resource wm8994_gpio_resources[] = {
+	{
+		.start = WM8994_IRQ_GPIO(1),
+		.end   = WM8994_IRQ_GPIO(11),
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
 static struct mfd_cell wm8994_devs[] = {
-	{ .name = "wm8994-codec" },
-	{ .name = "wm8994-gpio" },
+	{
+		.name = "wm8994-codec",
+		.num_resources = ARRAY_SIZE(wm8994_codec_resources),
+		.resources = wm8994_codec_resources,
+	},
+
+	{
+		.name = "wm8994-gpio",
+		.num_resources = ARRAY_SIZE(wm8994_gpio_resources),
+		.resources = wm8994_gpio_resources,
+	},
 };
 
 /*
@@ -235,6 +260,11 @@ static int wm8994_device_resume(struct device *dev)
 		dev_err(dev, "Failed to enable supplies: %d\n", ret);
 		return ret;
 	}
+
+	ret = wm8994_write(wm8994, WM8994_INTERRUPT_STATUS_1_MASK,
+			   WM8994_NUM_IRQ_REGS * 2, &wm8994->irq_masks_cur);
+	if (ret < 0)
+		dev_err(dev, "Failed to restore interrupt masks: %d\n", ret);
 
 	ret = wm8994_write(wm8994, WM8994_LDO_1, WM8994_NUM_LDO_REGS * 2,
 			   &wm8994->ldo_regs);
@@ -348,6 +378,7 @@ static int wm8994_device_init(struct wm8994 *wm8994, unsigned long id, int irq)
 
 
 	if (pdata) {
+		wm8994->irq_base = pdata->irq_base;
 		wm8994->gpio_base = pdata->gpio_base;
 
 		/* GPIO configuration is only applied if it's non-zero */
@@ -375,16 +406,20 @@ static int wm8994_device_init(struct wm8994 *wm8994, unsigned long id, int irq)
 					WM8994_LDO1_DISCH, 0);
 	}
 
+	wm8994_irq_init(wm8994);
+
 	ret = mfd_add_devices(wm8994->dev, -1,
 			      wm8994_devs, ARRAY_SIZE(wm8994_devs),
 			      NULL, 0);
 	if (ret != 0) {
 		dev_err(wm8994->dev, "Failed to add children: %d\n", ret);
-		goto err_enable;
+		goto err_irq;
 	}
 
 	return 0;
 
+err_irq:
+	wm8994_irq_exit(wm8994);
 err_enable:
 	regulator_bulk_disable(ARRAY_SIZE(wm8994_main_supplies),
 			       wm8994->supplies);
@@ -401,6 +436,7 @@ err:
 static void wm8994_device_exit(struct wm8994 *wm8994)
 {
 	mfd_remove_devices(wm8994->dev);
+	wm8994_irq_exit(wm8994);
 	regulator_bulk_disable(ARRAY_SIZE(wm8994_main_supplies),
 			       wm8994->supplies);
 	regulator_bulk_free(ARRAY_SIZE(wm8994_main_supplies), wm8994->supplies);
@@ -469,6 +505,7 @@ static int wm8994_i2c_probe(struct i2c_client *i2c,
 	wm8994->control_data = i2c;
 	wm8994->read_dev = wm8994_i2c_read_device;
 	wm8994->write_dev = wm8994_i2c_write_device;
+	wm8994->irq = i2c->irq;
 
 	return wm8994_device_init(wm8994, id->driver_data, i2c->irq);
 }

@@ -218,3 +218,12 @@ static void __exit davicom_exit(void)
 
 module_init(davicom_init);
 module_exit(davicom_exit);
+
+static struct mdio_device_id davicom_tbl[] = {
+	{ 0x0181b880, 0x0ffffff0 },
+	{ 0x0181b8a0, 0x0ffffff0 },
+	{ 0x00181b80, 0x0ffffff0 },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(mdio, davicom_tbl);

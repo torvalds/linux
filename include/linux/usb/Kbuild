@@ -1,6 +1,7 @@
 header-y += audio.h
 header-y += cdc.h
 header-y += ch9.h
+header-y += ch11.h
 header-y += gadgetfs.h
 header-y += midi.h
 header-y += g_printer.h

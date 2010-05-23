@@ -32,7 +32,6 @@
 #include "wl1271.h"
 #include "wl12xx_80211.h"
 #include "wl1271_reg.h"
-#include "wl1271_spi.h"
 #include "wl1271_ps.h"
 
 int wl1271_acx_wake_up_conditions(struct wl1271 *wl)
@@ -137,12 +136,7 @@ int wl1271_acx_tx_power(struct wl1271 *wl, int power)
 		goto out;
 	}
 
-	/*
-	 * FIXME: This is a workaround needed while we don't the correct
-	 * calibration, to avoid distortions
-	 */
-	/* acx->current_tx_power = power * 10; */
-	acx->current_tx_power = 120;
+	acx->current_tx_power = power * 10;
 
 	ret = wl1271_cmd_configure(wl, DOT11_CUR_TX_PWR, acx, sizeof(*acx));
 	if (ret < 0) {
@@ -511,12 +505,17 @@ out:
 	return ret;
 }
 
-int wl1271_acx_conn_monit_params(struct wl1271 *wl)
+#define ACX_CONN_MONIT_DISABLE_VALUE  0xffffffff
+
+int wl1271_acx_conn_monit_params(struct wl1271 *wl, bool enable)
 {
 	struct acx_conn_monit_params *acx;
+	u32 threshold = ACX_CONN_MONIT_DISABLE_VALUE;
+	u32 timeout = ACX_CONN_MONIT_DISABLE_VALUE;
 	int ret;
 
-	wl1271_debug(DEBUG_ACX, "acx connection monitor parameters");
+	wl1271_debug(DEBUG_ACX, "acx connection monitor parameters: %s",
+		     enable ? "enabled" : "disabled");
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 	if (!acx) {
@@ -524,8 +523,13 @@ int wl1271_acx_conn_monit_params(struct wl1271 *wl)
 		goto out;
 	}
 
-	acx->synch_fail_thold = cpu_to_le32(wl->conf.conn.synch_fail_thold);
-	acx->bss_lose_timeout = cpu_to_le32(wl->conf.conn.bss_lose_timeout);
+	if (enable) {
+		threshold = wl->conf.conn.synch_fail_thold;
+		timeout = wl->conf.conn.bss_lose_timeout;
+	}
+
+	acx->synch_fail_thold = cpu_to_le32(threshold);
+	acx->bss_lose_timeout = cpu_to_le32(timeout);
 
 	ret = wl1271_cmd_configure(wl, ACX_CONN_MONIT_PARAMS,
 				   acx, sizeof(*acx));
@@ -541,7 +545,7 @@ out:
 }
 
 
-int wl1271_acx_sg_enable(struct wl1271 *wl)
+int wl1271_acx_sg_enable(struct wl1271 *wl, bool enable)
 {
 	struct acx_bt_wlan_coex *pta;
 	int ret;
@@ -554,7 +558,10 @@ int wl1271_acx_sg_enable(struct wl1271 *wl)
 		goto out;
 	}
 
-	pta->enable = SG_ENABLE;
+	if (enable)
+		pta->enable = wl->conf.sg.state;
+	else
+		pta->enable = CONF_SG_DISABLE;
 
 	ret = wl1271_cmd_configure(wl, ACX_SG_ENABLE, pta, sizeof(*pta));
 	if (ret < 0) {
@@ -571,7 +578,7 @@ int wl1271_acx_sg_cfg(struct wl1271 *wl)
 {
 	struct acx_bt_wlan_coex_param *param;
 	struct conf_sg_settings *c = &wl->conf.sg;
-	int ret;
+	int i, ret;
 
 	wl1271_debug(DEBUG_ACX, "acx sg cfg");
 
@@ -582,19 +589,9 @@ int wl1271_acx_sg_cfg(struct wl1271 *wl)
 	}
 
 	/* BT-WLAN coext parameters */
-	param->per_threshold = cpu_to_le32(c->per_threshold);
-	param->max_scan_compensation_time =
-		cpu_to_le32(c->max_scan_compensation_time);
-	param->nfs_sample_interval = cpu_to_le16(c->nfs_sample_interval);
-	param->load_ratio = c->load_ratio;
-	param->auto_ps_mode = c->auto_ps_mode;
-	param->probe_req_compensation = c->probe_req_compensation;
-	param->scan_window_compensation = c->scan_window_compensation;
-	param->antenna_config = c->antenna_config;
-	param->beacon_miss_threshold = c->beacon_miss_threshold;
-	param->rate_adaptation_threshold =
-		cpu_to_le32(c->rate_adaptation_threshold);
-	param->rate_adaptation_snr = c->rate_adaptation_snr;
+	for (i = 0; i < CONF_SG_PARAMS_MAX; i++)
+		param->params[i] = cpu_to_le32(c->params[i]);
+	param->param_idx = CONF_SG_PARAMS_ALL;
 
 	ret = wl1271_cmd_configure(wl, ACX_SG_CFG, param, sizeof(*param));
 	if (ret < 0) {
@@ -806,7 +803,7 @@ int wl1271_acx_rate_policies(struct wl1271 *wl)
 
 	/* configure one basic rate class */
 	idx = ACX_TX_BASIC_RATE;
-	acx->rate_class[idx].enabled_rates = cpu_to_le32(wl->basic_rate_set);
+	acx->rate_class[idx].enabled_rates = cpu_to_le32(wl->basic_rate);
 	acx->rate_class[idx].short_retry_limit = c->short_retry_limit;
 	acx->rate_class[idx].long_retry_limit = c->long_retry_limit;
 	acx->rate_class[idx].aflags = c->aflags;
@@ -1136,6 +1133,132 @@ int wl1271_acx_pm_config(struct wl1271 *wl)
 	ret = wl1271_cmd_configure(wl, ACX_PM_CONFIG, acx, sizeof(*acx));
 	if (ret < 0) {
 		wl1271_warning("acx pm config failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_keep_alive_mode(struct wl1271 *wl, bool enable)
+{
+	struct wl1271_acx_keep_alive_mode *acx = NULL;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx keep alive mode: %d", enable);
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->enabled = enable;
+
+	ret = wl1271_cmd_configure(wl, ACX_KEEP_ALIVE_MODE, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx keep alive mode failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_keep_alive_config(struct wl1271 *wl, u8 index, u8 tpl_valid)
+{
+	struct wl1271_acx_keep_alive_config *acx = NULL;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx keep alive config");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->period = cpu_to_le32(wl->conf.conn.keep_alive_interval);
+	acx->index = index;
+	acx->tpl_validation = tpl_valid;
+	acx->trigger = ACX_KEEP_ALIVE_NO_TX;
+
+	ret = wl1271_cmd_configure(wl, ACX_SET_KEEP_ALIVE_CONFIG,
+				   acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx keep alive config failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_rssi_snr_trigger(struct wl1271 *wl, bool enable,
+				s16 thold, u8 hyst)
+{
+	struct wl1271_acx_rssi_snr_trigger *acx = NULL;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx rssi snr trigger");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	wl->last_rssi_event = -1;
+
+	acx->pacing = cpu_to_le16(wl->conf.roam_trigger.trigger_pacing);
+	acx->metric = WL1271_ACX_TRIG_METRIC_RSSI_BEACON;
+	acx->type = WL1271_ACX_TRIG_TYPE_EDGE;
+	if (enable)
+		acx->enable = WL1271_ACX_TRIG_ENABLE;
+	else
+		acx->enable = WL1271_ACX_TRIG_DISABLE;
+
+	acx->index = WL1271_ACX_TRIG_IDX_RSSI;
+	acx->dir = WL1271_ACX_TRIG_DIR_BIDIR;
+	acx->threshold = cpu_to_le16(thold);
+	acx->hysteresis = hyst;
+
+	ret = wl1271_cmd_configure(wl, ACX_RSSI_SNR_TRIGGER, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx rssi snr trigger setting failed: %d", ret);
+		goto out;
+	}
+
+out:
+	kfree(acx);
+	return ret;
+}
+
+int wl1271_acx_rssi_snr_avg_weights(struct wl1271 *wl)
+{
+	struct wl1271_acx_rssi_snr_avg_weights *acx = NULL;
+	struct conf_roam_trigger_settings *c = &wl->conf.roam_trigger;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_ACX, "acx rssi snr avg weights");
+
+	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
+	if (!acx) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	acx->rssi_beacon = c->avg_weight_rssi_beacon;
+	acx->rssi_data = c->avg_weight_rssi_data;
+	acx->snr_beacon = c->avg_weight_snr_beacon;
+	acx->snr_data = c->avg_weight_snr_data;
+
+	ret = wl1271_cmd_configure(wl, ACX_RSSI_SNR_WEIGHTS, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx rssi snr trigger weights failed: %d", ret);
 		goto out;
 	}
 

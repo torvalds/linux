@@ -38,7 +38,6 @@
 #include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/delay.h>
-#include <linux/can.h>
 #include <linux/can/dev.h>
 
 #include <linux/of_platform.h>

@@ -1438,7 +1438,7 @@ static void drain_local_stock(struct work_struct *dummy)
 
 /*
  * Cache charges(val) which is from res_counter, to local per_cpu area.
- * This will be consumed by consumt_stock() function, later.
+ * This will be consumed by consume_stock() function, later.
  */
 static void refill_stock(struct mem_cgroup *mem, int val)
 {

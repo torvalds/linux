@@ -81,12 +81,39 @@
 
 #define AK4642_CACHEREGNUM 	0x25
 
+/* PW_MGMT2 */
+#define HPMTN		(1 << 6)
+#define PMHPL		(1 << 5)
+#define PMHPR		(1 << 4)
+#define MS		(1 << 3) /* master/slave select */
+#define MCKO		(1 << 1)
+#define PMPLL		(1 << 0)
+
+#define PMHP_MASK	(PMHPL | PMHPR)
+#define PMHP		PMHP_MASK
+
+/* MD_CTL1 */
+#define PLL3		(1 << 7)
+#define PLL2		(1 << 6)
+#define PLL1		(1 << 5)
+#define PLL0		(1 << 4)
+#define PLL_MASK	(PLL3 | PLL2 | PLL1 | PLL0)
+
+#define BCKO_MASK	(1 << 3)
+#define BCKO_64		BCKO_MASK
+
+/* MD_CTL2 */
+#define FS0		(1 << 0)
+#define FS1		(1 << 1)
+#define FS2		(1 << 2)
+#define FS3		(1 << 5)
+#define FS_MASK		(FS0 | FS1 | FS2 | FS3)
+
 struct snd_soc_codec_device soc_codec_dev_ak4642;
 
 /* codec private data */
 struct ak4642_priv {
 	struct snd_soc_codec codec;
-	unsigned int sysclk;
 };
 
 static struct snd_soc_codec *ak4642_codec;
@@ -177,17 +204,12 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		 *
 		 * PLL, Master Mode
 		 * Audio I/F Format :MSB justified (ADC & DAC)
-		 * Sampling Frequency: 44.1kHz
-		 * Digital Volume: −8dB
+		 * Digital Volume: -8dB
 		 * Bass Boost Level : Middle
 		 *
 		 * This operation came from example code of
 		 * "ASAHI KASEI AK4642" (japanese) manual p97.
-		 *
-		 * Example code use 0x39, 0x79 value for 0x01 address,
-		 * But we need MCKO (0x02) bit now
 		 */
-		ak4642_write(codec, 0x05, 0x27);
 		ak4642_write(codec, 0x0f, 0x09);
 		ak4642_write(codec, 0x0e, 0x19);
 		ak4642_write(codec, 0x09, 0x91);
@@ -195,15 +217,14 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		ak4642_write(codec, 0x0a, 0x28);
 		ak4642_write(codec, 0x0d, 0x28);
 		ak4642_write(codec, 0x00, 0x64);
-		ak4642_write(codec, 0x01, 0x3b); /* + MCKO bit */
-		ak4642_write(codec, 0x01, 0x7b); /* + MCKO bit */
+		snd_soc_update_bits(codec, PW_MGMT2, PMHP_MASK,	PMHP);
+		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	HPMTN);
 	} else {
 		/*
 		 * start stereo input
 		 *
 		 * PLL Master Mode
 		 * Audio I/F Format:MSB justified (ADC & DAC)
-		 * Sampling Frequency:44.1kHz
 		 * Pre MIC AMP:+20dB
 		 * MIC Power On
 		 * ALC setting:Refer to Table 35
@@ -212,7 +233,6 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		 * This operation came from example code of
 		 * "ASAHI KASEI AK4642" (japanese) manual p94.
 		 */
-		ak4642_write(codec, 0x05, 0x27);
 		ak4642_write(codec, 0x02, 0x05);
 		ak4642_write(codec, 0x06, 0x3c);
 		ak4642_write(codec, 0x08, 0xe1);
@@ -233,8 +253,8 @@ static void ak4642_dai_shutdown(struct snd_pcm_substream *substream,
 
 	if (is_play) {
 		/* stop headphone output */
-		ak4642_write(codec, 0x01, 0x3b);
-		ak4642_write(codec, 0x01, 0x0b);
+		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	0);
+		snd_soc_update_bits(codec, PW_MGMT2, PMHP_MASK,	0);
 		ak4642_write(codec, 0x00, 0x40);
 		ak4642_write(codec, 0x0e, 0x11);
 		ak4642_write(codec, 0x0f, 0x08);
@@ -250,9 +270,111 @@ static int ak4642_dai_set_sysclk(struct snd_soc_dai *codec_dai,
 	int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct ak4642_priv *ak4642 = codec->private_data;
+	u8 pll;
 
-	ak4642->sysclk = freq;
+	switch (freq) {
+	case 11289600:
+		pll = PLL2;
+		break;
+	case 12288000:
+		pll = PLL2 | PLL0;
+		break;
+	case 12000000:
+		pll = PLL2 | PLL1;
+		break;
+	case 24000000:
+		pll = PLL2 | PLL1 | PLL0;
+		break;
+	case 13500000:
+		pll = PLL3 | PLL2;
+		break;
+	case 27000000:
+		pll = PLL3 | PLL2 | PLL0;
+		break;
+	default:
+		return -EINVAL;
+	}
+	snd_soc_update_bits(codec, MD_CTL1, PLL_MASK, pll);
+
+	return 0;
+}
+
+static int ak4642_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	u8 data;
+	u8 bcko;
+
+	data = MCKO | PMPLL; /* use MCKO */
+	bcko = 0;
+
+	/* set master/slave audio interface */
+	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBM_CFM:
+		data |= MS;
+		bcko = BCKO_64;
+		break;
+	case SND_SOC_DAIFMT_CBS_CFS:
+		break;
+	default:
+		return -EINVAL;
+	}
+	snd_soc_update_bits(codec, PW_MGMT2, MS, data);
+	snd_soc_update_bits(codec, MD_CTL1, BCKO_MASK, bcko);
+
+	return 0;
+}
+
+static int ak4642_dai_hw_params(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	u8 rate;
+
+	switch (params_rate(params)) {
+	case 7350:
+		rate = FS2;
+		break;
+	case 8000:
+		rate = 0;
+		break;
+	case 11025:
+		rate = FS2 | FS0;
+		break;
+	case 12000:
+		rate = FS0;
+		break;
+	case 14700:
+		rate = FS2 | FS1;
+		break;
+	case 16000:
+		rate = FS1;
+		break;
+	case 22050:
+		rate = FS2 | FS1 | FS0;
+		break;
+	case 24000:
+		rate = FS1 | FS0;
+		break;
+	case 29400:
+		rate = FS3 | FS2 | FS1;
+		break;
+	case 32000:
+		rate = FS3 | FS1;
+		break;
+	case 44100:
+		rate = FS3 | FS2 | FS1 | FS0;
+		break;
+	case 48000:
+		rate = FS3 | FS1 | FS0;
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+	snd_soc_update_bits(codec, MD_CTL2, FS_MASK, rate);
+
 	return 0;
 }
 
@@ -260,6 +382,8 @@ static struct snd_soc_dai_ops ak4642_dai_ops = {
 	.startup	= ak4642_dai_startup,
 	.shutdown	= ak4642_dai_shutdown,
 	.set_sysclk	= ak4642_dai_set_sysclk,
+	.set_fmt	= ak4642_dai_set_fmt,
+	.hw_params	= ak4642_dai_hw_params,
 };
 
 struct snd_soc_dai ak4642_dai = {
@@ -277,6 +401,7 @@ struct snd_soc_dai ak4642_dai = {
 		.rates = SNDRV_PCM_RATE_8000_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE },
 	.ops = &ak4642_dai_ops,
+	.symmetric_rates = 1,
 };
 EXPORT_SYMBOL_GPL(ak4642_dai);
 
@@ -307,7 +432,7 @@ static int ak4642_init(struct ak4642_priv *ak4642)
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data	= ak4642;
+	snd_soc_codec_set_drvdata(codec, ak4642);
 	codec->name		= "AK4642";
 	codec->owner		= THIS_MODULE;
 	codec->read		= ak4642_read_reg_cache;
@@ -337,26 +462,6 @@ static int ak4642_init(struct ak4642_priv *ak4642)
 		snd_soc_unregister_codec(codec);
 		goto reg_cache_err;
 	}
-
-	/*
-	 * clock setting
-	 *
-	 * Audio I/F Format: MSB justified (ADC & DAC)
-	 * BICK frequency at Master Mode: 64fs
-	 * Input Master Clock Select at PLL Mode: 11.2896MHz
-	 * MCKO: Enable
-	 * Sampling Frequency: 44.1kHz
-	 *
-	 * This operation came from example code of
-	 * "ASAHI KASEI AK4642" (japanese) manual p89.
-	 *
-	 * please fix-me
-	 */
-	ak4642_write(codec, 0x01, 0x08);
-	ak4642_write(codec, 0x04, 0x4a);
-	ak4642_write(codec, 0x05, 0x27);
-	ak4642_write(codec, 0x00, 0x40);
-	ak4642_write(codec, 0x01, 0x0b);
 
 	return ret;
 

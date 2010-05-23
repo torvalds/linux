@@ -330,16 +330,25 @@ static void iwl3945_collect_tx_data(struct iwl3945_rs_sta *rs_sta,
 
 }
 
-static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
-			 struct ieee80211_sta *sta, void *priv_sta)
+/*
+ * Called after adding a new station to initialize rate scaling
+ */
+void iwl3945_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_id)
 {
-	struct iwl3945_rs_sta *rs_sta = priv_sta;
-	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
+	struct ieee80211_hw *hw = priv->hw;
+	struct ieee80211_conf *conf = &priv->hw->conf;
+	struct iwl3945_sta_priv *psta;
+	struct iwl3945_rs_sta *rs_sta;
+	struct ieee80211_supported_band *sband;
 	int i;
 
-	IWL_DEBUG_RATE(priv, "enter\n");
+	IWL_DEBUG_INFO(priv, "enter\n");
+	if (sta_id == priv->hw_params.bcast_sta_id)
+		goto out;
 
-	spin_lock_init(&rs_sta->lock);
+	psta = (struct iwl3945_sta_priv *) sta->drv_priv;
+	rs_sta = &psta->rs_sta;
+	sband = hw->wiphy->bands[conf->channel->band];
 
 	rs_sta->priv = priv;
 
@@ -352,9 +361,7 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	rs_sta->last_flush = jiffies;
 	rs_sta->flush_time = IWL_RATE_FLUSH;
 	rs_sta->last_tx_packets = 0;
-	rs_sta->ibss_sta_added = 0;
 
-	init_timer(&rs_sta->rate_scale_flush);
 	rs_sta->rate_scale_flush.data = (unsigned long)rs_sta;
 	rs_sta->rate_scale_flush.function = iwl3945_bg_rate_scale_flush;
 
@@ -373,16 +380,18 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 		}
 	}
 
-	priv->sta_supp_rates = sta->supp_rates[sband->band];
+	priv->_3945.sta_supp_rates = sta->supp_rates[sband->band];
 	/* For 5 GHz band it start at IWL_FIRST_OFDM_RATE */
 	if (sband->band == IEEE80211_BAND_5GHZ) {
 		rs_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
-		priv->sta_supp_rates = priv->sta_supp_rates <<
+		priv->_3945.sta_supp_rates = priv->_3945.sta_supp_rates <<
 						IWL_FIRST_OFDM_RATE;
 	}
 
+out:
+	priv->stations[sta_id].used &= ~IWL_STA_UCODE_INPROGRESS;
 
-	IWL_DEBUG_RATE(priv, "leave\n");
+	IWL_DEBUG_INFO(priv, "leave\n");
 }
 
 static void *rs_alloc(struct ieee80211_hw *hw, struct dentry *debugfsdir)
@@ -406,6 +415,9 @@ static void *rs_alloc_sta(void *iwl_priv, struct ieee80211_sta *sta, gfp_t gfp)
 
 	rs_sta = &psta->rs_sta;
 
+	spin_lock_init(&rs_sta->lock);
+	init_timer(&rs_sta->rate_scale_flush);
+
 	IWL_DEBUG_RATE(priv, "leave\n");
 
 	return rs_sta;
@@ -414,13 +426,14 @@ static void *rs_alloc_sta(void *iwl_priv, struct ieee80211_sta *sta, gfp_t gfp)
 static void rs_free_sta(void *iwl_priv, struct ieee80211_sta *sta,
 			void *priv_sta)
 {
-	struct iwl3945_sta_priv *psta = (void *) sta->drv_priv;
-	struct iwl3945_rs_sta *rs_sta = &psta->rs_sta;
-	struct iwl_priv *priv __maybe_unused = rs_sta->priv;
+	struct iwl3945_rs_sta *rs_sta = priv_sta;
 
-	IWL_DEBUG_RATE(priv, "enter\n");
+	/*
+	 * Be careful not to use any members of iwl3945_rs_sta (like trying
+	 * to use iwl_priv to print out debugging) since it may not be fully
+	 * initialized at this point.
+	 */
 	del_timer_sync(&rs_sta->rate_scale_flush);
-	IWL_DEBUG_RATE(priv, "leave\n");
 }
 
 
@@ -458,6 +471,13 @@ static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband
 		IWL_DEBUG_RATE(priv, "leave: No STA priv data to update!\n");
 		return;
 	}
+
+	/* Treat uninitialized rate scaling data same as non-existing. */
+	if (!rs_sta->priv) {
+		IWL_DEBUG_RATE(priv, "leave: STA priv data uninitialized!\n");
+		return;
+	}
+
 
 	rs_sta->tx_packets++;
 
@@ -525,8 +545,6 @@ static void rs_tx_status(void *priv_rate, struct ieee80211_supported_band *sband
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
 
 	IWL_DEBUG_RATE(priv, "leave\n");
-
-	return;
 }
 
 static u16 iwl3945_get_adjacent_rate(struct iwl3945_rs_sta *rs_sta,
@@ -626,13 +644,18 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 	u32 fail_count;
 	s8 scale_action = 0;
 	unsigned long flags;
-	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	u16 rate_mask = sta ? sta->supp_rates[sband->band] : 0;
 	s8 max_rate_idx = -1;
-	struct iwl_priv *priv = (struct iwl_priv *)priv_r;
+	struct iwl_priv *priv __maybe_unused = (struct iwl_priv *)priv_r;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	IWL_DEBUG_RATE(priv, "enter\n");
+
+	/* Treat uninitialized rate scaling data same as non-existing. */
+	if (rs_sta && !rs_sta->priv) {
+		IWL_DEBUG_RATE(priv, "Rate scaling information not initialized yet.\n");
+		priv_sta = NULL;
+	}
 
 	if (rate_control_send_low(sta, priv_sta, txrc))
 		return;
@@ -650,20 +673,6 @@ static void rs_get_rate(void *priv_r, struct ieee80211_sta *sta,
 
 	if (sband->band == IEEE80211_BAND_5GHZ)
 		rate_mask = rate_mask << IWL_FIRST_OFDM_RATE;
-
-	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
-	    !rs_sta->ibss_sta_added) {
-		u8 sta_id = iwl_find_station(priv, hdr->addr1);
-
-		if (sta_id == IWL_INVALID_STATION) {
-			IWL_DEBUG_RATE(priv, "LQ: ADD station %pM\n",
-				       hdr->addr1);
-			sta_id = iwl_add_station(priv, hdr->addr1, false,
-				CMD_ASYNC, NULL);
-		}
-		if (sta_id != IWL_INVALID_STATION)
-			rs_sta->ibss_sta_added = 1;
-	}
 
 	spin_lock_irqsave(&rs_sta->lock, flags);
 
@@ -884,12 +893,22 @@ static void iwl3945_remove_debugfs(void *priv, void *priv_sta)
 }
 #endif
 
+/*
+ * Initialization of rate scaling information is done by driver after
+ * the station is added. Since mac80211 calls this function before a
+ * station is added we ignore it.
+ */
+static void rs_rate_init_stub(void *priv_r, struct ieee80211_supported_band *sband,
+			      struct ieee80211_sta *sta, void *priv_sta)
+{
+}
+
 static struct rate_control_ops rs_ops = {
 	.module = NULL,
 	.name = RS_NAME,
 	.tx_status = rs_tx_status,
 	.get_rate = rs_get_rate,
-	.rate_init = rs_rate_init,
+	.rate_init = rs_rate_init_stub,
 	.alloc = rs_alloc,
 	.free = rs_free,
 	.alloc_sta = rs_alloc_sta,
@@ -900,7 +919,6 @@ static struct rate_control_ops rs_ops = {
 #endif
 
 };
-
 void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 {
 	struct iwl_priv *priv = hw->priv;
@@ -917,6 +935,7 @@ void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 	sta = ieee80211_find_sta(priv->vif,
 				 priv->stations[sta_id].sta.sta.addr);
 	if (!sta) {
+		IWL_DEBUG_RATE(priv, "Unable to find station to initialize rate scaling.\n");
 		rcu_read_unlock();
 		return;
 	}
@@ -947,7 +966,7 @@ void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
 
-	rssi = priv->last_rx_rssi;
+	rssi = priv->_3945.last_rx_rssi;
 	if (rssi == 0)
 		rssi = IWL_MIN_RSSI_VAL;
 

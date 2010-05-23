@@ -351,7 +351,7 @@ retry:
 	args.v1.ucChannelID = chan->rec.i2c_id;
 	args.v1.ucDelay = delay / 10;
 	if (ASIC_IS_DCE4(rdev))
-		args.v2.ucHPD_ID = chan->rec.hpd_id;
+		args.v2.ucHPD_ID = chan->rec.hpd;
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 

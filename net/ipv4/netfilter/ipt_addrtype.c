@@ -8,7 +8,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
@@ -30,7 +30,7 @@ static inline bool match_type(struct net *net, const struct net_device *dev,
 }
 
 static bool
-addrtype_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
+addrtype_mt_v0(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct net *net = dev_net(par->in ? par->in : par->out);
 	const struct ipt_addrtype_info *info = par->matchinfo;
@@ -48,7 +48,7 @@ addrtype_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 }
 
 static bool
-addrtype_mt_v1(const struct sk_buff *skb, const struct xt_match_param *par)
+addrtype_mt_v1(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct net *net = dev_net(par->in ? par->in : par->out);
 	const struct ipt_addrtype_info_v1 *info = par->matchinfo;
@@ -70,34 +70,34 @@ addrtype_mt_v1(const struct sk_buff *skb, const struct xt_match_param *par)
 	return ret;
 }
 
-static bool addrtype_mt_checkentry_v1(const struct xt_mtchk_param *par)
+static int addrtype_mt_checkentry_v1(const struct xt_mtchk_param *par)
 {
 	struct ipt_addrtype_info_v1 *info = par->matchinfo;
 
 	if (info->flags & IPT_ADDRTYPE_LIMIT_IFACE_IN &&
 	    info->flags & IPT_ADDRTYPE_LIMIT_IFACE_OUT) {
-		printk(KERN_ERR "ipt_addrtype: both incoming and outgoing "
-				"interface limitation cannot be selected\n");
-		return false;
+		pr_info("both incoming and outgoing "
+			"interface limitation cannot be selected\n");
+		return -EINVAL;
 	}
 
 	if (par->hook_mask & ((1 << NF_INET_PRE_ROUTING) |
 	    (1 << NF_INET_LOCAL_IN)) &&
 	    info->flags & IPT_ADDRTYPE_LIMIT_IFACE_OUT) {
-		printk(KERN_ERR "ipt_addrtype: output interface limitation "
-				"not valid in PRE_ROUTING and INPUT\n");
-		return false;
+		pr_info("output interface limitation "
+			"not valid in PREROUTING and INPUT\n");
+		return -EINVAL;
 	}
 
 	if (par->hook_mask & ((1 << NF_INET_POST_ROUTING) |
 	    (1 << NF_INET_LOCAL_OUT)) &&
 	    info->flags & IPT_ADDRTYPE_LIMIT_IFACE_IN) {
-		printk(KERN_ERR "ipt_addrtype: input interface limitation "
-				"not valid in POST_ROUTING and OUTPUT\n");
-		return false;
+		pr_info("input interface limitation "
+			"not valid in POSTROUTING and OUTPUT\n");
+		return -EINVAL;
 	}
 
-	return true;
+	return 0;
 }
 
 static struct xt_match addrtype_mt_reg[] __read_mostly = {

@@ -42,9 +42,9 @@ static s32 ixgbe_get_copper_link_capabilities_82598(struct ixgbe_hw *hw,
                                              ixgbe_link_speed *speed,
                                              bool *autoneg);
 static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw,
-                                               ixgbe_link_speed speed,
-                                               bool autoneg,
-                                               bool autoneg_wait_to_complete);
+                                         ixgbe_link_speed speed,
+                                         bool autoneg,
+                                         bool autoneg_wait_to_complete);
 static s32 ixgbe_read_i2c_eeprom_82598(struct ixgbe_hw *hw, u8 byte_offset,
                                        u8 *eeprom_data);
 
@@ -1221,7 +1221,7 @@ static struct ixgbe_mac_operations mac_ops_82598 = {
 
 static struct ixgbe_eeprom_operations eeprom_ops_82598 = {
 	.init_params		= &ixgbe_init_eeprom_params_generic,
-	.read			= &ixgbe_read_eeprom_generic,
+	.read			= &ixgbe_read_eerd_generic,
 	.validate_checksum	= &ixgbe_validate_eeprom_checksum_generic,
 	.update_checksum	= &ixgbe_update_eeprom_checksum_generic,
 };

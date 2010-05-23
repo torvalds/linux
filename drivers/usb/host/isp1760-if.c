@@ -13,8 +13,8 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 #include <linux/usb/isp1760.h>
+#include <linux/usb/hcd.h>
 
-#include "../core/hcd.h"
 #include "isp1760-hcd.h"
 
 #ifdef CONFIG_PPC_OF
@@ -36,7 +36,7 @@ static int of_isp1760_probe(struct of_device *dev,
 	struct resource memory;
 	struct of_irq oirq;
 	int virq;
-	u64 res_len;
+	resource_size_t res_len;
 	int ret;
 	const unsigned int *prop;
 	unsigned int devflags = 0;
@@ -45,12 +45,11 @@ static int of_isp1760_probe(struct of_device *dev,
 	if (ret)
 		return -ENXIO;
 
-	res = request_mem_region(memory.start, memory.end - memory.start + 1,
-			dev_name(&dev->dev));
+	res_len = resource_size(&memory);
+
+	res = request_mem_region(memory.start, res_len, dev_name(&dev->dev));
 	if (!res)
 		return -EBUSY;
-
-	res_len = memory.end - memory.start + 1;
 
 	if (of_irq_map_one(dp, 0, &oirq)) {
 		ret = -ENODEV;
@@ -92,7 +91,7 @@ static int of_isp1760_probe(struct of_device *dev,
 	return ret;
 
 release_reg:
-	release_mem_region(memory.start, memory.end - memory.start + 1);
+	release_mem_region(memory.start, res_len);
 	return ret;
 }
 

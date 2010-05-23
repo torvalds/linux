@@ -435,9 +435,10 @@ enum {
 #define QLCNIC_PCI_MS_2M	(0x80000)
 #define QLCNIC_PCI_OCM0_2M	(0x000c0000UL)
 #define QLCNIC_PCI_CRBSPACE	(0x06000000UL)
+#define QLCNIC_PCI_CAMQM	(0x04800000UL)
+#define QLCNIC_PCI_CAMQM_END	(0x04800800UL)
 #define QLCNIC_PCI_2MB_SIZE	(0x00200000UL)
 #define QLCNIC_PCI_CAMQM_2M_BASE	(0x000ff800UL)
-#define QLCNIC_PCI_CAMQM_2M_END 	(0x04800800UL)
 
 #define QLCNIC_CRB_CAM	QLCNIC_PCI_CRB_WINDOW(QLCNIC_HW_PX_MAP_CRB_CAM)
 
@@ -448,7 +449,7 @@ enum {
 #define QLCNIC_ADDR_OCM1	(0x0000000200400000ULL)
 #define QLCNIC_ADDR_OCM1_MAX	(0x00000002004fffffULL)
 #define QLCNIC_ADDR_QDR_NET	(0x0000000300000000ULL)
-#define QLCNIC_ADDR_QDR_NET_MAX_P3 (0x0000000303ffffffULL)
+#define QLCNIC_ADDR_QDR_NET_MAX (0x0000000307ffffffULL)
 
 /*
  *   Register offsets for MN
@@ -562,37 +563,14 @@ enum {
 #define CRB_PF_LINK_SPEED_1		(QLCNIC_REG(0xe8))
 #define CRB_PF_LINK_SPEED_2		(QLCNIC_REG(0xec))
 
-#define CRB_MPORT_MODE			(QLCNIC_REG(0xc4))
-#define CRB_DMA_SHIFT			(QLCNIC_REG(0xcc))
-
 #define CRB_TEMP_STATE			(QLCNIC_REG(0x1b4))
 
 #define CRB_V2P_0			(QLCNIC_REG(0x290))
 #define CRB_V2P(port)			(CRB_V2P_0+((port)*4))
 #define CRB_DRIVER_VERSION		(QLCNIC_REG(0x2a0))
 
-#define CRB_SW_INT_MASK_0		(QLCNIC_REG(0x1d8))
-#define CRB_SW_INT_MASK_1		(QLCNIC_REG(0x1e0))
-#define CRB_SW_INT_MASK_2		(QLCNIC_REG(0x1e4))
-#define CRB_SW_INT_MASK_3		(QLCNIC_REG(0x1e8))
-
 #define CRB_FW_CAPABILITIES_1		(QLCNIC_CAM_RAM(0x128))
 #define CRB_MAC_BLOCK_START		(QLCNIC_CAM_RAM(0x1c0))
-
-/*
- * capabilities register, can be used to selectively enable/disable features
- * for backward compability
- */
-#define CRB_NIC_CAPABILITIES_HOST	QLCNIC_REG(0x1a8)
-#define CRB_NIC_CAPABILITIES_FW 	QLCNIC_REG(0x1dc)
-#define CRB_NIC_MSI_MODE_HOST		QLCNIC_REG(0x270)
-#define CRB_NIC_MSI_MODE_FW	  	QLCNIC_REG(0x274)
-
-#define INTR_SCHEME_PERPORT	      	0x1
-#define MSI_MODE_MULTIFUNC	      	0x1
-
-/* used for ethtool tests */
-#define CRB_SCRATCHPAD_TEST	    QLCNIC_REG(0x280)
 
 /*
  * CrbPortPhanCntrHi/Lo is used to pass the address of HostPhantomIndex address
@@ -693,15 +671,24 @@ enum {
 #define QLCNIC_CRB_DRV_STATE               (QLCNIC_CAM_RAM(0x144))
 #define QLCNIC_CRB_DRV_SCRATCH             (QLCNIC_CAM_RAM(0x148))
 #define QLCNIC_CRB_DEV_PARTITION_INFO      (QLCNIC_CAM_RAM(0x14c))
-#define QLCNIC_CRB_DRV_IDC_VER             (QLCNIC_CAM_RAM(0x14c))
+#define QLCNIC_CRB_DRV_IDC_VER		(QLCNIC_CAM_RAM(0x174))
+#define QLCNIC_ROM_DEV_INIT_TIMEOUT	(0x3e885c)
+#define QLCNIC_ROM_DRV_RESET_TIMEOUT	(0x3e8860)
 
-		 /* Device State */
-#define QLCNIC_DEV_COLD 		1
-#define QLCNIC_DEV_INITALIZING		2
-#define QLCNIC_DEV_READY		3
-#define QLCNIC_DEV_NEED_RESET		4
-#define QLCNIC_DEV_NEED_QUISCENT	5
-#define QLCNIC_DEV_FAILED		6
+/* Device State */
+#define QLCNIC_DEV_COLD			0x1
+#define QLCNIC_DEV_INITIALIZING		0x2
+#define QLCNIC_DEV_READY		0x3
+#define QLCNIC_DEV_NEED_RESET		0x4
+#define QLCNIC_DEV_NEED_QUISCENT	0x5
+#define QLCNIC_DEV_FAILED		0x6
+#define QLCNIC_DEV_QUISCENT		0x7
+
+#define QLC_DEV_SET_REF_CNT(VAL, FN)		((VAL) |= (1 << (FN * 4)))
+#define QLC_DEV_CLR_REF_CNT(VAL, FN)		((VAL) &= ~(1 << (FN * 4)))
+#define QLC_DEV_SET_RST_RDY(VAL, FN)		((VAL) |= (1 << (FN * 4)))
+#define QLC_DEV_SET_QSCNT_RDY(VAL, FN)		((VAL) |= (2 << (FN * 4)))
+#define QLC_DEV_CLR_RST_QSCNT(VAL, FN)		((VAL) &= ~(3 << (FN * 4)))
 
 #define QLCNIC_RCODE_DRIVER_INFO		0x20000000
 #define QLCNIC_RCODE_DRIVER_CAN_RELOAD		0x40000000
@@ -709,9 +696,8 @@ enum {
 #define QLCNIC_FWERROR_PEGNUM(code)		((code) & 0xff)
 #define QLCNIC_FWERROR_CODE(code)		((code >> 8) & 0xfffff)
 
-#define FW_POLL_DELAY			(2 * HZ)
-#define FW_FAIL_THRESH			3
-#define FW_POLL_THRESH			10
+#define FW_POLL_DELAY		(1 * HZ)
+#define FW_FAIL_THRESH		2
 
 #define	ISR_MSI_INT_TRIGGER(FUNC) (QLCNIC_PCIX_PS_REG(PCIX_MSI_F(FUNC)))
 #define ISR_LEGACY_INT_TRIGGERED(VAL)	(((VAL) & 0x300) == 0x200)

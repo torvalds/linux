@@ -277,15 +277,17 @@ static int fsl_pq_mdio_probe(struct of_device *ofdev,
 	int tbiaddr = -1;
 	const u32 *addrp;
 	u64 addr = 0, size = 0;
-	int err = 0;
+	int err;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	new_bus = mdiobus_alloc();
-	if (NULL == new_bus)
+	if (!new_bus) {
+		err = -ENOMEM;
 		goto err_free_priv;
+	}
 
 	new_bus->name = "Freescale PowerQUICC MII Bus",
 	new_bus->read = &fsl_pq_mdio_read,

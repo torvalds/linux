@@ -37,7 +37,7 @@
 #define dprintk(X...) do { } while(0)
 #endif
 
-#ifdef DEBUG_PTE
+#ifdef DEBUG_MMU_PTE
 #define dprintk_pte(X...) printk(KERN_INFO X)
 #else
 #define dprintk_pte(X...) do { } while(0)
@@ -45,6 +45,9 @@
 
 #define PTEG_FLAG_ACCESSED	0x00000100
 #define PTEG_FLAG_DIRTY		0x00000080
+#ifndef SID_SHIFT
+#define SID_SHIFT		28
+#endif
 
 static inline bool check_debug_ip(struct kvm_vcpu *vcpu)
 {
@@ -57,6 +60,8 @@ static inline bool check_debug_ip(struct kvm_vcpu *vcpu)
 
 static int kvmppc_mmu_book3s_32_xlate_bat(struct kvm_vcpu *vcpu, gva_t eaddr,
 					  struct kvmppc_pte *pte, bool data);
+static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
+					     u64 *vsid);
 
 static struct kvmppc_sr *find_sr(struct kvmppc_vcpu_book3s *vcpu_book3s, gva_t eaddr)
 {
@@ -66,13 +71,14 @@ static struct kvmppc_sr *find_sr(struct kvmppc_vcpu_book3s *vcpu_book3s, gva_t e
 static u64 kvmppc_mmu_book3s_32_ea_to_vp(struct kvm_vcpu *vcpu, gva_t eaddr,
 					 bool data)
 {
-	struct kvmppc_sr *sre = find_sr(to_book3s(vcpu), eaddr);
+	u64 vsid;
 	struct kvmppc_pte pte;
 
 	if (!kvmppc_mmu_book3s_32_xlate_bat(vcpu, eaddr, &pte, data))
 		return pte.vpage;
 
-	return (((u64)eaddr >> 12) & 0xffff) | (((u64)sre->vsid) << 16);
+	kvmppc_mmu_book3s_32_esid_to_vsid(vcpu, eaddr >> SID_SHIFT, &vsid);
+	return (((u64)eaddr >> 12) & 0xffff) | (vsid << 16);
 }
 
 static void kvmppc_mmu_book3s_32_reset_msr(struct kvm_vcpu *vcpu)
@@ -142,8 +148,13 @@ static int kvmppc_mmu_book3s_32_xlate_bat(struct kvm_vcpu *vcpu, gva_t eaddr,
 				    bat->bepi_mask);
 		}
 		if ((eaddr & bat->bepi_mask) == bat->bepi) {
+			u64 vsid;
+			kvmppc_mmu_book3s_32_esid_to_vsid(vcpu,
+				eaddr >> SID_SHIFT, &vsid);
+			vsid <<= 16;
+			pte->vpage = (((u64)eaddr >> 12) & 0xffff) | vsid;
+
 			pte->raddr = bat->brpn | (eaddr & ~bat->bepi_mask);
-			pte->vpage = (eaddr >> 12) | VSID_BAT;
 			pte->may_read = bat->pp;
 			pte->may_write = bat->pp > 1;
 			pte->may_execute = true;
@@ -172,7 +183,7 @@ static int kvmppc_mmu_book3s_32_xlate_pte(struct kvm_vcpu *vcpu, gva_t eaddr,
 	struct kvmppc_sr *sre;
 	hva_t ptegp;
 	u32 pteg[16];
-	u64 ptem = 0;
+	u32 ptem = 0;
 	int i;
 	int found = 0;
 
@@ -302,6 +313,7 @@ static void kvmppc_mmu_book3s_32_mtsrin(struct kvm_vcpu *vcpu, u32 srnum,
 	/* And then put in the new SR */
 	sre->raw = value;
 	sre->vsid = (value & 0x0fffffff);
+	sre->valid = (value & 0x80000000) ? false : true;
 	sre->Ks = (value & 0x40000000) ? true : false;
 	sre->Kp = (value & 0x20000000) ? true : false;
 	sre->nx = (value & 0x10000000) ? true : false;
@@ -312,35 +324,47 @@ static void kvmppc_mmu_book3s_32_mtsrin(struct kvm_vcpu *vcpu, u32 srnum,
 
 static void kvmppc_mmu_book3s_32_tlbie(struct kvm_vcpu *vcpu, ulong ea, bool large)
 {
-	kvmppc_mmu_pte_flush(vcpu, ea, ~0xFFFULL);
+	kvmppc_mmu_pte_flush(vcpu, ea, 0x0FFFF000);
 }
 
-static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, u64 esid,
+static int kvmppc_mmu_book3s_32_esid_to_vsid(struct kvm_vcpu *vcpu, ulong esid,
 					     u64 *vsid)
 {
+	ulong ea = esid << SID_SHIFT;
+	struct kvmppc_sr *sr;
+	u64 gvsid = esid;
+
+	if (vcpu->arch.msr & (MSR_DR|MSR_IR)) {
+		sr = find_sr(to_book3s(vcpu), ea);
+		if (sr->valid)
+			gvsid = sr->vsid;
+	}
+
 	/* In case we only have one of MSR_IR or MSR_DR set, let's put
 	   that in the real-mode context (and hope RM doesn't access
 	   high memory) */
 	switch (vcpu->arch.msr & (MSR_DR|MSR_IR)) {
 	case 0:
-		*vsid = (VSID_REAL >> 16) | esid;
+		*vsid = VSID_REAL | esid;
 		break;
 	case MSR_IR:
-		*vsid = (VSID_REAL_IR >> 16) | esid;
+		*vsid = VSID_REAL_IR | gvsid;
 		break;
 	case MSR_DR:
-		*vsid = (VSID_REAL_DR >> 16) | esid;
+		*vsid = VSID_REAL_DR | gvsid;
 		break;
 	case MSR_DR|MSR_IR:
-	{
-		ulong ea;
-		ea = esid << SID_SHIFT;
-		*vsid = find_sr(to_book3s(vcpu), ea)->vsid;
+		if (!sr->valid)
+			return -1;
+
+		*vsid = sr->vsid;
 		break;
-	}
 	default:
 		BUG();
 	}
+
+	if (vcpu->arch.msr & MSR_PR)
+		*vsid |= VSID_PR;
 
 	return 0;
 }

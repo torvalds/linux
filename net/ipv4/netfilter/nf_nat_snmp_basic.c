@@ -401,7 +401,7 @@ static unsigned char asn1_octets_decode(struct asn1_ctx *ctx,
 	*octets = kmalloc(eoc - ctx->pointer, GFP_ATOMIC);
 	if (*octets == NULL) {
 		if (net_ratelimit())
-			printk("OOM in bsalg (%d)\n", __LINE__);
+			pr_notice("OOM in bsalg (%d)\n", __LINE__);
 		return 0;
 	}
 
@@ -452,7 +452,7 @@ static unsigned char asn1_oid_decode(struct asn1_ctx *ctx,
 	*oid = kmalloc(size * sizeof(unsigned long), GFP_ATOMIC);
 	if (*oid == NULL) {
 		if (net_ratelimit())
-			printk("OOM in bsalg (%d)\n", __LINE__);
+			pr_notice("OOM in bsalg (%d)\n", __LINE__);
 		return 0;
 	}
 
@@ -729,7 +729,7 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 			if (*obj == NULL) {
 				kfree(id);
 				if (net_ratelimit())
-					printk("OOM in bsalg (%d)\n", __LINE__);
+					pr_notice("OOM in bsalg (%d)\n", __LINE__);
 				return 0;
 			}
 			(*obj)->syntax.l[0] = l;
@@ -746,7 +746,7 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 				kfree(p);
 				kfree(id);
 				if (net_ratelimit())
-					printk("OOM in bsalg (%d)\n", __LINE__);
+					pr_notice("OOM in bsalg (%d)\n", __LINE__);
 				return 0;
 			}
 			memcpy((*obj)->syntax.c, p, len);
@@ -761,7 +761,7 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 			if (*obj == NULL) {
 				kfree(id);
 				if (net_ratelimit())
-					printk("OOM in bsalg (%d)\n", __LINE__);
+					pr_notice("OOM in bsalg (%d)\n", __LINE__);
 				return 0;
 			}
 			if (!asn1_null_decode(ctx, end)) {
@@ -782,7 +782,7 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 				kfree(lp);
 				kfree(id);
 				if (net_ratelimit())
-					printk("OOM in bsalg (%d)\n", __LINE__);
+					pr_notice("OOM in bsalg (%d)\n", __LINE__);
 				return 0;
 			}
 			memcpy((*obj)->syntax.ul, lp, len);
@@ -803,7 +803,7 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 				kfree(p);
 				kfree(id);
 				if (net_ratelimit())
-					printk("OOM in bsalg (%d)\n", __LINE__);
+					pr_notice("OOM in bsalg (%d)\n", __LINE__);
 				return 0;
 			}
 			memcpy((*obj)->syntax.uc, p, len);
@@ -821,7 +821,7 @@ static unsigned char snmp_object_decode(struct asn1_ctx *ctx,
 			if (*obj == NULL) {
 				kfree(id);
 				if (net_ratelimit())
-					printk("OOM in bsalg (%d)\n", __LINE__);
+					pr_notice("OOM in bsalg (%d)\n", __LINE__);
 				return 0;
 			}
 			(*obj)->syntax.ul[0] = ul;

@@ -25,32 +25,34 @@
 # error "please don't include this file directly"
 #endif
 
+#include <linux/types.h>
+
 #ifdef CONFIG_PM
 
 /* changes to device_may_wakeup take effect on the next pm state change.
  * by default, devices should wakeup if they can.
  */
-static inline void device_init_wakeup(struct device *dev, int val)
+static inline void device_init_wakeup(struct device *dev, bool val)
 {
-	dev->power.can_wakeup = dev->power.should_wakeup = !!val;
+	dev->power.can_wakeup = dev->power.should_wakeup = val;
 }
 
-static inline void device_set_wakeup_capable(struct device *dev, int val)
+static inline void device_set_wakeup_capable(struct device *dev, bool capable)
 {
-	dev->power.can_wakeup = !!val;
+	dev->power.can_wakeup = capable;
 }
 
-static inline int device_can_wakeup(struct device *dev)
+static inline bool device_can_wakeup(struct device *dev)
 {
 	return dev->power.can_wakeup;
 }
 
-static inline void device_set_wakeup_enable(struct device *dev, int val)
+static inline void device_set_wakeup_enable(struct device *dev, bool enable)
 {
-	dev->power.should_wakeup = !!val;
+	dev->power.should_wakeup = enable;
 }
 
-static inline int device_may_wakeup(struct device *dev)
+static inline bool device_may_wakeup(struct device *dev)
 {
 	return dev->power.can_wakeup && dev->power.should_wakeup;
 }
@@ -58,20 +60,28 @@ static inline int device_may_wakeup(struct device *dev)
 #else /* !CONFIG_PM */
 
 /* For some reason the next two routines work even without CONFIG_PM */
-static inline void device_init_wakeup(struct device *dev, int val)
+static inline void device_init_wakeup(struct device *dev, bool val)
 {
-	dev->power.can_wakeup = !!val;
+	dev->power.can_wakeup = val;
 }
 
-static inline void device_set_wakeup_capable(struct device *dev, int val) { }
+static inline void device_set_wakeup_capable(struct device *dev, bool capable)
+{
+}
 
-static inline int device_can_wakeup(struct device *dev)
+static inline bool device_can_wakeup(struct device *dev)
 {
 	return dev->power.can_wakeup;
 }
 
-#define device_set_wakeup_enable(dev, val)	do {} while (0)
-#define device_may_wakeup(dev)			0
+static inline void device_set_wakeup_enable(struct device *dev, bool enable)
+{
+}
+
+static inline bool device_may_wakeup(struct device *dev)
+{
+	return false;
+}
 
 #endif /* !CONFIG_PM */
 

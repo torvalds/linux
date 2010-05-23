@@ -303,7 +303,6 @@ static unsigned long red_get(struct Qdisc *sch, u32 classid)
 
 static void red_put(struct Qdisc *sch, unsigned long arg)
 {
-	return;
 }
 
 static void red_walk(struct Qdisc *sch, struct qdisc_walker *walker)

@@ -19,7 +19,7 @@ config PCI_MSI
 	   by using the 'pci=nomsi' option.  This disables MSI for the
 	   entire system.
 
-	   If you don't know what to do here, say N.
+	   If you don't know what to do here, say Y.
 
 config PCI_DEBUG
 	bool "PCI Debugging"

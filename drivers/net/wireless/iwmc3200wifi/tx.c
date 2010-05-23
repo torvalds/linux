@@ -302,8 +302,8 @@ void iwm_tx_credit_init_pools(struct iwm_priv *iwm,
 
 #define IWM_UDMA_HDR_LEN	sizeof(struct iwm_umac_wifi_out_hdr)
 
-static int iwm_tx_build_packet(struct iwm_priv *iwm, struct sk_buff *skb,
-			       int pool_id, u8 *buf)
+static __le16 iwm_tx_build_packet(struct iwm_priv *iwm, struct sk_buff *skb,
+				  int pool_id, u8 *buf)
 {
 	struct iwm_umac_wifi_out_hdr *hdr = (struct iwm_umac_wifi_out_hdr *)buf;
 	struct iwm_udma_wifi_cmd udma_cmd;
@@ -347,6 +347,7 @@ static int iwm_tx_send_concat_packets(struct iwm_priv *iwm,
 	/* mark EOP for the last packet */
 	iwm_udma_wifi_hdr_set_eop(iwm, txq->concat_ptr, 1);
 
+	trace_iwm_tx_packets(iwm, txq->concat_buf, txq->concat_count);
 	ret = iwm_bus_send_chunk(iwm, txq->concat_buf, txq->concat_count);
 
 	txq->concat_count = 0;
@@ -451,7 +452,6 @@ void iwm_tx_worker(struct work_struct *work)
 int iwm_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct iwm_priv *iwm = ndev_to_iwm(netdev);
-	struct net_device *ndev = iwm_to_ndev(iwm);
 	struct wireless_dev *wdev = iwm_to_wdev(iwm);
 	struct iwm_tx_info *tx_info;
 	struct iwm_tx_queue *txq;
@@ -518,12 +518,12 @@ int iwm_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	queue_work(iwm->txq[queue].wq, &iwm->txq[queue].worker);
 
-	ndev->stats.tx_packets++;
-	ndev->stats.tx_bytes += skb->len;
+	netdev->stats.tx_packets++;
+	netdev->stats.tx_bytes += skb->len;
 	return NETDEV_TX_OK;
 
  drop:
-	ndev->stats.tx_dropped++;
+	netdev->stats.tx_dropped++;
 	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }

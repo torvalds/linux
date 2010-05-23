@@ -1123,16 +1123,7 @@ struct inode *exofs_new_inode(struct inode *dir, int mode)
 	sbi = sb->s_fs_info;
 
 	sb->s_dirt = 1;
-	inode->i_uid = current->cred->fsuid;
-	if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		if (S_ISDIR(mode))
-			mode |= S_ISGID;
-	} else {
-		inode->i_gid = current->cred->fsgid;
-	}
-	inode->i_mode = mode;
-
+	inode_init_owner(inode, dir, mode);
 	inode->i_ino = sbi->s_nextid++;
 	inode->i_blkbits = EXOFS_BLKSHIFT;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;

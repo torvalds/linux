@@ -844,8 +844,7 @@ retry_snap:
 		if ((ret >= 0 || ret == -EIOCBQUEUED) &&
 		    ((file->f_flags & O_SYNC) || IS_SYNC(file->f_mapping->host)
 		     || ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))) {
-			err = vfs_fsync_range(file, file->f_path.dentry,
-					      pos, pos + ret - 1, 1);
+			err = vfs_fsync_range(file, pos, pos + ret - 1, 1);
 			if (err < 0)
 				ret = err;
 		}

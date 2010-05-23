@@ -26,6 +26,8 @@
 #endif
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
+#include <media/v4l2-fh.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-chip-ident.h>
 
 #define dbgarg(cmd, fmt, arg...) \
@@ -291,6 +293,9 @@ static const char *v4l2_ioctls[] = {
 	[_IOC_NR(VIDIOC_QUERY_DV_PRESET)]  = "VIDIOC_QUERY_DV_PRESET",
 	[_IOC_NR(VIDIOC_S_DV_TIMINGS)]     = "VIDIOC_S_DV_TIMINGS",
 	[_IOC_NR(VIDIOC_G_DV_TIMINGS)]     = "VIDIOC_G_DV_TIMINGS",
+	[_IOC_NR(VIDIOC_DQEVENT)]	   = "VIDIOC_DQEVENT",
+	[_IOC_NR(VIDIOC_SUBSCRIBE_EVENT)]  = "VIDIOC_SUBSCRIBE_EVENT",
+	[_IOC_NR(VIDIOC_UNSUBSCRIBE_EVENT)] = "VIDIOC_UNSUBSCRIBE_EVENT",
 };
 #define V4L2_IOCTLS ARRAY_SIZE(v4l2_ioctls)
 
@@ -610,17 +615,33 @@ static long __video_do_ioctl(struct file *file,
 	void *fh = file->private_data;
 	long ret = -EINVAL;
 
+	if (ops == NULL) {
+		printk(KERN_WARNING "videodev: \"%s\" has no ioctl_ops.\n",
+				vfd->name);
+		return -EINVAL;
+	}
+
+#ifdef CONFIG_VIDEO_V4L1_COMPAT
+	/********************************************************
+	 All other V4L1 calls are handled by v4l1_compat module.
+	 Those calls will be translated into V4L2 calls, and
+	 __video_do_ioctl will be called again, with one or more
+	 V4L2 ioctls.
+	 ********************************************************/
+	if (_IOC_TYPE(cmd) == 'v' && cmd != VIDIOCGMBUF &&
+				_IOC_NR(cmd) < BASE_VIDIOCPRIVATE) {
+		return v4l_compat_translate_ioctl(file, cmd, arg,
+						__video_do_ioctl);
+	}
+#endif
+
 	if ((vfd->debug & V4L2_DEBUG_IOCTL) &&
 				!(vfd->debug & V4L2_DEBUG_IOCTL_ARG)) {
 		v4l_print_ioctl(vfd->name, cmd);
 		printk(KERN_CONT "\n");
 	}
 
-	if (ops == NULL) {
-		printk(KERN_WARNING "videodev: \"%s\" has no ioctl_ops.\n",
-				vfd->name);
-		return -EINVAL;
-	}
+	switch (cmd) {
 
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	/***********************************************************
@@ -630,31 +651,21 @@ static long __video_do_ioctl(struct file *file,
 	 ***********************************************************/
 
 	/* --- streaming capture ------------------------------------- */
-	if (cmd == VIDIOCGMBUF) {
+	case VIDIOCGMBUF:
+	{
 		struct video_mbuf *p = arg;
 
 		if (!ops->vidiocgmbuf)
-			return ret;
+			break;
 		ret = ops->vidiocgmbuf(file, fh, p);
 		if (!ret)
 			dbgarg(cmd, "size=%d, frames=%d, offsets=0x%08lx\n",
 						p->size, p->frames,
 						(unsigned long)p->offsets);
-		return ret;
+		break;
 	}
-
-	/********************************************************
-	 All other V4L1 calls are handled by v4l1_compat module.
-	 Those calls will be translated into V4L2 calls, and
-	 __video_do_ioctl will be called again, with one or more
-	 V4L2 ioctls.
-	 ********************************************************/
-	if (_IOC_TYPE(cmd) == 'v' && _IOC_NR(cmd) < BASE_VIDIOCPRIVATE)
-		return v4l_compat_translate_ioctl(file, cmd, arg,
-						__video_do_ioctl);
 #endif
 
-	switch (cmd) {
 	/* --- capabilities ------------------------------------------ */
 	case VIDIOC_QUERYCAP:
 	{
@@ -1072,7 +1083,7 @@ static long __video_do_ioctl(struct file *file,
 				id &= ~curr_id;
 		}
 		if (i <= index)
-			return -EINVAL;
+			break;
 
 		v4l2_video_std_construct(p, curr_id, descr);
 
@@ -1597,7 +1608,7 @@ static long __video_do_ioctl(struct file *file,
 			v4l2_std_id std = vfd->current_norm;
 
 			if (p->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
-				return -EINVAL;
+				break;
 
 			ret = 0;
 			if (ops->vidioc_g_std)
@@ -1942,7 +1953,55 @@ static long __video_do_ioctl(struct file *file,
 		}
 		break;
 	}
+	case VIDIOC_DQEVENT:
+	{
+		struct v4l2_event *ev = arg;
 
+		if (!ops->vidioc_subscribe_event)
+			break;
+
+		ret = v4l2_event_dequeue(fh, ev, file->f_flags & O_NONBLOCK);
+		if (ret < 0) {
+			dbgarg(cmd, "no pending events?");
+			break;
+		}
+		dbgarg(cmd,
+		       "pending=%d, type=0x%8.8x, sequence=%d, "
+		       "timestamp=%lu.%9.9lu ",
+		       ev->pending, ev->type, ev->sequence,
+		       ev->timestamp.tv_sec, ev->timestamp.tv_nsec);
+		break;
+	}
+	case VIDIOC_SUBSCRIBE_EVENT:
+	{
+		struct v4l2_event_subscription *sub = arg;
+
+		if (!ops->vidioc_subscribe_event)
+			break;
+
+		ret = ops->vidioc_subscribe_event(fh, sub);
+		if (ret < 0) {
+			dbgarg(cmd, "failed, ret=%ld", ret);
+			break;
+		}
+		dbgarg(cmd, "type=0x%8.8x", sub->type);
+		break;
+	}
+	case VIDIOC_UNSUBSCRIBE_EVENT:
+	{
+		struct v4l2_event_subscription *sub = arg;
+
+		if (!ops->vidioc_unsubscribe_event)
+			break;
+
+		ret = ops->vidioc_unsubscribe_event(fh, sub);
+		if (ret < 0) {
+			dbgarg(cmd, "failed, ret=%ld", ret);
+			break;
+		}
+		dbgarg(cmd, "type=0x%8.8x", sub->type);
+		break;
+	}
 	default:
 	{
 		if (!ops->vidioc_default)
@@ -2006,7 +2065,7 @@ long video_ioctl2(struct file *file,
 {
 	char	sbuf[128];
 	void    *mbuf = NULL;
-	void	*parg = NULL;
+	void	*parg = (void *)arg;
 	long	err  = -EINVAL;
 	int     is_ext_ctrl;
 	size_t  ctrls_size = 0;

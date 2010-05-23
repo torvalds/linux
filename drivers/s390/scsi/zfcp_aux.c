@@ -425,7 +425,8 @@ int zfcp_status_read_refill(struct zfcp_adapter *adapter)
 {
 	while (atomic_read(&adapter->stat_miss) > 0)
 		if (zfcp_fsf_status_read(adapter->qdio)) {
-			if (atomic_read(&adapter->stat_miss) >= 16) {
+			if (atomic_read(&adapter->stat_miss) >=
+			    adapter->stat_read_buf_num) {
 				zfcp_erp_adapter_reopen(adapter, 0, "axsref1",
 							NULL);
 				return 1;
@@ -544,6 +545,10 @@ struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *ccw_device)
 	if (sysfs_create_group(&ccw_device->dev.kobj,
 			       &zfcp_sysfs_adapter_attrs))
 		goto failed;
+
+	/* report size limit per scatter-gather segment */
+	adapter->dma_parms.max_segment_size = ZFCP_QDIO_SBALE_LEN;
+	adapter->ccw_device->dev.dma_parms = &adapter->dma_parms;
 
 	if (!zfcp_adapter_scsi_register(adapter))
 		return adapter;

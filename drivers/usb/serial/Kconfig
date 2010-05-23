@@ -425,6 +425,16 @@ config USB_SERIAL_MOS7720
 	  To compile this driver as a module, choose M here: the
 	  module will be called mos7720.
 
+config USB_SERIAL_MOS7715_PARPORT
+	bool "Support for parallel port on the Moschip 7715"
+	depends on USB_SERIAL_MOS7720
+	depends on PARPORT=y || PARPORT=USB_SERIAL_MOS7720
+	select PARPORT_NOT_PC
+	---help---
+	Say Y if you have a Moschip 7715 device and would like to use
+	the parallel port it provides.  The port will register with
+	the parport subsystem as a low-level driver.
+
 config USB_SERIAL_MOS7840
 	tristate "USB Moschip 7840/7820 USB Serial Driver"
 	---help---
@@ -485,6 +495,7 @@ config USB_SERIAL_QCAUX
 
 config USB_SERIAL_QUALCOMM
 	tristate "USB Qualcomm Serial modem"
+	select USB_SERIAL_WWAN
 	help
 	  Say Y here if you have a Qualcomm USB modem device.  These are
 	  usually wireless cellular modems.
@@ -576,8 +587,12 @@ config USB_SERIAL_XIRCOM
 	  To compile this driver as a module, choose M here: the
 	  module will be called keyspan_pda.
 
+config USB_SERIAL_WWAN
+	tristate
+
 config USB_SERIAL_OPTION
 	tristate "USB driver for GSM and CDMA modems"
+	select USB_SERIAL_WWAN
 	help
 	  Say Y here if you have a GSM or CDMA modem that's connected to USB.
 
@@ -618,6 +633,14 @@ config USB_SERIAL_VIVOPAY_SERIAL
 
           To compile this driver as a module, choose M here: the
           module will be called vivopay-serial.
+
+config USB_SERIAL_ZIO
+	tristate "ZIO Motherboard USB serial interface driver"
+	help
+	  Say Y here if you want to use ZIO Motherboard.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called zio.
 
 config USB_SERIAL_DEBUG
 	tristate "USB Debugging Device"

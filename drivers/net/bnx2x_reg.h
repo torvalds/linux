@@ -766,6 +766,8 @@
 #define MCP_REG_MCPR_NVM_SW_ARB 				 0x86420
 #define MCP_REG_MCPR_NVM_WRITE					 0x86408
 #define MCP_REG_MCPR_SCRATCH					 0xa0000
+#define MISC_AEU_GENERAL_MASK_REG_AEU_NIG_CLOSE_MASK		 (0x1<<1)
+#define MISC_AEU_GENERAL_MASK_REG_AEU_PXP_CLOSE_MASK		 (0x1<<0)
 /* [R 32] read first 32 bit after inversion of function 0. mapped as
    follows: [0] NIG attention for function0; [1] NIG attention for
    function1; [2] GPIO1 mcp; [3] GPIO2 mcp; [4] GPIO3 mcp; [5] GPIO4 mcp;
@@ -1249,6 +1251,8 @@
 #define MISC_REG_E1HMF_MODE					 0xa5f8
 /* [RW 32] Debug only: spare RW register reset by core reset */
 #define MISC_REG_GENERIC_CR_0					 0xa460
+/* [RW 32] Debug only: spare RW register reset by por reset */
+#define MISC_REG_GENERIC_POR_1					 0xa474
 /* [RW 32] GPIO. [31-28] FLOAT port 0; [27-24] FLOAT port 0; When any of
    these bits is written as a '1'; the corresponding SPIO bit will turn off
    it's drivers and become an input. This is the reset state of all GPIO
@@ -1438,7 +1442,7 @@
    (~misc_registers_sw_timer_cfg_4.sw_timer_cfg_4[1] ) is set */
 #define MISC_REG_SW_TIMER_RELOAD_VAL_4				 0xa2fc
 /* [RW 32] the value of the counter for sw timers1-8. there are 8 addresses
-   in this register. addres 0 - timer 1; address - timer 2�address 7 -
+   in this register. addres 0 - timer 1; address 1 - timer 2, ...  address 7 -
    timer 8 */
 #define MISC_REG_SW_TIMER_VAL					 0xa5c0
 /* [RW 1] Set by the MCP to remember if one or more of the drivers is/are
@@ -2407,10 +2411,16 @@
 /* [R 8] debug only: A bit mask for all PSWHST arbiter clients. '1' means
    this client is waiting for the arbiter. */
 #define PXP_REG_HST_CLIENTS_WAITING_TO_ARB			 0x103008
+/* [RW 1] When 1; doorbells are discarded and not passed to doorbell queue
+   block. Should be used for close the gates. */
+#define PXP_REG_HST_DISCARD_DOORBELLS				 0x1030a4
 /* [R 1] debug only: '1' means this PSWHST is discarding doorbells. This bit
    should update accoring to 'hst_discard_doorbells' register when the state
    machine is idle */
 #define PXP_REG_HST_DISCARD_DOORBELLS_STATUS			 0x1030a0
+/* [RW 1] When 1; new internal writes arriving to the block are discarded.
+   Should be used for close the gates. */
+#define PXP_REG_HST_DISCARD_INTERNAL_WRITES			 0x1030a8
 /* [R 6] debug only: A bit mask for all PSWHST internal write clients. '1'
    means this PSWHST is discarding inputs from this client. Each bit should
    update accoring to 'hst_discard_internal_writes' register when the state
@@ -4422,11 +4432,21 @@
 #define MISC_REGISTERS_GPIO_PORT_SHIFT				 4
 #define MISC_REGISTERS_GPIO_SET_POS				 8
 #define MISC_REGISTERS_RESET_REG_1_CLEAR			 0x588
+#define MISC_REGISTERS_RESET_REG_1_RST_HC			 (0x1<<29)
 #define MISC_REGISTERS_RESET_REG_1_RST_NIG			 (0x1<<7)
+#define MISC_REGISTERS_RESET_REG_1_RST_PXP			 (0x1<<26)
+#define MISC_REGISTERS_RESET_REG_1_RST_PXPV			 (0x1<<27)
 #define MISC_REGISTERS_RESET_REG_1_SET				 0x584
 #define MISC_REGISTERS_RESET_REG_2_CLEAR			 0x598
 #define MISC_REGISTERS_RESET_REG_2_RST_BMAC0			 (0x1<<0)
 #define MISC_REGISTERS_RESET_REG_2_RST_EMAC0_HARD_CORE		 (0x1<<14)
+#define MISC_REGISTERS_RESET_REG_2_RST_EMAC1_HARD_CORE		 (0x1<<15)
+#define MISC_REGISTERS_RESET_REG_2_RST_GRC			 (0x1<<4)
+#define MISC_REGISTERS_RESET_REG_2_RST_MCP_N_HARD_CORE_RST_B	 (0x1<<6)
+#define MISC_REGISTERS_RESET_REG_2_RST_MCP_N_RESET_REG_HARD_CORE (0x1<<5)
+#define MISC_REGISTERS_RESET_REG_2_RST_MDIO			 (0x1<<13)
+#define MISC_REGISTERS_RESET_REG_2_RST_MISC_CORE		 (0x1<<11)
+#define MISC_REGISTERS_RESET_REG_2_RST_RBCN			 (0x1<<9)
 #define MISC_REGISTERS_RESET_REG_2_SET				 0x594
 #define MISC_REGISTERS_RESET_REG_3_CLEAR			 0x5a8
 #define MISC_REGISTERS_RESET_REG_3_MISC_NIG_MUX_SERDES0_IDDQ	 (0x1<<1)
@@ -4454,6 +4474,7 @@
 #define HW_LOCK_RESOURCE_GPIO					 1
 #define HW_LOCK_RESOURCE_MDIO					 0
 #define HW_LOCK_RESOURCE_PORT0_ATT_MASK 			 3
+#define HW_LOCK_RESOURCE_RESERVED_08				 8
 #define HW_LOCK_RESOURCE_SPIO					 2
 #define HW_LOCK_RESOURCE_UNDI					 5
 #define PRS_FLAG_OVERETH_IPV4					 1
@@ -4474,6 +4495,10 @@
 #define AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_0		      (1<<5)
 #define AEU_INPUTS_ATTN_BITS_GPIO3_FUNCTION_1		      (1<<9)
 #define AEU_INPUTS_ATTN_BITS_IGU_PARITY_ERROR		      (1<<12)
+#define AEU_INPUTS_ATTN_BITS_MCP_LATCHED_ROM_PARITY	      (1<<28)
+#define AEU_INPUTS_ATTN_BITS_MCP_LATCHED_SCPAD_PARITY	      (1<<31)
+#define AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_RX_PARITY	      (1<<29)
+#define AEU_INPUTS_ATTN_BITS_MCP_LATCHED_UMP_TX_PARITY	      (1<<30)
 #define AEU_INPUTS_ATTN_BITS_MISC_HW_INTERRUPT		      (1<<15)
 #define AEU_INPUTS_ATTN_BITS_MISC_PARITY_ERROR		      (1<<14)
 #define AEU_INPUTS_ATTN_BITS_PARSER_PARITY_ERROR	      (1<<20)

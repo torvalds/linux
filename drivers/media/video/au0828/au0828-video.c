@@ -177,7 +177,7 @@ void au0828_uninit_isoc(struct au0828_dev *dev)
 				usb_unlink_urb(urb);
 
 			if (dev->isoc_ctl.transfer_buffer[i]) {
-				usb_buffer_free(dev->usbdev,
+				usb_free_coherent(dev->usbdev,
 					urb->transfer_buffer_length,
 					dev->isoc_ctl.transfer_buffer[i],
 					urb->transfer_dma);
@@ -247,7 +247,7 @@ int au0828_init_isoc(struct au0828_dev *dev, int max_packets,
 		}
 		dev->isoc_ctl.urb[i] = urb;
 
-		dev->isoc_ctl.transfer_buffer[i] = usb_buffer_alloc(dev->usbdev,
+		dev->isoc_ctl.transfer_buffer[i] = usb_alloc_coherent(dev->usbdev,
 			sb_size, GFP_KERNEL, &urb->transfer_dma);
 		if (!dev->isoc_ctl.transfer_buffer[i]) {
 			printk("unable to allocate %i bytes for transfer"
@@ -1105,7 +1105,7 @@ static int vidioc_enum_input(struct file *file, void *priv,
 
 	tmp = input->index;
 
-	if (tmp > AU0828_MAX_INPUT)
+	if (tmp >= AU0828_MAX_INPUT)
 		return -EINVAL;
 	if (AUVI_INPUT(tmp).type == 0)
 		return -EINVAL;

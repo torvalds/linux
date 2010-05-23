@@ -53,7 +53,9 @@ config CAN_PLX_PCI
 	  Driver supports now:
 	   - Adlink PCI-7841/cPCI-7841 card (http://www.adlinktech.com/)
 	   - Adlink PCI-7841/cPCI-7841 SE card
+	   - esd CAN-PCI/CPCI/PCI104/200 (http://www.esd.eu/)
+	   - esd CAN-PCI/PMC/266
+	   - esd CAN-PCIe/2000
 	   - Marathon CAN-bus-PCI card (http://www.marathon.ru/)
 	   - TEWS TECHNOLOGIES TPMC810 card (http://www.tews.com/)
-
 endif

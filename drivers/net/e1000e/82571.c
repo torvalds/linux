@@ -234,9 +234,6 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	mac->mta_reg_count = 128;
 	/* Set rar entry count */
 	mac->rar_entry_count = E1000_RAR_ENTRIES;
-	/* Set if manageability features are enabled. */
-	mac->arc_subsystem_valid = (er32(FWSM) & E1000_FWSM_MODE_MASK)
-	                ? true : false;
 	/* Adaptive IFS supported */
 	mac->adaptive_ifs = true;
 
@@ -271,6 +268,16 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 		func->set_lan_id = e1000_set_lan_id_single_port;
 		func->check_mng_mode = e1000e_check_mng_mode_generic;
 		func->led_on = e1000e_led_on_generic;
+
+		/* FWSM register */
+		mac->has_fwsm = true;
+		/*
+		 * ARC supported; valid only if manageability features are
+		 * enabled.
+		 */
+		mac->arc_subsystem_valid =
+			(er32(FWSM) & E1000_FWSM_MODE_MASK)
+			? true : false;
 		break;
 	case e1000_82574:
 	case e1000_82583:
@@ -281,6 +288,9 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	default:
 		func->check_mng_mode = e1000e_check_mng_mode_generic;
 		func->led_on = e1000e_led_on_generic;
+
+		/* FWSM register */
+		mac->has_fwsm = true;
 		break;
 	}
 
@@ -323,7 +333,7 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	}
 
 	/*
-	 * Initialze device specific counter of SMBI acquisition
+	 * Initialize device specific counter of SMBI acquisition
 	 * timeouts.
 	 */
 	 hw->dev_spec.e82571.smb_counter = 0;
@@ -993,9 +1003,10 @@ static s32 e1000_init_hw_82571(struct e1000_hw *hw)
 	/* ...for both queues. */
 	switch (mac->type) {
 	case e1000_82573:
+		e1000e_enable_tx_pkt_filtering(hw);
+		/* fall through */
 	case e1000_82574:
 	case e1000_82583:
-		e1000e_enable_tx_pkt_filtering(hw);
 		reg_data = er32(GCR);
 		reg_data |= E1000_GCR_L1_ACT_WITHOUT_L0S_RX;
 		ew32(GCR, reg_data);
@@ -1137,8 +1148,6 @@ static void e1000_initialize_hw_bits_82571(struct e1000_hw *hw)
 	default:
 		break;
 	}
-
-	return;
 }
 
 /**
@@ -1642,8 +1651,6 @@ static void e1000_power_down_phy_copper_82571(struct e1000_hw *hw)
 	/* If the management interface is not enabled, then power down */
 	if (!(mac->ops.check_mng_mode(hw) || phy->ops.check_reset_block(hw)))
 		e1000_power_down_phy_copper(hw);
-
-	return;
 }
 
 /**
@@ -1845,7 +1852,7 @@ struct e1000_info e1000_82574_info = {
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
-	.pba			= 20,
+	.pba			= 36,
 	.max_hw_frame_size	= DEFAULT_JUMBO,
 	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,
@@ -1862,7 +1869,7 @@ struct e1000_info e1000_82583_info = {
 				  | FLAG_HAS_SMART_POWER_DOWN
 				  | FLAG_HAS_AMT
 				  | FLAG_HAS_CTRLEXT_ON_LOAD,
-	.pba			= 20,
+	.pba			= 36,
 	.max_hw_frame_size	= ETH_FRAME_LEN + ETH_FCS_LEN,
 	.get_variants		= e1000_get_variants_82571,
 	.mac_ops		= &e82571_mac_ops,

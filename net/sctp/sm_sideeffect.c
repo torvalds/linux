@@ -732,11 +732,15 @@ static void sctp_cmd_setup_t2(sctp_cmd_seq_t *cmds,
 {
 	struct sctp_transport *t;
 
-	t = sctp_assoc_choose_alter_transport(asoc,
+	if (chunk->transport)
+		t = chunk->transport;
+	else {
+		t = sctp_assoc_choose_alter_transport(asoc,
 					      asoc->shutdown_last_sent_to);
+		chunk->transport = t;
+	}
 	asoc->shutdown_last_sent_to = t;
 	asoc->timeouts[SCTP_EVENT_TIMEOUT_T2_SHUTDOWN] = t->rto;
-	chunk->transport = t;
 }
 
 /* Helper function to change the state of an association. */
@@ -888,8 +892,6 @@ static void sctp_cmd_process_fwdtsn(struct sctp_ulpq *ulpq,
 	sctp_walk_fwdtsn(skip, chunk) {
 		sctp_ulpq_skip(ulpq, ntohs(skip->stream), ntohs(skip->ssn));
 	}
-
-	return;
 }
 
 /* Helper function to remove the association non-primary peer
@@ -908,8 +910,6 @@ static void sctp_cmd_del_non_primary(struct sctp_association *asoc)
 			sctp_assoc_del_peer(asoc, &t->ipaddr);
 		}
 	}
-
-	return;
 }
 
 /* Helper function to set sk_err on a 1-1 style socket. */

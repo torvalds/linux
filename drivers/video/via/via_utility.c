@@ -19,6 +19,7 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/via-core.h>
 #include "global.h"
 
 void viafb_get_device_support_state(u32 *support_state)

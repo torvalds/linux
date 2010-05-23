@@ -76,7 +76,7 @@ struct pci_ops pci_root_ops = {
  * This interrupt-safe spinlock protects all accesses to PCI
  * configuration space.
  */
-DEFINE_SPINLOCK(pci_config_lock);
+DEFINE_RAW_SPINLOCK(pci_config_lock);
 
 static int __devinit can_skip_ioresource_align(const struct dmi_system_id *d)
 {

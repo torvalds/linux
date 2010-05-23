@@ -429,24 +429,17 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	list_for_each_entry_safe(chunk, tmp, &packet->chunk_list, list) {
 		list_del_init(&chunk->list);
 		if (sctp_chunk_is_data(chunk)) {
+			/* 6.3.1 C4) When data is in flight and when allowed
+			 * by rule C5, a new RTT measurement MUST be made each
+			 * round trip.  Furthermore, new RTT measurements
+			 * SHOULD be made no more than once per round-trip
+			 * for a given destination transport address.
+			 */
 
-			if (!chunk->resent) {
-
-				/* 6.3.1 C4) When data is in flight and when allowed
-				 * by rule C5, a new RTT measurement MUST be made each
-				 * round trip.  Furthermore, new RTT measurements
-				 * SHOULD be made no more than once per round-trip
-				 * for a given destination transport address.
-				 */
-
-				if (!tp->rto_pending) {
-					chunk->rtt_in_progress = 1;
-					tp->rto_pending = 1;
-				}
+			if (!tp->rto_pending) {
+				chunk->rtt_in_progress = 1;
+				tp->rto_pending = 1;
 			}
-
-			chunk->resent = 1;
-
 			has_data = 1;
 		}
 
@@ -681,7 +674,7 @@ static sctp_xmit_t sctp_packet_can_append_data(struct sctp_packet *packet,
 		 * Don't delay large message writes that may have been
 		 * fragmeneted into small peices.
 		 */
-		if ((len < max) && (chunk->msg->msg_size < max)) {
+		if ((len < max) && chunk->msg->can_delay) {
 			retval = SCTP_XMIT_NAGLE_DELAY;
 			goto finish;
 		}

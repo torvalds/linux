@@ -33,6 +33,7 @@
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/mm.h>
@@ -40,7 +41,6 @@
 #include <linux/slab.h>
 #include <asm/cacheflush.h>
 
-#include "../core/hcd.h"
 #include "r8a66597.h"
 
 MODULE_DESCRIPTION("R8A66597 USB Host Controller Driver");
@@ -1018,10 +1018,10 @@ static void start_root_hub_sampling(struct r8a66597 *r8a66597, int port,
 	rh->old_syssts = r8a66597_read(r8a66597, get_syssts_reg(port)) & LNST;
 	rh->scount = R8A66597_MAX_SAMPLING;
 	if (connect)
-		rh->port |= 1 << USB_PORT_FEAT_CONNECTION;
+		rh->port |= USB_PORT_STAT_CONNECTION;
 	else
-		rh->port &= ~(1 << USB_PORT_FEAT_CONNECTION);
-	rh->port |= 1 << USB_PORT_FEAT_C_CONNECTION;
+		rh->port &= ~USB_PORT_STAT_CONNECTION;
+	rh->port |= USB_PORT_STAT_C_CONNECTION << 16;
 
 	r8a66597_root_hub_start_polling(r8a66597);
 }
@@ -1059,15 +1059,14 @@ static void r8a66597_usb_connect(struct r8a66597 *r8a66597, int port)
 	u16 speed = get_rh_usb_speed(r8a66597, port);
 	struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
 
-	rh->port &= ~((1 << USB_PORT_FEAT_HIGHSPEED) |
-		      (1 << USB_PORT_FEAT_LOWSPEED));
+	rh->port &= ~(USB_PORT_STAT_HIGH_SPEED | USB_PORT_STAT_LOW_SPEED);
 	if (speed == HSMODE)
-		rh->port |= (1 << USB_PORT_FEAT_HIGHSPEED);
+		rh->port |= USB_PORT_STAT_HIGH_SPEED;
 	else if (speed == LSMODE)
-		rh->port |= (1 << USB_PORT_FEAT_LOWSPEED);
+		rh->port |= USB_PORT_STAT_LOW_SPEED;
 
-	rh->port &= ~(1 << USB_PORT_FEAT_RESET);
-	rh->port |= 1 << USB_PORT_FEAT_ENABLE;
+	rh->port &= USB_PORT_STAT_RESET;
+	rh->port |= USB_PORT_STAT_ENABLE;
 }
 
 /* this function must be called with interrupt disabled */
@@ -1706,7 +1705,7 @@ static void r8a66597_root_hub_control(struct r8a66597 *r8a66597, int port)
 	u16 tmp;
 	struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
 
-	if (rh->port & (1 << USB_PORT_FEAT_RESET)) {
+	if (rh->port & USB_PORT_STAT_RESET) {
 		unsigned long dvstctr_reg = get_dvstctr_reg(port);
 
 		tmp = r8a66597_read(r8a66597, dvstctr_reg);
@@ -1718,7 +1717,7 @@ static void r8a66597_root_hub_control(struct r8a66597 *r8a66597, int port)
 			r8a66597_usb_connect(r8a66597, port);
 	}
 
-	if (!(rh->port & (1 << USB_PORT_FEAT_CONNECTION))) {
+	if (!(rh->port & USB_PORT_STAT_CONNECTION)) {
 		r8a66597_write(r8a66597, ~ATTCH, get_intsts_reg(port));
 		r8a66597_bset(r8a66597, ATTCHE, get_intenb_reg(port));
 	}
@@ -2186,7 +2185,7 @@ static int r8a66597_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 		switch (wValue) {
 		case USB_PORT_FEAT_ENABLE:
-			rh->port &= ~(1 << USB_PORT_FEAT_POWER);
+			rh->port &= ~USB_PORT_STAT_POWER;
 			break;
 		case USB_PORT_FEAT_SUSPEND:
 			break;
@@ -2227,12 +2226,12 @@ static int r8a66597_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 			break;
 		case USB_PORT_FEAT_POWER:
 			r8a66597_port_power(r8a66597, port, 1);
-			rh->port |= (1 << USB_PORT_FEAT_POWER);
+			rh->port |= USB_PORT_STAT_POWER;
 			break;
 		case USB_PORT_FEAT_RESET: {
 			struct r8a66597_device *dev = rh->dev;
 
-			rh->port |= (1 << USB_PORT_FEAT_RESET);
+			rh->port |= USB_PORT_STAT_RESET;
 
 			disable_r8a66597_pipe_all(r8a66597, dev);
 			free_usb_address(r8a66597, dev, 1);
@@ -2270,12 +2269,12 @@ static int r8a66597_bus_suspend(struct usb_hcd *hcd)
 		struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
 		unsigned long dvstctr_reg = get_dvstctr_reg(port);
 
-		if (!(rh->port & (1 << USB_PORT_FEAT_ENABLE)))
+		if (!(rh->port & USB_PORT_STAT_ENABLE))
 			continue;
 
 		dbg("suspend port = %d", port);
 		r8a66597_bclr(r8a66597, UACT, dvstctr_reg);	/* suspend */
-		rh->port |= 1 << USB_PORT_FEAT_SUSPEND;
+		rh->port |= USB_PORT_STAT_SUSPEND;
 
 		if (rh->dev->udev->do_remote_wakeup) {
 			msleep(3);	/* waiting last SOF */
@@ -2301,12 +2300,12 @@ static int r8a66597_bus_resume(struct usb_hcd *hcd)
 		struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
 		unsigned long dvstctr_reg = get_dvstctr_reg(port);
 
-		if (!(rh->port & (1 << USB_PORT_FEAT_SUSPEND)))
+		if (!(rh->port & USB_PORT_STAT_SUSPEND))
 			continue;
 
 		dbg("resume port = %d", port);
-		rh->port &= ~(1 << USB_PORT_FEAT_SUSPEND);
-		rh->port |= 1 << USB_PORT_FEAT_C_SUSPEND;
+		rh->port &= ~USB_PORT_STAT_SUSPEND;
+		rh->port |= USB_PORT_STAT_C_SUSPEND < 16;
 		r8a66597_mdfy(r8a66597, RESUME, RESUME | UACT, dvstctr_reg);
 		msleep(50);
 		r8a66597_mdfy(r8a66597, UACT, RESUME | UACT, dvstctr_reg);

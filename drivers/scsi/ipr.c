@@ -3120,6 +3120,7 @@ restart:
 #ifdef CONFIG_SCSI_IPR_TRACE
 /**
  * ipr_read_trace - Dump the adapter trace
+ * @filp:		open sysfs file
  * @kobj:		kobject struct
  * @bin_attr:		bin_attribute struct
  * @buf:		buffer
@@ -3129,7 +3130,7 @@ restart:
  * Return value:
  *	number of bytes printed to buffer
  **/
-static ssize_t ipr_read_trace(struct kobject *kobj,
+static ssize_t ipr_read_trace(struct file *filp, struct kobject *kobj,
 			      struct bin_attribute *bin_attr,
 			      char *buf, loff_t off, size_t count)
 {
@@ -3764,6 +3765,7 @@ static struct device_attribute *ipr_ioa_attrs[] = {
 #ifdef CONFIG_SCSI_IPR_DUMP
 /**
  * ipr_read_dump - Dump the adapter
+ * @filp:		open sysfs file
  * @kobj:		kobject struct
  * @bin_attr:		bin_attribute struct
  * @buf:		buffer
@@ -3773,7 +3775,7 @@ static struct device_attribute *ipr_ioa_attrs[] = {
  * Return value:
  *	number of bytes printed to buffer
  **/
-static ssize_t ipr_read_dump(struct kobject *kobj,
+static ssize_t ipr_read_dump(struct file *filp, struct kobject *kobj,
 			     struct bin_attribute *bin_attr,
 			     char *buf, loff_t off, size_t count)
 {
@@ -3927,6 +3929,7 @@ static int ipr_free_dump(struct ipr_ioa_cfg *ioa_cfg)
 
 /**
  * ipr_write_dump - Setup dump state of adapter
+ * @filp:		open sysfs file
  * @kobj:		kobject struct
  * @bin_attr:		bin_attribute struct
  * @buf:		buffer
@@ -3936,7 +3939,7 @@ static int ipr_free_dump(struct ipr_ioa_cfg *ioa_cfg)
  * Return value:
  *	number of bytes printed to buffer
  **/
-static ssize_t ipr_write_dump(struct kobject *kobj,
+static ssize_t ipr_write_dump(struct file *filp, struct kobject *kobj,
 			      struct bin_attribute *bin_attr,
 			      char *buf, loff_t off, size_t count)
 {
@@ -4295,7 +4298,7 @@ static void ipr_slave_destroy(struct scsi_device *sdev)
 	res = (struct ipr_resource_entry *) sdev->hostdata;
 	if (res) {
 		if (res->sata_port)
-			ata_port_disable(res->sata_port->ap);
+			res->sata_port->ap->link.device[0].class = ATA_DEV_NONE;
 		sdev->hostdata = NULL;
 		res->sdev = NULL;
 		res->sata_port = NULL;
@@ -5751,13 +5754,13 @@ static void ipr_ata_phy_reset(struct ata_port *ap)
 	rc = ipr_device_reset(ioa_cfg, res);
 
 	if (rc) {
-		ata_port_disable(ap);
+		ap->link.device[0].class = ATA_DEV_NONE;
 		goto out_unlock;
 	}
 
 	ap->link.device[0].class = res->ata_class;
 	if (ap->link.device[0].class == ATA_DEV_UNKNOWN)
-		ata_port_disable(ap);
+		ap->link.device[0].class = ATA_DEV_NONE;
 
 out_unlock:
 	spin_unlock_irqrestore(ioa_cfg->host->host_lock, flags);

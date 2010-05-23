@@ -50,7 +50,7 @@ static void br_send_bpdu(struct net_bridge_port *p,
 
 	llc_mac_hdr_init(skb, p->dev->dev_addr, p->br->group_addr);
 
-	NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_OUT, skb, NULL, skb->dev,
+	NF_HOOK(NFPROTO_BRIDGE, NF_BR_LOCAL_OUT, skb, NULL, skb->dev,
 		dev_queue_xmit);
 }
 

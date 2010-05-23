@@ -431,7 +431,6 @@ static void zorro8390_block_output(struct net_device *dev, int count,
 
     z_writeb(ENISR_RDC, nic_base + NE_EN0_ISR);	/* Ack intr. */
     ei_status.dmaing &= ~0x01;
-    return;
 }
 
 static void __devexit zorro8390_remove_one(struct zorro_dev *z)

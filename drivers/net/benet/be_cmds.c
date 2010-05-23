@@ -843,7 +843,8 @@ int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
  * Uses mbox
  */
 int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
-		u8 *mac, bool pmac_invalid, u32 *if_handle, u32 *pmac_id)
+		u8 *mac, bool pmac_invalid, u32 *if_handle, u32 *pmac_id,
+		u32 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_if_create *req;
@@ -860,6 +861,7 @@ int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_NTWK_INTERFACE_CREATE, sizeof(*req));
 
+	req->hdr.domain = domain;
 	req->capability_flags = cpu_to_le32(cap_flags);
 	req->enable_flags = cpu_to_le32(en_flags);
 	req->pmac_invalid = pmac_invalid;
@@ -1111,6 +1113,10 @@ int be_cmd_promiscuous_config(struct be_adapter *adapter, u8 port_num, bool en)
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ETH,
 		OPCODE_ETH_PROMISCUOUS, sizeof(*req));
 
+	/* In FW versions X.102.149/X.101.487 and later,
+	 * the port setting associated only with the
+	 * issuing pci function will take effect
+	 */
 	if (port_num)
 		req->port1_promiscuous = en;
 	else
@@ -1157,13 +1163,13 @@ int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
 	req->interface_id = if_id;
 	if (netdev) {
 		int i;
-		struct dev_mc_list *mc;
+		struct netdev_hw_addr *ha;
 
 		req->num_mac = cpu_to_le16(netdev_mc_count(netdev));
 
 		i = 0;
-		netdev_for_each_mc_addr(mc, netdev)
-			memcpy(req->mac[i].byte, mc->dmi_addr, ETH_ALEN);
+		netdev_for_each_mc_addr(ha, netdev)
+			memcpy(req->mac[i].byte, ha->addr, ETH_ALEN);
 	} else {
 		req->promiscuous = 1;
 	}

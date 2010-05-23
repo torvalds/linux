@@ -33,6 +33,29 @@
 #include <linux/kvm_host.h>
 #include "trace.h"
 
+static void pic_lock(struct kvm_pic *s)
+	__acquires(&s->lock)
+{
+	raw_spin_lock(&s->lock);
+}
+
+static void pic_unlock(struct kvm_pic *s)
+	__releases(&s->lock)
+{
+	bool wakeup = s->wakeup_needed;
+	struct kvm_vcpu *vcpu;
+
+	s->wakeup_needed = false;
+
+	raw_spin_unlock(&s->lock);
+
+	if (wakeup) {
+		vcpu = s->kvm->bsp_vcpu;
+		if (vcpu)
+			kvm_vcpu_kick(vcpu);
+	}
+}
+
 static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
 {
 	s->isr &= ~(1 << irq);
@@ -45,19 +68,19 @@ static void pic_clear_isr(struct kvm_kpic_state *s, int irq)
 	 * Other interrupt may be delivered to PIC while lock is dropped but
 	 * it should be safe since PIC state is already updated at this stage.
 	 */
-	raw_spin_unlock(&s->pics_state->lock);
+	pic_unlock(s->pics_state);
 	kvm_notify_acked_irq(s->pics_state->kvm, SELECT_PIC(irq), irq);
-	raw_spin_lock(&s->pics_state->lock);
+	pic_lock(s->pics_state);
 }
 
 void kvm_pic_clear_isr_ack(struct kvm *kvm)
 {
 	struct kvm_pic *s = pic_irqchip(kvm);
 
-	raw_spin_lock(&s->lock);
+	pic_lock(s);
 	s->pics[0].isr_ack = 0xff;
 	s->pics[1].isr_ack = 0xff;
-	raw_spin_unlock(&s->lock);
+	pic_unlock(s);
 }
 
 /*
@@ -158,9 +181,9 @@ static void pic_update_irq(struct kvm_pic *s)
 
 void kvm_pic_update_irq(struct kvm_pic *s)
 {
-	raw_spin_lock(&s->lock);
+	pic_lock(s);
 	pic_update_irq(s);
-	raw_spin_unlock(&s->lock);
+	pic_unlock(s);
 }
 
 int kvm_pic_set_irq(void *opaque, int irq, int level)
@@ -168,14 +191,14 @@ int kvm_pic_set_irq(void *opaque, int irq, int level)
 	struct kvm_pic *s = opaque;
 	int ret = -1;
 
-	raw_spin_lock(&s->lock);
+	pic_lock(s);
 	if (irq >= 0 && irq < PIC_NUM_PINS) {
 		ret = pic_set_irq1(&s->pics[irq >> 3], irq & 7, level);
 		pic_update_irq(s);
 		trace_kvm_pic_set_irq(irq >> 3, irq & 7, s->pics[irq >> 3].elcr,
 				      s->pics[irq >> 3].imr, ret == 0);
 	}
-	raw_spin_unlock(&s->lock);
+	pic_unlock(s);
 
 	return ret;
 }
@@ -205,7 +228,7 @@ int kvm_pic_read_irq(struct kvm *kvm)
 	int irq, irq2, intno;
 	struct kvm_pic *s = pic_irqchip(kvm);
 
-	raw_spin_lock(&s->lock);
+	pic_lock(s);
 	irq = pic_get_irq(&s->pics[0]);
 	if (irq >= 0) {
 		pic_intack(&s->pics[0], irq);
@@ -230,7 +253,7 @@ int kvm_pic_read_irq(struct kvm *kvm)
 		intno = s->pics[0].irq_base + irq;
 	}
 	pic_update_irq(s);
-	raw_spin_unlock(&s->lock);
+	pic_unlock(s);
 
 	return intno;
 }
@@ -444,7 +467,7 @@ static int picdev_write(struct kvm_io_device *this,
 			printk(KERN_ERR "PIC: non byte write\n");
 		return 0;
 	}
-	raw_spin_lock(&s->lock);
+	pic_lock(s);
 	switch (addr) {
 	case 0x20:
 	case 0x21:
@@ -457,7 +480,7 @@ static int picdev_write(struct kvm_io_device *this,
 		elcr_ioport_write(&s->pics[addr & 1], addr, data);
 		break;
 	}
-	raw_spin_unlock(&s->lock);
+	pic_unlock(s);
 	return 0;
 }
 
@@ -474,7 +497,7 @@ static int picdev_read(struct kvm_io_device *this,
 			printk(KERN_ERR "PIC: non byte read\n");
 		return 0;
 	}
-	raw_spin_lock(&s->lock);
+	pic_lock(s);
 	switch (addr) {
 	case 0x20:
 	case 0x21:
@@ -488,7 +511,7 @@ static int picdev_read(struct kvm_io_device *this,
 		break;
 	}
 	*(unsigned char *)val = data;
-	raw_spin_unlock(&s->lock);
+	pic_unlock(s);
 	return 0;
 }
 
@@ -505,7 +528,7 @@ static void pic_irq_request(void *opaque, int level)
 	s->output = level;
 	if (vcpu && level && (s->pics[0].isr_ack & (1 << irq))) {
 		s->pics[0].isr_ack &= ~(1 << irq);
-		kvm_vcpu_kick(vcpu);
+		s->wakeup_needed = true;
 	}
 }
 

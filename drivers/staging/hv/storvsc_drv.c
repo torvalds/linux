@@ -33,9 +33,9 @@
 #include <scsi/scsi_dbg.h>
 #include "osd.h"
 #include "logging.h"
-#include "VersionInfo.h"
+#include "version_info.h"
 #include "vmbus.h"
-#include "StorVscApi.h"
+#include "storvsc_api.h"
 
 
 struct host_device_context {
@@ -97,6 +97,8 @@ static int storvsc_get_chs(struct scsi_device *sdev, struct block_device *bdev,
 
 
 static int storvsc_ringbuffer_size = STORVSC_RING_BUFFER_SIZE;
+module_param(storvsc_ringbuffer_size, int, S_IRUGO);
+MODULE_PARM_DESC(storvsc_ringbuffer_size, "Ring buffer size (bytes)");
 
 /* The one and only one */
 static struct storvsc_driver_context g_storvsc_drv;
@@ -112,7 +114,7 @@ static struct scsi_host_template scsi_driver = {
 	.slave_configure =	storvsc_device_configure,
 	.cmd_per_lun =		1,
 	/* 64 max_queue * 1 target */
-	.can_queue = 		STORVSC_MAX_IO_REQUESTS*STORVSC_MAX_TARGETS,
+	.can_queue =		STORVSC_MAX_IO_REQUESTS*STORVSC_MAX_TARGETS,
 	.this_id =		-1,
 	/* no use setting to 0 since ll_blk_rw reset it to 1 */
 	/* currently 32 */
@@ -130,7 +132,7 @@ static struct scsi_host_template scsi_driver = {
 };
 
 
-/**
+/*
  * storvsc_drv_init - StorVsc driver initialization.
  */
 static int storvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
@@ -223,7 +225,7 @@ static void storvsc_drv_exit(void)
 	return;
 }
 
-/**
+/*
  * storvsc_probe - Add a new device for this driver
  */
 static int storvsc_probe(struct device *device)
@@ -319,7 +321,7 @@ static int storvsc_probe(struct device *device)
 	return ret;
 }
 
-/**
+/*
  * storvsc_remove - Callback when our device is removed
  */
 static int storvsc_remove(struct device *device)
@@ -372,7 +374,7 @@ static int storvsc_remove(struct device *device)
 	return ret;
 }
 
-/**
+/*
  * storvsc_commmand_completion - Command completion processing
  */
 static void storvsc_commmand_completion(struct hv_storvsc_request *request)
@@ -385,11 +387,11 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 	void (*scsi_done_fn)(struct scsi_cmnd *);
 	struct scsi_sense_hdr sense_hdr;
 
-	ASSERT(request == &cmd_request->request);
-	ASSERT((unsigned long)scmnd->host_scribble ==
-		(unsigned long)cmd_request);
-	ASSERT(scmnd);
-	ASSERT(scmnd->scsi_done);
+	/* ASSERT(request == &cmd_request->request); */
+	/* ASSERT(scmnd); */
+	/* ASSERT((unsigned long)scmnd->host_scribble == */
+	/*        (unsigned long)cmd_request); */
+	/* ASSERT(scmnd->scsi_done); */
 
 	DPRINT_ENTER(STORVSC_DRV);
 
@@ -413,7 +415,7 @@ static void storvsc_commmand_completion(struct hv_storvsc_request *request)
 			scsi_print_sense_hdr("storvsc", &sense_hdr);
 	}
 
-	ASSERT(request->BytesXfer <= request->DataBuffer.Length);
+	/* ASSERT(request->BytesXfer <= request->DataBuffer.Length); */
 	scsi_set_resid(scmnd, request->DataBuffer.Length - request->BytesXfer);
 
 	scsi_done_fn = scmnd->scsi_done;
@@ -522,7 +524,7 @@ static unsigned int copy_to_bounce_buffer(struct scatterlist *orig_sgl,
 		src = src_addr;
 		srclen = orig_sgl[i].length;
 
-		ASSERT(orig_sgl[i].offset + orig_sgl[i].length <= PAGE_SIZE);
+		/* ASSERT(orig_sgl[i].offset + orig_sgl[i].length <= PAGE_SIZE); */
 
 		if (j == 0)
 			bounce_addr = (unsigned long)kmap_atomic(sg_page((&bounce_sgl[j])), KM_IRQ0);
@@ -583,7 +585,7 @@ static unsigned int copy_from_bounce_buffer(struct scatterlist *orig_sgl,
 					KM_IRQ0) + orig_sgl[i].offset;
 		dest = dest_addr;
 		destlen = orig_sgl[i].length;
-		ASSERT(orig_sgl[i].offset + orig_sgl[i].length <= PAGE_SIZE);
+		/* ASSERT(orig_sgl[i].offset + orig_sgl[i].length <= PAGE_SIZE); */
 
 		if (j == 0)
 			bounce_addr = (unsigned long)kmap_atomic(sg_page((&bounce_sgl[j])), KM_IRQ0);
@@ -623,7 +625,7 @@ static unsigned int copy_from_bounce_buffer(struct scatterlist *orig_sgl,
 	return total_copied;
 }
 
-/**
+/*
  * storvsc_queuecommand - Initiate command processing
  */
 static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
@@ -655,7 +657,7 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
 
 	/* If retrying, no need to prep the cmd */
 	if (scmnd->host_scribble) {
-		ASSERT(scmnd->scsi_done != NULL);
+		/* ASSERT(scmnd->scsi_done != NULL); */
 
 		cmd_request =
 			(struct storvsc_cmd_request *)scmnd->host_scribble;
@@ -665,8 +667,8 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
 		goto retry_request;
 	}
 
-	ASSERT(scmnd->scsi_done == NULL);
-	ASSERT(scmnd->host_scribble == NULL);
+	/* ASSERT(scmnd->scsi_done == NULL); */
+	/* ASSERT(scmnd->host_scribble == NULL); */
 
 	scmnd->scsi_done = done;
 
@@ -717,7 +719,7 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
 	request->TargetId = scmnd->device->id;
 	request->LunId = scmnd->device->lun;
 
-	ASSERT(scmnd->cmd_len <= 16);
+	/* ASSERT(scmnd->cmd_len <= 16); */
 	request->CdbLen = scmnd->cmd_len;
 	request->Cdb = scmnd->cmnd;
 
@@ -767,19 +769,17 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
 		request->DataBuffer.Offset = sgl[0].offset;
 
 		for (i = 0; i < scsi_sg_count(scmnd); i++) {
-			DPRINT_DBG(STORVSC_DRV, "sgl[%d] len %d offset %d \n",
+			DPRINT_DBG(STORVSC_DRV, "sgl[%d] len %d offset %d\n",
 				   i, sgl[i].length, sgl[i].offset);
 			request->DataBuffer.PfnArray[i] =
 					page_to_pfn(sg_page((&sgl[i])));
 		}
 	} else if (scsi_sglist(scmnd)) {
-		ASSERT(scsi_bufflen(scmnd) <= PAGE_SIZE);
+		/* ASSERT(scsi_bufflen(scmnd) <= PAGE_SIZE); */
 		request->DataBuffer.Offset =
 			virt_to_phys(scsi_sglist(scmnd)) & (PAGE_SIZE-1);
 		request->DataBuffer.PfnArray[0] =
 			virt_to_phys(scsi_sglist(scmnd)) >> PAGE_SHIFT;
-	} else {
-		ASSERT(scsi_bufflen(scmnd) == 0);
 	}
 
 retry_request:
@@ -824,7 +824,7 @@ static int storvsc_merge_bvec(struct request_queue *q,
 	return bvec->bv_len;
 }
 
-/**
+/*
  * storvsc_device_configure - Configure the specified scsi device
  */
 static int storvsc_device_alloc(struct scsi_device *sdevice)
@@ -863,7 +863,7 @@ static int storvsc_device_configure(struct scsi_device *sdevice)
 	return 0;
 }
 
-/**
+/*
  * storvsc_host_reset_handler - Reset the scsi HBA
  */
 static int storvsc_host_reset_handler(struct scsi_cmnd *scmnd)
@@ -993,6 +993,6 @@ static void __exit storvsc_exit(void)
 
 MODULE_LICENSE("GPL");
 MODULE_VERSION(HV_DRV_VERSION);
-module_param(storvsc_ringbuffer_size, int, S_IRUGO);
+MODULE_DESCRIPTION("Microsoft Hyper-V virtual storage driver");
 module_init(storvsc_init);
 module_exit(storvsc_exit);

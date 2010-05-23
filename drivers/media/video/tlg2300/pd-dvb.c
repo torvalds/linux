@@ -97,15 +97,17 @@ open_out:
 	return ret;
 }
 
+#ifdef CONFIG_PM
 static void poseidon_fe_release(struct dvb_frontend *fe)
 {
 	struct poseidon *pd = fe->demodulator_priv;
 
-#ifdef CONFIG_PM
 	pd->pm_suspend = NULL;
 	pd->pm_resume  = NULL;
-#endif
 }
+#else
+#define poseidon_fe_release NULL
+#endif
 
 static s32 poseidon_fe_sleep(struct dvb_frontend *fe)
 {

@@ -45,6 +45,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/mm.h>
+#include <linux/pm.h>
 #include <linux/ethtool.h>
 #include <linux/proc_fs.h>
 #include <linux/in.h>
@@ -199,7 +200,7 @@ static int ibmveth_alloc_buffer_pool(struct ibmveth_buff_pool *pool)
 		return -1;
 	}
 
-	pool->skbuff = kmalloc(sizeof(void*) * pool->size, GFP_KERNEL);
+	pool->skbuff = kcalloc(pool->size, sizeof(void *), GFP_KERNEL);
 
 	if(!pool->skbuff) {
 		kfree(pool->dma_addr);
@@ -210,7 +211,6 @@ static int ibmveth_alloc_buffer_pool(struct ibmveth_buff_pool *pool)
 		return -1;
 	}
 
-	memset(pool->skbuff, 0, sizeof(void*) * pool->size);
 	memset(pool->dma_addr, 0, sizeof(dma_addr_t) * pool->size);
 
 	for(i = 0; i < pool->size; ++i) {
@@ -957,7 +957,7 @@ static netdev_tx_t ibmveth_start_xmit(struct sk_buff *skb,
 	} else {
 		tx_packets++;
 		tx_bytes += skb->len;
-		netdev->trans_start = jiffies;
+		netdev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
 	}
 
 	if (!used_bounce)
@@ -1073,7 +1073,7 @@ static void ibmveth_set_multicast_list(struct net_device *netdev)
 			ibmveth_error_printk("h_multicast_ctrl rc=%ld when entering promisc mode\n", lpar_rc);
 		}
 	} else {
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		/* clear the filter table & disable filtering */
 		lpar_rc = h_multicast_ctrl(adapter->vdev->unit_address,
 					   IbmVethMcastEnableRecv |
@@ -1084,10 +1084,10 @@ static void ibmveth_set_multicast_list(struct net_device *netdev)
 			ibmveth_error_printk("h_multicast_ctrl rc=%ld when attempting to clear filter table\n", lpar_rc);
 		}
 		/* add the addresses to the filter table */
-		netdev_for_each_mc_addr(mclist, netdev) {
+		netdev_for_each_mc_addr(ha, netdev) {
 			// add the multicast address to the filter table
 			unsigned long mcast_addr = 0;
-			memcpy(((char *)&mcast_addr)+2, mclist->dmi_addr, 6);
+			memcpy(((char *)&mcast_addr)+2, ha->addr, 6);
 			lpar_rc = h_multicast_ctrl(adapter->vdev->unit_address,
 						   IbmVethMcastAddFilter,
 						   mcast_addr);
@@ -1421,7 +1421,6 @@ static void ibmveth_proc_register_adapter(struct ibmveth_adapter *adapter)
 		if (!entry)
 			ibmveth_error_printk("Cannot create adapter proc entry");
 	}
-	return;
 }
 
 static void ibmveth_proc_unregister_adapter(struct ibmveth_adapter *adapter)
@@ -1589,12 +1588,22 @@ static struct kobj_type ktype_veth_pool = {
 	.default_attrs  = veth_pool_attrs,
 };
 
+static int ibmveth_resume(struct device *dev)
+{
+	struct net_device *netdev = dev_get_drvdata(dev);
+	ibmveth_interrupt(netdev->irq, netdev);
+	return 0;
+}
 
 static struct vio_device_id ibmveth_device_table[] __devinitdata= {
 	{ "network", "IBM,l-lan"},
 	{ "", "" }
 };
 MODULE_DEVICE_TABLE(vio, ibmveth_device_table);
+
+static struct dev_pm_ops ibmveth_pm_ops = {
+	.resume = ibmveth_resume
+};
 
 static struct vio_driver ibmveth_driver = {
 	.id_table	= ibmveth_device_table,
@@ -1604,6 +1613,7 @@ static struct vio_driver ibmveth_driver = {
 	.driver		= {
 		.name	= ibmveth_driver_name,
 		.owner	= THIS_MODULE,
+		.pm = &ibmveth_pm_ops,
 	}
 };
 

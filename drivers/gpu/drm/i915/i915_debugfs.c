@@ -96,19 +96,18 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 		spin_lock(lock);
 	list_for_each_entry(obj_priv, head, list)
 	{
-		struct drm_gem_object *obj = obj_priv->obj;
-
 		seq_printf(m, "    %p: %s %8zd %08x %08x %d%s%s",
-			   obj,
+			   &obj_priv->base,
 			   get_pin_flag(obj_priv),
-			   obj->size,
-			   obj->read_domains, obj->write_domain,
+			   obj_priv->base.size,
+			   obj_priv->base.read_domains,
+			   obj_priv->base.write_domain,
 			   obj_priv->last_rendering_seqno,
 			   obj_priv->dirty ? " dirty" : "",
 			   obj_priv->madv == I915_MADV_DONTNEED ? " purgeable" : "");
 
-		if (obj->name)
-			seq_printf(m, " (name: %d)", obj->name);
+		if (obj_priv->base.name)
+			seq_printf(m, " (name: %d)", obj_priv->base.name);
 		if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
 			seq_printf(m, " (fence: %d)", obj_priv->fence_reg);
 		if (obj_priv->gtt_space != NULL)
@@ -289,7 +288,7 @@ static int i915_batchbuffer_info(struct seq_file *m, void *data)
 	spin_lock(&dev_priv->mm.active_list_lock);
 
 	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, list) {
-		obj = obj_priv->obj;
+		obj = &obj_priv->base;
 		if (obj->read_domains & I915_GEM_DOMAIN_COMMAND) {
 		    ret = i915_gem_object_get_pages(obj, 0);
 		    if (ret) {
@@ -567,23 +566,14 @@ static int i915_fbc_status(struct seq_file *m, void *unused)
 {
 	struct drm_info_node *node = (struct drm_info_node *) m->private;
 	struct drm_device *dev = node->minor->dev;
-	struct drm_crtc *crtc;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	bool fbc_enabled = false;
 
-	if (!dev_priv->display.fbc_enabled) {
+	if (!I915_HAS_FBC(dev)) {
 		seq_printf(m, "FBC unsupported on this chipset\n");
 		return 0;
 	}
 
-	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
-		if (!crtc->enabled)
-			continue;
-		if (dev_priv->display.fbc_enabled(crtc))
-			fbc_enabled = true;
-	}
-
-	if (fbc_enabled) {
+	if (intel_fbc_enabled(dev)) {
 		seq_printf(m, "FBC enabled\n");
 	} else {
 		seq_printf(m, "FBC disabled: ");
