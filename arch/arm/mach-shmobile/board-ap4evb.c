@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/mfd/sh_mobile_sdhi.h>
+#include <linux/mmc/host.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
@@ -298,8 +299,8 @@ static struct platform_device sh_mmcif_device = {
 
 /* SDHI0 */
 static struct sh_mobile_sdhi_info sdhi0_info = {
-	.dma_slave_tx = SHDMA_SLAVE_SDHI0_TX,
-	.dma_slave_rx = SHDMA_SLAVE_SDHI0_RX,
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
 };
 
 static struct resource sdhi0_resources[] = {
@@ -322,6 +323,36 @@ static struct platform_device sdhi0_device = {
 	.id             = 0,
 	.dev	= {
 		.platform_data	= &sdhi0_info,
+	},
+};
+
+/* SDHI1 */
+static struct sh_mobile_sdhi_info sdhi1_info = {
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI1_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI1_RX,
+	.tmio_ocr_mask	= MMC_VDD_165_195,
+};
+
+static struct resource sdhi1_resources[] = {
+	[0] = {
+		.name	= "SDHI1",
+		.start  = 0xe6860000,
+		.end    = 0xe68601ff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = evt2irq(0x0e80),
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi1_device = {
+	.name           = "sh_mobile_sdhi",
+	.num_resources  = ARRAY_SIZE(sdhi1_resources),
+	.resource       = sdhi1_resources,
+	.id             = 1,
+	.dev	= {
+		.platform_data	= &sdhi1_info,
 	},
 };
 
@@ -497,6 +528,7 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 	&smc911x_device,
 	&keysc_device,
 	&sdhi0_device,
+	&sdhi1_device,
 	&usb1_host_device,
 	&lcdc_device,
 	&mipidsi0_device,
@@ -738,6 +770,14 @@ static void __init ap4evb_init(void)
 
 	i2c_register_board_info(1, i2c1_devices,
 				ARRAY_SIZE(i2c1_devices));
+
+	/* SDHI1 */
+	gpio_request(GPIO_FN_SDHICMD1, NULL);
+	gpio_request(GPIO_FN_SDHICLK1, NULL);
+	gpio_request(GPIO_FN_SDHID1_3, NULL);
+	gpio_request(GPIO_FN_SDHID1_2, NULL);
+	gpio_request(GPIO_FN_SDHID1_1, NULL);
+	gpio_request(GPIO_FN_SDHID1_0, NULL);
 
 	sh7372_add_standard_devices();
 
