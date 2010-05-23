@@ -145,8 +145,12 @@ static int squashfs_xattr_get(struct inode *inode, int name_index,
 		type = le16_to_cpu(entry.type);
 		prefix = type & SQUASHFS_XATTR_PREFIX_MASK;
 
-		err = squashfs_read_metadata(sb, target, &start, &offset,
-							name_size);
+		if (prefix == name_index && name_size == name_len)
+			err = squashfs_read_metadata(sb, target, &start,
+						&offset, name_size);
+		else
+			err = squashfs_read_metadata(sb, NULL, &start,
+						&offset, name_size);
 		if (err < 0)
 			goto failed;
 
