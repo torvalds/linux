@@ -2,7 +2,7 @@
  *  ALSA mixer controls for the
  *  ALSA interface to cx18 PCM capture streams
  *
- *  Copyright (C) 2009  Andy Walls <awalls@radix.net>
+ *  Copyright (C) 2009  Andy Walls <awalls@md.metrocast.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
