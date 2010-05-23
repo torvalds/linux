@@ -797,7 +797,7 @@ static void bfin_serial_shutdown(struct uart_port *port)
 		gpio_free(uart->rts_pin);
 #endif
 #ifdef CONFIG_SERIAL_BFIN_HARD_CTSRTS
-	if (UART_GET_IER(uart) && EDSSI)
+	if (UART_GET_IER(uart) & EDSSI)
 		free_irq(uart->status_irq, uart);
 #endif
 }
