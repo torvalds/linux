@@ -54,17 +54,6 @@ struct nilfs_segsum_info {
 	sector_t		next;
 };
 
-/* macro for the flags */
-#define NILFS_SEG_HAS_SR(sum)    ((sum)->flags & NILFS_SS_SR)
-#define NILFS_SEG_LOGBGN(sum)    ((sum)->flags & NILFS_SS_LOGBGN)
-#define NILFS_SEG_LOGEND(sum)    ((sum)->flags & NILFS_SS_LOGEND)
-#define NILFS_SEG_DSYNC(sum)     ((sum)->flags & NILFS_SS_SYNDT)
-#define NILFS_SEG_SIMPLEX(sum) \
-	(((sum)->flags & (NILFS_SS_LOGBGN | NILFS_SS_LOGEND)) == \
-	 (NILFS_SS_LOGBGN | NILFS_SS_LOGEND))
-
-#define NILFS_SEG_EMPTY(sum)	((sum)->nblocks == (sum)->nsumblk)
-
 /**
  * struct nilfs_segment_buffer - Segment buffer
  * @sb_super: back pointer to a superblock struct
@@ -140,6 +129,19 @@ int nilfs_segbuf_extend_segsum(struct nilfs_segment_buffer *);
 int nilfs_segbuf_extend_payload(struct nilfs_segment_buffer *,
 				struct buffer_head **);
 void nilfs_segbuf_fill_in_segsum(struct nilfs_segment_buffer *);
+
+static inline int nilfs_segbuf_simplex(struct nilfs_segment_buffer *segbuf)
+{
+	unsigned int flags = segbuf->sb_sum.flags;
+
+	return (flags & (NILFS_SS_LOGBGN | NILFS_SS_LOGEND)) ==
+		(NILFS_SS_LOGBGN | NILFS_SS_LOGEND);
+}
+
+static inline int nilfs_segbuf_empty(struct nilfs_segment_buffer *segbuf)
+{
+	return segbuf->sb_sum.nblocks == segbuf->sb_sum.nsumblk;
+}
 
 static inline void
 nilfs_segbuf_add_segsum_buffer(struct nilfs_segment_buffer *segbuf,

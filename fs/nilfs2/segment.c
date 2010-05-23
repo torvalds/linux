@@ -1914,12 +1914,12 @@ static void nilfs_segctor_complete_write(struct nilfs_sc_info *sci)
 			}
 		}
 
-		if (!NILFS_SEG_SIMPLEX(&segbuf->sb_sum)) {
-			if (NILFS_SEG_LOGBGN(&segbuf->sb_sum)) {
+		if (!nilfs_segbuf_simplex(segbuf)) {
+			if (segbuf->sb_sum.flags & NILFS_SS_LOGBGN) {
 				set_bit(NILFS_SC_UNCLOSED, &sci->sc_flags);
 				sci->sc_lseg_stime = jiffies;
 			}
-			if (NILFS_SEG_LOGEND(&segbuf->sb_sum))
+			if (segbuf->sb_sum.flags & NILFS_SS_LOGEND)
 				clear_bit(NILFS_SC_UNCLOSED, &sci->sc_flags);
 		}
 	}
@@ -2082,7 +2082,7 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 
 		/* Avoid empty segment */
 		if (sci->sc_stage.scnt == NILFS_ST_DONE &&
-		    NILFS_SEG_EMPTY(&sci->sc_curseg->sb_sum)) {
+		    nilfs_segbuf_empty(sci->sc_curseg)) {
 			nilfs_segctor_abort_construction(sci, nilfs, 1);
 			goto out;
 		}
