@@ -34,7 +34,7 @@
 #include "squashfs_fs_i.h"
 #include "squashfs.h"
 
-static struct xattr_handler *squashfs_xattr_handler(int);
+static const struct xattr_handler *squashfs_xattr_handler(int);
 
 ssize_t squashfs_listxattr(struct dentry *d, char *buffer,
 	size_t buffer_size)
@@ -57,7 +57,7 @@ ssize_t squashfs_listxattr(struct dentry *d, char *buffer,
 	while (count--) {
 		struct squashfs_xattr_entry entry;
 		struct squashfs_xattr_val val;
-		struct xattr_handler *handler;
+		const struct xattr_handler *handler;
 		int name_size, prefix_size = 0;
 
 		err = squashfs_read_metadata(sb, &entry, &start, &offset,
@@ -228,7 +228,7 @@ static int squashfs_user_get(struct dentry *d, const char *name, void *buffer,
 		buffer, size);
 }
 
-static struct xattr_handler squashfs_xattr_user_handler = {
+static const struct xattr_handler squashfs_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
 	.list	= squashfs_user_list,
 	.get	= squashfs_user_get
@@ -258,7 +258,7 @@ static int squashfs_trusted_get(struct dentry *d, const char *name,
 		buffer, size);
 }
 
-static struct xattr_handler squashfs_xattr_trusted_handler = {
+static const struct xattr_handler squashfs_xattr_trusted_handler = {
 	.prefix	= XATTR_TRUSTED_PREFIX,
 	.list	= squashfs_trusted_list,
 	.get	= squashfs_trusted_get
@@ -285,13 +285,13 @@ static int squashfs_security_get(struct dentry *d, const char *name,
 		buffer, size);
 }
 
-static struct xattr_handler squashfs_xattr_security_handler = {
+static const struct xattr_handler squashfs_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
 	.list	= squashfs_security_list,
 	.get	= squashfs_security_get
 };
 
-static inline struct xattr_handler *squashfs_xattr_handler(int type)
+static inline const struct xattr_handler *squashfs_xattr_handler(int type)
 {
 	if (type & ~(SQUASHFS_XATTR_PREFIX_MASK | SQUASHFS_XATTR_VALUE_OOL))
 		/* ignore unrecognised type */
@@ -310,7 +310,7 @@ static inline struct xattr_handler *squashfs_xattr_handler(int type)
 	}
 }
 
-struct xattr_handler *squashfs_xattr_handlers[] = {
+const struct xattr_handler *squashfs_xattr_handlers[] = {
 	&squashfs_xattr_user_handler,
 	&squashfs_xattr_trusted_handler,
 	&squashfs_xattr_security_handler,
