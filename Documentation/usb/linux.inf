@@ -63,8 +63,8 @@ HKR, Ndi,            DeviceId,         0, "USB\VID_0525&PID_a4a2"
 CopyFiles=RNDIS_CopyFiles_98
 
 [RNDIS_CopyFiles_98]
-usb8023.sys, usb8023w.sys, , 0 
-rndismp.sys, rndismpw.sys, , 0 
+usb8023.sys, usb8023w.sys, , 0
+rndismp.sys, rndismpw.sys, , 0
 
 ; Windows Millennium Edition specific sections --------------------
 
@@ -95,8 +95,8 @@ HKR, Ndi,            DeviceId,         0, "USB\VID_0525&PID_a4a2"
 CopyFiles=RNDIS_CopyFiles_ME
 
 [RNDIS_CopyFiles_ME]
-usb8023.sys, usb8023m.sys, , 0 
-rndismp.sys, rndismpm.sys, , 0 
+usb8023.sys, usb8023m.sys, , 0
+rndismp.sys, rndismpm.sys, , 0
 
 ; Windows 2000 specific sections ---------------------------------
 
@@ -112,15 +112,15 @@ AddService = USB_RNDIS, 2, RNDIS_ServiceInst_NT, RNDIS_EventLog
 
 [RNDIS_CopyFiles_NT]
 ; no rename of files on Windows 2000, use the 'k' names as is
-usb8023k.sys, , , 0 
-rndismpk.sys, , , 0 
+usb8023k.sys, , , 0
+rndismpk.sys, , , 0
 
 [RNDIS_ServiceInst_NT]
 DisplayName     = %ServiceDisplayName%
-ServiceType     = 1 
-StartType       = 3 
-ErrorControl    = 1 
-ServiceBinary   = %12%\usb8023k.sys    
+ServiceType     = 1
+StartType       = 3
+ErrorControl    = 1
+ServiceBinary   = %12%\usb8023k.sys
 LoadOrderGroup  = NDIS
 AddReg          = RNDIS_WMI_AddReg_NT
 
@@ -141,10 +141,10 @@ AddService      = USB_RNDIS, 2, RNDIS_ServiceInst_51, RNDIS_EventLog
 
 [RNDIS_ServiceInst_51]
 DisplayName     = %ServiceDisplayName%
-ServiceType     = 1 
-StartType       = 3 
-ErrorControl    = 1 
-ServiceBinary   = %12%\usb8023.sys    
+ServiceType     = 1
+StartType       = 3
+ErrorControl    = 1
+ServiceBinary   = %12%\usb8023.sys
 LoadOrderGroup  = NDIS
 AddReg          = RNDIS_WMI_AddReg_51
 
@@ -155,7 +155,7 @@ HKR, , MofImagePath, 0x00020000, "System32\drivers\rndismp.sys"
 
 [RNDIS_AddReg_NT]
 HKR, Ndi,               Service,        0, "USB_RNDIS"
-HKR, Ndi\Interfaces,    UpperRange,     0, "ndis5" 
+HKR, Ndi\Interfaces,    UpperRange,     0, "ndis5"
 HKR, Ndi\Interfaces,    LowerRange,     0, "ethernet"
 
 [RNDIS_EventLog]
