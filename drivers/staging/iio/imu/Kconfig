@@ -24,10 +24,10 @@ config ADIS16350
 
 config ADIS16400
 	tristate "Analog Devices ADIS16400/5 IMU SPI driver"
- 	depends on SPI
+	depends on SPI
 	select IIO_SW_RING
 	select IIO_RING_BUFFER
 	select IIO_TRIGGER
- 	help
- 	  Say yes here to build support for Analog Devices adis16400/5 triaxial
- 	  inertial sensor with Magnetometer.
+	help
+	  Say yes here to build support for Analog Devices adis16400/5 triaxial
+	  inertial sensor with Magnetometer.
