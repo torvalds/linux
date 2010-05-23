@@ -319,7 +319,7 @@ int load_nilfs(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi)
 		goto failed_unload;
 	}
 
-	err = nilfs_recover_logical_segments(nilfs, sbi, &ri);
+	err = nilfs_salvage_orphan_logs(nilfs, sbi, &ri);
 	if (err)
 		goto failed_unload;
 

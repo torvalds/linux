@@ -719,9 +719,8 @@ static void nilfs_finish_roll_forward(struct the_nilfs *nilfs,
 }
 
 /**
- * nilfs_recover_logical_segments - salvage logical segments written after
- * the latest super root
- * @nilfs: the_nilfs
+ * nilfs_salvage_orphan_logs - salvage logs written after the latest checkpoint
+ * @nilfs: nilfs object
  * @sbi: nilfs_sb_info
  * @ri: pointer to a nilfs_recovery_info struct to store search results.
  *
@@ -738,9 +737,9 @@ static void nilfs_finish_roll_forward(struct the_nilfs *nilfs,
  *
  * %-ENOMEM - Insufficient memory available.
  */
-int nilfs_recover_logical_segments(struct the_nilfs *nilfs,
-				   struct nilfs_sb_info *sbi,
-				   struct nilfs_recovery_info *ri)
+int nilfs_salvage_orphan_logs(struct the_nilfs *nilfs,
+			      struct nilfs_sb_info *sbi,
+			      struct nilfs_recovery_info *ri)
 {
 	int err;
 
