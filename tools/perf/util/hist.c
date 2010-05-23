@@ -992,14 +992,14 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head)
 	char *filename = dso__build_id_filename(dso, NULL, 0);
 	char command[PATH_MAX * 2];
 	FILE *file;
-	int err = -1;
+	int err = 0;
 	u64 len;
 
 	if (filename == NULL) {
 		if (dso->has_build_id) {
 			pr_err("Can't annotate %s: not enough memory\n",
 			       sym->name);
-			return -1;
+			return -ENOMEM;
 		}
 		/*
 		 * If we don't have build-ids, well, lets hope that this
@@ -1009,14 +1009,12 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head)
 	}
 
 	if (dso->origin == DSO__ORIG_KERNEL) {
-		if (dso->annotate_warned) {
-			err = 0;
+		if (dso->annotate_warned)
 			goto out_free_filename;
-		}
+		err = -ENOENT;
 		dso->annotate_warned = 1;
 		pr_err("Can't annotate %s: No vmlinux file was found in the "
-		       "path:\n", sym->name);
-		vmlinux_path__fprintf(stderr);
+		       "path\n", sym->name);
 		goto out_free_filename;
 	}
 
@@ -1046,7 +1044,6 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head)
 			break;
 
 	pclose(file);
-	err = 0;
 out_free_filename:
 	if (dso->has_build_id)
 		free(filename);

@@ -102,8 +102,18 @@ static inline int hists__browse(struct hists *self __used,
 {
 	return 0;
 }
+static inline int hist_entry__tui_annotate(struct hist_entry *self __used)
+{
+	return 0;
+}
+#define KEY_LEFT -1
+#define KEY_RIGHT -2
 #else
+#include <newt.h>
 int hists__browse(struct hists *self, const char *helpline,
 		  const char *input_name);
+int hist_entry__tui_annotate(struct hist_entry *self);
+#define KEY_LEFT NEWT_KEY_LEFT
+#define KEY_RIGHT NEWT_KEY_RIGHT
 #endif
 #endif	/* __PERF_HIST_H */

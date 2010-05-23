@@ -277,7 +277,7 @@ static void hist_entry__print_hits(struct hist_entry *self)
 	printf("%*s: %Lu\n", BITS_PER_LONG / 2, "h->sum", h->sum);
 }
 
-static void annotate_sym(struct hist_entry *he)
+static int hist_entry__tty_annotate(struct hist_entry *he)
 {
 	struct map *map = he->ms.map;
 	struct dso *dso = map->dso;
@@ -288,7 +288,7 @@ static void annotate_sym(struct hist_entry *he)
 	struct objdump_line *pos, *n;
 
 	if (hist_entry__annotate(he, &head) < 0)
-		return;
+		return -1;
 
 	if (full_paths)
 		d_filename = filename;
@@ -317,30 +317,59 @@ static void annotate_sym(struct hist_entry *he)
 
 	if (print_line)
 		free_source_line(he, len);
+
+	return 0;
 }
 
 static void hists__find_annotations(struct hists *self)
 {
-	struct rb_node *nd;
+	struct rb_node *first = rb_first(&self->entries), *nd = first;
+	int key = KEY_RIGHT;
 
-	for (nd = rb_first(&self->entries); nd; nd = rb_next(nd)) {
+	while (nd) {
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
 		struct sym_priv *priv;
 
-		if (he->ms.sym == NULL)
-			continue;
+		if (he->ms.sym == NULL || he->ms.map->dso->annotate_warned)
+			goto find_next;
 
 		priv = symbol__priv(he->ms.sym);
-		if (priv->hist == NULL)
+		if (priv->hist == NULL) {
+find_next:
+			if (key == KEY_LEFT)
+				nd = rb_prev(nd);
+			else
+				nd = rb_next(nd);
 			continue;
+		}
 
-		annotate_sym(he);
-		/*
-		 * Since we have a hist_entry per IP for the same symbol, free
-		 * he->ms.sym->hist to signal we already processed this symbol.
-		 */
-		free(priv->hist);
-		priv->hist = NULL;
+		if (use_browser) {
+			key = hist_entry__tui_annotate(he);
+			if (is_exit_key(key))
+				break;
+			switch (key) {
+			case KEY_RIGHT:
+			case '\t':
+				nd = rb_next(nd);
+				break;
+			case KEY_LEFT:
+				if (nd == first)
+					continue;
+				nd = rb_prev(nd);
+			default:
+				break;
+			}
+		} else {
+			hist_entry__tty_annotate(he);
+			nd = rb_next(nd);
+			/*
+			 * Since we have a hist_entry per IP for the same
+			 * symbol, free he->ms.sym->hist to signal we already
+			 * processed this symbol.
+			 */
+			free(priv->hist);
+			priv->hist = NULL;
+		}
 	}
 }
 
@@ -416,6 +445,8 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 {
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
 
+	setup_browser();
+
 	symbol_conf.priv_size = sizeof(struct sym_priv);
 	symbol_conf.try_vmlinux_path = true;
 
@@ -434,8 +465,6 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 
 		sym_hist_filter = argv[0];
 	}
-
-	setup_pager();
 
 	if (field_sep && *field_sep == '.') {
 		pr_err("'.' is the only non valid --field-separator argument\n");

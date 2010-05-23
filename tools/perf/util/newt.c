@@ -235,6 +235,15 @@ static bool dialog_yesno(const char *msg)
 	return newtWinChoice(NULL, yes, no, (char *)msg) == 1;
 }
 
+static void ui__error_window(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	newtWinMessagev((char *)"Error", (char *)"Ok", (char *)fmt, ap);
+	va_end(ap);
+}
+
 #define HE_COLORSET_TOP		50
 #define HE_COLORSET_MEDIUM	51
 #define HE_COLORSET_NORMAL	52
@@ -386,6 +395,8 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 	newtFormAddHotKey(self->form, ' ');
 	newtFormAddHotKey(self->form, NEWT_KEY_HOME);
 	newtFormAddHotKey(self->form, NEWT_KEY_END);
+	newtFormAddHotKey(self->form, NEWT_KEY_TAB);
+	newtFormAddHotKey(self->form, NEWT_KEY_RIGHT);
 
 	if (ui_browser__refresh_entries(self) < 0)
 		return -1;
@@ -398,6 +409,8 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 
 		if (es->reason != NEWT_EXIT_HOTKEY)
 			break;
+		if (is_exit_key(es->u.key))
+			return es->u.key;
 		switch (es->u.key) {
 		case NEWT_KEY_DOWN:
 			if (self->index == self->nr_entries - 1)
@@ -471,12 +484,10 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 			}
 		}
 			break;
-		case NEWT_KEY_ESCAPE:
+		case NEWT_KEY_RIGHT:
 		case NEWT_KEY_LEFT:
-		case CTRL('c'):
-		case 'Q':
-		case 'q':
-			return 0;
+		case NEWT_KEY_TAB:
+			return es->u.key;
 		default:
 			continue;
 		}
@@ -668,18 +679,24 @@ static size_t hist_entry__append_browser(struct hist_entry *self,
 	return ret;
 }
 
-static void hist_entry__annotate_browser(struct hist_entry *self)
+int hist_entry__tui_annotate(struct hist_entry *self)
 {
 	struct ui_browser browser;
 	struct newtExitStruct es;
 	struct objdump_line *pos, *n;
 	LIST_HEAD(head);
+	int ret;
 
 	if (self->ms.sym == NULL)
-		return;
+		return -1;
 
-	if (hist_entry__annotate(self, &head) < 0)
-		return;
+	if (self->ms.map->dso->annotate_warned)
+		return -1;
+
+	if (hist_entry__annotate(self, &head) < 0) {
+		ui__error_window(browser__last_msg);
+		return -1;
+	}
 
 	ui_helpline__push("Press <- or ESC to exit");
 
@@ -694,7 +711,7 @@ static void hist_entry__annotate_browser(struct hist_entry *self)
 	}
 
 	browser.width += 18; /* Percentage */
-	ui_browser__run(&browser, self->ms.sym->name, &es);
+	ret = ui_browser__run(&browser, self->ms.sym->name, &es);
 	newtFormDestroy(browser.form);
 	newtPopWindow();
 	list_for_each_entry_safe(pos, n, &head, node) {
@@ -702,6 +719,7 @@ static void hist_entry__annotate_browser(struct hist_entry *self)
 		objdump_line__free(pos);
 	}
 	ui_helpline__pop();
+	return ret;
 }
 
 static const void *newt__symbol_tree_get_current(newtComponent self)
@@ -914,6 +932,9 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 
 			switch (toupper(es.u.key)) {
 			case 'A':
+				if (browser->selection->map == NULL &&
+				    browser->selection->map->dso->annotate_warned)
+					continue;
 				goto do_annotate;
 			case 'D':
 				goto zoom_dso;
@@ -932,14 +953,14 @@ do_help:
 				continue;
 			default:;
 			}
-			if (toupper(es.u.key) == 'Q' ||
-			    es.u.key == CTRL('c'))
-				break;
-			if (es.u.key == NEWT_KEY_ESCAPE) {
-				if (dialog_yesno("Do you really want to exit?"))
+			if (is_exit_key(es.u.key)) {
+				if (es.u.key == NEWT_KEY_ESCAPE) {
+					if (dialog_yesno("Do you really want to exit?"))
+						break;
+					else
+						continue;
+				} else
 					break;
-				else
-					continue;
 			}
 
 			if (es.u.key == NEWT_KEY_LEFT) {
@@ -957,6 +978,7 @@ do_help:
 		}
 
 		if (browser->selection->sym != NULL &&
+		    !browser->selection->map->dso->annotate_warned &&
 		    asprintf(&options[nr_options], "Annotate %s",
 			     browser->selection->sym->name) > 0)
 			annotate = nr_options++;
@@ -991,6 +1013,7 @@ do_help:
 			struct hist_entry *he;
 do_annotate:
 			if (browser->selection->map->dso->origin == DSO__ORIG_KERNEL) {
+				browser->selection->map->dso->annotate_warned = 1;
 				ui_helpline__puts("No vmlinux file found, can't "
 						 "annotate with just a "
 						 "kallsyms file");
@@ -1001,7 +1024,7 @@ do_annotate:
 			if (he == NULL)
 				continue;
 
-			hist_entry__annotate_browser(he);
+			hist_entry__tui_annotate(he);
 		} else if (choice == zoom_dso) {
 zoom_dso:
 			if (dso_filter) {
@@ -1069,7 +1092,7 @@ void setup_browser(void)
 {
 	struct newtPercentTreeColors *c = &defaultPercentTreeColors;
 
-	if (!isatty(1) || !use_browser) {
+	if (!isatty(1) || !use_browser || dump_trace) {
 		setup_pager();
 		return;
 	}
