@@ -46,32 +46,42 @@
 static noinline int btrfs_copy_from_user(loff_t pos, int num_pages,
 					 int write_bytes,
 					 struct page **prepared_pages,
-					 const char __user *buf)
+					 struct iov_iter *i)
 {
-	long page_fault = 0;
-	int i;
+	size_t copied;
+	int pg = 0;
 	int offset = pos & (PAGE_CACHE_SIZE - 1);
 
-	for (i = 0; i < num_pages && write_bytes > 0; i++, offset = 0) {
+	while (write_bytes > 0) {
 		size_t count = min_t(size_t,
 				     PAGE_CACHE_SIZE - offset, write_bytes);
-		struct page *page = prepared_pages[i];
-		fault_in_pages_readable(buf, count);
+		struct page *page = prepared_pages[pg];
+again:
+		if (unlikely(iov_iter_fault_in_readable(i, count)))
+			return -EFAULT;
 
 		/* Copy data from userspace to the current page */
-		kmap(page);
-		page_fault = __copy_from_user(page_address(page) + offset,
-					      buf, count);
+		copied = iov_iter_copy_from_user(page, i, offset, count);
+
 		/* Flush processor's dcache for this page */
 		flush_dcache_page(page);
-		kunmap(page);
-		buf += count;
-		write_bytes -= count;
+		iov_iter_advance(i, copied);
+		write_bytes -= copied;
 
-		if (page_fault)
-			break;
+		if (unlikely(copied == 0)) {
+			count = min_t(size_t, PAGE_CACHE_SIZE - offset,
+				      iov_iter_single_seg_count(i));
+			goto again;
+		}
+
+		if (unlikely(copied < PAGE_CACHE_SIZE - offset)) {
+			offset += copied;
+		} else {
+			pg++;
+			offset = 0;
+		}
 	}
-	return page_fault ? -EFAULT : 0;
+	return 0;
 }
 
 /*
@@ -822,60 +832,24 @@ again:
 	return 0;
 }
 
-/* Copied from read-write.c */
-static void wait_on_retry_sync_kiocb(struct kiocb *iocb)
+static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
+				    const struct iovec *iov,
+				    unsigned long nr_segs, loff_t pos)
 {
-	set_current_state(TASK_UNINTERRUPTIBLE);
-	if (!kiocbIsKicked(iocb))
-		schedule();
-	else
-		kiocbClearKicked(iocb);
-	__set_current_state(TASK_RUNNING);
-}
-
-/*
- * Just a copy of what do_sync_write does.
- */
-static ssize_t __btrfs_direct_write(struct file *file, const char __user *buf,
-				    size_t count, loff_t pos, loff_t *ppos)
-{
-	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = count };
-	unsigned long nr_segs = 1;
-	struct kiocb kiocb;
-	ssize_t ret;
-
-	init_sync_kiocb(&kiocb, file);
-	kiocb.ki_pos = pos;
-	kiocb.ki_left = count;
-	kiocb.ki_nbytes = count;
-
-	while (1) {
-		ret = generic_file_direct_write(&kiocb, &iov, &nr_segs, pos,
-						ppos, count, count);
-		if (ret != -EIOCBRETRY)
-			break;
-		wait_on_retry_sync_kiocb(&kiocb);
-	}
-
-	if (ret == -EIOCBQUEUED)
-		ret = wait_on_sync_kiocb(&kiocb);
-	*ppos = kiocb.ki_pos;
-	return ret;
-}
-
-static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
-				size_t count, loff_t *ppos)
-{
-	loff_t pos;
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = fdentry(file)->d_inode;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct page *pinned[2];
+	struct page **pages = NULL;
+	struct iov_iter i;
+	loff_t *ppos = &iocb->ki_pos;
 	loff_t start_pos;
 	ssize_t num_written = 0;
 	ssize_t err = 0;
+	size_t count;
+	size_t ocount;
 	int ret = 0;
-	struct inode *inode = fdentry(file)->d_inode;
-	struct btrfs_root *root = BTRFS_I(inode)->root;
-	struct page **pages = NULL;
 	int nrptrs;
-	struct page *pinned[2];
 	unsigned long first_index;
 	unsigned long last_index;
 	int will_write;
@@ -887,12 +861,16 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	pinned[0] = NULL;
 	pinned[1] = NULL;
 
-	pos = *ppos;
 	start_pos = pos;
 
 	vfs_check_frozen(inode->i_sb, SB_FREEZE_WRITE);
 
 	mutex_lock(&inode->i_mutex);
+
+	err = generic_segment_checks(iov, &nr_segs, &ocount, VERIFY_READ);
+	if (err)
+		goto out;
+	count = ocount;
 
 	current->backing_dev_info = inode->i_mapping->backing_dev_info;
 	err = generic_write_checks(file, &pos, &count, S_ISBLK(inode->i_mode));
@@ -910,14 +888,48 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	BTRFS_I(inode)->sequence++;
 
 	if (unlikely(file->f_flags & O_DIRECT)) {
-		num_written = __btrfs_direct_write(file, buf, count, pos,
-						   ppos);
-		pos += num_written;
-		count -= num_written;
-
-		/* We've written everything we wanted to, exit */
-		if (num_written < 0 || !count)
+		ret = btrfs_delalloc_reserve_space(inode, count);
+		if (ret)
 			goto out;
+
+		num_written = generic_file_direct_write(iocb, iov, &nr_segs,
+							pos, ppos, count,
+							ocount);
+
+		/*
+		 * the generic O_DIRECT will update in-memory i_size after the
+		 * DIOs are done.  But our endio handlers that update the on
+		 * disk i_size never update past the in memory i_size.  So we
+		 * need one more update here to catch any additions to the
+		 * file
+		 */
+		if (inode->i_size != BTRFS_I(inode)->disk_i_size) {
+			btrfs_ordered_update_i_size(inode, inode->i_size, NULL);
+			mark_inode_dirty(inode);
+		}
+
+		if (num_written < 0) {
+			if (num_written != -EIOCBQUEUED) {
+				/*
+				 * aio land will take care of releasing the
+				 * delalloc
+				 */
+				btrfs_delalloc_release_space(inode, count);
+			}
+			ret = num_written;
+			num_written = 0;
+			goto out;
+		} else if (num_written == count) {
+			/* pick up pos changes done by the generic code */
+			pos = *ppos;
+			goto out;
+		}
+
+		/*
+		 * the buffered IO will reserve bytes for the rest of the
+		 * range, don't double count them here
+		 */
+		btrfs_delalloc_release_space(inode, count - num_written);
 
 		/*
 		 * We are going to do buffered for the rest of the range, so we
@@ -925,18 +937,20 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		 * done.
 		 */
 		buffered = 1;
-		buf += num_written;
+		pos += num_written;
 	}
 
-	nrptrs = min((count + PAGE_CACHE_SIZE - 1) / PAGE_CACHE_SIZE,
-		     PAGE_CACHE_SIZE / (sizeof(struct page *)));
+	iov_iter_init(&i, iov, nr_segs, count, num_written);
+	nrptrs = min((iov_iter_count(&i) + PAGE_CACHE_SIZE - 1) /
+		     PAGE_CACHE_SIZE, PAGE_CACHE_SIZE /
+		     (sizeof(struct page *)));
 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
 
 	/* generic_write_checks can change our pos */
 	start_pos = pos;
 
 	first_index = pos >> PAGE_CACHE_SHIFT;
-	last_index = (pos + count) >> PAGE_CACHE_SHIFT;
+	last_index = (pos + iov_iter_count(&i)) >> PAGE_CACHE_SHIFT;
 
 	/*
 	 * there are lots of better ways to do this, but this code
@@ -953,7 +967,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 			unlock_page(pinned[0]);
 		}
 	}
-	if ((pos + count) & (PAGE_CACHE_SIZE - 1)) {
+	if ((pos + iov_iter_count(&i)) & (PAGE_CACHE_SIZE - 1)) {
 		pinned[1] = grab_cache_page(inode->i_mapping, last_index);
 		if (!PageUptodate(pinned[1])) {
 			ret = btrfs_readpage(NULL, pinned[1]);
@@ -964,10 +978,10 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		}
 	}
 
-	while (count > 0) {
+	while (iov_iter_count(&i) > 0) {
 		size_t offset = pos & (PAGE_CACHE_SIZE - 1);
-		size_t write_bytes = min(count, nrptrs *
-					(size_t)PAGE_CACHE_SIZE -
+		size_t write_bytes = min(iov_iter_count(&i),
+					 nrptrs * (size_t)PAGE_CACHE_SIZE -
 					 offset);
 		size_t num_pages = (write_bytes + PAGE_CACHE_SIZE - 1) >>
 					PAGE_CACHE_SHIFT;
@@ -988,7 +1002,7 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		}
 
 		ret = btrfs_copy_from_user(pos, num_pages,
-					   write_bytes, pages, buf);
+					   write_bytes, pages, &i);
 		if (ret == 0) {
 			dirty_and_release_pages(NULL, root, file, pages,
 						num_pages, pos, write_bytes);
@@ -1012,8 +1026,6 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 			btrfs_throttle(root);
 		}
 
-		buf += write_bytes;
-		count -= write_bytes;
 		pos += write_bytes;
 		num_written += write_bytes;
 
@@ -1206,7 +1218,7 @@ const struct file_operations btrfs_file_operations = {
 	.read		= do_sync_read,
 	.aio_read       = generic_file_aio_read,
 	.splice_read	= generic_file_splice_read,
-	.write		= btrfs_file_write,
+	.aio_write	= btrfs_file_aio_write,
 	.mmap		= btrfs_file_mmap,
 	.open		= generic_file_open,
 	.release	= btrfs_release_file,
