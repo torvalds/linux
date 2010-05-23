@@ -912,6 +912,25 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 	}
 #endif
 
+	if (dev->gpio.power_led) {
+		switch (dev->model) {
+		case TM6010_BOARD_HAUPPAUGE_900H:
+		case TM6010_BOARD_TERRATEC_CINERGY_HYBRID_XE:
+		case TM6010_BOARD_TWINHAN_TU501:
+			/* Power led off */
+			tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+				dev->gpio.power_led, 0x01);
+			msleep(15);
+			break;
+		case TM6010_BOARD_BEHOLD_WANDER:
+		case TM6010_BOARD_BEHOLD_VOYAGER:
+			/* Power led off */
+			tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+				dev->gpio.power_led, 0x00);
+			msleep(15);
+			break;
+		}
+	}
 	tm6000_v4l2_unregister(dev);
 
 	tm6000_i2c_unregister(dev);

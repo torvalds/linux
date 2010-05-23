@@ -339,6 +339,12 @@ int tm6000_init_analog_mode (struct tm6000_core *dev)
 	tm6000_set_standard (dev, &dev->norm);
 	tm6000_set_audio_bitrate (dev,48000);
 
+	/* switch dvb led off */
+	if (dev->gpio.dvb_led) {
+		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+			dev->gpio.dvb_led, 0x01);
+	}
+
 	return 0;
 }
 
@@ -391,6 +397,13 @@ int tm6000_init_digital_mode (struct tm6000_core *dev)
 		tm6000_set_reg (dev, REQ_04_EN_DISABLE_MCU_INT, 0x0020, 0x00);
 		msleep(100);
 	}
+
+	/* switch dvb led on */
+	if (dev->gpio.dvb_led) {
+		tm6000_set_reg(dev, REQ_03_SET_GET_MCU_PIN,
+			dev->gpio.dvb_led, 0x00);
+	}
+
 	return 0;
 }
 
