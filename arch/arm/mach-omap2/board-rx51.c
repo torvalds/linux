@@ -154,6 +154,7 @@ MACHINE_START(NOKIA_RX51, "Nokia RX-51 board")
 	.io_pg_offst	= ((0xfa000000) >> 18) & 0xfffc,
 	.boot_params	= 0x80000100,
 	.map_io		= rx51_map_io,
+	.reserve	= omap_reserve,
 	.init_irq	= rx51_init_irq,
 	.init_machine	= rx51_init,
 	.timer		= &omap_timer,
