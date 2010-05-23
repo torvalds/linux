@@ -42,6 +42,7 @@ config MACH_AP4EVB
 	bool "AP4EVB board"
 	depends on ARCH_SH7372
 	select ARCH_REQUIRE_GPIOLIB
+	select SH_LCD_MIPI_DSI
 
 comment "SH-Mobile System Configuration"
 
