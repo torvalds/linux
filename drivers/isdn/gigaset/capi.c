@@ -933,30 +933,6 @@ void gigaset_isdn_stop(struct cardstate *cs)
  */
 
 /*
- * load firmware
- */
-static int gigaset_load_firmware(struct capi_ctr *ctr, capiloaddata *data)
-{
-	struct cardstate *cs = ctr->driverdata;
-
-	/* AVM specific operation, not needed for Gigaset -- ignore */
-	dev_notice(cs->dev, "load_firmware ignored\n");
-
-	return 0;
-}
-
-/*
- * reset (deactivate) controller
- */
-static void gigaset_reset_ctr(struct capi_ctr *ctr)
-{
-	struct cardstate *cs = ctr->driverdata;
-
-	/* AVM specific operation, not needed for Gigaset -- ignore */
-	dev_notice(cs->dev, "reset_ctr ignored\n");
-}
-
-/*
  * register CAPI application
  */
 static void gigaset_register_appl(struct capi_ctr *ctr, u16 appl,
@@ -2213,8 +2189,8 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 	iif->ctr.driverdata    = cs;
 	strncpy(iif->ctr.name, isdnid, sizeof(iif->ctr.name));
 	iif->ctr.driver_name   = "gigaset";
-	iif->ctr.load_firmware = gigaset_load_firmware;
-	iif->ctr.reset_ctr     = gigaset_reset_ctr;
+	iif->ctr.load_firmware = NULL;
+	iif->ctr.reset_ctr     = NULL;
 	iif->ctr.register_appl = gigaset_register_appl;
 	iif->ctr.release_appl  = gigaset_release_appl;
 	iif->ctr.send_message  = gigaset_send_message;
