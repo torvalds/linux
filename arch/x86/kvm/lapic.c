@@ -5,6 +5,7 @@
  * Copyright (C) 2006 Qumranet, Inc.
  * Copyright (C) 2007 Novell
  * Copyright (C) 2007 Intel
+ * Copyright 2009 Red Hat, Inc. and/or its affilates.
  *
  * Authors:
  *   Dor Laor <dor.laor@qumranet.com>

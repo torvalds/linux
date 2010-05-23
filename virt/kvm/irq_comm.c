@@ -17,6 +17,7 @@
  * Authors:
  *   Yaozu (Eddie) Dong <Eddie.dong@intel.com>
  *
+ * Copyright 2010 Red Hat, Inc. and/or its affilates.
  */
 
 #include <linux/kvm_host.h>

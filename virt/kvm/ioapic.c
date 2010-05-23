@@ -1,5 +1,6 @@
 /*
  *  Copyright (C) 2001  MandrakeSoft S.A.
+ *  Copyright 2010 Red Hat, Inc. and/or its affiliates.
  *
  *    MandrakeSoft S.A.
  *    43, rue d'Aboukir
