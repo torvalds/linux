@@ -1,7 +1,6 @@
 #include "ceph_debug.h"
 
 #include <linux/module.h>
-#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/slab.h>
 
