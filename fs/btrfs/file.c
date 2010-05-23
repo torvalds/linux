@@ -822,6 +822,47 @@ again:
 	return 0;
 }
 
+/* Copied from read-write.c */
+static void wait_on_retry_sync_kiocb(struct kiocb *iocb)
+{
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	if (!kiocbIsKicked(iocb))
+		schedule();
+	else
+		kiocbClearKicked(iocb);
+	__set_current_state(TASK_RUNNING);
+}
+
+/*
+ * Just a copy of what do_sync_write does.
+ */
+static ssize_t __btrfs_direct_write(struct file *file, const char __user *buf,
+				    size_t count, loff_t pos, loff_t *ppos)
+{
+	struct iovec iov = { .iov_base = (void __user *)buf, .iov_len = count };
+	unsigned long nr_segs = 1;
+	struct kiocb kiocb;
+	ssize_t ret;
+
+	init_sync_kiocb(&kiocb, file);
+	kiocb.ki_pos = pos;
+	kiocb.ki_left = count;
+	kiocb.ki_nbytes = count;
+
+	while (1) {
+		ret = generic_file_direct_write(&kiocb, &iov, &nr_segs, pos,
+						ppos, count, count);
+		if (ret != -EIOCBRETRY)
+			break;
+		wait_on_retry_sync_kiocb(&kiocb);
+	}
+
+	if (ret == -EIOCBQUEUED)
+		ret = wait_on_sync_kiocb(&kiocb);
+	*ppos = kiocb.ki_pos;
+	return ret;
+}
+
 static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
@@ -838,12 +879,11 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 	unsigned long first_index;
 	unsigned long last_index;
 	int will_write;
+	int buffered = 0;
 
 	will_write = ((file->f_flags & O_DSYNC) || IS_SYNC(inode) ||
 		      (file->f_flags & O_DIRECT));
 
-	nrptrs = min((count + PAGE_CACHE_SIZE - 1) / PAGE_CACHE_SIZE,
-		     PAGE_CACHE_SIZE / (sizeof(struct page *)));
 	pinned[0] = NULL;
 	pinned[1] = NULL;
 
@@ -867,13 +907,34 @@ static ssize_t btrfs_file_write(struct file *file, const char __user *buf,
 		goto out;
 
 	file_update_time(file);
+	BTRFS_I(inode)->sequence++;
 
+	if (unlikely(file->f_flags & O_DIRECT)) {
+		num_written = __btrfs_direct_write(file, buf, count, pos,
+						   ppos);
+		pos += num_written;
+		count -= num_written;
+
+		/* We've written everything we wanted to, exit */
+		if (num_written < 0 || !count)
+			goto out;
+
+		/*
+		 * We are going to do buffered for the rest of the range, so we
+		 * need to make sure to invalidate the buffered pages when we're
+		 * done.
+		 */
+		buffered = 1;
+		buf += num_written;
+	}
+
+	nrptrs = min((count + PAGE_CACHE_SIZE - 1) / PAGE_CACHE_SIZE,
+		     PAGE_CACHE_SIZE / (sizeof(struct page *)));
 	pages = kmalloc(nrptrs * sizeof(struct page *), GFP_KERNEL);
 
 	/* generic_write_checks can change our pos */
 	start_pos = pos;
 
-	BTRFS_I(inode)->sequence++;
 	first_index = pos >> PAGE_CACHE_SHIFT;
 	last_index = (pos + count) >> PAGE_CACHE_SHIFT;
 
@@ -1007,7 +1068,7 @@ out:
 				btrfs_end_transaction(trans, root);
 			}
 		}
-		if (file->f_flags & O_DIRECT) {
+		if (file->f_flags & O_DIRECT && buffered) {
 			invalidate_mapping_pages(inode->i_mapping,
 			      start_pos >> PAGE_CACHE_SHIFT,
 			     (start_pos + num_written - 1) >> PAGE_CACHE_SHIFT);
