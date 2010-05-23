@@ -990,6 +990,7 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head)
 	struct map *map = self->ms.map;
 	struct dso *dso = map->dso;
 	char *filename = dso__build_id_filename(dso, NULL, 0);
+	bool free_filename = true;
 	char command[PATH_MAX * 2];
 	FILE *file;
 	int err = 0;
@@ -1001,11 +1002,19 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head)
 			       sym->name);
 			return -ENOMEM;
 		}
+		goto fallback;
+	} else if (readlink(filename, command, sizeof(command)) < 0 ||
+		   strstr(command, "[kernel.kallsyms]") ||
+		   access(filename, R_OK)) {
+		free(filename);
+fallback:
 		/*
-		 * If we don't have build-ids, well, lets hope that this
+		 * If we don't have build-ids or the build-id file isn't in the
+		 * cache, or is just a kallsyms file, well, lets hope that this
 		 * DSO is the same as when 'perf record' ran.
 		 */
 		filename = dso->long_name;
+		free_filename = false;
 	}
 
 	if (dso->origin == DSO__ORIG_KERNEL) {
@@ -1045,7 +1054,7 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head)
 
 	pclose(file);
 out_free_filename:
-	if (dso->has_build_id)
+	if (free_filename)
 		free(filename);
 	return err;
 }
