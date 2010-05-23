@@ -21,9 +21,9 @@
 #include <linux/dma-mapping.h>
 
 #include <plat/devs.h>
-#include <plat/irqs.h>
 
 #include <mach/map.h>
+#include <mach/irqs.h>
 
 #include <plat/s3c-pl330-pdata.h>
 

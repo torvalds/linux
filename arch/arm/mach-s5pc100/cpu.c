@@ -54,7 +54,7 @@ static struct map_desc s5pc100_iodesc[] __initdata = {
 		.type		= MT_DEVICE,
 	}, {
 		.virtual	= (unsigned long)VA_VIC2,
-		.pfn		= __phys_to_pfn(S5PC100_PA_VIC2),
+		.pfn		= __phys_to_pfn(S5P_PA_VIC2),
 		.length		= SZ_16K,
 		.type		= MT_DEVICE,
 	}, {
