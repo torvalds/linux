@@ -2126,6 +2126,14 @@ retry:
 		goto err_out;
 	}
 
+	if (dev->horkage & ATA_HORKAGE_DUMP_ID) {
+		ata_dev_printk(dev, KERN_DEBUG, "dumping IDENTIFY data, "
+			       "class=%d may_fallback=%d tried_spinup=%d\n",
+			       class, may_fallback, tried_spinup);
+		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_OFFSET,
+			       16, 2, id, ATA_ID_WORDS * sizeof(*id), true);
+	}
+
 	/* Falling back doesn't make sense if ID data was read
 	 * successfully at least once.
 	 */
@@ -6377,6 +6385,7 @@ static int __init ata_parse_force_one(char **cur,
 		{ "3.0Gbps",	.spd_limit	= 2 },
 		{ "noncq",	.horkage_on	= ATA_HORKAGE_NONCQ },
 		{ "ncq",	.horkage_off	= ATA_HORKAGE_NONCQ },
+		{ "dump_id",	.horkage_on	= ATA_HORKAGE_DUMP_ID },
 		{ "pio0",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 0) },
 		{ "pio1",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 1) },
 		{ "pio2",	.xfer_mask	= 1 << (ATA_SHIFT_PIO + 2) },

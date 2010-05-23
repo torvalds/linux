@@ -386,6 +386,7 @@ enum {
 	ATA_HORKAGE_1_5_GBPS	= (1 << 13),	/* force 1.5 Gbps */
 	ATA_HORKAGE_NOSETXFER	= (1 << 14),	/* skip SETXFER, SATA only */
 	ATA_HORKAGE_BROKEN_FPDMA_AA	= (1 << 15),	/* skip AA */
+	ATA_HORKAGE_DUMP_ID	= (1 << 16),	/* dump IDENTIFY data */
 
 	 /* DMA mask for user DMA control: User visible values; DO NOT
 	    renumber */
