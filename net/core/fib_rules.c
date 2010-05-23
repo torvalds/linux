@@ -182,7 +182,8 @@ static int fib_rule_match(struct fib_rule *rule, struct fib_rules_ops *ops,
 {
 	int ret = 0;
 
-	if (rule->iifindex && (rule->iifindex != fl->iif))
+	if (rule->iifindex && (rule->iifindex != fl->iif) &&
+	    !(fl->flags & FLOWI_FLAG_MATCH_ANY_IIF))
 		goto out;
 
 	if (rule->oifindex && (rule->oifindex != fl->oif))

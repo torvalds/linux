@@ -153,17 +153,16 @@ static void fib_flush(struct net *net)
 
 struct net_device * ip_dev_find(struct net *net, __be32 addr)
 {
-	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = addr } } };
+	struct flowi fl = { .nl_u = { .ip4_u = { .daddr = addr } },
+			    .flags = FLOWI_FLAG_MATCH_ANY_IIF };
 	struct fib_result res;
 	struct net_device *dev = NULL;
-	struct fib_table *local_table;
 
 #ifdef CONFIG_IP_MULTIPLE_TABLES
 	res.r = NULL;
 #endif
 
-	local_table = fib_get_table(net, RT_TABLE_LOCAL);
-	if (!local_table || fib_table_lookup(local_table, &fl, &res))
+	if (fib_lookup(net, &fl, &res))
 		return NULL;
 	if (res.type != RTN_LOCAL)
 		goto out;
