@@ -100,7 +100,10 @@ int tm6000_start_stream(struct tm6000_core *dev)
 
 	printk(KERN_INFO "tm6000: got start stream request %s\n",__FUNCTION__);
 
-	tm6000_init_digital_mode(dev);
+	if (dev->mode != TM6000_MODE_DIGITAL) {
+		tm6000_init_digital_mode(dev);
+		dev->mode = TM6000_MODE_DIGITAL;
+	}
 
 	dvb->bulk_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if(dvb->bulk_urb == NULL) {
