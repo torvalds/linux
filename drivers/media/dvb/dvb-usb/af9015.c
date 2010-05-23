@@ -1299,6 +1299,7 @@ static struct usb_device_id af9015_usb_table[] = {
 	{USB_DEVICE(USB_VID_LEADTEK,   USB_PID_WINFAST_DTV2000DS)},
 /* 30 */{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_UB383_T)},
 	{USB_DEVICE(USB_VID_KWORLD_2,  USB_PID_KWORLD_395U_4)},
+	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_A815M)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1572,7 +1573,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 8, /* max 9 */
+		.num_device_descs = 9, /* max 9 */
 		.devices = {
 			{
 				.name = "AverMedia AVerTV Volar GPS 805 (A805)",
@@ -1615,6 +1616,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 				.name = "KWorld USB DVB-T Stick Mobile " \
 					"(UB383-T)",
 				.cold_ids = {&af9015_usb_table[30], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "AverMedia AVerTV Volar M (A815Mac)",
+				.cold_ids = {&af9015_usb_table[32], NULL},
 				.warm_ids = {NULL},
 			},
 		}
