@@ -127,9 +127,6 @@ static int is_valid_nodemask(const nodemask_t *nodemask)
 {
 	int nd, k;
 
-	/* Check that there is something useful in this mask */
-	k = policy_zone;
-
 	for_each_node_mask(nd, *nodemask) {
 		struct zone *z;
 
@@ -145,7 +142,7 @@ static int is_valid_nodemask(const nodemask_t *nodemask)
 
 static inline int mpol_store_user_nodemask(const struct mempolicy *pol)
 {
-	return pol->flags & (MPOL_F_STATIC_NODES | MPOL_F_RELATIVE_NODES);
+	return pol->flags & MPOL_MODE_FLAGS;
 }
 
 static void mpol_relative_nodemask(nodemask_t *ret, const nodemask_t *orig,
