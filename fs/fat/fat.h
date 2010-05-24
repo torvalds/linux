@@ -298,8 +298,8 @@ extern int fat_free_clusters(struct inode *inode, int cluster);
 extern int fat_count_free_clusters(struct super_block *sb);
 
 /* fat/file.c */
-extern int fat_generic_ioctl(struct inode *inode, struct file *filp,
-			     unsigned int cmd, unsigned long arg);
+extern long fat_generic_ioctl(struct file *filp, unsigned int cmd,
+			      unsigned long arg);
 extern const struct file_operations fat_file_operations;
 extern const struct inode_operations fat_file_inode_operations;
 extern int fat_setattr(struct dentry * dentry, struct iattr * attr);
