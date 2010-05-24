@@ -218,19 +218,9 @@ static inline void lru_cache_add_anon(struct page *page)
 	__lru_cache_add(page, LRU_INACTIVE_ANON);
 }
 
-static inline void lru_cache_add_active_anon(struct page *page)
-{
-	__lru_cache_add(page, LRU_ACTIVE_ANON);
-}
-
 static inline void lru_cache_add_file(struct page *page)
 {
 	__lru_cache_add(page, LRU_INACTIVE_FILE);
-}
-
-static inline void lru_cache_add_active_file(struct page *page)
-{
-	__lru_cache_add(page, LRU_ACTIVE_FILE);
 }
 
 /* linux/mm/vmscan.c */
