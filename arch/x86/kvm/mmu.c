@@ -1170,26 +1170,6 @@ static int mmu_unsync_walk(struct kvm_mmu_page *sp,
 	return __mmu_unsync_walk(sp, pvec);
 }
 
-static struct kvm_mmu_page *kvm_mmu_lookup_page(struct kvm *kvm, gfn_t gfn)
-{
-	unsigned index;
-	struct hlist_head *bucket;
-	struct kvm_mmu_page *sp;
-	struct hlist_node *node;
-
-	pgprintk("%s: looking for gfn %lx\n", __func__, gfn);
-	index = kvm_page_table_hashfn(gfn);
-	bucket = &kvm->arch.mmu_page_hash[index];
-	hlist_for_each_entry(sp, node, bucket, hash_link)
-		if (sp->gfn == gfn && !sp->role.direct
-		    && !sp->role.invalid) {
-			pgprintk("%s: found role %x\n",
-				 __func__, sp->role.word);
-			return sp;
-		}
-	return NULL;
-}
-
 static void kvm_unlink_unsync_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	WARN_ON(!sp->unsync);
@@ -1759,47 +1739,61 @@ u8 kvm_get_guest_memory_type(struct kvm_vcpu *vcpu, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(kvm_get_guest_memory_type);
 
-static int kvm_unsync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
+static void __kvm_unsync_page(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 {
-	unsigned index;
-	struct hlist_head *bucket;
-	struct kvm_mmu_page *s;
-	struct hlist_node *node, *n;
-
-	index = kvm_page_table_hashfn(sp->gfn);
-	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
-	/* don't unsync if pagetable is shadowed with multiple roles */
-	hlist_for_each_entry_safe(s, node, n, bucket, hash_link) {
-		if (s->gfn != sp->gfn || s->role.direct)
-			continue;
-		if (s->role.word != sp->role.word)
-			return 1;
-	}
 	trace_kvm_mmu_unsync_page(sp);
 	++vcpu->kvm->stat.mmu_unsync;
 	sp->unsync = 1;
 
 	kvm_mmu_mark_parents_unsync(sp);
-
 	mmu_convert_notrap(sp);
-	return 0;
+}
+
+static void kvm_unsync_pages(struct kvm_vcpu *vcpu,  gfn_t gfn)
+{
+	struct hlist_head *bucket;
+	struct kvm_mmu_page *s;
+	struct hlist_node *node, *n;
+	unsigned index;
+
+	index = kvm_page_table_hashfn(gfn);
+	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
+
+	hlist_for_each_entry_safe(s, node, n, bucket, hash_link) {
+		if (s->gfn != gfn || s->role.direct || s->unsync ||
+		      s->role.invalid)
+			continue;
+		WARN_ON(s->role.level != PT_PAGE_TABLE_LEVEL);
+		__kvm_unsync_page(vcpu, s);
+	}
 }
 
 static int mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
 				  bool can_unsync)
 {
-	struct kvm_mmu_page *shadow;
+	unsigned index;
+	struct hlist_head *bucket;
+	struct kvm_mmu_page *s;
+	struct hlist_node *node, *n;
+	bool need_unsync = false;
 
-	shadow = kvm_mmu_lookup_page(vcpu->kvm, gfn);
-	if (shadow) {
-		if (shadow->role.level != PT_PAGE_TABLE_LEVEL)
+	index = kvm_page_table_hashfn(gfn);
+	bucket = &vcpu->kvm->arch.mmu_page_hash[index];
+	hlist_for_each_entry_safe(s, node, n, bucket, hash_link) {
+		if (s->gfn != gfn || s->role.direct || s->role.invalid)
+			continue;
+
+		if (s->role.level != PT_PAGE_TABLE_LEVEL)
 			return 1;
-		if (shadow->unsync)
-			return 0;
-		if (can_unsync && oos_shadow)
-			return kvm_unsync_page(vcpu, shadow);
-		return 1;
+
+		if (!need_unsync && !s->unsync) {
+			if (!can_unsync || !oos_shadow)
+				return 1;
+			need_unsync = true;
+		}
 	}
+	if (need_unsync)
+		kvm_unsync_pages(vcpu, gfn);
 	return 0;
 }
 
