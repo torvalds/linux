@@ -65,6 +65,26 @@
 	 ((pgsz) == MMU_CAM_PGSZ_64K) ? 0xffff0000 :	\
 	 ((pgsz) == MMU_CAM_PGSZ_4K)  ? 0xfffff000 : 0)
 
+
+static void __iommu_set_twl(struct iommu *obj, bool on)
+{
+	u32 l = iommu_read_reg(obj, MMU_CNTL);
+
+	if (on)
+		iommu_write_reg(obj, MMU_IRQ_TWL_MASK, MMU_IRQENABLE);
+	else
+		iommu_write_reg(obj, MMU_IRQ_TLB_MISS_MASK, MMU_IRQENABLE);
+
+	l &= ~MMU_CNTL_MASK;
+	if (on)
+		l |= (MMU_CNTL_MMU_EN | MMU_CNTL_TWL_EN);
+	else
+		l |= (MMU_CNTL_MMU_EN);
+
+	iommu_write_reg(obj, l, MMU_CNTL);
+}
+
+
 static int omap2_iommu_enable(struct iommu *obj)
 {
 	u32 l, pa;
@@ -100,13 +120,9 @@ static int omap2_iommu_enable(struct iommu *obj)
 	l |= (MMU_SYS_IDLE_SMART | MMU_SYS_AUTOIDLE);
 	iommu_write_reg(obj, l, MMU_SYSCONFIG);
 
-	iommu_write_reg(obj, MMU_IRQ_TWL_MASK, MMU_IRQENABLE);
 	iommu_write_reg(obj, pa, MMU_TTB);
 
-	l = iommu_read_reg(obj, MMU_CNTL);
-	l &= ~MMU_CNTL_MASK;
-	l |= (MMU_CNTL_MMU_EN | MMU_CNTL_TWL_EN);
-	iommu_write_reg(obj, l, MMU_CNTL);
+	__iommu_set_twl(obj, true);
 
 	return 0;
 }
@@ -120,6 +136,11 @@ static void omap2_iommu_disable(struct iommu *obj)
 	iommu_write_reg(obj, MMU_SYS_IDLE_FORCE, MMU_SYSCONFIG);
 
 	dev_dbg(obj->dev, "%s is shutting down\n", obj->name);
+}
+
+static void omap2_iommu_set_twl(struct iommu *obj, bool on)
+{
+	__iommu_set_twl(obj, false);
 }
 
 static u32 omap2_iommu_fault_isr(struct iommu *obj, u32 *ra)
@@ -304,6 +325,7 @@ static const struct iommu_functions omap2_iommu_ops = {
 
 	.enable		= omap2_iommu_enable,
 	.disable	= omap2_iommu_disable,
+	.set_twl	= omap2_iommu_set_twl,
 	.fault_isr	= omap2_iommu_fault_isr,
 
 	.tlb_read_cr	= omap2_tlb_read_cr,
