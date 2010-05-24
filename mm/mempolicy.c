@@ -2239,7 +2239,10 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
 	if (IS_ERR(new))
 		goto out;
 
-	{
+	if (no_context) {
+		/* save for contextualization */
+		new->w.user_nodemask = nodes;
+	} else {
 		int ret;
 		NODEMASK_SCRATCH(scratch);
 		if (scratch) {
@@ -2255,10 +2258,6 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
 		}
 	}
 	err = 0;
-	if (no_context) {
-		/* save for contextualization */
-		new->w.user_nodemask = nodes;
-	}
 
 out:
 	/* Restore string for error message */
