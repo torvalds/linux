@@ -224,22 +224,6 @@ static void rk2818_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int l
      
 	uint32_t  i = 0;
 
-    #if 0
-       if(len < mtd->writesize)
-        {
-          pRK28NC->FLCTL &= ~FL_BYPASS;  //bypass mode
-          //  bypass write
-	   if (len >0)
-	    {
-	     for( i = 0; i<len; i++ )
-	    	{
-                 pRK28NC ->chip[0].data = buf[i] ;
-	    	}
-	    }
-         }
-	else
-   #endif
-	 {
          pRK28NC->FLCTL |= FL_BYPASS;  // dma mode
 	  for(i=0;i<mtd->writesize/0x400;i++)
 	    {
@@ -248,7 +232,6 @@ static void rk2818_nand_write_buf(struct mtd_info *mtd, const u_char *buf, int l
 		pRK28NC ->FLCTL = (0<<4)|FL_COR_EN|0x1<<5|FL_RDN|FL_BYPASS|FL_START;
 		wait_op_done(mtd,TROP_US_DELAY,0);	
 	    }
-        }
 
 }
 
@@ -261,8 +244,6 @@ static void rk2818_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int colum
 
        uint32_t timeout = 1000;
 	char status,ret;
-
-	// pRK28NC->FLCTL &= ~FL_BYPASS;   // bypass mode to send command
 	
 	switch (command) {
 
@@ -302,7 +283,6 @@ static void rk2818_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int colum
 	   	break;
 		
 	case NAND_CMD_READ1:
-		//pRK28NC ->BCHCTL = 0x0;
               pRK28NC ->chip[0].cmd = command;
 		break;
 		
@@ -400,7 +380,6 @@ static void rk2818_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int colum
 		
 	case NAND_CMD_STATUS:
 		pRK28NC ->BCHCTL = 0x0;
-	//	pRK28NC ->FLCTL =0x1;
 		pRK28NC ->chip[0].cmd = command;
 		break;
 
@@ -532,7 +511,6 @@ int rk2818_nand_read_oob(struct mtd_info *mtd, struct nand_chip *chip, int page,
      	struct rk2818_nand_mtd *master = nand_chip->priv;
      	pNANDC pRK28NC=  (pNANDC)(master->regs);
        int i;
-	//uint8_t buf[0x400];
 
 	if (sndcmd) {
 		chip->cmdfunc(mtd, NAND_CMD_READOOB, 0, page);
@@ -594,7 +572,7 @@ static int rk2818_nand_probe(struct platform_device *pdev)
 	struct rk2818_nand_platform_data *pdata = pdev->dev.platform_data;
 	struct rk2818_nand_mtd *master;
 	struct resource *res;
-	int err = 0, nr_parts = 0;
+	int err = 0;
 	pNANDC pRK28NC;
 
 #ifdef CONFIG_MTD_PARTITIONS
@@ -628,8 +606,6 @@ static int rk2818_nand_probe(struct platform_device *pdev)
 	this->read_buf = rk2818_nand_read_buf;
 	this->options |= NAND_USE_FLASH_BBT;    // open bbt options
 	
-     //  this->block_bad = rk2818_nand_block_bad;
-     //  this->block_markbad = rk2818_nand_block_markbad;
 	   
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
@@ -683,12 +659,6 @@ static int rk2818_nand_probe(struct platform_device *pdev)
 		goto outscan;
 	}
 
-#if 0
-      // rk281x dma mode bch must  (1k data + 32 oob) bytes align , so cheat system writesize =1024,oobsize=32
-	mtd->writesize = 1024;
-	mtd->oobsize = 32;
-#endif
-
 #ifdef CONFIG_MTD_PARTITIONS
         num_partitions = parse_mtd_partitions(mtd, part_probes, &partitions, 0);
 	if (num_partitions > 0) {
@@ -705,11 +675,6 @@ static int rk2818_nand_probe(struct platform_device *pdev)
 		printk(KERN_INFO "no partition info available, registering whole flash at once\n");
 		add_mtd_device(mtd);
 	}
-#if 0
-	nr_parts = pdata->nr_parts;
-	master->parts = pdata->parts;
-	add_mtd_partitions(mtd, master->parts, nr_parts);
-#endif
 
 	platform_set_drvdata(pdev, master);
 
