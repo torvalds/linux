@@ -73,8 +73,6 @@ struct scan_control {
 
 	int swappiness;
 
-	int all_unreclaimable;
-
 	int order;
 
 	/*
@@ -1716,14 +1714,14 @@ static void shrink_zone(int priority, struct zone *zone,
  * If a zone is deemed to be full of pinned pages then just give it a light
  * scan then give up on it.
  */
-static void shrink_zones(int priority, struct zonelist *zonelist,
+static int shrink_zones(int priority, struct zonelist *zonelist,
 					struct scan_control *sc)
 {
 	enum zone_type high_zoneidx = gfp_zone(sc->gfp_mask);
 	struct zoneref *z;
 	struct zone *zone;
+	int progress = 0;
 
-	sc->all_unreclaimable = 1;
 	for_each_zone_zonelist_nodemask(zone, z, zonelist, high_zoneidx,
 					sc->nodemask) {
 		if (!populated_zone(zone))
@@ -1739,19 +1737,19 @@ static void shrink_zones(int priority, struct zonelist *zonelist,
 
 			if (zone->all_unreclaimable && priority != DEF_PRIORITY)
 				continue;	/* Let kswapd poll it */
-			sc->all_unreclaimable = 0;
 		} else {
 			/*
 			 * Ignore cpuset limitation here. We just want to reduce
 			 * # of used pages by us regardless of memory shortage.
 			 */
-			sc->all_unreclaimable = 0;
 			mem_cgroup_note_reclaim_priority(sc->mem_cgroup,
 							priority);
 		}
 
 		shrink_zone(priority, zone, sc);
+		progress = 1;
 	}
+	return progress;
 }
 
 /*
@@ -1805,7 +1803,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 		sc->nr_scanned = 0;
 		if (!priority)
 			disable_swap_token();
-		shrink_zones(priority, zonelist, sc);
+		ret = shrink_zones(priority, zonelist, sc);
 		/*
 		 * Don't shrink slabs when reclaiming memory from
 		 * over limit cgroups
@@ -1842,7 +1840,7 @@ static unsigned long do_try_to_free_pages(struct zonelist *zonelist,
 			congestion_wait(BLK_RW_ASYNC, HZ/10);
 	}
 	/* top priority shrink_zones still had more to do? don't OOM, then */
-	if (!sc->all_unreclaimable && scanning_global_lru(sc))
+	if (ret && scanning_global_lru(sc))
 		ret = sc->nr_reclaimed;
 out:
 	/*
