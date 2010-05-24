@@ -1064,6 +1064,7 @@ void sock_update_classid(struct sock *sk)
 	if (classid && classid != sk->sk_classid)
 		sk->sk_classid = classid;
 }
+EXPORT_SYMBOL(sock_update_classid);
 #endif
 
 /**
