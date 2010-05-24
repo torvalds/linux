@@ -15,17 +15,18 @@
 		(((features) << 18) | (((wipers) & 0xFF) << 10) | \
 		((max_pos & 0xF) << 6) | (uid & 0x3F))
 
-#define DPOT_UID(conf) (conf & 0x3F)
-#define DPOT_MAX_POS(conf) ((conf >> 6) & 0xF)
-#define DPOT_WIPERS(conf) ((conf >> 10) & 0xFF)
-#define DPOT_FEAT(conf) (conf >> 18)
+#define DPOT_UID(conf)		(conf & 0x3F)
+#define DPOT_MAX_POS(conf)	((conf >> 6) & 0xF)
+#define DPOT_WIPERS(conf)	((conf >> 10) & 0xFF)
+#define DPOT_FEAT(conf)		(conf >> 18)
 
-#define BRDAC0	(1 << 0)
-#define BRDAC1	(1 << 1)
-#define BRDAC2	(1 << 2)
-#define BRDAC3	(1 << 3)
-#define BRDAC4	(1 << 4)
-#define BRDAC5	(1 << 5)
+#define BRDAC0			(1 << 0)
+#define BRDAC1			(1 << 1)
+#define BRDAC2			(1 << 2)
+#define BRDAC3			(1 << 3)
+#define BRDAC4			(1 << 4)
+#define BRDAC5			(1 << 5)
+#define MAX_RDACS		6
 
 #define F_CMD_INC		(1 << 0)	/* Features INC/DEC ALL, 6dB */
 #define F_CMD_EEP		(1 << 1)	/* Features EEPROM */
@@ -116,6 +117,11 @@ enum dpot_devid {
 	AD5282_ID = DPOT_CONF(F_RDACS_RW, BRDAC0 | BRDAC1, 8, 41),
 	ADN2860_ID = DPOT_CONF(F_RDACS_RW_TOL | F_CMD_INC,
 			BRDAC0 | BRDAC1 | BRDAC2, 9, 42),
+	AD5273_ID = DPOT_CONF(F_RDACS_RW | F_CMD_OTP, BRDAC0, 6, 43),
+	AD5171_ID = DPOT_CONF(F_RDACS_RW | F_CMD_OTP, BRDAC0, 6, 44),
+	AD5170_ID = DPOT_CONF(F_RDACS_RW | F_CMD_OTP, BRDAC0, 8, 45),
+	AD5172_ID = DPOT_CONF(F_RDACS_RW | F_CMD_OTP, BRDAC0 | BRDAC1, 8, 46),
+	AD5173_ID = DPOT_CONF(F_RDACS_RW | F_CMD_OTP, BRDAC0 | BRDAC1, 8, 47),
 };
 
 #define DPOT_RDAC0		0
@@ -136,9 +142,11 @@ enum dpot_devid {
 #define DPOT_TOL_RDAC5		(DPOT_REG_TOL | DPOT_RDAC5)
 
 /* RDAC-to-EEPROM Interface Commands */
-#define DPOT_ADDR_RDAC		(0x00 << 5)
-#define DPOT_ADDR_EEPROM	(0x01 << 5)
-#define DPOT_ADDR_CMD		(0x80)
+#define DPOT_ADDR_RDAC		(0x0 << 5)
+#define DPOT_ADDR_EEPROM	(0x1 << 5)
+#define DPOT_ADDR_OTP		(0x1 << 6)
+#define DPOT_ADDR_CMD		(0x1 << 7)
+#define DPOT_ADDR_OTP_EN	(0x1 << 9)
 
 #define DPOT_DEC_ALL_6DB	(DPOT_ADDR_CMD | (0x4 << 3))
 #define DPOT_INC_ALL_6DB	(DPOT_ADDR_CMD | (0x9 << 3))
@@ -160,6 +168,12 @@ enum dpot_devid {
 
 /* AD524x use special commands */
 #define DPOT_AD5291_RDAC_AB	0x80
+
+#define DPOT_AD5273_FUSE	0x80
+#define DPOT_AD5270_2_3_FUSE	0x20
+#define DPOT_AD5270_2_3_OW	0x08
+#define DPOT_AD5272_3_A0	0x08
+#define DPOT_AD5270_2FUSE	0x80
 
 struct dpot_data;
 
