@@ -1051,7 +1051,7 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	mutex_lock(&wl->mutex);
 
 	/* let's notify MAC80211 about the remaining pending TX frames */
-	wl1271_tx_flush(wl);
+	wl1271_tx_reset(wl);
 	wl1271_power_off(wl);
 
 	memset(wl->bssid, 0, ETH_ALEN);
@@ -1297,6 +1297,15 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		     conf->flags & IEEE80211_CONF_PS ? "on" : "off",
 		     conf->power_level,
 		     conf->flags & IEEE80211_CONF_IDLE ? "idle" : "in use");
+
+	/*
+	 * mac80211 will go to idle nearly immediately after transmitting some
+	 * frames, such as the deauth. To make sure those frames reach the air,
+	 * wait here until the TX queue is fully flushed.
+	 */
+	if ((changed & IEEE80211_CONF_CHANGE_IDLE) &&
+	    (conf->flags & IEEE80211_CONF_IDLE))
+		wl1271_tx_flush(wl);
 
 	mutex_lock(&wl->mutex);
 
