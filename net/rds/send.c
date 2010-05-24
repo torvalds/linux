@@ -1036,13 +1036,7 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 		goto out;
 	}
 
-	/* If the connection is down, trigger a connect. We may
-	 * have scheduled a delayed reconnect however - in this case
-	 * we should not interfere.
-	 */
-	if (rds_conn_state(conn) == RDS_CONN_DOWN &&
-	    !test_and_set_bit(RDS_RECONNECT_PENDING, &conn->c_flags))
-		queue_delayed_work(rds_wq, &conn->c_conn_w, 0);
+	rds_conn_connect_if_down(conn);
 
 	ret = rds_cong_wait(conn->c_fcong, dport, nonblock, rs);
 	if (ret) {
@@ -1122,13 +1116,7 @@ rds_send_pong(struct rds_connection *conn, __be16 dport)
 	rm->m_daddr = conn->c_faddr;
 	rm->data.op_active = 1;
 
-	/* If the connection is down, trigger a connect. We may
-	 * have scheduled a delayed reconnect however - in this case
-	 * we should not interfere.
-	 */
-	if (rds_conn_state(conn) == RDS_CONN_DOWN &&
-	    !test_and_set_bit(RDS_RECONNECT_PENDING, &conn->c_flags))
-		queue_delayed_work(rds_wq, &conn->c_conn_w, 0);
+	rds_conn_connect_if_down(conn);
 
 	ret = rds_cong_wait(conn->c_fcong, dport, 1, NULL);
 	if (ret)
