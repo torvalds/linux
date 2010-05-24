@@ -75,7 +75,7 @@ enum dpot_devid {
 #define AD525X_INC_ALL		(AD525X_I2C_CMD | (0xB << 3))
 
 static s32 ad525x_read(struct i2c_client *client, u8 reg);
-static s32 ad525x_write(struct i2c_client *client, u8 reg, u8 value);
+static s32 ad525x_write(struct i2c_client *client, u8 reg, u16 value);
 
 /*
  * Client data (each client gets its own)
@@ -296,7 +296,7 @@ static s32 ad525x_read(struct i2c_client *client, u8 reg)
  * A negative return value indicates an error occurred while reading
  * the register.
  */
-static s32 ad525x_write(struct i2c_client *client, u8 reg, u8 value)
+static s32 ad525x_write(struct i2c_client *client, u8 reg, u16 value)
 {
 	struct dpot_data *data = i2c_get_clientdata(client);
 
