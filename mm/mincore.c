@@ -19,6 +19,42 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 
+static void mincore_hugetlb_page_range(struct vm_area_struct *vma,
+				unsigned long addr, unsigned long nr,
+				unsigned char *vec)
+{
+#ifdef CONFIG_HUGETLB_PAGE
+	struct hstate *h;
+	int i;
+
+	i = 0;
+	h = hstate_vma(vma);
+	while (1) {
+		unsigned char present;
+		pte_t *ptep;
+		/*
+		 * Huge pages are always in RAM for now, but
+		 * theoretically it needs to be checked.
+		 */
+		ptep = huge_pte_offset(current->mm,
+				       addr & huge_page_mask(h));
+		present = ptep && !huge_pte_none(huge_ptep_get(ptep));
+		while (1) {
+			vec[i++] = present;
+			addr += PAGE_SIZE;
+			/* reach buffer limit */
+			if (i == nr)
+				return;
+			/* check hugepage border */
+			if (!(addr & ~huge_page_mask(h)))
+				break;
+		}
+	}
+#else
+	BUG();
+#endif
+}
+
 /*
  * Later we can get more picky about what "in core" means precisely.
  * For now, simply check to see if the page is in the page cache,
@@ -49,87 +85,40 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
 	return present;
 }
 
-/*
- * Do a chunk of "sys_mincore()". We've already checked
- * all the arguments, we hold the mmap semaphore: we should
- * just return the amount of info we're asked for.
- */
-static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *vec)
+static void mincore_unmapped_range(struct vm_area_struct *vma,
+				unsigned long addr, unsigned long nr,
+				unsigned char *vec)
 {
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *ptep;
-	spinlock_t *ptl;
-	unsigned long nr;
 	int i;
-	pgoff_t pgoff;
-	struct vm_area_struct *vma;
 
-	vma = find_vma(current->mm, addr);
-	if (!vma || addr < vma->vm_start)
-		return -ENOMEM;
+	if (vma->vm_file) {
+		pgoff_t pgoff;
 
-	nr = min(pages, (vma->vm_end - addr) >> PAGE_SHIFT);
-
-#ifdef CONFIG_HUGETLB_PAGE
-	if (is_vm_hugetlb_page(vma)) {
-		struct hstate *h;
-
-		i = 0;
-		h = hstate_vma(vma);
-		while (1) {
-			unsigned char present;
-			/*
-			 * Huge pages are always in RAM for now, but
-			 * theoretically it needs to be checked.
-			 */
-			ptep = huge_pte_offset(current->mm,
-					       addr & huge_page_mask(h));
-			present = ptep && !huge_pte_none(huge_ptep_get(ptep));
-			while (1) {
-				vec[i++] = present;
-				addr += PAGE_SIZE;
-				/* reach buffer limit */
-				if (i == nr)
-					return nr;
-				/* check hugepage border */
-				if (!(addr & ~huge_page_mask(h)))
-					break;
-			}
-		}
-		return nr;
+		pgoff = linear_page_index(vma, addr);
+		for (i = 0; i < nr; i++, pgoff++)
+			vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
+	} else {
+		for (i = 0; i < nr; i++)
+			vec[i] = 0;
 	}
-#endif
+}
 
-	/*
-	 * Calculate how many pages there are left in the last level of the
-	 * PTE array for our address.
-	 */
-	nr = min(nr, PTRS_PER_PTE - ((addr >> PAGE_SHIFT) & (PTRS_PER_PTE-1)));
-
-	pgd = pgd_offset(vma->vm_mm, addr);
-	if (pgd_none_or_clear_bad(pgd))
-		goto none_mapped;
-	pud = pud_offset(pgd, addr);
-	if (pud_none_or_clear_bad(pud))
-		goto none_mapped;
-	pmd = pmd_offset(pud, addr);
-	if (pmd_none_or_clear_bad(pmd))
-		goto none_mapped;
+static void mincore_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
+			unsigned long addr, unsigned long nr,
+			unsigned char *vec)
+{
+	spinlock_t *ptl;
+	pte_t *ptep;
+	int i;
 
 	ptep = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	for (i = 0; i < nr; i++, ptep++, addr += PAGE_SIZE) {
 		pte_t pte = *ptep;
+		pgoff_t pgoff;
 
-		if (pte_none(pte)) {
-			if (vma->vm_file) {
-				pgoff = linear_page_index(vma, addr);
-				vec[i] = mincore_page(vma->vm_file->f_mapping,
-						pgoff);
-			} else
-				vec[i] = 0;
-		} else if (pte_present(pte))
+		if (pte_none(pte))
+			mincore_unmapped_range(vma, addr, 1, vec);
+		else if (pte_present(pte))
 			vec[i] = 1;
 		else if (pte_file(pte)) {
 			pgoff = pte_to_pgoff(pte);
@@ -152,19 +141,53 @@ static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *v
 		}
 	}
 	pte_unmap_unlock(ptep - 1, ptl);
+}
 
+/*
+ * Do a chunk of "sys_mincore()". We've already checked
+ * all the arguments, we hold the mmap semaphore: we should
+ * just return the amount of info we're asked for.
+ */
+static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *vec)
+{
+	pgd_t *pgd;
+	pud_t *pud;
+	pmd_t *pmd;
+	unsigned long nr;
+	struct vm_area_struct *vma;
+
+	vma = find_vma(current->mm, addr);
+	if (!vma || addr < vma->vm_start)
+		return -ENOMEM;
+
+	nr = min(pages, (vma->vm_end - addr) >> PAGE_SHIFT);
+
+	if (is_vm_hugetlb_page(vma)) {
+		mincore_hugetlb_page_range(vma, addr, nr, vec);
+		return nr;
+	}
+
+	/*
+	 * Calculate how many pages there are left in the last level of the
+	 * PTE array for our address.
+	 */
+	nr = min(nr, PTRS_PER_PTE - ((addr >> PAGE_SHIFT) & (PTRS_PER_PTE-1)));
+
+	pgd = pgd_offset(vma->vm_mm, addr);
+	if (pgd_none_or_clear_bad(pgd))
+		goto none_mapped;
+	pud = pud_offset(pgd, addr);
+	if (pud_none_or_clear_bad(pud))
+		goto none_mapped;
+	pmd = pmd_offset(pud, addr);
+	if (pmd_none_or_clear_bad(pmd))
+		goto none_mapped;
+
+	mincore_pte_range(vma, pmd, addr, nr, vec);
 	return nr;
 
 none_mapped:
-	if (vma->vm_file) {
-		pgoff = linear_page_index(vma, addr);
-		for (i = 0; i < nr; i++, pgoff++)
-			vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
-	} else {
-		for (i = 0; i < nr; i++)
-			vec[i] = 0;
-	}
-
+	mincore_unmapped_range(vma, addr, nr, vec);
 	return nr;
 }
 
