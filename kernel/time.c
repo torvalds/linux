@@ -132,10 +132,10 @@ SYSCALL_DEFINE2(gettimeofday, struct timeval __user *, tv,
  */
 static inline void warp_clock(void)
 {
-	struct timespec delta, adjust;
-	delta.tv_sec = sys_tz.tz_minuteswest * 60;
-	delta.tv_nsec = 0;
-	adjust = timespec_add_safe(current_kernel_time(), delta);
+	struct timespec adjust;
+
+	adjust = current_kernel_time();
+	adjust.tv_sec += sys_tz.tz_minuteswest * 60;
 	do_settimeofday(&adjust);
 }
 
