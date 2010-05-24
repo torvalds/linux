@@ -109,7 +109,7 @@ static int bq27x00_battery_temperature(struct bq27x00_device_info *di)
 	if (di->chip == BQ27500)
 		return temp - 2731;
 	else
-		return ((temp >> 2) - 273) * 10;
+		return ((temp * 5) - 5463) / 2;
 }
 
 /*
