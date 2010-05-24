@@ -251,6 +251,9 @@ EXPORT_SYMBOL_GPL(lis3lv02d_poweron);
 
 static irqreturn_t lis302dl_interrupt(int irq, void *dummy)
 {
+	if (!test_bit(0, &lis3_dev.misc_opened))
+		goto out;
+
 	/*
 	 * Be careful: on some HP laptops the bios force DD when on battery and
 	 * the lid is closed. This leads to interrupts as soon as a little move
@@ -260,44 +263,35 @@ static irqreturn_t lis302dl_interrupt(int irq, void *dummy)
 
 	wake_up_interruptible(&lis3_dev.misc_wait);
 	kill_fasync(&lis3_dev.async_queue, SIGIO, POLL_IN);
+out:
+	if (lis3_dev.whoami == WAI_8B && lis3_dev.idev &&
+	    lis3_dev.idev->input->users)
+		return IRQ_WAKE_THREAD;
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t lis302dl_interrupt_thread1_8b(int irq, void *data)
+{
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t lis302dl_interrupt_thread2_8b(int irq, void *data)
+{
 	return IRQ_HANDLED;
 }
 
 static int lis3lv02d_misc_open(struct inode *inode, struct file *file)
 {
-	int ret;
-
 	if (test_and_set_bit(0, &lis3_dev.misc_opened))
 		return -EBUSY; /* already open */
 
 	atomic_set(&lis3_dev.count, 0);
-
-	/*
-	 * The sensor can generate interrupts for free-fall and direction
-	 * detection (distinguishable with FF_WU_SRC and DD_SRC) but to keep
-	 * the things simple and _fast_ we activate it only for free-fall, so
-	 * no need to read register (very slow with ACPI). For the same reason,
-	 * we forbid shared interrupts.
-	 *
-	 * IRQF_TRIGGER_RISING seems pointless on HP laptops because the
-	 * io-apic is not configurable (and generates a warning) but I keep it
-	 * in case of support for other hardware.
-	 */
-	ret = request_irq(lis3_dev.irq, lis302dl_interrupt, IRQF_TRIGGER_RISING,
-			  DRIVER_NAME, &lis3_dev);
-
-	if (ret) {
-		clear_bit(0, &lis3_dev.misc_opened);
-		printk(KERN_ERR DRIVER_NAME ": IRQ%d allocation failed\n", lis3_dev.irq);
-		return -EBUSY;
-	}
 	return 0;
 }
 
 static int lis3lv02d_misc_release(struct inode *inode, struct file *file)
 {
 	fasync_helper(-1, file, 0, &lis3_dev.async_queue);
-	free_irq(lis3_dev.irq, &lis3_dev);
 	clear_bit(0, &lis3_dev.misc_opened); /* release the device */
 	return 0;
 }
@@ -434,6 +428,11 @@ EXPORT_SYMBOL_GPL(lis3lv02d_joystick_enable);
 
 void lis3lv02d_joystick_disable(void)
 {
+	if (lis3_dev.irq)
+		free_irq(lis3_dev.irq, &lis3_dev);
+	if (lis3_dev.pdata && lis3_dev.pdata->irq2)
+		free_irq(lis3_dev.pdata->irq2, &lis3_dev);
+
 	if (!lis3_dev.idev)
 		return;
 
@@ -524,6 +523,7 @@ EXPORT_SYMBOL_GPL(lis3lv02d_remove_fs);
 static void lis3lv02d_8b_configure(struct lis3lv02d *dev,
 				struct lis3lv02d_platform_data *p)
 {
+	int err;
 	int ctrl2 = p->hipass_ctrl;
 
 	if (p->click_flags) {
@@ -554,6 +554,18 @@ static void lis3lv02d_8b_configure(struct lis3lv02d *dev,
 	}
 	/* Configure hipass filters */
 	dev->write(dev, CTRL_REG2, ctrl2);
+
+	if (p->irq2) {
+		err = request_threaded_irq(p->irq2,
+					NULL,
+					lis302dl_interrupt_thread2_8b,
+					IRQF_TRIGGER_RISING |
+					IRQF_ONESHOT,
+					DRIVER_NAME, &lis3_dev);
+		if (err < 0)
+			printk(KERN_ERR DRIVER_NAME
+				"No second IRQ. Limited functionality\n");
+	}
 }
 
 /*
@@ -562,6 +574,9 @@ static void lis3lv02d_8b_configure(struct lis3lv02d *dev,
  */
 int lis3lv02d_init_device(struct lis3lv02d *dev)
 {
+	int err;
+	irq_handler_t thread_fn;
+
 	dev->whoami = lis3lv02d_read_8(dev, WHO_AM_I);
 
 	switch (dev->whoami) {
@@ -613,6 +628,32 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 	if (!dev->irq) {
 		printk(KERN_ERR DRIVER_NAME
 			": No IRQ. Disabling /dev/freefall\n");
+		goto out;
+	}
+
+	/*
+	 * The sensor can generate interrupts for free-fall and direction
+	 * detection (distinguishable with FF_WU_SRC and DD_SRC) but to keep
+	 * the things simple and _fast_ we activate it only for free-fall, so
+	 * no need to read register (very slow with ACPI). For the same reason,
+	 * we forbid shared interrupts.
+	 *
+	 * IRQF_TRIGGER_RISING seems pointless on HP laptops because the
+	 * io-apic is not configurable (and generates a warning) but I keep it
+	 * in case of support for other hardware.
+	 */
+	if (dev->whoami == WAI_8B)
+		thread_fn = lis302dl_interrupt_thread1_8b;
+	else
+		thread_fn = NULL;
+
+	err = request_threaded_irq(dev->irq, lis302dl_interrupt,
+				thread_fn,
+				IRQF_TRIGGER_RISING | IRQF_ONESHOT,
+				DRIVER_NAME, &lis3_dev);
+
+	if (err < 0) {
+		printk(KERN_ERR DRIVER_NAME "Cannot get IRQ\n");
 		goto out;
 	}
 
