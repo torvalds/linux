@@ -1,8 +1,8 @@
-/* linux/arch/arm/plat-s5pc1xx/setup-sdhci-gpio.c
+/* linux/arch/arm/plat-s5pc100/setup-sdhci-gpio.c
  *
  * Copyright 2009 Samsung Eletronics
  *
- * S5PC1XX - Helper functions for setting up SDHCI device(s) GPIO (HSMMC)
+ * S5PC100 - Helper functions for setting up SDHCI device(s) GPIO (HSMMC)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

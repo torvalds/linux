@@ -449,6 +449,7 @@ static int __init pcm037_camera_alloc_dma(const size_t buf_size)
 static struct platform_device *devices[] __initdata = {
 	&pcm037_flash,
 	&pcm037_sram_device,
+	&imx_wdt_device0,
 	&pcm037_mt9t031,
 	&pcm037_mt9v022,
 };
