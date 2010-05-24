@@ -1135,6 +1135,11 @@ static int wl1271_dummy_join(struct wl1271 *wl)
 
 	memcpy(wl->bssid, dummy_bssid, ETH_ALEN);
 
+	/* increment the session counter */
+	wl->session_counter++;
+	if (wl->session_counter >= SESSION_COUNTER_MAX)
+		wl->session_counter = 0;
+
 	/* pass through frames from all BSS */
 	wl1271_configure_filters(wl, FIF_OTHER_BSS);
 

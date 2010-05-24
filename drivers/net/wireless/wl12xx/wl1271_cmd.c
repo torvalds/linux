@@ -336,12 +336,6 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 	join->channel = wl->channel;
 	join->ssid_len = wl->ssid_len;
 	memcpy(join->ssid, wl->ssid, wl->ssid_len);
-	join->ctrl = WL1271_JOIN_CMD_CTRL_TX_FLUSH;
-
-	/* increment the session counter */
-	wl->session_counter++;
-	if (wl->session_counter >= SESSION_COUNTER_MAX)
-		wl->session_counter = 0;
 
 	join->ctrl |= wl->session_counter << WL1271_JOIN_CMD_TX_SESSION_OFFSET;
 
