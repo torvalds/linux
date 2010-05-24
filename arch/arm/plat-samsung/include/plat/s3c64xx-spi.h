@@ -63,5 +63,9 @@ struct s3c64xx_spi_info {
  * has some chips attached to it.
  */
 extern void s3c64xx_spi_set_info(int cntrlr, int src_clk_nr, int num_cs);
+extern void s5pc100_spi_set_info(int cntrlr, int src_clk_nr, int num_cs);
+extern void s5pv210_spi_set_info(int cntrlr, int src_clk_nr, int num_cs);
+extern void s5p6440_spi_set_info(int cntrlr, int src_clk_nr, int num_cs);
+extern void s5p6442_spi_set_info(int cntrlr, int src_clk_nr, int num_cs);
 
 #endif /* __S3C64XX_PLAT_SPI_H */
