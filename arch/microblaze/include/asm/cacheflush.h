@@ -103,8 +103,10 @@ do { \
 
 #define copy_to_user_page(vma, page, vaddr, dst, src, len)		\
 do {									\
+	u32 addr = virt_to_phys(dst);					\
+	invalidate_icache_range((unsigned) (addr), (unsigned) (addr) + (len));\
 	memcpy((dst), (src), (len));					\
-	flush_icache_range((unsigned) (dst), (unsigned) (dst) + (len));	\
+	flush_dcache_range((unsigned) (addr), (unsigned) (addr) + (len));\
 } while (0)
 
 #define copy_from_user_page(vma, page, vaddr, dst, src, len)		\
