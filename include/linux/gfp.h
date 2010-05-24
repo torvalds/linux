@@ -101,7 +101,7 @@ struct vm_area_struct;
 			__GFP_NORETRY|__GFP_NOMEMALLOC)
 
 /* Control slab gfp mask during early boot */
-#define GFP_BOOT_MASK __GFP_BITS_MASK & ~(__GFP_WAIT|__GFP_IO|__GFP_FS)
+#define GFP_BOOT_MASK (__GFP_BITS_MASK & ~(__GFP_WAIT|__GFP_IO|__GFP_FS))
 
 /* Control allocation constraints */
 #define GFP_CONSTRAINT_MASK (__GFP_HARDWALL|__GFP_THISNODE)
@@ -187,7 +187,7 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 
 #define GFP_ZONE_TABLE ( \
 	(ZONE_NORMAL << 0 * ZONES_SHIFT)				\
-	| (OPT_ZONE_DMA << __GFP_DMA * ZONES_SHIFT) 			\
+	| (OPT_ZONE_DMA << __GFP_DMA * ZONES_SHIFT)			\
 	| (OPT_ZONE_HIGHMEM << __GFP_HIGHMEM * ZONES_SHIFT)		\
 	| (OPT_ZONE_DMA32 << __GFP_DMA32 * ZONES_SHIFT)			\
 	| (ZONE_NORMAL << __GFP_MOVABLE * ZONES_SHIFT)			\
@@ -320,17 +320,17 @@ void *alloc_pages_exact(size_t size, gfp_t gfp_mask);
 void free_pages_exact(void *virt, size_t size);
 
 #define __get_free_page(gfp_mask) \
-		__get_free_pages((gfp_mask),0)
+		__get_free_pages((gfp_mask), 0)
 
 #define __get_dma_pages(gfp_mask, order) \
-		__get_free_pages((gfp_mask) | GFP_DMA,(order))
+		__get_free_pages((gfp_mask) | GFP_DMA, (order))
 
 extern void __free_pages(struct page *page, unsigned int order);
 extern void free_pages(unsigned long addr, unsigned int order);
 extern void free_hot_cold_page(struct page *page, int cold);
 
 #define __free_page(page) __free_pages((page), 0)
-#define free_page(addr) free_pages((addr),0)
+#define free_page(addr) free_pages((addr), 0)
 
 void page_alloc_init(void);
 void drain_zone_pages(struct zone *zone, struct per_cpu_pages *pcp);
