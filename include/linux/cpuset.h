@@ -86,9 +86,44 @@ extern void rebuild_sched_domains(void);
 
 extern void cpuset_print_task_mems_allowed(struct task_struct *p);
 
+/*
+ * reading current mems_allowed and mempolicy in the fastpath must protected
+ * by get_mems_allowed()
+ */
+static inline void get_mems_allowed(void)
+{
+	current->mems_allowed_change_disable++;
+
+	/*
+	 * ensure that reading mems_allowed and mempolicy happens after the
+	 * update of ->mems_allowed_change_disable.
+	 *
+	 * the write-side task finds ->mems_allowed_change_disable is not 0,
+	 * and knows the read-side task is reading mems_allowed or mempolicy,
+	 * so it will clear old bits lazily.
+	 */
+	smp_mb();
+}
+
+static inline void put_mems_allowed(void)
+{
+	/*
+	 * ensure that reading mems_allowed and mempolicy before reducing
+	 * mems_allowed_change_disable.
+	 *
+	 * the write-side task will know that the read-side task is still
+	 * reading mems_allowed or mempolicy, don't clears old bits in the
+	 * nodemask.
+	 */
+	smp_mb();
+	--ACCESS_ONCE(current->mems_allowed_change_disable);
+}
+
 static inline void set_mems_allowed(nodemask_t nodemask)
 {
+	task_lock(current);
 	current->mems_allowed = nodemask;
+	task_unlock(current);
 }
 
 #else /* !CONFIG_CPUSETS */
@@ -184,6 +219,14 @@ static inline void cpuset_print_task_mems_allowed(struct task_struct *p)
 }
 
 static inline void set_mems_allowed(nodemask_t nodemask)
+{
+}
+
+static inline void get_mems_allowed(void)
+{
+}
+
+static inline void put_mems_allowed(void)
 {
 }
 
