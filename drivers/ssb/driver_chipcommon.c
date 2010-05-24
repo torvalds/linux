@@ -209,6 +209,24 @@ static void chipco_powercontrol_init(struct ssb_chipcommon *cc)
 	}
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PmuFastPwrupDelay */
+static u16 pmu_fast_powerup_delay(struct ssb_chipcommon *cc)
+{
+	struct ssb_bus *bus = cc->dev->bus;
+
+	switch (bus->chip_id) {
+	case 0x4312:
+	case 0x4322:
+	case 0x4328:
+		return 7000;
+	case 0x4325:
+		/* TODO: */
+	default:
+		return 15000;
+	}
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/ClkctlFastPwrupDelay */
 static void calc_fast_powerup_delay(struct ssb_chipcommon *cc)
 {
 	struct ssb_bus *bus = cc->dev->bus;
@@ -218,6 +236,12 @@ static void calc_fast_powerup_delay(struct ssb_chipcommon *cc)
 
 	if (bus->bustype != SSB_BUSTYPE_PCI)
 		return;
+
+	if (cc->capabilities & SSB_CHIPCO_CAP_PMU) {
+		cc->fast_pwrup_delay = pmu_fast_powerup_delay(cc);
+		return;
+	}
+
 	if (!(cc->capabilities & SSB_CHIPCO_CAP_PCTL))
 		return;
 
