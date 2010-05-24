@@ -433,6 +433,8 @@ static unsigned long compact_zone_order(struct zone *zone,
 	return compact_zone(zone, &cc);
 }
 
+int sysctl_extfrag_threshold = 500;
+
 /**
  * try_to_compact_pages - Direct compact to satisfy a high-order allocation
  * @zonelist: The zonelist used for the current allocation
@@ -491,7 +493,7 @@ unsigned long try_to_compact_pages(struct zonelist *zonelist,
 		 * Only compact if a failure would be due to fragmentation.
 		 */
 		fragindex = fragmentation_index(zone, order);
-		if (fragindex >= 0 && fragindex <= 500)
+		if (fragindex >= 0 && fragindex <= sysctl_extfrag_threshold)
 			continue;
 
 		if (fragindex == -1 && zone_watermark_ok(zone, order, watermark, 0, 0)) {
@@ -568,6 +570,14 @@ int sysctl_compaction_handler(struct ctl_table *table, int write,
 {
 	if (write)
 		return compact_nodes();
+
+	return 0;
+}
+
+int sysctl_extfrag_handler(struct ctl_table *table, int write,
+			void __user *buffer, size_t *length, loff_t *ppos)
+{
+	proc_dointvec_minmax(table, write, buffer, length, ppos);
 
 	return 0;
 }
