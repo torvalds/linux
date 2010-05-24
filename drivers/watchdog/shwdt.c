@@ -1,9 +1,9 @@
 /*
- * drivers/char/watchdog/shwdt.c
+ * drivers/watchdog/shwdt.c
  *
  * Watchdog driver for integrated watchdog in the SuperH processors.
  *
- * Copyright (C) 2001, 2002, 2003 Paul Mundt <lethal@linux-sh.org>
+ * Copyright (C) 2001 - 2010  Paul Mundt <lethal@linux-sh.org>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -76,14 +76,8 @@ static DEFINE_SPINLOCK(shwdt_lock);
 
 #define WATCHDOG_HEARTBEAT 30			/* 30 sec default heartbeat */
 static int heartbeat = WATCHDOG_HEARTBEAT;	/* in seconds */
-
 static int nowayout = WATCHDOG_NOWAYOUT;
 
-/**
- * 	sh_wdt_start - Start the Watchdog
- *
- * 	Starts the watchdog.
- */
 static void sh_wdt_start(void)
 {
 	__u8 csr;
@@ -114,15 +108,6 @@ static void sh_wdt_start(void)
 	sh_wdt_write_csr(csr);
 
 #ifdef CONFIG_CPU_SH2
-	/*
-	 * Whoever came up with the RSTCSR semantics must've been smoking
-	 * some of the good stuff, since in addition to the WTCSR/WTCNT write
-	 * brain-damage, it's managed to fuck things up one step further..
-	 *
-	 * If we need to clear the WOVF bit, the upper byte has to be 0xa5..
-	 * but if we want to touch RSTE or RSTS, the upper byte has to be
-	 * 0x5a..
-	 */
 	csr = sh_wdt_read_rstcsr();
 	csr &= ~RSTCSR_RSTS;
 	sh_wdt_write_rstcsr(csr);
@@ -130,10 +115,6 @@ static void sh_wdt_start(void)
 	spin_unlock_irqrestore(&shwdt_lock, flags);
 }
 
-/**
- * 	sh_wdt_stop - Stop the Watchdog
- * 	Stops the watchdog.
- */
 static void sh_wdt_stop(void)
 {
 	__u8 csr;
@@ -149,10 +130,6 @@ static void sh_wdt_stop(void)
 	spin_unlock_irqrestore(&shwdt_lock, flags);
 }
 
-/**
- * 	sh_wdt_keepalive - Keep the Userspace Watchdog Alive
- * 	The Userspace watchdog got a KeepAlive: schedule the next heartbeat.
- */
 static inline void sh_wdt_keepalive(void)
 {
 	unsigned long flags;
@@ -162,10 +139,6 @@ static inline void sh_wdt_keepalive(void)
 	spin_unlock_irqrestore(&shwdt_lock, flags);
 }
 
-/**
- * 	sh_wdt_set_heartbeat - Set the Userspace Watchdog heartbeat
- * 	Set the Userspace Watchdog heartbeat
- */
 static int sh_wdt_set_heartbeat(int t)
 {
 	unsigned long flags;
@@ -179,12 +152,6 @@ static int sh_wdt_set_heartbeat(int t)
 	return 0;
 }
 
-/**
- * 	sh_wdt_ping - Ping the Watchdog
- *	@data: Unused
- *
- * 	Clears overflow bit, resets timer counter.
- */
 static void sh_wdt_ping(unsigned long data)
 {
 	unsigned long flags;
@@ -206,13 +173,6 @@ static void sh_wdt_ping(unsigned long data)
 	spin_unlock_irqrestore(&shwdt_lock, flags);
 }
 
-/**
- * 	sh_wdt_open - Open the Device
- * 	@inode: inode of device
- * 	@file: file handle of device
- *
- * 	Watchdog device is opened and started.
- */
 static int sh_wdt_open(struct inode *inode, struct file *file)
 {
 	if (test_and_set_bit(0, &shwdt_is_open))
@@ -225,13 +185,6 @@ static int sh_wdt_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-/**
- * 	sh_wdt_close - Close the Device
- * 	@inode: inode of device
- * 	@file: file handle of device
- *
- * 	Watchdog device is closed and stopped.
- */
 static int sh_wdt_close(struct inode *inode, struct file *file)
 {
 	if (shwdt_expect_close == 42) {
@@ -248,15 +201,6 @@ static int sh_wdt_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-/**
- * 	sh_wdt_write - Write to Device
- * 	@file: file handle of device
- * 	@buf: buffer to write
- * 	@count: length of buffer
- * 	@ppos: offset
- *
- * 	Pings the watchdog on write.
- */
 static ssize_t sh_wdt_write(struct file *file, const char *buf,
 			    size_t count, loff_t *ppos)
 {
@@ -280,64 +224,6 @@ static ssize_t sh_wdt_write(struct file *file, const char *buf,
 	return count;
 }
 
-/**
- * 	sh_wdt_mmap - map WDT/CPG registers into userspace
- * 	@file: file structure for the device
- * 	@vma: VMA to map the registers into
- *
- * 	A simple mmap() implementation for the corner cases where the counter
- * 	needs to be mapped in userspace directly. Due to the relatively small
- * 	size of the area, neighbouring registers not necessarily tied to the
- * 	CPG will also be accessible through the register page, so this remains
- * 	configurable for users that really know what they're doing.
- *
- *	Additionaly, the register page maps in the CPG register base relative
- *	to the nearest page-aligned boundary, which requires that userspace do
- *	the appropriate CPU subtype math for calculating the page offset for
- *	the counter value.
- */
-static int sh_wdt_mmap(struct file *file, struct vm_area_struct *vma)
-{
-	int ret = -ENOSYS;
-
-#ifdef CONFIG_SH_WDT_MMAP
-	unsigned long addr;
-
-	/* Only support the simple cases where we map in a register page. */
-	if (((vma->vm_end - vma->vm_start) != PAGE_SIZE) || vma->vm_pgoff)
-		return -EINVAL;
-
-	/*
-	 * Pick WTCNT as the start, it's usually the first register after the
-	 * FRQCR, and neither one are generally page-aligned out of the box.
-	 */
-	addr = WTCNT & ~(PAGE_SIZE - 1);
-
-	vma->vm_flags |= VM_IO;
-	vma->vm_page_prot = pgprot_noncached(vma->vm_page_prot);
-
-	if (io_remap_pfn_range(vma, vma->vm_start, addr >> PAGE_SHIFT,
-			       PAGE_SIZE, vma->vm_page_prot)) {
-		printk(KERN_ERR PFX "%s: io_remap_pfn_range failed\n",
-		       __func__);
-		return -EAGAIN;
-	}
-
-	ret = 0;
-#endif
-
-	return ret;
-}
-
-/**
- * 	sh_wdt_ioctl - Query Device
- * 	@file: file handle of device
- * 	@cmd: watchdog command
- * 	@arg: argument
- *
- * 	Query basic information from the device or ping it, as outlined by the
- * 	watchdog API.
- */
 static long sh_wdt_ioctl(struct file *file, unsigned int cmd,
 							unsigned long arg)
 {
@@ -386,15 +272,6 @@ static long sh_wdt_ioctl(struct file *file, unsigned int cmd,
 	return 0;
 }
 
-/**
- * 	sh_wdt_notify_sys - Notifier Handler
- * 	@this: notifier block
- * 	@code: notifier event
- * 	@unused: unused
- *
- * 	Handles specific events, such as turning off the watchdog during a
- * 	shutdown event.
- */
 static int sh_wdt_notify_sys(struct notifier_block *this,
 			     unsigned long code, void *unused)
 {
@@ -411,7 +288,6 @@ static const struct file_operations sh_wdt_fops = {
 	.unlocked_ioctl	= sh_wdt_ioctl,
 	.open		= sh_wdt_open,
 	.release	= sh_wdt_close,
-	.mmap		= sh_wdt_mmap,
 };
 
 static const struct watchdog_info sh_wdt_info = {
@@ -431,11 +307,6 @@ static struct miscdevice sh_wdt_miscdev = {
 	.fops		= &sh_wdt_fops,
 };
 
-/**
- * 	sh_wdt_init - Initialize module
- * 	Registers the device and notifier handler. Actual device
- * 	initialization is handled by sh_wdt_open().
- */
 static int __init sh_wdt_init(void)
 {
 	int rc;
@@ -477,11 +348,6 @@ static int __init sh_wdt_init(void)
 	return 0;
 }
 
-/**
- * 	sh_wdt_exit - Deinitialize module
- * 	Unregisters the device and notifier handler. Actual device
- * 	deinitialization is handled by sh_wdt_close().
- */
 static void __exit sh_wdt_exit(void)
 {
 	misc_deregister(&sh_wdt_miscdev);
