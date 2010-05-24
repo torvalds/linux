@@ -2356,8 +2356,6 @@ void RTMPMoveMemory(void *pDest, void *pSrc, unsigned long Length);
 
 void AtoH(char *src, u8 *dest, int destlen);
 
-u8 BtoH(char ch);
-
 void RTMPPatchMacBbpBug(struct rt_rtmp_adapter *pAd);
 
 void RTMPInitTimer(struct rt_rtmp_adapter *pAd,
