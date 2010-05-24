@@ -70,7 +70,7 @@ struct s3c_gpio_cfg {
 /**
  * s3c_gpio_cfgpin() - Change the GPIO function of a pin.
  * @pin pin The pin number to configure.
- * @pin to The configuration for the pin's function.
+ * @to to The configuration for the pin's function.
  *
  * Configure which function is actually connected to the external
  * pin, such as an gpio input, output or some form of special function
