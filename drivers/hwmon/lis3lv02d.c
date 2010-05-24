@@ -521,6 +521,30 @@ int lis3lv02d_remove_fs(struct lis3lv02d *lis3)
 }
 EXPORT_SYMBOL_GPL(lis3lv02d_remove_fs);
 
+static void lis3lv02d_8b_configure(struct lis3lv02d *dev,
+				struct lis3lv02d_platform_data *p)
+{
+	if (p->click_flags) {
+		dev->write(dev, CLICK_CFG, p->click_flags);
+		dev->write(dev, CLICK_TIMELIMIT, p->click_time_limit);
+		dev->write(dev, CLICK_LATENCY, p->click_latency);
+		dev->write(dev, CLICK_WINDOW, p->click_window);
+		dev->write(dev, CLICK_THSZ, p->click_thresh_z & 0xf);
+		dev->write(dev, CLICK_THSY_X,
+			(p->click_thresh_x & 0xf) |
+			(p->click_thresh_y << 4));
+	}
+
+	if (p->wakeup_flags) {
+		dev->write(dev, FF_WU_CFG_1, p->wakeup_flags);
+		dev->write(dev, FF_WU_THS_1, p->wakeup_thresh & 0x7f);
+		/* default to 2.5ms for now */
+		dev->write(dev, FF_WU_DURATION_1, 1);
+		/* enable high pass filter for both free-fall units */
+		dev->write(dev, CTRL_REG2, HP_FF_WU1 | HP_FF_WU2);
+	}
+}
+
 /*
  * Initialise the accelerometer and the various subsystems.
  * Should be rather independent of the bus system.
@@ -567,25 +591,8 @@ int lis3lv02d_init_device(struct lis3lv02d *dev)
 	if (dev->pdata) {
 		struct lis3lv02d_platform_data *p = dev->pdata;
 
-		if (p->click_flags && (dev->whoami == WAI_8B)) {
-			dev->write(dev, CLICK_CFG, p->click_flags);
-			dev->write(dev, CLICK_TIMELIMIT, p->click_time_limit);
-			dev->write(dev, CLICK_LATENCY, p->click_latency);
-			dev->write(dev, CLICK_WINDOW, p->click_window);
-			dev->write(dev, CLICK_THSZ, p->click_thresh_z & 0xf);
-			dev->write(dev, CLICK_THSY_X,
-					(p->click_thresh_x & 0xf) |
-					(p->click_thresh_y << 4));
-		}
-
-		if (p->wakeup_flags && (dev->whoami == WAI_8B)) {
-			dev->write(dev, FF_WU_CFG_1, p->wakeup_flags);
-			dev->write(dev, FF_WU_THS_1, p->wakeup_thresh & 0x7f);
-			/* default to 2.5ms for now */
-			dev->write(dev, FF_WU_DURATION_1, 1);
-			/* enable high pass filter for both free-fall units */
-			dev->write(dev, CTRL_REG2, HP_FF_WU1 | HP_FF_WU2);
-		}
+		if (dev->whoami == WAI_8B)
+			lis3lv02d_8b_configure(dev, p);
 
 		if (p->irq_cfg)
 			dev->write(dev, CTRL_REG3, p->irq_cfg);
