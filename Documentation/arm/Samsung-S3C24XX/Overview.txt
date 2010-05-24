@@ -218,6 +218,10 @@ GPIO
   As of v2.6.34, the move towards using gpiolib support is almost
   complete, and very little of the old calls are left.
 
+  See Documentation/arm/Samsung-S3C24XX/GPIO.txt for the S3C24XX specific
+  support and Documentation/arm/Samsung/GPIO.txt for the core Samsung
+  implementation.
+
 
 Clock Management
 ----------------

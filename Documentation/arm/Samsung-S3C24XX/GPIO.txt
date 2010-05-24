@@ -12,6 +12,8 @@ Introduction
   of the s3c2410 GPIO system, please read the Samsung provided
   data-sheet/users manual to find out the complete list.
 
+  See Documentation/arm/Samsung/GPIO.txt for the core implemetation.
+
 
 GPIOLIB
 -------
