@@ -59,6 +59,27 @@ struct list_head rds_ib_devices;
 DEFINE_SPINLOCK(ib_nodev_conns_lock);
 LIST_HEAD(ib_nodev_conns);
 
+void rds_ib_nodev_connect(void)
+{
+	struct rds_ib_connection *ic;
+
+	spin_lock(&ib_nodev_conns_lock);
+	list_for_each_entry(ic, &ib_nodev_conns, ib_node)
+		rds_conn_connect_if_down(ic->conn);
+	spin_unlock(&ib_nodev_conns_lock);
+}
+
+void rds_ib_dev_shutdown(struct rds_ib_device *rds_ibdev)
+{
+	struct rds_ib_connection *ic;
+	unsigned long flags;
+
+	spin_lock_irqsave(&rds_ibdev->spinlock, flags);
+	list_for_each_entry(ic, &rds_ibdev->conn_list, ib_node)
+		rds_conn_drop(ic->conn);
+	spin_unlock_irqrestore(&rds_ibdev->spinlock, flags);
+}
+
 /*
  * rds_ib_destroy_mr_pool() blocks on a few things and mrs drop references
  * from interrupt context so we push freing off into a work struct in krdsd.
@@ -156,6 +177,8 @@ void rds_ib_add_one(struct ib_device *device)
 	ib_set_client_data(device, &rds_ib_client, rds_ibdev);
 	atomic_inc(&rds_ibdev->refcount);
 
+	rds_ib_nodev_connect();
+
 put_dev:
 	rds_ib_dev_put(rds_ibdev);
 free_attr:
@@ -205,7 +228,7 @@ void rds_ib_remove_one(struct ib_device *device)
 	if (!rds_ibdev)
 		return;
 
-	rds_ib_destroy_conns(rds_ibdev);
+	rds_ib_dev_shutdown(rds_ibdev);
 
 	/*
 	 * prevent future connection attempts from getting a reference to this
