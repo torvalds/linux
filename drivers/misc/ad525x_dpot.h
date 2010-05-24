@@ -29,13 +29,14 @@
 
 #define F_CMD_INC		(1 << 0)	/* Features INC/DEC ALL, 6dB */
 #define F_CMD_EEP		(1 << 1)	/* Features EEPROM */
-#define F_CMD_TOL		(1 << 2)	/* RDACS are Read/Write + Tolerance REG */
-#define F_RDACS_RW		(1 << 3)	/* RDACS are Read/Write + Tolerance REG */
-#define F_RDACS_WONLY		(1 << 4)	/* RDACS are Write only */
-#define F_AD_APPDATA		(1 << 5)	/* RDAC Address append to data */
-#define F_SPI_8BIT		(1 << 6)	/* All SPI XFERS are 8-bit */
-#define F_SPI_16BIT		(1 << 7)	/* All SPI XFERS are 16-bit */
-#define F_SPI_24BIT		(1 << 8)	/* All SPI XFERS are 24-bit */
+#define F_CMD_OTP		(1 << 2)	/* Features OTP */
+#define F_CMD_TOL		(1 << 3)	/* RDACS feature Tolerance REG */
+#define F_RDACS_RW		(1 << 4)	/* RDACS are Read/Write  */
+#define F_RDACS_WONLY		(1 << 5)	/* RDACS are Write only */
+#define F_AD_APPDATA		(1 << 6)	/* RDAC Address append to data */
+#define F_SPI_8BIT		(1 << 7)	/* All SPI XFERS are 8-bit */
+#define F_SPI_16BIT		(1 << 8)	/* All SPI XFERS are 16-bit */
+#define F_SPI_24BIT		(1 << 9)	/* All SPI XFERS are 24-bit */
 
 #define F_RDACS_RW_TOL	(F_RDACS_RW | F_CMD_EEP | F_CMD_TOL)
 #define F_RDACS_RW_EEP	(F_RDACS_RW | F_CMD_EEP)
@@ -104,6 +105,15 @@ enum dpot_devid {
 			BRDAC0 | BRDAC1 | BRDAC2, 8, 31),
 	ADN2850_ID = DPOT_CONF(F_RDACS_RW_EEP | F_CMD_INC | F_SPI_24BIT,
 			BRDAC0 | BRDAC1, 10, 32),
+	AD5241_ID = DPOT_CONF(F_RDACS_RW, BRDAC0, 8, 33),
+	AD5242_ID = DPOT_CONF(F_RDACS_RW, BRDAC0 | BRDAC1, 8, 34),
+	AD5243_ID = DPOT_CONF(F_RDACS_RW, BRDAC0 | BRDAC1, 8, 35),
+	AD5245_ID = DPOT_CONF(F_RDACS_RW, BRDAC0, 8, 36),
+	AD5246_ID = DPOT_CONF(F_RDACS_RW, BRDAC0, 7, 37),
+	AD5247_ID = DPOT_CONF(F_RDACS_RW, BRDAC0, 7, 38),
+	AD5248_ID = DPOT_CONF(F_RDACS_RW, BRDAC0 | BRDAC1, 8, 39),
+
+
 };
 
 #define DPOT_RDAC0		0
@@ -145,6 +155,9 @@ enum dpot_devid {
 /* AD5291/2/3 use special commands */
 #define DPOT_AD5291_RDAC	0x01
 #define DPOT_AD5291_READ_RDAC	0x02
+
+/* AD524x use special commands */
+#define DPOT_AD5291_RDAC_AB	0x80
 
 struct dpot_data;
 

@@ -37,6 +37,13 @@
  * AD8402		2		256		1, 10, 50, 100
  * AD8403		4		256		1, 10, 50, 100
  * ADN2850		3		512		25, 250
+ * AD5241		1		256		10, 100, 1M
+ * AD5246		1		128		5, 10, 50, 100
+ * AD5247		1		128		5, 10, 50, 100
+ * AD5245		1		256		5, 10, 50, 100
+ * AD5243		2		256		2.5, 10, 50, 100
+ * AD5248		2		256		2.5, 10, 50, 100
+ * AD5242		2		256		20, 50, 200
  *
  * See Documentation/misc-devices/ad525x_dpot.txt for more info.
  *
@@ -107,116 +114,167 @@ static inline int dpot_write_r8d16(struct dpot_data *dpot, u8 reg, u16 val)
 	return dpot->bdata.bops->write_r8d16(dpot->bdata.client, reg, val);
 }
 
-static s32 dpot_read(struct dpot_data *dpot, u8 reg)
+static s32 dpot_read_spi(struct dpot_data *dpot, u8 reg)
 {
-	unsigned val = 0;
+	unsigned ctrl = 0;
 
-	if (dpot->feat & F_SPI) {
-		if (!(reg & (DPOT_ADDR_EEPROM | DPOT_ADDR_CMD))) {
+	if (!(reg & (DPOT_ADDR_EEPROM | DPOT_ADDR_CMD))) {
 
-			if (dpot->feat & F_RDACS_WONLY)
-				return dpot->rdac_cache[reg & DPOT_RDAC_MASK];
+		if (dpot->feat & F_RDACS_WONLY)
+			return dpot->rdac_cache[reg & DPOT_RDAC_MASK];
 
-			if (dpot->uid == DPOT_UID(AD5291_ID) ||
-				dpot->uid == DPOT_UID(AD5292_ID) ||
-				dpot->uid == DPOT_UID(AD5293_ID))
-				return dpot_read_r8d8(dpot,
-					DPOT_AD5291_READ_RDAC << 2);
+		if (dpot->uid == DPOT_UID(AD5291_ID) ||
+			dpot->uid == DPOT_UID(AD5292_ID) ||
+			dpot->uid == DPOT_UID(AD5293_ID))
+			return dpot_read_r8d8(dpot,
+				DPOT_AD5291_READ_RDAC << 2);
 
-			val = DPOT_SPI_READ_RDAC;
-		} else if (reg & DPOT_ADDR_EEPROM) {
-			val = DPOT_SPI_READ_EEPROM;
-		}
+		ctrl = DPOT_SPI_READ_RDAC;
+	} else if (reg & DPOT_ADDR_EEPROM) {
+		ctrl = DPOT_SPI_READ_EEPROM;
+	}
 
-		if (dpot->feat & F_SPI_16BIT)
-			return dpot_read_r8d8(dpot, val);
-		else if (dpot->feat & F_SPI_24BIT)
-			return dpot_read_r8d16(dpot, val);
+	if (dpot->feat & F_SPI_16BIT)
+		return dpot_read_r8d8(dpot, ctrl);
+	else if (dpot->feat & F_SPI_24BIT)
+		return dpot_read_r8d16(dpot, ctrl);
 
-	} else { /* I2C */
+	return -EFAULT;
+}
 
+static s32 dpot_read_i2c(struct dpot_data *dpot, u8 reg)
+{
+	unsigned ctrl = 0;
+	switch (dpot->uid) {
+	case DPOT_UID(AD5246_ID):
+	case DPOT_UID(AD5247_ID):
+		return dpot_read_d8(dpot);
+	case DPOT_UID(AD5245_ID):
+	case DPOT_UID(AD5241_ID):
+	case DPOT_UID(AD5242_ID):
+	case DPOT_UID(AD5243_ID):
+	case DPOT_UID(AD5248_ID):
+		ctrl = ((reg & DPOT_RDAC_MASK) == DPOT_RDAC0) ?
+			0 : DPOT_AD5291_RDAC_AB;
+		return dpot_read_r8d8(dpot, ctrl);
+	default:
 		if ((reg & DPOT_REG_TOL) || (dpot->max_pos > 256))
 			return dpot_read_r8d16(dpot, (reg & 0xF8) |
 					((reg & 0x7) << 1));
 		else
 			return dpot_read_r8d8(dpot, reg);
-
 	}
-	return -EFAULT;
 }
 
-static s32 dpot_write(struct dpot_data *dpot, u8 reg, u16 value)
+static s32 dpot_read(struct dpot_data *dpot, u8 reg)
+{
+	if (dpot->feat & F_SPI)
+		return dpot_read_spi(dpot, reg);
+	else
+		return dpot_read_i2c(dpot, reg);
+}
+
+static s32 dpot_write_spi(struct dpot_data *dpot, u8 reg, u16 value)
 {
 	unsigned val = 0;
 
-	if (dpot->feat & F_SPI) {
-		if (!(reg & (DPOT_ADDR_EEPROM | DPOT_ADDR_CMD))) {
-			if (dpot->feat & F_RDACS_WONLY)
-				dpot->rdac_cache[reg & DPOT_RDAC_MASK] = value;
+	if (!(reg & (DPOT_ADDR_EEPROM | DPOT_ADDR_CMD))) {
+		if (dpot->feat & F_RDACS_WONLY)
+			dpot->rdac_cache[reg & DPOT_RDAC_MASK] = value;
 
-			if (dpot->feat & F_AD_APPDATA) {
-				if (dpot->feat & F_SPI_8BIT) {
-					val = ((reg & DPOT_RDAC_MASK) <<
-						DPOT_MAX_POS(dpot->devid)) |
-						value;
-					return dpot_write_d8(dpot, val);
-				} else if (dpot->feat & F_SPI_16BIT) {
-					val = ((reg & DPOT_RDAC_MASK) <<
-						DPOT_MAX_POS(dpot->devid)) |
-						value;
-					return dpot_write_r8d8(dpot, val >> 8,
-						val & 0xFF);
-				} else
-					BUG();
-			} else {
-				if (dpot->uid == DPOT_UID(AD5291_ID) ||
-					dpot->uid == DPOT_UID(AD5292_ID) ||
-					dpot->uid == DPOT_UID(AD5293_ID))
-					return dpot_write_r8d8(dpot,
-						(DPOT_AD5291_RDAC << 2) |
-						(value >> 8), value & 0xFF);
+		if (dpot->feat & F_AD_APPDATA) {
+			if (dpot->feat & F_SPI_8BIT) {
+				val = ((reg & DPOT_RDAC_MASK) <<
+					DPOT_MAX_POS(dpot->devid)) |
+					value;
+				return dpot_write_d8(dpot, val);
+			} else if (dpot->feat & F_SPI_16BIT) {
+				val = ((reg & DPOT_RDAC_MASK) <<
+					DPOT_MAX_POS(dpot->devid)) |
+					value;
+				return dpot_write_r8d8(dpot, val >> 8,
+					val & 0xFF);
+			} else
+				BUG();
+		} else {
+			if (dpot->uid == DPOT_UID(AD5291_ID) ||
+				dpot->uid == DPOT_UID(AD5292_ID) ||
+				dpot->uid == DPOT_UID(AD5293_ID))
+				return dpot_write_r8d8(dpot,
+					(DPOT_AD5291_RDAC << 2) |
+					(value >> 8), value & 0xFF);
 
-				val = DPOT_SPI_RDAC | (reg & DPOT_RDAC_MASK);
-			}
-		} else if (reg & DPOT_ADDR_EEPROM) {
-			val = DPOT_SPI_EEPROM | (reg & DPOT_RDAC_MASK);
-		} else if (reg & DPOT_ADDR_CMD) {
-			switch (reg) {
-			case DPOT_DEC_ALL_6DB:
-				val = DPOT_SPI_DEC_ALL_6DB;
-				break;
-			case DPOT_INC_ALL_6DB:
-				val = DPOT_SPI_INC_ALL_6DB;
-				break;
-			case DPOT_DEC_ALL:
-				val = DPOT_SPI_DEC_ALL;
-				break;
-			case DPOT_INC_ALL:
-				val = DPOT_SPI_INC_ALL;
-				break;
-			}
-		} else
-			BUG();
+			val = DPOT_SPI_RDAC | (reg & DPOT_RDAC_MASK);
+		}
+	} else if (reg & DPOT_ADDR_EEPROM) {
+		val = DPOT_SPI_EEPROM | (reg & DPOT_RDAC_MASK);
+	} else if (reg & DPOT_ADDR_CMD) {
+		switch (reg) {
+		case DPOT_DEC_ALL_6DB:
+			val = DPOT_SPI_DEC_ALL_6DB;
+			break;
+		case DPOT_INC_ALL_6DB:
+			val = DPOT_SPI_INC_ALL_6DB;
+			break;
+		case DPOT_DEC_ALL:
+			val = DPOT_SPI_DEC_ALL;
+			break;
+		case DPOT_INC_ALL:
+			val = DPOT_SPI_INC_ALL;
+			break;
+		}
+	} else
+		BUG();
 
-		if (dpot->feat & F_SPI_16BIT)
-			return dpot_write_r8d8(dpot, val, value);
-		else if (dpot->feat & F_SPI_24BIT)
-			return dpot_write_r8d16(dpot, val, value);
-	} else {
-		/* Only write the instruction byte for certain commands */
-		if (reg & DPOT_ADDR_CMD)
-			return dpot_write_d8(dpot, reg);
-
-		if (dpot->max_pos > 256)
-			return dpot_write_r8d16(dpot, (reg & 0xF8) |
-						((reg & 0x7) << 1), value);
-		else
-			/* All other registers require instruction + data bytes */
-			return dpot_write_r8d8(dpot, reg, value);
-
-	}
+	if (dpot->feat & F_SPI_16BIT)
+		return dpot_write_r8d8(dpot, val, value);
+	else if (dpot->feat & F_SPI_24BIT)
+		return dpot_write_r8d16(dpot, val, value);
 
 	return -EFAULT;
+}
+
+static s32 dpot_write_i2c(struct dpot_data *dpot, u8 reg, u16 value)
+{
+	/* Only write the instruction byte for certain commands */
+	unsigned ctrl = 0;
+
+	switch (dpot->uid) {
+	case DPOT_UID(AD5246_ID):
+	case DPOT_UID(AD5247_ID):
+		return dpot_write_d8(dpot, value);
+		break;
+
+	case DPOT_UID(AD5245_ID):
+	case DPOT_UID(AD5241_ID):
+	case DPOT_UID(AD5242_ID):
+	case DPOT_UID(AD5243_ID):
+	case DPOT_UID(AD5248_ID):
+		ctrl = ((reg & DPOT_RDAC_MASK) == DPOT_RDAC0) ? 0 : DPOT_AD5291_RDAC_AB;
+		return dpot_write_r8d8(dpot, ctrl, value);
+		break;
+
+
+	default:
+	if (reg & DPOT_ADDR_CMD)
+		return dpot_write_d8(dpot, reg);
+
+	if (dpot->max_pos > 256)
+		return dpot_write_r8d16(dpot, (reg & 0xF8) |
+					((reg & 0x7) << 1), value);
+	else
+		/* All other registers require instruction + data bytes */
+		return dpot_write_r8d8(dpot, reg, value);
+	}
+}
+
+
+static s32 dpot_write(struct dpot_data *dpot, u8 reg, u16 value)
+{
+	if (dpot->feat & F_SPI)
+		return dpot_write_spi(dpot, reg, value);
+	else
+		return dpot_write_i2c(dpot, reg, value);
 }
 
 /* sysfs functions */
