@@ -486,6 +486,9 @@ int xhci_run(struct usb_hcd *hcd)
 
 	if (NUM_TEST_NOOPS > 0)
 		doorbell = xhci_setup_one_noop(xhci);
+	if (xhci->quirks & XHCI_NEC_HOST)
+		xhci_queue_vendor_command(xhci, 0, 0, 0,
+				TRB_TYPE(TRB_NEC_GET_FW));
 
 	if (xhci_start(xhci)) {
 		xhci_halt(xhci);
@@ -495,6 +498,8 @@ int xhci_run(struct usb_hcd *hcd)
 	xhci_dbg(xhci, "// @%p = 0x%x\n", &xhci->op_regs->command, temp);
 	if (doorbell)
 		(*doorbell)(xhci);
+	if (xhci->quirks & XHCI_NEC_HOST)
+		xhci_ring_cmd_db(xhci);
 
 	xhci_dbg(xhci, "Finished xhci_run\n");
 	return 0;
