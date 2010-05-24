@@ -601,7 +601,7 @@ static int unmap_and_move(new_page_t get_new_page, unsigned long private,
 		rcu_read_lock();
 		rcu_locked = 1;
 		anon_vma = page_anon_vma(page);
-		atomic_inc(&anon_vma->migrate_refcount);
+		atomic_inc(&anon_vma->external_refcount);
 	}
 
 	/*
@@ -643,7 +643,7 @@ skip_unmap:
 rcu_unlock:
 
 	/* Drop an anon_vma reference if we took one */
-	if (anon_vma && atomic_dec_and_lock(&anon_vma->migrate_refcount, &anon_vma->lock)) {
+	if (anon_vma && atomic_dec_and_lock(&anon_vma->external_refcount, &anon_vma->lock)) {
 		int empty = list_empty(&anon_vma->head);
 		spin_unlock(&anon_vma->lock);
 		if (empty)
