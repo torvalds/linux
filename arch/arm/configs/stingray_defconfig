@@ -734,7 +734,9 @@ CONFIG_NETDEV_1000=y
 CONFIG_NETDEV_10000=y
 CONFIG_WLAN=y
 # CONFIG_HOSTAP is not set
-# CONFIG_BCM4329 is not set
+CONFIG_BCM4329=m
+CONFIG_BCM4329_FW_PATH="/system/etc/firmware/fw_bcm4329.bin"
+CONFIG_BCM4329_NVRAM_PATH="/proc/calibration"
 
 #
 # Enable WiMAX (Networking options) to see the WiMAX drivers
