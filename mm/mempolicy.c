@@ -1995,26 +1995,22 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
 			return;
 		/* contextualize the tmpfs mount point mempolicy */
 		new = mpol_new(mpol->mode, mpol->flags, &mpol->w.user_nodemask);
-		if (IS_ERR(new)) {
-			mpol_put(mpol);	/* drop our ref on sb mpol */
-			NODEMASK_SCRATCH_FREE(scratch);
-			return;		/* no valid nodemask intersection */
-		}
+		if (IS_ERR(new))
+			goto put_free; /* no valid nodemask intersection */
 
 		task_lock(current);
 		ret = mpol_set_nodemask(new, &mpol->w.user_nodemask, scratch);
 		task_unlock(current);
 		mpol_put(mpol);	/* drop our ref on sb mpol */
-		if (ret) {
-			NODEMASK_SCRATCH_FREE(scratch);
-			mpol_put(new);
-			return;
-		}
+		if (ret)
+			goto put_free;
 
 		/* Create pseudo-vma that contains just the policy */
 		memset(&pvma, 0, sizeof(struct vm_area_struct));
 		pvma.vm_end = TASK_SIZE;	/* policy covers entire file */
 		mpol_set_shared_policy(sp, &pvma, new); /* adds ref */
+
+put_free:
 		mpol_put(new);			/* drop initial ref */
 		NODEMASK_SCRATCH_FREE(scratch);
 	}
