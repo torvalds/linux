@@ -518,7 +518,7 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, bool send)
 	ps_params->send_null_data = send;
 	ps_params->retries = 5;
 	ps_params->hang_over_period = 1;
-	ps_params->null_data_rate = cpu_to_le32(1); /* 1 Mbps */
+	ps_params->null_data_rate = cpu_to_le32(wl->basic_rate_set);
 
 	ret = wl1271_cmd_send(wl, CMD_SET_PS_MODE, ps_params,
 			      sizeof(*ps_params), 0);
