@@ -29,15 +29,16 @@
 #define DBG(x...)
 #endif
 
-#define CHN_BAT_ADC 	3
+#define CHN_BAT_ADC 	0
 #define CHN_USB_ADC 	2
 #define BATT_LEVEL_EMPTY	0
 #define BATT_PRESENT_TRUE	 1
 #define BATT_PRESENT_FALSE  0
-#define BATT_NOMAL_VOL_VALUE	4000
+#define BATT_NOMAL_VOL_VALUE	3900
 
 static int gBatStatus =  POWER_SUPPLY_STATUS_UNKNOWN;
 static int gBatHealth = POWER_SUPPLY_HEALTH_GOOD;
+static int gBatLastCapacity = 0;
 static int gBatCapacity = BATT_LEVEL_EMPTY;
 static int gBatPresent = BATT_PRESENT_TRUE;
 static int gBatVoltage =  BATT_NOMAL_VOL_VALUE;
@@ -76,8 +77,8 @@ int gBatZeroVol	= BatMinVoltage[BAT_SELECT][ELECTRICITY_SELECT];
 int gBatMaxVol	= 4300;
 
 #else
-int gBatMaxVol	= 4300;
-int gBatZeroVol	= 3400;
+int gBatMaxVol	= 4200;
+int gBatZeroVol	= 3350;
 
 #endif
 
@@ -85,17 +86,17 @@ int gBatZeroVol	= 3400;
 #define	TIMER_MS_COUNTS		50		//定时器的长度ms
 #define	SLOPE_SECOND_COUNTS	60		//统计电压斜率的时间间隔s
 #define	TIME_UPDATE_STATUS	3000	//更新电池状态的时间间隔ms
-#define	THRESHOLD_VOLTAGE_HIGH		3900
-#define	THRESHOLD_VOLTAGE_MID		3550
+#define	THRESHOLD_VOLTAGE_HIGH		3850
+#define	THRESHOLD_VOLTAGE_MID		3450
 #define	THRESHOLD_VOLTAGE_LOW		gBatZeroVol
 #define	THRESHOLD_SLOPE_HIGH		8	//真实斜率值
 #define	THRESHOLD_SLOPE_MID			3		
 #define	THRESHOLD_SLOPE_LOW			0
 
 /*************************************************************/
-#define LODER_HIGH_LEVEL		0	//负荷状态等级
-#define	LODER_MID_LEVEL			1
-#define	LODER_LOW_LEVEL			2
+#define LODER_CHARGE_LEVEL		0	//负荷状态等级
+#define	LODER_HIGH_LEVEL		1
+#define	LODER_MID_LEVEL			2
 #define	LOADER_RELEASE_LEVEL	3	//电池即将耗尽状态
 
 #define	SLOPE_HIGH_LEVEL		0	//电压变化斜率等级
@@ -110,13 +111,14 @@ int gBatZeroVol	= 3400;
 #define	NUM_VOLTAGE_SAMPLE	((1000*SLOPE_SECOND_COUNTS) / TIMER_MS_COUNTS)	//存储的采样点个数
 int gBatVoltageSamples[NUM_VOLTAGE_SAMPLE];
 int gBatSlopeValue = 0;
-int	gBatVoltageValue[2];
+int	gBatVoltageValue[2]={0,0};
 int *pSamples = &gBatVoltageSamples[0];		//采样点指针
-int gFlagLoop = 0;		//循环标志
+int gFlagLoop = 0;		//采样足够标志
 int gNumSamples = 0;
 
 int gBatSlopeLevel = SLOPE_LOW_LEVEL;
 int gBatVoltageLevel = VOLTAGE_MID_LEVEL;
+int gBatLastLoaderLevel = LODER_MID_LEVEL;
 int gBatLoaderLevel = LODER_MID_LEVEL;	
 
 
@@ -190,7 +192,7 @@ static void rk2818_get_bat_voltage(struct rk2818_battery_data *bat)
 	int i,*pSamp,*pStart = &gBatVoltageSamples[0];
 	int temp[2] = {0,0};
 	value = gAdcValue[CHN_BAT_ADC];
-	gBatVoltage = (value * 5000)>>10;	// 3.3v to 5v
+	gBatVoltage = (value * 1422 * 2)/gAdcValue[3];	// channel 3 is about 1.42v,need modified
 	*pSamples = gBatVoltage;
 	if((++pSamples - pStart) > NUM_VOLTAGE_SAMPLE)
 	{
@@ -218,10 +220,9 @@ static void rk2818_get_bat_voltage(struct rk2818_battery_data *bat)
 		}
 		
 		gBatVoltageValue[1] = temp[1] / (NUM_VOLTAGE_SAMPLE >> 1);
-		//DBG("gBatVoltageValue[0]=%d,gBatVoltageValue[1]=%d\n",gBatVoltageValue[0],gBatVoltageValue[1]);
 
 		gBatSlopeValue = gBatVoltageValue[0] - gBatVoltageValue[1];	
-		
+		//DBG("gBatSlopeValue=%d,gBatVoltageValue[1]=%d\n",gBatSlopeValue,gBatVoltageValue[1]);
 		if(gBatSlopeValue >= 0)	//用电状态
 		{
 
@@ -269,6 +270,7 @@ static void rk2818_get_bat_voltage(struct rk2818_battery_data *bat)
 		else	//充电状态
 		{
 			//to do
+			gBatLoaderLevel = LODER_CHARGE_LEVEL;
 		}
 		
 	}
@@ -278,9 +280,22 @@ static void rk2818_get_bat_voltage(struct rk2818_battery_data *bat)
 static void rk2818_get_bat_capacity(struct rk2818_battery_data *bat)
 {
 	if(gFlagLoop)
-	gBatCapacity = ((gBatVoltageValue[1] - bat->bat_min) * 100) / (bat->bat_max - bat->bat_min);
+	{
+		//出现负载变小时容量变大的情况时，不更新容量值
+		if((gBatLastCapacity ==0) \
+			|| (gBatLoaderLevel <= gBatLastLoaderLevel) \
+			|| ((gBatLoaderLevel > gBatLastLoaderLevel)&&(gBatCapacity <= gBatLastCapacity)))	
+		{
+			gBatCapacity = ((gBatVoltageValue[1] - bat->bat_min) * 100) / (bat->bat_max - bat->bat_min);
+			gBatLastCapacity = gBatCapacity;
+			gBatLastLoaderLevel = gBatLoaderLevel;
+		}
+
+	}
 	else
-	gBatCapacity = ((gBatVoltage - bat->bat_min) * 100) / (bat->bat_max - bat->bat_min);
+	{
+		gBatCapacity = ((gBatVoltage - bat->bat_min) * 100) / (bat->bat_max - bat->bat_min);
+	}
 }
 
 
@@ -297,7 +312,7 @@ static void rk2818_batscan_timer(unsigned long data)
 	if(++gNumSamples > TIME_UPDATE_STATUS/TIMER_MS_COUNTS)
 	{
 		gNumSamples = 0;
-		if(gBatSlopeValue != 0)	//if voltage has changed
+		if(gBatVoltage != 0)	//update battery parameter after adc
 		{
 			power_supply_changed(&gBatteryData->battery);
 			DBG("voltage has changed\n");
@@ -366,25 +381,31 @@ static int rk2818_battery_get_property(struct power_supply *psy,
 	switch (psp) {
 	case POWER_SUPPLY_PROP_STATUS:
 		val->intval = gBatStatus;
-		DBG("gBatStatus=0x%x\n",val->intval);
+		DBG("gBatStatus=%d\n",val->intval);
 		break;
 	case POWER_SUPPLY_PROP_HEALTH:
 		val->intval = gBatHealth;
-		DBG("gBatHealth=0x%x\n",val->intval);
+		DBG("gBatHealth=%d\n",val->intval);
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = gBatPresent;
-		DBG("gBatPresent=0x%x\n",val->intval);
+		DBG("gBatPresent=%d\n",val->intval);
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_NOW:
+		if(gBatVoltageValue[1] == 0)
 		val ->intval = gBatVoltage;
-		DBG("gBatVoltage=0x%x\n",val->intval);
+		else
+		val ->intval = gBatVoltageValue[1];
+		DBG("gBatVoltage=%d\n",val->intval);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;	
 		break;
 	case POWER_SUPPLY_PROP_CAPACITY:
+		if(gBatLastCapacity == 0)
 		val->intval = gBatCapacity;
+		else
+		val->intval = gBatLastCapacity;	
 		DBG("gBatCapacity=%d%\n",val->intval);
 		break;
 	case POWER_SUPPLY_PROP_VOLTAGE_MAX_DESIGN:
@@ -517,7 +538,7 @@ static int rk2818_battery_probe(struct platform_device *pdev)
 	gBatteryData = data;
 
 	setup_timer(&data->timer, rk2818_batscan_timer, (unsigned long)data);
-	data->timer.expires  = jiffies+50;
+	data->timer.expires  = jiffies+500;
 	add_timer(&data->timer);
 	printk(KERN_INFO "rk2818_battery: driver initialized\n");
 	
