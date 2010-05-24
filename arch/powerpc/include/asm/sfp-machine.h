@@ -353,12 +353,6 @@
 #define abort()								\
 	return 0
 
-#ifdef __BIG_ENDIAN
-#define __BYTE_ORDER __BIG_ENDIAN
-#else
-#define __BYTE_ORDER __LITTLE_ENDIAN
-#endif
-
 /* Exception flags. */
 #define EFLAG_INVALID		(1 << (31 - 2))
 #define EFLAG_OVERFLOW		(1 << (31 - 3))
