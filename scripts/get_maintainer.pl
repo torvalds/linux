@@ -13,7 +13,7 @@
 use strict;
 
 my $P = $0;
-my $V = '0.23';
+my $V = '0.24';
 
 use Getopt::Long qw(:config no_auto_abbrev);
 
@@ -106,6 +106,30 @@ my %VCS_cmds_hg = (
     "commit_pattern" => "^commit [0-9a-f]{40,40}",
     "blame_commit_pattern" => "^([0-9a-f]+):"
 );
+
+if (-f "${lk_path}.get_maintainer.conf") {
+    my @conf_args;
+    open(my $conffile, '<', "${lk_path}.get_maintainer.conf")
+	or warn "$P: Can't open .get_maintainer.conf: $!\n";
+    while (<$conffile>) {
+	my $line = $_;
+
+	$line =~ s/\s*\n?$//g;
+	$line =~ s/^\s*//g;
+	$line =~ s/\s+/ /g;
+
+	next if ($line =~ m/^\s*#/);
+	next if ($line =~ m/^\s*$/);
+
+	my @words = split(" ", $line);
+	foreach my $word (@words) {
+	    last if ($word =~ m/^#/);
+	    push (@conf_args, $word);
+	}
+    }
+    close($conffile);
+    unshift(@ARGV, @conf_args) if @conf_args;
+}
 
 if (!GetOptions(
 		'email!' => \$email,
@@ -573,6 +597,11 @@ Notes:
           --git-min-signatures, --git-max-maintainers, --git-min-percent, and
           --git-blame
       Use --hg-since not --git-since to control date selection
+  File ".get_maintainer.conf", if it exists in the linux kernel source root
+      directory, can change whatever get_maintainer defaults are desired.
+      Entries in this file can be any command line argument.
+      This file is prepended to any additional command line arguments.
+      Multiple lines and # comments are allowed.
 EOT
 }
 
