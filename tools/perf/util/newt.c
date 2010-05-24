@@ -842,6 +842,8 @@ static int hist_browser__populate(struct hist_browser *self, struct hists *hists
 	newtFormAddHotKey(self->form, 'h');
 	newtFormAddHotKey(self->form, NEWT_KEY_F1);
 	newtFormAddHotKey(self->form, NEWT_KEY_RIGHT);
+	newtFormAddHotKey(self->form, NEWT_KEY_TAB);
+	newtFormAddHotKey(self->form, NEWT_KEY_UNTAB);
 	newtFormAddComponents(self->form, self->tree, NULL);
 	self->selection = newt__symbol_tree_get_current(self->tree);
 
@@ -873,7 +875,7 @@ static struct thread *hist_browser__selected_thread(struct hist_browser *self)
 	return he ? he->thread : NULL;
 }
 
-static int hist_browser__title(char *bf, size_t size, const char *input_name,
+static int hist_browser__title(char *bf, size_t size, const char *ev_name,
 			       const struct dso *dso, const struct thread *thread)
 {
 	int printed = 0;
@@ -887,18 +889,18 @@ static int hist_browser__title(char *bf, size_t size, const char *input_name,
 		printed += snprintf(bf + printed, size - printed,
 				    "%sDSO: %s", thread ? " " : "",
 				    dso->short_name);
-	return printed ?: snprintf(bf, size, "Report: %s", input_name);
+	return printed ?: snprintf(bf, size, "Event: %s", ev_name);
 }
 
-int hists__browse(struct hists *self, const char *helpline, const char *input_name)
+int hists__browse(struct hists *self, const char *helpline, const char *ev_name)
 {
 	struct hist_browser *browser = hist_browser__new();
-	struct pstack *fstack = pstack__new(2);
+	struct pstack *fstack;
 	const struct thread *thread_filter = NULL;
 	const struct dso *dso_filter = NULL;
 	struct newtExitStruct es;
 	char msg[160];
-	int err = -1;
+	int key = -1;
 
 	if (browser == NULL)
 		return -1;
@@ -909,7 +911,7 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 
 	ui_helpline__push(helpline);
 
-	hist_browser__title(msg, sizeof(msg), input_name,
+	hist_browser__title(msg, sizeof(msg), ev_name,
 			    dso_filter, thread_filter);
 	if (hist_browser__populate(browser, self, msg) < 0)
 		goto out_free_stack;
@@ -927,10 +929,23 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 		dso = browser->selection->map ? browser->selection->map->dso : NULL;
 
 		if (es.reason == NEWT_EXIT_HOTKEY) {
-			if (es.u.key == NEWT_KEY_F1)
-				goto do_help;
+			key = es.u.key;
 
-			switch (toupper(es.u.key)) {
+			switch (key) {
+			case NEWT_KEY_F1:
+				goto do_help;
+			case NEWT_KEY_TAB:
+			case NEWT_KEY_UNTAB:
+				/*
+				 * Exit the browser, let hists__browser_tree
+				 * go to the next or previous
+				 */
+				goto out_free_stack;
+			default:;
+			}
+
+			key = toupper(key);
+			switch (key) {
 			case 'A':
 				if (browser->selection->map == NULL &&
 				    browser->selection->map->dso->annotate_warned)
@@ -953,8 +968,8 @@ do_help:
 				continue;
 			default:;
 			}
-			if (is_exit_key(es.u.key)) {
-				if (es.u.key == NEWT_KEY_ESCAPE) {
+			if (is_exit_key(key)) {
+				if (key == NEWT_KEY_ESCAPE) {
 					if (dialog_yesno("Do you really want to exit?"))
 						break;
 					else
@@ -1041,7 +1056,7 @@ zoom_out_dso:
 				pstack__push(fstack, &dso_filter);
 			}
 			hists__filter_by_dso(self, dso_filter);
-			hist_browser__title(msg, sizeof(msg), input_name,
+			hist_browser__title(msg, sizeof(msg), ev_name,
 					    dso_filter, thread_filter);
 			if (hist_browser__populate(browser, self, msg) < 0)
 				goto out;
@@ -1060,18 +1075,49 @@ zoom_out_thread:
 				pstack__push(fstack, &thread_filter);
 			}
 			hists__filter_by_thread(self, thread_filter);
-			hist_browser__title(msg, sizeof(msg), input_name,
+			hist_browser__title(msg, sizeof(msg), ev_name,
 					    dso_filter, thread_filter);
 			if (hist_browser__populate(browser, self, msg) < 0)
 				goto out;
 		}
 	}
-	err = 0;
 out_free_stack:
 	pstack__delete(fstack);
 out:
 	hist_browser__delete(browser);
-	return err;
+	return key;
+}
+
+int hists__tui_browse_tree(struct rb_root *self, const char *help)
+{
+	struct rb_node *first = rb_first(self), *nd = first, *next;
+	int key = 0;
+
+	while (nd) {
+		struct hists *hists = rb_entry(nd, struct hists, rb_node);
+		const char *ev_name = __event_name(hists->type, hists->config);
+
+		key = hists__browse(hists, help, ev_name);
+
+		if (is_exit_key(key))
+			break;
+
+		switch (key) {
+		case NEWT_KEY_TAB:
+			next = rb_next(nd);
+			if (next)
+				nd = next;
+			break;
+		case NEWT_KEY_UNTAB:
+			if (nd == first)
+				continue;
+			nd = rb_prev(nd);
+		default:
+			break;
+		}
+	}
+
+	return key;
 }
 
 static struct newtPercentTreeColors {
