@@ -1768,12 +1768,12 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 	mutex_unlock(&mdsc->mutex);
 	dout("do_request waiting\n");
 	if (req->r_timeout) {
-		err = (long)wait_for_completion_interruptible_timeout(
+		err = (long)wait_for_completion_killable_timeout(
 			&req->r_completion, req->r_timeout);
 		if (err == 0)
 			err = -EIO;
 	} else {
-		err = wait_for_completion_interruptible(&req->r_completion);
+		err = wait_for_completion_killable(&req->r_completion);
 	}
 	dout("do_request waited, got %d\n", err);
 	mutex_lock(&mdsc->mutex);
