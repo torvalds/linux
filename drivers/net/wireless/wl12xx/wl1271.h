@@ -349,6 +349,7 @@ struct wl1271 {
 #define WL1271_FLAG_IRQ_PENDING        (9)
 #define WL1271_FLAG_IRQ_RUNNING       (10)
 #define WL1271_FLAG_IDLE              (11)
+#define WL1271_FLAG_IDLE_REQUESTED    (12)
 	unsigned long flags;
 
 	struct wl1271_partition_set part;

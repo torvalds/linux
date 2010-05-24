@@ -1135,11 +1135,6 @@ static int wl1271_dummy_join(struct wl1271 *wl)
 
 	memcpy(wl->bssid, dummy_bssid, ETH_ALEN);
 
-	/* increment the session counter */
-	wl->session_counter++;
-	if (wl->session_counter >= SESSION_COUNTER_MAX)
-		wl->session_counter = 0;
-
 	/* pass through frames from all BSS */
 	wl1271_configure_filters(wl, FIF_OTHER_BSS);
 
@@ -1253,6 +1248,42 @@ static u32 wl1271_min_rate_get(struct wl1271 *wl)
 	return rate;
 }
 
+static int wl1271_handle_idle(struct wl1271 *wl, bool idle)
+{
+	int ret;
+
+	if (idle) {
+		if (test_bit(WL1271_FLAG_JOINED, &wl->flags)) {
+			ret = wl1271_unjoin(wl);
+			if (ret < 0)
+				goto out;
+		}
+		wl->rate_set = wl1271_min_rate_get(wl);
+		wl->sta_rate_set = 0;
+		ret = wl1271_acx_rate_policies(wl);
+		if (ret < 0)
+			goto out;
+		ret = wl1271_acx_keep_alive_config(
+			wl, CMD_TEMPL_KLV_IDX_NULL_DATA,
+			ACX_KEEP_ALIVE_TPL_INVALID);
+		if (ret < 0)
+			goto out;
+		set_bit(WL1271_FLAG_IDLE, &wl->flags);
+	} else {
+		/* increment the session counter */
+		wl->session_counter++;
+		if (wl->session_counter >= SESSION_COUNTER_MAX)
+			wl->session_counter = 0;
+		ret = wl1271_dummy_join(wl);
+		if (ret < 0)
+			goto out;
+		clear_bit(WL1271_FLAG_IDLE, &wl->flags);
+	}
+
+out:
+	return ret;
+}
+
 static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 {
 	struct wl1271 *wl = hw->priv;
@@ -1307,22 +1338,9 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
-		if (conf->flags & IEEE80211_CONF_IDLE &&
-		    test_bit(WL1271_FLAG_JOINED, &wl->flags))
-			wl1271_unjoin(wl);
-		else if (!(conf->flags & IEEE80211_CONF_IDLE))
-			wl1271_dummy_join(wl);
-
-		if (conf->flags & IEEE80211_CONF_IDLE) {
-			wl->rate_set = wl1271_min_rate_get(wl);
-			wl->sta_rate_set = 0;
-			wl1271_acx_rate_policies(wl);
-			wl1271_acx_keep_alive_config(
-				wl, CMD_TEMPL_KLV_IDX_NULL_DATA,
-				ACX_KEEP_ALIVE_TPL_INVALID);
-			set_bit(WL1271_FLAG_IDLE, &wl->flags);
-		} else
-			clear_bit(WL1271_FLAG_IDLE, &wl->flags);
+		ret = wl1271_handle_idle(wl, conf->flags & IEEE80211_CONF_IDLE);
+		if (ret < 0)
+			wl1271_warning("idle mode change failed %d", ret);
 	}
 
 	if (conf->flags & IEEE80211_CONF_PS &&
