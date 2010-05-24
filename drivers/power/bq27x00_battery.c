@@ -44,6 +44,8 @@
 #define BQ27500_FLAG_DSC		BIT(0)
 #define BQ27500_FLAG_FC			BIT(9)
 
+#define BQ27000_RS			20 /* Resistor sense */
+
 /* If the system has several batteries we need a different name for each
  * of them...
  */
@@ -149,7 +151,7 @@ static int bq27x00_battery_current(struct bq27x00_device_info *di)
 
 	if (di->chip == BQ27500) {
 		/* bq27500 returns signed value */
-		curr = (int)(s16)curr;
+		curr = (int)((s16)curr) * 1000;
 	} else {
 		ret = bq27x00_read(BQ27x00_REG_FLAGS, &flags, 0, di);
 		if (ret < 0) {
@@ -160,9 +162,10 @@ static int bq27x00_battery_current(struct bq27x00_device_info *di)
 			dev_dbg(di->dev, "negative current!\n");
 			curr = -curr;
 		}
+		curr = curr * 3570 / BQ27000_RS;
 	}
 
-	return curr * 1000;
+	return curr;
 }
 
 /*
