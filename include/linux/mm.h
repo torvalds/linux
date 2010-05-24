@@ -13,6 +13,7 @@
 #include <linux/debug_locks.h>
 #include <linux/mm_types.h>
 #include <linux/range.h>
+#include <linux/pfn.h>
 
 struct mempolicy;
 struct anon_vma;
@@ -595,7 +596,7 @@ static inline void set_page_links(struct page *page, enum zone_type zone,
 
 static __always_inline void *lowmem_page_address(struct page *page)
 {
-	return __va(page_to_pfn(page) << PAGE_SHIFT);
+	return __va(PFN_PHYS(page_to_pfn(page)));
 }
 
 #if defined(CONFIG_HIGHMEM) && !defined(WANT_PAGE_VIRTUAL)
