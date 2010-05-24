@@ -2121,9 +2121,15 @@ void numa_default_policy(void)
  * "local" is pseudo-policy:  MPOL_PREFERRED with MPOL_F_LOCAL flag
  * Used only for mpol_parse_str() and mpol_to_str()
  */
-#define MPOL_LOCAL (MPOL_INTERLEAVE + 1)
-static const char * const policy_types[] =
-	{ "default", "prefer", "bind", "interleave", "local" };
+#define MPOL_LOCAL MPOL_MAX
+static const char * const policy_modes[] =
+{
+	[MPOL_DEFAULT]    = "default",
+	[MPOL_PREFERRED]  = "prefer",
+	[MPOL_BIND]       = "bind",
+	[MPOL_INTERLEAVE] = "interleave",
+	[MPOL_LOCAL]      = "local"
+};
 
 
 #ifdef CONFIG_TMPFS
@@ -2169,7 +2175,7 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
 		*flags++ = '\0';	/* terminate mode string */
 
 	for (mode = 0; mode <= MPOL_LOCAL; mode++) {
-		if (!strcmp(str, policy_types[mode])) {
+		if (!strcmp(str, policy_modes[mode])) {
 			break;
 		}
 	}
@@ -2324,11 +2330,11 @@ int mpol_to_str(char *buffer, int maxlen, struct mempolicy *pol, int no_context)
 		BUG();
 	}
 
-	l = strlen(policy_types[mode]);
+	l = strlen(policy_modes[mode]);
 	if (buffer + maxlen < p + l + 1)
 		return -ENOSPC;
 
-	strcpy(p, policy_types[mode]);
+	strcpy(p, policy_modes[mode]);
 	p += l;
 
 	if (flags & MPOL_MODE_FLAGS) {
