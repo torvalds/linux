@@ -524,6 +524,8 @@ EXPORT_SYMBOL_GPL(lis3lv02d_remove_fs);
 static void lis3lv02d_8b_configure(struct lis3lv02d *dev,
 				struct lis3lv02d_platform_data *p)
 {
+	int ctrl2 = p->hipass_ctrl;
+
 	if (p->click_flags) {
 		dev->write(dev, CLICK_CFG, p->click_flags);
 		dev->write(dev, CLICK_TIMELIMIT, p->click_time_limit);
@@ -540,9 +542,18 @@ static void lis3lv02d_8b_configure(struct lis3lv02d *dev,
 		dev->write(dev, FF_WU_THS_1, p->wakeup_thresh & 0x7f);
 		/* default to 2.5ms for now */
 		dev->write(dev, FF_WU_DURATION_1, 1);
-		/* enable high pass filter for both free-fall units */
-		dev->write(dev, CTRL_REG2, HP_FF_WU1 | HP_FF_WU2);
+		ctrl2 ^= HP_FF_WU1; /* Xor to keep compatible with old pdata*/
 	}
+
+	if (p->wakeup_flags2) {
+		dev->write(dev, FF_WU_CFG_2, p->wakeup_flags2);
+		dev->write(dev, FF_WU_THS_2, p->wakeup_thresh2 & 0x7f);
+		/* default to 2.5ms for now */
+		dev->write(dev, FF_WU_DURATION_2, 1);
+		ctrl2 ^= HP_FF_WU2; /* Xor to keep compatible with old pdata*/
+	}
+	/* Configure hipass filters */
+	dev->write(dev, CTRL_REG2, ctrl2);
 }
 
 /*
