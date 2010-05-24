@@ -1382,6 +1382,21 @@ sub process {
 			ERROR("trailing whitespace\n" . $herevet);
 		}
 
+# check for Kconfig help text having a real description
+		if ($realfile =~ /Kconfig/ &&
+		    $line =~ /\+?\s*(---)?help(---)?$/) {
+			my $length = 0;
+			for (my $l = $linenr; defined($lines[$l]); $l++) {
+				my $f = $lines[$l];
+				$f =~ s/#.*//;
+				$f =~ s/^\s+//;
+				next if ($f =~ /^$/);
+				last if ($f =~ /^\s*config\s/);
+				$length++;
+			}
+			WARN("please write a paragraph that describes the config symbol fully\n" . $herecurr) if ($length < 4);
+		}
+
 # check we are in a valid source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c|s|S|pl|sh)$/);
 
