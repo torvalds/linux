@@ -61,7 +61,6 @@
 #ifdef CONFIG_HAS_WAKELOCK
 #include <linux/wakelock.h>
 #endif
-#include <linux/freezer.h>
 #if defined(CUSTOMER_HW2) && defined(CONFIG_WIFI_CONTROL_FUNC)
 #include <linux/wlan_plat.h>
 
@@ -818,8 +817,6 @@ _dhd_sysioc_thread(void *data)
 	bool in_ap = FALSE;
 #endif
 
-	set_freezable();
-
 	DAEMONIZE("dhd_sysioc");
 
 	while (down_interruptible(&dhd->sysioc_sem) == 0) {
@@ -1200,8 +1197,6 @@ dhd_watchdog_thread(void *data)
 	}
 #endif /* DHD_SCHED */
 
-	set_freezable();
-
 	DAEMONIZE("dhd_watchdog");
 
 	/* Run until signal received */
@@ -1268,8 +1263,6 @@ dhd_dpc_thread(void *data)
 		setScheduler(current, SCHED_FIFO, &param);
 	}
 #endif /* DHD_SCHED */
-
-	set_freezable();
 
 	DAEMONIZE("dhd_dpc");
 
