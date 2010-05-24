@@ -1170,7 +1170,7 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 	switch (cmd) {
 	case F_SETPIPE_SZ:
 		if (!capable(CAP_SYS_ADMIN) && arg > pipe_max_pages)
-			return -EINVAL;
+			return -EPERM;
 		/*
 		 * The pipe needs to be at least 2 pages large to
 		 * guarantee POSIX behaviour.
