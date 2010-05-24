@@ -1812,7 +1812,7 @@ int dquot_transfer(struct inode *inode, struct iattr *iattr)
 	if (iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid)
 		transfer_to[USRQUOTA] = dqget(sb, iattr->ia_uid, USRQUOTA);
 	if (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)
-		transfer_to[GRPQUOTA] = dqget(sb, iattr->ia_uid, GRPQUOTA);
+		transfer_to[GRPQUOTA] = dqget(sb, iattr->ia_gid, GRPQUOTA);
 
 	ret = __dquot_transfer(inode, transfer_to);
 	dqput_all(transfer_to);
