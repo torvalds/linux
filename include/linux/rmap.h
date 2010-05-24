@@ -29,6 +29,9 @@ struct anon_vma {
 #ifdef CONFIG_KSM
 	atomic_t ksm_refcount;
 #endif
+#ifdef CONFIG_MIGRATION
+	atomic_t migrate_refcount;
+#endif
 	/*
 	 * NOTE: the LSB of the head.next is set by
 	 * mm_take_all_locks() _after_ taking the above lock. So the
@@ -81,6 +84,26 @@ static inline int ksm_refcount(struct anon_vma *anon_vma)
 	return 0;
 }
 #endif /* CONFIG_KSM */
+#ifdef CONFIG_MIGRATION
+static inline void migrate_refcount_init(struct anon_vma *anon_vma)
+{
+	atomic_set(&anon_vma->migrate_refcount, 0);
+}
+
+static inline int migrate_refcount(struct anon_vma *anon_vma)
+{
+	return atomic_read(&anon_vma->migrate_refcount);
+}
+#else
+static inline void migrate_refcount_init(struct anon_vma *anon_vma)
+{
+}
+
+static inline int migrate_refcount(struct anon_vma *anon_vma)
+{
+	return 0;
+}
+#endif /* CONFIG_MIGRATE */
 
 static inline struct anon_vma *page_anon_vma(struct page *page)
 {
