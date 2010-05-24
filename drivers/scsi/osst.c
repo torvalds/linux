@@ -4932,7 +4932,7 @@ static int os_scsi_tape_close(struct inode * inode, struct file * filp)
 
 
 /* The ioctl command */
-static int osst_ioctl(struct inode * inode,struct file * file,
+static long osst_ioctl(struct file * file,
 	 unsigned int cmd_in, unsigned long arg)
 {
 	int		      i, cmd_nr, cmd_type, blk, retval = 0;
@@ -4943,8 +4943,11 @@ static int osst_ioctl(struct inode * inode,struct file * file,
 	char		    * name  = tape_name(STp);
 	void	    __user  * p     = (void __user *)arg;
 
-	if (mutex_lock_interruptible(&STp->lock))
+	lock_kernel();
+	if (mutex_lock_interruptible(&STp->lock)) {
+		unlock_kernel();
 		return -ERESTARTSYS;
+	}
 
 #if DEBUG
 	if (debugging && !STp->in_use) {
@@ -5256,12 +5259,15 @@ static int osst_ioctl(struct inode * inode,struct file * file,
 
 	mutex_unlock(&STp->lock);
 
-	return scsi_ioctl(STp->device, cmd_in, p);
+	retval = scsi_ioctl(STp->device, cmd_in, p);
+	unlock_kernel();
+	return retval;
 
 out:
 	if (SRpnt) osst_release_request(SRpnt);
 
 	mutex_unlock(&STp->lock);
+	unlock_kernel();
 
 	return retval;
 }
@@ -5613,7 +5619,7 @@ static const struct file_operations osst_fops = {
 	.owner =        THIS_MODULE,
 	.read =         osst_read,
 	.write =        osst_write,
-	.ioctl =        osst_ioctl,
+	.unlocked_ioctl = osst_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = osst_compat_ioctl,
 #endif
