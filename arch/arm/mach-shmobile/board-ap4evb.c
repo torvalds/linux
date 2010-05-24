@@ -32,10 +32,14 @@
 #include <linux/i2c/tsc2007.h>
 #include <linux/io.h>
 #include <linux/smsc911x.h>
+#include <linux/sh_intc.h>
+#include <linux/sh_clk.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>
 #include <linux/usb/r8a66597.h>
+
+#include <sound/sh_fsi.h>
 
 #include <video/sh_mobile_lcdc.h>
 #include <video/sh_mipi_dsi.h>
@@ -111,6 +115,13 @@
  *      2-3  DC 5.0V
  *
  * S39: bit2: off
+ */
+
+/*
+ * FSI/FSMI
+ *
+ * SW41	:  ON : SH-Mobile AP4 Audio Mode
+ *	: OFF : Bluetooth Audio Mode
  */
 
 /* MTD */
@@ -373,6 +384,60 @@ static struct platform_device mipidsi0_device = {
 	},
 };
 
+/* FSI */
+#define IRQ_FSI		evt2irq(0x1840)
+#define FSIACKCR	0xE6150018
+static void fsiackcr_init(struct clk *clk)
+{
+	u32 status = __raw_readl(clk->enable_reg);
+
+	/* use external clock */
+	status &= ~0x000000ff;
+	status |= 0x00000080;
+	__raw_writel(status, clk->enable_reg);
+}
+
+static struct clk_ops fsiackcr_clk_ops = {
+	.init = fsiackcr_init,
+};
+
+static struct clk fsiackcr_clk = {
+	.ops		= &fsiackcr_clk_ops,
+	.enable_reg	= (void __iomem *)FSIACKCR,
+	.rate		= 0, /* unknown */
+};
+
+struct sh_fsi_platform_info fsi_info = {
+	.porta_flags = SH_FSI_BRS_INV |
+		       SH_FSI_OUT_SLAVE_MODE |
+		       SH_FSI_IN_SLAVE_MODE |
+		       SH_FSI_OFMT(PCM) |
+		       SH_FSI_IFMT(PCM),
+};
+
+static struct resource fsi_resources[] = {
+	[0] = {
+		.name	= "FSI",
+		.start	= 0xFE3C0000,
+		.end	= 0xFE3C0400 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_FSI,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device fsi_device = {
+	.name		= "sh_fsi2",
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(fsi_resources),
+	.resource	= fsi_resources,
+	.dev	= {
+		.platform_data	= &fsi_info,
+	},
+};
+
 static struct platform_device *ap4evb_devices[] __initdata = {
 	&nor_flash_device,
 	&smc911x_device,
@@ -381,6 +446,7 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 	&usb1_host_device,
 	&lcdc_device,
 	&mipidsi0_device,
+	&fsi_device,
 };
 
 /* TouchScreen (Needs SW3 set to OFF) */
@@ -391,6 +457,12 @@ struct tsc2007_platform_data tsc2007_info = {
 };
 
 /* I2C */
+static struct i2c_board_info i2c0_devices[] = {
+	{
+		I2C_BOARD_INFO("ak4643", 0x13),
+	},
+};
+
 static struct i2c_board_info i2c1_devices[] = {
 	{
 		I2C_BOARD_INFO("r2025sd", 0x32),
@@ -463,8 +535,27 @@ eclkdsitxget:
 
 device_initcall(ap4evb_init_display_clk);
 
+/*
+ * FIXME !!
+ *
+ * gpio_no_direction is quick_hack.
+ *
+ * current gpio frame work doesn't have
+ * the method to control only pull up/down/free.
+ * this function should be replaced by correct gpio function
+ */
+static void __init gpio_no_direction(u32 addr)
+{
+	__raw_writeb(0x00, addr);
+}
+
+#define GPIO_PORT9CR	0xE6051009
+#define GPIO_PORT10CR	0xE605100A
+
 static void __init ap4evb_init(void)
 {
+	struct clk *clk;
+
 	sh7372_pinmux_init();
 
 	/* enable SCIFA0 */
@@ -529,9 +620,6 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_IRQ28_123, NULL);
 	set_irq_type(IRQ28, IRQ_TYPE_LEVEL_LOW);
 
-	i2c_register_board_info(1, i2c1_devices,
-				ARRAY_SIZE(i2c1_devices));
-
 	/* USB enable */
 	gpio_request(GPIO_FN_VBUS0_1,    NULL);
 	gpio_request(GPIO_FN_IDIN_1_18,  NULL);
@@ -542,6 +630,47 @@ static void __init ap4evb_init(void)
 
 	/* setup USB phy */
 	__raw_writew(0x8a0a, 0xE6058130);	/* USBCR2 */
+
+	/* enable FSI2 */
+	gpio_request(GPIO_FN_FSIAIBT,	NULL);
+	gpio_request(GPIO_FN_FSIAILR,	NULL);
+	gpio_request(GPIO_FN_FSIAISLD,	NULL);
+	gpio_request(GPIO_FN_FSIAOSLD,	NULL);
+	gpio_request(GPIO_PORT161,	NULL);
+	gpio_direction_output(GPIO_PORT161, 0); /* slave */
+
+	gpio_request(GPIO_PORT9, NULL);
+	gpio_request(GPIO_PORT10, NULL);
+	gpio_no_direction(GPIO_PORT9CR);  /* FSIAOBT needs no direction */
+	gpio_no_direction(GPIO_PORT10CR); /* FSIAOLR needs no direction */
+
+	/* set SPU2 clock to 119.6 MHz */
+	clk = clk_get(NULL, "spu_clk");
+	if (!IS_ERR_VALUE(clk)) {
+		clk_set_rate(clk, clk_round_rate(clk, 119600000));
+		clk_put(clk);
+	}
+
+	/* change parent of FSI A */
+	clk = clk_get(NULL, "fsia_clk");
+	if (!IS_ERR_VALUE(clk)) {
+		clk_register(&fsiackcr_clk);
+		clk_set_parent(clk, &fsiackcr_clk);
+		clk_put(clk);
+	}
+
+	/*
+	 * set irq priority, to avoid sound chopping
+	 * when NFS rootfs is used
+	 *  FSI(3) > SMSC911X(2)
+	 */
+	intc_set_priority(IRQ_FSI, 3);
+
+	i2c_register_board_info(0, i2c0_devices,
+				ARRAY_SIZE(i2c0_devices));
+
+	i2c_register_board_info(1, i2c1_devices,
+				ARRAY_SIZE(i2c1_devices));
 
 	sh7372_add_standard_devices();
 
