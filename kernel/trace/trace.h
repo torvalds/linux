@@ -698,6 +698,8 @@ struct filter_pred {
 	int 			pop_n;
 };
 
+extern struct list_head ftrace_common_fields;
+
 extern enum regex_type
 filter_parse_regex(char *buff, int len, char **search, int *not);
 extern void print_event_filter(struct ftrace_event_call *call,

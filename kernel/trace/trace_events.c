@@ -28,6 +28,7 @@
 DEFINE_MUTEX(event_mutex);
 
 LIST_HEAD(ftrace_events);
+LIST_HEAD(ftrace_common_fields);
 
 struct list_head *
 trace_get_fields(struct ftrace_event_call *event_call)
@@ -37,15 +38,11 @@ trace_get_fields(struct ftrace_event_call *event_call)
 	return event_call->class->get_fields(event_call);
 }
 
-int trace_define_field(struct ftrace_event_call *call, const char *type,
-		       const char *name, int offset, int size, int is_signed,
-		       int filter_type)
+static int __trace_define_field(struct list_head *head, const char *type,
+				const char *name, int offset, int size,
+				int is_signed, int filter_type)
 {
 	struct ftrace_event_field *field;
-	struct list_head *head;
-
-	if (WARN_ON(!call->class))
-		return 0;
 
 	field = kzalloc(sizeof(*field), GFP_KERNEL);
 	if (!field)
@@ -68,7 +65,6 @@ int trace_define_field(struct ftrace_event_call *call, const char *type,
 	field->size = size;
 	field->is_signed = is_signed;
 
-	head = trace_get_fields(call);
 	list_add(&field->link, head);
 
 	return 0;
@@ -80,17 +76,32 @@ err:
 
 	return -ENOMEM;
 }
+
+int trace_define_field(struct ftrace_event_call *call, const char *type,
+		       const char *name, int offset, int size, int is_signed,
+		       int filter_type)
+{
+	struct list_head *head;
+
+	if (WARN_ON(!call->class))
+		return 0;
+
+	head = trace_get_fields(call);
+	return __trace_define_field(head, type, name, offset, size,
+				    is_signed, filter_type);
+}
 EXPORT_SYMBOL_GPL(trace_define_field);
 
 #define __common_field(type, item)					\
-	ret = trace_define_field(call, #type, "common_" #item,		\
-				 offsetof(typeof(ent), item),		\
-				 sizeof(ent.item),			\
-				 is_signed_type(type), FILTER_OTHER);	\
+	ret = __trace_define_field(&ftrace_common_fields, #type,	\
+				   "common_" #item,			\
+				   offsetof(typeof(ent), item),		\
+				   sizeof(ent.item),			\
+				   is_signed_type(type), FILTER_OTHER);	\
 	if (ret)							\
 		return ret;
 
-static int trace_define_common_fields(struct ftrace_event_call *call)
+static int trace_define_common_fields(void)
 {
 	int ret;
 	struct trace_entry ent;
@@ -544,32 +555,10 @@ out:
 	return ret;
 }
 
-static ssize_t
-event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
-		  loff_t *ppos)
+static void print_event_fields(struct trace_seq *s, struct list_head *head)
 {
-	struct ftrace_event_call *call = filp->private_data;
 	struct ftrace_event_field *field;
-	struct list_head *head;
-	struct trace_seq *s;
-	int common_field_count = 5;
-	char *buf;
-	int r = 0;
 
-	if (*ppos)
-		return 0;
-
-	s = kmalloc(sizeof(*s), GFP_KERNEL);
-	if (!s)
-		return -ENOMEM;
-
-	trace_seq_init(s);
-
-	trace_seq_printf(s, "name: %s\n", call->name);
-	trace_seq_printf(s, "ID: %d\n", call->event.type);
-	trace_seq_printf(s, "format:\n");
-
-	head = trace_get_fields(call);
 	list_for_each_entry_reverse(field, head, link) {
 		/*
 		 * Smartly shows the array type(except dynamic array).
@@ -584,29 +573,54 @@ event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
 			array_descriptor = NULL;
 
 		if (!array_descriptor) {
-			r = trace_seq_printf(s, "\tfield:%s %s;\toffset:%u;"
+			trace_seq_printf(s, "\tfield:%s %s;\toffset:%u;"
 					"\tsize:%u;\tsigned:%d;\n",
 					field->type, field->name, field->offset,
 					field->size, !!field->is_signed);
 		} else {
-			r = trace_seq_printf(s, "\tfield:%.*s %s%s;\toffset:%u;"
+			trace_seq_printf(s, "\tfield:%.*s %s%s;\toffset:%u;"
 					"\tsize:%u;\tsigned:%d;\n",
 					(int)(array_descriptor - field->type),
 					field->type, field->name,
 					array_descriptor, field->offset,
 					field->size, !!field->is_signed);
 		}
-
-		if (--common_field_count == 0)
-			r = trace_seq_printf(s, "\n");
-
-		if (!r)
-			break;
 	}
+}
 
-	if (r)
-		r = trace_seq_printf(s, "\nprint fmt: %s\n",
-				call->print_fmt);
+static ssize_t
+event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
+		  loff_t *ppos)
+{
+	struct ftrace_event_call *call = filp->private_data;
+	struct list_head *head;
+	struct trace_seq *s;
+	char *buf;
+	int r;
+
+	if (*ppos)
+		return 0;
+
+	s = kmalloc(sizeof(*s), GFP_KERNEL);
+	if (!s)
+		return -ENOMEM;
+
+	trace_seq_init(s);
+
+	trace_seq_printf(s, "name: %s\n", call->name);
+	trace_seq_printf(s, "ID: %d\n", call->event.type);
+	trace_seq_printf(s, "format:\n");
+
+	/* print common fields */
+	print_event_fields(s, &ftrace_common_fields);
+
+	trace_seq_putc(s, '\n');
+
+	/* print event specific fields */
+	head = trace_get_fields(call);
+	print_event_fields(s, head);
+
+	r = trace_seq_printf(s, "\nprint fmt: %s\n", call->print_fmt);
 
 	if (!r) {
 		/*
@@ -980,9 +994,7 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 		 */
 		head = trace_get_fields(call);
 		if (list_empty(head)) {
-			ret = trace_define_common_fields(call);
-			if (!ret)
-				ret = call->class->define_fields(call);
+			ret = call->class->define_fields(call);
 			if (ret < 0) {
 				pr_warning("Could not initialize trace point"
 					   " events/%s\n", call->name);
@@ -1318,6 +1330,9 @@ static __init int event_trace_init(void)
 
 	trace_create_file("enable", 0644, d_events,
 			  NULL, &ftrace_system_enable_fops);
+
+	if (trace_define_common_fields())
+		pr_warning("tracing: Failed to allocate common fields");
 
 	for_each_event(call, __start_ftrace_events, __stop_ftrace_events) {
 		/* The linker may leave blanks */
