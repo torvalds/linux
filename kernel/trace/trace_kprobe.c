@@ -1214,11 +1214,6 @@ static void probe_event_disable(struct ftrace_event_call *call)
 	}
 }
 
-static int probe_event_raw_init(struct ftrace_event_call *event_call)
-{
-	return 0;
-}
-
 #undef DEFINE_FIELD
 #define DEFINE_FIELD(type, item, name, is_signed)			\
 	do {								\
@@ -1486,15 +1481,12 @@ static int register_probe_event(struct trace_probe *tp)
 	int ret;
 
 	/* Initialize ftrace_event_call */
+	INIT_LIST_HEAD(&call->class->fields);
 	if (probe_is_return(tp)) {
-		INIT_LIST_HEAD(&call->class->fields);
 		call->event.funcs = &kretprobe_funcs;
-		call->class->raw_init = probe_event_raw_init;
 		call->class->define_fields = kretprobe_event_define_fields;
 	} else {
-		INIT_LIST_HEAD(&call->class->fields);
 		call->event.funcs = &kprobe_funcs;
-		call->class->raw_init = probe_event_raw_init;
 		call->class->define_fields = kprobe_event_define_fields;
 	}
 	if (set_print_fmt(tp) < 0)
