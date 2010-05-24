@@ -806,7 +806,7 @@ static unsigned get_indirect(struct vhost_dev *dev, struct vhost_virtqueue *vq,
 	count = indirect->len / sizeof desc;
 	/* Buffers are chained via a 16 bit next field, so
 	 * we can have at most 2^16 of these. */
-	if (count > USHORT_MAX + 1) {
+	if (count > USHRT_MAX + 1) {
 		vq_err(vq, "Indirect buffer length too big: %d\n",
 		       indirect->len);
 		return -E2BIG;

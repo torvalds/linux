@@ -3757,7 +3757,7 @@ _base_reset_handler(struct MPT2SAS_ADAPTER *ioc, int reset_phase)
 		if (ioc->config_cmds.status & MPT2_CMD_PENDING) {
 			ioc->config_cmds.status |= MPT2_CMD_RESET;
 			mpt2sas_base_free_smid(ioc, ioc->config_cmds.smid);
-			ioc->config_cmds.smid = USHORT_MAX;
+			ioc->config_cmds.smid = USHRT_MAX;
 			complete(&ioc->config_cmds.done);
 		}
 		break;

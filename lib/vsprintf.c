@@ -1980,7 +1980,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 		{
 			char *s = (char *)va_arg(args, char *);
 			if (field_width == -1)
-				field_width = SHORT_MAX;
+				field_width = SHRT_MAX;
 			/* first, skip leading white space in buffer */
 			str = skip_spaces(str);
 
