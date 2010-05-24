@@ -308,19 +308,15 @@ cfcnfg_linkup_rsp(struct cflayer *layer, u8 channel_id, enum cfctrl_srv serv,
 	caif_assert(cnfg != NULL);
 	caif_assert(phyid != 0);
 	phyinfo = &cnfg->phy_layers[phyid];
-	caif_assert(phyinfo != NULL);
 	caif_assert(phyinfo->id == phyid);
 	caif_assert(phyinfo->phy_layer != NULL);
 	caif_assert(phyinfo->phy_layer->id == phyid);
 
-	if (phyinfo != NULL &&
-	    phyinfo->phy_ref_count++ == 0 &&
-	    phyinfo->phy_layer != NULL &&
+	phyinfo->phy_ref_count++;
+	if (phyinfo->phy_ref_count == 1 &&
 	    phyinfo->phy_layer->modemcmd != NULL) {
-		caif_assert(phyinfo->phy_layer->id == phyid);
 		phyinfo->phy_layer->modemcmd(phyinfo->phy_layer,
 					     _CAIF_MODEMCMD_PHYIF_USEFULL);
-
 	}
 	adapt_layer->id = channel_id;
 
