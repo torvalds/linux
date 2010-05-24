@@ -44,6 +44,9 @@
  * AD5243		2		256		2.5, 10, 50, 100
  * AD5248		2		256		2.5, 10, 50, 100
  * AD5242		2		256		20, 50, 200
+ * AD5280		1		256		20, 50, 200
+ * AD5282		2		256		20, 50, 200
+ * ADN2860		3		512		25, 250
  *
  * See Documentation/misc-devices/ad525x_dpot.txt for more info.
  *
@@ -154,6 +157,8 @@ static s32 dpot_read_i2c(struct dpot_data *dpot, u8 reg)
 	case DPOT_UID(AD5242_ID):
 	case DPOT_UID(AD5243_ID):
 	case DPOT_UID(AD5248_ID):
+	case DPOT_UID(AD5280_ID):
+	case DPOT_UID(AD5282_ID):
 		ctrl = ((reg & DPOT_RDAC_MASK) == DPOT_RDAC0) ?
 			0 : DPOT_AD5291_RDAC_AB;
 		return dpot_read_r8d8(dpot, ctrl);
@@ -250,21 +255,22 @@ static s32 dpot_write_i2c(struct dpot_data *dpot, u8 reg, u16 value)
 	case DPOT_UID(AD5242_ID):
 	case DPOT_UID(AD5243_ID):
 	case DPOT_UID(AD5248_ID):
-		ctrl = ((reg & DPOT_RDAC_MASK) == DPOT_RDAC0) ? 0 : DPOT_AD5291_RDAC_AB;
+	case DPOT_UID(AD5280_ID):
+	case DPOT_UID(AD5282_ID):
+		ctrl = ((reg & DPOT_RDAC_MASK) == DPOT_RDAC0) ?
+			0 : DPOT_AD5291_RDAC_AB;
 		return dpot_write_r8d8(dpot, ctrl, value);
 		break;
-
-
 	default:
-	if (reg & DPOT_ADDR_CMD)
-		return dpot_write_d8(dpot, reg);
+		if (reg & DPOT_ADDR_CMD)
+			return dpot_write_d8(dpot, reg);
 
-	if (dpot->max_pos > 256)
-		return dpot_write_r8d16(dpot, (reg & 0xF8) |
-					((reg & 0x7) << 1), value);
-	else
-		/* All other registers require instruction + data bytes */
-		return dpot_write_r8d8(dpot, reg, value);
+		if (dpot->max_pos > 256)
+			return dpot_write_r8d16(dpot, (reg & 0xF8) |
+						((reg & 0x7) << 1), value);
+		else
+			/* All other registers require instruction + data bytes */
+			return dpot_write_r8d8(dpot, reg, value);
 	}
 }
 
