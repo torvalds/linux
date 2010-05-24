@@ -58,23 +58,18 @@ int migrate_prep(void)
 /*
  * Add isolated pages on the list back to the LRU under page lock
  * to avoid leaking evictable pages back onto unevictable list.
- *
- * returns the number of pages put back.
  */
-int putback_lru_pages(struct list_head *l)
+void putback_lru_pages(struct list_head *l)
 {
 	struct page *page;
 	struct page *page2;
-	int count = 0;
 
 	list_for_each_entry_safe(page, page2, l, lru) {
 		list_del(&page->lru);
 		dec_zone_page_state(page, NR_ISOLATED_ANON +
 				page_is_file_cache(page));
 		putback_lru_page(page);
-		count++;
 	}
-	return count;
 }
 
 /*
