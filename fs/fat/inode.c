@@ -1250,6 +1250,8 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	sb->s_op = &fat_sops;
 	sb->s_export_op = &fat_export_ops;
 	sbi->dir_ops = fs_dir_inode_ops;
+	ratelimit_state_init(&sbi->ratelimit, DEFAULT_RATELIMIT_INTERVAL,
+			     DEFAULT_RATELIMIT_BURST);
 
 	error = parse_options(data, isvfat, silent, &debug, &sbi->options);
 	if (error)
