@@ -2148,12 +2148,11 @@ static const char * const policy_types[] =
 int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
 {
 	struct mempolicy *new = NULL;
-	unsigned short uninitialized_var(mode);
+	unsigned short mode;
 	unsigned short uninitialized_var(mode_flags);
 	nodemask_t nodes;
 	char *nodelist = strchr(str, ':');
 	char *flags = strchr(str, '=');
-	int i;
 	int err = 1;
 
 	if (nodelist) {
@@ -2169,13 +2168,12 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
 	if (flags)
 		*flags++ = '\0';	/* terminate mode string */
 
-	for (i = 0; i <= MPOL_LOCAL; i++) {
-		if (!strcmp(str, policy_types[i])) {
-			mode = i;
+	for (mode = 0; mode <= MPOL_LOCAL; mode++) {
+		if (!strcmp(str, policy_types[mode])) {
 			break;
 		}
 	}
-	if (i > MPOL_LOCAL)
+	if (mode > MPOL_LOCAL)
 		goto out;
 
 	switch (mode) {
