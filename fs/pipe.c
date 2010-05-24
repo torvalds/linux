@@ -1112,15 +1112,9 @@ SYSCALL_DEFINE1(pipe, int __user *, fildes)
  * Allocate a new array of pipe buffers and copy the info over. Returns the
  * pipe size if successful, or return -ERROR on error.
  */
-static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
+static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long nr_pages)
 {
 	struct pipe_buffer *bufs;
-
-	/*
-	 * Must be a power-of-2 currently
-	 */
-	if (!is_power_of_2(arg))
-		return -EINVAL;
 
 	/*
 	 * We can shrink the pipe, if arg >= pipe->nrbufs. Since we don't
@@ -1128,10 +1122,10 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	 * again like we would do for growing. If the pipe currently
 	 * contains more buffers than arg, then return busy.
 	 */
-	if (arg < pipe->nrbufs)
+	if (nr_pages < pipe->nrbufs)
 		return -EBUSY;
 
-	bufs = kcalloc(arg, sizeof(struct pipe_buffer), GFP_KERNEL);
+	bufs = kcalloc(nr_pages, sizeof(struct pipe_buffer), GFP_KERNEL);
 	if (unlikely(!bufs))
 		return -ENOMEM;
 
@@ -1152,8 +1146,8 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long arg)
 	pipe->curbuf = 0;
 	kfree(pipe->bufs);
 	pipe->bufs = bufs;
-	pipe->buffers = arg;
-	return arg;
+	pipe->buffers = nr_pages;
+	return nr_pages * PAGE_SIZE;
 }
 
 long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
@@ -1168,19 +1162,30 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 	mutex_lock(&pipe->inode->i_mutex);
 
 	switch (cmd) {
-	case F_SETPIPE_SZ:
-		if (!capable(CAP_SYS_ADMIN) && arg > pipe_max_pages)
+	case F_SETPIPE_SZ: {
+		unsigned long nr_pages;
+
+		/*
+		 * Currently the array must be a power-of-2 size, so adjust
+		 * upwards if needed.
+		 */
+		nr_pages = (arg + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		nr_pages = roundup_pow_of_two(nr_pages);
+
+		if (!capable(CAP_SYS_ADMIN) && nr_pages > pipe_max_pages)
 			return -EPERM;
+
 		/*
 		 * The pipe needs to be at least 2 pages large to
 		 * guarantee POSIX behaviour.
 		 */
-		if (arg < 2)
+		if (nr_pages < 2)
 			return -EINVAL;
-		ret = pipe_set_size(pipe, arg);
+		ret = pipe_set_size(pipe, nr_pages);
 		break;
+		}
 	case F_GETPIPE_SZ:
-		ret = pipe->buffers;
+		ret = pipe->buffers * PAGE_SIZE;
 		break;
 	default:
 		ret = -EINVAL;
