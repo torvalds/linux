@@ -449,7 +449,7 @@ pca953x_get_alt_pdata(struct i2c_client *client)
 	struct device_node *node;
 	const uint16_t *val;
 
-	node = dev_archdata_get_node(&client->dev.archdata);
+	node = client->dev.of_node;
 	if (node == NULL)
 		return NULL;
 

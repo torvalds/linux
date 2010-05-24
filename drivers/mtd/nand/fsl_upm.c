@@ -360,8 +360,11 @@ static const struct of_device_id of_fun_match[] = {
 MODULE_DEVICE_TABLE(of, of_fun_match);
 
 static struct of_platform_driver of_fun_driver = {
-	.name		= "fsl,upm-nand",
-	.match_table	= of_fun_match,
+	.driver = {
+		.name = "fsl,upm-nand",
+		.owner = THIS_MODULE,
+		.of_match_table = of_fun_match,
+	},
 	.probe		= fun_probe,
 	.remove		= __devexit_p(fun_remove),
 };

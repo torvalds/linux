@@ -1140,7 +1140,7 @@ static int __devinit pata_macio_attach(struct macio_dev *mdev,
 			"Failed to allocate private memory\n");
 		return -ENOMEM;
 	}
-	priv->node = of_node_get(mdev->ofdev.node);
+	priv->node = of_node_get(mdev->ofdev.dev.of_node);
 	priv->mdev = mdev;
 	priv->dev = &mdev->ofdev.dev;
 

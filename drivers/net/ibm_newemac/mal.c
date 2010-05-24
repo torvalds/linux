@@ -538,11 +538,11 @@ static int __devinit mal_probe(struct of_device *ofdev,
 	}
 	mal->index = index;
 	mal->ofdev = ofdev;
-	mal->version = of_device_is_compatible(ofdev->node, "ibm,mcmal2") ? 2 : 1;
+	mal->version = of_device_is_compatible(ofdev->dev.of_node, "ibm,mcmal2") ? 2 : 1;
 
 	MAL_DBG(mal, "probe" NL);
 
-	prop = of_get_property(ofdev->node, "num-tx-chans", NULL);
+	prop = of_get_property(ofdev->dev.of_node, "num-tx-chans", NULL);
 	if (prop == NULL) {
 		printk(KERN_ERR
 		       "mal%d: can't find MAL num-tx-chans property!\n",
@@ -552,7 +552,7 @@ static int __devinit mal_probe(struct of_device *ofdev,
 	}
 	mal->num_tx_chans = prop[0];
 
-	prop = of_get_property(ofdev->node, "num-rx-chans", NULL);
+	prop = of_get_property(ofdev->dev.of_node, "num-rx-chans", NULL);
 	if (prop == NULL) {
 		printk(KERN_ERR
 		       "mal%d: can't find MAL num-rx-chans property!\n",
@@ -562,14 +562,14 @@ static int __devinit mal_probe(struct of_device *ofdev,
 	}
 	mal->num_rx_chans = prop[0];
 
-	dcr_base = dcr_resource_start(ofdev->node, 0);
+	dcr_base = dcr_resource_start(ofdev->dev.of_node, 0);
 	if (dcr_base == 0) {
 		printk(KERN_ERR
 		       "mal%d: can't find DCR resource!\n", index);
 		err = -ENODEV;
 		goto fail;
 	}
-	mal->dcr_host = dcr_map(ofdev->node, dcr_base, 0x100);
+	mal->dcr_host = dcr_map(ofdev->dev.of_node, dcr_base, 0x100);
 	if (!DCR_MAP_OK(mal->dcr_host)) {
 		printk(KERN_ERR
 		       "mal%d: failed to map DCRs !\n", index);
@@ -577,28 +577,28 @@ static int __devinit mal_probe(struct of_device *ofdev,
 		goto fail;
 	}
 
-	if (of_device_is_compatible(ofdev->node, "ibm,mcmal-405ez")) {
+	if (of_device_is_compatible(ofdev->dev.of_node, "ibm,mcmal-405ez")) {
 #if defined(CONFIG_IBM_NEW_EMAC_MAL_CLR_ICINTSTAT) && \
 		defined(CONFIG_IBM_NEW_EMAC_MAL_COMMON_ERR)
 		mal->features |= (MAL_FTR_CLEAR_ICINTSTAT |
 				MAL_FTR_COMMON_ERR_INT);
 #else
 		printk(KERN_ERR "%s: Support for 405EZ not enabled!\n",
-				ofdev->node->full_name);
+				ofdev->dev.of_node->full_name);
 		err = -ENODEV;
 		goto fail;
 #endif
 	}
 
-	mal->txeob_irq = irq_of_parse_and_map(ofdev->node, 0);
-	mal->rxeob_irq = irq_of_parse_and_map(ofdev->node, 1);
-	mal->serr_irq = irq_of_parse_and_map(ofdev->node, 2);
+	mal->txeob_irq = irq_of_parse_and_map(ofdev->dev.of_node, 0);
+	mal->rxeob_irq = irq_of_parse_and_map(ofdev->dev.of_node, 1);
+	mal->serr_irq = irq_of_parse_and_map(ofdev->dev.of_node, 2);
 
 	if (mal_has_feature(mal, MAL_FTR_COMMON_ERR_INT)) {
 		mal->txde_irq = mal->rxde_irq = mal->serr_irq;
 	} else {
-		mal->txde_irq = irq_of_parse_and_map(ofdev->node, 3);
-		mal->rxde_irq = irq_of_parse_and_map(ofdev->node, 4);
+		mal->txde_irq = irq_of_parse_and_map(ofdev->dev.of_node, 3);
+		mal->rxde_irq = irq_of_parse_and_map(ofdev->dev.of_node, 4);
 	}
 
 	if (mal->txeob_irq == NO_IRQ || mal->rxeob_irq == NO_IRQ ||
@@ -629,7 +629,7 @@ static int __devinit mal_probe(struct of_device *ofdev,
 	/* Current Axon is not happy with priority being non-0, it can
 	 * deadlock, fix it up here
 	 */
-	if (of_device_is_compatible(ofdev->node, "ibm,mcmal-axon"))
+	if (of_device_is_compatible(ofdev->dev.of_node, "ibm,mcmal-axon"))
 		cfg &= ~(MAL2_CFG_RPP_10 | MAL2_CFG_WPP_10);
 
 	/* Apply configuration */
@@ -701,7 +701,7 @@ static int __devinit mal_probe(struct of_device *ofdev,
 
 	printk(KERN_INFO
 	       "MAL v%d %s, %d TX channels, %d RX channels\n",
-	       mal->version, ofdev->node->full_name,
+	       mal->version, ofdev->dev.of_node->full_name,
 	       mal->num_tx_chans, mal->num_rx_chans);
 
 	/* Advertise this instance to the rest of the world */
@@ -790,9 +790,11 @@ static struct of_device_id mal_platform_match[] =
 };
 
 static struct of_platform_driver mal_of_driver = {
-	.name = "mcmal",
-	.match_table = mal_platform_match,
-
+	.driver = {
+		.name = "mcmal",
+		.owner = THIS_MODULE,
+		.of_match_table = mal_platform_match,
+	},
 	.probe = mal_probe,
 	.remove = mal_remove,
 };

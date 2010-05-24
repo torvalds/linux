@@ -162,7 +162,7 @@ static struct miscdevice flash_dev = { FLASH_MINOR, "flash", &flash_fops };
 static int __devinit flash_probe(struct of_device *op,
 				 const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct device_node *parent;
 
 	parent = dp->parent;
@@ -184,7 +184,7 @@ static int __devinit flash_probe(struct of_device *op,
 	flash.busy = 0;
 
 	printk(KERN_INFO "%s: OBP Flash, RD %lx[%lx] WR %lx[%lx]\n",
-	       op->node->full_name,
+	       op->dev.of_node->full_name,
 	       flash.read_base, flash.read_size,
 	       flash.write_base, flash.write_size);
 
@@ -207,8 +207,11 @@ static const struct of_device_id flash_match[] = {
 MODULE_DEVICE_TABLE(of, flash_match);
 
 static struct of_platform_driver flash_driver = {
-	.name		= "flash",
-	.match_table	= flash_match,
+	.driver = {
+		.name = "flash",
+		.owner = THIS_MODULE,
+		.of_match_table = flash_match,
+	},
 	.probe		= flash_probe,
 	.remove		= __devexit_p(flash_remove),
 };
