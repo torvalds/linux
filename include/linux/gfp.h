@@ -15,7 +15,7 @@ struct vm_area_struct;
  * Zone modifiers (see linux/mmzone.h - low three bits)
  *
  * Do not put any conditional on these. If necessary modify the definitions
- * without the underscores and use the consistently. The definitions here may
+ * without the underscores and use them consistently. The definitions here may
  * be used in bit comparisons.
  */
 #define __GFP_DMA	((__force gfp_t)0x01u)
@@ -152,12 +152,12 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
  * GFP_ZONE_TABLE is a word size bitstring that is used for looking up the
  * zone to use given the lowest 4 bits of gfp_t. Entries are ZONE_SHIFT long
  * and there are 16 of them to cover all possible combinations of
- * __GFP_DMA, __GFP_DMA32, __GFP_MOVABLE and __GFP_HIGHMEM
+ * __GFP_DMA, __GFP_DMA32, __GFP_MOVABLE and __GFP_HIGHMEM.
  *
  * The zone fallback order is MOVABLE=>HIGHMEM=>NORMAL=>DMA32=>DMA.
  * But GFP_MOVABLE is not only a zone specifier but also an allocation
  * policy. Therefore __GFP_MOVABLE plus another zone selector is valid.
- * Only 1bit of the lowest 3 bit (DMA,DMA32,HIGHMEM) can be set to "1".
+ * Only 1 bit of the lowest 3 bits (DMA,DMA32,HIGHMEM) can be set to "1".
  *
  *       bit       result
  *       =================
@@ -197,7 +197,7 @@ static inline int allocflags_to_migratetype(gfp_t gfp_flags)
 )
 
 /*
- * GFP_ZONE_BAD is a bitmap for all combination of __GFP_DMA, __GFP_DMA32
+ * GFP_ZONE_BAD is a bitmap for all combinations of __GFP_DMA, __GFP_DMA32
  * __GFP_HIGHMEM and __GFP_MOVABLE that are not permitted. One flag per
  * entry starting with bit 0. Bit is set if the combination is not
  * allowed.
