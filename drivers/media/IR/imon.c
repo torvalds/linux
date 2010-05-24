@@ -94,6 +94,7 @@ struct imon_context {
 
 	bool display_supported;		/* not all controllers do */
 	bool display_isopen;		/* display port has been opened */
+	bool rf_device;			/* true if iMON 2.4G LT/DT RF device */
 	bool rf_isassociating;		/* RF remote associating */
 	bool dev_present_intf0;		/* USB device presence, interface 0 */
 	bool dev_present_intf1;		/* USB device presence, interface 1 */
@@ -1465,7 +1466,7 @@ static void imon_incoming_packet(struct imon_context *ictx,
 	idev = ictx->idev;
 
 	/* filter out junk data on the older 0xffdc imon devices */
-	if ((buf[0] == 0xff) && (buf[7] == 0xff))
+	if ((buf[0] == 0xff) && (buf[1] == 0xff) && (buf[2] == 0xff))
 		return;
 
 	/* Figure out what key was pressed */
@@ -1908,6 +1909,7 @@ static struct imon_context *imon_init_intf0(struct usb_interface *intf)
 	ictx->dev_present_intf0 = true;
 	ictx->rx_urb_intf0 = rx_urb;
 	ictx->tx_urb = tx_urb;
+	ictx->rf_device = false;
 
 	ictx->vendor  = le16_to_cpu(ictx->usbdev_intf0->descriptor.idVendor);
 	ictx->product = le16_to_cpu(ictx->usbdev_intf0->descriptor.idProduct);
@@ -2046,6 +2048,12 @@ static void imon_get_ffdc_type(struct imon_context *ictx)
 	case 0x21:
 		dev_info(ictx->dev, "0xffdc iMON Knob, iMON IR");
 		ictx->display_supported = false;
+		break;
+	/* iMON 2.4G LT (usb stick), no display, iMON RF */
+	case 0x4e:
+		dev_info(ictx->dev, "0xffdc iMON 2.4G LT, iMON RF");
+		ictx->display_supported = false;
+		ictx->rf_device = true;
 		break;
 	/* iMON VFD, no IR (does have vol knob tho) */
 	case 0x35:
@@ -2197,15 +2205,6 @@ static int __devinit imon_probe(struct usb_interface *interface,
 			goto fail;
 		}
 
-		if (product == 0xffdc) {
-			/* RF products *also* use 0xffdc... sigh... */
-			sysfs_err = sysfs_create_group(&interface->dev.kobj,
-						       &imon_rf_attribute_group);
-			if (sysfs_err)
-				err("%s: Could not create RF sysfs entries(%d)",
-				    __func__, sysfs_err);
-		}
-
 	} else {
 	/* this is the secondary interface on the device */
 		ictx = imon_init_intf1(interface, first_if_ctx);
@@ -2232,6 +2231,14 @@ static int __devinit imon_probe(struct usb_interface *interface,
 			imon_get_ffdc_type(ictx);
 
 		imon_set_display_type(ictx, interface);
+
+		if (product == 0xffdc && ictx->rf_device) {
+			sysfs_err = sysfs_create_group(&interface->dev.kobj,
+						       &imon_rf_attribute_group);
+			if (sysfs_err)
+				err("%s: Could not create RF sysfs entries(%d)",
+				    __func__, sysfs_err);
+		}
 
 		if (ictx->display_supported)
 			imon_init_display(ictx, interface);
