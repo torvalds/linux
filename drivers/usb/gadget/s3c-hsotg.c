@@ -2730,6 +2730,9 @@ static void s3c_hsotg_init(struct s3c_hsotg *hsotg)
 
 	writel(0, hsotg->regs + S3C_DAINTMSK);
 
+	/* Be in disconnected state until gadget is registered */
+	__orr32(hsotg->regs + S3C_DCTL, S3C_DCTL_SftDiscon);
+
 	if (0) {
 		/* post global nak until we're ready */
 		writel(S3C_DCTL_SGNPInNAK | S3C_DCTL_SGOUTNak,
