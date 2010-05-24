@@ -568,7 +568,7 @@ out:
 }
 
 int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
-		    const u8 *ie, size_t ie_len, u8 active_scan,
+		    struct cfg80211_scan_request *req, u8 active_scan,
 		    u8 high_prio, u8 band, u8 probe_requests)
 {
 
@@ -649,7 +649,7 @@ int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 	}
 
 	ret = wl1271_cmd_build_probe_req(wl, ssid, ssid_len,
-					 ie, ie_len, ieee_band);
+					 req->ie, req->ie_len, ieee_band);
 	if (ret < 0) {
 		wl1271_error("PROBE request template failed");
 		goto out;
@@ -685,7 +685,9 @@ int wl1271_cmd_scan(struct wl1271 *wl, const u8 *ssid, size_t ssid_len,
 				memcpy(wl->scan.ssid, ssid, ssid_len);
 			} else
 				wl->scan.ssid_len = 0;
-		}
+			wl->scan.req = req;
+		} else
+			wl->scan.req = NULL;
 	}
 
 	ret = wl1271_cmd_send(wl, CMD_SCAN, params, sizeof(*params), 0);

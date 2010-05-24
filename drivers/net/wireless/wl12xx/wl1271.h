@@ -299,6 +299,7 @@ struct wl1271_rx_mem_pool_addr {
 };
 
 struct wl1271_scan {
+	struct cfg80211_scan_request *req;
 	u8 state;
 	u8 ssid[IW_ESSID_MAX_SIZE+1];
 	size_t ssid_len;
