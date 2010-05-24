@@ -652,7 +652,7 @@ typedef struct pglist_data {
 
 void get_zone_counts(unsigned long *active, unsigned long *inactive,
 			unsigned long *free);
-void build_all_zonelists(void);
+void build_all_zonelists(void *data);
 void wakeup_kswapd(struct zone *zone, int order);
 int zone_watermark_ok(struct zone *z, int order, unsigned long mark,
 		int classzone_idx, int alloc_flags);

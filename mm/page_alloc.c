@@ -2572,7 +2572,7 @@ int numa_zonelist_order_handler(ctl_table *table, int write,
 				NUMA_ZONELIST_ORDER_LEN);
 			user_zonelist_order = oldval;
 		} else if (oldval != user_zonelist_order)
-			build_all_zonelists();
+			build_all_zonelists(NULL);
 	}
 out:
 	mutex_unlock(&zl_order_mutex);
@@ -2922,9 +2922,10 @@ static void build_zonelist_cache(pg_data_t *pgdat)
  */
 static void setup_pageset(struct per_cpu_pageset *p, unsigned long batch);
 static DEFINE_PER_CPU(struct per_cpu_pageset, boot_pageset);
+static void setup_zone_pageset(struct zone *zone);
 
 /* return values int ....just for stop_machine() */
-static int __build_all_zonelists(void *dummy)
+static __init_refok int __build_all_zonelists(void *data)
 {
 	int nid;
 	int cpu;
@@ -2938,6 +2939,14 @@ static int __build_all_zonelists(void *dummy)
 		build_zonelists(pgdat);
 		build_zonelist_cache(pgdat);
 	}
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+	/* Setup real pagesets for the new zone */
+	if (data) {
+		struct zone *zone = data;
+		setup_zone_pageset(zone);
+	}
+#endif
 
 	/*
 	 * Initialize the boot_pagesets that are going to be used
@@ -2958,7 +2967,7 @@ static int __build_all_zonelists(void *dummy)
 	return 0;
 }
 
-void build_all_zonelists(void)
+void build_all_zonelists(void *data)
 {
 	set_zonelist_order();
 
@@ -2969,7 +2978,7 @@ void build_all_zonelists(void)
 	} else {
 		/* we have to stop all cpus to guarantee there is no user
 		   of zonelist */
-		stop_machine(__build_all_zonelists, NULL, NULL);
+		stop_machine(__build_all_zonelists, data, NULL);
 		/* cpuset refresh routine should be here */
 	}
 	vm_total_pages = nr_free_pagecache_pages();
