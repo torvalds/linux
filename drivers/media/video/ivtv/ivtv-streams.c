@@ -670,6 +670,10 @@ static int ivtv_setup_v4l2_decode_stream(struct ivtv_stream *s)
 			width, height, p->audio_properties)) {
 		IVTV_DEBUG_WARN("Couldn't initialize decoder source\n");
 	}
+
+	/* Decoder sometimes dies here, so wait a moment */
+	ivtv_msleep_timeout(10, 0);
+
 	return 0;
 }
 
@@ -708,6 +712,9 @@ int ivtv_start_v4l2_decode_stream(struct ivtv_stream *s, int gop_offset)
 
 	/* start playback */
 	ivtv_vapi(itv, CX2341X_DEC_START_PLAYBACK, 2, gop_offset, 0);
+
+	/* Let things settle before we actually start */
+	ivtv_msleep_timeout(10, 0);
 
 	/* Clear the following Interrupt mask bits for decoding */
 	ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_DECODE);
