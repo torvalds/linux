@@ -18,6 +18,7 @@
 
 #include <asm/io.h>
 #include <asm/system.h>
+#include <asm/cache.h>		/* for L1_CACHE_BYTES */
 #include <asm/superio.h>
 
 #define DEBUG_RESOURCES 0
@@ -122,10 +123,6 @@ static int __init pcibios_init(void)
 	} else {
 		printk(KERN_WARNING "pci_bios != NULL but init() is!\n");
 	}
-
-	/* Set the CLS for PCI as early as possible. */
-	pci_cache_line_size = pci_dfl_cache_line_size;
-
 	return 0;
 }
 
@@ -174,7 +171,7 @@ void pcibios_set_master(struct pci_dev *dev)
 	** upper byte is PCI_LATENCY_TIMER.
 	*/
 	pci_write_config_word(dev, PCI_CACHE_LINE_SIZE,
-			      (0x80 << 8) | pci_cache_line_size);
+				(0x80 << 8) | (L1_CACHE_BYTES / sizeof(u32)));
 }
 
 
