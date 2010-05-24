@@ -267,12 +267,8 @@ an appropriate subsystem tree or be sent directly to Linus.  In a typical
 development cycle, approximately 10% of the patches going into the mainline
 get there via -mm.
 
-The current -mm patch can always be found from the front page of
-
-	http://kernel.org/
-
-Those who want to see the current state of -mm can get the "-mm of the
-moment" tree, found at:
+The current -mm patch is available in the "mmotm" (-mm of the moment)
+directory at:
 
 	http://userweb.kernel.org/~akpm/mmotm/
 
@@ -306,6 +302,12 @@ any new work will be merged.  The downside to this idea is that the
 volatility of linux-next tends to make it a difficult development target.
 See http://lwn.net/Articles/289013/ for more information on this topic, and
 stay tuned; much is still in flux where linux-next is involved.
+
+Besides the mmotm and linux-next trees, the kernel source tree now contains
+the drivers/staging/ directory and many sub-directories for drivers or
+filesystems that are on their way to being added to the kernel tree
+proper, but they remain in drivers/staging/ while they still need more
+work.
 
 
 2.5: TOOLS
