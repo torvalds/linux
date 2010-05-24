@@ -217,7 +217,8 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 hotplug_en;
+	u32 hotplug_en, orig, stat;
+	bool ret = false;
 	int i, tries = 0;
 
 	if (HAS_PCH_SPLIT(dev))
@@ -232,8 +233,8 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 		tries = 2;
 	else
 		tries = 1;
-	hotplug_en = I915_READ(PORT_HOTPLUG_EN);
-	hotplug_en &= CRT_FORCE_HOTPLUG_MASK;
+	hotplug_en = orig = I915_READ(PORT_HOTPLUG_EN);
+	hotplug_en &= CRT_HOTPLUG_MASK;
 	hotplug_en |= CRT_HOTPLUG_FORCE_DETECT;
 
 	if (IS_G4X(dev))
@@ -255,11 +256,17 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 		} while (time_after(timeout, jiffies));
 	}
 
-	if ((I915_READ(PORT_HOTPLUG_STAT) & CRT_HOTPLUG_MONITOR_MASK) !=
-	    CRT_HOTPLUG_MONITOR_NONE)
-		return true;
+	stat = I915_READ(PORT_HOTPLUG_STAT);
+	if ((stat & CRT_HOTPLUG_MONITOR_MASK) != CRT_HOTPLUG_MONITOR_NONE)
+		ret = true;
 
-	return false;
+	/* clear the interrupt we just generated, if any */
+	I915_WRITE(PORT_HOTPLUG_STAT, CRT_HOTPLUG_INT_STATUS);
+
+	/* and put the bits back */
+	I915_WRITE(PORT_HOTPLUG_EN, orig);
+
+	return ret;
 }
 
 static bool intel_crt_detect_ddc(struct drm_encoder *encoder)
