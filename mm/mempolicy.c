@@ -119,7 +119,22 @@ struct mempolicy default_policy = {
 
 static const struct mempolicy_operations {
 	int (*create)(struct mempolicy *pol, const nodemask_t *nodes);
-	void (*rebind)(struct mempolicy *pol, const nodemask_t *nodes);
+	/*
+	 * If read-side task has no lock to protect task->mempolicy, write-side
+	 * task will rebind the task->mempolicy by two step. The first step is
+	 * setting all the newly nodes, and the second step is cleaning all the
+	 * disallowed nodes. In this way, we can avoid finding no node to alloc
+	 * page.
+	 * If we have a lock to protect task->mempolicy in read-side, we do
+	 * rebind directly.
+	 *
+	 * step:
+	 * 	MPOL_REBIND_ONCE - do rebind work at once
+	 * 	MPOL_REBIND_STEP1 - set all the newly nodes
+	 * 	MPOL_REBIND_STEP2 - clean all the disallowed nodes
+	 */
+	void (*rebind)(struct mempolicy *pol, const nodemask_t *nodes,
+			enum mpol_rebind_step step);
 } mpol_ops[MPOL_MAX];
 
 /* Check that the nodemask contains at least one populated zone */
@@ -274,12 +289,19 @@ void __mpol_put(struct mempolicy *p)
 	kmem_cache_free(policy_cache, p);
 }
 
-static void mpol_rebind_default(struct mempolicy *pol, const nodemask_t *nodes)
+static void mpol_rebind_default(struct mempolicy *pol, const nodemask_t *nodes,
+				enum mpol_rebind_step step)
 {
 }
 
-static void mpol_rebind_nodemask(struct mempolicy *pol,
-				 const nodemask_t *nodes)
+/*
+ * step:
+ * 	MPOL_REBIND_ONCE  - do rebind work at once
+ * 	MPOL_REBIND_STEP1 - set all the newly nodes
+ * 	MPOL_REBIND_STEP2 - clean all the disallowed nodes
+ */
+static void mpol_rebind_nodemask(struct mempolicy *pol, const nodemask_t *nodes,
+				 enum mpol_rebind_step step)
 {
 	nodemask_t tmp;
 
@@ -288,12 +310,31 @@ static void mpol_rebind_nodemask(struct mempolicy *pol,
 	else if (pol->flags & MPOL_F_RELATIVE_NODES)
 		mpol_relative_nodemask(&tmp, &pol->w.user_nodemask, nodes);
 	else {
-		nodes_remap(tmp, pol->v.nodes, pol->w.cpuset_mems_allowed,
-			    *nodes);
-		pol->w.cpuset_mems_allowed = *nodes;
+		/*
+		 * if step == 1, we use ->w.cpuset_mems_allowed to cache the
+		 * result
+		 */
+		if (step == MPOL_REBIND_ONCE || step == MPOL_REBIND_STEP1) {
+			nodes_remap(tmp, pol->v.nodes,
+					pol->w.cpuset_mems_allowed, *nodes);
+			pol->w.cpuset_mems_allowed = step ? tmp : *nodes;
+		} else if (step == MPOL_REBIND_STEP2) {
+			tmp = pol->w.cpuset_mems_allowed;
+			pol->w.cpuset_mems_allowed = *nodes;
+		} else
+			BUG();
 	}
 
-	pol->v.nodes = tmp;
+	if (nodes_empty(tmp))
+		tmp = *nodes;
+
+	if (step == MPOL_REBIND_STEP1)
+		nodes_or(pol->v.nodes, pol->v.nodes, tmp);
+	else if (step == MPOL_REBIND_ONCE || step == MPOL_REBIND_STEP2)
+		pol->v.nodes = tmp;
+	else
+		BUG();
+
 	if (!node_isset(current->il_next, tmp)) {
 		current->il_next = next_node(current->il_next, tmp);
 		if (current->il_next >= MAX_NUMNODES)
@@ -304,7 +345,8 @@ static void mpol_rebind_nodemask(struct mempolicy *pol,
 }
 
 static void mpol_rebind_preferred(struct mempolicy *pol,
-				  const nodemask_t *nodes)
+				  const nodemask_t *nodes,
+				  enum mpol_rebind_step step)
 {
 	nodemask_t tmp;
 
@@ -327,16 +369,45 @@ static void mpol_rebind_preferred(struct mempolicy *pol,
 	}
 }
 
-/* Migrate a policy to a different set of nodes */
-static void mpol_rebind_policy(struct mempolicy *pol,
-			       const nodemask_t *newmask)
+/*
+ * mpol_rebind_policy - Migrate a policy to a different set of nodes
+ *
+ * If read-side task has no lock to protect task->mempolicy, write-side
+ * task will rebind the task->mempolicy by two step. The first step is
+ * setting all the newly nodes, and the second step is cleaning all the
+ * disallowed nodes. In this way, we can avoid finding no node to alloc
+ * page.
+ * If we have a lock to protect task->mempolicy in read-side, we do
+ * rebind directly.
+ *
+ * step:
+ * 	MPOL_REBIND_ONCE  - do rebind work at once
+ * 	MPOL_REBIND_STEP1 - set all the newly nodes
+ * 	MPOL_REBIND_STEP2 - clean all the disallowed nodes
+ */
+static void mpol_rebind_policy(struct mempolicy *pol, const nodemask_t *newmask,
+				enum mpol_rebind_step step)
 {
 	if (!pol)
 		return;
-	if (!mpol_store_user_nodemask(pol) &&
+	if (!mpol_store_user_nodemask(pol) && step == 0 &&
 	    nodes_equal(pol->w.cpuset_mems_allowed, *newmask))
 		return;
-	mpol_ops[pol->mode].rebind(pol, newmask);
+
+	if (step == MPOL_REBIND_STEP1 && (pol->flags & MPOL_F_REBINDING))
+		return;
+
+	if (step == MPOL_REBIND_STEP2 && !(pol->flags & MPOL_F_REBINDING))
+		BUG();
+
+	if (step == MPOL_REBIND_STEP1)
+		pol->flags |= MPOL_F_REBINDING;
+	else if (step == MPOL_REBIND_STEP2)
+		pol->flags &= ~MPOL_F_REBINDING;
+	else if (step >= MPOL_REBIND_NSTEP)
+		BUG();
+
+	mpol_ops[pol->mode].rebind(pol, newmask, step);
 }
 
 /*
@@ -346,9 +417,10 @@ static void mpol_rebind_policy(struct mempolicy *pol,
  * Called with task's alloc_lock held.
  */
 
-void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new)
+void mpol_rebind_task(struct task_struct *tsk, const nodemask_t *new,
+			enum mpol_rebind_step step)
 {
-	mpol_rebind_policy(tsk->mempolicy, new);
+	mpol_rebind_policy(tsk->mempolicy, new, step);
 }
 
 /*
@@ -363,7 +435,7 @@ void mpol_rebind_mm(struct mm_struct *mm, nodemask_t *new)
 
 	down_write(&mm->mmap_sem);
 	for (vma = mm->mmap; vma; vma = vma->vm_next)
-		mpol_rebind_policy(vma->vm_policy, new);
+		mpol_rebind_policy(vma->vm_policy, new, MPOL_REBIND_ONCE);
 	up_write(&mm->mmap_sem);
 }
 
@@ -1745,6 +1817,9 @@ EXPORT_SYMBOL(alloc_pages_current);
  * with the mems_allowed returned by cpuset_mems_allowed().  This
  * keeps mempolicies cpuset relative after its cpuset moves.  See
  * further kernel/cpuset.c update_nodemask().
+ *
+ * current's mempolicy may be rebinded by the other task(the task that changes
+ * cpuset's mems), so we needn't do rebind work for current task.
  */
 
 /* Slow path of a mempolicy duplicate */
@@ -1754,13 +1829,24 @@ struct mempolicy *__mpol_dup(struct mempolicy *old)
 
 	if (!new)
 		return ERR_PTR(-ENOMEM);
+
+	/* task's mempolicy is protected by alloc_lock */
+	if (old == current->mempolicy) {
+		task_lock(current);
+		*new = *old;
+		task_unlock(current);
+	} else
+		*new = *old;
+
 	rcu_read_lock();
 	if (current_cpuset_is_being_rebound()) {
 		nodemask_t mems = cpuset_mems_allowed(current);
-		mpol_rebind_policy(old, &mems);
+		if (new->flags & MPOL_F_REBINDING)
+			mpol_rebind_policy(new, &mems, MPOL_REBIND_STEP2);
+		else
+			mpol_rebind_policy(new, &mems, MPOL_REBIND_ONCE);
 	}
 	rcu_read_unlock();
-	*new = *old;
 	atomic_set(&new->refcnt, 1);
 	return new;
 }

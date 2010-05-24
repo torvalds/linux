@@ -953,8 +953,8 @@ static void cpuset_change_task_nodemask(struct task_struct *tsk,
 					nodemask_t *newmems)
 {
 	nodes_or(tsk->mems_allowed, tsk->mems_allowed, *newmems);
-	mpol_rebind_task(tsk, &tsk->mems_allowed);
-	mpol_rebind_task(tsk, newmems);
+	mpol_rebind_task(tsk, &tsk->mems_allowed, MPOL_REBIND_ONCE);
+	mpol_rebind_task(tsk, newmems, MPOL_REBIND_ONCE);
 	tsk->mems_allowed = *newmems;
 }
 
