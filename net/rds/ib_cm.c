@@ -428,7 +428,7 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 	struct rds_ib_connection *ic = NULL;
 	struct rdma_conn_param conn_param;
 	u32 version;
-	int err, destroy = 1;
+	int err = 1, destroy = 1;
 
 	/* Check whether the remote protocol version matches ours. */
 	version = rds_ib_protocol_compatible(event);
@@ -467,7 +467,6 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 			/* Wait and see - our connect may still be succeeding */
 			rds_ib_stats_inc(s_ib_connect_raced);
 		}
-		mutex_unlock(&conn->c_cm_lock);
 		goto out;
 	}
 
@@ -504,16 +503,14 @@ int rds_ib_cm_handle_connect(struct rdma_cm_id *cm_id,
 
 	/* rdma_accept() calls rdma_reject() internally if it fails */
 	err = rdma_accept(cm_id, &conn_param);
-	mutex_unlock(&conn->c_cm_lock);
-	if (err) {
+	if (err)
 		rds_ib_conn_error(conn, "rdma_accept failed (%d)\n", err);
-		goto out;
-	}
-
-	return 0;
 
 out:
-	rdma_reject(cm_id, NULL, 0);
+	if (conn)
+		mutex_unlock(&conn->c_cm_lock);
+	if (err)
+		rdma_reject(cm_id, NULL, 0);
 	return destroy;
 }
 
