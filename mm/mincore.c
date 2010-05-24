@@ -54,7 +54,7 @@ static unsigned char mincore_page(struct address_space *mapping, pgoff_t pgoff)
  * all the arguments, we hold the mmap semaphore: we should
  * just return the amount of info we're asked for.
  */
-static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pages)
+static long do_mincore(unsigned long addr, unsigned long pages, unsigned char *vec)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -64,35 +64,29 @@ static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pag
 	unsigned long nr;
 	int i;
 	pgoff_t pgoff;
-	struct vm_area_struct *vma = find_vma(current->mm, addr);
+	struct vm_area_struct *vma;
 
-	/*
-	 * find_vma() didn't find anything above us, or we're
-	 * in an unmapped hole in the address space: ENOMEM.
-	 */
+	vma = find_vma(current->mm, addr);
 	if (!vma || addr < vma->vm_start)
 		return -ENOMEM;
+
+	nr = min(pages, (vma->vm_end - addr) >> PAGE_SHIFT);
 
 #ifdef CONFIG_HUGETLB_PAGE
 	if (is_vm_hugetlb_page(vma)) {
 		struct hstate *h;
-		unsigned long nr_huge;
-		unsigned char present;
 
 		i = 0;
-		nr = min(pages, (vma->vm_end - addr) >> PAGE_SHIFT);
 		h = hstate_vma(vma);
-		nr_huge = ((addr + pages * PAGE_SIZE - 1) >> huge_page_shift(h))
-			  - (addr >> huge_page_shift(h)) + 1;
-		nr_huge = min(nr_huge,
-			      (vma->vm_end - addr) >> huge_page_shift(h));
 		while (1) {
-			/* hugepage always in RAM for now,
-			 * but generally it needs to be check */
+			unsigned char present;
+			/*
+			 * Huge pages are always in RAM for now, but
+			 * theoretically it needs to be checked.
+			 */
 			ptep = huge_pte_offset(current->mm,
 					       addr & huge_page_mask(h));
-			present = !!(ptep &&
-				     !huge_pte_none(huge_ptep_get(ptep)));
+			present = ptep && !huge_pte_none(huge_ptep_get(ptep));
 			while (1) {
 				vec[i++] = present;
 				addr += PAGE_SIZE;
@@ -100,8 +94,7 @@ static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pag
 				if (i == nr)
 					return nr;
 				/* check hugepage border */
-				if (!((addr & ~huge_page_mask(h))
-				      >> PAGE_SHIFT))
+				if (!(addr & ~huge_page_mask(h)))
 					break;
 			}
 		}
@@ -113,17 +106,7 @@ static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pag
 	 * Calculate how many pages there are left in the last level of the
 	 * PTE array for our address.
 	 */
-	nr = PTRS_PER_PTE - ((addr >> PAGE_SHIFT) & (PTRS_PER_PTE-1));
-
-	/*
-	 * Don't overrun this vma
-	 */
-	nr = min(nr, (vma->vm_end - addr) >> PAGE_SHIFT);
-
-	/*
-	 * Don't return more than the caller asked for
-	 */
-	nr = min(nr, pages);
+	nr = min(nr, PTRS_PER_PTE - ((addr >> PAGE_SHIFT) & (PTRS_PER_PTE-1)));
 
 	pgd = pgd_offset(vma->vm_mm, addr);
 	if (pgd_none_or_clear_bad(pgd))
@@ -137,43 +120,38 @@ static long do_mincore(unsigned long addr, unsigned char *vec, unsigned long pag
 
 	ptep = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
 	for (i = 0; i < nr; i++, ptep++, addr += PAGE_SIZE) {
-		unsigned char present;
 		pte_t pte = *ptep;
 
-		if (pte_present(pte)) {
-			present = 1;
-
-		} else if (pte_none(pte)) {
+		if (pte_none(pte)) {
 			if (vma->vm_file) {
 				pgoff = linear_page_index(vma, addr);
-				present = mincore_page(vma->vm_file->f_mapping,
-							pgoff);
+				vec[i] = mincore_page(vma->vm_file->f_mapping,
+						pgoff);
 			} else
-				present = 0;
-
-		} else if (pte_file(pte)) {
+				vec[i] = 0;
+		} else if (pte_present(pte))
+			vec[i] = 1;
+		else if (pte_file(pte)) {
 			pgoff = pte_to_pgoff(pte);
-			present = mincore_page(vma->vm_file->f_mapping, pgoff);
-
+			vec[i] = mincore_page(vma->vm_file->f_mapping, pgoff);
 		} else { /* pte is a swap entry */
 			swp_entry_t entry = pte_to_swp_entry(pte);
+
 			if (is_migration_entry(entry)) {
 				/* migration entries are always uptodate */
-				present = 1;
+				vec[i] = 1;
 			} else {
 #ifdef CONFIG_SWAP
 				pgoff = entry.val;
-				present = mincore_page(&swapper_space, pgoff);
+				vec[i] = mincore_page(&swapper_space, pgoff);
 #else
 				WARN_ON(1);
-				present = 1;
+				vec[i] = 1;
 #endif
 			}
 		}
-
-		vec[i] = present;
 	}
-	pte_unmap_unlock(ptep-1, ptl);
+	pte_unmap_unlock(ptep - 1, ptl);
 
 	return nr;
 
@@ -247,7 +225,7 @@ SYSCALL_DEFINE3(mincore, unsigned long, start, size_t, len,
 		 * the temporary buffer size.
 		 */
 		down_read(&current->mm->mmap_sem);
-		retval = do_mincore(start, tmp, min(pages, PAGE_SIZE));
+		retval = do_mincore(start, min(pages, PAGE_SIZE), tmp);
 		up_read(&current->mm->mmap_sem);
 
 		if (retval <= 0)
