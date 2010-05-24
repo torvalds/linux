@@ -15,6 +15,8 @@ struct ceph_auth_client;
 struct ceph_authorizer;
 
 struct ceph_auth_client_ops {
+	const char *name;
+
 	/*
 	 * true if we are authenticated and can connect to
 	 * services.
