@@ -2,9 +2,16 @@ TODO:
 
 1. A per-device/tty port context required to support multiple devices
 on same platform.
+Plan: Each BT, FM and GPS device would be a platform-device with its platform-data
+mentioning which of the ST device it wants to attach itself onto.
 
-2. REMOVE the sysfs entry PID passing mechanism, since there should
-be a better way to request user-space to install line discipline.
+There by each of the ST device which is also a platform device upon receiving
+a st_register() would know whether the registration from BT/FM or GPS was intended for it.
+
+2. Improve upon the way requirement of line discipline is communicated to
+user-space, The current user-space application which open/installs ldisc
+as and when required can be found at,
+http://git.omapzoom.org/?pÿatform/hardware/ti/omap3.git;aÿob;fÿ_st/uim/uim.c;ha16c2c2b5085eb54a1bbc7096d779d7594eb11;hbìlair
 
 3. Re-view/Re-work on the locking.
 
