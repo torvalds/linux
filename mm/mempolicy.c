@@ -1441,14 +1441,12 @@ static struct zonelist *policy_zonelist(gfp_t gfp, struct mempolicy *policy)
 		/*
 		 * Normally, MPOL_BIND allocations are node-local within the
 		 * allowed nodemask.  However, if __GFP_THISNODE is set and the
-		 * current node is part of the mask, we use the zonelist for
+		 * current node isn't part of the mask, we use the zonelist for
 		 * the first node in the mask instead.
 		 */
 		if (unlikely(gfp & __GFP_THISNODE) &&
 				unlikely(!node_isset(nd, policy->v.nodes)))
 			nd = first_node(policy->v.nodes);
-		break;
-	case MPOL_INTERLEAVE: /* should not happen */
 		break;
 	default:
 		BUG();
