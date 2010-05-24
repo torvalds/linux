@@ -429,7 +429,7 @@ static void fill_contig_page_info(struct zone *zone,
  * The value can be used to determine if page reclaim or compaction
  * should be used
  */
-int fragmentation_index(unsigned int order, struct contig_page_info *info)
+static int __fragmentation_index(unsigned int order, struct contig_page_info *info)
 {
 	unsigned long requested = 1UL << order;
 
@@ -447,6 +447,15 @@ int fragmentation_index(unsigned int order, struct contig_page_info *info)
 	 * 1 => allocation would fail due to fragmentation
 	 */
 	return 1000 - div_u64( (1000+(div_u64(info->free_pages * 1000ULL, requested))), info->free_blocks_total);
+}
+
+/* Same as __fragmentation index but allocs contig_page_info on stack */
+int fragmentation_index(struct zone *zone, unsigned int order)
+{
+	struct contig_page_info info;
+
+	fill_contig_page_info(zone, order, &info);
+	return __fragmentation_index(order, &info);
 }
 #endif
 
@@ -771,6 +780,9 @@ static const char * const vmstat_text[] = {
 	"compact_blocks_moved",
 	"compact_pages_moved",
 	"compact_pagemigrate_failed",
+	"compact_stall",
+	"compact_fail",
+	"compact_success",
 #endif
 
 #ifdef CONFIG_HUGETLB_PAGE
@@ -1136,7 +1148,7 @@ static void extfrag_show_print(struct seq_file *m,
 				zone->name);
 	for (order = 0; order < MAX_ORDER; ++order) {
 		fill_contig_page_info(zone, order, &info);
-		index = fragmentation_index(order, &info);
+		index = __fragmentation_index(order, &info);
 		seq_printf(m, "%d.%03d ", index / 1000, index % 1000);
 	}
 
