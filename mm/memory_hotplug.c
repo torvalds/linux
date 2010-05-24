@@ -389,11 +389,6 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	int nid;
 	int ret;
 	struct memory_notify arg;
-	/*
-	 * mutex to protect zone->pageset when it's still shared
-	 * in onlined_pages()
-	 */
-	static DEFINE_MUTEX(zone_pageset_mutex);
 
 	arg.start_pfn = pfn;
 	arg.nr_pages = nr_pages;
@@ -420,14 +415,14 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	 * This means the page allocator ignores this zone.
 	 * So, zonelist must be updated after online.
 	 */
-	mutex_lock(&zone_pageset_mutex);
+	mutex_lock(&zonelists_mutex);
 	if (!populated_zone(zone))
 		need_zonelists_rebuild = 1;
 
 	ret = walk_system_ram_range(pfn, nr_pages, &onlined_pages,
 		online_pages_range);
 	if (ret) {
-		mutex_unlock(&zone_pageset_mutex);
+		mutex_unlock(&zonelists_mutex);
 		printk(KERN_DEBUG "online_pages %lx at %lx failed\n",
 			nr_pages, pfn);
 		memory_notify(MEM_CANCEL_ONLINE, &arg);
@@ -441,7 +436,7 @@ int online_pages(unsigned long pfn, unsigned long nr_pages)
 	else
 		zone_pcp_update(zone);
 
-	mutex_unlock(&zone_pageset_mutex);
+	mutex_unlock(&zonelists_mutex);
 	setup_per_zone_wmarks();
 	calculate_zone_inactive_ratio(zone);
 	if (onlined_pages) {

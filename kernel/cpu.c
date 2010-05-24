@@ -357,8 +357,11 @@ int __cpuinit cpu_up(unsigned int cpu)
 		return -ENOMEM;
 	}
 
-	if (pgdat->node_zonelists->_zonerefs->zone == NULL)
+	if (pgdat->node_zonelists->_zonerefs->zone == NULL) {
+		mutex_lock(&zonelists_mutex);
 		build_all_zonelists(NULL);
+		mutex_unlock(&zonelists_mutex);
+	}
 #endif
 
 	cpu_maps_update_begin();
