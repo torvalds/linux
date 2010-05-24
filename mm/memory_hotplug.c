@@ -482,6 +482,29 @@ static void rollback_node_hotadd(int nid, pg_data_t *pgdat)
 }
 
 
+/*
+ * called by cpu_up() to online a node without onlined memory.
+ */
+int mem_online_node(int nid)
+{
+	pg_data_t	*pgdat;
+	int	ret;
+
+	lock_system_sleep();
+	pgdat = hotadd_new_pgdat(nid, 0);
+	if (pgdat) {
+		ret = -ENOMEM;
+		goto out;
+	}
+	node_set_online(nid);
+	ret = register_one_node(nid);
+	BUG_ON(ret);
+
+out:
+	unlock_system_sleep();
+	return ret;
+}
+
 /* we are OK calling __meminit stuff here - we have CONFIG_MEMORY_HOTPLUG */
 int __ref add_memory(int nid, u64 start, u64 size)
 {
