@@ -399,18 +399,13 @@ static inline void ntfs_fault_in_pages_readable_iovec(const struct iovec *iov,
  * Obtain @nr_pages locked page cache pages from the mapping @mapping and
  * starting at index @index.
  *
- * If a page is newly created, increment its refcount and add it to the
- * caller's lru-buffering pagevec @lru_pvec.
- *
- * This is the same as mm/filemap.c::__grab_cache_page(), except that @nr_pages
- * are obtained at once instead of just one page and that 0 is returned on
- * success and -errno on error.
+ * If a page is newly created, add it to lru list
  *
  * Note, the page locks are obtained in ascending page index order.
  */
 static inline int __ntfs_grab_cache_pages(struct address_space *mapping,
 		pgoff_t index, const unsigned nr_pages, struct page **pages,
-		struct page **cached_page, struct pagevec *lru_pvec)
+		struct page **cached_page)
 {
 	int err, nr;
 
@@ -426,7 +421,7 @@ static inline int __ntfs_grab_cache_pages(struct address_space *mapping,
 					goto err_out;
 				}
 			}
-			err = add_to_page_cache(*cached_page, mapping, index,
+			err = add_to_page_cache_lru(*cached_page, mapping, index,
 					GFP_KERNEL);
 			if (unlikely(err)) {
 				if (err == -EEXIST)
@@ -434,9 +429,6 @@ static inline int __ntfs_grab_cache_pages(struct address_space *mapping,
 				goto err_out;
 			}
 			pages[nr] = *cached_page;
-			page_cache_get(*cached_page);
-			if (unlikely(!pagevec_add(lru_pvec, *cached_page)))
-				__pagevec_lru_add_file(lru_pvec);
 			*cached_page = NULL;
 		}
 		index++;
@@ -1796,7 +1788,6 @@ static ssize_t ntfs_file_buffered_write(struct kiocb *iocb,
 	ssize_t status, written;
 	unsigned nr_pages;
 	int err;
-	struct pagevec lru_pvec;
 
 	ntfs_debug("Entering for i_ino 0x%lx, attribute type 0x%x, "
 			"pos 0x%llx, count 0x%lx.",
@@ -1908,7 +1899,6 @@ static ssize_t ntfs_file_buffered_write(struct kiocb *iocb,
 			}
 		}
 	}
-	pagevec_init(&lru_pvec, 0);
 	written = 0;
 	/*
 	 * If the write starts beyond the initialized size, extend it up to the
@@ -2007,7 +1997,7 @@ static ssize_t ntfs_file_buffered_write(struct kiocb *iocb,
 			ntfs_fault_in_pages_readable_iovec(iov, iov_ofs, bytes);
 		/* Get and lock @do_pages starting at index @start_idx. */
 		status = __ntfs_grab_cache_pages(mapping, start_idx, do_pages,
-				pages, &cached_page, &lru_pvec);
+				pages, &cached_page);
 		if (unlikely(status))
 			break;
 		/*
@@ -2072,7 +2062,6 @@ err_out:
 	*ppos = pos;
 	if (cached_page)
 		page_cache_release(cached_page);
-	pagevec_lru_add_file(&lru_pvec);
 	ntfs_debug("Done.  Returning %s (written 0x%lx, status %li).",
 			written ? "written" : "status", (unsigned long)written,
 			(long)status);
