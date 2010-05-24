@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2008 Rodolfo Giometti <giometti@linux.it>
  * Copyright (C) 2008 Eurotech S.p.A. <info@eurotech.it>
+ * Copyright (C) 2010-2011 Lars-Peter Clausen <lars@metafoo.de>
  *
  * Based on a previous work by Copyright (C) 2008 Texas Instruments, Inc.
  *
@@ -27,6 +28,8 @@
 #include <linux/slab.h>
 #include <asm/unaligned.h>
 
+#include <linux/power/bq27x00_battery.h>
+
 #define DRIVER_VERSION			"1.1.0"
 
 #define BQ27x00_REG_TEMP		0x06
@@ -45,12 +48,6 @@
 #define BQ27500_FLAG_FC			BIT(9)
 
 #define BQ27000_RS			20 /* Resistor sense */
-
-/* If the system has several batteries we need a different name for each
- * of them...
- */
-static DEFINE_IDR(battery_id);
-static DEFINE_MUTEX(battery_mutex);
 
 struct bq27x00_device_info;
 struct bq27x00_access_methods {
@@ -317,9 +314,15 @@ static int bq27x00_powersupply_init(struct bq27x00_device_info *di)
 	return 0;
 }
 
-/*
- * i2c specific code
+
+/* i2c specific code */
+#ifdef CONFIG_BATTERY_BQ27X00_I2C
+
+/* If the system has several batteries we need a different name for each
+ * of them...
  */
+static DEFINE_IDR(battery_id);
+static DEFINE_MUTEX(battery_mutex);
 
 static int bq27x00_read_i2c(struct bq27x00_device_info *di, u8 reg,
 			int *rt_value, bool single)
@@ -434,10 +437,6 @@ static int bq27x00_battery_remove(struct i2c_client *client)
 	return 0;
 }
 
-/*
- * Module stuff
- */
-
 static const struct i2c_device_id bq27x00_id[] = {
 	{ "bq27200", BQ27000 },	/* bq27200 is same as bq27000, but with i2c */
 	{ "bq27500", BQ27500 },
@@ -453,13 +452,167 @@ static struct i2c_driver bq27x00_battery_driver = {
 	.id_table = bq27x00_id,
 };
 
+static inline int bq27x00_battery_i2c_init(void)
+{
+	int ret = i2c_add_driver(&bq27x00_battery_driver);
+	if (ret)
+		printk(KERN_ERR "Unable to register BQ27x00 i2c driver\n");
+
+	return ret;
+}
+
+static inline void bq27x00_battery_i2c_exit(void)
+{
+	i2c_del_driver(&bq27x00_battery_driver);
+}
+
+#else
+
+static inline int bq27x00_battery_i2c_init(void) { return 0; }
+static inline void bq27x00_battery_i2c_exit(void) {};
+
+#endif
+
+/* platform specific code */
+#ifdef CONFIG_BATTERY_BQ27X00_PLATFORM
+
+static int bq27000_read_platform(struct bq27x00_device_info *di, u8 reg,
+			int *rt_value, bool single)
+{
+	struct device *dev = di->dev;
+	struct bq27000_platform_data *pdata = dev->platform_data;
+	unsigned int timeout = 3;
+	int upper, lower;
+	int temp;
+
+	if (!single) {
+		/* Make sure the value has not changed in between reading the
+		 * lower and the upper part */
+		upper = pdata->read(dev, reg + 1);
+		do {
+			temp = upper;
+			if (upper < 0)
+				return upper;
+
+			lower = pdata->read(dev, reg);
+			if (lower < 0)
+				return lower;
+
+			upper = pdata->read(dev, reg + 1);
+		} while (temp != upper && --timeout);
+
+		if (timeout == 0)
+			return -EIO;
+
+		*rt_value = (upper << 8) | lower;
+	} else {
+		lower = pdata->read(dev, reg);
+		if (lower < 0)
+			return lower;
+		*rt_value = lower;
+	}
+	return 0;
+}
+
+static int __devinit bq27000_battery_probe(struct platform_device *pdev)
+{
+	struct bq27x00_device_info *di;
+	struct bq27000_platform_data *pdata = pdev->dev.platform_data;
+	int ret;
+
+	if (!pdata) {
+		dev_err(&pdev->dev, "no platform_data supplied\n");
+		return -EINVAL;
+	}
+
+	if (!pdata->read) {
+		dev_err(&pdev->dev, "no hdq read callback supplied\n");
+		return -EINVAL;
+	}
+
+	di = kzalloc(sizeof(*di), GFP_KERNEL);
+	if (!di) {
+		dev_err(&pdev->dev, "failed to allocate device info data\n");
+		return -ENOMEM;
+	}
+
+	platform_set_drvdata(pdev, di);
+
+	di->dev = &pdev->dev;
+	di->chip = BQ27000;
+
+	di->bat.name = pdata->name ?: dev_name(&pdev->dev);
+	di->bus.read = &bq27000_read_platform;
+
+	ret = bq27x00_powersupply_init(di);
+	if (ret)
+		goto err_free;
+
+	return 0;
+
+err_free:
+	platform_set_drvdata(pdev, NULL);
+	kfree(di);
+
+	return ret;
+}
+
+static int __devexit bq27000_battery_remove(struct platform_device *pdev)
+{
+	struct bq27x00_device_info *di = platform_get_drvdata(pdev);
+
+	power_supply_unregister(&di->bat);
+	platform_set_drvdata(pdev, NULL);
+	kfree(di);
+
+	return 0;
+}
+
+static struct platform_driver bq27000_battery_driver = {
+	.probe	= bq27000_battery_probe,
+	.remove = __devexit_p(bq27000_battery_remove),
+	.driver = {
+		.name = "bq27000-battery",
+		.owner = THIS_MODULE,
+	},
+};
+
+static inline int bq27x00_battery_platform_init(void)
+{
+	int ret = platform_driver_register(&bq27000_battery_driver);
+	if (ret)
+		printk(KERN_ERR "Unable to register BQ27000 platform driver\n");
+
+	return ret;
+}
+
+static inline void bq27x00_battery_platform_exit(void)
+{
+	platform_driver_unregister(&bq27000_battery_driver);
+}
+
+#else
+
+static inline int bq27x00_battery_platform_init(void) { return 0; }
+static inline void bq27x00_battery_platform_exit(void) {};
+
+#endif
+
+/*
+ * Module stuff
+ */
+
 static int __init bq27x00_battery_init(void)
 {
 	int ret;
 
-	ret = i2c_add_driver(&bq27x00_battery_driver);
+	ret = bq27x00_battery_i2c_init();
 	if (ret)
-		printk(KERN_ERR "Unable to register BQ27x00 driver\n");
+		return ret;
+
+	ret = bq27x00_battery_platform_init();
+	if (ret)
+		bq27x00_battery_i2c_exit();
 
 	return ret;
 }
@@ -467,7 +620,8 @@ module_init(bq27x00_battery_init);
 
 static void __exit bq27x00_battery_exit(void)
 {
-	i2c_del_driver(&bq27x00_battery_driver);
+	bq27x00_battery_platform_exit();
+	bq27x00_battery_i2c_exit();
 }
 module_exit(bq27x00_battery_exit);
 
