@@ -151,13 +151,22 @@ The stages that a patch goes through are, generally:
    well.
 
  - Wider review.  When the patch is getting close to ready for mainline
-   inclusion, it will be accepted by a relevant subsystem maintainer -
+   inclusion, it should be accepted by a relevant subsystem maintainer -
    though this acceptance is not a guarantee that the patch will make it
    all the way to the mainline.  The patch will show up in the maintainer's
    subsystem tree and into the staging trees (described below).  When the
    process works, this step leads to more extensive review of the patch and
    the discovery of any problems resulting from the integration of this
    patch with work being done by others.
+
+-  Please note that most maintainers also have day jobs, so merging
+   your patch may not be their highest priority.  If your patch is
+   getting feedback about changes that are needed, you should either
+   make those changes or justify why they should not be made.  If your
+   patch has no review complaints but is not being merged by its
+   appropriate subsystem or driver maintainer, you should be persistent
+   in updating the patch to the current kernel so that it applies cleanly
+   and keep sending it for review and merging.
 
  - Merging into the mainline.  Eventually, a successful patch will be
    merged into the mainline repository managed by Linus Torvalds.  More
@@ -319,9 +328,9 @@ developers; even if they do not use it for their own work, they'll need git
 to keep up with what other developers (and the mainline) are doing.
 
 Git is now packaged by almost all Linux distributions.  There is a home
-page at 
+page at:
 
-	http://git.or.cz/
+	http://git-scm.com/
 
 That page has pointers to documentation and tutorials.  One should be
 aware, in particular, of the Kernel Hacker's Guide to git, which has
