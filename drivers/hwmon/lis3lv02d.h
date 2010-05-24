@@ -233,6 +233,7 @@ struct lis3lv02d {
 	struct platform_device	*pdev;     /* platform device */
 	atomic_t		count;     /* interrupt count after last read */
 	struct axis_conversion	ac;        /* hw -> logical axis */
+	int			mapped_btns[3];
 
 	u32			irq;       /* IRQ number */
 	struct fasync_struct	*async_queue; /* queue for the misc device */
