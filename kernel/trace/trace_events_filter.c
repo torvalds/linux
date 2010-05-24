@@ -639,9 +639,6 @@ static int init_subsystem_preds(struct event_subsystem *system)
 	int err;
 
 	list_for_each_entry(call, &ftrace_events, list) {
-		if (!call->class || !call->class->define_fields)
-			continue;
-
 		if (strcmp(call->class->system, system->name) != 0)
 			continue;
 
@@ -658,9 +655,6 @@ static void filter_free_subsystem_preds(struct event_subsystem *system)
 	struct ftrace_event_call *call;
 
 	list_for_each_entry(call, &ftrace_events, list) {
-		if (!call->class || !call->class->define_fields)
-			continue;
-
 		if (strcmp(call->class->system, system->name) != 0)
 			continue;
 
@@ -1262,9 +1256,6 @@ static int replace_system_preds(struct event_subsystem *system,
 
 	list_for_each_entry(call, &ftrace_events, list) {
 		struct event_filter *filter = call->filter;
-
-		if (!call->class || !call->class->define_fields)
-			continue;
 
 		if (strcmp(call->class->system, system->name) != 0)
 			continue;
