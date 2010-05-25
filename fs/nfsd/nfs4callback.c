@@ -203,6 +203,16 @@ nfs_cb_stat_to_errno(int stat)
  */
 
 static void
+encode_stateid(struct xdr_stream *xdr, stateid_t *sid)
+{
+	__be32 *p;
+
+	RESERVE_SPACE(sizeof(stateid_t));
+	WRITE32(sid->si_generation);
+	WRITEMEM(&sid->si_opaque, sizeof(stateid_opaque_t));
+}
+
+static void
 encode_cb_compound_hdr(struct xdr_stream *xdr, struct nfs4_cb_compound_hdr *hdr)
 {
 	__be32 * p;
@@ -227,10 +237,10 @@ encode_cb_recall(struct xdr_stream *xdr, struct nfs4_delegation *dp,
 	__be32 *p;
 	int len = dp->dl_fh.fh_size;
 
-	RESERVE_SPACE(12+sizeof(dp->dl_stateid) + len);
+	RESERVE_SPACE(4);
 	WRITE32(OP_CB_RECALL);
-	WRITE32(dp->dl_stateid.si_generation);
-	WRITEMEM(&dp->dl_stateid.si_opaque, sizeof(stateid_opaque_t));
+	encode_stateid(xdr, &dp->dl_stateid);
+	RESERVE_SPACE(8 + (XDR_QUADLEN(len) << 2));
 	WRITE32(0); /* truncate optimization not implemented */
 	WRITE32(len);
 	WRITEMEM(&dp->dl_fh.fh_base, len);
