@@ -374,7 +374,7 @@ static long vhost_set_vring(struct vhost_dev *d, int ioctl, void __user *argp)
 	r = get_user(idx, idxp);
 	if (r < 0)
 		return r;
-	if (idx > d->nvqs)
+	if (idx >= d->nvqs)
 		return -ENOBUFS;
 
 	vq = d->vqs + idx;
