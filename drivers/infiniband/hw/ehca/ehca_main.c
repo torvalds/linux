@@ -799,7 +799,7 @@ static int __devinit ehca_probe(struct of_device *dev,
 		goto probe5;
 	}
 
-	ret = ib_register_device(&shca->ib_device);
+	ret = ib_register_device(&shca->ib_device, NULL);
 	if (ret) {
 		ehca_err(&shca->ib_device,
 			 "ib_register_device() failed ret=%i", ret);
