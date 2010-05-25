@@ -19,6 +19,7 @@
  */
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/platform_device.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/miscdevice.h>
@@ -28,11 +29,12 @@
 #include <linux/ioport.h>
 #include <linux/fs.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
 #include <asm/watchdog.h>
 
-#define PFX "shwdt: "
+#define DRV_NAME "sh-wdt"
 
 /*
  * Default clock division ratio is 5.25 msecs. For an additional table of
@@ -62,31 +64,36 @@
  * misses its deadline, the kernel timer will allow the WDT to overflow.
  */
 static int clock_division_ratio = WTCSR_CKS_4096;
-
 #define next_ping_period(cks)	msecs_to_jiffies(cks - 4)
 
-static void sh_wdt_ping(unsigned long data);
-
-static unsigned long shwdt_is_open;
 static const struct watchdog_info sh_wdt_info;
-static char shwdt_expect_close;
-static DEFINE_TIMER(timer, sh_wdt_ping, 0, 0);
-static unsigned long next_heartbeat;
+static struct platform_device *sh_wdt_dev;
 static DEFINE_SPINLOCK(shwdt_lock);
 
 #define WATCHDOG_HEARTBEAT 30			/* 30 sec default heartbeat */
 static int heartbeat = WATCHDOG_HEARTBEAT;	/* in seconds */
 static int nowayout = WATCHDOG_NOWAYOUT;
+static unsigned long next_heartbeat;
 
-static void sh_wdt_start(void)
+struct sh_wdt {
+	void __iomem		*base;
+	struct device		*dev;
+
+	struct timer_list	timer;
+
+	unsigned long		enabled;
+	char			expect_close;
+};
+
+static void sh_wdt_start(struct sh_wdt *wdt)
 {
-	__u8 csr;
 	unsigned long flags;
+	u8 csr;
 
 	spin_lock_irqsave(&shwdt_lock, flags);
 
 	next_heartbeat = jiffies + (heartbeat * HZ);
-	mod_timer(&timer, next_ping_period(clock_division_ratio));
+	mod_timer(&wdt->timer, next_ping_period(clock_division_ratio));
 
 	csr = sh_wdt_read_csr();
 	csr |= WTCSR_WT | clock_division_ratio;
@@ -115,22 +122,23 @@ static void sh_wdt_start(void)
 	spin_unlock_irqrestore(&shwdt_lock, flags);
 }
 
-static void sh_wdt_stop(void)
+static void sh_wdt_stop(struct sh_wdt *wdt)
 {
-	__u8 csr;
 	unsigned long flags;
+	u8 csr;
 
 	spin_lock_irqsave(&shwdt_lock, flags);
 
-	del_timer(&timer);
+	del_timer(&wdt->timer);
 
 	csr = sh_wdt_read_csr();
 	csr &= ~WTCSR_TME;
 	sh_wdt_write_csr(csr);
+
 	spin_unlock_irqrestore(&shwdt_lock, flags);
 }
 
-static inline void sh_wdt_keepalive(void)
+static inline void sh_wdt_keepalive(struct sh_wdt *wdt)
 {
 	unsigned long flags;
 
@@ -154,11 +162,12 @@ static int sh_wdt_set_heartbeat(int t)
 
 static void sh_wdt_ping(unsigned long data)
 {
+	struct sh_wdt *wdt = (struct sh_wdt *)data;
 	unsigned long flags;
 
 	spin_lock_irqsave(&shwdt_lock, flags);
 	if (time_before(jiffies, next_heartbeat)) {
-		__u8 csr;
+		u8 csr;
 
 		csr = sh_wdt_read_csr();
 		csr &= ~WTCSR_IOVF;
@@ -166,37 +175,43 @@ static void sh_wdt_ping(unsigned long data)
 
 		sh_wdt_write_cnt(0);
 
-		mod_timer(&timer, next_ping_period(clock_division_ratio));
+		mod_timer(&wdt->timer, next_ping_period(clock_division_ratio));
 	} else
-		printk(KERN_WARNING PFX "Heartbeat lost! Will not ping "
-		       "the watchdog\n");
+		dev_warn(wdt->dev, "Heartbeat lost! Will not ping "
+		         "the watchdog\n");
 	spin_unlock_irqrestore(&shwdt_lock, flags);
 }
 
 static int sh_wdt_open(struct inode *inode, struct file *file)
 {
-	if (test_and_set_bit(0, &shwdt_is_open))
+	struct sh_wdt *wdt = platform_get_drvdata(sh_wdt_dev);
+
+	if (test_and_set_bit(0, &wdt->enabled))
 		return -EBUSY;
 	if (nowayout)
 		__module_get(THIS_MODULE);
 
-	sh_wdt_start();
+	file->private_data = wdt;
+
+	sh_wdt_start(wdt);
 
 	return nonseekable_open(inode, file);
 }
 
 static int sh_wdt_close(struct inode *inode, struct file *file)
 {
-	if (shwdt_expect_close == 42) {
-		sh_wdt_stop();
+	struct sh_wdt *wdt = file->private_data;
+
+	if (wdt->expect_close == 42) {
+		sh_wdt_stop(wdt);
 	} else {
-		printk(KERN_CRIT PFX "Unexpected close, not "
-		       "stopping watchdog!\n");
-		sh_wdt_keepalive();
+		dev_crit(wdt->dev, "Unexpected close, not "
+		         "stopping watchdog!\n");
+		sh_wdt_keepalive(wdt);
 	}
 
-	clear_bit(0, &shwdt_is_open);
-	shwdt_expect_close = 0;
+	clear_bit(0, &wdt->enabled);
+	wdt->expect_close = 0;
 
 	return 0;
 }
@@ -204,21 +219,23 @@ static int sh_wdt_close(struct inode *inode, struct file *file)
 static ssize_t sh_wdt_write(struct file *file, const char *buf,
 			    size_t count, loff_t *ppos)
 {
+	struct sh_wdt *wdt = file->private_data;
+
 	if (count) {
 		if (!nowayout) {
 			size_t i;
 
-			shwdt_expect_close = 0;
+			wdt->expect_close = 0;
 
 			for (i = 0; i != count; i++) {
 				char c;
 				if (get_user(c, buf + i))
 					return -EFAULT;
 				if (c == 'V')
-					shwdt_expect_close = 42;
+					wdt->expect_close = 42;
 			}
 		}
-		sh_wdt_keepalive();
+		sh_wdt_keepalive(wdt);
 	}
 
 	return count;
@@ -227,6 +244,7 @@ static ssize_t sh_wdt_write(struct file *file, const char *buf,
 static long sh_wdt_ioctl(struct file *file, unsigned int cmd,
 							unsigned long arg)
 {
+	struct sh_wdt *wdt = file->private_data;
 	int new_heartbeat;
 	int options, retval = -EINVAL;
 
@@ -242,18 +260,18 @@ static long sh_wdt_ioctl(struct file *file, unsigned int cmd,
 			return -EFAULT;
 
 		if (options & WDIOS_DISABLECARD) {
-			sh_wdt_stop();
+			sh_wdt_stop(wdt);
 			retval = 0;
 		}
 
 		if (options & WDIOS_ENABLECARD) {
-			sh_wdt_start();
+			sh_wdt_start(wdt);
 			retval = 0;
 		}
 
 		return retval;
 	case WDIOC_KEEPALIVE:
-		sh_wdt_keepalive();
+		sh_wdt_keepalive(wdt);
 		return 0;
 	case WDIOC_SETTIMEOUT:
 		if (get_user(new_heartbeat, (int *)arg))
@@ -262,7 +280,7 @@ static long sh_wdt_ioctl(struct file *file, unsigned int cmd,
 		if (sh_wdt_set_heartbeat(new_heartbeat))
 			return -EINVAL;
 
-		sh_wdt_keepalive();
+		sh_wdt_keepalive(wdt);
 		/* Fall */
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, (int *)arg);
@@ -275,8 +293,10 @@ static long sh_wdt_ioctl(struct file *file, unsigned int cmd,
 static int sh_wdt_notify_sys(struct notifier_block *this,
 			     unsigned long code, void *unused)
 {
+	struct sh_wdt *wdt = platform_get_drvdata(sh_wdt_dev);
+
 	if (code == SYS_DOWN || code == SYS_HALT)
-		sh_wdt_stop();
+		sh_wdt_stop(wdt);
 
 	return NOTIFY_DONE;
 }
@@ -307,56 +327,148 @@ static struct miscdevice sh_wdt_miscdev = {
 	.fops		= &sh_wdt_fops,
 };
 
+static int __devinit sh_wdt_probe(struct platform_device *pdev)
+{
+	struct sh_wdt *wdt;
+	struct resource *res;
+	int rc;
+
+	/*
+	 * As this driver only covers the global watchdog case, reject
+	 * any attempts to register per-CPU watchdogs.
+	 */
+	if (pdev->id != -1)
+		return -EINVAL;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (unlikely(!res))
+		return -EINVAL;
+
+	if (!devm_request_mem_region(&pdev->dev, res->start,
+				     resource_size(res), DRV_NAME))
+		return -EBUSY;
+
+	wdt = devm_kzalloc(&pdev->dev, sizeof(struct sh_wdt), GFP_KERNEL);
+	if (unlikely(!wdt)) {
+		rc = -ENOMEM;
+		goto out_release;
+	}
+
+	wdt->dev = &pdev->dev;
+
+	wdt->base = devm_ioremap(&pdev->dev, res->start, resource_size(res));
+	if (unlikely(!wdt->base)) {
+		rc = -ENXIO;
+		goto out_err;
+	}
+
+	rc = register_reboot_notifier(&sh_wdt_notifier);
+	if (unlikely(rc)) {
+		dev_err(&pdev->dev,
+			"Can't register reboot notifier (err=%d)\n", rc);
+		goto out_unmap;
+	}
+
+	sh_wdt_miscdev.parent = wdt->dev;
+
+	rc = misc_register(&sh_wdt_miscdev);
+	if (unlikely(rc)) {
+		dev_err(&pdev->dev,
+			"Can't register miscdev on minor=%d (err=%d)\n",
+						sh_wdt_miscdev.minor, rc);
+		goto out_unreg;
+	}
+
+	init_timer(&wdt->timer);
+	wdt->timer.function	= sh_wdt_ping;
+	wdt->timer.data		= (unsigned long)wdt;
+	wdt->timer.expires	= next_ping_period(clock_division_ratio);
+
+	platform_set_drvdata(pdev, wdt);
+	sh_wdt_dev = pdev;
+
+	dev_info(&pdev->dev, "initialized.\n");
+
+	return 0;
+
+out_unreg:
+	unregister_reboot_notifier(&sh_wdt_notifier);
+out_unmap:
+	devm_iounmap(&pdev->dev, wdt->base);
+out_err:
+	devm_kfree(&pdev->dev, wdt);
+out_release:
+	devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
+
+	return rc;
+}
+
+static int __devexit sh_wdt_remove(struct platform_device *pdev)
+{
+	struct sh_wdt *wdt = platform_get_drvdata(pdev);
+	struct resource *res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
+	platform_set_drvdata(pdev, NULL);
+
+	misc_deregister(&sh_wdt_miscdev);
+
+	sh_wdt_dev = NULL;
+
+	unregister_reboot_notifier(&sh_wdt_notifier);
+	devm_release_mem_region(&pdev->dev, res->start, resource_size(res));
+	devm_iounmap(&pdev->dev, wdt->base);
+	devm_kfree(&pdev->dev, wdt);
+
+	return 0;
+}
+
+static struct platform_driver sh_wdt_driver = {
+	.driver		= {
+		.name	= DRV_NAME,
+		.owner	= THIS_MODULE,
+	},
+
+	.probe	= sh_wdt_probe,
+	.remove	= __devexit_p(sh_wdt_remove),
+};
+
 static int __init sh_wdt_init(void)
 {
 	int rc;
 
-	if (clock_division_ratio < 0x5 || clock_division_ratio > 0x7) {
+	if (unlikely(clock_division_ratio < 0x5 ||
+		     clock_division_ratio > 0x7)) {
 		clock_division_ratio = WTCSR_CKS_4096;
-		printk(KERN_INFO PFX
-		  "clock_division_ratio value must be 0x5<=x<=0x7, using %d\n",
-				clock_division_ratio);
+
+		pr_info("%s: divisor must be 0x5<=x<=0x7, using %d\n",
+			 DRV_NAME, clock_division_ratio);
 	}
 
 	rc = sh_wdt_set_heartbeat(heartbeat);
 	if (unlikely(rc)) {
 		heartbeat = WATCHDOG_HEARTBEAT;
-		printk(KERN_INFO PFX
-			"heartbeat value must be 1<=x<=3600, using %d\n",
-								heartbeat);
+
+		pr_info("%s: heartbeat value must be 1<=x<=3600, using %d\n",
+			DRV_NAME, heartbeat);
 	}
 
-	rc = register_reboot_notifier(&sh_wdt_notifier);
-	if (unlikely(rc)) {
-		printk(KERN_ERR PFX
-			"Can't register reboot notifier (err=%d)\n", rc);
-		return rc;
-	}
+	pr_info("%s: configured with heartbeat=%d sec (nowayout=%d)\n",
+		DRV_NAME, heartbeat, nowayout);
 
-	rc = misc_register(&sh_wdt_miscdev);
-	if (unlikely(rc)) {
-		printk(KERN_ERR PFX
-			"Can't register miscdev on minor=%d (err=%d)\n",
-						sh_wdt_miscdev.minor, rc);
-		unregister_reboot_notifier(&sh_wdt_notifier);
-		return rc;
-	}
-
-	printk(KERN_INFO PFX "initialized. heartbeat=%d sec (nowayout=%d)\n",
-		heartbeat, nowayout);
-
-	return 0;
+	return platform_driver_register(&sh_wdt_driver);
 }
 
 static void __exit sh_wdt_exit(void)
 {
-	misc_deregister(&sh_wdt_miscdev);
-	unregister_reboot_notifier(&sh_wdt_notifier);
+	platform_driver_unregister(&sh_wdt_driver);
 }
+module_init(sh_wdt_init);
+module_exit(sh_wdt_exit);
 
 MODULE_AUTHOR("Paul Mundt <lethal@linux-sh.org>");
 MODULE_DESCRIPTION("SuperH watchdog driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:" DRV_NAME);
 MODULE_ALIAS_MISCDEV(WATCHDOG_MINOR);
 
 module_param(clock_division_ratio, int, 0);
@@ -373,6 +485,3 @@ module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout,
 	"Watchdog cannot be stopped once started (default="
 				__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
-
-module_init(sh_wdt_init);
-module_exit(sh_wdt_exit);
