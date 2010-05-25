@@ -200,8 +200,8 @@ static int td_fill_desc(struct timb_dma_chan *td_chan, u8 *dma_desc,
 		return -EINVAL;
 	}
 
-	dev_dbg(chan2dev(&td_chan->chan), "desc: %p, addr: %p\n",
-		dma_desc, (void *)sg_dma_address(sg));
+	dev_dbg(chan2dev(&td_chan->chan), "desc: %p, addr: 0x%llx\n",
+		dma_desc, (unsigned long long)sg_dma_address(sg));
 
 	dma_desc[7] = (sg_dma_address(sg) >> 24) & 0xff;
 	dma_desc[6] = (sg_dma_address(sg) >> 16) & 0xff;
