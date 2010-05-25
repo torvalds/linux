@@ -17,6 +17,8 @@
 #include <linux/file.h>
 #include <linux/slab.h>
 #include <linux/pipe_fs_i.h>
+#include <linux/swap.h>
+#include <linux/splice.h>
 
 MODULE_ALIAS_MISCDEV(FUSE_MINOR);
 
@@ -509,6 +511,7 @@ struct fuse_copy_state {
 	void *mapaddr;
 	void *buf;
 	unsigned len;
+	unsigned move_pages:1;
 };
 
 static void fuse_copy_init(struct fuse_copy_state *cs, struct fuse_conn *fc,
@@ -609,13 +612,135 @@ static int fuse_copy_do(struct fuse_copy_state *cs, void **val, unsigned *size)
 	return ncpy;
 }
 
+static int fuse_check_page(struct page *page)
+{
+	if (page_mapcount(page) ||
+	    page->mapping != NULL ||
+	    page_count(page) != 1 ||
+	    (page->flags & PAGE_FLAGS_CHECK_AT_PREP &
+	     ~(1 << PG_locked |
+	       1 << PG_referenced |
+	       1 << PG_uptodate |
+	       1 << PG_lru |
+	       1 << PG_active |
+	       1 << PG_reclaim))) {
+		printk(KERN_WARNING "fuse: trying to steal weird page\n");
+		printk(KERN_WARNING "  page=%p index=%li flags=%08lx, count=%i, mapcount=%i, mapping=%p\n", page, page->index, page->flags, page_count(page), page_mapcount(page), page->mapping);
+		return 1;
+	}
+	return 0;
+}
+
+static int fuse_try_move_page(struct fuse_copy_state *cs, struct page **pagep)
+{
+	int err;
+	struct page *oldpage = *pagep;
+	struct page *newpage;
+	struct pipe_buffer *buf = cs->pipebufs;
+	struct address_space *mapping;
+	pgoff_t index;
+
+	unlock_request(cs->fc, cs->req);
+	fuse_copy_finish(cs);
+
+	err = buf->ops->confirm(cs->pipe, buf);
+	if (err)
+		return err;
+
+	BUG_ON(!cs->nr_segs);
+	cs->currbuf = buf;
+	cs->len = buf->len;
+	cs->pipebufs++;
+	cs->nr_segs--;
+
+	if (cs->len != PAGE_SIZE)
+		goto out_fallback;
+
+	if (buf->ops->steal(cs->pipe, buf) != 0)
+		goto out_fallback;
+
+	newpage = buf->page;
+
+	if (WARN_ON(!PageUptodate(newpage)))
+		return -EIO;
+
+	ClearPageMappedToDisk(newpage);
+
+	if (fuse_check_page(newpage) != 0)
+		goto out_fallback_unlock;
+
+	mapping = oldpage->mapping;
+	index = oldpage->index;
+
+	/*
+	 * This is a new and locked page, it shouldn't be mapped or
+	 * have any special flags on it
+	 */
+	if (WARN_ON(page_mapped(oldpage)))
+		goto out_fallback_unlock;
+	if (WARN_ON(page_has_private(oldpage)))
+		goto out_fallback_unlock;
+	if (WARN_ON(PageDirty(oldpage) || PageWriteback(oldpage)))
+		goto out_fallback_unlock;
+	if (WARN_ON(PageMlocked(oldpage)))
+		goto out_fallback_unlock;
+
+	remove_from_page_cache(oldpage);
+	page_cache_release(oldpage);
+
+	err = add_to_page_cache_locked(newpage, mapping, index, GFP_KERNEL);
+	if (err) {
+		printk(KERN_WARNING "fuse_try_move_page: failed to add page");
+		goto out_fallback_unlock;
+	}
+	page_cache_get(newpage);
+
+	if (!(buf->flags & PIPE_BUF_FLAG_LRU))
+		lru_cache_add_file(newpage);
+
+	err = 0;
+	spin_lock(&cs->fc->lock);
+	if (cs->req->aborted)
+		err = -ENOENT;
+	else
+		*pagep = newpage;
+	spin_unlock(&cs->fc->lock);
+
+	if (err) {
+		unlock_page(newpage);
+		page_cache_release(newpage);
+		return err;
+	}
+
+	unlock_page(oldpage);
+	page_cache_release(oldpage);
+	cs->len = 0;
+
+	return 0;
+
+out_fallback_unlock:
+	unlock_page(newpage);
+out_fallback:
+	cs->mapaddr = buf->ops->map(cs->pipe, buf, 1);
+	cs->buf = cs->mapaddr + buf->offset;
+
+	err = lock_request(cs->fc, cs->req);
+	if (err)
+		return err;
+
+	return 1;
+}
+
 /*
  * Copy a page in the request to/from the userspace buffer.  Must be
  * done atomically
  */
-static int fuse_copy_page(struct fuse_copy_state *cs, struct page *page,
+static int fuse_copy_page(struct fuse_copy_state *cs, struct page **pagep,
 			  unsigned offset, unsigned count, int zeroing)
 {
+	int err;
+	struct page *page = *pagep;
+
 	if (page && zeroing && count < PAGE_SIZE) {
 		void *mapaddr = kmap_atomic(page, KM_USER1);
 		memset(mapaddr, 0, PAGE_SIZE);
@@ -623,9 +748,16 @@ static int fuse_copy_page(struct fuse_copy_state *cs, struct page *page,
 	}
 	while (count) {
 		if (!cs->len) {
-			int err = fuse_copy_fill(cs);
-			if (err)
-				return err;
+			if (cs->move_pages && page &&
+			    offset == 0 && count == PAGE_SIZE) {
+				err = fuse_try_move_page(cs, pagep);
+				if (err <= 0)
+					return err;
+			} else {
+				err = fuse_copy_fill(cs);
+				if (err)
+					return err;
+			}
 		}
 		if (page) {
 			void *mapaddr = kmap_atomic(page, KM_USER1);
@@ -650,8 +782,10 @@ static int fuse_copy_pages(struct fuse_copy_state *cs, unsigned nbytes,
 	unsigned count = min(nbytes, (unsigned) PAGE_SIZE - offset);
 
 	for (i = 0; i < req->num_pages && (nbytes || zeroing); i++) {
-		struct page *page = req->pages[i];
-		int err = fuse_copy_page(cs, page, offset, count, zeroing);
+		int err;
+
+		err = fuse_copy_page(cs, &req->pages[i], offset, count,
+				     zeroing);
 		if (err)
 			return err;
 
@@ -1079,6 +1213,8 @@ static ssize_t fuse_dev_do_write(struct fuse_conn *fc,
 	req->out.h = oh;
 	req->locked = 1;
 	cs->req = req;
+	if (!req->out.page_replace)
+		cs->move_pages = 0;
 	spin_unlock(&fc->lock);
 
 	err = copy_out_args(cs, &req->out, nbytes);
@@ -1181,6 +1317,9 @@ static ssize_t fuse_dev_splice_write(struct pipe_inode_info *pipe,
 	cs.pipebufs = bufs;
 	cs.nr_segs = nbuf;
 	cs.pipe = pipe;
+
+	if (flags & SPLICE_F_MOVE)
+		cs.move_pages = 1;
 
 	ret = fuse_dev_do_write(fc, &cs, len);
 
