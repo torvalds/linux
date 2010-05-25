@@ -2354,6 +2354,8 @@ static bool intel_crtc_mode_fixup(struct drm_crtc *crtc,
 		if (mode->clock * 3 > 27000 * 4)
 			return MODE_CLOCK_HIGH;
 	}
+
+	drm_mode_set_crtcinfo(adjusted_mode, 0);
 	return true;
 }
 
@@ -3780,6 +3782,18 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			pipeconf &= ~PIPECONF_CXSR_DOWNCLOCK;
 		}
 	}
+
+	if (adjusted_mode->flags & DRM_MODE_FLAG_INTERLACE) {
+		pipeconf |= PIPECONF_INTERLACE_W_FIELD_INDICATION;
+		/* the chip adds 2 halflines automatically */
+		adjusted_mode->crtc_vdisplay -= 1;
+		adjusted_mode->crtc_vtotal -= 1;
+		adjusted_mode->crtc_vblank_start -= 1;
+		adjusted_mode->crtc_vblank_end -= 1;
+		adjusted_mode->crtc_vsync_end -= 1;
+		adjusted_mode->crtc_vsync_start -= 1;
+	} else
+		pipeconf &= ~PIPECONF_INTERLACE_W_FIELD_INDICATION; /* progressive */
 
 	I915_WRITE(htot_reg, (adjusted_mode->crtc_hdisplay - 1) |
 		   ((adjusted_mode->crtc_htotal - 1) << 16));
