@@ -51,24 +51,6 @@ static void rds_ib_frag_free(struct rds_page_frag *frag)
 	kmem_cache_free(rds_ib_frag_slab, frag);
 }
 
-/*
- * We map a page at a time.  Its fragments are posted in order.  This
- * is called in fragment order as the fragments get send completion events.
- * Only the last frag in the page performs the unmapping.
- *
- * It's OK for ring cleanup to call this in whatever order it likes because
- * DMA is not in flight and so we can unmap while other ring entries still
- * hold page references in their frags.
- */
-static void rds_ib_recv_unmap_page(struct rds_ib_connection *ic,
-				   struct rds_ib_recv_work *recv)
-{
-	struct rds_page_frag *frag = recv->r_frag;
-
-	rdsdebug("recv %p frag %p page %p\n", recv, frag, sg_page(&frag->f_sg));
-	ib_dma_unmap_sg(ic->i_cm_id->device, &frag->f_sg, 1, DMA_FROM_DEVICE);
-}
-
 void rds_ib_recv_init_ring(struct rds_ib_connection *ic)
 {
 	struct rds_ib_recv_work *recv;
@@ -105,7 +87,7 @@ static void rds_ib_recv_clear_one(struct rds_ib_connection *ic,
 		recv->r_ibinc = NULL;
 	}
 	if (recv->r_frag) {
-		rds_ib_recv_unmap_page(ic, recv);
+		ib_dma_unmap_sg(ic->i_cm_id->device, &recv->r_frag->f_sg, 1, DMA_FROM_DEVICE);
 		rds_ib_frag_free(recv->r_frag);
 		recv->r_frag = NULL;
 	}
@@ -768,7 +750,7 @@ static inline void rds_poll_cq(struct rds_ib_connection *ic,
 
 		recv = &ic->i_recvs[rds_ib_ring_oldest(&ic->i_recv_ring)];
 
-		rds_ib_recv_unmap_page(ic, recv);
+		ib_dma_unmap_sg(ic->i_cm_id->device, &recv->r_frag->f_sg, 1, DMA_FROM_DEVICE);
 
 		/*
 		 * Also process recvs in connecting state because it is possible
