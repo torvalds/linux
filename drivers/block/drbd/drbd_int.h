@@ -1540,7 +1540,7 @@ static inline void drbd_tcp_nodelay(struct socket *sock)
 
 static inline void drbd_tcp_quickack(struct socket *sock)
 {
-	int __user val = 1;
+	int __user val = 2;
 	(void) drbd_setsockopt(sock, SOL_TCP, TCP_QUICKACK,
 			(char __user *)&val, sizeof(val));
 }
