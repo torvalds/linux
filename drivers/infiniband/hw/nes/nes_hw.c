@@ -2584,7 +2584,6 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 				break;
 			}
 		}
-		spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
 
 		if (phy_data & 0x0004) {
 			if (wide_ppm_offset &&
@@ -2638,6 +2637,8 @@ static void nes_process_mac_intr(struct nes_device *nesdev, u32 mac_number)
 			}
 		}
 	}
+
+	spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
 
 	nesadapter->mac_sw_state[mac_number] = NES_MAC_SW_IDLE;
 }
