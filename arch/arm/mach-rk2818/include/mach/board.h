@@ -74,6 +74,32 @@ struct rk2818bl_info{
     struct notifier_block freq_transition;
 };
 
+struct rk2818_gpio_expander_info {
+	unsigned int gpio_num;// 初始化的pin 脚宏定义 如：RK2818_PIN_PI0
+	unsigned int pin_type;//初始化的pin 为输入pin还是输出pin 如：GPIO_IN
+	unsigned int pin_value;//如果为 output pin 设置电平，如：GPIO_HIGH
+};
+
+
+struct pca9554_platform_data {
+	/*  the first extern gpio number in all of gpio groups */
+	unsigned gpio_base;
+	unsigned	gpio_pin_num;
+	/*  the first gpio irq  number in all of irq source */
+
+	unsigned gpio_irq_start;
+	unsigned irq_pin_num;        //中断的个数
+	unsigned    pca9954_irq_pin;        //扩展IO的中断挂在哪个gpio
+	/* initial polarity inversion setting */
+	uint16_t	invert;
+	struct rk2818_gpio_expander_info  *settinginfo;
+	int  settinginfolen;
+	void		*context;	/* param to setup/teardown */
+
+	int		(*setup)(struct i2c_client *client,unsigned gpio, unsigned ngpio,void *context);
+	int		(*teardown)(struct i2c_client *client,unsigned gpio, unsigned ngpio,void *context);
+	char		**names;
+};
 /* common init routines for use by arch/arm/mach-msm/board-*.c */
 void __init rk2818_add_devices(void);
 void __init rk2818_map_common_io(void);
