@@ -1,0 +1,1387 @@
+/* drivers/mmc/host/rk2818-sdmmc.c
+ *
+ * Copyright (C) 2010 ROCKCHIP, Inc.
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ */
+#include <linux/blkdev.h>
+#include <linux/clk.h>
+#include <linux/debugfs.h>
+#include <linux/device.h>
+#include <linux/dma-mapping.h>
+#include <linux/err.h>
+#include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/ioport.h>
+#include <linux/module.h>
+#include <linux/platform_device.h>
+#include <linux/scatterlist.h>
+#include <linux/seq_file.h>
+#include <linux/stat.h>
+#include <linux/delay.h>
+#include <linux/irq.h>
+#include <linux/mmc/host.h>
+
+#include <mach/board.h>
+#include <mach/rk2818_iomap.h>
+
+#include <asm/dma.h>
+#include <asm/scatterlist.h>
+
+#include "rk2818-sdmmc.h"
+
+#define RK2818_MCI_DATA_ERROR_FLAGS	(SDMMC_INT_DRTO | SDMMC_INT_DCRC | SDMMC_INT_HTO | SDMMC_INT_SBE | SDMMC_INT_EBE)
+#define RK2818_MCI_CMD_ERROR_FLAGS	(SDMMC_INT_RTO | SDMMC_INT_RCRC | SDMMC_INT_RE | SDMMC_INT_HLE)
+#define RK2818_MCI_ERROR_FLAGS		(RK2818_MCI_DATA_ERROR_FLAGS | RK2818_MCI_CMD_ERROR_FLAGS | SDMMC_INT_HLE)
+#define RK2818_MCI_SEND_STATUS		1
+#define RK2818_MCI_RECV_STATUS		2
+#define RK2818_MCI_DMA_THRESHOLD	16
+
+enum {
+	EVENT_CMD_COMPLETE = 0,
+	EVENT_XFER_COMPLETE,
+	EVENT_DATA_COMPLETE,
+	EVENT_DATA_ERROR,
+	EVENT_XFER_ERROR
+};
+
+
+enum rk2818_sdmmc_state {
+	STATE_IDLE = 0,
+	STATE_SENDING_CMD,
+	STATE_SENDING_DATA,
+	STATE_DATA_BUSY,
+	STATE_SENDING_STOP,
+	STATE_DATA_ERROR,
+};
+
+struct rk2818_sdmmc_host {
+	struct device           *dev;
+	struct clk 		*clk;
+	spinlock_t		lock;
+	void __iomem		*regs;
+
+	struct scatterlist	*sg;
+	unsigned int		pio_offset;
+	struct resource		*mem;
+	struct mmc_request	*mrq;
+	struct mmc_command	*cmd;
+	struct mmc_data		*data;
+
+	int				dma_chn;
+	unsigned int		use_dma:1;
+	u32			cmd_status;
+	u32			data_status;
+	u32			stop_cmdr;
+	u32			dir_status;
+	struct tasklet_struct	tasklet;
+	unsigned long		pending_events;
+	unsigned long		completed_events;
+	enum rk2818_sdmmc_state	state;
+	struct list_head	queue;
+
+	u32			bus_hz;
+	u32			current_speed;
+	struct platform_device	*pdev;
+	struct rk2818_sdmmc_platform_data *pdata;
+
+	struct mmc_host		*mmc;
+	u32			ctype;
+
+	struct list_head	queue_node;
+
+	unsigned int		clock;
+	unsigned long		flags;
+#define RK2818_MMC_CARD_PRESENT	0
+#define RK2818_MMC_CARD_NEED_INIT	1
+#define RK2818_MMC_SHUTDOWN		2
+	int			irq;
+
+	struct timer_list	detect_timer;
+};
+
+#define rk2818_sdmmc_test_and_clear_pending(host, event)		\
+	test_and_clear_bit(event, &host->pending_events)
+#define rk2818_sdmmc_set_completed(host, event)			\
+	set_bit(event, &host->completed_events)
+
+#define rk2818_sdmmc_set_pending(host, event)				\
+	set_bit(event, &host->pending_events)
+
+#if defined (CONFIG_DEBUG_FS)
+
+static int rk2818_sdmmc_req_show(struct seq_file *s, void *v)
+{
+	struct rk2818_sdmmc_host	*host = s->private;
+	struct mmc_request	*mrq;
+	struct mmc_command	*cmd;
+	struct mmc_command	*stop;
+	struct mmc_data		*data;
+
+	spin_lock(&host->lock);
+	mrq = host->mrq;
+
+	if (mrq) {
+		cmd = mrq->cmd;
+		data = mrq->data;
+		stop = mrq->stop;
+
+		if (cmd)
+			seq_printf(s,
+				"CMD%u(0x%x) flg %x rsp %x %x %x %x err %d\n",
+				cmd->opcode, cmd->arg, cmd->flags,
+				cmd->resp[0], cmd->resp[1], cmd->resp[2],
+				cmd->resp[2], cmd->error);
+		if (data)
+			seq_printf(s, "DATA %u / %u * %u flg %x err %d\n",
+				data->bytes_xfered, data->blocks,
+				data->blksz, data->flags, data->error);
+		if (stop)
+			seq_printf(s,
+				"CMD%u(0x%x) flg %x rsp %x %x %x %x err %d\n",
+				stop->opcode, stop->arg, stop->flags,
+				stop->resp[0], stop->resp[1], stop->resp[2],
+				stop->resp[2], stop->error);
+	}
+
+	spin_unlock(&host->lock);
+
+	return 0;
+}
+
+static int rk2818_sdmmc_req_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rk2818_sdmmc_req_show, inode->i_private);
+}
+
+static const struct file_operations rk2818_sdmmc_req_fops = {
+	.owner		= THIS_MODULE,
+	.open		= rk2818_sdmmc_req_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static int rk2818_sdmmc_regs_show(struct seq_file *s, void *v)
+{
+	struct rk2818_sdmmc_host	*host = s->private;
+
+	seq_printf(s, "STATUS:   0x%08x\n",readl(host->regs + SDMMC_STATUS));
+	seq_printf(s, "RINTSTS:  0x%08x\n",readl(host->regs + SDMMC_RINTSTS));
+	seq_printf(s, "CMD:      0x%08x\n", readl(host->regs + SDMMC_CMD));
+	seq_printf(s, "CTRL:     0x%08x\n", readl(host->regs + SDMMC_CTRL));
+	seq_printf(s, "INTMASK:  0x%08x\n", readl(host->regs + SDMMC_INTMASK));
+	seq_printf(s, "CLKENA:   0x%08x\n", readl(host->regs + SDMMC_CLKENA));
+
+	return 0;
+}
+
+static int rk2818_sdmmc_regs_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, rk2818_sdmmc_regs_show, inode->i_private);
+}
+
+static const struct file_operations rk2818_sdmmc_regs_fops = {
+	.owner		= THIS_MODULE,
+	.open		= rk2818_sdmmc_regs_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+};
+
+static void rk2818_sdmmc_init_debugfs(struct rk2818_sdmmc_host *host)
+{
+	struct mmc_host		*mmc = host->mmc;
+	struct dentry		*root;
+	struct dentry		*node;
+
+	root = mmc->debugfs_root;
+	if (!root)
+		return;
+
+	node = debugfs_create_file("regs", S_IRUSR, root, host,
+			&rk2818_sdmmc_regs_fops);
+	if (IS_ERR(node))
+		return;
+	if (!node)
+		goto err;
+
+	node = debugfs_create_file("req", S_IRUSR, root, host, &rk2818_sdmmc_req_fops);
+	if (!node)
+		goto err;
+
+	node = debugfs_create_u32("state", S_IRUSR, root, (u32 *)&host->state);
+	if (!node)
+		goto err;
+
+	node = debugfs_create_x32("pending_events", S_IRUSR, root,
+				     (u32 *)&host->pending_events);
+	if (!node)
+		goto err;
+
+	node = debugfs_create_x32("completed_events", S_IRUSR, root,
+				     (u32 *)&host->completed_events);
+	if (!node)
+		goto err;
+
+	return;
+
+err:
+	dev_err(&mmc->class_dev, "failed to initialize debugfs for host\n");
+}
+#endif
+static void rk2818_sdmmc_set_power(struct rk2818_sdmmc_host *host, u32 ocr_avail)
+{
+	if(ocr_avail == 0)
+		writel(0, host->regs + SDMMC_PWREN);
+	else
+		writel(1, host->regs + SDMMC_PWREN);
+}
+static inline unsigned ns_to_clocks(unsigned clkrate, unsigned ns)
+{
+	u32 clks;
+	if (clkrate > 1000000)
+		clks =  (ns * (clkrate / 1000000) + 999) / 1000;
+	else
+		clks =  ((ns/1000) * (clkrate / 1000) + 999) / 1000;
+
+	return clks;
+}
+
+static void rk2818_sdmmc_set_timeout(struct rk2818_sdmmc_host *host, struct mmc_data *data)
+{
+	unsigned timeout;
+
+	timeout = ns_to_clocks(host->clock, data->timeout_ns) + data->timeout_clks;
+
+	dev_dbg(host->dev, "tmo req:%d + %d reg:%d clk:%d\n", 
+		data->timeout_ns, data->timeout_clks, timeout, host->clock);
+	writel((timeout << 8) | (80), host->regs + SDMMC_TMOUT);
+}
+
+static u32 rk2818_sdmmc_prepare_command(struct mmc_host *mmc,
+				 struct mmc_command *cmd)
+{
+	struct mmc_data	*data;
+	u32		cmdr;
+	
+	cmd->error = -EINPROGRESS;
+	cmdr = cmd->opcode;
+
+	if(cmdr == 12) 
+		cmdr |= SDMMC_CMD_STOP;
+	else 
+		cmdr |= SDMMC_CMD_PRV_DAT_WAIT;
+
+	if (cmd->flags & MMC_RSP_PRESENT) {
+		cmdr |= SDMMC_CMD_RESP_EXP; // expect the respond, need to set this bit
+		if (cmd->flags & MMC_RSP_136) 
+			cmdr |= SDMMC_CMD_RESP_LONG; // expect long respond
+		
+		if(cmd->flags & MMC_RSP_CRC) 
+			cmdr |= SDMMC_CMD_RESP_CRC;
+	}
+
+	data = cmd->data;
+	if (data) {
+		cmdr |= SDMMC_CMD_DAT_EXP;
+		if (data->flags & MMC_DATA_STREAM) 
+			cmdr |= SDMMC_CMD_STRM_MODE; //  set stream mode
+		if (data->flags & MMC_DATA_WRITE) 
+		    cmdr |= SDMMC_CMD_DAT_WR;
+		
+	}
+	return cmdr;
+}
+
+
+static void rk2818_sdmmc_start_command(struct rk2818_sdmmc_host *host,
+		struct mmc_command *cmd, u32 cmd_flags)
+{
+ 	int tmo = 50;
+ 	host->cmd = cmd;
+	dev_dbg(host->dev, "start cmd:%d ARGR=0x%08x CMDR=0x%08x\n",
+					cmd->opcode, cmd->arg, cmd_flags);
+	writel(cmd->arg, host->regs + SDMMC_CMDARG); // write to CMDARG register
+	writel(cmd_flags | SDMMC_CMD_START, host->regs + SDMMC_CMD); // write to CMD register
+
+	/* wait until CIU accepts the command */
+	while (--tmo && (readl(host->regs + SDMMC_CMD) & SDMMC_CMD_START)) 
+		cpu_relax();
+}
+
+static void send_stop_cmd(struct rk2818_sdmmc_host *host, struct mmc_data *data)
+{
+	rk2818_sdmmc_start_command(host, data->stop, host->stop_cmdr);
+}
+
+
+static void rk2818_sdmmc_dma_cleanup(struct rk2818_sdmmc_host *host)
+{
+	struct mmc_data			*data = host->data;
+	if (data) 
+		dma_unmap_sg(host->dev, data->sg, data->sg_len,
+		     ((data->flags & MMC_DATA_WRITE)? DMA_TO_DEVICE : DMA_FROM_DEVICE));
+}
+
+static void rk2818_sdmmc_stop_dma(struct rk2818_sdmmc_host *host)
+{
+	if (host->dma_chn >= 0) {
+		writel(readl(host->regs + SDMMC_CTRL) & ~SDMMC_CTRL_DMA_ENABLE,
+				host->regs +SDMMC_CTRL);
+		disable_dma(host->dma_chn);
+		rk2818_sdmmc_dma_cleanup(host);
+	} else {
+		/* Data transfer was stopped by the interrupt handler */
+		rk2818_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
+	}
+}
+
+/* This function is called by the DMA driver from tasklet context. */
+static void rk2818_sdmmc_dma_complete(int chn, void *arg)
+{
+	struct rk2818_sdmmc_host	*host = arg;
+	struct mmc_data		*data = host->data;
+
+	dev_dbg(host->dev, "DMA complete\n");
+
+	spin_lock(&host->lock);
+	rk2818_sdmmc_dma_cleanup(host);
+	disable_dma(host->dma_chn);
+	free_dma(host->dma_chn);
+	if (data) {
+		rk2818_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
+		tasklet_schedule(&host->tasklet);
+	}
+	spin_unlock(&host->lock);
+}
+static int rk2818_sdmmc_submit_data_dma(struct rk2818_sdmmc_host *host, struct mmc_data *data)
+{
+	struct scatterlist		*sg;
+	unsigned int			i;
+
+	if(host->use_dma == 0)
+		return -ENOSYS;
+	if (data->blocks * data->blksz < RK2818_MCI_DMA_THRESHOLD)
+		return -EINVAL;
+	if (data->blksz & 3)
+		return -EINVAL;
+	for_each_sg(data->sg, sg, data->sg_len, i) {
+		if (sg->offset & 3 || sg->length & 3)
+			return -EINVAL;
+	}
+	for(i = 0; i < MAX_SG_CHN; i++) {
+		if(request_dma(i, "sd_mmc") == 0) {
+			host->dma_chn = i;
+			break;
+		}
+	}
+	if(i == MAX_SG_CHN) {
+		host->dma_chn = -1;
+		return -EINVAL;
+	}
+	dma_map_sg(host->dev, data->sg, data->sg_len, 
+			(data->flags & MMC_DATA_READ)? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+
+	set_dma_sg(host->dma_chn, data->sg, data->sg_len);
+
+	set_dma_mode(host->dma_chn,
+			(data->flags & MMC_DATA_READ)? DMA_MODE_READ : DMA_MODE_WRITE);
+
+	set_dma_handler(host->dma_chn, rk2818_sdmmc_dma_complete, (void *)host);
+
+	writel(readl(host->regs + SDMMC_CTRL) | SDMMC_CTRL_DMA_ENABLE,
+				host->regs +SDMMC_CTRL);
+	enable_dma(host->dma_chn);
+	dev_dbg(host->dev,"DMA enable, \n");
+	return 0;
+}
+
+static void rk2818_sdmmc_submit_data(struct rk2818_sdmmc_host *host, struct mmc_data *data)
+{
+	data->error = -EINPROGRESS;
+
+	//WARN_ON(host->data);
+	host->sg = NULL;
+	host->data = data;
+
+	if (rk2818_sdmmc_submit_data_dma(host, data)) {
+		host->sg = data->sg;
+		host->pio_offset = 0;
+		if (data->flags & MMC_DATA_READ)
+			host->dir_status = RK2818_MCI_RECV_STATUS;
+		else 
+			host->dir_status = RK2818_MCI_SEND_STATUS;
+		writel(readl(host->regs + SDMMC_CTRL) | SDMMC_CTRL_DMA_ENABLE,
+				host->regs +SDMMC_CTRL);
+	}
+}
+
+#define mci_send_cmd(host,cmd,arg) {	\
+    writel(arg, host->regs + SDMMC_CMDARG);		\
+    writel(SDMMC_CMD_START | cmd, host->regs + SDMMC_CMD);		\
+    while (readl(host->regs + SDMMC_CMD) & SDMMC_CMD_START); \
+}
+
+void rk2818_sdmmc_setup_bus(struct rk2818_sdmmc_host *host)
+{
+	u32 div;
+
+	if (host->clock != host->current_speed) {
+		div  = (((host->bus_hz + (host->bus_hz / 5)) / host->clock)) >> 1;
+
+		dev_dbg(host->dev, "Bus speed = %dHz div:%d (actual %dHz)\n",
+			host->clock, div, (host->bus_hz / div) >> 1);
+		
+		/* store the actual clock for calculations */
+		host->clock = (host->bus_hz / div) >> 1;
+		/* disable clock */
+		writel(0, host->regs + SDMMC_CLKENA);
+		writel(0, host->regs + SDMMC_CLKSRC);
+		/* inform CIU */
+		mci_send_cmd(host, SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
+		/* set clock to desired speed */
+		writel(div, host->regs + SDMMC_CLKDIV);
+		/* inform CIU */
+		mci_send_cmd(host, SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
+		/* enable clock */
+		writel(SDMMC_CLKEN_ENABLE, host->regs + SDMMC_CLKENA);
+		/* inform CIU */
+		 mci_send_cmd(host, SDMMC_CMD_UPD_CLK | SDMMC_CMD_PRV_DAT_WAIT, 0);
+
+		host->current_speed = host->clock;
+	}
+
+	/* Set the current host bus width */
+	writel(host->ctype, host->regs + SDMMC_CTYPE);
+}
+
+static void rk2818_sdmmc_start_request(struct rk2818_sdmmc_host *host)
+{
+	struct mmc_request	*mrq;
+	struct mmc_command	*cmd;
+	struct mmc_data		*data;
+	u32			cmdflags;
+
+	mrq = host->mrq;
+
+	rk2818_sdmmc_setup_bus(host);
+
+	host->mrq = mrq;
+
+	host->pending_events = 0;
+	host->completed_events = 0;
+	host->data_status = 0;
+
+	data = mrq->data;
+	if (data) {
+		rk2818_sdmmc_set_timeout(host, data);
+		writel(data->blksz * data->blocks, host->regs + SDMMC_BYTCNT);
+		writel(data->blksz, host->regs + SDMMC_BLKSIZ);
+	}
+
+	cmd = mrq->cmd;
+	cmdflags = rk2818_sdmmc_prepare_command(host->mmc, cmd);
+
+	if (unlikely(test_and_clear_bit(RK2818_MMC_CARD_NEED_INIT, &host->flags))) 
+	    cmdflags |= SDMMC_CMD_INIT; 
+	
+	if (data)
+		rk2818_sdmmc_submit_data(host, data);
+	
+	rk2818_sdmmc_start_command(host, cmd, cmdflags);
+	if (mrq->stop) 
+	{
+		host->stop_cmdr = rk2818_sdmmc_prepare_command(host->mmc, mrq->stop);
+		dev_dbg(host->dev, "mrq stop: stop_cmdr = %d", host->stop_cmdr);
+	}
+}
+
+
+
+static void rk2818_sdmmc_queue_request(struct rk2818_sdmmc_host *host, struct mmc_request *mrq)
+{
+	dev_dbg(host->dev, "queue request: state=%d\n",
+			host->state);
+
+	spin_lock(&host->lock);
+	host->mrq = mrq;
+	if (host->state == STATE_IDLE) {
+		host->state = STATE_SENDING_CMD;
+		rk2818_sdmmc_start_request(host);
+	} else {
+		list_add_tail(&host->queue_node, &host->queue);
+	}
+	spin_unlock(&host->lock);
+}
+
+
+static void rk2818_sdmmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
+{
+	struct rk2818_sdmmc_host	*host = mmc_priv(mmc);
+
+	WARN_ON(host->mrq);
+
+	if (!test_bit(RK2818_MMC_CARD_PRESENT, &host->flags)) {
+		mrq->cmd->error = -ENOMEDIUM;
+		mmc_request_done(mmc, mrq);
+		return;
+	}
+
+	rk2818_sdmmc_queue_request(host, mrq);
+}
+
+static void rk2818_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
+{
+	struct rk2818_sdmmc_host	*host = mmc_priv(mmc);
+
+	host->ctype = 0; // set default 1 bit mode
+	switch (ios->bus_width) {
+	case MMC_BUS_WIDTH_1:
+		host->ctype = 0;
+		break;
+	case MMC_BUS_WIDTH_4:
+		host->ctype = SDMMC_CTYPE_4BIT;
+		break;
+	}
+
+
+	if (ios->clock) {
+		spin_lock(&host->lock);
+		/*
+		 * Use mirror of ios->clock to prevent race with mmc
+		 * core ios update when finding the minimum.
+		 */
+		host->clock = ios->clock;
+
+		spin_unlock(&host->lock);
+	} else {
+		spin_lock(&host->lock);
+		host->clock = 0;
+		spin_unlock(&host->lock);
+	}
+
+	switch (ios->power_mode) {
+	case MMC_POWER_UP:
+		set_bit(RK2818_MMC_CARD_NEED_INIT, &host->flags);
+		break;
+	default:
+		break;
+	}
+}
+
+
+
+static int rk2818_sdmmc_get_ro(struct mmc_host *mmc)
+{
+	struct rk2818_sdmmc_host *host = mmc_priv(mmc);
+	u32 wrtprt = readl(host->regs + SDMMC_WRTPRT);
+
+	return (wrtprt & SDMMC_WRITE_PROTECT)?1:0;
+}
+
+
+static int rk2818_sdmmc_get_cd(struct mmc_host *mmc)
+{
+	struct rk2818_sdmmc_host *host = mmc_priv(mmc);
+	u32 cdetect = readl(host->regs + SDMMC_CDETECT);
+	
+	return (cdetect & SDMMC_CARD_DETECT_N)?0:1;
+
+}
+
+static void rk2818_sdmmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
+{
+	u32 intmask;
+	unsigned long flags;
+	struct rk2818_sdmmc_host *host = mmc_priv(mmc);
+	spin_lock_irqsave(&host->lock, flags);
+	intmask = readl(host->regs + SDMMC_INTMASK);
+	if(enable)
+		writel(intmask | SDMMC_INT_SDIO, host->regs + SDMMC_INTMASK);
+	else
+		writel(intmask & ~SDMMC_INT_SDIO, host->regs + SDMMC_INTMASK);
+	spin_unlock_irqrestore(&host->lock, flags);
+}
+
+static const struct mmc_host_ops rk2818_sdmmc_ops = {
+	.request	= rk2818_sdmmc_request,
+	.set_ios	= rk2818_sdmmc_set_ios,
+	.get_ro		= rk2818_sdmmc_get_ro,
+	.get_cd		= rk2818_sdmmc_get_cd,
+	.enable_sdio_irq = rk2818_sdmmc_enable_sdio_irq,
+};
+
+static void rk2818_sdmmc_request_end(struct rk2818_sdmmc_host *host, struct mmc_request *mrq)
+	__releases(&host->lock)
+	__acquires(&host->lock)
+{
+	struct mmc_host		*prev_mmc = host->mmc;
+
+	WARN_ON(host->cmd || host->data);
+
+	host->mrq = NULL;
+	host->mrq = NULL;
+	if (!list_empty(&host->queue)) {
+		host = list_entry(host->queue.next,
+				struct rk2818_sdmmc_host, queue_node);
+		list_del(&host->queue_node);
+		dev_dbg(host->dev, "list not empty: %s is next\n",
+				mmc_hostname(host->mmc));
+		host->state = STATE_SENDING_CMD;
+		rk2818_sdmmc_start_request(host);
+	} else {
+		dev_dbg(host->dev, "list empty\n");
+		host->state = STATE_IDLE;
+	}
+
+	spin_unlock(&host->lock);
+	mmc_request_done(prev_mmc, mrq);
+
+	spin_lock(&host->lock);
+}
+
+static void rk2818_sdmmc_command_complete(struct rk2818_sdmmc_host *host,
+			struct mmc_command *cmd)
+{
+	u32		status = host->cmd_status;
+
+	host->cmd_status = 0;
+
+	if(cmd->flags & MMC_RSP_PRESENT) {
+
+	    if(cmd->flags & MMC_RSP_136) {
+
+			cmd->resp[3] = readl(host->regs + SDMMC_RESP0);
+			cmd->resp[2] = readl(host->regs + SDMMC_RESP1);
+			cmd->resp[1] = readl(host->regs + SDMMC_RESP2);
+			cmd->resp[0] = readl(host->regs + SDMMC_RESP3);
+	    } else {
+	        cmd->resp[0] = readl(host->regs + SDMMC_RESP0);
+			cmd->resp[1] = 0;
+			cmd->resp[2] = 0;
+			cmd->resp[3] = 0;
+	    }
+	}
+
+	if (status & SDMMC_INT_RTO)
+		cmd->error = -ETIMEDOUT;
+	else if ((cmd->flags & MMC_RSP_CRC) && (status & SDMMC_INT_RCRC))
+		cmd->error = -EILSEQ;
+	else if (status & SDMMC_INT_RE)
+		cmd->error = -EIO;
+	else
+		cmd->error = 0;
+
+	if (cmd->error) {
+		dev_dbg(host->dev,
+			"command error: status=0x%08x resp=0x%08x\n"
+			"cmd=0x%08x arg=0x%08x flg=0x%08x err=%d\n", 
+			status, cmd->resp[0], 
+			cmd->opcode, cmd->arg, cmd->flags, cmd->error);
+
+		if (cmd->data) {
+			host->data = NULL;
+			rk2818_sdmmc_stop_dma(host);
+		}
+	} 
+}
+
+static void rk2818_sdmmc_tasklet_func(unsigned long priv)
+{
+	struct rk2818_sdmmc_host	*host = (struct rk2818_sdmmc_host *)priv;
+	struct mmc_request	*mrq = host->mrq;
+	struct mmc_data		*data = host->data;
+	struct mmc_command	*cmd = host->cmd;
+	enum rk2818_sdmmc_state	state = host->state;
+	enum rk2818_sdmmc_state	prev_state;
+	u32			status;
+
+	spin_lock(&host->lock);
+
+	state = host->state;
+	do {
+		prev_state = state;
+
+		switch (state) {
+		case STATE_IDLE:
+			break;
+
+		case STATE_SENDING_CMD:
+			if (!rk2818_sdmmc_test_and_clear_pending(host,
+						EVENT_CMD_COMPLETE))
+				break;
+
+			host->cmd = NULL;
+			rk2818_sdmmc_set_completed(host, EVENT_CMD_COMPLETE);
+			rk2818_sdmmc_command_complete(host, mrq->cmd);
+			if (!mrq->data || cmd->error) {
+				rk2818_sdmmc_request_end(host, host->mrq);
+				goto unlock;
+			}
+
+			prev_state = state = STATE_SENDING_DATA;
+			/* fall through */
+
+		case STATE_SENDING_DATA:
+			if (rk2818_sdmmc_test_and_clear_pending(host,
+						EVENT_DATA_ERROR)) {
+				rk2818_sdmmc_stop_dma(host);
+				if (data->stop)
+					send_stop_cmd(host, data);
+				state = STATE_DATA_ERROR;
+				break;
+			}
+
+			if (!rk2818_sdmmc_test_and_clear_pending(host,
+						EVENT_XFER_COMPLETE))
+				break;
+
+			rk2818_sdmmc_set_completed(host, EVENT_XFER_COMPLETE);
+			prev_state = state = STATE_DATA_BUSY;
+			/* fall through */
+
+		case STATE_DATA_BUSY:
+			if (!rk2818_sdmmc_test_and_clear_pending(host,
+						EVENT_DATA_COMPLETE))
+				break;
+
+			host->data = NULL;
+			rk2818_sdmmc_set_completed(host, EVENT_DATA_COMPLETE);
+			status = host->data_status;
+
+			if (unlikely(status & RK2818_MCI_DATA_ERROR_FLAGS)) {
+				if (status & SDMMC_INT_DRTO) {
+					dev_err(&host->pdev->dev,
+							"data timeout error\n");
+					data->error = -ETIMEDOUT;
+				} else if (status & SDMMC_INT_DCRC) {
+					dev_err(&host->pdev->dev,
+							"data CRC error\n");
+					data->error = -EILSEQ;
+				} else {
+					dev_err(&host->pdev->dev,
+						"data FIFO error (status=%08x)\n",
+						status);
+					data->error = -EIO;
+				}
+			}
+			else {
+				data->bytes_xfered = data->blocks * data->blksz;
+				data->error = 0;
+			}
+
+			if (!data->stop) {
+				rk2818_sdmmc_request_end(host, host->mrq);
+				goto unlock;
+			}
+
+			prev_state = state = STATE_SENDING_STOP;
+			if (!data->error)
+				send_stop_cmd(host, data);
+			/* fall through */
+
+		case STATE_SENDING_STOP:
+			if (!rk2818_sdmmc_test_and_clear_pending(host,
+						EVENT_CMD_COMPLETE))
+				break;
+
+			host->cmd = NULL;
+			rk2818_sdmmc_command_complete(host, mrq->stop);
+			rk2818_sdmmc_request_end(host, host->mrq);
+			goto unlock;
+		case STATE_DATA_ERROR:
+			if (!rk2818_sdmmc_test_and_clear_pending(host,
+						EVENT_XFER_COMPLETE))
+				break;
+
+			state = STATE_DATA_BUSY;
+			break;
+		}
+	} while (state != prev_state);
+
+	host->state = state;
+
+unlock:
+	spin_unlock(&host->lock);
+
+}
+
+
+
+inline static void rk2818_sdmmc_push_data(struct rk2818_sdmmc_host *host, void *buf, int cnt)
+{
+    u32* pData = (u32*)buf;
+
+	dev_dbg(host->dev, "push data(cnt=%d)\n",cnt);
+
+    if (cnt % 4 != 0) 
+	    printk("error not align 4\n");
+
+    cnt = cnt >> 2;
+    while (cnt > 0) {
+		writel(*pData++, host->regs + SDMMC_DATA);
+        cnt--;
+    }
+}
+
+inline static void rk2818_sdmmc_pull_data(struct rk2818_sdmmc_host *host, void *buf,int cnt)
+{
+    u32* pData = (u32*)buf;
+
+	dev_dbg(host->dev, "pull data(cnt=%d)\n",cnt);
+
+    if (cnt % 4 != 0) 
+	    printk("error not align 4\n");
+    cnt = cnt >> 2;
+    while (cnt > 0) {
+        *pData++ = readl(host->regs + SDMMC_DATA);
+        cnt--;
+    }
+}
+
+static void rk2818_sdmmc_read_data_pio(struct rk2818_sdmmc_host *host)
+{
+	struct scatterlist	*sg = host->sg;
+	void			*buf = sg_virt(sg);
+	unsigned int		offset = host->pio_offset;
+	struct mmc_data		*data = host->data;
+	u32			status;
+	unsigned int		nbytes = 0,len,old_len,count =0;
+
+	do {
+		len = SDMMC_GET_FCNT(readl(host->regs + SDMMC_STATUS)) << 2;
+		if(count == 0) 
+			old_len = len;
+		if (likely(offset + len <= sg->length)) {
+			rk2818_sdmmc_pull_data(host, (void *)(buf + offset),len);
+
+			offset += len;
+			nbytes += len;
+
+			if (offset == sg->length) {
+				flush_dcache_page(sg_page(sg));
+				host->sg = sg = sg_next(sg);
+				if (!sg)
+					goto done;
+				offset = 0;
+				buf = sg_virt(sg);
+			}
+		} else {
+			unsigned int remaining = sg->length - offset;
+			rk2818_sdmmc_pull_data(host, (void *)(buf + offset),remaining);
+			nbytes += remaining;
+
+			flush_dcache_page(sg_page(sg));
+			host->sg = sg = sg_next(sg);
+			if (!sg)
+				goto done;
+			offset = len - remaining;
+			buf = sg_virt(sg);
+			rk2818_sdmmc_pull_data(host, buf, offset);
+			nbytes += offset;
+		}
+
+		status = readl(host->regs + SDMMC_MINTSTS);
+		writel(SDMMC_INT_RXDR, host->regs + SDMMC_RINTSTS); // clear RXDR interrupt
+		if (status & RK2818_MCI_DATA_ERROR_FLAGS) {
+			host->data_status = status;
+			data->bytes_xfered += nbytes;
+			smp_wmb();
+			rk2818_sdmmc_set_pending(host, EVENT_DATA_ERROR);
+			tasklet_schedule(&host->tasklet);
+			return;
+		}
+		count ++;
+	} while (status & SDMMC_INT_RXDR); // if the RXDR is ready let read again
+	len = SDMMC_GET_FCNT(readl(host->regs + SDMMC_STATUS));
+	host->pio_offset = offset;
+	data->bytes_xfered += nbytes;
+	return;
+
+done:
+	data->bytes_xfered += nbytes;
+	smp_wmb();
+	rk2818_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
+}
+
+static void rk2818_sdmmc_write_data_pio(struct rk2818_sdmmc_host *host)
+{
+	struct scatterlist	*sg = host->sg;
+	void			*buf = sg_virt(sg);
+	unsigned int		offset = host->pio_offset;
+	struct mmc_data		*data = host->data;
+	u32			status;
+	unsigned int		nbytes = 0,len;
+
+	do {
+
+		len = SDMMC_FIFO_SZ - (SDMMC_GET_FCNT(readl(host->regs + SDMMC_STATUS)) << 2);
+		if (likely(offset + len <= sg->length)) {
+			rk2818_sdmmc_push_data(host, (void *)(buf + offset),len);
+
+			offset += len;
+			nbytes += len;
+			if (offset == sg->length) {
+				host->sg = sg = sg_next(sg);
+				if (!sg)
+					goto done;
+
+				offset = 0;
+				buf = sg_virt(sg);
+			}
+		} else {
+			unsigned int remaining = sg->length - offset;
+
+			rk2818_sdmmc_push_data(host, (void *)(buf + offset), remaining);
+			nbytes += remaining;
+
+			host->sg = sg = sg_next(sg);
+			if (!sg) {
+				goto done;
+			}
+
+			offset = len - remaining;
+			buf = sg_virt(sg);
+			rk2818_sdmmc_push_data(host, (void *)buf, offset);
+			nbytes += offset;
+		}
+
+		status = readl(host->regs + SDMMC_MINTSTS);
+		writel(SDMMC_INT_TXDR, host->regs + SDMMC_RINTSTS); // clear RXDR interrupt
+		if (status & RK2818_MCI_DATA_ERROR_FLAGS) {
+			host->data_status = status;
+			data->bytes_xfered += nbytes;
+			smp_wmb();
+			rk2818_sdmmc_set_pending(host, EVENT_DATA_ERROR);
+			tasklet_schedule(&host->tasklet);
+			return;
+		}
+	} while (status & SDMMC_INT_TXDR); // if TXDR, let write again
+
+	host->pio_offset = offset;
+	data->bytes_xfered += nbytes;
+
+	return;
+
+done:
+	data->bytes_xfered += nbytes;
+	smp_wmb();
+	rk2818_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
+}
+
+static void rk2818_sdmmc_cmd_interrupt(struct rk2818_sdmmc_host *host, u32 status)
+{
+	if(!host->cmd_status) 
+		host->cmd_status = status;
+
+	rk2818_sdmmc_set_pending(host, EVENT_CMD_COMPLETE);
+	tasklet_schedule(&host->tasklet);
+}
+
+static irqreturn_t rk2818_sdmmc_interrupt(int irq, void *data)
+{
+	struct rk2818_sdmmc_host	*host = data;
+	u32			status,  pending;
+	unsigned int		pass_count = 0;
+	
+	spin_lock(&host->lock);
+	do {
+		status = readl(host->regs + SDMMC_RINTSTS);
+		pending = readl(host->regs + SDMMC_MINTSTS);// read only mask reg
+		if (!pending)
+			break;
+		if(pending & SDMMC_INT_CD) {
+			disable_irq_nosync(irq);
+		    writel(SDMMC_INT_CD, host->regs + SDMMC_RINTSTS);  // clear interrupt
+			mod_timer(&host->detect_timer, jiffies + msecs_to_jiffies(20));
+		}
+		if(pending & RK2818_MCI_CMD_ERROR_FLAGS) {
+		    writel(RK2818_MCI_CMD_ERROR_FLAGS, host->regs + SDMMC_RINTSTS);  //  clear interrupt
+		    host->cmd_status = status;
+
+		    rk2818_sdmmc_set_pending(host, EVENT_CMD_COMPLETE);
+		    tasklet_schedule(&host->tasklet);
+		}
+
+		if (pending & RK2818_MCI_DATA_ERROR_FLAGS) { // if there is an error, let report DATA_ERROR
+			writel(RK2818_MCI_DATA_ERROR_FLAGS, host->regs + SDMMC_RINTSTS);  // clear interrupt
+			host->data_status = status;
+
+			rk2818_sdmmc_set_pending(host, EVENT_DATA_ERROR);
+			tasklet_schedule(&host->tasklet);
+		}
+
+
+		if(pending & SDMMC_INT_DTO) {
+		    writel(SDMMC_INT_DTO, host->regs + SDMMC_RINTSTS);  // clear interrupt
+		    if (!host->data_status)
+			host->data_status = status;
+		    if(host->dir_status == RK2818_MCI_RECV_STATUS) {
+			if(host->sg != NULL) 
+				rk2818_sdmmc_read_data_pio(host);
+		    }
+		    rk2818_sdmmc_set_pending(host, EVENT_DATA_COMPLETE);
+		    tasklet_schedule(&host->tasklet);
+		}
+
+		if (pending & SDMMC_INT_RXDR) {
+		    writel(SDMMC_INT_RXDR, host->regs + SDMMC_RINTSTS);  //  clear interrupt
+		    if(host->sg) 
+			    rk2818_sdmmc_read_data_pio(host);
+		}
+
+		if (pending & SDMMC_INT_TXDR) {
+		    writel(SDMMC_INT_TXDR, host->regs + SDMMC_RINTSTS);  //  clear interrupt
+		    if(host->sg) {
+			rk2818_sdmmc_write_data_pio(host);
+		    }
+		}
+
+		if (pending & SDMMC_INT_CMD_DONE) {
+		   	writel(SDMMC_INT_CMD_DONE, host->regs + SDMMC_RINTSTS);  //  clear interrupt
+		    rk2818_sdmmc_cmd_interrupt(host, status);
+		}
+	} while (pass_count++ < 5);
+	
+	spin_unlock(&host->lock);
+
+	return IRQ_HANDLED;
+	//return pass_count ? IRQ_HANDLED : IRQ_NONE;
+}
+
+static void rk2818_sdmmc_detect_change(unsigned long host_data)
+{
+	struct rk2818_sdmmc_host *host = (struct rk2818_sdmmc_host *) host_data;
+	struct mmc_request *mrq;
+	bool present;
+	bool present_old;
+
+	enable_irq(host->irq);
+	present = rk2818_sdmmc_get_cd(host->mmc);
+	present_old = test_bit(RK2818_MMC_CARD_PRESENT, &host->flags);
+	dev_dbg(host->dev, "detect change: %d (was %d)\n",
+			present, present_old);
+
+	if (present != present_old) {
+
+		dev_info(host->dev, "card %s\n", present ? "inserted" : "removed");
+
+		spin_lock(&host->lock);
+
+		/* Power up host */
+		if (present != 0) {
+			rk2818_sdmmc_set_power(host, host->mmc->ocr_avail);
+			set_bit(RK2818_MMC_CARD_PRESENT, &host->flags);
+		} else {
+			rk2818_sdmmc_set_power(host, 0);
+			clear_bit(RK2818_MMC_CARD_PRESENT, &host->flags);
+		}			
+
+
+		mrq = host->mrq;
+		if (mrq) {
+			if (mrq == host->mrq) {
+			  	writel((SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET| 
+							SDMMC_CTRL_INT_ENABLE), host->regs + SDMMC_CTRL);
+			  	/* wait till resets clear */
+			  	while (readl(host->regs + SDMMC_CTRL) & 
+						(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
+
+				host->data = NULL;
+				host->cmd = NULL;
+
+				switch (host->state) {
+				case STATE_IDLE:
+					break;
+				case STATE_SENDING_CMD:
+					mrq->cmd->error = -ENOMEDIUM;
+					if (!mrq->data)
+						break;
+					/* fall through */
+				case STATE_SENDING_DATA:
+					mrq->data->error = -ENOMEDIUM;
+					rk2818_sdmmc_stop_dma(host);
+					break;
+				case STATE_DATA_BUSY:
+				case STATE_DATA_ERROR:
+					if (mrq->data->error == -EINPROGRESS)
+						mrq->data->error = -ENOMEDIUM;
+					if (!mrq->stop)
+						break;
+				case STATE_SENDING_STOP:
+					mrq->stop->error = -ENOMEDIUM;
+					break;
+				}
+
+				rk2818_sdmmc_request_end(host, mrq);
+			} else {
+				list_del(&host->queue_node);
+				mrq->cmd->error = -ENOMEDIUM;
+				if (mrq->data)
+					mrq->data->error = -ENOMEDIUM;
+				if (mrq->stop)
+					mrq->stop->error = -ENOMEDIUM;
+
+				spin_unlock(&host->lock);
+				mmc_request_done(host->mmc, mrq);
+				spin_lock(&host->lock);
+			}
+
+		}
+
+		spin_unlock(&host->lock);
+		mmc_detect_change(host->mmc, 0);
+	}
+}
+
+
+static int rk2818_sdmmc_probe(struct platform_device *pdev)
+{
+	struct rk2818_sdmmc_host *host = NULL;
+	struct mmc_host *mmc;
+	struct resource	*res;
+	struct rk2818_sdmmc_platform_data *pdata;
+	int	ret = 0;
+	int tmo = 200;
+
+	pdata = pdev->dev.platform_data;
+	if (!pdata) {
+		dev_err(&pdev->dev, "No platform data\n");
+		return -EINVAL;
+	}
+	if(pdata->cfg_gpio)
+		pdata->cfg_gpio(pdev);
+
+	mmc = mmc_alloc_host(sizeof(struct rk2818_sdmmc_host), &pdev->dev);
+	if (!mmc)
+	{
+		dev_err(&pdev->dev, "Mmc alloc host failture\n");
+		return -ENOMEM;
+	}
+	host = mmc_priv(mmc);
+
+	host->mmc = mmc;
+	host->pdata = pdata;
+	host->pdev = pdev;
+	host->dev = &pdev->dev;
+
+	host->use_dma = pdata->use_dma;
+
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	if (!res)
+	{
+		dev_err(&pdev->dev, "Cannot find IO resource\n");
+		ret = -ENOENT;
+		goto err_free_host;
+	}
+	host->mem = request_mem_region(res->start, resource_size(res), pdev->name);
+	if(host->mem == NULL)
+	{
+		dev_err(&pdev->dev, "Cannot request IO\n");
+		ret = -ENXIO;
+		goto err_free_host;
+	}
+	host->regs = ioremap(res->start, res->end - res->start + 1);
+	if (!host->regs)
+	{
+		dev_err(&pdev->dev, "Cannot map IO\n");
+		ret = -ENXIO;
+	    goto err_release_resource;
+	}
+
+	host->irq = ret =  platform_get_irq(pdev, 0);
+	if (ret < 0)
+	{
+		dev_err(&pdev->dev, "Cannot find IRQ\n");
+		goto err_free_map;
+	}
+
+	spin_lock_init(&host->lock);
+	INIT_LIST_HEAD(&host->queue);
+
+	host->clk = clk_get(&pdev->dev, "sdmmc");
+	if (IS_ERR(host->clk)) {    
+		dev_err(&pdev->dev, "failed to find clock source.\n");
+		ret = PTR_ERR(host->clk);
+		host->clk = NULL;
+		goto err_free_map;
+	}    
+    clk_enable(host->clk);
+	host->bus_hz = clk_get_rate(host->clk);
+
+  	writel((SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET | SDMMC_CTRL_INT_ENABLE), host->regs + SDMMC_CTRL);
+  	while (--tmo && readl(host->regs + SDMMC_CTRL) & 
+			(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET))
+		udelay(5);
+	if(--tmo < 0){
+		dev_err(&pdev->dev, "failed to reset controller and fifo(timeout = 1ms).\n");
+	    goto err_free_clk;
+	}
+ 
+	writel(0xFFFFFFFF, host->regs + SDMMC_RINTSTS);
+	writel(0, host->regs + SDMMC_INTMASK); // disable all mmc interrupt first
+
+  	/* Put in max timeout */
+  	writel(0xFFFFFFFF, host->regs + SDMMC_TMOUT);
+
+    /* DMA Size = 8, RXMark = 15, TXMark = 16 */
+	writel((3 << 28) | (15 << 16) | 16, host->regs + SDMMC_FIFOTH);
+	/* disable clock to CIU */
+	writel(0, host->regs + SDMMC_CLKENA);
+	writel(0, host->regs + SDMMC_CLKSRC);
+
+	tasklet_init(&host->tasklet, rk2818_sdmmc_tasklet_func, (unsigned long)host);
+
+	ret = request_irq(host->irq, rk2818_sdmmc_interrupt, 0, dev_name(&pdev->dev), host);
+	if (ret){
+		dev_err(&pdev->dev, "Cannot claim IRQ %d.\n", host->irq);
+	    goto err_free_clk;
+	}
+
+
+	platform_set_drvdata(pdev, host);
+
+
+	mmc->ops = &rk2818_sdmmc_ops;
+
+	mmc->f_min = host->bus_hz/510;
+	mmc->f_max = host->bus_hz/2; 
+	dev_dbg(&pdev->dev, "bus_hz = %u\n", host->bus_hz);
+	mmc->ocr_avail = host->pdata->host_ocr_avail;
+	mmc->caps = host->pdata->host_caps;
+	
+	mmc->max_phys_segs = 4095;
+	mmc->max_hw_segs = 4095;
+	mmc->max_blk_size = 4095 * 512; /* BLKSIZ is 16 bits*/
+	mmc->max_blk_count = 4095;
+	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
+	mmc->max_seg_size = mmc->max_req_size;
+
+	rk2818_sdmmc_set_power(host, 0);
+	/* Assume card is present initially */
+	if(rk2818_sdmmc_get_cd(host->mmc) != 0)
+		set_bit(RK2818_MMC_CARD_PRESENT, &host->flags);
+	else
+		clear_bit(RK2818_MMC_CARD_PRESENT, &host->flags);
+	ret = mmc_add_host(mmc);
+	if(ret) 
+	{
+		dev_err(&pdev->dev, "failed to add mmc host.\n");
+		goto err_free_irq;
+	}
+#if defined (CONFIG_DEBUG_FS)
+	rk2818_sdmmc_init_debugfs(host);
+#endif
+	/* Create card detect handler thread for the host */
+	setup_timer(&host->detect_timer, rk2818_sdmmc_detect_change,
+			(unsigned long)host);
+
+	writel(0xFFFFFFFF, host->regs + SDMMC_RINTSTS);
+	writel(SDMMC_INT_CMD_DONE | SDMMC_INT_DTO | SDMMC_INT_TXDR | 
+			SDMMC_INT_RXDR | RK2818_MCI_ERROR_FLAGS | SDMMC_INT_CD,
+			host->regs + SDMMC_INTMASK);
+	writel(SDMMC_CTRL_INT_ENABLE, host->regs + SDMMC_CTRL); // enable mci interrupt
+
+	dev_info(&pdev->dev, "RK2818 MMC controller at irq %d, %s\n", 
+				host->irq, (host->use_dma == 1)?"use dma":"do not use dma");
+
+	return 0;
+
+err_free_irq:
+	free_irq(host->irq, host);
+err_free_clk:
+	clk_disable(host->clk);
+	clk_put(host->clk);
+err_free_map:
+	iounmap(host->regs);
+err_release_resource:
+	release_resource(host->mem);
+err_free_host:
+	kfree(host);
+	return ret;
+}
+
+static int __exit rk2818_sdmmc_remove(struct platform_device *pdev)
+{
+	struct rk2818_sdmmc_host *host = platform_get_drvdata(pdev);
+
+	writel(0xFFFFFFFF, host->regs + SDMMC_RINTSTS);
+	writel(0, host->regs + SDMMC_INTMASK); // disable all mmc interrupt first
+
+	platform_set_drvdata(pdev, NULL);
+
+	dev_dbg(&pdev->dev, "remove host\n");
+
+	writel(0, host->regs + SDMMC_CLKENA);
+	writel(0, host->regs + SDMMC_CLKSRC);
+
+	del_timer_sync(&host->detect_timer);
+	set_bit(RK2818_MMC_SHUTDOWN, &host->flags);
+	mmc_remove_host(host->mmc);
+	mmc_free_host(host->mmc);
+
+	clk_disable(host->clk);
+	clk_put(host->clk);
+	free_irq(host->irq, host);
+	iounmap(host->regs);
+	release_resource(host->mem);
+	kfree(host);
+	return 0;
+}
+
+static int rk2818_sdmmc_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct rk2818_sdmmc_host *host = platform_get_drvdata(pdev);
+#ifdef CONFIG_PM
+	writel(0, host->regs + SDMMC_CLKENA);
+	clk_disable(host->clk);
+#endif
+	return 0;
+}
+
+static int rk2818_sdmmc_resume(struct platform_device *pdev)
+{
+	struct rk2818_sdmmc_host *host = platform_get_drvdata(pdev);
+#ifdef CONFIG_PM
+	clk_enable(host->clk);
+	writel(SDMMC_CLKEN_ENABLE, host->regs + SDMMC_CLKENA);
+#endif
+	return 0;
+}
+
+static struct platform_driver rk2818_sdmmc_driver = {
+	.probe		= rk2818_sdmmc_probe,
+	.suspend    = rk2818_sdmmc_suspend,
+	.resume     = rk2818_sdmmc_resume,
+	.remove		= __exit_p(rk2818_sdmmc_remove),
+	.driver		= {
+		.name		= "rk2818_sdmmc",
+	},
+};
+
+static int __init rk2818_sdmmc_init(void)
+{
+	return platform_driver_register(&rk2818_sdmmc_driver);
+}
+
+static void __exit rk2818_sdmmc_exit(void)
+{
+	platform_driver_unregister(&rk2818_sdmmc_driver);
+}
+
+module_init(rk2818_sdmmc_init);
+module_exit(rk2818_sdmmc_exit);
+
+MODULE_DESCRIPTION("Driver for RK2818 SDMMC controller");
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("kfx kfx@rock-chips.com");
+
