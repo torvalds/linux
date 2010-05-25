@@ -28,13 +28,9 @@ extern struct list_head rds_ib_devices;
  * try and minimize the amount of memory tied up both the device and
  * socket receive queues.
  */
-/* page offset of the final full frag that fits in the page */
-#define RDS_PAGE_LAST_OFF (((PAGE_SIZE  / RDS_FRAG_SIZE) - 1) * RDS_FRAG_SIZE)
 struct rds_page_frag {
 	struct list_head	f_item;
-	struct page		*f_page;
-	unsigned long		f_offset;
-	dma_addr_t 		f_mapped;
+	struct scatterlist	f_sg;
 };
 
 struct rds_ib_incoming {
@@ -107,7 +103,6 @@ struct rds_ib_connection {
 	struct rds_header	*i_recv_hdrs;
 	u64			i_recv_hdrs_dma;
 	struct rds_ib_recv_work *i_recvs;
-	struct rds_page_frag	i_frag;
 	u64			i_ack_recv;	/* last ACK received */
 
 	/* sending acks */

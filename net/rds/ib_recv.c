@@ -43,17 +43,11 @@ static struct kmem_cache *rds_ib_incoming_slab;
 static struct kmem_cache *rds_ib_frag_slab;
 static atomic_t	rds_ib_allocation = ATOMIC_INIT(0);
 
-static void rds_ib_frag_drop_page(struct rds_page_frag *frag)
-{
-	rdsdebug("frag %p page %p\n", frag, frag->f_page);
-	__free_page(frag->f_page);
-	frag->f_page = NULL;
-}
-
+/* Free frag and attached recv buffer f_sg */
 static void rds_ib_frag_free(struct rds_page_frag *frag)
 {
-	rdsdebug("frag %p page %p\n", frag, frag->f_page);
-	BUG_ON(frag->f_page);
+	rdsdebug("frag %p page %p\n", frag, sg_page(&frag->f_sg));
+	__free_page(sg_page(&frag->f_sg));
 	kmem_cache_free(rds_ib_frag_slab, frag);
 }
 
@@ -71,12 +65,8 @@ static void rds_ib_recv_unmap_page(struct rds_ib_connection *ic,
 {
 	struct rds_page_frag *frag = recv->r_frag;
 
-	rdsdebug("recv %p frag %p page %p\n", recv, frag, frag->f_page);
-	if (frag->f_mapped)
-		ib_dma_unmap_page(ic->i_cm_id->device,
-			       frag->f_mapped,
-			       RDS_FRAG_SIZE, DMA_FROM_DEVICE);
-	frag->f_mapped = 0;
+	rdsdebug("recv %p frag %p page %p\n", recv, frag, sg_page(&frag->f_sg));
+	ib_dma_unmap_sg(ic->i_cm_id->device, &frag->f_sg, 1, DMA_FROM_DEVICE);
 }
 
 void rds_ib_recv_init_ring(struct rds_ib_connection *ic)
@@ -116,8 +106,6 @@ static void rds_ib_recv_clear_one(struct rds_ib_connection *ic,
 	}
 	if (recv->r_frag) {
 		rds_ib_recv_unmap_page(ic, recv);
-		if (recv->r_frag->f_page)
-			rds_ib_frag_drop_page(recv->r_frag);
 		rds_ib_frag_free(recv->r_frag);
 		recv->r_frag = NULL;
 	}
@@ -129,16 +117,12 @@ void rds_ib_recv_clear_ring(struct rds_ib_connection *ic)
 
 	for (i = 0; i < ic->i_recv_ring.w_nr; i++)
 		rds_ib_recv_clear_one(ic, &ic->i_recvs[i]);
-
-	if (ic->i_frag.f_page)
-		rds_ib_frag_drop_page(&ic->i_frag);
 }
 
 static int rds_ib_recv_refill_one(struct rds_connection *conn,
 				  struct rds_ib_recv_work *recv)
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
-	dma_addr_t dma_addr;
 	struct ib_sge *sge;
 	int ret = -ENOMEM;
 
@@ -161,50 +145,27 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 		if (!recv->r_frag)
 			goto out;
 		INIT_LIST_HEAD(&recv->r_frag->f_item);
-		recv->r_frag->f_page = NULL;
-	}
-
-	if (!ic->i_frag.f_page) {
-		ic->i_frag.f_page = alloc_page(GFP_NOWAIT);
-		if (!ic->i_frag.f_page)
+		sg_init_table(&recv->r_frag->f_sg, 1);
+		ret = rds_page_remainder_alloc(&recv->r_frag->f_sg,
+					       RDS_FRAG_SIZE, GFP_NOWAIT);
+		if (ret) {
+			kmem_cache_free(rds_ib_frag_slab, recv->r_frag);
+			recv->r_frag = NULL;
 			goto out;
-		ic->i_frag.f_offset = 0;
+		}
 	}
 
-	dma_addr = ib_dma_map_page(ic->i_cm_id->device,
-				  ic->i_frag.f_page,
-				  ic->i_frag.f_offset,
-				  RDS_FRAG_SIZE,
-				  DMA_FROM_DEVICE);
-	if (ib_dma_mapping_error(ic->i_cm_id->device, dma_addr))
-		goto out;
-
-	/*
-	 * Once we get the RDS_PAGE_LAST_OFF frag then rds_ib_frag_unmap()
-	 * must be called on this recv.  This happens as completions hit
-	 * in order or on connection shutdown.
-	 */
-	recv->r_frag->f_page = ic->i_frag.f_page;
-	recv->r_frag->f_offset = ic->i_frag.f_offset;
-	recv->r_frag->f_mapped = dma_addr;
+	ret = ib_dma_map_sg(ic->i_cm_id->device, &recv->r_frag->f_sg,
+			    1, DMA_FROM_DEVICE);
+	WARN_ON(ret != 1);
 
 	sge = &recv->r_sge[0];
 	sge->addr = ic->i_recv_hdrs_dma + (recv - ic->i_recvs) * sizeof(struct rds_header);
 	sge->length = sizeof(struct rds_header);
 
 	sge = &recv->r_sge[1];
-	sge->addr = dma_addr;
-	sge->length = RDS_FRAG_SIZE;
-
-	get_page(recv->r_frag->f_page);
-
-	if (ic->i_frag.f_offset < RDS_PAGE_LAST_OFF) {
-		ic->i_frag.f_offset += RDS_FRAG_SIZE;
-	} else {
-		put_page(ic->i_frag.f_page);
-		ic->i_frag.f_page = NULL;
-		ic->i_frag.f_offset = 0;
-	}
+	sge->addr = sg_dma_address(&recv->r_frag->f_sg);
+	sge->length = sg_dma_len(&recv->r_frag->f_sg);
 
 	ret = 0;
 out:
@@ -247,8 +208,8 @@ int rds_ib_recv_refill(struct rds_connection *conn, int prefill)
 		/* XXX when can this fail? */
 		ret = ib_post_recv(ic->i_cm_id->qp, &recv->r_wr, &failed_wr);
 		rdsdebug("recv %p ibinc %p page %p addr %lu ret %d\n", recv,
-			 recv->r_ibinc, recv->r_frag->f_page,
-			 (long) recv->r_frag->f_mapped, ret);
+			 recv->r_ibinc, sg_page(&recv->r_frag->f_sg),
+			 (long) sg_dma_address(&recv->r_frag->f_sg), ret);
 		if (ret) {
 			rds_ib_conn_error(conn, "recv post on "
 			       "%pI4 returned %d, disconnecting and "
@@ -281,7 +242,6 @@ static void rds_ib_inc_purge(struct rds_incoming *inc)
 
 	list_for_each_entry_safe(frag, pos, &ibinc->ii_frags, f_item) {
 		list_del_init(&frag->f_item);
-		rds_ib_frag_drop_page(frag);
 		rds_ib_frag_free(frag);
 	}
 }
@@ -333,13 +293,13 @@ int rds_ib_inc_copy_to_user(struct rds_incoming *inc, struct iovec *first_iov,
 		to_copy = min_t(unsigned long, to_copy, len - copied);
 
 		rdsdebug("%lu bytes to user [%p, %zu] + %lu from frag "
-			 "[%p, %lu] + %lu\n",
+			 "[%p, %u] + %lu\n",
 			 to_copy, iov->iov_base, iov->iov_len, iov_off,
-			 frag->f_page, frag->f_offset, frag_off);
+			 sg_page(&frag->f_sg), frag->f_sg.offset, frag_off);
 
 		/* XXX needs + offset for multiple recvs per page */
-		ret = rds_page_copy_to_user(frag->f_page,
-					    frag->f_offset + frag_off,
+		ret = rds_page_copy_to_user(sg_page(&frag->f_sg),
+					    frag->f_sg.offset + frag_off,
 					    iov->iov_base + iov_off,
 					    to_copy);
 		if (ret) {
@@ -595,7 +555,7 @@ static void rds_ib_cong_recv(struct rds_connection *conn,
 		to_copy = min(RDS_FRAG_SIZE - frag_off, PAGE_SIZE - map_off);
 		BUG_ON(to_copy & 7); /* Must be 64bit aligned. */
 
-		addr = kmap_atomic(frag->f_page, KM_SOFTIRQ0);
+		addr = kmap_atomic(sg_page(&frag->f_sg), KM_SOFTIRQ0);
 
 		src = addr + frag_off;
 		dst = (void *)map->m_page_addrs[map_page] + map_off;
@@ -698,12 +658,12 @@ static void rds_ib_process_recv(struct rds_connection *conn,
 		 * the inc is freed.  We don't go that route, so we have to drop the
 		 * page ref ourselves.  We can't just leave the page on the recv
 		 * because that confuses the dma mapping of pages and each recv's use
-		 * of a partial page.  We can leave the frag, though, it will be
-		 * reused.
+		 * of a partial page.
 		 *
 		 * FIXME: Fold this into the code path below.
 		 */
-		rds_ib_frag_drop_page(recv->r_frag);
+		rds_ib_frag_free(recv->r_frag);
+		recv->r_frag = NULL;
 		return;
 	}
 
