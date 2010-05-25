@@ -752,7 +752,6 @@ static void _nfsd4_cb_recall(struct nfs4_delegation *dp)
 		.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_RECALL],
 		.rpc_cred = callback_cred
 	};
-	int status;
 
 	if (clnt == NULL)
 		return; /* Client is shutting down; give up. */
@@ -760,10 +759,7 @@ static void _nfsd4_cb_recall(struct nfs4_delegation *dp)
 	args->args_op = dp;
 	msg.rpc_argp = args;
 	dp->dl_retries = 1;
-	status = rpc_call_async(clnt, &msg, RPC_TASK_SOFT,
-				&nfsd4_cb_recall_ops, dp);
-	if (status)
-		nfs4_put_delegation(dp);
+	rpc_call_async(clnt, &msg, RPC_TASK_SOFT, &nfsd4_cb_recall_ops, dp);
 }
 
 void nfsd4_do_callback_rpc(struct work_struct *w)
