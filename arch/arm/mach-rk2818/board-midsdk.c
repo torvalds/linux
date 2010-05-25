@@ -21,6 +21,7 @@
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/spi/spi.h>
+#include <linux/mmc/host.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -146,6 +147,50 @@ static struct map_desc rk2818_io_desc[] __initdata = {
 		.type		= MT_DEVICE
 	},
 };
+/*****************************************************************************************
+ * SDMMC devices
+ *author: kfx
+*****************************************************************************************/
+ void rk2818_sdmmc0_cfg_gpio(struct platform_device *dev)
+{
+	rk2818_mux_api_set(GPIOF3_APWM1_MMC0DETN_NAME, IOMUXA_SDMMC1_DETECT_N);
+	rk2818_mux_api_set(GPIOH_MMC0D_SEL_NAME, IOMUXA_SDMMC0_DATA123);
+	rk2818_mux_api_set(GPIOH_MMC0_SEL_NAME, IOMUXA_SDMMC0_CMD_DATA0_CLKOUT);
+}
+
+void rk2818_sdmmc1_cfg_gpio(struct platform_device *dev)
+{
+	rk2818_mux_api_set(GPIOG_MMC1_SEL_NAME, IOMUXA_SDMMC1_CMD_DATA0_CLKOUT);
+	rk2818_mux_api_set(GPIOG_MMC1D_SEL_NAME, IOMUXA_SDMMC1_DATA123);
+}
+#define CONFIG_SDMMC0_USE_DMA
+#define CONFIG_SDMMC1_USE_DMA
+struct rk2818_sdmmc_platform_data default_sdmmc0_data __initdata = {
+	.host_ocr_avail = (MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|
+					   MMC_VDD_30_31|MMC_VDD_31_32|MMC_VDD_32_33| 
+					   MMC_VDD_33_34|MMC_VDD_34_35| MMC_VDD_35_36),
+	.host_caps 	= (MMC_CAP_4_BIT_DATA|MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
+	.cfg_gpio = rk2818_sdmmc0_cfg_gpio,
+#ifdef CONFIG_SDMMC0_USE_DMA
+	.use_dma  = 1,
+#else
+	.use_dma = 0,
+#endif
+};
+struct rk2818_sdmmc_platform_data default_sdmmc1_data __initdata = {
+	.host_ocr_avail = (MMC_VDD_26_27|MMC_VDD_27_28|MMC_VDD_28_29|
+					   MMC_VDD_29_30|MMC_VDD_30_31|MMC_VDD_31_32|
+					   MMC_VDD_32_33|MMC_VDD_33_34),
+	.host_caps 	= (MMC_CAP_4_BIT_DATA|MMC_CAP_SDIO_IRQ|
+				   MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
+	.cfg_gpio = rk2818_sdmmc1_cfg_gpio,
+#ifdef CONFIG_SDMMC1_USE_DMA
+	.use_dma  = 1,
+#else
+	.use_dma = 0,
+#endif
+};
+
 
 /*****************************************************************************************
  * I2C devices
@@ -286,6 +331,12 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #ifdef CONFIG_I2C1_RK2818
 	&rk2818_device_i2c1,
+#endif
+#ifdef CONFIG_SDMMC0_RK2818	
+	&rk2818_device_sdmmc0,
+#endif
+#ifdef CONFIG_SDMMC1_RK2818
+	&rk2818_device_sdmmc1,
 #endif
 	&rk2818_device_spim,
 	&rk2818_device_pmem,
