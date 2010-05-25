@@ -32,6 +32,7 @@ struct rk2818_sdmmc_platform_data {
 	unsigned int host_caps;
 	unsigned int host_ocr_avail;
 	unsigned int use_dma:1;
+	unsigned int no_detect:1;
 	void    (*cfg_gpio)(struct platform_device *dev);
 };
 
