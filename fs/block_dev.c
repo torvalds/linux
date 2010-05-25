@@ -734,6 +734,7 @@ static struct block_device *bd_start_claiming(struct block_device *bdev,
 		return ERR_PTR(-ENXIO);
 
 	whole = bdget_disk(disk, 0);
+	module_put(disk->fops->owner);
 	put_disk(disk);
 	if (!whole)
 		return ERR_PTR(-ENOMEM);
