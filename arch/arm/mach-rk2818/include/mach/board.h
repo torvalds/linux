@@ -28,6 +28,12 @@ struct RK2818_mddi_platform_data
 	void (*panel_power)(int on);
 	unsigned has_vsync_irq:1;
 };
+struct rk2818_sdmmc_platform_data {
+	unsigned int host_caps;
+	unsigned int host_ocr_avail;
+	unsigned int use_dma:1;
+	void    (*cfg_gpio)(struct platform_device *dev);
+};
 
 struct rk2818_i2c_platform_data {
 	int     bus_num;        
