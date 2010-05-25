@@ -26,7 +26,6 @@
 #include <linux/mmc/host.h>
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>
-#include <linux/mfd/sh_mobile_sdhi.h>
 #include <video/sh_mobile_lcdc.h>
 #include <sound/sh_fsi.h>
 #include <media/sh_mobile_ceu.h>
