@@ -1,7 +1,5 @@
-#ifndef _IPATH_7220_H
-#define _IPATH_7220_H
 /*
- * Copyright (c) 2007 QLogic Corporation. All rights reserved.
+ * Copyright (c) 2009 QLogic Corporation. All rights reserved.
  *
  * This software is available to you under a choice of one of two
  * licenses.  You may choose to be licensed under the terms of the GNU
@@ -32,26 +30,35 @@
  * SOFTWARE.
  */
 
-/*
- * This header file provides the declarations and common definitions
- * for (mostly) manipulation of the SerDes blocks within the IBA7220.
- * the functions declared should only be called from within other
- * 7220-related files such as ipath_iba7220.c or ipath_sd7220.c.
- */
-int ipath_sd7220_presets(struct ipath_devdata *dd);
-int ipath_sd7220_init(struct ipath_devdata *dd, int was_reset);
-int ipath_sd7220_prog_ld(struct ipath_devdata *dd, int sdnum, u8 *img,
-	int len, int offset);
-int ipath_sd7220_prog_vfy(struct ipath_devdata *dd, int sdnum, const u8 *img,
-	int len, int offset);
-/*
- * Below used for sdnum parameter, selecting one of the two sections
- * used for PCIe, or the single SerDes used for IB, which is the
- * only one currently used
- */
-#define IB_7220_SERDES 2
+#include "qib.h"
 
-int ipath_sd7220_ib_load(struct ipath_devdata *dd);
-int ipath_sd7220_ib_vfy(struct ipath_devdata *dd);
+/**
+ * qib_pio_copy - copy data to MMIO space, in multiples of 32-bits
+ * @to: destination, in MMIO space (must be 64-bit aligned)
+ * @from: source (must be 64-bit aligned)
+ * @count: number of 32-bit quantities to copy
+ *
+ * Copy data from kernel space to MMIO space, in multiples of 32 bits at a
+ * time.  Order of access is not guaranteed, nor is a memory barrier
+ * performed afterwards.
+ */
+void qib_pio_copy(void __iomem *to, const void *from, size_t count)
+{
+#ifdef CONFIG_64BIT
+	u64 __iomem *dst = to;
+	const u64 *src = from;
+	const u64 *end = src + (count >> 1);
 
-#endif /* _IPATH_7220_H */
+	while (src < end)
+		__raw_writeq(*src++, dst++);
+	if (count & 1)
+		__raw_writel(*(const u32 *)src, dst);
+#else
+	u32 __iomem *dst = to;
+	const u32 *src = from;
+	const u32 *end = src + count;
+
+	while (src < end)
+		__raw_writel(*src++, dst++);
+#endif
+}

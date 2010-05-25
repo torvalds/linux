@@ -38,11 +38,10 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 
-#include "ipath_kernel.h"
-#include "ipath_registers.h"
-#include "ipath_7220.h"
+#include "qib.h"
+#include "qib_7220.h"
 
-static unsigned char ipath_sd7220_ib_img[] = {
+static unsigned char qib_sd7220_ib_img[] = {
 /*0000*/0x02, 0x0A, 0x29, 0x02, 0x0A, 0x87, 0xE5, 0xE6,
 	0x30, 0xE6, 0x04, 0x7F, 0x01, 0x80, 0x02, 0x7F,
 /*0010*/0x00, 0xE5, 0xE2, 0x30, 0xE4, 0x04, 0x7E, 0x01,
@@ -1069,14 +1068,14 @@ static unsigned char ipath_sd7220_ib_img[] = {
 	0x01, 0x20, 0x11, 0x00, 0x04, 0x20, 0x00, 0x81
 };
 
-int ipath_sd7220_ib_load(struct ipath_devdata *dd)
+int qib_sd7220_ib_load(struct qib_devdata *dd)
 {
-	return ipath_sd7220_prog_ld(dd, IB_7220_SERDES, ipath_sd7220_ib_img,
-		sizeof(ipath_sd7220_ib_img), 0);
+	return qib_sd7220_prog_ld(dd, IB_7220_SERDES, qib_sd7220_ib_img,
+		sizeof(qib_sd7220_ib_img), 0);
 }
 
-int ipath_sd7220_ib_vfy(struct ipath_devdata *dd)
+int qib_sd7220_ib_vfy(struct qib_devdata *dd)
 {
-	return ipath_sd7220_prog_vfy(dd, IB_7220_SERDES, ipath_sd7220_ib_img,
-		sizeof(ipath_sd7220_ib_img), 0);
+	return qib_sd7220_prog_vfy(dd, IB_7220_SERDES, qib_sd7220_ib_img,
+		sizeof(qib_sd7220_ib_img), 0);
 }
