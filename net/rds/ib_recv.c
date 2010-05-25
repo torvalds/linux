@@ -126,6 +126,10 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 	struct ib_sge *sge;
 	int ret = -ENOMEM;
 
+	/*
+	 * ibinc was taken from recv if recv contained the start of a message.
+	 * recvs that were continuations will still have this allocated.
+	 */
 	if (!recv->r_ibinc) {
 		if (!atomic_add_unless(&rds_ib_allocation, 1, rds_ib_sysctl_max_recv_allocation)) {
 			rds_ib_stats_inc(s_ib_rx_alloc_limit);
@@ -140,19 +144,18 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 		rds_inc_init(&recv->r_ibinc->ii_inc, conn, conn->c_faddr);
 	}
 
-	if (!recv->r_frag) {
-		recv->r_frag = kmem_cache_alloc(rds_ib_frag_slab, GFP_NOWAIT);
-		if (!recv->r_frag)
-			goto out;
-		INIT_LIST_HEAD(&recv->r_frag->f_item);
-		sg_init_table(&recv->r_frag->f_sg, 1);
-		ret = rds_page_remainder_alloc(&recv->r_frag->f_sg,
-					       RDS_FRAG_SIZE, GFP_NOWAIT);
-		if (ret) {
-			kmem_cache_free(rds_ib_frag_slab, recv->r_frag);
-			recv->r_frag = NULL;
-			goto out;
-		}
+	WARN_ON(recv->r_frag); /* leak! */
+	recv->r_frag = kmem_cache_alloc(rds_ib_frag_slab, GFP_NOWAIT);
+	if (!recv->r_frag)
+		goto out;
+	INIT_LIST_HEAD(&recv->r_frag->f_item);
+	sg_init_table(&recv->r_frag->f_sg, 1);
+	ret = rds_page_remainder_alloc(&recv->r_frag->f_sg,
+				       RDS_FRAG_SIZE, GFP_NOWAIT);
+	if (ret) {
+		kmem_cache_free(rds_ib_frag_slab, recv->r_frag);
+		recv->r_frag = NULL;
+		goto out;
 	}
 
 	ret = ib_dma_map_sg(ic->i_cm_id->device, &recv->r_frag->f_sg,
