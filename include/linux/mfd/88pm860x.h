@@ -132,6 +132,7 @@ enum {
 	PM8607_ID_LDO9,
 	PM8607_ID_LDO10,
 	PM8607_ID_LDO12,
+	PM8607_ID_LDO13,
 	PM8607_ID_LDO14,
 
 	PM8607_ID_RG_MAX,
@@ -309,7 +310,7 @@ struct pm860x_chip {
 
 };
 
-#define PM8607_MAX_REGULATOR	15	/* 3 Bucks, 12 LDOs */
+#define PM8607_MAX_REGULATOR	PM8607_ID_RG_MAX	/* 3 Bucks, 13 LDOs */
 
 enum {
 	GI2C_PORT = 0,
