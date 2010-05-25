@@ -1412,7 +1412,7 @@ static inline int sk_has_allocations(const struct sock *sk)
 
 /**
  * wq_has_sleeper - check if there are any waiting processes
- * @sk: struct socket_wq
+ * @wq: struct socket_wq
  *
  * Returns true if socket_wq has waiting processes
  *
