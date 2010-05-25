@@ -2902,6 +2902,12 @@ int omap_dsi_update(struct omap_dss_device *dssdev,
 {
 	dsi.update_channel = channel;
 
+	/* OMAP DSS cannot send updates of odd widths.
+	 * omap_dsi_prepare_update() makes the widths even, but add a BUG_ON
+	 * here to make sure we catch erroneous updates. Otherwise we'll only
+	 * see rather obscure HW error happening, as DSS halts. */
+	BUG_ON(x % 2 == 1);
+
 	if (dssdev->manager->caps & OMAP_DSS_OVL_MGR_CAP_DISPC) {
 		dsi.framedone_callback = callback;
 		dsi.framedone_data = data;
