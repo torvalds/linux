@@ -23,8 +23,9 @@
 #define PIN_BASE        		0//定义RK2818内部GPIO的第一个PIN口(即GPIO0_A0)在gpio_desc数组的地址
 #define NUM_GROUP			8// 定义RK2818内部GPIO每一组最大的PIN数目，现在定为8个，即GPIOX_Y0~ GPIOX_Y7(其中X=0/1;Y=A/B/C/D)
 #define MAX_GPIO_BANKS		8//定义RK2818内部GPIO总共有几组，现在定为8组，即GPIO0_A~ GPIO0_D，GPIO1_A~ GPIO1_D。
+#define GPIOS_EXPANDER_BASE	(PIN_BASE+NUM_GROUP*MAX_GPIO_BANKS)
 //定义GPIO的PIN口最大数目。(NUM_GROUP*MAX_GPIO_BANKS)表示RK2818的内部GPIO的PIN口最大数目；CONFIG_ARCH_EXTEND_GPIOS表示扩展IO的最大数目。
-#define ARCH_NR_GPIOS  (NUM_GROUP*MAX_GPIO_BANKS) + CONFIG_ARCH_EXTEND_GPIOS
+#define ARCH_NR_GPIOS  (NUM_GROUP*MAX_GPIO_BANKS) + CONFIG_EXPANDED_GPIO_NUM
 typedef enum eGPIOPinLevel
 {
 	GPIO_LOW=0,
@@ -166,7 +167,15 @@ struct rk2818_gpio_bank {
 #define	RK2818_PIN_PH5	(PIN_BASE + 7*NUM_GROUP + 5)
 #define	RK2818_PIN_PH6	(PIN_BASE + 7*NUM_GROUP + 6)
 #define	RK2818_PIN_PH7	(PIN_BASE + 7*NUM_GROUP + 7)
-
+/***********************define extern gpio pin num******************************/
+#define	RK2818_PIN_PI0 (GPIOS_EXPANDER_BASE + 0)
+#define	RK2818_PIN_PI1 (GPIOS_EXPANDER_BASE +1)
+#define	RK2818_PIN_PI2 (GPIOS_EXPANDER_BASE +2)
+#define	RK2818_PIN_PI3 (GPIOS_EXPANDER_BASE +3)
+#define	RK2818_PIN_PI4 (GPIOS_EXPANDER_BASE +4)
+#define	RK2818_PIN_PI5 (GPIOS_EXPANDER_BASE +5)
+#define	RK2818_PIN_PI6 (GPIOS_EXPANDER_BASE +6)
+#define	RK2818_PIN_PI7 (GPIOS_EXPANDER_BASE +7)
 #ifndef __ASSEMBLY__
 extern void __init rk2818_gpio_init(struct rk2818_gpio_bank *data, int nr_banks);
 extern void __init rk2818_gpio_irq_setup(void);
@@ -193,13 +202,20 @@ static inline int gpio_to_irq(unsigned gpio)
 
 static inline int irq_to_gpio(unsigned irq)
 {
-	if((irq - __gpio_to_irq(RK2818_PIN_PA0)) < NUM_GROUP)
+	if(irq<NR_AIC_IRQS)
+	return -ENXIO;
+
+    if((irq - __gpio_to_irq(RK2818_PIN_PA0)) < NUM_GROUP)
     {
         return (RK2818_PIN_PA0 + (irq - __gpio_to_irq(RK2818_PIN_PA0)));
     } 
     else if((irq - __gpio_to_irq(RK2818_PIN_PA0)) < 2*NUM_GROUP)
     {
         return (RK2818_PIN_PE0 + (irq - __gpio_to_irq(RK2818_PIN_PE0)));
+    }
+   else if((irq - __gpio_to_irq(RK2818_PIN_PA0)) <3*NUM_GROUP)
+   {
+	return (RK2818_PIN_PI0 + (irq - __gpio_to_irq(RK2818_PIN_PI0)));
     }
     else
     {

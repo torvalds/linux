@@ -193,6 +193,55 @@ struct rk2818_sdmmc_platform_data default_sdmmc1_data __initdata = {
 #endif
 };
 
+/*****************************************************************************************
+ * extern gpio devices
+ *author: xxx
+ *****************************************************************************************/
+#if defined (CONFIG_GPIO_PCA9554)
+struct rk2818_gpio_expander_info  extern_gpio_settinginfo[] = {
+	{
+		.gpio_num    		=RK2818_PIN_PI0,
+		.pin_type           = GPIO_IN,
+		//.pin_value			=GPIO_HIGH,
+	 },
+
+	{
+		.gpio_num    		=RK2818_PIN_PI4,// tp3
+		.pin_type           = GPIO_IN,
+		//.pin_value			=GPIO_HIGH,
+	 },
+	 
+	 {
+		.gpio_num    		=RK2818_PIN_PI5,//tp4
+		.pin_type           = GPIO_IN,
+		//.pin_value			=GPIO_HIGH,
+	 },
+	 {
+		.gpio_num    		=RK2818_PIN_PI6,//tp2
+		.pin_type           = GPIO_OUT,
+		//.pin_value			=GPIO_HIGH,
+	 },
+	 {
+		.gpio_num    		=RK2818_PIN_PI7,//tp1
+		.pin_type           = GPIO_OUT,
+		.pin_value			=GPIO_HIGH,
+	 },
+
+
+		
+};
+
+struct pca9554_platform_data rk2818_pca9554_data={
+	.gpio_base=GPIOS_EXPANDER_BASE,
+	.gpio_pin_num=CONFIG_EXPANDED_GPIO_NUM,
+	.gpio_irq_start=NR_AIC_IRQS + 2*NUM_GROUP,
+	.irq_pin_num=CONFIG_EXPANDED_GPIO_IRQ_NUM,
+	.pca9954_irq_pin=RK2818_PIN_PE2,
+	.settinginfo=extern_gpio_settinginfo,
+	.settinginfolen=ARRAY_SIZE(extern_gpio_settinginfo),
+	.names="pca9554",
+};
+#endif
 
 /*****************************************************************************************
  * I2C devices
@@ -264,6 +313,14 @@ static struct i2c_board_info __initdata board_i2c1_devices[] = {
 		.type    		= "fm_qn8006",
 		.addr           = 0x2b, 
 		.flags			= 0,
+	},
+#endif
+#if defined (CONFIG_GPIO_PCA9554)
+	{
+		.type    		= "extend_gpio_pca9554",
+		.addr           = 0x3c, 
+		.flags			= 0,
+		.platform_data=&rk2818_pca9554_data.gpio_base,
 	},
 #endif
 	{}
