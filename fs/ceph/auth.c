@@ -246,7 +246,7 @@ int ceph_build_auth(struct ceph_auth_client *ac,
 	if (!ac->protocol)
 		return ceph_auth_build_hello(ac, msg_buf, msg_len);
 	BUG_ON(!ac->ops);
-	if (!ac->ops->is_authenticated(ac))
+	if (ac->ops->should_authenticate(ac))
 		return ceph_build_auth_request(ac, msg_buf, msg_len);
 	return 0;
 }
