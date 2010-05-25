@@ -105,7 +105,7 @@ static unsigned int qnap_ts41x_mpp_config[] __initdata = {
 	MPP37_GPIO,		/* Reset button */
 	MPP43_GPIO,		/* USB Copy button */
 	MPP44_GPIO,		/* Board ID: 0: TS-419U, 1: TS-419 */
-	MPP45_GPIO,		/* JP1: 0: console, 1: LCD */
+	MPP45_GPIO,		/* JP1: 0: LCD, 1: serial console */
 	MPP46_GPIO,		/* External SATA HDD1 error indicator */
 	MPP47_GPIO,		/* External SATA HDD2 error indicator */
 	MPP48_GPIO,		/* External SATA HDD3 error indicator */
