@@ -27,6 +27,7 @@
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/notifier.h>
 
 #undef LOOP_TEST
 #undef DUMP_RX
@@ -161,6 +162,8 @@ MODULE_PARM_DESC(channels," Channel bitmask for specific locales. NYI");
 static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
 			 const struct usb_device_id *id);
 static void __devexit rtl8192_usb_disconnect(struct usb_interface *intf);
+static const struct net_device_ops rtl8192_netdev_ops;
+static struct notifier_block proc_netdev_notifier;
 
 static struct usb_driver rtl8192_usb_driver = {
 	.name		= RTL819xU_MODULE_NAME,	          /* Driver name   */
@@ -992,14 +995,22 @@ static int proc_get_stats_rx(char *page, char **start,
 
 int rtl8192_proc_module_init(void)
 {
+	int ret;
+
 	RT_TRACE(COMP_INIT, "Initializing proc filesystem");
 	rtl8192_proc=create_proc_entry(RTL819xU_MODULE_NAME, S_IFDIR, init_net.proc_net);
-	return rtl8192_proc ? 0 : -ENOMEM;
+	if (!rtl8192_proc)
+		return -ENOMEM;
+	ret = register_netdevice_notifier(&proc_netdev_notifier);
+	if (ret)
+		remove_proc_entry(RTL819xU_MODULE_NAME, init_net.proc_net);
+	return ret;
 }
 
 
 void rtl8192_proc_module_remove(void)
 {
+	unregister_netdevice_notifier(&proc_netdev_notifier);
 	remove_proc_entry(RTL819xU_MODULE_NAME, init_net.proc_net);
 }
 
@@ -1027,8 +1038,7 @@ void rtl8192_proc_remove_one(struct net_device *dev)
 		remove_proc_entry("registers-e", priv->dir_dev);
 	//	remove_proc_entry("cck-registers",priv->dir_dev);
 	//	remove_proc_entry("ofdm-registers",priv->dir_dev);
-		//remove_proc_entry(dev->name, rtl8192_proc);
-		remove_proc_entry("wlan0", rtl8192_proc);
+		remove_proc_entry(priv->dir_dev->name, rtl8192_proc);
 		priv->dir_dev = NULL;
 	}
 }
@@ -1145,6 +1155,25 @@ void rtl8192_proc_init_one(struct net_device *dev)
 		      dev->name);
 	}
 }
+
+static int proc_netdev_event(struct notifier_block *this,
+			     unsigned long event, void *ptr)
+{
+	struct net_device *net_dev = ptr;
+
+	if (net_dev->netdev_ops == &rtl8192_netdev_ops &&
+	    event == NETDEV_CHANGENAME) {
+		rtl8192_proc_remove_one(net_dev);
+		rtl8192_proc_init_one(net_dev);
+	}
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block proc_netdev_notifier = {
+	.notifier_call = proc_netdev_event,
+};
+
 /****************************************************************************
    -----------------------------MISC STUFF-------------------------
 *****************************************************************************/
