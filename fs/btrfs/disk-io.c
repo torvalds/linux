@@ -74,6 +74,11 @@ struct async_submit_bio {
 	int rw;
 	int mirror_num;
 	unsigned long bio_flags;
+	/*
+	 * bio_offset is optional, can be used if the pages in the bio
+	 * can't tell us where in the file the bio should go
+	 */
+	u64 bio_offset;
 	struct btrfs_work work;
 };
 
@@ -534,7 +539,8 @@ static void run_one_async_start(struct btrfs_work *work)
 	async = container_of(work, struct  async_submit_bio, work);
 	fs_info = BTRFS_I(async->inode)->root->fs_info;
 	async->submit_bio_start(async->inode, async->rw, async->bio,
-			       async->mirror_num, async->bio_flags);
+			       async->mirror_num, async->bio_flags,
+			       async->bio_offset);
 }
 
 static void run_one_async_done(struct btrfs_work *work)
@@ -556,7 +562,8 @@ static void run_one_async_done(struct btrfs_work *work)
 		wake_up(&fs_info->async_submit_wait);
 
 	async->submit_bio_done(async->inode, async->rw, async->bio,
-			       async->mirror_num, async->bio_flags);
+			       async->mirror_num, async->bio_flags,
+			       async->bio_offset);
 }
 
 static void run_one_async_free(struct btrfs_work *work)
@@ -570,6 +577,7 @@ static void run_one_async_free(struct btrfs_work *work)
 int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 			int rw, struct bio *bio, int mirror_num,
 			unsigned long bio_flags,
+			u64 bio_offset,
 			extent_submit_bio_hook_t *submit_bio_start,
 			extent_submit_bio_hook_t *submit_bio_done)
 {
@@ -592,6 +600,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 
 	async->work.flags = 0;
 	async->bio_flags = bio_flags;
+	async->bio_offset = bio_offset;
 
 	atomic_inc(&fs_info->nr_async_submits);
 
@@ -627,7 +636,8 @@ static int btree_csum_one_bio(struct bio *bio)
 
 static int __btree_submit_bio_start(struct inode *inode, int rw,
 				    struct bio *bio, int mirror_num,
-				    unsigned long bio_flags)
+				    unsigned long bio_flags,
+				    u64 bio_offset)
 {
 	/*
 	 * when we're called for a write, we're already in the async
@@ -638,7 +648,8 @@ static int __btree_submit_bio_start(struct inode *inode, int rw,
 }
 
 static int __btree_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
-				 int mirror_num, unsigned long bio_flags)
+				 int mirror_num, unsigned long bio_flags,
+				 u64 bio_offset)
 {
 	/*
 	 * when we're called for a write, we're already in the async
@@ -648,7 +659,8 @@ static int __btree_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
 }
 
 static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
-				 int mirror_num, unsigned long bio_flags)
+				 int mirror_num, unsigned long bio_flags,
+				 u64 bio_offset)
 {
 	int ret;
 
@@ -671,6 +683,7 @@ static int btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	 */
 	return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
 				   inode, rw, bio, mirror_num, 0,
+				   bio_offset,
 				   __btree_submit_bio_start,
 				   __btree_submit_bio_done);
 }

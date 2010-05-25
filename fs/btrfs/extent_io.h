@@ -49,7 +49,7 @@ struct extent_state;
 
 typedef	int (extent_submit_bio_hook_t)(struct inode *inode, int rw,
 				       struct bio *bio, int mirror_num,
-				       unsigned long bio_flags);
+				       unsigned long bio_flags, u64 bio_offset);
 struct extent_io_ops {
 	int (*fill_delalloc)(struct inode *inode, struct page *locked_page,
 			     u64 start, u64 end, int *page_started,

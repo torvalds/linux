@@ -1913,7 +1913,7 @@ static int submit_one_bio(int rw, struct bio *bio, int mirror_num,
 
 	if (tree->ops && tree->ops->submit_bio_hook)
 		tree->ops->submit_bio_hook(page->mapping->host, rw, bio,
-					   mirror_num, bio_flags);
+					   mirror_num, bio_flags, start);
 	else
 		submit_bio(rw, bio);
 	if (bio_flagged(bio, BIO_EOPNOTSUPP))

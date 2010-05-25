@@ -1385,7 +1385,8 @@ int btrfs_merge_bio_hook(struct page *page, unsigned long offset,
  */
 static int __btrfs_submit_bio_start(struct inode *inode, int rw,
 				    struct bio *bio, int mirror_num,
-				    unsigned long bio_flags)
+				    unsigned long bio_flags,
+				    u64 bio_offset)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
@@ -1404,7 +1405,8 @@ static int __btrfs_submit_bio_start(struct inode *inode, int rw,
  * are inserted into the btree
  */
 static int __btrfs_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
-			  int mirror_num, unsigned long bio_flags)
+			  int mirror_num, unsigned long bio_flags,
+			  u64 bio_offset)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	return btrfs_map_bio(root, rw, bio, mirror_num, 1);
@@ -1415,7 +1417,8 @@ static int __btrfs_submit_bio_done(struct inode *inode, int rw, struct bio *bio,
  * on write, or reading the csums from the tree before a read
  */
 static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
-			  int mirror_num, unsigned long bio_flags)
+			  int mirror_num, unsigned long bio_flags,
+			  u64 bio_offset)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	int ret = 0;
@@ -1440,7 +1443,8 @@ static int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 		/* we're doing a write, do the async checksumming */
 		return btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
 				   inode, rw, bio, mirror_num,
-				   bio_flags, __btrfs_submit_bio_start,
+				   bio_flags, bio_offset,
+				   __btrfs_submit_bio_start,
 				   __btrfs_submit_bio_done);
 	}
 
@@ -1844,7 +1848,7 @@ static int btrfs_io_failed_hook(struct bio *failed_bio,
 
 	BTRFS_I(inode)->io_tree.ops->submit_bio_hook(inode, rw, bio,
 						      failrec->last_mirror,
-						      failrec->bio_flags);
+						      failrec->bio_flags, 0);
 	return 0;
 }
 
@@ -5484,6 +5488,17 @@ out_done:
 	dio_end_io(bio, err);
 }
 
+static int __btrfs_submit_bio_start_direct_io(struct inode *inode, int rw,
+				    struct bio *bio, int mirror_num,
+				    unsigned long bio_flags, u64 offset)
+{
+	int ret;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	ret = btrfs_csum_one_bio(root, inode, bio, offset, 1);
+	BUG_ON(ret);
+	return 0;
+}
+
 static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
 				loff_t file_offset)
 {
@@ -5535,13 +5550,20 @@ static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
 	if (ret)
 		goto out_err;
 
-	if (write && !skip_sum)
-		btrfs_csum_one_bio(root, inode, bio, dip->logical_offset, 1);
-	else if (!skip_sum)
+	if (write && !skip_sum) {
+		ret = btrfs_wq_submit_bio(BTRFS_I(inode)->root->fs_info,
+				   inode, rw, bio, 0, 0,
+				   dip->logical_offset,
+				   __btrfs_submit_bio_start_direct_io,
+				   __btrfs_submit_bio_done);
+		if (ret)
+			goto out_err;
+		return;
+	} else if (!skip_sum)
 		btrfs_lookup_bio_sums_dio(root, inode, bio,
 					  dip->logical_offset, dip->csums);
 
-	ret = btrfs_map_bio(root, rw, bio, 0, 0);
+	ret = btrfs_map_bio(root, rw, bio, 0, 1);
 	if (ret)
 		goto out_err;
 	return;
