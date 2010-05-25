@@ -946,8 +946,8 @@ out:
 EXPORT_SYMBOL_GPL(vfs_kern_mount);
 
 /**
- * freeze_super -- lock the filesystem and force it into a consistent state
- * @super: the super to lock
+ * freeze_super - lock the filesystem and force it into a consistent state
+ * @sb: the super to lock
  *
  * Syncs the super to make sure the filesystem is consistent and calls the fs's
  * freeze_fs.  Subsequent calls to this without first thawing the fs will return
