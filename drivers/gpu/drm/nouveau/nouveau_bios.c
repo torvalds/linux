@@ -834,7 +834,7 @@ init_i2c_device_find(struct drm_device *dev, int i2c_index)
 	if (i2c_index == 0x81)
 		i2c_index = (dcb->i2c_default_indices & 0xf0) >> 4;
 
-	if (i2c_index > DCB_MAX_NUM_I2C_ENTRIES) {
+	if (i2c_index >= DCB_MAX_NUM_I2C_ENTRIES) {
 		NV_ERROR(dev, "invalid i2c_index 0x%x\n", i2c_index);
 		return NULL;
 	}
