@@ -34,7 +34,6 @@
 #include <linux/sunrpc/cache.h>
 #include <linux/sunrpc/stats.h>
 #include <linux/sunrpc/rpc_pipe_fs.h>
-#include <linux/smp_lock.h>
 
 #define	 RPCDBG_FACILITY RPCDBG_CACHE
 
