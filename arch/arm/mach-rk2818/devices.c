@@ -28,6 +28,31 @@
 #include <linux/dm9000.h>
 #include <mach/gpio.h>
 #include <mach/rk2818_nand.h>
+static struct resource resources_sdmmc0[] = {
+	{
+		.start 	= IRQ_NR_SDMMC0,
+		.end 	= IRQ_NR_SDMMC0,
+		.flags 	= IORESOURCE_IRQ,
+	},
+	{
+		.start 	= RK2818_SDMMC0_PHYS,
+		.end 	= RK2818_SDMMC0_PHYS + SZ_8K -1,
+		.flags 	= IORESOURCE_MEM,
+	}
+};
+static struct resource resources_sdmmc1[] = {
+	{
+		.start 	= IRQ_NR_SDMMC1,
+		.end 	= IRQ_NR_SDMMC1,
+		.flags 	= IORESOURCE_IRQ,
+	},
+	{
+		.start 	= RK2818_SDMMC1_PHYS,
+		.end 	= RK2818_SDMMC1_PHYS + SZ_8K -1,
+		.flags 	= IORESOURCE_MEM,
+	}
+};
+
 
 static struct resource resources_i2c0[] = {
 	{
@@ -104,6 +129,26 @@ static struct resource resources_uart3[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 };
+/* sdmmc */
+struct platform_device rk2818_device_sdmmc0 = {
+	.name			= "rk2818_sdmmc",
+	.id				= 0,
+	.num_resources	= ARRAY_SIZE(resources_sdmmc0),
+	.resource		= resources_sdmmc0,
+	.dev 			= {
+		.platform_data = &default_sdmmc0_data,
+	},
+};
+struct platform_device rk2818_device_sdmmc1 = {
+	.name			= "rk2818_sdmmc",
+	.id				= 1,
+	.num_resources	= ARRAY_SIZE(resources_sdmmc1),
+	.resource		= resources_sdmmc1,
+	.dev 			= {
+		.platform_data = &default_sdmmc1_data,
+	},
+};
+
 struct platform_device rk2818_device_i2c0 = {
 	.name	= "rk2818_i2c",
 	.id	= 0,
