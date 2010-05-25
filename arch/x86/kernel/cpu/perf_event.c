@@ -969,7 +969,7 @@ static int x86_pmu_enable(struct perf_event *event)
 	 * skip the schedulability test here, it will be peformed
 	 * at commit time(->commit_txn) as a whole
 	 */
-	if (cpuc->group_flag & PERF_EVENT_TXN_STARTED)
+	if (cpuc->group_flag & PERF_EVENT_TXN)
 		goto out;
 
 	ret = x86_pmu.schedule_events(cpuc, n, assign);
@@ -1096,7 +1096,7 @@ static void x86_pmu_disable(struct perf_event *event)
 	 * The events never got scheduled and ->cancel_txn will truncate
 	 * the event_list.
 	 */
-	if (cpuc->group_flag & PERF_EVENT_TXN_STARTED)
+	if (cpuc->group_flag & PERF_EVENT_TXN)
 		return;
 
 	x86_pmu_stop(event);
@@ -1388,7 +1388,7 @@ static void x86_pmu_start_txn(const struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
-	cpuc->group_flag |= PERF_EVENT_TXN_STARTED;
+	cpuc->group_flag |= PERF_EVENT_TXN;
 	cpuc->n_txn = 0;
 }
 
@@ -1401,7 +1401,7 @@ static void x86_pmu_cancel_txn(const struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
-	cpuc->group_flag &= ~PERF_EVENT_TXN_STARTED;
+	cpuc->group_flag &= ~PERF_EVENT_TXN;
 	/*
 	 * Truncate the collected events.
 	 */
@@ -1435,11 +1435,7 @@ static int x86_pmu_commit_txn(const struct pmu *pmu)
 	 */
 	memcpy(cpuc->assign, assign, n*sizeof(int));
 
-	/*
-	 * Clear out the txn count so that ->cancel_txn() which gets
-	 * run after ->commit_txn() doesn't undo things.
-	 */
-	cpuc->n_txn = 0;
+	cpuc->group_flag &= ~PERF_EVENT_TXN;
 
 	return 0;
 }

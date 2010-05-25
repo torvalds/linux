@@ -675,7 +675,6 @@ group_sched_in(struct perf_event *group_event,
 	struct perf_event *event, *partial_group = NULL;
 	const struct pmu *pmu = group_event->pmu;
 	bool txn = false;
-	int ret;
 
 	if (group_event->state == PERF_EVENT_STATE_OFF)
 		return 0;
@@ -703,14 +702,8 @@ group_sched_in(struct perf_event *group_event,
 		}
 	}
 
-	if (!txn)
+	if (!txn || !pmu->commit_txn(pmu))
 		return 0;
-
-	ret = pmu->commit_txn(pmu);
-	if (!ret) {
-		pmu->cancel_txn(pmu);
-		return 0;
-	}
 
 group_error:
 	/*

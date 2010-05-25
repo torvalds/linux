@@ -1005,7 +1005,7 @@ static int sparc_pmu_enable(struct perf_event *event)
 	 * skip the schedulability test here, it will be peformed
 	 * at commit time(->commit_txn) as a whole
 	 */
-	if (cpuc->group_flag & PERF_EVENT_TXN_STARTED)
+	if (cpuc->group_flag & PERF_EVENT_TXN)
 		goto nocheck;
 
 	if (check_excludes(cpuc->event, n0, 1))
@@ -1102,7 +1102,7 @@ static void sparc_pmu_start_txn(const struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
-	cpuhw->group_flag |= PERF_EVENT_TXN_STARTED;
+	cpuhw->group_flag |= PERF_EVENT_TXN;
 }
 
 /*
@@ -1114,7 +1114,7 @@ static void sparc_pmu_cancel_txn(const struct pmu *pmu)
 {
 	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
 
-	cpuhw->group_flag &= ~PERF_EVENT_TXN_STARTED;
+	cpuhw->group_flag &= ~PERF_EVENT_TXN;
 }
 
 /*
@@ -1137,6 +1137,7 @@ static int sparc_pmu_commit_txn(const struct pmu *pmu)
 	if (sparc_check_constraints(cpuc->event, cpuc->events, n))
 		return -EAGAIN;
 
+	cpuc->group_flag &= ~PERF_EVENT_TXN;
 	return 0;
 }
 

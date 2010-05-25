@@ -549,7 +549,10 @@ struct hw_perf_event {
 
 struct perf_event;
 
-#define PERF_EVENT_TXN_STARTED 1
+/*
+ * Common implementation detail of pmu::{start,commit,cancel}_txn
+ */
+#define PERF_EVENT_TXN 0x1
 
 /**
  * struct pmu - generic performance monitoring unit
@@ -563,14 +566,28 @@ struct pmu {
 	void (*unthrottle)		(struct perf_event *event);
 
 	/*
-	 * group events scheduling is treated as a transaction,
-	 * add group events as a whole and perform one schedulability test.
-	 * If test fails, roll back the whole group
+	 * Group events scheduling is treated as a transaction, add group
+	 * events as a whole and perform one schedulability test. If the test
+	 * fails, roll back the whole group
 	 */
 
+	/*
+	 * Start the transaction, after this ->enable() doesn't need
+	 * to do schedulability tests.
+	 */
 	void (*start_txn)	(const struct pmu *pmu);
-	void (*cancel_txn)	(const struct pmu *pmu);
+	/*
+	 * If ->start_txn() disabled the ->enable() schedulability test
+	 * then ->commit_txn() is required to perform one. On success
+	 * the transaction is closed. On error the transaction is kept
+	 * open until ->cancel_txn() is called.
+	 */
 	int  (*commit_txn)	(const struct pmu *pmu);
+	/*
+	 * Will cancel the transaction, assumes ->disable() is called for
+	 * each successfull ->enable() during the transaction.
+	 */
+	void (*cancel_txn)	(const struct pmu *pmu);
 };
 
 /**
