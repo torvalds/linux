@@ -1791,20 +1791,23 @@ static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
 #endif
 
 /*
- * Architectures can set this to 1 if they have specified
- * CONFIG_HAVE_UNSTABLE_SCHED_CLOCK in their arch Kconfig,
- * but then during bootup it turns out that sched_clock()
- * is reliable after all:
+ * Do not use outside of architecture code which knows its limitations.
+ *
+ * sched_clock() has no promise of monotonicity or bounded drift between
+ * CPUs, use (which you should not) requires disabling IRQs.
+ *
+ * Please use one of the three interfaces below.
  */
-#ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
-extern int sched_clock_stable;
-#endif
-
-/* ftrace calls sched_clock() directly */
 extern unsigned long long notrace sched_clock(void);
+/*
+ * See the comment in kernel/sched_clock.c
+ */
+extern u64 cpu_clock(int cpu);
+extern u64 local_clock(void);
+extern u64 sched_clock_cpu(int cpu);
+
 
 extern void sched_clock_init(void);
-extern u64 sched_clock_cpu(int cpu);
 
 #ifndef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
 static inline void sched_clock_tick(void)
@@ -1819,16 +1822,18 @@ static inline void sched_clock_idle_wakeup_event(u64 delta_ns)
 {
 }
 #else
+/*
+ * Architectures can set this to 1 if they have specified
+ * CONFIG_HAVE_UNSTABLE_SCHED_CLOCK in their arch Kconfig,
+ * but then during bootup it turns out that sched_clock()
+ * is reliable after all:
+ */
+extern int sched_clock_stable;
+
 extern void sched_clock_tick(void);
 extern void sched_clock_idle_sleep_event(void);
 extern void sched_clock_idle_wakeup_event(u64 delta_ns);
 #endif
-
-/*
- * For kernel-internal use: high-speed (but slightly incorrect) per-cpu
- * clock constructed from sched_clock():
- */
-extern unsigned long long cpu_clock(int cpu);
 
 extern unsigned long long
 task_sched_runtime(struct task_struct *task);
