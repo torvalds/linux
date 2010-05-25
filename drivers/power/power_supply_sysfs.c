@@ -179,14 +179,16 @@ static mode_t power_supply_attr_is_visible(struct kobject *kobj,
 {
 	struct device *dev = container_of(kobj, struct device, kobj);
 	struct power_supply *psy = dev_get_drvdata(dev);
+	mode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
 	int i;
+
+	if (attrno == POWER_SUPPLY_PROP_TYPE)
+		return mode;
 
 	for (i = 0; i < psy->num_properties; i++) {
 		int property = psy->properties[i];
 
 		if (property == attrno) {
-			mode_t mode = S_IRUSR | S_IRGRP | S_IROTH;
-
 			if (psy->property_is_writeable &&
 			    psy->property_is_writeable(psy, property) > 0)
 				mode |= S_IWUSR;
