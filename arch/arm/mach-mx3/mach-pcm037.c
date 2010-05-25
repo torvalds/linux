@@ -581,7 +581,6 @@ __setup("otg_mode=", pcm037_otg_mode);
 static void __init mxc_board_init(void)
 {
 	int ret;
-	u32 tmp;
 
 	mxc_iomux_set_gpr(MUX_PGP_UH2, 1);
 
