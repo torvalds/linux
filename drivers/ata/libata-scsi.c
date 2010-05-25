@@ -51,6 +51,7 @@
 #include <asm/unaligned.h>
 
 #include "libata.h"
+#include "libata-transport.h"
 
 #define SECTOR_SIZE		512
 #define ATA_SCSI_RBUF_SIZE	4096
@@ -64,9 +65,6 @@ static struct ata_device *__ata_scsi_find_dev(struct ata_port *ap,
 					const struct scsi_device *scsidev);
 static struct ata_device *ata_scsi_find_dev(struct ata_port *ap,
 					    const struct scsi_device *scsidev);
-static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
-			      unsigned int id, unsigned int lun);
-
 
 #define RW_RECOVERY_MPAGE 0x1
 #define RW_RECOVERY_MPAGE_LEN 12
@@ -105,17 +103,6 @@ static const u8 def_control_mpage[CONTROL_MPAGE_LEN] = {
 	0, 0, 0, 0, 0xff, 0xff,
 	0, 30	/* extended self test time, see 05-359r1 */
 };
-
-/*
- * libata transport template.  libata doesn't do real transport stuff.
- * It just needs the eh_timed_out hook.
- */
-static struct scsi_transport_template ata_scsi_transport_template = {
-	.eh_strategy_handler	= ata_scsi_error,
-	.eh_timed_out		= ata_scsi_timed_out,
-	.user_scan		= ata_scsi_user_scan,
-};
-
 
 static const struct {
 	enum link_pm	value;
@@ -3334,7 +3321,7 @@ int ata_scsi_add_hosts(struct ata_host *host, struct scsi_host_template *sht)
 		*(struct ata_port **)&shost->hostdata[0] = ap;
 		ap->scsi_host = shost;
 
-		shost->transportt = &ata_scsi_transport_template;
+		shost->transportt = ata_scsi_transport_template;
 		shost->unique_id = ap->print_id;
 		shost->max_id = 16;
 		shost->max_lun = 1;
@@ -3616,8 +3603,8 @@ void ata_scsi_hotplug(struct work_struct *work)
  *	RETURNS:
  *	Zero.
  */
-static int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
-			      unsigned int id, unsigned int lun)
+int ata_scsi_user_scan(struct Scsi_Host *shost, unsigned int channel,
+		       unsigned int id, unsigned int lun)
 {
 	struct ata_port *ap = ata_shost_to_port(shost);
 	unsigned long flags;

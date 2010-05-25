@@ -11,6 +11,7 @@
 #include <linux/libata.h>
 #include <linux/slab.h>
 #include "libata.h"
+#include "libata-transport.h"
 
 const struct ata_port_operations sata_pmp_port_ops = {
 	.inherits		= &sata_port_ops,
@@ -312,10 +313,10 @@ static int sata_pmp_configure(struct ata_device *dev, int print_info)
 	return rc;
 }
 
-static int sata_pmp_init_links(struct ata_port *ap, int nr_ports)
+static int sata_pmp_init_links (struct ata_port *ap, int nr_ports)
 {
 	struct ata_link *pmp_link = ap->pmp_link;
-	int i;
+	int i, err;
 
 	if (!pmp_link) {
 		pmp_link = kzalloc(sizeof(pmp_link[0]) * SATA_PMP_MAX_PORTS,
@@ -327,6 +328,13 @@ static int sata_pmp_init_links(struct ata_port *ap, int nr_ports)
 			ata_link_init(ap, &pmp_link[i], i);
 
 		ap->pmp_link = pmp_link;
+
+		for (i = 0; i < SATA_PMP_MAX_PORTS; i++) {
+			err = ata_tlink_add(&pmp_link[i]);
+			if (err) {
+				goto err_tlink;
+			}
+		}
 	}
 
 	for (i = 0; i < nr_ports; i++) {
@@ -339,6 +347,12 @@ static int sata_pmp_init_links(struct ata_port *ap, int nr_ports)
 	}
 
 	return 0;
+  err_tlink:
+	while (--i >= 0)
+		ata_tlink_delete(&pmp_link[i]);
+	kfree(pmp_link);
+	ap->pmp_link = NULL;
+	return err;
 }
 
 static void sata_pmp_quirks(struct ata_port *ap)

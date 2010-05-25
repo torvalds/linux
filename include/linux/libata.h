@@ -604,6 +604,7 @@ struct ata_device {
 	union acpi_object	*gtf_cache;
 	unsigned int		gtf_filter;
 #endif
+	struct device		tdev;
 	/* n_sector is CLEAR_BEGIN, read comment above CLEAR_BEGIN */
 	u64			n_sectors;	/* size of device, if ATA */
 	u64			n_native_sectors; /* native size, if ATA */
@@ -690,6 +691,7 @@ struct ata_link {
 	struct ata_port		*ap;
 	int			pmp;		/* port multiplier port # */
 
+	struct device		tdev;
 	unsigned int		active_tag;	/* active tag on this link */
 	u32			sactive;	/* active NCQ commands */
 
@@ -707,6 +709,8 @@ struct ata_link {
 
 	struct ata_device	device[ATA_MAX_DEVICES];
 };
+#define ATA_LINK_CLEAR_BEGIN		offsetof(struct ata_link, active_tag)
+#define ATA_LINK_CLEAR_END		offsetof(struct ata_link, device[0])
 
 struct ata_port {
 	struct Scsi_Host	*scsi_host; /* our co-allocated scsi host */
@@ -752,6 +756,7 @@ struct ata_port {
 	struct ata_port_stats	stats;
 	struct ata_host		*host;
 	struct device 		*dev;
+	struct device		tdev;
 
 	struct mutex		scsi_scan_mutex;
 	struct delayed_work	hotplug_task;

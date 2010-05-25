@@ -57,6 +57,7 @@ enum {
 	/* error flags */
 	ATA_EFLAG_IS_IO			= (1 << 0),
 	ATA_EFLAG_DUBIOUS_XFER		= (1 << 1),
+	ATA_EFLAG_OLD_ER                = (1 << 31),
 
 	/* error categories */
 	ATA_ECAT_NONE			= 0,
@@ -396,14 +397,9 @@ static struct ata_ering_entry *ata_ering_top(struct ata_ering *ering)
 	return NULL;
 }
 
-static void ata_ering_clear(struct ata_ering *ering)
-{
-	memset(ering, 0, sizeof(*ering));
-}
-
-static int ata_ering_map(struct ata_ering *ering,
-			 int (*map_fn)(struct ata_ering_entry *, void *),
-			 void *arg)
+int ata_ering_map(struct ata_ering *ering,
+		  int (*map_fn)(struct ata_ering_entry *, void *),
+		  void *arg)
 {
 	int idx, rc = 0;
 	struct ata_ering_entry *ent;
@@ -420,6 +416,17 @@ static int ata_ering_map(struct ata_ering *ering,
 	} while (idx != ering->cursor);
 
 	return rc;
+}
+
+int ata_ering_clear_cb(struct ata_ering_entry *ent, void *void_arg)
+{
+	ent->eflags |= ATA_EFLAG_OLD_ER;
+	return 0;
+}
+
+static void ata_ering_clear(struct ata_ering *ering)
+{
+	ata_ering_map(ering, ata_ering_clear_cb, NULL);
 }
 
 static unsigned int ata_eh_dev_action(struct ata_device *dev)
@@ -572,19 +579,19 @@ void ata_scsi_error(struct Scsi_Host *host)
 		int nr_timedout = 0;
 
 		spin_lock_irqsave(ap->lock, flags);
-		
+
 		/* This must occur under the ap->lock as we don't want
 		   a polled recovery to race the real interrupt handler
-		   
+
 		   The lost_interrupt handler checks for any completed but
 		   non-notified command and completes much like an IRQ handler.
-		   
+
 		   We then fall into the error recovery code which will treat
 		   this as if normal completion won the race */
 
 		if (ap->ops->lost_interrupt)
 			ap->ops->lost_interrupt(ap);
-			
+
 		list_for_each_entry_safe(scmd, tmp, &host->eh_cmd_q, eh_entry) {
 			struct ata_queued_cmd *qc;
 
@@ -628,7 +635,7 @@ void ata_scsi_error(struct Scsi_Host *host)
 		ap->eh_tries = ATA_EH_MAX_TRIES;
 	} else
 		spin_unlock_wait(ap->lock);
-		
+
 	/* If we timed raced normal completion and there is nothing to
 	   recover nr_timedout == 0 why exactly are we doing error recovery ? */
 
@@ -1755,7 +1762,7 @@ static int speed_down_verdict_cb(struct ata_ering_entry *ent, void *void_arg)
 	struct speed_down_verdict_arg *arg = void_arg;
 	int cat;
 
-	if (ent->timestamp < arg->since)
+	if ((ent->eflags & ATA_EFLAG_OLD_ER) || (ent->timestamp < arg->since))
 		return -1;
 
 	cat = ata_eh_categorize_error(ent->eflags, ent->err_mask,
