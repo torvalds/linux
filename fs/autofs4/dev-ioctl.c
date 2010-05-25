@@ -736,10 +736,13 @@ static const struct file_operations _dev_ioctl_fops = {
 };
 
 static struct miscdevice _autofs_dev_ioctl_misc = {
-	.minor 		= MISC_DYNAMIC_MINOR,
+	.minor		= AUTOFS_MINOR,
 	.name  		= AUTOFS_DEVICE_NAME,
 	.fops  		= &_dev_ioctl_fops
 };
+
+MODULE_ALIAS_MISCDEV(AUTOFS_MINOR);
+MODULE_ALIAS("devname:autofs");
 
 /* Register/deregister misc character device */
 int autofs_dev_ioctl_init(void)
