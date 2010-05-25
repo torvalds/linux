@@ -217,8 +217,8 @@ int ceph_handle_auth_reply(struct ceph_auth_client *ac,
 		if (ac->protocol != protocol) {
 			ret = ceph_auth_init_protocol(ac, protocol);
 			if (ret) {
-				pr_err("error %d on auth method %s init\n",
-				       ret, ac->ops->name);
+				pr_err("error %d on auth protocol %d init\n",
+				       ret, protocol);
 				goto out;
 			}
 		}
