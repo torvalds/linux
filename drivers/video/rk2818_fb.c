@@ -123,6 +123,15 @@ struct win0_par {
 	u32 y_offset;
 	u32 uv_offset;
 
+    u32 odd_y_offset;
+	u32 odd_uv_offset;
+    u32 odd_nxt_y_offset;
+    u32 odd_nxt_uv_offset;
+    u32 even_y_offset;
+	u32 even_uv_offset;
+    u32 even_nxt_y_offset;
+    u32 even_nxt_uv_offset;
+
 	struct win0_fmk fmktmp;
 	struct win0_fmk fmk;
     
@@ -633,7 +642,7 @@ int rk2818_set_cursor(struct fb_info *info, struct fb_cursor *cursor)
 {
     struct rk2818fb_inf *inf = dev_get_drvdata(info->device);
 
-    fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
+    //fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
 
     /* check not being asked to exceed capabilities */
 
@@ -815,7 +824,7 @@ static int win0fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
         return -EINVAL;
     }   
 
-    switch(var->nonstd&0xff)
+    switch(var->nonstd&0x0f)
     {
     case 0: // rgb
         switch(var->bits_per_pixel)
@@ -829,7 +838,7 @@ static int win0fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
             var->bits_per_pixel = 32;
             break;
         }
-        var->nonstd &= 0xFCFF;  //not support I2P in this format
+        var->nonstd &= ~0xc0;  //not support I2P in this format
         break;
     case 1: // yuv422
         var->xres_virtual = (var->xres_virtual + 0x3) & (~0x3);
@@ -851,7 +860,7 @@ static int win0fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
         var->yres = (var->yres + 0x1) & (~0x1);
         var->xoffset = (var->xoffset) & (~0x3);
         var->yoffset = (var->yoffset) & (~0x1);
-        var->nonstd &= 0xFCFF;   //not support I2P in this format
+        var->nonstd &= ~0xc0;   //not support I2P in this format
         break;
     case 4: // yuv420m
         var->xres_virtual = (var->xres_virtual + 0x7) & (~0x7);
@@ -860,13 +869,13 @@ static int win0fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
         var->yres = (var->yres + 0x1) & (~0x1);
         var->xoffset = (var->xoffset) & (~0x7);
         var->yoffset = (var->yoffset) & (~0x1);
-        var->nonstd &= 0xFCFF;   //not support I2P in this format
+        var->nonstd &= ~0xc0;   //not support I2P in this format
         break;
     case 5: // yuv444
         var->xres_virtual = (var->xres_virtual + 0x3) & (~0x3);
         var->xres = (var->xres + 0x3) & (~0x3);
         var->xoffset = (var->xoffset) & (~0x3);
-        var->nonstd &= 0xFCFF;   //not support I2P in this format
+        var->nonstd &= ~0xc0;   //not support I2P in this format
         break;
     default:
         printk(">>>>>> win0fb var->nonstd=%d is invalid! \n", var->nonstd);
@@ -902,7 +911,7 @@ static int win0fb_set_par(struct fb_info *info)
 
     u8 format = 0;
     dma_addr_t map_dma;
-    u32 y_offset=0, uv_offset=0, cblen=0, crlen=0, map_size=0, smem_len=0, i2p_len=0;
+    u32 cblen=0, crlen=0, map_size=0, smem_len=0, i2p_len=0;
     u32 pre_y_addr = 0, pre_uv_addr = 0, nxt_y_addr = 0, nxt_uv_addr = 0;
 
     u32 actWidth = 0; 
@@ -923,14 +932,16 @@ static int win0fb_set_par(struct fb_info *info)
     u32 ScaleYUpX=0x1000, ScaleYDnX=0x1000, ScaleYUpY=0x1000, ScaleYDnY=0x1000;
     u32 ScaleCbrUpX=0x1000, ScaleCbrDnX=0x1000, ScaleCbrUpY=0x1000, ScaleCbrDnY=0x1000;
 
-    u8 i2p_mode = (var->nonstd & 0x0100)>>8;
-    u8 i2p_polarity = (var->nonstd & 0x0200)>>9;
-    u8 data_format = var->nonstd&0xff;
+    u8 i2p_mode = (var->nonstd & 0x80)>>7;
+    u8 i2p_polarity = (var->nonstd & 0x40)>>6;
+    u8 data_format = var->nonstd&0x0f;
     u32 win0_en = var->reserved[2];
     u32 y_addr = var->reserved[3];       //user alloc buf addr y
     u32 uv_addr = var->reserved[4];    
     
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
+
+    fbprintk("win0_en = %x, y_addr = %8x, uv_addr = %8x\n", win0_en, y_addr, uv_addr);
 
 	CHK_SUSPEND(inf);
 
@@ -943,12 +954,12 @@ static int win0fb_set_par(struct fb_info *info)
         case 16:    // rgb565
             format = 1;
             fix->line_length = 2 * xvir;
-            y_offset = (yact_st*xvir + xact_st)*2;
+            par->y_offset = (yact_st*xvir + xact_st)*2;
             break;
         case 32:    // rgb888
             format = 0;
             fix->line_length = 4 * xvir;
-            y_offset = (yact_st*xvir + xact_st)*4;
+            par->y_offset = (yact_st*xvir + xact_st)*4;
             break;
         default:
             return -EINVAL;
@@ -956,59 +967,115 @@ static int win0fb_set_par(struct fb_info *info)
         break;
     case 1: // yuv422
         format = 2;
-        fix->line_length = xvir;     
-        y_offset = yact_st*xvir + xact_st;
-        uv_offset = yact_st*xvir + xact_st;
-        if(var->rotate == 270)
-        {
-            y_offset += xvir*(yact- 1);
-            uv_offset += xvir*(yact - 1);
-        }
+        fix->line_length = xvir;         
         cblen = crlen = (xvir*yvir)/2;
+        
         if(i2p_mode)
         {
-            i2p_len = (xvir*yvir)*2;
+            i2p_len = (xvir*yvir)*2;                 
+            if(var->rotate==0) //even
+            {                    
+                par->even_y_offset = (yact_st*xvir+xact_st) + xvir;
+                par->even_uv_offset = (yact_st*xvir+xact_st) + xvir;                                    
+                par->even_nxt_y_offset = (yact_st*xvir+xact_st); 
+                par->even_nxt_uv_offset = (yact_st*xvir+xact_st);
+                                                    
+                par->odd_y_offset = (yact_st*xvir+xact_st);
+                par->odd_uv_offset = (yact_st*xvir+xact_st);                
+                par->odd_nxt_y_offset = (yact_st*xvir+xact_st) + xvir; 
+                par->odd_nxt_uv_offset = (yact_st*xvir+xact_st) + xvir; 
+            }
+            else if(var->rotate==270)  //even
+            {        
+                 par->even_y_offset = (yact_st*xvir+xact_st) + xvir*(yact-1);
+                 par->even_uv_offset = (yact_st*xvir+xact_st) + xvir*(yact-1);                                     
+                 par->even_nxt_y_offset = (yact_st*xvir+xact_st) + xvir*(yact-2); 
+                 par->even_nxt_uv_offset = (yact_st*xvir+xact_st) + xvir*(yact-2); 
+                   
+                 par->odd_y_offset = (yact_st*xvir+xact_st) + xvir*(yact-2);
+                 par->odd_uv_offset = (yact_st*xvir+xact_st) + xvir*(yact-2);                                    
+                 par->odd_nxt_y_offset = (yact_st*xvir+xact_st) + xvir*(yact-1);
+                 par->odd_nxt_uv_offset = (yact_st*xvir+xact_st) + xvir*(yact-1); 
+            }               
+        }
+        else
+        {
+            par->y_offset = yact_st*xvir + xact_st;
+            par->uv_offset = yact_st*xvir + xact_st;
+            if(var->rotate == 270)
+            {
+                par->y_offset += xvir*(yact- 1);
+                par->uv_offset += xvir*(yact - 1);
+            }
         }
         break;
     case 2: // yuv4200
         format = 3;
-        fix->line_length = xvir;
-        y_offset = yact_st*xvir + xact_st;
-        uv_offset = (yact_st/2)*xvir + xact_st;
-        if(var->rotate == 270)
-        {
-            y_offset += xvir*(yact - 1);
-            uv_offset += xvir*(yact/2 - 1);
-        }
+        fix->line_length = xvir;        
         cblen = crlen = (xvir*yvir)/4;
         if(i2p_mode)
         {
             i2p_len = (xvir*yvir)*3/2;
+                      
+            if(var->rotate==0) //even
+            {                    
+                par->even_y_offset = (yact_st*xvir+xact_st) + xvir;
+                par->even_uv_offset = (yact_st/2*xvir+xact_st) + xvir;                                  
+                par->even_nxt_y_offset = (yact_st*xvir+xact_st); 
+                par->even_nxt_uv_offset = (yact_st/2*xvir+xact_st);
+                                                    
+                par->odd_y_offset = (yact_st*xvir+xact_st);
+                par->odd_uv_offset = (yact_st/2*xvir+xact_st);               
+                par->odd_nxt_y_offset = (yact_st*xvir+xact_st) + xvir; 
+                par->odd_nxt_uv_offset = (yact_st/2*xvir+xact_st) + xvir; 
+            }
+            else if(var->rotate==270)  //even
+            {        
+                 par->even_y_offset = (yact_st*xvir+xact_st) + xvir*(yact-1);
+                 par->even_uv_offset = (yact_st/2*xvir+xact_st) + xvir*(yact/2-1);                                    
+                 par->even_nxt_y_offset = (yact_st*xvir+xact_st) + xvir*(yact-2); 
+                 par->even_nxt_uv_offset = (yact_st/2*xvir+xact_st) + xvir*(yact/2-2); 
+                   
+                 par->odd_y_offset = (yact_st*xvir+xact_st) + xvir*(yact-2);
+                 par->odd_uv_offset = (yact_st/2*xvir+xact_st) + xvir*(yact/2-2);                                   
+                 par->odd_nxt_y_offset = (yact_st*xvir+xact_st) + xvir*(yact-1);
+                 par->odd_nxt_uv_offset = (yact_st/2*xvir+xact_st) + xvir*(yact/2-1); 
+            }               
+        }
+        else
+        {
+            par->y_offset = yact_st*xvir + xact_st;
+            par->uv_offset = (yact_st/2)*xvir + xact_st;
+            if(var->rotate == 270)
+            {
+                par->y_offset += xvir*(yact - 1);
+                par->uv_offset += xvir*(yact/2 - 1);
+            }
         }
         break;
     case 3: // yuv4201
         format = 4;
         fix->line_length = xvir;
-        y_offset = (yact_st/2)*2*xvir + (xact_st)*2;
-        uv_offset = (yact_st/2)*xvir + xact_st;
+        par->y_offset = (yact_st/2)*2*xvir + (xact_st)*2;
+        par->uv_offset = (yact_st/2)*xvir + xact_st;
         if(var->rotate == 270)
         {
-            y_offset += xvir*2*(yact/2 - 1);
-            uv_offset += xvir*(yact/2 - 1);
+            par->y_offset += xvir*2*(yact/2 - 1);
+            par->uv_offset += xvir*(yact/2 - 1);
         }
         cblen = crlen = (xvir*yvir)/4;
         break;
     case 4: // yuv420m
         format = 5;
         fix->line_length = xvir;
-        y_offset = (yact_st/2)*3*xvir + (xact_st)*3;
+        par->y_offset = (yact_st/2)*3*xvir + (xact_st)*3;
         cblen = crlen = (xvir*yvir)/4;
         break;
     case 5: // yuv444
         format = 6;
         fix->line_length = xvir;
-        y_offset = yact_st*xvir + xact_st;
-        uv_offset = yact_st*2*xvir + xact_st*2;
+        par->y_offset = yact_st*xvir + xact_st;
+        par->uv_offset = yact_st*2*xvir + xact_st*2;
         cblen = crlen = (xvir*yvir);
         break;
     default:
@@ -1018,7 +1085,7 @@ static int win0fb_set_par(struct fb_info *info)
     smem_len = fix->line_length * yvir + cblen + crlen + i2p_len;
     map_size = PAGE_ALIGN(smem_len);
 
-    if(y_addr && uv_addr && !i2p_mode)  // buffer alloced by user
+    if(y_addr && uv_addr )  // buffer alloced by user, it's default instance
     {
         if (info->screen_base) {
             printk(">>>>>> win0fb unmap memory(%d)! \n", info->fix.smem_len);
@@ -1030,6 +1097,7 @@ static int win0fb_set_par(struct fb_info *info)
         fix->mmio_start = uv_addr;
 
         par->addr_seted = ((-1==(int)y_addr)&&(-1==(int)uv_addr)) ? 0 : 1;
+        fbprintk("buffer alloced by user fix->smem_start = %8x, fix->smem_len = %8x, fix->mmio_start = %8x \n", fix->smem_start, fix->smem_len, fix->mmio_start);
     }
     else    // driver alloce buffer
     {
@@ -1074,58 +1142,39 @@ static int win0fb_set_par(struct fb_info *info)
         }
     }
 
-    par->y_offset = y_offset;
-    par->uv_offset = uv_offset;
+	// calculate the display phy address          
+    y_addr = fix->smem_start + par->y_offset;
+    uv_addr = fix->mmio_start + par->uv_offset; 
+    
+    fbprintk("y_addr 0x%08x = 0x%08x + %d\n", y_addr, (u32)fix->smem_start, par->y_offset);
+    fbprintk("uv_addr 0x%08x = 0x%08x + %d\n", uv_addr, (u32)fix->mmio_start , par->uv_offset);
 
-	// calculate the display phy address
-    
     if(i2p_mode && fix->reserved[1] && fix->reserved[2])
-    {           
-        if(i2p_polarity && (var->rotate==0)) //even
-        {                    
-            y_addr = fix->smem_start + (yact_st*xvir+xact_st) + xvir;
-            uv_addr = fix->mmio_start + (yact_st/data_format*xvir+xact_st) + xvir;
-            pre_y_addr = y_addr - xvir;
-            pre_uv_addr = uv_addr - xvir;                     
-            nxt_y_addr = fix->reserved[1] + (yact_st*xvir+xact_st); 
-            nxt_uv_addr = fix->reserved[2] + (yact_st/data_format*xvir+xact_st);
+    {
+        if(i2p_polarity)
+        {
+            y_addr = fix->smem_start + par->even_y_offset;
+            uv_addr = fix->mmio_start + par->even_uv_offset; 
+            pre_y_addr = fix->smem_start + par->even_nxt_y_offset;
+            pre_uv_addr = fix->mmio_start + par->even_nxt_uv_offset; 
+            nxt_y_addr = fix->reserved[1] + par->even_nxt_y_offset;
+            nxt_uv_addr = fix->reserved[2] + par->even_nxt_uv_offset; 
         }
-        else if(!i2p_polarity && (var->rotate==0))  //odd
-        {                                        
-             y_addr =  fix->smem_start + (yact_st*xvir+xact_st);
-             uv_addr = fix->mmio_start + (yact_st/data_format*xvir+xact_st);
-             pre_y_addr = y_addr + xvir;
-             pre_uv_addr = uv_addr + xvir; 
-             nxt_y_addr = fix->reserved[1] + (yact_st*xvir+xact_st) + xvir; 
-             nxt_uv_addr = fix->reserved[2] + (yact_st/data_format*xvir+xact_st) + xvir; 
+        else
+        {
+            y_addr = fix->smem_start + par->odd_y_offset;
+            uv_addr = fix->mmio_start + par->odd_uv_offset; 
+            pre_y_addr = fix->smem_start + par->odd_nxt_y_offset;
+            pre_uv_addr = fix->mmio_start + par->odd_nxt_uv_offset; 
+            nxt_y_addr = fix->reserved[1] + par->odd_nxt_y_offset;
+            nxt_uv_addr = fix->reserved[2] + par->odd_nxt_uv_offset; 
         }
-        else if(i2p_polarity && (var->rotate==270))  //even
-        {        
-             y_addr = fix->smem_start+ (yact_st*xvir+xact_st) + xvir*(yact-1);
-             uv_addr = fix->mmio_start+ (yact_st/data_format*xvir+xact_st) + xvir*(yact/data_format-1);
-             pre_y_addr = fix->smem_start+ (yact_st*xvir+xact_st) + xvir*(yact-2);
-             pre_uv_addr = fix->mmio_start+ (yact_st/data_format*xvir+xact_st) + xvir*(yact/data_format-2);                     
-             nxt_y_addr = fix->reserved[1] + (yact_st*xvir+xact_st) + xvir*(yact-2); 
-             nxt_uv_addr = fix->reserved[2] + (yact_st/data_format*xvir+xact_st) + xvir*(yact/data_format-2); 
-        }
-        else if(!i2p_polarity&& (var->rotate==270))  //odd
-        {        
-             y_addr = fix->smem_start + (yact_st*xvir+xact_st) + xvir*(yact-2);
-             uv_addr = fix->mmio_start  + (yact_st/data_format*xvir+xact_st) + xvir*(yact/data_format-2);
-             pre_y_addr = fix->smem_start + (yact_st*xvir+xact_st) + xvir*(yact-1);
-             pre_uv_addr = fix->mmio_start + (yact_st/data_format*xvir+xact_st) + xvir*(yact/data_format-1);                     
-             nxt_y_addr =  fix->reserved[1]+ (yact_st*xvir+xact_st) + xvir*(yact-1);
-             nxt_uv_addr = fix->reserved[2] + (yact_st/data_format*xvir+xact_st) + xvir*(yact/data_format-1); 
-        }               
+        
+        fbprintk("pre_y_addr 0x%08x = 0x%08x + %d\n", pre_y_addr, (u32)fix->smem_start, par->even_nxt_y_offset);
+        fbprintk("pre_uv_addr 0x%08x = 0x%08x + %d\n", pre_uv_addr, (u32)fix->mmio_start , par->even_nxt_uv_offset);
+        fbprintk("nxt_y_addr 0x%08x = 0x%08x + %d\n", nxt_y_addr, (u32)fix->reserved[1], par->even_nxt_y_offset);
+        fbprintk("nxt_uv_addr 0x%08x = 0x%08x + %d\n", nxt_uv_addr, (u32)fix->reserved[2] , par->even_nxt_uv_offset);
     }
-    else
-    {        
-        y_addr = fix->smem_start + y_offset;
-        uv_addr = fix->mmio_start + uv_offset;  
-    }
-    
-    fbprintk("y_addr 0x%08x = 0x%08x + %d\n", y_addr, (u32)fix->smem_start, y_offset);
-    fbprintk("uv_addr 0x%08x = 0x%08x + %d\n", uv_addr, (u32)fix->mmio_start , uv_offset);
 
     if(var->rotate == 270)
     {      
@@ -1236,13 +1285,6 @@ static int win0fb_set_par(struct fb_info *info)
     LcdWrReg(inf, I2P_REF0_MST_CBR, pre_uv_addr);
     LcdWrReg(inf, I2P_REF1_MST_Y, nxt_y_addr);
     LcdWrReg(inf, I2P_REF1_MST_CBR, nxt_uv_addr);
-
-    // when win0 is open, enable win1 color key and set the color to black(rgb=0)
-    if(win0_en){       
-        LcdMskReg(inf, WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR, v_COLORKEY_EN(1) | v_KEYCOLOR(0));  
-    }else{
-        LcdMskReg(inf, WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN , v_COLORKEY_EN(0)); 
-    }
         
     switch(format)
     {   
@@ -1277,7 +1319,7 @@ static int win0fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
 
 	CHK_SUSPEND(inf);
 
-    switch(var0->nonstd&0xff)
+    switch(var0->nonstd&0x0f)
     {
     case 0: // rgb
         switch(var0->bits_per_pixel)
@@ -1344,7 +1386,7 @@ static int win0fb_pan_display(struct fb_var_screeninfo *var, struct fb_info *inf
 int win0fb_rotate(struct fb_info *fbi, int rotate)
 {
     struct fb_var_screeninfo *var = &fbi->var;
-    u32 SrcFmt = var->nonstd&0xff;
+    u32 SrcFmt = var->nonstd&0x0f;
 
     fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
     
@@ -1428,7 +1470,8 @@ static int win0fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
     void __user *argp = (void __user *)arg;
 
 	fbprintk(">>>>>> %s : %s \n", __FILE__, __FUNCTION__);
-
+    fbprintk("win0fb_ioctl cmd = %8x, arg = %8x \n", cmd, arg);
+    
 	CHK_SUSPEND(inf);
 
     switch(cmd)
@@ -1452,7 +1495,7 @@ static int win0fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
             u32 yuv_phy[2];
             if (copy_from_user(yuv_phy, argp, 8))
 			    return -EFAULT;
-
+            
             yuv_phy[0] += par->y_offset;
             yuv_phy[1] += par->uv_offset;
 
@@ -1522,7 +1565,75 @@ static int win0fb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
             win0fb_rotate(info, 270);
             break;
         }
-        break;  
+        break;
+    case FB1_IOCTL_SET_I2P_ODD_ADDR:
+       {
+            u32 yuv_phy[4];
+            u32 y_addr=0, uv_addr=0;
+            u32 pre_y_addr=0, pre_uv_addr=0;
+            u32 nxt_y_addr=0,nxt_uv_addr=0;
+            if (copy_from_user(yuv_phy, argp, 16))
+			    return -EFAULT;
+
+            y_addr = yuv_phy[0] + par->odd_y_offset;
+            uv_addr = yuv_phy[1] + par->odd_uv_offset; 
+            pre_y_addr = yuv_phy[0] + par->odd_nxt_y_offset;
+            pre_uv_addr = yuv_phy[1] + par->odd_nxt_uv_offset; 
+            nxt_y_addr = yuv_phy[2] + par->odd_nxt_y_offset;
+            nxt_uv_addr = yuv_phy[3] + par->odd_nxt_uv_offset; 
+
+            //printk("new y_addr=%08x, new uv_addr=%08x \n", yuv_phy[0], yuv_phy[1]);
+            LcdWrReg(inf, WIN0_YRGB_MST, y_addr);
+            LcdWrReg(inf, WIN0_CBR_MST, uv_addr);
+            LcdWrReg(inf, I2P_REF0_MST_Y, pre_y_addr);
+            LcdWrReg(inf, I2P_REF0_MST_CBR, pre_uv_addr);
+            LcdWrReg(inf, I2P_REF1_MST_Y, nxt_y_addr);
+            LcdWrReg(inf, I2P_REF1_MST_CBR, nxt_uv_addr);
+            LcdMskReg(inf, DSP_CTRL0, m_I2P_CUR_POLARITY, v_I2P_CUR_POLARITY(0));
+            LcdWrReg(inf, REG_CFG_DONE, 0x01);
+
+            // enable win0 after the win0 par is seted
+            par->addr_seted = 1;
+            if(par->par_seted) { 
+    	        LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(1));
+                mcu_refresh(inf);
+            }
+        } 
+        break;
+    case FB1_IOCTL_SET_I2P_EVEN_ADDR:
+        {
+            u32 yuv_phy[4];
+            u32 y_addr=0, uv_addr=0;
+            u32 pre_y_addr=0, pre_uv_addr=0;
+            u32 nxt_y_addr=0,nxt_uv_addr=0;
+            if (copy_from_user(yuv_phy, argp, 16))
+			    return -EFAULT;
+
+            y_addr = yuv_phy[0] + par->even_y_offset;
+            uv_addr = yuv_phy[1] + par->even_uv_offset; 
+            pre_y_addr = yuv_phy[0] + par->even_nxt_y_offset;
+            pre_uv_addr = yuv_phy[1] + par->even_nxt_uv_offset; 
+            nxt_y_addr = yuv_phy[2] + par->even_nxt_y_offset;
+            nxt_uv_addr = yuv_phy[3] + par->even_nxt_uv_offset; 
+
+            //printk("new y_addr=%08x, new uv_addr=%08x \n", yuv_phy[0], yuv_phy[1]);
+            LcdWrReg(inf, WIN0_YRGB_MST, y_addr);
+            LcdWrReg(inf, WIN0_CBR_MST, uv_addr);
+            LcdWrReg(inf, I2P_REF0_MST_Y, pre_y_addr);
+            LcdWrReg(inf, I2P_REF0_MST_CBR, pre_uv_addr);
+            LcdWrReg(inf, I2P_REF1_MST_Y, nxt_y_addr);
+            LcdWrReg(inf, I2P_REF1_MST_CBR, nxt_uv_addr);
+            LcdMskReg(inf, DSP_CTRL0, m_I2P_CUR_POLARITY, v_I2P_CUR_POLARITY(1));
+            LcdWrReg(inf, REG_CFG_DONE, 0x01);
+
+            // enable win0 after the win0 par is seted
+            par->addr_seted = 1;
+            if(par->par_seted) { 
+    	        LcdMskReg(inf, SYS_CONFIG, m_W0_ENABLE, v_W0_ENABLE(1));
+                mcu_refresh(inf);
+            }
+        }
+        break;
     default:
         break;
     }
@@ -1760,8 +1871,11 @@ static int win1fb_set_par(struct fb_info *info)
 
     LcdMskReg(inf, BLEND_CTRL, m_W1_BLEND_EN | m_W1_BLEND_FACTOR_SELECT | m_W1_BLEND_FACTOR,
         v_W1_BLEND_EN((TRSP_FMREG==trspmode) || (TRSP_MASK==trspmode)) | 
-        v_W1_BLEND_FACTOR_SELECT(TRSP_FMRAM==trspmode) | v_W1_BLEND_FACTOR(trspval));    
-        
+        v_W1_BLEND_FACTOR_SELECT(TRSP_FMRAM==trspmode) | v_W1_BLEND_FACTOR(trspval)); 
+
+     // enable win1 color key and set the color to black(rgb=0)
+    LcdMskReg(inf, WIN1_COLOR_KEY_CTRL, m_COLORKEY_EN | m_KEYCOLOR, v_COLORKEY_EN(1) | v_KEYCOLOR(0));    
+    
     if(1==format) //rgb565
     {
         LcdMskReg(inf, SWAP_CTRL, m_W1_8_SWAP | m_W1_16_SWAP | m_W1_R_SHIFT_SWAP | m_W1_565_RB_SWAP,
@@ -1903,7 +2017,7 @@ static struct fb_ops win1fb_ops = {
 	.fb_fillrect    = cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
 	.fb_imageblit	= cfb_imageblit,
-	//.fb_cursor      = rk2818_set_cursor,
+	.fb_cursor      = rk2818_set_cursor,
 };
 
 
