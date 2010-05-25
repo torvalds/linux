@@ -67,6 +67,8 @@ static int cfserl_receive(struct cflayer *l, struct cfpkt *newpkt)
 		layr->incomplete_frm =
 		    cfpkt_append(layr->incomplete_frm, newpkt, expectlen);
 		pkt = layr->incomplete_frm;
+		if (pkt == NULL)
+			return -ENOMEM;
 	} else {
 		pkt = newpkt;
 	}
@@ -154,7 +156,6 @@ static int cfserl_receive(struct cflayer *l, struct cfpkt *newpkt)
 			if (layr->usestx) {
 				if (tail_pkt != NULL)
 					pkt = cfpkt_append(pkt, tail_pkt, 0);
-
 				/* Start search for next STX if frame failed */
 				continue;
 			} else {

@@ -2287,6 +2287,8 @@ static int __do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 		if (write) {
 			left -= proc_skip_spaces(&kbuf);
 
+			if (!left)
+				break;
 			err = proc_get_long(&kbuf, &left, &lval, &neg,
 					     proc_wspace_sep,
 					     sizeof(proc_wspace_sep), NULL);
@@ -2313,7 +2315,7 @@ static int __do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 
 	if (!write && !first && left && !err)
 		err = proc_put_char(&buffer, &left, '\n');
-	if (write && !err)
+	if (write && !err && left)
 		left -= proc_skip_spaces(&kbuf);
 free:
 	if (write) {

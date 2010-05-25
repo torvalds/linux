@@ -1034,9 +1034,10 @@ static int enic_set_port_profile(struct enic *enic, u8 request, u8 *mac,
 {
 	struct vic_provinfo *vp;
 	u8 oui[3] = VIC_PROVINFO_CISCO_OUI;
-	unsigned short *uuid;
+	u8 *uuid;
 	char uuid_str[38];
-	static char *uuid_fmt = "%04X%04X-%04X-%04X-%04X-%04X%04X%04X";
+	static char *uuid_fmt = "%02X%02X%02X%02X-%02X%02X-%02X%02X-"
+		"%02X%02X-%02X%02X%02X%02X%0X%02X";
 	int err;
 
 	if (!name)
@@ -1058,20 +1059,24 @@ static int enic_set_port_profile(struct enic *enic, u8 request, u8 *mac,
 		ETH_ALEN, mac);
 
 	if (instance_uuid) {
-		uuid = (unsigned short *)instance_uuid;
+		uuid = instance_uuid;
 		sprintf(uuid_str, uuid_fmt,
-			uuid[0], uuid[1], uuid[2], uuid[3],
-			uuid[4], uuid[5], uuid[6], uuid[7]);
+			uuid[0],  uuid[1],  uuid[2],  uuid[3],
+			uuid[4],  uuid[5],  uuid[6],  uuid[7],
+			uuid[8],  uuid[9],  uuid[10], uuid[11],
+			uuid[12], uuid[13], uuid[14], uuid[15]);
 		vic_provinfo_add_tlv(vp,
 			VIC_LINUX_PROV_TLV_CLIENT_UUID_STR,
 			sizeof(uuid_str), uuid_str);
 	}
 
 	if (host_uuid) {
-		uuid = (unsigned short *)host_uuid;
+		uuid = host_uuid;
 		sprintf(uuid_str, uuid_fmt,
-			uuid[0], uuid[1], uuid[2], uuid[3],
-			uuid[4], uuid[5], uuid[6], uuid[7]);
+			uuid[0],  uuid[1],  uuid[2],  uuid[3],
+			uuid[4],  uuid[5],  uuid[6],  uuid[7],
+			uuid[8],  uuid[9],  uuid[10], uuid[11],
+			uuid[12], uuid[13], uuid[14], uuid[15]);
 		vic_provinfo_add_tlv(vp,
 			VIC_LINUX_PROV_TLV_HOST_UUID_STR,
 			sizeof(uuid_str), uuid_str);
@@ -1126,6 +1131,14 @@ static int enic_set_vf_port(struct net_device *netdev, int vf,
 
 	switch (request) {
 	case PORT_REQUEST_ASSOCIATE:
+
+		/* If the interface mac addr hasn't been assigned,
+		 * assign a random mac addr before setting port-
+		 * profile.
+		 */
+
+		if (is_zero_ether_addr(netdev->dev_addr))
+			random_ether_addr(netdev->dev_addr);
 
 		if (port[IFLA_PORT_PROFILE])
 			name = nla_data(port[IFLA_PORT_PROFILE]);

@@ -2319,6 +2319,7 @@ static int be_ctrl_init(struct be_adapter *adapter)
 	spin_lock_init(&adapter->mcc_lock);
 	spin_lock_init(&adapter->mcc_cq_lock);
 
+	init_completion(&adapter->flash_compl);
 	pci_save_state(adapter->pdev);
 	return 0;
 
@@ -2487,16 +2488,18 @@ static int __devinit be_probe(struct pci_dev *pdev,
 		status = be_cmd_POST(adapter);
 		if (status)
 			goto ctrl_clean;
-
-		status = be_cmd_reset_function(adapter);
-		if (status)
-			goto ctrl_clean;
 	}
 
 	/* tell fw we're ready to fire cmds */
 	status = be_cmd_fw_init(adapter);
 	if (status)
 		goto ctrl_clean;
+
+	if (be_physfn(adapter)) {
+		status = be_cmd_reset_function(adapter);
+		if (status)
+			goto ctrl_clean;
+	}
 
 	status = be_stats_init(adapter);
 	if (status)

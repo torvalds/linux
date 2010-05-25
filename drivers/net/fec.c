@@ -41,6 +41,7 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 #include <linux/phy.h>
+#include <linux/fec.h>
 
 #include <asm/cacheflush.h>
 
@@ -182,6 +183,7 @@ struct fec_enet_private {
 	struct  phy_device *phy_dev;
 	int     mii_timeout;
 	uint    phy_speed;
+	phy_interface_t	phy_interface;
 	int	index;
 	int	link;
 	int	full_duplex;
@@ -1191,6 +1193,21 @@ fec_restart(struct net_device *dev, int duplex)
 	/* Set MII speed */
 	writel(fep->phy_speed, fep->hwp + FEC_MII_SPEED);
 
+#ifdef FEC_MIIGSK_ENR
+	if (fep->phy_interface == PHY_INTERFACE_MODE_RMII) {
+		/* disable the gasket and wait */
+		writel(0, fep->hwp + FEC_MIIGSK_ENR);
+		while (readl(fep->hwp + FEC_MIIGSK_ENR) & 4)
+			udelay(1);
+
+		/* configure the gasket: RMII, 50 MHz, no loopback, no echo */
+		writel(1, fep->hwp + FEC_MIIGSK_CFGR);
+
+		/* re-enable the gasket */
+		writel(2, fep->hwp + FEC_MIIGSK_ENR);
+	}
+#endif
+
 	/* And last, enable the transmit and receive processing */
 	writel(2, fep->hwp + FEC_ECNTRL);
 	writel(0, fep->hwp + FEC_R_DES_ACTIVE);
@@ -1226,6 +1243,7 @@ static int __devinit
 fec_probe(struct platform_device *pdev)
 {
 	struct fec_enet_private *fep;
+	struct fec_platform_data *pdata;
 	struct net_device *ndev;
 	int i, irq, ret = 0;
 	struct resource *r;
@@ -1258,6 +1276,10 @@ fec_probe(struct platform_device *pdev)
 	}
 
 	platform_set_drvdata(pdev, ndev);
+
+	pdata = pdev->dev.platform_data;
+	if (pdata)
+		fep->phy_interface = pdata->phy;
 
 	/* This device has up to three irqs on some platforms */
 	for (i = 0; i < 3; i++) {

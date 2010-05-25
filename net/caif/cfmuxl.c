@@ -174,10 +174,11 @@ struct cflayer *cfmuxl_remove_uplayer(struct cflayer *layr, u8 id)
 	spin_lock(&muxl->receive_lock);
 	up = get_up(muxl, id);
 	if (up == NULL)
-		return NULL;
+		goto out;
 	memset(muxl->up_cache, 0, sizeof(muxl->up_cache));
 	list_del(&up->node);
 	cfsrvl_put(up);
+out:
 	spin_unlock(&muxl->receive_lock);
 	return up;
 }

@@ -123,6 +123,12 @@ static int cfservl_modemcmd(struct cflayer *layr, enum caif_modemcmd ctrl)
 			struct caif_payload_info *info;
 			u8 flow_off = SRVL_FLOW_OFF;
 			pkt = cfpkt_create(SRVL_CTRL_PKT_SIZE);
+			if (!pkt) {
+				pr_warning("CAIF: %s(): Out of memory\n",
+					__func__);
+				return -ENOMEM;
+			}
+
 			if (cfpkt_add_head(pkt, &flow_off, 1) < 0) {
 				pr_err("CAIF: %s(): Packet is erroneous!\n",
 					__func__);

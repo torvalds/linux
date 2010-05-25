@@ -60,7 +60,7 @@ struct debug_fs_counter {
 	atomic_t num_rx_flow_off;
 	atomic_t num_rx_flow_on;
 };
-struct debug_fs_counter cnt;
+static struct debug_fs_counter cnt;
 #define	dbfs_atomic_inc(v) atomic_inc(v)
 #define	dbfs_atomic_dec(v) atomic_dec(v)
 #else
@@ -128,17 +128,17 @@ static void caif_read_unlock(struct sock *sk)
 	mutex_unlock(&cf_sk->readlock);
 }
 
-int sk_rcvbuf_lowwater(struct caifsock *cf_sk)
+static int sk_rcvbuf_lowwater(struct caifsock *cf_sk)
 {
 	/* A quarter of full buffer is used a low water mark */
 	return cf_sk->sk.sk_rcvbuf / 4;
 }
 
-void caif_flow_ctrl(struct sock *sk, int mode)
+static void caif_flow_ctrl(struct sock *sk, int mode)
 {
 	struct caifsock *cf_sk;
 	cf_sk = container_of(sk, struct caifsock, sk);
-	if (cf_sk->layer.dn)
+	if (cf_sk->layer.dn && cf_sk->layer.dn->modemcmd)
 		cf_sk->layer.dn->modemcmd(cf_sk->layer.dn, mode);
 }
 
@@ -146,7 +146,7 @@ void caif_flow_ctrl(struct sock *sk, int mode)
  * Copied from sock.c:sock_queue_rcv_skb(), but changed so packets are
  * not dropped, but CAIF is sending flow off instead.
  */
-int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+static int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 {
 	int err;
 	int skb_len;
@@ -162,9 +162,8 @@ int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 			atomic_read(&cf_sk->sk.sk_rmem_alloc),
 			sk_rcvbuf_lowwater(cf_sk));
 		set_rx_flow_off(cf_sk);
-		if (cf_sk->layer.dn)
-			cf_sk->layer.dn->modemcmd(cf_sk->layer.dn,
-						CAIF_MODEMCMD_FLOW_OFF_REQ);
+		dbfs_atomic_inc(&cnt.num_rx_flow_off);
+		caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_OFF_REQ);
 	}
 
 	err = sk_filter(sk, skb);
@@ -175,9 +174,8 @@ int caif_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
 		trace_printk("CAIF: %s():"
 			" sending flow OFF due to rmem_schedule\n",
 			__func__);
-		if (cf_sk->layer.dn)
-			cf_sk->layer.dn->modemcmd(cf_sk->layer.dn,
-						CAIF_MODEMCMD_FLOW_OFF_REQ);
+		dbfs_atomic_inc(&cnt.num_rx_flow_off);
+		caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_OFF_REQ);
 	}
 	skb->dev = NULL;
 	skb_set_owner_r(skb, sk);
@@ -285,65 +283,51 @@ static void caif_check_flow_release(struct sock *sk)
 {
 	struct caifsock *cf_sk = container_of(sk, struct caifsock, sk);
 
-	if (cf_sk->layer.dn == NULL || cf_sk->layer.dn->modemcmd == NULL)
-		return;
 	if (rx_flow_is_on(cf_sk))
 		return;
 
 	if (atomic_read(&sk->sk_rmem_alloc) <= sk_rcvbuf_lowwater(cf_sk)) {
 			dbfs_atomic_inc(&cnt.num_rx_flow_on);
 			set_rx_flow_on(cf_sk);
-			cf_sk->layer.dn->modemcmd(cf_sk->layer.dn,
-						CAIF_MODEMCMD_FLOW_ON_REQ);
+			caif_flow_ctrl(sk, CAIF_MODEMCMD_FLOW_ON_REQ);
 	}
 }
-/*
- * Copied from sock.c:sock_queue_rcv_skb(), and added check that user buffer
- * has sufficient size.
- */
 
+/*
+ * Copied from unix_dgram_recvmsg, but removed credit checks,
+ * changed locking, address handling and added MSG_TRUNC.
+ */
 static int caif_seqpkt_recvmsg(struct kiocb *iocb, struct socket *sock,
-				struct msghdr *m, size_t buf_len, int flags)
+				struct msghdr *m, size_t len, int flags)
 
 {
 	struct sock *sk = sock->sk;
 	struct sk_buff *skb;
-	int ret = 0;
-	int len;
+	int ret;
+	int copylen;
 
-	if (unlikely(!buf_len))
-		return -EINVAL;
+	ret = -EOPNOTSUPP;
+	if (m->msg_flags&MSG_OOB)
+		goto read_error;
 
 	skb = skb_recv_datagram(sk, flags, 0 , &ret);
 	if (!skb)
 		goto read_error;
-
-	len = skb->len;
-
-	if (skb && skb->len > buf_len && !(flags & MSG_PEEK)) {
-		len = buf_len;
-		/*
-		 * Push skb back on receive queue if buffer too small.
-		 * This has a built-in race where multi-threaded receive
-		 * may get packet in wrong order, but multiple read does
-		 * not really guarantee ordered delivery anyway.
-		 * Let's optimize for speed without taking locks.
-		 */
-
-		skb_queue_head(&sk->sk_receive_queue, skb);
-		ret = -EMSGSIZE;
-		goto read_error;
+	copylen = skb->len;
+	if (len < copylen) {
+		m->msg_flags |= MSG_TRUNC;
+		copylen = len;
 	}
 
-	ret = skb_copy_datagram_iovec(skb, 0, m->msg_iov, len);
+	ret = skb_copy_datagram_iovec(skb, 0, m->msg_iov, copylen);
 	if (ret)
-		goto read_error;
+		goto out_free;
 
+	ret = (flags & MSG_TRUNC) ? skb->len : copylen;
+out_free:
 	skb_free_datagram(sk, skb);
-
 	caif_check_flow_release(sk);
-
-	return len;
+	return ret;
 
 read_error:
 	return ret;
@@ -920,17 +904,17 @@ wait_connect:
 	timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
 
 	release_sock(sk);
-	err = wait_event_interruptible_timeout(*sk_sleep(sk),
+	err = -ERESTARTSYS;
+	timeo = wait_event_interruptible_timeout(*sk_sleep(sk),
 			sk->sk_state != CAIF_CONNECTING,
 			timeo);
 	lock_sock(sk);
-	if (err < 0)
+	if (timeo < 0)
 		goto out; /* -ERESTARTSYS */
-	if (err == 0 && sk->sk_state != CAIF_CONNECTED) {
-		err = -ETIMEDOUT;
-		goto out;
-	}
 
+	err = -ETIMEDOUT;
+	if (timeo == 0 && sk->sk_state != CAIF_CONNECTED)
+		goto out;
 	if (sk->sk_state != CAIF_CONNECTED) {
 		sock->state = SS_UNCONNECTED;
 		err = sock_error(sk);
@@ -944,7 +928,6 @@ out:
 	release_sock(sk);
 	return err;
 }
-
 
 /*
  * caif_release() - Disconnect a CAIF Socket
@@ -1018,10 +1001,6 @@ static unsigned int caif_poll(struct file *file,
 	if (!skb_queue_empty(&sk->sk_receive_queue) ||
 		(sk->sk_shutdown & RCV_SHUTDOWN))
 		mask |= POLLIN | POLLRDNORM;
-
-	/* Connection-based need to check for termination and startup */
-	if (sk->sk_state == CAIF_DISCONNECTED)
-		mask |= POLLHUP;
 
 	/*
 	 * we set writable also when the other side has shut down the
@@ -1194,7 +1173,7 @@ static struct net_proto_family caif_family_ops = {
 	.owner = THIS_MODULE,
 };
 
-int af_caif_init(void)
+static int af_caif_init(void)
 {
 	int err = sock_register(&caif_family_ops);
 	if (!err)
