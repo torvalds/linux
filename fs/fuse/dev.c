@@ -551,10 +551,7 @@ static int fuse_copy_fill(struct fuse_copy_state *cs)
 		cs->iov++;
 		cs->nr_segs--;
 	}
-	down_read(&current->mm->mmap_sem);
-	err = get_user_pages(current, current->mm, cs->addr, 1, cs->write, 0,
-			     &cs->pg, NULL);
-	up_read(&current->mm->mmap_sem);
+	err = get_user_pages_fast(cs->addr, 1, cs->write, &cs->pg);
 	if (err < 0)
 		return err;
 	BUG_ON(err != 1);
