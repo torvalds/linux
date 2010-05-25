@@ -2599,6 +2599,9 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	writel(S3C_DCTL_CGOUTNak | S3C_DCTL_CGNPInNAK,
 	       hsotg->regs + S3C_DCTL);
 
+	/* must be at-least 3ms to allow bus to see disconnect */
+	msleep(3);
+
 	/* remove the soft-disconnect and let's go */
 	__bic32(hsotg->regs + S3C_DCTL, S3C_DCTL_SftDiscon);
 
