@@ -17,9 +17,6 @@
 #define AER_FATAL			1
 #define AER_CORRECTABLE			2
 
-/* Root Error Status Register Bits */
-#define ROOT_ERR_STATUS_MASKS		0x0f
-
 #define SYSTEM_ERROR_INTR_ON_MESG_MASK	(PCI_EXP_RTCTL_SECEE|	\
 					PCI_EXP_RTCTL_SENFEE|	\
 					PCI_EXP_RTCTL_SEFEE)
@@ -117,8 +114,7 @@ static inline pci_ers_result_t merge_result(enum pci_ers_result orig,
 }
 
 extern struct bus_type pcie_port_bus_type;
-extern void aer_enable_rootport(struct aer_rpc *rpc);
-extern void aer_delete_rootport(struct aer_rpc *rpc);
+extern void aer_do_secondary_bus_reset(struct pci_dev *dev);
 extern int aer_init(struct pcie_device *dev);
 extern void aer_isr(struct work_struct *work);
 extern void aer_print_error(struct pci_dev *dev, struct aer_err_info *info);

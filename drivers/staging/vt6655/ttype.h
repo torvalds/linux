@@ -33,14 +33,6 @@
 
 /******* Common definitions and typedefs ***********************************/
 
-#ifndef VOID
-#define VOID            void
-#endif
-
-#ifndef IN
-#define IN
-#endif
-
 #ifndef OUT
 #define OUT
 #endif
@@ -56,11 +48,6 @@ typedef int             BOOL;
 #endif
 #if !defined(FALSE)
 #define FALSE           0
-#endif
-
-
-#if !defined(SUCCESS)
-#define SUCCESS         0
 #endif
 
 //2007-0809-01<Add>by MikeLiu
@@ -140,14 +127,5 @@ typedef WORD *           PWORD;
 typedef DWORD *          PDWORD;
 
 typedef QWORD *          PQWORD;
-
-typedef void *           PVOID;
-
-// handle declaration
-#ifdef STRICT
-typedef void *HANDLE;
-#else
-typedef PVOID HANDLE;
-#endif
 
 #endif // __TTYPE_H__

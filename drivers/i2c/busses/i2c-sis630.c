@@ -53,7 +53,7 @@
 #include <linux/init.h>
 #include <linux/i2c.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 /* SIS630 SMBus registers */
 #define SMB_STS			0x80	/* status */

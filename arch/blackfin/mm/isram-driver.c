@@ -43,13 +43,12 @@ static DEFINE_SPINLOCK(dtest_lock);
 /* Takes a void pointer */
 #define IADDR2DTEST(x) \
 	({ unsigned long __addr = (unsigned long)(x); \
-		(__addr & 0x47F8)        | /* address bits 14 & 10:3 */ \
-		(__addr & 0x8000) << 23  | /* Bank A/B               */ \
-		(__addr & 0x0800) << 15  | /* address bit  11        */ \
-		(__addr & 0x3000) <<  4  | /* address bits 13:12     */ \
-		(__addr & 0x8000) <<  8  | /* address bit  15        */ \
-		(0x1000000)              | /* instruction access = 1 */ \
-		(0x4);                     /* data array = 1         */ \
+		((__addr & (1 << 11)) << (26 - 11)) | /* addr bit 11 (Way0/Way1)   */ \
+		(1 << 24)                           | /* instruction access = 1    */ \
+		((__addr & (1 << 15)) << (23 - 15)) | /* addr bit 15 (Data Bank)   */ \
+		((__addr & (3 << 12)) << (16 - 12)) | /* addr bits 13:12 (Subbank) */ \
+		(__addr & 0x47F8)                   | /* addr bits 14 & 10:3       */ \
+		(1 << 2);                             /* data array = 1            */ \
 	})
 
 /* Takes a pointer, and returns the offset (in bits) which things should be shifted */
@@ -196,7 +195,7 @@ EXPORT_SYMBOL(isram_memcpy);
 
 #ifdef CONFIG_BFIN_ISRAM_SELF_TEST
 
-#define TEST_LEN 0x100
+static int test_len = 0x20000;
 
 static __init void hex_dump(unsigned char *buf, int len)
 {
@@ -212,15 +211,15 @@ static __init int isram_read_test(char *sdram, void *l1inst)
 	pr_info("INFO: running isram_read tests\n");
 
 	/* setup some different data to play with */
-	for (i = 0; i < TEST_LEN; ++i)
-		sdram[i] = i;
-	dma_memcpy(l1inst, sdram, TEST_LEN);
+	for (i = 0; i < test_len; ++i)
+		sdram[i] = i % 255;
+	dma_memcpy(l1inst, sdram, test_len);
 
 	/* make sure we can read the L1 inst */
-	for (i = 0; i < TEST_LEN; i += sizeof(uint64_t)) {
+	for (i = 0; i < test_len; i += sizeof(uint64_t)) {
 		data1 = isram_read(l1inst + i);
 		memcpy(&data2, sdram + i, sizeof(data2));
-		if (memcmp(&data1, &data2, sizeof(uint64_t))) {
+		if (data1 != data2) {
 			pr_err("FAIL: isram_read(%p) returned %#llx but wanted %#llx\n",
 				l1inst + i, data1, data2);
 			++ret;
@@ -238,25 +237,25 @@ static __init int isram_write_test(char *sdram, void *l1inst)
 	pr_info("INFO: running isram_write tests\n");
 
 	/* setup some different data to play with */
-	memset(sdram, 0, TEST_LEN * 2);
-	dma_memcpy(l1inst, sdram, TEST_LEN);
-	for (i = 0; i < TEST_LEN; ++i)
-		sdram[i] = i;
+	memset(sdram, 0, test_len * 2);
+	dma_memcpy(l1inst, sdram, test_len);
+	for (i = 0; i < test_len; ++i)
+		sdram[i] = i % 255;
 
 	/* make sure we can write the L1 inst */
-	for (i = 0; i < TEST_LEN; i += sizeof(uint64_t)) {
+	for (i = 0; i < test_len; i += sizeof(uint64_t)) {
 		memcpy(&data1, sdram + i, sizeof(data1));
 		isram_write(l1inst + i, data1);
 		data2 = isram_read(l1inst + i);
-		if (memcmp(&data1, &data2, sizeof(uint64_t))) {
+		if (data1 != data2) {
 			pr_err("FAIL: isram_write(%p, %#llx) != %#llx\n",
 				l1inst + i, data1, data2);
 			++ret;
 		}
 	}
 
-	dma_memcpy(sdram + TEST_LEN, l1inst, TEST_LEN);
-	if (memcmp(sdram, sdram + TEST_LEN, TEST_LEN)) {
+	dma_memcpy(sdram + test_len, l1inst, test_len);
+	if (memcmp(sdram, sdram + test_len, test_len)) {
 		pr_err("FAIL: isram_write() did not work properly\n");
 		++ret;
 	}
@@ -268,12 +267,12 @@ static __init int
 _isram_memcpy_test(char pattern, void *sdram, void *l1inst, const char *smemcpy,
                    void *(*fmemcpy)(void *, const void *, size_t))
 {
-	memset(sdram, pattern, TEST_LEN);
-	fmemcpy(l1inst, sdram, TEST_LEN);
-	fmemcpy(sdram + TEST_LEN, l1inst, TEST_LEN);
-	if (memcmp(sdram, sdram + TEST_LEN, TEST_LEN)) {
+	memset(sdram, pattern, test_len);
+	fmemcpy(l1inst, sdram, test_len);
+	fmemcpy(sdram + test_len, l1inst, test_len);
+	if (memcmp(sdram, sdram + test_len, test_len)) {
 		pr_err("FAIL: %s(%p <=> %p, %#x) failed (data is %#x)\n",
-			smemcpy, l1inst, sdram, TEST_LEN, pattern);
+			smemcpy, l1inst, sdram, test_len, pattern);
 		return 1;
 	}
 	return 0;
@@ -292,12 +291,13 @@ static __init int isram_memcpy_test(char *sdram, void *l1inst)
 	/* check read of small, unaligned, and hardware 64bit limits */
 	pr_info("INFO: running isram_memcpy (read) tests\n");
 
-	for (i = 0; i < TEST_LEN; ++i)
-		sdram[i] = i;
-	dma_memcpy(l1inst, sdram, TEST_LEN);
+	/* setup some different data to play with */
+	for (i = 0; i < test_len; ++i)
+		sdram[i] = i % 255;
+	dma_memcpy(l1inst, sdram, test_len);
 
 	thisret = 0;
-	for (i = 0; i < TEST_LEN - 32; ++i) {
+	for (i = 0; i < test_len - 32; ++i) {
 		unsigned char cmp[32];
 		for (j = 1; j <= 32; ++j) {
 			memset(cmp, 0, sizeof(cmp));
@@ -310,7 +310,7 @@ static __init int isram_memcpy_test(char *sdram, void *l1inst)
 				pr_cont("\n");
 				if (++thisret > 20) {
 					pr_err("FAIL: skipping remaining series\n");
-					i = TEST_LEN;
+					i = test_len;
 					break;
 				}
 			}
@@ -321,11 +321,11 @@ static __init int isram_memcpy_test(char *sdram, void *l1inst)
 	/* check write of small, unaligned, and hardware 64bit limits */
 	pr_info("INFO: running isram_memcpy (write) tests\n");
 
-	memset(sdram + TEST_LEN, 0, TEST_LEN);
-	dma_memcpy(l1inst, sdram + TEST_LEN, TEST_LEN);
+	memset(sdram + test_len, 0, test_len);
+	dma_memcpy(l1inst, sdram + test_len, test_len);
 
 	thisret = 0;
-	for (i = 0; i < TEST_LEN - 32; ++i) {
+	for (i = 0; i < test_len - 32; ++i) {
 		unsigned char cmp[32];
 		for (j = 1; j <= 32; ++j) {
 			isram_memcpy(l1inst + i, sdram + i, j);
@@ -338,7 +338,7 @@ static __init int isram_memcpy_test(char *sdram, void *l1inst)
 				pr_cont("\n");
 				if (++thisret > 20) {
 					pr_err("FAIL: skipping remaining series\n");
-					i = TEST_LEN;
+					i = test_len;
 					break;
 				}
 			}
@@ -355,22 +355,30 @@ static __init int isram_test_init(void)
 	char *sdram;
 	void *l1inst;
 
-	sdram = kmalloc(TEST_LEN * 2, GFP_KERNEL);
-	if (!sdram) {
-		pr_warning("SKIP: could not allocate sdram\n");
+	/* Try to test as much of L1SRAM as possible */
+	while (test_len) {
+		test_len >>= 1;
+		l1inst = l1_inst_sram_alloc(test_len);
+		if (l1inst)
+			break;
+	}
+	if (!l1inst) {
+		pr_warning("SKIP: could not allocate L1 inst\n");
 		return 0;
 	}
+	pr_info("INFO: testing %#x bytes (%p - %p)\n",
+	        test_len, l1inst, l1inst + test_len);
 
-	l1inst = l1_inst_sram_alloc(TEST_LEN);
-	if (!l1inst) {
-		kfree(sdram);
-		pr_warning("SKIP: could not allocate L1 inst\n");
+	sdram = kmalloc(test_len * 2, GFP_KERNEL);
+	if (!sdram) {
+		sram_free(l1inst);
+		pr_warning("SKIP: could not allocate sdram\n");
 		return 0;
 	}
 
 	/* sanity check initial L1 inst state */
 	ret = 1;
-	pr_info("INFO: running initial dma_memcpy checks\n");
+	pr_info("INFO: running initial dma_memcpy checks %p\n", sdram);
 	if (_isram_memcpy_test(0xa, sdram, l1inst, dma_memcpy))
 		goto abort;
 	if (_isram_memcpy_test(0x5, sdram, l1inst, dma_memcpy))

@@ -24,14 +24,12 @@
 #include <asm/clkdev.h>
 #include <mach/clkdev.h>
 #include <mach/hardware.h>
+#include <mach/platform.h>
 #include <asm/irq.h>
-#include <asm/hardware/arm_timer.h>
 #include <mach/cm.h>
 #include <asm/system.h>
 #include <asm/leds.h>
 #include <asm/mach/time.h>
-
-#include "common.h"
 
 static struct amba_pl010_data integrator_uart_data;
 
@@ -163,8 +161,8 @@ arch_initcall(integrator_init);
  *  UART0  7    6
  *  UART1  5    4
  */
-#define SC_CTRLC	(IO_ADDRESS(INTEGRATOR_SC_BASE) + INTEGRATOR_SC_CTRLC_OFFSET)
-#define SC_CTRLS	(IO_ADDRESS(INTEGRATOR_SC_BASE) + INTEGRATOR_SC_CTRLS_OFFSET)
+#define SC_CTRLC	IO_ADDRESS(INTEGRATOR_SC_CTRLC)
+#define SC_CTRLS	IO_ADDRESS(INTEGRATOR_SC_CTRLS)
 
 static void integrator_uart_set_mctrl(struct amba_device *dev, void __iomem *base, unsigned int mctrl)
 {
@@ -196,7 +194,7 @@ static struct amba_pl010_data integrator_uart_data = {
 	.set_mctrl = integrator_uart_set_mctrl,
 };
 
-#define CM_CTRL	IO_ADDRESS(INTEGRATOR_HDR_BASE) + INTEGRATOR_HDR_CTRL_OFFSET
+#define CM_CTRL	IO_ADDRESS(INTEGRATOR_HDR_CTRL)
 
 static DEFINE_SPINLOCK(cm_lock);
 
@@ -217,120 +215,3 @@ void cm_control(u32 mask, u32 set)
 }
 
 EXPORT_SYMBOL(cm_control);
-
-/*
- * Where is the timer (VA)?
- */
-#define TIMER0_VA_BASE (IO_ADDRESS(INTEGRATOR_CT_BASE)+0x00000000)
-#define TIMER1_VA_BASE (IO_ADDRESS(INTEGRATOR_CT_BASE)+0x00000100)
-#define TIMER2_VA_BASE (IO_ADDRESS(INTEGRATOR_CT_BASE)+0x00000200)
-#define VA_IC_BASE     IO_ADDRESS(INTEGRATOR_IC_BASE) 
-
-/*
- * How long is the timer interval?
- */
-#define TIMER_INTERVAL	(TICKS_PER_uSEC * mSEC_10)
-#if TIMER_INTERVAL >= 0x100000
-#define TICKS2USECS(x)	(256 * (x) / TICKS_PER_uSEC)
-#elif TIMER_INTERVAL >= 0x10000
-#define TICKS2USECS(x)	(16 * (x) / TICKS_PER_uSEC)
-#else
-#define TICKS2USECS(x)	((x) / TICKS_PER_uSEC)
-#endif
-
-static unsigned long timer_reload;
-
-/*
- * Returns number of ms since last clock interrupt.  Note that interrupts
- * will have been disabled by do_gettimeoffset()
- */
-unsigned long integrator_gettimeoffset(void)
-{
-	unsigned long ticks1, ticks2, status;
-
-	/*
-	 * Get the current number of ticks.  Note that there is a race
-	 * condition between us reading the timer and checking for
-	 * an interrupt.  We get around this by ensuring that the
-	 * counter has not reloaded between our two reads.
-	 */
-	ticks2 = readl(TIMER1_VA_BASE + TIMER_VALUE) & 0xffff;
-	do {
-		ticks1 = ticks2;
-		status = __raw_readl(VA_IC_BASE + IRQ_RAW_STATUS);
-		ticks2 = readl(TIMER1_VA_BASE + TIMER_VALUE) & 0xffff;
-	} while (ticks2 > ticks1);
-
-	/*
-	 * Number of ticks since last interrupt.
-	 */
-	ticks1 = timer_reload - ticks2;
-
-	/*
-	 * Interrupt pending?  If so, we've reloaded once already.
-	 */
-	if (status & (1 << IRQ_TIMERINT1))
-		ticks1 += timer_reload;
-
-	/*
-	 * Convert the ticks to usecs
-	 */
-	return TICKS2USECS(ticks1);
-}
-
-/*
- * IRQ handler for the timer
- */
-static irqreturn_t
-integrator_timer_interrupt(int irq, void *dev_id)
-{
-	/*
-	 * clear the interrupt
-	 */
-	writel(1, TIMER1_VA_BASE + TIMER_INTCLR);
-
-	timer_tick();
-
-	return IRQ_HANDLED;
-}
-
-static struct irqaction integrator_timer_irq = {
-	.name		= "Integrator Timer Tick",
-	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
-	.handler	= integrator_timer_interrupt,
-};
-
-/*
- * Set up timer interrupt, and return the current time in seconds.
- */
-void __init integrator_time_init(unsigned long reload, unsigned int ctrl)
-{
-	unsigned int timer_ctrl = TIMER_CTRL_ENABLE | TIMER_CTRL_PERIODIC;
-
-	timer_reload = reload;
-	timer_ctrl |= ctrl;
-
-	if (timer_reload > 0x100000) {
-		timer_reload >>= 8;
-		timer_ctrl |= TIMER_CTRL_DIV256;
-	} else if (timer_reload > 0x010000) {
-		timer_reload >>= 4;
-		timer_ctrl |= TIMER_CTRL_DIV16;
-	}
-
-	/*
-	 * Initialise to a known state (all timers off)
-	 */
-	writel(0, TIMER0_VA_BASE + TIMER_CTRL);
-	writel(0, TIMER1_VA_BASE + TIMER_CTRL);
-	writel(0, TIMER2_VA_BASE + TIMER_CTRL);
-
-	writel(timer_reload, TIMER1_VA_BASE + TIMER_LOAD);
-	writel(timer_reload, TIMER1_VA_BASE + TIMER_VALUE);
-	writel(timer_ctrl, TIMER1_VA_BASE + TIMER_CTRL);
-
-	/*
-	 * Make irqs happen for the system timer
-	 */
-	setup_irq(IRQ_TIMERINT1, &integrator_timer_irq);
-}

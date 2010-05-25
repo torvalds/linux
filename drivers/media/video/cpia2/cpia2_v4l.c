@@ -324,7 +324,7 @@ static int cpia2_close(struct file *file)
 	{
 		if(fh->mmapped)
 			cam->mmapped = 0;
-		v4l2_prio_close(&cam->prio,&fh->prio);
+		v4l2_prio_close(&cam->prio, fh->prio);
 		file->private_data = NULL;
 		kfree(fh);
 	}
@@ -1592,7 +1592,7 @@ static long cpia2_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	case VIDIOC_S_FMT:
 	{
 		struct cpia2_fh *fh = file->private_data;
-		retval = v4l2_prio_check(&cam->prio, &fh->prio);
+		retval = v4l2_prio_check(&cam->prio, fh->prio);
 		if(retval) {
 			mutex_unlock(&cam->busy_lock);
 			return retval;

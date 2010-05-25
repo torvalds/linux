@@ -40,8 +40,8 @@
 #include "psmouse.h"
 #include "hgpk.h"
 
-static int tpdebug;
-module_param(tpdebug, int, 0644);
+static bool tpdebug;
+module_param(tpdebug, bool, 0644);
 MODULE_PARM_DESC(tpdebug, "enable debugging, dumping packets to KERN_DEBUG.");
 
 static int recalib_delta = 100;

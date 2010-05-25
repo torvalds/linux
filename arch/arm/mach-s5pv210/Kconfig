@@ -12,6 +12,7 @@ if ARCH_S5PV210
 config CPU_S5PV210
 	bool
 	select PLAT_S5P
+	select S3C_PL330_DMA
 	help
 	  Enable S5PV210 CPU support
 

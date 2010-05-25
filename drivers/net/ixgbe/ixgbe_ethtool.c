@@ -212,8 +212,8 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		ecmd->port = PORT_FIBRE;
 		break;
 	case ixgbe_phy_nl:
-	case ixgbe_phy_tw_tyco:
-	case ixgbe_phy_tw_unknown:
+	case ixgbe_phy_sfp_passive_tyco:
+	case ixgbe_phy_sfp_passive_unknown:
 	case ixgbe_phy_sfp_ftl:
 	case ixgbe_phy_sfp_avago:
 	case ixgbe_phy_sfp_intel:
@@ -365,7 +365,7 @@ static int ixgbe_set_pauseparam(struct net_device *netdev,
 	else
 		fc.disable_fc_autoneg = false;
 
-	if (pause->rx_pause && pause->tx_pause)
+	if ((pause->rx_pause && pause->tx_pause) || pause->autoneg)
 		fc.requested_mode = ixgbe_fc_full;
 	else if (pause->rx_pause && !pause->tx_pause)
 		fc.requested_mode = ixgbe_fc_rx_pause;
@@ -1458,8 +1458,8 @@ static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 			struct ixgbe_tx_buffer *buf =
 					&(tx_ring->tx_buffer_info[i]);
 			if (buf->dma)
-				pci_unmap_single(pdev, buf->dma, buf->length,
-				                 PCI_DMA_TODEVICE);
+				dma_unmap_single(&pdev->dev, buf->dma,
+						 buf->length, DMA_TO_DEVICE);
 			if (buf->skb)
 				dev_kfree_skb(buf->skb);
 		}
@@ -1470,22 +1470,22 @@ static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 			struct ixgbe_rx_buffer *buf =
 					&(rx_ring->rx_buffer_info[i]);
 			if (buf->dma)
-				pci_unmap_single(pdev, buf->dma,
+				dma_unmap_single(&pdev->dev, buf->dma,
 						 IXGBE_RXBUFFER_2048,
-						 PCI_DMA_FROMDEVICE);
+						 DMA_FROM_DEVICE);
 			if (buf->skb)
 				dev_kfree_skb(buf->skb);
 		}
 	}
 
 	if (tx_ring->desc) {
-		pci_free_consistent(pdev, tx_ring->size, tx_ring->desc,
-		                    tx_ring->dma);
+		dma_free_coherent(&pdev->dev, tx_ring->size, tx_ring->desc,
+				  tx_ring->dma);
 		tx_ring->desc = NULL;
 	}
 	if (rx_ring->desc) {
-		pci_free_consistent(pdev, rx_ring->size, rx_ring->desc,
-		                    rx_ring->dma);
+		dma_free_coherent(&pdev->dev, rx_ring->size, rx_ring->desc,
+				  rx_ring->dma);
 		rx_ring->desc = NULL;
 	}
 
@@ -1493,8 +1493,6 @@ static void ixgbe_free_desc_rings(struct ixgbe_adapter *adapter)
 	tx_ring->tx_buffer_info = NULL;
 	kfree(rx_ring->rx_buffer_info);
 	rx_ring->rx_buffer_info = NULL;
-
-	return;
 }
 
 static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
@@ -1520,8 +1518,9 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 
 	tx_ring->size = tx_ring->count * sizeof(union ixgbe_adv_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
-	if (!(tx_ring->desc = pci_alloc_consistent(pdev, tx_ring->size,
-						   &tx_ring->dma))) {
+	tx_ring->desc = dma_alloc_coherent(&pdev->dev, tx_ring->size,
+					   &tx_ring->dma, GFP_KERNEL);
+	if (!(tx_ring->desc)) {
 		ret_val = 2;
 		goto err_nomem;
 	}
@@ -1563,8 +1562,8 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 		tx_ring->tx_buffer_info[i].skb = skb;
 		tx_ring->tx_buffer_info[i].length = skb->len;
 		tx_ring->tx_buffer_info[i].dma =
-			pci_map_single(pdev, skb->data, skb->len,
-			               PCI_DMA_TODEVICE);
+			dma_map_single(&pdev->dev, skb->data, skb->len,
+				       DMA_TO_DEVICE);
 		desc->read.buffer_addr =
 		                    cpu_to_le64(tx_ring->tx_buffer_info[i].dma);
 		desc->read.cmd_type_len = cpu_to_le32(skb->len);
@@ -1593,8 +1592,9 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 
 	rx_ring->size = rx_ring->count * sizeof(union ixgbe_adv_rx_desc);
 	rx_ring->size = ALIGN(rx_ring->size, 4096);
-	if (!(rx_ring->desc = pci_alloc_consistent(pdev, rx_ring->size,
-						   &rx_ring->dma))) {
+	rx_ring->desc = dma_alloc_coherent(&pdev->dev, rx_ring->size,
+					   &rx_ring->dma, GFP_KERNEL);
+	if (!(rx_ring->desc)) {
 		ret_val = 5;
 		goto err_nomem;
 	}
@@ -1661,8 +1661,8 @@ static int ixgbe_setup_desc_rings(struct ixgbe_adapter *adapter)
 		skb_reserve(skb, NET_IP_ALIGN);
 		rx_ring->rx_buffer_info[i].skb = skb;
 		rx_ring->rx_buffer_info[i].dma =
-			pci_map_single(pdev, skb->data, IXGBE_RXBUFFER_2048,
-			               PCI_DMA_FROMDEVICE);
+			dma_map_single(&pdev->dev, skb->data,
+				       IXGBE_RXBUFFER_2048, DMA_FROM_DEVICE);
 		rx_desc->read.pkt_addr =
 				cpu_to_le64(rx_ring->rx_buffer_info[i].dma);
 		memset(skb->data, 0x00, skb->len);
@@ -1775,10 +1775,10 @@ static int ixgbe_run_loopback_test(struct ixgbe_adapter *adapter)
 			ixgbe_create_lbtest_frame(
 					tx_ring->tx_buffer_info[k].skb,
 					1024);
-			pci_dma_sync_single_for_device(pdev,
+			dma_sync_single_for_device(&pdev->dev,
 				tx_ring->tx_buffer_info[k].dma,
 				tx_ring->tx_buffer_info[k].length,
-				PCI_DMA_TODEVICE);
+				DMA_TO_DEVICE);
 			if (unlikely(++k == tx_ring->count))
 				k = 0;
 		}
@@ -1789,10 +1789,10 @@ static int ixgbe_run_loopback_test(struct ixgbe_adapter *adapter)
 		good_cnt = 0;
 		do {
 			/* receive the sent packets */
-			pci_dma_sync_single_for_cpu(pdev,
+			dma_sync_single_for_cpu(&pdev->dev,
 					rx_ring->rx_buffer_info[l].dma,
 					IXGBE_RXBUFFER_2048,
-					PCI_DMA_FROMDEVICE);
+					DMA_FROM_DEVICE);
 			ret_val = ixgbe_check_lbtest_frame(
 					rx_ring->rx_buffer_info[l].skb, 1024);
 			if (!ret_val)
@@ -1971,8 +1971,6 @@ static void ixgbe_get_wol(struct net_device *netdev,
 		wol->wolopts |= WAKE_BCAST;
 	if (adapter->wol & IXGBE_WUFC_MAG)
 		wol->wolopts |= WAKE_MAGIC;
-
-	return;
 }
 
 static int ixgbe_set_wol(struct net_device *netdev, struct ethtool_wolinfo *wol)
@@ -2079,12 +2077,32 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 	return 0;
 }
 
+/*
+ * this function must be called before setting the new value of
+ * rx_itr_setting
+ */
+static bool ixgbe_reenable_rsc(struct ixgbe_adapter *adapter,
+                               struct ethtool_coalesce *ec)
+{
+	/* check the old value and enable RSC if necessary */
+	if ((adapter->rx_itr_setting == 0) &&
+	    (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE)) {
+		adapter->flags2 |= IXGBE_FLAG2_RSC_ENABLED;
+		adapter->netdev->features |= NETIF_F_LRO;
+		DPRINTK(PROBE, INFO, "rx-usecs set to %d, re-enabling RSC\n",
+		        ec->rx_coalesce_usecs);
+		return true;
+	}
+	return false;
+}
+
 static int ixgbe_set_coalesce(struct net_device *netdev,
                               struct ethtool_coalesce *ec)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_q_vector *q_vector;
 	int i;
+	bool need_reset = false;
 
 	/* don't accept tx specific changes if we've got mixed RxTx vectors */
 	if (adapter->q_vector[0]->txr_count && adapter->q_vector[0]->rxr_count
@@ -2095,10 +2113,19 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		adapter->tx_ring[0]->work_limit = ec->tx_max_coalesced_frames_irq;
 
 	if (ec->rx_coalesce_usecs > 1) {
+		u32 max_int;
+		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
+			max_int = IXGBE_MAX_RSC_INT_RATE;
+		else
+			max_int = IXGBE_MAX_INT_RATE;
+
 		/* check the limits */
-		if ((1000000/ec->rx_coalesce_usecs > IXGBE_MAX_INT_RATE) ||
+		if ((1000000/ec->rx_coalesce_usecs > max_int) ||
 		    (1000000/ec->rx_coalesce_usecs < IXGBE_MIN_INT_RATE))
 			return -EINVAL;
+
+		/* check the old value and enable RSC if necessary */
+		need_reset = ixgbe_reenable_rsc(adapter, ec);
 
 		/* store the value in ints/second */
 		adapter->rx_eitr_param = 1000000/ec->rx_coalesce_usecs;
@@ -2108,6 +2135,9 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		/* clear the lower bit as its used for dynamic state */
 		adapter->rx_itr_setting &= ~1;
 	} else if (ec->rx_coalesce_usecs == 1) {
+		/* check the old value and enable RSC if necessary */
+		need_reset = ixgbe_reenable_rsc(adapter, ec);
+
 		/* 1 means dynamic mode */
 		adapter->rx_eitr_param = 20000;
 		adapter->rx_itr_setting = 1;
@@ -2116,14 +2146,30 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		 * any other value means disable eitr, which is best
 		 * served by setting the interrupt rate very high
 		 */
-		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED)
-			adapter->rx_eitr_param = IXGBE_MAX_RSC_INT_RATE;
-		else
-			adapter->rx_eitr_param = IXGBE_MAX_INT_RATE;
+		adapter->rx_eitr_param = IXGBE_MAX_INT_RATE;
 		adapter->rx_itr_setting = 0;
+
+		/*
+		 * if hardware RSC is enabled, disable it when
+		 * setting low latency mode, to avoid errata, assuming
+		 * that when the user set low latency mode they want
+		 * it at the cost of anything else
+		 */
+		if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
+			adapter->flags2 &= ~IXGBE_FLAG2_RSC_ENABLED;
+			netdev->features &= ~NETIF_F_LRO;
+			DPRINTK(PROBE, INFO,
+			        "rx-usecs set to 0, disabling RSC\n");
+
+			need_reset = true;
+		}
 	}
 
 	if (ec->tx_coalesce_usecs > 1) {
+		/*
+		 * don't have to worry about max_int as above because
+		 * tx vectors don't do hardware RSC (an rx function)
+		 */
 		/* check the limits */
 		if ((1000000/ec->tx_coalesce_usecs > IXGBE_MAX_INT_RATE) ||
 		    (1000000/ec->tx_coalesce_usecs < IXGBE_MIN_INT_RATE))
@@ -2167,6 +2213,18 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 		ixgbe_write_eitr(q_vector);
 	}
 
+	/*
+	 * do reset here at the end to make sure EITR==0 case is handled
+	 * correctly w.r.t stopping tx, and changing TXDCTL.WTHRESH settings
+	 * also locks in RSC enable/disable which requires reset
+	 */
+	if (need_reset) {
+		if (netif_running(netdev))
+			ixgbe_reinit_locked(adapter);
+		else
+			ixgbe_reset(adapter);
+	}
+
 	return 0;
 }
 
@@ -2178,10 +2236,26 @@ static int ixgbe_set_flags(struct net_device *netdev, u32 data)
 	ethtool_op_set_flags(netdev, data);
 
 	/* if state changes we need to update adapter->flags and reset */
-	if ((!!(data & ETH_FLAG_LRO)) != 
-	    (!!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))) {
-		adapter->flags2 ^= IXGBE_FLAG2_RSC_ENABLED;
-		need_reset = true;
+	if (adapter->flags2 & IXGBE_FLAG2_RSC_CAPABLE) {
+		/*
+		 * cast both to bool and verify if they are set the same
+		 * but only enable RSC if itr is non-zero, as
+		 * itr=0 and RSC are mutually exclusive
+		 */
+		if (((!!(data & ETH_FLAG_LRO)) !=
+		     (!!(adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED))) &&
+		    adapter->rx_itr_setting) {
+			adapter->flags2 ^= IXGBE_FLAG2_RSC_ENABLED;
+			switch (adapter->hw.mac.type) {
+			case ixgbe_mac_82599EB:
+				need_reset = true;
+				break;
+			default:
+				break;
+			}
+		} else if (!adapter->rx_itr_setting) {
+			netdev->features &= ~ETH_FLAG_LRO;
+		}
 	}
 
 	/*

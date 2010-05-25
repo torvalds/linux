@@ -16,14 +16,27 @@
 
 #define S3C2410_GPIONO(bank,offset) ((bank) + (offset))
 
-#define S3C2410_GPIO_BANKA   (32*0)
-#define S3C2410_GPIO_BANKB   (32*1)
-#define S3C2410_GPIO_BANKC   (32*2)
-#define S3C2410_GPIO_BANKD   (32*3)
-#define S3C2410_GPIO_BANKE   (32*4)
-#define S3C2410_GPIO_BANKF   (32*5)
 #define S3C2410_GPIO_BANKG   (32*6)
 #define S3C2410_GPIO_BANKH   (32*7)
+
+/* GPIO sizes for various SoCs:
+ *
+ *             2442
+ *   2410 2412 2440 2443 2416
+ *   ---- ---- ---- ---- ----
+ * A 23   22   25   16   25
+ * B 11   11   11   11   9
+ * C 16   15   16   16   16
+ * D 16   16   16   16   16
+ * E 16   16   16   16   16
+ * F 8    8    8    8    8
+ * G 16   16   16   16   8
+ * H 11   11   9    15   15
+ * J --   --   13   16   --
+ * K --   --   --   --   16
+ * L --   --   --   15   7
+ * M --   --   --   2    2
+ */
 
 /* GPIO bank sizes */
 #define S3C2410_GPIO_A_NR	(32)
@@ -34,6 +47,10 @@
 #define S3C2410_GPIO_F_NR	(32)
 #define S3C2410_GPIO_G_NR	(32)
 #define S3C2410_GPIO_H_NR	(32)
+#define S3C2410_GPIO_J_NR	(32)	/* technically 16. */
+#define S3C2410_GPIO_K_NR	(32)	/* technically 16. */
+#define S3C2410_GPIO_L_NR	(32)	/* technically 15. */
+#define S3C2410_GPIO_M_NR	(32)	/* technically 2. */
 
 #if CONFIG_S3C_GPIO_SPACE != 0
 #error CONFIG_S3C_GPIO_SPACE cannot be zero at the moment
@@ -53,6 +70,10 @@ enum s3c_gpio_number {
 	S3C2410_GPIO_F_START = S3C2410_GPIO_NEXT(S3C2410_GPIO_E),
 	S3C2410_GPIO_G_START = S3C2410_GPIO_NEXT(S3C2410_GPIO_F),
 	S3C2410_GPIO_H_START = S3C2410_GPIO_NEXT(S3C2410_GPIO_G),
+	S3C2410_GPIO_J_START = S3C2410_GPIO_NEXT(S3C2410_GPIO_H),
+	S3C2410_GPIO_K_START = S3C2410_GPIO_NEXT(S3C2410_GPIO_J),
+	S3C2410_GPIO_L_START = S3C2410_GPIO_NEXT(S3C2410_GPIO_K),
+	S3C2410_GPIO_M_START = S3C2410_GPIO_NEXT(S3C2410_GPIO_L),
 };
 
 #endif /* __ASSEMBLY__ */
@@ -67,6 +88,10 @@ enum s3c_gpio_number {
 #define S3C2410_GPF(_nr)	(S3C2410_GPIO_F_START + (_nr))
 #define S3C2410_GPG(_nr)	(S3C2410_GPIO_G_START + (_nr))
 #define S3C2410_GPH(_nr)	(S3C2410_GPIO_H_START + (_nr))
+#define S3C2410_GPJ(_nr)	(S3C2410_GPIO_J_START + (_nr))
+#define S3C2410_GPK(_nr)	(S3C2410_GPIO_K_START + (_nr))
+#define S3C2410_GPL(_nr)	(S3C2410_GPIO_L_START + (_nr))
+#define S3C2410_GPM(_nr)	(S3C2410_GPIO_M_START + (_nr))
 
 /* compatibility until drivers can be modified */
 

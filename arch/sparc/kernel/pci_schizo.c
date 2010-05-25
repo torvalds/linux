@@ -844,7 +844,7 @@ static int pbm_routes_this_ino(struct pci_pbm_info *pbm, u32 ino)
  */
 static void tomatillo_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct of_device *op = of_find_device_by_node(pbm->op->node);
+	struct of_device *op = of_find_device_by_node(pbm->op->dev.of_node);
 	u64 tmp, err_mask, err_no_mask;
 	int err;
 
@@ -939,7 +939,7 @@ static void tomatillo_register_error_handlers(struct pci_pbm_info *pbm)
 
 static void schizo_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct of_device *op = of_find_device_by_node(pbm->op->node);
+	struct of_device *op = of_find_device_by_node(pbm->op->dev.of_node);
 	u64 tmp, err_mask, err_no_mask;
 	int err;
 
@@ -1068,7 +1068,7 @@ static void __devinit schizo_scan_bus(struct pci_pbm_info *pbm,
 {
 	pbm_config_busmastering(pbm);
 	pbm->is_66mhz_capable =
-		(of_find_property(pbm->op->node, "66mhz-capable", NULL)
+		(of_find_property(pbm->op->dev.of_node, "66mhz-capable", NULL)
 		 != NULL);
 
 	pbm->pci_bus = pci_scan_one_pbm(pbm, parent);
@@ -1138,7 +1138,7 @@ static int schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 	u32 dma_mask;
 	u64 control;
 
-	vdma = of_get_property(pbm->op->node, "virtual-dma", NULL);
+	vdma = of_get_property(pbm->op->dev.of_node, "virtual-dma", NULL);
 	if (!vdma)
 		vdma = vdma_default;
 
@@ -1268,7 +1268,7 @@ static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 	    pbm->chip_version >= 0x2)
 		tmp |= 0x3UL << SCHIZO_PCICTRL_PTO_SHIFT;
 
-	if (!of_find_property(pbm->op->node, "no-bus-parking", NULL))
+	if (!of_find_property(pbm->op->dev.of_node, "no-bus-parking", NULL))
 		tmp |= SCHIZO_PCICTRL_PARK;
 	else
 		tmp &= ~SCHIZO_PCICTRL_PARK;
@@ -1311,7 +1311,7 @@ static int __devinit schizo_pbm_init(struct pci_pbm_info *pbm,
 				     int chip_type)
 {
 	const struct linux_prom64_registers *regs;
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	const char *chipset_name;
 	int is_pbm_a, err;
 
@@ -1415,7 +1415,7 @@ static struct pci_pbm_info * __devinit schizo_find_sibling(u32 portid,
 
 static int __devinit __schizo_init(struct of_device *op, unsigned long chip_type)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	u32 portid;
@@ -1491,8 +1491,11 @@ static struct of_device_id __initdata schizo_match[] = {
 };
 
 static struct of_platform_driver schizo_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= schizo_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = schizo_match,
+	},
 	.probe		= schizo_probe,
 };
 

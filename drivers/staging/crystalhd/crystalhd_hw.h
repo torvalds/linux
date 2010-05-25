@@ -109,7 +109,7 @@
 #define DecHt_HostSwReset	0x340000
 #define BC_DRAM_FW_CFG_ADDR	0x001c2000
 
-typedef union _addr_64_ {
+union addr_64 {
 	struct {
 		uint32_t	low_part;
 		uint32_t	high_part;
@@ -117,9 +117,9 @@ typedef union _addr_64_ {
 
 	uint64_t	full_addr;
 
-} addr_64;
+};
 
-typedef union _intr_mask_reg_ {
+union intr_mask_reg {
 	struct {
 		uint32_t	mask_tx_done:1;
 		uint32_t	mask_tx_err:1;
@@ -133,9 +133,9 @@ typedef union _intr_mask_reg_ {
 
 	uint32_t	whole_reg;
 
-} intr_mask_reg;
+};
 
-typedef union _link_misc_perst_deco_ctrl_ {
+union link_misc_perst_deco_ctrl {
 	struct {
 		uint32_t	bcm7412_rst:1;		/* 1 -> BCM7412 is held in reset. Reset value 1.*/
 		uint32_t	reserved0:3;		/* Reserved.No Effect*/
@@ -145,9 +145,9 @@ typedef union _link_misc_perst_deco_ctrl_ {
 
 	uint32_t	whole_reg;
 
-} link_misc_perst_deco_ctrl;
+};
 
-typedef union _link_misc_perst_clk_ctrl_ {
+union link_misc_perst_clk_ctrl {
 	struct {
 		uint32_t	sel_alt_clk:1;	  /* When set, selects a 6.75MHz clock as the source of core_clk */
 		uint32_t	stop_core_clk:1;  /* When set, stops the branch of core_clk that is not needed for low power operation */
@@ -161,10 +161,9 @@ typedef union _link_misc_perst_clk_ctrl_ {
 
 	uint32_t	whole_reg;
 
-} link_misc_perst_clk_ctrl;
+};
 
-
-typedef union _link_misc_perst_decoder_ctrl_ {
+union link_misc_perst_decoder_ctrl {
 	struct {
 		uint32_t	bcm_7412_rst:1; /* 1 -> BCM7412 is held in reset. Reset value 1.*/
 		uint32_t	res0:3; /* Reserved.No Effect*/
@@ -174,10 +173,9 @@ typedef union _link_misc_perst_decoder_ctrl_ {
 
 	uint32_t	whole_reg;
 
-} link_misc_perst_decoder_ctrl;
+};
 
-
-typedef union _desc_low_addr_reg_ {
+union desc_low_addr_reg {
 	struct {
 		uint32_t	list_valid:1;
 		uint32_t	reserved:4;
@@ -186,9 +184,9 @@ typedef union _desc_low_addr_reg_ {
 
 	uint32_t	whole_reg;
 
-} desc_low_addr_reg;
+};
 
-typedef struct _dma_descriptor_ {	/* 8 32-bit values */
+struct dma_descriptor {	/* 8 32-bit values */
 	/* 0th u32 */
 	uint32_t sdram_buff_addr:28;	/* bits 0-27:  SDRAM Address */
 	uint32_t res0:4;		/* bits 28-31: Reserved */
@@ -220,24 +218,22 @@ typedef struct _dma_descriptor_ {	/* 8 32-bit values */
 	/* 7th u32 */
 	uint32_t res8;			/* Last 32bits reserved */
 
-} dma_descriptor, *pdma_descriptor;
+};
 
 /*
  * We will allocate the memory in 4K pages
  * the linked list will be a list of 32 byte descriptors.
  * The  virtual address will determine what should be freed.
  */
-typedef struct _dma_desc_mem_ {
-	pdma_descriptor		pdma_desc_start; /* 32-bytes for dma descriptor. should be first element */
+struct dma_desc_mem {
+	struct dma_descriptor	*pdma_desc_start; /* 32-bytes for dma descriptor. should be first element */
 	dma_addr_t		phy_addr;	/* physical address of each DMA desc */
 	uint32_t		sz;
 	struct _dma_desc_mem_	*Next;		/* points to Next Descriptor in chain */
 
-} dma_desc_mem, *pdma_desc_mem;
+};
 
-
-
-typedef enum _list_sts_ {
+enum list_sts {
 	sts_free = 0,
 
 	/* RX-Y Bits 0:7 */
@@ -253,30 +249,27 @@ typedef enum _list_sts_ {
 
 	rx_y_mask		= 0x000000FF,
 	rx_uv_mask		= 0x0000FF00,
+};
 
-} list_sts;
-
-typedef struct _tx_dma_pkt_ {
-	dma_desc_mem		desc_mem;
+struct tx_dma_pkt {
+	struct dma_desc_mem	desc_mem;
 	hw_comp_callback	call_back;
-	crystalhd_dio_req		*dio_req;
+	struct crystalhd_dio_req	*dio_req;
 	wait_queue_head_t	*cb_event;
 	uint32_t		list_tag;
+};
 
-} tx_dma_pkt;
-
-typedef struct _crystalhd_rx_dma_pkt {
-	dma_desc_mem			desc_mem;
-	crystalhd_dio_req			*dio_req;
+struct crystalhd_rx_dma_pkt {
+	struct dma_desc_mem		desc_mem;
+	struct crystalhd_dio_req	*dio_req;
 	uint32_t			pkt_tag;
 	uint32_t			flags;
-	BC_PIC_INFO_BLOCK		pib;
+	struct BC_PIC_INFO_BLOCK	pib;
 	dma_addr_t			uv_phy_addr;
-	struct  _crystalhd_rx_dma_pkt	*next;
+	struct crystalhd_rx_dma_pkt	*next;
+};
 
-} crystalhd_rx_dma_pkt;
-
-struct crystalhd_hw_stats{
+struct crystalhd_hw_stats {
 	uint32_t	rx_errors;
 	uint32_t	tx_errors;
 	uint32_t	freeq_count;
@@ -288,13 +281,13 @@ struct crystalhd_hw_stats{
 };
 
 struct crystalhd_hw {
-	tx_dma_pkt		tx_pkt_pool[DMA_ENGINE_CNT];
+	struct tx_dma_pkt	tx_pkt_pool[DMA_ENGINE_CNT];
 	spinlock_t		lock;
 
 	uint32_t		tx_ioq_tag_seed;
 	uint32_t		tx_list_post_index;
 
-	crystalhd_rx_dma_pkt	*rx_pkt_pool_head;
+	struct crystalhd_rx_dma_pkt *rx_pkt_pool_head;
 	uint32_t		rx_pkt_tag_seed;
 
 	bool			dev_started;
@@ -306,16 +299,16 @@ struct crystalhd_hw {
 	uint32_t		pib_del_Q_addr;
 	uint32_t		pib_rel_Q_addr;
 
-	crystalhd_dioq_t		*tx_freeq;
-	crystalhd_dioq_t		*tx_actq;
+	struct crystalhd_dioq	*tx_freeq;
+	struct crystalhd_dioq	*tx_actq;
 
 	/* Rx DMA Engine Specific Locks */
 	spinlock_t		rx_lock;
 	uint32_t		rx_list_post_index;
-	list_sts		rx_list_sts[DMA_ENGINE_CNT];
-	crystalhd_dioq_t		*rx_rdyq;
-	crystalhd_dioq_t		*rx_freeq;
-	crystalhd_dioq_t		*rx_actq;
+	enum list_sts		rx_list_sts[DMA_ENGINE_CNT];
+	struct crystalhd_dioq	*rx_rdyq;
+	struct crystalhd_dioq	*rx_freeq;
+	struct crystalhd_dioq	*rx_actq;
 	uint32_t		stop_pending;
 
 	/* HW counters.. */
@@ -364,35 +357,35 @@ struct crystalhd_hw {
 
 
 /**** API Exposed to the other layers ****/
-BC_STATUS crystalhd_download_fw(struct crystalhd_adp *adp,
+enum BC_STATUS crystalhd_download_fw(struct crystalhd_adp *adp,
 			      void *buffer, uint32_t sz);
-BC_STATUS crystalhd_do_fw_cmd(struct crystalhd_hw *hw, BC_FW_CMD *fw_cmd);
+enum BC_STATUS crystalhd_do_fw_cmd(struct crystalhd_hw *hw, struct BC_FW_CMD *fw_cmd);
 bool crystalhd_hw_interrupt(struct crystalhd_adp *adp, struct crystalhd_hw *hw);
-BC_STATUS crystalhd_hw_open(struct crystalhd_hw *, struct crystalhd_adp *);
-BC_STATUS crystalhd_hw_close(struct crystalhd_hw *);
-BC_STATUS crystalhd_hw_setup_dma_rings(struct crystalhd_hw *);
-BC_STATUS crystalhd_hw_free_dma_rings(struct crystalhd_hw *);
+enum BC_STATUS crystalhd_hw_open(struct crystalhd_hw *, struct crystalhd_adp *);
+enum BC_STATUS crystalhd_hw_close(struct crystalhd_hw *);
+enum BC_STATUS crystalhd_hw_setup_dma_rings(struct crystalhd_hw *);
+enum BC_STATUS crystalhd_hw_free_dma_rings(struct crystalhd_hw *);
 
 
-BC_STATUS crystalhd_hw_post_tx(struct crystalhd_hw *hw, crystalhd_dio_req *ioreq,
+enum BC_STATUS crystalhd_hw_post_tx(struct crystalhd_hw *hw, struct crystalhd_dio_req *ioreq,
 			     hw_comp_callback call_back,
 			     wait_queue_head_t *cb_event,
 			     uint32_t *list_id, uint8_t data_flags);
 
-BC_STATUS crystalhd_hw_pause(struct crystalhd_hw *hw);
-BC_STATUS crystalhd_hw_unpause(struct crystalhd_hw *hw);
-BC_STATUS crystalhd_hw_suspend(struct crystalhd_hw *hw);
-BC_STATUS crystalhd_hw_cancel_tx(struct crystalhd_hw *hw, uint32_t list_id);
-BC_STATUS crystalhd_hw_add_cap_buffer(struct crystalhd_hw *hw,
-				    crystalhd_dio_req *ioreq, bool en_post);
-BC_STATUS crystalhd_hw_get_cap_buffer(struct crystalhd_hw *hw,
-				    BC_PIC_INFO_BLOCK *pib,
-				    crystalhd_dio_req **ioreq);
-BC_STATUS crystalhd_hw_stop_capture(struct crystalhd_hw *hw);
-BC_STATUS crystalhd_hw_start_capture(struct crystalhd_hw *hw);
+enum BC_STATUS crystalhd_hw_pause(struct crystalhd_hw *hw);
+enum BC_STATUS crystalhd_hw_unpause(struct crystalhd_hw *hw);
+enum BC_STATUS crystalhd_hw_suspend(struct crystalhd_hw *hw);
+enum BC_STATUS crystalhd_hw_cancel_tx(struct crystalhd_hw *hw, uint32_t list_id);
+enum BC_STATUS crystalhd_hw_add_cap_buffer(struct crystalhd_hw *hw,
+				    struct crystalhd_dio_req *ioreq, bool en_post);
+enum BC_STATUS crystalhd_hw_get_cap_buffer(struct crystalhd_hw *hw,
+				    struct BC_PIC_INFO_BLOCK *pib,
+				    struct crystalhd_dio_req **ioreq);
+enum BC_STATUS crystalhd_hw_stop_capture(struct crystalhd_hw *hw);
+enum BC_STATUS crystalhd_hw_start_capture(struct crystalhd_hw *hw);
 void crystalhd_hw_stats(struct crystalhd_hw *hw, struct crystalhd_hw_stats *stats);
 
 /* API to program the core clock on the decoder */
-BC_STATUS crystalhd_hw_set_core_clock(struct crystalhd_hw *);
+enum BC_STATUS crystalhd_hw_set_core_clock(struct crystalhd_hw *);
 
 #endif

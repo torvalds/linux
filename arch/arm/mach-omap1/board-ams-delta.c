@@ -33,6 +33,8 @@
 #include <plat/board.h>
 #include <plat/common.h>
 
+#include <mach/ams-delta-fiq.h>
+
 static u8 ams_delta_latch1_reg;
 static u16 ams_delta_latch2_reg;
 
@@ -236,6 +238,10 @@ static void __init ams_delta_init(void)
 	omap_usb_init(&ams_delta_usb_config);
 	platform_add_devices(ams_delta_devices, ARRAY_SIZE(ams_delta_devices));
 
+#ifdef CONFIG_AMS_DELTA_FIQ
+	ams_delta_init_fiq();
+#endif
+
 	omap_writew(omap_readw(ARM_RSTCT1) | 0x0004, ARM_RSTCT1);
 }
 
@@ -263,8 +269,18 @@ static struct platform_device ams_delta_modem_device = {
 
 static int __init ams_delta_modem_init(void)
 {
+	int err;
+
 	omap_cfg_reg(M14_1510_GPIO2);
-	ams_delta_modem_ports[0].irq = gpio_to_irq(2);
+	ams_delta_modem_ports[0].irq =
+			gpio_to_irq(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
+
+	err = gpio_request(AMS_DELTA_GPIO_PIN_MODEM_IRQ, "modem");
+	if (err) {
+		pr_err("Couldn't request gpio pin for modem\n");
+		return err;
+	}
+	gpio_direction_input(AMS_DELTA_GPIO_PIN_MODEM_IRQ);
 
 	ams_delta_latch2_write(
 		AMS_DELTA_LATCH2_MODEM_NRESET | AMS_DELTA_LATCH2_MODEM_CODEC,

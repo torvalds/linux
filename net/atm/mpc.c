@@ -455,7 +455,6 @@ static void lane2_assoc_ind(struct net_device *dev, const u8 *mac_addr,
 	if (end_of_tlvs - tlvs != 0)
 		pr_info("(%s) ignoring %Zd bytes of trailing TLV garbage\n",
 			dev->name, end_of_tlvs - tlvs);
-	return;
 }
 
 /*
@@ -684,8 +683,6 @@ static void mpc_vcc_close(struct atm_vcc *vcc, struct net_device *dev)
 
 	if (in_entry == NULL && eg_entry == NULL)
 		dprintk("(%s) unused vcc closed\n", dev->name);
-
-	return;
 }
 
 static void mpc_push(struct atm_vcc *vcc, struct sk_buff *skb)
@@ -783,8 +780,6 @@ static void mpc_push(struct atm_vcc *vcc, struct sk_buff *skb)
 
 	memset(ATM_SKB(skb), 0, sizeof(struct atm_skb_data));
 	netif_rx(new_skb);
-
-	return;
 }
 
 static struct atmdev_ops mpc_ops = { /* only send is required */
@@ -873,8 +868,6 @@ static void send_set_mps_ctrl_addr(const char *addr, struct mpoa_client *mpc)
 	mesg.type = SET_MPS_CTRL_ADDR;
 	memcpy(mesg.MPS_ctrl, addr, ATM_ESA_LEN);
 	msg_to_mpoad(&mesg, mpc);
-
-	return;
 }
 
 static void mpoad_close(struct atm_vcc *vcc)
@@ -911,8 +904,6 @@ static void mpoad_close(struct atm_vcc *vcc)
 	pr_info("(%s) going down\n",
 		(mpc->dev) ? mpc->dev->name : "<unknown>");
 	module_put(THIS_MODULE);
-
-	return;
 }
 
 /*
@@ -1122,7 +1113,6 @@ static void MPOA_trigger_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 	pr_info("(%s) entry already in resolving state\n",
 		(mpc->dev) ? mpc->dev->name : "<unknown>");
 	mpc->in_ops->put(entry);
-	return;
 }
 
 /*
@@ -1166,7 +1156,6 @@ static void check_qos_and_open_shortcut(struct k_message *msg,
 	} else
 		memset(&msg->qos, 0, sizeof(struct atm_qos));
 	msg_to_mpoad(msg, client);
-	return;
 }
 
 static void MPOA_res_reply_rcvd(struct k_message *msg, struct mpoa_client *mpc)
@@ -1240,8 +1229,6 @@ static void ingress_purge_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 		mpc->in_ops->put(entry);
 		entry = mpc->in_ops->get_with_mask(dst_ip, mpc, mask);
 	} while (entry != NULL);
-
-	return;
 }
 
 static void egress_purge_rcvd(struct k_message *msg, struct mpoa_client *mpc)
@@ -1260,8 +1247,6 @@ static void egress_purge_rcvd(struct k_message *msg, struct mpoa_client *mpc)
 	write_unlock_irq(&mpc->egress_lock);
 
 	mpc->eg_ops->put(entry);
-
-	return;
 }
 
 static void purge_egress_shortcut(struct atm_vcc *vcc, eg_cache_entry *entry)
@@ -1295,8 +1280,6 @@ static void purge_egress_shortcut(struct atm_vcc *vcc, eg_cache_entry *entry)
 	skb_queue_tail(&sk->sk_receive_queue, skb);
 	sk->sk_data_ready(sk, skb->len);
 	dprintk("exiting\n");
-
-	return;
 }
 
 /*
@@ -1325,8 +1308,6 @@ static void mps_death(struct k_message *msg, struct mpoa_client *mpc)
 
 	mpc->in_ops->destroy_cache(mpc);
 	mpc->eg_ops->destroy_cache(mpc);
-
-	return;
 }
 
 static void MPOA_cache_impos_rcvd(struct k_message *msg,
@@ -1353,8 +1334,6 @@ static void MPOA_cache_impos_rcvd(struct k_message *msg,
 	write_unlock_irq(&mpc->egress_lock);
 
 	mpc->eg_ops->put(entry);
-
-	return;
 }
 
 static void set_mpc_ctrl_addr_rcvd(struct k_message *mesg,
@@ -1392,8 +1371,6 @@ static void set_mpc_ctrl_addr_rcvd(struct k_message *mesg,
 			pr_info("(%s) targetless LE_ARP request failed\n",
 				mpc->dev->name);
 	}
-
-	return;
 }
 
 static void set_mps_mac_addr_rcvd(struct k_message *msg,
@@ -1409,8 +1386,6 @@ static void set_mps_mac_addr_rcvd(struct k_message *msg,
 		return;
 	}
 	client->number_of_mps_macs = 1;
-
-	return;
 }
 
 /*
@@ -1436,7 +1411,6 @@ static void clean_up(struct k_message *msg, struct mpoa_client *mpc, int action)
 
 	msg->type = action;
 	msg_to_mpoad(msg, mpc);
-	return;
 }
 
 static void mpc_timer_refresh(void)
@@ -1445,8 +1419,6 @@ static void mpc_timer_refresh(void)
 	mpc_timer.data = mpc_timer.expires;
 	mpc_timer.function = mpc_cache_check;
 	add_timer(&mpc_timer);
-
-	return;
 }
 
 static void mpc_cache_check(unsigned long checking_time)
@@ -1471,8 +1443,6 @@ static void mpc_cache_check(unsigned long checking_time)
 		mpc = mpc->next;
 	}
 	mpc_timer_refresh();
-
-	return;
 }
 
 static int atm_mpoa_ioctl(struct socket *sock, unsigned int cmd,
@@ -1561,8 +1531,6 @@ static void __exit atm_mpoa_cleanup(void)
 		kfree(qos);
 		qos = nextqos;
 	}
-
-	return;
 }
 
 module_init(atm_mpoa_init);

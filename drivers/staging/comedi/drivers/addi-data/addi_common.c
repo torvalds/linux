@@ -293,8 +293,8 @@ static const struct addi_board boardtypes[] = {
 			0,
 			0,
 			0,
-			0,
-			0,
+			NULL,
+			NULL,
 			32,
 			0,
 			0,
@@ -2527,7 +2527,7 @@ static const struct addi_board boardtypes[] = {
 
 #define n_boardtypes (sizeof(boardtypes)/sizeof(struct addi_board))
 
-struct comedi_driver driver_addi = {
+static struct comedi_driver driver_addi = {
 	.driver_name = "addi_common",
 	.module = THIS_MODULE,
 	.attach = i_ADDI_Attach,
@@ -2639,9 +2639,8 @@ static int i_ADDI_Attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		devpriv->ps_BoardInfo = this_board;
 		devpriv->i_IobaseReserved = (int) io_addr[3];
 		printk("\nioremap begin");
-		devpriv->dw_AiBase =
-			(unsigned long) ioremap(io_addr[3],
-			this_board->i_IorangeBase3);
+		devpriv->dw_AiBase = ioremap(io_addr[3],
+					     this_board->i_IorangeBase3);
 		printk("\nioremap end");
 	}
 
@@ -2952,7 +2951,7 @@ static int i_ADDI_Detach(struct comedi_device *dev)
 					devpriv->ui_DmaBufferPages[1]);
 			}
 		} else {
-			iounmap((void *)devpriv->dw_AiBase);
+			iounmap(devpriv->dw_AiBase);
 
 			if (devpriv->allocated) {
 				i_pci_card_free(devpriv->amcc);

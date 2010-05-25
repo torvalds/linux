@@ -353,8 +353,11 @@ static const struct of_device_id p9100_match[] = {
 MODULE_DEVICE_TABLE(of, p9100_match);
 
 static struct of_platform_driver p9100_driver = {
-	.name		= "p9100",
-	.match_table	= p9100_match,
+	.driver = {
+		.name = "p9100",
+		.owner = THIS_MODULE,
+		.of_match_table = p9100_match,
+	},
 	.probe		= p9100_probe,
 	.remove		= __devexit_p(p9100_remove),
 };

@@ -99,8 +99,8 @@ typedef enum {
 	ZM_HAL_ANI_PHYERR_RESET,			/* reset phy error stats */
 } ZM_HAL_ANI_CMD;
 
-#define AR_PHY_COUNTMAX        (3 << 22)         // Max counted before intr
-#define ZM_HAL_PROCESS_ANI     0x00000001  /* ANI state setup */
+#define AR_PHY_COUNTMAX		(3 << 22)	/* Max counted before intr */
+#define ZM_HAL_PROCESS_ANI	0x00000001	/* ANI state setup */
 #define ZM_RSSI_DUMMY_MARKER	0x127
 
 /* PHY registers in ar5416, related base and register offsets
@@ -353,7 +353,7 @@ typedef enum {
 #define AR_PHY_CCK_DETECT                           0x1C6208
 #define AR_PHY_CCK_DETECT_WEAK_SIG_THR_CCK          0x0000003F
 #define AR_PHY_CCK_DETECT_WEAK_SIG_THR_CCK_S        0
-#define AR_PHY_CCK_DETECT_ANT_SWITCH_TIME           0x00001FC0 // [12:6] settling time for antenna switch
+#define AR_PHY_CCK_DETECT_ANT_SWITCH_TIME           0x00001FC0 /* [12:6] settling time for antenna switch */
 #define AR_PHY_CCK_DETECT_ANT_SWITCH_TIME_S         6
 #define AR_PHY_CCK_DETECT_BB_ENABLE_ANT_FAST_DIV    0x2000
 
@@ -392,7 +392,6 @@ typedef enum {
 #define AR_PHY_TPCRG1_PD_GAIN_2_S  18
 #define AR_PHY_TPCRG1_PD_GAIN_3    0x00300000
 #define AR_PHY_TPCRG1_PD_GAIN_3_S  20
-//
 
 #define AR_PHY_ANALOG_SWAP      0xa268
 #define AR_PHY_SWAP_ALT_CHAIN   0x00000040

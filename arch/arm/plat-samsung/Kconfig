@@ -90,12 +90,6 @@ config S3C_GPIO_CFG_S3C64XX
 	  Internal configuration to enable S3C64XX style GPIO configuration
 	  functions.
 
-config S5P_GPIO_CFG_S5PC1XX
-	bool
-	help
-	  Internal configuration to enable S5PC1XX style GPIO configuration
-	  functions.
-
 config S3C_GPIO_PULL_UPDOWN
 	bool
 	help
@@ -110,6 +104,12 @@ config S3C_GPIO_PULL_UP
 	bool
 	help
 	  Internal configuration to enable the correct GPIO pull helper
+
+config S5P_GPIO_DRVSTR
+	bool
+	help
+	  Internal configuration to get and set correct GPIO driver strength
+	  helper
 
 config SAMSUNG_GPIO_EXTRA
 	int "Number of additional GPIO pins"
@@ -160,6 +160,11 @@ config S3C_DEV_HSMMC2
 	help
 	  Compile in platform device definitions for HSMMC channel 2
 
+config S3C_DEV_HWMON
+	bool
+	help
+	    Compile in platform device definitions for HWMON
+
 config S3C_DEV_I2C1
 	bool
 	help
@@ -185,11 +190,26 @@ config S3C_DEV_NAND
 	help
 	  Compile in platform device definition for NAND controller
 
+config S3C_DEV_RTC
+	bool
+	help
+	  Complie in platform device definition for RTC
+
+config SAMSUNG_DEV_ADC
+	bool
+	help
+	  Compile in platform device definition for ADC controller
+
 config S3C64XX_DEV_SPI
 	bool
 	help
 	  Compile in platform device definitions for S3C64XX's type
 	  SPI controllers.
+
+config SAMSUNG_DEV_TS
+	bool
+	help
+	    Common in platform device definitions for touchscreen device
 
 # DMA
 
@@ -197,6 +217,12 @@ config S3C_DMA
 	bool
 	help
 	  Internal configuration for S3C DMA core
+
+config S3C_PL330_DMA
+	bool
+	select PL330
+	help
+	  S3C DMA API Driver for PL330 DMAC.
 
 comment "Power management"
 

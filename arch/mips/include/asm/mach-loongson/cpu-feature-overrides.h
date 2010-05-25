@@ -52,6 +52,8 @@
 #define cpu_has_tx39_cache	0
 #define cpu_has_userlocal	0
 #define cpu_has_vce		0
+#define cpu_has_veic		0
+#define cpu_has_vint		0
 #define cpu_has_vtag_icache	0
 #define cpu_has_watch		1
 

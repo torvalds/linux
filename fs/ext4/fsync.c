@@ -100,9 +100,11 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 		if (ext4_should_writeback_data(inode) &&
 		    (journal->j_fs_dev != journal->j_dev) &&
 		    (journal->j_flags & JBD2_BARRIER))
-			blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
+			blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL,
+					NULL, BLKDEV_IFL_WAIT);
 		jbd2_log_wait_commit(journal, commit_tid);
 	} else if (journal->j_flags & JBD2_BARRIER)
-		blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
+		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL,
+			BLKDEV_IFL_WAIT);
 	return ret;
 }

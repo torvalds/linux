@@ -856,7 +856,6 @@ skip:
 	{
 		kaweth->stats.tx_packets++;
 		kaweth->stats.tx_bytes += skb->len;
-		net->trans_start = jiffies;
 	}
 
 	spin_unlock_irq(&kaweth->device_lock);
@@ -1156,13 +1155,13 @@ err_fw:
 	if (!kaweth->irq_urb)
 		goto err_tx_and_rx;
 
-	kaweth->intbuffer = usb_buffer_alloc(	kaweth->dev,
+	kaweth->intbuffer = usb_alloc_coherent(	kaweth->dev,
 						INTBUFFERSIZE,
 						GFP_KERNEL,
 						&kaweth->intbufferhandle);
 	if (!kaweth->intbuffer)
 		goto err_tx_and_rx_and_irq;
-	kaweth->rx_buf = usb_buffer_alloc(	kaweth->dev,
+	kaweth->rx_buf = usb_alloc_coherent(	kaweth->dev,
 						KAWETH_BUF_SIZE,
 						GFP_KERNEL,
 						&kaweth->rxbufferhandle);
@@ -1203,9 +1202,9 @@ err_fw:
 
 err_intfdata:
 	usb_set_intfdata(intf, NULL);
-	usb_buffer_free(kaweth->dev, KAWETH_BUF_SIZE, (void *)kaweth->rx_buf, kaweth->rxbufferhandle);
+	usb_free_coherent(kaweth->dev, KAWETH_BUF_SIZE, (void *)kaweth->rx_buf, kaweth->rxbufferhandle);
 err_all_but_rxbuf:
-	usb_buffer_free(kaweth->dev, INTBUFFERSIZE, (void *)kaweth->intbuffer, kaweth->intbufferhandle);
+	usb_free_coherent(kaweth->dev, INTBUFFERSIZE, (void *)kaweth->intbuffer, kaweth->intbufferhandle);
 err_tx_and_rx_and_irq:
 	usb_free_urb(kaweth->irq_urb);
 err_tx_and_rx:
@@ -1242,8 +1241,8 @@ static void kaweth_disconnect(struct usb_interface *intf)
 	usb_free_urb(kaweth->tx_urb);
 	usb_free_urb(kaweth->irq_urb);
 
-	usb_buffer_free(kaweth->dev, KAWETH_BUF_SIZE, (void *)kaweth->rx_buf, kaweth->rxbufferhandle);
-	usb_buffer_free(kaweth->dev, INTBUFFERSIZE, (void *)kaweth->intbuffer, kaweth->intbufferhandle);
+	usb_free_coherent(kaweth->dev, KAWETH_BUF_SIZE, (void *)kaweth->rx_buf, kaweth->rxbufferhandle);
+	usb_free_coherent(kaweth->dev, INTBUFFERSIZE, (void *)kaweth->intbuffer, kaweth->intbufferhandle);
 
 	free_netdev(netdev);
 }

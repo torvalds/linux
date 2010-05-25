@@ -41,7 +41,7 @@
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
-#include <asm/vmware.h>
+#include <asm/hypervisor.h>
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Memory Control (Balloon) Driver");
@@ -767,7 +767,7 @@ static int __init vmballoon_init(void)
 	 * Check if we are running on VMware's hypervisor and bail out
 	 * if we are not.
 	 */
-	if (!vmware_platform())
+	if (x86_hyper != &x86_hyper_vmware)
 		return -ENODEV;
 
 	vmballoon_wq = create_freezeable_workqueue("vmmemctl");

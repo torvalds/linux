@@ -446,7 +446,6 @@ error:
 	net_dev->stats.rx_errors++;
 free_skb:
 	dev_kfree_skb(skb);
-	return;
 }
 
 /*

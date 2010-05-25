@@ -50,6 +50,8 @@ zc3xx		0458:700f	Genius VideoCam Web V2
 sonixj		0458:7025	Genius Eye 311Q
 sn9c20x		0458:7029	Genius Look 320s
 sonixj		0458:702e	Genius Slim 310 NB
+sn9c20x		0458:704a	Genius Slim 1320
+sn9c20x		0458:704c	Genius i-Look 1321
 sn9c20x		045e:00f4	LifeCam VX-6000 (SN9C20x + OV9650)
 sonixj		045e:00f5	MicroSoft VX3000
 sonixj		045e:00f7	MicroSoft VX1000
@@ -305,12 +307,14 @@ sonixj		0c45:6138	Sn9c120 Mo4000
 sonixj		0c45:613a	Microdia Sonix PC Camera
 sonixj		0c45:613b	Surfer SN-206
 sonixj		0c45:613c	Sonix Pccam168
+sonixj		0c45:6142	Hama PC-Webcam AC-150
 sonixj		0c45:6143	Sonix Pccam168
 sonixj		0c45:6148	Digitus DA-70811/ZSMC USB PC Camera ZS211/Microdia
 sonixj		0c45:614a	Frontech E-Ccam (JIL-2225)
 sn9c20x		0c45:6240	PC Camera (SN9C201 + MT9M001)
 sn9c20x		0c45:6242	PC Camera (SN9C201 + MT9M111)
 sn9c20x		0c45:6248	PC Camera (SN9C201 + OV9655)
+sn9c20x		0c45:624c	PC Camera (SN9C201 + MT9M112)
 sn9c20x		0c45:624e	PC Camera (SN9C201 + SOI968)
 sn9c20x		0c45:624f	PC Camera (SN9C201 + OV9650)
 sn9c20x		0c45:6251	PC Camera (SN9C201 + OV9650)
@@ -323,6 +327,7 @@ sn9c20x		0c45:627f	PC Camera (SN9C201 + OV9650)
 sn9c20x		0c45:6280	PC Camera (SN9C202 + MT9M001)
 sn9c20x		0c45:6282	PC Camera (SN9C202 + MT9M111)
 sn9c20x		0c45:6288	PC Camera (SN9C202 + OV9655)
+sn9c20x		0c45:628c	PC Camera (SN9C201 + MT9M112)
 sn9c20x		0c45:628e	PC Camera (SN9C202 + SOI968)
 sn9c20x		0c45:628f	PC Camera (SN9C202 + OV9650)
 sn9c20x		0c45:62a0	PC Camera (SN9C202 + OV7670)

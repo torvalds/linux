@@ -58,7 +58,7 @@ zc0301_attach_sensor(struct zc0301_device* cam, struct zc0301_sensor* sensor);
 	.idProduct = (prod),                                                  \
 	.bInterfaceClass = (intclass)
 
-#if !defined CONFIG_USB_GSPCA && !defined CONFIG_USB_GSPCA_MODULE
+#if !defined CONFIG_USB_GSPCA_ZC3XX && !defined CONFIG_USB_GSPCA_ZC3XX_MODULE
 #define ZC0301_ID_TABLE                                                       \
 static const struct usb_device_id zc0301_id_table[] =  {                      \
 	{ ZC0301_USB_DEVICE(0x046d, 0x08ae, 0xff), }, /* PAS202 */            \

@@ -1015,41 +1015,41 @@ int fsl_rio_setup(struct of_device *dev)
 	u64 law_start, law_size;
 	int paw, aw, sw;
 
-	if (!dev->node) {
+	if (!dev->dev.of_node) {
 		dev_err(&dev->dev, "Device OF-Node is NULL");
 		return -EFAULT;
 	}
 
-	rc = of_address_to_resource(dev->node, 0, &regs);
+	rc = of_address_to_resource(dev->dev.of_node, 0, &regs);
 	if (rc) {
 		dev_err(&dev->dev, "Can't get %s property 'reg'\n",
-				dev->node->full_name);
+				dev->dev.of_node->full_name);
 		return -EFAULT;
 	}
-	dev_info(&dev->dev, "Of-device full name %s\n", dev->node->full_name);
+	dev_info(&dev->dev, "Of-device full name %s\n", dev->dev.of_node->full_name);
 	dev_info(&dev->dev, "Regs: %pR\n", &regs);
 
-	dt_range = of_get_property(dev->node, "ranges", &rlen);
+	dt_range = of_get_property(dev->dev.of_node, "ranges", &rlen);
 	if (!dt_range) {
 		dev_err(&dev->dev, "Can't get %s property 'ranges'\n",
-				dev->node->full_name);
+				dev->dev.of_node->full_name);
 		return -EFAULT;
 	}
 
 	/* Get node address wide */
-	cell = of_get_property(dev->node, "#address-cells", NULL);
+	cell = of_get_property(dev->dev.of_node, "#address-cells", NULL);
 	if (cell)
 		aw = *cell;
 	else
-		aw = of_n_addr_cells(dev->node);
+		aw = of_n_addr_cells(dev->dev.of_node);
 	/* Get node size wide */
-	cell = of_get_property(dev->node, "#size-cells", NULL);
+	cell = of_get_property(dev->dev.of_node, "#size-cells", NULL);
 	if (cell)
 		sw = *cell;
 	else
-		sw = of_n_size_cells(dev->node);
+		sw = of_n_size_cells(dev->dev.of_node);
 	/* Get parent address wide wide */
-	paw = of_n_addr_cells(dev->node);
+	paw = of_n_addr_cells(dev->dev.of_node);
 
 	law_start = of_read_number(dt_range + aw, paw);
 	law_size = of_read_number(dt_range + aw + paw, sw);
@@ -1089,9 +1089,9 @@ int fsl_rio_setup(struct of_device *dev)
 	port->iores.flags = IORESOURCE_MEM;
 	port->iores.name = "rio_io_win";
 
-	priv->bellirq = irq_of_parse_and_map(dev->node, 2);
-	priv->txirq = irq_of_parse_and_map(dev->node, 3);
-	priv->rxirq = irq_of_parse_and_map(dev->node, 4);
+	priv->bellirq = irq_of_parse_and_map(dev->dev.of_node, 2);
+	priv->txirq = irq_of_parse_and_map(dev->dev.of_node, 3);
+	priv->rxirq = irq_of_parse_and_map(dev->dev.of_node, 4);
 	dev_info(&dev->dev, "bellirq: %d, txirq: %d, rxirq %d\n", priv->bellirq,
 				priv->txirq, priv->rxirq);
 
@@ -1195,7 +1195,7 @@ static int __devinit fsl_of_rio_rpn_probe(struct of_device *dev,
 {
 	int rc;
 	printk(KERN_INFO "Setting up RapidIO peer-to-peer network %s\n",
-			dev->node->full_name);
+			dev->dev.of_node->full_name);
 
 	rc = fsl_rio_setup(dev);
 	if (rc)
@@ -1215,8 +1215,11 @@ static const struct of_device_id fsl_of_rio_rpn_ids[] = {
 };
 
 static struct of_platform_driver fsl_of_rio_rpn_driver = {
-	.name = "fsl-of-rio",
-	.match_table = fsl_of_rio_rpn_ids,
+	.driver = {
+		.name = "fsl-of-rio",
+		.owner = THIS_MODULE,
+		.of_match_table = fsl_of_rio_rpn_ids,
+	},
 	.probe = fsl_of_rio_rpn_probe,
 };
 

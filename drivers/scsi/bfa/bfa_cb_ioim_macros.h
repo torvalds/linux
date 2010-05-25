@@ -117,35 +117,6 @@ bfa_cb_ioim_get_timeout(struct bfad_ioim_s *dio)
 }
 
 /**
- * Get SG element for the I/O request given the SG element index
- */
-static inline union bfi_addr_u
-bfa_cb_ioim_get_sgaddr(struct bfad_ioim_s *dio, int sgeid)
-{
-	struct scsi_cmnd *cmnd = (struct scsi_cmnd *)dio;
-	struct scatterlist *sge;
-	u64        addr;
-
-	sge = (struct scatterlist *)scsi_sglist(cmnd) + sgeid;
-	addr = (u64) sg_dma_address(sge);
-
-	return *((union bfi_addr_u *) &addr);
-}
-
-static inline u32
-bfa_cb_ioim_get_sglen(struct bfad_ioim_s *dio, int sgeid)
-{
-	struct scsi_cmnd *cmnd = (struct scsi_cmnd *)dio;
-	struct scatterlist *sge;
-	u32        len;
-
-	sge = (struct scatterlist *)scsi_sglist(cmnd) + sgeid;
-	len = sg_dma_len(sge);
-
-	return len;
-}
-
-/**
  * Get Command Reference Number for the I/O request. 0 if none.
  */
 static inline u8

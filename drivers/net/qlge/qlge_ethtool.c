@@ -181,8 +181,6 @@ quit:
 	spin_unlock(&qdev->stats_lock);
 
 	QL_DUMP_STAT(qdev);
-
-	return;
 }
 
 static char ql_stats_str_arr[][ETH_GSTRING_LEN] = {

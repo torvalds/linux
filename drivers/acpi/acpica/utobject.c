@@ -251,7 +251,7 @@ union acpi_operand_object *acpi_ut_create_buffer_object(acpi_size buffer_size)
 
 		buffer = ACPI_ALLOCATE_ZEROED(buffer_size);
 		if (!buffer) {
-			ACPI_ERROR((AE_INFO, "Could not allocate size %X",
+			ACPI_ERROR((AE_INFO, "Could not allocate size %u",
 				    (u32) buffer_size));
 			acpi_ut_remove_reference(buffer_desc);
 			return_PTR(NULL);
@@ -303,7 +303,7 @@ union acpi_operand_object *acpi_ut_create_string_object(acpi_size string_size)
 	 */
 	string = ACPI_ALLOCATE_ZEROED(string_size + 1);
 	if (!string) {
-		ACPI_ERROR((AE_INFO, "Could not allocate size %X",
+		ACPI_ERROR((AE_INFO, "Could not allocate size %u",
 			    (u32) string_size));
 		acpi_ut_remove_reference(string_desc);
 		return_PTR(NULL);
@@ -533,7 +533,7 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 			 */
 			ACPI_ERROR((AE_INFO,
 				    "Cannot convert to external object - "
-				    "unsupported Reference Class [%s] %X in object %p",
+				    "unsupported Reference Class [%s] 0x%X in object %p",
 				    acpi_ut_get_reference_name(internal_object),
 				    internal_object->reference.class,
 				    internal_object));
@@ -545,7 +545,7 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 	default:
 
 		ACPI_ERROR((AE_INFO, "Cannot convert to external object - "
-			    "unsupported type [%s] %X in object %p",
+			    "unsupported type [%s] 0x%X in object %p",
 			    acpi_ut_get_object_type_name(internal_object),
 			    internal_object->common.type, internal_object));
 		status = AE_TYPE;

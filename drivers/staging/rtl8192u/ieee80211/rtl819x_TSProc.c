@@ -87,10 +87,7 @@ void RxPktPendingTimeout(unsigned long data)
 	if(bPktInBuf && (pRxTs->RxTimeoutIndicateSeq==0xffff))
 	{
 		pRxTs->RxTimeoutIndicateSeq = pRxTs->RxIndicateSeq;
-		if(timer_pending(&pRxTs->RxPktPendingTimer))
-			del_timer_sync(&pRxTs->RxPktPendingTimer);
-		pRxTs->RxPktPendingTimer.expires = jiffies + ieee->pHTInfo->RxReorderPendingTime;
-		add_timer(&pRxTs->RxPktPendingTimer);
+		mod_timer(&pRxTs->RxPktPendingTimer,  jiffies + MSECS(ieee->pHTInfo->RxReorderPendingTime));
 	}
 	spin_unlock_irqrestore(&(ieee->reorder_spinlock), flags);
 	//PlatformReleaseSpinLock(Adapter, RT_RX_SPINLOCK);
@@ -358,6 +355,7 @@ bool GetTs(
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "get TS for Broadcast or Multicast\n");
 		return false;
 	}
+
 	if (ieee->current_network.qos_data.supported == 0)
 		UP = 0;
 	else
@@ -532,6 +530,7 @@ void RemoveTsEntry(
 void RemovePeerTS(struct ieee80211_device* ieee, u8* Addr)
 {
 	PTS_COMMON_INFO	pTS, pTmpTS;
+
 	printk("===========>RemovePeerTS,%pM\n", Addr);
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List)
 	{
@@ -578,6 +577,7 @@ void RemovePeerTS(struct ieee80211_device* ieee, u8* Addr)
 void RemoveAllTS(struct ieee80211_device* ieee)
 {
 	PTS_COMMON_INFO pTS, pTmpTS;
+
 	list_for_each_entry_safe(pTS, pTmpTS, &ieee->Tx_TS_Pending_List, List)
 	{
 		RemoveTsEntry(ieee, pTS, TX_DIR);
@@ -626,4 +626,3 @@ void TsStartAddBaProcess(struct ieee80211_device* ieee, PTX_TS_RECORD	pTxTS)
 	else
 		IEEE80211_DEBUG(IEEE80211_DL_ERR, "%s()==>BA timer is already added\n", __FUNCTION__);
 }
-EXPORT_SYMBOL(RemovePeerTS);

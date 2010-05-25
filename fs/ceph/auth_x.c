@@ -127,7 +127,7 @@ static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
 	int ret;
 	char *dbuf;
 	char *ticket_buf;
-	u8 struct_v;
+	u8 reply_struct_v;
 
 	dbuf = kmalloc(TEMP_TICKET_BUF_LEN, GFP_NOFS);
 	if (!dbuf)
@@ -139,14 +139,14 @@ static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
 		goto out_dbuf;
 
 	ceph_decode_need(&p, end, 1 + sizeof(u32), bad);
-	struct_v = ceph_decode_8(&p);
-	if (struct_v != 1)
+	reply_struct_v = ceph_decode_8(&p);
+	if (reply_struct_v != 1)
 		goto bad;
 	num = ceph_decode_32(&p);
 	dout("%d tickets\n", num);
 	while (num--) {
 		int type;
-		u8 struct_v;
+		u8 tkt_struct_v, blob_struct_v;
 		struct ceph_x_ticket_handler *th;
 		void *dp, *dend;
 		int dlen;
@@ -165,8 +165,8 @@ static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
 		type = ceph_decode_32(&p);
 		dout(" ticket type %d %s\n", type, ceph_entity_type_name(type));
 
-		struct_v = ceph_decode_8(&p);
-		if (struct_v != 1)
+		tkt_struct_v = ceph_decode_8(&p);
+		if (tkt_struct_v != 1)
 			goto bad;
 
 		th = get_ticket_handler(ac, type);
@@ -186,8 +186,8 @@ static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
 		dend = dbuf + dlen;
 		dp = dbuf;
 
-		struct_v = ceph_decode_8(&dp);
-		if (struct_v != 1)
+		tkt_struct_v = ceph_decode_8(&dp);
+		if (tkt_struct_v != 1)
 			goto bad;
 
 		memcpy(&old_key, &th->session_key, sizeof(old_key));
@@ -224,7 +224,7 @@ static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
 		tpend = tp + dlen;
 		dout(" ticket blob is %d bytes\n", dlen);
 		ceph_decode_need(&tp, tpend, 1 + sizeof(u64), bad);
-		struct_v = ceph_decode_8(&tp);
+		blob_struct_v = ceph_decode_8(&tp);
 		new_secret_id = ceph_decode_64(&tp);
 		ret = ceph_decode_buffer(&new_ticket_blob, &tp, tpend);
 		if (ret)
@@ -618,6 +618,7 @@ static void ceph_x_invalidate_authorizer(struct ceph_auth_client *ac,
 
 
 static const struct ceph_auth_client_ops ceph_x_ops = {
+	.name = "x",
 	.is_authenticated = ceph_x_is_authenticated,
 	.build_request = ceph_x_build_request,
 	.handle_reply = ceph_x_handle_reply,

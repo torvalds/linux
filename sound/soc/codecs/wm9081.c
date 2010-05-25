@@ -521,7 +521,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 static int wm9081_set_fll(struct snd_soc_codec *codec, int fll_id,
 			  unsigned int Fref, unsigned int Fout)
 {
-	struct wm9081_priv *wm9081 = codec->private_data;
+	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 	u16 reg1, reg4, reg5;
 	struct _fll_div fll_div;
 	int ret;
@@ -607,7 +607,7 @@ static int wm9081_set_fll(struct snd_soc_codec *codec, int fll_id,
 
 static int configure_clock(struct snd_soc_codec *codec)
 {
-	struct wm9081_priv *wm9081 = codec->private_data;
+	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 	int new_sysclk, i, target;
 	unsigned int reg;
 	int ret = 0;
@@ -702,7 +702,7 @@ static int clk_sys_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	struct wm9081_priv *wm9081 = codec->private_data;
+	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 
 	/* This should be done on init() for bypass paths */
 	switch (wm9081->sysclk_source) {
@@ -873,7 +873,7 @@ static int wm9081_set_dai_fmt(struct snd_soc_dai *dai,
 			      unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm9081_priv *wm9081 = codec->private_data;
+	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 	unsigned int aif2 = snd_soc_read(codec, WM9081_AUDIO_INTERFACE_2);
 
 	aif2 &= ~(WM9081_AIF_BCLK_INV | WM9081_AIF_LRCLK_INV |
@@ -965,7 +965,7 @@ static int wm9081_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm9081_priv *wm9081 = codec->private_data;
+	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 	int ret, i, best, best_val, cur_val;
 	unsigned int clk_ctrl2, aif1, aif2, aif3, aif4;
 
@@ -1139,7 +1139,7 @@ static int wm9081_set_sysclk(struct snd_soc_dai *codec_dai,
 			     int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm9081_priv *wm9081 = codec->private_data;
+	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 
 	switch (clk_id) {
 	case WM9081_SYSCLK_MCLK:
@@ -1159,7 +1159,7 @@ static int wm9081_set_tdm_slot(struct snd_soc_dai *dai,
 	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm9081_priv *wm9081 = codec->private_data;
+	struct wm9081_priv *wm9081 = snd_soc_codec_get_drvdata(codec);
 	unsigned int aif1 = snd_soc_read(codec, WM9081_AUDIO_INTERFACE_1);
 
 	aif1 &= ~(WM9081_AIFDAC_TDM_SLOT_MASK | WM9081_AIFDAC_TDM_MODE_MASK);
@@ -1242,7 +1242,7 @@ static int wm9081_probe(struct platform_device *pdev)
 
 	socdev->card->codec = wm9081_codec;
 	codec = wm9081_codec;
-	wm9081 = codec->private_data;
+	wm9081 = snd_soc_codec_get_drvdata(codec);
 
 	/* register pcms */
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
@@ -1339,7 +1339,7 @@ static int wm9081_register(struct wm9081_priv *wm9081,
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm9081;
+	snd_soc_codec_set_drvdata(codec, wm9081);
 	codec->name = "WM9081";
 	codec->owner = THIS_MODULE;
 	codec->dai = &wm9081_dai;

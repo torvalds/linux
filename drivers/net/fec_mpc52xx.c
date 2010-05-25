@@ -327,7 +327,6 @@ static int mpc52xx_fec_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
-	dev->trans_start = jiffies;
 
 	bd = (struct bcom_fec_bd *)
 		bcom_prepare_next_buffer(priv->tx_dmatsk);
@@ -436,7 +435,6 @@ static irqreturn_t mpc52xx_fec_rx_interrupt(int irq, void *dev_id)
 				 DMA_FROM_DEVICE);
 		length = status & BCOM_FEC_RX_BD_LEN_MASK;
 		skb_put(rskb, length - 4);	/* length without CRC32 */
-		rskb->dev = dev;
 		rskb->protocol = eth_type_trans(rskb, dev);
 		netif_rx(rskb);
 
@@ -576,12 +574,12 @@ static void mpc52xx_fec_set_multicast_list(struct net_device *dev)
 			out_be32(&fec->gaddr2, 0xffffffff);
 		} else {
 			u32 crc;
-			struct dev_mc_list *dmi;
+			struct netdev_hw_addr *ha;
 			u32 gaddr1 = 0x00000000;
 			u32 gaddr2 = 0x00000000;
 
-			netdev_for_each_mc_addr(dmi, dev) {
-				crc = ether_crc_le(6, dmi->dmi_addr) >> 26;
+			netdev_for_each_mc_addr(ha, dev) {
+				crc = ether_crc_le(6, ha->addr) >> 26;
 				if (crc >= 32)
 					gaddr1 |= 1 << (crc-32);
 				else
@@ -873,7 +871,7 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	priv->ndev = ndev;
 
 	/* Reserve FEC control zone */
-	rv = of_address_to_resource(op->node, 0, &mem);
+	rv = of_address_to_resource(op->dev.of_node, 0, &mem);
 	if (rv) {
 		printk(KERN_ERR DRIVER_NAME ": "
 				"Error while parsing device node resource\n" );
@@ -921,7 +919,7 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 
 	/* Get the IRQ we need one by one */
 		/* Control */
-	ndev->irq = irq_of_parse_and_map(op->node, 0);
+	ndev->irq = irq_of_parse_and_map(op->dev.of_node, 0);
 
 		/* RX */
 	priv->r_irq = bcom_get_task_irq(priv->rx_dmatsk);
@@ -944,20 +942,20 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	/* Start with safe defaults for link connection */
 	priv->speed = 100;
 	priv->duplex = DUPLEX_HALF;
-	priv->mdio_speed = ((mpc5xxx_get_bus_frequency(op->node) >> 20) / 5) << 1;
+	priv->mdio_speed = ((mpc5xxx_get_bus_frequency(op->dev.of_node) >> 20) / 5) << 1;
 
 	/* The current speed preconfigures the speed of the MII link */
-	prop = of_get_property(op->node, "current-speed", &prop_size);
+	prop = of_get_property(op->dev.of_node, "current-speed", &prop_size);
 	if (prop && (prop_size >= sizeof(u32) * 2)) {
 		priv->speed = prop[0];
 		priv->duplex = prop[1] ? DUPLEX_FULL : DUPLEX_HALF;
 	}
 
 	/* If there is a phy handle, then get the PHY node */
-	priv->phy_node = of_parse_phandle(op->node, "phy-handle", 0);
+	priv->phy_node = of_parse_phandle(op->dev.of_node, "phy-handle", 0);
 
 	/* the 7-wire property means don't use MII mode */
-	if (of_find_property(op->node, "fsl,7-wire-mode", NULL)) {
+	if (of_find_property(op->dev.of_node, "fsl,7-wire-mode", NULL)) {
 		priv->seven_wire_mode = 1;
 		dev_info(&ndev->dev, "using 7-wire PHY mode\n");
 	}
@@ -1065,9 +1063,11 @@ static struct of_device_id mpc52xx_fec_match[] = {
 MODULE_DEVICE_TABLE(of, mpc52xx_fec_match);
 
 static struct of_platform_driver mpc52xx_fec_driver = {
-	.owner		= THIS_MODULE,
-	.name		= DRIVER_NAME,
-	.match_table	= mpc52xx_fec_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_fec_match,
+	},
 	.probe		= mpc52xx_fec_probe,
 	.remove		= mpc52xx_fec_remove,
 #ifdef CONFIG_PM

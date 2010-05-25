@@ -135,7 +135,7 @@ enum ima_hooks { FILE_CHECK = 1, FILE_MMAP, BPRM_CHECK };
 int ima_match_policy(struct inode *inode, enum ima_hooks func, int mask);
 void ima_init_policy(void);
 void ima_update_policy(void);
-int ima_parse_add_rule(char *);
+ssize_t ima_parse_add_rule(char *);
 void ima_delete_rules(void);
 
 /* LSM based policy rules require audit */

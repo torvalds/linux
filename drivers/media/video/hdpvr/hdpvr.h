@@ -111,6 +111,11 @@ struct hdpvr_device {
 	u8			*usbc_buf;
 };
 
+static inline struct hdpvr_device *to_hdpvr_dev(struct v4l2_device *v4l2_dev)
+{
+	return container_of(v4l2_dev, struct hdpvr_device, v4l2_dev);
+}
+
 
 /* buffer one bulk urb of data */
 struct hdpvr_buffer {

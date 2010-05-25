@@ -57,6 +57,7 @@
 enum s390_regset {
 	REGSET_GENERAL,
 	REGSET_FP,
+	REGSET_LAST_BREAK,
 	REGSET_GENERAL_EXTENDED,
 };
 
@@ -381,6 +382,10 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			copied += sizeof(unsigned long);
 		}
 		return 0;
+	case PTRACE_GET_LAST_BREAK:
+		put_user(task_thread_info(child)->last_break,
+			 (unsigned long __user *) data);
+		return 0;
 	default:
 		/* Removing high order bit from addr (only for 31 bit). */
 		addr &= PSW_ADDR_INSN;
@@ -633,6 +638,10 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 			copied += sizeof(unsigned int);
 		}
 		return 0;
+	case PTRACE_GET_LAST_BREAK:
+		put_user(task_thread_info(child)->last_break,
+			 (unsigned int __user *) data);
+		return 0;
 	}
 	return compat_ptrace_request(child, request, addr, data);
 }
@@ -797,6 +806,28 @@ static int s390_fpregs_set(struct task_struct *target,
 	return rc;
 }
 
+#ifdef CONFIG_64BIT
+
+static int s390_last_break_get(struct task_struct *target,
+			       const struct user_regset *regset,
+			       unsigned int pos, unsigned int count,
+			       void *kbuf, void __user *ubuf)
+{
+	if (count > 0) {
+		if (kbuf) {
+			unsigned long *k = kbuf;
+			*k = task_thread_info(target)->last_break;
+		} else {
+			unsigned long  __user *u = ubuf;
+			if (__put_user(task_thread_info(target)->last_break, u))
+				return -EFAULT;
+		}
+	}
+	return 0;
+}
+
+#endif
+
 static const struct user_regset s390_regsets[] = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
@@ -814,6 +845,15 @@ static const struct user_regset s390_regsets[] = {
 		.get = s390_fpregs_get,
 		.set = s390_fpregs_set,
 	},
+#ifdef CONFIG_64BIT
+	[REGSET_LAST_BREAK] = {
+		.core_note_type = NT_S390_LAST_BREAK,
+		.n = 1,
+		.size = sizeof(long),
+		.align = sizeof(long),
+		.get = s390_last_break_get,
+	},
+#endif
 };
 
 static const struct user_regset_view user_s390_view = {
@@ -948,6 +988,27 @@ static int s390_compat_regs_high_set(struct task_struct *target,
 	return rc;
 }
 
+static int s390_compat_last_break_get(struct task_struct *target,
+				      const struct user_regset *regset,
+				      unsigned int pos, unsigned int count,
+				      void *kbuf, void __user *ubuf)
+{
+	compat_ulong_t last_break;
+
+	if (count > 0) {
+		last_break = task_thread_info(target)->last_break;
+		if (kbuf) {
+			unsigned long *k = kbuf;
+			*k = last_break;
+		} else {
+			unsigned long  __user *u = ubuf;
+			if (__put_user(last_break, u))
+				return -EFAULT;
+		}
+	}
+	return 0;
+}
+
 static const struct user_regset s390_compat_regsets[] = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
@@ -964,6 +1025,13 @@ static const struct user_regset s390_compat_regsets[] = {
 		.align = sizeof(compat_long_t),
 		.get = s390_fpregs_get,
 		.set = s390_fpregs_set,
+	},
+	[REGSET_LAST_BREAK] = {
+		.core_note_type = NT_S390_LAST_BREAK,
+		.n = 1,
+		.size = sizeof(long),
+		.align = sizeof(long),
+		.get = s390_compat_last_break_get,
 	},
 	[REGSET_GENERAL_EXTENDED] = {
 		.core_note_type = NT_S390_HIGH_GPRS,

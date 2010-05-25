@@ -18,6 +18,8 @@
 #define gpio_cansleep	__gpio_cansleep
 #define gpio_to_irq	__gpio_to_irq
 
+/* Practically, GPIO banks upto MP03 are the configurable gpio banks */
+
 /* GPIO bank sizes */
 #define S5PV210_GPIO_A0_NR	(8)
 #define S5PV210_GPIO_A1_NR	(4)
@@ -46,6 +48,10 @@
 #define S5PV210_GPIO_J2_NR	(8)
 #define S5PV210_GPIO_J3_NR	(8)
 #define S5PV210_GPIO_J4_NR	(5)
+
+#define S5PV210_GPIO_MP01_NR	(8)
+#define S5PV210_GPIO_MP02_NR	(4)
+#define S5PV210_GPIO_MP03_NR	(8)
 
 /* GPIO bank numbers */
 
@@ -85,6 +91,9 @@ enum s5p_gpio_number {
 	S5PV210_GPIO_J2_START	= S5PV210_GPIO_NEXT(S5PV210_GPIO_J1),
 	S5PV210_GPIO_J3_START	= S5PV210_GPIO_NEXT(S5PV210_GPIO_J2),
 	S5PV210_GPIO_J4_START	= S5PV210_GPIO_NEXT(S5PV210_GPIO_J3),
+	S5PV210_GPIO_MP01_START	= S5PV210_GPIO_NEXT(S5PV210_GPIO_J4),
+	S5PV210_GPIO_MP02_START	= S5PV210_GPIO_NEXT(S5PV210_GPIO_MP01),
+	S5PV210_GPIO_MP03_START	= S5PV210_GPIO_NEXT(S5PV210_GPIO_MP02),
 };
 
 /* S5PV210 GPIO number definitions */
@@ -115,13 +124,16 @@ enum s5p_gpio_number {
 #define S5PV210_GPJ2(_nr)	(S5PV210_GPIO_J2_START + (_nr))
 #define S5PV210_GPJ3(_nr)	(S5PV210_GPIO_J3_START + (_nr))
 #define S5PV210_GPJ4(_nr)	(S5PV210_GPIO_J4_START + (_nr))
+#define S5PV210_MP01(_nr)	(S5PV210_GPIO_MP01_START + (_nr))
+#define S5PV210_MP02(_nr)	(S5PV210_GPIO_MP02_START + (_nr))
+#define S5PV210_MP03(_nr)	(S5PV210_GPIO_MP03_START + (_nr))
 
 /* the end of the S5PV210 specific gpios */
-#define S5PV210_GPIO_END	(S5PV210_GPJ4(S5PV210_GPIO_J4_NR) + 1)
+#define S5PV210_GPIO_END	(S5PV210_MP03(S5PV210_GPIO_MP03_NR) + 1)
 #define S3C_GPIO_END		S5PV210_GPIO_END
 
-/* define the number of gpios we need to the one after the GPJ4() range */
-#define ARCH_NR_GPIOS		(S5PV210_GPJ4(S5PV210_GPIO_J4_NR) +	\
+/* define the number of gpios we need to the one after the MP03() range */
+#define ARCH_NR_GPIOS		(S5PV210_MP03(S5PV210_GPIO_MP03_NR) +	\
 				 CONFIG_SAMSUNG_GPIO_EXTRA + 1)
 
 #include <asm-generic/gpio.h>

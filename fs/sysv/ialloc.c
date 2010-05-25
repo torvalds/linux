@@ -159,15 +159,7 @@ struct inode * sysv_new_inode(const struct inode * dir, mode_t mode)
 	*sbi->s_sb_fic_count = cpu_to_fs16(sbi, count);
 	fs16_add(sbi, sbi->s_sb_total_free_inodes, -1);
 	dirty_sb(sb);
-	
-	if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		if (S_ISDIR(mode))
-			mode |= S_ISGID;
-	} else
-		inode->i_gid = current_fsgid();
-
-	inode->i_uid = current_fsuid();
+	inode_init_owner(inode, dir, mode);
 	inode->i_ino = fs16_to_cpu(sbi, ino);
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;
 	inode->i_blocks = 0;
@@ -176,7 +168,6 @@ struct inode * sysv_new_inode(const struct inode * dir, mode_t mode)
 	insert_inode_hash(inode);
 	mark_inode_dirty(inode);
 
-	inode->i_mode = mode;		/* for sysv_write_inode() */
 	sysv_write_inode(inode, 0);	/* ensure inode not allocated again */
 	mark_inode_dirty(inode);	/* cleared by sysv_write_inode() */
 	/* That's it. */

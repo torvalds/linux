@@ -806,6 +806,7 @@ struct input_absinfo {
 #define BUS_HOST		0x19
 #define BUS_GSC			0x1A
 #define BUS_ATARI		0x1B
+#define BUS_SPI			0x1C
 
 /*
  * MT_TOOL types

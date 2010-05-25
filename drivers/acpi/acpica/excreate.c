@@ -306,12 +306,12 @@ acpi_ex_create_region(u8 * aml_start,
 	 */
 	if ((region_space >= ACPI_NUM_PREDEFINED_REGIONS) &&
 	    (region_space < ACPI_USER_REGION_BEGIN)) {
-		ACPI_ERROR((AE_INFO, "Invalid AddressSpace type %X",
+		ACPI_ERROR((AE_INFO, "Invalid AddressSpace type 0x%X",
 			    region_space));
 		return_ACPI_STATUS(AE_AML_INVALID_SPACE_ID);
 	}
 
-	ACPI_DEBUG_PRINT((ACPI_DB_LOAD, "Region Type - %s (%X)\n",
+	ACPI_DEBUG_PRINT((ACPI_DB_LOAD, "Region Type - %s (0x%X)\n",
 			  acpi_ut_get_region_name(region_space), region_space));
 
 	/* Create the region descriptor */

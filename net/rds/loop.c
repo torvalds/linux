@@ -81,15 +81,8 @@ static int rds_loop_xmit_cong_map(struct rds_connection *conn,
 				  struct rds_cong_map *map,
 				  unsigned long offset)
 {
-	unsigned long i;
-
 	BUG_ON(offset);
 	BUG_ON(map != conn->c_lcong);
-
-	for (i = 0; i < RDS_CONG_MAP_PAGES; i++) {
-		memcpy((void *)conn->c_fcong->m_page_addrs[i],
-		       (void *)map->m_page_addrs[i], PAGE_SIZE);
-	}
 
 	rds_cong_map_updated(conn->c_fcong, ~(u64) 0);
 

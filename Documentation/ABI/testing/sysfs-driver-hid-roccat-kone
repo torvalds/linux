@@ -1,0 +1,111 @@
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/actual_dpi
+Date:		March 2010
+Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
+Description:	It is possible to switch the dpi setting of the mouse with the
+		press of a button.
+		When read, this file returns the raw number of the actual dpi
+		setting reported by the mouse. This number has to be further
+		processed to receive the real dpi value.
+
+		VALUE DPI
+		1     800
+		2     1200
+		3     1600
+		4     2000
+		5     2400
+		6     3200
+
+		This file is readonly.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/actual_profile
+Date:		March 2010
+Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
+Description:	When read, this file returns the number of the actual profile.
+		This file is readonly.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/firmware_version
+Date:		March 2010
+Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
+Description:	When read, this file returns the raw integer version number of the
+		firmware reported by the mouse. Using the integer value eases
+		further usage in other programs. To receive the real version
+		number the decimal point has to be shifted 2 positions to the
+		left. E.g. a returned value of 138 means 1.38
+		This file is readonly.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/kone_driver_version
+Date:		March 2010
+Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
+Description:	When read, this file returns the driver version.
+		The format of the string is "v<major>.<minor>.<patchlevel>".
+		This attribute is used by the userland tools to find the sysfs-
+		paths of installed kone-mice and determine the capabilites of
+		the driver. Versions of this driver for old kernels replace
+		usbhid instead of generic-usb. The way to scan for this file
+		has been chosen to provide a consistent way for all supported
+		kernel versions.
+		This file is readonly.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/profile[1-5]
+Date:		March 2010
+Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
+Description:	The mouse can store 5 profiles which can be switched by the
+                press of a button. A profile holds informations like button
+                mappings, sensitivity, the colors of the 5 leds and light
+                effects.
+                When read, these files return the respective profile. The
+                returned data is 975 bytes in size.
+		When written, this file lets one write the respective profile
+		data back to the mouse. The data has to be 975 bytes long.
+		The mouse will reject invalid data, whereas the profile number
+		stored in the profile doesn't need to fit the number of the
+		store.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/settings
+Date:		March 2010
+Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
+Description:	When read, this file returns the settings stored in the mouse.
+		The size of the data is 36 bytes and holds information like the
+		startup_profile, tcu state and calibration_data.
+		When written, this file lets write settings back to the mouse.
+		The data has to be 36 bytes long. The mouse will reject invalid
+		data.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/startup_profile
+Date:		March 2010
+Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
+Description:	The integer value of this attribute ranges from 1 to 5.
+                When read, this attribute returns the number of the profile
+                that's active when the mouse is powered on.
+		When written, this file sets the number of the startup profile
+		and the mouse activates this profile immediately.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/tcu
+Date:		March 2010
+Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
+Description:	The mouse has a "Tracking Control Unit" which lets the user
+		calibrate the laser power to fit the mousepad surface.
+		When read, this file returns the current state of the TCU,
+		where 0 means off and 1 means on.
+		Writing 0 in this file will switch the TCU off.
+		Writing 1 in this file will start the calibration which takes
+		around 6 seconds to complete and activates the TCU.
+
+What:		/sys/bus/usb/devices/<busnum>-<devnum>:<config num>.<interface num>/weight
+Date:		March 2010
+Contact:	Stefan Achatz <erazor_de@users.sourceforge.net>
+Description:	The mouse can be equipped with one of four supplied weights
+		ranging from 5 to 20 grams which are recognized by the mouse
+		and its value can be read out. When read, this file returns the
+		raw value returned by the mouse which eases further processing
+		in other software.
+		The values map to the weights as follows:
+
+		VALUE WEIGHT
+		0     none
+		1     5g
+		2     10g
+		3     15g
+		4     20g
+
+		This file is readonly.

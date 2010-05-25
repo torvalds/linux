@@ -94,6 +94,7 @@ static void ceph_auth_none_destroy_authorizer(struct ceph_auth_client *ac,
 }
 
 static const struct ceph_auth_client_ops ceph_auth_none_ops = {
+	.name = "none",
 	.reset = reset,
 	.destroy = destroy,
 	.is_authenticated = is_authenticated,

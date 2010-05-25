@@ -302,7 +302,7 @@ static ssize_t zcrypt_write(struct file *filp, const char __user *buf,
 static int zcrypt_open(struct inode *inode, struct file *filp)
 {
 	atomic_inc(&zcrypt_open_count);
-	return 0;
+	return nonseekable_open(inode, filp);
 }
 
 /**

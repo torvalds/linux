@@ -220,7 +220,7 @@ static int __devinit gpio_mdio_probe(struct of_device *ofdev,
 				     const struct of_device_id *match)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct mii_bus *new_bus;
 	struct gpio_priv *priv;
 	const unsigned int *prop;
@@ -301,11 +301,12 @@ MODULE_DEVICE_TABLE(of, gpio_mdio_match);
 
 static struct of_platform_driver gpio_mdio_driver =
 {
-	.match_table	= gpio_mdio_match,
 	.probe		= gpio_mdio_probe,
 	.remove		= gpio_mdio_remove,
-	.driver		= {
-		.name	= "gpio-mdio-bitbang",
+	.driver = {
+		.name = "gpio-mdio-bitbang",
+		.owner = THIS_MODULE,
+		.of_match_table = gpio_mdio_match,
 	},
 };
 

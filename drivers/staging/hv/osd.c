@@ -59,6 +59,15 @@ void *osd_VirtualAllocExec(unsigned int size)
 #endif
 }
 
+/**
+ * osd_PageAlloc() - Allocate pages
+ * @count:      Total number of Kernel pages you want to allocate
+ *
+ * Tries to allocate @count number of consecutive free kernel pages.
+ * And if successful, it will set the pages to 0 before returning.
+ * If successfull it will return pointer to the @count pages.
+ * Mainly used by Hyper-V drivers.
+ */
 void *osd_PageAlloc(unsigned int count)
 {
 	void *p;
@@ -78,6 +87,14 @@ void *osd_PageAlloc(unsigned int count)
 }
 EXPORT_SYMBOL_GPL(osd_PageAlloc);
 
+/**
+ * osd_PageFree() - Free pages
+ * @page:       Pointer to the first page to be freed
+ * @count:      Total number of Kernel pages you free
+ *
+ * Frees the pages allocated by osd_PageAlloc()
+ * Mainly used by Hyper-V drivers.
+ */
 void osd_PageFree(void *page, unsigned int count)
 {
 	free_pages((unsigned long)page, get_order(count * PAGE_SIZE));
@@ -86,6 +103,17 @@ void osd_PageFree(void *page, unsigned int count)
 }
 EXPORT_SYMBOL_GPL(osd_PageFree);
 
+/**
+ * osd_WaitEventCreate() - Create the event queue
+ *
+ * Allocates memory for a &struct osd_waitevent. And then calls
+ * init_waitqueue_head to set up the wait queue for the event.
+ * This structure is usually part of a another structure that contains
+ * the actual Hyper-V device driver structure.
+ *
+ * Returns pointer to &struct osd_waitevent
+ * Mainly used by Hyper-V drivers.
+ */
 struct osd_waitevent *osd_WaitEventCreate(void)
 {
 	struct osd_waitevent *wait = kmalloc(sizeof(struct osd_waitevent),
@@ -99,6 +127,19 @@ struct osd_waitevent *osd_WaitEventCreate(void)
 }
 EXPORT_SYMBOL_GPL(osd_WaitEventCreate);
 
+
+/**
+ * osd_WaitEventSet() - Wake up the process
+ * @waitEvent: Structure to event to be woken up
+ *
+ * @waitevent is of type &struct osd_waitevent
+ *
+ * Wake up the sleeping process so it can do some work.
+ * And set condition indicator in &struct osd_waitevent to indicate
+ * the process is in a woken state.
+ *
+ * Only used by Network and Storage Hyper-V drivers.
+ */
 void osd_WaitEventSet(struct osd_waitevent *waitEvent)
 {
 	waitEvent->condition = 1;
@@ -106,6 +147,20 @@ void osd_WaitEventSet(struct osd_waitevent *waitEvent)
 }
 EXPORT_SYMBOL_GPL(osd_WaitEventSet);
 
+/**
+ * osd_WaitEventWait() - Wait for event till condition is true
+ * @waitEvent: Structure to event to be put to sleep
+ *
+ * @waitevent is of type &struct osd_waitevent
+ *
+ * Set up the process to sleep until waitEvent->condition get true.
+ * And set condition indicator in &struct osd_waitevent to indicate
+ * the process is in a sleeping state.
+ *
+ * Returns the status of 'wait_event_interruptible()' system call
+ *
+ * Mainly used by Hyper-V drivers.
+ */
 int osd_WaitEventWait(struct osd_waitevent *waitEvent)
 {
 	int ret = 0;
@@ -117,6 +172,21 @@ int osd_WaitEventWait(struct osd_waitevent *waitEvent)
 }
 EXPORT_SYMBOL_GPL(osd_WaitEventWait);
 
+/**
+ * osd_WaitEventWaitEx() - Wait for event or timeout for process wakeup
+ * @waitEvent: Structure to event to be put to sleep
+ * @TimeoutInMs:       Total number of Milliseconds to wait before waking up
+ *
+ * @waitevent is of type &struct osd_waitevent
+ * Set up the process to sleep until @waitEvent->condition get true or
+ * @TimeoutInMs (Time out in Milliseconds) has been reached.
+ * And set condition indicator in &struct osd_waitevent to indicate
+ * the process is in a sleeping state.
+ *
+ * Returns the status of 'wait_event_interruptible_timeout()' system call
+ *
+ * Mainly used by Hyper-V drivers.
+ */
 int osd_WaitEventWaitEx(struct osd_waitevent *waitEvent, u32 TimeoutInMs)
 {
 	int ret = 0;

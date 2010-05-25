@@ -1181,7 +1181,7 @@ static int ib_ucm_open(struct inode *inode, struct file *filp)
 	file->filp = filp;
 	file->device = container_of(inode->i_cdev, struct ib_ucm_device, cdev);
 
-	return 0;
+	return nonseekable_open(inode, filp);
 }
 
 static int ib_ucm_close(struct inode *inode, struct file *filp)
@@ -1229,6 +1229,7 @@ static const struct file_operations ucm_fops = {
 	.release = ib_ucm_close,
 	.write	 = ib_ucm_write,
 	.poll    = ib_ucm_poll,
+	.llseek	 = no_llseek,
 };
 
 static ssize_t show_ibdev(struct device *dev, struct device_attribute *attr,

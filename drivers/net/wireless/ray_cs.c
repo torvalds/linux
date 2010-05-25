@@ -51,7 +51,6 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
-#include <pcmcia/mem_op.h>
 
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
@@ -321,10 +320,6 @@ static int ray_probe(struct pcmcia_device *p_dev)
 	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	p_dev->io.IOAddrLines = 5;
 
-	/* Interrupt setup. For PCMCIA, driver takes what's given */
-	p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	p_dev->irq.Handler = &ray_interrupt;
-
 	/* General socket configuration */
 	p_dev->conf.Attributes = CONF_ENABLE_IRQ;
 	p_dev->conf.IntType = INT_MEMORY_AND_IO;
@@ -383,8 +378,7 @@ static void ray_detach(struct pcmcia_device *link)
 	del_timer(&local->timer);
 
 	if (link->priv) {
-		if (link->dev_node)
-			unregister_netdev(dev);
+		unregister_netdev(dev);
 		free_netdev(dev);
 	}
 	dev_dbg(&link->dev, "ray_cs ray_detach ending\n");
@@ -417,10 +411,10 @@ static int ray_config(struct pcmcia_device *link)
 	/* Now allocate an interrupt line.  Note that this does not
 	   actually assign a handler to the interrupt.
 	 */
-	ret = pcmcia_request_irq(link, &link->irq);
+	ret = pcmcia_request_irq(link, ray_interrupt);
 	if (ret)
 		goto failed;
-	dev->irq = link->irq.AssignedIRQ;
+	dev->irq = link->irq;
 
 	/* This actually configures the PCMCIA socket -- setting up
 	   the I/O windows and the interrupt mapping.
@@ -493,9 +487,6 @@ static int ray_config(struct pcmcia_device *link)
 		return i;
 	}
 
-	strcpy(local->node.dev_name, dev->name);
-	link->dev_node = &local->node;
-
 	printk(KERN_INFO "%s: RayLink, irq %d, hw_addr %pM\n",
 	       dev->name, dev->irq, dev->dev_addr);
 
@@ -555,7 +546,7 @@ static int ray_init(struct net_device *dev)
 	local->fw_ver = local->startup_res.firmware_version[0];
 	local->fw_bld = local->startup_res.firmware_version[1];
 	local->fw_var = local->startup_res.firmware_version[2];
-	dev_dbg(&link->dev, "ray_init firmware version %d.%d \n", local->fw_ver,
+	dev_dbg(&link->dev, "ray_init firmware version %d.%d\n", local->fw_ver,
 	      local->fw_bld);
 
 	local->tib_length = 0x20;
@@ -735,8 +726,6 @@ static void verify_dl_startup(u_long data)
 		start_net((u_long) local);
 	else
 		join_net((u_long) local);
-
-	return;
 } /* end verify_dl_startup */
 
 /*===========================================================================*/
@@ -764,7 +753,6 @@ static void start_net(u_long data)
 		return;
 	}
 	local->card_status = CARD_DOING_ACQ;
-	return;
 } /* end start_net */
 
 /*===========================================================================*/
@@ -795,7 +783,6 @@ static void join_net(u_long data)
 		return;
 	}
 	local->card_status = CARD_DOING_ACQ;
-	return;
 }
 
 /*============================================================================
@@ -941,7 +928,6 @@ static netdev_tx_t ray_dev_start_xmit(struct sk_buff *skb,
 	case XMIT_MSG_BAD:
 	case XMIT_OK:
 	default:
-		dev->trans_start = jiffies;
 		dev_kfree_skb(skb);
 	}
 
@@ -1112,10 +1098,10 @@ static const struct ethtool_ops netdev_ethtool_ops = {
 /*
  * Wireless Handler : get protocol name
  */
-static int ray_get_name(struct net_device *dev,
-			struct iw_request_info *info, char *cwrq, char *extra)
+static int ray_get_name(struct net_device *dev, struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra)
 {
-	strcpy(cwrq, "IEEE 802.11-FH");
+	strcpy(wrqu->name, "IEEE 802.11-FH");
 	return 0;
 }
 
@@ -1123,9 +1109,8 @@ static int ray_get_name(struct net_device *dev,
 /*
  * Wireless Handler : set frequency
  */
-static int ray_set_freq(struct net_device *dev,
-			struct iw_request_info *info,
-			struct iw_freq *fwrq, char *extra)
+static int ray_set_freq(struct net_device *dev, struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra)
 {
 	ray_dev_t *local = netdev_priv(dev);
 	int err = -EINPROGRESS;	/* Call commit handler */
@@ -1135,10 +1120,10 @@ static int ray_set_freq(struct net_device *dev,
 		return -EBUSY;
 
 	/* Setting by channel number */
-	if ((fwrq->m > USA_HOP_MOD) || (fwrq->e > 0))
+	if ((wrqu->freq.m > USA_HOP_MOD) || (wrqu->freq.e > 0))
 		err = -EOPNOTSUPP;
 	else
-		local->sparm.b5.a_hop_pattern = fwrq->m;
+		local->sparm.b5.a_hop_pattern = wrqu->freq.m;
 
 	return err;
 }
@@ -1147,14 +1132,13 @@ static int ray_set_freq(struct net_device *dev,
 /*
  * Wireless Handler : get frequency
  */
-static int ray_get_freq(struct net_device *dev,
-			struct iw_request_info *info,
-			struct iw_freq *fwrq, char *extra)
+static int ray_get_freq(struct net_device *dev, struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra)
 {
 	ray_dev_t *local = netdev_priv(dev);
 
-	fwrq->m = local->sparm.b5.a_hop_pattern;
-	fwrq->e = 0;
+	wrqu->freq.m = local->sparm.b5.a_hop_pattern;
+	wrqu->freq.e = 0;
 	return 0;
 }
 
@@ -1162,9 +1146,8 @@ static int ray_get_freq(struct net_device *dev,
 /*
  * Wireless Handler : set ESSID
  */
-static int ray_set_essid(struct net_device *dev,
-			 struct iw_request_info *info,
-			 struct iw_point *dwrq, char *extra)
+static int ray_set_essid(struct net_device *dev, struct iw_request_info *info,
+			 union iwreq_data *wrqu, char *extra)
 {
 	ray_dev_t *local = netdev_priv(dev);
 
@@ -1173,19 +1156,17 @@ static int ray_set_essid(struct net_device *dev,
 		return -EBUSY;
 
 	/* Check if we asked for `any' */
-	if (dwrq->flags == 0) {
+	if (wrqu->essid.flags == 0)
 		/* Corey : can you do that ? */
 		return -EOPNOTSUPP;
-	} else {
-		/* Check the size of the string */
-		if (dwrq->length > IW_ESSID_MAX_SIZE) {
-			return -E2BIG;
-		}
 
-		/* Set the ESSID in the card */
-		memset(local->sparm.b5.a_current_ess_id, 0, IW_ESSID_MAX_SIZE);
-		memcpy(local->sparm.b5.a_current_ess_id, extra, dwrq->length);
-	}
+	/* Check the size of the string */
+	if (wrqu->essid.length > IW_ESSID_MAX_SIZE)
+		return -E2BIG;
+
+	/* Set the ESSID in the card */
+	memset(local->sparm.b5.a_current_ess_id, 0, IW_ESSID_MAX_SIZE);
+	memcpy(local->sparm.b5.a_current_ess_id, extra, wrqu->essid.length);
 
 	return -EINPROGRESS;	/* Call commit handler */
 }
@@ -1194,9 +1175,8 @@ static int ray_set_essid(struct net_device *dev,
 /*
  * Wireless Handler : get ESSID
  */
-static int ray_get_essid(struct net_device *dev,
-			 struct iw_request_info *info,
-			 struct iw_point *dwrq, char *extra)
+static int ray_get_essid(struct net_device *dev, struct iw_request_info *info,
+			 union iwreq_data *wrqu, char *extra)
 {
 	ray_dev_t *local = netdev_priv(dev);
 
@@ -1204,8 +1184,8 @@ static int ray_get_essid(struct net_device *dev,
 	memcpy(extra, local->sparm.b5.a_current_ess_id, IW_ESSID_MAX_SIZE);
 
 	/* Push it out ! */
-	dwrq->length = strlen(extra);
-	dwrq->flags = 1;	/* active */
+	wrqu->essid.length = strlen(extra);
+	wrqu->essid.flags = 1;	/* active */
 
 	return 0;
 }
@@ -1214,14 +1194,13 @@ static int ray_get_essid(struct net_device *dev,
 /*
  * Wireless Handler : get AP address
  */
-static int ray_get_wap(struct net_device *dev,
-		       struct iw_request_info *info,
-		       struct sockaddr *awrq, char *extra)
+static int ray_get_wap(struct net_device *dev, struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra)
 {
 	ray_dev_t *local = netdev_priv(dev);
 
-	memcpy(awrq->sa_data, local->bss_id, ETH_ALEN);
-	awrq->sa_family = ARPHRD_ETHER;
+	memcpy(wrqu->ap_addr.sa_data, local->bss_id, ETH_ALEN);
+	wrqu->ap_addr.sa_family = ARPHRD_ETHER;
 
 	return 0;
 }
@@ -1230,9 +1209,8 @@ static int ray_get_wap(struct net_device *dev,
 /*
  * Wireless Handler : set Bit-Rate
  */
-static int ray_set_rate(struct net_device *dev,
-			struct iw_request_info *info,
-			struct iw_param *vwrq, char *extra)
+static int ray_set_rate(struct net_device *dev, struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra)
 {
 	ray_dev_t *local = netdev_priv(dev);
 
@@ -1241,15 +1219,15 @@ static int ray_set_rate(struct net_device *dev,
 		return -EBUSY;
 
 	/* Check if rate is in range */
-	if ((vwrq->value != 1000000) && (vwrq->value != 2000000))
+	if ((wrqu->bitrate.value != 1000000) && (wrqu->bitrate.value != 2000000))
 		return -EINVAL;
 
 	/* Hack for 1.5 Mb/s instead of 2 Mb/s */
 	if ((local->fw_ver == 0x55) &&	/* Please check */
-	    (vwrq->value == 2000000))
+	    (wrqu->bitrate.value == 2000000))
 		local->net_default_tx_rate = 3;
 	else
-		local->net_default_tx_rate = vwrq->value / 500000;
+		local->net_default_tx_rate = wrqu->bitrate.value / 500000;
 
 	return 0;
 }
@@ -1258,17 +1236,16 @@ static int ray_set_rate(struct net_device *dev,
 /*
  * Wireless Handler : get Bit-Rate
  */
-static int ray_get_rate(struct net_device *dev,
-			struct iw_request_info *info,
-			struct iw_param *vwrq, char *extra)
+static int ray_get_rate(struct net_device *dev, struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra)
 {
 	ray_dev_t *local = netdev_priv(dev);
 
 	if (local->net_default_tx_rate == 3)
-		vwrq->value = 2000000;	/* Hum... */
+		wrqu->bitrate.value = 2000000;	/* Hum... */
 	else
-		vwrq->value = local->net_default_tx_rate * 500000;
-	vwrq->fixed = 0;	/* We are in auto mode */
+		wrqu->bitrate.value = local->net_default_tx_rate * 500000;
+	wrqu->bitrate.fixed = 0;	/* We are in auto mode */
 
 	return 0;
 }
@@ -1277,19 +1254,18 @@ static int ray_get_rate(struct net_device *dev,
 /*
  * Wireless Handler : set RTS threshold
  */
-static int ray_set_rts(struct net_device *dev,
-		       struct iw_request_info *info,
-		       struct iw_param *vwrq, char *extra)
+static int ray_set_rts(struct net_device *dev, struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra)
 {
 	ray_dev_t *local = netdev_priv(dev);
-	int rthr = vwrq->value;
+	int rthr = wrqu->rts.value;
 
 	/* Reject if card is already initialised */
 	if (local->card_status != CARD_AWAITING_PARAM)
 		return -EBUSY;
 
 	/* if(wrq->u.rts.fixed == 0) we should complain */
-	if (vwrq->disabled)
+	if (wrqu->rts.disabled)
 		rthr = 32767;
 	else {
 		if ((rthr < 0) || (rthr > 2347))   /* What's the max packet size ??? */
@@ -1305,16 +1281,15 @@ static int ray_set_rts(struct net_device *dev,
 /*
  * Wireless Handler : get RTS threshold
  */
-static int ray_get_rts(struct net_device *dev,
-		       struct iw_request_info *info,
-		       struct iw_param *vwrq, char *extra)
+static int ray_get_rts(struct net_device *dev, struct iw_request_info *info,
+		       union iwreq_data *wrqu, char *extra)
 {
 	ray_dev_t *local = netdev_priv(dev);
 
-	vwrq->value = (local->sparm.b5.a_rts_threshold[0] << 8)
+	wrqu->rts.value = (local->sparm.b5.a_rts_threshold[0] << 8)
 	    + local->sparm.b5.a_rts_threshold[1];
-	vwrq->disabled = (vwrq->value == 32767);
-	vwrq->fixed = 1;
+	wrqu->rts.disabled = (wrqu->rts.value == 32767);
+	wrqu->rts.fixed = 1;
 
 	return 0;
 }
@@ -1323,19 +1298,18 @@ static int ray_get_rts(struct net_device *dev,
 /*
  * Wireless Handler : set Fragmentation threshold
  */
-static int ray_set_frag(struct net_device *dev,
-			struct iw_request_info *info,
-			struct iw_param *vwrq, char *extra)
+static int ray_set_frag(struct net_device *dev, struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra)
 {
 	ray_dev_t *local = netdev_priv(dev);
-	int fthr = vwrq->value;
+	int fthr = wrqu->frag.value;
 
 	/* Reject if card is already initialised */
 	if (local->card_status != CARD_AWAITING_PARAM)
 		return -EBUSY;
 
 	/* if(wrq->u.frag.fixed == 0) should complain */
-	if (vwrq->disabled)
+	if (wrqu->frag.disabled)
 		fthr = 32767;
 	else {
 		if ((fthr < 256) || (fthr > 2347))	/* To check out ! */
@@ -1351,16 +1325,15 @@ static int ray_set_frag(struct net_device *dev,
 /*
  * Wireless Handler : get Fragmentation threshold
  */
-static int ray_get_frag(struct net_device *dev,
-			struct iw_request_info *info,
-			struct iw_param *vwrq, char *extra)
+static int ray_get_frag(struct net_device *dev, struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra)
 {
 	ray_dev_t *local = netdev_priv(dev);
 
-	vwrq->value = (local->sparm.b5.a_frag_threshold[0] << 8)
+	wrqu->frag.value = (local->sparm.b5.a_frag_threshold[0] << 8)
 	    + local->sparm.b5.a_frag_threshold[1];
-	vwrq->disabled = (vwrq->value == 32767);
-	vwrq->fixed = 1;
+	wrqu->frag.disabled = (wrqu->frag.value == 32767);
+	wrqu->frag.fixed = 1;
 
 	return 0;
 }
@@ -1369,8 +1342,8 @@ static int ray_get_frag(struct net_device *dev,
 /*
  * Wireless Handler : set Mode of Operation
  */
-static int ray_set_mode(struct net_device *dev,
-			struct iw_request_info *info, __u32 *uwrq, char *extra)
+static int ray_set_mode(struct net_device *dev, struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra)
 {
 	ray_dev_t *local = netdev_priv(dev);
 	int err = -EINPROGRESS;	/* Call commit handler */
@@ -1380,7 +1353,7 @@ static int ray_set_mode(struct net_device *dev,
 	if (local->card_status != CARD_AWAITING_PARAM)
 		return -EBUSY;
 
-	switch (*uwrq) {
+	switch (wrqu->mode) {
 	case IW_MODE_ADHOC:
 		card_mode = 0;
 		/* Fall through */
@@ -1398,15 +1371,15 @@ static int ray_set_mode(struct net_device *dev,
 /*
  * Wireless Handler : get Mode of Operation
  */
-static int ray_get_mode(struct net_device *dev,
-			struct iw_request_info *info, __u32 *uwrq, char *extra)
+static int ray_get_mode(struct net_device *dev, struct iw_request_info *info,
+			union iwreq_data *wrqu, char *extra)
 {
 	ray_dev_t *local = netdev_priv(dev);
 
 	if (local->sparm.b5.a_network_type)
-		*uwrq = IW_MODE_INFRA;
+		wrqu->mode = IW_MODE_INFRA;
 	else
-		*uwrq = IW_MODE_ADHOC;
+		wrqu->mode = IW_MODE_ADHOC;
 
 	return 0;
 }
@@ -1415,16 +1388,15 @@ static int ray_get_mode(struct net_device *dev,
 /*
  * Wireless Handler : get range info
  */
-static int ray_get_range(struct net_device *dev,
-			 struct iw_request_info *info,
-			 struct iw_point *dwrq, char *extra)
+static int ray_get_range(struct net_device *dev, struct iw_request_info *info,
+			 union iwreq_data *wrqu, char *extra)
 {
 	struct iw_range *range = (struct iw_range *)extra;
 
-	memset((char *)range, 0, sizeof(struct iw_range));
+	memset(range, 0, sizeof(struct iw_range));
 
 	/* Set the length (very important for backward compatibility) */
-	dwrq->length = sizeof(struct iw_range);
+	wrqu->data.length = sizeof(struct iw_range);
 
 	/* Set the Wireless Extension versions */
 	range->we_version_compiled = WIRELESS_EXT;
@@ -1447,8 +1419,7 @@ static int ray_get_range(struct net_device *dev,
 /*
  * Wireless Private Handler : set framing mode
  */
-static int ray_set_framing(struct net_device *dev,
-			   struct iw_request_info *info,
+static int ray_set_framing(struct net_device *dev, struct iw_request_info *info,
 			   union iwreq_data *wrqu, char *extra)
 {
 	translate = *(extra);	/* Set framing mode */
@@ -1460,8 +1431,7 @@ static int ray_set_framing(struct net_device *dev,
 /*
  * Wireless Private Handler : get framing mode
  */
-static int ray_get_framing(struct net_device *dev,
-			   struct iw_request_info *info,
+static int ray_get_framing(struct net_device *dev, struct iw_request_info *info,
 			   union iwreq_data *wrqu, char *extra)
 {
 	*(extra) = translate;
@@ -1473,8 +1443,7 @@ static int ray_get_framing(struct net_device *dev,
 /*
  * Wireless Private Handler : get country
  */
-static int ray_get_country(struct net_device *dev,
-			   struct iw_request_info *info,
+static int ray_get_country(struct net_device *dev, struct iw_request_info *info,
 			   union iwreq_data *wrqu, char *extra)
 {
 	*(extra) = country;
@@ -1486,10 +1455,9 @@ static int ray_get_country(struct net_device *dev,
 /*
  * Commit handler : called after a bunch of SET operations
  */
-static int ray_commit(struct net_device *dev, struct iw_request_info *info,	/* NULL */
-		      void *zwrq,	/* NULL */
-		      char *extra)
-{ /* NULL */
+static int ray_commit(struct net_device *dev, struct iw_request_info *info,
+		      union iwreq_data *wrqu, char *extra)
+{
 	return 0;
 }
 
@@ -1530,28 +1498,28 @@ static iw_stats *ray_get_wireless_stats(struct net_device *dev)
  */
 
 static const iw_handler ray_handler[] = {
-	[SIOCSIWCOMMIT - SIOCIWFIRST] = (iw_handler) ray_commit,
-	[SIOCGIWNAME - SIOCIWFIRST] = (iw_handler) ray_get_name,
-	[SIOCSIWFREQ - SIOCIWFIRST] = (iw_handler) ray_set_freq,
-	[SIOCGIWFREQ - SIOCIWFIRST] = (iw_handler) ray_get_freq,
-	[SIOCSIWMODE - SIOCIWFIRST] = (iw_handler) ray_set_mode,
-	[SIOCGIWMODE - SIOCIWFIRST] = (iw_handler) ray_get_mode,
-	[SIOCGIWRANGE - SIOCIWFIRST] = (iw_handler) ray_get_range,
+	IW_HANDLER(SIOCSIWCOMMIT, ray_commit),
+	IW_HANDLER(SIOCGIWNAME, ray_get_name),
+	IW_HANDLER(SIOCSIWFREQ, ray_set_freq),
+	IW_HANDLER(SIOCGIWFREQ, ray_get_freq),
+	IW_HANDLER(SIOCSIWMODE, ray_set_mode),
+	IW_HANDLER(SIOCGIWMODE, ray_get_mode),
+	IW_HANDLER(SIOCGIWRANGE, ray_get_range),
 #ifdef WIRELESS_SPY
-	[SIOCSIWSPY - SIOCIWFIRST] = (iw_handler) iw_handler_set_spy,
-	[SIOCGIWSPY - SIOCIWFIRST] = (iw_handler) iw_handler_get_spy,
-	[SIOCSIWTHRSPY - SIOCIWFIRST] = (iw_handler) iw_handler_set_thrspy,
-	[SIOCGIWTHRSPY - SIOCIWFIRST] = (iw_handler) iw_handler_get_thrspy,
+	IW_HANDLER(SIOCSIWSPY, iw_handler_set_spy),
+	IW_HANDLER(SIOCGIWSPY, iw_handler_get_spy),
+	IW_HANDLER(SIOCSIWTHRSPY, iw_handler_set_thrspy),
+	IW_HANDLER(SIOCGIWTHRSPY, iw_handler_get_thrspy),
 #endif /* WIRELESS_SPY */
-	[SIOCGIWAP - SIOCIWFIRST] = (iw_handler) ray_get_wap,
-	[SIOCSIWESSID - SIOCIWFIRST] = (iw_handler) ray_set_essid,
-	[SIOCGIWESSID - SIOCIWFIRST] = (iw_handler) ray_get_essid,
-	[SIOCSIWRATE - SIOCIWFIRST] = (iw_handler) ray_set_rate,
-	[SIOCGIWRATE - SIOCIWFIRST] = (iw_handler) ray_get_rate,
-	[SIOCSIWRTS - SIOCIWFIRST] = (iw_handler) ray_set_rts,
-	[SIOCGIWRTS - SIOCIWFIRST] = (iw_handler) ray_get_rts,
-	[SIOCSIWFRAG - SIOCIWFIRST] = (iw_handler) ray_set_frag,
-	[SIOCGIWFRAG - SIOCIWFIRST] = (iw_handler) ray_get_frag,
+	IW_HANDLER(SIOCGIWAP, ray_get_wap),
+	IW_HANDLER(SIOCSIWESSID, ray_set_essid),
+	IW_HANDLER(SIOCGIWESSID, ray_get_essid),
+	IW_HANDLER(SIOCSIWRATE, ray_set_rate),
+	IW_HANDLER(SIOCGIWRATE, ray_get_rate),
+	IW_HANDLER(SIOCSIWRTS, ray_set_rts),
+	IW_HANDLER(SIOCGIWRTS, ray_get_rts),
+	IW_HANDLER(SIOCSIWFRAG, ray_set_frag),
+	IW_HANDLER(SIOCGIWFRAG, ray_get_frag),
 };
 
 #define SIOCSIPFRAMING	SIOCIWFIRSTPRIV	/* Set framing mode */
@@ -1559,9 +1527,9 @@ static const iw_handler ray_handler[] = {
 #define SIOCGIPCOUNTRY	SIOCIWFIRSTPRIV + 3	/* Get country code */
 
 static const iw_handler ray_private_handler[] = {
-	[0] = (iw_handler) ray_set_framing,
-	[1] = (iw_handler) ray_get_framing,
-	[3] = (iw_handler) ray_get_country,
+	[0] = ray_set_framing,
+	[1] = ray_get_framing,
+	[3] = ray_get_country,
 };
 
 static const struct iw_priv_args ray_private_args[] = {
@@ -1645,7 +1613,6 @@ static int ray_dev_close(struct net_device *dev)
 static void ray_reset(struct net_device *dev)
 {
 	pr_debug("ray_reset entered\n");
-	return;
 }
 
 /*===========================================================================*/
@@ -1892,17 +1859,17 @@ static void ray_update_multi_list(struct net_device *dev, int all)
 		writeb(0xff, &pccs->var);
 		local->num_multi = 0xff;
 	} else {
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 		int i = 0;
 
 		/* Copy the kernel's list of MC addresses to card */
-		netdev_for_each_mc_addr(dmi, dev) {
-			memcpy_toio(p, dmi->dmi_addr, ETH_ALEN);
+		netdev_for_each_mc_addr(ha, dev) {
+			memcpy_toio(p, ha->addr, ETH_ALEN);
 			dev_dbg(&link->dev,
 			      "ray_update_multi add addr %02x%02x%02x%02x%02x%02x\n",
-			      dmi->dmi_addr[0], dmi->dmi_addr[1],
-			      dmi->dmi_addr[2], dmi->dmi_addr[3],
-			      dmi->dmi_addr[4], dmi->dmi_addr[5]);
+			      ha->addr[0], ha->addr[1],
+			      ha->addr[2], ha->addr[3],
+			      ha->addr[4], ha->addr[5]);
 			p += ETH_ALEN;
 			i++;
 		}
@@ -2251,7 +2218,7 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 			    (dev->mtu + RX_MAC_HEADER_LENGTH + ETH_HLEN +
 			     FCS_LEN)) {
 				pr_debug(
-				      "ray_cs invalid packet length %d received \n",
+				      "ray_cs invalid packet length %d received\n",
 				      rx_len);
 				return;
 			}
@@ -2262,7 +2229,7 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 			    (dev->mtu + RX_MAC_HEADER_LENGTH + ETH_HLEN +
 			     FCS_LEN)) {
 				pr_debug(
-				      "ray_cs invalid packet length %d received \n",
+				      "ray_cs invalid packet length %d received\n",
 				      rx_len);
 				return;
 			}
@@ -2770,11 +2737,11 @@ static int ray_cs_proc_show(struct seq_file *m, void *v)
 			seq_printf(m, "Hop dwell            = %d Kus\n",
 				   pfh->dwell_time[0] +
 				   256 * pfh->dwell_time[1]);
-			seq_printf(m, "Hop set              = %d \n",
+			seq_printf(m, "Hop set              = %d\n",
 				   pfh->hop_set);
-			seq_printf(m, "Hop pattern          = %d \n",
+			seq_printf(m, "Hop pattern          = %d\n",
 				   pfh->hop_pattern);
-			seq_printf(m, "Hop index            = %d \n",
+			seq_printf(m, "Hop index            = %d\n",
 				   pfh->hop_index);
 			p += p[1] + 2;
 		} else {

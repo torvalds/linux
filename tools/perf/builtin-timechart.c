@@ -21,7 +21,6 @@
 #include "util/cache.h"
 #include <linux/rbtree.h>
 #include "util/symbol.h"
-#include "util/string.h"
 #include "util/callchain.h"
 #include "util/strlist.h"
 
@@ -43,7 +42,7 @@ static u64		turbo_frequency;
 
 static u64		first_time, last_time;
 
-static int		power_only;
+static bool		power_only;
 
 
 struct per_pid;
@@ -78,8 +77,6 @@ struct per_pid {
 
 	struct per_pidcomm *all;
 	struct per_pidcomm *current;
-
-	int painted;
 };
 
 
@@ -145,9 +142,6 @@ struct wake_event {
 
 static struct power_event    *power_events;
 static struct wake_event     *wake_events;
-
-struct sample_wrapper *all_samples;
-
 
 struct process_filter;
 struct process_filter {
@@ -569,88 +563,6 @@ static void end_sample_processing(void)
 	}
 }
 
-static u64 sample_time(event_t *event, const struct perf_session *session)
-{
-	int cursor;
-
-	cursor = 0;
-	if (session->sample_type & PERF_SAMPLE_IP)
-		cursor++;
-	if (session->sample_type & PERF_SAMPLE_TID)
-		cursor++;
-	if (session->sample_type & PERF_SAMPLE_TIME)
-		return event->sample.array[cursor];
-	return 0;
-}
-
-
-/*
- * We first queue all events, sorted backwards by insertion.
- * The order will get flipped later.
- */
-static int queue_sample_event(event_t *event, struct perf_session *session)
-{
-	struct sample_wrapper *copy, *prev;
-	int size;
-
-	size = event->sample.header.size + sizeof(struct sample_wrapper) + 8;
-
-	copy = malloc(size);
-	if (!copy)
-		return 1;
-
-	memset(copy, 0, size);
-
-	copy->next = NULL;
-	copy->timestamp = sample_time(event, session);
-
-	memcpy(&copy->data, event, event->sample.header.size);
-
-	/* insert in the right place in the list */
-
-	if (!all_samples) {
-		/* first sample ever */
-		all_samples = copy;
-		return 0;
-	}
-
-	if (all_samples->timestamp < copy->timestamp) {
-		/* insert at the head of the list */
-		copy->next = all_samples;
-		all_samples = copy;
-		return 0;
-	}
-
-	prev = all_samples;
-	while (prev->next) {
-		if (prev->next->timestamp < copy->timestamp) {
-			copy->next = prev->next;
-			prev->next = copy;
-			return 0;
-		}
-		prev = prev->next;
-	}
-	/* insert at the end of the list */
-	prev->next = copy;
-
-	return 0;
-}
-
-static void sort_queued_samples(void)
-{
-	struct sample_wrapper *cursor, *next;
-
-	cursor = all_samples;
-	all_samples = NULL;
-
-	while (cursor) {
-		next = cursor->next;
-		cursor->next = all_samples;
-		all_samples = cursor;
-		cursor = next;
-	}
-}
-
 /*
  * Sort the pid datastructure
  */
@@ -1014,31 +926,17 @@ static void write_svg_file(const char *filename)
 	svg_close();
 }
 
-static void process_samples(struct perf_session *session)
-{
-	struct sample_wrapper *cursor;
-	event_t *event;
-
-	sort_queued_samples();
-
-	cursor = all_samples;
-	while (cursor) {
-		event = (void *)&cursor->data;
-		cursor = cursor->next;
-		process_sample_event(event, session);
-	}
-}
-
 static struct perf_event_ops event_ops = {
-	.comm	= process_comm_event,
-	.fork	= process_fork_event,
-	.exit	= process_exit_event,
-	.sample	= queue_sample_event,
+	.comm			= process_comm_event,
+	.fork			= process_fork_event,
+	.exit			= process_exit_event,
+	.sample			= process_sample_event,
+	.ordered_samples	= true,
 };
 
 static int __cmd_timechart(void)
 {
-	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0);
+	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0, false);
 	int ret = -EINVAL;
 
 	if (session == NULL)
@@ -1050,8 +948,6 @@ static int __cmd_timechart(void)
 	ret = perf_session__process_events(session, &event_ops);
 	if (ret)
 		goto out_delete;
-
-	process_samples(session);
 
 	end_sample_processing();
 
@@ -1075,7 +971,6 @@ static const char *record_args[] = {
 	"record",
 	"-a",
 	"-R",
-	"-M",
 	"-f",
 	"-c", "1",
 	"-e", "power:power_start",

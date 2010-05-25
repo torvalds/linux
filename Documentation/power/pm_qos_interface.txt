@@ -18,44 +18,46 @@ and pm_qos_params.h.  This is done because having the available parameters
 being runtime configurable or changeable from a driver was seen as too easy to
 abuse.
 
-For each parameter a list of performance requirements is maintained along with
+For each parameter a list of performance requests is maintained along with
 an aggregated target value.  The aggregated target value is updated with
-changes to the requirement list or elements of the list.  Typically the
-aggregated target value is simply the max or min of the requirement values held
+changes to the request list or elements of the list.  Typically the
+aggregated target value is simply the max or min of the request values held
 in the parameter list elements.
 
 From kernel mode the use of this interface is simple:
-pm_qos_add_requirement(param_id, name, target_value):
-Will insert a named element in the list for that identified PM_QOS parameter
-with the target value.  Upon change to this list the new target is recomputed
-and any registered notifiers are called only if the target value is now
-different.
 
-pm_qos_update_requirement(param_id, name, new_target_value):
-Will search the list identified by the param_id for the named list element and
-then update its target value, calling the notification tree if the aggregated
-target is changed.  with that name is already registered.
+handle = pm_qos_add_request(param_class, target_value):
+Will insert an element into the list for that identified PM_QOS class with the
+target value.  Upon change to this list the new target is recomputed and any
+registered notifiers are called only if the target value is now different.
+Clients of pm_qos need to save the returned handle.
 
-pm_qos_remove_requirement(param_id, name):
-Will search the identified list for the named element and remove it, after
-removal it will update the aggregate target and call the notification tree if
-the target was changed as a result of removing the named requirement.
+void pm_qos_update_request(handle, new_target_value):
+Will update the list element pointed to by the handle with the new target value
+and recompute the new aggregated target, calling the notification tree if the
+target is changed.
+
+void pm_qos_remove_request(handle):
+Will remove the element.  After removal it will update the aggregate target and
+call the notification tree if the target was changed as a result of removing
+the request.
 
 
 From user mode:
-Only processes can register a pm_qos requirement.  To provide for automatic
-cleanup for process the interface requires the process to register its
-parameter requirements in the following way:
+Only processes can register a pm_qos request.  To provide for automatic
+cleanup of a process, the interface requires the process to register its
+parameter requests in the following way:
 
 To register the default pm_qos target for the specific parameter, the process
 must open one of /dev/[cpu_dma_latency, network_latency, network_throughput]
 
 As long as the device node is held open that process has a registered
-requirement on the parameter.  The name of the requirement is "process_<PID>"
-derived from the current->pid from within the open system call.
+request on the parameter.
 
-To change the requested target value the process needs to write a s32 value to
-the open device node.  This translates to a pm_qos_update_requirement call.
+To change the requested target value the process needs to write an s32 value to
+the open device node.  Alternatively the user mode program could write a hex
+string for the value using 10 char long format e.g. "0x12345678".  This
+translates to a pm_qos_update_request call.
 
 To remove the user mode request for a target value simply close the device
 node.

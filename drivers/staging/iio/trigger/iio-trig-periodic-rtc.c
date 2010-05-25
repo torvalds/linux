@@ -19,8 +19,8 @@
 #include "../iio.h"
 #include "../trigger.h"
 
-LIST_HEAD(iio_prtc_trigger_list);
-DEFINE_MUTEX(iio_prtc_trigger_list_lock);
+static LIST_HEAD(iio_prtc_trigger_list);
+static DEFINE_MUTEX(iio_prtc_trigger_list_lock);
 
 struct iio_prtc_trigger_info {
 	struct rtc_device *rtc;

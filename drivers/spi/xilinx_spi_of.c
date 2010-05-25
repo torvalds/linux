@@ -109,12 +109,12 @@ static const struct of_device_id xilinx_spi_of_match[] = {
 MODULE_DEVICE_TABLE(of, xilinx_spi_of_match);
 
 static struct of_platform_driver xilinx_spi_of_driver = {
-	.match_table = xilinx_spi_of_match,
 	.probe = xilinx_spi_of_probe,
 	.remove = __exit_p(xilinx_spi_of_remove),
 	.driver = {
 		.name = "xilinx-xps-spi",
 		.owner = THIS_MODULE,
+		.of_match_table = xilinx_spi_of_match,
 	},
 };
 

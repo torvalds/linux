@@ -371,7 +371,7 @@ static int wm8993_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 			  unsigned int Fref, unsigned int Fout)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	u16 reg1, reg4, reg5;
 	struct _fll_div fll_div;
 	int ret;
@@ -458,7 +458,7 @@ static int wm8993_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 
 static int configure_clock(struct snd_soc_codec *codec)
 {
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	unsigned int reg;
 
 	/* This should be done on init() for bypass paths */
@@ -717,7 +717,7 @@ static int class_w_put(struct snd_kcontrol *kcontrol,
 {
 	struct snd_soc_dapm_widget *widget = snd_kcontrol_chip(kcontrol);
 	struct snd_soc_codec *codec = widget->codec;
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	/* Turn it off if we're using the main output mixer */
@@ -949,7 +949,7 @@ static void wm8993_cache_restore(struct snd_soc_codec *codec)
 static int wm8993_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	switch (level) {
@@ -1047,7 +1047,7 @@ static int wm8993_set_sysclk(struct snd_soc_dai *codec_dai,
 			     int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 
 	switch (clk_id) {
 	case WM8993_SYSCLK_MCLK:
@@ -1067,7 +1067,7 @@ static int wm8993_set_dai_fmt(struct snd_soc_dai *dai,
 			      unsigned int fmt)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	unsigned int aif1 = snd_soc_read(codec, WM8993_AUDIO_INTERFACE_1);
 	unsigned int aif4 = snd_soc_read(codec, WM8993_AUDIO_INTERFACE_4);
 
@@ -1163,7 +1163,7 @@ static int wm8993_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	int ret, i, best, best_val, cur_val;
 	unsigned int clocking1, clocking3, aif1, aif4;
 
@@ -1328,7 +1328,7 @@ static int wm8993_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 			       unsigned int rx_mask, int slots, int slot_width)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	int aif1 = 0;
 	int aif2 = 0;
 
@@ -1431,7 +1431,7 @@ static int wm8993_probe(struct platform_device *pdev)
 
 	socdev->card->codec = wm8993_codec;
 	codec = wm8993_codec;
-	wm8993 = codec->private_data;
+	wm8993 = snd_soc_codec_get_drvdata(codec);
 
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0) {
@@ -1478,7 +1478,7 @@ static int wm8993_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	int fll_fout = wm8993->fll_fout;
 	int fll_fref  = wm8993->fll_fref;
 	int ret;
@@ -1502,7 +1502,7 @@ static int wm8993_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8993_priv *wm8993 = codec->private_data;
+	struct wm8993_priv *wm8993 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	wm8993_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -1571,7 +1571,7 @@ static int wm8993_i2c_probe(struct i2c_client *i2c,
 	codec->set_bias_level = wm8993_set_bias_level;
 	codec->dai = &wm8993_dai;
 	codec->num_dai = 1;
-	codec->private_data = wm8993;
+	snd_soc_codec_set_drvdata(codec, wm8993);
 
 	wm8993->hubs_data.hp_startup_mode = 1;
 	wm8993->hubs_data.dcs_codes = -2;

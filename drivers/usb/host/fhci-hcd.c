@@ -25,12 +25,12 @@
 #include <linux/interrupt.h>
 #include <linux/io.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/slab.h>
 #include <asm/qe.h>
 #include <asm/fsl_gtm.h>
-#include "../core/hcd.h"
 #include "fhci.h"
 
 void fhci_start_sof_timer(struct fhci_hcd *fhci)
@@ -565,7 +565,7 @@ static int __devinit of_fhci_probe(struct of_device *ofdev,
 				   const struct of_device_id *ofid)
 {
 	struct device *dev = &ofdev->dev;
-	struct device_node *node = ofdev->node;
+	struct device_node *node = dev->of_node;
 	struct usb_hcd *hcd;
 	struct fhci_hcd *fhci;
 	struct resource usb_regs;
@@ -670,7 +670,7 @@ static int __devinit of_fhci_probe(struct of_device *ofdev,
 	}
 
 	for (j = 0; j < NUM_PINS; j++) {
-		fhci->pins[j] = qe_pin_request(ofdev->node, j);
+		fhci->pins[j] = qe_pin_request(node, j);
 		if (IS_ERR(fhci->pins[j])) {
 			ret = PTR_ERR(fhci->pins[j]);
 			dev_err(dev, "can't get pin %d: %d\n", j, ret);
@@ -813,8 +813,11 @@ static const struct of_device_id of_fhci_match[] = {
 MODULE_DEVICE_TABLE(of, of_fhci_match);
 
 static struct of_platform_driver of_fhci_driver = {
-	.name		= "fsl,usb-fhci",
-	.match_table	= of_fhci_match,
+	.driver = {
+		.name = "fsl,usb-fhci",
+		.owner = THIS_MODULE,
+		.of_match_table = of_fhci_match,
+	},
 	.probe		= of_fhci_probe,
 	.remove		= __devexit_p(of_fhci_remove),
 };

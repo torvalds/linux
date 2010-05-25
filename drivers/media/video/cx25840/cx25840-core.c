@@ -1018,7 +1018,7 @@ static int cx25840_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 {
 	switch (fmt->type) {
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx25840_vbi_g_fmt(sd, fmt);
+		return cx25840_g_sliced_fmt(sd, &fmt->fmt.sliced);
 	default:
 		return -EINVAL;
 	}
@@ -1078,12 +1078,6 @@ static int cx25840_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 		/* VS_INTRLACE=1 VFILT=filter */
 		cx25840_write(client, 0x41e, 0x8 | filter);
 		break;
-
-	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx25840_vbi_s_fmt(sd, fmt);
-
-	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		return cx25840_vbi_s_fmt(sd, fmt);
 
 	default:
 		return -EINVAL;
@@ -1635,8 +1629,14 @@ static const struct v4l2_subdev_video_ops cx25840_video_ops = {
 	.s_routing = cx25840_s_video_routing,
 	.g_fmt = cx25840_g_fmt,
 	.s_fmt = cx25840_s_fmt,
-	.decode_vbi_line = cx25840_decode_vbi_line,
 	.s_stream = cx25840_s_stream,
+};
+
+static const struct v4l2_subdev_vbi_ops cx25840_vbi_ops = {
+	.decode_vbi_line = cx25840_decode_vbi_line,
+	.s_raw_fmt = cx25840_s_raw_fmt,
+	.s_sliced_fmt = cx25840_s_sliced_fmt,
+	.g_sliced_fmt = cx25840_g_sliced_fmt,
 };
 
 static const struct v4l2_subdev_ops cx25840_ops = {
@@ -1644,6 +1644,7 @@ static const struct v4l2_subdev_ops cx25840_ops = {
 	.tuner = &cx25840_tuner_ops,
 	.audio = &cx25840_audio_ops,
 	.video = &cx25840_video_ops,
+	.vbi = &cx25840_vbi_ops,
 };
 
 /* ----------------------------------------------------------------------- */

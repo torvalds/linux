@@ -15,6 +15,7 @@
  */
 
 #include "hw.h"
+#include "ar9002_phy.h"
 
 static int ath9k_hw_4k_get_eeprom_ver(struct ath_hw *ah)
 {
@@ -43,7 +44,7 @@ static bool ath9k_hw_4k_fill_eeprom(struct ath_hw *ah)
 	for (addr = 0; addr < SIZE_EEPROM_4K; addr++) {
 		if (!ath9k_hw_nvram_read(common, addr + eep_start_loc, eep_data)) {
 			ath_print(common, ATH_DBG_EEPROM,
-				  "Unable to read eeprom region \n");
+				  "Unable to read eeprom region\n");
 			return false;
 		}
 		eep_data++;
@@ -182,11 +183,11 @@ static u32 ath9k_hw_4k_get_eeprom(struct ath_hw *ah,
 	switch (param) {
 	case EEP_NFTHRESH_2:
 		return pModal->noiseFloorThreshCh[0];
-	case AR_EEPROM_MAC(0):
+	case EEP_MAC_LSW:
 		return pBase->macAddr[0] << 8 | pBase->macAddr[1];
-	case AR_EEPROM_MAC(1):
+	case EEP_MAC_MID:
 		return pBase->macAddr[2] << 8 | pBase->macAddr[3];
-	case AR_EEPROM_MAC(2):
+	case EEP_MAC_MSW:
 		return pBase->macAddr[4] << 8 | pBase->macAddr[5];
 	case EEP_REG_0:
 		return pBase->regDmn[0];
@@ -453,6 +454,8 @@ static void ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 					    &tMinCalPower, gainBoundaries,
 					    pdadcValues, numXpdGain);
 
+			ENABLE_REGWRITE_BUFFER(ah);
+
 			if ((i == 0) || AR_SREV_5416_20_OR_LATER(ah)) {
 				REG_WRITE(ah, AR_PHY_TPCRG5 + regChainOffset,
 					  SM(pdGainOverlap_t2,
@@ -493,6 +496,9 @@ static void ath9k_hw_set_4k_power_cal_table(struct ath_hw *ah,
 
 				regOffset += 4;
 			}
+
+			REGWRITE_BUFFER_FLUSH(ah);
+			DISABLE_REGWRITE_BUFFER(ah);
 		}
 	}
 
@@ -758,6 +764,8 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 			ratesArray[i] -= AR5416_PWR_TABLE_OFFSET_DB * 2;
 	}
 
+	ENABLE_REGWRITE_BUFFER(ah);
+
 	/* OFDM power per rate */
 	REG_WRITE(ah, AR_PHY_POWER_TX_RATE1,
 		  ATH9K_POW_SM(ratesArray[rate18mb], 24)
@@ -820,6 +828,9 @@ static void ath9k_hw_4k_set_txpower(struct ath_hw *ah,
 			  | ATH9K_POW_SM(ratesArray[rateDupOfdm], 8)
 			  | ATH9K_POW_SM(ratesArray[rateDupCck], 0));
 	}
+
+	REGWRITE_BUFFER_FLUSH(ah);
+	DISABLE_REGWRITE_BUFFER(ah);
 }
 
 static void ath9k_hw_4k_set_addac(struct ath_hw *ah,

@@ -17,18 +17,18 @@ Generic scaling / cropping scheme
 -2-- -\
 |      --\
 |         --\
-+-5-- -\     -- -3--
-|       ---\
-|           --- -4-- -\
-|                      -\
-|                        - -6--
++-5-- .      -- -3-- -\
+|      `...            -\
+|          `... -4-- .   - -7..
+|                     `.
+|                       `. .6--
 |
-|                        - -6'-
-|                      -/
-|           --- -4'- -/
-|       ---/
-+-5'- -/
-|            -- -3'-
+|                        . .6'-
+|                      .´
+|           ... -4'- .´
+|       ...´             - -7'.
++-5'- .´               -/
+|            -- -3'- -/
 |         --/
 |      --/
 -2'- -/
@@ -36,7 +36,11 @@ Generic scaling / cropping scheme
 |
 -1'-
 
-Produced by user requests:
+In the above chart minuses and slashes represent "real" data amounts, points and
+accents represent "useful" data, basically, CEU scaled amd cropped output,
+mapped back onto the client's source plane.
+
+Such a configuration can be produced by user requests:
 
 S_CROP(left / top = (5) - (1), width / height = (5') - (5))
 S_FMT(width / height = (6') - (6))
@@ -106,52 +110,30 @@ window:
 S_CROP
 ------
 
-If old scale applied to new crop is invalid produce nearest new scale possible
+The API at http://v4l2spec.bytesex.org/spec/x1904.htm says:
 
-1. Calculate current combined scales.
+"...specification does not define an origin or units. However by convention
+drivers should horizontally count unscaled samples relative to 0H."
 
-	scale_comb = (((4') - (4)) / ((6') - (6))) * (((2') - (2)) / ((3') - (3)))
+We choose to follow the advise and interpret cropping units as client input
+pixels.
 
-2. Apply iterative sensor S_CROP for new input window.
+Cropping is performed in the following 6 steps:
 
-3. If old combined scales applied to new crop produce an impossible user window,
-adjust scales to produce nearest possible window.
+1. Request exactly user rectangle from the sensor.
 
-	width_u_out = ((5') - (5)) / scale_comb
+2. If smaller - iterate until a larger one is obtained. Result: sensor cropped
+   to 2 : 2', target crop 5 : 5', current output format 6' - 6.
 
-	if (width_u_out > max)
-		scale_comb = ((5') - (5)) / max;
-	else if (width_u_out < min)
-		scale_comb = ((5') - (5)) / min;
+3. In the previous step the sensor has tried to preserve its output frame as
+   good as possible, but it could have changed. Retrieve it again.
 
-4. Issue G_CROP to retrieve actual input window.
+4. Sensor scaled to 3 : 3'. Sensor's scale is (2' - 2) / (3' - 3). Calculate
+   intermediate window: 4' - 4 = (5' - 5) * (3' - 3) / (2' - 2)
 
-5. Using actual input window and calculated combined scales calculate sensor
-target output window.
+5. Calculate and apply host scale = (6' - 6) / (4' - 4)
 
-	width_s_out = ((3') - (3)) = ((2') - (2)) / scale_comb
-
-6. Apply iterative S_FMT for new sensor target output window.
-
-7. Issue G_FMT to retrieve the actual sensor output window.
-
-8. Calculate sensor scales.
-
-	scale_s = ((3') - (3)) / ((2') - (2))
-
-9. Calculate sensor output subwindow to be cropped on CEU by applying sensor
-scales to the requested window.
-
-	width_ceu = ((5') - (5)) / scale_s
-
-10. Use CEU cropping for above calculated window.
-
-11. Calculate CEU scales from sensor scales from results of (10) and user window
-from (3)
-
-	scale_ceu = calc_scale(((5') - (5)), &width_u_out)
-
-12. Apply CEU scales.
+6. Calculate and apply host crop: 6 - 7 = (5 - 2) * (6' - 6) / (5' - 5)
 
 --
 Author: Guennadi Liakhovetski <g.liakhovetski@gmx.de>

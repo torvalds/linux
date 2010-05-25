@@ -341,6 +341,7 @@ static int ati_create_gatt_table(struct agp_bridge_data *bridge)
 {
 	struct aper_size_info_lvl2 *value;
 	struct ati_page_map page_dir;
+	unsigned long __iomem *cur_gatt;
 	unsigned long addr;
 	int retval;
 	u32 temp;
@@ -395,6 +396,12 @@ static int ati_create_gatt_table(struct agp_bridge_data *bridge)
 		readl(page_dir.remapped+GET_PAGE_DIR_OFF(addr));	/* PCI Posting. */
 	}
 
+	for (i = 0; i < value->num_entries; i++) {
+		addr = (i * PAGE_SIZE) + agp_bridge->gart_bus_addr;
+		cur_gatt = GET_GATT(addr);
+		writel(agp_bridge->scratch_page, cur_gatt+GET_GATT_OFF(addr));
+	}
+
 	return 0;
 }
 
@@ -415,6 +422,7 @@ static const struct agp_bridge_driver ati_generic_bridge = {
 	.aperture_sizes		= ati_generic_sizes,
 	.size_type		= LVL2_APER_SIZE,
 	.num_aperture_sizes	= 7,
+	.needs_scratch_page	= true,
 	.configure		= ati_configure,
 	.fetch_size		= ati_fetch_size,
 	.cleanup		= ati_cleanup,

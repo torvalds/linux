@@ -149,6 +149,87 @@ static inline struct musb *dev_to_musb(struct device *dev)
 
 /*-------------------------------------------------------------------------*/
 
+#ifndef CONFIG_BLACKFIN
+static int musb_ulpi_read(struct otg_transceiver *otg, u32 offset)
+{
+	void __iomem *addr = otg->io_priv;
+	int	i = 0;
+	u8	r;
+	u8	power;
+
+	/* Make sure the transceiver is not in low power mode */
+	power = musb_readb(addr, MUSB_POWER);
+	power &= ~MUSB_POWER_SUSPENDM;
+	musb_writeb(addr, MUSB_POWER, power);
+
+	/* REVISIT: musbhdrc_ulpi_an.pdf recommends setting the
+	 * ULPICarKitControlDisableUTMI after clearing POWER_SUSPENDM.
+	 */
+
+	musb_writeb(addr, MUSB_ULPI_REG_ADDR, (u8)offset);
+	musb_writeb(addr, MUSB_ULPI_REG_CONTROL,
+			MUSB_ULPI_REG_REQ | MUSB_ULPI_RDN_WR);
+
+	while (!(musb_readb(addr, MUSB_ULPI_REG_CONTROL)
+				& MUSB_ULPI_REG_CMPLT)) {
+		i++;
+		if (i == 10000) {
+			DBG(3, "ULPI read timed out\n");
+			return -ETIMEDOUT;
+		}
+
+	}
+	r = musb_readb(addr, MUSB_ULPI_REG_CONTROL);
+	r &= ~MUSB_ULPI_REG_CMPLT;
+	musb_writeb(addr, MUSB_ULPI_REG_CONTROL, r);
+
+	return musb_readb(addr, MUSB_ULPI_REG_DATA);
+}
+
+static int musb_ulpi_write(struct otg_transceiver *otg,
+		u32 offset, u32 data)
+{
+	void __iomem *addr = otg->io_priv;
+	int	i = 0;
+	u8	r = 0;
+	u8	power;
+
+	/* Make sure the transceiver is not in low power mode */
+	power = musb_readb(addr, MUSB_POWER);
+	power &= ~MUSB_POWER_SUSPENDM;
+	musb_writeb(addr, MUSB_POWER, power);
+
+	musb_writeb(addr, MUSB_ULPI_REG_ADDR, (u8)offset);
+	musb_writeb(addr, MUSB_ULPI_REG_DATA, (u8)data);
+	musb_writeb(addr, MUSB_ULPI_REG_CONTROL, MUSB_ULPI_REG_REQ);
+
+	while (!(musb_readb(addr, MUSB_ULPI_REG_CONTROL)
+				& MUSB_ULPI_REG_CMPLT)) {
+		i++;
+		if (i == 10000) {
+			DBG(3, "ULPI write timed out\n");
+			return -ETIMEDOUT;
+		}
+	}
+
+	r = musb_readb(addr, MUSB_ULPI_REG_CONTROL);
+	r &= ~MUSB_ULPI_REG_CMPLT;
+	musb_writeb(addr, MUSB_ULPI_REG_CONTROL, r);
+
+	return 0;
+}
+#else
+#define musb_ulpi_read(a, b)		NULL
+#define musb_ulpi_write(a, b, c)	NULL
+#endif
+
+static struct otg_io_access_ops musb_ulpi_access = {
+	.read = musb_ulpi_read,
+	.write = musb_ulpi_write,
+};
+
+/*-------------------------------------------------------------------------*/
+
 #if !defined(CONFIG_USB_TUSB6010) && !defined(CONFIG_BLACKFIN)
 
 /*
@@ -353,8 +434,7 @@ void musb_hnp_stop(struct musb *musb)
 	 * which cause occasional OPT A "Did not receive reset after connect"
 	 * errors.
 	 */
-	musb->port1_status &=
-		~(1 << USB_PORT_FEAT_C_CONNECTION);
+	musb->port1_status &= ~(USB_PORT_STAT_C_CONNECTION << 16);
 }
 
 #endif
@@ -530,8 +610,8 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				musb_writeb(mbase, MUSB_DEVCTL, devctl);
 			} else {
 				musb->port1_status |=
-					  (1 << USB_PORT_FEAT_OVER_CURRENT)
-					| (1 << USB_PORT_FEAT_C_OVER_CURRENT);
+					  USB_PORT_STAT_OVERCURRENT
+					| (USB_PORT_STAT_C_OVERCURRENT << 16);
 			}
 			break;
 		default:
@@ -986,7 +1066,8 @@ static void musb_shutdown(struct platform_device *pdev)
  * more than selecting one of a bunch of predefined configurations.
  */
 #if defined(CONFIG_USB_TUSB6010) || \
-	defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3)
+	defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) \
+	|| defined(CONFIG_ARCH_OMAP4)
 static ushort __initdata fifo_mode = 4;
 #else
 static ushort __initdata fifo_mode = 2;
@@ -996,24 +1077,13 @@ static ushort __initdata fifo_mode = 2;
 module_param(fifo_mode, ushort, 0);
 MODULE_PARM_DESC(fifo_mode, "initial endpoint configuration");
 
-
-enum fifo_style { FIFO_RXTX, FIFO_TX, FIFO_RX } __attribute__ ((packed));
-enum buf_mode { BUF_SINGLE, BUF_DOUBLE } __attribute__ ((packed));
-
-struct fifo_cfg {
-	u8		hw_ep_num;
-	enum fifo_style	style;
-	enum buf_mode	mode;
-	u16		maxpacket;
-};
-
 /*
  * tables defining fifo_mode values.  define more if you like.
  * for host side, make sure both halves of ep1 are set up.
  */
 
 /* mode 0 - fits in 2KB */
-static struct fifo_cfg __initdata mode_0_cfg[] = {
+static struct musb_fifo_cfg __initdata mode_0_cfg[] = {
 { .hw_ep_num = 1, .style = FIFO_TX,   .maxpacket = 512, },
 { .hw_ep_num = 1, .style = FIFO_RX,   .maxpacket = 512, },
 { .hw_ep_num = 2, .style = FIFO_RXTX, .maxpacket = 512, },
@@ -1022,7 +1092,7 @@ static struct fifo_cfg __initdata mode_0_cfg[] = {
 };
 
 /* mode 1 - fits in 4KB */
-static struct fifo_cfg __initdata mode_1_cfg[] = {
+static struct musb_fifo_cfg __initdata mode_1_cfg[] = {
 { .hw_ep_num = 1, .style = FIFO_TX,   .maxpacket = 512, .mode = BUF_DOUBLE, },
 { .hw_ep_num = 1, .style = FIFO_RX,   .maxpacket = 512, .mode = BUF_DOUBLE, },
 { .hw_ep_num = 2, .style = FIFO_RXTX, .maxpacket = 512, .mode = BUF_DOUBLE, },
@@ -1031,7 +1101,7 @@ static struct fifo_cfg __initdata mode_1_cfg[] = {
 };
 
 /* mode 2 - fits in 4KB */
-static struct fifo_cfg __initdata mode_2_cfg[] = {
+static struct musb_fifo_cfg __initdata mode_2_cfg[] = {
 { .hw_ep_num = 1, .style = FIFO_TX,   .maxpacket = 512, },
 { .hw_ep_num = 1, .style = FIFO_RX,   .maxpacket = 512, },
 { .hw_ep_num = 2, .style = FIFO_TX,   .maxpacket = 512, },
@@ -1041,7 +1111,7 @@ static struct fifo_cfg __initdata mode_2_cfg[] = {
 };
 
 /* mode 3 - fits in 4KB */
-static struct fifo_cfg __initdata mode_3_cfg[] = {
+static struct musb_fifo_cfg __initdata mode_3_cfg[] = {
 { .hw_ep_num = 1, .style = FIFO_TX,   .maxpacket = 512, .mode = BUF_DOUBLE, },
 { .hw_ep_num = 1, .style = FIFO_RX,   .maxpacket = 512, .mode = BUF_DOUBLE, },
 { .hw_ep_num = 2, .style = FIFO_TX,   .maxpacket = 512, },
@@ -1051,7 +1121,7 @@ static struct fifo_cfg __initdata mode_3_cfg[] = {
 };
 
 /* mode 4 - fits in 16KB */
-static struct fifo_cfg __initdata mode_4_cfg[] = {
+static struct musb_fifo_cfg __initdata mode_4_cfg[] = {
 { .hw_ep_num =  1, .style = FIFO_TX,   .maxpacket = 512, },
 { .hw_ep_num =  1, .style = FIFO_RX,   .maxpacket = 512, },
 { .hw_ep_num =  2, .style = FIFO_TX,   .maxpacket = 512, },
@@ -1082,7 +1152,7 @@ static struct fifo_cfg __initdata mode_4_cfg[] = {
 };
 
 /* mode 5 - fits in 8KB */
-static struct fifo_cfg __initdata mode_5_cfg[] = {
+static struct musb_fifo_cfg __initdata mode_5_cfg[] = {
 { .hw_ep_num =  1, .style = FIFO_TX,   .maxpacket = 512, },
 { .hw_ep_num =  1, .style = FIFO_RX,   .maxpacket = 512, },
 { .hw_ep_num =  2, .style = FIFO_TX,   .maxpacket = 512, },
@@ -1120,7 +1190,7 @@ static struct fifo_cfg __initdata mode_5_cfg[] = {
  */
 static int __init
 fifo_setup(struct musb *musb, struct musb_hw_ep  *hw_ep,
-		const struct fifo_cfg *cfg, u16 offset)
+		const struct musb_fifo_cfg *cfg, u16 offset)
 {
 	void __iomem	*mbase = musb->mregs;
 	int	size = 0;
@@ -1191,16 +1261,22 @@ fifo_setup(struct musb *musb, struct musb_hw_ep  *hw_ep,
 	return offset + (maxpacket << ((c_size & MUSB_FIFOSZ_DPB) ? 1 : 0));
 }
 
-static struct fifo_cfg __initdata ep0_cfg = {
+static struct musb_fifo_cfg __initdata ep0_cfg = {
 	.style = FIFO_RXTX, .maxpacket = 64,
 };
 
 static int __init ep_config_from_table(struct musb *musb)
 {
-	const struct fifo_cfg	*cfg;
+	const struct musb_fifo_cfg	*cfg;
 	unsigned		i, n;
 	int			offset;
 	struct musb_hw_ep	*hw_ep = musb->endpoints;
+
+	if (musb->config->fifo_cfg) {
+		cfg = musb->config->fifo_cfg;
+		n = musb->config->fifo_cfg_size;
+		goto done;
+	}
 
 	switch (fifo_mode) {
 	default:
@@ -1236,6 +1312,7 @@ static int __init ep_config_from_table(struct musb *musb)
 			musb_driver_name, fifo_mode);
 
 
+done:
 	offset = fifo_setup(musb, hw_ep, &ep0_cfg, 0);
 	/* assert(offset > 0) */
 
@@ -1461,7 +1538,8 @@ static int __init musb_core_init(u16 musb_type, struct musb *musb)
 
 /*-------------------------------------------------------------------------*/
 
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3430)
+#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3430) || \
+	defined(CONFIG_ARCH_OMAP4)
 
 static irqreturn_t generic_interrupt(int irq, void *__hci)
 {
@@ -1948,13 +2026,18 @@ bad_config:
 	 * isp1504, non-OTG, etc) mostly hooking up through ULPI.
 	 */
 	musb->isr = generic_interrupt;
-	status = musb_platform_init(musb);
+	status = musb_platform_init(musb, plat->board_data);
 	if (status < 0)
 		goto fail2;
 
 	if (!musb->isr) {
 		status = -ENODEV;
 		goto fail3;
+	}
+
+	if (!musb->xceiv->io_ops) {
+		musb->xceiv->io_priv = musb->mregs;
+		musb->xceiv->io_ops = &musb_ulpi_access;
 	}
 
 #ifndef CONFIG_MUSB_PIO_ONLY
@@ -2057,10 +2140,14 @@ bad_config:
 	if (status < 0)
 		goto fail3;
 
+	status = musb_init_debugfs(musb);
+	if (status < 0)
+		goto fail4;
+
 #ifdef CONFIG_SYSFS
 	status = sysfs_create_group(&musb->controller->kobj, &musb_attr_group);
 	if (status)
-		goto fail4;
+		goto fail5;
 #endif
 
 	dev_info(dev, "USB %s mode controller at %p using %s, IRQ %d\n",
@@ -2076,6 +2163,9 @@ bad_config:
 			musb->nIrq);
 
 	return 0;
+
+fail5:
+	musb_exit_debugfs(musb);
 
 fail4:
 	if (!is_otg_enabled(musb) && is_host_enabled(musb))
@@ -2153,6 +2243,7 @@ static int __exit musb_remove(struct platform_device *pdev)
 	 *  - Peripheral mode: peripheral is deactivated (or never-activated)
 	 *  - OTG mode: both roles are deactivated (or never-activated)
 	 */
+	musb_exit_debugfs(musb);
 	musb_shutdown(pdev);
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 	if (musb->board_mode == MUSB_HOST)

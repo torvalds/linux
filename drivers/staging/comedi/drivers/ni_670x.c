@@ -47,8 +47,6 @@ Commands are not supported.
 
 #include "mite.h"
 
-#define PCI_VENDOR_ID_NATINST	0x1093
-
 #define AO_VALUE_OFFSET			0x00
 #define	AO_CHAN_OFFSET			0x0c
 #define	AO_STATUS_OFFSET		0x10
@@ -91,12 +89,9 @@ static const struct ni_670x_board ni_670x_boards[] = {
 };
 
 static DEFINE_PCI_DEVICE_TABLE(ni_670x_pci_table) = {
-	{
-	PCI_VENDOR_ID_NATINST, 0x2c90, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0}, {
-	PCI_VENDOR_ID_NATINST, 0x1920, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
-	/*{ PCI_VENDOR_ID_NATINST, 0x0000, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0 },*/
-	{
-	0}
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x2c90)},
+	{PCI_DEVICE(PCI_VENDOR_ID_NI, 0x1920)},
+	{0}
 };
 
 MODULE_DEVICE_TABLE(pci, ni_670x_pci_table);

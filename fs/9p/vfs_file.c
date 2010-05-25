@@ -296,3 +296,14 @@ const struct file_operations v9fs_file_operations = {
 	.mmap = generic_file_readonly_mmap,
 	.fsync = v9fs_file_fsync,
 };
+
+const struct file_operations v9fs_file_operations_dotl = {
+	.llseek = generic_file_llseek,
+	.read = v9fs_file_read,
+	.write = v9fs_file_write,
+	.open = v9fs_file_open,
+	.release = v9fs_dir_release,
+	.lock = v9fs_file_lock,
+	.mmap = generic_file_readonly_mmap,
+	.fsync = v9fs_file_fsync,
+};

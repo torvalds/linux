@@ -30,9 +30,10 @@
 #include <linux/pci.h>
 #include <linux/sched.h>
 #include <linux/init.h>
-#include <linux/videodev.h>
 #include <linux/gfp.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -1168,22 +1169,22 @@ static int vidioc_s_ctrl(struct file *file, void *fh, struct v4l2_control *c)
 	case V4L2_CID_BRIGHTNESS:
 		sony_pic_camera_command(
 			SONY_PIC_COMMAND_SETCAMERABRIGHTNESS, c->value);
-		meye.picture.brightness = c->value << 10;
+		meye.brightness = c->value << 10;
 		break;
 	case V4L2_CID_HUE:
 		sony_pic_camera_command(
 			SONY_PIC_COMMAND_SETCAMERAHUE, c->value);
-		meye.picture.hue = c->value << 10;
+		meye.hue = c->value << 10;
 		break;
 	case V4L2_CID_CONTRAST:
 		sony_pic_camera_command(
 			SONY_PIC_COMMAND_SETCAMERACONTRAST, c->value);
-		meye.picture.contrast = c->value << 10;
+		meye.contrast = c->value << 10;
 		break;
 	case V4L2_CID_SATURATION:
 		sony_pic_camera_command(
 			SONY_PIC_COMMAND_SETCAMERACOLOR, c->value);
-		meye.picture.colour = c->value << 10;
+		meye.colour = c->value << 10;
 		break;
 	case V4L2_CID_AGC:
 		sony_pic_camera_command(
@@ -1221,16 +1222,16 @@ static int vidioc_g_ctrl(struct file *file, void *fh, struct v4l2_control *c)
 	mutex_lock(&meye.lock);
 	switch (c->id) {
 	case V4L2_CID_BRIGHTNESS:
-		c->value = meye.picture.brightness >> 10;
+		c->value = meye.brightness >> 10;
 		break;
 	case V4L2_CID_HUE:
-		c->value = meye.picture.hue >> 10;
+		c->value = meye.hue >> 10;
 		break;
 	case V4L2_CID_CONTRAST:
-		c->value = meye.picture.contrast >> 10;
+		c->value = meye.contrast >> 10;
 		break;
 	case V4L2_CID_SATURATION:
-		c->value = meye.picture.colour >> 10;
+		c->value = meye.colour >> 10;
 		break;
 	case V4L2_CID_AGC:
 		c->value = meye.params.agc;
@@ -1729,6 +1730,7 @@ static int meye_resume(struct pci_dev *pdev)
 static int __devinit meye_probe(struct pci_dev *pcidev,
 				const struct pci_device_id *ent)
 {
+	struct v4l2_device *v4l2_dev = &meye.v4l2_dev;
 	int ret = -EBUSY;
 	unsigned long mchip_adr;
 
@@ -1737,70 +1739,75 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 		goto outnotdev;
 	}
 
+	ret = v4l2_device_register(&pcidev->dev, v4l2_dev);
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "Could not register v4l2_device\n");
+		return ret;
+	}
 	ret = -ENOMEM;
 	meye.mchip_dev = pcidev;
-	meye.video_dev = video_device_alloc();
-	if (!meye.video_dev) {
-		printk(KERN_ERR "meye: video_device_alloc() failed!\n");
+	meye.vdev = video_device_alloc();
+	if (!meye.vdev) {
+		v4l2_err(v4l2_dev, "video_device_alloc() failed!\n");
 		goto outnotdev;
 	}
 
 	meye.grab_temp = vmalloc(MCHIP_NB_PAGES_MJPEG * PAGE_SIZE);
 	if (!meye.grab_temp) {
-		printk(KERN_ERR "meye: grab buffer allocation failed\n");
+		v4l2_err(v4l2_dev, "grab buffer allocation failed\n");
 		goto outvmalloc;
 	}
 
 	spin_lock_init(&meye.grabq_lock);
 	if (kfifo_alloc(&meye.grabq, sizeof(int) * MEYE_MAX_BUFNBRS,
 				GFP_KERNEL)) {
-		printk(KERN_ERR "meye: fifo allocation failed\n");
+		v4l2_err(v4l2_dev, "fifo allocation failed\n");
 		goto outkfifoalloc1;
 	}
 	spin_lock_init(&meye.doneq_lock);
 	if (kfifo_alloc(&meye.doneq, sizeof(int) * MEYE_MAX_BUFNBRS,
 				GFP_KERNEL)) {
-		printk(KERN_ERR "meye: fifo allocation failed\n");
+		v4l2_err(v4l2_dev, "fifo allocation failed\n");
 		goto outkfifoalloc2;
 	}
 
-	memcpy(meye.video_dev, &meye_template, sizeof(meye_template));
-	meye.video_dev->parent = &meye.mchip_dev->dev;
+	memcpy(meye.vdev, &meye_template, sizeof(meye_template));
+	meye.vdev->v4l2_dev = &meye.v4l2_dev;
 
 	ret = -EIO;
 	if ((ret = sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERA, 1))) {
-		printk(KERN_ERR "meye: unable to power on the camera\n");
-		printk(KERN_ERR "meye: did you enable the camera in "
+		v4l2_err(v4l2_dev, "meye: unable to power on the camera\n");
+		v4l2_err(v4l2_dev, "meye: did you enable the camera in "
 				"sonypi using the module options ?\n");
 		goto outsonypienable;
 	}
 
 	if ((ret = pci_enable_device(meye.mchip_dev))) {
-		printk(KERN_ERR "meye: pci_enable_device failed\n");
+		v4l2_err(v4l2_dev, "meye: pci_enable_device failed\n");
 		goto outenabledev;
 	}
 
 	mchip_adr = pci_resource_start(meye.mchip_dev,0);
 	if (!mchip_adr) {
-		printk(KERN_ERR "meye: mchip has no device base address\n");
+		v4l2_err(v4l2_dev, "meye: mchip has no device base address\n");
 		goto outregions;
 	}
 	if (!request_mem_region(pci_resource_start(meye.mchip_dev, 0),
 				pci_resource_len(meye.mchip_dev, 0),
 				"meye")) {
-		printk(KERN_ERR "meye: request_mem_region failed\n");
+		v4l2_err(v4l2_dev, "meye: request_mem_region failed\n");
 		goto outregions;
 	}
 	meye.mchip_mmregs = ioremap(mchip_adr, MCHIP_MM_REGS);
 	if (!meye.mchip_mmregs) {
-		printk(KERN_ERR "meye: ioremap failed\n");
+		v4l2_err(v4l2_dev, "meye: ioremap failed\n");
 		goto outremap;
 	}
 
 	meye.mchip_irq = pcidev->irq;
 	if (request_irq(meye.mchip_irq, meye_irq,
 			IRQF_DISABLED | IRQF_SHARED, "meye", meye_irq)) {
-		printk(KERN_ERR "meye: request_irq failed\n");
+		v4l2_err(v4l2_dev, "request_irq failed\n");
 		goto outreqirq;
 	}
 
@@ -1824,21 +1831,18 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 	msleep(1);
 	mchip_set(MCHIP_MM_INTA, MCHIP_MM_INTA_HIC_1_MASK);
 
-	if (video_register_device(meye.video_dev, VFL_TYPE_GRABBER,
+	if (video_register_device(meye.vdev, VFL_TYPE_GRABBER,
 				  video_nr) < 0) {
-		printk(KERN_ERR "meye: video_register_device failed\n");
+		v4l2_err(v4l2_dev, "video_register_device failed\n");
 		goto outvideoreg;
 	}
 
 	mutex_init(&meye.lock);
 	init_waitqueue_head(&meye.proc_list);
-	meye.picture.depth = 16;
-	meye.picture.palette = VIDEO_PALETTE_YUV422;
-	meye.picture.brightness = 32 << 10;
-	meye.picture.hue = 32 << 10;
-	meye.picture.colour = 32 << 10;
-	meye.picture.contrast = 32 << 10;
-	meye.picture.whiteness = 0;
+	meye.brightness = 32 << 10;
+	meye.hue = 32 << 10;
+	meye.colour = 32 << 10;
+	meye.contrast = 32 << 10;
 	meye.params.subsample = 0;
 	meye.params.quality = 8;
 	meye.params.sharpness = 32;
@@ -1854,9 +1858,9 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 	sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERAPICTURE, 0);
 	sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERAAGC, 48);
 
-	printk(KERN_INFO "meye: Motion Eye Camera Driver v%s.\n",
+	v4l2_info(v4l2_dev, "Motion Eye Camera Driver v%s.\n",
 	       MEYE_DRIVER_VERSION);
-	printk(KERN_INFO "meye: mchip KL5A72002 rev. %d, base %lx, irq %d\n",
+	v4l2_info(v4l2_dev, "mchip KL5A72002 rev. %d, base %lx, irq %d\n",
 	       meye.mchip_dev->revision, mchip_adr, meye.mchip_irq);
 
 	return 0;
@@ -1879,14 +1883,14 @@ outkfifoalloc2:
 outkfifoalloc1:
 	vfree(meye.grab_temp);
 outvmalloc:
-	video_device_release(meye.video_dev);
+	video_device_release(meye.vdev);
 outnotdev:
 	return ret;
 }
 
 static void __devexit meye_remove(struct pci_dev *pcidev)
 {
-	video_unregister_device(meye.video_dev);
+	video_unregister_device(meye.vdev);
 
 	mchip_hic_stop();
 

@@ -12,7 +12,7 @@ SYNOPSIS
 
 DESCRIPTION
 -----------
-There's four variants of perf sched:
+There are four variants of perf sched:
 
   'perf sched record <command>' to record the scheduling events
   of an arbitrary workload.
@@ -27,7 +27,7 @@ There's four variants of perf sched:
   via perf sched record. (this is done by starting up mockup threads
   that mimic the workload based on the events in the trace. These
   threads can then replay the timings (CPU runtime and sleep patterns)
-  of the workload as it occured when it was recorded - and can repeat
+  of the workload as it occurred when it was recorded - and can repeat
   it a number of times, measuring its performance.)
 
 OPTIONS

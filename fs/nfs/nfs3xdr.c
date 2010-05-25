@@ -762,7 +762,7 @@ nfs3_xdr_wccstat(struct rpc_rqst *req, __be32 *p, struct nfs_fattr *fattr)
 static int
 nfs3_xdr_removeres(struct rpc_rqst *req, __be32 *p, struct nfs_removeres *res)
 {
-	return nfs3_xdr_wccstat(req, p, &res->dir_attr);
+	return nfs3_xdr_wccstat(req, p, res->dir_attr);
 }
 
 /*

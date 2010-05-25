@@ -48,6 +48,7 @@
 #define DRV_VERSION "1.0.0-k0"
 char igbvf_driver_name[] = "igbvf";
 const char igbvf_driver_version[] = DRV_VERSION;
+struct pm_qos_request_list *igbvf_driver_pm_qos_req;
 static const char igbvf_driver_string[] =
 				"Intel(R) Virtual Function Network Driver";
 static const char igbvf_copyright[] = "Copyright (c) 2009 Intel Corporation.";
@@ -164,10 +165,10 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 				buffer_info->page_offset ^= PAGE_SIZE / 2;
 			}
 			buffer_info->page_dma =
-				pci_map_page(pdev, buffer_info->page,
+				dma_map_page(&pdev->dev, buffer_info->page,
 				             buffer_info->page_offset,
 				             PAGE_SIZE / 2,
-				             PCI_DMA_FROMDEVICE);
+					     DMA_FROM_DEVICE);
 		}
 
 		if (!buffer_info->skb) {
@@ -178,9 +179,9 @@ static void igbvf_alloc_rx_buffers(struct igbvf_ring *rx_ring,
 			}
 
 			buffer_info->skb = skb;
-			buffer_info->dma = pci_map_single(pdev, skb->data,
+			buffer_info->dma = dma_map_single(&pdev->dev, skb->data,
 			                                  bufsz,
-			                                  PCI_DMA_FROMDEVICE);
+							  DMA_FROM_DEVICE);
 		}
 		/* Refresh the desc even if buffer_addrs didn't change because
 		 * each write-back erases this info. */
@@ -268,28 +269,28 @@ static bool igbvf_clean_rx_irq(struct igbvf_adapter *adapter,
 		prefetch(skb->data - NET_IP_ALIGN);
 		buffer_info->skb = NULL;
 		if (!adapter->rx_ps_hdr_size) {
-			pci_unmap_single(pdev, buffer_info->dma,
+			dma_unmap_single(&pdev->dev, buffer_info->dma,
 			                 adapter->rx_buffer_len,
-			                 PCI_DMA_FROMDEVICE);
+					 DMA_FROM_DEVICE);
 			buffer_info->dma = 0;
 			skb_put(skb, length);
 			goto send_up;
 		}
 
 		if (!skb_shinfo(skb)->nr_frags) {
-			pci_unmap_single(pdev, buffer_info->dma,
+			dma_unmap_single(&pdev->dev, buffer_info->dma,
 			                 adapter->rx_ps_hdr_size,
-			                 PCI_DMA_FROMDEVICE);
+					 DMA_FROM_DEVICE);
 			skb_put(skb, hlen);
 		}
 
 		if (length) {
-			pci_unmap_page(pdev, buffer_info->page_dma,
+			dma_unmap_page(&pdev->dev, buffer_info->page_dma,
 			               PAGE_SIZE / 2,
-			               PCI_DMA_FROMDEVICE);
+				       DMA_FROM_DEVICE);
 			buffer_info->page_dma = 0;
 
-			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags++,
+			skb_fill_page_desc(skb, skb_shinfo(skb)->nr_frags,
 			                   buffer_info->page,
 			                   buffer_info->page_offset,
 			                   length);
@@ -369,15 +370,15 @@ static void igbvf_put_txbuf(struct igbvf_adapter *adapter,
 {
 	if (buffer_info->dma) {
 		if (buffer_info->mapped_as_page)
-			pci_unmap_page(adapter->pdev,
+			dma_unmap_page(&adapter->pdev->dev,
 				       buffer_info->dma,
 				       buffer_info->length,
-				       PCI_DMA_TODEVICE);
+				       DMA_TO_DEVICE);
 		else
-			pci_unmap_single(adapter->pdev,
+			dma_unmap_single(&adapter->pdev->dev,
 					 buffer_info->dma,
 					 buffer_info->length,
-					 PCI_DMA_TODEVICE);
+					 DMA_TO_DEVICE);
 		buffer_info->dma = 0;
 	}
 	if (buffer_info->skb) {
@@ -438,8 +439,8 @@ int igbvf_setup_tx_resources(struct igbvf_adapter *adapter,
 	tx_ring->size = tx_ring->count * sizeof(union e1000_adv_tx_desc);
 	tx_ring->size = ALIGN(tx_ring->size, 4096);
 
-	tx_ring->desc = pci_alloc_consistent(pdev, tx_ring->size,
-					     &tx_ring->dma);
+	tx_ring->desc = dma_alloc_coherent(&pdev->dev, tx_ring->size,
+					   &tx_ring->dma, GFP_KERNEL);
 
 	if (!tx_ring->desc)
 		goto err;
@@ -480,8 +481,8 @@ int igbvf_setup_rx_resources(struct igbvf_adapter *adapter,
 	rx_ring->size = rx_ring->count * desc_len;
 	rx_ring->size = ALIGN(rx_ring->size, 4096);
 
-	rx_ring->desc = pci_alloc_consistent(pdev, rx_ring->size,
-	                                     &rx_ring->dma);
+	rx_ring->desc = dma_alloc_coherent(&pdev->dev, rx_ring->size,
+					   &rx_ring->dma, GFP_KERNEL);
 
 	if (!rx_ring->desc)
 		goto err;
@@ -549,7 +550,8 @@ void igbvf_free_tx_resources(struct igbvf_ring *tx_ring)
 	vfree(tx_ring->buffer_info);
 	tx_ring->buffer_info = NULL;
 
-	pci_free_consistent(pdev, tx_ring->size, tx_ring->desc, tx_ring->dma);
+	dma_free_coherent(&pdev->dev, tx_ring->size, tx_ring->desc,
+			  tx_ring->dma);
 
 	tx_ring->desc = NULL;
 }
@@ -574,13 +576,13 @@ static void igbvf_clean_rx_ring(struct igbvf_ring *rx_ring)
 		buffer_info = &rx_ring->buffer_info[i];
 		if (buffer_info->dma) {
 			if (adapter->rx_ps_hdr_size){
-				pci_unmap_single(pdev, buffer_info->dma,
+				dma_unmap_single(&pdev->dev, buffer_info->dma,
 				                 adapter->rx_ps_hdr_size,
-				                 PCI_DMA_FROMDEVICE);
+						 DMA_FROM_DEVICE);
 			} else {
-				pci_unmap_single(pdev, buffer_info->dma,
+				dma_unmap_single(&pdev->dev, buffer_info->dma,
 				                 adapter->rx_buffer_len,
-				                 PCI_DMA_FROMDEVICE);
+						 DMA_FROM_DEVICE);
 			}
 			buffer_info->dma = 0;
 		}
@@ -592,9 +594,10 @@ static void igbvf_clean_rx_ring(struct igbvf_ring *rx_ring)
 
 		if (buffer_info->page) {
 			if (buffer_info->page_dma)
-				pci_unmap_page(pdev, buffer_info->page_dma,
+				dma_unmap_page(&pdev->dev,
+					       buffer_info->page_dma,
 				               PAGE_SIZE / 2,
-				               PCI_DMA_FROMDEVICE);
+					       DMA_FROM_DEVICE);
 			put_page(buffer_info->page);
 			buffer_info->page = NULL;
 			buffer_info->page_dma = 0;
@@ -1398,7 +1401,7 @@ static void igbvf_set_multi(struct net_device *netdev)
 {
 	struct igbvf_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u8  *mta_list = NULL;
 	int i;
 
@@ -1413,8 +1416,8 @@ static void igbvf_set_multi(struct net_device *netdev)
 
 	/* prepare a packed array of only addresses. */
 	i = 0;
-	netdev_for_each_mc_addr(mc_ptr, netdev)
-		memcpy(mta_list + (i++ * ETH_ALEN), mc_ptr->dmi_addr, ETH_ALEN);
+	netdev_for_each_mc_addr(ha, netdev)
+		memcpy(mta_list + (i++ * ETH_ALEN), ha->addr, ETH_ALEN);
 
 	hw->mac.ops.update_mc_addr_list(hw, mta_list, i, 0, 0);
 	kfree(mta_list);
@@ -2104,9 +2107,9 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 	buffer_info->time_stamp = jiffies;
 	buffer_info->next_to_watch = i;
 	buffer_info->mapped_as_page = false;
-	buffer_info->dma = pci_map_single(pdev, skb->data, len,
-					  PCI_DMA_TODEVICE);
-	if (pci_dma_mapping_error(pdev, buffer_info->dma))
+	buffer_info->dma = dma_map_single(&pdev->dev, skb->data, len,
+					  DMA_TO_DEVICE);
+	if (dma_mapping_error(&pdev->dev, buffer_info->dma))
 		goto dma_error;
 
 
@@ -2127,12 +2130,12 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 		buffer_info->time_stamp = jiffies;
 		buffer_info->next_to_watch = i;
 		buffer_info->mapped_as_page = true;
-		buffer_info->dma = pci_map_page(pdev,
+		buffer_info->dma = dma_map_page(&pdev->dev,
 						frag->page,
 						frag->page_offset,
 						len,
-						PCI_DMA_TODEVICE);
-		if (pci_dma_mapping_error(pdev, buffer_info->dma))
+						DMA_TO_DEVICE);
+		if (dma_mapping_error(&pdev->dev, buffer_info->dma))
 			goto dma_error;
 	}
 
@@ -2644,16 +2647,16 @@ static int __devinit igbvf_probe(struct pci_dev *pdev,
 		return err;
 
 	pci_using_dac = 0;
-	err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+	err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(64));
 	if (!err) {
-		err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64));
+		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
 		if (!err)
 			pci_using_dac = 1;
 	} else {
-		err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
 		if (err) {
-			err = pci_set_consistent_dma_mask(pdev,
-							  DMA_BIT_MASK(32));
+			err = dma_set_coherent_mask(&pdev->dev,
+						    DMA_BIT_MASK(32));
 			if (err) {
 				dev_err(&pdev->dev, "No usable DMA "
 				        "configuration, aborting\n");
@@ -2899,7 +2902,7 @@ static int __init igbvf_init_module(void)
 	printk(KERN_INFO "%s\n", igbvf_copyright);
 
 	ret = pci_register_driver(&igbvf_driver);
-	pm_qos_add_requirement(PM_QOS_CPU_DMA_LATENCY, igbvf_driver_name,
+	igbvf_driver_pm_qos_req = pm_qos_add_request(PM_QOS_CPU_DMA_LATENCY,
 	                       PM_QOS_DEFAULT_VALUE);
 
 	return ret;
@@ -2915,7 +2918,8 @@ module_init(igbvf_init_module);
 static void __exit igbvf_exit_module(void)
 {
 	pci_unregister_driver(&igbvf_driver);
-	pm_qos_remove_requirement(PM_QOS_CPU_DMA_LATENCY, igbvf_driver_name);
+	pm_qos_remove_request(igbvf_driver_pm_qos_req);
+	igbvf_driver_pm_qos_req = NULL;
 }
 module_exit(igbvf_exit_module);
 

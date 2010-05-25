@@ -136,7 +136,8 @@ static inline void emac_report_timeout_error(struct emac_instance *dev,
 				  EMAC_FTR_440EP_PHY_CLK_FIX))
 		DBG(dev, "%s" NL, error);
 	else if (net_ratelimit())
-		printk(KERN_ERR "%s: %s\n", dev->ofdev->node->full_name, error);
+		printk(KERN_ERR "%s: %s\n", dev->ofdev->dev.of_node->full_name,
+			error);
 }
 
 /* EMAC PHY clock workaround:
@@ -389,18 +390,19 @@ static void emac_hash_mc(struct emac_instance *dev)
 	const int regs = EMAC_XAHT_REGS(dev);
 	u32 *gaht_base = emac_gaht_base(dev);
 	u32 gaht_temp[regs];
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	int i;
 
 	DBG(dev, "hash_mc %d" NL, netdev_mc_count(dev->ndev));
 
 	memset(gaht_temp, 0, sizeof (gaht_temp));
 
-	netdev_for_each_mc_addr(dmi, dev->ndev) {
+	netdev_for_each_mc_addr(ha, dev->ndev) {
 		int slot, reg, mask;
-		DBG2(dev, "mc %pM" NL, dmi->dmi_addr);
+		DBG2(dev, "mc %pM" NL, ha->addr);
 
-		slot = EMAC_XAHT_CRC_TO_SLOT(dev, ether_crc(ETH_ALEN, dmi->dmi_addr));
+		slot = EMAC_XAHT_CRC_TO_SLOT(dev,
+					     ether_crc(ETH_ALEN, ha->addr));
 		reg = EMAC_XAHT_SLOT_TO_REG(dev, slot);
 		mask = EMAC_XAHT_SLOT_TO_MASK(dev, slot);
 
@@ -1177,7 +1179,7 @@ static int emac_open(struct net_device *ndev)
 		netif_carrier_on(dev->ndev);
 
 	/* Required for Pause packet support in EMAC */
-	dev_mc_add(ndev, default_mcast_addr, sizeof(default_mcast_addr), 1);
+	dev_mc_add_global(ndev, default_mcast_addr);
 
 	emac_configure(dev);
 	mal_poll_add(dev->mal, &dev->commac);
@@ -1700,7 +1702,6 @@ static int emac_poll_rx(void *param, int budget)
 
 		skb_put(skb, len);
 	push_packet:
-		skb->dev = dev->ndev;
 		skb->protocol = eth_type_trans(skb, dev->ndev);
 		emac_rx_csum(dev, skb, ctrl);
 
@@ -2185,7 +2186,7 @@ static void emac_ethtool_get_drvinfo(struct net_device *ndev,
 	strcpy(info->version, DRV_VERSION);
 	info->fw_version[0] = '\0';
 	sprintf(info->bus_info, "PPC 4xx EMAC-%d %s",
-		dev->cell_index, dev->ofdev->node->full_name);
+		dev->cell_index, dev->ofdev->dev.of_node->full_name);
 	info->regdump_len = emac_ethtool_get_regs_len(ndev);
 }
 
@@ -2379,7 +2380,7 @@ static int __devinit emac_read_uint_prop(struct device_node *np, const char *nam
 
 static int __devinit emac_init_phy(struct emac_instance *dev)
 {
-	struct device_node *np = dev->ofdev->node;
+	struct device_node *np = dev->ofdev->dev.of_node;
 	struct net_device *ndev = dev->ndev;
 	u32 phy_map, adv;
 	int i;
@@ -2514,7 +2515,7 @@ static int __devinit emac_init_phy(struct emac_instance *dev)
 
 static int __devinit emac_init_config(struct emac_instance *dev)
 {
-	struct device_node *np = dev->ofdev->node;
+	struct device_node *np = dev->ofdev->dev.of_node;
 	const void *p;
 	unsigned int plen;
 	const char *pm, *phy_modes[] = {
@@ -2723,7 +2724,7 @@ static int __devinit emac_probe(struct of_device *ofdev,
 {
 	struct net_device *ndev;
 	struct emac_instance *dev;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct device_node **blist = NULL;
 	int err, i;
 
@@ -2810,7 +2811,7 @@ static int __devinit emac_probe(struct of_device *ofdev,
 	err = mal_register_commac(dev->mal, &dev->commac);
 	if (err) {
 		printk(KERN_ERR "%s: failed to register with mal %s!\n",
-		       np->full_name, dev->mal_dev->node->full_name);
+		       np->full_name, dev->mal_dev->dev.of_node->full_name);
 		goto err_rel_deps;
 	}
 	dev->rx_skb_size = emac_rx_skb_size(ndev->mtu);
@@ -2995,9 +2996,11 @@ static struct of_device_id emac_match[] =
 MODULE_DEVICE_TABLE(of, emac_match);
 
 static struct of_platform_driver emac_driver = {
-	.name = "emac",
-	.match_table = emac_match,
-
+	.driver = {
+		.name = "emac",
+		.owner = THIS_MODULE,
+		.of_match_table = emac_match,
+	},
 	.probe = emac_probe,
 	.remove = emac_remove,
 };

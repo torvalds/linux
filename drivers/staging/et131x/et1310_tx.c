@@ -112,7 +112,7 @@ int et131x_tx_dma_memory_alloc(struct et131x_adapter *adapter)
 	struct tx_ring *tx_ring = &adapter->tx_ring;
 
 	/* Allocate memory for the TCB's (Transmit Control Block) */
-	adapter->tx_ring.tcb_ring = (struct tcb *)
+	adapter->tx_ring.tcb_ring =
 		kcalloc(NUM_TCB, sizeof(struct tcb), GFP_ATOMIC | GFP_DMA);
 	if (!adapter->tx_ring.tcb_ring) {
 		dev_err(&adapter->pdev->dev, "Cannot alloc memory for TCBs\n");

@@ -7,6 +7,7 @@
  */
 
 /* Everything about the rules for NAT. */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/types.h>
 #include <linux/ip.h>
 #include <linux/netfilter.h>
@@ -38,7 +39,7 @@ static const struct xt_table nat_table = {
 
 /* Source NAT */
 static unsigned int
-ipt_snat_target(struct sk_buff *skb, const struct xt_target_param *par)
+ipt_snat_target(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -57,7 +58,7 @@ ipt_snat_target(struct sk_buff *skb, const struct xt_target_param *par)
 }
 
 static unsigned int
-ipt_dnat_target(struct sk_buff *skb, const struct xt_target_param *par)
+ipt_dnat_target(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	struct nf_conn *ct;
 	enum ip_conntrack_info ctinfo;
@@ -74,28 +75,28 @@ ipt_dnat_target(struct sk_buff *skb, const struct xt_target_param *par)
 	return nf_nat_setup_info(ct, &mr->range[0], IP_NAT_MANIP_DST);
 }
 
-static bool ipt_snat_checkentry(const struct xt_tgchk_param *par)
+static int ipt_snat_checkentry(const struct xt_tgchk_param *par)
 {
 	const struct nf_nat_multi_range_compat *mr = par->targinfo;
 
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
-		printk("SNAT: multiple ranges no longer supported\n");
-		return false;
+		pr_info("SNAT: multiple ranges no longer supported\n");
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
-static bool ipt_dnat_checkentry(const struct xt_tgchk_param *par)
+static int ipt_dnat_checkentry(const struct xt_tgchk_param *par)
 {
 	const struct nf_nat_multi_range_compat *mr = par->targinfo;
 
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
-		printk("DNAT: multiple ranges no longer supported\n");
-		return false;
+		pr_info("DNAT: multiple ranges no longer supported\n");
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 unsigned int

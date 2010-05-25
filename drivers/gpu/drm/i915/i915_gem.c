@@ -124,7 +124,7 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 	args->size = roundup(args->size, PAGE_SIZE);
 
 	/* Allocate the new object */
-	obj = drm_gem_object_alloc(dev, args->size);
+	obj = i915_gem_alloc_object(dev, args->size);
 	if (obj == NULL)
 		return -ENOMEM;
 
@@ -1051,7 +1051,9 @@ i915_gem_set_domain_ioctl(struct drm_device *dev, void *data,
 		 * about to occur.
 		 */
 		if (obj_priv->fence_reg != I915_FENCE_REG_NONE) {
-			list_move_tail(&obj_priv->fence_list,
+			struct drm_i915_fence_reg *reg =
+				&dev_priv->fence_regs[obj_priv->fence_reg];
+			list_move_tail(&reg->lru_list,
 				       &dev_priv->mm.fence_list);
 		}
 
@@ -1566,7 +1568,7 @@ i915_gem_process_flushing_list(struct drm_device *dev,
 	list_for_each_entry_safe(obj_priv, next,
 				 &dev_priv->mm.gpu_write_list,
 				 gpu_write_list) {
-		struct drm_gem_object *obj = obj_priv->obj;
+		struct drm_gem_object *obj = &obj_priv->base;
 
 		if ((obj->write_domain & flush_domains) ==
 		    obj->write_domain) {
@@ -1577,9 +1579,12 @@ i915_gem_process_flushing_list(struct drm_device *dev,
 			i915_gem_object_move_to_active(obj, seqno);
 
 			/* update the fence lru list */
-			if (obj_priv->fence_reg != I915_FENCE_REG_NONE)
-				list_move_tail(&obj_priv->fence_list,
+			if (obj_priv->fence_reg != I915_FENCE_REG_NONE) {
+				struct drm_i915_fence_reg *reg =
+					&dev_priv->fence_regs[obj_priv->fence_reg];
+				list_move_tail(&reg->lru_list,
 						&dev_priv->mm.fence_list);
+			}
 
 			trace_i915_gem_object_change_domain(obj,
 							    obj->read_domains,
@@ -1745,7 +1750,7 @@ i915_gem_retire_request(struct drm_device *dev,
 		obj_priv = list_first_entry(&dev_priv->mm.active_list,
 					    struct drm_i915_gem_object,
 					    list);
-		obj = obj_priv->obj;
+		obj = &obj_priv->base;
 
 		/* If the seqno being retired doesn't match the oldest in the
 		 * list, then the oldest in the list must still be newer than
@@ -2119,7 +2124,7 @@ i915_gem_find_inactive_object(struct drm_device *dev, int min_size)
 
 	/* Try to find the smallest clean object */
 	list_for_each_entry(obj_priv, &dev_priv->mm.inactive_list, list) {
-		struct drm_gem_object *obj = obj_priv->obj;
+		struct drm_gem_object *obj = &obj_priv->base;
 		if (obj->size >= min_size) {
 			if ((!obj_priv->dirty ||
 			     i915_gem_object_is_purgeable(obj_priv)) &&
@@ -2253,7 +2258,7 @@ i915_gem_evict_something(struct drm_device *dev, int min_size)
 
 			/* Find an object that we can immediately reuse */
 			list_for_each_entry(obj_priv, &dev_priv->mm.flushing_list, list) {
-				obj = obj_priv->obj;
+				obj = &obj_priv->base;
 				if (obj->size >= min_size)
 					break;
 
@@ -2485,9 +2490,10 @@ static int i915_find_fence_reg(struct drm_device *dev)
 
 	/* None available, try to steal one or wait for a user to finish */
 	i = I915_FENCE_REG_NONE;
-	list_for_each_entry(obj_priv, &dev_priv->mm.fence_list,
-			    fence_list) {
-		obj = obj_priv->obj;
+	list_for_each_entry(reg, &dev_priv->mm.fence_list,
+			    lru_list) {
+		obj = reg->obj;
+		obj_priv = to_intel_bo(obj);
 
 		if (obj_priv->pin_count)
 			continue;
@@ -2536,7 +2542,8 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 
 	/* Just update our place in the LRU if our fence is getting used. */
 	if (obj_priv->fence_reg != I915_FENCE_REG_NONE) {
-		list_move_tail(&obj_priv->fence_list, &dev_priv->mm.fence_list);
+		reg = &dev_priv->fence_regs[obj_priv->fence_reg];
+		list_move_tail(&reg->lru_list, &dev_priv->mm.fence_list);
 		return 0;
 	}
 
@@ -2566,7 +2573,7 @@ i915_gem_object_get_fence_reg(struct drm_gem_object *obj)
 
 	obj_priv->fence_reg = ret;
 	reg = &dev_priv->fence_regs[obj_priv->fence_reg];
-	list_add_tail(&obj_priv->fence_list, &dev_priv->mm.fence_list);
+	list_add_tail(&reg->lru_list, &dev_priv->mm.fence_list);
 
 	reg->obj = obj;
 
@@ -2598,6 +2605,8 @@ i915_gem_clear_fence_reg(struct drm_gem_object *obj)
 	struct drm_device *dev = obj->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
+	struct drm_i915_fence_reg *reg =
+		&dev_priv->fence_regs[obj_priv->fence_reg];
 
 	if (IS_GEN6(dev)) {
 		I915_WRITE64(FENCE_REG_SANDYBRIDGE_0 +
@@ -2616,9 +2625,9 @@ i915_gem_clear_fence_reg(struct drm_gem_object *obj)
 		I915_WRITE(fence_reg, 0);
 	}
 
-	dev_priv->fence_regs[obj_priv->fence_reg].obj = NULL;
+	reg->obj = NULL;
 	obj_priv->fence_reg = I915_FENCE_REG_NONE;
-	list_del_init(&obj_priv->fence_list);
+	list_del_init(&reg->lru_list);
 }
 
 /**
@@ -4471,34 +4480,38 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	return 0;
 }
 
+struct drm_gem_object * i915_gem_alloc_object(struct drm_device *dev,
+					      size_t size)
+{
+	struct drm_i915_gem_object *obj;
+
+	obj = kzalloc(sizeof(*obj), GFP_KERNEL);
+	if (obj == NULL)
+		return NULL;
+
+	if (drm_gem_object_init(dev, &obj->base, size) != 0) {
+		kfree(obj);
+		return NULL;
+	}
+
+	obj->base.write_domain = I915_GEM_DOMAIN_CPU;
+	obj->base.read_domains = I915_GEM_DOMAIN_CPU;
+
+	obj->agp_type = AGP_USER_MEMORY;
+	obj->base.driver_private = NULL;
+	obj->fence_reg = I915_FENCE_REG_NONE;
+	INIT_LIST_HEAD(&obj->list);
+	INIT_LIST_HEAD(&obj->gpu_write_list);
+	obj->madv = I915_MADV_WILLNEED;
+
+	trace_i915_gem_object_create(&obj->base);
+
+	return &obj->base;
+}
+
 int i915_gem_init_object(struct drm_gem_object *obj)
 {
-	struct drm_i915_gem_object *obj_priv;
-
-	obj_priv = kzalloc(sizeof(*obj_priv), GFP_KERNEL);
-	if (obj_priv == NULL)
-		return -ENOMEM;
-
-	/*
-	 * We've just allocated pages from the kernel,
-	 * so they've just been written by the CPU with
-	 * zeros. They'll need to be clflushed before we
-	 * use them with the GPU.
-	 */
-	obj->write_domain = I915_GEM_DOMAIN_CPU;
-	obj->read_domains = I915_GEM_DOMAIN_CPU;
-
-	obj_priv->agp_type = AGP_USER_MEMORY;
-
-	obj->driver_private = obj_priv;
-	obj_priv->obj = obj;
-	obj_priv->fence_reg = I915_FENCE_REG_NONE;
-	INIT_LIST_HEAD(&obj_priv->list);
-	INIT_LIST_HEAD(&obj_priv->gpu_write_list);
-	INIT_LIST_HEAD(&obj_priv->fence_list);
-	obj_priv->madv = I915_MADV_WILLNEED;
-
-	trace_i915_gem_object_create(obj);
+	BUG();
 
 	return 0;
 }
@@ -4521,9 +4534,11 @@ void i915_gem_free_object(struct drm_gem_object *obj)
 	if (obj_priv->mmap_offset)
 		i915_gem_free_mmap_offset(obj);
 
+	drm_gem_object_release(obj);
+
 	kfree(obj_priv->page_cpu_valid);
 	kfree(obj_priv->bit_17);
-	kfree(obj->driver_private);
+	kfree(obj_priv);
 }
 
 /** Unbinds all inactive objects. */
@@ -4536,9 +4551,9 @@ i915_gem_evict_from_inactive_list(struct drm_device *dev)
 		struct drm_gem_object *obj;
 		int ret;
 
-		obj = list_first_entry(&dev_priv->mm.inactive_list,
-				       struct drm_i915_gem_object,
-				       list)->obj;
+		obj = &list_first_entry(&dev_priv->mm.inactive_list,
+					struct drm_i915_gem_object,
+					list)->base;
 
 		ret = i915_gem_object_unbind(obj);
 		if (ret != 0) {
@@ -4608,7 +4623,7 @@ i915_gem_init_pipe_control(struct drm_device *dev)
 	struct drm_i915_gem_object *obj_priv;
 	int ret;
 
-	obj = drm_gem_object_alloc(dev, 4096);
+	obj = i915_gem_alloc_object(dev, 4096);
 	if (obj == NULL) {
 		DRM_ERROR("Failed to allocate seqno page\n");
 		ret = -ENOMEM;
@@ -4653,7 +4668,7 @@ i915_gem_init_hws(struct drm_device *dev)
 	if (!I915_NEED_GFX_HWS(dev))
 		return 0;
 
-	obj = drm_gem_object_alloc(dev, 4096);
+	obj = i915_gem_alloc_object(dev, 4096);
 	if (obj == NULL) {
 		DRM_ERROR("Failed to allocate status page\n");
 		ret = -ENOMEM;
@@ -4764,7 +4779,7 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 	if (ret != 0)
 		return ret;
 
-	obj = drm_gem_object_alloc(dev, 128 * 1024);
+	obj = i915_gem_alloc_object(dev, 128 * 1024);
 	if (obj == NULL) {
 		DRM_ERROR("Failed to allocate ringbuffer\n");
 		i915_gem_cleanup_hws(dev);
@@ -4957,6 +4972,8 @@ i915_gem_load(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->mm.inactive_list);
 	INIT_LIST_HEAD(&dev_priv->mm.request_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
+	for (i = 0; i < 16; i++)
+		INIT_LIST_HEAD(&dev_priv->fence_regs[i].lru_list);
 	INIT_DELAYED_WORK(&dev_priv->mm.retire_work,
 			  i915_gem_retire_work_handler);
 	dev_priv->mm.next_gem_seqno = 1;
@@ -5185,6 +5202,20 @@ void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv)
 }
 
 static int
+i915_gpu_is_active(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	int lists_empty;
+
+	spin_lock(&dev_priv->mm.active_list_lock);
+	lists_empty = list_empty(&dev_priv->mm.flushing_list) &&
+		      list_empty(&dev_priv->mm.active_list);
+	spin_unlock(&dev_priv->mm.active_list_lock);
+
+	return !lists_empty;
+}
+
+static int
 i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
 {
 	drm_i915_private_t *dev_priv, *next_dev;
@@ -5213,6 +5244,7 @@ i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
 
 	spin_lock(&shrink_list_lock);
 
+rescan:
 	/* first scan for clean buffers */
 	list_for_each_entry_safe(dev_priv, next_dev,
 				 &shrink_list, mm.shrink_list) {
@@ -5229,7 +5261,7 @@ i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
 					 &dev_priv->mm.inactive_list,
 					 list) {
 			if (i915_gem_object_is_purgeable(obj_priv)) {
-				i915_gem_object_unbind(obj_priv->obj);
+				i915_gem_object_unbind(&obj_priv->base);
 				if (--nr_to_scan <= 0)
 					break;
 			}
@@ -5258,7 +5290,7 @@ i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
 					 &dev_priv->mm.inactive_list,
 					 list) {
 			if (nr_to_scan > 0) {
-				i915_gem_object_unbind(obj_priv->obj);
+				i915_gem_object_unbind(&obj_priv->base);
 				nr_to_scan--;
 			} else
 				cnt++;
@@ -5268,6 +5300,36 @@ i915_gem_shrink(int nr_to_scan, gfp_t gfp_mask)
 		mutex_unlock(&dev->struct_mutex);
 
 		would_deadlock = 0;
+	}
+
+	if (nr_to_scan) {
+		int active = 0;
+
+		/*
+		 * We are desperate for pages, so as a last resort, wait
+		 * for the GPU to finish and discard whatever we can.
+		 * This has a dramatic impact to reduce the number of
+		 * OOM-killer events whilst running the GPU aggressively.
+		 */
+		list_for_each_entry(dev_priv, &shrink_list, mm.shrink_list) {
+			struct drm_device *dev = dev_priv->dev;
+
+			if (!mutex_trylock(&dev->struct_mutex))
+				continue;
+
+			spin_unlock(&shrink_list_lock);
+
+			if (i915_gpu_is_active(dev)) {
+				i915_gpu_idle(dev);
+				active++;
+			}
+
+			spin_lock(&shrink_list_lock);
+			mutex_unlock(&dev->struct_mutex);
+		}
+
+		if (active)
+			goto rescan;
 	}
 
 	spin_unlock(&shrink_list_lock);

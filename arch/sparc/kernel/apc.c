@@ -174,8 +174,11 @@ static struct of_device_id __initdata apc_match[] = {
 MODULE_DEVICE_TABLE(of, apc_match);
 
 static struct of_platform_driver apc_driver = {
-	.name		= "apc",
-	.match_table	= apc_match,
+	.driver = {
+		.name = "apc",
+		.owner = THIS_MODULE,
+		.of_match_table = apc_match,
+	},
 	.probe		= apc_probe,
 };
 

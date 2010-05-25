@@ -45,7 +45,7 @@ most general to most specific:
 	to establish the task policy for a child task exec()'d from an
 	executable image that has no awareness of memory policy.  See the
 	MEMORY POLICY APIS section, below, for an overview of the system call
-	that a task may use to set/change it's task/process policy.
+	that a task may use to set/change its task/process policy.
 
 	In a multi-threaded task, task policies apply only to the thread
 	[Linux kernel task] that installs the policy and any threads
@@ -301,7 +301,7 @@ decrement this reference count, respectively.  mpol_put() will only free
 the structure back to the mempolicy kmem cache when the reference count
 goes to zero.
 
-When a new memory policy is allocated, it's reference count is initialized
+When a new memory policy is allocated, its reference count is initialized
 to '1', representing the reference held by the task that is installing the
 new policy.  When a pointer to a memory policy structure is stored in another
 structure, another reference is added, as the task's reference will be dropped

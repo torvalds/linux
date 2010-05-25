@@ -127,10 +127,24 @@ static inline void __add_wait_queue(wait_queue_head_t *head, wait_queue_t *new)
 /*
  * Used for wake-one threads:
  */
+static inline void __add_wait_queue_exclusive(wait_queue_head_t *q,
+					      wait_queue_t *wait)
+{
+	wait->flags |= WQ_FLAG_EXCLUSIVE;
+	__add_wait_queue(q, wait);
+}
+
 static inline void __add_wait_queue_tail(wait_queue_head_t *head,
-						wait_queue_t *new)
+					 wait_queue_t *new)
 {
 	list_add_tail(&new->task_list, &head->task_list);
+}
+
+static inline void __add_wait_queue_tail_exclusive(wait_queue_head_t *q,
+					      wait_queue_t *wait)
+{
+	wait->flags |= WQ_FLAG_EXCLUSIVE;
+	__add_wait_queue_tail(q, wait);
 }
 
 static inline void __remove_wait_queue(wait_queue_head_t *head,
@@ -362,6 +376,155 @@ do {									\
 	__ret;								\
 })
 
+
+#define __wait_event_interruptible_locked(wq, condition, exclusive, irq) \
+({									\
+	int __ret = 0;							\
+	DEFINE_WAIT(__wait);						\
+	if (exclusive)							\
+		__wait.flags |= WQ_FLAG_EXCLUSIVE;			\
+	do {								\
+		if (likely(list_empty(&__wait.task_list)))		\
+			__add_wait_queue_tail(&(wq), &__wait);		\
+		set_current_state(TASK_INTERRUPTIBLE);			\
+		if (signal_pending(current)) {				\
+			__ret = -ERESTARTSYS;				\
+			break;						\
+		}							\
+		if (irq)						\
+			spin_unlock_irq(&(wq).lock);			\
+		else							\
+			spin_unlock(&(wq).lock);			\
+		schedule();						\
+		if (irq)						\
+			spin_lock_irq(&(wq).lock);			\
+		else							\
+			spin_lock(&(wq).lock);				\
+	} while (!(condition));						\
+	__remove_wait_queue(&(wq), &__wait);				\
+	__set_current_state(TASK_RUNNING);				\
+	__ret;								\
+})
+
+
+/**
+ * wait_event_interruptible_locked - sleep until a condition gets true
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ *
+ * The process is put to sleep (TASK_INTERRUPTIBLE) until the
+ * @condition evaluates to true or a signal is received.
+ * The @condition is checked each time the waitqueue @wq is woken up.
+ *
+ * It must be called with wq.lock being held.  This spinlock is
+ * unlocked while sleeping but @condition testing is done while lock
+ * is held and when this macro exits the lock is held.
+ *
+ * The lock is locked/unlocked using spin_lock()/spin_unlock()
+ * functions which must match the way they are locked/unlocked outside
+ * of this macro.
+ *
+ * wake_up_locked() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ *
+ * The function will return -ERESTARTSYS if it was interrupted by a
+ * signal and 0 if @condition evaluated to true.
+ */
+#define wait_event_interruptible_locked(wq, condition)			\
+	((condition)							\
+	 ? 0 : __wait_event_interruptible_locked(wq, condition, 0, 0))
+
+/**
+ * wait_event_interruptible_locked_irq - sleep until a condition gets true
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ *
+ * The process is put to sleep (TASK_INTERRUPTIBLE) until the
+ * @condition evaluates to true or a signal is received.
+ * The @condition is checked each time the waitqueue @wq is woken up.
+ *
+ * It must be called with wq.lock being held.  This spinlock is
+ * unlocked while sleeping but @condition testing is done while lock
+ * is held and when this macro exits the lock is held.
+ *
+ * The lock is locked/unlocked using spin_lock_irq()/spin_unlock_irq()
+ * functions which must match the way they are locked/unlocked outside
+ * of this macro.
+ *
+ * wake_up_locked() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ *
+ * The function will return -ERESTARTSYS if it was interrupted by a
+ * signal and 0 if @condition evaluated to true.
+ */
+#define wait_event_interruptible_locked_irq(wq, condition)		\
+	((condition)							\
+	 ? 0 : __wait_event_interruptible_locked(wq, condition, 0, 1))
+
+/**
+ * wait_event_interruptible_exclusive_locked - sleep exclusively until a condition gets true
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ *
+ * The process is put to sleep (TASK_INTERRUPTIBLE) until the
+ * @condition evaluates to true or a signal is received.
+ * The @condition is checked each time the waitqueue @wq is woken up.
+ *
+ * It must be called with wq.lock being held.  This spinlock is
+ * unlocked while sleeping but @condition testing is done while lock
+ * is held and when this macro exits the lock is held.
+ *
+ * The lock is locked/unlocked using spin_lock()/spin_unlock()
+ * functions which must match the way they are locked/unlocked outside
+ * of this macro.
+ *
+ * The process is put on the wait queue with an WQ_FLAG_EXCLUSIVE flag
+ * set thus when other process waits process on the list if this
+ * process is awaken further processes are not considered.
+ *
+ * wake_up_locked() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ *
+ * The function will return -ERESTARTSYS if it was interrupted by a
+ * signal and 0 if @condition evaluated to true.
+ */
+#define wait_event_interruptible_exclusive_locked(wq, condition)	\
+	((condition)							\
+	 ? 0 : __wait_event_interruptible_locked(wq, condition, 1, 0))
+
+/**
+ * wait_event_interruptible_exclusive_locked_irq - sleep until a condition gets true
+ * @wq: the waitqueue to wait on
+ * @condition: a C expression for the event to wait for
+ *
+ * The process is put to sleep (TASK_INTERRUPTIBLE) until the
+ * @condition evaluates to true or a signal is received.
+ * The @condition is checked each time the waitqueue @wq is woken up.
+ *
+ * It must be called with wq.lock being held.  This spinlock is
+ * unlocked while sleeping but @condition testing is done while lock
+ * is held and when this macro exits the lock is held.
+ *
+ * The lock is locked/unlocked using spin_lock_irq()/spin_unlock_irq()
+ * functions which must match the way they are locked/unlocked outside
+ * of this macro.
+ *
+ * The process is put on the wait queue with an WQ_FLAG_EXCLUSIVE flag
+ * set thus when other process waits process on the list if this
+ * process is awaken further processes are not considered.
+ *
+ * wake_up_locked() has to be called after changing any variable that could
+ * change the result of the wait condition.
+ *
+ * The function will return -ERESTARTSYS if it was interrupted by a
+ * signal and 0 if @condition evaluated to true.
+ */
+#define wait_event_interruptible_exclusive_locked_irq(wq, condition)	\
+	((condition)							\
+	 ? 0 : __wait_event_interruptible_locked(wq, condition, 1, 1))
+
+
+
 #define __wait_event_killable(wq, condition, ret)			\
 do {									\
 	DEFINE_WAIT(__wait);						\
@@ -402,25 +565,6 @@ do {									\
 		__wait_event_killable(wq, condition, __ret);		\
 	__ret;								\
 })
-
-/*
- * Must be called with the spinlock in the wait_queue_head_t held.
- */
-static inline void add_wait_queue_exclusive_locked(wait_queue_head_t *q,
-						   wait_queue_t * wait)
-{
-	wait->flags |= WQ_FLAG_EXCLUSIVE;
-	__add_wait_queue_tail(q,  wait);
-}
-
-/*
- * Must be called with the spinlock in the wait_queue_head_t held.
- */
-static inline void remove_wait_queue_locked(wait_queue_head_t *q,
-					    wait_queue_t * wait)
-{
-	__remove_wait_queue(q,  wait);
-}
 
 /*
  * These are the old interfaces to sleep waiting for an event.

@@ -36,8 +36,8 @@
 #include <linux/completion.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include "i2c-s6000.h"
 
 #define DRV_NAME "i2c-s6000"

@@ -23,8 +23,7 @@ checksum_block(__be32 *m, int size)
 	return sum;
 }
 
-int
-amiga_partition(struct parsed_partitions *state, struct block_device *bdev)
+int amiga_partition(struct parsed_partitions *state)
 {
 	Sector sect;
 	unsigned char *data;
@@ -38,11 +37,11 @@ amiga_partition(struct parsed_partitions *state, struct block_device *bdev)
 	for (blk = 0; ; blk++, put_dev_sector(sect)) {
 		if (blk == RDB_ALLOCATION_LIMIT)
 			goto rdb_done;
-		data = read_dev_sector(bdev, blk, &sect);
+		data = read_part_sector(state, blk, &sect);
 		if (!data) {
 			if (warn_no_part)
 				printk("Dev %s: unable to read RDB block %d\n",
-				       bdevname(bdev, b), blk);
+				       bdevname(state->bdev, b), blk);
 			res = -1;
 			goto rdb_done;
 		}
@@ -64,7 +63,7 @@ amiga_partition(struct parsed_partitions *state, struct block_device *bdev)
 		}
 
 		printk("Dev %s: RDB in block %d has bad checksum\n",
-			       bdevname(bdev, b), blk);
+		       bdevname(state->bdev, b), blk);
 	}
 
 	/* blksize is blocks per 512 byte standard block */
@@ -75,11 +74,11 @@ amiga_partition(struct parsed_partitions *state, struct block_device *bdev)
 	put_dev_sector(sect);
 	for (part = 1; blk>0 && part<=16; part++, put_dev_sector(sect)) {
 		blk *= blksize;	/* Read in terms partition table understands */
-		data = read_dev_sector(bdev, blk, &sect);
+		data = read_part_sector(state, blk, &sect);
 		if (!data) {
 			if (warn_no_part)
 				printk("Dev %s: unable to read partition block %d\n",
-				       bdevname(bdev, b), blk);
+				       bdevname(state->bdev, b), blk);
 			res = -1;
 			goto rdb_done;
 		}

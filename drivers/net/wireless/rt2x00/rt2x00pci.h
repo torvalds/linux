@@ -92,7 +92,8 @@ int rt2x00pci_regbusy_read(struct rt2x00_dev *rt2x00dev,
  * This function will initialize the DMA and skb descriptor
  * to prepare the entry for the actual TX operation.
  */
-int rt2x00pci_write_tx_data(struct queue_entry *entry);
+int rt2x00pci_write_tx_data(struct queue_entry *entry,
+			    struct txentry_desc *txdesc);
 
 /**
  * struct queue_entry_priv_pci: Per entry PCI specific information

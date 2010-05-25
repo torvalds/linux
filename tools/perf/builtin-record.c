@@ -15,7 +15,6 @@
 #include "util/util.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"
-#include "util/string.h"
 
 #include "util/header.h"
 #include "util/event.h"
@@ -27,31 +26,41 @@
 #include <unistd.h>
 #include <sched.h>
 
-static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
+enum write_mode_t {
+	WRITE_FORCE,
+	WRITE_APPEND
+};
 
-static long			default_interval		=      0;
+static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
+
+static u64			user_interval			= ULLONG_MAX;
+static u64			default_interval		=      0;
 
 static int			nr_cpus				=      0;
 static unsigned int		page_size;
 static unsigned int		mmap_pages			=    128;
+static unsigned int		user_freq 			= UINT_MAX;
 static int			freq				=   1000;
 static int			output;
+static int			pipe_output			=      0;
 static const char		*output_name			= "perf.data";
 static int			group				=      0;
-static unsigned int		realtime_prio			=      0;
-static int			raw_samples			=      0;
-static int			system_wide			=      0;
+static int			realtime_prio			=      0;
+static bool			raw_samples			=  false;
+static bool			system_wide			=  false;
 static int			profile_cpu			=     -1;
 static pid_t			target_pid			=     -1;
+static pid_t			target_tid			=     -1;
+static pid_t			*all_tids			=      NULL;
+static int			thread_num			=      0;
 static pid_t			child_pid			=     -1;
-static int			inherit				=      1;
-static int			force				=      0;
-static int			append_file			=      0;
-static int			call_graph			=      0;
-static int			inherit_stat			=      0;
-static int			no_samples			=      0;
-static int			sample_address			=      0;
-static int			multiplex			=      0;
+static bool			no_inherit			=  false;
+static enum write_mode_t	write_mode			= WRITE_FORCE;
+static bool			call_graph			=  false;
+static bool			inherit_stat			=  false;
+static bool			no_samples			=  false;
+static bool			sample_address			=  false;
+static bool			multiplex			=  false;
 static int			multiplex_fd			=     -1;
 
 static long			samples				=      0;
@@ -60,7 +69,7 @@ static struct timeval		this_read;
 
 static u64			bytes_written			=      0;
 
-static struct pollfd		event_array[MAX_NR_CPUS * MAX_COUNTERS];
+static struct pollfd		*event_array;
 
 static int			nr_poll				=      0;
 static int			nr_cpu				=      0;
@@ -77,7 +86,7 @@ struct mmap_data {
 	unsigned int		prev;
 };
 
-static struct mmap_data		mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
+static struct mmap_data		*mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 
 static unsigned long mmap_read_head(struct mmap_data *md)
 {
@@ -99,6 +108,11 @@ static void mmap_write_tail(struct mmap_data *md, unsigned long tail)
 	 */
 	/* mb(); */
 	pc->data_tail = tail;
+}
+
+static void advance_output(size_t size)
+{
+	bytes_written += size;
 }
 
 static void write_output(void *buf, size_t size)
@@ -225,12 +239,13 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 	return h_attr;
 }
 
-static void create_counter(int counter, int cpu, pid_t pid)
+static void create_counter(int counter, int cpu)
 {
 	char *filter = filters[counter];
 	struct perf_event_attr *attr = attrs + counter;
 	struct perf_header_attr *h_attr;
 	int track = !counter; /* only the first counter needs these */
+	int thread_index;
 	int ret;
 	struct {
 		u64 count;
@@ -248,10 +263,19 @@ static void create_counter(int counter, int cpu, pid_t pid)
 	if (nr_counters > 1)
 		attr->sample_type |= PERF_SAMPLE_ID;
 
-	if (freq) {
-		attr->sample_type	|= PERF_SAMPLE_PERIOD;
-		attr->freq		= 1;
-		attr->sample_freq	= freq;
+	/*
+	 * We default some events to a 1 default interval. But keep
+	 * it a weak assumption overridable by the user.
+	 */
+	if (!attr->sample_period || (user_freq != UINT_MAX &&
+				     user_interval != ULLONG_MAX)) {
+		if (freq) {
+			attr->sample_type	|= PERF_SAMPLE_PERIOD;
+			attr->freq		= 1;
+			attr->sample_freq	= freq;
+		} else {
+			attr->sample_period = default_interval;
+		}
 	}
 
 	if (no_samples)
@@ -274,119 +298,130 @@ static void create_counter(int counter, int cpu, pid_t pid)
 
 	attr->mmap		= track;
 	attr->comm		= track;
-	attr->inherit		= inherit;
-	attr->disabled		= 1;
+	attr->inherit		= !no_inherit;
+	if (target_pid == -1 && target_tid == -1 && !system_wide) {
+		attr->disabled = 1;
+		attr->enable_on_exec = 1;
+	}
 
+	for (thread_index = 0; thread_index < thread_num; thread_index++) {
 try_again:
-	fd[nr_cpu][counter] = sys_perf_event_open(attr, pid, cpu, group_fd, 0);
+		fd[nr_cpu][counter][thread_index] = sys_perf_event_open(attr,
+				all_tids[thread_index], cpu, group_fd, 0);
 
-	if (fd[nr_cpu][counter] < 0) {
-		int err = errno;
+		if (fd[nr_cpu][counter][thread_index] < 0) {
+			int err = errno;
 
-		if (err == EPERM || err == EACCES)
-			die("Permission error - are you root?\n");
-		else if (err ==  ENODEV && profile_cpu != -1)
-			die("No such device - did you specify an out-of-range profile CPU?\n");
+			if (err == EPERM || err == EACCES)
+				die("Permission error - are you root?\n"
+					"\t Consider tweaking"
+					" /proc/sys/kernel/perf_event_paranoid.\n");
+			else if (err ==  ENODEV && profile_cpu != -1) {
+				die("No such device - did you specify"
+					" an out-of-range profile CPU?\n");
+			}
 
-		/*
-		 * If it's cycles then fall back to hrtimer
-		 * based cpu-clock-tick sw counter, which
-		 * is always available even if no PMU support:
-		 */
-		if (attr->type == PERF_TYPE_HARDWARE
-			&& attr->config == PERF_COUNT_HW_CPU_CYCLES) {
+			/*
+			 * If it's cycles then fall back to hrtimer
+			 * based cpu-clock-tick sw counter, which
+			 * is always available even if no PMU support:
+			 */
+			if (attr->type == PERF_TYPE_HARDWARE
+					&& attr->config == PERF_COUNT_HW_CPU_CYCLES) {
 
-			if (verbose)
-				warning(" ... trying to fall back to cpu-clock-ticks\n");
-			attr->type = PERF_TYPE_SOFTWARE;
-			attr->config = PERF_COUNT_SW_CPU_CLOCK;
-			goto try_again;
-		}
-		printf("\n");
-		error("perfcounter syscall returned with %d (%s)\n",
-			fd[nr_cpu][counter], strerror(err));
+				if (verbose)
+					warning(" ... trying to fall back to cpu-clock-ticks\n");
+				attr->type = PERF_TYPE_SOFTWARE;
+				attr->config = PERF_COUNT_SW_CPU_CLOCK;
+				goto try_again;
+			}
+			printf("\n");
+			error("perfcounter syscall returned with %d (%s)\n",
+					fd[nr_cpu][counter][thread_index], strerror(err));
 
 #if defined(__i386__) || defined(__x86_64__)
-		if (attr->type == PERF_TYPE_HARDWARE && err == EOPNOTSUPP)
-			die("No hardware sampling interrupt available. No APIC? If so then you can boot the kernel with the \"lapic\" boot parameter to force-enable it.\n");
+			if (attr->type == PERF_TYPE_HARDWARE && err == EOPNOTSUPP)
+				die("No hardware sampling interrupt available."
+				    " No APIC? If so then you can boot the kernel"
+				    " with the \"lapic\" boot parameter to"
+				    " force-enable it.\n");
 #endif
 
-		die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
-		exit(-1);
-	}
-
-	h_attr = get_header_attr(attr, counter);
-	if (h_attr == NULL)
-		die("nomem\n");
-
-	if (!file_new) {
-		if (memcmp(&h_attr->attr, attr, sizeof(*attr))) {
-			fprintf(stderr, "incompatible append\n");
+			die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 			exit(-1);
 		}
-	}
 
-	if (read(fd[nr_cpu][counter], &read_data, sizeof(read_data)) == -1) {
-		perror("Unable to read perf file descriptor\n");
-		exit(-1);
-	}
+		h_attr = get_header_attr(attr, counter);
+		if (h_attr == NULL)
+			die("nomem\n");
 
-	if (perf_header_attr__add_id(h_attr, read_data.id) < 0) {
-		pr_warning("Not enough memory to add id\n");
-		exit(-1);
-	}
+		if (!file_new) {
+			if (memcmp(&h_attr->attr, attr, sizeof(*attr))) {
+				fprintf(stderr, "incompatible append\n");
+				exit(-1);
+			}
+		}
 
-	assert(fd[nr_cpu][counter] >= 0);
-	fcntl(fd[nr_cpu][counter], F_SETFL, O_NONBLOCK);
-
-	/*
-	 * First counter acts as the group leader:
-	 */
-	if (group && group_fd == -1)
-		group_fd = fd[nr_cpu][counter];
-	if (multiplex && multiplex_fd == -1)
-		multiplex_fd = fd[nr_cpu][counter];
-
-	if (multiplex && fd[nr_cpu][counter] != multiplex_fd) {
-
-		ret = ioctl(fd[nr_cpu][counter], PERF_EVENT_IOC_SET_OUTPUT, multiplex_fd);
-		assert(ret != -1);
-	} else {
-		event_array[nr_poll].fd = fd[nr_cpu][counter];
-		event_array[nr_poll].events = POLLIN;
-		nr_poll++;
-
-		mmap_array[nr_cpu][counter].counter = counter;
-		mmap_array[nr_cpu][counter].prev = 0;
-		mmap_array[nr_cpu][counter].mask = mmap_pages*page_size - 1;
-		mmap_array[nr_cpu][counter].base = mmap(NULL, (mmap_pages+1)*page_size,
-				PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter], 0);
-		if (mmap_array[nr_cpu][counter].base == MAP_FAILED) {
-			error("failed to mmap with %d (%s)\n", errno, strerror(errno));
+		if (read(fd[nr_cpu][counter][thread_index], &read_data, sizeof(read_data)) == -1) {
+			perror("Unable to read perf file descriptor\n");
 			exit(-1);
 		}
-	}
 
-	if (filter != NULL) {
-		ret = ioctl(fd[nr_cpu][counter],
-			    PERF_EVENT_IOC_SET_FILTER, filter);
-		if (ret) {
-			error("failed to set filter with %d (%s)\n", errno,
-			      strerror(errno));
+		if (perf_header_attr__add_id(h_attr, read_data.id) < 0) {
+			pr_warning("Not enough memory to add id\n");
 			exit(-1);
 		}
-	}
 
-	ioctl(fd[nr_cpu][counter], PERF_EVENT_IOC_ENABLE);
+		assert(fd[nr_cpu][counter][thread_index] >= 0);
+		fcntl(fd[nr_cpu][counter][thread_index], F_SETFL, O_NONBLOCK);
+
+		/*
+		 * First counter acts as the group leader:
+		 */
+		if (group && group_fd == -1)
+			group_fd = fd[nr_cpu][counter][thread_index];
+		if (multiplex && multiplex_fd == -1)
+			multiplex_fd = fd[nr_cpu][counter][thread_index];
+
+		if (multiplex && fd[nr_cpu][counter][thread_index] != multiplex_fd) {
+
+			ret = ioctl(fd[nr_cpu][counter][thread_index], PERF_EVENT_IOC_SET_OUTPUT, multiplex_fd);
+			assert(ret != -1);
+		} else {
+			event_array[nr_poll].fd = fd[nr_cpu][counter][thread_index];
+			event_array[nr_poll].events = POLLIN;
+			nr_poll++;
+
+			mmap_array[nr_cpu][counter][thread_index].counter = counter;
+			mmap_array[nr_cpu][counter][thread_index].prev = 0;
+			mmap_array[nr_cpu][counter][thread_index].mask = mmap_pages*page_size - 1;
+			mmap_array[nr_cpu][counter][thread_index].base = mmap(NULL, (mmap_pages+1)*page_size,
+				PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter][thread_index], 0);
+			if (mmap_array[nr_cpu][counter][thread_index].base == MAP_FAILED) {
+				error("failed to mmap with %d (%s)\n", errno, strerror(errno));
+				exit(-1);
+			}
+		}
+
+		if (filter != NULL) {
+			ret = ioctl(fd[nr_cpu][counter][thread_index],
+					PERF_EVENT_IOC_SET_FILTER, filter);
+			if (ret) {
+				error("failed to set filter with %d (%s)\n", errno,
+						strerror(errno));
+				exit(-1);
+			}
+		}
+	}
 }
 
-static void open_counters(int cpu, pid_t pid)
+static void open_counters(int cpu)
 {
 	int counter;
 
 	group_fd = -1;
 	for (counter = 0; counter < nr_counters; counter++)
-		create_counter(counter, cpu, pid);
+		create_counter(counter, cpu);
 
 	nr_cpu++;
 }
@@ -406,10 +441,80 @@ static int process_buildids(void)
 
 static void atexit_header(void)
 {
-	session->header.data_size += bytes_written;
+	if (!pipe_output) {
+		session->header.data_size += bytes_written;
 
-	process_buildids();
-	perf_header__write(&session->header, output, true);
+		process_buildids();
+		perf_header__write(&session->header, output, true);
+	}
+}
+
+static void event__synthesize_guest_os(struct machine *machine, void *data)
+{
+	int err;
+	char *guest_kallsyms;
+	char path[PATH_MAX];
+	struct perf_session *psession = data;
+
+	if (machine__is_host(machine))
+		return;
+
+	/*
+	 *As for guest kernel when processing subcommand record&report,
+	 *we arrange module mmap prior to guest kernel mmap and trigger
+	 *a preload dso because default guest module symbols are loaded
+	 *from guest kallsyms instead of /lib/modules/XXX/XXX. This
+	 *method is used to avoid symbol missing when the first addr is
+	 *in module instead of in guest kernel.
+	 */
+	err = event__synthesize_modules(process_synthesized_event,
+					psession, machine);
+	if (err < 0)
+		pr_err("Couldn't record guest kernel [%d]'s reference"
+		       " relocation symbol.\n", machine->pid);
+
+	if (machine__is_default_guest(machine))
+		guest_kallsyms = (char *) symbol_conf.default_guest_kallsyms;
+	else {
+		sprintf(path, "%s/proc/kallsyms", machine->root_dir);
+		guest_kallsyms = path;
+	}
+
+	/*
+	 * We use _stext for guest kernel because guest kernel's /proc/kallsyms
+	 * have no _text sometimes.
+	 */
+	err = event__synthesize_kernel_mmap(process_synthesized_event,
+					    psession, machine, "_text");
+	if (err < 0)
+		err = event__synthesize_kernel_mmap(process_synthesized_event,
+						    psession, machine, "_stext");
+	if (err < 0)
+		pr_err("Couldn't record guest kernel [%d]'s reference"
+		       " relocation symbol.\n", machine->pid);
+}
+
+static struct perf_event_header finished_round_event = {
+	.size = sizeof(struct perf_event_header),
+	.type = PERF_RECORD_FINISHED_ROUND,
+};
+
+static void mmap_read_all(void)
+{
+	int i, counter, thread;
+
+	for (i = 0; i < nr_cpu; i++) {
+		for (counter = 0; counter < nr_counters; counter++) {
+			for (thread = 0; thread < thread_num; thread++) {
+				if (mmap_array[i][counter][thread].base)
+					mmap_read(&mmap_array[i][counter][thread]);
+			}
+
+		}
+	}
+
+	if (perf_header__has_feat(&session->header, HEADER_TRACE_INFO))
+		write_output(&finished_round_event, sizeof(finished_round_event));
 }
 
 static int __cmd_record(int argc, const char **argv)
@@ -421,8 +526,9 @@ static int __cmd_record(int argc, const char **argv)
 	int err;
 	unsigned long waking = 0;
 	int child_ready_pipe[2], go_pipe[2];
-	const bool forks = target_pid == -1 && argc > 0;
+	const bool forks = argc > 0;
 	char buf;
+	struct machine *machine;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 
@@ -435,70 +541,63 @@ static int __cmd_record(int argc, const char **argv)
 		exit(-1);
 	}
 
-	if (!stat(output_name, &st) && st.st_size) {
-		if (!force) {
-			if (!append_file) {
-				pr_err("Error, output file %s exists, use -A "
-				       "to append or -f to overwrite.\n",
-				       output_name);
-				exit(-1);
-			}
-		} else {
+	if (!strcmp(output_name, "-"))
+		pipe_output = 1;
+	else if (!stat(output_name, &st) && st.st_size) {
+		if (write_mode == WRITE_FORCE) {
 			char oldname[PATH_MAX];
 			snprintf(oldname, sizeof(oldname), "%s.old",
 				 output_name);
 			unlink(oldname);
 			rename(output_name, oldname);
 		}
-	} else {
-		append_file = 0;
+	} else if (write_mode == WRITE_APPEND) {
+		write_mode = WRITE_FORCE;
 	}
 
 	flags = O_CREAT|O_RDWR;
-	if (append_file)
+	if (write_mode == WRITE_APPEND)
 		file_new = 0;
 	else
 		flags |= O_TRUNC;
 
-	output = open(output_name, flags, S_IRUSR|S_IWUSR);
+	if (pipe_output)
+		output = STDOUT_FILENO;
+	else
+		output = open(output_name, flags, S_IRUSR | S_IWUSR);
 	if (output < 0) {
 		perror("failed to create output file");
 		exit(-1);
 	}
 
-	session = perf_session__new(output_name, O_WRONLY, force);
+	session = perf_session__new(output_name, O_WRONLY,
+				    write_mode == WRITE_FORCE, false);
 	if (session == NULL) {
 		pr_err("Not enough memory for reading perf file header\n");
 		return -1;
 	}
 
 	if (!file_new) {
-		err = perf_header__read(&session->header, output);
+		err = perf_header__read(session, output);
 		if (err < 0)
 			return err;
 	}
 
-	if (raw_samples) {
+	if (have_tracepoints(attrs, nr_counters))
 		perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
-	} else {
-		for (i = 0; i < nr_counters; i++) {
-			if (attrs[i].sample_type & PERF_SAMPLE_RAW) {
-				perf_header__set_feat(&session->header, HEADER_TRACE_INFO);
-				break;
-			}
-		}
-	}
 
 	atexit(atexit_header);
 
 	if (forks) {
-		pid = fork();
+		child_pid = fork();
 		if (pid < 0) {
 			perror("failed to fork");
 			exit(-1);
 		}
 
-		if (!pid) {
+		if (!child_pid) {
+			if (pipe_output)
+				dup2(2, 1);
 			close(child_ready_pipe[0]);
 			close(go_pipe[1]);
 			fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
@@ -527,10 +626,8 @@ static int __cmd_record(int argc, const char **argv)
 			exit(-1);
 		}
 
-		child_pid = pid;
-
-		if (!system_wide)
-			target_pid = pid;
+		if (!system_wide && target_tid == -1 && target_pid == -1)
+			all_tids[0] = child_pid;
 
 		close(child_ready_pipe[1]);
 		close(go_pipe[0]);
@@ -544,16 +641,19 @@ static int __cmd_record(int argc, const char **argv)
 		close(child_ready_pipe[0]);
 	}
 
-
-	if ((!system_wide && !inherit) || profile_cpu != -1) {
-		open_counters(profile_cpu, target_pid);
+	if ((!system_wide && no_inherit) || profile_cpu != -1) {
+		open_counters(profile_cpu);
 	} else {
 		nr_cpus = read_cpu_map();
 		for (i = 0; i < nr_cpus; i++)
-			open_counters(cpumap[i], target_pid);
+			open_counters(cpumap[i]);
 	}
 
-	if (file_new) {
+	if (pipe_output) {
+		err = perf_header__write_pipe(output);
+		if (err < 0)
+			return err;
+	} else if (file_new) {
 		err = perf_header__write(&session->header, output, false);
 		if (err < 0)
 			return err;
@@ -561,24 +661,70 @@ static int __cmd_record(int argc, const char **argv)
 
 	post_processing_offset = lseek(output, 0, SEEK_CUR);
 
+	if (pipe_output) {
+		err = event__synthesize_attrs(&session->header,
+					      process_synthesized_event,
+					      session);
+		if (err < 0) {
+			pr_err("Couldn't synthesize attrs.\n");
+			return err;
+		}
+
+		err = event__synthesize_event_types(process_synthesized_event,
+						    session);
+		if (err < 0) {
+			pr_err("Couldn't synthesize event_types.\n");
+			return err;
+		}
+
+		if (have_tracepoints(attrs, nr_counters)) {
+			/*
+			 * FIXME err <= 0 here actually means that
+			 * there were no tracepoints so its not really
+			 * an error, just that we don't need to
+			 * synthesize anything.  We really have to
+			 * return this more properly and also
+			 * propagate errors that now are calling die()
+			 */
+			err = event__synthesize_tracing_data(output, attrs,
+							     nr_counters,
+							     process_synthesized_event,
+							     session);
+			if (err <= 0) {
+				pr_err("Couldn't record tracing data.\n");
+				return err;
+			}
+			advance_output(err);
+		}
+	}
+
+	machine = perf_session__find_host_machine(session);
+	if (!machine) {
+		pr_err("Couldn't find native kernel information.\n");
+		return -1;
+	}
+
 	err = event__synthesize_kernel_mmap(process_synthesized_event,
-					    session, "_text");
+					    session, machine, "_text");
 	if (err < 0)
 		err = event__synthesize_kernel_mmap(process_synthesized_event,
-						    session, "_stext");
+						    session, machine, "_stext");
 	if (err < 0) {
 		pr_err("Couldn't record kernel reference relocation symbol.\n");
 		return err;
 	}
 
-	err = event__synthesize_modules(process_synthesized_event, session);
+	err = event__synthesize_modules(process_synthesized_event,
+					session, machine);
 	if (err < 0) {
 		pr_err("Couldn't record kernel reference relocation symbol.\n");
 		return err;
 	}
+	if (perf_guest)
+		perf_session__process_machines(session, event__synthesize_guest_os);
 
 	if (!system_wide && profile_cpu == -1)
-		event__synthesize_thread(target_pid, process_synthesized_event,
+		event__synthesize_thread(target_tid, process_synthesized_event,
 					 session);
 	else
 		event__synthesize_threads(process_synthesized_event, session);
@@ -601,13 +747,9 @@ static int __cmd_record(int argc, const char **argv)
 
 	for (;;) {
 		int hits = samples;
+		int thread;
 
-		for (i = 0; i < nr_cpu; i++) {
-			for (counter = 0; counter < nr_counters; counter++) {
-				if (mmap_array[i][counter].base)
-					mmap_read(&mmap_array[i][counter]);
-			}
-		}
+		mmap_read_all();
 
 		if (hits == samples) {
 			if (done)
@@ -618,8 +760,15 @@ static int __cmd_record(int argc, const char **argv)
 
 		if (done) {
 			for (i = 0; i < nr_cpu; i++) {
-				for (counter = 0; counter < nr_counters; counter++)
-					ioctl(fd[i][counter], PERF_EVENT_IOC_DISABLE);
+				for (counter = 0;
+					counter < nr_counters;
+					counter++) {
+					for (thread = 0;
+						thread < thread_num;
+						thread++)
+						ioctl(fd[i][counter][thread],
+							PERF_EVENT_IOC_DISABLE);
+				}
 			}
 		}
 	}
@@ -644,6 +793,8 @@ static const char * const record_usage[] = {
 	NULL
 };
 
+static bool force, append_file;
+
 static const struct option options[] = {
 	OPT_CALLBACK('e', "event", NULL, "event",
 		     "event selector. use 'perf list' to list available events",
@@ -651,7 +802,9 @@ static const struct option options[] = {
 	OPT_CALLBACK(0, "filter", NULL, "filter",
 		     "event filter", parse_filter),
 	OPT_INTEGER('p', "pid", &target_pid,
-		    "record events on existing pid"),
+		    "record events on existing process id"),
+	OPT_INTEGER('t', "tid", &target_tid,
+		    "record events on existing thread id"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
 	OPT_BOOLEAN('R', "raw-samples", &raw_samples,
@@ -663,20 +816,17 @@ static const struct option options[] = {
 	OPT_INTEGER('C', "profile_cpu", &profile_cpu,
 			    "CPU to profile on"),
 	OPT_BOOLEAN('f', "force", &force,
-			"overwrite existing data file"),
-	OPT_LONG('c', "count", &default_interval,
-		    "event period to sample"),
+			"overwrite existing data file (deprecated)"),
+	OPT_U64('c', "count", &user_interval, "event period to sample"),
 	OPT_STRING('o', "output", &output_name, "file",
 		    "output file name"),
-	OPT_BOOLEAN('i', "inherit", &inherit,
-		    "child tasks inherit counters"),
-	OPT_INTEGER('F', "freq", &freq,
-		    "profile at this frequency"),
-	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
-		    "number of mmap data pages"),
+	OPT_BOOLEAN('i', "no-inherit", &no_inherit,
+		    "child tasks do not inherit counters"),
+	OPT_UINTEGER('F', "freq", &user_freq, "profile at this frequency"),
+	OPT_UINTEGER('m', "mmap-pages", &mmap_pages, "number of mmap data pages"),
 	OPT_BOOLEAN('g', "call-graph", &call_graph,
 		    "do call-graph (stack chain/backtrace) recording"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_BOOLEAN('s', "stat", &inherit_stat,
 		    "per thread counts"),
@@ -691,12 +841,23 @@ static const struct option options[] = {
 
 int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
-	int counter;
+	int i,j;
 
 	argc = parse_options(argc, argv, options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && target_pid == -1 && !system_wide && profile_cpu == -1)
+	if (!argc && target_pid == -1 && target_tid == -1 &&
+		!system_wide && profile_cpu == -1)
 		usage_with_options(record_usage, options);
+
+	if (force && append_file) {
+		fprintf(stderr, "Can't overwrite and append at the same time."
+				" You need to choose between -f and -A");
+		usage_with_options(record_usage, options);
+	} else if (append_file) {
+		write_mode = WRITE_APPEND;
+	} else {
+		write_mode = WRITE_FORCE;
+	}
 
 	symbol__init();
 
@@ -705,6 +866,42 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		attrs[0].type	= PERF_TYPE_HARDWARE;
 		attrs[0].config = PERF_COUNT_HW_CPU_CYCLES;
 	}
+
+	if (target_pid != -1) {
+		target_tid = target_pid;
+		thread_num = find_all_tid(target_pid, &all_tids);
+		if (thread_num <= 0) {
+			fprintf(stderr, "Can't find all threads of pid %d\n",
+					target_pid);
+			usage_with_options(record_usage, options);
+		}
+	} else {
+		all_tids=malloc(sizeof(pid_t));
+		if (!all_tids)
+			return -ENOMEM;
+
+		all_tids[0] = target_tid;
+		thread_num = 1;
+	}
+
+	for (i = 0; i < MAX_NR_CPUS; i++) {
+		for (j = 0; j < MAX_COUNTERS; j++) {
+			fd[i][j] = malloc(sizeof(int)*thread_num);
+			mmap_array[i][j] = zalloc(
+				sizeof(struct mmap_data)*thread_num);
+			if (!fd[i][j] || !mmap_array[i][j])
+				return -ENOMEM;
+		}
+	}
+	event_array = malloc(
+		sizeof(struct pollfd)*MAX_NR_CPUS*MAX_COUNTERS*thread_num);
+	if (!event_array)
+		return -ENOMEM;
+
+	if (user_interval != ULLONG_MAX)
+		default_interval = user_interval;
+	if (user_freq != UINT_MAX)
+		freq = user_freq;
 
 	/*
 	 * User specified count overrides default frequency.
@@ -716,13 +913,6 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 	} else {
 		fprintf(stderr, "frequency and count are zero, aborting\n");
 		exit(EXIT_FAILURE);
-	}
-
-	for (counter = 0; counter < nr_counters; counter++) {
-		if (attrs[counter].sample_period)
-			continue;
-
-		attrs[counter].sample_period = default_interval;
 	}
 
 	return __cmd_record(argc, argv);

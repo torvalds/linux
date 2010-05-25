@@ -446,7 +446,7 @@ static unsigned int poll(struct file *file, struct socket *sock,
 	struct sock *sk = sock->sk;
 	u32 mask;
 
-	poll_wait(file, sk->sk_sleep, wait);
+	poll_wait(file, sk_sleep(sk), wait);
 
 	if (!skb_queue_empty(&sk->sk_receive_queue) ||
 	    (sock->state == SS_UNCONNECTED) ||
@@ -591,7 +591,7 @@ static int send_msg(struct kiocb *iocb, struct socket *sock,
 			break;
 		}
 		release_sock(sk);
-		res = wait_event_interruptible(*sk->sk_sleep,
+		res = wait_event_interruptible(*sk_sleep(sk),
 					       !tport->congested);
 		lock_sock(sk);
 		if (res)
@@ -650,7 +650,7 @@ static int send_packet(struct kiocb *iocb, struct socket *sock,
 			break;
 		}
 		release_sock(sk);
-		res = wait_event_interruptible(*sk->sk_sleep,
+		res = wait_event_interruptible(*sk_sleep(sk),
 			(!tport->congested || !tport->connected));
 		lock_sock(sk);
 		if (res)
@@ -931,7 +931,7 @@ restart:
 			goto exit;
 		}
 		release_sock(sk);
-		res = wait_event_interruptible(*sk->sk_sleep,
+		res = wait_event_interruptible(*sk_sleep(sk),
 			(!skb_queue_empty(&sk->sk_receive_queue) ||
 			 (sock->state == SS_DISCONNECTING)));
 		lock_sock(sk);
@@ -1064,7 +1064,7 @@ restart:
 			goto exit;
 		}
 		release_sock(sk);
-		res = wait_event_interruptible(*sk->sk_sleep,
+		res = wait_event_interruptible(*sk_sleep(sk),
 			(!skb_queue_empty(&sk->sk_receive_queue) ||
 			 (sock->state == SS_DISCONNECTING)));
 		lock_sock(sk);
@@ -1271,8 +1271,8 @@ static u32 filter_rcv(struct sock *sk, struct sk_buff *buf)
 		tipc_disconnect_port(tipc_sk_port(sk));
 	}
 
-	if (waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible(sk->sk_sleep);
+	if (waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible(sk_sleep(sk));
 	return TIPC_OK;
 }
 
@@ -1343,8 +1343,8 @@ static void wakeupdispatch(struct tipc_port *tport)
 {
 	struct sock *sk = (struct sock *)tport->usr_handle;
 
-	if (waitqueue_active(sk->sk_sleep))
-		wake_up_interruptible(sk->sk_sleep);
+	if (waitqueue_active(sk_sleep(sk)))
+		wake_up_interruptible(sk_sleep(sk));
 }
 
 /**
@@ -1426,7 +1426,7 @@ static int connect(struct socket *sock, struct sockaddr *dest, int destlen,
 	/* Wait until an 'ACK' or 'RST' arrives, or a timeout occurs */
 
 	release_sock(sk);
-	res = wait_event_interruptible_timeout(*sk->sk_sleep,
+	res = wait_event_interruptible_timeout(*sk_sleep(sk),
 			(!skb_queue_empty(&sk->sk_receive_queue) ||
 			(sock->state != SS_CONNECTING)),
 			sk->sk_rcvtimeo);
@@ -1521,7 +1521,7 @@ static int accept(struct socket *sock, struct socket *new_sock, int flags)
 			goto exit;
 		}
 		release_sock(sk);
-		res = wait_event_interruptible(*sk->sk_sleep,
+		res = wait_event_interruptible(*sk_sleep(sk),
 				(!skb_queue_empty(&sk->sk_receive_queue)));
 		lock_sock(sk);
 		if (res)
@@ -1632,8 +1632,8 @@ restart:
 		/* Discard any unreceived messages; wake up sleeping tasks */
 
 		discard_rx_queue(sk);
-		if (waitqueue_active(sk->sk_sleep))
-			wake_up_interruptible(sk->sk_sleep);
+		if (waitqueue_active(sk_sleep(sk)))
+			wake_up_interruptible(sk_sleep(sk));
 		res = 0;
 		break;
 

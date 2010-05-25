@@ -116,6 +116,12 @@ image bzImage: vmlinux
 zfcpdump:
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
+vdso_install:
+ifeq ($(CONFIG_64BIT),y)
+	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso64 $@
+endif
+	$(Q)$(MAKE) $(build)=arch/$(ARCH)/kernel/vdso32 $@
+
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
 

@@ -14,10 +14,11 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/ioport.h>
 #include <linux/pci.h>
 #include <linux/proc_fs.h>
@@ -1483,11 +1484,6 @@ struct dev_priv {
 	int multicast;
 	int promiscuous;
 };
-
-#define ks_info(_ks, _msg...) dev_info(&(_ks)->pdev->dev, _msg)
-#define ks_warn(_ks, _msg...) dev_warn(&(_ks)->pdev->dev, _msg)
-#define ks_dbg(_ks, _msg...) dev_dbg(&(_ks)->pdev->dev, _msg)
-#define ks_err(_ks, _msg...) dev_err(&(_ks)->pdev->dev, _msg)
 
 #define DRV_NAME		"KSZ884X PCI"
 #define DEVICE_NAME		"KSZ884x PCI"
@@ -3835,7 +3831,7 @@ static void ksz_check_desc_num(struct ksz_desc_info *info)
 		alloc >>= 1;
 	}
 	if (alloc != 1 || shift < MIN_DESC_SHIFT) {
-		printk(KERN_ALERT "Hardware descriptor numbers not right!\n");
+		pr_alert("Hardware descriptor numbers not right!\n");
 		while (alloc) {
 			shift++;
 			alloc >>= 1;
@@ -4546,8 +4542,7 @@ static int ksz_alloc_mem(struct dev_info *adapter)
 		(((sizeof(struct ksz_hw_desc) + DESC_ALIGNMENT - 1) /
 		DESC_ALIGNMENT) * DESC_ALIGNMENT);
 	if (hw->rx_desc_info.size != sizeof(struct ksz_hw_desc))
-		printk(KERN_ALERT
-			"Hardware descriptor size not right!\n");
+		pr_alert("Hardware descriptor size not right!\n");
 	ksz_check_desc_num(&hw->rx_desc_info);
 	ksz_check_desc_num(&hw->tx_desc_info);
 
@@ -4689,7 +4684,7 @@ static void send_packet(struct sk_buff *skb, struct net_device *dev)
 		int frag;
 		skb_frag_t *this_frag;
 
-		dma_buf->len = skb->len - skb->data_len;
+		dma_buf->len = skb_headlen(skb);
 
 		dma_buf->dma = pci_map_single(
 			hw_priv->pdev, skb->data, dma_buf->len,
@@ -5049,8 +5044,6 @@ static inline int rx_proc(struct net_device *dev, struct ksz_hw* hw,
 			dma_buf->skb->data, packet_len);
 	} while (0);
 
-	skb->dev = dev;
-
 	skb->protocol = eth_type_trans(skb, dev);
 
 	if (hw->rx_cfg & (DMA_RX_CSUM_UDP | DMA_RX_CSUM_TCP))
@@ -5061,8 +5054,6 @@ static inline int rx_proc(struct net_device *dev, struct ksz_hw* hw,
 	priv->stats.rx_bytes += packet_len;
 
 	/* Notify upper layer for received packet. */
-	dev->last_rx = jiffies;
-
 	rx_status = netif_rx(skb);
 
 	return 0;
@@ -5320,10 +5311,10 @@ static irqreturn_t netdev_intr(int irq, void *dev_id)
 			u32 data;
 
 			hw->intr_mask &= ~KS884X_INT_TX_STOPPED;
-			printk(KERN_INFO "Tx stopped\n");
+			pr_info("Tx stopped\n");
 			data = readl(hw->io + KS_DMA_TX_CTRL);
 			if (!(data & DMA_TX_ENABLE))
-				printk(KERN_INFO "Tx disabled\n");
+				pr_info("Tx disabled\n");
 			break;
 		}
 	} while (0);
@@ -5496,6 +5487,18 @@ static int prepare_hardware(struct net_device *dev)
 	return 0;
 }
 
+static void set_media_state(struct net_device *dev, int media_state)
+{
+	struct dev_priv *priv = netdev_priv(dev);
+
+	if (media_state == priv->media_state)
+		netif_carrier_on(dev);
+	else
+		netif_carrier_off(dev);
+	netif_info(priv, link, dev, "link %s\n",
+		   media_state == priv->media_state ? "on" : "off");
+}
+
 /**
  * netdev_open - open network device
  * @dev:	Network device.
@@ -5585,15 +5588,7 @@ static int netdev_open(struct net_device *dev)
 
 	priv->media_state = port->linked->state;
 
-	if (media_connected == priv->media_state)
-		netif_carrier_on(dev);
-	else
-		netif_carrier_off(dev);
-	if (netif_msg_link(priv))
-		printk(KERN_INFO "%s link %s\n", dev->name,
-			(media_connected == priv->media_state ?
-			"on" : "off"));
-
+	set_media_state(dev, media_connected);
 	netif_start_queue(dev);
 
 	return 0;
@@ -5767,7 +5762,7 @@ static void netdev_set_rx_mode(struct net_device *dev)
 	struct dev_priv *priv = netdev_priv(dev);
 	struct dev_info *hw_priv = priv->adapter;
 	struct ksz_hw *hw = &hw_priv->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	int multicast = (dev->flags & IFF_ALLMULTI);
 
 	dev_set_promiscuous(dev, priv, hw, (dev->flags & IFF_PROMISC));
@@ -5784,7 +5779,7 @@ static void netdev_set_rx_mode(struct net_device *dev)
 		int i = 0;
 
 		/* List too big to support so turn on all multicast mode. */
-		if (dev->mc_count > MAX_MULTICAST_LIST) {
+		if (netdev_mc_count(dev) > MAX_MULTICAST_LIST) {
 			if (MAX_MULTICAST_LIST != hw->multi_list_size) {
 				hw->multi_list_size = MAX_MULTICAST_LIST;
 				++hw->all_multi;
@@ -5793,13 +5788,12 @@ static void netdev_set_rx_mode(struct net_device *dev)
 			return;
 		}
 
-		netdev_for_each_mc_addr(mc_ptr, dev) {
-			if (!(*mc_ptr->dmi_addr & 1))
+		netdev_for_each_mc_addr(ha, dev) {
+			if (!(*ha->addr & 1))
 				continue;
 			if (i >= MAX_MULTICAST_LIST)
 				break;
-			memcpy(hw->multi_list[i++], mc_ptr->dmi_addr,
-				MAC_ADDR_LEN);
+			memcpy(hw->multi_list[i++], ha->addr, MAC_ADDR_LEN);
 		}
 		hw->multi_list_size = (u8) i;
 		hw_set_grp_addr(hw);
@@ -6683,16 +6677,8 @@ static void update_link(struct net_device *dev, struct dev_priv *priv,
 {
 	if (priv->media_state != port->linked->state) {
 		priv->media_state = port->linked->state;
-		if (netif_running(dev)) {
-			if (media_connected == priv->media_state)
-				netif_carrier_on(dev);
-			else
-				netif_carrier_off(dev);
-			if (netif_msg_link(priv))
-				printk(KERN_INFO "%s link %s\n", dev->name,
-					(media_connected == priv->media_state ?
-					"on" : "off"));
-		}
+		if (netif_running(dev))
+			set_media_state(dev, media_connected);
 	}
 }
 
@@ -6986,7 +6972,7 @@ static int __init pcidev_init(struct pci_dev *pdev,
 	int pi;
 	int port_count;
 	int result;
-	char banner[80];
+	char banner[sizeof(version)];
 	struct ksz_switch *sw = NULL;
 
 	result = pci_enable_device(pdev);
@@ -7010,10 +6996,9 @@ static int __init pcidev_init(struct pci_dev *pdev,
 
 	result = -ENOMEM;
 
-	info = kmalloc(sizeof(struct platform_info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct platform_info), GFP_KERNEL);
 	if (!info)
 		goto pcidev_init_dev_err;
-	memset(info, 0, sizeof(struct platform_info));
 
 	hw_priv = &info->dev_info;
 	hw_priv->pdev = pdev;
@@ -7027,15 +7012,15 @@ static int __init pcidev_init(struct pci_dev *pdev,
 	cnt = hw_init(hw);
 	if (!cnt) {
 		if (msg_enable & NETIF_MSG_PROBE)
-			printk(KERN_ALERT "chip not detected\n");
+			pr_alert("chip not detected\n");
 		result = -ENODEV;
 		goto pcidev_init_alloc_err;
 	}
 
-	sprintf(banner,	"%s\n", version);
-	banner[13] = cnt + '0';
-	ks_info(hw_priv, "%s", banner);
-	ks_dbg(hw_priv, "Mem = %p; IRQ = %d\n", hw->io, pdev->irq);
+	snprintf(banner, sizeof(banner), "%s", version);
+	banner[13] = cnt + '0';		/* Replace x in "Micrel KSZ884x" */
+	dev_info(&hw_priv->pdev->dev, "%s\n", banner);
+	dev_dbg(&hw_priv->pdev->dev, "Mem = %p; IRQ = %d\n", hw->io, pdev->irq);
 
 	/* Assume device is KSZ8841. */
 	hw->dev_count = 1;
@@ -7064,10 +7049,9 @@ static int __init pcidev_init(struct pci_dev *pdev,
 			mib_port_count = SWITCH_PORT_NUM;
 		}
 		hw->mib_port_cnt = TOTAL_PORT_NUM;
-		hw->ksz_switch = kmalloc(sizeof(struct ksz_switch), GFP_KERNEL);
+		hw->ksz_switch = kzalloc(sizeof(struct ksz_switch), GFP_KERNEL);
 		if (!hw->ksz_switch)
 			goto pcidev_init_alloc_err;
-		memset(hw->ksz_switch, 0, sizeof(struct ksz_switch));
 
 		sw = hw->ksz_switch;
 	}

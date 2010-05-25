@@ -440,14 +440,14 @@ xfs_xattr_acl_set(struct dentry *dentry, const char *name,
 	return error;
 }
 
-struct xattr_handler xfs_xattr_acl_access_handler = {
+const struct xattr_handler xfs_xattr_acl_access_handler = {
 	.prefix	= POSIX_ACL_XATTR_ACCESS,
 	.flags	= ACL_TYPE_ACCESS,
 	.get	= xfs_xattr_acl_get,
 	.set	= xfs_xattr_acl_set,
 };
 
-struct xattr_handler xfs_xattr_acl_default_handler = {
+const struct xattr_handler xfs_xattr_acl_default_handler = {
 	.prefix	= POSIX_ACL_XATTR_DEFAULT,
 	.flags	= ACL_TYPE_DEFAULT,
 	.get	= xfs_xattr_acl_get,

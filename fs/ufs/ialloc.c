@@ -303,15 +303,7 @@ cg_found:
 	sb->s_dirt = 1;
 
 	inode->i_ino = cg * uspi->s_ipg + bit;
-	inode->i_mode = mode;
-	inode->i_uid = current_fsuid();
-	if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		if (S_ISDIR(mode))
-			inode->i_mode |= S_ISGID;
-	} else
-		inode->i_gid = current_fsgid();
-
+	inode_init_owner(inode, dir, mode);
 	inode->i_blocks = 0;
 	inode->i_generation = 0;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME_SEC;

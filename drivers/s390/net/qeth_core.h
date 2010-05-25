@@ -179,25 +179,23 @@ static inline int qeth_is_ipa_enabled(struct qeth_ipa_info *ipa,
 	 ((prot == QETH_PROT_IPV6) ? \
 		qeth_is_enabled6(c, f) : qeth_is_enabled(c, f))
 
-#define QETH_IDX_FUNC_LEVEL_OSAE_ENA_IPAT 0x0101
-#define QETH_IDX_FUNC_LEVEL_OSAE_DIS_IPAT 0x0101
+#define QETH_IDX_FUNC_LEVEL_OSD		 0x0101
 #define QETH_IDX_FUNC_LEVEL_IQD_ENA_IPAT 0x4108
 #define QETH_IDX_FUNC_LEVEL_IQD_DIS_IPAT 0x5108
 
 #define QETH_MODELLIST_ARRAY \
-	{{0x1731, 0x01, 0x1732, 0x01, QETH_CARD_TYPE_OSAE, 1, \
-	QETH_IDX_FUNC_LEVEL_OSAE_ENA_IPAT, \
-	QETH_IDX_FUNC_LEVEL_OSAE_DIS_IPAT, \
-	QETH_MAX_QUEUES, 0}, \
-	{0x1731, 0x05, 0x1732, 0x05, QETH_CARD_TYPE_IQD, 0, \
-	QETH_IDX_FUNC_LEVEL_IQD_ENA_IPAT, \
-	QETH_IDX_FUNC_LEVEL_IQD_DIS_IPAT, \
-	QETH_MAX_QUEUES, 0x103}, \
-	{0x1731, 0x06, 0x1732, 0x06, QETH_CARD_TYPE_OSN, 0, \
-	QETH_IDX_FUNC_LEVEL_OSAE_ENA_IPAT, \
-	QETH_IDX_FUNC_LEVEL_OSAE_DIS_IPAT, \
-	QETH_MAX_QUEUES, 0}, \
-	{0, 0, 0, 0, 0, 0, 0, 0, 0} }
+	{{0x1731, 0x01, 0x1732, QETH_CARD_TYPE_OSD, QETH_MAX_QUEUES, 0}, \
+	 {0x1731, 0x05, 0x1732, QETH_CARD_TYPE_IQD, QETH_MAX_QUEUES, 0x103}, \
+	 {0x1731, 0x06, 0x1732, QETH_CARD_TYPE_OSN, QETH_MAX_QUEUES, 0}, \
+	 {0x1731, 0x02, 0x1732, QETH_CARD_TYPE_OSM, QETH_MAX_QUEUES, 0}, \
+	 {0x1731, 0x02, 0x1732, QETH_CARD_TYPE_OSX, QETH_MAX_QUEUES, 0}, \
+	 {0, 0, 0, 0, 0, 0} }
+#define QETH_CU_TYPE_IND	0
+#define QETH_CU_MODEL_IND	1
+#define QETH_DEV_TYPE_IND	2
+#define QETH_DEV_MODEL_IND	3
+#define QETH_QUEUE_NO_IND	4
+#define QETH_MULTICAST_IND	5
 
 #define QETH_REAL_CARD		1
 #define QETH_VLAN_CARD		2
@@ -351,7 +349,7 @@ enum qeth_header_ids {
 #define QETH_HDR_EXT_SRC_MAC_ADDR     0x08
 #define QETH_HDR_EXT_CSUM_HDR_REQ     0x10
 #define QETH_HDR_EXT_CSUM_TRANSP_REQ  0x20
-#define QETH_HDR_EXT_UDP_TSO          0x40 /*bit off for TCP*/
+#define QETH_HDR_EXT_UDP	      0x40 /*bit off for TCP*/
 
 static inline int qeth_is_last_sbale(struct qdio_buffer_element *sbale)
 {
@@ -630,6 +628,7 @@ struct qeth_card_info {
 	int unique_id;
 	struct qeth_card_blkt blkt;
 	__u32 csum_mask;
+	__u32 tx_csum_mask;
 	enum qeth_ipa_promisc_modes promisc_mode;
 };
 
@@ -739,6 +738,7 @@ struct qeth_card {
 	atomic_t force_alloc_skb;
 	struct service_level qeth_service_level;
 	struct qdio_ssqd_desc ssqd;
+	struct mutex conf_mutex;
 };
 
 struct qeth_card_list_struct {

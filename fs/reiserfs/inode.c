@@ -3076,9 +3076,10 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 	ia_valid = attr->ia_valid &= ~(ATTR_KILL_SUID|ATTR_KILL_SGID);
 
 	depth = reiserfs_write_lock_once(inode->i_sb);
-	if (attr->ia_valid & ATTR_SIZE) {
+	if (is_quota_modification(inode, attr))
 		dquot_initialize(inode);
 
+	if (attr->ia_valid & ATTR_SIZE) {
 		/* version 2 items will be caught by the s_maxbytes check
 		 ** done for us in vmtruncate
 		 */

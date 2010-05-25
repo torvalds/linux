@@ -188,8 +188,6 @@ static int omap3pandora_out_init(struct snd_soc_codec *codec)
 	int ret;
 
 	/* All TWL4030 output pins are floating */
-	snd_soc_dapm_nc_pin(codec, "OUTL");
-	snd_soc_dapm_nc_pin(codec, "OUTR");
 	snd_soc_dapm_nc_pin(codec, "EARPIECE");
 	snd_soc_dapm_nc_pin(codec, "PREDRIVEL");
 	snd_soc_dapm_nc_pin(codec, "PREDRIVER");

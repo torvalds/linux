@@ -24,7 +24,7 @@ static int build_id__mark_dso_hit(event_t *event, struct perf_session *session)
 	}
 
 	thread__find_addr_map(thread, session, cpumode, MAP__FUNCTION,
-			      event->ip.ip, &al);
+			      event->ip.pid, event->ip.ip, &al);
 
 	if (al.map != NULL)
 		al.map->dso->hit = 1;

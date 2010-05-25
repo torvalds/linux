@@ -435,7 +435,6 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	rx_status->mactime = rxdesc.timestamp;
 	rx_status->rate_idx = rate_idx;
 	rx_status->signal = rxdesc.rssi;
-	rx_status->noise = rxdesc.noise;
 	rx_status->flag = rxdesc.flags;
 	rx_status->antenna = rt2x00dev->link.ant.active.rx;
 

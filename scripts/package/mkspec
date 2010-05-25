@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	Output a simple RPM spec file that uses no fancy features requring
+#	Output a simple RPM spec file that uses no fancy features requiring
 #	RPM v4. This is intended to work with any RPM distro.
 #
 #	The only gothic bit here is redefining install_post to avoid

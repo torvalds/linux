@@ -593,8 +593,6 @@ static void cops_load (struct net_device *dev)
                 tangent_wait_reset(ioaddr);
                 inb(ioaddr);	/* Clear initial ready signal. */
         }
-
-        return;
 }
 
 /*
@@ -701,8 +699,6 @@ static void cops_poll(unsigned long ltdev)
 	/* poll 20 times per second */
 	cops_timer.expires = jiffies + HZ/20;
 	add_timer(&cops_timer);
-
-	return;
 }
 
 /*
@@ -866,7 +862,7 @@ static void cops_timeout(struct net_device *dev)
 	}
 	printk(KERN_WARNING "%s: Transmit timed out.\n", dev->name);
 	cops_jumpstart(dev);	/* Restart the card. */
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 }
 
@@ -919,9 +915,8 @@ static netdev_tx_t cops_send_packet(struct sk_buff *skb,
 	/* Done sending packet, update counters and cleanup. */
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
-	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
-        return NETDEV_TX_OK;
+	return NETDEV_TX_OK;
 }
 
 /*

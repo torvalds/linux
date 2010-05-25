@@ -78,9 +78,13 @@ struct ixgb_adapter;
 #define PFX "ixgb: "
 
 #ifdef _DEBUG_DRIVER_
-#define IXGB_DBG(args...) printk(KERN_DEBUG PFX args)
+#define IXGB_DBG(fmt, args...) printk(KERN_DEBUG PFX fmt, ##args)
 #else
-#define IXGB_DBG(args...)
+#define IXGB_DBG(fmt, args...)				\
+do {							\
+	if (0)						\
+		printk(KERN_DEBUG PFX fmt, ##args);	\
+} while (0)
 #endif
 
 /* TX/RX descriptor defines */

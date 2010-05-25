@@ -877,7 +877,7 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 	if (!mc_all_on) {
 		char *addrs;
 		int i;
-		struct dev_mc_list *mcaddr;
+		struct netdev_hw_addr *ha;
 
 		addrs = kmalloc(ETH_ALEN * mc_count, GFP_ATOMIC);
 		if (!addrs) {
@@ -885,9 +885,8 @@ static void nes_netdev_set_multicast_list(struct net_device *netdev)
 			goto unlock;
 		}
 		i = 0;
-		netdev_for_each_mc_addr(mcaddr, netdev)
-			memcpy(get_addr(addrs, i++),
-			       mcaddr->dmi_addr, ETH_ALEN);
+		netdev_for_each_mc_addr(ha, netdev)
+			memcpy(get_addr(addrs, i++), ha->addr, ETH_ALEN);
 
 		perfect_filter_register_address = NES_IDX_PERFECT_FILTER_LOW +
 						pft_entries_preallocated * 0x8;
@@ -1461,11 +1460,14 @@ static int nes_netdev_get_settings(struct net_device *netdev, struct ethtool_cmd
 			et_cmd->transceiver = XCVR_INTERNAL;
 			et_cmd->phy_address = mac_index;
 		} else {
+			unsigned long flags;
 			et_cmd->supported   = SUPPORTED_1000baseT_Full
 					    | SUPPORTED_Autoneg;
 			et_cmd->advertising = ADVERTISED_1000baseT_Full
 					    | ADVERTISED_Autoneg;
+			spin_lock_irqsave(&nesadapter->phy_lock, flags);
 			nes_read_1G_phy_reg(nesdev, 0, phy_index, &phy_data);
+			spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
 			if (phy_data & 0x1000)
 				et_cmd->autoneg = AUTONEG_ENABLE;
 			else
@@ -1503,12 +1505,15 @@ static int nes_netdev_set_settings(struct net_device *netdev, struct ethtool_cmd
 	struct nes_vnic *nesvnic = netdev_priv(netdev);
 	struct nes_device *nesdev = nesvnic->nesdev;
 	struct nes_adapter *nesadapter = nesdev->nesadapter;
-	u16 phy_data;
 
 	if ((nesadapter->OneG_Mode) &&
 	    (nesadapter->phy_type[nesdev->mac_index] != NES_PHY_TYPE_PUMA_1G)) {
-		nes_read_1G_phy_reg(nesdev, 0, nesadapter->phy_index[nesdev->mac_index],
-				&phy_data);
+		unsigned long flags;
+		u16 phy_data;
+		u8 phy_index = nesadapter->phy_index[nesdev->mac_index];
+
+		spin_lock_irqsave(&nesadapter->phy_lock, flags);
+		nes_read_1G_phy_reg(nesdev, 0, phy_index, &phy_data);
 		if (et_cmd->autoneg) {
 			/* Turn on Full duplex, Autoneg, and restart autonegotiation */
 			phy_data |= 0x1300;
@@ -1516,8 +1521,8 @@ static int nes_netdev_set_settings(struct net_device *netdev, struct ethtool_cmd
 			/* Turn off autoneg */
 			phy_data &= ~0x1000;
 		}
-		nes_write_1G_phy_reg(nesdev, 0, nesadapter->phy_index[nesdev->mac_index],
-				phy_data);
+		nes_write_1G_phy_reg(nesdev, 0, phy_index, phy_data);
+		spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
 	}
 
 	return 0;

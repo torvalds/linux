@@ -9,9 +9,8 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
-#include <linux/moduleparam.h>
 #include <linux/skbuff.h>
 #include <linux/if_arp.h>
 #include <linux/ip.h>
@@ -378,7 +377,7 @@ static struct nf_loginfo default_loginfo = {
 	.type	= NF_LOG_TYPE_LOG,
 	.u = {
 		.log = {
-			.level	  = 0,
+			.level	  = 5,
 			.logflags = NF_LOG_MASK,
 		},
 	},
@@ -437,7 +436,7 @@ ip6t_log_packet(u_int8_t pf,
 }
 
 static unsigned int
-log_tg6(struct sk_buff *skb, const struct xt_target_param *par)
+log_tg6(struct sk_buff *skb, const struct xt_action_param *par)
 {
 	const struct ip6t_log_info *loginfo = par->targinfo;
 	struct nf_loginfo li;
@@ -452,20 +451,19 @@ log_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 }
 
 
-static bool log_tg6_check(const struct xt_tgchk_param *par)
+static int log_tg6_check(const struct xt_tgchk_param *par)
 {
 	const struct ip6t_log_info *loginfo = par->targinfo;
 
 	if (loginfo->level >= 8) {
-		pr_debug("LOG: level %u >= 8\n", loginfo->level);
-		return false;
+		pr_debug("level %u >= 8\n", loginfo->level);
+		return -EINVAL;
 	}
 	if (loginfo->prefix[sizeof(loginfo->prefix)-1] != '\0') {
-		pr_debug("LOG: prefix term %i\n",
-			 loginfo->prefix[sizeof(loginfo->prefix)-1]);
-		return false;
+		pr_debug("prefix not null-terminated\n");
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_target log_tg6_reg __read_mostly = {

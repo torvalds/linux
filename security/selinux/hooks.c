@@ -126,11 +126,6 @@ __setup("selinux=", selinux_enabled_setup);
 int selinux_enabled = 1;
 #endif
 
-/* Lists of inode and superblock security structures initialized
-   before the policy was loaded. */
-static LIST_HEAD(superblock_security_head);
-static DEFINE_SPINLOCK(sb_security_lock);
-
 static struct kmem_cache *sel_inode_cache;
 
 /**
@@ -266,7 +261,6 @@ static int superblock_alloc_security(struct super_block *sb)
 		return -ENOMEM;
 
 	mutex_init(&sbsec->lock);
-	INIT_LIST_HEAD(&sbsec->list);
 	INIT_LIST_HEAD(&sbsec->isec_head);
 	spin_lock_init(&sbsec->isec_lock);
 	sbsec->sb = sb;
@@ -281,40 +275,34 @@ static int superblock_alloc_security(struct super_block *sb)
 static void superblock_free_security(struct super_block *sb)
 {
 	struct superblock_security_struct *sbsec = sb->s_security;
-
-	spin_lock(&sb_security_lock);
-	if (!list_empty(&sbsec->list))
-		list_del_init(&sbsec->list);
-	spin_unlock(&sb_security_lock);
-
 	sb->s_security = NULL;
 	kfree(sbsec);
 }
 
 static int sk_alloc_security(struct sock *sk, int family, gfp_t priority)
 {
-	struct sk_security_struct *ssec;
+	struct sk_security_struct *sksec;
 
-	ssec = kzalloc(sizeof(*ssec), priority);
-	if (!ssec)
+	sksec = kzalloc(sizeof(*sksec), priority);
+	if (!sksec)
 		return -ENOMEM;
 
-	ssec->peer_sid = SECINITSID_UNLABELED;
-	ssec->sid = SECINITSID_UNLABELED;
-	sk->sk_security = ssec;
+	sksec->peer_sid = SECINITSID_UNLABELED;
+	sksec->sid = SECINITSID_UNLABELED;
+	sk->sk_security = sksec;
 
-	selinux_netlbl_sk_security_reset(ssec);
+	selinux_netlbl_sk_security_reset(sksec);
 
 	return 0;
 }
 
 static void sk_free_security(struct sock *sk)
 {
-	struct sk_security_struct *ssec = sk->sk_security;
+	struct sk_security_struct *sksec = sk->sk_security;
 
 	sk->sk_security = NULL;
-	selinux_netlbl_sk_security_free(ssec);
-	kfree(ssec);
+	selinux_netlbl_sk_security_free(sksec);
+	kfree(sksec);
 }
 
 /* The security server must be initialized before
@@ -323,7 +311,7 @@ extern int ss_initialized;
 
 /* The file system's label must be initialized prior to use. */
 
-static char *labeling_behaviors[6] = {
+static const char *labeling_behaviors[6] = {
 	"uses xattr",
 	"uses transition SIDs",
 	"uses task SIDs",
@@ -612,10 +600,6 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 			/* Defer initialization until selinux_complete_init,
 			   after the initial policy is loaded and the security
 			   server is ready to handle calls. */
-			spin_lock(&sb_security_lock);
-			if (list_empty(&sbsec->list))
-				list_add(&sbsec->list, &superblock_security_head);
-			spin_unlock(&sb_security_lock);
 			goto out;
 		}
 		rc = -EINVAL;
@@ -806,16 +790,10 @@ static void selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 
 	/*
 	 * if the parent was able to be mounted it clearly had no special lsm
-	 * mount options.  thus we can safely put this sb on the list and deal
-	 * with it later
+	 * mount options.  thus we can safely deal with this superblock later
 	 */
-	if (!ss_initialized) {
-		spin_lock(&sb_security_lock);
-		if (list_empty(&newsbsec->list))
-			list_add(&newsbsec->list, &superblock_security_head);
-		spin_unlock(&sb_security_lock);
+	if (!ss_initialized)
 		return;
-	}
 
 	/* how can we clone if the old one wasn't set up?? */
 	BUG_ON(!(oldsbsec->flags & SE_SBINITIALIZED));
@@ -2999,13 +2977,15 @@ static int selinux_file_ioctl(struct file *file, unsigned int cmd,
 	return file_has_perm(cred, file, av);
 }
 
+static int default_noexec;
+
 static int file_map_prot_check(struct file *file, unsigned long prot, int shared)
 {
 	const struct cred *cred = current_cred();
 	int rc = 0;
 
-#ifndef CONFIG_PPC32
-	if ((prot & PROT_EXEC) && (!file || (!shared && (prot & PROT_WRITE)))) {
+	if (default_noexec &&
+	    (prot & PROT_EXEC) && (!file || (!shared && (prot & PROT_WRITE)))) {
 		/*
 		 * We are making executable an anonymous mapping or a
 		 * private file mapping that will also be writable.
@@ -3015,7 +2995,6 @@ static int file_map_prot_check(struct file *file, unsigned long prot, int shared
 		if (rc)
 			goto error;
 	}
-#endif
 
 	if (file) {
 		/* read access is always possible with a mapping */
@@ -3076,8 +3055,8 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 	if (selinux_checkreqprot)
 		prot = reqprot;
 
-#ifndef CONFIG_PPC32
-	if ((prot & PROT_EXEC) && !(vma->vm_flags & VM_EXEC)) {
+	if (default_noexec &&
+	    (prot & PROT_EXEC) && !(vma->vm_flags & VM_EXEC)) {
 		int rc = 0;
 		if (vma->vm_start >= vma->vm_mm->start_brk &&
 		    vma->vm_end <= vma->vm_mm->brk) {
@@ -3099,7 +3078,6 @@ static int selinux_file_mprotect(struct vm_area_struct *vma,
 		if (rc)
 			return rc;
 	}
-#endif
 
 	return file_map_prot_check(vma->vm_file, prot, vma->vm_flags&VM_SHARED);
 }
@@ -4002,7 +3980,7 @@ static int selinux_socket_unix_stream_connect(struct socket *sock,
 					      struct socket *other,
 					      struct sock *newsk)
 {
-	struct sk_security_struct *ssec;
+	struct sk_security_struct *sksec;
 	struct inode_security_struct *isec;
 	struct inode_security_struct *other_isec;
 	struct common_audit_data ad;
@@ -4021,13 +3999,13 @@ static int selinux_socket_unix_stream_connect(struct socket *sock,
 		return err;
 
 	/* connecting socket */
-	ssec = sock->sk->sk_security;
-	ssec->peer_sid = other_isec->sid;
+	sksec = sock->sk->sk_security;
+	sksec->peer_sid = other_isec->sid;
 
 	/* server child socket */
-	ssec = newsk->sk_security;
-	ssec->peer_sid = isec->sid;
-	err = security_sid_mls_copy(other_isec->sid, ssec->peer_sid, &ssec->sid);
+	sksec = newsk->sk_security;
+	sksec->peer_sid = isec->sid;
+	err = security_sid_mls_copy(other_isec->sid, sksec->peer_sid, &sksec->sid);
 
 	return err;
 }
@@ -4190,7 +4168,7 @@ static int selinux_socket_getpeersec_stream(struct socket *sock, char __user *op
 	int err = 0;
 	char *scontext;
 	u32 scontext_len;
-	struct sk_security_struct *ssec;
+	struct sk_security_struct *sksec;
 	struct inode_security_struct *isec;
 	u32 peer_sid = SECSID_NULL;
 
@@ -4198,8 +4176,8 @@ static int selinux_socket_getpeersec_stream(struct socket *sock, char __user *op
 
 	if (isec->sclass == SECCLASS_UNIX_STREAM_SOCKET ||
 	    isec->sclass == SECCLASS_TCP_SOCKET) {
-		ssec = sock->sk->sk_security;
-		peer_sid = ssec->peer_sid;
+		sksec = sock->sk->sk_security;
+		peer_sid = sksec->peer_sid;
 	}
 	if (peer_sid == SECSID_NULL) {
 		err = -ENOPROTOOPT;
@@ -4266,14 +4244,14 @@ static void selinux_sk_free_security(struct sock *sk)
 
 static void selinux_sk_clone_security(const struct sock *sk, struct sock *newsk)
 {
-	struct sk_security_struct *ssec = sk->sk_security;
-	struct sk_security_struct *newssec = newsk->sk_security;
+	struct sk_security_struct *sksec = sk->sk_security;
+	struct sk_security_struct *newsksec = newsk->sk_security;
 
-	newssec->sid = ssec->sid;
-	newssec->peer_sid = ssec->peer_sid;
-	newssec->sclass = ssec->sclass;
+	newsksec->sid = sksec->sid;
+	newsksec->peer_sid = sksec->peer_sid;
+	newsksec->sclass = sksec->sclass;
 
-	selinux_netlbl_sk_security_reset(newssec);
+	selinux_netlbl_sk_security_reset(newsksec);
 }
 
 static void selinux_sk_getsecid(struct sock *sk, u32 *secid)
@@ -5662,6 +5640,8 @@ static __init int selinux_init(void)
 	/* Set the security state for the initial task. */
 	cred_init_security();
 
+	default_noexec = !(VM_DATA_DEFAULT_FLAGS & VM_EXEC);
+
 	sel_inode_cache = kmem_cache_create("selinux_inode_security",
 					    sizeof(struct inode_security_struct),
 					    0, SLAB_PANIC, NULL);
@@ -5678,35 +5658,18 @@ static __init int selinux_init(void)
 	return 0;
 }
 
+static void delayed_superblock_init(struct super_block *sb, void *unused)
+{
+	superblock_doinit(sb, NULL);
+}
+
 void selinux_complete_init(void)
 {
 	printk(KERN_DEBUG "SELinux:  Completing initialization.\n");
 
 	/* Set up any superblocks initialized prior to the policy load. */
 	printk(KERN_DEBUG "SELinux:  Setting up existing superblocks.\n");
-	spin_lock(&sb_lock);
-	spin_lock(&sb_security_lock);
-next_sb:
-	if (!list_empty(&superblock_security_head)) {
-		struct superblock_security_struct *sbsec =
-				list_entry(superblock_security_head.next,
-					   struct superblock_security_struct,
-					   list);
-		struct super_block *sb = sbsec->sb;
-		sb->s_count++;
-		spin_unlock(&sb_security_lock);
-		spin_unlock(&sb_lock);
-		down_read(&sb->s_umount);
-		if (sb->s_root)
-			superblock_doinit(sb, NULL);
-		drop_super(sb);
-		spin_lock(&sb_lock);
-		spin_lock(&sb_security_lock);
-		list_del_init(&sbsec->list);
-		goto next_sb;
-	}
-	spin_unlock(&sb_security_lock);
-	spin_unlock(&sb_lock);
+	iterate_supers(delayed_superblock_init, NULL);
 }
 
 /* SELinux requires early initialization in order to label

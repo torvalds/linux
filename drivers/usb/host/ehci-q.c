@@ -663,7 +663,7 @@ qh_urb_transaction (
 	 */
 	i = urb->num_sgs;
 	if (len > 0 && i > 0) {
-		sg = urb->sg->sg;
+		sg = urb->sg;
 		buf = sg_dma_address(sg);
 
 		/* urb->transfer_buffer_length may be smaller than the
