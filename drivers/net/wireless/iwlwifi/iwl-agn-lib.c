@@ -93,6 +93,12 @@ static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 	} else {
 		/* Two or more frames were attempted; expect block-ack */
 		u64 bitmap = 0;
+
+		/*
+		 * Start is the lowest frame sent. It may not be the first
+		 * frame in the batch; we figure this out dynamically during
+		 * the following loop.
+		 */
 		int start = agg->start_idx;
 
 		/* Construct bit-map of pending frames within Tx window */
@@ -131,25 +137,58 @@ static int iwlagn_tx_status_reply_tx(struct iwl_priv *priv,
 			IWL_DEBUG_TX_REPLY(priv, "AGG Frame i=%d idx %d seq=%d\n",
 					   i, idx, SEQ_TO_SN(sc));
 
+			/*
+			 * sh -> how many frames ahead of the starting frame is
+			 * the current one?
+			 *
+			 * Note that all frames sent in the batch must be in a
+			 * 64-frame window, so this number should be in [0,63].
+			 * If outside of this window, then we've found a new
+			 * "first" frame in the batch and need to change start.
+			 */
 			sh = idx - start;
-			if (sh > 64) {
-				sh = (start - idx) + 0xff;
+
+			/*
+			 * If >= 64, out of window. start must be at the front
+			 * of the circular buffer, idx must be near the end of
+			 * the buffer, and idx is the new "first" frame. Shift
+			 * the indices around.
+			 */
+			if (sh >= 64) {
+				/* Shift bitmap by start - idx, wrapped */
+				sh = 0x100 - idx + start;
 				bitmap = bitmap << sh;
+				/* Now idx is the new start so sh = 0 */
 				sh = 0;
 				start = idx;
-			} else if (sh < -64)
-				sh  = 0xff - (start - idx);
-			else if (sh < 0) {
+			/*
+			 * If <= -64 then wraps the 256-pkt circular buffer
+			 * (e.g., start = 255 and idx = 0, sh should be 1)
+			 */
+			} else if (sh <= -64) {
+				sh  = 0x100 - start + idx;
+			/*
+			 * If < 0 but > -64, out of window. idx is before start
+			 * but not wrapped. Shift the indices around.
+			 */
+			} else if (sh < 0) {
+				/* Shift by how far start is ahead of idx */
 				sh = start - idx;
-				start = idx;
 				bitmap = bitmap << sh;
+				/* Now idx is the new start so sh = 0 */
+				start = idx;
 				sh = 0;
 			}
+			/* Sequence number start + sh was sent in this batch */
 			bitmap |= 1ULL << sh;
 			IWL_DEBUG_TX_REPLY(priv, "start=%d bitmap=0x%llx\n",
 					   start, (unsigned long long)bitmap);
 		}
 
+		/*
+		 * Store the bitmap and possibly the new start, if we wrapped
+		 * the buffer above
+		 */
 		agg->bitmap = bitmap;
 		agg->start_idx = start;
 		IWL_DEBUG_TX_REPLY(priv, "Frames %d start_idx=%d bitmap=0x%llx\n",
