@@ -100,7 +100,7 @@ struct pca9554_chip {
 };
 
 
-#if 1
+#if 0
 #define DBG(x...)	printk(KERN_INFO x)
 #else
 #define DBG(x...)
@@ -906,7 +906,7 @@ static int __devinit pca9554_probe(struct i2c_client *client,const struct i2c_de
 
 	chip->client = client;
 
-	pca9554_test(chip);
+	//pca9554_test(chip);
 
 	return 0;
 

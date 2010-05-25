@@ -230,19 +230,19 @@ config GPIO_UCB1400
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_gpio.
 
-config GPIO_TCA6424
-	bool "TCA6424 extend GPIO"
+config GPIO_PCA9554
+	bool "GPIO EXPANDER PCA9554"
 	depends on I2C
 	help
-	  Say yes here to access the TCA6424 extend GPIO 
+	  Say yes here to access the PCA9554 GPIO EXPANDER
 
-config ARCH_EXTEND_GPIOS	  
-	int
-	default 24 if GPIO_TCA6424
-	default 0
+config EXPANDED_GPIO_NUM  
+	int "setting the amount of expanded gpios"
+	default 8 if GPIO_PCA9554
+  default 0
 	
-config EXTEND_GPIO_IRQ
-	int
-	default 3 if GPIO_TCA6424	
+config EXPANDED_GPIO_IRQ_NUM
+	int "setting the amount of expanded gpio irqs"
+	default 8 if GPIO_PCA9554	
 	default 0	
 endif
