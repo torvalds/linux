@@ -704,8 +704,11 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 			      struct ceph_msg *msg)
 {
 	int ret;
+	int was_auth = 0;
 
 	mutex_lock(&monc->mutex);
+	if (monc->auth->ops)
+		was_auth = monc->auth->ops->is_authenticated(monc->auth);
 	monc->pending_auth = 0;
 	ret = ceph_handle_auth_reply(monc->auth, msg->front.iov_base,
 				     msg->front.iov_len,
@@ -716,7 +719,7 @@ static void handle_auth_reply(struct ceph_mon_client *monc,
 		wake_up(&monc->client->auth_wq);
 	} else if (ret > 0) {
 		__send_prepared_auth_request(monc, ret);
-	} else if (monc->auth->ops->is_authenticated(monc->auth)) {
+	} else if (!was_auth && monc->auth->ops->is_authenticated(monc->auth)) {
 		dout("authenticated, starting session\n");
 
 		monc->client->msgr->inst.name.type = CEPH_ENTITY_TYPE_CLIENT;
