@@ -6265,7 +6265,7 @@ nouveau_bios_init(struct drm_device *dev)
 	/* ... unless card isn't POSTed already */
 	if (!nouveau_bios_posted(dev)) {
 		NV_INFO(dev, "Adaptor not initialised\n");
-		if (dev_priv->card_type < NV_50) {
+		if (dev_priv->card_type < NV_40) {
 			NV_ERROR(dev, "Unable to POST this chipset\n");
 			return -ENODEV;
 		}
