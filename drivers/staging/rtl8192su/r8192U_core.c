@@ -990,10 +990,11 @@ static int proc_get_stats_rx(char *page, char **start,
 	return len;
 }
 
-void rtl8192_proc_module_init(void)
+int rtl8192_proc_module_init(void)
 {
 	RT_TRACE(COMP_INIT, "Initializing proc filesystem");
 	rtl8192_proc=create_proc_entry(RTL819xU_MODULE_NAME, S_IFDIR, init_net.proc_net);
+	return rtl8192_proc ? 0 : -ENOMEM;
 }
 
 
@@ -7473,35 +7474,63 @@ static int __init rtl8192_usb_module_init(void)
 	ret = ieee80211_crypto_init();
 	if (ret) {
 		printk(KERN_ERR "ieee80211_crypto_init() failed %d\n", ret);
-		return ret;
+		goto fail_crypto;
 	}
 
 	ret = ieee80211_crypto_tkip_init();
 	if (ret) {
 		printk(KERN_ERR "ieee80211_crypto_tkip_init() failed %d\n",
 			ret);
-		return ret;
+		goto fail_crypto_tkip;
 	}
 
 	ret = ieee80211_crypto_ccmp_init();
 	if (ret) {
 		printk(KERN_ERR "ieee80211_crypto_ccmp_init() failed %d\n",
 			ret);
-		return ret;
+		goto fail_crypto_ccmp;
 	}
 
 	ret = ieee80211_crypto_wep_init();
 	if (ret) {
 		printk(KERN_ERR "ieee80211_crypto_wep_init() failed %d\n", ret);
-		return ret;
+		goto fail_crypto_wep;
 	}
 
 	printk(KERN_INFO "\nLinux kernel driver for RTL8192 based WLAN cards\n");
 	printk(KERN_INFO "Copyright (c) 2007-2008, Realsil Wlan\n");
 	RT_TRACE(COMP_INIT, "Initializing module");
 	RT_TRACE(COMP_INIT, "Wireless extensions version %d", WIRELESS_EXT);
-	rtl8192_proc_module_init();
-	return usb_register(&rtl8192_usb_driver);
+
+	ret = rtl8192_proc_module_init();
+	if (ret) {
+		pr_err("rtl8192_proc_module_init() failed %d\n", ret);
+		goto fail_proc;
+	}
+
+	ret = usb_register(&rtl8192_usb_driver);
+	if (ret) {
+		pr_err("usb_register() failed %d\n", ret);
+		goto fail_usb;
+	}
+
+	return 0;
+
+fail_usb:
+	rtl8192_proc_module_remove();
+fail_proc:
+	ieee80211_crypto_wep_exit();
+fail_crypto_wep:
+	ieee80211_crypto_ccmp_exit();
+fail_crypto_ccmp:
+	ieee80211_crypto_tkip_exit();
+fail_crypto_tkip:
+	ieee80211_crypto_deinit();
+fail_crypto:
+#ifdef CONFIG_IEEE80211_DEBUG
+	ieee80211_debug_exit();
+#endif
+	return ret;
 }
 
 
