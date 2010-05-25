@@ -119,6 +119,8 @@ mempool_t *xfs_ioend_pool;
 #define MNTOPT_DMAPI	"dmapi"		/* DMI enabled (DMAPI / XDSM) */
 #define MNTOPT_XDSM	"xdsm"		/* DMI enabled (DMAPI / XDSM) */
 #define MNTOPT_DMI	"dmi"		/* DMI enabled (DMAPI / XDSM) */
+#define MNTOPT_DELAYLOG   "delaylog"	/* Delayed loging enabled */
+#define MNTOPT_NODELAYLOG "nodelaylog"	/* Delayed loging disabled */
 
 /*
  * Table driven mount option parser.
@@ -374,6 +376,13 @@ xfs_parseargs(
 			mp->m_flags |= XFS_MOUNT_DMAPI;
 		} else if (!strcmp(this_char, MNTOPT_DMI)) {
 			mp->m_flags |= XFS_MOUNT_DMAPI;
+		} else if (!strcmp(this_char, MNTOPT_DELAYLOG)) {
+			mp->m_flags |= XFS_MOUNT_DELAYLOG;
+			cmn_err(CE_WARN,
+				"Enabling EXPERIMENTAL delayed logging feature "
+				"- use at your own risk.\n");
+		} else if (!strcmp(this_char, MNTOPT_NODELAYLOG)) {
+			mp->m_flags &= ~XFS_MOUNT_DELAYLOG;
 		} else if (!strcmp(this_char, "ihashsize")) {
 			cmn_err(CE_WARN,
 	"XFS: ihashsize no longer used, option is deprecated.");
@@ -535,6 +544,7 @@ xfs_showargs(
 		{ XFS_MOUNT_FILESTREAMS,	"," MNTOPT_FILESTREAM },
 		{ XFS_MOUNT_DMAPI,		"," MNTOPT_DMAPI },
 		{ XFS_MOUNT_GRPID,		"," MNTOPT_GRPID },
+		{ XFS_MOUNT_DELAYLOG,		"," MNTOPT_DELAYLOG },
 		{ 0, NULL }
 	};
 	static struct proc_xfs_info xfs_info_unset[] = {
@@ -1755,7 +1765,7 @@ xfs_init_zones(void)
 	 * but it is much faster.
 	 */
 	xfs_buf_item_zone = kmem_zone_init((sizeof(xfs_buf_log_item_t) +
-				(((XFS_MAX_BLOCKSIZE / XFS_BLI_CHUNK) /
+				(((XFS_MAX_BLOCKSIZE / XFS_BLF_CHUNK) /
 				  NBWORD) * sizeof(int))), "xfs_buf_item");
 	if (!xfs_buf_item_zone)
 		goto out_destroy_trans_zone;
