@@ -467,6 +467,9 @@ static int blk_init_free_list(struct request_queue *q)
 {
 	struct request_list *rl = &q->rq;
 
+	if (unlikely(rl->rq_pool))
+		return 0;
+
 	rl->count[BLK_RW_SYNC] = rl->count[BLK_RW_ASYNC] = 0;
 	rl->starved[BLK_RW_SYNC] = rl->starved[BLK_RW_ASYNC] = 0;
 	rl->elvpriv = 0;
