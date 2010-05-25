@@ -345,7 +345,9 @@ static int snd_pcm_update_hw_ptr0(struct snd_pcm_substream *substream,
 		new_hw_ptr = hw_base + pos;
 	}
       __delta:
-	delta = (new_hw_ptr - old_hw_ptr) % runtime->boundary;
+	delta = new_hw_ptr - old_hw_ptr;
+	if (delta < 0)
+		delta += runtime->boundary;
 	if (xrun_debug(substream, in_interrupt ?
 			XRUN_DEBUG_PERIODUPDATE : XRUN_DEBUG_HWPTRUPDATE)) {
 		char name[16];
