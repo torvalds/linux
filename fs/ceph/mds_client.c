@@ -2541,7 +2541,7 @@ void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,
 		return;
 	lease = msg->front.iov_base;
 	lease->action = action;
-	lease->mask = cpu_to_le16(CEPH_LOCK_DN);
+	lease->mask = cpu_to_le16(1);
 	lease->ino = cpu_to_le64(ceph_vino(inode).ino);
 	lease->first = lease->last = cpu_to_le64(ceph_vino(inode).snap);
 	lease->seq = cpu_to_le32(seq);
@@ -2571,7 +2571,7 @@ void ceph_mdsc_lease_release(struct ceph_mds_client *mdsc, struct inode *inode,
 
 	BUG_ON(inode == NULL);
 	BUG_ON(dentry == NULL);
-	BUG_ON(mask != CEPH_LOCK_DN);
+	BUG_ON(mask == 0);
 
 	/* is dentry lease valid? */
 	spin_lock(&dentry->d_lock);
