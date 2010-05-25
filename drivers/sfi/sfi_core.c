@@ -390,7 +390,7 @@ void __init sfi_init(void)
 	if (sfi_disabled)
 		return;
 
-	pr_info("Simple Firmware Interface v0.7 http://simplefirmware.org\n");
+	pr_info("Simple Firmware Interface v0.81 http://simplefirmware.org\n");
 
 	if (sfi_find_syst() || sfi_parse_syst() || sfi_platform_init())
 		disable_sfi();
