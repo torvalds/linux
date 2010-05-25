@@ -943,8 +943,7 @@ struct drbd_conf {
 	struct drbd_work  resync_work,
 			  unplug_work,
 			  md_sync_work,
-			  delay_probe_work,
-			  uuid_work;
+			  delay_probe_work;
 	struct timer_list resync_timer;
 	struct timer_list md_sync_timer;
 	struct timer_list delay_probe_timer;
@@ -1069,7 +1068,6 @@ struct drbd_conf {
 	struct timeval dps_time; /* delay-probes-start-time */
 	unsigned int dp_volume_last;  /* send_cnt of last delay probe */
 	int c_sync_rate; /* current resync rate after delay_probe magic */
-	atomic_t new_c_uuid;
 };
 
 static inline struct drbd_conf *minor_to_mdev(unsigned int minor)
@@ -2219,8 +2217,6 @@ static inline int __inc_ap_bio_cond(struct drbd_conf *mdev)
 		return 0;
 	if (test_bit(BITMAP_IO, &mdev->flags))
 		return 0;
-	if (atomic_read(&mdev->new_c_uuid))
-		return 0;
 	return 1;
 }
 
@@ -2240,9 +2236,6 @@ static inline void inc_ap_bio(struct drbd_conf *mdev, int count)
 	 *
 	 * to avoid races with the reconnect code,
 	 * we need to atomic_inc within the spinlock. */
-
-	if (atomic_read(&mdev->new_c_uuid) && atomic_add_unless(&mdev->new_c_uuid, -1, 1))
-		drbd_queue_work_front(&mdev->data.work, &mdev->uuid_work);
 
 	spin_lock_irq(&mdev->req_lock);
 	while (!__inc_ap_bio_cond(mdev)) {

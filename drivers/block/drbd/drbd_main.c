@@ -1215,18 +1215,17 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	     ns.pdsk == D_OUTDATED)) {
 		if (get_ldev(mdev)) {
 			if ((ns.role == R_PRIMARY || ns.peer == R_PRIMARY) &&
-			    mdev->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE &&
-			    !atomic_read(&mdev->new_c_uuid))
-				atomic_set(&mdev->new_c_uuid, 2);
+			    mdev->ldev->md.uuid[UI_BITMAP] == 0 && ns.disk >= D_UP_TO_DATE) {
+				drbd_uuid_new_current(mdev);
+				drbd_send_uuids(mdev);
+			}
 			put_ldev(mdev);
 		}
 	}
 
 	if (ns.pdsk < D_INCONSISTENT && get_ldev(mdev)) {
-		/* Diskless peer becomes primary or got connected do diskless, primary peer. */
-		if (ns.peer == R_PRIMARY && mdev->ldev->md.uuid[UI_BITMAP] == 0 &&
-		    !atomic_read(&mdev->new_c_uuid))
-			atomic_set(&mdev->new_c_uuid, 2);
+		if (ns.peer == R_PRIMARY && mdev->ldev->md.uuid[UI_BITMAP] == 0)
+			drbd_uuid_new_current(mdev);
 
 		/* D_DISKLESS Peer becomes secondary */
 		if (os.peer == R_PRIMARY && ns.peer == R_SECONDARY)
@@ -1350,24 +1349,6 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	drbd_md_sync(mdev);
 }
 
-static int w_new_current_uuid(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-{
-	if (get_ldev(mdev)) {
-		if (mdev->ldev->md.uuid[UI_BITMAP] == 0) {
-			drbd_uuid_new_current(mdev);
-			if (get_net_conf(mdev)) {
-				drbd_send_uuids(mdev);
-				put_net_conf(mdev);
-			}
-			drbd_md_sync(mdev);
-		}
-		put_ldev(mdev);
-	}
-	atomic_dec(&mdev->new_c_uuid);
-	wake_up(&mdev->misc_wait);
-
-	return 1;
-}
 
 static int drbd_thread_setup(void *arg)
 {
@@ -2708,7 +2689,6 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	atomic_set(&mdev->net_cnt, 0);
 	atomic_set(&mdev->packet_seq, 0);
 	atomic_set(&mdev->pp_in_use, 0);
-	atomic_set(&mdev->new_c_uuid, 0);
 
 	mutex_init(&mdev->md_io_mutex);
 	mutex_init(&mdev->data.mutex);
@@ -2739,14 +2719,12 @@ void drbd_init_set_defaults(struct drbd_conf *mdev)
 	INIT_LIST_HEAD(&mdev->bm_io_work.w.list);
 	INIT_LIST_HEAD(&mdev->delay_probes);
 	INIT_LIST_HEAD(&mdev->delay_probe_work.list);
-	INIT_LIST_HEAD(&mdev->uuid_work.list);
 
 	mdev->resync_work.cb  = w_resync_inactive;
 	mdev->unplug_work.cb  = w_send_write_hint;
 	mdev->md_sync_work.cb = w_md_sync;
 	mdev->bm_io_work.w.cb = w_bitmap_io;
 	mdev->delay_probe_work.cb = w_delay_probes;
-	mdev->uuid_work.cb = w_new_current_uuid;
 	init_timer(&mdev->resync_timer);
 	init_timer(&mdev->md_sync_timer);
 	init_timer(&mdev->delay_probe_timer);

@@ -1154,17 +1154,6 @@ int drbd_submit_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e,
 	unsigned n_bios = 0;
 	unsigned nr_pages = (ds + PAGE_SIZE -1) >> PAGE_SHIFT;
 
-	if (atomic_read(&mdev->new_c_uuid)) {
-		if (atomic_add_unless(&mdev->new_c_uuid, -1, 1)) {
-			drbd_uuid_new_current(mdev);
-			drbd_md_sync(mdev);
-
-			atomic_dec(&mdev->new_c_uuid);
-			wake_up(&mdev->misc_wait);
-		}
-		wait_event(mdev->misc_wait, !atomic_read(&mdev->new_c_uuid));
-	}
-
 	/* In most cases, we will only need one bio.  But in case the lower
 	 * level restrictions happen to be different at this offset on this
 	 * side than those of the sending peer, we may need to submit the
