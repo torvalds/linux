@@ -376,6 +376,11 @@ void iwl_bg_start_internal_scan(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
+	if (priv->is_internal_short_scan == true) {
+		IWL_DEBUG_SCAN(priv, "Internal scan already in progress\n");
+		goto unlock;
+	}
+
 	if (!iwl_is_ready_rf(priv)) {
 		IWL_DEBUG_SCAN(priv, "not ready or exit pending\n");
 		goto unlock;
@@ -497,17 +502,27 @@ void iwl_bg_scan_completed(struct work_struct *work)
 {
 	struct iwl_priv *priv =
 	    container_of(work, struct iwl_priv, scan_completed);
+	bool internal = false;
 
 	IWL_DEBUG_SCAN(priv, "SCAN complete scan\n");
 
 	cancel_delayed_work(&priv->scan_check);
 
-	if (!priv->is_internal_short_scan)
-		ieee80211_scan_completed(priv->hw, false);
-	else {
+	mutex_lock(&priv->mutex);
+	if (priv->is_internal_short_scan) {
 		priv->is_internal_short_scan = false;
 		IWL_DEBUG_SCAN(priv, "internal short scan completed\n");
+		internal = true;
 	}
+	mutex_unlock(&priv->mutex);
+
+	/*
+	 * Do not hold mutex here since this will cause mac80211 to call
+	 * into driver again into functions that will attempt to take
+	 * mutex.
+	 */
+	if (!internal)
+		ieee80211_scan_completed(priv->hw, false);
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
