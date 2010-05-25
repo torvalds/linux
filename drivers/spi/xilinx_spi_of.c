@@ -48,13 +48,13 @@ static int __devinit xilinx_spi_of_probe(struct of_device *ofdev,
 	const u32 *prop;
 	int len;
 
-	rc = of_address_to_resource(ofdev->node, 0, &r_mem);
+	rc = of_address_to_resource(ofdev->dev.of_node, 0, &r_mem);
 	if (rc) {
 		dev_warn(&ofdev->dev, "invalid address\n");
 		return rc;
 	}
 
-	rc = of_irq_to_resource(ofdev->node, 0, &r_irq);
+	rc = of_irq_to_resource(ofdev->dev.of_node, 0, &r_irq);
 	if (rc == NO_IRQ) {
 		dev_warn(&ofdev->dev, "no IRQ found\n");
 		return -ENODEV;
@@ -67,7 +67,7 @@ static int __devinit xilinx_spi_of_probe(struct of_device *ofdev,
 		return -ENOMEM;
 
 	/* number of slave select bits is required */
-	prop = of_get_property(ofdev->node, "xlnx,num-ss-bits", &len);
+	prop = of_get_property(ofdev->dev.of_node, "xlnx,num-ss-bits", &len);
 	if (!prop || len < sizeof(*prop)) {
 		dev_warn(&ofdev->dev, "no 'xlnx,num-ss-bits' property\n");
 		return -EINVAL;
@@ -81,7 +81,7 @@ static int __devinit xilinx_spi_of_probe(struct of_device *ofdev,
 	dev_set_drvdata(&ofdev->dev, master);
 
 	/* Add any subnodes on the SPI bus */
-	of_register_spi_devices(master, ofdev->node);
+	of_register_spi_devices(master, ofdev->dev.of_node);
 
 	return 0;
 }
