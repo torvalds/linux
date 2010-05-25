@@ -2560,14 +2560,9 @@ static void cfq_free_io_context(struct io_context *ioc)
 	__call_for_each_cic(ioc, cic_free_func);
 }
 
-static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
+static void cfq_put_cooperator(struct cfq_queue *cfqq)
 {
 	struct cfq_queue *__cfqq, *next;
-
-	if (unlikely(cfqq == cfqd->active_queue)) {
-		__cfq_slice_expired(cfqd, cfqq, 0);
-		cfq_schedule_dispatch(cfqd);
-	}
 
 	/*
 	 * If this queue was scheduled to merge with another queue, be
@@ -2584,6 +2579,16 @@ static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 		cfq_put_queue(__cfqq);
 		__cfqq = next;
 	}
+}
+
+static void cfq_exit_cfqq(struct cfq_data *cfqd, struct cfq_queue *cfqq)
+{
+	if (unlikely(cfqq == cfqd->active_queue)) {
+		__cfq_slice_expired(cfqd, cfqq, 0);
+		cfq_schedule_dispatch(cfqd);
+	}
+
+	cfq_put_cooperator(cfqq);
 
 	cfq_put_queue(cfqq);
 }
@@ -3536,6 +3541,9 @@ split_cfqq(struct cfq_io_context *cic, struct cfq_queue *cfqq)
 	}
 
 	cic_set_cfqq(cic, NULL, 1);
+
+	cfq_put_cooperator(cfqq);
+
 	cfq_put_queue(cfqq);
 	return NULL;
 }
