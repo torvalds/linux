@@ -1063,9 +1063,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			snap_pending = 1;
 
 		WARN_ON(cur_trans != trans->transaction);
-		prepare_to_wait(&cur_trans->writer_wait, &wait,
-				TASK_UNINTERRUPTIBLE);
-
 		if (cur_trans->num_writers > 1)
 			timeout = MAX_SCHEDULE_TIMEOUT;
 		else if (should_grow)
@@ -1087,6 +1084,9 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 		 * to the list
 		 */
 		btrfs_run_ordered_operations(root, 1);
+
+		prepare_to_wait(&cur_trans->writer_wait, &wait,
+				TASK_UNINTERRUPTIBLE);
 
 		smp_mb();
 		if (cur_trans->num_writers > 1 || should_grow)
