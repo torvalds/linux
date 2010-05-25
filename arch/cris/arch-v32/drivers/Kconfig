@@ -360,7 +360,7 @@ config ETRAX_SER4_DSR_BIT
 	string "Ser 4 DSR bit (empty = not used)"
 	depends on ETRAX_SERIAL_PORT4
 
-config ETRAX_SER3_CD_BIT
+config ETRAX_SER4_CD_BIT
 	string "Ser 4 CD bit (empty = not used)"
 	depends on ETRAX_SERIAL_PORT4
 
