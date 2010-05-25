@@ -1192,7 +1192,6 @@ int gfs2_inplace_reserve_i(struct gfs2_inode *ip, char *file, unsigned int line)
 {
 	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_alloc *al = ip->i_alloc;
-	struct inode *inode;
 	int error = 0;
 	u64 last_unlinked = NO_BLOCK, unlinked;
 
@@ -1210,22 +1209,27 @@ try_again:
 	if (error)
 		return error;
 
+	/* Find an rgrp suitable for allocation.  If it encounters any unlinked
+	   dinodes along the way, error will equal -EAGAIN and unlinked will
+	   contains it block address. We then need to look up that inode and
+	   try to free it, and try the allocation again. */
 	error = get_local_rgrp(ip, &unlinked, &last_unlinked);
 	if (error) {
 		if (ip != GFS2_I(sdp->sd_rindex))
 			gfs2_glock_dq_uninit(&al->al_ri_gh);
 		if (error != -EAGAIN)
 			return error;
-		error = gfs2_unlinked_inode_lookup(ip->i_inode.i_sb,
-						   unlinked, &inode);
-		if (inode)
-			iput(inode);
+
+		gfs2_process_unlinked_inode(ip->i_inode.i_sb, unlinked);
+		/* regardless of whether or not gfs2_process_unlinked_inode
+		   was successful, we don't want to repeat it again. */
+		last_unlinked = unlinked;
 		gfs2_log_flush(sdp, NULL);
-		if (error == GLR_TRYFAILED)
-			error = 0;
+		error = 0;
+
 		goto try_again;
 	}
-
+	/* no error, so we have the rgrp set in the inode's allocation. */
 	al->al_file = file;
 	al->al_line = line;
 

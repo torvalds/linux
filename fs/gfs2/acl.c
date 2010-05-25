@@ -236,9 +236,13 @@ static int gfs2_xattr_system_get(struct dentry *dentry, const char *name,
 				 void *buffer, size_t size, int xtype)
 {
 	struct inode *inode = dentry->d_inode;
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct posix_acl *acl;
 	int type;
 	int error;
+
+	if (!sdp->sd_args.ar_posix_acl)
+		return -EOPNOTSUPP;
 
 	type = gfs2_acl_type(name);
 	if (type < 0)
