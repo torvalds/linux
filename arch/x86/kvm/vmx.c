@@ -2659,7 +2659,9 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		msr |= MSR_IA32_APICBASE_BSP;
 	kvm_set_apic_base(&vmx->vcpu, msr);
 
-	fx_init(&vmx->vcpu);
+	ret = fx_init(&vmx->vcpu);
+	if (ret != 0)
+		goto out;
 
 	seg_setup(VCPU_SREG_CS);
 	/*

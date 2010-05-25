@@ -5114,12 +5114,19 @@ int kvm_arch_vcpu_ioctl_set_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 	return 0;
 }
 
-void fx_init(struct kvm_vcpu *vcpu)
+int fx_init(struct kvm_vcpu *vcpu)
 {
-	fpu_alloc(&vcpu->arch.guest_fpu);
+	int err;
+
+	err = fpu_alloc(&vcpu->arch.guest_fpu);
+	if (err)
+		return err;
+
 	fpu_finit(&vcpu->arch.guest_fpu);
 
 	vcpu->arch.cr0 |= X86_CR0_ET;
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(fx_init);
 

@@ -624,7 +624,7 @@ int kvm_pic_set_irq(void *opaque, int irq, int level);
 
 void kvm_inject_nmi(struct kvm_vcpu *vcpu);
 
-void fx_init(struct kvm_vcpu *vcpu);
+int fx_init(struct kvm_vcpu *vcpu);
 
 void kvm_mmu_flush_tlb(struct kvm_vcpu *vcpu);
 void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,

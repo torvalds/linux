@@ -904,13 +904,18 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	svm->asid_generation = 0;
 	init_vmcb(svm);
 
-	fx_init(&svm->vcpu);
+	err = fx_init(&svm->vcpu);
+	if (err)
+		goto free_page4;
+
 	svm->vcpu.arch.apic_base = 0xfee00000 | MSR_IA32_APICBASE_ENABLE;
 	if (kvm_vcpu_is_bsp(&svm->vcpu))
 		svm->vcpu.arch.apic_base |= MSR_IA32_APICBASE_BSP;
 
 	return &svm->vcpu;
 
+free_page4:
+	__free_page(hsave_page);
 free_page3:
 	__free_pages(nested_msrpm_pages, MSRPM_ALLOC_ORDER);
 free_page2:
