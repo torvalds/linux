@@ -1097,6 +1097,7 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 	struct azx *chip = dev_id;
 	struct azx_dev *azx_dev;
 	u32 status;
+	u8 sd_status;
 	int i, ok;
 
 	spin_lock(&chip->reg_lock);
@@ -1110,8 +1111,10 @@ static irqreturn_t azx_interrupt(int irq, void *dev_id)
 	for (i = 0; i < chip->num_streams; i++) {
 		azx_dev = &chip->azx_dev[i];
 		if (status & azx_dev->sd_int_sta_mask) {
+			sd_status = azx_sd_readb(azx_dev, SD_STS);
 			azx_sd_writeb(azx_dev, SD_STS, SD_INT_MASK);
-			if (!azx_dev->substream || !azx_dev->running)
+			if (!azx_dev->substream || !azx_dev->running ||
+			    !(sd_status & SD_INT_COMPLETE))
 				continue;
 			/* check whether this IRQ is really acceptable */
 			ok = azx_position_ok(chip, azx_dev);
