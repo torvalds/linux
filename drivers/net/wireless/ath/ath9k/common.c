@@ -211,9 +211,13 @@ static int ath_reserve_key_cache_slot_tkip(struct ath_common *common)
 	return -1;
 }
 
-static int ath_reserve_key_cache_slot(struct ath_common *common)
+static int ath_reserve_key_cache_slot(struct ath_common *common,
+				      enum ieee80211_key_alg alg)
 {
 	int i;
+
+	if (alg == ALG_TKIP)
+		return ath_reserve_key_cache_slot_tkip(common);
 
 	/* First, try to find slots that would not be available for TKIP. */
 	if (common->splitmic) {
@@ -283,6 +287,7 @@ int ath9k_cmn_key_config(struct ath_common *common,
 	struct ath_hw *ah = common->ah;
 	struct ath9k_keyval hk;
 	const u8 *mac = NULL;
+	u8 gmac[ETH_ALEN];
 	int ret = 0;
 	int idx;
 
@@ -306,9 +311,23 @@ int ath9k_cmn_key_config(struct ath_common *common,
 	memcpy(hk.kv_val, key->key, key->keylen);
 
 	if (!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
-		/* For now, use the default keys for broadcast keys. This may
-		 * need to change with virtual interfaces. */
-		idx = key->keyidx;
+		switch (vif->type) {
+		case NL80211_IFTYPE_AP:
+			memcpy(gmac, vif->addr, ETH_ALEN);
+			gmac[0] |= 0x01;
+			mac = gmac;
+			idx = ath_reserve_key_cache_slot(common, key->alg);
+			break;
+		case NL80211_IFTYPE_ADHOC:
+			memcpy(gmac, sta->addr, ETH_ALEN);
+			gmac[0] |= 0x01;
+			mac = gmac;
+			idx = ath_reserve_key_cache_slot(common, key->alg);
+			break;
+		default:
+			idx = key->keyidx;
+			break;
+		}
 	} else if (key->keyidx) {
 		if (WARN_ON(!sta))
 			return -EOPNOTSUPP;
@@ -325,13 +344,11 @@ int ath9k_cmn_key_config(struct ath_common *common,
 			return -EOPNOTSUPP;
 		mac = sta->addr;
 
-		if (key->alg == ALG_TKIP)
-			idx = ath_reserve_key_cache_slot_tkip(common);
-		else
-			idx = ath_reserve_key_cache_slot(common);
-		if (idx < 0)
-			return -ENOSPC; /* no free key cache entries */
+		idx = ath_reserve_key_cache_slot(common, key->alg);
 	}
+
+	if (idx < 0)
+		return -ENOSPC; /* no free key cache entries */
 
 	if (key->alg == ALG_TKIP)
 		ret = ath_setkey_tkip(common, idx, key->key, &hk, mac,
