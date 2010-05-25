@@ -706,8 +706,13 @@ retry:
  * @bdev is about to be opened exclusively.  Check @bdev can be opened
  * exclusively and mark that an exclusive open is in progress.  Each
  * successful call to this function must be matched with a call to
- * either bd_claim() or bd_abort_claiming().  If this function
- * succeeds, the matching bd_claim() is guaranteed to succeed.
+ * either bd_finish_claiming() or bd_abort_claiming() (which do not
+ * fail).
+ *
+ * This function is used to gain exclusive access to the block device
+ * without actually causing other exclusive open attempts to fail. It
+ * should be used when the open sequence itself requires exclusive
+ * access but may subsequently fail.
  *
  * CONTEXT:
  * Might sleep.
@@ -783,15 +788,47 @@ static void bd_abort_claiming(struct block_device *whole, void *holder)
 	__bd_abort_claiming(whole, holder);		/* releases bdev_lock */
 }
 
+/* increment holders when we have a legitimate claim. requires bdev_lock */
+static void __bd_claim(struct block_device *bdev, struct block_device *whole,
+					void *holder)
+{
+	/* note that for a whole device bd_holders
+	 * will be incremented twice, and bd_holder will
+	 * be set to bd_claim before being set to holder
+	 */
+	whole->bd_holders++;
+	whole->bd_holder = bd_claim;
+	bdev->bd_holders++;
+	bdev->bd_holder = holder;
+}
+
+/**
+ * bd_finish_claiming - finish claiming a block device
+ * @bdev: block device of interest (passed to bd_start_claiming())
+ * @whole: whole block device returned by bd_start_claiming()
+ * @holder: holder trying to claim @bdev
+ *
+ * Finish a claiming block started by bd_start_claiming().
+ *
+ * CONTEXT:
+ * Grabs and releases bdev_lock.
+ */
+static void bd_finish_claiming(struct block_device *bdev,
+				struct block_device *whole, void *holder)
+{
+	spin_lock(&bdev_lock);
+	BUG_ON(whole->bd_claiming != holder);
+	BUG_ON(!bd_may_claim(bdev, whole, holder));
+	__bd_claim(bdev, whole, holder);
+	__bd_abort_claiming(whole, holder); /* not actually an abort */
+}
+
 /**
  * bd_claim - claim a block device
  * @bdev: block device to claim
  * @holder: holder trying to claim @bdev
  *
- * Try to claim @bdev which must have been opened successfully.  This
- * function may be called with or without preceding
- * blk_start_claiming().  In the former case, this function is always
- * successful and terminates the claiming block.
+ * Try to claim @bdev which must have been opened successfully.
  *
  * CONTEXT:
  * Might sleep.
@@ -807,23 +844,10 @@ int bd_claim(struct block_device *bdev, void *holder)
 	might_sleep();
 
 	spin_lock(&bdev_lock);
-
 	res = bd_prepare_to_claim(bdev, whole, holder);
-	if (res == 0) {
-		/* note that for a whole device bd_holders
-		 * will be incremented twice, and bd_holder will
-		 * be set to bd_claim before being set to holder
-		 */
-		whole->bd_holders++;
-		whole->bd_holder = bd_claim;
-		bdev->bd_holders++;
-		bdev->bd_holder = holder;
-	}
-
-	if (whole->bd_claiming)
-		__bd_abort_claiming(whole, holder);	/* releases bdev_lock */
-	else
-		spin_unlock(&bdev_lock);
+	if (res == 0)
+		__bd_claim(bdev, whole, holder);
+	spin_unlock(&bdev_lock);
 
 	return res;
 }
@@ -1477,7 +1501,7 @@ static int blkdev_open(struct inode * inode, struct file * filp)
 
 	if (whole) {
 		if (res == 0)
-			BUG_ON(bd_claim(bdev, filp) != 0);
+			bd_finish_claiming(bdev, whole, filp);
 		else
 			bd_abort_claiming(whole, filp);
 	}
@@ -1713,7 +1737,7 @@ struct block_device *open_bdev_exclusive(const char *path, fmode_t mode, void *h
 	if ((mode & FMODE_WRITE) && bdev_read_only(bdev))
 		goto out_blkdev_put;
 
-	BUG_ON(bd_claim(bdev, holder) != 0);
+	bd_finish_claiming(bdev, whole, holder);
 	return bdev;
 
 out_blkdev_put:
