@@ -69,7 +69,6 @@
 
 #define MPHDRLEN	6	/* multilink protocol header length */
 #define MPHDRLEN_SSN	4	/* ditto with short sequence numbers */
-#define MIN_FRAG_SIZE	64
 
 /*
  * An instance of /dev/ppp can be associated with either a ppp
