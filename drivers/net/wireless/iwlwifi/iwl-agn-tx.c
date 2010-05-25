@@ -1208,7 +1208,7 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	int i, sh, ack;
 	u16 seq_ctl = le16_to_cpu(ba_resp->seq_ctl);
 	u16 scd_flow = le16_to_cpu(ba_resp->scd_flow);
-	u64 bitmap;
+	u64 bitmap, sent_bitmap;
 	int successes = 0;
 	struct ieee80211_tx_info *info;
 
@@ -1236,16 +1236,19 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 
 	/* check for success or failure according to the
 	 * transmitted bitmap and block-ack bitmap */
-	bitmap &= agg->bitmap;
+	sent_bitmap = bitmap & agg->bitmap;
 
 	/* For each frame attempted in aggregation,
 	 * update driver's record of tx frame's status. */
-	for (i = 0; i < agg->frame_count ; i++) {
-		ack = bitmap & (1ULL << i);
-		successes += !!ack;
+	i = 0;
+	while (sent_bitmap) {
+		ack = sent_bitmap & 1ULL;
+		successes += ack;
 		IWL_DEBUG_TX_REPLY(priv, "%s ON i=%d idx=%d raw=%d\n",
 			ack ? "ACK" : "NACK", i, (agg->start_idx + i) & 0xff,
 			agg->start_idx + i);
+		sent_bitmap >>= 1;
+		++i;
 	}
 
 	info = IEEE80211_SKB_CB(priv->txq[scd_flow].txb[agg->start_idx].skb);
