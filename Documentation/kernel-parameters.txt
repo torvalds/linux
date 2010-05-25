@@ -290,9 +290,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	advansys=	[HW,SCSI]
 			See header of drivers/scsi/advansys.c.
 
-	advwdt=		[HW,WDT] Advantech WDT
-			Format: <iostart>,<iostop>
-
 	aedsp16=	[HW,OSS] Audio Excel DSP 16
 			Format: <io>,<irq>,<dma>,<mss_io>,<mpu_io>,<mpu_irq>
 			See also header of sound/oss/aedsp16.c.
@@ -764,9 +761,6 @@ and is between 256 and 4096 characters. It is defined in the file
 	ether=		[HW,NET] Ethernet cards parameters
 			This option is obsoleted by the "netdev=" option, which
 			has equivalent usage. See its documentation for details.
-
-	eurwdt=		[HW,WDT] Eurotech CPU-1220/1410 onboard watchdog.
-			Format: <io>[,<irq>]
 
 	failslab=
 	fail_page_alloc=
@@ -2267,9 +2261,6 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	sched_debug	[KNL] Enables verbose scheduler debug messages.
 
-	sc1200wdt=	[HW,WDT] SC1200 WDT (watchdog) driver
-			Format: <io>[,<timeout>[,<isapnp>]]
-
 	scsi_debug_*=	[SCSI]
 			See drivers/scsi/scsi_debug.c.
 
@@ -2858,8 +2849,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	wd7000=		[HW,SCSI]
 			See header of drivers/scsi/wd7000.c.
 
-	wdt=		[WDT] Watchdog
-			See Documentation/watchdog/wdt.txt.
+	watchdog timers	[HW,WDT] For information on watchdog timers,
+			see Documentation/watchdog/watchdog-parameters.txt
+			or other driver-specific files in the
+			Documentation/watchdog/ directory.
 
 	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
 			default x2apic cluster mode on platforms
