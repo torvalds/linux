@@ -6205,6 +6205,30 @@ nouveau_bios_i2c_devices_takedown(struct drm_device *dev)
 		nouveau_i2c_fini(dev, entry);
 }
 
+static bool
+nouveau_bios_posted(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	bool was_locked;
+	unsigned htotal;
+
+	if (dev_priv->chipset >= NV_50) {
+		if (NVReadVgaCrtc(dev, 0, 0x00) == 0 &&
+		    NVReadVgaCrtc(dev, 0, 0x1a) == 0)
+			return false;
+		return true;
+	}
+
+	was_locked = NVLockVgaCrtcs(dev, false);
+	htotal  = NVReadVgaCrtc(dev, 0, 0x06);
+	htotal |= (NVReadVgaCrtc(dev, 0, 0x07) & 0x01) << 8;
+	htotal |= (NVReadVgaCrtc(dev, 0, 0x07) & 0x20) << 4;
+	htotal |= (NVReadVgaCrtc(dev, 0, 0x25) & 0x01) << 10;
+	htotal |= (NVReadVgaCrtc(dev, 0, 0x41) & 0x01) << 11;
+	NVLockVgaCrtcs(dev, was_locked);
+	return (htotal != 0);
+}
+
 int
 nouveau_bios_init(struct drm_device *dev)
 {
@@ -6239,9 +6263,7 @@ nouveau_bios_init(struct drm_device *dev)
 	bios->execute = false;
 
 	/* ... unless card isn't POSTed already */
-	if (dev_priv->card_type >= NV_10 &&
-	    NVReadVgaCrtc(dev, 0, 0x00) == 0 &&
-	    NVReadVgaCrtc(dev, 0, 0x1a) == 0) {
+	if (!nouveau_bios_posted(dev)) {
 		NV_INFO(dev, "Adaptor not initialised\n");
 		if (dev_priv->card_type < NV_50) {
 			NV_ERROR(dev, "Unable to POST this chipset\n");
