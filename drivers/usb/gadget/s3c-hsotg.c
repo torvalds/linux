@@ -300,6 +300,7 @@ static void s3c_hsotg_init_fifo(struct s3c_hsotg *hsotg)
 	unsigned int ep;
 	unsigned int addr;
 	unsigned int size;
+	int timeout;
 	u32 val;
 
 	/* the ryu 2.6.24 release ahs
@@ -335,6 +336,31 @@ static void s3c_hsotg_init_fifo(struct s3c_hsotg *hsotg)
 
 		writel(val, hsotg->regs + S3C_DPTXFSIZn(ep));
 	}
+
+	/* according to p428 of the design guide, we need to ensure that
+	 * all fifos are flushed before continuing */
+
+	writel(S3C_GRSTCTL_TxFNum(0x10) | S3C_GRSTCTL_TxFFlsh |
+	       S3C_GRSTCTL_RxFFlsh, hsotg->regs + S3C_GRSTCTL);
+
+	/* wait until the fifos are both flushed */
+	timeout = 100;
+	while (1) {
+		val = readl(hsotg->regs + S3C_GRSTCTL);
+
+		if ((val & (S3C_GRSTCTL_TxFFlsh | S3C_GRSTCTL_RxFFlsh)) == 0)
+			break;
+
+		if (--timeout == 0) {
+			dev_err(hsotg->dev,
+				"%s: timeout flushing fifos (GRSTCTL=%08x)\n",
+				__func__, val);
+		}
+
+		udelay(1);
+	}
+
+	dev_dbg(hsotg->dev, "FIFOs reset, timeout at %d\n", timeout);
 }
 
 /**
