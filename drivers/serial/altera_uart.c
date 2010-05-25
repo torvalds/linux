@@ -391,31 +391,24 @@ int __init early_altera_uart_setup(struct altera_uart_platform_uart *platp)
 	return 0;
 }
 
-static void altera_uart_console_putc(struct console *co, const char c)
+static void altera_uart_console_putc(struct uart_port *port, const char c)
 {
-	struct uart_port *port = &(altera_uart_ports + co->index)->port;
-	int i;
+	while (!(readl(port->membase + ALTERA_UART_STATUS_REG) &
+	         ALTERA_UART_STATUS_TRDY_MSK))
+		cpu_relax();
 
-	for (i = 0; i < 0x10000; i++) {
-		if (readl(port->membase + ALTERA_UART_STATUS_REG) &
-		    ALTERA_UART_STATUS_TRDY_MSK)
-			break;
-	}
 	writel(c, port->membase + ALTERA_UART_TXDATA_REG);
-	for (i = 0; i < 0x10000; i++) {
-		if (readl(port->membase + ALTERA_UART_STATUS_REG) &
-		    ALTERA_UART_STATUS_TRDY_MSK)
-			break;
-	}
 }
 
 static void altera_uart_console_write(struct console *co, const char *s,
 				      unsigned int count)
 {
+	struct uart_port *port = &(altera_uart_ports + co->index)->port;
+
 	for (; count; count--, s++) {
-		altera_uart_console_putc(co, *s);
+		altera_uart_console_putc(port, *s);
 		if (*s == '\n')
-			altera_uart_console_putc(co, '\r');
+			altera_uart_console_putc(port, '\r');
 	}
 }
 
