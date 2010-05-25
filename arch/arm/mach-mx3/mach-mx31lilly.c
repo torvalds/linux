@@ -277,6 +277,7 @@ static struct spi_board_info mc13783_dev __initdata = {
 	.bus_num	= 1,
 	.chip_select	= 0,
 	.platform_data	= &mc13783_pdata,
+	.irq		= IOMUX_TO_IRQ(MX31_PIN_GPIO1_3),
 };
 
 static int mx31lilly_baseboard;
