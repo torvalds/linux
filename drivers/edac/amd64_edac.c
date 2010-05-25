@@ -160,7 +160,7 @@ static int amd64_search_set_scrub_rate(struct pci_dev *ctl, u32 new_bw,
 	return 0;
 }
 
-static int amd64_set_scrub_rate(struct mem_ctl_info *mci, u32 *bandwidth)
+static int amd64_set_scrub_rate(struct mem_ctl_info *mci, u32 bandwidth)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u32 min_scrubrate = 0x0;
@@ -180,8 +180,8 @@ static int amd64_set_scrub_rate(struct mem_ctl_info *mci, u32 *bandwidth)
 		amd64_printk(KERN_ERR, "Unsupported family!\n");
 		return -EINVAL;
 	}
-	return amd64_search_set_scrub_rate(pvt->misc_f3_ctl, *bandwidth,
-			min_scrubrate);
+	return amd64_search_set_scrub_rate(pvt->misc_f3_ctl, bandwidth,
+					   min_scrubrate);
 }
 
 static int amd64_get_scrub_rate(struct mem_ctl_info *mci, u32 *bw)

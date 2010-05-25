@@ -124,19 +124,6 @@ static const char *edac_caps[] = {
 	[EDAC_S16ECD16ED] = "S16ECD16ED"
 };
 
-
-
-static ssize_t memctrl_int_store(void *ptr, const char *buffer, size_t count)
-{
-	int *value = (int *)ptr;
-
-	if (isdigit(*buffer))
-		*value = simple_strtoul(buffer, NULL, 0);
-
-	return count;
-}
-
-
 /* EDAC sysfs CSROW data structures and methods
  */
 
@@ -450,53 +437,54 @@ static ssize_t mci_reset_counters_store(struct mem_ctl_info *mci,
 
 /* memory scrubbing */
 static ssize_t mci_sdram_scrub_rate_store(struct mem_ctl_info *mci,
-					const char *data, size_t count)
+					  const char *data, size_t count)
 {
-	u32 bandwidth = -1;
+	unsigned long bandwidth = 0;
+	int err;
 
-	if (mci->set_sdram_scrub_rate) {
-
-		memctrl_int_store(&bandwidth, data, count);
-
-		if (!(*mci->set_sdram_scrub_rate) (mci, &bandwidth)) {
-			edac_printk(KERN_DEBUG, EDAC_MC,
-				"Scrub rate set successfully, applied: %d\n",
-				bandwidth);
-		} else {
-			/* FIXME: error codes maybe? */
-			edac_printk(KERN_DEBUG, EDAC_MC,
-				"Scrub rate set FAILED, could not apply: %d\n",
-				bandwidth);
-		}
-	} else {
-		/* FIXME: produce "not implemented" ERROR for user-side. */
+	if (!mci->set_sdram_scrub_rate) {
 		edac_printk(KERN_WARNING, EDAC_MC,
-			"Memory scrubbing 'set'control is not implemented!\n");
+			    "Memory scrub rate setting not implemented!\n");
+		return -EINVAL;
 	}
-	return count;
+
+	if (strict_strtoul(data, 10, &bandwidth) < 0)
+		return -EINVAL;
+
+	err = mci->set_sdram_scrub_rate(mci, (u32)bandwidth);
+	if (err) {
+		edac_printk(KERN_DEBUG, EDAC_MC,
+			    "Failed setting scrub rate to %lu\n", bandwidth);
+		return -EINVAL;
+	}
+	else {
+		edac_printk(KERN_DEBUG, EDAC_MC,
+			    "Scrub rate set to: %lu\n", bandwidth);
+		return count;
+	}
 }
 
 static ssize_t mci_sdram_scrub_rate_show(struct mem_ctl_info *mci, char *data)
 {
-	u32 bandwidth = -1;
+	u32 bandwidth = 0;
+	int err;
 
-	if (mci->get_sdram_scrub_rate) {
-		if (!(*mci->get_sdram_scrub_rate) (mci, &bandwidth)) {
-			edac_printk(KERN_DEBUG, EDAC_MC,
-				"Scrub rate successfully, fetched: %d\n",
-				bandwidth);
-		} else {
-			/* FIXME: error codes maybe? */
-			edac_printk(KERN_DEBUG, EDAC_MC,
-				"Scrub rate fetch FAILED, got: %d\n",
-				bandwidth);
-		}
-	} else {
-		/* FIXME: produce "not implemented" ERROR for user-side.  */
+	if (!mci->get_sdram_scrub_rate) {
 		edac_printk(KERN_WARNING, EDAC_MC,
-			"Memory scrubbing 'get' control is not implemented\n");
+			    "Memory scrub rate reading not implemented\n");
+		return -EINVAL;
 	}
-	return sprintf(data, "%d\n", bandwidth);
+
+	err = mci->get_sdram_scrub_rate(mci, &bandwidth);
+	if (err) {
+		edac_printk(KERN_DEBUG, EDAC_MC, "Error reading scrub rate\n");
+		return err;
+	}
+	else {
+		edac_printk(KERN_DEBUG, EDAC_MC,
+			    "Read scrub rate: %d\n", bandwidth);
+		return sprintf(data, "%d\n", bandwidth);
+	}
 }
 
 /* default attribute files for the MCI object */
