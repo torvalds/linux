@@ -31,7 +31,7 @@ static inline u32 task_cls_classid(struct task_struct *p)
 		return 0;
 
 	return container_of(task_subsys_state(p, net_cls_subsys_id),
-			    struct cgroup_cls_state, css).classid;
+			    struct cgroup_cls_state, css)->classid;
 }
 #else
 extern int net_cls_subsys_id;
