@@ -687,8 +687,11 @@ group_sched_in(struct perf_event *group_event,
 	if (txn)
 		pmu->start_txn(pmu);
 
-	if (event_sched_in(group_event, cpuctx, ctx))
+	if (event_sched_in(group_event, cpuctx, ctx)) {
+		if (txn)
+			pmu->cancel_txn(pmu);
 		return -EAGAIN;
+	}
 
 	/*
 	 * Schedule in siblings as one group (if any):
@@ -710,9 +713,6 @@ group_sched_in(struct perf_event *group_event,
 	}
 
 group_error:
-	if (txn)
-		pmu->cancel_txn(pmu);
-
 	/*
 	 * Groups can be scheduled in as one unit only, so undo any
 	 * partial group before returning:
@@ -723,6 +723,9 @@ group_error:
 		event_sched_out(event, cpuctx, ctx);
 	}
 	event_sched_out(group_event, cpuctx, ctx);
+
+	if (txn)
+		pmu->cancel_txn(pmu);
 
 	return -EAGAIN;
 }
