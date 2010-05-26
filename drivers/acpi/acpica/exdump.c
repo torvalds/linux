@@ -812,7 +812,7 @@ void acpi_ex_dump_namespace_node(struct acpi_namespace_node *node, u32 flags)
 	acpi_ex_out_string("Type", acpi_ut_get_type_name(node->type));
 	acpi_ex_out_pointer("Attached Object",
 			    acpi_ns_get_attached_object(node));
-	acpi_ex_out_pointer("Parent", acpi_ns_get_parent_node(node));
+	acpi_ex_out_pointer("Parent", node->parent);
 
 	acpi_ex_dump_object(ACPI_CAST_PTR(union acpi_operand_object, node),
 			    acpi_ex_dump_node);
