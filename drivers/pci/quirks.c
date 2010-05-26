@@ -2126,11 +2126,28 @@ static void __devinit quirk_disable_msi(struct pci_dev *dev)
 	}
 }
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_8131_BRIDGE, quirk_disable_msi);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x9602, quirk_disable_msi);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ASUSTEK, 0x9602, quirk_disable_msi);
-DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AI, 0x9602, quirk_disable_msi);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_VIA, 0xa238, quirk_disable_msi);
 DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_ATI, 0x5a3f, quirk_disable_msi);
+
+/*
+ * The APC bridge device in AMD 780 family northbridges has some random
+ * OEM subsystem ID in its vendor ID register (erratum 18), so instead
+ * we use the possible vendor/device IDs of the host bridge for the
+ * declared quirk, and search for the APC bridge by slot number.
+ */
+static void __devinit quirk_amd_780_apc_msi(struct pci_dev *host_bridge)
+{
+	struct pci_dev *apc_bridge;
+
+	apc_bridge = pci_get_slot(host_bridge->bus, PCI_DEVFN(1, 0));
+	if (apc_bridge) {
+		if (apc_bridge->device == 0x9602)
+			quirk_disable_msi(apc_bridge);
+		pci_dev_put(apc_bridge);
+	}
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x9600, quirk_amd_780_apc_msi);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_AMD, 0x9601, quirk_amd_780_apc_msi);
 
 /* Go through the list of Hypertransport capabilities and
  * return 1 if a HT MSI capability is found and enabled */
