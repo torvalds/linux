@@ -23,6 +23,7 @@
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/kxtf9.h>
+#include <linux/max9635.h>
 #include <linux/platform_device.h>
 
 #include <linux/regulator/consumer.h>
@@ -34,6 +35,7 @@
 static struct regulator *stingray_bmp085_regulator;
 
 #define KXTF9_IRQ_GPIO	TEGRA_GPIO_PV3
+#define MAX9635_IRQ_GPIO	TEGRA_GPIO_PV1
 
 static int stingray_bmp085_init(void)
 {
@@ -171,6 +173,57 @@ static void stingray_kxtf9_init(void)
 	gpio_request(KXTF9_IRQ_GPIO, "kxtf9_irq");
 	gpio_direction_input(KXTF9_IRQ_GPIO);
 }
+
+static struct regulator *stingray_max9635_regulator;
+static int stingray_max9635_power_on(void)
+{
+	if (stingray_max9635_regulator)
+		return regulator_enable(stingray_max9635_regulator);
+	return 0;
+}
+static int stingray_max9635_power_off(void)
+{
+	if (stingray_max9635_regulator)
+		return regulator_disable(stingray_max9635_regulator);
+	return 0;
+}
+struct max9635_als_zone_data stingray_zone_data[] = {
+	{ 0x00, 0x57},
+	{ 0x58, 0x95},
+	{ 0xa3, 0xa4},
+	{ 0xa5, 0xab},
+	{ 0xac, 0xef},
+};
+
+struct max9635_platform_data stingray_max9635_pdata = {
+	.configure = 0x4c,
+	.threshold_timer = 0x00,
+	.def_low_threshold = 0x58,
+	.def_high_threshold = 0x95,
+	.lens_percent_t = 100,
+	.als_lux_table = stingray_zone_data,
+	.num_of_zones = ARRAY_SIZE(stingray_zone_data),
+	.power_on = stingray_max9635_power_on,
+	.power_off = stingray_max9635_power_off
+};
+
+static int stingray_max9635_init(void)
+{
+	tegra_gpio_enable(MAX9635_IRQ_GPIO);
+	gpio_request(MAX9635_IRQ_GPIO, "max9635_irq");
+	gpio_direction_input(MAX9635_IRQ_GPIO);
+
+	/* TO DO: Add regulator init code here as well
+	struct regulator *reg;
+	reg = regulator_get(NULL, "vhvio");
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
+	stingray_max9635_regulator = reg;
+*/
+	stingray_max9635_regulator = NULL;
+	return 0;
+}
+
 static struct i2c_board_info __initdata stingray_i2c_bus4_sensor_info[] = {
 	{
 		I2C_BOARD_INFO("kxtf9", 0x0F),
@@ -185,12 +238,18 @@ static struct i2c_board_info __initdata stingray_i2c_bus1_sensor_info[] = {
 	 .platform_data = &stingray_barom_pdata,
 	 .irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PW0),
 	 },
+	{
+		 I2C_BOARD_INFO(MAX9635_NAME, 0x4b),
+		.platform_data = &stingray_max9635_pdata,
+		.irq = TEGRA_GPIO_TO_IRQ(MAX9635_IRQ_GPIO),
+	 },
 };
 
 int __init stingray_sensors_init(void)
 {
 	stingray_bmp085_init();
 	stingray_kxtf9_init();
+	stingray_max9635_init();
 	i2c_register_board_info(3, stingray_i2c_bus4_sensor_info,
 		ARRAY_SIZE(stingray_i2c_bus4_sensor_info));
 	return i2c_register_board_info(0, stingray_i2c_bus1_sensor_info,
