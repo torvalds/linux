@@ -110,7 +110,7 @@ static struct scsi_host_template cs5520_sht = {
 
 static struct ata_port_operations cs5520_port_ops = {
 	.inherits		= &ata_bmdma_port_ops,
-	.qc_prep		= ata_sff_dumb_qc_prep,
+	.qc_prep		= ata_bmdma_dumb_qc_prep,
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= cs5520_set_piomode,
 };

@@ -99,8 +99,9 @@ int cx25840_audio_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl);
 
 /* ----------------------------------------------------------------------- */
 /* cx25850-vbi.c                                                           */
-int cx25840_vbi_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt);
-int cx25840_vbi_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt);
+int cx25840_s_raw_fmt(struct v4l2_subdev *sd, struct v4l2_vbi_format *fmt);
+int cx25840_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *fmt);
+int cx25840_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *fmt);
 int cx25840_decode_vbi_line(struct v4l2_subdev *sd, struct v4l2_decode_vbi_line *vbi);
 
 #endif

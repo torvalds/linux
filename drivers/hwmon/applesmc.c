@@ -195,6 +195,9 @@ static unsigned int applesmc_accelerometer;
 /* Indicates whether this computer has light sensors and keyboard backlight. */
 static unsigned int applesmc_light;
 
+/* The number of fans handled by the driver */
+static unsigned int fans_handled;
+
 /* Indicates which temperature sensors set to use. */
 static unsigned int applesmc_temperature_set;
 
@@ -1492,39 +1495,24 @@ static int __init applesmc_init(void)
 
 	/* create fan files */
 	count = applesmc_get_fan_count();
-	if (count < 0) {
+	if (count < 0)
 		printk(KERN_ERR "applesmc: Cannot get the number of fans.\n");
-	} else {
+	else
 		printk(KERN_INFO "applesmc: %d fans found.\n", count);
 
-		switch (count) {
-		default:
-			printk(KERN_WARNING "applesmc: More than 4 fans found,"
-					" but at most 4 fans are supported"
-						" by the driver.\n");
-		case 4:
-			ret = sysfs_create_group(&pdev->dev.kobj,
-						 &fan_attribute_groups[3]);
-			if (ret)
-				goto out_key_enumeration;
-		case 3:
-			ret = sysfs_create_group(&pdev->dev.kobj,
-						 &fan_attribute_groups[2]);
-			if (ret)
-				goto out_key_enumeration;
-		case 2:
-			ret = sysfs_create_group(&pdev->dev.kobj,
-						 &fan_attribute_groups[1]);
-			if (ret)
-				goto out_key_enumeration;
-		case 1:
-			ret = sysfs_create_group(&pdev->dev.kobj,
-						 &fan_attribute_groups[0]);
-			if (ret)
-				goto out_fan_1;
-		case 0:
-			;
-		}
+	if (count > 4) {
+		count = 4;
+		printk(KERN_WARNING "applesmc: More than 4 fans found,"
+		       " but at most 4 fans are supported"
+		       " by the driver.\n");
+	}
+
+	while (fans_handled < count) {
+		ret = sysfs_create_group(&pdev->dev.kobj,
+					 &fan_attribute_groups[fans_handled]);
+		if (ret)
+			goto out_fans;
+		fans_handled++;
 	}
 
 	for (i = 0;
@@ -1593,10 +1581,10 @@ out_accelerometer:
 		applesmc_release_accelerometer();
 out_temperature:
 	sysfs_remove_group(&pdev->dev.kobj, &temperature_attributes_group);
-	sysfs_remove_group(&pdev->dev.kobj, &fan_attribute_groups[0]);
-out_fan_1:
-	sysfs_remove_group(&pdev->dev.kobj, &fan_attribute_groups[1]);
-out_key_enumeration:
+out_fans:
+	while (fans_handled)
+		sysfs_remove_group(&pdev->dev.kobj,
+				   &fan_attribute_groups[--fans_handled]);
 	sysfs_remove_group(&pdev->dev.kobj, &key_enumeration_group);
 out_name:
 	sysfs_remove_file(&pdev->dev.kobj, &dev_attr_name.attr);
@@ -1622,8 +1610,9 @@ static void __exit applesmc_exit(void)
 	if (applesmc_accelerometer)
 		applesmc_release_accelerometer();
 	sysfs_remove_group(&pdev->dev.kobj, &temperature_attributes_group);
-	sysfs_remove_group(&pdev->dev.kobj, &fan_attribute_groups[0]);
-	sysfs_remove_group(&pdev->dev.kobj, &fan_attribute_groups[1]);
+	while (fans_handled)
+		sysfs_remove_group(&pdev->dev.kobj,
+				   &fan_attribute_groups[--fans_handled]);
 	sysfs_remove_group(&pdev->dev.kobj, &key_enumeration_group);
 	sysfs_remove_file(&pdev->dev.kobj, &dev_attr_name.attr);
 	platform_device_unregister(pdev);

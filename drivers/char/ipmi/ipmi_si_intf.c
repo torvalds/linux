@@ -2469,7 +2469,7 @@ static int __devinit ipmi_of_probe(struct of_device *dev,
 	struct smi_info *info;
 	struct resource resource;
 	const int *regsize, *regspacing, *regshift;
-	struct device_node *np = dev->node;
+	struct device_node *np = dev->dev.of_node;
 	int ret;
 	int proplen;
 
@@ -2525,7 +2525,7 @@ static int __devinit ipmi_of_probe(struct of_device *dev,
 	info->io.regspacing	= regspacing ? *regspacing : DEFAULT_REGSPACING;
 	info->io.regshift	= regshift ? *regshift : 0;
 
-	info->irq		= irq_of_parse_and_map(dev->node, 0);
+	info->irq		= irq_of_parse_and_map(dev->dev.of_node, 0);
 	info->dev		= &dev->dev;
 
 	dev_dbg(&dev->dev, "addr 0x%lx regsize %d spacing %d irq %x\n",
@@ -2555,8 +2555,11 @@ static struct of_device_id ipmi_match[] =
 };
 
 static struct of_platform_driver ipmi_of_platform_driver = {
-	.name		= "ipmi",
-	.match_table	= ipmi_match,
+	.driver = {
+		.name = "ipmi",
+		.owner = THIS_MODULE,
+		.of_match_table = ipmi_match,
+	},
 	.probe		= ipmi_of_probe,
 	.remove		= __devexit_p(ipmi_of_remove),
 };

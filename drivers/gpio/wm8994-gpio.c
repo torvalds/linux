@@ -81,6 +81,18 @@ static void wm8994_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
 	wm8994_set_bits(wm8994, WM8994_GPIO_1 + offset, WM8994_GPN_LVL, value);
 }
 
+static int wm8994_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
+{
+	struct wm8994_gpio *wm8994_gpio = to_wm8994_gpio(chip);
+	struct wm8994 *wm8994 = wm8994_gpio->wm8994;
+
+	if (!wm8994->irq_base)
+		return -EINVAL;
+
+	return wm8994->irq_base + offset;
+}
+
+
 #ifdef CONFIG_DEBUG_FS
 static void wm8994_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 {

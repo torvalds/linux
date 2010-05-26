@@ -10,38 +10,6 @@
 #include "core.h"
 
 struct ieee80211_channel *
-rdev_fixed_channel(struct cfg80211_registered_device *rdev,
-		   struct wireless_dev *for_wdev)
-{
-	struct wireless_dev *wdev;
-	struct ieee80211_channel *result = NULL;
-
-	WARN_ON(!mutex_is_locked(&rdev->devlist_mtx));
-
-	list_for_each_entry(wdev, &rdev->netdev_list, list) {
-		if (wdev == for_wdev)
-			continue;
-
-		/*
-		 * Lock manually to tell lockdep about allowed
-		 * nesting here if for_wdev->mtx is held already.
-		 * This is ok as it's all under the rdev devlist
-		 * mutex and as such can only be done once at any
-		 * given time.
-		 */
-		mutex_lock_nested(&wdev->mtx, SINGLE_DEPTH_NESTING);
-		if (wdev->current_bss)
-			result = wdev->current_bss->pub.channel;
-		wdev_unlock(wdev);
-
-		if (result)
-			break;
-	}
-
-	return result;
-}
-
-struct ieee80211_channel *
 rdev_freq_to_chan(struct cfg80211_registered_device *rdev,
 		  int freq, enum nl80211_channel_type channel_type)
 {
@@ -75,15 +43,22 @@ rdev_freq_to_chan(struct cfg80211_registered_device *rdev,
 	return chan;
 }
 
-int rdev_set_freq(struct cfg80211_registered_device *rdev,
-		  struct wireless_dev *for_wdev,
-		  int freq, enum nl80211_channel_type channel_type)
+int cfg80211_set_freq(struct cfg80211_registered_device *rdev,
+		      struct wireless_dev *wdev, int freq,
+		      enum nl80211_channel_type channel_type)
 {
 	struct ieee80211_channel *chan;
 	int result;
 
-	if (rdev_fixed_channel(rdev, for_wdev))
-		return -EBUSY;
+	if (wdev && wdev->iftype == NL80211_IFTYPE_MONITOR)
+		wdev = NULL;
+
+	if (wdev) {
+		ASSERT_WDEV_LOCK(wdev);
+
+		if (!netif_running(wdev->netdev))
+			return -ENETDOWN;
+	}
 
 	if (!rdev->ops->set_channel)
 		return -EOPNOTSUPP;
@@ -92,11 +67,14 @@ int rdev_set_freq(struct cfg80211_registered_device *rdev,
 	if (!chan)
 		return -EINVAL;
 
-	result = rdev->ops->set_channel(&rdev->wiphy, chan, channel_type);
+	result = rdev->ops->set_channel(&rdev->wiphy,
+					wdev ? wdev->netdev : NULL,
+					chan, channel_type);
 	if (result)
 		return result;
 
-	rdev->channel = chan;
+	if (wdev)
+		wdev->channel = chan;
 
 	return 0;
 }

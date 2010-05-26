@@ -1503,7 +1503,6 @@ static int ioc3_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	BARRIER();
 
-	dev->trans_start = jiffies;
 	ip->tx_skbs[produce] = skb;			/* Remember skb */
 	produce = (produce + 1) & 127;
 	ip->tx_pi = produce;
@@ -1665,7 +1664,7 @@ static int ioc3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 static void ioc3_set_multicast_list(struct net_device *dev)
 {
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	struct ioc3_private *ip = netdev_priv(dev);
 	struct ioc3 *ioc3 = ip->regs;
 	u64 ehar = 0;
@@ -1689,8 +1688,8 @@ static void ioc3_set_multicast_list(struct net_device *dev)
 			ip->ehar_h = 0xffffffff;
 			ip->ehar_l = 0xffffffff;
 		} else {
-			netdev_for_each_mc_addr(dmi, dev) {
-				char *addr = dmi->dmi_addr;
+			netdev_for_each_mc_addr(ha, dev) {
+				char *addr = ha->addr;
 
 				if (!(*addr & 1))
 					continue;

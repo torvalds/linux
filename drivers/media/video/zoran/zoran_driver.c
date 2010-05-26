@@ -60,7 +60,7 @@
 
 #include <linux/spinlock.h>
 
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/v4l2-ioctl.h>
 #include "videocodec.h"
@@ -1549,11 +1549,11 @@ static long zoran_default(struct file *file, void *__fh, int cmd, void *arg)
 		mutex_lock(&zr->resource_lock);
 
 		if (zr->norm & V4L2_STD_NTSC)
-			bparams->norm = VIDEO_MODE_NTSC;
-		else if (zr->norm & V4L2_STD_PAL)
-			bparams->norm = VIDEO_MODE_PAL;
+			bparams->norm = ZORAN_VIDMODE_NTSC;
+		else if (zr->norm & V4L2_STD_SECAM)
+			bparams->norm = ZORAN_VIDMODE_SECAM;
 		else
-			bparams->norm = VIDEO_MODE_SECAM;
+			bparams->norm = ZORAN_VIDMODE_PAL;
 
 		bparams->input = zr->input;
 
@@ -1789,11 +1789,11 @@ gstat_unlock_and_return:
 			bstat->signal =
 			    (status & V4L2_IN_ST_NO_SIGNAL) ? 0 : 1;
 			if (norm & V4L2_STD_NTSC)
-				bstat->norm = VIDEO_MODE_NTSC;
+				bstat->norm = ZORAN_VIDMODE_NTSC;
 			else if (norm & V4L2_STD_SECAM)
-				bstat->norm = VIDEO_MODE_SECAM;
+				bstat->norm = ZORAN_VIDMODE_SECAM;
 			else
-				bstat->norm = VIDEO_MODE_PAL;
+				bstat->norm = ZORAN_VIDMODE_PAL;
 
 			bstat->color =
 			    (status & V4L2_IN_ST_NO_COLOR) ? 0 : 1;

@@ -11,6 +11,12 @@
 #include <linux/cpumask.h>
 #include <linux/percpu.h>
 
+struct vmemmap_backing {
+	struct vmemmap_backing *list;
+	unsigned long phys;
+	unsigned long virt_addr;
+};
+
 /*
  * Functions that deal with pagetables that could be at any level of
  * the table need to be passed an "index_size" so they know how to

@@ -19,22 +19,8 @@
 #define APCI035_BOARD_VENDOR_ID		0x15B8
 #define APCI035_ADDRESS_RANGE		255
 
-int i_TW_Number;
-struct {
-	int i_Gain;
-	int i_Polarity;
-	int i_OffsetRange;
-	int i_Coupling;
-	int i_SingleDiff;
-	int i_AutoCalibration;
-	unsigned int ui_ReloadValue;
-	unsigned int ui_TimeUnitReloadVal;
-	int i_Interrupt;
-	int i_ModuleSelection;
-} Config_Parameters_Main;
-
 /* ANALOG INPUT RANGE */
-struct comedi_lrange range_apci035_ai = { 8, {
+static struct comedi_lrange range_apci035_ai = { 8, {
 				       BIP_RANGE(10),
 				       BIP_RANGE(5),
 				       BIP_RANGE(2),

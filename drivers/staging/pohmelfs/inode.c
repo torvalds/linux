@@ -685,7 +685,7 @@ static int pohmelfs_readpages_trans_complete(struct page **__pages, unsigned int
 		goto err_out_free;
 	}
 
-	for (i=0; i<num; ++i) {
+	for (i = 0; i < num; ++i) {
 		page = pages[i];
 
 		if (err)
@@ -1431,35 +1431,35 @@ static int pohmelfs_parse_options(char *options, struct pohmelfs_sb *psb, int re
 			continue;
 
 		switch (token) {
-			case pohmelfs_opt_idx:
-				psb->idx = option;
-				break;
-			case pohmelfs_opt_trans_scan_timeout:
-				psb->trans_scan_timeout = msecs_to_jiffies(option);
-				break;
-			case pohmelfs_opt_drop_scan_timeout:
-				psb->drop_scan_timeout = msecs_to_jiffies(option);
-				break;
-			case pohmelfs_opt_wait_on_page_timeout:
-				psb->wait_on_page_timeout = msecs_to_jiffies(option);
-				break;
-			case pohmelfs_opt_mcache_timeout:
-				psb->mcache_timeout = msecs_to_jiffies(option);
-				break;
-			case pohmelfs_opt_trans_retries:
-				psb->trans_retries = option;
-				break;
-			case pohmelfs_opt_crypto_thread_num:
-				psb->crypto_thread_num = option;
-				break;
-			case pohmelfs_opt_trans_max_pages:
-				psb->trans_max_pages = option;
-				break;
-			case pohmelfs_opt_crypto_fail_unsupported:
-				psb->crypto_fail_unsupported = 1;
-				break;
-			default:
-				return -EINVAL;
+		case pohmelfs_opt_idx:
+			psb->idx = option;
+			break;
+		case pohmelfs_opt_trans_scan_timeout:
+			psb->trans_scan_timeout = msecs_to_jiffies(option);
+			break;
+		case pohmelfs_opt_drop_scan_timeout:
+			psb->drop_scan_timeout = msecs_to_jiffies(option);
+			break;
+		case pohmelfs_opt_wait_on_page_timeout:
+			psb->wait_on_page_timeout = msecs_to_jiffies(option);
+			break;
+		case pohmelfs_opt_mcache_timeout:
+			psb->mcache_timeout = msecs_to_jiffies(option);
+			break;
+		case pohmelfs_opt_trans_retries:
+			psb->trans_retries = option;
+			break;
+		case pohmelfs_opt_crypto_thread_num:
+			psb->crypto_thread_num = option;
+			break;
+		case pohmelfs_opt_trans_max_pages:
+			psb->trans_max_pages = option;
+			break;
+		case pohmelfs_opt_crypto_fail_unsupported:
+			psb->crypto_fail_unsupported = 1;
+			break;
+		default:
+			return -EINVAL;
 		}
 	}
 
@@ -1777,7 +1777,7 @@ static int pohmelfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
 			seq_printf(m, "%pi6:%u", &sin->sin6_addr, ntohs(sin->sin6_port));
 		} else {
 			unsigned int i;
-			for (i=0; i<ctl->addrlen; ++i)
+			for (i = 0; i < ctl->addrlen; ++i)
 				seq_printf(m, "%02x.", ctl->addr.addr[i]);
 		}
 
@@ -2035,7 +2035,7 @@ err_out_exit:
 
 static void __exit exit_pohmel_fs(void)
 {
-        unregister_filesystem(&pohmel_fs_type);
+	unregister_filesystem(&pohmel_fs_type);
 	pohmelfs_destroy_inodecache();
 	pohmelfs_mcache_exit();
 	pohmelfs_config_exit();

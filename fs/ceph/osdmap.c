@@ -1041,12 +1041,33 @@ static int *calc_pg_raw(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
 }
 
 /*
+ * Return acting set for given pgid.
+ */
+int ceph_calc_pg_acting(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
+			int *acting)
+{
+	int rawosds[CEPH_PG_MAX_SIZE], *osds;
+	int i, o, num = CEPH_PG_MAX_SIZE;
+
+	osds = calc_pg_raw(osdmap, pgid, rawosds, &num);
+	if (!osds)
+		return -1;
+
+	/* primary is first up osd */
+	o = 0;
+	for (i = 0; i < num; i++)
+		if (ceph_osd_is_up(osdmap, osds[i]))
+			acting[o++] = osds[i];
+	return o;
+}
+
+/*
  * Return primary osd for given pgid, or -1 if none.
  */
 int ceph_calc_pg_primary(struct ceph_osdmap *osdmap, struct ceph_pg pgid)
 {
-	int rawosds[10], *osds;
-	int i, num = ARRAY_SIZE(rawosds);
+	int rawosds[CEPH_PG_MAX_SIZE], *osds;
+	int i, num = CEPH_PG_MAX_SIZE;
 
 	osds = calc_pg_raw(osdmap, pgid, rawosds, &num);
 	if (!osds)
@@ -1054,9 +1075,7 @@ int ceph_calc_pg_primary(struct ceph_osdmap *osdmap, struct ceph_pg pgid)
 
 	/* primary is first up osd */
 	for (i = 0; i < num; i++)
-		if (ceph_osd_is_up(osdmap, osds[i])) {
+		if (ceph_osd_is_up(osdmap, osds[i]))
 			return osds[i];
-			break;
-		}
 	return -1;
 }

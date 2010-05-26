@@ -211,6 +211,8 @@ int pnp_check_port(struct pnp_dev *dev, struct resource *res)
 			if (tres->flags & IORESOURCE_IO) {
 				if (cannot_compare(tres->flags))
 					continue;
+				if (tres->flags & IORESOURCE_WINDOW)
+					continue;
 				tport = &tres->start;
 				tend = &tres->end;
 				if (ranged_conflict(port, end, tport, tend))
@@ -270,6 +272,8 @@ int pnp_check_mem(struct pnp_dev *dev, struct resource *res)
 		     i++) {
 			if (tres->flags & IORESOURCE_MEM) {
 				if (cannot_compare(tres->flags))
+					continue;
+				if (tres->flags & IORESOURCE_WINDOW)
 					continue;
 				taddr = &tres->start;
 				tend = &tres->end;

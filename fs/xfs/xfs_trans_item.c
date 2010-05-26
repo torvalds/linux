@@ -299,6 +299,7 @@ xfs_trans_next_item(xfs_trans_t *tp, xfs_log_item_desc_t *lidp)
 void
 xfs_trans_free_items(
 	xfs_trans_t	*tp,
+	xfs_lsn_t	commit_lsn,
 	int		flags)
 {
 	xfs_log_item_chunk_t	*licp;
@@ -311,7 +312,7 @@ xfs_trans_free_items(
 	 * Special case the embedded chunk so we don't free it below.
 	 */
 	if (!xfs_lic_are_all_free(licp)) {
-		(void) xfs_trans_unlock_chunk(licp, 1, abort, NULLCOMMITLSN);
+		(void) xfs_trans_unlock_chunk(licp, 1, abort, commit_lsn);
 		xfs_lic_all_free(licp);
 		licp->lic_unused = 0;
 	}
@@ -322,7 +323,7 @@ xfs_trans_free_items(
 	 */
 	while (licp != NULL) {
 		ASSERT(!xfs_lic_are_all_free(licp));
-		(void) xfs_trans_unlock_chunk(licp, 1, abort, NULLCOMMITLSN);
+		(void) xfs_trans_unlock_chunk(licp, 1, abort, commit_lsn);
 		next_licp = licp->lic_next;
 		kmem_free(licp);
 		licp = next_licp;
@@ -437,113 +438,4 @@ xfs_trans_unlock_chunk(
 	}
 
 	return freed;
-}
-
-
-/*
- * This is called to add the given busy item to the transaction's
- * list of busy items.  It must find a free busy item descriptor
- * or allocate a new one and add the item to that descriptor.
- * The function returns a pointer to busy descriptor used to point
- * to the new busy entry.  The log busy entry will now point to its new
- * descriptor with its ???? field.
- */
-xfs_log_busy_slot_t *
-xfs_trans_add_busy(xfs_trans_t *tp, xfs_agnumber_t ag, xfs_extlen_t idx)
-{
-	xfs_log_busy_chunk_t	*lbcp;
-	xfs_log_busy_slot_t	*lbsp;
-	int			i=0;
-
-	/*
-	 * If there are no free descriptors, allocate a new chunk
-	 * of them and put it at the front of the chunk list.
-	 */
-	if (tp->t_busy_free == 0) {
-		lbcp = (xfs_log_busy_chunk_t*)
-		       kmem_alloc(sizeof(xfs_log_busy_chunk_t), KM_SLEEP);
-		ASSERT(lbcp != NULL);
-		/*
-		 * Initialize the chunk, and then
-		 * claim the first slot in the newly allocated chunk.
-		 */
-		XFS_LBC_INIT(lbcp);
-		XFS_LBC_CLAIM(lbcp, 0);
-		lbcp->lbc_unused = 1;
-		lbsp = XFS_LBC_SLOT(lbcp, 0);
-
-		/*
-		 * Link in the new chunk and update the free count.
-		 */
-		lbcp->lbc_next = tp->t_busy.lbc_next;
-		tp->t_busy.lbc_next = lbcp;
-		tp->t_busy_free = XFS_LIC_NUM_SLOTS - 1;
-
-		/*
-		 * Initialize the descriptor and the generic portion
-		 * of the log item.
-		 *
-		 * Point the new slot at this item and return it.
-		 * Also point the log item at its currently active
-		 * descriptor and set the item's mount pointer.
-		 */
-		lbsp->lbc_ag = ag;
-		lbsp->lbc_idx = idx;
-		return lbsp;
-	}
-
-	/*
-	 * Find the free descriptor. It is somewhere in the chunklist
-	 * of descriptors.
-	 */
-	lbcp = &tp->t_busy;
-	while (lbcp != NULL) {
-		if (XFS_LBC_VACANCY(lbcp)) {
-			if (lbcp->lbc_unused <= XFS_LBC_MAX_SLOT) {
-				i = lbcp->lbc_unused;
-				break;
-			} else {
-				/* out-of-order vacancy */
-				cmn_err(CE_DEBUG, "OOO vacancy lbcp 0x%p\n", lbcp);
-				ASSERT(0);
-			}
-		}
-		lbcp = lbcp->lbc_next;
-	}
-	ASSERT(lbcp != NULL);
-	/*
-	 * If we find a free descriptor, claim it,
-	 * initialize it, and return it.
-	 */
-	XFS_LBC_CLAIM(lbcp, i);
-	if (lbcp->lbc_unused <= i) {
-		lbcp->lbc_unused = i + 1;
-	}
-	lbsp = XFS_LBC_SLOT(lbcp, i);
-	tp->t_busy_free--;
-	lbsp->lbc_ag = ag;
-	lbsp->lbc_idx = idx;
-	return lbsp;
-}
-
-
-/*
- * xfs_trans_free_busy
- * Free all of the busy lists from a transaction
- */
-void
-xfs_trans_free_busy(xfs_trans_t *tp)
-{
-	xfs_log_busy_chunk_t	*lbcp;
-	xfs_log_busy_chunk_t	*lbcq;
-
-	lbcp = tp->t_busy.lbc_next;
-	while (lbcp != NULL) {
-		lbcq = lbcp->lbc_next;
-		kmem_free(lbcp);
-		lbcp = lbcq;
-	}
-
-	XFS_LBC_INIT(&tp->t_busy);
-	tp->t_busy.lbc_unused = 0;
 }

@@ -83,7 +83,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 
     pReq->wResult = 0;
 
-    switch(pReq->wCmdCode) {
+    switch (pReq->wCmdCode) {
 
     case WLAN_CMD_BSS_SCAN:
 
@@ -109,14 +109,14 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         }
         spin_lock_irq(&pDevice->lock);
         if (memcmp(pMgmt->abyCurrBSSID, &abyNullAddr[0], 6) == 0)
-            BSSvClearBSSList((HANDLE)pDevice, FALSE);
+            BSSvClearBSSList((void *)pDevice, FALSE);
         else
-            BSSvClearBSSList((HANDLE)pDevice, pDevice->bLinkPass);
+            BSSvClearBSSList((void *)pDevice, pDevice->bLinkPass);
 
         if (pItemSSID->len != 0)
-            bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, abyScanSSID);
+            bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, abyScanSSID);
         else
-            bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
+            bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, NULL);
         spin_unlock_irq(&pDevice->lock);
         break;
 
@@ -223,8 +223,8 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
         netif_stop_queue(pDevice->dev);
         spin_lock_irq(&pDevice->lock);
         pMgmt->eCurrState = WMAC_STATE_IDLE;
-        bScheduleCommand((HANDLE) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
-        bScheduleCommand((HANDLE) pDevice, WLAN_CMD_SSID, NULL);
+        bScheduleCommand((void *) pDevice, WLAN_CMD_BSSID_SCAN, pMgmt->abyDesireSSID);
+        bScheduleCommand((void *) pDevice, WLAN_CMD_SSID, NULL);
         spin_unlock_irq(&pDevice->lock);
         break;
 
@@ -429,7 +429,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 			break;
 		};
 		if (sValue.dwValue == 1) {
-            if (hostap_set_hostapd(pDevice, 1, 1) == 0){
+            if (vt6655_hostap_set_hostapd(pDevice, 1, 1) == 0){
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Enable HOSTAP\n");
             }
             else {
@@ -438,7 +438,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 			}
         }
         else {
-            hostap_set_hostapd(pDevice, 0, 1);
+            vt6655_hostap_set_hostapd(pDevice, 0, 1);
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Disable HOSTAP\n");
         }
 
@@ -497,7 +497,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 		};
 		if (sValue.dwValue == 1) {
                      DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "up wpadev\n");
-		   memcpy(pDevice->wpadev->dev_addr, pDevice->dev->dev_addr, U_ETHER_ADDR_LEN);
+		   memcpy(pDevice->wpadev->dev_addr, pDevice->dev->dev_addr, ETH_ALEN);
 		   pDevice->bWPADEVUp = TRUE;
         }
         else {
@@ -593,7 +593,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
 
         netif_stop_queue(pDevice->dev);
         spin_lock_irq(&pDevice->lock);
-        bScheduleCommand((HANDLE)pDevice, WLAN_CMD_RUN_AP, NULL);
+        bScheduleCommand((void *)pDevice, WLAN_CMD_RUN_AP, NULL);
         spin_unlock_irq(&pDevice->lock);
         break;
 
@@ -714,12 +714,12 @@ if(wpa_Result.authenticated==TRUE) {
 }
 
 /*
-VOID
+void
 vConfigWEPKey (
-    IN PSDevice pDevice,
-    IN DWORD    dwKeyIndex,
-    IN PBYTE    pbyKey,
-    IN ULONG    uKeyLength
+    PSDevice pDevice,
+    DWORD    dwKeyIndex,
+    PBYTE    pbyKey,
+    ULONG    uKeyLength
     )
 {
     int ii;

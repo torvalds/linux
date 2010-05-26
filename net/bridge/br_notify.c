@@ -34,6 +34,7 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 	struct net_device *dev = ptr;
 	struct net_bridge_port *p = dev->br_port;
 	struct net_bridge *br;
+	int err;
 
 	/* not a port of a bridge */
 	if (p == NULL)
@@ -82,6 +83,16 @@ static int br_device_event(struct notifier_block *unused, unsigned long event, v
 	case NETDEV_UNREGISTER:
 		br_del_if(br, dev);
 		break;
+
+	case NETDEV_CHANGENAME:
+		err = br_sysfs_renameif(p);
+		if (err)
+			return notifier_from_errno(err);
+		break;
+
+	case NETDEV_PRE_TYPE_CHANGE:
+		/* Forbid underlaying device to change its type. */
+		return NOTIFY_BAD;
 	}
 
 	/* Events that may cause spanning tree to refresh */

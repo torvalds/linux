@@ -43,4 +43,4 @@
 /*---------------------  Export Functions  --------------------------*/
 BOOL AESbGenCCMP(PBYTE pbyRxKey, PBYTE pbyFrame, WORD wFrameSize);
 
-#endif //__AES_H__
+#endif /* __AES_CCMP_H__ */

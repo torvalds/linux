@@ -376,8 +376,11 @@ static const struct of_device_id bw2_match[] = {
 MODULE_DEVICE_TABLE(of, bw2_match);
 
 static struct of_platform_driver bw2_driver = {
-	.name		= "bw2",
-	.match_table	= bw2_match,
+	.driver = {
+		.name = "bw2",
+		.owner = THIS_MODULE,
+		.of_match_table = bw2_match,
+	},
 	.probe		= bw2_probe,
 	.remove		= __devexit_p(bw2_remove),
 };

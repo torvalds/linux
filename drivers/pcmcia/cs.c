@@ -337,7 +337,6 @@ static void socket_shutdown(struct pcmcia_socket *s)
 	s->socket = dead_socket;
 	s->ops->init(s);
 	s->ops->set_socket(s, &s->socket);
-	s->irq.AssignedIRQ = s->irq.Config = 0;
 	s->lock_count = 0;
 	kfree(s->fake_cis);
 	s->fake_cis = NULL;
@@ -671,20 +670,22 @@ static int pccardd(void *__skt)
 				socket_remove(skt);
 			if (sysfs_events & PCMCIA_UEVENT_INSERT)
 				socket_insert(skt);
-			if ((sysfs_events & PCMCIA_UEVENT_RESUME) &&
-				!(skt->state & SOCKET_CARDBUS)) {
-				ret = socket_resume(skt);
-				if (!ret && skt->callback)
-					skt->callback->resume(skt);
-			}
 			if ((sysfs_events & PCMCIA_UEVENT_SUSPEND) &&
 				!(skt->state & SOCKET_CARDBUS)) {
 				if (skt->callback)
 					ret = skt->callback->suspend(skt);
 				else
 					ret = 0;
-				if (!ret)
+				if (!ret) {
 					socket_suspend(skt);
+					msleep(100);
+				}
+			}
+			if ((sysfs_events & PCMCIA_UEVENT_RESUME) &&
+				!(skt->state & SOCKET_CARDBUS)) {
+				ret = socket_resume(skt);
+				if (!ret && skt->callback)
+					skt->callback->resume(skt);
 			}
 			if ((sysfs_events & PCMCIA_UEVENT_REQUERY) &&
 				!(skt->state & SOCKET_CARDBUS)) {

@@ -84,6 +84,8 @@ static inline char *nic_name(struct pci_dev *pdev)
 
 #define FW_VER_LEN		32
 
+#define BE_MAX_VF		32
+
 struct be_dma_mem {
 	void *va;
 	dma_addr_t dma;
@@ -207,7 +209,7 @@ struct be_tx_obj {
 /* Struct to remember the pages posted for rx frags */
 struct be_rx_page_info {
 	struct page *page;
-	dma_addr_t bus;
+	DEFINE_DMA_UNMAP_ADDR(bus);
 	u16 page_offset;
 	bool last_page_user;
 };
@@ -281,7 +283,16 @@ struct be_adapter {
 	u8 port_type;
 	u8 transceiver;
 	u8 generation;		/* BladeEngine ASIC generation */
+	u32 flash_status;
+	struct completion flash_compl;
+
+	bool sriov_enabled;
+	u32 vf_if_handle[BE_MAX_VF];
+	u32 vf_pmac_id[BE_MAX_VF];
+	u8 base_eq_id;
 };
+
+#define be_physfn(adapter) (!adapter->pdev->is_virtfn)
 
 /* BladeEngine Generation numbers */
 #define BE_GEN2 2

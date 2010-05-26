@@ -107,8 +107,7 @@ xfs_qm_dquot_logitem_pin(
 /* ARGSUSED */
 STATIC void
 xfs_qm_dquot_logitem_unpin(
-	xfs_dq_logitem_t *logitem,
-	int		  stale)
+	xfs_dq_logitem_t *logitem)
 {
 	xfs_dquot_t *dqp = logitem->qli_dquot;
 
@@ -123,7 +122,7 @@ xfs_qm_dquot_logitem_unpin_remove(
 	xfs_dq_logitem_t *logitem,
 	xfs_trans_t	 *tp)
 {
-	xfs_qm_dquot_logitem_unpin(logitem, 0);
+	xfs_qm_dquot_logitem_unpin(logitem);
 }
 
 /*
@@ -228,7 +227,7 @@ xfs_qm_dquot_logitem_pushbuf(
 	}
 	mp = dqp->q_mount;
 	bp = xfs_incore(mp->m_ddev_targp, qip->qli_format.qlf_blkno,
-		    XFS_QI_DQCHUNKLEN(mp), XBF_TRYLOCK);
+			mp->m_quotainfo->qi_dqchunklen, XBF_TRYLOCK);
 	xfs_dqunlock(dqp);
 	if (!bp)
 		return;
@@ -329,8 +328,7 @@ static struct xfs_item_ops xfs_dquot_item_ops = {
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_qm_dquot_logitem_format,
 	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_qm_dquot_logitem_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*, int))
-					xfs_qm_dquot_logitem_unpin,
+	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_qm_dquot_logitem_unpin,
 	.iop_unpin_remove = (void(*)(xfs_log_item_t*, xfs_trans_t*))
 					xfs_qm_dquot_logitem_unpin_remove,
 	.iop_trylock	= (uint(*)(xfs_log_item_t*))
@@ -357,9 +355,8 @@ xfs_qm_dquot_logitem_init(
 	xfs_dq_logitem_t  *lp;
 	lp = &dqp->q_logitem;
 
-	lp->qli_item.li_type = XFS_LI_DQUOT;
-	lp->qli_item.li_ops = &xfs_dquot_item_ops;
-	lp->qli_item.li_mountp = dqp->q_mount;
+	xfs_log_item_init(dqp->q_mount, &lp->qli_item, XFS_LI_DQUOT,
+					&xfs_dquot_item_ops);
 	lp->qli_dquot = dqp;
 	lp->qli_format.qlf_type = XFS_LI_DQUOT;
 	lp->qli_format.qlf_id = be32_to_cpu(dqp->q_core.d_id);
@@ -426,7 +423,7 @@ xfs_qm_qoff_logitem_pin(xfs_qoff_logitem_t *qf)
  */
 /*ARGSUSED*/
 STATIC void
-xfs_qm_qoff_logitem_unpin(xfs_qoff_logitem_t *qf, int stale)
+xfs_qm_qoff_logitem_unpin(xfs_qoff_logitem_t *qf)
 {
 	return;
 }
@@ -537,8 +534,7 @@ static struct xfs_item_ops xfs_qm_qoffend_logitem_ops = {
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_qm_qoff_logitem_format,
 	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t* ,int))
-					xfs_qm_qoff_logitem_unpin,
+	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_unpin,
 	.iop_unpin_remove = (void(*)(xfs_log_item_t*,xfs_trans_t*))
 					xfs_qm_qoff_logitem_unpin_remove,
 	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_trylock,
@@ -559,8 +555,7 @@ static struct xfs_item_ops xfs_qm_qoff_logitem_ops = {
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_qm_qoff_logitem_format,
 	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*, int))
-					xfs_qm_qoff_logitem_unpin,
+	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_unpin,
 	.iop_unpin_remove = (void(*)(xfs_log_item_t*,xfs_trans_t*))
 					xfs_qm_qoff_logitem_unpin_remove,
 	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_qm_qoff_logitem_trylock,
@@ -586,11 +581,8 @@ xfs_qm_qoff_logitem_init(
 
 	qf = (xfs_qoff_logitem_t*) kmem_zalloc(sizeof(xfs_qoff_logitem_t), KM_SLEEP);
 
-	qf->qql_item.li_type = XFS_LI_QUOTAOFF;
-	if (start)
-		qf->qql_item.li_ops = &xfs_qm_qoffend_logitem_ops;
-	else
-		qf->qql_item.li_ops = &xfs_qm_qoff_logitem_ops;
+	xfs_log_item_init(mp, &qf->qql_item, XFS_LI_QUOTAOFF, start ?
+			&xfs_qm_qoffend_logitem_ops : &xfs_qm_qoff_logitem_ops);
 	qf->qql_item.li_mountp = mp;
 	qf->qql_format.qf_type = XFS_LI_QUOTAOFF;
 	qf->qql_format.qf_flags = flags;

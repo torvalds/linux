@@ -194,10 +194,8 @@ static inline void print_state(struct hvsi_struct *hp)
 		"HVSI_WAIT_FOR_MCTRL_RESPONSE",
 		"HVSI_FSP_DIED",
 	};
-	const char *name = state_names[hp->state];
-
-	if (hp->state > ARRAY_SIZE(state_names))
-		name = "UNKNOWN";
+	const char *name = (hp->state < ARRAY_SIZE(state_names))
+		? state_names[hp->state] : "UNKNOWN";
 
 	pr_debug("hvsi%i: state = %s\n", hp->index, name);
 #endif /* DEBUG */

@@ -381,12 +381,8 @@ static u16 nes_read16_eeprom(void __iomem *addr, u16 offset)
  */
 void nes_write_1G_phy_reg(struct nes_device *nesdev, u8 phy_reg, u8 phy_addr, u16 data)
 {
-	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	u32 u32temp;
 	u32 counter;
-	unsigned long flags;
-
-	spin_lock_irqsave(&nesadapter->phy_lock, flags);
 
 	nes_write_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL,
 			0x50020000 | data | ((u32)phy_reg << 18) | ((u32)phy_addr << 23));
@@ -402,8 +398,6 @@ void nes_write_1G_phy_reg(struct nes_device *nesdev, u8 phy_reg, u8 phy_addr, u1
 	if (!(u32temp & 1))
 		nes_debug(NES_DBG_PHY, "Phy is not responding. interrupt status = 0x%X.\n",
 				u32temp);
-
-	spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
 }
 
 
@@ -414,14 +408,11 @@ void nes_write_1G_phy_reg(struct nes_device *nesdev, u8 phy_reg, u8 phy_addr, u1
  */
 void nes_read_1G_phy_reg(struct nes_device *nesdev, u8 phy_reg, u8 phy_addr, u16 *data)
 {
-	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	u32 u32temp;
 	u32 counter;
-	unsigned long flags;
 
 	/* nes_debug(NES_DBG_PHY, "phy addr = %d, mac_index = %d\n",
 			phy_addr, nesdev->mac_index); */
-	spin_lock_irqsave(&nesadapter->phy_lock, flags);
 
 	nes_write_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL,
 			0x60020000 | ((u32)phy_reg << 18) | ((u32)phy_addr << 23));
@@ -441,7 +432,6 @@ void nes_read_1G_phy_reg(struct nes_device *nesdev, u8 phy_reg, u8 phy_addr, u16
 	} else {
 		*data = (u16)nes_read_indexed(nesdev, NES_IDX_MAC_MDIO_CONTROL);
 	}
-	spin_unlock_irqrestore(&nesadapter->phy_lock, flags);
 }
 
 

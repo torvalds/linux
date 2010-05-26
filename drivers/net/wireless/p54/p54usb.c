@@ -875,7 +875,6 @@ static void p54u_stop(struct ieee80211_hw *dev)
 	   the hardware is still usable next time we want to start it.
 	   until then, we just stop listening to the hardware.. */
 	p54u_free_urbs(dev);
-	return;
 }
 
 static int __devinit p54u_probe(struct usb_interface *intf,

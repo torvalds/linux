@@ -31,9 +31,6 @@
 
 struct sys_timer;
 
-/* used by omap-smp.c and board-4430sdp.c */
-extern void __iomem *gic_cpu_base_addr;
-
 extern void omap_map_common_io(void);
 extern struct sys_timer omap_timer;
 

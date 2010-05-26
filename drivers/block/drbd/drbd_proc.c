@@ -73,13 +73,20 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 	seq_printf(seq, "sync'ed:%3u.%u%% ", res / 10, res % 10);
 	/* if more than 1 GB display in MB */
 	if (mdev->rs_total > 0x100000L)
-		seq_printf(seq, "(%lu/%lu)M\n\t",
+		seq_printf(seq, "(%lu/%lu)M",
 			    (unsigned long) Bit2KB(rs_left >> 10),
 			    (unsigned long) Bit2KB(mdev->rs_total >> 10));
 	else
-		seq_printf(seq, "(%lu/%lu)K\n\t",
+		seq_printf(seq, "(%lu/%lu)K",
 			    (unsigned long) Bit2KB(rs_left),
 			    (unsigned long) Bit2KB(mdev->rs_total));
+
+	if (mdev->state.conn == C_SYNC_TARGET)
+		seq_printf(seq, " queue_delay: %d.%d ms\n\t",
+			   mdev->data_delay / 1000,
+			   (mdev->data_delay % 1000) / 100);
+	else if (mdev->state.conn == C_SYNC_SOURCE)
+		seq_printf(seq, " delay_probe: %u\n\t", mdev->delay_seq);
 
 	/* see drivers/md/md.c
 	 * We do not want to overflow, so the order of operands and
@@ -127,6 +134,14 @@ static void drbd_syncer_progress(struct drbd_conf *mdev, struct seq_file *seq)
 			dbdt/1000, dbdt % 1000);
 	else
 		seq_printf(seq, " (%ld)", dbdt);
+
+	if (mdev->state.conn == C_SYNC_TARGET) {
+		if (mdev->c_sync_rate > 1000)
+			seq_printf(seq, " want: %d,%03d",
+				   mdev->c_sync_rate / 1000, mdev->c_sync_rate % 1000);
+		else
+			seq_printf(seq, " want: %d", mdev->c_sync_rate);
+	}
 
 	seq_printf(seq, " K/sec\n");
 }

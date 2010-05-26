@@ -463,8 +463,11 @@ static const struct of_device_id therm_of_match[] = {{
 };
 
 static struct of_platform_driver therm_of_driver = {
-	.name		= "temperature",
-	.match_table	= therm_of_match,
+	.driver = {
+		.name = "temperature",
+		.owner = THIS_MODULE,
+		.of_match_table = therm_of_match,
+	},
 	.probe		= therm_of_probe,
 	.remove		= therm_of_remove,
 };

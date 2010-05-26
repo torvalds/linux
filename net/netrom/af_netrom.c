@@ -739,7 +739,7 @@ static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
 		DEFINE_WAIT(wait);
 
 		for (;;) {
-			prepare_to_wait(sk->sk_sleep, &wait,
+			prepare_to_wait(sk_sleep(sk), &wait,
 					TASK_INTERRUPTIBLE);
 			if (sk->sk_state != TCP_SYN_SENT)
 				break;
@@ -752,7 +752,7 @@ static int nr_connect(struct socket *sock, struct sockaddr *uaddr,
 			err = -ERESTARTSYS;
 			break;
 		}
-		finish_wait(sk->sk_sleep, &wait);
+		finish_wait(sk_sleep(sk), &wait);
 		if (err)
 			goto out_release;
 	}
@@ -798,7 +798,7 @@ static int nr_accept(struct socket *sock, struct socket *newsock, int flags)
 	 *	hooked into the SABM we saved
 	 */
 	for (;;) {
-		prepare_to_wait(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+		prepare_to_wait(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 		skb = skb_dequeue(&sk->sk_receive_queue);
 		if (skb)
 			break;
@@ -816,7 +816,7 @@ static int nr_accept(struct socket *sock, struct socket *newsock, int flags)
 		err = -ERESTARTSYS;
 		break;
 	}
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 	if (err)
 		goto out_release;
 

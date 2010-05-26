@@ -384,18 +384,15 @@ static int devpts_get_sb(struct file_system_type *fs_type,
 		s->s_flags |= MS_ACTIVE;
 	}
 
-	simple_set_mnt(mnt, s);
-
 	memcpy(&(DEVPTS_SB(s))->mount_opts, &opts, sizeof(opts));
 
 	error = mknod_ptmx(s);
 	if (error)
-		goto out_dput;
+		goto out_undo_sget;
+
+	simple_set_mnt(mnt, s);
 
 	return 0;
-
-out_dput:
-	dput(s->s_root); /* undo dget() in simple_set_mnt() */
 
 out_undo_sget:
 	deactivate_locked_super(s);

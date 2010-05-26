@@ -12,6 +12,7 @@
  * Author: Stephen Frost <sfrost@snowman.net>
  * Copyright 2002-2003, Stephen Frost, 2.5.x port by laforge@netfilter.org
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/init.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -35,8 +36,8 @@
 #include <linux/netfilter/xt_recent.h>
 
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
-MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
-MODULE_DESCRIPTION("Xtables: \"recently-seen\" host matching for IPv4");
+MODULE_AUTHOR("Jan Engelhardt <jengelh@medozas.de>");
+MODULE_DESCRIPTION("Xtables: \"recently-seen\" host matching");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_recent");
 MODULE_ALIAS("ip6t_recent");
@@ -51,14 +52,14 @@ module_param(ip_list_tot, uint, 0400);
 module_param(ip_pkt_list_tot, uint, 0400);
 module_param(ip_list_hash_size, uint, 0400);
 module_param(ip_list_perms, uint, 0400);
-module_param(ip_list_uid, uint, 0400);
-module_param(ip_list_gid, uint, 0400);
+module_param(ip_list_uid, uint, S_IRUGO | S_IWUSR);
+module_param(ip_list_gid, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(ip_list_tot, "number of IPs to remember per list");
 MODULE_PARM_DESC(ip_pkt_list_tot, "number of packets per IP address to remember (max. 255)");
 MODULE_PARM_DESC(ip_list_hash_size, "size of hash table used to look up IPs");
 MODULE_PARM_DESC(ip_list_perms, "permissions on /proc/net/xt_recent/* files");
-MODULE_PARM_DESC(ip_list_uid,"owner of /proc/net/xt_recent/* files");
-MODULE_PARM_DESC(ip_list_gid,"owning group of /proc/net/xt_recent/* files");
+MODULE_PARM_DESC(ip_list_uid, "default owner of /proc/net/xt_recent/* files");
+MODULE_PARM_DESC(ip_list_gid, "default owning group of /proc/net/xt_recent/* files");
 
 struct recent_entry {
 	struct list_head	list;
@@ -84,9 +85,6 @@ struct recent_net {
 	struct list_head	tables;
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry	*xt_recent;
-#ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
-	struct proc_dir_entry	*ipt_recent;
-#endif
 #endif
 };
 
@@ -145,6 +143,25 @@ static void recent_entry_remove(struct recent_table *t, struct recent_entry *e)
 	list_del(&e->lru_list);
 	kfree(e);
 	t->entries--;
+}
+
+/*
+ * Drop entries with timestamps older then 'time'.
+ */
+static void recent_entry_reap(struct recent_table *t, unsigned long time)
+{
+	struct recent_entry *e;
+
+	/*
+	 * The head of the LRU list is always the oldest entry.
+	 */
+	e = list_entry(t->lru_list.next, struct recent_entry, lru_list);
+
+	/*
+	 * The last time stamp is the most recent.
+	 */
+	if (time_after(time, e->stamps[e->index-1]))
+		recent_entry_remove(t, e);
 }
 
 static struct recent_entry *
@@ -207,7 +224,7 @@ static void recent_table_flush(struct recent_table *t)
 }
 
 static bool
-recent_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+recent_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct net *net = dev_net(par->in ? par->in : par->out);
 	struct recent_net *recent_net = recent_pernet(net);
@@ -218,7 +235,7 @@ recent_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	u_int8_t ttl;
 	bool ret = info->invert;
 
-	if (par->match->family == NFPROTO_IPV4) {
+	if (par->family == NFPROTO_IPV4) {
 		const struct iphdr *iph = ip_hdr(skb);
 
 		if (info->side == XT_RECENT_DEST)
@@ -244,14 +261,14 @@ recent_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 
 	spin_lock_bh(&recent_lock);
 	t = recent_table_lookup(recent_net, info->name);
-	e = recent_entry_lookup(t, &addr, par->match->family,
+	e = recent_entry_lookup(t, &addr, par->family,
 				(info->check_set & XT_RECENT_TTL) ? ttl : 0);
 	if (e == NULL) {
 		if (!(info->check_set & XT_RECENT_SET))
 			goto out;
-		e = recent_entry_init(t, &addr, par->match->family, ttl);
+		e = recent_entry_init(t, &addr, par->family, ttl);
 		if (e == NULL)
-			*par->hotdrop = true;
+			par->hotdrop = true;
 		ret = !ret;
 		goto out;
 	}
@@ -273,6 +290,10 @@ recent_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 				break;
 			}
 		}
+
+		/* info->seconds must be non-zero */
+		if (info->check_set & XT_RECENT_REAP)
+			recent_entry_reap(t, time);
 	}
 
 	if (info->check_set & XT_RECENT_SET ||
@@ -285,7 +306,7 @@ out:
 	return ret;
 }
 
-static bool recent_mt_check(const struct xt_mtchk_param *par)
+static int recent_mt_check(const struct xt_mtchk_param *par)
 {
 	struct recent_net *recent_net = recent_pernet(par->net);
 	const struct xt_recent_mtinfo *info = par->matchinfo;
@@ -294,41 +315,51 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 	struct proc_dir_entry *pde;
 #endif
 	unsigned i;
-	bool ret = false;
+	int ret = -EINVAL;
 
 	if (unlikely(!hash_rnd_inited)) {
 		get_random_bytes(&hash_rnd, sizeof(hash_rnd));
 		hash_rnd_inited = true;
 	}
+	if (info->check_set & ~XT_RECENT_VALID_FLAGS) {
+		pr_info("Unsupported user space flags (%08x)\n",
+			info->check_set);
+		return -EINVAL;
+	}
 	if (hweight8(info->check_set &
 		     (XT_RECENT_SET | XT_RECENT_REMOVE |
 		      XT_RECENT_CHECK | XT_RECENT_UPDATE)) != 1)
-		return false;
+		return -EINVAL;
 	if ((info->check_set & (XT_RECENT_SET | XT_RECENT_REMOVE)) &&
-	    (info->seconds || info->hit_count))
-		return false;
+	    (info->seconds || info->hit_count ||
+	    (info->check_set & XT_RECENT_MODIFIERS)))
+		return -EINVAL;
+	if ((info->check_set & XT_RECENT_REAP) && !info->seconds)
+		return -EINVAL;
 	if (info->hit_count > ip_pkt_list_tot) {
-		pr_info(KBUILD_MODNAME ": hitcount (%u) is larger than "
+		pr_info("hitcount (%u) is larger than "
 			"packets to be remembered (%u)\n",
 			info->hit_count, ip_pkt_list_tot);
-		return false;
+		return -EINVAL;
 	}
 	if (info->name[0] == '\0' ||
 	    strnlen(info->name, XT_RECENT_NAME_LEN) == XT_RECENT_NAME_LEN)
-		return false;
+		return -EINVAL;
 
 	mutex_lock(&recent_mutex);
 	t = recent_table_lookup(recent_net, info->name);
 	if (t != NULL) {
 		t->refcnt++;
-		ret = true;
+		ret = 0;
 		goto out;
 	}
 
 	t = kzalloc(sizeof(*t) + sizeof(t->iphash[0]) * ip_list_hash_size,
 		    GFP_KERNEL);
-	if (t == NULL)
+	if (t == NULL) {
+		ret = -ENOMEM;
 		goto out;
+	}
 	t->refcnt = 1;
 	strcpy(t->name, info->name);
 	INIT_LIST_HEAD(&t->lru_list);
@@ -339,26 +370,16 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 		  &recent_mt_fops, t);
 	if (pde == NULL) {
 		kfree(t);
+		ret = -ENOMEM;
 		goto out;
 	}
 	pde->uid = ip_list_uid;
 	pde->gid = ip_list_gid;
-#ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
-	pde = proc_create_data(t->name, ip_list_perms, recent_net->ipt_recent,
-		      &recent_old_fops, t);
-	if (pde == NULL) {
-		remove_proc_entry(t->name, recent_net->xt_recent);
-		kfree(t);
-		goto out;
-	}
-	pde->uid = ip_list_uid;
-	pde->gid = ip_list_gid;
-#endif
 #endif
 	spin_lock_bh(&recent_lock);
 	list_add_tail(&t->list, &recent_net->tables);
 	spin_unlock_bh(&recent_lock);
-	ret = true;
+	ret = 0;
 out:
 	mutex_unlock(&recent_mutex);
 	return ret;
@@ -377,9 +398,6 @@ static void recent_mt_destroy(const struct xt_mtdtor_param *par)
 		list_del(&t->list);
 		spin_unlock_bh(&recent_lock);
 #ifdef CONFIG_PROC_FS
-#ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
-		remove_proc_entry(t->name, recent_net->ipt_recent);
-#endif
 		remove_proc_entry(t->name, recent_net->xt_recent);
 #endif
 		recent_table_flush(t);
@@ -471,84 +489,6 @@ static int recent_seq_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-#ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
-static int recent_old_seq_open(struct inode *inode, struct file *filp)
-{
-	static bool warned_of_old;
-
-	if (unlikely(!warned_of_old)) {
-		printk(KERN_INFO KBUILD_MODNAME ": Use of /proc/net/ipt_recent"
-		       " is deprecated; use /proc/net/xt_recent.\n");
-		warned_of_old = true;
-	}
-	return recent_seq_open(inode, filp);
-}
-
-static ssize_t recent_old_proc_write(struct file *file,
-				     const char __user *input,
-				     size_t size, loff_t *loff)
-{
-	const struct proc_dir_entry *pde = PDE(file->f_path.dentry->d_inode);
-	struct recent_table *t = pde->data;
-	struct recent_entry *e;
-	char buf[sizeof("+255.255.255.255")], *c = buf;
-	union nf_inet_addr addr = {};
-	int add;
-
-	if (size > sizeof(buf))
-		size = sizeof(buf);
-	if (copy_from_user(buf, input, size))
-		return -EFAULT;
-
-	c = skip_spaces(c);
-
-	if (size - (c - buf) < 5)
-		return c - buf;
-	if (!strncmp(c, "clear", 5)) {
-		c += 5;
-		spin_lock_bh(&recent_lock);
-		recent_table_flush(t);
-		spin_unlock_bh(&recent_lock);
-		return c - buf;
-	}
-
-	switch (*c) {
-	case '-':
-		add = 0;
-		c++;
-		break;
-	case '+':
-		c++;
-	default:
-		add = 1;
-		break;
-	}
-	addr.ip = in_aton(c);
-
-	spin_lock_bh(&recent_lock);
-	e = recent_entry_lookup(t, &addr, NFPROTO_IPV4, 0);
-	if (e == NULL) {
-		if (add)
-			recent_entry_init(t, &addr, NFPROTO_IPV4, 0);
-	} else {
-		if (add)
-			recent_entry_update(t, e);
-		else
-			recent_entry_remove(t, e);
-	}
-	spin_unlock_bh(&recent_lock);
-	return size;
-}
-
-static const struct file_operations recent_old_fops = {
-	.open		= recent_old_seq_open,
-	.read		= seq_read,
-	.write		= recent_old_proc_write,
-	.release	= seq_release_private,
-	.owner		= THIS_MODULE,
-};
-#endif
-
 static ssize_t
 recent_mt_proc_write(struct file *file, const char __user *input,
 		     size_t size, loff_t *loff)
@@ -585,7 +525,7 @@ recent_mt_proc_write(struct file *file, const char __user *input,
 		add = true;
 		break;
 	default:
-		printk(KERN_INFO KBUILD_MODNAME ": Need +ip, -ip or /\n");
+		pr_info("Need \"+ip\", \"-ip\" or \"/\"\n");
 		return -EINVAL;
 	}
 
@@ -600,8 +540,7 @@ recent_mt_proc_write(struct file *file, const char __user *input,
 	}
 
 	if (!succ) {
-		printk(KERN_INFO KBUILD_MODNAME ": illegal address written "
-		       "to procfs\n");
+		pr_info("illegal address written to procfs\n");
 		return -EINVAL;
 	}
 
@@ -637,21 +576,11 @@ static int __net_init recent_proc_net_init(struct net *net)
 	recent_net->xt_recent = proc_mkdir("xt_recent", net->proc_net);
 	if (!recent_net->xt_recent)
 		return -ENOMEM;
-#ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
-	recent_net->ipt_recent = proc_mkdir("ipt_recent", net->proc_net);
-	if (!recent_net->ipt_recent) {
-		proc_net_remove(net, "xt_recent");
-		return -ENOMEM;
-	}
-#endif
 	return 0;
 }
 
 static void __net_exit recent_proc_net_exit(struct net *net)
 {
-#ifdef CONFIG_NETFILTER_XT_MATCH_RECENT_PROC_COMPAT
-	proc_net_remove(net, "ipt_recent");
-#endif
 	proc_net_remove(net, "xt_recent");
 }
 #else

@@ -48,6 +48,7 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 */
 
 #include "../comedidev.h"
+#include <linux/semaphore.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
@@ -55,19 +56,20 @@ Devices: [Quatech] DAQP-208 (daqp), DAQP-308
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
 
+#include <linux/completion.h>
+
 /* Maximum number of separate DAQP devices we'll allow */
 #define MAX_DEV         4
 
 struct local_info_t {
 	struct pcmcia_device *link;
-	dev_node_t node;
 	int stop;
 	int table_index;
 	char board_name[32];
 
 	enum { semaphore, buffer } interrupt_mode;
 
-	struct semaphore eos;
+	struct completion eos;
 
 	struct comedi_device *dev;
 	struct comedi_subdevice *s;
@@ -238,14 +240,13 @@ static int daqp_ai_cancel(struct comedi_device *dev, struct comedi_subdevice *s)
 /* Interrupt handler
  *
  * Operates in one of two modes.  If local->interrupt_mode is
- * 'semaphore', just signal the local->eos semaphore and return
+ * 'semaphore', just signal the local->eos completion and return
  * (one-shot mode).  Otherwise (continuous mode), read data in from
  * the card, transfer it to the buffer provided by the higher-level
  * comedi kernel module, and signal various comedi callback routines,
  * which run pretty quick.
  */
-
-static void daqp_interrupt(int irq, void *dev_id)
+static enum irqreturn daqp_interrupt(int irq, void *dev_id)
 {
 	struct local_info_t *local = (struct local_info_t *)dev_id;
 	struct comedi_device *dev;
@@ -256,39 +257,39 @@ static void daqp_interrupt(int irq, void *dev_id)
 	if (local == NULL) {
 		printk(KERN_WARNING
 		       "daqp_interrupt(): irq %d for unknown device.\n", irq);
-		return;
+		return IRQ_NONE;
 	}
 
 	dev = local->dev;
 	if (dev == NULL) {
 		printk(KERN_WARNING "daqp_interrupt(): NULL comedi_device.\n");
-		return;
+		return IRQ_NONE;
 	}
 
 	if (!dev->attached) {
 		printk(KERN_WARNING
 		       "daqp_interrupt(): struct comedi_device not yet attached.\n");
-		return;
+		return IRQ_NONE;
 	}
 
 	s = local->s;
 	if (s == NULL) {
 		printk(KERN_WARNING
 		       "daqp_interrupt(): NULL comedi_subdevice.\n");
-		return;
+		return IRQ_NONE;
 	}
 
 	if ((struct local_info_t *)s->private != local) {
 		printk(KERN_WARNING
 		       "daqp_interrupt(): invalid comedi_subdevice.\n");
-		return;
+		return IRQ_NONE;
 	}
 
 	switch (local->interrupt_mode) {
 
 	case semaphore:
 
-		up(&local->eos);
+		complete(&local->eos);
 		break;
 
 	case buffer:
@@ -340,6 +341,7 @@ static void daqp_interrupt(int irq, void *dev_id)
 
 		comedi_event(dev, s);
 	}
+	return IRQ_HANDLED;
 }
 
 /* One-shot analog data acquisition routine */
@@ -401,8 +403,7 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 		return -1;
 	}
 
-	/* Make sure semaphore is blocked */
-	sema_init(&local->eos, 0);
+	init_completion(&local->eos);
 	local->interrupt_mode = semaphore;
 	local->dev = dev;
 	local->s = s;
@@ -413,9 +414,9 @@ static int daqp_ai_insn_read(struct comedi_device *dev,
 		outb(DAQP_COMMAND_ARM | DAQP_COMMAND_FIFO_DATA,
 		     dev->iobase + DAQP_COMMAND);
 
-		/* Wait for interrupt service routine to unblock semaphore */
+		/* Wait for interrupt service routine to unblock completion */
 		/* Maybe could use a timeout here, but it's interruptible */
-		if (down_interruptible(&local->eos))
+		if (wait_for_completion_interruptible(&local->eos))
 			return -EINTR;
 
 		data[i] = inb(dev->iobase + DAQP_FIFO);
@@ -580,7 +581,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	struct local_info_t *local = (struct local_info_t *)s->private;
 	struct comedi_cmd *cmd = &s->async->cmd;
-	int counter = 100;
+	int counter;
 	int scanlist_start_on_every_entry;
 	int threshold;
 
@@ -613,14 +614,14 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	 */
 
 	if (cmd->convert_src == TRIG_TIMER) {
-		int counter = daqp_ns_to_timer(&cmd->convert_arg,
+		counter = daqp_ns_to_timer(&cmd->convert_arg,
 					       cmd->flags & TRIG_ROUND_MASK);
 		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW);
 		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID);
 		outb((counter >> 16) & 0xff, dev->iobase + DAQP_PACER_HIGH);
 		scanlist_start_on_every_entry = 1;
 	} else {
-		int counter = daqp_ns_to_timer(&cmd->scan_begin_arg,
+		counter = daqp_ns_to_timer(&cmd->scan_begin_arg,
 					       cmd->flags & TRIG_ROUND_MASK);
 		outb(counter & 0xff, dev->iobase + DAQP_PACER_LOW);
 		outb((counter >> 8) & 0xff, dev->iobase + DAQP_PACER_MID);
@@ -755,7 +756,7 @@ static int daqp_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/* Reset any pending interrupts (my card has a tendancy to require
 	 * require multiple reads on the status register to achieve this)
 	 */
-
+	counter = 100;
 	while (--counter
 	       && (inb(dev->iobase + DAQP_STATUS) & DAQP_STATUS_EVENTS)) ;
 	if (!counter) {
@@ -1040,10 +1041,6 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
-	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.Handler = daqp_interrupt;
-
 	/*
 	   General socket configuration defaults can go here.  In this
 	   client, we assume very little, and rely on the CIS for almost
@@ -1074,10 +1071,8 @@ static void daqp_cs_detach(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "daqp_cs_detach\n");
 
-	if (link->dev_node) {
-		dev->stop = 1;
-		daqp_cs_release(link);
-	}
+	dev->stop = 1;
+	daqp_cs_release(link);
 
 	/* Unlink device structure, and free it */
 	dev_table[dev->table_index] = NULL;
@@ -1105,8 +1100,7 @@ static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		return -ENODEV;
 
 	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
@@ -1133,7 +1127,6 @@ static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 static void daqp_cs_config(struct pcmcia_device *link)
 {
-	struct local_info_t *dev = link->priv;
 	int ret;
 
 	dev_dbg(&link->dev, "daqp_cs_config\n");
@@ -1144,16 +1137,9 @@ static void daqp_cs_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	/*
-	   Allocate an interrupt line.  Note that this does not assign a
-	   handler to the interrupt, unless the 'Handler' member of the
-	   irq structure is initialized.
-	 */
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
-	}
+	ret = pcmcia_request_irq(link, daqp_interrupt);
+	if (ret)
+		goto failed;
 
 	/*
 	   This actually configures the PCMCIA socket -- setting up
@@ -1164,23 +1150,10 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	/*
-	   At this point, the dev_node_t structure(s) need to be
-	   initialized and arranged in a linked list at link->dev.
-	 */
-	/* Comedi's PCMCIA script uses this device name (extracted
-	 * from /var/lib/pcmcia/stab) to pass to comedi_config
-	 */
-	/* sprintf(dev->node.dev_name, "daqp%d", dev->table_index); */
-	sprintf(dev->node.dev_name, "quatech_daqp_cs");
-	dev->node.major = dev->node.minor = 0;
-	link->dev_node = &dev->node;
-
 	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x",
-	       dev->node.dev_name, link->conf.ConfigIndex);
+	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %u", link->irq.AssignedIRQ);
+		printk(", irq %u", link->irq);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 		       link->io.BasePort1 + link->io.NumPorts1 - 1);
@@ -1243,8 +1216,11 @@ static struct pcmcia_device_id daqp_cs_id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pcmcia, daqp_cs_id_table);
+MODULE_AUTHOR("Brent Baccala <baccala@freesoft.org>");
+MODULE_DESCRIPTION("Comedi driver for Quatech DAQP PCMCIA data capture cards");
+MODULE_LICENSE("GPL");
 
-struct pcmcia_driver daqp_cs_driver = {
+static struct pcmcia_driver daqp_cs_driver = {
 	.probe = daqp_cs_attach,
 	.remove = daqp_cs_detach,
 	.suspend = daqp_cs_suspend,

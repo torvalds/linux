@@ -147,11 +147,9 @@ static int usb_stor_msg_common(struct us_data *us, int timeout)
 	 * hasn't been mapped for DMA.  Yes, this is clunky, but it's
 	 * easier than always having the caller tell us whether the
 	 * transfer buffer has already been mapped. */
-	us->current_urb->transfer_flags = URB_NO_SETUP_DMA_MAP;
 	if (us->current_urb->transfer_buffer == us->iobuf)
 		us->current_urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	us->current_urb->transfer_dma = us->iobuf_dma;
-	us->current_urb->setup_dma = us->cr_dma;
 
 	/* submit the URB */
 	status = usb_submit_urb(us->current_urb, GFP_NOIO);

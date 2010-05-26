@@ -46,7 +46,14 @@
 #define SOR_CFG                        (REGISTERS_BASE + 0x0800)
 #define ECPU_CTRL                      (REGISTERS_BASE + 0x0804)
 #define HI_CFG                         (REGISTERS_BASE + 0x0808)
+
+/* EEPROM registers */
 #define EE_START                       (REGISTERS_BASE + 0x080C)
+#define EE_CTL                         (REGISTERS_BASE + 0x2000)
+#define EE_DATA                        (REGISTERS_BASE + 0x2004)
+#define EE_ADDR                        (REGISTERS_BASE + 0x2008)
+
+#define EE_CTL_READ                   2
 
 #define CHIP_ID_B                      (REGISTERS_BASE + 0x5674)
 

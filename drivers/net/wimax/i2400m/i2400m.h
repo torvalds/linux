@@ -160,11 +160,26 @@
 #include <linux/wimax/i2400m.h>
 #include <asm/byteorder.h>
 
+enum {
+/* netdev interface */
+	/*
+	 * Out of NWG spec (R1_v1.2.2), 3.3.3 ASN Bearer Plane MTU Size
+	 *
+	 * The MTU is 1400 or less
+	 */
+	I2400M_MAX_MTU = 1400,
+};
+
 /* Misc constants */
 enum {
 	/* Size of the Boot Mode Command buffer */
 	I2400M_BM_CMD_BUF_SIZE = 16 * 1024,
 	I2400M_BM_ACK_BUF_SIZE = 256,
+};
+
+enum {
+	/* Maximum number of bus reset can be retried */
+	I2400M_BUS_RESET_RETRIES = 3,
 };
 
 /**
@@ -226,6 +241,11 @@ struct i2400m_barker_db;
  * @bus_tx_block_size: [fill] SDIO imposes a 256 block size, USB 16,
  *     so we have a tx_blk_size variable that the bus layer sets to
  *     tell the engine how much of that we need.
+ *
+ * @bus_tx_room_min: [fill] Minimum room required while allocating
+ *     TX queue's buffer space for message header. SDIO requires
+ *     224 bytes and USB 16 bytes. Refer bus specific driver code
+ *     for details.
  *
  * @bus_pl_size_max: [fill] Maximum payload size.
  *
@@ -397,7 +417,7 @@ struct i2400m_barker_db;
  *
  * @tx_size_max: biggest TX message sent.
  *
- * @rx_lock: spinlock to protect RX members
+ * @rx_lock: spinlock to protect RX members and rx_roq_refcount.
  *
  * @rx_pl_num: total number of payloads received
  *
@@ -420,6 +440,10 @@ struct i2400m_barker_db;
  *     packets until the ones that are received out of order can be
  *     delivered. Then the driver can release them to the host. See
  *     drivers/net/i2400m/rx.c for details.
+ *
+ * @rx_roq_refcount: refcount rx_roq. This refcounts any access to
+ *     rx_roq thus preventing rx_roq being destroyed when rx_roq
+ *     is being accessed. rx_roq_refcount is protected by rx_lock.
  *
  * @rx_reports: reports received from the device that couldn't be
  *     processed because the driver wasn't still ready; when ready,
@@ -507,6 +531,38 @@ struct i2400m_barker_db;
  *     same.
  *
  * @pm_notifier: used to register for PM events
+ *
+ * @bus_reset_retries: counter for the number of bus resets attempted for
+ *	this boot. It's not for tracking the number of bus resets during
+ *	the whole driver life cycle (from insmod to rmmod) but for the
+ *	number of dev_start() executed until dev_start() returns a success
+ *	(ie: a good boot means a dev_stop() followed by a successful
+ *	dev_start()). dev_reset_handler() increments this counter whenever
+ *	it is triggering a bus reset. It checks this counter to decide if a
+ *	subsequent bus reset should be retried. dev_reset_handler() retries
+ *	the bus reset until dev_start() succeeds or the counter reaches
+ *	I2400M_BUS_RESET_RETRIES. The counter is cleared to 0 in
+ *	dev_reset_handle() when dev_start() returns a success,
+ *	ie: a successul boot is completed.
+ *
+ * @alive: flag to denote if the device *should* be alive. This flag is
+ *	everything like @updown (see doc for @updown) except reflecting
+ *	the device state *we expect* rather than the actual state as denoted
+ *	by @updown. It is set 1 whenever @updown is set 1 in dev_start().
+ *	Then the device is expected to be alive all the time
+ *	(i2400m->alive remains 1) until the driver is removed. Therefore
+ *	all the device reboot events detected can be still handled properly
+ *	by either dev_reset_handle() or .pre_reset/.post_reset as long as
+ *	the driver presents. It is set 0 along with @updown in dev_stop().
+ *
+ * @error_recovery: flag to denote if we are ready to take an error recovery.
+ *	0 for ready to take an error recovery; 1 for not ready. It is
+ *	initialized to 1 while probe() since we don't tend to take any error
+ *	recovery during probe(). It is decremented by 1 whenever dev_start()
+ *	succeeds to indicate we are ready to take error recovery from now on.
+ *	It is checked every time we wanna schedule an error recovery. If an
+ *	error recovery is already in place (error_recovery was set 1), we
+ *	should not schedule another one until the last one is done.
  */
 struct i2400m {
 	struct wimax_dev wimax_dev;	/* FIRST! See doc */
@@ -522,6 +578,7 @@ struct i2400m {
 	wait_queue_head_t state_wq;	/* Woken up when on state updates */
 
 	size_t bus_tx_block_size;
+	size_t bus_tx_room_min;
 	size_t bus_pl_size_max;
 	unsigned bus_bm_retries;
 
@@ -550,10 +607,12 @@ struct i2400m {
 		tx_num, tx_size_acc, tx_size_min, tx_size_max;
 
 	/* RX stuff */
-	spinlock_t rx_lock;		/* protect RX state */
+	/* protect RX state and rx_roq_refcount */
+	spinlock_t rx_lock;
 	unsigned rx_pl_num, rx_pl_max, rx_pl_min,
 		rx_num, rx_size_acc, rx_size_min, rx_size_max;
-	struct i2400m_roq *rx_roq;	/* not under rx_lock! */
+	struct i2400m_roq *rx_roq;	/* access is refcounted */
+	struct kref rx_roq_refcount;	/* refcount access to rx_roq */
 	u8 src_mac_addr[ETH_HLEN];
 	struct list_head rx_reports;	/* under rx_lock! */
 	struct work_struct rx_report_ws;
@@ -581,6 +640,16 @@ struct i2400m {
 	struct i2400m_barker_db *barker;
 
 	struct notifier_block pm_notifier;
+
+	/* counting bus reset retries in this boot */
+	atomic_t bus_reset_retries;
+
+	/* if the device is expected to be alive */
+	unsigned alive;
+
+	/* 0 if we are ready for error recovery; 1 if not ready  */
+	atomic_t error_recovery;
+
 };
 
 
@@ -803,6 +872,7 @@ void i2400m_put(struct i2400m *i2400m)
 extern int i2400m_dev_reset_handle(struct i2400m *, const char *);
 extern int i2400m_pre_reset(struct i2400m *);
 extern int i2400m_post_reset(struct i2400m *);
+extern void i2400m_error_recovery(struct i2400m *);
 
 /*
  * _setup()/_release() are called by the probe/disconnect functions of
@@ -815,7 +885,6 @@ extern int i2400m_rx(struct i2400m *, struct sk_buff *);
 extern struct i2400m_msg_hdr *i2400m_tx_msg_get(struct i2400m *, size_t *);
 extern void i2400m_tx_msg_sent(struct i2400m *);
 
-extern int i2400m_power_save_disabled;
 
 /*
  * Utility functions
@@ -921,11 +990,6 @@ void __i2400m_msleep(unsigned ms)
 extern int i2400m_barker_db_init(const char *);
 extern void i2400m_barker_db_exit(void);
 
-
-/* Module parameters */
-
-extern int i2400m_idle_mode_disabled;
-extern int i2400m_rx_reorder_disabled;
 
 
 #endif /* #ifndef __I2400M_H__ */

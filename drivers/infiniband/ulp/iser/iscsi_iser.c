@@ -325,7 +325,7 @@ iscsi_iser_conn_destroy(struct iscsi_cls_conn *cls_conn)
 	 */
 	if (ib_conn) {
 		ib_conn->iser_conn = NULL;
-		iser_conn_put(ib_conn);
+		iser_conn_put(ib_conn, 1); /* deref iscsi/ib conn unbinding */
 	}
 }
 
@@ -357,11 +357,12 @@ iscsi_iser_conn_bind(struct iscsi_cls_session *cls_session,
 	/* binds the iSER connection retrieved from the previously
 	 * connected ep_handle to the iSCSI layer connection. exchanges
 	 * connection pointers */
-	iser_err("binding iscsi conn %p to iser_conn %p\n",conn,ib_conn);
+	iser_err("binding iscsi/iser conn %p %p to ib_conn %p\n",
+					conn, conn->dd_data, ib_conn);
 	iser_conn = conn->dd_data;
 	ib_conn->iser_conn = iser_conn;
 	iser_conn->ib_conn  = ib_conn;
-	iser_conn_get(ib_conn);
+	iser_conn_get(ib_conn); /* ref iscsi/ib conn binding */
 	return 0;
 }
 
@@ -382,7 +383,7 @@ iscsi_iser_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 		 * There is no unbind event so the stop callback
 		 * must release the ref from the bind.
 		 */
-		iser_conn_put(ib_conn);
+		iser_conn_put(ib_conn, 1); /* deref iscsi/ib conn unbinding */
 	}
 	iser_conn->ib_conn = NULL;
 }

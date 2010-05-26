@@ -49,8 +49,6 @@
 /*
  * CSI registers
  */
-#define DMA_CCR(x)	(0x8c + ((x) << 6))	/* Control Registers */
-#define DMA_DIMR	0x08			/* Interrupt mask Register */
 #define CSICR1		0x00			/* CSI Control Register 1 */
 #define CSISR		0x08			/* CSI Status Register */
 #define CSIRXR		0x10			/* CSI RxFIFO Register */
@@ -141,8 +139,8 @@ static int mx1_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	if (!*count)
 		*count = 32;
 
-	while (*size * *count > MAX_VIDEO_MEM * 1024 * 1024)
-		(*count)--;
+	if (*size * *count > MAX_VIDEO_MEM * 1024 * 1024)
+		*count = (MAX_VIDEO_MEM * 1024 * 1024) / *size;
 
 	dev_dbg(icd->dev.parent, "count=%d, size=%d\n", *count, *size);
 
@@ -784,7 +782,7 @@ static int __init mx1_camera_probe(struct platform_device *pdev)
 			       pcdev);
 
 	imx_dma_config_channel(pcdev->dma_chan, IMX_DMA_TYPE_FIFO,
-			       IMX_DMA_MEMSIZE_32, DMA_REQ_CSI_R, 0);
+			       IMX_DMA_MEMSIZE_32, MX1_DMA_REQ_CSI_R, 0);
 	/* burst length : 16 words = 64 bytes */
 	imx_dma_config_burstlen(pcdev->dma_chan, 0);
 
@@ -798,8 +796,8 @@ static int __init mx1_camera_probe(struct platform_device *pdev)
 	set_fiq_handler(&mx1_camera_sof_fiq_start, &mx1_camera_sof_fiq_end -
 						   &mx1_camera_sof_fiq_start);
 
-	regs.ARM_r8 = DMA_BASE + DMA_DIMR;
-	regs.ARM_r9 = DMA_BASE + DMA_CCR(pcdev->dma_chan);
+	regs.ARM_r8 = (long)MX1_DMA_DIMR;
+	regs.ARM_r9 = (long)MX1_DMA_CCR(pcdev->dma_chan);
 	regs.ARM_r10 = (long)pcdev->base + CSICR1;
 	regs.ARM_fp = (long)pcdev->base + CSISR;
 	regs.ARM_sp = 1 << pcdev->dma_chan;

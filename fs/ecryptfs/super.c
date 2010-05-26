@@ -109,27 +109,6 @@ void ecryptfs_init_inode(struct inode *inode, struct inode *lower_inode)
 }
 
 /**
- * ecryptfs_put_super
- * @sb: Pointer to the ecryptfs super block
- *
- * Final actions when unmounting a file system.
- * This will handle deallocation and release of our private data.
- */
-static void ecryptfs_put_super(struct super_block *sb)
-{
-	struct ecryptfs_sb_info *sb_info = ecryptfs_superblock_to_private(sb);
-
-	lock_kernel();
-
-	ecryptfs_destroy_mount_crypt_stat(&sb_info->mount_crypt_stat);
-	bdi_destroy(&sb_info->bdi);
-	kmem_cache_free(ecryptfs_sb_info_cache, sb_info);
-	ecryptfs_set_superblock_private(sb, NULL);
-
-	unlock_kernel();
-}
-
-/**
  * ecryptfs_statfs
  * @sb: The ecryptfs super block
  * @buf: The struct kstatfs to fill in with stats
@@ -203,7 +182,6 @@ const struct super_operations ecryptfs_sops = {
 	.alloc_inode = ecryptfs_alloc_inode,
 	.destroy_inode = ecryptfs_destroy_inode,
 	.drop_inode = generic_delete_inode,
-	.put_super = ecryptfs_put_super,
 	.statfs = ecryptfs_statfs,
 	.remount_fs = NULL,
 	.clear_inode = ecryptfs_clear_inode,

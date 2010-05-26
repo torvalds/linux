@@ -474,13 +474,17 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 
 	memset(&fl, 0x0, sizeof(struct flowi));
 	fl.fl4_dst  = daddr->v4.sin_addr.s_addr;
+	fl.fl_ip_dport = daddr->v4.sin_port;
 	fl.proto = IPPROTO_SCTP;
 	if (asoc) {
 		fl.fl4_tos = RT_CONN_FLAGS(asoc->base.sk);
 		fl.oif = asoc->base.sk->sk_bound_dev_if;
+		fl.fl_ip_sport = htons(asoc->base.bind_addr.port);
 	}
-	if (saddr)
+	if (saddr) {
 		fl.fl4_src = saddr->v4.sin_addr.s_addr;
+		fl.fl_ip_sport = saddr->v4.sin_port;
+	}
 
 	SCTP_DEBUG_PRINTK("%s: DST:%pI4, SRC:%pI4 - ",
 			  __func__, &fl.fl4_dst, &fl.fl4_src);
@@ -528,6 +532,7 @@ static struct dst_entry *sctp_v4_get_dst(struct sctp_association *asoc,
 		if ((laddr->state == SCTP_ADDR_SRC) &&
 		    (AF_INET == laddr->a.sa.sa_family)) {
 			fl.fl4_src = laddr->a.v4.sin_addr.s_addr;
+			fl.fl_ip_sport = laddr->a.v4.sin_port;
 			if (!ip_route_output_key(&init_net, &rt, &fl)) {
 				dst = &rt->u.dst;
 				goto out_unlock;
@@ -854,7 +859,7 @@ static inline int sctp_v4_xmit(struct sk_buff *skb,
 			 IP_PMTUDISC_DO : IP_PMTUDISC_DONT;
 
 	SCTP_INC_STATS(SCTP_MIB_OUTSCTPPACKS);
-	return ip_queue_xmit(skb, 0);
+	return ip_queue_xmit(skb);
 }
 
 static struct sctp_af sctp_af_inet;

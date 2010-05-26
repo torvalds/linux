@@ -441,7 +441,7 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
 	/*
 	 * Splice_read and readahead add shmem/tmpfs pages into the page cache
 	 * before shmem_readpage has a chance to mark them as SwapBacked: they
-	 * need to go on the active_anon lru below, and mem_cgroup_cache_charge
+	 * need to go on the anon lru below, and mem_cgroup_cache_charge
 	 * (called in add_to_page_cache) needs to know where they're going too.
 	 */
 	if (mapping_cap_swap_backed(mapping))
@@ -452,7 +452,7 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
 		if (page_is_file_cache(page))
 			lru_cache_add_file(page);
 		else
-			lru_cache_add_active_anon(page);
+			lru_cache_add_anon(page);
 	}
 	return ret;
 }
@@ -461,9 +461,15 @@ EXPORT_SYMBOL_GPL(add_to_page_cache_lru);
 #ifdef CONFIG_NUMA
 struct page *__page_cache_alloc(gfp_t gfp)
 {
+	int n;
+	struct page *page;
+
 	if (cpuset_do_page_mem_spread()) {
-		int n = cpuset_mem_spread_node();
-		return alloc_pages_exact_node(n, gfp, 0);
+		get_mems_allowed();
+		n = cpuset_mem_spread_node();
+		page = alloc_pages_exact_node(n, gfp, 0);
+		put_mems_allowed();
+		return page;
 	}
 	return alloc_pages(gfp, 0);
 }

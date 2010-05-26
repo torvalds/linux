@@ -576,7 +576,6 @@ static int __init ar7_register_devices(void)
 {
 	void __iomem *bootcr;
 	u32 val;
-	u16 chip_id;
 	int res;
 
 	res = ar7_register_uarts();
@@ -635,18 +634,10 @@ static int __init ar7_register_devices(void)
 	val = readl(bootcr);
 	iounmap(bootcr);
 	if (val & AR7_WDT_HW_ENA) {
-		chip_id = ar7_chip_id();
-		switch (chip_id) {
-		case AR7_CHIP_7100:
-		case AR7_CHIP_7200:
-			ar7_wdt_res.start = AR7_REGS_WDT;
-			break;
-		case AR7_CHIP_7300:
+		if (ar7_has_high_vlynq())
 			ar7_wdt_res.start = UR8_REGS_WDT;
-			break;
-		default:
-			break;
-		}
+		else
+			ar7_wdt_res.start = AR7_REGS_WDT;
 
 		ar7_wdt_res.end = ar7_wdt_res.start + 0x20;
 		res = platform_device_register(&ar7_wdt);
@@ -656,4 +647,4 @@ static int __init ar7_register_devices(void)
 
 	return 0;
 }
-arch_initcall(ar7_register_devices);
+device_initcall(ar7_register_devices);

@@ -203,8 +203,19 @@ struct perf_event_attr {
 				enable_on_exec :  1, /* next exec enables     */
 				task           :  1, /* trace fork/exit       */
 				watermark      :  1, /* wakeup_watermark      */
+				/*
+				 * precise_ip:
+				 *
+				 *  0 - SAMPLE_IP can have arbitrary skid
+				 *  1 - SAMPLE_IP must have constant skid
+				 *  2 - SAMPLE_IP requested to have 0 skid
+				 *  3 - SAMPLE_IP must have 0 skid
+				 *
+				 *  See also PERF_RECORD_MISC_EXACT_IP
+				 */
+				precise_ip     :  2, /* skid constraint       */
 
-				__reserved_1   : 49;
+				__reserved_1   : 47;
 
 	union {
 		__u32		wakeup_events;	  /* wakeup every n events */
@@ -287,11 +298,24 @@ struct perf_event_mmap_page {
 	__u64	data_tail;		/* user-space written tail */
 };
 
-#define PERF_RECORD_MISC_CPUMODE_MASK		(3 << 0)
+#define PERF_RECORD_MISC_CPUMODE_MASK		(7 << 0)
 #define PERF_RECORD_MISC_CPUMODE_UNKNOWN	(0 << 0)
 #define PERF_RECORD_MISC_KERNEL			(1 << 0)
 #define PERF_RECORD_MISC_USER			(2 << 0)
 #define PERF_RECORD_MISC_HYPERVISOR		(3 << 0)
+#define PERF_RECORD_MISC_GUEST_KERNEL		(4 << 0)
+#define PERF_RECORD_MISC_GUEST_USER		(5 << 0)
+
+/*
+ * Indicates that the content of PERF_SAMPLE_IP points to
+ * the actual instruction that triggered the event. See also
+ * perf_event_attr::precise_ip.
+ */
+#define PERF_RECORD_MISC_EXACT_IP		(1 << 14)
+/*
+ * Reserve the last bit to indicate some extended misc field
+ */
+#define PERF_RECORD_MISC_EXT_RESERVED		(1 << 15)
 
 struct perf_event_header {
 	__u32	type;
@@ -439,6 +463,12 @@ enum perf_callchain_context {
 # include <asm/perf_event.h>
 #endif
 
+struct perf_guest_info_callbacks {
+	int (*is_in_guest) (void);
+	int (*is_user_mode) (void);
+	unsigned long (*get_guest_ip) (void);
+};
+
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 #include <asm/hw_breakpoint.h>
 #endif
@@ -466,6 +496,17 @@ struct perf_callchain_entry {
 struct perf_raw_record {
 	u32				size;
 	void				*data;
+};
+
+struct perf_branch_entry {
+	__u64				from;
+	__u64				to;
+	__u64				flags;
+};
+
+struct perf_branch_stack {
+	__u64				nr;
+	struct perf_branch_entry	entries[0];
 };
 
 struct task_struct;
@@ -506,6 +547,8 @@ struct hw_perf_event {
 
 struct perf_event;
 
+#define PERF_EVENT_TXN_STARTED 1
+
 /**
  * struct pmu - generic performance monitoring unit
  */
@@ -516,6 +559,16 @@ struct pmu {
 	void (*stop)			(struct perf_event *event);
 	void (*read)			(struct perf_event *event);
 	void (*unthrottle)		(struct perf_event *event);
+
+	/*
+	 * group events scheduling is treated as a transaction,
+	 * add group events as a whole and perform one schedulability test.
+	 * If test fails, roll back the whole group
+	 */
+
+	void (*start_txn)	(const struct pmu *pmu);
+	void (*cancel_txn)	(const struct pmu *pmu);
+	int  (*commit_txn)	(const struct pmu *pmu);
 };
 
 /**
@@ -571,6 +624,14 @@ enum perf_group_flag {
 	PERF_GROUP_SOFTWARE = 0x1,
 };
 
+#define SWEVENT_HLIST_BITS	8
+#define SWEVENT_HLIST_SIZE	(1 << SWEVENT_HLIST_BITS)
+
+struct swevent_hlist {
+	struct hlist_head	heads[SWEVENT_HLIST_SIZE];
+	struct rcu_head		rcu_head;
+};
+
 /**
  * struct perf_event - performance event kernel representation:
  */
@@ -579,6 +640,7 @@ struct perf_event {
 	struct list_head		group_entry;
 	struct list_head		event_entry;
 	struct list_head		sibling_list;
+	struct hlist_node		hlist_entry;
 	int				nr_siblings;
 	int				group_flags;
 	struct perf_event		*group_leader;
@@ -726,6 +788,9 @@ struct perf_cpu_context {
 	int				active_oncpu;
 	int				max_pertask;
 	int				exclusive;
+	struct swevent_hlist		*swevent_hlist;
+	struct mutex			hlist_mutex;
+	int				hlist_refcount;
 
 	/*
 	 * Recursion avoidance:
@@ -769,9 +834,6 @@ extern void perf_disable(void);
 extern void perf_enable(void);
 extern int perf_event_task_disable(void);
 extern int perf_event_task_enable(void);
-extern int hw_perf_group_sched_in(struct perf_event *group_leader,
-	       struct perf_cpu_context *cpuctx,
-	       struct perf_event_context *ctx);
 extern void perf_event_update_userpage(struct perf_event *event);
 extern int perf_event_release_kernel(struct perf_event *event);
 extern struct perf_event *
@@ -902,6 +964,10 @@ static inline void perf_event_mmap(struct vm_area_struct *vma)
 		__perf_event_mmap(vma);
 }
 
+extern struct perf_guest_info_callbacks *perf_guest_cbs;
+extern int perf_register_guest_info_callbacks(struct perf_guest_info_callbacks *callbacks);
+extern int perf_unregister_guest_info_callbacks(struct perf_guest_info_callbacks *callbacks);
+
 extern void perf_event_comm(struct task_struct *tsk);
 extern void perf_event_fork(struct task_struct *tsk);
 
@@ -970,6 +1036,11 @@ perf_sw_event(u32 event_id, u64 nr, int nmi,
 		     struct pt_regs *regs, u64 addr)			{ }
 static inline void
 perf_bp_event(struct perf_event *event, void *data)			{ }
+
+static inline int perf_register_guest_info_callbacks
+(struct perf_guest_info_callbacks *callbacks) { return 0; }
+static inline int perf_unregister_guest_info_callbacks
+(struct perf_guest_info_callbacks *callbacks) { return 0; }
 
 static inline void perf_event_mmap(struct vm_area_struct *vma)		{ }
 static inline void perf_event_comm(struct task_struct *tsk)		{ }

@@ -421,7 +421,8 @@ int qlcnic_alloc_hw_resources(struct qlcnic_adapter *adapter)
 
 	if (addr == NULL) {
 		dev_err(&pdev->dev, "failed to allocate tx desc ring\n");
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto err_out_free;
 	}
 
 	tx_ring->desc_head = (struct cmd_desc_type0 *)addr;

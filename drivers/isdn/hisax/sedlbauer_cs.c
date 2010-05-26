@@ -87,32 +87,8 @@ static void sedlbauer_release(struct pcmcia_device *link);
 
 static void sedlbauer_detach(struct pcmcia_device *p_dev) __devexit;
 
-/*
-   You'll also need to prototype all the functions that will actually
-   be used to talk to your device.  See 'memory_cs' for a good example
-   of a fully self-sufficient driver; the other drivers rely more or
-   less on other parts of the kernel.
-*/
-
-/*
-   A driver needs to provide a dev_node_t structure for each device
-   on a card.  In some cases, there is only one device per card (for
-   example, ethernet cards, modems).  In other cases, there may be
-   many actual or logical devices (SCSI adapters, memory cards with
-   multiple partitions).  The dev_node_t structures need to be kept
-   in a linked list starting at the 'dev' field of a struct pcmcia_device
-   structure.  We allocate them in the card's private data structure,
-   because they generally shouldn't be allocated dynamically.
-
-   In this case, we also provide a flag to indicate if a device is
-   "stopped" due to a power management event, or card ejection.  The
-   device IO routines can use a flag like this to throttle IO to a
-   card that is not ready to accept it.
-*/
-   
 typedef struct local_info_t {
 	struct pcmcia_device	*p_dev;
-    dev_node_t		node;
     int			stop;
     int			cardnr;
 } local_info_t;
@@ -142,10 +118,6 @@ static int __devinit sedlbauer_probe(struct pcmcia_device *link)
 
     local->p_dev = link;
     link->priv = local;
-
-    /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.Handler = NULL;
 
     /*
       General socket configuration defaults can go here.  In this
@@ -227,9 +199,7 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
 		p_dev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
 
-	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
@@ -285,7 +255,6 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 
 static int __devinit sedlbauer_config(struct pcmcia_device *link)
 {
-    local_info_t *dev = link->priv;
     win_req_t *req;
     int ret;
     IsdnCard_t  icard;
@@ -313,17 +282,6 @@ static int __devinit sedlbauer_config(struct pcmcia_device *link)
 	    goto failed;
 
     /*
-       Allocate an interrupt line.  Note that this does not assign a
-       handler to the interrupt, unless the 'Handler' member of the
-       irq structure is initialized.
-    */
-    if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-	    ret = pcmcia_request_irq(link, &link->irq);
-	    if (ret)
-		    goto failed;
-    }
-	
-    /*
        This actually configures the PCMCIA socket -- setting up
        the I/O windows and the interrupt mapping, and putting the
        card and host interface into "Memory and IO" mode.
@@ -332,21 +290,13 @@ static int __devinit sedlbauer_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    /*
-      At this point, the dev_node_t structure(s) need to be
-      initialized and arranged in a linked list at link->dev.
-    */
-    sprintf(dev->node.dev_name, "sedlbauer");
-    dev->node.major = dev->node.minor = 0;
-    link->dev_node = &dev->node;
-
     /* Finally, report what we've done */
-    printk(KERN_INFO "%s: index 0x%02x:",
-	   dev->node.dev_name, link->conf.ConfigIndex);
+    dev_info(&link->dev, "index 0x%02x:",
+	   link->conf.ConfigIndex);
     if (link->conf.Vpp)
 	printk(", Vpp %d.%d", link->conf.Vpp/10, link->conf.Vpp%10);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
-	printk(", irq %d", link->irq.AssignedIRQ);
+	printk(", irq %d", link->irq);
     if (link->io.NumPorts1)
 	printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 	       link->io.BasePort1+link->io.NumPorts1-1);
@@ -358,7 +308,7 @@ static int __devinit sedlbauer_config(struct pcmcia_device *link)
 	       req->Base+req->Size-1);
     printk("\n");
 
-    icard.para[0] = link->irq.AssignedIRQ;
+    icard.para[0] = link->irq;
     icard.para[1] = link->io.BasePort1;
     icard.protocol = protocol;
     icard.typ = ISDN_CTYPE_SEDLBAUER_PCMCIA;

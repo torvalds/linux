@@ -85,12 +85,11 @@ static bool radeon_read_bios(struct radeon_device *rdev)
 		pci_unmap_rom(rdev->pdev, bios);
 		return false;
 	}
-	rdev->bios = kmalloc(size, GFP_KERNEL);
+	rdev->bios = kmemdup(bios, size, GFP_KERNEL);
 	if (rdev->bios == NULL) {
 		pci_unmap_rom(rdev->pdev, bios);
 		return false;
 	}
-	memcpy(rdev->bios, bios, size);
 	pci_unmap_rom(rdev->pdev, bios);
 	return true;
 }

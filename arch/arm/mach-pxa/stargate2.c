@@ -464,8 +464,6 @@ static struct platform_device smc91x_device = {
 
 
 
-static struct pxamci_platform_data stargate2_mci_platform_data;
-
 /*
  * The card detect interrupt isn't debounced so we delay it by 250ms
  * to give the card a chance to fully insert / eject.
@@ -489,8 +487,6 @@ static int stargate2_mci_init(struct device *dev,
 		goto free_power_en;
 	}
 	gpio_direction_input(SG2_GPIO_nSD_DETECT);
-	/* Delay to allow for full insertion */
-	stargate2_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
 	err = request_irq(IRQ_GPIO(SG2_GPIO_nSD_DETECT),
 			  stargate2_detect_int,
@@ -529,6 +525,7 @@ static void stargate2_mci_exit(struct device *dev, void *data)
 }
 
 static struct pxamci_platform_data stargate2_mci_platform_data = {
+	.detect_delay_ms = 250,
 	.ocr_mask = MMC_VDD_32_33 | MMC_VDD_33_34,
 	.init = stargate2_mci_init,
 	.setpower = stargate2_mci_setpower,

@@ -149,8 +149,7 @@ static void butterfly_chipselect(struct spi_device *spi, int value)
 #define	spidelay(X)	do{}while(0)
 //#define	spidelay	ndelay
 
-#define	EXPAND_BITBANG_TXRX
-#include <linux/spi/spi_bitbang.h>
+#include "spi_bitbang_txrx.h"
 
 static u32
 butterfly_txrx_word_mode0(struct spi_device *spi,

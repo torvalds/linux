@@ -200,7 +200,7 @@ lookup_protocol:
 
 	inet_sk(sk)->pinet6 = np = inet6_sk_generic(sk);
 	np->hop_limit	= -1;
-	np->mcast_hops	= -1;
+	np->mcast_hops	= IPV6_DEFAULT_MCASTHOPS;
 	np->mc_loop	= 1;
 	np->pmtudisc	= IPV6_PMTUDISC_WANT;
 	np->ipv6only	= net->ipv6.sysctl.bindv6only;
@@ -415,6 +415,9 @@ void inet6_destroy_sock(struct sock *sk)
 	/* Release rx options */
 
 	if ((skb = xchg(&np->pktoptions, NULL)) != NULL)
+		kfree_skb(skb);
+
+	if ((skb = xchg(&np->rxpmtu, NULL)) != NULL)
 		kfree_skb(skb);
 
 	/* Free flowlabels */

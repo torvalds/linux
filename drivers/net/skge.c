@@ -984,8 +984,8 @@ static void skge_rx_setup(struct skge_port *skge, struct skge_element *e,
 	wmb();
 
 	rd->control = BMU_OWN | BMU_STF | BMU_IRQ_EOF | BMU_TCP_CHECK | bufsize;
-	pci_unmap_addr_set(e, mapaddr, map);
-	pci_unmap_len_set(e, maplen, bufsize);
+	dma_unmap_addr_set(e, mapaddr, map);
+	dma_unmap_len_set(e, maplen, bufsize);
 }
 
 /* Resume receiving using existing skb,
@@ -1018,8 +1018,8 @@ static void skge_rx_clean(struct skge_port *skge)
 		rd->control = 0;
 		if (e->skb) {
 			pci_unmap_single(hw->pdev,
-					 pci_unmap_addr(e, mapaddr),
-					 pci_unmap_len(e, maplen),
+					 dma_unmap_addr(e, mapaddr),
+					 dma_unmap_len(e, maplen),
 					 PCI_DMA_FROMDEVICE);
 			dev_kfree_skb(e->skb);
 			e->skb = NULL;
@@ -2756,8 +2756,8 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 	e->skb = skb;
 	len = skb_headlen(skb);
 	map = pci_map_single(hw->pdev, skb->data, len, PCI_DMA_TODEVICE);
-	pci_unmap_addr_set(e, mapaddr, map);
-	pci_unmap_len_set(e, maplen, len);
+	dma_unmap_addr_set(e, mapaddr, map);
+	dma_unmap_len_set(e, maplen, len);
 
 	td->dma_lo = map;
 	td->dma_hi = map >> 32;
@@ -2799,8 +2799,8 @@ static netdev_tx_t skge_xmit_frame(struct sk_buff *skb,
 
 			tf->dma_lo = map;
 			tf->dma_hi = (u64) map >> 32;
-			pci_unmap_addr_set(e, mapaddr, map);
-			pci_unmap_len_set(e, maplen, frag->size);
+			dma_unmap_addr_set(e, mapaddr, map);
+			dma_unmap_len_set(e, maplen, frag->size);
 
 			tf->control = BMU_OWN | BMU_SW | control | frag->size;
 		}
@@ -2837,12 +2837,12 @@ static void skge_tx_free(struct skge_port *skge, struct skge_element *e,
 
 	/* skb header vs. fragment */
 	if (control & BMU_STF)
-		pci_unmap_single(pdev, pci_unmap_addr(e, mapaddr),
-				 pci_unmap_len(e, maplen),
+		pci_unmap_single(pdev, dma_unmap_addr(e, mapaddr),
+				 dma_unmap_len(e, maplen),
 				 PCI_DMA_TODEVICE);
 	else
-		pci_unmap_page(pdev, pci_unmap_addr(e, mapaddr),
-			       pci_unmap_len(e, maplen),
+		pci_unmap_page(pdev, dma_unmap_addr(e, mapaddr),
+			       dma_unmap_len(e, maplen),
 			       PCI_DMA_TODEVICE);
 
 	if (control & BMU_EOF) {
@@ -2918,7 +2918,7 @@ static void genesis_set_multicast(struct net_device *dev)
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
-	struct dev_mc_list *list;
+	struct netdev_hw_addr *ha;
 	u32 mode;
 	u8 filter[8];
 
@@ -2938,8 +2938,8 @@ static void genesis_set_multicast(struct net_device *dev)
 		    skge->flow_status == FLOW_STAT_SYMMETRIC)
 			genesis_add_filter(filter, pause_mc_addr);
 
-		netdev_for_each_mc_addr(list, dev)
-			genesis_add_filter(filter, list->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev)
+			genesis_add_filter(filter, ha->addr);
 	}
 
 	xm_write32(hw, port, XM_MODE, mode);
@@ -2957,7 +2957,7 @@ static void yukon_set_multicast(struct net_device *dev)
 	struct skge_port *skge = netdev_priv(dev);
 	struct skge_hw *hw = skge->hw;
 	int port = skge->port;
-	struct dev_mc_list *list;
+	struct netdev_hw_addr *ha;
 	int rx_pause = (skge->flow_status == FLOW_STAT_REM_SEND ||
 			skge->flow_status == FLOW_STAT_SYMMETRIC);
 	u16 reg;
@@ -2980,8 +2980,8 @@ static void yukon_set_multicast(struct net_device *dev)
 		if (rx_pause)
 			yukon_add_filter(filter, pause_mc_addr);
 
-		netdev_for_each_mc_addr(list, dev)
-			yukon_add_filter(filter, list->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev)
+			yukon_add_filter(filter, ha->addr);
 	}
 
 
@@ -3060,11 +3060,11 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 			goto resubmit;
 
 		pci_dma_sync_single_for_cpu(skge->hw->pdev,
-					    pci_unmap_addr(e, mapaddr),
+					    dma_unmap_addr(e, mapaddr),
 					    len, PCI_DMA_FROMDEVICE);
 		skb_copy_from_linear_data(e->skb, skb->data, len);
 		pci_dma_sync_single_for_device(skge->hw->pdev,
-					       pci_unmap_addr(e, mapaddr),
+					       dma_unmap_addr(e, mapaddr),
 					       len, PCI_DMA_FROMDEVICE);
 		skge_rx_reuse(e, skge->rx_buf_size);
 	} else {
@@ -3075,8 +3075,8 @@ static struct sk_buff *skge_rx_get(struct net_device *dev,
 			goto resubmit;
 
 		pci_unmap_single(skge->hw->pdev,
-				 pci_unmap_addr(e, mapaddr),
-				 pci_unmap_len(e, maplen),
+				 dma_unmap_addr(e, mapaddr),
+				 dma_unmap_len(e, maplen),
 				 PCI_DMA_FROMDEVICE);
 		skb = e->skb;
 		prefetch(skb->data);
@@ -3667,7 +3667,7 @@ static int skge_debug_show(struct seq_file *seq, void *v)
 			   t->csum_offs, t->csum_write, t->csum_start);
 	}
 
-	seq_printf(seq, "\nRx Ring: \n");
+	seq_printf(seq, "\nRx Ring:\n");
 	for (e = skge->rx_ring.to_clean; ; e = e->next) {
 		const struct skge_rx_desc *r = e->desc;
 

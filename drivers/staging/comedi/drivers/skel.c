@@ -131,7 +131,8 @@ MODULE_DEVICE_TABLE(pci, skel_pci_table);
 
 /* this structure is for data unique to this hardware driver.  If
    several hardware drivers keep similar information in this structure,
-   feel free to suggest moving the variable to the struct comedi_device struct.  */
+   feel free to suggest moving the variable to the struct comedi_device struct.
+ */
 struct skel_private {
 
 	int data;
@@ -211,7 +212,7 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
 	struct comedi_subdevice *s;
 
-	printk("comedi%d: skel: ", dev->minor);
+	pr_info("comedi%d: skel: ", dev->minor);
 
 /*
  * If you can probe the device to determine what device in a series
@@ -282,7 +283,7 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		s->type = COMEDI_SUBD_UNUSED;
 	}
 
-	printk("attached\n");
+	pr_info("attached\n");
 
 	return 0;
 }
@@ -297,7 +298,7 @@ static int skel_attach(struct comedi_device *dev, struct comedi_devconfig *it)
  */
 static int skel_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: skel: remove\n", dev->minor);
+	pr_info("comedi%d: skel: remove\n", dev->minor);
 
 	return 0;
 }
@@ -336,7 +337,7 @@ static int skel_ai_rinsn(struct comedi_device *dev, struct comedi_subdevice *s,
 		if (i == TIMEOUT) {
 			/* printk() should be used instead of printk()
 			 * whenever the code can be called from real-time. */
-			printk("timeout\n");
+			pr_info("timeout\n");
 			return -ETIMEDOUT;
 		}
 
@@ -397,7 +398,8 @@ static int skel_ai_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* step 2: make sure trigger sources are unique and mutually compatible
+     */
 
 	/* note that mutual compatibility is not an issue here */
 	if (cmd->scan_begin_src != TRIG_TIMER &&
@@ -529,7 +531,7 @@ static int skel_ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
 	int i;
 	int chan = CR_CHAN(insn->chanspec);
 
-	printk("skel_ao_winsn\n");
+	pr_info("skel_ao_winsn\n");
 	/* Writing a list of values to an AO channel is probably not
 	 * very useful, but that's how the interface is defined. */
 	for (i = 0; i < insn->n; i++) {
@@ -623,6 +625,7 @@ static int skel_dio_insn_config(struct comedi_device *dev,
  * as necessary.
  */
 COMEDI_INITCLEANUP(driver_skel);
-/* If you are writing a PCI driver you should use COMEDI_PCI_INITCLEANUP instead.
-*/
+/* If you are writing a PCI driver you should use COMEDI_PCI_INITCLEANUP
+ * instead.
+ */
 /* COMEDI_PCI_INITCLEANUP(driver_skel, skel_pci_table) */

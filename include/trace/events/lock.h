@@ -35,37 +35,15 @@ TRACE_EVENT(lock_acquire,
 		  __get_str(name))
 );
 
-TRACE_EVENT(lock_release,
-
-	TP_PROTO(struct lockdep_map *lock, int nested, unsigned long ip),
-
-	TP_ARGS(lock, nested, ip),
-
-	TP_STRUCT__entry(
-		__string(name, lock->name)
-		__field(void *, lockdep_addr)
-	),
-
-	TP_fast_assign(
-		__assign_str(name, lock->name);
-		__entry->lockdep_addr = lock;
-	),
-
-	TP_printk("%p %s",
-		  __entry->lockdep_addr, __get_str(name))
-);
-
-#ifdef CONFIG_LOCK_STAT
-
-TRACE_EVENT(lock_contended,
+DECLARE_EVENT_CLASS(lock,
 
 	TP_PROTO(struct lockdep_map *lock, unsigned long ip),
 
 	TP_ARGS(lock, ip),
 
 	TP_STRUCT__entry(
-		__string(name, lock->name)
-		__field(void *, lockdep_addr)
+		__string(	name, 	lock->name	)
+		__field(	void *, lockdep_addr	)
 	),
 
 	TP_fast_assign(
@@ -73,29 +51,30 @@ TRACE_EVENT(lock_contended,
 		__entry->lockdep_addr = lock;
 	),
 
-	TP_printk("%p %s",
-		  __entry->lockdep_addr, __get_str(name))
+	TP_printk("%p %s",  __entry->lockdep_addr, __get_str(name))
 );
 
-TRACE_EVENT(lock_acquired,
-	TP_PROTO(struct lockdep_map *lock, unsigned long ip, s64 waittime),
+DEFINE_EVENT(lock, lock_release,
 
-	TP_ARGS(lock, ip, waittime),
+	TP_PROTO(struct lockdep_map *lock, unsigned long ip),
 
-	TP_STRUCT__entry(
-		__string(name, lock->name)
-		__field(s64, wait_nsec)
-		__field(void *, lockdep_addr)
-	),
+	TP_ARGS(lock, ip)
+);
 
-	TP_fast_assign(
-		__assign_str(name, lock->name);
-		__entry->wait_nsec = waittime;
-		__entry->lockdep_addr = lock;
-	),
-	TP_printk("%p %s (%llu ns)", __entry->lockdep_addr,
-		  __get_str(name),
-		  __entry->wait_nsec)
+#ifdef CONFIG_LOCK_STAT
+
+DEFINE_EVENT(lock, lock_contended,
+
+	TP_PROTO(struct lockdep_map *lock, unsigned long ip),
+
+	TP_ARGS(lock, ip)
+);
+
+DEFINE_EVENT(lock, lock_acquired,
+
+	TP_PROTO(struct lockdep_map *lock, unsigned long ip),
+
+	TP_ARGS(lock, ip)
 );
 
 #endif

@@ -56,8 +56,6 @@ void __ioat2_issue_pending(struct ioat2_dma_chan *ioat)
 
 	ioat->dmacount += ioat2_ring_pending(ioat);
 	ioat->issued = ioat->head;
-	/* make descriptor updates globally visible before notifying channel */
-	wmb();
 	writew(ioat->dmacount, chan->reg_base + IOAT_CHAN_DMACOUNT_OFFSET);
 	dev_dbg(to_dev(chan),
 		"%s: head: %#x tail: %#x issued: %#x count: %#x\n",
@@ -69,9 +67,9 @@ void ioat2_issue_pending(struct dma_chan *c)
 	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
 
 	if (ioat2_ring_pending(ioat)) {
-		spin_lock_bh(&ioat->ring_lock);
+		spin_lock_bh(&ioat->prep_lock);
 		__ioat2_issue_pending(ioat);
-		spin_unlock_bh(&ioat->ring_lock);
+		spin_unlock_bh(&ioat->prep_lock);
 	}
 }
 
@@ -80,7 +78,7 @@ void ioat2_issue_pending(struct dma_chan *c)
  * @ioat: ioat2+ channel
  *
  * Check if the number of unsubmitted descriptors has exceeded the
- * watermark.  Called with ring_lock held
+ * watermark.  Called with prep_lock held
  */
 static void ioat2_update_pending(struct ioat2_dma_chan *ioat)
 {
@@ -92,7 +90,6 @@ static void __ioat2_start_null_desc(struct ioat2_dma_chan *ioat)
 {
 	struct ioat_ring_ent *desc;
 	struct ioat_dma_descriptor *hw;
-	int idx;
 
 	if (ioat2_ring_space(ioat) < 1) {
 		dev_err(to_dev(&ioat->base),
@@ -102,8 +99,7 @@ static void __ioat2_start_null_desc(struct ioat2_dma_chan *ioat)
 
 	dev_dbg(to_dev(&ioat->base), "%s: head: %#x tail: %#x issued: %#x\n",
 		__func__, ioat->head, ioat->tail, ioat->issued);
-	idx = ioat2_desc_alloc(ioat, 1);
-	desc = ioat2_get_ring_ent(ioat, idx);
+	desc = ioat2_get_ring_ent(ioat, ioat->head);
 
 	hw = desc->hw;
 	hw->ctl = 0;
@@ -117,14 +113,16 @@ static void __ioat2_start_null_desc(struct ioat2_dma_chan *ioat)
 	async_tx_ack(&desc->txd);
 	ioat2_set_chainaddr(ioat, desc->txd.phys);
 	dump_desc_dbg(ioat, desc);
+	wmb();
+	ioat->head += 1;
 	__ioat2_issue_pending(ioat);
 }
 
 static void ioat2_start_null_desc(struct ioat2_dma_chan *ioat)
 {
-	spin_lock_bh(&ioat->ring_lock);
+	spin_lock_bh(&ioat->prep_lock);
 	__ioat2_start_null_desc(ioat);
-	spin_unlock_bh(&ioat->ring_lock);
+	spin_unlock_bh(&ioat->prep_lock);
 }
 
 static void __cleanup(struct ioat2_dma_chan *ioat, unsigned long phys_complete)
@@ -134,15 +132,16 @@ static void __cleanup(struct ioat2_dma_chan *ioat, unsigned long phys_complete)
 	struct ioat_ring_ent *desc;
 	bool seen_current = false;
 	u16 active;
-	int i;
+	int idx = ioat->tail, i;
 
 	dev_dbg(to_dev(chan), "%s: head: %#x tail: %#x issued: %#x\n",
 		__func__, ioat->head, ioat->tail, ioat->issued);
 
 	active = ioat2_ring_active(ioat);
 	for (i = 0; i < active && !seen_current; i++) {
-		prefetch(ioat2_get_ring_ent(ioat, ioat->tail + i + 1));
-		desc = ioat2_get_ring_ent(ioat, ioat->tail + i);
+		smp_read_barrier_depends();
+		prefetch(ioat2_get_ring_ent(ioat, idx + i + 1));
+		desc = ioat2_get_ring_ent(ioat, idx + i);
 		tx = &desc->txd;
 		dump_desc_dbg(ioat, desc);
 		if (tx->cookie) {
@@ -158,11 +157,12 @@ static void __cleanup(struct ioat2_dma_chan *ioat, unsigned long phys_complete)
 		if (tx->phys == phys_complete)
 			seen_current = true;
 	}
-	ioat->tail += i;
+	smp_mb(); /* finish all descriptor reads before incrementing tail */
+	ioat->tail = idx + i;
 	BUG_ON(active && !seen_current); /* no active descs have written a completion? */
 
 	chan->last_completion = phys_complete;
-	if (ioat->head == ioat->tail) {
+	if (active - i == 0) {
 		dev_dbg(to_dev(chan), "%s: cancel completion timeout\n",
 			__func__);
 		clear_bit(IOAT_COMPLETION_PENDING, &chan->state);
@@ -179,24 +179,9 @@ static void ioat2_cleanup(struct ioat2_dma_chan *ioat)
 	struct ioat_chan_common *chan = &ioat->base;
 	unsigned long phys_complete;
 
-	prefetch(chan->completion);
-
-	if (!spin_trylock_bh(&chan->cleanup_lock))
-		return;
-
-	if (!ioat_cleanup_preamble(chan, &phys_complete)) {
-		spin_unlock_bh(&chan->cleanup_lock);
-		return;
-	}
-
-	if (!spin_trylock_bh(&ioat->ring_lock)) {
-		spin_unlock_bh(&chan->cleanup_lock);
-		return;
-	}
-
-	__cleanup(ioat, phys_complete);
-
-	spin_unlock_bh(&ioat->ring_lock);
+	spin_lock_bh(&chan->cleanup_lock);
+	if (ioat_cleanup_preamble(chan, &phys_complete))
+		__cleanup(ioat, phys_complete);
 	spin_unlock_bh(&chan->cleanup_lock);
 }
 
@@ -287,12 +272,10 @@ void ioat2_timer_event(unsigned long data)
 	struct ioat2_dma_chan *ioat = to_ioat2_chan((void *) data);
 	struct ioat_chan_common *chan = &ioat->base;
 
-	spin_lock_bh(&chan->cleanup_lock);
 	if (test_bit(IOAT_COMPLETION_PENDING, &chan->state)) {
 		unsigned long phys_complete;
 		u64 status;
 
-		spin_lock_bh(&ioat->ring_lock);
 		status = ioat_chansts(chan);
 
 		/* when halted due to errors check for channel
@@ -311,26 +294,31 @@ void ioat2_timer_event(unsigned long data)
 		 * acknowledged a pending completion once, then be more
 		 * forceful with a restart
 		 */
-		if (ioat_cleanup_preamble(chan, &phys_complete))
+		spin_lock_bh(&chan->cleanup_lock);
+		if (ioat_cleanup_preamble(chan, &phys_complete)) {
 			__cleanup(ioat, phys_complete);
-		else if (test_bit(IOAT_COMPLETION_ACK, &chan->state))
+		} else if (test_bit(IOAT_COMPLETION_ACK, &chan->state)) {
+			spin_lock_bh(&ioat->prep_lock);
 			ioat2_restart_channel(ioat);
-		else {
+			spin_unlock_bh(&ioat->prep_lock);
+		} else {
 			set_bit(IOAT_COMPLETION_ACK, &chan->state);
 			mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
 		}
-		spin_unlock_bh(&ioat->ring_lock);
+		spin_unlock_bh(&chan->cleanup_lock);
 	} else {
 		u16 active;
 
 		/* if the ring is idle, empty, and oversized try to step
 		 * down the size
 		 */
-		spin_lock_bh(&ioat->ring_lock);
+		spin_lock_bh(&chan->cleanup_lock);
+		spin_lock_bh(&ioat->prep_lock);
 		active = ioat2_ring_active(ioat);
 		if (active == 0 && ioat->alloc_order > ioat_get_alloc_order())
 			reshape_ring(ioat, ioat->alloc_order-1);
-		spin_unlock_bh(&ioat->ring_lock);
+		spin_unlock_bh(&ioat->prep_lock);
+		spin_unlock_bh(&chan->cleanup_lock);
 
 		/* keep shrinking until we get back to our minimum
 		 * default size
@@ -338,7 +326,6 @@ void ioat2_timer_event(unsigned long data)
 		if (ioat->alloc_order > ioat_get_alloc_order())
 			mod_timer(&chan->timer, jiffies + IDLE_TIMEOUT);
 	}
-	spin_unlock_bh(&chan->cleanup_lock);
 }
 
 static int ioat2_reset_hw(struct ioat_chan_common *chan)
@@ -392,7 +379,7 @@ int ioat2_enumerate_channels(struct ioatdma_device *device)
 
 		ioat_init_channel(device, &ioat->base, i);
 		ioat->xfercap_log = xfercap_log;
-		spin_lock_init(&ioat->ring_lock);
+		spin_lock_init(&ioat->prep_lock);
 		if (device->reset_hw(&ioat->base)) {
 			i = 0;
 			break;
@@ -418,8 +405,17 @@ static dma_cookie_t ioat2_tx_submit_unlock(struct dma_async_tx_descriptor *tx)
 
 	if (!test_and_set_bit(IOAT_COMPLETION_PENDING, &chan->state))
 		mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
+
+	/* make descriptor updates visible before advancing ioat->head,
+	 * this is purposefully not smp_wmb() since we are also
+	 * publishing the descriptor updates to a dma device
+	 */
+	wmb();
+
+	ioat->head += ioat->produce;
+
 	ioat2_update_pending(ioat);
-	spin_unlock_bh(&ioat->ring_lock);
+	spin_unlock_bh(&ioat->prep_lock);
 
 	return cookie;
 }
@@ -531,13 +527,15 @@ int ioat2_alloc_chan_resources(struct dma_chan *c)
 	if (!ring)
 		return -ENOMEM;
 
-	spin_lock_bh(&ioat->ring_lock);
+	spin_lock_bh(&chan->cleanup_lock);
+	spin_lock_bh(&ioat->prep_lock);
 	ioat->ring = ring;
 	ioat->head = 0;
 	ioat->issued = 0;
 	ioat->tail = 0;
 	ioat->alloc_order = order;
-	spin_unlock_bh(&ioat->ring_lock);
+	spin_unlock_bh(&ioat->prep_lock);
+	spin_unlock_bh(&chan->cleanup_lock);
 
 	tasklet_enable(&chan->cleanup_task);
 	ioat2_start_null_desc(ioat);
@@ -553,7 +551,7 @@ bool reshape_ring(struct ioat2_dma_chan *ioat, int order)
 	 */
 	struct ioat_chan_common *chan = &ioat->base;
 	struct dma_chan *c = &chan->common;
-	const u16 curr_size = ioat2_ring_mask(ioat) + 1;
+	const u16 curr_size = ioat2_ring_size(ioat);
 	const u16 active = ioat2_ring_active(ioat);
 	const u16 new_size = 1 << order;
 	struct ioat_ring_ent **ring;
@@ -653,54 +651,61 @@ bool reshape_ring(struct ioat2_dma_chan *ioat, int order)
 }
 
 /**
- * ioat2_alloc_and_lock - common descriptor alloc boilerplate for ioat2,3 ops
- * @idx: gets starting descriptor index on successful allocation
+ * ioat2_check_space_lock - verify space and grab ring producer lock
  * @ioat: ioat2,3 channel (ring) to operate on
  * @num_descs: allocation length
  */
-int ioat2_alloc_and_lock(u16 *idx, struct ioat2_dma_chan *ioat, int num_descs)
+int ioat2_check_space_lock(struct ioat2_dma_chan *ioat, int num_descs)
 {
 	struct ioat_chan_common *chan = &ioat->base;
+	bool retry;
 
-	spin_lock_bh(&ioat->ring_lock);
+ retry:
+	spin_lock_bh(&ioat->prep_lock);
 	/* never allow the last descriptor to be consumed, we need at
 	 * least one free at all times to allow for on-the-fly ring
 	 * resizing.
 	 */
-	while (unlikely(ioat2_ring_space(ioat) <= num_descs)) {
-		if (reshape_ring(ioat, ioat->alloc_order + 1) &&
-		    ioat2_ring_space(ioat) > num_descs)
-				break;
+	if (likely(ioat2_ring_space(ioat) > num_descs)) {
+		dev_dbg(to_dev(chan), "%s: num_descs: %d (%x:%x:%x)\n",
+			__func__, num_descs, ioat->head, ioat->tail, ioat->issued);
+		ioat->produce = num_descs;
+		return 0;  /* with ioat->prep_lock held */
+	}
+	retry = test_and_set_bit(IOAT_RESHAPE_PENDING, &chan->state);
+	spin_unlock_bh(&ioat->prep_lock);
 
-		if (printk_ratelimit())
-			dev_dbg(to_dev(chan),
-				"%s: ring full! num_descs: %d (%x:%x:%x)\n",
-				__func__, num_descs, ioat->head, ioat->tail,
-				ioat->issued);
-		spin_unlock_bh(&ioat->ring_lock);
+	/* is another cpu already trying to expand the ring? */
+	if (retry)
+		goto retry;
 
-		/* progress reclaim in the allocation failure case we
-		 * may be called under bh_disabled so we need to trigger
-		 * the timer event directly
-		 */
-		spin_lock_bh(&chan->cleanup_lock);
-		if (jiffies > chan->timer.expires &&
-		    timer_pending(&chan->timer)) {
-			struct ioatdma_device *device = chan->device;
+	spin_lock_bh(&chan->cleanup_lock);
+	spin_lock_bh(&ioat->prep_lock);
+	retry = reshape_ring(ioat, ioat->alloc_order + 1);
+	clear_bit(IOAT_RESHAPE_PENDING, &chan->state);
+	spin_unlock_bh(&ioat->prep_lock);
+	spin_unlock_bh(&chan->cleanup_lock);
 
-			mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
-			spin_unlock_bh(&chan->cleanup_lock);
-			device->timer_fn((unsigned long) &chan->common);
-		} else
-			spin_unlock_bh(&chan->cleanup_lock);
-		return -ENOMEM;
+	/* if we were able to expand the ring retry the allocation */
+	if (retry)
+		goto retry;
+
+	if (printk_ratelimit())
+		dev_dbg(to_dev(chan), "%s: ring full! num_descs: %d (%x:%x:%x)\n",
+			__func__, num_descs, ioat->head, ioat->tail, ioat->issued);
+
+	/* progress reclaim in the allocation failure case we may be
+	 * called under bh_disabled so we need to trigger the timer
+	 * event directly
+	 */
+	if (jiffies > chan->timer.expires && timer_pending(&chan->timer)) {
+		struct ioatdma_device *device = chan->device;
+
+		mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
+		device->timer_fn((unsigned long) &chan->common);
 	}
 
-	dev_dbg(to_dev(chan), "%s: num_descs: %d (%x:%x:%x)\n",
-		__func__, num_descs, ioat->head, ioat->tail, ioat->issued);
-
-	*idx = ioat2_desc_alloc(ioat, num_descs);
-	return 0;  /* with ioat->ring_lock held */
+	return -ENOMEM;
 }
 
 struct dma_async_tx_descriptor *
@@ -713,14 +718,11 @@ ioat2_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
 	dma_addr_t dst = dma_dest;
 	dma_addr_t src = dma_src;
 	size_t total_len = len;
-	int num_descs;
-	u16 idx;
-	int i;
+	int num_descs, idx, i;
 
 	num_descs = ioat2_xferlen_to_descs(ioat, len);
-	if (likely(num_descs) &&
-	    ioat2_alloc_and_lock(&idx, ioat, num_descs) == 0)
-		/* pass */;
+	if (likely(num_descs) && ioat2_check_space_lock(ioat, num_descs) == 0)
+		idx = ioat->head;
 	else
 		return NULL;
 	i = 0;
@@ -777,7 +779,8 @@ void ioat2_free_chan_resources(struct dma_chan *c)
 	device->cleanup_fn((unsigned long) c);
 	device->reset_hw(chan);
 
-	spin_lock_bh(&ioat->ring_lock);
+	spin_lock_bh(&chan->cleanup_lock);
+	spin_lock_bh(&ioat->prep_lock);
 	descs = ioat2_ring_space(ioat);
 	dev_dbg(to_dev(chan), "freeing %d idle descriptors\n", descs);
 	for (i = 0; i < descs; i++) {
@@ -800,7 +803,8 @@ void ioat2_free_chan_resources(struct dma_chan *c)
 	ioat->alloc_order = 0;
 	pci_pool_free(device->completion_pool, chan->completion,
 		      chan->completion_dma);
-	spin_unlock_bh(&ioat->ring_lock);
+	spin_unlock_bh(&ioat->prep_lock);
+	spin_unlock_bh(&chan->cleanup_lock);
 
 	chan->last_completion = 0;
 	chan->completion_dma = 0;
@@ -855,7 +859,7 @@ int __devinit ioat2_dma_probe(struct ioatdma_device *device, int dca)
 	dma->device_issue_pending = ioat2_issue_pending;
 	dma->device_alloc_chan_resources = ioat2_alloc_chan_resources;
 	dma->device_free_chan_resources = ioat2_free_chan_resources;
-	dma->device_is_tx_complete = ioat_is_dma_complete;
+	dma->device_tx_status = ioat_tx_status;
 
 	err = ioat_probe(device);
 	if (err)

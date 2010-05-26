@@ -654,7 +654,6 @@ static netdev_tx_t de_start_xmit (struct sk_buff *skb,
 
 	/* Trigger an immediate transmit demand. */
 	dw32(TxPoll, NormalTxPoll);
-	dev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 }
@@ -671,15 +670,15 @@ static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
 {
 	struct de_private *de = netdev_priv(dev);
 	u16 hash_table[32];
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	int i;
 	u16 *eaddrs;
 
 	memset(hash_table, 0, sizeof(hash_table));
 	set_bit_le(255, hash_table); 			/* Broadcast entry */
 	/* This should work on big-endian machines as well. */
-	netdev_for_each_mc_addr(mclist, dev) {
-		int index = ether_crc_le(ETH_ALEN, mclist->dmi_addr) & 0x1ff;
+	netdev_for_each_mc_addr(ha, dev) {
+		int index = ether_crc_le(ETH_ALEN, ha->addr) & 0x1ff;
 
 		set_bit_le(index, hash_table);
 	}
@@ -700,13 +699,13 @@ static void build_setup_frame_hash(u16 *setup_frm, struct net_device *dev)
 static void build_setup_frame_perfect(u16 *setup_frm, struct net_device *dev)
 {
 	struct de_private *de = netdev_priv(dev);
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	u16 *eaddrs;
 
 	/* We have <= 14 addresses so we can use the wonderful
 	   16 address perfect filtering of the Tulip. */
-	netdev_for_each_mc_addr(mclist, dev) {
-		eaddrs = (u16 *)mclist->dmi_addr;
+	netdev_for_each_mc_addr(ha, dev) {
+		eaddrs = (u16 *) ha->addr;
 		*setup_frm++ = *eaddrs; *setup_frm++ = *eaddrs++;
 		*setup_frm++ = *eaddrs; *setup_frm++ = *eaddrs++;
 		*setup_frm++ = *eaddrs; *setup_frm++ = *eaddrs++;

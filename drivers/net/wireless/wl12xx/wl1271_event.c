@@ -23,7 +23,6 @@
 
 #include "wl1271.h"
 #include "wl1271_reg.h"
-#include "wl1271_spi.h"
 #include "wl1271_io.h"
 #include "wl1271_event.h"
 #include "wl1271_ps.h"
@@ -32,34 +31,24 @@
 static int wl1271_event_scan_complete(struct wl1271 *wl,
 				      struct event_mailbox *mbox)
 {
-	int size = sizeof(struct wl12xx_probe_req_template);
 	wl1271_debug(DEBUG_EVENT, "status: 0x%x",
 		     mbox->scheduled_scan_status);
 
 	if (test_bit(WL1271_FLAG_SCANNING, &wl->flags)) {
 		if (wl->scan.state == WL1271_SCAN_BAND_DUAL) {
-			wl1271_cmd_template_set(wl, CMD_TEMPL_CFG_PROBE_REQ_2_4,
-						NULL, size);
 			/* 2.4 GHz band scanned, scan 5 GHz band, pretend
 			 * to the wl1271_cmd_scan function that we are not
 			 * scanning as it checks that.
 			 */
 			clear_bit(WL1271_FLAG_SCANNING, &wl->flags);
+			/* FIXME: ie missing! */
 			wl1271_cmd_scan(wl, wl->scan.ssid, wl->scan.ssid_len,
+						NULL, 0,
 						wl->scan.active,
 						wl->scan.high_prio,
 						WL1271_SCAN_BAND_5_GHZ,
 						wl->scan.probe_requests);
 		} else {
-			if (wl->scan.state == WL1271_SCAN_BAND_2_4_GHZ)
-				wl1271_cmd_template_set(wl,
-						CMD_TEMPL_CFG_PROBE_REQ_2_4,
-						NULL, size);
-			else
-				wl1271_cmd_template_set(wl,
-						CMD_TEMPL_CFG_PROBE_REQ_5,
-						NULL, size);
-
 			mutex_unlock(&wl->mutex);
 			ieee80211_scan_completed(wl->hw, false);
 			mutex_lock(&wl->mutex);
@@ -92,16 +81,9 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
 						 true);
 		} else {
-			wl1271_error("PSM entry failed, giving up.\n");
-			/* FIXME: this may need to be reconsidered. for now it
-			   is not possible to indicate to the mac80211
-			   afterwards that PSM entry failed. To maximize
-			   functionality (receiving data and remaining
-			   associated) make sure that we are in sync with the
-			   AP in regard of PSM mode. */
-			ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
-						 false);
+			wl1271_info("No ack to nullfunc from AP.");
 			wl->psm_entry_retry = 0;
+			*beacon_loss = true;
 		}
 		break;
 	case EVENT_ENTER_POWER_SAVE_SUCCESS:
@@ -143,6 +125,24 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 	return ret;
 }
 
+static void wl1271_event_rssi_trigger(struct wl1271 *wl,
+				      struct event_mailbox *mbox)
+{
+	enum nl80211_cqm_rssi_threshold_event event;
+	s8 metric = mbox->rssi_snr_trigger_metric[0];
+
+	wl1271_debug(DEBUG_EVENT, "RSSI trigger metric: %d", metric);
+
+	if (metric <= wl->rssi_thold)
+		event = NL80211_CQM_RSSI_THRESHOLD_EVENT_LOW;
+	else
+		event = NL80211_CQM_RSSI_THRESHOLD_EVENT_HIGH;
+
+	if (event != wl->last_rssi_event)
+		ieee80211_cqm_rssi_notify(wl->vif, event, GFP_KERNEL);
+	wl->last_rssi_event = event;
+}
+
 static void wl1271_event_mbox_dump(struct event_mailbox *mbox)
 {
 	wl1271_debug(DEBUG_EVENT, "MBOX DUMP:");
@@ -172,10 +172,13 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 	 * The BSS_LOSE_EVENT_ID is only needed while psm (and hence beacon
 	 * filtering) is enabled. Without PSM, the stack will receive all
 	 * beacons and can detect beacon loss by itself.
+	 *
+	 * As there's possibility that the driver disables PSM before receiving
+	 * BSS_LOSE_EVENT, beacon loss has to be reported to the stack.
+	 *
 	 */
-	if (vector & BSS_LOSE_EVENT_ID &&
-	    test_bit(WL1271_FLAG_PSM, &wl->flags)) {
-		wl1271_debug(DEBUG_EVENT, "BSS_LOSE_EVENT");
+	if (vector & BSS_LOSE_EVENT_ID) {
+		wl1271_info("Beacon loss detected.");
 
 		/* indicate to the stack, that beacons have been lost */
 		beacon_loss = true;
@@ -188,16 +191,14 @@ static int wl1271_event_process(struct wl1271 *wl, struct event_mailbox *mbox)
 			return ret;
 	}
 
-	if (wl->vif && beacon_loss) {
-		/* Obviously, it's dangerous to release the mutex while
-		   we are holding many of the variables in the wl struct.
-		   That's why it's done last in the function, and care must
-		   be taken that nothing more is done after this function
-		   returns. */
-		mutex_unlock(&wl->mutex);
-		ieee80211_beacon_loss(wl->vif);
-		mutex_lock(&wl->mutex);
+	if (vector & RSSI_SNR_TRIGGER_0_EVENT_ID) {
+		wl1271_debug(DEBUG_EVENT, "RSSI_SNR_TRIGGER_0_EVENT");
+		if (wl->vif)
+			wl1271_event_rssi_trigger(wl, mbox);
 	}
+
+	if (wl->vif && beacon_loss)
+		ieee80211_connection_loss(wl->vif);
 
 	return 0;
 }

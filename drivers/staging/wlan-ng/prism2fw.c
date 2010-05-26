@@ -160,21 +160,30 @@ hfa384x_caplevel_t priid;
 /*================================================================*/
 /* Local Function Declarations */
 
-int prism2_fwapply(const struct ihex_binrec *rfptr, wlandevice_t *wlandev);
-int read_fwfile(const struct ihex_binrec *rfptr);
-int mkimage(imgchunk_t *clist, unsigned int *ccnt);
-int read_cardpda(pda_t *pda, wlandevice_t *wlandev);
-int mkpdrlist(pda_t *pda);
-int plugimage(imgchunk_t *fchunk, unsigned int nfchunks,
-	      s3plugrec_t *s3plug, unsigned int ns3plug, pda_t * pda);
-int crcimage(imgchunk_t *fchunk, unsigned int nfchunks,
-	     s3crcrec_t *s3crc, unsigned int ns3crc);
-int writeimage(wlandevice_t *wlandev, imgchunk_t *fchunk,
-	       unsigned int nfchunks);
-void free_chunks(imgchunk_t *fchunk, unsigned int *nfchunks);
-void free_srecs(void);
+static int prism2_fwapply(const struct ihex_binrec *rfptr,
+wlandevice_t *wlandev);
 
-int validate_identity(void);
+static int read_fwfile(const struct ihex_binrec *rfptr);
+
+static int mkimage(imgchunk_t *clist, unsigned int *ccnt);
+
+static int read_cardpda(pda_t *pda, wlandevice_t *wlandev);
+
+static int mkpdrlist(pda_t *pda);
+
+static int plugimage(imgchunk_t *fchunk, unsigned int nfchunks,
+	      s3plugrec_t *s3plug, unsigned int ns3plug, pda_t * pda);
+
+static int crcimage(imgchunk_t *fchunk, unsigned int nfchunks,
+	     s3crcrec_t *s3crc, unsigned int ns3crc);
+
+static int writeimage(wlandevice_t *wlandev, imgchunk_t *fchunk,
+	       unsigned int nfchunks);
+static void free_chunks(imgchunk_t *fchunk, unsigned int *nfchunks);
+
+static void free_srecs(void);
+
+static int validate_identity(void);
 
 /*================================================================*/
 /* Function Definitions */
@@ -255,7 +264,7 @@ int prism2_fwapply(const struct ihex_binrec *rfptr, wlandevice_t *wlandev)
 	/* clear the pda and add an initial END record */
 	memset(&pda, 0, sizeof(pda));
 	pda.rec[0] = (hfa384x_pdrec_t *) pda.buf;
-	pda.rec[0]->len = cpu_to_le16(2);	/* len in words *//* len in words */
+	pda.rec[0]->len = cpu_to_le16(2);	/* len in words */
 	pda.rec[0]->code = cpu_to_le16(HFA384x_PDR_END_OF_PDA);
 	pda.nrec = 1;
 
@@ -527,13 +536,12 @@ int mkimage(imgchunk_t *clist, unsigned int *ccnt)
 
 	/* Allocate buffer space for chunks */
 	for (i = 0; i < *ccnt; i++) {
-		clist[i].data = kmalloc(clist[i].len, GFP_KERNEL);
+		clist[i].data = kzalloc(clist[i].len, GFP_KERNEL);
 		if (clist[i].data == NULL) {
 			printk(KERN_ERR
 			       "failed to allocate image space, exitting.\n");
 			return 1;
 		}
-		memset(clist[i].data, 0, clist[i].len);
 		pr_debug("chunk[%d]: addr=0x%06x len=%d\n",
 			 i, clist[i].addr, clist[i].len);
 	}

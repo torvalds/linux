@@ -124,9 +124,9 @@ static int dccp_rcv_closereq(struct sock *sk, struct sk_buff *skb)
 	return queued;
 }
 
-static u8 dccp_reset_code_convert(const u8 code)
+static u16 dccp_reset_code_convert(const u8 code)
 {
-	const u8 error_code[] = {
+	const u16 error_code[] = {
 	[DCCP_RESET_CODE_CLOSED]	     = 0,	/* normal termination */
 	[DCCP_RESET_CODE_UNSPECIFIED]	     = 0,	/* nothing known */
 	[DCCP_RESET_CODE_ABORTED]	     = ECONNRESET,
@@ -148,7 +148,7 @@ static u8 dccp_reset_code_convert(const u8 code)
 
 static void dccp_rcv_reset(struct sock *sk, struct sk_buff *skb)
 {
-	u8 err = dccp_reset_code_convert(dccp_hdr_reset(skb)->dccph_reset_code);
+	u16 err = dccp_reset_code_convert(dccp_hdr_reset(skb)->dccph_reset_code);
 
 	sk->sk_err = err;
 
@@ -415,7 +415,7 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 		if (!between48(DCCP_SKB_CB(skb)->dccpd_ack_seq,
 			       dp->dccps_awl, dp->dccps_awh)) {
 			dccp_pr_debug("invalid ackno: S.AWL=%llu, "
-				      "P.ackno=%llu, S.AWH=%llu \n",
+				      "P.ackno=%llu, S.AWH=%llu\n",
 				      (unsigned long long)dp->dccps_awl,
 			   (unsigned long long)DCCP_SKB_CB(skb)->dccpd_ack_seq,
 				      (unsigned long long)dp->dccps_awh);

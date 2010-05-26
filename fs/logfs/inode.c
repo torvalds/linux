@@ -193,6 +193,7 @@ static void logfs_init_inode(struct super_block *sb, struct inode *inode)
 	inode->i_ctime	= CURRENT_TIME;
 	inode->i_mtime	= CURRENT_TIME;
 	inode->i_nlink	= 1;
+	li->li_refcount = 1;
 	INIT_LIST_HEAD(&li->li_freeing_list);
 
 	for (i = 0; i < LOGFS_EMBEDDED_FIELDS; i++)
@@ -326,7 +327,7 @@ static void logfs_set_ino_generation(struct super_block *sb,
 	u64 ino;
 
 	mutex_lock(&super->s_journal_mutex);
-	ino = logfs_seek_hole(super->s_master_inode, super->s_last_ino);
+	ino = logfs_seek_hole(super->s_master_inode, super->s_last_ino + 1);
 	super->s_last_ino = ino;
 	super->s_inos_till_wrap--;
 	if (super->s_inos_till_wrap < 0) {
@@ -357,14 +358,7 @@ struct inode *logfs_new_inode(struct inode *dir, int mode)
 	inode->i_mode = mode;
 	logfs_set_ino_generation(sb, inode);
 
-	inode->i_uid = current_fsuid();
-	inode->i_gid = current_fsgid();
-	if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		if (S_ISDIR(mode))
-			inode->i_mode |= S_ISGID;
-	}
-
+	inode_init_owner(inode, dir, mode);
 	logfs_inode_setops(inode);
 	insert_inode_hash(inode);
 
@@ -386,8 +380,7 @@ static void logfs_init_once(void *_li)
 
 static int logfs_sync_fs(struct super_block *sb, int wait)
 {
-	/* FIXME: write anchor */
-	logfs_super(sb)->s_devops->sync(sb);
+	logfs_write_anchor(sb);
 	return 0;
 }
 

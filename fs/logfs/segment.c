@@ -67,7 +67,7 @@ static struct page *get_mapping_page(struct super_block *sb, pgoff_t index,
 	return page;
 }
 
-void __logfs_buf_write(struct logfs_area *area, u64 ofs, void *buf, size_t len,
+int __logfs_buf_write(struct logfs_area *area, u64 ofs, void *buf, size_t len,
 		int use_filler)
 {
 	pgoff_t index = ofs >> PAGE_SHIFT;
@@ -81,8 +81,10 @@ void __logfs_buf_write(struct logfs_area *area, u64 ofs, void *buf, size_t len,
 		copylen = min((ulong)len, PAGE_SIZE - offset);
 
 		page = get_mapping_page(area->a_sb, index, use_filler);
-		SetPageUptodate(page);
+		if (IS_ERR(page))
+			return PTR_ERR(page);
 		BUG_ON(!page); /* FIXME: reserve a pool */
+		SetPageUptodate(page);
 		memcpy(page_address(page) + offset, buf, copylen);
 		SetPagePrivate(page);
 		page_cache_release(page);
@@ -92,6 +94,7 @@ void __logfs_buf_write(struct logfs_area *area, u64 ofs, void *buf, size_t len,
 		offset = 0;
 		index++;
 	} while (len);
+	return 0;
 }
 
 static void pad_partial_page(struct logfs_area *area)

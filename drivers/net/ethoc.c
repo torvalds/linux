@@ -174,6 +174,7 @@ MODULE_PARM_DESC(buffer_size, "DMA buffer allocation size");
  * @iobase:	pointer to I/O memory region
  * @membase:	pointer to buffer memory region
  * @dma_alloc:	dma allocated buffer size
+ * @io_region_size:	I/O memory region size
  * @num_tx:	number of send buffers
  * @cur_tx:	last send buffer written
  * @dty_tx:	last buffer actually sent
@@ -193,6 +194,7 @@ struct ethoc {
 	void __iomem *iobase;
 	void __iomem *membase;
 	int dma_alloc;
+	resource_size_t io_region_size;
 
 	unsigned int num_tx;
 	unsigned int cur_tx;
@@ -756,7 +758,7 @@ static void ethoc_set_multicast_list(struct net_device *dev)
 {
 	struct ethoc *priv = netdev_priv(dev);
 	u32 mode = ethoc_read(priv, MODER);
-	struct dev_mc_list *mc;
+	struct netdev_hw_addr *ha;
 	u32 hash[2] = { 0, 0 };
 
 	/* set loopback mode if requested */
@@ -784,8 +786,8 @@ static void ethoc_set_multicast_list(struct net_device *dev)
 		hash[0] = 0xffffffff;
 		hash[1] = 0xffffffff;
 	} else {
-		netdev_for_each_mc_addr(mc, dev) {
-			u32 crc = ether_crc(ETH_ALEN, mc->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev) {
+			u32 crc = ether_crc(ETH_ALEN, ha->addr);
 			int bit = (crc >> 26) & 0x3f;
 			hash[bit >> 5] |= 1 << (bit & 0x1f);
 		}
@@ -851,7 +853,6 @@ static netdev_tx_t ethoc_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		netif_stop_queue(dev);
 	}
 
-	dev->trans_start = jiffies;
 	spin_unlock_irq(&priv->lock);
 out:
 	dev_kfree_skb(skb);
@@ -944,6 +945,7 @@ static int ethoc_probe(struct platform_device *pdev)
 	priv = netdev_priv(netdev);
 	priv->netdev = netdev;
 	priv->dma_alloc = 0;
+	priv->io_region_size = mmio->end - mmio->start + 1;
 
 	priv->iobase = devm_ioremap_nocache(&pdev->dev, netdev->base_addr,
 			resource_size(mmio));
@@ -1040,7 +1042,6 @@ static int ethoc_probe(struct platform_device *pdev)
 	netdev->features |= 0;
 
 	/* setup NAPI */
-	memset(&priv->napi, 0, sizeof(priv->napi));
 	netif_napi_add(netdev, &priv->napi, ethoc_poll, 64);
 
 	spin_lock_init(&priv->rx_lock);
@@ -1049,20 +1050,34 @@ static int ethoc_probe(struct platform_device *pdev)
 	ret = register_netdev(netdev);
 	if (ret < 0) {
 		dev_err(&netdev->dev, "failed to register interface\n");
-		goto error;
+		goto error2;
 	}
 
 	goto out;
 
+error2:
+	netif_napi_del(&priv->napi);
 error:
 	mdiobus_unregister(priv->mdio);
 free_mdio:
 	kfree(priv->mdio->irq);
 	mdiobus_free(priv->mdio);
 free:
-	if (priv->dma_alloc)
-		dma_free_coherent(NULL, priv->dma_alloc, priv->membase,
-			netdev->mem_start);
+	if (priv) {
+		if (priv->dma_alloc)
+			dma_free_coherent(NULL, priv->dma_alloc, priv->membase,
+					  netdev->mem_start);
+		else if (priv->membase)
+			devm_iounmap(&pdev->dev, priv->membase);
+		if (priv->iobase)
+			devm_iounmap(&pdev->dev, priv->iobase);
+	}
+	if (mem)
+		devm_release_mem_region(&pdev->dev, mem->start,
+					mem->end - mem->start + 1);
+	if (mmio)
+		devm_release_mem_region(&pdev->dev, mmio->start,
+					mmio->end - mmio->start + 1);
 	free_netdev(netdev);
 out:
 	return ret;
@@ -1080,6 +1095,7 @@ static int ethoc_remove(struct platform_device *pdev)
 	platform_set_drvdata(pdev, NULL);
 
 	if (netdev) {
+		netif_napi_del(&priv->napi);
 		phy_disconnect(priv->phy);
 		priv->phy = NULL;
 
@@ -1091,6 +1107,14 @@ static int ethoc_remove(struct platform_device *pdev)
 		if (priv->dma_alloc)
 			dma_free_coherent(NULL, priv->dma_alloc, priv->membase,
 				netdev->mem_start);
+		else {
+			devm_iounmap(&pdev->dev, priv->membase);
+			devm_release_mem_region(&pdev->dev, netdev->mem_start,
+				netdev->mem_end - netdev->mem_start + 1);
+		}
+		devm_iounmap(&pdev->dev, priv->iobase);
+		devm_release_mem_region(&pdev->dev, netdev->base_addr,
+			priv->io_region_size);
 		unregister_netdev(netdev);
 		free_netdev(netdev);
 	}

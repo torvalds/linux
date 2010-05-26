@@ -18,6 +18,7 @@
 #include <linux/slab.h>
 
 MODULE_ALIAS_MISCDEV(FUSE_MINOR);
+MODULE_ALIAS("devname:fuse");
 
 static struct kmem_cache *fuse_req_cachep;
 

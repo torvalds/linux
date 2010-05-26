@@ -17,28 +17,10 @@
 #include <mach/gpio-nrs.h>
 
 #ifdef CONFIG_CPU_S3C2400
-#define S3C24XX_GPIO_BASE(x)  S3C2400_GPIO_BASE(x)
-#define S3C24XX_MISCCR        S3C2400_MISCCR
+#define S3C24XX_MISCCR		S3C2400_MISCCR
 #else
-#define S3C24XX_GPIO_BASE(x)  S3C2410_GPIO_BASE(x)
-#define S3C24XX_MISCCR	      S3C24XX_GPIOREG2(0x80)
+#define S3C24XX_MISCCR		S3C24XX_GPIOREG2(0x80)
 #endif /* CONFIG_CPU_S3C2400 */
-
-
-/* S3C2400 doesn't have a 1:1 mapping to S3C2410 gpio base pins */
-
-#define S3C2400_BANKNUM(pin)     (((pin) & ~31) / 32)
-#define S3C2400_BASEA2B(pin)     ((((pin) & ~31) >> 2))
-#define S3C2400_BASEC2H(pin)     ((S3C2400_BANKNUM(pin) * 10) + \
-                                 (2 * (S3C2400_BANKNUM(pin)-2)))
-
-#define S3C2400_GPIO_BASE(pin)   (pin < S3C2410_GPIO_BANKC ? \
-                                 S3C2400_BASEA2B(pin)+S3C24XX_VA_GPIO : \
-                                 S3C2400_BASEC2H(pin)+S3C24XX_VA_GPIO)
-
-
-#define S3C2410_GPIO_BASE(pin)   ((((pin) & ~31) >> 1) + S3C24XX_VA_GPIO)
-#define S3C2410_GPIO_OFFSET(pin) ((pin) & 31)
 
 /* general configuration options */
 
@@ -610,34 +592,72 @@
 #define S3C2410_GPHUP	   S3C2410_GPIOREG(0x78)
 
 #define S3C2410_GPH0_nCTS0  (0x02 << 0)
+#define S3C2416_GPH0_TXD0  (0x02 << 0)
 
 #define S3C2410_GPH1_nRTS0  (0x02 << 2)
+#define S3C2416_GPH1_RXD0  (0x02 << 2)
 
 #define S3C2410_GPH2_TXD0   (0x02 << 4)
+#define S3C2416_GPH2_TXD1   (0x02 << 4)
 
 #define S3C2410_GPH3_RXD0   (0x02 << 6)
+#define S3C2416_GPH3_RXD1   (0x02 << 6)
 
 #define S3C2410_GPH4_TXD1   (0x02 << 8)
+#define S3C2416_GPH4_TXD2   (0x02 << 8)
 
 #define S3C2410_GPH5_RXD1   (0x02 << 10)
+#define S3C2416_GPH5_RXD2   (0x02 << 10)
 
 #define S3C2410_GPH6_TXD2   (0x02 << 12)
+#define S3C2416_GPH6_TXD3   (0x02 << 12)
 #define S3C2410_GPH6_nRTS1  (0x03 << 12)
+#define S3C2416_GPH6_nRTS2  (0x03 << 12)
 
 #define S3C2410_GPH7_RXD2   (0x02 << 14)
+#define S3C2416_GPH7_RXD3   (0x02 << 14)
 #define S3C2410_GPH7_nCTS1  (0x03 << 14)
+#define S3C2416_GPH7_nCTS2  (0x03 << 14)
 
 #define S3C2410_GPH8_UCLK   (0x02 << 16)
+#define S3C2416_GPH8_nCTS0  (0x02 << 16)
 
 #define S3C2410_GPH9_CLKOUT0  (0x02 << 18)
 #define S3C2442_GPH9_nSPICS0  (0x03 << 18)
+#define S3C2416_GPH9_nRTS0    (0x02 << 18)
 
 #define S3C2410_GPH10_CLKOUT1 (0x02 << 20)
+#define S3C2416_GPH10_nCTS1   (0x02 << 20)
+
+#define S3C2416_GPH11_nRTS1   (0x02 << 22)
+
+#define S3C2416_GPH12_EXTUARTCLK (0x02 << 24)
+
+#define S3C2416_GPH13_CLKOUT0 (0x02 << 26)
+
+#define S3C2416_GPH14_CLKOUT1 (0x02 << 28)
 
 /* The S3C2412 and S3C2413 move the GPJ register set to after
  * GPH, which means all registers after 0x80 are now offset by 0x10
  * for the 2412/2413 from the 2410/2440/2442
 */
+
+/* S3C2443 and above */
+#define S3C2440_GPJCON	   S3C2410_GPIOREG(0xD0)
+#define S3C2440_GPJDAT	   S3C2410_GPIOREG(0xD4)
+#define S3C2440_GPJUP	   S3C2410_GPIOREG(0xD8)
+
+#define S3C2443_GPKCON	   S3C2410_GPIOREG(0xE0)
+#define S3C2443_GPKDAT	   S3C2410_GPIOREG(0xE4)
+#define S3C2443_GPKUP	   S3C2410_GPIOREG(0xE8)
+
+#define S3C2443_GPLCON	   S3C2410_GPIOREG(0xF0)
+#define S3C2443_GPLDAT	   S3C2410_GPIOREG(0xF4)
+#define S3C2443_GPLUP	   S3C2410_GPIOREG(0xF8)
+
+#define S3C2443_GPMCON	   S3C2410_GPIOREG(0x100)
+#define S3C2443_GPMDAT	   S3C2410_GPIOREG(0x104)
+#define S3C2443_GPMUP	   S3C2410_GPIOREG(0x108)
 
 /* miscellaneous control */
 #define S3C2400_MISCCR	   S3C2410_GPIOREG(0x54)
@@ -686,6 +706,7 @@
 #define S3C2412_MISCCR_CLK1_CLKsrc  (0<<8)
 
 #define S3C2410_MISCCR_USBSUSPND0   (1<<12)
+#define S3C2416_MISCCR_SEL_SUSPND   (1<<12)
 #define S3C2410_MISCCR_USBSUSPND1   (1<<13)
 
 #define S3C2410_MISCCR_nRSTCON	    (1<<16)
@@ -694,6 +715,9 @@
 #define S3C2410_MISCCR_nEN_SCLK1    (1<<18)
 #define S3C2410_MISCCR_nEN_SCLKE    (1<<19)	/* not 2412 */
 #define S3C2410_MISCCR_SDSLEEP	    (7<<17)
+
+#define S3C2416_MISCCR_FLT_I2C      (1<<24)
+#define S3C2416_MISCCR_HSSPI_EN2    (1<<31)
 
 /* external interrupt control... */
 /* S3C2410_EXTINT0 -> irq sense control for EINT0..EINT7
@@ -762,8 +786,11 @@
 #define S3C2410_GSTATUS1_IDMASK	   (0xffff0000)
 #define S3C2410_GSTATUS1_2410	   (0x32410000)
 #define S3C2410_GSTATUS1_2412	   (0x32412001)
+#define S3C2410_GSTATUS1_2416	   (0x32416003)
 #define S3C2410_GSTATUS1_2440	   (0x32440000)
 #define S3C2410_GSTATUS1_2442	   (0x32440aaa)
+/* some 2416 CPUs report this value also */
+#define S3C2410_GSTATUS1_2450	   (0x32450003)
 
 #define S3C2410_GSTATUS2_WTRESET   (1<<2)
 #define S3C2410_GSTATUS2_OFFRESET  (1<<1)

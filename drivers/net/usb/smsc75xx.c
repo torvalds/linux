@@ -445,14 +445,14 @@ static void smsc75xx_set_multicast(struct net_device *netdev)
 		netif_dbg(dev, drv, dev->net, "receive all multicast enabled");
 		pdata->rfe_ctl |= RFE_CTL_AM | RFE_CTL_DPF;
 	} else if (!netdev_mc_empty(dev->net)) {
-		struct dev_mc_list *mc_list;
+		struct netdev_hw_addr *ha;
 
 		netif_dbg(dev, drv, dev->net, "receive multicast hash filter");
 
 		pdata->rfe_ctl |= RFE_CTL_MHF | RFE_CTL_DPF;
 
-		netdev_for_each_mc_addr(mc_list, netdev) {
-			u32 bitnum = smsc75xx_hash(mc_list->dmi_addr);
+		netdev_for_each_mc_addr(ha, netdev) {
+			u32 bitnum = smsc75xx_hash(ha->addr);
 			pdata->multicast_hash_table[bitnum / 32] |=
 				(1 << (bitnum % 32));
 		}

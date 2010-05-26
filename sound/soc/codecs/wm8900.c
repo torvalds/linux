@@ -745,7 +745,7 @@ static int fll_factors(struct _fll_div *fll_div, unsigned int Fref,
 static int wm8900_set_fll(struct snd_soc_codec *codec,
 	int fll_id, unsigned int freq_in, unsigned int freq_out)
 {
-	struct wm8900_priv *wm8900 = codec->private_data;
+	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
 	struct _fll_div fll_div;
 	unsigned int reg;
 
@@ -1132,7 +1132,7 @@ static int wm8900_suspend(struct platform_device *pdev, pm_message_t state)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8900_priv *wm8900 = codec->private_data;
+	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
 	int fll_out = wm8900->fll_out;
 	int fll_in  = wm8900->fll_in;
 	int ret;
@@ -1156,7 +1156,7 @@ static int wm8900_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8900_priv *wm8900 = codec->private_data;
+	struct wm8900_priv *wm8900 = snd_soc_codec_get_drvdata(codec);
 	u16 *cache;
 	int i, ret;
 
@@ -1206,7 +1206,7 @@ static __devinit int wm8900_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	codec = &wm8900->codec;
-	codec->private_data = wm8900;
+	snd_soc_codec_set_drvdata(codec, wm8900);
 	codec->reg_cache = &wm8900->reg_cache[0];
 	codec->reg_cache_size = WM8900_MAXREG;
 
@@ -1305,7 +1305,7 @@ static __devexit int wm8900_i2c_remove(struct i2c_client *client)
 	wm8900_set_bias_level(wm8900_codec, SND_SOC_BIAS_OFF);
 
 	wm8900_dai.dev = NULL;
-	kfree(wm8900_codec->private_data);
+	kfree(snd_soc_codec_get_drvdata(wm8900_codec));
 	wm8900_codec = NULL;
 
 	return 0;

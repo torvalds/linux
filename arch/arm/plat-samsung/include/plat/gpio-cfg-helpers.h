@@ -30,6 +30,12 @@ static inline int s3c_gpio_do_setcfg(struct s3c_gpio_chip *chip,
 	return (chip->config->set_config)(chip, off, config);
 }
 
+static inline unsigned s3c_gpio_do_getcfg(struct s3c_gpio_chip *chip,
+					  unsigned int off)
+{
+	return (chip->config->get_config)(chip, off);
+}
+
 static inline int s3c_gpio_do_setpull(struct s3c_gpio_chip *chip,
 				      unsigned int off, s3c_gpio_pull_t pull)
 {
@@ -53,6 +59,18 @@ extern int s3c_gpio_setcfg_s3c24xx(struct s3c_gpio_chip *chip,
 				   unsigned int off, unsigned int cfg);
 
 /**
+ * s3c_gpio_getcfg_s3c24xx - S3C24XX style GPIO configuration read.
+ * @chip: The gpio chip that is being configured.
+ * @off: The offset for the GPIO being configured.
+ *
+ * The reverse of s3c_gpio_setcfg_s3c24xx(). Will return a value whicg
+ * could be directly passed back to s3c_gpio_setcfg_s3c24xx(), from the
+ * S3C_GPIO_SPECIAL() macro.
+ */
+unsigned int s3c_gpio_getcfg_s3c24xx(struct s3c_gpio_chip *chip,
+				     unsigned int off);
+
+/**
  * s3c_gpio_setcfg_s3c24xx_a - S3C24XX style GPIO configuration (Bank A)
  * @chip: The gpio chip that is being configured.
  * @off: The offset for the GPIO being configured.
@@ -64,6 +82,21 @@ extern int s3c_gpio_setcfg_s3c24xx(struct s3c_gpio_chip *chip,
 */
 extern int s3c_gpio_setcfg_s3c24xx_a(struct s3c_gpio_chip *chip,
 				     unsigned int off, unsigned int cfg);
+
+
+/**
+ * s3c_gpio_getcfg_s3c24xx_a - S3C24XX style GPIO configuration read (Bank A)
+ * @chip: The gpio chip that is being configured.
+ * @off: The offset for the GPIO being configured.
+ *
+ * The reverse of s3c_gpio_setcfg_s3c24xx_a() turning an GPIO into a usable
+ * GPIO configuration value.
+ *
+ * @sa s3c_gpio_getcfg_s3c24xx
+ * @sa s3c_gpio_getcfg_s3c64xx_4bit
+ */
+extern unsigned s3c_gpio_getcfg_s3c24xx_a(struct s3c_gpio_chip *chip,
+					  unsigned int off);
 
 /**
  * s3c_gpio_setcfg_s3c64xx_4bit - S3C64XX 4bit single register GPIO config.
@@ -84,6 +117,20 @@ extern int s3c_gpio_setcfg_s3c24xx_a(struct s3c_gpio_chip *chip,
 extern int s3c_gpio_setcfg_s3c64xx_4bit(struct s3c_gpio_chip *chip,
 					unsigned int off, unsigned int cfg);
 
+
+/**
+ * s3c_gpio_getcfg_s3c64xx_4bit - S3C64XX 4bit single register GPIO config read.
+ * @chip: The gpio chip that is being configured.
+ * @off: The offset for the GPIO being configured.
+ *
+ * The reverse of s3c_gpio_setcfg_s3c64xx_4bit(), turning a gpio configuration
+ * register setting into a value the software can use, such as could be passed
+ * to s3c_gpio_setcfg_s3c64xx_4bit().
+ *
+ * @sa s3c_gpio_getcfg_s3c24xx
+ */
+extern unsigned s3c_gpio_getcfg_s3c64xx_4bit(struct s3c_gpio_chip *chip,
+					     unsigned int off);
 
 /* Pull-{up,down} resistor controls.
  *
@@ -144,6 +191,17 @@ extern int s3c_gpio_setpull_updown(struct s3c_gpio_chip *chip,
 */
 extern s3c_gpio_pull_t s3c_gpio_getpull_updown(struct s3c_gpio_chip *chip,
 					       unsigned int off);
+
+/**
+ * s3c_gpio_getpull_1up() - Get configuration for choice of up or none
+ * @chip: The gpio chip that the GPIO pin belongs to
+ * @off: The offset to the pin to get the configuration of.
+ *
+ * This helper function reads the state of the pull-up resistor for the
+ * given GPIO in the same case as s3c_gpio_setpull_1up.
+*/
+extern s3c_gpio_pull_t s3c_gpio_getpull_1up(struct s3c_gpio_chip *chip,
+					    unsigned int off);
 
 /**
  * s3c_gpio_setpull_s3c2443() - Pull configuration for s3c2443.

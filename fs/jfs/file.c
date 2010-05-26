@@ -98,7 +98,7 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (rc)
 		return rc;
 
-	if (iattr->ia_valid & ATTR_SIZE)
+	if (is_quota_modification(inode, iattr))
 		dquot_initialize(inode);
 	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
 	    (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {

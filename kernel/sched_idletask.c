@@ -6,7 +6,8 @@
  */
 
 #ifdef CONFIG_SMP
-static int select_task_rq_idle(struct task_struct *p, int sd_flag, int flags)
+static int
+select_task_rq_idle(struct rq *rq, struct task_struct *p, int sd_flag, int flags)
 {
 	return task_cpu(p); /* IDLE tasks as never migrated */
 }
@@ -22,8 +23,7 @@ static void check_preempt_curr_idle(struct rq *rq, struct task_struct *p, int fl
 static struct task_struct *pick_next_task_idle(struct rq *rq)
 {
 	schedstat_inc(rq, sched_goidle);
-	/* adjust the active tasks as we might go into a long sleep */
-	calc_load_account_active(rq);
+	calc_load_account_idle(rq);
 	return rq->idle;
 }
 
@@ -32,7 +32,7 @@ static struct task_struct *pick_next_task_idle(struct rq *rq)
  * message if some code attempts to do it:
  */
 static void
-dequeue_task_idle(struct rq *rq, struct task_struct *p, int sleep)
+dequeue_task_idle(struct rq *rq, struct task_struct *p, int flags)
 {
 	raw_spin_unlock_irq(&rq->lock);
 	printk(KERN_ERR "bad: scheduling from the idle thread!\n");

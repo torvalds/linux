@@ -139,6 +139,7 @@ static int mlx4_ib_query_device(struct ib_device *ibdev,
 	props->local_ca_ack_delay  = dev->dev->caps.local_ca_ack_delay;
 	props->atomic_cap	   = dev->dev->caps.flags & MLX4_DEV_CAP_FLAG_ATOMIC ?
 		IB_ATOMIC_HCA : IB_ATOMIC_NONE;
+	props->masked_atomic_cap   = IB_ATOMIC_HCA;
 	props->max_pkeys	   = dev->dev->caps.pkey_table_len[1];
 	props->max_mcast_grp	   = dev->dev->caps.num_mgms + dev->dev->caps.num_amgms;
 	props->max_mcast_qp_attach = dev->dev->caps.num_qp_per_mgm;
@@ -661,7 +662,7 @@ static void *mlx4_ib_add(struct mlx4_dev *dev)
 	spin_lock_init(&ibdev->sm_lock);
 	mutex_init(&ibdev->cap_mask_mutex);
 
-	if (ib_register_device(&ibdev->ib_dev))
+	if (ib_register_device(&ibdev->ib_dev, NULL))
 		goto err_map;
 
 	if (mlx4_ib_mad_init(ibdev))

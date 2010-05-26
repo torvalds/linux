@@ -74,7 +74,7 @@ static void dma_direct_free_coherent(struct device *dev, size_t size,
 			      void *vaddr, dma_addr_t dma_handle)
 {
 #ifdef NOT_COHERENT_CACHE
-	consistent_free(vaddr);
+	consistent_free(size, vaddr);
 #else
 	free_pages((unsigned long)vaddr, get_order(size));
 #endif

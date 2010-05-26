@@ -6,6 +6,7 @@ config CPU_S3C2440
 	bool
 	depends on ARCH_S3C2410
 	select CPU_ARM920T
+	select S3C_GPIO_PULL_UP
 	select S3C2410_CLOCK
 	select S3C2410_PM if PM
 	select S3C2410_GPIO
@@ -186,5 +187,18 @@ config MACH_MINI2440
 	help
 	  Say Y here to select support for the MINI2440. Is a 10cm x 10cm board
 	  available via various sources. It can come with a 3.5" or 7" touch LCD.
+
+config MACH_RX1950
+	bool "HP iPAQ rx1950"
+	select CPU_S3C2442
+	select S3C24XX_DCLK
+	select PM_H1940 if PM
+	select I2C
+	select S3C2410_PWM
+	select S3C_DEV_NAND
+	select S3C2410_IOTIMING if S3C2440_CPUFREQ
+	select S3C2440_XTAL_16934400
+	help
+	   Say Y here if you're using HP iPAQ rx1950
 
 endmenu

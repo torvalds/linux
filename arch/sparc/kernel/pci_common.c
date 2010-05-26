@@ -314,12 +314,12 @@ struct pci_ops sun4v_pci_ops = {
 
 void pci_get_pbm_props(struct pci_pbm_info *pbm)
 {
-	const u32 *val = of_get_property(pbm->op->node, "bus-range", NULL);
+	const u32 *val = of_get_property(pbm->op->dev.of_node, "bus-range", NULL);
 
 	pbm->pci_first_busno = val[0];
 	pbm->pci_last_busno = val[1];
 
-	val = of_get_property(pbm->op->node, "ino-bitmap", NULL);
+	val = of_get_property(pbm->op->dev.of_node, "ino-bitmap", NULL);
 	if (val) {
 		pbm->ino_bitmap = (((u64)val[1] << 32UL) |
 				   ((u64)val[0] <<  0UL));
@@ -365,7 +365,8 @@ static void pci_register_legacy_regions(struct resource *io_res,
 
 static void pci_register_iommu_region(struct pci_pbm_info *pbm)
 {
-	const u32 *vdma = of_get_property(pbm->op->node, "virtual-dma", NULL);
+	const u32 *vdma = of_get_property(pbm->op->dev.of_node, "virtual-dma",
+					  NULL);
 
 	if (vdma) {
 		struct resource *rp = kzalloc(sizeof(*rp), GFP_KERNEL);
@@ -394,7 +395,7 @@ void pci_determine_mem_io_space(struct pci_pbm_info *pbm)
 	int num_pbm_ranges;
 
 	saw_mem = saw_io = 0;
-	pbm_ranges = of_get_property(pbm->op->node, "ranges", &i);
+	pbm_ranges = of_get_property(pbm->op->dev.of_node, "ranges", &i);
 	if (!pbm_ranges) {
 		prom_printf("PCI: Fatal error, missing PBM ranges property "
 			    " for %s\n",

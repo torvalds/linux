@@ -224,7 +224,6 @@
 typedef struct scsi_info_t {
 	struct pcmcia_device	*p_dev;
 	struct Scsi_Host      *host;
-	dev_node_t             node;
 	int                    stop;
 } scsi_info_t;
 

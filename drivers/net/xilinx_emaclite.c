@@ -558,7 +558,7 @@ static void xemaclite_tx_timeout(struct net_device *dev)
 	}
 
 	/* To exclude tx timeout */
-	dev->trans_start = 0xffffffff - TX_TIMEOUT - TX_TIMEOUT;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 
 	/* We're all ready to go. Start the queue */
 	netif_wake_queue(dev);
@@ -590,7 +590,7 @@ static void xemaclite_tx_handler(struct net_device *dev)
 			dev->stats.tx_bytes += lp->deferred_skb->len;
 			dev_kfree_skb_irq(lp->deferred_skb);
 			lp->deferred_skb = NULL;
-			dev->trans_start = jiffies;
+			dev->trans_start = jiffies; /* prevent tx timeout */
 			netif_wake_queue(dev);
 		}
 	}
@@ -639,7 +639,6 @@ static void xemaclite_rx_handler(struct net_device *dev)
 	}
 
 	skb_put(skb, len);	/* Tell the skb how much data we got */
-	skb->dev = dev;		/* Fill out required meta-data */
 
 	skb->protocol = eth_type_trans(skb, dev);
 	skb->ip_summed = CHECKSUM_NONE;
@@ -1055,7 +1054,6 @@ static int xemaclite_send(struct sk_buff *orig_skb, struct net_device *dev)
 
 	dev->stats.tx_bytes += len;
 	dev_kfree_skb(new_skb);
-	dev->trans_start = jiffies;
 
 	return 0;
 }
@@ -1090,7 +1088,7 @@ static void xemaclite_remove_ndev(struct net_device *ndev)
  */
 static bool get_bool(struct of_device *ofdev, const char *s)
 {
-	u32 *p = (u32 *)of_get_property(ofdev->node, s, NULL);
+	u32 *p = (u32 *)of_get_property(ofdev->dev.of_node, s, NULL);
 
 	if (p) {
 		return (bool)*p;
@@ -1132,14 +1130,14 @@ static int __devinit xemaclite_of_probe(struct of_device *ofdev,
 	dev_info(dev, "Device Tree Probing\n");
 
 	/* Get iospace for the device */
-	rc = of_address_to_resource(ofdev->node, 0, &r_mem);
+	rc = of_address_to_resource(ofdev->dev.of_node, 0, &r_mem);
 	if (rc) {
 		dev_err(dev, "invalid address\n");
 		return rc;
 	}
 
 	/* Get IRQ for the device */
-	rc = of_irq_to_resource(ofdev->node, 0, &r_irq);
+	rc = of_irq_to_resource(ofdev->dev.of_node, 0, &r_irq);
 	if (rc == NO_IRQ) {
 		dev_err(dev, "no IRQ found\n");
 		return rc;
@@ -1172,7 +1170,7 @@ static int __devinit xemaclite_of_probe(struct of_device *ofdev,
 	}
 
 	/* Get the virtual base address for the device */
-	lp->base_addr = ioremap(r_mem.start, r_mem.end - r_mem.start + 1);
+	lp->base_addr = ioremap(r_mem.start, resource_size(&r_mem));
 	if (NULL == lp->base_addr) {
 		dev_err(dev, "EmacLite: Could not allocate iomem\n");
 		rc = -EIO;
@@ -1184,7 +1182,7 @@ static int __devinit xemaclite_of_probe(struct of_device *ofdev,
 	lp->next_rx_buf_to_use = 0x0;
 	lp->tx_ping_pong = get_bool(ofdev, "xlnx,tx-ping-pong");
 	lp->rx_ping_pong = get_bool(ofdev, "xlnx,rx-ping-pong");
-	mac_address = of_get_mac_address(ofdev->node);
+	mac_address = of_get_mac_address(ofdev->dev.of_node);
 
 	if (mac_address)
 		/* Set the MAC address. */
@@ -1199,7 +1197,7 @@ static int __devinit xemaclite_of_probe(struct of_device *ofdev,
 	/* Set the MAC address in the EmacLite device */
 	xemaclite_update_address(lp, ndev->dev_addr);
 
-	lp->phy_node = of_parse_phandle(ofdev->node, "phy-handle", 0);
+	lp->phy_node = of_parse_phandle(ofdev->dev.of_node, "phy-handle", 0);
 	rc = xemaclite_mdio_setup(lp, &ofdev->dev);
 	if (rc)
 		dev_warn(&ofdev->dev, "error registering MDIO bus\n");
@@ -1225,7 +1223,7 @@ static int __devinit xemaclite_of_probe(struct of_device *ofdev,
 	return 0;
 
 error1:
-	release_mem_region(ndev->mem_start, r_mem.end - r_mem.start + 1);
+	release_mem_region(ndev->mem_start, resource_size(&r_mem));
 
 error2:
 	xemaclite_remove_ndev(ndev);
@@ -1293,8 +1291,11 @@ static struct of_device_id xemaclite_of_match[] __devinitdata = {
 MODULE_DEVICE_TABLE(of, xemaclite_of_match);
 
 static struct of_platform_driver xemaclite_of_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= xemaclite_of_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = xemaclite_of_match,
+	},
 	.probe		= xemaclite_of_probe,
 	.remove		= __devexit_p(xemaclite_of_remove),
 };

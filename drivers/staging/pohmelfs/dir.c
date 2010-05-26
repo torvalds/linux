@@ -105,7 +105,7 @@ static struct pohmelfs_name *pohmelfs_insert_hash(struct pohmelfs_inode *pi,
 
 	if (ret) {
 		printk("%s: exist: parent: %llu, ino: %llu, hash: %x, len: %u, data: '%s', "
-				           "new: ino: %llu, hash: %x, len: %u, data: '%s'.\n",
+					"new: ino: %llu, hash: %x, len: %u, data: '%s'.\n",
 				__func__, pi->ino,
 				ret->ino, ret->hash, ret->len, ret->data,
 				new->ino, new->hash, new->len, new->data);
@@ -234,7 +234,7 @@ struct pohmelfs_inode *pohmelfs_new_inode(struct pohmelfs_sb *psb,
 	int err = -EEXIST;
 
 	dprintk("%s: creating inode: parent: %llu, ino: %llu, str: %p.\n",
-			__func__, (parent)?parent->ino:0, info->ino, str);
+			__func__, (parent) ? parent->ino : 0, info->ino, str);
 
 	err = -ENOMEM;
 	new = iget_locked(psb->sb, info->ino);
@@ -265,8 +265,8 @@ struct pohmelfs_inode *pohmelfs_new_inode(struct pohmelfs_sb *psb,
 			s.len = 2;
 			s.hash = jhash(s.name, s.len, 0);
 
-			err = pohmelfs_add_dir(psb, npi, (parent)?parent:npi, &s,
-					(parent)?parent->vfs_inode.i_mode:npi->vfs_inode.i_mode, 0);
+			err = pohmelfs_add_dir(psb, npi, (parent) ? parent : npi, &s,
+					(parent) ? parent->vfs_inode.i_mode : npi->vfs_inode.i_mode, 0);
 			if (err)
 				goto err_out_put;
 		}
@@ -277,7 +277,7 @@ struct pohmelfs_inode *pohmelfs_new_inode(struct pohmelfs_sb *psb,
 			err = pohmelfs_add_dir(psb, parent, npi, str, info->mode, link);
 
 			dprintk("%s: %s inserted name: '%s', new_offset: %llu, ino: %llu, parent: %llu.\n",
-					__func__, (err)?"unsuccessfully":"successfully",
+					__func__, (err) ? "unsuccessfully" : "successfully",
 					str->name, parent->total_len, info->ino, parent->ino);
 
 			if (err && err != -EEXIST)
@@ -605,7 +605,7 @@ struct pohmelfs_inode *pohmelfs_create_entry_local(struct pohmelfs_sb *psb,
 	if (!start)
 		info.ino = pohmelfs_new_ino(psb);
 
-	info.nlink = S_ISDIR(mode)?2:1;
+	info.nlink = S_ISDIR(mode) ? 2 : 1;
 	info.uid = current_fsuid();
 	info.gid = current_fsgid();
 	info.size = 0;
@@ -849,7 +849,7 @@ static int pohmelfs_create_link(struct pohmelfs_inode *parent, struct qstr *obj,
 	}
 
 	dprintk("%s: parent: %llu, obj: '%s', target_inode: %llu, target_str: '%s', full: '%s'.\n",
-			__func__, parent->ino, obj->name, (target)?target->ino:0, (tstr)?tstr->name:NULL,
+			__func__, parent->ino, obj->name, (target) ? target->ino : 0, (tstr) ? tstr->name : NULL,
 			(char *)data);
 
 	cmd->cmd = NETFS_LINK;

@@ -36,6 +36,12 @@ config OMAP2_DSS_COLLECT_IRQ_STATS
 	  <debugfs>/omapdss/dispc_irq for DISPC interrupts, and
 	  <debugfs>/omapdss/dsi_irq for DSI interrupts.
 
+config OMAP2_DSS_DPI
+	bool "DPI support"
+	default y
+	help
+	  DPI Interface. This is the Parallel Display Interface.
+
 config OMAP2_DSS_RFBI
 	bool "RFBI support"
         default n

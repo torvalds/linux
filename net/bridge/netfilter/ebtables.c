@@ -14,8 +14,7 @@
  *  as published by the Free Software Foundation; either version
  *  2 of the License, or (at your option) any later version.
  */
-
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/kmod.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
@@ -87,7 +86,7 @@ static struct xt_target ebt_standard_target = {
 
 static inline int
 ebt_do_watcher(const struct ebt_entry_watcher *w, struct sk_buff *skb,
-	       struct xt_target_param *par)
+	       struct xt_action_param *par)
 {
 	par->target   = w->u.watcher;
 	par->targinfo = w->data;
@@ -96,8 +95,9 @@ ebt_do_watcher(const struct ebt_entry_watcher *w, struct sk_buff *skb,
 	return 0;
 }
 
-static inline int ebt_do_match (struct ebt_entry_match *m,
-   const struct sk_buff *skb, struct xt_match_param *par)
+static inline int
+ebt_do_match(struct ebt_entry_match *m, const struct sk_buff *skb,
+	     struct xt_action_param *par)
 {
 	par->match     = m->u.match;
 	par->matchinfo = m->data;
@@ -186,15 +186,13 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 	struct ebt_entries *chaininfo;
 	const char *base;
 	const struct ebt_table_info *private;
-	bool hotdrop = false;
-	struct xt_match_param mtpar;
-	struct xt_target_param tgpar;
+	struct xt_action_param acpar;
 
-	mtpar.family  = tgpar.family = NFPROTO_BRIDGE;
-	mtpar.in      = tgpar.in  = in;
-	mtpar.out     = tgpar.out = out;
-	mtpar.hotdrop = &hotdrop;
-	mtpar.hooknum = tgpar.hooknum = hook;
+	acpar.family  = NFPROTO_BRIDGE;
+	acpar.in      = in;
+	acpar.out     = out;
+	acpar.hotdrop = false;
+	acpar.hooknum = hook;
 
 	read_lock_bh(&table->lock);
 	private = table->private;
@@ -215,9 +213,9 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 		if (ebt_basic_match(point, eth_hdr(skb), in, out))
 			goto letscontinue;
 
-		if (EBT_MATCH_ITERATE(point, ebt_do_match, skb, &mtpar) != 0)
+		if (EBT_MATCH_ITERATE(point, ebt_do_match, skb, &acpar) != 0)
 			goto letscontinue;
-		if (hotdrop) {
+		if (acpar.hotdrop) {
 			read_unlock_bh(&table->lock);
 			return NF_DROP;
 		}
@@ -228,7 +226,7 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 
 		/* these should only watch: not modify, nor tell us
 		   what to do with the packet */
-		EBT_WATCHER_ITERATE(point, ebt_do_watcher, skb, &tgpar);
+		EBT_WATCHER_ITERATE(point, ebt_do_watcher, skb, &acpar);
 
 		t = (struct ebt_entry_target *)
 		   (((char *)point) + point->target_offset);
@@ -236,9 +234,9 @@ unsigned int ebt_do_table (unsigned int hook, struct sk_buff *skb,
 		if (!t->u.target->target)
 			verdict = ((struct ebt_standard_target *)t)->verdict;
 		else {
-			tgpar.target   = t->u.target;
-			tgpar.targinfo = t->data;
-			verdict = t->u.target->target(skb, &tgpar);
+			acpar.target   = t->u.target;
+			acpar.targinfo = t->data;
+			verdict = t->u.target->target(skb, &acpar);
 		}
 		if (verdict == EBT_ACCEPT) {
 			read_unlock_bh(&table->lock);
@@ -363,12 +361,9 @@ ebt_check_match(struct ebt_entry_match *m, struct xt_mtchk_param *par,
 	    left - sizeof(struct ebt_entry_match) < m->match_size)
 		return -EINVAL;
 
-	match = try_then_request_module(xt_find_match(NFPROTO_BRIDGE,
-		m->u.name, 0), "ebt_%s", m->u.name);
+	match = xt_request_find_match(NFPROTO_BRIDGE, m->u.name, 0);
 	if (IS_ERR(match))
 		return PTR_ERR(match);
-	if (match == NULL)
-		return -ENOENT;
 	m->u.match = match;
 
 	par->match     = match;
@@ -397,13 +392,9 @@ ebt_check_watcher(struct ebt_entry_watcher *w, struct xt_tgchk_param *par,
 	   left - sizeof(struct ebt_entry_watcher) < w->watcher_size)
 		return -EINVAL;
 
-	watcher = try_then_request_module(
-		  xt_find_target(NFPROTO_BRIDGE, w->u.name, 0),
-		  "ebt_%s", w->u.name);
+	watcher = xt_request_find_target(NFPROTO_BRIDGE, w->u.name, 0);
 	if (IS_ERR(watcher))
 		return PTR_ERR(watcher);
-	if (watcher == NULL)
-		return -ENOENT;
 	w->u.watcher = watcher;
 
 	par->target   = watcher;
@@ -716,14 +707,9 @@ ebt_check_entry(struct ebt_entry *e, struct net *net,
 	t = (struct ebt_entry_target *)(((char *)e) + e->target_offset);
 	gap = e->next_offset - e->target_offset;
 
-	target = try_then_request_module(
-		 xt_find_target(NFPROTO_BRIDGE, t->u.name, 0),
-		 "ebt_%s", t->u.name);
+	target = xt_request_find_target(NFPROTO_BRIDGE, t->u.name, 0);
 	if (IS_ERR(target)) {
 		ret = PTR_ERR(target);
-		goto cleanup_watchers;
-	} else if (target == NULL) {
-		ret = -ENOENT;
 		goto cleanup_watchers;
 	}
 
@@ -2128,7 +2114,7 @@ static int size_entry_mwt(struct ebt_entry *entry, const unsigned char *base,
 			return ret;
 		new_offset += ret;
 		if (offsets_update && new_offset) {
-			pr_debug("ebtables: change offset %d to %d\n",
+			pr_debug("change offset %d to %d\n",
 				offsets_update[i], offsets[j] + new_offset);
 			offsets_update[i] = offsets[j] + new_offset;
 		}

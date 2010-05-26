@@ -299,6 +299,13 @@ static struct ctl_table ipv4_table[] = {
 		.mode		= 0644,
 		.proc_handler	= ipv4_local_port_range,
 	},
+	{
+		.procname	= "ip_local_reserved_ports",
+		.data		= NULL, /* initialized in sysctl_ipv4_init */
+		.maxlen		= 65536,
+		.mode		= 0644,
+		.proc_handler	= proc_do_large_bitmap,
+	},
 #ifdef CONFIG_IP_MULTICAST
 	{
 		.procname	= "igmp_max_memberships",
@@ -736,6 +743,16 @@ static __net_initdata struct pernet_operations ipv4_sysctl_ops = {
 static __init int sysctl_ipv4_init(void)
 {
 	struct ctl_table_header *hdr;
+	struct ctl_table *i;
+
+	for (i = ipv4_table; i->procname; i++) {
+		if (strcmp(i->procname, "ip_local_reserved_ports") == 0) {
+			i->data = sysctl_local_reserved_ports;
+			break;
+		}
+	}
+	if (!i->procname)
+		return -EINVAL;
 
 	hdr = register_sysctl_paths(net_ipv4_ctl_path, ipv4_table);
 	if (hdr == NULL)

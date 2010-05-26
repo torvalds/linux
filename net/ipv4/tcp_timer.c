@@ -172,14 +172,14 @@ static int tcp_write_timeout(struct sock *sk)
 
 	if ((1 << sk->sk_state) & (TCPF_SYN_SENT | TCPF_SYN_RECV)) {
 		if (icsk->icsk_retransmits)
-			dst_negative_advice(&sk->sk_dst_cache, sk);
+			dst_negative_advice(sk);
 		retry_until = icsk->icsk_syn_retries ? : sysctl_tcp_syn_retries;
 	} else {
 		if (retransmits_timed_out(sk, sysctl_tcp_retries1)) {
 			/* Black hole detection */
 			tcp_mtu_probing(icsk, sk);
 
-			dst_negative_advice(&sk->sk_dst_cache, sk);
+			dst_negative_advice(sk);
 		}
 
 		retry_until = sysctl_tcp_retries2;
@@ -517,7 +517,7 @@ static void tcp_keepalive_timer (unsigned long data)
 	struct sock *sk = (struct sock *) data;
 	struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
-	__u32 elapsed;
+	u32 elapsed;
 
 	/* Only process if socket is not in use. */
 	bh_lock_sock(sk);
@@ -554,7 +554,7 @@ static void tcp_keepalive_timer (unsigned long data)
 	if (tp->packets_out || tcp_send_head(sk))
 		goto resched;
 
-	elapsed = tcp_time_stamp - tp->rcv_tstamp;
+	elapsed = keepalive_time_elapsed(tp);
 
 	if (elapsed >= keepalive_time_when(tp)) {
 		if (icsk->icsk_probes_out >= keepalive_probes(tp)) {

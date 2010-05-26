@@ -94,6 +94,7 @@
 
 #include <net/compat.h>
 #include <net/wext.h>
+#include <net/cls_cgroup.h>
 
 #include <net/sock.h>
 #include <linux/netfilter.h>
@@ -252,9 +253,14 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 	ei = kmem_cache_alloc(sock_inode_cachep, GFP_KERNEL);
 	if (!ei)
 		return NULL;
-	init_waitqueue_head(&ei->socket.wait);
+	ei->socket.wq = kmalloc(sizeof(struct socket_wq), GFP_KERNEL);
+	if (!ei->socket.wq) {
+		kmem_cache_free(sock_inode_cachep, ei);
+		return NULL;
+	}
+	init_waitqueue_head(&ei->socket.wq->wait);
+	ei->socket.wq->fasync_list = NULL;
 
-	ei->socket.fasync_list = NULL;
 	ei->socket.state = SS_UNCONNECTED;
 	ei->socket.flags = 0;
 	ei->socket.ops = NULL;
@@ -264,10 +270,21 @@ static struct inode *sock_alloc_inode(struct super_block *sb)
 	return &ei->vfs_inode;
 }
 
+
+static void wq_free_rcu(struct rcu_head *head)
+{
+	struct socket_wq *wq = container_of(head, struct socket_wq, rcu);
+
+	kfree(wq);
+}
+
 static void sock_destroy_inode(struct inode *inode)
 {
-	kmem_cache_free(sock_inode_cachep,
-			container_of(inode, struct socket_alloc, vfs_inode));
+	struct socket_alloc *ei;
+
+	ei = container_of(inode, struct socket_alloc, vfs_inode);
+	call_rcu(&ei->socket.wq->rcu, wq_free_rcu);
+	kmem_cache_free(sock_inode_cachep, ei);
 }
 
 static void init_once(void *foo)
@@ -513,7 +530,7 @@ void sock_release(struct socket *sock)
 		module_put(owner);
 	}
 
-	if (sock->fasync_list)
+	if (sock->wq->fasync_list)
 		printk(KERN_ERR "sock_release: fasync list not empty!\n");
 
 	percpu_sub(sockets_in_use, 1);
@@ -541,6 +558,8 @@ static inline int __sock_sendmsg(struct kiocb *iocb, struct socket *sock,
 {
 	struct sock_iocb *si = kiocb_to_siocb(iocb);
 	int err;
+
+	sock_update_classid(sock->sk);
 
 	si->sock = sock;
 	si->scm = NULL;
@@ -620,10 +639,9 @@ void __sock_recv_timestamp(struct msghdr *msg, struct sock *sk,
 			put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMP,
 				 sizeof(tv), &tv);
 		} else {
-			struct timespec ts;
-			skb_get_timestampns(skb, &ts);
+			skb_get_timestampns(skb, &ts[0]);
 			put_cmsg(msg, SOL_SOCKET, SCM_TIMESTAMPNS,
-				 sizeof(ts), &ts);
+				 sizeof(ts[0]), &ts[0]);
 		}
 	}
 
@@ -656,18 +674,20 @@ inline void sock_recv_drops(struct msghdr *msg, struct sock *sk, struct sk_buff 
 			sizeof(__u32), &skb->dropcount);
 }
 
-void sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
+void __sock_recv_ts_and_drops(struct msghdr *msg, struct sock *sk,
 	struct sk_buff *skb)
 {
 	sock_recv_timestamp(msg, sk, skb);
 	sock_recv_drops(msg, sk, skb);
 }
-EXPORT_SYMBOL_GPL(sock_recv_ts_and_drops);
+EXPORT_SYMBOL_GPL(__sock_recv_ts_and_drops);
 
 static inline int __sock_recvmsg_nosec(struct kiocb *iocb, struct socket *sock,
 				       struct msghdr *msg, size_t size, int flags)
 {
 	struct sock_iocb *si = kiocb_to_siocb(iocb);
+
+	sock_update_classid(sock->sk);
 
 	si->sock = sock;
 	si->scm = NULL;
@@ -761,6 +781,8 @@ static ssize_t sock_splice_read(struct file *file, loff_t *ppos,
 
 	if (unlikely(!sock->ops->splice_read))
 		return -EINVAL;
+
+	sock_update_classid(sock->sk);
 
 	return sock->ops->splice_read(sock, ppos, pipe, len, flags);
 }
@@ -1068,87 +1090,44 @@ static int sock_close(struct inode *inode, struct file *filp)
  *	1. fasync_list is modified only under process context socket lock
  *	   i.e. under semaphore.
  *	2. fasync_list is used under read_lock(&sk->sk_callback_lock)
- *	   or under socket lock.
- *	3. fasync_list can be used from softirq context, so that
- *	   modification under socket lock have to be enhanced with
- *	   write_lock_bh(&sk->sk_callback_lock).
- *							--ANK (990710)
+ *	   or under socket lock
  */
 
 static int sock_fasync(int fd, struct file *filp, int on)
 {
-	struct fasync_struct *fa, *fna = NULL, **prev;
-	struct socket *sock;
-	struct sock *sk;
+	struct socket *sock = filp->private_data;
+	struct sock *sk = sock->sk;
 
-	if (on) {
-		fna = kmalloc(sizeof(struct fasync_struct), GFP_KERNEL);
-		if (fna == NULL)
-			return -ENOMEM;
-	}
-
-	sock = filp->private_data;
-
-	sk = sock->sk;
-	if (sk == NULL) {
-		kfree(fna);
+	if (sk == NULL)
 		return -EINVAL;
-	}
 
 	lock_sock(sk);
 
-	spin_lock(&filp->f_lock);
-	if (on)
-		filp->f_flags |= FASYNC;
+	fasync_helper(fd, filp, on, &sock->wq->fasync_list);
+
+	if (!sock->wq->fasync_list)
+		sock_reset_flag(sk, SOCK_FASYNC);
 	else
-		filp->f_flags &= ~FASYNC;
-	spin_unlock(&filp->f_lock);
-
-	prev = &(sock->fasync_list);
-
-	for (fa = *prev; fa != NULL; prev = &fa->fa_next, fa = *prev)
-		if (fa->fa_file == filp)
-			break;
-
-	if (on) {
-		if (fa != NULL) {
-			write_lock_bh(&sk->sk_callback_lock);
-			fa->fa_fd = fd;
-			write_unlock_bh(&sk->sk_callback_lock);
-
-			kfree(fna);
-			goto out;
-		}
-		fna->fa_file = filp;
-		fna->fa_fd = fd;
-		fna->magic = FASYNC_MAGIC;
-		fna->fa_next = sock->fasync_list;
-		write_lock_bh(&sk->sk_callback_lock);
-		sock->fasync_list = fna;
 		sock_set_flag(sk, SOCK_FASYNC);
-		write_unlock_bh(&sk->sk_callback_lock);
-	} else {
-		if (fa != NULL) {
-			write_lock_bh(&sk->sk_callback_lock);
-			*prev = fa->fa_next;
-			if (!sock->fasync_list)
-				sock_reset_flag(sk, SOCK_FASYNC);
-			write_unlock_bh(&sk->sk_callback_lock);
-			kfree(fa);
-		}
-	}
 
-out:
-	release_sock(sock->sk);
+	release_sock(sk);
 	return 0;
 }
 
-/* This function may be called only under socket lock or callback_lock */
+/* This function may be called only under socket lock or callback_lock or rcu_lock */
 
 int sock_wake_async(struct socket *sock, int how, int band)
 {
-	if (!sock || !sock->fasync_list)
+	struct socket_wq *wq;
+
+	if (!sock)
 		return -1;
+	rcu_read_lock();
+	wq = rcu_dereference(sock->wq);
+	if (!wq || !wq->fasync_list) {
+		rcu_read_unlock();
+		return -1;
+	}
 	switch (how) {
 	case SOCK_WAKE_WAITD:
 		if (test_bit(SOCK_ASYNC_WAITDATA, &sock->flags))
@@ -1160,11 +1139,12 @@ int sock_wake_async(struct socket *sock, int how, int band)
 		/* fall through */
 	case SOCK_WAKE_IO:
 call_kill:
-		__kill_fasync(sock->fasync_list, SIGIO, band);
+		kill_fasync(&wq->fasync_list, SIGIO, band);
 		break;
 	case SOCK_WAKE_URG:
-		__kill_fasync(sock->fasync_list, SIGURG, band);
+		kill_fasync(&wq->fasync_list, SIGURG, band);
 	}
+	rcu_read_unlock();
 	return 0;
 }
 
@@ -2642,7 +2622,7 @@ static int bond_ioctl(struct net *net, unsigned int cmd,
 		return dev_ioctl(net, cmd, uifr);
 	default:
 		return -EINVAL;
-	};
+	}
 }
 
 static int siocdevprivate_ioctl(struct net *net, unsigned int cmd,
@@ -3096,6 +3076,8 @@ int kernel_setsockopt(struct socket *sock, int level, int optname,
 int kernel_sendpage(struct socket *sock, struct page *page, int offset,
 		    size_t size, int flags)
 {
+	sock_update_classid(sock->sk);
+
 	if (sock->ops->sendpage)
 		return sock->ops->sendpage(sock, page, offset, size, flags);
 

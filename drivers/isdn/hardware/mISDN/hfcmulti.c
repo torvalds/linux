@@ -117,7 +117,7 @@
  *	NOTE: only one mode value must be given for every card.
  *	-> See hfc_multi.h for HFC_IO_MODE_* values
  *	By default, the IO mode is pci memory IO (MEMIO).
- *	Some cards requre specific IO mode, so it cannot be changed.
+ *	Some cards require specific IO mode, so it cannot be changed.
  *	It may be usefull to set IO mode to register io (REGIO) to solve
  *	PCI bridge problems.
  *	If unsure, don't give this parameter.

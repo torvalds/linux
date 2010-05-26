@@ -530,9 +530,7 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	nfs_readdir_descriptor_t my_desc,
 			*desc = &my_desc;
 	struct nfs_entry my_entry;
-	struct nfs_fh	 fh;
-	struct nfs_fattr fattr;
-	long		res;
+	int res = -ENOMEM;
 
 	dfprintk(FILE, "NFS: readdir(%s/%s) starting at cookie %llu\n",
 			dentry->d_parent->d_name.name, dentry->d_name.name,
@@ -554,9 +552,11 @@ static int nfs_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 	my_entry.cookie = my_entry.prev_cookie = 0;
 	my_entry.eof = 0;
-	my_entry.fh = &fh;
-	my_entry.fattr = &fattr;
-	nfs_fattr_init(&fattr);
+	my_entry.fh = nfs_alloc_fhandle();
+	my_entry.fattr = nfs_alloc_fattr();
+	if (my_entry.fh == NULL || my_entry.fattr == NULL)
+		goto out_alloc_failed;
+
 	desc->entry = &my_entry;
 
 	nfs_block_sillyrename(dentry);
@@ -598,7 +598,10 @@ out:
 	nfs_unblock_sillyrename(dentry);
 	if (res > 0)
 		res = 0;
-	dfprintk(FILE, "NFS: readdir(%s/%s) returns %ld\n",
+out_alloc_failed:
+	nfs_free_fattr(my_entry.fattr);
+	nfs_free_fhandle(my_entry.fh);
+	dfprintk(FILE, "NFS: readdir(%s/%s) returns %d\n",
 			dentry->d_parent->d_name.name, dentry->d_name.name,
 			res);
 	return res;
@@ -776,9 +779,9 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	struct inode *dir;
 	struct inode *inode;
 	struct dentry *parent;
+	struct nfs_fh *fhandle = NULL;
+	struct nfs_fattr *fattr = NULL;
 	int error;
-	struct nfs_fh fhandle;
-	struct nfs_fattr fattr;
 
 	parent = dget_parent(dentry);
 	dir = parent->d_inode;
@@ -811,14 +814,22 @@ static int nfs_lookup_revalidate(struct dentry * dentry, struct nameidata *nd)
 	if (NFS_STALE(inode))
 		goto out_bad;
 
-	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, &fhandle, &fattr);
+	error = -ENOMEM;
+	fhandle = nfs_alloc_fhandle();
+	fattr = nfs_alloc_fattr();
+	if (fhandle == NULL || fattr == NULL)
+		goto out_error;
+
+	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, fhandle, fattr);
 	if (error)
 		goto out_bad;
-	if (nfs_compare_fh(NFS_FH(inode), &fhandle))
+	if (nfs_compare_fh(NFS_FH(inode), fhandle))
 		goto out_bad;
-	if ((error = nfs_refresh_inode(inode, &fattr)) != 0)
+	if ((error = nfs_refresh_inode(inode, fattr)) != 0)
 		goto out_bad;
 
+	nfs_free_fattr(fattr);
+	nfs_free_fhandle(fhandle);
 out_set_verifier:
 	nfs_set_verifier(dentry, nfs_save_change_attribute(dir));
  out_valid:
@@ -842,11 +853,21 @@ out_zap_parent:
 		shrink_dcache_parent(dentry);
 	}
 	d_drop(dentry);
+	nfs_free_fattr(fattr);
+	nfs_free_fhandle(fhandle);
 	dput(parent);
 	dfprintk(LOOKUPCACHE, "NFS: %s(%s/%s) is invalid\n",
 			__func__, dentry->d_parent->d_name.name,
 			dentry->d_name.name);
 	return 0;
+out_error:
+	nfs_free_fattr(fattr);
+	nfs_free_fhandle(fhandle);
+	dput(parent);
+	dfprintk(LOOKUPCACHE, "NFS: %s(%s/%s) lookup returned error %d\n",
+			__func__, dentry->d_parent->d_name.name,
+			dentry->d_name.name, error);
+	return error;
 }
 
 /*
@@ -911,9 +932,9 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 	struct dentry *res;
 	struct dentry *parent;
 	struct inode *inode = NULL;
+	struct nfs_fh *fhandle = NULL;
+	struct nfs_fattr *fattr = NULL;
 	int error;
-	struct nfs_fh fhandle;
-	struct nfs_fattr fattr;
 
 	dfprintk(VFS, "NFS: lookup(%s/%s)\n",
 		dentry->d_parent->d_name.name, dentry->d_name.name);
@@ -923,7 +944,6 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 	if (dentry->d_name.len > NFS_SERVER(dir)->namelen)
 		goto out;
 
-	res = ERR_PTR(-ENOMEM);
 	dentry->d_op = NFS_PROTO(dir)->dentry_ops;
 
 	/*
@@ -936,17 +956,23 @@ static struct dentry *nfs_lookup(struct inode *dir, struct dentry * dentry, stru
 		goto out;
 	}
 
+	res = ERR_PTR(-ENOMEM);
+	fhandle = nfs_alloc_fhandle();
+	fattr = nfs_alloc_fattr();
+	if (fhandle == NULL || fattr == NULL)
+		goto out;
+
 	parent = dentry->d_parent;
 	/* Protect against concurrent sillydeletes */
 	nfs_block_sillyrename(parent);
-	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, &fhandle, &fattr);
+	error = NFS_PROTO(dir)->lookup(dir, &dentry->d_name, fhandle, fattr);
 	if (error == -ENOENT)
 		goto no_entry;
 	if (error < 0) {
 		res = ERR_PTR(error);
 		goto out_unblock_sillyrename;
 	}
-	inode = nfs_fhget(dentry->d_sb, &fhandle, &fattr);
+	inode = nfs_fhget(dentry->d_sb, fhandle, fattr);
 	res = (struct dentry *)inode;
 	if (IS_ERR(res))
 		goto out_unblock_sillyrename;
@@ -962,6 +988,8 @@ no_entry:
 out_unblock_sillyrename:
 	nfs_unblock_sillyrename(parent);
 out:
+	nfs_free_fattr(fattr);
+	nfs_free_fhandle(fhandle);
 	return res;
 }
 
@@ -1669,28 +1697,33 @@ static void nfs_access_free_entry(struct nfs_access_entry *entry)
 	smp_mb__after_atomic_dec();
 }
 
+static void nfs_access_free_list(struct list_head *head)
+{
+	struct nfs_access_entry *cache;
+
+	while (!list_empty(head)) {
+		cache = list_entry(head->next, struct nfs_access_entry, lru);
+		list_del(&cache->lru);
+		nfs_access_free_entry(cache);
+	}
+}
+
 int nfs_access_cache_shrinker(int nr_to_scan, gfp_t gfp_mask)
 {
 	LIST_HEAD(head);
 	struct nfs_inode *nfsi;
 	struct nfs_access_entry *cache;
 
-restart:
+	if ((gfp_mask & GFP_KERNEL) != GFP_KERNEL)
+		return (nr_to_scan == 0) ? 0 : -1;
+
 	spin_lock(&nfs_access_lru_lock);
 	list_for_each_entry(nfsi, &nfs_access_lru_list, access_cache_inode_lru) {
-		struct rw_semaphore *s_umount;
 		struct inode *inode;
 
 		if (nr_to_scan-- == 0)
 			break;
-		s_umount = &nfsi->vfs_inode.i_sb->s_umount;
-		if (!down_read_trylock(s_umount))
-			continue;
-		inode = igrab(&nfsi->vfs_inode);
-		if (inode == NULL) {
-			up_read(s_umount);
-			continue;
-		}
+		inode = &nfsi->vfs_inode;
 		spin_lock(&inode->i_lock);
 		if (list_empty(&nfsi->access_cache_entry_lru))
 			goto remove_lru_entry;
@@ -1704,61 +1737,47 @@ restart:
 		else {
 remove_lru_entry:
 			list_del_init(&nfsi->access_cache_inode_lru);
+			smp_mb__before_clear_bit();
 			clear_bit(NFS_INO_ACL_LRU_SET, &nfsi->flags);
+			smp_mb__after_clear_bit();
 		}
-		spin_unlock(&inode->i_lock);
-		spin_unlock(&nfs_access_lru_lock);
-		iput(inode);
-		up_read(s_umount);
-		goto restart;
 	}
 	spin_unlock(&nfs_access_lru_lock);
-	while (!list_empty(&head)) {
-		cache = list_entry(head.next, struct nfs_access_entry, lru);
-		list_del(&cache->lru);
-		nfs_access_free_entry(cache);
-	}
+	nfs_access_free_list(&head);
 	return (atomic_long_read(&nfs_access_nr_entries) / 100) * sysctl_vfs_cache_pressure;
 }
 
-static void __nfs_access_zap_cache(struct inode *inode)
+static void __nfs_access_zap_cache(struct nfs_inode *nfsi, struct list_head *head)
 {
-	struct nfs_inode *nfsi = NFS_I(inode);
 	struct rb_root *root_node = &nfsi->access_cache;
-	struct rb_node *n, *dispose = NULL;
+	struct rb_node *n;
 	struct nfs_access_entry *entry;
 
 	/* Unhook entries from the cache */
 	while ((n = rb_first(root_node)) != NULL) {
 		entry = rb_entry(n, struct nfs_access_entry, rb_node);
 		rb_erase(n, root_node);
-		list_del(&entry->lru);
-		n->rb_left = dispose;
-		dispose = n;
+		list_move(&entry->lru, head);
 	}
 	nfsi->cache_validity &= ~NFS_INO_INVALID_ACCESS;
-	spin_unlock(&inode->i_lock);
-
-	/* Now kill them all! */
-	while (dispose != NULL) {
-		n = dispose;
-		dispose = n->rb_left;
-		nfs_access_free_entry(rb_entry(n, struct nfs_access_entry, rb_node));
-	}
 }
 
 void nfs_access_zap_cache(struct inode *inode)
 {
+	LIST_HEAD(head);
+
+	if (test_bit(NFS_INO_ACL_LRU_SET, &NFS_I(inode)->flags) == 0)
+		return;
 	/* Remove from global LRU init */
-	if (test_and_clear_bit(NFS_INO_ACL_LRU_SET, &NFS_I(inode)->flags)) {
-		spin_lock(&nfs_access_lru_lock);
+	spin_lock(&nfs_access_lru_lock);
+	if (test_and_clear_bit(NFS_INO_ACL_LRU_SET, &NFS_I(inode)->flags))
 		list_del_init(&NFS_I(inode)->access_cache_inode_lru);
-		spin_unlock(&nfs_access_lru_lock);
-	}
 
 	spin_lock(&inode->i_lock);
-	/* This will release the spinlock */
-	__nfs_access_zap_cache(inode);
+	__nfs_access_zap_cache(NFS_I(inode), &head);
+	spin_unlock(&inode->i_lock);
+	spin_unlock(&nfs_access_lru_lock);
+	nfs_access_free_list(&head);
 }
 
 static struct nfs_access_entry *nfs_access_search_rbtree(struct inode *inode, struct rpc_cred *cred)
@@ -1809,8 +1828,8 @@ out_stale:
 	nfs_access_free_entry(cache);
 	return -ENOENT;
 out_zap:
-	/* This will release the spinlock */
-	__nfs_access_zap_cache(inode);
+	spin_unlock(&inode->i_lock);
+	nfs_access_zap_cache(inode);
 	return -ENOENT;
 }
 
@@ -1865,9 +1884,11 @@ static void nfs_access_add_cache(struct inode *inode, struct nfs_access_entry *s
 	smp_mb__after_atomic_inc();
 
 	/* Add inode to global LRU list */
-	if (!test_and_set_bit(NFS_INO_ACL_LRU_SET, &NFS_I(inode)->flags)) {
+	if (!test_bit(NFS_INO_ACL_LRU_SET, &NFS_I(inode)->flags)) {
 		spin_lock(&nfs_access_lru_lock);
-		list_add_tail(&NFS_I(inode)->access_cache_inode_lru, &nfs_access_lru_list);
+		if (!test_and_set_bit(NFS_INO_ACL_LRU_SET, &NFS_I(inode)->flags))
+			list_add_tail(&NFS_I(inode)->access_cache_inode_lru,
+					&nfs_access_lru_list);
 		spin_unlock(&nfs_access_lru_lock);
 	}
 }

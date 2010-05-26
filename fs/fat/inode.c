@@ -1250,6 +1250,8 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	sb->s_op = &fat_sops;
 	sb->s_export_op = &fat_export_ops;
 	sbi->dir_ops = fs_dir_inode_ops;
+	ratelimit_state_init(&sbi->ratelimit, DEFAULT_RATELIMIT_INTERVAL,
+			     DEFAULT_RATELIMIT_BURST);
 
 	error = parse_options(data, isvfat, silent, &debug, &sbi->options);
 	if (error)
@@ -1497,10 +1499,8 @@ out_fail:
 		iput(fat_inode);
 	if (root_inode)
 		iput(root_inode);
-	if (sbi->nls_io)
-		unload_nls(sbi->nls_io);
-	if (sbi->nls_disk)
-		unload_nls(sbi->nls_disk);
+	unload_nls(sbi->nls_io);
+	unload_nls(sbi->nls_disk);
 	if (sbi->options.iocharset != fat_default_iocharset)
 		kfree(sbi->options.iocharset);
 	sb->s_fs_info = NULL;

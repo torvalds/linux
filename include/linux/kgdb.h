@@ -16,10 +16,12 @@
 #include <linux/serial_8250.h>
 #include <linux/linkage.h>
 #include <linux/init.h>
-
 #include <asm/atomic.h>
+#ifdef CONFIG_HAVE_ARCH_KGDB
 #include <asm/kgdb.h>
+#endif
 
+#ifdef CONFIG_KGDB
 struct pt_regs;
 
 /**
@@ -32,20 +34,6 @@ struct pt_regs;
  *	This can be implemented in the architecture specific portion of kgdb.
  */
 extern int kgdb_skipexception(int exception, struct pt_regs *regs);
-
-/**
- *	kgdb_post_primary_code - (optional) Save error vector/code numbers.
- *	@regs: Original pt_regs.
- *	@e_vector: Original error vector.
- *	@err_code: Original error code.
- *
- *	This is usually needed on architectures which support SMP and
- *	KGDB.  This function is called after all the secondary cpus have
- *	been put to a know spin state and the primary CPU has control over
- *	KGDB.
- */
-extern void kgdb_post_primary_code(struct pt_regs *regs, int e_vector,
-				  int err_code);
 
 /**
  *	kgdb_disable_hw_debug - (optional) Disable hardware debugging hook
@@ -72,6 +60,7 @@ struct uart_port;
 void kgdb_breakpoint(void);
 
 extern int kgdb_connected;
+extern int kgdb_io_module_registered;
 
 extern atomic_t			kgdb_setting_breakpoint;
 extern atomic_t			kgdb_cpu_doing_single_step;
@@ -202,10 +191,32 @@ kgdb_arch_handle_exception(int vector, int signo, int err_code,
  */
 extern void kgdb_roundup_cpus(unsigned long flags);
 
+/**
+ *	kgdb_arch_set_pc - Generic call back to the program counter
+ *	@regs: Current &struct pt_regs.
+ *  @pc: The new value for the program counter
+ *
+ *	This function handles updating the program counter and requires an
+ *	architecture specific implementation.
+ */
+extern void kgdb_arch_set_pc(struct pt_regs *regs, unsigned long pc);
+
+
 /* Optional functions. */
 extern int kgdb_validate_break_address(unsigned long addr);
 extern int kgdb_arch_set_breakpoint(unsigned long addr, char *saved_instr);
 extern int kgdb_arch_remove_breakpoint(unsigned long addr, char *bundle);
+
+/**
+ *	kgdb_arch_late - Perform any architecture specific initalization.
+ *
+ *	This function will handle the late initalization of any
+ *	architecture specific callbacks.  This is an optional function for
+ *	handling things like late initialization of hw breakpoints.  The
+ *	default implementation does nothing.
+ */
+extern void kgdb_arch_late(void);
+
 
 /**
  * struct kgdb_arch - Describe architecture specific values.
@@ -247,6 +258,8 @@ struct kgdb_arch {
  * the I/O driver.
  * @post_exception: Pointer to a function that will do any cleanup work
  * for the I/O driver.
+ * @is_console: 1 if the end device is a console 0 if the I/O device is
+ * not a console
  */
 struct kgdb_io {
 	const char		*name;
@@ -256,6 +269,7 @@ struct kgdb_io {
 	int			(*init) (void);
 	void			(*pre_exception) (void);
 	void			(*post_exception) (void);
+	int			is_console;
 };
 
 extern struct kgdb_arch		arch_kgdb_ops;
@@ -264,12 +278,14 @@ extern unsigned long __weak kgdb_arch_pc(int exception, struct pt_regs *regs);
 
 extern int kgdb_register_io_module(struct kgdb_io *local_kgdb_io_ops);
 extern void kgdb_unregister_io_module(struct kgdb_io *local_kgdb_io_ops);
+extern struct kgdb_io *dbg_io_ops;
 
 extern int kgdb_hex2long(char **ptr, unsigned long *long_val);
 extern int kgdb_mem2hex(char *mem, char *buf, int count);
 extern int kgdb_hex2mem(char *buf, char *mem, int count);
 
 extern int kgdb_isremovedbreak(unsigned long addr);
+extern void kgdb_schedule_breakpoint(void);
 
 extern int
 kgdb_handle_exception(int ex_vector, int signo, int err_code,
@@ -278,5 +294,12 @@ extern int kgdb_nmicallback(int cpu, void *regs);
 
 extern int			kgdb_single_step;
 extern atomic_t			kgdb_active;
-
+#define in_dbg_master() \
+	(raw_smp_processor_id() == atomic_read(&kgdb_active))
+extern bool dbg_is_early;
+extern void __init dbg_late_init(void);
+#else /* ! CONFIG_KGDB */
+#define in_dbg_master() (0)
+#define dbg_late_init()
+#endif /* ! CONFIG_KGDB */
 #endif /* _KGDB_H_ */

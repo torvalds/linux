@@ -371,7 +371,6 @@ static int perl_start_script(const char *script, int argc, const char **argv)
 	run_start_sub();
 
 	free(command_line);
-	fprintf(stderr, "perf trace started with Perl script %s\n\n", script);
 	return 0;
 error:
 	perl_free(my_perl);
@@ -393,8 +392,6 @@ static int perl_stop_script(void)
 
 	perl_destruct(my_perl);
 	perl_free(my_perl);
-
-	fprintf(stderr, "\nperf trace Perl script stopped\n");
 
 	return 0;
 }

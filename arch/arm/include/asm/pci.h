@@ -4,7 +4,22 @@
 #ifdef __KERNEL__
 #include <asm-generic/pci-dma-compat.h>
 
+#include <asm/mach/pci.h> /* for pci_sys_data */
 #include <mach/hardware.h> /* for PCIBIOS_MIN_* */
+
+#ifdef CONFIG_PCI_DOMAINS
+static inline int pci_domain_nr(struct pci_bus *bus)
+{
+	struct pci_sys_data *root = bus->sysdata;
+
+	return root->domain;
+}
+
+static inline int pci_proc_domain(struct pci_bus *bus)
+{
+	return pci_domain_nr(bus);
+}
+#endif /* CONFIG_PCI_DOMAINS */
 
 #ifdef CONFIG_PCI_HOST_ITE8152
 /* ITE bridge requires setting latency timer to avoid early bus access

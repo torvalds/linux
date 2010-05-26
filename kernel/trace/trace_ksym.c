@@ -34,12 +34,6 @@
 
 #include <asm/atomic.h>
 
-/*
- * For now, let us restrict the no. of symbols traced simultaneously to number
- * of available hardware breakpoint registers.
- */
-#define KSYM_TRACER_MAX HBP_NUM
-
 #define KSYM_TRACER_OP_LEN 3 /* rw- */
 
 struct trace_ksym {
@@ -53,7 +47,6 @@ struct trace_ksym {
 
 static struct trace_array *ksym_trace_array;
 
-static unsigned int ksym_filter_entry_count;
 static unsigned int ksym_tracing_enabled;
 
 static HLIST_HEAD(ksym_filter_head);
@@ -181,13 +174,6 @@ int process_new_ksym_entry(char *ksymname, int op, unsigned long addr)
 	struct trace_ksym *entry;
 	int ret = -ENOMEM;
 
-	if (ksym_filter_entry_count >= KSYM_TRACER_MAX) {
-		printk(KERN_ERR "ksym_tracer: Maximum limit:(%d) reached. No"
-		" new requests for tracing can be accepted now.\n",
-			KSYM_TRACER_MAX);
-		return -ENOSPC;
-	}
-
 	entry = kzalloc(sizeof(struct trace_ksym), GFP_KERNEL);
 	if (!entry)
 		return -ENOMEM;
@@ -203,13 +189,17 @@ int process_new_ksym_entry(char *ksymname, int op, unsigned long addr)
 
 	if (IS_ERR(entry->ksym_hbp)) {
 		ret = PTR_ERR(entry->ksym_hbp);
-		printk(KERN_INFO "ksym_tracer request failed. Try again"
-					" later!!\n");
+		if (ret == -ENOSPC) {
+			printk(KERN_ERR "ksym_tracer: Maximum limit reached."
+			" No new requests for tracing can be accepted now.\n");
+		} else {
+			printk(KERN_INFO "ksym_tracer request failed. Try again"
+					 " later!!\n");
+		}
 		goto err;
 	}
 
 	hlist_add_head_rcu(&(entry->ksym_hlist), &ksym_filter_head);
-	ksym_filter_entry_count++;
 
 	return 0;
 
@@ -265,7 +255,6 @@ static void __ksym_trace_reset(void)
 	hlist_for_each_entry_safe(entry, node, node1, &ksym_filter_head,
 								ksym_hlist) {
 		unregister_wide_hw_breakpoint(entry->ksym_hbp);
-		ksym_filter_entry_count--;
 		hlist_del_rcu(&(entry->ksym_hlist));
 		synchronize_rcu();
 		kfree(entry);
@@ -338,7 +327,6 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 				goto out_unlock;
 		}
 		/* Error or "symbol:---" case: drop it */
-		ksym_filter_entry_count--;
 		hlist_del_rcu(&(entry->ksym_hlist));
 		synchronize_rcu();
 		kfree(entry);

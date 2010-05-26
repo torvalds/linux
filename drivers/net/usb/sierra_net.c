@@ -789,6 +789,9 @@ static int sierra_net_bind(struct usbnet *dev, struct usb_interface *intf)
 	/* prepare sync message from template */
 	memcpy(priv->sync_msg, sync_tmplate, sizeof(priv->sync_msg));
 
+	/* initiate the sync sequence */
+	sierra_net_dosync(dev);
+
 	return 0;
 }
 

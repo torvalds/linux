@@ -175,16 +175,19 @@ irqreturn_t falcon_legacy_interrupt_a1(int irq, void *dev_id)
 	EFX_TRACE(efx, "IRQ %d on CPU %d status " EFX_OWORD_FMT "\n",
 		  irq, raw_smp_processor_id(), EFX_OWORD_VAL(*int_ker));
 
-	/* Check to see if we have a serious error condition */
-	syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
-	if (unlikely(syserr))
-		return efx_nic_fatal_interrupt(efx);
-
 	/* Determine interrupting queues, clear interrupt status
 	 * register and acknowledge the device interrupt.
 	 */
 	BUILD_BUG_ON(FSF_AZ_NET_IVEC_INT_Q_WIDTH > EFX_MAX_CHANNELS);
 	queues = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_INT_Q);
+
+	/* Check to see if we have a serious error condition */
+	if (queues & (1U << efx->fatal_irq_level)) {
+		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
+		if (unlikely(syserr))
+			return efx_nic_fatal_interrupt(efx);
+	}
+
 	EFX_ZERO_OWORD(*int_ker);
 	wmb(); /* Ensure the vector is cleared before interrupt ack */
 	falcon_irq_ack_a1(efx);
@@ -504,6 +507,9 @@ static void falcon_reset_macs(struct efx_nic *efx)
 	/* Ensure the correct MAC is selected before statistics
 	 * are re-enabled by the caller */
 	efx_writeo(efx, &mac_ctrl, FR_AB_MAC_CTRL);
+
+	/* This can run even when the GMAC is selected */
+	falcon_setup_xaui(efx);
 }
 
 void falcon_drain_tx_fifo(struct efx_nic *efx)

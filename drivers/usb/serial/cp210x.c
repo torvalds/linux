@@ -34,7 +34,6 @@
  * Function Prototypes
  */
 static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *);
-static void cp210x_cleanup(struct usb_serial_port *);
 static void cp210x_close(struct usb_serial_port *);
 static void cp210x_get_termios(struct tty_struct *,
 	struct usb_serial_port *port);
@@ -49,7 +48,6 @@ static int cp210x_tiocmset_port(struct usb_serial_port *port, struct file *,
 		unsigned int, unsigned int);
 static void cp210x_break_ctl(struct tty_struct *, int);
 static int cp210x_startup(struct usb_serial *);
-static void cp210x_disconnect(struct usb_serial *);
 static void cp210x_dtr_rts(struct usb_serial_port *p, int on);
 static int cp210x_carrier_raised(struct usb_serial_port *p);
 
@@ -61,6 +59,8 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x0745, 0x1000) }, /* CipherLab USB CCD Barcode Scanner 1000 */
 	{ USB_DEVICE(0x08e6, 0x5501) }, /* Gemalto Prox-PU/CU contactless smartcard reader */
 	{ USB_DEVICE(0x08FD, 0x000A) }, /* Digianswer A/S , ZigBee/802.15.4 MAC Device */
+	{ USB_DEVICE(0x0BED, 0x1100) }, /* MEI (TM) Cashflow-SC Bill/Voucher Acceptor */
+	{ USB_DEVICE(0x0BED, 0x1101) }, /* MEI series 2000 Combo Acceptor */
 	{ USB_DEVICE(0x0FCF, 0x1003) }, /* Dynastream ANT development board */
 	{ USB_DEVICE(0x0FCF, 0x1004) }, /* Dynastream ANT2USB */
 	{ USB_DEVICE(0x0FCF, 0x1006) }, /* Dynastream ANT development board */
@@ -72,9 +72,12 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x1601) }, /* Arkham Technology DS101 Adapter */
 	{ USB_DEVICE(0x10C4, 0x800A) }, /* SPORTident BSM7-D-USB main station */
 	{ USB_DEVICE(0x10C4, 0x803B) }, /* Pololu USB-serial converter */
+	{ USB_DEVICE(0x10C4, 0x8044) }, /* Cygnal Debug Adapter */
+	{ USB_DEVICE(0x10C4, 0x804E) }, /* Software Bisque Paramount ME build-in converter */
 	{ USB_DEVICE(0x10C4, 0x8053) }, /* Enfora EDG1228 */
 	{ USB_DEVICE(0x10C4, 0x8054) }, /* Enfora GSM2228 */
 	{ USB_DEVICE(0x10C4, 0x8066) }, /* Argussoft In-System Programmer */
+	{ USB_DEVICE(0x10C4, 0x806F) }, /* IMS USB to RS422 Converter Cable */
 	{ USB_DEVICE(0x10C4, 0x807A) }, /* Crumb128 board */
 	{ USB_DEVICE(0x10C4, 0x80CA) }, /* Degree Controls Inc */
 	{ USB_DEVICE(0x10C4, 0x80DD) }, /* Tracient RFID */
@@ -82,12 +85,15 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x8115) }, /* Arygon NFC/Mifare Reader */
 	{ USB_DEVICE(0x10C4, 0x813D) }, /* Burnside Telecom Deskmobile */
 	{ USB_DEVICE(0x10C4, 0x813F) }, /* Tams Master Easy Control */
+	{ USB_DEVICE(0x10C4, 0x8149) }, /* West Mountain Radio Computerized Battery Analyzer */
 	{ USB_DEVICE(0x10C4, 0x814A) }, /* West Mountain Radio RIGblaster P&P */
 	{ USB_DEVICE(0x10C4, 0x814B) }, /* West Mountain Radio RIGtalk */
 	{ USB_DEVICE(0x10C4, 0x815E) }, /* Helicomm IP-Link 1220-DVM */
+	{ USB_DEVICE(0x10C4, 0x818B) }, /* AVIT Research USB to TTL */
 	{ USB_DEVICE(0x10C4, 0x819F) }, /* MJS USB Toslink Switcher */
 	{ USB_DEVICE(0x10C4, 0x81A6) }, /* ThinkOptics WavIt */
 	{ USB_DEVICE(0x10C4, 0x81AC) }, /* MSD Dash Hawk */
+	{ USB_DEVICE(0x10C4, 0x81AD) }, /* INSYS USB Modem */
 	{ USB_DEVICE(0x10C4, 0x81C8) }, /* Lipowsky Industrie Elektronik GmbH, Baby-JTAG */
 	{ USB_DEVICE(0x10C4, 0x81E2) }, /* Lipowsky Industrie Elektronik GmbH, Baby-LIN */
 	{ USB_DEVICE(0x10C4, 0x81E7) }, /* Aerocomm Radio */
@@ -105,6 +111,7 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x10C4, 0x846E) }, /* BEI USB Sensor Interface (VCP) */
 	{ USB_DEVICE(0x10C4, 0xEA60) }, /* Silicon Labs factory default */
 	{ USB_DEVICE(0x10C4, 0xEA61) }, /* Silicon Labs factory default */
+	{ USB_DEVICE(0x10C4, 0xEA71) }, /* Infinity GPS-MIC-1 Radio Monophone */
 	{ USB_DEVICE(0x10C4, 0xF001) }, /* Elan Digital Systems USBscope50 */
 	{ USB_DEVICE(0x10C4, 0xF002) }, /* Elan Digital Systems USBwave12 */
 	{ USB_DEVICE(0x10C4, 0xF003) }, /* Elan Digital Systems USBpulse100 */
@@ -115,6 +122,8 @@ static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x1555, 0x0004) }, /* Owen AC4 USB-RS485 Converter */
 	{ USB_DEVICE(0x166A, 0x0303) }, /* Clipsal 5500PCU C-Bus USB interface */
 	{ USB_DEVICE(0x16D6, 0x0001) }, /* Jablotron serial interface */
+	{ USB_DEVICE(0x17F4, 0xAAAA) }, /* Wavesense Jazz blood glucose meter */
+	{ USB_DEVICE(0x1843, 0x0200) }, /* Vaisala USB Instrument Cable */
 	{ USB_DEVICE(0x18EF, 0xE00F) }, /* ELV USB-I2C-Interface */
 	{ USB_DEVICE(0x413C, 0x9500) }, /* DW700 GPS USB interface */
 	{ } /* Terminating Entry */
@@ -138,6 +147,8 @@ static struct usb_serial_driver cp210x_device = {
 	.usb_driver		= &cp210x_driver,
 	.id_table		= id_table,
 	.num_ports		= 1,
+	.bulk_in_size		= 256,
+	.bulk_out_size		= 256,
 	.open			= cp210x_open,
 	.close			= cp210x_close,
 	.break_ctl		= cp210x_break_ctl,
@@ -145,7 +156,6 @@ static struct usb_serial_driver cp210x_device = {
 	.tiocmget 		= cp210x_tiocmget,
 	.tiocmset		= cp210x_tiocmset,
 	.attach			= cp210x_startup,
-	.disconnect		= cp210x_disconnect,
 	.dtr_rts		= cp210x_dtr_rts,
 	.carrier_raised		= cp210x_carrier_raised
 };
@@ -370,7 +380,6 @@ static unsigned int cp210x_quantise_baudrate(unsigned int baud) {
 
 static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 {
-	struct usb_serial *serial = port->serial;
 	int result;
 
 	dbg("%s - port %d", __func__, port->number);
@@ -381,49 +390,20 @@ static int cp210x_open(struct tty_struct *tty, struct usb_serial_port *port)
 		return -EPROTO;
 	}
 
-	/* Start reading from the device */
-	usb_fill_bulk_urb(port->read_urb, serial->dev,
-			usb_rcvbulkpipe(serial->dev,
-			port->bulk_in_endpointAddress),
-			port->read_urb->transfer_buffer,
-			port->read_urb->transfer_buffer_length,
-			serial->type->read_bulk_callback,
-			port);
-	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
-	if (result) {
-		dev_err(&port->dev, "%s - failed resubmitting read urb, "
-				"error %d\n", __func__, result);
+	result = usb_serial_generic_open(tty, port);
+	if (result)
 		return result;
-	}
 
 	/* Configure the termios structure */
 	cp210x_get_termios(tty, port);
 	return 0;
 }
 
-static void cp210x_cleanup(struct usb_serial_port *port)
-{
-	struct usb_serial *serial = port->serial;
-
-	dbg("%s - port %d", __func__, port->number);
-
-	if (serial->dev) {
-		/* shutdown any bulk reads that might be going on */
-		if (serial->num_bulk_out)
-			usb_kill_urb(port->write_urb);
-		if (serial->num_bulk_in)
-			usb_kill_urb(port->read_urb);
-	}
-}
-
 static void cp210x_close(struct usb_serial_port *port)
 {
 	dbg("%s - port %d", __func__, port->number);
 
-	/* shutdown our urbs */
-	dbg("%s - shutting down urbs", __func__);
-	usb_kill_urb(port->write_urb);
-	usb_kill_urb(port->read_urb);
+	usb_serial_generic_close(port);
 
 	mutex_lock(&port->serial->disc_mutex);
 	if (!port->serial->disconnected)
@@ -805,17 +785,6 @@ static int cp210x_startup(struct usb_serial *serial)
 	/* cp210x buffers behave strangely unless device is reset */
 	usb_reset_device(serial->dev);
 	return 0;
-}
-
-static void cp210x_disconnect(struct usb_serial *serial)
-{
-	int i;
-
-	dbg("%s", __func__);
-
-	/* Stop reads and writes on all ports */
-	for (i = 0; i < serial->num_ports; ++i)
-		cp210x_cleanup(serial->port[i]);
 }
 
 static int __init cp210x_init(void)

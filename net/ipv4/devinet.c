@@ -1096,10 +1096,10 @@ static int inetdev_event(struct notifier_block *this, unsigned long event,
 	case NETDEV_DOWN:
 		ip_mc_down(in_dev);
 		break;
-	case NETDEV_BONDING_OLDTYPE:
+	case NETDEV_PRE_TYPE_CHANGE:
 		ip_mc_unmap(in_dev);
 		break;
-	case NETDEV_BONDING_NEWTYPE:
+	case NETDEV_POST_TYPE_CHANGE:
 		ip_mc_remap(in_dev);
 		break;
 	case NETDEV_CHANGEMTU:

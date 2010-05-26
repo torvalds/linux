@@ -91,12 +91,15 @@ static struct proc_dir_entry *mega_proc_dir_entry;
 /* For controller re-ordering */
 static struct mega_hbas mega_hbas[MAX_CONTROLLERS];
 
+static long
+megadev_unlocked_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
+
 /*
  * The File Operations structure for the serial/ioctl interface of the driver
  */
 static const struct file_operations megadev_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= megadev_ioctl,
+	.unlocked_ioctl	= megadev_unlocked_ioctl,
 	.open		= megadev_open,
 };
 
@@ -3302,8 +3305,7 @@ megadev_open (struct inode *inode, struct file *filep)
  * controller.
  */
 static int
-megadev_ioctl(struct inode *inode, struct file *filep, unsigned int cmd,
-		unsigned long arg)
+megadev_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
 {
 	adapter_t	*adapter;
 	nitioctl_t	uioc;
@@ -3692,6 +3694,18 @@ freemem_and_return:
 	}
 
 	return 0;
+}
+
+static long
+megadev_unlocked_ioctl(struct file *filep, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = megadev_ioctl(filep, cmd, arg);
+	unlock_kernel();
+
+	return ret;
 }
 
 /**

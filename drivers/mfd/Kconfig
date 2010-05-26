@@ -49,9 +49,14 @@ config MFD_SH_MOBILE_SDHI
 	bool "Support for SuperH Mobile SDHI"
 	depends on SUPERH || ARCH_SHMOBILE
 	select MFD_CORE
+	select TMIO_MMC_DMA
 	 ---help---
 	  This driver supports the SDHI hardware block found in many
 	  SuperH Mobile SoCs.
+
+config MFD_DAVINCI_VOICECODEC
+	tristate
+	select MFD_CORE
 
 config MFD_DM355EVM_MSP
 	bool "DaVinci DM355 EVM microcontroller"
@@ -157,6 +162,11 @@ config TWL4030_CODEC
 config MFD_TMIO
 	bool
 	default n
+
+config TMIO_MMC_DMA
+	bool
+	select DMA_ENGINE
+	select DMADEVICES
 
 config MFD_T7L66XB
 	bool "Support Toshiba T7L66XB"
@@ -297,9 +307,9 @@ config MFD_WM8350_I2C
 	  selected to enable support for the functionality of the chip.
 
 config MFD_WM8994
-	tristate "Support Wolfson Microelectronics WM8994"
+	bool "Support Wolfson Microelectronics WM8994"
 	select MFD_CORE
-	depends on I2C
+	depends on I2C=y && GENERIC_HARDIRQS
 	help
 	  The WM8994 is a highly integrated hi-fi CODEC designed for
 	  smartphone applicatiosn.  As well as audio functionality it

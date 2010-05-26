@@ -626,6 +626,7 @@ static int em_x270_mci_get_ro(struct device *dev)
 }
 
 static struct pxamci_platform_data em_x270_mci_platform_data = {
+	.detect_delay_ms	= 250,
 	.ocr_mask		= MMC_VDD_20_21|MMC_VDD_21_22|MMC_VDD_22_23|
 				  MMC_VDD_24_25|MMC_VDD_25_26|MMC_VDD_26_27|
 				  MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|
@@ -643,7 +644,6 @@ static void __init em_x270_init_mmc(void)
 	if (machine_is_em_x270())
 		em_x270_mci_platform_data.get_ro = em_x270_mci_get_ro;
 
-	em_x270_mci_platform_data.detect_delay	= msecs_to_jiffies(250);
 	pxa_set_mci_info(&em_x270_mci_platform_data);
 }
 #else

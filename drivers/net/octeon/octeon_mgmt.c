@@ -189,11 +189,18 @@ static void octeon_mgmt_clean_tx_buffers(struct octeon_mgmt *p)
 
 	mix_orcnt.u64 = cvmx_read_csr(CVMX_MIXX_ORCNT(port));
 	while (mix_orcnt.s.orcnt) {
+		spin_lock_irqsave(&p->tx_list.lock, flags);
+
+		mix_orcnt.u64 = cvmx_read_csr(CVMX_MIXX_ORCNT(port));
+
+		if (mix_orcnt.s.orcnt == 0) {
+			spin_unlock_irqrestore(&p->tx_list.lock, flags);
+			break;
+		}
+
 		dma_sync_single_for_cpu(p->dev, p->tx_ring_handle,
 					ring_size_to_bytes(OCTEON_MGMT_TX_RING_SIZE),
 					DMA_BIDIRECTIONAL);
-
-		spin_lock_irqsave(&p->tx_list.lock, flags);
 
 		re.d64 = p->tx_ring[p->tx_next_clean];
 		p->tx_next_clean =
@@ -317,7 +324,6 @@ good:
 		skb->protocol = eth_type_trans(skb, netdev);
 		netdev->stats.rx_packets++;
 		netdev->stats.rx_bytes += skb->len;
-		netdev->last_rx = jiffies;
 		netif_receive_skb(skb);
 		rc = 0;
 	} else if (re.s.code == RING_ENTRY_CODE_MORE) {
@@ -374,7 +380,6 @@ done:
 	mix_ircnt.s.ircnt = 1;
 	cvmx_write_csr(CVMX_MIXX_IRCNT(port), mix_ircnt.u64);
 	return rc;
-
 }
 
 static int octeon_mgmt_receive_packets(struct octeon_mgmt *p, int budget)
@@ -383,7 +388,6 @@ static int octeon_mgmt_receive_packets(struct octeon_mgmt *p, int budget)
 	unsigned int work_done = 0;
 	union cvmx_mixx_ircnt mix_ircnt;
 	int rc;
-
 
 	mix_ircnt.u64 = cvmx_read_csr(CVMX_MIXX_IRCNT(port));
 	while (work_done < budget && mix_ircnt.s.ircnt) {
@@ -475,13 +479,12 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 	unsigned int cam_mode = 1; /* 1 - Accept on CAM match */
 	unsigned int multicast_mode = 1; /* 1 - Reject all multicast.  */
 	struct octeon_mgmt_cam_state cam_state;
-	struct dev_addr_list *list;
-	struct list_head *pos;
+	struct netdev_hw_addr *ha;
 	int available_cam_entries;
 
 	memset(&cam_state, 0, sizeof(cam_state));
 
-	if ((netdev->flags & IFF_PROMISC) || netdev->dev_addrs.count > 7) {
+	if ((netdev->flags & IFF_PROMISC) || netdev->uc.count > 7) {
 		cam_mode = 0;
 		available_cam_entries = 8;
 	} else {
@@ -489,13 +492,13 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 		 * One CAM entry for the primary address, leaves seven
 		 * for the secondary addresses.
 		 */
-		available_cam_entries = 7 - netdev->dev_addrs.count;
+		available_cam_entries = 7 - netdev->uc.count;
 	}
 
 	if (netdev->flags & IFF_MULTICAST) {
 		if (cam_mode == 0 || (netdev->flags & IFF_ALLMULTI) ||
 		    netdev_mc_count(netdev) > available_cam_entries)
-			multicast_mode = 2; /* 1 - Accept all multicast.  */
+			multicast_mode = 2; /* 2 - Accept all multicast.  */
 		else
 			multicast_mode = 0; /* 0 - Use CAM.  */
 	}
@@ -503,18 +506,13 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 	if (cam_mode == 1) {
 		/* Add primary address. */
 		octeon_mgmt_cam_state_add(&cam_state, netdev->dev_addr);
-		list_for_each(pos, &netdev->dev_addrs.list) {
-			struct netdev_hw_addr *hw_addr;
-			hw_addr = list_entry(pos, struct netdev_hw_addr, list);
-			octeon_mgmt_cam_state_add(&cam_state, hw_addr->addr);
-			list = list->next;
-		}
+		netdev_for_each_uc_addr(ha, netdev)
+			octeon_mgmt_cam_state_add(&cam_state, ha->addr);
 	}
 	if (multicast_mode == 0) {
-		netdev_for_each_mc_addr(list, netdev)
-			octeon_mgmt_cam_state_add(&cam_state, list->da_addr);
+		netdev_for_each_mc_addr(ha, netdev)
+			octeon_mgmt_cam_state_add(&cam_state, ha->addr);
 	}
-
 
 	spin_lock_irqsave(&p->lock, flags);
 
@@ -523,7 +521,6 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 	prev_packet_enable = agl_gmx_prtx.s.en;
 	agl_gmx_prtx.s.en = 0;
 	cvmx_write_csr(CVMX_AGL_GMX_PRTX_CFG(port), agl_gmx_prtx.u64);
-
 
 	adr_ctl.u64 = 0;
 	adr_ctl.s.cam_mode = cam_mode;
@@ -597,8 +594,7 @@ static irqreturn_t octeon_mgmt_interrupt(int cpl, void *dev_id)
 	mixx_isr.u64 = cvmx_read_csr(CVMX_MIXX_ISR(port));
 
 	/* Clear any pending interrupts */
-	cvmx_write_csr(CVMX_MIXX_ISR(port),
-		       cvmx_read_csr(CVMX_MIXX_ISR(port)));
+	cvmx_write_csr(CVMX_MIXX_ISR(port), mixx_isr.u64);
 	cvmx_read_csr(CVMX_MIXX_ISR(port));
 
 	if (mixx_isr.s.irthresh) {
@@ -832,9 +828,9 @@ static int octeon_mgmt_open(struct net_device *netdev)
 	mix_irhwm.s.irhwm = 0;
 	cvmx_write_csr(CVMX_MIXX_IRHWM(port), mix_irhwm.u64);
 
-	/* Interrupt when we have 5 or more packets to clean.  */
+	/* Interrupt when we have 1 or more packets to clean.  */
 	mix_orhwm.u64 = 0;
-	mix_orhwm.s.orhwm = 5;
+	mix_orhwm.s.orhwm = 1;
 	cvmx_write_csr(CVMX_MIXX_ORHWM(port), mix_orhwm.u64);
 
 	/* Enable receive and transmit interrupts */
@@ -928,7 +924,6 @@ static int octeon_mgmt_stop(struct net_device *netdev)
 
 	octeon_mgmt_reset_hw(p);
 
-
 	free_irq(p->irq, netdev);
 
 	/* dma_unmap is a nop on Octeon, so just free everything.  */
@@ -945,7 +940,6 @@ static int octeon_mgmt_stop(struct net_device *netdev)
 			 DMA_BIDIRECTIONAL);
 	kfree(p->tx_ring);
 
-
 	return 0;
 }
 
@@ -955,6 +949,7 @@ static int octeon_mgmt_xmit(struct sk_buff *skb, struct net_device *netdev)
 	int port = p->port;
 	union mgmt_port_ring_entry re;
 	unsigned long flags;
+	int rv = NETDEV_TX_BUSY;
 
 	re.d64 = 0;
 	re.s.len = skb->len;
@@ -964,15 +959,18 @@ static int octeon_mgmt_xmit(struct sk_buff *skb, struct net_device *netdev)
 
 	spin_lock_irqsave(&p->tx_list.lock, flags);
 
+	if (unlikely(p->tx_current_fill >= ring_max_fill(OCTEON_MGMT_TX_RING_SIZE) - 1)) {
+		spin_unlock_irqrestore(&p->tx_list.lock, flags);
+		netif_stop_queue(netdev);
+		spin_lock_irqsave(&p->tx_list.lock, flags);
+	}
+
 	if (unlikely(p->tx_current_fill >=
 		     ring_max_fill(OCTEON_MGMT_TX_RING_SIZE))) {
 		spin_unlock_irqrestore(&p->tx_list.lock, flags);
-
 		dma_unmap_single(p->dev, re.s.addr, re.s.len,
 				 DMA_TO_DEVICE);
-
-		netif_stop_queue(netdev);
-		return NETDEV_TX_BUSY;
+		goto out;
 	}
 
 	__skb_queue_tail(&p->tx_list, skb);
@@ -994,10 +992,10 @@ static int octeon_mgmt_xmit(struct sk_buff *skb, struct net_device *netdev)
 	/* Ring the bell.  */
 	cvmx_write_csr(CVMX_MIXX_ORING2(port), 1);
 
-	netdev->trans_start = jiffies;
-	octeon_mgmt_clean_tx_buffers(p);
+	rv = NETDEV_TX_OK;
+out:
 	octeon_mgmt_update_tx_stats(netdev);
-	return NETDEV_TX_OK;
+	return rv;
 }
 
 #ifdef CONFIG_NET_POLL_CONTROLLER
@@ -1007,7 +1005,6 @@ static void octeon_mgmt_poll_controller(struct net_device *netdev)
 
 	octeon_mgmt_receive_packets(p, 16);
 	octeon_mgmt_update_rx_stats(netdev);
-	return;
 }
 #endif
 
@@ -1106,7 +1103,6 @@ static int __init octeon_mgmt_probe(struct platform_device *pdev)
 
 	netdev->netdev_ops = &octeon_mgmt_ops;
 	netdev->ethtool_ops = &octeon_mgmt_ethtool_ops;
-
 
 	/* The mgmt ports get the first N MACs.  */
 	for (i = 0; i < 6; i++)

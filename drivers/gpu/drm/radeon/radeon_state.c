@@ -424,7 +424,7 @@ static __inline__ int radeon_check_and_fixup_packet3(drm_radeon_private_t *
 		if ((*cmd & RADEON_GMC_SRC_PITCH_OFFSET_CNTL) &&
 		    (*cmd & RADEON_GMC_DST_PITCH_OFFSET_CNTL)) {
 			u32 *cmd3 = drm_buffer_pointer_to_dword(cmdbuf->buffer, 3);
-			offset = *cmd << 10;
+			offset = *cmd3 << 10;
 			if (radeon_check_and_fixup_offset
 			    (dev_priv, file_priv, &offset)) {
 				DRM_ERROR("Invalid second packet offset\n");
@@ -2895,9 +2895,12 @@ static int radeon_cp_cmdbuf(struct drm_device *dev, void *data,
 			return rv;
 		rv = drm_buffer_copy_from_user(cmdbuf->buffer, buffer,
 						cmdbuf->bufsz);
-		if (rv)
+		if (rv) {
+			drm_buffer_free(cmdbuf->buffer);
 			return rv;
-	}
+		}
+	} else
+		goto done;
 
 	orig_nbox = cmdbuf->nbox;
 
@@ -2905,8 +2908,7 @@ static int radeon_cp_cmdbuf(struct drm_device *dev, void *data,
 		int temp;
 		temp = r300_do_cp_cmdbuf(dev, file_priv, cmdbuf);
 
-		if (cmdbuf->bufsz != 0)
-			drm_buffer_free(cmdbuf->buffer);
+		drm_buffer_free(cmdbuf->buffer);
 
 		return temp;
 	}
@@ -3012,16 +3014,15 @@ static int radeon_cp_cmdbuf(struct drm_device *dev, void *data,
 		}
 	}
 
-	if (cmdbuf->bufsz != 0)
-		drm_buffer_free(cmdbuf->buffer);
+	drm_buffer_free(cmdbuf->buffer);
 
+      done:
 	DRM_DEBUG("DONE\n");
 	COMMIT_RING();
 	return 0;
 
       err:
-	if (cmdbuf->bufsz != 0)
-		drm_buffer_free(cmdbuf->buffer);
+	drm_buffer_free(cmdbuf->buffer);
 	return -EINVAL;
 }
 

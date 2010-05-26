@@ -1173,7 +1173,7 @@ static void tx_timeout(struct net_device *dev)
 
 	/* Trigger an immediate transmit demand. */
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	np->stats.tx_errors++;
 	netif_wake_queue(dev);
 }
@@ -1221,8 +1221,6 @@ static void init_ring(struct net_device *dev)
 
 	for (i = 0; i < TX_RING_SIZE; i++)
 		memset(&np->tx_info[i], 0, sizeof(np->tx_info[i]));
-
-	return;
 }
 
 
@@ -1311,8 +1309,6 @@ static netdev_tx_t start_tx(struct sk_buff *skb, struct net_device *dev)
 	/* 4 is arbitrary, but should be ok */
 	if ((np->cur_tx - np->dirty_tx) + 4 > TX_RING_SIZE)
 		netif_stop_queue(dev);
-
-	dev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 }
@@ -1766,7 +1762,7 @@ static void set_rx_mode(struct net_device *dev)
 	struct netdev_private *np = netdev_priv(dev);
 	void __iomem *ioaddr = np->base;
 	u32 rx_mode = MinVLANPrio;
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	int i;
 #ifdef VLAN_SUPPORT
 
@@ -1804,8 +1800,8 @@ static void set_rx_mode(struct net_device *dev)
 		/* Use the 16 element perfect filter, skip first two entries. */
 		void __iomem *filter_addr = ioaddr + PerfFilterTable + 2 * 16;
 		__be16 *eaddrs;
-		netdev_for_each_mc_addr(mclist, dev) {
-			eaddrs = (__be16 *)mclist->dmi_addr;
+		netdev_for_each_mc_addr(ha, dev) {
+			eaddrs = (__be16 *) ha->addr;
 			writew(be16_to_cpu(eaddrs[2]), filter_addr); filter_addr += 4;
 			writew(be16_to_cpu(eaddrs[1]), filter_addr); filter_addr += 4;
 			writew(be16_to_cpu(eaddrs[0]), filter_addr); filter_addr += 8;
@@ -1825,10 +1821,10 @@ static void set_rx_mode(struct net_device *dev)
 		__le16 mc_filter[32] __attribute__ ((aligned(sizeof(long))));	/* Multicast hash filter */
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		netdev_for_each_mc_addr(mclist, dev) {
+		netdev_for_each_mc_addr(ha, dev) {
 			/* The chip uses the upper 9 CRC bits
 			   as index into the hash table */
-			int bit_nr = ether_crc_le(ETH_ALEN, mclist->dmi_addr) >> 23;
+			int bit_nr = ether_crc_le(ETH_ALEN, ha->addr) >> 23;
 			__le32 *fptr = (__le32 *) &mc_filter[(bit_nr >> 4) & ~1];
 
 			*fptr |= cpu_to_le32(1 << (bit_nr & 31));

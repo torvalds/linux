@@ -185,7 +185,6 @@ static void nfs3_cache_acls(struct inode *inode, struct posix_acl *acl,
 struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
-	struct nfs_fattr fattr;
 	struct page *pages[NFSACL_MAXPAGES] = { };
 	struct nfs3_getaclargs args = {
 		.fh = NFS_FH(inode),
@@ -193,7 +192,7 @@ struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type)
 		.pages = pages,
 	};
 	struct nfs3_getaclres res = {
-		.fattr =	&fattr,
+		0
 	};
 	struct rpc_message msg = {
 		.rpc_argp	= &args,
@@ -228,7 +227,10 @@ struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type)
 
 	dprintk("NFS call getacl\n");
 	msg.rpc_proc = &server->client_acl->cl_procinfo[ACLPROC3_GETACL];
-	nfs_fattr_init(&fattr);
+	res.fattr = nfs_alloc_fattr();
+	if (res.fattr == NULL)
+		return ERR_PTR(-ENOMEM);
+
 	status = rpc_call_sync(server->client_acl, &msg, 0);
 	dprintk("NFS reply getacl: %d\n", status);
 
@@ -238,7 +240,7 @@ struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type)
 
 	switch (status) {
 		case 0:
-			status = nfs_refresh_inode(inode, &fattr);
+			status = nfs_refresh_inode(inode, res.fattr);
 			break;
 		case -EPFNOSUPPORT:
 		case -EPROTONOSUPPORT:
@@ -278,6 +280,7 @@ struct posix_acl *nfs3_proc_getacl(struct inode *inode, int type)
 getout:
 	posix_acl_release(res.acl_access);
 	posix_acl_release(res.acl_default);
+	nfs_free_fattr(res.fattr);
 
 	if (status != 0) {
 		posix_acl_release(acl);
@@ -290,7 +293,7 @@ static int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 		  struct posix_acl *dfacl)
 {
 	struct nfs_server *server = NFS_SERVER(inode);
-	struct nfs_fattr fattr;
+	struct nfs_fattr *fattr;
 	struct page *pages[NFSACL_MAXPAGES];
 	struct nfs3_setaclargs args = {
 		.inode = inode,
@@ -335,8 +338,13 @@ static int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 	}
 
 	dprintk("NFS call setacl\n");
+	status = -ENOMEM;
+	fattr = nfs_alloc_fattr();
+	if (fattr == NULL)
+		goto out_freepages;
+
 	msg.rpc_proc = &server->client_acl->cl_procinfo[ACLPROC3_SETACL];
-	nfs_fattr_init(&fattr);
+	msg.rpc_resp = fattr;
 	status = rpc_call_sync(server->client_acl, &msg, 0);
 	nfs_access_zap_cache(inode);
 	nfs_zap_acl_cache(inode);
@@ -344,7 +352,7 @@ static int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 
 	switch (status) {
 		case 0:
-			status = nfs_refresh_inode(inode, &fattr);
+			status = nfs_refresh_inode(inode, fattr);
 			nfs3_cache_acls(inode, acl, dfacl);
 			break;
 		case -EPFNOSUPPORT:
@@ -355,6 +363,7 @@ static int nfs3_proc_setacls(struct inode *inode, struct posix_acl *acl,
 		case -ENOTSUPP:
 			status = -EOPNOTSUPP;
 	}
+	nfs_free_fattr(fattr);
 out_freepages:
 	while (args.npages != 0) {
 		args.npages--;

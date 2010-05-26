@@ -61,11 +61,15 @@ static inline unsigned long long get_clock (void)
 	return clk;
 }
 
+static inline void get_clock_ext(char *clk)
+{
+	asm volatile("stcke %0" : "=Q" (*clk) : : "cc");
+}
+
 static inline unsigned long long get_clock_xt(void)
 {
 	unsigned char clk[16];
-
-	asm volatile("stcke %0" : "=Q" (clk) : : "cc");
+	get_clock_ext(clk);
 	return *((unsigned long long *)&clk[1]);
 }
 

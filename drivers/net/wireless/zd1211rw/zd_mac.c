@@ -948,20 +948,17 @@ static void set_rx_filter_handler(struct work_struct *work)
 }
 
 static u64 zd_op_prepare_multicast(struct ieee80211_hw *hw,
-				   int mc_count, struct dev_addr_list *mclist)
+				   struct netdev_hw_addr_list *mc_list)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	struct zd_mc_hash hash;
-	int i;
+	struct netdev_hw_addr *ha;
 
 	zd_mc_clear(&hash);
 
-	for (i = 0; i < mc_count; i++) {
-		if (!mclist)
-			break;
-		dev_dbg_f(zd_mac_dev(mac), "mc addr %pM\n", mclist->dmi_addr);
-		zd_mc_add_addr(&hash, mclist->dmi_addr);
-		mclist = mclist->next;
+	netdev_hw_addr_list_for_each(ha, mc_list) {
+		dev_dbg_f(zd_mac_dev(mac), "mc addr %pM\n", ha->addr);
+		zd_mc_add_addr(&hash, ha->addr);
 	}
 
 	return hash.low | ((u64)hash.high << 32);

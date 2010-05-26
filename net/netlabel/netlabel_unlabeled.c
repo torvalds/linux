@@ -670,7 +670,6 @@ static void netlbl_unlhsh_condremove_iface(struct netlbl_unlhsh_iface *iface)
 
 unlhsh_condremove_failure:
 	spin_unlock(&netlbl_unlhsh_lock);
-	return;
 }
 
 /**

@@ -59,9 +59,9 @@ static const struct ov9640_reg ov9640_regs_dflt[] = {
  * 		COM12 |= OV9640_COM12_YUV_AVG
  *
  *	 for RGB, alter the following registers:
- *	 	COM7  |= OV9640_COM7_RGB
- *	 	COM13 |= OV9640_COM13_RGB_AVG
- *	 	COM15 |= proper RGB color encoding mode
+ *		COM7  |= OV9640_COM7_RGB
+ *		COM13 |= OV9640_COM13_RGB_AVG
+ *		COM15 |= proper RGB color encoding mode
  */
 static const struct ov9640_reg ov9640_regs_qqcif[] = {
 	{ OV9640_CLKRC,	OV9640_CLKRC_DPLL_EN | OV9640_CLKRC_DIV(0x0f) },

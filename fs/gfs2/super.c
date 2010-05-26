@@ -1113,7 +1113,7 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 	int error;
 
 	spin_lock(&gt->gt_spin);
-	args.ar_commit = gt->gt_log_flush_secs;
+	args.ar_commit = gt->gt_logd_secs;
 	args.ar_quota_quantum = gt->gt_quota_quantum;
 	if (gt->gt_statfs_slow)
 		args.ar_statfs_quantum = 0;
@@ -1160,7 +1160,7 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 	else
 		clear_bit(SDF_NOBARRIERS, &sdp->sd_flags);
 	spin_lock(&gt->gt_spin);
-	gt->gt_log_flush_secs = args.ar_commit;
+	gt->gt_logd_secs = args.ar_commit;
 	gt->gt_quota_quantum = args.ar_quota_quantum;
 	if (args.ar_statfs_quantum) {
 		gt->gt_statfs_slow = 0;
@@ -1305,8 +1305,8 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	}
 	if (args->ar_discard)
 		seq_printf(s, ",discard");
-	val = sdp->sd_tune.gt_log_flush_secs;
-	if (val != 60)
+	val = sdp->sd_tune.gt_logd_secs;
+	if (val != 30)
 		seq_printf(s, ",commit=%d", val);
 	val = sdp->sd_tune.gt_statfs_quantum;
 	if (val != 30)
@@ -1334,7 +1334,8 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	}
 	if (test_bit(SDF_NOBARRIERS, &sdp->sd_flags))
 		seq_printf(s, ",nobarrier");
-
+	if (test_bit(SDF_DEMOTE, &sdp->sd_flags))
+		seq_printf(s, ",demote_interface_used");
 	return 0;
 }
 

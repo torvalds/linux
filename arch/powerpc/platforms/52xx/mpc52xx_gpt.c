@@ -734,8 +734,8 @@ static int __devinit mpc52xx_gpt_probe(struct of_device *ofdev,
 
 	spin_lock_init(&gpt->lock);
 	gpt->dev = &ofdev->dev;
-	gpt->ipb_freq = mpc5xxx_get_bus_frequency(ofdev->node);
-	gpt->regs = of_iomap(ofdev->node, 0);
+	gpt->ipb_freq = mpc5xxx_get_bus_frequency(ofdev->dev.of_node);
+	gpt->regs = of_iomap(ofdev->dev.of_node, 0);
 	if (!gpt->regs) {
 		kfree(gpt);
 		return -ENOMEM;
@@ -743,21 +743,21 @@ static int __devinit mpc52xx_gpt_probe(struct of_device *ofdev,
 
 	dev_set_drvdata(&ofdev->dev, gpt);
 
-	mpc52xx_gpt_gpio_setup(gpt, ofdev->node);
-	mpc52xx_gpt_irq_setup(gpt, ofdev->node);
+	mpc52xx_gpt_gpio_setup(gpt, ofdev->dev.of_node);
+	mpc52xx_gpt_irq_setup(gpt, ofdev->dev.of_node);
 
 	mutex_lock(&mpc52xx_gpt_list_mutex);
 	list_add(&gpt->list, &mpc52xx_gpt_list);
 	mutex_unlock(&mpc52xx_gpt_list_mutex);
 
 	/* check if this device could be a watchdog */
-	if (of_get_property(ofdev->node, "fsl,has-wdt", NULL) ||
-	    of_get_property(ofdev->node, "has-wdt", NULL)) {
+	if (of_get_property(ofdev->dev.of_node, "fsl,has-wdt", NULL) ||
+	    of_get_property(ofdev->dev.of_node, "has-wdt", NULL)) {
 		const u32 *on_boot_wdt;
 
 		gpt->wdt_mode = MPC52xx_GPT_CAN_WDT;
-		on_boot_wdt = of_get_property(ofdev->node, "fsl,wdt-on-boot",
-					      NULL);
+		on_boot_wdt = of_get_property(ofdev->dev.of_node,
+					      "fsl,wdt-on-boot", NULL);
 		if (on_boot_wdt) {
 			dev_info(gpt->dev, "used as watchdog\n");
 			gpt->wdt_mode |= MPC52xx_GPT_IS_WDT;
@@ -784,8 +784,11 @@ static const struct of_device_id mpc52xx_gpt_match[] = {
 };
 
 static struct of_platform_driver mpc52xx_gpt_driver = {
-	.name = "mpc52xx-gpt",
-	.match_table = mpc52xx_gpt_match,
+	.driver = {
+		.name = "mpc52xx-gpt",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_gpt_match,
+	},
 	.probe = mpc52xx_gpt_probe,
 	.remove = mpc52xx_gpt_remove,
 };

@@ -661,7 +661,6 @@ static void mac8390_no_reset(struct net_device *dev)
 	ei_status.txing = 0;
 	if (ei_debug > 1)
 		pr_info("reset not supported\n");
-	return;
 }
 
 static void interlan_reset(struct net_device *dev)
@@ -673,7 +672,6 @@ static void interlan_reset(struct net_device *dev)
 	target[0xC0000] = 0;
 	if (ei_debug > 1)
 		pr_cont("reset complete\n");
-	return;
 }
 
 /* dayna_memcpy_fromio/dayna_memcpy_toio */

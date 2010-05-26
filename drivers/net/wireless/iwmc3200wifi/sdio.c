@@ -366,21 +366,13 @@ static const struct file_operations iwm_debugfs_sdio_fops = {
 	.read =		iwm_debugfs_sdio_read,
 };
 
-static int if_sdio_debugfs_init(struct iwm_priv *iwm, struct dentry *parent_dir)
+static void if_sdio_debugfs_init(struct iwm_priv *iwm, struct dentry *parent_dir)
 {
-	int result;
 	struct iwm_sdio_priv *hw = iwm_to_if_sdio(iwm);
 
 	hw->cccr_dentry = debugfs_create_file("cccr", 0200,
 					      parent_dir, iwm,
 					      &iwm_debugfs_sdio_fops);
-	result = PTR_ERR(hw->cccr_dentry);
-	if (IS_ERR(hw->cccr_dentry) && (result != -ENODEV)) {
-		IWM_ERR(iwm, "Couldn't create CCCR entry: %d\n", result);
-		return result;
-	}
-
-	return 0;
 }
 
 static void if_sdio_debugfs_exit(struct iwm_priv *iwm)
@@ -440,11 +432,7 @@ static int iwm_sdio_probe(struct sdio_func *func,
 	hw = iwm_private(iwm);
 	hw->iwm = iwm;
 
-	ret = iwm_debugfs_init(iwm);
-	if (ret < 0) {
-		IWM_ERR(iwm, "Debugfs registration failed\n");
-		goto if_free;
-	}
+	iwm_debugfs_init(iwm);
 
 	sdio_set_drvdata(func, hw);
 
@@ -473,7 +461,6 @@ static int iwm_sdio_probe(struct sdio_func *func,
 	destroy_workqueue(hw->isr_wq);
  debugfs_exit:
 	iwm_debugfs_exit(iwm);
- if_free:
 	iwm_if_free(iwm);
 	return ret;
 }
@@ -492,8 +479,6 @@ static void iwm_sdio_remove(struct sdio_func *func)
 	sdio_set_drvdata(func, NULL);
 
 	dev_info(dev, "IWM SDIO remove\n");
-
-	return;
 }
 
 static const struct sdio_device_id iwm_sdio_ids[] = {

@@ -30,7 +30,7 @@ static inline int OK_id(char *s)
 		memcmp (s, "RAW", 3) == 0 ;
 }
 
-int atari_partition(struct parsed_partitions *state, struct block_device *bdev)
+int atari_partition(struct parsed_partitions *state)
 {
 	Sector sect;
 	struct rootsector *rs;
@@ -42,12 +42,12 @@ int atari_partition(struct parsed_partitions *state, struct block_device *bdev)
 	int part_fmt = 0; /* 0:unknown, 1:AHDI, 2:ICD/Supra */
 #endif
 
-	rs = (struct rootsector *) read_dev_sector(bdev, 0, &sect);
+	rs = read_part_sector(state, 0, &sect);
 	if (!rs)
 		return -1;
 
 	/* Verify this is an Atari rootsector: */
-	hd_size = bdev->bd_inode->i_size >> 9;
+	hd_size = state->bdev->bd_inode->i_size >> 9;
 	if (!VALID_PARTITION(&rs->part[0], hd_size) &&
 	    !VALID_PARTITION(&rs->part[1], hd_size) &&
 	    !VALID_PARTITION(&rs->part[2], hd_size) &&
@@ -84,7 +84,7 @@ int atari_partition(struct parsed_partitions *state, struct block_device *bdev)
 		printk(" XGM<");
 		partsect = extensect = be32_to_cpu(pi->st);
 		while (1) {
-			xrs = (struct rootsector *)read_dev_sector(bdev, partsect, &sect2);
+			xrs = read_part_sector(state, partsect, &sect2);
 			if (!xrs) {
 				printk (" block %ld read failed\n", partsect);
 				put_dev_sector(sect);

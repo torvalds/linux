@@ -2889,7 +2889,6 @@ static netdev_tx_t cas_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	 */
 	if (cas_xmit_tx_ringN(cp, ring++ & N_TX_RINGS_MASK, skb))
 		return NETDEV_TX_BUSY;
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 
@@ -2957,20 +2956,20 @@ static void cas_process_mc_list(struct cas *cp)
 {
 	u16 hash_table[16];
 	u32 crc;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	int i = 1;
 
 	memset(hash_table, 0, sizeof(hash_table));
-	netdev_for_each_mc_addr(dmi, cp->dev) {
+	netdev_for_each_mc_addr(ha, cp->dev) {
 		if (i <= CAS_MC_EXACT_MATCH_SIZE) {
 			/* use the alternate mac address registers for the
 			 * first 15 multicast addresses
 			 */
-			writel((dmi->dmi_addr[4] << 8) | dmi->dmi_addr[5],
+			writel((ha->addr[4] << 8) | ha->addr[5],
 			       cp->regs + REG_MAC_ADDRN(i*3 + 0));
-			writel((dmi->dmi_addr[2] << 8) | dmi->dmi_addr[3],
+			writel((ha->addr[2] << 8) | ha->addr[3],
 			       cp->regs + REG_MAC_ADDRN(i*3 + 1));
-			writel((dmi->dmi_addr[0] << 8) | dmi->dmi_addr[1],
+			writel((ha->addr[0] << 8) | ha->addr[1],
 			       cp->regs + REG_MAC_ADDRN(i*3 + 2));
 			i++;
 		}
@@ -2978,7 +2977,7 @@ static void cas_process_mc_list(struct cas *cp)
 			/* use hw hash table for the next series of
 			 * multicast addresses
 			 */
-			crc = ether_crc_le(ETH_ALEN, dmi->dmi_addr);
+			crc = ether_crc_le(ETH_ALEN, ha->addr);
 			crc >>= 24;
 			hash_table[crc >> 4] |= 1 << (15 - (crc & 0xf));
 		}
@@ -4825,7 +4824,7 @@ static int cas_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 		break;
 	default:
 		break;
-	};
+	}
 
 	mutex_unlock(&cp->pm_mutex);
 	return rc;

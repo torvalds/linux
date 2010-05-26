@@ -99,7 +99,7 @@ int save_i387_xstate(void __user *buf)
 		if (err)
 			return err;
 
-		if (task_thread_info(tsk)->status & TS_XSAVE)
+		if (use_xsave())
 			err = xsave_user(buf);
 		else
 			err = fxsave_user(buf);
@@ -109,14 +109,14 @@ int save_i387_xstate(void __user *buf)
 		task_thread_info(tsk)->status &= ~TS_USEDFPU;
 		stts();
 	} else {
-		if (__copy_to_user(buf, &tsk->thread.xstate->fxsave,
+		if (__copy_to_user(buf, &tsk->thread.fpu.state->fxsave,
 				   xstate_size))
 			return -1;
 	}
 
 	clear_used_math(); /* trigger finit */
 
-	if (task_thread_info(tsk)->status & TS_XSAVE) {
+	if (use_xsave()) {
 		struct _fpstate __user *fx = buf;
 		struct _xstate __user *x = buf;
 		u64 xstate_bv;
@@ -225,7 +225,7 @@ int restore_i387_xstate(void __user *buf)
 		clts();
 		task_thread_info(current)->status |= TS_USEDFPU;
 	}
-	if (task_thread_info(tsk)->status & TS_XSAVE)
+	if (use_xsave())
 		err = restore_user_xstate(buf);
 	else
 		err = fxrstor_checking((__force struct i387_fxsave_struct *)

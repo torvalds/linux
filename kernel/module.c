@@ -59,8 +59,6 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/module.h>
 
-EXPORT_TRACEPOINT_SYMBOL(module_get);
-
 #if 0
 #define DEBUGP printk
 #else
@@ -79,6 +77,10 @@ EXPORT_TRACEPOINT_SYMBOL(module_get);
 DEFINE_MUTEX(module_mutex);
 EXPORT_SYMBOL_GPL(module_mutex);
 static LIST_HEAD(modules);
+#ifdef CONFIG_KGDB_KDB
+struct list_head *kdb_modules = &modules; /* kdb needs the list of modules */
+#endif /* CONFIG_KGDB_KDB */
+
 
 /* Block module loading/unloading? */
 int modules_disabled = 0;
@@ -176,8 +178,6 @@ extern const struct kernel_symbol __start___ksymtab[];
 extern const struct kernel_symbol __stop___ksymtab[];
 extern const struct kernel_symbol __start___ksymtab_gpl[];
 extern const struct kernel_symbol __stop___ksymtab_gpl[];
-extern const struct kernel_symbol __start___ksymtab_gpl_future[];
-extern const struct kernel_symbol __stop___ksymtab_gpl_future[];
 extern const struct kernel_symbol __start___ksymtab_gpl_future[];
 extern const struct kernel_symbol __stop___ksymtab_gpl_future[];
 extern const unsigned long __start___kcrctab[];
@@ -515,6 +515,9 @@ MODINFO_ATTR(srcversion);
 static char last_unloaded_module[MODULE_NAME_LEN+1];
 
 #ifdef CONFIG_MODULE_UNLOAD
+
+EXPORT_TRACEPOINT_SYMBOL(module_get);
+
 /* Init the unload section of the module. */
 static void module_unload_init(struct module *mod)
 {
@@ -723,16 +726,8 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 		return -EFAULT;
 	name[MODULE_NAME_LEN-1] = '\0';
 
-	/* Create stop_machine threads since free_module relies on
-	 * a non-failing stop_machine call. */
-	ret = stop_machine_create();
-	if (ret)
-		return ret;
-
-	if (mutex_lock_interruptible(&module_mutex) != 0) {
-		ret = -EINTR;
-		goto out_stop;
-	}
+	if (mutex_lock_interruptible(&module_mutex) != 0)
+		return -EINTR;
 
 	mod = find_module(name);
 	if (!mod) {
@@ -792,8 +787,6 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 
  out:
 	mutex_unlock(&module_mutex);
-out_stop:
-	stop_machine_destroy();
 	return ret;
 }
 
@@ -867,8 +860,7 @@ void module_put(struct module *module)
 		smp_wmb(); /* see comment in module_refcount */
 		__this_cpu_inc(module->refptr->decs);
 
-		trace_module_put(module, _RET_IP_,
-				 __this_cpu_read(module->refptr->decs));
+		trace_module_put(module, _RET_IP_);
 		/* Maybe they're waiting for us to drop reference? */
 		if (unlikely(!module_is_live(module)))
 			wake_up_process(module->waiter);
@@ -1192,7 +1184,7 @@ struct module_notes_attrs {
 	struct bin_attribute attrs[0];
 };
 
-static ssize_t module_notes_read(struct kobject *kobj,
+static ssize_t module_notes_read(struct file *filp, struct kobject *kobj,
 				 struct bin_attribute *bin_attr,
 				 char *buf, loff_t pos, size_t count)
 {

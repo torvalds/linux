@@ -46,6 +46,7 @@ enum {
 	 */
 #ifdef CONFIG_NFSD_V4
 	NFSD_Leasetime,
+	NFSD_Gracetime,
 	NFSD_RecoveryDir,
 #endif
 };
@@ -70,6 +71,7 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size);
 static ssize_t write_maxblksize(struct file *file, char *buf, size_t size);
 #ifdef CONFIG_NFSD_V4
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size);
+static ssize_t write_gracetime(struct file *file, char *buf, size_t size);
 static ssize_t write_recoverydir(struct file *file, char *buf, size_t size);
 #endif
 
@@ -91,6 +93,7 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 	[NFSD_MaxBlkSize] = write_maxblksize,
 #ifdef CONFIG_NFSD_V4
 	[NFSD_Leasetime] = write_leasetime,
+	[NFSD_Gracetime] = write_gracetime,
 	[NFSD_RecoveryDir] = write_recoverydir,
 #endif
 };
@@ -995,7 +998,7 @@ static ssize_t __write_ports_addxprt(char *buf)
 	if (sscanf(buf, "%15s %4u", transport, &port) != 2)
 		return -EINVAL;
 
-	if (port < 1 || port > USHORT_MAX)
+	if (port < 1 || port > USHRT_MAX)
 		return -EINVAL;
 
 	err = nfsd_create_serv();
@@ -1037,7 +1040,7 @@ static ssize_t __write_ports_delxprt(char *buf)
 	if (sscanf(&buf[1], "%15s %4u", transport, &port) != 2)
 		return -EINVAL;
 
-	if (port < 1 || port > USHORT_MAX || nfsd_serv == NULL)
+	if (port < 1 || port > USHRT_MAX || nfsd_serv == NULL)
 		return -EINVAL;
 
 	xprt = svc_find_xprt(nfsd_serv, transport, AF_UNSPEC, port);
@@ -1204,29 +1207,45 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 }
 
 #ifdef CONFIG_NFSD_V4
-extern time_t nfs4_leasetime(void);
-
-static ssize_t __write_leasetime(struct file *file, char *buf, size_t size)
+static ssize_t __nfsd4_write_time(struct file *file, char *buf, size_t size, time_t *time)
 {
-	/* if size > 10 seconds, call
-	 * nfs4_reset_lease() then write out the new lease (seconds) as reply
-	 */
 	char *mesg = buf;
-	int rv, lease;
+	int rv, i;
 
 	if (size > 0) {
 		if (nfsd_serv)
 			return -EBUSY;
-		rv = get_int(&mesg, &lease);
+		rv = get_int(&mesg, &i);
 		if (rv)
 			return rv;
-		if (lease < 10 || lease > 3600)
+		/*
+		 * Some sanity checking.  We don't have a reason for
+		 * these particular numbers, but problems with the
+		 * extremes are:
+		 *	- Too short: the briefest network outage may
+		 *	  cause clients to lose all their locks.  Also,
+		 *	  the frequent polling may be wasteful.
+		 *	- Too long: do you really want reboot recovery
+		 *	  to take more than an hour?  Or to make other
+		 *	  clients wait an hour before being able to
+		 *	  revoke a dead client's locks?
+		 */
+		if (i < 10 || i > 3600)
 			return -EINVAL;
-		nfs4_reset_lease(lease);
+		*time = i;
 	}
 
-	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%ld\n",
-							nfs4_lease_time());
+	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%ld\n", *time);
+}
+
+static ssize_t nfsd4_write_time(struct file *file, char *buf, size_t size, time_t *time)
+{
+	ssize_t rv;
+
+	mutex_lock(&nfsd_mutex);
+	rv = __nfsd4_write_time(file, buf, size, time);
+	mutex_unlock(&nfsd_mutex);
+	return rv;
 }
 
 /**
@@ -1252,12 +1271,22 @@ static ssize_t __write_leasetime(struct file *file, char *buf, size_t size)
  */
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
 {
-	ssize_t rv;
+	return nfsd4_write_time(file, buf, size, &nfsd4_lease);
+}
 
-	mutex_lock(&nfsd_mutex);
-	rv = __write_leasetime(file, buf, size);
-	mutex_unlock(&nfsd_mutex);
-	return rv;
+/**
+ * write_gracetime - Set or report current NFSv4 grace period time
+ *
+ * As above, but sets the time of the NFSv4 grace period.
+ *
+ * Note this should never be set to less than the *previous*
+ * lease-period time, but we don't try to enforce this.  (In the common
+ * case (a new boot), we don't know what the previous lease time was
+ * anyway.)
+ */
+static ssize_t write_gracetime(struct file *file, char *buf, size_t size)
+{
+	return nfsd4_write_time(file, buf, size, &nfsd4_grace);
 }
 
 extern char *nfs4_recoverydir(void);
@@ -1351,6 +1380,7 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		[NFSD_MaxBlkSize] = {"max_block_size", &transaction_ops, S_IWUSR|S_IRUGO},
 #ifdef CONFIG_NFSD_V4
 		[NFSD_Leasetime] = {"nfsv4leasetime", &transaction_ops, S_IWUSR|S_IRUSR},
+		[NFSD_Gracetime] = {"nfsv4gracetime", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_RecoveryDir] = {"nfsv4recoverydir", &transaction_ops, S_IWUSR|S_IRUSR},
 #endif
 		/* last one */ {""}

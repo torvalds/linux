@@ -347,9 +347,11 @@
 
 #define AVIVO_D1CRTC_CONTROL                                    0x6080
 #       define AVIVO_CRTC_EN                                    (1 << 0)
+#       define AVIVO_CRTC_DISP_READ_REQUEST_DISABLE             (1 << 24)
 #define AVIVO_D1CRTC_BLANK_CONTROL                              0x6084
 #define AVIVO_D1CRTC_INTERLACE_CONTROL                          0x6088
 #define AVIVO_D1CRTC_INTERLACE_STATUS                           0x608c
+#define AVIVO_D1CRTC_STATUS_POSITION                            0x60a0
 #define AVIVO_D1CRTC_FRAME_COUNT                                0x60a4
 #define AVIVO_D1CRTC_STEREO_CONTROL                             0x60c4
 
@@ -488,6 +490,7 @@
 #define AVIVO_D2CRTC_BLANK_CONTROL                              0x6884
 #define AVIVO_D2CRTC_INTERLACE_CONTROL                          0x6888
 #define AVIVO_D2CRTC_INTERLACE_STATUS                           0x688c
+#define AVIVO_D2CRTC_STATUS_POSITION                            0x68a0
 #define AVIVO_D2CRTC_FRAME_COUNT                                0x68a4
 #define AVIVO_D2CRTC_STEREO_CONTROL                             0x68c4
 

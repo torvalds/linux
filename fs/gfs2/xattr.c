@@ -1535,21 +1535,21 @@ out_alloc:
 	return error;
 }
 
-static struct xattr_handler gfs2_xattr_user_handler = {
+static const struct xattr_handler gfs2_xattr_user_handler = {
 	.prefix = XATTR_USER_PREFIX,
 	.flags  = GFS2_EATYPE_USR,
 	.get    = gfs2_xattr_get,
 	.set    = gfs2_xattr_set,
 };
 
-static struct xattr_handler gfs2_xattr_security_handler = {
+static const struct xattr_handler gfs2_xattr_security_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
 	.flags  = GFS2_EATYPE_SECURITY,
 	.get    = gfs2_xattr_get,
 	.set    = gfs2_xattr_set,
 };
 
-struct xattr_handler *gfs2_xattr_handlers[] = {
+const struct xattr_handler *gfs2_xattr_handlers[] = {
 	&gfs2_xattr_user_handler,
 	&gfs2_xattr_security_handler,
 	&gfs2_xattr_system_handler,

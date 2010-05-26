@@ -137,12 +137,12 @@ static long booke_wdt_ioctl(struct file *file,
 		if (copy_to_user((void *)arg, &ident, sizeof(ident)))
 			return -EFAULT;
 	case WDIOC_GETSTATUS:
-		return put_user(ident.options, p);
+		return put_user(0, p);
 	case WDIOC_GETBOOTSTATUS:
 		/* XXX: something is clearing TSR */
 		tmp = mfspr(SPRN_TSR) & TSR_WRS(3);
-		/* returns 1 if last reset was caused by the WDT */
-		return (tmp ? 1 : 0);
+		/* returns CARDRESET if last reset was caused by the WDT */
+		return (tmp ? WDIOF_CARDRESET : 0);
 	case WDIOC_SETOPTIONS:
 		if (get_user(tmp, p))
 			return -EINVAL;

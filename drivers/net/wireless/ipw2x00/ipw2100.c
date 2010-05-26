@@ -174,6 +174,8 @@ that only one external action is invoked at a time.
 #define DRV_DESCRIPTION	"Intel(R) PRO/Wireless 2100 Network Driver"
 #define DRV_COPYRIGHT	"Copyright(c) 2003-2006 Intel Corporation"
 
+struct pm_qos_request_list *ipw2100_pm_qos_req;
+
 /* Debugging stuff */
 #ifdef CONFIG_IPW2100_DEBUG
 #define IPW2100_RX_DEBUG	/* Reception debugging */
@@ -1739,7 +1741,7 @@ static int ipw2100_up(struct ipw2100_priv *priv, int deferred)
 	/* the ipw2100 hardware really doesn't want power management delays
 	 * longer than 175usec
 	 */
-	pm_qos_update_requirement(PM_QOS_CPU_DMA_LATENCY, "ipw2100", 175);
+	pm_qos_update_request(ipw2100_pm_qos_req, 175);
 
 	/* If the interrupt is enabled, turn it off... */
 	spin_lock_irqsave(&priv->low_lock, flags);
@@ -1887,8 +1889,7 @@ static void ipw2100_down(struct ipw2100_priv *priv)
 	ipw2100_disable_interrupts(priv);
 	spin_unlock_irqrestore(&priv->low_lock, flags);
 
-	pm_qos_update_requirement(PM_QOS_CPU_DMA_LATENCY, "ipw2100",
-			PM_QOS_DEFAULT_VALUE);
+	pm_qos_update_request(ipw2100_pm_qos_req, PM_QOS_DEFAULT_VALUE);
 
 	/* We have to signal any supplicant if we are disassociating */
 	if (associated)
@@ -2140,7 +2141,7 @@ static void isr_indicate_association_lost(struct ipw2100_priv *priv, u32 status)
 	DECLARE_SSID_BUF(ssid);
 
 	IPW_DEBUG(IPW_DL_NOTIF | IPW_DL_STATE | IPW_DL_ASSOC,
-		  "disassociated: '%s' %pM \n",
+		  "disassociated: '%s' %pM\n",
 		  print_ssid(ssid, priv->essid, priv->essid_len),
 		  priv->bssid);
 
@@ -3239,7 +3240,6 @@ static void ipw2100_tx_send_data(struct ipw2100_priv *priv)
 			       IPW_MEM_HOST_SHARED_TX_QUEUE_WRITE_INDEX,
 			       txq->next);
 	}
-	return;
 }
 
 static void ipw2100_irq_tasklet(struct ipw2100_priv *priv)
@@ -3285,7 +3285,7 @@ static void ipw2100_irq_tasklet(struct ipw2100_priv *priv)
 
 	if (inta & IPW2100_INTA_PARITY_ERROR) {
 		printk(KERN_ERR DRV_NAME
-		       ": ***** PARITY ERROR INTERRUPT !!!! \n");
+		       ": ***** PARITY ERROR INTERRUPT !!!!\n");
 		priv->inta_other++;
 		write_register(dev, IPW_REG_INTA, IPW2100_INTA_PARITY_ERROR);
 	}
@@ -6102,7 +6102,7 @@ static const struct net_device_ops ipw2100_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/* Look into using netdev destructor to shutdown ieee80211? */
+/* Look into using netdev destructor to shutdown libipw? */
 
 static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 					       void __iomem * base_addr,
@@ -6112,7 +6112,7 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	struct ipw2100_priv *priv;
 	struct net_device *dev;
 
-	dev = alloc_ieee80211(sizeof(struct ipw2100_priv), 0);
+	dev = alloc_libipw(sizeof(struct ipw2100_priv), 0);
 	if (!dev)
 		return NULL;
 	priv = libipw_priv(dev);
@@ -6425,7 +6425,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 		sysfs_remove_group(&pci_dev->dev.kobj,
 				   &ipw2100_attribute_group);
 
-		free_ieee80211(dev, 0);
+		free_libipw(dev, 0);
 		pci_set_drvdata(pci_dev, NULL);
 	}
 
@@ -6483,10 +6483,10 @@ static void __devexit ipw2100_pci_remove_one(struct pci_dev *pci_dev)
 		if (dev->base_addr)
 			iounmap((void __iomem *)dev->base_addr);
 
-		/* wiphy_unregister needs to be here, before free_ieee80211 */
+		/* wiphy_unregister needs to be here, before free_libipw */
 		wiphy_unregister(priv->ieee->wdev.wiphy);
 		kfree(priv->ieee->bg_band.channels);
-		free_ieee80211(dev, 0);
+		free_libipw(dev, 0);
 	}
 
 	pci_release_regions(pci_dev);
@@ -6669,7 +6669,7 @@ static int __init ipw2100_init(void)
 	if (ret)
 		goto out;
 
-	pm_qos_add_requirement(PM_QOS_CPU_DMA_LATENCY, "ipw2100",
+	ipw2100_pm_qos_req = pm_qos_add_request(PM_QOS_CPU_DMA_LATENCY,
 			PM_QOS_DEFAULT_VALUE);
 #ifdef CONFIG_IPW2100_DEBUG
 	ipw2100_debug_level = debug;
@@ -6692,7 +6692,7 @@ static void __exit ipw2100_exit(void)
 			   &driver_attr_debug_level);
 #endif
 	pci_unregister_driver(&ipw2100_pci_driver);
-	pm_qos_remove_requirement(PM_QOS_CPU_DMA_LATENCY, "ipw2100");
+	pm_qos_remove_request(ipw2100_pm_qos_req);
 }
 
 module_init(ipw2100_init);
@@ -6753,7 +6753,7 @@ static int ipw2100_wx_set_freq(struct net_device *dev,
 		err = -EOPNOTSUPP;
 		goto done;
 	} else {		/* Set the channel */
-		IPW_DEBUG_WX("SET Freq/Channel -> %d \n", fwrq->m);
+		IPW_DEBUG_WX("SET Freq/Channel -> %d\n", fwrq->m);
 		err = ipw2100_set_channel(priv, fwrq->m, 0);
 	}
 
@@ -6782,7 +6782,7 @@ static int ipw2100_wx_get_freq(struct net_device *dev,
 	else
 		wrqu->freq.m = 0;
 
-	IPW_DEBUG_WX("GET Freq/Channel -> %d \n", priv->channel);
+	IPW_DEBUG_WX("GET Freq/Channel -> %d\n", priv->channel);
 	return 0;
 
 }
@@ -6794,7 +6794,7 @@ static int ipw2100_wx_set_mode(struct net_device *dev,
 	struct ipw2100_priv *priv = libipw_priv(dev);
 	int err = 0;
 
-	IPW_DEBUG_WX("SET Mode -> %d \n", wrqu->mode);
+	IPW_DEBUG_WX("SET Mode -> %d\n", wrqu->mode);
 
 	if (wrqu->mode == priv->ieee->iw_mode)
 		return 0;
@@ -7149,7 +7149,7 @@ static int ipw2100_wx_set_nick(struct net_device *dev,
 	memset(priv->nick, 0, sizeof(priv->nick));
 	memcpy(priv->nick, extra, wrqu->data.length);
 
-	IPW_DEBUG_WX("SET Nickname -> %s \n", priv->nick);
+	IPW_DEBUG_WX("SET Nickname -> %s\n", priv->nick);
 
 	return 0;
 }
@@ -7168,7 +7168,7 @@ static int ipw2100_wx_get_nick(struct net_device *dev,
 	memcpy(extra, priv->nick, wrqu->data.length);
 	wrqu->data.flags = 1;	/* active */
 
-	IPW_DEBUG_WX("GET Nickname -> %s \n", extra);
+	IPW_DEBUG_WX("GET Nickname -> %s\n", extra);
 
 	return 0;
 }
@@ -7207,7 +7207,7 @@ static int ipw2100_wx_set_rate(struct net_device *dev,
 
 	err = ipw2100_set_tx_rates(priv, rate, 0);
 
-	IPW_DEBUG_WX("SET Rate -> %04X \n", rate);
+	IPW_DEBUG_WX("SET Rate -> %04X\n", rate);
       done:
 	mutex_unlock(&priv->action_mutex);
 	return err;
@@ -7258,7 +7258,7 @@ static int ipw2100_wx_get_rate(struct net_device *dev,
 		wrqu->bitrate.value = 0;
 	}
 
-	IPW_DEBUG_WX("GET Rate -> %d \n", wrqu->bitrate.value);
+	IPW_DEBUG_WX("GET Rate -> %d\n", wrqu->bitrate.value);
 
       done:
 	mutex_unlock(&priv->action_mutex);
@@ -7294,7 +7294,7 @@ static int ipw2100_wx_set_rts(struct net_device *dev,
 
 	err = ipw2100_set_rts_threshold(priv, value);
 
-	IPW_DEBUG_WX("SET RTS Threshold -> 0x%08X \n", value);
+	IPW_DEBUG_WX("SET RTS Threshold -> 0x%08X\n", value);
       done:
 	mutex_unlock(&priv->action_mutex);
 	return err;
@@ -7316,7 +7316,7 @@ static int ipw2100_wx_get_rts(struct net_device *dev,
 	/* If RTS is set to the default value, then it is disabled */
 	wrqu->rts.disabled = (priv->rts_threshold & RTS_DISABLED) ? 1 : 0;
 
-	IPW_DEBUG_WX("GET RTS Threshold -> 0x%08X \n", wrqu->rts.value);
+	IPW_DEBUG_WX("GET RTS Threshold -> 0x%08X\n", wrqu->rts.value);
 
 	return 0;
 }
@@ -7355,7 +7355,7 @@ static int ipw2100_wx_set_txpow(struct net_device *dev,
 
 	err = ipw2100_set_tx_power(priv, value);
 
-	IPW_DEBUG_WX("SET TX Power -> %d \n", value);
+	IPW_DEBUG_WX("SET TX Power -> %d\n", value);
 
       done:
 	mutex_unlock(&priv->action_mutex);
@@ -7384,7 +7384,7 @@ static int ipw2100_wx_get_txpow(struct net_device *dev,
 
 	wrqu->txpower.flags = IW_TXPOW_DBM;
 
-	IPW_DEBUG_WX("GET TX Power -> %d \n", wrqu->txpower.value);
+	IPW_DEBUG_WX("GET TX Power -> %d\n", wrqu->txpower.value);
 
 	return 0;
 }
@@ -7414,7 +7414,7 @@ static int ipw2100_wx_set_frag(struct net_device *dev,
 		priv->frag_threshold = priv->ieee->fts;
 	}
 
-	IPW_DEBUG_WX("SET Frag Threshold -> %d \n", priv->ieee->fts);
+	IPW_DEBUG_WX("SET Frag Threshold -> %d\n", priv->ieee->fts);
 
 	return 0;
 }
@@ -7432,7 +7432,7 @@ static int ipw2100_wx_get_frag(struct net_device *dev,
 	wrqu->frag.fixed = 0;	/* no auto select */
 	wrqu->frag.disabled = (priv->frag_threshold & FRAG_DISABLED) ? 1 : 0;
 
-	IPW_DEBUG_WX("GET Frag Threshold -> %d \n", wrqu->frag.value);
+	IPW_DEBUG_WX("GET Frag Threshold -> %d\n", wrqu->frag.value);
 
 	return 0;
 }
@@ -7458,14 +7458,14 @@ static int ipw2100_wx_set_retry(struct net_device *dev,
 
 	if (wrqu->retry.flags & IW_RETRY_SHORT) {
 		err = ipw2100_set_short_retry(priv, wrqu->retry.value);
-		IPW_DEBUG_WX("SET Short Retry Limit -> %d \n",
+		IPW_DEBUG_WX("SET Short Retry Limit -> %d\n",
 			     wrqu->retry.value);
 		goto done;
 	}
 
 	if (wrqu->retry.flags & IW_RETRY_LONG) {
 		err = ipw2100_set_long_retry(priv, wrqu->retry.value);
-		IPW_DEBUG_WX("SET Long Retry Limit -> %d \n",
+		IPW_DEBUG_WX("SET Long Retry Limit -> %d\n",
 			     wrqu->retry.value);
 		goto done;
 	}
@@ -7474,7 +7474,7 @@ static int ipw2100_wx_set_retry(struct net_device *dev,
 	if (!err)
 		err = ipw2100_set_long_retry(priv, wrqu->retry.value);
 
-	IPW_DEBUG_WX("SET Both Retry Limits -> %d \n", wrqu->retry.value);
+	IPW_DEBUG_WX("SET Both Retry Limits -> %d\n", wrqu->retry.value);
 
       done:
 	mutex_unlock(&priv->action_mutex);
@@ -7508,7 +7508,7 @@ static int ipw2100_wx_get_retry(struct net_device *dev,
 		wrqu->retry.value = priv->short_retry_limit;
 	}
 
-	IPW_DEBUG_WX("GET Retry -> %d \n", wrqu->retry.value);
+	IPW_DEBUG_WX("GET Retry -> %d\n", wrqu->retry.value);
 
 	return 0;
 }

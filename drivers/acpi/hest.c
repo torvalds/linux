@@ -123,6 +123,10 @@ int acpi_hest_firmware_first_pci(struct pci_dev *pci)
 {
 	acpi_status status = AE_NOT_FOUND;
 	struct acpi_table_header *hest = NULL;
+
+	if (acpi_disabled)
+		return 0;
+
 	status = acpi_get_table(ACPI_SIG_HEST, 1, &hest);
 
 	if (ACPI_SUCCESS(status)) {

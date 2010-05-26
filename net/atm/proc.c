@@ -407,7 +407,6 @@ EXPORT_SYMBOL(atm_proc_root);
 
 int atm_proc_dev_register(struct atm_dev *dev)
 {
-	int digits, num;
 	int error;
 
 	/* No proc info */
@@ -415,16 +414,9 @@ int atm_proc_dev_register(struct atm_dev *dev)
 		return 0;
 
 	error = -ENOMEM;
-	digits = 0;
-	for (num = dev->number; num; num /= 10)
-		digits++;
-	if (!digits)
-		digits++;
-
-	dev->proc_name = kmalloc(strlen(dev->type) + digits + 2, GFP_KERNEL);
+	dev->proc_name = kasprintf(GFP_KERNEL, "%s:%d", dev->type, dev->number);
 	if (!dev->proc_name)
 		goto err_out;
-	sprintf(dev->proc_name, "%s:%d", dev->type, dev->number);
 
 	dev->proc_entry = proc_create_data(dev->proc_name, 0, atm_proc_root,
 					   &proc_atm_dev_ops, dev);

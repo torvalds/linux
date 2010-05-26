@@ -440,10 +440,9 @@ static int saa7134_go7007_init(struct saa7134_dev *dev)
 
 	printk(KERN_DEBUG "saa7134-go7007: probing new SAA713X board\n");
 
-	saa = kmalloc(sizeof(struct saa7134_go7007), GFP_KERNEL);
+	saa = kzalloc(sizeof(struct saa7134_go7007), GFP_KERNEL);
 	if (saa == NULL)
 		return -ENOMEM;
-	memset(saa, 0, sizeof(struct saa7134_go7007));
 
 	/* Allocate a couple pages for receiving the compressed stream */
 	saa->top = (u8 *)get_zeroed_page(GFP_KERNEL);

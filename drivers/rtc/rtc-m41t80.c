@@ -623,7 +623,7 @@ static ssize_t wdt_read(struct file *file, char __user *buf,
  *	according to their available features. We only actually usefully support
  *	querying capabilities and current status.
  */
-static int wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
+static int wdt_ioctl(struct file *file, unsigned int cmd,
 		     unsigned long arg)
 {
 	int new_margin, rv;
@@ -674,6 +674,18 @@ static int wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 		return -EINVAL;
 	}
 	return -ENOTTY;
+}
+
+static long wdt_unlocked_ioctl(struct file *file, unsigned int cmd,
+			       unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = wdt_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
 }
 
 /**
@@ -736,7 +748,7 @@ static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
 static const struct file_operations wdt_fops = {
 	.owner	= THIS_MODULE,
 	.read	= wdt_read,
-	.ioctl	= wdt_ioctl,
+	.unlocked_ioctl = wdt_unlocked_ioctl,
 	.write	= wdt_write,
 	.open	= wdt_open,
 	.release = wdt_release,

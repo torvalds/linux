@@ -349,7 +349,7 @@ static int ap_control_proc_read(char *page, char **start, off_t off,
 	default:
 		policy_txt = "unknown";
 		break;
-	};
+	}
 	p += sprintf(p, "MAC policy: %s\n", policy_txt);
 	p += sprintf(p, "MAC entries: %u\n", ap->mac_restrictions.entries);
 	p += sprintf(p, "MAC list:\n");

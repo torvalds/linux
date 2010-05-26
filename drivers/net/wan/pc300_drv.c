@@ -396,7 +396,7 @@ static void tx1_dma_buf_check(pc300_t * card, int ch)
 	u16 next_bd = card->chan[ch].tx_next_bd;
 	u32 scabase = card->hw.scabase;
 
-	printk ("\nnfree_tx_bd = %d \n", card->chan[ch].nfree_tx_bd);
+	printk ("\nnfree_tx_bd = %d\n", card->chan[ch].nfree_tx_bd);
 	printk("#CH%d: f_bd = %d(0x%08x), n_bd = %d(0x%08x)\n", ch,
 	       first_bd, TX_BD_ADDR(ch, first_bd),
 	       next_bd, TX_BD_ADDR(ch, next_bd));
@@ -1790,7 +1790,7 @@ static void cpc_tx_timeout(struct net_device *dev)
 			   cpc_readb(card->hw.falcbase + card->hw.cpld_reg2) &
 			   ~(CPLD_REG2_FALC_LED1 << (2 * ch)));
 	}
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	CPC_UNLOCK(card, flags);
 	netif_wake_queue(dev);
 }
@@ -1849,7 +1849,6 @@ static int cpc_queue_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (d->trace_on) {
 		cpc_trace(dev, skb, 'T');
 	}
-	dev->trans_start = jiffies;
 
 	/* Start transmission */
 	CPC_LOCK(card, flags);

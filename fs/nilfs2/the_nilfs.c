@@ -486,11 +486,15 @@ static int nilfs_load_super_block(struct the_nilfs *nilfs,
 		printk(KERN_WARNING
 		       "NILFS warning: unable to read secondary superblock\n");
 
+	/*
+	 * Compare two super blocks and set 1 in swp if the secondary
+	 * super block is valid and newer.  Otherwise, set 0 in swp.
+	 */
 	valid[0] = nilfs_valid_sb(sbp[0]);
 	valid[1] = nilfs_valid_sb(sbp[1]);
-	swp = valid[1] &&
-		(!valid[0] ||
-		 le64_to_cpu(sbp[1]->s_wtime) > le64_to_cpu(sbp[0]->s_wtime));
+	swp = valid[1] && (!valid[0] ||
+			   le64_to_cpu(sbp[1]->s_last_cno) >
+			   le64_to_cpu(sbp[0]->s_last_cno));
 
 	if (valid[swp] && nilfs_sb2_bad_offset(sbp[swp], sb2off)) {
 		brelse(sbh[1]);
@@ -670,7 +674,7 @@ int nilfs_discard_segments(struct the_nilfs *nilfs, __u64 *segnump,
 						   start * sects_per_block,
 						   nblocks * sects_per_block,
 						   GFP_NOFS,
-						   DISCARD_FL_BARRIER);
+						   BLKDEV_IFL_BARRIER);
 			if (ret < 0)
 				return ret;
 			nblocks = 0;
@@ -680,7 +684,7 @@ int nilfs_discard_segments(struct the_nilfs *nilfs, __u64 *segnump,
 		ret = blkdev_issue_discard(nilfs->ns_bdev,
 					   start * sects_per_block,
 					   nblocks * sects_per_block,
-					   GFP_NOFS, DISCARD_FL_BARRIER);
+					   GFP_NOFS, BLKDEV_IFL_BARRIER);
 	return ret;
 }
 

@@ -42,6 +42,7 @@
 #include <plat/nand.h>
 
 #include <plat/common-smdk.h>
+#include <plat/gpio-cfg.h>
 #include <plat/devs.h>
 #include <plat/pm.h>
 
@@ -185,10 +186,10 @@ void __init smdk_machine_init(void)
 {
 	/* Configure the LEDs (even if we have no LED support)*/
 
-	s3c2410_gpio_cfgpin(S3C2410_GPF(4), S3C2410_GPIO_OUTPUT);
-	s3c2410_gpio_cfgpin(S3C2410_GPF(5), S3C2410_GPIO_OUTPUT);
-	s3c2410_gpio_cfgpin(S3C2410_GPF(6), S3C2410_GPIO_OUTPUT);
-	s3c2410_gpio_cfgpin(S3C2410_GPF(7), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(S3C2410_GPF(4), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(S3C2410_GPF(5), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(S3C2410_GPF(6), S3C2410_GPIO_OUTPUT);
+	s3c_gpio_cfgpin(S3C2410_GPF(7), S3C2410_GPIO_OUTPUT);
 
 	s3c2410_gpio_setpin(S3C2410_GPF(4), 1);
 	s3c2410_gpio_setpin(S3C2410_GPF(5), 1);

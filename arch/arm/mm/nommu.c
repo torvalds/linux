@@ -65,6 +65,15 @@ void flush_dcache_page(struct page *page)
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
+void copy_to_user_page(struct vm_area_struct *vma, struct page *page,
+		       unsigned long uaddr, void *dst, const void *src,
+		       unsigned long len)
+{
+	memcpy(dst, src, len);
+	if (vma->vm_flags & VM_EXEC)
+		__cpuc_coherent_user_range(uaddr, uaddr + len);
+}
+
 void __iomem *__arm_ioremap_pfn(unsigned long pfn, unsigned long offset,
 				size_t size, unsigned int mtype)
 {
@@ -87,8 +96,8 @@ void __iomem *__arm_ioremap(unsigned long phys_addr, size_t size,
 }
 EXPORT_SYMBOL(__arm_ioremap);
 
-void __iomem *__arm_ioremap(unsigned long phys_addr, size_t size,
-			    unsigned int mtype, void *caller)
+void __iomem *__arm_ioremap_caller(unsigned long phys_addr, size_t size,
+				   unsigned int mtype, void *caller)
 {
 	return __arm_ioremap(phys_addr, size, mtype);
 }

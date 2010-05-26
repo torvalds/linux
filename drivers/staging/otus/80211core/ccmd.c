@@ -1436,7 +1436,8 @@ u16_t zfiWlanDeauth(zdev_t *dev, u16_t *macAddr, u16_t reason)
 		*/
 
 		/*
-		if ((id = zfApFindSta(dev, macAddr)) != 0xffff)
+		id = zfApFindSta(dev, macAddr);
+		if (id != 0xffff)
 		{
 			u32_t key[8];
 			u16_t nullAddr[3] = { 0x0, 0x0, 0x0 };

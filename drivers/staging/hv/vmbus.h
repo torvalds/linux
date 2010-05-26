@@ -26,7 +26,7 @@
 #define _VMBUS_H_
 
 #include <linux/device.h>
-#include "VmbusApi.h"
+#include "vmbus_api.h"
 
 struct driver_context {
 	struct hv_guid class_id;

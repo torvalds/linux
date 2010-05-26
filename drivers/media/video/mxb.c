@@ -169,11 +169,7 @@ static struct saa7146_extension extension;
 static int mxb_probe(struct saa7146_dev *dev)
 {
 	struct mxb *mxb = NULL;
-	int err;
 
-	err = saa7146_vv_devinit(dev);
-	if (err)
-		return err;
 	mxb = kzalloc(sizeof(struct mxb), GFP_KERNEL);
 	if (mxb == NULL) {
 		DEB_D(("not enough kernel memory.\n"));
@@ -699,14 +695,17 @@ static struct saa7146_ext_vv vv_data;
 /* this function only gets called when the probing was successful */
 static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data *info)
 {
-	struct mxb *mxb = (struct mxb *)dev->ext_priv;
+	struct mxb *mxb;
 
 	DEB_EE(("dev:%p\n", dev));
 
-	/* checking for i2c-devices can be omitted here, because we
-	   already did this in "mxb_vl42_probe" */
-
 	saa7146_vv_init(dev, &vv_data);
+	if (mxb_probe(dev)) {
+		saa7146_vv_release(dev);
+		return -1;
+	}
+	mxb = (struct mxb *)dev->ext_priv;
+
 	vv_data.ops.vidioc_queryctrl = vidioc_queryctrl;
 	vv_data.ops.vidioc_g_ctrl = vidioc_g_ctrl;
 	vv_data.ops.vidioc_s_ctrl = vidioc_s_ctrl;
@@ -726,6 +725,7 @@ static int mxb_attach(struct saa7146_dev *dev, struct saa7146_pci_extension_data
 	vv_data.ops.vidioc_default = vidioc_default;
 	if (saa7146_register_device(&mxb->video_dev, dev, "mxb", VFL_TYPE_GRABBER)) {
 		ERR(("cannot register capture v4l2 device. skipping.\n"));
+		saa7146_vv_release(dev);
 		return -1;
 	}
 
@@ -846,7 +846,6 @@ static struct saa7146_extension extension = {
 	.pci_tbl	= &pci_tbl[0],
 	.module		= THIS_MODULE,
 
-	.probe		= mxb_probe,
 	.attach		= mxb_attach,
 	.detach		= mxb_detach,
 

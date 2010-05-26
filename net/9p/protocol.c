@@ -341,7 +341,8 @@ p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
 			}
 			break;
 		case '?':
-			if (proto_version != p9_proto_2000u)
+			if ((proto_version != p9_proto_2000u) &&
+				(proto_version != p9_proto_2000L))
 				return 0;
 			break;
 		default:
@@ -393,7 +394,7 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 				const char *sptr = va_arg(ap, const char *);
 				int16_t len = 0;
 				if (sptr)
-					len = MIN(strlen(sptr), USHORT_MAX);
+					len = MIN(strlen(sptr), USHRT_MAX);
 
 				errcode = p9pdu_writef(pdu, proto_version,
 								"w", len);
@@ -488,7 +489,8 @@ p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
 			}
 			break;
 		case '?':
-			if (proto_version != p9_proto_2000u)
+			if ((proto_version != p9_proto_2000u) &&
+				(proto_version != p9_proto_2000L))
 				return 0;
 			break;
 		default:

@@ -25,7 +25,7 @@ MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_ttl");
 MODULE_ALIAS("ip6t_hl");
 
-static bool ttl_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+static bool ttl_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct ipt_ttl_info *info = par->matchinfo;
 	const u8 ttl = ip_hdr(skb)->ttl;
@@ -39,16 +39,12 @@ static bool ttl_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			return ttl < info->ttl;
 		case IPT_TTL_GT:
 			return ttl > info->ttl;
-		default:
-			printk(KERN_WARNING "ipt_ttl: unknown mode %d\n",
-				info->mode);
-			return false;
 	}
 
 	return false;
 }
 
-static bool hl_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
+static bool hl_mt6(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct ip6t_hl_info *info = par->matchinfo;
 	const struct ipv6hdr *ip6h = ipv6_hdr(skb);
@@ -56,20 +52,12 @@ static bool hl_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 	switch (info->mode) {
 		case IP6T_HL_EQ:
 			return ip6h->hop_limit == info->hop_limit;
-			break;
 		case IP6T_HL_NE:
 			return ip6h->hop_limit != info->hop_limit;
-			break;
 		case IP6T_HL_LT:
 			return ip6h->hop_limit < info->hop_limit;
-			break;
 		case IP6T_HL_GT:
 			return ip6h->hop_limit > info->hop_limit;
-			break;
-		default:
-			printk(KERN_WARNING "ip6t_hl: unknown mode %d\n",
-				info->mode);
-			return false;
 	}
 
 	return false;

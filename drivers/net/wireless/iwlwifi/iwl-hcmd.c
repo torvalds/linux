@@ -169,7 +169,7 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	mutex_lock(&priv->sync_cmd_mutex);
 
 	set_bit(STATUS_HCMD_ACTIVE, &priv->status);
-	IWL_DEBUG_INFO(priv, "Setting HCMD_ACTIVE for command %s \n",
+	IWL_DEBUG_INFO(priv, "Setting HCMD_ACTIVE for command %s\n",
 			get_cmd_string(cmd->id));
 
 	cmd_idx = iwl_enqueue_hcmd(priv, cmd);
@@ -191,7 +191,7 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 				jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
 
 			clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
-			IWL_DEBUG_INFO(priv, "Clearing HCMD_ACTIVE for command %s \n",
+			IWL_DEBUG_INFO(priv, "Clearing HCMD_ACTIVE for command %s\n",
 				       get_cmd_string(cmd->id));
 			ret = -ETIMEDOUT;
 			goto cancel;

@@ -187,6 +187,7 @@ struct sca3000_state {
 /**
  * struct sca3000_chip_info - model dependant parameters
  * @name: 			model identification
+ * @scale:			string containing floating point scale factor
  * @temp_output:		some devices have temperature sensors.
  * @measurement_mode_freq:	normal mode sampling frequency
  * @option_mode_1:		first optional mode. Not all models have one
@@ -199,6 +200,7 @@ struct sca3000_state {
  **/
 struct sca3000_chip_info {
 	const char		*name;
+	const char		*scale;
 	bool			temp_output;
 	int			measurement_mode_freq;
 	int			option_mode_1;

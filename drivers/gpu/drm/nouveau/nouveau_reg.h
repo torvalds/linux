@@ -826,6 +826,7 @@
 #define NV50_SOR_DP_CTRL_TRAINING_PATTERN_2                          0x02000000
 #define NV50_SOR_DP_UNK118(i,l)          (0x0061c118 + (i) * 0x800 + (l) * 0x80)
 #define NV50_SOR_DP_UNK120(i,l)          (0x0061c120 + (i) * 0x800 + (l) * 0x80)
+#define NV50_SOR_DP_UNK128(i,l)          (0x0061c128 + (i) * 0x800 + (l) * 0x80)
 #define NV50_SOR_DP_UNK130(i,l)          (0x0061c130 + (i) * 0x800 + (l) * 0x80)
 
 #define NV50_PDISPLAY_USER(i)                        ((i) * 0x1000 + 0x00640000)

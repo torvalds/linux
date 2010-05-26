@@ -161,7 +161,7 @@ static int digitv_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static struct dvb_usb_rc_key digitv_rc_keys[] = {
+static struct dvb_usb_rc_key ir_codes_digitv_table[] = {
 	{ 0x5f55, KEY_0 },
 	{ 0x6f55, KEY_1 },
 	{ 0x9f55, KEY_2 },
@@ -311,8 +311,8 @@ static struct dvb_usb_device_properties digitv_properties = {
 	.identify_state   = digitv_identify_state,
 
 	.rc_interval      = 1000,
-	.rc_key_map       = digitv_rc_keys,
-	.rc_key_map_size  = ARRAY_SIZE(digitv_rc_keys),
+	.rc_key_map       = ir_codes_digitv_table,
+	.rc_key_map_size  = ARRAY_SIZE(ir_codes_digitv_table),
 	.rc_query         = digitv_rc_query,
 
 	.i2c_algo         = &digitv_i2c_algo,

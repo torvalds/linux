@@ -319,6 +319,24 @@ unsigned long round_jiffies_up_relative(unsigned long j)
 }
 EXPORT_SYMBOL_GPL(round_jiffies_up_relative);
 
+/**
+ * set_timer_slack - set the allowed slack for a timer
+ * @slack_hz: the amount of time (in jiffies) allowed for rounding
+ *
+ * Set the amount of time, in jiffies, that a certain timer has
+ * in terms of slack. By setting this value, the timer subsystem
+ * will schedule the actual timer somewhere between
+ * the time mod_timer() asks for, and that time plus the slack.
+ *
+ * By setting the slack to -1, a percentage of the delay is used
+ * instead.
+ */
+void set_timer_slack(struct timer_list *timer, int slack_hz)
+{
+	timer->slack = slack_hz;
+}
+EXPORT_SYMBOL_GPL(set_timer_slack);
+
 
 static inline void set_running_timer(struct tvec_base *base,
 					struct timer_list *timer)
@@ -550,6 +568,7 @@ static void __init_timer(struct timer_list *timer,
 {
 	timer->entry.next = NULL;
 	timer->base = __raw_get_cpu_var(tvec_bases);
+	timer->slack = -1;
 #ifdef CONFIG_TIMER_STATS
 	timer->start_site = NULL;
 	timer->start_pid = -1;
@@ -715,6 +734,42 @@ int mod_timer_pending(struct timer_list *timer, unsigned long expires)
 }
 EXPORT_SYMBOL(mod_timer_pending);
 
+/*
+ * Decide where to put the timer while taking the slack into account
+ *
+ * Algorithm:
+ *   1) calculate the maximum (absolute) time
+ *   2) calculate the highest bit where the expires and new max are different
+ *   3) use this bit to make a mask
+ *   4) use the bitmask to round down the maximum time, so that all last
+ *      bits are zeros
+ */
+static inline
+unsigned long apply_slack(struct timer_list *timer, unsigned long expires)
+{
+	unsigned long expires_limit, mask;
+	int bit;
+
+	expires_limit = expires;
+
+	if (timer->slack > -1)
+		expires_limit = expires + timer->slack;
+	else if (time_after(expires, jiffies)) /* auto slack: use 0.4% */
+		expires_limit = expires + (expires - jiffies)/256;
+
+	mask = expires ^ expires_limit;
+	if (mask == 0)
+		return expires;
+
+	bit = find_last_bit(&mask, BITS_PER_LONG);
+
+	mask = (1 << bit) - 1;
+
+	expires_limit = expires_limit & ~(mask);
+
+	return expires_limit;
+}
+
 /**
  * mod_timer - modify a timer's timeout
  * @timer: the timer to be modified
@@ -744,6 +799,8 @@ int mod_timer(struct timer_list *timer, unsigned long expires)
 	 */
 	if (timer_pending(timer) && timer->expires == expires)
 		return 1;
+
+	expires = apply_slack(timer, expires);
 
 	return __mod_timer(timer, expires, false, TIMER_NOT_PINNED);
 }
@@ -955,6 +1012,47 @@ static int cascade(struct tvec_base *base, struct tvec *tv, int index)
 	return index;
 }
 
+static void call_timer_fn(struct timer_list *timer, void (*fn)(unsigned long),
+			  unsigned long data)
+{
+	int preempt_count = preempt_count();
+
+#ifdef CONFIG_LOCKDEP
+	/*
+	 * It is permissible to free the timer from inside the
+	 * function that is called from it, this we need to take into
+	 * account for lockdep too. To avoid bogus "held lock freed"
+	 * warnings as well as problems when looking into
+	 * timer->lockdep_map, make a copy and use that here.
+	 */
+	struct lockdep_map lockdep_map = timer->lockdep_map;
+#endif
+	/*
+	 * Couple the lock chain with the lock chain at
+	 * del_timer_sync() by acquiring the lock_map around the fn()
+	 * call here and in del_timer_sync().
+	 */
+	lock_map_acquire(&lockdep_map);
+
+	trace_timer_expire_entry(timer);
+	fn(data);
+	trace_timer_expire_exit(timer);
+
+	lock_map_release(&lockdep_map);
+
+	if (preempt_count != preempt_count()) {
+		WARN_ONCE(1, "timer: %pF preempt leak: %08x -> %08x\n",
+			  fn, preempt_count, preempt_count());
+		/*
+		 * Restore the preempt count. That gives us a decent
+		 * chance to survive and extract information. If the
+		 * callback kept a lock held, bad luck, but not worse
+		 * than the BUG() we had.
+		 */
+		preempt_count() = preempt_count;
+	}
+}
+
 #define INDEX(N) ((base->timer_jiffies >> (TVR_BITS + (N) * TVN_BITS)) & TVN_MASK)
 
 /**
@@ -998,45 +1096,7 @@ static inline void __run_timers(struct tvec_base *base)
 			detach_timer(timer, 1);
 
 			spin_unlock_irq(&base->lock);
-			{
-				int preempt_count = preempt_count();
-
-#ifdef CONFIG_LOCKDEP
-				/*
-				 * It is permissible to free the timer from
-				 * inside the function that is called from
-				 * it, this we need to take into account for
-				 * lockdep too. To avoid bogus "held lock
-				 * freed" warnings as well as problems when
-				 * looking into timer->lockdep_map, make a
-				 * copy and use that here.
-				 */
-				struct lockdep_map lockdep_map =
-					timer->lockdep_map;
-#endif
-				/*
-				 * Couple the lock chain with the lock chain at
-				 * del_timer_sync() by acquiring the lock_map
-				 * around the fn() call here and in
-				 * del_timer_sync().
-				 */
-				lock_map_acquire(&lockdep_map);
-
-				trace_timer_expire_entry(timer);
-				fn(data);
-				trace_timer_expire_exit(timer);
-
-				lock_map_release(&lockdep_map);
-
-				if (preempt_count != preempt_count()) {
-					printk(KERN_ERR "huh, entered %p "
-					       "with preempt_count %08x, exited"
-					       " with %08x?\n",
-					       fn, preempt_count,
-					       preempt_count());
-					BUG();
-				}
-			}
+			call_timer_fn(timer, fn, data);
 			spin_lock_irq(&base->lock);
 		}
 	}
