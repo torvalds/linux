@@ -401,7 +401,6 @@ setup_lowcore(void)
 	lc->io_new_psw.mask = psw_kernel_bits;
 	lc->io_new_psw.addr = PSW_ADDR_AMODE | (unsigned long) io_int_handler;
 	lc->clock_comparator = -1ULL;
-	lc->cmf_hpp = -1ULL;
 	lc->kernel_stack = ((unsigned long) &init_thread_union) + THREAD_SIZE;
 	lc->async_stack = (unsigned long)
 		__alloc_bootmem(ASYNC_SIZE, ASYNC_SIZE, 0) + ASYNC_SIZE;
@@ -418,6 +417,7 @@ setup_lowcore(void)
 		__ctl_set_bit(14, 29);
 	}
 #else
+	lc->cmf_hpp = -1ULL;
 	lc->vdso_per_cpu_data = (unsigned long) &lc->paste[0];
 #endif
 	lc->sync_enter_timer = S390_lowcore.sync_enter_timer;
