@@ -224,9 +224,6 @@ void drbd_endio_pri(struct bio *bio, int error)
 	enum drbd_req_event what;
 	int uptodate = bio_flagged(bio, BIO_UPTODATE);
 
-	if (error)
-		dev_warn(DEV, "p %s: error=%d\n",
-			 bio_data_dir(bio) == WRITE ? "write" : "read", error);
 	if (!error && !uptodate) {
 		dev_warn(DEV, "p %s: setting error to -EIO\n",
 			 bio_data_dir(bio) == WRITE ? "write" : "read");
@@ -269,7 +266,6 @@ int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	if (cancel || mdev->state.pdsk != D_UP_TO_DATE) {
 		_req_mod(req, read_retry_remote_canceled);
 		spin_unlock_irq(&mdev->req_lock);
-		dev_alert(DEV, "WE ARE LOST. Local IO failure, no peer.\n");
 		return 1;
 	}
 	spin_unlock_irq(&mdev->req_lock);
