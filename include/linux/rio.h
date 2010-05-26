@@ -213,6 +213,7 @@ struct rio_net {
  * @route_table: Copy of switch routing table
  * @add_entry: Callback for switch-specific route add function
  * @get_entry: Callback for switch-specific route get function
+ * @clr_table: Callback for switch-specific clear route table function
  */
 struct rio_switch {
 	struct list_head node;
@@ -224,6 +225,8 @@ struct rio_switch {
 			  u16 table, u16 route_destid, u8 route_port);
 	int (*get_entry) (struct rio_mport * mport, u16 destid, u8 hopcount,
 			  u16 table, u16 route_destid, u8 * route_port);
+	int (*clr_table) (struct rio_mport *mport, u16 destid, u8 hopcount,
+			  u16 table);
 };
 
 /* Low-level architecture-dependent routines */
@@ -307,6 +310,7 @@ struct rio_device_id {
  * @did: RIO device ID
  * @add_hook: Callback that adds a route entry
  * @get_hook: Callback that gets a route entry
+ * @clr_hook: Callback that clears a switch route table (may be NULL)
  *
  * Defines the operations that are necessary to manipulate the route
  * tables for a particular RIO switch device.
@@ -317,6 +321,8 @@ struct rio_route_ops {
 			 u16 table, u16 route_destid, u8 route_port);
 	int (*get_hook) (struct rio_mport * mport, u16 destid, u8 hopcount,
 			 u16 table, u16 route_destid, u8 * route_port);
+	int (*clr_hook) (struct rio_mport *mport, u16 destid, u8 hopcount,
+			 u16 table);
 };
 
 /* Architecture and hardware-specific functions */

@@ -8,3 +8,5 @@ config RAPIDIO_DISC_TIMEOUT
 	---help---
 	  Amount of time a discovery node waits for a host to complete
 	  enumeration before giving up.
+
+source "drivers/rapidio/switches/Kconfig"

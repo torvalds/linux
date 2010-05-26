@@ -57,4 +57,4 @@ tsi500_route_get_entry(struct rio_mport *mport, u16 destid, u8 hopcount, u16 tab
 	return ret;
 }
 
-DECLARE_RIO_ROUTE_OPS(RIO_VID_TUNDRA, RIO_DID_TSI500, tsi500_route_add_entry, tsi500_route_get_entry);
+DECLARE_RIO_ROUTE_OPS(RIO_VID_TUNDRA, RIO_DID_TSI500, tsi500_route_add_entry, tsi500_route_get_entry, NULL);

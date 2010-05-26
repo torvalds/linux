@@ -451,6 +451,110 @@ struct rio_dev *rio_get_device(u16 vid, u16 did, struct rio_dev *from)
 	return rio_get_asm(vid, did, RIO_ANY_ID, RIO_ANY_ID, from);
 }
 
+/**
+ * rio_std_route_add_entry - Add switch route table entry using standard
+ *   registers defined in RIO specification rev.1.3
+ * @mport: Master port to issue transaction
+ * @destid: Destination ID of the device
+ * @hopcount: Number of switch hops to the device
+ * @table: routing table ID (global or port-specific)
+ * @route_destid: destID entry in the RT
+ * @route_port: destination port for specified destID
+ */
+int rio_std_route_add_entry(struct rio_mport *mport, u16 destid, u8 hopcount,
+		       u16 table, u16 route_destid, u8 route_port)
+{
+	if (table == RIO_GLOBAL_TABLE) {
+		rio_mport_write_config_32(mport, destid, hopcount,
+				RIO_STD_RTE_CONF_DESTID_SEL_CSR,
+				(u32)route_destid);
+		rio_mport_write_config_32(mport, destid, hopcount,
+				RIO_STD_RTE_CONF_PORT_SEL_CSR,
+				(u32)route_port);
+	}
+	udelay(10);
+	return 0;
+}
+
+/**
+ * rio_std_route_get_entry - Read switch route table entry (port number)
+ *   assosiated with specified destID using standard registers defined in RIO
+ *   specification rev.1.3
+ * @mport: Master port to issue transaction
+ * @destid: Destination ID of the device
+ * @hopcount: Number of switch hops to the device
+ * @table: routing table ID (global or port-specific)
+ * @route_destid: destID entry in the RT
+ * @route_port: returned destination port for specified destID
+ */
+int rio_std_route_get_entry(struct rio_mport *mport, u16 destid, u8 hopcount,
+		       u16 table, u16 route_destid, u8 *route_port)
+{
+	u32 result;
+
+	if (table == RIO_GLOBAL_TABLE) {
+		rio_mport_write_config_32(mport, destid, hopcount,
+				RIO_STD_RTE_CONF_DESTID_SEL_CSR, route_destid);
+		rio_mport_read_config_32(mport, destid, hopcount,
+				RIO_STD_RTE_CONF_PORT_SEL_CSR, &result);
+
+		*route_port = (u8)result;
+	}
+
+	return 0;
+}
+
+/**
+ * rio_std_route_clr_table - Clear swotch route table using standard registers
+ *   defined in RIO specification rev.1.3.
+ * @mport: Master port to issue transaction
+ * @local: Indicate a local master port or remote device access
+ * @destid: Destination ID of the device
+ * @hopcount: Number of switch hops to the device
+ * @table: routing table ID (global or port-specific)
+ */
+int rio_std_route_clr_table(struct rio_mport *mport, u16 destid, u8 hopcount,
+		       u16 table)
+{
+	u32 max_destid = 0xff;
+	u32 i, pef, id_inc = 1, ext_cfg = 0;
+	u32 port_sel = RIO_INVALID_ROUTE;
+
+	if (table == RIO_GLOBAL_TABLE) {
+		rio_mport_read_config_32(mport, destid, hopcount,
+					 RIO_PEF_CAR, &pef);
+
+		if (mport->sys_size) {
+			rio_mport_read_config_32(mport, destid, hopcount,
+						 RIO_SWITCH_RT_LIMIT,
+						 &max_destid);
+			max_destid &= RIO_RT_MAX_DESTID;
+		}
+
+		if (pef & RIO_PEF_EXT_RT) {
+			ext_cfg = 0x80000000;
+			id_inc = 4;
+			port_sel = (RIO_INVALID_ROUTE << 24) |
+				   (RIO_INVALID_ROUTE << 16) |
+				   (RIO_INVALID_ROUTE << 8) |
+				   RIO_INVALID_ROUTE;
+		}
+
+		for (i = 0; i <= max_destid;) {
+			rio_mport_write_config_32(mport, destid, hopcount,
+					RIO_STD_RTE_CONF_DESTID_SEL_CSR,
+					ext_cfg | i);
+			rio_mport_write_config_32(mport, destid, hopcount,
+					RIO_STD_RTE_CONF_PORT_SEL_CSR,
+					port_sel);
+			i += id_inc;
+		}
+	}
+
+	udelay(10);
+	return 0;
+}
+
 static void rio_fixup_device(struct rio_dev *dev)
 {
 }

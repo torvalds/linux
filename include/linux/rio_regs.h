@@ -39,6 +39,8 @@
 #define  RIO_PEF_INB_MBOX2		0x00200000	/* [II] Mailbox 2 */
 #define  RIO_PEF_INB_MBOX3		0x00100000	/* [II] Mailbox 3 */
 #define  RIO_PEF_INB_DOORBELL		0x00080000	/* [II] Doorbells */
+#define  RIO_PEF_EXT_RT			0x00000200	/* [III, 1.3] Extended route table support */
+#define  RIO_PEF_STD_RT			0x00000100	/* [III, 1.3] Standard route table support */
 #define  RIO_PEF_CTLS			0x00000010	/* [III] CTLS */
 #define  RIO_PEF_EXT_FEATURES		0x00000008	/* [I] EFT_PTR valid */
 #define  RIO_PEF_ADDR_66		0x00000004	/* [I] 66 bits */
@@ -91,7 +93,10 @@
 #define  RIO_OPS_ATOMIC_CLR		0x00000010	/* [I] Atomic clr op */
 #define  RIO_OPS_PORT_WRITE		0x00000004	/* [I] Port-write op */
 
-					/* 0x20-0x3c *//* Reserved */
+					/* 0x20-0x30 *//* Reserved */
+
+#define	RIO_SWITCH_RT_LIMIT	0x34	/* [III, 1.3] Switch Route Table Destination ID Limit CAR */
+#define	 RIO_RT_MAX_DESTID		0x0000ffff
 
 #define RIO_MBOX_CSR		0x40	/* [II] Mailbox CSR */
 #define  RIO_MBOX0_AVAIL		0x80000000	/* [II] Mbox 0 avail */
@@ -153,7 +158,11 @@
 #define RIO_HOST_DID_LOCK_CSR	0x68	/* [III] Host Base Device ID Lock CSR */
 #define RIO_COMPONENT_TAG_CSR	0x6c	/* [III] Component Tag CSR */
 
-					/* 0x70-0xf8 *//* Reserved */
+#define RIO_STD_RTE_CONF_DESTID_SEL_CSR	0x70
+#define RIO_STD_RTE_CONF_PORT_SEL_CSR	0x74
+#define RIO_STD_RTE_DEFAULT_PORT	0x78
+
+					/* 0x7c-0xf8 *//* Reserved */
 					/* 0x100-0xfff8 *//* [I] Extended Features Space */
 					/* 0x10000-0xfffff8 *//* [I] Implementation-defined Space */
 
@@ -186,6 +195,7 @@
 #define RIO_EFB_SER_EP_ID	0x0004	/* [VI] LP/Serial EP Devices */
 #define RIO_EFB_SER_EP_REC_ID	0x0005	/* [VI] LP/Serial EP Recovery Devices */
 #define RIO_EFB_SER_EP_FREE_ID	0x0006	/* [VI] LP/Serial EP Free Devices */
+#define RIO_EFB_SER_EP_FREC_ID	0x0009  /* [VI] LP/Serial EP Free Recovery Devices */
 
 /*
  * Physical 8/16 LP-LVDS
