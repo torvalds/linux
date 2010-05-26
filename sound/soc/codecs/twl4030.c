@@ -262,6 +262,17 @@ static inline void twl4030_check_defaults(struct snd_soc_codec *codec)
 		 difference, difference ? "Not OK" : "OK");
 }
 
+static inline void twl4030_reset_registers(struct snd_soc_codec *codec)
+{
+	int i;
+
+	/* set all audio section registers to reasonable defaults */
+	for (i = TWL4030_REG_OPTION; i <= TWL4030_REG_MISC_SET_2; i++)
+		if (i != TWL4030_REG_APLL_CTL)
+			twl4030_write(codec, i, twl4030_reg[i]);
+
+}
+
 static void twl4030_init_chip(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
@@ -274,6 +285,10 @@ static void twl4030_init_chip(struct platform_device *pdev)
 	/* Check defaults, if instructed before anything else */
 	if (setup && setup->check_defaults)
 		twl4030_check_defaults(codec);
+
+	/* Reset registers, if no setup data or if instructed to do so */
+	if (!setup || (setup && setup->reset_registers))
+		twl4030_reset_registers(codec);
 
 	/* Refresh APLL_CTL register from HW */
 	twl_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &byte,
@@ -2271,6 +2286,8 @@ static int twl4030_soc_remove(struct platform_device *pdev)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
 
+	/* Reset registers to their chip default before leaving */
+	twl4030_reset_registers(codec);
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
