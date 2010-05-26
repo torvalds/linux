@@ -369,7 +369,10 @@ static int rk2818_sdmmc_submit_data_dma(struct rk2818_sdmmc_host *host, struct m
 	unsigned int			i;
 
 	if(host->use_dma == 0)
+	{
+		host->dma_chn = -1;
 		return -ENOSYS;
+	}
 	if (data->blocks * data->blksz < RK2818_MCI_DMA_THRESHOLD)
 		return -EINVAL;
 	if (data->blksz & 3)
