@@ -595,14 +595,14 @@ static int __devinit max732x_probe(struct i2c_client *client,
 	switch (client->addr & 0x70) {
 	case 0x60:
 		chip->client_group_a = client;
-		if (nr_port > 7) {
+		if (nr_port > 8) {
 			c = i2c_new_dummy(client->adapter, addr_b);
 			chip->client_group_b = chip->client_dummy = c;
 		}
 		break;
 	case 0x50:
 		chip->client_group_b = client;
-		if (nr_port > 7) {
+		if (nr_port > 8) {
 			c = i2c_new_dummy(client->adapter, addr_a);
 			chip->client_group_a = chip->client_dummy = c;
 		}
@@ -617,7 +617,7 @@ static int __devinit max732x_probe(struct i2c_client *client,
 	mutex_init(&chip->lock);
 
 	max732x_readb(chip, is_group_a(chip, 0), &chip->reg_out[0]);
-	if (nr_port > 7)
+	if (nr_port > 8)
 		max732x_readb(chip, is_group_a(chip, 8), &chip->reg_out[1]);
 
 	ret = max732x_irq_setup(chip, id);
