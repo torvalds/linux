@@ -91,7 +91,7 @@ int ext4_sync_file(struct file *file, int datasync)
 		return ret;
 
 	if (!journal) {
-		ret = simple_fsync(file, datasync);
+		ret = generic_file_fsync(file, datasync);
 		if (!ret && !list_empty(&inode->i_dentry))
 			ext4_sync_parent(inode);
 		return ret;

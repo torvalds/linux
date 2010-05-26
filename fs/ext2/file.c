@@ -46,7 +46,7 @@ int ext2_fsync(struct file *file, int datasync)
 	struct super_block *sb = file->f_mapping->host->i_sb;
 	struct address_space *mapping = sb->s_bdev->bd_inode->i_mapping;
 
-	ret = simple_fsync(file, datasync);
+	ret = generic_file_fsync(file, datasync);
 	if (ret == -EIO || test_and_clear_bit(AS_EIO, &mapping->flags)) {
 		/* We don't really know where the IO error happened... */
 		ext2_error(sb, __func__,

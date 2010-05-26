@@ -58,11 +58,6 @@ struct dentry *simple_lookup(struct inode *dir, struct dentry *dentry, struct na
 	return NULL;
 }
 
-int simple_sync_file(struct file *file, int datasync)
-{
-	return 0;
-}
- 
 int dcache_dir_open(struct inode *inode, struct file *file)
 {
 	static struct qstr cursor_name = {.len = 1, .name = "."};
@@ -190,7 +185,7 @@ const struct file_operations simple_dir_operations = {
 	.llseek		= dcache_dir_lseek,
 	.read		= generic_read_dir,
 	.readdir	= dcache_readdir,
-	.fsync		= simple_sync_file,
+	.fsync		= noop_fsync,
 };
 
 const struct inode_operations simple_dir_inode_operations = {
@@ -851,7 +846,16 @@ struct dentry *generic_fh_to_parent(struct super_block *sb, struct fid *fid,
 }
 EXPORT_SYMBOL_GPL(generic_fh_to_parent);
 
-int simple_fsync(struct file *file, int datasync)
+/**
+ * generic_file_fsync - generic fsync implementation for simple filesystems
+ * @file:	file to synchronize
+ * @datasync:	only synchronize essential metadata if true
+ *
+ * This is a generic implementation of the fsync method for simple
+ * filesystems which track all non-inode metadata in the buffers list
+ * hanging off the address_space structure.
+ */
+int generic_file_fsync(struct file *file, int datasync)
 {
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_ALL,
@@ -872,7 +876,15 @@ int simple_fsync(struct file *file, int datasync)
 		ret = err;
 	return ret;
 }
-EXPORT_SYMBOL(simple_fsync);
+EXPORT_SYMBOL(generic_file_fsync);
+
+/*
+ * No-op implementation of ->fsync for in-memory filesystems.
+ */
+int noop_fsync(struct file *file, int datasync)
+{
+	return 0;
+}
 
 EXPORT_SYMBOL(dcache_dir_close);
 EXPORT_SYMBOL(dcache_dir_lseek);
@@ -895,7 +907,7 @@ EXPORT_SYMBOL(simple_release_fs);
 EXPORT_SYMBOL(simple_rename);
 EXPORT_SYMBOL(simple_rmdir);
 EXPORT_SYMBOL(simple_statfs);
-EXPORT_SYMBOL(simple_sync_file);
+EXPORT_SYMBOL(noop_fsync);
 EXPORT_SYMBOL(simple_unlink);
 EXPORT_SYMBOL(simple_read_from_buffer);
 EXPORT_SYMBOL(simple_write_to_buffer);

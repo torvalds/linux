@@ -154,7 +154,7 @@ int fat_file_fsync(struct file *filp, int datasync)
 	struct inode *inode = filp->f_mapping->host;
 	int res, err;
 
-	res = simple_fsync(filp, datasync);
+	res = generic_file_fsync(filp, datasync);
 	err = sync_mapping_buffers(MSDOS_SB(inode->i_sb)->fat_inode->i_mapping);
 
 	return res ? res : err;

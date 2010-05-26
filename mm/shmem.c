@@ -2433,7 +2433,7 @@ static const struct file_operations shmem_file_operations = {
 	.write		= do_sync_write,
 	.aio_read	= shmem_file_aio_read,
 	.aio_write	= generic_file_aio_write,
-	.fsync		= simple_sync_file,
+	.fsync		= noop_fsync,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= generic_file_splice_write,
 #endif
