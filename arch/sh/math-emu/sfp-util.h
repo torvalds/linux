@@ -66,3 +66,7 @@
   } while (0)
 
 #define abort()	return 0
+
+#define __BYTE_ORDER __LITTLE_ENDIAN
+
+
