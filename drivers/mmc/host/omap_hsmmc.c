@@ -2267,10 +2267,12 @@ static int omap_hsmmc_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_PM
-static int omap_hsmmc_suspend(struct platform_device *pdev, pm_message_t state)
+static int omap_hsmmc_suspend(struct device *dev)
 {
 	int ret = 0;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_hsmmc_host *host = platform_get_drvdata(pdev);
+	pm_message_t state = PMSG_SUSPEND; /* unused by MMC core */
 
 	if (host && host->suspended)
 		return 0;
@@ -2316,9 +2318,10 @@ static int omap_hsmmc_suspend(struct platform_device *pdev, pm_message_t state)
 }
 
 /* Routine to resume the MMC device */
-static int omap_hsmmc_resume(struct platform_device *pdev)
+static int omap_hsmmc_resume(struct device *dev)
 {
 	int ret = 0;
+	struct platform_device *pdev = to_platform_device(dev);
 	struct omap_hsmmc_host *host = platform_get_drvdata(pdev);
 
 	if (host && !host->suspended)
@@ -2369,13 +2372,17 @@ clk_en_err:
 #define omap_hsmmc_resume		NULL
 #endif
 
-static struct platform_driver omap_hsmmc_driver = {
-	.remove		= omap_hsmmc_remove,
+static struct dev_pm_ops omap_hsmmc_dev_pm_ops = {
 	.suspend	= omap_hsmmc_suspend,
 	.resume		= omap_hsmmc_resume,
+};
+
+static struct platform_driver omap_hsmmc_driver = {
+	.remove		= omap_hsmmc_remove,
 	.driver		= {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
+		.pm = &omap_hsmmc_dev_pm_ops,
 	},
 };
 
