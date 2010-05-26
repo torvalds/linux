@@ -33,6 +33,7 @@ config IR_RC5_DECODER
 config IR_RC6_DECODER
 	tristate "Enable IR raw decoder for the RC6 protocol"
 	depends on IR_CORE
+	select BITREVERSE
 	default y
 
 	---help---
