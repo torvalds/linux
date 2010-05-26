@@ -1837,7 +1837,6 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	char corename[CORENAME_MAX_SIZE + 1];
 	struct mm_struct *mm = current->mm;
 	struct linux_binfmt * binfmt;
-	struct inode * inode;
 	const struct cred *old_cred;
 	struct cred *cred;
 	int retval = 0;
@@ -1914,9 +1913,6 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	ispipe = format_corename(corename, signr);
 	unlock_kernel();
 
-	if ((!ispipe) && (cprm.limit < binfmt->min_coredump))
-		goto fail_unlock;
-
  	if (ispipe) {
 		if (cprm.limit == 1) {
 			/*
@@ -1969,39 +1965,42 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 			       corename);
 			goto fail_dropcount;
  		}
- 	} else
+	} else {
+		struct inode *inode;
+
+		if (cprm.limit < binfmt->min_coredump)
+			goto fail_unlock;
+
 		cprm.file = filp_open(corename,
 				 O_CREAT | 2 | O_NOFOLLOW | O_LARGEFILE | flag,
 				 0600);
-	if (IS_ERR(cprm.file))
-		goto fail_dropcount;
-	inode = cprm.file->f_path.dentry->d_inode;
-	if (inode->i_nlink > 1)
-		goto close_fail;	/* multiple links - don't dump */
-	if (!ispipe && d_unhashed(cprm.file->f_path.dentry))
-		goto close_fail;
+		if (IS_ERR(cprm.file))
+			goto fail_unlock;
 
-	/* AK: actually i see no reason to not allow this for named pipes etc.,
-	   but keep the previous behaviour for now. */
-	if (!ispipe && !S_ISREG(inode->i_mode))
-		goto close_fail;
-	/*
-	 * Dont allow local users get cute and trick others to coredump
-	 * into their pre-created files:
-	 * Note, this is not relevant for pipes
-	 */
-	if (!ispipe && (inode->i_uid != current_fsuid()))
-		goto close_fail;
-	if (!cprm.file->f_op)
-		goto close_fail;
-	if (!cprm.file->f_op->write)
-		goto close_fail;
-	if (!ispipe &&
-	    do_truncate(cprm.file->f_path.dentry, 0, 0, cprm.file) != 0)
-		goto close_fail;
+		inode = cprm.file->f_path.dentry->d_inode;
+		if (inode->i_nlink > 1)
+			goto close_fail;
+		if (d_unhashed(cprm.file->f_path.dentry))
+			goto close_fail;
+		/*
+		 * AK: actually i see no reason to not allow this for named
+		 * pipes etc, but keep the previous behaviour for now.
+		 */
+		if (!S_ISREG(inode->i_mode))
+			goto close_fail;
+		/*
+		 * Dont allow local users get cute and trick others to coredump
+		 * into their pre-created files.
+		 */
+		if (inode->i_uid != current_fsuid())
+			goto close_fail;
+		if (!cprm.file->f_op || !cprm.file->f_op->write)
+			goto close_fail;
+		if (do_truncate(cprm.file->f_path.dentry, 0, 0, cprm.file))
+			goto close_fail;
+	}
 
 	retval = binfmt->core_dump(&cprm);
-
 	if (retval)
 		current->signal->group_exit_code |= 0x80;
 close_fail:
