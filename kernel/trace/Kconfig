@@ -354,26 +354,6 @@ config STACK_TRACER
 
 	  Say N if unsure.
 
-config KMEMTRACE
-	bool "Trace SLAB allocations"
-	select GENERIC_TRACER
-	help
-	  kmemtrace provides tracing for slab allocator functions, such as
-	  kmalloc, kfree, kmem_cache_alloc, kmem_cache_free, etc. Collected
-	  data is then fed to the userspace application in order to analyse
-	  allocation hotspots, internal fragmentation and so on, making it
-	  possible to see how well an allocator performs, as well as debug
-	  and profile kernel code.
-
-	  This requires an userspace application to use. See
-	  Documentation/trace/kmemtrace.txt for more information.
-
-	  Saying Y will make the kernel somewhat larger and slower. However,
-	  if you disable kmemtrace at run-time or boot-time, the performance
-	  impact is minimal (depending on the arch the kernel is built for).
-
-	  If unsure, say N.
-
 config WORKQUEUE_TRACER
 	bool "Trace workqueues"
 	select GENERIC_TRACER

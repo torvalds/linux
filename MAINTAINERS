@@ -3361,13 +3361,6 @@ F:	include/linux/kmemleak.h
 F:	mm/kmemleak.c
 F:	mm/kmemleak-test.c
 
-KMEMTRACE
-M:	Eduard - Gabriel Munteanu <eduard.munteanu@linux360.ro>
-S:	Maintained
-F:	Documentation/trace/kmemtrace.txt
-F:	include/linux/kmemtrace.h
-F:	kernel/trace/kmemtrace.c
-
 KPROBES
 M:	Ananth N Mavinakayanahalli <ananth@in.ibm.com>
 M:	Anil S Keshavamurthy <anil.s.keshavamurthy@intel.com>

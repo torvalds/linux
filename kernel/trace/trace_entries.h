@@ -291,41 +291,6 @@ FTRACE_ENTRY(branch, trace_branch,
 		 __entry->func, __entry->file, __entry->correct)
 );
 
-FTRACE_ENTRY(kmem_alloc, kmemtrace_alloc_entry,
-
-	TRACE_KMEM_ALLOC,
-
-	F_STRUCT(
-		__field(	enum kmemtrace_type_id,	type_id		)
-		__field(	unsigned long,		call_site	)
-		__field(	const void *,		ptr		)
-		__field(	size_t,			bytes_req	)
-		__field(	size_t,			bytes_alloc	)
-		__field(	gfp_t,			gfp_flags	)
-		__field(	int,			node		)
-	),
-
-	F_printk("type:%u call_site:%lx ptr:%p req:%zi alloc:%zi"
-		 " flags:%x node:%d",
-		 __entry->type_id, __entry->call_site, __entry->ptr,
-		 __entry->bytes_req, __entry->bytes_alloc,
-		 __entry->gfp_flags, __entry->node)
-);
-
-FTRACE_ENTRY(kmem_free, kmemtrace_free_entry,
-
-	TRACE_KMEM_FREE,
-
-	F_STRUCT(
-		__field(	enum kmemtrace_type_id,	type_id		)
-		__field(	unsigned long,		call_site	)
-		__field(	const void *,		ptr		)
-	),
-
-	F_printk("type:%u call_site:%lx ptr:%p",
-		 __entry->type_id, __entry->call_site, __entry->ptr)
-);
-
 FTRACE_ENTRY(ksym_trace, ksym_trace_entry,
 
 	TRACE_KSYM,

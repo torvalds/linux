@@ -66,7 +66,6 @@
 #include <linux/ftrace.h>
 #include <linux/async.h>
 #include <linux/kmemcheck.h>
-#include <linux/kmemtrace.h>
 #include <linux/sfi.h>
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
@@ -652,7 +651,6 @@ asmlinkage void __init start_kernel(void)
 #endif
 	page_cgroup_init();
 	enable_debug_pagealloc();
-	kmemtrace_init();
 	kmemleak_init();
 	debug_objects_mem_init();
 	idr_init_cache();
