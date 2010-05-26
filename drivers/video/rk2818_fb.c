@@ -426,6 +426,38 @@ int mcu_refresh(struct rk2818fb_inf *inf)
     return 0;
 }
 
+int mcu_ioctl(unsigned int cmd, unsigned long arg)
+{
+    struct rk2818fb_inf *inf = NULL;
+    if(!g_pdev)     return -1;
+
+    inf = dev_get_drvdata(&g_pdev->dev);
+
+    switch(cmd)
+    {
+    case MCU_WRCMD:
+        LcdClrBit(inf, MCU_TIMING_CTRL, m_MCU_RS_SELECT); 
+        LcdWrReg(inf, MCU_BYPASS_WPORT, arg);    
+        LcdSetBit(inf, MCU_TIMING_CTRL, m_MCU_RS_SELECT);
+        break;
+
+    case MCU_WRDATA:
+        LcdSetBit(inf, MCU_TIMING_CTRL, m_MCU_RS_SELECT);
+        LcdWrReg(inf, MCU_BYPASS_WPORT, arg);
+        break;
+
+    case MCU_SETBYPASS:
+        LcdMskReg(inf, MCU_TIMING_CTRL, m_MCU_BYPASSMODE_SELECT, v_MCU_BYPASSMODE_SELECT(arg));        
+        LcdWrReg(inf, REG_CFG_DONE, 0x01);
+        break;
+
+    default:
+        break;
+    }
+
+    return 0;
+}
+
 int init_lcdc(struct fb_info *info)
 {
     struct rk2818fb_inf *inf = dev_get_drvdata(info->device);
@@ -2683,10 +2715,13 @@ static int rk2818fb_suspend(struct platform_device *pdev, pm_message_t msg)
 	{
 		fbprintk(">>>>>> diable the lcdc clk! \n");
 		msleep(100);
-    	if (inf->dclk)
-        {
+    	if (inf->dclk){
             clk_disable(inf->dclk);
         }
+        if(inf->clk){
+            clk_disable(inf->clk);
+        }
+            
 		inf->in_suspend = 1;
 	}
 
@@ -2713,11 +2748,12 @@ int rk2818fb_resume(struct platform_device *pdev)
 	if(inf->in_suspend)
 	{
 	    inf->in_suspend = 0;
-    	fbprintk(">>>>>> eable the lcdc clk! \n");
-        if (inf->dclk)
-        {
-            clk_enable(inf->dclk);
-            clk_set_rate(inf->dclk, screen->pixclock);
+    	fbprintk(">>>>>> enable the lcdc clk! \n");
+        if (inf->dclk){
+            clk_enable(inf->dclk);           
+        }  
+        if(inf->clk){
+            clk_enable(inf->clk);
         }        
         msleep(100);
 	}
