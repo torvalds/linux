@@ -137,8 +137,12 @@ int __ref register_cpu_notifier(struct notifier_block *nb)
 static int __cpu_notify(unsigned long val, void *v, int nr_to_call,
 			int *nr_calls)
 {
-	return __raw_notifier_call_chain(&cpu_chain, val, v, nr_to_call,
+	int ret;
+
+	ret = __raw_notifier_call_chain(&cpu_chain, val, v, nr_to_call,
 					nr_calls);
+
+	return notifier_to_errno(ret);
 }
 
 static int cpu_notify(unsigned long val, void *v)
@@ -151,7 +155,7 @@ static void cpu_notify_nofail(unsigned long val, void *v)
 	int err;
 
 	err = cpu_notify(val, v);
-	BUG_ON(err == NOTIFY_BAD);
+	BUG_ON(err);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -232,14 +236,13 @@ static int __ref _cpu_down(unsigned int cpu, int tasks_frozen)
 	cpu_hotplug_begin();
 	set_cpu_active(cpu, false);
 	err = __cpu_notify(CPU_DOWN_PREPARE | mod, hcpu, -1, &nr_calls);
-	if (err == NOTIFY_BAD) {
+	if (err) {
 		set_cpu_active(cpu, true);
 
 		nr_calls--;
 		__cpu_notify(CPU_DOWN_FAILED | mod, hcpu, nr_calls, NULL);
 		printk("%s: attempt to take down CPU %u failed\n",
 				__func__, cpu);
-		err = -EINVAL;
 		goto out_release;
 	}
 
@@ -304,11 +307,10 @@ static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
 
 	cpu_hotplug_begin();
 	ret = __cpu_notify(CPU_UP_PREPARE | mod, hcpu, -1, &nr_calls);
-	if (ret == NOTIFY_BAD) {
+	if (ret) {
 		nr_calls--;
 		printk("%s: attempt to bring up CPU %u failed\n",
 				__func__, cpu);
-		ret = -EINVAL;
 		goto out_notify;
 	}
 
