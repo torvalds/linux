@@ -170,6 +170,10 @@ static inline int numa_node_id(void)
 {
 	return 0;
 }
+/*
+ * indicate override:
+ */
+#define numa_node_id numa_node_id
 
 static inline int early_cpu_to_node(int cpu)
 {

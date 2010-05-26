@@ -57,6 +57,11 @@
 #include <asm/div64.h>
 #include "internal.h"
 
+#ifdef CONFIG_USE_PERCPU_NUMA_NODE_ID
+DEFINE_PER_CPU(int, numa_node);
+EXPORT_PER_CPU_SYMBOL(numa_node);
+#endif
+
 /*
  * Array of node states.
  */

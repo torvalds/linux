@@ -31,6 +31,7 @@
 #include <linux/bitops.h>
 #include <linux/mmzone.h>
 #include <linux/smp.h>
+#include <linux/percpu.h>
 #include <asm/topology.h>
 
 #ifndef node_has_online_mem
@@ -203,7 +204,52 @@ int arch_update_cpu_topology(void);
 #ifndef SD_NODE_INIT
 #error Please define an appropriate SD_NODE_INIT in include/asm/topology.h!!!
 #endif
+
 #endif /* CONFIG_NUMA */
+
+#ifdef CONFIG_USE_PERCPU_NUMA_NODE_ID
+DECLARE_PER_CPU(int, numa_node);
+
+#ifndef numa_node_id
+/* Returns the number of the current Node. */
+static inline int numa_node_id(void)
+{
+	return __this_cpu_read(numa_node);
+}
+#endif
+
+#ifndef cpu_to_node
+static inline int cpu_to_node(int cpu)
+{
+	return per_cpu(numa_node, cpu);
+}
+#endif
+
+#ifndef set_numa_node
+static inline void set_numa_node(int node)
+{
+	percpu_write(numa_node, node);
+}
+#endif
+
+#ifndef set_cpu_numa_node
+static inline void set_cpu_numa_node(int cpu, int node)
+{
+	per_cpu(numa_node, cpu) = node;
+}
+#endif
+
+#else	/* !CONFIG_USE_PERCPU_NUMA_NODE_ID */
+
+/* Returns the number of the current Node. */
+#ifndef numa_node_id
+static inline int numa_node_id(void)
+{
+	return cpu_to_node(raw_smp_processor_id());
+}
+#endif
+
+#endif	/* [!]CONFIG_USE_PERCPU_NUMA_NODE_ID */
 
 #ifndef topology_physical_package_id
 #define topology_physical_package_id(cpu)	((void)(cpu), -1)
@@ -216,11 +262,6 @@ int arch_update_cpu_topology(void);
 #endif
 #ifndef topology_core_cpumask
 #define topology_core_cpumask(cpu)		cpumask_of(cpu)
-#endif
-
-/* Returns the number of the current Node. */
-#ifndef numa_node_id
-#define numa_node_id()		(cpu_to_node(raw_smp_processor_id()))
 #endif
 
 #endif /* _LINUX_TOPOLOGY_H */
