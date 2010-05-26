@@ -247,10 +247,13 @@
 	}								\
 									\
 	/* RapidIO route ops */						\
-	.rio_route        : AT(ADDR(.rio_route) - LOAD_OFFSET) {	\
+	.rio_ops        : AT(ADDR(.rio_ops) - LOAD_OFFSET) {		\
 		VMLINUX_SYMBOL(__start_rio_route_ops) = .;		\
 		*(.rio_route_ops)					\
 		VMLINUX_SYMBOL(__end_rio_route_ops) = .;		\
+		VMLINUX_SYMBOL(__start_rio_em_ops) = .;			\
+		*(.rio_em_ops)						\
+		VMLINUX_SYMBOL(__end_rio_em_ops) = .;			\
 	}								\
 									\
 	TRACEDATA							\

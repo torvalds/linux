@@ -1057,7 +1057,7 @@ int fsl_rio_setup(struct of_device *dev)
 	dev_info(&dev->dev, "LAW start 0x%016llx, size 0x%016llx.\n",
 			law_start, law_size);
 
-	ops = kmalloc(sizeof(struct rio_ops), GFP_KERNEL);
+	ops = kzalloc(sizeof(struct rio_ops), GFP_KERNEL);
 	if (!ops) {
 		rc = -ENOMEM;
 		goto err_ops;
