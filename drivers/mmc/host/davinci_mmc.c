@@ -137,15 +137,15 @@
 
 /*
  * One scatterlist dma "segment" is at most MAX_CCNT rw_threshold units,
- * and we handle up to NR_SG segments.  MMC_BLOCK_BOUNCE kicks in only
+ * and we handle up to MAX_NR_SG segments.  MMC_BLOCK_BOUNCE kicks in only
  * for drivers with max_hw_segs == 1, making the segments bigger (64KB)
- * than the page or two that's otherwise typical.  NR_SG == 16 gives at
- * least the same throughput boost, using EDMA transfer linkage instead
- * of spending CPU time copying pages.
+ * than the page or two that's otherwise typical. nr_sg (passed from
+ * platform data) == 16 gives at least the same throughput boost, using
+ * EDMA transfer linkage instead of spending CPU time copying pages.
  */
 #define MAX_CCNT	((1 << 16) - 1)
 
-#define NR_SG		16
+#define MAX_NR_SG	16
 
 static unsigned rw_threshold = 32;
 module_param(rw_threshold, uint, S_IRUGO);
@@ -192,7 +192,7 @@ struct mmc_davinci_host {
 	struct edmacc_param	tx_template;
 	struct edmacc_param	rx_template;
 	unsigned		n_link;
-	u32			links[NR_SG - 1];
+	u32			links[MAX_NR_SG - 1];
 
 	/* For PIO we walk scatterlists one segment at a time. */
 	unsigned int		sg_len;
@@ -202,6 +202,8 @@ struct mmc_davinci_host {
 	u8 version;
 	/* for ns in one cycle calculation */
 	unsigned ns_in_one_cycle;
+	/* Number of sg segments */
+	u8 nr_sg;
 #ifdef CONFIG_CPU_FREQ
 	struct notifier_block	freq_transition;
 #endif
@@ -568,6 +570,7 @@ davinci_release_dma_channels(struct mmc_davinci_host *host)
 
 static int __init davinci_acquire_dma_channels(struct mmc_davinci_host *host)
 {
+	u32 link_size;
 	int r, i;
 
 	/* Acquire master DMA write channel */
@@ -593,7 +596,8 @@ static int __init davinci_acquire_dma_channels(struct mmc_davinci_host *host)
 	/* Allocate parameter RAM slots, which will later be bound to a
 	 * channel as needed to handle a scatterlist.
 	 */
-	for (i = 0; i < ARRAY_SIZE(host->links); i++) {
+	link_size = min_t(unsigned, host->nr_sg, ARRAY_SIZE(host->links));
+	for (i = 0; i < link_size; i++) {
 		r = edma_alloc_slot(EDMA_CTLR(host->txdma), EDMA_SLOT_ANY);
 		if (r < 0) {
 			dev_dbg(mmc_dev(host->mmc), "dma PaRAM alloc --> %d\n",
@@ -1201,6 +1205,12 @@ static int __init davinci_mmcsd_probe(struct platform_device *pdev)
 	host->mmc_input_clk = clk_get_rate(host->clk);
 
 	init_mmcsd_host(host);
+
+	if (pdata->nr_sg)
+		host->nr_sg = pdata->nr_sg - 1;
+
+	if (host->nr_sg > MAX_NR_SG || !host->nr_sg)
+		host->nr_sg = MAX_NR_SG;
 
 	host->use_dma = use_dma;
 	host->irq = irq;
