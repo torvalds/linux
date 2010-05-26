@@ -1,6 +1,10 @@
 /*
  * Freescale MPC85xx/MPC86xx RapidIO support
  *
+ * Copyright 2009 Sysgo AG
+ * Thomas Moll <thomas.moll@sysgo.com>
+ * - fixed maintenance access routines, check for aligned access
+ *
  * Copyright 2009 Integrated Device Technology, Inc.
  * Alex Bounine <alexandre.bounine@idt.com>
  * - Added Port-Write message handling
@@ -371,10 +375,17 @@ fsl_rio_config_read(struct rio_mport *mport, int index, u16 destid,
 	pr_debug
 	    ("fsl_rio_config_read: index %d destid %d hopcount %d offset %8.8x len %d\n",
 	     index, destid, hopcount, offset, len);
-	out_be32(&priv->maint_atmu_regs->rowtar,
-		 (destid << 22) | (hopcount << 12) | ((offset & ~0x3) >> 9));
 
-	data = (u8 *) priv->maint_win + offset;
+	/* 16MB maintenance window possible */
+	/* allow only aligned access to maintenance registers */
+	if (offset > (0x1000000 - len) || !IS_ALIGNED(offset, len))
+		return -EINVAL;
+
+	out_be32(&priv->maint_atmu_regs->rowtar,
+		 (destid << 22) | (hopcount << 12) | (offset >> 12));
+	out_be32(&priv->maint_atmu_regs->rowtear,  (destid >> 10));
+
+	data = (u8 *) priv->maint_win + (offset & (RIO_MAINT_WIN_SIZE - 1));
 	switch (len) {
 	case 1:
 		__fsl_read_rio_config(rval, data, err, "lbz");
@@ -382,9 +393,11 @@ fsl_rio_config_read(struct rio_mport *mport, int index, u16 destid,
 	case 2:
 		__fsl_read_rio_config(rval, data, err, "lhz");
 		break;
-	default:
+	case 4:
 		__fsl_read_rio_config(rval, data, err, "lwz");
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	if (err) {
@@ -419,10 +432,17 @@ fsl_rio_config_write(struct rio_mport *mport, int index, u16 destid,
 	pr_debug
 	    ("fsl_rio_config_write: index %d destid %d hopcount %d offset %8.8x len %d val %8.8x\n",
 	     index, destid, hopcount, offset, len, val);
-	out_be32(&priv->maint_atmu_regs->rowtar,
-		 (destid << 22) | (hopcount << 12) | ((offset & ~0x3) >> 9));
 
-	data = (u8 *) priv->maint_win + offset;
+	/* 16MB maintenance windows possible */
+	/* allow only aligned access to maintenance registers */
+	if (offset > (0x1000000 - len) || !IS_ALIGNED(offset, len))
+		return -EINVAL;
+
+	out_be32(&priv->maint_atmu_regs->rowtar,
+		 (destid << 22) | (hopcount << 12) | (offset >> 12));
+	out_be32(&priv->maint_atmu_regs->rowtear,  (destid >> 10));
+
+	data = (u8 *) priv->maint_win + (offset & (RIO_MAINT_WIN_SIZE - 1));
 	switch (len) {
 	case 1:
 		out_8((u8 *) data, val);
@@ -430,9 +450,11 @@ fsl_rio_config_write(struct rio_mport *mport, int index, u16 destid,
 	case 2:
 		out_be16((u16 *) data, val);
 		break;
-	default:
+	case 4:
 		out_be32((u32 *) data, val);
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	return 0;
@@ -1483,7 +1505,8 @@ int fsl_rio_setup(struct of_device *dev)
 
 	/* Configure maintenance transaction window */
 	out_be32(&priv->maint_atmu_regs->rowbar, law_start >> 12);
-	out_be32(&priv->maint_atmu_regs->rowar, 0x80077015);	/* 4M */
+	out_be32(&priv->maint_atmu_regs->rowar,
+		 0x80077000 | (ilog2(RIO_MAINT_WIN_SIZE) - 1));
 
 	priv->maint_win = ioremap(law_start, RIO_MAINT_WIN_SIZE);
 
