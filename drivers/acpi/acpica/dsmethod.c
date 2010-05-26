@@ -605,7 +605,7 @@ acpi_ds_terminate_control_method(union acpi_operand_object *method_desc,
 		 * we immediately reuse it for the next thread executing this method
 		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-				  "*** Completed execution of one thread, %d threads remaining\n",
+				  "*** Completed execution of one thread, %u threads remaining\n",
 				  method_desc->method.thread_count));
 	} else {
 		/* This is the only executing thread for this method */

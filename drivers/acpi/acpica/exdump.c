@@ -742,7 +742,7 @@ acpi_ex_dump_operands(union acpi_operand_object **operands,
 	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC,
-			  "**** Start operand dump for opcode [%s], %d operands\n",
+			  "**** Start operand dump for opcode [%s], %u operands\n",
 			  opcode_name, num_operands));
 
 	if (num_operands == 0) {
@@ -945,7 +945,7 @@ acpi_ex_dump_package_obj(union acpi_operand_object *obj_desc,
 
 	case ACPI_TYPE_PACKAGE:
 
-		acpi_os_printf("[Package] Contains %d Elements:\n",
+		acpi_os_printf("[Package] Contains %u Elements:\n",
 			       obj_desc->package.count);
 
 		for (i = 0; i < obj_desc->package.count; i++) {

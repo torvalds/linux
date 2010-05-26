@@ -433,7 +433,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 
 			if (search_parent_flag == ACPI_NS_NO_UPSEARCH) {
 				ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
-						  "Search scope is [%4.4s], path has %d carat(s)\n",
+						  "Search scope is [%4.4s], path has %u carat(s)\n",
 						  acpi_ut_get_node_name
 						  (this_node), num_carats));
 			}
@@ -495,7 +495,7 @@ acpi_ns_lookup(union acpi_generic_state *scope_info,
 			path++;
 
 			ACPI_DEBUG_PRINT((ACPI_DB_NAMES,
-					  "Multi Pathname (%d Segments, Flags=%X)\n",
+					  "Multi Pathname (%u Segments, Flags=%X)\n",
 					  num_segments, flags));
 			break;
 
