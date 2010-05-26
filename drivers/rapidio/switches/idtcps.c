@@ -15,7 +15,8 @@
 #include <linux/rio_ids.h>
 #include "../rio.h"
 
-#define CPS_NO_ROUTE 0xdf
+#define CPS_DEFAULT_ROUTE	0xde
+#define CPS_NO_ROUTE		0xdf
 
 #define IDTCPS_RIO_DOMAIN 0xf20020
 
@@ -53,10 +54,11 @@ idtcps_route_get_entry(struct rio_mport *mport, u16 destid, u8 hopcount,
 		rio_mport_read_config_32(mport, destid, hopcount,
 				RIO_STD_RTE_CONF_PORT_SEL_CSR, &result);
 
-		if (CPS_NO_ROUTE == (u8)result)
-			result = RIO_INVALID_ROUTE;
-
-		*route_port = (u8)result;
+		if (CPS_DEFAULT_ROUTE == (u8)result ||
+		    CPS_NO_ROUTE == (u8)result)
+			*route_port = RIO_INVALID_ROUTE;
+		else
+			*route_port = (u8)result;
 	}
 
 	return 0;
@@ -74,9 +76,9 @@ idtcps_route_clr_table(struct rio_mport *mport, u16 destid, u8 hopcount,
 				RIO_STD_RTE_CONF_DESTID_SEL_CSR, i);
 			rio_mport_write_config_32(mport, destid, hopcount,
 				RIO_STD_RTE_CONF_PORT_SEL_CSR,
-				(RIO_INVALID_ROUTE << 24) |
-				(RIO_INVALID_ROUTE << 16) |
-				(RIO_INVALID_ROUTE << 8) | RIO_INVALID_ROUTE);
+				(CPS_DEFAULT_ROUTE << 24) |
+				(CPS_DEFAULT_ROUTE << 16) |
+				(CPS_DEFAULT_ROUTE << 8) | CPS_DEFAULT_ROUTE);
 			i += 4;
 		}
 	}
