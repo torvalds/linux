@@ -1787,6 +1787,50 @@ static void wait_for_dump_helpers(struct file *file)
 }
 
 
+/*
+ * uhm_pipe_setup
+ * helper function to customize the process used
+ * to collect the core in userspace.  Specifically
+ * it sets up a pipe and installs it as fd 0 (stdin)
+ * for the process.  Returns 0 on success, or
+ * PTR_ERR on failure.
+ * Note that it also sets the core limit to 1.  This
+ * is a special value that we use to trap recursive
+ * core dumps
+ */
+static int umh_pipe_setup(struct subprocess_info *info)
+{
+	struct file *rp, *wp;
+	struct fdtable *fdt;
+	struct coredump_params *cp = (struct coredump_params *)info->data;
+	struct files_struct *cf = current->files;
+
+	wp = create_write_pipe(0);
+	if (IS_ERR(wp))
+		return PTR_ERR(wp);
+
+	rp = create_read_pipe(wp, 0);
+	if (IS_ERR(rp)) {
+		free_write_pipe(wp);
+		return PTR_ERR(rp);
+	}
+
+	cp->file = wp;
+
+	sys_close(0);
+	fd_install(0, rp);
+	spin_lock(&cf->file_lock);
+	fdt = files_fdtable(cf);
+	FD_SET(0, fdt->open_fds);
+	FD_CLR(0, fdt->close_on_exec);
+	spin_unlock(&cf->file_lock);
+
+	/* and disallow core files too */
+	current->signal->rlim[RLIMIT_CORE] = (struct rlimit){1, 1};
+
+	return 0;
+}
+
 void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 {
 	struct core_state core_state;
@@ -1874,15 +1918,15 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 		goto fail_unlock;
 
  	if (ispipe) {
-		if (cprm.limit == 0) {
+		if (cprm.limit == 1) {
 			/*
 			 * Normally core limits are irrelevant to pipes, since
 			 * we're not writing to the file system, but we use
-			 * cprm.limit of 0 here as a speacial value. Any
-			 * non-zero limit gets set to RLIM_INFINITY below, but
+			 * cprm.limit of 1 here as a speacial value. Any
+			 * non-1 limit gets set to RLIM_INFINITY below, but
 			 * a limit of 0 skips the dump.  This is a consistent
 			 * way to catch recursive crashes.  We can still crash
-			 * if the core_pattern binary sets RLIM_CORE =  !0
+			 * if the core_pattern binary sets RLIM_CORE =  !1
 			 * but it runs as root, and can do lots of stupid things
 			 * Note that we use task_tgid_vnr here to grab the pid
 			 * of the process group leader.  That way we get the
@@ -1890,7 +1934,7 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 			 * core_pattern process dies.
 			 */
 			printk(KERN_WARNING
-				"Process %d(%s) has RLIMIT_CORE set to 0\n",
+				"Process %d(%s) has RLIMIT_CORE set to 1\n",
 				task_tgid_vnr(current), current->comm);
 			printk(KERN_WARNING "Aborting core\n");
 			goto fail_unlock;
@@ -1914,8 +1958,13 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 		cprm.limit = RLIM_INFINITY;
 
 		/* SIGPIPE can happen, but it's just never processed */
-		if (call_usermodehelper_pipe(helper_argv[0], helper_argv, NULL,
-				&cprm.file)) {
+		cprm.file = NULL;
+		if (call_usermodehelper_fns(helper_argv[0], helper_argv, NULL,
+					    UMH_WAIT_EXEC, umh_pipe_setup,
+					    NULL, &cprm)) {
+			if (cprm.file)
+				filp_close(cprm.file, NULL);
+
  			printk(KERN_INFO "Core dump to %s pipe failed\n",
 			       corename);
 			goto fail_dropcount;

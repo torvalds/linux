@@ -62,7 +62,6 @@ struct subprocess_info {
 	char **envp;
 	enum umh_wait wait;
 	int retval;
-	struct file *stdin;
 	int (*init)(struct subprocess_info *info);
 	void (*cleanup)(struct subprocess_info *info);
 	void *data;
@@ -75,8 +74,6 @@ struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
 /* Set various pieces of state into the subprocess_info structure */
 void call_usermodehelper_setkeys(struct subprocess_info *info,
 				 struct key *session_keyring);
-int call_usermodehelper_stdinpipe(struct subprocess_info *sub_info,
-				  struct file **filp);
 void call_usermodehelper_setfns(struct subprocess_info *info,
 		    int (*init)(struct subprocess_info *info),
 		    void (*cleanup)(struct subprocess_info *info),
@@ -131,10 +128,6 @@ call_usermodehelper_keys(char *path, char **argv, char **envp,
 }
 
 extern void usermodehelper_init(void);
-
-struct file;
-extern int call_usermodehelper_pipe(char *path, char *argv[], char *envp[],
-				    struct file **filp);
 
 extern int usermodehelper_disable(void);
 extern void usermodehelper_enable(void);
