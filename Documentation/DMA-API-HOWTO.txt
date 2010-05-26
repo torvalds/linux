@@ -639,6 +639,36 @@ is planned to completely remove virt_to_bus() and bus_to_virt() as
 they are entirely deprecated.  Some ports already do not provide these
 as it is impossible to correctly support them.
 
+			Handling Errors
+
+DMA address space is limited on some architectures and an allocation
+failure can be determined by:
+
+- checking if dma_alloc_coherent returns NULL or dma_map_sg returns 0
+
+- checking the returned dma_addr_t of dma_map_single and dma_map_page
+  by using dma_mapping_error():
+
+	dma_addr_t dma_handle;
+
+	dma_handle = dma_map_single(dev, addr, size, direction);
+	if (dma_mapping_error(dev, dma_handle)) {
+		/*
+		 * reduce current DMA mapping usage,
+		 * delay and try again later or
+		 * reset driver.
+		 */
+	}
+
+Networking drivers must call dev_kfree_skb to free the socket buffer
+and return NETDEV_TX_OK if the DMA mapping fails on the transmit hook
+(ndo_start_xmit). This means that the socket buffer is just dropped in
+the failure case.
+
+SCSI drivers must return SCSI_MLQUEUE_HOST_BUSY if the DMA mapping
+fails in the queuecommand hook. This means that the SCSI subsystem
+passes the command to the driver again later.
+
 		Optimizing Unmap State Space Consumption
 
 On many platforms, dma_unmap_{single,page}() is simply a nop.
@@ -709,36 +739,6 @@ to "Closing".
    (including software IOMMU).
 
 2) More to come...
-
-			Handling Errors
-
-DMA address space is limited on some architectures and an allocation
-failure can be determined by:
-
-- checking if dma_alloc_coherent returns NULL or dma_map_sg returns 0
-
-- checking the returned dma_addr_t of dma_map_single and dma_map_page
-  by using dma_mapping_error():
-
-	dma_addr_t dma_handle;
-
-	dma_handle = dma_map_single(dev, addr, size, direction);
-	if (dma_mapping_error(dev, dma_handle)) {
-		/*
-		 * reduce current DMA mapping usage,
-		 * delay and try again later or
-		 * reset driver.
-		 */
-	}
-
-Networking drivers must call dev_kfree_skb to free the socket buffer
-and return NETDEV_TX_OK if the DMA mapping fails on the transmit hook
-(ndo_start_xmit). This means that the socket buffer is just dropped in
-the failure case.
-
-SCSI drivers must return SCSI_MLQUEUE_HOST_BUSY if the DMA mapping
-fails in the queuecommand hook. This means that the SCSI subsystem
-passes the command to the driver again later.
 
 			   Closing
 
