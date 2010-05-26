@@ -207,6 +207,7 @@ static int udf_readdir(struct file *filp, void *dirent, filldir_t filldir)
 
 /* readdir and lookup functions */
 const struct file_operations udf_dir_operations = {
+	.llseek			= generic_file_llseek,
 	.read			= generic_read_dir,
 	.readdir		= udf_readdir,
 	.unlocked_ioctl		= udf_ioctl,
