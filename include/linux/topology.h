@@ -251,6 +251,67 @@ static inline int numa_node_id(void)
 
 #endif	/* [!]CONFIG_USE_PERCPU_NUMA_NODE_ID */
 
+#ifdef CONFIG_HAVE_MEMORYLESS_NODES
+
+/*
+ * N.B., Do NOT reference the '_numa_mem_' per cpu variable directly.
+ * It will not be defined when CONFIG_HAVE_MEMORYLESS_NODES is not defined.
+ * Use the accessor functions set_numa_mem(), numa_mem_id() and cpu_to_mem().
+ */
+DECLARE_PER_CPU(int, _numa_mem_);
+
+#ifndef set_numa_mem
+static inline void set_numa_mem(int node)
+{
+	percpu_write(_numa_mem_, node);
+}
+#endif
+
+#ifndef numa_mem_id
+/* Returns the number of the nearest Node with memory */
+static inline int numa_mem_id(void)
+{
+	return __this_cpu_read(_numa_mem_);
+}
+#endif
+
+#ifndef cpu_to_mem
+static inline int cpu_to_mem(int cpu)
+{
+	return per_cpu(_numa_mem_, cpu);
+}
+#endif
+
+#ifndef set_cpu_numa_mem
+static inline void set_cpu_numa_mem(int cpu, int node)
+{
+	per_cpu(_numa_mem_, cpu) = node;
+}
+#endif
+
+#else	/* !CONFIG_HAVE_MEMORYLESS_NODES */
+
+static inline void set_numa_mem(int node) {}
+
+static inline void set_cpu_numa_mem(int cpu, int node) {}
+
+#ifndef numa_mem_id
+/* Returns the number of the nearest Node with memory */
+static inline int numa_mem_id(void)
+{
+	return numa_node_id();
+}
+#endif
+
+#ifndef cpu_to_mem
+static inline int cpu_to_mem(int cpu)
+{
+	return cpu_to_node(cpu);
+}
+#endif
+
+#endif	/* [!]CONFIG_HAVE_MEMORYLESS_NODES */
+
 #ifndef topology_physical_package_id
 #define topology_physical_package_id(cpu)	((void)(cpu), -1)
 #endif
