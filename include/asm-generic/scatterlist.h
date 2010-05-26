@@ -34,10 +34,6 @@ struct scatterlist {
 #endif /* 64 bit */
 #endif /* sg_dma_len */
 
-#ifndef ISA_DMA_THRESHOLD
-#define ISA_DMA_THRESHOLD	(~0UL)
-#endif
-
 #define ARCH_HAS_SG_CHAIN
 
 #endif /* __ASM_GENERIC_SCATTERLIST_H */
