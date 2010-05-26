@@ -1862,10 +1862,8 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 		goto fail;
 
 	cred = prepare_creds();
-	if (!cred) {
-		retval = -ENOMEM;
+	if (!cred)
 		goto fail;
-	}
 
 	down_write(&mm->mmap_sem);
 	/*
@@ -1873,8 +1871,7 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	 */
 	if (mm->core_state || !__get_dumpable(cprm.mm_flags)) {
 		up_write(&mm->mmap_sem);
-		put_cred(cred);
-		goto fail;
+		goto fail_creds;
 	}
 
 	/*
@@ -1889,10 +1886,8 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	}
 
 	retval = coredump_wait(exit_code, &core_state);
-	if (retval < 0) {
-		put_cred(cred);
-		goto fail;
-	}
+	if (retval < 0)
+		goto fail_creds;
 
 	old_cred = override_creds(cred);
 
@@ -2009,9 +2004,10 @@ fail_dropcount:
 	if (ispipe)
 		atomic_dec(&core_dump_count);
 fail_unlock:
-	revert_creds(old_cred);
-	put_cred(cred);
 	coredump_finish(mm);
+	revert_creds(old_cred);
+fail_creds:
+	put_cred(cred);
 fail:
 	return;
 }
