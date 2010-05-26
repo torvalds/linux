@@ -223,6 +223,7 @@ struct nfs4_client {
 	struct nfs4_cb_conn	cl_cb_conn;
 	struct rpc_clnt		*cl_cb_client;
 	atomic_t		cl_cb_set;
+	struct nfsd4_callback	cl_cb_null;
 
 	/* for nfs41 */
 	struct list_head	cl_sessions;

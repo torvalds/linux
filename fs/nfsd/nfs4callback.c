@@ -519,7 +519,7 @@ static void warn_no_callback_path(struct nfs4_client *clp, int reason)
 
 static void nfsd4_cb_probe_done(struct rpc_task *task, void *calldata)
 {
-	struct nfs4_client *clp = calldata;
+	struct nfs4_client *clp = container_of(calldata, struct nfs4_client, cl_cb_null);
 
 	if (task->tk_status)
 		warn_no_callback_path(clp, task->tk_status);
@@ -528,6 +528,8 @@ static void nfsd4_cb_probe_done(struct rpc_task *task, void *calldata)
 }
 
 static const struct rpc_call_ops nfsd4_cb_probe_ops = {
+	/* XXX: release method to ensure we set the cb channel down if
+	 * necessary on early failure? */
 	.rpc_call_done = nfsd4_cb_probe_done,
 };
 
@@ -543,21 +545,23 @@ int set_callback_cred(void)
 	return 0;
 }
 
+static struct workqueue_struct *callback_wq;
 
 void do_probe_callback(struct nfs4_client *clp)
 {
-	struct rpc_message msg = {
-		.rpc_proc       = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL],
-		.rpc_argp       = clp,
-		.rpc_cred	= callback_cred
-	};
-	int status;
+	struct nfsd4_callback *cb = &clp->cl_cb_null;
 
-	status = rpc_call_async(clp->cl_cb_client, &msg,
-				RPC_TASK_SOFT | RPC_TASK_SOFTCONN,
-				&nfsd4_cb_probe_ops, (void *)clp);
-	if (status)
-		warn_no_callback_path(clp, status);
+	cb->cb_args.args_op = NULL;
+	cb->cb_args.args_clp = clp;
+
+	cb->cb_msg.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_NULL];
+	cb->cb_msg.rpc_argp = NULL;
+	cb->cb_msg.rpc_resp = NULL;
+	cb->cb_msg.rpc_cred = callback_cred;
+
+	cb->cb_ops = &nfsd4_cb_probe_ops;
+
+	queue_work(callback_wq, &cb->cb_work);
 }
 
 /*
@@ -713,8 +717,6 @@ static const struct rpc_call_ops nfsd4_cb_recall_ops = {
 	.rpc_release = nfsd4_cb_recall_release,
 };
 
-static struct workqueue_struct *callback_wq;
-
 int nfsd4_create_callback_queue(void)
 {
 	callback_wq = create_singlethread_workqueue("nfsd4_callbacks");
@@ -760,7 +762,8 @@ void nfsd4_do_callback_rpc(struct work_struct *w)
 		nfsd4_release_cb(cb);
 		return; /* Client is shutting down; give up. */
 	}
-	rpc_call_async(clnt, &cb->cb_msg, RPC_TASK_SOFT, cb->cb_ops, cb);
+	rpc_call_async(clnt, &cb->cb_msg, RPC_TASK_SOFT | RPC_TASK_SOFTCONN,
+			cb->cb_ops, cb);
 }
 
 void nfsd4_cb_recall(struct nfs4_delegation *dp)
