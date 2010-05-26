@@ -45,9 +45,9 @@ extern struct group_info init_groups;
 #define INIT_STRUCT_PID {						\
 	.count 		= ATOMIC_INIT(1),				\
 	.tasks		= {						\
-		{ .first = &init_task.pids[PIDTYPE_PID].node },		\
-		{ .first = &init_task.pids[PIDTYPE_PGID].node },	\
-		{ .first = &init_task.pids[PIDTYPE_SID].node },		\
+		{ .first = NULL },					\
+		{ .first = NULL },					\
+		{ .first = NULL },					\
 	},								\
 	.level		= 0,						\
 	.numbers	= { {						\
@@ -61,7 +61,7 @@ extern struct group_info init_groups;
 {								\
 	.node = {						\
 		.next = NULL,					\
-		.pprev = &init_struct_pid.tasks[type].first,	\
+		.pprev = NULL,					\
 	},							\
 	.pid = &init_struct_pid,				\
 }
