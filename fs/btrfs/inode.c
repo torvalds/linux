@@ -4308,10 +4308,18 @@ void btrfs_dirty_inode(struct inode *inode)
 	btrfs_set_trans_block_group(trans, inode);
 
 	ret = btrfs_update_inode(trans, root, inode);
-	if (ret)
-		printk(KERN_ERR"btrfs: fail to dirty inode %lu error %d\n",
-			inode->i_ino, ret);
+	if (ret && ret == -ENOSPC) {
+		/* whoops, lets try again with the full transaction */
+		btrfs_end_transaction(trans, root);
+		trans = btrfs_start_transaction(root, 1);
+		btrfs_set_trans_block_group(trans, inode);
 
+		ret = btrfs_update_inode(trans, root, inode);
+		if (ret) {
+			printk(KERN_ERR"btrfs: fail to dirty inode %lu error %d\n",
+				inode->i_ino, ret);
+		}
+	}
 	btrfs_end_transaction(trans, root);
 }
 
