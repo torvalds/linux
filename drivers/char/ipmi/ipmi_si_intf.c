@@ -308,6 +308,7 @@ static int num_max_busy_us;
 
 static int unload_when_empty = 1;
 
+static int add_smi(struct smi_info *smi);
 static int try_smi_init(struct smi_info *smi);
 static void cleanup_one_si(struct smi_info *to_clean);
 
@@ -1785,7 +1786,9 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 				info->irq_setup = std_irq_setup;
 			info->slave_addr = ipmb;
 
-			try_smi_init(info);
+			if (!add_smi(info))
+				if (try_smi_init(info))
+					cleanup_one_si(info);
 		} else {
 			/* remove */
 			struct smi_info *e, *tmp_e;
@@ -1871,7 +1874,9 @@ static __devinit void hardcode_find_bmc(void)
 			info->irq_setup = std_irq_setup;
 		info->slave_addr = slave_addrs[i];
 
-		try_smi_init(info);
+		if (!add_smi(info))
+			if (try_smi_init(info))
+				cleanup_one_si(info);
 	}
 }
 
@@ -2069,7 +2074,7 @@ static __devinit int try_init_spmi(struct SPMITable *spmi)
 	}
 	info->io.addr_data = spmi->addr.address;
 
-	try_smi_init(info);
+	add_smi(info);
 
 	return 0;
 }
@@ -2167,7 +2172,7 @@ static int __devinit ipmi_pnp_probe(struct pnp_dev *dev,
 	info->dev = &acpi_dev->dev;
 	pnp_set_drvdata(dev, info);
 
-	return try_smi_init(info);
+	return add_smi(info);
 
 err_free:
 	kfree(info);
@@ -2326,7 +2331,7 @@ static __devinit void try_init_dmi(struct dmi_ipmi_data *ipmi_data)
 	if (info->irq)
 		info->irq_setup = std_irq_setup;
 
-	try_smi_init(info);
+	add_smi(info);
 }
 
 static void __devinit dmi_find_bmc(void)
@@ -2429,7 +2434,7 @@ static int __devinit ipmi_pci_probe(struct pci_dev *pdev,
 	info->dev = &pdev->dev;
 	pci_set_drvdata(pdev, info);
 
-	return try_smi_init(info);
+	return add_smi(info);
 }
 
 static void __devexit ipmi_pci_remove(struct pci_dev *pdev)
@@ -2542,7 +2547,7 @@ static int __devinit ipmi_of_probe(struct of_device *dev,
 
 	dev_set_drvdata(&dev->dev, info);
 
-	return try_smi_init(info);
+	return add_smi(info);
 }
 
 static int __devexit ipmi_of_remove(struct of_device *dev)
@@ -2971,14 +2976,16 @@ static __devinit void default_find_bmc(void)
 		info->io.regsize = DEFAULT_REGSPACING;
 		info->io.regshift = 0;
 
-		if (try_smi_init(info) == 0) {
-			/* Found one... */
-			printk(KERN_INFO "ipmi_si: Found default %s state"
-			       " machine at %s address 0x%lx\n",
-			       si_to_str[info->si_type],
-			       addr_space_to_str[info->io.addr_type],
-			       info->io.addr_data);
-			return;
+		if (add_smi(info) == 0) {
+			if ((try_smi_init(info)) == 0) {
+				/* Found one... */
+				printk(KERN_INFO "ipmi_si: Found default %s"
+				" state machine at %s address 0x%lx\n",
+				si_to_str[info->si_type],
+				addr_space_to_str[info->io.addr_type],
+				info->io.addr_data);
+			} else
+				cleanup_one_si(info);
 		}
 	}
 }
@@ -2997,9 +3004,37 @@ static int is_new_interface(struct smi_info *info)
 	return 1;
 }
 
+static int add_smi(struct smi_info *new_smi)
+{
+	int rv = 0;
+
+	printk(KERN_INFO "ipmi_si: Adding %s-specified %s state machine",
+			ipmi_addr_src_to_str[new_smi->addr_source],
+			si_to_str[new_smi->si_type]);
+	mutex_lock(&smi_infos_lock);
+	if (!is_new_interface(new_smi)) {
+		printk(KERN_CONT ": duplicate interface\n");
+		rv = -EBUSY;
+		goto out_err;
+	}
+
+	printk(KERN_CONT "\n");
+
+	/* So we know not to free it unless we have allocated one. */
+	new_smi->intf = NULL;
+	new_smi->si_sm = NULL;
+	new_smi->handlers = NULL;
+
+	list_add_tail(&new_smi->link, &smi_infos);
+
+out_err:
+	mutex_unlock(&smi_infos_lock);
+	return rv;
+}
+
 static int try_smi_init(struct smi_info *new_smi)
 {
-	int rv;
+	int rv = 0;
 	int i;
 
 	printk(KERN_INFO "ipmi_si: Trying %s-specified %s state"
@@ -3010,18 +3045,6 @@ static int try_smi_init(struct smi_info *new_smi)
 	       addr_space_to_str[new_smi->io.addr_type],
 	       new_smi->io.addr_data,
 	       new_smi->slave_addr, new_smi->irq);
-
-	mutex_lock(&smi_infos_lock);
-	if (!is_new_interface(new_smi)) {
-		printk(KERN_WARNING "ipmi_si: duplicate interface\n");
-		rv = -EBUSY;
-		goto out_err;
-	}
-
-	/* So we know not to free it unless we have allocated one. */
-	new_smi->intf = NULL;
-	new_smi->si_sm = NULL;
-	new_smi->handlers = NULL;
 
 	switch (new_smi->si_type) {
 	case SI_KCS:
@@ -3183,10 +3206,6 @@ static int try_smi_init(struct smi_info *new_smi)
 		goto out_err_stop_timer;
 	}
 
-	list_add_tail(&new_smi->link, &smi_infos);
-
-	mutex_unlock(&smi_infos_lock);
-
 	printk(KERN_INFO "IPMI %s interface initialized\n",
 	       si_to_str[new_smi->si_type]);
 
@@ -3197,11 +3216,17 @@ static int try_smi_init(struct smi_info *new_smi)
 	wait_for_timer_and_thread(new_smi);
 
  out_err:
-	if (new_smi->intf)
-		ipmi_unregister_smi(new_smi->intf);
+	new_smi->interrupt_disabled = 1;
 
-	if (new_smi->irq_cleanup)
+	if (new_smi->intf) {
+		ipmi_unregister_smi(new_smi->intf);
+		new_smi->intf = NULL;
+	}
+
+	if (new_smi->irq_cleanup) {
 		new_smi->irq_cleanup(new_smi);
+		new_smi->irq_cleanup = NULL;
+	}
 
 	/*
 	 * Wait until we know that we are out of any interrupt
@@ -3214,18 +3239,21 @@ static int try_smi_init(struct smi_info *new_smi)
 		if (new_smi->handlers)
 			new_smi->handlers->cleanup(new_smi->si_sm);
 		kfree(new_smi->si_sm);
+		new_smi->si_sm = NULL;
 	}
-	if (new_smi->addr_source_cleanup)
+	if (new_smi->addr_source_cleanup) {
 		new_smi->addr_source_cleanup(new_smi);
-	if (new_smi->io_cleanup)
+		new_smi->addr_source_cleanup = NULL;
+	}
+	if (new_smi->io_cleanup) {
 		new_smi->io_cleanup(new_smi);
+		new_smi->io_cleanup = NULL;
+	}
 
-	if (new_smi->dev_registered)
+	if (new_smi->dev_registered) {
 		platform_device_unregister(new_smi->pdev);
-
-	kfree(new_smi);
-
-	mutex_unlock(&smi_infos_lock);
+		new_smi->dev_registered = 0;
+	}
 
 	return rv;
 }
@@ -3235,6 +3263,7 @@ static __devinit int init_ipmi_si(void)
 	int  i;
 	char *str;
 	int  rv;
+	struct smi_info *e;
 
 	if (initialized)
 		return 0;
@@ -3292,15 +3321,21 @@ static __devinit int init_ipmi_si(void)
 	of_register_platform_driver(&ipmi_of_platform_driver);
 #endif
 
+	mutex_lock(&smi_infos_lock);
+	list_for_each_entry(e, &smi_infos, link) {
+		if (!e->si_sm)
+			try_smi_init(e);
+	}
+	mutex_unlock(&smi_infos_lock);
+
 	if (si_trydefaults) {
 		mutex_lock(&smi_infos_lock);
 		if (list_empty(&smi_infos)) {
 			/* No BMC was found, try defaults. */
 			mutex_unlock(&smi_infos_lock);
 			default_find_bmc();
-		} else {
+		} else
 			mutex_unlock(&smi_infos_lock);
-		}
 	}
 
 	mutex_lock(&smi_infos_lock);
@@ -3326,7 +3361,7 @@ module_init(init_ipmi_si);
 
 static void cleanup_one_si(struct smi_info *to_clean)
 {
-	int           rv;
+	int           rv = 0;
 	unsigned long flags;
 
 	if (!to_clean)
@@ -3370,14 +3405,17 @@ static void cleanup_one_si(struct smi_info *to_clean)
 		schedule_timeout_uninterruptible(1);
 	}
 
-	rv = ipmi_unregister_smi(to_clean->intf);
+	if (to_clean->intf)
+		rv = ipmi_unregister_smi(to_clean->intf);
+
 	if (rv) {
 		printk(KERN_ERR
 		       "ipmi_si: Unable to unregister device: errno=%d\n",
 		       rv);
 	}
 
-	to_clean->handlers->cleanup(to_clean->si_sm);
+	if (to_clean->handlers)
+		to_clean->handlers->cleanup(to_clean->si_sm);
 
 	kfree(to_clean->si_sm);
 
