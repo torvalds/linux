@@ -616,7 +616,7 @@ static struct crypto_instance *crypto_authenc_alloc(struct rtattr **tb)
 	auth = ahash_attr_alg(tb[1], CRYPTO_ALG_TYPE_HASH,
 			       CRYPTO_ALG_TYPE_AHASH_MASK);
 	if (IS_ERR(auth))
-		return ERR_PTR(PTR_ERR(auth));
+		return ERR_CAST(auth);
 
 	auth_base = &auth->base;
 
