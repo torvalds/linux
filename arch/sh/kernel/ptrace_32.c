@@ -436,29 +436,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 					     0, sizeof(struct pt_dspregs),
 					     (const void __user *)data);
 #endif
-#ifdef CONFIG_BINFMT_ELF_FDPIC
-	case PTRACE_GETFDPIC: {
-		unsigned long tmp = 0;
-
-		switch (addr) {
-		case PTRACE_GETFDPIC_EXEC:
-			tmp = child->mm->context.exec_fdpic_loadmap;
-			break;
-		case PTRACE_GETFDPIC_INTERP:
-			tmp = child->mm->context.interp_fdpic_loadmap;
-			break;
-		default:
-			break;
-		}
-
-		ret = 0;
-		if (put_user(tmp, datap)) {
-			ret = -EFAULT;
-			break;
-		}
-		break;
-	}
-#endif
 	default:
 		ret = ptrace_request(child, request, addr, data);
 		break;

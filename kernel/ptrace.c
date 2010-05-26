@@ -594,6 +594,26 @@ int ptrace_request(struct task_struct *child, long request,
 		ret = ptrace_detach(child, data);
 		break;
 
+#ifdef CONFIG_BINFMT_ELF_FDPIC
+	case PTRACE_GETFDPIC: {
+		unsigned long tmp = 0;
+
+		switch (addr) {
+		case PTRACE_GETFDPIC_EXEC:
+			tmp = child->mm->context.exec_fdpic_loadmap;
+			break;
+		case PTRACE_GETFDPIC_INTERP:
+			tmp = child->mm->context.interp_fdpic_loadmap;
+			break;
+		default:
+			break;
+		}
+
+		ret = put_user(tmp, (unsigned long __user *) data);
+		break;
+	}
+#endif
+
 #ifdef PTRACE_SINGLESTEP
 	case PTRACE_SINGLESTEP:
 #endif
