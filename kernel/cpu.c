@@ -20,12 +20,28 @@
 /* Serializes the updates to cpu_online_mask, cpu_present_mask */
 static DEFINE_MUTEX(cpu_add_remove_lock);
 
+/*
+ * The following two API's must be used when attempting
+ * to serialize the updates to cpu_online_mask, cpu_present_mask.
+ */
+void cpu_maps_update_begin(void)
+{
+	mutex_lock(&cpu_add_remove_lock);
+}
+
+void cpu_maps_update_done(void)
+{
+	mutex_unlock(&cpu_add_remove_lock);
+}
+
 static __cpuinitdata RAW_NOTIFIER_HEAD(cpu_chain);
 
 /* If set, cpu_up and cpu_down will return -EBUSY and do nothing.
  * Should always be manipulated under cpu_add_remove_lock
  */
 static int cpu_hotplug_disabled;
+
+#ifdef CONFIG_HOTPLUG_CPU
 
 static struct {
 	struct task_struct *active_writer;
@@ -40,8 +56,6 @@ static struct {
 	.lock = __MUTEX_INITIALIZER(cpu_hotplug.lock),
 	.refcount = 0,
 };
-
-#ifdef CONFIG_HOTPLUG_CPU
 
 void get_online_cpus(void)
 {
@@ -66,22 +80,6 @@ void put_online_cpus(void)
 
 }
 EXPORT_SYMBOL_GPL(put_online_cpus);
-
-#endif	/* CONFIG_HOTPLUG_CPU */
-
-/*
- * The following two API's must be used when attempting
- * to serialize the updates to cpu_online_mask, cpu_present_mask.
- */
-void cpu_maps_update_begin(void)
-{
-	mutex_lock(&cpu_add_remove_lock);
-}
-
-void cpu_maps_update_done(void)
-{
-	mutex_unlock(&cpu_add_remove_lock);
-}
 
 /*
  * This ensures that the hotplug operation can begin only when the
@@ -124,6 +122,12 @@ static void cpu_hotplug_done(void)
 	cpu_hotplug.active_writer = NULL;
 	mutex_unlock(&cpu_hotplug.lock);
 }
+
+#else /* #if CONFIG_HOTPLUG_CPU */
+static void cpu_hotplug_begin(void) {}
+static void cpu_hotplug_done(void) {}
+#endif	/* #esle #if CONFIG_HOTPLUG_CPU */
+
 /* Need to know about CPUs going up/down? */
 int __ref register_cpu_notifier(struct notifier_block *nb)
 {
