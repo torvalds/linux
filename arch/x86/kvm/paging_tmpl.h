@@ -582,6 +582,9 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 	offset = nr_present = 0;
 
+	/* direct kvm_mmu_page can not be unsync. */
+	BUG_ON(sp->role.direct);
+
 	if (PTTYPE == 32)
 		offset = sp->role.quadrant << PT64_LEVEL_BITS;
 

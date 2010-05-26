@@ -397,6 +397,22 @@ static void mmu_free_rmap_desc(struct kvm_rmap_desc *rd)
 	kmem_cache_free(rmap_desc_cache, rd);
 }
 
+static gfn_t kvm_mmu_page_get_gfn(struct kvm_mmu_page *sp, int index)
+{
+	if (!sp->role.direct)
+		return sp->gfns[index];
+
+	return sp->gfn + (index << ((sp->role.level - 1) * PT64_LEVEL_BITS));
+}
+
+static void kvm_mmu_page_set_gfn(struct kvm_mmu_page *sp, int index, gfn_t gfn)
+{
+	if (sp->role.direct)
+		BUG_ON(gfn != kvm_mmu_page_get_gfn(sp, index));
+	else
+		sp->gfns[index] = gfn;
+}
+
 /*
  * Return the pointer to the largepage write count for a given
  * gfn, handling slots that are not large page aligned.
@@ -547,7 +563,7 @@ static int rmap_add(struct kvm_vcpu *vcpu, u64 *spte, gfn_t gfn)
 		return count;
 	gfn = unalias_gfn(vcpu->kvm, gfn);
 	sp = page_header(__pa(spte));
-	sp->gfns[spte - sp->spt] = gfn;
+	kvm_mmu_page_set_gfn(sp, spte - sp->spt, gfn);
 	rmapp = gfn_to_rmap(vcpu->kvm, gfn, sp->role.level);
 	if (!*rmapp) {
 		rmap_printk("rmap_add: %p %llx 0->1\n", spte, *spte);
@@ -605,6 +621,7 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 	struct kvm_rmap_desc *prev_desc;
 	struct kvm_mmu_page *sp;
 	pfn_t pfn;
+	gfn_t gfn;
 	unsigned long *rmapp;
 	int i;
 
@@ -616,7 +633,8 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 		kvm_set_pfn_accessed(pfn);
 	if (is_writable_pte(*spte))
 		kvm_set_pfn_dirty(pfn);
-	rmapp = gfn_to_rmap(kvm, sp->gfns[spte - sp->spt], sp->role.level);
+	gfn = kvm_mmu_page_get_gfn(sp, spte - sp->spt);
+	rmapp = gfn_to_rmap(kvm, gfn, sp->role.level);
 	if (!*rmapp) {
 		printk(KERN_ERR "rmap_remove: %p %llx 0->BUG\n", spte, *spte);
 		BUG();
@@ -900,7 +918,8 @@ static void kvm_mmu_free_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	ASSERT(is_empty_shadow_page(sp->spt));
 	list_del(&sp->link);
 	__free_page(virt_to_page(sp->spt));
-	__free_page(virt_to_page(sp->gfns));
+	if (!sp->role.direct)
+		__free_page(virt_to_page(sp->gfns));
 	kmem_cache_free(mmu_page_header_cache, sp);
 	++kvm->arch.n_free_mmu_pages;
 }
@@ -911,13 +930,15 @@ static unsigned kvm_page_table_hashfn(gfn_t gfn)
 }
 
 static struct kvm_mmu_page *kvm_mmu_alloc_page(struct kvm_vcpu *vcpu,
-					       u64 *parent_pte)
+					       u64 *parent_pte, int direct)
 {
 	struct kvm_mmu_page *sp;
 
 	sp = mmu_memory_cache_alloc(&vcpu->arch.mmu_page_header_cache, sizeof *sp);
 	sp->spt = mmu_memory_cache_alloc(&vcpu->arch.mmu_page_cache, PAGE_SIZE);
-	sp->gfns = mmu_memory_cache_alloc(&vcpu->arch.mmu_page_cache, PAGE_SIZE);
+	if (!direct)
+		sp->gfns = mmu_memory_cache_alloc(&vcpu->arch.mmu_page_cache,
+						  PAGE_SIZE);
 	set_page_private(virt_to_page(sp->spt), (unsigned long)sp);
 	list_add(&sp->link, &vcpu->kvm->arch.active_mmu_pages);
 	bitmap_zero(sp->slot_bitmap, KVM_MEMORY_SLOTS + KVM_PRIVATE_MEM_SLOTS);
@@ -1386,7 +1407,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 			return sp;
 		}
 	++vcpu->kvm->stat.mmu_cache_miss;
-	sp = kvm_mmu_alloc_page(vcpu, parent_pte);
+	sp = kvm_mmu_alloc_page(vcpu, parent_pte, direct);
 	if (!sp)
 		return sp;
 	sp->gfn = gfn;
@@ -3403,7 +3424,7 @@ void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 
 	if (*sptep & PT_WRITABLE_MASK) {
 		rev_sp = page_header(__pa(sptep));
-		gfn = rev_sp->gfns[sptep - rev_sp->spt];
+		gfn = kvm_mmu_page_get_gfn(rev_sp, sptep - rev_sp->spt);
 
 		if (!gfn_to_memslot(kvm, gfn)) {
 			if (!printk_ratelimit())
@@ -3417,8 +3438,7 @@ void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 			return;
 		}
 
-		rmapp = gfn_to_rmap(kvm, rev_sp->gfns[sptep - rev_sp->spt],
-				    rev_sp->role.level);
+		rmapp = gfn_to_rmap(kvm, gfn, rev_sp->role.level);
 		if (!*rmapp) {
 			if (!printk_ratelimit())
 				return;

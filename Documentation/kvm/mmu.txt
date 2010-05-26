@@ -180,7 +180,9 @@ Shadow pages contain the following information:
     guest pages as leaves.
   gfns:
     An array of 512 guest frame numbers, one for each present pte.  Used to
-    perform a reverse map from a pte to a gfn.
+    perform a reverse map from a pte to a gfn. When role.direct is set, any
+    element of this array can be calculated from the gfn field when used, in
+    this case, the array of gfns is not allocated. See role.direct and gfn.
   slot_bitmap:
     A bitmap containing one bit per memory slot.  If the page contains a pte
     mapping a page from memory slot n, then bit n of slot_bitmap will be set
