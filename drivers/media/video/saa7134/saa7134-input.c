@@ -141,8 +141,8 @@ static int get_key_flydvb_trio(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
 	struct saa7134_dev *dev = ir->c->adapter->algo_data;
 
 	if (dev == NULL) {
-		dprintk("get_key_flydvb_trio: "
-			 "gir->c->adapter->algo_data is NULL!\n");
+		i2cdprintk("get_key_flydvb_trio: "
+			   "ir->c->adapter->algo_data is NULL!\n");
 		return -EIO;
 	}
 
@@ -195,8 +195,8 @@ static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, u32 *ir_key,
 	/* <dev> is needed to access GPIO. Used by the saa_readl macro. */
 	struct saa7134_dev *dev = ir->c->adapter->algo_data;
 	if (dev == NULL) {
-		dprintk("get_key_msi_tvanywhere_plus: "
-			"gir->c->adapter->algo_data is NULL!\n");
+		i2cdprintk("get_key_msi_tvanywhere_plus: "
+			   "ir->c->adapter->algo_data is NULL!\n");
 		return -EIO;
 	}
 
