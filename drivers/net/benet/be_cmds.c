@@ -1429,7 +1429,7 @@ int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 	wrb = wrb_from_mccq(adapter);
 	if (!wrb) {
 		status = -EBUSY;
-		goto err;
+		goto err_unlock;
 	}
 	req = cmd->va;
 	sge = nonembedded_sgl(wrb);
@@ -1457,7 +1457,10 @@ int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 	else
 		status = adapter->flash_status;
 
-err:
+	return status;
+
+err_unlock:
+	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 
