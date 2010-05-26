@@ -201,11 +201,11 @@ struct acpi_evaluate_info {
 /* Info used by acpi_ns_initialize_devices */
 
 struct acpi_device_walk_info {
-	u16 device_count;
-	u16 num_STA;
-	u16 num_INI;
 	struct acpi_table_desc *table_desc;
 	struct acpi_evaluate_info *evaluate_info;
+	u32 device_count;
+	u32 num_STA;
+	u32 num_INI;
 };
 
 /* TBD: [Restructure] Merge with struct above */
