@@ -454,6 +454,9 @@ static inline void disable_si_irq(struct smi_info *smi_info)
 	if ((smi_info->irq) && (!smi_info->interrupt_disabled)) {
 		start_disable_irq(smi_info);
 		smi_info->interrupt_disabled = 1;
+		if (!atomic_read(&smi_info->stop_operation))
+			mod_timer(&smi_info->si_timer,
+				  jiffies + SI_TIMEOUT_JIFFIES);
 	}
 }
 
@@ -706,6 +709,8 @@ static void handle_transaction_done(struct smi_info *smi_info)
 			printk(KERN_WARNING
 			       "ipmi_si: Could not enable interrupts"
 			       ", failed set, using polled mode.\n");
+		} else {
+			smi_info->interrupt_disabled = 0;
 		}
 		smi_info->si_state = SI_NORMAL;
 		break;
@@ -885,6 +890,8 @@ static void sender(void                *send_info,
 	do_gettimeofday(&t);
 	printk("**Enqueue: %d.%9.9d\n", t.tv_sec, t.tv_usec);
 #endif
+
+	mod_timer(&smi_info->si_timer, jiffies + SI_TIMEOUT_JIFFIES);
 
 	if (smi_info->run_to_completion) {
 		/*
@@ -1086,7 +1093,8 @@ static void smi_timeout(unsigned long data)
 	}
 
  do_add_timer:
-	add_timer(&(smi_info->si_timer));
+	if ((smi_result != SI_SM_IDLE) || smi_info->interrupt_disabled)
+		add_timer(&(smi_info->si_timer));
 }
 
 static irqreturn_t si_irq_handler(int irq, void *data)
@@ -3117,7 +3125,7 @@ static int try_smi_init(struct smi_info *new_smi)
 	for (i = 0; i < SI_NUM_STATS; i++)
 		atomic_set(&new_smi->stats[i], 0);
 
-	new_smi->interrupt_disabled = 0;
+	new_smi->interrupt_disabled = 1;
 	atomic_set(&new_smi->stop_operation, 0);
 	new_smi->intf_num = smi_num;
 	smi_num++;
