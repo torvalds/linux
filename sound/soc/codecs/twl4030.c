@@ -289,6 +289,9 @@ static void twl4030_init_chip(struct platform_device *pdev)
 		TWL4030_ATXL1_EN | TWL4030_ATXR1_EN |
 		TWL4030_ARXL2_EN | TWL4030_ARXR2_EN);
 
+	/* REG_ARXR2_APGA_CTL reset according to the TRM: 0dB, DA_EN */
+	twl4030_write(codec, TWL4030_REG_ARXR2_APGA_CTL, 0x32);
+
 	/* Machine dependent setup */
 	if (!setup)
 		return;
