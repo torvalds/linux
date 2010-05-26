@@ -358,12 +358,7 @@ static loff_t block_llseek(struct file *file, loff_t offset, int origin)
 	return retval;
 }
 	
-/*
- *	Filp is never NULL; the only case when ->fsync() is called with
- *	NULL first argument is nfsd_sync_dir() and that's not a directory.
- */
- 
-int blkdev_fsync(struct file *filp, struct dentry *dentry, int datasync)
+int blkdev_fsync(struct file *filp, int datasync)
 {
 	struct inode *bd_inode = filp->f_mapping->host;
 	struct block_device *bdev = I_BDEV(bd_inode);

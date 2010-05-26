@@ -22,7 +22,7 @@
 #include <linux/ncp_fs.h>
 #include "ncplib_kernel.h"
 
-static int ncp_fsync(struct file *file, struct dentry *dentry, int datasync)
+static int ncp_fsync(struct file *file, int datasync)
 {
 	return 0;
 }

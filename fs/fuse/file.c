@@ -351,10 +351,9 @@ static void fuse_sync_writes(struct inode *inode)
 	fuse_release_nowrite(inode);
 }
 
-int fuse_fsync_common(struct file *file, struct dentry *de, int datasync,
-		      int isdir)
+int fuse_fsync_common(struct file *file, int datasync, int isdir)
 {
-	struct inode *inode = de->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	struct fuse_file *ff = file->private_data;
 	struct fuse_req *req;
@@ -403,9 +402,9 @@ int fuse_fsync_common(struct file *file, struct dentry *de, int datasync,
 	return err;
 }
 
-static int fuse_fsync(struct file *file, struct dentry *de, int datasync)
+static int fuse_fsync(struct file *file, int datasync)
 {
-	return fuse_fsync_common(file, de, datasync, 0);
+	return fuse_fsync_common(file, datasync, 0);
 }
 
 void fuse_read_fill(struct fuse_req *req, struct file *file, loff_t pos,

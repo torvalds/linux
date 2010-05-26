@@ -58,7 +58,7 @@ struct dentry *simple_lookup(struct inode *dir, struct dentry *dentry, struct na
 	return NULL;
 }
 
-int simple_sync_file(struct file * file, struct dentry *dentry, int datasync)
+int simple_sync_file(struct file *file, int datasync)
 {
 	return 0;
 }
@@ -851,13 +851,13 @@ struct dentry *generic_fh_to_parent(struct super_block *sb, struct fid *fid,
 }
 EXPORT_SYMBOL_GPL(generic_fh_to_parent);
 
-int simple_fsync(struct file *file, struct dentry *dentry, int datasync)
+int simple_fsync(struct file *file, int datasync)
 {
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_ALL,
 		.nr_to_write = 0, /* metadata-only; caller takes care of data */
 	};
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	int err;
 	int ret;
 

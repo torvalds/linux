@@ -175,13 +175,12 @@ static int ocfs2_dir_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ocfs2_sync_file(struct file *file,
-			   struct dentry *dentry,
-			   int datasync)
+static int ocfs2_sync_file(struct file *file, int datasync)
 {
 	int err = 0;
 	journal_t *journal;
-	struct inode *inode = dentry->d_inode;
+	struct dentry *dentry = file->f_path.dentry;
+	struct inode *inode = file->f_mapping->host;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
 	mlog_entry("(0x%p, 0x%p, %d, '%.*s')\n", file, dentry, datasync,

@@ -40,13 +40,13 @@ static int ext2_release_file (struct inode * inode, struct file * filp)
 	return 0;
 }
 
-int ext2_fsync(struct file *file, struct dentry *dentry, int datasync)
+int ext2_fsync(struct file *file, int datasync)
 {
 	int ret;
-	struct super_block *sb = dentry->d_inode->i_sb;
+	struct super_block *sb = file->f_mapping->host->i_sb;
 	struct address_space *mapping = sb->s_bdev->bd_inode->i_mapping;
 
-	ret = simple_fsync(file, dentry, datasync);
+	ret = simple_fsync(file, datasync);
 	if (ret == -EIO || test_and_clear_bit(AS_EIO, &mapping->flags)) {
 		/* We don't really know where the IO error happened... */
 		ext2_error(sb, __func__,

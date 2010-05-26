@@ -28,8 +28,9 @@
 #include "proto.h"
 
 static int
-smb_fsync(struct file *file, struct dentry * dentry, int datasync)
+smb_fsync(struct file *file, int datasync)
 {
+	struct dentry *dentry = file->f_path.dentry;
 	struct smb_sb_info *server = server_from_dentry(dentry);
 	int result;
 

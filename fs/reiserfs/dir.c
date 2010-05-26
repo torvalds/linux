@@ -14,8 +14,7 @@
 extern const struct reiserfs_key MIN_KEY;
 
 static int reiserfs_readdir(struct file *, void *, filldir_t);
-static int reiserfs_dir_fsync(struct file *filp, struct dentry *dentry,
-			      int datasync);
+static int reiserfs_dir_fsync(struct file *filp, int datasync);
 
 const struct file_operations reiserfs_dir_operations = {
 	.llseek = generic_file_llseek,
@@ -28,10 +27,9 @@ const struct file_operations reiserfs_dir_operations = {
 #endif
 };
 
-static int reiserfs_dir_fsync(struct file *filp, struct dentry *dentry,
-			      int datasync)
+static int reiserfs_dir_fsync(struct file *filp, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = filp->f_mapping->host;
 	int err;
 	reiserfs_write_lock(inode->i_sb);
 	err = reiserfs_commit_for_inode(inode);

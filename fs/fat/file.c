@@ -149,12 +149,12 @@ static int fat_file_release(struct inode *inode, struct file *filp)
 	return 0;
 }
 
-int fat_file_fsync(struct file *filp, struct dentry *dentry, int datasync)
+int fat_file_fsync(struct file *filp, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = filp->f_mapping->host;
 	int res, err;
 
-	res = simple_fsync(filp, dentry, datasync);
+	res = simple_fsync(filp, datasync);
 	err = sync_mapping_buffers(MSDOS_SB(inode->i_sb)->fat_inode->i_mapping);
 
 	return res ? res : err;
