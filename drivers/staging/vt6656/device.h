@@ -109,7 +109,6 @@
 #define MAX_MULTICAST_ADDRESS_NUM       32
 #define MULTICAST_ADDRESS_LIST_SIZE     (MAX_MULTICAST_ADDRESS_NUM * ETH_ALEN)
 
-
 //#define OP_MODE_INFRASTRUCTURE  0
 //#define OP_MODE_ADHOC           1
 //#define OP_MODE_AP              2
@@ -129,8 +128,6 @@
 #define KEYSEL_WEP104                   1
 #define KEYSEL_TKIP                     2
 #define KEYSEL_CCMP                     3
-
-
 
 #define AUTO_FB_NONE            0
 #define AUTO_FB_0               1
@@ -162,8 +159,6 @@
 #define BB_VGA_LEVEL            4
 #define BB_VGA_CHANGE_THRESHOLD 3
 
-
-
 #ifndef RUN_AT
 #define RUN_AT(x)                       (jiffies+(x))
 #endif
@@ -175,23 +170,22 @@
 
 /*---------------------  Export Types  ------------------------------*/
 
-#define DBG_PRT(l, p, args...) {if (l<=msglevel) printk( p ,##args);}
-#define PRINT_K(p, args...) {if (PRIVATE_Message) printk( p ,##args);}
+#define DBG_PRT(l, p, args...) { if (l <= msglevel) printk(p, ##args); }
+#define PRINT_K(p, args...) { if (PRIVATE_Message) printk(p, ##args); }
 
 typedef enum __device_msg_level {
-    MSG_LEVEL_ERR=0,            //Errors that will cause abnormal operation.
-    MSG_LEVEL_NOTICE=1,         //Some errors need users to be notified.
-    MSG_LEVEL_INFO=2,           //Normal message.
-    MSG_LEVEL_VERBOSE=3,        //Will report all trival errors.
-    MSG_LEVEL_DEBUG=4           //Only for debug purpose.
+	MSG_LEVEL_ERR = 0,            /* Errors causing abnormal operation */
+	MSG_LEVEL_NOTICE = 1,         /* Errors needing user notification */
+	MSG_LEVEL_INFO = 2,           /* Normal message. */
+	MSG_LEVEL_VERBOSE = 3,        /* Will report all trival errors. */
+	MSG_LEVEL_DEBUG = 4           /* Only for debug purpose. */
 } DEVICE_MSG_LEVEL, *PDEVICE_MSG_LEVEL;
 
 typedef enum __device_init_type {
-    DEVICE_INIT_COLD=0,         // cold init
-    DEVICE_INIT_RESET,          // reset init or Dx to D0 power remain init
-    DEVICE_INIT_DXPL            // Dx to D0 power lost init
+	DEVICE_INIT_COLD = 0,       /* cold init */
+	DEVICE_INIT_RESET,          /* reset init or Dx to D0 power remain */
+	DEVICE_INIT_DXPL            /* Dx to D0 power lost init */
 } DEVICE_INIT_TYPE, *PDEVICE_INIT_TYPE;
-
 
 //USB
 
@@ -202,9 +196,6 @@ typedef enum _CONTEXT_TYPE {
     CONTEXT_DATA_PACKET = 1,
     CONTEXT_MGMT_PACKET
 } CONTEXT_TYPE;
-
-
-
 
 // RCB (Receive Control Block)
 typedef struct _RCB
@@ -219,7 +210,6 @@ typedef struct _RCB
 
 } RCB, *PRCB;
 
-
 // used to track bulk out irps
 typedef struct _USB_SEND_CONTEXT {
     void *pDevice;
@@ -232,7 +222,6 @@ typedef struct _USB_SEND_CONTEXT {
     BOOL            bBoolInUse;
     unsigned char           Data[MAX_TOTAL_SIZE_WITH_ALL_HEADERS];
 } USB_SEND_CONTEXT, *PUSB_SEND_CONTEXT;
-
 
 /* structure got from configuration file as user-desired default settings */
 typedef struct _DEFAULT_CONFIG {
@@ -254,12 +243,10 @@ typedef struct {
     BOOL            bInUse;
 } INT_BUFFER, *PINT_BUFFER;
 
-
-
 //0:11A 1:11B 2:11G
 typedef enum _VIA_BB_TYPE
 {
-    BB_TYPE_11A=0,
+    BB_TYPE_11A = 0,
     BB_TYPE_11B,
     BB_TYPE_11G
 } VIA_BB_TYPE, *PVIA_BB_TYPE;
@@ -267,14 +254,11 @@ typedef enum _VIA_BB_TYPE
 //0:11a,1:11b,2:11gb(only CCK in BasicRate),3:11ga(OFDM in Basic Rate)
 typedef enum _VIA_PKT_TYPE
 {
-    PK_TYPE_11A=0,
+    PK_TYPE_11A = 0,
     PK_TYPE_11B,
     PK_TYPE_11GB,
     PK_TYPE_11GA
 } VIA_PKT_TYPE, *PVIA_PKT_TYPE;
-
-
-
 
 //++ NDIS related
 
@@ -282,7 +266,7 @@ typedef enum _VIA_PKT_TYPE
 #define NTSTATUS        int
 
 typedef enum __DEVICE_NDIS_STATUS {
-    STATUS_SUCCESS=0,
+    STATUS_SUCCESS = 0,
     STATUS_FAILURE,
     STATUS_RESOURCES,
     STATUS_PENDING,

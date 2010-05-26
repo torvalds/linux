@@ -40,7 +40,7 @@
 
 #define MAX_NODE_NUM             64
 #define MAX_BSS_NUM              42
-#define LOST_BEACON_COUNT      	 10   // 10 sec, XP defined
+#define LOST_BEACON_COUNT        10   /* 10 sec, XP defined */
 #define MAX_PS_TX_BUF            32   // sta max power saving tx buf
 #define ADHOC_LOST_BEACON_COUNT  30   // 30 sec, beacon lost for adhoc only
 #define MAX_INACTIVE_COUNT       300  // 300 sec, inactive STA node refresh
@@ -83,13 +83,13 @@
 typedef struct tagSERPObject {
     BOOL    bERPExist;
     BYTE    byERP;
-}ERPObject, *PERPObject;
+} ERPObject, *PERPObject;
 
 
 typedef struct tagSRSNCapObject {
     BOOL    bRSNCapExist;
     WORD    wRSNCap;
-}SRSNCapObject, *PSRSNCapObject;
+} SRSNCapObject, *PSRSNCapObject;
 
 // BSS info(AP)
 #pragma pack(1)
@@ -153,7 +153,7 @@ typedef struct tagKnownBSS {
     SRSNCapObject   sRSNCapObj;
     BYTE            abyIEs[1024];   // don't move this field !!
 
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 KnownBSS , *PKnownBSS;
 
 

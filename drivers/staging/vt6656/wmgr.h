@@ -82,7 +82,7 @@
 
 /*---------------------  Export Types  ------------------------------*/
 //mike define: make timer  to expire after desired times
-#define timer_expire(timer,next_tick)   mod_timer(&timer, RUN_AT(next_tick))
+#define timer_expire(timer, next_tick) mod_timer(&timer, RUN_AT(next_tick))
 
 typedef void (*TimerFunction)(unsigned long);
 

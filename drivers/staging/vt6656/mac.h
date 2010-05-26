@@ -420,11 +420,11 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-void MACvSetMultiAddrByHash (PSDevice pDevice, BYTE byHashIdx);
+void MACvSetMultiAddrByHash(PSDevice pDevice, BYTE byHashIdx);
 void MACvWriteMultiAddr(PSDevice pDevice, unsigned int uByteIdx, BYTE byData);
-BOOL MACbShutdown(PSDevice pDevice);;
-void MACvSetBBType(PSDevice pDevice,BYTE byType);
-void MACvSetMISCFifo (PSDevice pDevice, WORD wOffset, DWORD dwData);
+BOOL MACbShutdown(PSDevice pDevice);
+void MACvSetBBType(PSDevice pDevice, BYTE byType);
+void MACvSetMISCFifo(PSDevice pDevice, WORD wOffset, DWORD dwData);
 void MACvDisableKeyEntry(PSDevice pDevice, unsigned int uEntryIdx);
 void MACvSetKeyEntry(PSDevice pDevice, WORD wKeyCtl, unsigned int uEntryIdx,
 		     unsigned int uKeyIdx, PBYTE pbyAddr, PDWORD pdwKey);

@@ -168,7 +168,7 @@ typedef struct tagSEthernetHeader {
     BYTE    abyDstAddr[ETH_ALEN];
     BYTE    abySrcAddr[ETH_ALEN];
     WORD    wType;
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 SEthernetHeader, *PSEthernetHeader;
 
 
@@ -179,7 +179,7 @@ typedef struct tagS802_3Header {
     BYTE    abyDstAddr[ETH_ALEN];
     BYTE    abySrcAddr[ETH_ALEN];
     WORD    wLen;
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 S802_3Header, *PS802_3Header;
 
 //
@@ -193,7 +193,7 @@ typedef struct tagS802_11Header {
     BYTE    abyAddr3[ETH_ALEN];
     WORD    wSeqCtl;
     BYTE    abyAddr4[ETH_ALEN];
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 S802_11Header, *PS802_11Header;
 
 /*---------------------  Export Macros ------------------------------*/

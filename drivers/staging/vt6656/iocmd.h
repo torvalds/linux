@@ -70,10 +70,10 @@ typedef enum tagWMAC_CMD {
 } WMAC_CMD, *PWMAC_CMD;
 
 typedef enum tagWZONETYPE {
-  ZoneType_USA=0,
-  ZoneType_Japan=1,
-  ZoneType_Europe=2
-}WZONETYPE;
+  ZoneType_USA = 0,
+  ZoneType_Japan = 1,
+  ZoneType_Europe = 2
+} WZONETYPE;
 
 #define ADHOC	0
 #define INFRA	1
@@ -83,9 +83,9 @@ typedef enum tagWZONETYPE {
 #define ADHOC_STARTED	   1
 #define ADHOC_JOINTED	   2
 
-#define PHY80211a 	    0
-#define PHY80211b       1
-#define PHY80211g       2
+#define PHY80211a 0
+#define PHY80211b 1
+#define PHY80211g 2
 
 #define SSID_ID                0
 #define SSID_MAXLEN            32

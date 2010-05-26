@@ -36,16 +36,14 @@
 
 /*---------------------  Export Definitions -------------------------*/
 
+#define CONTROLnsRequestOut(Device, Request, Value, Index, Length, Buffer) \
+	PIPEnsControlOut(Device, Request, Value, Index, Length, Buffer)
 
-#define CONTROLnsRequestOut( Device,Request,Value,Index,Length,Buffer) \
-        PIPEnsControlOut( Device,Request,Value,Index,Length,Buffer)
+#define CONTROLnsRequestOutAsyn(Device, Request, Value, Index, Length, Buffer) \
+	PIPEnsControlOutAsyn(Device, Request, Value, Index, Length, Buffer)
 
-#define CONTROLnsRequestOutAsyn( Device,Request,Value,Index,Length,Buffer) \
-        PIPEnsControlOutAsyn( Device,Request,Value,Index,Length,Buffer)
-
-#define CONTROLnsRequestIn( Device,Request,Value,Index,Length,Buffer) \
-        PIPEnsControlIn( Device,Request,Value,Index,Length,Buffer)
-
+#define CONTROLnsRequestIn(Device, Request, Value, Index, Length, Buffer) \
+	PIPEnsControlIn(Device, Request, Value, Index, Length, Buffer)
 
 /*---------------------  Export Classes  ----------------------------*/
 

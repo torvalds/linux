@@ -57,7 +57,7 @@ typedef struct tagSINTData {
     BYTE    byACKFail;
     BYTE    byFCSErr;
     BYTE    abySW[2];
-}__attribute__ ((__packed__))
+} __attribute__ ((__packed__))
 SINTData, *PSINTData;
 
 
