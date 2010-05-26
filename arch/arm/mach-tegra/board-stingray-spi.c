@@ -193,8 +193,9 @@ static struct platform_device cpcap_3mm5_device = {
 };
 
 static struct cpcap_whisper_pdata whisper_pdata = {
-	.gpio    = TEGRA_GPIO_PV4,
-	.uartmux = 1,
+	.data_gpio = TEGRA_GPIO_PV4,
+	.pwr_gpio  = TEGRA_GPIO_PT2,
+	.uartmux   = 1,
 };
 
 static struct platform_device cpcap_whisper_device = {
@@ -532,6 +533,10 @@ static struct spi_board_info stingray_spi_board_info[] __initdata = {
 int __init stingray_spi_init(void)
 {
 	int i;
+
+	tegra_gpio_enable(TEGRA_GPIO_PT2);
+	gpio_request(TEGRA_GPIO_PT2, "usb_host_pwr_en");
+	gpio_direction_output(TEGRA_GPIO_PT2, 0);
 
 	spi_register_board_info(stingray_spi_board_info,
 				ARRAY_SIZE(stingray_spi_board_info));
