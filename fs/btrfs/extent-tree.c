@@ -2944,6 +2944,7 @@ alloc:
 			goto again;
 		}
 
+#if 0 /* I hope we never need this code again, just in case */
 		printk(KERN_ERR "no space left, need %llu, %llu bytes_used, "
 		       "%llu bytes_reserved, " "%llu bytes_pinned, "
 		       "%llu bytes_readonly, %llu may use %llu total\n",
@@ -2954,6 +2955,7 @@ alloc:
 		       (unsigned long long)data_sinfo->bytes_readonly,
 		       (unsigned long long)data_sinfo->bytes_may_use,
 		       (unsigned long long)data_sinfo->total_bytes);
+#endif
 		return -ENOSPC;
 	}
 	data_sinfo->bytes_may_use += bytes;
