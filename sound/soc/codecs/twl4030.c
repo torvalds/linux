@@ -46,7 +46,7 @@ static const u8 twl4030_reg[TWL4030_CACHEREGNUM] = {
 	0xc3, /* REG_OPTION		(0x2)	*/
 	0x00, /* REG_UNKNOWN		(0x3)	*/
 	0x00, /* REG_MICBIAS_CTL	(0x4)	*/
-	0x20, /* REG_ANAMICL		(0x5)	*/
+	0x00, /* REG_ANAMICL		(0x5)	*/
 	0x00, /* REG_ANAMICR		(0x6)	*/
 	0x00, /* REG_AVADC_CTL		(0x7)	*/
 	0x00, /* REG_ADCMICSEL		(0x8)	*/
@@ -281,6 +281,8 @@ static void twl4030_apll_enable(struct snd_soc_codec *codec, int enable)
 
 static void twl4030_power_up(struct snd_soc_codec *codec)
 {
+	struct snd_soc_device *socdev = codec->socdev;
+	struct twl4030_setup_data *setup = socdev->codec_data;
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
 	u8 anamicl, regmisc1, byte;
 	int i = 0;
@@ -293,6 +295,8 @@ static void twl4030_power_up(struct snd_soc_codec *codec)
 
 	/* initiate offset cancellation */
 	anamicl = twl4030_read_reg_cache(codec, TWL4030_REG_ANAMICL);
+	anamicl &= ~TWL4030_OFFSET_CNCL_SEL;
+	anamicl |= setup->offset_cncl_path;
 	twl4030_write(codec, TWL4030_REG_ANAMICL,
 		anamicl | TWL4030_CNCL_OFFSET_START);
 
