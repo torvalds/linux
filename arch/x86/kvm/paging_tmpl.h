@@ -339,10 +339,13 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 			direct = 1;
 			if (!is_dirty_gpte(gw->ptes[level - delta]))
 				access &= ~ACC_WRITE_MASK;
-			table_gfn = gpte_to_gfn(gw->ptes[level - delta]);
-			/* advance table_gfn when emulating 1gb pages with 4k */
-			if (delta == 0)
-				table_gfn += PT_INDEX(addr, level);
+			/*
+			 * It is a large guest pages backed by small host pages,
+			 * So we set @direct(@shadow_page->role.direct)=1, and
+			 * set @table_gfn(@shadow_page->gfn)=the base page frame
+			 * for linear translations.
+			 */
+			table_gfn = gw->gfn & ~(KVM_PAGES_PER_HPAGE(level) - 1);
 			access &= gw->pte_access;
 		} else {
 			direct = 0;
