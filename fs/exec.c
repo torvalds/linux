@@ -1662,12 +1662,15 @@ static int coredump_wait(int exit_code, struct core_state *core_state)
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
 	struct completion *vfork_done;
-	int core_waiters;
+	int core_waiters = -EBUSY;
 
 	init_completion(&core_state->startup);
 	core_state->dumper.task = tsk;
 	core_state->dumper.next = NULL;
-	core_waiters = zap_threads(tsk, mm, core_state, exit_code);
+
+	down_write(&mm->mmap_sem);
+	if (!mm->core_state)
+		core_waiters = zap_threads(tsk, mm, core_state, exit_code);
 	up_write(&mm->mmap_sem);
 
 	if (unlikely(core_waiters < 0))
@@ -1860,20 +1863,12 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	binfmt = mm->binfmt;
 	if (!binfmt || !binfmt->core_dump)
 		goto fail;
+	if (!__get_dumpable(cprm.mm_flags))
+		goto fail;
 
 	cred = prepare_creds();
 	if (!cred)
 		goto fail;
-
-	down_write(&mm->mmap_sem);
-	/*
-	 * If another thread got here first, or we are not dumpable, bail out.
-	 */
-	if (mm->core_state || !__get_dumpable(cprm.mm_flags)) {
-		up_write(&mm->mmap_sem);
-		goto fail_creds;
-	}
-
 	/*
 	 *	We cannot trust fsuid as being the "true" uid of the
 	 *	process nor do we know its entire history. We only know it
