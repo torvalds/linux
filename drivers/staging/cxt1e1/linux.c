@@ -318,34 +318,6 @@ chan_close (struct net_device * ndev)
 }
 
 
-#if !defined(GENERIC_HDLC_VERSION) || (GENERIC_HDLC_VERSION < 4)
-
-/** Linux 2.4.18-19 **/
-STATIC int
-chan_ioctl (hdlc_device * hdlc, struct ifreq * ifr, int cmd)
-{
-    if (cmd == HDLCSCLOCK)
-    {
-        ifr->ifr_ifru.ifru_ivalue = LINE_DEFAULT;
-        return 0;
-    }
-    return -EINVAL;
-}
-#endif
-
-
-#if !defined(GENERIC_HDLC_VERSION) || (GENERIC_HDLC_VERSION < 4)
-STATIC int
-chan_dev_ioctl (struct net_device * hdlc, struct ifreq * ifr, int cmd)
-{
-    if (cmd == HDLCSCLOCK)
-    {
-        ifr->ifr_ifru.ifru_ivalue = LINE_DEFAULT;
-        return 0;
-    }
-    return -EINVAL;
-}
-#else
 STATIC int
 chan_dev_ioctl (struct net_device * dev, struct ifreq * ifr, int cmd)
 {
@@ -359,7 +331,6 @@ chan_attach_noop (struct net_device * ndev, unsigned short foo_1, unsigned short
     return 0;                   /* our driver has nothing to do here, show's
                                  * over, go home */
 }
-#endif
 
 
 STATIC struct net_device_stats *
@@ -422,16 +393,6 @@ get_ci_by_dev (struct net_device * ndev)
 }
 
 
-#if !defined(GENERIC_HDLC_VERSION) || (GENERIC_HDLC_VERSION < 4)
-STATIC int
-c4_linux_xmit (hdlc_device * hdlc, struct sk_buff * skb)
-{
-    int         rval;
-
-    rval = musycc_start_xmit (DEV_TO_PRIV (hdlc)->ci, DEV_TO_PRIV (hdlc)->channum, skb);
-    return -rval;
-}
-#else                           /* new */
 STATIC int
 c4_linux_xmit (struct sk_buff * skb, struct net_device * ndev)
 {
@@ -445,7 +406,6 @@ c4_linux_xmit (struct sk_buff * skb, struct net_device * ndev)
     rval = musycc_start_xmit (priv->ci, priv->channum, skb);
     return -rval;
 }
-#endif                          /* GENERIC_HDLC_VERSION */
 
 static const struct net_device_ops chan_ops = {
        .ndo_open       = chan_open,

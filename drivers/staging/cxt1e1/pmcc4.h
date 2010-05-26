@@ -117,6 +117,8 @@ extern      "C"
 
 #include "pmcc4_private.h"
 
+char       *get_hdlc_name (hdlc_device *);
+
 /*
  * external interface
  */
