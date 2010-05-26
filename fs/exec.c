@@ -768,7 +768,6 @@ static int de_thread(struct task_struct *tsk)
 	struct signal_struct *sig = tsk->signal;
 	struct sighand_struct *oldsighand = tsk->sighand;
 	spinlock_t *lock = &oldsighand->siglock;
-	int count;
 
 	if (thread_group_empty(tsk))
 		goto no_thread_group;
@@ -785,13 +784,13 @@ static int de_thread(struct task_struct *tsk)
 		spin_unlock_irq(lock);
 		return -EAGAIN;
 	}
-	sig->group_exit_task = tsk;
-	zap_other_threads(tsk);
 
-	/* Account for the thread group leader hanging around: */
-	count = thread_group_leader(tsk) ? 1 : 2;
-	sig->notify_count = count;
-	while (atomic_read(&sig->count) > count) {
+	sig->group_exit_task = tsk;
+	sig->notify_count = zap_other_threads(tsk);
+	if (!thread_group_leader(tsk))
+		sig->notify_count--;
+
+	while (sig->notify_count) {
 		__set_current_state(TASK_UNINTERRUPTIBLE);
 		spin_unlock_irq(lock);
 		schedule();
