@@ -1841,10 +1841,7 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	struct cred *cred;
 	int retval = 0;
 	int flag = 0;
-	int ispipe = 0;
-	char **helper_argv = NULL;
-	int helper_argc = 0;
-	int dump_count = 0;
+	int ispipe;
 	static atomic_t core_dump_count = ATOMIC_INIT(0);
 	struct coredump_params cprm = {
 		.signr = signr,
@@ -1914,6 +1911,9 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	unlock_kernel();
 
  	if (ispipe) {
+		int dump_count;
+		char **helper_argv;
+
 		if (cprm.limit == 1) {
 			/*
 			 * Normally core limits are irrelevant to pipes, since
@@ -1935,6 +1935,7 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 			printk(KERN_WARNING "Aborting core\n");
 			goto fail_unlock;
 		}
+		cprm.limit = RLIM_INFINITY;
 
 		dump_count = atomic_inc_return(&core_dump_count);
 		if (core_pipe_limit && (core_pipe_limit < dump_count)) {
@@ -1944,26 +1945,21 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 			goto fail_dropcount;
 		}
 
-		helper_argv = argv_split(GFP_KERNEL, corename+1, &helper_argc);
+		helper_argv = argv_split(GFP_KERNEL, corename+1, NULL);
 		if (!helper_argv) {
 			printk(KERN_WARNING "%s failed to allocate memory\n",
 			       __func__);
 			goto fail_dropcount;
 		}
 
-		cprm.limit = RLIM_INFINITY;
-
-		/* SIGPIPE can happen, but it's just never processed */
-		cprm.file = NULL;
-		if (call_usermodehelper_fns(helper_argv[0], helper_argv, NULL,
-					    UMH_WAIT_EXEC, umh_pipe_setup,
-					    NULL, &cprm)) {
-			if (cprm.file)
-				filp_close(cprm.file, NULL);
-
+		retval = call_usermodehelper_fns(helper_argv[0], helper_argv,
+					NULL, UMH_WAIT_EXEC, umh_pipe_setup,
+					NULL, &cprm);
+		argv_free(helper_argv);
+		if (retval) {
  			printk(KERN_INFO "Core dump to %s pipe failed\n",
 			       corename);
-			goto fail_dropcount;
+			goto close_fail;
  		}
 	} else {
 		struct inode *inode;
@@ -2003,17 +1999,16 @@ void do_coredump(long signr, int exit_code, struct pt_regs *regs)
 	retval = binfmt->core_dump(&cprm);
 	if (retval)
 		current->signal->group_exit_code |= 0x80;
-close_fail:
+
 	if (ispipe && core_pipe_limit)
 		wait_for_dump_helpers(cprm.file);
-	filp_close(cprm.file, NULL);
+close_fail:
+	if (cprm.file)
+		filp_close(cprm.file, NULL);
 fail_dropcount:
-	if (dump_count)
+	if (ispipe)
 		atomic_dec(&core_dump_count);
 fail_unlock:
-	if (helper_argv)
-		argv_free(helper_argv);
-
 	revert_creds(old_cred);
 	put_cred(cred);
 	coredump_finish(mm);
