@@ -703,19 +703,10 @@ to "Closing".
 
 1) Struct scatterlist requirements.
 
-   Struct scatterlist must contain, at a minimum, the following
-   members:
-
-	struct page *page;
-	unsigned int offset;
-	unsigned int length;
-
-   The base address is specified by a "page+offset" pair.
-
-   Previous versions of struct scatterlist contained a "void *address"
-   field that was sometimes used instead of page+offset.  As of Linux
-   2.5., page+offset is always used, and the "address" field has been
-   deleted.
+   Don't invent the architecture specific struct scatterlist; just use
+   <asm-generic/scatterlist.h>. You need to enable
+   CONFIG_NEED_SG_DMA_LENGTH if the architecture supports IOMMUs
+   (including software IOMMU).
 
 2) More to come...
 
