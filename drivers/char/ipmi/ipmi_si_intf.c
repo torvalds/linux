@@ -3278,6 +3278,7 @@ static __devinit int init_ipmi_si(void)
 	char *str;
 	int  rv;
 	struct smi_info *e;
+	enum ipmi_addr_src type = SI_INVALID;
 
 	if (initialized)
 		return 0;
@@ -3344,29 +3345,42 @@ static __devinit int init_ipmi_si(void)
 	of_register_platform_driver(&ipmi_of_platform_driver);
 #endif
 
-	/* Try to register something with interrupts first */
+	/* We prefer devices with interrupts, but in the case of a machine
+	   with multiple BMCs we assume that there will be several instances
+	   of a given type so if we succeed in registering a type then also
+	   try to register everything else of the same type */
 
 	mutex_lock(&smi_infos_lock);
 	list_for_each_entry(e, &smi_infos, link) {
-		if (e->irq) {
+		/* Try to register a device if it has an IRQ and we either
+		   haven't successfully registered a device yet or this
+		   device has the same type as one we successfully registered */
+		if (e->irq && (!type || e->addr_source == type)) {
 			if (!try_smi_init(e)) {
-				mutex_unlock(&smi_infos_lock);
-				return 0;
+				type = e->addr_source;
 			}
 		}
+	}
+
+	/* type will only have been set if we successfully registered an si */
+	if (type) {
+		mutex_unlock(&smi_infos_lock);
+		return 0;
 	}
 
 	/* Fall back to the preferred device */
 
 	list_for_each_entry(e, &smi_infos, link) {
-		if (!e->irq) {
+		if (!e->irq && (!type || e->addr_source == type)) {
 			if (!try_smi_init(e)) {
-				mutex_unlock(&smi_infos_lock);
-				return 0;
+				type = e->addr_source;
 			}
 		}
 	}
 	mutex_unlock(&smi_infos_lock);
+
+	if (type)
+		return 0;
 
 	if (si_trydefaults) {
 		mutex_lock(&smi_infos_lock);
