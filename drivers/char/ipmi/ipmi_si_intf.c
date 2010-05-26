@@ -893,6 +893,9 @@ static void sender(void                *send_info,
 
 	mod_timer(&smi_info->si_timer, jiffies + SI_TIMEOUT_JIFFIES);
 
+	if (smi_info->thread)
+		wake_up_process(smi_info->thread);
+
 	if (smi_info->run_to_completion) {
 		/*
 		 * If we are running to completion, then throw it in
@@ -1013,6 +1016,8 @@ static int ipmi_thread(void *data)
 			; /* do nothing */
 		else if (smi_result == SI_SM_CALL_WITH_DELAY && busy_wait)
 			schedule();
+		else if (smi_result == SI_SM_IDLE)
+			schedule_timeout_interruptible(100);
 		else
 			schedule_timeout_interruptible(0);
 	}
@@ -1055,6 +1060,7 @@ static void smi_timeout(unsigned long data)
 	unsigned long     flags;
 	unsigned long     jiffies_now;
 	long              time_diff;
+	long		  timeout;
 #ifdef DEBUG_TIMING
 	struct timeval    t;
 #endif
@@ -1075,9 +1081,9 @@ static void smi_timeout(unsigned long data)
 
 	if ((smi_info->irq) && (!smi_info->interrupt_disabled)) {
 		/* Running with interrupts, only do long timeouts. */
-		smi_info->si_timer.expires = jiffies + SI_TIMEOUT_JIFFIES;
+		timeout = jiffies + SI_TIMEOUT_JIFFIES;
 		smi_inc_stat(smi_info, long_timeouts);
-		goto do_add_timer;
+		goto do_mod_timer;
 	}
 
 	/*
@@ -1086,15 +1092,15 @@ static void smi_timeout(unsigned long data)
 	 */
 	if (smi_result == SI_SM_CALL_WITH_DELAY) {
 		smi_inc_stat(smi_info, short_timeouts);
-		smi_info->si_timer.expires = jiffies + 1;
+		timeout = jiffies + 1;
 	} else {
 		smi_inc_stat(smi_info, long_timeouts);
-		smi_info->si_timer.expires = jiffies + SI_TIMEOUT_JIFFIES;
+		timeout = jiffies + SI_TIMEOUT_JIFFIES;
 	}
 
- do_add_timer:
-	if ((smi_result != SI_SM_IDLE) || smi_info->interrupt_disabled)
-		add_timer(&(smi_info->si_timer));
+ do_mod_timer:
+	if (smi_result != SI_SM_IDLE)
+		mod_timer(&(smi_info->si_timer), timeout);
 }
 
 static irqreturn_t si_irq_handler(int irq, void *data)
