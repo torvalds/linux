@@ -527,8 +527,8 @@ struct thread_group_cputimer {
  */
 struct signal_struct {
 	atomic_t		sigcnt;
-	atomic_t		count;
 	atomic_t		live;
+	int			nr_threads;
 
 	wait_queue_head_t	wait_chldexit;	/* for wait4() */
 
@@ -2149,7 +2149,7 @@ extern bool current_is_single_threaded(void);
 
 static inline int get_nr_threads(struct task_struct *tsk)
 {
-	return atomic_read(&tsk->signal->count);
+	return tsk->signal->nr_threads;
 }
 
 /* de_thread depends on thread_group_leader not being a pid based check */

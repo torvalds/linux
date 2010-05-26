@@ -83,14 +83,10 @@ static void __exit_signal(struct task_struct *tsk)
 	struct sighand_struct *sighand;
 	struct tty_struct *uninitialized_var(tty);
 
-	BUG_ON(!sig);
-	BUG_ON(!atomic_read(&sig->count));
-
 	sighand = rcu_dereference_check(tsk->sighand,
 					rcu_read_lock_held() ||
 					lockdep_tasklist_lock_is_held());
 	spin_lock(&sighand->siglock);
-	atomic_dec(&sig->count);
 
 	posix_cpu_timers_exit(tsk);
 	if (group_dead) {
@@ -130,6 +126,7 @@ static void __exit_signal(struct task_struct *tsk)
 		sig->sum_sched_runtime += tsk->se.sum_exec_runtime;
 	}
 
+	sig->nr_threads--;
 	__unhash_process(tsk, group_dead);
 
 	/*
