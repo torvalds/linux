@@ -22,11 +22,6 @@
  *      Is it possible to remove and reinstall the urb in raw-event- or any
  *      other handler, or to defer this action to be executed somewhere else?
  *
- * TODO implement notification mechanism for overlong macro execution
- *      If user wants to execute an overlong macro only the names of macroset
- *      and macro are given. Should userland tap hidraw or is there an
- *      additional streaming mechanism?
- *
  * TODO is it possible to overwrite group for sysfs attributes via udev?
  */
 
