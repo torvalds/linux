@@ -5255,6 +5255,106 @@ out:
 	return em;
 }
 
+/*
+ * returns 1 when the nocow is safe, < 1 on error, 0 if the
+ * block must be cow'd
+ */
+static noinline int can_nocow_odirect(struct btrfs_trans_handle *trans,
+				      struct inode *inode, u64 offset, u64 len)
+{
+	struct btrfs_path *path;
+	int ret;
+	struct extent_buffer *leaf;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_file_extent_item *fi;
+	struct btrfs_key key;
+	u64 disk_bytenr;
+	u64 backref_offset;
+	u64 extent_end;
+	u64 num_bytes;
+	int slot;
+	int found_type;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	ret = btrfs_lookup_file_extent(trans, root, path, inode->i_ino,
+				       offset, 0);
+	if (ret < 0)
+		goto out;
+
+	slot = path->slots[0];
+	if (ret == 1) {
+		if (slot == 0) {
+			/* can't find the item, must cow */
+			ret = 0;
+			goto out;
+		}
+		slot--;
+	}
+	ret = 0;
+	leaf = path->nodes[0];
+	btrfs_item_key_to_cpu(leaf, &key, slot);
+	if (key.objectid != inode->i_ino ||
+	    key.type != BTRFS_EXTENT_DATA_KEY) {
+		/* not our file or wrong item type, must cow */
+		goto out;
+	}
+
+	if (key.offset > offset) {
+		/* Wrong offset, must cow */
+		goto out;
+	}
+
+	fi = btrfs_item_ptr(leaf, slot, struct btrfs_file_extent_item);
+	found_type = btrfs_file_extent_type(leaf, fi);
+	if (found_type != BTRFS_FILE_EXTENT_REG &&
+	    found_type != BTRFS_FILE_EXTENT_PREALLOC) {
+		/* not a regular extent, must cow */
+		goto out;
+	}
+	disk_bytenr = btrfs_file_extent_disk_bytenr(leaf, fi);
+	backref_offset = btrfs_file_extent_offset(leaf, fi);
+
+	extent_end = key.offset + btrfs_file_extent_num_bytes(leaf, fi);
+	if (extent_end < offset + len) {
+		/* extent doesn't include our full range, must cow */
+		goto out;
+	}
+
+	if (btrfs_extent_readonly(root, disk_bytenr))
+		goto out;
+
+	/*
+	 * look for other files referencing this extent, if we
+	 * find any we must cow
+	 */
+	if (btrfs_cross_ref_exist(trans, root, inode->i_ino,
+				  key.offset - backref_offset, disk_bytenr))
+		goto out;
+
+	/*
+	 * adjust disk_bytenr and num_bytes to cover just the bytes
+	 * in this extent we are about to write.  If there
+	 * are any csums in that range we have to cow in order
+	 * to keep the csums correct
+	 */
+	disk_bytenr += backref_offset;
+	disk_bytenr += offset - key.offset;
+	num_bytes = min(offset + len, extent_end) - offset;
+	if (csum_exist_in_range(root, disk_bytenr, num_bytes))
+				goto out;
+	/*
+	 * all of the above have passed, it is safe to overwrite this extent
+	 * without cow
+	 */
+	ret = 1;
+out:
+	btrfs_free_path(path);
+	return ret;
+}
+
 static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 				   struct buffer_head *bh_result, int create)
 {
@@ -5262,6 +5362,7 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	u64 start = iblock << inode->i_blkbits;
 	u64 len = bh_result->b_size;
+	struct btrfs_trans_handle *trans;
 
 	em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
 	if (IS_ERR(em))
@@ -5306,42 +5407,65 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 	 * just use the extent.
 	 *
 	 */
-	if (!create)
+	if (!create) {
+		len = em->len - (start - em->start);
 		goto map;
+	}
 
 	if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags) ||
 	    ((BTRFS_I(inode)->flags & BTRFS_INODE_NODATACOW) &&
 	     em->block_start != EXTENT_MAP_HOLE)) {
-		u64 block_start;
 		int type;
 		int ret;
+		u64 block_start;
 
 		if (test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
 			type = BTRFS_ORDERED_PREALLOC;
 		else
 			type = BTRFS_ORDERED_NOCOW;
-		len = min(len, em->block_len - (start - em->start));
+		len = min(len, em->len - (start - em->start));
 		block_start = em->block_start + (start - em->start);
-		ret = btrfs_add_ordered_extent_dio(inode, start,
-						   start, len, len, type);
-		if (ret) {
-			free_extent_map(em);
-			return ret;
+
+		/*
+		 * we're not going to log anything, but we do need
+		 * to make sure the current transaction stays open
+		 * while we look for nocow cross refs
+		 */
+		trans = btrfs_join_transaction(root, 0);
+		if (!trans)
+			goto must_cow;
+
+		if (can_nocow_odirect(trans, inode, start, len) == 1) {
+			ret = btrfs_add_ordered_extent_dio(inode, start,
+					   block_start, len, len, type);
+			btrfs_end_transaction(trans, root);
+			if (ret) {
+				free_extent_map(em);
+				return ret;
+			}
+			goto unlock;
 		}
-	} else {
-		free_extent_map(em);
-		em = btrfs_new_extent_direct(inode, start, len);
-		if (IS_ERR(em))
-			return PTR_ERR(em);
-		len = min(len, em->block_len);
+		btrfs_end_transaction(trans, root);
 	}
+must_cow:
+	/*
+	 * this will cow the extent, reset the len in case we changed
+	 * it above
+	 */
+	len = bh_result->b_size;
+	free_extent_map(em);
+	em = btrfs_new_extent_direct(inode, start, len);
+	if (IS_ERR(em))
+		return PTR_ERR(em);
+	len = min(len, em->len - (start - em->start));
+unlock:
 	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, start + len - 1,
 			  EXTENT_LOCKED | EXTENT_DELALLOC | EXTENT_DIRTY, 1,
 			  0, NULL, GFP_NOFS);
 map:
 	bh_result->b_blocknr = (em->block_start + (start - em->start)) >>
 		inode->i_blkbits;
-	bh_result->b_size = em->len - (start - em->start);
+	bh_result->b_size = len;
 	bh_result->b_bdev = em->bdev;
 	set_buffer_mapped(bh_result);
 	if (create && !test_bit(EXTENT_FLAG_PREALLOC, &em->flags))
@@ -5547,7 +5671,7 @@ static void btrfs_submit_direct(int rw, struct bio *bio, struct inode *inode,
 		bvec++;
 	} while (bvec <= (bio->bi_io_vec + bio->bi_vcnt - 1));
 
-	dip->disk_bytenr = bio->bi_sector << 9;
+	dip->disk_bytenr = (u64)bio->bi_sector << 9;
 	bio->bi_private = dip;
 
 	if (write)
