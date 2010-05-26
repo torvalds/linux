@@ -2258,7 +2258,8 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	switch (ctype) {
 	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
 	case MEM_CGROUP_CHARGE_TYPE_DROP:
-		if (page_mapped(page))
+		/* See mem_cgroup_prepare_migration() */
+		if (page_mapped(page) || PageCgroupMigration(pc))
 			goto unlock_out;
 		break;
 	case MEM_CGROUP_CHARGE_TYPE_SWAPOUT:
@@ -2481,10 +2482,12 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
  * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
  * page belongs to.
  */
-int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
+int mem_cgroup_prepare_migration(struct page *page,
+	struct page *newpage, struct mem_cgroup **ptr)
 {
 	struct page_cgroup *pc;
 	struct mem_cgroup *mem = NULL;
+	enum charge_type ctype;
 	int ret = 0;
 
 	if (mem_cgroup_disabled())
@@ -2495,69 +2498,125 @@ int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
 	if (PageCgroupUsed(pc)) {
 		mem = pc->mem_cgroup;
 		css_get(&mem->css);
+		/*
+		 * At migrating an anonymous page, its mapcount goes down
+		 * to 0 and uncharge() will be called. But, even if it's fully
+		 * unmapped, migration may fail and this page has to be
+		 * charged again. We set MIGRATION flag here and delay uncharge
+		 * until end_migration() is called
+		 *
+		 * Corner Case Thinking
+		 * A)
+		 * When the old page was mapped as Anon and it's unmap-and-freed
+		 * while migration was ongoing.
+		 * If unmap finds the old page, uncharge() of it will be delayed
+		 * until end_migration(). If unmap finds a new page, it's
+		 * uncharged when it make mapcount to be 1->0. If unmap code
+		 * finds swap_migration_entry, the new page will not be mapped
+		 * and end_migration() will find it(mapcount==0).
+		 *
+		 * B)
+		 * When the old page was mapped but migraion fails, the kernel
+		 * remaps it. A charge for it is kept by MIGRATION flag even
+		 * if mapcount goes down to 0. We can do remap successfully
+		 * without charging it again.
+		 *
+		 * C)
+		 * The "old" page is under lock_page() until the end of
+		 * migration, so, the old page itself will not be swapped-out.
+		 * If the new page is swapped out before end_migraton, our
+		 * hook to usual swap-out path will catch the event.
+		 */
+		if (PageAnon(page))
+			SetPageCgroupMigration(pc);
 	}
 	unlock_page_cgroup(pc);
+	/*
+	 * If the page is not charged at this point,
+	 * we return here.
+	 */
+	if (!mem)
+		return 0;
 
 	*ptr = mem;
-	if (mem) {
-		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
-		css_put(&mem->css);
+	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
+	css_put(&mem->css);/* drop extra refcnt */
+	if (ret || *ptr == NULL) {
+		if (PageAnon(page)) {
+			lock_page_cgroup(pc);
+			ClearPageCgroupMigration(pc);
+			unlock_page_cgroup(pc);
+			/*
+			 * The old page may be fully unmapped while we kept it.
+			 */
+			mem_cgroup_uncharge_page(page);
+		}
+		return -ENOMEM;
 	}
+	/*
+	 * We charge new page before it's used/mapped. So, even if unlock_page()
+	 * is called before end_migration, we can catch all events on this new
+	 * page. In the case new page is migrated but not remapped, new page's
+	 * mapcount will be finally 0 and we call uncharge in end_migration().
+	 */
+	pc = lookup_page_cgroup(newpage);
+	if (PageAnon(page))
+		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
+	else if (page_is_file_cache(page))
+		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+	else
+		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+	__mem_cgroup_commit_charge(mem, pc, ctype);
 	return ret;
 }
 
 /* remove redundant charge if migration failed*/
 void mem_cgroup_end_migration(struct mem_cgroup *mem,
-		struct page *oldpage, struct page *newpage)
+	struct page *oldpage, struct page *newpage)
 {
-	struct page *target, *unused;
+	struct page *used, *unused;
 	struct page_cgroup *pc;
-	enum charge_type ctype;
 
 	if (!mem)
 		return;
+	/* blocks rmdir() */
 	cgroup_exclude_rmdir(&mem->css);
 	/* at migration success, oldpage->mapping is NULL. */
 	if (oldpage->mapping) {
-		target = oldpage;
-		unused = NULL;
+		used = oldpage;
+		unused = newpage;
 	} else {
-		target = newpage;
+		used = newpage;
 		unused = oldpage;
 	}
-
-	if (PageAnon(target))
-		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
-	else if (page_is_file_cache(target))
-		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
-	else
-		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
-
-	/* unused page is not on radix-tree now. */
-	if (unused)
-		__mem_cgroup_uncharge_common(unused, ctype);
-
-	pc = lookup_page_cgroup(target);
 	/*
-	 * __mem_cgroup_commit_charge() check PCG_USED bit of page_cgroup.
-	 * So, double-counting is effectively avoided.
+	 * We disallowed uncharge of pages under migration because mapcount
+	 * of the page goes down to zero, temporarly.
+	 * Clear the flag and check the page should be charged.
 	 */
-	__mem_cgroup_commit_charge(mem, pc, ctype);
+	pc = lookup_page_cgroup(oldpage);
+	lock_page_cgroup(pc);
+	ClearPageCgroupMigration(pc);
+	unlock_page_cgroup(pc);
 
+	if (unused != oldpage)
+		pc = lookup_page_cgroup(unused);
+	__mem_cgroup_uncharge_common(unused, MEM_CGROUP_CHARGE_TYPE_FORCE);
+
+	pc = lookup_page_cgroup(used);
 	/*
-	 * Both of oldpage and newpage are still under lock_page().
-	 * Then, we don't have to care about race in radix-tree.
-	 * But we have to be careful that this page is unmapped or not.
-	 *
-	 * There is a case for !page_mapped(). At the start of
-	 * migration, oldpage was mapped. But now, it's zapped.
-	 * But we know *target* page is not freed/reused under us.
-	 * mem_cgroup_uncharge_page() does all necessary checks.
+	 * If a page is a file cache, radix-tree replacement is very atomic
+	 * and we can skip this check. When it was an Anon page, its mapcount
+	 * goes down to 0. But because we added MIGRATION flage, it's not
+	 * uncharged yet. There are several case but page->mapcount check
+	 * and USED bit check in mem_cgroup_uncharge_page() will do enough
+	 * check. (see prepare_charge() also)
 	 */
-	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
-		mem_cgroup_uncharge_page(target);
+	if (PageAnon(used))
+		mem_cgroup_uncharge_page(used);
 	/*
-	 * At migration, we may charge account against cgroup which has no tasks
+	 * At migration, we may charge account against cgroup which has no
+	 * tasks.
 	 * So, rmdir()->pre_destroy() can be called while we do this charge.
 	 * In that case, we need to call pre_destroy() again. check it here.
 	 */
