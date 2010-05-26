@@ -515,3 +515,23 @@ struct platform_device mxc_wdt = {
 	.num_resources = ARRAY_SIZE(mxc_wdt_resources),
 	.resource = mxc_wdt_resources,
 };
+
+static struct resource mx25_kpp_resources[] = {
+	{
+		.start	= MX25_KPP_BASE_ADDR,
+		.end	= MX25_KPP_BASE_ADDR + 0xf,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= MX25_INT_KPP,
+		.end	= MX25_INT_KPP,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mx25_kpp_device = {
+	.name	= "imx-keypad",
+	.id	= -1,
+	.num_resources	= ARRAY_SIZE(mx25_kpp_resources),
+	.resource	= mx25_kpp_resources,
+};
