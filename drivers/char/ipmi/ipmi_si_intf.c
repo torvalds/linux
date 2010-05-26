@@ -3306,23 +3306,24 @@ static __devinit int init_ipmi_si(void)
 	}
 	mutex_unlock(&smi_infos_lock);
 
-#ifdef CONFIG_DMI
-	dmi_find_bmc();
-#endif
-
-#ifdef CONFIG_ACPI
-	spmi_find_bmc();
-#endif
-#ifdef CONFIG_ACPI
-	pnp_register_driver(&ipmi_pnp_driver);
-#endif
-
 #ifdef CONFIG_PCI
 	rv = pci_register_driver(&ipmi_pci_driver);
 	if (rv)
 		printk(KERN_ERR
 		       "init_ipmi_si: Unable to register PCI driver: %d\n",
 		       rv);
+#endif
+
+#ifdef CONFIG_ACPI
+	pnp_register_driver(&ipmi_pnp_driver);
+#endif
+
+#ifdef CONFIG_DMI
+	dmi_find_bmc();
+#endif
+
+#ifdef CONFIG_ACPI
+	spmi_find_bmc();
 #endif
 
 #ifdef CONFIG_PPC_OF
