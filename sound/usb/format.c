@@ -408,7 +408,7 @@ int snd_usb_parse_audio_format(struct snd_usb_audio *chip, struct audioformat *f
 		snd_printd(KERN_INFO "%d:%u:%d : format type %d is not supported yet\n",
 			   chip->dev->devnum, fp->iface, fp->altsetting,
 			   fmt->bFormatType);
-		return -1;
+		return -ENOTSUPP;
 	}
 	fp->fmt_type = fmt->bFormatType;
 	if (err < 0)
@@ -424,7 +424,7 @@ int snd_usb_parse_audio_format(struct snd_usb_audio *chip, struct audioformat *f
 		if (fmt->bFormatType == UAC_FORMAT_TYPE_I &&
 		    fp->rates != SNDRV_PCM_RATE_48000 &&
 		    fp->rates != SNDRV_PCM_RATE_96000)
-			return -1;
+			return -ENOTSUPP;
 	}
 #endif
 	return 0;
