@@ -2147,6 +2147,11 @@ extern bool current_is_single_threaded(void);
 #define while_each_thread(g, t) \
 	while ((t = next_thread(t)) != g)
 
+static inline int get_nr_threads(struct task_struct *tsk)
+{
+	return atomic_read(&tsk->signal->count);
+}
+
 /* de_thread depends on thread_group_leader not being a pid based check */
 #define thread_group_leader(p)	(p == p->group_leader)
 
