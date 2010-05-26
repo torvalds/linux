@@ -78,10 +78,6 @@ struct m68k_serial *m68k_consinfo = 0;
 
 #define M68K_CLOCK (16667000) /* FIXME: 16MHz is likely wrong */
 
-#ifdef CONFIG_CONSOLE
-extern wait_queue_head_t keypress_wait; 
-#endif
-
 struct tty_driver *serial_driver;
 
 /* number of characters left in xmit buffer before we ask for more */
@@ -300,10 +296,6 @@ static void receive_chars(struct m68k_serial *info, unsigned short rx)
 				return;
 #endif /* CONFIG_MAGIC_SYSRQ */
 			}
-			/* It is a 'keyboard interrupt' ;-) */
-#ifdef CONFIG_CONSOLE
-			wake_up(&keypress_wait);
-#endif			
 		}
 
 		if(!tty)
