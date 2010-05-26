@@ -6,15 +6,8 @@ obj-$(CONFIG_HDMI_NULL) += hdmi_null.o
 obj-$(CONFIG_LCD_TD043MGEA1) += lcd_td043mgea1.o
 obj-$(CONFIG_LCD_HSD070IDW1) += lcd_hsd800x480.o
 obj-$(CONFIG_LCD_HL070VM4AU) += lcd_hl070vm4.o
-ifeq ($(CONFIG_MACH_RK2808SDK),y)
+
 obj-$(CONFIG_LCD_TJ048NC01CA) 		+= lcd_tj048nc01ca.o
-endif
-ifeq ($(CONFIG_MACH_PWS700AA),y)
-obj-$(CONFIG_LCD_TJ048NC01CA) 		+= lcd_tj048nc01ca.o
-endif
-ifeq ($(CONFIG_MACH_LANMO_W7),y)
-obj-$(CONFIG_LCD_TJ048NC01CA) 		+= lanmow7_lcd048.o
-endif
 
 obj-$(CONFIG_LCD_A060SE02) += lcd_a060se02.o
 obj-$(CONFIG_LCD_S1D13521) += lcd_s1d13521.o

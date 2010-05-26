@@ -1,10 +1,8 @@
 #include <linux/fb.h>
 #include <linux/delay.h>
-#include <asm/arch/lcdcon.h>
-#include <asm/arch/rk28_i2c.h>
-#include <asm/arch/rk28_fb.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/iomux.h>
+#include "../../rk2818_fb.h"
+#include <mach/gpio.h>
+#include <mach/iomux.h>
 #include "screen.h"
 
 /* Base */
@@ -29,11 +27,11 @@
 
 /* Other */
 #define DCLK_POL		0
-#define SWAP_RB			1
+#define SWAP_RB			0
 
-void Set_LCD_8B_REG(unsigned char regh,unsigned char regl, uint32 data)
+void Set_LCD_8B_REG(unsigned char regh,unsigned char regl, u32 data)
 {
-    uint32 cmd;
+    u32 cmd;
 	cmd = (regh<<8) + regl;
 	if(-1==data) {
 	    mcu_ioctl(MCU_WRCMD,cmd);
@@ -208,7 +206,7 @@ int lcd_init(void)
     Set_LCD_8B_REG(0x2b,0X03,0X1f);
     msleep(100);
     {
-        uint32 fte = 0;
+        u32 fte = 0;
         Set_LCD_8B_REG(0x44,0x00,(fte>>8)&0xff);
         Set_LCD_8B_REG(0x44,0x01,(fte)&0xff);
     }
@@ -330,7 +328,7 @@ int lcd_scandir(u16 dir)
 
 int lcd_disparea(u8 area)
 {
-    uint32 x0, y0, x1, y1, fte;
+    u32 x0, y0, x1, y1, fte;
 
 	mcu_ioctl(MCU_SETBYPASS, 1);
 

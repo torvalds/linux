@@ -1,11 +1,10 @@
 #include <linux/fb.h>
 #include <linux/delay.h>
-#include <asm/arch/lcdcon.h>
-#include <asm/arch/rk28_i2c.h>
-#include <asm/arch/rk28_fb.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/iomux.h>
+#include "../../rk2818_fb.h"
+#include <mach/gpio.h>
+#include <mach/iomux.h>
 #include "screen.h"
+
 
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
@@ -25,29 +24,28 @@
 
 /* Other */
 #define DCLK_POL		0
-#define SWAP_RB			1
+#define SWAP_RB			0
 
 
-#define CS_OUT()        GPIOSetPinDirection(GPIOPortB_Pin3, GPIO_OUT)
-#define CS_SET()        GPIOSetPinLevel(GPIOPortB_Pin3, GPIO_HIGH)
-#define CS_CLR()        GPIOSetPinLevel(GPIOPortB_Pin3, GPIO_LOW)
-#define CLK_OUT()       GPIOSetPinDirection(GPIOPortE_Pin7, GPIO_OUT)  //I2C0_SCL
-#define CLK_SET()       GPIOSetPinLevel(GPIOPortE_Pin7, GPIO_HIGH)
-#define CLK_CLR()       GPIOSetPinLevel(GPIOPortE_Pin7, GPIO_LOW)
-
-#define TXD_OUT()       GPIOSetPinDirection(GPIOPortE_Pin6, GPIO_OUT)  //I2C0_SDA
-#define TXD_SET()       GPIOSetPinLevel(GPIOPortE_Pin6, GPIO_HIGH)
-#define TXD_CLR()       GPIOSetPinLevel(GPIOPortE_Pin6, GPIO_LOW)
-#define TXD_IN()        GPIOSetPinDirection(GPIOPortE_Pin6, GPIO_IN)
-#define TXD_GET()       GPIOGetPinLevel(GPIOPortE_Pin6)
+#define CS_OUT()        gpio_direction_output(RK2818_PIN_PA4, 0)
+#define CS_SET()        gpio_set_value(RK2818_PIN_PA4, GPIO_HIGH)
+#define CS_CLR()        gpio_set_value(RK2818_PIN_PA4, GPIO_LOW)
+#define CLK_OUT()       gpio_direction_output(RK2818_PIN_PE7, 0)  //I2C0_SCL
+#define CLK_SET()       gpio_set_value(RK2818_PIN_PE7, GPIO_HIGH)
+#define CLK_CLR()       gpio_set_value(RK2818_PIN_PE7, GPIO_LOW)
+#define TXD_OUT()       gpio_direction_output(RK2818_PIN_PE6, 0)  //I2C0_SDA
+#define TXD_SET()       gpio_set_value(RK2818_PIN_PE6, GPIO_HIGH)
+#define TXD_CLR()       gpio_set_value(RK2818_PIN_PE6, GPIO_LOW)
+#define TXD_IN()        gpio_direction_input(RK2818_PIN_PE6)
+#define TXD_GET()       gpio_get_value(RK2818_PIN_PE6)
 
 
 #define delay_us(i)      udelay(i)
 
 
-uint32 spi_screenreg_get(uint32 Addr)
+u32 spi_screenreg_get(u32 Addr)
 {
-    uint32 i;
+    u32 i;
 	u8 addr_h = (Addr>>8) & 0x000000ff;
 	u8 addr_l = Addr & 0x000000ff;
 	u8 cmd1 = 0x20;   //0010 0000
@@ -171,9 +169,9 @@ uint32 spi_screenreg_get(uint32 Addr)
 }
 
 
-void spi_screenreg_set(uint32 Addr, uint32 Data)
+void spi_screenreg_set(u32 Addr, u32 Data)
 {
-    uint32 i;
+    u32 i;
 	u8 addr_h = (Addr>>8) & 0x000000ff;
 	u8 addr_l = Addr & 0x000000ff;
 	u8 data_l = Data & 0x000000ff;
@@ -310,7 +308,7 @@ int lcd_init(void)
     GPIO_SetPinLevel(reset_pin,GPIO_HIGH);
 #endif
 
-    rockchip_mux_api_set(GPIOE_U1IR_I2C1_NAME, IOMUXA_GPIO1_A67);
+    rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, IOMUXA_GPIO1_A67);
 
     spi_screenreg_set(0x2E80, 0x0001);
     spi_screenreg_set(0x0680, 0x002D);
@@ -407,7 +405,7 @@ int lcd_init(void)
     }
 #endif
 
-    rockchip_mux_api_set(GPIOE_U1IR_I2C1_NAME, IOMUXA_I2C1);
+    rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, IOMUXA_I2C1);
     return 0;
 }
 
@@ -454,8 +452,5 @@ void set_lcd_info(struct rk28fb_screen *screen)
     screen->init = lcd_init;
     screen->standby = lcd_standby;
 }
-
-
-
 
 

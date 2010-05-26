@@ -1,10 +1,8 @@
 #include <linux/fb.h>
 #include <linux/delay.h>
-#include <asm/arch/lcdcon.h>
-#include <asm/arch/rk28_i2c.h>
-#include <asm/arch/rk28_fb.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/iomux.h>
+#include "../../rk2818_fb.h"
+#include <mach/gpio.h>
+#include <mach/iomux.h>
 #include "screen.h"
 
 /* Base */
@@ -26,7 +24,7 @@
 
 /* Other */
 #define DCLK_POL		0
-#define SWAP_RB			1
+#define SWAP_RB			0
 
 
 

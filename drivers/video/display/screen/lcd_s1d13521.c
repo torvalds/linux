@@ -1,10 +1,8 @@
 #include <linux/fb.h>
 #include <linux/delay.h>
-#include <asm/arch/lcdcon.h>
-#include <asm/arch/rk28_i2c.h>
-#include <asm/arch/rk28_fb.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/iomux.h>
+#include "../../rk2818_fb.h"
+#include <mach/gpio.h>
+#include <mach/iomux.h>
 #include "screen.h"
 
 #include "s1d13521.h"
@@ -29,20 +27,20 @@
 
 /* Other */
 #define DCLK_POL		0
-#define SWAP_RB			1
+#define SWAP_RB			0
 
 
 
 int s1d13521if_refresh(u8 arg);
 
-#define GPIO_RESET_L	GPIOPortC_Pin0	//reset pin
-#define GPIO_HIRQ		GPIOPortC_Pin1	//IRQ
-#define GPIO_HDC		GPIOPortC_Pin2	//Data(HIHG) or Command(LOW)
-#define GPIO_HCS_L		GPIOPortC_Pin3	//Chip select
-#define GPIO_HRD_L		GPIOPortC_Pin4	//Read mode, low active
-#define GPIO_HWE_L		GPIOPortC_Pin5	//Write mode, low active
-#define GPIO_HRDY		GPIOPortC_Pin6	//Bus ready
-#define GPIO_RMODE		GPIOPortC_Pin7	//rmode ->CNF1
+#define GPIO_RESET_L	RK2818_PIN_PC0//reset pin
+#define GPIO_HIRQ		RK2818_PIN_PC1	//IRQ
+#define GPIO_HDC		RK2818_PIN_PC2	//Data(HIHG) or Command(LOW)
+#define GPIO_HCS_L		RK2818_PIN_PC3	//Chip select
+#define GPIO_HRD_L		RK2818_PIN_PC4	//Read mode, low active
+#define GPIO_HWE_L		RK2818_PIN_PC5	//Write mode, low active
+#define GPIO_HRDY		RK2818_PIN_PC6	//Bus ready
+#define GPIO_RMODE		RK2818_PIN_PC7	//rmode ->CNF1
 
 
 //----------------------------------------------------------------------------
@@ -53,7 +51,9 @@ int s1d13521if_refresh(u8 arg);
 int s1d13521if_wait_for_ready(void)
 {
     int cnt = 1000;
-    int d = GPIOGetPinLevel(GPIO_HRDY);
+    int d = 0;
+    gpio_request(GPIO_HRDY, 0);
+    d = gpio_get_value(GPIO_HRDY);
 
     while (d == 0)
     {
@@ -65,9 +65,9 @@ int s1d13521if_wait_for_ready(void)
             return -1;
         }
 
-        d = GPIOGetPinLevel(GPIO_HRDY);
+        d = gpio_get_value(GPIO_HRDY);
     }
-
+    gpio_free(GPIO_HRDY);
     return 0;
 }
 
@@ -117,29 +117,53 @@ void s1d13521fb_InitRegisters(void)
 void s1d13521if_init_gpio(void)
 {
     int i;
-	rockchip_mux_api_set(GPIOC_LCDC18BIT_SEL_NAME, IOMUXB_GPIO0_C01);
-	rockchip_mux_api_set(GPIOC_LCDC24BIT_SEL_NAME, IOMUXB_GPIO0_C2_7);
-	for(i = 0; i < 8; i++){
-		if(i == 1 || i == 6){//HIRQ, HRDY
-			GPIOSetPinDirection(GPIOPortC_Pin0+i, GPIO_IN);
-		} else {//RESET_L, HD/C, HCS_L, HRD_L, HWE_L, RMODE
-			GPIOSetPinDirection(GPIOPortC_Pin0+i, GPIO_OUT);
-			GPIOPullUpDown(GPIOPortC_Pin0+i, GPIOPullUp);
-			GPIOSetPinLevel(GPIOPortC_Pin0+i, GPIO_HIGH);
+    int ret=0;
+    
+	rk2818_mux_api_set(GPIOC_LCDC18BIT_SEL_NAME, IOMUXB_GPIO0_C01);
+	rk2818_mux_api_set(GPIOC_LCDC24BIT_SEL_NAME, IOMUXB_GPIO0_C2_7);
+    
+	for(i = 0; i < 8; i++)
+    {
+		if(i == 1 || i == 6)//HIRQ, HRDY
+        {
+    		ret = gpio_request(GPIO_RESET_L+i, NULL); 
+            if(ret != 0)
+            {
+                gpio_free(GPIO_RESET_L+i);
+                printk(">>>>>> lcd cs gpio_request err \n ");                        
+            } 
+            gpio_direction_input(GPIO_RESET_L+i);
+            gpio_free(GPIO_RESET_L+i);
+		} 
+        else  //RESET_L, HD/C, HCS_L, HRD_L, HWE_L, RMODE
+		{
+            ret = gpio_request(GPIO_RESET_L+i, NULL);
+            if(ret != 0)
+            {
+                gpio_free(GPIO_RESET_L+i);
+                printk(">>>>>> lcd cs gpio_request err \n ");                        
+            } 
+            gpio_direction_output(GPIO_RESET_L+i, 0);
+            gpio_set_value(GPIO_RESET_L+i, GPIO_HIGH);
+            gpio_free(GPIO_RESET_L+i);			
 		}
 	}
 }
 
 void s1d13521if_set_reset(void)
 {
-	GPIOSetPinLevel(GPIO_RMODE, GPIO_HIGH);
+    gpio_request(GPIO_RMODE, 0); 
+	gpio_set_value(GPIO_RMODE, GPIO_HIGH);
+    gpio_request(GPIO_RESET_L, 0);
 
     // reset pulse
     mdelay(10);
-	GPIOSetPinLevel(GPIO_RESET_L, GPIO_LOW);
+	gpio_set_value(GPIO_RESET_L, GPIO_LOW);
 	mdelay(10);
-	GPIOSetPinLevel(GPIO_RESET_L, GPIO_HIGH);
+	gpio_set_value(GPIO_RESET_L, GPIO_HIGH);
 	mdelay(10);
+    gpio_free(GPIO_RMODE);
+    gpio_free(GPIO_RESET_L);
 
 	//s1d13521if_WaitForHRDY();
 }

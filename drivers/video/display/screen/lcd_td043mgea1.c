@@ -25,7 +25,6 @@
 #define DCLK_POL		0
 #define SWAP_RB			0
 
-
 #define CS_OUT()        gpio_direction_output(RK2818_PIN_PA4, 0)
 #define CS_SET()        gpio_set_value(RK2818_PIN_PA4, GPIO_HIGH)
 #define CS_CLR()        gpio_set_value(RK2818_PIN_PA4, GPIO_LOW)
@@ -35,7 +34,6 @@
 #define TXD_OUT()       gpio_direction_output(RK2818_PIN_PE6, 0)  //I2C0_SDA
 #define TXD_SET()       gpio_set_value(RK2818_PIN_PE6, GPIO_HIGH)
 #define TXD_CLR()       gpio_set_value(RK2818_PIN_PE6, GPIO_LOW)
-
 
 int init(void);
 int standby(u8 enable);

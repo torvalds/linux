@@ -1,12 +1,11 @@
 /* This Lcd Driver is HSD070IDW1 write by cst 2009.10.27 */
 #include <linux/fb.h>
 #include <linux/delay.h>
-#include <asm/arch/lcdcon.h>
-#include <asm/arch/rk28_i2c.h>
-#include <asm/arch/rk28_fb.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/iomux.h>
+#include "../../rk2818_fb.h"
+#include <mach/gpio.h>
+#include <mach/iomux.h>
 #include "screen.h"
+
 
 /* Base */
 #define OUT_TYPE		SCREEN_RGB
@@ -26,10 +25,69 @@
 
 /* Other */
 #define DCLK_POL		1
-#define SWAP_RB			1
+#define SWAP_RB			0
+
+#define CS_OUT()        gpio_direction_output(RK2818_PIN_PA4, 0)
+#define CS_SET()        gpio_set_value(RK2818_PIN_PA4, GPIO_HIGH)
+#define CS_CLR()        gpio_set_value(RK2818_PIN_PA4, GPIO_LOW)
+#define CLK_OUT()       gpio_direction_output(RK2818_PIN_PE7, 0)  //I2C0_SCL
+#define CLK_SET()       gpio_set_value(RK2818_PIN_PE7, GPIO_HIGH)
+#define CLK_CLR()       gpio_set_value(RK2818_PIN_PE7, GPIO_LOW)
+#define TXD_OUT()       gpio_direction_output(RK2818_PIN_PE6, 0)  //I2C0_SDA
+#define TXD_SET()       gpio_set_value(RK2818_PIN_PE6, GPIO_HIGH)
+#define TXD_CLR()       gpio_set_value(RK2818_PIN_PE6, GPIO_LOW)
+
+#define DRVDelayUs(i)   udelay(i*2)
 
 int init(void);
 int standby(u8 enable);
+
+void screen_set_iomux(u8 enable)
+{
+    int ret=-1;
+    if(enable)
+    {
+        rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 0);
+        ret = gpio_request(RK2818_PIN_PA4, NULL); 
+        if(0)//(ret != 0)
+        {
+            gpio_free(RK2818_PIN_PA4);
+            printk(">>>>>> lcd cs gpio_request err \n ");           
+            goto pin_err;
+        }  
+        
+        rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, 0);                   
+
+        ret = gpio_request(RK2818_PIN_PE7, NULL); 
+        if(0)//(ret != 0)
+        {
+            gpio_free(RK2818_PIN_PE7);
+            printk(">>>>>> lcd clk gpio_request err \n "); 
+            goto pin_err;
+        }  
+        
+        ret = gpio_request(RK2818_PIN_PE6, NULL); 
+        if(0)//(ret != 0)
+        {
+            gpio_free(RK2818_PIN_PE6);
+            printk(">>>>>> lcd txd gpio_request err \n "); 
+            goto pin_err;
+        }        
+    }
+    else
+    {
+         gpio_free(RK2818_PIN_PA4); 
+         rk2818_mux_api_set(CXGPIO_HSADC_SEL_NAME, 1);
+
+         gpio_free(RK2818_PIN_PE7);   
+         gpio_free(RK2818_PIN_PE6); 
+         rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, 2);
+   }
+    return ;
+pin_err:
+    return ;
+
+}
 
 void set_lcd_info(struct rk28fb_screen *screen)
 {
@@ -70,21 +128,9 @@ void set_lcd_info(struct rk28fb_screen *screen)
 }
 //cannot need init,so set screen->init = null at rk28_fb.c file 
 
-void spi_screenreg_set(uint32 Addr, uint32 Data)
+void spi_screenreg_set(u32 Addr, u32 Data)
 {
-#define CS_OUT()        GPIOSetPinDirection(GPIOPortB_Pin3, GPIO_OUT)
-#define CS_SET()        GPIOSetPinLevel(GPIOPortB_Pin3, GPIO_HIGH)
-#define CS_CLR()        GPIOSetPinLevel(GPIOPortB_Pin3, GPIO_LOW)
-#define CLK_OUT()       GPIOSetPinDirection(GPIOPortE_Pin7, GPIO_OUT)  //I2C0_SCL
-#define CLK_SET()       GPIOSetPinLevel(GPIOPortE_Pin7, GPIO_HIGH)
-#define CLK_CLR()       GPIOSetPinLevel(GPIOPortE_Pin7, GPIO_LOW)
-#define TXD_OUT()       GPIOSetPinDirection(GPIOPortE_Pin6, GPIO_OUT)  //I2C0_SDA
-#define TXD_SET()       GPIOSetPinLevel(GPIOPortE_Pin6, GPIO_HIGH)
-#define TXD_CLR()       GPIOSetPinLevel(GPIOPortE_Pin6, GPIO_LOW)
-
-#define DRVDelayUs(i)   udelay(i*2)
-
-    uint32 i;
+    u32 i;
 
     TXD_OUT();
     CLK_OUT();
@@ -153,7 +199,7 @@ void spi_screenreg_set(uint32 Addr, uint32 Data)
 
 int init(void)
 {
-    rockchip_mux_api_set(GPIOE_I2C0_SEL_NAME, IOMUXA_GPIO1_A45);
+    screen_set_iomux(1);
 
     spi_screenreg_set(0x02, 0x07);
     spi_screenreg_set(0x03, 0x5f);
@@ -191,20 +237,20 @@ int init(void)
     spi_screenreg_set(0x21, 0xF0);
     spi_screenreg_set(0x22, 0x09);
 
-    rockchip_mux_api_set(GPIOE_I2C0_SEL_NAME, IOMUXA_I2C0);
+    screen_set_iomux(0);
     return 0;
 }
 
 int standby(u8 enable)
 {
-#if 0
-    rockchip_mux_api_set(GPIOE_I2C0_SEL_NAME, IOMUXA_GPIO1_A45);
+#if 1
+    screen_set_iomux(1);
 	if(enable) {
 		spi_screenreg_set(0x03, 0xde);
 	} else {
 		spi_screenreg_set(0x03, 0x5f);
 	}
-    rockchip_mux_api_set(GPIOE_I2C0_SEL_NAME, IOMUXA_I2C0);
+    screen_set_iomux(0);
 #else
     
     GPIOSetPinDirection(GPIOPortB_Pin3, GPIO_OUT);
