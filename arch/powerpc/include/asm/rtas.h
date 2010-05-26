@@ -145,6 +145,9 @@ struct rtas_suspend_me_data {
 #define RTAS_TYPE_PMGM_CONFIG_CHANGE	0x70
 #define RTAS_TYPE_PMGM_SERVICE_PROC	0x71
 
+/* RTAS check-exception vector offset */
+#define RTAS_VECTOR_EXTERNAL_INTERRUPT	0x500
+
 struct rtas_error_log {
 	unsigned long version:8;		/* Architectural version */
 	unsigned long severity:3;		/* Severity level of error */
