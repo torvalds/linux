@@ -50,7 +50,7 @@ MODULE_LICENSE("GPL");
 static inline u32
 crc32_body(u32 crc, unsigned char const *buf, size_t len, const u32 (*tab)[256])
 {
-# if __BYTE_ORDER == __LITTLE_ENDIAN
+# ifdef __LITTLE_ENDIAN
 #  define DO_CRC(x) crc = tab[0][(crc ^ (x)) & 255] ^ (crc >> 8)
 #  define DO_CRC4 crc = tab[3][(crc) & 255] ^ \
 		tab[2][(crc >> 8) & 255] ^ \
