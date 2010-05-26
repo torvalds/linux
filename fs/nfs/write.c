@@ -1518,14 +1518,17 @@ int nfs_wb_page(struct inode *inode, struct page *page)
 	};
 	int ret;
 
-	while(PagePrivate(page)) {
+	for (;;) {
 		wait_on_page_writeback(page);
 		if (clear_page_dirty_for_io(page)) {
 			ret = nfs_writepage_locked(page, &wbc);
 			if (ret < 0)
 				goto out_error;
+			continue;
 		}
-		ret = sync_inode(inode, &wbc);
+		if (!PagePrivate(page))
+			break;
+		ret = nfs_commit_inode(inode, FLUSH_SYNC);
 		if (ret < 0)
 			goto out_error;
 	}
