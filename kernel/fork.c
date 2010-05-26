@@ -892,7 +892,6 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 void __cleanup_signal(struct signal_struct *sig)
 {
 	thread_group_cputime_free(sig);
-	tty_kref_put(sig->tty);
 	kmem_cache_free(signal_cachep, sig);
 }
 
@@ -1263,7 +1262,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 				p->nsproxy->pid_ns->child_reaper = p;
 
 			p->signal->leader_pid = pid;
-			tty_kref_put(p->signal->tty);
 			p->signal->tty = tty_kref_get(current->signal->tty);
 			attach_pid(p, PIDTYPE_PGID, task_pgrp(current));
 			attach_pid(p, PIDTYPE_SID, task_session(current));

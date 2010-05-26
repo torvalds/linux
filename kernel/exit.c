@@ -149,6 +149,7 @@ static void __exit_signal(struct task_struct *tsk)
 		 * see account_group_exec_runtime().
 		 */
 		task_rq_unlock_wait(tsk);
+		tty_kref_put(sig->tty);
 		__cleanup_signal(sig);
 	}
 }
