@@ -175,16 +175,16 @@ static int wait_for_helper(void *data)
 	struct subprocess_info *sub_info = data;
 	pid_t pid;
 
-	/* Install a handler: if SIGCLD isn't handled sys_wait4 won't
-	 * populate the status, but will return -ECHILD. */
-	allow_signal(SIGCHLD);
+	/* If SIGCLD is ignored sys_wait4 won't populate the status. */
+	spin_lock_irq(&current->sighand->siglock);
+	current->sighand->action[SIGCHLD-1].sa.sa_handler = SIG_DFL;
+	spin_unlock_irq(&current->sighand->siglock);
 
 	pid = kernel_thread(____call_usermodehelper, sub_info, SIGCHLD);
 	if (pid < 0) {
 		sub_info->retval = pid;
 	} else {
-		int ret;
-
+		int ret = -ECHILD;
 		/*
 		 * Normally it is bogus to call wait4() from in-kernel because
 		 * wait4() wants to write the exit code to a userspace address.
