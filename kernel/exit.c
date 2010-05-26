@@ -144,7 +144,6 @@ static void __exit_signal(struct task_struct *tsk)
 	clear_tsk_thread_flag(tsk,TIF_SIGPENDING);
 	if (group_dead) {
 		flush_sigqueue(&sig->shared_pending);
-		taskstats_tgid_free(sig);
 		tty_kref_put(tty);
 	}
 }
