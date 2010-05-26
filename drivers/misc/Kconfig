@@ -348,6 +348,14 @@ config SENSORS_KXTF9
 	 Say yes here if you wish to include the Kionix
 	 KXTF9 accelerometer driver.
 
+config SENSORS_MAX9635
+	tristate "Maxim Ambient Light Sensor"
+	default n
+	depends on I2C
+	help
+	 Say yes here if you wish to include the Maxim
+	 MAX9635 ambient light sensor driver.
+
 config EP93XX_PWM
 	tristate "EP93xx PWM support"
 	depends on ARCH_EP93XX
