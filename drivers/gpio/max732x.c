@@ -232,6 +232,13 @@ static int max732x_gpio_direction_input(struct gpio_chip *gc, unsigned off)
 		return -EACCES;
 	}
 
+	/*
+	 * Open-drain pins must be set to high impedance (which is
+	 * equivalent to output-high) to be turned into an input.
+	 */
+	if ((mask & chip->dir_output))
+		max732x_gpio_set_value(gc, off, 1);
+
 	return 0;
 }
 
