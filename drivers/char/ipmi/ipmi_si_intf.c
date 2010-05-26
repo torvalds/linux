@@ -3298,6 +3298,14 @@ static __devinit int init_ipmi_si(void)
 
 	hardcode_find_bmc();
 
+	/* If the user gave us a device, they presumably want us to use it */
+	mutex_lock(&smi_infos_lock);
+	if (!list_empty(&smi_infos)) {
+		mutex_unlock(&smi_infos_lock);
+		return 0;
+	}
+	mutex_unlock(&smi_infos_lock);
+
 #ifdef CONFIG_DMI
 	dmi_find_bmc();
 #endif
@@ -3321,10 +3329,27 @@ static __devinit int init_ipmi_si(void)
 	of_register_platform_driver(&ipmi_of_platform_driver);
 #endif
 
+	/* Try to register something with interrupts first */
+
 	mutex_lock(&smi_infos_lock);
 	list_for_each_entry(e, &smi_infos, link) {
-		if (!e->si_sm)
-			try_smi_init(e);
+		if (e->irq) {
+			if (!try_smi_init(e)) {
+				mutex_unlock(&smi_infos_lock);
+				return 0;
+			}
+		}
+	}
+
+	/* Fall back to the preferred device */
+
+	list_for_each_entry(e, &smi_infos, link) {
+		if (!e->irq) {
+			if (!try_smi_init(e)) {
+				mutex_unlock(&smi_infos_lock);
+				return 0;
+			}
+		}
 	}
 	mutex_unlock(&smi_infos_lock);
 
