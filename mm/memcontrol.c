@@ -152,7 +152,7 @@ struct mem_cgroup_threshold {
 /* For threshold */
 struct mem_cgroup_threshold_ary {
 	/* An array index points to threshold just below usage. */
-	atomic_t current_threshold;
+	int current_threshold;
 	/* Size of entries[] */
 	unsigned int size;
 	/* Array of thresholds */
@@ -3412,7 +3412,7 @@ static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
 	 * If it's not true, a threshold was crossed after last
 	 * call of __mem_cgroup_threshold().
 	 */
-	i = atomic_read(&t->current_threshold);
+	i = t->current_threshold;
 
 	/*
 	 * Iterate backward over array of thresholds starting from
@@ -3436,7 +3436,7 @@ static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
 		eventfd_signal(t->entries[i].eventfd, 1);
 
 	/* Update current_threshold */
-	atomic_set(&t->current_threshold, i - 1);
+	t->current_threshold = i - 1;
 unlock:
 	rcu_read_unlock();
 }
@@ -3528,7 +3528,7 @@ static int mem_cgroup_usage_register_event(struct cgroup *cgrp,
 			compare_thresholds, NULL);
 
 	/* Find current threshold */
-	atomic_set(&thresholds_new->current_threshold, -1);
+	thresholds_new->current_threshold = -1;
 	for (i = 0; i < size; i++) {
 		if (thresholds_new->entries[i].threshold < usage) {
 			/*
@@ -3536,7 +3536,7 @@ static int mem_cgroup_usage_register_event(struct cgroup *cgrp,
 			 * until rcu_assign_pointer(), so it's safe to increment
 			 * it here.
 			 */
-			atomic_inc(&thresholds_new->current_threshold);
+			++thresholds_new->current_threshold;
 		}
 	}
 
@@ -3607,7 +3607,7 @@ static int mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
 	thresholds_new->size = size;
 
 	/* Copy thresholds and find current threshold */
-	atomic_set(&thresholds_new->current_threshold, -1);
+	thresholds_new->current_threshold = -1;
 	for (i = 0, j = 0; i < thresholds->size; i++) {
 		if (thresholds->entries[i].eventfd == eventfd)
 			continue;
@@ -3619,7 +3619,7 @@ static int mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
 			 * until rcu_assign_pointer(), so it's safe to increment
 			 * it here.
 			 */
-			atomic_inc(&thresholds_new->current_threshold);
+			++thresholds_new->current_threshold;
 		}
 		j++;
 	}
