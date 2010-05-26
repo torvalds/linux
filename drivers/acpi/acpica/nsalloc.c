@@ -219,12 +219,24 @@ void acpi_ns_install_node(struct acpi_walk_state *walk_state, struct acpi_namesp
 
 	ACPI_FUNCTION_TRACE(ns_install_node);
 
-	/*
-	 * Get the owner ID from the Walk state. The owner ID is used to track
-	 * table deletion and deletion of objects created by methods.
-	 */
 	if (walk_state) {
+		/*
+		 * Get the owner ID from the Walk state. The owner ID is used to
+		 * track table deletion and deletion of objects created by methods.
+		 */
 		owner_id = walk_state->owner_id;
+
+		if ((walk_state->method_desc) &&
+		    (parent_node != walk_state->method_node)) {
+			/*
+			 * A method is creating a new node that is not a child of the
+			 * method (it is non-local). Mark the executing method as having
+			 * modified the namespace. This is used for cleanup when the
+			 * method exits.
+			 */
+			walk_state->method_desc->method.flags |=
+			    AOPOBJ_MODIFIED_NAMESPACE;
+		}
 	}
 
 	/* Link the new entry into the parent and existing children */
