@@ -158,8 +158,9 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 	int i, altno, err, stream;
 	int format = 0, num_channels = 0;
 	struct audioformat *fp = NULL;
-	unsigned char *fmt, *csep;
+	unsigned char *csep;
 	int num, protocol;
+	struct uac_format_type_i_continuous_descriptor *fmt;
 
 	dev = chip->dev;
 
@@ -256,8 +257,8 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 				   dev->devnum, iface_no, altno);
 			continue;
 		}
-		if (((protocol == UAC_VERSION_1) && (fmt[0] < 8)) ||
-		    ((protocol == UAC_VERSION_2) && (fmt[0] != 6))) {
+		if (((protocol == UAC_VERSION_1) && (fmt->bLength < 8)) ||
+		    ((protocol == UAC_VERSION_2) && (fmt->bLength != 6))) {
 			snd_printk(KERN_ERR "%d:%u:%d : invalid UAC_FORMAT_TYPE desc\n",
 				   dev->devnum, iface_no, altno);
 			continue;
@@ -268,7 +269,9 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		 * with the previous one, except for a larger packet size, but
 		 * is actually a mislabeled two-channel setting; ignore it.
 		 */
-		if (fmt[4] == 1 && fmt[5] == 2 && altno == 2 && num == 3 &&
+		if (fmt->bNrChannels == 1 &&
+		    fmt->bSubframeSize == 2 &&
+		    altno == 2 && num == 3 &&
 		    fp && fp->altsetting == 1 && fp->channels == 1 &&
 		    fp->formats == SNDRV_PCM_FMTBIT_S16_LE &&
 		    protocol == UAC_VERSION_1 &&
