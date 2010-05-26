@@ -191,6 +191,7 @@ config SH_URQUELL
 	depends on CPU_SUBTYPE_SH7786
 	select ARCH_REQUIRE_GPIOLIB
 	select SYS_SUPPORTS_PCI
+	select NO_IOPORT if !PCI
 
 config SH_MIGOR
 	bool "Migo-R"
@@ -287,6 +288,7 @@ config SH_LBOX_RE2
 config SH_X3PROTO
 	bool "SH-X3 Prototype board"
 	depends on CPU_SUBTYPE_SHX3
+	select NO_IOPORT if !PCI
 
 config SH_MAGIC_PANEL_R2
 	bool "Magic Panel R2"
