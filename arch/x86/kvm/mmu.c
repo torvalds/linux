@@ -2020,7 +2020,10 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 		}
 
 		if (*iterator.sptep == shadow_trap_nonpresent_pte) {
-			pseudo_gfn = (iterator.addr & PT64_DIR_BASE_ADDR_MASK) >> PAGE_SHIFT;
+			u64 base_addr = iterator.addr;
+
+			base_addr &= PT64_LVL_ADDR_MASK(iterator.level);
+			pseudo_gfn = base_addr >> PAGE_SHIFT;
 			sp = kvm_mmu_get_page(vcpu, pseudo_gfn, iterator.addr,
 					      iterator.level - 1,
 					      1, ACC_ALL, iterator.sptep);
