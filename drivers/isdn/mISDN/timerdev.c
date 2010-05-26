@@ -98,8 +98,6 @@ mISDN_read(struct file *filep, char __user *buf, size_t count, loff_t *off)
 	if (*debug & DEBUG_TIMER)
 		printk(KERN_DEBUG "%s(%p, %p, %d, %p)\n", __func__,
 			filep, buf, (int)count, off);
-	if (*off != filep->f_pos)
-		return -ESPIPE;
 
 	if (list_empty(&dev->expired) && (dev->work == 0)) {
 		if (filep->f_flags & O_NONBLOCK)
