@@ -53,8 +53,8 @@ static struct cmm_page_array *cmm_timed_page_list;
 static DEFINE_SPINLOCK(cmm_lock);
 
 static struct task_struct *cmm_thread_ptr;
-static wait_queue_head_t cmm_thread_wait;
-static struct timer_list cmm_timer;
+static DECLARE_WAIT_QUEUE_HEAD(cmm_thread_wait);
+static DEFINE_TIMER(cmm_timer, NULL, 0, 0);
 
 static void cmm_timer_fn(unsigned long);
 static void cmm_set_timer(void);
@@ -466,8 +466,6 @@ cmm_init (void)
 	rc = register_pm_notifier(&cmm_power_notifier);
 	if (rc)
 		goto out_pm;
-	init_waitqueue_head(&cmm_thread_wait);
-	init_timer(&cmm_timer);
 	cmm_thread_ptr = kthread_run(cmm_thread, NULL, "cmmthread");
 	rc = IS_ERR(cmm_thread_ptr) ? PTR_ERR(cmm_thread_ptr) : 0;
 	if (rc)
@@ -487,23 +485,25 @@ out_smsg:
 	unregister_sysctl_table(cmm_sysctl_header);
 out_sysctl:
 #endif
+	del_timer_sync(&cmm_timer);
 	return rc;
 }
 
 static void
 cmm_exit(void)
 {
-	kthread_stop(cmm_thread_ptr);
-	unregister_pm_notifier(&cmm_power_notifier);
-	unregister_oom_notifier(&cmm_oom_nb);
-	cmm_free_pages(cmm_pages, &cmm_pages, &cmm_page_list);
-	cmm_free_pages(cmm_timed_pages, &cmm_timed_pages, &cmm_timed_page_list);
 #ifdef CONFIG_CMM_PROC
 	unregister_sysctl_table(cmm_sysctl_header);
 #endif
 #ifdef CONFIG_CMM_IUCV
 	smsg_unregister_callback(SMSG_PREFIX, cmm_smsg_target);
 #endif
+	unregister_pm_notifier(&cmm_power_notifier);
+	unregister_oom_notifier(&cmm_oom_nb);
+	kthread_stop(cmm_thread_ptr);
+	del_timer_sync(&cmm_timer);
+	cmm_free_pages(cmm_pages, &cmm_pages, &cmm_page_list);
+	cmm_free_pages(cmm_timed_pages, &cmm_timed_pages, &cmm_timed_page_list);
 }
 
 module_init(cmm_init);
