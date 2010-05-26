@@ -5327,8 +5327,9 @@ static int btrfs_get_blocks_direct(struct inode *inode, sector_t iblock,
 			return PTR_ERR(em);
 		len = min(len, em->block_len);
 	}
-	unlock_extent(&BTRFS_I(inode)->io_tree, start, start + len - 1,
-		      GFP_NOFS);
+	clear_extent_bit(&BTRFS_I(inode)->io_tree, start, start + len - 1,
+			  EXTENT_LOCKED | EXTENT_DELALLOC | EXTENT_DIRTY, 1,
+			  0, NULL, GFP_NOFS);
 map:
 	bh_result->b_blocknr = (em->block_start + (start - em->start)) >>
 		inode->i_blkbits;
@@ -5596,14 +5597,18 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	struct btrfs_ordered_extent *ordered;
+	struct extent_state *cached_state = NULL;
 	u64 lockstart, lockend;
 	ssize_t ret;
+	int writing = rw & WRITE;
+	int write_bits = 0;
 
 	lockstart = offset;
 	lockend = offset + iov_length(iov, nr_segs) - 1;
+
 	while (1) {
-		lock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend,
-			    GFP_NOFS);
+		lock_extent_bits(&BTRFS_I(inode)->io_tree, lockstart, lockend,
+				 0, &cached_state, GFP_NOFS);
 		/*
 		 * We're concerned with the entire range that we're going to be
 		 * doing DIO to, so we need to make sure theres no ordered
@@ -5613,29 +5618,54 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 						     lockend - lockstart + 1);
 		if (!ordered)
 			break;
-		unlock_extent(&BTRFS_I(inode)->io_tree, lockstart, lockend,
-			      GFP_NOFS);
+		unlock_extent_cached(&BTRFS_I(inode)->io_tree, lockstart, lockend,
+				     &cached_state, GFP_NOFS);
 		btrfs_start_ordered_extent(inode, ordered, 1);
 		btrfs_put_ordered_extent(ordered);
 		cond_resched();
 	}
+
+	/*
+	 * we don't use btrfs_set_extent_delalloc because we don't want
+	 * the dirty or uptodate bits
+	 */
+	if (writing) {
+		write_bits = EXTENT_DELALLOC | EXTENT_DO_ACCOUNTING;
+		ret = set_extent_bit(&BTRFS_I(inode)->io_tree, lockstart, lockend,
+				     EXTENT_DELALLOC, 0, NULL, &cached_state,
+				     GFP_NOFS);
+		if (ret) {
+			clear_extent_bit(&BTRFS_I(inode)->io_tree, lockstart,
+					 lockend, EXTENT_LOCKED | write_bits,
+					 1, 0, &cached_state, GFP_NOFS);
+			goto out;
+		}
+	}
+
+	free_extent_state(cached_state);
+	cached_state = NULL;
 
 	ret = __blockdev_direct_IO(rw, iocb, inode, NULL, iov, offset, nr_segs,
 				   btrfs_get_blocks_direct, NULL,
 				   btrfs_submit_direct, 0);
 
 	if (ret < 0 && ret != -EIOCBQUEUED) {
-		unlock_extent(&BTRFS_I(inode)->io_tree, offset,
-			      offset + iov_length(iov, nr_segs) - 1, GFP_NOFS);
+		clear_extent_bit(&BTRFS_I(inode)->io_tree, offset,
+			      offset + iov_length(iov, nr_segs) - 1,
+			      EXTENT_LOCKED | write_bits, 1, 0,
+			      &cached_state, GFP_NOFS);
 	} else if (ret >= 0 && ret < iov_length(iov, nr_segs)) {
 		/*
 		 * We're falling back to buffered, unlock the section we didn't
 		 * do IO on.
 		 */
-		unlock_extent(&BTRFS_I(inode)->io_tree, offset + ret,
-			      offset + iov_length(iov, nr_segs) - 1, GFP_NOFS);
+		clear_extent_bit(&BTRFS_I(inode)->io_tree, offset + ret,
+			      offset + iov_length(iov, nr_segs) - 1,
+			      EXTENT_LOCKED | write_bits, 1, 0,
+			      &cached_state, GFP_NOFS);
 	}
-
+out:
+	free_extent_state(cached_state);
 	return ret;
 }
 

@@ -909,13 +909,6 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 		}
 
 		if (num_written < 0) {
-			if (num_written != -EIOCBQUEUED) {
-				/*
-				 * aio land will take care of releasing the
-				 * delalloc
-				 */
-				btrfs_delalloc_release_space(inode, count);
-			}
 			ret = num_written;
 			num_written = 0;
 			goto out;
@@ -924,13 +917,6 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 			pos = *ppos;
 			goto out;
 		}
-
-		/*
-		 * the buffered IO will reserve bytes for the rest of the
-		 * range, don't double count them here
-		 */
-		btrfs_delalloc_release_space(inode, count - num_written);
-
 		/*
 		 * We are going to do buffered for the rest of the range, so we
 		 * need to make sure to invalidate the buffered pages when we're
