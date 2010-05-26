@@ -132,6 +132,23 @@ struct adp8860_backlight_platform_data {
 	u8 led_fade_out;	/* LED Fade-Out Timer */
 	u8 led_fade_law;	/* fade-on/fade-off transfer characteristic */
 	u8 led_on_time;
+
+	/**
+	 * Gain down disable. Setting this option does not allow the
+	 * charge pump to switch to lower gains. NOT AVAILABLE on ADP8860
+	 * 1 = the charge pump doesn't switch down in gain until all LEDs are 0.
+	 *  The charge pump switches up in gain as needed. This feature is
+	 *  useful if the ADP8863 charge pump is used to drive an external load.
+	 *  This feature must be used when utilizing small fly capacitors
+	 *  (0402 or smaller).
+	 * 0 = the charge pump automatically switches up and down in gain.
+	 *  This provides optimal efficiency, but is not suitable for driving
+	 *  loads that are not connected through the ADP8863 diode drivers.
+	 *  Additionally, the charge pump fly capacitors should be low ESR
+	 * and sized 0603 or greater.
+	 */
+
+	u8 gdwn_dis;
 };
 
 #endif /* __LINUX_I2C_ADP8860_H */

@@ -62,7 +62,9 @@
 #define ADP8860_PH2LEVH 0x24 /* Second phototransistor ambient light level-high byte register */
 
 #define ADP8860_MANUFID		0x0  /* Analog Devices ADP8860 Manufacturer ID */
-#define ADP8860_DEVICEID	0x7  /* Analog Devices ADP8860 Device ID */
+#define ADP8861_MANUFID		0x4  /* Analog Devices ADP8861 Manufacturer ID */
+#define ADP8863_MANUFID		0x2  /* Analog Devices ADP8863 Manufacturer ID */
+
 #define ADP8860_DEVID(x)	((x) & 0xF)
 #define ADP8860_MANID(x)	((x) >> 4)
 
@@ -70,6 +72,7 @@
 #define INT_CFG			(1 << 6)
 #define NSTBY			(1 << 5)
 #define DIM_EN			(1 << 4)
+#define GDWN_DIS		(1 << 3)
 #define SIS_EN			(1 << 2)
 #define CMP_AUTOEN		(1 << 1)
 #define BLEN			(1 << 0)
@@ -85,6 +88,12 @@
 #define FADE_VAL(in, out)	((0xF & (in)) | ((0xF & (out)) << 4))
 #define BL_CFGR_VAL(law, blv)	((((blv) & CFGR_BLV_MASK) << CFGR_BLV_SHIFT) | ((0x3 & (law)) << 1))
 #define ALS_CCFG_VAL(filt)	((0x7 & filt) << 5)
+
+enum {
+	adp8860,
+	adp8861,
+	adp8863
+};
 
 struct adp8860_led {
 	struct led_classdev	cdev;
@@ -105,6 +114,8 @@ struct adp8860_bl {
 	int id;
 	int revid;
 	int current_brightness;
+	unsigned en_ambl_sens:1;
+	unsigned gdwn_dis:1;
 };
 
 static int adp8860_read(struct i2c_client *client, int reg, uint8_t *val)
@@ -120,7 +131,6 @@ static int adp8860_read(struct i2c_client *client, int reg, uint8_t *val)
 	*val = (uint8_t)ret;
 	return 0;
 }
-
 
 static int adp8860_write(struct i2c_client *client, u8 reg, u8 val)
 {
@@ -321,7 +331,7 @@ static int adp8860_bl_set(struct backlight_device *bl, int brightness)
 	struct i2c_client *client = data->client;
 	int ret = 0;
 
-	if (data->pdata->en_ambl_sens) {
+	if (data->en_ambl_sens) {
 		if ((brightness > 0) && (brightness < ADP8860_MAX_BRIGHTNESS)) {
 			/* Disable Ambient Light auto adjust */
 			ret |= adp8860_clr_bits(client, ADP8860_MDCR,
@@ -388,7 +398,7 @@ static int adp8860_bl_setup(struct backlight_device *bl)
 	ret |= adp8860_write(client, ADP8860_BLMX1, pdata->l1_daylight_max);
 	ret |= adp8860_write(client, ADP8860_BLDM1, pdata->l1_daylight_dim);
 
-	if (pdata->en_ambl_sens) {
+	if (data->en_ambl_sens) {
 		data->cached_daylight_max = pdata->l1_daylight_max;
 		ret |= adp8860_write(client, ADP8860_BLMX2,
 						pdata->l2_office_max);
@@ -413,7 +423,8 @@ static int adp8860_bl_setup(struct backlight_device *bl)
 	ret |= adp8860_write(client, ADP8860_BLFR, FADE_VAL(pdata->bl_fade_in,
 			pdata->bl_fade_out));
 
-	ret |= adp8860_set_bits(client, ADP8860_MDCR, BLEN | DIM_EN | NSTBY);
+	ret |= adp8860_set_bits(client, ADP8860_MDCR, BLEN | DIM_EN | NSTBY |
+			(data->gdwn_dis ? GDWN_DIS : 0));
 
 	return ret;
 }
@@ -663,18 +674,28 @@ static int __devinit adp8860_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	ret = adp8860_read(client, ADP8860_MFDVID, &reg_val);
-	if (ret < 0)
-		return -EIO;
-
-	if (ADP8860_MANID(reg_val) != ADP8860_MANUFID) {
-		dev_err(&client->dev, "failed to probe\n");
-		return -ENODEV;
-	}
-
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (data == NULL)
 		return -ENOMEM;
+
+	ret = adp8860_read(client, ADP8860_MFDVID, &reg_val);
+	if (ret < 0)
+		goto out2;
+
+	switch (ADP8860_MANID(reg_val)) {
+	case ADP8863_MANUFID:
+		data->gdwn_dis = !!pdata->gdwn_dis;
+	case ADP8860_MANUFID:
+		data->en_ambl_sens = !!pdata->en_ambl_sens;
+		break;
+	case ADP8861_MANUFID:
+		data->gdwn_dis = !!pdata->gdwn_dis;
+		break;
+	default:
+		dev_err(&client->dev, "failed to probe\n");
+		ret = -ENODEV;
+		goto out2;
+	}
 
 	/* It's confirmed that the DEVID field is actually a REVID */
 
@@ -703,7 +724,7 @@ static int __devinit adp8860_probe(struct i2c_client *client,
 
 	data->bl = bl;
 
-	if (pdata->en_ambl_sens)
+	if (data->en_ambl_sens)
 		ret = sysfs_create_group(&bl->dev.kobj,
 			&adp8860_bl_attr_group);
 
@@ -720,7 +741,8 @@ static int __devinit adp8860_probe(struct i2c_client *client,
 
 	backlight_update_status(bl);
 
-	dev_info(&client->dev, "Rev.%d Backlight\n", data->revid);
+	dev_info(&client->dev, "%s Rev.%d Backlight\n",
+		client->name, data->revid);
 
 	if (pdata->num_leds)
 		adp8860_led_probe(client);
@@ -728,7 +750,7 @@ static int __devinit adp8860_probe(struct i2c_client *client,
 	return 0;
 
 out:
-	if (data->pdata->en_ambl_sens)
+	if (data->en_ambl_sens)
 		sysfs_remove_group(&data->bl->dev.kobj,
 			&adp8860_bl_attr_group);
 out1:
@@ -749,7 +771,7 @@ static int __devexit adp8860_remove(struct i2c_client *client)
 	if (data->led)
 		adp8860_led_remove(client);
 
-	if (data->pdata->en_ambl_sens)
+	if (data->en_ambl_sens)
 		sysfs_remove_group(&data->bl->dev.kobj,
 			&adp8860_bl_attr_group);
 
@@ -780,7 +802,9 @@ static int adp8860_i2c_resume(struct i2c_client *client)
 #endif
 
 static const struct i2c_device_id adp8860_id[] = {
-	{ "adp8860", 0 },
+	{ "adp8860", adp8860 },
+	{ "adp8861", adp8861 },
+	{ "adp8863", adp8863 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, adp8860_id);
