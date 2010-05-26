@@ -952,10 +952,21 @@ static void atmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		if (mci_has_rwproof())
 			host->mode_reg |= (MCI_MR_WRPROOF | MCI_MR_RDPROOF);
 
-		if (list_empty(&host->queue))
+		if (atmci_is_mci2()) {
+			/* setup High Speed mode in relation with card capacity */
+			if (ios->timing == MMC_TIMING_SD_HS)
+				host->cfg_reg |= MCI_CFG_HSMODE;
+			else
+				host->cfg_reg &= ~MCI_CFG_HSMODE;
+		}
+
+		if (list_empty(&host->queue)) {
 			mci_writel(host, MR, host->mode_reg);
-		else
+			if (atmci_is_mci2())
+				mci_writel(host, CFG, host->cfg_reg);
+		} else {
 			host->need_clock_update = true;
+		}
 
 		spin_unlock_bh(&host->lock);
 	} else {
@@ -1052,8 +1063,11 @@ static void atmci_request_end(struct atmel_mci *host, struct mmc_request *mrq)
 	 * necessary if set_ios() is called when a different slot is
 	 * busy transfering data.
 	 */
-	if (host->need_clock_update)
+	if (host->need_clock_update) {
 		mci_writel(host, MR, host->mode_reg);
+		if (atmci_is_mci2())
+			mci_writel(host, CFG, host->cfg_reg);
+	}
 
 	host->cur_slot->mrq = NULL;
 	host->mrq = NULL;
@@ -1565,6 +1579,8 @@ static int __init atmci_init_slot(struct atmel_mci *host,
 	mmc->f_min = DIV_ROUND_UP(host->bus_hz, 512);
 	mmc->f_max = host->bus_hz / 2;
 	mmc->ocr_avail	= MMC_VDD_32_33 | MMC_VDD_33_34;
+	if (atmci_is_mci2())
+		mmc->caps |= MMC_CAP_SD_HIGHSPEED;
 	if (slot_data->bus_width >= 4)
 		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
