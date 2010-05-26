@@ -1208,7 +1208,7 @@ static struct sem_undo *find_alloc_undo(struct ipc_namespace *ns, int semid)
 	/* step 1: figure out the size of the semaphore array */
 	sma = sem_lock_check(ns, semid);
 	if (IS_ERR(sma))
-		return ERR_PTR(PTR_ERR(sma));
+		return ERR_CAST(sma);
 
 	nsems = sma->sem_nsems;
 	sem_getref_and_unlock(sma);
