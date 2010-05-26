@@ -2007,6 +2007,39 @@ void release_sock(struct sock *sk)
 }
 EXPORT_SYMBOL(release_sock);
 
+/**
+ * lock_sock_fast - fast version of lock_sock
+ * @sk: socket
+ *
+ * This version should be used for very small section, where process wont block
+ * return false if fast path is taken
+ *   sk_lock.slock locked, owned = 0, BH disabled
+ * return true if slow path is taken
+ *   sk_lock.slock unlocked, owned = 1, BH enabled
+ */
+bool lock_sock_fast(struct sock *sk)
+{
+	might_sleep();
+	spin_lock_bh(&sk->sk_lock.slock);
+
+	if (!sk->sk_lock.owned)
+		/*
+		 * Note : We must disable BH
+		 */
+		return false;
+
+	__lock_sock(sk);
+	sk->sk_lock.owned = 1;
+	spin_unlock(&sk->sk_lock.slock);
+	/*
+	 * The sk_lock has mutex_lock() semantics here:
+	 */
+	mutex_acquire(&sk->sk_lock.dep_map, 0, 0, _RET_IP_);
+	local_bh_enable();
+	return true;
+}
+EXPORT_SYMBOL(lock_sock_fast);
+
 int sock_get_timestamp(struct sock *sk, struct timeval __user *userstamp)
 {
 	struct timeval tv;

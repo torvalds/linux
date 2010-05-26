@@ -1026,15 +1026,23 @@ extern void release_sock(struct sock *sk);
 				SINGLE_DEPTH_NESTING)
 #define bh_unlock_sock(__sk)	spin_unlock(&((__sk)->sk_lock.slock))
 
-static inline void lock_sock_bh(struct sock *sk)
+extern bool lock_sock_fast(struct sock *sk);
+/**
+ * unlock_sock_fast - complement of lock_sock_fast
+ * @sk: socket
+ * @slow: slow mode
+ *
+ * fast unlock socket for user context.
+ * If slow mode is on, we call regular release_sock()
+ */
+static inline void unlock_sock_fast(struct sock *sk, bool slow)
 {
-	spin_lock_bh(&sk->sk_lock.slock);
+	if (slow)
+		release_sock(sk);
+	else
+		spin_unlock_bh(&sk->sk_lock.slock);
 }
 
-static inline void unlock_sock_bh(struct sock *sk)
-{
-	spin_unlock_bh(&sk->sk_lock.slock);
-}
 
 extern struct sock		*sk_alloc(struct net *net, int family,
 					  gfp_t priority,
