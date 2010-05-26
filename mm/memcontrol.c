@@ -3563,7 +3563,7 @@ static int mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
 	int type = MEMFILE_TYPE(cft->private);
 	u64 usage;
 	int size = 0;
-	int i, j, ret;
+	int i, j, ret = 0;
 
 	mutex_lock(&memcg->thresholds_lock);
 	if (type == _MEM)
