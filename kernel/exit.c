@@ -145,11 +145,6 @@ static void __exit_signal(struct task_struct *tsk)
 	if (sig) {
 		flush_sigqueue(&sig->shared_pending);
 		taskstats_tgid_free(sig);
-		/*
-		 * Make sure ->signal can't go away under rq->lock,
-		 * see account_group_exec_runtime().
-		 */
-		task_rq_unlock_wait(tsk);
 		tty_kref_put(tty);
 	}
 }

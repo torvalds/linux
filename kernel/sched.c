@@ -969,14 +969,6 @@ static struct rq *task_rq_lock(struct task_struct *p, unsigned long *flags)
 	}
 }
 
-void task_rq_unlock_wait(struct task_struct *p)
-{
-	struct rq *rq = task_rq(p);
-
-	smp_mb(); /* spin-unlock-wait is not a full memory barrier */
-	raw_spin_unlock_wait(&rq->lock);
-}
-
 static void __task_rq_unlock(struct rq *rq)
 	__releases(rq->lock)
 {
