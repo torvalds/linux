@@ -888,14 +888,9 @@ static ssize_t btrfs_file_aio_write(struct kiocb *iocb,
 	BTRFS_I(inode)->sequence++;
 
 	if (unlikely(file->f_flags & O_DIRECT)) {
-		ret = btrfs_delalloc_reserve_space(inode, count);
-		if (ret)
-			goto out;
-
 		num_written = generic_file_direct_write(iocb, iov, &nr_segs,
 							pos, ppos, count,
 							ocount);
-
 		/*
 		 * the generic O_DIRECT will update in-memory i_size after the
 		 * DIOs are done.  But our endio handlers that update the on

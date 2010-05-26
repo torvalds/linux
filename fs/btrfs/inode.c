@@ -5602,9 +5602,16 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	ssize_t ret;
 	int writing = rw & WRITE;
 	int write_bits = 0;
+	size_t count = iov_length(iov, nr_segs);
 
 	lockstart = offset;
-	lockend = offset + iov_length(iov, nr_segs) - 1;
+	lockend = offset + count - 1;
+
+	if (writing) {
+		ret = btrfs_delalloc_reserve_space(inode, count);
+		if (ret)
+			goto out;
+	}
 
 	while (1) {
 		lock_extent_bits(&BTRFS_I(inode)->io_tree, lockstart, lockend,
