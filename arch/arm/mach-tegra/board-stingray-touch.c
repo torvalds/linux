@@ -1,6 +1,7 @@
 /*
- * arch/arm/mach-tegra/board-stingray-i2c.c
+ * arch/arm/mach-tegra/board-stingray-touch.c
  *
+ * Copyright (C) 2010 Motorola, Inc.
  * Copyright (C) 2010 Google, Inc.
  *
  * This software is licensed under the terms of the GNU General Public
@@ -44,8 +45,7 @@ static int stingray_touch_reset(void)
 	return 0;
 }
 
-
-/*struct qtouch_ts_platform_data stingray_touch_data = {
+struct qtouch_ts_platform_data stingray_touch_data = {
 
 	.flags		= (QTOUCH_FLIP_X |
 			   QTOUCH_FLIP_Y |
@@ -292,15 +292,16 @@ static int stingray_touch_reset(void)
 	},
 };
 
-static struct i2c_board_info __initdata stingray_i2c_bus1_board_info[] = {
+static struct i2c_board_info __initdata stingray_i2c_bus1_touch_info[] = {
 	{
-	 I2C_BOARD_INFO(QTOUCH_TS_NAME, 0x5B),
-	 .platform_data = &stingray_touch_data,
-	 .irq = TEGRA_GPIO_TO_IRQ(STINGRAY_TOUCH_INT_N_GPIO),
-	 },
-};*/
+		I2C_BOARD_INFO(QTOUCH_TS_NAME, 0x5B),
+		.platform_data = &stingray_touch_data,
+		.irq = TEGRA_GPIO_TO_IRQ(STINGRAY_TOUCH_INT_N_GPIO),
+	},
+};
 
-int __init stingray_i2c_init(void)
+
+int __init stingray_touch_init(void)
 {
 	tegra_gpio_enable(STINGRAY_TOUCH_INT_N_GPIO);
 	gpio_request(STINGRAY_TOUCH_INT_N_GPIO, "touch_irq");
@@ -308,15 +309,13 @@ int __init stingray_i2c_init(void)
 
 	tegra_gpio_enable(STINGRAY_TOUCH_WAKE_N_GPIO);
 	gpio_request(STINGRAY_TOUCH_WAKE_N_GPIO, "touch_wake");
-	gpio_direction_input(STINGRAY_TOUCH_WAKE_N_GPIO);
+	gpio_direction_output(STINGRAY_TOUCH_WAKE_N_GPIO, 0);
 
 	tegra_gpio_enable(STINGRAY_TOUCH_RESET_N_GPIO);
 	gpio_request(STINGRAY_TOUCH_RESET_N_GPIO, "touch_reset");
 	gpio_direction_output(STINGRAY_TOUCH_RESET_N_GPIO, 1);
 
-//	i2c_register_board_info(0, stingray_i2c_bus1_board_info, 1);
-
-//	i2c_register_board_info(3, stingray_i2c_bus4_board_info, 1);
+	i2c_register_board_info(0, stingray_i2c_bus1_touch_info, 1);
 
 	return 0;
 }

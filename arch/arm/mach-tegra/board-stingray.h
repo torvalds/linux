@@ -23,5 +23,6 @@ int stingray_keypad_init(void);
 int stingray_i2c_init(void);
 int stingray_wlan_init(void);
 int stingray_sensors_init(void);
+int stingray_touch_init(void);
 
 #endif

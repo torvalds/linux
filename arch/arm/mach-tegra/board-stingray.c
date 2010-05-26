@@ -301,7 +301,7 @@ static void __init tegra_stingray_init(void)
 	platform_add_devices(stingray_devices, ARRAY_SIZE(stingray_devices));
 
 	stingray_keypad_init();
-	stingray_i2c_init();
+	stingray_touch_init();
 	stingray_panel_init();
 	stingray_sdhci_init();
 	stingray_sensors_init();
