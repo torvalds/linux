@@ -621,12 +621,12 @@ static ssize_t kone_sysfs_set_startup_profile(struct device *dev,
  * This file is used by userland software to find devices that are handled by
  * this driver. This provides a consistent way for actual and older kernels
  * where this driver replaced usbhid instead of generic-usb.
- * Driver capabilities are determined by version number.
+ * Driver capabilities are determined by returned number.
  */
-static ssize_t kone_sysfs_show_driver_version(struct device *dev,
+static ssize_t kone_sysfs_show_abi_version(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	return snprintf(buf, PAGE_SIZE, ROCCAT_KONE_DRIVER_VERSION "\n");
+	return snprintf(buf, PAGE_SIZE, ROCCAT_KONE_ABI_VERSION "\n");
 }
 
 /*
@@ -666,8 +666,8 @@ static DEVICE_ATTR(startup_profile, 0660,
 		kone_sysfs_show_startup_profile,
 		kone_sysfs_set_startup_profile);
 
-static DEVICE_ATTR(kone_driver_version, 0440,
-		kone_sysfs_show_driver_version, NULL);
+static DEVICE_ATTR(kone_abi_version, 0440,
+		kone_sysfs_show_abi_version, NULL);
 
 static struct attribute *kone_attributes[] = {
 		&dev_attr_actual_dpi.attr,
@@ -676,7 +676,7 @@ static struct attribute *kone_attributes[] = {
 		&dev_attr_firmware_version.attr,
 		&dev_attr_tcu.attr,
 		&dev_attr_startup_profile.attr,
-		&dev_attr_kone_driver_version.attr,
+		&dev_attr_kone_abi_version.attr,
 		NULL
 };
 
