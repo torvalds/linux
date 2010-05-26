@@ -139,6 +139,13 @@ config GPIO_MAX732X
 	  Board setup code must specify the model to use, and the start
 	  number for these GPIOs.
 
+config GPIO_MAX732X_IRQ
+	bool "Interrupt controller support for MAX732x"
+	depends on GPIO_MAX732X=y && GENERIC_HARDIRQS
+	help
+	  Say yes here to enable the max732x to be used as an interrupt
+	  controller. It requires the driver to be built in the kernel.
+
 config GPIO_PCA953X
 	tristate "PCA953x, PCA955x, TCA64xx, and MAX7310 I/O ports"
 	depends on I2C
