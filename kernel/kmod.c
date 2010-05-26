@@ -235,10 +235,10 @@ static void __call_usermodehelper(struct work_struct *work)
 	case UMH_WAIT_PROC:
 		if (pid > 0)
 			break;
-		sub_info->retval = pid;
 		/* FALLTHROUGH */
-
 	case UMH_WAIT_EXEC:
+		if (pid < 0)
+			sub_info->retval = pid;
 		complete(sub_info->complete);
 	}
 }
