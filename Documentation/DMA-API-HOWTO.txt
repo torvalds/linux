@@ -745,6 +745,10 @@ and return NETDEV_TX_OK if the DMA mapping fails on the transmit hook
 (ndo_start_xmit). This means that the socket buffer is just dropped in
 the failure case.
 
+SCSI drivers must return SCSI_MLQUEUE_HOST_BUSY if the DMA mapping
+fails in the queuecommand hook. This means that the SCSI subsystem
+passes the command to the driver again later.
+
 			   Closing
 
 This document, and the API itself, would not be in its current
