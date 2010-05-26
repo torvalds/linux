@@ -1321,7 +1321,7 @@ static int __cpuinit cpuup_callback(struct notifier_block *nfb,
 		mutex_unlock(&cache_chain_mutex);
 		break;
 	}
-	return err ? NOTIFY_BAD : NOTIFY_OK;
+	return notifier_from_errno(err);
 }
 
 static struct notifier_block __cpuinitdata cpucache_notifier = {
