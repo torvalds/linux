@@ -1741,6 +1741,7 @@ remove_lru_entry:
 			clear_bit(NFS_INO_ACL_LRU_SET, &nfsi->flags);
 			smp_mb__after_clear_bit();
 		}
+		spin_unlock(&inode->i_lock);
 	}
 	spin_unlock(&nfs_access_lru_lock);
 	nfs_access_free_list(&head);
