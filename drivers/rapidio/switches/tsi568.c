@@ -135,6 +135,8 @@ static int tsi568_switch_init(struct rio_dev *rdev, int do_enum)
 	rdev->rswitch->add_entry = tsi568_route_add_entry;
 	rdev->rswitch->get_entry = tsi568_route_get_entry;
 	rdev->rswitch->clr_table = tsi568_route_clr_table;
+	rdev->rswitch->set_domain = NULL;
+	rdev->rswitch->get_domain = NULL;
 	rdev->rswitch->em_init = tsi568_em_init;
 	rdev->rswitch->em_handle = NULL;
 

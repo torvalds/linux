@@ -238,6 +238,10 @@ struct rio_switch {
 			  u16 table, u16 route_destid, u8 * route_port);
 	int (*clr_table) (struct rio_mport *mport, u16 destid, u8 hopcount,
 			  u16 table);
+	int (*set_domain) (struct rio_mport *mport, u16 destid, u8 hopcount,
+			   u8 sw_domain);
+	int (*get_domain) (struct rio_mport *mport, u16 destid, u8 hopcount,
+			   u8 *sw_domain);
 	int (*em_init) (struct rio_dev *dev);
 	int (*em_handle) (struct rio_dev *dev, u8 swport);
 };

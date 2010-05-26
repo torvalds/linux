@@ -30,12 +30,16 @@
 #define SPP_ROUTE_CFG_PORT(n)	(0x11074 + 0x100*n)
 
 #define TSI578_SP_MODE(n)	(0x11004 + n*0x100)
+#define TSI578_SP_MODE_GLBL	0x10004
 #define  TSI578_SP_MODE_PW_DIS	0x08000000
+#define  TSI578_SP_MODE_LUT_512	0x01000000
 
 #define TSI578_SP_CTL_INDEP(n)	(0x13004 + n*0x100)
 #define TSI578_SP_LUT_PEINF(n)	(0x13010 + n*0x100)
 #define TSI578_SP_CS_TX(n)	(0x13014 + n*0x100)
 #define TSI578_SP_INT_STATUS(n) (0x13018 + n*0x100)
+
+#define TSI578_GLBL_ROUTE_BASE	0x10078
 
 static int
 tsi57x_route_add_entry(struct rio_mport *mport, u16 destid, u8 hopcount,
@@ -108,6 +112,45 @@ tsi57x_route_clr_table(struct rio_mport *mport, u16 destid, u8 hopcount,
 			rio_mport_write_config_32(mport, destid, hopcount,
 				SPP_ROUTE_CFG_PORT(table) , RIO_INVALID_ROUTE);
 	}
+
+	return 0;
+}
+
+static int
+tsi57x_set_domain(struct rio_mport *mport, u16 destid, u8 hopcount,
+		       u8 sw_domain)
+{
+	u32 regval;
+
+	/*
+	 * Switch domain configuration operates only at global level
+	 */
+
+	/* Turn off flat (LUT_512) mode */
+	rio_mport_read_config_32(mport, destid, hopcount,
+				 TSI578_SP_MODE_GLBL, &regval);
+	rio_mport_write_config_32(mport, destid, hopcount, TSI578_SP_MODE_GLBL,
+				  regval & ~TSI578_SP_MODE_LUT_512);
+	/* Set switch domain base */
+	rio_mport_write_config_32(mport, destid, hopcount,
+				  TSI578_GLBL_ROUTE_BASE,
+				  (u32)(sw_domain << 24));
+	return 0;
+}
+
+static int
+tsi57x_get_domain(struct rio_mport *mport, u16 destid, u8 hopcount,
+		       u8 *sw_domain)
+{
+	u32 regval;
+
+	/*
+	 * Switch domain configuration operates only at global level
+	 */
+	rio_mport_read_config_32(mport, destid, hopcount,
+				TSI578_GLBL_ROUTE_BASE, &regval);
+
+	*sw_domain = (u8)(regval >> 24);
 
 	return 0;
 }
@@ -258,6 +301,8 @@ static int tsi57x_switch_init(struct rio_dev *rdev, int do_enum)
 	rdev->rswitch->add_entry = tsi57x_route_add_entry;
 	rdev->rswitch->get_entry = tsi57x_route_get_entry;
 	rdev->rswitch->clr_table = tsi57x_route_clr_table;
+	rdev->rswitch->set_domain = tsi57x_set_domain;
+	rdev->rswitch->get_domain = tsi57x_get_domain;
 	rdev->rswitch->em_init = tsi57x_em_init;
 	rdev->rswitch->em_handle = tsi57x_em_handler;
 

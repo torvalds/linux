@@ -17,6 +17,8 @@
 
 #define CPS_NO_ROUTE 0xdf
 
+#define IDTCPS_RIO_DOMAIN 0xf20020
+
 static int
 idtcps_route_add_entry(struct rio_mport *mport, u16 destid, u8 hopcount,
 		       u16 table, u16 route_destid, u8 route_port)
@@ -82,12 +84,43 @@ idtcps_route_clr_table(struct rio_mport *mport, u16 destid, u8 hopcount,
 	return 0;
 }
 
+static int
+idtcps_set_domain(struct rio_mport *mport, u16 destid, u8 hopcount,
+		       u8 sw_domain)
+{
+	/*
+	 * Switch domain configuration operates only at global level
+	 */
+	rio_mport_write_config_32(mport, destid, hopcount,
+				  IDTCPS_RIO_DOMAIN, (u32)sw_domain);
+	return 0;
+}
+
+static int
+idtcps_get_domain(struct rio_mport *mport, u16 destid, u8 hopcount,
+		       u8 *sw_domain)
+{
+	u32 regval;
+
+	/*
+	 * Switch domain configuration operates only at global level
+	 */
+	rio_mport_read_config_32(mport, destid, hopcount,
+				IDTCPS_RIO_DOMAIN, &regval);
+
+	*sw_domain = (u8)(regval & 0xff);
+
+	return 0;
+}
+
 static int idtcps_switch_init(struct rio_dev *rdev, int do_enum)
 {
 	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
 	rdev->rswitch->add_entry = idtcps_route_add_entry;
 	rdev->rswitch->get_entry = idtcps_route_get_entry;
 	rdev->rswitch->clr_table = idtcps_route_clr_table;
+	rdev->rswitch->set_domain = idtcps_set_domain;
+	rdev->rswitch->get_domain = idtcps_get_domain;
 	rdev->rswitch->em_init = NULL;
 	rdev->rswitch->em_handle = NULL;
 
