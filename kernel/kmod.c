@@ -367,24 +367,6 @@ struct subprocess_info *call_usermodehelper_setup(char *path, char **argv,
 EXPORT_SYMBOL(call_usermodehelper_setup);
 
 /**
- * call_usermodehelper_setkeys - set the session keys for usermode helper
- * @info: a subprocess_info returned by call_usermodehelper_setup
- * @session_keyring: the session keyring for the process
- */
-void call_usermodehelper_setkeys(struct subprocess_info *info,
-				 struct key *session_keyring)
-{
-#ifdef CONFIG_KEYS
-	struct thread_group_cred *tgcred = info->cred->tgcred;
-	key_put(tgcred->session_keyring);
-	tgcred->session_keyring = key_get(session_keyring);
-#else
-	BUG();
-#endif
-}
-EXPORT_SYMBOL(call_usermodehelper_setkeys);
-
-/**
  * call_usermodehelper_setfns - set a cleanup/init function
  * @info: a subprocess_info returned by call_usermodehelper_setup
  * @cleanup: a cleanup function
