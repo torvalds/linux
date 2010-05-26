@@ -343,7 +343,7 @@ find_next:
 			continue;
 		}
 
-		if (use_browser) {
+		if (use_browser > 0) {
 			key = hist_entry__tui_annotate(he);
 			if (is_exit_key(key))
 				break;

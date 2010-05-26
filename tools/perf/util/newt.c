@@ -1139,6 +1139,7 @@ void setup_browser(void)
 	struct newtPercentTreeColors *c = &defaultPercentTreeColors;
 
 	if (!isatty(1) || !use_browser || dump_trace) {
+		use_browser = 0;
 		setup_pager();
 		return;
 	}
