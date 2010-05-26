@@ -1561,7 +1561,7 @@ static int mmc_omap_suspend(struct platform_device *pdev, pm_message_t mesg)
 		struct mmc_omap_slot *slot;
 
 		slot = host->slots[i];
-		ret = mmc_suspend_host(slot->mmc, mesg);
+		ret = mmc_suspend_host(slot->mmc);
 		if (ret < 0) {
 			while (--i >= 0) {
 				slot = host->slots[i];

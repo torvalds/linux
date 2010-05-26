@@ -89,7 +89,7 @@ static int sdhci_of_suspend(struct of_device *ofdev, pm_message_t state)
 {
 	struct sdhci_host *host = dev_get_drvdata(&ofdev->dev);
 
-	return mmc_suspend_host(host->mmc, state);
+	return mmc_suspend_host(host->mmc);
 }
 
 static int sdhci_of_resume(struct of_device *ofdev)

@@ -1337,11 +1337,10 @@ static int davinci_mmcsd_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct mmc_davinci_host *host = platform_get_drvdata(pdev);
-	struct pm_message msg = { PM_EVENT_SUSPEND };
 	int ret;
 
 	mmc_host_enable(host->mmc);
-	ret = mmc_suspend_host(host->mmc, msg);
+	ret = mmc_suspend_host(host->mmc);
 	if (!ret) {
 		writel(0, host->base + DAVINCI_MMCIM);
 		mmc_davinci_reset_ctrl(host, 1);
