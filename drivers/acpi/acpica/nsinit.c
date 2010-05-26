@@ -103,8 +103,8 @@ acpi_status acpi_ns_initialize_objects(void)
 	}
 
 	ACPI_DEBUG_PRINT_RAW((ACPI_DB_INIT,
-			      "\nInitialized %hd/%hd Regions %hd/%hd Fields %hd/%hd "
-			      "Buffers %hd/%hd Packages (%hd nodes)\n",
+			      "\nInitialized %u/%u Regions %u/%u Fields %u/%u "
+			      "Buffers %u/%u Packages (%u nodes)\n",
 			      info.op_region_init, info.op_region_count,
 			      info.field_init, info.field_count,
 			      info.buffer_init, info.buffer_count,
@@ -112,9 +112,9 @@ acpi_status acpi_ns_initialize_objects(void)
 			      info.object_count));
 
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-			  "%hd Control Methods found\n", info.method_count));
+			  "%u Control Methods found\n", info.method_count));
 	ACPI_DEBUG_PRINT((ACPI_DB_DISPATCH,
-			  "%hd Op Regions found\n", info.op_region_count));
+			  "%u Op Regions found\n", info.op_region_count));
 
 	return_ACPI_STATUS(AE_OK);
 }
