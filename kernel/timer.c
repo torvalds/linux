@@ -747,7 +747,7 @@ EXPORT_SYMBOL(mod_timer_pending);
 static inline
 unsigned long apply_slack(struct timer_list *timer, unsigned long expires)
 {
-	unsigned long expires_limit, mask, now;
+	unsigned long expires_limit, mask;
 	int bit;
 
 	expires_limit = expires;
@@ -755,7 +755,8 @@ unsigned long apply_slack(struct timer_list *timer, unsigned long expires)
 	if (timer->slack >= 0) {
 		expires_limit = expires + timer->slack;
 	} else {
-		now = jiffies;
+		unsigned long now = jiffies;
+
 		/* No slack, if already expired else auto slack 0.4% */
 		if (time_after(expires, now))
 			expires_limit = expires + (expires - now)/256;
