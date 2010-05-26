@@ -228,10 +228,6 @@ static struct hlist_head *dquot_hash;
 
 struct dqstats dqstats;
 EXPORT_SYMBOL(dqstats);
-#ifdef CONFIG_SMP
-struct dqstats *dqstats_pcpu;
-EXPORT_SYMBOL(dqstats_pcpu);
-#endif
 
 static qsize_t inode_get_rsv_space(struct inode *inode);
 static void __dquot_initialize(struct inode *inode, int type);
@@ -676,27 +672,10 @@ static void prune_dqcache(int count)
 	}
 }
 
-static int dqstats_read(unsigned int type)
-{
-	int count = 0;
-#ifdef CONFIG_SMP
-	int cpu;
-	for_each_possible_cpu(cpu)
-		count += per_cpu_ptr(dqstats_pcpu, cpu)->stat[type];
-	/* Statistics reading is racy, but absolute accuracy isn't required */
-	if (count < 0)
-		count = 0;
-#else
-	count = dqstats.stat[type];
-#endif
-	return count;
-}
-
 /*
  * This is called from kswapd when we think we need some
  * more memory
  */
-
 static int shrink_dqcache_memory(int nr, gfp_t gfp_mask)
 {
 	if (nr) {
@@ -704,7 +683,9 @@ static int shrink_dqcache_memory(int nr, gfp_t gfp_mask)
 		prune_dqcache(nr);
 		spin_unlock(&dq_list_lock);
 	}
-	return (dqstats_read(DQST_FREE_DQUOTS)/100) * sysctl_vfs_cache_pressure;
+	return ((unsigned)
+		percpu_counter_read_positive(&dqstats.counter[DQST_FREE_DQUOTS])
+		/100) * sysctl_vfs_cache_pressure;
 }
 
 static struct shrinker dqcache_shrinker = {
@@ -2497,11 +2478,11 @@ EXPORT_SYMBOL(dquot_quotactl_ops);
 static int do_proc_dqstats(struct ctl_table *table, int write,
 		     void __user *buffer, size_t *lenp, loff_t *ppos)
 {
-#ifdef CONFIG_SMP
-	/* Update global table */
 	unsigned int type = (int *)table->data - dqstats.stat;
-	dqstats.stat[type] = dqstats_read(type);
-#endif
+
+	/* Update global table */
+	dqstats.stat[type] =
+			percpu_counter_sum_positive(&dqstats.counter[type]);
 	return proc_dointvec(table, write, buffer, lenp, ppos);
 }
 
@@ -2594,7 +2575,7 @@ static ctl_table sys_table[] = {
 
 static int __init dquot_init(void)
 {
-	int i;
+	int i, ret;
 	unsigned long nr_hash, order;
 
 	printk(KERN_NOTICE "VFS: Disk quotas %s\n", __DQUOT_VERSION__);
@@ -2612,12 +2593,11 @@ static int __init dquot_init(void)
 	if (!dquot_hash)
 		panic("Cannot create dquot hash table");
 
-#ifdef CONFIG_SMP
-	dqstats_pcpu = alloc_percpu(struct dqstats);
-	if (!dqstats_pcpu)
-		panic("Cannot create dquot stats table");
-#endif
-	memset(&dqstats, 0, sizeof(struct dqstats));
+	for (i = 0; i < _DQST_DQSTAT_LAST; i++) {
+		ret = percpu_counter_init(&dqstats.counter[i], 0);
+		if (ret)
+			panic("Cannot create dquot stat counters");
+	}
 
 	/* Find power-of-two hlist_heads which can fit into allocation */
 	nr_hash = (1UL << order) * PAGE_SIZE / sizeof(struct hlist_head);
