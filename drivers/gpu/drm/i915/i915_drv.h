@@ -238,14 +238,11 @@ typedef struct drm_i915_private {
 	struct intel_ring_buffer bsd_ring;
 
 	drm_dma_handle_t *status_page_dmah;
-	void *hw_status_page;
 	void *seqno_page;
 	dma_addr_t dma_status_page;
 	uint32_t counter;
-	unsigned int status_gfx_addr;
 	unsigned int seqno_gfx_addr;
 	drm_local_map_t hws_map;
-	struct drm_gem_object *hws_obj;
 	struct drm_gem_object *seqno_obj;
 	struct drm_gem_object *pwrctx;
 

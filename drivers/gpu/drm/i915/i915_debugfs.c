@@ -144,7 +144,7 @@ static int i915_gem_seqno_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	if (dev_priv->hw_status_page != NULL) {
+	if (dev_priv->render_ring.status_page.page_addr != NULL) {
 		seq_printf(m, "Current sequence: %d\n",
 			   i915_get_gem_seqno(dev,  &dev_priv->render_ring));
 	} else {
@@ -196,7 +196,7 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	}
 	seq_printf(m, "Interrupts received: %d\n",
 		   atomic_read(&dev_priv->irq_received));
-	if (dev_priv->hw_status_page != NULL) {
+	if (dev_priv->render_ring.status_page.page_addr != NULL) {
 		seq_printf(m, "Current sequence:    %d\n",
 			   i915_get_gem_seqno(dev,  &dev_priv->render_ring));
 	} else {
@@ -252,7 +252,7 @@ static int i915_hws_info(struct seq_file *m, void *data)
 	int i;
 	volatile u32 *hws;
 
-	hws = (volatile u32 *)dev_priv->hw_status_page;
+	hws = (volatile u32 *)dev_priv->render_ring.status_page.page_addr;
 	if (hws == NULL)
 		return 0;
 

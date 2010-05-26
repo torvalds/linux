@@ -84,7 +84,6 @@ static void i915_free_hws(struct drm_device *dev)
 
 	if (dev_priv->render_ring.status_page.gfx_addr) {
 		dev_priv->render_ring.status_page.gfx_addr = 0;
-		dev_priv->status_gfx_addr = 0;
 		drm_core_ioremapfree(&dev_priv->hws_map, dev);
 	}
 
@@ -828,7 +827,7 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	drm_core_ioremap_wc(&dev_priv->hws_map, dev);
 	if (dev_priv->hws_map.handle == NULL) {
 		i915_dma_cleanup(dev);
-		dev_priv->status_gfx_addr = 0;
+		ring->status_page.gfx_addr = 0;
 		DRM_ERROR("can not ioremap virtual address for"
 				" G33 hw status page\n");
 		return -ENOMEM;
@@ -838,9 +837,9 @@ static int i915_set_status_page(struct drm_device *dev, void *data,
 	I915_WRITE(HWS_PGA, ring->status_page.gfx_addr);
 
 	DRM_DEBUG_DRIVER("load hws HWS_PGA with gfx mem 0x%x\n",
-			dev_priv->status_gfx_addr);
+			 ring->status_page.gfx_addr);
 	DRM_DEBUG_DRIVER("load hws at %p\n",
-			dev_priv->hw_status_page);
+			 ring->status_page.page_addr);
 	return 0;
 }
 
