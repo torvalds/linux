@@ -337,8 +337,7 @@ static struct ceph_cap *__get_cap_for_mds(struct ceph_inode_info *ci, int mds)
 }
 
 /*
- * Return id of any MDS with a cap, preferably FILE_WR|WRBUFFER|EXCL, else
- * -1.
+ * Return id of any MDS with a cap, preferably FILE_WR|BUFFER|EXCL, else -1.
  */
 static int __ceph_get_cap_mds(struct ceph_inode_info *ci, u32 *mseq)
 {
@@ -346,7 +345,7 @@ static int __ceph_get_cap_mds(struct ceph_inode_info *ci, u32 *mseq)
 	int mds = -1;
 	struct rb_node *p;
 
-	/* prefer mds with WR|WRBUFFER|EXCL caps */
+	/* prefer mds with WR|BUFFER|EXCL caps */
 	for (p = rb_first(&ci->i_caps); p; p = rb_next(p)) {
 		cap = rb_entry(p, struct ceph_cap, ci_node);
 		mds = cap->mds;
@@ -831,7 +830,7 @@ int __ceph_caps_file_wanted(struct ceph_inode_info *ci)
 {
 	int want = 0;
 	int mode;
-	for (mode = 0; mode < 4; mode++)
+	for (mode = 0; mode < CEPH_FILE_MODE_NUM; mode++)
 		if (ci->i_nr_by_mode[mode])
 			want |= ceph_caps_for_mode(mode);
 	return want;
