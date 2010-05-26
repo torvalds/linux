@@ -479,13 +479,6 @@ config CMM
 	  Everybody who wants to run Linux under VM should select this
 	  option.
 
-config CMM_PROC
-	bool "/proc interface to cooperative memory management"
-	depends on CMM
-	help
-	  Select this option to enable the /proc interface to the
-	  cooperative memory management.
-
 config CMM_IUCV
 	bool "IUCV special message interface to cooperative memory management"
 	depends on CMM && (SMSGIUCV=y || CMM=SMSGIUCV)

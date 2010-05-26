@@ -248,8 +248,6 @@ static int cmm_skip_blanks(char *cp, char **endp)
 	return str != cp;
 }
 
-#ifdef CONFIG_CMM_PROC
-
 static struct ctl_table cmm_table[];
 
 static int cmm_pages_handler(ctl_table *ctl, int write, void __user *buffer,
@@ -356,7 +354,6 @@ static struct ctl_table cmm_dir_table[] = {
 	},
 	{ }
 };
-#endif
 
 #ifdef CONFIG_CMM_IUCV
 #define SMSG_PREFIX "CMM"
@@ -434,11 +431,9 @@ static int cmm_init(void)
 {
 	int rc = -ENOMEM;
 
-#ifdef CONFIG_CMM_PROC
 	cmm_sysctl_header = register_sysctl_table(cmm_dir_table);
 	if (!cmm_sysctl_header)
 		goto out_sysctl;
-#endif
 #ifdef CONFIG_CMM_IUCV
 	rc = smsg_register_callback(SMSG_PREFIX, cmm_smsg_target);
 	if (rc < 0)
@@ -465,10 +460,8 @@ out_oom_notify:
 	smsg_unregister_callback(SMSG_PREFIX, cmm_smsg_target);
 out_smsg:
 #endif
-#ifdef CONFIG_CMM_PROC
 	unregister_sysctl_table(cmm_sysctl_header);
 out_sysctl:
-#endif
 	del_timer_sync(&cmm_timer);
 	return rc;
 }
@@ -476,9 +469,7 @@ module_init(cmm_init);
 
 static void cmm_exit(void)
 {
-#ifdef CONFIG_CMM_PROC
 	unregister_sysctl_table(cmm_sysctl_header);
-#endif
 #ifdef CONFIG_CMM_IUCV
 	smsg_unregister_callback(SMSG_PREFIX, cmm_smsg_target);
 #endif
