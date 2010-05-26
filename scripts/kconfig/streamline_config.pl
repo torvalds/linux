@@ -115,7 +115,9 @@ my $ksource = $ARGV[0];
 my $kconfig = $ARGV[1];
 my $lsmod_file = $ARGV[2];
 
-my @makefiles = `find $ksource -name Makefile`;
+my @makefiles = `find $ksource -name Makefile 2>/dev/null`;
+chomp @makefiles;
+
 my %depends;
 my %selects;
 my %prompts;
@@ -215,7 +217,6 @@ if ($kconfig) {
 
 # Read all Makefiles to map the configs to the objects
 foreach my $makefile (@makefiles) {
-    chomp $makefile;
 
     open(MIN,$makefile) || die "Can't open $makefile";
     while (<MIN>) {
