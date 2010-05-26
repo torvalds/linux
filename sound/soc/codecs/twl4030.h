@@ -43,6 +43,7 @@ struct twl4030_setup_data {
 	unsigned int ramp_delay_value;
 	unsigned int sysclk;
 	unsigned int offset_cncl_path;
+	unsigned int check_defaults:1;
 	unsigned int hs_extmute:1;
 	void (*set_hs_extmute)(int mute);
 };
