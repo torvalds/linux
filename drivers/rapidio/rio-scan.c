@@ -246,24 +246,24 @@ static int rio_is_switch(struct rio_dev *rdev)
 }
 
 /**
- * rio_route_set_ops- Sets routing operations for a particular vendor switch
+ * rio_switch_init - Sets switch operations for a particular vendor switch
  * @rdev: RIO device
+ * @do_enum: Enumeration/Discovery mode flag
  *
- * Searches the RIO route ops table for known switch types. If the vid
- * and did match a switch table entry, then set the add_entry() and
- * get_entry() ops to the table entry values.
+ * Searches the RIO switch ops table for known switch types. If the vid
+ * and did match a switch table entry, then call switch initialization
+ * routine to setup switch-specific routines.
  */
-static void rio_route_set_ops(struct rio_dev *rdev)
+static void rio_switch_init(struct rio_dev *rdev, int do_enum)
 {
-	struct rio_route_ops *cur = __start_rio_route_ops;
-	struct rio_route_ops *end = __end_rio_route_ops;
+	struct rio_switch_ops *cur = __start_rio_switch_ops;
+	struct rio_switch_ops *end = __end_rio_switch_ops;
 
 	while (cur < end) {
 		if ((cur->vid == rdev->vid) && (cur->did == rdev->did)) {
-			pr_debug("RIO: adding routing ops for %s\n", rio_name(rdev));
-			rdev->rswitch->add_entry = cur->add_hook;
-			rdev->rswitch->get_entry = cur->get_hook;
-			rdev->rswitch->clr_table = cur->clr_hook;
+			pr_debug("RIO: calling init routine for %s\n",
+				 rio_name(rdev));
+			cur->init_hook(rdev, do_enum);
 			break;
 		}
 		cur++;
@@ -280,30 +280,6 @@ static void rio_route_set_ops(struct rio_dev *rdev)
 	if (!rdev->rswitch->add_entry || !rdev->rswitch->get_entry)
 		printk(KERN_ERR "RIO: missing routing ops for %s\n",
 		       rio_name(rdev));
-}
-
-/**
- * rio_em_set_ops- Sets Error Managment operations for a particular vendor switch
- * @rdev: RIO device
- *
- * Searches the RIO EM ops table for known switch types. If the vid
- * and did match a switch table entry, then set the em_init() and
- * em_handle() ops to the table entry values.
- */
-static void rio_em_set_ops(struct rio_dev *rdev)
-{
-	struct rio_em_ops *cur = __start_rio_em_ops;
-	struct rio_em_ops *end = __end_rio_em_ops;
-
-	while (cur < end) {
-		if ((cur->vid == rdev->vid) && (cur->did == rdev->did)) {
-			pr_debug("RIO: adding EM ops for %s\n", rio_name(rdev));
-			rdev->rswitch->em_init = cur->init_hook;
-			rdev->rswitch->em_handle = cur->handler_hook;
-			break;
-		}
-		cur++;
-	}
 }
 
 /**
@@ -484,8 +460,7 @@ static struct rio_dev __devinit *rio_setup_device(struct rio_net *net,
 		rdev->rswitch = rswitch;
 		dev_set_name(&rdev->dev, "%02x:s:%04x", rdev->net->id,
 			     rdev->rswitch->switchid);
-		rio_route_set_ops(rdev);
-		rio_em_set_ops(rdev);
+		rio_switch_init(rdev, do_enum);
 
 		if (do_enum && rdev->rswitch->clr_table)
 			rdev->rswitch->clr_table(port, destid, hopcount,

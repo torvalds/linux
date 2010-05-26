@@ -1,7 +1,8 @@
 /*
  * IDT CPS RapidIO switches support
  *
- * Copyright 2009 Integrated Device Technology, Inc.
+ * Copyright 2009-2010 Integrated Device Technology, Inc.
+ * Alexandre Bounine <alexandre.bounine@idt.com>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -81,9 +82,21 @@ idtcps_route_clr_table(struct rio_mport *mport, u16 destid, u8 hopcount,
 	return 0;
 }
 
-DECLARE_RIO_ROUTE_OPS(RIO_VID_IDT, RIO_DID_IDTCPS6Q, idtcps_route_add_entry, idtcps_route_get_entry, idtcps_route_clr_table);
-DECLARE_RIO_ROUTE_OPS(RIO_VID_IDT, RIO_DID_IDTCPS8, idtcps_route_add_entry, idtcps_route_get_entry, idtcps_route_clr_table);
-DECLARE_RIO_ROUTE_OPS(RIO_VID_IDT, RIO_DID_IDTCPS10Q, idtcps_route_add_entry, idtcps_route_get_entry, idtcps_route_clr_table);
-DECLARE_RIO_ROUTE_OPS(RIO_VID_IDT, RIO_DID_IDTCPS12, idtcps_route_add_entry, idtcps_route_get_entry, idtcps_route_clr_table);
-DECLARE_RIO_ROUTE_OPS(RIO_VID_IDT, RIO_DID_IDTCPS16, idtcps_route_add_entry, idtcps_route_get_entry, idtcps_route_clr_table);
-DECLARE_RIO_ROUTE_OPS(RIO_VID_IDT, RIO_DID_IDT70K200, idtcps_route_add_entry, idtcps_route_get_entry, idtcps_route_clr_table);
+static int idtcps_switch_init(struct rio_dev *rdev, int do_enum)
+{
+	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	rdev->rswitch->add_entry = idtcps_route_add_entry;
+	rdev->rswitch->get_entry = idtcps_route_get_entry;
+	rdev->rswitch->clr_table = idtcps_route_clr_table;
+	rdev->rswitch->em_init = NULL;
+	rdev->rswitch->em_handle = NULL;
+
+	return 0;
+}
+
+DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTCPS6Q, idtcps_switch_init);
+DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTCPS8, idtcps_switch_init);
+DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTCPS10Q, idtcps_switch_init);
+DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTCPS12, idtcps_switch_init);
+DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDTCPS16, idtcps_switch_init);
+DECLARE_RIO_SWITCH_INIT(RIO_VID_IDT, RIO_DID_IDT70K200, idtcps_switch_init);

@@ -1,7 +1,11 @@
 /*
  * RapidIO Tsi57x switch family support
  *
- * Copyright 2009 Integrated Device Technology, Inc.
+ * Copyright 2009-2010 Integrated Device Technology, Inc.
+ * Alexandre Bounine <alexandre.bounine@idt.com>
+ *  - Added EM support
+ *  - Modified switch operations initialization.
+ *
  * Copyright 2005 MontaVista Software, Inc.
  * Matt Porter <mporter@kernel.crashing.org>
  *
@@ -107,11 +111,6 @@ tsi57x_route_clr_table(struct rio_mport *mport, u16 destid, u8 hopcount,
 
 	return 0;
 }
-
-DECLARE_RIO_ROUTE_OPS(RIO_VID_TUNDRA, RIO_DID_TSI572, tsi57x_route_add_entry, tsi57x_route_get_entry, tsi57x_route_clr_table);
-DECLARE_RIO_ROUTE_OPS(RIO_VID_TUNDRA, RIO_DID_TSI574, tsi57x_route_add_entry, tsi57x_route_get_entry, tsi57x_route_clr_table);
-DECLARE_RIO_ROUTE_OPS(RIO_VID_TUNDRA, RIO_DID_TSI577, tsi57x_route_add_entry, tsi57x_route_get_entry, tsi57x_route_clr_table);
-DECLARE_RIO_ROUTE_OPS(RIO_VID_TUNDRA, RIO_DID_TSI578, tsi57x_route_add_entry, tsi57x_route_get_entry, tsi57x_route_clr_table);
 
 static int
 tsi57x_em_init(struct rio_dev *rdev)
@@ -253,7 +252,19 @@ exit_es:
 	return 0;
 }
 
-DECLARE_RIO_EM_OPS(RIO_VID_TUNDRA, RIO_DID_TSI572, tsi57x_em_init, tsi57x_em_handler);
-DECLARE_RIO_EM_OPS(RIO_VID_TUNDRA, RIO_DID_TSI574, tsi57x_em_init, tsi57x_em_handler);
-DECLARE_RIO_EM_OPS(RIO_VID_TUNDRA, RIO_DID_TSI577, tsi57x_em_init, tsi57x_em_handler);
-DECLARE_RIO_EM_OPS(RIO_VID_TUNDRA, RIO_DID_TSI578, tsi57x_em_init, tsi57x_em_handler);
+static int tsi57x_switch_init(struct rio_dev *rdev, int do_enum)
+{
+	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	rdev->rswitch->add_entry = tsi57x_route_add_entry;
+	rdev->rswitch->get_entry = tsi57x_route_get_entry;
+	rdev->rswitch->clr_table = tsi57x_route_clr_table;
+	rdev->rswitch->em_init = tsi57x_em_init;
+	rdev->rswitch->em_handle = tsi57x_em_handler;
+
+	return 0;
+}
+
+DECLARE_RIO_SWITCH_INIT(RIO_VID_TUNDRA, RIO_DID_TSI572, tsi57x_switch_init);
+DECLARE_RIO_SWITCH_INIT(RIO_VID_TUNDRA, RIO_DID_TSI574, tsi57x_switch_init);
+DECLARE_RIO_SWITCH_INIT(RIO_VID_TUNDRA, RIO_DID_TSI577, tsi57x_switch_init);
+DECLARE_RIO_SWITCH_INIT(RIO_VID_TUNDRA, RIO_DID_TSI578, tsi57x_switch_init);

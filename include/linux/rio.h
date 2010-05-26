@@ -320,40 +320,17 @@ struct rio_device_id {
 };
 
 /**
- * struct rio_route_ops - Per-switch route operations
+ * struct rio_switch_ops - Per-switch operations
  * @vid: RIO vendor ID
  * @did: RIO device ID
- * @add_hook: Callback that adds a route entry
- * @get_hook: Callback that gets a route entry
- * @clr_hook: Callback that clears a switch route table (may be NULL)
+ * @init_hook: Callback that performs switch device initialization
  *
- * Defines the operations that are necessary to manipulate the route
- * tables for a particular RIO switch device.
+ * Defines the operations that are necessary to initialize/control
+ * a particular RIO switch device.
  */
-struct rio_route_ops {
+struct rio_switch_ops {
 	u16 vid, did;
-	int (*add_hook) (struct rio_mport * mport, u16 destid, u8 hopcount,
-			 u16 table, u16 route_destid, u8 route_port);
-	int (*get_hook) (struct rio_mport * mport, u16 destid, u8 hopcount,
-			 u16 table, u16 route_destid, u8 * route_port);
-	int (*clr_hook) (struct rio_mport *mport, u16 destid, u8 hopcount,
-			 u16 table);
-};
-
-/**
- * struct rio_em_ops - Per-switch error management operations
- * @vid: RIO vendor ID
- * @did: RIO device ID
- * @init_hook: Switch specific error management initialization (may be NULL)
- * @handler_hook: Switch specific error management handler (may be NULL)
- *
- * Defines the operations that are necessary to initialize and handle
- * error management events for a particular RIO switch device.
- */
-struct rio_em_ops {
-	u16 vid, did;
-	int (*init_hook) (struct rio_dev *dev);
-	int (*handler_hook) (struct rio_dev *dev, u8 swport);
+	int (*init_hook) (struct rio_dev *rdev, int do_enum);
 };
 
 union rio_pw_msg {

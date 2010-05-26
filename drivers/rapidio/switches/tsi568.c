@@ -2,6 +2,10 @@
  * RapidIO Tsi568 switch support
  *
  * Copyright 2009-2010 Integrated Device Technology, Inc.
+ * Alexandre Bounine <alexandre.bounine@idt.com>
+ *  - Added EM support
+ *  - Modified switch operations initialization.
+ *
  * Copyright 2005 MontaVista Software, Inc.
  * Matt Porter <mporter@kernel.crashing.org>
  *
@@ -106,8 +110,6 @@ tsi568_route_clr_table(struct rio_mport *mport, u16 destid, u8 hopcount,
 	return 0;
 }
 
-DECLARE_RIO_ROUTE_OPS(RIO_VID_TUNDRA, RIO_DID_TSI568, tsi568_route_add_entry, tsi568_route_get_entry, tsi568_route_clr_table);
-
 static int
 tsi568_em_init(struct rio_dev *rdev)
 {
@@ -127,4 +129,16 @@ tsi568_em_init(struct rio_dev *rdev)
 	return 0;
 }
 
-DECLARE_RIO_EM_OPS(RIO_VID_TUNDRA, RIO_DID_TSI568, tsi568_em_init, NULL);
+static int tsi568_switch_init(struct rio_dev *rdev, int do_enum)
+{
+	pr_debug("RIO: %s for %s\n", __func__, rio_name(rdev));
+	rdev->rswitch->add_entry = tsi568_route_add_entry;
+	rdev->rswitch->get_entry = tsi568_route_get_entry;
+	rdev->rswitch->clr_table = tsi568_route_clr_table;
+	rdev->rswitch->em_init = tsi568_em_init;
+	rdev->rswitch->em_handle = NULL;
+
+	return 0;
+}
+
+DECLARE_RIO_SWITCH_INIT(RIO_VID_TUNDRA, RIO_DID_TSI568, tsi568_switch_init);

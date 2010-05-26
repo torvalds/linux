@@ -39,55 +39,29 @@ extern int rio_set_port_lockout(struct rio_dev *rdev, u32 pnum, int lock);
 extern struct device_attribute rio_dev_attrs[];
 extern spinlock_t rio_global_list_lock;
 
-extern struct rio_route_ops __start_rio_route_ops[];
-extern struct rio_route_ops __end_rio_route_ops[];
+extern struct rio_switch_ops __start_rio_switch_ops[];
+extern struct rio_switch_ops __end_rio_switch_ops[];
 
 /* Helpers internal to the RIO core code */
-#define DECLARE_RIO_ROUTE_SECTION(section, name, vid, did, add_hook, get_hook, clr_hook) \
-	static const struct rio_route_ops __rio_route_##name __used \
-	__section(section) = { vid, did, add_hook, get_hook, clr_hook };
+#define DECLARE_RIO_SWITCH_SECTION(section, name, vid, did, init_hook) \
+	static const struct rio_switch_ops __rio_switch_##name __used \
+	__section(section) = { vid, did, init_hook };
 
 /**
- * DECLARE_RIO_ROUTE_OPS - Registers switch routing operations
+ * DECLARE_RIO_SWITCH_INIT - Registers switch initialization routine
  * @vid: RIO vendor ID
  * @did: RIO device ID
- * @add_hook: Callback that adds a route entry
- * @get_hook: Callback that gets a route entry
+ * @init_hook: Callback that performs switch-specific initialization
  *
- * Manipulating switch route tables in RIO is switch specific. This
- * registers a switch by vendor and device ID with two callbacks for
- * modifying and retrieving route entries in a switch. A &struct
- * rio_route_ops is initialized with the ops and placed into a
- * RIO-specific kernel section.
+ * Manipulating switch route tables and error management in RIO
+ * is switch specific. This registers a switch by vendor and device ID with
+ * initialization callback for setting up switch operations and (if required)
+ * hardware initialization. A &struct rio_switch_ops is initialized with
+ * pointer to the init routine and placed into a RIO-specific kernel section.
  */
-#define DECLARE_RIO_ROUTE_OPS(vid, did, add_hook, get_hook, clr_hook)	\
-	DECLARE_RIO_ROUTE_SECTION(.rio_route_ops, vid##did,		\
-			vid, did, add_hook, get_hook, clr_hook)
+#define DECLARE_RIO_SWITCH_INIT(vid, did, init_hook)		\
+	DECLARE_RIO_SWITCH_SECTION(.rio_switch_ops, vid##did, \
+			vid, did, init_hook)
 
 #define RIO_GET_DID(size, x)	(size ? (x & 0xffff) : ((x & 0x00ff0000) >> 16))
 #define RIO_SET_DID(size, x)	(size ? (x & 0xffff) : ((x & 0x000000ff) << 16))
-
-/*
- *   RapidIO Error Management
- */
-extern struct rio_em_ops __start_rio_em_ops[];
-extern struct rio_em_ops __end_rio_em_ops[];
-
-/* Helpers internal to the RIO core code */
-#define DECLARE_RIO_EM_SECTION(section, name, vid, did, init_hook, em_hook)  \
-	static const struct rio_em_ops __rio_em_##name __used   \
-	__section(section) = { vid, did, init_hook, em_hook };
-
-/**
- * DECLARE_RIO_EM_OPS - Registers switch EM operations
- * @vid: RIO vendor ID
- * @did: RIO device ID
- * @init_hook: Callback that initializes device specific EM
- * @em_hook: Callback that handles device specific EM
- *
- * A &struct rio_em_ops is initialized with the ops and placed into a
- * RIO-specific kernel section.
- */
-#define DECLARE_RIO_EM_OPS(vid, did, init_hook, em_hook)	\
-	DECLARE_RIO_EM_SECTION(.rio_em_ops, vid##did,		\
-			vid, did, init_hook, em_hook)
