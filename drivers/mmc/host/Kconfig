@@ -136,6 +136,18 @@ config MMC_SDHCI_S3C
 
 	  If unsure, say N.
 
+config MMC_SDHCI_SPEAR
+	tristate "SDHCI support on ST SPEAr platform"
+	depends on MMC_SDHCI && PLAT_SPEAR
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  often referrered to as the HSMMC block in some of the ST SPEAR range
+	  of SoC
+
+	  If you have a controller with this interface, say Y or M here.
+
+	  If unsure, say N.
+
 config MMC_SDHCI_S3C_DMA
 	bool "DMA support on S3C SDHCI"
 	depends on MMC_SDHCI_S3C && EXPERIMENTAL
