@@ -247,7 +247,7 @@ encode_cb_recall(struct xdr_stream *xdr, struct nfs4_delegation *dp,
 }
 
 static void
-encode_cb_sequence(struct xdr_stream *xdr, struct nfs4_rpc_args *args,
+encode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_cb_args *args,
 		   struct nfs4_cb_compound_hdr *hdr)
 {
 	__be32 *p;
@@ -279,7 +279,7 @@ nfs4_xdr_enc_cb_null(struct rpc_rqst *req, __be32 *p)
 
 static int
 nfs4_xdr_enc_cb_recall(struct rpc_rqst *req, __be32 *p,
-		struct nfs4_rpc_args *rpc_args)
+		struct nfsd4_cb_args *rpc_args)
 {
 	struct xdr_stream xdr;
 	struct nfs4_delegation *args = rpc_args->args_op;
@@ -338,7 +338,7 @@ decode_cb_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 expected)
  * with a single slot.
  */
 static int
-decode_cb_sequence(struct xdr_stream *xdr, struct nfs4_rpc_args *res,
+decode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_cb_args *res,
 		   struct rpc_rqst *rqstp)
 {
 	struct nfs4_sessionid id;
@@ -392,7 +392,7 @@ nfs4_xdr_dec_cb_null(struct rpc_rqst *req, __be32 *p)
 
 static int
 nfs4_xdr_dec_cb_recall(struct rpc_rqst *rqstp, __be32 *p,
-		struct nfs4_rpc_args *args)
+		struct nfsd4_cb_args *args)
 {
 	struct xdr_stream xdr;
 	struct nfs4_cb_compound_hdr hdr;
@@ -585,7 +585,7 @@ void nfsd4_probe_callback(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 static int nfsd41_cb_setup_sequence(struct nfs4_client *clp,
 		struct rpc_task *task)
 {
-	struct nfs4_rpc_args *args = task->tk_msg.rpc_argp;
+	struct nfsd4_cb_args *args = task->tk_msg.rpc_argp;
 	u32 *ptr = (u32 *)clp->cl_sessionid.data;
 	int status = 0;
 
@@ -619,7 +619,7 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_delegation *dp = calldata;
 	struct nfs4_client *clp = dp->dl_client;
-	struct nfs4_rpc_args *args = task->tk_msg.rpc_argp;
+	struct nfsd4_cb_args *args = task->tk_msg.rpc_argp;
 	u32 minorversion = clp->cl_cb_conn.cb_minorversion;
 	int status = 0;
 
@@ -756,7 +756,7 @@ static void _nfsd4_cb_recall(struct nfs4_delegation *dp)
 {
 	struct nfs4_client *clp = dp->dl_client;
 	struct rpc_clnt *clnt = clp->cl_cb_client;
-	struct nfs4_rpc_args *args = &dp->dl_recall.cb_args;
+	struct nfsd4_cb_args *args = &dp->dl_recall.cb_args;
 	struct rpc_message msg = {
 		.rpc_proc = &nfs4_cb_procedures[NFSPROC4_CLNT_CB_RECALL],
 		.rpc_cred = callback_cred

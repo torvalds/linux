@@ -64,14 +64,14 @@ typedef struct {
 	(s)->si_fileid, \
 	(s)->si_generation
 
-struct nfs4_rpc_args {
+struct nfsd4_cb_args {
 	void			*args_op;
 	struct nfs4_client	*args_clp;
 	u32			args_minorversion;
 };
 
 struct nfsd4_callback {
-	struct nfs4_rpc_args cb_args;
+	struct nfsd4_cb_args cb_args;
 	struct work_struct cb_work;
 };
 
