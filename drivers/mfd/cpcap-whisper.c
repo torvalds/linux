@@ -47,7 +47,7 @@
 			     CPCAP_BIT_VBUSVLD_S   | \
 			     CPCAP_BIT_SESSVLD_S)
 
-#define SENSE_WHISPER_PPD   (CPCAP_BIT_SE1_S)
+#define SENSE_WHISPER_PPD   (0)
 
 /* TODO: Update with appropriate value. */
 #define ADC_AUDIO_THRES     0x12C
@@ -57,6 +57,7 @@ enum cpcap_det_state {
 	SAMPLE_1,
 	SAMPLE_2,
 	IDENTIFY,
+	IDENTIFY_WHISPER,
 	WHISPER,
 };
 
@@ -73,6 +74,8 @@ enum {
 	NO_DOCK,
 	DESK_DOCK,
 	CAR_DOCK,
+	MOBILE_DOCK,
+	HD_DOCK,
 };
 
 struct cpcap_whisper_data {
@@ -102,6 +105,10 @@ static ssize_t print_name(struct switch_dev *dsdev, char *buf)
 		return sprintf(buf, "DESK\n");
 	case CAR_DOCK:
 		return sprintf(buf, "CAR\n");
+	case MOBILE_DOCK:
+		return sprintf(buf, "MOBILE\n");
+	case HD_DOCK:
+		return sprintf(buf, "HD\n");
 	}
 
 	return -EINVAL;
@@ -187,7 +194,7 @@ static int configure_hardware(struct cpcap_whisper_data *data,
 	case CPCAP_ACCY_USB:
 		retval |= cpcap_regacc_write(data->cpcap, CPCAP_REG_USBC1, 0,
 					     CPCAP_BIT_VBUSPD);
-		gpio_set_value(data->pdata->gpio, 1);
+		gpio_set_value(data->pdata->data_gpio, 1);
 		/* TODO: Does this driver enable "reverse mode" for hosts? */
 		break;
 
@@ -202,11 +209,11 @@ static int configure_hardware(struct cpcap_whisper_data *data,
 					      CPCAP_BIT_EMUMODE2 |
 					      CPCAP_BIT_EMUMODE1 |
 					      CPCAP_BIT_EMUMODE0));
-		/* TODO: Need to turn on "reverse mode" for PPD's */
 		break;
 
 	case CPCAP_ACCY_UNKNOWN:
-		gpio_set_value(data->pdata->gpio, 0);
+		gpio_set_value(data->pdata->pwr_gpio, 0);
+		gpio_set_value(data->pdata->data_gpio, 0);
 		retval |= cpcap_regacc_write(data->cpcap, CPCAP_REG_USBC1, 0,
 					     (CPCAP_BIT_VBUSPD |
 					      CPCAP_BIT_ID100KPU));
@@ -214,11 +221,11 @@ static int configure_hardware(struct cpcap_whisper_data *data,
 					     (CPCAP_BIT_EMUMODE2 |
 					      CPCAP_BIT_EMUMODE1 |
 					      CPCAP_BIT_EMUMODE0));
-		/* TODO: Need to turn off "reverse mode" */
 		break;
 
 	case CPCAP_ACCY_NONE:
 	default:
+		gpio_set_value(data->pdata->pwr_gpio, 0);
 		retval |= cpcap_regacc_write(data->cpcap, CPCAP_REG_USBC1,
 					     CPCAP_BIT_VBUSPD,
 					     CPCAP_BIT_VBUSPD);
@@ -347,6 +354,28 @@ static void whisper_det_work(struct work_struct *work)
 
 			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDFLOAT);
 		} else if (data->sense == SENSE_WHISPER_PPD) {
+			gpio_set_value(data->pdata->pwr_gpio, 1);
+
+			/* Extra identification step for Whisper. */
+			data->state = IDENTIFY_WHISPER;
+			schedule_delayed_work(&data->work,
+					      msecs_to_jiffies(47));
+		} else {
+			whisper_notify(data, CPCAP_ACCY_NONE);
+
+			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_CHRG_DET);
+			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDFLOAT);
+		}
+		break;
+
+	case IDENTIFY_WHISPER:
+		get_sense(data);
+		data->state = CONFIG;
+
+		if (whisper_debug)
+			pr_info("%s: sense=0x%04x\n", __func__, data->sense);
+
+		if (data->sense & CPCAP_BIT_SE1_S) {
 			whisper_notify(data, CPCAP_ACCY_WHISPER);
 			whisper_audio_check(data);
 
@@ -406,6 +435,7 @@ int cpcap_accy_whisper(struct cpcap_device *cpcap, unsigned long cmd)
 	struct cpcap_whisper_data *di = cpcap->accydata;
 	int retval = -EAGAIN;
 	unsigned short value;
+	int dock;
 
 	if (!di)
 		return -ENODEV;
@@ -418,7 +448,12 @@ int cpcap_accy_whisper(struct cpcap_device *cpcap, unsigned long cmd)
 		retval = cpcap_regacc_write(cpcap, CPCAP_REG_USBC1,
 					    value, CPCAP_BIT_ID100KPU);
 
-		/* TODO: Report dock type to system. */
+		/* Report dock type to system. */
+		dock = (cmd & CPCAP_WHISPER_ACCY_MASK) >>
+			CPCAP_WHISPER_ACCY_SHFT;
+		switch_set_state(&di->dsdev, dock);
+
+		/* TODO: Report audio cable to system. */
 	}
 
 	return retval;
@@ -511,7 +546,7 @@ static int __exit cpcap_whisper_remove(struct platform_device *pdev)
 	switch_dev_unregister(&data->wsdev);
 	switch_dev_unregister(&data->dsdev);
 
-	gpio_set_value(data->pdata->gpio, 1);
+	gpio_set_value(data->pdata->data_gpio, 1);
 
 	vusb_disable(data);
 	regulator_put(data->regulator);
