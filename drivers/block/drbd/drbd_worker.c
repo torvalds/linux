@@ -257,20 +257,6 @@ void drbd_endio_pri(struct bio *bio, int error)
 		complete_master_bio(mdev, &m);
 }
 
-int w_io_error(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
-{
-	struct drbd_request *req = container_of(w, struct drbd_request, w);
-
-	/* NOTE: mdev->ldev can be NULL by the time we get here! */
-	/* D_ASSERT(mdev->ldev->dc.on_io_error != EP_PASS_ON); */
-
-	/* the only way this callback is scheduled is from _req_may_be_done,
-	 * when it is done and had a local write error, see comments there */
-	drbd_req_free(req);
-
-	return TRUE;
-}
-
 int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 {
 	struct drbd_request *req = container_of(w, struct drbd_request, w);

@@ -102,32 +102,7 @@ static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const
 		}
 	}
 
-	/* if it was a local io error, we want to notify our
-	 * peer about that, and see if we need to
-	 * detach the disk and stuff.
-	 * to avoid allocating some special work
-	 * struct, reuse the request. */
-
-	/* THINK
-	 * why do we do this not when we detect the error,
-	 * but delay it until it is "done", i.e. possibly
-	 * until the next barrier ack? */
-
-	if (rw == WRITE &&
-	    ((s & RQ_LOCAL_MASK) && !(s & RQ_LOCAL_OK))) {
-		if (!(req->w.list.next == LIST_POISON1 ||
-		      list_empty(&req->w.list))) {
-			/* DEBUG ASSERT only; if this triggers, we
-			 * probably corrupt the worker list here */
-			dev_err(DEV, "req->w.list.next = %p\n", req->w.list.next);
-			dev_err(DEV, "req->w.list.prev = %p\n", req->w.list.prev);
-		}
-		req->w.cb = w_io_error;
-		drbd_queue_work(&mdev->data.work, &req->w);
-		/* drbd_req_free() is done in w_io_error */
-	} else {
-		drbd_req_free(req);
-	}
+	drbd_req_free(req);
 }
 
 static void queue_barrier(struct drbd_conf *mdev)
