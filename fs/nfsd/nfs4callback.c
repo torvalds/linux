@@ -247,7 +247,7 @@ encode_cb_recall(struct xdr_stream *xdr, struct nfs4_delegation *dp,
 }
 
 static void
-encode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_cb_sequence *args,
+encode_cb_sequence(struct xdr_stream *xdr, struct nfs4_rpc_args *args,
 		   struct nfs4_cb_compound_hdr *hdr)
 {
 	__be32 *p;
@@ -258,8 +258,8 @@ encode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_cb_sequence *args,
 	RESERVE_SPACE(1 + NFS4_MAX_SESSIONID_LEN + 20);
 
 	WRITE32(OP_CB_SEQUENCE);
-	WRITEMEM(args->cbs_clp->cl_sessionid.data, NFS4_MAX_SESSIONID_LEN);
-	WRITE32(args->cbs_clp->cl_cb_seq_nr);
+	WRITEMEM(args->args_clp->cl_sessionid.data, NFS4_MAX_SESSIONID_LEN);
+	WRITE32(args->args_clp->cl_cb_seq_nr);
 	WRITE32(0);		/* slotid, always 0 */
 	WRITE32(0);		/* highest slotid always 0 */
 	WRITE32(0);		/* cachethis always 0 */
@@ -285,12 +285,12 @@ nfs4_xdr_enc_cb_recall(struct rpc_rqst *req, __be32 *p,
 	struct nfs4_delegation *args = rpc_args->args_op;
 	struct nfs4_cb_compound_hdr hdr = {
 		.ident = args->dl_ident,
-		.minorversion = rpc_args->args_seq.cbs_minorversion,
+		.minorversion = rpc_args->args_minorversion,
 	};
 
 	xdr_init_encode(&xdr, &req->rq_snd_buf, p);
 	encode_cb_compound_hdr(&xdr, &hdr);
-	encode_cb_sequence(&xdr, &rpc_args->args_seq, &hdr);
+	encode_cb_sequence(&xdr, rpc_args, &hdr);
 	encode_cb_recall(&xdr, args, &hdr);
 	encode_cb_nops(&hdr);
 	return 0;
@@ -338,7 +338,7 @@ decode_cb_op_hdr(struct xdr_stream *xdr, enum nfs_opnum4 expected)
  * with a single slot.
  */
 static int
-decode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_cb_sequence *res,
+decode_cb_sequence(struct xdr_stream *xdr, struct nfs4_rpc_args *res,
 		   struct rpc_rqst *rqstp)
 {
 	struct nfs4_sessionid id;
@@ -346,7 +346,7 @@ decode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_cb_sequence *res,
 	u32 dummy;
 	__be32 *p;
 
-	if (res->cbs_minorversion == 0)
+	if (res->args_minorversion == 0)
 		return 0;
 
 	status = decode_cb_op_hdr(xdr, OP_CB_SEQUENCE);
@@ -362,13 +362,13 @@ decode_cb_sequence(struct xdr_stream *xdr, struct nfsd4_cb_sequence *res,
 	READ_BUF(NFS4_MAX_SESSIONID_LEN + 16);
 	memcpy(id.data, p, NFS4_MAX_SESSIONID_LEN);
 	p += XDR_QUADLEN(NFS4_MAX_SESSIONID_LEN);
-	if (memcmp(id.data, res->cbs_clp->cl_sessionid.data,
+	if (memcmp(id.data, res->args_clp->cl_sessionid.data,
 		   NFS4_MAX_SESSIONID_LEN)) {
 		dprintk("%s Invalid session id\n", __func__);
 		goto out;
 	}
 	READ32(dummy);
-	if (dummy != res->cbs_clp->cl_cb_seq_nr) {
+	if (dummy != res->args_clp->cl_cb_seq_nr) {
 		dprintk("%s Invalid sequence number\n", __func__);
 		goto out;
 	}
@@ -392,7 +392,7 @@ nfs4_xdr_dec_cb_null(struct rpc_rqst *req, __be32 *p)
 
 static int
 nfs4_xdr_dec_cb_recall(struct rpc_rqst *rqstp, __be32 *p,
-		struct nfsd4_cb_sequence *seq)
+		struct nfs4_rpc_args *args)
 {
 	struct xdr_stream xdr;
 	struct nfs4_cb_compound_hdr hdr;
@@ -402,8 +402,8 @@ nfs4_xdr_dec_cb_recall(struct rpc_rqst *rqstp, __be32 *p,
 	status = decode_cb_compound_hdr(&xdr, &hdr);
 	if (status)
 		goto out;
-	if (seq) {
-		status = decode_cb_sequence(&xdr, seq, rqstp);
+	if (args) {
+		status = decode_cb_sequence(&xdr, args, rqstp);
 		if (status)
 			goto out;
 	}
@@ -603,8 +603,8 @@ static int nfsd41_cb_setup_sequence(struct nfs4_client *clp,
 	 * We'll need the clp during XDR encoding and decoding,
 	 * and the sequence during decoding to verify the reply
 	 */
-	args->args_seq.cbs_clp = clp;
-	task->tk_msg.rpc_resp = &args->args_seq;
+	args->args_clp = clp;
+	task->tk_msg.rpc_resp = args;
 
 out:
 	dprintk("%s status=%d\n", __func__, status);
@@ -623,7 +623,7 @@ static void nfsd4_cb_prepare(struct rpc_task *task, void *calldata)
 	u32 minorversion = clp->cl_cb_conn.cb_minorversion;
 	int status = 0;
 
-	args->args_seq.cbs_minorversion = minorversion;
+	args->args_minorversion = minorversion;
 	if (minorversion) {
 		status = nfsd41_cb_setup_sequence(clp, task);
 		if (status) {

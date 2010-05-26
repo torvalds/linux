@@ -64,15 +64,10 @@ typedef struct {
 	(s)->si_fileid, \
 	(s)->si_generation
 
-struct nfsd4_cb_sequence {
-	/* args/res */
-	u32			cbs_minorversion;
-	struct nfs4_client	*cbs_clp;
-};
-
 struct nfs4_rpc_args {
-	void				*args_op;
-	struct nfsd4_cb_sequence	args_seq;
+	void			*args_op;
+	struct nfs4_client	*args_clp;
+	u32			args_minorversion;
 };
 
 struct nfsd4_callback {
