@@ -134,11 +134,8 @@ static int ____call_usermodehelper(void *data)
 	struct subprocess_info *sub_info = data;
 	int retval;
 
-	/* Unblock all signals */
 	spin_lock_irq(&current->sighand->siglock);
 	flush_signal_handlers(current, 1);
-	sigemptyset(&current->blocked);
-	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
 
 	/* We can run anywhere, unlike our parent keventd(). */
