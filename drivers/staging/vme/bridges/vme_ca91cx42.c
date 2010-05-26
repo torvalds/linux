@@ -900,7 +900,8 @@ unsigned int ca91cx42_master_rmw(struct vme_master_resource *image,
 	/* Address must be 4-byte aligned */
 	if (pci_addr & 0x3) {
 		dev_err(dev, "RMW Address not 4-byte aligned\n");
-		return -EINVAL;
+		result = -EINVAL;
+		goto out;
 	}
 
 	/* Ensure RMW Disabled whilst configuring */
@@ -921,6 +922,7 @@ unsigned int ca91cx42_master_rmw(struct vme_master_resource *image,
 	/* Disable RMW */
 	iowrite32(0, bridge->base + SCYC_CTL);
 
+out:
 	spin_unlock(&(image->lock));
 
 	mutex_unlock(&(bridge->vme_rmw));
