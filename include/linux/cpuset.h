@@ -69,6 +69,7 @@ extern void cpuset_task_status_allowed(struct seq_file *m,
 					struct task_struct *task);
 
 extern int cpuset_mem_spread_node(void);
+extern int cpuset_slab_spread_node(void);
 
 static inline int cpuset_do_page_mem_spread(void)
 {
@@ -190,6 +191,11 @@ static inline void cpuset_task_status_allowed(struct seq_file *m,
 }
 
 static inline int cpuset_mem_spread_node(void)
+{
+	return 0;
+}
+
+static inline int cpuset_slab_spread_node(void)
 {
 	return 0;
 }
