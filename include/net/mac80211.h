@@ -412,8 +412,6 @@ struct ieee80211_tx_rate {
  * @driver_data: array of driver_data pointers
  * @ampdu_ack_len: number of acked aggregated frames.
  * 	relevant only if IEEE80211_TX_STAT_AMPDU was set.
- * @ampdu_ack_map: block ack bit map for the aggregation.
- * 	relevant only if IEEE80211_TX_STAT_AMPDU was set.
  * @ampdu_len: number of aggregated frames.
  * 	relevant only if IEEE80211_TX_STAT_AMPDU was set.
  * @ack_signal: signal strength of the ACK frame
@@ -448,10 +446,9 @@ struct ieee80211_tx_info {
 		struct {
 			struct ieee80211_tx_rate rates[IEEE80211_TX_MAX_RATES];
 			u8 ampdu_ack_len;
-			u64 ampdu_ack_map;
 			int ack_signal;
 			u8 ampdu_len;
-			/* 7 bytes free */
+			/* 15 bytes free */
 		} status;
 		struct {
 			struct ieee80211_tx_rate driver_rates[
