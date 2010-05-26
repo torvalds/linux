@@ -250,6 +250,7 @@ struct mem_cgroup {
  */
 enum move_type {
 	MOVE_CHARGE_TYPE_ANON,	/* private anonymous page and swap of it */
+	MOVE_CHARGE_TYPE_FILE,	/* file page(including tmpfs) and swap of it */
 	NR_MOVE_TYPE,
 };
 
@@ -269,6 +270,12 @@ static struct move_charge_struct {
 static bool move_anon(void)
 {
 	return test_bit(MOVE_CHARGE_TYPE_ANON,
+					&mc.to->move_charge_at_immigrate);
+}
+
+static bool move_file(void)
+{
+	return test_bit(MOVE_CHARGE_TYPE_FILE,
 					&mc.to->move_charge_at_immigrate);
 }
 
@@ -4179,11 +4186,8 @@ static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
 		/* we don't move shared anon */
 		if (!move_anon() || page_mapcount(page) > 2)
 			return NULL;
-	} else
-		/*
-		 * TODO: We don't move charges of file(including shmem/tmpfs)
-		 * pages for now.
-		 */
+	} else if (!move_file())
+		/* we ignore mapcount for file pages */
 		return NULL;
 	if (!get_page_unless_zero(page))
 		return NULL;
@@ -4212,6 +4216,39 @@ static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
 	return page;
 }
 
+static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
+			unsigned long addr, pte_t ptent, swp_entry_t *entry)
+{
+	struct page *page = NULL;
+	struct inode *inode;
+	struct address_space *mapping;
+	pgoff_t pgoff;
+
+	if (!vma->vm_file) /* anonymous vma */
+		return NULL;
+	if (!move_file())
+		return NULL;
+
+	inode = vma->vm_file->f_path.dentry->d_inode;
+	mapping = vma->vm_file->f_mapping;
+	if (pte_none(ptent))
+		pgoff = linear_page_index(vma, addr);
+	else /* pte_file(ptent) is true */
+		pgoff = pte_to_pgoff(ptent);
+
+	/* page is moved even if it's not RSS of this task(page-faulted). */
+	if (!mapping_cap_swap_backed(mapping)) { /* normal file */
+		page = find_get_page(mapping, pgoff);
+	} else { /* shmem/tmpfs file. we should take account of swap too. */
+		swp_entry_t ent;
+		mem_cgroup_get_shmem_target(inode, pgoff, &page, &ent);
+		if (do_swap_account)
+			entry->val = ent.val;
+	}
+
+	return page;
+}
+
 static int is_target_pte_for_mc(struct vm_area_struct *vma,
 		unsigned long addr, pte_t ptent, union mc_target *target)
 {
@@ -4224,7 +4261,8 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
 		page = mc_handle_present_pte(vma, addr, ptent);
 	else if (is_swap_pte(ptent))
 		page = mc_handle_swap_pte(vma, addr, ptent, &ent);
-	/* TODO: handle swap of shmes/tmpfs */
+	else if (pte_none(ptent) || pte_file(ptent))
+		page = mc_handle_file_pte(vma, addr, ptent, &ent);
 
 	if (!page && !ent.val)
 		return 0;
@@ -4284,9 +4322,6 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
 			.private = vma,
 		};
 		if (is_vm_hugetlb_page(vma))
-			continue;
-		/* TODO: We don't move charges of shmem/tmpfs pages for now. */
-		if (vma->vm_flags & VM_SHARED)
 			continue;
 		walk_page_range(vma->vm_start, vma->vm_end,
 					&mem_cgroup_count_precharge_walk);
@@ -4483,9 +4518,6 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
 			.private = vma,
 		};
 		if (is_vm_hugetlb_page(vma))
-			continue;
-		/* TODO: We don't move charges of shmem/tmpfs pages for now. */
-		if (vma->vm_flags & VM_SHARED)
 			continue;
 		ret = walk_page_range(vma->vm_start, vma->vm_end,
 						&mem_cgroup_move_charge_walk);

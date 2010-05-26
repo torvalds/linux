@@ -454,21 +454,27 @@ And if you want disable it again:
 8.2 Type of charges which can be move
 
 Each bits of move_charge_at_immigrate has its own meaning about what type of
-charges should be moved.
+charges should be moved. But in any cases, it must be noted that an account of
+a page or a swap can be moved only when it is charged to the task's current(old)
+memory cgroup.
 
   bit | what type of charges would be moved ?
  -----+------------------------------------------------------------------------
    0  | A charge of an anonymous page(or swap of it) used by the target task.
       | Those pages and swaps must be used only by the target task. You must
       | enable Swap Extension(see 2.4) to enable move of swap charges.
-
-Note: Those pages and swaps must be charged to the old cgroup.
-Note: More type of pages(e.g. file cache, shmem,) will be supported by other
-      bits in future.
+ -----+------------------------------------------------------------------------
+   1  | A charge of file pages(normal file, tmpfs file(e.g. ipc shared memory)
+      | and swaps of tmpfs file) mmaped by the target task. Unlike the case of
+      | anonymous pages, file pages(and swaps) in the range mmapped by the task
+      | will be moved even if the task hasn't done page fault, i.e. they might
+      | not be the task's "RSS", but other task's "RSS" that maps the same file.
+      | And mapcount of the page is ignored(the page can be moved even if
+      | page_mapcount(page) > 1). You must enable Swap Extension(see 2.4) to
+      | enable move of swap charges.
 
 8.3 TODO
 
-- Add support for other types of pages(e.g. file cache, shmem, etc.).
 - Implement madvise(2) to let users decide the vma to be moved or not to be
   moved.
 - All of moving charge operations are done under cgroup_mutex. It's not good
