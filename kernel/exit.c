@@ -80,6 +80,7 @@ static void __exit_signal(struct task_struct *tsk)
 {
 	struct signal_struct *sig = tsk->signal;
 	struct sighand_struct *sighand;
+	struct tty_struct *uninitialized_var(tty);
 
 	BUG_ON(!sig);
 	BUG_ON(!atomic_read(&sig->count));
@@ -93,6 +94,8 @@ static void __exit_signal(struct task_struct *tsk)
 	posix_cpu_timers_exit(tsk);
 	if (thread_group_leader(tsk)) {
 		posix_cpu_timers_exit_group(tsk);
+		tty = sig->tty;
+		sig->tty = NULL;
 	} else {
 		/*
 		 * If there is any task waiting for the group exit
@@ -147,7 +150,7 @@ static void __exit_signal(struct task_struct *tsk)
 		 * see account_group_exec_runtime().
 		 */
 		task_rq_unlock_wait(tsk);
-		tty_kref_put(sig->tty);
+		tty_kref_put(tty);
 	}
 }
 
