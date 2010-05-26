@@ -2393,10 +2393,6 @@ static inline void thread_group_cputime_init(struct signal_struct *sig)
 	spin_lock_init(&sig->cputimer.lock);
 }
 
-static inline void thread_group_cputime_free(struct signal_struct *sig)
-{
-}
-
 /*
  * Reevaluate whether the task has signals pending delivery.
  * Wake the task if so.
