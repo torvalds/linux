@@ -671,7 +671,7 @@ int ttm_get_pages(struct list_head *pages, int flags,
 		if (flags & TTM_PAGE_FLAG_DMA32)
 			gfp_flags |= GFP_DMA32;
 		else
-			gfp_flags |= __GFP_HIGHMEM;
+			gfp_flags |= GFP_HIGHUSER;
 
 		for (r = 0; r < count; ++r) {
 			p = alloc_page(gfp_flags);
