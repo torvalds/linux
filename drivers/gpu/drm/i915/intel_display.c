@@ -1248,10 +1248,11 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 	return;
 
 out_disable:
-	DRM_DEBUG_KMS("unsupported config, disabling FBC\n");
 	/* Multiple disables should be harmless */
-	if (intel_fbc_enabled(dev))
+	if (intel_fbc_enabled(dev)) {
+		DRM_DEBUG_KMS("unsupported config, disabling FBC\n");
 		intel_disable_fbc(dev);
+	}
 }
 
 static int
