@@ -20,6 +20,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/kernel.h>
+#include <linux/leds-ld-cpcap.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/reboot.h>
@@ -205,10 +206,18 @@ static struct platform_device cpcap_whisper_device = {
 		.platform_data  = &whisper_pdata,
 	},
 };
+static struct platform_device cpcap_disp_button_led = {
+	.name   = LD_DISP_BUTTON_DEV,
+	.id     = -1,
+	.dev    = {
+		.platform_data  = NULL,
+	},
+};
 
 static struct platform_device *cpcap_devices[] = {
 	&cpcap_validity_device,
 	&cpcap_whisper_device,
+	&cpcap_disp_button_led,
 	&cpcap_3mm5_device,
 };
 
