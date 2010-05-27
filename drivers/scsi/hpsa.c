@@ -3396,6 +3396,20 @@ static inline void hpsa_enable_scsi_prefetch(struct ctlr_info *h)
 #endif
 }
 
+/* Disable DMA prefetch for the P600.  Otherwise an ASIC bug may result
+ * in a prefetch beyond physical memory.
+ */
+static inline void hpsa_p600_dma_prefetch_quirk(struct ctlr_info *h)
+{
+	u32 dma_prefetch;
+
+	if (h->board_id != 0x3225103C)
+		return;
+	dma_prefetch = readl(h->vaddr + I2O_DMA1_CFG);
+	dma_prefetch |= 0x8000;
+	writel(dma_prefetch, h->vaddr + I2O_DMA1_CFG);
+}
+
 static int __devinit hpsa_pci_init(struct ctlr_info *h)
 {
 	int i, prod_index, err;
@@ -3444,17 +3458,7 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 		goto err_out_free_res;
 	}
 	hpsa_enable_scsi_prefetch(h);
-
-	/* Disabling DMA prefetch for the P600
-	 * An ASIC bug may result in a prefetch beyond
-	 * physical memory.
-	 */
-	if (h->board_id == 0x3225103C) {
-		u32 dma_prefetch;
-		dma_prefetch = readl(h->vaddr + I2O_DMA1_CFG);
-		dma_prefetch |= 0x8000;
-		writel(dma_prefetch, h->vaddr + I2O_DMA1_CFG);
-	}
+	hpsa_p600_dma_prefetch_quirk(h);
 
 	h->max_commands = readl(&(h->cfgtable->CmdsOutMax));
 	/* Update the field, and then ring the doorbell */
