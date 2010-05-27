@@ -60,3 +60,7 @@
 	(defined(CONFIG_BFIN_EXTMEM_WRITEBACK) || defined(CONFIG_BFIN_L2_WRITEBACK))
 # error "Anomaly 05000220 does not allow you to use Write Back cache with L2 or External Memory"
 #endif
+
+#if ANOMALY_05000491 && !defined(CONFIG_CACHE_FLUSH_L1)
+# error You need IFLUSH in L1 inst while Anomaly 05000491 applies
+#endif

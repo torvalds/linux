@@ -853,6 +853,18 @@ config CPLB_SWITCH_TAB_L1
 	  If enabled, the CPLB Switch Tables are linked
 	  into L1 data memory. (less latency)
 
+config CACHE_FLUSH_L1
+	bool "Locate cache flush funcs in L1 Inst Memory"
+	default y
+	help
+	  If enabled, the Blackfin cache flushing functions are linked
+	  into L1 instruction memory.
+
+	  Note that this might be required to address anomalies, but
+	  these functions are pretty small, so it shouldn't be too bad.
+	  If you are using a processor affected by an anomaly, the build
+	  system will double check for you and prevent it.
+
 config APP_STACK_L1
 	bool "Support locating application stack in L1 Scratch Memory"
 	default y
