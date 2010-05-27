@@ -3372,6 +3372,18 @@ static void __devinit hpsa_find_board_params(struct ctlr_info *h)
 	}
 }
 
+static inline bool hpsa_CISS_signature_present(struct ctlr_info *h)
+{
+	if ((readb(&h->cfgtable->Signature[0]) != 'C') ||
+	    (readb(&h->cfgtable->Signature[1]) != 'I') ||
+	    (readb(&h->cfgtable->Signature[2]) != 'S') ||
+	    (readb(&h->cfgtable->Signature[3]) != 'S')) {
+		dev_warn(&h->pdev->dev, "not a valid CISS config table\n");
+		return false;
+	}
+	return true;
+}
+
 static int __devinit hpsa_pci_init(struct ctlr_info *h)
 {
 	int i, prod_index, err;
@@ -3415,11 +3427,7 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 		goto err_out_free_res;
 	hpsa_find_board_params(h);
 
-	if ((readb(&h->cfgtable->Signature[0]) != 'C') ||
-	    (readb(&h->cfgtable->Signature[1]) != 'I') ||
-	    (readb(&h->cfgtable->Signature[2]) != 'S') ||
-	    (readb(&h->cfgtable->Signature[3]) != 'S')) {
-		dev_warn(&h->pdev->dev, "not a valid CISS config table\n");
+	if (!hpsa_CISS_signature_present(h)) {
 		err = -ENODEV;
 		goto err_out_free_res;
 	}
