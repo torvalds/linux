@@ -25,6 +25,7 @@ static struct snd_soc_card smdk;
  * Default CFG switch settings to use this driver:
  *
  *   SMDK6410: Set CFG1 1-3 On, CFG2 1-4 Off
+ *   SMDKC100: Set CFG6 1-3 On, CFG7 1   On
  */
 
 /*
