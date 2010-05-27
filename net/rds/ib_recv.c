@@ -238,7 +238,8 @@ void rds_ib_recv_clear_ring(struct rds_ib_connection *ic)
 		rds_ib_recv_clear_one(ic, &ic->i_recvs[i]);
 }
 
-static struct rds_ib_incoming *rds_ib_refill_one_inc(struct rds_ib_connection *ic)
+static struct rds_ib_incoming *rds_ib_refill_one_inc(struct rds_ib_connection *ic,
+						     gfp_t slab_mask)
 {
 	struct rds_ib_incoming *ibinc;
 	struct list_head *cache_item;
@@ -254,7 +255,7 @@ static struct rds_ib_incoming *rds_ib_refill_one_inc(struct rds_ib_connection *i
 			rds_ib_stats_inc(s_ib_rx_alloc_limit);
 			return NULL;
 		}
-		ibinc = kmem_cache_alloc(rds_ib_incoming_slab, GFP_NOWAIT);
+		ibinc = kmem_cache_alloc(rds_ib_incoming_slab, slab_mask);
 		if (!ibinc) {
 			atomic_dec(&rds_ib_allocation);
 			return NULL;
@@ -266,7 +267,8 @@ static struct rds_ib_incoming *rds_ib_refill_one_inc(struct rds_ib_connection *i
 	return ibinc;
 }
 
-static struct rds_page_frag *rds_ib_refill_one_frag(struct rds_ib_connection *ic)
+static struct rds_page_frag *rds_ib_refill_one_frag(struct rds_ib_connection *ic,
+						    gfp_t slab_mask, gfp_t page_mask)
 {
 	struct rds_page_frag *frag;
 	struct list_head *cache_item;
@@ -276,12 +278,12 @@ static struct rds_page_frag *rds_ib_refill_one_frag(struct rds_ib_connection *ic
 	if (cache_item) {
 		frag = container_of(cache_item, struct rds_page_frag, f_cache_entry);
 	} else {
-		frag = kmem_cache_alloc(rds_ib_frag_slab, GFP_NOWAIT);
+		frag = kmem_cache_alloc(rds_ib_frag_slab, slab_mask);
 		if (!frag)
 			return NULL;
 
 		ret = rds_page_remainder_alloc(&frag->f_sg,
-					       RDS_FRAG_SIZE, GFP_NOWAIT);
+					       RDS_FRAG_SIZE, page_mask);
 		if (ret) {
 			kmem_cache_free(rds_ib_frag_slab, frag);
 			return NULL;
@@ -294,11 +296,18 @@ static struct rds_page_frag *rds_ib_refill_one_frag(struct rds_ib_connection *ic
 }
 
 static int rds_ib_recv_refill_one(struct rds_connection *conn,
-				  struct rds_ib_recv_work *recv)
+				  struct rds_ib_recv_work *recv, int prefill)
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	struct ib_sge *sge;
 	int ret = -ENOMEM;
+	gfp_t slab_mask = GFP_NOWAIT;
+	gfp_t page_mask = GFP_NOWAIT;
+
+	if (prefill) {
+		slab_mask = GFP_KERNEL;
+		page_mask = GFP_HIGHUSER;
+	}
 
 	if (!ic->i_cache_incs.ready)
 		rds_ib_cache_xfer_to_ready(&ic->i_cache_incs);
@@ -310,13 +319,13 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 	 * recvs that were continuations will still have this allocated.
 	 */
 	if (!recv->r_ibinc) {
-		recv->r_ibinc = rds_ib_refill_one_inc(ic);
+		recv->r_ibinc = rds_ib_refill_one_inc(ic, slab_mask);
 		if (!recv->r_ibinc)
 			goto out;
 	}
 
 	WARN_ON(recv->r_frag); /* leak! */
-	recv->r_frag = rds_ib_refill_one_frag(ic);
+	recv->r_frag = rds_ib_refill_one_frag(ic, slab_mask, page_mask);
 	if (!recv->r_frag)
 		goto out;
 
@@ -363,7 +372,7 @@ int rds_ib_recv_refill(struct rds_connection *conn, int prefill)
 		}
 
 		recv = &ic->i_recvs[pos];
-		ret = rds_ib_recv_refill_one(conn, recv);
+		ret = rds_ib_recv_refill_one(conn, recv, prefill);
 		if (ret) {
 			ret = -1;
 			break;
