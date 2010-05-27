@@ -5536,12 +5536,6 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 	entry->bus = (conn >> 16) & 0xf;
 	entry->location = (conn >> 20) & 0x3;
 	entry->or = (conn >> 24) & 0xf;
-	/*
-	 * Normal entries consist of a single bit, but dual link has the
-	 * next most significant bit set too
-	 */
-	entry->duallink_possible =
-			((1 << (ffs(entry->or) - 1)) * 3 == entry->or);
 
 	switch (entry->type) {
 	case OUTPUT_ANALOG:
@@ -5623,6 +5617,16 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		return false;
 	default:
 		break;
+	}
+
+	if (dcb->version < 0x40) {
+		/* Normal entries consist of a single bit, but dual link has
+		 * the next most significant bit set too
+		 */
+		entry->duallink_possible =
+			((1 << (ffs(entry->or) - 1)) * 3 == entry->or);
+	} else {
+		entry->duallink_possible = (entry->sorconf.link == 3);
 	}
 
 	/* unsure what DCB version introduces this, 3.0? */
