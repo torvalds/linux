@@ -13,6 +13,7 @@ static char const		*script_name;
 static char const		*generate_script_lang;
 static bool			debug_ordering;
 static u64			last_timestamp;
+static u64			nr_unordered;
 
 static int default_start_script(const char *script __unused,
 				int argc __unused,
@@ -96,8 +97,10 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 				pr_err("Samples misordered, previous: %llu "
 					"this: %llu\n", last_timestamp,
 					data.time);
+				nr_unordered++;
 			}
 			last_timestamp = data.time;
+			return 0;
 		}
 		/*
 		 * FIXME: better resolve from pid from the struct trace_entry
@@ -132,9 +135,16 @@ static void sig_handler(int sig __unused)
 
 static int __cmd_trace(struct perf_session *session)
 {
+	int ret;
+
 	signal(SIGINT, sig_handler);
 
-	return perf_session__process_events(session, &event_ops);
+	ret = perf_session__process_events(session, &event_ops);
+
+	if (debug_ordering)
+		pr_err("Misordered timestamps: %llu\n", nr_unordered);
+
+	return ret;
 }
 
 struct script_spec {
