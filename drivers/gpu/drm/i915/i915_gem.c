@@ -2914,18 +2914,16 @@ i915_gem_object_set_to_display_plane(struct drm_gem_object *obj)
 			return ret;
 	}
 
+	i915_gem_object_flush_cpu_write_domain(obj);
+
 	old_write_domain = obj->write_domain;
 	old_read_domains = obj->read_domains;
-
-	obj->read_domains &= I915_GEM_DOMAIN_GTT;
-
-	i915_gem_object_flush_cpu_write_domain(obj);
 
 	/* It should now be out of any other write domains, and we can update
 	 * the domain values for our changes.
 	 */
 	BUG_ON((obj->write_domain & ~I915_GEM_DOMAIN_GTT) != 0);
-	obj->read_domains |= I915_GEM_DOMAIN_GTT;
+	obj->read_domains = I915_GEM_DOMAIN_GTT;
 	obj->write_domain = I915_GEM_DOMAIN_GTT;
 	obj_priv->dirty = 1;
 
