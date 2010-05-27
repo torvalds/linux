@@ -172,9 +172,9 @@ struct rk2818_sdmmc_platform_data default_sdmmc0_data __initdata = {
 	.host_caps 	= (MMC_CAP_4_BIT_DATA|MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
 	.cfg_gpio = rk2818_sdmmc0_cfg_gpio,
 	.no_detect = 0,
+	.dma_name = "sd_mmc",
 #ifdef CONFIG_SDMMC0_USE_DMA
 	.use_dma  = 1,
-	.dma_name = "sd_mmc"
 #else
 	.use_dma = 0,
 #endif
@@ -187,9 +187,9 @@ struct rk2818_sdmmc_platform_data default_sdmmc1_data __initdata = {
 				   MMC_CAP_MMC_HIGHSPEED|MMC_CAP_SD_HIGHSPEED),
 	.cfg_gpio = rk2818_sdmmc1_cfg_gpio,
 	.no_detect = 1,
+	.dma_name = "sdio",
 #ifdef CONFIG_SDMMC1_USE_DMA
 	.use_dma  = 1,
-	.dma_name = "sdio"
 #else
 	.use_dma = 0,
 #endif
