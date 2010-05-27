@@ -143,8 +143,6 @@ struct nfs4_cb_compound_hdr {
 	u32		minorversion;
 	/* res */
 	int		status;
-	u32		taglen;
-	char		*tag;
 };
 
 static struct {
@@ -293,13 +291,14 @@ nfs4_xdr_enc_cb_recall(struct rpc_rqst *req, __be32 *p,
 static int
 decode_cb_compound_hdr(struct xdr_stream *xdr, struct nfs4_cb_compound_hdr *hdr){
         __be32 *p;
+	u32 taglen;
 
         READ_BUF(8);
         READ32(hdr->status);
-        READ32(hdr->taglen);
-        READ_BUF(hdr->taglen + 4);
-        hdr->tag = (char *)p;
-        p += XDR_QUADLEN(hdr->taglen);
+	/* We've got no use for the tag; ignore it: */
+        READ32(taglen);
+        READ_BUF(taglen + 4);
+        p += XDR_QUADLEN(taglen);
         READ32(hdr->nops);
         return 0;
 }
