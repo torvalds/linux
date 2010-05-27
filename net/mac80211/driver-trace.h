@@ -876,25 +876,23 @@ TRACE_EVENT(api_start_tx_ba_cb,
 );
 
 TRACE_EVENT(api_stop_tx_ba_session,
-	TP_PROTO(struct ieee80211_sta *sta, u16 tid, u16 initiator),
+	TP_PROTO(struct ieee80211_sta *sta, u16 tid),
 
-	TP_ARGS(sta, tid, initiator),
+	TP_ARGS(sta, tid),
 
 	TP_STRUCT__entry(
 		STA_ENTRY
 		__field(u16, tid)
-		__field(u16, initiator)
 	),
 
 	TP_fast_assign(
 		STA_ASSIGN;
 		__entry->tid = tid;
-		__entry->initiator = initiator;
 	),
 
 	TP_printk(
-		STA_PR_FMT " tid:%d initiator:%d",
-		STA_PR_ARG, __entry->tid, __entry->initiator
+		STA_PR_FMT " tid:%d",
+		STA_PR_ARG, __entry->tid
 	)
 );
 

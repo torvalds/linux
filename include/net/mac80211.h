@@ -2345,16 +2345,14 @@ void ieee80211_start_tx_ba_cb_irqsafe(struct ieee80211_vif *vif, const u8 *ra,
  * ieee80211_stop_tx_ba_session - Stop a Block Ack session.
  * @sta: the station whose BA session to stop
  * @tid: the TID to stop BA.
- * @initiator: if indicates initiator DELBA frame will be sent.
  *
- * Return: error if no sta with matching da found, success otherwise
+ * Return: negative error if the TID is invalid, or no aggregation active
  *
  * Although mac80211/low level driver/user space application can estimate
  * the need to stop aggregation on a certain RA/TID, the session level
  * will be managed by the mac80211.
  */
-int ieee80211_stop_tx_ba_session(struct ieee80211_sta *sta, u16 tid,
-				 enum ieee80211_back_parties initiator);
+int ieee80211_stop_tx_ba_session(struct ieee80211_sta *sta, u16 tid);
 
 /**
  * ieee80211_stop_tx_ba_cb - low level driver ready to stop aggregate.
