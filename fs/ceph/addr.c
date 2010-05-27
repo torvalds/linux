@@ -552,7 +552,7 @@ static void writepages_finish(struct ceph_osd_request *req,
 		 * page truncation thread, possibly losing some data that
 		 * raced its way in
 		 */
-		if ((issued & CEPH_CAP_FILE_CACHE) == 0)
+		if ((issued & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) == 0)
 			generic_error_remove_page(inode->i_mapping, page);
 
 		unlock_page(page);

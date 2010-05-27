@@ -482,8 +482,8 @@ static void __check_cap_issue(struct ceph_inode_info *ci, struct ceph_cap *cap,
 	 * Each time we receive FILE_CACHE anew, we increment
 	 * i_rdcache_gen.
 	 */
-	if ((issued & CEPH_CAP_FILE_CACHE) &&
-	    (had & CEPH_CAP_FILE_CACHE) == 0)
+	if ((issued & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) &&
+	    (had & (CEPH_CAP_FILE_CACHE|CEPH_CAP_FILE_LAZYIO)) == 0)
 		ci->i_rdcache_gen++;
 
 	/*
@@ -1509,11 +1509,13 @@ retry_locked:
 	    ci->i_wrbuffer_ref == 0 &&               /* no dirty pages... */
 	    ci->i_rdcache_gen &&                     /* may have cached pages */
 	    (file_wanted == 0 ||                     /* no open files */
-	     (revoking & CEPH_CAP_FILE_CACHE)) &&     /*  or revoking cache */
+	     (revoking & (CEPH_CAP_FILE_CACHE|
+			  CEPH_CAP_FILE_LAZYIO))) && /*  or revoking cache */
 	    !tried_invalidate) {
 		dout("check_caps trying to invalidate on %p\n", inode);
 		if (try_nonblocking_invalidate(inode) < 0) {
-			if (revoking & CEPH_CAP_FILE_CACHE) {
+			if (revoking & (CEPH_CAP_FILE_CACHE|
+					CEPH_CAP_FILE_LAZYIO)) {
 				dout("check_caps queuing invalidate\n");
 				queue_invalidate = 1;
 				ci->i_rdcache_revoking = ci->i_rdcache_gen;
@@ -2276,7 +2278,8 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	 * try to invalidate (once).  (If there are dirty buffers, we
 	 * will invalidate _after_ writeback.)
 	 */
-	if (((cap->issued & ~newcaps) & CEPH_CAP_FILE_CACHE) &&
+	if (((cap->issued & ~newcaps) & (CEPH_CAP_FILE_CACHE|
+					 CEPH_CAP_FILE_LAZYIO)) &&
 	    !ci->i_wrbuffer_ref) {
 		if (try_nonblocking_invalidate(inode) == 0) {
 			revoked_rdcache = 1;
@@ -2374,7 +2377,8 @@ static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 			writeback = 1; /* will delay ack */
 		else if (dirty & ~newcaps)
 			check_caps = 1;  /* initiate writeback in check_caps */
-		else if (((used & ~newcaps) & CEPH_CAP_FILE_CACHE) == 0 ||
+		else if (((used & ~newcaps) & (CEPH_CAP_FILE_CACHE|
+					       CEPH_CAP_FILE_LAZYIO)) == 0 ||
 			   revoked_rdcache)
 			check_caps = 2;     /* send revoke ack in check_caps */
 		cap->issued = newcaps;
