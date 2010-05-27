@@ -22,7 +22,7 @@
 
 /* platform device data structures */
 struct platform_device;
-
+struct i2c_client;
 struct RK2818_mddi_platform_data
 {
 	void (*panel_power)(int on);
@@ -33,6 +33,7 @@ struct rk2818_sdmmc_platform_data {
 	unsigned int host_ocr_avail;
 	unsigned int use_dma:1;
 	unsigned int no_detect:1;
+	char dma_name[8];
 	void    (*cfg_gpio)(struct platform_device *dev);
 };
 
