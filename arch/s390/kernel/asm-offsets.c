@@ -132,8 +132,6 @@ int main(void)
 	DEFINE(__LC_MCCK_CLOCK, offsetof(struct _lowcore, mcck_clock));
 	DEFINE(__LC_MACHINE_FLAGS, offsetof(struct _lowcore, machine_flags));
 	DEFINE(__LC_FTRACE_FUNC, offsetof(struct _lowcore, ftrace_func));
-	DEFINE(__LC_SIE_HOOK, offsetof(struct _lowcore, sie_hook));
-	DEFINE(__LC_CMF_HPP, offsetof(struct _lowcore, cmf_hpp));
 	DEFINE(__LC_IRB, offsetof(struct _lowcore, irb));
 	DEFINE(__LC_CPU_TIMER_SAVE_AREA, offsetof(struct _lowcore, cpu_timer_save_area));
 	DEFINE(__LC_CLOCK_COMP_SAVE_AREA, offsetof(struct _lowcore, clock_comp_save_area));
@@ -154,6 +152,8 @@ int main(void)
 	DEFINE(__LC_FP_CREG_SAVE_AREA, offsetof(struct _lowcore, fpt_creg_save_area));
 	DEFINE(__LC_LAST_BREAK, offsetof(struct _lowcore, breaking_event_addr));
 	DEFINE(__LC_VDSO_PER_CPU, offsetof(struct _lowcore, vdso_per_cpu_data));
+	DEFINE(__LC_SIE_HOOK, offsetof(struct _lowcore, sie_hook));
+	DEFINE(__LC_CMF_HPP, offsetof(struct _lowcore, cmf_hpp));
 #endif /* CONFIG_32BIT */
 	return 0;
 }
