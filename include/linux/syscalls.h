@@ -813,8 +813,7 @@ asmlinkage long sys_pselect6(int, fd_set __user *, fd_set __user *,
 asmlinkage long sys_ppoll(struct pollfd __user *, unsigned int,
 			  struct timespec __user *, const sigset_t __user *,
 			  size_t);
-asmlinkage long sys_fanotify_init(unsigned int flags, unsigned int event_f_flags,
-				  unsigned int priority);
+asmlinkage long sys_fanotify_init(unsigned int flags, unsigned int event_f_flags);
 asmlinkage long sys_fanotify_mark(int fanotify_fd, unsigned int flags,
 				  u64 mask, int fd,
 				  const char  __user *pathname);

@@ -90,7 +90,6 @@ void fsnotify_recalc_group_mask(struct fsnotify_group *group)
 void fsnotify_add_vfsmount_group(struct fsnotify_group *group)
 {
 	struct fsnotify_group *group_iter;
-	unsigned int priority = group->priority;
 
 	mutex_lock(&fsnotify_grp_mutex);
 
@@ -98,7 +97,7 @@ void fsnotify_add_vfsmount_group(struct fsnotify_group *group)
 		list_for_each_entry(group_iter, &fsnotify_vfsmount_groups,
 				    vfsmount_group_list) {
 			/* insert in front of this one? */
-			if (priority < group_iter->priority) {
+			if (group < group_iter) {
 				/* list_add_tail() insert in front of group_iter */
 				list_add_tail_rcu(&group->inode_group_list,
 						  &group_iter->inode_group_list);
@@ -118,15 +117,14 @@ out:
 void fsnotify_add_inode_group(struct fsnotify_group *group)
 {
 	struct fsnotify_group *group_iter;
-	unsigned int priority = group->priority;
 
 	mutex_lock(&fsnotify_grp_mutex);
 
-	/* add to global group list, priority 0 first, UINT_MAX last */
+	/* add to global group list */
 	if (!group->on_inode_group_list) {
 		list_for_each_entry(group_iter, &fsnotify_inode_groups,
 				    inode_group_list) {
-			if (priority < group_iter->priority) {
+			if (group < group_iter) {
 				/* list_add_tail() insert in front of group_iter */
 				list_add_tail_rcu(&group->inode_group_list,
 						  &group_iter->inode_group_list);
@@ -259,8 +257,6 @@ struct fsnotify_group *fsnotify_alloc_group(const struct fsnotify_ops *ops)
 
 	spin_lock_init(&group->mark_lock);
 	INIT_LIST_HEAD(&group->marks_list);
-
-	group->priority = UINT_MAX;
 
 	group->ops = ops;
 

@@ -616,14 +616,13 @@ static int fanotify_add_inode_mark(struct fsnotify_group *group,
 }
 
 /* fanotify syscalls */
-SYSCALL_DEFINE3(fanotify_init, unsigned int, flags, unsigned int, event_f_flags,
-		unsigned int, priority)
+SYSCALL_DEFINE2(fanotify_init, unsigned int, flags, unsigned int, event_f_flags)
 {
 	struct fsnotify_group *group;
 	int f_flags, fd;
 
-	pr_debug("%s: flags=%d event_f_flags=%d priority=%d\n",
-		__func__, flags, event_f_flags, priority);
+	pr_debug("%s: flags=%d event_f_flags=%d\n",
+		__func__, flags, event_f_flags);
 
 	if (event_f_flags)
 		return -EINVAL;
@@ -645,7 +644,6 @@ SYSCALL_DEFINE3(fanotify_init, unsigned int, flags, unsigned int, event_f_flags,
 	if (IS_ERR(group))
 		return PTR_ERR(group);
 
-	group->priority = priority;
 #ifdef CONFIG_FANOTIFY_ACCESS_PERMISSIONS
 	mutex_init(&group->fanotify_data.access_mutex);
 	init_waitqueue_head(&group->fanotify_data.access_waitq);
