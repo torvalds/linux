@@ -3135,9 +3135,9 @@ static __devinit int hpsa_hard_reset_controller(struct pci_dev *pdev)
  *   the io functions.
  *   This is for debug only.
  */
-#ifdef HPSA_DEBUG
 static void print_cfg_table(struct device *dev, struct CfgTable *tb)
 {
+#ifdef HPSA_DEBUG
 	int i;
 	char temp_name[17];
 
@@ -3167,8 +3167,8 @@ static void print_cfg_table(struct device *dev, struct CfgTable *tb)
 	dev_info(dev, "   Server Name = %s\n", temp_name);
 	dev_info(dev, "   Heartbeat Counter = 0x%x\n\n\n",
 		readl(&(tb->HeartBeat)));
-}
 #endif				/* HPSA_DEBUG */
+}
 
 static int find_PCI_BAR_index(struct pci_dev *pdev, unsigned long pci_bar_addr)
 {
@@ -3434,11 +3434,7 @@ static int __devinit hpsa_enter_simple_mode(struct ctlr_info *h)
 		/* delay and try again */
 		msleep(10);
 	}
-
-#ifdef HPSA_DEBUG
 	print_cfg_table(&h->pdev->dev, h->cfgtable);
-#endif				/* HPSA_DEBUG */
-
 	if (!(readl(&(h->cfgtable->TransportActive)) & CFGTBL_Trans_Simple)) {
 		dev_warn(&h->pdev->dev,
 			"unable to get board into simple mode\n");
