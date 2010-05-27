@@ -270,6 +270,19 @@ static void __init tegra_stingray_fixup(struct machine_desc *desc, struct tag *t
 	mi->bank[1].size = SZ_512M;
 }
 
+static void stingray_power_off(void)
+{
+	gpio_direction_output(TEGRA_GPIO_PV7, 0);
+}
+
+static void __init stingray_power_off_init(void)
+{
+	tegra_gpio_enable(TEGRA_GPIO_PV7);
+	if (!gpio_request(TEGRA_GPIO_PV7, "wdi")) {
+		pm_power_off = stingray_power_off;
+	}
+}
+
 static void __init tegra_stingray_init(void)
 {
 	struct clk *clk;
@@ -300,6 +313,7 @@ static void __init tegra_stingray_init(void)
 
 	platform_add_devices(stingray_devices, ARRAY_SIZE(stingray_devices));
 
+	stingray_power_off_init();
 	stingray_keypad_init();
 	stingray_touch_init();
 	stingray_spi_init();
