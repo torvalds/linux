@@ -46,6 +46,20 @@ struct nmk_gpio_chip {
 	u32 edge_falling;
 };
 
+static void __nmk_gpio_set_slpm(struct nmk_gpio_chip *nmk_chip,
+				unsigned offset, enum nmk_gpio_slpm mode)
+{
+	u32 bit = 1 << offset;
+	u32 slpm;
+
+	slpm = readl(nmk_chip->addr + NMK_GPIO_SLPC);
+	if (mode == NMK_GPIO_SLPM_NOCHANGE)
+		slpm |= bit;
+	else
+		slpm &= ~bit;
+	writel(slpm, nmk_chip->addr + NMK_GPIO_SLPC);
+}
+
 static void __nmk_gpio_set_pull(struct nmk_gpio_chip *nmk_chip,
 				unsigned offset, enum nmk_gpio_pull pull)
 {
@@ -63,6 +77,32 @@ static void __nmk_gpio_set_pull(struct nmk_gpio_chip *nmk_chip,
 		writel(bit, nmk_chip->addr + NMK_GPIO_DATS);
 	else if (pull == NMK_GPIO_PULL_DOWN)
 		writel(bit, nmk_chip->addr + NMK_GPIO_DATC);
+}
+
+/**
+ * nmk_gpio_set_slpm() - configure the sleep mode of a pin
+ * @gpio: pin number
+ * @mode: NMK_GPIO_SLPM_INPUT or NMK_GPIO_SLPM_NOCHANGE,
+ *
+ * Sets the sleep mode of a pin.  If @mode is NMK_GPIO_SLPM_INPUT, the pin is
+ * changed to an input (with pullup/down enabled) in sleep and deep sleep.  If
+ * @mode is NMK_GPIO_SLPM_NOCHANGE, the pin remains in the state it was
+ * configured even when in sleep and deep sleep.
+ */
+int nmk_gpio_set_slpm(int gpio, enum nmk_gpio_slpm mode)
+{
+	struct nmk_gpio_chip *nmk_chip;
+	unsigned long flags;
+
+	nmk_chip = get_irq_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
+	if (!nmk_chip)
+		return -EINVAL;
+
+	spin_lock_irqsave(&nmk_chip->lock, flags);
+	__nmk_gpio_set_slpm(nmk_chip, gpio - nmk_chip->chip.base, mode);
+	spin_unlock_irqrestore(&nmk_chip->lock, flags);
+
+	return 0;
 }
 
 /**
