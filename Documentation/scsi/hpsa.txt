@@ -38,6 +38,7 @@ HPSA specific entries in /sys
   ------------------------------
 
   /sys/class/scsi_host/host*/rescan
+  /sys/class/scsi_host/host*/firmware_revision
 
   the host "rescan" attribute is a write only attribute.  Writing to this
   attribute will cause the driver to scan for new, changed, or removed devices
@@ -47,6 +48,12 @@ HPSA specific entries in /sys
   command line variety) so for logical drive changes, the user should not
   normally have to use this.  It may be useful when hot plugging devices like
   tape drives, or entire storage boxes containing pre-configured logical drives.
+
+  The "firmware_revision" attribute contains the firmware version of the Smart Array.
+  For example:
+
+	root@host:/sys/class/scsi_host/host4# cat firmware_revision
+	7.14
 
   HPSA specific disk attributes:
   ------------------------------
