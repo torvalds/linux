@@ -55,6 +55,14 @@
 #define NMK_GPIO_ALT_B	2
 #define NMK_GPIO_ALT_C	(NMK_GPIO_ALT_A | NMK_GPIO_ALT_B)
 
+/* Pull up/down values */
+enum nmk_gpio_pull {
+	NMK_GPIO_PULL_NONE,
+	NMK_GPIO_PULL_UP,
+	NMK_GPIO_PULL_DOWN,
+};
+
+extern int nmk_gpio_set_pull(int gpio, enum nmk_gpio_pull pull);
 extern int nmk_gpio_set_mode(int gpio, int gpio_mode);
 extern int nmk_gpio_get_mode(int gpio);
 
