@@ -146,10 +146,10 @@ static inline int otg_io_read(struct otg_transceiver *otg, u32 reg)
 	return -EINVAL;
 }
 
-static inline int otg_io_write(struct otg_transceiver *otg, u32 reg, u32 val)
+static inline int otg_io_write(struct otg_transceiver *otg, u32 val, u32 reg)
 {
 	if (otg->io_ops && otg->io_ops->write)
-		return otg->io_ops->write(otg, reg, val);
+		return otg->io_ops->write(otg, val, reg);
 
 	return -EINVAL;
 }
