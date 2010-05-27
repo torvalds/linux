@@ -11,6 +11,7 @@
 #include <sys/param.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include "build-id.h"
 #include "symbol.h"
 #include "strlist.h"
 
@@ -1131,6 +1132,10 @@ bool __dsos__read_build_ids(struct list_head *head, bool with_hits)
 	list_for_each_entry(pos, head, node) {
 		if (with_hits && !pos->hit)
 			continue;
+		if (pos->has_build_id) {
+			have_build_id = true;
+			continue;
+		}
 		if (filename__read_build_id(pos->long_name, pos->build_id,
 					    sizeof(pos->build_id)) > 0) {
 			have_build_id	  = true;
@@ -1289,7 +1294,6 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 	int size = PATH_MAX;
 	char *name;
 	u8 build_id[BUILD_ID_SIZE];
-	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
 	int ret = -1;
 	int fd;
 	struct machine *machine;
@@ -1321,15 +1325,8 @@ int dso__load(struct dso *self, struct map *map, symbol_filter_t filter)
 	}
 
 	self->origin = DSO__ORIG_BUILD_ID_CACHE;
-
-	if (self->has_build_id) {
-		build_id__sprintf(self->build_id, sizeof(self->build_id),
-				  build_id_hex);
-		snprintf(name, size, "%s/%s/.build-id/%.2s/%s",
-			 getenv("HOME"), DEBUG_CACHE_DIR,
-			 build_id_hex, build_id_hex + 2);
+	if (dso__build_id_filename(self, name, size) != NULL)
 		goto open_file;
-	}
 more:
 	do {
 		self->origin++;
@@ -1345,6 +1342,7 @@ more:
 		case DSO__ORIG_BUILDID:
 			if (filename__read_build_id(self->long_name, build_id,
 						    sizeof(build_id))) {
+				char build_id_hex[BUILD_ID_SIZE * 2 + 1];
 				build_id__sprintf(build_id, sizeof(build_id),
 						  build_id_hex);
 				snprintf(name, size,
@@ -1933,6 +1931,12 @@ static size_t __dsos__fprintf_buildid(struct list_head *head, FILE *fp,
 	return ret;
 }
 
+size_t machine__fprintf_dsos_buildid(struct machine *self, FILE *fp, bool with_hits)
+{
+	return __dsos__fprintf_buildid(&self->kernel_dsos, fp, with_hits) +
+	       __dsos__fprintf_buildid(&self->user_dsos, fp, with_hits);
+}
+
 size_t machines__fprintf_dsos_buildid(struct rb_root *self, FILE *fp, bool with_hits)
 {
 	struct rb_node *nd;
@@ -1940,8 +1944,7 @@ size_t machines__fprintf_dsos_buildid(struct rb_root *self, FILE *fp, bool with_
 
 	for (nd = rb_first(self); nd; nd = rb_next(nd)) {
 		struct machine *pos = rb_entry(nd, struct machine, rb_node);
-		ret += __dsos__fprintf_buildid(&pos->kernel_dsos, fp, with_hits);
-		ret += __dsos__fprintf_buildid(&pos->user_dsos, fp, with_hits);
+		ret += machine__fprintf_dsos_buildid(pos, fp, with_hits);
 	}
 	return ret;
 }

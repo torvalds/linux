@@ -1,7 +1,15 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #undef _GNU_SOURCE
-
+/*
+ * slang versions <= 2.0.6 have a "#if HAVE_LONG_LONG" that breaks
+ * the build if it isn't defined. Use the equivalent one that glibc
+ * has on features.h.
+ */
+#include <features.h>
+#ifndef HAVE_LONG_LONG
+#define HAVE_LONG_LONG __GLIBC_HAVE_LONG_LONG
+#endif
 #include <slang.h>
 #include <stdlib.h>
 #include <newt.h>
@@ -227,6 +235,15 @@ static bool dialog_yesno(const char *msg)
 	return newtWinChoice(NULL, yes, no, (char *)msg) == 1;
 }
 
+static void ui__error_window(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	newtWinMessagev((char *)"Error", (char *)"Ok", (char *)fmt, ap);
+	va_end(ap);
+}
+
 #define HE_COLORSET_TOP		50
 #define HE_COLORSET_MEDIUM	51
 #define HE_COLORSET_NORMAL	52
@@ -375,8 +392,11 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 	newtFormAddHotKey(self->form, NEWT_KEY_DOWN);
 	newtFormAddHotKey(self->form, NEWT_KEY_PGUP);
 	newtFormAddHotKey(self->form, NEWT_KEY_PGDN);
+	newtFormAddHotKey(self->form, ' ');
 	newtFormAddHotKey(self->form, NEWT_KEY_HOME);
 	newtFormAddHotKey(self->form, NEWT_KEY_END);
+	newtFormAddHotKey(self->form, NEWT_KEY_TAB);
+	newtFormAddHotKey(self->form, NEWT_KEY_RIGHT);
 
 	if (ui_browser__refresh_entries(self) < 0)
 		return -1;
@@ -389,6 +409,8 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 
 		if (es->reason != NEWT_EXIT_HOTKEY)
 			break;
+		if (is_exit_key(es->u.key))
+			return es->u.key;
 		switch (es->u.key) {
 		case NEWT_KEY_DOWN:
 			if (self->index == self->nr_entries - 1)
@@ -411,6 +433,7 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 			}
 			break;
 		case NEWT_KEY_PGDN:
+		case ' ':
 			if (self->first_visible_entry_idx + self->height > self->nr_entries - 1)
 				break;
 
@@ -461,12 +484,10 @@ static int ui_browser__run(struct ui_browser *self, const char *title,
 			}
 		}
 			break;
-		case NEWT_KEY_ESCAPE:
+		case NEWT_KEY_RIGHT:
 		case NEWT_KEY_LEFT:
-		case CTRL('c'):
-		case 'Q':
-		case 'q':
-			return 0;
+		case NEWT_KEY_TAB:
+			return es->u.key;
 		default:
 			continue;
 		}
@@ -658,18 +679,24 @@ static size_t hist_entry__append_browser(struct hist_entry *self,
 	return ret;
 }
 
-static void hist_entry__annotate_browser(struct hist_entry *self)
+int hist_entry__tui_annotate(struct hist_entry *self)
 {
 	struct ui_browser browser;
 	struct newtExitStruct es;
 	struct objdump_line *pos, *n;
 	LIST_HEAD(head);
+	int ret;
 
 	if (self->ms.sym == NULL)
-		return;
+		return -1;
 
-	if (hist_entry__annotate(self, &head) < 0)
-		return;
+	if (self->ms.map->dso->annotate_warned)
+		return -1;
+
+	if (hist_entry__annotate(self, &head) < 0) {
+		ui__error_window(browser__last_msg);
+		return -1;
+	}
 
 	ui_helpline__push("Press <- or ESC to exit");
 
@@ -684,7 +711,7 @@ static void hist_entry__annotate_browser(struct hist_entry *self)
 	}
 
 	browser.width += 18; /* Percentage */
-	ui_browser__run(&browser, self->ms.sym->name, &es);
+	ret = ui_browser__run(&browser, self->ms.sym->name, &es);
 	newtFormDestroy(browser.form);
 	newtPopWindow();
 	list_for_each_entry_safe(pos, n, &head, node) {
@@ -692,6 +719,7 @@ static void hist_entry__annotate_browser(struct hist_entry *self)
 		objdump_line__free(pos);
 	}
 	ui_helpline__pop();
+	return ret;
 }
 
 static const void *newt__symbol_tree_get_current(newtComponent self)
@@ -814,6 +842,8 @@ static int hist_browser__populate(struct hist_browser *self, struct hists *hists
 	newtFormAddHotKey(self->form, 'h');
 	newtFormAddHotKey(self->form, NEWT_KEY_F1);
 	newtFormAddHotKey(self->form, NEWT_KEY_RIGHT);
+	newtFormAddHotKey(self->form, NEWT_KEY_TAB);
+	newtFormAddHotKey(self->form, NEWT_KEY_UNTAB);
 	newtFormAddComponents(self->form, self->tree, NULL);
 	self->selection = newt__symbol_tree_get_current(self->tree);
 
@@ -845,7 +875,7 @@ static struct thread *hist_browser__selected_thread(struct hist_browser *self)
 	return he ? he->thread : NULL;
 }
 
-static int hist_browser__title(char *bf, size_t size, const char *input_name,
+static int hist_browser__title(char *bf, size_t size, const char *ev_name,
 			       const struct dso *dso, const struct thread *thread)
 {
 	int printed = 0;
@@ -859,18 +889,18 @@ static int hist_browser__title(char *bf, size_t size, const char *input_name,
 		printed += snprintf(bf + printed, size - printed,
 				    "%sDSO: %s", thread ? " " : "",
 				    dso->short_name);
-	return printed ?: snprintf(bf, size, "Report: %s", input_name);
+	return printed ?: snprintf(bf, size, "Event: %s", ev_name);
 }
 
-int hists__browse(struct hists *self, const char *helpline, const char *input_name)
+int hists__browse(struct hists *self, const char *helpline, const char *ev_name)
 {
 	struct hist_browser *browser = hist_browser__new();
-	struct pstack *fstack = pstack__new(2);
+	struct pstack *fstack;
 	const struct thread *thread_filter = NULL;
 	const struct dso *dso_filter = NULL;
 	struct newtExitStruct es;
 	char msg[160];
-	int err = -1;
+	int key = -1;
 
 	if (browser == NULL)
 		return -1;
@@ -881,7 +911,7 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 
 	ui_helpline__push(helpline);
 
-	hist_browser__title(msg, sizeof(msg), input_name,
+	hist_browser__title(msg, sizeof(msg), ev_name,
 			    dso_filter, thread_filter);
 	if (hist_browser__populate(browser, self, msg) < 0)
 		goto out_free_stack;
@@ -899,11 +929,27 @@ int hists__browse(struct hists *self, const char *helpline, const char *input_na
 		dso = browser->selection->map ? browser->selection->map->dso : NULL;
 
 		if (es.reason == NEWT_EXIT_HOTKEY) {
-			if (es.u.key == NEWT_KEY_F1)
-				goto do_help;
+			key = es.u.key;
 
-			switch (toupper(es.u.key)) {
+			switch (key) {
+			case NEWT_KEY_F1:
+				goto do_help;
+			case NEWT_KEY_TAB:
+			case NEWT_KEY_UNTAB:
+				/*
+				 * Exit the browser, let hists__browser_tree
+				 * go to the next or previous
+				 */
+				goto out_free_stack;
+			default:;
+			}
+
+			key = toupper(key);
+			switch (key) {
 			case 'A':
+				if (browser->selection->map == NULL &&
+				    browser->selection->map->dso->annotate_warned)
+					continue;
 				goto do_annotate;
 			case 'D':
 				goto zoom_dso;
@@ -922,14 +968,14 @@ do_help:
 				continue;
 			default:;
 			}
-			if (toupper(es.u.key) == 'Q' ||
-			    es.u.key == CTRL('c'))
-				break;
-			if (es.u.key == NEWT_KEY_ESCAPE) {
-				if (dialog_yesno("Do you really want to exit?"))
+			if (is_exit_key(key)) {
+				if (key == NEWT_KEY_ESCAPE) {
+					if (dialog_yesno("Do you really want to exit?"))
+						break;
+					else
+						continue;
+				} else
 					break;
-				else
-					continue;
 			}
 
 			if (es.u.key == NEWT_KEY_LEFT) {
@@ -947,6 +993,7 @@ do_help:
 		}
 
 		if (browser->selection->sym != NULL &&
+		    !browser->selection->map->dso->annotate_warned &&
 		    asprintf(&options[nr_options], "Annotate %s",
 			     browser->selection->sym->name) > 0)
 			annotate = nr_options++;
@@ -981,6 +1028,7 @@ do_help:
 			struct hist_entry *he;
 do_annotate:
 			if (browser->selection->map->dso->origin == DSO__ORIG_KERNEL) {
+				browser->selection->map->dso->annotate_warned = 1;
 				ui_helpline__puts("No vmlinux file found, can't "
 						 "annotate with just a "
 						 "kallsyms file");
@@ -991,7 +1039,7 @@ do_annotate:
 			if (he == NULL)
 				continue;
 
-			hist_entry__annotate_browser(he);
+			hist_entry__tui_annotate(he);
 		} else if (choice == zoom_dso) {
 zoom_dso:
 			if (dso_filter) {
@@ -1008,7 +1056,7 @@ zoom_out_dso:
 				pstack__push(fstack, &dso_filter);
 			}
 			hists__filter_by_dso(self, dso_filter);
-			hist_browser__title(msg, sizeof(msg), input_name,
+			hist_browser__title(msg, sizeof(msg), ev_name,
 					    dso_filter, thread_filter);
 			if (hist_browser__populate(browser, self, msg) < 0)
 				goto out;
@@ -1027,18 +1075,49 @@ zoom_out_thread:
 				pstack__push(fstack, &thread_filter);
 			}
 			hists__filter_by_thread(self, thread_filter);
-			hist_browser__title(msg, sizeof(msg), input_name,
+			hist_browser__title(msg, sizeof(msg), ev_name,
 					    dso_filter, thread_filter);
 			if (hist_browser__populate(browser, self, msg) < 0)
 				goto out;
 		}
 	}
-	err = 0;
 out_free_stack:
 	pstack__delete(fstack);
 out:
 	hist_browser__delete(browser);
-	return err;
+	return key;
+}
+
+int hists__tui_browse_tree(struct rb_root *self, const char *help)
+{
+	struct rb_node *first = rb_first(self), *nd = first, *next;
+	int key = 0;
+
+	while (nd) {
+		struct hists *hists = rb_entry(nd, struct hists, rb_node);
+		const char *ev_name = __event_name(hists->type, hists->config);
+
+		key = hists__browse(hists, help, ev_name);
+
+		if (is_exit_key(key))
+			break;
+
+		switch (key) {
+		case NEWT_KEY_TAB:
+			next = rb_next(nd);
+			if (next)
+				nd = next;
+			break;
+		case NEWT_KEY_UNTAB:
+			if (nd == first)
+				continue;
+			nd = rb_prev(nd);
+		default:
+			break;
+		}
+	}
+
+	return key;
 }
 
 static struct newtPercentTreeColors {
@@ -1058,10 +1137,13 @@ static struct newtPercentTreeColors {
 void setup_browser(void)
 {
 	struct newtPercentTreeColors *c = &defaultPercentTreeColors;
-	if (!isatty(1))
-		return;
 
-	use_browser = true;
+	if (!isatty(1) || !use_browser || dump_trace) {
+		setup_pager();
+		return;
+	}
+
+	use_browser = 1;
 	newtInit();
 	newtCls();
 	ui_helpline__puts(" ");
@@ -1074,7 +1156,7 @@ void setup_browser(void)
 
 void exit_browser(bool wait_for_ok)
 {
-	if (use_browser) {
+	if (use_browser > 0) {
 		if (wait_for_ok) {
 			char title[] = "Fatal Error", ok[] = "Ok";
 			newtWinMessage(title, ok, browser__last_msg);
