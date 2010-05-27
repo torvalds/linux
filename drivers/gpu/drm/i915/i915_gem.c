@@ -4632,23 +4632,40 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	int ret;
+
 	dev_priv->render_ring = render_ring;
+
 	if (!I915_NEED_GFX_HWS(dev)) {
 		dev_priv->render_ring.status_page.page_addr
 			= dev_priv->status_page_dmah->vaddr;
 		memset(dev_priv->render_ring.status_page.page_addr,
 				0, PAGE_SIZE);
 	}
+
 	if (HAS_PIPE_CONTROL(dev)) {
 		ret = i915_gem_init_pipe_control(dev);
 		if (ret)
 			return ret;
 	}
+
 	ret = intel_init_ring_buffer(dev, &dev_priv->render_ring);
-	if (!ret && HAS_BSD(dev)) {
+	if (ret)
+		goto cleanup_pipe_control;
+
+	if (HAS_BSD(dev)) {
 		dev_priv->bsd_ring = bsd_ring;
 		ret = intel_init_ring_buffer(dev, &dev_priv->bsd_ring);
+		if (ret)
+			goto cleanup_render_ring;
 	}
+
+	return 0;
+
+cleanup_render_ring:
+	intel_cleanup_ring_buffer(dev, &dev_priv->render_ring);
+cleanup_pipe_control:
+	if (HAS_PIPE_CONTROL(dev))
+		i915_gem_cleanup_pipe_control(dev);
 	return ret;
 }
 
