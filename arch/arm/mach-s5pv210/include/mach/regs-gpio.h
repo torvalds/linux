@@ -27,12 +27,9 @@
 #define S5PV210_EINT30PEND		(S5P_VA_GPIO + 0xF40)
 #define S5P_EINT_PEND(x)		(S5PV210_EINT30PEND + ((x) * 0x4))
 
-#define eint_offset(irq)	((irq) < IRQ_EINT16_31 ? ((irq) - IRQ_EINT(0)) \
-						: ((irq) - S5P_EINT_16_31_BASE))
+#define EINT_REG_NR(x)			(EINT_OFFSET(x) >> 3)
 
-#define EINT_REG_NR(x)			(eint_offset(x) >> 3)
-
-#define eint_irq_to_bit(irq)		(1 << (eint_offset(irq) & 0x7))
+#define eint_irq_to_bit(irq)		(1 << (EINT_OFFSET(irq) & 0x7))
 
 /* values for S5P_EXTINT0 */
 #define S5P_EXTINT_LOWLEV		(0x00)
@@ -40,5 +37,12 @@
 #define S5P_EXTINT_FALLEDGE		(0x02)
 #define S5P_EXTINT_RISEEDGE		(0x03)
 #define S5P_EXTINT_BOTHEDGE		(0x04)
+
+#define EINT_MODE		S3C_GPIO_SFN(0xf)
+
+#define EINT_GPIO_0(x)		S5PV210_GPH0(x)
+#define EINT_GPIO_1(x)		S5PV210_GPH1(x)
+#define EINT_GPIO_2(x)		S5PV210_GPH2(x)
+#define EINT_GPIO_3(x)		S5PV210_GPH3(x)
 
 #endif /* __ASM_ARCH_REGS_GPIO_H */
