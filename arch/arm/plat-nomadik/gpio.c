@@ -266,16 +266,6 @@ static int nmk_gpio_make_input(struct gpio_chip *chip, unsigned offset)
 	return 0;
 }
 
-static int nmk_gpio_make_output(struct gpio_chip *chip, unsigned offset,
-				int val)
-{
-	struct nmk_gpio_chip *nmk_chip =
-		container_of(chip, struct nmk_gpio_chip, chip);
-
-	writel(1 << offset, nmk_chip->addr + NMK_GPIO_DIRS);
-	return 0;
-}
-
 static int nmk_gpio_get_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct nmk_gpio_chip *nmk_chip =
@@ -296,6 +286,18 @@ static void nmk_gpio_set_output(struct gpio_chip *chip, unsigned offset,
 		writel(bit, nmk_chip->addr + NMK_GPIO_DATS);
 	else
 		writel(bit, nmk_chip->addr + NMK_GPIO_DATC);
+}
+
+static int nmk_gpio_make_output(struct gpio_chip *chip, unsigned offset,
+				int val)
+{
+	struct nmk_gpio_chip *nmk_chip =
+		container_of(chip, struct nmk_gpio_chip, chip);
+
+	writel(1 << offset, nmk_chip->addr + NMK_GPIO_DIRS);
+	nmk_gpio_set_output(chip, offset, val);
+
+	return 0;
 }
 
 /* This structure is replicated for each GPIO block allocated at probe time */
