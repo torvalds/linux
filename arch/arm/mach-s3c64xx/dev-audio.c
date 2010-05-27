@@ -24,24 +24,21 @@
 
 static int s3c64xx_i2sv3_cfg_gpio(struct platform_device *pdev)
 {
+	unsigned int base;
+
 	switch (pdev->id) {
 	case 0:
-		s3c_gpio_cfgpin(S3C64XX_GPD(0), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S3C64XX_GPD(1), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S3C64XX_GPD(2), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S3C64XX_GPD(3), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S3C64XX_GPD(4), S3C_GPIO_SFN(3));
+		base = S3C64XX_GPD(0);
 		break;
 	case 1:
-		s3c_gpio_cfgpin(S3C64XX_GPE(0), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S3C64XX_GPE(1), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S3C64XX_GPE(2), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S3C64XX_GPE(3), S3C_GPIO_SFN(3));
-		s3c_gpio_cfgpin(S3C64XX_GPE(4), S3C_GPIO_SFN(3));
+		base = S3C64XX_GPE(0);
+		break;
 	default:
 		printk(KERN_DEBUG "Invalid I2S Controller number!");
 		return -EINVAL;
 	}
+
+	s3c_gpio_cfgpin_range(base, 5, S3C_GPIO_SFN(3));
 
 	return 0;
 }
@@ -51,10 +48,7 @@ static int s3c64xx_i2sv4_cfg_gpio(struct platform_device *pdev)
 	s3c_gpio_cfgpin(S3C64XX_GPC(4), S3C_GPIO_SFN(5));
 	s3c_gpio_cfgpin(S3C64XX_GPC(5), S3C_GPIO_SFN(5));
 	s3c_gpio_cfgpin(S3C64XX_GPC(7), S3C_GPIO_SFN(5));
-	s3c_gpio_cfgpin(S3C64XX_GPH(6), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S3C64XX_GPH(7), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S3C64XX_GPH(8), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S3C64XX_GPH(9), S3C_GPIO_SFN(4));
+	s3c_gpio_cfgpin_range(S3C64XX_GPH(6), 4, S3C_GPIO_SFN(4));
 
 	return 0;
 }
@@ -163,26 +157,21 @@ EXPORT_SYMBOL(s3c64xx_device_iisv4);
 
 static int s3c64xx_pcm_cfg_gpio(struct platform_device *pdev)
 {
+	unsigned int base;
+
 	switch (pdev->id) {
 	case 0:
-		s3c_gpio_cfgpin(S3C64XX_GPD(0), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S3C64XX_GPD(1), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S3C64XX_GPD(2), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S3C64XX_GPD(3), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S3C64XX_GPD(4), S3C_GPIO_SFN(2));
+		base = S3C64XX_GPD(0);
 		break;
 	case 1:
-		s3c_gpio_cfgpin(S3C64XX_GPE(0), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S3C64XX_GPE(1), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S3C64XX_GPE(2), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S3C64XX_GPE(3), S3C_GPIO_SFN(2));
-		s3c_gpio_cfgpin(S3C64XX_GPE(4), S3C_GPIO_SFN(2));
+		base = S3C64XX_GPE(0);
 		break;
 	default:
 		printk(KERN_DEBUG "Invalid PCM Controller number!");
 		return -EINVAL;
 	}
 
+	s3c_gpio_cfgpin_range(base, 5, S3C_GPIO_SFN(2));
 	return 0;
 }
 
@@ -256,24 +245,12 @@ EXPORT_SYMBOL(s3c64xx_device_pcm1);
 
 static int s3c64xx_ac97_cfg_gpd(struct platform_device *pdev)
 {
-	s3c_gpio_cfgpin(S3C64XX_GPD(0), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S3C64XX_GPD(1), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S3C64XX_GPD(2), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S3C64XX_GPD(3), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S3C64XX_GPD(4), S3C_GPIO_SFN(4));
-
-	return 0;
+	return s3c_gpio_cfgpin_range(S3C64XX_GPD(0), 5, S3C_GPIO_SFN(4));
 }
 
 static int s3c64xx_ac97_cfg_gpe(struct platform_device *pdev)
 {
-	s3c_gpio_cfgpin(S3C64XX_GPE(0), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S3C64XX_GPE(1), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S3C64XX_GPE(2), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S3C64XX_GPE(3), S3C_GPIO_SFN(4));
-	s3c_gpio_cfgpin(S3C64XX_GPE(4), S3C_GPIO_SFN(4));
-
-	return 0;
+	return s3c_gpio_cfgpin_range(S3C64XX_GPE(0), 5, S3C_GPIO_SFN(4));
 }
 
 static struct resource s3c64xx_ac97_resource[] = {
