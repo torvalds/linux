@@ -3327,9 +3327,6 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 	if (need_fence) {
 		ret = i915_gem_object_get_fence_reg(obj);
 		if (ret != 0) {
-			if (ret != -EBUSY && ret != -ERESTARTSYS)
-				DRM_ERROR("Failure to install fence: %d\n",
-					  ret);
 			i915_gem_object_unpin(obj);
 			return ret;
 		}
@@ -3815,11 +3812,19 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 		if (ret != -ENOSPC || pin_tries >= 1) {
 			if (ret != -ERESTARTSYS) {
 				unsigned long long total_size = 0;
-				for (i = 0; i < args->buffer_count; i++)
+				int num_fences = 0;
+				for (i = 0; i < args->buffer_count; i++) {
+					obj_priv = object_list[i]->driver_private;
+
 					total_size += object_list[i]->size;
-				DRM_ERROR("Failed to pin buffer %d of %d, total %llu bytes: %d\n",
+					num_fences +=
+						exec_list[i].flags & EXEC_OBJECT_NEEDS_FENCE &&
+						obj_priv->tiling_mode != I915_TILING_NONE;
+				}
+				DRM_ERROR("Failed to pin buffer %d of %d, total %llu bytes, %d fences: %d\n",
 					  pinned+1, args->buffer_count,
-					  total_size, ret);
+					  total_size, num_fences,
+					  ret);
 				DRM_ERROR("%d objects [%d pinned], "
 					  "%d object bytes [%d pinned], "
 					  "%d/%d gtt bytes\n",
