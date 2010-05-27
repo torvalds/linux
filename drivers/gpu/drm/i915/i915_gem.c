@@ -3307,9 +3307,13 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 	             obj_priv->tiling_mode != I915_TILING_NONE;
 
 	/* Check fence reg constraints and rebind if necessary */
-	if (need_fence && !i915_gem_object_fence_offset_ok(obj,
-	    obj_priv->tiling_mode))
-		i915_gem_object_unbind(obj);
+	if (need_fence &&
+	    !i915_gem_object_fence_offset_ok(obj,
+					     obj_priv->tiling_mode)) {
+		ret = i915_gem_object_unbind(obj);
+		if (ret)
+			return ret;
+	}
 
 	/* Choose the GTT offset for our buffer and put it there. */
 	ret = i915_gem_object_pin(obj, (uint32_t) entry->alignment);
