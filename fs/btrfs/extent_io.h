@@ -16,7 +16,9 @@
 #define EXTENT_BOUNDARY (1 << 9)
 #define EXTENT_NODATASUM (1 << 10)
 #define EXTENT_DO_ACCOUNTING (1 << 11)
+#define EXTENT_FIRST_DELALLOC (1 << 12)
 #define EXTENT_IOBITS (EXTENT_LOCKED | EXTENT_WRITEBACK)
+#define EXTENT_CTLBITS (EXTENT_DO_ACCOUNTING | EXTENT_FIRST_DELALLOC)
 
 /* flags for bio submission */
 #define EXTENT_BIO_COMPRESSED 1
@@ -47,7 +49,7 @@ struct extent_state;
 
 typedef	int (extent_submit_bio_hook_t)(struct inode *inode, int rw,
 				       struct bio *bio, int mirror_num,
-				       unsigned long bio_flags);
+				       unsigned long bio_flags, u64 bio_offset);
 struct extent_io_ops {
 	int (*fill_delalloc)(struct inode *inode, struct page *locked_page,
 			     u64 start, u64 end, int *page_started,
@@ -69,10 +71,10 @@ struct extent_io_ops {
 				    struct extent_state *state);
 	int (*writepage_end_io_hook)(struct page *page, u64 start, u64 end,
 				      struct extent_state *state, int uptodate);
-	int (*set_bit_hook)(struct inode *inode, u64 start, u64 end,
-			    unsigned long old, unsigned long bits);
+	int (*set_bit_hook)(struct inode *inode, struct extent_state *state,
+			    int *bits);
 	int (*clear_bit_hook)(struct inode *inode, struct extent_state *state,
-			      unsigned long bits);
+			      int *bits);
 	int (*merge_extent_hook)(struct inode *inode,
 				 struct extent_state *new,
 				 struct extent_state *other);
@@ -176,6 +178,7 @@ u64 count_range_bits(struct extent_io_tree *tree,
 		     u64 *start, u64 search_end,
 		     u64 max_bytes, unsigned long bits);
 
+void free_extent_state(struct extent_state *state);
 int test_range_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		   int bits, int filled, struct extent_state *cached_state);
 int clear_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
@@ -185,6 +188,9 @@ int clear_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
 		     gfp_t mask);
 int set_extent_bits(struct extent_io_tree *tree, u64 start, u64 end,
 		    int bits, gfp_t mask);
+int set_extent_bit(struct extent_io_tree *tree, u64 start, u64 end,
+		   int bits, int exclusive_bits, u64 *failed_start,
+		   struct extent_state **cached_state, gfp_t mask);
 int set_extent_uptodate(struct extent_io_tree *tree, u64 start, u64 end,
 			gfp_t mask);
 int set_extent_new(struct extent_io_tree *tree, u64 start, u64 end,
