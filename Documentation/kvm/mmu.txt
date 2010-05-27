@@ -298,6 +298,25 @@ Host translation updates:
   - look up affected sptes through reverse map
   - drop (or update) translations
 
+Emulating cr0.wp
+================
+
+If tdp is not enabled, the host must keep cr0.wp=1 so page write protection
+works for the guest kernel, not guest guest userspace.  When the guest
+cr0.wp=1, this does not present a problem.  However when the guest cr0.wp=0,
+we cannot map the permissions for gpte.u=1, gpte.w=0 to any spte (the
+semantics require allowing any guest kernel access plus user read access).
+
+We handle this by mapping the permissions to two possible sptes, depending
+on fault type:
+
+- kernel write fault: spte.u=0, spte.w=1 (allows full kernel access,
+  disallows user access)
+- read fault: spte.u=1, spte.w=0 (allows full read access, disallows kernel
+  write access)
+
+(user write faults generate a #PF)
+
 Further reading
 ===============
 
