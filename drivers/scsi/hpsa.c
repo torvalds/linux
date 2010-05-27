@@ -1440,12 +1440,6 @@ static int hpsa_update_device_info(struct ctlr_info *h,
 		goto bail_out;
 	}
 
-	/* As a side effect, record the firmware version number
-	 * if we happen to be talking to the RAID controller.
-	 */
-	if (is_hba_lunid(scsi3addr))
-		memcpy(h->firm_ver, &inq_buff[32], 4);
-
 	this_device->devtype = (inq_buff[0] & 0x1f);
 	memcpy(this_device->scsi3addr, scsi3addr, 8);
 	memcpy(this_device->vendor, &inq_buff[8],
