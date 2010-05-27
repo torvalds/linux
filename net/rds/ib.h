@@ -21,6 +21,8 @@
 
 #define RDS_IB_SUPPORTED_PROTOCOLS	0x00000003	/* minor versions supported */
 
+#define RDS_IB_RECYCLE_BATCH_COUNT	32
+
 extern struct list_head rds_ib_devices;
 
 /*
@@ -30,12 +32,25 @@ extern struct list_head rds_ib_devices;
  */
 struct rds_page_frag {
 	struct list_head	f_item;
+	struct list_head	f_cache_entry;
 	struct scatterlist	f_sg;
 };
 
 struct rds_ib_incoming {
 	struct list_head	ii_frags;
+	struct list_head	ii_cache_entry;
 	struct rds_incoming	ii_inc;
+};
+
+struct rds_ib_cache_head {
+	struct list_head *first;
+	unsigned long count;
+};
+
+struct rds_ib_refill_cache {
+	struct rds_ib_cache_head *percpu;
+	struct list_head	 *xfer;
+	struct list_head	 *ready;
 };
 
 struct rds_ib_connect_private {
@@ -104,6 +119,8 @@ struct rds_ib_connection {
 	u64			i_recv_hdrs_dma;
 	struct rds_ib_recv_work *i_recvs;
 	u64			i_ack_recv;	/* last ACK received */
+	struct rds_ib_refill_cache i_cache_incs;
+	struct rds_ib_refill_cache i_cache_frags;
 
 	/* sending acks */
 	unsigned long		i_ack_flags;
@@ -304,6 +321,8 @@ void rds_ib_flush_mrs(void);
 int __init rds_ib_recv_init(void);
 void rds_ib_recv_exit(void);
 int rds_ib_recv(struct rds_connection *conn);
+int rds_ib_recv_alloc_caches(struct rds_ib_connection *ic);
+void rds_ib_recv_free_caches(struct rds_ib_connection *ic);
 int rds_ib_recv_refill(struct rds_connection *conn, int prefill);
 void rds_ib_inc_free(struct rds_incoming *inc);
 int rds_ib_inc_copy_to_user(struct rds_incoming *inc, struct iovec *iov,

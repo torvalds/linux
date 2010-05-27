@@ -709,11 +709,18 @@ int rds_ib_conn_alloc(struct rds_connection *conn, gfp_t gfp)
 {
 	struct rds_ib_connection *ic;
 	unsigned long flags;
+	int ret;
 
 	/* XXX too lazy? */
 	ic = kzalloc(sizeof(struct rds_ib_connection), GFP_KERNEL);
 	if (!ic)
 		return -ENOMEM;
+
+	ret = rds_ib_recv_alloc_caches(ic);
+	if (ret) {
+		kfree(ic);
+		return ret;
+	}
 
 	INIT_LIST_HEAD(&ic->ib_node);
 	tasklet_init(&ic->i_recv_tasklet, rds_ib_recv_tasklet_fn,
@@ -762,6 +769,8 @@ void rds_ib_conn_free(void *arg)
 	spin_lock_irq(lock_ptr);
 	list_del(&ic->ib_node);
 	spin_unlock_irq(lock_ptr);
+
+	rds_ib_recv_free_caches(ic);
 
 	kfree(ic);
 }
