@@ -59,17 +59,19 @@ static void _drbd_end_io_acct(struct drbd_conf *mdev, struct drbd_request *req)
 static void _req_is_done(struct drbd_conf *mdev, struct drbd_request *req, const int rw)
 {
 	const unsigned long s = req->rq_state;
+
+	/* remove it from the transfer log.
+	 * well, only if it had been there in the first
+	 * place... if it had not (local only or conflicting
+	 * and never sent), it should still be "empty" as
+	 * initialized in drbd_req_new(), so we can list_del() it
+	 * here unconditionally */
+	list_del(&req->tl_requests);
+
 	/* if it was a write, we may have to set the corresponding
 	 * bit(s) out-of-sync first. If it had a local part, we need to
 	 * release the reference to the activity log. */
 	if (rw == WRITE) {
-		/* remove it from the transfer log.
-		 * well, only if it had been there in the first
-		 * place... if it had not (local only or conflicting
-		 * and never sent), it should still be "empty" as
-		 * initialized in drbd_req_new(), so we can list_del() it
-		 * here unconditionally */
-		list_del(&req->tl_requests);
 		/* Set out-of-sync unless both OK flags are set
 		 * (local only or remote failed).
 		 * Other places where we set out-of-sync:
@@ -517,8 +519,6 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		D_ASSERT(test_bit(CREATE_BARRIER, &mdev->flags) == 0);
 
 		req->epoch = mdev->newest_tle->br_number;
-		list_add_tail(&req->tl_requests,
-				&mdev->newest_tle->requests);
 
 		/* increment size of current epoch */
 		mdev->newest_tle->n_writes++;
@@ -634,6 +634,9 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		break;
 
 	case barrier_acked:
+		if (!(req->rq_state & RQ_WRITE))
+			break;
+
 		if (req->rq_state & RQ_NET_PENDING) {
 			/* barrier came in before all requests have been acked.
 			 * this is bad, because if the connection is lost now,
@@ -891,6 +894,9 @@ allocate_barrier:
 		drbd_req_free(req);
 		remote = 0;
 	}
+
+
+	list_add_tail(&req->tl_requests, &mdev->newest_tle->requests);
 
 	/* NOTE remote first: to get the concurrent write detection right,
 	 * we must register the request before start of local IO.  */

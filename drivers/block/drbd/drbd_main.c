@@ -401,6 +401,8 @@ void tl_clear(struct drbd_conf *mdev)
 	/* ensure bit indicating barrier is required is clear */
 	clear_bit(CREATE_BARRIER, &mdev->flags);
 
+	memset(mdev->app_reads_hash, 0, APP_R_HSIZE*sizeof(void *));
+
 	spin_unlock_irq(&mdev->req_lock);
 }
 

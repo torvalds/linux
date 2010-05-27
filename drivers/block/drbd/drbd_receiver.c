@@ -3666,41 +3666,6 @@ static void drbdd(struct drbd_conf *mdev)
 	}
 }
 
-static void drbd_fail_pending_reads(struct drbd_conf *mdev)
-{
-	struct hlist_head *slot;
-	struct hlist_node *pos;
-	struct hlist_node *tmp;
-	struct drbd_request *req;
-	int i;
-
-	/*
-	 * Application READ requests
-	 */
-	spin_lock_irq(&mdev->req_lock);
-	for (i = 0; i < APP_R_HSIZE; i++) {
-		slot = mdev->app_reads_hash+i;
-		hlist_for_each_entry_safe(req, pos, tmp, slot, colision) {
-			/* it may (but should not any longer!)
-			 * be on the work queue; if that assert triggers,
-			 * we need to also grab the
-			 * spin_lock_irq(&mdev->data.work.q_lock);
-			 * and list_del_init here. */
-			D_ASSERT(list_empty(&req->w.list));
-			/* It would be nice to complete outside of spinlock.
-			 * But this is easier for now. */
-			_req_mod(req, connection_lost_while_pending);
-		}
-	}
-	for (i = 0; i < APP_R_HSIZE; i++)
-		if (!hlist_empty(mdev->app_reads_hash+i))
-			dev_warn(DEV, "ASSERT FAILED: app_reads_hash[%d].first: "
-				"%p, should be NULL\n", i, mdev->app_reads_hash[i].first);
-
-	memset(mdev->app_reads_hash, 0, APP_R_HSIZE*sizeof(void *));
-	spin_unlock_irq(&mdev->req_lock);
-}
-
 void drbd_flush_workqueue(struct drbd_conf *mdev)
 {
 	struct drbd_wq_barrier barr;
@@ -3769,8 +3734,6 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 
 	if (!mdev->state.susp)
 		tl_clear(mdev);
-
-	drbd_fail_pending_reads(mdev);
 
 	dev_info(DEV, "Connection closed\n");
 

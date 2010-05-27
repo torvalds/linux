@@ -183,6 +183,9 @@ enum drbd_req_state_bits {
 
 	/* keep this last, its for the RQ_NET_MASK */
 	__RQ_NET_MAX,
+
+	/* Set when this is a write, clear for a read */
+	__RQ_WRITE,
 };
 
 #define RQ_LOCAL_PENDING   (1UL << __RQ_LOCAL_PENDING)
@@ -200,6 +203,8 @@ enum drbd_req_state_bits {
 
 /* 0x1f8 */
 #define RQ_NET_MASK        (((1UL << __RQ_NET_MAX)-1) & ~RQ_LOCAL_MASK)
+
+#define RQ_WRITE           (1UL << __RQ_WRITE)
 
 /* epoch entries */
 static inline
@@ -253,7 +258,7 @@ static inline struct drbd_request *drbd_req_new(struct drbd_conf *mdev,
 	if (likely(req)) {
 		bio = bio_clone(bio_src, GFP_NOIO); /* XXX cannot fail?? */
 
-		req->rq_state    = 0;
+		req->rq_state    = bio_data_dir(bio_src) == WRITE ? RQ_WRITE : 0;
 		req->mdev        = mdev;
 		req->master_bio  = bio_src;
 		req->private_bio = bio;
