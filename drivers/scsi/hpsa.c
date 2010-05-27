@@ -3302,9 +3302,23 @@ static int __devinit hpsa_pci_find_memory_BAR(struct ctlr_info *h,
 	return -ENODEV;
 }
 
+static int __devinit hpsa_wait_for_board_ready(struct ctlr_info *h)
+{
+	int i;
+	u32 scratchpad;
+
+	for (i = 0; i < HPSA_BOARD_READY_ITERATIONS; i++) {
+		scratchpad = readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
+		if (scratchpad == HPSA_FIRMWARE_READY)
+			return 0;
+		msleep(HPSA_BOARD_READY_POLL_INTERVAL_MSECS);
+	}
+	dev_warn(&h->pdev->dev, "board not ready, timed out.\n");
+	return -ENODEV;
+}
+
 static int __devinit hpsa_pci_init(struct ctlr_info *h)
 {
-	u32 scratchpad = 0;
 	u64 cfg_offset;
 	u32 cfg_base_addr;
 	u64 cfg_base_addr_index;
@@ -3339,18 +3353,9 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 		goto err_out_free_res;
 	h->vaddr = remap_pci_mem(h->paddr, 0x250);
 
-	/* Wait for the board to become ready.  */
-	for (i = 0; i < HPSA_BOARD_READY_ITERATIONS; i++) {
-		scratchpad = readl(h->vaddr + SA5_SCRATCHPAD_OFFSET);
-		if (scratchpad == HPSA_FIRMWARE_READY)
-			break;
-		msleep(HPSA_BOARD_READY_POLL_INTERVAL_MSECS);
-	}
-	if (scratchpad != HPSA_FIRMWARE_READY) {
-		dev_warn(&h->pdev->dev, "board not ready, timed out.\n");
-		err = -ENODEV;
+	err = hpsa_wait_for_board_ready(h);
+	if (err)
 		goto err_out_free_res;
-	}
 
 	/* get the address index number */
 	cfg_base_addr = readl(h->vaddr + SA5_CTCFG_OFFSET);
