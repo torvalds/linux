@@ -213,7 +213,7 @@ static int init_render_ring(struct drm_device *dev,
 #define PIPE_CONTROL_FLUSH(addr)					\
 do {									\
 	OUT_RING(GFX_OP_PIPE_CONTROL | PIPE_CONTROL_QW_WRITE |		\
-		 PIPE_CONTROL_DEPTH_STALL);				\
+		 PIPE_CONTROL_DEPTH_STALL | 2);				\
 	OUT_RING(addr | PIPE_CONTROL_GLOBAL_GTT);			\
 	OUT_RING(0);							\
 	OUT_RING(0);							\
@@ -236,7 +236,19 @@ render_ring_add_request(struct drm_device *dev,
 	u32 seqno;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	seqno = intel_ring_get_seqno(dev, ring);
-	if (HAS_PIPE_CONTROL(dev)) {
+
+	if (IS_GEN6(dev)) {
+		BEGIN_LP_RING(6);
+		OUT_RING(GFX_OP_PIPE_CONTROL | 3);
+		OUT_RING(PIPE_CONTROL_QW_WRITE |
+			 PIPE_CONTROL_WC_FLUSH | PIPE_CONTROL_IS_FLUSH |
+			 PIPE_CONTROL_NOTIFY);
+		OUT_RING(dev_priv->seqno_gfx_addr | PIPE_CONTROL_GLOBAL_GTT);
+		OUT_RING(seqno);
+		OUT_RING(0);
+		OUT_RING(0);
+		ADVANCE_LP_RING();
+	} else if (HAS_PIPE_CONTROL(dev)) {
 		u32 scratch_addr = dev_priv->seqno_gfx_addr + 128;
 
 		/*
