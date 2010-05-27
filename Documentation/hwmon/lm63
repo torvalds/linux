@@ -7,6 +7,11 @@ Supported chips:
     Addresses scanned: I2C 0x4c
     Datasheet: Publicly available at the National Semiconductor website
                http://www.national.com/pf/LM/LM63.html
+  * National Semiconductor LM64
+    Prefix: 'lm64'
+    Addresses scanned: I2C 0x18 and 0x4e
+    Datasheet: Publicly available at the National Semiconductor website
+               http://www.national.com/pf/LM/LM64.html
 
 Author: Jean Delvare <khali@linux-fr.org>
 
@@ -55,3 +60,5 @@ The lm63 driver will not update its values more frequently than every
 second; reading them more often will do no harm, but will return 'old'
 values.
 
+The LM64 is effectively an LM63 with GPIO lines. The driver does not
+support these GPIO lines at present.
