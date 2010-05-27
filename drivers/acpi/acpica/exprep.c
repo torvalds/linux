@@ -385,15 +385,6 @@ acpi_ex_prep_common_field_object(union acpi_operand_object *obj_desc,
 	    (field_bit_position -
 	     ACPI_MUL_8(obj_desc->common_field.base_byte_offset));
 
-	/*
-	 * Does the entire field fit within a single field access element? (datum)
-	 * (i.e., without crossing a datum boundary)
-	 */
-	if ((obj_desc->common_field.start_field_bit_offset +
-	     field_bit_length) <= (u16) access_bit_width) {
-		obj_desc->common.flags |= AOPOBJ_SINGLE_DATUM;
-	}
-
 	return_ACPI_STATUS(AE_OK);
 }
 
