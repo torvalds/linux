@@ -5722,6 +5722,32 @@ free_ordered:
 	bio_endio(bio, ret);
 }
 
+static ssize_t check_direct_IO(struct btrfs_root *root, int rw, struct kiocb *iocb,
+			const struct iovec *iov, loff_t offset,
+			unsigned long nr_segs)
+{
+	int seg;
+	size_t size;
+	unsigned long addr;
+	unsigned blocksize_mask = root->sectorsize - 1;
+	ssize_t retval = -EINVAL;
+	loff_t end = offset;
+
+	if (offset & blocksize_mask)
+		goto out;
+
+	/* Check the memory alignment.  Blocks cannot straddle pages */
+	for (seg = 0; seg < nr_segs; seg++) {
+		addr = (unsigned long)iov[seg].iov_base;
+		size = iov[seg].iov_len;
+		end += size;
+		if ((addr & blocksize_mask) || (size & blocksize_mask)) 
+			goto out;
+	}
+	retval = 0;
+out:
+	return retval;
+}
 static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 			const struct iovec *iov, loff_t offset,
 			unsigned long nr_segs)
@@ -5735,6 +5761,11 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	int writing = rw & WRITE;
 	int write_bits = 0;
 	size_t count = iov_length(iov, nr_segs);
+
+	if (check_direct_IO(BTRFS_I(inode)->root, rw, iocb, iov,
+			    offset, nr_segs)) {
+		return 0;
+	}
 
 	lockstart = offset;
 	lockend = offset + count - 1;
@@ -5784,9 +5815,10 @@ static ssize_t btrfs_direct_IO(int rw, struct kiocb *iocb,
 	free_extent_state(cached_state);
 	cached_state = NULL;
 
-	ret = __blockdev_direct_IO(rw, iocb, inode, NULL, iov, offset, nr_segs,
-				   btrfs_get_blocks_direct, NULL,
-				   btrfs_submit_direct, 0);
+	ret = __blockdev_direct_IO(rw, iocb, inode,
+		   BTRFS_I(inode)->root->fs_info->fs_devices->latest_bdev,
+		   iov, offset, nr_segs, btrfs_get_blocks_direct, NULL,
+		   btrfs_submit_direct, 0);
 
 	if (ret < 0 && ret != -EIOCBQUEUED) {
 		clear_extent_bit(&BTRFS_I(inode)->io_tree, offset,
