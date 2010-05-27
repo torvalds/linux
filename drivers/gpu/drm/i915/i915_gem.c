@@ -509,25 +509,24 @@ fast_user_write(struct io_mapping *mapping,
  * page faults
  */
 
-static inline int
+static inline void
 slow_kernel_write(struct io_mapping *mapping,
 		  loff_t gtt_base, int gtt_offset,
 		  struct page *user_page, int user_offset,
 		  int length)
 {
-	char *src_vaddr, *dst_vaddr;
-	unsigned long unwritten;
+	char __iomem *dst_vaddr;
+	char *src_vaddr;
 
-	dst_vaddr = io_mapping_map_atomic_wc(mapping, gtt_base);
-	src_vaddr = kmap_atomic(user_page, KM_USER1);
-	unwritten = __copy_from_user_inatomic_nocache(dst_vaddr + gtt_offset,
-						      src_vaddr + user_offset,
-						      length);
-	kunmap_atomic(src_vaddr, KM_USER1);
-	io_mapping_unmap_atomic(dst_vaddr);
-	if (unwritten)
-		return -EFAULT;
-	return 0;
+	dst_vaddr = io_mapping_map_wc(mapping, gtt_base);
+	src_vaddr = kmap(user_page);
+
+	memcpy_toio(dst_vaddr + gtt_offset,
+		    src_vaddr + user_offset,
+		    length);
+
+	kunmap(user_page);
+	io_mapping_unmap(dst_vaddr);
 }
 
 static inline int
@@ -700,18 +699,11 @@ i915_gem_gtt_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 		if ((data_page_offset + page_length) > PAGE_SIZE)
 			page_length = PAGE_SIZE - data_page_offset;
 
-		ret = slow_kernel_write(dev_priv->mm.gtt_mapping,
-					gtt_page_base, gtt_page_offset,
-					user_pages[data_page_index],
-					data_page_offset,
-					page_length);
-
-		/* If we get a fault while copying data, then (presumably) our
-		 * source page isn't available.  Return the error and we'll
-		 * retry in the slow path.
-		 */
-		if (ret)
-			goto out_unpin_object;
+		slow_kernel_write(dev_priv->mm.gtt_mapping,
+				  gtt_page_base, gtt_page_offset,
+				  user_pages[data_page_index],
+				  data_page_offset,
+				  page_length);
 
 		remain -= page_length;
 		offset += page_length;
