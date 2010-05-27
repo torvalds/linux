@@ -35,6 +35,29 @@
 #include <trace/events/ext4.h>
 
 /*
+ * If we're not journaling and this is a just-created file, we have to
+ * sync our parent directory (if it was freshly created) since
+ * otherwise it will only be written by writeback, leaving a huge
+ * window during which a crash may lose the file.  This may apply for
+ * the parent directory's parent as well, and so on recursively, if
+ * they are also freshly created.
+ */
+static void ext4_sync_parent(struct inode *inode)
+{
+	struct dentry *dentry = NULL;
+
+	while (inode && ext4_test_inode_state(inode, EXT4_STATE_NEWENTRY)) {
+		ext4_clear_inode_state(inode, EXT4_STATE_NEWENTRY);
+		dentry = list_entry(inode->i_dentry.next,
+				    struct dentry, d_alias);
+		if (!dentry || !dentry->d_parent || !dentry->d_parent->d_inode)
+			break;
+		inode = dentry->d_parent->d_inode;
+		sync_mapping_buffers(inode->i_mapping);
+	}
+}
+
+/*
  * akpm: A new design for ext4_sync_file().
  *
  * This is only called from sys_fsync(), sys_fdatasync() and sys_msync().
@@ -66,9 +89,13 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	ret = flush_completed_IO(inode);
 	if (ret < 0)
 		return ret;
-	
-	if (!journal)
-		return simple_fsync(file, dentry, datasync);
+
+	if (!journal) {
+		ret = simple_fsync(file, dentry, datasync);
+		if (!ret && !list_empty(&inode->i_dentry))
+			ext4_sync_parent(inode);
+		return ret;
+	}
 
 	/*
 	 * data=writeback,ordered:
@@ -102,7 +129,7 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 		    (journal->j_flags & JBD2_BARRIER))
 			blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL,
 					NULL, BLKDEV_IFL_WAIT);
-		jbd2_log_wait_commit(journal, commit_tid);
+		ret = jbd2_log_wait_commit(journal, commit_tid);
 	} else if (journal->j_flags & JBD2_BARRIER)
 		blkdev_issue_flush(inode->i_sb->s_bdev, GFP_KERNEL, NULL,
 			BLKDEV_IFL_WAIT);
