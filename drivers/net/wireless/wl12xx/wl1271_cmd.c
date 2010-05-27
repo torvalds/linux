@@ -746,3 +746,31 @@ out_free:
 out:
 	return ret;
 }
+
+int wl1271_cmd_set_sta_state(struct wl1271 *wl)
+{
+	struct wl1271_cmd_set_sta_state *cmd;
+	int ret = 0;
+
+	wl1271_debug(DEBUG_CMD, "cmd set sta state");
+
+	cmd = kzalloc(sizeof(*cmd), GFP_KERNEL);
+	if (!cmd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	cmd->state = WL1271_CMD_STA_STATE_CONNECTED;
+
+	ret = wl1271_cmd_send(wl, CMD_SET_STA_STATE, cmd, sizeof(*cmd), 0);
+	if (ret < 0) {
+		wl1271_error("failed to send set STA state command");
+		goto out_free;
+	}
+
+out_free:
+	kfree(cmd);
+
+out:
+	return ret;
+}

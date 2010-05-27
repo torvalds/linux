@@ -55,6 +55,7 @@ int wl1271_cmd_set_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 		       u8 key_size, const u8 *key, const u8 *addr,
 		       u32 tx_seq_32, u16 tx_seq_16);
 int wl1271_cmd_disconnect(struct wl1271 *wl);
+int wl1271_cmd_set_sta_state(struct wl1271 *wl);
 
 enum wl1271_commands {
 	CMD_INTERROGATE     = 1,    /*use this to read information elements*/
@@ -468,5 +469,14 @@ struct wl1271_cmd_disconnect {
 
 	u8  padding;
 } __packed;
+
+#define WL1271_CMD_STA_STATE_CONNECTED  1
+
+struct wl1271_cmd_set_sta_state {
+	struct wl1271_cmd_header header;
+
+	u8 state;
+	u8 padding[3];
+} __attribute__ ((packed));
 
 #endif /* __WL1271_CMD_H__ */
