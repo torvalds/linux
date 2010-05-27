@@ -162,6 +162,11 @@ void rk2818_sdmmc1_cfg_gpio(struct platform_device *dev)
 {
 	rk2818_mux_api_set(GPIOG_MMC1_SEL_NAME, IOMUXA_SDMMC1_CMD_DATA0_CLKOUT);
 	rk2818_mux_api_set(GPIOG_MMC1D_SEL_NAME, IOMUXA_SDMMC1_DATA123);
+	/* test sdio */
+	rk2818_mux_api_set(GPIOH7_HSADCCLK_SEL_NAME,IOMUXB_GPIO1_D7);
+	rk2818_mux_api_set(GPIOF5_APWM3_DPWM3_NAME,IOMUXB_GPIO1_B5);
+	gpio_direction_output(RK2818_PIN_PH7,GPIO_HIGH);
+	/*************/
 }
 #define CONFIG_SDMMC0_USE_DMA
 #define CONFIG_SDMMC1_USE_DMA
@@ -174,6 +179,7 @@ struct rk2818_sdmmc_platform_data default_sdmmc0_data __initdata = {
 	.no_detect = 0,
 #ifdef CONFIG_SDMMC0_USE_DMA
 	.use_dma  = 1,
+	.dma_name = "sd_mmc"
 #else
 	.use_dma = 0,
 #endif
@@ -188,6 +194,7 @@ struct rk2818_sdmmc_platform_data default_sdmmc1_data __initdata = {
 	.no_detect = 1,
 #ifdef CONFIG_SDMMC1_USE_DMA
 	.use_dma  = 1,
+	.dma_name = "sdio"
 #else
 	.use_dma = 0,
 #endif
