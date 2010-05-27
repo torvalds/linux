@@ -1231,7 +1231,7 @@ static void i915_warn_stolen(struct drm_device *dev)
 static void i915_setup_compression(struct drm_device *dev, int size)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_mm_node *compressed_fb, *compressed_llb;
+	struct drm_mm_node *compressed_fb, *uninitialized_var(compressed_llb);
 	unsigned long cfb_base;
 	unsigned long ll_base = 0;
 
