@@ -3384,6 +3384,18 @@ static inline bool hpsa_CISS_signature_present(struct ctlr_info *h)
 	return true;
 }
 
+/* Need to enable prefetch in the SCSI core for 6400 in x86 */
+static inline void hpsa_enable_scsi_prefetch(struct ctlr_info *h)
+{
+#ifdef CONFIG_X86
+	u32 prefetch;
+
+	prefetch = readl(&(h->cfgtable->SCSI_Prefetch));
+	prefetch |= 0x100;
+	writel(prefetch, &(h->cfgtable->SCSI_Prefetch));
+#endif
+}
+
 static int __devinit hpsa_pci_init(struct ctlr_info *h)
 {
 	int i, prod_index, err;
@@ -3431,15 +3443,7 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 		err = -ENODEV;
 		goto err_out_free_res;
 	}
-#ifdef CONFIG_X86
-	{
-		/* Need to enable prefetch in the SCSI core for 6400 in x86 */
-		u32 prefetch;
-		prefetch = readl(&(h->cfgtable->SCSI_Prefetch));
-		prefetch |= 0x100;
-		writel(prefetch, &(h->cfgtable->SCSI_Prefetch));
-	}
-#endif
+	hpsa_enable_scsi_prefetch(h);
 
 	/* Disabling DMA prefetch for the P600
 	 * An ASIC bug may result in a prefetch beyond
