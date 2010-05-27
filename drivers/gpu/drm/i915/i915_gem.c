@@ -167,7 +167,7 @@ static int i915_gem_object_needs_bit17_swizzle(struct drm_gem_object *obj)
 		obj_priv->tiling_mode != I915_TILING_NONE;
 }
 
-static inline int
+static inline void
 slow_shmem_copy(struct page *dst_page,
 		int dst_offset,
 		struct page *src_page,
@@ -176,25 +176,16 @@ slow_shmem_copy(struct page *dst_page,
 {
 	char *dst_vaddr, *src_vaddr;
 
-	dst_vaddr = kmap_atomic(dst_page, KM_USER0);
-	if (dst_vaddr == NULL)
-		return -ENOMEM;
-
-	src_vaddr = kmap_atomic(src_page, KM_USER1);
-	if (src_vaddr == NULL) {
-		kunmap_atomic(dst_vaddr, KM_USER0);
-		return -ENOMEM;
-	}
+	dst_vaddr = kmap(dst_page);
+	src_vaddr = kmap(src_page);
 
 	memcpy(dst_vaddr + dst_offset, src_vaddr + src_offset, length);
 
-	kunmap_atomic(src_vaddr, KM_USER1);
-	kunmap_atomic(dst_vaddr, KM_USER0);
-
-	return 0;
+	kunmap(src_page);
+	kunmap(dst_page);
 }
 
-static inline int
+static inline void
 slow_shmem_bit17_copy(struct page *gpu_page,
 		      int gpu_offset,
 		      struct page *cpu_page,
@@ -214,15 +205,8 @@ slow_shmem_bit17_copy(struct page *gpu_page,
 					       cpu_page, cpu_offset, length);
 	}
 
-	gpu_vaddr = kmap_atomic(gpu_page, KM_USER0);
-	if (gpu_vaddr == NULL)
-		return -ENOMEM;
-
-	cpu_vaddr = kmap_atomic(cpu_page, KM_USER1);
-	if (cpu_vaddr == NULL) {
-		kunmap_atomic(gpu_vaddr, KM_USER0);
-		return -ENOMEM;
-	}
+	gpu_vaddr = kmap(gpu_page);
+	cpu_vaddr = kmap(cpu_page);
 
 	/* Copy the data, XORing A6 with A17 (1). The user already knows he's
 	 * XORing with the other bits (A9 for Y, A9 and A10 for X)
@@ -246,10 +230,8 @@ slow_shmem_bit17_copy(struct page *gpu_page,
 		length -= this_length;
 	}
 
-	kunmap_atomic(cpu_vaddr, KM_USER1);
-	kunmap_atomic(gpu_vaddr, KM_USER0);
-
-	return 0;
+	kunmap(cpu_page);
+	kunmap(gpu_page);
 }
 
 /**
@@ -425,21 +407,19 @@ i915_gem_shmem_pread_slow(struct drm_device *dev, struct drm_gem_object *obj,
 			page_length = PAGE_SIZE - data_page_offset;
 
 		if (do_bit17_swizzling) {
-			ret = slow_shmem_bit17_copy(obj_priv->pages[shmem_page_index],
-						    shmem_page_offset,
-						    user_pages[data_page_index],
-						    data_page_offset,
-						    page_length,
-						    1);
-		} else {
-			ret = slow_shmem_copy(user_pages[data_page_index],
-					      data_page_offset,
-					      obj_priv->pages[shmem_page_index],
+			slow_shmem_bit17_copy(obj_priv->pages[shmem_page_index],
 					      shmem_page_offset,
-					      page_length);
+					      user_pages[data_page_index],
+					      data_page_offset,
+					      page_length,
+					      1);
+		} else {
+			slow_shmem_copy(user_pages[data_page_index],
+					data_page_offset,
+					obj_priv->pages[shmem_page_index],
+					shmem_page_offset,
+					page_length);
 		}
-		if (ret)
-			goto fail_put_pages;
 
 		remain -= page_length;
 		data_ptr += page_length;
@@ -900,21 +880,19 @@ i915_gem_shmem_pwrite_slow(struct drm_device *dev, struct drm_gem_object *obj,
 			page_length = PAGE_SIZE - data_page_offset;
 
 		if (do_bit17_swizzling) {
-			ret = slow_shmem_bit17_copy(obj_priv->pages[shmem_page_index],
-						    shmem_page_offset,
-						    user_pages[data_page_index],
-						    data_page_offset,
-						    page_length,
-						    0);
-		} else {
-			ret = slow_shmem_copy(obj_priv->pages[shmem_page_index],
+			slow_shmem_bit17_copy(obj_priv->pages[shmem_page_index],
 					      shmem_page_offset,
 					      user_pages[data_page_index],
 					      data_page_offset,
-					      page_length);
+					      page_length,
+					      0);
+		} else {
+			slow_shmem_copy(obj_priv->pages[shmem_page_index],
+					shmem_page_offset,
+					user_pages[data_page_index],
+					data_page_offset,
+					page_length);
 		}
-		if (ret)
-			goto fail_put_pages;
 
 		remain -= page_length;
 		data_ptr += page_length;
