@@ -950,7 +950,7 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 
 	lp->rx_irq = irq_of_parse_and_map(np, 0);
 	lp->tx_irq = irq_of_parse_and_map(np, 1);
-	if (!lp->rx_irq || !lp->tx_irq) {
+	if ((lp->rx_irq == NO_IRQ) || (lp->tx_irq == NO_IRQ)) {
 		dev_err(&op->dev, "could not determine irqs\n");
 		rc = -ENOMEM;
 		goto nodev;
