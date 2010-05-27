@@ -866,11 +866,11 @@ static int superio_inw(int base, int reg)
 static inline void superio_enter(int base)
 {
 	/* according to the datasheet the key must be send twice! */
-	outb( SIO_UNLOCK_KEY, base);
-	outb( SIO_UNLOCK_KEY, base);
+	outb(SIO_UNLOCK_KEY, base);
+	outb(SIO_UNLOCK_KEY, base);
 }
 
-static inline void superio_select( int base, int ld)
+static inline void superio_select(int base, int ld)
 {
 	outb(SIO_REG_LDSEL, base);
 	outb(ld, base + 1);
@@ -945,7 +945,7 @@ static struct f71882fg_data *f71882fg_update_device(struct device *dev)
 	mutex_lock(&data->update_lock);
 
 	/* Update once every 60 seconds */
-	if ( time_after(jiffies, data->last_limits + 60 * HZ ) ||
+	if (time_after(jiffies, data->last_limits + 60 * HZ) ||
 			!data->valid) {
 		if (data->type == f71882fg || data->type == f71889fg) {
 			data->in1_max =
@@ -2151,8 +2151,7 @@ static int __init f71882fg_find(int sioaddr, unsigned short *address,
 	}
 
 	*address = superio_inw(sioaddr, SIO_REG_ADDR);
-	if (*address == 0)
-	{
+	if (*address == 0) {
 		printk(KERN_WARNING DRVNAME ": Base address not set\n");
 		goto exit;
 	}
