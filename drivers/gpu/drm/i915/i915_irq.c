@@ -1387,6 +1387,32 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	dev_priv->pipestat[1] = 0;
 
 	if (I915_HAS_HOTPLUG(dev)) {
+		/* Enable in IER... */
+		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
+		/* and unmask in IMR */
+		dev_priv->irq_mask_reg &= ~I915_DISPLAY_PORT_INTERRUPT;
+	}
+
+	/*
+	 * Enable some error detection, note the instruction error mask
+	 * bit is reserved, so we leave it masked.
+	 */
+	if (IS_G4X(dev)) {
+		error_mask = ~(GM45_ERROR_PAGE_TABLE |
+			       GM45_ERROR_MEM_PRIV |
+			       GM45_ERROR_CP_PRIV |
+			       I915_ERROR_MEMORY_REFRESH);
+	} else {
+		error_mask = ~(I915_ERROR_PAGE_TABLE |
+			       I915_ERROR_MEMORY_REFRESH);
+	}
+	I915_WRITE(EMR, error_mask);
+
+	I915_WRITE(IMR, dev_priv->irq_mask_reg);
+	I915_WRITE(IER, enable_mask);
+	(void) I915_READ(IER);
+
+	if (I915_HAS_HOTPLUG(dev)) {
 		u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
 
 		/* Note HDMI and DP share bits */
@@ -1405,37 +1431,7 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 		/* Ignore TV since it's buggy */
 
 		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
-
-		/* Enable in IER... */
-		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
-		/* and unmask in IMR */
-		i915_enable_irq(dev_priv, I915_DISPLAY_PORT_INTERRUPT);
 	}
-
-	/*
-	 * Enable some error detection, note the instruction error mask
-	 * bit is reserved, so we leave it masked.
-	 */
-	if (IS_G4X(dev)) {
-		error_mask = ~(GM45_ERROR_PAGE_TABLE |
-			       GM45_ERROR_MEM_PRIV |
-			       GM45_ERROR_CP_PRIV |
-			       I915_ERROR_MEMORY_REFRESH);
-	} else {
-		error_mask = ~(I915_ERROR_PAGE_TABLE |
-			       I915_ERROR_MEMORY_REFRESH);
-	}
-	I915_WRITE(EMR, error_mask);
-
-	/* Disable pipe interrupt enables, clear pending pipe status */
-	I915_WRITE(PIPEASTAT, I915_READ(PIPEASTAT) & 0x8000ffff);
-	I915_WRITE(PIPEBSTAT, I915_READ(PIPEBSTAT) & 0x8000ffff);
-	/* Clear pending interrupt status */
-	I915_WRITE(IIR, I915_READ(IIR));
-
-	I915_WRITE(IER, enable_mask);
-	I915_WRITE(IMR, dev_priv->irq_mask_reg);
-	(void) I915_READ(IER);
 
 	opregion_enable_asle(dev);
 
