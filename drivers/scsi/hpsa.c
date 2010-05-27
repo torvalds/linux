@@ -3410,19 +3410,9 @@ static inline void hpsa_p600_dma_prefetch_quirk(struct ctlr_info *h)
 	writel(dma_prefetch, h->vaddr + I2O_DMA1_CFG);
 }
 
-static int __devinit hpsa_enter_simple_mode(struct ctlr_info *h)
+static void __devinit hpsa_wait_for_mode_change_ack(struct ctlr_info *h)
 {
 	int i;
-	u32 trans_support;
-
-	trans_support = readl(&(h->cfgtable->TransportSupport));
-	if (!(trans_support & SIMPLE_MODE))
-		return -ENOTSUPP;
-
-	h->max_commands = readl(&(h->cfgtable->CmdsOutMax));
-	/* Update the field, and then ring the doorbell */
-	writel(CFGTBL_Trans_Simple, &(h->cfgtable->HostWrite.TransportRequest));
-	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
 
 	/* under certain very rare conditions, this can take awhile.
 	 * (e.g.: hot replace a failed 144GB drive in a RAID 5 set right
@@ -3434,6 +3424,21 @@ static int __devinit hpsa_enter_simple_mode(struct ctlr_info *h)
 		/* delay and try again */
 		msleep(10);
 	}
+}
+
+static int __devinit hpsa_enter_simple_mode(struct ctlr_info *h)
+{
+	u32 trans_support;
+
+	trans_support = readl(&(h->cfgtable->TransportSupport));
+	if (!(trans_support & SIMPLE_MODE))
+		return -ENOTSUPP;
+
+	h->max_commands = readl(&(h->cfgtable->CmdsOutMax));
+	/* Update the field, and then ring the doorbell */
+	writel(CFGTBL_Trans_Simple, &(h->cfgtable->HostWrite.TransportRequest));
+	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
+	hpsa_wait_for_mode_change_ack(h);
 	print_cfg_table(&h->pdev->dev, h->cfgtable);
 	if (!(readl(&(h->cfgtable->TransportActive)) & CFGTBL_Trans_Simple)) {
 		dev_warn(&h->pdev->dev,
@@ -3814,7 +3819,6 @@ static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 	 */
 	int bft[8] = {5, 6, 8, 10, 12, 20, 28, 35}; /* for scatter/gathers */
 	int i = 0;
-	int l = 0;
 	unsigned long register_value;
 
 	trans_support = readl(&(h->cfgtable->TransportSupport));
@@ -3858,17 +3862,7 @@ static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 	writel(CFGTBL_Trans_Performant,
 		&(h->cfgtable->HostWrite.TransportRequest));
 	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
-	/* under certain very rare conditions, this can take awhile.
-	 * (e.g.: hot replace a failed 144GB drive in a RAID 5 set right
-	 * as we enter this code.) */
-	for (l = 0; l < MAX_CONFIG_WAIT; l++) {
-		register_value = readl(h->vaddr + SA5_DOORBELL);
-		if (!(register_value & CFGTBL_ChangeReq))
-			break;
-		/* delay and try again */
-		set_current_state(TASK_INTERRUPTIBLE);
-		schedule_timeout(10);
-	}
+	hpsa_wait_for_mode_change_ack(h);
 	register_value = readl(&(h->cfgtable->TransportActive));
 	if (!(register_value & CFGTBL_Trans_Performant)) {
 		dev_warn(&h->pdev->dev, "unable to get board into"
