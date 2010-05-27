@@ -1755,9 +1755,22 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 				rdev->pm.power_state[state_index].misc2 = 0;
 			}
 		} else {
+			int fw_index = GetIndexIntoMasterTable(DATA, FirmwareInfo);
+			uint8_t fw_frev, fw_crev;
+			uint16_t fw_data_offset, vddc = 0;
+			union firmware_info *firmware_info;
+			ATOM_PPLIB_THERMALCONTROLLER *controller = &power_info->info_4.sThermalController;
+
+			if (atom_parse_data_header(mode_info->atom_context, fw_index, NULL,
+						   &fw_frev, &fw_crev, &fw_data_offset)) {
+				firmware_info =
+					(union firmware_info *)(mode_info->atom_context->bios +
+								fw_data_offset);
+				vddc = firmware_info->info_14.usBootUpVDDCVoltage;
+			}
+
 			/* add the i2c bus for thermal/fan chip */
 			/* no support for internal controller yet */
-			ATOM_PPLIB_THERMALCONTROLLER *controller = &power_info->info_4.sThermalController;
 			if (controller->ucType > 0) {
 				if ((controller->ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) ||
 				    (controller->ucType == ATOM_PP_THERMALCONTROLLER_RV770) ||
@@ -1904,6 +1917,16 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.default_power_state_index = state_index;
 						rdev->pm.power_state[state_index].default_clock_mode =
 							&rdev->pm.power_state[state_index].clock_info[mode_index - 1];
+						/* patch the table values with the default slck/mclk from firmware info */
+						for (j = 0; j < mode_index; j++) {
+							rdev->pm.power_state[state_index].clock_info[j].mclk =
+								rdev->clock.default_mclk;
+							rdev->pm.power_state[state_index].clock_info[j].sclk =
+								rdev->clock.default_sclk;
+							if (vddc)
+								rdev->pm.power_state[state_index].clock_info[j].voltage.voltage =
+									vddc;
+						}
 					}
 					state_index++;
 				}
