@@ -1998,6 +1998,42 @@ void radeon_atom_set_memory_clock(struct radeon_device *rdev,
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 }
 
+union set_voltage {
+	struct _SET_VOLTAGE_PS_ALLOCATION alloc;
+	struct _SET_VOLTAGE_PARAMETERS v1;
+	struct _SET_VOLTAGE_PARAMETERS_V2 v2;
+};
+
+void radeon_atom_set_voltage(struct radeon_device *rdev, u16 level)
+{
+	union set_voltage args;
+	int index = GetIndexIntoMasterTable(COMMAND, SetVoltage);
+	u8 frev, crev, volt_index = level;
+
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return;
+
+	switch (crev) {
+	case 1:
+		args.v1.ucVoltageType = SET_VOLTAGE_TYPE_ASIC_VDDC;
+		args.v1.ucVoltageMode = SET_ASIC_VOLTAGE_MODE_ALL_SOURCE;
+		args.v1.ucVoltageIndex = volt_index;
+		break;
+	case 2:
+		args.v2.ucVoltageType = SET_VOLTAGE_TYPE_ASIC_VDDC;
+		args.v2.ucVoltageMode = SET_ASIC_VOLTAGE_MODE_SET_VOLTAGE;
+		args.v2.usVoltageLevel = cpu_to_le16(level);
+		break;
+	default:
+		DRM_ERROR("Unknown table version %d, %d\n", frev, crev);
+		return;
+	}
+
+	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
+}
+
+
+
 void radeon_atom_initialize_bios_scratch_regs(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
