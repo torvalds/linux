@@ -691,9 +691,6 @@ static short hpi6000_adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 	case 0x6200:
 		boot_load_family = HPI_ADAPTER_FAMILY_ASI(0x6200);
 		break;
-	case 0x8800:
-		boot_load_family = HPI_ADAPTER_FAMILY_ASI(0x8800);
-		break;
 	default:
 		return HPI6000_ERROR_UNHANDLED_SUBSYS_ID;
 	}
