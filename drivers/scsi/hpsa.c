@@ -3410,9 +3410,41 @@ static inline void hpsa_p600_dma_prefetch_quirk(struct ctlr_info *h)
 	writel(dma_prefetch, h->vaddr + I2O_DMA1_CFG);
 }
 
+static int __devinit hpsa_enter_simple_mode(struct ctlr_info *h)
+{
+	int i;
+
+	h->max_commands = readl(&(h->cfgtable->CmdsOutMax));
+	/* Update the field, and then ring the doorbell */
+	writel(CFGTBL_Trans_Simple, &(h->cfgtable->HostWrite.TransportRequest));
+	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
+
+	/* under certain very rare conditions, this can take awhile.
+	 * (e.g.: hot replace a failed 144GB drive in a RAID 5 set right
+	 * as we enter this code.)
+	 */
+	for (i = 0; i < MAX_CONFIG_WAIT; i++) {
+		if (!(readl(h->vaddr + SA5_DOORBELL) & CFGTBL_ChangeReq))
+			break;
+		/* delay and try again */
+		msleep(10);
+	}
+
+#ifdef HPSA_DEBUG
+	print_cfg_table(&h->pdev->dev, h->cfgtable);
+#endif				/* HPSA_DEBUG */
+
+	if (!(readl(&(h->cfgtable->TransportActive)) & CFGTBL_Trans_Simple)) {
+		dev_warn(&h->pdev->dev,
+			"unable to get board into simple mode\n");
+		return -ENODEV;
+	}
+	return 0;
+}
+
 static int __devinit hpsa_pci_init(struct ctlr_info *h)
 {
-	int i, prod_index, err;
+	int prod_index, err;
 
 	prod_index = hpsa_lookup_board_id(h->pdev, &h->board_id);
 	if (prod_index < 0)
@@ -3459,33 +3491,9 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 	}
 	hpsa_enable_scsi_prefetch(h);
 	hpsa_p600_dma_prefetch_quirk(h);
-
-	h->max_commands = readl(&(h->cfgtable->CmdsOutMax));
-	/* Update the field, and then ring the doorbell */
-	writel(CFGTBL_Trans_Simple, &(h->cfgtable->HostWrite.TransportRequest));
-	writel(CFGTBL_ChangeReq, h->vaddr + SA5_DOORBELL);
-
-	/* under certain very rare conditions, this can take awhile.
-	 * (e.g.: hot replace a failed 144GB drive in a RAID 5 set right
-	 * as we enter this code.)
-	 */
-	for (i = 0; i < MAX_CONFIG_WAIT; i++) {
-		if (!(readl(h->vaddr + SA5_DOORBELL) & CFGTBL_ChangeReq))
-			break;
-		/* delay and try again */
-		msleep(10);
-	}
-
-#ifdef HPSA_DEBUG
-	print_cfg_table(&h->pdev->dev, h->cfgtable);
-#endif				/* HPSA_DEBUG */
-
-	if (!(readl(&(h->cfgtable->TransportActive)) & CFGTBL_Trans_Simple)) {
-		dev_warn(&h->pdev->dev,
-			"unable to get board into simple mode\n");
-		err = -ENODEV;
+	err = hpsa_enter_simple_mode(h);
+	if (err)
 		goto err_out_free_res;
-	}
 	return 0;
 
 err_out_free_res:
