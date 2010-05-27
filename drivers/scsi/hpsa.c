@@ -3209,8 +3209,7 @@ static int find_PCI_BAR_index(struct pci_dev *pdev, unsigned long pci_bar_addr)
  * controllers that are capable. If not, we use IO-APIC mode.
  */
 
-static void __devinit hpsa_interrupt_mode(struct ctlr_info *h,
-					   struct pci_dev *pdev, u32 board_id)
+static void __devinit hpsa_interrupt_mode(struct ctlr_info *h, u32 board_id)
 {
 #ifdef CONFIG_PCI_MSI
 	int err;
@@ -3223,9 +3222,9 @@ static void __devinit hpsa_interrupt_mode(struct ctlr_info *h,
 	    (board_id == 0x40800E11) ||
 	    (board_id == 0x40820E11) || (board_id == 0x40830E11))
 		goto default_int_mode;
-	if (pci_find_capability(pdev, PCI_CAP_ID_MSIX)) {
-		dev_info(&pdev->dev, "MSIX\n");
-		err = pci_enable_msix(pdev, hpsa_msix_entries, 4);
+	if (pci_find_capability(h->pdev, PCI_CAP_ID_MSIX)) {
+		dev_info(&h->pdev->dev, "MSIX\n");
+		err = pci_enable_msix(h->pdev, hpsa_msix_entries, 4);
 		if (!err) {
 			h->intr[0] = hpsa_msix_entries[0].vector;
 			h->intr[1] = hpsa_msix_entries[1].vector;
@@ -3235,29 +3234,29 @@ static void __devinit hpsa_interrupt_mode(struct ctlr_info *h,
 			return;
 		}
 		if (err > 0) {
-			dev_warn(&pdev->dev, "only %d MSI-X vectors "
+			dev_warn(&h->pdev->dev, "only %d MSI-X vectors "
 			       "available\n", err);
 			goto default_int_mode;
 		} else {
-			dev_warn(&pdev->dev, "MSI-X init failed %d\n",
+			dev_warn(&h->pdev->dev, "MSI-X init failed %d\n",
 			       err);
 			goto default_int_mode;
 		}
 	}
-	if (pci_find_capability(pdev, PCI_CAP_ID_MSI)) {
-		dev_info(&pdev->dev, "MSI\n");
-		if (!pci_enable_msi(pdev))
+	if (pci_find_capability(h->pdev, PCI_CAP_ID_MSI)) {
+		dev_info(&h->pdev->dev, "MSI\n");
+		if (!pci_enable_msi(h->pdev))
 			h->msi_vector = 1;
 		else
-			dev_warn(&pdev->dev, "MSI init failed\n");
+			dev_warn(&h->pdev->dev, "MSI init failed\n");
 	}
 default_int_mode:
 #endif				/* CONFIG_PCI_MSI */
 	/* if we get here we're going to use the default interrupt mode */
-	h->intr[PERF_MODE_INT] = pdev->irq;
+	h->intr[PERF_MODE_INT] = h->pdev->irq;
 }
 
-static int __devinit hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
+static int __devinit hpsa_pci_init(struct ctlr_info *h)
 {
 	ushort subsystem_vendor_id, subsystem_device_id, command;
 	u32 board_id, scratchpad = 0;
@@ -3267,8 +3266,8 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 	u32 trans_offset;
 	int i, prod_index, err;
 
-	subsystem_vendor_id = pdev->subsystem_vendor;
-	subsystem_device_id = pdev->subsystem_device;
+	subsystem_vendor_id = h->pdev->subsystem_vendor;
+	subsystem_device_id = h->pdev->subsystem_device;
 	board_id = (((u32) (subsystem_device_id << 16) & 0xffff0000) |
 		    subsystem_vendor_id);
 
@@ -3282,7 +3281,7 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 		prod_index--;
 		if (subsystem_vendor_id != PCI_VENDOR_ID_HP ||
 				!hpsa_allow_any) {
-			dev_warn(&pdev->dev, "unrecognized board ID:"
+			dev_warn(&h->pdev->dev, "unrecognized board ID:"
 				" 0x%08lx, ignoring.\n",
 				(unsigned long) board_id);
 			return -ENODEV;
@@ -3291,41 +3290,42 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 	/* check to see if controller has been disabled
 	 * BEFORE trying to enable it
 	 */
-	(void)pci_read_config_word(pdev, PCI_COMMAND, &command);
+	(void)pci_read_config_word(h->pdev, PCI_COMMAND, &command);
 	if (!(command & 0x02)) {
-		dev_warn(&pdev->dev, "controller appears to be disabled\n");
+		dev_warn(&h->pdev->dev, "controller appears to be disabled\n");
 		return -ENODEV;
 	}
 
-	err = pci_enable_device(pdev);
+	err = pci_enable_device(h->pdev);
 	if (err) {
-		dev_warn(&pdev->dev, "unable to enable PCI device\n");
+		dev_warn(&h->pdev->dev, "unable to enable PCI device\n");
 		return err;
 	}
 
-	err = pci_request_regions(pdev, "hpsa");
+	err = pci_request_regions(h->pdev, "hpsa");
 	if (err) {
-		dev_err(&pdev->dev, "cannot obtain PCI resources, aborting\n");
+		dev_err(&h->pdev->dev,
+			"cannot obtain PCI resources, aborting\n");
 		return err;
 	}
 
 	/* If the kernel supports MSI/MSI-X we will try to enable that,
 	 * else we use the IO-APIC interrupt assigned to us by system ROM.
 	 */
-	hpsa_interrupt_mode(h, pdev, board_id);
+	hpsa_interrupt_mode(h, board_id);
 
 	/* find the memory BAR */
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-		if (pci_resource_flags(pdev, i) & IORESOURCE_MEM)
+		if (pci_resource_flags(h->pdev, i) & IORESOURCE_MEM)
 			break;
 	}
 	if (i == DEVICE_COUNT_RESOURCE) {
-		dev_warn(&pdev->dev, "no memory BAR found\n");
+		dev_warn(&h->pdev->dev, "no memory BAR found\n");
 		err = -ENODEV;
 		goto err_out_free_res;
 	}
 
-	h->paddr = pci_resource_start(pdev, i); /* addressing mode bits
+	h->paddr = pci_resource_start(h->pdev, i); /* addressing mode bits
 						 * already removed
 						 */
 
@@ -3339,7 +3339,7 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 		msleep(HPSA_BOARD_READY_POLL_INTERVAL_MSECS);
 	}
 	if (scratchpad != HPSA_FIRMWARE_READY) {
-		dev_warn(&pdev->dev, "board not ready, timed out.\n");
+		dev_warn(&h->pdev->dev, "board not ready, timed out.\n");
 		err = -ENODEV;
 		goto err_out_free_res;
 	}
@@ -3347,20 +3347,20 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 	/* get the address index number */
 	cfg_base_addr = readl(h->vaddr + SA5_CTCFG_OFFSET);
 	cfg_base_addr &= (u32) 0x0000ffff;
-	cfg_base_addr_index = find_PCI_BAR_index(pdev, cfg_base_addr);
+	cfg_base_addr_index = find_PCI_BAR_index(h->pdev, cfg_base_addr);
 	if (cfg_base_addr_index == -1) {
-		dev_warn(&pdev->dev, "cannot find cfg_base_addr_index\n");
+		dev_warn(&h->pdev->dev, "cannot find cfg_base_addr_index\n");
 		err = -ENODEV;
 		goto err_out_free_res;
 	}
 
 	cfg_offset = readl(h->vaddr + SA5_CTMEM_OFFSET);
-	h->cfgtable = remap_pci_mem(pci_resource_start(pdev,
+	h->cfgtable = remap_pci_mem(pci_resource_start(h->pdev,
 			       cfg_base_addr_index) + cfg_offset,
 				sizeof(h->cfgtable));
 	/* Find performant mode table. */
 	trans_offset = readl(&(h->cfgtable->TransMethodOffset));
-	h->transtable = remap_pci_mem(pci_resource_start(pdev,
+	h->transtable = remap_pci_mem(pci_resource_start(h->pdev,
 				cfg_base_addr_index)+cfg_offset+trans_offset,
 				sizeof(*h->transtable));
 
@@ -3392,7 +3392,7 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 	    (readb(&h->cfgtable->Signature[1]) != 'I') ||
 	    (readb(&h->cfgtable->Signature[2]) != 'S') ||
 	    (readb(&h->cfgtable->Signature[3]) != 'S')) {
-		dev_warn(&pdev->dev, "not a valid CISS config table\n");
+		dev_warn(&h->pdev->dev, "not a valid CISS config table\n");
 		err = -ENODEV;
 		goto err_out_free_res;
 	}
@@ -3434,11 +3434,12 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 	}
 
 #ifdef HPSA_DEBUG
-	print_cfg_table(&pdev->dev, h->cfgtable);
+	print_cfg_table(&h->pdev->dev, h->cfgtable);
 #endif				/* HPSA_DEBUG */
 
 	if (!(readl(&(h->cfgtable->TransportActive)) & CFGTBL_Trans_Simple)) {
-		dev_warn(&pdev->dev, "unable to get board into simple mode\n");
+		dev_warn(&h->pdev->dev,
+			"unable to get board into simple mode\n");
 		err = -ENODEV;
 		goto err_out_free_res;
 	}
@@ -3449,7 +3450,7 @@ err_out_free_res:
 	 * Deliberately omit pci_disable_device(): it does something nasty to
 	 * Smart Array controllers that pci_enable_device does not undo
 	 */
-	pci_release_regions(pdev);
+	pci_release_regions(h->pdev);
 	return err;
 }
 
@@ -3507,17 +3508,17 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 	if (!h)
 		return -ENOMEM;
 
+	h->pdev = pdev;
 	h->busy_initializing = 1;
 	INIT_HLIST_HEAD(&h->cmpQ);
 	INIT_HLIST_HEAD(&h->reqQ);
-	rc = hpsa_pci_init(h, pdev);
+	rc = hpsa_pci_init(h);
 	if (rc != 0)
 		goto clean1;
 
 	sprintf(h->devname, "hpsa%d", number_of_controllers);
 	h->ctlr = number_of_controllers;
 	number_of_controllers++;
-	h->pdev = pdev;
 
 	/* configure PCI DMA stuff */
 	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
