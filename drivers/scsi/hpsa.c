@@ -3317,12 +3317,39 @@ static int __devinit hpsa_wait_for_board_ready(struct ctlr_info *h)
 	return -ENODEV;
 }
 
-static int __devinit hpsa_pci_init(struct ctlr_info *h)
+static int __devinit hpsa_find_cfgtables(struct ctlr_info *h)
 {
 	u64 cfg_offset;
 	u32 cfg_base_addr;
 	u64 cfg_base_addr_index;
 	u32 trans_offset;
+
+	/* get the address index number */
+	cfg_base_addr = readl(h->vaddr + SA5_CTCFG_OFFSET);
+	cfg_base_addr &= (u32) 0x0000ffff;
+	cfg_base_addr_index = find_PCI_BAR_index(h->pdev, cfg_base_addr);
+	if (cfg_base_addr_index == -1) {
+		dev_warn(&h->pdev->dev, "cannot find cfg_base_addr_index\n");
+		return -ENODEV;
+	}
+	cfg_offset = readl(h->vaddr + SA5_CTMEM_OFFSET);
+	h->cfgtable = remap_pci_mem(pci_resource_start(h->pdev,
+			       cfg_base_addr_index) + cfg_offset,
+				sizeof(h->cfgtable));
+	if (!h->cfgtable)
+		return -ENOMEM;
+	/* Find performant mode table. */
+	trans_offset = readl(&(h->cfgtable->TransMethodOffset));
+	h->transtable = remap_pci_mem(pci_resource_start(h->pdev,
+				cfg_base_addr_index)+cfg_offset+trans_offset,
+				sizeof(*h->transtable));
+	if (!h->transtable)
+		return -ENOMEM;
+	return 0;
+}
+
+static int __devinit hpsa_pci_init(struct ctlr_info *h)
+{
 	int i, prod_index, err;
 
 	prod_index = hpsa_lookup_board_id(h->pdev, &h->board_id);
@@ -3356,26 +3383,9 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 	err = hpsa_wait_for_board_ready(h);
 	if (err)
 		goto err_out_free_res;
-
-	/* get the address index number */
-	cfg_base_addr = readl(h->vaddr + SA5_CTCFG_OFFSET);
-	cfg_base_addr &= (u32) 0x0000ffff;
-	cfg_base_addr_index = find_PCI_BAR_index(h->pdev, cfg_base_addr);
-	if (cfg_base_addr_index == -1) {
-		dev_warn(&h->pdev->dev, "cannot find cfg_base_addr_index\n");
-		err = -ENODEV;
+	err = hpsa_find_cfgtables(h);
+	if (err)
 		goto err_out_free_res;
-	}
-
-	cfg_offset = readl(h->vaddr + SA5_CTMEM_OFFSET);
-	h->cfgtable = remap_pci_mem(pci_resource_start(h->pdev,
-			       cfg_base_addr_index) + cfg_offset,
-				sizeof(h->cfgtable));
-	/* Find performant mode table. */
-	trans_offset = readl(&(h->cfgtable->TransMethodOffset));
-	h->transtable = remap_pci_mem(pci_resource_start(h->pdev,
-				cfg_base_addr_index)+cfg_offset+trans_offset,
-				sizeof(*h->transtable));
 
 	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
 	h->maxsgentries = readl(&(h->cfgtable->MaxScatterGatherElements));
