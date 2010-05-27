@@ -28,3 +28,12 @@ config SND_SOC_PHYCORE_AC97
 	help
 	  Say Y if you want to add support for SoC audio on Phytec phyCORE
 	  and phyCARD boards in AC97 mode
+
+config SND_SOC_EUKREA_TLV320
+	bool "Eukrea TLV320"
+	depends on MACH_EUKREA_MBIMX27_BASEBOARD
+	select SND_IMX_SOC
+	select SND_SOC_TLV320AIC23
+	help
+	  Enable I2S based access to the TLV320AIC23B codec attached
+	  to the SSI4 interface
