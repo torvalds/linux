@@ -105,7 +105,11 @@ static int intelfb_create(struct intel_fbdev *ifbdev,
 	}
 
 	/* Flush everything out, we'll be doing GTT only from now on */
-	i915_gem_object_set_to_gtt_domain(fbo, 1);
+	ret = i915_gem_object_set_to_gtt_domain(fbo, 1);
+	if (ret) {
+		DRM_ERROR("failed to bind fb: %d.\n", ret);
+		goto out_unpin;
+	}
 
 	info = framebuffer_alloc(0, device);
 	if (!info) {
