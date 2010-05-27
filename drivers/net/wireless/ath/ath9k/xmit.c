@@ -1728,6 +1728,8 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 	} else
 		bf->bf_isnullfunc = false;
 
+	bf->bf_tx_aborted = false;
+
 	return 0;
 }
 
@@ -1989,7 +1991,7 @@ static int ath_tx_num_badfrms(struct ath_softc *sc, struct ath_buf *bf,
 	int nbad = 0;
 	int isaggr = 0;
 
-	if (bf->bf_tx_aborted)
+	if (bf->bf_lastbf->bf_tx_aborted)
 		return 0;
 
 	isaggr = bf_isaggr(bf);
