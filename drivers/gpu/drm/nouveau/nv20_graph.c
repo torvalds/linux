@@ -616,7 +616,7 @@ nv20_graph_init(struct drm_device *dev)
 	nv_wr32(dev, NV10_PGRAPH_SURFACE, tmp);
 
 	/* begin RAM config */
-	vramsz = drm_get_resource_len(dev, 0) - 1;
+	vramsz = pci_resource_len(dev->pdev, 0) - 1;
 	nv_wr32(dev, 0x4009A4, nv_rd32(dev, NV04_PFB_CFG0));
 	nv_wr32(dev, 0x4009A8, nv_rd32(dev, NV04_PFB_CFG1));
 	nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00EA0000);
@@ -717,7 +717,7 @@ nv30_graph_init(struct drm_device *dev)
 	nv_wr32(dev, 0x0040075c             , 0x00000001);
 
 	/* begin RAM config */
-	/* vramsz = drm_get_resource_len(dev, 0) - 1; */
+	/* vramsz = pci_resource_len(dev->pdev, 0) - 1; */
 	nv_wr32(dev, 0x4009A4, nv_rd32(dev, NV04_PFB_CFG0));
 	nv_wr32(dev, 0x4009A8, nv_rd32(dev, NV04_PFB_CFG1));
 	if (dev_priv->chipset != 0x34) {

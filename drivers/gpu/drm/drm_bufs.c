@@ -39,19 +39,6 @@
 #include <asm/shmparam.h>
 #include "drmP.h"
 
-resource_size_t drm_get_resource_start(struct drm_device *dev, unsigned int resource)
-{
-	return pci_resource_start(dev->pdev, resource);
-}
-EXPORT_SYMBOL(drm_get_resource_start);
-
-resource_size_t drm_get_resource_len(struct drm_device *dev, unsigned int resource)
-{
-	return pci_resource_len(dev->pdev, resource);
-}
-
-EXPORT_SYMBOL(drm_get_resource_len);
-
 static struct drm_map_list *drm_find_matching_map(struct drm_device *dev,
 						  struct drm_local_map *map)
 {

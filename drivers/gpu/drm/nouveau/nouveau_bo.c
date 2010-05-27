@@ -783,7 +783,7 @@ nouveau_ttm_io_mem_reserve(struct ttm_bo_device *bdev, struct ttm_mem_reg *mem)
 		break;
 	case TTM_PL_VRAM:
 		mem->bus.offset = mem->mm_node->start << PAGE_SHIFT;
-		mem->bus.base = drm_get_resource_start(dev, 1);
+		mem->bus.base = pci_resource_start(dev->pdev, 1);
 		mem->bus.is_iomem = true;
 		break;
 	default:
