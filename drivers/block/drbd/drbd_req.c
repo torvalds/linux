@@ -452,20 +452,21 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 
 		dev_alert(DEV, "Local READ failed sec=%llus size=%u\n",
 		      (unsigned long long)req->sector, req->size);
-		/* _req_mod(req,to_be_send); oops, recursion... */
 		D_ASSERT(!(req->rq_state & RQ_NET_MASK));
-		req->rq_state |= RQ_NET_PENDING;
-		inc_ap_pending(mdev);
 
 		__drbd_chk_io_error(mdev, FALSE);
 		put_ldev(mdev);
-		/* NOTE: if we have no connection,
-		 * or know the peer has no good data either,
-		 * then we don't actually need to "queue_for_net_read",
-		 * but we do so anyways, since the drbd_io_error()
-		 * and the potential state change to "Diskless"
-		 * needs to be done from process context */
 
+		/* no point in retrying if there is no good remote data,
+		 * or we have no connection. */
+		if (mdev->state.pdsk != D_UP_TO_DATE) {
+			_req_may_be_done(req, m);
+			break;
+		}
+
+		/* _req_mod(req,to_be_send); oops, recursion... */
+		req->rq_state |= RQ_NET_PENDING;
+		inc_ap_pending(mdev);
 		/* fall through: _req_mod(req,queue_for_net_read); */
 
 	case queue_for_net_read:
@@ -575,6 +576,9 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		_req_may_be_done(req, m);
 		break;
 
+	case read_retry_remote_canceled:
+		req->rq_state &= ~RQ_NET_QUEUED;
+		/* fall through, in case we raced with drbd_disconnect */
 	case connection_lost_while_pending:
 		/* transfer log cleanup after connection loss */
 		/* assert something? */

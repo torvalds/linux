@@ -266,10 +266,8 @@ int w_read_retry_remote(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	 * to give the disk the chance to relocate that block */
 
 	spin_lock_irq(&mdev->req_lock);
-	if (cancel ||
-	    mdev->state.conn < C_CONNECTED ||
-	    mdev->state.pdsk <= D_INCONSISTENT) {
-		_req_mod(req, send_canceled);
+	if (cancel || mdev->state.pdsk != D_UP_TO_DATE) {
+		_req_mod(req, read_retry_remote_canceled);
 		spin_unlock_irq(&mdev->req_lock);
 		dev_alert(DEV, "WE ARE LOST. Local IO failure, no peer.\n");
 		return 1;
