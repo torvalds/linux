@@ -529,6 +529,10 @@ static bool will_write_block(struct port *port)
 {
 	bool ret;
 
+	if (!port->guest_connected) {
+		/* Port got hot-unplugged. Let's exit. */
+		return false;
+	}
 	if (!port->host_connected)
 		return true;
 
