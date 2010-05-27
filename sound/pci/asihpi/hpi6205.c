@@ -1361,6 +1361,9 @@ static u16 adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 	case HPI_ADAPTER_FAMILY_ASI(0x6500):
 		firmware_id = HPI_ADAPTER_FAMILY_ASI(0x6600);
 		break;
+	case HPI_ADAPTER_FAMILY_ASI(0x8800):
+		firmware_id = HPI_ADAPTER_FAMILY_ASI(0x8900);
+		break;
 	}
 	boot_code_id[1] = firmware_id;
 
