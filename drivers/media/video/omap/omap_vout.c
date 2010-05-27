@@ -38,6 +38,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/irq.h>
 #include <linux/videodev2.h>
+#include <linux/slab.h>
 
 #include <media/videobuf-dma-sg.h>
 #include <media/v4l2-device.h>
@@ -2488,7 +2489,7 @@ static int omap_vout_remove(struct platform_device *pdev)
 
 	for (k = 0; k < vid_dev->num_displays; k++) {
 		if (vid_dev->displays[k]->state != OMAP_DSS_DISPLAY_DISABLED)
-			vid_dev->displays[k]->disable(vid_dev->displays[k]);
+			vid_dev->displays[k]->driver->disable(vid_dev->displays[k]);
 
 		omap_dss_put_device(vid_dev->displays[k]);
 	}
@@ -2545,7 +2546,9 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 			def_display = NULL;
 		}
 		if (def_display) {
-			ret = def_display->enable(def_display);
+			struct omap_dss_driver *dssdrv = def_display->driver;
+
+			ret = dssdrv->enable(def_display);
 			if (ret) {
 				/* Here we are not considering a error
 				 *  as display may be enabled by frame
@@ -2559,21 +2562,21 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 			if (def_display->caps &
 					OMAP_DSS_DISPLAY_CAP_MANUAL_UPDATE) {
 #ifdef CONFIG_FB_OMAP2_FORCE_AUTO_UPDATE
-				if (def_display->enable_te)
-					def_display->enable_te(def_display, 1);
-				if (def_display->set_update_mode)
-					def_display->set_update_mode(def_display,
+				if (dssdrv->enable_te)
+					dssdrv->enable_te(def_display, 1);
+				if (dssdrv->set_update_mode)
+					dssdrv->set_update_mode(def_display,
 							OMAP_DSS_UPDATE_AUTO);
 #else	/* MANUAL_UPDATE */
-				if (def_display->enable_te)
-					def_display->enable_te(def_display, 0);
-				if (def_display->set_update_mode)
-					def_display->set_update_mode(def_display,
+				if (dssdrv->enable_te)
+					dssdrv->enable_te(def_display, 0);
+				if (dssdrv->set_update_mode)
+					dssdrv->set_update_mode(def_display,
 							OMAP_DSS_UPDATE_MANUAL);
 #endif
 			} else {
-				if (def_display->set_update_mode)
-					def_display->set_update_mode(def_display,
+				if (dssdrv->set_update_mode)
+					dssdrv->set_update_mode(def_display,
 							OMAP_DSS_UPDATE_AUTO);
 			}
 		}
@@ -2592,8 +2595,8 @@ static int __init omap_vout_probe(struct platform_device *pdev)
 	for (i = 0; i < vid_dev->num_displays; i++) {
 		struct omap_dss_device *display = vid_dev->displays[i];
 
-		if (display->update)
-			display->update(display, 0, 0,
+		if (display->driver->update)
+			display->driver->update(display, 0, 0,
 					display->panel.timings.x_res,
 					display->panel.timings.y_res);
 	}
@@ -2608,8 +2611,8 @@ probe_err1:
 		if (ovl->manager && ovl->manager->device)
 			def_display = ovl->manager->device;
 
-		if (def_display)
-			def_display->disable(def_display);
+		if (def_display && def_display->driver)
+			def_display->driver->disable(def_display);
 	}
 probe_err0:
 	kfree(vid_dev);
