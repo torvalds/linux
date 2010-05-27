@@ -137,7 +137,7 @@ struct kmem_cache {
 #ifdef CONFIG_ZONE_DMA
 #define SLUB_DMA __GFP_DMA
 /* Reserve extra caches for potential DMA use */
-#define KMALLOC_CACHES (2 * SLUB_PAGE_SHIFT - 6)
+#define KMALLOC_CACHES (2 * SLUB_PAGE_SHIFT)
 #else
 /* Disable DMA functionality */
 #define SLUB_DMA (__force gfp_t)0
