@@ -1538,7 +1538,8 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 					rdev->pm.power_state[state_index].pcie_lanes =
 						power_info->info.asPowerPlayInfo[i].ucNumPciELanes;
 					misc = le32_to_cpu(power_info->info.asPowerPlayInfo[i].ulMiscInfo);
-					if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_SUPPORT) {
+					if ((misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_SUPPORT) ||
+					    (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_ACTIVE_HIGH)) {
 						rdev->pm.power_state[state_index].clock_info[0].voltage.type =
 							VOLTAGE_GPIO;
 						rdev->pm.power_state[state_index].clock_info[0].voltage.gpio =
@@ -1605,7 +1606,8 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						power_info->info_2.asPowerPlayInfo[i].ucNumPciELanes;
 					misc = le32_to_cpu(power_info->info_2.asPowerPlayInfo[i].ulMiscInfo);
 					misc2 = le32_to_cpu(power_info->info_2.asPowerPlayInfo[i].ulMiscInfo2);
-					if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_SUPPORT) {
+					if ((misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_SUPPORT) ||
+					    (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_ACTIVE_HIGH)) {
 						rdev->pm.power_state[state_index].clock_info[0].voltage.type =
 							VOLTAGE_GPIO;
 						rdev->pm.power_state[state_index].clock_info[0].voltage.gpio =
@@ -1679,7 +1681,8 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						power_info->info_3.asPowerPlayInfo[i].ucNumPciELanes;
 					misc = le32_to_cpu(power_info->info_3.asPowerPlayInfo[i].ulMiscInfo);
 					misc2 = le32_to_cpu(power_info->info_3.asPowerPlayInfo[i].ulMiscInfo2);
-					if (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_SUPPORT) {
+					if ((misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_SUPPORT) ||
+					    (misc & ATOM_PM_MISCINFO_VOLTAGE_DROP_ACTIVE_HIGH)) {
 						rdev->pm.power_state[state_index].clock_info[0].voltage.type =
 							VOLTAGE_GPIO;
 						rdev->pm.power_state[state_index].clock_info[0].voltage.gpio =

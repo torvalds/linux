@@ -2454,7 +2454,12 @@ default_mode:
 	rdev->pm.power_state[state_index].clock_info[0].mclk = rdev->clock.default_mclk;
 	rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;
 	rdev->pm.power_state[state_index].default_clock_mode = &rdev->pm.power_state[state_index].clock_info[0];
-	rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
+	if ((state_index > 0) &&
+	    (rdev->pm.power_state[0].clock_info[0].voltage.type = VOLTAGE_GPIO))
+		rdev->pm.power_state[state_index].clock_info[0].voltage =
+			rdev->pm.power_state[0].clock_info[0].voltage;
+	else
+		rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
 	rdev->pm.power_state[state_index].pcie_lanes = 16;
 	rdev->pm.power_state[state_index].flags = 0;
 	rdev->pm.default_power_state_index = state_index;
