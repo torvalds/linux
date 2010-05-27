@@ -50,6 +50,7 @@
 #define RK2818_BIT(n)				(1<<(n))
 
 /* Control register defines */
+#define SDMMC_CTRL_OD_PULLUP	  RK2818_BIT(24)
 #define SDMMC_CTRL_ABRT_READ_DATA RK2818_BIT(8)
 #define SDMMC_CTRL_SEND_IRQ_RESP  RK2818_BIT(7)
 #define SDMMC_CTRL_READ_WAIT      RK2818_BIT(6)

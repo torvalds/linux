@@ -32,7 +32,7 @@
 
 #include <mach/board.h>
 #include <mach/rk2818_iomap.h>
-
+#include <mach/gpio.h>
 #include <asm/dma.h>
 #include <asm/scatterlist.h>
 
@@ -77,7 +77,10 @@ struct rk2818_sdmmc_host {
 	struct mmc_data		*data;
 
 	int				dma_chn;
-	unsigned int		use_dma:1;
+	unsigned int	use_dma:1;
+	unsigned int	no_detect:1;
+	char			dma_name[8];
+
 	u32			cmd_status;
 	u32			data_status;
 	u32			stop_cmdr;
@@ -91,7 +94,6 @@ struct rk2818_sdmmc_host {
 	u32			bus_hz;
 	u32			current_speed;
 	struct platform_device	*pdev;
-	struct rk2818_sdmmc_platform_data *pdata;
 
 	struct mmc_host		*mmc;
 	u32			ctype;
@@ -116,6 +118,7 @@ struct rk2818_sdmmc_host {
 #define rk2818_sdmmc_set_pending(host, event)				\
 	set_bit(event, &host->pending_events)
 
+static void rk2818_sdmmc_read_data_pio(struct rk2818_sdmmc_host *host);
 #if defined (CONFIG_DEBUG_FS)
 
 static int rk2818_sdmmc_req_show(struct seq_file *s, void *v)
@@ -368,11 +371,9 @@ static int rk2818_sdmmc_submit_data_dma(struct rk2818_sdmmc_host *host, struct m
 	struct scatterlist		*sg;
 	unsigned int			i;
 
+	host->dma_chn = -1;
 	if(host->use_dma == 0)
-	{
-		host->dma_chn = -1;
 		return -ENOSYS;
-	}
 	if (data->blocks * data->blksz < RK2818_MCI_DMA_THRESHOLD)
 		return -EINVAL;
 	if (data->blksz & 3)
@@ -382,25 +383,23 @@ static int rk2818_sdmmc_submit_data_dma(struct rk2818_sdmmc_host *host, struct m
 			return -EINVAL;
 	}
 	for(i = 0; i < MAX_SG_CHN; i++) {
-		if(request_dma(i, "sd_mmc") == 0) {
+		if(request_dma(i, host->dma_name) == 0) {
 			host->dma_chn = i;
 			break;
 		}
 	}
-	if(i == MAX_SG_CHN) {
-		host->dma_chn = -1;
+	if(i == MAX_SG_CHN) 
 		return -EINVAL;
-	}
 	dma_map_sg(host->dev, data->sg, data->sg_len, 
 			(data->flags & MMC_DATA_READ)? DMA_FROM_DEVICE : DMA_TO_DEVICE);
+	for_each_sg(data->sg, sg, data->sg_len, i) {
+		dev_dbg(host->dev, "sg[%d]  addr: 0x%08x, len: %d", i, sg->dma_address, sg->length);
+	}
 
 	set_dma_sg(host->dma_chn, data->sg, data->sg_len);
-
 	set_dma_mode(host->dma_chn,
-			(data->flags & MMC_DATA_READ)? DMA_MODE_READ : DMA_MODE_WRITE);
-
+				(data->flags & MMC_DATA_READ)? DMA_MODE_READ : DMA_MODE_WRITE);
 	set_dma_handler(host->dma_chn, rk2818_sdmmc_dma_complete, (void *)host);
-
 	writel(readl(host->regs + SDMMC_CTRL) | SDMMC_CTRL_DMA_ENABLE,
 				host->regs +SDMMC_CTRL);
 	enable_dma(host->dma_chn);
@@ -412,7 +411,7 @@ static void rk2818_sdmmc_submit_data(struct rk2818_sdmmc_host *host, struct mmc_
 {
 	data->error = -EINPROGRESS;
 
-	//WARN_ON(host->data);
+	WARN_ON(host->data);
 	host->sg = NULL;
 	host->data = data;
 
@@ -555,7 +554,10 @@ static void rk2818_sdmmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 		host->ctype = SDMMC_CTYPE_4BIT;
 		break;
 	}
-
+	if(ios->bus_mode == MMC_BUSMODE_OPENDRAIN)
+		writel(readl(host->regs + SDMMC_CTRL) | SDMMC_CTRL_OD_PULLUP, host->regs + SDMMC_CTRL);
+	else
+		writel(readl(host->regs + SDMMC_CTRL) & ~SDMMC_CTRL_OD_PULLUP, host->regs + SDMMC_CTRL);
 
 	if (ios->clock) {
 		spin_lock(&host->lock);
@@ -615,12 +617,18 @@ static void rk2818_sdmmc_enable_sdio_irq(struct mmc_host *mmc, int enable)
 	spin_unlock_irqrestore(&host->lock, flags);
 }
 
-static const struct mmc_host_ops rk2818_sdmmc_ops = {
-	.request	= rk2818_sdmmc_request,
-	.set_ios	= rk2818_sdmmc_set_ios,
-	.get_ro		= rk2818_sdmmc_get_ro,
-	.get_cd		= rk2818_sdmmc_get_cd,
-	.enable_sdio_irq = rk2818_sdmmc_enable_sdio_irq,
+static const struct mmc_host_ops rk2818_sdmmc_ops[] = {
+	{
+		.request	= rk2818_sdmmc_request,
+		.set_ios	= rk2818_sdmmc_set_ios,
+		.get_ro		= rk2818_sdmmc_get_ro,
+		.get_cd		= rk2818_sdmmc_get_cd,
+	},
+	{
+		.request	= rk2818_sdmmc_request,
+		.set_ios	= rk2818_sdmmc_set_ios,
+		.enable_sdio_irq = rk2818_sdmmc_enable_sdio_irq,
+	},
 };
 
 static void rk2818_sdmmc_request_end(struct rk2818_sdmmc_host *host, struct mmc_request *mrq)
@@ -630,9 +638,8 @@ static void rk2818_sdmmc_request_end(struct rk2818_sdmmc_host *host, struct mmc_
 	struct mmc_host		*prev_mmc = host->mmc;
 
 	WARN_ON(host->cmd || host->data);
+	host->mrq = NULL;
 
-	host->mrq = NULL;
-	host->mrq = NULL;
 	if (!list_empty(&host->queue)) {
 		host = list_entry(host->queue.next,
 				struct rk2818_sdmmc_host, queue_node);
@@ -746,8 +753,13 @@ static void rk2818_sdmmc_tasklet_func(unsigned long priv)
 
 			if (!rk2818_sdmmc_test_and_clear_pending(host,
 						EVENT_XFER_COMPLETE))
+			{
+				if(host-> no_detect == 1 && 
+					host->dir_status == RK2818_MCI_RECV_STATUS && 
+					host->dma_chn == -1)
+					rk2818_sdmmc_read_data_pio(host);
 				break;
-
+			}
 			rk2818_sdmmc_set_completed(host, EVENT_XFER_COMPLETE);
 			prev_state = state = STATE_DATA_BUSY;
 			/* fall through */
@@ -763,15 +775,15 @@ static void rk2818_sdmmc_tasklet_func(unsigned long priv)
 
 			if (unlikely(status & RK2818_MCI_DATA_ERROR_FLAGS)) {
 				if (status & SDMMC_INT_DRTO) {
-					dev_err(&host->pdev->dev,
+					dev_err(host->dev,
 							"data timeout error\n");
 					data->error = -ETIMEDOUT;
 				} else if (status & SDMMC_INT_DCRC) {
-					dev_err(&host->pdev->dev,
+					dev_err(host->dev,
 							"data CRC error\n");
 					data->error = -EILSEQ;
 				} else {
-					dev_err(&host->pdev->dev,
+					dev_err(host->dev,
 						"data FIFO error (status=%08x)\n",
 						status);
 					data->error = -EIO;
@@ -985,7 +997,7 @@ static void rk2818_sdmmc_cmd_interrupt(struct rk2818_sdmmc_host *host, u32 statu
 {
 	if(!host->cmd_status) 
 		host->cmd_status = status;
-
+	smp_wmb();
 	rk2818_sdmmc_set_pending(host, EVENT_CMD_COMPLETE);
 	tasklet_schedule(&host->tasklet);
 }
@@ -1010,7 +1022,7 @@ static irqreturn_t rk2818_sdmmc_interrupt(int irq, void *data)
 		if(pending & RK2818_MCI_CMD_ERROR_FLAGS) {
 		    writel(RK2818_MCI_CMD_ERROR_FLAGS, host->regs + SDMMC_RINTSTS);  //  clear interrupt
 		    host->cmd_status = status;
-
+			smp_wmb();
 		    rk2818_sdmmc_set_pending(host, EVENT_CMD_COMPLETE);
 		    tasklet_schedule(&host->tasklet);
 		}
@@ -1018,7 +1030,7 @@ static irqreturn_t rk2818_sdmmc_interrupt(int irq, void *data)
 		if (pending & RK2818_MCI_DATA_ERROR_FLAGS) { // if there is an error, let report DATA_ERROR
 			writel(RK2818_MCI_DATA_ERROR_FLAGS, host->regs + SDMMC_RINTSTS);  // clear interrupt
 			host->data_status = status;
-
+			smp_wmb();
 			rk2818_sdmmc_set_pending(host, EVENT_DATA_ERROR);
 			tasklet_schedule(&host->tasklet);
 		}
@@ -1027,10 +1039,11 @@ static irqreturn_t rk2818_sdmmc_interrupt(int irq, void *data)
 		if(pending & SDMMC_INT_DTO) {
 		    writel(SDMMC_INT_DTO, host->regs + SDMMC_RINTSTS);  // clear interrupt
 		    if (!host->data_status)
-			host->data_status = status;
+				host->data_status = status;
+			smp_wmb();
 		    if(host->dir_status == RK2818_MCI_RECV_STATUS) {
-			if(host->sg != NULL) 
-				rk2818_sdmmc_read_data_pio(host);
+				if(host->sg) 
+					rk2818_sdmmc_read_data_pio(host);
 		    }
 		    rk2818_sdmmc_set_pending(host, EVENT_DATA_COMPLETE);
 		    tasklet_schedule(&host->tasklet);
@@ -1045,7 +1058,7 @@ static irqreturn_t rk2818_sdmmc_interrupt(int irq, void *data)
 		if (pending & SDMMC_INT_TXDR) {
 		    writel(SDMMC_INT_TXDR, host->regs + SDMMC_RINTSTS);  //  clear interrupt
 		    if(host->sg) {
-			rk2818_sdmmc_write_data_pio(host);
+				rk2818_sdmmc_write_data_pio(host);
 		    }
 		}
 
@@ -1053,12 +1066,16 @@ static irqreturn_t rk2818_sdmmc_interrupt(int irq, void *data)
 		   	writel(SDMMC_INT_CMD_DONE, host->regs + SDMMC_RINTSTS);  //  clear interrupt
 		    rk2818_sdmmc_cmd_interrupt(host, status);
 		}
+		if(pending & SDMMC_INT_SDIO) {
+			writel(SDMMC_INT_SDIO, host->regs + SDMMC_RINTSTS);
+			mmc_signal_sdio_irq(host->mmc);
+		}
 	} while (pass_count++ < 5);
 	
 	spin_unlock(&host->lock);
 
-	return IRQ_HANDLED;
-	//return pass_count ? IRQ_HANDLED : IRQ_NONE;
+	//return IRQ_HANDLED;
+	return pass_count ? IRQ_HANDLED : IRQ_NONE;
 }
 
 static void rk2818_sdmmc_detect_change(unsigned long host_data)
@@ -1076,7 +1093,7 @@ static void rk2818_sdmmc_detect_change(unsigned long host_data)
 
 	if (present != present_old) {
 
-		dev_info(host->dev, "card %s\n", present ? "inserted" : "removed");
+		dev_dbg(host->dev, "card %s\n", present ? "inserted" : "removed");
 
 		spin_lock(&host->lock);
 
@@ -1173,11 +1190,12 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 	host = mmc_priv(mmc);
 
 	host->mmc = mmc;
-	host->pdata = pdata;
 	host->pdev = pdev;
 	host->dev = &pdev->dev;
 
 	host->use_dma = pdata->use_dma;
+	host->no_detect = pdata->no_detect;
+	memcpy(host->dma_name, pdata->dma_name, 8);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
@@ -1207,6 +1225,7 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Cannot find IRQ\n");
 		goto err_free_map;
 	}
+
 
 	spin_lock_init(&host->lock);
 	INIT_LIST_HEAD(&host->queue);
@@ -1252,26 +1271,25 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 
 
 	platform_set_drvdata(pdev, host);
-
-
-	mmc->ops = &rk2818_sdmmc_ops;
+	dev_dbg(host->dev, "pdev->id = %d\n", pdev->id);
+	mmc->ops = &(rk2818_sdmmc_ops[pdev->id]);
 
 	mmc->f_min = host->bus_hz/510;
 	mmc->f_max = host->bus_hz/2; 
 	dev_dbg(&pdev->dev, "bus_hz = %u\n", host->bus_hz);
-	mmc->ocr_avail = host->pdata->host_ocr_avail;
-	mmc->caps = host->pdata->host_caps;
+	mmc->ocr_avail = pdata->host_ocr_avail;
+	mmc->caps = pdata->host_caps;
 	
-	mmc->max_phys_segs = 4095;
-	mmc->max_hw_segs = 4095;
-	mmc->max_blk_size = 4095 * 512; /* BLKSIZ is 16 bits*/
-	mmc->max_blk_count = 4095;
+	mmc->max_phys_segs = 64;
+	mmc->max_hw_segs = 64;
+	mmc->max_blk_size = 4095;
+	mmc->max_blk_count = 512;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;
 
 	rk2818_sdmmc_set_power(host, 0);
 	/* Assume card is present initially */
-	if(rk2818_sdmmc_get_cd(host->mmc) != 0)
+	if(host->no_detect == 1 || rk2818_sdmmc_get_cd(host->mmc) != 0)
 		set_bit(RK2818_MMC_CARD_PRESENT, &host->flags);
 	else
 		clear_bit(RK2818_MMC_CARD_PRESENT, &host->flags);
@@ -1294,8 +1312,8 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 			host->regs + SDMMC_INTMASK);
 	writel(SDMMC_CTRL_INT_ENABLE, host->regs + SDMMC_CTRL); // enable mci interrupt
 
-	dev_info(&pdev->dev, "RK2818 MMC controller at irq %d, %s\n", 
-				host->irq, (host->use_dma == 1)?"use dma":"do not use dma");
+	dev_info(&pdev->dev, "RK2818 MMC controller used as %s, at irq %d\n", 
+				host->dma_name, host->irq);
 
 	return 0;
 
