@@ -3256,37 +3256,44 @@ default_int_mode:
 	h->intr[PERF_MODE_INT] = h->pdev->irq;
 }
 
+static int __devinit hpsa_lookup_board_id(struct pci_dev *pdev, u32 *board_id)
+{
+	int i;
+	u32 subsystem_vendor_id, subsystem_device_id;
+
+	subsystem_vendor_id = pdev->subsystem_vendor;
+	subsystem_device_id = pdev->subsystem_device;
+	*board_id = ((subsystem_device_id << 16) & 0xffff0000) |
+		    subsystem_vendor_id;
+
+	for (i = 0; i < ARRAY_SIZE(products); i++)
+		if (*board_id == products[i].board_id)
+			return i;
+
+	if (subsystem_vendor_id != PCI_VENDOR_ID_HP || !hpsa_allow_any) {
+		dev_warn(&pdev->dev, "unrecognized board ID: "
+			"0x%08x, ignoring.\n", *board_id);
+			return -ENODEV;
+	}
+	return ARRAY_SIZE(products) - 1; /* generic unknown smart array */
+}
+
 static int __devinit hpsa_pci_init(struct ctlr_info *h)
 {
-	ushort subsystem_vendor_id, subsystem_device_id, command;
-	u32 board_id, scratchpad = 0;
+	ushort command;
+	u32 scratchpad = 0;
 	u64 cfg_offset;
 	u32 cfg_base_addr;
 	u64 cfg_base_addr_index;
 	u32 trans_offset;
 	int i, prod_index, err;
 
-	subsystem_vendor_id = h->pdev->subsystem_vendor;
-	subsystem_device_id = h->pdev->subsystem_device;
-	board_id = (((u32) (subsystem_device_id << 16) & 0xffff0000) |
-		    subsystem_vendor_id);
+	prod_index = hpsa_lookup_board_id(h->pdev, &h->board_id);
+	if (prod_index < 0)
+		return -ENODEV;
+	h->product_name = products[prod_index].product_name;
+	h->access = *(products[prod_index].access);
 
-	for (i = 0; i < ARRAY_SIZE(products); i++)
-		if (board_id == products[i].board_id)
-			break;
-
-	prod_index = i;
-
-	if (prod_index == ARRAY_SIZE(products)) {
-		prod_index--;
-		if (subsystem_vendor_id != PCI_VENDOR_ID_HP ||
-				!hpsa_allow_any) {
-			dev_warn(&h->pdev->dev, "unrecognized board ID:"
-				" 0x%08lx, ignoring.\n",
-				(unsigned long) board_id);
-			return -ENODEV;
-		}
-	}
 	/* check to see if controller has been disabled
 	 * BEFORE trying to enable it
 	 */
@@ -3312,7 +3319,7 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 	/* If the kernel supports MSI/MSI-X we will try to enable that,
 	 * else we use the IO-APIC interrupt assigned to us by system ROM.
 	 */
-	hpsa_interrupt_mode(h, board_id);
+	hpsa_interrupt_mode(h, h->board_id);
 
 	/* find the memory BAR */
 	for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
@@ -3364,7 +3371,6 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 				cfg_base_addr_index)+cfg_offset+trans_offset,
 				sizeof(*h->transtable));
 
-	h->board_id = board_id;
 	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
 	h->maxsgentries = readl(&(h->cfgtable->MaxScatterGatherElements));
 
@@ -3383,8 +3389,6 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 		h->chainsize = 0;
 	}
 
-	h->product_name = products[prod_index].product_name;
-	h->access = *(products[prod_index].access);
 	/* Allow room for some ioctls */
 	h->nr_cmds = h->max_commands - 4;
 
@@ -3410,7 +3414,7 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h)
 	 * An ASIC bug may result in a prefetch beyond
 	 * physical memory.
 	 */
-	if (board_id == 0x3225103C) {
+	if (h->board_id == 0x3225103C) {
 		u32 dma_prefetch;
 		dma_prefetch = readl(h->vaddr + I2O_DMA1_CFG);
 		dma_prefetch |= 0x8000;
