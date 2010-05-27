@@ -2078,8 +2078,17 @@ static enum work_done_result ieee80211_assoc_done(struct ieee80211_work *wk,
 			cfg80211_send_assoc_timeout(wk->sdata->dev,
 						    wk->filter_ta);
 			return WORK_DONE_DESTROY;
+		} else {
+			mutex_unlock(&wk->sdata->u.mgd.mtx);
+
+			/*
+			 * configure ARP filter IP addresses to the driver,
+			 * intentionally outside the mgd mutex.
+			 */
+			rtnl_lock();
+			ieee80211_set_arp_filter(wk->sdata);
+			rtnl_unlock();
 		}
-		mutex_unlock(&wk->sdata->u.mgd.mtx);
 	}
 
 	cfg80211_send_rx_assoc(wk->sdata->dev, skb->data, skb->len);

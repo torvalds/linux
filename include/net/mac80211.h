@@ -19,6 +19,7 @@
 #include <linux/wireless.h>
 #include <linux/device.h>
 #include <linux/ieee80211.h>
+#include <linux/inetdevice.h>
 #include <net/cfg80211.h>
 
 /**
@@ -1532,6 +1533,16 @@ enum ieee80211_ampdu_mlme_action {
  *	of the bss parameters has changed when a call is made. The callback
  *	can sleep.
  *
+ * @configure_arp_filter: Configuration function for hardware ARP query filter.
+ *	This function is called with all the IP addresses configured to the
+ *	interface as argument - all ARP queries targeted to any of these
+ *	addresses must pass through. If the hardware filter does not support
+ *	enought addresses, hardware filtering must be disabled. The ifa_list
+ *	argument may be NULL, indicating that filtering must be disabled.
+ *	This function is called upon association complete with current
+ *	address(es), and while associated whenever the IP address(es) change.
+ *	The callback can sleep.
+ *
  * @prepare_multicast: Prepare for multicast filter configuration.
  *	This callback is optional, and its return value is passed
  *	to configure_filter(). This callback must be atomic.
@@ -1671,6 +1682,9 @@ struct ieee80211_ops {
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,
 				 u32 changed);
+	int (*configure_arp_filter)(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct in_ifaddr *ifa_list);
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
 				 struct netdev_hw_addr_list *mc_list);
 	void (*configure_filter)(struct ieee80211_hw *hw,

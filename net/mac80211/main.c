@@ -329,6 +329,58 @@ static void ieee80211_recalc_smps_work(struct work_struct *work)
 	mutex_unlock(&local->iflist_mtx);
 }
 
+int ieee80211_set_arp_filter(struct ieee80211_sub_if_data *sdata)
+{
+	struct in_device *idev;
+	int ret = 0;
+
+	BUG_ON(!sdata);
+	ASSERT_RTNL();
+
+	idev = sdata->dev->ip_ptr;
+	if (!idev)
+		return 0;
+
+	ret = drv_configure_arp_filter(sdata->local, &sdata->vif,
+				       idev->ifa_list);
+	return ret;
+}
+
+static int ieee80211_ifa_changed(struct notifier_block *nb,
+				 unsigned long data, void *arg)
+{
+	struct in_ifaddr *ifa = arg;
+	struct ieee80211_local *local =
+		container_of(nb, struct ieee80211_local,
+			     ifa_notifier);
+	struct net_device *ndev = ifa->ifa_dev->dev;
+	struct wireless_dev *wdev = ndev->ieee80211_ptr;
+	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_if_managed *ifmgd;
+
+	/* Make sure it's our interface that got changed */
+	if (!wdev)
+		return NOTIFY_DONE;
+
+	if (wdev->wiphy != local->hw.wiphy)
+		return NOTIFY_DONE;
+
+	/* We are concerned about IP addresses only when associated */
+	sdata = IEEE80211_DEV_TO_SUB_IF(ndev);
+
+	/* ARP filtering is only supported in managed mode */
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return NOTIFY_DONE;
+
+	ifmgd = &sdata->u.mgd;
+	mutex_lock(&ifmgd->mtx);
+	if (ifmgd->associated)
+		ieee80211_set_arp_filter(sdata);
+	mutex_unlock(&ifmgd->mtx);
+
+	return NOTIFY_DONE;
+}
+
 struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 					const struct ieee80211_ops *ops)
 {
@@ -612,14 +664,22 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		ieee80211_max_network_latency;
 	result = pm_qos_add_notifier(PM_QOS_NETWORK_LATENCY,
 				     &local->network_latency_notifier);
-
 	if (result) {
 		rtnl_lock();
 		goto fail_pm_qos;
 	}
 
+	local->ifa_notifier.notifier_call = ieee80211_ifa_changed;
+	result = register_inetaddr_notifier(&local->ifa_notifier);
+	if (result)
+		goto fail_ifa;
+
 	return 0;
 
+ fail_ifa:
+	pm_qos_remove_notifier(PM_QOS_NETWORK_LATENCY,
+			       &local->network_latency_notifier);
+	rtnl_lock();
  fail_pm_qos:
 	ieee80211_led_exit(local);
 	ieee80211_remove_interfaces(local);
@@ -647,6 +707,7 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 
 	pm_qos_remove_notifier(PM_QOS_NETWORK_LATENCY,
 			       &local->network_latency_notifier);
+	unregister_inetaddr_notifier(&local->ifa_notifier);
 
 	rtnl_lock();
 

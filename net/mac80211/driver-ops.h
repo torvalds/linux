@@ -83,6 +83,23 @@ static inline void drv_bss_info_changed(struct ieee80211_local *local,
 	trace_drv_bss_info_changed(local, sdata, info, changed);
 }
 
+struct in_ifaddr;
+static inline int drv_configure_arp_filter(struct ieee80211_local *local,
+					   struct ieee80211_vif *vif,
+					   struct in_ifaddr *ifa_list)
+{
+	int ret = 0;
+
+	might_sleep();
+
+	if (local->ops->configure_arp_filter)
+		ret = local->ops->configure_arp_filter(&local->hw, vif,
+						       ifa_list);
+
+	trace_drv_configure_arp_filter(local, vif_to_sdata(vif), ifa_list, ret);
+	return ret;
+}
+
 static inline u64 drv_prepare_multicast(struct ieee80211_local *local,
 					struct netdev_hw_addr_list *mc_list)
 {
