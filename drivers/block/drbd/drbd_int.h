@@ -697,7 +697,7 @@ struct drbd_tl_epoch {
 	struct list_head requests; /* requests before */
 	struct drbd_tl_epoch *next; /* pointer to the next barrier */
 	unsigned int br_number;  /* the barriers identifier. */
-	int n_req;	/* number of requests attached before this barrier */
+	int n_writes;	/* number of requests attached before this barrier */
 };
 
 struct drbd_request;

@@ -199,7 +199,7 @@ static int tl_init(struct drbd_conf *mdev)
 	INIT_LIST_HEAD(&b->w.list);
 	b->next = NULL;
 	b->br_number = 4711;
-	b->n_req = 0;
+	b->n_writes = 0;
 	b->w.cb = NULL; /* if this is != NULL, we need to dec_ap_pending in tl_clear */
 
 	mdev->oldest_tle = b;
@@ -240,7 +240,7 @@ void _tl_add_barrier(struct drbd_conf *mdev, struct drbd_tl_epoch *new)
 	INIT_LIST_HEAD(&new->w.list);
 	new->w.cb = NULL; /* if this is != NULL, we need to dec_ap_pending in tl_clear */
 	new->next = NULL;
-	new->n_req = 0;
+	new->n_writes = 0;
 
 	newest_before = mdev->newest_tle;
 	/* never send a barrier number == 0, because that is special-cased
@@ -284,9 +284,9 @@ void tl_release(struct drbd_conf *mdev, unsigned int barrier_nr,
 			barrier_nr, b->br_number);
 		goto bail;
 	}
-	if (b->n_req != set_size) {
-		dev_err(DEV, "BAD! BarrierAck #%u received with n_req=%u, expected n_req=%u!\n",
-			barrier_nr, set_size, b->n_req);
+	if (b->n_writes != set_size) {
+		dev_err(DEV, "BAD! BarrierAck #%u received with n_writes=%u, expected n_writes=%u!\n",
+			barrier_nr, set_size, b->n_writes);
 		goto bail;
 	}
 
@@ -378,7 +378,7 @@ void tl_clear(struct drbd_conf *mdev)
 			INIT_LIST_HEAD(&b->w.list);
 			b->w.cb = NULL;
 			b->br_number = new_initial_bnr;
-			b->n_req = 0;
+			b->n_writes = 0;
 
 			mdev->oldest_tle = b;
 			break;

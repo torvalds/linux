@@ -521,7 +521,7 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 				&mdev->newest_tle->requests);
 
 		/* increment size of current epoch */
-		mdev->newest_tle->n_req++;
+		mdev->newest_tle->n_writes++;
 
 		/* queue work item to send data */
 		D_ASSERT(req->rq_state & RQ_NET_PENDING);
@@ -530,7 +530,7 @@ void __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		drbd_queue_work(&mdev->data.work, &req->w);
 
 		/* close the epoch, in case it outgrew the limit */
-		if (mdev->newest_tle->n_req >= mdev->net_conf->max_epoch_size)
+		if (mdev->newest_tle->n_writes >= mdev->net_conf->max_epoch_size)
 			queue_barrier(mdev);
 
 		break;
