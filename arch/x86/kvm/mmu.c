@@ -2990,7 +2990,7 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 		pt = sp->spt;
 		for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
 			/* avoid RMW */
-			if (pt[i] & PT_WRITABLE_MASK)
+			if (is_writable_pte(pt[i]))
 				pt[i] &= ~PT_WRITABLE_MASK;
 	}
 	kvm_flush_remote_tlbs(kvm);
@@ -3425,7 +3425,7 @@ void inspect_spte_has_rmap(struct kvm *kvm, u64 *sptep)
 	struct kvm_mmu_page *rev_sp;
 	gfn_t gfn;
 
-	if (*sptep & PT_WRITABLE_MASK) {
+	if (is_writable_pte(*sptep)) {
 		rev_sp = page_header(__pa(sptep));
 		gfn = kvm_mmu_page_get_gfn(rev_sp, sptep - rev_sp->spt);
 
@@ -3474,7 +3474,7 @@ static void check_writable_mappings_rmap(struct kvm_vcpu *vcpu)
 
 			if (!(ent & PT_PRESENT_MASK))
 				continue;
-			if (!(ent & PT_WRITABLE_MASK))
+			if (!is_writable_pte(ent))
 				continue;
 			inspect_spte_has_rmap(vcpu->kvm, &pt[i]);
 		}
@@ -3508,7 +3508,7 @@ static void audit_write_protection(struct kvm_vcpu *vcpu)
 
 		spte = rmap_next(vcpu->kvm, rmapp, NULL);
 		while (spte) {
-			if (*spte & PT_WRITABLE_MASK)
+			if (is_writable_pte(*spte))
 				printk(KERN_ERR "%s: (%s) shadow page has "
 				"writable mappings: gfn %lx role %x\n",
 			       __func__, audit_msg, sp->gfn,
