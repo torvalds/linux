@@ -971,7 +971,8 @@ i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 	if (obj_priv->phys_obj)
 		ret = i915_gem_phys_pwrite(dev, obj, args, file_priv);
 	else if (obj_priv->tiling_mode == I915_TILING_NONE &&
-		 dev->gtt_total != 0) {
+		 dev->gtt_total != 0 &&
+		 obj->write_domain != I915_GEM_DOMAIN_CPU) {
 		ret = i915_gem_gtt_pwrite_fast(dev, obj, args, file_priv);
 		if (ret == -EFAULT) {
 			ret = i915_gem_gtt_pwrite_slow(dev, obj, args,
