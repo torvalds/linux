@@ -2609,6 +2609,14 @@ S:	Maintained
 F:	Documentation/blockdev/cpqarray.txt
 F:	drivers/block/cpqarray.*
 
+HEWLETT-PACKARD SMART ARRAY RAID DRIVER (hpsa)
+M:	Stephen M. Cameron <scameron@beardog.cce.hp.com>
+L:	iss_storagedev@hp.com
+S:	Supported
+F:	Documentation/scsi/hpsa.txt
+F:	drivers/scsi/hpsa*.[ch]
+F:	include/linux/cciss*.h
+
 HEWLETT-PACKARD SMART CISS RAID DRIVER (cciss)
 M:	Mike Miller <mike.miller@hp.com>
 L:	iss_storagedev@hp.com
