@@ -3811,7 +3811,6 @@ static void  calc_bucket_map(int bucket[], int num_buckets,
 static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 {
 	u32 trans_support;
-	u64 trans_offset;
 	/*  5 = 1 s/g entry or 4k
 	 *  6 = 2 s/g entry or 8k
 	 *  8 = 4 s/g entry or 16k
@@ -3846,7 +3845,6 @@ static __devinit void hpsa_put_ctlr_into_performant_mode(struct ctlr_info *h)
 	memset(h->reply_pool, 0, h->reply_pool_size);
 	h->reply_pool_head = h->reply_pool;
 
-	trans_offset = readl(&(h->cfgtable->TransMethodOffset));
 	bft[7] = h->max_sg_entries + 4;
 	calc_bucket_map(bft, ARRAY_SIZE(bft), 32, h->blockFetchTable);
 	for (i = 0; i < 8; i++)
