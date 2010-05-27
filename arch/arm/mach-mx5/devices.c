@@ -93,6 +93,64 @@ struct platform_device mxc_fec_device = {
 	.resource = mxc_fec_resources,
 };
 
+static struct resource mxc_i2c0_resources[] = {
+	{
+		.start = MX51_I2C1_BASE_ADDR,
+		.end = MX51_I2C1_BASE_ADDR + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = MX51_MXC_INT_I2C1,
+		.end = MX51_MXC_INT_I2C1,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxc_i2c_device0 = {
+	.name = "imx-i2c",
+	.id = 0,
+	.num_resources = ARRAY_SIZE(mxc_i2c0_resources),
+	.resource = mxc_i2c0_resources,
+};
+
+static struct resource mxc_i2c1_resources[] = {
+	{
+		.start = MX51_I2C2_BASE_ADDR,
+		.end = MX51_I2C2_BASE_ADDR + SZ_4K - 1,
+		.flags = IORESOURCE_MEM,
+	}, {
+		.start = MX51_MXC_INT_I2C2,
+		.end = MX51_MXC_INT_I2C2,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxc_i2c_device1 = {
+	.name = "imx-i2c",
+	.id = 1,
+	.num_resources = ARRAY_SIZE(mxc_i2c1_resources),
+	.resource = mxc_i2c1_resources,
+};
+
+static struct resource mxc_hsi2c_resources[] = {
+	{
+		.start = MX51_HSI2C_DMA_BASE_ADDR,
+		.end = MX51_HSI2C_DMA_BASE_ADDR + SZ_16K - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = MX51_MXC_INT_HS_I2C,
+		.end = MX51_MXC_INT_HS_I2C,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mxc_hsi2c_device = {
+	.name = "imx-i2c",
+	.id = 2,
+	.num_resources = ARRAY_SIZE(mxc_hsi2c_resources),
+	.resource = mxc_hsi2c_resources
+};
+
 static u64 usb_dma_mask = DMA_BIT_MASK(32);
 
 static struct resource usbotg_resources[] = {
