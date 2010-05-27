@@ -3413,6 +3413,11 @@ static inline void hpsa_p600_dma_prefetch_quirk(struct ctlr_info *h)
 static int __devinit hpsa_enter_simple_mode(struct ctlr_info *h)
 {
 	int i;
+	u32 trans_support;
+
+	trans_support = readl(&(h->cfgtable->TransportSupport));
+	if (!(trans_support & SIMPLE_MODE))
+		return -ENOTSUPP;
 
 	h->max_commands = readl(&(h->cfgtable->CmdsOutMax));
 	/* Update the field, and then ring the doorbell */
