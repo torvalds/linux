@@ -27,7 +27,7 @@
 #define RK2818_IOMUX_A_CON    (RK2818_REGFILE_BASE + IOMUX_A_CON)
 #define RK2818_IOMUX_B_CON    (RK2818_REGFILE_BASE + IOMUX_B_CON)
 
-static struct mux_config __initdata_or_module rk2818_muxs[] = {
+static struct mux_config rk2818_muxs[] = {
 /*
  *	 description				mux  mode   mux	  mux  
  *						reg  offset inter mode

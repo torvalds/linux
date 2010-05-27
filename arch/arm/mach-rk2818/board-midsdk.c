@@ -165,7 +165,7 @@ void rk2818_sdmmc1_cfg_gpio(struct platform_device *dev)
 }
 #define CONFIG_SDMMC0_USE_DMA
 #define CONFIG_SDMMC1_USE_DMA
-struct rk2818_sdmmc_platform_data default_sdmmc0_data __initdata = {
+struct rk2818_sdmmc_platform_data default_sdmmc0_data = {
 	.host_ocr_avail = (MMC_VDD_27_28|MMC_VDD_28_29|MMC_VDD_29_30|
 					   MMC_VDD_30_31|MMC_VDD_31_32|MMC_VDD_32_33| 
 					   MMC_VDD_33_34|MMC_VDD_34_35| MMC_VDD_35_36),
@@ -179,7 +179,7 @@ struct rk2818_sdmmc_platform_data default_sdmmc0_data __initdata = {
 	.use_dma = 0,
 #endif
 };
-struct rk2818_sdmmc_platform_data default_sdmmc1_data __initdata = {
+struct rk2818_sdmmc_platform_data default_sdmmc1_data = {
 	.host_ocr_avail = (MMC_VDD_26_27|MMC_VDD_27_28|MMC_VDD_28_29|
 					   MMC_VDD_29_30|MMC_VDD_30_31|MMC_VDD_31_32|
 					   MMC_VDD_32_33|MMC_VDD_33_34),
@@ -258,14 +258,14 @@ void rk2818_i2c1_cfg_gpio(struct platform_device *dev)
 {
 	rk2818_mux_api_set(GPIOE_U1IR_I2C1_NAME, IOMUXA_I2C1);
 }
-struct rk2818_i2c_platform_data default_i2c0_data __initdata = { 
+struct rk2818_i2c_platform_data default_i2c0_data = { 
 	.bus_num    = 0,
 	.flags      = 0,
 	.slave_addr = 0xff,
 	.scl_rate  = 400*1000,
 	.cfg_gpio = rk2818_i2c0_cfg_gpio,
 };
-struct rk2818_i2c_platform_data default_i2c1_data __initdata = { 
+struct rk2818_i2c_platform_data default_i2c1_data = { 
 #ifdef CONFIG_I2C0_RK2818
 	.bus_num    = 1,
 #else
@@ -400,14 +400,18 @@ static struct platform_device *devices[] __initdata = {
 	&rk2818_device_sdmmc1,
 #endif
 	&rk2818_device_spim,
+#if defined(CONFIG_ANDROID_PMEM)
 	&rk2818_device_pmem,
+#endif
 	&rk2818_device_adc,
 	&rk2818_device_adckey,
 	&rk2818_device_battery,
     &rk2818_device_fb,    
     &rk2818_device_backlight,
 	&rk2818_device_dsp,
+#ifdef CONFIG_MTD_NAND_RK2818
 	&rk2818_nand_device,
+#endif
 };
 
 extern struct sys_timer rk2818_timer;
