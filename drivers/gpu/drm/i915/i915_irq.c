@@ -692,24 +692,13 @@ void i915_destroy_error_state(struct drm_device *dev)
 		i915_error_state_free(dev, error);
 }
 
-/**
- * i915_handle_error - handle an error interrupt
- * @dev: drm device
- *
- * Do some basic checking of regsiter state at error interrupt time and
- * dump it to the syslog.  Also call i915_capture_error_state() to make
- * sure we get a record and make it available in debugfs.  Fire a uevent
- * so userspace knows something bad happened (should trigger collection
- * of a ring dump etc.).
- */
-static void i915_handle_error(struct drm_device *dev, bool wedged)
+static void i915_report_and_clear_eir(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 eir = I915_READ(EIR);
-	u32 pipea_stats = I915_READ(PIPEASTAT);
-	u32 pipeb_stats = I915_READ(PIPEBSTAT);
 
-	i915_capture_error_state(dev);
+	if (!eir)
+		return;
 
 	printk(KERN_ERR "render error detected, EIR: 0x%08x\n",
 	       eir);
@@ -755,6 +744,9 @@ static void i915_handle_error(struct drm_device *dev, bool wedged)
 	}
 
 	if (eir & I915_ERROR_MEMORY_REFRESH) {
+		u32 pipea_stats = I915_READ(PIPEASTAT);
+		u32 pipeb_stats = I915_READ(PIPEBSTAT);
+
 		printk(KERN_ERR "memory refresh error\n");
 		printk(KERN_ERR "PIPEASTAT: 0x%08x\n",
 		       pipea_stats);
@@ -811,6 +803,24 @@ static void i915_handle_error(struct drm_device *dev, bool wedged)
 		I915_WRITE(EMR, I915_READ(EMR) | eir);
 		I915_WRITE(IIR, I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT);
 	}
+}
+
+/**
+ * i915_handle_error - handle an error interrupt
+ * @dev: drm device
+ *
+ * Do some basic checking of regsiter state at error interrupt time and
+ * dump it to the syslog.  Also call i915_capture_error_state() to make
+ * sure we get a record and make it available in debugfs.  Fire a uevent
+ * so userspace knows something bad happened (should trigger collection
+ * of a ring dump etc.).
+ */
+static void i915_handle_error(struct drm_device *dev, bool wedged)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	i915_capture_error_state(dev);
+	i915_report_and_clear_eir(dev);
 
 	if (wedged) {
 		atomic_set(&dev_priv->mm.wedged, 1);
