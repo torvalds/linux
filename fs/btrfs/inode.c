@@ -4312,12 +4312,23 @@ void btrfs_dirty_inode(struct inode *inode)
 		/* whoops, lets try again with the full transaction */
 		btrfs_end_transaction(trans, root);
 		trans = btrfs_start_transaction(root, 1);
+		if (IS_ERR(trans)) {
+			if (printk_ratelimit()) {
+				printk(KERN_ERR "btrfs: fail to "
+				       "dirty  inode %lu error %ld\n",
+				       inode->i_ino, PTR_ERR(trans));
+			}
+			return;
+		}
 		btrfs_set_trans_block_group(trans, inode);
 
 		ret = btrfs_update_inode(trans, root, inode);
 		if (ret) {
-			printk(KERN_ERR"btrfs: fail to dirty inode %lu error %d\n",
-				inode->i_ino, ret);
+			if (printk_ratelimit()) {
+				printk(KERN_ERR "btrfs: fail to "
+				       "dirty  inode %lu error %d\n",
+				       inode->i_ino, ret);
+			}
 		}
 	}
 	btrfs_end_transaction(trans, root);
