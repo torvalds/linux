@@ -1127,8 +1127,12 @@ static ssize_t store_fan_full_speed(struct device *dev,
 				    const char *buf, size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	long val = simple_strtol(buf, NULL, 10);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	long val;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err)
+		return err;
 
 	val = SENSORS_LIMIT(val, 23, 1500000);
 	val = fan_to_reg(val);
@@ -1157,8 +1161,12 @@ static ssize_t store_fan_beep(struct device *dev, struct device_attribute
 	*devattr, const char *buf, size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	unsigned long val = simple_strtoul(buf, NULL, 10);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	unsigned long val;
+
+	err = strict_strtoul(buf, 10, &val);
+	if (err)
+		return err;
 
 	mutex_lock(&data->update_lock);
 	data->fan_beep = f71882fg_read8(data, F71882FG_REG_FAN_BEEP);
@@ -1206,7 +1214,14 @@ static ssize_t store_in_max(struct device *dev, struct device_attribute
 	*devattr, const char *buf, size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	long val = simple_strtol(buf, NULL, 10) / 8;
+	int err;
+	long val;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val /= 8;
 	val = SENSORS_LIMIT(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
@@ -1233,8 +1248,12 @@ static ssize_t store_in_beep(struct device *dev, struct device_attribute
 	*devattr, const char *buf, size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	unsigned long val = simple_strtoul(buf, NULL, 10);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	unsigned long val;
+
+	err = strict_strtoul(buf, 10, &val);
+	if (err)
+		return err;
 
 	mutex_lock(&data->update_lock);
 	data->in_beep = f71882fg_read8(data, F71882FG_REG_IN_BEEP);
@@ -1299,8 +1318,14 @@ static ssize_t store_temp_max(struct device *dev, struct device_attribute
 	*devattr, const char *buf, size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	long val = simple_strtol(buf, NULL, 10) / 1000;
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	long val;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val /= 1000;
 	val = SENSORS_LIMIT(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
@@ -1333,10 +1358,16 @@ static ssize_t store_temp_max_hyst(struct device *dev, struct device_attribute
 	*devattr, const char *buf, size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	long val = simple_strtol(buf, NULL, 10) / 1000;
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
 	ssize_t ret = count;
 	u8 reg;
+	long val;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val /= 1000;
 
 	mutex_lock(&data->update_lock);
 
@@ -1372,8 +1403,14 @@ static ssize_t store_temp_crit(struct device *dev, struct device_attribute
 	*devattr, const char *buf, size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	long val = simple_strtol(buf, NULL, 10) / 1000;
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	long val;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val /= 1000;
 	val = SENSORS_LIMIT(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
@@ -1427,8 +1464,12 @@ static ssize_t store_temp_beep(struct device *dev, struct device_attribute
 	*devattr, const char *buf, size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	unsigned long val = simple_strtoul(buf, NULL, 10);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	unsigned long val;
+
+	err = strict_strtoul(buf, 10, &val);
+	if (err)
+		return err;
 
 	mutex_lock(&data->update_lock);
 	data->temp_beep = f71882fg_read8(data, F71882FG_REG_TEMP_BEEP);
@@ -1490,8 +1531,13 @@ static ssize_t store_pwm(struct device *dev,
 			 size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	long val = simple_strtol(buf, NULL, 10);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	long val;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err)
+		return err;
+
 	val = SENSORS_LIMIT(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
@@ -1551,8 +1597,12 @@ static ssize_t store_pwm_enable(struct device *dev, struct device_attribute
 				*devattr, const char *buf, size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	long val = simple_strtol(buf, NULL, 10);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	long val;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err)
+		return err;
 
 	/* Special case for F8000 pwm channel 3 which only does auto mode */
 	if (data->type == f8000 && nr == 2 && val != 2)
@@ -1626,9 +1676,14 @@ static ssize_t store_pwm_auto_point_pwm(struct device *dev,
 					const char *buf, size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int pwm = to_sensor_dev_attr_2(devattr)->index;
+	int err, pwm = to_sensor_dev_attr_2(devattr)->index;
 	int point = to_sensor_dev_attr_2(devattr)->nr;
-	long val = simple_strtol(buf, NULL, 10);
+	long val;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err)
+		return err;
+
 	val = SENSORS_LIMIT(val, 0, 255);
 
 	mutex_lock(&data->update_lock);
@@ -1674,10 +1729,16 @@ static ssize_t store_pwm_auto_point_temp_hyst(struct device *dev,
 					      const char *buf, size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
 	int point = to_sensor_dev_attr_2(devattr)->nr;
-	long val = simple_strtol(buf, NULL, 10) / 1000;
 	u8 reg;
+	long val;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val /= 1000;
 
 	mutex_lock(&data->update_lock);
 	data->pwm_auto_point_temp[nr][point] =
@@ -1716,8 +1777,12 @@ static ssize_t store_pwm_interpolate(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	unsigned long val = simple_strtoul(buf, NULL, 10);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	unsigned long val;
+
+	err = strict_strtoul(buf, 10, &val);
+	if (err)
+		return err;
 
 	mutex_lock(&data->update_lock);
 	data->pwm_auto_point_mapping[nr] =
@@ -1752,8 +1817,12 @@ static ssize_t store_pwm_auto_point_channel(struct device *dev,
 					    const char *buf, size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int nr = to_sensor_dev_attr_2(devattr)->index;
-	long val = simple_strtol(buf, NULL, 10);
+	int err, nr = to_sensor_dev_attr_2(devattr)->index;
+	long val;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err)
+		return err;
 
 	switch (val) {
 	case 1:
@@ -1798,9 +1867,15 @@ static ssize_t store_pwm_auto_point_temp(struct device *dev,
 					 const char *buf, size_t count)
 {
 	struct f71882fg_data *data = dev_get_drvdata(dev);
-	int pwm = to_sensor_dev_attr_2(devattr)->index;
+	int err, pwm = to_sensor_dev_attr_2(devattr)->index;
 	int point = to_sensor_dev_attr_2(devattr)->nr;
-	long val = simple_strtol(buf, NULL, 10) / 1000;
+	long val;
+
+	err = strict_strtol(buf, 10, &val);
+	if (err)
+		return err;
+
+	val /= 1000;
 
 	if (data->type == f71889fg)
 		val = SENSORS_LIMIT(val, -128, 127);
