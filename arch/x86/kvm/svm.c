@@ -286,11 +286,11 @@ static inline void flush_guest_tlb(struct kvm_vcpu *vcpu)
 
 static void svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
+	vcpu->arch.efer = efer;
 	if (!npt_enabled && !(efer & EFER_LMA))
 		efer &= ~EFER_LME;
 
 	to_svm(vcpu)->vmcb->save.efer = efer | EFER_SVME;
-	vcpu->arch.efer = efer;
 }
 
 static int is_external_interrupt(u32 info)
