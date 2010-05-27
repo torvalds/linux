@@ -4667,8 +4667,6 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	if (work == NULL)
 		return -ENOMEM;
 
-	mutex_lock(&dev->struct_mutex);
-
 	work->event = event;
 	work->dev = crtc->dev;
 	intel_fb = to_intel_framebuffer(crtc->fb);
@@ -4678,10 +4676,10 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	/* We borrow the event spin lock for protecting unpin_work */
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (intel_crtc->unpin_work) {
-		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		kfree(work);
-		mutex_unlock(&dev->struct_mutex);
+
+		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
 		return -EBUSY;
 	}
 	intel_crtc->unpin_work = work;
@@ -4690,13 +4688,19 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	intel_fb = to_intel_framebuffer(fb);
 	obj = intel_fb->obj;
 
+	mutex_lock(&dev->struct_mutex);
 	ret = intel_pin_and_fence_fb_obj(dev, obj);
 	if (ret != 0) {
-		DRM_DEBUG_DRIVER("flip queue: %p pin & fence failed\n",
-			  to_intel_bo(obj));
-		kfree(work);
-		intel_crtc->unpin_work = NULL;
 		mutex_unlock(&dev->struct_mutex);
+
+		spin_lock_irqsave(&dev->event_lock, flags);
+		intel_crtc->unpin_work = NULL;
+		spin_unlock_irqrestore(&dev->event_lock, flags);
+
+		kfree(work);
+
+		DRM_DEBUG_DRIVER("flip queue: %p pin & fence failed\n",
+				 to_intel_bo(obj));
 		return ret;
 	}
 
