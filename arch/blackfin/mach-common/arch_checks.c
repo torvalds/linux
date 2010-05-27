@@ -1,7 +1,7 @@
 /*
  * Do some checking to make sure things are OK
  *
- * Copyright 2007-2009 Analog Devices Inc.
+ * Copyright 2007-2010 Analog Devices Inc.
  *
  * Licensed under the GPL-2 or later.
  */
@@ -45,6 +45,10 @@
 /* The entire kernel must be able to make a 24bit pcrel call to start of L1 */
 #if ((0xffffffff - L1_CODE_START + 1) + CONFIG_BOOT_LOAD) > 0x1000000
 # error "The kernel load address is too high; keep it below 10meg for safety"
+#endif
+
+#if ANOMALY_05000263 && defined(CONFIG_MPU)
+# error the MPU will not function safely while Anomaly 05000263 applies
 #endif
 
 #if ANOMALY_05000448
