@@ -239,19 +239,27 @@ static int __devexit tmp102_remove(struct i2c_client *client)
 static int tmp102_suspend(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	int config;
 
-	tmp102_write_reg(client, TMP102_CONF_REG, TMP102_CONF_SD);
+	config = tmp102_read_reg(client, TMP102_CONF_REG);
+	if (config < 0)
+		return config;
 
-	return 0;
+	config |= TMP102_CONF_SD;
+	return tmp102_write_reg(client, TMP102_CONF_REG, config);
 }
 
 static int tmp102_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
+	int config;
 
-	tmp102_write_reg(client, TMP102_CONF_REG, TMP102_CONFIG);
+	config = tmp102_read_reg(client, TMP102_CONF_REG);
+	if (config < 0)
+		return config;
 
-	return 0;
+	config &= ~TMP102_CONF_SD;
+	return tmp102_write_reg(client, TMP102_CONF_REG, config);
 }
 
 static const struct dev_pm_ops tmp102_dev_pm_ops = {
