@@ -856,10 +856,8 @@ static inline int superio_inb(int base, int reg)
 static int superio_inw(int base, int reg)
 {
 	int val;
-	outb(reg++, base);
-	val = inb(base + 1) << 8;
-	outb(reg, base);
-	val |= inb(base + 1);
+	val  = superio_inb(base, reg) << 8;
+	val |= superio_inb(base, reg + 1);
 	return val;
 }
 
@@ -905,10 +903,8 @@ static u16 f71882fg_read16(struct f71882fg_data *data, u8 reg)
 {
 	u16 val;
 
-	outb(reg++, data->addr + ADDR_REG_OFFSET);
-	val = inb(data->addr + DATA_REG_OFFSET) << 8;
-	outb(reg, data->addr + ADDR_REG_OFFSET);
-	val |= inb(data->addr + DATA_REG_OFFSET);
+	val  = f71882fg_read8(data, reg) << 8;
+	val |= f71882fg_read8(data, reg + 1);
 
 	return val;
 }
@@ -921,10 +917,8 @@ static void f71882fg_write8(struct f71882fg_data *data, u8 reg, u8 val)
 
 static void f71882fg_write16(struct f71882fg_data *data, u8 reg, u16 val)
 {
-	outb(reg++, data->addr + ADDR_REG_OFFSET);
-	outb(val >> 8, data->addr + DATA_REG_OFFSET);
-	outb(reg, data->addr + ADDR_REG_OFFSET);
-	outb(val & 255, data->addr + DATA_REG_OFFSET);
+	f71882fg_write8(data, reg,     val >> 8);
+	f71882fg_write8(data, reg + 1, val & 0xff);
 }
 
 static u16 f71882fg_read_temp(struct f71882fg_data *data, int nr)
