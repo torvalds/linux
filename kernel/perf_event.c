@@ -3064,6 +3064,7 @@ __always_inline void perf_output_copy(struct perf_output_handle *handle,
 
 		len -= size;
 		handle->addr += size;
+		buf += size;
 		handle->size -= size;
 		if (!handle->size) {
 			struct perf_mmap_data *data = handle->data;
