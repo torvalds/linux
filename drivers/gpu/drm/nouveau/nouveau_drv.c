@@ -132,7 +132,7 @@ static struct drm_driver driver;
 static int __devinit
 nouveau_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	return drm_get_dev(pdev, ent, &driver);
+	return drm_get_pci_dev(pdev, ent, &driver);
 }
 
 static void
