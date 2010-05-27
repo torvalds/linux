@@ -146,6 +146,7 @@ static int doc_ecc_decode(struct rs_control *rs, uint8_t *data, uint8_t *ecc)
 	uint8_t parity;
 	uint16_t ds[4], s[5], tmp, errval[8], syn[4];
 
+	memset(syn, 0, sizeof(syn));
 	/* Convert the ecc bytes into words */
 	ds[0] = ((ecc[4] & 0xff) >> 0) | ((ecc[5] & 0x03) << 8);
 	ds[1] = ((ecc[5] & 0xfc) >> 2) | ((ecc[2] & 0x0f) << 6);
@@ -169,9 +170,9 @@ static int doc_ecc_decode(struct rs_control *rs, uint8_t *data, uint8_t *ecc)
 			s[i] ^= rs->alpha_to[rs_modnn(rs, tmp + (FCR + i) * j)];
 	}
 
-	/* Calc s[i] = s[i] / alpha^(v + i) */
+	/* Calc syn[i] = s[i] / alpha^(v + i) */
 	for (i = 0; i < NROOTS; i++) {
-		if (syn[i])
+		if (s[i])
 			syn[i] = rs_modnn(rs, rs->index_of[s[i]] + (NN - FCR - i));
 	}
 	/* Call the decoder library */
