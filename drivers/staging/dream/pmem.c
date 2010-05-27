@@ -24,8 +24,8 @@
 #include <linux/mempolicy.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 #include <asm/cacheflush.h>
 
 #define PMEM_MAX_DEVICES 10
@@ -175,7 +175,7 @@ static int pmem_mmap(struct file *, struct vm_area_struct *);
 static int pmem_open(struct inode *, struct file *);
 static long pmem_ioctl(struct file *, unsigned int, unsigned long);
 
-struct file_operations pmem_fops = {
+const struct file_operations pmem_fops = {
 	.release = pmem_release,
 	.mmap = pmem_mmap,
 	.open = pmem_open,
@@ -399,8 +399,8 @@ static int pmem_allocate(int id, unsigned long len)
 	DLOG("order %lx\n", order);
 
 	/* look through the bitmap:
-	 * 	if you find a free slot of the correct order use it
-	 * 	otherwise, use the best fit (smallest with size > order) slot
+	 *	if you find a free slot of the correct order use it
+	 *	otherwise, use the best fit (smallest with size > order) slot
 	 */
 	while (curr < end) {
 		if (PMEM_IS_FREE(id, curr)) {
@@ -426,8 +426,8 @@ static int pmem_allocate(int id, unsigned long len)
 	}
 
 	/* now partition the best fit:
-	 * 	split the slot into 2 buddies of order - 1
-	 * 	repeat until the slot is of the correct order
+	 *	split the slot into 2 buddies of order - 1
+	 *	repeat until the slot is of the correct order
 	 */
 	while (PMEM_ORDER(id, best_fit) > (unsigned char)order) {
 		int buddy;
