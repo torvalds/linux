@@ -369,6 +369,25 @@
 #define BB_ADDR		0x02140 /* 8 bytes */
 #define GFX_FLSH_CNTL	0x02170 /* 915+ only */
 
+/* GEN6 interrupt control */
+#define GEN6_RENDER_HWSTAM	0x2098
+#define GEN6_RENDER_IMR		0x20a8
+#define   GEN6_RENDER_CONTEXT_SWITCH_INTERRUPT		(1 << 8)
+#define   GEN6_RENDER_PPGTT_PAGE_FAULT			(1 << 7)
+#define   GEN6_RENDER TIMEOUT_COUNTER_EXPIRED		(1 << 6)
+#define   GEN6_RENDER_L3_PARITY_ERROR			(1 << 5)
+#define   GEN6_RENDER_PIPE_CONTROL_NOTIFY_INTERRUPT	(1 << 4)
+#define   GEN6_RENDER_COMMAND_PARSER_MASTER_ERROR	(1 << 3)
+#define   GEN6_RENDER_SYNC_STATUS			(1 << 2)
+#define   GEN6_RENDER_DEBUG_INTERRUPT			(1 << 1)
+#define   GEN6_RENDER_USER_INTERRUPT			(1 << 0)
+
+#define GEN6_BLITTER_HWSTAM	0x22098
+#define GEN6_BLITTER_IMR	0x220a8
+#define   GEN6_BLITTER_MI_FLUSH_DW_NOTIFY_INTERRUPT	(1 << 26)
+#define   GEN6_BLITTER_COMMAND_PARSER_MASTER_ERROR	(1 << 25)
+#define   GEN6_BLITTER_SYNC_STATUS			(1 << 24)
+#define   GEN6_BLITTER_USER_INTERRUPT			(1 << 22)
 /*
  * BSD (bit stream decoder instruction and interrupt control register defines
  * (G4X and Ironlake only)
