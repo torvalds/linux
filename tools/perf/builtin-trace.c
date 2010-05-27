@@ -11,7 +11,7 @@
 
 static char const		*script_name;
 static char const		*generate_script_lang;
-static bool			debug_ordering;
+static bool			debug_mode;
 static u64			last_timestamp;
 static u64			nr_unordered;
 
@@ -92,7 +92,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	}
 
 	if (session->sample_type & PERF_SAMPLE_RAW) {
-		if (debug_ordering) {
+		if (debug_mode) {
 			if (data.time < last_timestamp) {
 				pr_err("Samples misordered, previous: %llu "
 					"this: %llu\n", last_timestamp,
@@ -116,6 +116,15 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	return 0;
 }
 
+static u64 nr_lost;
+
+static int process_lost_event(event_t *event, struct perf_session *session __used)
+{
+	nr_lost += event->lost.lost;
+
+	return 0;
+}
+
 static struct perf_event_ops event_ops = {
 	.sample	= process_sample_event,
 	.comm	= event__process_comm,
@@ -123,6 +132,7 @@ static struct perf_event_ops event_ops = {
 	.event_type = event__process_event_type,
 	.tracing_data = event__process_tracing_data,
 	.build_id = event__process_build_id,
+	.lost = process_lost_event,
 	.ordered_samples = true,
 };
 
@@ -141,8 +151,10 @@ static int __cmd_trace(struct perf_session *session)
 
 	ret = perf_session__process_events(session, &event_ops);
 
-	if (debug_ordering)
+	if (debug_mode) {
 		pr_err("Misordered timestamps: %llu\n", nr_unordered);
+		pr_err("Lost events: %llu\n", nr_lost);
+	}
 
 	return ret;
 }
@@ -554,8 +566,8 @@ static const struct option options[] = {
 		   "generate perf-trace.xx script in specified language"),
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
-	OPT_BOOLEAN('d', "debug-ordering", &debug_ordering,
-		   "check that samples time ordering is monotonic"),
+	OPT_BOOLEAN('d', "debug-mode", &debug_mode,
+		   "do various checks like samples ordering and lost events"),
 
 	OPT_END()
 };
