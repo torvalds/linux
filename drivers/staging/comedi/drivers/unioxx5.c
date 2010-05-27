@@ -302,7 +302,8 @@ static int __unioxx5_subdev_init(struct comedi_subdevice *subdev,
 		__unioxx5_analog_config(usp, i * 2);
 		outb(i + 1, subdev_iobase + 5);	/* sends channel number to card */
 		outb('H', subdev_iobase + 6);	/* requests EEPROM world */
-		while (!(inb(subdev_iobase + 0) & TxBE)) ;	/* waits while writting will be allowed */
+		while (!(inb(subdev_iobase + 0) & TxBE))
+			;	/* waits while writting will be allowed */
 		outb(0, subdev_iobase + 6);
 
 		/* waits while reading of two bytes will be allowed */
@@ -437,7 +438,8 @@ static int __unioxx5_analog_write(struct unioxx5_subd_priv *usp,
 
 	/* sending for bytes to module(one byte per cycle iteration) */
 	for (i = 0; i < 4; i++) {
-		while (!((inb(usp->usp_iobase + 0)) & TxBE)) ;	/* waits while writting will be allowed */
+		while (!((inb(usp->usp_iobase + 0)) & TxBE))
+			;	/* waits while writting will be allowed */
 		outb(usp->usp_extra_data[module][i], usp->usp_iobase + 6);
 	}
 
@@ -467,7 +469,8 @@ static int __unioxx5_analog_read(struct unioxx5_subd_priv *usp,
 	control = inb(usp->usp_iobase);	/* get control register byte */
 
 	/* waits while reading four bytes will be allowed */
-	while (!((control = inb(usp->usp_iobase + 0)) & Rx4CA)) ;
+	while (!((control = inb(usp->usp_iobase + 0)) & Rx4CA))
+		;
 
 	/* if four bytes readding error occurs - return 0(false) */
 	if ((control & Rx4CA_ERR_MASK)) {
