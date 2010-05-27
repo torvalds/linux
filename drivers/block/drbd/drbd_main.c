@@ -3783,7 +3783,7 @@ _drbd_insert_fault(struct drbd_conf *mdev, unsigned int type)
 	if (ret) {
 		fault_count++;
 
-		if (printk_ratelimit())
+		if (__ratelimit(&drbd_ratelimit_state))
 			dev_warn(DEV, "***Simulating %s failure\n",
 				_drbd_fault_str(type));
 	}
