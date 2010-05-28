@@ -112,6 +112,8 @@ static int __acpi_pm_prepare(void)
 {
 	int error = acpi_sleep_prepare(acpi_target_sleep_state);
 
+	suspend_nvs_save();
+
 	if (error)
 		acpi_target_sleep_state = ACPI_STATE_S0;
 	return error;
@@ -139,6 +141,8 @@ static int acpi_pm_prepare(void)
 static void acpi_pm_finish(void)
 {
 	u32 acpi_state = acpi_target_sleep_state;
+
+	suspend_nvs_free();
 
 	if (acpi_state == ACPI_STATE_S0)
 		return;
@@ -188,6 +192,11 @@ static int acpi_suspend_begin(suspend_state_t pm_state)
 {
 	u32 acpi_state = acpi_suspend_states[pm_state];
 	int error = 0;
+
+	error = suspend_nvs_alloc();
+
+	if (error)
+		return error;
 
 	if (sleep_states[acpi_state]) {
 		acpi_target_sleep_state = acpi_state;
@@ -263,6 +272,8 @@ static int acpi_suspend_enter(suspend_state_t pm_state)
 	/* restore processor state */
 	if (acpi_state == ACPI_STATE_S3)
 		acpi_restore_state_mem();
+
+	suspend_nvs_restore();
 
 	return ACPI_SUCCESS(status) ? 0 : -EFAULT;
 }
@@ -430,12 +441,6 @@ static int acpi_hibernation_enter(void)
 	return ACPI_SUCCESS(status) ? 0 : -EFAULT;
 }
 
-static void acpi_hibernation_finish(void)
-{
-	suspend_nvs_free();
-	acpi_pm_finish();
-}
-
 static void acpi_hibernation_leave(void)
 {
 	/*
@@ -473,7 +478,7 @@ static struct platform_hibernation_ops acpi_hibernation_ops = {
 	.begin = acpi_hibernation_begin,
 	.end = acpi_pm_end,
 	.pre_snapshot = acpi_hibernation_pre_snapshot,
-	.finish = acpi_hibernation_finish,
+	.finish = acpi_pm_finish,
 	.prepare = acpi_pm_prepare,
 	.enter = acpi_hibernation_enter,
 	.leave = acpi_hibernation_leave,
@@ -526,7 +531,7 @@ static struct platform_hibernation_ops acpi_hibernation_ops_old = {
 	.begin = acpi_hibernation_begin_old,
 	.end = acpi_pm_end,
 	.pre_snapshot = acpi_hibernation_pre_snapshot_old,
-	.finish = acpi_hibernation_finish,
+	.finish = acpi_pm_finish,
 	.prepare = acpi_pm_disable_gpes,
 	.enter = acpi_hibernation_enter,
 	.leave = acpi_hibernation_leave,
