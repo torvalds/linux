@@ -4,5 +4,6 @@ config RTL8192SU
 	select WIRELESS_EXT
 	select WEXT_PRIV
 	select EEPROM_93CX6
+	select CRYPTO
 	default N
 	---help---
