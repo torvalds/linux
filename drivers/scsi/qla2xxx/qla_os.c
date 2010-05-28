@@ -1677,7 +1677,7 @@ static struct isp_operations qla81xx_isp_ops = {
 	.read_optrom		= qla25xx_read_optrom_data,
 	.write_optrom		= qla24xx_write_optrom_data,
 	.get_flash_version	= qla24xx_get_flash_version,
-	.start_scsi		= qla24xx_start_scsi,
+	.start_scsi		= qla24xx_dif_start_scsi,
 	.abort_isp		= qla2x00_abort_isp,
 };
 
@@ -2274,7 +2274,7 @@ skip_dpc:
 	DEBUG2(printk("DEBUG: detect hba %ld at address = %p\n",
 	    base_vha->host_no, ha));
 
-	if (IS_QLA25XX(ha) && ql2xenabledif) {
+	if ((IS_QLA25XX(ha) || IS_QLA81XX(ha)) && ql2xenabledif) {
 		if (ha->fw_attributes & BIT_4) {
 			base_vha->flags.difdix_supported = 1;
 			DEBUG18(qla_printk(KERN_INFO, ha,
