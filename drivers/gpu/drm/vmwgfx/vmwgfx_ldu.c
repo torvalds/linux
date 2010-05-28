@@ -150,6 +150,15 @@ static int vmw_ldu_add_active(struct vmw_private *vmw_priv,
 	struct vmw_legacy_display_unit *entry;
 	struct list_head *at;
 
+	BUG_ON(!ld->num_active && ld->fb);
+	if (vfb != ld->fb) {
+		if (ld->fb && ld->fb->unpin)
+			ld->fb->unpin(ld->fb);
+		if (vfb->pin)
+			vfb->pin(vfb);
+		ld->fb = vfb;
+	}
+
 	if (!list_empty(&ldu->active))
 		return 0;
 
@@ -162,12 +171,8 @@ static int vmw_ldu_add_active(struct vmw_private *vmw_priv,
 	}
 
 	list_add(&ldu->active, at);
-	if (ld->num_active++ == 0) {
-		BUG_ON(ld->fb);
-		if (vfb->pin)
-			vfb->pin(vfb);
-		ld->fb = vfb;
-	}
+
+	ld->num_active++;
 
 	return 0;
 }
