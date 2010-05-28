@@ -172,13 +172,6 @@ static int power_saving_thread(void *data)
 
 		do_sleep = 0;
 
-		current_thread_info()->status &= ~TS_POLLING;
-		/*
-		 * TS_POLLING-cleared state must be visible before we test
-		 * NEED_RESCHED:
-		 */
-		smp_mb();
-
 		expire_time = jiffies + HZ * (100 - idle_pct) / 100;
 
 		while (!need_resched()) {
@@ -208,8 +201,6 @@ static int power_saving_thread(void *data)
 				break;
 			}
 		}
-
-		current_thread_info()->status |= TS_POLLING;
 
 		/*
 		 * current sched_rt has threshold for rt task running time.

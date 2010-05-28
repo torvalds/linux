@@ -872,6 +872,7 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 		return(acpi_idle_enter_c1(dev, state));
 
 	local_irq_disable();
+
 	if (cx->entry_method != ACPI_CSTATE_FFH) {
 		current_thread_info()->status &= ~TS_POLLING;
 		/*
@@ -879,12 +880,12 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 		 * NEED_RESCHED:
 		 */
 		smp_mb();
-	}
 
-	if (unlikely(need_resched())) {
-		current_thread_info()->status |= TS_POLLING;
-		local_irq_enable();
-		return 0;
+		if (unlikely(need_resched())) {
+			current_thread_info()->status |= TS_POLLING;
+			local_irq_enable();
+			return 0;
+		}
 	}
 
 	/*
@@ -911,7 +912,8 @@ static int acpi_idle_enter_simple(struct cpuidle_device *dev,
 	sched_clock_idle_wakeup_event(idle_time_ns);
 
 	local_irq_enable();
-	current_thread_info()->status |= TS_POLLING;
+	if (cx->entry_method != ACPI_CSTATE_FFH)
+		current_thread_info()->status |= TS_POLLING;
 
 	cx->usage++;
 
@@ -962,6 +964,7 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	}
 
 	local_irq_disable();
+
 	if (cx->entry_method != ACPI_CSTATE_FFH) {
 		current_thread_info()->status &= ~TS_POLLING;
 		/*
@@ -969,12 +972,12 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 		 * NEED_RESCHED:
 		 */
 		smp_mb();
-	}
 
-	if (unlikely(need_resched())) {
-		current_thread_info()->status |= TS_POLLING;
-		local_irq_enable();
-		return 0;
+		if (unlikely(need_resched())) {
+			current_thread_info()->status |= TS_POLLING;
+			local_irq_enable();
+			return 0;
+		}
 	}
 
 	acpi_unlazy_tlb(smp_processor_id());
@@ -1028,7 +1031,8 @@ static int acpi_idle_enter_bm(struct cpuidle_device *dev,
 	sched_clock_idle_wakeup_event(idle_time_ns);
 
 	local_irq_enable();
-	current_thread_info()->status |= TS_POLLING;
+	if (cx->entry_method != ACPI_CSTATE_FFH)
+		current_thread_info()->status |= TS_POLLING;
 
 	cx->usage++;
 
