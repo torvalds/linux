@@ -321,15 +321,6 @@ static int ieee80211_open(struct net_device *dev)
 
 	ieee80211_recalc_ps(local, -1);
 
-	/*
-	 * ieee80211_sta_work is disabled while network interface
-	 * is down. Therefore, some configuration changes may not
-	 * yet be effective. Trigger execution of ieee80211_sta_work
-	 * to fix this.
-	 */
-	if (sdata->vif.type == NL80211_IFTYPE_STATION)
-		ieee80211_queue_work(&local->hw, &sdata->u.mgd.work);
-
 	netif_tx_start_all_queues(dev);
 
 	return 0;
