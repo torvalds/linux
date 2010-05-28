@@ -32,23 +32,25 @@
 
 #include "gpio-names.h"
 
-static struct regulator *stingray_bmp085_regulator;
-
-#define KXTF9_IRQ_GPIO	TEGRA_GPIO_PV3
+#define KXTF9_IRQ_GPIO		TEGRA_GPIO_PV3
 #define MAX9635_IRQ_GPIO	TEGRA_GPIO_PV1
+#define BMP085_IRQ_GPIO		TEGRA_GPIO_PW0
 
+static struct regulator *stingray_bmp085_regulator;
 static int stingray_bmp085_init(void)
 {
 	/*struct regulator *reg;*/
 
-	tegra_gpio_enable(TEGRA_GPIO_PW0);
-	gpio_request(TEGRA_GPIO_PW0, "bmp085_irq");
-	gpio_direction_input(TEGRA_GPIO_PW0);
-/*
+	tegra_gpio_enable(BMP085_IRQ_GPIO);
+	gpio_request(BMP085_IRQ_GPIO, "bmp085_irq");
+	gpio_direction_input(BMP085_IRQ_GPIO);
+
+/*TO DO add regulator calls in once regulator FW is ready
 	reg = regulator_get(NULL, "vhvio");
 	if (IS_ERR(reg))
-		return PTR_ERR(reg);*/
-	stingray_bmp085_regulator = NULL;/*reg;*/
+		return PTR_ERR(reg);
+	stingray_bmp085_regulator = reg;*/
+	stingray_bmp085_regulator = NULL;
 
 	return 0;
 }
@@ -57,6 +59,7 @@ static void stingray_bmp085_exit(void)
 {
 	if (stingray_bmp085_regulator)
 		regulator_put(stingray_bmp085_regulator);
+	gpio_free(BMP085_IRQ_GPIO);
 	return;
 }
 static int stingray_bmp085_power_on(void)
@@ -84,33 +87,37 @@ struct bmp085_platform_data stingray_barom_pdata = {
 static struct regulator *stingray_kxtf9_regulator;
 static int stingray_kxtf9_regulator_init(void)
 {
-/* TO DO: Update regulator functions
+/*TO DO add regulator calls in once regulator FW is ready
 	struct regulator *reg;
 	reg = regulator_get(NULL, "vhvio");
 	if (IS_ERR(reg))
 		return PTR_ERR(reg);
 	stingray_kxtf9_regulator = reg;
 */
+	stingray_kxtf9_regulator = NULL;
 	return 0;
 }
 
 static void stingray_kxtf9_regulator_exit(void)
 {
-	/*regulator_put(stingray_kxtf9_regulator);*/
+	if (stingray_kxtf9_regulator)
+		regulator_put(stingray_kxtf9_regulator);
 }
 
 static int stingray_kxtf9_power_on(void)
 {
-	/*return regulator_enable(stingray_kxtf9_regulator);*/
+	if (stingray_kxtf9_regulator)
+		return regulator_enable(stingray_kxtf9_regulator);
+
 	return 0;
 }
 
 static int stingray_kxtf9_power_off(void)
 {
-/*
+
 	if (stingray_kxtf9_regulator)
 		return regulator_disable(stingray_kxtf9_regulator);
-*/
+
 	return 0;
 }
 
@@ -213,7 +220,7 @@ static int stingray_max9635_init(void)
 	gpio_request(MAX9635_IRQ_GPIO, "max9635_irq");
 	gpio_direction_input(MAX9635_IRQ_GPIO);
 
-	/* TO DO: Add regulator init code here as well
+/*TO DO add regulator calls in once regulator FW is ready
 	struct regulator *reg;
 	reg = regulator_get(NULL, "vhvio");
 	if (IS_ERR(reg))
@@ -234,9 +241,9 @@ static struct i2c_board_info __initdata stingray_i2c_bus4_sensor_info[] = {
 
 static struct i2c_board_info __initdata stingray_i2c_bus1_sensor_info[] = {
 	{
-	 I2C_BOARD_INFO(BMP085_NAME, 0x77),
-	 .platform_data = &stingray_barom_pdata,
-	 .irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PW0),
+		I2C_BOARD_INFO(BMP085_NAME, 0x77),
+		.platform_data = &stingray_barom_pdata,
+		.irq = TEGRA_GPIO_TO_IRQ(BMP085_IRQ_GPIO),
 	 },
 	{
 		 I2C_BOARD_INFO(MAX9635_NAME, 0x4b),
