@@ -1124,7 +1124,7 @@ static void rio_update_route_tables(struct rio_mport *port)
 
 /**
  * rio_init_em - Initializes RIO Error Management (for switches)
- * @port: Master port associated with the RIO network
+ * @rdev: RIO device
  *
  * For each enumerated switch, call device-specific error management
  * initialization routine (if supplied by the switch driver).

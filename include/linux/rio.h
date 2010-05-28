@@ -88,11 +88,15 @@ union rio_pw_msg;
  * @swpinfo: Switch port info
  * @src_ops: Source operation capabilities
  * @dst_ops: Destination operation capabilities
+ * @comp_tag: RIO component tag
+ * @phys_efptr: RIO device extended features pointer
+ * @em_efptr: RIO Error Management features pointer
  * @dma_mask: Mask of bits of RIO address this device implements
  * @rswitch: Pointer to &struct rio_switch if valid for this device
  * @driver: Driver claiming this device
  * @dev: Device model device
  * @riores: RIO resources this device owns
+ * @pwcback: port-write callback function for this device
  * @destid: Network destination ID
  */
 struct rio_dev {
@@ -222,6 +226,8 @@ struct rio_net {
  * @add_entry: Callback for switch-specific route add function
  * @get_entry: Callback for switch-specific route get function
  * @clr_table: Callback for switch-specific clear route table function
+ * @set_domain: Callback for switch-specific domain setting function
+ * @get_domain: Callback for switch-specific domain get function
  * @em_init: Callback for switch-specific error management initialization function
  * @em_handle: Callback for switch-specific error management handler function
  */

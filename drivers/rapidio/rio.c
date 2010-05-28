@@ -338,7 +338,7 @@ int rio_release_outb_dbell(struct rio_dev *rdev, struct resource *res)
 
 /**
  * rio_request_inb_pwrite - request inbound port-write message service
- * @mport: RIO device to which register inbound port-write callback routine
+ * @rdev: RIO device to which register inbound port-write callback routine
  * @pwcback: Callback routine to execute when port-write is received
  *
  * Binds a port-write callback function to the RapidIO device.
@@ -385,7 +385,10 @@ EXPORT_SYMBOL_GPL(rio_release_inb_pwrite);
 /**
  * rio_mport_get_physefb - Helper function that returns register offset
  *                      for Physical Layer Extended Features Block.
- * @rdev: RIO device
+ * @port: Master port to issue transaction
+ * @local: Indicate a local master port or remote device access
+ * @destid: Destination ID of the device
+ * @hopcount: Number of switch hops to the device
  */
 u32
 rio_mport_get_physefb(struct rio_mport *port, int local,
@@ -430,7 +433,7 @@ rio_mport_get_physefb(struct rio_mport *port, int local,
 
 /**
  * rio_get_comptag - Begin or continue searching for a RIO device by component tag
- * @comp_tag: RIO component tad to match
+ * @comp_tag: RIO component tag to match
  * @from: Previous RIO device found in search, or %NULL for new search
  *
  * Iterates through the list of known RIO devices. If a RIO device is
@@ -835,7 +838,6 @@ int rio_std_route_get_entry(struct rio_mport *mport, u16 destid, u8 hopcount,
  * rio_std_route_clr_table - Clear swotch route table using standard registers
  *   defined in RIO specification rev.1.3.
  * @mport: Master port to issue transaction
- * @local: Indicate a local master port or remote device access
  * @destid: Destination ID of the device
  * @hopcount: Number of switch hops to the device
  * @table: routing table ID (global or port-specific)
