@@ -162,8 +162,6 @@ static int __init acpi_sleep_setup(char *str)
 #endif
 		if (strncmp(str, "old_ordering", 12) == 0)
 			acpi_old_suspend_ordering();
-		if (strncmp(str, "sci_force_enable", 16) == 0)
-			acpi_set_sci_en_on_resume();
 		str = strchr(str, ',');
 		if (str != NULL)
 			str += strspn(str, ", \t");
