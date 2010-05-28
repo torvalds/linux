@@ -230,6 +230,8 @@ struct cpcap_spi_init_data stingray_cpcap_spi_init[] = {
 };
 
 unsigned short cpcap_regulator_mode_values[CPCAP_NUM_REGULATORS] = {
+	[CPCAP_SW2]      = 0x0100,
+	[CPCAP_SW4]      = 0x0100,
 	[CPCAP_SW5]      = 0x0022,
 	[CPCAP_VCAM]     = 0x0003,
 	[CPCAP_VCSI]     = 0x0003,
@@ -252,6 +254,8 @@ unsigned short cpcap_regulator_mode_values[CPCAP_NUM_REGULATORS] = {
 };
 
 unsigned short cpcap_regulator_off_mode_values[CPCAP_NUM_REGULATORS] = {
+	[CPCAP_SW2]      = 0x0000,
+	[CPCAP_SW4]      = 0x0000,
 	[CPCAP_SW5]      = 0x0000,
 	[CPCAP_VCAM]     = 0x0000,
 	[CPCAP_VCSI]     = 0x0000,
@@ -274,6 +278,14 @@ unsigned short cpcap_regulator_off_mode_values[CPCAP_NUM_REGULATORS] = {
 };
 
 #define REGULATOR_CONSUMER(name, device) { .supply = name, .dev = device, }
+
+struct regulator_consumer_supply cpcap_sw2_consumers[] = {
+	REGULATOR_CONSUMER("sw2", NULL),
+};
+
+struct regulator_consumer_supply cpcap_sw4_consumers[] = {
+	REGULATOR_CONSUMER("sw4", NULL),
+};
 
 struct regulator_consumer_supply cpcap_sw5_consumers[] = {
 	REGULATOR_CONSUMER("sw5", NULL),
@@ -319,6 +331,26 @@ struct regulator_consumer_supply cpcap_vaudio_consumers[] = {
 };
 
 static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
+	[CPCAP_SW2] = {
+		.constraints = {
+			.min_uV			= 1000000,
+			.max_uV			= 1200000,
+			.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE,
+			.always_on		= 1,
+		},
+		.num_consumer_supplies	= ARRAY_SIZE(cpcap_sw2_consumers),
+		.consumer_supplies	= cpcap_sw2_consumers,
+	},
+	[CPCAP_SW4] = {
+		.constraints = {
+			.min_uV			= 1000000,
+			.max_uV			= 1200000,
+			.valid_ops_mask		= REGULATOR_CHANGE_VOLTAGE,
+			.always_on		= 1,
+		},
+		.num_consumer_supplies	= ARRAY_SIZE(cpcap_sw4_consumers),
+		.consumer_supplies	= cpcap_sw4_consumers,
+	},
 	[CPCAP_SW5] = {
 		.constraints = {
 			.min_uV			= 5050000,
