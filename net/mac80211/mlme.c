@@ -1692,14 +1692,52 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			rma = ieee80211_rx_mgmt_disassoc(sdata, mgmt, skb->len);
 			break;
 		case IEEE80211_STYPE_ACTION:
-			if (mgmt->u.action.category != WLAN_CATEGORY_SPECTRUM_MGMT)
-				break;
+			switch (mgmt->u.action.category) {
+			case WLAN_CATEGORY_BACK: {
+				struct ieee80211_local *local = sdata->local;
+				int len = skb->len;
+				struct sta_info *sta;
 
-			ieee80211_sta_process_chanswitch(sdata,
-					&mgmt->u.action.u.chan_switch.sw_elem,
-					(void *)ifmgd->associated->priv,
-					rx_status->mactime);
-			break;
+				rcu_read_lock();
+				sta = sta_info_get(sdata, mgmt->sa);
+				if (!sta) {
+					rcu_read_unlock();
+					break;
+				}
+
+				local_bh_disable();
+
+				switch (mgmt->u.action.u.addba_req.action_code) {
+				case WLAN_ACTION_ADDBA_REQ:
+					if (len < (IEEE80211_MIN_ACTION_SIZE +
+						   sizeof(mgmt->u.action.u.addba_req)))
+						break;
+					ieee80211_process_addba_request(local, sta, mgmt, len);
+					break;
+				case WLAN_ACTION_ADDBA_RESP:
+					if (len < (IEEE80211_MIN_ACTION_SIZE +
+						   sizeof(mgmt->u.action.u.addba_resp)))
+						break;
+					ieee80211_process_addba_resp(local, sta, mgmt, len);
+					break;
+				case WLAN_ACTION_DELBA:
+					if (len < (IEEE80211_MIN_ACTION_SIZE +
+						   sizeof(mgmt->u.action.u.delba)))
+						break;
+					ieee80211_process_delba(sdata, sta, mgmt, len);
+					break;
+				}
+				local_bh_enable();
+				rcu_read_unlock();
+				break;
+				}
+			case WLAN_CATEGORY_SPECTRUM_MGMT:
+				ieee80211_sta_process_chanswitch(sdata,
+						&mgmt->u.action.u.chan_switch.sw_elem,
+						(void *)ifmgd->associated->priv,
+						rx_status->mactime);
+				break;
+			}
 		}
 		mutex_unlock(&ifmgd->mtx);
 
