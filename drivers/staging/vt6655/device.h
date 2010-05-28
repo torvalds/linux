@@ -291,7 +291,7 @@ typedef struct __chip_info_tbl{
     char*       name;
     int         io_size;
     int         nTxQueue;
-    U32         flags;
+    u32         flags;
 } CHIP_INFO, *PCHIP_INFO;
 
 
@@ -386,7 +386,7 @@ typedef struct __device_opt {
     int         short_retry;
     int         long_retry;
     int         bbp_type;
-    U32         flags;
+    u32         flags;
 } OPTIONS, *POPTIONS;
 
 
@@ -423,11 +423,11 @@ typedef struct __device_info {
 
     CHIP_TYPE                   chip_id;
 
-    U32                         PortOffset;
+    u32                         PortOffset;
     DWORD                       dwIsr;
-    U32                         memaddr;
-    U32                         ioaddr;
-    U32                         io_size;
+    u32                         memaddr;
+    u32                         ioaddr;
+    u32                         io_size;
 
     BYTE                        byRevId;
     WORD                        SubSystemID;
@@ -454,9 +454,9 @@ typedef struct __device_info {
 
     OPTIONS                     sOpts;
 
-    U32                         flags;
+    u32                         flags;
 
-    U32                         rx_buf_sz;
+    u32                         rx_buf_sz;
     int                         multicast_limit;
     BYTE                        byRxMode;
 
@@ -472,7 +472,7 @@ typedef struct __device_info {
 //PLICE_DEBUG <-
 
 
-    U32                         rx_bytes;
+    u32                         rx_bytes;
 
     // Version control
     BYTE                        byLocalID;

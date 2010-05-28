@@ -384,7 +384,7 @@ device_set_int_opt(int *opt, int val, int min, int max, int def,char* name,char*
 }
 
 static void
-device_set_bool_opt(unsigned int *opt, int val,BOOL def,U32 flag, char* name,char* devname) {
+device_set_bool_opt(unsigned int *opt, int val,BOOL def,u32 flag, char* name,char* devname) {
     (*opt)&=(~flag);
     if (val==-1)
         *opt|=(def ? flag : 0);
@@ -976,7 +976,7 @@ device_found1(struct pci_dev *pcid, const struct pci_device_id *ent)
 	printk("after get pci_info memaddr is %x, io addr is %x,io_size is %d\n",pDevice->memaddr,pDevice->ioaddr,pDevice->io_size);
 	{
 		int i;
-		U32			bar,len;
+		u32			bar,len;
 		u32 address[] = {
 		PCI_BASE_ADDRESS_0,
 		PCI_BASE_ADDRESS_1,

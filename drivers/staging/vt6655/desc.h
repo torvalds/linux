@@ -291,11 +291,11 @@ SRDES1;
 typedef struct tagSRxDesc {
     volatile SRDES0 m_rd0RD0;
     volatile SRDES1 m_rd1RD1;
-    volatile U32    buff_addr;
-    volatile U32    next_desc;
+    volatile u32    buff_addr;
+    volatile u32    next_desc;
     struct tagSRxDesc   *next;//4 bytes
     volatile PDEVICE_RD_INFO    pRDInfo;//4 bytes
-    volatile U32    Reserved[2];//8 bytes
+    volatile u32    Reserved[2];//8 bytes
 } __attribute__ ((__packed__))
 SRxDesc, *PSRxDesc;
 typedef const SRxDesc *PCSRxDesc;
@@ -378,11 +378,11 @@ static inline PDEVICE_TD_INFO alloc_td_info(void) {
 typedef struct tagSTxDesc {
     volatile    STDES0  m_td0TD0;
     volatile    STDES1  m_td1TD1;
-    volatile    U32    buff_addr;
-    volatile    U32    next_desc;
+    volatile    u32    buff_addr;
+    volatile    u32    next_desc;
     struct tagSTxDesc*  next; //4 bytes
     volatile    PDEVICE_TD_INFO pTDInfo;//4 bytes
-    volatile    U32    Reserved[2];//8 bytes
+    volatile    u32    Reserved[2];//8 bytes
 } __attribute__ ((__packed__))
 STxDesc, *PSTxDesc;
 typedef const STxDesc *PCSTxDesc;
