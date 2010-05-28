@@ -113,16 +113,6 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 		return 0;
 	}
 
-	for (i = 0; i < lds->last_num_active; i++) {
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_ID, i);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_IS_PRIMARY, !i);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_POSITION_X, 0);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_POSITION_Y, 0);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_WIDTH, 0);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_HEIGHT, 0);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_ID, SVGA_ID_INVALID);
-	}
-
 	if (!list_empty(&lds->active)) {
 		entry = list_entry(lds->active.next, typeof(*entry), active);
 		fb = entry->base.crtc.fb;
@@ -130,6 +120,10 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 		vmw_kms_write_svga(dev_priv, fb->width, fb->height, fb->pitch,
 				   fb->bits_per_pixel, fb->depth);
 	}
+
+	/* Make sure we always show something. */
+	vmw_write(dev_priv, SVGA_REG_NUM_GUEST_DISPLAYS,
+		  lds->num_active ? lds->num_active : 1);
 
 	i = 0;
 	list_for_each_entry(entry, &lds->active, active) {
@@ -145,9 +139,6 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 
 		i++;
 	}
-
-	/* Make sure we always show something. */
-	vmw_write(dev_priv, SVGA_REG_NUM_GUEST_DISPLAYS, i ? i : 1);
 
 	BUG_ON(i != lds->num_active);
 
