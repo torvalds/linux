@@ -41,7 +41,7 @@
 
 #define VMWGFX_DRIVER_DATE "20100209"
 #define VMWGFX_DRIVER_MAJOR 1
-#define VMWGFX_DRIVER_MINOR 0
+#define VMWGFX_DRIVER_MINOR 1
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
@@ -102,6 +102,13 @@ struct vmw_surface {
 	struct vmw_cursor_snooper snooper;
 };
 
+struct vmw_fence_queue {
+	struct list_head head;
+	struct timespec lag;
+	struct timespec lag_time;
+	spinlock_t lock;
+};
+
 struct vmw_fifo_state {
 	unsigned long reserved_size;
 	__le32 *dynamic_buffer;
@@ -115,6 +122,7 @@ struct vmw_fifo_state {
 	uint32_t capabilities;
 	struct mutex fifo_mutex;
 	struct rw_semaphore rwsem;
+	struct vmw_fence_queue fence_queue;
 };
 
 struct vmw_relocation {
@@ -441,6 +449,23 @@ extern int vmw_fallback_wait(struct vmw_private *dev_priv,
 			     uint32_t sequence,
 			     bool interruptible,
 			     unsigned long timeout);
+extern void vmw_update_sequence(struct vmw_private *dev_priv,
+				struct vmw_fifo_state *fifo_state);
+
+
+/**
+ * Rudimentary fence objects currently used only for throttling -
+ * vmwgfx_fence.c
+ */
+
+extern void vmw_fence_queue_init(struct vmw_fence_queue *queue);
+extern void vmw_fence_queue_takedown(struct vmw_fence_queue *queue);
+extern int vmw_fence_push(struct vmw_fence_queue *queue,
+			  uint32_t sequence);
+extern int vmw_fence_pull(struct vmw_fence_queue *queue,
+			  uint32_t signaled_sequence);
+extern int vmw_wait_lag(struct vmw_private *dev_priv,
+			struct vmw_fence_queue *queue, uint32_t us);
 
 /**
  * Kernel framebuffer - vmwgfx_fb.c

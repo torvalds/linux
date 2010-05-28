@@ -120,7 +120,7 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 
 	atomic_set(&dev_priv->fence_seq, dev_priv->last_read_sequence);
 	iowrite32(dev_priv->last_read_sequence, fifo_mem + SVGA_FIFO_FENCE);
-
+	vmw_fence_queue_init(&fifo->fence_queue);
 	return vmw_fifo_send_fence(dev_priv, &dummy);
 out_err:
 	vfree(fifo->static_buffer);
@@ -159,6 +159,7 @@ void vmw_fifo_release(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 		  dev_priv->enable_state);
 
 	mutex_unlock(&dev_priv->hw_mutex);
+	vmw_fence_queue_takedown(&fifo->fence_queue);
 
 	if (likely(fifo->last_buffer != NULL)) {
 		vfree(fifo->last_buffer);
@@ -484,6 +485,8 @@ int vmw_fifo_send_fence(struct vmw_private *dev_priv, uint32_t *sequence)
 	fifo_state->last_buffer_add = true;
 	vmw_fifo_commit(dev_priv, bytes);
 	fifo_state->last_buffer_add = false;
+	(void) vmw_fence_push(&fifo_state->fence_queue, *sequence);
+	vmw_update_sequence(dev_priv, fifo_state);
 
 out_err:
 	return ret;
