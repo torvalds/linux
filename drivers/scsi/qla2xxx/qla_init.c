@@ -1454,6 +1454,8 @@ qla2x00_setup_chip(scsi_qla_host_t *vha)
 		rval = ha->isp_ops->load_risc(vha, &srisc_address);
 		if (rval == QLA_SUCCESS)
 			goto enable_82xx_npiv;
+		else
+			goto failed;
 	}
 
 	if (!IS_FWI2_CAPABLE(ha) && !IS_QLA2100(ha) && !IS_QLA2200(ha)) {

@@ -3279,6 +3279,10 @@ qla82xx_dev_failed_handler(scsi_qla_host_t *vha)
 	/* Disable the board */
 	qla_printk(KERN_INFO, ha, "Disabling the board\n");
 
+	qla82xx_idc_lock(ha);
+	qla82xx_clear_drv_active(ha);
+	qla82xx_idc_unlock(ha);
+
 	/* Set DEV_FAILED flag to disable timer */
 	vha->device_flags |= DFLG_DEV_FAILED;
 	qla2x00_abort_all_cmds(vha, DID_NO_CONNECT << 16);

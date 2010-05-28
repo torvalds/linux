@@ -1683,7 +1683,7 @@ qla2x00_login_iocb(srb_t *sp, struct mbx_entry *mbx)
 	struct srb_iocb *lio = ctx->u.iocb_cmd;
 	uint16_t opts;
 
-	mbx->entry_type = MBX_IOCB_TYPE;;
+	mbx->entry_type = MBX_IOCB_TYPE;
 	SET_TARGET_ID(ha, mbx->loop_id, sp->fcport->loop_id);
 	mbx->mb0 = cpu_to_le16(MBC_LOGIN_FABRIC_PORT);
 	opts = lio->u.logio.flags & SRB_LOGIN_COND_PLOGI ? BIT_0 : 0;
@@ -1718,7 +1718,7 @@ qla2x00_logout_iocb(srb_t *sp, struct mbx_entry *mbx)
 {
 	struct qla_hw_data *ha = sp->fcport->vha->hw;
 
-	mbx->entry_type = MBX_IOCB_TYPE;;
+	mbx->entry_type = MBX_IOCB_TYPE;
 	SET_TARGET_ID(ha, mbx->loop_id, sp->fcport->loop_id);
 	mbx->mb0 = cpu_to_le16(MBC_LOGOUT_FABRIC_PORT);
 	mbx->mb1 = HAS_EXTENDED_IDS(ha) ?

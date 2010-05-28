@@ -513,7 +513,6 @@ extern int qla82xx_nvram_config(struct scsi_qla_host *);
 extern int qla82xx_pinit_from_rom(scsi_qla_host_t *);
 extern int qla82xx_load_firmware(scsi_qla_host_t *);
 extern int qla82xx_reset_hw(scsi_qla_host_t *);
-extern int qla82xx_load_risc_blob(scsi_qla_host_t *, uint32_t *);
 extern void qla82xx_watchdog(scsi_qla_host_t *);
 
 /* Firmware and flash related functions */
