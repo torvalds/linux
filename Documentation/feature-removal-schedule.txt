@@ -459,14 +459,6 @@ Who:	Corentin Chary <corentin.chary@gmail.com>
 
 ----------------------------
 
-What:	usbvideo quickcam_messenger driver
-When:	2.6.35
-Files:	drivers/media/video/usbvideo/quickcam_messenger.[ch]
-Why:	obsolete v4l1 driver replaced by gspca_stv06xx
-Who:	Hans de Goede <hdegoede@redhat.com>
-
-----------------------------
-
 What:	ov511 v4l1 driver
 When:	2.6.35
 Files:	drivers/media/video/ov511.[ch]
