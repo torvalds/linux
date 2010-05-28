@@ -25,6 +25,8 @@
 #include "generic.h"
 #include "clock.h"
 
+extern void at91sam9g20_reset(void);
+
 static struct map_desc at91sam9260_io_desc[] __initdata = {
 	{
 		.virtual	= AT91_VA_BASE_SYS,
@@ -327,7 +329,11 @@ void __init at91sam9260_initialize(unsigned long main_clock)
 	else
 		iotable_init(at91sam9260_sram_desc, ARRAY_SIZE(at91sam9260_sram_desc));
 
-	at91_arch_reset = at91sam9260_reset;
+	if (cpu_is_at91sam9g20())
+		at91_arch_reset = at91sam9g20_reset;
+	else
+		at91_arch_reset = at91sam9260_reset;
+
 	pm_power_off = at91sam9260_poweroff;
 	at91_extern_irq = (1 << AT91SAM9260_ID_IRQ0) | (1 << AT91SAM9260_ID_IRQ1)
 			| (1 << AT91SAM9260_ID_IRQ2);
