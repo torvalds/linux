@@ -211,5 +211,5 @@ const struct file_operations udf_dir_operations = {
 	.read			= generic_read_dir,
 	.readdir		= udf_readdir,
 	.unlocked_ioctl		= udf_ioctl,
-	.fsync			= simple_fsync,
+	.fsync			= generic_file_fsync,
 };

@@ -880,7 +880,7 @@ static struct inode *pohmelfs_alloc_inode(struct super_block *sb)
 /*
  * We want fsync() to work on POHMELFS.
  */
-static int pohmelfs_fsync(struct file *file, struct dentry *dentry, int datasync)
+static int pohmelfs_fsync(struct file *file, int datasync)
 {
 	struct inode *inode = file->f_mapping->host;
 	struct writeback_control wbc = {

@@ -27,9 +27,9 @@
 #include "jfs_acl.h"
 #include "jfs_debug.h"
 
-int jfs_fsync(struct file *file, struct dentry *dentry, int datasync)
+int jfs_fsync(struct file *file, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	int rc = 0;
 
 	if (!(inode->i_state & I_DIRTY) ||

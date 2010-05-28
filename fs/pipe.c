@@ -1169,14 +1169,18 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case F_SETPIPE_SZ:
-		if (!capable(CAP_SYS_ADMIN) && arg > pipe_max_pages)
-			return -EINVAL;
+		if (!capable(CAP_SYS_ADMIN) && arg > pipe_max_pages) {
+			ret = -EINVAL;
+			goto out;
+		}
 		/*
 		 * The pipe needs to be at least 2 pages large to
 		 * guarantee POSIX behaviour.
 		 */
-		if (arg < 2)
-			return -EINVAL;
+		if (arg < 2) {
+			ret = -EINVAL;
+			goto out;
+		}
 		ret = pipe_set_size(pipe, arg);
 		break;
 	case F_GETPIPE_SZ:
@@ -1187,6 +1191,7 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 
+out:
 	mutex_unlock(&pipe->inode->i_mutex);
 	return ret;
 }

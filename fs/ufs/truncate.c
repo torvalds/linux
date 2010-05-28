@@ -501,12 +501,10 @@ out:
 	return err;
 }
 
-
 /*
- * We don't define our `inode->i_op->truncate', and call it here,
- * because of:
- * - there is no way to know old size
- * - there is no way inform user about error, if it happens in `truncate'
+ * TODO:
+ *	- truncate case should use proper ordering instead of using
+ *	  simple_setsize
  */
 int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 {
@@ -530,7 +528,7 @@ int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (ia_valid & ATTR_SIZE && attr->ia_size != inode->i_size) {
 		loff_t old_i_size = inode->i_size;
 
-		error = vmtruncate(inode, attr->ia_size);
+		error = simple_setsize(inode, attr->ia_size);
 		if (error)
 			return error;
 		error = ufs_truncate(inode, old_i_size);

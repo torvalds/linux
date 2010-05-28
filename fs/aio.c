@@ -527,7 +527,7 @@ static void aio_fput_routine(struct work_struct *data)
 
 		/* Complete the fput(s) */
 		if (req->ki_filp != NULL)
-			__fput(req->ki_filp);
+			fput(req->ki_filp);
 
 		/* Link the iocb into the context's free list */
 		spin_lock_irq(&ctx->ctx_lock);
@@ -560,11 +560,11 @@ static int __aio_put_req(struct kioctx *ctx, struct kiocb *req)
 
 	/*
 	 * Try to optimize the aio and eventfd file* puts, by avoiding to
-	 * schedule work in case it is not __fput() time. In normal cases,
+	 * schedule work in case it is not final fput() time. In normal cases,
 	 * we would not be holding the last reference to the file*, so
 	 * this function will be executed w/out any aio kthread wakeup.
 	 */
-	if (unlikely(atomic_long_dec_and_test(&req->ki_filp->f_count))) {
+	if (unlikely(!fput_atomic(req->ki_filp))) {
 		get_ioctx(ctx);
 		spin_lock(&fput_lock);
 		list_add(&req->ki_list, &fput_head);

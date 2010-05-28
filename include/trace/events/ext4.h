@@ -606,9 +606,9 @@ TRACE_EVENT(ext4_free_blocks,
 );
 
 TRACE_EVENT(ext4_sync_file,
-	TP_PROTO(struct file *file, struct dentry *dentry, int datasync),
+	TP_PROTO(struct file *file, int datasync),
 
-	TP_ARGS(file, dentry, datasync),
+	TP_ARGS(file, datasync),
 
 	TP_STRUCT__entry(
 		__field(	dev_t,	dev			)
@@ -618,6 +618,8 @@ TRACE_EVENT(ext4_sync_file,
 	),
 
 	TP_fast_assign(
+		struct dentry *dentry = file->f_path.dentry;
+
 		__entry->dev		= dentry->d_inode->i_sb->s_dev;
 		__entry->ino		= dentry->d_inode->i_ino;
 		__entry->datasync	= datasync;
