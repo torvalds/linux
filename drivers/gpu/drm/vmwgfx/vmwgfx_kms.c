@@ -30,6 +30,8 @@
 /* Might need a hrtimer here? */
 #define VMWGFX_PRESENT_RATE ((HZ / 60 > 0) ? HZ / 60 : 1)
 
+static int vmw_surface_dmabuf_pin(struct vmw_framebuffer *vfb);
+static int vmw_surface_dmabuf_unpin(struct vmw_framebuffer *vfb);
 
 void vmw_display_unit_cleanup(struct vmw_display_unit *du)
 {
@@ -326,6 +328,7 @@ int vmw_framebuffer_create_handle(struct drm_framebuffer *fb,
 struct vmw_framebuffer_surface {
 	struct vmw_framebuffer base;
 	struct vmw_surface *surface;
+	struct vmw_dma_buffer *buffer;
 	struct delayed_work d_work;
 	struct mutex work_lock;
 	bool present_fs;
@@ -500,8 +503,8 @@ int vmw_kms_new_framebuffer_surface(struct vmw_private *dev_priv,
 	vfbs->base.base.depth = 24;
 	vfbs->base.base.width = width;
 	vfbs->base.base.height = height;
-	vfbs->base.pin = NULL;
-	vfbs->base.unpin = NULL;
+	vfbs->base.pin = &vmw_surface_dmabuf_pin;
+	vfbs->base.unpin = &vmw_surface_dmabuf_unpin;
 	vfbs->surface = surface;
 	mutex_init(&vfbs->work_lock);
 	INIT_DELAYED_WORK(&vfbs->d_work, &vmw_framebuffer_present_fs_callback);
@@ -588,6 +591,40 @@ static struct drm_framebuffer_funcs vmw_framebuffer_dmabuf_funcs = {
 	.dirty = vmw_framebuffer_dmabuf_dirty,
 	.create_handle = vmw_framebuffer_create_handle,
 };
+
+static int vmw_surface_dmabuf_pin(struct vmw_framebuffer *vfb)
+{
+	struct vmw_private *dev_priv = vmw_priv(vfb->base.dev);
+	struct vmw_framebuffer_surface *vfbs =
+		vmw_framebuffer_to_vfbs(&vfb->base);
+	unsigned long size = vfbs->base.base.pitch * vfbs->base.base.height;
+	int ret;
+
+	vfbs->buffer = kzalloc(sizeof(*vfbs->buffer), GFP_KERNEL);
+	if (unlikely(vfbs->buffer == NULL))
+		return -ENOMEM;
+
+	vmw_overlay_pause_all(dev_priv);
+	ret = vmw_dmabuf_init(dev_priv, vfbs->buffer, size,
+			       &vmw_vram_ne_placement,
+			       false, &vmw_dmabuf_bo_free);
+	vmw_overlay_resume_all(dev_priv);
+
+	return ret;
+}
+
+static int vmw_surface_dmabuf_unpin(struct vmw_framebuffer *vfb)
+{
+	struct ttm_buffer_object *bo;
+	struct vmw_framebuffer_surface *vfbs =
+		vmw_framebuffer_to_vfbs(&vfb->base);
+
+	bo = &vfbs->buffer->base;
+	ttm_bo_unref(&bo);
+	vfbs->buffer = NULL;
+
+	return 0;
+}
 
 static int vmw_framebuffer_dmabuf_pin(struct vmw_framebuffer *vfb)
 {
