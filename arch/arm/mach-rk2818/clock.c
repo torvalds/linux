@@ -1014,9 +1014,9 @@ static void __clk_disable(struct clk *clk)
 		if (clk->mode)
 			clk->mode(clk, 0);
 		pr_debug("clock: %s disabled\n", clk->name);
+		if (clk->parent)
+			__clk_disable(clk->parent);
 	}
-	if (clk->parent)
-		__clk_disable(clk->parent);
 }
 
 void clk_disable(struct clk *clk)
