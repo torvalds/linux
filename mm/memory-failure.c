@@ -920,6 +920,22 @@ static int hwpoison_user_mappings(struct page *p, unsigned long pfn,
 	return ret;
 }
 
+static void set_page_hwpoison_huge_page(struct page *hpage)
+{
+	int i;
+	int nr_pages = 1 << compound_order(hpage);
+	for (i = 0; i < nr_pages; i++)
+		SetPageHWPoison(hpage + i);
+}
+
+static void clear_page_hwpoison_huge_page(struct page *hpage)
+{
+	int i;
+	int nr_pages = 1 << compound_order(hpage);
+	for (i = 0; i < nr_pages; i++)
+		ClearPageHWPoison(hpage + i);
+}
+
 int __memory_failure(unsigned long pfn, int trapno, int flags)
 {
 	struct page_state *ps;
@@ -1013,6 +1029,26 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 		put_page(hpage);
 		return 0;
 	}
+
+	/*
+	 * For error on the tail page, we should set PG_hwpoison
+	 * on the head page to show that the hugepage is hwpoisoned
+	 */
+	if (PageTail(p) && TestSetPageHWPoison(hpage)) {
+		action_result(pfn, "hugepage already hardware poisoned",
+				IGNORED);
+		unlock_page(hpage);
+		put_page(hpage);
+		return 0;
+	}
+	/*
+	 * Set PG_hwpoison on all pages in an error hugepage,
+	 * because containment is done in hugepage unit for now.
+	 * Since we have done TestSetPageHWPoison() for the head page with
+	 * page lock held, we can safely set PG_hwpoison bits on tail pages.
+	 */
+	if (PageHuge(p))
+		set_page_hwpoison_huge_page(hpage);
 
 	wait_on_page_writeback(p);
 
@@ -1118,6 +1154,8 @@ int unpoison_memory(unsigned long pfn)
 		atomic_long_dec(&mce_bad_pages);
 		freeit = 1;
 	}
+	if (PageHuge(p))
+		clear_page_hwpoison_huge_page(page);
 	unlock_page(page);
 
 	put_page(page);
