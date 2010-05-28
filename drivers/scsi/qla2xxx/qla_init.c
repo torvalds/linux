@@ -121,7 +121,23 @@ done:
 
 /* Asynchronous Login/Logout Routines -------------------------------------- */
 
-#define ELS_TMO_2_RATOV(ha) ((ha)->r_a_tov / 10 * 2)
+static inline unsigned long
+qla2x00_get_async_timeout(struct scsi_qla_host *vha)
+{
+	unsigned long tmo;
+	struct qla_hw_data *ha = vha->hw;
+
+	/* Firmware should use switch negotiated r_a_tov for timeout. */
+	tmo = ha->r_a_tov / 10 * 2;
+	if (!IS_FWI2_CAPABLE(ha)) {
+		/*
+		 * Except for earlier ISPs where the timeout is seeded from the
+		 * initialization control block.
+		 */
+		tmo = ha->login_timeout;
+	}
+	return tmo;
+}
 
 static void
 qla2x00_async_iocb_timeout(srb_t *sp)
@@ -163,7 +179,6 @@ int
 qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
     uint16_t *data)
 {
-	struct qla_hw_data *ha = vha->hw;
 	srb_t *sp;
 	struct srb_ctx *ctx;
 	struct srb_iocb *lio;
@@ -171,7 +186,7 @@ qla2x00_async_login(struct scsi_qla_host *vha, fc_port_t *fcport,
 
 	rval = QLA_FUNCTION_FAILED;
 	sp = qla2x00_get_ctx_sp(vha, fcport, sizeof(struct srb_ctx),
-	    ELS_TMO_2_RATOV(ha) + 2);
+	    qla2x00_get_async_timeout(vha) + 2);
 	if (!sp)
 		goto done;
 
@@ -215,7 +230,6 @@ qla2x00_async_logout_ctx_done(srb_t *sp)
 int
 qla2x00_async_logout(struct scsi_qla_host *vha, fc_port_t *fcport)
 {
-	struct qla_hw_data *ha = vha->hw;
 	srb_t *sp;
 	struct srb_ctx *ctx;
 	struct srb_iocb *lio;
@@ -223,7 +237,7 @@ qla2x00_async_logout(struct scsi_qla_host *vha, fc_port_t *fcport)
 
 	rval = QLA_FUNCTION_FAILED;
 	sp = qla2x00_get_ctx_sp(vha, fcport, sizeof(struct srb_ctx),
-	    ELS_TMO_2_RATOV(ha) + 2);
+	    qla2x00_get_async_timeout(vha) + 2);
 	if (!sp)
 		goto done;
 
@@ -264,7 +278,6 @@ int
 qla2x00_async_adisc(struct scsi_qla_host *vha, fc_port_t *fcport,
     uint16_t *data)
 {
-	struct qla_hw_data *ha = vha->hw;
 	srb_t *sp;
 	struct srb_ctx *ctx;
 	struct srb_iocb *lio;
@@ -272,7 +285,7 @@ qla2x00_async_adisc(struct scsi_qla_host *vha, fc_port_t *fcport,
 
 	rval = QLA_FUNCTION_FAILED;
 	sp = qla2x00_get_ctx_sp(vha, fcport, sizeof(struct srb_ctx),
-	    ELS_TMO_2_RATOV(ha) + 2);
+	    qla2x00_get_async_timeout(vha) + 2);
 	if (!sp)
 		goto done;
 
@@ -316,7 +329,6 @@ qla2x00_async_tm_cmd(fc_port_t *fcport, uint32_t flags, uint32_t lun,
 	uint32_t tag)
 {
 	struct scsi_qla_host *vha = fcport->vha;
-	struct qla_hw_data *ha = vha->hw;
 	srb_t *sp;
 	struct srb_ctx *ctx;
 	struct srb_iocb *tcf;
@@ -324,7 +336,7 @@ qla2x00_async_tm_cmd(fc_port_t *fcport, uint32_t flags, uint32_t lun,
 
 	rval = QLA_FUNCTION_FAILED;
 	sp = qla2x00_get_ctx_sp(vha, fcport, sizeof(struct srb_ctx),
-	    ELS_TMO_2_RATOV(ha) + 2);
+	    qla2x00_get_async_timeout(vha) + 2);
 	if (!sp)
 		goto done;
 
@@ -2409,7 +2421,7 @@ qla2x00_nvram_config(scsi_qla_host_t *vha)
 	ha->retry_count = nv->retry_count;
 
 	/* Set minimum login_timeout to 4 seconds. */
-	if (nv->login_timeout < ql2xlogintimeout)
+	if (nv->login_timeout != ql2xlogintimeout)
 		nv->login_timeout = ql2xlogintimeout;
 	if (nv->login_timeout < 4)
 		nv->login_timeout = 4;
