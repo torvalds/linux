@@ -866,8 +866,8 @@ qla2x00_abort_target(struct fc_port *fcport, unsigned int l, int tag)
 
 	l = l;
 	vha = fcport->vha;
-	req = vha->hw->req_q_map[tag];
-	rsp = vha->hw->rsp_q_map[tag];
+	req = vha->hw->req_q_map[0];
+	rsp = req->rsp;
 	mcp->mb[0] = MBC_ABORT_TARGET;
 	mcp->out_mb = MBX_9|MBX_2|MBX_1|MBX_0;
 	if (HAS_EXTENDED_IDS(vha->hw)) {
@@ -915,8 +915,8 @@ qla2x00_lun_reset(struct fc_port *fcport, unsigned int l, int tag)
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, fcport->vha->host_no));
 
 	vha = fcport->vha;
-	req = vha->hw->req_q_map[tag];
-	rsp = vha->hw->rsp_q_map[tag];
+	req = vha->hw->req_q_map[0];
+	rsp = req->rsp;
 	mcp->mb[0] = MBC_LUN_RESET;
 	mcp->out_mb = MBX_9|MBX_3|MBX_2|MBX_1|MBX_0;
 	if (HAS_EXTENDED_IDS(vha->hw))
