@@ -1018,28 +1018,6 @@ config VIDEO_OVCAMCHIP
 	  To compile this driver as a module, choose M here: the
 	  module will be called ovcamchip.
 
-config USB_W9968CF
-	tristate "USB W996[87]CF JPEG Dual Mode Camera support (DEPRECATED)"
-	depends on VIDEO_V4L1 && I2C && VIDEO_OVCAMCHIP
-	default n
-	---help---
-	  This driver is DEPRECATED please use the gspca ov519 module
-	  instead. Note that for the w9968cf support of the gspca module
-	  you need atleast version 0.6.3 of libv4l.
-
-	  Say Y here if you want support for cameras based on OV681 or
-	  Winbond W9967CF/W9968CF JPEG USB Dual Mode Camera Chips.
-
-	  This driver has an optional plugin, which is distributed as a
-	  separate module only (released under GPL). It allows to use higher
-	  resolutions and framerates, but cannot be included in the official
-	  Linux kernel for performance purposes.
-
-	  See <file:Documentation/video4linux/w9968cf.txt> for more info.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called w9968cf.
-
 config USB_SE401
 	tristate "USB SE401 Camera support"
 	depends on VIDEO_V4L1

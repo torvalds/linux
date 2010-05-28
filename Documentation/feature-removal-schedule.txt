@@ -459,14 +459,6 @@ Who:	Corentin Chary <corentin.chary@gmail.com>
 
 ----------------------------
 
-What:	w9968cf v4l1 driver
-When:	2.6.35
-Files:	drivers/media/video/w9968cf*.[ch]
-Why:	obsolete v4l1 driver replaced by gspca_ov519
-Who:	Hans de Goede <hdegoede@redhat.com>
-
-----------------------------
-
 What:	ovcamchip sensor framework
 When:	2.6.35
 Files:	drivers/media/video/ovcamchip/*
