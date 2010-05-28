@@ -1936,7 +1936,7 @@ void ocfs2_orphan_scan_work(struct work_struct *work)
 	mutex_lock(&os->os_lock);
 	ocfs2_queue_orphan_scan(osb);
 	if (atomic_read(&os->os_state) == ORPHAN_SCAN_ACTIVE)
-		schedule_delayed_work(&os->os_orphan_scan_work,
+		queue_delayed_work(ocfs2_wq, &os->os_orphan_scan_work,
 				      ocfs2_orphan_scan_timeout());
 	mutex_unlock(&os->os_lock);
 }
@@ -1976,8 +1976,8 @@ void ocfs2_orphan_scan_start(struct ocfs2_super *osb)
 		atomic_set(&os->os_state, ORPHAN_SCAN_INACTIVE);
 	else {
 		atomic_set(&os->os_state, ORPHAN_SCAN_ACTIVE);
-		schedule_delayed_work(&os->os_orphan_scan_work,
-				      ocfs2_orphan_scan_timeout());
+		queue_delayed_work(ocfs2_wq, &os->os_orphan_scan_work,
+				   ocfs2_orphan_scan_timeout());
 	}
 }
 
