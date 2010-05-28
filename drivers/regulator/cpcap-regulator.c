@@ -41,6 +41,10 @@
 	}
 
 
+#define SW2_SW4_VAL_TBL_SIZE 69
+#define SW2_SW4_VAL_TBL_STEP 12500
+
+static int sw2_sw4_val_tbl[SW2_SW4_VAL_TBL_SIZE];
 static const int sw5_val_tbl[] = {0, 5050000};
 static const int vcam_val_tbl[] = {2600000, 2700000, 2800000, 2900000};
 static const int vcsi_val_tbl[] = {1200000, 1800000};
@@ -77,6 +81,30 @@ static struct {
 	const unsigned int volt_trans_time; /* in micro seconds */
 	const unsigned int turn_on_time; /* in micro seconds */
 } cpcap_regltr_data[CPCAP_NUM_REGULATORS] = {
+	[CPCAP_SW2]      = {CPCAP_REG_S2C1,
+			    0x0F00,
+			    0x007F,
+			    0,
+			    0x0000,
+			    0x0000,
+			    ARRAY_SIZE(sw2_sw4_val_tbl),
+			    sw2_sw4_val_tbl,
+			    0,
+			    120,
+			    1500},
+
+	[CPCAP_SW4]      = {CPCAP_REG_S4C1,
+			    0x0F00,
+			    0x007F,
+			    0,
+			    0x0000,
+			    0x0000,
+			    ARRAY_SIZE(sw2_sw4_val_tbl),
+			    sw2_sw4_val_tbl,
+			    0,
+			    100,
+			    1500},
+
 	[CPCAP_SW5]      = {CPCAP_REG_S5C,
 			    0x002A,
 			    0x0000,
@@ -483,6 +511,8 @@ static struct regulator_ops cpcap_regulator_ops = {
 };
 
 static struct regulator_desc regulators[] = {
+	[CPCAP_SW2]      = CPCAP_REGULATOR("sw2", CPCAP_SW2),
+	[CPCAP_SW4]      = CPCAP_REGULATOR("sw4", CPCAP_SW4),
 	[CPCAP_SW5]      = CPCAP_REGULATOR("sw5", CPCAP_SW5),
 	[CPCAP_VCAM]     = CPCAP_REGULATOR("vcam", CPCAP_VCAM),
 	[CPCAP_VCSI]     = CPCAP_REGULATOR("vcsi", CPCAP_VCSI),
@@ -558,6 +588,11 @@ static struct platform_driver cpcap_regulator_driver = {
 
 static int __init cpcap_regulator_init(void)
 {
+	int i;
+
+	for (i = 0; i < SW2_SW4_VAL_TBL_SIZE; i++)
+		sw2_sw4_val_tbl[i] = 600000 + (i * SW2_SW4_VAL_TBL_STEP);
+
 	return platform_driver_register(&cpcap_regulator_driver);
 }
 subsys_initcall(cpcap_regulator_init);
