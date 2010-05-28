@@ -947,6 +947,17 @@ config DM9000_DEBUGLEVEL
 	  The maximum level of debugging code compiled into the DM9000
 	  driver.
 
+if DM9000
+choice
+  prompt "choose control"
+	config DM9000_USE_NAND_CONTROL
+		tristate "DM9000 with NANDC Interface"
+
+	config DM9000_USE_NOR_CONTROL
+		tristate  "DM9000 with NOR Interface"
+endchoice
+endif
+	  
 config DM9000_FORCE_SIMPLE_PHY_POLL
 	bool "Force simple NSR based PHY polling"
 	depends on DM9000
