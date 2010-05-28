@@ -624,9 +624,12 @@ static int ssb_pci_sprom_get(struct ssb_bus *bus,
 		ssb_printk(KERN_ERR PFX "No SPROM available!\n");
 		return -ENODEV;
 	}
-
-	bus->sprom_offset = (bus->chipco.dev->id.revision < 31) ?
-		SSB_SPROM_BASE1 : SSB_SPROM_BASE31;
+	if (bus->chipco.dev) {	/* can be unavailible! */
+		bus->sprom_offset = (bus->chipco.dev->id.revision < 31) ?
+			SSB_SPROM_BASE1 : SSB_SPROM_BASE31;
+	} else {
+		bus->sprom_offset = SSB_SPROM_BASE1;
+	}
 
 	buf = kcalloc(SSB_SPROMSIZE_WORDS_R123, sizeof(u16), GFP_KERNEL);
 	if (!buf)
