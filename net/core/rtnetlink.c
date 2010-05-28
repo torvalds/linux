@@ -650,11 +650,12 @@ static inline int rtnl_vfinfo_size(const struct net_device *dev)
 	if (dev->dev.parent && dev_is_pci(dev->dev.parent)) {
 
 		int num_vfs = dev_num_vf(dev->dev.parent);
-		size_t size = nlmsg_total_size(sizeof(struct nlattr));
-		size += nlmsg_total_size(num_vfs * sizeof(struct nlattr));
-		size += num_vfs * (sizeof(struct ifla_vf_mac) +
-				  sizeof(struct ifla_vf_vlan) +
-				  sizeof(struct ifla_vf_tx_rate));
+		size_t size = nla_total_size(sizeof(struct nlattr));
+		size += nla_total_size(num_vfs * sizeof(struct nlattr));
+		size += num_vfs *
+			(nla_total_size(sizeof(struct ifla_vf_mac)) +
+			 nla_total_size(sizeof(struct ifla_vf_vlan)) +
+			 nla_total_size(sizeof(struct ifla_vf_tx_rate)));
 		return size;
 	} else
 		return 0;
