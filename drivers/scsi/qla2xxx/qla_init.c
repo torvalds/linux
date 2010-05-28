@@ -2651,7 +2651,8 @@ qla2x00_configure_loop(scsi_qla_host_t *vha)
 			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
 		if (test_bit(RSCN_UPDATE, &save_flags)) {
 			set_bit(RSCN_UPDATE, &vha->dpc_flags);
-			vha->flags.rscn_queue_overflow = 1;
+			if (!IS_ALOGIO_CAPABLE(ha))
+				vha->flags.rscn_queue_overflow = 1;
 		}
 	}
 
@@ -3209,8 +3210,9 @@ qla2x00_find_all_fabric_devs(scsi_qla_host_t *vha,
 		if (qla2x00_is_reserved_id(vha, loop_id))
 			continue;
 
-		if (atomic_read(&vha->loop_down_timer) ||
-		    LOOP_TRANSITION(vha)) {
+		if (ha->current_topology == ISP_CFG_FL &&
+		    (atomic_read(&vha->loop_down_timer) ||
+		     LOOP_TRANSITION(vha))) {
 			atomic_set(&vha->loop_down_timer, 0);
 			set_bit(LOOP_RESYNC_NEEDED, &vha->dpc_flags);
 			set_bit(LOCAL_LOOP_UPDATE, &vha->dpc_flags);
