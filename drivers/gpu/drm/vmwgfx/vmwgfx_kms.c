@@ -765,8 +765,9 @@ int vmw_kms_init(struct vmw_private *dev_priv)
 	dev->mode_config.funcs = &vmw_kms_funcs;
 	dev->mode_config.min_width = 1;
 	dev->mode_config.min_height = 1;
-	dev->mode_config.max_width = dev_priv->fb_max_width;
-	dev->mode_config.max_height = dev_priv->fb_max_height;
+	/* assumed largest fb size */
+	dev->mode_config.max_width = 8192;
+	dev->mode_config.max_height = 8192;
 
 	ret = vmw_kms_init_legacy_display_system(dev_priv);
 
