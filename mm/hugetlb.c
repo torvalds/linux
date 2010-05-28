@@ -615,6 +615,8 @@ int PageHuge(struct page *page)
 	return dtor == free_huge_page;
 }
 
+EXPORT_SYMBOL_GPL(PageHuge);
+
 static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
 {
 	struct page *page;
