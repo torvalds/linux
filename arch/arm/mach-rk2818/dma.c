@@ -631,6 +631,18 @@ static irqreturn_t rk28_dma_irq_handler(int irq, void *dev_id)
 }
 
 
+int dma_getposition(unsigned int  channel, dma_addr_t *src, dma_addr_t *dst)
+{
+	u32 phy_ch = channel;
+    if (src != NULL)
+        *src = read_dma_reg(DWDMA_SAR(phy_ch));
+    if (dst != NULL)     
+        *dst = read_dma_reg(DWDMA_DAR(phy_ch)); 
+    
+ 	return 0;
+}
+EXPORT_SYMBOL(dma_getposition);
+
 static struct dma_ops rk2818_dma_ops = {
     .request = rk28_dma_request,
     .free = rk28_dma_free,

@@ -300,7 +300,13 @@ static struct i2c_board_info __initdata board_i2c0_devices[] = {
 		.flags			= 0,
 	},
 #endif
-	{}
+#if defined (CONFIG_SND_SOC_WM8988)
+	{
+		.type    		= "wm8988",
+		.addr           = 0x1a,
+		.flags			= 0,
+	}
+#endif	
 };
 static struct i2c_board_info __initdata board_i2c1_devices[] = {
 #if defined (CONFIG_RTC_HYM8563)
@@ -400,6 +406,7 @@ static struct platform_device *devices[] __initdata = {
 	&rk2818_device_sdmmc1,
 #endif
 	&rk2818_device_spim,
+	&rk2818_device_i2s,
 #if defined(CONFIG_ANDROID_PMEM)
 	&rk2818_device_pmem,
 #endif

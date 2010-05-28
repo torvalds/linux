@@ -325,12 +325,32 @@ struct platform_device rk2818_device_adckey = {
 	.id		= -1,
 	.dev.parent	= &rk2818_device_adc.dev,
 };
+/*
+ *rk2818 i2s
+ */
+static struct resource resources_i2s[] = {
+	{
+		.start	= IRQ_NR_I2S,
+		.end	= IRQ_NR_I2S,
+		.flags	= IORESOURCE_IRQ,
+	},
+	{
+		.start	= RK2818_I2S_PHYS,
+		.end	= RK2818_I2S_PHYS + SZ_8K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+struct platform_device rk2818_device_i2s = {
+	.name	= "rk2818_i2s",
+	.id	= 0,
+	.num_resources	= ARRAY_SIZE(resources_i2s),
+	.resource	= resources_i2s,
+};
 
 struct platform_device rk2818_device_battery = {
 		.name	= "rk2818-battery",
 		.id 	= -1,
 };
-
 
 /*
  * rk2818 dsp device

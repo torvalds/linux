@@ -97,7 +97,9 @@ extern void set_dma_sg(unsigned int chan, struct scatterlist *sg, int nr_sg);
  */
 extern void __set_dma_addr(unsigned int chan, void *addr);
 #define set_dma_addr(chan, addr)				\
-	__set_dma_addr(chan, bus_to_virt(addr))
+	__set_dma_addr(chan, addr)	
+	//__set_dma_addr(chan, bus_to_virt(addr))
+	
 
 /* Set the DMA byte count for this channel
  *
@@ -132,4 +134,5 @@ extern int  get_dma_residue(unsigned int chan);
  */
 extern void set_dma_handler (unsigned int chan, void (*irq_handler) (int, void *), void *data);
 
+extern int dma_getposition(unsigned int  channel, dma_addr_t *src, dma_addr_t *dst);
 #endif /* __ASM_ARM_DMA_H */

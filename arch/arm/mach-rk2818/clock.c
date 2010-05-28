@@ -911,7 +911,7 @@ static struct clk_lookup clks[] = {
 	CLK1(deblocking_rv),
 	CLK1(lcdc),
 	CLK1(vip),
-	CLK1(i2s),
+	CLK("rk2818_i2s","i2s",&i2s_clk),
 	CLK("rk2818_sdmmc.0", "sdmmc", &sdmmc0_clk),
 	CLK1(ebrom),
 	CLK1(gpio0),

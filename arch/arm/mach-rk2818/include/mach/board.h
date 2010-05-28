@@ -23,11 +23,6 @@
 /* platform device data structures */
 struct platform_device;
 struct i2c_client;
-struct RK2818_mddi_platform_data
-{
-	void (*panel_power)(int on);
-	unsigned has_vsync_irq:1;
-};
 struct rk2818_sdmmc_platform_data {
 	unsigned int host_caps;
 	unsigned int host_ocr_avail;

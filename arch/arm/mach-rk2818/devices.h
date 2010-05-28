@@ -31,6 +31,7 @@ extern struct platform_device rk2818_device_sdmmc1;
 extern struct rk2818_sdmmc_platform_data default_sdmmc0_data;
 extern struct rk2818_sdmmc_platform_data default_sdmmc1_data;
 extern struct platform_device rk2818_device_dm9k;
+extern struct platform_device rk2818_device_i2s;
 extern struct platform_device rk2818_device_pmem;
 extern struct platform_device rk2818_device_fb;
 extern struct platform_device rk2818_device_adc;
