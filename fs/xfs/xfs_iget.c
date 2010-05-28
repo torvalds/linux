@@ -382,9 +382,6 @@ xfs_iget(
 
 	/* get the perag structure and ensure that it's inode capable */
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ino));
-	if (!pag->pagi_inodeok)
-		return EINVAL;
-	ASSERT(pag->pag_ici_init);
 	agino = XFS_INO_TO_AGINO(mp, ino);
 
 again:

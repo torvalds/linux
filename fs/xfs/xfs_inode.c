@@ -2649,8 +2649,6 @@ xfs_iflush_cluster(
 	int			i;
 
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
-	ASSERT(pag->pagi_inodeok);
-	ASSERT(pag->pag_ici_init);
 
 	inodes_per_cluster = XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog;
 	ilist_size = inodes_per_cluster * sizeof(xfs_inode_t *);

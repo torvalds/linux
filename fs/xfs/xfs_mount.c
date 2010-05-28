@@ -413,17 +413,6 @@ xfs_mount_validate_sb(
 	return 0;
 }
 
-STATIC void
-xfs_initialize_perag_icache(
-	xfs_perag_t	*pag)
-{
-	if (!pag->pag_ici_init) {
-		rwlock_init(&pag->pag_ici_lock);
-		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
-		pag->pag_ici_init = 1;
-	}
-}
-
 int
 xfs_initialize_perag(
 	xfs_mount_t	*mp,
@@ -436,12 +425,7 @@ xfs_initialize_perag(
 	xfs_agino_t	agino;
 	xfs_ino_t	ino;
 	xfs_sb_t	*sbp = &mp->m_sb;
-	xfs_ino_t	max_inum = XFS_MAXINUMBER_32;
 	int		error = -ENOMEM;
-
-	/* Check to see if the filesystem can overflow 32 bit inodes */
-	agino = XFS_OFFBNO_TO_AGINO(mp, sbp->sb_agblocks - 1, 0);
-	ino = XFS_AGINO_TO_INO(mp, agcount - 1, agino);
 
 	/*
 	 * Walk the current per-ag tree so we don't try to initialise AGs
@@ -456,11 +440,18 @@ xfs_initialize_perag(
 		}
 		if (!first_initialised)
 			first_initialised = index;
+
 		pag = kmem_zalloc(sizeof(*pag), KM_MAYFAIL);
 		if (!pag)
 			goto out_unwind;
+		pag->pag_agno = index;
+		pag->pag_mount = mp;
+		rwlock_init(&pag->pag_ici_lock);
+		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
+
 		if (radix_tree_preload(GFP_NOFS))
 			goto out_unwind;
+
 		spin_lock(&mp->m_perag_lock);
 		if (radix_tree_insert(&mp->m_perag_tree, index, pag)) {
 			BUG();
@@ -469,25 +460,26 @@ xfs_initialize_perag(
 			error = -EEXIST;
 			goto out_unwind;
 		}
-		pag->pag_agno = index;
-		pag->pag_mount = mp;
 		spin_unlock(&mp->m_perag_lock);
 		radix_tree_preload_end();
 	}
 
-	/* Clear the mount flag if no inode can overflow 32 bits
-	 * on this filesystem, or if specifically requested..
+	/*
+	 * If we mount with the inode64 option, or no inode overflows
+	 * the legacy 32-bit address space clear the inode32 option.
 	 */
-	if ((mp->m_flags & XFS_MOUNT_SMALL_INUMS) && ino > max_inum) {
-		mp->m_flags |= XFS_MOUNT_32BITINODES;
-	} else {
-		mp->m_flags &= ~XFS_MOUNT_32BITINODES;
-	}
+	agino = XFS_OFFBNO_TO_AGINO(mp, sbp->sb_agblocks - 1, 0);
+	ino = XFS_AGINO_TO_INO(mp, agcount - 1, agino);
 
-	/* If we can overflow then setup the ag headers accordingly */
+	if ((mp->m_flags & XFS_MOUNT_SMALL_INUMS) && ino > XFS_MAXINUMBER_32)
+		mp->m_flags |= XFS_MOUNT_32BITINODES;
+	else
+		mp->m_flags &= ~XFS_MOUNT_32BITINODES;
+
 	if (mp->m_flags & XFS_MOUNT_32BITINODES) {
-		/* Calculate how much should be reserved for inodes to
-		 * meet the max inode percentage.
+		/*
+		 * Calculate how much should be reserved for inodes to meet
+		 * the max inode percentage.
 		 */
 		if (mp->m_maxicount) {
 			__uint64_t	icount;
@@ -500,30 +492,28 @@ xfs_initialize_perag(
 		} else {
 			max_metadata = agcount;
 		}
+
 		for (index = 0; index < agcount; index++) {
 			ino = XFS_AGINO_TO_INO(mp, index, agino);
-			if (ino > max_inum) {
+			if (ino > XFS_MAXINUMBER_32) {
 				index++;
 				break;
 			}
 
-			/* This ag is preferred for inodes */
 			pag = xfs_perag_get(mp, index);
 			pag->pagi_inodeok = 1;
 			if (index < max_metadata)
 				pag->pagf_metadata = 1;
-			xfs_initialize_perag_icache(pag);
 			xfs_perag_put(pag);
 		}
 	} else {
-		/* Setup default behavior for smaller filesystems */
 		for (index = 0; index < agcount; index++) {
 			pag = xfs_perag_get(mp, index);
 			pag->pagi_inodeok = 1;
-			xfs_initialize_perag_icache(pag);
 			xfs_perag_put(pag);
 		}
 	}
+
 	if (maxagi)
 		*maxagi = index;
 	return 0;
