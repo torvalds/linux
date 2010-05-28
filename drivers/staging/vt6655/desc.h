@@ -259,9 +259,9 @@ typedef struct tagRDES0 {
 	union {
 		volatile U16    f15Reserved;
 		struct {
-            volatile U8 f8Reserved1;
-			volatile U8 f1Owner:1;
-			volatile U8 f7Reserved:7;
+            volatile u8 f8Reserved1;
+			volatile u8 f1Owner:1;
+			volatile u8 f7Reserved:7;
 		} __attribute__ ((__packed__));
 	} __attribute__ ((__packed__));
 } __attribute__ ((__packed__))
@@ -319,9 +319,9 @@ typedef struct tagTDES0 {
 	union {
 		volatile U16    f15Txtime;
 		struct {
-            volatile U8 f8Reserved1;
-			volatile U8 f1Owner:1;
-			volatile U8 f7Reserved:7;
+            volatile u8 f8Reserved1;
+			volatile u8 f1Owner:1;
+			volatile u8 f7Reserved:7;
 		} __attribute__ ((__packed__));
 	} __attribute__ ((__packed__));
 } __attribute__ ((__packed__))

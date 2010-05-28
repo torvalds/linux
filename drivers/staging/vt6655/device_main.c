@@ -1151,7 +1151,7 @@ static BOOL device_init_info(struct pci_dev* pcid, PSDevice* ppDevice,
 static BOOL device_get_pci_info(PSDevice pDevice, struct pci_dev* pcid) {
 
     U16 pci_cmd;
-    U8  b;
+    u8  b;
     UINT cis_addr;
 #ifdef	PLICE_DEBUG
 	BYTE       pci_config[256];

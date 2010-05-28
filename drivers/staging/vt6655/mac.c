@@ -1046,7 +1046,7 @@ void MACvInitialize (DWORD_PTR dwIoBase)
     //MACvRegBitsOn(dwIoBase, MAC_REG_I2MCSR, I2MCSR_AUTOLD);
     // wait until EEPROM loading complete
     //while (TRUE) {
-    //    U8 u8Data;
+    //    u8 u8Data;
     //    VNSvInPortB(dwIoBase + MAC_REG_I2MCSR, &u8Data);
     //    if ( !(u8Data & I2MCSR_AUTOLD))
     //        break;
