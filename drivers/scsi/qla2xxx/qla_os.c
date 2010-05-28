@@ -140,7 +140,7 @@ MODULE_PARM_DESC(ql2xetsenable,
 		"Enables firmware ETS burst."
 		"Default is 0 - skip ETS enablement.");
 
-int ql2xdbwr;
+int ql2xdbwr = 1;
 module_param(ql2xdbwr, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xdbwr,
 	"Option to specify scheme for request queue posting\n"

@@ -3372,11 +3372,16 @@ qla82xx_start_iocbs(srb_t *sp)
 	dbval = 0x04 | (ha->portnum << 5);
 
 	dbval = dbval | (req->id << 8) | (req->ring_index << 16);
-	WRT_REG_DWORD((unsigned long __iomem *)ha->nxdb_wr_ptr, dbval);
-	wmb();
-	while (RD_REG_DWORD(ha->nxdb_rd_ptr) != dbval) {
-		WRT_REG_DWORD((unsigned long  __iomem *)ha->nxdb_wr_ptr, dbval);
+	if (ql2xdbwr)
+		qla82xx_wr_32(ha, ha->nxdb_wr_ptr, dbval);
+	else {
+		WRT_REG_DWORD((unsigned long __iomem *)ha->nxdb_wr_ptr, dbval);
 		wmb();
+		while (RD_REG_DWORD(ha->nxdb_rd_ptr) != dbval) {
+			WRT_REG_DWORD((unsigned long  __iomem *)ha->nxdb_wr_ptr,
+				dbval);
+			wmb();
+		}
 	}
 }
 
