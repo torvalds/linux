@@ -60,9 +60,8 @@ qla2x00_ctx_sp_timeout(unsigned long __data)
 	ctx = sp->ctx;
 	iocb = ctx->u.iocb_cmd;
 	iocb->timeout(sp);
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-
 	iocb->free(sp);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 }
 
 void
@@ -137,8 +136,16 @@ qla2x00_async_iocb_timeout(srb_t *sp)
 		fcport->d_id.b.area, fcport->d_id.b.al_pa));
 
 	fcport->flags &= ~FCF_ASYNC_SENT;
-	if (ctx->type == SRB_LOGIN_CMD)
+	if (ctx->type == SRB_LOGIN_CMD) {
+		struct srb_iocb *lio = ctx->u.iocb_cmd;
 		qla2x00_post_async_logout_work(fcport->vha, fcport, NULL);
+		/* Retry as needed. */
+		lio->u.logio.data[0] = MBS_COMMAND_ERROR;
+		lio->u.logio.data[1] = lio->u.logio.flags & SRB_LOGIN_RETRIED ?
+			QLA_LOGIO_LOGIN_RETRIED : 0;
+		qla2x00_post_async_login_done_work(fcport->vha, fcport,
+			lio->u.logio.data);
+	}
 }
 
 static void
@@ -420,10 +427,11 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 		if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
 			set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 		else
-			qla2x00_mark_device_lost(vha, fcport, 1, 0);
+			qla2x00_mark_device_lost(vha, fcport, 1, 1);
 		break;
 	case MBS_PORT_ID_USED:
 		fcport->loop_id = data[1];
+		qla2x00_post_async_logout_work(vha, fcport, NULL);
 		qla2x00_post_async_login_work(vha, fcport, NULL);
 		break;
 	case MBS_LOOP_ID_USED:
@@ -431,7 +439,7 @@ qla2x00_async_login_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 		rval = qla2x00_find_new_loop_id(vha, fcport);
 		if (rval != QLA_SUCCESS) {
 			fcport->flags &= ~FCF_ASYNC_SENT;
-			qla2x00_mark_device_lost(vha, fcport, 1, 0);
+			qla2x00_mark_device_lost(vha, fcport, 1, 1);
 			break;
 		}
 		qla2x00_post_async_login_work(vha, fcport, NULL);
@@ -463,7 +471,7 @@ qla2x00_async_adisc_done(struct scsi_qla_host *vha, fc_port_t *fcport,
 	if (data[1] & QLA_LOGIO_LOGIN_RETRIED)
 		set_bit(RELOGIN_NEEDED, &vha->dpc_flags);
 	else
-		qla2x00_mark_device_lost(vha, fcport, 1, 0);
+		qla2x00_mark_device_lost(vha, fcport, 1, 1);
 
 	return;
 }

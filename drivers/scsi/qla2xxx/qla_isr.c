@@ -949,7 +949,7 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 			fcport->port_type = FCT_TARGET;
 			if (le16_to_cpu(mbx->mb1) & BIT_0)
 				fcport->port_type = FCT_INITIATOR;
-			if (le16_to_cpu(mbx->mb1) & BIT_1)
+			else if (le16_to_cpu(mbx->mb1) & BIT_1)
 				fcport->flags |= FCF_FCP2_DEVICE;
 		}
 		goto logio_done;
