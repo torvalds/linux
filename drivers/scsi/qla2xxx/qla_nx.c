@@ -19,6 +19,7 @@
 #define QLA82XX_PCI_OCM0_2M (0xc0000)
 #define VALID_OCM_ADDR(addr) (((addr) & 0x3f800) != 0x3f800)
 #define GET_MEM_OFFS_2M(addr) (addr & MASK(18))
+#define BLOCK_PROTECT_BITS 0x0F
 
 /* CRB window related */
 #define CRB_BLK(off)	((off >> 20) & 0x3f)
@@ -3147,10 +3148,10 @@ qla82xx_unprotect_flash(struct qla_hw_data *ha)
 	if (ret < 0)
 		goto done_unprotect;
 
-	val &= ~(0x7 << 2);
+	val &= ~(BLOCK_PROTECT_BITS << 2);
 	ret = qla82xx_write_status_reg(ha, val);
 	if (ret < 0) {
-		val |= (0x7 << 2);
+		val |= (BLOCK_PROTECT_BITS << 2);
 		qla82xx_write_status_reg(ha, val);
 	}
 
@@ -3178,7 +3179,7 @@ qla82xx_protect_flash(struct qla_hw_data *ha)
 	if (ret < 0)
 		goto done_protect;
 
-	val |= (0x7 << 2);
+	val |= (BLOCK_PROTECT_BITS << 2);
 	/* LOCK all sectors */
 	ret = qla82xx_write_status_reg(ha, val);
 	if (ret < 0)
