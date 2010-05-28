@@ -918,12 +918,15 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	    QLA_LOGIO_LOGIN_RETRIED : 0;
 	if (mbx->entry_status) {
 		DEBUG2(printk(KERN_WARNING
-		    "scsi(%ld:%x): Async-%s error entry - entry-status=%x "
-		    "status=%x state-flag=%x status-flags=%x.\n",
+		    "scsi(%ld:%x): Async-%s error entry - portid=%02x%02x%02x "
+		    "entry-status=%x status=%x state-flag=%x "
+		    "status-flags=%x.\n",
 		    fcport->vha->host_no, sp->handle, type,
-		    mbx->entry_status, le16_to_cpu(mbx->status),
-		    le16_to_cpu(mbx->state_flags),
+		    fcport->d_id.b.domain, fcport->d_id.b.area,
+		    fcport->d_id.b.al_pa, mbx->entry_status,
+		    le16_to_cpu(mbx->status), le16_to_cpu(mbx->state_flags),
 		    le16_to_cpu(mbx->status_flags)));
+
 		DEBUG2(qla2x00_dump_buffer((uint8_t *)mbx, sizeof(*mbx)));
 
 		goto logio_done;
@@ -935,9 +938,11 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 		status = 0;
 	if (!status && le16_to_cpu(mbx->mb0) == MBS_COMMAND_COMPLETE) {
 		DEBUG2(printk(KERN_DEBUG
-		    "scsi(%ld:%x): Async-%s complete - mbx1=%x.\n",
+		    "scsi(%ld:%x): Async-%s complete - portid=%02x%02x%02x "
+		    "mbx1=%x.\n",
 		    fcport->vha->host_no, sp->handle, type,
-		    le16_to_cpu(mbx->mb1)));
+		    fcport->d_id.b.domain, fcport->d_id.b.area,
+		    fcport->d_id.b.al_pa, le16_to_cpu(mbx->mb1)));
 
 		data[0] = MBS_COMMAND_COMPLETE;
 		if (ctx->type == SRB_LOGIN_CMD) {
@@ -963,9 +968,10 @@ qla2x00_mbx_iocb_entry(scsi_qla_host_t *vha, struct req_que *req,
 	}
 
 	DEBUG2(printk(KERN_WARNING
-	    "scsi(%ld:%x): Async-%s failed - status=%x mb0=%x mb1=%x mb2=%x "
-	    "mb6=%x mb7=%x.\n",
-	    fcport->vha->host_no, sp->handle, type, status,
+	    "scsi(%ld:%x): Async-%s failed - portid=%02x%02x%02x status=%x "
+	    "mb0=%x mb1=%x mb2=%x mb6=%x mb7=%x.\n",
+	    fcport->vha->host_no, sp->handle, type, fcport->d_id.b.domain,
+	    fcport->d_id.b.area, fcport->d_id.b.al_pa, status,
 	    le16_to_cpu(mbx->mb0), le16_to_cpu(mbx->mb1),
 	    le16_to_cpu(mbx->mb2), le16_to_cpu(mbx->mb6),
 	    le16_to_cpu(mbx->mb7)));
@@ -1096,9 +1102,11 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 		QLA_LOGIO_LOGIN_RETRIED : 0;
 	if (logio->entry_status) {
 		DEBUG2(printk(KERN_WARNING
-		    "scsi(%ld:%x): Async-%s error entry - entry-status=%x.\n",
+		    "scsi(%ld:%x): Async-%s error entry - "
+		    "portid=%02x%02x%02x entry-status=%x.\n",
 		    fcport->vha->host_no, sp->handle, type,
-		    logio->entry_status));
+		    fcport->d_id.b.domain, fcport->d_id.b.area,
+		    fcport->d_id.b.al_pa, logio->entry_status));
 		DEBUG2(qla2x00_dump_buffer((uint8_t *)logio, sizeof(*logio)));
 
 		goto logio_done;
@@ -1106,8 +1114,11 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 
 	if (le16_to_cpu(logio->comp_status) == CS_COMPLETE) {
 		DEBUG2(printk(KERN_DEBUG
-		    "scsi(%ld:%x): Async-%s complete - iop0=%x.\n",
+		    "scsi(%ld:%x): Async-%s complete - portid=%02x%02x%02x "
+		    "iop0=%x.\n",
 		    fcport->vha->host_no, sp->handle, type,
+		    fcport->d_id.b.domain, fcport->d_id.b.area,
+		    fcport->d_id.b.al_pa,
 		    le32_to_cpu(logio->io_parameter[0])));
 
 		data[0] = MBS_COMMAND_COMPLETE;
@@ -1152,8 +1163,10 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 	}
 
 	DEBUG2(printk(KERN_WARNING
-	    "scsi(%ld:%x): Async-%s failed - comp=%x iop0=%x iop1=%x.\n",
-	    fcport->vha->host_no, sp->handle, type,
+	    "scsi(%ld:%x): Async-%s failed - portid=%02x%02x%02x comp=%x "
+	    "iop0=%x iop1=%x.\n",
+	    fcport->vha->host_no, sp->handle, type, fcport->d_id.b.domain,
+	    fcport->d_id.b.area, fcport->d_id.b.al_pa,
 	    le16_to_cpu(logio->comp_status),
 	    le32_to_cpu(logio->io_parameter[0]),
 	    le32_to_cpu(logio->io_parameter[1])));
