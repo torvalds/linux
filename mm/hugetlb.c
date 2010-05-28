@@ -18,6 +18,7 @@
 #include <linux/bootmem.h>
 #include <linux/sysfs.h>
 #include <linux/slab.h>
+#include <linux/rmap.h>
 
 #include <asm/page.h>
 #include <asm/pgtable.h>
@@ -218,6 +219,12 @@ static pgoff_t vma_hugecache_offset(struct hstate *h,
 {
 	return ((address - vma->vm_start) >> huge_page_shift(h)) +
 			(vma->vm_pgoff >> huge_page_order(h));
+}
+
+pgoff_t linear_hugepage_index(struct vm_area_struct *vma,
+				     unsigned long address)
+{
+	return vma_hugecache_offset(hstate_vma(vma), vma, address);
 }
 
 /*
@@ -552,6 +559,7 @@ static void free_huge_page(struct page *page)
 	set_page_private(page, 0);
 	page->mapping = NULL;
 	BUG_ON(page_count(page));
+	BUG_ON(page_mapcount(page));
 	INIT_LIST_HEAD(&page->lru);
 
 	spin_lock(&hugetlb_lock);
@@ -2129,6 +2137,7 @@ int copy_hugetlb_page_range(struct mm_struct *dst, struct mm_struct *src,
 			entry = huge_ptep_get(src_pte);
 			ptepage = pte_page(entry);
 			get_page(ptepage);
+			page_dup_rmap(ptepage);
 			set_huge_pte_at(dst, addr, dst_pte, entry);
 		}
 		spin_unlock(&src->page_table_lock);
@@ -2207,6 +2216,7 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 	flush_tlb_range(vma, start, end);
 	mmu_notifier_invalidate_range_end(mm, start, end);
 	list_for_each_entry_safe(page, tmp, &page_list, lru) {
+		page_remove_rmap(page);
 		list_del(&page->lru);
 		put_page(page);
 	}
@@ -2272,6 +2282,9 @@ static int unmap_ref_private(struct mm_struct *mm, struct vm_area_struct *vma,
 	return 1;
 }
 
+/*
+ * Hugetlb_cow() should be called with page lock of the original hugepage held.
+ */
 static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 			unsigned long address, pte_t *ptep, pte_t pte,
 			struct page *pagecache_page)
@@ -2286,8 +2299,11 @@ static int hugetlb_cow(struct mm_struct *mm, struct vm_area_struct *vma,
 retry_avoidcopy:
 	/* If no-one else is actually using this page, avoid the copy
 	 * and just make the page writable */
-	avoidcopy = (page_count(old_page) == 1);
+	avoidcopy = (page_mapcount(old_page) == 1);
 	if (avoidcopy) {
+		if (!trylock_page(old_page))
+			if (PageAnon(old_page))
+				page_move_anon_rmap(old_page, vma, address);
 		set_huge_ptep_writable(vma, address, ptep);
 		return 0;
 	}
@@ -2338,6 +2354,13 @@ retry_avoidcopy:
 		return -PTR_ERR(new_page);
 	}
 
+	/*
+	 * When the original hugepage is shared one, it does not have
+	 * anon_vma prepared.
+	 */
+	if (unlikely(anon_vma_prepare(vma)))
+		return VM_FAULT_OOM;
+
 	copy_huge_page(new_page, old_page, address, vma);
 	__SetPageUptodate(new_page);
 
@@ -2352,6 +2375,8 @@ retry_avoidcopy:
 		huge_ptep_clear_flush(vma, address, ptep);
 		set_huge_pte_at(mm, address, ptep,
 				make_huge_pte(vma, new_page, 1));
+		page_remove_rmap(old_page);
+		hugepage_add_anon_rmap(new_page, vma, address);
 		/* Make the old page be freed below */
 		new_page = old_page;
 	}
@@ -2452,10 +2477,17 @@ retry:
 			spin_lock(&inode->i_lock);
 			inode->i_blocks += blocks_per_huge_page(h);
 			spin_unlock(&inode->i_lock);
+			page_dup_rmap(page);
 		} else {
 			lock_page(page);
-			page->mapping = HUGETLB_POISON;
+			if (unlikely(anon_vma_prepare(vma))) {
+				ret = VM_FAULT_OOM;
+				goto backout_unlocked;
+			}
+			hugepage_add_new_anon_rmap(page, vma, address);
 		}
+	} else {
+		page_dup_rmap(page);
 	}
 
 	/*
@@ -2507,6 +2539,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte_t *ptep;
 	pte_t entry;
 	int ret;
+	struct page *page = NULL;
 	struct page *pagecache_page = NULL;
 	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
 	struct hstate *h = hstate_vma(vma);
@@ -2548,6 +2581,11 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 								vma, address);
 	}
 
+	if (!pagecache_page) {
+		page = pte_page(entry);
+		lock_page(page);
+	}
+
 	spin_lock(&mm->page_table_lock);
 	/* Check for a racing update before calling hugetlb_cow */
 	if (unlikely(!pte_same(entry, huge_ptep_get(ptep))))
@@ -2573,6 +2611,8 @@ out_page_table_lock:
 	if (pagecache_page) {
 		unlock_page(pagecache_page);
 		put_page(pagecache_page);
+	} else {
+		unlock_page(page);
 	}
 
 out_mutex:
