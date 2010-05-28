@@ -136,7 +136,8 @@ qla24xx_enable_vp(scsi_qla_host_t *vha)
 
 	/* Check if physical ha port is Up */
 	if (atomic_read(&base_vha->loop_state) == LOOP_DOWN  ||
-		atomic_read(&base_vha->loop_state) == LOOP_DEAD) {
+		atomic_read(&base_vha->loop_state) == LOOP_DEAD ||
+		!(ha->current_topology & ISP_CFG_F)) {
 		vha->vp_err_state =  VP_ERR_PORTDWN;
 		fc_vport_set_state(vha->fc_vport, FC_VPORT_LINKDOWN);
 		goto enable_failed;
