@@ -370,7 +370,7 @@ static int rk2818_sdmmc_submit_data_dma(struct rk2818_sdmmc_host *host, struct m
 {
 	struct scatterlist		*sg;
 	unsigned int			i;
-
+	dev_dbg(host->dev, "sg_len=%d\n", data->sg_len);
 	host->dma_chn = -1;
 	if(host->use_dma == 0)
 		return -ENOSYS;
@@ -422,7 +422,7 @@ static void rk2818_sdmmc_submit_data(struct rk2818_sdmmc_host *host, struct mmc_
 			host->dir_status = RK2818_MCI_RECV_STATUS;
 		else 
 			host->dir_status = RK2818_MCI_SEND_STATUS;
-		writel(readl(host->regs + SDMMC_CTRL) | SDMMC_CTRL_DMA_ENABLE,
+		writel(readl(host->regs + SDMMC_CTRL) & ~SDMMC_CTRL_DMA_ENABLE,
 				host->regs +SDMMC_CTRL);
 	}
 }
@@ -753,13 +753,7 @@ static void rk2818_sdmmc_tasklet_func(unsigned long priv)
 
 			if (!rk2818_sdmmc_test_and_clear_pending(host,
 						EVENT_XFER_COMPLETE))
-			{
-				if(host-> no_detect == 1 && 
-					host->dir_status == RK2818_MCI_RECV_STATUS && 
-					host->dma_chn == -1)
-					rk2818_sdmmc_read_data_pio(host);
 				break;
-			}
 			rk2818_sdmmc_set_completed(host, EVENT_XFER_COMPLETE);
 			prev_state = state = STATE_DATA_BUSY;
 			/* fall through */
@@ -839,7 +833,7 @@ inline static void rk2818_sdmmc_push_data(struct rk2818_sdmmc_host *host, void *
 	dev_dbg(host->dev, "push data(cnt=%d)\n",cnt);
 
     if (cnt % 4 != 0) 
-	    printk("error not align 4\n");
+	    dev_info(host->dev, "error not align 4\n");
 
     cnt = cnt >> 2;
     while (cnt > 0) {
@@ -855,7 +849,7 @@ inline static void rk2818_sdmmc_pull_data(struct rk2818_sdmmc_host *host, void *
 	dev_dbg(host->dev, "pull data(cnt=%d)\n",cnt);
 
     if (cnt % 4 != 0) 
-	    printk("error not align 4\n");
+	    dev_info(host->dev, "error not align 4\n");
     cnt = cnt >> 2;
     while (cnt > 0) {
         *pData++ = readl(host->regs + SDMMC_DATA);
