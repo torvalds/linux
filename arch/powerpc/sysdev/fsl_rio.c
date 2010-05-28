@@ -1426,7 +1426,7 @@ int fsl_rio_setup(struct of_device *dev)
 	port->iores.flags = IORESOURCE_MEM;
 	port->iores.name = "rio_io_win";
 
-	priv->pwirq   = irq_of_parse_and_map(dev->node, 0);
+	priv->pwirq   = irq_of_parse_and_map(dev->dev.of_node, 0);
 	priv->bellirq = irq_of_parse_and_map(dev->dev.of_node, 2);
 	priv->txirq = irq_of_parse_and_map(dev->dev.of_node, 3);
 	priv->rxirq = irq_of_parse_and_map(dev->dev.of_node, 4);
