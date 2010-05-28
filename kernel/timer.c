@@ -752,11 +752,15 @@ unsigned long apply_slack(struct timer_list *timer, unsigned long expires)
 
 	expires_limit = expires;
 
-	if (timer->slack > -1)
+	if (timer->slack >= 0) {
 		expires_limit = expires + timer->slack;
-	else if (time_after(expires, jiffies)) /* auto slack: use 0.4% */
-		expires_limit = expires + (expires - jiffies)/256;
+	} else {
+		unsigned long now = jiffies;
 
+		/* No slack, if already expired else auto slack 0.4% */
+		if (time_after(expires, now))
+			expires_limit = expires + (expires - now)/256;
+	}
 	mask = expires ^ expires_limit;
 	if (mask == 0)
 		return expires;
