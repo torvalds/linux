@@ -19,6 +19,13 @@
 #define INT_DEF_LB_LOOPBACK_CMD         0
 #define INT_DEF_LB_ECHO_CMD             1
 
+/* Loopback related definations */
+#define EXTERNAL_LOOPBACK		0xF2
+#define ENABLE_INTERNAL_LOOPBACK	0x02
+#define INTERNAL_LOOPBACK_MASK		0x000E
+#define MAX_ELS_FRAME_PAYLOAD		252
+#define ELS_OPCODE_BYTE			0x10
+
 /* BSG Vendor specific definations */
 #define A84_ISSUE_WRITE_TYPE_CMD        0
 #define A84_ISSUE_READ_TYPE_CMD         1

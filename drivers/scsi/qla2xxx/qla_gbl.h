@@ -357,6 +357,11 @@ qla2x00_write_ram_word(scsi_qla_host_t *, uint32_t, uint32_t);
 extern int qla2x00_get_data_rate(scsi_qla_host_t *);
 extern int qla24xx_set_fcp_prio(scsi_qla_host_t *, uint16_t, uint16_t,
 	uint16_t *);
+extern int
+qla81xx_get_port_config(scsi_qla_host_t *, uint16_t *);
+
+extern int
+qla81xx_set_port_config(scsi_qla_host_t *, uint16_t *);
 
 /*
  * Global Function Prototypes in qla_isr.c source file.

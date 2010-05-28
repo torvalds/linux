@@ -483,6 +483,98 @@ done:
 	return rval;
 }
 
+/* Set the port configuration to enable the
+ * internal loopback on ISP81XX
+ */
+static inline int
+qla81xx_set_internal_loopback(scsi_qla_host_t *vha, uint16_t *config,
+    uint16_t *new_config)
+{
+	int ret = 0;
+	int rval = 0;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA81XX(ha))
+		goto done_set_internal;
+
+	new_config[0] = config[0] | (ENABLE_INTERNAL_LOOPBACK << 1);
+	memcpy(&new_config[1], &config[1], sizeof(uint16_t) * 3) ;
+
+	ha->notify_dcbx_comp = 1;
+	ret = qla81xx_set_port_config(vha, new_config);
+	if (ret != QLA_SUCCESS) {
+		DEBUG2(printk(KERN_ERR
+		    "%s(%lu): Set port config failed\n",
+		    __func__, vha->host_no));
+		ha->notify_dcbx_comp = 0;
+		rval = -EINVAL;
+		goto done_set_internal;
+	}
+
+	/* Wait for DCBX complete event */
+	if (!wait_for_completion_timeout(&ha->dcbx_comp, (20 * HZ))) {
+		DEBUG2(qla_printk(KERN_WARNING, ha,
+		    "State change notificaition not received.\n"));
+	} else
+		DEBUG2(qla_printk(KERN_INFO, ha,
+		    "State change RECEIVED\n"));
+
+	ha->notify_dcbx_comp = 0;
+
+done_set_internal:
+	return rval;
+}
+
+/* Set the port configuration to disable the
+ * internal loopback on ISP81XX
+ */
+static inline int
+qla81xx_reset_internal_loopback(scsi_qla_host_t *vha, uint16_t *config,
+    int wait)
+{
+	int ret = 0;
+	int rval = 0;
+	uint16_t new_config[4];
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!IS_QLA81XX(ha))
+		goto done_reset_internal;
+
+	memset(new_config, 0 , sizeof(new_config));
+	if ((config[0] & INTERNAL_LOOPBACK_MASK) >> 1 ==
+			ENABLE_INTERNAL_LOOPBACK) {
+		new_config[0] = config[0] & ~INTERNAL_LOOPBACK_MASK;
+		memcpy(&new_config[1], &config[1], sizeof(uint16_t) * 3) ;
+
+		ha->notify_dcbx_comp = wait;
+		ret = qla81xx_set_port_config(vha, new_config);
+		if (ret != QLA_SUCCESS) {
+			DEBUG2(printk(KERN_ERR
+			    "%s(%lu): Set port config failed\n",
+			     __func__, vha->host_no));
+			ha->notify_dcbx_comp = 0;
+			rval = -EINVAL;
+			goto done_reset_internal;
+		}
+
+		/* Wait for DCBX complete event */
+		if (wait && !wait_for_completion_timeout(&ha->dcbx_comp,
+			(20 * HZ))) {
+			DEBUG2(qla_printk(KERN_WARNING, ha,
+			    "State change notificaition not received.\n"));
+			ha->notify_dcbx_comp = 0;
+			rval = -EINVAL;
+			goto done_reset_internal;
+		} else
+			DEBUG2(qla_printk(KERN_INFO, ha,
+			    "State change RECEIVED\n"));
+
+		ha->notify_dcbx_comp = 0;
+	}
+done_reset_internal:
+	return rval;
+}
+
 static int
 qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 {
@@ -494,6 +586,7 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 	char *type;
 	struct msg_echo_lb elreq;
 	uint16_t response[MAILBOX_REGISTER_COUNT];
+	uint16_t config[4], new_config[4];
 	uint8_t *fw_sts_ptr;
 	uint8_t *req_data = NULL;
 	dma_addr_t req_data_dma;
@@ -568,29 +661,102 @@ qla2x00_process_loopback(struct fc_bsg_job *bsg_job)
 
 	elreq.options = bsg_job->request->rqst_data.h_vendor.vendor_cmd[1];
 
-	if (ha->current_topology != ISP_CFG_F) {
-		type = "FC_BSG_HST_VENDOR_LOOPBACK";
-		DEBUG2(qla_printk(KERN_INFO, ha,
-			"scsi(%ld) bsg rqst type: %s\n",
-			vha->host_no, type));
-
-		command_sent = INT_DEF_LB_LOOPBACK_CMD;
-		rval = qla2x00_loopback_test(vha, &elreq, response);
-		if (IS_QLA81XX(ha)) {
-			if (response[0] == MBS_COMMAND_ERROR &&
-				response[1] == MBS_LB_RESET) {
-				DEBUG2(printk(KERN_ERR "%s(%ld): ABORTing "
-				"ISP\n", __func__, vha->host_no));
-				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
-				qla2xxx_wake_dpc(vha);
-			}
-		}
-	} else {
+	if ((ha->current_topology == ISP_CFG_F ||
+	    (IS_QLA81XX(ha) &&
+	    le32_to_cpu(*(uint32_t *)req_data) == ELS_OPCODE_BYTE
+	    && req_data_len == MAX_ELS_FRAME_PAYLOAD)) &&
+		elreq.options == EXTERNAL_LOOPBACK) {
 		type = "FC_BSG_HST_VENDOR_ECHO_DIAG";
 		DEBUG2(qla_printk(KERN_INFO, ha,
-		    "scsi(%ld) bsg rqst type: %s\n", vha->host_no, type));
+			"scsi(%ld) bsg rqst type: %s\n", vha->host_no, type));
 		command_sent = INT_DEF_LB_ECHO_CMD;
 		rval = qla2x00_echo_test(vha, &elreq, response);
+	} else {
+		if (IS_QLA81XX(ha)) {
+			memset(config, 0, sizeof(config));
+			memset(new_config, 0, sizeof(new_config));
+			if (qla81xx_get_port_config(vha, config)) {
+				DEBUG2(printk(KERN_ERR
+					"%s(%lu): Get port config failed\n",
+					__func__, vha->host_no));
+				bsg_job->reply->reply_payload_rcv_len = 0;
+				bsg_job->reply->result = (DID_ERROR << 16);
+				rval = -EPERM;
+				goto done_free_dma_req;
+			}
+
+			if (elreq.options != EXTERNAL_LOOPBACK) {
+				DEBUG2(qla_printk(KERN_INFO, ha,
+					"Internal: current port config = %x\n",
+					config[0]));
+				if (qla81xx_set_internal_loopback(vha, config,
+					new_config)) {
+					bsg_job->reply->reply_payload_rcv_len =
+						0;
+					bsg_job->reply->result =
+						(DID_ERROR << 16);
+					rval = -EPERM;
+					goto done_free_dma_req;
+				}
+			} else {
+				/* For external loopback to work
+				 * ensure internal loopback is disabled
+				 */
+				if (qla81xx_reset_internal_loopback(vha,
+					config, 1)) {
+					bsg_job->reply->reply_payload_rcv_len =
+						0;
+					bsg_job->reply->result =
+						(DID_ERROR << 16);
+					rval = -EPERM;
+					goto done_free_dma_req;
+				}
+			}
+
+			type = "FC_BSG_HST_VENDOR_LOOPBACK";
+			DEBUG2(qla_printk(KERN_INFO, ha,
+				"scsi(%ld) bsg rqst type: %s\n",
+				vha->host_no, type));
+
+			command_sent = INT_DEF_LB_LOOPBACK_CMD;
+			rval = qla2x00_loopback_test(vha, &elreq, response);
+
+			if (new_config[1]) {
+				/* Revert back to original port config
+				 * Also clear internal loopback
+				 */
+				qla81xx_reset_internal_loopback(vha,
+				    new_config, 0);
+			}
+
+			if (response[0] == MBS_COMMAND_ERROR &&
+					response[1] == MBS_LB_RESET) {
+				DEBUG2(printk(KERN_ERR "%s(%ld): ABORTing "
+					"ISP\n", __func__, vha->host_no));
+				set_bit(ISP_ABORT_NEEDED, &vha->dpc_flags);
+				qla2xxx_wake_dpc(vha);
+				qla2x00_wait_for_chip_reset(vha);
+				/* Also reset the MPI */
+				if (qla81xx_restart_mpi_firmware(vha) !=
+				    QLA_SUCCESS) {
+					qla_printk(KERN_INFO, ha,
+					    "MPI reset failed for host%ld.\n",
+					    vha->host_no);
+				}
+
+				bsg_job->reply->reply_payload_rcv_len = 0;
+				bsg_job->reply->result = (DID_ERROR << 16);
+				rval = -EIO;
+				goto done_free_dma_req;
+			}
+		} else {
+			type = "FC_BSG_HST_VENDOR_LOOPBACK";
+			DEBUG2(qla_printk(KERN_INFO, ha,
+				"scsi(%ld) bsg rqst type: %s\n",
+				vha->host_no, type));
+			command_sent = INT_DEF_LB_LOOPBACK_CMD;
+			rval = qla2x00_loopback_test(vha, &elreq, response);
+		}
 	}
 
 	if (rval) {
