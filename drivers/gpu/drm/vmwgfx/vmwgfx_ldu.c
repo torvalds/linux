@@ -107,15 +107,11 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 			return 0;
 		fb = entry->base.crtc.fb;
 
-		vmw_write(dev_priv, SVGA_REG_ENABLE, 0);
 		vmw_kms_write_svga(dev_priv, w, h, fb->pitch,
 				   fb->bits_per_pixel, fb->depth);
-		vmw_write(dev_priv, SVGA_REG_ENABLE, 1);
 
 		return 0;
 	}
-
-	vmw_write(dev_priv, SVGA_REG_ENABLE, 0);
 
 	for (i = 0; i < lds->last_num_active; i++) {
 		vmw_write(dev_priv, SVGA_REG_DISPLAY_ID, i);
@@ -152,7 +148,6 @@ static int vmw_ldu_commit_list(struct vmw_private *dev_priv)
 
 	/* Make sure we always show something. */
 	vmw_write(dev_priv, SVGA_REG_NUM_GUEST_DISPLAYS, i ? i : 1);
-	vmw_write(dev_priv, SVGA_REG_ENABLE, 1);
 
 	BUG_ON(i != lds->num_active);
 

@@ -153,7 +153,6 @@ static int vmw_fb_set_par(struct fb_info *info)
 	struct vmw_private *vmw_priv = par->vmw_priv;
 
 	if (vmw_priv->capabilities & SVGA_CAP_DISPLAY_TOPOLOGY) {
-		vmw_write(vmw_priv, SVGA_REG_ENABLE, 0);
 		vmw_write(vmw_priv, SVGA_REG_DISPLAY_ID, 0);
 		vmw_write(vmw_priv, SVGA_REG_DISPLAY_IS_PRIMARY, true);
 		vmw_write(vmw_priv, SVGA_REG_DISPLAY_POSITION_X, 0);
@@ -175,13 +174,10 @@ static int vmw_fb_set_par(struct fb_info *info)
 		vmw_write(vmw_priv, SVGA_REG_DISPLAY_HEIGHT, info->var.yres);
 		vmw_write(vmw_priv, SVGA_REG_DISPLAY_ID, SVGA_ID_INVALID);
 		vmw_write(vmw_priv, SVGA_REG_NUM_GUEST_DISPLAYS, 1);
-		vmw_write(vmw_priv, SVGA_REG_ENABLE, 1);
 	} else {
-		vmw_write(vmw_priv, SVGA_REG_ENABLE, 0);
 		vmw_kms_write_svga(vmw_priv, info->var.xres, info->var.yres,
 				   info->fix.line_length,
 				   par->bpp, par->depth);
-		vmw_write(vmw_priv, SVGA_REG_ENABLE, 1);
 
 	}
 
