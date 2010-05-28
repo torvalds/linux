@@ -23,6 +23,7 @@
 #include <linux/input.h>
 #include <linux/kernel.h>
 #include <linux/kxtf9.h>
+#include <linux/l3g4200d.h>
 #include <linux/max9635.h>
 #include <linux/platform_device.h>
 
@@ -35,6 +36,7 @@
 #define KXTF9_IRQ_GPIO		TEGRA_GPIO_PV3
 #define MAX9635_IRQ_GPIO	TEGRA_GPIO_PV1
 #define BMP085_IRQ_GPIO		TEGRA_GPIO_PW0
+#define L3G4200D_IRQ_GPIO	TEGRA_GPIO_PH2
 
 static struct regulator *stingray_bmp085_regulator;
 static int stingray_bmp085_init(void)
@@ -231,6 +233,77 @@ static int stingray_max9635_init(void)
 	return 0;
 }
 
+static struct regulator *stingray_l3g4200d_regulator;
+static int stingray_l3g4200d_init(void)
+{
+	tegra_gpio_enable(L3G4200D_IRQ_GPIO);
+	gpio_request(L3G4200D_IRQ_GPIO, "l3g4200d_irq");
+	gpio_direction_input(L3G4200D_IRQ_GPIO);
+
+	/* TO DO: Add regulator init code here as well
+	struct regulator *reg;
+	reg = regulator_get(NULL, "vhvio");
+	if (IS_ERR(reg))
+		return PTR_ERR(reg);
+	stingray_max9635_regulator = reg;
+*/
+	stingray_l3g4200d_regulator = NULL;
+	return 0;
+}
+
+static void stingray_l3g4200d_exit(void)
+{
+	if (stingray_l3g4200d_regulator)
+		regulator_put(stingray_l3g4200d_regulator);
+
+	gpio_free(L3G4200D_IRQ_GPIO);
+}
+static int stingray_l3g4200d_power_on(void)
+{
+	if (stingray_l3g4200d_regulator)
+		return regulator_enable(stingray_l3g4200d_regulator);
+	return 0;
+}
+static int stingray_l3g4200d_power_off(void)
+{
+	if (stingray_l3g4200d_regulator)
+		return regulator_disable(stingray_l3g4200d_regulator);
+	return 0;
+}
+struct l3g4200d_platform_data stingray_gyro_pdata = {
+	.poll_interval = 200,
+	.min_interval = 0,
+
+	.g_range = 0,
+
+	.ctrl_reg_1 = 0xbf,
+	.ctrl_reg_2 = 0x00,
+	.ctrl_reg_3 = 0x00,
+	.ctrl_reg_4 = 0x00,
+	.ctrl_reg_5 = 0x00,
+	.int_config = 0x00,
+	.int_source = 0x00,
+	.int_th_x_h = 0x00,
+	.int_th_x_l = 0x00,
+	.int_th_y_h = 0x00,
+	.int_th_y_l = 0x00,
+	.int_th_z_h = 0x00,
+	.int_th_z_l = 0x00,
+	.int_duration = 0x00,
+
+	.axis_map_x = 0,
+	.axis_map_y = 0,
+	.axis_map_z = 0,
+
+	.negate_x = 0,
+	.negate_y = 0,
+	.negate_z = 0,
+
+	.exit = stingray_l3g4200d_exit,
+	.power_on = stingray_l3g4200d_power_on,
+	.power_off = stingray_l3g4200d_power_off,
+
+};
 static struct i2c_board_info __initdata stingray_i2c_bus4_sensor_info[] = {
 	{
 		I2C_BOARD_INFO("kxtf9", 0x0F),
@@ -251,14 +324,25 @@ static struct i2c_board_info __initdata stingray_i2c_bus1_sensor_info[] = {
 		.irq = TEGRA_GPIO_TO_IRQ(MAX9635_IRQ_GPIO),
 	 },
 };
+static struct i2c_board_info __initdata stingray_i2c_bus3_sensor_info[] = {
+	 {
+		I2C_BOARD_INFO(L3G4200D_NAME, 0x68),
+		.platform_data = &stingray_gyro_pdata,
+		.irq = TEGRA_GPIO_TO_IRQ(L3G4200D_IRQ_GPIO),
+	 },
+};
 
 int __init stingray_sensors_init(void)
 {
 	stingray_bmp085_init();
 	stingray_kxtf9_init();
 	stingray_max9635_init();
+	stingray_l3g4200d_init();
+
 	i2c_register_board_info(3, stingray_i2c_bus4_sensor_info,
 		ARRAY_SIZE(stingray_i2c_bus4_sensor_info));
+	i2c_register_board_info(2, stingray_i2c_bus3_sensor_info,
+		ARRAY_SIZE(stingray_i2c_bus3_sensor_info));
 	return i2c_register_board_info(0, stingray_i2c_bus1_sensor_info,
 		ARRAY_SIZE(stingray_i2c_bus1_sensor_info));
 }
