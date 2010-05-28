@@ -602,7 +602,7 @@ enum perf_event_active_state {
 
 struct file;
 
-struct perf_mmap_data {
+struct perf_buffer {
 	atomic_t			refcount;
 	struct rcu_head			rcu_head;
 #ifdef CONFIG_PERF_USE_VMALLOC
@@ -727,7 +727,7 @@ struct perf_event {
 	atomic_t			mmap_count;
 	int				mmap_locked;
 	struct user_struct		*mmap_user;
-	struct perf_mmap_data		*data;
+	struct perf_buffer		*buffer;
 
 	/* poll related */
 	wait_queue_head_t		waitq;
@@ -825,7 +825,7 @@ struct perf_cpu_context {
 
 struct perf_output_handle {
 	struct perf_event		*event;
-	struct perf_mmap_data		*data;
+	struct perf_buffer		*buffer;
 	unsigned long			wakeup;
 	unsigned long			size;
 	void				*addr;
