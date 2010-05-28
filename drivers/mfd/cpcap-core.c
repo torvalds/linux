@@ -288,13 +288,8 @@ static int __devinit cpcap_probe(struct spi_device *spi)
 		cpcap->regulator_pdev[i] = pdev;
 	}
 
-	for (i = 0; i < CPCAP_NUM_REGULATORS; i++) {
-		/* vusb has to be added after sw5 so skip it for now,
-		 * it will be added from probe of sw5 */
-		if (i == CPCAP_VUSB)
-			continue;
+	for (i = 0; i < CPCAP_NUM_REGULATORS; i++)
 		platform_device_add(cpcap->regulator_pdev[i]);
-	}
 
 	platform_add_devices(cpcap_devices, ARRAY_SIZE(cpcap_devices));
 

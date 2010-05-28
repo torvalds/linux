@@ -497,8 +497,12 @@ static int __init cpcap_whisper_probe(struct platform_device *pdev)
 	}
 	regulator_set_voltage(data->regulator, 3300000, 3300000);
 
-	retval = cpcap_irq_register(data->cpcap, CPCAP_IRQ_CHRG_DET,
-				    whisper_int_handler, data);
+	retval = cpcap_irq_clear(data->cpcap, CPCAP_IRQ_CHRG_DET);
+	retval |= cpcap_irq_clear(data->cpcap, CPCAP_IRQ_IDFLOAT);
+	retval |= cpcap_irq_clear(data->cpcap, CPCAP_IRQ_IDGND);
+
+	retval |= cpcap_irq_register(data->cpcap, CPCAP_IRQ_CHRG_DET,
+				     whisper_int_handler, data);
 	retval |= cpcap_irq_register(data->cpcap, CPCAP_IRQ_IDFLOAT,
 				     whisper_int_handler, data);
 	retval |= cpcap_irq_register(data->cpcap, CPCAP_IRQ_IDGND,
