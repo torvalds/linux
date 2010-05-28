@@ -43,3 +43,4 @@ obj-$(CONFIG_APANIC)		+= apanic.o
 obj-$(CONFIG_SENSORS_AK8975)	+= akm8975.o
 obj-$(CONFIG_SENSORS_KXTF9)	+= kxtf9.o
 obj-$(CONFIG_SENSORS_MAX9635)	+= max9635.o
+obj-$(CONFIG_SENSORS_L3G4200D)	+= l3g4200d.o

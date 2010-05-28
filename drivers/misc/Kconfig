@@ -348,6 +348,14 @@ config SENSORS_KXTF9
 	 Say yes here if you wish to include the Kionix
 	 KXTF9 accelerometer driver.
 
+config SENSORS_L3G4200D
+	tristate "ST Micro Gyroscope"
+	default n
+	depends on I2C
+	help
+	 Say yes here if you wish to include the ST Micro
+	 L3G4200D gyroscope driver.
+
 config SENSORS_MAX9635
 	tristate "Maxim Ambient Light Sensor"
 	default n
