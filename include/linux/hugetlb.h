@@ -2,6 +2,7 @@
 #define _LINUX_HUGETLB_H
 
 #include <linux/fs.h>
+#include <linux/hugetlb_inline.h>
 
 struct ctl_table;
 struct user_struct;
@@ -13,11 +14,6 @@ struct user_struct;
 #include <asm/tlbflush.h>
 
 int PageHuge(struct page *page);
-
-static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
-{
-	return vma->vm_flags & VM_HUGETLB;
-}
 
 void reset_vma_resv_huge_pages(struct vm_area_struct *vma);
 int hugetlb_sysctl_handler(struct ctl_table *, int, void __user *, size_t *, loff_t *);
@@ -73,11 +69,6 @@ void hugetlb_change_protection(struct vm_area_struct *vma,
 #else /* !CONFIG_HUGETLB_PAGE */
 
 static inline int PageHuge(struct page *page)
-{
-	return 0;
-}
-
-static inline int is_vm_hugetlb_page(struct vm_area_struct *vma)
 {
 	return 0;
 }
