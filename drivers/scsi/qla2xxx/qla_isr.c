@@ -1133,9 +1133,9 @@ qla24xx_logio_entry(scsi_qla_host_t *vha, struct req_que *req,
 			fcport->port_type = FCT_TARGET;
 			if (iop[0] & BIT_8)
 				fcport->flags |= FCF_FCP2_DEVICE;
-		}
-		if (iop[0] & BIT_5)
+		} else if (iop[0] & BIT_5)
 			fcport->port_type = FCT_INITIATOR;
+
 		if (logio->io_parameter[7] || logio->io_parameter[8])
 			fcport->supported_classes |= FC_COS_CLASS2;
 		if (logio->io_parameter[9] || logio->io_parameter[10])
