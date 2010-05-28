@@ -1407,7 +1407,8 @@ qla82xx_fw_load_from_flash(struct qla_hw_data *ha)
 {
 	int  i;
 	long size = 0;
-	long flashaddr = BOOTLD_START, memaddr = BOOTLD_START;
+	long flashaddr = ha->flt_region_bootload << 2;
+	long memaddr = BOOTLD_START;
 	u64 data;
 	u32 high, low;
 	size = (IMAGE_START - BOOTLD_START) / 8;
@@ -1677,6 +1678,94 @@ qla82xx_pci_mem_write_2M(struct qla_hw_data *ha,
 	return ret;
 }
 
+static struct qla82xx_uri_table_desc *
+qla82xx_get_table_desc(const u8 *unirom, int section)
+{
+	uint32_t i;
+	struct qla82xx_uri_table_desc *directory =
+		(struct qla82xx_uri_table_desc *)&unirom[0];
+	__le32 offset;
+	__le32 tab_type;
+	__le32 entries = cpu_to_le32(directory->num_entries);
+
+	for (i = 0; i < entries; i++) {
+		offset = cpu_to_le32(directory->findex) +
+		    (i * cpu_to_le32(directory->entry_size));
+		tab_type = cpu_to_le32(*((u32 *)&unirom[offset] + 8));
+
+		if (tab_type == section)
+			return (struct qla82xx_uri_table_desc *)&unirom[offset];
+	}
+
+	return NULL;
+}
+
+static struct qla82xx_uri_data_desc *
+qla82xx_get_data_desc(struct qla_hw_data *ha,
+	u32 section, u32 idx_offset)
+{
+	const u8 *unirom = ha->hablob->fw->data;
+	int idx = cpu_to_le32(*((int *)&unirom[ha->file_prd_off] + idx_offset));
+	struct qla82xx_uri_table_desc *tab_desc = NULL;
+	__le32 offset;
+
+	tab_desc = qla82xx_get_table_desc(unirom, section);
+	if (!tab_desc)
+		return NULL;
+
+	offset = cpu_to_le32(tab_desc->findex) +
+	    (cpu_to_le32(tab_desc->entry_size) * idx);
+
+	return (struct qla82xx_uri_data_desc *)&unirom[offset];
+}
+
+static u8 *
+qla82xx_get_bootld_offset(struct qla_hw_data *ha)
+{
+	u32 offset = BOOTLD_START;
+	struct qla82xx_uri_data_desc *uri_desc = NULL;
+
+	if (ha->fw_type == QLA82XX_UNIFIED_ROMIMAGE) {
+		uri_desc = qla82xx_get_data_desc(ha,
+		    QLA82XX_URI_DIR_SECT_BOOTLD, QLA82XX_URI_BOOTLD_IDX_OFF);
+		if (uri_desc)
+			offset = cpu_to_le32(uri_desc->findex);
+	}
+
+	return (u8 *)&ha->hablob->fw->data[offset];
+}
+
+static __le32
+qla82xx_get_fw_size(struct qla_hw_data *ha)
+{
+	struct qla82xx_uri_data_desc *uri_desc = NULL;
+
+	if (ha->fw_type == QLA82XX_UNIFIED_ROMIMAGE) {
+		uri_desc =  qla82xx_get_data_desc(ha, QLA82XX_URI_DIR_SECT_FW,
+		    QLA82XX_URI_FIRMWARE_IDX_OFF);
+		if (uri_desc)
+			return cpu_to_le32(uri_desc->size);
+	}
+
+	return cpu_to_le32(*(u32 *)&ha->hablob->fw->data[FW_SIZE_OFFSET]);
+}
+
+static u8 *
+qla82xx_get_fw_offs(struct qla_hw_data *ha)
+{
+	u32 offset = IMAGE_START;
+	struct qla82xx_uri_data_desc *uri_desc = NULL;
+
+	if (ha->fw_type == QLA82XX_UNIFIED_ROMIMAGE) {
+		uri_desc = qla82xx_get_data_desc(ha, QLA82XX_URI_DIR_SECT_FW,
+			QLA82XX_URI_FIRMWARE_IDX_OFF);
+		if (uri_desc)
+			offset = cpu_to_le32(uri_desc->findex);
+	}
+
+	return (u8 *)&ha->hablob->fw->data[offset];
+}
+
 /* PCI related functions */
 char *
 qla82xx_pci_info_str(struct scsi_qla_host *vha, char *str)
@@ -1878,19 +1967,19 @@ int qla82xx_fw_load_from_blob(struct qla_hw_data *ha)
 
 	size = (IMAGE_START - BOOTLD_START) / 8;
 
-	ptr64 = (u64 *)&ha->hablob->fw->data[BOOTLD_START];
+	ptr64 = (u64 *)qla82xx_get_bootld_offset(ha);
 	flashaddr = BOOTLD_START;
 
 	for (i = 0; i < size; i++) {
 		data = cpu_to_le64(ptr64[i]);
-		qla82xx_pci_mem_write_2M(ha, flashaddr, &data, 8);
+		if (qla82xx_pci_mem_write_2M(ha, flashaddr, &data, 8))
+			return -EIO;
 		flashaddr += 8;
 	}
 
-	size = *(u32 *)&ha->hablob->fw->data[FW_SIZE_OFFSET];
-	size = (__force u32)cpu_to_le32(size) / 8;
-	ptr64 = (u64 *)&ha->hablob->fw->data[IMAGE_START];
 	flashaddr = FLASH_ADDR_START;
+	size = (__force u32)qla82xx_get_fw_size(ha) / 8;
+	ptr64 = (u64 *)qla82xx_get_fw_offs(ha);
 
 	for (i = 0; i < size; i++) {
 		data = cpu_to_le64(ptr64[i]);
@@ -1899,19 +1988,88 @@ int qla82xx_fw_load_from_blob(struct qla_hw_data *ha)
 			return -EIO;
 		flashaddr += 8;
 	}
+	udelay(100);
 
 	/* Write a magic value to CAMRAM register
 	 * at a specified offset to indicate
 	 * that all data is written and
 	 * ready for firmware to initialize.
 	 */
-	qla82xx_wr_32(ha, QLA82XX_CAM_RAM(0x1fc), 0x12345678);
+	qla82xx_wr_32(ha, QLA82XX_CAM_RAM(0x1fc), QLA82XX_BDINFO_MAGIC);
 
+	read_lock(&ha->hw_lock);
 	if (QLA82XX_IS_REVISION_P3PLUS(ha->chip_revision)) {
 		qla82xx_wr_32(ha, QLA82XX_CRB_PEG_NET_0 + 0x18, 0x1020);
 		qla82xx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0x80001e);
 	} else
 		qla82xx_wr_32(ha, QLA82XX_ROMUSB_GLB_SW_RESET, 0x80001d);
+	read_unlock(&ha->hw_lock);
+	return 0;
+}
+
+static int
+qla82xx_set_product_offset(struct qla_hw_data *ha)
+{
+	struct qla82xx_uri_table_desc *ptab_desc = NULL;
+	const uint8_t *unirom = ha->hablob->fw->data;
+	uint32_t i;
+	__le32 entries;
+	__le32 flags, file_chiprev, offset;
+	uint8_t chiprev = ha->chip_revision;
+	/* Hardcoding mn_present flag for P3P */
+	int mn_present = 0;
+	uint32_t flagbit;
+
+	ptab_desc = qla82xx_get_table_desc(unirom,
+		 QLA82XX_URI_DIR_SECT_PRODUCT_TBL);
+       if (!ptab_desc)
+		return -1;
+
+	entries = cpu_to_le32(ptab_desc->num_entries);
+
+	for (i = 0; i < entries; i++) {
+		offset = cpu_to_le32(ptab_desc->findex) +
+			(i * cpu_to_le32(ptab_desc->entry_size));
+		flags = cpu_to_le32(*((int *)&unirom[offset] +
+			QLA82XX_URI_FLAGS_OFF));
+		file_chiprev = cpu_to_le32(*((int *)&unirom[offset] +
+			QLA82XX_URI_CHIP_REV_OFF));
+
+		flagbit = mn_present ? 1 : 2;
+
+		if ((chiprev == file_chiprev) && ((1ULL << flagbit) & flags)) {
+			ha->file_prd_off = offset;
+			return 0;
+		}
+	}
+	return -1;
+}
+
+int
+qla82xx_validate_firmware_blob(scsi_qla_host_t *vha, uint8_t fw_type)
+{
+	__le32 val;
+	uint32_t min_size;
+	struct qla_hw_data *ha = vha->hw;
+	const struct firmware *fw = ha->hablob->fw;
+
+	ha->fw_type = fw_type;
+
+	if (fw_type == QLA82XX_UNIFIED_ROMIMAGE) {
+		if (qla82xx_set_product_offset(ha))
+			return -EINVAL;
+
+		min_size = QLA82XX_URI_FW_MIN_SIZE;
+	} else {
+		val = cpu_to_le32(*(u32 *)&fw->data[QLA82XX_FW_MAGIC_OFFSET]);
+		if ((__force u32)val != QLA82XX_BDINFO_MAGIC)
+			return -EINVAL;
+
+		min_size = QLA82XX_FW_MIN_SIZE;
+	}
+
+	if (fw->size < min_size)
+		return -EINVAL;
 	return 0;
 }
 
@@ -2468,6 +2626,18 @@ try_blob_fw:
 		qla_printk(KERN_ERR, ha,
 			"Firmware image not present.\n");
 		goto fw_load_failed;
+	}
+
+	/* Validating firmware blob */
+	if (qla82xx_validate_firmware_blob(vha,
+		QLA82XX_FLASH_ROMIMAGE)) {
+		/* Fallback to URI format */
+		if (qla82xx_validate_firmware_blob(vha,
+			QLA82XX_UNIFIED_ROMIMAGE)) {
+			qla_printk(KERN_ERR, ha,
+				"No valid firmware image found!!!");
+			return QLA_FUNCTION_FAILED;
+		}
 	}
 
 	if (qla82xx_fw_load_from_blob(ha) == QLA_SUCCESS) {

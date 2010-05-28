@@ -773,13 +773,48 @@ struct qla82xx_legacy_intr_set {
 		.pci_int_reg	=	ISR_MSI_INT_TRIGGER(7) },	\
 }
 
+#define BRDCFG_START		0x4000
 #define	BOOTLD_START		0x10000
 #define	IMAGE_START		0x100000
 #define FLASH_ADDR_START	0x43000
 
 /* Magic number to let user know flash is programmed */
 #define QLA82XX_BDINFO_MAGIC	0x12345678
+#define QLA82XX_FW_MAGIC_OFFSET	(BRDCFG_START + 0x128)
 #define FW_SIZE_OFFSET		(0x3e840c)
+#define QLA82XX_FW_MIN_SIZE	0x3fffff
+
+/* UNIFIED ROMIMAGE START */
+#define QLA82XX_URI_FW_MIN_SIZE			0xc8000
+#define QLA82XX_URI_DIR_SECT_PRODUCT_TBL	0x0
+#define QLA82XX_URI_DIR_SECT_BOOTLD		0x6
+#define QLA82XX_URI_DIR_SECT_FW			0x7
+
+/* Offsets */
+#define QLA82XX_URI_CHIP_REV_OFF	10
+#define QLA82XX_URI_FLAGS_OFF		11
+#define QLA82XX_URI_BIOS_VERSION_OFF	12
+#define QLA82XX_URI_BOOTLD_IDX_OFF	27
+#define QLA82XX_URI_FIRMWARE_IDX_OFF	29
+
+struct qla82xx_uri_table_desc{
+	uint32_t	findex;
+	uint32_t	num_entries;
+	uint32_t	entry_size;
+	uint32_t	reserved[5];
+};
+
+struct qla82xx_uri_data_desc{
+	uint32_t	findex;
+	uint32_t	size;
+	uint32_t	reserved[5];
+};
+
+/* UNIFIED ROMIMAGE END */
+
+#define QLA82XX_UNIFIED_ROMIMAGE	3
+#define QLA82XX_FLASH_ROMIMAGE		4
+#define QLA82XX_UNKNOWN_ROMIMAGE	0xff
 
 #define QLA82XX_IS_REVISION_P3PLUS(_rev_)	((_rev_) >= 0x50)
 #define MIU_TEST_AGT_WRDATA_UPPER_LO		(0x0b0)

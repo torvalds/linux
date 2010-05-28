@@ -2788,6 +2788,9 @@ struct qla_hw_data {
 	uint16_t	gbl_dsd_avail;
 	struct list_head gbl_dsd_list;
 #define NUM_DSD_CHAIN 4096
+
+	uint8_t fw_type;
+	__le32 file_prd_off;	/* File firmware product offset */
 };
 
 /*
