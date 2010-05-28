@@ -2014,16 +2014,21 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 	mutex_lock(&mdsc->mutex);
 	req = __lookup_request(mdsc, tid);
 	if (!req) {
-		dout("forward %llu to mds%d - req dne\n", tid, next_mds);
+		dout("forward tid %llu to mds%d - req dne\n", tid, next_mds);
 		goto out;  /* dup reply? */
 	}
 
-	if (fwd_seq <= req->r_num_fwd) {
-		dout("forward %llu to mds%d - old seq %d <= %d\n",
+	if (req->r_aborted) {
+		dout("forward tid %llu aborted, unregistering\n", tid);
+		__unregister_request(mdsc, req);
+	} else if (fwd_seq <= req->r_num_fwd) {
+		dout("forward tid %llu to mds%d - old seq %d <= %d\n",
 		     tid, next_mds, req->r_num_fwd, fwd_seq);
 	} else {
 		/* resend. forward race not possible; mds would drop */
-		dout("forward %llu to mds%d (we resend)\n", tid, next_mds);
+		dout("forward tid %llu to mds%d (we resend)\n", tid, next_mds);
+		BUG_ON(req->r_err);
+		BUG_ON(req->r_got_result);
 		req->r_num_fwd = fwd_seq;
 		req->r_resend_mds = next_mds;
 		put_request_session(req);
