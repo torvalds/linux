@@ -690,17 +690,29 @@ static int me_swapcache_clean(struct page *p, unsigned long pfn)
 /*
  * Huge pages. Needs work.
  * Issues:
- * No rmap support so we cannot find the original mapper. In theory could walk
- * all MMs and look for the mappings, but that would be non atomic and racy.
- * Need rmap for hugepages for this. Alternatively we could employ a heuristic,
- * like just walking the current process and hoping it has it mapped (that
- * should be usually true for the common "shared database cache" case)
- * Should handle free huge pages and dequeue them too, but this needs to
- * handle huge page accounting correctly.
+ * - Error on hugepage is contained in hugepage unit (not in raw page unit.)
+ *   To narrow down kill region to one page, we need to break up pmd.
+ * - To support soft-offlining for hugepage, we need to support hugepage
+ *   migration.
  */
 static int me_huge_page(struct page *p, unsigned long pfn)
 {
-	return FAILED;
+	struct page *hpage = compound_head(p);
+	/*
+	 * We can safely recover from error on free or reserved (i.e.
+	 * not in-use) hugepage by dequeuing it from freelist.
+	 * To check whether a hugepage is in-use or not, we can't use
+	 * page->lru because it can be used in other hugepage operations,
+	 * such as __unmap_hugepage_range() and gather_surplus_pages().
+	 * So instead we use page_mapping() and PageAnon().
+	 * We assume that this function is called with page lock held,
+	 * so there is no race between isolation and mapping/unmapping.
+	 */
+	if (!(page_mapping(hpage) || PageAnon(hpage))) {
+		__isolate_hwpoisoned_huge_page(hpage);
+		return RECOVERED;
+	}
+	return DELAYED;
 }
 
 /*

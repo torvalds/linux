@@ -2825,3 +2825,19 @@ void hugetlb_unreserve_pages(struct inode *inode, long offset, long freed)
 	hugetlb_put_quota(inode->i_mapping, (chg - freed));
 	hugetlb_acct_memory(h, -(chg - freed));
 }
+
+/*
+ * This function is called from memory failure code.
+ * Assume the caller holds page lock of the head page.
+ */
+void __isolate_hwpoisoned_huge_page(struct page *hpage)
+{
+	struct hstate *h = page_hstate(hpage);
+	int nid = page_to_nid(hpage);
+
+	spin_lock(&hugetlb_lock);
+	list_del(&hpage->lru);
+	h->free_huge_pages--;
+	h->free_huge_pages_node[nid]--;
+	spin_unlock(&hugetlb_lock);
+}
