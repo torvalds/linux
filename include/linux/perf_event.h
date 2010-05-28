@@ -602,6 +602,8 @@ enum perf_event_active_state {
 
 struct file;
 
+#define PERF_BUFFER_WRITABLE		0x01
+
 struct perf_buffer {
 	atomic_t			refcount;
 	struct rcu_head			rcu_head;

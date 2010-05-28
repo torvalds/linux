@@ -2369,6 +2369,25 @@ unlock:
 	rcu_read_unlock();
 }
 
+static unsigned long perf_data_size(struct perf_buffer *buffer);
+
+static void
+perf_buffer_init(struct perf_buffer *buffer, long watermark, int flags)
+{
+	long max_size = perf_data_size(buffer);
+
+	if (watermark)
+		buffer->watermark = min(max_size, watermark);
+
+	if (!buffer->watermark)
+		buffer->watermark = max_size / 2;
+
+	if (flags & PERF_BUFFER_WRITABLE)
+		buffer->writable = 1;
+
+	atomic_set(&buffer->refcount, 1);
+}
+
 #ifndef CONFIG_PERF_USE_VMALLOC
 
 /*
@@ -2401,7 +2420,7 @@ static void *perf_mmap_alloc_page(int cpu)
 }
 
 static struct perf_buffer *
-perf_buffer_alloc(struct perf_event *event, int nr_pages)
+perf_buffer_alloc(int nr_pages, long watermark, int cpu, int flags)
 {
 	struct perf_buffer *buffer;
 	unsigned long size;
@@ -2414,17 +2433,19 @@ perf_buffer_alloc(struct perf_event *event, int nr_pages)
 	if (!buffer)
 		goto fail;
 
-	buffer->user_page = perf_mmap_alloc_page(event->cpu);
+	buffer->user_page = perf_mmap_alloc_page(cpu);
 	if (!buffer->user_page)
 		goto fail_user_page;
 
 	for (i = 0; i < nr_pages; i++) {
-		buffer->data_pages[i] = perf_mmap_alloc_page(event->cpu);
+		buffer->data_pages[i] = perf_mmap_alloc_page(cpu);
 		if (!buffer->data_pages[i])
 			goto fail_data_pages;
 	}
 
 	buffer->nr_pages = nr_pages;
+
+	perf_buffer_init(buffer, watermark, flags);
 
 	return buffer;
 
@@ -2516,7 +2537,7 @@ static void perf_buffer_free(struct perf_buffer *buffer)
 }
 
 static struct perf_buffer *
-perf_buffer_alloc(struct perf_event *event, int nr_pages)
+perf_buffer_alloc(int nr_pages, long watermark, int cpu, int flags)
 {
 	struct perf_buffer *buffer;
 	unsigned long size;
@@ -2539,6 +2560,8 @@ perf_buffer_alloc(struct perf_event *event, int nr_pages)
 	buffer->data_pages[0] = all_buf + PAGE_SIZE;
 	buffer->page_order = ilog2(nr_pages);
 	buffer->nr_pages = 1;
+
+	perf_buffer_init(buffer, watermark, flags);
 
 	return buffer;
 
@@ -2589,23 +2612,6 @@ unlock:
 	rcu_read_unlock();
 
 	return ret;
-}
-
-static void
-perf_buffer_init(struct perf_event *event, struct perf_buffer *buffer)
-{
-	long max_size = perf_data_size(buffer);
-
-	if (event->attr.watermark) {
-		buffer->watermark = min_t(long, max_size,
-					event->attr.wakeup_watermark);
-	}
-
-	if (!buffer->watermark)
-		buffer->watermark = max_size / 2;
-
-	atomic_set(&buffer->refcount, 1);
-	rcu_assign_pointer(event->buffer, buffer);
 }
 
 static void perf_buffer_free_rcu(struct rcu_head *rcu_head)
@@ -2682,7 +2688,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	unsigned long vma_size;
 	unsigned long nr_pages;
 	long user_extra, extra;
-	int ret = 0;
+	int ret = 0, flags = 0;
 
 	/*
 	 * Don't allow mmap() of inherited per-task counters. This would
@@ -2747,15 +2753,16 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 
 	WARN_ON(event->buffer);
 
-	buffer = perf_buffer_alloc(event, nr_pages);
+	if (vma->vm_flags & VM_WRITE)
+		flags |= PERF_BUFFER_WRITABLE;
+
+	buffer = perf_buffer_alloc(nr_pages, event->attr.wakeup_watermark,
+				   event->cpu, flags);
 	if (!buffer) {
 		ret = -ENOMEM;
 		goto unlock;
 	}
-
-	perf_buffer_init(event, buffer);
-	if (vma->vm_flags & VM_WRITE)
-		event->buffer->writable = 1;
+	rcu_assign_pointer(event->buffer, buffer);
 
 	atomic_long_add(user_extra, &user->locked_vm);
 	event->mmap_locked = extra;
