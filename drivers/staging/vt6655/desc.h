@@ -257,7 +257,7 @@ SRDES0;
 typedef struct tagRDES0 {
    volatile WORD    wResCount;
 	union {
-		volatile U16    f15Reserved;
+		volatile u16    f15Reserved;
 		struct {
             volatile u8 f8Reserved1;
 			volatile u8 f1Owner:1;
@@ -317,7 +317,7 @@ typedef struct tagTDES0 {
     volatile    BYTE    byTSR0;
     volatile    BYTE    byTSR1;
 	union {
-		volatile U16    f15Txtime;
+		volatile u16    f15Txtime;
 		struct {
             volatile u8 f8Reserved1;
 			volatile u8 f1Owner:1;

@@ -111,8 +111,8 @@ typedef enum tagWZONETYPE {
 typedef struct tagSCmdRequest {
 	u8	    name[16];
 	void	*data;
-	U16	    wResult;
-	U16     wCmdCode;
+	u16	    wResult;
+	u16     wCmdCode;
 } SCmdRequest, *PSCmdRequest;
 
 //
@@ -132,8 +132,8 @@ typedef struct tagSCmdScan {
 
 typedef struct tagSCmdBSSJoin {
 
-    U16	    wBSSType;
-    U16     wBBPType;
+    u16	    wBSSType;
+    u16     wBBPType;
     u8	    ssid[SSID_MAXLEN + 2];
     U32	    uChannel;
     BOOL    bPSEnable;
@@ -164,8 +164,8 @@ typedef struct tagSWPAResult {
 
 typedef struct tagSCmdStartAP {
 
-    U16	    wBSSType;
-    U16     wBBPType;
+    u16	    wBSSType;
+    u16     wBBPType;
     u8	    ssid[SSID_MAXLEN + 2];
     U32 	uChannel;
     U32     uBeaconInt;
@@ -193,12 +193,12 @@ typedef struct tagSBSSIDItem {
     u8      abyBSSID[BSSID_LEN];
     u8      abySSID[SSID_MAXLEN + 1];
     //2006-1116-01,<Modify> by NomadZhao
-    //U16	    wBeaconInterval;
-    //U16	    wCapInfo;
+    //u16	    wBeaconInterval;
+    //u16	    wCapInfo;
     //u8      byNetType;
     u8      byNetType;
-    U16	    wBeaconInterval;
-    U16	    wCapInfo;        // for address of byNetType at align 4
+    u16	    wBeaconInterval;
+    u16	    wCapInfo;        // for address of byNetType at align 4
 
     BOOL    bWEPOn;
     U32     uRSSI;
@@ -216,7 +216,7 @@ typedef struct tagSBSSIDList {
 typedef struct tagSCmdLinkStatus {
 
     BOOL    bLink;
-	U16	    wBSSType;
+	u16   wBSSType;
 	u8      byState;
     u8      abyBSSID[BSSID_LEN];
     u8      abySSID[SSID_MAXLEN + 2];
@@ -353,21 +353,21 @@ typedef struct tagSStatMIBCount {
 
 typedef struct tagSNodeItem {
     // STA info
-    U16            wAID;
+    u16            wAID;
     u8             abyMACAddr[6];
-    U16            wTxDataRate;
-    U16            wInActiveCount;
-    U16            wEnQueueCnt;
-    U16            wFlags;
+    u16            wTxDataRate;
+    u16            wInActiveCount;
+    u16            wEnQueueCnt;
+    u16            wFlags;
     BOOL           bPWBitOn;
     u8             byKeyIndex;
-    U16            wWepKeyLength;
+    u16            wWepKeyLength;
     u8            abyWepKey[WEP_KEYMAXLEN];
     // Auto rate fallback vars
     BOOL           bIsInFallback;
     U32            uTxFailures;
     U32            uTxAttempts;
-    U16            wFailureRatio;
+    u16            wFailureRatio;
 
 } SNodeItem;
 
@@ -422,8 +422,8 @@ struct viawget_hostapd_param {
 	u8 sta_addr[6];
 	union {
 		struct {
-			U16 aid;
-			U16 capability;
+			u16 aid;
+			u16 capability;
 			u8 tx_supp_rates;
 		} add_sta;
 		struct {
@@ -435,7 +435,7 @@ struct viawget_hostapd_param {
 			U32 err;
 			u8 idx;
 			u8 seq[8];
-			U16 key_len;
+			u16 key_len;
 			u8 key[0];
 		} crypt;
 		struct {
@@ -443,8 +443,8 @@ struct viawget_hostapd_param {
 			U32 flags_or;
 		} set_flags_sta;
 		struct {
-			U16 rid;
-			U16 len;
+			u16 rid;
+			u16 len;
 			u8 data[0];
 		} rid;
 		struct {
@@ -452,8 +452,8 @@ struct viawget_hostapd_param {
 			u8 data[0];
 		} generic_elem;
 		struct {
-			U16 cmd;
-			U16 reason_code;
+			u16 cmd;
+			u16 reason_code;
 		} mlme;
 		struct {
 			u8 ssid_len;

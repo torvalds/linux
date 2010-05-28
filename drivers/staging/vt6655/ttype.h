@@ -68,7 +68,6 @@ typedef int             BOOL;
  * but it doesn't matter if they're signed or unsigned.
  */
 
-typedef unsigned short          U16;    /* 16-bit unsigned integer */
 typedef unsigned long           U32;    /* 32-bit unsigned integer */
 
 
