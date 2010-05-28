@@ -245,7 +245,7 @@ static int temac_dma_bd_init(struct net_device *ndev)
 					  CHNL_CTRL_IRQ_COAL_EN);
 	/* 0x10220483 */
 	/* 0x00100483 */
-	lp->dma_out(lp, RX_CHNL_CTRL, 0xff010000 |
+	lp->dma_out(lp, RX_CHNL_CTRL, 0xff070000 |
 					  CHNL_CTRL_IRQ_EN |
 					  CHNL_CTRL_IRQ_DLY_EN |
 					  CHNL_CTRL_IRQ_COAL_EN |
@@ -574,6 +574,10 @@ static void temac_start_xmit_done(struct net_device *ndev)
 		if (cur_p->app4)
 			dev_kfree_skb_irq((struct sk_buff *)cur_p->app4);
 		cur_p->app0 = 0;
+		cur_p->app1 = 0;
+		cur_p->app2 = 0;
+		cur_p->app3 = 0;
+		cur_p->app4 = 0;
 
 		ndev->stats.tx_packets++;
 		ndev->stats.tx_bytes += cur_p->len;
@@ -587,6 +591,29 @@ static void temac_start_xmit_done(struct net_device *ndev)
 	}
 
 	netif_wake_queue(ndev);
+}
+
+static inline int temac_check_tx_bd_space(struct temac_local *lp, int num_frag)
+{
+	struct cdmac_bd *cur_p;
+	int tail;
+
+	tail = lp->tx_bd_tail;
+	cur_p = &lp->tx_bd_v[tail];
+
+	do {
+		if (cur_p->app0)
+			return NETDEV_TX_BUSY;
+
+		tail++;
+		if (tail >= TX_BD_NUM)
+			tail = 0;
+
+		cur_p = &lp->tx_bd_v[tail];
+		num_frag--;
+	} while (num_frag >= 0);
+
+	return 0;
 }
 
 static int temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
@@ -603,7 +630,7 @@ static int temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	start_p = lp->tx_bd_p + sizeof(*lp->tx_bd_v) * lp->tx_bd_tail;
 	cur_p = &lp->tx_bd_v[lp->tx_bd_tail];
 
-	if (cur_p->app0 & STS_CTRL_APP0_CMPLT) {
+	if (temac_check_tx_bd_space(lp, num_frag)) {
 		if (!netif_queue_stopped(ndev)) {
 			netif_stop_queue(ndev);
 			return NETDEV_TX_BUSY;
@@ -613,29 +640,14 @@ static int temac_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 
 	cur_p->app0 = 0;
 	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		const struct iphdr *ip = ip_hdr(skb);
-		int length = 0, start = 0, insert = 0;
+		unsigned int csum_start_off = skb_transport_offset(skb);
+		unsigned int csum_index_off = csum_start_off + skb->csum_offset;
 
-		switch (ip->protocol) {
-		case IPPROTO_TCP:
-			start = sizeof(struct iphdr) + ETH_HLEN;
-			insert = sizeof(struct iphdr) + ETH_HLEN + 16;
-			length = ip->tot_len - sizeof(struct iphdr);
-			break;
-		case IPPROTO_UDP:
-			start = sizeof(struct iphdr) + ETH_HLEN;
-			insert = sizeof(struct iphdr) + ETH_HLEN + 6;
-			length = ip->tot_len - sizeof(struct iphdr);
-			break;
-		default:
-			break;
-		}
-		cur_p->app1 = ((start << 16) | insert);
-		cur_p->app2 = csum_tcpudp_magic(ip->saddr, ip->daddr,
-						length, ip->protocol, 0);
-		skb->data[insert] = 0;
-		skb->data[insert + 1] = 0;
+		cur_p->app0 |= 1; /* TX Checksum Enabled */
+		cur_p->app1 = (csum_start_off << 16) | csum_index_off;
+		cur_p->app2 = 0;  /* initial checksum seed */
 	}
+
 	cur_p->app0 |= STS_CTRL_APP0_SOP;
 	cur_p->len = skb_headlen(skb);
 	cur_p->phys = dma_map_single(ndev->dev.parent, skb->data, skb->len,
@@ -698,6 +710,15 @@ static void ll_temac_recv(struct net_device *ndev)
 		skb->dev = ndev;
 		skb->protocol = eth_type_trans(skb, ndev);
 		skb->ip_summed = CHECKSUM_NONE;
+
+		/* if we're doing rx csum offload, set it up */
+		if (((lp->temac_features & TEMAC_FEATURE_RX_CSUM) != 0) &&
+			(skb->protocol == __constant_htons(ETH_P_IP)) &&
+			(skb->len > 64)) {
+
+			skb->csum = cur_p->app3 & 0xFFFF;
+			skb->ip_summed = CHECKSUM_COMPLETE;
+		}
 
 		netif_rx(skb);
 
@@ -883,6 +904,7 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 	struct temac_local *lp;
 	struct net_device *ndev;
 	const void *addr;
+	__be32 *p;
 	int size, rc = 0;
 
 	/* Init network device structure */
@@ -926,6 +948,18 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 		goto nodev;
 	}
 
+	/* Setup checksum offload, but default to off if not specified */
+	lp->temac_features = 0;
+	p = (__be32 *)of_get_property(op->dev.of_node, "xlnx,txcsum", NULL);
+	if (p && be32_to_cpu(*p)) {
+		lp->temac_features |= TEMAC_FEATURE_TX_CSUM;
+		/* Can checksum TCP/UDP over IPv4. */
+		ndev->features |= NETIF_F_IP_CSUM;
+	}
+	p = (__be32 *)of_get_property(op->dev.of_node, "xlnx,rxcsum", NULL);
+	if (p && be32_to_cpu(*p))
+		lp->temac_features |= TEMAC_FEATURE_RX_CSUM;
+
 	/* Find the DMA node, map the DMA registers, and decode the DMA IRQs */
 	np = of_parse_phandle(op->dev.of_node, "llink-connected", 0);
 	if (!np) {
@@ -950,7 +984,7 @@ temac_of_probe(struct of_device *op, const struct of_device_id *match)
 
 	lp->rx_irq = irq_of_parse_and_map(np, 0);
 	lp->tx_irq = irq_of_parse_and_map(np, 1);
-	if (!lp->rx_irq || !lp->tx_irq) {
+	if ((lp->rx_irq == NO_IRQ) || (lp->tx_irq == NO_IRQ)) {
 		dev_err(&op->dev, "could not determine irqs\n");
 		rc = -ENOMEM;
 		goto nodev;

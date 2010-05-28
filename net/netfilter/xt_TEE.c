@@ -76,7 +76,7 @@ tee_tg_route4(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 	if (ip_route_output_key(net, &rt, &fl) != 0)
 		return false;
 
-	dst_release(skb_dst(skb));
+	skb_dst_drop(skb);
 	skb_dst_set(skb, &rt->u.dst);
 	skb->dev      = rt->u.dst.dev;
 	skb->protocol = htons(ETH_P_IP);
@@ -157,7 +157,7 @@ tee_tg_route6(struct sk_buff *skb, const struct xt_tee_tginfo *info)
 	if (dst == NULL)
 		return false;
 
-	dst_release(skb_dst(skb));
+	skb_dst_drop(skb);
 	skb_dst_set(skb, dst);
 	skb->dev      = dst->dev;
 	skb->protocol = htons(ETH_P_IPV6);
