@@ -157,8 +157,9 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 
 	event__parse_sample(event, session->sample_type, &data);
 
-	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
-		    data.pid, data.tid, data.ip, data.period);
+	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld cpu:%d\n",
+		    event->header.misc, data.pid, data.tid, data.ip,
+		    data.period, data.cpu);
 
 	if (session->sample_type & PERF_SAMPLE_CALLCHAIN) {
 		unsigned int i;

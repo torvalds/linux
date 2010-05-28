@@ -765,7 +765,8 @@ int event__parse_sample(event_t *event, u64 type, struct sample_data *data)
 		u32 *p = (u32 *)array;
 		data->cpu = *p;
 		array++;
-	}
+	} else
+		data->cpu = -1;
 
 	if (type & PERF_SAMPLE_PERIOD) {
 		data->period = *array;
