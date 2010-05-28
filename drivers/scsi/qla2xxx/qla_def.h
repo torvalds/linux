@@ -2413,6 +2413,7 @@ struct qla_hw_data {
 		uint32_t	cpu_affinity_enabled	:1;
 		uint32_t	disable_msix_handshake	:1;
 		uint32_t	fcp_prio_enabled	:1;
+		uint32_t	fw_hung	:1;
 	} flags;
 
 	/* This spinlock is used to protect "io transactions", you must
