@@ -722,14 +722,13 @@ static int rtnl_vf_ports_fill(struct sk_buff *skb, struct net_device *dev)
 
 	for (vf = 0; vf < dev_num_vf(dev->dev.parent); vf++) {
 		vf_port = nla_nest_start(skb, IFLA_VF_PORT);
-		if (!vf_port) {
-			nla_nest_cancel(skb, vf_ports);
-			return -EMSGSIZE;
-		}
+		if (!vf_port)
+			goto nla_put_failure;
 		NLA_PUT_U32(skb, IFLA_PORT_VF, vf);
 		err = dev->netdev_ops->ndo_get_vf_port(dev, vf, skb);
+		if (err == -EMSGSIZE)
+			goto nla_put_failure;
 		if (err) {
-nla_put_failure:
 			nla_nest_cancel(skb, vf_port);
 			continue;
 		}
@@ -739,6 +738,10 @@ nla_put_failure:
 	nla_nest_end(skb, vf_ports);
 
 	return 0;
+
+nla_put_failure:
+	nla_nest_cancel(skb, vf_ports);
+	return -EMSGSIZE;
 }
 
 static int rtnl_port_self_fill(struct sk_buff *skb, struct net_device *dev)
@@ -753,7 +756,7 @@ static int rtnl_port_self_fill(struct sk_buff *skb, struct net_device *dev)
 	err = dev->netdev_ops->ndo_get_vf_port(dev, PORT_SELF_VF, skb);
 	if (err) {
 		nla_nest_cancel(skb, port_self);
-		return err;
+		return (err == -EMSGSIZE) ? err : 0;
 	}
 
 	nla_nest_end(skb, port_self);
