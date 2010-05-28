@@ -630,6 +630,10 @@ int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
 		goto err_unlock;
 
 	ret = ttm_bo_validate(bo, &ne_placement, false, false, false);
+
+	/* Could probably bug on */
+	WARN_ON(bo->offset != 0);
+
 	ttm_bo_unreserve(bo);
 err_unlock:
 	ttm_write_unlock(&vmw_priv->active_master->lock);

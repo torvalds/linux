@@ -640,6 +640,8 @@ static int vmw_framebuffer_dmabuf_pin(struct vmw_framebuffer *vfb)
 
 	vmw_overlay_resume_all(dev_priv);
 
+	WARN_ON(ret != 0);
+
 	return 0;
 }
 
