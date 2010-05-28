@@ -1001,23 +1001,6 @@ source "drivers/media/video/usbvideo/Kconfig"
 
 source "drivers/media/video/et61x251/Kconfig"
 
-config VIDEO_OVCAMCHIP
-	tristate "OmniVision Camera Chip support (DEPRECATED)"
-	depends on I2C && VIDEO_V4L1
-	default n
-	---help---
-	  This driver is DEPRECATED please use the gspca ov519 module
-	  instead. Note that for the ov511 / ov518 support of the gspca module
-	  you need atleast version 0.6.0 of libv4l and for the w9968cf
-	  atleast version 0.6.3 of libv4l.
-
-	  Support for the OmniVision OV6xxx and OV7xxx series of camera chips.
-	  This driver is intended to be used with the ov511 and w9968cf USB
-	  camera drivers.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ovcamchip.
-
 config USB_SE401
 	tristate "USB SE401 Camera support"
 	depends on VIDEO_V4L1
