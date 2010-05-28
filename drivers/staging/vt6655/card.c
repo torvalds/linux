@@ -2095,7 +2095,7 @@ void
 CARDvSetPowerConstraint (
     void *pDeviceHandler,
     BYTE             byChannel,
-    I8               byPower
+    char byPower
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -2253,7 +2253,7 @@ CARDbySetSupportChannels (
  * Return Value: none.
  *
 -*/
-I8
+char
 CARDbyGetTransmitPower (
     void *pDeviceHandler
     )

@@ -693,13 +693,13 @@ typedef struct __device_info {
     BYTE                    byCCKPwr;
     BYTE                    byOFDMPwrG;
     BYTE                    byCurPwr;
-    I8                      byCurPwrdBm;
+    char	 byCurPwrdBm;
     BYTE                    abyCCKPwrTbl[CB_MAX_CHANNEL_24G+1];
     BYTE                    abyOFDMPwrTbl[CB_MAX_CHANNEL+1];
-    I8                      abyCCKDefaultPwr[CB_MAX_CHANNEL_24G+1];
-    I8                      abyOFDMDefaultPwr[CB_MAX_CHANNEL+1];
-    I8                      abyRegPwr[CB_MAX_CHANNEL+1];
-    I8                      abyLocalPwr[CB_MAX_CHANNEL+1];
+    char	abyCCKDefaultPwr[CB_MAX_CHANNEL_24G+1];
+    char	abyOFDMDefaultPwr[CB_MAX_CHANNEL+1];
+    char	abyRegPwr[CB_MAX_CHANNEL+1];
+    char	abyLocalPwr[CB_MAX_CHANNEL+1];
 
 
     // BaseBand Loopback Use

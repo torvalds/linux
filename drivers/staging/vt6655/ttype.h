@@ -68,8 +68,6 @@ typedef int             BOOL;
  * but it doesn't matter if they're signed or unsigned.
  */
 
-typedef signed char             I8;     /* 8-bit signed integer */
-
 typedef unsigned char           U8;     /* 8-bit unsigned integer */
 typedef unsigned short          U16;    /* 16-bit unsigned integer */
 typedef unsigned long           U32;    /* 32-bit unsigned integer */

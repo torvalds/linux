@@ -189,7 +189,7 @@ void
 CARDvSetPowerConstraint (
     void *pDeviceHandler,
     BYTE             byChannel,
-    I8               byPower
+    char byPower
     );
 
 void
@@ -205,7 +205,7 @@ CARDbySetSupportChannels (
     PBYTE        pbyIEs
     );
 
-I8
+char
 CARDbyGetTransmitPower (
     void *pDeviceHandler
     );
