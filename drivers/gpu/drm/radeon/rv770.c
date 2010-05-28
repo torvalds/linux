@@ -44,7 +44,12 @@ void rv770_fini(struct radeon_device *rdev);
 
 void rv770_pm_misc(struct radeon_device *rdev)
 {
+	int requested_index = rdev->pm.requested_power_state_index;
+	struct radeon_power_state *ps = &rdev->pm.power_state[requested_index];
+	struct radeon_voltage *voltage = &ps->clock_info[0].voltage;
 
+	if ((voltage->type == VOLTAGE_SW) && voltage->voltage)
+		radeon_atom_set_voltage(rdev, voltage->voltage);
 }
 
 /*
