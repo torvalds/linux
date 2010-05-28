@@ -596,30 +596,10 @@ static int vmw_framebuffer_dmabuf_pin(struct vmw_framebuffer *vfb)
 		vmw_framebuffer_to_vfbd(&vfb->base);
 	int ret;
 
+
 	vmw_overlay_pause_all(dev_priv);
 
 	ret = vmw_dmabuf_to_start_of_vram(dev_priv, vfbd->buffer);
-
-	if (dev_priv->capabilities & SVGA_CAP_MULTIMON) {
-		vmw_write(dev_priv, SVGA_REG_NUM_GUEST_DISPLAYS, 1);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_ID, 0);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_IS_PRIMARY, true);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_POSITION_X, 0);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_POSITION_Y, 0);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_WIDTH, 0);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_HEIGHT, 0);
-		vmw_write(dev_priv, SVGA_REG_DISPLAY_ID, SVGA_ID_INVALID);
-
-		vmw_write(dev_priv, SVGA_REG_ENABLE, 1);
-		vmw_write(dev_priv, SVGA_REG_WIDTH, vfb->base.width);
-		vmw_write(dev_priv, SVGA_REG_HEIGHT, vfb->base.height);
-		vmw_write(dev_priv, SVGA_REG_BITS_PER_PIXEL, vfb->base.bits_per_pixel);
-		vmw_write(dev_priv, SVGA_REG_DEPTH, vfb->base.depth);
-		vmw_write(dev_priv, SVGA_REG_RED_MASK, 0x00ff0000);
-		vmw_write(dev_priv, SVGA_REG_GREEN_MASK, 0x0000ff00);
-		vmw_write(dev_priv, SVGA_REG_BLUE_MASK, 0x000000ff);
-	} else
-		WARN_ON(true);
 
 	vmw_overlay_resume_all(dev_priv);
 
@@ -668,7 +648,7 @@ int vmw_kms_new_framebuffer_dmabuf(struct vmw_private *dev_priv,
 
 	/* XXX get the first 3 from the surface info */
 	vfbd->base.base.bits_per_pixel = 32;
-	vfbd->base.base.pitch = width * 32 / 4;
+	vfbd->base.base.pitch = width * vfbd->base.base.bits_per_pixel / 8;
 	vfbd->base.base.depth = 24;
 	vfbd->base.base.width = width;
 	vfbd->base.base.height = height;
@@ -827,24 +807,25 @@ out:
 	return ret;
 }
 
+void vmw_kms_write_svga(struct vmw_private *vmw_priv,
+			unsigned width, unsigned height, unsigned pitch,
+			unsigned bbp, unsigned depth)
+{
+	if (vmw_priv->capabilities & SVGA_CAP_PITCHLOCK)
+		vmw_write(vmw_priv, SVGA_REG_PITCHLOCK, pitch);
+	else if (vmw_fifo_have_pitchlock(vmw_priv))
+		iowrite32(pitch, vmw_priv->mmio_virt + SVGA_FIFO_PITCHLOCK);
+	vmw_write(vmw_priv, SVGA_REG_WIDTH, width);
+	vmw_write(vmw_priv, SVGA_REG_HEIGHT, height);
+	vmw_write(vmw_priv, SVGA_REG_BITS_PER_PIXEL, bbp);
+	vmw_write(vmw_priv, SVGA_REG_DEPTH, depth);
+	vmw_write(vmw_priv, SVGA_REG_RED_MASK, 0x00ff0000);
+	vmw_write(vmw_priv, SVGA_REG_GREEN_MASK, 0x0000ff00);
+	vmw_write(vmw_priv, SVGA_REG_BLUE_MASK, 0x000000ff);
+}
+
 int vmw_kms_save_vga(struct vmw_private *vmw_priv)
 {
-	/*
-	 * setup a single multimon monitor with the size
-	 * of 0x0, this stops the UI from resizing when we
-	 * change the framebuffer size
-	 */
-	if (vmw_priv->capabilities & SVGA_CAP_MULTIMON) {
-		vmw_write(vmw_priv, SVGA_REG_NUM_GUEST_DISPLAYS, 1);
-		vmw_write(vmw_priv, SVGA_REG_DISPLAY_ID, 0);
-		vmw_write(vmw_priv, SVGA_REG_DISPLAY_IS_PRIMARY, true);
-		vmw_write(vmw_priv, SVGA_REG_DISPLAY_POSITION_X, 0);
-		vmw_write(vmw_priv, SVGA_REG_DISPLAY_POSITION_Y, 0);
-		vmw_write(vmw_priv, SVGA_REG_DISPLAY_WIDTH, 0);
-		vmw_write(vmw_priv, SVGA_REG_DISPLAY_HEIGHT, 0);
-		vmw_write(vmw_priv, SVGA_REG_DISPLAY_ID, SVGA_ID_INVALID);
-	}
-
 	vmw_priv->vga_width = vmw_read(vmw_priv, SVGA_REG_WIDTH);
 	vmw_priv->vga_height = vmw_read(vmw_priv, SVGA_REG_HEIGHT);
 	vmw_priv->vga_bpp = vmw_read(vmw_priv, SVGA_REG_BITS_PER_PIXEL);
@@ -853,6 +834,12 @@ int vmw_kms_save_vga(struct vmw_private *vmw_priv)
 	vmw_priv->vga_red_mask = vmw_read(vmw_priv, SVGA_REG_RED_MASK);
 	vmw_priv->vga_green_mask = vmw_read(vmw_priv, SVGA_REG_GREEN_MASK);
 	vmw_priv->vga_blue_mask = vmw_read(vmw_priv, SVGA_REG_BLUE_MASK);
+	if (vmw_priv->capabilities & SVGA_CAP_PITCHLOCK)
+		vmw_priv->vga_pitchlock =
+			vmw_read(vmw_priv, SVGA_REG_PITCHLOCK);
+	else if (vmw_fifo_have_pitchlock(vmw_priv))
+		vmw_priv->vga_pitchlock =
+			ioread32(vmw_priv->mmio_virt + SVGA_FIFO_PITCHLOCK);
 
 	return 0;
 }
@@ -867,9 +854,12 @@ int vmw_kms_restore_vga(struct vmw_private *vmw_priv)
 	vmw_write(vmw_priv, SVGA_REG_RED_MASK, vmw_priv->vga_red_mask);
 	vmw_write(vmw_priv, SVGA_REG_GREEN_MASK, vmw_priv->vga_green_mask);
 	vmw_write(vmw_priv, SVGA_REG_BLUE_MASK, vmw_priv->vga_blue_mask);
-
-	/* TODO check for multimon */
-	vmw_write(vmw_priv, SVGA_REG_NUM_GUEST_DISPLAYS, 0);
+	if (vmw_priv->capabilities & SVGA_CAP_PITCHLOCK)
+		vmw_write(vmw_priv, SVGA_REG_PITCHLOCK,
+			  vmw_priv->vga_pitchlock);
+	else if (vmw_fifo_have_pitchlock(vmw_priv))
+		iowrite32(vmw_priv->vga_pitchlock,
+			  vmw_priv->mmio_virt + SVGA_FIFO_PITCHLOCK);
 
 	return 0;
 }

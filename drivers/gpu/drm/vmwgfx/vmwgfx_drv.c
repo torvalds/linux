@@ -318,6 +318,15 @@ static int vmw_driver_load(struct drm_device *dev, unsigned long chipset)
 		goto out_err3;
 	}
 
+	/* Need mmio memory to check for fifo pitchlock cap. */
+	if (!(dev_priv->capabilities & SVGA_CAP_DISPLAY_TOPOLOGY) &&
+	    !(dev_priv->capabilities & SVGA_CAP_PITCHLOCK) &&
+	    !vmw_fifo_have_pitchlock(dev_priv)) {
+		ret = -ENOSYS;
+		DRM_ERROR("Hardware has no pitchlock\n");
+		goto out_err4;
+	}
+
 	dev_priv->tdev = ttm_object_device_init
 	    (dev_priv->mem_global_ref.object, 12);
 
