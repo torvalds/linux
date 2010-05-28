@@ -103,6 +103,13 @@ OPTIONS
 --raw-samples::
 Collect raw sample records from all opened counters (default for tracepoint counters).
 
+-C::
+--cpu::
+Collect samples only on the list of cpus provided. Multiple CPUs can be provided as a
+comma-sperated list with no space: 0,1. Ranges of CPUs are specified with -: 0-2.
+In per-thread mode with inheritance mode on (default), samples are captured only when
+the thread executes on the designated CPUs. Default is to monitor all CPUs.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1], linkperf:perf-list[1]

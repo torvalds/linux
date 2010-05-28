@@ -102,6 +102,7 @@ struct sym_entry		*sym_filter_entry_sched		=   NULL;
 static int			sym_pcnt_filter			=      5;
 static int			sym_counter			=      0;
 static int			display_weighted		=     -1;
+static const char		*cpu_list;
 
 /*
  * Symbols
@@ -1351,8 +1352,8 @@ static const struct option options[] = {
 		    "profile events on existing thread id"),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 			    "system-wide collection from all CPUs"),
-	OPT_INTEGER('C', "CPU", &profile_cpu,
-		    "CPU to profile on"),
+	OPT_STRING('C', "cpu", &cpu_list, "cpu",
+		    "list of cpus to monitor"),
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN('K', "hide_kernel_symbols", &hide_kernel_symbols,
@@ -1428,10 +1429,10 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		return -ENOMEM;
 
 	/* CPU and PID are mutually exclusive */
-	if (target_tid > 0 && profile_cpu != -1) {
+	if (target_tid > 0 && cpu_list) {
 		printf("WARNING: PID switch overriding CPU\n");
 		sleep(1);
-		profile_cpu = -1;
+		cpu_list = NULL;
 	}
 
 	if (!nr_counters)
@@ -1469,10 +1470,13 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		attrs[counter].sample_period = default_interval;
 	}
 
-	if (target_tid != -1 || profile_cpu != -1)
+	if (target_tid != -1)
 		nr_cpus = 1;
 	else
-		nr_cpus = read_cpu_map();
+		nr_cpus = read_cpu_map(cpu_list);
+
+	if (nr_cpus < 1)
+		usage_with_options(top_usage, options);
 
 	get_term_dimensions(&winsize);
 	if (print_entries == 0) {
