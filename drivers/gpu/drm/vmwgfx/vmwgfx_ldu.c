@@ -50,8 +50,6 @@ struct vmw_legacy_display_unit {
 	struct vmw_display_unit base;
 
 	struct list_head active;
-
-	unsigned unit;
 };
 
 static void vmw_ldu_destroy(struct vmw_legacy_display_unit *ldu)
@@ -204,7 +202,7 @@ static int vmw_ldu_add_active(struct vmw_private *vmw_priv,
 
 	at = &ld->active;
 	list_for_each_entry(entry, &ld->active, active) {
-		if (entry->unit > ldu->unit)
+		if (entry->base.unit > ldu->base.unit)
 			break;
 
 		at = &entry->active;
@@ -491,7 +489,7 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	if (!ldu)
 		return -ENOMEM;
 
-	ldu->unit = unit;
+	ldu->base.unit = unit;
 	crtc = &ldu->base.crtc;
 	encoder = &ldu->base.encoder;
 	connector = &ldu->base.connector;
