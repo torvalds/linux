@@ -408,8 +408,6 @@ static int vmw_driver_unload(struct drm_device *dev)
 {
 	struct vmw_private *dev_priv = vmw_priv(dev);
 
-	DRM_INFO(VMWGFX_DRIVER_NAME " unload.\n");
-
 	unregister_pm_notifier(&dev_priv->pm_nb);
 
 	vmw_fb_close(dev_priv);
@@ -555,7 +553,6 @@ static int vmw_master_create(struct drm_device *dev,
 {
 	struct vmw_master *vmaster;
 
-	DRM_INFO("Master create.\n");
 	vmaster = kzalloc(sizeof(*vmaster), GFP_KERNEL);
 	if (unlikely(vmaster == NULL))
 		return -ENOMEM;
@@ -572,7 +569,6 @@ static void vmw_master_destroy(struct drm_device *dev,
 {
 	struct vmw_master *vmaster = vmw_master(master);
 
-	DRM_INFO("Master destroy.\n");
 	master->driver_priv = NULL;
 	kfree(vmaster);
 }
@@ -587,8 +583,6 @@ static int vmw_master_set(struct drm_device *dev,
 	struct vmw_master *active = dev_priv->active_master;
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	int ret = 0;
-
-	DRM_INFO("Master set.\n");
 
 	if (active) {
 		BUG_ON(active != &dev_priv->fbdev_master);
@@ -630,8 +624,6 @@ static void vmw_master_drop(struct drm_device *dev,
 	struct vmw_fpriv *vmw_fp = vmw_fpriv(file_priv);
 	struct vmw_master *vmaster = vmw_master(file_priv->master);
 	int ret;
-
-	DRM_INFO("Master drop.\n");
 
 	/**
 	 * Make sure the master doesn't disappear while we have
