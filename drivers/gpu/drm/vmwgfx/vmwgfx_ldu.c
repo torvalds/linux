@@ -456,21 +456,17 @@ static int vmw_ldu_init(struct vmw_private *dev_priv, unsigned unit)
 	encoder = &ldu->base.encoder;
 	connector = &ldu->base.connector;
 
+	INIT_LIST_HEAD(&ldu->active);
+
 	drm_connector_init(dev, connector, &vmw_legacy_connector_funcs,
 			   DRM_MODE_CONNECTOR_LVDS);
-	/* Initial status */
-	if (unit == 0)
-		connector->status = connector_status_connected;
-	else
-		connector->status = connector_status_disconnected;
+	connector->status = vmw_ldu_connector_detect(connector);
 
 	drm_encoder_init(dev, encoder, &vmw_legacy_encoder_funcs,
 			 DRM_MODE_ENCODER_LVDS);
 	drm_mode_connector_attach_encoder(connector, encoder);
 	encoder->possible_crtcs = (1 << unit);
 	encoder->possible_clones = 0;
-
-	INIT_LIST_HEAD(&ldu->active);
 
 	drm_crtc_init(dev, crtc, &vmw_legacy_crtc_funcs);
 
