@@ -254,7 +254,6 @@ int acpi_resources_are_enforced(void);
 void __init acpi_no_s4_hw_signature(void);
 void __init acpi_old_suspend_ordering(void);
 void __init acpi_s4_no_nvs(void);
-void __init acpi_set_sci_en_on_resume(void);
 #endif /* CONFIG_PM_SLEEP */
 
 struct acpi_osc_context {
