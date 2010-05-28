@@ -250,7 +250,6 @@ static int __devinit of_gpio_leds_probe(struct of_device *ofdev,
 		led.gpio = of_get_gpio_flags(child, 0, &flags);
 		led.active_low = flags & OF_GPIO_ACTIVE_LOW;
 		led.name = of_get_property(child, "label", NULL) ? : child->name;
-		led.blinking = 0;
 		led.default_trigger =
 			of_get_property(child, "linux,default-trigger", NULL);
 		state = of_get_property(child, "default-state", NULL);
