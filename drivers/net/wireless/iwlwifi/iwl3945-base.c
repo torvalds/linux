@@ -1252,6 +1252,8 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 		IWL_DEBUG_RX(priv, "r = %d, i = %d\n", r, i);
 
 	while (i != r) {
+		int len;
+
 		rxb = rxq->queue[i];
 
 		/* If an RXB doesn't have a Rx queue slot associated with it,
@@ -1266,8 +1268,9 @@ static void iwl3945_rx_handle(struct iwl_priv *priv)
 			       PCI_DMA_FROMDEVICE);
 		pkt = rxb_addr(rxb);
 
-		trace_iwlwifi_dev_rx(priv, pkt,
-			le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
+		len = le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK;
+		len += sizeof(u32); /* account for status word */
+		trace_iwlwifi_dev_rx(priv, pkt, len);
 
 		/* Reclaim a command buffer only if this packet is a response
 		 *   to a (driver-originated) command.
