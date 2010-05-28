@@ -942,6 +942,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	struct page *p;
 	struct page *hpage;
 	int res;
+	unsigned int nr_pages;
 
 	if (!sysctl_memory_failure_recovery)
 		panic("Memory failure from trap %d on page %lx", trapno, pfn);
@@ -960,7 +961,8 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 		return 0;
 	}
 
-	atomic_long_add(1, &mce_bad_pages);
+	nr_pages = 1 << compound_order(hpage);
+	atomic_long_add(nr_pages, &mce_bad_pages);
 
 	/*
 	 * We need/can do nothing about count=0 pages.
@@ -1024,7 +1026,7 @@ int __memory_failure(unsigned long pfn, int trapno, int flags)
 	}
 	if (hwpoison_filter(p)) {
 		if (TestClearPageHWPoison(p))
-			atomic_long_dec(&mce_bad_pages);
+			atomic_long_sub(nr_pages, &mce_bad_pages);
 		unlock_page(hpage);
 		put_page(hpage);
 		return 0;
@@ -1123,6 +1125,7 @@ int unpoison_memory(unsigned long pfn)
 	struct page *page;
 	struct page *p;
 	int freeit = 0;
+	unsigned int nr_pages;
 
 	if (!pfn_valid(pfn))
 		return -ENXIO;
@@ -1135,9 +1138,11 @@ int unpoison_memory(unsigned long pfn)
 		return 0;
 	}
 
+	nr_pages = 1 << compound_order(page);
+
 	if (!get_page_unless_zero(page)) {
 		if (TestClearPageHWPoison(p))
-			atomic_long_dec(&mce_bad_pages);
+			atomic_long_sub(nr_pages, &mce_bad_pages);
 		pr_debug("MCE: Software-unpoisoned free page %#lx\n", pfn);
 		return 0;
 	}
@@ -1149,9 +1154,9 @@ int unpoison_memory(unsigned long pfn)
 	 * the PG_hwpoison page will be caught and isolated on the entrance to
 	 * the free buddy page pool.
 	 */
-	if (TestClearPageHWPoison(p)) {
+	if (TestClearPageHWPoison(page)) {
 		pr_debug("MCE: Software-unpoisoned page %#lx\n", pfn);
-		atomic_long_dec(&mce_bad_pages);
+		atomic_long_sub(nr_pages, &mce_bad_pages);
 		freeit = 1;
 	}
 	if (PageHuge(p))
