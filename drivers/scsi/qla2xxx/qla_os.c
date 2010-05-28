@@ -517,6 +517,7 @@ qla2x00_get_new_sp(scsi_qla_host_t *vha, fc_port_t *fcport,
 	if (!sp)
 		return sp;
 
+	atomic_set(&sp->ref_count, 1);
 	sp->fcport = fcport;
 	sp->cmd = cmd;
 	sp->flags = 0;
@@ -797,6 +798,12 @@ qla2x00_wait_for_loop_ready(scsi_qla_host_t *vha)
 	return (return_status);
 }
 
+static void
+sp_get(struct srb *sp)
+{
+	atomic_inc(&sp->ref_count);
+}
+
 /**************************************************************************
 * qla2xxx_eh_abort
 *
@@ -825,6 +832,7 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 	struct qla_hw_data *ha = vha->hw;
 	struct req_que *req = vha->req;
 	srb_t *spt;
+	int got_ref = 0;
 
 	fc_block_scsi_eh(cmd);
 
@@ -856,6 +864,10 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 		DEBUG2(printk("%s(%ld): aborting sp %p from RISC."
 		" pid=%ld.\n", __func__, vha->host_no, sp, serial));
 
+		/* Get a reference to the sp and drop the lock.*/
+		sp_get(sp);
+		got_ref++;
+
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 		if (ha->isp_ops->abort_command(sp)) {
 			DEBUG2(printk("%s(%ld): abort_command "
@@ -880,6 +892,9 @@ qla2xxx_eh_abort(struct scsi_cmnd *cmd)
 			ret = FAILED;
 		}
 	}
+
+	if (got_ref)
+		qla2x00_sp_compl(ha, sp);
 
 	qla_printk(KERN_INFO, ha,
 	    "scsi(%ld:%d:%d): Abort command issued -- %d %lx %x.\n",
@@ -3468,7 +3483,7 @@ qla2x00_sp_free_dma(srb_t *sp)
 }
 
 void
-qla2x00_sp_compl(struct qla_hw_data *ha, srb_t *sp)
+qla2x00_sp_final_compl(struct qla_hw_data *ha, srb_t *sp)
 {
 	struct scsi_cmnd *cmd = sp->cmd;
 
@@ -3487,6 +3502,20 @@ qla2x00_sp_compl(struct qla_hw_data *ha, srb_t *sp)
 
 	mempool_free(sp, ha->srb_mempool);
 	cmd->scsi_done(cmd);
+}
+
+void
+qla2x00_sp_compl(struct qla_hw_data *ha, srb_t *sp)
+{
+	if (atomic_read(&sp->ref_count) == 0) {
+		DEBUG2(qla_printk(KERN_WARNING, ha,
+		    "SP reference-count to ZERO -- sp=%p\n", sp));
+		DEBUG2(BUG());
+		return;
+	}
+	if (!atomic_dec_and_test(&sp->ref_count))
+		return;
+	qla2x00_sp_final_compl(ha, sp);
 }
 
 /**************************************************************************

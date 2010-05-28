@@ -202,6 +202,7 @@ struct sd_dif_tuple {
  * SCSI Request Block
  */
 typedef struct srb {
+	atomic_t ref_count;
 	struct fc_port *fcport;
 	uint32_t handle;
 
