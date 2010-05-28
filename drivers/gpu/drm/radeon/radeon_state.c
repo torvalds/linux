@@ -900,9 +900,10 @@ static void radeon_cp_dispatch_clear(struct drm_device * dev,
 			flags |= RADEON_FRONT;
 	}
 	if (flags & (RADEON_DEPTH|RADEON_STENCIL)) {
-		if (!dev_priv->have_z_offset)
+		if (!dev_priv->have_z_offset) {
 			printk_once(KERN_ERR "radeon: illegal depth clear request. Buggy mesa detected - please update.\n");
-		flags &= ~(RADEON_DEPTH | RADEON_STENCIL);
+			flags &= ~(RADEON_DEPTH | RADEON_STENCIL);
+		}
 	}
 
 	if (flags & (RADEON_FRONT | RADEON_BACK)) {
