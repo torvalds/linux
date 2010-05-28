@@ -593,8 +593,7 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 		break;
 	case OUTPUT_TMDS:
 		if ((dev_priv->card_type >= NV_50 && !nouveau_duallink) ||
-		    (dev_priv->card_type < NV_50 &&
-		     !nv_encoder->dcb->duallink_possible))
+		    !nv_encoder->dcb->duallink_possible)
 			max_clock = 165000;
 		else
 			max_clock = 330000;
