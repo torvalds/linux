@@ -324,6 +324,7 @@ static struct regulator_init_data cpcap_regulator[CPCAP_NUM_REGULATORS] = {
 			.min_uV			= 5050000,
 			.max_uV			= 5050000,
 			.valid_ops_mask		= REGULATOR_CHANGE_STATUS,
+			.boot_on		= 1, /* Temporary for M1 */
 			.apply_uV		= 1,
 		},
 		.num_consumer_supplies	= ARRAY_SIZE(cpcap_sw5_consumers),
