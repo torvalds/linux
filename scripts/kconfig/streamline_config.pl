@@ -242,7 +242,7 @@ foreach my $makefile (@makefiles) {
 	    foreach my $obj (split /\s+/,$objs) {
 		$obj =~ s/-/_/g;
 		if ($obj =~ /(.*)\.o$/) {
-		    # Objects may bes enabled by more than one config.
+		    # Objects may be enabled by more than one config.
 		    # Store configs in an array.
 		    my @arr;
 
