@@ -16,6 +16,7 @@
 
 #include <linux/types.h>
 #include <linux/pci.h>
+#include <linux/idr.h>
 #include <linux/uio.h>
 #include <linux/skbuff.h>
 #include <linux/atmdev.h>
@@ -636,14 +637,22 @@ enum ns_regs {
 
 /* Device driver structures */
 
-struct ns_skb_cb {
+struct ns_skb_prv {
 	u32 buf_type;		/* BUF_SM/BUF_LG/BUF_NONE */
+	u32 dma;
+	int iovcnt;
 };
 
-#define NS_SKB_CB(skb)	((struct ns_skb_cb *)((skb)->cb))
+#define NS_PRV_BUFTYPE(skb)   \
+        (((struct ns_skb_prv *)(ATM_SKB(skb)+1))->buf_type)
+#define NS_PRV_DMA(skb) \
+        (((struct ns_skb_prv *)(ATM_SKB(skb)+1))->dma)
+#define NS_PRV_IOVCNT(skb) \
+        (((struct ns_skb_prv *)(ATM_SKB(skb)+1))->iovcnt)
 
 typedef struct tsq_info {
 	void *org;
+        dma_addr_t dma;
 	ns_tsi *base;
 	ns_tsi *next;
 	ns_tsi *last;
@@ -651,6 +660,7 @@ typedef struct tsq_info {
 
 typedef struct scq_info {
 	void *org;
+	dma_addr_t dma;
 	ns_scqe *base;
 	ns_scqe *last;
 	ns_scqe *next;
@@ -668,6 +678,7 @@ typedef struct scq_info {
 
 typedef struct rsq_info {
 	void *org;
+        dma_addr_t dma;
 	ns_rsqe *base;
 	ns_rsqe *next;
 	ns_rsqe *last;
@@ -693,13 +704,6 @@ typedef struct vc_map {
 	int tbd_count;
 } vc_map;
 
-struct ns_skb_data {
-	struct atm_vcc *vcc;
-	int iovcnt;
-};
-
-#define NS_SKB(skb) (((struct ns_skb_data *) (skb)->cb))
-
 typedef struct ns_dev {
 	int index;		/* Card ID to the device driver */
 	int sram_size;		/* In k x 32bit words. 32 or 128 */
@@ -709,6 +713,7 @@ typedef struct ns_dev {
 	int vpibits;
 	int vcibits;
 	struct pci_dev *pcidev;
+	struct idr idr;
 	struct atm_dev *atmdev;
 	tsq_info tsq;
 	rsq_info rsq;
@@ -729,11 +734,12 @@ typedef struct ns_dev {
 	buf_nr iovnr;
 	int sbfqc;
 	int lbfqc;
-	u32 sm_handle;
+	struct sk_buff *sm_handle;
 	u32 sm_addr;
-	u32 lg_handle;
+	struct sk_buff *lg_handle;
 	u32 lg_addr;
 	struct sk_buff *rcbuf;	/* Current raw cell buffer */
+        struct ns_rcqe *rawcell;
 	u32 rawch;		/* Raw cell queue head */
 	unsigned intcnt;	/* Interrupt counter */
 	spinlock_t int_lock;	/* Interrupt lock */
