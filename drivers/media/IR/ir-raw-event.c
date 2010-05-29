@@ -31,8 +31,9 @@ static DEFINE_SPINLOCK(ir_raw_handler_lock);
  *
  * Calls ir_raw_handler::ops for all registered IR handlers. It prevents
  * new decode addition/removal while running, by locking ir_raw_handler_lock
- * mutex. If an error occurs, it stops the ops. Otherwise, it returns a sum
- * of the return codes.
+ * mutex. If an error occurs, we keep going, as in the decode case, each
+ * decoder must have a crack at decoding the data. We return a sum of the
+ * return codes, which will be either 0 or negative for current callers.
  */
 #define RUN_DECODER(ops, ...) ({					    \
 	struct ir_raw_handler		*_ir_raw_handler;		    \
@@ -41,8 +42,6 @@ static DEFINE_SPINLOCK(ir_raw_handler_lock);
 	list_for_each_entry(_ir_raw_handler, &ir_raw_handler_list, list) {  \
 		if (_ir_raw_handler->ops) {				    \
 			_rc = _ir_raw_handler->ops(__VA_ARGS__);	    \
-			if (_rc < 0)					    \
-				break;					    \
 			_sumrc += _rc;					    \
 		}							    \
 	}								    \
