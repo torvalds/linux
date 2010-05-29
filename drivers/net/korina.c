@@ -376,7 +376,7 @@ static int korina_rx(struct net_device *dev, int limit)
 		if (devcs & ETH_RX_LE)
 			dev->stats.rx_length_errors++;
 		if (devcs & ETH_RX_OVR)
-			dev->stats.rx_over_errors++;
+			dev->stats.rx_fifo_errors++;
 		if (devcs & ETH_RX_CV)
 			dev->stats.rx_frame_errors++;
 		if (devcs & ETH_RX_CES)
