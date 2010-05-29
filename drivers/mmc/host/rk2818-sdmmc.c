@@ -1280,9 +1280,9 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 	
 	mmc->max_phys_segs = 64;
 	mmc->max_hw_segs = 64;
-	mmc->max_blk_size = 4095;
-	mmc->max_blk_count = /*512*/4;
-	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
+	mmc->max_blk_size = 65535;
+	mmc->max_blk_count = 512;
+	mmc->max_req_size = 4095 * 4;
 	mmc->max_seg_size = mmc->max_req_size;
 
 	rk2818_sdmmc_set_power(host, 0);
