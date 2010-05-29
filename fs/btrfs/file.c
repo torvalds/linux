@@ -1139,7 +1139,7 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	/*
 	 * ok we haven't committed the transaction yet, lets do a commit
 	 */
-	if (file && file->private_data)
+	if (file->private_data)
 		btrfs_ioctl_trans_end(file);
 
 	trans = btrfs_start_transaction(root, 0);
