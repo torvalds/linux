@@ -67,11 +67,6 @@
 #define CONFIG_RBPL_BUFSIZE	4096
 #define RBPL_MASK(x)		(((unsigned long)(x))&((CONFIG_RBPL_SIZE<<3)-1))
 
-#define CONFIG_RBPS_SIZE	1024
-#define CONFIG_RBPS_THRESH	64
-#define CONFIG_RBPS_BUFSIZE	128
-#define RBPS_MASK(x)		(((unsigned long)(x))&((CONFIG_RBPS_SIZE<<3)-1))
-
 /* 5.1.3 initialize connection memory */
 
 #define CONFIG_RSRA		0x00000
@@ -225,14 +220,8 @@ struct he_virt {
 	void *virt;
 };
 
-#define RBPL_ALIGNMENT CONFIG_RBPL_SIZE
-#define RBPS_ALIGNMENT CONFIG_RBPS_SIZE
-
 #ifdef notyet
 struct he_group {
-	u32 rpbs_size, rpbs_qsize;
-	struct he_rbp rbps_ba;
-
 	u32 rpbl_size, rpbl_qsize;
 	struct he_rpb_entry *rbpl_ba;
 };
@@ -302,12 +291,6 @@ struct he_dev {
 	struct he_rbp *rbpl_base, *rbpl_tail;
 	struct he_virt *rbpl_virt;
 	int rbpl_peak;
-
-	struct pci_pool *rbps_pool;
-	dma_addr_t rbps_phys;
-	struct he_rbp *rbps_base, *rbps_tail;
-	struct he_virt *rbps_virt;
-	int rbps_peak;
 
 	dma_addr_t tbrq_phys;
 	struct he_tbrq *tbrq_base, *tbrq_head;
