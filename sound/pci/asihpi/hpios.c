@@ -89,26 +89,3 @@ u16 hpios_locked_mem_free(struct consistent_dma_area *p_mem_area)
 void hpios_locked_mem_free_all(void)
 {
 }
-
-void __iomem *hpios_map_io(struct pci_dev *pci_dev, int idx,
-	unsigned int length)
-{
-	HPI_DEBUG_LOG(DEBUG, "mapping %d %s %08llx-%08llx %04llx len 0x%x\n",
-		idx, pci_dev->resource[idx].name,
-		(unsigned long long)pci_resource_start(pci_dev, idx),
-		(unsigned long long)pci_resource_end(pci_dev, idx),
-		(unsigned long long)pci_resource_flags(pci_dev, idx), length);
-
-	if (!(pci_resource_flags(pci_dev, idx) & IORESOURCE_MEM)) {
-		HPI_DEBUG_LOG(ERROR, "not an io memory resource\n");
-		return NULL;
-	}
-
-	if (length > pci_resource_len(pci_dev, idx)) {
-		HPI_DEBUG_LOG(ERROR, "resource too small for requested %d \n",
-			length);
-		return NULL;
-	}
-
-	return ioremap(pci_resource_start(pci_dev, idx), length);
-}

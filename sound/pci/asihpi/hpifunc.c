@@ -2946,6 +2946,20 @@ u16 hpi_tuner_get_hd_radio_signal_quality(const struct hpi_hsubsys *ph_subsys,
 		HPI_TUNER_HDRADIO_SIGNAL_QUALITY, 0, 0, pquality, NULL);
 }
 
+u16 hpi_tuner_get_hd_radio_signal_blend(const struct hpi_hsubsys *ph_subsys,
+	u32 h_control, u32 *pblend)
+{
+	return hpi_control_param_get(ph_subsys, h_control,
+		HPI_TUNER_HDRADIO_BLEND, 0, 0, pblend, NULL);
+}
+
+u16 hpi_tuner_set_hd_radio_signal_blend(const struct hpi_hsubsys *ph_subsys,
+	u32 h_control, const u32 blend)
+{
+	return hpi_control_param_set(ph_subsys, h_control,
+		HPI_TUNER_HDRADIO_BLEND, blend, 0);
+}
+
 u16 hpi_tuner_getRDS(const struct hpi_hsubsys *ph_subsys, u32 h_control,
 	char *p_data)
 {
@@ -3266,8 +3280,7 @@ u16 hpi_entity_find_next(struct hpi_entity *container_entity,
 
 void hpi_entity_free(struct hpi_entity *entity)
 {
-	if (entity != NULL)
-		kfree(entity);
+	kfree(entity);
 }
 
 static u16 hpi_entity_alloc_and_copy(struct hpi_entity *src,
