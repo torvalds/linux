@@ -159,6 +159,9 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 			iph->daddr = new_addr;
 
 		csum_replace4(&iph->check, addr, new_addr);
+	} else if ((iph->frag_off & htons(IP_OFFSET)) ||
+		   iph->protocol != IPPROTO_ICMP) {
+		goto out;
 	}
 
 	ihl = iph->ihl * 4;
@@ -247,6 +250,7 @@ static int tcf_nat(struct sk_buff *skb, struct tc_action *a,
 		break;
 	}
 
+out:
 	return action;
 
 drop:
