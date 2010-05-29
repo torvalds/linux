@@ -1280,7 +1280,7 @@ static noinline int btrfs_ioctl_snap_destroy(struct file *file,
 	trans = btrfs_start_transaction(root, 0);
 	if (IS_ERR(trans)) {
 		err = PTR_ERR(trans);
-		goto out;
+		goto out_up_write;
 	}
 	trans->block_rsv = &root->fs_info->global_block_rsv;
 
