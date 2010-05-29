@@ -765,10 +765,9 @@ static int korina_alloc_ring(struct net_device *dev)
 
 	/* Initialize the receive descriptors */
 	for (i = 0; i < KORINA_NUM_RDS; i++) {
-		skb = dev_alloc_skb(KORINA_RBSIZE + 2);
+		skb = netdev_alloc_skb_ip_align(dev, KORINA_RBSIZE);
 		if (!skb)
 			return -ENOMEM;
-		skb_reserve(skb, 2);
 		lp->rx_skb[i] = skb;
 		lp->rd_ring[i].control = DMA_DESC_IOD |
 				DMA_COUNT(KORINA_RBSIZE);
