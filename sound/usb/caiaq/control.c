@@ -95,11 +95,9 @@ static int control_put(struct snd_kcontrol *kcontrol,
 	int pos = kcontrol->private_value;
 	unsigned char cmd = EP1_CMD_WRITE_IO;
 
-	switch (dev->chip.usb_id) {
-	case USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1):
+	if (dev->chip.usb_id ==
+		USB_ID(USB_VID_NATIVEINSTRUMENTS, USB_PID_TRAKTORKONTROLX1))
 		cmd = EP1_CMD_DIMM_LEDS;
-		break;
-	}
 
 	if (pos & CNT_INTVAL) {
 		dev->control_state[pos & ~CNT_INTVAL]
