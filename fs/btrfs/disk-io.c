@@ -1941,8 +1941,11 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 		     btrfs_level_size(tree_root,
 				      btrfs_super_log_root_level(disk_super));
 
-		log_tree_root = kzalloc(sizeof(struct btrfs_root),
-						      GFP_NOFS);
+		log_tree_root = kzalloc(sizeof(struct btrfs_root), GFP_NOFS);
+		if (!log_tree_root) {
+			err = -ENOMEM;
+			goto fail_trans_kthread;
+		}
 
 		__setup_root(nodesize, leafsize, sectorsize, stripesize,
 			     log_tree_root, fs_info, BTRFS_TREE_LOG_OBJECTID);
