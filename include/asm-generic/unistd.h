@@ -18,7 +18,7 @@
 #define __SYSCALL(x, y)
 #endif
 
-#if __BITS_PER_LONG == 32
+#if __BITS_PER_LONG == 32 || defined(__SYSCALL_COMPAT)
 #define __SC_3264(_nr, _32, _64) __SYSCALL(_nr, _32)
 #else
 #define __SC_3264(_nr, _32, _64) __SYSCALL(_nr, _64)
@@ -241,8 +241,13 @@ __SYSCALL(__NR_sync, sys_sync)
 __SYSCALL(__NR_fsync, sys_fsync)
 #define __NR_fdatasync 83
 __SYSCALL(__NR_fdatasync, sys_fdatasync)
+#ifdef __ARCH_WANT_SYNC_FILE_RANGE2
+#define __NR_sync_file_range2 84
+__SYSCALL(__NR_sync_file_range2, sys_sync_file_range2)
+#else
 #define __NR_sync_file_range 84
-__SYSCALL(__NR_sync_file_range, sys_sync_file_range) /* .long sys_sync_file_range2, */
+__SYSCALL(__NR_sync_file_range, sys_sync_file_range)
+#endif
 
 /* fs/timerfd.c */
 #define __NR_timerfd_create 85
@@ -580,7 +585,7 @@ __SYSCALL(__NR_execve, sys_execve)	/* .long sys_execve_wrapper */
 __SC_3264(__NR3264_mmap, sys_mmap2, sys_mmap)
 /* mm/fadvise.c */
 #define __NR3264_fadvise64 223
-__SC_3264(__NR3264_fadvise64, sys_fadvise64_64, sys_fadvise64)
+__SYSCALL(__NR3264_fadvise64, sys_fadvise64_64)
 
 /* mm/, CONFIG_MMU only */
 #ifndef __ARCH_NOMMU
@@ -627,8 +632,14 @@ __SYSCALL(__NR_accept4, sys_accept4)
 #define __NR_recvmmsg 243
 __SYSCALL(__NR_recvmmsg, sys_recvmmsg)
 
+/*
+ * Architectures may provide up to 16 syscalls of their own
+ * starting with this value.
+ */
+#define __NR_arch_specific_syscall 244
+
 #undef __NR_syscalls
-#define __NR_syscalls 244
+#define __NR_syscalls 260
 
 /*
  * All syscalls below here should go away really,
@@ -694,7 +705,8 @@ __SYSCALL(__NR_signalfd, sys_signalfd)
 #define __NR_syscalls (__NR_signalfd+1)
 #endif /* __ARCH_WANT_SYSCALL_NO_FLAGS */
 
-#if __BITS_PER_LONG == 32 && defined(__ARCH_WANT_SYSCALL_OFF_T)
+#if (__BITS_PER_LONG == 32 || defined(__SYSCALL_COMPAT)) && \
+     defined(__ARCH_WANT_SYSCALL_OFF_T)
 #define __NR_sendfile 1046
 __SYSCALL(__NR_sendfile, sys_sendfile)
 #define __NR_ftruncate 1047
@@ -740,6 +752,7 @@ __SYSCALL(__NR_getpgrp, sys_getpgrp)
 __SYSCALL(__NR_pause, sys_pause)
 #define __NR_time 1062
 #define __ARCH_WANT_SYS_TIME
+#define __ARCH_WANT_COMPAT_SYS_TIME
 __SYSCALL(__NR_time, sys_time)
 #define __NR_utime 1063
 #define __ARCH_WANT_SYS_UTIME
@@ -801,7 +814,7 @@ __SYSCALL(__NR_fork, sys_ni_syscall)
  * Here we map the numbers so that both versions
  * use the same syscall table layout.
  */
-#if __BITS_PER_LONG == 64
+#if __BITS_PER_LONG == 64 && !defined(__SYSCALL_COMPAT)
 #define __NR_fcntl __NR3264_fcntl
 #define __NR_statfs __NR3264_statfs
 #define __NR_fstatfs __NR3264_fstatfs
@@ -848,6 +861,7 @@ __SYSCALL(__NR_fork, sys_ni_syscall)
 #endif
 #define __ARCH_WANT_SYS_RT_SIGACTION
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
+#define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
 
 /*
  * "Conditional" syscalls
