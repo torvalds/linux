@@ -669,8 +669,16 @@ static void ceph_destroy_client(struct ceph_client *client)
 
 	/* unmount */
 	ceph_mdsc_stop(&client->mdsc);
-	ceph_monc_stop(&client->monc);
 	ceph_osdc_stop(&client->osdc);
+
+	/*
+	 * make sure mds and osd connections close out before destroying
+	 * the auth module, which is needed to free those connections'
+	 * ceph_authorizers.
+	 */
+	ceph_msgr_flush();
+
+	ceph_monc_stop(&client->monc);
 
 	ceph_adjust_min_caps(-client->min_caps);
 
