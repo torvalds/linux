@@ -1,0 +1,16 @@
+#
+# Makefile for TILE-specific library files..
+#
+
+lib-y = checksum.o cpumask.o delay.o __invalidate_icache.o \
+	mb_incoherent.o uaccess.o \
+	memcpy_$(BITS).o memchr_$(BITS).o memmove_$(BITS).o memset_$(BITS).o \
+	strchr_$(BITS).o strlen_$(BITS).o
+
+ifneq ($(CONFIG_TILEGX),y)
+lib-y += atomic_32.o atomic_asm_32.o memcpy_tile64.o
+endif
+
+lib-$(CONFIG_SMP) += spinlock_$(BITS).o usercopy_$(BITS).o
+
+obj-$(CONFIG_MODULES) += exports.o
