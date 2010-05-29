@@ -341,6 +341,8 @@ static void rk2818_sdmmc_stop_dma(struct rk2818_sdmmc_host *host)
 		writel(readl(host->regs + SDMMC_CTRL) & ~SDMMC_CTRL_DMA_ENABLE,
 				host->regs +SDMMC_CTRL);
 		disable_dma(host->dma_chn);
+		free_dma(host->dma_chn);
+		host->dma_chn = -1;
 		rk2818_sdmmc_dma_cleanup(host);
 	} else {
 		/* Data transfer was stopped by the interrupt handler */
@@ -360,6 +362,7 @@ static void rk2818_sdmmc_dma_complete(int chn, void *arg)
 	rk2818_sdmmc_dma_cleanup(host);
 	disable_dma(host->dma_chn);
 	free_dma(host->dma_chn);
+	host->dma_chn = -1;
 	if (data) {
 		rk2818_sdmmc_set_pending(host, EVENT_XFER_COMPLETE);
 		tasklet_schedule(&host->tasklet);
@@ -1186,6 +1189,7 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 	host->mmc = mmc;
 	host->pdev = pdev;
 	host->dev = &pdev->dev;
+	host->dma_chn = -1;
 
 	host->use_dma = pdata->use_dma;
 	host->no_detect = pdata->no_detect;
@@ -1276,7 +1280,7 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 	
 	mmc->max_phys_segs = 64;
 	mmc->max_hw_segs = 64;
-	mmc->max_blk_size = /*4095*/1023;
+	mmc->max_blk_size = 4095;
 	mmc->max_blk_count = /*512*/4;
 	mmc->max_req_size = mmc->max_blk_size * mmc->max_blk_count;
 	mmc->max_seg_size = mmc->max_req_size;
