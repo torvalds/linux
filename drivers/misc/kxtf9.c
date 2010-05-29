@@ -1237,7 +1237,7 @@ static struct i2c_driver kxtf9_driver = {
 
 static int __init kxtf9_init(void)
 {
-	pr_info(KERN_INFO "kxtf9 accelerometer driver\n");
+	pr_info("kxtf9 accelerometer driver\n");
 	return i2c_add_driver(&kxtf9_driver);
 }
 
