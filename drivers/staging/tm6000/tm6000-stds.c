@@ -763,11 +763,11 @@ static struct tm6000_std_settings svideo_stds[] = {
 void tm6000_get_std_res(struct tm6000_core *dev)
 {
 	/* Currently, those are the only supported resoltions */
-	if (dev->norm & V4L2_STD_525_60) {
+	if (dev->norm & V4L2_STD_525_60)
 		dev->height = 480;
-	} else {
+	else
 		dev->height = 576;
-	}
+
 	dev->width = 720;
 }
 

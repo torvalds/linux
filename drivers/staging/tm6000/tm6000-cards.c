@@ -705,7 +705,7 @@ static void get_max_endpoint(struct usb_device *udev,
 	unsigned int size = tmp & 0x7ff;
 
 	if (udev->speed == USB_SPEED_HIGH)
-		size = size * hb_mult (tmp);
+		size = size * hb_mult(tmp);
 
 	if (size > tm_ep->maxsize) {
 		tm_ep->endp = curr_e;
