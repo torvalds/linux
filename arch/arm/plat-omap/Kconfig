@@ -35,6 +35,28 @@ config OMAP_DEBUG_LEDS
 	depends on OMAP_DEBUG_DEVICES
 	default y if LEDS_CLASS
 
+config OMAP_SMARTREFLEX
+	bool "SmartReflex support"
+	depends on ARCH_OMAP3 && PM
+	help
+	  Say Y if you want to enable SmartReflex.
+
+	  SmartReflex can perform continuous dynamic voltage
+	  scaling around the nominal operating point voltage
+	  according to silicon characteristics and operating
+	  conditions. Enabling SmartReflex reduces power
+	  consumption.
+
+	  Please note, that by default SmartReflex is only
+	  initialized. To enable the automatic voltage
+	  compensation for vdd mpu  and vdd core from user space,
+	  user must write 1 to
+		/debug/voltage/vdd_<X>/smartreflex/autocomp,
+	  where X is mpu or core for OMAP3.
+	  Optionallly autocompensation can be enabled in the kernel
+	  by default during system init via the enable_on_init flag
+	  which an be passed as platform data to the smartreflex driver.
+
 config OMAP_RESET_CLOCKS
 	bool "Reset unused clocks during boot"
 	depends on ARCH_OMAP
