@@ -60,6 +60,8 @@ static struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 		size = __btrfs_getxattr(inode, name, value, size);
 		if (size > 0) {
 			acl = posix_acl_from_xattr(value, size);
+			if (IS_ERR(acl))
+				return acl;
 			set_cached_acl(inode, type, acl);
 		}
 		kfree(value);
