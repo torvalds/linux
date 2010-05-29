@@ -1106,57 +1106,43 @@ static void rk2818_sdmmc_detect_change(unsigned long host_data)
 
 		mrq = host->mrq;
 		if (mrq) {
-			if (mrq == host->mrq) {
-			  	writel((SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET| 
-							SDMMC_CTRL_INT_ENABLE), host->regs + SDMMC_CTRL);
-			  	/* wait till resets clear */
-			  	while (readl(host->regs + SDMMC_CTRL) & 
-						(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
+			  writel((SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET| 
+						SDMMC_CTRL_INT_ENABLE), host->regs + SDMMC_CTRL);
+			 /* wait till resets clear */
+			  while (readl(host->regs + SDMMC_CTRL) & 
+					(SDMMC_CTRL_RESET | SDMMC_CTRL_FIFO_RESET | SDMMC_CTRL_DMA_RESET));
 
-				host->data = NULL;
-				host->cmd = NULL;
+			host->data = NULL;
+			host->cmd = NULL;
 
-				switch (host->state) {
-				case STATE_IDLE:
-					break;
-				case STATE_SENDING_CMD:
-					mrq->cmd->error = -ENOMEDIUM;
-					if (!mrq->data)
-						break;
-					/* fall through */
-				case STATE_SENDING_DATA:
-					mrq->data->error = -ENOMEDIUM;
-					rk2818_sdmmc_stop_dma(host);
-					break;
-				case STATE_DATA_BUSY:
-				case STATE_DATA_ERROR:
-					if (mrq->data->error == -EINPROGRESS)
-						mrq->data->error = -ENOMEDIUM;
-					if (!mrq->stop)
-						break;
-				case STATE_SENDING_STOP:
-					mrq->stop->error = -ENOMEDIUM;
-					break;
-				}
-
-				rk2818_sdmmc_request_end(host, mrq);
-			} else {
-				list_del(&host->queue_node);
+			switch (host->state) {
+			case STATE_IDLE:
+				break;
+			case STATE_SENDING_CMD:
 				mrq->cmd->error = -ENOMEDIUM;
-				if (mrq->data)
+				if (!mrq->data)
+					break;
+				/* fall through */
+			case STATE_SENDING_DATA:
+				mrq->data->error = -ENOMEDIUM;
+				rk2818_sdmmc_stop_dma(host);
+				break;
+			case STATE_DATA_BUSY:
+			case STATE_DATA_ERROR:
+				if (mrq->data->error == -EINPROGRESS)
 					mrq->data->error = -ENOMEDIUM;
-				if (mrq->stop)
-					mrq->stop->error = -ENOMEDIUM;
-
-				spin_unlock(&host->lock);
-				mmc_request_done(host->mmc, mrq);
-				spin_lock(&host->lock);
+				if (!mrq->stop)
+					break;
+			case STATE_SENDING_STOP:
+				mrq->stop->error = -ENOMEDIUM;
+				break;
 			}
 
+			rk2818_sdmmc_request_end(host, mrq);
 		}
 
 		spin_unlock(&host->lock);
-		mmc_detect_change(host->mmc, 0);
+		mmc_detect_change(host->mmc, msecs_to_jiffies(200));
 	}
 }
 
