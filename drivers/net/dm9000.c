@@ -148,9 +148,11 @@ typedef struct board_info {
 } while (0)
 
 #ifdef CONFIG_DM9000_USE_NAND_CONTROL
+extern void rk2818_nand_status_mutex_lock(void);
 extern	int rk2818_nand_status_mutex_trylock(void);
 extern	void rk2818_nand_status_mutex_unlock(void);
 #else
+static void rk2818_nand_status_mutex_lock(void){return;}
 static int rk2818_nand_status_mutex_trylock(void) {return 1;}
 static void rk2818_nand_status_mutex_unlock(void) {return;}
 #endif
@@ -322,8 +324,7 @@ dm9000_read_locked(board_info_t *db, int reg)
 	unsigned long flags;
 	unsigned int ret;
 	
-	while(!rk2818_nand_status_mutex_trylock())
-		dev_dbg(db->dev, "fun:%s, nand busy\n", __func__);
+	rk2818_nand_status_mutex_lock();
 
 	spin_lock_irqsave(&db->lock, flags);	
 	ret = ior(db, reg);
@@ -383,8 +384,7 @@ dm9000_read_eeprom(board_info_t *db, int offset, u8 *to)
 
 	mutex_lock(&db->addr_lock);
 	
-	while(!rk2818_nand_status_mutex_trylock())
-		dev_dbg(db->dev, "fun:%s, nand busy\n", __func__);
+	rk2818_nand_status_mutex_lock();
 
 	spin_lock_irqsave(&db->lock, flags);
 		
@@ -400,8 +400,7 @@ dm9000_read_eeprom(board_info_t *db, int offset, u8 *to)
 	/* delay for at-least 150uS */
 	msleep(1);
 	
-	while(!rk2818_nand_status_mutex_trylock())
-		dev_dbg(db->dev, "fun:%s, nand busy\n", __func__);
+	rk2818_nand_status_mutex_lock();
 
 	spin_lock_irqsave(&db->lock, flags);
 	
@@ -430,8 +429,7 @@ dm9000_write_eeprom(board_info_t *db, int offset, u8 *data)
 
 	mutex_lock(&db->addr_lock);
 	
-	while(!rk2818_nand_status_mutex_trylock())
-		dev_dbg(db->dev, "fun:%s, nand busy\n", __func__);
+	rk2818_nand_status_mutex_lock();
 
 	spin_lock_irqsave(&db->lock, flags);	
 	iow(db, DM9000_EPAR, offset);
@@ -446,8 +444,7 @@ dm9000_write_eeprom(board_info_t *db, int offset, u8 *data)
 
 	mdelay(1);	/* wait at least 150uS to clear */
 	
-	while(!rk2818_nand_status_mutex_trylock())
-		dev_dbg(db->dev, "fun:%s, nand busy\n", __func__);
+	rk2818_nand_status_mutex_lock();
 
 	spin_lock_irqsave(&db->lock, flags);
 	iow(db, DM9000_EPCR, 0);
@@ -519,8 +516,7 @@ static int dm9000_set_rx_csum(struct net_device *dev, uint32_t data)
 	if (dm->can_csum) {
 		dm->rx_csum = data;
 
-		while(!rk2818_nand_status_mutex_trylock())
-			dev_dbg(dm->dev, "fun:%s, nand busy\n", __func__);
+		rk2818_nand_status_mutex_lock();
 		
 		spin_lock_irqsave(&dm->lock, flags);
 		iow(dm, DM9000_RCSR, dm->rx_csum ? RCSR_CSUM : 0);
@@ -724,8 +720,7 @@ dm9000_hash_table(struct net_device *dev)
 
 	dm9000_dbg(db, 1, "entering %s\n", __func__);
 	
-	while(!rk2818_nand_status_mutex_trylock())
-		dev_dbg(db->dev, "fun:%s, nand busy\n", __func__);
+	rk2818_nand_status_mutex_lock();
 
 	spin_lock_irqsave(&db->lock, flags);
 	
@@ -825,8 +820,7 @@ static void dm9000_timeout(struct net_device *dev)
 	/* Save previous register address */
 	reg_save = readb(db->io_addr);
 	
-	while(!rk2818_nand_status_mutex_trylock())
-		dev_dbg(db->dev, "fun:%s, nand busy\n", __func__);
+	rk2818_nand_status_mutex_lock();
 	
 	spin_lock_irqsave(&db->lock, flags);
 
@@ -1073,8 +1067,7 @@ static void dm9000_interrupt_work(struct work_struct *work)
 
 	/* holders of db->lock must always block IRQs */
 	
-	while(!rk2818_nand_status_mutex_trylock())
-		dev_dbg(db->dev, "fun:%s, nand busy\n", __func__);
+	rk2818_nand_status_mutex_lock();
 	
 	spin_lock_irqsave(&db->lock, flags);
 
@@ -1270,8 +1263,7 @@ dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 
 	mutex_lock(&db->addr_lock);
 
-	while(!rk2818_nand_status_mutex_trylock())
-		dev_dbg(db->dev, "fun:%s, nand busy\n", __func__);
+	rk2818_nand_status_mutex_lock();
 
 	spin_lock_irqsave(&db->lock,flags);
 	
@@ -1290,8 +1282,7 @@ dm9000_phy_read(struct net_device *dev, int phy_reg_unused, int reg)
 
 	dm9000_msleep(db, 1);		/* Wait read complete */
 
-	while(!rk2818_nand_status_mutex_trylock())
-		dev_dbg(db->dev, "fun:%s, nand busy\n", __func__);
+	rk2818_nand_status_mutex_lock();
 
 	spin_lock_irqsave(&db->lock,flags);
 	
@@ -1328,8 +1319,7 @@ dm9000_phy_write(struct net_device *dev,
 	dm9000_dbg(db, 5, "phy_write[%02x] = %04x\n", reg, value);
 	mutex_lock(&db->addr_lock);
 
-	while(!rk2818_nand_status_mutex_trylock())
-		dev_dbg(db->dev, "fun:%s, nand busy\n", __func__);
+	rk2818_nand_status_mutex_lock();
 
 	spin_lock_irqsave(&db->lock,flags);
 	
@@ -1352,8 +1342,7 @@ dm9000_phy_write(struct net_device *dev,
 
 	dm9000_msleep(db, 1);		/* Wait write complete */
 
-	while(!rk2818_nand_status_mutex_trylock())
-		dev_dbg(db->dev, "fun:%s, nand busy\n", __func__);
+	rk2818_nand_status_mutex_lock();
 
 	spin_lock_irqsave(&db->lock,flags);
 	

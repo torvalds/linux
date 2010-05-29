@@ -1007,6 +1007,14 @@ static void __exit rk2818_nand_exit(void)
 
 
 // nandc dma cs mutex for dm9000 interface
+void rk2818_nand_status_mutex_lock(void)
+{
+     pNANDC pRK28NC=  (pNANDC)RK2818_NANDC_BASE;
+     mutex_lock(&rknand_mutex);
+     pRK28NC->FMCTL &=0xffffff00;   // release chip select
+
+}
+
 int rk2818_nand_status_mutex_trylock(void)
 {
      pNANDC pRK28NC=  (pNANDC)RK2818_NANDC_BASE;
