@@ -466,9 +466,11 @@ void __udp6_lib_err(struct sk_buff *skb, struct inet6_skb_parm *opt,
 	if (sk->sk_state != TCP_ESTABLISHED && !np->recverr)
 		goto out;
 
-	if (np->recverr)
+	if (np->recverr) {
+		bh_lock_sock(sk);
 		ipv6_icmp_error(sk, skb, err, uh->dest, ntohl(info), (u8 *)(uh+1));
-
+		bh_unlock_sock(sk);
+	}
 	sk->sk_err = err;
 	sk->sk_error_report(sk);
 out:

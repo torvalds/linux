@@ -2992,7 +2992,11 @@ void skb_tstamp_tx(struct sk_buff *orig_skb,
 	memset(serr, 0, sizeof(*serr));
 	serr->ee.ee_errno = ENOMSG;
 	serr->ee.ee_origin = SO_EE_ORIGIN_TIMESTAMPING;
+
+	bh_lock_sock(sk);
 	err = sock_queue_err_skb(sk, skb);
+	bh_unlock_sock(sk);
+
 	if (err)
 		kfree_skb(skb);
 }
