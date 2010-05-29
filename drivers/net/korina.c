@@ -135,6 +135,7 @@ struct korina_private {
 	struct napi_struct napi;
 	struct timer_list media_check_timer;
 	struct mii_if_info mii_if;
+	struct work_struct restart_task;
 	struct net_device *dev;
 	int phy_addr;
 };
@@ -890,12 +891,12 @@ static int korina_init(struct net_device *dev)
 
 /*
  * Restart the RC32434 ethernet controller.
- * FIXME: check the return status where we call it
  */
-static int korina_restart(struct net_device *dev)
+static void korina_restart_task(struct work_struct *work)
 {
-	struct korina_private *lp = netdev_priv(dev);
-	int ret;
+	struct korina_private *lp = container_of(work,
+			struct korina_private, restart_task);
+	struct net_device *dev = lp->dev;
 
 	/*
 	 * Disable interrupts
@@ -916,10 +917,9 @@ static int korina_restart(struct net_device *dev)
 
 	napi_disable(&lp->napi);
 
-	ret = korina_init(dev);
-	if (ret < 0) {
+	if (korina_init(dev) < 0) {
 		printk(KERN_ERR "%s: cannot restart device\n", dev->name);
-		return ret;
+		return;
 	}
 	korina_multicast_list(dev);
 
@@ -927,8 +927,6 @@ static int korina_restart(struct net_device *dev)
 	enable_irq(lp->ovr_irq);
 	enable_irq(lp->tx_irq);
 	enable_irq(lp->rx_irq);
-
-	return ret;
 }
 
 static void korina_clear_and_restart(struct net_device *dev, u32 value)
@@ -937,7 +935,7 @@ static void korina_clear_and_restart(struct net_device *dev, u32 value)
 
 	netif_stop_queue(dev);
 	writel(value, &lp->eth_regs->ethintfc);
-	korina_restart(dev);
+	schedule_work(&lp->restart_task);
 }
 
 /* Ethernet Tx Underflow interrupt */
@@ -962,11 +960,8 @@ static irqreturn_t korina_und_interrupt(int irq, void *dev_id)
 static void korina_tx_timeout(struct net_device *dev)
 {
 	struct korina_private *lp = netdev_priv(dev);
-	unsigned long flags;
 
-	spin_lock_irqsave(&lp->lock, flags);
-	korina_restart(dev);
-	spin_unlock_irqrestore(&lp->lock, flags);
+	schedule_work(&lp->restart_task);
 }
 
 /* Ethernet Rx Overflow interrupt */
@@ -1086,6 +1081,8 @@ static int korina_close(struct net_device *dev)
 
 	napi_disable(&lp->napi);
 
+	cancel_work_sync(&lp->restart_task);
+
 	free_irq(lp->rx_irq, dev);
 	free_irq(lp->tx_irq, dev);
 	free_irq(lp->ovr_irq, dev);
@@ -1197,6 +1194,8 @@ static int korina_probe(struct platform_device *pdev)
 		goto probe_err_register;
 	}
 	setup_timer(&lp->media_check_timer, korina_poll_media, (unsigned long) dev);
+
+	INIT_WORK(&lp->restart_task, korina_restart_task);
 
 	printk(KERN_INFO "%s: " DRV_NAME "-" DRV_VERSION " " DRV_RELDATE "\n",
 			dev->name);
