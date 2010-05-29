@@ -28,84 +28,40 @@
 #include <mach/adc.h>
 #include <mach/iomux.h>
 
-#if 0
+#if 1
 #define DBG(x...)   printk(x)
 #else
 #define DBG(x...)
-#endif
-
-#if 0
-#define NUM_BAT 	3
-#define NUM_ELECTRICITY 	10
-
-#define BAT_CAP_1500MAH		0
-#define BAT_CAP_1200MAH		1
-#define BAT_CAP_1100MAH		2
-
-#define ELECTRICITY_1000MA 	0
-#define ELECTRICITY_900MA 	1
-#define ELECTRICITY_800MA 	2
-#define ELECTRICITY_700MA 	3
-#define ELECTRICITY_600MA 	4
-#define ELECTRICITY_500MA 	5
-#define ELECTRICITY_400MA 	6
-#define ELECTRICITY_300MA 	7
-#define ELECTRICITY_200MA 	8
-#define ELECTRICITY_100MA 	9
-
-#define BAT_SELECT	BAT_CAP_1200MAH
-#define ELECTRICITY_SELECT	ELECTRICITY_200MA
-
-//about 10 minutes before battery is exhaust for different bat and electricity
-static int BatMinVoltage[NUM_BAT][NUM_ELECTRICITY] = 
-{
-{3410, 3450, 3480, 3460, 3480, 3500, 3510, 3470, 3420, 3430},
-{3360, 3400, 3410, 3400, 3430, 3430, 3460, 3480, 3440, 3330},
-{3360, 3400, 3410, 3410, 3440, 3460, 3480, 3470, 3440, 3360},
-};
-
-#define BATT_MAX_VOL_VALUE	4300
-#define BATT_NOMAL_VOL_VALUE  3900
-#define	BATT_ZERO_VOL_VALUE  BatMinVoltage[BAT_SELECT][ELECTRICITY_SELECT]
 #endif
 
 /*******************以下参数可以修改******************************/
 #define	TIMER_MS_COUNTS		50		//定时器的长度ms
 #define	SLOPE_SECOND_COUNTS	120		//统计电压斜率的时间间隔s
 #define	TIME_UPDATE_STATUS	3000	//更新电池状态的时间间隔ms
-#define BATT_MAX_VOL_VALUE	4200	//满电时的电池电压	
+#define BATT_MAX_VOL_VALUE	4100	//满电时的电池电压	
 #define	BATT_ZERO_VOL_VALUE  3400	//关机时的电池电压
 #define BATT_NOMAL_VOL_VALUE  3800
-#define	THRESHOLD_VOLTAGE_HIGH		3850
-#define	THRESHOLD_VOLTAGE_MID		3550
-#define	THRESHOLD_VOLTAGE_LOW		BATT_ZERO_VOL_VALUE
+#define THRESHOLD_VOLTAGE_LEVEL0          4000
+#define THRESHOLD_VOLTAGE_LEVEL1          3800
+#define THRESHOLD_VOLTAGE_LEVEL2          3600
+#define THRESHOLD_VOLTAGE_LEVEL3          BATT_ZERO_VOL_VALUE
 #define	THRESHOLD_SLOPE_HIGH		10	//斜率值 = 电压降低的速度
 #define	THRESHOLD_SLOPE_MID			5	//<	THRESHOLD_SLOPE_HIGH	
 #define	THRESHOLD_SLOPE_LOW			0	//< THRESHOLD_SLOPE_MID
 
-
+/*************************************************************/
 #define CHN_BAT_ADC 	0
 #define CHN_USB_ADC 	2
 #define BATT_LEVEL_EMPTY	0
 #define BATT_PRESENT_TRUE	 1
 #define BATT_PRESENT_FALSE  0
-#define BAT_1V2_VALUE	1422
-#define KEY_CHARGEOK_PIN	RK2818_PIN_PH6
+#define BAT_1V2_VALUE	1418
+#define CHARGEOK_PIN	RK2818_PIN_PH6
 
-static int gBatStatus =  POWER_SUPPLY_STATUS_UNKNOWN;
-static int gBatHealth = POWER_SUPPLY_HEALTH_GOOD;
-static int gBatLastCapacity = 0;
-static int gBatPresent = BATT_PRESENT_TRUE;
-static int gBatVoltage =  BATT_NOMAL_VOL_VALUE;
-static int gBatCapacity = ((BATT_NOMAL_VOL_VALUE-BATT_ZERO_VOL_VALUE)*100/(BATT_MAX_VOL_VALUE-BATT_ZERO_VOL_VALUE));
-
-
-
-/*************************************************************/
-#define LODER_CHARGE_LEVEL		0	//负荷状态等级
-#define	LODER_HIGH_LEVEL		1
-#define	LODER_MID_LEVEL			2
-#define	LOADER_RELEASE_LEVEL	3	//电池即将耗尽状态
+#define BAT_LOADER_STATUS		0	//用电状态
+#define BAT_CHANGE_STATUS		1	//波动状态
+#define BAT_CHARGE_STATUS		2	//充电状态
+#define	BAT_RELEASE_STATUS		3	//电池耗尽状态
 
 #define	SLOPE_HIGH_LEVEL		0	//电压变化斜率等级
 #define	SLOPE_MID_LEVEL			1
@@ -117,17 +73,29 @@ static int gBatCapacity = ((BATT_NOMAL_VOL_VALUE-BATT_ZERO_VOL_VALUE)*100/(BATT_
 #define	VOLTAGE_RELEASE_LEVEL	3
 
 #define	NUM_VOLTAGE_SAMPLE	((1000*SLOPE_SECOND_COUNTS) / TIMER_MS_COUNTS)	//存储的采样点个数
+
+int gBatStatus =  POWER_SUPPLY_STATUS_UNKNOWN;
+int gBatHealth = POWER_SUPPLY_HEALTH_GOOD;
+int gBatLastCapacity = 0;
+int gBatPresent = BATT_PRESENT_TRUE;
+int gBatVoltage =  BATT_NOMAL_VOL_VALUE;
+int gBatCapacity = ((BATT_NOMAL_VOL_VALUE-BATT_ZERO_VOL_VALUE)*100/(BATT_MAX_VOL_VALUE-BATT_ZERO_VOL_VALUE));
+
 int gBatVoltageSamples[NUM_VOLTAGE_SAMPLE];
 int gBatSlopeValue = 0;
-int	gBatVoltageValue[2]={0,0};
+int gBatVoltageValue[2]={0,0};
 int *pSamples = &gBatVoltageSamples[0];		//采样点指针
 int gFlagLoop = 0;		//采样足够标志
 int gNumSamples = 0;
+int gNumCharge = 0;
+int gMaxCharge = 0;
+int gNumLoader = 0;
+int gMaxLoader = 0;
 
 int gBatSlopeLevel = SLOPE_LOW_LEVEL;
 int gBatVoltageLevel = VOLTAGE_MID_LEVEL;
-int gBatLastLoaderLevel = LODER_MID_LEVEL;
-int gBatLoaderLevel = LODER_MID_LEVEL;	
+int gBatUseStatus = BAT_LOADER_STATUS;	
+
 
 
 extern int dwc_vbus_status(void);
@@ -174,7 +142,7 @@ static int rk2818_get_charge_status(void)
 	return dwc_vbus_status();
 #else
 	//DBG("gAdcValue[CHN_USB_ADC]=%d\n",gAdcValue[CHN_USB_ADC]);
-	if(gAdcValue[CHN_USB_ADC] > 100)
+	if(gAdcValue[CHN_USB_ADC] > 50)
 	return 1;
 	else
 	return 0;
@@ -185,7 +153,7 @@ static void rk2818_get_bat_status(struct rk2818_battery_data *bat)
 {
 	if(rk2818_get_charge_status() == 1)
 	{
-		if(gpio_get_value (KEY_CHARGEOK_PIN) == 1) //CHG_OK ==0 
+		if(gpio_get_value (CHARGEOK_PIN) == 1) //CHG_OK ==0 
 		gBatStatus = POWER_SUPPLY_STATUS_FULL;
 		else
 		gBatStatus = POWER_SUPPLY_STATUS_CHARGING;		
@@ -213,7 +181,14 @@ static void rk2818_get_bat_voltage(struct rk2818_battery_data *bat)
 	int i,*pSamp,*pStart = &gBatVoltageSamples[0];
 	int temp[2] = {0,0};
 	value = gAdcValue[CHN_BAT_ADC];
+	if(0 != gAdcValue[3])
 	gBatVoltage = (value * BAT_1V2_VALUE * 2)/gAdcValue[3];	// channel 3 is about 1.42v,need modified
+	/*消除毛刺电压*/
+	if(gBatVoltage >= BATT_MAX_VOL_VALUE + 10)
+		gBatVoltage = BATT_MAX_VOL_VALUE + 10;
+	else if(gBatVoltage <= BATT_ZERO_VOL_VALUE - 10)
+		gBatVoltage = BATT_ZERO_VOL_VALUE - 10;
+	
 	*pSamples = gBatVoltage;
 	if((++pSamples - pStart) > NUM_VOLTAGE_SAMPLE)
 	{
@@ -242,58 +217,64 @@ static void rk2818_get_bat_voltage(struct rk2818_battery_data *bat)
 		
 		gBatVoltageValue[1] = temp[1] / (NUM_VOLTAGE_SAMPLE >> 1);
 
-		gBatSlopeValue = gBatVoltageValue[0] - gBatVoltageValue[1];	
+		gBatSlopeValue = gBatVoltageValue[0] - gBatVoltageValue[1];
 		//DBG("gBatSlopeValue=%d,gBatVoltageValue[1]=%d\n",gBatSlopeValue,gBatVoltageValue[1]);
-		if(gBatSlopeValue >= 0)	//用电状态
-		{
 
-			if(gBatVoltageValue[1] >= THRESHOLD_VOLTAGE_HIGH)
-			gBatVoltageLevel = 	VOLTAGE_HIGH_LEVEL;	
-			else if((gBatVoltageValue[1] >= THRESHOLD_VOLTAGE_MID) && (gBatVoltageValue[1] < THRESHOLD_VOLTAGE_HIGH))
-			gBatVoltageLevel = 	VOLTAGE_MID_LEVEL;
-			else if((gBatVoltageValue[1] >= THRESHOLD_VOLTAGE_LOW) && (gBatVoltageValue[1] < THRESHOLD_VOLTAGE_MID))
-			gBatVoltageLevel = VOLTAGE_LOW_LEVEL;
+		if(gBatVoltageValue[1] < BATT_ZERO_VOL_VALUE)
+		{
+			gBatUseStatus = BAT_RELEASE_STATUS;		//电池耗尽状态
+		}
+		else
+		{
+			if(gBatSlopeValue < 0)
+			{
+				gNumLoader = 0;
+					
+				//连续多次电压降低率为负表示充电状态
+				if(gBatVoltageValue[1] >= THRESHOLD_VOLTAGE_LEVEL0)
+				gMaxCharge = 6;
+				else if(gBatVoltageValue[1] >= THRESHOLD_VOLTAGE_LEVEL1)
+				gMaxCharge = 8;
+				else if(gBatVoltageValue[1] >= THRESHOLD_VOLTAGE_LEVEL2)
+				gMaxCharge = 8;		
+				else if(gBatVoltageValue[1] >= THRESHOLD_VOLTAGE_LEVEL3)
+				gMaxCharge = 6;	
+				if(++gNumCharge >= gMaxCharge)
+				{
+					gBatUseStatus = BAT_CHARGE_STATUS;		//充电状态
+					gNumCharge = gMaxCharge - 2;
+				}
+				else
+				{
+					gBatUseStatus = BAT_CHANGE_STATUS;	//波动状态
+				}
+				
+			}
 			else
-			gBatVoltageLevel = VOLTAGE_RELEASE_LEVEL;
+			{
+				gNumCharge = 0;
+				//连续多次电压降低率为正表示用电状态
+				if(gBatVoltageValue[1] >= THRESHOLD_VOLTAGE_LEVEL0)
+				gMaxCharge = 4;
+				else if(gBatVoltageValue[1] >= THRESHOLD_VOLTAGE_LEVEL1)
+				gMaxCharge = 6;
+				else if(gBatVoltageValue[1] >= THRESHOLD_VOLTAGE_LEVEL2)
+				gMaxCharge = 6;		
+				else if(gBatVoltageValue[1] >= THRESHOLD_VOLTAGE_LEVEL3)
+				gMaxLoader = 4;	
+				
+				if(++gNumLoader >= gMaxLoader)
+				{		
+					gBatUseStatus = BAT_LOADER_STATUS;
+					gNumLoader = gMaxLoader - 2;
+				}
+				else
+				{
+					gBatUseStatus = BAT_CHANGE_STATUS;	//波动状态
+				}
 
-			if(gBatSlopeValue >= THRESHOLD_SLOPE_HIGH)
-			gBatSlopeLevel = SLOPE_HIGH_LEVEL;	
-			else if((gBatSlopeValue >= THRESHOLD_SLOPE_MID) && (gBatSlopeValue < THRESHOLD_SLOPE_HIGH))
-			gBatSlopeLevel = SLOPE_MID_LEVEL;	
-			else if(gBatSlopeValue >= THRESHOLD_SLOPE_LOW)
-			gBatSlopeLevel = SLOPE_LOW_LEVEL;
-			
-			/*电压中且斜率高、 电压高且斜率高或中*/
-			if(((gBatVoltageLevel == VOLTAGE_MID_LEVEL) && (gBatSlopeLevel == SLOPE_HIGH_LEVEL)) \
-				|| ((gBatVoltageLevel == VOLTAGE_HIGH_LEVEL) && ((gBatSlopeLevel == SLOPE_HIGH_LEVEL) || (gBatSlopeLevel == SLOPE_MID_LEVEL))))
-			{
-				gBatLoaderLevel = LODER_HIGH_LEVEL;
-				//DBG("gBatLoaderLevel = LODER_HIGH_LEVEL\n");
 			}
-			
-			/*电压中且斜率中或低、电压高且斜率低、 电压低且斜率低*/
-			else if(((gBatVoltageLevel != VOLTAGE_RELEASE_LEVEL) && (gBatSlopeLevel == SLOPE_LOW_LEVEL)) \
-				|| ((gBatVoltageLevel == VOLTAGE_MID_LEVEL) && (gBatSlopeLevel == SLOPE_MID_LEVEL)))
-			{
-				gBatLoaderLevel = LODER_MID_LEVEL;
-				//DBG("gBatLoaderLevel = LODER_MID_LEVEL\n");
-			}
-			
-			/*电压低且斜率高或中、 电压超低*/
-			else if(((gBatVoltageLevel == VOLTAGE_LOW_LEVEL) && ((gBatSlopeLevel == SLOPE_MID_LEVEL) || (gBatSlopeLevel == SLOPE_MID_LEVEL))) \
-				|| (gBatVoltageLevel == VOLTAGE_RELEASE_LEVEL))
-			{
-				gBatLoaderLevel = LOADER_RELEASE_LEVEL;	//电池已耗尽
-				//DBG("gBatLoaderLevel = LOADER_RELEASE_LEVEL\n");
-			}
-
 		}
-		else	//充电状态
-		{
-			//to do
-			gBatLoaderLevel = LODER_CHARGE_LEVEL;
-		}
-		
 	}
 	
 }
@@ -302,20 +283,36 @@ static void rk2818_get_bat_capacity(struct rk2818_battery_data *bat)
 {
 	if(gFlagLoop)
 	{
-		//出现负载变小时容量变大的情况时，不更新容量值
-		if((gBatLastCapacity ==0) \
-			|| (gBatLoaderLevel <= gBatLastLoaderLevel) \
-			|| ((gBatLoaderLevel > gBatLastLoaderLevel)&&(gBatCapacity <= gBatLastCapacity)))	
+		if(gBatUseStatus == BAT_LOADER_STATUS)
 		{
-			gBatCapacity = ((gBatVoltageValue[1] - bat->bat_min) * 100) / (bat->bat_max - bat->bat_min);
-			if(gBatCapacity >= 100)
-			gBatCapacity = 100;
-			else if(gBatCapacity < 0)
-			gBatCapacity = 0;
-			gBatLastCapacity = gBatCapacity;
-			gBatLastLoaderLevel = gBatLoaderLevel;
+			//用电状态下出现负载变小容量变大时，不更新容量值
+			if((gBatLastCapacity ==0) || (gBatCapacity <= gBatLastCapacity))
+			{
+				gBatCapacity = ((gBatVoltageValue[1] - bat->bat_min) * 100) / (bat->bat_max - bat->bat_min);
+				if(gBatCapacity >= 100)
+				gBatCapacity = 100;
+				else if(gBatCapacity < 0)
+				gBatCapacity = 0;
+				gBatLastCapacity = gBatCapacity;
+			}
+	
+		}
+		else if(gBatUseStatus == BAT_CHARGE_STATUS)
+		{
+			//充电状态下容量降低时，不更新容量值
+			if((gBatCapacity >= gBatLastCapacity) || (gBatLastCapacity ==0))
+			{
+				gBatCapacity = ((gBatVoltageValue[1] - bat->bat_min) * 100) / (bat->bat_max - bat->bat_min);
+				if(gBatCapacity >= 100)
+				gBatCapacity = 100;
+				else if(gBatCapacity < 0)
+				gBatCapacity = 0;
+				gBatLastCapacity = gBatCapacity;
+			}
+
 		}
 
+		//变化状态不更新容量
 	}
 	else
 	{
@@ -339,7 +336,7 @@ static void rk2818_battery_timer_work(struct work_struct *work)
 	if(++gNumSamples > TIME_UPDATE_STATUS/TIMER_MS_COUNTS)
 	{
 		gNumSamples = 0;
-		if(gFlagLoop == 1)	//update battery parameter after adc
+		if(gBatVoltage != 0)	//update battery parameter after adc
 		{
 			if(!( strstr(saved_command_line,"nfsroot=") ) )
 			{
@@ -359,15 +356,6 @@ static void rk2818_battery_timer_work(struct work_struct *work)
 				DBG("gBatCapacity=%d%%\n",gBatCapacity);
 				else
 				DBG("gBatCapacity=%d%%\n",gBatLastCapacity);
-				DBG("gBatSlopeValue == %d\n",gBatSlopeValue);
-				if(gBatLoaderLevel == LODER_CHARGE_LEVEL)
-				DBG("gBatLoaderLevel == LODER_CHARGE_LEVEL\n");
-				else if(gBatLoaderLevel == LODER_HIGH_LEVEL)
-				DBG("gBatLoaderLevel == LODER_HIGH_LEVEL\n");	
-				else if(gBatLoaderLevel == LODER_MID_LEVEL)
-				DBG("gBatLoaderLevel == LODER_MID_LEVEL\n");	
-				else if(gBatLoaderLevel == LOADER_RELEASE_LEVEL)
-				DBG("gBatLoaderLevel == LOADER_RELEASE_LEVEL\n");	
 			}
 
 		}
@@ -503,47 +491,44 @@ static enum power_supply_property rk2818_usb_props[] = {
 static enum power_supply_property rk2818_ac_props[] = {
 	POWER_SUPPLY_PROP_ONLINE,
 };
-#if 0
-static irqreturn_t rk2818_battery_interrupt(int irq, void *dev_id)
+
+
+#ifdef CONFIG_PM
+static int rk2818_battery_suspend(struct platform_device *dev, pm_message_t state)
 {
-
-	unsigned long irq_flags;
-	struct rk2818_battery_data *data = dev_id;
-	uint32_t status;
-
-	spin_lock_irqsave(&data->lock, irq_flags);
-	/* read status flags, which will clear the interrupt */
-	//status = RK2818_BATTERY_READ(data, BATTERY_INT_STATUS);
-	status &= BATTERY_INT_MASK;
-
-	if (status & BATTERY_STATUS_CHANGED)
-		power_supply_changed(&data->battery);
-	if (status & AC_STATUS_CHANGED)
-		power_supply_changed(&data->ac);
-
-	spin_unlock_irqrestore(&data->lock, irq_flags);
-	return status ? IRQ_HANDLED : IRQ_NONE;
-
-	return IRQ_HANDLED;
+	/* flush all pending status updates */
+	flush_scheduled_work();
+	return 0;
 }
+
+static int rk2818_battery_resume(struct platform_device *dev)
+{
+	/* things may have changed while we were away */
+	schedule_work(&gBatteryData->timer_work);
+	return 0;
+}
+#else
+#define tosa_bat_suspend NULL
+#define tosa_bat_resume NULL
 #endif
+
 
 static int rk2818_battery_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct rk2818_battery_data *data;
 
-	ret = gpio_request(KEY_CHARGEOK_PIN, NULL);
+	ret = gpio_request(CHARGEOK_PIN, NULL);
 	if (ret) {
-		printk("failed to request charge_ok key gpio\n");
-		goto err_free_gpio;
+		printk("failed to request charge_ok gpio\n");
+		goto err_free_gpio1;
 	}
 	
-	gpio_pull_updown(KEY_CHARGEOK_PIN, GPIOPullUp);//important
-	ret = gpio_direction_input(KEY_CHARGEOK_PIN);
+	gpio_pull_updown(CHARGEOK_PIN, GPIOPullUp);//important
+	ret = gpio_direction_input(CHARGEOK_PIN);
 	if (ret) {
 		printk("failed to set gpio charge_ok input\n");
-		goto err_free_gpio;
+		goto err_free_gpio1;
 	}
 	
 	data = kzalloc(sizeof(*data), GFP_KERNEL);
@@ -616,8 +601,9 @@ err_usb_failed:
 err_ac_failed:
 	kfree(data);
 err_data_alloc_failed:
-err_free_gpio:
-	gpio_free(KEY_CHARGEOK_PIN);
+
+err_free_gpio1:
+	gpio_free(CHARGEOK_PIN);
 	return ret;
 }
 
@@ -626,8 +612,9 @@ static int rk2818_battery_remove(struct platform_device *pdev)
 	struct rk2818_battery_data *data = platform_get_drvdata(pdev);
 
 	power_supply_unregister(&data->battery);
+	power_supply_unregister(&data->usb);
 	power_supply_unregister(&data->ac);
-	gpio_free(KEY_CHARGEOK_PIN);
+	gpio_free(CHARGEOK_PIN);
 	free_irq(data->irq, data);
 	kfree(data);
 	gBatteryData = NULL;
@@ -637,6 +624,8 @@ static int rk2818_battery_remove(struct platform_device *pdev)
 static struct platform_driver rk2818_battery_device = {
 	.probe		= rk2818_battery_probe,
 	.remove		= rk2818_battery_remove,
+	.suspend	= rk2818_battery_suspend,
+	.resume		= rk2818_battery_resume,
 	.driver = {
 		.name = "rk2818-battery",
 		.owner	= THIS_MODULE,
