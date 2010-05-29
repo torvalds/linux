@@ -392,8 +392,8 @@ setup_root:
 	location.offset = 0;
 
 	inode = btrfs_iget(sb, &location, new_root, &new);
-	if (!inode)
-		return ERR_PTR(-ENOMEM);
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
 
 	/*
 	 * If we're just mounting the root most subvol put the inode and return
