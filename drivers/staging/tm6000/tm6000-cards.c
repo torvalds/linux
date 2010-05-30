@@ -347,7 +347,7 @@ int tm6000_xc5000_callback(void *ptr, int component, int command, int arg)
 	}
 	return (rc);
 }
-
+EXPORT_SYMBOL_GPL(tm6000_xc5000_callback);
 
 /* Tuner callback to provide the proper gpio changes needed for xc2028 */
 
@@ -424,6 +424,7 @@ int tm6000_tuner_callback(void *ptr, int component, int command, int arg)
 	}
 	return rc;
 }
+EXPORT_SYMBOL_GPL(tm6000_tuner_callback);
 
 int tm6000_cards_setup(struct tm6000_core *dev)
 {
@@ -681,30 +682,10 @@ static int tm6000_init_dev(struct tm6000_core *dev)
 		goto err;
 
 	tm6000_add_into_devlist(dev);
-
 	tm6000_init_extension(dev);
 
-	if (dev->caps.has_dvb) {
-		dev->dvb = kzalloc(sizeof(*(dev->dvb)), GFP_KERNEL);
-		if (!dev->dvb) {
-			rc = -ENOMEM;
-			goto err2;
-		}
-
-#ifdef CONFIG_VIDEO_TM6000_DVB
-		rc = tm6000_dvb_register(dev);
-		if (rc < 0) {
-			kfree(dev->dvb);
-			dev->dvb = NULL;
-			goto err2;
-		}
-#endif
-	}
 	mutex_unlock(&dev->lock);
 	return 0;
-
-err2:
-	v4l2_device_unregister(&dev->v4l2_dev);
 
 err:
 	mutex_unlock(&dev->lock);
@@ -906,13 +887,6 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 
 	mutex_lock(&dev->lock);
 
-#ifdef CONFIG_VIDEO_TM6000_DVB
-	if (dev->dvb) {
-		tm6000_dvb_unregister(dev);
-		kfree(dev->dvb);
-	}
-#endif
-
 	if (dev->gpio.power_led) {
 		switch (dev->model) {
 		case TM6010_BOARD_HAUPPAUGE_900H:
@@ -942,8 +916,8 @@ static void tm6000_usb_disconnect(struct usb_interface *interface)
 
 	usb_put_dev(dev->udev);
 
-	tm6000_remove_from_devlist(dev);
 	tm6000_close_extension(dev);
+	tm6000_remove_from_devlist(dev);
 
 	mutex_unlock(&dev->lock);
 	kfree(dev);

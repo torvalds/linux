@@ -407,6 +407,7 @@ int tm6000_init_digital_mode (struct tm6000_core *dev)
 
 	return 0;
 }
+EXPORT_SYMBOL(tm6000_init_digital_mode);
 
 struct reg_init {
 	u8 req;

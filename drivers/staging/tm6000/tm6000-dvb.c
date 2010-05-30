@@ -31,6 +31,19 @@
 #include "tuner-xc2028.h"
 #include "xc5000.h"
 
+MODULE_DESCRIPTION("DVB driver extension module for tm5600/6000/6010 based TV cards");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_LICENSE("GPL");
+
+MODULE_SUPPORTED_DEVICE("{{Trident, tm5600},"
+			"{{Trident, tm6000},"
+			"{{Trident, tm6010}");
+
+static int debug;
+
+module_param(debug, int, 0644);
+MODULE_PARM_DESC(debug, "enable debug message");
+
 static void inline print_err_status (struct tm6000_core *dev,
 				     int packet, int status)
 {
@@ -238,7 +251,7 @@ int tm6000_dvb_attach_frontend(struct tm6000_core *dev)
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
-int tm6000_dvb_register(struct tm6000_core *dev)
+int register_dvb(struct tm6000_core *dev)
 {
 	int ret = -1;
 	struct tm6000_dvb *dvb = dev->dvb;
@@ -351,7 +364,7 @@ err:
 	return ret;
 }
 
-void tm6000_dvb_unregister(struct tm6000_core *dev)
+void unregister_dvb(struct tm6000_core *dev)
 {
 	struct tm6000_dvb *dvb = dev->dvb;
 
@@ -377,3 +390,69 @@ void tm6000_dvb_unregister(struct tm6000_core *dev)
 /*	mutex_unlock(&tm6000_driver.open_close_mutex); */
 
 }
+
+static int dvb_init(struct tm6000_core *dev)
+{
+	struct tm6000_dvb *dvb;
+	int rc;
+
+	if (!dev)
+		return 0;
+
+	if (!dev->caps.has_dvb)
+		return 0;
+
+	dvb = kzalloc(sizeof(struct tm6000_dvb), GFP_KERNEL);
+	if (!dvb) {
+		printk(KERN_INFO "Cannot allocate memory\n");
+		return -ENOMEM;
+	}
+
+	dev->dvb = dvb;
+
+	rc = register_dvb(dev);
+	if (rc < 0) {
+		kfree(dvb);
+		dev->dvb = NULL;
+		return 0;
+	}
+
+	return 0;
+}
+
+static int dvb_fini(struct tm6000_core *dev)
+{
+	if (!dev)
+		return 0;
+
+	if (!dev->caps.has_dvb)
+		return 0;
+
+	if (dev->dvb) {
+		unregister_dvb(dev);
+		kfree(dev->dvb);
+		dev->dvb = NULL;
+	}
+
+	return 0;
+}
+
+static struct tm6000_ops dvb_ops = {
+	.id	= TM6000_DVB,
+	.name	= "TM6000 dvb Extension",
+	.init	= dvb_init,
+	.fini	= dvb_fini,
+};
+
+static int __init tm6000_dvb_register(void)
+{
+	return tm6000_register_extension(&dvb_ops);
+}
+
+static void __exit tm6000_dvb_unregister(void)
+{
+	tm6000_unregister_extension(&dvb_ops);
+}
+
+module_init(tm6000_dvb_register);
+module_exit(tm6000_dvb_unregister);
