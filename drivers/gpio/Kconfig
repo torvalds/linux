@@ -195,6 +195,13 @@ config GPIO_PCF857X
 	  This driver provides an in-kernel interface to those GPIOs using
 	  platform-neutral GPIO calls.
 
+config GPIO_TC35892
+	bool "TC35892 GPIOs"
+	depends on MFD_TC35892
+	help
+	  This enables support for the GPIOs found on the TC35892
+	  I/O Expander.
+
 config GPIO_TWL4030
 	tristate "TWL4030, TWL5030, and TPS659x0 GPIOs"
 	depends on TWL4030_CORE
@@ -282,6 +289,15 @@ config GPIO_TIMBERDALE
 	---help---
 	Add support for the GPIO IP in the timberdale FPGA.
 
+config GPIO_RDC321X
+	tristate "RDC R-321x GPIO support"
+	depends on PCI && GPIOLIB
+	select MFD_CORE
+	select MFD_RDC321X
+	help
+	  Support for the RDC R321x SoC GPIOs over southbridge
+	  PCI configuration space.
+
 comment "SPI GPIO expanders:"
 
 config GPIO_MAX7301
@@ -316,5 +332,15 @@ config GPIO_UCB1400
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ucb1400_gpio.
+
+comment "MODULbus GPIO expanders:"
+
+config GPIO_JANZ_TTL
+	tristate "Janz VMOD-TTL Digital IO Module"
+	depends on MFD_JANZ_CMODIO
+	help
+	  This enables support for the Janz VMOD-TTL Digital IO module.
+	  This driver provides support for driving the pins in output
+	  mode only. Input mode is not supported.
 
 endif

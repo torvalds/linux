@@ -3,17 +3,37 @@
  * License terms: GNU General Public License (GPL) version 2
  * AB3100 core access functions
  * Author: Linus Walleij <linus.walleij@stericsson.com>
+ *
+ * ABX500 core access functions.
+ * The abx500 interface is used for the Analog Baseband chip
+ * ab3100, ab3550, ab5500 and possibly comming. It is not used for
+ * ab4500 and ab8500 since they are another family of chip.
+ *
+ * Author: Mattias Wallin <mattias.wallin@stericsson.com>
+ * Author: Mattias Nilsson <mattias.i.nilsson@stericsson.com>
+ * Author: Bengt Jonsson <bengt.g.jonsson@stericsson.com>
+ * Author: Rickard Andersson <rickard.andersson@stericsson.com>
  */
 
 #include <linux/device.h>
 #include <linux/regulator/machine.h>
 
-#ifndef MFD_AB3100_H
-#define MFD_AB3100_H
+#ifndef MFD_ABX500_H
+#define MFD_ABX500_H
 
-#define ABUNKNOWN	0
-#define	AB3000		1
-#define	AB3100		2
+#define AB3100_P1A	0xc0
+#define AB3100_P1B	0xc1
+#define AB3100_P1C	0xc2
+#define AB3100_P1D	0xc3
+#define AB3100_P1E	0xc4
+#define AB3100_P1F	0xc5
+#define AB3100_P1G	0xc6
+#define AB3100_R2A	0xc7
+#define AB3100_R2B	0xc8
+#define AB3550_P1A	0x10
+#define AB5500_1_0	0x20
+#define AB5500_2_0	0x21
+#define AB5500_2_1	0x22
 
 /*
  * AB3100, EVENTA1, A2 and A3 event register flags
@@ -89,7 +109,7 @@ struct ab3100 {
 	char chip_name[32];
 	u8 chip_id;
 	struct blocking_notifier_head event_subscribers;
-	u32 startup_events;
+	u8 startup_events[3];
 	bool startup_events_read;
 };
 
@@ -112,18 +132,102 @@ struct ab3100_platform_data {
 	int external_voltage;
 };
 
-int ab3100_set_register_interruptible(struct ab3100 *ab3100, u8 reg, u8 regval);
-int ab3100_get_register_interruptible(struct ab3100 *ab3100, u8 reg, u8 *regval);
-int ab3100_get_register_page_interruptible(struct ab3100 *ab3100,
-			     u8 first_reg, u8 *regvals, u8 numregs);
-int ab3100_mask_and_set_register_interruptible(struct ab3100 *ab3100,
-				 u8 reg, u8 andmask, u8 ormask);
-u8 ab3100_get_chip_type(struct ab3100 *ab3100);
 int ab3100_event_register(struct ab3100 *ab3100,
 			  struct notifier_block *nb);
 int ab3100_event_unregister(struct ab3100 *ab3100,
 			    struct notifier_block *nb);
-int ab3100_event_registers_startup_state_get(struct ab3100 *ab3100,
-					     u32 *fatevent);
 
+/* AB3550, STR register flags */
+#define AB3550_STR_ONSWA				(0x01)
+#define AB3550_STR_ONSWB				(0x02)
+#define AB3550_STR_ONSWC				(0x04)
+#define AB3550_STR_DCIO					(0x08)
+#define AB3550_STR_BOOT_MODE				(0x10)
+#define AB3550_STR_SIM_OFF				(0x20)
+#define AB3550_STR_BATT_REMOVAL				(0x40)
+#define AB3550_STR_VBUS					(0x80)
+
+/* Interrupt mask registers */
+#define AB3550_IMR1 0x29
+#define AB3550_IMR2 0x2a
+#define AB3550_IMR3 0x2b
+#define AB3550_IMR4 0x2c
+#define AB3550_IMR5 0x2d
+
+enum ab3550_devid {
+	AB3550_DEVID_ADC,
+	AB3550_DEVID_DAC,
+	AB3550_DEVID_LEDS,
+	AB3550_DEVID_POWER,
+	AB3550_DEVID_REGULATORS,
+	AB3550_DEVID_SIM,
+	AB3550_DEVID_UART,
+	AB3550_DEVID_RTC,
+	AB3550_DEVID_CHARGER,
+	AB3550_DEVID_FUELGAUGE,
+	AB3550_DEVID_VIBRATOR,
+	AB3550_DEVID_CODEC,
+	AB3550_NUM_DEVICES,
+};
+
+/**
+ * struct abx500_init_setting
+ * Initial value of the registers for driver to use during setup.
+ */
+struct abx500_init_settings {
+	u8 bank;
+	u8 reg;
+	u8 setting;
+};
+
+/**
+ * struct ab3550_platform_data
+ * Data supplied to initialize board connections to the AB3550
+ */
+struct ab3550_platform_data {
+	struct {unsigned int base; unsigned int count; } irq;
+	void *dev_data[AB3550_NUM_DEVICES];
+	size_t dev_data_sz[AB3550_NUM_DEVICES];
+	struct abx500_init_settings *init_settings;
+	unsigned int init_settings_sz;
+};
+
+int abx500_set_register_interruptible(struct device *dev, u8 bank, u8 reg,
+	u8 value);
+int abx500_get_register_interruptible(struct device *dev, u8 bank, u8 reg,
+	u8 *value);
+int abx500_get_register_page_interruptible(struct device *dev, u8 bank,
+	u8 first_reg, u8 *regvals, u8 numregs);
+int abx500_set_register_page_interruptible(struct device *dev, u8 bank,
+	u8 first_reg, u8 *regvals, u8 numregs);
+/**
+ * abx500_mask_and_set_register_inerruptible() - Modifies selected bits of a
+ *	target register
+ *
+ * @dev: The AB sub device.
+ * @bank: The i2c bank number.
+ * @bitmask: The bit mask to use.
+ * @bitvalues: The new bit values.
+ *
+ * Updates the value of an AB register:
+ * value -> ((value & ~bitmask) | (bitvalues & bitmask))
+ */
+int abx500_mask_and_set_register_interruptible(struct device *dev, u8 bank,
+	u8 reg, u8 bitmask, u8 bitvalues);
+int abx500_get_chip_id(struct device *dev);
+int abx500_event_registers_startup_state_get(struct device *dev, u8 *event);
+int abx500_startup_irq_enabled(struct device *dev, unsigned int irq);
+
+struct abx500_ops {
+	int (*get_chip_id) (struct device *);
+	int (*get_register) (struct device *, u8, u8, u8 *);
+	int (*set_register) (struct device *, u8, u8, u8);
+	int (*get_register_page) (struct device *, u8, u8, u8 *, u8);
+	int (*set_register_page) (struct device *, u8, u8, u8 *, u8);
+	int (*mask_and_set_register) (struct device *, u8, u8, u8, u8);
+	int (*event_registers_startup_state_get) (struct device *, u8 *);
+	int (*startup_irq_enabled) (struct device *, unsigned int);
+};
+
+int abx500_register_ops(struct device *core_dev, struct abx500_ops *ops);
 #endif
