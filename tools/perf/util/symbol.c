@@ -1695,9 +1695,20 @@ int dso__load_vmlinux_path(struct dso *self, struct map *map,
 			   symbol_filter_t filter)
 {
 	int i, err = 0;
+	char *filename;
 
 	pr_debug("Looking at the vmlinux_path (%d entries long)\n",
-		 vmlinux_path__nr_entries);
+		 vmlinux_path__nr_entries + 1);
+
+	filename = dso__build_id_filename(self, NULL, 0);
+	if (filename != NULL) {
+		err = dso__load_vmlinux(self, map, filename, filter);
+		if (err > 0) {
+			dso__set_long_name(self, filename);
+			goto out;
+		}
+		free(filename);
+	}
 
 	for (i = 0; i < vmlinux_path__nr_entries; ++i) {
 		err = dso__load_vmlinux(self, map, vmlinux_path[i], filter);
@@ -1706,7 +1717,7 @@ int dso__load_vmlinux_path(struct dso *self, struct map *map,
 			break;
 		}
 	}
-
+out:
 	return err;
 }
 
@@ -2102,13 +2113,21 @@ out_fail:
 	return -1;
 }
 
-size_t vmlinux_path__fprintf(FILE *fp)
+size_t machine__fprintf_vmlinux_path(struct machine *self, FILE *fp)
 {
 	int i;
 	size_t printed = 0;
+	struct dso *kdso = self->vmlinux_maps[MAP__FUNCTION]->dso;
+
+	if (kdso->has_build_id) {
+		char filename[PATH_MAX];
+		if (dso__build_id_filename(kdso, filename, sizeof(filename)))
+			printed += fprintf(fp, "[0] %s\n", filename);
+	}
 
 	for (i = 0; i < vmlinux_path__nr_entries; ++i)
-		printed += fprintf(fp, "[%d] %s\n", i, vmlinux_path[i]);
+		printed += fprintf(fp, "[%d] %s\n",
+				   i + kdso->has_build_id, vmlinux_path[i]);
 
 	return printed;
 }

@@ -3666,7 +3666,6 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 		     size_t count, loff_t *ppos)
 {
 	struct ftrace_buffer_info *info = filp->private_data;
-	unsigned int pos;
 	ssize_t ret;
 	size_t size;
 
@@ -3692,11 +3691,6 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 	trace_access_unlock(info->cpu);
 	if (ret < 0)
 		return 0;
-
-	pos = ring_buffer_page_len(info->spare);
-
-	if (pos < PAGE_SIZE)
-		memset(info->spare + pos, 0, PAGE_SIZE - pos);
 
 read:
 	size = PAGE_SIZE - info->read;
