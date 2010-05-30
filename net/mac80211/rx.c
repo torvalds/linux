@@ -1844,7 +1844,12 @@ ieee80211_rx_h_ctrl(struct ieee80211_rx_data *rx, struct sk_buff_head *frames)
 		return RX_QUEUED;
 	}
 
-	return RX_CONTINUE;
+	/*
+	 * After this point, we only want management frames,
+	 * so we can drop all remaining control frames to
+	 * cooked monitor interfaces.
+	 */
+	return RX_DROP_MONITOR;
 }
 
 static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
