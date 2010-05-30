@@ -132,6 +132,18 @@ struct tm6000_dvb {
 	struct mutex		mutex;
 };
 
+struct snd_tm6000_card {
+	struct snd_card			*card;
+	spinlock_t			reg_lock;
+	atomic_t			count;
+	unsigned int			period_size;
+	unsigned int			num_periods;
+	struct tm6000_core		*core;
+	struct tm6000_buffer		*buf;
+	int				bufsize;
+	struct snd_pcm_substream	*substream;
+};
+
 struct tm6000_endpoint {
 	struct usb_host_endpoint	*endp;
 	__u8				bInterfaceNumber;
@@ -189,6 +201,9 @@ struct tm6000_core {
 
 	/* DVB-T support */
 	struct tm6000_dvb		*dvb;
+
+	/* audio support */
+	struct snd_tm6000_card		*adev;
 
 	/* locks */
 	struct mutex			lock;
