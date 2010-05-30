@@ -239,7 +239,7 @@ void fw_schedule_bm_work(struct fw_card *card, unsigned long delay)
 static void fw_card_bm_work(struct work_struct *work)
 {
 	struct fw_card *card = container_of(work, struct fw_card, work.work);
-	struct fw_device *root_device;
+	struct fw_device *root_device, *irm_device;
 	struct fw_node *root_node;
 	unsigned long flags;
 	int root_id, new_root_id, irm_id, local_id;
@@ -247,6 +247,7 @@ static void fw_card_bm_work(struct work_struct *work)
 	bool do_reset = false;
 	bool root_device_is_running;
 	bool root_device_is_cmc;
+	bool irm_is_1394_1995_only;
 
 	spin_lock_irqsave(&card->lock, flags);
 
@@ -256,12 +257,18 @@ static void fw_card_bm_work(struct work_struct *work)
 	}
 
 	generation = card->generation;
+
 	root_node = card->root_node;
 	fw_node_get(root_node);
 	root_device = root_node->data;
 	root_device_is_running = root_device &&
 			atomic_read(&root_device->state) == FW_DEVICE_RUNNING;
 	root_device_is_cmc = root_device && root_device->cmc;
+
+	irm_device = card->irm_node->data;
+	irm_is_1394_1995_only = irm_device && irm_device->config_rom &&
+			(irm_device->config_rom[2] & 0x000000f0) == 0;
+
 	root_id  = root_node->node_id;
 	irm_id   = card->irm_node->node_id;
 	local_id = card->local_node->node_id;
@@ -284,8 +291,15 @@ static void fw_card_bm_work(struct work_struct *work)
 
 		if (!card->irm_node->link_on) {
 			new_root_id = local_id;
-			fw_notify("IRM has link off, making local node (%02x) root.\n",
-				  new_root_id);
+			fw_notify("%s, making local node (%02x) root.\n",
+				  "IRM has link off", new_root_id);
+			goto pick_me;
+		}
+
+		if (irm_is_1394_1995_only) {
+			new_root_id = local_id;
+			fw_notify("%s, making local node (%02x) root.\n",
+				  "IRM is not 1394a compliant", new_root_id);
 			goto pick_me;
 		}
 
@@ -324,8 +338,8 @@ static void fw_card_bm_work(struct work_struct *work)
 			 * root, and thus, IRM.
 			 */
 			new_root_id = local_id;
-			fw_notify("BM lock failed, making local node (%02x) root.\n",
-				  new_root_id);
+			fw_notify("%s, making local node (%02x) root.\n",
+				  "BM lock failed", new_root_id);
 			goto pick_me;
 		}
 	} else if (card->bm_generation != generation) {
