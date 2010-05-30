@@ -21,7 +21,6 @@
 
 #include "udfdecl.h"
 
-#include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/bitops.h>
 
@@ -159,8 +158,6 @@ static void udf_bitmap_free_blocks(struct super_block *sb,
 				udf_debug("byte=%2x\n",
 					((char *)bh->b_data)[(bit + i) >> 3]);
 			} else {
-				if (inode)
-					dquot_free_block(inode, 1);
 				udf_add_free_space(sb, sbi->s_partition, 1);
 			}
 		}
@@ -210,15 +207,8 @@ static int udf_bitmap_prealloc_blocks(struct super_block *sb,
 		bit = block % (sb->s_blocksize << 3);
 
 		while (bit < (sb->s_blocksize << 3) && block_count > 0) {
-			if (!udf_test_bit(bit, bh->b_data))
+			if (!udf_clear_bit(bit, bh->b_data))
 				goto out;
-			else if (dquot_prealloc_block(inode, 1))
-				goto out;
-			else if (!udf_clear_bit(bit, bh->b_data)) {
-				udf_debug("bit already cleared for block %d\n", bit);
-				dquot_free_block(inode, 1);
-				goto out;
-			}
 			block_count--;
 			alloc_count++;
 			bit++;
@@ -338,20 +328,6 @@ search_back:
 	}
 
 got_block:
-
-	/*
-	 * Check quota for allocation of this block.
-	 */
-	if (inode) {
-		int ret = dquot_alloc_block(inode, 1);
-
-		if (ret) {
-			mutex_unlock(&sbi->s_alloc_mutex);
-			*err = ret;
-			return 0;
-		}
-	}
-
 	newblock = bit + (block_group << (sb->s_blocksize_bits + 3)) -
 		(sizeof(struct spaceBitmapDesc) << 3);
 
@@ -401,10 +377,6 @@ static void udf_table_free_blocks(struct super_block *sb,
 	}
 
 	iinfo = UDF_I(table);
-	/* We do this up front - There are some error conditions that
-	   could occure, but.. oh well */
-	if (inode)
-		dquot_free_block(inode, count);
 	udf_add_free_space(sb, sbi->s_partition, count);
 
 	start = bloc->logicalBlockNum + offset;
@@ -649,10 +621,7 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 		epos.offset -= adsize;
 
 		alloc_count = (elen >> sb->s_blocksize_bits);
-		if (inode && dquot_prealloc_block(inode,
-			alloc_count > block_count ? block_count : alloc_count))
-			alloc_count = 0;
-		else if (alloc_count > block_count) {
+		if (alloc_count > block_count) {
 			alloc_count = block_count;
 			eloc.logicalBlockNum += alloc_count;
 			elen -= (alloc_count << sb->s_blocksize_bits);
@@ -752,14 +721,6 @@ static int udf_table_new_block(struct super_block *sb,
 	newblock = goal_eloc.logicalBlockNum;
 	goal_eloc.logicalBlockNum++;
 	goal_elen -= sb->s_blocksize;
-	if (inode) {
-		*err = dquot_alloc_block(inode, 1);
-		if (*err) {
-			brelse(goal_epos.bh);
-			mutex_unlock(&sbi->s_alloc_mutex);
-			return 0;
-		}
-	}
 
 	if (goal_elen)
 		udf_write_aext(table, &goal_epos, &goal_eloc, goal_elen, 1);

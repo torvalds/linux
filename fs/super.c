@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 #include <linux/acct.h>
 #include <linux/blkdev.h>
-#include <linux/quotaops.h>
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/writeback.h>		/* for the emergency remount stuff */
@@ -94,8 +93,6 @@ static struct super_block *alloc_super(struct file_system_type *type)
 		init_rwsem(&s->s_dquot.dqptr_sem);
 		init_waitqueue_head(&s->s_wait_unfrozen);
 		s->s_maxbytes = MAX_NON_LFS;
-		s->dq_op = sb_dquot_ops;
-		s->s_qcop = sb_quotactl_ops;
 		s->s_op = &default_op;
 		s->s_time_gran = 1000000000;
 	}
@@ -160,7 +157,6 @@ void deactivate_locked_super(struct super_block *s)
 {
 	struct file_system_type *fs = s->s_type;
 	if (atomic_dec_and_test(&s->s_active)) {
-		vfs_dq_off(s, 0);
 		fs->kill_sb(s);
 		put_filesystem(fs);
 		put_super(s);
@@ -524,7 +520,7 @@ rescan:
 int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 {
 	int retval;
-	int remount_rw, remount_ro;
+	int remount_ro;
 
 	if (sb->s_frozen != SB_UNFROZEN)
 		return -EBUSY;
@@ -540,7 +536,6 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 	sync_filesystem(sb);
 
 	remount_ro = (flags & MS_RDONLY) && !(sb->s_flags & MS_RDONLY);
-	remount_rw = !(flags & MS_RDONLY) && (sb->s_flags & MS_RDONLY);
 
 	/* If we are remounting RDONLY and current sb is read/write,
 	   make sure there are no rw files opened */
@@ -548,9 +543,6 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 		if (force)
 			mark_files_ro(sb);
 		else if (!fs_may_remount_ro(sb))
-			return -EBUSY;
-		retval = vfs_dq_off(sb, 1);
-		if (retval < 0 && retval != -ENOSYS)
 			return -EBUSY;
 	}
 
@@ -560,8 +552,7 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 			return retval;
 	}
 	sb->s_flags = (sb->s_flags & ~MS_RMT_MASK) | (flags & MS_RMT_MASK);
-	if (remount_rw)
-		vfs_dq_quota_on_remount(sb);
+
 	/*
 	 * Some filesystems modify their metadata via some other path than the
 	 * bdev buffer cache (eg. use a private mapping, or directories in
