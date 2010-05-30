@@ -3475,14 +3475,6 @@ struct qib_devdata *qib_init_iba6120_funcs(struct pci_dev *pdev,
 	struct qib_devdata *dd;
 	int ret;
 
-#ifndef CONFIG_PCI_MSI
-	qib_early_err(&pdev->dev, "QLogic PCIE device 0x%x cannot "
-	      "work if CONFIG_PCI_MSI is not enabled\n",
-	      ent->device);
-	dd = ERR_PTR(-ENODEV);
-	goto bail;
-#endif
-
 	dd = qib_alloc_devdata(pdev, sizeof(struct qib_pportdata) +
 			       sizeof(struct qib_chip_specific));
 	if (IS_ERR(dd))
@@ -3553,10 +3545,6 @@ struct qib_devdata *qib_init_iba6120_funcs(struct pci_dev *pdev,
 
 	if (qib_mini_init)
 		goto bail;
-
-#ifndef CONFIG_PCI_MSI
-	qib_dev_err(dd, "PCI_MSI not configured, NO interrupts\n");
-#endif
 
 	if (qib_pcie_params(dd, 8, NULL, NULL))
 		qib_dev_err(dd, "Failed to setup PCIe or interrupts; "
