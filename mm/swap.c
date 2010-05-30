@@ -224,6 +224,7 @@ void __lru_cache_add(struct page *page, enum lru_list lru)
 		____pagevec_lru_add(pvec, lru);
 	put_cpu_var(lru_add_pvecs);
 }
+EXPORT_SYMBOL(__lru_cache_add);
 
 /**
  * lru_cache_add_lru - add a page to a page list
