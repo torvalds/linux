@@ -1,11 +1,7 @@
 /*
- * Device Tree Source for AMCC Katmai eval board
+ * Device Tree Source for Mosaix Technologies, Inc. ICON board
  *
- * Copyright (c) 2006, 2007 IBM Corp.
- * Benjamin Herrenschmidt <benh@kernel.crashing.org>
- *
- * Copyright (c) 2006, 2007 IBM Corp.
- * Josh Boyer <jwboyer@linux.vnet.ibm.com>
+ * Copyright 2010 DENX Software Engineering, Stefan Roese <sr@denx.de>
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without
@@ -17,8 +13,8 @@
 / {
 	#address-cells = <2>;
 	#size-cells = <2>;
-	model = "amcc,katmai";
-	compatible = "amcc,katmai";
+	model = "mosaixtech,icon";
+	compatible = "mosaixtech,icon";
 	dcr-parent = <&{/cpus/cpu@0}>;
 
 	aliases {
@@ -36,8 +32,8 @@
 			device_type = "cpu";
 			model = "PowerPC,440SPe";
 			reg = <0x00000000>;
-			clock-frequency = <0>; /* Filled in by zImage */
-			timebase-frequency = <0>; /* Filled in by zImage */
+			clock-frequency = <0>; /* Filled in by U-Boot */
+			timebase-frequency = <0>; /* Filled in by U-Boot */
 			i-cache-line-size = <32>;
 			d-cache-line-size = <32>;
 			i-cache-size = <32768>;
@@ -129,7 +125,7 @@
 			  0xe 0x80000000 0xe 0x80000000 0x80000000
 			  0xf 0x00000000 0xf 0x00000000 0x80000000
 			  0xf 0x80000000 0xf 0x80000000 0x80000000>;
-		clock-frequency = <0>; /* Filled in by zImage */
+		clock-frequency = <0>; /* Filled in by U-Boot */
 
 		SDRAM0: sdram {
 			compatible = "ibm,sdram-440spe", "ibm,sdram-405gp";
@@ -158,14 +154,14 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges = <0xe0000000 0x00000004 0xe0000000 0x20000000>;
-			clock-frequency = <0>; /* Filled in by zImage */
+			clock-frequency = <0>; /* Filled in by U-Boot */
 
 			EBC0: ebc {
 				compatible = "ibm,ebc-440spe", "ibm,ebc-440gp", "ibm,ebc";
 				dcr-reg = <0x012 0x002>;
 				#address-cells = <2>;
 				#size-cells = <1>;
-				clock-frequency = <0>; /* Filled in by zImage */
+				clock-frequency = <0>; /* Filled in by U-Boot */
 				/* ranges property is supplied by U-Boot */
 				interrupts = <0x5 0x1>;
 				interrupt-parent = <&UIC1>;
@@ -201,6 +197,13 @@
 						reg = <0x00fa0000 0x00060000>;
 					};
 				};
+
+				SysACE_CompactFlash: sysace@1,0 {
+					compatible = "xlnx,sysace";
+					interrupt-parent = <&UIC2>;
+					interrupts = <24 0x4>;
+					reg = <0x00000001 0x00000000 0x10000>;
+				};
 			};
 
 			UART0: serial@f0000200 {
@@ -208,7 +211,7 @@
 				compatible = "ns16550";
 				reg = <0xf0000200 0x00000008>;
 				virtual-reg = <0xa0000200>;
-				clock-frequency = <0>; /* Filled in by zImage */
+				clock-frequency = <0>; /* Filled in by U-Boot */
 				current-speed = <115200>;
 				interrupt-parent = <&UIC0>;
 				interrupts = <0x0 0x4>;
@@ -249,6 +252,13 @@
 				reg = <0xf0000500 0x00000014>;
 				interrupt-parent = <&UIC0>;
 				interrupts = <0x3 0x4>;
+				#address-cells = <1>;
+				#size-cells = <0>;
+
+                                rtc@68 {
+                                        compatible = "stm,m41t00";
+                                        reg = <0x68>;
+                                };
 			};
 
 			EMAC0: ethernet@f0000800 {
@@ -300,23 +310,9 @@
 			/* This drives busses 0 to 0xf */
 			bus-range = <0x0 0xf>;
 
-			/*
-			 * On Katmai, the following PCI-X interrupts signals
-			 * have to be enabled via jumpers (only INTA is
-			 * enabled per default):
-			 *
-			 * INTB: J3: 1-2
-			 * INTC: J2: 1-2
-			 * INTD: J1: 1-2
-			 */
-			interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
-			interrupt-map = <
-				/* IDSEL 1 */
-				0x800 0x0 0x0 0x1 &UIC1 0x14 0x8
-				0x800 0x0 0x0 0x2 &UIC1 0x13 0x8
-				0x800 0x0 0x0 0x3 &UIC1 0x12 0x8
-				0x800 0x0 0x0 0x4 &UIC1 0x11 0x8
-			>;
+			/* PCI-X interrupt (SM502) is routed to extIRQ10 (UIC1, 19) */
+			interrupt-map-mask = <0x0 0x0 0x0 0x0>;
+			interrupt-map = <0x0 0x0 0x0 0x0 &UIC1 19 0x8>;
 		};
 
 		PCIE0: pciex@d00000000 {
@@ -399,47 +395,6 @@
 				0x0 0x0 0x0 0x2 &UIC3 0x5 0x4 /* swizzled int B */
 				0x0 0x0 0x0 0x3 &UIC3 0x6 0x4 /* swizzled int C */
 				0x0 0x0 0x0 0x4 &UIC3 0x7 0x4 /* swizzled int D */>;
-		};
-
-		PCIE2: pciex@d40000000 {
-			device_type = "pci";
-			#interrupt-cells = <1>;
-			#size-cells = <2>;
-			#address-cells = <3>;
-			compatible = "ibm,plb-pciex-440spe", "ibm,plb-pciex";
-			primary;
-			port = <0x2>; /* port number */
-			reg = <0x0000000d 0x40000000 0x20000000	/* Config space access */
-			       0x0000000c 0x10002000 0x00001000>;	/* Registers */
-			dcr-reg = <0x140 0x020>;
-			sdr-base = <0x370>;
-
-			/* Outbound ranges, one memory and one IO,
-			 * later cannot be changed
-			 */
-			ranges = <0x02000000 0x00000000 0x80000000 0x0000000f 0x00000000 0x00000000 0x80000000
-				  0x01000000 0x00000000 0x00000000 0x0000000f 0x80020000 0x00000000 0x00010000>;
-
-			/* Inbound 4GB range starting at 0 */
-			dma-ranges = <0x42000000 0x0 0x0 0x0 0x0 0x1 0x00000000>;
-
-			/* This drives busses 0x30 to 0x3f */
-			bus-range = <0x30 0x3f>;
-
-			/* Legacy interrupts (note the weird polarity, the bridge seems
-			 * to invert PCIe legacy interrupts).
-			 * We are de-swizzling here because the numbers are actually for
-			 * port of the root complex virtual P2P bridge. But I want
-			 * to avoid putting a node for it in the tree, so the numbers
-			 * below are basically de-swizzled numbers.
-			 * The real slot is on idsel 0, so the swizzling is 1:1
-			 */
-			interrupt-map-mask = <0x0 0x0 0x0 0x7>;
-			interrupt-map = <
-				0x0 0x0 0x0 0x1 &UIC3 0x8 0x4 /* swizzled int A */
-				0x0 0x0 0x0 0x2 &UIC3 0x9 0x4 /* swizzled int B */
-				0x0 0x0 0x0 0x3 &UIC3 0xa 0x4 /* swizzled int C */
-				0x0 0x0 0x0 0x4 &UIC3 0xb 0x4 /* swizzled int D */>;
 		};
 
 		I2O: i2o@400100000 {
