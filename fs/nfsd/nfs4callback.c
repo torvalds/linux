@@ -667,7 +667,14 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 	}
 
 	switch (task->tk_status) {
-	case -EIO:
+	case 0:
+		return;
+	case -EBADHANDLE:
+	case -NFS4ERR_BAD_STATEID:
+		/* Race: client probably got cb_recall
+		 * before open reply granting delegation */
+		break;
+	default:
 		/* Network partition? */
 		atomic_set(&clp->cl_cb_set, 0);
 		warn_no_callback_path(clp, task->tk_status);
@@ -676,14 +683,6 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 			nfsd4_cb_recall(dp);
 			return;
 		}
-	case -EBADHANDLE:
-	case -NFS4ERR_BAD_STATEID:
-		/* Race: client probably got cb_recall
-		 * before open reply granting delegation */
-		break;
-	default:
-		/* success, or error we can't handle */
-		return;
 	}
 	if (dp->dl_retries--) {
 		rpc_delay(task, 2*HZ);
