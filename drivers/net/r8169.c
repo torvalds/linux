@@ -88,7 +88,7 @@ static const int multicast_filter_limit = 32;
 #define RTL_W32(reg, val32)	writel ((val32), ioaddr + (reg))
 #define RTL_R8(reg)		readb (ioaddr + (reg))
 #define RTL_R16(reg)		readw (ioaddr + (reg))
-#define RTL_R32(reg)		((unsigned long) readl (ioaddr + (reg)))
+#define RTL_R32(reg)		readl (ioaddr + (reg))
 
 enum mac_version {
 	RTL_GIGA_MAC_NONE   = 0x00,
