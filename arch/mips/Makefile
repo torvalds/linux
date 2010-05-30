@@ -278,8 +278,7 @@ vmlinuz vmlinuz.bin vmlinuz.ecoff vmlinuz.srec: $(vmlinux-32) FORCE
 	   VMLINUX_LOAD_ADDRESS=$(load-y) 32bit-bfd=$(32bit-bfd) $@
 
 
-CLEAN_FILES += vmlinux.ecoff \
-	       vmlinux.srec
+CLEAN_FILES += vmlinux.32 vmlinux.64
 
 archprepare:
 ifdef CONFIG_MIPS32_N32
@@ -298,9 +297,9 @@ install:
 	$(Q)install -D -m 644 System.map $(INSTALL_PATH)/System.map-$(KERNELRELEASE)
 
 archclean:
-	@$(MAKE) $(clean)=arch/mips/boot
-	@$(MAKE) $(clean)=arch/mips/boot/compressed
-	@$(MAKE) $(clean)=arch/mips/lasat
+	$(Q)$(MAKE) $(clean)=arch/mips/boot
+	$(Q)$(MAKE) $(clean)=arch/mips/boot/compressed
+	$(Q)$(MAKE) $(clean)=arch/mips/lasat
 
 define archhelp
 	echo '  install              - install kernel into $(INSTALL_PATH)'
@@ -314,11 +313,3 @@ define archhelp
 	echo
 	echo '  These will be default as apropriate for a configured platform.'
 endef
-
-CLEAN_FILES += vmlinux.32 \
-	       vmlinux.64 \
-	       vmlinux.ecoff \
-	       vmlinuz \
-	       vmlinuz.ecoff \
-	       vmlinuz.bin \
-	       vmlinuz.srec
