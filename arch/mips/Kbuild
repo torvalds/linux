@@ -3,6 +3,9 @@
 # CFLAGS_<file.o> := -Wno-error
 subdir-ccflags-y := -Werror
 
+# platform specific definitions
+include arch/mips/Kbuild.platforms
+obj-y := $(platform-y)
 
 # mips object files
 # The object files are linked as core-y files would be linked
