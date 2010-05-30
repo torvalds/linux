@@ -1768,12 +1768,12 @@ int ceph_mdsc_do_request(struct ceph_mds_client *mdsc,
 	mutex_unlock(&mdsc->mutex);
 	dout("do_request waiting\n");
 	if (req->r_timeout) {
-		err = (long)wait_for_completion_interruptible_timeout(
+		err = (long)wait_for_completion_killable_timeout(
 			&req->r_completion, req->r_timeout);
 		if (err == 0)
 			err = -EIO;
 	} else {
-		err = wait_for_completion_interruptible(&req->r_completion);
+		err = wait_for_completion_killable(&req->r_completion);
 	}
 	dout("do_request waited, got %d\n", err);
 	mutex_lock(&mdsc->mutex);
@@ -2014,16 +2014,21 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 	mutex_lock(&mdsc->mutex);
 	req = __lookup_request(mdsc, tid);
 	if (!req) {
-		dout("forward %llu to mds%d - req dne\n", tid, next_mds);
+		dout("forward tid %llu to mds%d - req dne\n", tid, next_mds);
 		goto out;  /* dup reply? */
 	}
 
-	if (fwd_seq <= req->r_num_fwd) {
-		dout("forward %llu to mds%d - old seq %d <= %d\n",
+	if (req->r_aborted) {
+		dout("forward tid %llu aborted, unregistering\n", tid);
+		__unregister_request(mdsc, req);
+	} else if (fwd_seq <= req->r_num_fwd) {
+		dout("forward tid %llu to mds%d - old seq %d <= %d\n",
 		     tid, next_mds, req->r_num_fwd, fwd_seq);
 	} else {
 		/* resend. forward race not possible; mds would drop */
-		dout("forward %llu to mds%d (we resend)\n", tid, next_mds);
+		dout("forward tid %llu to mds%d (we resend)\n", tid, next_mds);
+		BUG_ON(req->r_err);
+		BUG_ON(req->r_got_result);
 		req->r_num_fwd = fwd_seq;
 		req->r_resend_mds = next_mds;
 		put_request_session(req);
@@ -2541,7 +2546,7 @@ void ceph_mdsc_lease_send_msg(struct ceph_mds_session *session,
 		return;
 	lease = msg->front.iov_base;
 	lease->action = action;
-	lease->mask = cpu_to_le16(CEPH_LOCK_DN);
+	lease->mask = cpu_to_le16(1);
 	lease->ino = cpu_to_le64(ceph_vino(inode).ino);
 	lease->first = lease->last = cpu_to_le64(ceph_vino(inode).snap);
 	lease->seq = cpu_to_le32(seq);
@@ -2571,7 +2576,7 @@ void ceph_mdsc_lease_release(struct ceph_mds_client *mdsc, struct inode *inode,
 
 	BUG_ON(inode == NULL);
 	BUG_ON(dentry == NULL);
-	BUG_ON(mask != CEPH_LOCK_DN);
+	BUG_ON(mask == 0);
 
 	/* is dentry lease valid? */
 	spin_lock(&dentry->d_lock);

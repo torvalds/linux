@@ -27,6 +27,17 @@ static int ceph_x_is_authenticated(struct ceph_auth_client *ac)
 	return (ac->want_keys & xi->have_keys) == ac->want_keys;
 }
 
+static int ceph_x_should_authenticate(struct ceph_auth_client *ac)
+{
+	struct ceph_x_info *xi = ac->private;
+	int need;
+
+	ceph_x_validate_tickets(ac, &need);
+	dout("ceph_x_should_authenticate want=%d need=%d have=%d\n",
+	     ac->want_keys, need, xi->have_keys);
+	return need != 0;
+}
+
 static int ceph_x_encrypt_buflen(int ilen)
 {
 	return sizeof(struct ceph_x_encrypt_header) + ilen + 16 +
@@ -620,6 +631,7 @@ static void ceph_x_invalidate_authorizer(struct ceph_auth_client *ac,
 static const struct ceph_auth_client_ops ceph_x_ops = {
 	.name = "x",
 	.is_authenticated = ceph_x_is_authenticated,
+	.should_authenticate = ceph_x_should_authenticate,
 	.build_request = ceph_x_build_request,
 	.handle_reply = ceph_x_handle_reply,
 	.create_authorizer = ceph_x_create_authorizer,

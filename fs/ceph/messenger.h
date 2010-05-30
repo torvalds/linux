@@ -213,6 +213,7 @@ extern int ceph_parse_ips(const char *c, const char *end,
 
 extern int ceph_msgr_init(void);
 extern void ceph_msgr_exit(void);
+extern void ceph_msgr_flush(void);
 
 extern struct ceph_messenger *ceph_messenger_create(
 	struct ceph_entity_addr *myaddr);
