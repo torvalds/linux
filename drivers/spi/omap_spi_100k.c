@@ -141,7 +141,12 @@ static void spi100k_write_data(struct spi_master *master, int len, int data)
 {
 	struct omap1_spi100k *spi100k = spi_master_get_devdata(master);
 
-	/* write 16-bit word */
+	/* write 16-bit word, shifting 8-bit data if necessary */
+	if (len <= 8) {
+		data <<= 8;
+		len = 16;
+	}
+
 	spi100k_enable_clock(master);
 	writew( data , spi100k->base + SPI_TX_MSB);
 
@@ -161,6 +166,10 @@ static int spi100k_read_data(struct spi_master *master, int len)
 {
 	int dataH,dataL;
 	struct omap1_spi100k *spi100k = spi_master_get_devdata(master);
+
+	/* Always do at least 16 bits */
+	if (len <= 8)
+		len = 16;
 
 	spi100k_enable_clock(master);
 	writew(SPI_CTRL_SEN(0) |
@@ -214,10 +223,6 @@ omap1_spi100k_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 	c = count;
 	word_len = cs->word_len;
 
-	/* RX_ONLY mode needs dummy data in TX reg */
-	if (xfer->tx_buf == NULL)
-		spi100k_write_data(spi->master,word_len, 0);
-
 	if (word_len <= 8) {
 		u8              *rx;
 		const u8        *tx;
@@ -227,9 +232,9 @@ omap1_spi100k_txrx_pio(struct spi_device *spi, struct spi_transfer *xfer)
 		do {
 			c-=1;
 			if (xfer->tx_buf != NULL)
-				spi100k_write_data(spi->master,word_len, *tx);
+				spi100k_write_data(spi->master, word_len, *tx++);
 			if (xfer->rx_buf != NULL)
-				*rx = spi100k_read_data(spi->master,word_len);
+				*rx++ = spi100k_read_data(spi->master, word_len);
 		} while(c);
 	} else if (word_len <= 16) {
 		u16             *rx;
@@ -379,10 +384,6 @@ static void omap1_spi100k_work(struct work_struct *work)
 
 			if (t->len) {
 				unsigned count;
-
-				/* RX_ONLY mode needs dummy data in TX reg */
-				if (t->tx_buf == NULL)
-					spi100k_write_data(spi->master, 8, 0);
 
 				count = omap1_spi100k_txrx_pio(spi, t);
 				m->actual_length += count;
