@@ -17,7 +17,6 @@
 #include <linux/init.h>
 #include <linux/bootmem.h>
 #include <linux/module.h>
-#include <linux/random.h>
 #include <asm/mmzone.h>
 #include <asm/numa.h>
 
@@ -50,22 +49,6 @@ paddr_to_nid(unsigned long paddr)
 
 	return (i < num_node_memblks) ? node_memblk[i].nid : (num_node_memblks ? -1 : 0);
 }
-
-/*
- * Return the bit number of a random bit set in the nodemask.
- *   (returns -1 if nodemask is empty)
- */
-int __node_random(const nodemask_t *maskp)
-{
-	int w, bit = -1;
-
-	w = nodes_weight(*maskp);
-	if (w)
-		bit = bitmap_ord_to_pos(maskp->bits,
-			get_random_int() % w, MAX_NUMNODES);
-	return bit;
-}
-EXPORT_SYMBOL(__node_random);
 
 #if defined(CONFIG_SPARSEMEM) && defined(CONFIG_NUMA)
 /*
