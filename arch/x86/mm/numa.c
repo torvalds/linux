@@ -2,7 +2,6 @@
 #include <linux/topology.h>
 #include <linux/module.h>
 #include <linux/bootmem.h>
-#include <linux/random.h>
 
 #ifdef CONFIG_DEBUG_PER_CPU_MAPS
 # define DBG(x...) printk(KERN_DEBUG x)
@@ -66,19 +65,3 @@ const struct cpumask *cpumask_of_node(int node)
 }
 EXPORT_SYMBOL(cpumask_of_node);
 #endif
-
-/*
- * Return the bit number of a random bit set in the nodemask.
- *   (returns -1 if nodemask is empty)
- */
-int __node_random(const nodemask_t *maskp)
-{
-	int w, bit = -1;
-
-	w = nodes_weight(*maskp);
-	if (w)
-		bit = bitmap_ord_to_pos(maskp->bits,
-			get_random_int() % w, MAX_NUMNODES);
-	return bit;
-}
-EXPORT_SYMBOL(__node_random);
