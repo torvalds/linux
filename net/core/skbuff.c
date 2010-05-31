@@ -482,22 +482,22 @@ EXPORT_SYMBOL(consume_skb);
  *	reference count dropping and cleans up the skbuff as if it
  *	just came from __alloc_skb().
  */
-int skb_recycle_check(struct sk_buff *skb, int skb_size)
+bool skb_recycle_check(struct sk_buff *skb, int skb_size)
 {
 	struct skb_shared_info *shinfo;
 
 	if (irqs_disabled())
-		return 0;
+		return false;
 
 	if (skb_is_nonlinear(skb) || skb->fclone != SKB_FCLONE_UNAVAILABLE)
-		return 0;
+		return false;
 
 	skb_size = SKB_DATA_ALIGN(skb_size + NET_SKB_PAD);
 	if (skb_end_pointer(skb) - skb->head < skb_size)
-		return 0;
+		return false;
 
 	if (skb_shared(skb) || skb_cloned(skb))
-		return 0;
+		return false;
 
 	skb_release_head_state(skb);
 
@@ -509,7 +509,7 @@ int skb_recycle_check(struct sk_buff *skb, int skb_size)
 	skb->data = skb->head + NET_SKB_PAD;
 	skb_reset_tail_pointer(skb);
 
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL(skb_recycle_check);
 
@@ -2996,7 +2996,11 @@ void skb_tstamp_tx(struct sk_buff *orig_skb,
 	memset(serr, 0, sizeof(*serr));
 	serr->ee.ee_errno = ENOMSG;
 	serr->ee.ee_origin = SO_EE_ORIGIN_TIMESTAMPING;
+
+	bh_lock_sock(sk);
 	err = sock_queue_err_skb(sk, skb);
+	bh_unlock_sock(sk);
+
 	if (err)
 		kfree_skb(skb);
 }
