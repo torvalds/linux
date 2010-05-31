@@ -370,9 +370,9 @@ static int thread__set_comm_adjust(struct thread *self, const char *comm)
 
 int event__process_comm(event_t *self, struct perf_session *session)
 {
-	struct thread *thread = perf_session__findnew(session, self->comm.pid);
+	struct thread *thread = perf_session__findnew(session, self->comm.tid);
 
-	dump_printf(": %s:%d\n", self->comm.comm, self->comm.pid);
+	dump_printf(": %s:%d\n", self->comm.comm, self->comm.tid);
 
 	if (thread == NULL || thread__set_comm_adjust(thread, self->comm.comm)) {
 		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
