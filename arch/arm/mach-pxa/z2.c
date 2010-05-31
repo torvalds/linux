@@ -473,7 +473,10 @@ static struct i2c_board_info __initdata z2_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("aer915", 0x55),
 		.platform_data	= &batt_chip_info,
-	}
+	}, {
+		I2C_BOARD_INFO("wm8750", 0x1b),
+	},
+
 };
 
 static void __init z2_i2c_init(void)
