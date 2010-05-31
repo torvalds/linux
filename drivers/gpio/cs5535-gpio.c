@@ -197,7 +197,7 @@ static int chip_direction_output(struct gpio_chip *c, unsigned offset, int val)
 	return 0;
 }
 
-static char *cs5535_gpio_names[] = {
+static const char * const cs5535_gpio_names[] = {
 	"GPIO0", "GPIO1", "GPIO2", "GPIO3",
 	"GPIO4", "GPIO5", "GPIO6", "GPIO7",
 	"GPIO8", "GPIO9", "GPIO10", "GPIO11",

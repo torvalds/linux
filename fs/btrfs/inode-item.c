@@ -49,6 +49,33 @@ static int find_name_in_backref(struct btrfs_path *path, const char *name,
 	return 0;
 }
 
+struct btrfs_inode_ref *
+btrfs_lookup_inode_ref(struct btrfs_trans_handle *trans,
+			struct btrfs_root *root,
+			struct btrfs_path *path,
+			const char *name, int name_len,
+			u64 inode_objectid, u64 ref_objectid, int mod)
+{
+	struct btrfs_key key;
+	struct btrfs_inode_ref *ref;
+	int ins_len = mod < 0 ? -1 : 0;
+	int cow = mod != 0;
+	int ret;
+
+	key.objectid = inode_objectid;
+	key.type = BTRFS_INODE_REF_KEY;
+	key.offset = ref_objectid;
+
+	ret = btrfs_search_slot(trans, root, &key, path, ins_len, cow);
+	if (ret < 0)
+		return ERR_PTR(ret);
+	if (ret > 0)
+		return NULL;
+	if (!find_name_in_backref(path, name, name_len, &ref))
+		return NULL;
+	return ref;
+}
+
 int btrfs_del_inode_ref(struct btrfs_trans_handle *trans,
 			   struct btrfs_root *root,
 			   const char *name, int name_len,

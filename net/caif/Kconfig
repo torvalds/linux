@@ -2,10 +2,8 @@
 # CAIF net configurations
 #
 
-#menu "CAIF Support"
-comment "CAIF Support"
 menuconfig CAIF
-	tristate "Enable CAIF support"
+	tristate "CAIF support"
 	select CRC_CCITT
 	default n
 	---help---
@@ -45,4 +43,3 @@ config CAIF_NETDEV
 	If unsure say Y.
 
 endif
-#endmenu

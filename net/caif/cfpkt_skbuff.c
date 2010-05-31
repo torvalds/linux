@@ -238,6 +238,7 @@ int cfpkt_add_head(struct cfpkt *pkt, const void *data2, u16 len)
 	struct sk_buff *lastskb;
 	u8 *to;
 	const u8 *data = data2;
+	int ret;
 	if (unlikely(is_erronous(pkt)))
 		return -EPROTO;
 	if (unlikely(skb_headroom(skb) < len)) {
@@ -246,9 +247,10 @@ int cfpkt_add_head(struct cfpkt *pkt, const void *data2, u16 len)
 	}
 
 	/* Make sure data is writable */
-	if (unlikely(skb_cow_data(skb, 0, &lastskb) < 0)) {
+	ret = skb_cow_data(skb, 0, &lastskb);
+	if (unlikely(ret < 0)) {
 		PKT_ERROR(pkt, "cfpkt_add_head: cow failed\n");
-		return -EPROTO;
+		return ret;
 	}
 
 	to = skb_push(skb, len);
@@ -316,6 +318,8 @@ EXPORT_SYMBOL(cfpkt_setlen);
 struct cfpkt *cfpkt_create_uplink(const unsigned char *data, unsigned int len)
 {
 	struct cfpkt *pkt = cfpkt_create_pfx(len + PKT_POSTFIX, PKT_PREFIX);
+	if (!pkt)
+		return NULL;
 	if (unlikely(data != NULL))
 		cfpkt_add_body(pkt, data, len);
 	return pkt;
@@ -344,12 +348,13 @@ struct cfpkt *cfpkt_append(struct cfpkt *dstpkt,
 
 	if (dst->tail + neededtailspace > dst->end) {
 		/* Create a dumplicate of 'dst' with more tail space */
+		struct cfpkt *tmppkt;
 		dstlen = skb_headlen(dst);
 		createlen = dstlen + neededtailspace;
-		tmp = pkt_to_skb(
-			cfpkt_create(createlen + PKT_PREFIX + PKT_POSTFIX));
-		if (!tmp)
+		tmppkt = cfpkt_create(createlen + PKT_PREFIX + PKT_POSTFIX);
+		if (tmppkt == NULL)
 			return NULL;
+		tmp = pkt_to_skb(tmppkt);
 		skb_set_tail_pointer(tmp, dstlen);
 		tmp->len = dstlen;
 		memcpy(tmp->data, dst->data, dstlen);
@@ -368,6 +373,7 @@ struct cfpkt *cfpkt_split(struct cfpkt *pkt, u16 pos)
 {
 	struct sk_buff *skb2;
 	struct sk_buff *skb = pkt_to_skb(pkt);
+	struct cfpkt *tmppkt;
 	u8 *split = skb->data + pos;
 	u16 len2nd = skb_tail_pointer(skb) - split;
 
@@ -381,9 +387,12 @@ struct cfpkt *cfpkt_split(struct cfpkt *pkt, u16 pos)
 	}
 
 	/* Create a new packet for the second part of the data */
-	skb2 = pkt_to_skb(
-		cfpkt_create_pfx(len2nd + PKT_PREFIX + PKT_POSTFIX,
-				 PKT_PREFIX));
+	tmppkt = cfpkt_create_pfx(len2nd + PKT_PREFIX + PKT_POSTFIX,
+				  PKT_PREFIX);
+	if (tmppkt == NULL)
+		return NULL;
+	skb2 = pkt_to_skb(tmppkt);
+
 
 	if (skb2 == NULL)
 		return NULL;

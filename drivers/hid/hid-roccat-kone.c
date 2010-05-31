@@ -37,6 +37,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include "hid-ids.h"
+#include "hid-roccat.h"
 #include "hid-roccat-kone.h"
 
 static void kone_set_settings_checksum(struct kone_settings *settings)
@@ -263,7 +264,7 @@ static int kone_get_firmware_version(struct usb_device *usb_dev, int *result)
 	return 0;
 }
 
-static ssize_t kone_sysfs_read_settings(struct kobject *kobj,
+static ssize_t kone_sysfs_read_settings(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -287,7 +288,7 @@ static ssize_t kone_sysfs_read_settings(struct kobject *kobj,
  * This function keeps values in kone_device up to date and assumes that in
  * case of error the old data is still valid
  */
-static ssize_t kone_sysfs_write_settings(struct kobject *kobj,
+static ssize_t kone_sysfs_write_settings(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	struct device *dev = container_of(kobj, struct device, kobj);
@@ -342,31 +343,31 @@ static ssize_t kone_sysfs_read_profilex(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t kone_sysfs_read_profile1(struct kobject *kobj,
+static ssize_t kone_sysfs_read_profile1(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 1);
 }
 
-static ssize_t kone_sysfs_read_profile2(struct kobject *kobj,
+static ssize_t kone_sysfs_read_profile2(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 2);
 }
 
-static ssize_t kone_sysfs_read_profile3(struct kobject *kobj,
+static ssize_t kone_sysfs_read_profile3(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 3);
 }
 
-static ssize_t kone_sysfs_read_profile4(struct kobject *kobj,
+static ssize_t kone_sysfs_read_profile4(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 4);
 }
 
-static ssize_t kone_sysfs_read_profile5(struct kobject *kobj,
+static ssize_t kone_sysfs_read_profile5(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_read_profilex(kobj, attr, buf, off, count, 5);
@@ -404,31 +405,31 @@ static ssize_t kone_sysfs_write_profilex(struct kobject *kobj,
 	return sizeof(struct kone_profile);
 }
 
-static ssize_t kone_sysfs_write_profile1(struct kobject *kobj,
+static ssize_t kone_sysfs_write_profile1(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 1);
 }
 
-static ssize_t kone_sysfs_write_profile2(struct kobject *kobj,
+static ssize_t kone_sysfs_write_profile2(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 2);
 }
 
-static ssize_t kone_sysfs_write_profile3(struct kobject *kobj,
+static ssize_t kone_sysfs_write_profile3(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 3);
 }
 
-static ssize_t kone_sysfs_write_profile4(struct kobject *kobj,
+static ssize_t kone_sysfs_write_profile4(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 4);
 }
 
-static ssize_t kone_sysfs_write_profile5(struct kobject *kobj,
+static ssize_t kone_sysfs_write_profile5(struct file *fp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf,
 		loff_t off, size_t count) {
 	return kone_sysfs_write_profilex(kobj, attr, buf, off, count, 5);
@@ -849,6 +850,16 @@ static int kone_init_specials(struct hid_device *hdev)
 					"couldn't init struct kone_device\n");
 			goto exit_free;
 		}
+
+		retval = roccat_connect(hdev);
+		if (retval < 0) {
+			dev_err(&hdev->dev, "couldn't init char dev\n");
+			/* be tolerant about not getting chrdev */
+		} else {
+			kone->roccat_claimed = 1;
+			kone->chrdev_minor = retval;
+		}
+
 		retval = kone_create_sysfs_attributes(intf);
 		if (retval) {
 			dev_err(&hdev->dev, "cannot create sysfs files\n");
@@ -868,10 +879,14 @@ exit_free:
 static void kone_remove_specials(struct hid_device *hdev)
 {
 	struct usb_interface *intf = to_usb_interface(hdev->dev.parent);
+	struct kone_device *kone;
 
 	if (intf->cur_altsetting->desc.bInterfaceProtocol
 			== USB_INTERFACE_PROTOCOL_MOUSE) {
 		kone_remove_sysfs_attributes(intf);
+		kone = hid_get_drvdata(hdev);
+		if (kone->roccat_claimed)
+			roccat_disconnect(kone->chrdev_minor);
 		kfree(hid_get_drvdata(hdev));
 	}
 }
@@ -930,6 +945,37 @@ static void kone_keep_values_up_to_date(struct kone_device *kone,
 	}
 }
 
+static void kone_report_to_chrdev(struct kone_device const *kone,
+		struct kone_mouse_event const *event)
+{
+	struct kone_roccat_report roccat_report;
+
+	switch (event->event) {
+	case kone_mouse_event_switch_profile:
+	case kone_mouse_event_switch_dpi:
+	case kone_mouse_event_osd_profile:
+	case kone_mouse_event_osd_dpi:
+		roccat_report.event = event->event;
+		roccat_report.value = event->value;
+		roccat_report.key = 0;
+		roccat_report_event(kone->chrdev_minor,
+				(uint8_t *)&roccat_report,
+				sizeof(struct kone_roccat_report));
+		break;
+	case kone_mouse_event_call_overlong_macro:
+		if (event->value == kone_keystroke_action_press) {
+			roccat_report.event = kone_mouse_event_call_overlong_macro;
+			roccat_report.value = kone->actual_profile;
+			roccat_report.key = event->macro_key;
+			roccat_report_event(kone->chrdev_minor,
+					(uint8_t *)&roccat_report,
+					sizeof(struct kone_roccat_report));
+		}
+		break;
+	}
+
+}
+
 /*
  * Is called for keyboard- and mousepart.
  * Only mousepart gets informations about special events in its extended event
@@ -957,6 +1003,9 @@ static int kone_raw_event(struct hid_device *hdev, struct hid_report *report,
 		memset(&event->tilt, 0, 5);
 
 	kone_keep_values_up_to_date(kone, event);
+
+	if (kone->roccat_claimed)
+		kone_report_to_chrdev(kone, event);
 
 	return 0; /* always do further processing */
 }

@@ -1115,7 +1115,7 @@ static int imxmci_suspend(struct platform_device *dev, pm_message_t state)
 	int ret = 0;
 
 	if (mmc)
-		ret = mmc_suspend_host(mmc, state);
+		ret = mmc_suspend_host(mmc);
 
 	return ret;
 }

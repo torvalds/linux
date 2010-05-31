@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/stringify.h>
+#include <linux/kernel.h>
 #include "ldm.h"
 #include "check.h"
 #include "msdos.h"
@@ -77,17 +78,16 @@ static int ldm_parse_hexbyte (const u8 *src)
 	int h;
 
 	/* high part */
-	if      ((x = src[0] - '0') <= '9'-'0') h = x;
-	else if ((x = src[0] - 'a') <= 'f'-'a') h = x+10;
-	else if ((x = src[0] - 'A') <= 'F'-'A') h = x+10;
-	else return -1;
-	h <<= 4;
+	x = h = hex_to_bin(src[0]);
+	if (h < 0)
+		return -1;
 
 	/* low part */
-	if ((x = src[1] - '0') <= '9'-'0') return h | x;
-	if ((x = src[1] - 'a') <= 'f'-'a') return h | (x+10);
-	if ((x = src[1] - 'A') <= 'F'-'A') return h | (x+10);
-	return -1;
+	h = hex_to_bin(src[1]);
+	if (h < 0)
+		return -1;
+
+	return (x << 4) + h;
 }
 
 /**

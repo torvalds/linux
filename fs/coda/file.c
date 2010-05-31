@@ -202,10 +202,10 @@ int coda_release(struct inode *coda_inode, struct file *coda_file)
 	return 0;
 }
 
-int coda_fsync(struct file *coda_file, struct dentry *coda_dentry, int datasync)
+int coda_fsync(struct file *coda_file, int datasync)
 {
 	struct file *host_file;
-	struct inode *coda_inode = coda_dentry->d_inode;
+	struct inode *coda_inode = coda_file->f_path.dentry->d_inode;
 	struct coda_file_info *cfi;
 	int err = 0;
 

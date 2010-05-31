@@ -93,8 +93,7 @@ static int bad_file_release(struct inode *inode, struct file *filp)
 	return -EIO;
 }
 
-static int bad_file_fsync(struct file *file, struct dentry *dentry,
-			int datasync)
+static int bad_file_fsync(struct file *file, int datasync)
 {
 	return -EIO;
 }

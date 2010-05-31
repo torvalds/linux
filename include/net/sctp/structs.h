@@ -876,7 +876,7 @@ struct sctp_transport {
 
 	/* Reference counting. */
 	atomic_t refcnt;
-	int	 dead:1,
+	__u32	 dead:1,
 		/* RTO-Pending : A flag used to track if one of the DATA
 		 *		chunks sent to this address is currently being
 		 *		used to compute a RTT. If this flag is 0,

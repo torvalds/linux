@@ -1,4 +1,5 @@
 #include "util.h"
+#include "build-id.h"
 #include "hist.h"
 #include "session.h"
 #include "sort.h"
@@ -988,22 +989,42 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head)
 	struct symbol *sym = self->ms.sym;
 	struct map *map = self->ms.map;
 	struct dso *dso = map->dso;
-	const char *filename = dso->long_name;
+	char *filename = dso__build_id_filename(dso, NULL, 0);
+	bool free_filename = true;
 	char command[PATH_MAX * 2];
 	FILE *file;
+	int err = 0;
 	u64 len;
 
-	if (!filename)
-		return -1;
+	if (filename == NULL) {
+		if (dso->has_build_id) {
+			pr_err("Can't annotate %s: not enough memory\n",
+			       sym->name);
+			return -ENOMEM;
+		}
+		goto fallback;
+	} else if (readlink(filename, command, sizeof(command)) < 0 ||
+		   strstr(command, "[kernel.kallsyms]") ||
+		   access(filename, R_OK)) {
+		free(filename);
+fallback:
+		/*
+		 * If we don't have build-ids or the build-id file isn't in the
+		 * cache, or is just a kallsyms file, well, lets hope that this
+		 * DSO is the same as when 'perf record' ran.
+		 */
+		filename = dso->long_name;
+		free_filename = false;
+	}
 
 	if (dso->origin == DSO__ORIG_KERNEL) {
 		if (dso->annotate_warned)
-			return 0;
+			goto out_free_filename;
+		err = -ENOENT;
 		dso->annotate_warned = 1;
 		pr_err("Can't annotate %s: No vmlinux file was found in the "
-		       "path:\n", sym->name);
-		vmlinux_path__fprintf(stderr);
-		return -1;
+		       "path\n", sym->name);
+		goto out_free_filename;
 	}
 
 	pr_debug("%s: filename=%s, sym=%s, start=%#Lx, end=%#Lx\n", __func__,
@@ -1025,14 +1046,17 @@ int hist_entry__annotate(struct hist_entry *self, struct list_head *head)
 
 	file = popen(command, "r");
 	if (!file)
-		return -1;
+		goto out_free_filename;
 
 	while (!feof(file))
 		if (hist_entry__parse_objdump_line(self, file, head) < 0)
 			break;
 
 	pclose(file);
-	return 0;
+out_free_filename:
+	if (free_filename)
+		free(filename);
+	return err;
 }
 
 void hists__inc_nr_events(struct hists *self, u32 type)

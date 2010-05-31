@@ -241,7 +241,6 @@ static void mpc8xxx_spi_change_mode(struct spi_device *spi)
 
 	/* Turn off SPI unit prior changing mode */
 	mpc8xxx_spi_write_reg(mode, cs->hw_mode & ~SPMODE_ENABLE);
-	mpc8xxx_spi_write_reg(mode, cs->hw_mode);
 
 	/* When in CPM mode, we need to reinit tx and rx. */
 	if (mspi->flags & SPI_CPM_MODE) {
@@ -258,7 +257,7 @@ static void mpc8xxx_spi_change_mode(struct spi_device *spi)
 			}
 		}
 	}
-
+	mpc8xxx_spi_write_reg(mode, cs->hw_mode);
 	local_irq_restore(flags);
 }
 
@@ -287,11 +286,75 @@ static void mpc8xxx_spi_chipselect(struct spi_device *spi, int value)
 	}
 }
 
+static int
+mspi_apply_cpu_mode_quirks(struct spi_mpc8xxx_cs *cs,
+			   struct spi_device *spi,
+			   struct mpc8xxx_spi *mpc8xxx_spi,
+			   int bits_per_word)
+{
+	cs->rx_shift = 0;
+	cs->tx_shift = 0;
+	if (bits_per_word <= 8) {
+		cs->get_rx = mpc8xxx_spi_rx_buf_u8;
+		cs->get_tx = mpc8xxx_spi_tx_buf_u8;
+		if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE) {
+			cs->rx_shift = 16;
+			cs->tx_shift = 24;
+		}
+	} else if (bits_per_word <= 16) {
+		cs->get_rx = mpc8xxx_spi_rx_buf_u16;
+		cs->get_tx = mpc8xxx_spi_tx_buf_u16;
+		if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE) {
+			cs->rx_shift = 16;
+			cs->tx_shift = 16;
+		}
+	} else if (bits_per_word <= 32) {
+		cs->get_rx = mpc8xxx_spi_rx_buf_u32;
+		cs->get_tx = mpc8xxx_spi_tx_buf_u32;
+	} else
+		return -EINVAL;
+
+	if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE &&
+	    spi->mode & SPI_LSB_FIRST) {
+		cs->tx_shift = 0;
+		if (bits_per_word <= 8)
+			cs->rx_shift = 8;
+		else
+			cs->rx_shift = 0;
+	}
+	mpc8xxx_spi->rx_shift = cs->rx_shift;
+	mpc8xxx_spi->tx_shift = cs->tx_shift;
+	mpc8xxx_spi->get_rx = cs->get_rx;
+	mpc8xxx_spi->get_tx = cs->get_tx;
+
+	return bits_per_word;
+}
+
+static int
+mspi_apply_qe_mode_quirks(struct spi_mpc8xxx_cs *cs,
+			  struct spi_device *spi,
+			  int bits_per_word)
+{
+	/* QE uses Little Endian for words > 8
+	 * so transform all words > 8 into 8 bits
+	 * Unfortnatly that doesn't work for LSB so
+	 * reject these for now */
+	/* Note: 32 bits word, LSB works iff
+	 * tfcr/rfcr is set to CPMFCR_GBL */
+	if (spi->mode & SPI_LSB_FIRST &&
+	    bits_per_word > 8)
+		return -EINVAL;
+	if (bits_per_word > 8)
+		return 8; /* pretend its 8 bits */
+	return bits_per_word;
+}
+
 static
 int mpc8xxx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct mpc8xxx_spi *mpc8xxx_spi;
-	u8 bits_per_word, pm;
+	int bits_per_word;
+	u8 pm;
 	u32 hz;
 	struct spi_mpc8xxx_cs	*cs = spi->controller_state;
 
@@ -317,41 +380,16 @@ int mpc8xxx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	if (!hz)
 		hz = spi->max_speed_hz;
 
-	cs->rx_shift = 0;
-	cs->tx_shift = 0;
-	if (bits_per_word <= 8) {
-		cs->get_rx = mpc8xxx_spi_rx_buf_u8;
-		cs->get_tx = mpc8xxx_spi_tx_buf_u8;
-		if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE) {
-			cs->rx_shift = 16;
-			cs->tx_shift = 24;
-		}
-	} else if (bits_per_word <= 16) {
-		cs->get_rx = mpc8xxx_spi_rx_buf_u16;
-		cs->get_tx = mpc8xxx_spi_tx_buf_u16;
-		if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE) {
-			cs->rx_shift = 16;
-			cs->tx_shift = 16;
-		}
-	} else if (bits_per_word <= 32) {
-		cs->get_rx = mpc8xxx_spi_rx_buf_u32;
-		cs->get_tx = mpc8xxx_spi_tx_buf_u32;
-	} else
-		return -EINVAL;
+	if (!(mpc8xxx_spi->flags & SPI_CPM_MODE))
+		bits_per_word = mspi_apply_cpu_mode_quirks(cs, spi,
+							   mpc8xxx_spi,
+							   bits_per_word);
+	else if (mpc8xxx_spi->flags & SPI_QE)
+		bits_per_word = mspi_apply_qe_mode_quirks(cs, spi,
+							  bits_per_word);
 
-	if (mpc8xxx_spi->flags & SPI_QE_CPU_MODE &&
-			spi->mode & SPI_LSB_FIRST) {
-		cs->tx_shift = 0;
-		if (bits_per_word <= 8)
-			cs->rx_shift = 8;
-		else
-			cs->rx_shift = 0;
-	}
-
-	mpc8xxx_spi->rx_shift = cs->rx_shift;
-	mpc8xxx_spi->tx_shift = cs->tx_shift;
-	mpc8xxx_spi->get_rx = cs->get_rx;
-	mpc8xxx_spi->get_tx = cs->get_tx;
+	if (bits_per_word < 0)
+		return bits_per_word;
 
 	if (bits_per_word == 32)
 		bits_per_word = 0;
@@ -438,7 +476,7 @@ static int mpc8xxx_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 			dev_err(dev, "unable to map tx dma\n");
 			return -ENOMEM;
 		}
-	} else {
+	} else if (t->tx_buf) {
 		mspi->tx_dma = t->tx_dma;
 	}
 
@@ -449,7 +487,7 @@ static int mpc8xxx_spi_cpm_bufs(struct mpc8xxx_spi *mspi,
 			dev_err(dev, "unable to map rx dma\n");
 			goto err_rx_dma;
 		}
-	} else {
+	} else if (t->rx_buf) {
 		mspi->rx_dma = t->rx_dma;
 	}
 
@@ -477,7 +515,7 @@ static void mpc8xxx_spi_cpm_bufs_complete(struct mpc8xxx_spi *mspi)
 
 	if (mspi->map_tx_dma)
 		dma_unmap_single(dev, mspi->tx_dma, t->len, DMA_TO_DEVICE);
-	if (mspi->map_tx_dma)
+	if (mspi->map_rx_dma)
 		dma_unmap_single(dev, mspi->rx_dma, t->len, DMA_FROM_DEVICE);
 	mspi->xfer_in_progress = NULL;
 }

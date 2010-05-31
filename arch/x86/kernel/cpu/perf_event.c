@@ -1717,7 +1717,11 @@ void perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip, int ski
 	 */
 	regs->bp = rewind_frame_pointer(skip + 1);
 	regs->cs = __KERNEL_CS;
-	local_save_flags(regs->flags);
+	/*
+	 * We abuse bit 3 to pass exact information, see perf_misc_flags
+	 * and the comment with PERF_EFLAGS_EXACT.
+	 */
+	regs->flags = 0;
 }
 
 unsigned long perf_instruction_pointer(struct pt_regs *regs)

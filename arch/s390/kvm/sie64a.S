@@ -32,12 +32,10 @@ SPI_PSW  = STACK_FRAME_OVERHEAD + __PT_PSW
 
 
 	.macro SPP newpp
-#ifdef CONFIG_KVM_AWARE_CMF
 	tm	__LC_MACHINE_FLAGS+6,0x20	# MACHINE_FLAG_SPP
 	jz	0f
 	.insn	s,0xb2800000,\newpp
-	0:
-#endif
+0:
 	.endm
 
 sie_irq_handler:

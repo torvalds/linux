@@ -241,7 +241,8 @@ nouveau_connector_detect(struct drm_connector *connector)
 	if (nv_encoder && nv_connector->native_mode) {
 		unsigned status = connector_status_connected;
 
-#ifdef CONFIG_ACPI
+#if defined(CONFIG_ACPI_BUTTON) || \
+	(defined(CONFIG_ACPI_BUTTON_MODULE) && defined(MODULE))
 		if (!nouveau_ignorelid && !acpi_lid_open())
 			status = connector_status_unknown;
 #endif

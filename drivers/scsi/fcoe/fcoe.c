@@ -688,7 +688,7 @@ static int fcoe_shost_config(struct fc_lport *lport, struct device *dev)
 	}
 
 	if (!lport->vport)
-		fc_host_max_npiv_vports(lport->host) = USHORT_MAX;
+		fc_host_max_npiv_vports(lport->host) = USHRT_MAX;
 
 	snprintf(fc_host_symbolic_name(lport->host), FC_SYMBOLIC_NAME_SIZE,
 		 "%s v%s over %s", FCOE_NAME, FCOE_VERSION,

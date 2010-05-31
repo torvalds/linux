@@ -626,6 +626,7 @@ static void pep_sock_close(struct sock *sk, long timeout)
 	struct pep_sock *pn = pep_sk(sk);
 	int ifindex = 0;
 
+	sock_hold(sk); /* keep a reference after sk_common_release() */
 	sk_common_release(sk);
 
 	lock_sock(sk);
@@ -644,6 +645,7 @@ static void pep_sock_close(struct sock *sk, long timeout)
 
 	if (ifindex)
 		gprs_detach(sk);
+	sock_put(sk);
 }
 
 static int pep_wait_connreq(struct sock *sk, int noblock)

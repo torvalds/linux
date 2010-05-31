@@ -31,6 +31,13 @@ static int is_authenticated(struct ceph_auth_client *ac)
 	return !xi->starting;
 }
 
+static int should_authenticate(struct ceph_auth_client *ac)
+{
+	struct ceph_auth_none_info *xi = ac->private;
+
+	return xi->starting;
+}
+
 /*
  * the generic auth code decode the global_id, and we carry no actual
  * authenticate state, so nothing happens here.
@@ -98,6 +105,7 @@ static const struct ceph_auth_client_ops ceph_auth_none_ops = {
 	.reset = reset,
 	.destroy = destroy,
 	.is_authenticated = is_authenticated,
+	.should_authenticate = should_authenticate,
 	.handle_reply = handle_reply,
 	.create_authorizer = ceph_auth_none_create_authorizer,
 	.destroy_authorizer = ceph_auth_none_destroy_authorizer,

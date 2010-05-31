@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2009 Daniel Mack <daniel@caiaq.de>
+ * Copyright (C) 2010 Freescale Semiconductor, Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -50,7 +51,26 @@
 #define MX35_H1_TLL_BIT		(1 << 5)
 #define MX35_H1_USBTE_BIT	(1 << 4)
 
-int mxc_set_usbcontrol(int port, unsigned int flags)
+#define MXC_OTG_OFFSET		0
+#define MXC_H1_OFFSET		0x200
+
+/* USB_CTRL */
+#define MXC_OTG_UCTRL_OWIE_BIT		(1 << 27)	/* OTG wakeup intr enable */
+#define MXC_OTG_UCTRL_OPM_BIT		(1 << 24)	/* OTG power mask */
+#define MXC_H1_UCTRL_H1UIE_BIT		(1 << 12)	/* Host1 ULPI interrupt enable */
+#define MXC_H1_UCTRL_H1WIE_BIT		(1 << 11)	/* HOST1 wakeup intr enable */
+#define MXC_H1_UCTRL_H1PM_BIT		(1 <<  8)		/* HOST1 power mask */
+
+/* USB_PHY_CTRL_FUNC */
+#define MXC_OTG_PHYCTRL_OC_DIS_BIT	(1 << 8)	/* OTG Disable Overcurrent Event */
+#define MXC_H1_OC_DIS_BIT			(1 << 5)	/* UH1 Disable Overcurrent Event */
+
+#define MXC_USBCMD_OFFSET			0x140
+
+/* USBCMD */
+#define MXC_UCMD_ITC_NO_THRESHOLD_MASK	(~(0xff << 16))	/* Interrupt Threshold Control */
+
+int mxc_initialize_usb_hw(int port, unsigned int flags)
 {
 	unsigned int v;
 #ifdef CONFIG_ARCH_MX3
@@ -186,9 +206,85 @@ int mxc_set_usbcontrol(int port, unsigned int flags)
 		return 0;
 	}
 #endif /* CONFIG_MACH_MX27 */
+#ifdef CONFIG_ARCH_MX51
+	if (cpu_is_mx51()) {
+		void __iomem *usb_base;
+		u32 usbotg_base;
+		u32 usbother_base;
+		int ret = 0;
+
+		usb_base = ioremap(MX51_OTG_BASE_ADDR, SZ_4K);
+
+		switch (port) {
+		case 0:	/* OTG port */
+			usbotg_base = usb_base + MXC_OTG_OFFSET;
+			break;
+		case 1:	/* Host 1 port */
+			usbotg_base = usb_base + MXC_H1_OFFSET;
+			break;
+		default:
+			printk(KERN_ERR"%s no such port %d\n", __func__, port);
+			ret = -ENOENT;
+			goto error;
+		}
+		usbother_base = usb_base + MX5_USBOTHER_REGS_OFFSET;
+
+		switch (port) {
+		case 0:	/*OTG port */
+			if (flags & MXC_EHCI_INTERNAL_PHY) {
+				v = __raw_readl(usbother_base + MXC_USB_PHY_CTR_FUNC_OFFSET);
+
+				if (flags & MXC_EHCI_POWER_PINS_ENABLED)
+					v |= (MXC_OTG_PHYCTRL_OC_DIS_BIT | MXC_OTG_UCTRL_OPM_BIT); /* OC/USBPWR is not used */
+				else
+					v &= ~(MXC_OTG_PHYCTRL_OC_DIS_BIT | MXC_OTG_UCTRL_OPM_BIT); /* OC/USBPWR is used */
+				__raw_writel(v, usbother_base + MXC_USB_PHY_CTR_FUNC_OFFSET);
+
+				v = __raw_readl(usbother_base + MXC_USBCTRL_OFFSET);
+				if (flags & MXC_EHCI_WAKEUP_ENABLED)
+					v |= MXC_OTG_UCTRL_OWIE_BIT;/* OTG wakeup enable */
+				else
+					v &= ~MXC_OTG_UCTRL_OWIE_BIT;/* OTG wakeup disable */
+				__raw_writel(v, usbother_base + MXC_USBCTRL_OFFSET);
+			}
+			break;
+		case 1:	/* Host 1 */
+			/*Host ULPI */
+			v = __raw_readl(usbother_base + MXC_USBCTRL_OFFSET);
+			if (flags & MXC_EHCI_WAKEUP_ENABLED)
+				v &= ~(MXC_H1_UCTRL_H1WIE_BIT | MXC_H1_UCTRL_H1UIE_BIT);/* HOST1 wakeup/ULPI intr disable */
+			else
+				v &= ~(MXC_H1_UCTRL_H1WIE_BIT | MXC_H1_UCTRL_H1UIE_BIT);/* HOST1 wakeup/ULPI intr disable */
+
+			if (flags & MXC_EHCI_POWER_PINS_ENABLED)
+				v &= ~MXC_H1_UCTRL_H1PM_BIT; /* HOST1 power mask used*/
+			else
+				v |= MXC_H1_UCTRL_H1PM_BIT; /* HOST1 power mask used*/
+			__raw_writel(v, usbother_base + MXC_USBCTRL_OFFSET);
+
+			v = __raw_readl(usbother_base + MXC_USB_PHY_CTR_FUNC_OFFSET);
+			if (flags & MXC_EHCI_POWER_PINS_ENABLED)
+				v &= ~MXC_H1_OC_DIS_BIT; /* OC is used */
+			else
+				v |= MXC_H1_OC_DIS_BIT; /* OC is not used */
+			__raw_writel(v, usbother_base + MXC_USB_PHY_CTR_FUNC_OFFSET);
+
+			v = __raw_readl(usbotg_base + MXC_USBCMD_OFFSET);
+			if (flags & MXC_EHCI_ITC_NO_THRESHOLD)
+				/* Interrupt Threshold Control:Immediate (no threshold) */
+				v &= MXC_UCMD_ITC_NO_THRESHOLD_MASK;
+			__raw_writel(v, usbotg_base + MXC_USBCMD_OFFSET);
+			break;
+		}
+
+error:
+		iounmap(usb_base);
+		return ret;
+	}
+#endif
 	printk(KERN_WARNING
 		"%s() unable to setup USBCONTROL for this CPU\n", __func__);
 	return -EINVAL;
 }
-EXPORT_SYMBOL(mxc_set_usbcontrol);
+EXPORT_SYMBOL(mxc_initialize_usb_hw);
 

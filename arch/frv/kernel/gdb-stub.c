@@ -1344,6 +1344,44 @@ void gdbstub_get_mmu_state(void)
 
 } /* end gdbstub_get_mmu_state() */
 
+/*
+ * handle general query commands of the form 'qXXXXX'
+ */
+static void gdbstub_handle_query(void)
+{
+	if (strcmp(input_buffer, "qAttached") == 0) {
+		/* return current thread ID */
+		sprintf(output_buffer, "1");
+		return;
+	}
+
+	if (strcmp(input_buffer, "qC") == 0) {
+		/* return current thread ID */
+		sprintf(output_buffer, "QC 0");
+		return;
+	}
+
+	if (strcmp(input_buffer, "qOffsets") == 0) {
+		/* return relocation offset of text and data segments */
+		sprintf(output_buffer, "Text=0;Data=0;Bss=0");
+		return;
+	}
+
+	if (strcmp(input_buffer, "qSymbol::") == 0) {
+		sprintf(output_buffer, "OK");
+		return;
+	}
+
+	if (strcmp(input_buffer, "qSupported") == 0) {
+		/* query of supported features */
+		sprintf(output_buffer, "PacketSize=%u;ReverseContinue-;ReverseStep-",
+			sizeof(input_buffer));
+		return;
+	}
+
+	gdbstub_strcpy(output_buffer,"E01");
+}
+
 /*****************************************************************************/
 /*
  * handle event interception and GDB remote protocol processing
@@ -1840,6 +1878,10 @@ void gdbstub(int sigval)
 		case 'k' :
 			goto done;	/* just continue */
 
+			/* detach */
+		case 'D':
+			gdbstub_strcpy(output_buffer, "OK");
+			break;
 
 			/* reset the whole machine (FIXME: system dependent) */
 		case 'r':
@@ -1851,6 +1893,14 @@ void gdbstub(int sigval)
 			__debug_regs->dcr |= DCR_SE;
 			__debug_status.dcr |= DCR_SE;
 			goto done;
+
+			/* extended command */
+		case 'v':
+			if (strcmp(input_buffer, "vCont?") == 0) {
+				output_buffer[0] = 0;
+				break;
+			}
+			goto unsupported_cmd;
 
 			/* set baud rate (bBB) */
 		case 'b':
@@ -1923,8 +1973,19 @@ void gdbstub(int sigval)
 			gdbstub_strcpy(output_buffer,"OK");
 			break;
 
+			/* Thread-setting packet */
+		case 'H':
+			gdbstub_strcpy(output_buffer, "OK");
+			break;
+
+		case 'q':
+			gdbstub_handle_query();
+			break;
+
 		default:
+		unsupported_cmd:
 			gdbstub_proto("### GDB Unsupported Cmd '%s'\n",input_buffer);
+			gdbstub_strcpy(output_buffer,"E01");
 			break;
 		}
 

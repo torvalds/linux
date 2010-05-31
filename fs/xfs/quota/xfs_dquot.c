@@ -344,9 +344,9 @@ xfs_qm_init_dquot_blk(
 	for (i = 0; i < q->qi_dqperchunk; i++, d++, curid++)
 		xfs_qm_dqinit_core(curid, type, d);
 	xfs_trans_dquot_buf(tp, bp,
-			    (type & XFS_DQ_USER ? XFS_BLI_UDQUOT_BUF :
-			    ((type & XFS_DQ_PROJ) ? XFS_BLI_PDQUOT_BUF :
-			     XFS_BLI_GDQUOT_BUF)));
+			    (type & XFS_DQ_USER ? XFS_BLF_UDQUOT_BUF :
+			    ((type & XFS_DQ_PROJ) ? XFS_BLF_PDQUOT_BUF :
+			     XFS_BLF_GDQUOT_BUF)));
 	xfs_trans_log_buf(tp, bp, 0, BBTOB(q->qi_dqchunklen) - 1);
 }
 

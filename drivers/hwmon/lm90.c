@@ -982,7 +982,8 @@ static struct lm90_data *lm90_update_device(struct device *dev)
 
 	mutex_lock(&data->update_lock);
 
-	if (time_after(jiffies, data->last_updated + HZ * 2) || !data->valid) {
+	if (time_after(jiffies, data->last_updated + HZ / 2 + HZ / 10)
+	 || !data->valid) {
 		u8 h, l;
 
 		dev_dbg(&client->dev, "Updating lm90 data.\n");

@@ -347,6 +347,14 @@ config HID_QUANTA
 	---help---
 	Support for Quanta Optical Touch dual-touch panels.
 
+config HID_ROCCAT
+	tristate "Roccat special event support"
+	depends on USB_HID
+	---help---
+	Support for Roccat special events.
+	Say Y here if you have a Roccat mouse or keyboard and want OSD or
+	macro execution support.
+
 config HID_ROCCAT_KONE
 	tristate "Roccat Kone Mouse support"
 	depends on USB_HID

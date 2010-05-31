@@ -54,9 +54,6 @@ STATIC xlog_t *  xlog_alloc_log(xfs_mount_t	*mp,
 STATIC int	 xlog_space_left(xlog_t *log, int cycle, int bytes);
 STATIC int	 xlog_sync(xlog_t *log, xlog_in_core_t *iclog);
 STATIC void	 xlog_dealloc_log(xlog_t *log);
-STATIC int	 xlog_write(struct log *log, struct xfs_log_vec *log_vector,
-			    struct xlog_ticket *tic, xfs_lsn_t *start_lsn,
-			    xlog_in_core_t **commit_iclog, uint flags);
 
 /* local state machine functions */
 STATIC void xlog_state_done_syncing(xlog_in_core_t *iclog, int);
@@ -85,14 +82,6 @@ STATIC int xlog_regrant_write_log_space(xlog_t		*log,
 					 xlog_ticket_t  *ticket);
 STATIC void xlog_ungrant_log_space(xlog_t	 *log,
 				   xlog_ticket_t *ticket);
-
-
-/* local ticket functions */
-STATIC xlog_ticket_t	*xlog_ticket_alloc(xlog_t *log,
-					 int	unit_bytes,
-					 int	count,
-					 char	clientid,
-					 uint	flags);
 
 #if defined(DEBUG)
 STATIC void	xlog_verify_dest_ptr(xlog_t *log, char *ptr);
@@ -360,6 +349,15 @@ xfs_log_reserve(
 		ASSERT(flags & XFS_LOG_PERM_RESERV);
 		internal_ticket = *ticket;
 
+		/*
+		 * this is a new transaction on the ticket, so we need to
+		 * change the transaction ID so that the next transaction has a
+		 * different TID in the log. Just add one to the existing tid
+		 * so that we can see chains of rolling transactions in the log
+		 * easily.
+		 */
+		internal_ticket->t_tid++;
+
 		trace_xfs_log_reserve(log, internal_ticket);
 
 		xlog_grant_push_ail(mp, internal_ticket->t_unit_res);
@@ -367,7 +365,8 @@ xfs_log_reserve(
 	} else {
 		/* may sleep if need to allocate more tickets */
 		internal_ticket = xlog_ticket_alloc(log, unit_bytes, cnt,
-						  client, flags);
+						  client, flags,
+						  KM_SLEEP|KM_MAYFAIL);
 		if (!internal_ticket)
 			return XFS_ERROR(ENOMEM);
 		internal_ticket->t_trans_type = t_type;
@@ -451,6 +450,13 @@ xfs_log_mount(
 
 	/* Normal transactions can now occur */
 	mp->m_log->l_flags &= ~XLOG_ACTIVE_RECOVERY;
+
+	/*
+	 * Now the log has been fully initialised and we know were our
+	 * space grant counters are, we can initialise the permanent ticket
+	 * needed for delayed logging to work.
+	 */
+	xlog_cil_init_post_recovery(mp->m_log);
 
 	return 0;
 
@@ -658,6 +664,10 @@ xfs_log_item_init(
 	item->li_ailp = mp->m_ail;
 	item->li_type = type;
 	item->li_ops = ops;
+	item->li_lv = NULL;
+
+	INIT_LIST_HEAD(&item->li_ail);
+	INIT_LIST_HEAD(&item->li_cil);
 }
 
 /*
@@ -1168,6 +1178,9 @@ xlog_alloc_log(xfs_mount_t	*mp,
 	*iclogp = log->l_iclog;			/* complete ring */
 	log->l_iclog->ic_prev = prev_iclog;	/* re-write 1st prev ptr */
 
+	error = xlog_cil_init(log);
+	if (error)
+		goto out_free_iclog;
 	return log;
 
 out_free_iclog:
@@ -1494,6 +1507,8 @@ xlog_dealloc_log(xlog_t *log)
 	xlog_in_core_t	*iclog, *next_iclog;
 	int		i;
 
+	xlog_cil_destroy(log);
+
 	iclog = log->l_iclog;
 	for (i=0; i<log->l_iclog_bufs; i++) {
 		sv_destroy(&iclog->ic_force_wait);
@@ -1536,8 +1551,10 @@ xlog_state_finish_copy(xlog_t		*log,
  * print out info relating to regions written which consume
  * the reservation
  */
-STATIC void
-xlog_print_tic_res(xfs_mount_t *mp, xlog_ticket_t *ticket)
+void
+xlog_print_tic_res(
+	struct xfs_mount	*mp,
+	struct xlog_ticket	*ticket)
 {
 	uint i;
 	uint ophdr_spc = ticket->t_res_num_ophdrs * (uint)sizeof(xlog_op_header_t);
@@ -1637,6 +1654,10 @@ xlog_print_tic_res(xfs_mount_t *mp, xlog_ticket_t *ticket)
 			    "bad-rtype" : res_type_str[r_type-1]),
 			    ticket->t_res_arr[i].r_len);
 	}
+
+	xfs_cmn_err(XFS_PTAG_LOGRES, CE_ALERT, mp,
+		"xfs_log_write: reservation ran out. Need to up reservation");
+	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 }
 
 /*
@@ -1865,7 +1886,7 @@ xlog_write_copy_finish(
  *	we don't update ic_offset until the end when we know exactly how many
  *	bytes have been written out.
  */
-STATIC int
+int
 xlog_write(
 	struct log		*log,
 	struct xfs_log_vec	*log_vector,
@@ -1889,22 +1910,26 @@ xlog_write(
 	*start_lsn = 0;
 
 	len = xlog_write_calc_vec_length(ticket, log_vector);
-	if (ticket->t_curr_res < len) {
+	if (log->l_cilp) {
+		/*
+		 * Region headers and bytes are already accounted for.
+		 * We only need to take into account start records and
+		 * split regions in this function.
+		 */
+		if (ticket->t_flags & XLOG_TIC_INITED)
+			ticket->t_curr_res -= sizeof(xlog_op_header_t);
+
+		/*
+		 * Commit record headers need to be accounted for. These
+		 * come in as separate writes so are easy to detect.
+		 */
+		if (flags & (XLOG_COMMIT_TRANS | XLOG_UNMOUNT_TRANS))
+			ticket->t_curr_res -= sizeof(xlog_op_header_t);
+	} else
+		ticket->t_curr_res -= len;
+
+	if (ticket->t_curr_res < 0)
 		xlog_print_tic_res(log->l_mp, ticket);
-#ifdef DEBUG
-		xlog_panic(
-	"xfs_log_write: reservation ran out. Need to up reservation");
-#else
-		/* Customer configurable panic */
-		xfs_cmn_err(XFS_PTAG_LOGRES, CE_ALERT, log->l_mp,
-	"xfs_log_write: reservation ran out. Need to up reservation");
-
-		/* If we did not panic, shutdown the filesystem */
-		xfs_force_shutdown(log->l_mp, SHUTDOWN_CORRUPT_INCORE);
-#endif
-	}
-
-	ticket->t_curr_res -= len;
 
 	index = 0;
 	lv = log_vector;
@@ -3000,6 +3025,8 @@ _xfs_log_force(
 
 	XFS_STATS_INC(xs_log_force);
 
+	xlog_cil_push(log, 1);
+
 	spin_lock(&log->l_icloglock);
 
 	iclog = log->l_iclog;
@@ -3148,6 +3175,12 @@ _xfs_log_force_lsn(
 	ASSERT(lsn != 0);
 
 	XFS_STATS_INC(xs_log_force);
+
+	if (log->l_cilp) {
+		lsn = xlog_cil_push_lsn(log, lsn);
+		if (lsn == NULLCOMMITLSN)
+			return 0;
+	}
 
 try_again:
 	spin_lock(&log->l_icloglock);
@@ -3313,22 +3346,30 @@ xfs_log_ticket_get(
 	return ticket;
 }
 
+xlog_tid_t
+xfs_log_get_trans_ident(
+	struct xfs_trans	*tp)
+{
+	return tp->t_ticket->t_tid;
+}
+
 /*
  * Allocate and initialise a new log ticket.
  */
-STATIC xlog_ticket_t *
+xlog_ticket_t *
 xlog_ticket_alloc(
 	struct log	*log,
 	int		unit_bytes,
 	int		cnt,
 	char		client,
-	uint		xflags)
+	uint		xflags,
+	int		alloc_flags)
 {
 	struct xlog_ticket *tic;
 	uint		num_headers;
 	int		iclog_space;
 
-	tic = kmem_zone_zalloc(xfs_log_ticket_zone, KM_SLEEP|KM_MAYFAIL);
+	tic = kmem_zone_zalloc(xfs_log_ticket_zone, alloc_flags);
 	if (!tic)
 		return NULL;
 
@@ -3647,6 +3688,11 @@ xlog_state_ioerror(
  *	c. nothing new gets queued up after (a) and (b) are done.
  *	d. if !logerror, flush the iclogs to disk, then seal them off
  *	   for business.
+ *
+ * Note: for delayed logging the !logerror case needs to flush the regions
+ * held in memory out to the iclogs before flushing them to disk. This needs
+ * to be done before the log is marked as shutdown, otherwise the flush to the
+ * iclogs will fail.
  */
 int
 xfs_log_force_umount(
@@ -3680,6 +3726,16 @@ xfs_log_force_umount(
 		return 1;
 	}
 	retval = 0;
+
+	/*
+	 * Flush the in memory commit item list before marking the log as
+	 * being shut down. We need to do it in this order to ensure all the
+	 * completed transactions are flushed to disk with the xfs_log_force()
+	 * call below.
+	 */
+	if (!logerror && (mp->m_flags & XFS_MOUNT_DELAYLOG))
+		xlog_cil_push(log, 1);
+
 	/*
 	 * We must hold both the GRANT lock and the LOG lock,
 	 * before we mark the filesystem SHUTDOWN and wake

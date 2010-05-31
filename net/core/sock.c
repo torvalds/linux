@@ -123,6 +123,7 @@
 #include <linux/net_tstamp.h>
 #include <net/xfrm.h>
 #include <linux/ipsec.h>
+#include <net/cls_cgroup.h>
 
 #include <linux/filter.h>
 
@@ -216,6 +217,11 @@ __u32 sysctl_rmem_default __read_mostly = SK_RMEM_MAX;
 /* Maximal space eaten by iovec or ancilliary data plus some space */
 int sysctl_optmem_max __read_mostly = sizeof(unsigned long)*(2*UIO_MAXIOV+512);
 EXPORT_SYMBOL(sysctl_optmem_max);
+
+#if defined(CONFIG_CGROUPS) && !defined(CONFIG_NET_CLS_CGROUP)
+int net_cls_subsys_id = -1;
+EXPORT_SYMBOL_GPL(net_cls_subsys_id);
+#endif
 
 static int sock_set_timeout(long *timeo_p, char __user *optval, int optlen)
 {
@@ -1050,6 +1056,17 @@ static void sk_prot_free(struct proto *prot, struct sock *sk)
 	module_put(owner);
 }
 
+#ifdef CONFIG_CGROUPS
+void sock_update_classid(struct sock *sk)
+{
+	u32 classid = task_cls_classid(current);
+
+	if (classid && classid != sk->sk_classid)
+		sk->sk_classid = classid;
+}
+EXPORT_SYMBOL(sock_update_classid);
+#endif
+
 /**
  *	sk_alloc - All socket objects are allocated here
  *	@net: the applicable net namespace
@@ -1073,6 +1090,8 @@ struct sock *sk_alloc(struct net *net, int family, gfp_t priority,
 		sock_lock_init(sk);
 		sock_net_set(sk, get_net(net));
 		atomic_set(&sk->sk_wmem_alloc, 1);
+
+		sock_update_classid(sk);
 	}
 
 	return sk;
@@ -1987,6 +2006,39 @@ void release_sock(struct sock *sk)
 	spin_unlock_bh(&sk->sk_lock.slock);
 }
 EXPORT_SYMBOL(release_sock);
+
+/**
+ * lock_sock_fast - fast version of lock_sock
+ * @sk: socket
+ *
+ * This version should be used for very small section, where process wont block
+ * return false if fast path is taken
+ *   sk_lock.slock locked, owned = 0, BH disabled
+ * return true if slow path is taken
+ *   sk_lock.slock unlocked, owned = 1, BH enabled
+ */
+bool lock_sock_fast(struct sock *sk)
+{
+	might_sleep();
+	spin_lock_bh(&sk->sk_lock.slock);
+
+	if (!sk->sk_lock.owned)
+		/*
+		 * Note : We must disable BH
+		 */
+		return false;
+
+	__lock_sock(sk);
+	sk->sk_lock.owned = 1;
+	spin_unlock(&sk->sk_lock.slock);
+	/*
+	 * The sk_lock has mutex_lock() semantics here:
+	 */
+	mutex_acquire(&sk->sk_lock.dep_map, 0, 0, _RET_IP_);
+	local_bh_enable();
+	return true;
+}
+EXPORT_SYMBOL(lock_sock_fast);
 
 int sock_get_timestamp(struct sock *sk, struct timeval __user *userstamp)
 {

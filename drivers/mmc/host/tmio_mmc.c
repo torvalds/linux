@@ -768,7 +768,7 @@ static int tmio_mmc_suspend(struct platform_device *dev, pm_message_t state)
 	struct mmc_host *mmc = platform_get_drvdata(dev);
 	int ret;
 
-	ret = mmc_suspend_host(mmc, state);
+	ret = mmc_suspend_host(mmc);
 
 	/* Tell MFD core it can disable us now.*/
 	if (!ret && cell->disable)

@@ -277,8 +277,10 @@ DEFINE_SIMPLE_ATTRIBUTE(fops_x32, debugfs_u32_get, debugfs_u32_set, "0x%08llx\n"
 DEFINE_SIMPLE_ATTRIBUTE(fops_x32_ro, debugfs_u32_get, NULL, "0x%08llx\n");
 DEFINE_SIMPLE_ATTRIBUTE(fops_x32_wo, NULL, debugfs_u32_set, "0x%08llx\n");
 
+DEFINE_SIMPLE_ATTRIBUTE(fops_x64, debugfs_u64_get, debugfs_u64_set, "0x%016llx\n");
+
 /*
- * debugfs_create_x{8,16,32} - create a debugfs file that is used to read and write an unsigned {8,16,32}-bit value
+ * debugfs_create_x{8,16,32,64} - create a debugfs file that is used to read and write an unsigned {8,16,32,64}-bit value
  *
  * These functions are exactly the same as the above functions (but use a hex
  * output for the decimal challenged). For details look at the above unsigned
@@ -356,6 +358,23 @@ struct dentry *debugfs_create_x32(const char *name, mode_t mode,
 	return debugfs_create_file(name, mode, parent, value, &fops_x32);
 }
 EXPORT_SYMBOL_GPL(debugfs_create_x32);
+
+/**
+ * debugfs_create_x64 - create a debugfs file that is used to read and write an unsigned 64-bit value
+ * @name: a pointer to a string containing the name of the file to create.
+ * @mode: the permission that the file should have
+ * @parent: a pointer to the parent dentry for this file.  This should be a
+ *          directory dentry if set.  If this parameter is %NULL, then the
+ *          file will be created in the root of the debugfs filesystem.
+ * @value: a pointer to the variable that the file should read to and write
+ *         from.
+ */
+struct dentry *debugfs_create_x64(const char *name, mode_t mode,
+				 struct dentry *parent, u64 *value)
+{
+	return debugfs_create_file(name, mode, parent, value, &fops_x64);
+}
+EXPORT_SYMBOL_GPL(debugfs_create_x64);
 
 
 static int debugfs_size_t_set(void *data, u64 val)

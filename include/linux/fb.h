@@ -4,8 +4,6 @@
 #include <linux/types.h>
 #include <linux/i2c.h>
 
-struct dentry;
-
 /* Definitions of frame buffers						*/
 
 #define FB_MAX			32	/* sufficient for now */
@@ -37,7 +35,7 @@ struct dentry;
 #define FBIOGET_HWCINFO         0x4616
 #define FBIOPUT_MODEINFO        0x4617
 #define FBIOGET_DISPINFO        0x4618
-
+#define FBIO_WAITFORVSYNC	_IOW('F', 0x20, __u32)
 
 #define FB_TYPE_PACKED_PIXELS		0	/* Packed Pixels	*/
 #define FB_TYPE_PLANES			1	/* Non interleaved planes */
@@ -1017,8 +1015,7 @@ extern void fb_deferred_io_open(struct fb_info *info,
 				struct inode *inode,
 				struct file *file);
 extern void fb_deferred_io_cleanup(struct fb_info *info);
-extern int fb_deferred_io_fsync(struct file *file, struct dentry *dentry,
-				int datasync);
+extern int fb_deferred_io_fsync(struct file *file, int datasync);
 
 static inline bool fb_be_math(struct fb_info *info)
 {

@@ -805,7 +805,7 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 				    - (ia->ia_size & ~PAGE_CACHE_MASK));
 
 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
-			rc = vmtruncate(inode, ia->ia_size);
+			rc = simple_setsize(inode, ia->ia_size);
 			if (rc)
 				goto out;
 			lower_ia->ia_size = ia->ia_size;
@@ -830,7 +830,7 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 				goto out;
 			}
 		}
-		vmtruncate(inode, ia->ia_size);
+		simple_setsize(inode, ia->ia_size);
 		rc = ecryptfs_write_inode_size_to_metadata(inode);
 		if (rc) {
 			printk(KERN_ERR	"Problem with "

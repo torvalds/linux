@@ -41,11 +41,13 @@
 #define T4_MAX_NUM_QP (1<<16)
 #define T4_MAX_NUM_CQ (1<<15)
 #define T4_MAX_NUM_PD (1<<15)
-#define T4_MAX_PBL_SIZE 256
-#define T4_MAX_RQ_SIZE 1024
-#define T4_MAX_SQ_SIZE 1024
-#define T4_MAX_QP_DEPTH (T4_MAX_RQ_SIZE-1)
-#define T4_MAX_CQ_DEPTH 8192
+#define T4_EQ_STATUS_ENTRIES (L1_CACHE_BYTES > 64 ? 2 : 1)
+#define T4_MAX_EQ_SIZE (65520 - T4_EQ_STATUS_ENTRIES)
+#define T4_MAX_IQ_SIZE (65520 - 1)
+#define T4_MAX_RQ_SIZE (8192 - T4_EQ_STATUS_ENTRIES)
+#define T4_MAX_SQ_SIZE (T4_MAX_EQ_SIZE - 1)
+#define T4_MAX_QP_DEPTH (T4_MAX_RQ_SIZE - 1)
+#define T4_MAX_CQ_DEPTH (T4_MAX_IQ_SIZE - 1)
 #define T4_MAX_NUM_STAG (1<<15)
 #define T4_MAX_MR_SIZE (~0ULL - 1)
 #define T4_PAGESIZE_MASK 0xffff000  /* 4KB-128MB */
@@ -79,12 +81,11 @@ struct t4_status_page {
 			sizeof(struct fw_ri_isgl)) / sizeof(struct fw_ri_sge))
 #define T4_MAX_FR_IMMD ((T4_SQ_NUM_BYTES - sizeof(struct fw_ri_fr_nsmr_wr) - \
 			sizeof(struct fw_ri_immd)))
-#define T4_MAX_FR_DEPTH 255
+#define T4_MAX_FR_DEPTH (T4_MAX_FR_IMMD / sizeof(u64))
 
 #define T4_RQ_NUM_SLOTS 2
 #define T4_RQ_NUM_BYTES (T4_EQ_SIZE * T4_RQ_NUM_SLOTS)
-#define T4_MAX_RECV_SGE ((T4_RQ_NUM_BYTES - sizeof(struct fw_ri_recv_wr) - \
-			sizeof(struct fw_ri_isgl)) / sizeof(struct fw_ri_sge))
+#define T4_MAX_RECV_SGE 4
 
 union t4_wr {
 	struct fw_ri_res_wr res;
@@ -434,7 +435,7 @@ struct t4_cq {
 	struct c4iw_rdev *rdev;
 	u64 ugts;
 	size_t memsize;
-	u64 timestamp;
+	__be64 bits_type_ts;
 	u32 cqid;
 	u16 size; /* including status page */
 	u16 cidx;
@@ -449,25 +450,17 @@ struct t4_cq {
 static inline int t4_arm_cq(struct t4_cq *cq, int se)
 {
 	u32 val;
-	u16 inc;
 
-	do {
-		/*
-		 * inc must be less the both the max update value -and-
-		 * the size of the CQ.
-		 */
-		inc = cq->cidx_inc <= CIDXINC_MASK ? cq->cidx_inc :
-						     CIDXINC_MASK;
-		inc = inc <= (cq->size - 1) ? inc : (cq->size - 1);
-		if (inc == cq->cidx_inc)
-			val = SEINTARM(se) | CIDXINC(inc) | TIMERREG(6) |
-			      INGRESSQID(cq->cqid);
-		else
-			val = SEINTARM(0) | CIDXINC(inc) | TIMERREG(7) |
-			      INGRESSQID(cq->cqid);
-		cq->cidx_inc -= inc;
+	while (cq->cidx_inc > CIDXINC_MASK) {
+		val = SEINTARM(0) | CIDXINC(CIDXINC_MASK) | TIMERREG(7) |
+		      INGRESSQID(cq->cqid);
 		writel(val, cq->gts);
-	} while (cq->cidx_inc);
+		cq->cidx_inc -= CIDXINC_MASK;
+	}
+	val = SEINTARM(se) | CIDXINC(cq->cidx_inc) | TIMERREG(6) |
+	      INGRESSQID(cq->cqid);
+	writel(val, cq->gts);
+	cq->cidx_inc = 0;
 	return 0;
 }
 
@@ -487,7 +480,9 @@ static inline void t4_swcq_consume(struct t4_cq *cq)
 
 static inline void t4_hwcq_consume(struct t4_cq *cq)
 {
-	cq->cidx_inc++;
+	cq->bits_type_ts = cq->queue[cq->cidx].bits_type_ts;
+	if (++cq->cidx_inc == cq->size)
+		cq->cidx_inc = 0;
 	if (++cq->cidx == cq->size) {
 		cq->cidx = 0;
 		cq->gen ^= 1;
@@ -501,20 +496,23 @@ static inline int t4_valid_cqe(struct t4_cq *cq, struct t4_cqe *cqe)
 
 static inline int t4_next_hw_cqe(struct t4_cq *cq, struct t4_cqe **cqe)
 {
-	int ret = 0;
-	u64 bits_type_ts = be64_to_cpu(cq->queue[cq->cidx].bits_type_ts);
+	int ret;
+	u16 prev_cidx;
 
-	if (G_CQE_GENBIT(bits_type_ts) == cq->gen) {
-		*cqe = &cq->queue[cq->cidx];
-		cq->timestamp = G_CQE_TS(bits_type_ts);
-	} else if (G_CQE_TS(bits_type_ts) > cq->timestamp)
-		ret = -EOVERFLOW;
+	if (cq->cidx == 0)
+		prev_cidx = cq->size - 1;
 	else
-		ret = -ENODATA;
-	if (ret == -EOVERFLOW) {
-		printk(KERN_ERR MOD "cq overflow cqid %u\n", cq->cqid);
+		prev_cidx = cq->cidx - 1;
+
+	if (cq->queue[prev_cidx].bits_type_ts != cq->bits_type_ts) {
+		ret = -EOVERFLOW;
 		cq->error = 1;
-	}
+		printk(KERN_ERR MOD "cq overflow cqid %u\n", cq->cqid);
+	} else if (t4_valid_cqe(cq, &cq->queue[cq->cidx])) {
+		*cqe = &cq->queue[cq->cidx];
+		ret = 0;
+	} else
+		ret = -ENODATA;
 	return ret;
 }
 

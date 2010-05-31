@@ -169,13 +169,13 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	mutex_unlock(&f->sem);
 	jffs2_complete_reservation(c);
 
-	/* We have to do the vmtruncate() without f->sem held, since
+	/* We have to do the simple_setsize() without f->sem held, since
 	   some pages may be locked and waiting for it in readpage().
 	   We are protected from a simultaneous write() extending i_size
 	   back past iattr->ia_size, because do_truncate() holds the
 	   generic inode semaphore. */
 	if (ivalid & ATTR_SIZE && inode->i_size > iattr->ia_size) {
-		vmtruncate(inode, iattr->ia_size);	
+		simple_setsize(inode, iattr->ia_size);
 		inode->i_blocks = (inode->i_size + 511) >> 9;
 	}	
 

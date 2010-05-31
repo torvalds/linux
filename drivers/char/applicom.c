@@ -703,14 +703,9 @@ static long ac_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	/* In general, the device is only openable by root anyway, so we're not
 	   particularly concerned that bogus ioctls can flood the console. */
 
-	adgl = kmalloc(sizeof(struct st_ram_io), GFP_KERNEL);
-	if (!adgl)
-		return -ENOMEM;
-
-	if (copy_from_user(adgl, argp, sizeof(struct st_ram_io))) {
-		kfree(adgl);
-		return -EFAULT;
-	}
+	adgl = memdup_user(argp, sizeof(struct st_ram_io));
+	if (IS_ERR(adgl))
+		return PTR_ERR(adgl);
 
 	lock_kernel();	
 	IndexCard = adgl->num_card-1;

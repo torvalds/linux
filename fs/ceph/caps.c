@@ -1776,9 +1776,9 @@ out:
 	spin_unlock(&ci->i_unsafe_lock);
 }
 
-int ceph_fsync(struct file *file, struct dentry *dentry, int datasync)
+int ceph_fsync(struct file *file, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	unsigned flush_tid;
 	int ret;

@@ -301,7 +301,7 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 	struct davinci_spi *davinci_spi;
 	struct davinci_spi_platform_data *pdata;
 	u8 bits_per_word = 0;
-	u32 hz = 0, prescale;
+	u32 hz = 0, prescale = 0, clkspeed;
 
 	davinci_spi = spi_master_get_devdata(spi->master);
 	pdata = davinci_spi->pdata;
@@ -338,10 +338,16 @@ static int davinci_spi_setup_transfer(struct spi_device *spi,
 	set_fmt_bits(davinci_spi->base, bits_per_word & 0x1f,
 			spi->chip_select);
 
-	prescale = ((clk_get_rate(davinci_spi->clk) / hz) - 1) & 0xff;
+	clkspeed = clk_get_rate(davinci_spi->clk);
+	if (hz > clkspeed / 2)
+		prescale = 1 << 8;
+	if (hz < clkspeed / 256)
+		prescale = 255 << 8;
+	if (!prescale)
+		prescale = ((clkspeed / hz - 1) << 8) & 0x0000ff00;
 
 	clear_fmt_bits(davinci_spi->base, 0x0000ff00, spi->chip_select);
-	set_fmt_bits(davinci_spi->base, prescale << 8, spi->chip_select);
+	set_fmt_bits(davinci_spi->base, prescale, spi->chip_select);
 
 	return 0;
 }

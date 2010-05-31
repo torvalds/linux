@@ -148,6 +148,7 @@ static struct clk *s5p_clks[] __initdata = {
 	&clk_fout_vpll,
 	&clk_arm,
 	&clk_vpll,
+	&clk_xusbxti,
 };
 
 void __init s5p_register_clocks(unsigned long xtal_freq)
