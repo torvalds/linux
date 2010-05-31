@@ -79,6 +79,15 @@
 #define ACPI_SIG_WDAT           "WDAT"	/* Watchdog Action Table */
 #define ACPI_SIG_WDRT           "WDRT"	/* Watchdog Resource Table */
 
+#ifdef ACPI_UNDEFINED_TABLES
+/*
+ * These tables have been seen in the field, but no definition has been found
+ */
+#define ACPI_SIG_ATKG           "ATKG"
+#define ACPI_SIG_GSCI           "GSCI"	/* GMCH SCI table */
+#define ACPI_SIG_IEIT           "IEIT"
+#endif
+
 /*
  * All tables must be byte-packed to match the ACPI specification, since
  * the tables are provided by the system BIOS.
