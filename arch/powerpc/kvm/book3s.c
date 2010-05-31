@@ -1293,12 +1293,17 @@ extern int __kvmppc_vcpu_entry(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu);
 int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
 	int ret;
-	struct thread_struct ext_bkp;
+	double fpr[32][TS_FPRWIDTH];
+	unsigned int fpscr;
+	int fpexc_mode;
 #ifdef CONFIG_ALTIVEC
-	bool save_vec = current->thread.used_vr;
+	vector128 vr[32];
+	vector128 vscr;
+	unsigned long uninitialized_var(vrsave);
+	int used_vr;
 #endif
 #ifdef CONFIG_VSX
-	bool save_vsx = current->thread.used_vsr;
+	int used_vsr;
 #endif
 	ulong ext_msr;
 
@@ -1311,27 +1316,27 @@ int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	/* Save FPU state in stack */
 	if (current->thread.regs->msr & MSR_FP)
 		giveup_fpu(current);
-	memcpy(ext_bkp.fpr, current->thread.fpr, sizeof(current->thread.fpr));
-	ext_bkp.fpscr = current->thread.fpscr;
-	ext_bkp.fpexc_mode = current->thread.fpexc_mode;
+	memcpy(fpr, current->thread.fpr, sizeof(current->thread.fpr));
+	fpscr = current->thread.fpscr.val;
+	fpexc_mode = current->thread.fpexc_mode;
 
 #ifdef CONFIG_ALTIVEC
 	/* Save Altivec state in stack */
-	if (save_vec) {
+	used_vr = current->thread.used_vr;
+	if (used_vr) {
 		if (current->thread.regs->msr & MSR_VEC)
 			giveup_altivec(current);
-		memcpy(ext_bkp.vr, current->thread.vr, sizeof(ext_bkp.vr));
-		ext_bkp.vscr = current->thread.vscr;
-		ext_bkp.vrsave = current->thread.vrsave;
+		memcpy(vr, current->thread.vr, sizeof(current->thread.vr));
+		vscr = current->thread.vscr;
+		vrsave = current->thread.vrsave;
 	}
-	ext_bkp.used_vr = current->thread.used_vr;
 #endif
 
 #ifdef CONFIG_VSX
 	/* Save VSX state in stack */
-	if (save_vsx && (current->thread.regs->msr & MSR_VSX))
+	used_vsr = current->thread.used_vsr;
+	if (used_vsr && (current->thread.regs->msr & MSR_VSX))
 			__giveup_vsx(current);
-	ext_bkp.used_vsr = current->thread.used_vsr;
 #endif
 
 	/* Remember the MSR with disabled extensions */
@@ -1356,22 +1361,22 @@ int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 	kvmppc_giveup_ext(vcpu, MSR_VSX);
 
 	/* Restore FPU state from stack */
-	memcpy(current->thread.fpr, ext_bkp.fpr, sizeof(ext_bkp.fpr));
-	current->thread.fpscr = ext_bkp.fpscr;
-	current->thread.fpexc_mode = ext_bkp.fpexc_mode;
+	memcpy(current->thread.fpr, fpr, sizeof(current->thread.fpr));
+	current->thread.fpscr.val = fpscr;
+	current->thread.fpexc_mode = fpexc_mode;
 
 #ifdef CONFIG_ALTIVEC
 	/* Restore Altivec state from stack */
-	if (save_vec && current->thread.used_vr) {
-		memcpy(current->thread.vr, ext_bkp.vr, sizeof(ext_bkp.vr));
-		current->thread.vscr = ext_bkp.vscr;
-		current->thread.vrsave= ext_bkp.vrsave;
+	if (used_vr && current->thread.used_vr) {
+		memcpy(current->thread.vr, vr, sizeof(current->thread.vr));
+		current->thread.vscr = vscr;
+		current->thread.vrsave = vrsave;
 	}
-	current->thread.used_vr = ext_bkp.used_vr;
+	current->thread.used_vr = used_vr;
 #endif
 
 #ifdef CONFIG_VSX
-	current->thread.used_vsr = ext_bkp.used_vsr;
+	current->thread.used_vsr = used_vsr;
 #endif
 
 	return ret;
