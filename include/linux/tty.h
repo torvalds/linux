@@ -23,7 +23,7 @@
  */
 #define NR_UNIX98_PTY_DEFAULT	4096      /* Default maximum for Unix98 ptys */
 #define NR_UNIX98_PTY_MAX	(1 << MINORBITS) /* Absolute limit */
-#define NR_LDISCS		21
+#define NR_LDISCS		30
 
 /* line disciplines */
 #define N_TTY		0
@@ -48,6 +48,7 @@
 #define N_PPS		18	/* Pulse per Second */
 #define N_V253		19	/* Codec control over voice modem */
 #define N_CAIF		20      /* CAIF protocol for talking to modems */
+#define N_GSM0710	21	/* GSM 0710 Mux */
 
 /*
  * This character is the same as _POSIX_VDISABLE: it cannot be used as

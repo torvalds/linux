@@ -110,7 +110,6 @@ void __init proc_root_init(void)
 	if (err)
 		return;
 	proc_mnt = kern_mount_data(&proc_fs_type, &init_pid_ns);
-	err = PTR_ERR(proc_mnt);
 	if (IS_ERR(proc_mnt)) {
 		unregister_filesystem(&proc_fs_type);
 		return;

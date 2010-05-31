@@ -185,6 +185,7 @@ static void shutdown_handler(struct xenbus_watch *watch,
 	kfree(str);
 }
 
+#ifdef CONFIG_MAGIC_SYSRQ
 static void sysrq_handler(struct xenbus_watch *watch, const char **vec,
 			  unsigned int len)
 {
@@ -214,14 +215,15 @@ static void sysrq_handler(struct xenbus_watch *watch, const char **vec,
 		handle_sysrq(sysrq_key, NULL);
 }
 
-static struct xenbus_watch shutdown_watch = {
-	.node = "control/shutdown",
-	.callback = shutdown_handler
-};
-
 static struct xenbus_watch sysrq_watch = {
 	.node = "control/sysrq",
 	.callback = sysrq_handler
+};
+#endif
+
+static struct xenbus_watch shutdown_watch = {
+	.node = "control/shutdown",
+	.callback = shutdown_handler
 };
 
 static int setup_shutdown_watcher(void)
@@ -234,11 +236,13 @@ static int setup_shutdown_watcher(void)
 		return err;
 	}
 
+#ifdef CONFIG_MAGIC_SYSRQ
 	err = register_xenbus_watch(&sysrq_watch);
 	if (err) {
 		printk(KERN_ERR "Failed to set sysrq watcher\n");
 		return err;
 	}
+#endif
 
 	return 0;
 }

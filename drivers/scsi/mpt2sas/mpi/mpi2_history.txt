@@ -2,7 +2,7 @@
  Fusion-MPT MPI 2.0 Header File Change History
  ==============================
 
- Copyright (c) 2000-2009 LSI Corporation.
+ Copyright (c) 2000-2010 LSI Corporation.
 
  ---------------------------------------
  Header Set Release Version:    02.00.14

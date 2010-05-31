@@ -81,7 +81,7 @@ static int close_transaction(struct fw_transaction *transaction,
 	spin_lock_irqsave(&card->lock, flags);
 	list_for_each_entry(t, &card->transaction_list, link) {
 		if (t == transaction) {
-			list_del(&t->link);
+			list_del_init(&t->link);
 			card->tlabel_mask &= ~(1ULL << t->tlabel);
 			break;
 		}
@@ -89,6 +89,7 @@ static int close_transaction(struct fw_transaction *transaction,
 	spin_unlock_irqrestore(&card->lock, flags);
 
 	if (&t->link != &card->transaction_list) {
+		del_timer_sync(&t->split_timeout_timer);
 		t->callback(card, rcode, NULL, 0, t->callback_data);
 		return 0;
 	}
@@ -120,6 +121,31 @@ int fw_cancel_transaction(struct fw_card *card,
 	return close_transaction(transaction, card, RCODE_CANCELLED);
 }
 EXPORT_SYMBOL(fw_cancel_transaction);
+
+static void split_transaction_timeout_callback(unsigned long data)
+{
+	struct fw_transaction *t = (struct fw_transaction *)data;
+	struct fw_card *card = t->card;
+	unsigned long flags;
+
+	spin_lock_irqsave(&card->lock, flags);
+	if (list_empty(&t->link)) {
+		spin_unlock_irqrestore(&card->lock, flags);
+		return;
+	}
+	list_del(&t->link);
+	card->tlabel_mask &= ~(1ULL << t->tlabel);
+	spin_unlock_irqrestore(&card->lock, flags);
+
+	card->driver->cancel_packet(card, &t->packet);
+
+	/*
+	 * At this point cancel_packet will never call the transaction
+	 * callback, since we just took the transaction out of the list.
+	 * So do it here.
+	 */
+	t->callback(card, RCODE_CANCELLED, NULL, 0, t->callback_data);
+}
 
 static void transmit_complete_callback(struct fw_packet *packet,
 				       struct fw_card *card, int status)
@@ -229,6 +255,23 @@ static void fw_fill_request(struct fw_packet *packet, int tcode, int tlabel,
 	packet->payload_mapped = false;
 }
 
+static int allocate_tlabel(struct fw_card *card)
+{
+	int tlabel;
+
+	tlabel = card->current_tlabel;
+	while (card->tlabel_mask & (1ULL << tlabel)) {
+		tlabel = (tlabel + 1) & 0x3f;
+		if (tlabel == card->current_tlabel)
+			return -EBUSY;
+	}
+
+	card->current_tlabel = (tlabel + 1) & 0x3f;
+	card->tlabel_mask |= 1ULL << tlabel;
+
+	return tlabel;
+}
+
 /**
  * This function provides low-level access to the IEEE1394 transaction
  * logic.  Most C programs would use either fw_read(), fw_write() or
@@ -277,31 +320,26 @@ void fw_send_request(struct fw_card *card, struct fw_transaction *t, int tcode,
 	int tlabel;
 
 	/*
-	 * Bump the flush timer up 100ms first of all so we
-	 * don't race with a flush timer callback.
-	 */
-
-	mod_timer(&card->flush_timer, jiffies + DIV_ROUND_UP(HZ, 10));
-
-	/*
 	 * Allocate tlabel from the bitmap and put the transaction on
 	 * the list while holding the card spinlock.
 	 */
 
 	spin_lock_irqsave(&card->lock, flags);
 
-	tlabel = card->current_tlabel;
-	if (card->tlabel_mask & (1ULL << tlabel)) {
+	tlabel = allocate_tlabel(card);
+	if (tlabel < 0) {
 		spin_unlock_irqrestore(&card->lock, flags);
 		callback(card, RCODE_SEND_ERROR, NULL, 0, callback_data);
 		return;
 	}
 
-	card->current_tlabel = (card->current_tlabel + 1) & 0x3f;
-	card->tlabel_mask |= (1ULL << tlabel);
-
 	t->node_id = destination_id;
 	t->tlabel = tlabel;
+	t->card = card;
+	setup_timer(&t->split_timeout_timer,
+		    split_transaction_timeout_callback, (unsigned long)t);
+	/* FIXME: start this timer later, relative to t->timestamp */
+	mod_timer(&t->split_timeout_timer, jiffies + DIV_ROUND_UP(HZ, 10));
 	t->callback = callback;
 	t->callback_data = callback_data;
 
@@ -347,11 +385,13 @@ int fw_run_transaction(struct fw_card *card, int tcode, int destination_id,
 	struct transaction_callback_data d;
 	struct fw_transaction t;
 
+	init_timer_on_stack(&t.split_timeout_timer);
 	init_completion(&d.done);
 	d.payload = payload;
 	fw_send_request(card, &t, tcode, destination_id, generation, speed,
 			offset, payload, length, transaction_callback, &d);
 	wait_for_completion(&d.done);
+	destroy_timer_on_stack(&t.split_timeout_timer);
 
 	return d.rcode;
 }
@@ -392,30 +432,6 @@ void fw_send_phy_config(struct fw_card *card,
 	wait_for_completion_timeout(&phy_config_done, timeout);
 
 	mutex_unlock(&phy_config_mutex);
-}
-
-void fw_flush_transactions(struct fw_card *card)
-{
-	struct fw_transaction *t, *next;
-	struct list_head list;
-	unsigned long flags;
-
-	INIT_LIST_HEAD(&list);
-	spin_lock_irqsave(&card->lock, flags);
-	list_splice_init(&card->transaction_list, &list);
-	card->tlabel_mask = 0;
-	spin_unlock_irqrestore(&card->lock, flags);
-
-	list_for_each_entry_safe(t, next, &list, link) {
-		card->driver->cancel_packet(card, &t->packet);
-
-		/*
-		 * At this point cancel_packet will never call the
-		 * transaction callback, since we just took all the
-		 * transactions out of the list.  So do it here.
-		 */
-		t->callback(card, RCODE_CANCELLED, NULL, 0, t->callback_data);
-	}
 }
 
 static struct fw_address_handler *lookup_overlapping_address_handler(
@@ -827,8 +843,8 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 	spin_lock_irqsave(&card->lock, flags);
 	list_for_each_entry(t, &card->transaction_list, link) {
 		if (t->node_id == source && t->tlabel == tlabel) {
-			list_del(&t->link);
-			card->tlabel_mask &= ~(1 << t->tlabel);
+			list_del_init(&t->link);
+			card->tlabel_mask &= ~(1ULL << t->tlabel);
 			break;
 		}
 	}
@@ -868,6 +884,8 @@ void fw_core_handle_response(struct fw_card *card, struct fw_packet *p)
 		data_length = 0;
 		break;
 	}
+
+	del_timer_sync(&t->split_timeout_timer);
 
 	/*
 	 * The response handler may be executed while the request handler

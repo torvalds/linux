@@ -17,22 +17,6 @@
 
 /* VIC0: System, DMA, Timer */
 
-#define IRQ_EINT0		S5P_IRQ_VIC0(0)
-#define IRQ_EINT1		S5P_IRQ_VIC0(1)
-#define IRQ_EINT2		S5P_IRQ_VIC0(2)
-#define IRQ_EINT3		S5P_IRQ_VIC0(3)
-#define IRQ_EINT4		S5P_IRQ_VIC0(4)
-#define IRQ_EINT5		S5P_IRQ_VIC0(5)
-#define IRQ_EINT6		S5P_IRQ_VIC0(6)
-#define IRQ_EINT7		S5P_IRQ_VIC0(7)
-#define IRQ_EINT8		S5P_IRQ_VIC0(8)
-#define IRQ_EINT9		S5P_IRQ_VIC0(9)
-#define IRQ_EINT10		S5P_IRQ_VIC0(10)
-#define IRQ_EINT11		S5P_IRQ_VIC0(11)
-#define IRQ_EINT12		S5P_IRQ_VIC0(12)
-#define IRQ_EINT13		S5P_IRQ_VIC0(13)
-#define IRQ_EINT14		S5P_IRQ_VIC0(14)
-#define IRQ_EINT15		S5P_IRQ_VIC0(15)
 #define IRQ_EINT16_31		S5P_IRQ_VIC0(16)
 #define IRQ_BATF		S5P_IRQ_VIC0(17)
 #define IRQ_MDMA		S5P_IRQ_VIC0(18)
@@ -134,13 +118,15 @@
 #define IRQ_MDNIE3		S5P_IRQ_VIC3(8)
 #define IRQ_VIC_END		S5P_IRQ_VIC3(31)
 
-#define S5P_IRQ_EINT_BASE	(IRQ_VIC_END + 1)
-
-#define S5P_EINT(x)		((x) + S5P_IRQ_EINT_BASE)
-#define IRQ_EINT(x)		S5P_EINT(x)
+#define S5P_EINT_BASE1		(S5P_IRQ_VIC0(0))
+#define S5P_EINT_BASE2		(IRQ_VIC_END + 1)
 
 /* Set the default NR_IRQS */
+#define NR_IRQS			(IRQ_EINT(31) + 1)
 
-#define NR_IRQS 		(IRQ_EINT(31) + 1)
+/* Compatibility */
+#define IRQ_LCD_FIFO		IRQ_LCD0
+#define IRQ_LCD_VSYNC		IRQ_LCD1
+#define IRQ_LCD_SYSTEM		IRQ_LCD2
 
 #endif /* ASM_ARCH_IRQS_H */

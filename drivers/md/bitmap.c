@@ -505,7 +505,7 @@ void bitmap_update_sb(struct bitmap *bitmap)
 		return;
 	}
 	spin_unlock_irqrestore(&bitmap->lock, flags);
-	sb = (bitmap_super_t *)kmap_atomic(bitmap->sb_page, KM_USER0);
+	sb = kmap_atomic(bitmap->sb_page, KM_USER0);
 	sb->events = cpu_to_le64(bitmap->mddev->events);
 	if (bitmap->mddev->events < bitmap->events_cleared) {
 		/* rocking back to read-only */
@@ -526,7 +526,7 @@ void bitmap_print_sb(struct bitmap *bitmap)
 
 	if (!bitmap || !bitmap->sb_page)
 		return;
-	sb = (bitmap_super_t *)kmap_atomic(bitmap->sb_page, KM_USER0);
+	sb = kmap_atomic(bitmap->sb_page, KM_USER0);
 	printk(KERN_DEBUG "%s: bitmap file superblock:\n", bmname(bitmap));
 	printk(KERN_DEBUG "         magic: %08x\n", le32_to_cpu(sb->magic));
 	printk(KERN_DEBUG "       version: %d\n", le32_to_cpu(sb->version));
@@ -575,7 +575,7 @@ static int bitmap_read_sb(struct bitmap *bitmap)
 		return err;
 	}
 
-	sb = (bitmap_super_t *)kmap_atomic(bitmap->sb_page, KM_USER0);
+	sb = kmap_atomic(bitmap->sb_page, KM_USER0);
 
 	chunksize = le32_to_cpu(sb->chunksize);
 	daemon_sleep = le32_to_cpu(sb->daemon_sleep) * HZ;
@@ -661,7 +661,7 @@ static int bitmap_mask_state(struct bitmap *bitmap, enum bitmap_state bits,
 		return 0;
 	}
 	spin_unlock_irqrestore(&bitmap->lock, flags);
-	sb = (bitmap_super_t *)kmap_atomic(bitmap->sb_page, KM_USER0);
+	sb = kmap_atomic(bitmap->sb_page, KM_USER0);
 	old = le32_to_cpu(sb->state) & bits;
 	switch (op) {
 		case MASK_SET: sb->state |= cpu_to_le32(bits);
@@ -1292,9 +1292,14 @@ int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sect
 	if (!bitmap) return 0;
 
 	if (behind) {
+		int bw;
 		atomic_inc(&bitmap->behind_writes);
+		bw = atomic_read(&bitmap->behind_writes);
+		if (bw > bitmap->behind_writes_used)
+			bitmap->behind_writes_used = bw;
+
 		PRINTK(KERN_DEBUG "inc write-behind count %d/%d\n",
-		  atomic_read(&bitmap->behind_writes), bitmap->max_write_behind);
+		       bw, bitmap->max_write_behind);
 	}
 
 	while (sectors) {
@@ -1351,7 +1356,8 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 {
 	if (!bitmap) return;
 	if (behind) {
-		atomic_dec(&bitmap->behind_writes);
+		if (atomic_dec_and_test(&bitmap->behind_writes))
+			wake_up(&bitmap->behind_wait);
 		PRINTK(KERN_DEBUG "dec write-behind count %d/%d\n",
 		  atomic_read(&bitmap->behind_writes), bitmap->max_write_behind);
 	}
@@ -1675,12 +1681,13 @@ int bitmap_create(mddev_t *mddev)
 	atomic_set(&bitmap->pending_writes, 0);
 	init_waitqueue_head(&bitmap->write_wait);
 	init_waitqueue_head(&bitmap->overflow_wait);
+	init_waitqueue_head(&bitmap->behind_wait);
 
 	bitmap->mddev = mddev;
 
-	bm = sysfs_get_dirent(mddev->kobj.sd, "bitmap");
+	bm = sysfs_get_dirent(mddev->kobj.sd, NULL, "bitmap");
 	if (bm) {
-		bitmap->sysfs_can_clear = sysfs_get_dirent(bm, "can_clear");
+		bitmap->sysfs_can_clear = sysfs_get_dirent(bm, NULL, "can_clear");
 		sysfs_put(bm);
 	} else
 		bitmap->sysfs_can_clear = NULL;
@@ -1692,7 +1699,7 @@ int bitmap_create(mddev_t *mddev)
 		 * and bypass the page cache, we must sync the file
 		 * first.
 		 */
-		vfs_fsync(file, file->f_dentry, 1);
+		vfs_fsync(file, 1);
 	}
 	/* read superblock from bitmap file (this sets mddev->bitmap_info.chunksize) */
 	if (!mddev->bitmap_info.external)
@@ -2006,6 +2013,27 @@ static ssize_t can_clear_store(mddev_t *mddev, const char *buf, size_t len)
 static struct md_sysfs_entry bitmap_can_clear =
 __ATTR(can_clear, S_IRUGO|S_IWUSR, can_clear_show, can_clear_store);
 
+static ssize_t
+behind_writes_used_show(mddev_t *mddev, char *page)
+{
+	if (mddev->bitmap == NULL)
+		return sprintf(page, "0\n");
+	return sprintf(page, "%lu\n",
+		       mddev->bitmap->behind_writes_used);
+}
+
+static ssize_t
+behind_writes_used_reset(mddev_t *mddev, const char *buf, size_t len)
+{
+	if (mddev->bitmap)
+		mddev->bitmap->behind_writes_used = 0;
+	return len;
+}
+
+static struct md_sysfs_entry max_backlog_used =
+__ATTR(max_backlog_used, S_IRUGO | S_IWUSR,
+       behind_writes_used_show, behind_writes_used_reset);
+
 static struct attribute *md_bitmap_attrs[] = {
 	&bitmap_location.attr,
 	&bitmap_timeout.attr,
@@ -2013,6 +2041,7 @@ static struct attribute *md_bitmap_attrs[] = {
 	&bitmap_chunksize.attr,
 	&bitmap_metadata.attr,
 	&bitmap_can_clear.attr,
+	&max_backlog_used.attr,
 	NULL
 };
 struct attribute_group md_bitmap_group = {

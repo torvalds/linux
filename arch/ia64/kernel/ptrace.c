@@ -638,7 +638,7 @@ ptrace_attach_sync_user_rbs (struct task_struct *child)
 	 */
 
 	read_lock(&tasklist_lock);
-	if (child->signal) {
+	if (child->sighand) {
 		spin_lock_irq(&child->sighand->siglock);
 		if (child->state == TASK_STOPPED &&
 		    !test_and_set_tsk_thread_flag(child, TIF_RESTORE_RSE)) {
@@ -662,7 +662,7 @@ ptrace_attach_sync_user_rbs (struct task_struct *child)
 	 * job control stop, so that SIGCONT can be used to wake it up.
 	 */
 	read_lock(&tasklist_lock);
-	if (child->signal) {
+	if (child->sighand) {
 		spin_lock_irq(&child->sighand->siglock);
 		if (child->state == TASK_TRACED &&
 		    (child->signal->flags & SIGNAL_STOP_STOPPED)) {

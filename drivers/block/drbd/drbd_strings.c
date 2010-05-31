@@ -70,7 +70,7 @@ static const char *drbd_disk_s_names[] = {
 
 static const char *drbd_state_sw_errors[] = {
 	[-SS_TWO_PRIMARIES] = "Multiple primaries not allowed by config",
-	[-SS_NO_UP_TO_DATE_DISK] = "Refusing to be Primary without at least one UpToDate disk",
+	[-SS_NO_UP_TO_DATE_DISK] = "Need access to UpToDate data",
 	[-SS_NO_LOCAL_DISK] = "Can not resync without local disk",
 	[-SS_NO_REMOTE_DISK] = "Can not resync without remote disk",
 	[-SS_CONNECTED_OUTDATES] = "Refusing to be Outdated while Connected",

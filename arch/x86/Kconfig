@@ -109,6 +109,9 @@ config SBUS
 config NEED_DMA_MAP_STATE
        def_bool (X86_64 || DMAR || DMA_API_DEBUG)
 
+config NEED_SG_DMA_LENGTH
+	def_bool y
+
 config GENERIC_ISA_DMA
 	def_bool y
 
@@ -1703,6 +1706,10 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool X86_64
 	depends on NUMA
 
+config USE_PERCPU_NUMA_NODE_ID
+	def_bool X86_64
+	depends on NUMA
+
 menu "Power management and ACPI options"
 
 config ARCH_HIBERNATION_HEADER
@@ -1922,6 +1929,14 @@ config PCI_DOMAINS
 config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access"
 	depends on X86_64 && PCI && ACPI
+
+config PCI_CNB20LE_QUIRK
+	bool "Read CNB20LE Host Bridge Windows"
+	depends on PCI
+	help
+	  Read the PCI windows out of the CNB20LE host bridge. This allows
+	  PCI hotplug to work on systems with the CNB20LE chipset which do
+	  not have ACPI.
 
 config DMAR
 	bool "Support for DMA Remapping Devices (EXPERIMENTAL)"

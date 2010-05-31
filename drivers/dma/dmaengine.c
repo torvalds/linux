@@ -515,7 +515,6 @@ struct dma_chan *__dma_request_channel(dma_cap_mask_t *mask, dma_filter_fn fn, v
 				break;
 			if (--device->privatecnt == 0)
 				dma_cap_clear(DMA_PRIVATE, device->cap_mask);
-			chan->private = NULL;
 			chan = NULL;
 		}
 	}
@@ -537,7 +536,6 @@ void dma_release_channel(struct dma_chan *chan)
 	/* drop PRIVATE cap enabled by __dma_request_channel() */
 	if (--chan->device->privatecnt == 0)
 		dma_cap_clear(DMA_PRIVATE, chan->device->cap_mask);
-	chan->private = NULL;
 	mutex_unlock(&dma_list_mutex);
 }
 EXPORT_SYMBOL_GPL(dma_release_channel);
@@ -695,11 +693,11 @@ int dma_async_device_register(struct dma_device *device)
 	BUG_ON(dma_has_cap(DMA_SLAVE, device->cap_mask) &&
 		!device->device_prep_slave_sg);
 	BUG_ON(dma_has_cap(DMA_SLAVE, device->cap_mask) &&
-		!device->device_terminate_all);
+		!device->device_control);
 
 	BUG_ON(!device->device_alloc_chan_resources);
 	BUG_ON(!device->device_free_chan_resources);
-	BUG_ON(!device->device_is_tx_complete);
+	BUG_ON(!device->device_tx_status);
 	BUG_ON(!device->device_issue_pending);
 	BUG_ON(!device->dev);
 
@@ -978,7 +976,9 @@ void dma_async_tx_descriptor_init(struct dma_async_tx_descriptor *tx,
 	struct dma_chan *chan)
 {
 	tx->chan = chan;
+	#ifndef CONFIG_ASYNC_TX_DISABLE_CHANNEL_SWITCH
 	spin_lock_init(&tx->lock);
+	#endif
 }
 EXPORT_SYMBOL(dma_async_tx_descriptor_init);
 
@@ -1011,7 +1011,7 @@ EXPORT_SYMBOL_GPL(dma_wait_for_async_tx);
  */
 void dma_run_dependencies(struct dma_async_tx_descriptor *tx)
 {
-	struct dma_async_tx_descriptor *dep = tx->next;
+	struct dma_async_tx_descriptor *dep = txd_next(tx);
 	struct dma_async_tx_descriptor *dep_next;
 	struct dma_chan *chan;
 
@@ -1019,7 +1019,7 @@ void dma_run_dependencies(struct dma_async_tx_descriptor *tx)
 		return;
 
 	/* we'll submit tx->next now, so clear the link */
-	tx->next = NULL;
+	txd_clear_next(tx);
 	chan = dep->chan;
 
 	/* keep submitting up until a channel switch is detected
@@ -1027,14 +1027,14 @@ void dma_run_dependencies(struct dma_async_tx_descriptor *tx)
 	 * processing the interrupt from async_tx_channel_switch
 	 */
 	for (; dep; dep = dep_next) {
-		spin_lock_bh(&dep->lock);
-		dep->parent = NULL;
-		dep_next = dep->next;
+		txd_lock(dep);
+		txd_clear_parent(dep);
+		dep_next = txd_next(dep);
 		if (dep_next && dep_next->chan == chan)
-			dep->next = NULL; /* ->next will be submitted */
+			txd_clear_next(dep); /* ->next will be submitted */
 		else
 			dep_next = NULL; /* submit current dep and terminate */
-		spin_unlock_bh(&dep->lock);
+		txd_unlock(dep);
 
 		dep->tx_submit(dep);
 	}

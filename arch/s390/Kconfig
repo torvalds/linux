@@ -102,6 +102,7 @@ config S390
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
 	select ARCH_INLINE_SPIN_TRYLOCK
 	select ARCH_INLINE_SPIN_TRYLOCK_BH
 	select ARCH_INLINE_SPIN_LOCK
@@ -478,13 +479,6 @@ config CMM
 	  allows an external monitor to balance memory of many systems.
 	  Everybody who wants to run Linux under VM should select this
 	  option.
-
-config CMM_PROC
-	bool "/proc interface to cooperative memory management"
-	depends on CMM
-	help
-	  Select this option to enable the /proc interface to the
-	  cooperative memory management.
 
 config CMM_IUCV
 	bool "IUCV special message interface to cooperative memory management"

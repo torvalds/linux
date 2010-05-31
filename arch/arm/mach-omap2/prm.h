@@ -24,8 +24,8 @@
 		OMAP2_L4_IO_ADDRESS(OMAP3430_PRM_BASE + (module) + (reg))
 #define OMAP44XX_PRM_REGADDR(module, reg)				\
 		OMAP2_L4_IO_ADDRESS(OMAP4430_PRM_BASE + (module) + (reg))
-#define OMAP44XX_CHIRONSS_REGADDR(module, reg)				\
-		OMAP2_L4_IO_ADDRESS(OMAP4430_CHIRONSS_BASE + (module) + (reg))
+#define OMAP44XX_PRCM_MPU_REGADDR(module, reg)				\
+		OMAP2_L4_IO_ADDRESS(OMAP4430_PRCM_MPU_BASE + (module) + (reg))
 
 #include "prm44xx.h"
 
@@ -284,7 +284,7 @@ static inline u32 prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
 #define OMAP_OFFLOADMODE_MASK				(0x3 << 3)
 #define OMAP_ONLOADMODE_SHIFT				1
 #define OMAP_ONLOADMODE_MASK				(0x3 << 1)
-#define OMAP_ENABLE					(1 << 0)
+#define OMAP_ENABLE_MASK				(1 << 0)
 
 /* PRM_RSTTIME */
 /* Named RM_RSTTIME_WKUP on the 24xx */
@@ -296,8 +296,8 @@ static inline u32 prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
 /* PRM_RSTCTRL */
 /* Named RM_RSTCTRL_WKUP on the 24xx */
 /* 2420 calls RST_DPLL3 'RST_DPLL' */
-#define OMAP_RST_DPLL3					(1 << 2)
-#define OMAP_RST_GS					(1 << 1)
+#define OMAP_RST_DPLL3_MASK				(1 << 2)
+#define OMAP_RST_GS_MASK				(1 << 1)
 
 
 /*
@@ -316,7 +316,7 @@ static inline u32 prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
  *	 PM_PWSTST_DSS, PM_PWSTST_CAM, PM_PWSTST_PER, PM_PWSTST_EMU,
  *	 PM_PWSTST_NEON
  */
-#define OMAP_INTRANSITION				(1 << 20)
+#define OMAP_INTRANSITION_MASK				(1 << 20)
 
 
 /*
@@ -338,7 +338,7 @@ static inline u32 prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
  * 3430: RM_RSTST_IVA2, RM_RSTST_MPU, RM_RSTST_GFX, RM_RSTST_DSS,
  *	 RM_RSTST_CAM, RM_RSTST_PER, RM_RSTST_NEON
  */
-#define OMAP_COREDOMAINWKUP_RST				(1 << 3)
+#define OMAP_COREDOMAINWKUP_RST_MASK			(1 << 3)
 
 /*
  * 24XX: RM_RSTST_MPU, RM_RSTST_GFX, RM_RSTST_DSP
@@ -347,7 +347,7 @@ static inline u32 prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
  *
  * 3430: RM_RSTST_CORE, RM_RSTST_EMU
  */
-#define OMAP_DOMAINWKUP_RST				(1 << 2)
+#define OMAP_DOMAINWKUP_RST_MASK			(1 << 2)
 
 /*
  * 24XX: RM_RSTST_MPU, RM_RSTST_WKUP, RM_RSTST_DSP
@@ -357,8 +357,8 @@ static inline u32 prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
  *
  * 3430: RM_RSTST_CORE, RM_RSTST_EMU
  */
-#define OMAP_GLOBALWARM_RST				(1 << 1)
-#define OMAP_GLOBALCOLD_RST				(1 << 0)
+#define OMAP_GLOBALWARM_RST_MASK			(1 << 1)
+#define OMAP_GLOBALCOLD_RST_MASK			(1 << 0)
 
 /*
  * 24XX: PM_WKDEP_GFX, PM_WKDEP_MPU, PM_WKDEP_CORE, PM_WKDEP_DSP
@@ -382,7 +382,7 @@ static inline u32 prm_clear_mod_reg_bits(u32 bits, s16 module, s16 idx)
  *	 PM_PWSTCTRL_DSS, PM_PWSTCTRL_CAM, PM_PWSTCTRL_PER,
  *	 PM_PWSTCTRL_NEON
  */
-#define OMAP_LOGICRETSTATE				(1 << 2)
+#define OMAP_LOGICRETSTATE_MASK				(1 << 2)
 
 /*
  * 24XX: PM_PWSTCTRL_MPU, PM_PWSTCTRL_CORE, PM_PWSTCTRL_GFX,

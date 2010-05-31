@@ -231,7 +231,7 @@ static struct ubi_scan_volume *add_volume(struct ubi_scan_info *si, int vol_id,
  * case of success this function returns a positive value, in case of failure, a
  * negative error code is returned. The success return codes use the following
  * bits:
- *     o bit 0 is cleared: the first PEB (described by @seb) is newer then the
+ *     o bit 0 is cleared: the first PEB (described by @seb) is newer than the
  *       second PEB (described by @pnum and @vid_hdr);
  *     o bit 0 is set: the second PEB is newer;
  *     o bit 1 is cleared: no bit-flips were detected in the newer LEB;
@@ -452,7 +452,7 @@ int ubi_scan_add_used(struct ubi_device *ubi, struct ubi_scan_info *si,
 
 		if (cmp_res & 1) {
 			/*
-			 * This logical eraseblock is newer then the one
+			 * This logical eraseblock is newer than the one
 			 * found earlier.
 			 */
 			err = validate_vid_hdr(vid_hdr, sv, pnum);

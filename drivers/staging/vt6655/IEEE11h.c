@@ -203,8 +203,8 @@ static BOOL s_bRxTPCReq(PSMgmtObject pMgmt, PWLAN_FRAME_TPCREQ pTPCReq, BYTE byR
 -*/
 BOOL
 IEEE11hbMgrRxAction (
-    IN PVOID pMgmtHandle,
-    IN PVOID pRxPacket
+    void *pMgmtHandle,
+    void *pRxPacket
     )
 {
     PSMgmtObject            pMgmt = (PSMgmtObject) pMgmtHandle;
@@ -265,7 +265,7 @@ IEEE11hbMgrRxAction (
 
 
 BOOL IEEE11hbMSRRepTx (
-    IN PVOID pMgmtHandle
+    void *pMgmtHandle
     )
 {
     PSMgmtObject            pMgmt = (PSMgmtObject) pMgmtHandle;

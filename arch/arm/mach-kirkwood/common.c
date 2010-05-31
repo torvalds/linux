@@ -305,6 +305,15 @@ void __init kirkwood_nand_init(struct mtd_partition *parts, int nr_parts,
 	platform_device_register(&kirkwood_nand_flash);
 }
 
+void __init kirkwood_nand_init_rnb(struct mtd_partition *parts, int nr_parts,
+				   int (*dev_ready)(struct mtd_info *))
+{
+	kirkwood_clk_ctrl |= CGC_RUNIT;
+	kirkwood_nand_data.parts = parts;
+	kirkwood_nand_data.nr_parts = nr_parts;
+	kirkwood_nand_data.dev_ready = dev_ready;
+	platform_device_register(&kirkwood_nand_flash);
+}
 
 /*****************************************************************************
  * SoC RTC

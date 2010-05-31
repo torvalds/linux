@@ -351,7 +351,7 @@ struct addi_private {
 	int i_IobaseAmcc;	/*  base+size for AMCC chip */
 	int i_IobaseAddon;	/* addon base address */
 	int i_IobaseReserved;
-	unsigned long dw_AiBase;
+	void __iomem *dw_AiBase;
 	struct pcilst_struct *amcc;	/*  ptr too AMCC data */
 	unsigned char allocated;		/*  we have blocked card */
 	unsigned char b_ValidDriver;	/*  driver is ok */

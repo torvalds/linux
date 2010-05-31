@@ -81,7 +81,8 @@ exit:
 	mutex_unlock(&data->update_lock);
 }
 
-static ssize_t eeprom_read(struct kobject *kobj, struct bin_attribute *bin_attr,
+static ssize_t eeprom_read(struct file *filp, struct kobject *kobj,
+			   struct bin_attribute *bin_attr,
 			   char *buf, loff_t off, size_t count)
 {
 	struct i2c_client *client = to_i2c_client(container_of(kobj, struct device, kobj));

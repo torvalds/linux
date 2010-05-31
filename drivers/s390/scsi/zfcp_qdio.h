@@ -11,6 +11,14 @@
 
 #include <asm/qdio.h>
 
+#define ZFCP_QDIO_SBALE_LEN	PAGE_SIZE
+
+/* DMQ bug workaround: don't use last SBALE */
+#define ZFCP_QDIO_MAX_SBALES_PER_SBAL	(QDIO_MAX_ELEMENTS_PER_BUFFER - 1)
+
+/* index of last SBALE (with respect to DMQ bug workaround) */
+#define ZFCP_QDIO_LAST_SBALE_PER_SBAL	(ZFCP_QDIO_MAX_SBALES_PER_SBAL - 1)
+
 /**
  * struct zfcp_qdio_queue - qdio queue buffer, zfcp index and free count
  * @sbal: qdio buffers
@@ -49,6 +57,7 @@ struct zfcp_qdio {
 
 /**
  * struct zfcp_qdio_req - qdio queue related values for a request
+ * @sbtype: sbal type flags for sbale 0
  * @sbal_number: number of free sbals
  * @sbal_first: first sbal for this request
  * @sbal_last: last sbal for this request
@@ -59,6 +68,7 @@ struct zfcp_qdio {
  * @qdio_inb_usage: usage of inbound queue
  */
 struct zfcp_qdio_req {
+	u32	sbtype;
 	u8	sbal_number;
 	u8	sbal_first;
 	u8	sbal_last;
@@ -104,6 +114,100 @@ zfcp_qdio_sbale_curr(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 {
 	return zfcp_qdio_sbale(&qdio->req_q, q_req->sbal_last,
 			       q_req->sbale_curr);
+}
+
+/**
+ * zfcp_qdio_req_init - initialize qdio request
+ * @qdio: request queue where to start putting the request
+ * @q_req: the qdio request to start
+ * @req_id: The request id
+ * @sbtype: type flags to set for all sbals
+ * @data: First data block
+ * @len: Length of first data block
+ *
+ * This is the start of putting the request into the queue, the last
+ * step is passing the request to zfcp_qdio_send. The request queue
+ * lock must be held during the whole process from init to send.
+ */
+static inline
+void zfcp_qdio_req_init(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
+			unsigned long req_id, u32 sbtype, void *data, u32 len)
+{
+	struct qdio_buffer_element *sbale;
+
+	q_req->sbal_first = q_req->sbal_last = qdio->req_q.first;
+	q_req->sbal_number = 1;
+	q_req->sbtype = sbtype;
+
+	sbale = zfcp_qdio_sbale_req(qdio, q_req);
+	sbale->addr = (void *) req_id;
+	sbale->flags |= SBAL_FLAGS0_COMMAND;
+	sbale->flags |= sbtype;
+
+	q_req->sbale_curr = 1;
+	sbale++;
+	sbale->addr = data;
+	if (likely(data))
+		sbale->length = len;
+}
+
+/**
+ * zfcp_qdio_fill_next - Fill next sbale, only for single sbal requests
+ * @qdio: pointer to struct zfcp_qdio
+ * @q_req: pointer to struct zfcp_queue_req
+ *
+ * This is only required for single sbal requests, calling it when
+ * wrapping around to the next sbal is a bug.
+ */
+static inline
+void zfcp_qdio_fill_next(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
+			 void *data, u32 len)
+{
+	struct qdio_buffer_element *sbale;
+
+	BUG_ON(q_req->sbale_curr == ZFCP_QDIO_LAST_SBALE_PER_SBAL);
+	q_req->sbale_curr++;
+	sbale = zfcp_qdio_sbale_curr(qdio, q_req);
+	sbale->addr = data;
+	sbale->length = len;
+}
+
+/**
+ * zfcp_qdio_set_sbale_last - set last entry flag in current sbale
+ * @qdio: pointer to struct zfcp_qdio
+ * @q_req: pointer to struct zfcp_queue_req
+ */
+static inline
+void zfcp_qdio_set_sbale_last(struct zfcp_qdio *qdio,
+			      struct zfcp_qdio_req *q_req)
+{
+	struct qdio_buffer_element *sbale;
+
+	sbale = zfcp_qdio_sbale_curr(qdio, q_req);
+	sbale->flags |= SBAL_FLAGS_LAST_ENTRY;
+}
+
+/**
+ * zfcp_qdio_sg_one_sbal - check if one sbale is enough for sg data
+ * @sg: The scatterlist where to check the data size
+ *
+ * Returns: 1 when one sbale is enough for the data in the scatterlist,
+ *	    0 if not.
+ */
+static inline
+int zfcp_qdio_sg_one_sbale(struct scatterlist *sg)
+{
+	return sg_is_last(sg) && sg->length <= ZFCP_QDIO_SBALE_LEN;
+}
+
+/**
+ * zfcp_qdio_skip_to_last_sbale - skip to last sbale in sbal
+ * @q_req: The current zfcp_qdio_req
+ */
+static inline
+void zfcp_qdio_skip_to_last_sbale(struct zfcp_qdio_req *q_req)
+{
+	q_req->sbale_curr = ZFCP_QDIO_LAST_SBALE_PER_SBAL;
 }
 
 #endif /* ZFCP_QDIO_H */

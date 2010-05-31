@@ -1527,10 +1527,9 @@ static int ntfs_dir_open(struct inode *vi, struct file *filp)
  * this problem for now.  We do write the $BITMAP attribute if it is present
  * which is the important one for a directory so things are not too bad.
  */
-static int ntfs_dir_fsync(struct file *filp, struct dentry *dentry,
-		int datasync)
+static int ntfs_dir_fsync(struct file *filp, int datasync)
 {
-	struct inode *bmp_vi, *vi = dentry->d_inode;
+	struct inode *bmp_vi, *vi = filp->f_mapping->host;
 	int err, ret;
 	ntfs_attr na;
 

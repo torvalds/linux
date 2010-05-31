@@ -358,14 +358,7 @@ struct inode *logfs_new_inode(struct inode *dir, int mode)
 	inode->i_mode = mode;
 	logfs_set_ino_generation(sb, inode);
 
-	inode->i_uid = current_fsuid();
-	inode->i_gid = current_fsgid();
-	if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		if (S_ISDIR(mode))
-			inode->i_mode |= S_ISGID;
-	}
-
+	inode_init_owner(inode, dir, mode);
 	logfs_inode_setops(inode);
 	insert_inode_hash(inode);
 

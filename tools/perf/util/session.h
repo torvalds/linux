@@ -132,12 +132,8 @@ void perf_session__process_machines(struct perf_session *self,
 
 size_t perf_session__fprintf_dsos(struct perf_session *self, FILE *fp);
 
-static inline
-size_t perf_session__fprintf_dsos_buildid(struct perf_session *self, FILE *fp,
-					  bool with_hits)
-{
-	return machines__fprintf_dsos_buildid(&self->machines, fp, with_hits);
-}
+size_t perf_session__fprintf_dsos_buildid(struct perf_session *self,
+					  FILE *fp, bool with_hits);
 
 static inline
 size_t perf_session__fprintf_nr_events(struct perf_session *self, FILE *fp)

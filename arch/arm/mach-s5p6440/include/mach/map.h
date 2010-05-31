@@ -54,6 +54,9 @@
 
 #define S5P6440_PA_IIC0		(0xEC104000)
 
+#define S5P6440_PA_SPI0		0xEC400000
+#define S5P6440_PA_SPI1		0xEC500000
+
 #define S5P6440_PA_HSOTG	(0xED100000)
 
 #define S5P6440_PA_HSMMC0	(0xED800000)
@@ -69,8 +72,13 @@
 /* PCM */
 #define S5P6440_PA_PCM		0xF2100000
 
+#define S5P6440_PA_ADC		(0xF3000000)
+
 /* compatibiltiy defines. */
 #define S3C_PA_UART		S5P6440_PA_UART
 #define S3C_PA_IIC		S5P6440_PA_IIC0
+#define S3C_PA_WDT		S5P6440_PA_WDT
+
+#define SAMSUNG_PA_ADC		S5P6440_PA_ADC
 
 #endif /* __ASM_ARCH_MAP_H */

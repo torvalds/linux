@@ -244,7 +244,7 @@ static const struct rtc_class_ops stk17ta8_rtc_ops = {
 	.alarm_irq_enable	= stk17ta8_rtc_alarm_irq_enable,
 };
 
-static ssize_t stk17ta8_nvram_read(struct kobject *kobj,
+static ssize_t stk17ta8_nvram_read(struct file *filp, struct kobject *kobj,
 				 struct bin_attribute *attr, char *buf,
 				 loff_t pos, size_t size)
 {
@@ -259,7 +259,7 @@ static ssize_t stk17ta8_nvram_read(struct kobject *kobj,
 	return count;
 }
 
-static ssize_t stk17ta8_nvram_write(struct kobject *kobj,
+static ssize_t stk17ta8_nvram_write(struct file *filp, struct kobject *kobj,
 				  struct bin_attribute *attr, char *buf,
 				  loff_t pos, size_t size)
 {

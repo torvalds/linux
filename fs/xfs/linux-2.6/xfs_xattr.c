@@ -72,28 +72,28 @@ xfs_xattr_set(struct dentry *dentry, const char *name, const void *value,
 				(void *)value, size, xflags);
 }
 
-static struct xattr_handler xfs_xattr_user_handler = {
+static const struct xattr_handler xfs_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
 	.flags	= 0, /* no flags implies user namespace */
 	.get	= xfs_xattr_get,
 	.set	= xfs_xattr_set,
 };
 
-static struct xattr_handler xfs_xattr_trusted_handler = {
+static const struct xattr_handler xfs_xattr_trusted_handler = {
 	.prefix	= XATTR_TRUSTED_PREFIX,
 	.flags	= ATTR_ROOT,
 	.get	= xfs_xattr_get,
 	.set	= xfs_xattr_set,
 };
 
-static struct xattr_handler xfs_xattr_security_handler = {
+static const struct xattr_handler xfs_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
 	.flags	= ATTR_SECURE,
 	.get	= xfs_xattr_get,
 	.set	= xfs_xattr_set,
 };
 
-struct xattr_handler *xfs_xattr_handlers[] = {
+const struct xattr_handler *xfs_xattr_handlers[] = {
 	&xfs_xattr_user_handler,
 	&xfs_xattr_trusted_handler,
 	&xfs_xattr_security_handler,

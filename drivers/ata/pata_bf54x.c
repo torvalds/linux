@@ -1214,7 +1214,7 @@ static unsigned int bfin_data_xfer(struct ata_device *dev, unsigned char *buf,
  *	bfin_irq_clear - Clear ATAPI interrupt.
  *	@ap: Port associated with this ATA transaction.
  *
- *	Note: Original code is ata_sff_irq_clear().
+ *	Note: Original code is ata_bmdma_irq_clear().
  */
 
 static void bfin_irq_clear(struct ata_port *ap)

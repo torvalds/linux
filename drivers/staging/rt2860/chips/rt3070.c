@@ -56,7 +56,7 @@ void NICInitRT3070RFRegisters(struct rt_rtmp_adapter *pAd)
 		u32 RfReg = 0;
 		u32 data;
 
-		RT30xxReadRFRegister(pAd, RF_R30, (u8 *)& RfReg);
+		RT30xxReadRFRegister(pAd, RF_R30, (u8 *)&RfReg);
 		RfReg |= 0x80;
 		RT30xxWriteRFRegister(pAd, RF_R30, (u8)RfReg);
 		RTMPusecDelay(1000);
@@ -84,7 +84,7 @@ void NICInitRT3070RFRegisters(struct rt_rtmp_adapter *pAd)
 			}
 		} else if (IS_RT3071(pAd)) {
 			/* Driver should set RF R6 bit6 on before init RF registers */
-			RT30xxReadRFRegister(pAd, RF_R06, (u8 *)& RfReg);
+			RT30xxReadRFRegister(pAd, RF_R06, (u8 *)&RfReg);
 			RfReg |= 0x40;
 			RT30xxWriteRFRegister(pAd, RF_R06, (u8)RfReg);
 

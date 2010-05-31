@@ -354,7 +354,7 @@ static enum power_supply_property olpc_bat_props[] = {
 #define EEPROM_END	0x80
 #define EEPROM_SIZE	(EEPROM_END - EEPROM_START)
 
-static ssize_t olpc_bat_eeprom_read(struct kobject *kobj,
+static ssize_t olpc_bat_eeprom_read(struct file *filp, struct kobject *kobj,
 		struct bin_attribute *attr, char *buf, loff_t off, size_t count)
 {
 	uint8_t ec_byte;

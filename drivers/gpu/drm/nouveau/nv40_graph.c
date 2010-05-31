@@ -253,7 +253,11 @@ nv40_graph_init(struct drm_device *dev)
 
 	if (!dev_priv->engine.graph.ctxprog) {
 		struct nouveau_grctx ctx = {};
-		uint32_t cp[256];
+		uint32_t *cp;
+
+		cp = kmalloc(sizeof(*cp) * 256, GFP_KERNEL);
+		if (!cp)
+			return -ENOMEM;
 
 		ctx.dev = dev;
 		ctx.mode = NOUVEAU_GRCTX_PROG;
@@ -265,6 +269,8 @@ nv40_graph_init(struct drm_device *dev)
 		nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_INDEX, 0);
 		for (i = 0; i < ctx.ctxprog_len; i++)
 			nv_wr32(dev, NV40_PGRAPH_CTXCTL_UCODE_DATA, cp[i]);
+
+		kfree(cp);
 	}
 
 	/* No context present currently */

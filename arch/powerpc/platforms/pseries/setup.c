@@ -496,13 +496,14 @@ static int __init pSeries_probe(void)
 }
 
 
-DECLARE_PER_CPU(unsigned long, smt_snooze_delay);
+DECLARE_PER_CPU(long, smt_snooze_delay);
 
 static void pseries_dedicated_idle_sleep(void)
 { 
 	unsigned int cpu = smp_processor_id();
 	unsigned long start_snooze;
 	unsigned long in_purr, out_purr;
+	long snooze = __get_cpu_var(smt_snooze_delay);
 
 	/*
 	 * Indicate to the HV that we are idle. Now would be
@@ -517,13 +518,12 @@ static void pseries_dedicated_idle_sleep(void)
 	 * has been checked recently.  If we should poll for a little
 	 * while, do so.
 	 */
-	if (__get_cpu_var(smt_snooze_delay)) {
-		start_snooze = get_tb() +
-			__get_cpu_var(smt_snooze_delay) * tb_ticks_per_usec;
+	if (snooze) {
+		start_snooze = get_tb() + snooze * tb_ticks_per_usec;
 		local_irq_enable();
 		set_thread_flag(TIF_POLLING_NRFLAG);
 
-		while (get_tb() < start_snooze) {
+		while ((snooze < 0) || (get_tb() < start_snooze)) {
 			if (need_resched() || cpu_is_offline(cpu))
 				goto out;
 			ppc64_runlatch_off();

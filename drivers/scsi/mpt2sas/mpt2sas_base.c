@@ -3,7 +3,7 @@
  * for access to MPT (Message Passing Technology) firmware.
  *
  * This code is based on drivers/scsi/mpt2sas/mpt2_base.c
- * Copyright (C) 2007-2009  LSI Corporation
+ * Copyright (C) 2007-2010  LSI Corporation
  *  (mailto:DL-MPTFusionLinux@lsi.com)
  *
  * This program is free software; you can redistribute it and/or
@@ -58,6 +58,7 @@
 #include <linux/sort.h>
 #include <linux/io.h>
 #include <linux/time.h>
+#include <linux/aer.h>
 
 #include "mpt2sas_base.h"
 
@@ -283,6 +284,9 @@ _base_sas_ioc_info(struct MPT2SAS_ADAPTER *ioc, MPI2DefaultReply_t *mpi_reply,
 	if (request_hdr->Function == MPI2_FUNCTION_SCSI_IO_REQUEST ||
 	    request_hdr->Function == MPI2_FUNCTION_RAID_SCSI_IO_PASSTHROUGH ||
 	    request_hdr->Function == MPI2_FUNCTION_EVENT_NOTIFICATION)
+		return;
+
+	if (ioc_status == MPI2_IOCSTATUS_CONFIG_INVALID_PAGE)
 		return;
 
 	switch (ioc_status) {
@@ -517,8 +521,18 @@ _base_display_event_data(struct MPT2SAS_ADAPTER *ioc,
 		desc = "IR Operation Status";
 		break;
 	case MPI2_EVENT_SAS_DISCOVERY:
-		desc =  "Discovery";
-		break;
+	{
+		Mpi2EventDataSasDiscovery_t *event_data =
+		    (Mpi2EventDataSasDiscovery_t *)mpi_reply->EventData;
+		printk(MPT2SAS_INFO_FMT "Discovery: (%s)", ioc->name,
+		    (event_data->ReasonCode == MPI2_EVENT_SAS_DISC_RC_STARTED) ?
+		    "start" : "stop");
+		if (event_data->DiscoveryStatus)
+			printk("discovery_status(0x%08x)",
+			    le32_to_cpu(event_data->DiscoveryStatus));
+			printk("\n");
+		return;
+	}
 	case MPI2_EVENT_SAS_BROADCAST_PRIMITIVE:
 		desc = "SAS Broadcast Primitive";
 		break;
@@ -1243,6 +1257,9 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 		goto out_fail;
 	}
 
+	/* AER (Advanced Error Reporting) hooks */
+	pci_enable_pcie_error_reporting(pdev);
+
 	pci_set_master(pdev);
 
 	if (_base_config_dma_addressing(ioc, pdev) != 0) {
@@ -1253,7 +1270,7 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 	}
 
 	for (i = 0, memap_sz = 0, pio_sz = 0 ; i < DEVICE_COUNT_RESOURCE; i++) {
-		if (pci_resource_flags(pdev, i) & PCI_BASE_ADDRESS_SPACE_IO) {
+		if (pci_resource_flags(pdev, i) & IORESOURCE_IO) {
 			if (pio_sz)
 				continue;
 			pio_chip = (u64)pci_resource_start(pdev, i);
@@ -1261,15 +1278,18 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 		} else {
 			if (memap_sz)
 				continue;
-			ioc->chip_phys = pci_resource_start(pdev, i);
-			chip_phys = (u64)ioc->chip_phys;
-			memap_sz = pci_resource_len(pdev, i);
-			ioc->chip = ioremap(ioc->chip_phys, memap_sz);
-			if (ioc->chip == NULL) {
-				printk(MPT2SAS_ERR_FMT "unable to map adapter "
-				    "memory!\n", ioc->name);
-				r = -EINVAL;
-				goto out_fail;
+			/* verify memory resource is valid before using */
+			if (pci_resource_flags(pdev, i) & IORESOURCE_MEM) {
+				ioc->chip_phys = pci_resource_start(pdev, i);
+				chip_phys = (u64)ioc->chip_phys;
+				memap_sz = pci_resource_len(pdev, i);
+				ioc->chip = ioremap(ioc->chip_phys, memap_sz);
+				if (ioc->chip == NULL) {
+					printk(MPT2SAS_ERR_FMT "unable to map "
+					    "adapter memory!\n", ioc->name);
+					r = -EINVAL;
+					goto out_fail;
+				}
 			}
 		}
 	}
@@ -1295,6 +1315,7 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 	ioc->chip_phys = 0;
 	ioc->pci_irq = -1;
 	pci_release_selected_regions(ioc->pdev, ioc->bars);
+	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
 	return r;
 }
@@ -1898,7 +1919,10 @@ _base_release_memory_pools(struct MPT2SAS_ADAPTER *ioc)
 		    ioc->config_page, ioc->config_page_dma);
 	}
 
-	kfree(ioc->scsi_lookup);
+	if (ioc->scsi_lookup) {
+		free_pages((ulong)ioc->scsi_lookup, ioc->scsi_lookup_pages);
+		ioc->scsi_lookup = NULL;
+	}
 	kfree(ioc->hpr_lookup);
 	kfree(ioc->internal_lookup);
 }
@@ -2110,11 +2134,13 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	    ioc->name, (unsigned long long) ioc->request_dma));
 	total_sz += sz;
 
-	ioc->scsi_lookup = kcalloc(ioc->scsiio_depth,
-	    sizeof(struct request_tracker), GFP_KERNEL);
+	sz = ioc->scsiio_depth * sizeof(struct request_tracker);
+	ioc->scsi_lookup_pages = get_order(sz);
+	ioc->scsi_lookup = (struct request_tracker *)__get_free_pages(
+	    GFP_KERNEL, ioc->scsi_lookup_pages);
 	if (!ioc->scsi_lookup) {
-		printk(MPT2SAS_ERR_FMT "scsi_lookup: kcalloc failed\n",
-		    ioc->name);
+		printk(MPT2SAS_ERR_FMT "scsi_lookup: get_free_pages failed, "
+		    "sz(%d)\n", ioc->name, (int)sz);
 		goto out;
 	}
 
@@ -3006,8 +3032,8 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	 * since epoch ~ midnight January 1, 1970.
 	 */
 	do_gettimeofday(&current_time);
-	mpi_request.TimeStamp = (current_time.tv_sec * 1000) +
-	    (current_time.tv_usec >> 3);
+	mpi_request.TimeStamp = cpu_to_le64((u64)current_time.tv_sec * 1000 +
+	    (current_time.tv_usec / 1000));
 
 	if (ioc->logging_level & MPT_DEBUG_INIT) {
 		u32 *mfp;
@@ -3179,7 +3205,7 @@ _base_event_notification(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	mpi_request->VP_ID = 0;
 	for (i = 0; i < MPI2_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
 		mpi_request->EventMasks[i] =
-		    le32_to_cpu(ioc->event_masks[i]);
+		    cpu_to_le32(ioc->event_masks[i]);
 	mpt2sas_base_put_smid_default(ioc, smid);
 	init_completion(&ioc->base_cmds.done);
 	timeleft = wait_for_completion_timeout(&ioc->base_cmds.done, 30*HZ);
@@ -3516,7 +3542,9 @@ mpt2sas_base_free_resources(struct MPT2SAS_ADAPTER *ioc)
 	    __func__));
 
 	_base_mask_interrupts(ioc);
+	ioc->shost_recovery = 1;
 	_base_make_ioc_ready(ioc, CAN_SLEEP, SOFT_RESET);
+	ioc->shost_recovery = 0;
 	if (ioc->pci_irq) {
 		synchronize_irq(pdev->irq);
 		free_irq(ioc->pci_irq, ioc);
@@ -3527,6 +3555,7 @@ mpt2sas_base_free_resources(struct MPT2SAS_ADAPTER *ioc)
 	ioc->pci_irq = -1;
 	ioc->chip_phys = 0;
 	pci_release_selected_regions(ioc->pdev, ioc->bars);
+	pci_disable_pcie_error_reporting(pdev);
 	pci_disable_device(pdev);
 	return;
 }
@@ -3560,8 +3589,10 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 
 	ioc->pfacts = kcalloc(ioc->facts.NumberOfPorts,
 	    sizeof(Mpi2PortFactsReply_t), GFP_KERNEL);
-	if (!ioc->pfacts)
+	if (!ioc->pfacts) {
+		r = -ENOMEM;
 		goto out_free_resources;
+	}
 
 	for (i = 0 ; i < ioc->facts.NumberOfPorts; i++) {
 		r = _base_get_port_facts(ioc, i, CAN_SLEEP);
@@ -3607,6 +3638,15 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	ioc->ctl_cmds.status = MPT2_CMD_NOT_USED;
 	mutex_init(&ioc->ctl_cmds.mutex);
 
+	if (!ioc->base_cmds.reply || !ioc->transport_cmds.reply ||
+	    !ioc->scsih_cmds.reply || !ioc->tm_cmds.reply ||
+	    !ioc->config_cmds.reply || !ioc->ctl_cmds.reply) {
+		r = -ENOMEM;
+		goto out_free_resources;
+	}
+
+	init_completion(&ioc->shost_recovery_done);
+
 	for (i = 0; i < MPI2_EVENT_NOTIFY_EVENTMASK_WORDS; i++)
 		ioc->event_masks[i] = -1;
 
@@ -3639,6 +3679,7 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	pci_set_drvdata(ioc->pdev, NULL);
 	kfree(ioc->tm_cmds.reply);
 	kfree(ioc->transport_cmds.reply);
+	kfree(ioc->scsih_cmds.reply);
 	kfree(ioc->config_cmds.reply);
 	kfree(ioc->base_cmds.reply);
 	kfree(ioc->ctl_cmds.reply);
@@ -3646,6 +3687,7 @@ mpt2sas_base_attach(struct MPT2SAS_ADAPTER *ioc)
 	ioc->ctl_cmds.reply = NULL;
 	ioc->base_cmds.reply = NULL;
 	ioc->tm_cmds.reply = NULL;
+	ioc->scsih_cmds.reply = NULL;
 	ioc->transport_cmds.reply = NULL;
 	ioc->config_cmds.reply = NULL;
 	ioc->pfacts = NULL;
@@ -3675,6 +3717,7 @@ mpt2sas_base_detach(struct MPT2SAS_ADAPTER *ioc)
 	kfree(ioc->base_cmds.reply);
 	kfree(ioc->tm_cmds.reply);
 	kfree(ioc->transport_cmds.reply);
+	kfree(ioc->scsih_cmds.reply);
 	kfree(ioc->config_cmds.reply);
 }
 
@@ -3714,7 +3757,7 @@ _base_reset_handler(struct MPT2SAS_ADAPTER *ioc, int reset_phase)
 		if (ioc->config_cmds.status & MPT2_CMD_PENDING) {
 			ioc->config_cmds.status |= MPT2_CMD_RESET;
 			mpt2sas_base_free_smid(ioc, ioc->config_cmds.smid);
-			ioc->config_cmds.smid = USHORT_MAX;
+			ioc->config_cmds.smid = USHRT_MAX;
 			complete(&ioc->config_cmds.done);
 		}
 		break;
@@ -3811,9 +3854,8 @@ mpt2sas_base_hard_reset_handler(struct MPT2SAS_ADAPTER *ioc, int sleep_flag,
 
 	spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
 	ioc->shost_recovery = 0;
+	complete(&ioc->shost_recovery_done);
 	spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock, flags);
 
-	if (!r)
-		_base_reset_handler(ioc, MPT2_IOC_RUNNING);
 	return r;
 }

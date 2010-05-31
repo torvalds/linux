@@ -260,7 +260,9 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 			ret = -EIO;
 			goto out;
 		}
-		jffs2_erase_pending_trigger(c);
+		spin_lock(&c->erase_completion_lock);
+		jffs2_garbage_collect_trigger(c);
+		spin_unlock(&c->erase_completion_lock);
 	}
 	ret = 0;
  out:

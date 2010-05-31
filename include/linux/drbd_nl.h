@@ -71,12 +71,17 @@ NL_PACKET(disconnect, 6, )
 NL_PACKET(resize, 7,
 	NL_INT64(		29,	T_MAY_IGNORE,	resize_size)
 	NL_BIT(			68,	T_MAY_IGNORE,	resize_force)
+	NL_BIT(			69,	T_MANDATORY,	no_resync)
 )
 
 NL_PACKET(syncer_conf, 8,
 	NL_INTEGER(	30,	T_MAY_IGNORE,	rate)
 	NL_INTEGER(	31,	T_MAY_IGNORE,	after)
 	NL_INTEGER(	32,	T_MAY_IGNORE,	al_extents)
+	NL_INTEGER(     71,	T_MAY_IGNORE,	dp_volume)
+	NL_INTEGER(     72,	T_MAY_IGNORE,	dp_interval)
+	NL_INTEGER(     73,	T_MAY_IGNORE,	throttle_th)
+	NL_INTEGER(     74,	T_MAY_IGNORE,	hold_off_th)
 	NL_STRING(      52,     T_MAY_IGNORE,   verify_alg,     SHARED_SECRET_MAX)
 	NL_STRING(      51,     T_MAY_IGNORE,   cpu_mask,       32)
 	NL_STRING(	64,	T_MAY_IGNORE,	csums_alg,	SHARED_SECRET_MAX)

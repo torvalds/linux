@@ -1596,7 +1596,6 @@ BOOLEAN StaAddMacTableEntry(struct rt_rtmp_adapter *pAd,
 		union iwreq_data wrqu;
 		wext_notify_event_assoc(pAd);
 
-		memset(wrqu.ap_addr.sa_data, 0, MAC_ADDR_LEN);
 		memcpy(wrqu.ap_addr.sa_data, pAd->MlmeAux.Bssid, MAC_ADDR_LEN);
 		wireless_send_event(pAd->net_dev, SIOCGIWAP, &wrqu, NULL);
 

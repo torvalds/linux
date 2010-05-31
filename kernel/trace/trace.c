@@ -1936,7 +1936,7 @@ static enum print_line_t print_trace_fmt(struct trace_iterator *iter)
 	}
 
 	if (event)
-		return event->trace(iter, sym_flags);
+		return event->funcs->trace(iter, sym_flags, event);
 
 	if (!trace_seq_printf(s, "Unknown type %d\n", entry->type))
 		goto partial;
@@ -1962,7 +1962,7 @@ static enum print_line_t print_raw_fmt(struct trace_iterator *iter)
 
 	event = ftrace_find_event(entry->type);
 	if (event)
-		return event->raw(iter, 0);
+		return event->funcs->raw(iter, 0, event);
 
 	if (!trace_seq_printf(s, "%d ?\n", entry->type))
 		goto partial;
@@ -1989,7 +1989,7 @@ static enum print_line_t print_hex_fmt(struct trace_iterator *iter)
 
 	event = ftrace_find_event(entry->type);
 	if (event) {
-		enum print_line_t ret = event->hex(iter, 0);
+		enum print_line_t ret = event->funcs->hex(iter, 0, event);
 		if (ret != TRACE_TYPE_HANDLED)
 			return ret;
 	}
@@ -2014,7 +2014,8 @@ static enum print_line_t print_bin_fmt(struct trace_iterator *iter)
 	}
 
 	event = ftrace_find_event(entry->type);
-	return event ? event->binary(iter, 0) : TRACE_TYPE_HANDLED;
+	return event ? event->funcs->binary(iter, 0, event) :
+		TRACE_TYPE_HANDLED;
 }
 
 int trace_empty(struct trace_iterator *iter)
@@ -3309,12 +3310,12 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 					size_t len,
 					unsigned int flags)
 {
-	struct page *pages[PIPE_BUFFERS];
-	struct partial_page partial[PIPE_BUFFERS];
+	struct page *pages_def[PIPE_DEF_BUFFERS];
+	struct partial_page partial_def[PIPE_DEF_BUFFERS];
 	struct trace_iterator *iter = filp->private_data;
 	struct splice_pipe_desc spd = {
-		.pages		= pages,
-		.partial	= partial,
+		.pages		= pages_def,
+		.partial	= partial_def,
 		.nr_pages	= 0, /* This gets updated below. */
 		.flags		= flags,
 		.ops		= &tracing_pipe_buf_ops,
@@ -3324,6 +3325,9 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 	ssize_t ret;
 	size_t rem;
 	unsigned int i;
+
+	if (splice_grow_spd(pipe, &spd))
+		return -ENOMEM;
 
 	/* copy the tracer to avoid using a global lock all around */
 	mutex_lock(&trace_types_lock);
@@ -3355,23 +3359,23 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 	trace_access_lock(iter->cpu_file);
 
 	/* Fill as many pages as possible. */
-	for (i = 0, rem = len; i < PIPE_BUFFERS && rem; i++) {
-		pages[i] = alloc_page(GFP_KERNEL);
-		if (!pages[i])
+	for (i = 0, rem = len; i < pipe->buffers && rem; i++) {
+		spd.pages[i] = alloc_page(GFP_KERNEL);
+		if (!spd.pages[i])
 			break;
 
 		rem = tracing_fill_pipe_page(rem, iter);
 
 		/* Copy the data into the page, so we can start over. */
 		ret = trace_seq_to_buffer(&iter->seq,
-					  page_address(pages[i]),
+					  page_address(spd.pages[i]),
 					  iter->seq.len);
 		if (ret < 0) {
-			__free_page(pages[i]);
+			__free_page(spd.pages[i]);
 			break;
 		}
-		partial[i].offset = 0;
-		partial[i].len = iter->seq.len;
+		spd.partial[i].offset = 0;
+		spd.partial[i].len = iter->seq.len;
 
 		trace_seq_init(&iter->seq);
 	}
@@ -3382,12 +3386,14 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 
 	spd.nr_pages = i;
 
-	return splice_to_pipe(pipe, &spd);
+	ret = splice_to_pipe(pipe, &spd);
+out:
+	splice_shrink_spd(pipe, &spd);
+	return ret;
 
 out_err:
 	mutex_unlock(&iter->mutex);
-
-	return ret;
+	goto out;
 }
 
 static ssize_t
@@ -3660,7 +3666,6 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 		     size_t count, loff_t *ppos)
 {
 	struct ftrace_buffer_info *info = filp->private_data;
-	unsigned int pos;
 	ssize_t ret;
 	size_t size;
 
@@ -3686,11 +3691,6 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 	trace_access_unlock(info->cpu);
 	if (ret < 0)
 		return 0;
-
-	pos = ring_buffer_page_len(info->spare);
-
-	if (pos < PAGE_SIZE)
-		memset(info->spare + pos, 0, PAGE_SIZE - pos);
 
 read:
 	size = PAGE_SIZE - info->read;
@@ -3786,11 +3786,11 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 			    unsigned int flags)
 {
 	struct ftrace_buffer_info *info = file->private_data;
-	struct partial_page partial[PIPE_BUFFERS];
-	struct page *pages[PIPE_BUFFERS];
+	struct partial_page partial_def[PIPE_DEF_BUFFERS];
+	struct page *pages_def[PIPE_DEF_BUFFERS];
 	struct splice_pipe_desc spd = {
-		.pages		= pages,
-		.partial	= partial,
+		.pages		= pages_def,
+		.partial	= partial_def,
 		.flags		= flags,
 		.ops		= &buffer_pipe_buf_ops,
 		.spd_release	= buffer_spd_release,
@@ -3799,22 +3799,28 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 	int entries, size, i;
 	size_t ret;
 
+	if (splice_grow_spd(pipe, &spd))
+		return -ENOMEM;
+
 	if (*ppos & (PAGE_SIZE - 1)) {
 		WARN_ONCE(1, "Ftrace: previous read must page-align\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	if (len & (PAGE_SIZE - 1)) {
 		WARN_ONCE(1, "Ftrace: splice_read should page-align\n");
-		if (len < PAGE_SIZE)
-			return -EINVAL;
+		if (len < PAGE_SIZE) {
+			ret = -EINVAL;
+			goto out;
+		}
 		len &= PAGE_MASK;
 	}
 
 	trace_access_lock(info->cpu);
 	entries = ring_buffer_entries_cpu(info->tr->buffer, info->cpu);
 
-	for (i = 0; i < PIPE_BUFFERS && len && entries; i++, len -= PAGE_SIZE) {
+	for (i = 0; i < pipe->buffers && len && entries; i++, len -= PAGE_SIZE) {
 		struct page *page;
 		int r;
 
@@ -3869,11 +3875,12 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		else
 			ret = 0;
 		/* TODO: block */
-		return ret;
+		goto out;
 	}
 
 	ret = splice_to_pipe(pipe, &spd);
-
+	splice_shrink_spd(pipe, &spd);
+out:
 	return ret;
 }
 

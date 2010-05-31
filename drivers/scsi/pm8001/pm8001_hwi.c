@@ -4390,7 +4390,6 @@ pm8001_chip_fw_flash_update_req(struct pm8001_hba_info *pm8001_ha,
 				return -ENOMEM;
 		}
 	}
-	memset(buffer, 0, fw_control->len);
 	memcpy(buffer, fw_control->buffer, fw_control->len);
 	flash_update_info.sgl.addr = cpu_to_le64(phys_addr);
 	flash_update_info.sgl.im_len.len = cpu_to_le32(fw_control->len);

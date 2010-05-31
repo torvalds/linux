@@ -50,6 +50,10 @@ static unsigned long free_mem_end_ptr;
 #include "../../../../lib/decompress_unlzma.c"
 #endif
 
+#ifdef CONFIG_KERNEL_LZO
+#include "../../../../lib/decompress_unlzo.c"
+#endif
+
 extern _sclp_print_early(const char *);
 
 int puts(const char *s)

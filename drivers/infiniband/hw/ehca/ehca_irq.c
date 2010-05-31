@@ -847,7 +847,7 @@ static int __cpuinit comp_pool_callback(struct notifier_block *nfb,
 		ehca_gen_dbg("CPU: %x (CPU_PREPARE)", cpu);
 		if (!create_comp_task(pool, cpu)) {
 			ehca_gen_err("Can't create comp_task for cpu: %x", cpu);
-			return NOTIFY_BAD;
+			return notifier_from_errno(-ENOMEM);
 		}
 		break;
 	case CPU_UP_CANCELED:

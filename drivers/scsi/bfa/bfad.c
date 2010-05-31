@@ -33,7 +33,7 @@
 #include <fcb/bfa_fcb.h>
 
 BFA_TRC_FILE(LDRV, BFAD);
-static DEFINE_MUTEX(bfad_mutex);
+DEFINE_MUTEX(bfad_mutex);
 LIST_HEAD(bfad_list);
 static int      bfad_inst;
 int bfad_supported_fc4s;
@@ -299,8 +299,6 @@ bfa_fcb_vport_delete(struct bfad_vport_s *vport_drv)
 		complete(vport_drv->comp_del);
 		return;
 	}
-
-	kfree(vport_drv);
 }
 
 /**
@@ -483,7 +481,7 @@ ext:
  */
 bfa_status_t
 bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
-		  struct bfa_port_cfg_s *port_cfg)
+		  struct bfa_port_cfg_s *port_cfg, struct device *dev)
 {
 	struct bfad_vport_s *vport;
 	int             rc = BFA_STATUS_OK;
@@ -506,7 +504,8 @@ bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
 		goto ext_free_vport;
 
 	if (port_cfg->roles & BFA_PORT_ROLE_FCP_IM) {
-		rc = bfad_im_scsi_host_alloc(bfad, vport->drv_port.im_port);
+		rc = bfad_im_scsi_host_alloc(bfad, vport->drv_port.im_port,
+							dev);
 		if (rc != BFA_STATUS_OK)
 			goto ext_free_fcs_vport;
 	}
@@ -591,7 +590,6 @@ bfad_init_timer(struct bfad_s *bfad)
 int
 bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 {
-	unsigned long   bar0_len;
 	int             rc = -ENODEV;
 
 	if (pci_enable_device(pdev)) {
@@ -611,9 +609,7 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 			goto out_release_region;
 		}
 
-	bfad->pci_bar0_map = pci_resource_start(pdev, 0);
-	bar0_len = pci_resource_len(pdev, 0);
-	bfad->pci_bar0_kva = ioremap(bfad->pci_bar0_map, bar0_len);
+	bfad->pci_bar0_kva = pci_iomap(pdev, 0, pci_resource_len(pdev, 0));
 
 	if (bfad->pci_bar0_kva == NULL) {
 		BFA_PRINTF(BFA_ERR, "Fail to map bar0\n");
@@ -646,11 +642,7 @@ out:
 void
 bfad_pci_uninit(struct pci_dev *pdev, struct bfad_s *bfad)
 {
-#if defined(__ia64__)
 	pci_iounmap(pdev, bfad->pci_bar0_kva);
-#else
-	iounmap(bfad->pci_bar0_kva);
-#endif
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
@@ -848,7 +840,8 @@ bfad_cfg_pport(struct bfad_s *bfad, enum bfa_port_role role)
 			goto out;
 		}
 
-		rc = bfad_im_scsi_host_alloc(bfad, bfad->pport.im_port);
+		rc = bfad_im_scsi_host_alloc(bfad, bfad->pport.im_port,
+						&bfad->pcidev->dev);
 		if (rc != BFA_STATUS_OK)
 			goto out;
 

@@ -1239,7 +1239,7 @@ static int video1394_open(struct inode *inode, struct file *file)
 	ctx->current_ctx = NULL;
 	file->private_data = ctx;
 
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 static int video1394_release(struct inode *inode, struct file *file)
@@ -1287,7 +1287,8 @@ static const struct file_operations video1394_fops=
 	.poll =		video1394_poll,
 	.mmap =		video1394_mmap,
 	.open =		video1394_open,
-	.release =	video1394_release
+	.release =	video1394_release,
+	.llseek =	no_llseek,
 };
 
 /*** HOTPLUG STUFF **********************************************************/

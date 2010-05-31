@@ -1,0 +1,16 @@
+What:           /sys/class/rfkill/rfkill%d/
+Date:           March 22
+Contact:        Pavan Savoy <pavan_savoy@ti.com>
+Description:
+		Creates the rfkill entries for Radio apps like
+		BT app, FM app or GPS app to toggle corresponding
+		cores of the chip
+
+What:           /dev/rfkill
+Date:           March 22
+Contact:        Pavan Savoy <pavan_savoy@ti.com>
+Description:
+		A daemon which maintains the ldisc installation and
+		uninstallation would be ppolling on this device and listening
+		on events which would suggest either to install or un-install
+		line discipline

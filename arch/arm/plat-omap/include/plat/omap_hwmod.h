@@ -176,9 +176,8 @@ struct omap_hwmod_addr_space {
 #define OCP_USER_SDMA			(1 << 1)
 
 /* omap_hwmod_ocp_if.flags bits */
-#define OCPIF_HAS_IDLEST		(1 << 0)
-#define OCPIF_SWSUP_IDLE		(1 << 1)
-#define OCPIF_CAN_BURST			(1 << 2)
+#define OCPIF_SWSUP_IDLE		(1 << 0)
+#define OCPIF_CAN_BURST			(1 << 1)
 
 /**
  * struct omap_hwmod_ocp_if - OCP interface data
@@ -327,14 +326,12 @@ struct omap_hwmod_omap2_prcm {
 
 /**
  * struct omap_hwmod_omap4_prcm - OMAP4-specific PRCM data
- * @module_offs: PRCM submodule offset from the start of the PRM/CM1/CM2
- * @device_offs: device register offset from @module_offs
+ * @clkctrl_reg: PRCM address of the clock control register
  * @submodule_wkdep_bit: bit shift of the WKDEP range
  */
 struct omap_hwmod_omap4_prcm {
-	u32 module_offs;
-	u16 device_offs;
-	u8 submodule_wkdep_bit;
+	void __iomem	*clkctrl_reg;
+	u8		submodule_wkdep_bit;
 };
 
 
@@ -353,6 +350,8 @@ struct omap_hwmod_omap4_prcm {
  *     when module is enabled, rather than the default, which is to
  *     enable autoidle
  * HWMOD_SET_DEFAULT_CLOCKACT: program CLOCKACTIVITY bits at startup
+ * HWMOD_NO_IDLEST : this module does not have idle status - this is the case
+ *     only for few initiator modules on OMAP2 & 3.
  */
 #define HWMOD_SWSUP_SIDLE			(1 << 0)
 #define HWMOD_SWSUP_MSTANDBY			(1 << 1)
@@ -360,6 +359,7 @@ struct omap_hwmod_omap4_prcm {
 #define HWMOD_INIT_NO_IDLE			(1 << 3)
 #define HWMOD_NO_OCP_AUTOIDLE			(1 << 4)
 #define HWMOD_SET_DEFAULT_CLOCKACT		(1 << 5)
+#define HWMOD_NO_IDLEST				(1 << 6)
 
 /*
  * omap_hwmod._int_flags definitions

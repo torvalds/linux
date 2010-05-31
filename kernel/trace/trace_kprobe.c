@@ -324,8 +324,8 @@ struct trace_probe {
 	unsigned long 		nhit;
 	unsigned int		flags;	/* For TP_FLAG_* */
 	const char		*symbol;	/* symbol name */
+	struct ftrace_event_class	class;
 	struct ftrace_event_call	call;
-	struct trace_event		event;
 	ssize_t			size;		/* trace entry size */
 	unsigned int		nr_args;
 	struct probe_arg	args[];
@@ -404,6 +404,7 @@ static struct trace_probe *alloc_trace_probe(const char *group,
 		goto error;
 	}
 
+	tp->call.class = &tp->class;
 	tp->call.name = kstrdup(event, GFP_KERNEL);
 	if (!tp->call.name)
 		goto error;
@@ -413,8 +414,8 @@ static struct trace_probe *alloc_trace_probe(const char *group,
 		goto error;
 	}
 
-	tp->call.system = kstrdup(group, GFP_KERNEL);
-	if (!tp->call.system)
+	tp->class.system = kstrdup(group, GFP_KERNEL);
+	if (!tp->class.system)
 		goto error;
 
 	INIT_LIST_HEAD(&tp->list);
@@ -443,7 +444,7 @@ static void free_trace_probe(struct trace_probe *tp)
 	for (i = 0; i < tp->nr_args; i++)
 		free_probe_arg(&tp->args[i]);
 
-	kfree(tp->call.system);
+	kfree(tp->call.class->system);
 	kfree(tp->call.name);
 	kfree(tp->symbol);
 	kfree(tp);
@@ -456,7 +457,7 @@ static struct trace_probe *find_probe_event(const char *event,
 
 	list_for_each_entry(tp, &probe_list, list)
 		if (strcmp(tp->call.name, event) == 0 &&
-		    strcmp(tp->call.system, group) == 0)
+		    strcmp(tp->call.class->system, group) == 0)
 			return tp;
 	return NULL;
 }
@@ -481,7 +482,7 @@ static int register_trace_probe(struct trace_probe *tp)
 	mutex_lock(&probe_lock);
 
 	/* register as an event */
-	old_tp = find_probe_event(tp->call.name, tp->call.system);
+	old_tp = find_probe_event(tp->call.name, tp->call.class->system);
 	if (old_tp) {
 		/* delete old event */
 		unregister_trace_probe(old_tp);
@@ -904,7 +905,7 @@ static int probes_seq_show(struct seq_file *m, void *v)
 	int i;
 
 	seq_printf(m, "%c", probe_is_return(tp) ? 'r' : 'p');
-	seq_printf(m, ":%s/%s", tp->call.system, tp->call.name);
+	seq_printf(m, ":%s/%s", tp->call.class->system, tp->call.name);
 
 	if (!tp->symbol)
 		seq_printf(m, " 0x%p", tp->rp.kp.addr);
@@ -1061,8 +1062,8 @@ static __kprobes void kprobe_trace_func(struct kprobe *kp, struct pt_regs *regs)
 
 	size = sizeof(*entry) + tp->size;
 
-	event = trace_current_buffer_lock_reserve(&buffer, call->id, size,
-						  irq_flags, pc);
+	event = trace_current_buffer_lock_reserve(&buffer, call->event.type,
+						  size, irq_flags, pc);
 	if (!event)
 		return;
 
@@ -1094,8 +1095,8 @@ static __kprobes void kretprobe_trace_func(struct kretprobe_instance *ri,
 
 	size = sizeof(*entry) + tp->size;
 
-	event = trace_current_buffer_lock_reserve(&buffer, call->id, size,
-						  irq_flags, pc);
+	event = trace_current_buffer_lock_reserve(&buffer, call->event.type,
+						  size, irq_flags, pc);
 	if (!event)
 		return;
 
@@ -1112,18 +1113,17 @@ static __kprobes void kretprobe_trace_func(struct kretprobe_instance *ri,
 
 /* Event entry printers */
 enum print_line_t
-print_kprobe_event(struct trace_iterator *iter, int flags)
+print_kprobe_event(struct trace_iterator *iter, int flags,
+		   struct trace_event *event)
 {
 	struct kprobe_trace_entry_head *field;
 	struct trace_seq *s = &iter->seq;
-	struct trace_event *event;
 	struct trace_probe *tp;
 	u8 *data;
 	int i;
 
 	field = (struct kprobe_trace_entry_head *)iter->ent;
-	event = ftrace_find_event(field->ent.type);
-	tp = container_of(event, struct trace_probe, event);
+	tp = container_of(event, struct trace_probe, call.event);
 
 	if (!trace_seq_printf(s, "%s: (", tp->call.name))
 		goto partial;
@@ -1149,18 +1149,17 @@ partial:
 }
 
 enum print_line_t
-print_kretprobe_event(struct trace_iterator *iter, int flags)
+print_kretprobe_event(struct trace_iterator *iter, int flags,
+		      struct trace_event *event)
 {
 	struct kretprobe_trace_entry_head *field;
 	struct trace_seq *s = &iter->seq;
-	struct trace_event *event;
 	struct trace_probe *tp;
 	u8 *data;
 	int i;
 
 	field = (struct kretprobe_trace_entry_head *)iter->ent;
-	event = ftrace_find_event(field->ent.type);
-	tp = container_of(event, struct trace_probe, event);
+	tp = container_of(event, struct trace_probe, call.event);
 
 	if (!trace_seq_printf(s, "%s: (", tp->call.name))
 		goto partial;
@@ -1217,8 +1216,6 @@ static void probe_event_disable(struct ftrace_event_call *call)
 
 static int probe_event_raw_init(struct ftrace_event_call *event_call)
 {
-	INIT_LIST_HEAD(&event_call->fields);
-
 	return 0;
 }
 
@@ -1341,9 +1338,9 @@ static __kprobes void kprobe_perf_func(struct kprobe *kp,
 	struct trace_probe *tp = container_of(kp, struct trace_probe, rp.kp);
 	struct ftrace_event_call *call = &tp->call;
 	struct kprobe_trace_entry_head *entry;
+	struct hlist_head *head;
 	u8 *data;
 	int size, __size, i;
-	unsigned long irq_flags;
 	int rctx;
 
 	__size = sizeof(*entry) + tp->size;
@@ -1353,7 +1350,7 @@ static __kprobes void kprobe_perf_func(struct kprobe *kp,
 		     "profile buffer not large enough"))
 		return;
 
-	entry = perf_trace_buf_prepare(size, call->id, &rctx, &irq_flags);
+	entry = perf_trace_buf_prepare(size, call->event.type, regs, &rctx);
 	if (!entry)
 		return;
 
@@ -1362,7 +1359,8 @@ static __kprobes void kprobe_perf_func(struct kprobe *kp,
 	for (i = 0; i < tp->nr_args; i++)
 		call_fetch(&tp->args[i].fetch, regs, data + tp->args[i].offset);
 
-	perf_trace_buf_submit(entry, size, rctx, entry->ip, 1, irq_flags, regs);
+	head = per_cpu_ptr(call->perf_events, smp_processor_id());
+	perf_trace_buf_submit(entry, size, rctx, entry->ip, 1, regs, head);
 }
 
 /* Kretprobe profile handler */
@@ -1372,9 +1370,9 @@ static __kprobes void kretprobe_perf_func(struct kretprobe_instance *ri,
 	struct trace_probe *tp = container_of(ri->rp, struct trace_probe, rp);
 	struct ftrace_event_call *call = &tp->call;
 	struct kretprobe_trace_entry_head *entry;
+	struct hlist_head *head;
 	u8 *data;
 	int size, __size, i;
-	unsigned long irq_flags;
 	int rctx;
 
 	__size = sizeof(*entry) + tp->size;
@@ -1384,7 +1382,7 @@ static __kprobes void kretprobe_perf_func(struct kretprobe_instance *ri,
 		     "profile buffer not large enough"))
 		return;
 
-	entry = perf_trace_buf_prepare(size, call->id, &rctx, &irq_flags);
+	entry = perf_trace_buf_prepare(size, call->event.type, regs, &rctx);
 	if (!entry)
 		return;
 
@@ -1394,8 +1392,8 @@ static __kprobes void kretprobe_perf_func(struct kretprobe_instance *ri,
 	for (i = 0; i < tp->nr_args; i++)
 		call_fetch(&tp->args[i].fetch, regs, data + tp->args[i].offset);
 
-	perf_trace_buf_submit(entry, size, rctx, entry->ret_ip, 1,
-			       irq_flags, regs);
+	head = per_cpu_ptr(call->perf_events, smp_processor_id());
+	perf_trace_buf_submit(entry, size, rctx, entry->ret_ip, 1, regs, head);
 }
 
 static int probe_perf_enable(struct ftrace_event_call *call)
@@ -1425,6 +1423,26 @@ static void probe_perf_disable(struct ftrace_event_call *call)
 }
 #endif	/* CONFIG_PERF_EVENTS */
 
+static __kprobes
+int kprobe_register(struct ftrace_event_call *event, enum trace_reg type)
+{
+	switch (type) {
+	case TRACE_REG_REGISTER:
+		return probe_event_enable(event);
+	case TRACE_REG_UNREGISTER:
+		probe_event_disable(event);
+		return 0;
+
+#ifdef CONFIG_PERF_EVENTS
+	case TRACE_REG_PERF_REGISTER:
+		return probe_perf_enable(event);
+	case TRACE_REG_PERF_UNREGISTER:
+		probe_perf_disable(event);
+		return 0;
+#endif
+	}
+	return 0;
+}
 
 static __kprobes
 int kprobe_dispatcher(struct kprobe *kp, struct pt_regs *regs)
@@ -1454,6 +1472,14 @@ int kretprobe_dispatcher(struct kretprobe_instance *ri, struct pt_regs *regs)
 	return 0;	/* We don't tweek kernel, so just return 0 */
 }
 
+static struct trace_event_functions kretprobe_funcs = {
+	.trace		= print_kretprobe_event
+};
+
+static struct trace_event_functions kprobe_funcs = {
+	.trace		= print_kprobe_event
+};
+
 static int register_probe_event(struct trace_probe *tp)
 {
 	struct ftrace_event_call *call = &tp->call;
@@ -1461,36 +1487,31 @@ static int register_probe_event(struct trace_probe *tp)
 
 	/* Initialize ftrace_event_call */
 	if (probe_is_return(tp)) {
-		tp->event.trace = print_kretprobe_event;
-		call->raw_init = probe_event_raw_init;
-		call->define_fields = kretprobe_event_define_fields;
+		INIT_LIST_HEAD(&call->class->fields);
+		call->event.funcs = &kretprobe_funcs;
+		call->class->raw_init = probe_event_raw_init;
+		call->class->define_fields = kretprobe_event_define_fields;
 	} else {
-		tp->event.trace = print_kprobe_event;
-		call->raw_init = probe_event_raw_init;
-		call->define_fields = kprobe_event_define_fields;
+		INIT_LIST_HEAD(&call->class->fields);
+		call->event.funcs = &kprobe_funcs;
+		call->class->raw_init = probe_event_raw_init;
+		call->class->define_fields = kprobe_event_define_fields;
 	}
 	if (set_print_fmt(tp) < 0)
 		return -ENOMEM;
-	call->event = &tp->event;
-	call->id = register_ftrace_event(&tp->event);
-	if (!call->id) {
+	ret = register_ftrace_event(&call->event);
+	if (!ret) {
 		kfree(call->print_fmt);
 		return -ENODEV;
 	}
-	call->enabled = 0;
-	call->regfunc = probe_event_enable;
-	call->unregfunc = probe_event_disable;
-
-#ifdef CONFIG_PERF_EVENTS
-	call->perf_event_enable = probe_perf_enable;
-	call->perf_event_disable = probe_perf_disable;
-#endif
+	call->flags = 0;
+	call->class->reg = kprobe_register;
 	call->data = tp;
 	ret = trace_add_event_call(call);
 	if (ret) {
 		pr_info("Failed to register kprobe event: %s\n", call->name);
 		kfree(call->print_fmt);
-		unregister_ftrace_event(&tp->event);
+		unregister_ftrace_event(&call->event);
 	}
 	return ret;
 }
