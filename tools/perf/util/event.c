@@ -532,16 +532,11 @@ out_problem:
 
 int event__process_task(event_t *self, struct perf_session *session)
 {
-	struct thread *thread = perf_session__findnew(session, self->fork.pid);
-	struct thread *parent = perf_session__findnew(session, self->fork.ppid);
+	struct thread *thread = perf_session__findnew(session, self->fork.tid);
+	struct thread *parent = perf_session__findnew(session, self->fork.ptid);
 
 	dump_printf("(%d:%d):(%d:%d)\n", self->fork.pid, self->fork.tid,
 		    self->fork.ppid, self->fork.ptid);
-	/*
-	 * A thread clone will have the same PID for both parent and child.
-	 */
-	if (thread == parent)
-		return 0;
 
 	if (self->header.type == PERF_RECORD_EXIT)
 		return 0;
