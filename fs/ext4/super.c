@@ -3999,6 +3999,7 @@ static int __init init_ext4_fs(void)
 {
 	int err;
 
+	ext4_check_flag_values();
 	err = init_ext4_system_zone();
 	if (err)
 		return err;

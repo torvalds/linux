@@ -816,7 +816,7 @@ inserted:
 						EXT4_I(inode)->i_block_group);
 
 			/* non-extent files can't have physical blocks past 2^32 */
-			if (!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL))
+			if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 				goal = goal & EXT4_MAX_BLOCK_FILE_PHYS;
 
 			block = ext4_new_meta_blocks(handle, inode,
@@ -824,7 +824,7 @@ inserted:
 			if (error)
 				goto cleanup;
 
-			if (!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL))
+			if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 				BUG_ON(block > EXT4_MAX_BLOCK_FILE_PHYS);
 
 			ea_idebug(inode, "creating block %d", block);

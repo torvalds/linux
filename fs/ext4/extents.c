@@ -3409,12 +3409,12 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 		}
 	}
 
-	if (unlikely(EXT4_I(inode)->i_flags & EXT4_EOFBLOCKS_FL)) {
+	if (unlikely(ext4_test_inode_flag(inode, EXT4_INODE_EOFBLOCKS))) {
 		if (eh->eh_entries) {
 			last_ex = EXT_LAST_EXTENT(eh);
 			if (iblock + ar.len > le32_to_cpu(last_ex->ee_block)
 					    + ext4_ext_get_actual_len(last_ex))
-				EXT4_I(inode)->i_flags &= ~EXT4_EOFBLOCKS_FL;
+				ext4_clear_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
 		} else {
 			WARN_ON(eh->eh_entries == 0);
 			ext4_error(inode->i_sb, __func__,
@@ -3560,7 +3560,7 @@ static void ext4_falloc_update_inode(struct inode *inode,
 		 * can proceed even if the new size is the same as i_size.
 		 */
 		if (new_size > i_size_read(inode))
-			EXT4_I(inode)->i_flags |= EXT4_EOFBLOCKS_FL;
+			ext4_set_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
 	}
 
 }
@@ -3588,7 +3588,7 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 	 * currently supporting (pre)allocate mode for extent-based
 	 * files _only_
 	 */
-	if (!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL))
+	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 		return -EOPNOTSUPP;
 
 	/* preallocation to directories is currently not supported */
@@ -3838,7 +3838,7 @@ int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	int error = 0;
 
 	/* fallback to generic here if not in extents fmt */
-	if (!(EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL))
+	if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS)))
 		return generic_block_fiemap(inode, fieinfo, start, len,
 			ext4_get_block);
 

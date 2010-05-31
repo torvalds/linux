@@ -660,7 +660,7 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 	dxtrace(printk(KERN_DEBUG "In htree_fill_tree, start hash: %x:%x\n", 
 		       start_hash, start_minor_hash));
 	dir = dir_file->f_path.dentry->d_inode;
-	if (!(EXT4_I(dir)->i_flags & EXT4_INDEX_FL)) {
+	if (!(ext4_test_inode_flag(dir, EXT4_INODE_INDEX))) {
 		hinfo.hash_version = EXT4_SB(dir->i_sb)->s_def_hash_version;
 		if (hinfo.hash_version <= DX_HASH_TEA)
 			hinfo.hash_version +=
@@ -805,7 +805,7 @@ static void ext4_update_dx_flag(struct inode *inode)
 {
 	if (!EXT4_HAS_COMPAT_FEATURE(inode->i_sb,
 				     EXT4_FEATURE_COMPAT_DIR_INDEX))
-		EXT4_I(inode)->i_flags &= ~EXT4_INDEX_FL;
+		ext4_clear_inode_flag(inode, EXT4_INODE_INDEX);
 }
 
 /*
@@ -1424,7 +1424,7 @@ static int make_indexed_dir(handle_t *handle, struct dentry *dentry,
 		brelse(bh);
 		return retval;
 	}
-	EXT4_I(dir)->i_flags |= EXT4_INDEX_FL;
+	ext4_set_inode_flag(dir, EXT4_INODE_INDEX);
 	data1 = bh2->b_data;
 
 	memcpy (data1, de, len);
@@ -1497,7 +1497,7 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 		retval = ext4_dx_add_entry(handle, dentry, inode);
 		if (!retval || (retval != ERR_BAD_DX_DIR))
 			return retval;
-		EXT4_I(dir)->i_flags &= ~EXT4_INDEX_FL;
+		ext4_clear_inode_flag(dir, EXT4_INODE_INDEX);
 		dx_fallback++;
 		ext4_mark_inode_dirty(handle, dir);
 	}
@@ -2292,7 +2292,7 @@ retry:
 		}
 	} else {
 		/* clear the extent format for fast symlink */
-		EXT4_I(inode)->i_flags &= ~EXT4_EXTENTS_FL;
+		ext4_clear_inode_flag(inode, EXT4_INODE_EXTENTS);
 		inode->i_op = &ext4_fast_symlink_inode_operations;
 		memcpy((char *)&EXT4_I(inode)->i_data, symname, l);
 		inode->i_size = l-1;
