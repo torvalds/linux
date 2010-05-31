@@ -624,7 +624,7 @@ void microblaze_cache_init(void)
 		if (cpuinfo.dcache_wb) {
 			INFO("wb_msr");
 			mbc = (struct scache *)&wb_msr;
-			if (cpuinfo.ver_code < CPUVER_7_20_D) {
+			if (cpuinfo.ver_code <= CPUVER_7_20_D) {
 				/* MS: problem with signal handling - hw bug */
 				INFO("WB won't work properly");
 			}
@@ -641,7 +641,7 @@ void microblaze_cache_init(void)
 		if (cpuinfo.dcache_wb) {
 			INFO("wb_nomsr");
 			mbc = (struct scache *)&wb_nomsr;
-			if (cpuinfo.ver_code < CPUVER_7_20_D) {
+			if (cpuinfo.ver_code <= CPUVER_7_20_D) {
 				/* MS: problem with signal handling - hw bug */
 				INFO("WB won't work properly");
 			}
