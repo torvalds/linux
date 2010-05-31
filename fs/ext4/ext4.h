@@ -1657,6 +1657,7 @@ struct ext4_group_info {
 	ext4_grpblk_t	bb_first_free;	/* first free block */
 	ext4_grpblk_t	bb_free;	/* total free blocks */
 	ext4_grpblk_t	bb_fragments;	/* nr of freespace fragments */
+	ext4_grpblk_t	bb_largest_free_order;/* order of largest frag in BG */
 	struct          list_head bb_prealloc_list;
 #ifdef DOUBLE_CHECK
 	void            *bb_bitmap;
