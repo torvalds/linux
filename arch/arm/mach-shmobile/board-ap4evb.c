@@ -745,14 +745,14 @@ static void __init ap4evb_init(void)
 
 	/* set SPU2 clock to 119.6 MHz */
 	clk = clk_get(NULL, "spu_clk");
-	if (!IS_ERR_VALUE(clk)) {
+	if (!IS_ERR(clk)) {
 		clk_set_rate(clk, clk_round_rate(clk, 119600000));
 		clk_put(clk);
 	}
 
 	/* change parent of FSI A */
 	clk = clk_get(NULL, "fsia_clk");
-	if (!IS_ERR_VALUE(clk)) {
+	if (!IS_ERR(clk)) {
 		clk_register(&fsiackcr_clk);
 		clk_set_parent(clk, &fsiackcr_clk);
 		clk_put(clk);
