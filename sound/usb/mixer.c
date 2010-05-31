@@ -686,16 +686,20 @@ struct usb_feature_control_info {
 };
 
 static struct usb_feature_control_info audio_feature_info[] = {
-	{ "Mute",		USB_MIXER_INV_BOOLEAN },
-	{ "Volume",		USB_MIXER_S16 },
+	{ "Mute",			USB_MIXER_INV_BOOLEAN },
+	{ "Volume",			USB_MIXER_S16 },
 	{ "Tone Control - Bass",	USB_MIXER_S8 },
 	{ "Tone Control - Mid",		USB_MIXER_S8 },
 	{ "Tone Control - Treble",	USB_MIXER_S8 },
 	{ "Graphic Equalizer",		USB_MIXER_S8 }, /* FIXME: not implemeted yet */
-	{ "Auto Gain Control",	USB_MIXER_BOOLEAN },
-	{ "Delay Control",	USB_MIXER_U16 },
-	{ "Bass Boost",		USB_MIXER_BOOLEAN },
-	{ "Loudness",		USB_MIXER_BOOLEAN },
+	{ "Auto Gain Control",		USB_MIXER_BOOLEAN },
+	{ "Delay Control",		USB_MIXER_U16 },
+	{ "Bass Boost",			USB_MIXER_BOOLEAN },
+	{ "Loudness",			USB_MIXER_BOOLEAN },
+	/* UAC2 specific */
+	{ "Input Gain Control",		USB_MIXER_U16 },
+	{ "Input Gain Pad Control",	USB_MIXER_BOOLEAN },
+	{ "Phase Inverter Control",	USB_MIXER_BOOLEAN },
 };
 
 
