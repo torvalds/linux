@@ -422,6 +422,34 @@ static struct platform_device *devices[] __initdata = {
 };
 
 extern struct sys_timer rk2818_timer;
+#define POWER_PIN	RK2818_PIN_PA3
+static void rk2818_power_on(void)
+{
+	int ret;
+	ret = gpio_request(POWER_PIN, NULL);
+	if (ret) {
+		printk("failed to request power_off gpio\n");
+		goto err_free_gpio;
+	}
+
+	gpio_pull_updown(POWER_PIN, GPIOPullUp);
+	ret = gpio_direction_output(POWER_PIN, GPIO_HIGH);
+	if (ret) {
+		printk("failed to set power_off gpio output\n");
+		goto err_free_gpio;
+	}
+
+	gpio_set_value(POWER_PIN, 1);/*power on*/
+	
+err_free_gpio:
+	gpio_free(POWER_PIN);
+}
+
+static void rk2818_power_off(void)
+{
+	printk("shut down system now ...\n");
+	gpio_set_value(POWER_PIN, 0);/*power down*/
+}
 
 static void __init machine_rk2818_init_irq(void)
 {
@@ -432,6 +460,8 @@ static void __init machine_rk2818_init_irq(void)
 
 static void __init machine_rk2818_board_init(void)
 {	
+	rk2818_power_on();
+	pm_power_off = rk2818_power_off;
 #ifdef CONFIG_I2C0_RK2818
 	i2c_register_board_info(default_i2c0_data.bus_num, board_i2c0_devices,
 			ARRAY_SIZE(board_i2c0_devices));

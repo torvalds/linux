@@ -28,7 +28,7 @@
 #include <mach/adc.h>
 #include <mach/iomux.h>
 
-#if 1
+#if 0
 #define DBG(x...)   printk(x)
 #else
 #define DBG(x...)

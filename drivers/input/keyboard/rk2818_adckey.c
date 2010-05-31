@@ -112,7 +112,7 @@ unsigned int rk28_get_keycode(unsigned int advalue,pADC_keyst ptab)
 	return 0;
 }
 
-static irqreturn_t rk2818_playkey_irq(int irq, void *handle)
+static irqreturn_t rk28_playkey_irq(int irq, void *handle)
 { 
 	input_report_key(pRk28AdcKey->input_dev,KEYSTART,1);
 	input_sync(pRk28AdcKey->input_dev);
@@ -121,6 +121,15 @@ static irqreturn_t rk2818_playkey_irq(int irq, void *handle)
 	printk("Enter::%s,LINE=%d,KEYSTART=%d,0\n",__FUNCTION__,__LINE__,KEYSTART);
 	
 	return IRQ_HANDLED;
+}
+
+
+void rk28_send_wakeup_key( void ) 
+{
+        input_report_key(pRk28AdcKey->input_dev,KEY_WAKEUP,1);
+        input_sync(pRk28AdcKey->input_dev);
+        input_report_key(pRk28AdcKey->input_dev,KEY_WAKEUP,0);
+        input_sync(pRk28AdcKey->input_dev);
 }
 
 static int rk28_adckey_open(struct input_dev *dev)
@@ -298,7 +307,7 @@ static int __devinit rk28_adckey_probe(struct platform_device *pdev)
 	}
 	
 	gpio_pull_updown(KEY_PLAYON_PIN,GPIOPullUp);
-	error = request_irq(gpio_to_irq(KEY_PLAYON_PIN),rk2818_playkey_irq,IRQF_TRIGGER_FALLING,NULL,NULL);  
+	error = request_irq(gpio_to_irq(KEY_PLAYON_PIN),rk28_playkey_irq,IRQF_TRIGGER_FALLING,NULL,NULL);  
 	if(error)
 	{
 		printk("unable to request play key irq\n");
