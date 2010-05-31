@@ -774,7 +774,7 @@ int rk2818_set_cursor(struct fb_info *info, struct fb_cursor *cursor)
             wq_condition = 0;
             wait_event_interruptible_timeout(wq, wq_condition, HZ/20);
         }
-        LcdSetBit(inf, SYS_CONFIG, m_HWC_RELOAD_EN);
+        LcdClrBit(inf, SYS_CONFIG, m_HWC_RELOAD_EN);
     }
 
     return 0;
@@ -1684,8 +1684,7 @@ static struct fb_ops win0fb_ops = {
 	.fb_setcolreg	= fb_setcolreg,
 	.fb_fillrect	= cfb_fillrect,
 	.fb_copyarea	= cfb_copyarea,
-	.fb_imageblit	= cfb_imageblit,	
-	.fb_rotate      = NULL,//win0fb_rotate,
+	.fb_imageblit	= cfb_imageblit,
 };
 
 static int win1fb_blank(int blank_mode, struct fb_info *info)
@@ -1727,8 +1726,8 @@ static int win1fb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
     u16 ylcd = screen->y_res;
     u8 trspmode = (var->grayscale>>8) & 0xff;
     u8 trspval = (var->grayscale) & 0xff;
-    //u16 xsize = var->xres;//(var->grayscale>>8) & 0xfff;    //visiable size in panel
-    u16 ysize = var->yres;//(var->grayscale>>20) & 0xfff;   
+    //u16 xsize = screen->x_res;    //visiable size in panel
+    u16 ysize = screen->y_res;   
 
     fbprintk(">>>>>> %s : %s\n", __FILE__, __FUNCTION__);
 
@@ -1805,10 +1804,10 @@ static int win1fb_set_par(struct fb_info *info)
    // u16 xpos_virtual = var->xoffset;           //visiable offset in virtual screen
    // u16 ypos_virtual = var->yoffset;
     
-    u16 xpos = (var->nonstd>>8) & 0xfff;        //visiable offset in panel
-    u16 ypos = (var->nonstd>>20) & 0xfff;
-    u16 xsize = var->xres;//(var->grayscale>>8) & 0xfff;    //visiable size in panel
-    u16 ysize = var->yres;//(var->grayscale>>20) & 0xfff;   
+    u16 xpos = 0;        //visiable offset in panel
+    u16 ypos = 0;
+    u16 xsize = screen->x_res;    //visiable size in panel
+    u16 ysize = screen->y_res;   
     u8 trspmode = TRSP_CLOSE;
     u8 trspval = 0;
 
