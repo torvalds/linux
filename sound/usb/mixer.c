@@ -462,6 +462,16 @@ static int set_cur_mix_value(struct usb_mixer_elem_info *cval, int channel,
 			     int index, int value)
 {
 	int err;
+	unsigned int read_only = (channel == 0) ?
+		cval->master_readonly :
+		cval->ch_readonly & (1 << (channel - 1));
+
+	if (read_only) {
+		snd_printdd(KERN_INFO "%s(): channel %d of control %d is read_only\n",
+			    __func__, channel, cval->control);
+		return 0;
+	}
+
 	err = snd_usb_mixer_set_ctl_value(cval, UAC_SET_CUR, (cval->control << 8) | channel,
 			    value);
 	if (err < 0)
@@ -958,7 +968,7 @@ static size_t append_ctl_name(struct snd_kcontrol *kctl, const char *str)
 static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 			      unsigned int ctl_mask, int control,
 			      struct usb_audio_term *iterm, int unitid,
-			      int read_only)
+			      int readonly_mask)
 {
 	struct uac_feature_unit_descriptor *desc = raw_desc;
 	unsigned int len = 0;
@@ -989,20 +999,25 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 	cval->control = control;
 	cval->cmask = ctl_mask;
 	cval->val_type = audio_feature_info[control-1].type;
-	if (ctl_mask == 0)
+	if (ctl_mask == 0) {
 		cval->channels = 1;	/* master channel */
-	else {
+		cval->master_readonly = readonly_mask;
+	} else {
 		int i, c = 0;
 		for (i = 0; i < 16; i++)
 			if (ctl_mask & (1 << i))
 				c++;
 		cval->channels = c;
+		cval->ch_readonly = readonly_mask;
 	}
 
 	/* get min/max values */
 	get_min_max(cval, 0);
 
-	if (read_only)
+	/* if all channels in the mask are marked read-only, make the control
+	 * read-only. set_cur_mix_value() will check the mask again and won't
+	 * issue write commands to read-only channels. */
+	if (cval->channels == readonly_mask)
 		kctl = snd_ctl_new1(&usb_feature_unit_ctl_ro, cval);
 	else
 		kctl = snd_ctl_new1(&usb_feature_unit_ctl, cval);
@@ -1195,9 +1210,12 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void 
 				}
 			}
 
-			/* FIXME: the whole unit is read-only if any of the channels is marked read-only */
+			/* NOTE: build_feature_ctl() will mark the control read-only if all channels
+			 * are marked read-only in the descriptors. Otherwise, the control will be
+			 * reported as writeable, but the driver will not actually issue a write
+			 * command for read-only channels */
 			if (ch_bits & 1) /* the first channel must be set (for ease of programming) */
-				build_feature_ctl(state, _ftr, ch_bits, i, &iterm, unitid, !!ch_read_only);
+				build_feature_ctl(state, _ftr, ch_bits, i, &iterm, unitid, ch_read_only);
 			if (uac2_control_is_readable(master_bits, i))
 				build_feature_ctl(state, _ftr, 0, i, &iterm, unitid,
 						  !uac2_control_is_writeable(master_bits, i));
