@@ -3394,6 +3394,8 @@ static inline void l2cap_send_i_or_rr_or_rnr(struct sock *sk)
 static int l2cap_add_to_srej_queue(struct sock *sk, struct sk_buff *skb, u8 tx_seq, u8 sar)
 {
 	struct sk_buff *next_skb;
+	struct l2cap_pinfo *pi = l2cap_pi(sk);
+	int tx_seq_offset, next_tx_seq_offset;
 
 	bt_cb(skb)->tx_seq = tx_seq;
 	bt_cb(skb)->sar = sar;
@@ -3404,11 +3406,20 @@ static int l2cap_add_to_srej_queue(struct sock *sk, struct sk_buff *skb, u8 tx_s
 		return 0;
 	}
 
+	tx_seq_offset = (tx_seq - pi->buffer_seq) % 64;
+	if (tx_seq_offset < 0)
+		tx_seq_offset += 64;
+
 	do {
 		if (bt_cb(next_skb)->tx_seq == tx_seq)
 			return -EINVAL;
 
-		if (bt_cb(next_skb)->tx_seq > tx_seq) {
+		next_tx_seq_offset = (bt_cb(next_skb)->tx_seq -
+						pi->buffer_seq) % 64;
+		if (next_tx_seq_offset < 0)
+			next_tx_seq_offset += 64;
+
+		if (next_tx_seq_offset > tx_seq_offset) {
 			__skb_queue_before(SREJ_QUEUE(sk), next_skb, skb);
 			return 0;
 		}
