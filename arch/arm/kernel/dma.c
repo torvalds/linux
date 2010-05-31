@@ -126,7 +126,7 @@ EXPORT_SYMBOL(free_dma);
  *
  * Copy irq handler to the structure
  */
- void set_dma_handler (unsigned int chan, void (*irq_handler) (int, void *), void *data)
+ void set_dma_handler (unsigned int chan, void (*irq_handler) (int, void *), void *data, unsigned int irq_mode)
 {
 	dma_t *dma = dma_channel(chan);
 
@@ -136,6 +136,7 @@ EXPORT_SYMBOL(free_dma);
 
 	dma->irqHandle = irq_handler;
 	dma->data = data;
+	dma->irq_mode = irq_mode;
 }
 EXPORT_SYMBOL(set_dma_handler);
 
@@ -264,6 +265,26 @@ int dma_channel_active(unsigned int chan)
 	dma_t *dma = dma_channel(chan);
 	return dma->active;
 }
+
+/*
+ * get dma transfer position
+ */
+void get_dma_position(unsigned int chan, dma_addr_t *src_pos, dma_addr_t *dst_pos)
+{
+	dma_t *dma = dma_channel(chan);
+
+    if (dma->d_ops->position)
+        dma->d_ops->position(chan, dma);
+
+	if (src_pos) {
+        *src_pos = dma->src_pos;
+	}
+
+    if (dst_pos) {
+        *dst_pos = dma->dst_pos;
+    }
+}
+
 EXPORT_SYMBOL(dma_channel_active);
 #if 0
 void set_dma_page(unsigned int chan, char pagenr)

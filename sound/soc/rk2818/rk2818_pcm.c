@@ -155,7 +155,7 @@ void audio_start_dma(struct snd_pcm_substream *substream, int mode)
 			disable_dma(prtd->params->channel);
 			//set_dma_sg(prtd->params->channel, &(sg_buf->sg), 1);
 			set_dma_mode(prtd->params->channel, DMA_MODE_WRITE);
-			set_dma_handler(prtd->params->channel, rockchip_pcm_dma_irq, substream);
+			set_dma_handler(prtd->params->channel, rockchip_pcm_dma_irq, substream, DMA_IRQ_RIGHTNOW_MODE);
 			__set_dma_addr(prtd->params->channel, (void *)(sg_buf->sg.dma_address));
 			set_dma_count(prtd->params->channel, sg_buf->sg.length);
 			enable_dma(prtd->params->channel);
@@ -185,7 +185,7 @@ void audio_start_dma(struct snd_pcm_substream *substream, int mode)
 			disable_dma(prtd->params->channel);
 			//set_dma_sg(prtd->params->channel, &(sg_buf->sg), 1);
 			set_dma_mode(prtd->params->channel, DMA_MODE_READ);
-			set_dma_handler(prtd->params->channel, rockchip_pcm_dma_irq, substream);			
+			set_dma_handler(prtd->params->channel, rockchip_pcm_dma_irq, substream, DMA_IRQ_RIGHTNOW_MODE);			
 			__set_dma_addr(prtd->params->channel, (void *)(sg_buf->sg.dma_address));
 			set_dma_count(prtd->params->channel, sg_buf->sg.length);
 			enable_dma(prtd->params->channel);
@@ -418,7 +418,9 @@ rockchip_pcm_pointer(struct snd_pcm_substream *substream)
     
 	DBG("Enter::%s----%d\n",__FUNCTION__,__LINE__);
 	spin_lock(&prtd->lock);
-	dma_getposition(prtd->params->channel, &src, &dst);
+
+    get_dma_position(prtd->params->channel, &src, &dst);			
+	//dma_getposition(prtd->params->channel, &src, &dst);
 	
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		res = dst - prtd->dma_start;

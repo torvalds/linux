@@ -19,6 +19,7 @@ struct dma_ops {
 	int	(*free)(unsigned int, dma_t *);			/* optional */
 	int	(*enable)(unsigned int, dma_t *);		/* mandatory */
 	int	(*disable)(unsigned int, dma_t *);		/* mandatory */
+	void (*position)(unsigned int, dma_t *);
 #if 0	
 	int	(*residue)(unsigned int, dma_t *);		/* optional */
 	int	(*setspeed)(unsigned int, dma_t *, int);	/* optional */
@@ -42,8 +43,12 @@ struct dma_struct {
 	unsigned int	lock;		/* Device is allocated		*/
 	const char	*device_id;	/* Device name			*/
 
-    int (*irqHandle)(int irq, void *dev_id);    /*irq callback*/
+    void (*irqHandle)(int irq, void *dev_id);    /*irq callback*/
     void *data;
+    unsigned int irq_mode;
+
+    dma_addr_t  src_pos;
+    dma_addr_t  dst_pos;
     
 	const struct dma_ops *d_ops;
 };

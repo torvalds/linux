@@ -130,7 +130,7 @@ const static struct rk28_dma_dev rk28_dev_info[] = {
  * rk28_dma_ctl_for_write - set dma control register for writing mode   
  *
  */
-static inline unsigned int rk28_dma_ctl_for_write(unsigned int dma_ch, struct rk28_dma_dev *dev_info, dma_t *dma_t)
+static inline unsigned int rk28_dma_ctl_for_write(unsigned int dma_ch, const struct rk28_dma_dev *dev_info, dma_t *dma_t)
 {    
 #ifdef test_dma
     unsigned int dev_mode = B_CTLL_MEM2MEM_DMAC;
@@ -155,7 +155,7 @@ static inline unsigned int rk28_dma_ctl_for_write(unsigned int dma_ch, struct rk
  * rk28_dma_ctl_for_read - set dma control register for reading mode   
  *
  */
-static inline unsigned int rk28_dma_ctl_for_read(unsigned int dma_ch, struct rk28_dma_dev *dev_info, dma_t *dma_t)
+static inline unsigned int rk28_dma_ctl_for_read(unsigned int dma_ch, const struct rk28_dma_dev *dev_info, dma_t *dma_t)
 {    
 #ifdef test_dma
     unsigned int dev_mode = B_CTLL_MEM2MEM_DMAC;
@@ -246,7 +246,7 @@ static void rk28_dma_write_to_sg(unsigned int dma_ch, dma_t *dma_t)
     struct rk28_dma_llp * rk28llp_phy;
     struct rk28_dma_llp rk28dma_reg;
     struct scatterlist *sg;
-	unsigned int wid_off;
+	unsigned int wid_off, bk_count, bk_res, sgcount_tmp, bk_length;
 	
     rk28dma = &rk2818_dma[dma_ch];
     	
@@ -258,16 +258,36 @@ static void rk28_dma_write_to_sg(unsigned int dma_ch, dma_t *dma_t)
         rk28llp_vir = rk28dma->dma_llp_vir;
         rk28llp_phy = (struct rk28_dma_llp *)rk28dma->dma_llp_phy;
         sg = dma_t->sg;
+#if 1
+        bk_length = RK28_DMA_CH0A1_MAX_LEN << wid_off;
+        
+        for (sgcount_tmp = 0; sgcount_tmp < dma_t->sgcount; sgcount_tmp++, sg++) { 
+            bk_count = (sg->length >> wid_off) / RK28_DMA_CH0A1_MAX_LEN;
+            bk_res = (sg->length >> wid_off) % RK28_DMA_CH0A1_MAX_LEN;
+            for (i = 0; i < bk_count; i++) { 
+                rk28_dma_set_llp(dev_addr_w,
+                               sg->dma_address + i * bk_length, 
+                               rk28llp_vir++,
+                               ++rk28llp_phy,
+                               ctll_r,
+                               RK28_DMA_CH0A1_MAX_LEN);
+            }
+            if (bk_res > 0) {
+                rk28_dma_set_llp(dev_addr_w,
+                               sg->dma_address + bk_count * bk_length,
+                               rk28llp_vir++,
+                               ++rk28llp_phy,
+                               ctll_r,
+                               bk_res);
+            }
+        }
+#else
         for (i = 0; i < dma_t->sgcount; i++, sg++) { 
             rk28_dma_set_llp(dev_addr_w, sg->dma_address, rk28llp_vir++, ++rk28llp_phy, ctll_r, (sg->length >> wid_off));
-        } 
+        }
+#endif        
         rk28_dma_end_of_llp(rk28llp_vir - 1);
-
-        rk28dma_reg.sar = 0;//dev_addr_w;
-        rk28dma_reg.dar = 0;//dma_t->sg->dma_address;
-        rk28dma_reg.ctll = ctll_r;
         rk28dma_reg.llp = (struct rk28_dma_llp *)rk28dma->dma_llp_phy;
-        rk28dma_reg.size = 0;//dma_t->sg->length;
     } else { /*single transfer*/
         if (dma_t->buf.length > RK28_DMA_CH2_MAX_LEN) {
             rk28dma->length = RK28_DMA_CH2_MAX_LEN;
@@ -276,12 +296,12 @@ static void rk28_dma_write_to_sg(unsigned int dma_ch, dma_t *dma_t)
             rk28dma->length = dma_t->buf.length;
             rk28dma->residue = 0;
         }
-        rk28dma_reg.sar = dev_addr_w;
-        rk28dma_reg.dar = dma_t->buf.dma_address;
-        rk28dma_reg.ctll = ctll_r;
         rk28dma_reg.llp = NULL;
-        rk28dma_reg.size = rk28dma->length;
     }
+    rk28dma_reg.sar = dev_addr_w;
+    rk28dma_reg.dar = dma_t->buf.dma_address;
+    rk28dma_reg.ctll = ctll_r;
+    rk28dma_reg.size = rk28dma->length;
     rk28_dma_set_reg(dma_ch, &rk28dma_reg, rk28dma->dev_info->hd_if_r);
     /*
     printk(KERN_INFO "dma_write_to_sg: ch = %d, sar = 0x%x, dar = 0x%x, ctll = 0x%x, llp = 0x%x, size = %d, \n", 
@@ -316,10 +336,10 @@ static void rk28_dma_read_from_sg(unsigned int dma_ch, dma_t *dma_t)
     struct rk28_dma_llp * rk28llp_phy;
     struct rk28_dma_llp rk28dma_reg;
     struct scatterlist *sg;
-	unsigned int wid_off;
+	unsigned int wid_off, bk_count, bk_res, sgcount_tmp, bk_length;
 
     rk28dma = &rk2818_dma[dma_ch];
-    
+        
     /*setup linked list table end*/
     dev_addr_r = rk28dma->dev_info->dev_addr_r;
     ctll_w = rk28_dma_ctl_for_write(dma_ch, rk28dma->dev_info, dma_t);
@@ -329,16 +349,36 @@ static void rk28_dma_read_from_sg(unsigned int dma_ch, dma_t *dma_t)
         rk28llp_vir = rk28dma->dma_llp_vir;
         rk28llp_phy = (struct rk28_dma_llp *)rk28dma->dma_llp_phy;
         sg = dma_t->sg;
+#if 1
+        bk_length = RK28_DMA_CH0A1_MAX_LEN << wid_off;
+        
+        for (sgcount_tmp = 0; sgcount_tmp < dma_t->sgcount; sgcount_tmp++, sg++) { 
+            bk_count = (sg->length >> wid_off) / RK28_DMA_CH0A1_MAX_LEN;
+            bk_res = (sg->length >> wid_off) % RK28_DMA_CH0A1_MAX_LEN;
+            for (i = 0; i < bk_count; i++) { 
+                rk28_dma_set_llp(sg->dma_address + i * bk_length, 
+                               dev_addr_r,
+                               rk28llp_vir++,
+                               ++rk28llp_phy,
+                               ctll_w,
+                               RK28_DMA_CH0A1_MAX_LEN);
+            }
+            if (bk_res > 0) {
+                rk28_dma_set_llp(sg->dma_address + bk_count * bk_length,
+                               dev_addr_r,
+                               rk28llp_vir++,
+                               ++rk28llp_phy,
+                               ctll_w,
+                               bk_res);
+            }
+        }
+#else
         for (i = 0; i < dma_t->sgcount; i++, sg++) { 
             rk28_dma_set_llp(sg->dma_address, dev_addr_r, rk28llp_vir++, ++rk28llp_phy, ctll_w, (sg->length >> wid_off));
         }
+#endif        
         rk28_dma_end_of_llp(rk28llp_vir - 1);
-
-        rk28dma_reg.sar = 0;//dma_t->sg->dma_address;
-        rk28dma_reg.dar = 0;//dev_addr_r;
-        rk28dma_reg.ctll = ctll_w;
         rk28dma_reg.llp = (struct rk28_dma_llp *)rk28dma->dma_llp_phy;
-        rk28dma_reg.size = 0;//dma_t->sg->length;
     } else { /*single transfer*/
         if (dma_t->buf.length > RK28_DMA_CH2_MAX_LEN) {
             rk28dma->length = RK28_DMA_CH2_MAX_LEN;
@@ -347,12 +387,12 @@ static void rk28_dma_read_from_sg(unsigned int dma_ch, dma_t *dma_t)
             rk28dma->length = dma_t->buf.length;
             rk28dma->residue = 0;
         } 
-        rk28dma_reg.sar = dma_t->buf.dma_address;
-        rk28dma_reg.dar = dev_addr_r;
-        rk28dma_reg.ctll = ctll_w;
         rk28dma_reg.llp = NULL;
-        rk28dma_reg.size = rk28dma->length;
     }
+    rk28dma_reg.sar = dma_t->buf.dma_address;
+    rk28dma_reg.dar = dev_addr_r;
+    rk28dma_reg.ctll = ctll_w;
+    rk28dma_reg.size = rk28dma->length;
     rk28_dma_set_reg(dma_ch, &rk28dma_reg, rk28dma->dev_info->hd_if_w);
 
     //printk(KERN_INFO "read_from_sg: ch = %d, sar = 0x%x, dar = 0x%x, ctll = 0x%x, llp = 0x%x, size = %d, \n", 
@@ -430,6 +470,8 @@ static int rk28_dma_disable(unsigned int dma_ch, dma_t *dma_t)
 	while (GET_DWDMA_STATUS(dma_ch))
 		cpu_relax();
 		
+    rk28dma->tasklet_flag = 0;
+    
 	spin_unlock(&rk28dma->lock);
 	
     return 0;	
@@ -471,13 +513,15 @@ static int rk28_dma_request(unsigned int dma_ch, dma_t *dma_t)
         }
     } else {
         rk28dma->dma_llp_vir = NULL;
-        rk28dma->dma_llp_phy = NULL;
+        rk28dma->dma_llp_phy = 0;
     }
     
     rk28dma->dev_info = &rk28_dev_info[i];
 	
 	/* clear interrupt */
     CLR_DWDMA_INTR(dma_ch);
+    
+	UN_MASK_DWDMA_TRF_INTR(dma_ch);
 
 	spin_unlock(&rk28dma->lock);
 
@@ -500,6 +544,8 @@ static int rk28_dma_free(unsigned int dma_ch, dma_t *dma_t)
 	
 	/* clear interrupt */
     CLR_DWDMA_INTR(dma_ch);
+    
+	MASK_DWDMA_TRF_INTR(dma_ch);
 
 	if (dma_ch < RK28_DMA_CH2) {
         if (!rk28dma->dma_llp_vir) {
@@ -515,7 +561,7 @@ static int rk28_dma_free(unsigned int dma_ch, dma_t *dma_t)
     rk28dma->dma_t.addr = NULL;
     rk28dma->dma_t.count = 0;      
     rk28dma->dma_llp_vir = NULL;
-    rk28dma->dma_llp_phy = NULL;
+    rk28dma->dma_llp_phy = 0;
     rk28dma->residue = 0;
     rk28dma->length = 0;
 
@@ -581,6 +627,27 @@ static int rk28_dma_next(unsigned int dma_ch)
  */
 static void rk28_dma_tasklet(unsigned long data)
 {
+	int i;
+    struct rk2818_dma *rk28dma;
+
+    for (i = 0; i < MAX_DMA_CHANNELS; i++) {
+        rk28dma = &rk2818_dma[i];
+        if ((rk28dma->tasklet_flag) && (rk28dma->dma_t.irq_mode == DMA_IRQ_DELAY_MODE)) {
+            rk28dma->dma_t.active = 0;
+            rk28dma->tasklet_flag = 0;
+            if (rk28dma->dma_t.irqHandle)
+                rk28dma->dma_t.irqHandle(i, rk28dma->dma_t.data);
+            UN_MASK_DWDMA_TRF_INTR(i);
+        }
+    }
+}
+
+/**
+ * rk28_dma_irq_handler - irq callback function   
+ *
+ */
+static irqreturn_t rk28_dma_irq_handler(int irq, void *dev_id)
+{
 	int i, raw_status;
     struct rk2818_dma *rk28dma;
 
@@ -596,58 +663,42 @@ static void rk28_dma_tasklet(unsigned long data)
                 //printk(KERN_WARNING "dma_irq: don't finish  for channel %d\n", i);
                 continue;
             }  
-            /* already complete transfer */
-            rk28dma->dma_t.active = 0;
-            
+
             if (rk28dma->dma_t.irqHandle) {
-                void *data = rk28dma->dma_t.data;
-                rk28dma->dma_t.irqHandle(i, data);
+                if (rk28dma->dma_t.irq_mode != DMA_IRQ_DELAY_MODE) {
+                    /* already have completed transfer */
+                    rk28dma->dma_t.active = 0;
+                    rk28dma->dma_t.irqHandle(i, rk28dma->dma_t.data);
+                } else {
+                    MASK_DWDMA_TRF_INTR(i);
+                    rk28dma->tasklet_flag = 1;
+                    tasklet_schedule(&rk2818_dma_tasklet);
+                    //printk(KERN_WARNING "dma_irq: no IRQ handler for DMA channel %d\n", i);
+                }
             } else {
-                printk(KERN_WARNING "dma_irq: no IRQ handler for DMA channel %d\n", i);
-            }
+                /* already have completed transfer */
+                rk28dma->dma_t.active = 0;
+            }   
         }
 	}
-	/*
-	 * Re-enable interrupts
-	 */
-	UN_MASK_DWDMA_ALL_TRF_INTR;
-}
-
-/**
- * rk28_dma_irq_handler - irq callback function   
- *
- */
-static irqreturn_t rk28_dma_irq_handler(int irq, void *dev_id)
-{
-	/*
-	 * Just disable the interrupts. We'll turn them back on in the
-	 * softirq handler.
-	 */
-	MASK_DWDMA_ALL_TRF_INTR;
 	
-    tasklet_schedule(&rk2818_dma_tasklet);
+    //tasklet_schedule(&rk2818_dma_tasklet);
 
 	return IRQ_HANDLED;
 }
 
-
-int dma_getposition(unsigned int  channel, dma_addr_t *src, dma_addr_t *dst)
+static void rk28_dma_position(unsigned int dma_ch, dma_t *dma_t)
 {
-	u32 phy_ch = channel;
-    if (src != NULL)
-        *src = read_dma_reg(DWDMA_SAR(phy_ch));
-    if (dst != NULL)     
-        *dst = read_dma_reg(DWDMA_DAR(phy_ch)); 
-    
- 	return 0;
+    dma_t->src_pos = read_dma_reg(DWDMA_SAR(dma_ch));
+    dma_t->dst_pos = read_dma_reg(DWDMA_DAR(dma_ch));
 }
-EXPORT_SYMBOL(dma_getposition);
 
 static struct dma_ops rk2818_dma_ops = {
     .request = rk28_dma_request,
     .free = rk28_dma_free,
     .enable = rk28_dma_enable,
     .disable = rk28_dma_disable,
+    .position = rk28_dma_position,
 };
 
 /**
@@ -671,9 +722,10 @@ static int __init rk28_dma_init(void)
 	    dma_add(i, &rk2818_dma[i].dma_t);
 
         rk2818_dma[i].dma_llp_vir = NULL;
-        rk2818_dma[i].dma_llp_phy = NULL;
+        rk2818_dma[i].dma_llp_phy = 0;
         rk2818_dma[i].residue = 0;
         rk2818_dma[i].length = 0;
+        rk2818_dma[i].tasklet_flag = 0;
 	}
     	
 	/* clear all interrupts */
@@ -690,7 +742,8 @@ static int __init rk28_dma_init(void)
 	write_dma_reg(DWDMA_MaskErr, 0x3f00);
 
     /*unmask transfer completion interrupt*/
-	UN_MASK_DWDMA_ALL_TRF_INTR;
+	//UN_MASK_DWDMA_ALL_TRF_INTR;
+	MASK_DWDMA_ALL_TRF_INTR;
 
 	ret = request_irq(RK28_DMA_IRQ_NUM, rk28_dma_irq_handler, 0, "DMA", NULL);
 	if (ret < 0) {
@@ -698,7 +751,7 @@ static int __init rk28_dma_init(void)
 		return ret;
 	}
 
-	tasklet_init(&rk2818_dma_tasklet, rk28_dma_tasklet, NULL);
+	tasklet_init(&rk2818_dma_tasklet, rk28_dma_tasklet, 0);
 
 	/* enable DMA module */
 	write_dma_reg(DWDMA_DmaCfgReg, 0x01);

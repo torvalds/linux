@@ -151,9 +151,11 @@
 
    /* Unmask interrupt */
 #define UN_MASK_DWDMA_ALL_TRF_INTR        write_dma_reg(DWDMA_MaskTfr, 0x3f3f)//mask_dma_reg(DWDMA_MaskTfr, 0x101<<dma_ch, 0x101<<dma_ch)
+#define UN_MASK_DWDMA_TRF_INTR(dma_ch)    mask_dma_reg(DWDMA_MaskTfr, 0x101<<dma_ch, 0x101<<dma_ch)
 
    /* Mask interrupt */
 #define MASK_DWDMA_ALL_TRF_INTR           write_dma_reg(DWDMA_MaskTfr, 0x3f00)//mask_dma_reg(DWDMA_MaskTfr, 0x101<<dma_ch, 0x100<<dma_ch)
+#define MASK_DWDMA_TRF_INTR(dma_ch)       mask_dma_reg(DWDMA_MaskTfr, 0x101<<dma_ch, 0x100<<dma_ch)
 
    /* Enable channel */
 #define ENABLE_DWDMA(dma_ch)              mask_dma_reg(DWDMA_ChEnReg, 0x101<<dma_ch, 0x101<<dma_ch)
@@ -197,11 +199,12 @@ struct rk28_dma_dev {
 
 struct rk2818_dma {
     dma_t  dma_t;
-	struct rk28_dma_dev *dev_info;/* basic address of sg in memory */
+	const struct rk28_dma_dev *dev_info;/* basic address of sg in memory */
     struct rk28_dma_llp *dma_llp_vir;  /* virtual cpu addrress of linked list */
     unsigned int dma_llp_phy;                   /* physical bus address of linked list */
 	unsigned int length;     /* current transfer block */ 
 	unsigned int residue;     /* residue block of current dma transfer */
+	unsigned int tasklet_flag;
 	spinlock_t		lock;
 };
 

@@ -51,6 +51,13 @@
 #define DMA_AUTOINIT	 0x10
 
 
+/*
+ * The DMA irq modes 
+ */
+#define DMA_IRQ_DELAY_MODE	     0x00   /*performan in software irq handleer*/
+#define DMA_IRQ_RIGHTNOW_MODE	 0x01   /*performan in dwdma irq handleer*/
+
+
 /* Request a DMA channel
  *
  * Some architectures may need to do allocate an interrupt
@@ -96,10 +103,8 @@ extern void set_dma_sg(unsigned int chan, struct scatterlist *sg, int nr_sg);
  * DMA address immediately, but defer it to the enable_dma().
  */
 extern void __set_dma_addr(unsigned int chan, void *addr);
-#define set_dma_addr(chan, addr)				\
-	__set_dma_addr(chan, addr)	
-	//__set_dma_addr(chan, bus_to_virt(addr))
-	
+
+#define set_dma_addr(chan, addr)	__set_dma_addr(chan, addr)//__set_dma_addr(chan, bus_to_virt(addr))
 
 /* Set the DMA byte count for this channel
  *
@@ -132,7 +137,12 @@ extern int  get_dma_residue(unsigned int chan);
 #endif
 /* Set dam irq callback that perform when dma transfer has completed
  */
-extern void set_dma_handler (unsigned int chan, void (*irq_handler) (int, void *), void *data);
+extern void set_dma_handler (unsigned int chan, void (*irq_handler) (int, void *), void *data, unsigned int irq_mode);
 
-extern int dma_getposition(unsigned int  channel, dma_addr_t *src, dma_addr_t *dst);
+
+/*
+ * get dma transfer position
+ */
+extern void get_dma_position(unsigned int chan, dma_addr_t *src_pos, dma_addr_t *dst_pos);
+
 #endif /* __ASM_ARM_DMA_H */

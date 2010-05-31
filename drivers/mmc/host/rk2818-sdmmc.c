@@ -402,7 +402,7 @@ static int rk2818_sdmmc_submit_data_dma(struct rk2818_sdmmc_host *host, struct m
 	set_dma_sg(host->dma_chn, data->sg, data->sg_len);
 	set_dma_mode(host->dma_chn,
 				(data->flags & MMC_DATA_READ)? DMA_MODE_READ : DMA_MODE_WRITE);
-	set_dma_handler(host->dma_chn, rk2818_sdmmc_dma_complete, (void *)host);
+	set_dma_handler(host->dma_chn, rk2818_sdmmc_dma_complete, (void *)host, DMA_IRQ_DELAY_MODE);
 	writel(readl(host->regs + SDMMC_CTRL) | SDMMC_CTRL_DMA_ENABLE,
 				host->regs +SDMMC_CTRL);
 	enable_dma(host->dma_chn);
