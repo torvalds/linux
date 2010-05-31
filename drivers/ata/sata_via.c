@@ -558,6 +558,19 @@ static void svia_configure(struct pci_dev *pdev)
 		tmp8 |= NATIVE_MODE_ALL;
 		pci_write_config_byte(pdev, SATA_NATIVE_MODE, tmp8);
 	}
+
+	/*
+	 * vt6421 has problems talking to some drives.  The following
+	 * is the magic fix from Joseph Chan <JosephChan@via.com.tw>.
+	 * Please add proper documentation if possible.
+	 *
+	 * https://bugzilla.kernel.org/show_bug.cgi?id=15173
+	 */
+	if (pdev->device == 0x3249) {
+		pci_read_config_byte(pdev, 0x52, &tmp8);
+		tmp8 |= 1 << 2;
+		pci_write_config_byte(pdev, 0x52, tmp8);
+	}
 }
 
 static int svia_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
