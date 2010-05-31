@@ -1840,7 +1840,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.oprofile_cpu_type	= "ppc/e500mc",
 		.oprofile_type		= PPC_OPROFILE_FSL_EMB,
 		.cpu_setup		= __setup_cpu_e500mc,
-		.machine_check		= machine_check_e500,
+		.machine_check		= machine_check_e500mc,
 		.platform		= "ppce500mc",
 	},
 	{	/* default match */
