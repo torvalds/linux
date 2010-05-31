@@ -165,21 +165,23 @@ static int check_mapped_selector_name(struct mixer_build *state, int unitid,
 
 /*
  * find an audio control unit with the given unit id
- * this doesn't return any clock related units, so they need to be handled elsewhere
  */
 static void *find_audio_control_unit(struct mixer_build *state, unsigned char unit)
 {
-	unsigned char *p;
+	/* we just parse the header */
+	struct uac_feature_unit_descriptor *hdr = NULL;
 
-	p = NULL;
-	while ((p = snd_usb_find_desc(state->buffer, state->buflen, p,
-				      USB_DT_CS_INTERFACE)) != NULL) {
-		if (p[0] >= 4 && p[2] >= UAC_INPUT_TERMINAL && p[2] <= UAC2_EXTENSION_UNIT_V2 && p[3] == unit)
-			return p;
+	while ((hdr = snd_usb_find_desc(state->buffer, state->buflen, hdr,
+					USB_DT_CS_INTERFACE)) != NULL) {
+		if (hdr->bLength >= 4 &&
+		    hdr->bDescriptorSubtype >= UAC_INPUT_TERMINAL &&
+		    hdr->bDescriptorSubtype <= UAC2_SAMPLE_RATE_CONVERTER &&
+		    hdr->bUnitID == unit)
+			return hdr;
 	}
+
 	return NULL;
 }
-
 
 /*
  * copy a string with the given id
