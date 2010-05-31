@@ -78,39 +78,6 @@ enum {
 	USB_MIXER_U16,
 };
 
-enum {
-	USB_PROC_UPDOWN = 1,
-	USB_PROC_UPDOWN_SWITCH = 1,
-	USB_PROC_UPDOWN_MODE_SEL = 2,
-
-	USB_PROC_PROLOGIC = 2,
-	USB_PROC_PROLOGIC_SWITCH = 1,
-	USB_PROC_PROLOGIC_MODE_SEL = 2,
-
-	USB_PROC_3DENH = 3,
-	USB_PROC_3DENH_SWITCH = 1,
-	USB_PROC_3DENH_SPACE = 2,
-
-	USB_PROC_REVERB = 4,
-	USB_PROC_REVERB_SWITCH = 1,
-	USB_PROC_REVERB_LEVEL = 2,
-	USB_PROC_REVERB_TIME = 3,
-	USB_PROC_REVERB_DELAY = 4,
-
-	USB_PROC_CHORUS = 5,
-	USB_PROC_CHORUS_SWITCH = 1,
-	USB_PROC_CHORUS_LEVEL = 2,
-	USB_PROC_CHORUS_RATE = 3,
-	USB_PROC_CHORUS_DEPTH = 4,
-
-	USB_PROC_DCR = 6,
-	USB_PROC_DCR_SWITCH = 1,
-	USB_PROC_DCR_RATIO = 2,
-	USB_PROC_DCR_MAX_AMP = 3,
-	USB_PROC_DCR_THRESHOLD = 4,
-	USB_PROC_DCR_ATTACK = 5,
-	USB_PROC_DCR_RELEASE = 6,
-};
 
 /*E-mu 0202(0404) eXtension Unit(XU) control*/
 enum {
@@ -980,7 +947,7 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 
 	control++; /* change from zero-based to 1-based value */
 
-	if (control == UAC_GRAPHIC_EQUALIZER_CONTROL) {
+	if (control == UAC_FU_GRAPHIC_EQUALIZER) {
 		/* FIXME: not supported yet */
 		return;
 	}
@@ -1036,8 +1003,8 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 				kctl->id.name, sizeof(kctl->id.name));
 
 	switch (control) {
-	case UAC_MUTE_CONTROL:
-	case UAC_VOLUME_CONTROL:
+	case UAC_FU_MUTE:
+	case UAC_FU_VOLUME:
 		/* determine the control name.  the rule is:
 		 * - if a name id is given in descriptor, use it.
 		 * - if the connected input can be determined, then use the name
@@ -1064,9 +1031,9 @@ static void build_feature_ctl(struct mixer_build *state, void *raw_desc,
 				len = append_ctl_name(kctl, " Playback");
 			}
 		}
-		append_ctl_name(kctl, control == UAC_MUTE_CONTROL ?
+		append_ctl_name(kctl, control == UAC_FU_MUTE ?
 				" Switch" : " Volume");
-		if (control == UAC_VOLUME_CONTROL) {
+		if (control == UAC_FU_VOLUME) {
 			kctl->tlv.c = mixer_vol_tlv;
 			kctl->vd[0].access |= 
 				SNDRV_CTL_ELEM_ACCESS_TLV_READ |
@@ -1165,7 +1132,7 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void 
 		snd_printk(KERN_INFO
 			   "usbmixer: master volume quirk for PCM2702 chip\n");
 		/* disable non-functional volume control */
-		master_bits &= ~UAC_FU_VOLUME;
+		master_bits &= ~UAC_CONTROL_BIT(UAC_FU_VOLUME);
 		break;
 	}
 	if (channels > 0)
@@ -1410,51 +1377,51 @@ struct procunit_info {
 };
 
 static struct procunit_value_info updown_proc_info[] = {
-	{ USB_PROC_UPDOWN_SWITCH, "Switch", USB_MIXER_BOOLEAN },
-	{ USB_PROC_UPDOWN_MODE_SEL, "Mode Select", USB_MIXER_U8, 1 },
+	{ UAC_UD_ENABLE, "Switch", USB_MIXER_BOOLEAN },
+	{ UAC_UD_MODE_SELECT, "Mode Select", USB_MIXER_U8, 1 },
 	{ 0 }
 };
 static struct procunit_value_info prologic_proc_info[] = {
-	{ USB_PROC_PROLOGIC_SWITCH, "Switch", USB_MIXER_BOOLEAN },
-	{ USB_PROC_PROLOGIC_MODE_SEL, "Mode Select", USB_MIXER_U8, 1 },
+	{ UAC_DP_ENABLE, "Switch", USB_MIXER_BOOLEAN },
+	{ UAC_DP_MODE_SELECT, "Mode Select", USB_MIXER_U8, 1 },
 	{ 0 }
 };
 static struct procunit_value_info threed_enh_proc_info[] = {
-	{ USB_PROC_3DENH_SWITCH, "Switch", USB_MIXER_BOOLEAN },
-	{ USB_PROC_3DENH_SPACE, "Spaciousness", USB_MIXER_U8 },
+	{ UAC_3D_ENABLE, "Switch", USB_MIXER_BOOLEAN },
+	{ UAC_3D_SPACE, "Spaciousness", USB_MIXER_U8 },
 	{ 0 }
 };
 static struct procunit_value_info reverb_proc_info[] = {
-	{ USB_PROC_REVERB_SWITCH, "Switch", USB_MIXER_BOOLEAN },
-	{ USB_PROC_REVERB_LEVEL, "Level", USB_MIXER_U8 },
-	{ USB_PROC_REVERB_TIME, "Time", USB_MIXER_U16 },
-	{ USB_PROC_REVERB_DELAY, "Delay", USB_MIXER_U8 },
+	{ UAC_REVERB_ENABLE, "Switch", USB_MIXER_BOOLEAN },
+	{ UAC_REVERB_LEVEL, "Level", USB_MIXER_U8 },
+	{ UAC_REVERB_TIME, "Time", USB_MIXER_U16 },
+	{ UAC_REVERB_FEEDBACK, "Feedback", USB_MIXER_U8 },
 	{ 0 }
 };
 static struct procunit_value_info chorus_proc_info[] = {
-	{ USB_PROC_CHORUS_SWITCH, "Switch", USB_MIXER_BOOLEAN },
-	{ USB_PROC_CHORUS_LEVEL, "Level", USB_MIXER_U8 },
-	{ USB_PROC_CHORUS_RATE, "Rate", USB_MIXER_U16 },
-	{ USB_PROC_CHORUS_DEPTH, "Depth", USB_MIXER_U16 },
+	{ UAC_CHORUS_ENABLE, "Switch", USB_MIXER_BOOLEAN },
+	{ UAC_CHORUS_LEVEL, "Level", USB_MIXER_U8 },
+	{ UAC_CHORUS_RATE, "Rate", USB_MIXER_U16 },
+	{ UAC_CHORUS_DEPTH, "Depth", USB_MIXER_U16 },
 	{ 0 }
 };
 static struct procunit_value_info dcr_proc_info[] = {
-	{ USB_PROC_DCR_SWITCH, "Switch", USB_MIXER_BOOLEAN },
-	{ USB_PROC_DCR_RATIO, "Ratio", USB_MIXER_U16 },
-	{ USB_PROC_DCR_MAX_AMP, "Max Amp", USB_MIXER_S16 },
-	{ USB_PROC_DCR_THRESHOLD, "Threshold", USB_MIXER_S16 },
-	{ USB_PROC_DCR_ATTACK, "Attack Time", USB_MIXER_U16 },
-	{ USB_PROC_DCR_RELEASE, "Release Time", USB_MIXER_U16 },
+	{ UAC_DCR_ENABLE, "Switch", USB_MIXER_BOOLEAN },
+	{ UAC_DCR_RATE, "Ratio", USB_MIXER_U16 },
+	{ UAC_DCR_MAXAMPL, "Max Amp", USB_MIXER_S16 },
+	{ UAC_DCR_THRESHOLD, "Threshold", USB_MIXER_S16 },
+	{ UAC_DCR_ATTACK_TIME, "Attack Time", USB_MIXER_U16 },
+	{ UAC_DCR_RELEASE_TIME, "Release Time", USB_MIXER_U16 },
 	{ 0 }
 };
 
 static struct procunit_info procunits[] = {
-	{ USB_PROC_UPDOWN, "Up Down", updown_proc_info },
-	{ USB_PROC_PROLOGIC, "Dolby Prologic", prologic_proc_info },
-	{ USB_PROC_3DENH, "3D Stereo Extender", threed_enh_proc_info },
-	{ USB_PROC_REVERB, "Reverb", reverb_proc_info },
-	{ USB_PROC_CHORUS, "Chorus", chorus_proc_info },
-	{ USB_PROC_DCR, "DCR", dcr_proc_info },
+	{ UAC_PROCESS_UP_DOWNMIX, "Up Down", updown_proc_info },
+	{ UAC_PROCESS_DOLBY_PROLOGIC, "Dolby Prologic", prologic_proc_info },
+	{ UAC_PROCESS_STEREO_EXTENDER, "3D Stereo Extender", threed_enh_proc_info },
+	{ UAC_PROCESS_REVERB, "Reverb", reverb_proc_info },
+	{ UAC_PROCESS_CHORUS, "Chorus", chorus_proc_info },
+	{ UAC_PROCESS_DYN_RANGE_COMP, "DCR", dcr_proc_info },
 	{ 0 },
 };
 /*
@@ -1542,7 +1509,7 @@ static int build_audio_procunit(struct mixer_build *state, int unitid, void *raw
 		cval->channels = 1;
 
 		/* get min/max values */
-		if (type == USB_PROC_UPDOWN && cval->control == USB_PROC_UPDOWN_MODE_SEL) {
+		if (type == UAC_PROCESS_UP_DOWNMIX && cval->control == UAC_UD_MODE_SELECT) {
 			__u8 *control_spec = uac_processing_unit_specific(desc, state->mixer->protocol);
 			/* FIXME: hard-coded */
 			cval->min = 1;
