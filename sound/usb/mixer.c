@@ -1188,9 +1188,9 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void 
 
 			for (j = 0; j < channels; j++) {
 				unsigned int mask = snd_usb_combine_bytes(bmaControls + csize * (j+1), csize);
-				if (mask & (1 << (i * 2))) {
+				if (uac2_control_is_readable(mask, i)) {
 					ch_bits |= (1 << j);
-					if (~mask & (1 << ((i * 2) + 1)))
+					if (!uac2_control_is_writeable(mask, i))
 						ch_read_only |= (1 << j);
 				}
 			}
@@ -1198,9 +1198,9 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void 
 			/* FIXME: the whole unit is read-only if any of the channels is marked read-only */
 			if (ch_bits & 1) /* the first channel must be set (for ease of programming) */
 				build_feature_ctl(state, _ftr, ch_bits, i, &iterm, unitid, !!ch_read_only);
-			if (master_bits & (1 << i * 2))
+			if (uac2_control_is_readable(master_bits, i))
 				build_feature_ctl(state, _ftr, 0, i, &iterm, unitid,
-						  ~master_bits & (1 << ((i * 2) + 1)));
+						  !uac2_control_is_writeable(master_bits, i));
 		}
 	}
 

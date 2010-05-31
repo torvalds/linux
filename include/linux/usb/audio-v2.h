@@ -18,6 +18,16 @@
 /* v1.0 and v2.0 of this standard have many things in common. For the rest
  * of the definitions, please refer to audio.h */
 
+static inline bool uac2_control_is_readable(u32 bmControls, u8 control)
+{
+	return (bmControls >> (control * 2)) & 0x1;
+}
+
+static inline bool uac2_control_is_writeable(u32 bmControls, u8 control)
+{
+	return (bmControls >> (control * 2)) & 0x2;
+}
+
 /* 4.7.2.1 Clock Source Descriptor */
 
 struct uac_clock_source_descriptor {
