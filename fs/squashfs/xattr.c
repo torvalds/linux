@@ -295,7 +295,7 @@ static const struct xattr_handler squashfs_xattr_security_handler = {
 	.get	= squashfs_security_get
 };
 
-static inline const struct xattr_handler *squashfs_xattr_handler(int type)
+static const struct xattr_handler *squashfs_xattr_handler(int type)
 {
 	if (type & ~(SQUASHFS_XATTR_PREFIX_MASK | SQUASHFS_XATTR_VALUE_OOL))
 		/* ignore unrecognised type */
