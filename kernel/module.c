@@ -2014,6 +2014,7 @@ static noinline struct module *load_module(void __user *umod,
 	long err = 0;
 	void *ptr = NULL; /* Stops spurious gcc warning */
 	unsigned long symoffs, stroffs, *strmap;
+	void __percpu *percpu;
 
 	mm_segment_t old_fs;
 
@@ -2158,6 +2159,8 @@ static noinline struct module *load_module(void __user *umod,
 			goto free_mod;
 		sechdrs[pcpuindex].sh_flags &= ~(unsigned long)SHF_ALLOC;
 	}
+	/* Keep this around for failure path. */
+	percpu = mod_percpu(mod);
 
 	/* Determine total sizes, and put offsets in sh_entsize.  For now
 	   this is done generically; there doesn't appear to be any
@@ -2463,7 +2466,7 @@ static noinline struct module *load_module(void __user *umod,
 	module_free(mod, mod->module_core);
 	/* mod will be freed with core. Don't access it beyond this line! */
  free_percpu:
-	percpu_modfree(mod);
+	free_percpu(percpu);
  free_mod:
 	kfree(args);
 	kfree(strmap);
