@@ -3665,6 +3665,13 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
 	if (enable_ept && is_paging(vcpu))
 		vcpu->arch.cr3 = vmcs_readl(GUEST_CR3);
 
+	if (exit_reason & VMX_EXIT_REASONS_FAILED_VMENTRY) {
+		vcpu->run->exit_reason = KVM_EXIT_FAIL_ENTRY;
+		vcpu->run->fail_entry.hardware_entry_failure_reason
+			= exit_reason;
+		return 0;
+	}
+
 	if (unlikely(vmx->fail)) {
 		vcpu->run->exit_reason = KVM_EXIT_FAIL_ENTRY;
 		vcpu->run->fail_entry.hardware_entry_failure_reason
