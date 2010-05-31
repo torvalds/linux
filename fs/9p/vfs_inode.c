@@ -35,6 +35,7 @@
 #include <linux/idr.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/xattr.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -42,6 +43,7 @@
 #include "v9fs_vfs.h"
 #include "fid.h"
 #include "cache.h"
+#include "xattr.h"
 
 static const struct inode_operations v9fs_dir_inode_operations;
 static const struct inode_operations v9fs_dir_inode_operations_dotu;
@@ -1931,6 +1933,11 @@ static const struct inode_operations v9fs_dir_inode_operations_dotl = {
 	.rename = v9fs_vfs_rename,
 	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr_dotl,
+	.setxattr = generic_setxattr,
+	.getxattr = generic_getxattr,
+	.removexattr = generic_removexattr,
+	.listxattr = v9fs_listxattr,
+
 };
 
 static const struct inode_operations v9fs_dir_inode_operations = {
@@ -1953,6 +1960,10 @@ static const struct inode_operations v9fs_file_inode_operations = {
 static const struct inode_operations v9fs_file_inode_operations_dotl = {
 	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr_dotl,
+	.setxattr = generic_setxattr,
+	.getxattr = generic_getxattr,
+	.removexattr = generic_removexattr,
+	.listxattr = v9fs_listxattr,
 };
 
 static const struct inode_operations v9fs_symlink_inode_operations = {
@@ -1969,4 +1980,8 @@ static const struct inode_operations v9fs_symlink_inode_operations_dotl = {
 	.put_link = v9fs_vfs_put_link,
 	.getattr = v9fs_vfs_getattr_dotl,
 	.setattr = v9fs_vfs_setattr_dotl,
+	.setxattr = generic_setxattr,
+	.getxattr = generic_getxattr,
+	.removexattr = generic_removexattr,
+	.listxattr = v9fs_listxattr,
 };
