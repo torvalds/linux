@@ -72,10 +72,6 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 	if (!sd)
 		return -EINVAL;
 
-	error = simple_setattr(dentry, iattr);
-	if (error)
-		return error;
-
 	sd_iattr = sd->s_iattr;
 	if (!sd_iattr) {
 		/* setting attributes for the first time, allocate now */
@@ -89,8 +85,11 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 		sd_iattr->ia_atime = sd_iattr->ia_mtime = sd_iattr->ia_ctime = CURRENT_TIME;
 		sd->s_iattr = sd_iattr;
 	}
-
 	/* attributes were changed atleast once in past */
+
+	error = simple_setattr(dentry, iattr);
+	if (error)
+		return error;
 
 	if (ia_valid & ATTR_UID)
 		sd_iattr->ia_uid = iattr->ia_uid;
