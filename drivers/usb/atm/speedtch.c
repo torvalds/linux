@@ -127,8 +127,6 @@ MODULE_PARM_DESC(ModemOption, "default: 0x10,0x00,0x00,0x00,0x20");
 #define ENDPOINT_ISOC_DATA	0x07
 #define ENDPOINT_FIRMWARE	0x05
 
-#define hex2int(c) ( (c >= '0') && (c <= '9') ? (c - '0') : ((c & 0xf) + 9) )
-
 struct speedtch_params {
 	unsigned int altsetting;
 	unsigned int BMaxDSL;
@@ -669,7 +667,8 @@ static int speedtch_atm_start(struct usbatm_data *usbatm, struct atm_dev *atm_de
 	memset(atm_dev->esi, 0, sizeof(atm_dev->esi));
 	if (usb_string(usb_dev, usb_dev->descriptor.iSerialNumber, mac_str, sizeof(mac_str)) == 12) {
 		for (i = 0; i < 6; i++)
-			atm_dev->esi[i] = (hex2int(mac_str[i * 2]) * 16) + (hex2int(mac_str[i * 2 + 1]));
+			atm_dev->esi[i] = (hex_to_bin(mac_str[i * 2]) << 4) +
+				hex_to_bin(mac_str[i * 2 + 1]);
 	}
 
 	/* Start modem synchronisation */

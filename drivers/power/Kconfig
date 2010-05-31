@@ -57,6 +57,11 @@ config WM8350_POWER
           Say Y here to enable support for the power management unit
 	  provided by the Wolfson Microelectronics WM8350 PMIC.
 
+config TEST_POWER
+	tristate "Test power driver"
+	help
+	  This driver is used for testing. It's safe to say M here.
+
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
 	select W1
@@ -65,10 +70,10 @@ config BATTERY_DS2760
 	  Say Y here to enable support for batteries with ds2760 chip.
 
 config BATTERY_DS2782
-	tristate "DS2782 standalone gas-gauge"
+	tristate "DS2782/DS2786 standalone gas-gauge"
 	depends on I2C
 	help
-	  Say Y here to enable support for the DS2782 standalone battery
+	  Say Y here to enable support for the DS2782/DS2786 standalone battery
 	  gas-gauge.
 
 config BATTERY_PMU
@@ -124,6 +129,12 @@ config BATTERY_MAX17040
 	  MAX17040 is fuel-gauge systems for lithium-ion (Li+) batteries
 	  in handheld and portable equipment. The MAX17040 is configured
 	  to operate with a single lithium cell
+
+config BATTERY_Z2
+	tristate "Z2 battery driver"
+	depends on I2C && MACH_ZIPIT2
+	help
+	  Say Y to include support for the battery on the Zipit Z2.
 
 config CHARGER_PCF50633
 	tristate "NXP PCF50633 MBC"

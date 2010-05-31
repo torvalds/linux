@@ -10,7 +10,6 @@
 #include <linux/fs.h>
 #include <linux/mempool.h>
 #include <linux/pagemap.h>
-#include <linux/slab.h>
 #include <linux/wait.h>
 #include <linux/writeback.h>
 #include <linux/slab.h>
@@ -52,24 +51,25 @@
 
 struct ceph_mount_args {
 	int sb_flags;
-	int num_mon;
-	struct ceph_entity_addr *mon_addr;
 	int flags;
-	int mount_timeout;
-	int osd_idle_ttl;
-	int caps_wanted_delay_min, caps_wanted_delay_max;
 	struct ceph_fsid fsid;
 	struct ceph_entity_addr my_addr;
-	int wsize;
-	int rsize;            /* max readahead */
-	int max_readdir;      /* max readdir size */
-	int congestion_kb;      /* max readdir size */
+	int num_mon;
+	struct ceph_entity_addr *mon_addr;
+	int mount_timeout;
+	int osd_idle_ttl;
 	int osd_timeout;
 	int osd_keepalive_timeout;
+	int wsize;
+	int rsize;            /* max readahead */
+	int congestion_kb;    /* max writeback in flight */
+	int caps_wanted_delay_min, caps_wanted_delay_max;
+	int cap_release_safety;
+	int max_readdir;       /* max readdir result (entires) */
+	int max_readdir_bytes; /* max readdir result (bytes) */
 	char *snapdir_name;   /* default ".snap" */
 	char *name;
 	char *secret;
-	int cap_release_safety;
 };
 
 /*
@@ -80,13 +80,14 @@ struct ceph_mount_args {
 #define CEPH_OSD_KEEPALIVE_DEFAULT  5
 #define CEPH_OSD_IDLE_TTL_DEFAULT    60
 #define CEPH_MOUNT_RSIZE_DEFAULT    (512*1024) /* readahead */
+#define CEPH_MAX_READDIR_DEFAULT    1024
+#define CEPH_MAX_READDIR_BYTES_DEFAULT    (512*1024)
 
 #define CEPH_MSG_MAX_FRONT_LEN	(16*1024*1024)
 #define CEPH_MSG_MAX_DATA_LEN	(16*1024*1024)
 
 #define CEPH_SNAPDIRNAME_DEFAULT ".snap"
 #define CEPH_AUTH_NAME_DEFAULT   "guest"
-
 /*
  * Delay telling the MDS we no longer want caps, in case we reopen
  * the file.  Delay a minimum amount of time, even if we send a cap
@@ -96,6 +97,7 @@ struct ceph_mount_args {
 #define CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT      5  /* cap release delay */
 #define CEPH_CAPS_WANTED_DELAY_MAX_DEFAULT     60  /* cap release delay */
 
+#define CEPH_CAP_RELEASE_SAFETY_DEFAULT        (CEPH_CAPS_PER_RELEASE * 4)
 
 /* mount state */
 enum {
@@ -159,12 +161,6 @@ struct ceph_client {
 	struct dentry *debugfs_bdi;
 #endif
 };
-
-static inline struct ceph_client *ceph_client(struct super_block *sb)
-{
-	return sb->s_fs_info;
-}
-
 
 /*
  * File i/o capability.  This tracks shared state with the metadata
@@ -814,7 +810,7 @@ extern void ceph_put_cap(struct ceph_cap *cap);
 
 extern void ceph_queue_caps_release(struct inode *inode);
 extern int ceph_write_inode(struct inode *inode, struct writeback_control *wbc);
-extern int ceph_fsync(struct file *file, struct dentry *dentry, int datasync);
+extern int ceph_fsync(struct file *file, int datasync);
 extern void ceph_kick_flushing_caps(struct ceph_mds_client *mdsc,
 				    struct ceph_mds_session *session);
 extern int ceph_get_cap_mds(struct inode *inode);
@@ -871,6 +867,7 @@ extern struct dentry *ceph_finish_lookup(struct ceph_mds_request *req,
 extern void ceph_dentry_lru_add(struct dentry *dn);
 extern void ceph_dentry_lru_touch(struct dentry *dn);
 extern void ceph_dentry_lru_del(struct dentry *dn);
+extern void ceph_invalidate_dentry_lease(struct dentry *dentry);
 
 /*
  * our d_ops vary depending on whether the inode is live,

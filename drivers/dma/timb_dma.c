@@ -188,7 +188,7 @@ static void __td_unmap_descs(struct timb_dma_desc *td_desc, bool single)
 static int td_fill_desc(struct timb_dma_chan *td_chan, u8 *dma_desc,
 	struct scatterlist *sg, bool last)
 {
-	if (sg_dma_len(sg) > USHORT_MAX) {
+	if (sg_dma_len(sg) > USHRT_MAX) {
 		dev_err(chan2dev(&td_chan->chan), "Too big sg element\n");
 		return -EINVAL;
 	}

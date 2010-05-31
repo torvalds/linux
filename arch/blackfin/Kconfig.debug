@@ -238,7 +238,7 @@ config EARLY_PRINTK
 config NMI_WATCHDOG
 	bool "Enable NMI watchdog to help debugging lockup on SMP"
 	default n
-	depends on (SMP && !BFIN_SCRATCH_REG_RETN)
+	depends on SMP
 	help
 	  If any CPU in the system does not execute the period local timer
 	  interrupt for more than 5 seconds, then the NMI handler dumps debug
@@ -263,5 +263,14 @@ config BFIN_ISRAM_SELF_TEST
 	default n
 	help
 	  Run some self tests of the isram driver code at boot.
+
+config BFIN_PSEUDODBG_INSNS
+	bool "Support pseudo debug instructions"
+	default n
+	help
+	  This option allows the kernel to emulate some pseudo instructions which
+	  allow simulator test cases to be run under Linux with no changes.
+
+	  Most people should say N here.
 
 endmenu

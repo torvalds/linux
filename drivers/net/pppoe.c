@@ -289,6 +289,7 @@ static void pppoe_flush_dev(struct net_device *dev)
 	struct pppoe_net *pn;
 	int i;
 
+	pn = pppoe_pernet(dev_net(dev));
 	write_lock_bh(&pn->hash_lock);
 	for (i = 0; i < PPPOE_HASH_SIZE; i++) {
 		struct pppox_sock *po = pn->hash_table[i];

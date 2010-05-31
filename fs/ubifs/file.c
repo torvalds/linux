@@ -967,11 +967,14 @@ static int do_writepage(struct page *page, int len)
  * the page locked, and it locks @ui_mutex. However, write-back does take inode
  * @i_mutex, which means other VFS operations may be run on this inode at the
  * same time. And the problematic one is truncation to smaller size, from where
- * we have to call 'vmtruncate()', which first changes @inode->i_size, then
+ * we have to call 'simple_setsize()', which first changes @inode->i_size, then
  * drops the truncated pages. And while dropping the pages, it takes the page
- * lock. This means that 'do_truncation()' cannot call 'vmtruncate()' with
+ * lock. This means that 'do_truncation()' cannot call 'simple_setsize()' with
  * @ui_mutex locked, because it would deadlock with 'ubifs_writepage()'. This
  * means that @inode->i_size is changed while @ui_mutex is unlocked.
+ *
+ * XXX: with the new truncate the above is not true anymore, the simple_setsize
+ * calls can be replaced with the individual components.
  *
  * But in 'ubifs_writepage()' we have to guarantee that we do not write beyond
  * inode size. How do we do this if @inode->i_size may became smaller while we
@@ -1125,7 +1128,7 @@ static int do_truncation(struct ubifs_info *c, struct inode *inode,
 		budgeted = 0;
 	}
 
-	err = vmtruncate(inode, new_size);
+	err = simple_setsize(inode, new_size);
 	if (err)
 		goto out_budg;
 
@@ -1214,7 +1217,7 @@ static int do_setattr(struct ubifs_info *c, struct inode *inode,
 
 	if (attr->ia_valid & ATTR_SIZE) {
 		dbg_gen("size %lld -> %lld", inode->i_size, new_size);
-		err = vmtruncate(inode, new_size);
+		err = simple_setsize(inode, new_size);
 		if (err)
 			goto out;
 	}
@@ -1223,7 +1226,7 @@ static int do_setattr(struct ubifs_info *c, struct inode *inode,
 	if (attr->ia_valid & ATTR_SIZE) {
 		/* Truncation changes inode [mc]time */
 		inode->i_mtime = inode->i_ctime = ubifs_current_time(inode);
-		/* 'vmtruncate()' changed @i_size, update @ui_size */
+		/* 'simple_setsize()' changed @i_size, update @ui_size */
 		ui->ui_size = inode->i_size;
 	}
 
@@ -1304,9 +1307,9 @@ static void *ubifs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return NULL;
 }
 
-int ubifs_fsync(struct file *file, struct dentry *dentry, int datasync)
+int ubifs_fsync(struct file *file, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 	int err;
 

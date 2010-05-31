@@ -19,12 +19,14 @@
 #include <plat/cpu.h>
 #include <plat/s5p6440.h>
 #include <plat/s5p6442.h>
+#include <plat/s5pc100.h>
 #include <plat/s5pv210.h>
 
 /* table of supported CPUs */
 
 static const char name_s5p6440[] = "S5P6440";
 static const char name_s5p6442[] = "S5P6442";
+static const char name_s5pc100[] = "S5PC100";
 static const char name_s5pv210[] = "S5PV210/S5PC110";
 
 static struct cpu_table cpu_ids[] __initdata = {
@@ -44,6 +46,14 @@ static struct cpu_table cpu_ids[] __initdata = {
 		.init_uarts	= s5p6442_init_uarts,
 		.init		= s5p6442_init,
 		.name		= name_s5p6442,
+	}, {
+		.idcode		= 0x43100000,
+		.idmask		= 0xfffff000,
+		.map_io		= s5pc100_map_io,
+		.init_clocks	= s5pc100_init_clocks,
+		.init_uarts	= s5pc100_init_uarts,
+		.init		= s5pc100_init,
+		.name		= name_s5pc100,
 	}, {
 		.idcode		= 0x43110000,
 		.idmask		= 0xfffff000,

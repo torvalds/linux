@@ -1157,7 +1157,7 @@ static int at91_mci_suspend(struct platform_device *pdev, pm_message_t state)
 		enable_irq_wake(host->board->det_pin);
 
 	if (mmc)
-		ret = mmc_suspend_host(mmc, state);
+		ret = mmc_suspend_host(mmc);
 
 	return ret;
 }

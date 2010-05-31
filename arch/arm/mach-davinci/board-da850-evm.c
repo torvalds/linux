@@ -17,6 +17,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c/at24.h>
 #include <linux/i2c/pca953x.h>
+#include <linux/mfd/tps6507x.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
@@ -24,6 +25,8 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <linux/regulator/machine.h>
+#include <linux/mfd/tps6507x.h>
+#include <linux/input/tps6507x-ts.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -533,10 +536,24 @@ struct regulator_init_data tps65070_regulator_data[] = {
 	},
 };
 
+static struct touchscreen_init_data tps6507x_touchscreen_data = {
+	.poll_period =  30,	/* ms between touch samples */
+	.min_pressure = 0x30,	/* minimum pressure to trigger touch */
+	.vref = 0,		/* turn off vref when not using A/D */
+	.vendor = 0,		/* /sys/class/input/input?/id/vendor */
+	.product = 65070,	/* /sys/class/input/input?/id/product */
+	.version = 0x100,	/* /sys/class/input/input?/id/version */
+};
+
+static struct tps6507x_board tps_board = {
+	.tps6507x_pmic_init_data = &tps65070_regulator_data[0],
+	.tps6507x_ts_init_data = &tps6507x_touchscreen_data,
+};
+
 static struct i2c_board_info __initdata da850evm_tps65070_info[] = {
 	{
 		I2C_BOARD_INFO("tps6507x", 0x48),
-		.platform_data = &tps65070_regulator_data[0],
+		.platform_data = &tps_board,
 	},
 };
 

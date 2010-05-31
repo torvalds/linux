@@ -20,7 +20,6 @@
 #include <linux/input.h>
 #include <linux/io.h>
 #include <linux/delay.h>
-#include <linux/bootmem.h>
 #include <linux/power_supply.h>
 
 #include <mach/hardware.h>

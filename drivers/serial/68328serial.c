@@ -1437,7 +1437,7 @@ int m68328_console_setup(struct console *cp, char *arg)
 	for (i = 0; i < ARRAY_SIZE(baud_table); i++)
 		if (baud_table[i] == n)
 			break;
-	if (i < BAUD_TABLE_SIZE) {
+	if (i < ARRAY_SIZE(baud_table)) {
 		m68328_console_baud = n;
 		m68328_console_cbaud = 0;
 		if (i > 15) {

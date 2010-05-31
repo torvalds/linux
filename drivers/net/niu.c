@@ -9115,7 +9115,7 @@ static int __devinit niu_n2_irq_init(struct niu *np, u8 *ldg_num_map)
 	const u32 *int_prop;
 	int i;
 
-	int_prop = of_get_property(op->node, "interrupts", NULL);
+	int_prop = of_get_property(op->dev.of_node, "interrupts", NULL);
 	if (!int_prop)
 		return -ENODEV;
 
@@ -9266,7 +9266,7 @@ static int __devinit niu_get_of_props(struct niu *np)
 	int prop_len;
 
 	if (np->parent->plat_type == PLAT_TYPE_NIU)
-		dp = np->op->node;
+		dp = np->op->dev.of_node;
 	else
 		dp = pci_device_to_OF_node(np->pdev);
 
@@ -10083,10 +10083,10 @@ static int __devinit niu_of_probe(struct of_device *op,
 
 	niu_driver_version();
 
-	reg = of_get_property(op->node, "reg", NULL);
+	reg = of_get_property(op->dev.of_node, "reg", NULL);
 	if (!reg) {
 		dev_err(&op->dev, "%s: No 'reg' property, aborting\n",
-			op->node->full_name);
+			op->dev.of_node->full_name);
 		return -ENODEV;
 	}
 
@@ -10099,7 +10099,7 @@ static int __devinit niu_of_probe(struct of_device *op,
 	np = netdev_priv(dev);
 
 	memset(&parent_id, 0, sizeof(parent_id));
-	parent_id.of = of_get_parent(op->node);
+	parent_id.of = of_get_parent(op->dev.of_node);
 
 	np->parent = niu_get_parent(np, &parent_id,
 				    PLAT_TYPE_NIU);
@@ -10234,8 +10234,11 @@ static const struct of_device_id niu_match[] = {
 MODULE_DEVICE_TABLE(of, niu_match);
 
 static struct of_platform_driver niu_of_driver = {
-	.name		= "niu",
-	.match_table	= niu_match,
+	.driver = {
+		.name = "niu",
+		.owner = THIS_MODULE,
+		.of_match_table = niu_match,
+	},
 	.probe		= niu_of_probe,
 	.remove		= __devexit_p(niu_of_remove),
 };

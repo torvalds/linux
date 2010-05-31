@@ -21,12 +21,15 @@
 #include <linux/param.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/spi/spi.h>
+#include <linux/gpio.h>
 #include <asm/machdep.h>
 #include <asm/coldfire.h>
 #include <asm/mcfsim.h>
 #include <asm/mcfuart.h>
 #include <asm/mcfdma.h>
 #include <asm/mcfwdebug.h>
+#include <asm/mcfqspi.h>
 
 /***************************************************************************/
 
@@ -82,9 +85,127 @@ static struct platform_device m532x_fec = {
 	.resource		= m532x_fec_resources,
 };
 
+#if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
+static struct resource m532x_qspi_resources[] = {
+	{
+		.start		= MCFQSPI_IOBASE,
+		.end		= MCFQSPI_IOBASE + MCFQSPI_IOSIZE - 1,
+		.flags		= IORESOURCE_MEM,
+	},
+	{
+		.start		= MCFINT_VECBASE + MCFINT_QSPI,
+		.end		= MCFINT_VECBASE + MCFINT_QSPI,
+		.flags		= IORESOURCE_IRQ,
+	},
+};
+
+#define MCFQSPI_CS0    84
+#define MCFQSPI_CS1    85
+#define MCFQSPI_CS2    86
+
+static int m532x_cs_setup(struct mcfqspi_cs_control *cs_control)
+{
+	int status;
+
+	status = gpio_request(MCFQSPI_CS0, "MCFQSPI_CS0");
+	if (status) {
+		pr_debug("gpio_request for MCFQSPI_CS0 failed\n");
+		goto fail0;
+	}
+	status = gpio_direction_output(MCFQSPI_CS0, 1);
+	if (status) {
+		pr_debug("gpio_direction_output for MCFQSPI_CS0 failed\n");
+		goto fail1;
+	}
+
+	status = gpio_request(MCFQSPI_CS1, "MCFQSPI_CS1");
+	if (status) {
+		pr_debug("gpio_request for MCFQSPI_CS1 failed\n");
+		goto fail1;
+	}
+	status = gpio_direction_output(MCFQSPI_CS1, 1);
+	if (status) {
+		pr_debug("gpio_direction_output for MCFQSPI_CS1 failed\n");
+		goto fail2;
+	}
+
+	status = gpio_request(MCFQSPI_CS2, "MCFQSPI_CS2");
+	if (status) {
+		pr_debug("gpio_request for MCFQSPI_CS2 failed\n");
+		goto fail2;
+	}
+	status = gpio_direction_output(MCFQSPI_CS2, 1);
+	if (status) {
+		pr_debug("gpio_direction_output for MCFQSPI_CS2 failed\n");
+		goto fail3;
+	}
+
+	return 0;
+
+fail3:
+	gpio_free(MCFQSPI_CS2);
+fail2:
+	gpio_free(MCFQSPI_CS1);
+fail1:
+	gpio_free(MCFQSPI_CS0);
+fail0:
+	return status;
+}
+
+static void m532x_cs_teardown(struct mcfqspi_cs_control *cs_control)
+{
+	gpio_free(MCFQSPI_CS2);
+	gpio_free(MCFQSPI_CS1);
+	gpio_free(MCFQSPI_CS0);
+}
+
+static void m532x_cs_select(struct mcfqspi_cs_control *cs_control,
+			    u8 chip_select, bool cs_high)
+{
+	gpio_set_value(MCFQSPI_CS0 + chip_select, cs_high);
+}
+
+static void m532x_cs_deselect(struct mcfqspi_cs_control *cs_control,
+			      u8 chip_select, bool cs_high)
+{
+	gpio_set_value(MCFQSPI_CS0 + chip_select, !cs_high);
+}
+
+static struct mcfqspi_cs_control m532x_cs_control = {
+	.setup                  = m532x_cs_setup,
+	.teardown               = m532x_cs_teardown,
+	.select                 = m532x_cs_select,
+	.deselect               = m532x_cs_deselect,
+};
+
+static struct mcfqspi_platform_data m532x_qspi_data = {
+	.bus_num		= 0,
+	.num_chipselect		= 3,
+	.cs_control		= &m532x_cs_control,
+};
+
+static struct platform_device m532x_qspi = {
+	.name			= "mcfqspi",
+	.id			= 0,
+	.num_resources		= ARRAY_SIZE(m532x_qspi_resources),
+	.resource		= m532x_qspi_resources,
+	.dev.platform_data	= &m532x_qspi_data,
+};
+
+static void __init m532x_qspi_init(void)
+{
+	/* setup QSPS pins for QSPI with gpio CS control */
+	writew(0x01f0, MCF_GPIO_PAR_QSPI);
+}
+#endif /* defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE) */
+
+
 static struct platform_device *m532x_devices[] __initdata = {
 	&m532x_uart,
 	&m532x_fec,
+#if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
+	&m532x_qspi,
+#endif
 };
 
 /***************************************************************************/
@@ -158,6 +279,9 @@ static int __init init_BSP(void)
 {
 	m532x_uarts_init();
 	m532x_fec_init();
+#if defined(CONFIG_SPI_COLDFIRE_QSPI) || defined(CONFIG_SPI_COLDFIRE_QSPI_MODULE)
+	m532x_qspi_init();
+#endif
 	platform_add_devices(m532x_devices, ARRAY_SIZE(m532x_devices));
 	return 0;
 }

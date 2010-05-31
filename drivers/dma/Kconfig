@@ -166,6 +166,15 @@ config TIMB_DMA
 config ARCH_HAS_ASYNC_TX_FIND_CHANNEL
 	bool
 
+config PL330_DMA
+	tristate "DMA API Driver for PL330"
+	select DMA_ENGINE
+	depends on PL330
+	help
+	  Select if your platform has one or more PL330 DMACs.
+	  You need to provide platform specific settings via
+	  platform_data for a dma-pl330 device.
+
 config DMA_ENGINE
 	bool
 

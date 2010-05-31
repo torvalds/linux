@@ -51,6 +51,7 @@
 #define IXGBE_DEV_ID_82599_KX4           0x10F7
 #define IXGBE_DEV_ID_82599_KX4_MEZZ      0x1514
 #define IXGBE_DEV_ID_82599_KR            0x1517
+#define IXGBE_DEV_ID_82599_T3_LOM        0x151C
 #define IXGBE_DEV_ID_82599_CX4           0x10F9
 #define IXGBE_DEV_ID_82599_SFP           0x10FB
 #define IXGBE_DEV_ID_82599_SFP_EM        0x1507
@@ -2470,6 +2471,7 @@ struct ixgbe_phy_operations {
 	s32 (*write_i2c_byte)(struct ixgbe_hw *, u8, u8, u8);
 	s32 (*read_i2c_eeprom)(struct ixgbe_hw *, u8 , u8 *);
 	s32 (*write_i2c_eeprom)(struct ixgbe_hw *, u8, u8);
+	s32 (*check_overtemp)(struct ixgbe_hw *);
 };
 
 struct ixgbe_eeprom_info {
@@ -2518,6 +2520,7 @@ struct ixgbe_phy_info {
 	enum ixgbe_smart_speed          smart_speed;
 	bool                            smart_speed_active;
 	bool                            multispeed_fiber;
+	bool                            reset_if_overtemp;
 };
 
 #include "ixgbe_mbx.h"
@@ -2605,6 +2608,7 @@ struct ixgbe_info {
 #define IXGBE_ERR_FDIR_REINIT_FAILED            -23
 #define IXGBE_ERR_EEPROM_VERSION                -24
 #define IXGBE_ERR_NO_SPACE                      -25
+#define IXGBE_ERR_OVERTEMP                      -26
 #define IXGBE_NOT_IMPLEMENTED                   0x7FFFFFFF
 
 #endif /* _IXGBE_TYPE_H_ */

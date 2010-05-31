@@ -216,7 +216,7 @@ static int __devinit d7s_probe(struct of_device *op,
 	writeb(regs,  p->regs);
 
 	printk(KERN_INFO PFX "7-Segment Display%s at [%s:0x%llx] %s\n",
-	       op->node->full_name,
+	       op->dev.of_node->full_name,
 	       (regs & D7S_FLIP) ? " (FLIPPED)" : "",
 	       op->resource[0].start,
 	       sol_compat ? "in sol_compat mode" : "");
@@ -266,8 +266,11 @@ static const struct of_device_id d7s_match[] = {
 MODULE_DEVICE_TABLE(of, d7s_match);
 
 static struct of_platform_driver d7s_driver = {
-	.name		= DRIVER_NAME,
-	.match_table	= d7s_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = d7s_match,
+	},
 	.probe		= d7s_probe,
 	.remove		= __devexit_p(d7s_remove),
 };

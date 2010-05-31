@@ -433,8 +433,6 @@ static swp_entry_t *shmem_swp_alloc(struct shmem_inode_info *info, unsigned long
 
 		spin_unlock(&info->lock);
 		page = shmem_dir_alloc(mapping_gfp_mask(inode->i_mapping));
-		if (page)
-			set_page_private(page, 0);
 		spin_lock(&info->lock);
 
 		if (!page) {
@@ -729,10 +727,11 @@ done2:
 	if (inode->i_mapping->nrpages && (info->flags & SHMEM_PAGEIN)) {
 		/*
 		 * Call truncate_inode_pages again: racing shmem_unuse_inode
-		 * may have swizzled a page in from swap since vmtruncate or
-		 * generic_delete_inode did it, before we lowered next_index.
-		 * Also, though shmem_getpage checks i_size before adding to
-		 * cache, no recheck after: so fix the narrow window there too.
+		 * may have swizzled a page in from swap since
+		 * truncate_pagecache or generic_delete_inode did it, before we
+		 * lowered next_index.  Also, though shmem_getpage checks
+		 * i_size before adding to cache, no recheck after: so fix the
+		 * narrow window there too.
 		 *
 		 * Recalling truncate_inode_pages_range and unmap_mapping_range
 		 * every time for punch_hole (which never got a chance to clear
@@ -762,19 +761,16 @@ done2:
 	}
 }
 
-static void shmem_truncate(struct inode *inode)
-{
-	shmem_truncate_range(inode, inode->i_size, (loff_t)-1);
-}
-
 static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = dentry->d_inode;
-	struct page *page = NULL;
 	int error;
 
 	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)) {
-		if (attr->ia_size < inode->i_size) {
+		loff_t newsize = attr->ia_size;
+		struct page *page = NULL;
+
+		if (newsize < inode->i_size) {
 			/*
 			 * If truncating down to a partial page, then
 			 * if that page is already allocated, hold it
@@ -782,9 +778,9 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 			 * truncate_partial_page cannnot miss it were
 			 * it assigned to swap.
 			 */
-			if (attr->ia_size & (PAGE_CACHE_SIZE-1)) {
+			if (newsize & (PAGE_CACHE_SIZE-1)) {
 				(void) shmem_getpage(inode,
-					attr->ia_size>>PAGE_CACHE_SHIFT,
+					newsize >> PAGE_CACHE_SHIFT,
 						&page, SGP_READ, NULL);
 				if (page)
 					unlock_page(page);
@@ -796,24 +792,29 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 			 * if it's being fully truncated to zero-length: the
 			 * nrpages check is efficient enough in that case.
 			 */
-			if (attr->ia_size) {
+			if (newsize) {
 				struct shmem_inode_info *info = SHMEM_I(inode);
 				spin_lock(&info->lock);
 				info->flags &= ~SHMEM_PAGEIN;
 				spin_unlock(&info->lock);
 			}
 		}
+
+		error = simple_setsize(inode, newsize);
+		if (page)
+			page_cache_release(page);
+		if (error)
+			return error;
+		shmem_truncate_range(inode, newsize, (loff_t)-1);
 	}
 
 	error = inode_change_ok(inode, attr);
 	if (!error)
-		error = inode_setattr(inode, attr);
+		generic_setattr(inode, attr);
 #ifdef CONFIG_TMPFS_POSIX_ACL
 	if (!error && (attr->ia_valid & ATTR_MODE))
 		error = generic_acl_chmod(inode);
 #endif
-	if (page)
-		page_cache_release(page);
 	return error;
 }
 
@@ -821,11 +822,11 @@ static void shmem_delete_inode(struct inode *inode)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
 
-	if (inode->i_op->truncate == shmem_truncate) {
+	if (inode->i_mapping->a_ops == &shmem_aops) {
 		truncate_inode_pages(inode->i_mapping, 0);
 		shmem_unacct_size(info->flags, inode->i_size);
 		inode->i_size = 0;
-		shmem_truncate(inode);
+		shmem_truncate_range(inode, 0, (loff_t)-1);
 		if (!list_empty(&info->swaplist)) {
 			mutex_lock(&shmem_swaplist_mutex);
 			list_del_init(&info->swaplist);
@@ -2024,7 +2025,6 @@ static const struct inode_operations shmem_symlink_inline_operations = {
 };
 
 static const struct inode_operations shmem_symlink_inode_operations = {
-	.truncate	= shmem_truncate,
 	.readlink	= generic_readlink,
 	.follow_link	= shmem_follow_link,
 	.put_link	= shmem_put_link,
@@ -2435,14 +2435,13 @@ static const struct file_operations shmem_file_operations = {
 	.write		= do_sync_write,
 	.aio_read	= shmem_file_aio_read,
 	.aio_write	= generic_file_aio_write,
-	.fsync		= simple_sync_file,
+	.fsync		= noop_fsync,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= generic_file_splice_write,
 #endif
 };
 
 static const struct inode_operations shmem_inode_operations = {
-	.truncate	= shmem_truncate,
 	.setattr	= shmem_notify_change,
 	.truncate_range	= shmem_truncate_range,
 #ifdef CONFIG_TMPFS_POSIX_ACL
@@ -2561,6 +2560,45 @@ out4:
 	return error;
 }
 
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+/**
+ * mem_cgroup_get_shmem_target - find a page or entry assigned to the shmem file
+ * @inode: the inode to be searched
+ * @pgoff: the offset to be searched
+ * @pagep: the pointer for the found page to be stored
+ * @ent: the pointer for the found swap entry to be stored
+ *
+ * If a page is found, refcount of it is incremented. Callers should handle
+ * these refcount.
+ */
+void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
+					struct page **pagep, swp_entry_t *ent)
+{
+	swp_entry_t entry = { .val = 0 }, *ptr;
+	struct page *page = NULL;
+	struct shmem_inode_info *info = SHMEM_I(inode);
+
+	if ((pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode))
+		goto out;
+
+	spin_lock(&info->lock);
+	ptr = shmem_swp_entry(info, pgoff, NULL);
+#ifdef CONFIG_SWAP
+	if (ptr && ptr->val) {
+		entry.val = ptr->val;
+		page = find_get_page(&swapper_space, entry.val);
+	} else
+#endif
+		page = find_get_page(inode->i_mapping, pgoff);
+	if (ptr)
+		shmem_swp_unmap(ptr);
+	spin_unlock(&info->lock);
+out:
+	*pagep = page;
+	*ent = entry;
+}
+#endif
+
 #else /* !CONFIG_SHMEM */
 
 /*
@@ -2599,6 +2637,31 @@ int shmem_lock(struct file *file, int lock, struct user_struct *user)
 {
 	return 0;
 }
+
+#ifdef CONFIG_CGROUP_MEM_RES_CTLR
+/**
+ * mem_cgroup_get_shmem_target - find a page or entry assigned to the shmem file
+ * @inode: the inode to be searched
+ * @pgoff: the offset to be searched
+ * @pagep: the pointer for the found page to be stored
+ * @ent: the pointer for the found swap entry to be stored
+ *
+ * If a page is found, refcount of it is incremented. Callers should handle
+ * these refcount.
+ */
+void mem_cgroup_get_shmem_target(struct inode *inode, pgoff_t pgoff,
+					struct page **pagep, swp_entry_t *ent)
+{
+	struct page *page = NULL;
+
+	if ((pgoff << PAGE_CACHE_SHIFT) >= i_size_read(inode))
+		goto out;
+	page = find_get_page(inode->i_mapping, pgoff);
+out:
+	*pagep = page;
+	*ent = (swp_entry_t){ .val = 0 };
+}
+#endif
 
 #define shmem_vm_ops				generic_file_vm_ops
 #define shmem_file_operations			ramfs_file_operations

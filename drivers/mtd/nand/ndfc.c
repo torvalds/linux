@@ -239,14 +239,14 @@ static int __devinit ndfc_probe(struct of_device *ofdev,
 	dev_set_drvdata(&ofdev->dev, ndfc);
 
 	/* Read the reg property to get the chip select */
-	reg = of_get_property(ofdev->node, "reg", &len);
+	reg = of_get_property(ofdev->dev.of_node, "reg", &len);
 	if (reg == NULL || len != 12) {
 		dev_err(&ofdev->dev, "unable read reg property (%d)\n", len);
 		return -ENOENT;
 	}
 	ndfc->chip_select = reg[0];
 
-	ndfc->ndfcbase = of_iomap(ofdev->node, 0);
+	ndfc->ndfcbase = of_iomap(ofdev->dev.of_node, 0);
 	if (!ndfc->ndfcbase) {
 		dev_err(&ofdev->dev, "failed to get memory\n");
 		return -EIO;
@@ -255,20 +255,20 @@ static int __devinit ndfc_probe(struct of_device *ofdev,
 	ccr = NDFC_CCR_BS(ndfc->chip_select);
 
 	/* It is ok if ccr does not exist - just default to 0 */
-	reg = of_get_property(ofdev->node, "ccr", NULL);
+	reg = of_get_property(ofdev->dev.of_node, "ccr", NULL);
 	if (reg)
 		ccr |= *reg;
 
 	out_be32(ndfc->ndfcbase + NDFC_CCR, ccr);
 
 	/* Set the bank settings if given */
-	reg = of_get_property(ofdev->node, "bank-settings", NULL);
+	reg = of_get_property(ofdev->dev.of_node, "bank-settings", NULL);
 	if (reg) {
 		int offset = NDFC_BCFG0 + (ndfc->chip_select << 2);
 		out_be32(ndfc->ndfcbase + offset, *reg);
 	}
 
-	err = ndfc_chip_init(ndfc, ofdev->node);
+	err = ndfc_chip_init(ndfc, ofdev->dev.of_node);
 	if (err) {
 		iounmap(ndfc->ndfcbase);
 		return err;
@@ -294,9 +294,10 @@ MODULE_DEVICE_TABLE(of, ndfc_match);
 
 static struct of_platform_driver ndfc_driver = {
 	.driver = {
-		.name	= "ndfc",
+		.name = "ndfc",
+		.owner = THIS_MODULE,
+		.of_match_table = ndfc_match,
 	},
-	.match_table = ndfc_match,
 	.probe = ndfc_probe,
 	.remove = __devexit_p(ndfc_remove),
 };

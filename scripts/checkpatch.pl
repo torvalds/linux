@@ -1382,6 +1382,21 @@ sub process {
 			ERROR("trailing whitespace\n" . $herevet);
 		}
 
+# check for Kconfig help text having a real description
+		if ($realfile =~ /Kconfig/ &&
+		    $line =~ /\+?\s*(---)?help(---)?$/) {
+			my $length = 0;
+			for (my $l = $linenr; defined($lines[$l]); $l++) {
+				my $f = $lines[$l];
+				$f =~ s/#.*//;
+				$f =~ s/^\s+//;
+				next if ($f =~ /^$/);
+				last if ($f =~ /^\s*config\s/);
+				$length++;
+			}
+			WARN("please write a paragraph that describes the config symbol fully\n" . $herecurr) if ($length < 4);
+		}
+
 # check we are in a valid source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c|s|S|pl|sh)$/);
 
@@ -2584,6 +2599,11 @@ sub process {
 # check of hardware specific defines
 		if ($line =~ m@^.\s*\#\s*if.*\b(__i386__|__powerpc64__|__sun__|__s390x__)\b@ && $realfile !~ m@include/asm-@) {
 			CHK("architecture specific defines should be avoided\n" .  $herecurr);
+		}
+
+# Check that the storage class is at the beginning of a declaration
+		if ($line =~ /\b$Storage\b/ && $line !~ /^.\s*$Storage\b/) {
+			WARN("storage class should be at the beginning of the declaration\n" . $herecurr)
 		}
 
 # check the location of the inline attribute, that it is between

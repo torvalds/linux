@@ -47,15 +47,15 @@ struct joydev {
 	struct mutex mutex;
 	struct device dev;
 
-	struct js_corr corr[ABS_MAX + 1];
+	struct js_corr corr[ABS_CNT];
 	struct JS_DATA_SAVE_TYPE glue;
 	int nabs;
 	int nkey;
 	__u16 keymap[KEY_MAX - BTN_MISC + 1];
 	__u16 keypam[KEY_MAX - BTN_MISC + 1];
-	__u8 absmap[ABS_MAX + 1];
-	__u8 abspam[ABS_MAX + 1];
-	__s16 abs[ABS_MAX + 1];
+	__u8 absmap[ABS_CNT];
+	__u8 abspam[ABS_CNT];
+	__s16 abs[ABS_CNT];
 };
 
 struct joydev_client {
@@ -826,7 +826,7 @@ static int joydev_connect(struct input_handler *handler, struct input_dev *dev,
 	joydev->handle.handler = handler;
 	joydev->handle.private = joydev;
 
-	for (i = 0; i < ABS_MAX + 1; i++)
+	for (i = 0; i < ABS_CNT; i++)
 		if (test_bit(i, dev->absbit)) {
 			joydev->absmap[i] = joydev->nabs;
 			joydev->abspam[joydev->nabs] = i;

@@ -104,7 +104,7 @@ MODULE_DEVICE_TABLE(of, auxio_match);
 
 static int __devinit auxio_probe(struct of_device *dev, const struct of_device_id *match)
 {
-	struct device_node *dp = dev->node;
+	struct device_node *dp = dev->dev.of_node;
 	unsigned long size;
 
 	if (!strcmp(dp->parent->name, "ebus")) {
@@ -132,10 +132,11 @@ static int __devinit auxio_probe(struct of_device *dev, const struct of_device_i
 }
 
 static struct of_platform_driver auxio_driver = {
-	.match_table	= auxio_match,
 	.probe		= auxio_probe,
-	.driver		= {
-		.name	= "auxio",
+	.driver = {
+		.name = "auxio",
+		.owner = THIS_MODULE,
+		.of_match_table = auxio_match,
 	},
 };
 

@@ -871,7 +871,7 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	priv->ndev = ndev;
 
 	/* Reserve FEC control zone */
-	rv = of_address_to_resource(op->node, 0, &mem);
+	rv = of_address_to_resource(op->dev.of_node, 0, &mem);
 	if (rv) {
 		printk(KERN_ERR DRIVER_NAME ": "
 				"Error while parsing device node resource\n" );
@@ -919,7 +919,7 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 
 	/* Get the IRQ we need one by one */
 		/* Control */
-	ndev->irq = irq_of_parse_and_map(op->node, 0);
+	ndev->irq = irq_of_parse_and_map(op->dev.of_node, 0);
 
 		/* RX */
 	priv->r_irq = bcom_get_task_irq(priv->rx_dmatsk);
@@ -942,20 +942,20 @@ mpc52xx_fec_probe(struct of_device *op, const struct of_device_id *match)
 	/* Start with safe defaults for link connection */
 	priv->speed = 100;
 	priv->duplex = DUPLEX_HALF;
-	priv->mdio_speed = ((mpc5xxx_get_bus_frequency(op->node) >> 20) / 5) << 1;
+	priv->mdio_speed = ((mpc5xxx_get_bus_frequency(op->dev.of_node) >> 20) / 5) << 1;
 
 	/* The current speed preconfigures the speed of the MII link */
-	prop = of_get_property(op->node, "current-speed", &prop_size);
+	prop = of_get_property(op->dev.of_node, "current-speed", &prop_size);
 	if (prop && (prop_size >= sizeof(u32) * 2)) {
 		priv->speed = prop[0];
 		priv->duplex = prop[1] ? DUPLEX_FULL : DUPLEX_HALF;
 	}
 
 	/* If there is a phy handle, then get the PHY node */
-	priv->phy_node = of_parse_phandle(op->node, "phy-handle", 0);
+	priv->phy_node = of_parse_phandle(op->dev.of_node, "phy-handle", 0);
 
 	/* the 7-wire property means don't use MII mode */
-	if (of_find_property(op->node, "fsl,7-wire-mode", NULL)) {
+	if (of_find_property(op->dev.of_node, "fsl,7-wire-mode", NULL)) {
 		priv->seven_wire_mode = 1;
 		dev_info(&ndev->dev, "using 7-wire PHY mode\n");
 	}
@@ -1063,9 +1063,11 @@ static struct of_device_id mpc52xx_fec_match[] = {
 MODULE_DEVICE_TABLE(of, mpc52xx_fec_match);
 
 static struct of_platform_driver mpc52xx_fec_driver = {
-	.owner		= THIS_MODULE,
-	.name		= DRIVER_NAME,
-	.match_table	= mpc52xx_fec_match,
+	.driver = {
+		.name = DRIVER_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_fec_match,
+	},
 	.probe		= mpc52xx_fec_probe,
 	.remove		= mpc52xx_fec_remove,
 #ifdef CONFIG_PM

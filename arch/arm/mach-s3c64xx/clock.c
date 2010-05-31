@@ -259,6 +259,12 @@ static struct clk init_clocks[] = {
 		.enable		= s3c64xx_hclk_ctrl,
 		.ctrlbit	= S3C_CLKCON_HCLK_HSMMC2,
 	}, {
+		.name		= "otg",
+		.id		= -1,
+		.parent		= &clk_h,
+		.enable		= s3c64xx_hclk_ctrl,
+		.ctrlbit	= S3C_CLKCON_HCLK_USB,
+	}, {
 		.name		= "timers",
 		.id		= -1,
 		.parent		= &clk_p,

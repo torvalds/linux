@@ -37,6 +37,7 @@
 #include <linux/highuid.h>
 #include <linux/writeback.h>
 #include <linux/ratelimit.h>
+#include <linux/compaction.h>
 #include <linux/hugetlb.h>
 #include <linux/initrd.h>
 #include <linux/key.h>
@@ -260,6 +261,11 @@ static int min_sched_tunable_scaling = SCHED_TUNABLESCALING_NONE;
 static int max_sched_tunable_scaling = SCHED_TUNABLESCALING_END-1;
 static int min_sched_shares_ratelimit = 100000; /* 100 usec */
 static int max_sched_shares_ratelimit = NSEC_PER_SEC; /* 1 second */
+#endif
+
+#ifdef CONFIG_COMPACTION
+static int min_extfrag_threshold;
+static int max_extfrag_threshold = 1000;
 #endif
 
 static struct ctl_table kern_table[] = {
@@ -1121,6 +1127,25 @@ static struct ctl_table vm_table[] = {
 		.mode		= 0644,
 		.proc_handler	= drop_caches_sysctl_handler,
 	},
+#ifdef CONFIG_COMPACTION
+	{
+		.procname	= "compact_memory",
+		.data		= &sysctl_compact_memory,
+		.maxlen		= sizeof(int),
+		.mode		= 0200,
+		.proc_handler	= sysctl_compaction_handler,
+	},
+	{
+		.procname	= "extfrag_threshold",
+		.data		= &sysctl_extfrag_threshold,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= sysctl_extfrag_handler,
+		.extra1		= &min_extfrag_threshold,
+		.extra2		= &max_extfrag_threshold,
+	},
+
+#endif /* CONFIG_COMPACTION */
 	{
 		.procname	= "min_free_kbytes",
 		.data		= &min_free_kbytes,
@@ -2262,6 +2287,8 @@ static int __do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 		if (write) {
 			left -= proc_skip_spaces(&kbuf);
 
+			if (!left)
+				break;
 			err = proc_get_long(&kbuf, &left, &lval, &neg,
 					     proc_wspace_sep,
 					     sizeof(proc_wspace_sep), NULL);
@@ -2288,7 +2315,7 @@ static int __do_proc_dointvec(void *tbl_data, struct ctl_table *table,
 
 	if (!write && !first && left && !err)
 		err = proc_put_char(&buffer, &left, '\n');
-	if (write && !err)
+	if (write && !err && left)
 		left -= proc_skip_spaces(&kbuf);
 free:
 	if (write) {

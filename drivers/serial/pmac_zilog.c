@@ -1611,7 +1611,7 @@ static int pmz_attach(struct macio_dev *mdev, const struct of_device_id *match)
 	/* Iterate the pmz_ports array to find a matching entry
 	 */
 	for (i = 0; i < MAX_ZS_PORTS; i++)
-		if (pmz_ports[i].node == mdev->ofdev.node) {
+		if (pmz_ports[i].node == mdev->ofdev.dev.of_node) {
 			struct uart_pmac_port *uap = &pmz_ports[i];
 
 			uap->dev = mdev;

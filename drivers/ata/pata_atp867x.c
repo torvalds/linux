@@ -525,7 +525,7 @@ static int atp867x_init_one(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	rc = ata_host_activate(host, pdev->irq, ata_sff_interrupt,
+	rc = ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,
 				IRQF_SHARED, &atp867x_sht);
 	if (rc)
 		dev_printk(KERN_ERR, &pdev->dev, "failed to activate host\n");

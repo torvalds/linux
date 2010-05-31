@@ -2017,7 +2017,7 @@ static int __ip6mr_fill_mroute(struct mr6_table *mrt, struct sk_buff *skb,
 	struct rtattr *mp_head;
 
 	/* If cache is unresolved, don't try to parse IIF and OIF */
-	if (c->mf6c_parent > MAXMIFS)
+	if (c->mf6c_parent >= MAXMIFS)
 		return -ENOENT;
 
 	if (MIF_EXISTS(mrt, c->mf6c_parent))

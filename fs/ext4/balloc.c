@@ -591,14 +591,15 @@ ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
 	ret = ext4_mb_new_blocks(handle, &ar, errp);
 	if (count)
 		*count = ar.len;
-
 	/*
-	 * Account for the allocated meta blocks
+	 * Account for the allocated meta blocks.  We will never
+	 * fail EDQUOT for metdata, but we do account for it.
 	 */
 	if (!(*errp) && EXT4_I(inode)->i_delalloc_reserved_flag) {
 		spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
 		EXT4_I(inode)->i_allocated_meta_blocks += ar.len;
 		spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+		dquot_alloc_block_nofail(inode, ar.len);
 	}
 	return ret;
 }

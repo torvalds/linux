@@ -322,7 +322,7 @@ static int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		size = (u16) (header & 0x0000ffff);
 
 		if ((skb->len) - ((size + 1) & 0xfffe) == 0) {
-			u8 alignment = (u32)skb->data & 0x3;
+			u8 alignment = (unsigned long)skb->data & 0x3;
 			if (alignment != 0x2) {
 				/*
 				 * not 16bit aligned so use the room provided by
@@ -351,7 +351,7 @@ static int asix_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 		}
 		ax_skb = skb_clone(skb, GFP_ATOMIC);
 		if (ax_skb) {
-			u8 alignment = (u32)packet & 0x3;
+			u8 alignment = (unsigned long)packet & 0x3;
 			ax_skb->len = size;
 
 			if (alignment != 0x2) {

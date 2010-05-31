@@ -116,7 +116,7 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	 * so we don't allocated the extra space needed because the stdio
 	 * code will not use it.
 	 */
-	if (use_browser)
+	if (use_browser > 0)
 		err = hist_entry__inc_addr_samples(he, al->addr);
 out_free_syms:
 	free(syms);
@@ -288,6 +288,38 @@ static size_t hists__fprintf_nr_sample_events(struct hists *self,
 	return ret + fprintf(fp, "\n#\n");
 }
 
+static int hists__tty_browse_tree(struct rb_root *tree, const char *help)
+{
+	struct rb_node *next = rb_first(tree);
+
+	while (next) {
+		struct hists *hists = rb_entry(next, struct hists, rb_node);
+		const char *evname = NULL;
+
+		if (rb_first(&hists->entries) != rb_last(&hists->entries))
+			evname = __event_name(hists->type, hists->config);
+
+		hists__fprintf_nr_sample_events(hists, evname, stdout);
+		hists__fprintf(hists, NULL, false, stdout);
+		fprintf(stdout, "\n\n");
+		next = rb_next(&hists->rb_node);
+	}
+
+	if (sort_order == default_sort_order &&
+	    parent_pattern == default_parent_pattern) {
+		fprintf(stdout, "#\n# (%s)\n#\n", help);
+
+		if (show_threads) {
+			bool style = !strcmp(pretty_printing_style, "raw");
+			perf_read_values_display(stdout, &show_threads_values,
+						 style);
+			perf_read_values_destroy(&show_threads_values);
+		}
+	}
+
+	return 0;
+}
+
 static int __cmd_report(void)
 {
 	int ret = -EINVAL;
@@ -330,34 +362,14 @@ static int __cmd_report(void)
 		hists = rb_entry(next, struct hists, rb_node);
 		hists__collapse_resort(hists);
 		hists__output_resort(hists);
-		if (use_browser)
-			hists__browse(hists, help, input_name);
-		else {
-			const char *evname = NULL;
-			if (rb_first(&session->hists.entries) !=
-			    rb_last(&session->hists.entries))
-				evname = __event_name(hists->type, hists->config);
-
-			hists__fprintf_nr_sample_events(hists, evname, stdout);
-
-			hists__fprintf(hists, NULL, false, stdout);
-			fprintf(stdout, "\n\n");
-		}
-
 		next = rb_next(&hists->rb_node);
 	}
 
-	if (!use_browser && sort_order == default_sort_order &&
-	    parent_pattern == default_parent_pattern) {
-		fprintf(stdout, "#\n# (%s)\n#\n", help);
+	if (use_browser > 0)
+		hists__tui_browse_tree(&session->hists_tree, help);
+	else
+		hists__tty_browse_tree(&session->hists_tree, help);
 
-		if (show_threads) {
-			bool style = !strcmp(pretty_printing_style, "raw");
-			perf_read_values_display(stdout, &show_threads_values,
-						 style);
-			perf_read_values_destroy(&show_threads_values);
-		}
-	}
 out_delete:
 	perf_session__delete(session);
 	return ret;
@@ -491,7 +503,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 	 * so don't allocate extra space that won't be used in the stdio
 	 * implementation.
 	 */
-	if (use_browser)
+	if (use_browser > 0)
 		symbol_conf.priv_size = sizeof(struct sym_priv);
 
 	if (symbol__init() < 0)

@@ -232,6 +232,8 @@ enum HPI_BUSES {
 #define HPI_TUNER_HDRADIO_SDK_VERSION   HPI_CTL_ATTR(TUNER, 13)
 /** HD Radio DSP firmware version. */
 #define HPI_TUNER_HDRADIO_DSP_VERSION   HPI_CTL_ATTR(TUNER, 14)
+/** HD Radio signal blend (force analog, or automatic). */
+#define HPI_TUNER_HDRADIO_BLEND         HPI_CTL_ATTR(TUNER, 15)
 
 /** \} */
 
@@ -478,8 +480,10 @@ Threshold is a -ve number in units of dB/100,
 
 /** First 2 hex digits define the adapter family */
 #define HPI_ADAPTER_FAMILY_MASK         0xff00
+#define HPI_MODULE_FAMILY_MASK          0xfff0
 
 #define HPI_ADAPTER_FAMILY_ASI(f)   (f & HPI_ADAPTER_FAMILY_MASK)
+#define HPI_MODULE_FAMILY_ASI(f)   (f & HPI_MODULE_FAMILY_MASK)
 #define HPI_ADAPTER_ASI(f)   (f)
 
 /******************************************* message types */
@@ -970,6 +974,7 @@ struct hpi_control_union_msg {
 				u32 mode;
 				u32 value;
 			} mode;
+			u32 blend;
 		} tuner;
 	} u;
 };

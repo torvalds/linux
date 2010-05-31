@@ -755,6 +755,21 @@ static int exofs_write_end(struct file *file, struct address_space *mapping,
 	return ret;
 }
 
+static int exofs_releasepage(struct page *page, gfp_t gfp)
+{
+	EXOFS_DBGMSG("page 0x%lx\n", page->index);
+	WARN_ON(1);
+	return try_to_free_buffers(page);
+}
+
+static void exofs_invalidatepage(struct page *page, unsigned long offset)
+{
+	EXOFS_DBGMSG("page_has_buffers=>%d\n", page_has_buffers(page));
+	WARN_ON(1);
+
+	block_invalidatepage(page, offset);
+}
+
 const struct address_space_operations exofs_aops = {
 	.readpage	= exofs_readpage,
 	.readpages	= exofs_readpages,
@@ -762,6 +777,21 @@ const struct address_space_operations exofs_aops = {
 	.writepages	= exofs_writepages,
 	.write_begin	= exofs_write_begin_export,
 	.write_end	= exofs_write_end,
+	.releasepage	= exofs_releasepage,
+	.set_page_dirty	= __set_page_dirty_nobuffers,
+	.invalidatepage = exofs_invalidatepage,
+
+	/* Not implemented Yet */
+	.bmap		= NULL, /* TODO: use osd's OSD_ACT_READ_MAP */
+	.direct_IO	= NULL, /* TODO: Should be trivial to do */
+
+	/* With these NULL has special meaning or default is not exported */
+	.sync_page	= NULL,
+	.get_xip_mem	= NULL,
+	.migratepage	= NULL,
+	.launder_page	= NULL,
+	.is_partially_uptodate = NULL,
+	.error_remove_page = NULL,
 };
 
 /******************************************************************************

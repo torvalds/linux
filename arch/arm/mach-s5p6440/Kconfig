@@ -16,6 +16,10 @@ config CPU_S5P6440
 config MACH_SMDK6440
 	bool "SMDK6440"
 	select CPU_S5P6440
+	select SAMSUNG_DEV_TS
+	select SAMSUNG_DEV_ADC
+	select S3C_DEV_WDT
+	select HAVE_S3C2410_WATCHDOG
 	help
 	  Machine support for the Samsung SMDK6440
 

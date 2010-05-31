@@ -94,8 +94,8 @@ struct cfctrl_request_info {
 	enum cfctrl_cmd cmd;
 	u8 channel_id;
 	struct cfctrl_link_param param;
-	struct cfctrl_request_info *next;
 	struct cflayer *client_layer;
+	struct list_head list;
 };
 
 struct cfctrl {
@@ -103,7 +103,7 @@ struct cfctrl {
 	struct cfctrl_rsp res;
 	atomic_t req_seq_no;
 	atomic_t rsp_seq_no;
-	struct cfctrl_request_info *first_req;
+	struct list_head list;
 	/* Protects from simultaneous access to first_req list */
 	spinlock_t info_list_lock;
 #ifndef CAIF_NO_LOOP

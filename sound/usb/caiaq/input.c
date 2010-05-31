@@ -171,7 +171,7 @@ static void snd_caiaq_input_read_analog(struct snd_usb_caiaqdev *dev,
 		input_report_abs(input_dev, ABS_HAT0Y, (buf[4] << 8)  | buf[5]);
 		input_report_abs(input_dev, ABS_HAT1X, (buf[12] << 8) | buf[13]);
 		input_report_abs(input_dev, ABS_HAT1Y, (buf[2] << 8)  | buf[3]);
-		input_report_abs(input_dev, ABS_HAT2X, (buf[15] << 8) | buf[15]);
+		input_report_abs(input_dev, ABS_HAT2X, (buf[14] << 8) | buf[15]);
 		input_report_abs(input_dev, ABS_HAT2Y, (buf[0] << 8)  | buf[1]);
 		input_report_abs(input_dev, ABS_HAT3X, (buf[10] << 8) | buf[11]);
 		input_report_abs(input_dev, ABS_HAT3Y, (buf[6] << 8)  | buf[7]);

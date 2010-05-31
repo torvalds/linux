@@ -5162,13 +5162,6 @@ static void proc_SSID_on_close(struct inode *inode, struct file *file)
 	enable_MAC(ai, 1);
 }
 
-static inline u8 hexVal(char c) {
-	if (c>='0' && c<='9') return c -= '0';
-	if (c>='a' && c<='f') return c -= 'a'-10;
-	if (c>='A' && c<='F') return c -= 'A'-10;
-	return 0;
-}
-
 static void proc_APList_on_close( struct inode *inode, struct file *file ) {
 	struct proc_data *data = (struct proc_data *)file->private_data;
 	struct proc_dir_entry *dp = PDE(inode);
@@ -5188,11 +5181,11 @@ static void proc_APList_on_close( struct inode *inode, struct file *file ) {
 			switch(j%3) {
 			case 0:
 				APList_rid.ap[i][j/3]=
-					hexVal(data->wbuffer[j+i*6*3])<<4;
+					hex_to_bin(data->wbuffer[j+i*6*3])<<4;
 				break;
 			case 1:
 				APList_rid.ap[i][j/3]|=
-					hexVal(data->wbuffer[j+i*6*3]);
+					hex_to_bin(data->wbuffer[j+i*6*3]);
 				break;
 			}
 		}
@@ -5340,10 +5333,10 @@ static void proc_wepkey_on_close( struct inode *inode, struct file *file ) {
 	for( i = 0; i < 16*3 && data->wbuffer[i+j]; i++ ) {
 		switch(i%3) {
 		case 0:
-			key[i/3] = hexVal(data->wbuffer[i+j])<<4;
+			key[i/3] = hex_to_bin(data->wbuffer[i+j])<<4;
 			break;
 		case 1:
-			key[i/3] |= hexVal(data->wbuffer[i+j]);
+			key[i/3] |= hex_to_bin(data->wbuffer[i+j]);
 			break;
 		}
 	}

@@ -966,22 +966,15 @@ static void outstream_write(struct hpi_adapter_obj *pao,
 	status = &interface->outstream_host_buffer_status[phm->obj_index];
 
 	if (phw->flag_outstream_just_reset[phm->obj_index]) {
-		/* Format can only change after reset. Must tell DSP. */
-		u16 function = phm->function;
-		phw->flag_outstream_just_reset[phm->obj_index] = 0;
-		phm->function = HPI_OSTREAM_SET_FORMAT;
-		hw_message(pao, phm, phr);	/* send the format to the DSP */
-		phm->function = function;
-		if (phr->error)
-			return;
-	}
-#if 1
-	if (phw->flag_outstream_just_reset[phm->obj_index]) {
 		/* First OutStremWrite() call following reset will write data to the
-		   adapter's buffers, reducing delay before stream can start
+		   adapter's buffers, reducing delay before stream can start. The DSP
+		   takes care of setting the stream data format using format information
+		   embedded in phm.
 		 */
 		int partial_write = 0;
 		unsigned int original_size = 0;
+
+		phw->flag_outstream_just_reset[phm->obj_index] = 0;
 
 		/* Send the first buffer to the DSP the old way. */
 		/* Limit size of first transfer - */
@@ -1012,7 +1005,6 @@ static void outstream_write(struct hpi_adapter_obj *pao,
 			original_size - HPI6205_SIZEOF_DATA;
 		phm->u.d.u.data.pb_data += HPI6205_SIZEOF_DATA;
 	}
-#endif
 
 	space_available = outstream_get_space_available(status);
 	if (space_available < (long)phm->u.d.u.data.data_size) {
@@ -1368,6 +1360,9 @@ static u16 adapter_boot_load_dsp(struct hpi_adapter_obj *pao,
 	case HPI_ADAPTER_FAMILY_ASI(0x5600):
 	case HPI_ADAPTER_FAMILY_ASI(0x6500):
 		firmware_id = HPI_ADAPTER_FAMILY_ASI(0x6600);
+		break;
+	case HPI_ADAPTER_FAMILY_ASI(0x8800):
+		firmware_id = HPI_ADAPTER_FAMILY_ASI(0x8900);
 		break;
 	}
 	boot_code_id[1] = firmware_id;

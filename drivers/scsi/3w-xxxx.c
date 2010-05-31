@@ -881,7 +881,7 @@ static int tw_allocate_memory(TW_Device_Extension *tw_dev, int size, int which)
 } /* End tw_allocate_memory() */
 
 /* This function handles ioctl for the character device */
-static int tw_chrdev_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long tw_chrdev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int request_id;
 	dma_addr_t dma_handle;
@@ -889,6 +889,7 @@ static int tw_chrdev_ioctl(struct inode *inode, struct file *file, unsigned int 
 	unsigned long flags;
 	unsigned int data_buffer_length = 0;
 	unsigned long data_buffer_length_adjusted = 0;
+	struct inode *inode = file->f_dentry->d_inode;
 	unsigned long *cpu_addr;
 	long timeout;
 	TW_New_Ioctl *tw_ioctl;
@@ -899,9 +900,12 @@ static int tw_chrdev_ioctl(struct inode *inode, struct file *file, unsigned int 
 
 	dprintk(KERN_WARNING "3w-xxxx: tw_chrdev_ioctl()\n");
 
+	lock_kernel();
 	/* Only let one of these through at a time */
-	if (mutex_lock_interruptible(&tw_dev->ioctl_lock))
+	if (mutex_lock_interruptible(&tw_dev->ioctl_lock)) {
+		unlock_kernel();
 		return -EINTR;
+	}
 
 	/* First copy down the buffer length */
 	if (copy_from_user(&data_buffer_length, argp, sizeof(unsigned int)))
@@ -1030,6 +1034,7 @@ out2:
 	dma_free_coherent(&tw_dev->tw_pci_dev->dev, data_buffer_length_adjusted+sizeof(TW_New_Ioctl) - 1, cpu_addr, dma_handle);
 out:
 	mutex_unlock(&tw_dev->ioctl_lock);
+	unlock_kernel();
 	return retval;
 } /* End tw_chrdev_ioctl() */
 
@@ -1052,7 +1057,7 @@ static int tw_chrdev_open(struct inode *inode, struct file *file)
 /* File operations struct for character device */
 static const struct file_operations tw_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= tw_chrdev_ioctl,
+	.unlocked_ioctl	= tw_chrdev_ioctl,
 	.open		= tw_chrdev_open,
 	.release	= NULL
 };

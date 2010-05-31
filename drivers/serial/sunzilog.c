@@ -1230,7 +1230,7 @@ static int __init sunzilog_console_setup(struct console *con, char *options)
 	       (sunzilog_reg.minor - 64) + con->index, con->index);
 
 	/* Get firmware console settings.  */
-	sunserial_console_termios(con, to_of_device(up->port.dev)->node);
+	sunserial_console_termios(con, to_of_device(up->port.dev)->dev.of_node);
 
 	/* Firmware console speed is limited to 150-->38400 baud so
 	 * this hackish cflag thing is OK.
@@ -1408,7 +1408,7 @@ static int __devinit zs_probe(struct of_device *op, const struct of_device_id *m
 	int keyboard_mouse = 0;
 	int err;
 
-	if (of_find_property(op->node, "keyboard", NULL))
+	if (of_find_property(op->dev.of_node, "keyboard", NULL))
 		keyboard_mouse = 1;
 
 	/* uarts must come before keyboards/mice */
@@ -1465,7 +1465,7 @@ static int __devinit zs_probe(struct of_device *op, const struct of_device_id *m
 	sunzilog_init_hw(&up[1]);
 
 	if (!keyboard_mouse) {
-		if (sunserial_console_match(SUNZILOG_CONSOLE(), op->node,
+		if (sunserial_console_match(SUNZILOG_CONSOLE(), op->dev.of_node,
 					    &sunzilog_reg, up[0].port.line,
 					    false))
 			up->flags |= SUNZILOG_FLAG_IS_CONS;
@@ -1475,7 +1475,7 @@ static int __devinit zs_probe(struct of_device *op, const struct of_device_id *m
 				   rp, sizeof(struct zilog_layout));
 			return err;
 		}
-		if (sunserial_console_match(SUNZILOG_CONSOLE(), op->node,
+		if (sunserial_console_match(SUNZILOG_CONSOLE(), op->dev.of_node,
 					    &sunzilog_reg, up[1].port.line,
 					    false))
 			up->flags |= SUNZILOG_FLAG_IS_CONS;
@@ -1541,8 +1541,11 @@ static const struct of_device_id zs_match[] = {
 MODULE_DEVICE_TABLE(of, zs_match);
 
 static struct of_platform_driver zs_driver = {
-	.name		= "zs",
-	.match_table	= zs_match,
+	.driver = {
+		.name = "zs",
+		.owner = THIS_MODULE,
+		.of_match_table = zs_match,
+	},
 	.probe		= zs_probe,
 	.remove		= __devexit_p(zs_remove),
 };

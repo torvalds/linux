@@ -63,7 +63,6 @@ acpi_status acpi_hw_set_mode(u32 mode)
 {
 
 	acpi_status status;
-	u32 retry;
 
 	ACPI_FUNCTION_TRACE(hw_set_mode);
 
@@ -125,24 +124,7 @@ acpi_status acpi_hw_set_mode(u32 mode)
 		return_ACPI_STATUS(status);
 	}
 
-	/*
-	 * Some hardware takes a LONG time to switch modes. Give them 3 sec to
-	 * do so, but allow faster systems to proceed more quickly.
-	 */
-	retry = 3000;
-	while (retry) {
-		if (acpi_hw_get_mode() == mode) {
-			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					  "Mode %X successfully enabled\n",
-					  mode));
-			return_ACPI_STATUS(AE_OK);
-		}
-		acpi_os_stall(1000);
-		retry--;
-	}
-
-	ACPI_ERROR((AE_INFO, "Hardware did not change modes"));
-	return_ACPI_STATUS(AE_NO_HARDWARE_RESPONSE);
+	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************

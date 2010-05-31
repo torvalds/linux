@@ -95,7 +95,7 @@ static int ata_tosh_init_one(struct pci_dev *dev, const struct pci_device_id *id
 	};
 	const struct ata_port_info *ppi[] = { &info, &ata_dummy_port_info };
 	/* Just one port for the moment */
-	return ata_pci_sff_init_one(dev, ppi, &tosh_sht, NULL, 0);
+	return ata_pci_bmdma_init_one(dev, ppi, &tosh_sht, NULL, 0);
 }
 
 static struct pci_device_id ata_tosh[] = {

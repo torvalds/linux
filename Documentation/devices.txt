@@ -443,6 +443,8 @@ Your cooperation is appreciated.
 		231 = /dev/snapshot	System memory snapshot device
 		232 = /dev/kvm		Kernel-based virtual machine (hardware virtualization extensions)
 		233 = /dev/kmview	View-OS A process with a view
+		234 = /dev/btrfs-control	Btrfs control device
+		235 = /dev/autofs	Autofs control device
 		240-254			Reserved for local use
 		255			Reserved for MISC_DYNAMIC_MINOR
 

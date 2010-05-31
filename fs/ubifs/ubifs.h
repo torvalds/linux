@@ -379,7 +379,7 @@ struct ubifs_gced_idx_leb {
  * The @ui_size is a "shadow" variable for @inode->i_size and UBIFS uses
  * @ui_size instead of @inode->i_size. The reason for this is that UBIFS cannot
  * make sure @inode->i_size is always changed under @ui_mutex, because it
- * cannot call 'vmtruncate()' with @ui_mutex locked, because it would deadlock
+ * cannot call 'simple_setsize()' with @ui_mutex locked, because it would deadlock
  * with 'ubifs_writepage()' (see file.c). All the other inode fields are
  * changed under @ui_mutex, so they do not need "shadow" fields. Note, one
  * could consider to rework locking and base it on "shadow" fields.
@@ -1678,7 +1678,7 @@ const struct ubifs_lprops *ubifs_fast_find_frdi_idx(struct ubifs_info *c);
 int ubifs_calc_dark(const struct ubifs_info *c, int spc);
 
 /* file.c */
-int ubifs_fsync(struct file *file, struct dentry *dentry, int datasync);
+int ubifs_fsync(struct file *file, int datasync);
 int ubifs_setattr(struct dentry *dentry, struct iattr *attr);
 
 /* dir.c */
