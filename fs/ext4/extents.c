@@ -3229,7 +3229,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	struct ext4_extent_header *eh;
 	struct ext4_extent newex, *ex, *last_ex;
 	ext4_fsblk_t newblock;
-	int err = 0, depth, ret, cache_type;
+	int i, err = 0, depth, ret, cache_type;
 	unsigned int allocated = 0;
 	struct ext4_allocation_request ar;
 	ext4_io_end_t *io = EXT4_I(inode)->cur_aio_dio;
@@ -3410,19 +3410,29 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	}
 
 	if (unlikely(ext4_test_inode_flag(inode, EXT4_INODE_EOFBLOCKS))) {
-		if (eh->eh_entries) {
-			last_ex = EXT_LAST_EXTENT(eh);
-			if (iblock + ar.len > le32_to_cpu(last_ex->ee_block)
-					    + ext4_ext_get_actual_len(last_ex))
-				ext4_clear_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
-		} else {
-			WARN_ON(eh->eh_entries == 0);
+		if (unlikely(!eh->eh_entries)) {
 			ext4_error(inode->i_sb, __func__,
 				   "inode#%lu, eh->eh_entries = 0 and "
 				   "EOFBLOCKS_FL set", inode->i_ino);
 			err = -EIO;
 			goto out2;
 		}
+		last_ex = EXT_LAST_EXTENT(eh);
+		/*
+		 * If the current leaf block was reached by looking at
+		 * the last index block all the way down the tree, and
+		 * we are extending the inode beyond the last extent
+		 * in the current leaf block, then clear the
+		 * EOFBLOCKS_FL flag.
+		 */
+		for (i = depth-1; i >= 0; i--) {
+			if (path[i].p_idx != EXT_LAST_INDEX(path[i].p_hdr))
+				break;
+		}
+		if ((i < 0) &&
+		    (iblock + ar.len > le32_to_cpu(last_ex->ee_block) +
+		     ext4_ext_get_actual_len(last_ex)))
+			ext4_clear_inode_flag(inode, EXT4_INODE_EOFBLOCKS);
 	}
 	err = ext4_ext_insert_extent(handle, inode, path, &newex, flags);
 	if (err) {
