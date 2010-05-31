@@ -34,7 +34,6 @@
 static struct nouveau_dsm_priv {
 	bool dsm_detected;
 	acpi_handle dhandle;
-	acpi_handle dsm_handle;
 	acpi_handle rom_handle;
 } nouveau_dsm_priv;
 
@@ -108,9 +107,9 @@ static int nouveau_dsm_set_discrete_state(acpi_handle handle, enum vga_switchero
 static int nouveau_dsm_switchto(enum vga_switcheroo_client_id id)
 {
 	if (id == VGA_SWITCHEROO_IGD)
-		return nouveau_dsm_switch_mux(nouveau_dsm_priv.dsm_handle, NOUVEAU_DSM_LED_STAMINA);
+		return nouveau_dsm_switch_mux(nouveau_dsm_priv.dhandle, NOUVEAU_DSM_LED_STAMINA);
 	else
-		return nouveau_dsm_switch_mux(nouveau_dsm_priv.dsm_handle, NOUVEAU_DSM_LED_SPEED);
+		return nouveau_dsm_switch_mux(nouveau_dsm_priv.dhandle, NOUVEAU_DSM_LED_SPEED);
 }
 
 static int nouveau_dsm_power_state(enum vga_switcheroo_client_id id,
@@ -119,7 +118,7 @@ static int nouveau_dsm_power_state(enum vga_switcheroo_client_id id,
 	if (id == VGA_SWITCHEROO_IGD)
 		return 0;
 
-	return nouveau_dsm_set_discrete_state(nouveau_dsm_priv.dsm_handle, state);
+	return nouveau_dsm_set_discrete_state(nouveau_dsm_priv.dhandle, state);
 }
 
 static int nouveau_dsm_init(void)
@@ -158,13 +157,12 @@ static bool nouveau_dsm_pci_probe(struct pci_dev *pdev)
 		return false;
 	}
 
-	ret = nouveau_dsm(nvidia_handle, NOUVEAU_DSM_SUPPORTED,
-			 NOUVEAU_DSM_SUPPORTED_FUNCTIONS, &result);
+	ret = nouveau_dsm(dhandle, NOUVEAU_DSM_SUPPORTED,
+			  NOUVEAU_DSM_SUPPORTED_FUNCTIONS, &result);
 	if (ret < 0)
 		return false;
 
 	nouveau_dsm_priv.dhandle = dhandle;
-	nouveau_dsm_priv.dsm_handle = nvidia_handle;
 	return true;
 }
 
@@ -183,7 +181,7 @@ static bool nouveau_dsm_detect(void)
 	}
 
 	if (vga_count == 2 && has_dsm) {
-		acpi_get_name(nouveau_dsm_priv.dsm_handle, ACPI_FULL_PATHNAME, &buffer);
+		acpi_get_name(nouveau_dsm_priv.dhandle, ACPI_FULL_PATHNAME, &buffer);
 		printk(KERN_INFO "VGA switcheroo: detected DSM switching method %s handle\n",
 		       acpi_method_name);
 		nouveau_dsm_priv.dsm_detected = true;
