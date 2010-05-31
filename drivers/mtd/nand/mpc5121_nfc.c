@@ -650,7 +650,7 @@ static void mpc5121_nfc_free(struct device *dev, struct mtd_info *mtd)
 static int __devinit mpc5121_nfc_probe(struct of_device *op,
 					const struct of_device_id *match)
 {
-	struct device_node *rootnode, *dn = op->node;
+	struct device_node *rootnode, *dn = op->dev.of_node;
 	struct device *dev = &op->dev;
 	struct mpc5121_nfc_prv *prv;
 	struct resource res;
@@ -889,12 +889,12 @@ static struct of_device_id mpc5121_nfc_match[] __devinitdata = {
 };
 
 static struct of_platform_driver mpc5121_nfc_driver = {
-	.match_table	= mpc5121_nfc_match,
 	.probe		= mpc5121_nfc_probe,
 	.remove		= __devexit_p(mpc5121_nfc_remove),
 	.driver		= {
-		.name	= DRV_NAME,
-		.owner	= THIS_MODULE,
+		.name = DRV_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = mpc5121_nfc_match,
 	},
 };
 
