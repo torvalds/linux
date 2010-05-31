@@ -523,7 +523,8 @@ static void module_unload_init(struct module *mod)
 {
 	int cpu;
 
-	INIT_LIST_HEAD(&mod->modules_which_use_me);
+	INIT_LIST_HEAD(&mod->source_list);
+	INIT_LIST_HEAD(&mod->target_list);
 	for_each_possible_cpu(cpu) {
 		per_cpu_ptr(mod->refptr, cpu)->incs = 0;
 		per_cpu_ptr(mod->refptr, cpu)->decs = 0;
@@ -538,8 +539,9 @@ static void module_unload_init(struct module *mod)
 /* modules using other modules */
 struct module_use
 {
-	struct list_head list;
-	struct module *module_which_uses;
+	struct list_head source_list;
+	struct list_head target_list;
+	struct module *source, *target;
 };
 
 /* Does a already use b? */
@@ -547,13 +549,40 @@ static int already_uses(struct module *a, struct module *b)
 {
 	struct module_use *use;
 
-	list_for_each_entry(use, &b->modules_which_use_me, list) {
-		if (use->module_which_uses == a) {
+	list_for_each_entry(use, &b->source_list, source_list) {
+		if (use->source == a) {
 			DEBUGP("%s uses %s!\n", a->name, b->name);
 			return 1;
 		}
 	}
 	DEBUGP("%s does not use %s!\n", a->name, b->name);
+	return 0;
+}
+
+/*
+ * Module a uses b
+ *  - we add 'a' as a "source", 'b' as a "target" of module use
+ *  - the module_use is added to the list of 'b' sources (so
+ *    'b' can walk the list to see who sourced them), and of 'a'
+ *    targets (so 'a' can see what modules it targets).
+ */
+static int add_module_usage(struct module *a, struct module *b)
+{
+	int no_warn;
+	struct module_use *use;
+
+	DEBUGP("Allocating new usage for %s.\n", a->name);
+	use = kmalloc(sizeof(*use), GFP_ATOMIC);
+	if (!use) {
+		printk(KERN_WARNING "%s: out of memory loading\n", a->name);
+		return -ENOMEM;
+	}
+
+	use->source = a;
+	use->target = b;
+	list_add(&use->source_list, &b->source_list);
+	list_add(&use->target_list, &a->target_list);
+	no_warn = sysfs_create_link(b->holders_dir, &a->mkobj.kobj, a->name);
 	return 0;
 }
 
@@ -578,17 +607,11 @@ int use_module(struct module *a, struct module *b)
 	if (err)
 		return 0;
 
-	DEBUGP("Allocating new usage for %s.\n", a->name);
-	use = kmalloc(sizeof(*use), GFP_ATOMIC);
-	if (!use) {
-		printk("%s: out of memory loading\n", a->name);
+	err = add_module_usage(a, b);
+	if (err) {
 		module_put(b);
 		return 0;
 	}
-
-	use->module_which_uses = a;
-	list_add(&use->list, &b->modules_which_use_me);
-	no_warn = sysfs_create_link(b->holders_dir, &a->mkobj.kobj, a->name);
 	return 1;
 }
 EXPORT_SYMBOL_GPL(use_module);
@@ -596,22 +619,16 @@ EXPORT_SYMBOL_GPL(use_module);
 /* Clear the unload stuff of the module. */
 static void module_unload_free(struct module *mod)
 {
-	struct module *i;
+	struct module_use *use, *tmp;
 
-	list_for_each_entry(i, &modules, list) {
-		struct module_use *use;
-
-		list_for_each_entry(use, &i->modules_which_use_me, list) {
-			if (use->module_which_uses == mod) {
-				DEBUGP("%s unusing %s\n", mod->name, i->name);
-				module_put(i);
-				list_del(&use->list);
-				kfree(use);
-				sysfs_remove_link(i->holders_dir, mod->name);
-				/* There can be at most one match. */
-				break;
-			}
-		}
+	list_for_each_entry_safe(use, tmp, &mod->target_list, target_list) {
+		struct module *i = use->target;
+		DEBUGP("%s unusing %s\n", mod->name, i->name);
+		module_put(i);
+		list_del(&use->source_list);
+		list_del(&use->target_list);
+		kfree(use);
+		sysfs_remove_link(i->holders_dir, mod->name);
 	}
 }
 
@@ -735,7 +752,7 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 		goto out;
 	}
 
-	if (!list_empty(&mod->modules_which_use_me)) {
+	if (!list_empty(&mod->source_list)) {
 		/* Other modules depend on us: get rid of them first. */
 		ret = -EWOULDBLOCK;
 		goto out;
@@ -799,9 +816,9 @@ static inline void print_unload_info(struct seq_file *m, struct module *mod)
 
 	/* Always include a trailing , so userspace can differentiate
            between this and the old multi-field proc format. */
-	list_for_each_entry(use, &mod->modules_which_use_me, list) {
+	list_for_each_entry(use, &mod->source_list, source_list) {
 		printed_something = 1;
-		seq_printf(m, "%s,", use->module_which_uses->name);
+		seq_printf(m, "%s,", use->source->name);
 	}
 
 	if (mod->init != NULL && mod->exit == NULL) {
