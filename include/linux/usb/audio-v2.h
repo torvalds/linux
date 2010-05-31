@@ -41,6 +41,13 @@ struct uac_clock_source_descriptor {
 	__u8 iClockSource;
 } __attribute__((packed));
 
+/* bmAttribute fields */
+#define UAC_CLOCK_SOURCE_TYPE_EXT	0x0
+#define UAC_CLOCK_SOURCE_TYPE_INT_FIXED	0x1
+#define UAC_CLOCK_SOURCE_TYPE_INT_VAR	0x2
+#define UAC_CLOCK_SOURCE_TYPE_INT_PROG	0x3
+#define UAC_CLOCK_SOURCE_SYNCED_TO_SOF	(1 << 2)
+
 /* 4.7.2.2 Clock Source Descriptor */
 
 struct uac_clock_selector_descriptor {
@@ -49,8 +56,20 @@ struct uac_clock_selector_descriptor {
 	__u8 bDescriptorSubtype;
 	__u8 bClockID;
 	__u8 bNrInPins;
-	__u8 bmControls;
 	__u8 baCSourceID[];
+	/* bmControls, bAssocTerminal and iClockSource omitted */
+} __attribute__((packed));
+
+/* 4.7.2.3 Clock Multiplier Descriptor */
+
+struct uac_clock_multiplier_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bClockID;
+	__u8 bCSourceID;
+	__u8 bmControls;
+	__u8 iClockMultiplier;
 } __attribute__((packed));
 
 /* 4.7.2.4 Input terminal descriptor */
