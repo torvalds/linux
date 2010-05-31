@@ -2244,7 +2244,7 @@ static void process_work(struct work_struct *work)
 {
 	struct sk_buff *skb = NULL;
 	struct c4iw_dev *dev;
-	struct cpl_act_establish *rpl = cplhdr(skb);
+	struct cpl_act_establish *rpl;
 	unsigned int opcode;
 	int ret;
 
