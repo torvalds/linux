@@ -1088,7 +1088,7 @@ static int ext4_calc_metadata_amount(struct inode *inode, int blocks)
 static void ext4_da_update_reserve_space(struct inode *inode, int used)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
-	int total, mdb, mdb_free;
+	int total, mdb, mdb_free, mdb_claim = 0;
 
 	spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
 	/* recalculate the number of metablocks still need to be reserved */
@@ -1101,7 +1101,9 @@ static void ext4_da_update_reserve_space(struct inode *inode, int used)
 
 	if (mdb_free) {
 		/* Account for allocated meta_blocks */
-		mdb_free -= EXT4_I(inode)->i_allocated_meta_blocks;
+		mdb_claim = EXT4_I(inode)->i_allocated_meta_blocks;
+		BUG_ON(mdb_free < mdb_claim);
+		mdb_free -= mdb_claim;
 
 		/* update fs dirty blocks counter */
 		percpu_counter_sub(&sbi->s_dirtyblocks_counter, mdb_free);
@@ -1112,7 +1114,10 @@ static void ext4_da_update_reserve_space(struct inode *inode, int used)
 	/* update per-inode reservations */
 	BUG_ON(used  > EXT4_I(inode)->i_reserved_data_blocks);
 	EXT4_I(inode)->i_reserved_data_blocks -= used;
+	percpu_counter_sub(&sbi->s_dirtyblocks_counter, used + mdb_claim);
 	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+
+	vfs_dq_claim_block(inode, used + mdb_claim);
 
 	/*
 	 * free those over-booking quota for metadata blocks
