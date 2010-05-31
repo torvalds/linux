@@ -2537,6 +2537,17 @@ static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 		mb_debug(1, "gonna free %u blocks in group %u (0x%p):",
 			 entry->count, entry->group, entry);
 
+		if (test_opt(sb, DISCARD)) {
+			ext4_fsblk_t discard_block;
+
+			discard_block = entry->start_blk +
+				ext4_group_first_block_no(sb, entry->group);
+			trace_ext4_discard_blocks(sb,
+					(unsigned long long)discard_block,
+					entry->count);
+			sb_issue_discard(sb, discard_block, entry->count);
+		}
+
 		err = ext4_mb_load_buddy(sb, entry->group, &e4b);
 		/* we expect to find existing buddy because it's pinned */
 		BUG_ON(err != 0);
@@ -2558,19 +2569,6 @@ static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 			page_cache_release(e4b.bd_bitmap_page);
 		}
 		ext4_unlock_group(sb, entry->group);
-		if (test_opt(sb, DISCARD)) {
-			ext4_fsblk_t discard_block;
-			struct ext4_super_block *es = EXT4_SB(sb)->s_es;
-
-			discard_block = (ext4_fsblk_t)entry->group *
-						EXT4_BLOCKS_PER_GROUP(sb)
-					+ entry->start_blk
-					+ le32_to_cpu(es->s_first_data_block);
-			trace_ext4_discard_blocks(sb,
-					(unsigned long long)discard_block,
-					entry->count);
-			sb_issue_discard(sb, discard_block, entry->count);
-		}
 		kmem_cache_free(ext4_free_ext_cachep, entry);
 		ext4_mb_release_desc(&e4b);
 	}
