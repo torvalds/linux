@@ -1672,6 +1672,31 @@ error:
 }
 EXPORT_SYMBOL_GPL(p9_client_xattrwalk);
 
+int p9_client_xattrcreate(struct p9_fid *fid, const char *name,
+			u64 attr_size, int flags)
+{
+	int err;
+	struct p9_req_t *req;
+	struct p9_client *clnt;
+
+	P9_DPRINTK(P9_DEBUG_9P,
+		">>> TXATTRCREATE fid %d name  %s size %lld flag %d\n",
+		fid->fid, name, (long long)attr_size, flags);
+	err = 0;
+	clnt = fid->clnt;
+	req = p9_client_rpc(clnt, P9_TXATTRCREATE, "dsqd",
+			fid->fid, name, attr_size, flags);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RXATTRCREATE fid %d\n", fid->fid);
+	p9_free_req(clnt, req);
+error:
+	return err;
+}
+EXPORT_SYMBOL_GPL(p9_client_xattrcreate);
+
 int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 {
 	int err, rsize, total;
