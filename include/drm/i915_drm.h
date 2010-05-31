@@ -275,6 +275,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_OVERLAY           7
 #define I915_PARAM_HAS_PAGEFLIPPING	 8
 #define I915_PARAM_HAS_EXECBUF2          9
+#define I915_PARAM_HAS_BSD		 10
 
 typedef struct drm_i915_getparam {
 	int param;

@@ -744,6 +744,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		/* depends on GEM */
 		value = dev_priv->has_gem;
 		break;
+	case I915_PARAM_HAS_BSD:
+		value = HAS_BSD(dev);
+		break;
 	default:
 		DRM_DEBUG_DRIVER("Unknown parameter %d\n",
 				 param->param);
