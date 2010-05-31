@@ -527,8 +527,7 @@ static int
 nv04_graph_mthd_set_ref(struct nouveau_channel *chan, int grclass,
 			int mthd, uint32_t data)
 {
-	chan->fence.last_sequence_irq = data;
-	nouveau_fence_handler(chan->dev, chan->id);
+	atomic_set(&chan->fence.last_sequence_irq, data);
 	return 0;
 }
 

@@ -188,7 +188,7 @@ struct nouveau_channel {
 		struct list_head pending;
 		uint32_t sequence;
 		uint32_t sequence_ack;
-		uint32_t last_sequence_irq;
+		atomic_t last_sequence_irq;
 	} fence;
 
 	/* DMA push buffer */
@@ -1111,7 +1111,6 @@ extern int nouveau_fence_wait(void *obj, void *arg, bool lazy, bool intr);
 extern int nouveau_fence_flush(void *obj, void *arg);
 extern void nouveau_fence_unref(void **obj);
 extern void *nouveau_fence_ref(void *obj);
-extern void nouveau_fence_handler(struct drm_device *dev, int channel);
 
 /* nouveau_gem.c */
 extern int nouveau_gem_new(struct drm_device *, struct nouveau_channel *,
