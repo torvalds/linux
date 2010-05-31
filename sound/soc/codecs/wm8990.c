@@ -30,8 +30,6 @@
 
 #include "wm8990.h"
 
-#define WM8990_VERSION "0.2"
-
 /* codec private data */
 struct wm8990_priv {
 	unsigned int sysclk;
@@ -1510,8 +1508,6 @@ static int wm8990_probe(struct platform_device *pdev)
 	struct snd_soc_codec *codec;
 	struct wm8990_priv *wm8990;
 	int ret;
-
-	pr_info("WM8990 Audio Codec %s\n", WM8990_VERSION);
 
 	setup = socdev->codec_data;
 	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);

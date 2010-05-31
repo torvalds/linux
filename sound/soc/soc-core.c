@@ -2353,6 +2353,101 @@ int snd_soc_limit_volume(struct snd_soc_codec *codec,
 EXPORT_SYMBOL_GPL(snd_soc_limit_volume);
 
 /**
+ * snd_soc_info_volsw_2r_sx - double with tlv and variable data size
+ *  mixer info callback
+ * @kcontrol: mixer control
+ * @uinfo: control element information
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_info_volsw_2r_sx(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_info *uinfo)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	int max = mc->max;
+	int min = mc->min;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 2;
+	uinfo->value.integer.min = 0;
+	uinfo->value.integer.max = max-min;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_info_volsw_2r_sx);
+
+/**
+ * snd_soc_get_volsw_2r_sx - double with tlv and variable data size
+ *  mixer get callback
+ * @kcontrol: mixer control
+ * @uinfo: control element information
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_get_volsw_2r_sx(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	unsigned int mask = (1<<mc->shift)-1;
+	int min = mc->min;
+	int val = snd_soc_read(codec, mc->reg) & mask;
+	int valr = snd_soc_read(codec, mc->rreg) & mask;
+
+	ucontrol->value.integer.value[0] = ((val & 0xff)-min);
+	ucontrol->value.integer.value[1] = ((valr & 0xff)-min);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_get_volsw_2r_sx);
+
+/**
+ * snd_soc_put_volsw_2r_sx - double with tlv and variable data size
+ *  mixer put callback
+ * @kcontrol: mixer control
+ * @uinfo: control element information
+ *
+ * Returns 0 for success.
+ */
+int snd_soc_put_volsw_2r_sx(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	unsigned int mask = (1<<mc->shift)-1;
+	int min = mc->min;
+	int ret;
+	unsigned int val, valr, oval, ovalr;
+
+	val = ((ucontrol->value.integer.value[0]+min) & 0xff);
+	val &= mask;
+	valr = ((ucontrol->value.integer.value[1]+min) & 0xff);
+	valr &= mask;
+
+	oval = snd_soc_read(codec, mc->reg) & mask;
+	ovalr = snd_soc_read(codec, mc->rreg) & mask;
+
+	ret = 0;
+	if (oval != val) {
+		ret = snd_soc_write(codec, mc->reg, val);
+		if (ret < 0)
+			return 0;
+		ret = 1;
+	}
+	if (ovalr != valr) {
+		ret = snd_soc_write(codec, mc->rreg, valr);
+		if (ret < 0)
+			return 0;
+		ret = 1;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_soc_put_volsw_2r_sx);
+
+/**
  * snd_soc_dai_set_sysclk - configure DAI system or master clock.
  * @dai: DAI
  * @clk_id: DAI specific clock ID

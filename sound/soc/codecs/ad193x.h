@@ -11,6 +11,11 @@
 
 #define AD193X_PLL_CLK_CTRL0    0x800
 #define AD193X_PLL_POWERDOWN           0x01
+#define AD193X_PLL_INPUT_MASK   (~0x6)
+#define AD193X_PLL_INPUT_256    (0 << 1)
+#define AD193X_PLL_INPUT_384    (1 << 1)
+#define AD193X_PLL_INPUT_512    (2 << 1)
+#define AD193X_PLL_INPUT_768    (3 << 1)
 #define AD193X_PLL_CLK_CTRL1    0x801
 #define AD193X_DAC_CTRL0        0x802
 #define AD193X_DAC_POWERDOWN           0x01

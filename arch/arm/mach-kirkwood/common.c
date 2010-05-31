@@ -25,6 +25,7 @@
 #include <asm/mach/time.h>
 #include <mach/kirkwood.h>
 #include <mach/bridge-regs.h>
+#include <plat/audio.h>
 #include <plat/cache-feroceon-l2.h>
 #include <plat/ehci-orion.h>
 #include <plat/mvsdio.h>
@@ -864,6 +865,42 @@ struct sys_timer kirkwood_timer = {
 	.init = kirkwood_timer_init,
 };
 
+/*****************************************************************************
+ * Audio
+ ****************************************************************************/
+static struct resource kirkwood_i2s_resources[] = {
+	[0] = {
+		.start  = AUDIO_PHYS_BASE,
+		.end    = AUDIO_PHYS_BASE + SZ_16K - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = IRQ_KIRKWOOD_I2S,
+		.end    = IRQ_KIRKWOOD_I2S,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct kirkwood_asoc_platform_data kirkwood_i2s_data = {
+	.dram        = &kirkwood_mbus_dram_info,
+	.burst       = 128,
+};
+
+static struct platform_device kirkwood_i2s_device = {
+	.name		= "kirkwood-i2s",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(kirkwood_i2s_resources),
+	.resource	= kirkwood_i2s_resources,
+	.dev		= {
+		.platform_data	= &kirkwood_i2s_data,
+	},
+};
+
+void __init kirkwood_audio_init(void)
+{
+	kirkwood_clk_ctrl |= CGC_AUDIO;
+	platform_device_register(&kirkwood_i2s_device);
+}
 
 /*****************************************************************************
  * General
@@ -923,6 +960,7 @@ void __init kirkwood_init(void)
 	kirkwood_spi_plat_data.tclk = kirkwood_tclk;
 	kirkwood_uart0_data[0].uartclk = kirkwood_tclk;
 	kirkwood_uart1_data[0].uartclk = kirkwood_tclk;
+	kirkwood_i2s_data.tclk = kirkwood_tclk;
 
 	/*
 	 * Disable propagation of mbus errors to the CPU local bus,
