@@ -1525,6 +1525,8 @@ static int ext4_add_entry(handle_t *handle, struct dentry *dentry,
 	de->rec_len = ext4_rec_len_to_disk(blocksize, blocksize);
 	retval = add_dirent_to_buf(handle, dentry, inode, de, bh);
 	brelse(bh);
+	if (retval == 0)
+		ext4_set_inode_state(inode, EXT4_STATE_NEWENTRY);
 	return retval;
 }
 
