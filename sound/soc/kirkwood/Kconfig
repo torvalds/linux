@@ -1,0 +1,11 @@
+config SND_KIRKWOOD_SOC
+	tristate "SoC Audio for the Marvell Kirkwood chip"
+	depends on ARCH_KIRKWOOD
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Kirkwood I2S interface. You will also need to select the
+	  audio interfaces to support below.
+
+config SND_KIRKWOOD_SOC_I2S
+	tristate
+
