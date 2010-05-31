@@ -472,7 +472,7 @@ static int max_cb_time(void)
 /* Reference counting, callback cleanup, etc., all look racy as heck.
  * And why is cl_cb_set an atomic? */
 
-int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *cb)
+int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 {
 	struct rpc_timeout	timeparms = {
 		.to_initval	= max_cb_time(),
@@ -481,11 +481,11 @@ int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *cb)
 	struct rpc_create_args args = {
 		.net		= &init_net,
 		.protocol	= XPRT_TRANSPORT_TCP,
-		.address	= (struct sockaddr *) &cb->cb_addr,
-		.addrsize	= cb->cb_addrlen,
+		.address	= (struct sockaddr *) &conn->cb_addr,
+		.addrsize	= conn->cb_addrlen,
 		.timeout	= &timeparms,
 		.program	= &cb_program,
-		.prognumber	= cb->cb_prog,
+		.prognumber	= conn->cb_prog,
 		.version	= 0,
 		.authflavor	= clp->cl_flavor,
 		.flags		= (RPC_CLNT_CREATE_NOPING | RPC_CLNT_CREATE_QUIET),
@@ -495,8 +495,8 @@ int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *cb)
 
 	if (!clp->cl_principal && (clp->cl_flavor >= RPC_AUTH_GSS_KRB5))
 		return -EINVAL;
-	if (cb->cb_minorversion) {
-		args.bc_xprt = cb->cb_xprt;
+	if (conn->cb_minorversion) {
+		args.bc_xprt = conn->cb_xprt;
 		args.protocol = XPRT_TRANSPORT_BC_TCP;
 	}
 	/* Create RPC client */
@@ -563,13 +563,13 @@ void do_probe_callback(struct nfs4_client *clp)
 /*
  * Set up the callback client and put a NFSPROC4_CB_NULL on the wire...
  */
-void nfsd4_probe_callback(struct nfs4_client *clp, struct nfs4_cb_conn *cb)
+void nfsd4_probe_callback(struct nfs4_client *clp, struct nfs4_cb_conn *conn)
 {
 	int status;
 
 	BUG_ON(atomic_read(&clp->cl_cb_set));
 
-	status = setup_callback_client(clp, cb);
+	status = setup_callback_client(clp, conn);
 	if (status) {
 		warn_no_callback_path(clp, status);
 		return;

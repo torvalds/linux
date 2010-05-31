@@ -207,7 +207,7 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_stateid *stp, struct svc_f
 {
 	struct nfs4_delegation *dp;
 	struct nfs4_file *fp = stp->st_file;
-	struct nfs4_cb_conn *cb = &stp->st_stateowner->so_client->cl_cb_conn;
+	struct nfs4_cb_conn *conn = &stp->st_stateowner->so_client->cl_cb_conn;
 
 	dprintk("NFSD alloc_init_deleg\n");
 	/*
@@ -234,7 +234,7 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_stateid *stp, struct svc_f
 	nfs4_file_get_access(fp, O_RDONLY);
 	dp->dl_flock = NULL;
 	dp->dl_type = type;
-	dp->dl_ident = cb->cb_ident;
+	dp->dl_ident = conn->cb_ident;
 	dp->dl_stateid.si_boot = boot_time;
 	dp->dl_stateid.si_stateownerid = current_delegid++;
 	dp->dl_stateid.si_fileid = 0;
@@ -1098,7 +1098,7 @@ find_unconfirmed_client_by_str(const char *dname, unsigned int hashval,
 static void
 gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se, u32 scopeid)
 {
-	struct nfs4_cb_conn *cb = &clp->cl_cb_conn;
+	struct nfs4_cb_conn *conn = &clp->cl_cb_conn;
 	unsigned short expected_family;
 
 	/* Currently, we only support tcp and tcp6 for the callback channel */
@@ -1111,24 +1111,24 @@ gen_callback(struct nfs4_client *clp, struct nfsd4_setclientid *se, u32 scopeid)
 	else
 		goto out_err;
 
-	cb->cb_addrlen = rpc_uaddr2sockaddr(se->se_callback_addr_val,
+	conn->cb_addrlen = rpc_uaddr2sockaddr(se->se_callback_addr_val,
 					    se->se_callback_addr_len,
-					    (struct sockaddr *) &cb->cb_addr,
-					    sizeof(cb->cb_addr));
+					    (struct sockaddr *)&conn->cb_addr,
+					    sizeof(conn->cb_addr));
 
-	if (!cb->cb_addrlen || cb->cb_addr.ss_family != expected_family)
+	if (!conn->cb_addrlen || conn->cb_addr.ss_family != expected_family)
 		goto out_err;
 
-	if (cb->cb_addr.ss_family == AF_INET6)
-		((struct sockaddr_in6 *) &cb->cb_addr)->sin6_scope_id = scopeid;
+	if (conn->cb_addr.ss_family == AF_INET6)
+		((struct sockaddr_in6 *)&conn->cb_addr)->sin6_scope_id = scopeid;
 
-	cb->cb_minorversion = 0;
-	cb->cb_prog = se->se_callback_prog;
-	cb->cb_ident = se->se_callback_ident;
+	conn->cb_minorversion = 0;
+	conn->cb_prog = se->se_callback_prog;
+	conn->cb_ident = se->se_callback_ident;
 	return;
 out_err:
-	cb->cb_addr.ss_family = AF_UNSPEC;
-	cb->cb_addrlen = 0;
+	conn->cb_addr.ss_family = AF_UNSPEC;
+	conn->cb_addrlen = 0;
 	dprintk(KERN_INFO "NFSD: this client (clientid %08x/%08x) "
 		"will not receive delegations\n",
 		clp->cl_clientid.cl_boot, clp->cl_clientid.cl_id);
