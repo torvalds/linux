@@ -410,8 +410,6 @@ static void caifdev_setup(struct net_device *dev)
 
 static int caif_net_open(struct net_device *dev)
 {
-	struct ser_device *ser;
-	ser = netdev_priv(dev);
 	netif_wake_queue(dev);
 	return 0;
 }
