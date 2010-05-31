@@ -4360,7 +4360,8 @@ void btrfs_free_tree_block(struct btrfs_trans_handle *trans,
 
 	block_rsv = get_block_rsv(trans, root);
 	cache = btrfs_lookup_block_group(root->fs_info, buf->start);
-	BUG_ON(block_rsv->space_info != cache->space_info);
+	if (block_rsv->space_info != cache->space_info)
+		goto out;
 
 	if (btrfs_header_generation(buf) == trans->transid) {
 		if (root->root_key.objectid != BTRFS_TREE_LOG_OBJECTID) {
