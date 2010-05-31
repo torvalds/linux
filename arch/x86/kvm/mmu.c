@@ -32,6 +32,7 @@
 #include <linux/compiler.h>
 #include <linux/srcu.h>
 #include <linux/slab.h>
+#include <linux/uaccess.h>
 
 #include <asm/page.h>
 #include <asm/cmpxchg.h>
@@ -1960,6 +1961,27 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 	return pt_write;
 }
 
+static void kvm_send_hwpoison_signal(struct kvm *kvm, gfn_t gfn)
+{
+	char buf[1];
+	void __user *hva;
+	int r;
+
+	/* Touch the page, so send SIGBUS */
+	hva = (void __user *)gfn_to_hva(kvm, gfn);
+	r = copy_from_user(buf, hva, 1);
+}
+
+static int kvm_handle_bad_page(struct kvm *kvm, gfn_t gfn, pfn_t pfn)
+{
+	kvm_release_pfn_clean(pfn);
+	if (is_hwpoison_pfn(pfn)) {
+		kvm_send_hwpoison_signal(kvm, gfn);
+		return 0;
+	}
+	return 1;
+}
+
 static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 {
 	int r;
@@ -1983,10 +2005,8 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 	pfn = gfn_to_pfn(vcpu->kvm, gfn);
 
 	/* mmio */
-	if (is_error_pfn(pfn)) {
-		kvm_release_pfn_clean(pfn);
-		return 1;
-	}
+	if (is_error_pfn(pfn))
+		return kvm_handle_bad_page(vcpu->kvm, gfn, pfn);
 
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (mmu_notifier_retry(vcpu, mmu_seq))
@@ -2198,10 +2218,8 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
 	smp_rmb();
 	pfn = gfn_to_pfn(vcpu->kvm, gfn);
-	if (is_error_pfn(pfn)) {
-		kvm_release_pfn_clean(pfn);
-		return 1;
-	}
+	if (is_error_pfn(pfn))
+		return kvm_handle_bad_page(vcpu->kvm, gfn, pfn);
 	spin_lock(&vcpu->kvm->mmu_lock);
 	if (mmu_notifier_retry(vcpu, mmu_seq))
 		goto out_unlock;
