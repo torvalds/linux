@@ -2536,6 +2536,7 @@ static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 			 entry->count, entry->group, entry);
 
 		if (test_opt(sb, DISCARD)) {
+			int ret;
 			ext4_fsblk_t discard_block;
 
 			discard_block = entry->start_blk +
@@ -2543,7 +2544,12 @@ static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 			trace_ext4_discard_blocks(sb,
 					(unsigned long long)discard_block,
 					entry->count);
-			sb_issue_discard(sb, discard_block, entry->count);
+			ret = sb_issue_discard(sb, discard_block, entry->count);
+			if (ret == EOPNOTSUPP) {
+				ext4_warning(sb, __func__,
+					"discard not supported, disabling");
+				clear_opt(EXT4_SB(sb)->s_mount_opt, DISCARD);
+			}
 		}
 
 		err = ext4_mb_load_buddy(sb, entry->group, &e4b);
