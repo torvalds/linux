@@ -744,7 +744,7 @@ static int prism2_download(local_info_t *local,
 		       local->dev->name, param->dl_cmd);
 		ret = -EINVAL;
 		break;
-	};
+	}
 
  out:
 	if (ret == 0 && dl &&

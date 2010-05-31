@@ -58,6 +58,7 @@
  * 	      only available if that subsystem is enabled in the kernel.
  */
 
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>

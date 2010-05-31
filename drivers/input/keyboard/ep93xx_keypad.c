@@ -25,6 +25,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/input/matrix_keypad.h>
+#include <linux/slab.h>
 
 #include <mach/hardware.h>
 #include <mach/ep93xx_keypad.h>

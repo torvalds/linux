@@ -8,6 +8,7 @@
  * published by the Free Software Foundation.
  */
 
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 #include "ieee80211_i.h"
 #include "mesh.h"
@@ -286,8 +287,6 @@ void mesh_mgmt_ies_add(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 	*pos++ |= sdata->u.mesh.accepting_plinks ?
 	    MESHCONF_CAPAB_ACCEPT_PLINKS : 0x00;
 	*pos++ = 0x00;
-
-	return;
 }
 
 u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata, struct mesh_table *tbl)
@@ -600,10 +599,10 @@ static void ieee80211_mesh_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
 					  struct ieee80211_rx_status *rx_status)
 {
 	switch (mgmt->u.action.category) {
-	case MESH_PLINK_CATEGORY:
+	case WLAN_CATEGORY_MESH_PLINK:
 		mesh_rx_plink_frame(sdata, mgmt, len, rx_status);
 		break;
-	case MESH_PATH_SEL_CATEGORY:
+	case WLAN_CATEGORY_MESH_PATH_SEL:
 		mesh_rx_path_sel_frame(sdata, mgmt, len);
 		break;
 	}
@@ -749,9 +748,6 @@ ieee80211_mesh_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb)
 
 	switch (fc & IEEE80211_FCTL_STYPE) {
 	case IEEE80211_STYPE_ACTION:
-		if (skb->len < IEEE80211_MIN_ACTION_SIZE)
-			return RX_DROP_MONITOR;
-		/* fall through */
 	case IEEE80211_STYPE_PROBE_RESP:
 	case IEEE80211_STYPE_BEACON:
 		skb_queue_tail(&ifmsh->skb_queue, skb);

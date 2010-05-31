@@ -1005,15 +1005,8 @@ static int elf_fdpic_map_file_constdisp_on_uclinux(
 				}
 			} else if (!mm->start_data) {
 				mm->start_data = seg->addr;
-#ifndef CONFIG_MMU
 				mm->end_data = seg->addr + phdr->p_memsz;
-#endif
 			}
-
-#ifdef CONFIG_MMU
-			if (seg->addr + phdr->p_memsz > mm->end_data)
-				mm->end_data = seg->addr + phdr->p_memsz;
-#endif
 		}
 
 		seg++;
@@ -1590,7 +1583,7 @@ static size_t elf_core_vma_data_size(unsigned long mm_flags)
 	struct vm_area_struct *vma;
 	size_t size = 0;
 
-	for (vma = current->mm->mmap; vma; vma->vm_next)
+	for (vma = current->mm->mmap; vma; vma = vma->vm_next)
 		if (maydump(vma, mm_flags))
 			size += vma->vm_end - vma->vm_start;
 	return size;

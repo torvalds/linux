@@ -34,6 +34,7 @@
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/pm.h>
 #include <linux/sysctl.h>

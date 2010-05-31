@@ -10,6 +10,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <scsi/fc/fc_els.h>
 #include <scsi/libfc.h>
 #include "zfcp_ext.h"
@@ -399,7 +400,7 @@ static int zfcp_fc_adisc(struct zfcp_port *port)
 	struct zfcp_adapter *adapter = port->adapter;
 	int ret;
 
-	adisc = kmem_cache_alloc(zfcp_data.adisc_cache, GFP_ATOMIC);
+	adisc = kmem_cache_zalloc(zfcp_data.adisc_cache, GFP_ATOMIC);
 	if (!adisc)
 		return -ENOMEM;
 
@@ -492,7 +493,7 @@ static struct zfcp_fc_gpn_ft *zfcp_alloc_sg_env(int buf_num)
 	if (!gpn_ft)
 		return NULL;
 
-	req = kmem_cache_alloc(zfcp_data.gpn_ft_cache, GFP_KERNEL);
+	req = kmem_cache_zalloc(zfcp_data.gpn_ft_cache, GFP_KERNEL);
 	if (!req) {
 		kfree(gpn_ft);
 		gpn_ft = NULL;

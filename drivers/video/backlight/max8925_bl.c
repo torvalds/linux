@@ -16,6 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/backlight.h>
 #include <linux/mfd/max8925.h>
+#include <linux/slab.h>
 
 #define MAX_BRIGHTNESS		(0xff)
 #define MIN_BRIGHTNESS		(0)
@@ -161,6 +162,7 @@ static int __devinit max8925_backlight_probe(struct platform_device *pdev)
 	backlight_update_status(bl);
 	return 0;
 out:
+	backlight_device_unregister(bl);
 	kfree(data);
 	return ret;
 }

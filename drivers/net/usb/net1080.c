@@ -29,6 +29,7 @@
 #include <linux/mii.h>
 #include <linux/usb.h>
 #include <linux/usb/usbnet.h>
+#include <linux/slab.h>
 
 #include <asm/unaligned.h>
 

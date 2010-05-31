@@ -22,7 +22,7 @@ MODULE_DESCRIPTION("Xtables: Routing realm match");
 MODULE_ALIAS("ipt_realm");
 
 static bool
-realm_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+realm_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_realm_info *info = par->matchinfo;
 	const struct dst_entry *dst = skb_dst(skb);

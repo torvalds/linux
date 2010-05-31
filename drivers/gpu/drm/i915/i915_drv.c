@@ -69,7 +69,8 @@ const static struct intel_device_info intel_845g_info = {
 };
 
 const static struct intel_device_info intel_i85x_info = {
-	.is_i8xx = 1, .is_mobile = 1, .cursor_needs_physical = 1,
+	.is_i8xx = 1, .is_i85x = 1, .is_mobile = 1,
+	.cursor_needs_physical = 1,
 };
 
 const static struct intel_device_info intel_i865g_info = {
@@ -80,14 +81,14 @@ const static struct intel_device_info intel_i915g_info = {
 	.is_i915g = 1, .is_i9xx = 1, .cursor_needs_physical = 1,
 };
 const static struct intel_device_info intel_i915gm_info = {
-	.is_i9xx = 1,  .is_mobile = 1, .has_fbc = 1,
+	.is_i9xx = 1,  .is_mobile = 1,
 	.cursor_needs_physical = 1,
 };
 const static struct intel_device_info intel_i945g_info = {
 	.is_i9xx = 1, .has_hotplug = 1, .cursor_needs_physical = 1,
 };
 const static struct intel_device_info intel_i945gm_info = {
-	.is_i945gm = 1, .is_i9xx = 1, .is_mobile = 1, .has_fbc = 1,
+	.is_i945gm = 1, .is_i9xx = 1, .is_mobile = 1,
 	.has_hotplug = 1, .cursor_needs_physical = 1,
 };
 
@@ -139,19 +140,19 @@ const static struct intel_device_info intel_ironlake_m_info = {
 
 const static struct intel_device_info intel_sandybridge_d_info = {
 	.is_i965g = 1, .is_i9xx = 1, .need_gfx_hws = 1,
-	.has_hotplug = 1,
+	.has_hotplug = 1, .is_gen6 = 1,
 };
 
 const static struct intel_device_info intel_sandybridge_m_info = {
 	.is_i965g = 1, .is_mobile = 1, .is_i9xx = 1, .need_gfx_hws = 1,
-	.has_hotplug = 1,
+	.has_hotplug = 1, .is_gen6 = 1,
 };
 
 const static struct pci_device_id pciidlist[] = {
 	INTEL_VGA_DEVICE(0x3577, &intel_i830_info),
 	INTEL_VGA_DEVICE(0x2562, &intel_845g_info),
 	INTEL_VGA_DEVICE(0x3582, &intel_i85x_info),
-	INTEL_VGA_DEVICE(0x35e8, &intel_i85x_info),
+	INTEL_VGA_DEVICE(0x358e, &intel_i85x_info),
 	INTEL_VGA_DEVICE(0x2572, &intel_i865g_info),
 	INTEL_VGA_DEVICE(0x2582, &intel_i915g_info),
 	INTEL_VGA_DEVICE(0x258a, &intel_i915g_info),
@@ -186,6 +187,35 @@ const static struct pci_device_id pciidlist[] = {
 #if defined(CONFIG_DRM_I915_KMS)
 MODULE_DEVICE_TABLE(pci, pciidlist);
 #endif
+
+#define INTEL_PCH_DEVICE_ID_MASK	0xff00
+#define INTEL_PCH_CPT_DEVICE_ID_TYPE	0x1c00
+
+void intel_detect_pch (struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct pci_dev *pch;
+
+	/*
+	 * The reason to probe ISA bridge instead of Dev31:Fun0 is to
+	 * make graphics device passthrough work easy for VMM, that only
+	 * need to expose ISA bridge to let driver know the real hardware
+	 * underneath. This is a requirement from virtualization team.
+	 */
+	pch = pci_get_class(PCI_CLASS_BRIDGE_ISA << 8, NULL);
+	if (pch) {
+		if (pch->vendor == PCI_VENDOR_ID_INTEL) {
+			int id;
+			id = pch->device & INTEL_PCH_DEVICE_ID_MASK;
+
+			if (id == INTEL_PCH_CPT_DEVICE_ID_TYPE) {
+				dev_priv->pch_type = PCH_CPT;
+				DRM_DEBUG_KMS("Found CougarPoint PCH\n");
+			}
+		}
+		pci_dev_put(pch);
+	}
+}
 
 static int i915_drm_freeze(struct drm_device *dev)
 {
@@ -361,7 +391,7 @@ int i965_reset(struct drm_device *dev, u8 flags)
 	    !dev_priv->mm.suspended) {
 		drm_i915_ring_buffer_t *ring = &dev_priv->ring;
 		struct drm_gem_object *obj = ring->ring_obj;
-		struct drm_i915_gem_object *obj_priv = obj->driver_private;
+		struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 		dev_priv->mm.suspended = 0;
 
 		/* Stop the ring if it's running. */

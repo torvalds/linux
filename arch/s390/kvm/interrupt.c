@@ -14,6 +14,7 @@
 #include <linux/kvm_host.h>
 #include <linux/hrtimer.h>
 #include <linux/signal.h>
+#include <linux/slab.h>
 #include <asm/asm-offsets.h>
 #include <asm/uaccess.h>
 #include "kvm-s390.h"

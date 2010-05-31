@@ -31,6 +31,7 @@
 #include <linux/input.h>
 #include <linux/leds.h>
 #include <linux/i2c/lm8323.h>
+#include <linux/slab.h>
 
 /* Commands to send to the chip. */
 #define LM8323_CMD_READ_ID		0x80 /* Read chip ID. */
@@ -669,8 +670,6 @@ static int __devinit lm8323_probe(struct i2c_client *client,
 		goto fail1;
 	}
 
-	i2c_set_clientdata(client, lm);
-
 	lm->client = client;
 	lm->idev = idev;
 	mutex_init(&lm->lock);
@@ -752,6 +751,8 @@ static int __devinit lm8323_probe(struct i2c_client *client,
 		goto fail4;
 	}
 
+	i2c_set_clientdata(client, lm);
+
 	device_init_wakeup(&client->dev, 1);
 	enable_irq_wake(client->irq);
 
@@ -776,6 +777,8 @@ static int __devexit lm8323_remove(struct i2c_client *client)
 {
 	struct lm8323_chip *lm = i2c_get_clientdata(client);
 	int i;
+
+	i2c_set_clientdata(client, NULL);
 
 	disable_irq_wake(client->irq);
 	free_irq(client->irq, lm);

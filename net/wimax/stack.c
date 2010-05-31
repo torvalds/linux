@@ -51,6 +51,7 @@
  *   wimax_rfkill_rm()
  */
 #include <linux/device.h>
+#include <linux/gfp.h>
 #include <net/genetlink.h>
 #include <linux/netdevice.h>
 #include <linux/wimax.h>
@@ -314,12 +315,11 @@ void __wimax_state_change(struct wimax_dev *wimax_dev, enum wimax_st new_state)
 		BUG();
 	}
 	__wimax_state_set(wimax_dev, new_state);
-	if (stch_skb)
+	if (!IS_ERR(stch_skb))
 		wimax_gnl_re_state_change_send(wimax_dev, stch_skb, header);
 out:
 	d_fnend(3, dev, "(wimax_dev %p new_state %u [old %u]) = void\n",
 		wimax_dev, new_state, old_state);
-	return;
 }
 
 
@@ -361,7 +361,6 @@ void wimax_state_change(struct wimax_dev *wimax_dev, enum wimax_st new_state)
 	if (wimax_dev->state > __WIMAX_ST_NULL)
 		__wimax_state_change(wimax_dev, new_state);
 	mutex_unlock(&wimax_dev->mutex);
-	return;
 }
 EXPORT_SYMBOL_GPL(wimax_state_change);
 

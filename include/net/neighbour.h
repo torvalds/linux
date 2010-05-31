@@ -299,6 +299,20 @@ static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
 	return 0;
 }
 
+#ifdef CONFIG_BRIDGE_NETFILTER
+static inline int neigh_hh_bridge(struct hh_cache *hh, struct sk_buff *skb)
+{
+	unsigned seq, hh_alen;
+
+	do {
+		seq = read_seqbegin(&hh->hh_lock);
+		hh_alen = HH_DATA_ALIGN(ETH_HLEN);
+		memcpy(skb->data - hh_alen, hh->hh_data, ETH_ALEN + hh_alen - ETH_HLEN);
+	} while (read_seqretry(&hh->hh_lock, seq));
+	return 0;
+}
+#endif
+
 static inline int neigh_hh_output(struct hh_cache *hh, struct sk_buff *skb)
 {
 	unsigned seq;

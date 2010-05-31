@@ -15,7 +15,7 @@
 
 
 static bool
-xt_rateest_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+xt_rateest_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	const struct xt_rateest_match_info *info = par->matchinfo;
 	struct gnet_stats_rate_est *r;
@@ -74,10 +74,11 @@ xt_rateest_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return ret;
 }
 
-static bool xt_rateest_mt_checkentry(const struct xt_mtchk_param *par)
+static int xt_rateest_mt_checkentry(const struct xt_mtchk_param *par)
 {
 	struct xt_rateest_match_info *info = par->matchinfo;
 	struct xt_rateest *est1, *est2;
+	int ret = false;
 
 	if (hweight32(info->flags & (XT_RATEEST_MATCH_ABS |
 				     XT_RATEEST_MATCH_REL)) != 1)
@@ -95,6 +96,7 @@ static bool xt_rateest_mt_checkentry(const struct xt_mtchk_param *par)
 		goto err1;
 	}
 
+	ret  = -ENOENT;
 	est1 = xt_rateest_lookup(info->name1);
 	if (!est1)
 		goto err1;
@@ -109,12 +111,12 @@ static bool xt_rateest_mt_checkentry(const struct xt_mtchk_param *par)
 
 	info->est1 = est1;
 	info->est2 = est2;
-	return true;
+	return 0;
 
 err2:
 	xt_rateest_put(est1);
 err1:
-	return false;
+	return -EINVAL;
 }
 
 static void xt_rateest_mt_destroy(const struct xt_mtdtor_param *par)

@@ -23,7 +23,6 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/pci.h>
-#include <linux/slab.h>
 #include <linux/sched.h>
 
 #include "speedstep-lib.h"

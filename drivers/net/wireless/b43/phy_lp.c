@@ -23,6 +23,8 @@
 
 */
 
+#include <linux/slab.h>
+
 #include "b43.h"
 #include "main.h"
 #include "phy_lp.h"

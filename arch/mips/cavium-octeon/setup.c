@@ -45,9 +45,6 @@ extern struct plat_smp_ops octeon_smp_ops;
 extern void pci_console_init(const char *arg);
 #endif
 
-#ifdef CONFIG_CAVIUM_RESERVE32
-extern uint64_t octeon_reserve32_memory;
-#endif
 static unsigned long long MAX_MEMORY = 512ull << 20;
 
 struct octeon_boot_descriptor *octeon_boot_desc_ptr;
@@ -186,54 +183,6 @@ void octeon_check_cpu_bist(void)
 	write_octeon_c0_dcacheerr(0);
 }
 
-#ifdef CONFIG_CAVIUM_RESERVE32_USE_WIRED_TLB
-/**
- * Called on every core to setup the wired tlb entry needed
- * if CONFIG_CAVIUM_RESERVE32_USE_WIRED_TLB is set.
- *
- */
-static void octeon_hal_setup_per_cpu_reserved32(void *unused)
-{
-	/*
-	 * The config has selected to wire the reserve32 memory for all
-	 * userspace applications. We need to put a wired TLB entry in for each
-	 * 512MB of reserve32 memory. We only handle double 256MB pages here,
-	 * so reserve32 must be multiple of 512MB.
-	 */
-	uint32_t size = CONFIG_CAVIUM_RESERVE32;
-	uint32_t entrylo0 =
-		0x7 | ((octeon_reserve32_memory & ((1ul << 40) - 1)) >> 6);
-	uint32_t entrylo1 = entrylo0 + (256 << 14);
-	uint32_t entryhi = (0x80000000UL - (CONFIG_CAVIUM_RESERVE32 << 20));
-	while (size >= 512) {
-#if 0
-		pr_info("CPU%d: Adding double wired TLB entry for 0x%lx\n",
-			smp_processor_id(), entryhi);
-#endif
-		add_wired_entry(entrylo0, entrylo1, entryhi, PM_256M);
-		entrylo0 += 512 << 14;
-		entrylo1 += 512 << 14;
-		entryhi += 512 << 20;
-		size -= 512;
-	}
-}
-#endif /* CONFIG_CAVIUM_RESERVE32_USE_WIRED_TLB */
-
-/**
- * Called to release the named block which was used to made sure
- * that nobody used the memory for something else during
- * init. Now we'll free it so userspace apps can use this
- * memory region with bootmem_alloc.
- *
- * This function is called only once from prom_free_prom_memory().
- */
-void octeon_hal_setup_reserved32(void)
-{
-#ifdef CONFIG_CAVIUM_RESERVE32_USE_WIRED_TLB
-	on_each_cpu(octeon_hal_setup_per_cpu_reserved32, NULL, 0, 1);
-#endif
-}
-
 /**
  * Reboot Octeon
  *
@@ -293,18 +242,6 @@ static void octeon_halt(void)
 
 	octeon_kill_core(NULL);
 }
-
-#if 0
-/**
- * Platform time init specifics.
- * Returns
- */
-void __init plat_time_init(void)
-{
-	/* Nothing special here, but we are required to have one */
-}
-
-#endif
 
 /**
  * Handle all the error condition interrupts that might occur.
@@ -466,7 +403,6 @@ void __init prom_init(void)
 	const int coreid = cvmx_get_core_num();
 	int i;
 	int argc;
-	struct uart_port octeon_port;
 #ifdef CONFIG_CAVIUM_RESERVE32
 	int64_t addr = -1;
 #endif
@@ -502,25 +438,13 @@ void __init prom_init(void)
 	 * memory when it is getting memory from the
 	 * bootloader. Later, after the memory allocations are
 	 * complete, the reserve32 will be freed.
-	 */
-#ifdef CONFIG_CAVIUM_RESERVE32_USE_WIRED_TLB
-	if (CONFIG_CAVIUM_RESERVE32 & 0x1ff)
-		pr_err("CAVIUM_RESERVE32 isn't a multiple of 512MB. "
-		       "This is required if CAVIUM_RESERVE32_USE_WIRED_TLB "
-		       "is set\n");
-	else
-		addr = cvmx_bootmem_phy_named_block_alloc(CONFIG_CAVIUM_RESERVE32 << 20,
-							0, 0, 512 << 20,
-							"CAVIUM_RESERVE32", 0);
-#else
-	/*
+	 *
 	 * Allocate memory for RESERVED32 aligned on 2MB boundary. This
 	 * is in case we later use hugetlb entries with it.
 	 */
 	addr = cvmx_bootmem_phy_named_block_alloc(CONFIG_CAVIUM_RESERVE32 << 20,
 						0, 0, 2 << 20,
 						"CAVIUM_RESERVE32", 0);
-#endif
 	if (addr < 0)
 		pr_err("Failed to allocate CAVIUM_RESERVE32 memory area\n");
 	else
@@ -685,30 +609,6 @@ void __init prom_init(void)
 	_machine_restart = octeon_restart;
 	_machine_halt = octeon_halt;
 
-	memset(&octeon_port, 0, sizeof(octeon_port));
-	/*
-	 * For early_serial_setup we don't set the port type or
-	 * UPF_FIXED_TYPE.
-	 */
-	octeon_port.flags = ASYNC_SKIP_TEST | UPF_SHARE_IRQ;
-	octeon_port.iotype = UPIO_MEM;
-	/* I/O addresses are every 8 bytes */
-	octeon_port.regshift = 3;
-	/* Clock rate of the chip */
-	octeon_port.uartclk = mips_hpt_frequency;
-	octeon_port.fifosize = 64;
-	octeon_port.mapbase = 0x0001180000000800ull + (1024 * octeon_uart);
-	octeon_port.membase = cvmx_phys_to_ptr(octeon_port.mapbase);
-	octeon_port.serial_in = octeon_serial_in;
-	octeon_port.serial_out = octeon_serial_out;
-#ifdef CONFIG_CAVIUM_OCTEON_2ND_KERNEL
-	octeon_port.line = 0;
-#else
-	octeon_port.line = octeon_uart;
-#endif
-	octeon_port.irq = 42 + octeon_uart;
-	early_serial_setup(&octeon_port);
-
 	octeon_user_io_init();
 	register_smp_ops(&octeon_smp_ops);
 }
@@ -802,7 +702,7 @@ int prom_putchar(char c)
 	} while ((lsrval & 0x20) == 0);
 
 	/* Write the byte */
-	cvmx_write_csr(CVMX_MIO_UARTX_THR(octeon_uart), c);
+	cvmx_write_csr(CVMX_MIO_UARTX_THR(octeon_uart), c & 0xffull);
 	return 1;
 }
 
@@ -817,9 +717,4 @@ void prom_free_prom_memory(void)
 		panic("Unable to request_irq(OCTEON_IRQ_RML)\n");
 	}
 #endif
-
-	/* This call is here so that it is performed after any TLB
-	   initializations. It needs to be after these in case the
-	   CONFIG_CAVIUM_RESERVE32_USE_WIRED_TLB option is set */
-	octeon_hal_setup_reserved32();
 }

@@ -11,6 +11,7 @@
 #include <linux/poll.h>
 #include <linux/dlm.h>
 #include <linux/dlm_plock.h>
+#include <linux/slab.h>
 
 #include "dlm_internal.h"
 #include "lockspace.h"

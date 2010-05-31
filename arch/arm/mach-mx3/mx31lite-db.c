@@ -28,7 +28,6 @@
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
-#include <linux/platform_device.h>
 #include <linux/leds.h>
 #include <linux/platform_device.h>
 
@@ -206,5 +205,7 @@ void __init mx31lite_db_init(void)
 	mxc_register_device(&mxcsdhc_device0, &mmc_pdata);
 	mxc_register_device(&mxc_spi_device0, &spi0_pdata);
 	platform_device_register(&litekit_led_device);
+	mxc_register_device(&imx_wdt_device0, NULL);
+	mxc_register_device(&imx_rtc_device0, NULL);
 }
 

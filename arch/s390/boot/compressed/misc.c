@@ -24,8 +24,8 @@
 /* Symbols defined by linker scripts */
 extern char input_data[];
 extern int input_len;
-extern int _text;
-extern int _end;
+extern char _text, _end;
+extern char _bss, _ebss;
 
 static void error(char *m);
 
@@ -48,6 +48,10 @@ static unsigned long free_mem_end_ptr;
 
 #ifdef CONFIG_KERNEL_LZMA
 #include "../../../../lib/decompress_unlzma.c"
+#endif
+
+#ifdef CONFIG_KERNEL_LZO
+#include "../../../../lib/decompress_unlzo.c"
 #endif
 
 extern _sclp_print_early(const char *);
@@ -129,11 +133,11 @@ unsigned long decompress_kernel(void)
 	unsigned long output_addr;
 	unsigned char *output;
 
+	check_ipl_parmblock((void *) 0, (unsigned long) output + SZ__bss_start);
+	memset(&_bss, 0, &_ebss - &_bss);
 	free_mem_ptr = (unsigned long)&_end;
 	free_mem_end_ptr = free_mem_ptr + HEAP_SIZE;
 	output = (unsigned char *) ((free_mem_end_ptr + 4095UL) & -4096UL);
-
-	check_ipl_parmblock((void *) 0, (unsigned long) output + SZ__bss_start);
 
 #ifdef CONFIG_BLK_DEV_INITRD
 	/*

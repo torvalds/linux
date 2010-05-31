@@ -20,6 +20,7 @@
 #include <linux/ioport.h>
 #include <linux/capi.h>
 #include <linux/kernelcapi.h>
+#include <linux/gfp.h>
 #include <asm/io.h>
 #include <linux/init.h>
 #include <asm/uaccess.h>

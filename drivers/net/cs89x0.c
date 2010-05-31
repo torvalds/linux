@@ -138,12 +138,12 @@
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -902,7 +902,6 @@ get_dma_channel(struct net_device *dev)
 			return;
 		}
 	}
-	return;
 }
 
 static void
@@ -1554,7 +1553,6 @@ static netdev_tx_t net_send_packet(struct sk_buff *skb,struct net_device *dev)
 	writewords(dev->base_addr, TX_FRAME_PORT,skb->data,(skb->len+1) >>1);
 	spin_unlock_irqrestore(&lp->lock, flags);
 	lp->stats.tx_bytes += skb->len;
-	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
 
 	/*
@@ -1673,7 +1671,6 @@ count_rx_errors(int status, struct net_local *lp)
 		/* per str 172 */
 		lp->stats.rx_crc_errors++;
 	if (status & RX_DRIBBLE) lp->stats.rx_frame_errors++;
-	return;
 }
 
 /* We have a good packet(s), get it/them out of the buffers. */

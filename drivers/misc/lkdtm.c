@@ -40,6 +40,7 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/hrtimer.h>
+#include <linux/slab.h>
 #include <scsi/scsi_cmnd.h>
 #include <linux/debugfs.h>
 
@@ -74,6 +75,9 @@ enum ctype {
 	UNALIGNED_LOAD_STORE_WRITE,
 	OVERWRITE_ALLOCATION,
 	WRITE_AFTER_FREE,
+	SOFTLOCKUP,
+	HARDLOCKUP,
+	HUNG_TASK,
 };
 
 static char* cp_name[] = {
@@ -98,6 +102,9 @@ static char* cp_type[] = {
 	"UNALIGNED_LOAD_STORE_WRITE",
 	"OVERWRITE_ALLOCATION",
 	"WRITE_AFTER_FREE",
+	"SOFTLOCKUP",
+	"HARDLOCKUP",
+	"HUNG_TASK",
 };
 
 static struct jprobe lkdtm;
@@ -319,6 +326,20 @@ static void lkdtm_do_action(enum ctype which)
 		memset(data, 0x78, len);
 		break;
 	}
+	case SOFTLOCKUP:
+		preempt_disable();
+		for (;;)
+			cpu_relax();
+		break;
+	case HARDLOCKUP:
+		local_irq_disable();
+		for (;;)
+			cpu_relax();
+		break;
+	case HUNG_TASK:
+		set_current_state(TASK_UNINTERRUPTIBLE);
+		schedule();
+		break;
 	case NONE:
 	default:
 		break;

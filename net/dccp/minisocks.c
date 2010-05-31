@@ -11,6 +11,7 @@
  */
 
 #include <linux/dccp.h>
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/skbuff.h>
 #include <linux/timer.h>

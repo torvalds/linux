@@ -31,6 +31,7 @@
 #include "radeon_drm.h"
 
 #include <linux/vga_switcheroo.h>
+#include <linux/slab.h>
 
 int radeon_driver_unload_kms(struct drm_device *dev)
 {
@@ -97,11 +98,15 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 {
 	struct radeon_device *rdev = dev->dev_private;
 	struct drm_radeon_info *info;
+	struct radeon_mode_info *minfo = &rdev->mode_info;
 	uint32_t *value_ptr;
 	uint32_t value;
+	struct drm_crtc *crtc;
+	int i, found;
 
 	info = data;
 	value_ptr = (uint32_t *)((unsigned long)info->value);
+	value = *value_ptr;
 	switch (info->request) {
 	case RADEON_INFO_DEVICE_ID:
 		value = dev->pci_device;
@@ -114,6 +119,20 @@ int radeon_info_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 		break;
 	case RADEON_INFO_ACCEL_WORKING:
 		value = rdev->accel_working;
+		break;
+	case RADEON_INFO_CRTC_FROM_ID:
+		for (i = 0, found = 0; i < rdev->num_crtc; i++) {
+			crtc = (struct drm_crtc *)minfo->crtcs[i];
+			if (crtc && crtc->base.id == value) {
+				value = i;
+				found = 1;
+				break;
+			}
+		}
+		if (!found) {
+			DRM_DEBUG("unknown crtc id %d\n", value);
+			return -EINVAL;
+		}
 		break;
 	default:
 		DRM_DEBUG("Invalid request %d\n", info->request);
@@ -164,7 +183,7 @@ u32 radeon_get_vblank_counter_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (crtc < 0 || crtc > 1) {
+	if (crtc < 0 || crtc >= rdev->num_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return -EINVAL;
 	}
@@ -176,7 +195,7 @@ int radeon_enable_vblank_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (crtc < 0 || crtc > 1) {
+	if (crtc < 0 || crtc >= rdev->num_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return -EINVAL;
 	}
@@ -190,7 +209,7 @@ void radeon_disable_vblank_kms(struct drm_device *dev, int crtc)
 {
 	struct radeon_device *rdev = dev->dev_private;
 
-	if (crtc < 0 || crtc > 1) {
+	if (crtc < 0 || crtc >= rdev->num_crtc) {
 		DRM_ERROR("Invalid crtc %d\n", crtc);
 		return;
 	}

@@ -109,7 +109,7 @@ static int max8925_is_enabled(struct regulator_dev *rdev)
 	struct max8925_regulator_info *info = rdev_get_drvdata(rdev);
 	int ret;
 
-	ret = max8925_reg_read(info->i2c, info->vol_reg);
+	ret = max8925_reg_read(info->i2c, info->enable_reg);
 	if (ret < 0)
 		return ret;
 
@@ -230,7 +230,7 @@ static struct max8925_regulator_info max8925_regulator_info[] = {
 	MAX8925_LDO(20, 750, 3900, 50),
 };
 
-static inline struct max8925_regulator_info *find_regulator_info(int id)
+static struct max8925_regulator_info * __devinit find_regulator_info(int id)
 {
 	struct max8925_regulator_info *ri;
 	int i;
@@ -247,7 +247,7 @@ static int __devinit max8925_regulator_probe(struct platform_device *pdev)
 {
 	struct max8925_chip *chip = dev_get_drvdata(pdev->dev.parent);
 	struct max8925_platform_data *pdata = chip->dev->platform_data;
-	struct max8925_regulator_info *ri = NULL;
+	struct max8925_regulator_info *ri;
 	struct regulator_dev *rdev;
 
 	ri = find_regulator_info(pdev->id);
@@ -274,7 +274,9 @@ static int __devexit max8925_regulator_remove(struct platform_device *pdev)
 {
 	struct regulator_dev *rdev = platform_get_drvdata(pdev);
 
+	platform_set_drvdata(pdev, NULL);
 	regulator_unregister(rdev);
+
 	return 0;
 }
 

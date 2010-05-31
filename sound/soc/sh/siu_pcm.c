@@ -24,7 +24,6 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
 
 #include <sound/control.h>
 #include <sound/core.h>
@@ -32,7 +31,6 @@
 #include <sound/pcm_params.h>
 #include <sound/soc-dai.h>
 
-#include <asm/dmaengine.h>
 #include <asm/siu.h>
 
 #include "siu.h"
@@ -359,13 +357,13 @@ static int siu_pcm_open(struct snd_pcm_substream *ss)
 	if (ss->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		siu_stream = &port_info->playback;
 		param = &siu_stream->param;
-		param->slave_id = port ? SHDMA_SLAVE_SIUB_TX :
-			SHDMA_SLAVE_SIUA_TX;
+		param->slave_id = port ? pdata->dma_slave_tx_b :
+			pdata->dma_slave_tx_a;
 	} else {
 		siu_stream = &port_info->capture;
 		param = &siu_stream->param;
-		param->slave_id = port ? SHDMA_SLAVE_SIUB_RX :
-			SHDMA_SLAVE_SIUA_RX;
+		param->slave_id = port ? pdata->dma_slave_rx_b :
+			pdata->dma_slave_rx_a;
 	}
 
 	param->dma_dev = pdata->dma_dev;

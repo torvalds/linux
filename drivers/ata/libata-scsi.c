@@ -33,6 +33,7 @@
  *
  */
 
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/blkdev.h>
 #include <linux/spinlock.h>
@@ -3343,9 +3344,6 @@ void ata_scsi_scan_host(struct ata_port *ap, int sync)
 	struct ata_device *last_failed_dev = NULL;
 	struct ata_link *link;
 	struct ata_device *dev;
-
-	if (ap->flags & ATA_FLAG_DISABLED)
-		return;
 
  repeat:
 	ata_for_each_link(link, ap, EDGE) {

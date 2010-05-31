@@ -9,6 +9,7 @@
 
 #include <linux/kernel.h>
 #include <linux/fs.h>
+#include <linux/gfp.h>
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
@@ -502,7 +503,7 @@ void page_cache_sync_readahead(struct address_space *mapping,
 		return;
 
 	/* be dumb */
-	if (filp->f_mode & FMODE_RANDOM) {
+	if (filp && (filp->f_mode & FMODE_RANDOM)) {
 		force_page_cache_readahead(mapping, filp, offset, req_size);
 		return;
 	}
@@ -522,7 +523,7 @@ EXPORT_SYMBOL_GPL(page_cache_sync_readahead);
  * @req_size: hint: total size of the read which the caller is performing in
  *            pagecache pages
  *
- * page_cache_async_ondemand() should be called when a page is used which
+ * page_cache_async_readahead() should be called when a page is used which
  * has the PG_readahead flag; this is a marker to suggest that the application
  * has used up enough of the readahead window that we should start pulling in
  * more pages.

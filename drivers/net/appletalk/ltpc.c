@@ -215,7 +215,6 @@ static int dma;
 #include <linux/ioport.h>
 #include <linux/spinlock.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/errno.h>
 #include <linux/init.h>
@@ -228,6 +227,7 @@ static int dma;
 #include <linux/timer.h>
 #include <linux/atalk.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/dma.h>
@@ -641,7 +641,6 @@ done:
 		inb_p(base+7);
 		inb_p(base+7);
 	}
-	return;
 }
 
 

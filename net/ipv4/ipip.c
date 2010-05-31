@@ -95,6 +95,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -373,11 +374,8 @@ static int ipip_rcv(struct sk_buff *skb)
 		skb->protocol = htons(ETH_P_IP);
 		skb->pkt_type = PACKET_HOST;
 
-		tunnel->dev->stats.rx_packets++;
-		tunnel->dev->stats.rx_bytes += skb->len;
-		skb->dev = tunnel->dev;
-		skb_dst_drop(skb);
-		nf_reset(skb);
+		skb_tunnel_rx(skb, tunnel->dev);
+
 		ipip_ecn_decapsulate(iph, skb);
 		netif_rx(skb);
 		rcu_read_unlock();

@@ -15,6 +15,7 @@
 #include <linux/initrd.h>
 #include <linux/pagemap.h>
 #include <linux/pfn.h>
+#include <linux/slab.h>
 #include <linux/swap.h>
 
 #include <asm/page.h>
@@ -46,6 +47,7 @@ unsigned long memory_start;
 EXPORT_SYMBOL(memory_start);
 unsigned long memory_end; /* due to mm/nommu.c */
 unsigned long memory_size;
+EXPORT_SYMBOL(memory_size);
 
 /*
  * paging_init() sets up the page tables - in fact we've already done this.
@@ -165,7 +167,6 @@ void free_init_pages(char *what, unsigned long begin, unsigned long end)
 	for (addr = begin; addr < end; addr += PAGE_SIZE) {
 		ClearPageReserved(virt_to_page(addr));
 		init_page_count(virt_to_page(addr));
-		memset((void *)addr, 0xcc, PAGE_SIZE);
 		free_page(addr);
 		totalram_pages++;
 	}
@@ -208,14 +209,6 @@ void __init mem_init(void)
 }
 
 #ifndef CONFIG_MMU
-/* Check against bounds of physical memory */
-int ___range_ok(unsigned long addr, unsigned long size)
-{
-	return ((addr < memory_start) ||
-		((addr + size) > memory_end));
-}
-EXPORT_SYMBOL(___range_ok);
-
 int page_is_ram(unsigned long pfn)
 {
 	return __range_ok(pfn, 0);

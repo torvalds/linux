@@ -23,6 +23,7 @@ struct ceph_pg_pool_info {
 	int id;
 	struct ceph_pg_pool v;
 	int pg_num_mask, pgp_num_mask, lpg_num_mask, lpgp_num_mask;
+	char *name;
 };
 
 struct ceph_pg_mapping {
@@ -119,6 +120,8 @@ extern int ceph_calc_object_layout(struct ceph_object_layout *ol,
 				   const char *oid,
 				   struct ceph_file_layout *fl,
 				   struct ceph_osdmap *osdmap);
+extern int ceph_calc_pg_acting(struct ceph_osdmap *osdmap, struct ceph_pg pgid,
+			       int *acting);
 extern int ceph_calc_pg_primary(struct ceph_osdmap *osdmap,
 				struct ceph_pg pgid);
 

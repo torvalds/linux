@@ -108,7 +108,7 @@ static inline void* macio_get_drvdata(struct macio_dev *dev)
 
 static inline struct device_node *macio_get_of_node(struct macio_dev *mdev)
 {
-	return mdev->ofdev.node;
+	return mdev->ofdev.dev.of_node;
 }
 
 #ifdef CONFIG_PCI

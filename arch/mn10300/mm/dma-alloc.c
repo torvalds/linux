@@ -14,6 +14,7 @@
 #include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/pci.h>
+#include <linux/gfp.h>
 #include <asm/io.h>
 
 static unsigned long pci_sram_allocated = 0xbc000000;

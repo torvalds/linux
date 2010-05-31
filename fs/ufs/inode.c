@@ -37,7 +37,6 @@
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
-#include <linux/quotaops.h>
 
 #include "ufs_fs.h"
 #include "ufs.h"
@@ -603,7 +602,7 @@ static void ufs_set_inode_ops(struct inode *inode)
 		if (!inode->i_blocks)
 			inode->i_op = &ufs_fast_symlink_inode_operations;
 		else {
-			inode->i_op = &page_symlink_inode_operations;
+			inode->i_op = &ufs_symlink_inode_operations;
 			inode->i_mapping->a_ops = &ufs_aops;
 		}
 	} else
@@ -909,9 +908,6 @@ int ufs_sync_inode (struct inode *inode)
 void ufs_delete_inode (struct inode * inode)
 {
 	loff_t old_i_size;
-
-	if (!is_bad_inode(inode))
-		dquot_initialize(inode);
 
 	truncate_inode_pages(&inode->i_data, 0);
 	if (is_bad_inode(inode))

@@ -22,6 +22,7 @@
  */
 #include <linux/module.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <net/tcp.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>

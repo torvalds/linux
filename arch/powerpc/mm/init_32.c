@@ -31,6 +31,7 @@
 #include <linux/initrd.h>
 #include <linux/pagemap.h>
 #include <linux/lmb.h>
+#include <linux/gfp.h>
 
 #include <asm/pgalloc.h>
 #include <asm/prom.h>

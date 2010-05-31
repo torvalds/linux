@@ -77,6 +77,7 @@ xfs-y				+= xfs_alloc.o \
 				   xfs_itable.o \
 				   xfs_dfrag.o \
 				   xfs_log.o \
+				   xfs_log_cil.o \
 				   xfs_log_recover.o \
 				   xfs_mount.o \
 				   xfs_mru_cache.o \

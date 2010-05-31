@@ -33,6 +33,7 @@
 #include <linux/time.h>
 #include <linux/math64.h>
 #include <linux/smp_lock.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/sn/addrs.h>

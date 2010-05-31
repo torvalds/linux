@@ -35,6 +35,7 @@
 #include <linux/spinlock.h>
 #include <linux/htcpld.h>
 #include <linux/gpio.h>
+#include <linux/slab.h>
 
 struct htcpld_chip {
 	spinlock_t              lock;

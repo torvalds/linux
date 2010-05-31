@@ -44,7 +44,7 @@ u32 booke_wdt_period = WDT_PERIOD_DEFAULT;
 
 #ifdef	CONFIG_FSL_BOOKE
 #define WDTP(x)		((((x)&0x3)<<30)|(((x)&0x3c)<<15))
-#define WDTP_MASK	(WDTP(0))
+#define WDTP_MASK	(WDTP(0x3f))
 #else
 #define WDTP(x)		(TCR_WP(x))
 #define WDTP_MASK	(TCR_WP_MASK)
@@ -121,7 +121,7 @@ static ssize_t booke_wdt_write(struct file *file, const char __user *buf,
 	return count;
 }
 
-static const struct watchdog_info ident = {
+static struct watchdog_info ident = {
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 	.identity = "PowerPC Book-E Watchdog",
 };
@@ -137,12 +137,12 @@ static long booke_wdt_ioctl(struct file *file,
 		if (copy_to_user((void *)arg, &ident, sizeof(ident)))
 			return -EFAULT;
 	case WDIOC_GETSTATUS:
-		return put_user(ident.options, p);
+		return put_user(0, p);
 	case WDIOC_GETBOOTSTATUS:
 		/* XXX: something is clearing TSR */
 		tmp = mfspr(SPRN_TSR) & TSR_WRS(3);
-		/* returns 1 if last reset was caused by the WDT */
-		return (tmp ? 1 : 0);
+		/* returns CARDRESET if last reset was caused by the WDT */
+		return (tmp ? WDIOF_CARDRESET : 0);
 	case WDIOC_SETOPTIONS:
 		if (get_user(tmp, p))
 			return -EINVAL;

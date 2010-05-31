@@ -19,7 +19,6 @@
 #include <linux/init.h>
 #include <linux/mm.h>
 #include <linux/proc_fs.h>
-#include <linux/slab.h>
 #include <linux/kernel.h>
 
 #include <asm/machdep.h>

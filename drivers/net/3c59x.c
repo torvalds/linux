@@ -77,7 +77,6 @@ static int vortex_debug = 1;
 #include <linux/errno.h>
 #include <linux/in.h>
 #include <linux/ioport.h>
-#include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/pci.h>
 #include <linux/mii.h>
@@ -90,6 +89,7 @@ static int vortex_debug = 1;
 #include <linux/eisa.h>
 #include <linux/bitops.h>
 #include <linux/jiffies.h>
+#include <linux/gfp.h>
 #include <asm/irq.h>			/* For nr_irqs only. */
 #include <asm/io.h>
 #include <asm/uaccess.h>
@@ -1855,7 +1855,6 @@ leave_media_alone:
 	mod_timer(&vp->timer, RUN_AT(next_tick));
 	if (vp->deferred)
 		iowrite16(FakeIntr, ioaddr + EL3_CMD);
-	return;
 }
 
 static void vortex_tx_timeout(struct net_device *dev)
@@ -1917,7 +1916,7 @@ static void vortex_tx_timeout(struct net_device *dev)
 
 	/* Issue Tx Enable */
 	iowrite16(TxEnable, ioaddr + EL3_CMD);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 
 	/* Switch to register set 7 for normal use. */
 	EL3WINDOW(7);
@@ -2063,7 +2062,6 @@ vortex_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		}
 	}
 
-	dev->trans_start = jiffies;
 
 	/* Clear the Tx status stack. */
 	{
@@ -2129,8 +2127,8 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		int i;
 
 		vp->tx_ring[entry].frag[0].addr = cpu_to_le32(pci_map_single(VORTEX_PCI(vp), skb->data,
-										skb->len-skb->data_len, PCI_DMA_TODEVICE));
-		vp->tx_ring[entry].frag[0].length = cpu_to_le32(skb->len-skb->data_len);
+										skb_headlen(skb), PCI_DMA_TODEVICE));
+		vp->tx_ring[entry].frag[0].length = cpu_to_le32(skb_headlen(skb));
 
 		for (i = 0; i < skb_shinfo(skb)->nr_frags; i++) {
 			skb_frag_t *frag = &skb_shinfo(skb)->frags[i];
@@ -2174,7 +2172,6 @@ boomerang_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 	iowrite16(DownUnstall, ioaddr + EL3_CMD);
 	spin_unlock_irqrestore(&vp->lock, flags);
-	dev->trans_start = jiffies;
 	return NETDEV_TX_OK;
 }
 
@@ -2800,7 +2797,6 @@ static void update_stats(void __iomem *ioaddr, struct net_device *dev)
 	}
 
 	EL3WINDOW(old_window >> 13);
-	return;
 }
 
 static int vortex_nway_reset(struct net_device *dev)
@@ -3122,7 +3118,6 @@ static void mdio_write(struct net_device *dev, int phy_id, int location, int val
 		iowrite16(MDIO_ENB_IN | MDIO_SHIFT_CLK, mdio_addr);
 		mdio_delay();
 	}
-	return;
 }
 
 /* ACPI: Advanced Configuration and Power Interface. */

@@ -20,6 +20,7 @@
 
 #include <linux/module.h>
 #include <linux/serial.h>
+#include <linux/slab.h>
 #include <linux/serial_core.h>
 #include <linux/io.h>
 #include <linux/of_platform.h>
@@ -1196,7 +1197,7 @@ static void uart_firmware_cont(const struct firmware *fw, void *context)
 static int ucc_uart_probe(struct of_device *ofdev,
 	const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	const unsigned int *iprop;      /* Integer OF properties */
 	const char *sprop;      /* String OF properties */
 	struct uart_qe_port *qe_port = NULL;
@@ -1485,9 +1486,11 @@ static struct of_device_id ucc_uart_match[] = {
 MODULE_DEVICE_TABLE(of, ucc_uart_match);
 
 static struct of_platform_driver ucc_uart_of_driver = {
-	.owner  	= THIS_MODULE,
-	.name   	= "ucc_uart",
-	.match_table    = ucc_uart_match,
+	.driver = {
+		.name = "ucc_uart",
+		.owner = THIS_MODULE,
+		.of_match_table    = ucc_uart_match,
+	},
 	.probe  	= ucc_uart_probe,
 	.remove 	= ucc_uart_remove,
 };

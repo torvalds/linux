@@ -20,6 +20,7 @@
 #include <linux/spinlock.h>
 #include <linux/poll.h>
 #include <linux/miscdevice.h>
+#include <linux/slab.h>
 
 #include <linux/uaccess.h>
 

@@ -111,7 +111,10 @@ struct vf_data_storage {
 	u16 default_vf_vlan_id;
 	u16 vlans_enabled;
 	bool clear_to_send;
+	bool pf_set_mac;
 	int rar;
+	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
+	u16 pf_qos;
 };
 
 /* wrapper around a pointer to a socket buffer,
@@ -204,14 +207,17 @@ enum ixgbe_ring_f_enum {
 #define IXGBE_MAX_FDIR_INDICES 64
 #ifdef IXGBE_FCOE
 #define IXGBE_MAX_FCOE_INDICES  8
+#define MAX_RX_QUEUES (IXGBE_MAX_FDIR_INDICES + IXGBE_MAX_FCOE_INDICES)
+#define MAX_TX_QUEUES (IXGBE_MAX_FDIR_INDICES + IXGBE_MAX_FCOE_INDICES)
+#else
+#define MAX_RX_QUEUES IXGBE_MAX_FDIR_INDICES
+#define MAX_TX_QUEUES IXGBE_MAX_FDIR_INDICES
 #endif /* IXGBE_FCOE */
 struct ixgbe_ring_feature {
 	int indices;
 	int mask;
 } ____cacheline_internodealigned_in_smp;
 
-#define MAX_RX_QUEUES 128
-#define MAX_TX_QUEUES 128
 
 #define MAX_RX_PACKET_BUFFERS ((adapter->flags & IXGBE_FLAG_DCB_ENABLED) \
                               ? 8 : 1)
@@ -354,6 +360,7 @@ struct ixgbe_adapter {
 	u32 flags2;
 #define IXGBE_FLAG2_RSC_CAPABLE                 (u32)(1)
 #define IXGBE_FLAG2_RSC_ENABLED                 (u32)(1 << 1)
+#define IXGBE_FLAG2_TEMP_SENSOR_CAPABLE         (u32)(1 << 2)
 /* default to trying for four seconds */
 #define IXGBE_TRY_LINK_TIMEOUT (4 * HZ)
 
@@ -401,6 +408,8 @@ struct ixgbe_adapter {
 	u16 eeprom_version;
 
 	int node;
+	struct work_struct check_overtemp_task;
+	u32 interrupt_event;
 
 	/* SR-IOV */
 	DECLARE_BITMAP(active_vfs, IXGBE_MAX_VF_FUNCTIONS);

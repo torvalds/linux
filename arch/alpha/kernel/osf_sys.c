@@ -20,7 +20,6 @@
 #include <linux/syscalls.h>
 #include <linux/unistd.h>
 #include <linux/ptrace.h>
-#include <linux/slab.h>
 #include <linux/user.h>
 #include <linux/utsname.h>
 #include <linux/time.h>
@@ -37,6 +36,7 @@
 #include <linux/uio.h>
 #include <linux/vfs.h>
 #include <linux/rcupdate.h>
+#include <linux/slab.h>
 
 #include <asm/fpu.h>
 #include <asm/io.h>

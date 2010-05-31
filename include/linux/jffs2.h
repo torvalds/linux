@@ -215,8 +215,8 @@ union jffs2_node_union
 
 /* Data payload for device nodes. */
 union jffs2_device_node {
-	jint16_t old;
-	jint32_t new;
+	jint16_t old_id;
+	jint32_t new_id;
 };
 
 #endif /* __LINUX_JFFS2_H__ */

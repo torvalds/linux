@@ -23,6 +23,7 @@
  */
 
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include "ibmasm.h"
 #include "lowlevel.h"
 

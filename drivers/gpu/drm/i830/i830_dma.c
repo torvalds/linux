@@ -38,6 +38,7 @@
 #include <linux/interrupt.h>	/* For task queue support */
 #include <linux/pagemap.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 
 #define I830_BUF_FREE		2

@@ -21,35 +21,41 @@
 
 #include <asm/atomic.h>
 
+#include <plat/common.h>
+
 #include "cm.h"
-
-/* XXX move this to cm.h */
-/* MAX_MODULE_READY_TIME: max milliseconds for module to leave idle */
-#define MAX_MODULE_READY_TIME			20000
-
-/*
- * OMAP4_PRCM_CM_CLKCTRL_IDLEST_MASK: isolates the IDLEST field in the
- * CM_CLKCTRL register.
- */
-#define OMAP4_PRCM_CM_CLKCTRL_IDLEST_MASK	(0x2 << 16)
-
-/*
- * OMAP4 prcm_mod u32 fields contain packed data: the CM ID in bit 16 and
- * the PRCM module offset address (from the CM module base) in bits 15-0.
- */
-#define OMAP4_PRCM_MOD_CM_ID_SHIFT		16
-#define OMAP4_PRCM_MOD_OFFS_MASK		0xffff
+#include "cm-regbits-44xx.h"
 
 /**
- * omap4_cm_wait_idlest_ready - wait for a module to leave idle or standby
- * @prcm_mod: PRCM module offset (XXX example)
- * @prcm_dev_offs: PRCM device offset (e.g. MCASP XXX example)
+ * omap4_cm_wait_module_ready - wait for a module to be in 'func' state
+ * @clkctrl_reg: CLKCTRL module address
  *
- * XXX document
+ * Wait for the module IDLEST to be functional. If the idle state is in any
+ * the non functional state (trans, idle or disabled), module and thus the
+ * sysconfig cannot be accessed and will probably lead to an "imprecise
+ * external abort"
+ *
+ * Module idle state:
+ *   0x0 func:     Module is fully functional, including OCP
+ *   0x1 trans:    Module is performing transition: wakeup, or sleep, or sleep
+ *                 abortion
+ *   0x2 idle:     Module is in Idle mode (only OCP part). It is functional if
+ *                 using separate functional clock
+ *   0x3 disabled: Module is disabled and cannot be accessed
+ *
+ * TODO: Need to handle module accessible in idle state
  */
-int omap4_cm_wait_idlest_ready(u32 prcm_mod, u8 prcm_dev_offs)
+int omap4_cm_wait_module_ready(void __iomem *clkctrl_reg)
 {
-	/* FIXME: Add clock manager related code */
-	return 0;
+	int i = 0;
+
+	if (!clkctrl_reg)
+		return 0;
+
+	omap_test_timeout(((__raw_readl(clkctrl_reg) &
+			    OMAP4430_IDLEST_MASK) == 0),
+			  MAX_MODULE_READY_TIME, i);
+
+	return (i < MAX_MODULE_READY_TIME) ? 0 : -EBUSY;
 }
 

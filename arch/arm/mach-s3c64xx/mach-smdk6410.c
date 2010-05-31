@@ -64,6 +64,8 @@
 #include <plat/clock.h>
 #include <plat/devs.h>
 #include <plat/cpu.h>
+#include <plat/adc.h>
+#include <plat/ts.h>
 
 #define UCON S3C2410_UCON_DEFAULT | S3C2410_UCON_UCLK
 #define ULCON S3C2410_LCON_CS8 | S3C2410_LCON_PNONE | S3C2410_LCON_STOPB
@@ -262,6 +264,9 @@ static struct platform_device *smdk6410_devices[] __initdata = {
 	&smdk6410_lcd_powerdev,
 
 	&smdk6410_smsc911x,
+	&s3c_device_adc,
+	&s3c_device_ts,
+	&s3c_device_wdt,
 };
 
 #ifdef CONFIG_REGULATOR
@@ -596,6 +601,12 @@ static struct i2c_board_info i2c_devs1[] __initdata = {
 	{ I2C_BOARD_INFO("24c128", 0x57), },	/* Samsung S524AD0XD1 */
 };
 
+static struct s3c2410_ts_mach_info s3c_ts_platform __initdata = {
+	.delay			= 10000,
+	.presc			= 49,
+	.oversampling_shift	= 2,
+};
+
 static void __init smdk6410_map_io(void)
 {
 	u32 tmp;
@@ -624,6 +635,8 @@ static void __init smdk6410_machine_init(void)
 	s3c_i2c0_set_platdata(NULL);
 	s3c_i2c1_set_platdata(NULL);
 	s3c_fb_set_platdata(&smdk6410_lcd_pdata);
+
+	s3c24xx_ts_set_platdata(&s3c_ts_platform);
 
 	/* configure nCS1 width to 16 bits */
 
@@ -656,7 +669,7 @@ static void __init smdk6410_machine_init(void)
 }
 
 MACHINE_START(SMDK6410, "SMDK6410")
-	/* Maintainer: Ben Dooks <ben@fluff.org> */
+	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
 	.phys_io	= S3C_PA_UART & 0xfff00000,
 	.io_pg_offst	= (((u32)S3C_VA_UART) >> 18) & 0xfffc,
 	.boot_params	= S3C64XX_PA_SDRAM + 0x100,

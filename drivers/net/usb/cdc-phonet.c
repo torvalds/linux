@@ -22,6 +22,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <linux/usb.h>
 #include <linux/usb/cdc.h>
 #include <linux/netdevice.h>

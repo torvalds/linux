@@ -16,6 +16,7 @@
 #include <linux/serio.h>
 #include <linux/libps2.h>
 #include <linux/dmi.h>
+#include <linux/slab.h>
 
 #include "psmouse.h"
 #include "lifebook.h"

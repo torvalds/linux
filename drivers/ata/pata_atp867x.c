@@ -33,6 +33,7 @@
 #include <linux/blkdev.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/gfp.h>
 #include <scsi/scsi_host.h>
 #include <linux/libata.h>
 
@@ -524,7 +525,7 @@ static int atp867x_init_one(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	rc = ata_host_activate(host, pdev->irq, ata_sff_interrupt,
+	rc = ata_host_activate(host, pdev->irq, ata_bmdma_interrupt,
 				IRQF_SHARED, &atp867x_sht);
 	if (rc)
 		dev_printk(KERN_ERR, &pdev->dev, "failed to activate host\n");

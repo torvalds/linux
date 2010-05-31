@@ -82,7 +82,6 @@ static struct scsi_host_template qlogicfas_driver_template = {
 
 typedef struct scsi_info_t {
 	struct pcmcia_device	*p_dev;
-	dev_node_t node;
 	struct Scsi_Host *host;
 	unsigned short manf_id;
 } scsi_info_t;
@@ -161,7 +160,6 @@ static int qlogic_probe(struct pcmcia_device *link)
 	link->io.NumPorts1 = 16;
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
 	link->io.IOAddrLines = 10;
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.Present = PRESENT_OPTION;
@@ -209,8 +207,7 @@ static int qlogic_config(struct pcmcia_device * link)
 	if (ret)
 		goto failed;
 
-	ret = pcmcia_request_irq(link, &link->irq);
-	if (ret)
+	if (!link->irq)
 		goto failed;
 
 	ret = pcmcia_request_configuration(link, &link->conf);
@@ -227,18 +224,16 @@ static int qlogic_config(struct pcmcia_device * link)
 	/* The KXL-810AN has a bigger IO port window */
 	if (link->io.NumPorts1 == 32)
 		host = qlogic_detect(&qlogicfas_driver_template, link,
-			link->io.BasePort1 + 16, link->irq.AssignedIRQ);
+			link->io.BasePort1 + 16, link->irq);
 	else
 		host = qlogic_detect(&qlogicfas_driver_template, link,
-			link->io.BasePort1, link->irq.AssignedIRQ);
+			link->io.BasePort1, link->irq);
 	
 	if (!host) {
 		printk(KERN_INFO "%s: no SCSI devices found\n", qlogic_name);
 		goto failed;
 	}
 
-	sprintf(info->node.dev_name, "scsi%d", host->host_no);
-	link->dev_node = &info->node;
 	info->host = host;
 
 	return 0;
@@ -258,7 +253,7 @@ static void qlogic_release(struct pcmcia_device *link)
 
 	scsi_remove_host(info->host);
 
-	free_irq(link->irq.AssignedIRQ, info->host);
+	free_irq(link->irq, info->host);
 	pcmcia_disable_device(link);
 
 	scsi_host_put(info->host);

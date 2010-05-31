@@ -26,6 +26,7 @@
 #include "usbdrv.h"
 
 #include <linux/netlink.h>
+#include <linux/slab.h>
 #include <net/iw_handler.h>
 
 extern void zfiRecv80211(zdev_t* dev, zbuf_t* buf, struct zsAdditionInfo* addInfo);
@@ -955,7 +956,6 @@ int zfLnxCencSendMsg(struct sock *netlink_sk, u_int8_t *msg, int len)
 	/*填写数据报相关信息*/
 	nlh = NLMSG_PUT(skb, 0, 0, WAI_K_MSG, size-sizeof(*nlh));
 	pos = NLMSG_DATA(nlh);
-	memset(pos, 0, len);
 
 	/*传输到用户空间的数据*/
 	memcpy(pos, msg,  len);

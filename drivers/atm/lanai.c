@@ -55,6 +55,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/mm.h>
 #include <linux/atmdev.h>
 #include <asm/io.h>

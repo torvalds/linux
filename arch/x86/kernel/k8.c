@@ -2,8 +2,8 @@
  * Shared support code for AMD K8 northbridges and derivates.
  * Copyright 2006 Andi Kleen, SUSE Labs. Subject to GPLv2.
  */
-#include <linux/gfp.h>
 #include <linux/types.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/module.h>

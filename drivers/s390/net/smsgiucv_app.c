@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/kobject.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <net/iucv/iucv.h>

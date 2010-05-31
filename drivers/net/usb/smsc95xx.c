@@ -28,6 +28,7 @@
 #include <linux/usb.h>
 #include <linux/crc32.h>
 #include <linux/usb/usbnet.h>
+#include <linux/slab.h>
 #include "smsc95xx.h"
 
 #define SMSC_CHIPNAME			"smsc95xx"
@@ -384,13 +385,13 @@ static void smsc95xx_set_multicast(struct net_device *netdev)
 		pdata->mac_cr |= MAC_CR_MCPAS_;
 		pdata->mac_cr &= ~(MAC_CR_PRMS_ | MAC_CR_HPFILT_);
 	} else if (!netdev_mc_empty(dev->net)) {
-		struct dev_mc_list *mc_list;
+		struct netdev_hw_addr *ha;
 
 		pdata->mac_cr |= MAC_CR_HPFILT_;
 		pdata->mac_cr &= ~(MAC_CR_PRMS_ | MAC_CR_MCPAS_);
 
-		netdev_for_each_mc_addr(mc_list, netdev) {
-			u32 bitnum = smsc95xx_hash(mc_list->dmi_addr);
+		netdev_for_each_mc_addr(ha, netdev) {
+			u32 bitnum = smsc95xx_hash(ha->addr);
 			u32 mask = 0x01 << (bitnum & 0x1F);
 			if (bitnum & 0x20)
 				hash_hi |= mask;
@@ -1189,9 +1190,21 @@ static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
 	}
 
 	if (csum) {
-		u32 csum_preamble = smsc95xx_calc_csum_preamble(skb);
-		skb_push(skb, 4);
-		memcpy(skb->data, &csum_preamble, 4);
+		if (skb->len <= 45) {
+			/* workaround - hardware tx checksum does not work
+			 * properly with extremely small packets */
+			long csstart = skb->csum_start - skb_headroom(skb);
+			__wsum calc = csum_partial(skb->data + csstart,
+				skb->len - csstart, 0);
+			*((__sum16 *)(skb->data + csstart
+				+ skb->csum_offset)) = csum_fold(calc);
+
+			csum = false;
+		} else {
+			u32 csum_preamble = smsc95xx_calc_csum_preamble(skb);
+			skb_push(skb, 4);
+			memcpy(skb->data, &csum_preamble, 4);
+		}
 	}
 
 	skb_push(skb, 4);

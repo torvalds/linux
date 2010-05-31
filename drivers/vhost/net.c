@@ -17,6 +17,7 @@
 #include <linux/workqueue.h>
 #include <linux/rcupdate.h>
 #include <linux/file.h>
+#include <linux/slab.h>
 
 #include <linux/net.h>
 #include <linux/if_packet.h>
@@ -125,7 +126,7 @@ static void handle_tx(struct vhost_net *net)
 	mutex_lock(&vq->mutex);
 	vhost_disable_notify(vq);
 
-	if (wmem < sock->sk->sk_sndbuf * 2)
+	if (wmem < sock->sk->sk_sndbuf / 2)
 		tx_poll_stop(net);
 	hdr_size = vq->hdr_size;
 
@@ -508,12 +509,12 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	/* Verify that ring has been setup correctly. */
 	if (!vhost_vq_access_ok(vq)) {
 		r = -EFAULT;
-		goto err;
+		goto err_vq;
 	}
 	sock = get_socket(fd);
 	if (IS_ERR(sock)) {
 		r = PTR_ERR(sock);
-		goto err;
+		goto err_vq;
 	}
 
 	/* start polling new socket */
@@ -524,12 +525,14 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 	vhost_net_disable_vq(n, vq);
 	rcu_assign_pointer(vq->private_data, sock);
 	vhost_net_enable_vq(n, vq);
-	mutex_unlock(&vq->mutex);
 done:
 	if (oldsock) {
 		vhost_net_flush_vq(n, index);
 		fput(oldsock->file);
 	}
+
+err_vq:
+	mutex_unlock(&vq->mutex);
 err:
 	mutex_unlock(&n->dev.mutex);
 	return r;
@@ -590,17 +593,17 @@ static long vhost_net_ioctl(struct file *f, unsigned int ioctl,
 	int r;
 	switch (ioctl) {
 	case VHOST_NET_SET_BACKEND:
-		r = copy_from_user(&backend, argp, sizeof backend);
-		if (r < 0)
-			return r;
+		if (copy_from_user(&backend, argp, sizeof backend))
+			return -EFAULT;
 		return vhost_net_set_backend(n, backend.index, backend.fd);
 	case VHOST_GET_FEATURES:
 		features = VHOST_FEATURES;
-		return copy_to_user(featurep, &features, sizeof features);
+		if (copy_to_user(featurep, &features, sizeof features))
+			return -EFAULT;
+		return 0;
 	case VHOST_SET_FEATURES:
-		r = copy_from_user(&features, featurep, sizeof features);
-		if (r < 0)
-			return r;
+		if (copy_from_user(&features, featurep, sizeof features))
+			return -EFAULT;
 		if (features & ~VHOST_FEATURES)
 			return -EOPNOTSUPP;
 		return vhost_net_set_features(n, features);
@@ -639,7 +642,7 @@ static struct miscdevice vhost_net_misc = {
 	&vhost_net_fops,
 };
 
-int vhost_net_init(void)
+static int vhost_net_init(void)
 {
 	int r = vhost_init();
 	if (r)
@@ -656,7 +659,7 @@ err_init:
 }
 module_init(vhost_net_init);
 
-void vhost_net_exit(void)
+static void vhost_net_exit(void)
 {
 	misc_deregister(&vhost_net_misc);
 	vhost_cleanup();

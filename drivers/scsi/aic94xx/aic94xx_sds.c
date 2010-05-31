@@ -26,6 +26,7 @@
  */
 
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/delay.h>
 
 #include "aic94xx.h"

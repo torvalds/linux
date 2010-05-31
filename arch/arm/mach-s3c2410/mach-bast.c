@@ -61,6 +61,7 @@
 #include <plat/devs.h>
 #include <plat/cpu.h>
 #include <plat/cpu-freq.h>
+#include <plat/gpio-cfg.h>
 #include <plat/audio-simtec.h>
 
 #include "usb-simtec.h"
@@ -216,15 +217,13 @@ static struct s3c2410_uartcfg bast_uartcfgs[] __initdata = {
 static int bast_pm_suspend(struct sys_device *sd, pm_message_t state)
 {
 	/* ensure that an nRESET is not generated on resume. */
-	s3c2410_gpio_setpin(S3C2410_GPA(21), 1);
-	s3c2410_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPIO_OUTPUT);
-
+	gpio_direction_output(S3C2410_GPA(21), 1);
 	return 0;
 }
 
 static int bast_pm_resume(struct sys_device *sd)
 {
-	s3c2410_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPA21_nRSTOUT);
+	s3c_gpio_cfgpin(S3C2410_GPA(21), S3C2410_GPA21_nRSTOUT);
 	return 0;
 }
 
@@ -634,7 +633,7 @@ static void __init bast_map_io(void)
 
 	s3c24xx_register_clocks(bast_clocks, ARRAY_SIZE(bast_clocks));
 
-	s3c_device_hwmon.dev.platform_data = &bast_hwmon_info;
+	s3c_hwmon_set_platdata(&bast_hwmon_info);
 
 	s3c24xx_init_io(bast_iodesc, ARRAY_SIZE(bast_iodesc));
 	s3c24xx_init_clocks(0);
@@ -658,6 +657,8 @@ static void __init bast_init(void)
 	nor_simtec_init();
 	simtec_audio_add(NULL, true, &bast_audio);
 
+	WARN_ON(gpio_request(S3C2410_GPA(21), "bast nreset"));
+	
 	s3c_cpufreq_setboard(&bast_cpufreq);
 }
 

@@ -26,6 +26,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/math64.h>
+#include <linux/slab.h>
 #include <asm/processor.h>
 #include <asm/msr.h>
 #include <asm/page.h>

@@ -5,6 +5,7 @@
  */
 #include <linux/module.h>
 #include <linux/netfilter_ipv6/ip6_tables.h>
+#include <linux/slab.h>
 
 #define RAW_VALID_HOOKS ((1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_OUT))
 
@@ -13,7 +14,7 @@ static const struct xt_table packet_raw = {
 	.valid_hooks = RAW_VALID_HOOKS,
 	.me = THIS_MODULE,
 	.af = NFPROTO_IPV6,
-	.priority = NF_IP6_PRI_FIRST,
+	.priority = NF_IP6_PRI_RAW,
 };
 
 /* The work comes in here from netfilter.c. */

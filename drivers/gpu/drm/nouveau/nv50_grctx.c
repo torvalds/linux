@@ -55,15 +55,18 @@
 #define CP_FLAG_AUTO_LOAD             ((2 * 32) + 5)
 #define CP_FLAG_AUTO_LOAD_NOT_PENDING 0
 #define CP_FLAG_AUTO_LOAD_PENDING     1
+#define CP_FLAG_NEWCTX                ((2 * 32) + 10)
+#define CP_FLAG_NEWCTX_BUSY           0
+#define CP_FLAG_NEWCTX_DONE           1
 #define CP_FLAG_XFER                  ((2 * 32) + 11)
 #define CP_FLAG_XFER_IDLE             0
 #define CP_FLAG_XFER_BUSY             1
-#define CP_FLAG_NEWCTX                ((2 * 32) + 12)
-#define CP_FLAG_NEWCTX_BUSY           0
-#define CP_FLAG_NEWCTX_DONE           1
 #define CP_FLAG_ALWAYS                ((2 * 32) + 13)
 #define CP_FLAG_ALWAYS_FALSE          0
 #define CP_FLAG_ALWAYS_TRUE           1
+#define CP_FLAG_INTR                  ((2 * 32) + 15)
+#define CP_FLAG_INTR_NOT_PENDING      0
+#define CP_FLAG_INTR_PENDING          1
 
 #define CP_CTX                   0x00100000
 #define CP_CTX_COUNT             0x000f0000
@@ -174,6 +177,7 @@ nv50_grctx_init(struct nouveau_grctx *ctx)
 	case 0x96:
 	case 0x98:
 	case 0xa0:
+	case 0xa3:
 	case 0xa5:
 	case 0xa8:
 	case 0xaa:
@@ -214,6 +218,8 @@ nv50_grctx_init(struct nouveau_grctx *ctx)
 	cp_name(ctx, cp_setup_save);
 	cp_set (ctx, UNK1D, SET);
 	cp_wait(ctx, STATUS, BUSY);
+	cp_wait(ctx, INTR, PENDING);
+	cp_bra (ctx, STATUS, BUSY, cp_setup_save);
 	cp_set (ctx, UNK01, SET);
 	cp_set (ctx, SWAP_DIRECTION, SAVE);
 
@@ -269,7 +275,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 	int offset, base;
 	uint32_t units = nv_rd32 (ctx->dev, 0x1540);
 
-	/* 0800 */
+	/* 0800: DISPATCH */
 	cp_ctx(ctx, 0x400808, 7);
 	gr_def(ctx, 0x400814, 0x00000030);
 	cp_ctx(ctx, 0x400834, 0x32);
@@ -300,7 +306,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 		gr_def(ctx, 0x400b20, 0x0001629d);
 	}
 
-	/* 0C00 */
+	/* 0C00: VFETCH */
 	cp_ctx(ctx, 0x400c08, 0x2);
 	gr_def(ctx, 0x400c08, 0x0000fe0c);
 
@@ -326,7 +332,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 	cp_ctx(ctx, 0x401540, 0x5);
 	gr_def(ctx, 0x401550, 0x00001018);
 
-	/* 1800 */
+	/* 1800: STREAMOUT */
 	cp_ctx(ctx, 0x401814, 0x1);
 	gr_def(ctx, 0x401814, 0x000000ff);
 	if (dev_priv->chipset == 0x50) {
@@ -359,6 +365,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 	case 0xac:
 		gr_def(ctx, 0x401c00, 0x042500df);
 		break;
+	case 0xa3:
 	case 0xa5:
 	case 0xa8:
 		gr_def(ctx, 0x401c00, 0x142500df);
@@ -413,6 +420,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 		break;
 	case 0x84:
 	case 0xa0:
+	case 0xa3:
 	case 0xa5:
 	case 0xa8:
 	case 0xaa:
@@ -641,7 +649,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 	if (dev_priv->chipset == 0x50)
 		cp_ctx(ctx, 0x4063e0, 0x1);
 
-	/* 6800 */
+	/* 6800: M2MF */
 	if (dev_priv->chipset < 0x90) {
 		cp_ctx(ctx, 0x406814, 0x2b);
 		gr_def(ctx, 0x406818, 0x00000f80);
@@ -787,6 +795,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 				case 0xa5:
 					gr_def(ctx, offset + 0x1c, 0x310c0000);
 					break;
+				case 0xa3:
 				case 0xa8:
 				case 0xaa:
 				case 0xac:
@@ -854,6 +863,8 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 			else
 				gr_def(ctx, offset + 0x8, 0x05010202);
 			gr_def(ctx, offset + 0xc, 0x00030201);
+			if (dev_priv->chipset == 0xa3)
+				cp_ctx(ctx, base + 0x36c, 1);
 
 			cp_ctx(ctx, base + 0x400, 2);
 			gr_def(ctx, base + 0x404, 0x00000040);
@@ -1154,7 +1165,9 @@ nv50_graph_construct_xfer1(struct nouveau_grctx *ctx)
 		nv50_graph_construct_gene_unk8(ctx);
 		if (dev_priv->chipset == 0xa0)
 			xf_emit(ctx, 0x189, 0);
-		else if (dev_priv->chipset < 0xa8)
+		else if (dev_priv->chipset == 0xa3)
+			xf_emit(ctx, 0xd5, 0);
+		else if (dev_priv->chipset == 0xa5)
 			xf_emit(ctx, 0x99, 0);
 		else if (dev_priv->chipset == 0xaa)
 			xf_emit(ctx, 0x65, 0);
@@ -1192,6 +1205,8 @@ nv50_graph_construct_xfer1(struct nouveau_grctx *ctx)
 		ctx->ctxvals_pos = offset + 4;
 		if (dev_priv->chipset == 0xa0)
 			xf_emit(ctx, 0xa80, 0);
+		else if (dev_priv->chipset == 0xa3)
+			xf_emit(ctx, 0xa7c, 0);
 		else
 			xf_emit(ctx, 0xa7a, 0);
 		xf_emit(ctx, 1, 0x3fffff);
@@ -1336,6 +1351,7 @@ nv50_graph_construct_gene_unk1(struct nouveau_grctx *ctx)
 		xf_emit(ctx, 0x942, 0);
 		break;
 	case 0xa0:
+	case 0xa3:
 		xf_emit(ctx, 0x2042, 0);
 		break;
 	case 0xa5:

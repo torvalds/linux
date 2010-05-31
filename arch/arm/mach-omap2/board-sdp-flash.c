@@ -253,20 +253,20 @@ void __init sdp_flash_init(struct flash_partitions sdp_partition_info[])
 	}
 
 	if (norcs > GPMC_CS_NUM)
-		printk(KERN_INFO "OneNAND: Unable to find configuration "
-				" in GPMC\n ");
+		printk(KERN_INFO "NOR: Unable to find configuration "
+				"in GPMC\n");
 	else
 		board_nor_init(sdp_partition_info[0], norcs);
 
 	if (onenandcs > GPMC_CS_NUM)
 		printk(KERN_INFO "OneNAND: Unable to find configuration "
-				" in GPMC\n ");
+				"in GPMC\n");
 	else
 		board_onenand_init(sdp_partition_info[1], onenandcs);
 
 	if (nandcs > GPMC_CS_NUM)
 		printk(KERN_INFO "NAND: Unable to find configuration "
-				" in GPMC\n ");
+				"in GPMC\n");
 	else
 		board_nand_init(sdp_partition_info[2], nandcs);
 }

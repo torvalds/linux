@@ -41,7 +41,7 @@ pcibios_align_resource(void *data, const struct resource *res,
 	if ((res->flags & IORESOURCE_IO) && (start & 0x300))
 		start = (start + 0x3ff) & ~0x3ff;
 
-	return start
+	return start;
 }
 
 
@@ -94,8 +94,7 @@ static void __init pcibios_allocate_bus_resources(struct list_head *bus_list)
 				r = &dev->resource[idx];
 				if (!r->start)
 					continue;
-				if (pci_claim_resource(dev, idx) < 0)
-					printk(KERN_ERR "PCI: Cannot allocate resource region %d of bridge %s\n", idx, pci_name(dev));
+				pci_claim_resource(dev, idx);
 			}
 		}
 		pcibios_allocate_bus_resources(&bus->children);
@@ -125,7 +124,6 @@ static void __init pcibios_allocate_resources(int pass)
 				DBG("PCI: Resource %08lx-%08lx (f=%lx, d=%d, p=%d)\n",
 				    r->start, r->end, r->flags, disabled, pass);
 				if (pci_claim_resource(dev, idx) < 0) {
-					printk(KERN_ERR "PCI: Cannot allocate resource region %d of device %s\n", idx, pci_name(dev));
 					/* We'll assign a new address later */
 					r->end -= r->start;
 					r->start = 0;

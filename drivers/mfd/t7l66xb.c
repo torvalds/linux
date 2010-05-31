@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <linux/irq.h>
 #include <linux/clk.h>
 #include <linux/platform_device.h>
@@ -316,6 +317,9 @@ static int t7l66xb_probe(struct platform_device *dev)
 	struct t7l66xb *t7l66xb;
 	struct resource *iomem, *rscr;
 	int ret;
+
+	if (pdata == NULL)
+		return -EINVAL;
 
 	iomem = platform_get_resource(dev, IORESOURCE_MEM, 0);
 	if (!iomem)

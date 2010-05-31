@@ -25,6 +25,7 @@
 #include <linux/blkdev.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include <linux/utsname.h>
 
 #include <scsi/scsi.h>

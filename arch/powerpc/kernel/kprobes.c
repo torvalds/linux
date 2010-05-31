@@ -31,6 +31,7 @@
 #include <linux/preempt.h>
 #include <linux/module.h>
 #include <linux/kdebug.h>
+#include <linux/slab.h>
 #include <asm/cacheflush.h>
 #include <asm/sstep.h>
 #include <asm/uaccess.h>
@@ -113,6 +114,9 @@ static void __kprobes prepare_singlestep(struct kprobe *p, struct pt_regs *regs)
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	regs->msr &= ~MSR_CE;
 	mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) | DBCR0_IC | DBCR0_IDM);
+#ifdef CONFIG_PPC_47x
+	isync();
+#endif
 #endif
 
 	/*

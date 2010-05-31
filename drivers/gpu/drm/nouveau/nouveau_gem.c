@@ -57,6 +57,9 @@ nouveau_gem_object_del(struct drm_gem_object *gem)
 	}
 
 	ttm_bo_unref(&bo);
+
+	drm_gem_object_release(gem);
+	kfree(gem);
 }
 
 int
@@ -180,40 +183,35 @@ nouveau_gem_set_domain(struct drm_gem_object *gem, uint32_t read_domains,
 {
 	struct nouveau_bo *nvbo = gem->driver_private;
 	struct ttm_buffer_object *bo = &nvbo->bo;
-	uint64_t flags;
+	uint32_t domains = valid_domains &
+		(write_domains ? write_domains : read_domains);
+	uint32_t pref_flags = 0, valid_flags = 0;
 
-	if (!valid_domains || (!read_domains && !write_domains))
+	if (!domains)
 		return -EINVAL;
 
-	if (write_domains) {
-		if ((valid_domains & NOUVEAU_GEM_DOMAIN_VRAM) &&
-		    (write_domains & NOUVEAU_GEM_DOMAIN_VRAM))
-			flags = TTM_PL_FLAG_VRAM;
-		else
-		if ((valid_domains & NOUVEAU_GEM_DOMAIN_GART) &&
-		    (write_domains & NOUVEAU_GEM_DOMAIN_GART))
-			flags = TTM_PL_FLAG_TT;
-		else
-			return -EINVAL;
-	} else {
-		if ((valid_domains & NOUVEAU_GEM_DOMAIN_VRAM) &&
-		    (read_domains & NOUVEAU_GEM_DOMAIN_VRAM) &&
-		    bo->mem.mem_type == TTM_PL_VRAM)
-			flags = TTM_PL_FLAG_VRAM;
-		else
-		if ((valid_domains & NOUVEAU_GEM_DOMAIN_GART) &&
-		    (read_domains & NOUVEAU_GEM_DOMAIN_GART) &&
-		    bo->mem.mem_type == TTM_PL_TT)
-			flags = TTM_PL_FLAG_TT;
-		else
-		if ((valid_domains & NOUVEAU_GEM_DOMAIN_VRAM) &&
-		    (read_domains & NOUVEAU_GEM_DOMAIN_VRAM))
-			flags = TTM_PL_FLAG_VRAM;
-		else
-			flags = TTM_PL_FLAG_TT;
-	}
+	if (valid_domains & NOUVEAU_GEM_DOMAIN_VRAM)
+		valid_flags |= TTM_PL_FLAG_VRAM;
 
-	nouveau_bo_placement_set(nvbo, flags);
+	if (valid_domains & NOUVEAU_GEM_DOMAIN_GART)
+		valid_flags |= TTM_PL_FLAG_TT;
+
+	if ((domains & NOUVEAU_GEM_DOMAIN_VRAM) &&
+	    bo->mem.mem_type == TTM_PL_VRAM)
+		pref_flags |= TTM_PL_FLAG_VRAM;
+
+	else if ((domains & NOUVEAU_GEM_DOMAIN_GART) &&
+		 bo->mem.mem_type == TTM_PL_TT)
+		pref_flags |= TTM_PL_FLAG_TT;
+
+	else if (domains & NOUVEAU_GEM_DOMAIN_VRAM)
+		pref_flags |= TTM_PL_FLAG_VRAM;
+
+	else
+		pref_flags |= TTM_PL_FLAG_TT;
+
+	nouveau_bo_placement_set(nvbo, pref_flags, valid_flags);
+
 	return 0;
 }
 
@@ -387,7 +385,7 @@ validate_list(struct nouveau_channel *chan, struct list_head *list,
 
 		nvbo->channel = chan;
 		ret = ttm_bo_validate(&nvbo->bo, &nvbo->placement,
-				      false, false);
+				      false, false, false);
 		nvbo->channel = NULL;
 		if (unlikely(ret)) {
 			NV_ERROR(dev, "fail ttm_validate\n");

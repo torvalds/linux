@@ -16,6 +16,8 @@ befs.txt
 	- information about the BeOS filesystem for Linux.
 bfs.txt
 	- info for the SCO UnixWare Boot Filesystem (BFS).
+ceph.txt
+	- info for the Ceph Distributed File System
 cifs.txt
 	- description of the CIFS filesystem.
 coda.txt

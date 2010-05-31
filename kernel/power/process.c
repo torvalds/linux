@@ -88,12 +88,11 @@ static int try_to_freeze_tasks(bool sig_only)
 		printk(KERN_ERR "Freezing of tasks failed after %d.%02d seconds "
 				"(%d tasks refusing to freeze):\n",
 				elapsed_csecs / 100, elapsed_csecs % 100, todo);
-		show_state();
 		read_lock(&tasklist_lock);
 		do_each_thread(g, p) {
 			task_lock(p);
 			if (freezing(p) && !freezer_should_skip(p))
-				printk(KERN_ERR " %s\n", p->comm);
+				sched_show_task(p);
 			cancel_freezing(p);
 			task_unlock(p);
 		} while_each_thread(g, p);
@@ -145,7 +144,7 @@ static void thaw_tasks(bool nosig_only)
 		if (nosig_only && should_send_signal(p))
 			continue;
 
-		if (cgroup_frozen(p))
+		if (cgroup_freezing_or_frozen(p))
 			continue;
 
 		thaw_process(p);

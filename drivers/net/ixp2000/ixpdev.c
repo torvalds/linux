@@ -15,6 +15,7 @@
 #include <linux/etherdevice.h>
 #include <linux/init.h>
 #include <linux/moduleparam.h>
+#include <linux/gfp.h>
 #include <asm/hardware/uengine.h>
 #include <asm/io.h>
 #include "ixp2400_rx.ucode"
@@ -62,8 +63,6 @@ static int ixpdev_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	ixp2000_reg_write(RING_TX_PENDING,
 		TX_BUF_DESC_BASE + (entry * sizeof(struct ixpdev_tx_desc)));
-
-	dev->trans_start = jiffies;
 
 	local_irq_save(flags);
 	ip->tx_queue_entries++;

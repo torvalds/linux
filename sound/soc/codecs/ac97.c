@@ -13,6 +13,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <sound/core.h>

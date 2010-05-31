@@ -23,6 +23,7 @@
  * 02110-1301 USA
  */
 
+#include <linux/gfp.h>
 #include <linux/kernel.h>
 #include <linux/net.h>
 #include <linux/poll.h>
@@ -264,7 +265,7 @@ static unsigned int pn_socket_poll(struct file *file, struct socket *sock,
 	struct pep_sock *pn = pep_sk(sk);
 	unsigned int mask = 0;
 
-	poll_wait(file, &sock->wait, wait);
+	poll_wait(file, sk_sleep(sk), wait);
 
 	switch (sk->sk_state) {
 	case TCP_LISTEN:

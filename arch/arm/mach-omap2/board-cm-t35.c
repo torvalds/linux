@@ -45,6 +45,7 @@
 #include <plat/gpmc.h>
 #include <plat/usb.h>
 #include <plat/display.h>
+#include <plat/mcspi.h>
 
 #include <mach/hardware.h>
 

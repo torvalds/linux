@@ -25,7 +25,6 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/netdevice.h>
-#include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/of_platform.h>
 #include <sysdev/fsl_soc.h>
@@ -393,15 +392,17 @@ static struct of_device_id __devinitdata mpc5xxx_can_table[] = {
 };
 
 static struct of_platform_driver mpc5xxx_can_driver = {
-	.owner = THIS_MODULE,
-	.name = "mpc5xxx_can",
+	.driver = {
+		.name = "mpc5xxx_can",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc5xxx_can_table,
+	},
 	.probe = mpc5xxx_can_probe,
 	.remove = __devexit_p(mpc5xxx_can_remove),
 #ifdef CONFIG_PM
 	.suspend = mpc5xxx_can_suspend,
 	.resume = mpc5xxx_can_resume,
 #endif
-	.match_table = mpc5xxx_can_table,
 };
 
 static int __init mpc5xxx_can_init(void)

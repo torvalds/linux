@@ -64,15 +64,15 @@ static void xhci_hub_descriptor(struct xhci_hcd *xhci,
 static unsigned int xhci_port_speed(unsigned int port_status)
 {
 	if (DEV_LOWSPEED(port_status))
-		return 1 << USB_PORT_FEAT_LOWSPEED;
+		return USB_PORT_STAT_LOW_SPEED;
 	if (DEV_HIGHSPEED(port_status))
-		return 1 << USB_PORT_FEAT_HIGHSPEED;
+		return USB_PORT_STAT_HIGH_SPEED;
 	if (DEV_SUPERSPEED(port_status))
-		return 1 << USB_PORT_FEAT_SUPERSPEED;
+		return USB_PORT_STAT_SUPER_SPEED;
 	/*
 	 * FIXME: Yes, we should check for full speed, but the core uses that as
 	 * a default in portspeed() in usb/core/hub.c (which is the only place
-	 * USB_PORT_FEAT_*SPEED is used).
+	 * USB_PORT_STAT_*_SPEED is used).
 	 */
 	return 0;
 }
@@ -205,27 +205,27 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 
 		/* wPortChange bits */
 		if (temp & PORT_CSC)
-			status |= 1 << USB_PORT_FEAT_C_CONNECTION;
+			status |= USB_PORT_STAT_C_CONNECTION << 16;
 		if (temp & PORT_PEC)
-			status |= 1 << USB_PORT_FEAT_C_ENABLE;
+			status |= USB_PORT_STAT_C_ENABLE << 16;
 		if ((temp & PORT_OCC))
-			status |= 1 << USB_PORT_FEAT_C_OVER_CURRENT;
+			status |= USB_PORT_STAT_C_OVERCURRENT << 16;
 		/*
 		 * FIXME ignoring suspend, reset, and USB 2.1/3.0 specific
 		 * changes
 		 */
 		if (temp & PORT_CONNECT) {
-			status |= 1 << USB_PORT_FEAT_CONNECTION;
+			status |= USB_PORT_STAT_CONNECTION;
 			status |= xhci_port_speed(temp);
 		}
 		if (temp & PORT_PE)
-			status |= 1 << USB_PORT_FEAT_ENABLE;
+			status |= USB_PORT_STAT_ENABLE;
 		if (temp & PORT_OC)
-			status |= 1 << USB_PORT_FEAT_OVER_CURRENT;
+			status |= USB_PORT_STAT_OVERCURRENT;
 		if (temp & PORT_RESET)
-			status |= 1 << USB_PORT_FEAT_RESET;
+			status |= USB_PORT_STAT_RESET;
 		if (temp & PORT_POWER)
-			status |= 1 << USB_PORT_FEAT_POWER;
+			status |= USB_PORT_STAT_POWER;
 		xhci_dbg(xhci, "Get port status returned 0x%x\n", status);
 		put_unaligned(cpu_to_le32(status), (__le32 *) buf);
 		break;
@@ -298,7 +298,6 @@ error:
  * Returns 0 if the status hasn't changed, or the number of bytes in buf.
  * Ports are 0-indexed from the HCD point of view,
  * and 1-indexed from the USB core pointer of view.
- * xHCI instances can have up to 127 ports, so FIXME if you see more than 15.
  *
  * Note that the status change bits will be cleared as soon as a port status
  * change event is generated, so we use the saved status from that event.
@@ -315,14 +314,9 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 	ports = HCS_MAX_PORTS(xhci->hcs_params1);
 
 	/* Initial status is no changes */
-	buf[0] = 0;
+	retval = (ports + 8) / 8;
+	memset(buf, 0, retval);
 	status = 0;
-	if (ports > 7) {
-		buf[1] = 0;
-		retval = 2;
-	} else {
-		retval = 1;
-	}
 
 	spin_lock_irqsave(&xhci->lock, flags);
 	/* For each port, did anything change?  If so, set that bit in buf. */
@@ -331,10 +325,7 @@ int xhci_hub_status_data(struct usb_hcd *hcd, char *buf)
 			NUM_PORT_REGS*i;
 		temp = xhci_readl(xhci, addr);
 		if (temp & (PORT_CSC | PORT_PEC | PORT_OCC)) {
-			if (i < 7)
-				buf[0] |= 1 << (i + 1);
-			else
-				buf[1] |= 1 << (i - 7);
+			buf[(i + 1) / 8] |= 1 << (i + 1) % 8;
 			status = 1;
 		}
 	}

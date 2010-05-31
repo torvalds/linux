@@ -7,7 +7,7 @@
 #ifndef __BLACKFIN_MMU_CONTEXT_H__
 #define __BLACKFIN_MMU_CONTEXT_H__
 
-#include <linux/gfp.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <asm/setup.h>
 #include <asm/page.h>

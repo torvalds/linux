@@ -21,6 +21,7 @@
 #include <linux/fs.h>
 #include <linux/ptrace.h>
 #include <linux/reboot.h>
+#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
@@ -503,13 +504,6 @@ asmlinkage int sys_execve(char *ufilename, char **uargv,
 out:
 	return error;
 }
-
-/*
- * These bracket the sleeping functions..
- */
-extern void interruptible_sleep_on(wait_queue_head_t *q);
-
-#define mid_sched	((unsigned long) interruptible_sleep_on)
 
 #ifdef CONFIG_FRAME_POINTER
 static int in_sh64_switch_to(unsigned long pc)

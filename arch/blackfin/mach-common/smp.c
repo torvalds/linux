@@ -21,6 +21,7 @@
 #include <linux/smp.h>
 #include <linux/seq_file.h>
 #include <linux/irq.h>
+#include <linux/slab.h>
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
 #include <asm/mmu_context.h>
@@ -169,8 +170,8 @@ static irqreturn_t ipi_handler(int irq, void *dev_instance)
 			kfree(msg);
 			break;
 		default:
-			printk(KERN_CRIT "CPU%u: Unknown IPI message \
-			0x%lx\n", cpu, msg->type);
+			printk(KERN_CRIT "CPU%u: Unknown IPI message 0x%lx\n",
+			       cpu, msg->type);
 			kfree(msg);
 			break;
 		}

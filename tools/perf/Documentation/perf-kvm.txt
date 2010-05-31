@@ -1,0 +1,68 @@
+perf-kvm(1)
+===========
+
+NAME
+----
+perf-kvm - Tool to trace/measure kvm guest os
+
+SYNOPSIS
+--------
+[verse]
+'perf kvm' [--host] [--guest] [--guestmount=<path>
+	[--guestkallsyms=<path> --guestmodules=<path> | --guestvmlinux=<path>]]
+	{top|record|report|diff|buildid-list}
+'perf kvm' [--host] [--guest] [--guestkallsyms=<path> --guestmodules=<path>
+	| --guestvmlinux=<path>] {top|record|report|diff|buildid-list}
+
+DESCRIPTION
+-----------
+There are a couple of variants of perf kvm:
+
+  'perf kvm [options] top <command>' to generates and displays
+  a performance counter profile of guest os in realtime
+  of an arbitrary workload.
+
+  'perf kvm record <command>' to record the performance couinter profile
+  of an arbitrary workload and save it into a perf data file. If both
+  --host and --guest are input, the perf data file name is perf.data.kvm.
+  If there is  no --host but --guest, the file name is perf.data.guest.
+  If there is no --guest but --host, the file name is perf.data.host.
+
+  'perf kvm report' to display the performance counter profile information
+  recorded via perf kvm record.
+
+  'perf kvm diff' to displays the performance difference amongst two perf.data
+  files captured via perf record.
+
+  'perf kvm buildid-list' to  display the buildids found in a perf data file,
+  so that other tools can be used to fetch packages with matching symbol tables
+  for use by perf report.
+
+OPTIONS
+-------
+--host=::
+        Collect host side performance profile.
+--guest=::
+        Collect guest side performance profile.
+--guestmount=<path>::
+	Guest os root file system mount directory. Users mounts guest os
+        root directories under <path> by a specific filesystem access method,
+	typically, sshfs. For example, start 2 guest os. The one's pid is 8888
+	and the other's is 9999.
+        #mkdir ~/guestmount; cd ~/guestmount
+        #sshfs -o allow_other,direct_io -p 5551 localhost:/ 8888/
+        #sshfs -o allow_other,direct_io -p 5552 localhost:/ 9999/
+        #perf kvm --host --guest --guestmount=~/guestmount top
+--guestkallsyms=<path>::
+        Guest os /proc/kallsyms file copy. 'perf' kvm' reads it to get guest
+	kernel symbols. Users copy it out from guest os.
+--guestmodules=<path>::
+	Guest os /proc/modules file copy. 'perf' kvm' reads it to get guest
+	kernel module information. Users copy it out from guest os.
+--guestvmlinux=<path>::
+	Guest os kernel vmlinux.
+
+SEE ALSO
+--------
+linkperf:perf-top[1], linkperf:perf-record[1], linkperf:perf-report[1],
+linkperf:perf-diff[1], linkperf:perf-buildid-list[1]

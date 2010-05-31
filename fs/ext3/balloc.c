@@ -14,6 +14,7 @@
 #include <linux/time.h>
 #include <linux/capability.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 #include <linux/jbd.h>
 #include <linux/ext3_fs.h>
 #include <linux/ext3_jbd.h>
@@ -1582,6 +1583,12 @@ retry_alloc:
 		if (!gdp)
 			goto io_error;
 		free_blocks = le16_to_cpu(gdp->bg_free_blocks_count);
+		/*
+		 * skip this group (and avoid loading bitmap) if there
+		 * are no free blocks
+		 */
+		if (!free_blocks)
+			continue;
 		/*
 		 * skip this group if the number of
 		 * free blocks is less than half of the reservation

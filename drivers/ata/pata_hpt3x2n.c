@@ -320,7 +320,7 @@ static unsigned int hpt3x2n_qc_issue(struct ata_queued_cmd *qc)
 
 		hpt3x2n_set_clock(ap, dpll ? 0x21 : 0x23);
 	}
-	return ata_sff_qc_issue(qc);
+	return ata_bmdma_qc_issue(qc);
 }
 
 static struct scsi_host_template hpt3x2n_sht = {
@@ -548,7 +548,7 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		outb(inb(iobase + 0x9c) | 0x04, iobase + 0x9c);
 
 	/* Now kick off ATA set up */
-	return ata_pci_sff_init_one(dev, ppi, &hpt3x2n_sht, hpriv, 0);
+	return ata_pci_bmdma_init_one(dev, ppi, &hpt3x2n_sht, hpriv, 0);
 }
 
 static const struct pci_device_id hpt3x2n[] = {

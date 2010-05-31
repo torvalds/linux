@@ -26,6 +26,7 @@
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
 #include <linux/i2c-smbus.h>
+#include <linux/slab.h>
 
 struct i2c_smbus_alert {
 	unsigned int		alert_edge_triggered:1;

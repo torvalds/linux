@@ -36,6 +36,7 @@
 #include <linux/cdev.h>
 #include <linux/swap.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <linux/highmem.h>
 #include <linux/io.h>
 #include <linux/jiffies.h>

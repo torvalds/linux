@@ -16,6 +16,7 @@
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 #include "irq.h"
 
 static struct kvm_assigned_dev_kernel *kvm_find_assigned_dev(struct list_head *head,
@@ -315,12 +316,16 @@ static int assigned_device_enable_host_msix(struct kvm *kvm,
 				kvm_assigned_dev_intr, 0,
 				"kvm_assigned_msix_device",
 				(void *)dev);
-		/* FIXME: free requested_irq's on failure */
 		if (r)
-			return r;
+			goto err;
 	}
 
 	return 0;
+err:
+	for (i -= 1; i >= 0; i--)
+		free_irq(dev->host_msix_entries[i].vector, (void *)dev);
+	pci_disable_msix(dev->dev);
+	return r;
 }
 
 #endif

@@ -26,6 +26,7 @@
 #include <linux/seq_file.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <mach/hardware.h>
 

@@ -154,6 +154,7 @@
  */
 
 #include <linux/delay.h>
+#include <linux/gfp.h>
 #include <linux/mISDNif.h>
 #include <linux/mISDNdsp.h>
 #include <linux/module.h>

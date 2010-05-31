@@ -18,6 +18,7 @@
 #include <linux/oom.h>
 #include <linux/mm.h>
 #include <linux/err.h>
+#include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/swap.h>
 #include <linux/timex.h>
@@ -478,11 +479,8 @@ void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask)
 	read_lock(&tasklist_lock);
 retry:
 	p = select_bad_process(&points, mem);
-	if (PTR_ERR(p) == -1UL)
+	if (!p || PTR_ERR(p) == -1UL)
 		goto out;
-
-	if (!p)
-		p = current;
 
 	if (oom_kill_process(p, gfp_mask, 0, points, mem,
 				"Memory cgroup out of memory"))

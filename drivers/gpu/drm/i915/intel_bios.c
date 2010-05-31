@@ -366,6 +366,7 @@ parse_sdvo_device_mapping(struct drm_i915_private *dev_priv,
 			p_mapping->dvo_port = p_child->dvo_port;
 			p_mapping->slave_addr = p_child->slave_addr;
 			p_mapping->dvo_wiring = p_child->dvo_wiring;
+			p_mapping->ddc_pin = p_child->ddc_pin;
 			p_mapping->initialized = 1;
 		} else {
 			DRM_DEBUG_KMS("Maybe one SDVO port is shared by "
@@ -417,8 +418,9 @@ parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
 	edp = find_section(bdb, BDB_EDP);
 	if (!edp) {
 		if (SUPPORTS_EDP(dev_priv->dev) && dev_priv->edp_support) {
-			DRM_DEBUG_KMS("No eDP BDB found but eDP panel supported,\
-				       assume 18bpp panel color depth.\n");
+			DRM_DEBUG_KMS("No eDP BDB found but eDP panel "
+				      "supported, assume 18bpp panel color "
+				      "depth.\n");
 			dev_priv->edp_bpp = 18;
 		}
 		return;

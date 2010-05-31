@@ -4,7 +4,6 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/mod_devicetable.h>
-#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/irq.h>
 #include <linux/of_device.h>
@@ -17,7 +16,7 @@ static int node_match(struct device *dev, void *data)
 	struct of_device *op = to_of_device(dev);
 	struct device_node *dp = data;
 
-	return (op->node == dp);
+	return (op->dev.of_node == dp);
 }
 
 struct of_device *of_find_device_by_node(struct device_node *dp)
@@ -49,7 +48,7 @@ EXPORT_SYMBOL(irq_of_parse_and_map);
 void of_propagate_archdata(struct of_device *bus)
 {
 	struct dev_archdata *bus_sd = &bus->dev.archdata;
-	struct device_node *bus_dp = bus->node;
+	struct device_node *bus_dp = bus->dev.of_node;
 	struct device_node *dp;
 
 	for (dp = bus_dp->child; dp; dp = dp->sibling) {

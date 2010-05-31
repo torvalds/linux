@@ -14,6 +14,9 @@
 #ifndef ASMARM_AMBA_H
 #define ASMARM_AMBA_H
 
+#include <linux/device.h>
+#include <linux/resource.h>
+
 #define AMBA_NR_IRQS	2
 
 struct amba_device {

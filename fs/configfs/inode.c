@@ -34,6 +34,7 @@
 #include <linux/capability.h>
 #include <linux/sched.h>
 #include <linux/lockdep.h>
+#include <linux/slab.h>
 
 #include <linux/configfs.h>
 #include "configfs_internal.h"
@@ -71,16 +72,11 @@ int configfs_setattr(struct dentry * dentry, struct iattr * iattr)
 	if (!sd)
 		return -EINVAL;
 
+	error = simple_setattr(dentry, iattr);
+	if (error)
+		return error;
+
 	sd_iattr = sd->s_iattr;
-
-	error = inode_change_ok(inode, iattr);
-	if (error)
-		return error;
-
-	error = inode_setattr(inode, iattr);
-	if (error)
-		return error;
-
 	if (!sd_iattr) {
 		/* setting attributes for the first time, allocate now */
 		sd_iattr = kzalloc(sizeof(struct iattr), GFP_KERNEL);

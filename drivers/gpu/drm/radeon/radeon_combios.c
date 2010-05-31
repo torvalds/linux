@@ -450,17 +450,17 @@ bool radeon_combios_check_hardcoded_edid(struct radeon_device *rdev)
 {
 	int edid_info;
 	struct edid *edid;
+	unsigned char *raw;
 	edid_info = combios_get_table_offset(rdev->ddev, COMBIOS_HARDCODED_EDID_TABLE);
 	if (!edid_info)
 		return false;
 
-	edid = kmalloc(EDID_LENGTH * (DRM_MAX_EDID_EXT_NUM + 1),
-		       GFP_KERNEL);
+	raw = rdev->bios + edid_info;
+	edid = kmalloc(EDID_LENGTH * (raw[0x7e] + 1), GFP_KERNEL);
 	if (edid == NULL)
 		return false;
 
-	memcpy((unsigned char *)edid,
-	       (unsigned char *)(rdev->bios + edid_info), EDID_LENGTH);
+	memcpy((unsigned char *)edid, raw, EDID_LENGTH * (raw[0x7e] + 1));
 
 	if (!drm_edid_is_valid(edid)) {
 		kfree(edid);
@@ -531,10 +531,7 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 	case CHIP_RS300:
 		switch (ddc_line) {
 		case RADEON_GPIO_DVI_DDC:
-			/* in theory this should be hw capable,
-			 * but it doesn't seem to work
-			 */
-			i2c.hw_capable = false;
+			i2c.hw_capable = true;
 			break;
 		default:
 			i2c.hw_capable = false;
@@ -603,7 +600,7 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 	}
 	i2c.mm_i2c = false;
 	i2c.i2c_id = 0;
-	i2c.hpd_id = 0;
+	i2c.hpd = RADEON_HPD_NONE;
 
 	if (ddc_line)
 		i2c.valid = true;
@@ -633,6 +630,8 @@ bool radeon_combios_get_clock_info(struct drm_device *dev)
 		p1pll->reference_div = RBIOS16(pll_info + 0x10);
 		p1pll->pll_out_min = RBIOS32(pll_info + 0x12);
 		p1pll->pll_out_max = RBIOS32(pll_info + 0x16);
+		p1pll->lcd_pll_out_min = p1pll->pll_out_min;
+		p1pll->lcd_pll_out_max = p1pll->pll_out_max;
 
 		if (rev > 9) {
 			p1pll->pll_in_min = RBIOS32(pll_info + 0x36);
@@ -761,7 +760,9 @@ struct radeon_encoder_primary_dac *radeon_combios_get_primary_dac_info(struct
 			dac = RBIOS8(dac_info + 0x3) & 0xf;
 			p_dac->ps2_pdac_adj = (bg << 8) | (dac);
 		}
-		found = 1;
+		/* if the values are all zeros, use the table */
+		if (p_dac->ps2_pdac_adj)
+			found = 1;
 	}
 
 	if (!found) /* fallback to defaults */
@@ -896,7 +897,9 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 			bg = RBIOS8(dac_info + 0x10) & 0xf;
 			dac = RBIOS8(dac_info + 0x11) & 0xf;
 			tv_dac->ntsc_tvdac_adj = (bg << 16) | (dac << 20);
-			found = 1;
+			/* if the values are all zeros, use the table */
+			if (tv_dac->ps2_tvdac_adj)
+				found = 1;
 		} else if (rev > 1) {
 			bg = RBIOS8(dac_info + 0xc) & 0xf;
 			dac = (RBIOS8(dac_info + 0xc) >> 4) & 0xf;
@@ -909,7 +912,9 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 			bg = RBIOS8(dac_info + 0xe) & 0xf;
 			dac = (RBIOS8(dac_info + 0xe) >> 4) & 0xf;
 			tv_dac->ntsc_tvdac_adj = (bg << 16) | (dac << 20);
-			found = 1;
+			/* if the values are all zeros, use the table */
+			if (tv_dac->ps2_tvdac_adj)
+				found = 1;
 		}
 		tv_dac->tv_std = radeon_combios_get_tv_info(rdev);
 	}
@@ -926,7 +931,9 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 				    (bg << 16) | (dac << 20);
 				tv_dac->pal_tvdac_adj = tv_dac->ps2_tvdac_adj;
 				tv_dac->ntsc_tvdac_adj = tv_dac->ps2_tvdac_adj;
-				found = 1;
+				/* if the values are all zeros, use the table */
+				if (tv_dac->ps2_tvdac_adj)
+					found = 1;
 			} else {
 				bg = RBIOS8(dac_info + 0x4) & 0xf;
 				dac = RBIOS8(dac_info + 0x5) & 0xf;
@@ -934,7 +941,9 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 				    (bg << 16) | (dac << 20);
 				tv_dac->pal_tvdac_adj = tv_dac->ps2_tvdac_adj;
 				tv_dac->ntsc_tvdac_adj = tv_dac->ps2_tvdac_adj;
-				found = 1;
+				/* if the values are all zeros, use the table */
+				if (tv_dac->ps2_tvdac_adj)
+					found = 1;
 			}
 		} else {
 			DRM_INFO("No TV DAC info found in BIOS\n");
@@ -1104,18 +1113,20 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 				break;
 
 			if ((RBIOS16(tmp) == lvds->native_mode.hdisplay) &&
-			    (RBIOS16(tmp + 2) ==
-			     lvds->native_mode.vdisplay)) {
-				lvds->native_mode.htotal = RBIOS16(tmp + 17) * 8;
-				lvds->native_mode.hsync_start = RBIOS16(tmp + 21) * 8;
-				lvds->native_mode.hsync_end = (RBIOS8(tmp + 23) +
-							       RBIOS16(tmp + 21)) * 8;
+			    (RBIOS16(tmp + 2) == lvds->native_mode.vdisplay)) {
+				lvds->native_mode.htotal = lvds->native_mode.hdisplay +
+					(RBIOS16(tmp + 17) - RBIOS16(tmp + 19)) * 8;
+				lvds->native_mode.hsync_start = lvds->native_mode.hdisplay +
+					(RBIOS16(tmp + 21) - RBIOS16(tmp + 19) - 1) * 8;
+				lvds->native_mode.hsync_end = lvds->native_mode.hsync_start +
+					(RBIOS8(tmp + 23) * 8);
 
-				lvds->native_mode.vtotal = RBIOS16(tmp + 24);
-				lvds->native_mode.vsync_start = RBIOS16(tmp + 28) & 0x7ff;
-				lvds->native_mode.vsync_end =
-					((RBIOS16(tmp + 28) & 0xf800) >> 11) +
-					(RBIOS16(tmp + 28) & 0x7ff);
+				lvds->native_mode.vtotal = lvds->native_mode.vdisplay +
+					(RBIOS16(tmp + 24) - RBIOS16(tmp + 26));
+				lvds->native_mode.vsync_start = lvds->native_mode.vdisplay +
+					((RBIOS16(tmp + 28) & 0x7ff) - RBIOS16(tmp + 26));
+				lvds->native_mode.vsync_end = lvds->native_mode.vsync_start +
+					((RBIOS16(tmp + 28) & 0xf800) >> 11);
 
 				lvds->native_mode.clock = RBIOS16(tmp + 9) * 10;
 				lvds->native_mode.flags = 0;
@@ -2187,7 +2198,7 @@ bool radeon_get_legacy_connector_info_from_bios(struct drm_device *dev)
 						  ATOM_DEVICE_DFP1_SUPPORT);
 
 			ddc_i2c = combios_setup_i2c_bus(rdev, RADEON_GPIO_DVI_DDC);
-			hpd.hpd = RADEON_HPD_NONE;
+			hpd.hpd = RADEON_HPD_1;
 			radeon_add_legacy_connector(dev,
 						    0,
 						    ATOM_DEVICE_CRT1_SUPPORT |
@@ -2357,7 +2368,7 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 	u8 rev, blocks, tmp;
 	int state_index = 0;
 
-	rdev->pm.default_power_state = NULL;
+	rdev->pm.default_power_state_index = -1;
 
 	if (rdev->flags & RADEON_IS_MOBILITY) {
 		offset = combios_get_table_offset(dev, COMBIOS_POWERPLAY_INFO_TABLE);
@@ -2371,17 +2382,13 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 			if ((rdev->pm.power_state[state_index].clock_info[0].mclk == 0) ||
 			    (rdev->pm.power_state[state_index].clock_info[0].sclk == 0))
 				goto default_mode;
-			/* skip overclock modes for now */
-			if ((rdev->pm.power_state[state_index].clock_info[0].mclk >
-			     rdev->clock.default_mclk + RADEON_MODE_OVERCLOCK_MARGIN) ||
-			    (rdev->pm.power_state[state_index].clock_info[0].sclk >
-			     rdev->clock.default_sclk + RADEON_MODE_OVERCLOCK_MARGIN))
-				goto default_mode;
 			rdev->pm.power_state[state_index].type =
 				POWER_STATE_TYPE_BATTERY;
 			misc = RBIOS16(offset + 0x5 + 0x0);
 			if (rev > 4)
 				misc2 = RBIOS16(offset + 0x5 + 0xe);
+			rdev->pm.power_state[state_index].misc = misc;
+			rdev->pm.power_state[state_index].misc2 = misc2;
 			if (misc & 0x4) {
 				rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_GPIO;
 				if (misc & 0x8)
@@ -2428,8 +2435,9 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 			} else
 				rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
 			if (rev > 6)
-				rdev->pm.power_state[state_index].non_clock_info.pcie_lanes =
+				rdev->pm.power_state[state_index].pcie_lanes =
 					RBIOS8(offset + 0x5 + 0x10);
+			rdev->pm.power_state[state_index].flags = RADEON_PM_STATE_SINGLE_DISPLAY_ONLY;
 			state_index++;
 		} else {
 			/* XXX figure out some good default low power mode for mobility cards w/out power tables */
@@ -2447,16 +2455,13 @@ default_mode:
 	rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;
 	rdev->pm.power_state[state_index].default_clock_mode = &rdev->pm.power_state[state_index].clock_info[0];
 	rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
-	if (rdev->asic->get_pcie_lanes)
-		rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = radeon_get_pcie_lanes(rdev);
-	else
-		rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = 16;
-	rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
+	rdev->pm.power_state[state_index].pcie_lanes = 16;
+	rdev->pm.power_state[state_index].flags = 0;
+	rdev->pm.default_power_state_index = state_index;
 	rdev->pm.num_power_states = state_index + 1;
 
-	rdev->pm.current_power_state = rdev->pm.default_power_state;
-	rdev->pm.current_clock_mode =
-		rdev->pm.default_power_state->default_clock_mode;
+	rdev->pm.current_power_state_index = rdev->pm.default_power_state_index;
+	rdev->pm.current_clock_mode_index = 0;
 }
 
 void radeon_external_tmds_setup(struct drm_encoder *encoder)

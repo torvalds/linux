@@ -24,6 +24,7 @@
  */
 
 #include <linux/wlp.h>
+#include <linux/slab.h>
 
 #include "wlp-internal.h"
 

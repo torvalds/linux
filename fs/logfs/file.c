@@ -161,7 +161,17 @@ static int logfs_writepage(struct page *page, struct writeback_control *wbc)
 
 static void logfs_invalidatepage(struct page *page, unsigned long offset)
 {
-	move_page_to_btree(page);
+	struct logfs_block *block = logfs_block(page);
+
+	if (block->reserved_bytes) {
+		struct super_block *sb = page->mapping->host->i_sb;
+		struct logfs_super *super = logfs_super(sb);
+
+		super->s_dirty_pages -= block->reserved_bytes;
+		block->ops->free_block(sb, block);
+		BUG_ON(bitmap_weight(block->alias_map, LOGFS_BLOCK_FACTOR));
+	} else
+		move_page_to_btree(page);
 	BUG_ON(PagePrivate(page) || page->private);
 }
 
@@ -209,13 +219,11 @@ int logfs_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 	}
 }
 
-int logfs_fsync(struct file *file, struct dentry *dentry, int datasync)
+int logfs_fsync(struct file *file, int datasync)
 {
-	struct super_block *sb = dentry->d_inode->i_sb;
-	struct logfs_super *super = logfs_super(sb);
+	struct super_block *sb = file->f_mapping->host->i_sb;
 
-	/* FIXME: write anchor */
-	super->s_devops->sync(sb);
+	logfs_write_anchor(sb);
 	return 0;
 }
 

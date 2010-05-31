@@ -142,14 +142,29 @@ static int fat_readpages(struct file *file, struct address_space *mapping,
 	return mpage_readpages(mapping, pages, nr_pages, fat_get_block);
 }
 
+static void fat_write_failed(struct address_space *mapping, loff_t to)
+{
+	struct inode *inode = mapping->host;
+
+	if (to > inode->i_size) {
+		truncate_pagecache(inode, to, inode->i_size);
+		fat_truncate_blocks(inode, inode->i_size);
+	}
+}
+
 static int fat_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
+	int err;
+
 	*pagep = NULL;
-	return cont_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				fat_get_block,
+	err = cont_write_begin_newtrunc(file, mapping, pos, len, flags,
+				pagep, fsdata, fat_get_block,
 				&MSDOS_I(mapping->host)->mmu_private);
+	if (err < 0)
+		fat_write_failed(mapping, pos + len);
+	return err;
 }
 
 static int fat_write_end(struct file *file, struct address_space *mapping,
@@ -159,6 +174,8 @@ static int fat_write_end(struct file *file, struct address_space *mapping,
 	struct inode *inode = mapping->host;
 	int err;
 	err = generic_write_end(file, mapping, pos, len, copied, pagep, fsdata);
+	if (err < len)
+		fat_write_failed(mapping, pos + len);
 	if (!(err < 0) && !(MSDOS_I(inode)->i_attrs & ATTR_ARCH)) {
 		inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
 		MSDOS_I(inode)->i_attrs |= ATTR_ARCH;
@@ -172,7 +189,9 @@ static ssize_t fat_direct_IO(int rw, struct kiocb *iocb,
 			     loff_t offset, unsigned long nr_segs)
 {
 	struct file *file = iocb->ki_filp;
-	struct inode *inode = file->f_mapping->host;
+	struct address_space *mapping = file->f_mapping;
+	struct inode *inode = mapping->host;
+	ssize_t ret;
 
 	if (rw == WRITE) {
 		/*
@@ -193,8 +212,12 @@ static ssize_t fat_direct_IO(int rw, struct kiocb *iocb,
 	 * FAT need to use the DIO_LOCKING for avoiding the race
 	 * condition of fat_get_block() and ->truncate().
 	 */
-	return blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
-				  offset, nr_segs, fat_get_block, NULL);
+	ret = blockdev_direct_IO_newtrunc(rw, iocb, inode, inode->i_sb->s_bdev,
+				iov, offset, nr_segs, fat_get_block, NULL);
+	if (ret < 0 && (rw & WRITE))
+		fat_write_failed(mapping, offset + iov_length(iov, nr_segs));
+
+	return ret;
 }
 
 static sector_t _fat_bmap(struct address_space *mapping, sector_t block)
@@ -429,7 +452,7 @@ static void fat_delete_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
 	inode->i_size = 0;
-	fat_truncate(inode);
+	fat_truncate_blocks(inode, 0);
 	clear_inode(inode);
 }
 
@@ -1250,6 +1273,8 @@ int fat_fill_super(struct super_block *sb, void *data, int silent,
 	sb->s_op = &fat_sops;
 	sb->s_export_op = &fat_export_ops;
 	sbi->dir_ops = fs_dir_inode_ops;
+	ratelimit_state_init(&sbi->ratelimit, DEFAULT_RATELIMIT_INTERVAL,
+			     DEFAULT_RATELIMIT_BURST);
 
 	error = parse_options(data, isvfat, silent, &debug, &sbi->options);
 	if (error)
@@ -1497,10 +1522,8 @@ out_fail:
 		iput(fat_inode);
 	if (root_inode)
 		iput(root_inode);
-	if (sbi->nls_io)
-		unload_nls(sbi->nls_io);
-	if (sbi->nls_disk)
-		unload_nls(sbi->nls_disk);
+	unload_nls(sbi->nls_io);
+	unload_nls(sbi->nls_disk);
 	if (sbi->options.iocharset != fat_default_iocharset)
 		kfree(sbi->options.iocharset);
 	sb->s_fs_info = NULL;

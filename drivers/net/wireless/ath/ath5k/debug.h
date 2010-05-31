@@ -74,6 +74,9 @@ struct ath5k_dbg_info {
 	struct dentry		*debugfs_registers;
 	struct dentry		*debugfs_beacon;
 	struct dentry		*debugfs_reset;
+	struct dentry		*debugfs_antenna;
+	struct dentry		*debugfs_frameerrors;
+	struct dentry		*debugfs_ani;
 };
 
 /**
@@ -113,6 +116,7 @@ enum ath5k_debug_level {
 	ATH5K_DEBUG_DUMP_TX	= 0x00000200,
 	ATH5K_DEBUG_DUMPBANDS	= 0x00000400,
 	ATH5K_DEBUG_TRACE	= 0x00001000,
+	ATH5K_DEBUG_ANI		= 0x00002000,
 	ATH5K_DEBUG_ANY		= 0xffffffff
 };
 

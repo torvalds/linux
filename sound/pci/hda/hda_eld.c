@@ -22,6 +22,7 @@
  */
 
 #include <linux/init.h>
+#include <linux/slab.h>
 #include <sound/core.h>
 #include <asm/unaligned.h>
 #include "hda_codec.h"

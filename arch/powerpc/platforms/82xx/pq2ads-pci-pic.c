@@ -17,6 +17,7 @@
 #include <linux/irq.h>
 #include <linux/types.h>
 #include <linux/bootmem.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/prom.h>

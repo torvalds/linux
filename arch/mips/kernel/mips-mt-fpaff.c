@@ -100,10 +100,10 @@ asmlinkage long mipsmt_sys_sched_setaffinity(pid_t pid, unsigned int len,
 	if (test_ti_thread_flag(ti, TIF_FPUBOUND) &&
 	    cpus_intersects(new_mask, mt_fpu_cpumask)) {
 		cpus_and(effective_mask, new_mask, mt_fpu_cpumask);
-		retval = set_cpus_allowed(p, effective_mask);
+		retval = set_cpus_allowed_ptr(p, &effective_mask);
 	} else {
 		clear_ti_thread_flag(ti, TIF_FPUBOUND);
-		retval = set_cpus_allowed(p, new_mask);
+		retval = set_cpus_allowed_ptr(p, &new_mask);
 	}
 
 out_unlock:

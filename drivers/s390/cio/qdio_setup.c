@@ -106,10 +106,12 @@ int qdio_allocate_qs(struct qdio_irq *irq_ptr, int nr_input_qs, int nr_output_qs
 static void setup_queues_misc(struct qdio_q *q, struct qdio_irq *irq_ptr,
 			      qdio_handler_t *handler, int i)
 {
-	/* must be cleared by every qdio_establish */
-	memset(q, 0, ((char *)&q->slib) - ((char *)q));
-	memset(q->slib, 0, PAGE_SIZE);
+	struct slib *slib = q->slib;
 
+	/* queue must be cleared for qdio_establish */
+	memset(q, 0, sizeof(*q));
+	memset(slib, 0, PAGE_SIZE);
+	q->slib = slib;
 	q->irq_ptr = irq_ptr;
 	q->mask = 1 << (31 - i);
 	q->nr = i;

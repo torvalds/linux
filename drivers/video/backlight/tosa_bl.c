@@ -18,6 +18,7 @@
 #include <linux/gpio.h>
 #include <linux/fb.h>
 #include <linux/backlight.h>
+#include <linux/slab.h>
 
 #include <asm/mach/sharpsl_param.h>
 

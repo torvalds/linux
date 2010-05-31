@@ -512,15 +512,6 @@ static inline pmd_t *pmd_offset(pgd_t *dir, unsigned long address)
 extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
 /*
- * When flushing the tlb entry for a page, we also need to flush the hash
- * table entry.  flush_hash_page is assembler (for speed) in hashtable.S.
- */
-extern int flush_hash_page(unsigned context, unsigned long va, pte_t *ptep);
-
-/* Add an HPTE to the hash table */
-extern void add_hash_page(unsigned context, unsigned long va, pte_t *ptep);
-
-/*
  * Encode and decode a swap entry.
  * Note that the bits we use in a PTE for representing a swap entry
  * must not include the _PAGE_PRESENT bit, or the _PAGE_HASHPTE bit
@@ -533,15 +524,7 @@ extern void add_hash_page(unsigned context, unsigned long va, pte_t *ptep);
 #define __pte_to_swp_entry(pte)	((swp_entry_t) { pte_val(pte) >> 2 })
 #define __swp_entry_to_pte(x)	((pte_t) { (x).val << 2 })
 
-
-/* CONFIG_APUS */
-/* For virtual address to physical address conversion */
-extern void cache_clear(__u32 addr, int length);
-extern void cache_push(__u32 addr, int length);
-extern int mm_end_of_chunk(unsigned long addr, int len);
 extern unsigned long iopa(unsigned long addr);
-/* extern unsigned long mm_ptov(unsigned long addr) \
-	__attribute__ ((const)); TBD */
 
 /* Values for nocacheflag and cmode */
 /* These are not used by the APUS kernel_map, but prevents
@@ -551,18 +534,6 @@ extern unsigned long iopa(unsigned long addr);
 #define	IOMAP_NOCACHE_SER	1
 #define	IOMAP_NOCACHE_NONSER	2
 #define	IOMAP_NO_COPYBACK	3
-
-/*
- * Map some physical address range into the kernel address space.
- */
-extern unsigned long kernel_map(unsigned long paddr, unsigned long size,
-				int nocacheflag, unsigned long *memavailp);
-
-/*
- * Set cache mode of (kernel space) address range.
- */
-extern void kernel_set_cachemode(unsigned long address, unsigned long size,
-				unsigned int cmode);
 
 /* Needs to be defined here and not in linux/mm.h, as it is arch dependent */
 #define kern_addr_valid(addr)	(1)
@@ -577,10 +548,6 @@ extern void kernel_set_cachemode(unsigned long address, unsigned long size,
 void do_page_fault(struct pt_regs *regs, unsigned long address,
 		   unsigned long error_code);
 
-void __init io_block_mapping(unsigned long virt, phys_addr_t phys,
-			     unsigned int size, int flags);
-
-void __init adjust_total_lowmem(void);
 void mapin_ram(void);
 int map_page(unsigned long va, phys_addr_t pa, int flags);
 
@@ -601,7 +568,7 @@ void __init *early_get_page(void);
 extern unsigned long ioremap_bot, ioremap_base;
 
 void *consistent_alloc(int gfp, size_t size, dma_addr_t *dma_handle);
-void consistent_free(void *vaddr);
+void consistent_free(size_t size, void *vaddr);
 void consistent_sync(void *vaddr, size_t size, int direction);
 void consistent_sync_page(struct page *page, unsigned long offset,
 	size_t size, int direction);

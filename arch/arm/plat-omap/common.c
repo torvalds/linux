@@ -44,14 +44,8 @@
 
 #define NO_LENGTH_CHECK 0xffffffff
 
-unsigned char omap_bootloader_tag[512];
-int omap_bootloader_tag_len;
-
 struct omap_board_config_kernel *omap_board_config;
 int omap_board_config_size;
-
-/* used by omap-smp.c and board-4430sdp.c */
-void __iomem *gic_cpu_base_addr;
 
 static const void *get_config(u16 tag, size_t len, int skip, size_t *len_out)
 {
@@ -100,10 +94,17 @@ EXPORT_SYMBOL(omap_get_var_config);
 
 #include <linux/clocksource.h>
 
+/*
+ * offset_32k holds the init time counter value. It is then subtracted
+ * from every counter read to achieve a counter that counts time from the
+ * kernel boot (needed for sched_clock()).
+ */
+static u32 offset_32k __read_mostly;
+
 #ifdef CONFIG_ARCH_OMAP16XX
 static cycle_t omap16xx_32k_read(struct clocksource *cs)
 {
-	return omap_readl(OMAP16XX_TIMER_32K_SYNCHRONIZED);
+	return omap_readl(OMAP16XX_TIMER_32K_SYNCHRONIZED) - offset_32k;
 }
 #else
 #define omap16xx_32k_read	NULL
@@ -112,7 +113,7 @@ static cycle_t omap16xx_32k_read(struct clocksource *cs)
 #ifdef CONFIG_ARCH_OMAP2420
 static cycle_t omap2420_32k_read(struct clocksource *cs)
 {
-	return omap_readl(OMAP2420_32KSYNCT_BASE + 0x10);
+	return omap_readl(OMAP2420_32KSYNCT_BASE + 0x10) - offset_32k;
 }
 #else
 #define omap2420_32k_read	NULL
@@ -121,7 +122,7 @@ static cycle_t omap2420_32k_read(struct clocksource *cs)
 #ifdef CONFIG_ARCH_OMAP2430
 static cycle_t omap2430_32k_read(struct clocksource *cs)
 {
-	return omap_readl(OMAP2430_32KSYNCT_BASE + 0x10);
+	return omap_readl(OMAP2430_32KSYNCT_BASE + 0x10) - offset_32k;
 }
 #else
 #define omap2430_32k_read	NULL
@@ -130,7 +131,7 @@ static cycle_t omap2430_32k_read(struct clocksource *cs)
 #ifdef CONFIG_ARCH_OMAP3
 static cycle_t omap34xx_32k_read(struct clocksource *cs)
 {
-	return omap_readl(OMAP3430_32KSYNCT_BASE + 0x10);
+	return omap_readl(OMAP3430_32KSYNCT_BASE + 0x10) - offset_32k;
 }
 #else
 #define omap34xx_32k_read	NULL
@@ -139,7 +140,7 @@ static cycle_t omap34xx_32k_read(struct clocksource *cs)
 #ifdef CONFIG_ARCH_OMAP4
 static cycle_t omap44xx_32k_read(struct clocksource *cs)
 {
-	return omap_readl(OMAP4430_32KSYNCT_BASE + 0x10);
+	return omap_readl(OMAP4430_32KSYNCT_BASE + 0x10) - offset_32k;
 }
 #else
 #define omap44xx_32k_read	NULL
@@ -226,6 +227,8 @@ static int __init omap_init_clocksource_32k(void)
 
 		clocksource_32k.mult = clocksource_hz2mult(32768,
 					    clocksource_32k.shift);
+
+		offset_32k = clocksource_32k.read(&clocksource_32k);
 
 		if (clocksource_register(&clocksource_32k))
 			printk(err, clocksource_32k.name);

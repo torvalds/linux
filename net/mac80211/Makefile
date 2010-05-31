@@ -23,7 +23,8 @@ mac80211-y := \
 	key.o \
 	util.o \
 	wme.o \
-	event.o
+	event.o \
+	chan.o
 
 mac80211-$(CONFIG_MAC80211_LEDS) += led.o
 mac80211-$(CONFIG_MAC80211_DEBUGFS) += \

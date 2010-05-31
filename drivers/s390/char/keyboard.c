@@ -9,6 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/sysrq.h>
 
 #include <linux/consolemap.h>
@@ -48,7 +49,7 @@ static unsigned char ret_diacr[NR_DEAD] = {
 struct kbd_data *
 kbd_alloc(void) {
 	struct kbd_data *kbd;
-	int i, len;
+	int i;
 
 	kbd = kzalloc(sizeof(struct kbd_data), GFP_KERNEL);
 	if (!kbd)
@@ -58,12 +59,11 @@ kbd_alloc(void) {
 		goto out_kbd;
 	for (i = 0; i < ARRAY_SIZE(key_maps); i++) {
 		if (key_maps[i]) {
-			kbd->key_maps[i] =
-				kmalloc(sizeof(u_short)*NR_KEYS, GFP_KERNEL);
+			kbd->key_maps[i] = kmemdup(key_maps[i],
+						   sizeof(u_short) * NR_KEYS,
+						   GFP_KERNEL);
 			if (!kbd->key_maps[i])
 				goto out_maps;
-			memcpy(kbd->key_maps[i], key_maps[i],
-			       sizeof(u_short)*NR_KEYS);
 		}
 	}
 	kbd->func_table = kzalloc(sizeof(func_table), GFP_KERNEL);
@@ -71,23 +71,21 @@ kbd_alloc(void) {
 		goto out_maps;
 	for (i = 0; i < ARRAY_SIZE(func_table); i++) {
 		if (func_table[i]) {
-			len = strlen(func_table[i]) + 1;
-			kbd->func_table[i] = kmalloc(len, GFP_KERNEL);
+			kbd->func_table[i] = kstrdup(func_table[i],
+						     GFP_KERNEL);
 			if (!kbd->func_table[i])
 				goto out_func;
-			memcpy(kbd->func_table[i], func_table[i], len);
 		}
 	}
 	kbd->fn_handler =
 		kzalloc(sizeof(fn_handler_fn *) * NR_FN_HANDLER, GFP_KERNEL);
 	if (!kbd->fn_handler)
 		goto out_func;
-	kbd->accent_table =
-		kmalloc(sizeof(struct kbdiacruc)*MAX_DIACR, GFP_KERNEL);
+	kbd->accent_table = kmemdup(accent_table,
+				    sizeof(struct kbdiacruc) * MAX_DIACR,
+				    GFP_KERNEL);
 	if (!kbd->accent_table)
 		goto out_fn_handler;
-	memcpy(kbd->accent_table, accent_table,
-	       sizeof(struct kbdiacruc)*MAX_DIACR);
 	kbd->accent_table_size = accent_table_size;
 	return kbd;
 

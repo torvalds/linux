@@ -28,6 +28,7 @@
 #include <linux/bitops.h>
 #include <linux/debugfs.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 #include <sound/ac97_codec.h>
 #include <sound/core.h>
 #include <sound/pcm.h>

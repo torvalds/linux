@@ -13,6 +13,7 @@
 
 #include "ext2.h"
 #include <linux/quotaops.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/buffer_head.h>
 #include <linux/capability.h>
@@ -1330,6 +1331,12 @@ retry_alloc:
 			goto io_error;
 
 		free_blocks = le16_to_cpu(gdp->bg_free_blocks_count);
+		/*
+		 * skip this group (and avoid loading bitmap) if there
+		 * are no free blocks
+		 */
+		if (!free_blocks)
+			continue;
 		/*
 		 * skip this group if the number of
 		 * free blocks is less than half of the reservation

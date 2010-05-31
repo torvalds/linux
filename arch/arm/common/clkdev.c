@@ -18,6 +18,7 @@
 #include <linux/string.h>
 #include <linux/mutex.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
 
 #include <asm/clkdev.h>
 #include <mach/clkdev.h>
@@ -52,12 +53,13 @@ static struct clk *clk_find(const char *dev_id, const char *con_id)
 				continue;
 			match += 1;
 		}
-		if (match == 0)
-			continue;
 
 		if (match > best) {
 			clk = p->clk;
-			best = match;
+			if (match != 3)
+				best = match;
+			else
+				break;
 		}
 	}
 	return clk;

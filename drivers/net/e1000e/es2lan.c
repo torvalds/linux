@@ -221,9 +221,12 @@ static s32 e1000_init_mac_params_80003es2lan(struct e1000_adapter *adapter)
 	mac->mta_reg_count = 128;
 	/* Set rar entry count */
 	mac->rar_entry_count = E1000_RAR_ENTRIES;
-	/* Set if manageability features are enabled. */
-	mac->arc_subsystem_valid = (er32(FWSM) & E1000_FWSM_MODE_MASK)
-                        ? true : false;
+	/* FWSM register */
+	mac->has_fwsm = true;
+	/* ARC supported; valid only if manageability features are enabled. */
+	mac->arc_subsystem_valid =
+	        (er32(FWSM) & E1000_FWSM_MODE_MASK)
+	                ? true : false;
 	/* Adaptive IFS not supported */
 	mac->adaptive_ifs = false;
 
@@ -1380,8 +1383,6 @@ static void e1000_power_down_phy_copper_80003es2lan(struct e1000_hw *hw)
 	if (!(hw->mac.ops.check_mng_mode(hw) ||
 	      hw->phy.ops.check_reset_block(hw)))
 		e1000_power_down_phy_copper(hw);
-
-	return;
 }
 
 /**

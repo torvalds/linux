@@ -19,6 +19,7 @@
 #include <linux/miscdevice.h>
 #include <linux/fcntl.h>
 #include <linux/init.h>
+#include <linux/smp_lock.h>
 #include <asm/uaccess.h>
 #include <asm/nvram.h>
 #ifdef CONFIG_PPC_PMAC
@@ -84,8 +85,7 @@ static ssize_t write_nvram(struct file *file, const char __user *buf,
 	return p - buf;
 }
 
-static int nvram_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg)
+static int nvram_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	switch(cmd) {
 #ifdef CONFIG_PPC_PMAC
@@ -116,12 +116,23 @@ static int nvram_ioctl(struct inode *inode, struct file *file,
 	return 0;
 }
 
+static long nvram_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = nvram_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
 const struct file_operations nvram_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= nvram_llseek,
 	.read		= read_nvram,
 	.write		= write_nvram,
-	.ioctl		= nvram_ioctl,
+	.unlocked_ioctl	= nvram_unlocked_ioctl,
 };
 
 static struct miscdevice nvram_dev = {

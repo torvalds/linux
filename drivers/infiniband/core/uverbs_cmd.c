@@ -35,6 +35,7 @@
 
 #include <linux/file.h>
 #include <linux/fs.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 

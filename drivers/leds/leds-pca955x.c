@@ -48,6 +48,7 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/workqueue.h>
+#include <linux/slab.h>
 
 /* LED select registers determine the source that drives LED outputs */
 #define PCA955X_LS_LED_ON	0x0	/* Output LOW */

@@ -25,7 +25,6 @@
 #include <linux/leds.h>
 #include <linux/clk.h>
 
-#include <mach/hardware.h>
 #include <video/atmel_lcdc.h>
 
 #include <asm/setup.h>

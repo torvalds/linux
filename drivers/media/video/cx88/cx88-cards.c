@@ -24,6 +24,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include "cx88.h"
 #include "tea5767.h"

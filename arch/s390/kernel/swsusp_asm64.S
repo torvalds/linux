@@ -256,6 +256,9 @@ restore_registers:
 	lghi	%r2,0
 	brasl	%r14,arch_set_page_states
 
+	/* Reinitialize the channel subsystem */
+	brasl	%r14,channel_subsystem_reinit
+
 	/* Return 0 */
 	lmg	%r6,%r15,STACK_FRAME_OVERHEAD + __SF_GPRS(%r15)
 	lghi	%r2,0

@@ -134,12 +134,10 @@ int radeon_agp_init(struct radeon_device *rdev)
 	int ret;
 
 	/* Acquire AGP. */
-	if (!rdev->ddev->agp->acquired) {
-		ret = drm_agp_acquire(rdev->ddev);
-		if (ret) {
-			DRM_ERROR("Unable to acquire AGP: %d\n", ret);
-			return ret;
-		}
+	ret = drm_agp_acquire(rdev->ddev);
+	if (ret) {
+		DRM_ERROR("Unable to acquire AGP: %d\n", ret);
+		return ret;
 	}
 
 	ret = drm_agp_info(rdev->ddev, &info);
@@ -271,4 +269,9 @@ void radeon_agp_fini(struct radeon_device *rdev)
 		drm_agp_release(rdev->ddev);
 	}
 #endif
+}
+
+void radeon_agp_suspend(struct radeon_device *rdev)
+{
+	radeon_agp_fini(rdev);
 }

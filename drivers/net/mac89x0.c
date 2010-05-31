@@ -88,7 +88,6 @@ static char *version =
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 #include <linux/in.h>
-#include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/nubus.h>
 #include <linux/errno.h>
@@ -98,6 +97,7 @@ static char *version =
 #include <linux/skbuff.h>
 #include <linux/delay.h>
 #include <linux/bitops.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -408,7 +408,6 @@ net_send_packet(struct sk_buff *skb, struct net_device *dev)
 				  skb->len+1);
 
 	local_irq_restore(flags);
-	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
 
 	return NETDEV_TX_OK;

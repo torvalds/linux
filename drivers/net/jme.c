@@ -37,6 +37,7 @@
 #include <linux/tcp.h>
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
+#include <linux/slab.h>
 #include <net/ip6_checksum.h>
 #include "jme.h"
 
@@ -102,8 +103,6 @@ jme_mdio_write(struct net_device *netdev,
 
 	if (i == 0)
 		jeprintk(jme->pdev, "phy(%d) write timeout : %d\n", phy, reg);
-
-	return;
 }
 
 static inline void
@@ -129,8 +128,6 @@ jme_reset_phy_processor(struct jme_adapter *jme)
 	jme_mdio_write(jme->dev,
 			jme->mii_if.phy_id,
 			MII_BMCR, val | BMCR_RESET);
-
-	return;
 }
 
 static void
@@ -946,6 +943,8 @@ jme_alloc_and_feed_skb(struct jme_adapter *jme, int idx)
 				jme->jme_vlan_rx(skb, jme->vlgrp,
 					le16_to_cpu(rxdesc->descwb.vlan));
 				NET_STAT(jme).rx_bytes += 4;
+			} else {
+				dev_kfree_skb(skb);
 			}
 		} else {
 			jme->jme_rx(skb);
@@ -2007,12 +2006,12 @@ jme_set_multi(struct net_device *netdev)
 	} else if (netdev->flags & IFF_ALLMULTI) {
 		jme->reg_rxmcs |= RXMCS_ALLMULFRAME;
 	} else if (netdev->flags & IFF_MULTICAST) {
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		int bit_nr;
 
 		jme->reg_rxmcs |= RXMCS_MULFRAME | RXMCS_MULFILTERED;
-		netdev_for_each_mc_addr(mclist, netdev) {
-			bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) & 0x3F;
+		netdev_for_each_mc_addr(ha, netdev) {
+			bit_nr = ether_crc(ETH_ALEN, ha->addr) & 0x3F;
 			mc_hash[bit_nr >> 5] |= 1 << (bit_nr & 0x1F);
 		}
 
@@ -2081,12 +2080,45 @@ jme_tx_timeout(struct net_device *netdev)
 	jme_reset_link(jme);
 }
 
+static inline void jme_pause_rx(struct jme_adapter *jme)
+{
+	atomic_dec(&jme->link_changing);
+
+	jme_set_rx_pcc(jme, PCC_OFF);
+	if (test_bit(JME_FLAG_POLL, &jme->flags)) {
+		JME_NAPI_DISABLE(jme);
+	} else {
+		tasklet_disable(&jme->rxclean_task);
+		tasklet_disable(&jme->rxempty_task);
+	}
+}
+
+static inline void jme_resume_rx(struct jme_adapter *jme)
+{
+	struct dynpcc_info *dpi = &(jme->dpi);
+
+	if (test_bit(JME_FLAG_POLL, &jme->flags)) {
+		JME_NAPI_ENABLE(jme);
+	} else {
+		tasklet_hi_enable(&jme->rxclean_task);
+		tasklet_hi_enable(&jme->rxempty_task);
+	}
+	dpi->cur		= PCC_P1;
+	dpi->attempt		= PCC_P1;
+	dpi->cnt		= 0;
+	jme_set_rx_pcc(jme, PCC_P1);
+
+	atomic_inc(&jme->link_changing);
+}
+
 static void
 jme_vlan_rx_register(struct net_device *netdev, struct vlan_group *grp)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 
+	jme_pause_rx(jme);
 	jme->vlgrp = grp;
+	jme_resume_rx(jme);
 }
 
 static void
@@ -2803,7 +2835,7 @@ jme_init_one(struct pci_dev *pdev,
 	default:
 		jme->reg_txcs = TXCS_DEFAULT | TXCS_DMASIZE_512B;
 		break;
-	};
+	}
 
 	/*
 	 * Must check before reset_mac_processor

@@ -14,6 +14,7 @@
 #include <linux/types.h>
 #include <linux/input.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 #include <linux/random.h>
 #include <linux/major.h>
 #include <linux/proc_fs.h>
@@ -659,7 +660,14 @@ static int input_default_setkeycode(struct input_dev *dev,
 int input_get_keycode(struct input_dev *dev,
 		      unsigned int scancode, unsigned int *keycode)
 {
-	return dev->getkeycode(dev, scancode, keycode);
+	unsigned long flags;
+	int retval;
+
+	spin_lock_irqsave(&dev->event_lock, flags);
+	retval = dev->getkeycode(dev, scancode, keycode);
+	spin_unlock_irqrestore(&dev->event_lock, flags);
+
+	return retval;
 }
 EXPORT_SYMBOL(input_get_keycode);
 

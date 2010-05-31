@@ -14,7 +14,6 @@
 #include "util/cache.h"
 #include <linux/rbtree.h>
 #include "util/symbol.h"
-#include "util/string.h"
 
 #include "perf.h"
 #include "util/debug.h"
@@ -29,80 +28,16 @@
 
 static char		const *input_name = "perf.data";
 
-static int		force;
+static bool		force;
 
-static int		full_paths;
+static bool		full_paths;
 
-static int		print_line;
-
-struct sym_hist {
-	u64		sum;
-	u64		ip[0];
-};
-
-struct sym_ext {
-	struct rb_node	node;
-	double		percent;
-	char		*path;
-};
-
-struct sym_priv {
-	struct sym_hist	*hist;
-	struct sym_ext	*ext;
-};
+static bool		print_line;
 
 static const char *sym_hist_filter;
 
-static int sym__alloc_hist(struct symbol *self)
+static int hists__add_entry(struct hists *self, struct addr_location *al)
 {
-	struct sym_priv *priv = symbol__priv(self);
-	const int size = (sizeof(*priv->hist) +
-			  (self->end - self->start) * sizeof(u64));
-
-	priv->hist = zalloc(size);
-	return priv->hist == NULL ? -1 : 0;
-}
-
-/*
- * collect histogram counts
- */
-static int annotate__hist_hit(struct hist_entry *he, u64 ip)
-{
-	unsigned int sym_size, offset;
-	struct symbol *sym = he->sym;
-	struct sym_priv *priv;
-	struct sym_hist *h;
-
-	he->count++;
-
-	if (!sym || !he->map)
-		return 0;
-
-	priv = symbol__priv(sym);
-	if (priv->hist == NULL && sym__alloc_hist(sym) < 0)
-		return -ENOMEM;
-
-	sym_size = sym->end - sym->start;
-	offset = ip - sym->start;
-
-	pr_debug3("%s: ip=%#Lx\n", __func__, he->map->unmap_ip(he->map, ip));
-
-	if (offset >= sym_size)
-		return 0;
-
-	h = priv->hist;
-	h->sum++;
-	h->ip[offset]++;
-
-	pr_debug3("%#Lx %s: count++ [ip: %#Lx, %#Lx] => %Ld\n", he->sym->start,
-		  he->sym->name, ip, ip - he->sym->start, h->ip[offset]);
-	return 0;
-}
-
-static int perf_session__add_hist_entry(struct perf_session *self,
-					struct addr_location *al, u64 count)
-{
-	bool hit;
 	struct hist_entry *he;
 
 	if (sym_hist_filter != NULL &&
@@ -116,11 +51,11 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 		return 0;
 	}
 
-	he = __perf_session__add_hist_entry(&self->hists, al, NULL, count, &hit);
+	he = __hists__add_entry(self, al, NULL, 1);
 	if (he == NULL)
 		return -ENOMEM;
 
-	return annotate__hist_hit(he, al->addr);
+	return hist_entry__inc_addr_samples(he, al->addr);
 }
 
 static int process_sample_event(event_t *event, struct perf_session *session)
@@ -136,7 +71,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 		return -1;
 	}
 
-	if (!al.filtered && perf_session__add_hist_entry(session, &al, 1)) {
+	if (!al.filtered && hists__add_entry(&session->hists, &al)) {
 		pr_warning("problem incrementing symbol count, "
 			   "skipping event\n");
 		return -1;
@@ -145,106 +80,11 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	return 0;
 }
 
-struct objdump_line {
-	struct list_head node;
-	s64		 offset;
-	char		 *line;
-};
-
-static struct objdump_line *objdump_line__new(s64 offset, char *line)
-{
-	struct objdump_line *self = malloc(sizeof(*self));
-
-	if (self != NULL) {
-		self->offset = offset;
-		self->line = line;
-	}
-
-	return self;
-}
-
-static void objdump_line__free(struct objdump_line *self)
-{
-	free(self->line);
-	free(self);
-}
-
-static void objdump__add_line(struct list_head *head, struct objdump_line *line)
-{
-	list_add_tail(&line->node, head);
-}
-
-static struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
-						      struct objdump_line *pos)
-{
-	list_for_each_entry_continue(pos, head, node)
-		if (pos->offset >= 0)
-			return pos;
-
-	return NULL;
-}
-
-static int parse_line(FILE *file, struct hist_entry *he,
-		      struct list_head *head)
-{
-	struct symbol *sym = he->sym;
-	struct objdump_line *objdump_line;
-	char *line = NULL, *tmp, *tmp2;
-	size_t line_len;
-	s64 line_ip, offset = -1;
-	char *c;
-
-	if (getline(&line, &line_len, file) < 0)
-		return -1;
-
-	if (!line)
-		return -1;
-
-	c = strchr(line, '\n');
-	if (c)
-		*c = 0;
-
-	line_ip = -1;
-
-	/*
-	 * Strip leading spaces:
-	 */
-	tmp = line;
-	while (*tmp) {
-		if (*tmp != ' ')
-			break;
-		tmp++;
-	}
-
-	if (*tmp) {
-		/*
-		 * Parse hexa addresses followed by ':'
-		 */
-		line_ip = strtoull(tmp, &tmp2, 16);
-		if (*tmp2 != ':')
-			line_ip = -1;
-	}
-
-	if (line_ip != -1) {
-		u64 start = map__rip_2objdump(he->map, sym->start);
-		offset = line_ip - start;
-	}
-
-	objdump_line = objdump_line__new(offset, line);
-	if (objdump_line == NULL) {
-		free(line);
-		return -1;
-	}
-	objdump__add_line(head, objdump_line);
-
-	return 0;
-}
-
 static int objdump_line__print(struct objdump_line *self,
 			       struct list_head *head,
 			       struct hist_entry *he, u64 len)
 {
-	struct symbol *sym = he->sym;
+	struct symbol *sym = he->ms.sym;
 	static const char *prev_line;
 	static const char *prev_color;
 
@@ -327,7 +167,7 @@ static void insert_source_line(struct sym_ext *sym_ext)
 
 static void free_source_line(struct hist_entry *he, int len)
 {
-	struct sym_priv *priv = symbol__priv(he->sym);
+	struct sym_priv *priv = symbol__priv(he->ms.sym);
 	struct sym_ext *sym_ext = priv->ext;
 	int i;
 
@@ -346,7 +186,7 @@ static void free_source_line(struct hist_entry *he, int len)
 static void
 get_source_line(struct hist_entry *he, int len, const char *filename)
 {
-	struct symbol *sym = he->sym;
+	struct symbol *sym = he->ms.sym;
 	u64 start;
 	int i;
 	char cmd[PATH_MAX * 2];
@@ -361,7 +201,7 @@ get_source_line(struct hist_entry *he, int len, const char *filename)
 	if (!priv->ext)
 		return;
 
-	start = he->map->unmap_ip(he->map, sym->start);
+	start = he->ms.map->unmap_ip(he->ms.map, sym->start);
 
 	for (i = 0; i < len; i++) {
 		char *path = NULL;
@@ -425,7 +265,7 @@ static void print_summary(const char *filename)
 
 static void hist_entry__print_hits(struct hist_entry *self)
 {
-	struct symbol *sym = self->sym;
+	struct symbol *sym = self->ms.sym;
 	struct sym_priv *priv = symbol__priv(sym);
 	struct sym_hist *h = priv->hist;
 	u64 len = sym->end - sym->start, offset;
@@ -437,24 +277,18 @@ static void hist_entry__print_hits(struct hist_entry *self)
 	printf("%*s: %Lu\n", BITS_PER_LONG / 2, "h->sum", h->sum);
 }
 
-static void annotate_sym(struct hist_entry *he)
+static int hist_entry__tty_annotate(struct hist_entry *he)
 {
-	struct map *map = he->map;
+	struct map *map = he->ms.map;
 	struct dso *dso = map->dso;
-	struct symbol *sym = he->sym;
+	struct symbol *sym = he->ms.sym;
 	const char *filename = dso->long_name, *d_filename;
 	u64 len;
-	char command[PATH_MAX*2];
-	FILE *file;
 	LIST_HEAD(head);
 	struct objdump_line *pos, *n;
 
-	if (!filename)
-		return;
-
-	pr_debug("%s: filename=%s, sym=%s, start=%#Lx, end=%#Lx\n", __func__,
-		 filename, sym->name, map->unmap_ip(map, sym->start),
-		 map->unmap_ip(map, sym->end));
+	if (hist_entry__annotate(he, &head) < 0)
+		return -1;
 
 	if (full_paths)
 		d_filename = filename;
@@ -472,29 +306,6 @@ static void annotate_sym(struct hist_entry *he)
 	printf(" Percent |	Source code & Disassembly of %s\n", d_filename);
 	printf("------------------------------------------------\n");
 
-	if (verbose >= 2)
-		printf("annotating [%p] %30s : [%p] %30s\n",
-		       dso, dso->long_name, sym, sym->name);
-
-	sprintf(command, "objdump --start-address=0x%016Lx --stop-address=0x%016Lx -dS %s|grep -v %s",
-		map__rip_2objdump(map, sym->start),
-		map__rip_2objdump(map, sym->end),
-		filename, filename);
-
-	if (verbose >= 3)
-		printf("doing: %s\n", command);
-
-	file = popen(command, "r");
-	if (!file)
-		return;
-
-	while (!feof(file)) {
-		if (parse_line(file, he, &head) < 0)
-			break;
-	}
-
-	pclose(file);
-
 	if (verbose)
 		hist_entry__print_hits(he);
 
@@ -506,30 +317,59 @@ static void annotate_sym(struct hist_entry *he)
 
 	if (print_line)
 		free_source_line(he, len);
+
+	return 0;
 }
 
-static void perf_session__find_annotations(struct perf_session *self)
+static void hists__find_annotations(struct hists *self)
 {
-	struct rb_node *nd;
+	struct rb_node *first = rb_first(&self->entries), *nd = first;
+	int key = KEY_RIGHT;
 
-	for (nd = rb_first(&self->hists); nd; nd = rb_next(nd)) {
+	while (nd) {
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
 		struct sym_priv *priv;
 
-		if (he->sym == NULL)
-			continue;
+		if (he->ms.sym == NULL || he->ms.map->dso->annotate_warned)
+			goto find_next;
 
-		priv = symbol__priv(he->sym);
-		if (priv->hist == NULL)
+		priv = symbol__priv(he->ms.sym);
+		if (priv->hist == NULL) {
+find_next:
+			if (key == KEY_LEFT)
+				nd = rb_prev(nd);
+			else
+				nd = rb_next(nd);
 			continue;
+		}
 
-		annotate_sym(he);
-		/*
-		 * Since we have a hist_entry per IP for the same symbol, free
-		 * he->sym->hist to signal we already processed this symbol.
-		 */
-		free(priv->hist);
-		priv->hist = NULL;
+		if (use_browser > 0) {
+			key = hist_entry__tui_annotate(he);
+			if (is_exit_key(key))
+				break;
+			switch (key) {
+			case KEY_RIGHT:
+			case '\t':
+				nd = rb_next(nd);
+				break;
+			case KEY_LEFT:
+				if (nd == first)
+					continue;
+				nd = rb_prev(nd);
+			default:
+				break;
+			}
+		} else {
+			hist_entry__tty_annotate(he);
+			nd = rb_next(nd);
+			/*
+			 * Since we have a hist_entry per IP for the same
+			 * symbol, free he->ms.sym->hist to signal we already
+			 * processed this symbol.
+			 */
+			free(priv->hist);
+			priv->hist = NULL;
+		}
 	}
 }
 
@@ -545,7 +385,7 @@ static int __cmd_annotate(void)
 	int ret;
 	struct perf_session *session;
 
-	session = perf_session__new(input_name, O_RDONLY, force);
+	session = perf_session__new(input_name, O_RDONLY, force, false);
 	if (session == NULL)
 		return -ENOMEM;
 
@@ -554,7 +394,7 @@ static int __cmd_annotate(void)
 		goto out_delete;
 
 	if (dump_trace) {
-		event__print_totals();
+		perf_session__fprintf_nr_events(session, stdout);
 		goto out_delete;
 	}
 
@@ -562,11 +402,11 @@ static int __cmd_annotate(void)
 		perf_session__fprintf(session, stdout);
 
 	if (verbose > 2)
-		dsos__fprintf(stdout);
+		perf_session__fprintf_dsos(session, stdout);
 
-	perf_session__collapse_resort(&session->hists);
-	perf_session__output_resort(&session->hists, session->event_total[0]);
-	perf_session__find_annotations(session);
+	hists__collapse_resort(&session->hists);
+	hists__output_resort(&session->hists);
+	hists__find_annotations(&session->hists);
 out_delete:
 	perf_session__delete(session);
 
@@ -581,10 +421,12 @@ static const char * const annotate_usage[] = {
 static const struct option options[] = {
 	OPT_STRING('i', "input", &input_name, "file",
 		    "input file name"),
+	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
+		   "only consider symbols in these dsos"),
 	OPT_STRING('s', "symbol", &sym_hist_filter, "symbol",
 		    "symbol to annotate"),
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
@@ -602,6 +444,8 @@ static const struct option options[] = {
 int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 {
 	argc = parse_options(argc, argv, options, annotate_usage, 0);
+
+	setup_browser();
 
 	symbol_conf.priv_size = sizeof(struct sym_priv);
 	symbol_conf.try_vmlinux_path = true;
@@ -621,8 +465,6 @@ int cmd_annotate(int argc, const char **argv, const char *prefix __used)
 
 		sym_hist_filter = argv[0];
 	}
-
-	setup_pager();
 
 	if (field_sep && *field_sep == '.') {
 		pr_err("'.' is the only non valid --field-separator argument\n");

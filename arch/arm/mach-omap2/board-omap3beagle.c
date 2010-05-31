@@ -39,6 +39,7 @@
 
 #include <plat/board.h>
 #include <plat/common.h>
+#include <plat/display.h>
 #include <plat/gpmc.h>
 #include <plat/nand.h>
 #include <plat/usb.h>
@@ -106,6 +107,77 @@ static struct platform_device omap3beagle_nand_device = {
 	.resource	= &omap3beagle_nand_resource,
 };
 
+/* DSS */
+
+static int beagle_enable_dvi(struct omap_dss_device *dssdev)
+{
+	if (gpio_is_valid(dssdev->reset_gpio))
+		gpio_set_value(dssdev->reset_gpio, 1);
+
+	return 0;
+}
+
+static void beagle_disable_dvi(struct omap_dss_device *dssdev)
+{
+	if (gpio_is_valid(dssdev->reset_gpio))
+		gpio_set_value(dssdev->reset_gpio, 0);
+}
+
+static struct omap_dss_device beagle_dvi_device = {
+	.type = OMAP_DISPLAY_TYPE_DPI,
+	.name = "dvi",
+	.driver_name = "generic_panel",
+	.phy.dpi.data_lines = 24,
+	.reset_gpio = 170,
+	.platform_enable = beagle_enable_dvi,
+	.platform_disable = beagle_disable_dvi,
+};
+
+static struct omap_dss_device beagle_tv_device = {
+	.name = "tv",
+	.driver_name = "venc",
+	.type = OMAP_DISPLAY_TYPE_VENC,
+	.phy.venc.type = OMAP_DSS_VENC_TYPE_SVIDEO,
+};
+
+static struct omap_dss_device *beagle_dss_devices[] = {
+	&beagle_dvi_device,
+	&beagle_tv_device,
+};
+
+static struct omap_dss_board_info beagle_dss_data = {
+	.num_devices = ARRAY_SIZE(beagle_dss_devices),
+	.devices = beagle_dss_devices,
+	.default_device = &beagle_dvi_device,
+};
+
+static struct platform_device beagle_dss_device = {
+	.name          = "omapdss",
+	.id            = -1,
+	.dev            = {
+		.platform_data = &beagle_dss_data,
+	},
+};
+
+static struct regulator_consumer_supply beagle_vdac_supply =
+	REGULATOR_SUPPLY("vdda_dac", "omapdss");
+
+static struct regulator_consumer_supply beagle_vdvi_supply =
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss");
+
+static void __init beagle_display_init(void)
+{
+	int r;
+
+	r = gpio_request(beagle_dvi_device.reset_gpio, "DVI reset");
+	if (r < 0) {
+		printk(KERN_ERR "Unable to get DVI reset GPIO\n");
+		return;
+	}
+
+	gpio_direction_output(beagle_dvi_device.reset_gpio, 0);
+}
+
 #include "sdram-micron-mt46h32m32lf-6.h"
 
 static struct omap2_hsmmc_info mmc[] = {
@@ -115,15 +187,6 @@ static struct omap2_hsmmc_info mmc[] = {
 		.gpio_wp	= 29,
 	},
 	{}	/* Terminator */
-};
-
-static struct platform_device omap3_beagle_lcd_device = {
-	.name		= "omap3beagle_lcd",
-	.id		= -1,
-};
-
-static struct omap_lcd_config omap3_beagle_lcd_config __initdata = {
-	.ctrl_name	= "internal",
 };
 
 static struct regulator_consumer_supply beagle_vmmc1_supply = {
@@ -179,16 +242,6 @@ static struct twl4030_gpio_platform_data beagle_gpio_data = {
 	.pulldowns	= BIT(2) | BIT(6) | BIT(7) | BIT(8) | BIT(13)
 				| BIT(15) | BIT(16) | BIT(17),
 	.setup		= beagle_twl_gpio_setup,
-};
-
-static struct regulator_consumer_supply beagle_vdac_supply = {
-	.supply		= "vdac",
-	.dev		= &omap3_beagle_lcd_device.dev,
-};
-
-static struct regulator_consumer_supply beagle_vdvi_supply = {
-	.supply		= "vdvi",
-	.dev		= &omap3_beagle_lcd_device.dev,
 };
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
@@ -349,14 +402,8 @@ static struct platform_device keys_gpio = {
 	},
 };
 
-static struct omap_board_config_kernel omap3_beagle_config[] __initdata = {
-	{ OMAP_TAG_LCD,		&omap3_beagle_lcd_config },
-};
-
 static void __init omap3_beagle_init_irq(void)
 {
-	omap_board_config = omap3_beagle_config;
-	omap_board_config_size = ARRAY_SIZE(omap3_beagle_config);
 	omap2_init_common_hw(mt46h32m32lf6_sdrc_params,
 			     mt46h32m32lf6_sdrc_params);
 	omap_init_irq();
@@ -367,9 +414,9 @@ static void __init omap3_beagle_init_irq(void)
 }
 
 static struct platform_device *omap3_beagle_devices[] __initdata = {
-	&omap3_beagle_lcd_device,
 	&leds_gpio,
 	&keys_gpio,
+	&beagle_dss_device,
 };
 
 static void __init omap3beagle_flash_init(void)
@@ -456,6 +503,8 @@ static void __init omap3_beagle_init(void)
 	/* Ensure SDRC pins are mux'd for self-refresh */
 	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
 	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
+
+	beagle_display_init();
 }
 
 static void __init omap3_beagle_map_io(void)

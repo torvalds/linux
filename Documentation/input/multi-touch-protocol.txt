@@ -68,6 +68,22 @@ like:
    SYN_MT_REPORT
    SYN_REPORT
 
+Here is the sequence after lifting one of the fingers:
+
+   ABS_MT_POSITION_X
+   ABS_MT_POSITION_Y
+   SYN_MT_REPORT
+   SYN_REPORT
+
+And here is the sequence after lifting the remaining finger:
+
+   SYN_MT_REPORT
+   SYN_REPORT
+
+If the driver reports one of BTN_TOUCH or ABS_PRESSURE in addition to the
+ABS_MT events, the last SYN_MT_REPORT event may be omitted. Otherwise, the
+last SYN_REPORT will be dropped by the input core, resulting in no
+zero-finger event reaching userland.
 
 Event Semantics
 ---------------
@@ -217,11 +233,6 @@ where examples can be found.
 difference between the contact position and the approaching tool position
 could be used to derive tilt.
 [2] The list can of course be extended.
-[3] The multi-touch X driver is currently in the prototyping stage. At the
-time of writing (April 2009), the MT protocol is not yet merged, and the
-prototype implements finger matching, basic mouse support and two-finger
-scrolling. The project aims at improving the quality of current multi-touch
-functionality available in the Synaptics X driver, and in addition
-implement more advanced gestures.
+[3] Multitouch X driver project: http://bitmath.org/code/multitouch/.
 [4] See the section on event computation.
 [5] See the section on finger tracking.

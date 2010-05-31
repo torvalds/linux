@@ -47,6 +47,7 @@
 #include <linux/sched.h>
 #include <linux/platform_device.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
 
 #include <mach/irqs.h>
 #include <mach/hardware.h>
@@ -145,10 +146,10 @@ static int i2c_imx_bus_busy(struct imx_i2c_struct *i2c_imx, int for_busy)
 				"<%s> I2C Interrupted\n", __func__);
 			return -EINTR;
 		}
-		if (time_after(jiffies, orig_jiffies + HZ / 1000)) {
+		if (time_after(jiffies, orig_jiffies + msecs_to_jiffies(500))) {
 			dev_dbg(&i2c_imx->adapter.dev,
 				"<%s> I2C bus is busy\n", __func__);
-			return -EIO;
+			return -ETIMEDOUT;
 		}
 		schedule();
 	}
@@ -443,6 +444,8 @@ static int i2c_imx_xfer(struct i2c_adapter *adapter,
 			result = i2c_imx_read(i2c_imx, &msgs[i]);
 		else
 			result = i2c_imx_write(i2c_imx, &msgs[i]);
+		if (result)
+			goto fail0;
 	}
 
 fail0:

@@ -23,6 +23,7 @@
 #include <net/sock.h>
 #include <net/tcp_states.h>
 #include <linux/llc.h>
+#include <linux/slab.h>
 
 static int llc_mac_header_len(unsigned short devtype)
 {
@@ -30,7 +31,7 @@ static int llc_mac_header_len(unsigned short devtype)
 	case ARPHRD_ETHER:
 	case ARPHRD_LOOPBACK:
 		return sizeof(struct ethhdr);
-#ifdef CONFIG_TR
+#if defined(CONFIG_TR) || defined(CONFIG_TR_MODULE)
 	case ARPHRD_IEEE802_TR:
 		return sizeof(struct trh_hdr);
 #endif

@@ -5,6 +5,7 @@
 
 #include <linux/kfifo.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 #include "host.h"
 #include "decl.h"

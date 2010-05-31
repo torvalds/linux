@@ -111,7 +111,7 @@ struct thread_info {
 #define THREAD_SHIFT PAGE_SHIFT
 #endif /* PAGE_SHIFT == 13 */
 
-#define PREEMPT_ACTIVE		0x4000000
+#define PREEMPT_ACTIVE		0x10000000
 
 /*
  * macros/functions for gaining access to the thread information structure
@@ -223,7 +223,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
  *       an immediate value in instructions such as andcc.
  */
 /* flag bit 12 is available */
-#define TIF_MEMDIE		13
+#define TIF_MEMDIE		13	/* is terminating due to OOM killer */
 #define TIF_POLLING_NRFLAG	14
 #define TIF_FREEZE		15	/* is freezing for suspend */
 

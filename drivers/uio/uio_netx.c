@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/uio_driver.h>
 
 #define PCI_VENDOR_ID_HILSCHER		0x15CF

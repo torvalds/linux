@@ -107,7 +107,9 @@ allowed to issue dynamic suspends.
 The user interface for controlling dynamic PM is located in the power/
 subdirectory of each USB device's sysfs directory, that is, in
 /sys/bus/usb/devices/.../power/ where "..." is the device's ID.  The
-relevant attribute files are: wakeup, level, and autosuspend.
+relevant attribute files are: wakeup, control, and autosuspend.
+(There may also be a file named "level"; this file was deprecated
+as of the 2.6.35 kernel and replaced by the "control" file.)
 
 	power/wakeup
 
@@ -120,7 +122,7 @@ relevant attribute files are: wakeup, level, and autosuspend.
 		while the device is suspended, the change won't take
 		effect until the following suspend.)
 
-	power/level
+	power/control
 
 		This file contains one of two words: "on" or "auto".
 		You can write those words to the file to change the
@@ -148,14 +150,15 @@ relevant attribute files are: wakeup, level, and autosuspend.
 		never to autosuspend.  You can write a number to the
 		file to change the autosuspend idle-delay time.
 
-Writing "-1" to power/autosuspend and writing "on" to power/level do
+Writing "-1" to power/autosuspend and writing "on" to power/control do
 essentially the same thing -- they both prevent the device from being
 autosuspended.  Yes, this is a redundancy in the API.
 
 (In 2.6.21 writing "0" to power/autosuspend would prevent the device
 from being autosuspended; the behavior was changed in 2.6.22.  The
 power/autosuspend attribute did not exist prior to 2.6.21, and the
-power/level attribute did not exist prior to 2.6.22.)
+power/level attribute did not exist prior to 2.6.22.  power/control
+was added in 2.6.34.)
 
 
 	Changing the default idle-delay time
@@ -212,7 +215,7 @@ among printers and scanners, but plenty of other types of device have
 the same deficiency.
 
 For this reason, by default the kernel disables autosuspend (the
-power/level attribute is initialized to "on") for all devices other
+power/control attribute is initialized to "on") for all devices other
 than hubs.  Hubs, at least, appear to be reasonably well-behaved in
 this regard.
 
@@ -373,7 +376,7 @@ usb_autopm_put_interface() in its close or release routine.  But other
 patterns are possible.
 
 The autosuspend attempts mentioned above will often fail for one
-reason or another.  For example, the power/level attribute might be
+reason or another.  For example, the power/control attribute might be
 set to "on", or another interface in the same device might not be
 idle.  This is perfectly normal.  If the reason for failure was that
 the device hasn't been idle for long enough, a timer is scheduled to
@@ -394,12 +397,12 @@ Drivers can enable autosuspend for their devices by calling
 
 in their probe() routine, if they know that the device is capable of
 suspending and resuming correctly.  This is exactly equivalent to
-writing "auto" to the device's power/level attribute.  Likewise,
+writing "auto" to the device's power/control attribute.  Likewise,
 drivers can disable autosuspend by calling
 
 	usb_disable_autosuspend(struct usb_device *udev);
 
-This is exactly the same as writing "on" to the power/level attribute.
+This is exactly the same as writing "on" to the power/control attribute.
 
 Sometimes a driver needs to make sure that remote wakeup is enabled
 during autosuspend.  For example, there's not much point

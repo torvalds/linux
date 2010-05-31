@@ -23,6 +23,7 @@
 #include <linux/mtd/concat.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/slab.h>
 
 struct of_flash_list {
 	struct mtd_info *mtd;
@@ -142,7 +143,7 @@ static int of_flash_remove(struct of_device *dev)
 static struct mtd_info * __devinit obsolete_probe(struct of_device *dev,
 						  struct map_info *map)
 {
-	struct device_node *dp = dev->node;
+	struct device_node *dp = dev->dev.of_node;
 	const char *of_probe;
 	struct mtd_info *mtd;
 	static const char *rom_probe_types[]
@@ -172,14 +173,55 @@ static struct mtd_info * __devinit obsolete_probe(struct of_device *dev,
 	}
 }
 
+#ifdef CONFIG_MTD_PARTITIONS
+/* When partitions are set we look for a linux,part-probe property which
+   specifies the list of partition probers to use. If none is given then the
+   default is use. These take precedence over other device tree
+   information. */
+static const char *part_probe_types_def[] = { "cmdlinepart", "RedBoot", NULL };
+static const char ** __devinit of_get_probes(struct device_node *dp)
+{
+	const char *cp;
+	int cplen;
+	unsigned int l;
+	unsigned int count;
+	const char **res;
+
+	cp = of_get_property(dp, "linux,part-probe", &cplen);
+	if (cp == NULL)
+		return part_probe_types_def;
+
+	count = 0;
+	for (l = 0; l != cplen; l++)
+		if (cp[l] == 0)
+			count++;
+
+	res = kzalloc((count + 1)*sizeof(*res), GFP_KERNEL);
+	count = 0;
+	while (cplen > 0) {
+		res[count] = cp;
+		l = strlen(cp) + 1;
+		cp += l;
+		cplen -= l;
+		count++;
+	}
+	return res;
+}
+
+static void __devinit of_free_probes(const char **probes)
+{
+	if (probes != part_probe_types_def)
+		kfree(probes);
+}
+#endif
+
 static int __devinit of_flash_probe(struct of_device *dev,
 				    const struct of_device_id *match)
 {
 #ifdef CONFIG_MTD_PARTITIONS
-	static const char *part_probe_types[]
-		= { "cmdlinepart", "RedBoot", NULL };
+	const char **part_probe_types;
 #endif
-	struct device_node *dp = dev->node;
+	struct device_node *dp = dev->dev.of_node;
 	struct resource res;
 	struct of_flash *info;
 	const char *probe_type = match->data;
@@ -203,7 +245,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	p = of_get_property(dp, "reg", &count);
 	if (count % reg_tuple_size != 0) {
 		dev_err(&dev->dev, "Malformed reg property on %s\n",
-				dev->node->full_name);
+				dev->dev.of_node->full_name);
 		err = -EINVAL;
 		goto err_flash_remove;
 	}
@@ -217,7 +259,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 
 	dev_set_drvdata(&dev->dev, info);
 
-	mtd_list = kzalloc(sizeof(struct mtd_info) * count, GFP_KERNEL);
+	mtd_list = kzalloc(sizeof(*mtd_list) * count, GFP_KERNEL);
 	if (!mtd_list)
 		goto err_flash_remove;
 
@@ -306,12 +348,14 @@ static int __devinit of_flash_probe(struct of_device *dev,
 		goto err_out;
 
 #ifdef CONFIG_MTD_PARTITIONS
-	/* First look for RedBoot table or partitions on the command
-	 * line, these take precedence over device tree information */
+	part_probe_types = of_get_probes(dp);
 	err = parse_mtd_partitions(info->cmtd, part_probe_types,
 				   &info->parts, 0);
-	if (err < 0)
+	if (err < 0) {
+		of_free_probes(part_probe_types);
 		return err;
+	}
+	of_free_probes(part_probe_types);
 
 #ifdef CONFIG_MTD_OF_PARTS
 	if (err == 0) {
@@ -374,8 +418,11 @@ static struct of_device_id of_flash_match[] = {
 MODULE_DEVICE_TABLE(of, of_flash_match);
 
 static struct of_platform_driver of_flash_driver = {
-	.name		= "of-flash",
-	.match_table	= of_flash_match,
+	.driver = {
+		.name = "of-flash",
+		.owner = THIS_MODULE,
+		.of_match_table = of_flash_match,
+	},
 	.probe		= of_flash_probe,
 	.remove		= of_flash_remove,
 };

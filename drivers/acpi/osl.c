@@ -758,7 +758,14 @@ static acpi_status __acpi_os_execute(acpi_execute_type type,
 	queue = hp ? kacpi_hotplug_wq :
 		(type == OSL_NOTIFY_HANDLER ? kacpi_notify_wq : kacpid_wq);
 	dpc->wait = hp ? 1 : 0;
-	INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+
+	if (queue == kacpi_hotplug_wq)
+		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+	else if (queue == kacpi_notify_wq)
+		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+	else
+		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+
 	ret = queue_work(queue, &dpc->work);
 
 	if (!ret) {
@@ -1151,16 +1158,10 @@ int acpi_check_resource_conflict(const struct resource *res)
 
 	if (clash) {
 		if (acpi_enforce_resources != ENFORCE_RESOURCES_NO) {
-			printk("%sACPI: %s resource %s [0x%llx-0x%llx]"
-			       " conflicts with ACPI region %s"
-			       " [0x%llx-0x%llx]\n",
-			       acpi_enforce_resources == ENFORCE_RESOURCES_LAX
-			       ? KERN_WARNING : KERN_ERR,
-			       ioport ? "I/O" : "Memory", res->name,
-			       (long long) res->start, (long long) res->end,
-			       res_list_elem->name,
-			       (long long) res_list_elem->start,
-			       (long long) res_list_elem->end);
+			printk(KERN_WARNING "ACPI: resource %s %pR"
+			       " conflicts with ACPI region %s %pR\n",
+			       res->name, res, res_list_elem->name,
+			       res_list_elem);
 			if (acpi_enforce_resources == ENFORCE_RESOURCES_LAX)
 				printk(KERN_NOTICE "ACPI: This conflict may"
 				       " cause random problems and system"
@@ -1204,6 +1205,15 @@ int acpi_check_mem_region(resource_size_t start, resource_size_t n,
 
 }
 EXPORT_SYMBOL(acpi_check_mem_region);
+
+/*
+ * Let drivers know whether the resource checks are effective
+ */
+int acpi_resources_are_enforced(void)
+{
+	return acpi_enforce_resources == ENFORCE_RESOURCES_STRICT;
+}
+EXPORT_SYMBOL(acpi_resources_are_enforced);
 
 /*
  * Acquire a spinlock.
@@ -1405,7 +1415,7 @@ acpi_os_invalidate_address(
 	switch (space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
-		/* Only interference checks against SystemIO and SytemMemory
+		/* Only interference checks against SystemIO and SystemMemory
 		   are needed */
 		res.start = address;
 		res.end = address + length - 1;
@@ -1457,7 +1467,7 @@ acpi_os_validate_address (
 	switch (space_id) {
 	case ACPI_ADR_SPACE_SYSTEM_IO:
 	case ACPI_ADR_SPACE_SYSTEM_MEMORY:
-		/* Only interference checks against SystemIO and SytemMemory
+		/* Only interference checks against SystemIO and SystemMemory
 		   are needed */
 		res = kzalloc(sizeof(struct acpi_res_list), GFP_KERNEL);
 		if (!res)

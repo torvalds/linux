@@ -36,6 +36,7 @@
 #include "i810_drv.h"
 #include <linux/interrupt.h>	/* For task queue support */
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <linux/pagemap.h>
 
 #define I810_BUF_FREE		2

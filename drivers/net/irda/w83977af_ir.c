@@ -46,10 +46,10 @@
 #include <linux/netdevice.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/rtnetlink.h>
 #include <linux/dma-mapping.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -515,7 +515,6 @@ static netdev_tx_t w83977af_hard_xmit(struct sk_buff *skb,
 		/* Check for empty frame */
 		if (!skb->len) {
 			w83977af_change_speed(self, speed); 
-			dev->trans_start = jiffies;
 			dev_kfree_skb(skb);
 			return NETDEV_TX_OK;
 		} else
@@ -549,7 +548,6 @@ static netdev_tx_t w83977af_hard_xmit(struct sk_buff *skb,
 		switch_bank(iobase, SET0);
 		outb(ICR_ETXTHI, iobase+ICR);
 	}
-	dev->trans_start = jiffies;
 	dev_kfree_skb(skb);
 
 	/* Restore set register */

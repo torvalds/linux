@@ -667,7 +667,7 @@ release_irq:
 release_regs:
 	iounmap(fbi->io);
 release_mem_region:
-	release_mem_region((unsigned long)fbi->mem, size);
+	release_mem_region(res->start, size);
 free_fb:
 	framebuffer_release(fbinfo);
 	return ret;

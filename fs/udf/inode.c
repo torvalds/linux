@@ -36,7 +36,6 @@
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
-#include <linux/quotaops.h>
 #include <linux/slab.h>
 #include <linux/crc-itu-t.h>
 
@@ -71,9 +70,6 @@ static int udf_get_block(struct inode *, sector_t, struct buffer_head *, int);
 
 void udf_delete_inode(struct inode *inode)
 {
-	if (!is_bad_inode(inode))
-		dquot_initialize(inode);
-
 	truncate_inode_pages(&inode->i_data, 0);
 
 	if (is_bad_inode(inode))
@@ -113,7 +109,6 @@ void udf_clear_inode(struct inode *inode)
 			(unsigned long long)iinfo->i_lenExtents);
 	}
 
-	dquot_drop(inode);
 	kfree(iinfo->i_ext.i_data);
 	iinfo->i_ext.i_data = NULL;
 }
@@ -1314,7 +1309,7 @@ static void udf_fill_inode(struct inode *inode, struct buffer_head *bh)
 		break;
 	case ICBTAG_FILE_TYPE_SYMLINK:
 		inode->i_data.a_ops = &udf_symlink_aops;
-		inode->i_op = &page_symlink_inode_operations;
+		inode->i_op = &udf_symlink_inode_operations;
 		inode->i_mode = S_IFLNK | S_IRWXUGO;
 		break;
 	case ICBTAG_FILE_TYPE_MAIN:

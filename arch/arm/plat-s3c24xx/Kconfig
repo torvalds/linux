@@ -9,6 +9,7 @@ config PLAT_S3C24XX
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
 	select S3C_DEVICE_NAND
+	select S3C_GPIO_CFG_S3C24XX
 	help
 	  Base platform code for any Samsung S3C24XX device
 
@@ -43,6 +44,12 @@ config S3C2410_CLOCK
 	help
 	  Clock code for the S3C2410, and similar processors which
 	  is currently includes the S3C2410, S3C2440, S3C2442.
+
+config S3C2443_CLOCK
+	bool
+	help
+	  Clock code for the S3C2443 and similar processors, which includes
+	  the S3C2416 and S3C2450.
 
 config S3C24XX_DCLK
 	bool
@@ -156,5 +163,10 @@ config S3C24XX_SIMTEC_AUDIO
 	default y
 	help
 	  Add audio devices for common Simtec S3C24XX boards
+
+config S3C2410_SETUP_TS
+	bool
+	help
+	  Compile in platform device definition for Samsung TouchScreen.
 
 endif

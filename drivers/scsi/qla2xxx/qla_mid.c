@@ -9,6 +9,7 @@
 
 #include <linux/moduleparam.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 #include <linux/list.h>
 
 #include <scsi/scsi_tcq.h>

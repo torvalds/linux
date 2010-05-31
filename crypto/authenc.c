@@ -46,6 +46,12 @@ struct authenc_request_ctx {
 	char tail[];
 };
 
+static void authenc_request_complete(struct aead_request *req, int err)
+{
+	if (err != -EINPROGRESS)
+		aead_request_complete(req, err);
+}
+
 static int crypto_authenc_setkey(struct crypto_aead *authenc, const u8 *key,
 				 unsigned int keylen)
 {
@@ -142,7 +148,7 @@ static void authenc_geniv_ahash_update_done(struct crypto_async_request *areq,
 				 crypto_aead_authsize(authenc), 1);
 
 out:
-	aead_request_complete(req, err);
+	authenc_request_complete(req, err);
 }
 
 static void authenc_geniv_ahash_done(struct crypto_async_request *areq, int err)
@@ -175,6 +181,7 @@ static void authenc_verify_ahash_update_done(struct crypto_async_request *areq,
 	struct crypto_authenc_ctx *ctx = crypto_aead_ctx(authenc);
 	struct authenc_request_ctx *areq_ctx = aead_request_ctx(req);
 	struct ahash_request *ahreq = (void *)(areq_ctx->tail + ctx->reqoff);
+	unsigned int cryptlen = req->cryptlen;
 
 	if (err)
 		goto out;
@@ -190,6 +197,7 @@ static void authenc_verify_ahash_update_done(struct crypto_async_request *areq,
 		goto out;
 
 	authsize = crypto_aead_authsize(authenc);
+	cryptlen -= authsize;
 	ihash = ahreq->result + authsize;
 	scatterwalk_map_and_copy(ihash, areq_ctx->sg, areq_ctx->cryptlen,
 				 authsize, 0);
@@ -203,12 +211,12 @@ static void authenc_verify_ahash_update_done(struct crypto_async_request *areq,
 	ablkcipher_request_set_callback(abreq, aead_request_flags(req),
 					req->base.complete, req->base.data);
 	ablkcipher_request_set_crypt(abreq, req->src, req->dst,
-				     req->cryptlen, req->iv);
+				     cryptlen, req->iv);
 
 	err = crypto_ablkcipher_decrypt(abreq);
 
 out:
-	aead_request_complete(req, err);
+	authenc_request_complete(req, err);
 }
 
 static void authenc_verify_ahash_done(struct crypto_async_request *areq,
@@ -222,11 +230,13 @@ static void authenc_verify_ahash_done(struct crypto_async_request *areq,
 	struct crypto_authenc_ctx *ctx = crypto_aead_ctx(authenc);
 	struct authenc_request_ctx *areq_ctx = aead_request_ctx(req);
 	struct ahash_request *ahreq = (void *)(areq_ctx->tail + ctx->reqoff);
+	unsigned int cryptlen = req->cryptlen;
 
 	if (err)
 		goto out;
 
 	authsize = crypto_aead_authsize(authenc);
+	cryptlen -= authsize;
 	ihash = ahreq->result + authsize;
 	scatterwalk_map_and_copy(ihash, areq_ctx->sg, areq_ctx->cryptlen,
 				 authsize, 0);
@@ -240,12 +250,12 @@ static void authenc_verify_ahash_done(struct crypto_async_request *areq,
 	ablkcipher_request_set_callback(abreq, aead_request_flags(req),
 					req->base.complete, req->base.data);
 	ablkcipher_request_set_crypt(abreq, req->src, req->dst,
-				     req->cryptlen, req->iv);
+				     cryptlen, req->iv);
 
 	err = crypto_ablkcipher_decrypt(abreq);
 
 out:
-	aead_request_complete(req, err);
+	authenc_request_complete(req, err);
 }
 
 static u8 *crypto_authenc_ahash_fb(struct aead_request *req, unsigned int flags)
@@ -379,7 +389,7 @@ static void crypto_authenc_encrypt_done(struct crypto_async_request *req,
 		err = crypto_authenc_genicv(areq, iv, 0);
 	}
 
-	aead_request_complete(areq, err);
+	authenc_request_complete(areq, err);
 }
 
 static int crypto_authenc_encrypt(struct aead_request *req)
@@ -420,7 +430,7 @@ static void crypto_authenc_givencrypt_done(struct crypto_async_request *req,
 		err = crypto_authenc_genicv(areq, greq->giv, 0);
 	}
 
-	aead_request_complete(areq, err);
+	authenc_request_complete(areq, err);
 }
 
 static int crypto_authenc_givencrypt(struct aead_givcrypt_request *req)

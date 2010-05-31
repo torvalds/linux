@@ -16,6 +16,7 @@
 #include <linux/io.h>
 
 #include <asm/clkdev.h>
+#include <asm/div64.h>
 
 #include <mach/hardware.h>
 #include <mach/common.h>
@@ -36,6 +37,7 @@ static struct clk lp_apm_clk;
 static struct clk periph_apm_clk;
 static struct clk ahb_clk;
 static struct clk ipg_clk;
+static struct clk usboh3_clk;
 
 #define MAX_DPLL_WAIT_TRIES	1000 /* 1000 * udelay(1) = 1ms */
 
@@ -569,6 +571,35 @@ static int _clk_uart_set_parent(struct clk *clk, struct clk *parent)
 	return 0;
 }
 
+static unsigned long clk_usboh3_get_rate(struct clk *clk)
+{
+	u32 reg, prediv, podf;
+	unsigned long parent_rate;
+
+	parent_rate = clk_get_rate(clk->parent);
+
+	reg = __raw_readl(MXC_CCM_CSCDR1);
+	prediv = ((reg & MXC_CCM_CSCDR1_USBOH3_CLK_PRED_MASK) >>
+		  MXC_CCM_CSCDR1_USBOH3_CLK_PRED_OFFSET) + 1;
+	podf = ((reg & MXC_CCM_CSCDR1_USBOH3_CLK_PODF_MASK) >>
+		MXC_CCM_CSCDR1_USBOH3_CLK_PODF_OFFSET) + 1;
+
+	return parent_rate / (prediv * podf);
+}
+
+static int _clk_usboh3_set_parent(struct clk *clk, struct clk *parent)
+{
+	u32 reg, mux;
+
+	mux = _get_mux(parent, &pll1_sw_clk, &pll2_sw_clk, &pll3_sw_clk,
+		       &lp_apm_clk);
+	reg = __raw_readl(MXC_CCM_CSCMR1) & ~MXC_CCM_CSCMR1_USBOH3_CLK_SEL_MASK;
+	reg |= mux << MXC_CCM_CSCMR1_USBOH3_CLK_SEL_OFFSET;
+	__raw_writel(reg, MXC_CCM_CSCMR1);
+
+	return 0;
+}
+
 static unsigned long get_high_reference_clock_rate(struct clk *clk)
 {
 	return external_high_reference;
@@ -690,6 +721,12 @@ static struct clk uart_root_clk = {
 	.set_parent = _clk_uart_set_parent,
 };
 
+static struct clk usboh3_clk = {
+	.parent = &pll2_sw_clk,
+	.get_rate = clk_usboh3_get_rate,
+	.set_parent = _clk_usboh3_set_parent,
+};
+
 static struct clk ahb_max_clk = {
 	.parent = &ahb_clk,
 	.enable_reg = MXC_CCM_CCGR0,
@@ -757,7 +794,7 @@ DEFINE_CLOCK(uart3_ipg_clk, 2, MXC_CCM_CCGR1, MXC_CCM_CCGRx_CG7_OFFSET,
 
 /* GPT */
 DEFINE_CLOCK(gpt_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG9_OFFSET,
-	NULL,  NULL, &ipg_perclk, NULL);
+	NULL,  NULL, &ipg_clk, NULL);
 DEFINE_CLOCK(gpt_ipg_clk, 0, MXC_CCM_CCGR2, MXC_CCM_CCGRx_CG10_OFFSET,
 	NULL,  NULL, &ipg_clk, NULL);
 
@@ -778,6 +815,12 @@ static struct clk_lookup lookups[] = {
 	_REGISTER_CLOCK("imx-uart.2", NULL, uart3_clk)
 	_REGISTER_CLOCK(NULL, "gpt", gpt_clk)
 	_REGISTER_CLOCK("fec.0", NULL, fec_clk)
+	_REGISTER_CLOCK("mxc-ehci.0", "usb", usboh3_clk)
+	_REGISTER_CLOCK("mxc-ehci.0", "usb_ahb", ahb_clk)
+	_REGISTER_CLOCK("mxc-ehci.1", "usb", usboh3_clk)
+	_REGISTER_CLOCK("mxc-ehci.1", "usb_ahb", ahb_clk)
+	_REGISTER_CLOCK("fsl-usb2-udc", "usb", usboh3_clk)
+	_REGISTER_CLOCK("fsl-usb2-udc", "usb_ahb", ahb_clk)
 };
 
 static void clk_tree_init(void)
@@ -817,6 +860,9 @@ int __init mx51_clocks_init(unsigned long ckil, unsigned long osc,
 
 	clk_enable(&cpu_clk);
 	clk_enable(&main_bus_clk);
+
+	/* set the usboh3_clk parent to pll2_sw_clk */
+	clk_set_parent(&usboh3_clk, &pll2_sw_clk);
 
 	/* System timer */
 	mxc_timer_init(&gpt_clk, MX51_IO_ADDRESS(MX51_GPT1_BASE_ADDR),

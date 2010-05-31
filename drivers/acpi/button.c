@@ -30,6 +30,7 @@
 #include <linux/proc_fs.h>
 #include <linux/seq_file.h>
 #include <linux/input.h>
+#include <linux/slab.h>
 #include <acpi/acpi_bus.h>
 #include <acpi/acpi_drivers.h>
 

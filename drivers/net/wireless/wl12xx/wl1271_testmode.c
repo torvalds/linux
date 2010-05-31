@@ -22,10 +22,10 @@
  */
 #include "wl1271_testmode.h"
 
+#include <linux/slab.h>
 #include <net/genetlink.h>
 
 #include "wl1271.h"
-#include "wl1271_spi.h"
 #include "wl1271_acx.h"
 
 #define WL1271_TM_MAX_DATA_LENGTH 1024

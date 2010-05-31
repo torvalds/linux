@@ -17,6 +17,7 @@
 #include <linux/backlight.h>
 #include <linux/atmel_pwm.h>
 #include <linux/atmel-pwm-bl.h>
+#include <linux/slab.h>
 
 struct atmel_pwm_bl {
 	const struct atmel_pwm_bl_platform_data	*pdata;

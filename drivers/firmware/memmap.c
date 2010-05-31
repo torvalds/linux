@@ -20,6 +20,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/bootmem.h>
+#include <linux/slab.h>
 
 /*
  * Data types ------------------------------------------------------------------

@@ -1,4 +1,5 @@
 
+#include <linux/gfp.h>
 #include <linux/pagemap.h>
 #include <linux/highmem.h>
 
@@ -19,7 +20,7 @@ int ceph_pagelist_release(struct ceph_pagelist *pl)
 
 static int ceph_pagelist_addpage(struct ceph_pagelist *pl)
 {
-	struct page *page = alloc_page(GFP_NOFS);
+	struct page *page = __page_cache_alloc(GFP_NOFS);
 	if (!page)
 		return -ENOMEM;
 	pl->room += PAGE_SIZE;

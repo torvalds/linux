@@ -38,7 +38,7 @@ flags, it will return EBADR and the contents of fm_flags will contain
 the set of flags which caused the error. If the kernel is compatible
 with all flags passed, the contents of fm_flags will be unmodified.
 It is up to userspace to determine whether rejection of a particular
-flag is fatal to it's operation. This scheme is intended to allow the
+flag is fatal to its operation. This scheme is intended to allow the
 fiemap interface to grow in the future but without losing
 compatibility with old software.
 
@@ -56,7 +56,7 @@ If this flag is set, the kernel will sync the file before mapping extents.
 
 * FIEMAP_FLAG_XATTR
 If this flag is set, the extents returned will describe the inodes
-extended attribute lookup tree, instead of it's data tree.
+extended attribute lookup tree, instead of its data tree.
 
 
 Extent Mapping
@@ -89,7 +89,7 @@ struct fiemap_extent {
 };
 
 All offsets and lengths are in bytes and mirror those on disk.  It is valid
-for an extents logical offset to start before the request or it's logical
+for an extents logical offset to start before the request or its logical
 length to extend past the request.  Unless FIEMAP_EXTENT_NOT_ALIGNED is
 returned, fe_logical, fe_physical, and fe_length will be aligned to the
 block size of the file system.  With the exception of extents flagged as
@@ -125,7 +125,7 @@ been allocated for the file yet.
 
 * FIEMAP_EXTENT_DELALLOC
   - This will also set FIEMAP_EXTENT_UNKNOWN.
-Delayed allocation - while there is data for this extent, it's
+Delayed allocation - while there is data for this extent, its
 physical location has not been allocated yet.
 
 * FIEMAP_EXTENT_ENCODED
@@ -159,7 +159,7 @@ Data is located within a meta data block.
 Data is packed into a block with data from other files.
 
 * FIEMAP_EXTENT_UNWRITTEN
-Unwritten extent - the extent is allocated but it's data has not been
+Unwritten extent - the extent is allocated but its data has not been
 initialized.  This indicates the extent's data will be all zero if read
 through the filesystem but the contents are undefined if read directly from
 the device.
@@ -176,7 +176,7 @@ VFS -> File System Implementation
 
 File systems wishing to support fiemap must implement a ->fiemap callback on
 their inode_operations structure. The fs ->fiemap call is responsible for
-defining it's set of supported fiemap flags, and calling a helper function on
+defining its set of supported fiemap flags, and calling a helper function on
 each discovered extent:
 
 struct inode_operations {

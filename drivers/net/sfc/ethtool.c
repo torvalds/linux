@@ -304,7 +304,7 @@ static int efx_fill_loopback_test(struct efx_nic *efx,
 {
 	struct efx_tx_queue *tx_queue;
 
-	efx_for_each_tx_queue(tx_queue, efx) {
+	efx_for_each_channel_tx_queue(tx_queue, &efx->channel[0]) {
 		efx_fill_test(test_index++, strings, data,
 			      &lb_tests->tx_sent[tx_queue->queue],
 			      EFX_TX_QUEUE_NAME(tx_queue),
@@ -647,7 +647,7 @@ static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 	efx_for_each_tx_queue(tx_queue, efx) {
 		channel = tx_queue->channel;
 		if (channel->irq_moderation < coalesce->tx_coalesce_usecs_irq) {
-			if (channel->used_flags != EFX_USED_BY_RX_TX)
+			if (channel->channel < efx->n_rx_channels)
 				coalesce->tx_coalesce_usecs_irq =
 					channel->irq_moderation;
 			else
@@ -690,7 +690,7 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 
 	/* If the channel is shared only allow RX parameters to be set */
 	efx_for_each_tx_queue(tx_queue, efx) {
-		if ((tx_queue->channel->used_flags == EFX_USED_BY_RX_TX) &&
+		if ((tx_queue->channel->channel < efx->n_rx_channels) &&
 		    tx_usecs) {
 			EFX_ERR(efx, "Channel is shared. "
 				"Only RX coalescing may be set\n");

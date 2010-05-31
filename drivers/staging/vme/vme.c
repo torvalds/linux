@@ -29,13 +29,14 @@
 #include <linux/syscalls.h>
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 
 #include "vme.h"
 #include "vme_bridge.h"
 
 /* Bitmask and mutex to keep track of bridge numbers */
 static unsigned int vme_bus_numbers;
-DEFINE_MUTEX(vme_bus_num_mtx);
+static DEFINE_MUTEX(vme_bus_num_mtx);
 
 static void __exit vme_exit(void);
 static int __init vme_init(void);
@@ -1407,7 +1408,7 @@ EXPORT_SYMBOL(vme_unregister_driver);
 
 /* - Bus Registration ------------------------------------------------------ */
 
-int vme_calc_slot(struct device *dev)
+static int vme_calc_slot(struct device *dev)
 {
 	struct vme_bridge *bridge;
 	int num;

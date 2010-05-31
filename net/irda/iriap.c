@@ -31,6 +31,7 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
@@ -684,8 +685,6 @@ static void iriap_getvaluebyclass_indication(struct iriap_cb *self,
 	/* We have a match; send the value.  */
 	iriap_getvaluebyclass_response(self, obj->id, IAS_SUCCESS,
 				       attrib->value);
-
-	return;
 }
 
 /*

@@ -45,6 +45,17 @@ struct mac_addr
 	unsigned char	addr[6];
 };
 
+struct br_ip
+{
+	union {
+		__be32	ip4;
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+		struct in6_addr ip6;
+#endif
+	} u;
+	__be16		proto;
+};
+
 struct net_bridge_fdb_entry
 {
 	struct hlist_node		hlist;
@@ -64,7 +75,7 @@ struct net_bridge_port_group {
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct timer_list		query_timer;
-	__be32				addr;
+	struct br_ip			addr;
 	u32				queries_sent;
 };
 
@@ -77,7 +88,7 @@ struct net_bridge_mdb_entry
 	struct rcu_head			rcu;
 	struct timer_list		timer;
 	struct timer_list		query_timer;
-	__be32				addr;
+	struct br_ip			addr;
 	u32				queries_sent;
 };
 
@@ -128,6 +139,17 @@ struct net_bridge_port
 	struct hlist_head		mglist;
 	struct hlist_node		rlist;
 #endif
+
+#ifdef CONFIG_SYSFS
+	char				sysfs_name[IFNAMSIZ];
+#endif
+};
+
+struct br_cpu_netstats {
+	unsigned long	rx_packets;
+	unsigned long	rx_bytes;
+	unsigned long	tx_packets;
+	unsigned long	tx_bytes;
 };
 
 struct net_bridge
@@ -135,6 +157,8 @@ struct net_bridge
 	spinlock_t			lock;
 	struct list_head		port_list;
 	struct net_device		*dev;
+
+	struct br_cpu_netstats __percpu *stats;
 	spinlock_t			hash_lock;
 	struct hlist_head		hash[BR_HASH_SIZE];
 	unsigned long			feature_mask;
@@ -220,6 +244,21 @@ struct br_input_skb_cb {
 # define BR_INPUT_SKB_CB_MROUTERS_ONLY(__skb)	(0)
 #endif
 
+#define br_printk(level, br, format, args...)	\
+	printk(level "%s: " format, (br)->dev->name, ##args)
+
+#define br_err(__br, format, args...)			\
+	br_printk(KERN_ERR, __br, format, ##args)
+#define br_warn(__br, format, args...)			\
+	br_printk(KERN_WARNING, __br, format, ##args)
+#define br_notice(__br, format, args...)		\
+	br_printk(KERN_NOTICE, __br, format, ##args)
+#define br_info(__br, format, args...)			\
+	br_printk(KERN_INFO, __br, format, ##args)
+
+#define br_debug(br, format, args...)			\
+	pr_debug("%s: " format,  (br)->dev->name, ##args)
+
 extern struct notifier_block br_device_notifier;
 extern const u8 br_group_address[ETH_ALEN];
 
@@ -233,6 +272,18 @@ static inline int br_is_root_bridge(const struct net_bridge *br)
 extern void br_dev_setup(struct net_device *dev);
 extern netdev_tx_t br_dev_xmit(struct sk_buff *skb,
 			       struct net_device *dev);
+#ifdef CONFIG_NET_POLL_CONTROLLER
+extern void br_netpoll_cleanup(struct net_device *dev);
+extern void br_netpoll_enable(struct net_bridge *br,
+			      struct net_device *dev);
+extern void br_netpoll_disable(struct net_bridge *br,
+			       struct net_device *dev);
+#else
+#define br_netpoll_cleanup(br)
+#define br_netpoll_enable(br, dev)
+#define br_netpoll_disable(br, dev)
+
+#endif
 
 /* br_fdb.c */
 extern int br_fdb_init(void);
@@ -433,6 +484,7 @@ extern void br_ifinfo_notify(int event, struct net_bridge_port *port);
 /* br_sysfs_if.c */
 extern const struct sysfs_ops brport_sysfs_ops;
 extern int br_sysfs_addif(struct net_bridge_port *p);
+extern int br_sysfs_renameif(struct net_bridge_port *p);
 
 /* br_sysfs_br.c */
 extern int br_sysfs_addbr(struct net_device *dev);
@@ -441,6 +493,7 @@ extern void br_sysfs_delbr(struct net_device *dev);
 #else
 
 #define br_sysfs_addif(p)	(0)
+#define br_sysfs_renameif(p)	(0)
 #define br_sysfs_addbr(dev)	(0)
 #define br_sysfs_delbr(dev)	do { } while(0)
 #endif /* CONFIG_SYSFS */

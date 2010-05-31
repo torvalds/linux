@@ -144,6 +144,8 @@ struct ieee80211_low_level_stats {
  *	new beacon (beaconing modes)
  * @BSS_CHANGED_BEACON_ENABLED: Beaconing should be
  *	enabled/disabled (beaconing modes)
+ * @BSS_CHANGED_CQM: Connection quality monitor config changed
+ * @BSS_CHANGED_IBSS: IBSS join status changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -156,6 +158,10 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_BSSID		= 1<<7,
 	BSS_CHANGED_BEACON		= 1<<8,
 	BSS_CHANGED_BEACON_ENABLED	= 1<<9,
+	BSS_CHANGED_CQM			= 1<<10,
+	BSS_CHANGED_IBSS		= 1<<11,
+
+	/* when adding here, make sure to change ieee80211_reconfig */
 };
 
 /**
@@ -165,6 +171,8 @@ enum ieee80211_bss_change {
  * to that BSS) that can change during the lifetime of the BSS.
  *
  * @assoc: association status
+ * @ibss_joined: indicates whether this station is part of an IBSS
+ *	or not
  * @aid: association ID number, valid only when @assoc is true
  * @use_cts_prot: use CTS protection
  * @use_short_preamble: use 802.11b short preamble;
@@ -183,13 +191,19 @@ enum ieee80211_bss_change {
  *	the current band.
  * @bssid: The BSSID for this BSS
  * @enable_beacon: whether beaconing should be enabled or not
+ * @channel_type: Channel type for this BSS -- the hardware might be
+ *	configured for HT40+ while this BSS only uses no-HT, for
+ *	example.
  * @ht_operation_mode: HT operation mode (like in &struct ieee80211_ht_info).
  *	This field is only valid when the channel type is one of the HT types.
+ * @cqm_rssi_thold: Connection quality monitor RSSI threshold, a zero value
+ *	implies disabled
+ * @cqm_rssi_hyst: Connection quality monitor RSSI hysteresis
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
 	/* association related data */
-	bool assoc;
+	bool assoc, ibss_joined;
 	u16 aid;
 	/* erp related data */
 	bool use_cts_prot;
@@ -202,6 +216,9 @@ struct ieee80211_bss_conf {
 	u64 timestamp;
 	u32 basic_rates;
 	u16 ht_operation_mode;
+	s32 cqm_rssi_thold;
+	u32 cqm_rssi_hyst;
+	enum nl80211_channel_type channel_type;
 };
 
 /**
@@ -267,6 +284,9 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_INTFL_NL80211_FRAME_TX: Frame was requested through nl80211
  *	MLME command (internal to mac80211 to figure out whether to send TX
  *	status to user space)
+ * @IEEE80211_TX_CTL_LDPC: tells the driver to use LDPC for this frame
+ * @IEEE80211_TX_CTL_STBC: Enables Space-Time Block Coding (STBC) for this
+ *	frame and selects the maximum number of streams that it can use.
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -290,6 +310,9 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_RETRANSMISSION	= BIT(19),
 	IEEE80211_TX_INTFL_HAS_RADIOTAP		= BIT(20),
 	IEEE80211_TX_INTFL_NL80211_FRAME_TX	= BIT(21),
+	IEEE80211_TX_CTL_LDPC			= BIT(22),
+	IEEE80211_TX_CTL_STBC			= BIT(23) | BIT(24),
+#define IEEE80211_TX_CTL_STBC_SHIFT		23
 };
 
 /**
@@ -388,11 +411,11 @@ struct ieee80211_tx_rate {
  * @status: union for status data
  * @driver_data: array of driver_data pointers
  * @ampdu_ack_len: number of acked aggregated frames.
- * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
+ * 	relevant only if IEEE80211_TX_STAT_AMPDU was set.
  * @ampdu_ack_map: block ack bit map for the aggregation.
- * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
+ * 	relevant only if IEEE80211_TX_STAT_AMPDU was set.
  * @ampdu_len: number of aggregated frames.
- * 	relevant only if IEEE80211_TX_STATUS_AMPDU was set.
+ * 	relevant only if IEEE80211_TX_STAT_AMPDU was set.
  * @ack_signal: signal strength of the ACK frame
  */
 struct ieee80211_tx_info {
@@ -543,7 +566,6 @@ enum mac80211_rx_flags {
  * @signal: signal strength when receiving this frame, either in dBm, in dB or
  *	unspecified depending on the hardware capabilities flags
  *	@IEEE80211_HW_SIGNAL_*
- * @noise: noise when receiving this frame, in dBm.
  * @antenna: antenna used
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT rates are use (RX_FLAG_HT)
@@ -554,7 +576,6 @@ struct ieee80211_rx_status {
 	enum ieee80211_band band;
 	int freq;
 	int signal;
-	int noise;
 	int antenna;
 	int rate_idx;
 	int flag;
@@ -580,11 +601,15 @@ struct ieee80211_rx_status {
  *	may turn the device off as much as possible. Typically, this flag will
  *	be set when an interface is set UP but not associated or scanning, but
  *	it can also be unset in that case when monitor interfaces are active.
+ * @IEEE80211_CONF_QOS: Enable 802.11e QoS also know as WMM (Wireless
+ *      Multimedia). On some drivers (iwlwifi is one of know) we have
+ *      to enable/disable QoS explicitly.
  */
 enum ieee80211_conf_flags {
 	IEEE80211_CONF_MONITOR		= (1<<0),
 	IEEE80211_CONF_PS		= (1<<1),
 	IEEE80211_CONF_IDLE		= (1<<2),
+	IEEE80211_CONF_QOS		= (1<<3),
 };
 
 
@@ -599,6 +624,7 @@ enum ieee80211_conf_flags {
  * @IEEE80211_CONF_CHANGE_RETRY_LIMITS: retry limits changed
  * @IEEE80211_CONF_CHANGE_IDLE: Idle flag changed
  * @IEEE80211_CONF_CHANGE_SMPS: Spatial multiplexing powersave mode changed
+ * @IEEE80211_CONF_CHANGE_QOS: Quality of service was enabled or disabled
  */
 enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_SMPS		= BIT(1),
@@ -609,6 +635,7 @@ enum ieee80211_conf_changed {
 	IEEE80211_CONF_CHANGE_CHANNEL		= BIT(6),
 	IEEE80211_CONF_CHANGE_RETRY_LIMITS	= BIT(7),
 	IEEE80211_CONF_CHANGE_IDLE		= BIT(8),
+	IEEE80211_CONF_CHANGE_QOS		= BIT(9),
 };
 
 /**
@@ -649,6 +676,9 @@ enum ieee80211_smps_mode {
  * @dynamic_ps_timeout: The dynamic powersave timeout (in ms), see the
  *	powersave documentation below. This variable is valid only when
  *	the CONF_PS flag is set.
+ * @dynamic_ps_forced_timeout: The dynamic powersave timeout (in ms) configured
+ *	by cfg80211 (essentially, wext) If set, this value overrules the value
+ *	chosen by mac80211 based on ps qos network latency.
  *
  * @power_level: requested transmit power (in dBm)
  *
@@ -668,7 +698,7 @@ enum ieee80211_smps_mode {
  */
 struct ieee80211_conf {
 	u32 flags;
-	int power_level, dynamic_ps_timeout;
+	int power_level, dynamic_ps_timeout, dynamic_ps_forced_timeout;
 	int max_sleep_period;
 
 	u16 listen_interval;
@@ -679,6 +709,28 @@ struct ieee80211_conf {
 	struct ieee80211_channel *channel;
 	enum nl80211_channel_type channel_type;
 	enum ieee80211_smps_mode smps_mode;
+};
+
+/**
+ * struct ieee80211_channel_switch - holds the channel switch data
+ *
+ * The information provided in this structure is required for channel switch
+ * operation.
+ *
+ * @timestamp: value in microseconds of the 64-bit Time Synchronization
+ *	Function (TSF) timer when the frame containing the channel switch
+ *	announcement was received. This is simply the rx.mactime parameter
+ *	the driver passed into mac80211.
+ * @block_tx: Indicates whether transmission must be blocked before the
+ *	scheduled channel switch, as indicated by the AP.
+ * @channel: the new channel to switch to
+ * @count: the number of TBTT's until the channel switch event
+ */
+struct ieee80211_channel_switch {
+	u64 timestamp;
+	bool block_tx;
+	struct ieee80211_channel *channel;
+	u8 count;
 };
 
 /**
@@ -763,6 +815,7 @@ enum ieee80211_key_flags {
  *	encrypted in hardware.
  * @alg: The key algorithm.
  * @flags: key flags, see &enum ieee80211_key_flags.
+ * @ap_addr: AP's MAC address
  * @keyidx: the key index (0-3)
  * @keylen: key material length
  * @key: key material. For ALG_TKIP the key is encoded as a 256-bit (32 byte)
@@ -907,10 +960,6 @@ enum ieee80211_tkip_key_type {
  *	one milliwatt. This is the preferred method since it is standardized
  *	between different devices. @max_signal does not need to be set.
  *
- * @IEEE80211_HW_NOISE_DBM:
- *	Hardware can provide noise (radio interference) values in units dBm,
- *      decibel difference from one milliwatt.
- *
  * @IEEE80211_HW_SPECTRUM_MGMT:
  * 	Hardware supports spectrum management defined in 802.11h
  * 	Measurement, Channel Switch, Quieting, TPC
@@ -954,6 +1003,17 @@ enum ieee80211_tkip_key_type {
  *	Hardware can provide ack status reports of Tx frames to
  *	the stack.
  *
+ * @IEEE80211_HW_CONNECTION_MONITOR:
+ *      The hardware performs its own connection monitoring, including
+ *      periodic keep-alives to the AP and probing the AP on beacon loss.
+ *      When this flag is set, signaling beacon-loss will cause an immediate
+ *      change to disassociated state.
+ *
+ * @IEEE80211_HW_SUPPORTS_CQM_RSSI:
+ *	Hardware can do connection quality monitoring - i.e. it can monitor
+ *	connection quality related parameters, such as the RSSI level and
+ *	provide notifications if configured trigger levels are reached.
+ *
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -963,7 +1023,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_2GHZ_SHORT_PREAMBLE_INCAPABLE	= 1<<4,
 	IEEE80211_HW_SIGNAL_UNSPEC			= 1<<5,
 	IEEE80211_HW_SIGNAL_DBM				= 1<<6,
-	IEEE80211_HW_NOISE_DBM				= 1<<7,
+	/* use this hole */
 	IEEE80211_HW_SPECTRUM_MGMT			= 1<<8,
 	IEEE80211_HW_AMPDU_AGGREGATION			= 1<<9,
 	IEEE80211_HW_SUPPORTS_PS			= 1<<10,
@@ -975,6 +1035,8 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS		= 1<<16,
 	IEEE80211_HW_SUPPORTS_UAPSD			= 1<<17,
 	IEEE80211_HW_REPORTS_TX_ACK_STATUS		= 1<<18,
+	IEEE80211_HW_CONNECTION_MONITOR			= 1<<19,
+	IEEE80211_HW_SUPPORTS_CQM_RSSI			= 1<<20,
 };
 
 /**
@@ -1576,6 +1638,8 @@ enum ieee80211_ampdu_mlme_action {
  *	Returns a negative error code on failure.
  *	The callback must be atomic.
  *
+ * @get_survey: Return per-channel survey information
+ *
  * @rfkill_poll: Poll rfkill hardware state. If you need this, you also
  *	need to set wiphy->rfkill_poll to %true before registration,
  *	and need to call wiphy_rfkill_set_hw_state() in the callback.
@@ -1591,6 +1655,11 @@ enum ieee80211_ampdu_mlme_action {
  * @flush: Flush all pending frames from the hardware queue, making sure
  *	that the hardware queues are empty. If the parameter @drop is set
  *	to %true, pending frames may be dropped. The callback can sleep.
+ *
+ * @channel_switch: Drivers that need (or want) to offload the channel
+ *	switch operation for CSAs received from the AP may implement this
+ *	callback. They must then call ieee80211_chswitch_done() to indicate
+ *	completion of the channel switch.
  */
 struct ieee80211_ops {
 	int (*tx)(struct ieee80211_hw *hw, struct sk_buff *skb);
@@ -1606,7 +1675,7 @@ struct ieee80211_ops {
 				 struct ieee80211_bss_conf *info,
 				 u32 changed);
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
-				 int mc_count, struct dev_addr_list *mc_list);
+				 struct netdev_hw_addr_list *mc_list);
 	void (*configure_filter)(struct ieee80211_hw *hw,
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
@@ -1621,7 +1690,7 @@ struct ieee80211_ops {
 				struct ieee80211_key_conf *conf,
 				struct ieee80211_sta *sta,
 				u32 iv32, u16 *phase1key);
-	int (*hw_scan)(struct ieee80211_hw *hw,
+	int (*hw_scan)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 		       struct cfg80211_scan_request *req);
 	void (*sw_scan_start)(struct ieee80211_hw *hw);
 	void (*sw_scan_complete)(struct ieee80211_hw *hw);
@@ -1646,13 +1715,16 @@ struct ieee80211_ops {
 			    struct ieee80211_vif *vif,
 			    enum ieee80211_ampdu_mlme_action action,
 			    struct ieee80211_sta *sta, u16 tid, u16 *ssn);
-
+	int (*get_survey)(struct ieee80211_hw *hw, int idx,
+		struct survey_info *survey);
 	void (*rfkill_poll)(struct ieee80211_hw *hw);
 	void (*set_coverage_class)(struct ieee80211_hw *hw, u8 coverage_class);
 #ifdef CONFIG_NL80211_TESTMODE
 	int (*testmode_cmd)(struct ieee80211_hw *hw, void *data, int len);
 #endif
 	void (*flush)(struct ieee80211_hw *hw, bool drop);
+	void (*channel_switch)(struct ieee80211_hw *hw,
+			       struct ieee80211_channel_switch *ch_switch);
 };
 
 /**
@@ -1802,7 +1874,10 @@ void ieee80211_restart_hw(struct ieee80211_hw *hw);
  * ieee80211_rx - receive frame
  *
  * Use this function to hand received frames to mac80211. The receive
- * buffer in @skb must start with an IEEE 802.11 header.
+ * buffer in @skb must start with an IEEE 802.11 header. In case of a
+ * paged @skb is used, the driver is recommended to put the ieee80211
+ * header of the frame on the linear part of the @skb to avoid memory
+ * allocation and/or memcpy by the stack.
  *
  * This function may not be called in IRQ context. Calls to this function
  * for a single hardware must be synchronized against each other. Calls to
@@ -2364,11 +2439,51 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
  *
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  *
- * When beacon filtering is enabled with IEEE80211_HW_BEACON_FILTERING and
- * IEEE80211_CONF_PS is set, the driver needs to inform whenever the
+ * When beacon filtering is enabled with %IEEE80211_HW_BEACON_FILTERING and
+ * %IEEE80211_CONF_PS is set, the driver needs to inform whenever the
  * hardware is not receiving beacons with this function.
  */
 void ieee80211_beacon_loss(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_connection_loss - inform hardware has lost connection to the AP
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * When beacon filtering is enabled with %IEEE80211_HW_BEACON_FILTERING, and
+ * %IEEE80211_CONF_PS and %IEEE80211_HW_CONNECTION_MONITOR are set, the driver
+ * needs to inform if the connection to the AP has been lost.
+ *
+ * This function will cause immediate change to disassociated state,
+ * without connection recovery attempts.
+ */
+void ieee80211_connection_loss(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_cqm_rssi_notify - inform a configured connection quality monitoring
+ *	rssi threshold triggered
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @rssi_event: the RSSI trigger event type
+ * @gfp: context flags
+ *
+ * When the %IEEE80211_HW_SUPPORTS_CQM_RSSI is set, and a connection quality
+ * monitoring is configured with an rssi threshold, the driver will inform
+ * whenever the rssi level reaches the threshold.
+ */
+void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
+			       enum nl80211_cqm_rssi_threshold_event rssi_event,
+			       gfp_t gfp);
+
+/**
+ * ieee80211_chswitch_done - Complete channel switch process
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @success: make the channel switch successful or not
+ *
+ * Complete the channel switch post-process: set the new operational channel
+ * and wake up the suspended queues.
+ */
+void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success);
 
 /* Rate control API */
 

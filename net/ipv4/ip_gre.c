@@ -14,6 +14,7 @@
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/skbuff.h>
 #include <linux/netdevice.h>
@@ -501,7 +502,6 @@ static void ipgre_err(struct sk_buff *skb, u32 info)
 	t->err_time = jiffies;
 out:
 	rcu_read_unlock();
-	return;
 }
 
 static inline void ipgre_ecn_decapsulate(struct iphdr *iph, struct sk_buff *skb)
@@ -537,7 +537,6 @@ static int ipgre_rcv(struct sk_buff *skb)
 	struct ip_tunnel *tunnel;
 	int    offset = 4;
 	__be16 gre_proto;
-	unsigned int len;
 
 	if (!pskb_may_pull(skb, 16))
 		goto drop_nolock;
@@ -628,8 +627,6 @@ static int ipgre_rcv(struct sk_buff *skb)
 			tunnel->i_seqno = seqno + 1;
 		}
 
-		len = skb->len;
-
 		/* Warning: All skb pointers will be invalidated! */
 		if (tunnel->dev->type == ARPHRD_ETHER) {
 			if (!pskb_may_pull(skb, ETH_HLEN)) {
@@ -643,11 +640,7 @@ static int ipgre_rcv(struct sk_buff *skb)
 			skb_postpull_rcsum(skb, eth_hdr(skb), ETH_HLEN);
 		}
 
-		stats->rx_packets++;
-		stats->rx_bytes += len;
-		skb->dev = tunnel->dev;
-		skb_dst_drop(skb);
-		nf_reset(skb);
+		skb_tunnel_rx(skb, tunnel->dev);
 
 		skb_reset_network_header(skb);
 		ipgre_ecn_decapsulate(iph, skb);
@@ -810,11 +803,13 @@ static netdev_tx_t ipgre_tunnel_xmit(struct sk_buff *skb, struct net_device *dev
 			tunnel->err_count = 0;
 	}
 
-	max_headroom = LL_RESERVED_SPACE(tdev) + gre_hlen;
+	max_headroom = LL_RESERVED_SPACE(tdev) + gre_hlen + rt->u.dst.header_len;
 
 	if (skb_headroom(skb) < max_headroom || skb_shared(skb)||
 	    (skb_cloned(skb) && !skb_clone_writable(skb, 0))) {
 		struct sk_buff *new_skb = skb_realloc_headroom(skb, max_headroom);
+		if (max_headroom > dev->needed_headroom)
+			dev->needed_headroom = max_headroom;
 		if (!new_skb) {
 			ip_rt_put(rt);
 			txq->tx_dropped++;

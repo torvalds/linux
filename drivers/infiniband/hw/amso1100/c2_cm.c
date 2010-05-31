@@ -31,6 +31,8 @@
  * SOFTWARE.
  *
  */
+#include <linux/slab.h>
+
 #include "c2.h"
 #include "c2_wr.h"
 #include "c2_vq.h"

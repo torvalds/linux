@@ -24,6 +24,7 @@
 #include <linux/jiffies.h>
 #include <linux/workqueue.h>
 #include <linux/pm.h>
+#include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/power_supply.h>
 
@@ -303,6 +304,28 @@ static void ds2760_battery_write_rated_capacity(struct ds2760_device_info *di,
 	w1_ds2760_recall_eeprom(di->w1_dev, DS2760_EEPROM_BLOCK1);
 }
 
+static void ds2760_battery_write_active_full(struct ds2760_device_info *di,
+					     int active_full)
+{
+	unsigned char tmp[2] = {
+		active_full >> 8,
+		active_full & 0xff
+	};
+
+	if (tmp[0] == di->raw[DS2760_ACTIVE_FULL] &&
+	    tmp[1] == di->raw[DS2760_ACTIVE_FULL + 1])
+		return;
+
+	w1_ds2760_write(di->w1_dev, tmp, DS2760_ACTIVE_FULL, sizeof(tmp));
+	w1_ds2760_store_eeprom(di->w1_dev, DS2760_EEPROM_BLOCK0);
+	w1_ds2760_recall_eeprom(di->w1_dev, DS2760_EEPROM_BLOCK0);
+
+	/* Write to the di->raw[] buffer directly - the DS2760_ACTIVE_FULL
+	 * values won't be read back by ds2760_battery_read_status() */
+	di->raw[DS2760_ACTIVE_FULL] = tmp[0];
+	di->raw[DS2760_ACTIVE_FULL + 1] = tmp[1];
+}
+
 static void ds2760_battery_work(struct work_struct *work)
 {
 	struct ds2760_device_info *di = container_of(work,
@@ -425,6 +448,45 @@ static int ds2760_battery_get_property(struct power_supply *psy,
 	return 0;
 }
 
+static int ds2760_battery_set_property(struct power_supply *psy,
+				       enum power_supply_property psp,
+				       const union power_supply_propval *val)
+{
+	struct ds2760_device_info *di = to_ds2760_device_info(psy);
+
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+		/* the interface counts in uAh, convert the value */
+		ds2760_battery_write_active_full(di, val->intval / 1000L);
+		break;
+
+	case POWER_SUPPLY_PROP_CHARGE_NOW:
+		/* ds2760_battery_set_current_accum() does the conversion */
+		ds2760_battery_set_current_accum(di, val->intval);
+		break;
+
+	default:
+		return -EPERM;
+	}
+
+	return 0;
+}
+
+static int ds2760_battery_property_is_writeable(struct power_supply *psy,
+						enum power_supply_property psp)
+{
+	switch (psp) {
+	case POWER_SUPPLY_PROP_CHARGE_FULL:
+	case POWER_SUPPLY_PROP_CHARGE_NOW:
+		return 1;
+
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static enum power_supply_property ds2760_battery_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_VOLTAGE_NOW,
@@ -459,6 +521,9 @@ static int ds2760_battery_probe(struct platform_device *pdev)
 	di->bat.properties	= ds2760_battery_props;
 	di->bat.num_properties	= ARRAY_SIZE(ds2760_battery_props);
 	di->bat.get_property	= ds2760_battery_get_property;
+	di->bat.set_property	= ds2760_battery_set_property;
+	di->bat.property_is_writeable =
+				  ds2760_battery_property_is_writeable;
 	di->bat.set_charged	= ds2760_battery_set_charged;
 	di->bat.external_power_changed =
 				  ds2760_battery_external_power_changed;

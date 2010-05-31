@@ -3,8 +3,9 @@
 #
 
 obj-$(CONFIG_IBM_ASM)		+= ibmasm/
-obj-$(CONFIG_HDPU_FEATURES)	+= hdpuftrs/
 obj-$(CONFIG_AD525X_DPOT)	+= ad525x_dpot.o
+obj-$(CONFIG_AD525X_DPOT_I2C)	+= ad525x_dpot-i2c.o
+obj-$(CONFIG_AD525X_DPOT_SPI)	+= ad525x_dpot-spi.o
 obj-$(CONFIG_ATMEL_PWM)		+= atmel_pwm.o
 obj-$(CONFIG_ATMEL_SSC)		+= atmel-ssc.o
 obj-$(CONFIG_ATMEL_TCLIB)	+= atmel_tclib.o
@@ -29,3 +30,4 @@ obj-$(CONFIG_C2PORT)		+= c2port/
 obj-$(CONFIG_IWMC3200TOP)      += iwmc3200top/
 obj-y				+= eeprom/
 obj-y				+= cb710/
+obj-$(CONFIG_VMWARE_BALLOON)	+= vmware_balloon.o

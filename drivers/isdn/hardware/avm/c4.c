@@ -22,6 +22,7 @@
 #include <linux/capi.h>
 #include <linux/kernelcapi.h>
 #include <linux/init.h>
+#include <linux/gfp.h>
 #include <asm/io.h>
 #include <asm/uaccess.h>
 #include <linux/netdevice.h>

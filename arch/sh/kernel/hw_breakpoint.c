@@ -120,25 +120,16 @@ static int get_hbp_len(u16 hbp_len)
 }
 
 /*
- * Check for virtual address in user space.
- */
-int arch_check_va_in_userspace(unsigned long va, u16 hbp_len)
-{
-	unsigned int len;
-
-	len = get_hbp_len(hbp_len);
-
-	return (va <= TASK_SIZE - len);
-}
-
-/*
  * Check for virtual address in kernel space.
  */
-static int arch_check_va_in_kernelspace(unsigned long va, u8 hbp_len)
+int arch_check_bp_in_kernelspace(struct perf_event *bp)
 {
 	unsigned int len;
+	unsigned long va;
+	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 
-	len = get_hbp_len(hbp_len);
+	va = info->address;
+	len = get_hbp_len(info->len);
 
 	return (va >= TASK_SIZE) && ((va + len - 1) >= TASK_SIZE);
 }
@@ -226,8 +217,7 @@ static int arch_build_bp_info(struct perf_event *bp)
 /*
  * Validate the arch-specific HW Breakpoint register settings
  */
-int arch_validate_hwbkpt_settings(struct perf_event *bp,
-				  struct task_struct *tsk)
+int arch_validate_hwbkpt_settings(struct perf_event *bp)
 {
 	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
 	unsigned int align;
@@ -269,15 +259,6 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp,
 	 */
 	if (info->address & align)
 		return -EINVAL;
-
-	/* Check that the virtual address is in the proper range */
-	if (tsk) {
-		if (!arch_check_va_in_userspace(info->address, info->len))
-			return -EFAULT;
-	} else {
-		if (!arch_check_va_in_kernelspace(info->address, info->len))
-			return -EFAULT;
-	}
 
 	return 0;
 }
@@ -363,8 +344,7 @@ static int __kprobes hw_breakpoint_handler(struct die_args *args)
 		perf_bp_event(bp, args->regs);
 
 		/* Deliver the signal to userspace */
-		if (arch_check_va_in_userspace(bp->attr.bp_addr,
-					       bp->attr.bp_len)) {
+		if (!arch_check_bp_in_kernelspace(bp)) {
 			siginfo_t info;
 
 			info.si_signo = args->signr;
@@ -421,11 +401,6 @@ int __kprobes hw_breakpoint_exceptions_notify(struct notifier_block *unused,
 }
 
 void hw_breakpoint_pmu_read(struct perf_event *bp)
-{
-	/* TODO */
-}
-
-void hw_breakpoint_pmu_unthrottle(struct perf_event *bp)
 {
 	/* TODO */
 }

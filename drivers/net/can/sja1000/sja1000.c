@@ -60,7 +60,6 @@
 #include <linux/skbuff.h>
 #include <linux/delay.h>
 
-#include <linux/can.h>
 #include <linux/can/dev.h>
 #include <linux/can/error.h>
 
@@ -83,6 +82,20 @@ static struct can_bittiming_const sja1000_bittiming_const = {
 	.brp_max = 64,
 	.brp_inc = 1,
 };
+
+static void sja1000_write_cmdreg(struct sja1000_priv *priv, u8 val)
+{
+	unsigned long flags;
+
+	/*
+	 * The command register needs some locking and time to settle
+	 * the write_reg() operation - especially on SMP systems.
+	 */
+	spin_lock_irqsave(&priv->cmdreg_lock, flags);
+	priv->write_reg(priv, REG_CMR, val);
+	priv->read_reg(priv, REG_SR);
+	spin_unlock_irqrestore(&priv->cmdreg_lock, flags);
+}
 
 static int sja1000_probe_chip(struct net_device *dev)
 {
@@ -293,11 +306,9 @@ static netdev_tx_t sja1000_start_xmit(struct sk_buff *skb,
 	for (i = 0; i < dlc; i++)
 		priv->write_reg(priv, dreg++, cf->data[i]);
 
-	dev->trans_start = jiffies;
-
 	can_put_echo_skb(skb, dev, 0);
 
-	priv->write_reg(priv, REG_CMR, CMD_TR);
+	sja1000_write_cmdreg(priv, CMD_TR);
 
 	return NETDEV_TX_OK;
 }
@@ -346,7 +357,7 @@ static void sja1000_rx(struct net_device *dev)
 	cf->can_id = id;
 
 	/* release receive buffer */
-	priv->write_reg(priv, REG_CMR, CMD_RRB);
+	sja1000_write_cmdreg(priv, CMD_RRB);
 
 	netif_rx(skb);
 
@@ -374,7 +385,7 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 		cf->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 		stats->rx_over_errors++;
 		stats->rx_errors++;
-		priv->write_reg(priv, REG_CMR, CMD_CDO);	/* clear bit */
+		sja1000_write_cmdreg(priv, CMD_CDO);	/* clear bit */
 	}
 
 	if (isrc & IRQ_EI) {
@@ -587,6 +598,8 @@ struct net_device *alloc_sja1000dev(int sizeof_priv)
 	priv->can.do_get_berr_counter = sja1000_get_berr_counter;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES |
 		CAN_CTRLMODE_BERR_REPORTING;
+
+	spin_lock_init(&priv->cmdreg_lock);
 
 	if (sizeof_priv)
 		priv->priv = (void *)priv + sizeof(struct sja1000_priv);

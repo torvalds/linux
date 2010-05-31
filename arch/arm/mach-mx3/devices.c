@@ -575,11 +575,64 @@ struct platform_device imx_ssi_device1 = {
 	.resource = imx_ssi_resources1,
 };
 
-static int mx3_devices_init(void)
+static struct resource imx_wdt_resources[] = {
+	{
+		.flags = IORESOURCE_MEM,
+	},
+};
+
+struct platform_device imx_wdt_device0 = {
+	.name           = "imx2-wdt",
+	.id             = 0,
+	.num_resources  = ARRAY_SIZE(imx_wdt_resources),
+	.resource       = imx_wdt_resources,
+};
+
+static struct resource imx_rtc_resources[] = {
+	{
+		.start  = MX31_RTC_BASE_ADDR,
+		.end    = MX31_RTC_BASE_ADDR + 0x3fff,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.start  = MX31_INT_RTC,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device imx_rtc_device0 = {
+	.name           = "mxc_rtc",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(imx_rtc_resources),
+	.resource       = imx_rtc_resources,
+};
+
+static struct resource imx_kpp_resources[] = {
+	{
+		.start	= MX3x_KPP_BASE_ADDR,
+		.end	= MX3x_KPP_BASE_ADDR + 0xf,
+		.flags	= IORESOURCE_MEM
+	}, {
+		.start	= MX3x_INT_KPP,
+		.end	= MX3x_INT_KPP,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device imx_kpp_device = {
+	.name = "imx-keypad",
+	.id = -1,
+	.num_resources = ARRAY_SIZE(imx_kpp_resources),
+	.resource = imx_kpp_resources,
+};
+
+static int __init mx3_devices_init(void)
 {
 	if (cpu_is_mx31()) {
 		mxc_nand_resources[0].start = MX31_NFC_BASE_ADDR;
 		mxc_nand_resources[0].end = MX31_NFC_BASE_ADDR + 0xfff;
+		imx_wdt_resources[0].start = MX31_WDOG_BASE_ADDR;
+		imx_wdt_resources[0].end = MX31_WDOG_BASE_ADDR + 0x3fff;
 		mxc_register_device(&mxc_rnga_device, NULL);
 	}
 	if (cpu_is_mx35()) {
@@ -597,6 +650,8 @@ static int mx3_devices_init(void)
 		imx_ssi_resources0[1].end = MX35_INT_SSI1;
 		imx_ssi_resources1[1].start = MX35_INT_SSI2;
 		imx_ssi_resources1[1].end = MX35_INT_SSI2;
+		imx_wdt_resources[0].start = MX35_WDOG_BASE_ADDR;
+		imx_wdt_resources[0].end = MX35_WDOG_BASE_ADDR + 0x3fff;
 	}
 
 	return 0;

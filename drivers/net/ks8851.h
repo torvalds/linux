@@ -25,11 +25,23 @@
 #define OBCR_ODS_16mA				(1 << 6)
 
 #define KS_EEPCR				0x22
+#define EEPCR_EESRWA				(1 << 5)
 #define EEPCR_EESA				(1 << 4)
-#define EEPCR_EESB				(1 << 3)
+#define EEPCR_EESB_OFFSET			3
+#define EEPCR_EESB				(1 << EEPCR_EESB_OFFSET)
 #define EEPCR_EEDO				(1 << 2)
 #define EEPCR_EESCK				(1 << 1)
 #define EEPCR_EECS				(1 << 0)
+
+#define EEPROM_OP_LEN				3	/* bits:*/
+#define EEPROM_OP_READ				0x06
+#define EEPROM_OP_EWEN				0x04
+#define EEPROM_OP_WRITE				0x05
+#define EEPROM_OP_EWDS				0x14
+
+#define EEPROM_DATA_LEN				16	/* 16 bits EEPROM */
+#define EEPROM_WRITE_TIME			4	/* wrt ack time in ms */
+#define EEPROM_SK_PERIOD			400	/* in us */
 
 #define KS_MBIR					0x24
 #define MBIR_TXMBF				(1 << 12)

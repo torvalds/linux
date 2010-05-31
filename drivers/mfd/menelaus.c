@@ -40,6 +40,7 @@
 #include <linux/delay.h>
 #include <linux/rtc.h>
 #include <linux/bcd.h>
+#include <linux/slab.h>
 
 #include <asm/mach/irq.h>
 
@@ -1227,6 +1228,7 @@ fail2:
 	free_irq(client->irq, menelaus);
 	flush_scheduled_work();
 fail1:
+	i2c_set_clientdata(client, NULL);
 	kfree(menelaus);
 	return err;
 }
@@ -1236,8 +1238,8 @@ static int __exit menelaus_remove(struct i2c_client *client)
 	struct menelaus_chip	*menelaus = i2c_get_clientdata(client);
 
 	free_irq(client->irq, menelaus);
-	kfree(menelaus);
 	i2c_set_clientdata(client, NULL);
+	kfree(menelaus);
 	the_menelaus = NULL;
 	return 0;
 }

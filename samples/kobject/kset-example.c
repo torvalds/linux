@@ -10,6 +10,7 @@
 #include <linux/kobject.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/init.h>
 

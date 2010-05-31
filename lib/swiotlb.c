@@ -28,6 +28,7 @@
 #include <linux/types.h>
 #include <linux/ctype.h>
 #include <linux/highmem.h>
+#include <linux/gfp.h>
 
 #include <asm/io.h>
 #include <asm/dma.h>
@@ -754,37 +755,6 @@ swiotlb_sync_single_for_device(struct device *hwdev, dma_addr_t dev_addr,
 	swiotlb_sync_single(hwdev, dev_addr, size, dir, SYNC_FOR_DEVICE);
 }
 EXPORT_SYMBOL(swiotlb_sync_single_for_device);
-
-/*
- * Same as above, but for a sub-range of the mapping.
- */
-static void
-swiotlb_sync_single_range(struct device *hwdev, dma_addr_t dev_addr,
-			  unsigned long offset, size_t size,
-			  int dir, int target)
-{
-	swiotlb_sync_single(hwdev, dev_addr + offset, size, dir, target);
-}
-
-void
-swiotlb_sync_single_range_for_cpu(struct device *hwdev, dma_addr_t dev_addr,
-				  unsigned long offset, size_t size,
-				  enum dma_data_direction dir)
-{
-	swiotlb_sync_single_range(hwdev, dev_addr, offset, size, dir,
-				  SYNC_FOR_CPU);
-}
-EXPORT_SYMBOL_GPL(swiotlb_sync_single_range_for_cpu);
-
-void
-swiotlb_sync_single_range_for_device(struct device *hwdev, dma_addr_t dev_addr,
-				     unsigned long offset, size_t size,
-				     enum dma_data_direction dir)
-{
-	swiotlb_sync_single_range(hwdev, dev_addr, offset, size, dir,
-				  SYNC_FOR_DEVICE);
-}
-EXPORT_SYMBOL_GPL(swiotlb_sync_single_range_for_device);
 
 /*
  * Map a set of buffers described by scatterlist in streaming mode for DMA.

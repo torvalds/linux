@@ -1,4 +1,5 @@
 #include <linux/sysctl.h>
+#include <linux/slab.h>
 #include <net/net_namespace.h>
 #include <net/xfrm.h>
 

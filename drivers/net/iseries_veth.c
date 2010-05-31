@@ -69,6 +69,7 @@
 #include <linux/mm.h>
 #include <linux/ethtool.h>
 #include <linux/if_ether.h>
+#include <linux/slab.h>
 
 #include <asm/abs_addr.h>
 #include <asm/iseries/mf.h>
@@ -961,15 +962,15 @@ static void veth_set_multicast_list(struct net_device *dev)
 			(netdev_mc_count(dev) > VETH_MAX_MCAST)) {
 		port->promiscuous = 1;
 	} else {
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 
 		port->promiscuous = 0;
 
 		/* Update table */
 		port->num_mcast = 0;
 
-		netdev_for_each_mc_addr(dmi, dev) {
-			u8 *addr = dmi->dmi_addr;
+		netdev_for_each_mc_addr(ha, dev) {
+			u8 *addr = ha->addr;
 			u64 xaddr = 0;
 
 			if (addr[0] & 0x01) {/* multicast address? */

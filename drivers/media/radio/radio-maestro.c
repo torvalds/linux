@@ -26,6 +26,7 @@
 #include <linux/pci.h>
 #include <linux/videodev2.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-ioctl.h>
 

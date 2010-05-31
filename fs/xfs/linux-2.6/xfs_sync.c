@@ -95,7 +95,8 @@ xfs_inode_ag_walk(
 					   struct xfs_perag *pag, int flags),
 	int			flags,
 	int			tag,
-	int			exclusive)
+	int			exclusive,
+	int			*nr_to_scan)
 {
 	uint32_t		first_index;
 	int			last_error = 0;
@@ -134,7 +135,7 @@ restart:
 		if (error == EFSCORRUPTED)
 			break;
 
-	} while (1);
+	} while ((*nr_to_scan)--);
 
 	if (skipped) {
 		delay(1);
@@ -150,12 +151,15 @@ xfs_inode_ag_iterator(
 					   struct xfs_perag *pag, int flags),
 	int			flags,
 	int			tag,
-	int			exclusive)
+	int			exclusive,
+	int			*nr_to_scan)
 {
 	int			error = 0;
 	int			last_error = 0;
 	xfs_agnumber_t		ag;
+	int			nr;
 
+	nr = nr_to_scan ? *nr_to_scan : INT_MAX;
 	for (ag = 0; ag < mp->m_sb.sb_agcount; ag++) {
 		struct xfs_perag	*pag;
 
@@ -165,14 +169,18 @@ xfs_inode_ag_iterator(
 			continue;
 		}
 		error = xfs_inode_ag_walk(mp, pag, execute, flags, tag,
-						exclusive);
+						exclusive, &nr);
 		xfs_perag_put(pag);
 		if (error) {
 			last_error = error;
 			if (error == EFSCORRUPTED)
 				break;
 		}
+		if (nr <= 0)
+			break;
 	}
+	if (nr_to_scan)
+		*nr_to_scan = nr;
 	return XFS_ERROR(last_error);
 }
 
@@ -291,7 +299,7 @@ xfs_sync_data(
 	ASSERT((flags & ~(SYNC_TRYLOCK|SYNC_WAIT)) == 0);
 
 	error = xfs_inode_ag_iterator(mp, xfs_sync_inode_data, flags,
-				      XFS_ICI_NO_TAG, 0);
+				      XFS_ICI_NO_TAG, 0, NULL);
 	if (error)
 		return XFS_ERROR(error);
 
@@ -310,7 +318,7 @@ xfs_sync_attr(
 	ASSERT((flags & ~SYNC_WAIT) == 0);
 
 	return xfs_inode_ag_iterator(mp, xfs_sync_inode_attr, flags,
-				     XFS_ICI_NO_TAG, 0);
+				     XFS_ICI_NO_TAG, 0, NULL);
 }
 
 STATIC int
@@ -348,68 +356,23 @@ xfs_commit_dummy_trans(
 
 STATIC int
 xfs_sync_fsdata(
-	struct xfs_mount	*mp,
-	int			flags)
+	struct xfs_mount	*mp)
 {
 	struct xfs_buf		*bp;
-	struct xfs_buf_log_item	*bip;
-	int			error = 0;
 
 	/*
-	 * If this is xfssyncd() then only sync the superblock if we can
-	 * lock it without sleeping and it is not pinned.
+	 * If the buffer is pinned then push on the log so we won't get stuck
+	 * waiting in the write for someone, maybe ourselves, to flush the log.
+	 *
+	 * Even though we just pushed the log above, we did not have the
+	 * superblock buffer locked at that point so it can become pinned in
+	 * between there and here.
 	 */
-	if (flags & SYNC_TRYLOCK) {
-		ASSERT(!(flags & SYNC_WAIT));
+	bp = xfs_getsb(mp, 0);
+	if (XFS_BUF_ISPINNED(bp))
+		xfs_log_force(mp, 0);
 
-		bp = xfs_getsb(mp, XBF_TRYLOCK);
-		if (!bp)
-			goto out;
-
-		bip = XFS_BUF_FSPRIVATE(bp, struct xfs_buf_log_item *);
-		if (!bip || !xfs_buf_item_dirty(bip) || XFS_BUF_ISPINNED(bp))
-			goto out_brelse;
-	} else {
-		bp = xfs_getsb(mp, 0);
-
-		/*
-		 * If the buffer is pinned then push on the log so we won't
-		 * get stuck waiting in the write for someone, maybe
-		 * ourselves, to flush the log.
-		 *
-		 * Even though we just pushed the log above, we did not have
-		 * the superblock buffer locked at that point so it can
-		 * become pinned in between there and here.
-		 */
-		if (XFS_BUF_ISPINNED(bp))
-			xfs_log_force(mp, 0);
-	}
-
-
-	if (flags & SYNC_WAIT)
-		XFS_BUF_UNASYNC(bp);
-	else
-		XFS_BUF_ASYNC(bp);
-
-	error = xfs_bwrite(mp, bp);
-	if (error)
-		return error;
-
-	/*
-	 * If this is a data integrity sync make sure all pending buffers
-	 * are flushed out for the log coverage check below.
-	 */
-	if (flags & SYNC_WAIT)
-		xfs_flush_buftarg(mp->m_ddev_targp, 1);
-
-	if (xfs_log_need_covered(mp))
-		error = xfs_commit_dummy_trans(mp, flags);
-	return error;
-
- out_brelse:
-	xfs_buf_relse(bp);
- out:
-	return error;
+	return xfs_bwrite(mp, bp);
 }
 
 /*
@@ -433,7 +396,7 @@ int
 xfs_quiesce_data(
 	struct xfs_mount	*mp)
 {
-	int error;
+	int			error, error2 = 0;
 
 	/* push non-blocking */
 	xfs_sync_data(mp, 0);
@@ -444,13 +407,20 @@ xfs_quiesce_data(
 	xfs_qm_sync(mp, SYNC_WAIT);
 
 	/* write superblock and hoover up shutdown errors */
-	error = xfs_sync_fsdata(mp, SYNC_WAIT);
+	error = xfs_sync_fsdata(mp);
+
+	/* make sure all delwri buffers are written out */
+	xfs_flush_buftarg(mp->m_ddev_targp, 1);
+
+	/* mark the log as covered if needed */
+	if (xfs_log_need_covered(mp))
+		error2 = xfs_commit_dummy_trans(mp, SYNC_WAIT);
 
 	/* flush data-only devices */
 	if (mp->m_rtdev_targp)
 		XFS_bflush(mp->m_rtdev_targp);
 
-	return error;
+	return error ? error : error2;
 }
 
 STATIC void
@@ -573,9 +543,9 @@ xfs_flush_inodes(
 }
 
 /*
- * Every sync period we need to unpin all items, reclaim inodes, sync
- * quota and write out the superblock. We might need to cover the log
- * to indicate it is idle.
+ * Every sync period we need to unpin all items, reclaim inodes and sync
+ * disk quotas.  We might need to cover the log to indicate that the
+ * filesystem is idle.
  */
 STATIC void
 xfs_sync_worker(
@@ -589,7 +559,8 @@ xfs_sync_worker(
 		xfs_reclaim_inodes(mp, 0);
 		/* dgc: errors ignored here */
 		error = xfs_qm_sync(mp, SYNC_TRYLOCK);
-		error = xfs_sync_fsdata(mp, SYNC_TRYLOCK);
+		if (xfs_log_need_covered(mp))
+			error = xfs_commit_dummy_trans(mp, 0);
 	}
 	mp->m_sync_seq++;
 	wake_up(&mp->m_wait_single_sync_task);
@@ -652,7 +623,7 @@ xfs_syncd_init(
 	mp->m_sync_work.w_syncer = xfs_sync_worker;
 	mp->m_sync_work.w_mount = mp;
 	mp->m_sync_work.w_completion = NULL;
-	mp->m_sync_task = kthread_run(xfssyncd, mp, "xfssyncd");
+	mp->m_sync_task = kthread_run(xfssyncd, mp, "xfssyncd/%s", mp->m_fsname);
 	if (IS_ERR(mp->m_sync_task))
 		return -PTR_ERR(mp->m_sync_task);
 	return 0;
@@ -673,6 +644,7 @@ __xfs_inode_set_reclaim_tag(
 	radix_tree_tag_set(&pag->pag_ici_root,
 			   XFS_INO_TO_AGINO(ip->i_mount, ip->i_ino),
 			   XFS_ICI_RECLAIM_TAG);
+	pag->pag_ici_reclaimable++;
 }
 
 /*
@@ -705,6 +677,7 @@ __xfs_inode_clear_reclaim_tag(
 {
 	radix_tree_tag_clear(&pag->pag_ici_root,
 			XFS_INO_TO_AGINO(mp, ip->i_ino), XFS_ICI_RECLAIM_TAG);
+	pag->pag_ici_reclaimable--;
 }
 
 /*
@@ -820,10 +793,10 @@ xfs_reclaim_inode(
 	 * call into reclaim to find it in a clean state instead of waiting for
 	 * it now. We also don't return errors here - if the error is transient
 	 * then the next reclaim pass will flush the inode, and if the error
-	 * is permanent then the next sync reclaim will relcaim the inode and
+	 * is permanent then the next sync reclaim will reclaim the inode and
 	 * pass on the error.
 	 */
-	if (error && !XFS_FORCED_SHUTDOWN(ip->i_mount)) {
+	if (error && error != EAGAIN && !XFS_FORCED_SHUTDOWN(ip->i_mount)) {
 		xfs_fs_cmn_err(CE_WARN, ip->i_mount,
 			"inode 0x%llx background reclaim flush failed with %d",
 			(long long)ip->i_ino, error);
@@ -854,5 +827,93 @@ xfs_reclaim_inodes(
 	int		mode)
 {
 	return xfs_inode_ag_iterator(mp, xfs_reclaim_inode, mode,
-					XFS_ICI_RECLAIM_TAG, 1);
+					XFS_ICI_RECLAIM_TAG, 1, NULL);
+}
+
+/*
+ * Shrinker infrastructure.
+ *
+ * This is all far more complex than it needs to be. It adds a global list of
+ * mounts because the shrinkers can only call a global context. We need to make
+ * the shrinkers pass a context to avoid the need for global state.
+ */
+static LIST_HEAD(xfs_mount_list);
+static struct rw_semaphore xfs_mount_list_lock;
+
+static int
+xfs_reclaim_inode_shrink(
+	int		nr_to_scan,
+	gfp_t		gfp_mask)
+{
+	struct xfs_mount *mp;
+	struct xfs_perag *pag;
+	xfs_agnumber_t	ag;
+	int		reclaimable = 0;
+
+	if (nr_to_scan) {
+		if (!(gfp_mask & __GFP_FS))
+			return -1;
+
+		down_read(&xfs_mount_list_lock);
+		list_for_each_entry(mp, &xfs_mount_list, m_mplist) {
+			xfs_inode_ag_iterator(mp, xfs_reclaim_inode, 0,
+					XFS_ICI_RECLAIM_TAG, 1, &nr_to_scan);
+			if (nr_to_scan <= 0)
+				break;
+		}
+		up_read(&xfs_mount_list_lock);
+	}
+
+	down_read(&xfs_mount_list_lock);
+	list_for_each_entry(mp, &xfs_mount_list, m_mplist) {
+		for (ag = 0; ag < mp->m_sb.sb_agcount; ag++) {
+
+			pag = xfs_perag_get(mp, ag);
+			if (!pag->pag_ici_init) {
+				xfs_perag_put(pag);
+				continue;
+			}
+			reclaimable += pag->pag_ici_reclaimable;
+			xfs_perag_put(pag);
+		}
+	}
+	up_read(&xfs_mount_list_lock);
+	return reclaimable;
+}
+
+static struct shrinker xfs_inode_shrinker = {
+	.shrink = xfs_reclaim_inode_shrink,
+	.seeks = DEFAULT_SEEKS,
+};
+
+void __init
+xfs_inode_shrinker_init(void)
+{
+	init_rwsem(&xfs_mount_list_lock);
+	register_shrinker(&xfs_inode_shrinker);
+}
+
+void
+xfs_inode_shrinker_destroy(void)
+{
+	ASSERT(list_empty(&xfs_mount_list));
+	unregister_shrinker(&xfs_inode_shrinker);
+}
+
+void
+xfs_inode_shrinker_register(
+	struct xfs_mount	*mp)
+{
+	down_write(&xfs_mount_list_lock);
+	list_add_tail(&mp->m_mplist, &xfs_mount_list);
+	up_write(&xfs_mount_list_lock);
+}
+
+void
+xfs_inode_shrinker_unregister(
+	struct xfs_mount	*mp)
+{
+	down_write(&xfs_mount_list_lock);
+	list_del(&mp->m_mplist);
+	up_write(&xfs_mount_list_lock);
 }

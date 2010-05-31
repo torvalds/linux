@@ -3,6 +3,7 @@
 
 #include <linux/err.h>
 #include <linux/scatterlist.h>
+#include <linux/slab.h>
 #include <crypto/hash.h>
 
 #include "crypto.h"

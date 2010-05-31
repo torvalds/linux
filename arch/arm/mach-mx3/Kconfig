@@ -62,6 +62,15 @@ config MACH_MX31_3DS
 	  Include support for MX31PDK (3DS) platform. This includes specific
 	  configurations for the board and its peripherals.
 
+config MACH_MX31_3DS_MXC_NAND_USE_BBT
+	bool "Make the MXC NAND driver use the in flash Bad Block Table"
+	depends on MACH_MX31_3DS
+	depends on MTD_NAND_MXC
+	help
+	  Enable this if you want that the MXC NAND driver uses the in flash
+	  Bad Block Table to know what blocks are bad instead of scanning the
+	  entire flash looking for bad block markers.
+
 config MACH_MX31MOBOARD
 	bool "Support mx31moboard platforms (EPFL Mobots group)"
 	select ARCH_MX31
@@ -73,6 +82,7 @@ config MACH_MX31MOBOARD
 config MACH_MX31LILLY
 	bool "Support MX31 LILLY-1131 platforms (INCO startec)"
 	select ARCH_MX31
+	select MXC_ULPI if USB_ULPI
 	help
 	  Include support for mx31 based LILLY1131 modules. This includes
 	  specific configurations for the board and its peripherals.
@@ -95,6 +105,7 @@ config MACH_PCM043
 config MACH_ARMADILLO5X0
 	bool "Support Atmark Armadillo-500 Development Base Board"
 	select ARCH_MX31
+	select MXC_ULPI if USB_ULPI
 	help
 	  Include support for Atmark Armadillo-500 platform. This includes
 	  specific configurations for the board and its peripherals.

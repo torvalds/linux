@@ -32,9 +32,20 @@ checking of rcu_dereference() primitives:
 	srcu_dereference(p, sp):
 		Check for SRCU read-side critical section.
 	rcu_dereference_check(p, c):
-		Use explicit check expression "c".
+		Use explicit check expression "c".  This is useful in
+		code that is invoked by both readers and updaters.
 	rcu_dereference_raw(p)
 		Don't check.  (Use sparingly, if at all.)
+	rcu_dereference_protected(p, c):
+		Use explicit check expression "c", and omit all barriers
+		and compiler constraints.  This is useful when the data
+		structure cannot change, for example, in code that is
+		invoked only by updaters.
+	rcu_access_pointer(p):
+		Return the value of the pointer and omit all barriers,
+		but retain the compiler constraints that prevent duplicating
+		or coalescsing.  This is useful when when testing the
+		value of the pointer itself, for example, against NULL.
 
 The rcu_dereference_check() check expression can be any boolean
 expression, but would normally include one of the rcu_read_lock_held()
@@ -59,7 +70,20 @@ In case (1), the pointer is picked up in an RCU-safe manner for vanilla
 RCU read-side critical sections, in case (2) the ->file_lock prevents
 any change from taking place, and finally, in case (3) the current task
 is the only task accessing the file_struct, again preventing any change
-from taking place.
+from taking place.  If the above statement was invoked only from updater
+code, it could instead be written as follows:
+
+	file = rcu_dereference_protected(fdt->fd[fd],
+					 lockdep_is_held(&files->file_lock) ||
+					 atomic_read(&files->count) == 1);
+
+This would verify cases #2 and #3 above, and furthermore lockdep would
+complain if this was used in an RCU read-side critical section unless one
+of these two cases held.  Because rcu_dereference_protected() omits all
+barriers and compiler constraints, it generates better code than do the
+other flavors of rcu_dereference().  On the other hand, it is illegal
+to use rcu_dereference_protected() if either the RCU-protected pointer
+or the RCU-protected data that it points to can change concurrently.
 
 There are currently only "universal" versions of the rcu_assign_pointer()
 and RCU list-/tree-traversal primitives, which do not (yet) check for

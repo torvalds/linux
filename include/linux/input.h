@@ -806,6 +806,7 @@ struct input_absinfo {
 #define BUS_HOST		0x19
 #define BUS_GSC			0x1A
 #define BUS_ATARI		0x1B
+#define BUS_SPI			0x1C
 
 /*
  * MT_TOOL types
@@ -1154,7 +1155,7 @@ struct input_dev {
 
 	int sync;
 
-	int abs[ABS_MAX + 1];
+	int abs[ABS_CNT];
 	int rep[REP_MAX + 1];
 
 	unsigned long key[BITS_TO_LONGS(KEY_CNT)];
@@ -1162,11 +1163,11 @@ struct input_dev {
 	unsigned long snd[BITS_TO_LONGS(SND_CNT)];
 	unsigned long sw[BITS_TO_LONGS(SW_CNT)];
 
-	int absmax[ABS_MAX + 1];
-	int absmin[ABS_MAX + 1];
-	int absfuzz[ABS_MAX + 1];
-	int absflat[ABS_MAX + 1];
-	int absres[ABS_MAX + 1];
+	int absmax[ABS_CNT];
+	int absmin[ABS_CNT];
+	int absfuzz[ABS_CNT];
+	int absflat[ABS_CNT];
+	int absres[ABS_CNT];
 
 	int (*open)(struct input_dev *dev);
 	void (*close)(struct input_dev *dev);

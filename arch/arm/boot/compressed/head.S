@@ -172,7 +172,7 @@ not_angel:
 		adr	r0, LC0
  ARM(		ldmia	r0, {r1, r2, r3, r4, r5, r6, r11, ip, sp})
  THUMB(		ldmia	r0, {r1, r2, r3, r4, r5, r6, r11, ip}	)
- THUMB(		ldr	sp, [r0, #28]				)
+ THUMB(		ldr	sp, [r0, #32]				)
 		subs	r0, r0, r1		@ calculate the delta offset
 
 						@ if delta is zero, we are
@@ -685,8 +685,8 @@ proc_types:
 		W(b)	__armv4_mmu_cache_off
 		W(b)	__armv4_mmu_cache_flush
 
-		.word	0x56056930
-		.word	0xff0ffff0		@ PXA935
+		.word	0x56056900
+		.word	0xffffff00		@ PXA9xx
 		W(b)	__armv4_mmu_cache_on
 		W(b)	__armv4_mmu_cache_off
 		W(b)	__armv4_mmu_cache_flush
@@ -696,12 +696,6 @@ proc_types:
 		W(b)	__armv4_mmu_cache_on
 		W(b)	__armv4_mmu_cache_off
 		W(b)	__armv5tej_mmu_cache_flush
-
-		.word	0x56056930
-		.word	0xff0ffff0		@ PXA935
-		W(b)	__armv4_mmu_cache_on
-		W(b)	__armv4_mmu_cache_off
-		W(b)	__armv4_mmu_cache_flush
 
 		.word	0x56050000		@ Feroceon
 		.word	0xff0f0000

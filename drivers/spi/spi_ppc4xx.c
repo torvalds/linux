@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/wait.h>
 #include <linux/of_platform.h>
@@ -586,12 +587,12 @@ static const struct of_device_id spi_ppc4xx_of_match[] = {
 MODULE_DEVICE_TABLE(of, spi_ppc4xx_of_match);
 
 static struct of_platform_driver spi_ppc4xx_of_driver = {
-	.match_table = spi_ppc4xx_of_match,
 	.probe = spi_ppc4xx_of_probe,
 	.remove = __exit_p(spi_ppc4xx_of_remove),
 	.driver = {
 		.name = DRIVER_NAME,
 		.owner = THIS_MODULE,
+		.of_match_table = spi_ppc4xx_of_match,
 	},
 };
 

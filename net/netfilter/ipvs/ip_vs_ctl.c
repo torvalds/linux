@@ -31,6 +31,7 @@
 #include <linux/workqueue.h>
 #include <linux/swap.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include <linux/netfilter.h>
 #include <linux/netfilter_ipv4.h>

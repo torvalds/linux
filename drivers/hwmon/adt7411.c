@@ -21,6 +21,7 @@
 #include <linux/i2c.h>
 #include <linux/hwmon.h>
 #include <linux/hwmon-sysfs.h>
+#include <linux/slab.h>
 
 #define ADT7411_REG_INT_TEMP_VDD_LSB		0x03
 #define ADT7411_REG_EXT_TEMP_AIN14_LSB		0x04

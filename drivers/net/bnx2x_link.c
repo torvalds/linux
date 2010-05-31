@@ -1594,7 +1594,7 @@ static u8 bnx2x_ext_phy_resolve_fc(struct link_params *params,
 				MDIO_AN_REG_ADV_PAUSE_MASK) >> 8;
 		pause_result |= (lp_pause &
 				 MDIO_AN_REG_ADV_PAUSE_MASK) >> 10;
-		DP(NETIF_MSG_LINK, "Ext PHY pause result 0x%x \n",
+		DP(NETIF_MSG_LINK, "Ext PHY pause result 0x%x\n",
 		   pause_result);
 		bnx2x_pause_resolve(vars, pause_result);
 		if (vars->flow_ctrl == BNX2X_FLOW_CTRL_NONE &&
@@ -1616,7 +1616,7 @@ static u8 bnx2x_ext_phy_resolve_fc(struct link_params *params,
 				MDIO_COMBO_IEEE0_AUTO_NEG_ADV_PAUSE_BOTH) >> 7;
 
 			bnx2x_pause_resolve(vars, pause_result);
-			DP(NETIF_MSG_LINK, "Ext PHY CL37 pause result 0x%x \n",
+			DP(NETIF_MSG_LINK, "Ext PHY CL37 pause result 0x%x\n",
 				 pause_result);
 		}
 	}
@@ -1974,7 +1974,7 @@ static u8 bnx2x_link_settings_status(struct link_params *params,
 		}
 	}
 
-	DP(NETIF_MSG_LINK, "gp_status 0x%x  phy_link_up %x line_speed %x \n",
+	DP(NETIF_MSG_LINK, "gp_status 0x%x  phy_link_up %x line_speed %x\n",
 		 gp_status, vars->phy_link_up, vars->line_speed);
 	DP(NETIF_MSG_LINK, "duplex %x  flow_ctrl 0x%x"
 		 " autoneg 0x%x\n",
@@ -3852,7 +3852,7 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 				    SPEED_AUTO_NEG) &&
 				   ((params->speed_cap_mask &
 				     PORT_HW_CFG_SPEED_CAPABILITY_D0_1G))) {
-				DP(NETIF_MSG_LINK, "Setting 1G clause37 \n");
+				DP(NETIF_MSG_LINK, "Setting 1G clause37\n");
 				bnx2x_cl45_write(bp, params->port, ext_phy_type,
 					       ext_phy_addr, MDIO_AN_DEVAD,
 					       MDIO_AN_REG_ADV, 0x20);
@@ -4234,14 +4234,14 @@ static u8 bnx2x_ext_phy_init(struct link_params *params, struct link_vars *vars)
 				      ext_phy_addr,
 				      MDIO_PMA_DEVAD,
 				      MDIO_PMA_REG_10G_CTRL2, &tmp1);
-				DP(NETIF_MSG_LINK, "1.7 = 0x%x \n", tmp1);
+				DP(NETIF_MSG_LINK, "1.7 = 0x%x\n", tmp1);
 
 			} else if ((params->req_line_speed ==
 				    SPEED_AUTO_NEG) &&
 				   ((params->speed_cap_mask &
 				     PORT_HW_CFG_SPEED_CAPABILITY_D0_1G))) {
 
-				DP(NETIF_MSG_LINK, "Setting 1G clause37 \n");
+				DP(NETIF_MSG_LINK, "Setting 1G clause37\n");
 				bnx2x_cl45_write(bp, params->port, ext_phy_type,
 					       ext_phy_addr, MDIO_AN_DEVAD,
 					       MDIO_PMA_REG_8727_MISC_CTRL, 0);

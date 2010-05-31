@@ -17,6 +17,7 @@
 #include <linux/miscdevice.h>
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/slab.h>
 #include <linux/suspend.h>
 #include <linux/watchdog.h>
 

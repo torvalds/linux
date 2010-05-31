@@ -5,8 +5,8 @@
  * Copyright (C) 2007-2009 Nokia Corporation
  *
  * Written by Paul Walmsley
- *
  * Added OMAP4 specific support by Abhijit Pagare <abhijitpagare@ti.com>
+ * State counting code by Tero Kristo <tero.kristo@nokia.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -64,10 +64,10 @@ static u16 pwrstst_reg_offs;
 #define OMAP_MEM4_ONSTATE_MASK OMAP4430_OCP_NRET_BANK_ONSTATE_MASK
 
 /* OMAP3 and OMAP4 Memory Retstate Masks (common across all power domains) */
-#define OMAP_MEM0_RETSTATE_MASK OMAP3430_SHAREDL1CACHEFLATRETSTATE
-#define OMAP_MEM1_RETSTATE_MASK OMAP3430_L1FLATMEMRETSTATE
-#define OMAP_MEM2_RETSTATE_MASK OMAP3430_SHAREDL2CACHEFLATRETSTATE
-#define OMAP_MEM3_RETSTATE_MASK OMAP3430_L2FLATMEMRETSTATE
+#define OMAP_MEM0_RETSTATE_MASK OMAP3430_SHAREDL1CACHEFLATRETSTATE_MASK
+#define OMAP_MEM1_RETSTATE_MASK OMAP3430_L1FLATMEMRETSTATE_MASK
+#define OMAP_MEM2_RETSTATE_MASK OMAP3430_SHAREDL2CACHEFLATRETSTATE_MASK
+#define OMAP_MEM3_RETSTATE_MASK OMAP3430_L2FLATMEMRETSTATE_MASK
 #define OMAP_MEM4_RETSTATE_MASK OMAP4430_OCP_NRET_BANK_RETSTATE_MASK
 
 /* OMAP3 and OMAP4 Memory Status bits */
@@ -222,7 +222,7 @@ void pwrdm_init(struct powerdomain **pwrdm_list)
 {
 	struct powerdomain **p = NULL;
 
-	if (cpu_is_omap24xx() | cpu_is_omap34xx()) {
+	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
 		pwrstctrl_reg_offs = OMAP2_PM_PWSTCTRL;
 		pwrstst_reg_offs = OMAP2_PM_PWSTST;
 	} else if (cpu_is_omap44xx()) {
@@ -511,6 +511,8 @@ int pwrdm_read_prev_pwrst(struct powerdomain *pwrdm)
  */
 int pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
 {
+	u32 v;
+
 	if (!pwrdm)
 		return -EINVAL;
 
@@ -526,9 +528,9 @@ int pwrdm_set_logic_retst(struct powerdomain *pwrdm, u8 pwrst)
 	 * but the type of value returned is the same for each
 	 * powerdomain.
 	 */
-	prm_rmw_mod_reg_bits(OMAP3430_LOGICL1CACHERETSTATE,
-			     (pwrst << __ffs(OMAP3430_LOGICL1CACHERETSTATE)),
-				 pwrdm->prcm_offs, pwrstctrl_reg_offs);
+	v = pwrst << __ffs(OMAP3430_LOGICL1CACHERETSTATE_MASK);
+	prm_rmw_mod_reg_bits(OMAP3430_LOGICL1CACHERETSTATE_MASK, v,
+			     pwrdm->prcm_offs, pwrstctrl_reg_offs);
 
 	return 0;
 }
@@ -676,8 +678,8 @@ int pwrdm_read_logic_pwrst(struct powerdomain *pwrdm)
 	if (!pwrdm)
 		return -EINVAL;
 
-	return prm_read_mod_bits_shift(pwrdm->prcm_offs,
-				 pwrstst_reg_offs, OMAP3430_LOGICSTATEST);
+	return prm_read_mod_bits_shift(pwrdm->prcm_offs, pwrstst_reg_offs,
+				       OMAP3430_LOGICSTATEST_MASK);
 }
 
 /**
@@ -700,7 +702,7 @@ int pwrdm_read_prev_logic_pwrst(struct powerdomain *pwrdm)
 	 * powerdomain.
 	 */
 	return prm_read_mod_bits_shift(pwrdm->prcm_offs, OMAP3430_PM_PREPWSTST,
-					OMAP3430_LASTLOGICSTATEENTERED);
+					OMAP3430_LASTLOGICSTATEENTERED_MASK);
 }
 
 /**
@@ -723,7 +725,7 @@ int pwrdm_read_logic_retst(struct powerdomain *pwrdm)
 	 * powerdomain.
 	 */
 	return prm_read_mod_bits_shift(pwrdm->prcm_offs, pwrstctrl_reg_offs,
-					OMAP3430_LOGICSTATEST);
+				       OMAP3430_LOGICSTATEST_MASK);
 }
 
 /**
@@ -978,6 +980,34 @@ bool pwrdm_has_hdwr_sar(struct powerdomain *pwrdm)
 }
 
 /**
+ * pwrdm_set_lowpwrstchange - Request a low power state change
+ * @pwrdm: struct powerdomain *
+ *
+ * Allows a powerdomain to transtion to a lower power sleep state
+ * from an existing sleep state without waking up the powerdomain.
+ * Returns -EINVAL if the powerdomain pointer is null or if the
+ * powerdomain does not support LOWPOWERSTATECHANGE, or returns 0
+ * upon success.
+ */
+int pwrdm_set_lowpwrstchange(struct powerdomain *pwrdm)
+{
+	if (!pwrdm)
+		return -EINVAL;
+
+	if (!(pwrdm->flags & PWRDM_HAS_LOWPOWERSTATECHANGE))
+		return -EINVAL;
+
+	pr_debug("powerdomain: %s: setting LOWPOWERSTATECHANGE bit\n",
+		 pwrdm->name);
+
+	prm_rmw_mod_reg_bits(OMAP4430_LOWPOWERSTATECHANGE_MASK,
+			     (1 << OMAP4430_LOWPOWERSTATECHANGE_SHIFT),
+			     pwrdm->prcm_offs, pwrstctrl_reg_offs);
+
+	return 0;
+}
+
+/**
  * pwrdm_wait_transition - wait for powerdomain power transition to finish
  * @pwrdm: struct powerdomain * to wait for
  *
@@ -1002,7 +1032,7 @@ int pwrdm_wait_transition(struct powerdomain *pwrdm)
 
 	/* XXX Is this udelay() value meaningful? */
 	while ((prm_read_mod_reg(pwrdm->prcm_offs, pwrstst_reg_offs) &
-		OMAP_INTRANSITION) &&
+		OMAP_INTRANSITION_MASK) &&
 	       (c++ < PWRDM_TRANSITION_BAILOUT))
 			udelay(1);
 

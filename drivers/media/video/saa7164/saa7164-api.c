@@ -20,6 +20,7 @@
  */
 
 #include <linux/wait.h>
+#include <linux/slab.h>
 
 #include "saa7164.h"
 

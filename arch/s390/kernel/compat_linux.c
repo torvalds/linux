@@ -29,7 +29,6 @@
 #include <linux/sem.h>
 #include <linux/msg.h>
 #include <linux/shm.h>
-#include <linux/slab.h>
 #include <linux/uio.h>
 #include <linux/quota.h>
 #include <linux/module.h>
@@ -52,6 +51,7 @@
 #include <linux/ptrace.h>
 #include <linux/fadvise.h>
 #include <linux/ipc.h>
+#include <linux/slab.h>
 
 #include <asm/types.h>
 #include <asm/uaccess.h>

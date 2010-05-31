@@ -69,6 +69,7 @@
  * Handler functions are called normally uwbd_evt_handle_*().
  */
 #include <linux/kthread.h>
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/freezer.h>
 

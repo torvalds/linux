@@ -21,6 +21,7 @@
 #include <linux/interrupt.h>
 #include <linux/highmem.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <linux/spi/dw_spi.h>
 #include <linux/spi/spi.h>

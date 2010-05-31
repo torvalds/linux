@@ -22,6 +22,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
+#include <linux/slab.h>
 #include <linux/regulator/max1586.h>
 
 #define MAX1586_V3_MAX_VSEL 31
@@ -243,8 +244,8 @@ static int __devexit max1586_pmic_remove(struct i2c_client *client)
 	for (i = 0; i <= MAX1586_V6; i++)
 		if (rdev[i])
 			regulator_unregister(rdev[i]);
-	kfree(rdev);
 	i2c_set_clientdata(client, NULL);
+	kfree(rdev);
 
 	return 0;
 }

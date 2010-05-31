@@ -26,6 +26,7 @@
 #include <linux/syscalls.h>
 #include <linux/irq.h>
 #include <linux/vmalloc.h>
+#include <linux/slab.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -1096,8 +1097,8 @@ void __devinit pcibios_setup_bus_devices(struct pci_bus *bus)
 		if (dev->is_added)
 			continue;
 
-		/* Setup OF node pointer in archdata */
-		sd->of_node = pci_device_to_OF_node(dev);
+		/* Setup OF node pointer in the device */
+		dev->dev.of_node = pci_device_to_OF_node(dev);
 
 		/* Fixup NUMA node as it may not be setup yet by the generic
 		 * code and is needed by the DMA init

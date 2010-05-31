@@ -32,6 +32,7 @@
 #include <linux/sched.h>
 #include <linux/inet.h>
 #include <linux/idr.h>
+#include <linux/slab.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -130,6 +131,8 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 	rdir = (struct p9_rdir *) fid->rdir;
 
 	err = mutex_lock_interruptible(&rdir->mutex);
+	if (err)
+		return err;
 	while (err == 0) {
 		if (rdir->tail == rdir->head) {
 			err = v9fs_file_readn(filp, rdir->buf, NULL,
@@ -194,6 +197,14 @@ int v9fs_dir_release(struct inode *inode, struct file *filp)
 }
 
 const struct file_operations v9fs_dir_operations = {
+	.read = generic_read_dir,
+	.llseek = generic_file_llseek,
+	.readdir = v9fs_dir_readdir,
+	.open = v9fs_file_open,
+	.release = v9fs_dir_release,
+};
+
+const struct file_operations v9fs_dir_operations_dotl = {
 	.read = generic_read_dir,
 	.llseek = generic_file_llseek,
 	.readdir = v9fs_dir_readdir,

@@ -20,6 +20,7 @@
 #include <linux/i2c.h>
 #include <linux/videodev2.h>
 #include <linux/ioctl.h>
+#include <linux/slab.h>
 
 #include "wis-i2c.h"
 
@@ -421,6 +422,7 @@ static int wis_saa7115_probe(struct i2c_client *client,
 	if (write_regs(client, initial_registers) < 0) {
 		printk(KERN_ERR
 			"wis-saa7115: error initializing SAA7115\n");
+		i2c_set_clientdata(client, NULL);
 		kfree(dec);
 		return -ENODEV;
 	}

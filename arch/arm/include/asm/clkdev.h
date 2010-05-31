@@ -13,6 +13,7 @@
 #define __ASM_CLKDEV_H
 
 struct clk;
+struct device;
 
 struct clk_lookup {
 	struct list_head	node;

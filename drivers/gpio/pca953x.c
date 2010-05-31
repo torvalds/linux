@@ -18,6 +18,7 @@
 #include <linux/irq.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
+#include <linux/slab.h>
 #ifdef CONFIG_OF_GPIO
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
@@ -72,7 +73,7 @@ struct pca953x_chip {
 	struct i2c_client *client;
 	struct pca953x_platform_data *dyn_pdata;
 	struct gpio_chip gpio_chip;
-	char **names;
+	const char *const *names;
 };
 
 static int pca953x_write_reg(struct pca953x_chip *chip, int reg, uint16_t val)
@@ -251,6 +252,18 @@ static void pca953x_irq_bus_lock(unsigned int irq)
 static void pca953x_irq_bus_sync_unlock(unsigned int irq)
 {
 	struct pca953x_chip *chip = get_irq_chip_data(irq);
+	uint16_t new_irqs;
+	uint16_t level;
+
+	/* Look for any newly setup interrupt */
+	new_irqs = chip->irq_trig_fall | chip->irq_trig_raise;
+	new_irqs &= ~chip->reg_direction;
+
+	while (new_irqs) {
+		level = __ffs(new_irqs);
+		pca953x_gpio_direction_input(&chip->gpio_chip, level);
+		new_irqs &= ~(1 << level);
+	}
 
 	mutex_unlock(&chip->irq_lock);
 }
@@ -277,7 +290,7 @@ static int pca953x_irq_set_type(unsigned int irq, unsigned int type)
 	else
 		chip->irq_trig_raise &= ~mask;
 
-	return pca953x_gpio_direction_input(&chip->gpio_chip, level);
+	return 0;
 }
 
 static struct irq_chip pca953x_irq_chip = {
@@ -436,7 +449,7 @@ pca953x_get_alt_pdata(struct i2c_client *client)
 	struct device_node *node;
 	const uint16_t *val;
 
-	node = dev_archdata_get_node(&client->dev.archdata);
+	node = client->dev.of_node;
 	if (node == NULL)
 		return NULL;
 

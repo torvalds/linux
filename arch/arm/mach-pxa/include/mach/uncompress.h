@@ -16,9 +16,9 @@
 #define BTUART_BASE	(0x40200000)
 #define STUART_BASE	(0x40700000)
 
-static unsigned long uart_base = FFUART_BASE;
-static unsigned int uart_shift = 2;
-static unsigned int uart_is_pxa = 1;
+static unsigned long uart_base;
+static unsigned int uart_shift;
+static unsigned int uart_is_pxa;
 
 static inline unsigned char uart_read(int offset)
 {
@@ -56,6 +56,11 @@ static inline void flush(void)
 
 static inline void arch_decomp_setup(void)
 {
+	/* initialize to default */
+	uart_base = FFUART_BASE;
+	uart_shift = 2;
+	uart_is_pxa = 1;
+
 	if (machine_is_littleton() || machine_is_intelmote2()
 	    || machine_is_csb726() || machine_is_stargate2()
 	    || machine_is_cm_x300() || machine_is_balloon3())

@@ -75,9 +75,6 @@ config LOCKDEP_SUPPORT
 config HAVE_LATENCYTOP_SUPPORT
 	def_bool y
 
-config PCI
-	def_bool n
-
 config DTC
 	def_bool y
 

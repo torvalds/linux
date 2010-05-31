@@ -67,7 +67,7 @@
 #define   OHCI1394_PhyControl_ReadDone		0x80000000
 #define   OHCI1394_PhyControl_ReadData(r)	(((r) & 0x00ff0000) >> 16)
 #define   OHCI1394_PhyControl_Write(addr, data)	(((addr) << 8) | (data) | 0x00004000)
-#define   OHCI1394_PhyControl_WriteDone		0x00004000
+#define   OHCI1394_PhyControl_WritePending	0x00004000
 #define OHCI1394_IsochronousCycleTimer        0x0F0
 #define OHCI1394_AsReqFilterHiSet             0x100
 #define OHCI1394_AsReqFilterHiClear           0x104
@@ -153,5 +153,13 @@
 #define OHCI1394_evt_flushed		0xf
 
 #define OHCI1394_phy_tcode		0xe
+
+/* TI extensions */
+
+#define PCI_CFG_TI_LinkEnh		0xf4
+#define  TI_LinkEnh_enab_accel		0x00000002
+#define  TI_LinkEnh_enab_unfair		0x00000080
+#define  TI_LinkEnh_atx_thresh_mask	0x00003000
+#define  TI_LinkEnh_atx_thresh_1_7K	0x00001000
 
 #endif /* _FIREWIRE_OHCI_H */

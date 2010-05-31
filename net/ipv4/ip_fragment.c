@@ -32,6 +32,7 @@
 #include <linux/netdevice.h>
 #include <linux/jhash.h>
 #include <linux/random.h>
+#include <linux/slab.h>
 #include <net/route.h>
 #include <net/dst.h>
 #include <net/sock.h>

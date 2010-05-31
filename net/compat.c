@@ -12,6 +12,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/file.h>

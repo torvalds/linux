@@ -191,7 +191,6 @@
 
 struct scsi_info_t {
 	struct pcmcia_device	*p_dev;
-	dev_node_t node;
 	struct Scsi_Host *host;
 	unsigned short manf_id;
 };
@@ -719,8 +718,7 @@ SYM53C500_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	ret = pcmcia_request_irq(link, &link->irq);
-	if (ret)
+	if (!link->irq)
 		goto failed;
 
 	ret = pcmcia_request_configuration(link, &link->conf);
@@ -752,7 +750,7 @@ SYM53C500_config(struct pcmcia_device *link)
 	*	0x320, 0x330, 0x340, 0x350
 	*/
 	port_base = link->io.BasePort1;
-	irq_level = link->irq.AssignedIRQ;
+	irq_level = link->irq;
 
 	DEB(printk("SYM53C500: port_base=0x%x, irq=%d, fast_pio=%d\n",
 	    port_base, irq_level, USE_FAST_PIO);)
@@ -793,8 +791,6 @@ SYM53C500_config(struct pcmcia_device *link)
 	*/
 	data->fast_pio = USE_FAST_PIO;
 
-	sprintf(info->node.dev_name, "scsi%d", host->host_no);
-	link->dev_node = &info->node;
 	info->host = host;
 
 	if (scsi_add_host(host, NULL))
@@ -866,7 +862,6 @@ SYM53C500_probe(struct pcmcia_device *link)
 	link->io.NumPorts1 = 16;
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
 	link->io.IOAddrLines = 10;
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 

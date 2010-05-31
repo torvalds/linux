@@ -519,7 +519,7 @@ static int sdricoh_pcmcia_suspend(struct pcmcia_device *link)
 {
 	struct mmc_host *mmc = link->priv;
 	dev_dbg(&link->dev, "suspend\n");
-	mmc_suspend_host(mmc, PMSG_SUSPEND);
+	mmc_suspend_host(mmc);
 	return 0;
 }
 

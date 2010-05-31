@@ -29,6 +29,7 @@
 #include <linux/poll.h>
 #include <linux/idr.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include <net/9p/9p.h>
@@ -71,9 +72,10 @@ inline int p9_is_proto_dotu(struct p9_client *clnt)
 EXPORT_SYMBOL(p9_is_proto_dotu);
 
 /* Interpret mount option for protocol version */
-static unsigned char get_protocol_version(const substring_t *name)
+static int get_protocol_version(const substring_t *name)
 {
-	unsigned char version = -EINVAL;
+	int version = -EINVAL;
+
 	if (!strncmp("9p2000", name->from, name->to-name->from)) {
 		version = p9_proto_legacy;
 		P9_DPRINTK(P9_DEBUG_9P, "Protocol version: Legacy\n");
@@ -533,7 +535,12 @@ p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...)
 
 	P9_DPRINTK(P9_DEBUG_MUX, "client %p op %d\n", c, type);
 
-	if (c->status != Connected)
+	/* we allow for any status other than disconnected */
+	if (c->status == Disconnected)
+		return ERR_PTR(-EIO);
+
+	/* if status is begin_disconnected we allow only clunk request */
+	if ((c->status == BeginDisconnect) && (type != P9_TCLUNK))
 		return ERR_PTR(-EIO);
 
 	if (signal_pending(current)) {
@@ -799,8 +806,10 @@ void p9_client_destroy(struct p9_client *clnt)
 
 	v9fs_put_trans(clnt->trans_mod);
 
-	list_for_each_entry_safe(fid, fidptr, &clnt->fidlist, flist)
+	list_for_each_entry_safe(fid, fidptr, &clnt->fidlist, flist) {
+		printk(KERN_INFO "Found fid %d not clunked\n", fid->fid);
 		p9_fid_destroy(fid);
+	}
 
 	if (clnt->fidpool)
 		p9_idpool_destroy(clnt->fidpool);
@@ -817,6 +826,13 @@ void p9_client_disconnect(struct p9_client *clnt)
 	clnt->status = Disconnected;
 }
 EXPORT_SYMBOL(p9_client_disconnect);
+
+void p9_client_begin_disconnect(struct p9_client *clnt)
+{
+	P9_DPRINTK(P9_DEBUG_9P, "clnt %p\n", clnt);
+	clnt->status = BeginDisconnect;
+}
+EXPORT_SYMBOL(p9_client_begin_disconnect);
 
 struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 	char *uname, u32 n_uname, char *aname)
@@ -1305,7 +1321,8 @@ static int p9_client_statsize(struct p9_wstat *wst, int proto_version)
 	if (wst->muid)
 		ret += strlen(wst->muid);
 
-	if (proto_version == p9_proto_2000u) {
+	if ((proto_version == p9_proto_2000u) ||
+		(proto_version == p9_proto_2000L)) {
 		ret += 2+4+4+4;	/* extension[s] n_uid[4] n_gid[4] n_muid[4] */
 		if (wst->extension)
 			ret += strlen(wst->extension);
@@ -1348,3 +1365,70 @@ error:
 	return err;
 }
 EXPORT_SYMBOL(p9_client_wstat);
+
+int p9_client_statfs(struct p9_fid *fid, struct p9_rstatfs *sb)
+{
+	int err;
+	struct p9_req_t *req;
+	struct p9_client *clnt;
+
+	err = 0;
+	clnt = fid->clnt;
+
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TSTATFS fid %d\n", fid->fid);
+
+	req = p9_client_rpc(clnt, P9_TSTATFS, "d", fid->fid);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "ddqqqqqqd", &sb->type,
+		&sb->bsize, &sb->blocks, &sb->bfree, &sb->bavail,
+		&sb->files, &sb->ffree, &sb->fsid, &sb->namelen);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		p9_free_req(clnt, req);
+		goto error;
+	}
+
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RSTATFS fid %d type 0x%lx bsize %ld "
+		"blocks %llu bfree %llu bavail %llu files %llu ffree %llu "
+		"fsid %llu namelen %ld\n",
+		fid->fid, (long unsigned int)sb->type, (long int)sb->bsize,
+		sb->blocks, sb->bfree, sb->bavail, sb->files,  sb->ffree,
+		sb->fsid, (long int)sb->namelen);
+
+	p9_free_req(clnt, req);
+error:
+	return err;
+}
+EXPORT_SYMBOL(p9_client_statfs);
+
+int p9_client_rename(struct p9_fid *fid, struct p9_fid *newdirfid, char *name)
+{
+	int err;
+	struct p9_req_t *req;
+	struct p9_client *clnt;
+
+	err = 0;
+	clnt = fid->clnt;
+
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TRENAME fid %d newdirfid %d name %s\n",
+			fid->fid, newdirfid->fid, name);
+
+	req = p9_client_rpc(clnt, P9_TRENAME, "dds", fid->fid,
+			newdirfid->fid, name);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RRENAME fid %d\n", fid->fid);
+
+	p9_free_req(clnt, req);
+error:
+	return err;
+}
+EXPORT_SYMBOL(p9_client_rename);
+

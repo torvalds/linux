@@ -18,6 +18,7 @@
 
 #include <linux/pagemap.h>
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/math64.h>
 #include "ctree.h"
 #include "free-space-cache.h"

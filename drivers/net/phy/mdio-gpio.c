@@ -199,12 +199,12 @@ static int __devinit mdio_ofgpio_probe(struct of_device *ofdev,
 	if (!pdata)
 		return -ENOMEM;
 
-	ret = of_get_gpio(ofdev->node, 0);
+	ret = of_get_gpio(ofdev->dev.of_node, 0);
 	if (ret < 0)
 		goto out_free;
 	pdata->mdc = ret;
 
-	ret = of_get_gpio(ofdev->node, 1);
+	ret = of_get_gpio(ofdev->dev.of_node, 1);
 	if (ret < 0)
 		goto out_free;
 	pdata->mdio = ret;
@@ -213,7 +213,7 @@ static int __devinit mdio_ofgpio_probe(struct of_device *ofdev,
 	if (!new_bus)
 		goto out_free;
 
-	ret = of_mdiobus_register(new_bus, ofdev->node);
+	ret = of_mdiobus_register(new_bus, ofdev->dev.of_node);
 	if (ret)
 		mdio_gpio_bus_deinit(&ofdev->dev);
 
@@ -241,8 +241,11 @@ static struct of_device_id mdio_ofgpio_match[] = {
 MODULE_DEVICE_TABLE(of, mdio_ofgpio_match);
 
 static struct of_platform_driver mdio_ofgpio_driver = {
-	.name = "mdio-gpio",
-	.match_table = mdio_ofgpio_match,
+	.driver = {
+		.name = "mdio-gpio",
+		.owner = THIS_MODULE,
+		.of_match_table = mdio_ofgpio_match,
+	},
 	.probe = mdio_ofgpio_probe,
 	.remove = __devexit_p(mdio_ofgpio_remove),
 };

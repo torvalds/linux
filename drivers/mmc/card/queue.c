@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  *
  */
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/freezer.h>

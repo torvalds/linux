@@ -182,7 +182,7 @@ static unsigned long hpt366_filter(struct ata_device *adev, unsigned long mask)
 	} else if (adev->class == ATA_DEV_ATAPI)
 		mask &= ~(ATA_MASK_MWDMA | ATA_MASK_UDMA);
 
-	return ata_bmdma_mode_filter(adev, mask);
+	return mask;
 }
 
 static int hpt36x_cable_detect(struct ata_port *ap)
@@ -361,7 +361,7 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			break;
 	}
 	/* Now kick off ATA set up */
-	return ata_pci_sff_init_one(dev, ppi, &hpt36x_sht, hpriv, 0);
+	return ata_pci_bmdma_init_one(dev, ppi, &hpt36x_sht, hpriv, 0);
 }
 
 #ifdef CONFIG_PM

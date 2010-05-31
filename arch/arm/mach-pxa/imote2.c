@@ -559,10 +559,6 @@ static void __init imote2_init(void)
 	pxa_set_btuart_info(NULL);
 	pxa_set_stuart_info(NULL);
 
-	/* SPI chip select directions - all other directions should
-	 * be handled by drivers.*/
-	gpio_direction_output(37, 0);
-
 	platform_add_devices(imote2_devices, ARRAY_SIZE(imote2_devices));
 
 	pxa2xx_set_spi_info(1, &pxa_ssp_master_0_info);

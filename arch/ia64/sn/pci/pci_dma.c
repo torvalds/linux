@@ -9,6 +9,7 @@
  * a description of how these routines should be used.
  */
 
+#include <linux/gfp.h>
 #include <linux/module.h>
 #include <linux/dma-mapping.h>
 #include <asm/dma.h>

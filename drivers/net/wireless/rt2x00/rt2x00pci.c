@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 
 #include "rt2x00.h"
 #include "rt2x00pci.h"
@@ -62,11 +63,10 @@ EXPORT_SYMBOL_GPL(rt2x00pci_regbusy_read);
 /*
  * TX data handlers.
  */
-int rt2x00pci_write_tx_data(struct queue_entry *entry)
+int rt2x00pci_write_tx_data(struct queue_entry *entry,
+			    struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
-	struct skb_frame_desc *skbdesc;
 
 	/*
 	 * This should not happen, we already checked the entry
@@ -80,13 +80,6 @@ int rt2x00pci_write_tx_data(struct queue_entry *entry)
 		      entry->queue->qid, DRV_PROJECT);
 		return -EINVAL;
 	}
-
-	/*
-	 * Fill in skb descriptor
-	 */
-	skbdesc = get_skb_frame_desc(entry->skb);
-	skbdesc->desc = entry_priv->desc;
-	skbdesc->desc_len = entry->queue->desc_size;
 
 	return 0;
 }
@@ -213,7 +206,7 @@ void rt2x00pci_uninitialize(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Free irq line.
 	 */
-	free_irq(to_pci_dev(rt2x00dev->dev)->irq, rt2x00dev);
+	free_irq(rt2x00dev->irq, rt2x00dev);
 
 	/*
 	 * Free DMA

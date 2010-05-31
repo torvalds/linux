@@ -26,6 +26,7 @@
  *	Eric Anholt <eric@anholt.net>
  */
 #include <linux/i2c.h>
+#include <linux/slab.h>
 #include <linux/i2c-id.h>
 #include <linux/i2c-algo-bit.h>
 #include "drmP.h"

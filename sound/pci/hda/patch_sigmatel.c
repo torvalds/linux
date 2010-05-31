@@ -104,6 +104,7 @@ enum {
 	STAC_DELL_M4_2,
 	STAC_DELL_M4_3,
 	STAC_HP_M4,
+	STAC_HP_DV4,
 	STAC_HP_DV5,
 	STAC_HP_HDX,
 	STAC_HP_DV4_1222NR,
@@ -1544,11 +1545,9 @@ static unsigned int alienware_m17x_pin_configs[13] = {
 	0x904601b0,
 };
 
-static unsigned int intel_dg45id_pin_configs[14] = {
+static unsigned int intel_dg45id_pin_configs[13] = {
 	0x02214230, 0x02A19240, 0x01013214, 0x01014210,
-	0x01A19250, 0x01011212, 0x01016211, 0x40f000f0,
-	0x40f000f0, 0x40f000f0, 0x40f000f0, 0x014510A0,
-	0x074510B0, 0x40f000f0
+	0x01A19250, 0x01011212, 0x01016211
 };
 
 static unsigned int *stac92hd73xx_brd_tbl[STAC_92HD73XX_MODELS] = {
@@ -1607,6 +1606,10 @@ static struct snd_pci_quirk stac92hd73xx_cfg_tbl[] = {
 				"Dell Studio 1555", STAC_DELL_M6_DMIC),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02bd,
 				"Dell Studio 1557", STAC_DELL_M6_DMIC),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x02fe,
+				"Dell Studio XPS 1645", STAC_DELL_M6_BOTH),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0413,
+				"Dell Studio 1558", STAC_DELL_M6_BOTH),
 	{} /* terminator */
 };
 
@@ -1689,6 +1692,7 @@ static unsigned int *stac92hd71bxx_brd_tbl[STAC_92HD71BXX_MODELS] = {
 	[STAC_DELL_M4_2]	= dell_m4_2_pin_configs,
 	[STAC_DELL_M4_3]	= dell_m4_3_pin_configs,
 	[STAC_HP_M4]		= NULL,
+	[STAC_HP_DV4]		= NULL,
 	[STAC_HP_DV5]		= NULL,
 	[STAC_HP_HDX]           = NULL,
 	[STAC_HP_DV4_1222NR]	= NULL,
@@ -1701,6 +1705,7 @@ static const char *stac92hd71bxx_models[STAC_92HD71BXX_MODELS] = {
 	[STAC_DELL_M4_2] = "dell-m4-2",
 	[STAC_DELL_M4_3] = "dell-m4-3",
 	[STAC_HP_M4] = "hp-m4",
+	[STAC_HP_DV4] = "hp-dv4",
 	[STAC_HP_DV5] = "hp-dv5",
 	[STAC_HP_HDX] = "hp-hdx",
 	[STAC_HP_DV4_1222NR] = "hp-dv4-1222nr",
@@ -1719,7 +1724,7 @@ static struct snd_pci_quirk stac92hd71bxx_cfg_tbl[] = {
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x3080,
 		      "HP", STAC_HP_DV5),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x30f0,
-		      "HP dv4-7", STAC_HP_DV5),
+		      "HP dv4-7", STAC_HP_DV4),
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x3600,
 		      "HP dv4-7", STAC_HP_DV5),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3610,
@@ -1730,6 +1735,8 @@ static struct snd_pci_quirk stac92hd71bxx_cfg_tbl[] = {
 		      "HP HDX", STAC_HP_HDX),  /* HDX16 */
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x3620,
 		      "HP dv6", STAC_HP_DV5),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_HP, 0x3061,
+		      "HP dv6", STAC_HP_DV5), /* HP dv6-1110ax */
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_HP, 0xfff0, 0x7010,
 		      "HP", STAC_HP_DV5),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL, 0x0233,
@@ -2071,12 +2078,12 @@ static struct snd_pci_quirk stac927x_cfg_tbl[] = {
 	SND_PCI_QUIRK_MASK(PCI_VENDOR_ID_INTEL, 0xff00, 0x2000,
 			   "Intel D965", STAC_D965_3ST),
 	/* Dell 3 stack systems */
-	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01f7, "Dell XPS M1730", STAC_DELL_3ST),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01dd, "Dell Dimension E520", STAC_DELL_3ST),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01ed, "Dell     ", STAC_DELL_3ST),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01f4, "Dell     ", STAC_DELL_3ST),
 	/* Dell 3 stack systems with verb table in BIOS */
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01f3, "Dell Inspiron 1420", STAC_DELL_BIOS),
+	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x01f7, "Dell XPS M1730", STAC_DELL_BIOS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x0227, "Dell Vostro 1400  ", STAC_DELL_BIOS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x022e, "Dell     ", STAC_DELL_BIOS),
 	SND_PCI_QUIRK(PCI_VENDOR_ID_DELL,  0x022f, "Dell Inspiron 1525", STAC_DELL_BIOS),
@@ -4762,6 +4769,9 @@ static void set_hp_led_gpio(struct hda_codec *codec)
 	struct sigmatel_spec *spec = codec->spec;
 	unsigned int gpio;
 
+	if (spec->gpio_led)
+		return;
+
 	gpio = snd_hda_param_read(codec, codec->afg, AC_PAR_GPIO_CAP);
 	gpio &= AC_GPIO_IO_COUNT;
 	if (gpio > 3)
@@ -5671,6 +5681,9 @@ again:
 		spec->num_smuxes = 1;
 		spec->num_dmuxes = 1;
 		/* fallthrough */
+	case STAC_HP_DV4:
+		spec->gpio_led = 0x01;
+		/* fallthrough */
 	case STAC_HP_DV5:
 		snd_hda_codec_set_pincfg(codec, 0x0d, 0x90170010);
 		stac92xx_auto_set_pinctl(codec, 0x0d, AC_PINCTL_OUT_EN);
@@ -5684,6 +5697,7 @@ again:
 		spec->num_dmics = 1;
 		spec->num_dmuxes = 1;
 		spec->num_smuxes = 1;
+		spec->gpio_led = 0x08;
 		break;
 	}
 
@@ -5740,7 +5754,8 @@ again:
 	}
 
 	/* enable bass on HP dv7 */
-	if (spec->board_config == STAC_HP_DV5) {
+	if (spec->board_config == STAC_HP_DV4 ||
+	    spec->board_config == STAC_HP_DV5) {
 		unsigned int cap;
 		cap = snd_hda_param_read(codec, 0x1, AC_PAR_GPIO_CAP);
 		cap &= AC_GPIO_IO_COUNT;

@@ -23,10 +23,9 @@ static int jffs2_garbage_collect_thread(void *);
 
 void jffs2_garbage_collect_trigger(struct jffs2_sb_info *c)
 {
-	spin_lock(&c->erase_completion_lock);
+	assert_spin_locked(&c->erase_completion_lock);
 	if (c->gc_task && jffs2_thread_should_wake(c))
 		send_sig(SIGHUP, c->gc_task, 1);
-	spin_unlock(&c->erase_completion_lock);
 }
 
 /* This must only ever be called when no GC thread is currently running */

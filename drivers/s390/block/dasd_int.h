@@ -81,6 +81,10 @@ struct dasd_block;
 #define DASD_SIM_MSG_TO_OP 0x03
 #define DASD_SIM_LOG 0x0C
 
+/* lock class for nested cdev lock */
+#define CDEV_NESTED_FIRST 1
+#define CDEV_NESTED_SECOND 2
+
 /*
  * SECTION: MACROs for klogd and s390 debug feature (dbf)
  */
@@ -229,6 +233,24 @@ struct dasd_ccw_req {
 typedef struct dasd_ccw_req *(*dasd_erp_fn_t) (struct dasd_ccw_req *);
 
 /*
+ * Unique identifier for dasd device.
+ */
+#define UA_NOT_CONFIGURED  0x00
+#define UA_BASE_DEVICE	   0x01
+#define UA_BASE_PAV_ALIAS  0x02
+#define UA_HYPER_PAV_ALIAS 0x03
+
+struct dasd_uid {
+	__u8 type;
+	char vendor[4];
+	char serial[15];
+	__u16 ssid;
+	__u8 real_unit_addr;
+	__u8 base_unit_addr;
+	char vduit[33];
+};
+
+/*
  * the struct dasd_discipline is
  * sth like a table of virtual functions, if you think of dasd_eckd
  * inheriting dasd...
@@ -312,27 +334,14 @@ struct dasd_discipline {
 	/* suspend/resume functions */
 	int (*freeze) (struct dasd_device *);
 	int (*restore) (struct dasd_device *);
+
+	/* reload device after state change */
+	int (*reload) (struct dasd_device *);
+
+	int (*get_uid) (struct dasd_device *, struct dasd_uid *);
 };
 
 extern struct dasd_discipline *dasd_diag_discipline_pointer;
-
-/*
- * Unique identifier for dasd device.
- */
-#define UA_NOT_CONFIGURED  0x00
-#define UA_BASE_DEVICE	   0x01
-#define UA_BASE_PAV_ALIAS  0x02
-#define UA_HYPER_PAV_ALIAS 0x03
-
-struct dasd_uid {
-	__u8 type;
-	char vendor[4];
-	char serial[15];
-	__u16 ssid;
-	__u8 real_unit_addr;
-	__u8 base_unit_addr;
-	char vduit[33];
-};
 
 /*
  * Notification numbers for extended error reporting notifications:
@@ -386,6 +395,7 @@ struct dasd_device {
         struct tasklet_struct tasklet;
 	struct work_struct kick_work;
 	struct work_struct restore_device;
+	struct work_struct reload_device;
 	struct timer_list timer;
 
 	debug_info_t *debug_area;
@@ -582,6 +592,7 @@ void dasd_enable_device(struct dasd_device *);
 void dasd_set_target_state(struct dasd_device *, int);
 void dasd_kick_device(struct dasd_device *);
 void dasd_restore_device(struct dasd_device *);
+void dasd_reload_device(struct dasd_device *);
 
 void dasd_add_request_head(struct dasd_ccw_req *);
 void dasd_add_request_tail(struct dasd_ccw_req *);
@@ -606,6 +617,7 @@ int dasd_generic_notify(struct ccw_device *, int);
 void dasd_generic_handle_state_change(struct dasd_device *);
 int dasd_generic_pm_freeze(struct ccw_device *);
 int dasd_generic_restore_device(struct ccw_device *);
+enum uc_todo dasd_generic_uc_handler(struct ccw_device *, struct irb *);
 
 int dasd_generic_read_dev_chars(struct dasd_device *, int, void *, int);
 char *dasd_get_sense(struct irb *);
@@ -629,8 +641,6 @@ void dasd_devmap_exit(void);
 struct dasd_device *dasd_create_device(struct ccw_device *);
 void dasd_delete_device(struct dasd_device *);
 
-int dasd_get_uid(struct ccw_device *, struct dasd_uid *);
-int dasd_set_uid(struct ccw_device *, struct dasd_uid *);
 int dasd_get_feature(struct ccw_device *, int);
 int dasd_set_feature(struct ccw_device *, int, int);
 

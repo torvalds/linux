@@ -63,7 +63,7 @@ static int v2_read_header(struct super_block *sb, int type,
 	size = sb->s_op->quota_read(sb, type, (char *)dqhead,
 				    sizeof(struct v2_disk_dqheader), 0);
 	if (size != sizeof(struct v2_disk_dqheader)) {
-		printk(KERN_WARNING "quota_v2: Failed header read:"
+		q_warn(KERN_WARNING "quota_v2: Failed header read:"
 		       " expected=%zd got=%zd\n",
 			sizeof(struct v2_disk_dqheader), size);
 		return 0;
@@ -106,7 +106,7 @@ static int v2_read_file_info(struct super_block *sb, int type)
 	size = sb->s_op->quota_read(sb, type, (char *)&dinfo,
 	       sizeof(struct v2_disk_dqinfo), V2_DQINFOOFF);
 	if (size != sizeof(struct v2_disk_dqinfo)) {
-		printk(KERN_WARNING "quota_v2: Can't read info structure on device %s.\n",
+		q_warn(KERN_WARNING "quota_v2: Can't read info structure on device %s.\n",
 			sb->s_id);
 		return -1;
 	}
@@ -167,7 +167,7 @@ static int v2_write_file_info(struct super_block *sb, int type)
 	size = sb->s_op->quota_write(sb, type, (char *)&dinfo,
 	       sizeof(struct v2_disk_dqinfo), V2_DQINFOOFF);
 	if (size != sizeof(struct v2_disk_dqinfo)) {
-		printk(KERN_WARNING "Can't write info structure on device %s.\n",
+		q_warn(KERN_WARNING "Can't write info structure on device %s.\n",
 			sb->s_id);
 		return -1;
 	}

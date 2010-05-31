@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/lcd.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <linux/spi/spi.h>
 

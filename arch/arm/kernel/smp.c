@@ -86,6 +86,12 @@ int __cpuinit __cpu_up(unsigned int cpu)
 			return PTR_ERR(idle);
 		}
 		ci->idle = idle;
+	} else {
+		/*
+		 * Since this idle thread is being re-used, call
+		 * init_idle() to reinitialize the thread structure.
+		 */
+		init_idle(idle, cpu);
 	}
 
 	/*
@@ -162,7 +168,7 @@ int __cpu_disable(void)
 	struct task_struct *p;
 	int ret;
 
-	ret = mach_cpu_disable(cpu);
+	ret = platform_cpu_disable(cpu);
 	if (ret)
 		return ret;
 

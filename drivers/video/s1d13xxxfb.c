@@ -31,6 +31,7 @@
 #include <linux/fb.h>
 #include <linux/spinlock_types.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 

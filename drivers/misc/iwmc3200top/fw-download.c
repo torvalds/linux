@@ -26,6 +26,7 @@
 
 #include <linux/firmware.h>
 #include <linux/mmc/sdio_func.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 
 #include "iwmc3200top.h"

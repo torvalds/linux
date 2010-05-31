@@ -21,6 +21,12 @@
 #define WTCNT		0xffcc0000 /*WDTST*/
 #define WTST		WTCNT
 #define WTBST		0xffcc0008 /*WDTBST*/
+/* Register definitions */
+#elif	defined(CONFIG_CPU_SUBTYPE_SH7722) || \
+	defined(CONFIG_CPU_SUBTYPE_SH7723) || \
+	defined(CONFIG_CPU_SUBTYPE_SH7724)
+#define WTCNT		0xa4520000
+#define WTCSR		0xa4520004
 #else
 /* Register definitions */
 #define WTCNT		0xffc00008

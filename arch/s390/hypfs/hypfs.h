@@ -11,6 +11,7 @@
 
 #include <linux/fs.h>
 #include <linux/types.h>
+#include <linux/debugfs.h>
 
 #define REG_FILE_MODE    0440
 #define UPDATE_FILE_MODE 0220
@@ -34,6 +35,9 @@ extern int hypfs_diag_create_files(struct super_block *sb, struct dentry *root);
 
 /* VM Hypervisor */
 extern int hypfs_vm_init(void);
+extern void hypfs_vm_exit(void);
 extern int hypfs_vm_create_files(struct super_block *sb, struct dentry *root);
 
+/* Directory for debugfs files */
+extern struct dentry *hypfs_dbfs_dir;
 #endif /* _HYPFS_H_ */

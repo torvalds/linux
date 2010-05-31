@@ -218,7 +218,7 @@ static inline void zylonite_init_lcd(void) {}
 
 #if defined(CONFIG_MMC)
 static struct pxamci_platform_data zylonite_mci_platform_data = {
-	.detect_delay	= 20,
+	.detect_delay_ms= 200,
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.gpio_card_detect = EXT_GPIO(0),
 	.gpio_card_ro	= EXT_GPIO(2),
@@ -226,7 +226,7 @@ static struct pxamci_platform_data zylonite_mci_platform_data = {
 };
 
 static struct pxamci_platform_data zylonite_mci2_platform_data = {
-	.detect_delay	= 20,
+	.detect_delay_ms= 200,
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.gpio_card_detect = EXT_GPIO(1),
 	.gpio_card_ro	= EXT_GPIO(3),
@@ -234,7 +234,7 @@ static struct pxamci_platform_data zylonite_mci2_platform_data = {
 };
 
 static struct pxamci_platform_data zylonite_mci3_platform_data = {
-	.detect_delay	= 20,
+	.detect_delay_ms= 200,
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.gpio_card_detect = EXT_GPIO(30),
 	.gpio_card_ro	= EXT_GPIO(31),

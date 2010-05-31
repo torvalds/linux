@@ -17,6 +17,7 @@
  * USA.
  */
 
+#include <linux/slab.h>
 
 #include "usbip_common.h"
 #include "vhci.h"
@@ -1071,7 +1072,7 @@ static struct hc_driver vhci_hc_driver = {
 	.flags		= HCD_USB2,
 
 	.start		= vhci_start,
-	.stop 		= vhci_stop,
+	.stop		= vhci_stop,
 
 	.urb_enqueue	= vhci_urb_enqueue,
 	.urb_dequeue	= vhci_urb_dequeue,

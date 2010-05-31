@@ -123,7 +123,7 @@ enum af9015_remote {
 
 /* LeadTek - Y04G0051 */
 /* Leadtek WinFast DTV Dongle Gold */
-static struct dvb_usb_rc_key af9015_rc_keys_leadtek[] = {
+static struct dvb_usb_rc_key ir_codes_af9015_table_leadtek[] = {
 	{ 0x001e, KEY_1 },
 	{ 0x001f, KEY_2 },
 	{ 0x0020, KEY_3 },
@@ -227,7 +227,7 @@ static u8 af9015_ir_table_leadtek[] = {
 };
 
 /* TwinHan AzureWave AD-TU700(704J) */
-static struct dvb_usb_rc_key af9015_rc_keys_twinhan[] = {
+static struct dvb_usb_rc_key ir_codes_af9015_table_twinhan[] = {
 	{ 0x053f, KEY_POWER },
 	{ 0x0019, KEY_FAVORITES },    /* Favorite List */
 	{ 0x0004, KEY_TEXT },         /* Teletext */
@@ -338,7 +338,7 @@ static u8 af9015_ir_table_twinhan[] = {
 };
 
 /* A-Link DTU(m) */
-static struct dvb_usb_rc_key af9015_rc_keys_a_link[] = {
+static struct dvb_usb_rc_key ir_codes_af9015_table_a_link[] = {
 	{ 0x001e, KEY_1 },
 	{ 0x001f, KEY_2 },
 	{ 0x0020, KEY_3 },
@@ -381,7 +381,7 @@ static u8 af9015_ir_table_a_link[] = {
 };
 
 /* MSI DIGIVOX mini II V3.0 */
-static struct dvb_usb_rc_key af9015_rc_keys_msi[] = {
+static struct dvb_usb_rc_key ir_codes_af9015_table_msi[] = {
 	{ 0x001e, KEY_1 },
 	{ 0x001f, KEY_2 },
 	{ 0x0020, KEY_3 },
@@ -424,7 +424,7 @@ static u8 af9015_ir_table_msi[] = {
 };
 
 /* MYGICTV U718 */
-static struct dvb_usb_rc_key af9015_rc_keys_mygictv[] = {
+static struct dvb_usb_rc_key ir_codes_af9015_table_mygictv[] = {
 	{ 0x003d, KEY_SWITCHVIDEOMODE },
 					  /* TV / AV */
 	{ 0x0545, KEY_POWER },
@@ -550,7 +550,7 @@ static u8 af9015_ir_table_kworld[] = {
 };
 
 /* AverMedia Volar X */
-static struct dvb_usb_rc_key af9015_rc_keys_avermedia[] = {
+static struct dvb_usb_rc_key ir_codes_af9015_table_avermedia[] = {
 	{ 0x053d, KEY_PROG1 },       /* SOURCE */
 	{ 0x0512, KEY_POWER },       /* POWER */
 	{ 0x051e, KEY_1 },           /* 1 */
@@ -656,7 +656,7 @@ static u8 af9015_ir_table_avermedia_ks[] = {
 };
 
 /* Digittrade DVB-T USB Stick */
-static struct dvb_usb_rc_key af9015_rc_keys_digittrade[] = {
+static struct dvb_usb_rc_key ir_codes_af9015_table_digittrade[] = {
 	{ 0x010f, KEY_LAST },	/* RETURN */
 	{ 0x0517, KEY_TEXT },	/* TELETEXT */
 	{ 0x0108, KEY_EPG },	/* EPG */
@@ -719,7 +719,7 @@ static u8 af9015_ir_table_digittrade[] = {
 };
 
 /* TREKSTOR DVB-T USB Stick */
-static struct dvb_usb_rc_key af9015_rc_keys_trekstor[] = {
+static struct dvb_usb_rc_key ir_codes_af9015_table_trekstor[] = {
 	{ 0x0704, KEY_AGAIN },		/* Home */
 	{ 0x0705, KEY_MUTE },		/* Mute */
 	{ 0x0706, KEY_UP },			/* Up */
@@ -782,7 +782,7 @@ static u8 af9015_ir_table_trekstor[] = {
 };
 
 /* MSI DIGIVOX mini III */
-static struct dvb_usb_rc_key af9015_rc_keys_msi_digivox_iii[] = {
+static struct dvb_usb_rc_key ir_codes_af9015_table_msi_digivox_iii[] = {
 	{ 0x0713, KEY_POWER },       /* [red power button] */
 	{ 0x073b, KEY_VIDEO },       /* Source */
 	{ 0x073e, KEY_ZOOM },        /* Zoom */

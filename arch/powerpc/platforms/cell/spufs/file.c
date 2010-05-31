@@ -29,6 +29,7 @@
 #include <linux/poll.h>
 #include <linux/ptrace.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/time.h>
@@ -1848,8 +1849,7 @@ out:
 	return ret;
 }
 
-static int spufs_mfc_fsync(struct file *file, struct dentry *dentry,
-			   int datasync)
+static int spufs_mfc_fsync(struct file *file, int datasync)
 {
 	return spufs_mfc_flush(file, NULL);
 }

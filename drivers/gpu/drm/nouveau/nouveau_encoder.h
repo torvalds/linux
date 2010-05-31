@@ -47,6 +47,9 @@ struct nouveau_encoder {
 
 	union {
 		struct {
+			int mc_unknown;
+			uint32_t unk0;
+			uint32_t unk1;
 			int dpcd_version;
 			int link_nr;
 			int link_bw;

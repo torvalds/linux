@@ -20,6 +20,7 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <asm/io.h>
 
 #define CAFE_NAND_CTRL1		0x00
@@ -761,7 +762,7 @@ static int __devinit cafe_nand_probe(struct pci_dev *pdev,
 		cafe_readl(cafe, GLOBAL_CTRL), cafe_readl(cafe, GLOBAL_IRQ_MASK));
 
 	/* Scan to find existence of the device */
-	if (nand_scan_ident(mtd, 2)) {
+	if (nand_scan_ident(mtd, 2, NULL)) {
 		err = -ENXIO;
 		goto out_irq;
 	}
@@ -848,7 +849,7 @@ static void __devexit cafe_nand_remove(struct pci_dev *pdev)
 	kfree(mtd);
 }
 
-static struct pci_device_id cafe_nand_tbl[] = {
+static const struct pci_device_id cafe_nand_tbl[] = {
 	{ PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_MARVELL_88ALP01_NAND,
 	  PCI_ANY_ID, PCI_ANY_ID },
 	{ }

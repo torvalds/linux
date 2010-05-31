@@ -100,10 +100,10 @@ xfs_iozero(
 STATIC int
 xfs_file_fsync(
 	struct file		*file,
-	struct dentry		*dentry,
 	int			datasync)
 {
-	struct xfs_inode	*ip = XFS_I(dentry->d_inode);
+	struct inode		*inode = file->f_mapping->host;
+	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_trans	*tp;
 	int			error = 0;
 	int			log_flushed = 0;
@@ -114,6 +114,8 @@ xfs_file_fsync(
 		return -XFS_ERROR(EIO);
 
 	xfs_iflags_clear(ip, XFS_ITRUNCATED);
+
+	xfs_ioend_wait(ip);
 
 	/*
 	 * We always need to make sure that the required inode state is safe on
@@ -138,8 +140,8 @@ xfs_file_fsync(
 	 * might gets cleared when the inode gets written out via the AIL
 	 * or xfs_iflush_cluster.
 	 */
-	if (((dentry->d_inode->i_state & I_DIRTY_DATASYNC) ||
-	    ((dentry->d_inode->i_state & I_DIRTY_SYNC) && !datasync)) &&
+	if (((inode->i_state & I_DIRTY_DATASYNC) ||
+	    ((inode->i_state & I_DIRTY_SYNC) && !datasync)) &&
 	    ip->i_update_core) {
 		/*
 		 * Kick off a transaction to log the inode core to get the
@@ -866,7 +868,7 @@ write_retry:
 			mutex_lock(&inode->i_mutex);
 		xfs_ilock(ip, iolock);
 
-		error2 = -xfs_file_fsync(file, file->f_path.dentry,
+		error2 = -xfs_file_fsync(file,
 					 (file->f_flags & __O_SYNC) ? 0 : 1);
 		if (!error)
 			error = error2;

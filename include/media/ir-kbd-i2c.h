@@ -6,7 +6,7 @@
 struct IR_i2c;
 
 struct IR_i2c {
-	struct ir_scancode_table *ir_codes;
+	char		       *ir_codes;
 
 	struct i2c_client      *c;
 	struct input_dev       *input;
@@ -34,9 +34,9 @@ enum ir_kbd_get_key_fn {
 
 /* Can be passed when instantiating an ir_video i2c device */
 struct IR_i2c_init_data {
-	struct ir_scancode_table *ir_codes;
+	char			*ir_codes;
 	const char             *name;
-	u64          type; /* IR_TYPE_RC5, IR_TYPE_PD, etc */
+	u64          type; /* IR_TYPE_RC5, etc */
 	/*
 	 * Specify either a function pointer or a value indicating one of
 	 * ir_kbd_i2c's internal get_key functions

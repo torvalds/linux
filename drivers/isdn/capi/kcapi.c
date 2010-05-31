@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/moduleparam.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/isdn/capicmd.h>
 #include <linux/isdn/capiutil.h>
@@ -1145,6 +1146,12 @@ load_unlock_out:
 
 		if (ctr->state == CAPI_CTR_DETECTED)
 			goto reset_unlock_out;
+
+		if (ctr->reset_ctr == NULL) {
+			printk(KERN_DEBUG "kcapi: reset: no reset function\n");
+			retval = -ESRCH;
+			goto reset_unlock_out;
+		}
 
 		ctr->reset_ctr(ctr);
 

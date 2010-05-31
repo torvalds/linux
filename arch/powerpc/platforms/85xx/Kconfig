@@ -51,7 +51,7 @@ config MPC85xx_DS
 	bool "Freescale MPC85xx DS"
 	select PPC_I8259
 	select DEFAULT_UIMAGE
-	select FSL_ULI1575
+	select FSL_ULI1575 if PCI
 	select SWIOTLB
 	help
 	  This option enables support for the MPC85xx DS (MPC8544 DS) board
@@ -60,7 +60,7 @@ config MPC85xx_RDB
 	bool "Freescale MPC85xx RDB"
 	select PPC_I8259
 	select DEFAULT_UIMAGE
-	select FSL_ULI1575
+	select FSL_ULI1575 if PCI
 	select SWIOTLB
 	help
 	  This option enables support for the MPC85xx RDB (P2020 RDB) board

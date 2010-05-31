@@ -21,6 +21,7 @@
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/pci.h>
+#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/stddef.h>
@@ -167,7 +168,7 @@ static u32 *find_pci_config_dword(struct aer_error *err, int where,
 		target = &err->root_status;
 		rw1cs = 1;
 		break;
-	case PCI_ERR_ROOT_COR_SRC:
+	case PCI_ERR_ROOT_ERR_SRC:
 		target = &err->source_id;
 		break;
 	}

@@ -18,6 +18,7 @@
 #include <linux/rtc.h>
 #include <linux/interrupt.h>
 #include <linux/ioctl.h>
+#include <linux/slab.h>
 
 #include <mach/board.h>
 #include <mach/at91_rtt.h>

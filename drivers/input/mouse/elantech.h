@@ -100,11 +100,10 @@ struct elantech_data {
 	unsigned char reg_26;
 	unsigned char debug;
 	unsigned char capabilities;
-	unsigned char fw_version_maj;
-	unsigned char fw_version_min;
-	unsigned char hw_version;
 	unsigned char paritycheck;
 	unsigned char jumpy_cursor;
+	unsigned char hw_version;
+	unsigned int  fw_version;
 	unsigned char parity[256];
 };
 

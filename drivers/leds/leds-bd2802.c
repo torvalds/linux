@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/leds.h>
 #include <linux/leds-bd2802.h>
+#include <linux/slab.h>
 
 
 #define LED_CTL(rgb2en, rgb1en) ((rgb2en) << 4 | ((rgb1en) << 0))

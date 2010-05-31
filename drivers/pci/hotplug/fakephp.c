@@ -19,6 +19,7 @@
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 #include "../pci.h"
 
 struct legacy_slot {

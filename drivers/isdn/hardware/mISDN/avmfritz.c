@@ -24,6 +24,7 @@
 #include <linux/pci.h>
 #include <linux/delay.h>
 #include <linux/mISDNhw.h>
+#include <linux/slab.h>
 #include <asm/unaligned.h>
 #include "ipac.h"
 

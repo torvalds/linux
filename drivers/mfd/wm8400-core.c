@@ -18,6 +18,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/wm8400-private.h>
 #include <linux/mfd/wm8400-audio.h>
+#include <linux/slab.h>
 
 static struct {
 	u16  readable;    /* Mask of readable bits */
@@ -117,7 +118,7 @@ static int wm8400_read(struct wm8400 *wm8400, u8 reg, int num_regs, u16 *dest)
 {
 	int i, ret = 0;
 
-	BUG_ON(reg + num_regs - 1 > ARRAY_SIZE(wm8400->reg_cache));
+	BUG_ON(reg + num_regs > ARRAY_SIZE(wm8400->reg_cache));
 
 	/* If there are any volatile reads then read back the entire block */
 	for (i = reg; i < reg + num_regs; i++)
@@ -143,7 +144,7 @@ static int wm8400_write(struct wm8400 *wm8400, u8 reg, int num_regs,
 {
 	int ret, i;
 
-	BUG_ON(reg + num_regs - 1 > ARRAY_SIZE(wm8400->reg_cache));
+	BUG_ON(reg + num_regs > ARRAY_SIZE(wm8400->reg_cache));
 
 	for (i = 0; i < num_regs; i++) {
 		BUG_ON(!reg_data[reg + i].writable);

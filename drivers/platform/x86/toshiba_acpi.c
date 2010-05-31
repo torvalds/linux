@@ -47,6 +47,7 @@
 #include <linux/platform_device.h>
 #include <linux/rfkill.h>
 #include <linux/input.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 

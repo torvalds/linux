@@ -70,6 +70,7 @@
  * For history of changes, see Documentation/ChangeLog.megaraid
  */
 
+#include <linux/slab.h>
 #include "megaraid_mbox.h"
 
 static int megaraid_init(void);

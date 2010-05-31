@@ -7,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/errno.h>
 #include <linux/mutex.h>
-#include <linux/slab.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/interrupt.h>

@@ -47,6 +47,7 @@
 #include <linux/pci_hotplug.h>
 #include <linux/pci-acpi.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 
 #include "../pci.h"
 #include "acpiphp.h"

@@ -5,6 +5,7 @@
 #include <linux/errno.h>
 #include <linux/pagemap.h>
 #include <linux/xattr.h>
+#include <linux/slab.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/reiserfs_xattr.h>
 #include <linux/reiserfs_acl.h>
@@ -499,7 +500,7 @@ static size_t posix_acl_access_list(struct dentry *dentry, char *list,
 	return size;
 }
 
-struct xattr_handler reiserfs_posix_acl_access_handler = {
+const struct xattr_handler reiserfs_posix_acl_access_handler = {
 	.prefix = POSIX_ACL_XATTR_ACCESS,
 	.flags = ACL_TYPE_ACCESS,
 	.get = posix_acl_get,
@@ -519,7 +520,7 @@ static size_t posix_acl_default_list(struct dentry *dentry, char *list,
 	return size;
 }
 
-struct xattr_handler reiserfs_posix_acl_default_handler = {
+const struct xattr_handler reiserfs_posix_acl_default_handler = {
 	.prefix = POSIX_ACL_XATTR_DEFAULT,
 	.flags = ACL_TYPE_DEFAULT,
 	.get = posix_acl_get,

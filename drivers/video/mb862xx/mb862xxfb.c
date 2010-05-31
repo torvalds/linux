@@ -718,9 +718,11 @@ static struct of_device_id __devinitdata of_platform_mb862xx_tbl[] = {
 };
 
 static struct of_platform_driver of_platform_mb862xxfb_driver = {
-	.owner		= THIS_MODULE,
-	.name		= DRV_NAME,
-	.match_table	= of_platform_mb862xx_tbl,
+	.driver = {
+		.name = DRV_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = of_platform_mb862xx_tbl,
+	},
 	.probe		= of_platform_mb862xx_probe,
 	.remove		= __devexit_p(of_platform_mb862xx_remove),
 };

@@ -305,7 +305,7 @@ Table 1-4: Contents of the stat files (as of 2.6.30-rc7)
   cgtime        guest time of the task children in jiffies
 ..............................................................................
 
-The /proc/PID/map file containing the currently mapped memory regions and
+The /proc/PID/maps file containing the currently mapped memory regions and
 their access permissions.
 
 The format is:
@@ -316,7 +316,7 @@ address           perms offset  dev   inode      pathname
 08049000-0804a000 rw-p 00001000 03:00 8312       /opt/test
 0804a000-0806b000 rw-p 00000000 00:00 0          [heap]
 a7cb1000-a7cb2000 ---p 00000000 00:00 0
-a7cb2000-a7eb2000 rw-p 00000000 00:00 0          [threadstack:001ff4b4]
+a7cb2000-a7eb2000 rw-p 00000000 00:00 0
 a7eb2000-a7eb3000 ---p 00000000 00:00 0
 a7eb3000-a7ed5000 rw-p 00000000 00:00 0
 a7ed5000-a8008000 r-xp 00000000 03:00 4222       /lib/libc.so.6
@@ -352,7 +352,6 @@ is not associated with a file:
  [stack]                  = the stack of the main process
  [vdso]                   = the "virtual dynamic shared object",
                             the kernel system call handler
- [threadstack:xxxxxxxx]   = the stack of the thread, xxxxxxxx is the stack size
 
  or if empty, the mapping is anonymous.
 
@@ -565,6 +564,10 @@ The contents of each smp_affinity file is the same by default:
 The default_smp_affinity mask applies to all non-active IRQs, which are the
 IRQs which have not yet been allocated/activated, and hence which lack a
 /proc/irq/[0-9]* directory.
+
+The node file on an SMP system shows the node to which the device using the IRQ
+reports itself as being attached. This hardware locality information does not
+include information about any possible driver locality preference.
 
 prof_cpu_mask specifies which CPUs are to be profiled by the system wide
 profiler. Default value is ffffffff (all cpus).
@@ -965,7 +968,7 @@ your system and how much traffic was routed over those devices:
   ...] 1375103    17405    0    0    0     0       0          0 
   ...] 1703981     5535    0    0    0     3       0          0 
 
-In addition, each Channel Bond interface has it's own directory.  For
+In addition, each Channel Bond interface has its own directory.  For
 example, the bond0 device will have a directory called /proc/net/bond0/.
 It will contain information that is specific to that bond, such as the
 current slaves of the bond, the link status of the slaves, and how
@@ -1362,7 +1365,7 @@ been accounted as having caused 1MB of write.
 In other words: The number of bytes which this process caused to not happen,
 by truncating pagecache. A task can cause "negative" IO too. If this task
 truncates some dirty pagecache, some IO which another task has been accounted
-for (in it's write_bytes) will not be happening. We _could_ just subtract that
+for (in its write_bytes) will not be happening. We _could_ just subtract that
 from the truncating task's write_bytes, but there is information loss in doing
 that.
 

@@ -178,7 +178,7 @@ prototypes:
 locking rules:
 	All except set_page_dirty may block
 
-			BKL	PageLocked(page)	i_sem
+			BKL	PageLocked(page)	i_mutex
 writepage:		no	yes, unlocks (see below)
 readpage:		no	yes, unlocks
 sync_page:		no	maybe
@@ -380,7 +380,7 @@ prototypes:
 	int (*open) (struct inode *, struct file *);
 	int (*flush) (struct file *);
 	int (*release) (struct inode *, struct file *);
-	int (*fsync) (struct file *, struct dentry *, int datasync);
+	int (*fsync) (struct file *, int datasync);
 	int (*aio_fsync) (struct kiocb *, int datasync);
 	int (*fasync) (int, struct file *, int);
 	int (*lock) (struct file *, int, struct file_lock *);
@@ -429,8 +429,9 @@ check_flags:		no
 implementations.  If your fs is not using generic_file_llseek, you
 need to acquire and release the appropriate locks in your ->llseek().
 For many filesystems, it is probably safe to acquire the inode
-semaphore.  Note some filesystems (i.e. remote ones) provide no
-protection for i_size so you will need to use the BKL.
+mutex or just to use i_size_read() instead.
+Note: this does not protect the file->f_pos against concurrent modifications
+since this is something the userspace has to take care about.
 
 Note: ext2_release() was *the* source of contention on fs-intensive
 loads and dropping BKL on ->release() helps to get rid of that (we still

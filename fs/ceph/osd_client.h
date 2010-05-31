@@ -48,6 +48,8 @@ struct ceph_osd_request {
 	struct list_head r_osd_item;
 	struct ceph_osd *r_osd;
 	struct ceph_pg   r_pgid;
+	int              r_pg_osds[CEPH_PG_MAX_SIZE];
+	int              r_num_pg_osds;
 
 	struct ceph_connection *r_con_filling_msg;
 
@@ -66,11 +68,10 @@ struct ceph_osd_request {
 	struct list_head  r_unsafe_item;
 
 	struct inode *r_inode;         	      /* for use by callbacks */
-	struct writeback_control *r_wbc;      /* ditto */
 
 	char              r_oid[40];          /* object name */
 	int               r_oid_len;
-	unsigned long     r_sent_stamp;
+	unsigned long     r_stamp;            /* send OR check time */
 	bool              r_resend;           /* msg send failed, needs retry */
 
 	struct ceph_file_layout r_file_layout;

@@ -7,6 +7,9 @@ struct max732x_platform_data {
 	/* number of the first GPIO */
 	unsigned	gpio_base;
 
+	/* interrupt base */
+	int		irq_base;
+
 	void		*context;	/* param to setup/teardown */
 
 	int		(*setup)(struct i2c_client *client,

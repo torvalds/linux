@@ -36,6 +36,7 @@
 #include <linux/seq_file.h>
 #include <linux/init.h>
 #include <linux/sysctl.h>
+#include <linux/slab.h>
 #include <net/arp.h>
 #include <net/net_namespace.h>
 

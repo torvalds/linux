@@ -490,6 +490,7 @@
 #include <linux/ctype.h>
 #include <linux/spinlock.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 #include <asm/dma.h>
 #include <asm/io.h>

@@ -309,18 +309,18 @@ static int parport_attach(struct comedi_device *dev,
 	iobase = it->options[0];
 	printk(KERN_INFO "comedi%d: parport: 0x%04lx ", dev->minor, iobase);
 	if (!request_region(iobase, PARPORT_SIZE, "parport (comedi)")) {
-		printk("I/O port conflict\n");
+		printk(KERN_ERR "I/O port conflict\n");
 		return -EIO;
 	}
 	dev->iobase = iobase;
 
 	irq = it->options[1];
 	if (irq) {
-		printk(" irq=%u", irq);
+		printk(KERN_INFO " irq=%u", irq);
 		ret = request_irq(irq, parport_interrupt, 0, "comedi_parport",
 				  dev);
 		if (ret < 0) {
-			printk(" irq not available\n");
+			printk(KERN_ERR " irq not available\n");
 			return -EINVAL;
 		}
 		dev->irq = irq;
@@ -380,13 +380,13 @@ static int parport_attach(struct comedi_device *dev,
 	devpriv->c_data = 0;
 	outb(devpriv->c_data, dev->iobase + PARPORT_C);
 
-	printk("\n");
+	printk(KERN_INFO "\n");
 	return 1;
 }
 
 static int parport_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: parport: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: parport: remove\n", dev->minor);
 
 	if (dev->iobase)
 		release_region(dev->iobase, PARPORT_SIZE);

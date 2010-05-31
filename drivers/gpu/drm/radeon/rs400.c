@@ -26,8 +26,10 @@
  *          Jerome Glisse
  */
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <drm/drmP.h>
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "rs400d.h"
 
 /* This files gather functions specifics to : rs400,rs480 */
@@ -202,9 +204,9 @@ void rs400_gart_disable(struct radeon_device *rdev)
 
 void rs400_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	rs400_gart_disable(rdev);
 	radeon_gart_table_ram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
@@ -241,8 +243,6 @@ int rs400_mc_wait_for_idle(struct radeon_device *rdev)
 
 void rs400_gpu_init(struct radeon_device *rdev)
 {
-	/* FIXME: HDP same place on rs400 ? */
-	r100_hdp_reset(rdev);
 	/* FIXME: is this correct ? */
 	r420_pipes_init(rdev);
 	if (rs400_mc_wait_for_idle(rdev)) {
@@ -264,6 +264,7 @@ void rs400_mc_init(struct radeon_device *rdev)
 	base = (RREG32(RADEON_NB_TOM) & 0xffff) << 16;
 	radeon_vram_location(rdev, &rdev->mc, base);
 	radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 uint32_t rs400_mc_rreg(struct radeon_device *rdev, uint32_t reg)
@@ -388,6 +389,8 @@ static int rs400_startup(struct radeon_device *rdev)
 {
 	int r;
 
+	r100_set_common_regs(rdev);
+
 	rs400_mc_program(rdev);
 	/* Resume clock */
 	r300_clock_startup(rdev);
@@ -428,7 +431,7 @@ int rs400_resume(struct radeon_device *rdev)
 	/* setup MC before calling post tables */
 	rs400_mc_program(rdev);
 	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
-	if (radeon_gpu_reset(rdev)) {
+	if (radeon_asic_reset(rdev)) {
 		dev_warn(rdev->dev, "GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
@@ -491,7 +494,7 @@ int rs400_init(struct radeon_device *rdev)
 			return r;
 	}
 	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
-	if (radeon_gpu_reset(rdev)) {
+	if (radeon_asic_reset(rdev)) {
 		dev_warn(rdev->dev,
 			"GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
 			RREG32(R_000E40_RBBM_STATUS),
@@ -503,8 +506,6 @@ int rs400_init(struct radeon_device *rdev)
 
 	/* Initialize clocks */
 	radeon_get_clock_info(rdev->ddev);
-	/* Initialize power management */
-	radeon_pm_init(rdev);
 	/* initialize memory controller */
 	rs400_mc_init(rdev);
 	/* Fence driver */

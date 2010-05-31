@@ -1866,6 +1866,51 @@ struct vxge_hw_ring_rxd_info {
 	u32	rth_hash_type;
 	u32	rth_value;
 };
+/**
+ * enum vxge_hw_ring_tcode - Transfer codes returned by adapter
+ * @VXGE_HW_RING_T_CODE_OK: Transfer ok.
+ * @VXGE_HW_RING_T_CODE_L3_CKSUM_MISMATCH: Layer 3 checksum presentation
+ *		configuration mismatch.
+ * @VXGE_HW_RING_T_CODE_L4_CKSUM_MISMATCH: Layer 4 checksum presentation
+ *		configuration mismatch.
+ * @VXGE_HW_RING_T_CODE_L3_L4_CKSUM_MISMATCH: Layer 3 and Layer 4 checksum
+ *		presentation configuration mismatch.
+ * @VXGE_HW_RING_T_CODE_L3_PKT_ERR: Layer 3 error unparseable packet,
+ *		such as unknown IPv6 header.
+ * @VXGE_HW_RING_T_CODE_L2_FRM_ERR: Layer 2 error frame integrity
+ *		error, such as FCS or ECC).
+ * @VXGE_HW_RING_T_CODE_BUF_SIZE_ERR: Buffer size error the RxD buffer(
+ *		s) were not appropriately sized and data loss occurred.
+ * @VXGE_HW_RING_T_CODE_INT_ECC_ERR: Internal ECC error RxD corrupted.
+ * @VXGE_HW_RING_T_CODE_BENIGN_OVFLOW: Benign overflow the contents of
+ *		Segment1 exceeded the capacity of Buffer1 and the remainder
+ *		was placed in Buffer2. Segment2 now starts in Buffer3.
+ *		No data loss or errors occurred.
+ * @VXGE_HW_RING_T_CODE_ZERO_LEN_BUFF: Buffer size 0 one of the RxDs
+ *		assigned buffers has a size of 0 bytes.
+ * @VXGE_HW_RING_T_CODE_FRM_DROP: Frame dropped either due to
+ *		VPath Reset or because of a VPIN mismatch.
+ * @VXGE_HW_RING_T_CODE_UNUSED: Unused
+ * @VXGE_HW_RING_T_CODE_MULTI_ERR: Multiple errors more than one
+ *		transfer code condition occurred.
+ *
+ * Transfer codes returned by adapter.
+ */
+enum vxge_hw_ring_tcode {
+	VXGE_HW_RING_T_CODE_OK				= 0x0,
+	VXGE_HW_RING_T_CODE_L3_CKSUM_MISMATCH		= 0x1,
+	VXGE_HW_RING_T_CODE_L4_CKSUM_MISMATCH		= 0x2,
+	VXGE_HW_RING_T_CODE_L3_L4_CKSUM_MISMATCH	= 0x3,
+	VXGE_HW_RING_T_CODE_L3_PKT_ERR			= 0x5,
+	VXGE_HW_RING_T_CODE_L2_FRM_ERR			= 0x6,
+	VXGE_HW_RING_T_CODE_BUF_SIZE_ERR		= 0x7,
+	VXGE_HW_RING_T_CODE_INT_ECC_ERR			= 0x8,
+	VXGE_HW_RING_T_CODE_BENIGN_OVFLOW		= 0x9,
+	VXGE_HW_RING_T_CODE_ZERO_LEN_BUFF		= 0xA,
+	VXGE_HW_RING_T_CODE_FRM_DROP			= 0xC,
+	VXGE_HW_RING_T_CODE_UNUSED			= 0xE,
+	VXGE_HW_RING_T_CODE_MULTI_ERR			= 0xF
+};
 
 /**
  * enum enum vxge_hw_ring_hash_type - RTH hash types
@@ -1910,7 +1955,7 @@ vxge_hw_ring_rxd_post_post(
 	void *rxdh);
 
 enum vxge_hw_status
-vxge_hw_ring_replenish(struct __vxge_hw_ring *ring_handle, u16 min_flag);
+vxge_hw_ring_replenish(struct __vxge_hw_ring *ring_handle);
 
 void
 vxge_hw_ring_rxd_post_post_wmb(
@@ -2042,7 +2087,6 @@ void vxge_hw_fifo_txdl_free(
 
 #define VXGE_HW_RING_NEXT_BLOCK_POINTER_OFFSET	(VXGE_HW_BLOCK_SIZE-8)
 #define VXGE_HW_RING_MEMBLOCK_IDX_OFFSET		(VXGE_HW_BLOCK_SIZE-16)
-#define VXGE_HW_RING_MIN_BUFF_ALLOCATION		64
 
 /*
  * struct __vxge_hw_ring_rxd_priv - Receive descriptor HW-private data.
@@ -2332,7 +2376,7 @@ enum vxge_hw_status vxge_hw_vpath_alarm_process(
 	struct __vxge_hw_vpath_handle *vpath_handle,
 	u32 skip_alarms);
 
-enum vxge_hw_status
+void
 vxge_hw_vpath_msix_set(struct __vxge_hw_vpath_handle *vpath_handle,
 		       int *tim_msix_id, int alarm_msix_id);
 

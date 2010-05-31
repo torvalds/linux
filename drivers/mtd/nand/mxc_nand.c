@@ -38,7 +38,7 @@
 #define DRIVER_NAME "mxc_nand"
 
 #define nfc_is_v21()		(cpu_is_mx25() || cpu_is_mx35())
-#define nfc_is_v1()		(cpu_is_mx31() || cpu_is_mx27())
+#define nfc_is_v1()		(cpu_is_mx31() || cpu_is_mx27() || cpu_is_mx21())
 
 /* Addresses for NFC registers */
 #define NFC_BUF_SIZE		0xE00
@@ -168,11 +168,7 @@ static irqreturn_t mxc_nfc_irq(int irq, void *dev_id)
 {
 	struct mxc_nand_host *host = dev_id;
 
-	uint16_t tmp;
-
-	tmp = readw(host->regs + NFC_CONFIG1);
-	tmp |= NFC_INT_MSK; /* Disable interrupt */
-	writew(tmp, host->regs + NFC_CONFIG1);
+	disable_irq_nosync(irq);
 
 	wake_up(&host->irq_waitq);
 
@@ -184,15 +180,13 @@ static irqreturn_t mxc_nfc_irq(int irq, void *dev_id)
  */
 static void wait_op_done(struct mxc_nand_host *host, int useirq)
 {
-	uint32_t tmp;
-	int max_retries = 2000;
+	uint16_t tmp;
+	int max_retries = 8000;
 
 	if (useirq) {
 		if ((readw(host->regs + NFC_CONFIG2) & NFC_INT) == 0) {
 
-			tmp = readw(host->regs + NFC_CONFIG1);
-			tmp  &= ~NFC_INT_MSK;	/* Enable interrupt */
-			writew(tmp, host->regs + NFC_CONFIG1);
+			enable_irq(host->irq);
 
 			wait_event(host->irq_waitq,
 				readw(host->regs + NFC_CONFIG2) & NFC_INT);
@@ -226,8 +220,23 @@ static void send_cmd(struct mxc_nand_host *host, uint16_t cmd, int useirq)
 	writew(cmd, host->regs + NFC_FLASH_CMD);
 	writew(NFC_CMD, host->regs + NFC_CONFIG2);
 
-	/* Wait for operation to complete */
-	wait_op_done(host, useirq);
+	if (cpu_is_mx21() && (cmd == NAND_CMD_RESET)) {
+		int max_retries = 100;
+		/* Reset completion is indicated by NFC_CONFIG2 */
+		/* being set to 0 */
+		while (max_retries-- > 0) {
+			if (readw(host->regs + NFC_CONFIG2) == 0) {
+				break;
+			}
+			udelay(1);
+		}
+		if (max_retries < 0)
+			DEBUG(MTD_DEBUG_LEVEL0, "%s: RESET failed\n",
+			      __func__);
+	} else {
+		/* Wait for operation to complete */
+		wait_op_done(host, useirq);
+	}
 }
 
 /* This function sends an address (or partial address) to the
@@ -542,6 +551,41 @@ static void mxc_do_addr_cycle(struct mtd_info *mtd, int column, int page_addr)
 	}
 }
 
+static void preset(struct mtd_info *mtd)
+{
+	struct nand_chip *nand_chip = mtd->priv;
+	struct mxc_nand_host *host = nand_chip->priv;
+	uint16_t tmp;
+
+	/* enable interrupt, disable spare enable */
+	tmp = readw(host->regs + NFC_CONFIG1);
+	tmp &= ~NFC_INT_MSK;
+	tmp &= ~NFC_SP_EN;
+	if (nand_chip->ecc.mode == NAND_ECC_HW) {
+		tmp |= NFC_ECC_EN;
+	} else {
+		tmp &= ~NFC_ECC_EN;
+	}
+	writew(tmp, host->regs + NFC_CONFIG1);
+	/* preset operation */
+
+	/* Unlock the internal RAM Buffer */
+	writew(0x2, host->regs + NFC_CONFIG);
+
+	/* Blocks to be unlocked */
+	if (nfc_is_v21()) {
+		writew(0x0, host->regs + NFC_V21_UNLOCKSTART_BLKADDR);
+		writew(0xffff, host->regs + NFC_V21_UNLOCKEND_BLKADDR);
+	} else if (nfc_is_v1()) {
+		writew(0x0, host->regs + NFC_V1_UNLOCKSTART_BLKADDR);
+		writew(0x4000, host->regs + NFC_V1_UNLOCKEND_BLKADDR);
+	} else
+		BUG();
+
+	/* Unlock Block Command for given address range */
+	writew(0x4, host->regs + NFC_WRPROT);
+}
+
 /* Used by the upper layer to write command to NAND Flash for
  * different operations to be carried out on NAND Flash */
 static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
@@ -559,6 +603,10 @@ static void mxc_nand_command(struct mtd_info *mtd, unsigned command,
 
 	/* Command pre-processing step */
 	switch (command) {
+	case NAND_CMD_RESET:
+		send_cmd(host, command, false);
+		preset(mtd);
+		break;
 
 	case NAND_CMD_STATUS:
 		host->buf_start = 0;
@@ -679,7 +727,6 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	struct mxc_nand_platform_data *pdata = pdev->dev.platform_data;
 	struct mxc_nand_host *host;
 	struct resource *res;
-	uint16_t tmp;
 	int err = 0, nr_parts = 0;
 	struct nand_ecclayout *oob_smallpage, *oob_largepage;
 
@@ -743,50 +790,16 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		host->spare_len = 64;
 		oob_smallpage = &nandv2_hw_eccoob_smallpage;
 		oob_largepage = &nandv2_hw_eccoob_largepage;
+		this->ecc.bytes = 9;
 	} else if (nfc_is_v1()) {
 		host->regs = host->base;
 		host->spare0 = host->base + 0x800;
 		host->spare_len = 16;
 		oob_smallpage = &nandv1_hw_eccoob_smallpage;
 		oob_largepage = &nandv1_hw_eccoob_largepage;
-	} else
-		BUG();
-
-	/* disable interrupt and spare enable */
-	tmp = readw(host->regs + NFC_CONFIG1);
-	tmp |= NFC_INT_MSK;
-	tmp &= ~NFC_SP_EN;
-	writew(tmp, host->regs + NFC_CONFIG1);
-
-	init_waitqueue_head(&host->irq_waitq);
-
-	host->irq = platform_get_irq(pdev, 0);
-
-	err = request_irq(host->irq, mxc_nfc_irq, 0, DRIVER_NAME, host);
-	if (err)
-		goto eirq;
-
-	/* Reset NAND */
-	this->cmdfunc(mtd, NAND_CMD_RESET, -1, -1);
-
-	/* preset operation */
-	/* Unlock the internal RAM Buffer */
-	writew(0x2, host->regs + NFC_CONFIG);
-
-	/* Blocks to be unlocked */
-	if (nfc_is_v21()) {
-		writew(0x0, host->regs + NFC_V21_UNLOCKSTART_BLKADDR);
-	        writew(0xffff, host->regs + NFC_V21_UNLOCKEND_BLKADDR);
-		this->ecc.bytes = 9;
-	} else if (nfc_is_v1()) {
-		writew(0x0, host->regs + NFC_V1_UNLOCKSTART_BLKADDR);
-	        writew(0x4000, host->regs + NFC_V1_UNLOCKEND_BLKADDR);
 		this->ecc.bytes = 3;
 	} else
 		BUG();
-
-	/* Unlock Block Command for given address range */
-	writew(0x4, host->regs + NFC_WRPROT);
 
 	this->ecc.size = 512;
 	this->ecc.layout = oob_smallpage;
@@ -796,14 +809,8 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		this->ecc.hwctl = mxc_nand_enable_hwecc;
 		this->ecc.correct = mxc_nand_correct_data;
 		this->ecc.mode = NAND_ECC_HW;
-		tmp = readw(host->regs + NFC_CONFIG1);
-		tmp |= NFC_ECC_EN;
-		writew(tmp, host->regs + NFC_CONFIG1);
 	} else {
 		this->ecc.mode = NAND_ECC_SOFT;
-		tmp = readw(host->regs + NFC_CONFIG1);
-		tmp &= ~NFC_ECC_EN;
-		writew(tmp, host->regs + NFC_CONFIG1);
 	}
 
 	/* NAND bus width determines access funtions used by upper layer */
@@ -817,8 +824,16 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 		this->options |= NAND_USE_FLASH_BBT;
 	}
 
+	init_waitqueue_head(&host->irq_waitq);
+
+	host->irq = platform_get_irq(pdev, 0);
+
+	err = request_irq(host->irq, mxc_nfc_irq, IRQF_DISABLED, DRIVER_NAME, host);
+	if (err)
+		goto eirq;
+
 	/* first scan to find the device and get the page size */
-	if (nand_scan_ident(mtd, 1)) {
+	if (nand_scan_ident(mtd, 1, NULL)) {
 		err = -ENXIO;
 		goto escan;
 	}
@@ -886,11 +901,14 @@ static int mxcnd_suspend(struct platform_device *pdev, pm_message_t state)
 	int ret = 0;
 
 	DEBUG(MTD_DEBUG_LEVEL0, "MXC_ND : NAND suspend\n");
-	if (mtd) {
-		ret = mtd->suspend(mtd);
-		/* Disable the NFC clock */
-		clk_disable(host->clk);
-	}
+
+	ret = mtd->suspend(mtd);
+
+	/*
+	 * nand_suspend locks the device for exclusive access, so
+	 * the clock must already be off.
+	 */
+	BUG_ON(!ret && host->clk_act);
 
 	return ret;
 }
@@ -904,11 +922,7 @@ static int mxcnd_resume(struct platform_device *pdev)
 
 	DEBUG(MTD_DEBUG_LEVEL0, "MXC_ND : NAND resume\n");
 
-	if (mtd) {
-		/* Enable the NFC clock */
-		clk_enable(host->clk);
-		mtd->resume(mtd);
-	}
+	mtd->resume(mtd);
 
 	return ret;
 }

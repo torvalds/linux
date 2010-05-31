@@ -29,6 +29,7 @@
 #include <linux/list.h>
 #include <linux/pci.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <asm/iommu.h>
 #include <asm/vio.h>

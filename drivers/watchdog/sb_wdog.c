@@ -67,8 +67,8 @@ static DEFINE_SPINLOCK(sbwd_lock);
 void sbwdog_set(char __iomem *wdog, unsigned long t)
 {
 	spin_lock(&sbwd_lock);
-	__raw_writeb(0, wdog - 0x10);
-	__raw_writeq(t & 0x7fffffUL, wdog);
+	__raw_writeb(0, wdog);
+	__raw_writeq(t & 0x7fffffUL, wdog - 0x10);
 	spin_unlock(&sbwd_lock);
 }
 

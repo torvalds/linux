@@ -1,4 +1,5 @@
 #include <linux/kernel.h>
+#include <linux/gfp.h>
 #include <linux/ide.h>
 
 int generic_ide_suspend(struct device *dev, pm_message_t mesg)

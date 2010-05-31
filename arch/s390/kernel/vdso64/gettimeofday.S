@@ -31,7 +31,7 @@ __kernel_gettimeofday:
 	stck	48(%r15)			/* Store TOD clock */
 	lg	%r1,48(%r15)
 	sg	%r1,__VDSO_XTIME_STAMP(%r5)	/* TOD - cycle_last */
-	mghi	%r1,1000
+	msgf	%r1,__VDSO_NTP_MULT(%r5)	/*  * NTP adjustment */
 	srlg	%r1,%r1,12			/* cyc2ns(clock,cycle_delta) */
 	alg	%r1,__VDSO_XTIME_NSEC(%r5)	/*  + xtime.tv_nsec */
 	lg	%r0,__VDSO_XTIME_SEC(%r5)	/* xtime.tv_sec */

@@ -655,6 +655,7 @@ found:
 	p_info->act_entry_offset = 0;
 	file->private_data = p_info;
 	debug_info_get(debug_info);
+	nonseekable_open(inode, file);
 out:
 	mutex_unlock(&debug_mutex);
 	return rc;

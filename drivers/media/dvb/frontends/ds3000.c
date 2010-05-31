@@ -719,7 +719,7 @@ static int ds3000_read_snr(struct dvb_frontend *fe, u16 *snr)
 				(ds3000_readreg(state, 0x8d) << 4);
 		dvbs2_signal_reading = ds3000_readreg(state, 0x8e);
 		tmp = dvbs2_signal_reading * dvbs2_signal_reading >> 1;
-		if (dvbs2_signal_reading == 0) {
+		if (tmp == 0) {
 			*snr = 0x0000;
 			return 0;
 		}

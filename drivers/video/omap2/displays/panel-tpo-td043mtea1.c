@@ -15,6 +15,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/gpio.h>
 #include <linux/err.h>
+#include <linux/slab.h>
 
 #include <plat/display.h>
 

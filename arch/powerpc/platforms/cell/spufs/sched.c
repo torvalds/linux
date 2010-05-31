@@ -27,6 +27,7 @@
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
+#include <linux/slab.h>
 #include <linux/completion.h>
 #include <linux/vmalloc.h>
 #include <linux/smp.h>

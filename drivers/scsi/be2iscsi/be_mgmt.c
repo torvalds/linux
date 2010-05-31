@@ -167,9 +167,9 @@ unsigned char mgmt_invalidate_icds(struct beiscsi_hba *phba,
 				&nonemb_cmd.dma);
 	if (nonemb_cmd.va == NULL) {
 		SE_DEBUG(DBG_LVL_1,
-			 "Failed to allocate memory for"
-			 "mgmt_invalidate_icds \n");
-		return -1;
+			 "Failed to allocate memory for mgmt_invalidate_icds\n");
+		spin_unlock(&ctrl->mbox_lock);
+		return 0;
 	}
 	nonemb_cmd.size = sizeof(struct invalidate_commands_params_in);
 	req = nonemb_cmd.va;

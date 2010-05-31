@@ -25,6 +25,7 @@
 #include <linux/ip.h>
 #include <linux/icmp.h>
 #include <linux/netdevice.h>
+#include <linux/slab.h>
 #include <net/sock.h>
 #include <net/ip.h>
 #include <net/tcp.h>
@@ -111,8 +112,8 @@ int ip_forward(struct sk_buff *skb)
 
 	skb->priority = rt_tos2priority(iph->tos);
 
-	return NF_HOOK(PF_INET, NF_INET_FORWARD, skb, skb->dev, rt->u.dst.dev,
-		       ip_forward_finish);
+	return NF_HOOK(NFPROTO_IPV4, NF_INET_FORWARD, skb, skb->dev,
+		       rt->u.dst.dev, ip_forward_finish);
 
 sr_failed:
 	/*

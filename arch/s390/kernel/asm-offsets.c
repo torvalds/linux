@@ -39,6 +39,7 @@ int main(void)
 	DEFINE(__TI_precount, offsetof(struct thread_info, preempt_count));
 	DEFINE(__TI_user_timer, offsetof(struct thread_info, user_timer));
 	DEFINE(__TI_system_timer, offsetof(struct thread_info, system_timer));
+	DEFINE(__TI_last_break, offsetof(struct thread_info, last_break));
 	BLANK();
 	DEFINE(__PT_ARGS, offsetof(struct pt_regs, args));
 	DEFINE(__PT_PSW, offsetof(struct pt_regs, psw));
@@ -61,6 +62,7 @@ int main(void)
 	DEFINE(__VDSO_WTOM_NSEC, offsetof(struct vdso_data, wtom_clock_nsec));
 	DEFINE(__VDSO_TIMEZONE, offsetof(struct vdso_data, tz_minuteswest));
 	DEFINE(__VDSO_ECTG_OK, offsetof(struct vdso_data, ectg_available));
+	DEFINE(__VDSO_NTP_MULT, offsetof(struct vdso_data, ntp_mult));
 	DEFINE(__VDSO_ECTG_BASE, offsetof(struct vdso_per_cpu_data, ectg_timer_base));
 	DEFINE(__VDSO_ECTG_USER, offsetof(struct vdso_per_cpu_data, ectg_user_time));
 	/* constants used by the vdso */
@@ -111,6 +113,7 @@ int main(void)
 	DEFINE(__LC_RETURN_MCCK_PSW, offsetof(struct _lowcore, return_mcck_psw));
 	DEFINE(__LC_SYNC_ENTER_TIMER, offsetof(struct _lowcore, sync_enter_timer));
 	DEFINE(__LC_ASYNC_ENTER_TIMER, offsetof(struct _lowcore, async_enter_timer));
+	DEFINE(__LC_MCCK_ENTER_TIMER, offsetof(struct _lowcore, mcck_enter_timer));
 	DEFINE(__LC_EXIT_TIMER, offsetof(struct _lowcore, exit_timer));
 	DEFINE(__LC_USER_TIMER, offsetof(struct _lowcore, user_timer));
 	DEFINE(__LC_SYSTEM_TIMER, offsetof(struct _lowcore, system_timer));
@@ -125,8 +128,8 @@ int main(void)
 	DEFINE(__LC_KERNEL_ASCE, offsetof(struct _lowcore, kernel_asce));
 	DEFINE(__LC_USER_ASCE, offsetof(struct _lowcore, user_asce));
 	DEFINE(__LC_USER_EXEC_ASCE, offsetof(struct _lowcore, user_exec_asce));
-	DEFINE(__LC_CPUID, offsetof(struct _lowcore, cpu_id));
 	DEFINE(__LC_INT_CLOCK, offsetof(struct _lowcore, int_clock));
+	DEFINE(__LC_MCCK_CLOCK, offsetof(struct _lowcore, mcck_clock));
 	DEFINE(__LC_MACHINE_FLAGS, offsetof(struct _lowcore, machine_flags));
 	DEFINE(__LC_FTRACE_FUNC, offsetof(struct _lowcore, ftrace_func));
 	DEFINE(__LC_IRB, offsetof(struct _lowcore, irb));
@@ -149,6 +152,8 @@ int main(void)
 	DEFINE(__LC_FP_CREG_SAVE_AREA, offsetof(struct _lowcore, fpt_creg_save_area));
 	DEFINE(__LC_LAST_BREAK, offsetof(struct _lowcore, breaking_event_addr));
 	DEFINE(__LC_VDSO_PER_CPU, offsetof(struct _lowcore, vdso_per_cpu_data));
+	DEFINE(__LC_SIE_HOOK, offsetof(struct _lowcore, sie_hook));
+	DEFINE(__LC_CMF_HPP, offsetof(struct _lowcore, cmf_hpp));
 #endif /* CONFIG_32BIT */
 	return 0;
 }

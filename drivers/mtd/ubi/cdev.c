@@ -37,6 +37,7 @@
 
 #include <linux/module.h>
 #include <linux/stat.h>
+#include <linux/slab.h>
 #include <linux/ioctl.h>
 #include <linux/capability.h>
 #include <linux/uaccess.h>
@@ -188,8 +189,7 @@ static loff_t vol_cdev_llseek(struct file *file, loff_t offset, int origin)
 	return new_offset;
 }
 
-static int vol_cdev_fsync(struct file *file, struct dentry *dentry,
-			  int datasync)
+static int vol_cdev_fsync(struct file *file, int datasync)
 {
 	struct ubi_volume_desc *desc = file->private_data;
 	struct ubi_device *ubi = desc->vol->ubi;

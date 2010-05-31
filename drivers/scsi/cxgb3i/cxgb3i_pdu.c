@@ -12,6 +12,7 @@
  * Written by: Karen Xie (kxie@chelsio.com)
  */
 
+#include <linux/slab.h>
 #include <linux/skbuff.h>
 #include <linux/crypto.h>
 #include <scsi/scsi_cmnd.h>

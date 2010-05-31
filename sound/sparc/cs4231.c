@@ -10,7 +10,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
@@ -2076,12 +2075,12 @@ static int __devinit cs4231_ebus_probe(struct of_device *op, const struct of_dev
 static int __devinit cs4231_probe(struct of_device *op, const struct of_device_id *match)
 {
 #ifdef EBUS_SUPPORT
-	if (!strcmp(op->node->parent->name, "ebus"))
+	if (!strcmp(op->dev.of_node->parent->name, "ebus"))
 		return cs4231_ebus_probe(op, match);
 #endif
 #ifdef SBUS_SUPPORT
-	if (!strcmp(op->node->parent->name, "sbus") ||
-	    !strcmp(op->node->parent->name, "sbi"))
+	if (!strcmp(op->dev.of_node->parent->name, "sbus") ||
+	    !strcmp(op->dev.of_node->parent->name, "sbi"))
 		return cs4231_sbus_probe(op, match);
 #endif
 	return -ENODEV;
@@ -2110,8 +2109,11 @@ static const struct of_device_id cs4231_match[] = {
 MODULE_DEVICE_TABLE(of, cs4231_match);
 
 static struct of_platform_driver cs4231_driver = {
-	.name		= "audio",
-	.match_table	= cs4231_match,
+	.driver = {
+		.name = "audio",
+		.owner = THIS_MODULE,
+		.of_match_table = cs4231_match,
+	},
 	.probe		= cs4231_probe,
 	.remove		= __devexit_p(cs4231_remove),
 };

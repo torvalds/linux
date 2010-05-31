@@ -345,18 +345,6 @@ static inline void user_single_step_siginfo(struct task_struct *tsk,
 #define arch_ptrace_stop(code, info)		do { } while (0)
 #endif
 
-#ifndef arch_ptrace_untrace
-/*
- * Do machine-specific work before untracing child.
- *
- * This is called for a normal detach as well as from ptrace_exit()
- * when the tracing task dies.
- *
- * Called with write_lock(&tasklist_lock) held.
- */
-#define arch_ptrace_untrace(task)		do { } while (0)
-#endif
-
 extern int task_current_syscall(struct task_struct *target, long *callno,
 				unsigned long args[6], unsigned int maxargs,
 				unsigned long *sp, unsigned long *pc);

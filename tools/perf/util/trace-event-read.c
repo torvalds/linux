@@ -50,15 +50,59 @@ static int long_size;
 
 static unsigned long	page_size;
 
+static ssize_t calc_data_size;
+static bool repipe;
+
+static int do_read(int fd, void *buf, int size)
+{
+	int rsize = size;
+
+	while (size) {
+		int ret = read(fd, buf, size);
+
+		if (ret <= 0)
+			return -1;
+
+		if (repipe) {
+			int retw = write(STDOUT_FILENO, buf, ret);
+
+			if (retw <= 0 || retw != ret)
+				die("repiping input file");
+		}
+
+		size -= ret;
+		buf += ret;
+	}
+
+	return rsize;
+}
+
 static int read_or_die(void *data, int size)
 {
 	int r;
 
-	r = read(input_fd, data, size);
-	if (r != size)
+	r = do_read(input_fd, data, size);
+	if (r <= 0)
 		die("reading input file (size expected=%d received=%d)",
 		    size, r);
+
+	if (calc_data_size)
+		calc_data_size += r;
+
 	return r;
+}
+
+/* If it fails, the next read will report it */
+static void skip(int size)
+{
+	char buf[BUFSIZ];
+	int r;
+
+	while (size) {
+		r = size > BUFSIZ ? BUFSIZ : size;
+		read_or_die(buf, r);
+		size -= r;
+	};
 }
 
 static unsigned int read4(void)
@@ -82,56 +126,35 @@ static char *read_string(void)
 	char buf[BUFSIZ];
 	char *str = NULL;
 	int size = 0;
-	int i;
 	off_t r;
+	char c;
 
 	for (;;) {
-		r = read(input_fd, buf, BUFSIZ);
+		r = read(input_fd, &c, 1);
 		if (r < 0)
 			die("reading input file");
 
 		if (!r)
 			die("no data");
 
-		for (i = 0; i < r; i++) {
-			if (!buf[i])
-				break;
+		if (repipe) {
+			int retw = write(STDOUT_FILENO, &c, 1);
+
+			if (retw <= 0 || retw != r)
+				die("repiping input file string");
 		}
-		if (i < r)
+
+		buf[size++] = c;
+
+		if (!c)
 			break;
-
-		if (str) {
-			size += BUFSIZ;
-			str = realloc(str, size);
-			if (!str)
-				die("malloc of size %d", size);
-			memcpy(str + (size - BUFSIZ), buf, BUFSIZ);
-		} else {
-			size = BUFSIZ;
-			str = malloc_or_die(size);
-			memcpy(str, buf, size);
-		}
 	}
 
-	/* trailing \0: */
-	i++;
+	if (calc_data_size)
+		calc_data_size += size;
 
-	/* move the file descriptor to the end of the string */
-	r = lseek(input_fd, -(r - i), SEEK_CUR);
-	if (r == (off_t)-1)
-		die("lseek");
-
-	if (str) {
-		size += i;
-		str = realloc(str, size);
-		if (!str)
-			die("malloc of size %d", size);
-		memcpy(str + (size - i), buf, i);
-	} else {
-		size = i;
-		str = malloc_or_die(i);
-		memcpy(str, buf, i);
-	}
+	str = malloc_or_die(size);
+	memcpy(str, buf, size);
 
 	return str;
 }
@@ -174,7 +197,6 @@ static void read_ftrace_printk(void)
 static void read_header_files(void)
 {
 	unsigned long long size;
-	char *header_page;
 	char *header_event;
 	char buf[BUFSIZ];
 
@@ -184,10 +206,7 @@ static void read_header_files(void)
 		die("did not read header page");
 
 	size = read8();
-	header_page = malloc_or_die(size);
-	read_or_die(header_page, size);
-	parse_header_page(header_page, size);
-	free(header_page);
+	skip(size);
 
 	/*
 	 * The size field in the page is of type long,
@@ -459,7 +478,7 @@ struct record *trace_read_data(int cpu)
 	return data;
 }
 
-void trace_report(int fd)
+ssize_t trace_report(int fd, bool __repipe)
 {
 	char buf[BUFSIZ];
 	char test[] = { 23, 8, 68 };
@@ -467,6 +486,10 @@ void trace_report(int fd)
 	int show_version = 0;
 	int show_funcs = 0;
 	int show_printk = 0;
+	ssize_t size;
+
+	calc_data_size = 1;
+	repipe = __repipe;
 
 	input_fd = fd;
 
@@ -499,14 +522,18 @@ void trace_report(int fd)
 	read_proc_kallsyms();
 	read_ftrace_printk();
 
+	size = calc_data_size - 1;
+	calc_data_size = 0;
+	repipe = false;
+
 	if (show_funcs) {
 		print_funcs();
-		return;
+		return size;
 	}
 	if (show_printk) {
 		print_printk();
-		return;
+		return size;
 	}
 
-	return;
+	return size;
 }

@@ -13,6 +13,7 @@
 #include <net/datalink.h>
 #include <linux/ipx.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 struct ipx_address {
 	__be32  net;

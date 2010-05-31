@@ -11,6 +11,8 @@
 #define KMSG_COMPONENT "tape"
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
+#include <linux/slab.h>
+
 #include "tape_class.h"
 
 MODULE_AUTHOR("Stefan Bader <shbader@de.ibm.com>");

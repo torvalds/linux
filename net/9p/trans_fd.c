@@ -38,6 +38,7 @@
 #include <linux/idr.h>
 #include <linux/file.h>
 #include <linux/parser.h>
+#include <linux/slab.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 #include <net/9p/transport.h>

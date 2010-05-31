@@ -42,9 +42,13 @@ extern struct ibft_table_header *ibft_addr;
  * mapped address is set in the ibft_addr variable.
  */
 #ifdef CONFIG_ISCSI_IBFT_FIND
-extern void __init reserve_ibft_region(void);
+unsigned long find_ibft_region(unsigned long *sizep);
 #else
-static inline void reserve_ibft_region(void) { }
+static inline unsigned long find_ibft_region(unsigned long *sizep)
+{
+	*sizep = 0;
+	return 0;
+}
 #endif
 
 #endif /* ISCSI_IBFT_H */

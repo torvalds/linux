@@ -538,8 +538,6 @@ static int patch_nvhdmi_2ch(struct hda_codec *codec)
  * patch entries
  */
 static struct hda_codec_preset snd_hda_preset_nvhdmi[] = {
-	{ .id = 0x10de0067, .name = "MCP67 HDMI", .patch = patch_nvhdmi_2ch },
-	{ .id = 0x10de8001, .name = "MCP73 HDMI", .patch = patch_nvhdmi_2ch },
 	{ .id = 0x10de0002, .name = "MCP77/78 HDMI",
 	  .patch = patch_nvhdmi_8ch_7x },
 	{ .id = 0x10de0003, .name = "MCP77/78 HDMI",
@@ -550,12 +548,16 @@ static struct hda_codec_preset snd_hda_preset_nvhdmi[] = {
 	  .patch = patch_nvhdmi_8ch_7x },
 	{ .id = 0x10de0007, .name = "MCP79/7A HDMI",
 	  .patch = patch_nvhdmi_8ch_7x },
-	{ .id = 0x10de000c, .name = "MCP89 HDMI",
+	{ .id = 0x10de000a, .name = "GT220 HDMI",
 	  .patch = patch_nvhdmi_8ch_89 },
 	{ .id = 0x10de000b, .name = "GT21x HDMI",
 	  .patch = patch_nvhdmi_8ch_89 },
+	{ .id = 0x10de000c, .name = "MCP89 HDMI",
+	  .patch = patch_nvhdmi_8ch_89 },
 	{ .id = 0x10de000d, .name = "GT240 HDMI",
 	  .patch = patch_nvhdmi_8ch_89 },
+	{ .id = 0x10de0067, .name = "MCP67 HDMI", .patch = patch_nvhdmi_2ch },
+	{ .id = 0x10de8001, .name = "MCP73 HDMI", .patch = patch_nvhdmi_2ch },
 	{} /* terminator */
 };
 
@@ -564,11 +566,12 @@ MODULE_ALIAS("snd-hda-codec-id:10de0003");
 MODULE_ALIAS("snd-hda-codec-id:10de0005");
 MODULE_ALIAS("snd-hda-codec-id:10de0006");
 MODULE_ALIAS("snd-hda-codec-id:10de0007");
+MODULE_ALIAS("snd-hda-codec-id:10de000a");
+MODULE_ALIAS("snd-hda-codec-id:10de000b");
+MODULE_ALIAS("snd-hda-codec-id:10de000c");
+MODULE_ALIAS("snd-hda-codec-id:10de000d");
 MODULE_ALIAS("snd-hda-codec-id:10de0067");
 MODULE_ALIAS("snd-hda-codec-id:10de8001");
-MODULE_ALIAS("snd-hda-codec-id:10de000c");
-MODULE_ALIAS("snd-hda-codec-id:10de000b");
-MODULE_ALIAS("snd-hda-codec-id:10de000d");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("NVIDIA HDMI HD-audio codec");

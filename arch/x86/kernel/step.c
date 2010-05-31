@@ -158,22 +158,6 @@ static int enable_single_step(struct task_struct *child)
 }
 
 /*
- * Install this value in MSR_IA32_DEBUGCTLMSR whenever child is running.
- */
-static void write_debugctlmsr(struct task_struct *child, unsigned long val)
-{
-	if (child->thread.debugctlmsr == val)
-		return;
-
-	child->thread.debugctlmsr = val;
-
-	if (child != current)
-		return;
-
-	update_debugctlmsr(val);
-}
-
-/*
  * Enable single or block step.
  */
 static void enable_step(struct task_struct *child, bool block)
@@ -186,15 +170,17 @@ static void enable_step(struct task_struct *child, bool block)
 	 * that uses user-mode single stepping itself.
 	 */
 	if (enable_single_step(child) && block) {
-		set_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
-		write_debugctlmsr(child,
-				  child->thread.debugctlmsr | DEBUGCTLMSR_BTF);
-	} else {
-		write_debugctlmsr(child,
-				  child->thread.debugctlmsr & ~DEBUGCTLMSR_BTF);
+		unsigned long debugctl = get_debugctlmsr();
 
-		if (!child->thread.debugctlmsr)
-			clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
+		debugctl |= DEBUGCTLMSR_BTF;
+		update_debugctlmsr(debugctl);
+		set_tsk_thread_flag(child, TIF_BLOCKSTEP);
+	} else if (test_tsk_thread_flag(child, TIF_BLOCKSTEP)) {
+		unsigned long debugctl = get_debugctlmsr();
+
+		debugctl &= ~DEBUGCTLMSR_BTF;
+		update_debugctlmsr(debugctl);
+		clear_tsk_thread_flag(child, TIF_BLOCKSTEP);
 	}
 }
 
@@ -213,11 +199,13 @@ void user_disable_single_step(struct task_struct *child)
 	/*
 	 * Make sure block stepping (BTF) is disabled.
 	 */
-	write_debugctlmsr(child,
-			  child->thread.debugctlmsr & ~DEBUGCTLMSR_BTF);
+	if (test_tsk_thread_flag(child, TIF_BLOCKSTEP)) {
+		unsigned long debugctl = get_debugctlmsr();
 
-	if (!child->thread.debugctlmsr)
-		clear_tsk_thread_flag(child, TIF_DEBUGCTLMSR);
+		debugctl &= ~DEBUGCTLMSR_BTF;
+		update_debugctlmsr(debugctl);
+		clear_tsk_thread_flag(child, TIF_BLOCKSTEP);
+	}
 
 	/* Always clear TIF_SINGLESTEP... */
 	clear_tsk_thread_flag(child, TIF_SINGLESTEP);

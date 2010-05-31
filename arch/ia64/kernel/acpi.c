@@ -44,6 +44,7 @@
 #include <linux/efi.h>
 #include <linux/mmzone.h>
 #include <linux/nodemask.h>
+#include <linux/slab.h>
 #include <acpi/processor.h>
 #include <asm/io.h>
 #include <asm/iosapic.h>
@@ -781,6 +782,14 @@ int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 			return -1;
 		*irq = tmp;
 	}
+	return 0;
+}
+
+int acpi_isa_irq_to_gsi(unsigned isa_irq, u32 *gsi)
+{
+	if (isa_irq >= 16)
+		return -1;
+	*gsi = isa_irq;
 	return 0;
 }
 

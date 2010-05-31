@@ -11,9 +11,9 @@
  */
 
 #include <linux/sched.h>
+#include <linux/slab.h>
 #include <linux/err.h>
 #include <linux/fs.h>
-#include <linux/slab.h>
 #include <arch/svinto.h>
 #include <linux/init.h>
 

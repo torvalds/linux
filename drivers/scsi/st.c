@@ -27,6 +27,7 @@ static const char *verstr = "20081215";
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/string.h>
+#include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/mtio.h>
 #include <linux/cdrom.h>
@@ -3961,6 +3962,7 @@ static const struct file_operations st_fops =
 	.open =		st_open,
 	.flush =	st_flush,
 	.release =	st_release,
+	.llseek =	noop_llseek,
 };
 
 static int st_probe(struct device *dev)

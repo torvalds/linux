@@ -27,7 +27,6 @@
 #include <linux/isa.h>
 #include <linux/pnp.h>
 #include <linux/delay.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/moduleparam.h>
 #include <asm/io.h>

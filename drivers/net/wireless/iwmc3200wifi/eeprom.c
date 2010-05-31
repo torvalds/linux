@@ -37,6 +37,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/slab.h>
 
 #include "iwm.h"
 #include "umac.h"

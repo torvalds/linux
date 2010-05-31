@@ -33,6 +33,7 @@
 
 #include <linux/mlx4/cq.h>
 #include <linux/mlx4/qp.h>
+#include <linux/slab.h>
 
 #include "mlx4_ib.h"
 #include "user.h"
@@ -658,6 +659,14 @@ repoll:
 			break;
 		case MLX4_OPCODE_ATOMIC_FA:
 			wc->opcode    = IB_WC_FETCH_ADD;
+			wc->byte_len  = 8;
+			break;
+		case MLX4_OPCODE_MASKED_ATOMIC_CS:
+			wc->opcode    = IB_WC_MASKED_COMP_SWAP;
+			wc->byte_len  = 8;
+			break;
+		case MLX4_OPCODE_MASKED_ATOMIC_FA:
+			wc->opcode    = IB_WC_MASKED_FETCH_ADD;
 			wc->byte_len  = 8;
 			break;
 		case MLX4_OPCODE_BIND_MW:

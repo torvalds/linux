@@ -18,7 +18,6 @@
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/cpufreq.h>
 #include <linux/init.h>
 #include <linux/completion.h>
@@ -363,7 +362,7 @@ static int g5_cpufreq_cpu_init(struct cpufreq_policy *policy)
 	/* secondary CPUs are tied to the primary one by the
 	 * cpufreq core if in the secondary policy we tell it that
 	 * it actually must be one policy together with all others. */
-	cpumask_copy(policy->cpus, &cpu_online_map);
+	cpumask_copy(policy->cpus, cpu_online_mask);
 	cpufreq_frequency_table_get_attr(g5_cpu_freqs, policy->cpu);
 
 	return cpufreq_frequency_table_cpuinfo(policy,

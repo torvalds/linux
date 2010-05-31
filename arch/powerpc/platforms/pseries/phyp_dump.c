@@ -11,6 +11,7 @@
  *
  */
 
+#include <linux/gfp.h>
 #include <linux/init.h>
 #include <linux/kobject.h>
 #include <linux/mm.h>

@@ -23,6 +23,7 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/slab.h>
 
 #include <plat/dma.h>
 #include <plat/mcbsp.h>

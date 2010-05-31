@@ -16,6 +16,7 @@
 #include <linux/i2c.h>
 #include <linux/backlight.h>
 #include <linux/mfd/88pm860x.h>
+#include <linux/slab.h>
 
 #define MAX_BRIGHTNESS		(0xFF)
 #define MIN_BRIGHTNESS		(0)
@@ -221,6 +222,7 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	data->port = __check_device(pdata, name);
 	if (data->port < 0) {
 		dev_err(&pdev->dev, "wrong platform data is assigned");
+		kfree(data);
 		return -EINVAL;
 	}
 
@@ -265,6 +267,7 @@ static int pm860x_backlight_probe(struct platform_device *pdev)
 	backlight_update_status(bl);
 	return 0;
 out:
+	backlight_device_unregister(bl);
 	kfree(data);
 	return ret;
 }

@@ -32,6 +32,10 @@ static inline void trace_ ## name(proto) {}
 #define VIF_PR_FMT	" vif:%s(%d)"
 #define VIF_PR_ARG	__get_str(vif_name), __entry->vif_type
 
+/*
+ * Tracing for driver callbacks.
+ */
+
 TRACE_EVENT(drv_start,
 	TP_PROTO(struct ieee80211_local *local, int ret),
 
@@ -359,23 +363,26 @@ TRACE_EVENT(drv_update_tkip_key,
 
 TRACE_EVENT(drv_hw_scan,
 	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
 		 struct cfg80211_scan_request *req, int ret),
 
-	TP_ARGS(local, req, ret),
+	TP_ARGS(local, sdata, req, ret),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
+		VIF_ENTRY
 		__field(int, ret)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
+		VIF_ASSIGN;
 		__entry->ret = ret;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT " ret:%d",
-		LOCAL_PR_ARG, __entry->ret
+		LOCAL_PR_FMT VIF_PR_FMT " ret:%d",
+		LOCAL_PR_ARG,VIF_PR_ARG, __entry->ret
 	)
 );
 
@@ -764,6 +771,326 @@ TRACE_EVENT(drv_flush,
 	TP_printk(
 		LOCAL_PR_FMT " drop:%d",
 		LOCAL_PR_ARG, __entry->drop
+	)
+);
+
+TRACE_EVENT(drv_channel_switch,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_channel_switch *ch_switch),
+
+	TP_ARGS(local, ch_switch),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(u64, timestamp)
+		__field(bool, block_tx)
+		__field(u16, freq)
+		__field(u8, count)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->timestamp = ch_switch->timestamp;
+		__entry->block_tx = ch_switch->block_tx;
+		__entry->freq = ch_switch->channel->center_freq;
+		__entry->count = ch_switch->count;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " new freq:%u count:%d",
+		LOCAL_PR_ARG, __entry->freq, __entry->count
+	)
+);
+
+/*
+ * Tracing for API calls that drivers call.
+ */
+
+TRACE_EVENT(api_start_tx_ba_session,
+	TP_PROTO(struct ieee80211_sta *sta, u16 tid),
+
+	TP_ARGS(sta, tid),
+
+	TP_STRUCT__entry(
+		STA_ENTRY
+		__field(u16, tid)
+	),
+
+	TP_fast_assign(
+		STA_ASSIGN;
+		__entry->tid = tid;
+	),
+
+	TP_printk(
+		STA_PR_FMT " tid:%d",
+		STA_PR_ARG, __entry->tid
+	)
+);
+
+TRACE_EVENT(api_start_tx_ba_cb,
+	TP_PROTO(struct ieee80211_sub_if_data *sdata, const u8 *ra, u16 tid),
+
+	TP_ARGS(sdata, ra, tid),
+
+	TP_STRUCT__entry(
+		VIF_ENTRY
+		__array(u8, ra, ETH_ALEN)
+		__field(u16, tid)
+	),
+
+	TP_fast_assign(
+		VIF_ASSIGN;
+		memcpy(__entry->ra, ra, ETH_ALEN);
+		__entry->tid = tid;
+	),
+
+	TP_printk(
+		VIF_PR_FMT " ra:%pM tid:%d",
+		VIF_PR_ARG, __entry->ra, __entry->tid
+	)
+);
+
+TRACE_EVENT(api_stop_tx_ba_session,
+	TP_PROTO(struct ieee80211_sta *sta, u16 tid, u16 initiator),
+
+	TP_ARGS(sta, tid, initiator),
+
+	TP_STRUCT__entry(
+		STA_ENTRY
+		__field(u16, tid)
+		__field(u16, initiator)
+	),
+
+	TP_fast_assign(
+		STA_ASSIGN;
+		__entry->tid = tid;
+		__entry->initiator = initiator;
+	),
+
+	TP_printk(
+		STA_PR_FMT " tid:%d initiator:%d",
+		STA_PR_ARG, __entry->tid, __entry->initiator
+	)
+);
+
+TRACE_EVENT(api_stop_tx_ba_cb,
+	TP_PROTO(struct ieee80211_sub_if_data *sdata, const u8 *ra, u16 tid),
+
+	TP_ARGS(sdata, ra, tid),
+
+	TP_STRUCT__entry(
+		VIF_ENTRY
+		__array(u8, ra, ETH_ALEN)
+		__field(u16, tid)
+	),
+
+	TP_fast_assign(
+		VIF_ASSIGN;
+		memcpy(__entry->ra, ra, ETH_ALEN);
+		__entry->tid = tid;
+	),
+
+	TP_printk(
+		VIF_PR_FMT " ra:%pM tid:%d",
+		VIF_PR_ARG, __entry->ra, __entry->tid
+	)
+);
+
+TRACE_EVENT(api_restart_hw,
+	TP_PROTO(struct ieee80211_local *local),
+
+	TP_ARGS(local),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT,
+		LOCAL_PR_ARG
+	)
+);
+
+TRACE_EVENT(api_beacon_loss,
+	TP_PROTO(struct ieee80211_sub_if_data *sdata),
+
+	TP_ARGS(sdata),
+
+	TP_STRUCT__entry(
+		VIF_ENTRY
+	),
+
+	TP_fast_assign(
+		VIF_ASSIGN;
+	),
+
+	TP_printk(
+		VIF_PR_FMT,
+		VIF_PR_ARG
+	)
+);
+
+TRACE_EVENT(api_connection_loss,
+	TP_PROTO(struct ieee80211_sub_if_data *sdata),
+
+	TP_ARGS(sdata),
+
+	TP_STRUCT__entry(
+		VIF_ENTRY
+	),
+
+	TP_fast_assign(
+		VIF_ASSIGN;
+	),
+
+	TP_printk(
+		VIF_PR_FMT,
+		VIF_PR_ARG
+	)
+);
+
+TRACE_EVENT(api_cqm_rssi_notify,
+	TP_PROTO(struct ieee80211_sub_if_data *sdata,
+		 enum nl80211_cqm_rssi_threshold_event rssi_event),
+
+	TP_ARGS(sdata, rssi_event),
+
+	TP_STRUCT__entry(
+		VIF_ENTRY
+		__field(u32, rssi_event)
+	),
+
+	TP_fast_assign(
+		VIF_ASSIGN;
+		__entry->rssi_event = rssi_event;
+	),
+
+	TP_printk(
+		VIF_PR_FMT " event:%d",
+		VIF_PR_ARG, __entry->rssi_event
+	)
+);
+
+TRACE_EVENT(api_scan_completed,
+	TP_PROTO(struct ieee80211_local *local, bool aborted),
+
+	TP_ARGS(local, aborted),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(bool, aborted)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->aborted = aborted;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " aborted:%d",
+		LOCAL_PR_ARG, __entry->aborted
+	)
+);
+
+TRACE_EVENT(api_sta_block_awake,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sta *sta, bool block),
+
+	TP_ARGS(local, sta, block),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		STA_ENTRY
+		__field(bool, block)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		STA_ASSIGN;
+		__entry->block = block;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT STA_PR_FMT " block:%d",
+		LOCAL_PR_ARG, STA_PR_FMT, __entry->block
+	)
+);
+
+TRACE_EVENT(api_chswitch_done,
+	TP_PROTO(struct ieee80211_sub_if_data *sdata, bool success),
+
+	TP_ARGS(sdata, success),
+
+	TP_STRUCT__entry(
+		VIF_ENTRY
+		__field(bool, success)
+	),
+
+	TP_fast_assign(
+		VIF_ASSIGN;
+		__entry->success = success;
+	),
+
+	TP_printk(
+		VIF_PR_FMT " success=%d",
+		VIF_PR_ARG, __entry->success
+	)
+);
+
+/*
+ * Tracing for internal functions
+ * (which may also be called in response to driver calls)
+ */
+
+TRACE_EVENT(wake_queue,
+	TP_PROTO(struct ieee80211_local *local, u16 queue,
+		 enum queue_stop_reason reason),
+
+	TP_ARGS(local, queue, reason),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(u16, queue)
+		__field(u32, reason)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->queue = queue;
+		__entry->reason = reason;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " queue:%d, reason:%d",
+		LOCAL_PR_ARG, __entry->queue, __entry->reason
+	)
+);
+
+TRACE_EVENT(stop_queue,
+	TP_PROTO(struct ieee80211_local *local, u16 queue,
+		 enum queue_stop_reason reason),
+
+	TP_ARGS(local, queue, reason),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		__field(u16, queue)
+		__field(u32, reason)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		__entry->queue = queue;
+		__entry->reason = reason;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT " queue:%d, reason:%d",
+		LOCAL_PR_ARG, __entry->queue, __entry->reason
 	)
 );
 #endif /* !__MAC80211_DRIVER_TRACE || TRACE_HEADER_MULTI_READ */

@@ -32,6 +32,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 
 #define TIMEOUT_MIN		1
 #define TIMEOUT_MAX		2

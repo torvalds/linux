@@ -9,6 +9,7 @@
  * the terms of the GNU General Public License version 2 as published by the
  * Free Software Foundation.
  */
+#include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/spi/spi.h>
 #include <linux/mfd/core.h>
@@ -677,6 +678,10 @@ err_revision:
 
 	if (pdata->flags & MC13783_USE_TOUCHSCREEN)
 		mc13783_add_subdevice(mc13783, "mc13783-ts");
+
+	if (pdata->flags & MC13783_USE_LED)
+		mc13783_add_subdevice_pdata(mc13783, "mc13783-led",
+					pdata->leds, sizeof(*pdata->leds));
 
 	return 0;
 }

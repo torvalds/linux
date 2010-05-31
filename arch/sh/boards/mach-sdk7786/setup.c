@@ -21,6 +21,7 @@
 #include <asm/heartbeat.h>
 #include <asm/sizes.h>
 #include <asm/reboot.h>
+#include <asm/smp-ops.h>
 
 static struct resource heartbeat_resource = {
 	.start		= 0x07fff8b0,
@@ -165,6 +166,19 @@ static void sdk7786_restart(char *cmd)
 	fpga_write_reg(0xa5a5, SRSTR);
 }
 
+static void sdk7786_power_off(void)
+{
+	fpga_write_reg(fpga_read_reg(PWRCR) | PWRCR_PDWNREQ, PWRCR);
+
+	/*
+	 * It can take up to 20us for the R8C to do its job, back off and
+	 * wait a bit until we've been shut off. Even though newer FPGA
+	 * versions don't set the ACK bit, the latency issue remains.
+	 */
+	while ((fpga_read_reg(PWRCR) & PWRCR_PDWNACK) == 0)
+		cpu_sleep();
+}
+
 /* Initialize the board */
 static void __init sdk7786_setup(char **cmdline_p)
 {
@@ -175,6 +189,9 @@ static void __init sdk7786_setup(char **cmdline_p)
 	pr_info("\tPCB revision:\t%d\n", fpga_read_reg(PCBRR) & 0xf);
 
 	machine_ops.restart = sdk7786_restart;
+	pm_power_off = sdk7786_power_off;
+
+	register_smp_ops(&shx3_smp_ops);
 }
 
 /*

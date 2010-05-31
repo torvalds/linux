@@ -34,6 +34,7 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/gfp.h>
 #include <linux/pci.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
@@ -323,10 +324,8 @@ static void adma_qc_prep(struct ata_queued_cmd *qc)
 	VPRINTK("ENTER\n");
 
 	adma_enter_reg_mode(qc->ap);
-	if (qc->tf.protocol != ATA_PROT_DMA) {
-		ata_sff_qc_prep(qc);
+	if (qc->tf.protocol != ATA_PROT_DMA)
 		return;
-	}
 
 	buf[i++] = 0;	/* Response flags */
 	buf[i++] = 0;	/* reserved */
@@ -441,8 +440,6 @@ static inline unsigned int adma_intr_pkt(struct ata_host *host)
 			continue;
 		handled = 1;
 		adma_enter_reg_mode(ap);
-		if (ap->flags & ATA_FLAG_DISABLED)
-			continue;
 		pp = ap->private_data;
 		if (!pp || pp->state != adma_state_pkt)
 			continue;
@@ -483,42 +480,38 @@ static inline unsigned int adma_intr_mmio(struct ata_host *host)
 	unsigned int handled = 0, port_no;
 
 	for (port_no = 0; port_no < host->n_ports; ++port_no) {
-		struct ata_port *ap;
-		ap = host->ports[port_no];
-		if (ap && (!(ap->flags & ATA_FLAG_DISABLED))) {
-			struct ata_queued_cmd *qc;
-			struct adma_port_priv *pp = ap->private_data;
-			if (!pp || pp->state != adma_state_mmio)
+		struct ata_port *ap = host->ports[port_no];
+		struct adma_port_priv *pp = ap->private_data;
+		struct ata_queued_cmd *qc;
+
+		if (!pp || pp->state != adma_state_mmio)
+			continue;
+		qc = ata_qc_from_tag(ap, ap->link.active_tag);
+		if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
+
+			/* check main status, clearing INTRQ */
+			u8 status = ata_sff_check_status(ap);
+			if ((status & ATA_BUSY))
 				continue;
-			qc = ata_qc_from_tag(ap, ap->link.active_tag);
-			if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING))) {
+			DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",
+				ap->print_id, qc->tf.protocol, status);
 
-				/* check main status, clearing INTRQ */
-				u8 status = ata_sff_check_status(ap);
-				if ((status & ATA_BUSY))
-					continue;
-				DPRINTK("ata%u: protocol %d (dev_stat 0x%X)\n",
-					ap->print_id, qc->tf.protocol, status);
+			/* complete taskfile transaction */
+			pp->state = adma_state_idle;
+			qc->err_mask |= ac_err_mask(status);
+			if (!qc->err_mask)
+				ata_qc_complete(qc);
+			else {
+				struct ata_eh_info *ehi = &ap->link.eh_info;
+				ata_ehi_clear_desc(ehi);
+				ata_ehi_push_desc(ehi, "status 0x%02X", status);
 
-				/* complete taskfile transaction */
-				pp->state = adma_state_idle;
-				qc->err_mask |= ac_err_mask(status);
-				if (!qc->err_mask)
-					ata_qc_complete(qc);
-				else {
-					struct ata_eh_info *ehi =
-						&ap->link.eh_info;
-					ata_ehi_clear_desc(ehi);
-					ata_ehi_push_desc(ehi,
-						"status 0x%02X", status);
-
-					if (qc->err_mask == AC_ERR_DEV)
-						ata_port_abort(ap);
-					else
-						ata_port_freeze(ap);
-				}
-				handled = 1;
+				if (qc->err_mask == AC_ERR_DEV)
+					ata_port_abort(ap);
+				else
+					ata_port_freeze(ap);
 			}
+			handled = 1;
 		}
 	}
 	return handled;
@@ -561,11 +554,7 @@ static int adma_port_start(struct ata_port *ap)
 {
 	struct device *dev = ap->host->dev;
 	struct adma_port_priv *pp;
-	int rc;
 
-	rc = ata_port_start(ap);
-	if (rc)
-		return rc;
 	adma_enter_reg_mode(ap);
 	pp = devm_kzalloc(dev, sizeof(*pp), GFP_KERNEL);
 	if (!pp)

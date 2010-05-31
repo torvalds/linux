@@ -59,6 +59,7 @@
 #include <linux/route.h>
 #include <linux/init.h>
 #include <linux/rcupdate.h>
+#include <linux/slab.h>
 #ifdef CONFIG_SYSCTL
 #include <linux/sysctl.h>
 #endif
@@ -535,7 +536,7 @@ void ndisc_send_skb(struct sk_buff *skb,
 	idev = in6_dev_get(dst->dev);
 	IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_OUT, skb->len);
 
-	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, dst->dev,
+	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, skb, NULL, dst->dev,
 		      dst_output);
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(net, idev, type);
@@ -889,8 +890,6 @@ out:
 		in6_ifa_put(ifp);
 	else
 		in6_dev_put(idev);
-
-	return;
 }
 
 static void ndisc_recv_na(struct sk_buff *skb)
@@ -1617,7 +1616,7 @@ void ndisc_send_redirect(struct sk_buff *skb, struct neighbour *neigh,
 	skb_dst_set(buff, dst);
 	idev = in6_dev_get(dst->dev);
 	IP6_UPD_PO_STATS(net, idev, IPSTATS_MIB_OUT, skb->len);
-	err = NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, buff, NULL, dst->dev,
+	err = NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, buff, NULL, dst->dev,
 		      dst_output);
 	if (!err) {
 		ICMP6MSGOUT_INC_STATS(net, idev, NDISC_REDIRECT);

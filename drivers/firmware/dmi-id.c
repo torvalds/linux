@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/dmi.h>
 #include <linux/device.h>
+#include <linux/slab.h>
 
 struct dmi_device_attribute{
 	struct device_attribute dev_attr;

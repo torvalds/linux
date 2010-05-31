@@ -32,7 +32,6 @@
 #include <linux/irq.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
-#include <linux/slab.h>
 
 #include <linux/i2c/twl.h>
 
