@@ -928,7 +928,7 @@ static int twl6040_set_dai_sysclk(struct snd_soc_dai *codec_dai,
 		case 19200000:
 			/* mclk input, pll disabled */
 			hppllctl |= TWL6040_MCLK_19200KHZ |
-				    TWL6040_HPLLSQRBP |
+				    TWL6040_HPLLSQRENA |
 				    TWL6040_HPLLBP;
 			break;
 		case 26000000:
