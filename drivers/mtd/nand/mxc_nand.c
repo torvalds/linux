@@ -832,6 +832,8 @@ static int __init mxcnd_probe(struct platform_device *pdev)
 	    parse_mtd_partitions(mtd, part_probes, &host->parts, 0);
 	if (nr_parts > 0)
 		add_mtd_partitions(mtd, host->parts, nr_parts);
+	else if (pdata->parts)
+		add_mtd_partitions(mtd, pdata->parts, pdata->nr_parts);
 	else
 #endif
 	{
