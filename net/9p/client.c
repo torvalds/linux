@@ -1622,6 +1622,56 @@ error:
 }
 EXPORT_SYMBOL(p9_client_rename);
 
+/*
+ * An xattrwalk without @attr_name gives the fid for the lisxattr namespace
+ */
+struct p9_fid *p9_client_xattrwalk(struct p9_fid *file_fid,
+				const char *attr_name, u64 *attr_size)
+{
+	int err;
+	struct p9_req_t *req;
+	struct p9_client *clnt;
+	struct p9_fid *attr_fid;
+
+	err = 0;
+	clnt = file_fid->clnt;
+	attr_fid = p9_fid_create(clnt);
+	if (IS_ERR(attr_fid)) {
+		err = PTR_ERR(attr_fid);
+		attr_fid = NULL;
+		goto error;
+	}
+	P9_DPRINTK(P9_DEBUG_9P,
+		">>> TXATTRWALK file_fid %d, attr_fid %d name %s\n",
+		file_fid->fid, attr_fid->fid, attr_name);
+
+	req = p9_client_rpc(clnt, P9_TXATTRWALK, "dds",
+			file_fid->fid, attr_fid->fid, attr_name);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+	err = p9pdu_readf(req->rc, clnt->proto_version, "q", attr_size);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		p9_free_req(clnt, req);
+		goto clunk_fid;
+	}
+	p9_free_req(clnt, req);
+	P9_DPRINTK(P9_DEBUG_9P, "<<<  RXATTRWALK fid %d size %llu\n",
+		attr_fid->fid, *attr_size);
+	return attr_fid;
+clunk_fid:
+	p9_client_clunk(attr_fid);
+	attr_fid = NULL;
+error:
+	if (attr_fid && (attr_fid != file_fid))
+		p9_fid_destroy(attr_fid);
+
+	return ERR_PTR(err);
+}
+EXPORT_SYMBOL_GPL(p9_client_xattrwalk);
+
 int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset)
 {
 	int err, rsize, total;
