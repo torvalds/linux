@@ -712,7 +712,7 @@ extern unsigned long blk_max_low_pfn, blk_max_pfn;
 #define BLK_BOUNCE_HIGH		-1ULL
 #endif
 #define BLK_BOUNCE_ANY		(-1ULL)
-#define BLK_BOUNCE_ISA		(ISA_DMA_THRESHOLD)
+#define BLK_BOUNCE_ISA		(DMA_BIT_MASK(24))
 
 /*
  * default timeout for SG_IO if none specified
