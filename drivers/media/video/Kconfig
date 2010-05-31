@@ -1014,8 +1014,6 @@ config USB_SE401
 
 source "drivers/media/video/sn9c102/Kconfig"
 
-source "drivers/media/video/zc0301/Kconfig"
-
 source "drivers/media/video/pwc/Kconfig"
 
 config USB_ZR364XX

@@ -459,17 +459,6 @@ Who:	Corentin Chary <corentin.chary@gmail.com>
 
 ----------------------------
 
-What:	zc0301 v4l driver
-When:	2.6.35
-Files:	drivers/media/video/zc0301/*
-Why:	Duplicate functionality with the gspca_zc3xx driver, zc0301 only
-	supports 2 USB-ID's (because it only supports a limited set of
-	sensors) wich are also supported by the gspca_zc3xx driver
-	(which supports 53 USB-ID's in total)
-Who:	Hans de Goede <hdegoede@redhat.com>
-
-----------------------------
-
 What:	sysfs-class-rfkill state file
 When:	Feb 2014
 Files:	net/rfkill/core.c

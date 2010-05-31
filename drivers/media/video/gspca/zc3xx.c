@@ -7193,9 +7193,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x046d, 0x08aa)},
 	{USB_DEVICE(0x046d, 0x08ac)},
 	{USB_DEVICE(0x046d, 0x08ad)},
-#if !defined CONFIG_USB_ZC0301 && !defined CONFIG_USB_ZC0301_MODULE
 	{USB_DEVICE(0x046d, 0x08ae)},
-#endif
 	{USB_DEVICE(0x046d, 0x08af)},
 	{USB_DEVICE(0x046d, 0x08b9)},
 	{USB_DEVICE(0x046d, 0x08d7)},

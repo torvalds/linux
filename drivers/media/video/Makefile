@@ -133,7 +133,6 @@ obj-$(CONFIG_USB_STKWEBCAM)     += stkwebcam.o
 obj-$(CONFIG_USB_SN9C102)       += sn9c102/
 obj-$(CONFIG_USB_ET61X251)      += et61x251/
 obj-$(CONFIG_USB_PWC)           += pwc/
-obj-$(CONFIG_USB_ZC0301)        += zc0301/
 obj-$(CONFIG_USB_GSPCA)         += gspca/
 
 obj-$(CONFIG_VIDEO_HDPVR)	+= hdpvr/
