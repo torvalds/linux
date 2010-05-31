@@ -1381,6 +1381,13 @@ static int __devinit tulip_init_one (struct pci_dev *pdev,
 		return i;
 	}
 
+	/* The chip will fail to enter a low-power state later unless
+	 * first explicitly commanded into D0 */
+	if (pci_set_power_state(pdev, PCI_D0)) {
+		printk (KERN_NOTICE PFX
+			"Failed to set power state to D0\n");
+	}
+
 	irq = pdev->irq;
 
 	/* alloc_etherdev ensures aligned and zeroed private structures */
