@@ -761,8 +761,10 @@ static void _nfsd4_cb_recall(struct nfs4_delegation *dp)
 		.rpc_cred = callback_cred
 	};
 
-	if (clnt == NULL)
+	if (clnt == NULL) {
+		nfs4_put_delegation(dp);
 		return; /* Client is shutting down; give up. */
+	}
 
 	args->args_op = dp;
 	msg.rpc_argp = args;
