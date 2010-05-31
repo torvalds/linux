@@ -29,6 +29,9 @@
 #include <linux/wait.h>
 #include <linux/blockgroup_lock.h>
 #include <linux/percpu_counter.h>
+#ifdef __KERNEL__
+#include <linux/compat.h>
+#endif
 
 /*
  * The fourth extended filesystem constants/structures
@@ -403,6 +406,18 @@ struct ext4_new_group_input {
 	__u16 unused;
 };
 
+#if defined(__KERNEL__) && defined(CONFIG_COMPAT)
+struct compat_ext4_new_group_input {
+	u32 group;
+	compat_u64 block_bitmap;
+	compat_u64 inode_bitmap;
+	compat_u64 inode_table;
+	u32 blocks_count;
+	u16 reserved_blocks;
+	u16 unused;
+};
+#endif
+
 /* The struct ext4_new_group_input in kernel space, with free_blocks_count */
 struct ext4_new_group_data {
 	__u32 group;
@@ -473,6 +488,7 @@ struct ext4_new_group_data {
 #define EXT4_IOC32_GETRSVSZ		_IOR('f', 5, int)
 #define EXT4_IOC32_SETRSVSZ		_IOW('f', 6, int)
 #define EXT4_IOC32_GROUP_EXTEND		_IOW('f', 7, unsigned int)
+#define EXT4_IOC32_GROUP_ADD		_IOW('f', 8, struct compat_ext4_new_group_input)
 #ifdef CONFIG_JBD2_DEBUG
 #define EXT4_IOC32_WAIT_FOR_READONLY	_IOR('f', 99, int)
 #endif
