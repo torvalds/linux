@@ -105,6 +105,8 @@ enum drbd_req_event {
 	write_completed_with_error,
 	completed_ok,
 	resend,
+	fail_frozen_disk_io,
+	restart_frozen_disk_io,
 	nothing, /* for tracing only */
 };
 

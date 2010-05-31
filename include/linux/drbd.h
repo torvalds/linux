@@ -91,6 +91,11 @@ enum drbd_after_sb_p {
 	ASB_VIOLENTLY
 };
 
+enum drbd_on_no_data {
+	OND_IO_ERROR,
+	OND_SUSPEND_IO
+};
+
 /* KEEP the order, do not delete or insert. Only append. */
 enum drbd_ret_codes {
 	ERR_CODE_BASE		= 100,

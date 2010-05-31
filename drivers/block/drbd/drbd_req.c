@@ -226,6 +226,8 @@ void _req_may_be_done(struct drbd_request *req, struct bio_and_error *m)
 		return;
 	if (s & RQ_LOCAL_PENDING)
 		return;
+	if (mdev->state.susp)
+		return;
 
 	if (req->master_bio) {
 		/* this is data_received (remote read)
@@ -632,6 +634,28 @@ int __req_mod(struct drbd_request *req, enum drbd_req_event what,
 		req->rq_state |= RQ_NET_DONE;
 		_req_may_be_done(req, m);
 		/* else: done by handed_over_to_network */
+		break;
+
+	case fail_frozen_disk_io:
+		if (!(req->rq_state & RQ_LOCAL_COMPLETED))
+			break;
+
+		_req_may_be_done(req, m);
+		break;
+
+	case restart_frozen_disk_io:
+		if (!(req->rq_state & RQ_LOCAL_COMPLETED))
+			break;
+
+		req->rq_state &= ~RQ_LOCAL_COMPLETED;
+
+		rv = MR_READ;
+		if (bio_data_dir(req->master_bio) == WRITE)
+			rv = MR_WRITE;
+
+		get_ldev(mdev);
+		req->w.cb = w_restart_disk_io;
+		drbd_queue_work(&mdev->data.work, &req->w);
 		break;
 
 	case resend:

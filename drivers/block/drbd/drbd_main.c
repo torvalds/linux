@@ -925,7 +925,12 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 	if (fp == FP_STONITH &&
 	    (ns.role == R_PRIMARY && ns.conn < C_CONNECTED && ns.pdsk > D_OUTDATED) &&
 	    !(os.role == R_PRIMARY && os.conn < C_CONNECTED && os.pdsk > D_OUTDATED))
-		ns.susp = 1;
+		ns.susp = 1; /* Suspend IO while fence-peer handler runs (peer lost) */
+
+	if (mdev->sync_conf.on_no_data == OND_SUSPEND_IO &&
+	    (ns.role == R_PRIMARY && ns.disk < D_UP_TO_DATE && ns.pdsk < D_UP_TO_DATE) &&
+	    !(os.role == R_PRIMARY && os.disk < D_UP_TO_DATE && os.pdsk < D_UP_TO_DATE))
+		ns.susp = 1; /* Suspend IO while no data available (no accessible data available) */
 
 	if (ns.aftr_isp || ns.peer_isp || ns.user_isp) {
 		if (ns.conn == C_SYNC_SOURCE)
@@ -1235,6 +1240,25 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 
 	/* Here we have the actions that are performed after a
 	   state change. This function might sleep */
+
+	if (os.susp && ns.susp && mdev->sync_conf.on_no_data == OND_SUSPEND_IO) {
+		if (os.conn < C_CONNECTED && ns.conn >= C_CONNECTED) {
+			if (ns.conn == C_CONNECTED) {
+				spin_lock_irq(&mdev->req_lock);
+				_tl_restart(mdev, resend);
+				_drbd_set_state(_NS(mdev, susp, 0), CS_VERBOSE, NULL);
+				spin_unlock_irq(&mdev->req_lock);
+			} else /* ns.conn > C_CONNECTED */
+				dev_err(DEV, "Unexpected Resynd going on!\n");
+		}
+
+		if (os.disk == D_ATTACHING && ns.disk > D_ATTACHING) {
+			spin_lock_irq(&mdev->req_lock);
+			_tl_restart(mdev, restart_frozen_disk_io);
+			_drbd_set_state(_NS(mdev, susp, 0), CS_VERBOSE, NULL);
+			spin_unlock_irq(&mdev->req_lock);
+		}
+	}
 
 	if (fp == FP_STONITH && ns.susp) {
 		/* case1: The outdate peer handler is successful:

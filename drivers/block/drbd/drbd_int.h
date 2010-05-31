@@ -1469,6 +1469,7 @@ extern int w_send_barrier(struct drbd_conf *, struct drbd_work *, int);
 extern int w_send_read_req(struct drbd_conf *, struct drbd_work *, int);
 extern int w_prev_work_done(struct drbd_conf *, struct drbd_work *, int);
 extern int w_e_reissue(struct drbd_conf *, struct drbd_work *, int);
+extern int w_restart_disk_io(struct drbd_conf *, struct drbd_work *, int);
 
 extern void resync_timer_fn(unsigned long data);
 

@@ -33,6 +33,7 @@
 #include <linux/blkpg.h>
 #include <linux/cpumask.h>
 #include "drbd_int.h"
+#include "drbd_req.h"
 #include "drbd_wrappers.h"
 #include <asm/unaligned.h>
 #include <linux/drbd_tag_magic.h>
@@ -494,6 +495,8 @@ char *ppsize(char *buf, unsigned long long size)
 void drbd_suspend_io(struct drbd_conf *mdev)
 {
 	set_bit(SUSPEND_IO, &mdev->flags);
+	if (mdev->state.susp)
+		return;
 	wait_event(mdev->misc_wait, !atomic_read(&mdev->ap_bio_cnt));
 }
 
@@ -1557,6 +1560,7 @@ static int drbd_nl_syncer_conf(struct drbd_conf *mdev, struct drbd_nl_cfg_req *n
 		sc.rate       = DRBD_RATE_DEF;
 		sc.after      = DRBD_AFTER_DEF;
 		sc.al_extents = DRBD_AL_EXTENTS_DEF;
+		sc.on_no_data  = DRBD_ON_NO_DATA_DEF;
 	} else
 		memcpy(&sc, &mdev->sync_conf, sizeof(struct syncer_conf));
 
@@ -1765,7 +1769,16 @@ static int drbd_nl_suspend_io(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nl
 static int drbd_nl_resume_io(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			     struct drbd_nl_cfg_reply *reply)
 {
+	drbd_suspend_io(mdev);
 	reply->ret_code = drbd_request_state(mdev, NS(susp, 0));
+	if (reply->ret_code == SS_SUCCESS) {
+		if (mdev->state.conn < C_CONNECTED)
+			tl_clear(mdev);
+		if (mdev->state.disk == D_DISKLESS || mdev->state.disk == D_FAILED)
+			tl_restart(mdev, fail_frozen_disk_io);
+	}
+	drbd_resume_io(mdev);
+
 	return 0;
 }
 

@@ -1173,6 +1173,24 @@ int w_send_read_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 	return ok;
 }
 
+int w_restart_disk_io(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
+{
+	struct drbd_request *req = container_of(w, struct drbd_request, w);
+
+	if (bio_data_dir(req->master_bio) == WRITE)
+		drbd_al_begin_io(mdev, req->sector);
+	/* Calling drbd_al_begin_io() out of the worker might deadlocks
+	   theoretically. Practically it can not deadlock, since this is
+	   only used when unfreezing IOs. All the extents of the requests
+	   that made it into the TL are already active */
+
+	drbd_req_make_private_bio(req, req->master_bio);
+	req->private_bio->bi_bdev = mdev->ldev->backing_bdev;
+	generic_make_request(req->private_bio);
+
+	return 1;
+}
+
 static int _drbd_may_sync_now(struct drbd_conf *mdev)
 {
 	struct drbd_conf *odev = mdev;
