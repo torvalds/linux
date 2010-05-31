@@ -463,6 +463,11 @@ static int anysee_probe(struct usb_interface *intf,
 	if (intf->num_altsetting < 1)
 		return -ENODEV;
 
+	/*
+	 * Anysee is always warm (its USB-bridge, Cypress FX2, uploads
+	 * firmware from eeprom).  If dvb_usb_device_init() succeeds that
+	 * means d is a valid pointer.
+	 */
 	ret = dvb_usb_device_init(intf, &anysee_properties, THIS_MODULE, &d,
 		adapter_nr);
 	if (ret)
@@ -479,10 +484,7 @@ static int anysee_probe(struct usb_interface *intf,
 	if (ret)
 		return ret;
 
-	if (d)
-		ret = anysee_init(d);
-
-	return ret;
+	return anysee_init(d);
 }
 
 static struct usb_device_id anysee_table[] = {
