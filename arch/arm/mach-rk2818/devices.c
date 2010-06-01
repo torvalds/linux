@@ -260,6 +260,7 @@ struct platform_device rk2818_device_backlight = {
 
 //net device
 /* DM9000 */
+#ifdef CONFIG_DM9000
 static struct resource dm9k_resource[] = {
 	[0] = {
 		.start = RK2818_NANDC_PHYS + 0x800 + (1*0x100 + 0x8),    //nand_cs1+nand_cmd
@@ -296,6 +297,7 @@ struct platform_device rk2818_device_dm9k = {
 		.platform_data = &dm9k_platdata,
 	}
 };
+#endif
 
 /*ADC*/
 static struct resource rk2818_adc_resource[] = {

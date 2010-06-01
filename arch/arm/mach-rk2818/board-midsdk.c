@@ -400,7 +400,9 @@ struct rk2818bl_info rk2818_bl_info = {
 
 static struct platform_device *devices[] __initdata = {
 	&rk2818_device_uart1,
+#ifdef CONFIG_DM9000
 	&rk2818_device_dm9k,
+#endif
 #ifdef CONFIG_I2C0_RK2818
 	&rk2818_device_i2c0,
 #endif
