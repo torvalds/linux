@@ -328,6 +328,8 @@ struct mddev_s
 	struct list_head		all_mddevs;
 
 	struct attribute_group		*to_remove;
+	struct plug_handle		*plug; /* if used by personality */
+
 	/* Generic barrier handling.
 	 * If there is a pending barrier request, all other
 	 * writes are blocked while the devices are flushed.

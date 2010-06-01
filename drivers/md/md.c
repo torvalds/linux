@@ -4693,6 +4693,7 @@ static void md_clean(mddev_t *mddev)
 	mddev->bitmap_info.chunksize = 0;
 	mddev->bitmap_info.daemon_sleep = 0;
 	mddev->bitmap_info.max_write_behind = 0;
+	mddev->plug = NULL;
 }
 
 void md_stop_writes(mddev_t *mddev)
@@ -6626,6 +6627,14 @@ int md_allow_write(mddev_t *mddev)
 }
 EXPORT_SYMBOL_GPL(md_allow_write);
 
+static void md_unplug(mddev_t *mddev)
+{
+	if (mddev->queue)
+		blk_unplug(mddev->queue);
+	if (mddev->plug)
+		mddev->plug->unplug_fn(mddev->plug);
+}
+
 #define SYNC_MARKS	10
 #define	SYNC_MARK_STEP	(3*HZ)
 void md_do_sync(mddev_t *mddev)
@@ -6804,7 +6813,7 @@ void md_do_sync(mddev_t *mddev)
 		     >= mddev->resync_max - mddev->curr_resync_completed
 			    )) {
 			/* time to update curr_resync_completed */
-			blk_unplug(mddev->queue);
+			md_unplug(mddev);
 			wait_event(mddev->recovery_wait,
 				   atomic_read(&mddev->recovery_active) == 0);
 			mddev->curr_resync_completed =
@@ -6882,7 +6891,7 @@ void md_do_sync(mddev_t *mddev)
 		 * about not overloading the IO subsystem. (things like an
 		 * e2fsck being done on the RAID array should execute fast)
 		 */
-		blk_unplug(mddev->queue);
+		md_unplug(mddev);
 		cond_resched();
 
 		currspeed = ((unsigned long)(io_sectors-mddev->resync_mark_cnt))/2
@@ -6901,7 +6910,7 @@ void md_do_sync(mddev_t *mddev)
 	 * this also signals 'finished resyncing' to md_stop
 	 */
  out:
-	blk_unplug(mddev->queue);
+	md_unplug(mddev);
 
 	wait_event(mddev->recovery_wait, !atomic_read(&mddev->recovery_active));
 

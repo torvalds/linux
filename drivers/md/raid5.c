@@ -5189,6 +5189,7 @@ static int run(mddev_t *mddev)
 	md_set_array_sectors(mddev, raid5_size(mddev, 0, 0));
 
 	plugger_init(&conf->plug, raid5_unplug);
+	mddev->plug = &conf->plug;
 	if (mddev->queue) {
 		/* read-ahead size must cover two whole stripes, which
 		 * is 2 * (datadisks) * chunksize where 'n' is the
