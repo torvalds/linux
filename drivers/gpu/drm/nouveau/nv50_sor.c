@@ -274,7 +274,6 @@ static const struct drm_encoder_funcs nv50_sor_encoder_funcs = {
 int
 nv50_sor_create(struct drm_device *dev, struct dcb_entry *entry)
 {
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_encoder *nv_encoder = NULL;
 	struct drm_encoder *encoder;
 	bool dum;
@@ -324,11 +323,7 @@ nv50_sor_create(struct drm_device *dev, struct dcb_entry *entry)
 		int or = nv_encoder->or, link = !(entry->dpconf.sor.link & 1);
 		uint32_t tmp;
 
-		if (dev_priv->chipset < 0x90 ||
-		    dev_priv->chipset == 0x92 || dev_priv->chipset == 0xa0)
-			tmp = nv_rd32(dev, NV50_PDISPLAY_SOR_MODE_CTRL_C(or));
-		else
-			tmp = nv_rd32(dev, NV90_PDISPLAY_SOR_MODE_CTRL_C(or));
+		tmp = nv_rd32(dev, 0x61c700 + (or * 0x800));
 
 		switch ((tmp & 0x00000f00) >> 8) {
 		case 8:
