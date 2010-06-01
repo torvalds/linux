@@ -3148,7 +3148,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->autobrightness = AUTOBRIGHT_DEF;
 	if (sd->sensor == SEN_OV7670) {
 		sd->freq = OV7670_FREQ_DEF;
-		gspca_dev->ctrl_dis = 1 << FREQ_IDX;
+		gspca_dev->ctrl_dis = (1 << FREQ_IDX) | (1 << COLOR_IDX);
 	} else {
 		sd->freq = FREQ_DEF;
 		gspca_dev->ctrl_dis = (1 << HFLIP_IDX) | (1 << VFLIP_IDX) |
