@@ -18,6 +18,7 @@
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/if_vlan.h>
+#include <linux/timer.h>
 #include <linux/mdio.h>
 #include <linux/list.h>
 #include <linux/pci.h>
@@ -242,10 +243,6 @@ struct efx_rx_buffer {
  * @added_count: Number of buffers added to the receive queue.
  * @notified_count: Number of buffers given to NIC (<= @added_count).
  * @removed_count: Number of buffers removed from the receive queue.
- * @add_lock: Receive queue descriptor add spin lock.
- *	This lock must be held in order to add buffers to the RX
- *	descriptor ring (rxd and buffer) and to update added_count (but
- *	not removed_count).
  * @max_fill: RX descriptor maximum fill level (<= ring size)
  * @fast_fill_trigger: RX descriptor fill level that will trigger a fast fill
  *	(<= @max_fill)
@@ -259,7 +256,7 @@ struct efx_rx_buffer {
  *	overflow was observed.  It should never be set.
  * @alloc_page_count: RX allocation strategy counter.
  * @alloc_skb_count: RX allocation strategy counter.
- * @work: Descriptor push work thread
+ * @slow_fill: Timer used to defer efx_nic_generate_fill_event().
  * @buf_page: Page for next RX buffer.
  *	We can use a single page for multiple RX buffers. This tracks
  *	the remaining space in the allocation.
@@ -277,7 +274,6 @@ struct efx_rx_queue {
 	int added_count;
 	int notified_count;
 	int removed_count;
-	spinlock_t add_lock;
 	unsigned int max_fill;
 	unsigned int fast_fill_trigger;
 	unsigned int fast_fill_limit;
@@ -285,7 +281,7 @@ struct efx_rx_queue {
 	unsigned int min_overfill;
 	unsigned int alloc_page_count;
 	unsigned int alloc_skb_count;
-	struct delayed_work work;
+	struct timer_list slow_fill;
 	unsigned int slow_fill_count;
 
 	struct page *buf_page;

@@ -276,28 +276,25 @@ static void efx_fini_rx_buffer(struct efx_rx_queue *rx_queue,
 /**
  * efx_fast_push_rx_descriptors - push new RX descriptors quickly
  * @rx_queue:		RX descriptor queue
- * @retry:              Recheck the fill level
  * This will aim to fill the RX descriptor queue up to
  * @rx_queue->@fast_fill_limit. If there is insufficient atomic
- * memory to do so, the caller should retry.
+ * memory to do so, a slow fill will be scheduled.
+ *
+ * The caller must provide serialisation (none is used here). In practise,
+ * this means this function must run from the NAPI handler, or be called
+ * when NAPI is disabled.
  */
-static int __efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
-					  int retry)
+void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
 {
 	struct efx_rx_buffer *rx_buf;
 	unsigned fill_level, index;
 	int i, space, rc = 0;
 
-	/* Calculate current fill level.  Do this outside the lock,
-	 * because most of the time we'll end up not wanting to do the
-	 * fill anyway.
-	 */
+	/* Calculate current fill level, and exit if we don't need to fill */
 	fill_level = (rx_queue->added_count - rx_queue->removed_count);
 	EFX_BUG_ON_PARANOID(fill_level > EFX_RXQ_SIZE);
-
-	/* Don't fill if we don't need to */
 	if (fill_level >= rx_queue->fast_fill_trigger)
-		return 0;
+		return;
 
 	/* Record minimum fill level */
 	if (unlikely(fill_level < rx_queue->min_fill)) {
@@ -305,20 +302,9 @@ static int __efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
 			rx_queue->min_fill = fill_level;
 	}
 
-	/* Acquire RX add lock.  If this lock is contended, then a fast
-	 * fill must already be in progress (e.g. in the refill
-	 * tasklet), so we don't need to do anything
-	 */
-	if (!spin_trylock_bh(&rx_queue->add_lock))
-		return -1;
-
- retry:
-	/* Recalculate current fill level now that we have the lock */
-	fill_level = (rx_queue->added_count - rx_queue->removed_count);
-	EFX_BUG_ON_PARANOID(fill_level > EFX_RXQ_SIZE);
 	space = rx_queue->fast_fill_limit - fill_level;
 	if (space < EFX_RX_BATCH)
-		goto out_unlock;
+		return;
 
 	EFX_TRACE(rx_queue->efx, "RX queue %d fast-filling descriptor ring from"
 		  " level %d to level %d using %s allocation\n",
@@ -330,8 +316,13 @@ static int __efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
 			index = rx_queue->added_count & EFX_RXQ_MASK;
 			rx_buf = efx_rx_buffer(rx_queue, index);
 			rc = efx_init_rx_buffer(rx_queue, rx_buf);
-			if (unlikely(rc))
+			if (unlikely(rc)) {
+				/* Ensure that we don't leave the rx queue
+				 * empty */
+				if (rx_queue->added_count == rx_queue->removed_count)
+					efx_schedule_slow_fill(rx_queue);
 				goto out;
+			}
 			++rx_queue->added_count;
 		}
 	} while ((space -= EFX_RX_BATCH) >= EFX_RX_BATCH);
@@ -343,61 +334,16 @@ static int __efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue,
  out:
 	/* Send write pointer to card. */
 	efx_nic_notify_rx_desc(rx_queue);
-
-	/* If the fast fill is running inside from the refill tasklet, then
-	 * for SMP systems it may be running on a different CPU to
-	 * RX event processing, which means that the fill level may now be
-	 * out of date. */
-	if (unlikely(retry && (rc == 0)))
-		goto retry;
-
- out_unlock:
-	spin_unlock_bh(&rx_queue->add_lock);
-
-	return rc;
 }
 
-/**
- * efx_fast_push_rx_descriptors - push new RX descriptors quickly
- * @rx_queue:		RX descriptor queue
- *
- * This will aim to fill the RX descriptor queue up to
- * @rx_queue->@fast_fill_limit.  If there is insufficient memory to do so,
- * it will schedule a work item to immediately continue the fast fill
- */
-void efx_fast_push_rx_descriptors(struct efx_rx_queue *rx_queue)
+void efx_rx_slow_fill(unsigned long context)
 {
-	int rc;
+	struct efx_rx_queue *rx_queue = (struct efx_rx_queue *)context;
+	struct efx_channel *channel = rx_queue->channel;
 
-	rc = __efx_fast_push_rx_descriptors(rx_queue, 0);
-	if (unlikely(rc)) {
-		/* Schedule the work item to run immediately. The hope is
-		 * that work is immediately pending to free some memory
-		 * (e.g. an RX event or TX completion)
-		 */
-		efx_schedule_slow_fill(rx_queue, 0);
-	}
-}
-
-void efx_rx_work(struct work_struct *data)
-{
-	struct efx_rx_queue *rx_queue;
-	int rc;
-
-	rx_queue = container_of(data, struct efx_rx_queue, work.work);
-
-	if (unlikely(!rx_queue->channel->enabled))
-		return;
-
-	EFX_TRACE(rx_queue->efx, "RX queue %d worker thread executing on CPU "
-		  "%d\n", rx_queue->queue, raw_smp_processor_id());
-
+	/* Post an event to cause NAPI to run and refill the queue */
+	efx_nic_generate_fill_event(channel);
 	++rx_queue->slow_fill_count;
-	/* Push new RX descriptors, allowing at least 1 jiffy for
-	 * the kernel to free some more memory. */
-	rc = __efx_fast_push_rx_descriptors(rx_queue, 1);
-	if (rc)
-		efx_schedule_slow_fill(rx_queue, 1);
 }
 
 static void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
@@ -682,6 +628,7 @@ void efx_fini_rx_queue(struct efx_rx_queue *rx_queue)
 
 	EFX_LOG(rx_queue->efx, "shutting down RX queue %d\n", rx_queue->queue);
 
+	del_timer_sync(&rx_queue->slow_fill);
 	efx_nic_fini_rx(rx_queue);
 
 	/* Release RX buffers NB start at index 0 not current HW ptr */

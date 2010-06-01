@@ -79,9 +79,13 @@ MODULE_PARM_DESC(rx_xon_thresh_bytes, "RX fifo XON threshold");
 /* Depth of RX flush request fifo */
 #define EFX_RX_FLUSH_COUNT 4
 
-/* Magic value for efx_generate_test_event() */
-#define EFX_CHANNEL_MAGIC(_channel)			\
+/* Generated event code for efx_generate_test_event() */
+#define EFX_CHANNEL_MAGIC_TEST(_channel)	\
 	(0x00010100 + (_channel)->channel)
+
+/* Generated event code for efx_generate_fill_event() */
+#define EFX_CHANNEL_MAGIC_FILL(_channel)	\
+	(0x00010200 + (_channel)->channel)
 
 /**************************************************************************
  *
@@ -854,6 +858,26 @@ efx_handle_rx_event(struct efx_channel *channel, const efx_qword_t *event)
 		      checksummed, discard);
 }
 
+static void
+efx_handle_generated_event(struct efx_channel *channel, efx_qword_t *event)
+{
+	struct efx_nic *efx = channel->efx;
+	unsigned code;
+
+	code = EFX_QWORD_FIELD(*event, FSF_AZ_DRV_GEN_EV_MAGIC);
+	if (code == EFX_CHANNEL_MAGIC_TEST(channel))
+		++channel->magic_count;
+	else if (code == EFX_CHANNEL_MAGIC_FILL(channel))
+		/* The queue must be empty, so we won't receive any rx
+		 * events, so efx_process_channel() won't refill the
+		 * queue. Refill it here */
+		efx_fast_push_rx_descriptors(&efx->rx_queue[channel->channel]);
+	else
+		EFX_LOG(efx, "channel %d received generated "
+			"event "EFX_QWORD_FMT"\n", channel->channel,
+			EFX_QWORD_VAL(*event));
+}
+
 /* Global events are basically PHY events */
 static void
 efx_handle_global_event(struct efx_channel *channel, efx_qword_t *event)
@@ -997,13 +1021,7 @@ int efx_nic_process_eventq(struct efx_channel *channel, int budget)
 			}
 			break;
 		case FSE_AZ_EV_CODE_DRV_GEN_EV:
-			if (EFX_QWORD_FIELD(event, FSF_AZ_DRV_GEN_EV_MAGIC)
-			    == EFX_CHANNEL_MAGIC(channel))
-				++channel->magic_count;
-
-			EFX_LOG(channel->efx, "channel %d received generated "
-				"event "EFX_QWORD_FMT"\n", channel->channel,
-				EFX_QWORD_VAL(event));
+			efx_handle_generated_event(channel, &event);
 			break;
 		case FSE_AZ_EV_CODE_GLOBAL_EV:
 			efx_handle_global_event(channel, &event);
@@ -1096,7 +1114,18 @@ void efx_nic_remove_eventq(struct efx_channel *channel)
 
 void efx_nic_generate_test_event(struct efx_channel *channel)
 {
-	unsigned int magic = EFX_CHANNEL_MAGIC(channel);
+	unsigned int magic = EFX_CHANNEL_MAGIC_TEST(channel);
+	efx_qword_t test_event;
+
+	EFX_POPULATE_QWORD_2(test_event, FSF_AZ_EV_CODE,
+			     FSE_AZ_EV_CODE_DRV_GEN_EV,
+			     FSF_AZ_DRV_GEN_EV_MAGIC, magic);
+	efx_generate_event(channel, &test_event);
+}
+
+void efx_nic_generate_fill_event(struct efx_channel *channel)
+{
+	unsigned int magic = EFX_CHANNEL_MAGIC_FILL(channel);
 	efx_qword_t test_event;
 
 	EFX_POPULATE_QWORD_2(test_event, FSF_AZ_EV_CODE,
