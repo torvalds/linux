@@ -3077,7 +3077,7 @@ s_vMgrSynchBSS (
     pMgmt->uCurrChannel = pCurr->uChannel;
     pMgmt->eCurrentPHYMode = ePhyType;
     pMgmt->byERPContext = pCurr->sERP.byERP;
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Sync:Set to channel = [%d]\n", (INT)pCurr->uChannel);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "Sync:Set to channel = [%d]\n", (int)pCurr->uChannel);
 
 
     *pStatus = CMD_STATUS_SUCCESS;

@@ -464,18 +464,18 @@ pDevice->bUpdateBBVGA = TRUE;
     pDevice->byPreambleType = 0;
 
 
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" uChannel= %d\n",(INT)pDevice->uChannel);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" byOpMode= %d\n",(INT)pDevice->byOpMode);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" ePSMode= %d\n",(INT)pDevice->ePSMode);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" wRTSThreshold= %d\n",(INT)pDevice->wRTSThreshold);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" byShortRetryLimit= %d\n",(INT)pDevice->byShortRetryLimit);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" byLongRetryLimit= %d\n",(INT)pDevice->byLongRetryLimit);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" byPreambleType= %d\n",(INT)pDevice->byPreambleType);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" byShortPreamble= %d\n",(INT)pDevice->byShortPreamble);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" uConnectionRate= %d\n",(INT)pDevice->uConnectionRate);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" byBBType= %d\n",(INT)pDevice->byBBType);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" pDevice->b11hEnable= %d\n",(INT)pDevice->b11hEnable);
-    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" pDevice->bDiversityRegCtlON= %d\n",(INT)pDevice->bDiversityRegCtlON);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" uChannel= %d\n",(int)pDevice->uChannel);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" byOpMode= %d\n",(int)pDevice->byOpMode);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" ePSMode= %d\n",(int)pDevice->ePSMode);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" wRTSThreshold= %d\n",(int)pDevice->wRTSThreshold);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" byShortRetryLimit= %d\n",(int)pDevice->byShortRetryLimit);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" byLongRetryLimit= %d\n",(int)pDevice->byLongRetryLimit);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" byPreambleType= %d\n",(int)pDevice->byPreambleType);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" byShortPreamble= %d\n",(int)pDevice->byShortPreamble);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" uConnectionRate= %d\n",(int)pDevice->uConnectionRate);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" byBBType= %d\n",(int)pDevice->byBBType);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" pDevice->b11hEnable= %d\n",(int)pDevice->b11hEnable);
+    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" pDevice->bDiversityRegCtlON= %d\n",(int)pDevice->bDiversityRegCtlON);
 }
 
 static void s_vCompleteCurrentMeasure (PSDevice pDevice, BYTE byResult)
@@ -530,7 +530,7 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 	BYTE    byValue1;
     BYTE    byCCKPwrdBm = 0;
     BYTE    byOFDMPwrdBm = 0;
-    INT zonetype=0;
+    int zonetype=0;
      PSMgmtObject    pMgmt = &(pDevice->sMgmtObj);
     MACbShutdown(pDevice->PortOffset);
     BBvSoftwareReset(pDevice->PortOffset);
@@ -1710,7 +1710,7 @@ static int device_tx_srv(PSDevice pDevice, UINT uIdx) {
                 if ( !(byTsr1 & TSR1_TERR)) {
                     if (byTsr0 != 0) {
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Tx[%d] OK but has error. tsr1[%02X] tsr0[%02X].\n",
-                           (INT)uIdx, byTsr1, byTsr0);
+                           (int)uIdx, byTsr1, byTsr0);
                     }
                     if ((pTxBufHead->wFragCtl & FRAGCTL_ENDFRAG) != FRAGCTL_NONFRAG) {
                         pDevice->s802_11Counter.TransmittedFragmentCount ++;
@@ -1720,7 +1720,7 @@ static int device_tx_srv(PSDevice pDevice, UINT uIdx) {
                 }
                 else {
                      DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Tx[%d] dropped & tsr1[%02X] tsr0[%02X].\n",
-                           (INT)uIdx, byTsr1, byTsr0);
+                           (int)uIdx, byTsr1, byTsr0);
                     pStats->tx_errors++;
                     pStats->tx_dropped++;
                 }
@@ -1742,11 +1742,11 @@ static int device_tx_srv(PSDevice pDevice, UINT uIdx) {
             if (byTsr1 & TSR1_TERR) {
             if ((pTD->pTDInfo->byFlags & TD_FLAGS_PRIV_SKB) != 0) {
                 DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Tx[%d] fail has error. tsr1[%02X] tsr0[%02X].\n",
-                          (INT)uIdx, byTsr1, byTsr0);
+                          (int)uIdx, byTsr1, byTsr0);
             }
 
 //                DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO" Tx[%d] fail has error. tsr1[%02X] tsr0[%02X].\n",
-//                          (INT)uIdx, byTsr1, byTsr0);
+//                          (int)uIdx, byTsr1, byTsr0);
 
                 if ((pMgmt->eCurrMode == WMAC_MODE_ESS_AP) &&
                     (pTD->pTDInfo->byFlags & TD_FLAGS_NETIF_SKB)) {
@@ -1763,7 +1763,7 @@ static int device_tx_srv(PSDevice pDevice, UINT uIdx) {
                             pMgmt->abyPSTxMap[wAID >> 3] |=  byMask[wAID & 7];
                             pTD->pTDInfo->byFlags &= ~(TD_FLAGS_NETIF_SKB);
                             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "tx_srv:tx fail re-queue sta index= %d, QueCnt= %d\n"
-                                    ,(INT)uNodeIndex, pMgmt->sNodeDBTable[uNodeIndex].wEnQueueCnt);
+                                    ,(int)uNodeIndex, pMgmt->sNodeDBTable[uNodeIndex].wEnQueueCnt);
                             pStats->tx_errors--;
                             pStats->tx_dropped--;
                         }
@@ -1844,7 +1844,7 @@ void	InitRxManagementQueue(PSDevice  pDevice)
 
 
 //PLICE_DEBUG ->
-INT MlmeThread(
+int MlmeThread(
      void * Context)
 {
 	PSDevice	pDevice =  (PSDevice) Context;

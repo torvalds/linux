@@ -2362,7 +2362,7 @@ CARDbyAutoChannelSelect(
 //    PSDevice        pDevice = (PSDevice) pDeviceHandler;
     UINT            ii = 0;
     BYTE            byOptionChannel = 0;
-    INT             aiWeight[CB_MAX_CHANNEL_24G+1] = {-1000,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+    int             aiWeight[CB_MAX_CHANNEL_24G+1] = {-1000,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
     if (ePHYType == PHY_TYPE_11A) {
         for(ii=CB_MAX_CHANNEL_24G+1;ii<=CB_MAX_CHANNEL;ii++) {

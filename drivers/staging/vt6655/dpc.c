@@ -101,7 +101,7 @@ s_vProcessRxMACHeader (
 static BOOL s_bAPModeRxCtl(
     PSDevice pDevice,
     PBYTE    pbyFrame,
-    INT      iSANodeIndex
+    int      iSANodeIndex
     );
 
 
@@ -111,8 +111,8 @@ static BOOL s_bAPModeRxData (
     struct sk_buff* skb,
     UINT     FrameSize,
     UINT     cbHeaderOffset,
-    INT      iSANodeIndex,
-    INT      iDANodeIndex
+    int      iSANodeIndex,
+    int      iDANodeIndex
     );
 
 
@@ -360,8 +360,8 @@ device_receive_frame (
     UINT            cbHeaderOffset;
     UINT            FrameSize;
     WORD            wEtherType = 0;
-    INT             iSANodeIndex = -1;
-    INT             iDANodeIndex = -1;
+    int             iSANodeIndex = -1;
+    int             iDANodeIndex = -1;
     UINT            ii;
     UINT            cbIVOffset;
     BOOL            bExtIV = FALSE;
@@ -1041,7 +1041,7 @@ device_receive_frame (
 static BOOL s_bAPModeRxCtl (
     PSDevice pDevice,
     PBYTE    pbyFrame,
-    INT      iSANodeIndex
+    int      iSANodeIndex
     )
 {
     PS802_11Header      p802_11Header;
@@ -1444,8 +1444,8 @@ static BOOL s_bAPModeRxData (
     struct sk_buff* skb,
     UINT     FrameSize,
     UINT     cbHeaderOffset,
-    INT      iSANodeIndex,
-    INT      iDANodeIndex
+    int      iSANodeIndex,
+    int      iDANodeIndex
     )
 {
     PSMgmtObject        pMgmt = pDevice->pMgmt;
