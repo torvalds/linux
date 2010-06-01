@@ -57,6 +57,7 @@ obj-$(CONFIG_RC_MAP) += rc-adstech-dvb-t-pci.o \
 			rc-pv951.o \
 			rc-rc5-hauppauge-new.o \
 			rc-rc5-tv.o \
+			rc-rc6-mce.o \
 			rc-real-audio-220-32-keys.o \
 			rc-tbs-nec.o \
 			rc-terratec-cinergy-xs.o \

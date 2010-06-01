@@ -19,6 +19,9 @@
 #define IR_TYPE_SONY	(1  << 4)	/* Sony12/15/20 protocol */
 #define IR_TYPE_OTHER	(1u << 31)
 
+#define IR_TYPE_ALL (IR_TYPE_RC5 | IR_TYPE_NEC  | IR_TYPE_RC6  | \
+		     IR_TYPE_JVC | IR_TYPE_SONY | IR_TYPE_OTHER)
+
 struct ir_scancode {
 	u32	scancode;
 	u32	keycode;
@@ -107,6 +110,7 @@ void rc_map_init(void);
 #define RC_MAP_PV951                     "rc-pv951"
 #define RC_MAP_RC5_HAUPPAUGE_NEW         "rc-rc5-hauppauge-new"
 #define RC_MAP_RC5_TV                    "rc-rc5-tv"
+#define RC_MAP_RC6_MCE                   "rc-rc6-mce"
 #define RC_MAP_REAL_AUDIO_220_32_KEYS    "rc-real-audio-220-32-keys"
 #define RC_MAP_TBS_NEC                   "rc-tbs-nec"
 #define RC_MAP_TERRATEC_CINERGY_XS       "rc-terratec-cinergy-xs"
