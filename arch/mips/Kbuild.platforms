@@ -1,5 +1,6 @@
 # All platforms listed in alphabetic order
 
+platforms += alchemy
 platforms += ar7
 platforms += loongson
 platforms += mipssim
