@@ -576,7 +576,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 		struct intel_encoder *intel_encoder;
 		struct intel_dp_priv *dp_priv;
 
-		if (!encoder || encoder->crtc != crtc)
+		if (encoder->crtc != crtc)
 			continue;
 
 		intel_encoder = enc_to_intel_encoder(encoder);
@@ -675,10 +675,9 @@ intel_dp_mode_set(struct drm_encoder *encoder, struct drm_display_mode *mode,
 	dp_priv->link_configuration[1] = dp_priv->lane_count;
 
 	/*
-	 * Check for DPCD version > 1.1,
-	 * enable enahanced frame stuff in that case
+	 * Check for DPCD version > 1.1 and enhanced framing support
 	 */
-	if (dp_priv->dpcd[0] >= 0x11) {
+	if (dp_priv->dpcd[0] >= 0x11 && (dp_priv->dpcd[2] & DP_ENHANCED_FRAME_CAP)) {
 		dp_priv->link_configuration[1] |= DP_LANE_COUNT_ENHANCED_FRAME_EN;
 		dp_priv->DP |= DP_ENHANCED_FRAMING;
 	}
@@ -1208,6 +1207,8 @@ ironlake_dp_detect(struct drm_connector *connector)
 		if (dp_priv->dpcd[0] != 0)
 			status = connector_status_connected;
 	}
+	DRM_DEBUG_KMS("DPCD: %hx%hx%hx%hx\n", dp_priv->dpcd[0],
+		      dp_priv->dpcd[1], dp_priv->dpcd[2], dp_priv->dpcd[3]);
 	return status;
 }
 
@@ -1352,7 +1353,7 @@ intel_trans_dp_port_sel (struct drm_crtc *crtc)
 	struct intel_encoder *intel_encoder = NULL;
 
 	list_for_each_entry(encoder, &mode_config->encoder_list, head) {
-		if (!encoder || encoder->crtc != crtc)
+		if (encoder->crtc != crtc)
 			continue;
 
 		intel_encoder = enc_to_intel_encoder(encoder);

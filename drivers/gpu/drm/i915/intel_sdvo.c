@@ -1479,7 +1479,7 @@ intel_find_analog_connector(struct drm_device *dev)
 		intel_encoder = enc_to_intel_encoder(encoder);
 		if (intel_encoder->type == INTEL_OUTPUT_ANALOG) {
 			list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-				if (connector && encoder == intel_attached_encoder(connector))
+				if (encoder == intel_attached_encoder(connector))
 					return connector;
 			}
 		}
