@@ -1518,11 +1518,8 @@ static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 	stats->tx_window_errors = mac_stats->tx_late_collision;
 
 	stats->rx_errors = (stats->rx_length_errors +
-			    stats->rx_over_errors +
 			    stats->rx_crc_errors +
 			    stats->rx_frame_errors +
-			    stats->rx_fifo_errors +
-			    stats->rx_missed_errors +
 			    mac_stats->rx_symbol_error);
 	stats->tx_errors = (stats->tx_window_errors +
 			    mac_stats->tx_bad);
