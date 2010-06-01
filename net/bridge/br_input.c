@@ -131,14 +131,18 @@ static inline int is_link_local(const unsigned char *dest)
 }
 
 /*
- * Called via br_handle_frame_hook.
  * Return NULL if skb is handled
- * note: already called with rcu_read_lock (preempt_disabled)
+ * note: already called with rcu_read_lock (preempt_disabled) from
+ * netif_receive_skb
  */
-struct sk_buff *br_handle_frame(struct net_bridge_port *p, struct sk_buff *skb)
+struct sk_buff *br_handle_frame(struct sk_buff *skb)
 {
+	struct net_bridge_port *p;
 	const unsigned char *dest = eth_hdr(skb)->h_dest;
 	int (*rhook)(struct sk_buff *skb);
+
+	if (skb->pkt_type == PACKET_LOOPBACK)
+		return skb;
 
 	if (!is_valid_ether_addr(eth_hdr(skb)->h_source))
 		goto drop;
@@ -146,6 +150,8 @@ struct sk_buff *br_handle_frame(struct net_bridge_port *p, struct sk_buff *skb)
 	skb = skb_share_check(skb, GFP_ATOMIC);
 	if (!skb)
 		return NULL;
+
+	p = rcu_dereference(skb->dev->br_port);
 
 	if (unlikely(is_link_local(dest))) {
 		/* Pause frames shouldn't be passed up by driver anyway */

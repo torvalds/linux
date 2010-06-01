@@ -381,6 +381,8 @@ enum gro_result {
 };
 typedef enum gro_result gro_result_t;
 
+typedef struct sk_buff *rx_handler_func_t(struct sk_buff *skb);
+
 extern void __napi_schedule(struct napi_struct *n);
 
 static inline int napi_disable_pending(struct napi_struct *n)
@@ -957,6 +959,7 @@ struct net_device {
 #endif
 
 	struct netdev_queue	rx_queue;
+	rx_handler_func_t	*rx_handler;
 
 	struct netdev_queue	*_tx ____cacheline_aligned_in_smp;
 
@@ -1688,6 +1691,10 @@ static inline void napi_free_frags(struct napi_struct *napi)
 	kfree_skb(napi->skb);
 	napi->skb = NULL;
 }
+
+extern int netdev_rx_handler_register(struct net_device *dev,
+				      rx_handler_func_t *rx_handler);
+extern void netdev_rx_handler_unregister(struct net_device *dev);
 
 extern void		netif_nit_deliver(struct sk_buff *skb);
 extern int		dev_valid_name(const char *name);

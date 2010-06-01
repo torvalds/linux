@@ -147,6 +147,7 @@ static void del_nbp(struct net_bridge_port *p)
 
 	list_del_rcu(&p->list);
 
+	netdev_rx_handler_unregister(dev);
 	rcu_assign_pointer(dev->br_port, NULL);
 
 	br_multicast_del_port(p);
@@ -429,6 +430,11 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 		goto err2;
 
 	rcu_assign_pointer(dev->br_port, p);
+
+	err = netdev_rx_handler_register(dev, br_handle_frame);
+	if (err)
+		goto err3;
+
 	dev_disable_lro(dev);
 
 	list_add_rcu(&p->list, &br->port_list);
@@ -451,6 +457,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	br_netpoll_enable(br, dev);
 
 	return 0;
+err3:
+	rcu_assign_pointer(dev->br_port, NULL);
 err2:
 	br_fdb_delete_by_port(br, p, 1);
 err1:
