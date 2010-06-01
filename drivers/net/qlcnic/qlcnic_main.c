@@ -103,7 +103,14 @@ static irqreturn_t qlcnic_msix_intr(int irq, void *data);
 
 static struct net_device_stats *qlcnic_get_stats(struct net_device *netdev);
 static void qlcnic_config_indev_addr(struct net_device *dev, unsigned long);
+static int qlcnic_start_firmware(struct qlcnic_adapter *);
 
+static void qlcnic_dev_set_npar_ready(struct qlcnic_adapter *);
+static void qlcnicvf_clear_ilb_mode(struct qlcnic_adapter *);
+static int qlcnicvf_set_ilb_mode(struct qlcnic_adapter *);
+static int qlcnicvf_config_led(struct qlcnic_adapter *, u32, u32);
+static int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *, u32);
+static int qlcnicvf_start_firmware(struct qlcnic_adapter *);
 /*  PCI Device ID Table  */
 #define ENTRY(device) \
 	{PCI_DEVICE(PCI_VENDOR_ID_QLOGIC, (device)), \
@@ -375,7 +382,8 @@ static struct qlcnic_nic_template qlcnic_ops = {
 	.config_bridged_mode = qlcnic_config_bridged_mode,
 	.config_led = qlcnic_config_led,
 	.set_ilb_mode = qlcnic_set_ilb_mode,
-	.clear_ilb_mode = qlcnic_clear_ilb_mode
+	.clear_ilb_mode = qlcnic_clear_ilb_mode,
+	.start_firmware = qlcnic_start_firmware
 };
 
 static struct qlcnic_nic_template qlcnic_pf_ops = {
@@ -383,7 +391,17 @@ static struct qlcnic_nic_template qlcnic_pf_ops = {
 	.config_bridged_mode = qlcnic_config_bridged_mode,
 	.config_led = qlcnic_config_led,
 	.set_ilb_mode = qlcnic_set_ilb_mode,
-	.clear_ilb_mode = qlcnic_clear_ilb_mode
+	.clear_ilb_mode = qlcnic_clear_ilb_mode,
+	.start_firmware = qlcnic_start_firmware
+};
+
+static struct qlcnic_nic_template qlcnic_vf_ops = {
+	.get_mac_addr = qlcnic_get_mac_address,
+	.config_bridged_mode = qlcnicvf_config_bridged_mode,
+	.config_led = qlcnicvf_config_led,
+	.set_ilb_mode = qlcnicvf_set_ilb_mode,
+	.clear_ilb_mode = qlcnicvf_clear_ilb_mode,
+	.start_firmware = qlcnicvf_start_firmware
 };
 
 static void
@@ -467,7 +485,6 @@ qlcnic_cleanup_pci_map(struct qlcnic_adapter *adapter)
 		iounmap(adapter->ahw.pci_base0);
 }
 
-/* Use api lock to access this function */
 static int
 qlcnic_set_function_modes(struct qlcnic_adapter *adapter)
 {
@@ -567,6 +584,7 @@ qlcnic_get_driver_mode(struct qlcnic_adapter *adapter)
 		/* Set privilege level for other functions */
 		if (qlcnic_config_npars)
 			qlcnic_set_function_modes(adapter);
+		qlcnic_dev_set_npar_ready(adapter);
 		dev_info(&adapter->pdev->dev,
 			"HAL Version: %d, Management function\n",
 			adapter->fw_hal_version);
@@ -577,6 +595,13 @@ qlcnic_get_driver_mode(struct qlcnic_adapter *adapter)
 			"HAL Version: %d, Privileged function\n",
 			adapter->fw_hal_version);
 		adapter->nic_ops = &qlcnic_pf_ops;
+		break;
+	case QLCNIC_NON_PRIV_FUNC:
+		adapter->op_mode = QLCNIC_NON_PRIV_FUNC;
+		dev_info(&adapter->pdev->dev,
+			"HAL Version: %d Non Privileged function\n",
+			adapter->fw_hal_version);
+		adapter->nic_ops = &qlcnic_vf_ops;
 		break;
 	default:
 		dev_info(&adapter->pdev->dev, "Unknown function mode: %d\n",
@@ -771,6 +796,8 @@ wait_init:
 
 	QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_READY);
 	qlcnic_idc_debug_info(adapter, 1);
+
+	qlcnic_dev_set_npar_ready(adapter);
 
 	qlcnic_check_options(adapter);
 
@@ -1244,7 +1271,7 @@ qlcnic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (qlcnic_setup_idc_param(adapter))
 		goto err_out_iounmap;
 
-	err = qlcnic_start_firmware(adapter);
+	err = adapter->nic_ops->start_firmware(adapter);
 	if (err) {
 		dev_err(&pdev->dev, "Loading fw failed.Please Reboot\n");
 		goto err_out_decr_ref;
@@ -1410,7 +1437,7 @@ qlcnic_resume(struct pci_dev *pdev)
 	pci_set_master(pdev);
 	pci_restore_state(pdev);
 
-	err = qlcnic_start_firmware(adapter);
+	err = adapter->nic_ops->start_firmware(adapter);
 	if (err) {
 		dev_err(&pdev->dev, "failed to start firmware\n");
 		return err;
@@ -2260,7 +2287,7 @@ qlcnic_fwinit_work(struct work_struct *work)
 {
 	struct qlcnic_adapter *adapter = container_of(work,
 			struct qlcnic_adapter, fw_work.work);
-	u32 dev_state = 0xf;
+	u32 dev_state = 0xf, npar_state;
 
 	if (qlcnic_api_lock(adapter))
 		goto err_ret;
@@ -2271,6 +2298,19 @@ qlcnic_fwinit_work(struct work_struct *work)
 		qlcnic_schedule_work(adapter, qlcnic_fwinit_work,
 						FW_POLL_DELAY * 2);
 		return;
+	}
+
+	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC) {
+		npar_state = QLCRD32(adapter, QLCNIC_CRB_DEV_NPAR_STATE);
+		if (npar_state == QLCNIC_DEV_NPAR_RDY) {
+			qlcnic_api_unlock(adapter);
+			goto wait_npar;
+		} else {
+			qlcnic_schedule_work(adapter, qlcnic_fwinit_work,
+				FW_POLL_DELAY);
+			qlcnic_api_unlock(adapter);
+			return;
+		}
 	}
 
 	if (adapter->fw_wait_cnt++ > adapter->reset_ack_timeo) {
@@ -2305,7 +2345,7 @@ skip_ack_check:
 
 		qlcnic_api_unlock(adapter);
 
-		if (!qlcnic_start_firmware(adapter)) {
+		if (!adapter->nic_ops->start_firmware(adapter)) {
 			qlcnic_schedule_work(adapter, qlcnic_attach_work, 0);
 			return;
 		}
@@ -2314,6 +2354,7 @@ skip_ack_check:
 
 	qlcnic_api_unlock(adapter);
 
+wait_npar:
 	dev_state = QLCRD32(adapter, QLCNIC_CRB_DEV_STATE);
 	QLCDB(adapter, HW, "Func waiting: Device state=%u\n", dev_state);
 
@@ -2328,7 +2369,7 @@ skip_ack_check:
 		break;
 
 	default:
-		if (!qlcnic_start_firmware(adapter)) {
+		if (!adapter->nic_ops->start_firmware(adapter)) {
 			qlcnic_schedule_work(adapter, qlcnic_attach_work, 0);
 			return;
 		}
@@ -2397,6 +2438,30 @@ qlcnic_dev_request_reset(struct qlcnic_adapter *adapter)
 		QLCWR32(adapter, QLCNIC_CRB_DEV_STATE, QLCNIC_DEV_NEED_RESET);
 		QLCDB(adapter, DRV, "NEED_RESET state set\n");
 		qlcnic_idc_debug_info(adapter, 0);
+	}
+
+	qlcnic_api_unlock(adapter);
+}
+
+/* Transit to NPAR READY state from NPAR NOT READY state */
+static void
+qlcnic_dev_set_npar_ready(struct qlcnic_adapter *adapter)
+{
+	u32 state;
+
+	if (adapter->op_mode == QLCNIC_NON_PRIV_FUNC ||
+		adapter->fw_hal_version == QLCNIC_FW_BASE)
+		return;
+
+	if (qlcnic_api_lock(adapter))
+		return;
+
+	state = QLCRD32(adapter, QLCNIC_CRB_DEV_NPAR_STATE);
+
+	if (state != QLCNIC_DEV_NPAR_RDY) {
+		QLCWR32(adapter, QLCNIC_CRB_DEV_NPAR_STATE,
+			QLCNIC_DEV_NPAR_RDY);
+		QLCDB(adapter, DRV, "NPAR READY state set\n");
 	}
 
 	qlcnic_api_unlock(adapter);
@@ -2888,6 +2953,47 @@ recheck:
 done:
 	return NOTIFY_DONE;
 }
+
+static int
+qlcnicvf_start_firmware(struct qlcnic_adapter *adapter)
+{
+	int err;
+
+	err = qlcnic_can_start_firmware(adapter);
+	if (err)
+		return err;
+
+	qlcnic_check_options(adapter);
+
+	adapter->need_fw_reset = 0;
+
+	return err;
+}
+
+static int
+qlcnicvf_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable)
+{
+	return -EOPNOTSUPP;
+}
+
+static int
+qlcnicvf_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate)
+{
+	return -EOPNOTSUPP;
+}
+
+static int
+qlcnicvf_set_ilb_mode(struct qlcnic_adapter *adapter)
+{
+	return -EOPNOTSUPP;
+}
+
+static void
+qlcnicvf_clear_ilb_mode(struct qlcnic_adapter *adapter)
+{
+	return;
+}
+
 
 static struct notifier_block	qlcnic_netdev_cb = {
 	.notifier_call = qlcnic_netdev_event,

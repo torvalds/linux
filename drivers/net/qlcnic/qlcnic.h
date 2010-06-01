@@ -51,8 +51,8 @@
 
 #define _QLCNIC_LINUX_MAJOR 5
 #define _QLCNIC_LINUX_MINOR 0
-#define _QLCNIC_LINUX_SUBVERSION 2
-#define QLCNIC_LINUX_VERSIONID  "5.0.2"
+#define _QLCNIC_LINUX_SUBVERSION 3
+#define QLCNIC_LINUX_VERSIONID  "5.0.3"
 #define QLCNIC_DRV_IDC_VER  0x01
 
 #define QLCNIC_VERSION_CODE(a, b, c)	(((a) << 24) + ((b) << 16) + (c))
@@ -891,6 +891,7 @@ struct qlcnic_mac_req {
 #define QLCNIC_LRO_ENABLED		0x08
 #define QLCNIC_BRIDGE_ENABLED       	0X10
 #define QLCNIC_DIAG_ENABLED		0x20
+#define QLCNIC_NPAR_ENABLED		0x40
 #define QLCNIC_IS_MSI_FAMILY(adapter) \
 	((adapter)->flags & (QLCNIC_MSI_ENABLED | QLCNIC_MSIX_ENABLED))
 
@@ -1159,13 +1160,6 @@ int qlcnic_check_loopback_buff(unsigned char *data);
 netdev_tx_t qlcnic_xmit_frame(struct sk_buff *skb, struct net_device *netdev);
 void qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring);
 
-/* Functions from qlcnic_vf.c */
-int qlcnicvf_config_bridged_mode(struct qlcnic_adapter *, u32);
-int qlcnicvf_config_led(struct qlcnic_adapter *, u32, u32);
-int qlcnicvf_set_ilb_mode(struct qlcnic_adapter *adapter);
-void qlcnicvf_clear_ilb_mode(struct qlcnic_adapter *adapter);
-void qlcnicvf_set_port_mode(struct qlcnic_adapter *adapter);
-
 /* Management functions */
 int qlcnic_set_mac_address(struct qlcnic_adapter *, u8*);
 int qlcnic_get_mac_address(struct qlcnic_adapter *, u8*);
@@ -1234,6 +1228,7 @@ struct qlcnic_nic_template {
 	int (*config_led) (struct qlcnic_adapter *, u32, u32);
 	int (*set_ilb_mode) (struct qlcnic_adapter *);
 	void (*clear_ilb_mode) (struct qlcnic_adapter *);
+	int (*start_firmware) (struct qlcnic_adapter *);
 };
 
 #define QLCDB(adapter, lvl, _fmt, _args...) do {	\
