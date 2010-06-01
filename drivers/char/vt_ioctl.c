@@ -1369,7 +1369,7 @@ void vc_SAK(struct work_struct *work)
 	acquire_console_sem();
 	vc = vc_con->d;
 	if (vc) {
-		tty = vc->vc_tty;
+		tty = vc->port.tty;
 		/*
 		 * SAK should also work in all raw modes and reset
 		 * them properly.

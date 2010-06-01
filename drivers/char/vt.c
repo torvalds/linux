@@ -973,12 +973,12 @@ static int vc_do_resize(struct tty_struct *tty, struct vc_data *vc,
  *	Resize a virtual console as seen from the console end of things. We
  *	use the common vc_do_resize methods to update the structures. The
  *	caller must hold the console sem to protect console internals and
- *	vc->vc_tty
+ *	vc->port.tty
  */
 
 int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int rows)
 {
-	return vc_do_resize(vc->vc_tty, vc, cols, rows);
+	return vc_do_resize(vc->port.tty, vc, cols, rows);
 }
 
 /**
@@ -2807,12 +2807,12 @@ static int con_open(struct tty_struct *tty, struct file *filp)
 			struct vc_data *vc = vc_cons[currcons].d;
 
 			/* Still being freed */
-			if (vc->vc_tty) {
+			if (vc->port.tty) {
 				release_console_sem();
 				return -ERESTARTSYS;
 			}
 			tty->driver_data = vc;
-			vc->vc_tty = tty;
+			vc->port.tty = tty;
 
 			if (!tty->winsize.ws_row && !tty->winsize.ws_col) {
 				tty->winsize.ws_row = vc_cons[currcons].d->vc_rows;
@@ -2840,7 +2840,7 @@ static void con_shutdown(struct tty_struct *tty)
 	struct vc_data *vc = tty->driver_data;
 	BUG_ON(vc == NULL);
 	acquire_console_sem();
-	vc->vc_tty = NULL;
+	vc->port.tty = NULL;
 	release_console_sem();
 	tty_shutdown(tty);
 }
