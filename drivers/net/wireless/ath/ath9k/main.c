@@ -1025,6 +1025,7 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 	struct ath_tx_control txctl;
 	int padpos, padsize;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	int qnum;
 
 	if (aphy->state != ATH_WIPHY_ACTIVE && aphy->state != ATH_WIPHY_SCAN) {
 		ath_print(common, ATH_DBG_XMIT,
@@ -1097,11 +1098,8 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 		memmove(skb->data, skb->data + padsize, padpos);
 	}
 
-	/* Check if a tx queue is available */
-
-	txctl.txq = ath_test_get_txq(sc, skb);
-	if (!txctl.txq)
-		goto exit;
+	qnum = ath_get_hal_qnum(skb_get_queue_mapping(skb), sc);
+	txctl.txq = &sc->tx.txq[qnum];
 
 	ath_print(common, ATH_DBG_XMIT, "transmitting packet, skb: %p\n", skb);
 
