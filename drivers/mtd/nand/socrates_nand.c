@@ -301,8 +301,11 @@ static const struct of_device_id socrates_nand_match[] =
 MODULE_DEVICE_TABLE(of, socrates_nand_match);
 
 static struct of_platform_driver socrates_nand_driver = {
-	.name		= "socrates_nand",
-	.match_table	= socrates_nand_match,
+	.driver = {
+		.name = "socrates_nand",
+		.owner = THIS_MODULE,
+		.of_match_table = socrates_nand_match,
+	},
 	.probe		= socrates_nand_probe,
 	.remove		= __devexit_p(socrates_nand_remove),
 };

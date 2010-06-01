@@ -722,6 +722,10 @@ static void sh_dmae_chan_ld_cleanup(struct sh_dmae_chan *sh_chan, bool all)
 {
 	while (__ld_cleanup(sh_chan, all))
 		;
+
+	if (all)
+		/* Terminating - forgive uncompleted cookies */
+		sh_chan->completed_cookie = sh_chan->common.cookie;
 }
 
 static void sh_chan_xfer_ld_queue(struct sh_dmae_chan *sh_chan)
@@ -1188,6 +1192,7 @@ static struct platform_driver sh_dmae_driver = {
 	.remove		= __exit_p(sh_dmae_remove),
 	.shutdown	= sh_dmae_shutdown,
 	.driver = {
+		.owner	= THIS_MODULE,
 		.name	= "sh-dma-engine",
 	},
 };

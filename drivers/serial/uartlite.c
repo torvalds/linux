@@ -591,15 +591,15 @@ ulite_of_probe(struct of_device *op, const struct of_device_id *match)
 
 	dev_dbg(&op->dev, "%s(%p, %p)\n", __func__, op, match);
 
-	rc = of_address_to_resource(op->node, 0, &res);
+	rc = of_address_to_resource(op->dev.of_node, 0, &res);
 	if (rc) {
 		dev_err(&op->dev, "invalid address\n");
 		return rc;
 	}
 
-	irq = irq_of_parse_and_map(op->node, 0);
+	irq = irq_of_parse_and_map(op->dev.of_node, 0);
 
-	id = of_get_property(op->node, "port-number", NULL);
+	id = of_get_property(op->dev.of_node, "port-number", NULL);
 
 	return ulite_assign(&op->dev, id ? *id : -1, res.start, irq);
 }
@@ -610,13 +610,12 @@ static int __devexit ulite_of_remove(struct of_device *op)
 }
 
 static struct of_platform_driver ulite_of_driver = {
-	.owner = THIS_MODULE,
-	.name = "uartlite",
-	.match_table = ulite_of_match,
 	.probe = ulite_of_probe,
 	.remove = __devexit_p(ulite_of_remove),
 	.driver = {
 		.name = "uartlite",
+		.owner = THIS_MODULE,
+		.of_match_table = ulite_of_match,
 	},
 };
 

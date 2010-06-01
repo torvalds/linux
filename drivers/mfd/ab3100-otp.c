@@ -12,7 +12,7 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
-#include <linux/mfd/ab3100.h>
+#include <linux/mfd/abx500.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 
@@ -30,7 +30,6 @@
 /**
  * struct ab3100_otp
  * @dev containing device
- * @ab3100 a pointer to the parent ab3100 device struct
  * @locked whether the OTP is locked, after locking, no more bits
  *       can be changed but before locking it is still possible
  *       to change bits from 1->0.
@@ -49,7 +48,6 @@
  */
 struct ab3100_otp {
 	struct device *dev;
-	struct ab3100 *ab3100;
 	bool locked;
 	u32 freq;
 	bool paf;
@@ -63,19 +61,19 @@ struct ab3100_otp {
 
 static int __init ab3100_otp_read(struct ab3100_otp *otp)
 {
-	struct ab3100 *ab = otp->ab3100;
 	u8 otpval[8];
 	u8 otpp;
 	int err;
 
-	err = ab3100_get_register_interruptible(ab, AB3100_OTPP, &otpp);
+	err = abx500_get_register_interruptible(otp->dev, 0,
+		AB3100_OTPP, &otpp);
 	if (err) {
 		dev_err(otp->dev, "unable to read OTPP register\n");
 		return err;
 	}
 
-	err = ab3100_get_register_page_interruptible(ab, AB3100_OTP0,
-						     otpval, 8);
+	err = abx500_get_register_page_interruptible(otp->dev, 0,
+		AB3100_OTP0, otpval, 8);
 	if (err) {
 		dev_err(otp->dev, "unable to read OTP register page\n");
 		return err;
@@ -197,7 +195,6 @@ static int __init ab3100_otp_probe(struct platform_device *pdev)
 	otp->dev = &pdev->dev;
 
 	/* Replace platform data coming in with a local struct */
-	otp->ab3100 = platform_get_drvdata(pdev);
 	platform_set_drvdata(pdev, otp);
 
 	err = ab3100_otp_read(otp);

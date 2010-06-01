@@ -588,6 +588,8 @@ static int siu_dai_prepare(struct snd_pcm_substream *substream,
 		ret = siu_dai_spbstart(port_info);
 		if (ret < 0)
 			goto fail;
+	} else {
+		ret = 0;
 	}
 
 	port_info->play_cap |= self;

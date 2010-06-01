@@ -1689,7 +1689,7 @@ static void rt61pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 
 static int rt61pci_set_state(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 {
-	u32 reg;
+	u32 reg, reg2;
 	unsigned int i;
 	char put_to_sleep;
 
@@ -1706,10 +1706,11 @@ static int rt61pci_set_state(struct rt2x00_dev *rt2x00dev, enum dev_state state)
 	 * device has entered the correct state.
 	 */
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2x00pci_register_read(rt2x00dev, MAC_CSR12, &reg);
-		state = rt2x00_get_field32(reg, MAC_CSR12_BBP_CURRENT_STATE);
+		rt2x00pci_register_read(rt2x00dev, MAC_CSR12, &reg2);
+		state = rt2x00_get_field32(reg2, MAC_CSR12_BBP_CURRENT_STATE);
 		if (state == !put_to_sleep)
 			return 0;
+		rt2x00pci_register_write(rt2x00dev, MAC_CSR12, reg);
 		msleep(10);
 	}
 

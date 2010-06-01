@@ -88,19 +88,19 @@ static int do_pd_setup(struct fs_enet_private *fep)
 	struct fs_platform_info *fpi = fep->fpi;
 	int ret = -EINVAL;
 
-	fep->interrupt = of_irq_to_resource(ofdev->node, 0, NULL);
+	fep->interrupt = of_irq_to_resource(ofdev->dev.of_node, 0, NULL);
 	if (fep->interrupt == NO_IRQ)
 		goto out;
 
-	fep->fcc.fccp = of_iomap(ofdev->node, 0);
+	fep->fcc.fccp = of_iomap(ofdev->dev.of_node, 0);
 	if (!fep->fcc.fccp)
 		goto out;
 
-	fep->fcc.ep = of_iomap(ofdev->node, 1);
+	fep->fcc.ep = of_iomap(ofdev->dev.of_node, 1);
 	if (!fep->fcc.ep)
 		goto out_fccp;
 
-	fep->fcc.fcccp = of_iomap(ofdev->node, 2);
+	fep->fcc.fcccp = of_iomap(ofdev->dev.of_node, 2);
 	if (!fep->fcc.fcccp)
 		goto out_ep;
 

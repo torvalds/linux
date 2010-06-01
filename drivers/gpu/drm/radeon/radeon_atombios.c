@@ -680,10 +680,18 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 	uint8_t dac;
 	union atom_supported_devices *supported_devices;
 	int i, j, max_device;
-	struct bios_connector bios_connectors[ATOM_MAX_SUPPORTED_DEVICE];
+	struct bios_connector *bios_connectors;
+	size_t bc_size = sizeof(*bios_connectors) * ATOM_MAX_SUPPORTED_DEVICE;
 
-	if (!atom_parse_data_header(ctx, index, &size, &frev, &crev, &data_offset))
+	bios_connectors = kzalloc(bc_size, GFP_KERNEL);
+	if (!bios_connectors)
 		return false;
+
+	if (!atom_parse_data_header(ctx, index, &size, &frev, &crev,
+				    &data_offset)) {
+		kfree(bios_connectors);
+		return false;
+	}
 
 	supported_devices =
 	    (union atom_supported_devices *)(ctx->bios + data_offset);
@@ -851,6 +859,7 @@ bool radeon_get_atom_connector_info_from_supported_devices_table(struct
 
 	radeon_link_encoder_connector(dev);
 
+	kfree(bios_connectors);
 	return true;
 }
 

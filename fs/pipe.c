@@ -230,6 +230,7 @@ void *generic_pipe_buf_map(struct pipe_inode_info *pipe,
 
 	return kmap(buf->page);
 }
+EXPORT_SYMBOL(generic_pipe_buf_map);
 
 /**
  * generic_pipe_buf_unmap - unmap a previously mapped pipe buffer
@@ -249,6 +250,7 @@ void generic_pipe_buf_unmap(struct pipe_inode_info *pipe,
 	} else
 		kunmap(buf->page);
 }
+EXPORT_SYMBOL(generic_pipe_buf_unmap);
 
 /**
  * generic_pipe_buf_steal - attempt to take ownership of a &pipe_buffer
@@ -279,6 +281,7 @@ int generic_pipe_buf_steal(struct pipe_inode_info *pipe,
 
 	return 1;
 }
+EXPORT_SYMBOL(generic_pipe_buf_steal);
 
 /**
  * generic_pipe_buf_get - get a reference to a &struct pipe_buffer
@@ -294,6 +297,7 @@ void generic_pipe_buf_get(struct pipe_inode_info *pipe, struct pipe_buffer *buf)
 {
 	page_cache_get(buf->page);
 }
+EXPORT_SYMBOL(generic_pipe_buf_get);
 
 /**
  * generic_pipe_buf_confirm - verify contents of the pipe buffer
@@ -309,6 +313,7 @@ int generic_pipe_buf_confirm(struct pipe_inode_info *info,
 {
 	return 0;
 }
+EXPORT_SYMBOL(generic_pipe_buf_confirm);
 
 /**
  * generic_pipe_buf_release - put a reference to a &struct pipe_buffer
@@ -323,6 +328,7 @@ void generic_pipe_buf_release(struct pipe_inode_info *pipe,
 {
 	page_cache_release(buf->page);
 }
+EXPORT_SYMBOL(generic_pipe_buf_release);
 
 static const struct pipe_buf_operations anon_pipe_buf_ops = {
 	.can_merge = 1,
@@ -1172,16 +1178,20 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 		nr_pages = (arg + PAGE_SIZE - 1) >> PAGE_SHIFT;
 		nr_pages = roundup_pow_of_two(nr_pages);
 
-		if (!capable(CAP_SYS_ADMIN) && nr_pages > pipe_max_pages)
-			return -EPERM;
+		if (!capable(CAP_SYS_ADMIN) && nr_pages > pipe_max_pages) {
+			ret = -EPERM;
+			goto out;
+		}
 
 		/*
 		 * The pipe needs to be at least 2 pages large to
 		 * guarantee POSIX behaviour.
 		 */
-		if (nr_pages < 2)
-			return -EINVAL;
-		ret = pipe_set_size(pipe, nr_pages);
+		if (arg < 2) {
+			ret = -EINVAL;
+			goto out;
+		}
+		ret = pipe_set_size(pipe, arg);
 		break;
 		}
 	case F_GETPIPE_SZ:
@@ -1192,6 +1202,7 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 		break;
 	}
 
+out:
 	mutex_unlock(&pipe->inode->i_mutex);
 	return ret;
 }

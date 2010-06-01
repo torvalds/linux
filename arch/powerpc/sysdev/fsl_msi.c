@@ -249,7 +249,7 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 		goto error_out;
 	}
 
-	msi->irqhost = irq_alloc_host(dev->node, IRQ_HOST_MAP_LINEAR,
+	msi->irqhost = irq_alloc_host(dev->dev.of_node, IRQ_HOST_MAP_LINEAR,
 				      NR_MSI_IRQS, &fsl_msi_host_ops, 0);
 
 	if (msi->irqhost == NULL) {
@@ -259,10 +259,10 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 	}
 
 	/* Get the MSI reg base */
-	err = of_address_to_resource(dev->node, 0, &res);
+	err = of_address_to_resource(dev->dev.of_node, 0, &res);
 	if (err) {
 		dev_err(&dev->dev, "%s resource error!\n",
-				dev->node->full_name);
+				dev->dev.of_node->full_name);
 		goto error_out;
 	}
 
@@ -285,16 +285,16 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 		goto error_out;
 	}
 
-	p = of_get_property(dev->node, "interrupts", &count);
+	p = of_get_property(dev->dev.of_node, "interrupts", &count);
 	if (!p) {
 		dev_err(&dev->dev, "no interrupts property found on %s\n",
-				dev->node->full_name);
+				dev->dev.of_node->full_name);
 		err = -ENODEV;
 		goto error_out;
 	}
 	if (count % 8 != 0) {
 		dev_err(&dev->dev, "Malformed interrupts property on %s\n",
-				dev->node->full_name);
+				dev->dev.of_node->full_name);
 		err = -EINVAL;
 		goto error_out;
 	}
@@ -303,7 +303,7 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 	for (i = 0; i < count / 2; i++) {
 		if (i > NR_MSI_REG)
 			break;
-		virt_msir = irq_of_parse_and_map(dev->node, i);
+		virt_msir = irq_of_parse_and_map(dev->dev.of_node, i);
 		if (virt_msir != NO_IRQ) {
 			set_irq_data(virt_msir, (void *)i);
 			set_irq_chained_handler(virt_msir, fsl_msi_cascade);
@@ -345,8 +345,11 @@ static const struct of_device_id fsl_of_msi_ids[] = {
 };
 
 static struct of_platform_driver fsl_of_msi_driver = {
-	.name = "fsl-msi",
-	.match_table = fsl_of_msi_ids,
+	.driver = {
+		.name = "fsl-msi",
+		.owner = THIS_MODULE,
+		.of_match_table = fsl_of_msi_ids,
+	},
 	.probe = fsl_of_msi_probe,
 };
 

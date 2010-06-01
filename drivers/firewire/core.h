@@ -27,7 +27,12 @@ struct fw_packet;
 #define PHY_LINK_ACTIVE		0x80
 #define PHY_CONTENDER		0x40
 #define PHY_BUS_RESET		0x40
+#define PHY_EXTENDED_REGISTERS	0xe0
 #define PHY_BUS_SHORT_RESET	0x40
+#define PHY_INT_STATUS_BITS	0x3c
+#define PHY_ENABLE_ACCEL	0x02
+#define PHY_ENABLE_MULTI	0x01
+#define PHY_PAGE_SELECT		0xe0
 
 #define BANDWIDTH_AVAILABLE_INITIAL	4915
 #define BROADCAST_CHANNEL_INITIAL	(1 << 31 | 31)
@@ -215,7 +220,6 @@ void fw_core_handle_request(struct fw_card *card, struct fw_packet *request);
 void fw_core_handle_response(struct fw_card *card, struct fw_packet *packet);
 void fw_fill_response(struct fw_packet *response, u32 *request_header,
 		      int rcode, void *payload, size_t length);
-void fw_flush_transactions(struct fw_card *card);
 void fw_send_phy_config(struct fw_card *card,
 			int node_id, int generation, int gap_count);
 

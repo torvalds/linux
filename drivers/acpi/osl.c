@@ -1207,6 +1207,15 @@ int acpi_check_mem_region(resource_size_t start, resource_size_t n,
 EXPORT_SYMBOL(acpi_check_mem_region);
 
 /*
+ * Let drivers know whether the resource checks are effective
+ */
+int acpi_resources_are_enforced(void)
+{
+	return acpi_enforce_resources == ENFORCE_RESOURCES_STRICT;
+}
+EXPORT_SYMBOL(acpi_resources_are_enforced);
+
+/*
  * Acquire a spinlock.
  *
  * handle is a pointer to the spinlock_t.

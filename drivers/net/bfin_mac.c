@@ -1626,6 +1626,7 @@ static int __devinit bfin_mii_bus_probe(struct platform_device *pdev)
 	return 0;
 
 out_err_mdiobus_register:
+	kfree(miibus->irq);
 	mdiobus_free(miibus);
 out_err_alloc:
 	peripheral_free_list(pin_req);
@@ -1638,6 +1639,7 @@ static int __devexit bfin_mii_bus_remove(struct platform_device *pdev)
 	struct mii_bus *miibus = platform_get_drvdata(pdev);
 	platform_set_drvdata(pdev, NULL);
 	mdiobus_unregister(miibus);
+	kfree(miibus->irq);
 	mdiobus_free(miibus);
 	peripheral_free_list(pin_req);
 	return 0;

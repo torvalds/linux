@@ -288,13 +288,12 @@ static const struct of_device_id ehci_hcd_xilinx_of_match[] = {
 MODULE_DEVICE_TABLE(of, ehci_hcd_xilinx_of_match);
 
 static struct of_platform_driver ehci_hcd_xilinx_of_driver = {
-	.name		= "xilinx-of-ehci",
-	.match_table	= ehci_hcd_xilinx_of_match,
 	.probe		= ehci_hcd_xilinx_of_probe,
 	.remove		= ehci_hcd_xilinx_of_remove,
 	.shutdown	= ehci_hcd_xilinx_of_shutdown,
-	.driver		= {
-		.name	= "xilinx-of-ehci",
-		.owner	= THIS_MODULE,
+	.driver = {
+		.name = "xilinx-of-ehci",
+		.owner = THIS_MODULE,
+		.of_match_table = ehci_hcd_xilinx_of_match,
 	},
 };

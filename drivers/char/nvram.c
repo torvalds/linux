@@ -296,8 +296,8 @@ checksum_err:
 	return -EIO;
 }
 
-static int nvram_ioctl(struct inode *inode, struct file *file,
-					unsigned int cmd, unsigned long arg)
+static long nvram_ioctl(struct file *file, unsigned int cmd,
+			unsigned long arg)
 {
 	int i;
 
@@ -308,6 +308,7 @@ static int nvram_ioctl(struct inode *inode, struct file *file,
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
 
+		lock_kernel();
 		spin_lock_irq(&rtc_lock);
 
 		for (i = 0; i < NVRAM_BYTES; ++i)
@@ -315,6 +316,7 @@ static int nvram_ioctl(struct inode *inode, struct file *file,
 		__nvram_set_checksum();
 
 		spin_unlock_irq(&rtc_lock);
+		unlock_kernel();
 		return 0;
 
 	case NVRAM_SETCKS:
@@ -323,9 +325,11 @@ static int nvram_ioctl(struct inode *inode, struct file *file,
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
 
+		lock_kernel();
 		spin_lock_irq(&rtc_lock);
 		__nvram_set_checksum();
 		spin_unlock_irq(&rtc_lock);
+		unlock_kernel();
 		return 0;
 
 	default:
@@ -422,7 +426,7 @@ static const struct file_operations nvram_fops = {
 	.llseek		= nvram_llseek,
 	.read		= nvram_read,
 	.write		= nvram_write,
-	.ioctl		= nvram_ioctl,
+	.unlocked_ioctl	= nvram_ioctl,
 	.open		= nvram_open,
 	.release	= nvram_release,
 };

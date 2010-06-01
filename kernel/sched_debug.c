@@ -381,15 +381,9 @@ __initcall(init_sched_debug_procfs);
 void proc_sched_show_task(struct task_struct *p, struct seq_file *m)
 {
 	unsigned long nr_switches;
-	unsigned long flags;
-	int num_threads = 1;
 
-	if (lock_task_sighand(p, &flags)) {
-		num_threads = atomic_read(&p->signal->count);
-		unlock_task_sighand(p, &flags);
-	}
-
-	SEQ_printf(m, "%s (%d, #threads: %d)\n", p->comm, p->pid, num_threads);
+	SEQ_printf(m, "%s (%d, #threads: %d)\n", p->comm, p->pid,
+						get_nr_threads(p));
 	SEQ_printf(m,
 		"---------------------------------------------------------\n");
 #define __P(F) \

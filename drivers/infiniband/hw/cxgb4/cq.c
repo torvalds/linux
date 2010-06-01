@@ -373,6 +373,7 @@ static void create_read_req_cqe(struct t4_wq *wq, struct t4_cqe *hw_cqe,
 				 V_CQE_SWCQE(SW_CQE(hw_cqe)) |
 				 V_CQE_OPCODE(FW_RI_READ_REQ) |
 				 V_CQE_TYPE(1));
+	read_cqe->bits_type_ts = hw_cqe->bits_type_ts;
 }
 
 /*
@@ -780,6 +781,9 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 	/* account for the status page. */
 	entries++;
 
+	/* IQ needs one extra entry to differentiate full vs empty. */
+	entries++;
+
 	/*
 	 * entries must be multiple of 16 for HW.
 	 */
@@ -801,7 +805,7 @@ struct ib_cq *c4iw_create_cq(struct ib_device *ibdev, int entries,
 
 	chp->rhp = rhp;
 	chp->cq.size--;				/* status page */
-	chp->ibcq.cqe = chp->cq.size;
+	chp->ibcq.cqe = chp->cq.size - 1;
 	spin_lock_init(&chp->lock);
 	atomic_set(&chp->refcnt, 1);
 	init_waitqueue_head(&chp->wait);

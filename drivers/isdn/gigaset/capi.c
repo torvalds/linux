@@ -170,17 +170,6 @@ static inline void ignore_cstruct_param(struct cardstate *cs, _cstruct param,
 }
 
 /*
- * convert hex to binary
- */
-static inline u8 hex2bin(char c)
-{
-	int result = c & 0x0f;
-	if (c & 0x40)
-		result += 9;
-	return result;
-}
-
-/*
  * convert an IE from Gigaset hex string to ETSI binary representation
  * including length byte
  * return value: result length, -1 on error
@@ -191,7 +180,7 @@ static int encode_ie(char *in, u8 *out, int maxlen)
 	while (*in) {
 		if (!isxdigit(in[0]) || !isxdigit(in[1]) || l >= maxlen)
 			return -1;
-		out[++l] = (hex2bin(in[0]) << 4) + hex2bin(in[1]);
+		out[++l] = (hex_to_bin(in[0]) << 4) + hex_to_bin(in[1]);
 		in += 2;
 	}
 	out[0] = l;
@@ -931,30 +920,6 @@ void gigaset_isdn_stop(struct cardstate *cs)
  * kernel CAPI callback methods
  * ============================
  */
-
-/*
- * load firmware
- */
-static int gigaset_load_firmware(struct capi_ctr *ctr, capiloaddata *data)
-{
-	struct cardstate *cs = ctr->driverdata;
-
-	/* AVM specific operation, not needed for Gigaset -- ignore */
-	dev_notice(cs->dev, "load_firmware ignored\n");
-
-	return 0;
-}
-
-/*
- * reset (deactivate) controller
- */
-static void gigaset_reset_ctr(struct capi_ctr *ctr)
-{
-	struct cardstate *cs = ctr->driverdata;
-
-	/* AVM specific operation, not needed for Gigaset -- ignore */
-	dev_notice(cs->dev, "reset_ctr ignored\n");
-}
 
 /*
  * register CAPI application
@@ -2213,8 +2178,8 @@ int gigaset_isdn_regdev(struct cardstate *cs, const char *isdnid)
 	iif->ctr.driverdata    = cs;
 	strncpy(iif->ctr.name, isdnid, sizeof(iif->ctr.name));
 	iif->ctr.driver_name   = "gigaset";
-	iif->ctr.load_firmware = gigaset_load_firmware;
-	iif->ctr.reset_ctr     = gigaset_reset_ctr;
+	iif->ctr.load_firmware = NULL;
+	iif->ctr.reset_ctr     = NULL;
 	iif->ctr.register_appl = gigaset_register_appl;
 	iif->ctr.release_appl  = gigaset_release_appl;
 	iif->ctr.send_message  = gigaset_send_message;

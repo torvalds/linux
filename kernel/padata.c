@@ -659,7 +659,7 @@ static int padata_cpu_callback(struct notifier_block *nfb,
 		err = __padata_add_cpu(pinst, cpu);
 		mutex_unlock(&pinst->lock);
 		if (err)
-			return NOTIFY_BAD;
+			return notifier_from_errno(err);
 		break;
 
 	case CPU_DOWN_PREPARE:
@@ -670,7 +670,7 @@ static int padata_cpu_callback(struct notifier_block *nfb,
 		err = __padata_remove_cpu(pinst, cpu);
 		mutex_unlock(&pinst->lock);
 		if (err)
-			return NOTIFY_BAD;
+			return notifier_from_errno(err);
 		break;
 
 	case CPU_UP_CANCELED:

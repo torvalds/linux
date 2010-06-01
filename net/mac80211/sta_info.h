@@ -145,7 +145,7 @@ enum plink_state {
 /**
  * struct sta_ampdu_mlme - STA aggregation information.
  *
- * @tid_state_rx: TID's state in Rx session state machine.
+ * @tid_active_rx: TID's state in Rx session state machine.
  * @tid_rx: aggregation info for Rx per TID
  * @tid_state_tx: TID's state in Tx session state machine.
  * @tid_tx: aggregation info for Tx per TID

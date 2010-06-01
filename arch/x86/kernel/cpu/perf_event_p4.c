@@ -465,15 +465,21 @@ out:
 	return rc;
 }
 
-static inline void p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
+static inline int p4_pmu_clear_cccr_ovf(struct hw_perf_event *hwc)
 {
-	unsigned long dummy;
+	int overflow = 0;
+	u32 low, high;
 
-	rdmsrl(hwc->config_base + hwc->idx, dummy);
-	if (dummy & P4_CCCR_OVF) {
+	rdmsr(hwc->config_base + hwc->idx, low, high);
+
+	/* we need to check high bit for unflagged overflows */
+	if ((low & P4_CCCR_OVF) || !(high & (1 << 31))) {
+		overflow = 1;
 		(void)checking_wrmsrl(hwc->config_base + hwc->idx,
-			((u64)dummy) & ~P4_CCCR_OVF);
+			((u64)low) & ~P4_CCCR_OVF);
 	}
+
+	return overflow;
 }
 
 static inline void p4_pmu_disable_event(struct perf_event *event)
@@ -584,21 +590,15 @@ static int p4_pmu_handle_irq(struct pt_regs *regs)
 
 		WARN_ON_ONCE(hwc->idx != idx);
 
-		/*
-		 * FIXME: Redundant call, actually not needed
-		 * but just to check if we're screwed
-		 */
-		p4_pmu_clear_cccr_ovf(hwc);
+		/* it might be unflagged overflow */
+		handled = p4_pmu_clear_cccr_ovf(hwc);
 
 		val = x86_perf_event_update(event);
-		if (val & (1ULL << (x86_pmu.cntval_bits - 1)))
+		if (!handled && (val & (1ULL << (x86_pmu.cntval_bits - 1))))
 			continue;
 
-		/*
-		 * event overflow
-		 */
-		handled		= 1;
-		data.period	= event->hw.last_period;
+		/* event overflow for sure */
+		data.period = event->hw.last_period;
 
 		if (!x86_perf_event_set_period(event))
 			continue;
@@ -670,7 +670,7 @@ static void p4_pmu_swap_config_ts(struct hw_perf_event *hwc, int cpu)
 
 /*
  * ESCR address hashing is tricky, ESCRs are not sequential
- * in memory but all starts from MSR_P4_BSU_ESCR0 (0x03e0) and
+ * in memory but all starts from MSR_P4_BSU_ESCR0 (0x03a0) and
  * the metric between any ESCRs is laid in range [0xa0,0xe1]
  *
  * so we make ~70% filled hashtable
@@ -735,8 +735,9 @@ static int p4_get_escr_idx(unsigned int addr)
 {
 	unsigned int idx = P4_ESCR_MSR_IDX(addr);
 
-	if (unlikely(idx >= P4_ESCR_MSR_TABLE_SIZE ||
-			!p4_escr_table[idx])) {
+	if (unlikely(idx >= P4_ESCR_MSR_TABLE_SIZE	||
+			!p4_escr_table[idx]		||
+			p4_escr_table[idx] != addr)) {
 		WARN_ONCE(1, "P4 PMU: Wrong address passed: %x\n", addr);
 		return -1;
 	}
@@ -762,7 +763,7 @@ static int p4_pmu_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign
 {
 	unsigned long used_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	unsigned long escr_mask[BITS_TO_LONGS(P4_ESCR_MSR_TABLE_SIZE)];
-	int cpu = raw_smp_processor_id();
+	int cpu = smp_processor_id();
 	struct hw_perf_event *hwc;
 	struct p4_event_bind *bind;
 	unsigned int i, thread, num;

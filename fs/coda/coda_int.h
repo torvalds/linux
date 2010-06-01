@@ -11,8 +11,7 @@ extern int coda_fake_statfs;
 
 void coda_destroy_inodecache(void);
 int coda_init_inodecache(void);
-int coda_fsync(struct file *coda_file, struct dentry *coda_dentry,
-	       int datasync);
+int coda_fsync(struct file *coda_file, int datasync);
 void coda_sysctl_init(void);
 void coda_sysctl_clean(void);
 

@@ -60,7 +60,9 @@ struct module;
  * @names: if set, must be an array of strings to use as alternative
  *      names for the GPIOs in this chip. Any entry in the array
  *      may be NULL if there is no alias for the GPIO, however the
- *      array must be @ngpio entries long.
+ *      array must be @ngpio entries long.  A name can include a single printk
+ *      format specifier for an unsigned int.  It is substituted by the actual
+ *      number of the gpio.
  *
  * A gpio_chip can help platforms abstract various sources of GPIOs so
  * they can all be accessed through a common programing interface.
@@ -88,6 +90,9 @@ struct gpio_chip {
 						unsigned offset);
 	int			(*direction_output)(struct gpio_chip *chip,
 						unsigned offset, int value);
+	int			(*set_debounce)(struct gpio_chip *chip,
+						unsigned offset, unsigned debounce);
+
 	void			(*set)(struct gpio_chip *chip,
 						unsigned offset, int value);
 
@@ -98,7 +103,7 @@ struct gpio_chip {
 						struct gpio_chip *chip);
 	int			base;
 	u16			ngpio;
-	char			**names;
+	const char		*const *names;
 	unsigned		can_sleep:1;
 	unsigned		exported:1;
 };
@@ -120,6 +125,8 @@ extern void gpio_free(unsigned gpio);
 
 extern int gpio_direction_input(unsigned gpio);
 extern int gpio_direction_output(unsigned gpio, int value);
+
+extern int gpio_set_debounce(unsigned gpio, unsigned debounce);
 
 extern int gpio_get_value_cansleep(unsigned gpio);
 extern void gpio_set_value_cansleep(unsigned gpio, int value);

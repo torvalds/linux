@@ -671,6 +671,7 @@ config ARCH_S5P6440
 	select CPU_V6
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Samsung S5P6440 CPU based systems
 
@@ -679,17 +680,19 @@ config ARCH_S5P6442
 	select CPU_V6
 	select GENERIC_GPIO
 	select HAVE_CLK
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Samsung S5P6442 CPU based systems
 
-config ARCH_S5PC1XX
-	bool "Samsung S5PC1XX"
+config ARCH_S5PC100
+	bool "Samsung S5PC100"
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select CPU_V7
 	select ARM_L1_CACHE_SHIFT_6
+	select ARCH_USES_GETTIMEOFFSET
 	help
-	  Samsung S5PC1XX series based systems
+	  Samsung S5PC100 series based systems
 
 config ARCH_S5PV210
 	bool "Samsung S5PV210/S5PC110"
@@ -697,6 +700,7 @@ config ARCH_S5PV210
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select ARM_L1_CACHE_SHIFT_6
+	select ARCH_USES_GETTIMEOFFSET
 	help
 	  Samsung S5PV210/S5PC110 series based systems
 
@@ -876,7 +880,7 @@ source "arch/arm/mach-sa1100/Kconfig"
 source "arch/arm/plat-samsung/Kconfig"
 source "arch/arm/plat-s3c24xx/Kconfig"
 source "arch/arm/plat-s5p/Kconfig"
-source "arch/arm/plat-s5pc1xx/Kconfig"
+
 source "arch/arm/plat-spear/Kconfig"
 
 if ARCH_S3C2410
@@ -896,9 +900,7 @@ source "arch/arm/mach-s5p6440/Kconfig"
 
 source "arch/arm/mach-s5p6442/Kconfig"
 
-if ARCH_S5PC1XX
 source "arch/arm/mach-s5pc100/Kconfig"
-endif
 
 source "arch/arm/mach-s5pv210/Kconfig"
 
@@ -1418,6 +1420,17 @@ config CMDLINE
 	  architectures, you should supply some command-line options at build
 	  time by entering them here. As a minimum, you should specify the
 	  memory size and the root device (e.g., mem=64M root=/dev/nfs).
+
+config CMDLINE_FORCE
+	bool "Always use the default kernel command string"
+	depends on CMDLINE != ""
+	help
+	  Always use the default kernel command string, even if the boot
+	  loader passes other arguments to the kernel.
+	  This is useful if you cannot or don't want to change the
+	  command-line options your boot loader passes to the kernel.
+
+	  If unsure, say N.
 
 config XIP_KERNEL
 	bool "Kernel Execute-In-Place from ROM"

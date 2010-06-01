@@ -174,8 +174,7 @@ enum {
 #include <linux/rwsem.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
-#include <linux/percpu.h>
-#include <linux/smp.h>
+#include <linux/percpu_counter.h>
 
 #include <linux/dqblk_xfs.h>
 #include <linux/dqblk_v1.h>
@@ -254,6 +253,7 @@ enum {
 
 struct dqstats {
 	int stat[_DQST_DQSTAT_LAST];
+	struct percpu_counter counter[_DQST_DQSTAT_LAST];
 };
 
 extern struct dqstats *dqstats_pcpu;
@@ -261,20 +261,12 @@ extern struct dqstats dqstats;
 
 static inline void dqstats_inc(unsigned int type)
 {
-#ifdef CONFIG_SMP
-	per_cpu_ptr(dqstats_pcpu, smp_processor_id())->stat[type]++;
-#else
-	dqstats.stat[type]++;
-#endif
+	percpu_counter_inc(&dqstats.counter[type]);
 }
 
 static inline void dqstats_dec(unsigned int type)
 {
-#ifdef CONFIG_SMP
-	per_cpu_ptr(dqstats_pcpu, smp_processor_id())->stat[type]--;
-#else
-	dqstats.stat[type]--;
-#endif
+	percpu_counter_dec(&dqstats.counter[type]);
 }
 
 #define DQ_MOD_B	0	/* dquot modified since read */
@@ -332,8 +324,8 @@ struct dquot_operations {
 
 /* Operations handling requests from userspace */
 struct quotactl_ops {
-	int (*quota_on)(struct super_block *, int, int, char *, int);
-	int (*quota_off)(struct super_block *, int, int);
+	int (*quota_on)(struct super_block *, int, int, char *);
+	int (*quota_off)(struct super_block *, int);
 	int (*quota_sync)(struct super_block *, int, int);
 	int (*get_info)(struct super_block *, int, struct if_dqinfo *);
 	int (*set_info)(struct super_block *, int, struct if_dqinfo *);

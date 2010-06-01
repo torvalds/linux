@@ -22,6 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/types.h>
+#include <linux/fsl_devices.h>
 
 #include <linux/usb/otg.h>
 
@@ -213,6 +214,12 @@ static int __init devboard_usbh1_init(void)
 	return mxc_register_device(&mxc_usbh1, &usbh1_pdata);
 }
 
+
+static struct fsl_usb2_platform_data usb_pdata = {
+	.operating_mode	= FSL_USB2_DR_DEVICE,
+	.phy_mode	= FSL_USB2_PHY_ULPI,
+};
+
 /*
  * system init for baseboard usage. Will be called by mx31moboard init.
  */
@@ -228,6 +235,8 @@ void __init mx31moboard_devboard_init(void)
 	mxc_register_device(&mxcsdhc_device1, &sdhc2_pdata);
 
 	devboard_init_sel_gpios();
+
+	mxc_register_device(&mxc_otg_udc_device, &usb_pdata);
 
 	devboard_usbh1_init();
 }

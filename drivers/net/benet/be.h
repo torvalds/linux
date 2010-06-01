@@ -283,6 +283,8 @@ struct be_adapter {
 	u8 port_type;
 	u8 transceiver;
 	u8 generation;		/* BladeEngine ASIC generation */
+	u32 flash_status;
+	struct completion flash_compl;
 
 	bool sriov_enabled;
 	u32 vf_if_handle[BE_MAX_VF];

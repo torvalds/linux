@@ -149,16 +149,35 @@ struct mem_cgroup_threshold {
 	u64 threshold;
 };
 
+/* For threshold */
 struct mem_cgroup_threshold_ary {
 	/* An array index points to threshold just below usage. */
-	atomic_t current_threshold;
+	int current_threshold;
 	/* Size of entries[] */
 	unsigned int size;
 	/* Array of thresholds */
 	struct mem_cgroup_threshold entries[0];
 };
 
+struct mem_cgroup_thresholds {
+	/* Primary thresholds array */
+	struct mem_cgroup_threshold_ary *primary;
+	/*
+	 * Spare threshold array.
+	 * This is needed to make mem_cgroup_unregister_event() "never fail".
+	 * It must be able to store at least primary->size - 1 entries.
+	 */
+	struct mem_cgroup_threshold_ary *spare;
+};
+
+/* for OOM */
+struct mem_cgroup_eventfd_list {
+	struct list_head list;
+	struct eventfd_ctx *eventfd;
+};
+
 static void mem_cgroup_threshold(struct mem_cgroup *mem);
+static void mem_cgroup_oom_notify(struct mem_cgroup *mem);
 
 /*
  * The memory controller data structure. The memory controller controls both
@@ -207,6 +226,8 @@ struct mem_cgroup {
 	atomic_t	refcnt;
 
 	unsigned int	swappiness;
+	/* OOM-Killer disable */
+	int		oom_kill_disable;
 
 	/* set when res.limit == memsw.limit */
 	bool		memsw_is_minimum;
@@ -215,17 +236,19 @@ struct mem_cgroup {
 	struct mutex thresholds_lock;
 
 	/* thresholds for memory usage. RCU-protected */
-	struct mem_cgroup_threshold_ary *thresholds;
+	struct mem_cgroup_thresholds thresholds;
 
 	/* thresholds for mem+swap usage. RCU-protected */
-	struct mem_cgroup_threshold_ary *memsw_thresholds;
+	struct mem_cgroup_thresholds memsw_thresholds;
+
+	/* For oom notifier event fd */
+	struct list_head oom_notify;
 
 	/*
 	 * Should we move charges of a task when a task is moved into this
 	 * mem_cgroup ? And what type of charges should we move ?
 	 */
 	unsigned long 	move_charge_at_immigrate;
-
 	/*
 	 * percpu counter.
 	 */
@@ -239,6 +262,7 @@ struct mem_cgroup {
  */
 enum move_type {
 	MOVE_CHARGE_TYPE_ANON,	/* private anonymous page and swap of it */
+	MOVE_CHARGE_TYPE_FILE,	/* file page(including tmpfs) and swap of it */
 	NR_MOVE_TYPE,
 };
 
@@ -254,6 +278,18 @@ static struct move_charge_struct {
 } mc = {
 	.waitq = __WAIT_QUEUE_HEAD_INITIALIZER(mc.waitq),
 };
+
+static bool move_anon(void)
+{
+	return test_bit(MOVE_CHARGE_TYPE_ANON,
+					&mc.to->move_charge_at_immigrate);
+}
+
+static bool move_file(void)
+{
+	return test_bit(MOVE_CHARGE_TYPE_FILE,
+					&mc.to->move_charge_at_immigrate);
+}
 
 /*
  * Maximum loops in mem_cgroup_hierarchical_reclaim(), used for soft
@@ -282,9 +318,12 @@ enum charge_type {
 /* for encoding cft->private value on file */
 #define _MEM			(0)
 #define _MEMSWAP		(1)
+#define _OOM_TYPE		(2)
 #define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
 #define MEMFILE_TYPE(val)	(((val) >> 16) & 0xffff)
 #define MEMFILE_ATTR(val)	((val) & 0xffff)
+/* Used for OOM nofiier */
+#define OOM_CONTROL		(0)
 
 /*
  * Reclaim flags for mem_cgroup_hierarchical_reclaim
@@ -1293,14 +1332,62 @@ static void mem_cgroup_oom_unlock(struct mem_cgroup *mem)
 static DEFINE_MUTEX(memcg_oom_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(memcg_oom_waitq);
 
+struct oom_wait_info {
+	struct mem_cgroup *mem;
+	wait_queue_t	wait;
+};
+
+static int memcg_oom_wake_function(wait_queue_t *wait,
+	unsigned mode, int sync, void *arg)
+{
+	struct mem_cgroup *wake_mem = (struct mem_cgroup *)arg;
+	struct oom_wait_info *oom_wait_info;
+
+	oom_wait_info = container_of(wait, struct oom_wait_info, wait);
+
+	if (oom_wait_info->mem == wake_mem)
+		goto wakeup;
+	/* if no hierarchy, no match */
+	if (!oom_wait_info->mem->use_hierarchy || !wake_mem->use_hierarchy)
+		return 0;
+	/*
+	 * Both of oom_wait_info->mem and wake_mem are stable under us.
+	 * Then we can use css_is_ancestor without taking care of RCU.
+	 */
+	if (!css_is_ancestor(&oom_wait_info->mem->css, &wake_mem->css) &&
+	    !css_is_ancestor(&wake_mem->css, &oom_wait_info->mem->css))
+		return 0;
+
+wakeup:
+	return autoremove_wake_function(wait, mode, sync, arg);
+}
+
+static void memcg_wakeup_oom(struct mem_cgroup *mem)
+{
+	/* for filtering, pass "mem" as argument. */
+	__wake_up(&memcg_oom_waitq, TASK_NORMAL, 0, mem);
+}
+
+static void memcg_oom_recover(struct mem_cgroup *mem)
+{
+	if (mem->oom_kill_disable && atomic_read(&mem->oom_lock))
+		memcg_wakeup_oom(mem);
+}
+
 /*
  * try to call OOM killer. returns false if we should exit memory-reclaim loop.
  */
 bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
 {
-	DEFINE_WAIT(wait);
-	bool locked;
+	struct oom_wait_info owait;
+	bool locked, need_to_kill;
 
+	owait.mem = mem;
+	owait.wait.flags = 0;
+	owait.wait.func = memcg_oom_wake_function;
+	owait.wait.private = current;
+	INIT_LIST_HEAD(&owait.wait.task_list);
+	need_to_kill = true;
 	/* At first, try to OOM lock hierarchy under mem.*/
 	mutex_lock(&memcg_oom_mutex);
 	locked = mem_cgroup_oom_lock(mem);
@@ -1309,32 +1396,23 @@ bool mem_cgroup_handle_oom(struct mem_cgroup *mem, gfp_t mask)
 	 * accounting. So, UNINTERRUPTIBLE is appropriate. But SIGKILL
 	 * under OOM is always welcomed, use TASK_KILLABLE here.
 	 */
-	if (!locked)
-		prepare_to_wait(&memcg_oom_waitq, &wait, TASK_KILLABLE);
+	prepare_to_wait(&memcg_oom_waitq, &owait.wait, TASK_KILLABLE);
+	if (!locked || mem->oom_kill_disable)
+		need_to_kill = false;
+	if (locked)
+		mem_cgroup_oom_notify(mem);
 	mutex_unlock(&memcg_oom_mutex);
 
-	if (locked)
+	if (need_to_kill) {
+		finish_wait(&memcg_oom_waitq, &owait.wait);
 		mem_cgroup_out_of_memory(mem, mask);
-	else {
+	} else {
 		schedule();
-		finish_wait(&memcg_oom_waitq, &wait);
+		finish_wait(&memcg_oom_waitq, &owait.wait);
 	}
 	mutex_lock(&memcg_oom_mutex);
 	mem_cgroup_oom_unlock(mem);
-	/*
-	 * Here, we use global waitq .....more fine grained waitq ?
-	 * Assume following hierarchy.
-	 * A/
-	 *   01
-	 *   02
-	 * assume OOM happens both in A and 01 at the same time. Tthey are
-	 * mutually exclusive by lock. (kill in 01 helps A.)
-	 * When we use per memcg waitq, we have to wake up waiters on A and 02
-	 * in addtion to waiters on 01. We use global waitq for avoiding mess.
-	 * It will not be a big problem.
-	 * (And a task may be moved to other groups while it's waiting for OOM.)
-	 */
-	wake_up_all(&memcg_oom_waitq);
+	memcg_wakeup_oom(mem);
 	mutex_unlock(&memcg_oom_mutex);
 
 	if (test_thread_flag(TIF_MEMDIE) || fatal_signal_pending(current))
@@ -2118,15 +2196,6 @@ __do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype)
 	/* If swapout, usage of swap doesn't decrease */
 	if (!do_swap_account || ctype == MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
 		uncharge_memsw = false;
-	/*
-	 * do_batch > 0 when unmapping pages or inode invalidate/truncate.
-	 * In those cases, all pages freed continously can be expected to be in
-	 * the same cgroup and we have chance to coalesce uncharges.
-	 * But we do uncharge one by one if this is killed by OOM(TIF_MEMDIE)
-	 * because we want to do uncharge as soon as possible.
-	 */
-	if (!current->memcg_batch.do_batch || test_thread_flag(TIF_MEMDIE))
-		goto direct_uncharge;
 
 	batch = &current->memcg_batch;
 	/*
@@ -2136,6 +2205,17 @@ __do_uncharge(struct mem_cgroup *mem, const enum charge_type ctype)
 	 */
 	if (!batch->memcg)
 		batch->memcg = mem;
+	/*
+	 * do_batch > 0 when unmapping pages or inode invalidate/truncate.
+	 * In those cases, all pages freed continously can be expected to be in
+	 * the same cgroup and we have chance to coalesce uncharges.
+	 * But we do uncharge one by one if this is killed by OOM(TIF_MEMDIE)
+	 * because we want to do uncharge as soon as possible.
+	 */
+
+	if (!batch->do_batch || test_thread_flag(TIF_MEMDIE))
+		goto direct_uncharge;
+
 	/*
 	 * In typical case, batch->memcg == mem. This means we can
 	 * merge a series of uncharges to an uncharge of res_counter.
@@ -2152,6 +2232,8 @@ direct_uncharge:
 	res_counter_uncharge(&mem->res, PAGE_SIZE);
 	if (uncharge_memsw)
 		res_counter_uncharge(&mem->memsw, PAGE_SIZE);
+	if (unlikely(batch->memcg != mem))
+		memcg_oom_recover(mem);
 	return;
 }
 
@@ -2188,7 +2270,8 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	switch (ctype) {
 	case MEM_CGROUP_CHARGE_TYPE_MAPPED:
 	case MEM_CGROUP_CHARGE_TYPE_DROP:
-		if (page_mapped(page))
+		/* See mem_cgroup_prepare_migration() */
+		if (page_mapped(page) || PageCgroupMigration(pc))
 			goto unlock_out;
 		break;
 	case MEM_CGROUP_CHARGE_TYPE_SWAPOUT:
@@ -2288,6 +2371,7 @@ void mem_cgroup_uncharge_end(void)
 		res_counter_uncharge(&batch->memcg->res, batch->bytes);
 	if (batch->memsw_bytes)
 		res_counter_uncharge(&batch->memcg->memsw, batch->memsw_bytes);
+	memcg_oom_recover(batch->memcg);
 	/* forget this pointer (for sanity check) */
 	batch->memcg = NULL;
 }
@@ -2410,10 +2494,12 @@ static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
  * Before starting migration, account PAGE_SIZE to mem_cgroup that the old
  * page belongs to.
  */
-int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
+int mem_cgroup_prepare_migration(struct page *page,
+	struct page *newpage, struct mem_cgroup **ptr)
 {
 	struct page_cgroup *pc;
 	struct mem_cgroup *mem = NULL;
+	enum charge_type ctype;
 	int ret = 0;
 
 	if (mem_cgroup_disabled())
@@ -2424,69 +2510,125 @@ int mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr)
 	if (PageCgroupUsed(pc)) {
 		mem = pc->mem_cgroup;
 		css_get(&mem->css);
+		/*
+		 * At migrating an anonymous page, its mapcount goes down
+		 * to 0 and uncharge() will be called. But, even if it's fully
+		 * unmapped, migration may fail and this page has to be
+		 * charged again. We set MIGRATION flag here and delay uncharge
+		 * until end_migration() is called
+		 *
+		 * Corner Case Thinking
+		 * A)
+		 * When the old page was mapped as Anon and it's unmap-and-freed
+		 * while migration was ongoing.
+		 * If unmap finds the old page, uncharge() of it will be delayed
+		 * until end_migration(). If unmap finds a new page, it's
+		 * uncharged when it make mapcount to be 1->0. If unmap code
+		 * finds swap_migration_entry, the new page will not be mapped
+		 * and end_migration() will find it(mapcount==0).
+		 *
+		 * B)
+		 * When the old page was mapped but migraion fails, the kernel
+		 * remaps it. A charge for it is kept by MIGRATION flag even
+		 * if mapcount goes down to 0. We can do remap successfully
+		 * without charging it again.
+		 *
+		 * C)
+		 * The "old" page is under lock_page() until the end of
+		 * migration, so, the old page itself will not be swapped-out.
+		 * If the new page is swapped out before end_migraton, our
+		 * hook to usual swap-out path will catch the event.
+		 */
+		if (PageAnon(page))
+			SetPageCgroupMigration(pc);
 	}
 	unlock_page_cgroup(pc);
+	/*
+	 * If the page is not charged at this point,
+	 * we return here.
+	 */
+	if (!mem)
+		return 0;
 
 	*ptr = mem;
-	if (mem) {
-		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
-		css_put(&mem->css);
+	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, ptr, false);
+	css_put(&mem->css);/* drop extra refcnt */
+	if (ret || *ptr == NULL) {
+		if (PageAnon(page)) {
+			lock_page_cgroup(pc);
+			ClearPageCgroupMigration(pc);
+			unlock_page_cgroup(pc);
+			/*
+			 * The old page may be fully unmapped while we kept it.
+			 */
+			mem_cgroup_uncharge_page(page);
+		}
+		return -ENOMEM;
 	}
+	/*
+	 * We charge new page before it's used/mapped. So, even if unlock_page()
+	 * is called before end_migration, we can catch all events on this new
+	 * page. In the case new page is migrated but not remapped, new page's
+	 * mapcount will be finally 0 and we call uncharge in end_migration().
+	 */
+	pc = lookup_page_cgroup(newpage);
+	if (PageAnon(page))
+		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
+	else if (page_is_file_cache(page))
+		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
+	else
+		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
+	__mem_cgroup_commit_charge(mem, pc, ctype);
 	return ret;
 }
 
 /* remove redundant charge if migration failed*/
 void mem_cgroup_end_migration(struct mem_cgroup *mem,
-		struct page *oldpage, struct page *newpage)
+	struct page *oldpage, struct page *newpage)
 {
-	struct page *target, *unused;
+	struct page *used, *unused;
 	struct page_cgroup *pc;
-	enum charge_type ctype;
 
 	if (!mem)
 		return;
+	/* blocks rmdir() */
 	cgroup_exclude_rmdir(&mem->css);
 	/* at migration success, oldpage->mapping is NULL. */
 	if (oldpage->mapping) {
-		target = oldpage;
-		unused = NULL;
+		used = oldpage;
+		unused = newpage;
 	} else {
-		target = newpage;
+		used = newpage;
 		unused = oldpage;
 	}
-
-	if (PageAnon(target))
-		ctype = MEM_CGROUP_CHARGE_TYPE_MAPPED;
-	else if (page_is_file_cache(target))
-		ctype = MEM_CGROUP_CHARGE_TYPE_CACHE;
-	else
-		ctype = MEM_CGROUP_CHARGE_TYPE_SHMEM;
-
-	/* unused page is not on radix-tree now. */
-	if (unused)
-		__mem_cgroup_uncharge_common(unused, ctype);
-
-	pc = lookup_page_cgroup(target);
 	/*
-	 * __mem_cgroup_commit_charge() check PCG_USED bit of page_cgroup.
-	 * So, double-counting is effectively avoided.
+	 * We disallowed uncharge of pages under migration because mapcount
+	 * of the page goes down to zero, temporarly.
+	 * Clear the flag and check the page should be charged.
 	 */
-	__mem_cgroup_commit_charge(mem, pc, ctype);
+	pc = lookup_page_cgroup(oldpage);
+	lock_page_cgroup(pc);
+	ClearPageCgroupMigration(pc);
+	unlock_page_cgroup(pc);
 
+	if (unused != oldpage)
+		pc = lookup_page_cgroup(unused);
+	__mem_cgroup_uncharge_common(unused, MEM_CGROUP_CHARGE_TYPE_FORCE);
+
+	pc = lookup_page_cgroup(used);
 	/*
-	 * Both of oldpage and newpage are still under lock_page().
-	 * Then, we don't have to care about race in radix-tree.
-	 * But we have to be careful that this page is unmapped or not.
-	 *
-	 * There is a case for !page_mapped(). At the start of
-	 * migration, oldpage was mapped. But now, it's zapped.
-	 * But we know *target* page is not freed/reused under us.
-	 * mem_cgroup_uncharge_page() does all necessary checks.
+	 * If a page is a file cache, radix-tree replacement is very atomic
+	 * and we can skip this check. When it was an Anon page, its mapcount
+	 * goes down to 0. But because we added MIGRATION flage, it's not
+	 * uncharged yet. There are several case but page->mapcount check
+	 * and USED bit check in mem_cgroup_uncharge_page() will do enough
+	 * check. (see prepare_charge() also)
 	 */
-	if (ctype == MEM_CGROUP_CHARGE_TYPE_MAPPED)
-		mem_cgroup_uncharge_page(target);
+	if (PageAnon(used))
+		mem_cgroup_uncharge_page(used);
 	/*
-	 * At migration, we may charge account against cgroup which has no tasks
+	 * At migration, we may charge account against cgroup which has no
+	 * tasks.
 	 * So, rmdir()->pre_destroy() can be called while we do this charge.
 	 * In that case, we need to call pre_destroy() again. check it here.
 	 */
@@ -2524,10 +2666,11 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 				unsigned long long val)
 {
 	int retry_count;
-	u64 memswlimit;
+	u64 memswlimit, memlimit;
 	int ret = 0;
 	int children = mem_cgroup_count_children(memcg);
 	u64 curusage, oldusage;
+	int enlarge;
 
 	/*
 	 * For keeping hierarchical_reclaim simple, how long we should retry
@@ -2538,6 +2681,7 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 
 	oldusage = res_counter_read_u64(&memcg->res, RES_USAGE);
 
+	enlarge = 0;
 	while (retry_count) {
 		if (signal_pending(current)) {
 			ret = -EINTR;
@@ -2555,6 +2699,11 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 			mutex_unlock(&set_limit_mutex);
 			break;
 		}
+
+		memlimit = res_counter_read_u64(&memcg->res, RES_LIMIT);
+		if (memlimit < val)
+			enlarge = 1;
+
 		ret = res_counter_set_limit(&memcg->res, val);
 		if (!ret) {
 			if (memswlimit == val)
@@ -2576,6 +2725,8 @@ static int mem_cgroup_resize_limit(struct mem_cgroup *memcg,
 		else
 			oldusage = curusage;
 	}
+	if (!ret && enlarge)
+		memcg_oom_recover(memcg);
 
 	return ret;
 }
@@ -2584,9 +2735,10 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
 					unsigned long long val)
 {
 	int retry_count;
-	u64 memlimit, oldusage, curusage;
+	u64 memlimit, memswlimit, oldusage, curusage;
 	int children = mem_cgroup_count_children(memcg);
 	int ret = -EBUSY;
+	int enlarge = 0;
 
 	/* see mem_cgroup_resize_res_limit */
  	retry_count = children * MEM_CGROUP_RECLAIM_RETRIES;
@@ -2608,6 +2760,9 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
 			mutex_unlock(&set_limit_mutex);
 			break;
 		}
+		memswlimit = res_counter_read_u64(&memcg->memsw, RES_LIMIT);
+		if (memswlimit < val)
+			enlarge = 1;
 		ret = res_counter_set_limit(&memcg->memsw, val);
 		if (!ret) {
 			if (memlimit == val)
@@ -2630,6 +2785,8 @@ static int mem_cgroup_resize_memsw_limit(struct mem_cgroup *memcg,
 		else
 			oldusage = curusage;
 	}
+	if (!ret && enlarge)
+		memcg_oom_recover(memcg);
 	return ret;
 }
 
@@ -2821,6 +2978,7 @@ move_account:
 			if (ret)
 				break;
 		}
+		memcg_oom_recover(mem);
 		/* it seems parent cgroup doesn't have enough mem */
 		if (ret == -ENOMEM)
 			goto try_to_free;
@@ -3311,9 +3469,9 @@ static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
 
 	rcu_read_lock();
 	if (!swap)
-		t = rcu_dereference(memcg->thresholds);
+		t = rcu_dereference(memcg->thresholds.primary);
 	else
-		t = rcu_dereference(memcg->memsw_thresholds);
+		t = rcu_dereference(memcg->memsw_thresholds.primary);
 
 	if (!t)
 		goto unlock;
@@ -3325,7 +3483,7 @@ static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
 	 * If it's not true, a threshold was crossed after last
 	 * call of __mem_cgroup_threshold().
 	 */
-	i = atomic_read(&t->current_threshold);
+	i = t->current_threshold;
 
 	/*
 	 * Iterate backward over array of thresholds starting from
@@ -3349,7 +3507,7 @@ static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
 		eventfd_signal(t->entries[i].eventfd, 1);
 
 	/* Update current_threshold */
-	atomic_set(&t->current_threshold, i - 1);
+	t->current_threshold = i - 1;
 unlock:
 	rcu_read_unlock();
 }
@@ -3369,106 +3527,117 @@ static int compare_thresholds(const void *a, const void *b)
 	return _a->threshold - _b->threshold;
 }
 
-static int mem_cgroup_register_event(struct cgroup *cgrp, struct cftype *cft,
-		struct eventfd_ctx *eventfd, const char *args)
+static int mem_cgroup_oom_notify_cb(struct mem_cgroup *mem, void *data)
+{
+	struct mem_cgroup_eventfd_list *ev;
+
+	list_for_each_entry(ev, &mem->oom_notify, list)
+		eventfd_signal(ev->eventfd, 1);
+	return 0;
+}
+
+static void mem_cgroup_oom_notify(struct mem_cgroup *mem)
+{
+	mem_cgroup_walk_tree(mem, NULL, mem_cgroup_oom_notify_cb);
+}
+
+static int mem_cgroup_usage_register_event(struct cgroup *cgrp,
+	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-	struct mem_cgroup_threshold_ary *thresholds, *thresholds_new;
+	struct mem_cgroup_thresholds *thresholds;
+	struct mem_cgroup_threshold_ary *new;
 	int type = MEMFILE_TYPE(cft->private);
 	u64 threshold, usage;
-	int size;
-	int i, ret;
+	int i, size, ret;
 
 	ret = res_counter_memparse_write_strategy(args, &threshold);
 	if (ret)
 		return ret;
 
 	mutex_lock(&memcg->thresholds_lock);
+
 	if (type == _MEM)
-		thresholds = memcg->thresholds;
+		thresholds = &memcg->thresholds;
 	else if (type == _MEMSWAP)
-		thresholds = memcg->memsw_thresholds;
+		thresholds = &memcg->memsw_thresholds;
 	else
 		BUG();
 
 	usage = mem_cgroup_usage(memcg, type == _MEMSWAP);
 
 	/* Check if a threshold crossed before adding a new one */
-	if (thresholds)
+	if (thresholds->primary)
 		__mem_cgroup_threshold(memcg, type == _MEMSWAP);
 
-	if (thresholds)
-		size = thresholds->size + 1;
-	else
-		size = 1;
+	size = thresholds->primary ? thresholds->primary->size + 1 : 1;
 
 	/* Allocate memory for new array of thresholds */
-	thresholds_new = kmalloc(sizeof(*thresholds_new) +
-			size * sizeof(struct mem_cgroup_threshold),
+	new = kmalloc(sizeof(*new) + size * sizeof(struct mem_cgroup_threshold),
 			GFP_KERNEL);
-	if (!thresholds_new) {
+	if (!new) {
 		ret = -ENOMEM;
 		goto unlock;
 	}
-	thresholds_new->size = size;
+	new->size = size;
 
 	/* Copy thresholds (if any) to new array */
-	if (thresholds)
-		memcpy(thresholds_new->entries, thresholds->entries,
-				thresholds->size *
+	if (thresholds->primary) {
+		memcpy(new->entries, thresholds->primary->entries, (size - 1) *
 				sizeof(struct mem_cgroup_threshold));
+	}
+
 	/* Add new threshold */
-	thresholds_new->entries[size - 1].eventfd = eventfd;
-	thresholds_new->entries[size - 1].threshold = threshold;
+	new->entries[size - 1].eventfd = eventfd;
+	new->entries[size - 1].threshold = threshold;
 
 	/* Sort thresholds. Registering of new threshold isn't time-critical */
-	sort(thresholds_new->entries, size,
-			sizeof(struct mem_cgroup_threshold),
+	sort(new->entries, size, sizeof(struct mem_cgroup_threshold),
 			compare_thresholds, NULL);
 
 	/* Find current threshold */
-	atomic_set(&thresholds_new->current_threshold, -1);
+	new->current_threshold = -1;
 	for (i = 0; i < size; i++) {
-		if (thresholds_new->entries[i].threshold < usage) {
+		if (new->entries[i].threshold < usage) {
 			/*
-			 * thresholds_new->current_threshold will not be used
-			 * until rcu_assign_pointer(), so it's safe to increment
+			 * new->current_threshold will not be used until
+			 * rcu_assign_pointer(), so it's safe to increment
 			 * it here.
 			 */
-			atomic_inc(&thresholds_new->current_threshold);
+			++new->current_threshold;
 		}
 	}
 
-	if (type == _MEM)
-		rcu_assign_pointer(memcg->thresholds, thresholds_new);
-	else
-		rcu_assign_pointer(memcg->memsw_thresholds, thresholds_new);
+	/* Free old spare buffer and save old primary buffer as spare */
+	kfree(thresholds->spare);
+	thresholds->spare = thresholds->primary;
 
-	/* To be sure that nobody uses thresholds before freeing it */
+	rcu_assign_pointer(thresholds->primary, new);
+
+	/* To be sure that nobody uses thresholds */
 	synchronize_rcu();
 
-	kfree(thresholds);
 unlock:
 	mutex_unlock(&memcg->thresholds_lock);
 
 	return ret;
 }
 
-static int mem_cgroup_unregister_event(struct cgroup *cgrp, struct cftype *cft,
-		struct eventfd_ctx *eventfd)
+static void mem_cgroup_usage_unregister_event(struct cgroup *cgrp,
+	struct cftype *cft, struct eventfd_ctx *eventfd)
 {
 	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
-	struct mem_cgroup_threshold_ary *thresholds, *thresholds_new;
+	struct mem_cgroup_thresholds *thresholds;
+	struct mem_cgroup_threshold_ary *new;
 	int type = MEMFILE_TYPE(cft->private);
 	u64 usage;
-	int size = 0;
-	int i, j, ret;
+	int i, j, size;
 
 	mutex_lock(&memcg->thresholds_lock);
 	if (type == _MEM)
-		thresholds = memcg->thresholds;
+		thresholds = &memcg->thresholds;
 	else if (type == _MEMSWAP)
-		thresholds = memcg->memsw_thresholds;
+		thresholds = &memcg->memsw_thresholds;
 	else
 		BUG();
 
@@ -3484,59 +3653,136 @@ static int mem_cgroup_unregister_event(struct cgroup *cgrp, struct cftype *cft,
 	__mem_cgroup_threshold(memcg, type == _MEMSWAP);
 
 	/* Calculate new number of threshold */
-	for (i = 0; i < thresholds->size; i++) {
-		if (thresholds->entries[i].eventfd != eventfd)
+	size = 0;
+	for (i = 0; i < thresholds->primary->size; i++) {
+		if (thresholds->primary->entries[i].eventfd != eventfd)
 			size++;
 	}
 
+	new = thresholds->spare;
+
 	/* Set thresholds array to NULL if we don't have thresholds */
 	if (!size) {
-		thresholds_new = NULL;
-		goto assign;
+		kfree(new);
+		new = NULL;
+		goto swap_buffers;
 	}
 
-	/* Allocate memory for new array of thresholds */
-	thresholds_new = kmalloc(sizeof(*thresholds_new) +
-			size * sizeof(struct mem_cgroup_threshold),
-			GFP_KERNEL);
-	if (!thresholds_new) {
-		ret = -ENOMEM;
-		goto unlock;
-	}
-	thresholds_new->size = size;
+	new->size = size;
 
 	/* Copy thresholds and find current threshold */
-	atomic_set(&thresholds_new->current_threshold, -1);
-	for (i = 0, j = 0; i < thresholds->size; i++) {
-		if (thresholds->entries[i].eventfd == eventfd)
+	new->current_threshold = -1;
+	for (i = 0, j = 0; i < thresholds->primary->size; i++) {
+		if (thresholds->primary->entries[i].eventfd == eventfd)
 			continue;
 
-		thresholds_new->entries[j] = thresholds->entries[i];
-		if (thresholds_new->entries[j].threshold < usage) {
+		new->entries[j] = thresholds->primary->entries[i];
+		if (new->entries[j].threshold < usage) {
 			/*
-			 * thresholds_new->current_threshold will not be used
+			 * new->current_threshold will not be used
 			 * until rcu_assign_pointer(), so it's safe to increment
 			 * it here.
 			 */
-			atomic_inc(&thresholds_new->current_threshold);
+			++new->current_threshold;
 		}
 		j++;
 	}
 
-assign:
-	if (type == _MEM)
-		rcu_assign_pointer(memcg->thresholds, thresholds_new);
-	else
-		rcu_assign_pointer(memcg->memsw_thresholds, thresholds_new);
+swap_buffers:
+	/* Swap primary and spare array */
+	thresholds->spare = thresholds->primary;
+	rcu_assign_pointer(thresholds->primary, new);
 
-	/* To be sure that nobody uses thresholds before freeing it */
+	/* To be sure that nobody uses thresholds */
 	synchronize_rcu();
 
-	kfree(thresholds);
-unlock:
 	mutex_unlock(&memcg->thresholds_lock);
+}
 
-	return ret;
+static int mem_cgroup_oom_register_event(struct cgroup *cgrp,
+	struct cftype *cft, struct eventfd_ctx *eventfd, const char *args)
+{
+	struct mem_cgroup *memcg = mem_cgroup_from_cont(cgrp);
+	struct mem_cgroup_eventfd_list *event;
+	int type = MEMFILE_TYPE(cft->private);
+
+	BUG_ON(type != _OOM_TYPE);
+	event = kmalloc(sizeof(*event),	GFP_KERNEL);
+	if (!event)
+		return -ENOMEM;
+
+	mutex_lock(&memcg_oom_mutex);
+
+	event->eventfd = eventfd;
+	list_add(&event->list, &memcg->oom_notify);
+
+	/* already in OOM ? */
+	if (atomic_read(&memcg->oom_lock))
+		eventfd_signal(eventfd, 1);
+	mutex_unlock(&memcg_oom_mutex);
+
+	return 0;
+}
+
+static void mem_cgroup_oom_unregister_event(struct cgroup *cgrp,
+	struct cftype *cft, struct eventfd_ctx *eventfd)
+{
+	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
+	struct mem_cgroup_eventfd_list *ev, *tmp;
+	int type = MEMFILE_TYPE(cft->private);
+
+	BUG_ON(type != _OOM_TYPE);
+
+	mutex_lock(&memcg_oom_mutex);
+
+	list_for_each_entry_safe(ev, tmp, &mem->oom_notify, list) {
+		if (ev->eventfd == eventfd) {
+			list_del(&ev->list);
+			kfree(ev);
+		}
+	}
+
+	mutex_unlock(&memcg_oom_mutex);
+}
+
+static int mem_cgroup_oom_control_read(struct cgroup *cgrp,
+	struct cftype *cft,  struct cgroup_map_cb *cb)
+{
+	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
+
+	cb->fill(cb, "oom_kill_disable", mem->oom_kill_disable);
+
+	if (atomic_read(&mem->oom_lock))
+		cb->fill(cb, "under_oom", 1);
+	else
+		cb->fill(cb, "under_oom", 0);
+	return 0;
+}
+
+/*
+ */
+static int mem_cgroup_oom_control_write(struct cgroup *cgrp,
+	struct cftype *cft, u64 val)
+{
+	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
+	struct mem_cgroup *parent;
+
+	/* cannot set to root cgroup and only 0 and 1 are allowed */
+	if (!cgrp->parent || !((val == 0) || (val == 1)))
+		return -EINVAL;
+
+	parent = mem_cgroup_from_cont(cgrp->parent);
+
+	cgroup_lock();
+	/* oom-kill-disable is a flag for subhierarchy. */
+	if ((parent->use_hierarchy) ||
+	    (mem->use_hierarchy && !list_empty(&cgrp->children))) {
+		cgroup_unlock();
+		return -EINVAL;
+	}
+	mem->oom_kill_disable = val;
+	cgroup_unlock();
+	return 0;
 }
 
 static struct cftype mem_cgroup_files[] = {
@@ -3544,8 +3790,8 @@ static struct cftype mem_cgroup_files[] = {
 		.name = "usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEM, RES_USAGE),
 		.read_u64 = mem_cgroup_read,
-		.register_event = mem_cgroup_register_event,
-		.unregister_event = mem_cgroup_unregister_event,
+		.register_event = mem_cgroup_usage_register_event,
+		.unregister_event = mem_cgroup_usage_unregister_event,
 	},
 	{
 		.name = "max_usage_in_bytes",
@@ -3594,6 +3840,14 @@ static struct cftype mem_cgroup_files[] = {
 		.read_u64 = mem_cgroup_move_charge_read,
 		.write_u64 = mem_cgroup_move_charge_write,
 	},
+	{
+		.name = "oom_control",
+		.read_map = mem_cgroup_oom_control_read,
+		.write_u64 = mem_cgroup_oom_control_write,
+		.register_event = mem_cgroup_oom_register_event,
+		.unregister_event = mem_cgroup_oom_unregister_event,
+		.private = MEMFILE_PRIVATE(_OOM_TYPE, OOM_CONTROL),
+	},
 };
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
@@ -3602,8 +3856,8 @@ static struct cftype memsw_cgroup_files[] = {
 		.name = "memsw.usage_in_bytes",
 		.private = MEMFILE_PRIVATE(_MEMSWAP, RES_USAGE),
 		.read_u64 = mem_cgroup_read,
-		.register_event = mem_cgroup_register_event,
-		.unregister_event = mem_cgroup_unregister_event,
+		.register_event = mem_cgroup_usage_register_event,
+		.unregister_event = mem_cgroup_usage_unregister_event,
 	},
 	{
 		.name = "memsw.max_usage_in_bytes",
@@ -3831,6 +4085,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	} else {
 		parent = mem_cgroup_from_cont(cont->parent);
 		mem->use_hierarchy = parent->use_hierarchy;
+		mem->oom_kill_disable = parent->oom_kill_disable;
 	}
 
 	if (parent && parent->use_hierarchy) {
@@ -3849,6 +4104,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	}
 	mem->last_scanned_child = 0;
 	spin_lock_init(&mem->reclaim_param_lock);
+	INIT_LIST_HEAD(&mem->oom_notify);
 
 	if (parent)
 		mem->swappiness = get_swappiness(parent);
@@ -3976,6 +4232,80 @@ enum mc_target_type {
 	MC_TARGET_SWAP,
 };
 
+static struct page *mc_handle_present_pte(struct vm_area_struct *vma,
+						unsigned long addr, pte_t ptent)
+{
+	struct page *page = vm_normal_page(vma, addr, ptent);
+
+	if (!page || !page_mapped(page))
+		return NULL;
+	if (PageAnon(page)) {
+		/* we don't move shared anon */
+		if (!move_anon() || page_mapcount(page) > 2)
+			return NULL;
+	} else if (!move_file())
+		/* we ignore mapcount for file pages */
+		return NULL;
+	if (!get_page_unless_zero(page))
+		return NULL;
+
+	return page;
+}
+
+static struct page *mc_handle_swap_pte(struct vm_area_struct *vma,
+			unsigned long addr, pte_t ptent, swp_entry_t *entry)
+{
+	int usage_count;
+	struct page *page = NULL;
+	swp_entry_t ent = pte_to_swp_entry(ptent);
+
+	if (!move_anon() || non_swap_entry(ent))
+		return NULL;
+	usage_count = mem_cgroup_count_swap_user(ent, &page);
+	if (usage_count > 1) { /* we don't move shared anon */
+		if (page)
+			put_page(page);
+		return NULL;
+	}
+	if (do_swap_account)
+		entry->val = ent.val;
+
+	return page;
+}
+
+static struct page *mc_handle_file_pte(struct vm_area_struct *vma,
+			unsigned long addr, pte_t ptent, swp_entry_t *entry)
+{
+	struct page *page = NULL;
+	struct inode *inode;
+	struct address_space *mapping;
+	pgoff_t pgoff;
+
+	if (!vma->vm_file) /* anonymous vma */
+		return NULL;
+	if (!move_file())
+		return NULL;
+
+	inode = vma->vm_file->f_path.dentry->d_inode;
+	mapping = vma->vm_file->f_mapping;
+	if (pte_none(ptent))
+		pgoff = linear_page_index(vma, addr);
+	else /* pte_file(ptent) is true */
+		pgoff = pte_to_pgoff(ptent);
+
+	/* page is moved even if it's not RSS of this task(page-faulted). */
+	if (!mapping_cap_swap_backed(mapping)) { /* normal file */
+		page = find_get_page(mapping, pgoff);
+	} else { /* shmem/tmpfs file. we should take account of swap too. */
+		swp_entry_t ent;
+		mem_cgroup_get_shmem_target(inode, pgoff, &page, &ent);
+		if (do_swap_account)
+			entry->val = ent.val;
+	}
+
+	return page;
+}
+
 static int is_target_pte_for_mc(struct vm_area_struct *vma,
 		unsigned long addr, pte_t ptent, union mc_target *target)
 {
@@ -3983,43 +4313,16 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
 	struct page_cgroup *pc;
 	int ret = 0;
 	swp_entry_t ent = { .val = 0 };
-	int usage_count = 0;
-	bool move_anon = test_bit(MOVE_CHARGE_TYPE_ANON,
-					&mc.to->move_charge_at_immigrate);
 
-	if (!pte_present(ptent)) {
-		/* TODO: handle swap of shmes/tmpfs */
-		if (pte_none(ptent) || pte_file(ptent))
-			return 0;
-		else if (is_swap_pte(ptent)) {
-			ent = pte_to_swp_entry(ptent);
-			if (!move_anon || non_swap_entry(ent))
-				return 0;
-			usage_count = mem_cgroup_count_swap_user(ent, &page);
-		}
-	} else {
-		page = vm_normal_page(vma, addr, ptent);
-		if (!page || !page_mapped(page))
-			return 0;
-		/*
-		 * TODO: We don't move charges of file(including shmem/tmpfs)
-		 * pages for now.
-		 */
-		if (!move_anon || !PageAnon(page))
-			return 0;
-		if (!get_page_unless_zero(page))
-			return 0;
-		usage_count = page_mapcount(page);
-	}
-	if (usage_count > 1) {
-		/*
-		 * TODO: We don't move charges of shared(used by multiple
-		 * processes) pages for now.
-		 */
-		if (page)
-			put_page(page);
+	if (pte_present(ptent))
+		page = mc_handle_present_pte(vma, addr, ptent);
+	else if (is_swap_pte(ptent))
+		page = mc_handle_swap_pte(vma, addr, ptent, &ent);
+	else if (pte_none(ptent) || pte_file(ptent))
+		page = mc_handle_file_pte(vma, addr, ptent, &ent);
+
+	if (!page && !ent.val)
 		return 0;
-	}
 	if (page) {
 		pc = lookup_page_cgroup(page);
 		/*
@@ -4035,8 +4338,8 @@ static int is_target_pte_for_mc(struct vm_area_struct *vma,
 		if (!ret || !target)
 			put_page(page);
 	}
-	/* throught */
-	if (ent.val && do_swap_account && !ret &&
+	/* There is a swap entry and a page doesn't exist or isn't charged */
+	if (ent.val && !ret &&
 			css_id(&mc.from->css) == lookup_swap_cgroup(ent)) {
 		ret = MC_TARGET_SWAP;
 		if (target)
@@ -4077,9 +4380,6 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
 		};
 		if (is_vm_hugetlb_page(vma))
 			continue;
-		/* TODO: We don't move charges of shmem/tmpfs pages for now. */
-		if (vma->vm_flags & VM_SHARED)
-			continue;
 		walk_page_range(vma->vm_start, vma->vm_end,
 					&mem_cgroup_count_precharge_walk);
 	}
@@ -4102,6 +4402,7 @@ static void mem_cgroup_clear_mc(void)
 	if (mc.precharge) {
 		__mem_cgroup_cancel_charge(mc.to, mc.precharge);
 		mc.precharge = 0;
+		memcg_oom_recover(mc.to);
 	}
 	/*
 	 * we didn't uncharge from mc.from at mem_cgroup_move_account(), so
@@ -4110,6 +4411,7 @@ static void mem_cgroup_clear_mc(void)
 	if (mc.moved_charge) {
 		__mem_cgroup_cancel_charge(mc.from, mc.moved_charge);
 		mc.moved_charge = 0;
+		memcg_oom_recover(mc.from);
 	}
 	/* we must fixup refcnts and charges */
 	if (mc.moved_swap) {
@@ -4273,9 +4575,6 @@ static void mem_cgroup_move_charge(struct mm_struct *mm)
 			.private = vma,
 		};
 		if (is_vm_hugetlb_page(vma))
-			continue;
-		/* TODO: We don't move charges of shmem/tmpfs pages for now. */
-		if (vma->vm_flags & VM_SHARED)
 			continue;
 		ret = walk_page_range(vma->vm_start, vma->vm_end,
 						&mem_cgroup_move_charge_walk);

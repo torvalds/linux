@@ -25,7 +25,7 @@
  */
 #define A2091_XFER_MASK		(0xff000001)
 
-typedef struct {
+struct a2091_scsiregs {
 		 unsigned char	pad1[64];
 	volatile unsigned short	ISTR;
 	volatile unsigned short	CNTR;
@@ -44,7 +44,7 @@ typedef struct {
 	volatile unsigned short	CINT;
 		 unsigned char	pad7[2];
 	volatile unsigned short	FLUSH;
-} a2091_scsiregs;
+};
 
 #define DAWR_A2091		(3)
 

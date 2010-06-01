@@ -752,7 +752,6 @@ static int ath_key_config(struct ath_common *common,
 	struct ath_hw *ah = common->ah;
 	struct ath9k_keyval hk;
 	const u8 *mac = NULL;
-	u8 gmac[ETH_ALEN];
 	int ret = 0;
 	int idx;
 
@@ -776,30 +775,9 @@ static int ath_key_config(struct ath_common *common,
 	memcpy(hk.kv_val, key->key, key->keylen);
 
 	if (!(key->flags & IEEE80211_KEY_FLAG_PAIRWISE)) {
-
-		if (key->ap_addr) {
-			/*
-			 * Group keys on hardware that supports multicast frame
-			 * key search use a mac that is the sender's address with
-			 * the high bit set instead of the app-specified address.
-			 */
-			memcpy(gmac, key->ap_addr, ETH_ALEN);
-			gmac[0] |= 0x80;
-			mac = gmac;
-
-			if (key->alg == ALG_TKIP)
-				idx = ath_reserve_key_cache_slot_tkip(common);
-			else
-				idx = ath_reserve_key_cache_slot(common);
-			if (idx < 0)
-				mac = NULL; /* no free key cache entries */
-		}
-
-		if (!mac) {
-			/* For now, use the default keys for broadcast keys. This may
-			 * need to change with virtual interfaces. */
-			idx = key->keyidx;
-		}
+		/* For now, use the default keys for broadcast keys. This may
+		 * need to change with virtual interfaces. */
+		idx = key->keyidx;
 	} else if (key->keyidx) {
 		if (WARN_ON(!sta))
 			return -EOPNOTSUPP;

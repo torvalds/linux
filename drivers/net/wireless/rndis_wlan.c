@@ -2572,14 +2572,18 @@ static void rndis_wlan_do_link_up_work(struct usbnet *usbdev)
 
 static void rndis_wlan_do_link_down_work(struct usbnet *usbdev)
 {
-	union iwreq_data evt;
+	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
+
+	if (priv->connected) {
+		priv->connected = false;
+		memset(priv->bssid, 0, ETH_ALEN);
+
+		deauthenticate(usbdev);
+
+		cfg80211_disconnected(usbdev->net, 0, NULL, 0, GFP_KERNEL);
+	}
 
 	netif_carrier_off(usbdev->net);
-
-	evt.data.flags = 0;
-	evt.data.length = 0;
-	memset(evt.ap_addr.sa_data, 0, ETH_ALEN);
-	wireless_send_event(usbdev->net, SIOCGIWAP, &evt, NULL);
 }
 
 static void rndis_wlan_worker(struct work_struct *work)

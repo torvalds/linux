@@ -557,6 +557,7 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 {
 	struct udf_options uopt;
 	struct udf_sb_info *sbi = UDF_SB(sb);
+	int error = 0;
 
 	uopt.flags = sbi->s_flags;
 	uopt.uid   = sbi->s_uid;
@@ -582,17 +583,17 @@ static int udf_remount_fs(struct super_block *sb, int *flags, char *options)
 			*flags |= MS_RDONLY;
 	}
 
-	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
-		unlock_kernel();
-		return 0;
-	}
+	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY))
+		goto out_unlock;
+
 	if (*flags & MS_RDONLY)
 		udf_close_lvid(sb);
 	else
 		udf_open_lvid(sb);
 
+out_unlock:
 	unlock_kernel();
-	return 0;
+	return error;
 }
 
 /* Check Volume Structure Descriptors (ECMA 167 2/9.1) */
@@ -1939,7 +1940,7 @@ static int udf_fill_super(struct super_block *sb, void *options, int silent)
 	/* Fill in the rest of the superblock */
 	sb->s_op = &udf_sb_ops;
 	sb->s_export_op = &udf_export_ops;
-	sb->dq_op = NULL;
+
 	sb->s_dirt = 0;
 	sb->s_magic = UDF_SUPER_MAGIC;
 	sb->s_time_gran = 1000;

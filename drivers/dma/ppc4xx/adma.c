@@ -4944,12 +4944,12 @@ static const struct of_device_id ppc440spe_adma_of_match[] __devinitconst = {
 MODULE_DEVICE_TABLE(of, ppc440spe_adma_of_match);
 
 static struct of_platform_driver ppc440spe_adma_driver = {
-	.match_table = ppc440spe_adma_of_match,
 	.probe = ppc440spe_adma_probe,
 	.remove = __devexit_p(ppc440spe_adma_remove),
 	.driver = {
 		.name = "PPC440SP(E)-ADMA",
 		.owner = THIS_MODULE,
+		.of_match_table = ppc440spe_adma_of_match,
 	},
 };
 

@@ -180,8 +180,6 @@ extern const struct kernel_symbol __start___ksymtab_gpl[];
 extern const struct kernel_symbol __stop___ksymtab_gpl[];
 extern const struct kernel_symbol __start___ksymtab_gpl_future[];
 extern const struct kernel_symbol __stop___ksymtab_gpl_future[];
-extern const struct kernel_symbol __start___ksymtab_gpl_future[];
-extern const struct kernel_symbol __stop___ksymtab_gpl_future[];
 extern const unsigned long __start___kcrctab[];
 extern const unsigned long __start___kcrctab_gpl[];
 extern const unsigned long __start___kcrctab_gpl_future[];
@@ -565,26 +563,33 @@ int use_module(struct module *a, struct module *b)
 	struct module_use *use;
 	int no_warn, err;
 
-	if (b == NULL || already_uses(a, b))
-		return 0;
+	if (b == NULL || already_uses(a, b)) return 1;
 
 	/* If we're interrupted or time out, we fail. */
-	err = strong_try_module_get(b);
+	if (wait_event_interruptible_timeout(
+		    module_wq, (err = strong_try_module_get(b)) != -EBUSY,
+		    30 * HZ) <= 0) {
+		printk("%s: gave up waiting for init of module %s.\n",
+		       a->name, b->name);
+		return 0;
+	}
+
+	/* If strong_try_module_get() returned a different error, we fail. */
 	if (err)
-		return err;
+		return 0;
 
 	DEBUGP("Allocating new usage for %s.\n", a->name);
 	use = kmalloc(sizeof(*use), GFP_ATOMIC);
 	if (!use) {
 		printk("%s: out of memory loading\n", a->name);
 		module_put(b);
-		return -ENOMEM;
+		return 0;
 	}
 
 	use->module_which_uses = a;
 	list_add(&use->list, &b->modules_which_use_me);
 	no_warn = sysfs_create_link(b->holders_dir, &a->mkobj.kobj, a->name);
-	return 0;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(use_module);
 
@@ -877,7 +882,7 @@ static inline void module_unload_free(struct module *mod)
 
 int use_module(struct module *a, struct module *b)
 {
-	return strong_try_module_get(b);
+	return strong_try_module_get(b) == 0;
 }
 EXPORT_SYMBOL_GPL(use_module);
 
@@ -1048,39 +1053,17 @@ static const struct kernel_symbol *resolve_symbol(Elf_Shdr *sechdrs,
 	struct module *owner;
 	const struct kernel_symbol *sym;
 	const unsigned long *crc;
-	DEFINE_WAIT(wait);
-	int err;
-	long timeleft = 30 * HZ;
 
-again:
 	sym = find_symbol(name, &owner, &crc,
 			  !(mod->taints & (1 << TAINT_PROPRIETARY_MODULE)), true);
-	if (!sym)
-		return NULL;
-
-	if (!check_version(sechdrs, versindex, name, mod, crc, owner))
-		return NULL;
-
-	prepare_to_wait(&module_wq, &wait, TASK_INTERRUPTIBLE);
-	err = use_module(mod, owner);
-	if (likely(!err) || err != -EBUSY || signal_pending(current)) {
-		finish_wait(&module_wq, &wait);
-		return err ? NULL : sym;
+	/* use_module can fail due to OOM,
+	   or module initialization or unloading */
+	if (sym) {
+		if (!check_version(sechdrs, versindex, name, mod, crc, owner)
+		    || !use_module(mod, owner))
+			sym = NULL;
 	}
-
-	/* Module is still loading.  Drop lock and wait. */
-	mutex_unlock(&module_mutex);
-	timeleft = schedule_timeout(timeleft);
-	mutex_lock(&module_mutex);
-	finish_wait(&module_wq, &wait);
-
-	/* Module might be gone entirely, or replaced.  Re-lookup. */
-	if (timeleft)
-		goto again;
-
-	printk(KERN_WARNING "%s: gave up waiting for init of module %s.\n",
-	       mod->name, owner->name);
-	return NULL;
+	return sym;
 }
 
 /*

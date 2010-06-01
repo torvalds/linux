@@ -403,7 +403,7 @@ static int __devinit mpc52xx_spi_probe(struct of_device *op,
 
 	/* MMIO registers */
 	dev_dbg(&op->dev, "probing mpc5200 SPI device\n");
-	regs = of_iomap(op->node, 0);
+	regs = of_iomap(op->dev.of_node, 0);
 	if (!regs)
 		return -ENODEV;
 
@@ -445,11 +445,11 @@ static int __devinit mpc52xx_spi_probe(struct of_device *op,
 	ms = spi_master_get_devdata(master);
 	ms->master = master;
 	ms->regs = regs;
-	ms->irq0 = irq_of_parse_and_map(op->node, 0);
-	ms->irq1 = irq_of_parse_and_map(op->node, 1);
+	ms->irq0 = irq_of_parse_and_map(op->dev.of_node, 0);
+	ms->irq1 = irq_of_parse_and_map(op->dev.of_node, 1);
 	ms->state = mpc52xx_spi_fsmstate_idle;
-	ms->ipb_freq = mpc5xxx_get_bus_frequency(op->node);
-	ms->gpio_cs_count = of_gpio_count(op->node);
+	ms->ipb_freq = mpc5xxx_get_bus_frequency(op->dev.of_node);
+	ms->gpio_cs_count = of_gpio_count(op->dev.of_node);
 	if (ms->gpio_cs_count > 0) {
 		master->num_chipselect = ms->gpio_cs_count;
 		ms->gpio_cs = kmalloc(ms->gpio_cs_count * sizeof(unsigned int),
@@ -460,7 +460,7 @@ static int __devinit mpc52xx_spi_probe(struct of_device *op,
 		}
 
 		for (i = 0; i < ms->gpio_cs_count; i++) {
-			gpio_cs = of_get_gpio(op->node, i);
+			gpio_cs = of_get_gpio(op->dev.of_node, i);
 			if (gpio_cs < 0) {
 				dev_err(&op->dev,
 					"could not parse the gpio field "
@@ -512,7 +512,7 @@ static int __devinit mpc52xx_spi_probe(struct of_device *op,
 	if (rc)
 		goto err_register;
 
-	of_register_spi_devices(master, op->node);
+	of_register_spi_devices(master, op->dev.of_node);
 	dev_info(&ms->master->dev, "registered MPC5200 SPI bus\n");
 
 	return rc;
@@ -558,9 +558,11 @@ static const struct of_device_id mpc52xx_spi_match[] __devinitconst = {
 MODULE_DEVICE_TABLE(of, mpc52xx_spi_match);
 
 static struct of_platform_driver mpc52xx_spi_of_driver = {
-	.owner = THIS_MODULE,
-	.name = "mpc52xx-spi",
-	.match_table = mpc52xx_spi_match,
+	.driver = {
+		.name = "mpc52xx-spi",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc52xx_spi_match,
+	},
 	.probe = mpc52xx_spi_probe,
 	.remove = __exit_p(mpc52xx_spi_remove),
 };
