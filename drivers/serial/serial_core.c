@@ -1501,6 +1501,34 @@ static void uart_update_termios(struct tty_struct *tty,
 	}
 }
 
+static int uart_carrier_raised(struct tty_port *port)
+{
+	struct uart_state *state = container_of(port, struct uart_state, port);
+	struct uart_port *uport = state->uart_port;
+	int mctrl;
+	mutex_lock(&port->mutex);
+	spin_lock_irq(&uport->lock);
+	uport->ops->enable_ms(uport);
+	mctrl = uport->ops->get_mctrl(uport);
+	spin_unlock_irq(&uport->lock);
+	mutex_unlock(&port->mutex);
+	if (mctrl & TIOCM_CAR)
+		return 1;
+	return 0;
+}
+
+static void uart_dtr_rts(struct tty_port *port, int onoff)
+{
+	struct uart_state *state = container_of(port, struct uart_state, port);
+	struct uart_port *uport = state->uart_port;
+	mutex_lock(&port->mutex);
+	if (onoff)
+		uart_set_mctrl(uport, TIOCM_DTR | TIOCM_RTS);
+	else
+		uart_clear_mctrl(uport, TIOCM_DTR | TIOCM_RTS);
+	mutex_unlock(&port->mutex);
+}
+
 /*
  * Block the open until the port is ready.  We must be called with
  * the per-port semaphore held.
@@ -1509,9 +1537,7 @@ static int
 uart_block_til_ready(struct file *filp, struct uart_state *state)
 {
 	DECLARE_WAITQUEUE(wait, current);
-	struct uart_port *uport = state->uart_port;
 	struct tty_port *port = &state->port;
-	unsigned int mctrl;
 	unsigned long flags;
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -1555,23 +1581,14 @@ uart_block_til_ready(struct file *filp, struct uart_state *state)
 		 * not set RTS here - we want to make sure we catch
 		 * the data from the modem.
 		 */
-		if (port->tty->termios->c_cflag & CBAUD) {
-			mutex_lock(&port->mutex);
-			uart_set_mctrl(uport, TIOCM_DTR);
-			mutex_unlock(&port->mutex);
-		}
+		if (port->tty->termios->c_cflag & CBAUD)
+			tty_port_raise_dtr_rts(port);
 
 		/*
 		 * and wait for the carrier to indicate that the
 		 * modem is ready for us.
 		 */
-		mutex_lock(&port->mutex);
-		spin_lock_irq(&uport->lock);
-		uport->ops->enable_ms(uport);
-		mctrl = uport->ops->get_mctrl(uport);
-		spin_unlock_irq(&uport->lock);
-		mutex_unlock(&port->mutex);
-		if (mctrl & TIOCM_CAR)
+		if (tty_port_carrier_raised(port))
 			break;
 
 		schedule();
@@ -2349,6 +2366,11 @@ static const struct tty_operations uart_ops = {
 #endif
 };
 
+static const struct tty_port_operations uart_port_ops = {
+	.carrier_raised = uart_carrier_raised,
+	.dtr_rts	= uart_dtr_rts,
+};
+
 /**
  *	uart_register_driver - register a driver with the uart core layer
  *	@drv: low level driver structure
@@ -2405,6 +2427,7 @@ int uart_register_driver(struct uart_driver *drv)
 		struct tty_port *port = &state->port;
 
 		tty_port_init(port);
+		port->ops = &uart_port_ops;
 		port->close_delay     = 500;	/* .5 seconds */
 		port->closing_wait    = 30000;	/* 30 seconds */
 		tasklet_init(&state->tlet, uart_tasklet_action,
