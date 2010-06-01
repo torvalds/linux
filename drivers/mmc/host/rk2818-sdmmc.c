@@ -340,7 +340,7 @@ static void rk2818_sdmmc_stop_dma(struct rk2818_sdmmc_host *host)
 	if (host->dma_chn >= 0) {
 		writel(readl(host->regs + SDMMC_CTRL) & ~SDMMC_CTRL_DMA_ENABLE,
 				host->regs +SDMMC_CTRL);
-		disable_dma(host->dma_chn);
+		//disable_dma(host->dma_chn);
 		free_dma(host->dma_chn);
 		host->dma_chn = -1;
 		rk2818_sdmmc_dma_cleanup(host);
@@ -360,7 +360,7 @@ static void rk2818_sdmmc_dma_complete(int chn, void *arg)
 
 	spin_lock(&host->lock);
 	rk2818_sdmmc_dma_cleanup(host);
-	disable_dma(host->dma_chn);
+	//disable_dma(host->dma_chn);
 	free_dma(host->dma_chn);
 	host->dma_chn = -1;
 	if (data) {
@@ -836,9 +836,9 @@ inline static void rk2818_sdmmc_push_data(struct rk2818_sdmmc_host *host, void *
 	dev_dbg(host->dev, "push data(cnt=%d)\n",cnt);
 
     if (cnt % 4 != 0) 
-	    dev_info(host->dev, "error not align 4\n");
-
-    cnt = cnt >> 2;
+		cnt = (cnt>>2) +1;
+	else
+    	cnt = cnt >> 2;
     while (cnt > 0) {
 		writel(*pData++, host->regs + SDMMC_DATA);
         cnt--;
@@ -851,9 +851,11 @@ inline static void rk2818_sdmmc_pull_data(struct rk2818_sdmmc_host *host, void *
 
 	dev_dbg(host->dev, "pull data(cnt=%d)\n",cnt);
 
+
     if (cnt % 4 != 0) 
-	    dev_info(host->dev, "error not align 4\n");
-    cnt = cnt >> 2;
+		cnt = (cnt>>2) +1;
+	else
+    	cnt = cnt >> 2;
     while (cnt > 0) {
         *pData++ = readl(host->regs + SDMMC_DATA);
         cnt--;
@@ -1142,7 +1144,7 @@ static void rk2818_sdmmc_detect_change(unsigned long host_data)
 		}
 
 		spin_unlock(&host->lock);
-		mmc_detect_change(host->mmc, msecs_to_jiffies(200));
+		mmc_detect_change(host->mmc, 0);
 	}
 }
 
@@ -1266,10 +1268,10 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 	
 	mmc->max_phys_segs = 64;
 	mmc->max_hw_segs = 64;
-	mmc->max_blk_size = 65535;
+	mmc->max_blk_size = 4095;
 	mmc->max_blk_count = 512;
-	mmc->max_req_size = 4095 * 4;
-	mmc->max_seg_size = mmc->max_req_size;
+	mmc->max_req_size = 4095 * 512;
+	mmc->max_seg_size = 4095 * 4;
 
 	rk2818_sdmmc_set_power(host, 0);
 	/* Assume card is present initially */
