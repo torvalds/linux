@@ -155,9 +155,6 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	struct drm_crtc *crtc;
 	int ret, i;
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -ENODEV;
-
 	if (pm_state.event == PM_EVENT_PRETHAW)
 		return 0;
 
@@ -256,9 +253,6 @@ nouveau_pci_resume(struct pci_dev *pdev)
 	struct nouveau_engine *engine = &dev_priv->engine;
 	struct drm_crtc *crtc;
 	int ret, i;
-
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
-		return -ENODEV;
 
 	nouveau_fbcon_save_disable_accel(dev);
 
@@ -371,7 +365,8 @@ nouveau_pci_resume(struct pci_dev *pdev)
 static struct drm_driver driver = {
 	.driver_features =
 		DRIVER_USE_AGP | DRIVER_PCI_DMA | DRIVER_SG |
-		DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM,
+		DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM |
+		DRIVER_MODESET,
 	.load = nouveau_load,
 	.firstopen = nouveau_firstopen,
 	.lastclose = nouveau_lastclose,
@@ -438,16 +433,18 @@ static int __init nouveau_init(void)
 			nouveau_modeset = 1;
 	}
 
-	if (nouveau_modeset == 1) {
-		driver.driver_features |= DRIVER_MODESET;
-		nouveau_register_dsm_handler();
-	}
+	if (!nouveau_modeset)
+		return 0;
 
+	nouveau_register_dsm_handler();
 	return drm_init(&driver);
 }
 
 static void __exit nouveau_exit(void)
 {
+	if (!nouveau_modeset)
+		return;
+
 	drm_exit(&driver);
 	nouveau_unregister_dsm_handler();
 }

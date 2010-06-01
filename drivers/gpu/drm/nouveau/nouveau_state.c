@@ -425,11 +425,9 @@ nouveau_card_init(struct drm_device *dev)
 	spin_lock_init(&dev_priv->context_switch_lock);
 
 	/* Parse BIOS tables / Run init tables if card not POSTed */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		ret = nouveau_bios_init(dev);
-		if (ret)
-			goto out;
-	}
+	ret = nouveau_bios_init(dev);
+	if (ret)
+		goto out;
 
 	ret = nouveau_mem_detect(dev);
 	if (ret)
@@ -504,14 +502,12 @@ nouveau_card_init(struct drm_device *dev)
 			goto out_irq;
 	}
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		if (dev_priv->card_type >= NV_50)
-			ret = nv50_display_create(dev);
-		else
-			ret = nv04_display_create(dev);
-		if (ret)
-			goto out_channel;
-	}
+	if (dev_priv->card_type >= NV_50)
+		ret = nv50_display_create(dev);
+	else
+		ret = nv04_display_create(dev);
+	if (ret)
+		goto out_channel;
 
 	ret = nouveau_backlight_init(dev);
 	if (ret)
@@ -519,11 +515,8 @@ nouveau_card_init(struct drm_device *dev)
 
 	dev_priv->init_state = NOUVEAU_CARD_INIT_DONE;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		nouveau_fbcon_init(dev);
-		drm_kms_helper_poll_init(dev);
-	}
-
+	nouveau_fbcon_init(dev);
+	drm_kms_helper_poll_init(dev);
 	return 0;
 
 out_channel:
@@ -595,8 +588,7 @@ static void nouveau_card_takedown(struct drm_device *dev)
 		nouveau_mem_close(dev);
 		engine->instmem.takedown(dev);
 
-		if (drm_core_check_feature(dev, DRIVER_MODESET))
-			drm_irq_uninstall(dev);
+		drm_irq_uninstall(dev);
 
 		nouveau_gpuobj_late_takedown(dev);
 		nouveau_bios_takedown(dev);
@@ -691,6 +683,7 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	struct drm_nouveau_private *dev_priv;
 	uint32_t reg0;
 	resource_size_t mmio_start_offs;
+	int ret;
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (!dev_priv)
@@ -773,11 +766,9 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 	NV_INFO(dev, "Detected an NV%2x generation card (0x%08x)\n",
 		dev_priv->card_type, reg0);
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		int ret = nouveau_remove_conflicting_drivers(dev);
-		if (ret)
-			return ret;
-	}
+	ret = nouveau_remove_conflicting_drivers(dev);
+	if (ret)
+		return ret;
 
 	/* Map PRAMIN BAR, or on older cards, the aperture withing BAR0 */
 	if (dev_priv->card_type >= NV_40) {
@@ -812,46 +803,28 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 		dev_priv->flags |= NV_NFORCE2;
 
 	/* For kernel modesetting, init card now and bring up fbcon */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		int ret = nouveau_card_init(dev);
-		if (ret)
-			return ret;
-	}
+	ret = nouveau_card_init(dev);
+	if (ret)
+		return ret;
 
 	return 0;
 }
 
-static void nouveau_close(struct drm_device *dev)
-{
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-
-	/* In the case of an error dev_priv may not be allocated yet */
-	if (dev_priv)
-		nouveau_card_takedown(dev);
-}
-
-/* KMS: we need mmio at load time, not when the first drm client opens. */
 void nouveau_lastclose(struct drm_device *dev)
 {
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
-		return;
-
-	nouveau_close(dev);
 }
 
 int nouveau_unload(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		drm_kms_helper_poll_fini(dev);
-		nouveau_fbcon_fini(dev);
-		if (dev_priv->card_type >= NV_50)
-			nv50_display_destroy(dev);
-		else
-			nv04_display_destroy(dev);
-		nouveau_close(dev);
-	}
+	drm_kms_helper_poll_fini(dev);
+	nouveau_fbcon_fini(dev);
+	if (dev_priv->card_type >= NV_50)
+		nv50_display_destroy(dev);
+	else
+		nv04_display_destroy(dev);
+	nouveau_card_takedown(dev);
 
 	iounmap(dev_priv->mmio);
 	iounmap(dev_priv->ramin);
