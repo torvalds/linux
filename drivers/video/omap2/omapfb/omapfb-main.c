@@ -683,7 +683,7 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 		}
 	}
 
-	if (var->rotate < 0 || var->rotate > 3)
+	if (var->rotate > 3)
 		return -EINVAL;
 
 	if (check_fb_res_bounds(var))
