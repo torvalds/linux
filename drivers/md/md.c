@@ -6753,7 +6753,8 @@ void md_do_sync(mddev_t *mddev)
 				   atomic_read(&mddev->recovery_active) == 0);
 			mddev->curr_resync_completed =
 				mddev->curr_resync;
-			set_bit(MD_CHANGE_CLEAN, &mddev->flags);
+			if (mddev->persistent)
+				set_bit(MD_CHANGE_CLEAN, &mddev->flags);
 			sysfs_notify(&mddev->kobj, NULL, "sync_completed");
 		}
 
