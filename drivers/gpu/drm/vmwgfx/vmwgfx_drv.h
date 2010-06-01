@@ -41,7 +41,7 @@
 
 #define VMWGFX_DRIVER_DATE "20100209"
 #define VMWGFX_DRIVER_MAJOR 1
-#define VMWGFX_DRIVER_MINOR 1
+#define VMWGFX_DRIVER_MINOR 2
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
@@ -509,6 +509,8 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 void vmw_kms_write_svga(struct vmw_private *vmw_priv,
 			unsigned width, unsigned height, unsigned pitch,
 			unsigned bbp, unsigned depth);
+int vmw_kms_update_layout_ioctl(struct drm_device *dev, void *data,
+				struct drm_file *file_priv);
 
 /**
  * Overlay control - vmwgfx_overlay.c
