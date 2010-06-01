@@ -509,7 +509,7 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 
 	console = vc->vc_num;
 
-	lock_kernel();
+	tty_lock();
 
 	if (!vc_cons_allocated(console)) { 	/* impossible? */
 		ret = -ENOIOCTLCMD;
@@ -1336,7 +1336,7 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 		ret = -ENOIOCTLCMD;
 	}
 out:
-	unlock_kernel();
+	tty_unlock();
 	return ret;
 eperm:
 	ret = -EPERM;
@@ -1503,7 +1503,7 @@ long vt_compat_ioctl(struct tty_struct *tty, struct file * file,
 
 	console = vc->vc_num;
 
-	lock_kernel();
+	tty_lock();
 
 	if (!vc_cons_allocated(console)) { 	/* impossible? */
 		ret = -ENOIOCTLCMD;
@@ -1571,11 +1571,11 @@ long vt_compat_ioctl(struct tty_struct *tty, struct file * file,
 		goto fallback;
 	}
 out:
-	unlock_kernel();
+	tty_unlock();
 	return ret;
 
 fallback:
-	unlock_kernel();
+	tty_unlock();
 	return vt_ioctl(tty, file, cmd, arg);
 }
 

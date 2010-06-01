@@ -3935,7 +3935,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 	 * Check R_DMA_CHx_STATUS bit 0-6=number of available bytes in FIFO
 	 * R_DMA_CHx_HWSW bit 31-16=nbr of bytes left in DMA buffer (0=64k)
 	 */
-	lock_kernel();
+	tty_lock_nested(); /* locked already when coming from close */
 	orig_jiffies = jiffies;
 	while (info->xmit.head != info->xmit.tail || /* More in send queue */
 	       (*info->ostatusadr & 0x007f) ||  /* more in FIFO */
@@ -3952,7 +3952,7 @@ static void rs_wait_until_sent(struct tty_struct *tty, int timeout)
 			curr_time_usec - info->last_tx_active_usec;
 	}
 	set_current_state(TASK_RUNNING);
-	unlock_kernel();
+	tty_unlock();
 }
 
 /*

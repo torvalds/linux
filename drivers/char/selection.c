@@ -313,7 +313,7 @@ int paste_selection(struct tty_struct *tty)
 	struct  tty_ldisc *ld;
 	DECLARE_WAITQUEUE(wait, current);
 
-	lock_kernel();
+	tty_lock_nested(); /* always called with BTM from vt_ioctl */
 
 	acquire_console_sem();
 	poke_blanked_console();
@@ -338,6 +338,6 @@ int paste_selection(struct tty_struct *tty)
 	__set_current_state(TASK_RUNNING);
 
 	tty_ldisc_deref(ld);
-	unlock_kernel();
+	tty_unlock();
 	return 0;
 }

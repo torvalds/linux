@@ -1505,7 +1505,7 @@ cy_ioctl(struct tty_struct *tty, struct file *file,
 	printk("cy_ioctl %s, cmd = %x arg = %lx\n", tty->name, cmd, arg);	/* */
 #endif
 
-	lock_kernel();
+	tty_lock();
 
 	switch (cmd) {
 	case CYGETMON:
@@ -1561,7 +1561,7 @@ cy_ioctl(struct tty_struct *tty, struct file *file,
 	default:
 		ret_val = -ENOIOCTLCMD;
 	}
-	unlock_kernel();
+	tty_unlock();
 
 #ifdef SERIAL_DEBUG_OTHER
 	printk("cy_ioctl done\n");

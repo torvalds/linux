@@ -13,6 +13,7 @@
 #include <linux/tty_driver.h>
 #include <linux/tty_ldisc.h>
 #include <linux/mutex.h>
+#include <linux/smp_lock.h>
 
 #include <asm/system.h>
 
@@ -575,6 +576,36 @@ extern int vt_ioctl(struct tty_struct *tty, struct file *file,
 
 extern long vt_compat_ioctl(struct tty_struct *tty, struct file * file,
 		     unsigned int cmd, unsigned long arg);
+
+/* functions for preparation of BKL removal */
+
+/*
+ * tty_lock_nested get the tty_lock while potentially holding it
+ *
+ * The Big TTY Mutex is a recursive lock, meaning you can take it
+ * from a thread that is already holding it.
+ * This is bad for a number of reasons, so tty_lock_nested should
+ * really be used as rarely as possible. If a code location can
+ * be shown to never get called with this held already, it should
+ * use tty_lock() instead.
+ */
+static inline void __lockfunc tty_lock_nested(void) __acquires(kernel_lock)
+{
+	lock_kernel();
+}
+static inline void tty_lock(void) __acquires(kernel_lock)
+{
+#ifdef CONFIG_LOCK_KERNEL
+	/* kernel_locked is 1 for !CONFIG_LOCK_KERNEL */
+	WARN_ON(kernel_locked());
+#endif
+	lock_kernel();
+}
+static inline void tty_unlock(void) __releases(kernel_lock)
+{
+	unlock_kernel();
+}
+#define tty_locked()		(kernel_locked())
 
 #endif /* __KERNEL__ */
 #endif

@@ -692,9 +692,9 @@ static int ptmx_open(struct inode *inode, struct file *filp)
 {
 	int ret;
 
-	lock_kernel();
+	tty_lock();
 	ret = __ptmx_open(inode, filp);
-	unlock_kernel();
+	tty_unlock();
 	return ret;
 }
 

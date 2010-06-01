@@ -440,6 +440,8 @@ static void tty_set_termios_ldisc(struct tty_struct *tty, int num)
  *
  *	A helper opening method. Also a convenient debugging and check
  *	point.
+ *
+ *	Locking: always called with BTM already held.
  */
 
 static int tty_ldisc_open(struct tty_struct *tty, struct tty_ldisc *ld)
@@ -447,10 +449,10 @@ static int tty_ldisc_open(struct tty_struct *tty, struct tty_ldisc *ld)
 	WARN_ON(test_and_set_bit(TTY_LDISC_OPEN, &tty->flags));
 	if (ld->ops->open) {
 		int ret;
-                /* BKL here locks verus a hangup event */
-		lock_kernel();
+                /* BTM here locks versus a hangup event */
+		tty_lock_nested(); /* always held here already */
 		ret = ld->ops->open(tty);
-		unlock_kernel();
+		tty_unlock();
 		return ret;
 	}
 	return 0;
@@ -553,7 +555,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	if (IS_ERR(new_ldisc))
 		return PTR_ERR(new_ldisc);
 
-	lock_kernel();
+	tty_lock();
 	/*
 	 *	We need to look at the tty locking here for pty/tty pairs
 	 *	when both sides try to change in parallel.
@@ -567,12 +569,12 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	 */
 
 	if (tty->ldisc->ops->num == ldisc) {
-		unlock_kernel();
+		tty_unlock();
 		tty_ldisc_put(new_ldisc);
 		return 0;
 	}
 
-	unlock_kernel();
+	tty_unlock();
 	/*
 	 *	Problem: What do we do if this blocks ?
 	 *	We could deadlock here
@@ -594,7 +596,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 		mutex_lock(&tty->ldisc_mutex);
 	}
 
-	lock_kernel();
+	tty_lock();
 
 	set_bit(TTY_LDISC_CHANGING, &tty->flags);
 
@@ -607,7 +609,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 
 	o_ldisc = tty->ldisc;
 
-	unlock_kernel();
+	tty_unlock();
 	/*
 	 *	Make sure we don't change while someone holds a
 	 *	reference to the line discipline. The TTY_LDISC bit
@@ -633,14 +635,14 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	flush_scheduled_work();
 
 	mutex_lock(&tty->ldisc_mutex);
-	lock_kernel();
+	tty_lock();
 	if (test_bit(TTY_HUPPED, &tty->flags)) {
 		/* We were raced by the hangup method. It will have stomped
 		   the ldisc data and closed the ldisc down */
 		clear_bit(TTY_LDISC_CHANGING, &tty->flags);
 		mutex_unlock(&tty->ldisc_mutex);
 		tty_ldisc_put(new_ldisc);
-		unlock_kernel();
+		tty_unlock();
 		return -EIO;
 	}
 
@@ -682,7 +684,7 @@ int tty_set_ldisc(struct tty_struct *tty, int ldisc)
 	if (o_work)
 		schedule_delayed_work(&o_tty->buf.work, 1);
 	mutex_unlock(&tty->ldisc_mutex);
-	unlock_kernel();
+	tty_unlock();
 	return retval;
 }
 

@@ -1274,7 +1274,7 @@ static void uart_close(struct tty_struct *tty, struct file *filp)
 	struct uart_port *uport;
 	unsigned long flags;
 
-	BUG_ON(!kernel_locked());
+	BUG_ON(!tty_locked());
 
 	if (!state)
 		return;
@@ -1382,7 +1382,7 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 	if (port->type == PORT_UNKNOWN || port->fifosize == 0)
 		return;
 
-	lock_kernel();
+	tty_lock_nested(); /* already locked when coming from close */
 
 	/*
 	 * Set the check interval to be 1/5 of the estimated time to
@@ -1429,7 +1429,7 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 			break;
 	}
 	set_current_state(TASK_RUNNING); /* might not be needed */
-	unlock_kernel();
+	tty_unlock();
 }
 
 /*
@@ -1444,7 +1444,7 @@ static void uart_hangup(struct tty_struct *tty)
 	struct tty_port *port = &state->port;
 	unsigned long flags;
 
-	BUG_ON(!kernel_locked());
+	BUG_ON(!tty_locked());
 	pr_debug("uart_hangup(%d)\n", state->uart_port->line);
 
 	mutex_lock(&port->mutex);
@@ -1578,7 +1578,7 @@ static int uart_open(struct tty_struct *tty, struct file *filp)
 	struct tty_port *port;
 	int retval, line = tty->index;
 
-	BUG_ON(!kernel_locked());
+	BUG_ON(!tty_locked());
 	pr_debug("uart_open(%d) called\n", line);
 
 	/*
