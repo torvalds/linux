@@ -152,6 +152,7 @@ Section: admin
 Priority: optional
 Maintainer: $maintainer
 Standards-Version: 3.8.1
+Homepage: http://www.kernel.org/
 EOF
 
 if [ "$ARCH" = "um" ]; then
