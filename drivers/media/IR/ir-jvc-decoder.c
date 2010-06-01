@@ -253,6 +253,7 @@ static int ir_jvc_register(struct input_dev *input_dev)
 {
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 	struct decoder_data *data;
+	u64 ir_type = ir_dev->rc_tab.ir_type;
 	int rc;
 
 	rc = sysfs_create_group(&ir_dev->dev.kobj, &decoder_attribute_group);
@@ -266,7 +267,8 @@ static int ir_jvc_register(struct input_dev *input_dev)
 	}
 
 	data->ir_dev = ir_dev;
-	data->enabled = 1;
+	if (ir_type == IR_TYPE_JVC || ir_type == IR_TYPE_UNKNOWN)
+		data->enabled = 1;
 
 	spin_lock(&decoder_lock);
 	list_add_tail(&data->list, &decoder_list);
