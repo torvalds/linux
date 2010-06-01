@@ -1284,6 +1284,10 @@ cifs_do_rename(int xid, struct dentry *from_dentry, const char *fromPath,
 	if (rc == 0 || rc != -ETXTBSY)
 		return rc;
 
+	/* open-file renames don't work across directories */
+	if (to_dentry->d_parent != from_dentry->d_parent)
+		return rc;
+
 	/* open the file to be renamed -- we need DELETE perms */
 	rc = CIFSSMBOpen(xid, pTcon, fromPath, FILE_OPEN, DELETE,
 			 CREATE_NOT_DIR, &srcfid, &oplock, NULL,
