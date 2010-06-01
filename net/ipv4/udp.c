@@ -633,11 +633,9 @@ void __udp4_lib_err(struct sk_buff *skb, u32 info, struct udp_table *udptable)
 	if (!inet->recverr) {
 		if (!harderr || sk->sk_state != TCP_ESTABLISHED)
 			goto out;
-	} else {
-		bh_lock_sock(sk);
+	} else
 		ip_icmp_error(sk, skb, err, uh->dest, info, (u8 *)(uh+1));
-		bh_unlock_sock(sk);
-	}
+
 	sk->sk_err = err;
 	sk->sk_error_report(sk);
 out:
