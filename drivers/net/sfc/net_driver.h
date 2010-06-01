@@ -222,7 +222,6 @@ struct efx_tx_queue {
  *	If both this and skb are %NULL, the buffer slot is currently free.
  * @data: Pointer to ethernet header
  * @len: Buffer length, in bytes.
- * @unmap_addr: DMA address to unmap
  */
 struct efx_rx_buffer {
 	dma_addr_t dma_addr;
@@ -230,7 +229,6 @@ struct efx_rx_buffer {
 	struct page *page;
 	char *data;
 	unsigned int len;
-	dma_addr_t unmap_addr;
 };
 
 /**
@@ -257,11 +255,6 @@ struct efx_rx_buffer {
  * @alloc_page_count: RX allocation strategy counter.
  * @alloc_skb_count: RX allocation strategy counter.
  * @slow_fill: Timer used to defer efx_nic_generate_fill_event().
- * @buf_page: Page for next RX buffer.
- *	We can use a single page for multiple RX buffers. This tracks
- *	the remaining space in the allocation.
- * @buf_dma_addr: Page's DMA address.
- * @buf_data: Page's host address.
  * @flushed: Use when handling queue flushing
  */
 struct efx_rx_queue {
@@ -284,9 +277,6 @@ struct efx_rx_queue {
 	struct timer_list slow_fill;
 	unsigned int slow_fill_count;
 
-	struct page *buf_page;
-	dma_addr_t buf_dma_addr;
-	char *buf_data;
 	enum efx_flush_state flushed;
 };
 
