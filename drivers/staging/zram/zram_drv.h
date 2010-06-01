@@ -18,7 +18,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 
-#include "ramzswap_ioctl.h"
+#include "zram_ioctl.h"
 #include "xvmalloc.h"
 
 /*
