@@ -597,7 +597,7 @@ static void balance_dirty_pages(struct address_space *mapping,
 	    (!laptop_mode && ((global_page_state(NR_FILE_DIRTY)
 			       + global_page_state(NR_UNSTABLE_NFS))
 					  > background_thresh)))
-		bdi_start_writeback(bdi, NULL, 0, 0);
+		bdi_start_writeback(bdi, NULL, 0);
 }
 
 void set_page_dirty_balance(struct page *page, int page_mkwrite)
@@ -707,7 +707,7 @@ void laptop_mode_timer_fn(unsigned long data)
 	 */
 
 	if (bdi_has_dirty_io(&q->backing_dev_info))
-		bdi_start_writeback(&q->backing_dev_info, NULL, nr_pages, 0);
+		bdi_start_writeback(&q->backing_dev_info, NULL, nr_pages);
 }
 
 /*
