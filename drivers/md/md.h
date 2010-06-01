@@ -509,6 +509,7 @@ extern int md_integrity_register(mddev_t *mddev);
 extern void md_integrity_add_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
 extern int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale);
 extern void restore_bitmap_write_access(struct file *file);
+extern void md_unplug(mddev_t *mddev);
 
 extern void mddev_init(mddev_t *mddev);
 extern int md_run(mddev_t *mddev);

@@ -6627,7 +6627,7 @@ int md_allow_write(mddev_t *mddev)
 }
 EXPORT_SYMBOL_GPL(md_allow_write);
 
-static void md_unplug(mddev_t *mddev)
+void md_unplug(mddev_t *mddev)
 {
 	if (mddev->queue)
 		blk_unplug(mddev->queue);
