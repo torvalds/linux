@@ -1574,9 +1574,15 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		  params->cw_max, params->txop);
 
 	ret = ath_htc_txq_update(priv, qnum, &qi);
-	if (ret)
+	if (ret) {
 		ath_print(common, ATH_DBG_FATAL, "TXQ Update failed\n");
+		goto out;
+	}
 
+	if ((priv->ah->opmode == NL80211_IFTYPE_ADHOC) &&
+	    (qnum == priv->hwq_map[ATH9K_WME_AC_BE]))
+		    ath9k_htc_beaconq_config(priv);
+out:
 	ath9k_htc_ps_restore(priv);
 	mutex_unlock(&priv->mutex);
 
