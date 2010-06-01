@@ -275,7 +275,7 @@ acpi_ex_decode_field_access(union acpi_operand_object *obj_desc,
 	default:
 		/* Invalid field access type */
 
-		ACPI_ERROR((AE_INFO, "Unknown field access type %X", access));
+		ACPI_ERROR((AE_INFO, "Unknown field access type 0x%X", access));
 		return_UINT32(0);
 	}
 
@@ -430,7 +430,7 @@ acpi_status acpi_ex_prep_field_value(struct acpi_create_field_info *info)
 		type = acpi_ns_get_type(info->region_node);
 		if (type != ACPI_TYPE_REGION) {
 			ACPI_ERROR((AE_INFO,
-				    "Needed Region, found type %X (%s)",
+				    "Needed Region, found type 0x%X (%s)",
 				    type, acpi_ut_get_type_name(type)));
 
 			return_ACPI_STATUS(AE_AML_OPERAND_TYPE);

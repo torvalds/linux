@@ -27,7 +27,7 @@ static const struct option buildid_cache_options[] = {
 		   "file list", "file(s) to add"),
 	OPT_STRING('r', "remove", &remove_name_list_str, "file list",
 		    "file(s) to remove"),
-	OPT_BOOLEAN('v', "verbose", &verbose, "be more verbose"),
+	OPT_INCR('v', "verbose", &verbose, "be more verbose"),
 	OPT_END()
 };
 

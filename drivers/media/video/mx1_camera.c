@@ -139,8 +139,8 @@ static int mx1_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 	if (!*count)
 		*count = 32;
 
-	while (*size * *count > MAX_VIDEO_MEM * 1024 * 1024)
-		(*count)--;
+	if (*size * *count > MAX_VIDEO_MEM * 1024 * 1024)
+		*count = (MAX_VIDEO_MEM * 1024 * 1024) / *size;
 
 	dev_dbg(icd->dev.parent, "count=%d, size=%d\n", *count, *size);
 

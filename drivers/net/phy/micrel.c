@@ -32,6 +32,7 @@ static int kszphy_config_init(struct phy_device *phydev)
 
 static struct phy_driver ks8001_driver = {
 	.phy_id		= PHY_ID_KS8001,
+	.name		= "Micrel KS8001",
 	.phy_id_mask	= 0x00fffff0,
 	.features	= PHY_BASIC_FEATURES,
 	.flags		= PHY_POLL,
@@ -102,3 +103,12 @@ module_exit(ksphy_exit);
 MODULE_DESCRIPTION("Micrel PHY driver");
 MODULE_AUTHOR("David J. Choi");
 MODULE_LICENSE("GPL");
+
+static struct mdio_device_id micrel_tbl[] = {
+	{ PHY_ID_KSZ9021, 0x000fff10 },
+	{ PHY_ID_VSC8201, 0x00fffff0 },
+	{ PHY_ID_KS8001, 0x00fffff0 },
+	{ }
+};
+
+MODULE_DEVICE_TABLE(mdio, micrel_tbl);

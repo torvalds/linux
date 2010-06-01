@@ -246,8 +246,7 @@ nfqnl_build_packet_message(struct nfqnl_instance *queue,
 		break;
 
 	case NFQNL_COPY_PACKET:
-		if ((entskb->ip_summed == CHECKSUM_PARTIAL ||
-		     entskb->ip_summed == CHECKSUM_COMPLETE) &&
+		if (entskb->ip_summed == CHECKSUM_PARTIAL &&
 		    skb_checksum_help(entskb)) {
 			spin_unlock_bh(&queue->lock);
 			return NULL;

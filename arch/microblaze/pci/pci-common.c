@@ -1507,7 +1507,7 @@ void pcibios_finish_adding_to_bus(struct pci_bus *bus)
 	pci_bus_add_devices(bus);
 
 	/* Fixup EEH */
-	eeh_add_device_tree_late(bus);
+	/* eeh_add_device_tree_late(bus); */
 }
 EXPORT_SYMBOL_GPL(pcibios_finish_adding_to_bus);
 

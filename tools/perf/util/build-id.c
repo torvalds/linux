@@ -6,6 +6,8 @@
  * Copyright (C) 2009, 2010 Red Hat Inc.
  * Copyright (C) 2009, 2010 Arnaldo Carvalho de Melo <acme@redhat.com>
  */
+#include "util.h"
+#include <stdio.h>
 #include "build-id.h"
 #include "event.h"
 #include "symbol.h"
@@ -24,7 +26,7 @@ static int build_id__mark_dso_hit(event_t *event, struct perf_session *session)
 	}
 
 	thread__find_addr_map(thread, session, cpumode, MAP__FUNCTION,
-			      event->ip.ip, &al);
+			      event->ip.pid, event->ip.ip, &al);
 
 	if (al.map != NULL)
 		al.map->dso->hit = 1;
@@ -37,3 +39,23 @@ struct perf_event_ops build_id__mark_dso_hit_ops = {
 	.mmap	= event__process_mmap,
 	.fork	= event__process_task,
 };
+
+char *dso__build_id_filename(struct dso *self, char *bf, size_t size)
+{
+	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
+	const char *home;
+
+	if (!self->has_build_id)
+		return NULL;
+
+	build_id__sprintf(self->build_id, sizeof(self->build_id), build_id_hex);
+	home = getenv("HOME");
+	if (bf == NULL) {
+		if (asprintf(&bf, "%s/%s/.build-id/%.2s/%s", home,
+			     DEBUG_CACHE_DIR, build_id_hex, build_id_hex + 2) < 0)
+			return NULL;
+	} else
+		snprintf(bf, size, "%s/%s/.build-id/%.2s/%s", home,
+			 DEBUG_CACHE_DIR, build_id_hex, build_id_hex + 2);
+	return bf;
+}

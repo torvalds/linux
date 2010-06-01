@@ -46,11 +46,9 @@
 #define	XFSA_FIXUP_BNO_OK	1
 #define	XFSA_FIXUP_CNT_OK	2
 
-STATIC void
-xfs_alloc_search_busy(xfs_trans_t *tp,
-		    xfs_agnumber_t agno,
-		    xfs_agblock_t bno,
-		    xfs_extlen_t len);
+static int
+xfs_alloc_busy_search(struct xfs_mount *mp, xfs_agnumber_t agno,
+		    xfs_agblock_t bno, xfs_extlen_t len);
 
 /*
  * Prototypes for per-ag allocation routines
@@ -540,9 +538,16 @@ xfs_alloc_ag_vextent(
 				be32_to_cpu(agf->agf_length));
 			xfs_alloc_log_agf(args->tp, args->agbp,
 						XFS_AGF_FREEBLKS);
-			/* search the busylist for these blocks */
-			xfs_alloc_search_busy(args->tp, args->agno,
-					args->agbno, args->len);
+			/*
+			 * Search the busylist for these blocks and mark the
+			 * transaction as synchronous if blocks are found. This
+			 * avoids the need to block due to a synchronous log
+			 * force to ensure correct ordering as the synchronous
+			 * transaction will guarantee that for us.
+			 */
+			if (xfs_alloc_busy_search(args->mp, args->agno,
+						args->agbno, args->len))
+				xfs_trans_set_sync(args->tp);
 		}
 		if (!args->isfl)
 			xfs_trans_mod_sb(args->tp,
@@ -1693,7 +1698,7 @@ xfs_free_ag_extent(
 	 * when the iclog commits to disk.  If a busy block is allocated,
 	 * the iclog is pushed up to the LSN that freed the block.
 	 */
-	xfs_alloc_mark_busy(tp, agno, bno, len);
+	xfs_alloc_busy_insert(tp, agno, bno, len);
 	return 0;
 
  error0:
@@ -1989,14 +1994,20 @@ xfs_alloc_get_freelist(
 	*bnop = bno;
 
 	/*
-	 * As blocks are freed, they are added to the per-ag busy list
-	 * and remain there until the freeing transaction is committed to
-	 * disk.  Now that we have allocated blocks, this list must be
-	 * searched to see if a block is being reused.  If one is, then
-	 * the freeing transaction must be pushed to disk NOW by forcing
-	 * to disk all iclogs up that transaction's LSN.
+	 * As blocks are freed, they are added to the per-ag busy list and
+	 * remain there until the freeing transaction is committed to disk.
+	 * Now that we have allocated blocks, this list must be searched to see
+	 * if a block is being reused.  If one is, then the freeing transaction
+	 * must be pushed to disk before this transaction.
+	 *
+	 * We do this by setting the current transaction to a sync transaction
+	 * which guarantees that the freeing transaction is on disk before this
+	 * transaction. This is done instead of a synchronous log force here so
+	 * that we don't sit and wait with the AGF locked in the transaction
+	 * during the log force.
 	 */
-	xfs_alloc_search_busy(tp, be32_to_cpu(agf->agf_seqno), bno, 1);
+	if (xfs_alloc_busy_search(mp, be32_to_cpu(agf->agf_seqno), bno, 1))
+		xfs_trans_set_sync(tp);
 	return 0;
 }
 
@@ -2201,7 +2212,7 @@ xfs_alloc_read_agf(
 			be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNTi]);
 		spin_lock_init(&pag->pagb_lock);
 		pag->pagb_count = 0;
-		memset(pag->pagb_list, 0, sizeof(pag->pagb_list));
+		pag->pagb_tree = RB_ROOT;
 		pag->pagf_init = 1;
 	}
 #ifdef DEBUG
@@ -2479,127 +2490,263 @@ error0:
  * list is reused, the transaction that freed it must be forced to disk
  * before continuing to use the block.
  *
- * xfs_alloc_mark_busy - add to the per-ag busy list
- * xfs_alloc_clear_busy - remove an item from the per-ag busy list
+ * xfs_alloc_busy_insert - add to the per-ag busy list
+ * xfs_alloc_busy_clear - remove an item from the per-ag busy list
+ * xfs_alloc_busy_search - search for a busy extent
+ */
+
+/*
+ * Insert a new extent into the busy tree.
+ *
+ * The busy extent tree is indexed by the start block of the busy extent.
+ * there can be multiple overlapping ranges in the busy extent tree but only
+ * ever one entry at a given start block. The reason for this is that
+ * multi-block extents can be freed, then smaller chunks of that extent
+ * allocated and freed again before the first transaction commit is on disk.
+ * If the exact same start block is freed a second time, we have to wait for
+ * that busy extent to pass out of the tree before the new extent is inserted.
+ * There are two main cases we have to handle here.
+ *
+ * The first case is a transaction that triggers a "free - allocate - free"
+ * cycle. This can occur during btree manipulations as a btree block is freed
+ * to the freelist, then allocated from the free list, then freed again. In
+ * this case, the second extxpnet free is what triggers the duplicate and as
+ * such the transaction IDs should match. Because the extent was allocated in
+ * this transaction, the transaction must be marked as synchronous. This is
+ * true for all cases where the free/alloc/free occurs in the one transaction,
+ * hence the addition of the ASSERT(tp->t_flags & XFS_TRANS_SYNC) to this case.
+ * This serves to catch violations of the second case quite effectively.
+ *
+ * The second case is where the free/alloc/free occur in different
+ * transactions. In this case, the thread freeing the extent the second time
+ * can't mark the extent busy immediately because it is already tracked in a
+ * transaction that may be committing.  When the log commit for the existing
+ * busy extent completes, the busy extent will be removed from the tree. If we
+ * allow the second busy insert to continue using that busy extent structure,
+ * it can be freed before this transaction is safely in the log.  Hence our
+ * only option in this case is to force the log to remove the existing busy
+ * extent from the list before we insert the new one with the current
+ * transaction ID.
+ *
+ * The problem we are trying to avoid in the free-alloc-free in separate
+ * transactions is most easily described with a timeline:
+ *
+ *      Thread 1	Thread 2	Thread 3	xfslogd
+ *	xact alloc
+ *	free X
+ *	mark busy
+ *	commit xact
+ *	free xact
+ *			xact alloc
+ *			alloc X
+ *			busy search
+ *			mark xact sync
+ *			commit xact
+ *			free xact
+ *			force log
+ *			checkpoint starts
+ *			....
+ *					xact alloc
+ *					free X
+ *					mark busy
+ *					finds match
+ *					*** KABOOM! ***
+ *					....
+ *							log IO completes
+ *							unbusy X
+ *			checkpoint completes
+ *
+ * By issuing a log force in thread 3 @ "KABOOM", the thread will block until
+ * the checkpoint completes, and the busy extent it matched will have been
+ * removed from the tree when it is woken. Hence it can then continue safely.
+ *
+ * However, to ensure this matching process is robust, we need to use the
+ * transaction ID for identifying transaction, as delayed logging results in
+ * the busy extent and transaction lifecycles being different. i.e. the busy
+ * extent is active for a lot longer than the transaction.  Hence the
+ * transaction structure can be freed and reallocated, then mark the same
+ * extent busy again in the new transaction. In this case the new transaction
+ * will have a different tid but can have the same address, and hence we need
+ * to check against the tid.
+ *
+ * Future: for delayed logging, we could avoid the log force if the extent was
+ * first freed in the current checkpoint sequence. This, however, requires the
+ * ability to pin the current checkpoint in memory until this transaction
+ * commits to ensure that both the original free and the current one combine
+ * logically into the one checkpoint. If the checkpoint sequences are
+ * different, however, we still need to wait on a log force.
  */
 void
-xfs_alloc_mark_busy(xfs_trans_t *tp,
-		    xfs_agnumber_t agno,
-		    xfs_agblock_t bno,
-		    xfs_extlen_t len)
+xfs_alloc_busy_insert(
+	struct xfs_trans	*tp,
+	xfs_agnumber_t		agno,
+	xfs_agblock_t		bno,
+	xfs_extlen_t		len)
 {
-	xfs_perag_busy_t	*bsy;
+	struct xfs_busy_extent	*new;
+	struct xfs_busy_extent	*busyp;
 	struct xfs_perag	*pag;
-	int			n;
+	struct rb_node		**rbp;
+	struct rb_node		*parent;
+	int			match;
 
-	pag = xfs_perag_get(tp->t_mountp, agno);
+
+	new = kmem_zalloc(sizeof(struct xfs_busy_extent), KM_MAYFAIL);
+	if (!new) {
+		/*
+		 * No Memory!  Since it is now not possible to track the free
+		 * block, make this a synchronous transaction to insure that
+		 * the block is not reused before this transaction commits.
+		 */
+		trace_xfs_alloc_busy(tp, agno, bno, len, 1);
+		xfs_trans_set_sync(tp);
+		return;
+	}
+
+	new->agno = agno;
+	new->bno = bno;
+	new->length = len;
+	new->tid = xfs_log_get_trans_ident(tp);
+
+	INIT_LIST_HEAD(&new->list);
+
+	/* trace before insert to be able to see failed inserts */
+	trace_xfs_alloc_busy(tp, agno, bno, len, 0);
+
+	pag = xfs_perag_get(tp->t_mountp, new->agno);
+restart:
 	spin_lock(&pag->pagb_lock);
+	rbp = &pag->pagb_tree.rb_node;
+	parent = NULL;
+	busyp = NULL;
+	match = 0;
+	while (*rbp && match >= 0) {
+		parent = *rbp;
+		busyp = rb_entry(parent, struct xfs_busy_extent, rb_node);
 
-	/* search pagb_list for an open slot */
-	for (bsy = pag->pagb_list, n = 0;
-	     n < XFS_PAGB_NUM_SLOTS;
-	     bsy++, n++) {
-		if (bsy->busy_tp == NULL) {
+		if (new->bno < busyp->bno) {
+			/* may overlap, but exact start block is lower */
+			rbp = &(*rbp)->rb_left;
+			if (new->bno + new->length > busyp->bno)
+				match = busyp->tid == new->tid ? 1 : -1;
+		} else if (new->bno > busyp->bno) {
+			/* may overlap, but exact start block is higher */
+			rbp = &(*rbp)->rb_right;
+			if (bno < busyp->bno + busyp->length)
+				match = busyp->tid == new->tid ? 1 : -1;
+		} else {
+			match = busyp->tid == new->tid ? 1 : -1;
 			break;
 		}
 	}
-
-	trace_xfs_alloc_busy(tp->t_mountp, agno, bno, len, n);
-
-	if (n < XFS_PAGB_NUM_SLOTS) {
-		bsy = &pag->pagb_list[n];
-		pag->pagb_count++;
-		bsy->busy_start = bno;
-		bsy->busy_length = len;
-		bsy->busy_tp = tp;
-		xfs_trans_add_busy(tp, agno, n);
-	} else {
-		/*
-		 * The busy list is full!  Since it is now not possible to
-		 * track the free block, make this a synchronous transaction
-		 * to insure that the block is not reused before this
-		 * transaction commits.
-		 */
-		xfs_trans_set_sync(tp);
+	if (match < 0) {
+		/* overlap marked busy in different transaction */
+		spin_unlock(&pag->pagb_lock);
+		xfs_log_force(tp->t_mountp, XFS_LOG_SYNC);
+		goto restart;
 	}
+	if (match > 0) {
+		/*
+		 * overlap marked busy in same transaction. Update if exact
+		 * start block match, otherwise combine the busy extents into
+		 * a single range.
+		 */
+		if (busyp->bno == new->bno) {
+			busyp->length = max(busyp->length, new->length);
+			spin_unlock(&pag->pagb_lock);
+			ASSERT(tp->t_flags & XFS_TRANS_SYNC);
+			xfs_perag_put(pag);
+			kmem_free(new);
+			return;
+		}
+		rb_erase(&busyp->rb_node, &pag->pagb_tree);
+		new->length = max(busyp->bno + busyp->length,
+					new->bno + new->length) -
+				min(busyp->bno, new->bno);
+		new->bno = min(busyp->bno, new->bno);
+	} else
+		busyp = NULL;
 
+	rb_link_node(&new->rb_node, parent, rbp);
+	rb_insert_color(&new->rb_node, &pag->pagb_tree);
+
+	list_add(&new->list, &tp->t_busy);
 	spin_unlock(&pag->pagb_lock);
 	xfs_perag_put(pag);
+	kmem_free(busyp);
+}
+
+/*
+ * Search for a busy extent within the range of the extent we are about to
+ * allocate.  You need to be holding the busy extent tree lock when calling
+ * xfs_alloc_busy_search(). This function returns 0 for no overlapping busy
+ * extent, -1 for an overlapping but not exact busy extent, and 1 for an exact
+ * match. This is done so that a non-zero return indicates an overlap that
+ * will require a synchronous transaction, but it can still be
+ * used to distinguish between a partial or exact match.
+ */
+static int
+xfs_alloc_busy_search(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno,
+	xfs_agblock_t		bno,
+	xfs_extlen_t		len)
+{
+	struct xfs_perag	*pag;
+	struct rb_node		*rbp;
+	struct xfs_busy_extent	*busyp;
+	int			match = 0;
+
+	pag = xfs_perag_get(mp, agno);
+	spin_lock(&pag->pagb_lock);
+
+	rbp = pag->pagb_tree.rb_node;
+
+	/* find closest start bno overlap */
+	while (rbp) {
+		busyp = rb_entry(rbp, struct xfs_busy_extent, rb_node);
+		if (bno < busyp->bno) {
+			/* may overlap, but exact start block is lower */
+			if (bno + len > busyp->bno)
+				match = -1;
+			rbp = rbp->rb_left;
+		} else if (bno > busyp->bno) {
+			/* may overlap, but exact start block is higher */
+			if (bno < busyp->bno + busyp->length)
+				match = -1;
+			rbp = rbp->rb_right;
+		} else {
+			/* bno matches busyp, length determines exact match */
+			match = (busyp->length == len) ? 1 : -1;
+			break;
+		}
+	}
+	spin_unlock(&pag->pagb_lock);
+	trace_xfs_alloc_busysearch(mp, agno, bno, len, !!match);
+	xfs_perag_put(pag);
+	return match;
 }
 
 void
-xfs_alloc_clear_busy(xfs_trans_t *tp,
-		     xfs_agnumber_t agno,
-		     int idx)
+xfs_alloc_busy_clear(
+	struct xfs_mount	*mp,
+	struct xfs_busy_extent	*busyp)
 {
 	struct xfs_perag	*pag;
-	xfs_perag_busy_t	*list;
 
-	ASSERT(idx < XFS_PAGB_NUM_SLOTS);
-	pag = xfs_perag_get(tp->t_mountp, agno);
+	trace_xfs_alloc_unbusy(mp, busyp->agno, busyp->bno,
+						busyp->length);
+
+	ASSERT(xfs_alloc_busy_search(mp, busyp->agno, busyp->bno,
+						busyp->length) == 1);
+
+	list_del_init(&busyp->list);
+
+	pag = xfs_perag_get(mp, busyp->agno);
 	spin_lock(&pag->pagb_lock);
-	list = pag->pagb_list;
-
-	trace_xfs_alloc_unbusy(tp->t_mountp, agno, idx, list[idx].busy_tp == tp);
-
-	if (list[idx].busy_tp == tp) {
-		list[idx].busy_tp = NULL;
-		pag->pagb_count--;
-	}
-
+	rb_erase(&busyp->rb_node, &pag->pagb_tree);
 	spin_unlock(&pag->pagb_lock);
 	xfs_perag_put(pag);
-}
 
-
-/*
- * If we find the extent in the busy list, force the log out to get the
- * extent out of the busy list so the caller can use it straight away.
- */
-STATIC void
-xfs_alloc_search_busy(xfs_trans_t *tp,
-		    xfs_agnumber_t agno,
-		    xfs_agblock_t bno,
-		    xfs_extlen_t len)
-{
-	struct xfs_perag	*pag;
-	xfs_perag_busy_t	*bsy;
-	xfs_agblock_t		uend, bend;
-	xfs_lsn_t		lsn = 0;
-	int			cnt;
-
-	pag = xfs_perag_get(tp->t_mountp, agno);
-	spin_lock(&pag->pagb_lock);
-	cnt = pag->pagb_count;
-
-	/*
-	 * search pagb_list for this slot, skipping open slots. We have to
-	 * search the entire array as there may be multiple overlaps and
-	 * we have to get the most recent LSN for the log force to push out
-	 * all the transactions that span the range.
-	 */
-	uend = bno + len - 1;
-	for (cnt = 0; cnt < pag->pagb_count; cnt++) {
-		bsy = &pag->pagb_list[cnt];
-		if (!bsy->busy_tp)
-			continue;
-
-		bend = bsy->busy_start + bsy->busy_length - 1;
-		if (bno > bend || uend < bsy->busy_start)
-			continue;
-
-		/* (start1,length1) within (start2, length2) */
-		if (XFS_LSN_CMP(bsy->busy_tp->t_commit_lsn, lsn) > 0)
-			lsn = bsy->busy_tp->t_commit_lsn;
-	}
-	spin_unlock(&pag->pagb_lock);
-	xfs_perag_put(pag);
-	trace_xfs_alloc_busysearch(tp->t_mountp, agno, bno, len, lsn);
-
-	/*
-	 * If a block was found, force the log through the LSN of the
-	 * transaction that freed the block
-	 */
-	if (lsn)
-		xfs_log_force_lsn(tp->t_mountp, lsn, XFS_LOG_SYNC);
+	kmem_free(busyp);
 }

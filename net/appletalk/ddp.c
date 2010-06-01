@@ -782,7 +782,7 @@ static int atif_ioctl(int cmd, void __user *arg)
 						atrtr_create(&rtdef, dev);
 					}
 			}
-			dev_mc_add(dev, aarp_mcast, 6, 1);
+			dev_mc_add_global(dev, aarp_mcast);
 			return 0;
 
 		case SIOCGIFADDR:

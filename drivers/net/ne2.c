@@ -730,7 +730,6 @@ retry:
 
 	outb_p(ENISR_RDC, nic_base + EN0_ISR);	/* Ack intr. */
 	ei_status.dmaing &= ~0x01;
-	return;
 }
 
 

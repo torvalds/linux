@@ -311,7 +311,8 @@ struct pci_dev {
 	unsigned int	is_virtfn:1;
 	unsigned int	reset_fn:1;
 	unsigned int    is_hotplug_bridge:1;
-	unsigned int    aer_firmware_first:1;
+	unsigned int    __aer_firmware_first_valid:1;
+	unsigned int	__aer_firmware_first:1;
 	pci_dev_flags_t dev_flags;
 	atomic_t	enable_cnt;	/* pci_enable_device has been called */
 
@@ -333,6 +334,16 @@ struct pci_dev {
 	struct pci_ats	*ats;	/* Address Translation Service */
 #endif
 };
+
+static inline struct pci_dev *pci_physfn(struct pci_dev *dev)
+{
+#ifdef CONFIG_PCI_IOV
+	if (dev->is_virtfn)
+		dev = dev->physfn;
+#endif
+
+	return dev;
+}
 
 extern struct pci_dev *alloc_pci_dev(void);
 

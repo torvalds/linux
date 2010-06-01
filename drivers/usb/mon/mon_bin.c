@@ -416,13 +416,13 @@ static unsigned int mon_bin_get_data(const struct mon_reader_bin *rp,
 
 	} else {
 		/* If IOMMU coalescing occurred, we cannot trust sg_page */
-		if (urb->sg->nents != urb->num_sgs) {
+		if (urb->transfer_flags & URB_DMA_SG_COMBINED) {
 			*flag = 'D';
 			return length;
 		}
 
 		/* Copy up to the first non-addressable segment */
-		for_each_sg(urb->sg->sg, sg, urb->num_sgs, i) {
+		for_each_sg(urb->sg, sg, urb->num_sgs, i) {
 			if (length == 0 || PageHighMem(sg_page(sg)))
 				break;
 			this_len = min_t(unsigned int, sg->length, length);
@@ -954,8 +954,7 @@ static int mon_bin_queued(struct mon_reader_bin *rp)
 
 /*
  */
-static int mon_bin_ioctl(struct inode *inode, struct file *file,
-    unsigned int cmd, unsigned long arg)
+static int mon_bin_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct mon_reader_bin *rp = file->private_data;
 	// struct mon_bus* mbus = rp->r.m_bus;
@@ -1095,6 +1094,19 @@ static int mon_bin_ioctl(struct inode *inode, struct file *file,
 	return ret;
 }
 
+static long mon_bin_unlocked_ioctl(struct file *file, unsigned int cmd,
+				   unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = mon_bin_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
+
 #ifdef CONFIG_COMPAT
 static long mon_bin_compat_ioctl(struct file *file,
     unsigned int cmd, unsigned long arg)
@@ -1148,14 +1160,13 @@ static long mon_bin_compat_ioctl(struct file *file,
 		return 0;
 
 	case MON_IOCG_STATS:
-		return mon_bin_ioctl(NULL, file, cmd,
-					    (unsigned long) compat_ptr(arg));
+		return mon_bin_ioctl(file, cmd, (unsigned long) compat_ptr(arg));
 
 	case MON_IOCQ_URB_LEN:
 	case MON_IOCQ_RING_SIZE:
 	case MON_IOCT_RING_SIZE:
 	case MON_IOCH_MFLUSH:
-		return mon_bin_ioctl(NULL, file, cmd, arg);
+		return mon_bin_ioctl(file, cmd, arg);
 
 	default:
 		;
@@ -1239,7 +1250,7 @@ static const struct file_operations mon_fops_binary = {
 	.read =		mon_bin_read,
 	/* .write =	mon_text_write, */
 	.poll =		mon_bin_poll,
-	.ioctl =	mon_bin_ioctl,
+	.unlocked_ioctl = mon_bin_unlocked_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl =	mon_bin_compat_ioctl,
 #endif

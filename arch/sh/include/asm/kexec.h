@@ -26,6 +26,10 @@
 /* The native architecture */
 #define KEXEC_ARCH KEXEC_ARCH_SH
 
+#ifdef CONFIG_KEXEC
+/* arch/sh/kernel/machine_kexec.c */
+void reserve_crashkernel(void);
+
 static inline void crash_setup_regs(struct pt_regs *newregs,
 				    struct pt_regs *oldregs)
 {
@@ -59,4 +63,8 @@ static inline void crash_setup_regs(struct pt_regs *newregs,
 		newregs->pc = (unsigned long)current_text_addr();
 	}
 }
+#else
+static inline void reserve_crashkernel(void) { }
+#endif /* CONFIG_KEXEC */
+
 #endif /* __ASM_SH_KEXEC_H */

@@ -22,47 +22,55 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 
-#include <asm/proc-fns.h>
-
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
+
+#include <asm/proc-fns.h>
 
 #include <mach/hardware.h>
 #include <mach/map.h>
 #include <asm/irq.h>
 
-#include <plat/cpu-freq.h>
 #include <plat/regs-serial.h>
-#include <plat/regs-power.h>
+#include <mach/regs-clock.h>
 
 #include <plat/cpu.h>
 #include <plat/devs.h>
 #include <plat/clock.h>
-#include <plat/sdhci.h>
 #include <plat/iic-core.h>
+#include <plat/sdhci.h>
+#include <plat/onenand-core.h>
+
 #include <plat/s5pc100.h>
 
 /* Initial IO mappings */
 
 static struct map_desc s5pc100_iodesc[] __initdata = {
+	{
+		.virtual	= (unsigned long)S5P_VA_SYSTIMER,
+		.pfn		= __phys_to_pfn(S5PC100_PA_SYSTIMER),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)VA_VIC2,
+		.pfn		= __phys_to_pfn(S5P_PA_VIC2),
+		.length		= SZ_16K,
+		.type		= MT_DEVICE,
+	}, {
+		.virtual	= (unsigned long)S5PC100_VA_OTHERS,
+		.pfn		= __phys_to_pfn(S5PC100_PA_OTHERS),
+		.length		= SZ_4K,
+		.type		= MT_DEVICE,
+	}
 };
 
 static void s5pc100_idle(void)
 {
-	unsigned long tmp;
+	if (!need_resched())
+		cpu_do_idle();
 
-	tmp = __raw_readl(S5PC100_PWR_CFG);
-	tmp &= ~S5PC100_PWRCFG_CFG_DEEP_IDLE;
-	tmp &= ~S5PC100_PWRCFG_CFG_WFI_MASK;
-	tmp |= S5PC100_PWRCFG_CFG_WFI_DEEP_IDLE;
-	__raw_writel(tmp, S5PC100_PWR_CFG);
-
-	tmp = __raw_readl(S5PC100_OTHERS);
-	tmp |= S5PC100_PMU_INT_DISABLE;
-	__raw_writel(tmp, S5PC100_OTHERS);
-
-	cpu_do_idle();
+	local_irq_enable();
 }
 
 /* s5pc100_map_io
@@ -82,26 +90,29 @@ void __init s5pc100_map_io(void)
 	/* the i2c devices are directly compatible with s3c2440 */
 	s3c_i2c0_setname("s3c2440-i2c");
 	s3c_i2c1_setname("s3c2440-i2c");
+
+	s3c_onenand_setname("s5pc100-onenand");
 }
 
 void __init s5pc100_init_clocks(int xtal)
 {
-	printk(KERN_DEBUG "%s: initialising clocks\n", __func__);
+	printk(KERN_DEBUG "%s: initializing clocks\n", __func__);
+
 	s3c24xx_register_baseclocks(xtal);
-	s5pc1xx_register_clocks();
+	s5p_register_clocks(xtal);
 	s5pc100_register_clocks();
 	s5pc100_setup_clocks();
 }
 
 void __init s5pc100_init_irq(void)
 {
-	u32 vic_valid[] = {~0, ~0, ~0};
+	u32 vic[] = {~0, ~0, ~0};
 
 	/* VIC0, VIC1, and VIC2 are fully populated. */
-	s5pc1xx_init_irq(vic_valid, ARRAY_SIZE(vic_valid));
+	s5p_init_irq(vic, ARRAY_SIZE(vic));
 }
 
-struct sysdev_class s5pc100_sysclass = {
+static struct sysdev_class s5pc100_sysclass = {
 	.name	= "s5pc100-core",
 };
 
@@ -118,9 +129,10 @@ core_initcall(s5pc100_core_init);
 
 int __init s5pc100_init(void)
 {
-	printk(KERN_DEBUG "S5PC100: Initialising architecture\n");
+	printk(KERN_INFO "S5PC100: Initializing architecture\n");
 
-	s5pc1xx_idle = s5pc100_idle;
+	/* set idle function */
+	pm_idle = s5pc100_idle;
 
 	return sysdev_register(&s5pc100_sysdev);
 }

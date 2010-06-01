@@ -277,7 +277,7 @@ int             ii,jj,kk;
     pbyPayload = pbyIV + 8; //IV-length
 
     abyNonce[0]  = 0x00; //now is 0, if Qos here will be priority
-    memcpy(&(abyNonce[1]), pMACHeader->abyAddr2, U_ETHER_ADDR_LEN);
+    memcpy(&(abyNonce[1]), pMACHeader->abyAddr2, ETH_ALEN);
     abyNonce[7]  = pbyIV[7];
     abyNonce[8]  = pbyIV[6];
     abyNonce[9]  = pbyIV[5];
@@ -299,16 +299,16 @@ int             ii,jj,kk;
     byTmp = (BYTE)(pMACHeader->wFrameCtl >> 8);
     byTmp &= 0x87;
     MIC_HDR1[3] = byTmp | 0x40;
-    memcpy(&(MIC_HDR1[4]), pMACHeader->abyAddr1, U_ETHER_ADDR_LEN);
-    memcpy(&(MIC_HDR1[10]), pMACHeader->abyAddr2, U_ETHER_ADDR_LEN);
+    memcpy(&(MIC_HDR1[4]), pMACHeader->abyAddr1, ETH_ALEN);
+    memcpy(&(MIC_HDR1[10]), pMACHeader->abyAddr2, ETH_ALEN);
 
     //MIC_HDR2
-    memcpy(&(MIC_HDR2[0]), pMACHeader->abyAddr3, U_ETHER_ADDR_LEN);
+    memcpy(&(MIC_HDR2[0]), pMACHeader->abyAddr3, ETH_ALEN);
     byTmp = (BYTE)(pMACHeader->wSeqCtl & 0xff);
     MIC_HDR2[6] = byTmp & 0x0f;
     MIC_HDR2[7] = 0;
     if ( bA4 ) {
-        memcpy(&(MIC_HDR2[8]), pMACHeader->abyAddr4, U_ETHER_ADDR_LEN);
+        memcpy(&(MIC_HDR2[8]), pMACHeader->abyAddr4, ETH_ALEN);
     } else {
         MIC_HDR2[8]  = 0x00;
         MIC_HDR2[9]  = 0x00;

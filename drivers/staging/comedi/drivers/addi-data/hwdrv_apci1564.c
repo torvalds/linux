@@ -56,8 +56,8 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #include "hwdrv_apci1564.h"
 
 /* Global variables */
-unsigned int ui_InterruptStatus_1564 = 0;
-unsigned int ui_InterruptData, ui_Type;
+static unsigned int ui_InterruptStatus_1564 = 0;
+static unsigned int ui_InterruptData, ui_Type;
 
 /*
 +----------------------------------------------------------------------------+

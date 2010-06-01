@@ -6,13 +6,14 @@
 #include <stdarg.h>
 #include <stdio.h>
 
+#include "cache.h"
 #include "color.h"
 #include "event.h"
 #include "debug.h"
 #include "util.h"
 
 int verbose = 0;
-int dump_trace = 0;
+bool dump_trace = false;
 
 int eprintf(int level, const char *fmt, ...)
 {
@@ -21,7 +22,10 @@ int eprintf(int level, const char *fmt, ...)
 
 	if (verbose >= level) {
 		va_start(args, fmt);
-		ret = vfprintf(stderr, fmt, args);
+		if (use_browser > 0)
+			ret = browser__show_help(fmt, args);
+		else
+			ret = vfprintf(stderr, fmt, args);
 		va_end(args);
 	}
 

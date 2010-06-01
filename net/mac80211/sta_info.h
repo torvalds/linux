@@ -35,8 +35,8 @@
  *	IEEE80211_TX_CTL_CLEAR_PS_FILT control flag) when the next
  *	frame to this station is transmitted.
  * @WLAN_STA_MFP: Management frame protection is used with this STA.
- * @WLAN_STA_SUSPEND: Set/cleared during a suspend/resume cycle.
- *	Used to deny ADDBA requests (both TX and RX).
+ * @WLAN_STA_BLOCK_BA: Used to deny ADDBA requests (both TX and RX)
+ *	during suspend/resume and station removal.
  * @WLAN_STA_PS_DRIVER: driver requires keeping this station in
  *	power-save mode logically to flush frames that might still
  *	be in the queues
@@ -57,7 +57,7 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_WDS		= 1<<7,
 	WLAN_STA_CLEAR_PS_FILT	= 1<<9,
 	WLAN_STA_MFP		= 1<<10,
-	WLAN_STA_SUSPEND	= 1<<11,
+	WLAN_STA_BLOCK_BA	= 1<<11,
 	WLAN_STA_PS_DRIVER	= 1<<12,
 	WLAN_STA_PSPOLL		= 1<<13,
 	WLAN_STA_DISASSOC       = 1<<14,
@@ -106,7 +106,6 @@ struct tid_ampdu_tx {
  * @buf_size: buffer size for incoming A-MPDUs
  * @timeout: reset timer value (in TUs).
  * @dialog_token: dialog token for aggregation session
- * @shutdown: this session is being shut down due to STA removal
  */
 struct tid_ampdu_rx {
 	struct sk_buff **reorder_buf;
@@ -118,7 +117,6 @@ struct tid_ampdu_rx {
 	u16 buf_size;
 	u16 timeout;
 	u8 dialog_token;
-	bool shutdown;
 };
 
 /**
@@ -147,7 +145,7 @@ enum plink_state {
 /**
  * struct sta_ampdu_mlme - STA aggregation information.
  *
- * @tid_state_rx: TID's state in Rx session state machine.
+ * @tid_active_rx: TID's state in Rx session state machine.
  * @tid_rx: aggregation info for Rx per TID
  * @tid_state_tx: TID's state in Tx session state machine.
  * @tid_tx: aggregation info for Tx per TID
@@ -156,7 +154,7 @@ enum plink_state {
  */
 struct sta_ampdu_mlme {
 	/* rx */
-	u8 tid_state_rx[STA_TID_NUM];
+	bool tid_active_rx[STA_TID_NUM];
 	struct tid_ampdu_rx *tid_rx[STA_TID_NUM];
 	/* tx */
 	u8 tid_state_tx[STA_TID_NUM];
@@ -200,7 +198,6 @@ struct sta_ampdu_mlme {
  * @rx_fragments: number of received MPDUs
  * @rx_dropped: number of dropped MPDUs from this STA
  * @last_signal: signal of last received frame from this STA
- * @last_noise: noise of last received frame from this STA
  * @last_seq_ctrl: last received seq/frag number from this STA (per RX queue)
  * @tx_filtered_count: number of frames the hardware filtered for this STA
  * @tx_retry_failed: number of frames that failed retry
@@ -267,7 +264,6 @@ struct sta_info {
 	unsigned long rx_fragments;
 	unsigned long rx_dropped;
 	int last_signal;
-	int last_noise;
 	__le16 last_seq_ctrl[NUM_RX_DATA_QUEUES];
 
 	/* Updated from TX status path only, no locking requirements */

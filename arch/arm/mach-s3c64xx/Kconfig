@@ -7,6 +7,7 @@
 config PLAT_S3C64XX
 	bool
 	depends on ARCH_S3C64XX
+	select SAMSUNG_WAKEMASK
 	default y
 	help
 	  Base platform code for any Samsung S3C64XX device
@@ -34,6 +35,11 @@ config S3C64XX_SETUP_SDHCI
 	help
 	  Internal configuration for default SDHCI setup for S3C6400 and
 	  S3C6410 SoCs.
+
+config S3C64XX_DEV_ONENAND1
+	bool
+	help
+	  Compile in platform device definition for OneNAND1 controller
 
 # platform specific device setup
 
@@ -85,12 +91,16 @@ config MACH_ANW6410
 config MACH_SMDK6410
 	bool "SMDK6410"
 	select CPU_S3C6410
+	select SAMSUNG_DEV_ADC
 	select S3C_DEV_HSMMC
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_I2C1
 	select S3C_DEV_FB
+	select SAMSUNG_DEV_TS
 	select S3C_DEV_USB_HOST
 	select S3C_DEV_USB_HSOTG
+	select S3C_DEV_WDT
+	select HAVE_S3C2410_WATCHDOG
 	select S3C64XX_SETUP_SDHCI
 	select S3C64XX_SETUP_I2C1
 	select S3C64XX_SETUP_FB_24BPP
@@ -178,3 +188,34 @@ config MACH_HMT
 	select HAVE_PWM
 	help
 	  Machine support for the Airgoo HMT
+
+config MACH_SMARTQ
+	bool
+	select CPU_S3C6410
+	select S3C_DEV_HSMMC
+	select S3C_DEV_HSMMC1
+	select S3C_DEV_HSMMC2
+	select S3C_DEV_FB
+	select S3C_DEV_HWMON
+	select S3C_DEV_RTC
+	select S3C_DEV_USB_HSOTG
+	select S3C_DEV_USB_HOST
+	select S3C64XX_SETUP_SDHCI
+	select S3C64XX_SETUP_FB_24BPP
+	select SAMSUNG_DEV_ADC
+	select SAMSUNG_DEV_TS
+	select HAVE_PWM
+	help
+	    Shared machine support for SmartQ 5/7
+
+config MACH_SMARTQ5
+	bool "SmartQ 5"
+	select MACH_SMARTQ
+	help
+	    Machine support for the SmartQ 5
+
+config MACH_SMARTQ7
+	bool "SmartQ 7"
+	select MACH_SMARTQ
+	help
+	    Machine support for the SmartQ 7

@@ -492,7 +492,8 @@ struct mlx4_en_priv {
 	struct mlx4_en_perf_stats pstats;
 	struct mlx4_en_pkt_stats pkstats;
 	struct mlx4_en_port_stats port_stats;
-	struct dev_mc_list *mc_list;
+	char *mc_addrs;
+	int mc_addrs_cnt;
 	struct mlx4_en_stat_out_mbox hw_stats;
 };
 

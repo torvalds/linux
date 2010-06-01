@@ -576,7 +576,7 @@ int garp_init_applicant(struct net_device *dev, struct garp_application *appl)
 	if (!app)
 		goto err2;
 
-	err = dev_mc_add(dev, appl->proto.group_address, ETH_ALEN, 0);
+	err = dev_mc_add(dev, appl->proto.group_address);
 	if (err < 0)
 		goto err3;
 
@@ -616,7 +616,7 @@ void garp_uninit_applicant(struct net_device *dev, struct garp_application *appl
 	garp_pdu_queue(app);
 	garp_queue_xmit(app);
 
-	dev_mc_delete(dev, appl->proto.group_address, ETH_ALEN, 0);
+	dev_mc_del(dev, appl->proto.group_address);
 	kfree(app);
 	garp_release_port(dev);
 }

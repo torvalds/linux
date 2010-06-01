@@ -20,6 +20,8 @@ Samsung-S3C24XX
 	- S3C24XX ARM Linux Overview
 Sharp-LH
 	- Linux on Sharp LH79524 and LH7A40X System On a Chip (SOC)
+SPEAr
+	- ST SPEAr platform Linux Overview
 VFP/
 	- Release notes for Linux Kernel Vector Floating Point support code
 empeg/

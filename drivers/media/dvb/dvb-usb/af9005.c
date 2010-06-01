@@ -1109,8 +1109,8 @@ static int __init af9005_usb_module_init(void)
 		return result;
 	}
 	rc_decode = symbol_request(af9005_rc_decode);
-	rc_keys = symbol_request(af9005_rc_keys);
-	rc_keys_size = symbol_request(af9005_rc_keys_size);
+	rc_keys = symbol_request(ir_codes_af9005_table);
+	rc_keys_size = symbol_request(ir_codes_af9005_table_size);
 	if (rc_decode == NULL || rc_keys == NULL || rc_keys_size == NULL) {
 		err("af9005_rc_decode function not found, disabling remote");
 		af9005_properties.rc_query = NULL;
@@ -1128,9 +1128,9 @@ static void __exit af9005_usb_module_exit(void)
 	if (rc_decode != NULL)
 		symbol_put(af9005_rc_decode);
 	if (rc_keys != NULL)
-		symbol_put(af9005_rc_keys);
+		symbol_put(ir_codes_af9005_table);
 	if (rc_keys_size != NULL)
-		symbol_put(af9005_rc_keys_size);
+		symbol_put(ir_codes_af9005_table_size);
 	/* deregister this driver from the USB subsystem */
 	usb_deregister(&af9005_usb_driver);
 }

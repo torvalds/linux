@@ -944,8 +944,13 @@ static int set_consumer_device_supply(struct regulator_dev *rdev,
 		has_dev = 0;
 
 	list_for_each_entry(node, &regulator_map_list, list) {
-		if (consumer_dev_name != node->dev_name)
+		if (node->dev_name && consumer_dev_name) {
+			if (strcmp(node->dev_name, consumer_dev_name) != 0)
+				continue;
+		} else if (node->dev_name || consumer_dev_name) {
 			continue;
+		}
+
 		if (strcmp(node->supply, supply) != 0)
 			continue;
 
@@ -976,29 +981,6 @@ static int set_consumer_device_supply(struct regulator_dev *rdev,
 	return 0;
 }
 
-static void unset_consumer_device_supply(struct regulator_dev *rdev,
-	const char *consumer_dev_name, struct device *consumer_dev)
-{
-	struct regulator_map *node, *n;
-
-	if (consumer_dev && !consumer_dev_name)
-		consumer_dev_name = dev_name(consumer_dev);
-
-	list_for_each_entry_safe(node, n, &regulator_map_list, list) {
-		if (rdev != node->regulator)
-			continue;
-
-		if (consumer_dev_name && node->dev_name &&
-		    strcmp(consumer_dev_name, node->dev_name))
-			continue;
-
-		list_del(&node->list);
-		kfree(node->dev_name);
-		kfree(node);
-		return;
-	}
-}
-
 static void unset_regulator_supplies(struct regulator_dev *rdev)
 {
 	struct regulator_map *node, *n;
@@ -1008,7 +990,6 @@ static void unset_regulator_supplies(struct regulator_dev *rdev)
 			list_del(&node->list);
 			kfree(node->dev_name);
 			kfree(node);
-			return;
 		}
 	}
 }
@@ -1540,7 +1521,7 @@ EXPORT_SYMBOL_GPL(regulator_count_voltages);
  * Context: can sleep
  *
  * Returns a voltage that can be passed to @regulator_set_voltage(),
- * zero if this selector code can't be used on this sytem, or a
+ * zero if this selector code can't be used on this system, or a
  * negative errno.
  */
 int regulator_list_voltage(struct regulator *regulator, unsigned selector)
@@ -1764,6 +1745,7 @@ int regulator_set_mode(struct regulator *regulator, unsigned int mode)
 {
 	struct regulator_dev *rdev = regulator->rdev;
 	int ret;
+	int regulator_curr_mode;
 
 	mutex_lock(&rdev->mutex);
 
@@ -1771,6 +1753,15 @@ int regulator_set_mode(struct regulator *regulator, unsigned int mode)
 	if (!rdev->desc->ops->set_mode) {
 		ret = -EINVAL;
 		goto out;
+	}
+
+	/* return if the same mode is requested */
+	if (rdev->desc->ops->get_mode) {
+		regulator_curr_mode = rdev->desc->ops->get_mode(rdev);
+		if (regulator_curr_mode == mode) {
+			ret = 0;
+			goto out;
+		}
 	}
 
 	/* constraints check */
@@ -2328,7 +2319,37 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 		goto scrub;
 
 	/* set supply regulator if it exists */
+	if (init_data->supply_regulator && init_data->supply_regulator_dev) {
+		dev_err(dev,
+			"Supply regulator specified by both name and dev\n");
+		goto scrub;
+	}
+
+	if (init_data->supply_regulator) {
+		struct regulator_dev *r;
+		int found = 0;
+
+		list_for_each_entry(r, &regulator_list, list) {
+			if (strcmp(rdev_get_name(r),
+				   init_data->supply_regulator) == 0) {
+				found = 1;
+				break;
+			}
+		}
+
+		if (!found) {
+			dev_err(dev, "Failed to find supply %s\n",
+				init_data->supply_regulator);
+			goto scrub;
+		}
+
+		ret = set_supply(rdev, r);
+		if (ret < 0)
+			goto scrub;
+	}
+
 	if (init_data->supply_regulator_dev) {
+		dev_warn(dev, "Uses supply_regulator_dev instead of regulator_supply\n");
 		ret = set_supply(rdev,
 			dev_get_drvdata(init_data->supply_regulator_dev));
 		if (ret < 0)
@@ -2341,19 +2362,17 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 			init_data->consumer_supplies[i].dev,
 			init_data->consumer_supplies[i].dev_name,
 			init_data->consumer_supplies[i].supply);
-		if (ret < 0) {
-			for (--i; i >= 0; i--)
-				unset_consumer_device_supply(rdev,
-				    init_data->consumer_supplies[i].dev_name,
-				    init_data->consumer_supplies[i].dev);
-			goto scrub;
-		}
+		if (ret < 0)
+			goto unset_supplies;
 	}
 
 	list_add(&rdev->list, &regulator_list);
 out:
 	mutex_unlock(&regulator_list_mutex);
 	return rdev;
+
+unset_supplies:
+	unset_regulator_supplies(rdev);
 
 scrub:
 	device_unregister(&rdev->dev);

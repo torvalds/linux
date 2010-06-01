@@ -49,12 +49,10 @@ available as calls back into the perf executable (see below).
 As an example, the following perf record command can be used to record
 all sched_wakeup events in the system:
 
- # perf record -c 1 -f -a -M -R -e sched:sched_wakeup
+ # perf record -a -e sched:sched_wakeup
 
 Traces meant to be processed using a script should be recorded with
-the above options: -c 1 says to sample every event, -a to enable
-system-wide collection, -M to multiplex the output, and -R to collect
-raw samples.
+the above option: -a to enable system-wide collection.
 
 The format file for the sched_wakep event defines the following fields
 (see /sys/kernel/debug/tracing/events/sched/sched_wakeup/format):

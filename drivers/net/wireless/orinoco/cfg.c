@@ -88,7 +88,9 @@ int orinoco_wiphy_register(struct wiphy *wiphy)
 
 	wiphy->rts_threshold = priv->rts_thresh;
 	if (!priv->has_mwo)
-		wiphy->frag_threshold = priv->frag_thresh;
+		wiphy->frag_threshold = priv->frag_thresh + 1;
+	wiphy->retry_short = priv->short_retry_limit;
+	wiphy->retry_long = priv->long_retry_limit;
 
 	return wiphy_register(wiphy);
 }
@@ -157,6 +159,7 @@ static int orinoco_scan(struct wiphy *wiphy, struct net_device *dev,
 }
 
 static int orinoco_set_channel(struct wiphy *wiphy,
+			struct net_device *netdev,
 			struct ieee80211_channel *chan,
 			enum nl80211_channel_type channel_type)
 {
@@ -187,7 +190,7 @@ static int orinoco_set_channel(struct wiphy *wiphy,
 	if (priv->iw_mode == NL80211_IFTYPE_MONITOR) {
 		/* Fast channel change - no commit if successful */
 		hermes_t *hw = &priv->hw;
-		err = hermes_docmd_wait(hw, HERMES_CMD_TEST |
+		err = hw->ops->cmd_wait(hw, HERMES_CMD_TEST |
 					    HERMES_TEST_SET_CHANNEL,
 					channel, NULL);
 	}
@@ -196,8 +199,92 @@ static int orinoco_set_channel(struct wiphy *wiphy,
 	return err;
 }
 
+static int orinoco_set_wiphy_params(struct wiphy *wiphy, u32 changed)
+{
+	struct orinoco_private *priv = wiphy_priv(wiphy);
+	int frag_value = -1;
+	int rts_value = -1;
+	int err = 0;
+
+	if (changed & WIPHY_PARAM_RETRY_SHORT) {
+		/* Setting short retry not supported */
+		err = -EINVAL;
+	}
+
+	if (changed & WIPHY_PARAM_RETRY_LONG) {
+		/* Setting long retry not supported */
+		err = -EINVAL;
+	}
+
+	if (changed & WIPHY_PARAM_FRAG_THRESHOLD) {
+		/* Set fragmentation */
+		if (priv->has_mwo) {
+			if (wiphy->frag_threshold < 0)
+				frag_value = 0;
+			else {
+				printk(KERN_WARNING "%s: Fixed fragmentation "
+				       "is not supported on this firmware. "
+				       "Using MWO robust instead.\n",
+				       priv->ndev->name);
+				frag_value = 1;
+			}
+		} else {
+			if (wiphy->frag_threshold < 0)
+				frag_value = 2346;
+			else if ((wiphy->frag_threshold < 257) ||
+				 (wiphy->frag_threshold > 2347))
+				err = -EINVAL;
+			else
+				/* cfg80211 value is 257-2347 (odd only)
+				 * orinoco rid has range 256-2346 (even only) */
+				frag_value = wiphy->frag_threshold & ~0x1;
+		}
+	}
+
+	if (changed & WIPHY_PARAM_RTS_THRESHOLD) {
+		/* Set RTS.
+		 *
+		 * Prism documentation suggests default of 2432,
+		 * and a range of 0-3000.
+		 *
+		 * Current implementation uses 2347 as the default and
+		 * the upper limit.
+		 */
+
+		if (wiphy->rts_threshold < 0)
+			rts_value = 2347;
+		else if (wiphy->rts_threshold > 2347)
+			err = -EINVAL;
+		else
+			rts_value = wiphy->rts_threshold;
+	}
+
+	if (!err) {
+		unsigned long flags;
+
+		if (orinoco_lock(priv, &flags) != 0)
+			return -EBUSY;
+
+		if (frag_value >= 0) {
+			if (priv->has_mwo)
+				priv->mwo_robust = frag_value;
+			else
+				priv->frag_thresh = frag_value;
+		}
+		if (rts_value >= 0)
+			priv->rts_thresh = rts_value;
+
+		err = orinoco_commit(priv);
+
+		orinoco_unlock(priv, &flags);
+	}
+
+	return err;
+}
+
 const struct cfg80211_ops orinoco_cfg_ops = {
 	.change_virtual_intf = orinoco_change_vif,
 	.set_channel = orinoco_set_channel,
 	.scan = orinoco_scan,
+	.set_wiphy_params = orinoco_set_wiphy_params,
 };

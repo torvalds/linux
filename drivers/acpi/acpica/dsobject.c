@@ -288,7 +288,7 @@ acpi_ds_build_internal_buffer_obj(struct acpi_walk_state *walk_state,
 	if (byte_list) {
 		if (byte_list->common.aml_opcode != AML_INT_BYTELIST_OP) {
 			ACPI_ERROR((AE_INFO,
-				    "Expecting bytelist, got AML opcode %X in op %p",
+				    "Expecting bytelist, found AML opcode 0x%X in op %p",
 				    byte_list->common.aml_opcode, byte_list));
 
 			acpi_ut_remove_reference(obj_desc);
@@ -511,7 +511,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		}
 
 		ACPI_INFO((AE_INFO,
-			   "Actual Package length (0x%X) is larger than NumElements field (0x%X), truncated\n",
+			   "Actual Package length (%u) is larger than NumElements field (%u), truncated\n",
 			   i, element_count));
 	} else if (i < element_count) {
 		/*
@@ -519,7 +519,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 		 * Note: this is not an error, the package is padded out with NULLs.
 		 */
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "Package List length (0x%X) smaller than NumElements count (0x%X), padded with null elements\n",
+				  "Package List length (%u) smaller than NumElements count (%u), padded with null elements\n",
 				  i, element_count));
 	}
 
@@ -701,7 +701,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			default:
 
 				ACPI_ERROR((AE_INFO,
-					    "Unknown constant opcode %X",
+					    "Unknown constant opcode 0x%X",
 					    opcode));
 				status = AE_AML_OPERAND_TYPE;
 				break;
@@ -717,7 +717,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			break;
 
 		default:
-			ACPI_ERROR((AE_INFO, "Unknown Integer type %X",
+			ACPI_ERROR((AE_INFO, "Unknown Integer type 0x%X",
 				    op_info->type));
 			status = AE_AML_OPERAND_TYPE;
 			break;
@@ -806,7 +806,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 			default:
 
 				ACPI_ERROR((AE_INFO,
-					    "Unimplemented reference type for AML opcode: %4.4X",
+					    "Unimplemented reference type for AML opcode: 0x%4.4X",
 					    opcode));
 				return_ACPI_STATUS(AE_AML_OPERAND_TYPE);
 			}
@@ -816,7 +816,7 @@ acpi_ds_init_object_from_op(struct acpi_walk_state *walk_state,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unimplemented data type: %X",
+		ACPI_ERROR((AE_INFO, "Unimplemented data type: 0x%X",
 			    obj_desc->common.type));
 
 		status = AE_AML_OPERAND_TYPE;

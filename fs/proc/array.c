@@ -81,7 +81,6 @@
 #include <linux/pid_namespace.h>
 #include <linux/ptrace.h>
 #include <linux/tracehook.h>
-#include <linux/swapops.h>
 
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -268,7 +267,7 @@ static inline void task_sig(struct seq_file *m, struct task_struct *p)
 		shpending = p->signal->shared_pending.signal;
 		blocked = p->blocked;
 		collect_sigign_sigcatch(p, &ignored, &caught);
-		num_threads = atomic_read(&p->signal->count);
+		num_threads = get_nr_threads(p);
 		rcu_read_lock();  /* FIXME: is this correct? */
 		qsize = atomic_read(&__task_cred(p)->user->sigpending);
 		rcu_read_unlock();
@@ -411,7 +410,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 			tty_nr = new_encode_dev(tty_devnum(sig->tty));
 		}
 
-		num_threads = atomic_read(&sig->count);
+		num_threads = get_nr_threads(task);
 		collect_sigign_sigcatch(task, &sigign, &sigcatch);
 
 		cmin_flt = sig->cmin_flt;
@@ -495,7 +494,7 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 		rsslim,
 		mm ? mm->start_code : 0,
 		mm ? mm->end_code : 0,
-		(permitted && mm) ? task->stack_start : 0,
+		(permitted && mm) ? mm->start_stack : 0,
 		esp,
 		eip,
 		/* The signal information here is obsolete.

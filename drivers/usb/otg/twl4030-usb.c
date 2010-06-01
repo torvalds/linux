@@ -33,6 +33,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/usb/otg.h>
+#include <linux/usb/ulpi.h>
 #include <linux/i2c/twl.h>
 #include <linux/regulator/consumer.h>
 #include <linux/err.h>
@@ -41,81 +42,7 @@
 
 /* Register defines */
 
-#define VENDOR_ID_LO			0x00
-#define VENDOR_ID_HI			0x01
-#define PRODUCT_ID_LO			0x02
-#define PRODUCT_ID_HI			0x03
-
-#define FUNC_CTRL			0x04
-#define FUNC_CTRL_SET			0x05
-#define FUNC_CTRL_CLR			0x06
-#define FUNC_CTRL_SUSPENDM		(1 << 6)
-#define FUNC_CTRL_RESET			(1 << 5)
-#define FUNC_CTRL_OPMODE_MASK		(3 << 3) /* bits 3 and 4 */
-#define FUNC_CTRL_OPMODE_NORMAL		(0 << 3)
-#define FUNC_CTRL_OPMODE_NONDRIVING	(1 << 3)
-#define FUNC_CTRL_OPMODE_DISABLE_BIT_NRZI	(2 << 3)
-#define FUNC_CTRL_TERMSELECT		(1 << 2)
-#define FUNC_CTRL_XCVRSELECT_MASK	(3 << 0) /* bits 0 and 1 */
-#define FUNC_CTRL_XCVRSELECT_HS		(0 << 0)
-#define FUNC_CTRL_XCVRSELECT_FS		(1 << 0)
-#define FUNC_CTRL_XCVRSELECT_LS		(2 << 0)
-#define FUNC_CTRL_XCVRSELECT_FS4LS	(3 << 0)
-
-#define IFC_CTRL			0x07
-#define IFC_CTRL_SET			0x08
-#define IFC_CTRL_CLR			0x09
-#define IFC_CTRL_INTERFACE_PROTECT_DISABLE	(1 << 7)
-#define IFC_CTRL_AUTORESUME		(1 << 4)
-#define IFC_CTRL_CLOCKSUSPENDM		(1 << 3)
-#define IFC_CTRL_CARKITMODE		(1 << 2)
-#define IFC_CTRL_FSLSSERIALMODE_3PIN	(1 << 1)
-
-#define TWL4030_OTG_CTRL		0x0A
-#define TWL4030_OTG_CTRL_SET		0x0B
-#define TWL4030_OTG_CTRL_CLR		0x0C
-#define TWL4030_OTG_CTRL_DRVVBUS	(1 << 5)
-#define TWL4030_OTG_CTRL_CHRGVBUS	(1 << 4)
-#define TWL4030_OTG_CTRL_DISCHRGVBUS	(1 << 3)
-#define TWL4030_OTG_CTRL_DMPULLDOWN	(1 << 2)
-#define TWL4030_OTG_CTRL_DPPULLDOWN	(1 << 1)
-#define TWL4030_OTG_CTRL_IDPULLUP	(1 << 0)
-
-#define USB_INT_EN_RISE			0x0D
-#define USB_INT_EN_RISE_SET		0x0E
-#define USB_INT_EN_RISE_CLR		0x0F
-#define USB_INT_EN_FALL			0x10
-#define USB_INT_EN_FALL_SET		0x11
-#define USB_INT_EN_FALL_CLR		0x12
-#define USB_INT_STS			0x13
-#define USB_INT_LATCH			0x14
-#define USB_INT_IDGND			(1 << 4)
-#define USB_INT_SESSEND			(1 << 3)
-#define USB_INT_SESSVALID		(1 << 2)
-#define USB_INT_VBUSVALID		(1 << 1)
-#define USB_INT_HOSTDISCONNECT		(1 << 0)
-
-#define CARKIT_CTRL			0x19
-#define CARKIT_CTRL_SET			0x1A
-#define CARKIT_CTRL_CLR			0x1B
-#define CARKIT_CTRL_MICEN		(1 << 6)
-#define CARKIT_CTRL_SPKRIGHTEN		(1 << 5)
-#define CARKIT_CTRL_SPKLEFTEN		(1 << 4)
-#define CARKIT_CTRL_RXDEN		(1 << 3)
-#define CARKIT_CTRL_TXDEN		(1 << 2)
-#define CARKIT_CTRL_IDGNDDRV		(1 << 1)
-#define CARKIT_CTRL_CARKITPWR		(1 << 0)
-#define CARKIT_PLS_CTRL			0x22
-#define CARKIT_PLS_CTRL_SET		0x23
-#define CARKIT_PLS_CTRL_CLR		0x24
-#define CARKIT_PLS_CTRL_SPKRRIGHT_BIASEN	(1 << 3)
-#define CARKIT_PLS_CTRL_SPKRLEFT_BIASEN	(1 << 2)
-#define CARKIT_PLS_CTRL_RXPLSEN		(1 << 1)
-#define CARKIT_PLS_CTRL_TXPLSEN		(1 << 0)
-
 #define MCPC_CTRL			0x30
-#define MCPC_CTRL_SET			0x31
-#define MCPC_CTRL_CLR			0x32
 #define MCPC_CTRL_RTSOL			(1 << 7)
 #define MCPC_CTRL_EXTSWR		(1 << 6)
 #define MCPC_CTRL_EXTSWC		(1 << 5)
@@ -125,8 +52,6 @@
 #define MCPC_CTRL_HS_UART		(1 << 0)
 
 #define MCPC_IO_CTRL			0x33
-#define MCPC_IO_CTRL_SET		0x34
-#define MCPC_IO_CTRL_CLR		0x35
 #define MCPC_IO_CTRL_MICBIASEN		(1 << 5)
 #define MCPC_IO_CTRL_CTS_NPU		(1 << 4)
 #define MCPC_IO_CTRL_RXD_PU		(1 << 3)
@@ -135,19 +60,13 @@
 #define MCPC_IO_CTRL_RTSTYP		(1 << 0)
 
 #define MCPC_CTRL2			0x36
-#define MCPC_CTRL2_SET			0x37
-#define MCPC_CTRL2_CLR			0x38
 #define MCPC_CTRL2_MCPC_CK_EN		(1 << 0)
 
 #define OTHER_FUNC_CTRL			0x80
-#define OTHER_FUNC_CTRL_SET		0x81
-#define OTHER_FUNC_CTRL_CLR		0x82
 #define OTHER_FUNC_CTRL_BDIS_ACON_EN	(1 << 4)
 #define OTHER_FUNC_CTRL_FIVEWIRE_MODE	(1 << 2)
 
 #define OTHER_IFC_CTRL			0x83
-#define OTHER_IFC_CTRL_SET		0x84
-#define OTHER_IFC_CTRL_CLR		0x85
 #define OTHER_IFC_CTRL_OE_INT_EN	(1 << 6)
 #define OTHER_IFC_CTRL_CEA2011_MODE	(1 << 5)
 #define OTHER_IFC_CTRL_FSLSSERIALMODE_4PIN	(1 << 4)
@@ -156,11 +75,7 @@
 #define OTHER_IFC_CTRL_ALT_INT_REROUTE	(1 << 0)
 
 #define OTHER_INT_EN_RISE		0x86
-#define OTHER_INT_EN_RISE_SET		0x87
-#define OTHER_INT_EN_RISE_CLR		0x88
 #define OTHER_INT_EN_FALL		0x89
-#define OTHER_INT_EN_FALL_SET		0x8A
-#define OTHER_INT_EN_FALL_CLR		0x8B
 #define OTHER_INT_STS			0x8C
 #define OTHER_INT_LATCH			0x8D
 #define OTHER_INT_VB_SESS_VLD		(1 << 7)
@@ -178,13 +93,9 @@
 #define ID_RES_GND			(1 << 0)
 
 #define POWER_CTRL			0xAC
-#define POWER_CTRL_SET			0xAD
-#define POWER_CTRL_CLR			0xAE
 #define POWER_CTRL_OTG_ENAB		(1 << 5)
 
 #define OTHER_IFC_CTRL2			0xAF
-#define OTHER_IFC_CTRL2_SET		0xB0
-#define OTHER_IFC_CTRL2_CLR		0xB1
 #define OTHER_IFC_CTRL2_ULPI_STP_LOW	(1 << 4)
 #define OTHER_IFC_CTRL2_ULPI_TXEN_POL	(1 << 3)
 #define OTHER_IFC_CTRL2_ULPI_4PIN_2430	(1 << 2)
@@ -193,14 +104,10 @@
 #define OTHER_IFC_CTRL2_USB_INT_OUTSEL_INT2N	(1 << 0)
 
 #define REG_CTRL_EN			0xB2
-#define REG_CTRL_EN_SET			0xB3
-#define REG_CTRL_EN_CLR			0xB4
 #define REG_CTRL_ERROR			0xB5
 #define ULPI_I2C_CONFLICT_INTEN		(1 << 0)
 
 #define OTHER_FUNC_CTRL2		0xB8
-#define OTHER_FUNC_CTRL2_SET		0xB9
-#define OTHER_FUNC_CTRL2_CLR		0xBA
 #define OTHER_FUNC_CTRL2_VBAT_TIMER_EN	(1 << 0)
 
 /* following registers do not have separate _clr and _set registers */
@@ -328,13 +235,13 @@ static inline int twl4030_usb_read(struct twl4030_usb *twl, u8 address)
 static inline int
 twl4030_usb_set_bits(struct twl4030_usb *twl, u8 reg, u8 bits)
 {
-	return twl4030_usb_write(twl, reg + 1, bits);
+	return twl4030_usb_write(twl, ULPI_SET(reg), bits);
 }
 
 static inline int
 twl4030_usb_clear_bits(struct twl4030_usb *twl, u8 reg, u8 bits)
 {
-	return twl4030_usb_write(twl, reg + 2, bits);
+	return twl4030_usb_write(twl, ULPI_CLR(reg), bits);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -393,11 +300,12 @@ static void twl4030_usb_set_mode(struct twl4030_usb *twl, int mode)
 
 	switch (mode) {
 	case T2_USB_MODE_ULPI:
-		twl4030_usb_clear_bits(twl, IFC_CTRL, IFC_CTRL_CARKITMODE);
+		twl4030_usb_clear_bits(twl, ULPI_IFC_CTRL,
+					ULPI_IFC_CTRL_CARKITMODE);
 		twl4030_usb_set_bits(twl, POWER_CTRL, POWER_CTRL_OTG_ENAB);
-		twl4030_usb_clear_bits(twl, FUNC_CTRL,
-					FUNC_CTRL_XCVRSELECT_MASK |
-					FUNC_CTRL_OPMODE_MASK);
+		twl4030_usb_clear_bits(twl, ULPI_FUNC_CTRL,
+					ULPI_FUNC_CTRL_XCVRSEL_MASK |
+					ULPI_FUNC_CTRL_OPMODE_MASK);
 		break;
 	case -1:
 		/* FIXME: power on defaults */

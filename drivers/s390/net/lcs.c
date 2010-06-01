@@ -1238,8 +1238,7 @@ lcs_set_mc_addresses(struct lcs_card *card, struct in_device *in4_dev)
 		ipm = lcs_check_addr_entry(card, im4, buf);
 		if (ipm != NULL)
 			continue;	/* Address already in list. */
-		ipm = (struct lcs_ipm_list *)
-			kzalloc(sizeof(struct lcs_ipm_list), GFP_ATOMIC);
+		ipm = kzalloc(sizeof(struct lcs_ipm_list), GFP_ATOMIC);
 		if (ipm == NULL) {
 			pr_info("Not enough memory to add"
 				" new multicast entry!\n");

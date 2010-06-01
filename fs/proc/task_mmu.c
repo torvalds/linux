@@ -247,25 +247,6 @@ static void show_map_vma(struct seq_file *m, struct vm_area_struct *vma)
 				} else if (vma->vm_start <= mm->start_stack &&
 					   vma->vm_end >= mm->start_stack) {
 					name = "[stack]";
-				} else {
-					unsigned long stack_start;
-					struct proc_maps_private *pmp;
-
-					pmp = m->private;
-					stack_start = pmp->task->stack_start;
-
-					if (vma->vm_start <= stack_start &&
-					    vma->vm_end >= stack_start) {
-						pad_len_spaces(m, len);
-						seq_printf(m,
-						 "[threadstack:%08lx]",
-#ifdef CONFIG_STACK_GROWSUP
-						 vma->vm_end - stack_start
-#else
-						 stack_start - vma->vm_start
-#endif
-						);
-					}
 				}
 			} else {
 				name = "[vdso]";
@@ -653,6 +634,7 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	return err;
 }
 
+#ifdef CONFIG_HUGETLB_PAGE
 static u64 huge_pte_to_pagemap_entry(pte_t pte, int offset)
 {
 	u64 pme = 0;
@@ -683,6 +665,7 @@ static int pagemap_hugetlb_range(pte_t *pte, unsigned long hmask,
 
 	return err;
 }
+#endif /* HUGETLB_PAGE */
 
 /*
  * /proc/pid/pagemap - an array mapping virtual pages to pfns
@@ -752,7 +735,9 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 
 	pagemap_walk.pmd_entry = pagemap_pte_range;
 	pagemap_walk.pte_hole = pagemap_pte_hole;
+#ifdef CONFIG_HUGETLB_PAGE
 	pagemap_walk.hugetlb_entry = pagemap_hugetlb_range;
+#endif
 	pagemap_walk.mm = mm;
 	pagemap_walk.private = &pm;
 

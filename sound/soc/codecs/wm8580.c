@@ -412,7 +412,7 @@ static int wm8580_set_dai_pll(struct snd_soc_dai *codec_dai, int pll_id,
 {
 	int offset;
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8580_priv *wm8580 = codec->private_data;
+	struct wm8580_priv *wm8580 = snd_soc_codec_get_drvdata(codec);
 	struct pll_state *state;
 	struct _pll_div pll_div;
 	unsigned int reg;
@@ -840,7 +840,7 @@ static int wm8580_register(struct wm8580_priv *wm8580,
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8580;
+	snd_soc_codec_set_drvdata(codec, wm8580);
 	codec->name = "WM8580";
 	codec->owner = THIS_MODULE;
 	codec->bias_level = SND_SOC_BIAS_OFF;

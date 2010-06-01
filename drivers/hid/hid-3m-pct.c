@@ -1,7 +1,7 @@
 /*
  *  HID driver for 3M PCT multitouch panels
  *
- *  Copyright (c) 2009 Stephane Chatty <chatty@enac.fr>
+ *  Copyright (c) 2009-2010 Stephane Chatty <chatty@enac.fr>
  *
  */
 
@@ -25,7 +25,7 @@ MODULE_LICENSE("GPL");
 #include "hid-ids.h"
 
 struct mmm_finger {
-	__s32 x, y;
+	__s32 x, y, w, h;
 	__u8 rank;
 	bool touch, valid;
 };
@@ -82,7 +82,18 @@ static int mmm_input_mapping(struct hid_device *hdev, struct hid_input *hi,
 			/* touchscreen emulation */
 			hid_map_usage(hi, usage, bit, max, EV_KEY, BTN_TOUCH);
 			return 1;
+		case HID_DG_WIDTH:
+			hid_map_usage(hi, usage, bit, max,
+					EV_ABS, ABS_MT_TOUCH_MAJOR);
+			return 1;
+		case HID_DG_HEIGHT:
+			hid_map_usage(hi, usage, bit, max,
+					EV_ABS, ABS_MT_TOUCH_MINOR);
+			input_set_abs_params(hi->input, ABS_MT_ORIENTATION,
+					1, 1, 0, 0);
+			return 1;
 		case HID_DG_CONTACTID:
+			field->logical_maximum = 59;
 			hid_map_usage(hi, usage, bit, max,
 					EV_ABS, ABS_MT_TRACKING_ID);
 			return 1;
@@ -128,9 +139,15 @@ static void mmm_filter_event(struct mmm_data *md, struct input_dev *input)
 			/* this finger is just placeholder data, ignore */
 		} else if (f->touch) {
 			/* this finger is on the screen */
+			int wide = (f->w > f->h);
 			input_event(input, EV_ABS, ABS_MT_TRACKING_ID, i);
 			input_event(input, EV_ABS, ABS_MT_POSITION_X, f->x);
 			input_event(input, EV_ABS, ABS_MT_POSITION_Y, f->y);
+			input_event(input, EV_ABS, ABS_MT_ORIENTATION, wide);
+			input_event(input, EV_ABS, ABS_MT_TOUCH_MAJOR,
+						wide ? f->w : f->h);
+			input_event(input, EV_ABS, ABS_MT_TOUCH_MINOR,
+						wide ? f->h : f->w);
 			input_mt_sync(input);
 			/*
 			 * touchscreen emulation: maintain the age rank
@@ -197,6 +214,14 @@ static int mmm_event(struct hid_device *hid, struct hid_field *field,
 		case HID_DG_CONFIDENCE:
 			md->valid = value;
 			break;
+		case HID_DG_WIDTH:
+			if (md->valid)
+				md->f[md->curid].w = value;
+			break;
+		case HID_DG_HEIGHT:
+			if (md->valid)
+				md->f[md->curid].h = value;
+			break;
 		case HID_DG_CONTACTID:
 			if (md->valid) {
 				md->curid = value;
@@ -255,6 +280,7 @@ static void mmm_remove(struct hid_device *hdev)
 
 static const struct hid_device_id mmm_devices[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_3M, USB_DEVICE_ID_3M1968) },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_3M, USB_DEVICE_ID_3M2256) },
 	{ }
 };
 MODULE_DEVICE_TABLE(hid, mmm_devices);
@@ -287,5 +313,4 @@ static void __exit mmm_exit(void)
 
 module_init(mmm_init);
 module_exit(mmm_exit);
-MODULE_LICENSE("GPL");
 

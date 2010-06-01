@@ -67,7 +67,6 @@ MODULE_LICENSE("GPL");
 
 typedef struct dtl1_info_t {
 	struct pcmcia_device *p_dev;
-	dev_node_t node;
 
 	struct hci_dev *hdev;
 
@@ -575,9 +574,6 @@ static int dtl1_probe(struct pcmcia_device *link)
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	link->io.NumPorts1 = 8;
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-
-	link->irq.Handler = dtl1_interrupt;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
@@ -621,9 +617,9 @@ static int dtl1_config(struct pcmcia_device *link)
 	if (pcmcia_loop_config(link, dtl1_confcheck, NULL) < 0)
 		goto failed;
 
-	i = pcmcia_request_irq(link, &link->irq);
+	i = pcmcia_request_irq(link, dtl1_interrupt);
 	if (i != 0)
-		link->irq.AssignedIRQ = 0;
+		goto failed;
 
 	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != 0)
@@ -631,9 +627,6 @@ static int dtl1_config(struct pcmcia_device *link)
 
 	if (dtl1_open(info) != 0)
 		goto failed;
-
-	strcpy(info->node.dev_name, info->hdev->name);
-	link->dev_node = &info->node;
 
 	return 0;
 

@@ -93,10 +93,9 @@ static int dm_write(struct usbnet *dev, u8 reg, u16 length, void *data)
 	netdev_dbg(dev->net, "dm_write() reg=0x%02x, length=%d\n", reg, length);
 
 	if (data) {
-		buf = kmalloc(length, GFP_KERNEL);
+		buf = kmemdup(data, length, GFP_KERNEL);
 		if (!buf)
 			goto out;
-		memcpy(buf, data, length);
 	}
 
 	err = usb_control_msg(dev->udev,
@@ -387,10 +386,10 @@ static void dm9601_set_multicast(struct net_device *net)
 		   netdev_mc_count(net) > DM_MAX_MCAST) {
 		rx_ctl |= 0x04;
 	} else if (!netdev_mc_empty(net)) {
-		struct dev_mc_list *mc_list;
+		struct netdev_hw_addr *ha;
 
-		netdev_for_each_mc_addr(mc_list, net) {
-			u32 crc = ether_crc(ETH_ALEN, mc_list->dmi_addr) >> 26;
+		netdev_for_each_mc_addr(ha, net) {
+			u32 crc = ether_crc(ETH_ALEN, ha->addr) >> 26;
 			hashes[crc >> 3] |= 1 << (crc & 0x7);
 		}
 	}

@@ -459,11 +459,6 @@ extern void (*_machine_power_off)(void);
 
 #define arch_align_stack(x) (x)
 
-#ifdef CONFIG_TRACE_IRQFLAGS
-extern psw_t sysc_restore_trace_psw;
-extern psw_t io_restore_trace_psw;
-#endif
-
 static inline int tprot(unsigned long addr)
 {
 	int rc = -EFAULT;

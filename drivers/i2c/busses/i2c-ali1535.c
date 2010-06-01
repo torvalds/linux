@@ -60,7 +60,7 @@
 #include <linux/i2c.h>
 #include <linux/init.h>
 #include <linux/acpi.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 
 /* ALI1535 SMBus address offsets */

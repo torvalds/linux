@@ -189,7 +189,7 @@ static __inline__ void atomic_set(atomic_t *v, int i)
 
 static __inline__ int atomic_read(const atomic_t *v)
 {
-	return v->counter;
+	return (*(volatile int *)&(v)->counter);
 }
 
 /* exported interface */
@@ -286,7 +286,7 @@ atomic64_set(atomic64_t *v, s64 i)
 static __inline__ s64
 atomic64_read(const atomic64_t *v)
 {
-	return v->counter;
+	return (*(volatile long *)&(v)->counter);
 }
 
 #define atomic64_add(i,v)	((void)(__atomic64_add_return( ((s64)(i)),(v))))

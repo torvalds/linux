@@ -613,7 +613,7 @@ static int wm8904_reset(struct snd_soc_codec *codec)
 
 static int wm8904_configure_clocking(struct snd_soc_codec *codec)
 {
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	unsigned int clock0, clock2, rate;
 
 	/* Gate the clock while we're updating to avoid misclocking */
@@ -669,7 +669,7 @@ static int wm8904_configure_clocking(struct snd_soc_codec *codec)
 
 static void wm8904_set_drc(struct snd_soc_codec *codec)
 {
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	struct wm8904_pdata *pdata = wm8904->pdata;
 	int save, i;
 
@@ -689,7 +689,7 @@ static int wm8904_put_drc_enum(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8904_priv *wm8904 = codec->private_data;	
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);	
 	struct wm8904_pdata *pdata = wm8904->pdata;
 	int value = ucontrol->value.integer.value[0];
 
@@ -707,7 +707,7 @@ static int wm8904_get_drc_enum(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.enumerated.item[0] = wm8904->drc_cfg;
 
@@ -716,7 +716,7 @@ static int wm8904_get_drc_enum(struct snd_kcontrol *kcontrol,
 
 static void wm8904_set_retune_mobile(struct snd_soc_codec *codec)
 {
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	struct wm8904_pdata *pdata = wm8904->pdata;
 	int best, best_val, save, i, cfg;
 
@@ -760,7 +760,7 @@ static int wm8904_put_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8904_priv *wm8904 = codec->private_data;	
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);	
 	struct wm8904_pdata *pdata = wm8904->pdata;
 	int value = ucontrol->value.integer.value[0];
 
@@ -778,7 +778,7 @@ static int wm8904_get_retune_mobile_enum(struct snd_kcontrol *kcontrol,
 					 struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 
 	ucontrol->value.enumerated.item[0] = wm8904->retune_mobile_cfg;
 
@@ -789,7 +789,7 @@ static int deemph_settings[] = { 0, 32000, 44100, 48000 };
 
 static int wm8904_set_deemph(struct snd_soc_codec *codec)
 {
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	int val, i, best;
 
 	/* If we're using deemphasis select the nearest available sample 
@@ -818,7 +818,7 @@ static int wm8904_get_deemph(struct snd_kcontrol *kcontrol,
 			     struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 
 	return wm8904->deemph;
 }
@@ -827,7 +827,7 @@ static int wm8904_put_deemph(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	int deemph = ucontrol->value.enumerated.item[0];
 
 	if (deemph > 1)
@@ -943,7 +943,7 @@ static int sysclk_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -981,7 +981,7 @@ static int out_pga_event(struct snd_soc_dapm_widget *w,
 			 struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = w->codec;
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	int reg, val;
 	int dcs_mask;
 	int dcs_l, dcs_r;
@@ -1429,7 +1429,7 @@ static const struct snd_soc_dapm_route wm8912_intercon[] = {
 
 static int wm8904_add_widgets(struct snd_soc_codec *codec)
 {
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 
 	snd_soc_dapm_new_controls(codec, wm8904_core_dapm_widgets,
 				  ARRAY_SIZE(wm8904_core_dapm_widgets));
@@ -1543,7 +1543,7 @@ static int wm8904_hw_params(struct snd_pcm_substream *substream,
 			    struct snd_soc_dai *dai)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	int ret, i, best, best_val, cur_val;
 	unsigned int aif1 = 0;
 	unsigned int aif2 = 0;
@@ -1670,7 +1670,7 @@ static int wm8904_set_sysclk(struct snd_soc_dai *dai, int clk_id,
 			     unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8904_priv *priv = codec->private_data;
+	struct wm8904_priv *priv = snd_soc_codec_get_drvdata(codec);
 
 	switch (clk_id) {
 	case WM8904_CLK_MCLK:
@@ -1786,7 +1786,7 @@ static int wm8904_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 			       unsigned int rx_mask, int slots, int slot_width)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	int aif1 = 0;
 
 	/* Don't need to validate anything if we're turning off TDM */
@@ -1943,7 +1943,7 @@ static int wm8904_set_fll(struct snd_soc_dai *dai, int fll_id, int source,
 			  unsigned int Fref, unsigned int Fout)
 {
 	struct snd_soc_codec *codec = dai->codec;
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	struct _fll_div fll_div;
 	int ret, val;
 	int clock2, fll1;
@@ -2095,7 +2095,7 @@ static int wm8904_digital_mute(struct snd_soc_dai *codec_dai, int mute)
 
 static void wm8904_sync_cache(struct snd_soc_codec *codec)
 {
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	int i;
 
 	if (!codec->cache_sync)
@@ -2122,7 +2122,7 @@ static void wm8904_sync_cache(struct snd_soc_codec *codec)
 static int wm8904_set_bias_level(struct snd_soc_codec *codec,
 				 enum snd_soc_bias_level level)
 {
-	struct wm8904_priv *wm8904 = codec->private_data;
+	struct wm8904_priv *wm8904 = snd_soc_codec_get_drvdata(codec);
 	int ret;
 
 	switch (level) {
@@ -2395,7 +2395,7 @@ static int wm8904_probe(struct platform_device *pdev)
 		goto pcm_err;
 	}
 
-	wm8904_handle_pdata(codec->private_data);
+	wm8904_handle_pdata(snd_soc_codec_get_drvdata(codec));
 
 	wm8904_add_widgets(codec);
 
@@ -2426,6 +2426,7 @@ EXPORT_SYMBOL_GPL(soc_codec_dev_wm8904);
 static int wm8904_register(struct wm8904_priv *wm8904,
 			   enum snd_soc_control_type control)
 {
+	struct wm8904_pdata *pdata = wm8904->pdata;
 	int ret;
 	struct snd_soc_codec *codec = &wm8904->codec;
 	int i;
@@ -2439,7 +2440,7 @@ static int wm8904_register(struct wm8904_priv *wm8904,
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8904;
+	snd_soc_codec_set_drvdata(codec, wm8904);
 	codec->name = "WM8904";
 	codec->owner = THIS_MODULE;
 	codec->bias_level = SND_SOC_BIAS_OFF;
@@ -2530,6 +2531,22 @@ static int wm8904_register(struct wm8904_priv *wm8904,
 	wm8904->reg_cache[WM8904_ANALOGUE_OUT2_RIGHT] |= WM8904_LINEOUT_VU |
 		WM8904_LINEOUTRZC;
 	wm8904->reg_cache[WM8904_CLOCK_RATES_0] &= ~WM8904_SR_MODE;
+
+	/* Apply configuration from the platform data. */
+	if (wm8904->pdata) {
+		for (i = 0; i < WM8904_GPIO_REGS; i++) {
+			if (!pdata->gpio_cfg[i])
+				continue;
+
+			wm8904->reg_cache[WM8904_GPIO_CONTROL_1 + i]
+				= pdata->gpio_cfg[i] & 0xffff;
+		}
+
+		/* Zero is the default value for these anyway */
+		for (i = 0; i < WM8904_MIC_REGS; i++)
+			wm8904->reg_cache[WM8904_MIC_BIAS_CONTROL_0 + i]
+				= pdata->mic_cfg[i];
+	}
 
 	/* Set Class W by default - this will be managed by the Class
 	 * G widget at runtime where bypass paths are available.

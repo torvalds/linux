@@ -30,6 +30,13 @@ config MTD_ONENAND_OMAP2
 	  Support for a OneNAND flash device connected to an OMAP2/OMAP3 CPU
 	  via the GPMC memory controller.
 
+config MTD_ONENAND_SAMSUNG
+        tristate "OneNAND on Samsung SOC controller support"
+        depends on MTD_ONENAND && (ARCH_S3C64XX || ARCH_S5PC100 || ARCH_S5PV210)
+        help
+          Support for a OneNAND flash device connected to an Samsung SOC
+          S3C64XX/S5PC1XX controller.
+
 config MTD_ONENAND_OTP
 	bool "OneNAND OTP Support"
 	select HAVE_MTD_OTP

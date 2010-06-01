@@ -341,6 +341,8 @@ int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
 	unsigned long flags, pmb_flags;
 	int i, mapped;
 
+	if (size < SZ_16M)
+		return -EINVAL;
 	if (!pmb_addr_valid(vaddr, size))
 		return -EFAULT;
 	if (pmb_mapping_exists(vaddr, phys, size))
@@ -680,7 +682,7 @@ static void __init pmb_merge(struct pmb_entry *head)
 	/*
 	 * The merged page size must be valid.
 	 */
-	if (!pmb_size_valid(newsize))
+	if (!depth || !pmb_size_valid(newsize))
 		return;
 
 	head->flags &= ~PMB_SZ_MASK;

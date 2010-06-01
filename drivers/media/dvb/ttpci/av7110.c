@@ -708,7 +708,7 @@ static void gpioirq(unsigned long cookie)
 
 
 #ifdef CONFIG_DVB_AV7110_OSD
-static int dvb_osd_ioctl(struct inode *inode, struct file *file,
+static int dvb_osd_ioctl(struct file *file,
 			 unsigned int cmd, void *parg)
 {
 	struct dvb_device *dvbdev = file->private_data;
@@ -727,7 +727,7 @@ static int dvb_osd_ioctl(struct inode *inode, struct file *file,
 
 static const struct file_operations dvb_osd_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= dvb_generic_ioctl,
+	.unlocked_ioctl	= dvb_generic_ioctl,
 	.open		= dvb_generic_open,
 	.release	= dvb_generic_release,
 };

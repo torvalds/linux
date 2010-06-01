@@ -130,8 +130,8 @@ static struct platform_device pandora_keys_gpio = {
 static void __init pandora_keys_gpio_init(void)
 {
 	/* set debounce time for GPIO banks 4 and 6 */
-	omap_set_gpio_debounce_time(32 * 3, GPIO_DEBOUNCE_TIME);
-	omap_set_gpio_debounce_time(32 * 5, GPIO_DEBOUNCE_TIME);
+	gpio_set_debounce(32 * 3, GPIO_DEBOUNCE_TIME);
+	gpio_set_debounce(32 * 5, GPIO_DEBOUNCE_TIME);
 }
 
 static int board_keymap[] = {

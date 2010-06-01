@@ -2994,7 +2994,6 @@ static void cgroup_event_remove(struct work_struct *work)
 			remove);
 	struct cgroup *cgrp = event->cgrp;
 
-	/* TODO: check return code */
 	event->cft->unregister_event(cgrp, event->cft, event->eventfd);
 
 	eventfd_ctx_put(event->eventfd);
@@ -3016,7 +3015,7 @@ static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
 	unsigned long flags = (unsigned long)key;
 
 	if (flags & POLLHUP) {
-		remove_wait_queue_locked(event->wqh, &event->wait);
+		__remove_wait_queue(event->wqh, &event->wait);
 		spin_lock(&cgrp->event_list_lock);
 		list_del(&event->list);
 		spin_unlock(&cgrp->event_list_lock);
@@ -3615,7 +3614,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
  * @ss: the subsystem to load
  *
  * This function should be called in a modular subsystem's initcall. If the
- * subsytem is built as a module, it will be assigned a new subsys_id and set
+ * subsystem is built as a module, it will be assigned a new subsys_id and set
  * up for use. If the subsystem is built-in anyway, work is delegated to the
  * simpler cgroup_init_subsys.
  */
@@ -4435,7 +4434,15 @@ __setup("cgroup_disable=", cgroup_disable);
  */
 unsigned short css_id(struct cgroup_subsys_state *css)
 {
-	struct css_id *cssid = rcu_dereference(css->id);
+	struct css_id *cssid;
+
+	/*
+	 * This css_id() can return correct value when somone has refcnt
+	 * on this or this is under rcu_read_lock(). Once css->id is allocated,
+	 * it's unchanged until freed.
+	 */
+	cssid = rcu_dereference_check(css->id,
+			rcu_read_lock_held() || atomic_read(&css->refcnt));
 
 	if (cssid)
 		return cssid->id;
@@ -4445,7 +4452,10 @@ EXPORT_SYMBOL_GPL(css_id);
 
 unsigned short css_depth(struct cgroup_subsys_state *css)
 {
-	struct css_id *cssid = rcu_dereference(css->id);
+	struct css_id *cssid;
+
+	cssid = rcu_dereference_check(css->id,
+			rcu_read_lock_held() || atomic_read(&css->refcnt));
 
 	if (cssid)
 		return cssid->depth;
@@ -4453,15 +4463,36 @@ unsigned short css_depth(struct cgroup_subsys_state *css)
 }
 EXPORT_SYMBOL_GPL(css_depth);
 
+/**
+ *  css_is_ancestor - test "root" css is an ancestor of "child"
+ * @child: the css to be tested.
+ * @root: the css supporsed to be an ancestor of the child.
+ *
+ * Returns true if "root" is an ancestor of "child" in its hierarchy. Because
+ * this function reads css->id, this use rcu_dereference() and rcu_read_lock().
+ * But, considering usual usage, the csses should be valid objects after test.
+ * Assuming that the caller will do some action to the child if this returns
+ * returns true, the caller must take "child";s reference count.
+ * If "child" is valid object and this returns true, "root" is valid, too.
+ */
+
 bool css_is_ancestor(struct cgroup_subsys_state *child,
 		    const struct cgroup_subsys_state *root)
 {
-	struct css_id *child_id = rcu_dereference(child->id);
-	struct css_id *root_id = rcu_dereference(root->id);
+	struct css_id *child_id;
+	struct css_id *root_id;
+	bool ret = true;
 
-	if (!child_id || !root_id || (child_id->depth < root_id->depth))
-		return false;
-	return child_id->stack[root_id->depth] == root_id->id;
+	rcu_read_lock();
+	child_id  = rcu_dereference(child->id);
+	root_id = rcu_dereference(root->id);
+	if (!child_id
+	    || !root_id
+	    || (child_id->depth < root_id->depth)
+	    || (child_id->stack[root_id->depth] != root_id->id))
+		ret = false;
+	rcu_read_unlock();
+	return ret;
 }
 
 static void __free_css_id_cb(struct rcu_head *head)

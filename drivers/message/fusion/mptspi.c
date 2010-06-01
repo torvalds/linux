@@ -210,6 +210,10 @@ mptspi_setTargetNegoParms(MPT_SCSI_HOST *hd, VirtTarget *target,
 	target->maxOffset = offset;
 	target->maxWidth = width;
 
+	spi_min_period(scsi_target(sdev)) = factor;
+	spi_max_offset(scsi_target(sdev)) = offset;
+	spi_max_width(scsi_target(sdev)) = width;
+
 	target->tflags |= MPT_TARGET_FLAGS_VALID_NEGO;
 
 	/* Disable unused features.
@@ -558,6 +562,7 @@ static int mptspi_read_spi_device_pg0(struct scsi_target *starget,
 	cfg.action = MPI_CONFIG_ACTION_PAGE_READ_CURRENT;
 	cfg.dir = 0;
 	cfg.pageAddr = starget->id;
+	cfg.timeout = 60;
 
 	if (mpt_config(ioc, &cfg)) {
 		starget_printk(KERN_ERR, starget, MYIOC_s_FMT "mpt_config failed\n", ioc->name);
@@ -1152,6 +1157,9 @@ mptspi_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	u8 event = le32_to_cpu(pEvReply->Event) & 0xFF;
 	struct _MPT_SCSI_HOST *hd = shost_priv(ioc->sh);
 
+	if (ioc->bus_type != SPI)
+		return 0;
+
 	if (hd && event ==  MPI_EVENT_INTEGRATED_RAID) {
 		int reason
 			= (le32_to_cpu(pEvReply->Data[0]) & 0x00FF0000) >> 16;
@@ -1283,6 +1291,8 @@ mptspi_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 	int rc;
 
 	rc = mptscsih_ioc_reset(ioc, reset_phase);
+	if ((ioc->bus_type != SPI) || (!rc))
+		return rc;
 
 	/* only try to do a renegotiation if we're properly set up
 	 * if we get an ioc fault on bringup, ioc->sh will be NULL */

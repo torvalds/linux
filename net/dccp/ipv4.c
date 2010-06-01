@@ -349,7 +349,7 @@ static inline __sum16 dccp_v4_csum_finish(struct sk_buff *skb,
 	return csum_tcpudp_magic(src, dst, skb->len, IPPROTO_DCCP, skb->csum);
 }
 
-void dccp_v4_send_check(struct sock *sk, int unused, struct sk_buff *skb)
+void dccp_v4_send_check(struct sock *sk, struct sk_buff *skb)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 	struct dccp_hdr *dh = dccp_hdr(skb);

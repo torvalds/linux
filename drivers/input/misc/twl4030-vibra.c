@@ -90,8 +90,8 @@ static void vibra_disable(struct vibra_info *info)
 	twl_i2c_write_u8(TWL4030_MODULE_AUDIO_VOICE,
 			 (reg & ~TWL4030_VIBRA_EN), TWL4030_REG_VIBRA_CTL);
 
-	twl4030_codec_disable_resource(TWL4030_CODEC_RES_POWER);
 	twl4030_codec_disable_resource(TWL4030_CODEC_RES_APLL);
+	twl4030_codec_disable_resource(TWL4030_CODEC_RES_POWER);
 
 	info->enabled = false;
 }

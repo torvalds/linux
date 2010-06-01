@@ -128,12 +128,24 @@ static __inline__ u32 fib6_new_sernum(void)
 /*
  *	test bit
  */
+#if defined(__LITTLE_ENDIAN)
+# define BITOP_BE32_SWIZZLE	(0x1F & ~7)
+#else
+# define BITOP_BE32_SWIZZLE	0
+#endif
 
 static __inline__ __be32 addr_bit_set(void *token, int fn_bit)
 {
 	__be32 *addr = token;
-
-	return htonl(1 << ((~fn_bit)&0x1F)) & addr[fn_bit>>5];
+	/*
+	 * Here,
+	 * 	1 << ((~fn_bit ^ BITOP_BE32_SWIZZLE) & 0x1f)
+	 * is optimized version of
+	 *	htonl(1 << ((~fn_bit)&0x1F))
+	 * See include/asm-generic/bitops/le.h.
+	 */
+	return (__force __be32)(1 << ((~fn_bit ^ BITOP_BE32_SWIZZLE) & 0x1f)) &
+	       addr[fn_bit >> 5];
 }
 
 static __inline__ struct fib6_node * node_alloc(void)

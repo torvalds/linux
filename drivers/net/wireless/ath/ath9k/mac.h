@@ -37,6 +37,8 @@
 	  AR_2040_##_index : 0)						\
 	 |((_series)[_index].RateFlags & ATH9K_RATESERIES_HALFGI ?	\
 	   AR_GI##_index : 0)						\
+	 |((_series)[_index].RateFlags & ATH9K_RATESERIES_STBC ?	\
+	   AR_STBC##_index : 0)						\
 	 |SM((_series)[_index].ChSel, AR_ChainSel##_index))
 
 #define CCK_SIFS_TIME        10
@@ -86,7 +88,6 @@
 #define ATH9K_TX_DESC_CFG_ERR      0x04
 #define ATH9K_TX_DATA_UNDERRUN     0x08
 #define ATH9K_TX_DELIM_UNDERRUN    0x10
-#define ATH9K_TX_SW_ABORTED        0x40
 #define ATH9K_TX_SW_FILTERED       0x80
 
 /* 64 bytes */
@@ -117,7 +118,10 @@ struct ath_tx_status {
 	int8_t ts_rssi_ext0;
 	int8_t ts_rssi_ext1;
 	int8_t ts_rssi_ext2;
-	u8 pad[3];
+	u8 qid;
+	u16 desc_id;
+	u8 tid;
+	u8 pad[2];
 	u32 ba_low;
 	u32 ba_high;
 	u32 evm0;
@@ -148,6 +152,34 @@ struct ath_rx_status {
 	u32 evm0;
 	u32 evm1;
 	u32 evm2;
+	u32 evm3;
+	u32 evm4;
+};
+
+struct ath_htc_rx_status {
+	__be64 rs_tstamp;
+	__be16 rs_datalen;
+	u8 rs_status;
+	u8 rs_phyerr;
+	int8_t rs_rssi;
+	int8_t rs_rssi_ctl0;
+	int8_t rs_rssi_ctl1;
+	int8_t rs_rssi_ctl2;
+	int8_t rs_rssi_ext0;
+	int8_t rs_rssi_ext1;
+	int8_t rs_rssi_ext2;
+	u8 rs_keyix;
+	u8 rs_rate;
+	u8 rs_antenna;
+	u8 rs_more;
+	u8 rs_isaggr;
+	u8 rs_moreaggr;
+	u8 rs_num_delims;
+	u8 rs_flags;
+	u8 rs_dummy;
+	__be32 evm0;
+	__be32 evm1;
+	__be32 evm2;
 };
 
 #define ATH9K_RXERR_CRC           0x01
@@ -207,17 +239,8 @@ struct ath_desc {
 	u32 ds_ctl0;
 	u32 ds_ctl1;
 	u32 ds_hw[20];
-	union {
-		struct ath_tx_status tx;
-		struct ath_rx_status rx;
-		void *stats;
-	} ds_us;
 	void *ds_vdata;
 } __packed;
-
-#define	ds_txstat	ds_us.tx
-#define	ds_rxstat	ds_us.rx
-#define ds_stat		ds_us.stats
 
 #define ATH9K_TXDESC_CLRDMASK		0x0001
 #define ATH9K_TXDESC_NOACK		0x0002
@@ -242,7 +265,8 @@ struct ath_desc {
 #define ATH9K_TXDESC_EXT_AND_CTL	0x0080
 #define ATH9K_TXDESC_VMF		0x0100
 #define ATH9K_TXDESC_FRAG_IS_ON 	0x0200
-#define ATH9K_TXDESC_CAB		0x0400
+#define ATH9K_TXDESC_LOWRXCHAIN		0x0400
+#define ATH9K_TXDESC_LDPC		0x00010000
 
 #define ATH9K_RXDESC_INTREQ		0x0020
 
@@ -336,7 +360,6 @@ struct ar5416_desc {
 #define AR_DestIdxValid     0x40000000
 #define AR_CTSEnable        0x80000000
 
-#define AR_BufLen           0x00000fff
 #define AR_TxMore           0x00001000
 #define AR_DestIdx          0x000fe000
 #define AR_DestIdx_S        13
@@ -393,6 +416,7 @@ struct ar5416_desc {
 #define AR_EncrType         0x0c000000
 #define AR_EncrType_S       26
 #define AR_TxCtlRsvd61      0xf0000000
+#define AR_LDPC             0x80000000
 
 #define AR_2040_0           0x00000001
 #define AR_GI0              0x00000002
@@ -412,7 +436,10 @@ struct ar5416_desc {
 #define AR_ChainSel3_S      17
 #define AR_RTSCTSRate       0x0ff00000
 #define AR_RTSCTSRate_S     20
-#define AR_TxCtlRsvd70      0xf0000000
+#define AR_STBC0            0x10000000
+#define AR_STBC1            0x20000000
+#define AR_STBC2            0x40000000
+#define AR_STBC3            0x80000000
 
 #define AR_TxRSSIAnt00      0x000000ff
 #define AR_TxRSSIAnt00_S    0
@@ -476,7 +503,6 @@ struct ar5416_desc {
 
 #define AR_RxCTLRsvd00  0xffffffff
 
-#define AR_BufLen       0x00000fff
 #define AR_RxCtlRsvd00  0x00001000
 #define AR_RxIntrReq    0x00002000
 #define AR_RxCtlRsvd01  0xffffc000
@@ -626,6 +652,7 @@ enum ath9k_rx_filter {
 #define ATH9K_RATESERIES_RTS_CTS  0x0001
 #define ATH9K_RATESERIES_2040     0x0002
 #define ATH9K_RATESERIES_HALFGI   0x0004
+#define ATH9K_RATESERIES_STBC     0x0008
 
 struct ath9k_11n_rate_series {
 	u32 Tries;
@@ -669,33 +696,10 @@ struct ath9k_channel;
 u32 ath9k_hw_gettxbuf(struct ath_hw *ah, u32 q);
 void ath9k_hw_puttxbuf(struct ath_hw *ah, u32 q, u32 txdp);
 void ath9k_hw_txstart(struct ath_hw *ah, u32 q);
+void ath9k_hw_cleartxdesc(struct ath_hw *ah, void *ds);
 u32 ath9k_hw_numtxpending(struct ath_hw *ah, u32 q);
 bool ath9k_hw_updatetxtriglevel(struct ath_hw *ah, bool bIncTrigLevel);
 bool ath9k_hw_stoptxdma(struct ath_hw *ah, u32 q);
-void ath9k_hw_filltxdesc(struct ath_hw *ah, struct ath_desc *ds,
-			 u32 segLen, bool firstSeg,
-			 bool lastSeg, const struct ath_desc *ds0);
-void ath9k_hw_cleartxdesc(struct ath_hw *ah, struct ath_desc *ds);
-int ath9k_hw_txprocdesc(struct ath_hw *ah, struct ath_desc *ds);
-void ath9k_hw_set11n_txdesc(struct ath_hw *ah, struct ath_desc *ds,
-			    u32 pktLen, enum ath9k_pkt_type type, u32 txPower,
-			    u32 keyIx, enum ath9k_key_type keyType, u32 flags);
-void ath9k_hw_set11n_ratescenario(struct ath_hw *ah, struct ath_desc *ds,
-				  struct ath_desc *lastds,
-				  u32 durUpdateEn, u32 rtsctsRate,
-				  u32 rtsctsDuration,
-				  struct ath9k_11n_rate_series series[],
-				  u32 nseries, u32 flags);
-void ath9k_hw_set11n_aggr_first(struct ath_hw *ah, struct ath_desc *ds,
-				u32 aggrLen);
-void ath9k_hw_set11n_aggr_middle(struct ath_hw *ah, struct ath_desc *ds,
-				 u32 numDelims);
-void ath9k_hw_set11n_aggr_last(struct ath_hw *ah, struct ath_desc *ds);
-void ath9k_hw_clr11n_aggr(struct ath_hw *ah, struct ath_desc *ds);
-void ath9k_hw_set11n_burstduration(struct ath_hw *ah, struct ath_desc *ds,
-				   u32 burstDuration);
-void ath9k_hw_set11n_virtualmorefrag(struct ath_hw *ah, struct ath_desc *ds,
-				     u32 vmf);
 void ath9k_hw_gettxintrtxqs(struct ath_hw *ah, u32 *txqs);
 bool ath9k_hw_set_txq_props(struct ath_hw *ah, int q,
 			    const struct ath9k_tx_queue_info *qinfo);
@@ -706,15 +710,22 @@ int ath9k_hw_setuptxqueue(struct ath_hw *ah, enum ath9k_tx_queue type,
 bool ath9k_hw_releasetxqueue(struct ath_hw *ah, u32 q);
 bool ath9k_hw_resettxqueue(struct ath_hw *ah, u32 q);
 int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
-			u32 pa, struct ath_desc *nds, u64 tsf);
+			struct ath_rx_status *rs, u64 tsf);
 void ath9k_hw_setuprxdesc(struct ath_hw *ah, struct ath_desc *ds,
 			  u32 size, u32 flags);
 bool ath9k_hw_setrxabort(struct ath_hw *ah, bool set);
 void ath9k_hw_putrxbuf(struct ath_hw *ah, u32 rxdp);
-void ath9k_hw_rxena(struct ath_hw *ah);
 void ath9k_hw_startpcureceive(struct ath_hw *ah);
 void ath9k_hw_stoppcurecv(struct ath_hw *ah);
+void ath9k_hw_abortpcurecv(struct ath_hw *ah);
 bool ath9k_hw_stopdmarecv(struct ath_hw *ah);
 int ath9k_hw_beaconq_setup(struct ath_hw *ah);
+
+/* Interrupt Handling */
+bool ath9k_hw_intrpend(struct ath_hw *ah);
+enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah,
+				       enum ath9k_int ints);
+
+void ar9002_hw_attach_mac_ops(struct ath_hw *ah);
 
 #endif /* MAC_H */

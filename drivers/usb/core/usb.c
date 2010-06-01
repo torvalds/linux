@@ -32,6 +32,7 @@
 #include <linux/spinlock.h>
 #include <linux/errno.h>
 #include <linux/usb.h>
+#include <linux/usb/hcd.h>
 #include <linux/mutex.h>
 #include <linux/workqueue.h>
 #include <linux/debugfs.h>
@@ -41,7 +42,6 @@
 #include <linux/mm.h>
 #include <linux/dma-mapping.h>
 
-#include "hcd.h"
 #include "usb.h"
 
 
@@ -573,7 +573,7 @@ int usb_lock_device_for_reset(struct usb_device *udev,
 			iface->condition == USB_INTERFACE_UNBOUND))
 		return -EINTR;
 
-	while (usb_trylock_device(udev) != 0) {
+	while (!usb_trylock_device(udev)) {
 
 		/* If we can't acquire the lock after waiting one second,
 		 * we're probably deadlocked */
@@ -592,76 +592,6 @@ int usb_lock_device_for_reset(struct usb_device *udev,
 	return 0;
 }
 EXPORT_SYMBOL_GPL(usb_lock_device_for_reset);
-
-static struct usb_device *match_device(struct usb_device *dev,
-				       u16 vendor_id, u16 product_id)
-{
-	struct usb_device *ret_dev = NULL;
-	int child;
-
-	dev_dbg(&dev->dev, "check for vendor %04x, product %04x ...\n",
-	    le16_to_cpu(dev->descriptor.idVendor),
-	    le16_to_cpu(dev->descriptor.idProduct));
-
-	/* see if this device matches */
-	if ((vendor_id == le16_to_cpu(dev->descriptor.idVendor)) &&
-	    (product_id == le16_to_cpu(dev->descriptor.idProduct))) {
-		dev_dbg(&dev->dev, "matched this device!\n");
-		ret_dev = usb_get_dev(dev);
-		goto exit;
-	}
-
-	/* look through all of the children of this device */
-	for (child = 0; child < dev->maxchild; ++child) {
-		if (dev->children[child]) {
-			usb_lock_device(dev->children[child]);
-			ret_dev = match_device(dev->children[child],
-					       vendor_id, product_id);
-			usb_unlock_device(dev->children[child]);
-			if (ret_dev)
-				goto exit;
-		}
-	}
-exit:
-	return ret_dev;
-}
-
-/**
- * usb_find_device - find a specific usb device in the system
- * @vendor_id: the vendor id of the device to find
- * @product_id: the product id of the device to find
- *
- * Returns a pointer to a struct usb_device if such a specified usb
- * device is present in the system currently.  The usage count of the
- * device will be incremented if a device is found.  Make sure to call
- * usb_put_dev() when the caller is finished with the device.
- *
- * If a device with the specified vendor and product id is not found,
- * NULL is returned.
- */
-struct usb_device *usb_find_device(u16 vendor_id, u16 product_id)
-{
-	struct list_head *buslist;
-	struct usb_bus *bus;
-	struct usb_device *dev = NULL;
-
-	mutex_lock(&usb_bus_list_lock);
-	for (buslist = usb_bus_list.next;
-	     buslist != &usb_bus_list;
-	     buslist = buslist->next) {
-		bus = container_of(buslist, struct usb_bus, bus_list);
-		if (!bus->root_hub)
-			continue;
-		usb_lock_device(bus->root_hub);
-		dev = match_device(bus->root_hub, vendor_id, product_id);
-		usb_unlock_device(bus->root_hub);
-		if (dev)
-			goto exit;
-	}
-exit:
-	mutex_unlock(&usb_bus_list_lock);
-	return dev;
-}
 
 /**
  * usb_get_current_frame_number - return current bus frame number
@@ -775,7 +705,7 @@ EXPORT_SYMBOL_GPL(usb_free_coherent);
  * @urb: urb whose transfer_buffer/setup_packet will be mapped
  *
  * Return value is either null (indicating no buffer could be mapped), or
- * the parameter.  URB_NO_TRANSFER_DMA_MAP and URB_NO_SETUP_DMA_MAP are
+ * the parameter.  URB_NO_TRANSFER_DMA_MAP is
  * added to urb->transfer_flags if the operation succeeds.  If the device
  * is connected to this system through a non-DMA controller, this operation
  * always succeeds.
@@ -803,17 +733,11 @@ struct urb *usb_buffer_map(struct urb *urb)
 			urb->transfer_buffer, urb->transfer_buffer_length,
 			usb_pipein(urb->pipe)
 				? DMA_FROM_DEVICE : DMA_TO_DEVICE);
-		if (usb_pipecontrol(urb->pipe))
-			urb->setup_dma = dma_map_single(controller,
-					urb->setup_packet,
-					sizeof(struct usb_ctrlrequest),
-					DMA_TO_DEVICE);
 	/* FIXME generic api broken like pci, can't report errors */
 	/* if (urb->transfer_dma == DMA_ADDR_INVALID) return 0; */
 	} else
 		urb->transfer_dma = ~0;
-	urb->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP
-				| URB_NO_SETUP_DMA_MAP);
+	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	return urb;
 }
 EXPORT_SYMBOL_GPL(usb_buffer_map);
@@ -881,18 +805,13 @@ void usb_buffer_unmap(struct urb *urb)
 			urb->transfer_dma, urb->transfer_buffer_length,
 			usb_pipein(urb->pipe)
 				? DMA_FROM_DEVICE : DMA_TO_DEVICE);
-		if (usb_pipecontrol(urb->pipe))
-			dma_unmap_single(controller,
-					urb->setup_dma,
-					sizeof(struct usb_ctrlrequest),
-					DMA_TO_DEVICE);
 	}
-	urb->transfer_flags &= ~(URB_NO_TRANSFER_DMA_MAP
-				| URB_NO_SETUP_DMA_MAP);
+	urb->transfer_flags &= ~URB_NO_TRANSFER_DMA_MAP;
 }
 EXPORT_SYMBOL_GPL(usb_buffer_unmap);
 #endif  /*  0  */
 
+#if 0
 /**
  * usb_buffer_map_sg - create scatterlist DMA mapping(s) for an endpoint
  * @dev: device to which the scatterlist will be mapped
@@ -936,6 +855,7 @@ int usb_buffer_map_sg(const struct usb_device *dev, int is_in,
 			is_in ? DMA_FROM_DEVICE : DMA_TO_DEVICE) ? : -ENOMEM;
 }
 EXPORT_SYMBOL_GPL(usb_buffer_map_sg);
+#endif
 
 /* XXX DISABLED, no users currently.  If you wish to re-enable this
  * XXX please determine whether the sync is to transfer ownership of
@@ -972,6 +892,7 @@ void usb_buffer_dmasync_sg(const struct usb_device *dev, int is_in,
 EXPORT_SYMBOL_GPL(usb_buffer_dmasync_sg);
 #endif
 
+#if 0
 /**
  * usb_buffer_unmap_sg - free DMA mapping(s) for a scatterlist
  * @dev: device to which the scatterlist will be mapped
@@ -997,6 +918,7 @@ void usb_buffer_unmap_sg(const struct usb_device *dev, int is_in,
 			is_in ? DMA_FROM_DEVICE : DMA_TO_DEVICE);
 }
 EXPORT_SYMBOL_GPL(usb_buffer_unmap_sg);
+#endif
 
 /* To disable USB, kernel command line is 'nousb' not 'usbcore.nousb' */
 #ifdef MODULE

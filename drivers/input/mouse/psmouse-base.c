@@ -147,18 +147,18 @@ static psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse)
 
 	if (psmouse->type == PSMOUSE_IMEX) {
 		switch (packet[3] & 0xC0) {
-			case 0x80: /* vertical scroll on IntelliMouse Explorer 4.0 */
-				input_report_rel(dev, REL_WHEEL, (int) (packet[3] & 32) - (int) (packet[3] & 31));
-				break;
-			case 0x40: /* horizontal scroll on IntelliMouse Explorer 4.0 */
-				input_report_rel(dev, REL_HWHEEL, (int) (packet[3] & 32) - (int) (packet[3] & 31));
-				break;
-			case 0x00:
-			case 0xC0:
-				input_report_rel(dev, REL_WHEEL, (int) (packet[3] & 8) - (int) (packet[3] & 7));
-				input_report_key(dev, BTN_SIDE, (packet[3] >> 4) & 1);
-				input_report_key(dev, BTN_EXTRA, (packet[3] >> 5) & 1);
-				break;
+		case 0x80: /* vertical scroll on IntelliMouse Explorer 4.0 */
+			input_report_rel(dev, REL_WHEEL, (int) (packet[3] & 32) - (int) (packet[3] & 31));
+			break;
+		case 0x40: /* horizontal scroll on IntelliMouse Explorer 4.0 */
+			input_report_rel(dev, REL_HWHEEL, (int) (packet[3] & 32) - (int) (packet[3] & 31));
+			break;
+		case 0x00:
+		case 0xC0:
+			input_report_rel(dev, REL_WHEEL, (int) (packet[3] & 8) - (int) (packet[3] & 7));
+			input_report_key(dev, BTN_SIDE, (packet[3] >> 4) & 1);
+			input_report_key(dev, BTN_EXTRA, (packet[3] >> 5) & 1);
+			break;
 		}
 	}
 
@@ -247,31 +247,31 @@ static int psmouse_handle_byte(struct psmouse *psmouse)
 	psmouse_ret_t rc = psmouse->protocol_handler(psmouse);
 
 	switch (rc) {
-		case PSMOUSE_BAD_DATA:
-			if (psmouse->state == PSMOUSE_ACTIVATED) {
-				printk(KERN_WARNING "psmouse.c: %s at %s lost sync at byte %d\n",
-					psmouse->name, psmouse->phys, psmouse->pktcnt);
-				if (++psmouse->out_of_sync_cnt == psmouse->resetafter) {
-					__psmouse_set_state(psmouse, PSMOUSE_IGNORE);
-					printk(KERN_NOTICE "psmouse.c: issuing reconnect request\n");
-					serio_reconnect(psmouse->ps2dev.serio);
-					return -1;
-				}
+	case PSMOUSE_BAD_DATA:
+		if (psmouse->state == PSMOUSE_ACTIVATED) {
+			printk(KERN_WARNING "psmouse.c: %s at %s lost sync at byte %d\n",
+				psmouse->name, psmouse->phys, psmouse->pktcnt);
+			if (++psmouse->out_of_sync_cnt == psmouse->resetafter) {
+				__psmouse_set_state(psmouse, PSMOUSE_IGNORE);
+				printk(KERN_NOTICE "psmouse.c: issuing reconnect request\n");
+				serio_reconnect(psmouse->ps2dev.serio);
+				return -1;
 			}
-			psmouse->pktcnt = 0;
-			break;
+		}
+		psmouse->pktcnt = 0;
+		break;
 
-		case PSMOUSE_FULL_PACKET:
-			psmouse->pktcnt = 0;
-			if (psmouse->out_of_sync_cnt) {
-				psmouse->out_of_sync_cnt = 0;
-				printk(KERN_NOTICE "psmouse.c: %s at %s - driver resynched.\n",
-					psmouse->name, psmouse->phys);
-			}
-			break;
+	case PSMOUSE_FULL_PACKET:
+		psmouse->pktcnt = 0;
+		if (psmouse->out_of_sync_cnt) {
+			psmouse->out_of_sync_cnt = 0;
+			printk(KERN_NOTICE "psmouse.c: %s at %s - driver resynched.\n",
+				psmouse->name, psmouse->phys);
+		}
+		break;
 
-		case PSMOUSE_GOOD_DATA:
-			break;
+	case PSMOUSE_GOOD_DATA:
+		break;
 	}
 	return 0;
 }
@@ -1245,7 +1245,7 @@ static int psmouse_switch_protocol(struct psmouse *psmouse,
 	psmouse->pktsize = 3;
 
 	if (proto && (proto->detect || proto->init)) {
-		if (proto->detect && proto->detect(psmouse, 1) < 0)
+		if (proto->detect && proto->detect(psmouse, true) < 0)
 			return -1;
 
 		if (proto->init && proto->init(psmouse) < 0)
@@ -1394,6 +1394,7 @@ static int psmouse_reconnect(struct serio *serio)
 	struct psmouse *psmouse = serio_get_drvdata(serio);
 	struct psmouse *parent = NULL;
 	struct serio_driver *drv = serio->drv;
+	unsigned char type;
 	int rc = -1;
 
 	if (!drv || !psmouse) {
@@ -1413,10 +1414,15 @@ static int psmouse_reconnect(struct serio *serio)
 	if (psmouse->reconnect) {
 		if (psmouse->reconnect(psmouse))
 			goto out;
-	} else if (psmouse_probe(psmouse) < 0 ||
-		   psmouse->type != psmouse_extensions(psmouse,
-						psmouse_max_proto, false)) {
-		goto out;
+	} else {
+		psmouse_reset(psmouse);
+
+		if (psmouse_probe(psmouse) < 0)
+			goto out;
+
+		type = psmouse_extensions(psmouse, psmouse_max_proto, false);
+		if (psmouse->type != type)
+			goto out;
 	}
 
 	/* ok, the device type (and capabilities) match the old one,

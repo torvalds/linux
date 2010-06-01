@@ -832,9 +832,9 @@ static int ir_parse_ioapic_hpet_scope(struct acpi_dmar_header *header,
 				return -1;
 			}
 
-			printk(KERN_INFO "IOAPIC id %d under DRHD base"
-			       " 0x%Lx\n", scope->enumeration_id,
-			       drhd->address);
+			printk(KERN_INFO "IOAPIC id %d under DRHD base "
+			       " 0x%Lx IOMMU %d\n", scope->enumeration_id,
+			       drhd->address, iommu->seq_id);
 
 			ir_parse_one_ioapic_scope(scope, iommu);
 		} else if (scope->entry_type == ACPI_DMAR_SCOPE_TYPE_HPET) {

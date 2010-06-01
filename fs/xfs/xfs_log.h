@@ -19,7 +19,6 @@
 #define __XFS_LOG_H__
 
 /* get lsn fields */
-
 #define CYCLE_LSN(lsn) ((uint)((lsn)>>32))
 #define BLOCK_LSN(lsn) ((uint)(lsn))
 
@@ -110,6 +109,15 @@ typedef struct xfs_log_iovec {
 	uint		i_type;		/* type of region */
 } xfs_log_iovec_t;
 
+struct xfs_log_vec {
+	struct xfs_log_vec	*lv_next;	/* next lv in build list */
+	int			lv_niovecs;	/* number of iovecs in lv */
+	struct xfs_log_iovec	*lv_iovecp;	/* iovec array */
+	struct xfs_log_item	*lv_item;	/* owner */
+	char			*lv_buf;	/* formatted buffer */
+	int			lv_buf_len;	/* size of formatted buffer */
+};
+
 /*
  * Structure used to pass callback function and the function's argument
  * to the log manager.
@@ -126,6 +134,14 @@ typedef struct xfs_log_callback {
 struct xfs_mount;
 struct xlog_in_core;
 struct xlog_ticket;
+struct xfs_log_item;
+struct xfs_item_ops;
+struct xfs_trans;
+
+void	xfs_log_item_init(struct xfs_mount	*mp,
+			struct xfs_log_item	*item,
+			int			type,
+			struct xfs_item_ops	*ops);
 
 xfs_lsn_t xfs_log_done(struct xfs_mount *mp,
 		       struct xlog_ticket *ticket,
@@ -174,8 +190,15 @@ int	  xfs_log_need_covered(struct xfs_mount *mp);
 
 void	  xlog_iodone(struct xfs_buf *);
 
-struct xlog_ticket * xfs_log_ticket_get(struct xlog_ticket *ticket);
+struct xlog_ticket *xfs_log_ticket_get(struct xlog_ticket *ticket);
 void	  xfs_log_ticket_put(struct xlog_ticket *ticket);
+
+xlog_tid_t xfs_log_get_trans_ident(struct xfs_trans *tp);
+
+int	xfs_log_commit_cil(struct xfs_mount *mp, struct xfs_trans *tp,
+				struct xfs_log_vec *log_vector,
+				xfs_lsn_t *commit_lsn, int flags);
+bool	xfs_log_item_in_current_chkpt(struct xfs_log_item *lip);
 
 #endif
 

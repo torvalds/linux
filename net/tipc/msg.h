@@ -708,100 +708,13 @@ static inline void msg_set_dataoctet(struct tipc_msg *m, u32 pos)
 #define DSC_REQ_MSG          0
 #define DSC_RESP_MSG         1
 
-static inline u32 msg_tot_importance(struct tipc_msg *m)
-{
-	if (likely(msg_isdata(m))) {
-		if (likely(msg_orignode(m) == tipc_own_addr))
-			return msg_importance(m);
-		return msg_importance(m) + 4;
-	}
-	if ((msg_user(m) == MSG_FRAGMENTER)  &&
-	    (msg_type(m) == FIRST_FRAGMENT))
-		return msg_importance(msg_get_wrapped(m));
-	return msg_importance(m);
-}
-
-
-static inline void msg_init(struct tipc_msg *m, u32 user, u32 type,
-			    u32 hsize, u32 destnode)
-{
-	memset(m, 0, hsize);
-	msg_set_version(m);
-	msg_set_user(m, user);
-	msg_set_hdr_sz(m, hsize);
-	msg_set_size(m, hsize);
-	msg_set_prevnode(m, tipc_own_addr);
-	msg_set_type(m, type);
-	if (!msg_short(m)) {
-		msg_set_orignode(m, tipc_own_addr);
-		msg_set_destnode(m, destnode);
-	}
-}
-
-/**
- * msg_calc_data_size - determine total data size for message
- */
-
-static inline int msg_calc_data_size(struct iovec const *msg_sect, u32 num_sect)
-{
-	int dsz = 0;
-	int i;
-
-	for (i = 0; i < num_sect; i++)
-		dsz += msg_sect[i].iov_len;
-	return dsz;
-}
-
-/**
- * msg_build - create message using specified header and data
- *
- * Note: Caller must not hold any locks in case copy_from_user() is interrupted!
- *
- * Returns message data size or errno
- */
-
-static inline int msg_build(struct tipc_msg *hdr,
+u32 tipc_msg_tot_importance(struct tipc_msg *m);
+void tipc_msg_init(struct tipc_msg *m, u32 user, u32 type,
+			    u32 hsize, u32 destnode);
+int tipc_msg_calc_data_size(struct iovec const *msg_sect, u32 num_sect);
+int tipc_msg_build(struct tipc_msg *hdr,
 			    struct iovec const *msg_sect, u32 num_sect,
-			    int max_size, int usrmem, struct sk_buff** buf)
-{
-	int dsz, sz, hsz, pos, res, cnt;
-
-	dsz = msg_calc_data_size(msg_sect, num_sect);
-	if (unlikely(dsz > TIPC_MAX_USER_MSG_SIZE)) {
-		*buf = NULL;
-		return -EINVAL;
-	}
-
-	pos = hsz = msg_hdr_sz(hdr);
-	sz = hsz + dsz;
-	msg_set_size(hdr, sz);
-	if (unlikely(sz > max_size)) {
-		*buf = NULL;
-		return dsz;
-	}
-
-	*buf = buf_acquire(sz);
-	if (!(*buf))
-		return -ENOMEM;
-	skb_copy_to_linear_data(*buf, hdr, hsz);
-	for (res = 1, cnt = 0; res && (cnt < num_sect); cnt++) {
-		if (likely(usrmem))
-			res = !copy_from_user((*buf)->data + pos,
-					      msg_sect[cnt].iov_base,
-					      msg_sect[cnt].iov_len);
-		else
-			skb_copy_to_linear_data_offset(*buf, pos,
-						       msg_sect[cnt].iov_base,
-						       msg_sect[cnt].iov_len);
-		pos += msg_sect[cnt].iov_len;
-	}
-	if (likely(res))
-		return dsz;
-
-	buf_discard(*buf);
-	*buf = NULL;
-	return -EFAULT;
-}
+			    int max_size, int usrmem, struct sk_buff** buf);
 
 static inline void msg_set_media_addr(struct tipc_msg *m, struct tipc_media_addr *a)
 {

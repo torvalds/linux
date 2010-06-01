@@ -749,7 +749,7 @@ static void __rtas_set_slot_reset(struct pci_dn *pdn)
 	/* Determine type of EEH reset required by device,
 	 * default hot reset or fundamental reset
 	 */
-	if (dev->needs_freset)
+	if (dev && dev->needs_freset)
 		rtas_pci_slot_reset(pdn, 3);
 	else
 		rtas_pci_slot_reset(pdn, 1);

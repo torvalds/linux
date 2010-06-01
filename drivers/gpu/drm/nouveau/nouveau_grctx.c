@@ -68,13 +68,12 @@ nouveau_grctx_prog_load(struct drm_device *dev)
 			return ret;
 		}
 
-		pgraph->ctxprog = kmalloc(fw->size, GFP_KERNEL);
+		pgraph->ctxprog = kmemdup(fw->data, fw->size, GFP_KERNEL);
 		if (!pgraph->ctxprog) {
 			NV_ERROR(dev, "OOM copying ctxprog\n");
 			release_firmware(fw);
 			return -ENOMEM;
 		}
-		memcpy(pgraph->ctxprog, fw->data, fw->size);
 
 		cp = pgraph->ctxprog;
 		if (le32_to_cpu(cp->signature) != 0x5043564e ||
@@ -97,14 +96,13 @@ nouveau_grctx_prog_load(struct drm_device *dev)
 			return ret;
 		}
 
-		pgraph->ctxvals = kmalloc(fw->size, GFP_KERNEL);
+		pgraph->ctxvals = kmemdup(fw->data, fw->size, GFP_KERNEL);
 		if (!pgraph->ctxvals) {
 			NV_ERROR(dev, "OOM copying ctxvals\n");
 			release_firmware(fw);
 			nouveau_grctx_fini(dev);
 			return -ENOMEM;
 		}
-		memcpy(pgraph->ctxvals, fw->data, fw->size);
 
 		cv = (void *)pgraph->ctxvals;
 		if (le32_to_cpu(cv->signature) != 0x5643564e ||

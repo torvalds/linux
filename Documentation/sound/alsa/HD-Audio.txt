@@ -204,7 +204,6 @@ generic parser regardless of the codec.  Usually the codec-specific
 parser is much better than the generic parser (as now).  Thus this
 option is more about the debugging purpose.
 
-
 Speaker and Headphone Output
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 One of the most frequent (and obvious) bugs with HD-audio is the
@@ -600,6 +599,9 @@ probing, the proc file is available, so you can get the raw codec
 information before modified by the driver.  Of course, the driver
 isn't usable with `probe_only=1`.  But you can continue the
 configuration via hwdep sysfs file if hda-reconfig option is enabled.
+Using `probe_only` mask 2 skips the reset of HDA codecs (use
+`probe_only=3` as module option). The hwdep interface can be used
+to determine the BIOS codec initialization.
 
 
 hda-verb

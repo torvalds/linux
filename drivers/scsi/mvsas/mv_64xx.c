@@ -132,15 +132,35 @@ static void mvs_64xx_phy_reset(struct mvs_info *mvi, u32 phy_id, int hard)
 	tmp &= ~PHYEV_RDY_CH;
 	mvs_write_port_irq_stat(mvi, phy_id, tmp);
 	tmp = mvs_read_phy_ctl(mvi, phy_id);
-	if (hard)
+	if (hard == 1)
 		tmp |= PHY_RST_HARD;
-	else
+	else if (hard == 0)
 		tmp |= PHY_RST;
 	mvs_write_phy_ctl(mvi, phy_id, tmp);
 	if (hard) {
 		do {
 			tmp = mvs_read_phy_ctl(mvi, phy_id);
 		} while (tmp & PHY_RST_HARD);
+	}
+}
+
+void mvs_64xx_clear_srs_irq(struct mvs_info *mvi, u8 reg_set, u8 clear_all)
+{
+	void __iomem *regs = mvi->regs;
+	u32 tmp;
+	if (clear_all) {
+		tmp = mr32(MVS_INT_STAT_SRS_0);
+		if (tmp) {
+			printk(KERN_DEBUG "check SRS 0 %08X.\n", tmp);
+			mw32(MVS_INT_STAT_SRS_0, tmp);
+		}
+	} else {
+		tmp = mr32(MVS_INT_STAT_SRS_0);
+		if (tmp &  (1 << (reg_set % 32))) {
+			printk(KERN_DEBUG "register set 0x%x was stopped.\n",
+			       reg_set);
+			mw32(MVS_INT_STAT_SRS_0, 1 << (reg_set % 32));
+		}
 	}
 }
 
@@ -761,6 +781,7 @@ const struct mvs_dispatch mvs_64xx_dispatch = {
 	mvs_write_port_irq_mask,
 	mvs_get_sas_addr,
 	mvs_64xx_command_active,
+	mvs_64xx_clear_srs_irq,
 	mvs_64xx_issue_stop,
 	mvs_start_delivery,
 	mvs_rx_update,

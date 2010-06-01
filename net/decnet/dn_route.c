@@ -264,7 +264,6 @@ static struct dst_entry *dn_dst_negative_advice(struct dst_entry *dst)
 
 static void dn_dst_link_failure(struct sk_buff *skb)
 {
-	return;
 }
 
 static inline int compare_keys(struct flowi *fl1, struct flowi *fl2)
@@ -518,7 +517,8 @@ static int dn_route_rx_long(struct sk_buff *skb)
 	ptr++;
 	cb->hops = *ptr++; /* Visit Count */
 
-	return NF_HOOK(PF_DECnet, NF_DN_PRE_ROUTING, skb, skb->dev, NULL, dn_route_rx_packet);
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_PRE_ROUTING, skb, skb->dev, NULL,
+		       dn_route_rx_packet);
 
 drop_it:
 	kfree_skb(skb);
@@ -544,7 +544,8 @@ static int dn_route_rx_short(struct sk_buff *skb)
 	ptr += 2;
 	cb->hops = *ptr & 0x3f;
 
-	return NF_HOOK(PF_DECnet, NF_DN_PRE_ROUTING, skb, skb->dev, NULL, dn_route_rx_packet);
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_PRE_ROUTING, skb, skb->dev, NULL,
+		       dn_route_rx_packet);
 
 drop_it:
 	kfree_skb(skb);
@@ -646,16 +647,24 @@ int dn_route_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type
 
 		switch(flags & DN_RT_CNTL_MSK) {
 			case DN_RT_PKT_HELO:
-				return NF_HOOK(PF_DECnet, NF_DN_HELLO, skb, skb->dev, NULL, dn_route_ptp_hello);
+				return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
+					       skb, skb->dev, NULL,
+					       dn_route_ptp_hello);
 
 			case DN_RT_PKT_L1RT:
 			case DN_RT_PKT_L2RT:
-				return NF_HOOK(PF_DECnet, NF_DN_ROUTE, skb, skb->dev, NULL, dn_route_discard);
+				return NF_HOOK(NFPROTO_DECNET, NF_DN_ROUTE,
+					       skb, skb->dev, NULL,
+					       dn_route_discard);
 			case DN_RT_PKT_ERTH:
-				return NF_HOOK(PF_DECnet, NF_DN_HELLO, skb, skb->dev, NULL, dn_neigh_router_hello);
+				return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
+					       skb, skb->dev, NULL,
+					       dn_neigh_router_hello);
 
 			case DN_RT_PKT_EEDH:
-				return NF_HOOK(PF_DECnet, NF_DN_HELLO, skb, skb->dev, NULL, dn_neigh_endnode_hello);
+				return NF_HOOK(NFPROTO_DECNET, NF_DN_HELLO,
+					       skb, skb->dev, NULL,
+					       dn_neigh_endnode_hello);
 		}
 	} else {
 		if (dn->parms.state != DN_DEV_S_RU)
@@ -704,7 +713,8 @@ static int dn_output(struct sk_buff *skb)
 	cb->rt_flags |= DN_RT_F_IE;
 	cb->hops = 0;
 
-	return NF_HOOK(PF_DECnet, NF_DN_LOCAL_OUT, skb, NULL, dev, neigh->output);
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_LOCAL_OUT, skb, NULL, dev,
+		       neigh->output);
 
 error:
 	if (net_ratelimit())
@@ -753,7 +763,8 @@ static int dn_forward(struct sk_buff *skb)
 	if (rt->rt_flags & RTCF_DOREDIRECT)
 		cb->rt_flags |= DN_RT_F_IE;
 
-	return NF_HOOK(PF_DECnet, NF_DN_FORWARD, skb, dev, skb->dev, neigh->output);
+	return NF_HOOK(NFPROTO_DECNET, NF_DN_FORWARD, skb, dev, skb->dev,
+		       neigh->output);
 
 drop:
 	kfree_skb(skb);

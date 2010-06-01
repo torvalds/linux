@@ -347,6 +347,8 @@ static int __devexit tsc2007_remove(struct i2c_client *client)
 	struct tsc2007	*ts = i2c_get_clientdata(client);
 	struct tsc2007_platform_data *pdata = client->dev.platform_data;
 
+	i2c_set_clientdata(client, NULL);
+
 	tsc2007_free_irq(ts);
 
 	if (pdata->exit_platform_hw)

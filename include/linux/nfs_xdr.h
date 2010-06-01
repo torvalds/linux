@@ -386,8 +386,8 @@ struct nfs_removeargs {
 
 struct nfs_removeres {
 	const struct nfs_server *server;
+	struct nfs_fattr	*dir_attr;
 	struct nfs4_change_info	cinfo;
-	struct nfs_fattr	dir_attr;
 	struct nfs4_sequence_res 	seq_res;
 };
 
@@ -822,6 +822,11 @@ struct nfs4_setclientid {
 	unsigned int			sc_uaddr_len;
 	char				sc_uaddr[RPCBIND_MAXUADDRLEN + 1];
 	u32				sc_cb_ident;
+};
+
+struct nfs4_setclientid_res {
+	u64				clientid;
+	nfs4_verifier			confirm;
 };
 
 struct nfs4_statfs_arg {

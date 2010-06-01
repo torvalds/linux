@@ -526,6 +526,10 @@ static void rt2400pci_config_ps(struct rt2x00_dev *rt2x00dev,
 
 		rt2x00_set_field32(&reg, CSR20_AUTOWAKE, 1);
 		rt2x00pci_register_write(rt2x00dev, CSR20, reg);
+	} else {
+		rt2x00pci_register_read(rt2x00dev, CSR20, &reg);
+		rt2x00_set_field32(&reg, CSR20_AUTOWAKE, 0);
+		rt2x00pci_register_write(rt2x00dev, CSR20, reg);
 	}
 
 	rt2x00dev->ops->lib->set_device_state(rt2x00dev, state);
@@ -922,7 +926,7 @@ static void rt2400pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 static int rt2400pci_set_state(struct rt2x00_dev *rt2x00dev,
 			       enum dev_state state)
 {
-	u32 reg;
+	u32 reg, reg2;
 	unsigned int i;
 	char put_to_sleep;
 	char bbp_state;
@@ -943,11 +947,12 @@ static int rt2400pci_set_state(struct rt2x00_dev *rt2x00dev,
 	 * device has entered the correct state.
 	 */
 	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2x00pci_register_read(rt2x00dev, PWRCSR1, &reg);
-		bbp_state = rt2x00_get_field32(reg, PWRCSR1_BBP_CURR_STATE);
-		rf_state = rt2x00_get_field32(reg, PWRCSR1_RF_CURR_STATE);
+		rt2x00pci_register_read(rt2x00dev, PWRCSR1, &reg2);
+		bbp_state = rt2x00_get_field32(reg2, PWRCSR1_BBP_CURR_STATE);
+		rf_state = rt2x00_get_field32(reg2, PWRCSR1_RF_CURR_STATE);
 		if (bbp_state == state && rf_state == state)
 			return 0;
+		rt2x00pci_register_write(rt2x00dev, PWRCSR1, reg);
 		msleep(10);
 	}
 
@@ -1003,19 +1008,19 @@ static void rt2400pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 	struct queue_entry_priv_pci *entry_priv = skbdesc->entry->priv_data;
-	__le32 *txd = skbdesc->desc;
+	__le32 *txd = entry_priv->desc;
 	u32 word;
 
 	/*
 	 * Start writing the descriptor words.
 	 */
-	rt2x00_desc_read(entry_priv->desc, 1, &word);
+	rt2x00_desc_read(txd, 1, &word);
 	rt2x00_set_field32(&word, TXD_W1_BUFFER_ADDRESS, skbdesc->skb_dma);
-	rt2x00_desc_write(entry_priv->desc, 1, word);
+	rt2x00_desc_write(txd, 1, word);
 
 	rt2x00_desc_read(txd, 2, &word);
-	rt2x00_set_field32(&word, TXD_W2_BUFFER_LENGTH, skb->len);
-	rt2x00_set_field32(&word, TXD_W2_DATABYTE_COUNT, skb->len);
+	rt2x00_set_field32(&word, TXD_W2_BUFFER_LENGTH, txdesc->length);
+	rt2x00_set_field32(&word, TXD_W2_DATABYTE_COUNT, txdesc->length);
 	rt2x00_desc_write(txd, 2, word);
 
 	rt2x00_desc_read(txd, 3, &word);
@@ -1036,6 +1041,11 @@ static void rt2400pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W3_PLCP_LENGTH_HIGH_BUSY, 1);
 	rt2x00_desc_write(txd, 4, word);
 
+	/*
+	 * Writing TXD word 0 must the last to prevent a race condition with
+	 * the device, whereby the device may take hold of the TXD before we
+	 * finished updating it.
+	 */
 	rt2x00_desc_read(txd, 0, &word);
 	rt2x00_set_field32(&word, TXD_W0_OWNER_NIC, 1);
 	rt2x00_set_field32(&word, TXD_W0_VALID, 1);
@@ -1051,12 +1061,19 @@ static void rt2400pci_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W0_RETRY_MODE,
 			   test_bit(ENTRY_TXD_RETRY_MODE, &txdesc->flags));
 	rt2x00_desc_write(txd, 0, word);
+
+	/*
+	 * Register descriptor details in skb frame descriptor.
+	 */
+	skbdesc->desc = txd;
+	skbdesc->desc_len = TXD_DESC_SIZE;
 }
 
 /*
  * TX data initialization
  */
-static void rt2400pci_write_beacon(struct queue_entry *entry)
+static void rt2400pci_write_beacon(struct queue_entry *entry,
+				   struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
@@ -1072,37 +1089,25 @@ static void rt2400pci_write_beacon(struct queue_entry *entry)
 	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 0);
 	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 
-	/*
-	 * Replace rt2x00lib allocated descriptor with the
-	 * pointer to the _real_ hardware descriptor.
-	 * After that, map the beacon to DMA and update the
-	 * descriptor.
-	 */
-	memcpy(entry_priv->desc, skbdesc->desc, skbdesc->desc_len);
-	skbdesc->desc = entry_priv->desc;
-
 	rt2x00queue_map_txskb(rt2x00dev, entry->skb);
 
 	rt2x00_desc_read(entry_priv->desc, 1, &word);
 	rt2x00_set_field32(&word, TXD_W1_BUFFER_ADDRESS, skbdesc->skb_dma);
 	rt2x00_desc_write(entry_priv->desc, 1, word);
+
+	/*
+	 * Enable beaconing again.
+	 */
+	rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
+	rt2x00_set_field32(&reg, CSR14_TBCN, 1);
+	rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 1);
+	rt2x00pci_register_write(rt2x00dev, CSR14, reg);
 }
 
 static void rt2400pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
 				    const enum data_queue_qid queue)
 {
 	u32 reg;
-
-	if (queue == QID_BEACON) {
-		rt2x00pci_register_read(rt2x00dev, CSR14, &reg);
-		if (!rt2x00_get_field32(reg, CSR14_BEACON_GEN)) {
-			rt2x00_set_field32(&reg, CSR14_TSF_COUNT, 1);
-			rt2x00_set_field32(&reg, CSR14_TBCN, 1);
-			rt2x00_set_field32(&reg, CSR14_BEACON_GEN, 1);
-			rt2x00pci_register_write(rt2x00dev, CSR14, reg);
-		}
-		return;
-	}
 
 	rt2x00pci_register_read(rt2x00dev, TXCSR0, &reg);
 	rt2x00_set_field32(&reg, TXCSR0_KICK_PRIO, (queue == QID_AC_BE));

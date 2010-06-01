@@ -110,7 +110,7 @@ static struct pxamci_platform_data palmt5_mci_platform_data = {
 	.gpio_card_detect	= GPIO_NR_PALMT5_SD_DETECT_N,
 	.gpio_card_ro		= GPIO_NR_PALMT5_SD_READONLY,
 	.gpio_power		= GPIO_NR_PALMT5_SD_POWER,
-	.detect_delay		= 20,
+	.detect_delay_ms	= 200,
 };
 
 /******************************************************************************

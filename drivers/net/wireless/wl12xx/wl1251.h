@@ -256,6 +256,8 @@ struct wl1251_debugfs {
 struct wl1251_if_operations {
 	void (*read)(struct wl1251 *wl, int addr, void *buf, size_t len);
 	void (*write)(struct wl1251 *wl, int addr, void *buf, size_t len);
+	void (*read_elp)(struct wl1251 *wl, int addr, u32 *val);
+	void (*write_elp)(struct wl1251 *wl, int addr, u32 val);
 	void (*reset)(struct wl1251 *wl);
 	void (*enable_irq)(struct wl1251 *wl);
 	void (*disable_irq)(struct wl1251 *wl);

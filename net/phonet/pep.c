@@ -626,6 +626,7 @@ static void pep_sock_close(struct sock *sk, long timeout)
 	struct pep_sock *pn = pep_sk(sk);
 	int ifindex = 0;
 
+	sock_hold(sk); /* keep a reference after sk_common_release() */
 	sk_common_release(sk);
 
 	lock_sock(sk);
@@ -644,6 +645,7 @@ static void pep_sock_close(struct sock *sk, long timeout)
 
 	if (ifindex)
 		gprs_detach(sk);
+	sock_put(sk);
 }
 
 static int pep_wait_connreq(struct sock *sk, int noblock)
@@ -664,12 +666,12 @@ static int pep_wait_connreq(struct sock *sk, int noblock)
 		if (signal_pending(tsk))
 			return sock_intr_errno(timeo);
 
-		prepare_to_wait_exclusive(&sk->sk_socket->wait, &wait,
+		prepare_to_wait_exclusive(sk_sleep(sk), &wait,
 						TASK_INTERRUPTIBLE);
 		release_sock(sk);
 		timeo = schedule_timeout(timeo);
 		lock_sock(sk);
-		finish_wait(&sk->sk_socket->wait, &wait);
+		finish_wait(sk_sleep(sk), &wait);
 	}
 
 	return 0;
@@ -910,10 +912,10 @@ disabled:
 			goto out;
 		}
 
-		prepare_to_wait(&sk->sk_socket->wait, &wait,
+		prepare_to_wait(sk_sleep(sk), &wait,
 				TASK_INTERRUPTIBLE);
 		done = sk_wait_event(sk, &timeo, atomic_read(&pn->tx_credits));
-		finish_wait(&sk->sk_socket->wait, &wait);
+		finish_wait(sk_sleep(sk), &wait);
 
 		if (sk->sk_state != TCP_ESTABLISHED)
 			goto disabled;

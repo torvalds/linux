@@ -61,7 +61,6 @@ struct pms {
 	int depth;
 	int input;
 	s32 brightness, saturation, hue, contrast;
-	unsigned long in_use;
 	struct mutex lock;
 	int i2c_count;
 	struct i2c_info i2cinfo[64];
@@ -931,25 +930,8 @@ static ssize_t pms_read(struct file *file, char __user *buf,
 	return len;
 }
 
-static int pms_exclusive_open(struct file *file)
-{
-	struct pms *dev = video_drvdata(file);
-
-	return test_and_set_bit(0, &dev->in_use) ? -EBUSY : 0;
-}
-
-static int pms_exclusive_release(struct file *file)
-{
-	struct pms *dev = video_drvdata(file);
-
-	clear_bit(0, &dev->in_use);
-	return 0;
-}
-
 static const struct v4l2_file_operations pms_fops = {
 	.owner		= THIS_MODULE,
-	.open           = pms_exclusive_open,
-	.release        = pms_exclusive_release,
 	.ioctl		= video_ioctl2,
 	.read           = pms_read,
 };

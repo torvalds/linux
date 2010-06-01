@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
  *
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter/x_tables.h>
@@ -88,7 +88,7 @@ extract_icmp_fields(const struct sk_buff *skb,
 
 
 static bool
-socket_match(const struct sk_buff *skb, const struct xt_match_param *par,
+socket_match(const struct sk_buff *skb, struct xt_action_param *par,
 	     const struct xt_socket_mtinfo1 *info)
 {
 	const struct iphdr *iph = ip_hdr(skb);
@@ -165,8 +165,7 @@ socket_match(const struct sk_buff *skb, const struct xt_match_param *par,
 			sk = NULL;
 	}
 
-	pr_debug("socket match: proto %u %08x:%u -> %08x:%u "
-		 "(orig %08x:%u) sock %p\n",
+	pr_debug("proto %u %08x:%u -> %08x:%u (orig %08x:%u) sock %p\n",
 		 protocol, ntohl(saddr), ntohs(sport),
 		 ntohl(daddr), ntohs(dport),
 		 ntohl(iph->daddr), hp ? ntohs(hp->dest) : 0, sk);
@@ -175,13 +174,13 @@ socket_match(const struct sk_buff *skb, const struct xt_match_param *par,
 }
 
 static bool
-socket_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
+socket_mt_v0(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	return socket_match(skb, par, NULL);
 }
 
 static bool
-socket_mt_v1(const struct sk_buff *skb, const struct xt_match_param *par)
+socket_mt_v1(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	return socket_match(skb, par, par->matchinfo);
 }

@@ -1405,13 +1405,6 @@ xfs_mountfs(
 		xfs_qm_mount_quotas(mp);
 	}
 
-#if defined(DEBUG) && defined(XFS_LOUD_RECOVERY)
-	if (XFS_IS_QUOTA_ON(mp))
-		xfs_fs_cmn_err(CE_NOTE, mp, "Disk quotas turned on");
-	else
-		xfs_fs_cmn_err(CE_NOTE, mp, "Disk quotas not turned on");
-#endif
-
 	/*
 	 * Now we are mounted, reserve a small amount of unused space for
 	 * privileged transactions. This is needed so that transaction

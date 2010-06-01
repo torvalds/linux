@@ -548,18 +548,18 @@ EXPORT_SYMBOL(truncate_pagecache);
  * NOTE! We have to be ready to update the memory sharing
  * between the file and the memory map for a potential last
  * incomplete page.  Ugly, but necessary.
+ *
+ * This function is deprecated and simple_setsize or truncate_pagecache
+ * should be used instead.
  */
 int vmtruncate(struct inode *inode, loff_t offset)
 {
-	loff_t oldsize;
 	int error;
 
-	error = inode_newsize_ok(inode, offset);
+	error = simple_setsize(inode, offset);
 	if (error)
 		return error;
-	oldsize = inode->i_size;
-	i_size_write(inode, offset);
-	truncate_pagecache(inode, oldsize, offset);
+
 	if (inode->i_op->truncate)
 		inode->i_op->truncate(inode);
 

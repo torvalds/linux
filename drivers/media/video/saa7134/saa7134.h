@@ -20,7 +20,7 @@
  */
 
 #include <linux/version.h>
-#define SAA7134_VERSION_CODE KERNEL_VERSION(0,2,15)
+#define SAA7134_VERSION_CODE KERNEL_VERSION(0, 2, 16)
 
 #include <linux/pci.h>
 #include <linux/i2c.h>
@@ -300,6 +300,9 @@ struct saa7134_format {
 #define SAA7134_BOARD_ASUS_EUROPA_HYBRID	174
 #define SAA7134_BOARD_LEADTEK_WINFAST_DTV1000S 175
 #define SAA7134_BOARD_BEHOLD_505RDS_MK3     176
+#define SAA7134_BOARD_HAWELL_HW_404M7		177
+#define SAA7134_BOARD_BEHOLD_H7             178
+#define SAA7134_BOARD_BEHOLD_A7             179
 
 #define SAA7134_MAXBOARDS 32
 #define SAA7134_INPUT_MAX 8
@@ -809,7 +812,7 @@ int  saa7134_input_init1(struct saa7134_dev *dev);
 void saa7134_input_fini(struct saa7134_dev *dev);
 void saa7134_input_irq(struct saa7134_dev *dev);
 void saa7134_probe_i2c_ir(struct saa7134_dev *dev);
-void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir);
+int saa7134_ir_start(struct saa7134_dev *dev);
 void saa7134_ir_stop(struct saa7134_dev *dev);
 
 

@@ -202,9 +202,9 @@ MODULE_LICENSE("GPL");
 static int __init gact_init_module(void)
 {
 #ifdef CONFIG_GACT_PROB
-	printk("GACT probability on\n");
+	printk(KERN_INFO "GACT probability on\n");
 #else
-	printk("GACT probability NOT on\n");
+	printk(KERN_INFO "GACT probability NOT on\n");
 #endif
 	return tcf_register_action(&act_gact_ops);
 }

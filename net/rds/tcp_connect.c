@@ -141,7 +141,7 @@ void rds_tcp_conn_shutdown(struct rds_connection *conn)
 
 		release_sock(sock->sk);
 		sock_release(sock);
-	};
+	}
 
 	if (tc->t_tinc) {
 		rds_inc_put(&tc->t_tinc->ti_inc);

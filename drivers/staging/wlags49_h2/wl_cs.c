@@ -105,13 +105,6 @@
 
 
 /*******************************************************************************
- *  macro definitions
- ******************************************************************************/
-#define CS_CHECK(fn, ret) do { \
-                    last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; \
-            } while (0)
-
-/*******************************************************************************
  *  global definitions
  ******************************************************************************/
 #if DBG
@@ -156,15 +149,12 @@ static int wl_adapter_attach(struct pcmcia_device *link)
     link->io.NumPorts1      = HCF_NUM_IO_PORTS;
     link->io.Attributes1    = IO_DATA_PATH_WIDTH_16;
     link->io.IOAddrLines    = 6;
-    link->irq.Attributes    = IRQ_TYPE_DYNAMIC_SHARING | IRQ_HANDLE_PRESENT;
-    link->irq.IRQInfo1      = IRQ_INFO2_VALID | IRQ_LEVEL_ID;
-    link->irq.Handler       = &wl_isr;
     link->conf.Attributes   = CONF_ENABLE_IRQ;
     link->conf.IntType      = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex  = 5;
     link->conf.Present      = PRESENT_OPTION;
 
-    link->priv = link->irq.Instance = dev;
+    link->priv = dev;
     lp = wl_priv(dev);
     lp->link = link;
 
@@ -305,7 +295,7 @@ void wl_adapter_insert( struct pcmcia_device *link )
 {
     struct net_device       *dev;
     int i;
-    int                     last_fn, last_ret;
+    int                     ret;
     /*------------------------------------------------------------------------*/
 
     DBG_FUNC( "wl_adapter_insert" );
@@ -317,21 +307,27 @@ void wl_adapter_insert( struct pcmcia_device *link )
     /* Do we need to allocate an interrupt? */
     link->conf.Attributes |= CONF_ENABLE_IRQ;
 
-    CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
-    CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
-    CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
+    ret = pcmcia_request_io(link, &link->io);
+    if (ret != 0)
+        goto failed;
 
+    ret = pcmcia_request_irq(link, (void *) wl_isr);
+    if (ret != 0)
+        goto failed;
 
-    dev->irq        = link->irq.AssignedIRQ;
+    ret = pcmcia_request_configuration(link, &link->conf);
+    if (ret != 0)
+        goto failed;
+
+    dev->irq        = link->irq;
     dev->base_addr  = link->io.BasePort1;
 
-    SET_NETDEV_DEV(dev, &handle_to_dev(link));
+    SET_NETDEV_DEV(dev, &link->dev);
     if (register_netdev(dev) != 0) {
 	printk("%s: register_netdev() failed\n", MODULE_NAME);
 	goto failed;
     }
-    link->dev_node = &( wl_priv(dev) )->node;
-    strcpy(( wl_priv(dev) )->node.dev_name, dev->name);
+
     register_wlags_sysfs(dev);
 
     printk(KERN_INFO "%s: Wireless, io_addr %#03lx, irq %d, ""mac_address ",
@@ -342,11 +338,6 @@ void wl_adapter_insert( struct pcmcia_device *link )
 
     DBG_LEAVE( DbgInfo );
     return;
-
-
-cs_failed:
-    cs_error( link, last_fn, last_ret );
-
 
 failed:
     wl_adapter_release( link );

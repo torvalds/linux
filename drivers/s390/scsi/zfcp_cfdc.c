@@ -254,6 +254,7 @@ static long zfcp_cfdc_dev_ioctl(struct file *file, unsigned int command,
 }
 
 static const struct file_operations zfcp_cfdc_fops = {
+	.open = nonseekable_open,
 	.unlocked_ioctl = zfcp_cfdc_dev_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl = zfcp_cfdc_dev_ioctl

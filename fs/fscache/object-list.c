@@ -103,7 +103,7 @@ static struct fscache_object *fscache_objlist_lookup(loff_t *_pos)
 	/* banners (can't represent line 0 by pos 0 as that would involve
 	 * returning a NULL pointer) */
 	if (pos == 0)
-		return (struct fscache_object *) ++(*_pos);
+		return (struct fscache_object *)(long)++(*_pos);
 	if (pos < 3)
 		return (struct fscache_object *)pos;
 

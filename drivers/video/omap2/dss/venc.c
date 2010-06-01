@@ -479,12 +479,6 @@ static int venc_panel_enable(struct omap_dss_device *dssdev)
 		goto err1;
 	}
 
-	if (dssdev->platform_enable) {
-		r = dssdev->platform_enable(dssdev);
-		if (r)
-			goto err2;
-	}
-
 	venc_power_on(dssdev);
 
 	venc.wss_data = 0;
@@ -494,13 +488,9 @@ static int venc_panel_enable(struct omap_dss_device *dssdev)
 	/* wait couple of vsyncs until enabling the LCD */
 	msleep(50);
 
-	mutex_unlock(&venc.venc_lock);
-
-	return r;
-err2:
-	venc_power_off(dssdev);
 err1:
 	mutex_unlock(&venc.venc_lock);
+
 	return r;
 }
 
@@ -523,9 +513,6 @@ static void venc_panel_disable(struct omap_dss_device *dssdev)
 
 	/* wait at least 5 vsyncs after disabling the LCD */
 	msleep(100);
-
-	if (dssdev->platform_disable)
-		dssdev->platform_disable(dssdev);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 end:

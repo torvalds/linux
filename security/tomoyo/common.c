@@ -76,6 +76,49 @@ static int tomoyo_write_control(struct file *file, const char __user *buffer,
 				const int buffer_len);
 
 /**
+ * tomoyo_parse_name_union - Parse a tomoyo_name_union.
+ *
+ * @filename: Name or name group.
+ * @ptr:      Pointer to "struct tomoyo_name_union".
+ *
+ * Returns true on success, false otherwise.
+ */
+bool tomoyo_parse_name_union(const char *filename,
+			     struct tomoyo_name_union *ptr)
+{
+	if (!tomoyo_is_correct_path(filename, 0, 0, 0))
+		return false;
+	if (filename[0] == '@') {
+		ptr->group = tomoyo_get_path_group(filename + 1);
+		ptr->is_group = true;
+		return ptr->group != NULL;
+	}
+	ptr->filename = tomoyo_get_name(filename);
+	ptr->is_group = false;
+	return ptr->filename != NULL;
+}
+
+/**
+ * tomoyo_print_name_union - Print a tomoyo_name_union.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ * @ptr:  Pointer to "struct tomoyo_name_union".
+ *
+ * Returns true on success, false otherwise.
+ */
+static bool tomoyo_print_name_union(struct tomoyo_io_buffer *head,
+				 const struct tomoyo_name_union *ptr)
+{
+	int pos = head->read_avail;
+	if (pos && head->read_buf[pos - 1] == ' ')
+		head->read_avail--;
+	if (ptr->is_group)
+		return tomoyo_io_printf(head, " @%s",
+					ptr->group->group_name->name);
+	return tomoyo_io_printf(head, " %s", ptr->filename->name);
+}
+
+/**
  * tomoyo_is_byte_range - Check whether the string isa \ooo style octal value.
  *
  * @str: Pointer to the string.
@@ -169,6 +212,33 @@ static void tomoyo_normalize_line(unsigned char *buffer)
 			sp++;
 	}
 	*dp = '\0';
+}
+
+/**
+ * tomoyo_tokenize - Tokenize string.
+ *
+ * @buffer: The line to tokenize.
+ * @w:      Pointer to "char *".
+ * @size:   Sizeof @w .
+ *
+ * Returns true on success, false otherwise.
+ */
+bool tomoyo_tokenize(char *buffer, char *w[], size_t size)
+{
+	int count = size / sizeof(char *);
+	int i;
+	for (i = 0; i < count; i++)
+		w[i] = "";
+	for (i = 0; i < count; i++) {
+		char *cp = strchr(buffer, ' ');
+		if (cp)
+			*cp = '\0';
+		w[i] = buffer;
+		if (!cp)
+			break;
+		buffer = cp + 1;
+	}
+	return i < count || !*buffer;
 }
 
 /**
@@ -874,17 +944,17 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_domain_info * const domain)
 static struct tomoyo_profile *tomoyo_find_or_assign_new_profile(const unsigned
 								int profile)
 {
-	static DEFINE_MUTEX(lock);
 	struct tomoyo_profile *ptr = NULL;
 	int i;
 
 	if (profile >= TOMOYO_MAX_PROFILES)
 		return NULL;
-	mutex_lock(&lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		return NULL;
 	ptr = tomoyo_profile_ptr[profile];
 	if (ptr)
 		goto ok;
-	ptr = kmalloc(sizeof(*ptr), GFP_KERNEL);
+	ptr = kmalloc(sizeof(*ptr), GFP_NOFS);
 	if (!tomoyo_memory_ok(ptr)) {
 		kfree(ptr);
 		ptr = NULL;
@@ -895,7 +965,7 @@ static struct tomoyo_profile *tomoyo_find_or_assign_new_profile(const unsigned
 	mb(); /* Avoid out-of-order execution. */
 	tomoyo_profile_ptr[profile] = ptr;
  ok:
-	mutex_unlock(&lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return ptr;
 }
 
@@ -1071,44 +1141,42 @@ LIST_HEAD(tomoyo_policy_manager_list);
 static int tomoyo_update_manager_entry(const char *manager,
 				       const bool is_delete)
 {
-	struct tomoyo_policy_manager_entry *entry = NULL;
 	struct tomoyo_policy_manager_entry *ptr;
-	const struct tomoyo_path_info *saved_manager;
+	struct tomoyo_policy_manager_entry e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
-	bool is_domain = false;
 
 	if (tomoyo_is_domain_def(manager)) {
 		if (!tomoyo_is_correct_domain(manager))
 			return -EINVAL;
-		is_domain = true;
+		e.is_domain = true;
 	} else {
 		if (!tomoyo_is_correct_path(manager, 1, -1, -1))
 			return -EINVAL;
 	}
-	saved_manager = tomoyo_get_name(manager);
-	if (!saved_manager)
+	e.manager = tomoyo_get_name(manager);
+	if (!e.manager)
 		return -ENOMEM;
-	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_policy_manager_list, list) {
-		if (ptr->manager != saved_manager)
+		if (ptr->manager != e.manager)
 			continue;
 		ptr->is_deleted = is_delete;
 		error = 0;
 		break;
 	}
-	if (!is_delete && error && tomoyo_memory_ok(entry)) {
-		entry->manager = saved_manager;
-		saved_manager = NULL;
-		entry->is_domain = is_domain;
-		list_add_tail_rcu(&entry->list, &tomoyo_policy_manager_list);
-		entry = NULL;
-		error = 0;
+	if (!is_delete && error) {
+		struct tomoyo_policy_manager_entry *entry =
+			tomoyo_commit_ok(&e, sizeof(e));
+		if (entry) {
+			list_add_tail_rcu(&entry->list,
+					  &tomoyo_policy_manager_list);
+			error = 0;
+		}
 	}
 	mutex_unlock(&tomoyo_policy_lock);
-	tomoyo_put_name(saved_manager);
-	kfree(entry);
+ out:
+	tomoyo_put_name(e.manager);
 	return error;
 }
 
@@ -1287,7 +1355,8 @@ static int tomoyo_delete_domain(char *domainname)
 
 	name.name = domainname;
 	tomoyo_fill_path_info(&name);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		return 0;
 	/* Is there an active domain? */
 	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
 		/* Never delete tomoyo_kernel_domain */
@@ -1369,23 +1438,20 @@ static bool tomoyo_print_path_acl(struct tomoyo_io_buffer *head,
 {
 	int pos;
 	u8 bit;
-	const char *atmark = "";
-	const char *filename;
 	const u32 perm = ptr->perm | (((u32) ptr->perm_high) << 16);
 
-	filename = ptr->filename->name;
 	for (bit = head->read_bit; bit < TOMOYO_MAX_PATH_OPERATION; bit++) {
-		const char *msg;
 		if (!(perm & (1 << bit)))
 			continue;
 		/* Print "read/write" instead of "read" and "write". */
 		if ((bit == TOMOYO_TYPE_READ || bit == TOMOYO_TYPE_WRITE)
 		    && (perm & (1 << TOMOYO_TYPE_READ_WRITE)))
 			continue;
-		msg = tomoyo_path2keyword(bit);
 		pos = head->read_avail;
-		if (!tomoyo_io_printf(head, "allow_%s %s%s\n", msg,
-				      atmark, filename))
+		if (!tomoyo_io_printf(head, "allow_%s ",
+				      tomoyo_path2keyword(bit)) ||
+		    !tomoyo_print_name_union(head, &ptr->name) ||
+		    !tomoyo_io_printf(head, "\n"))
 			goto out;
 	}
 	head->read_bit = 0;
@@ -1408,23 +1474,18 @@ static bool tomoyo_print_path2_acl(struct tomoyo_io_buffer *head,
 				   struct tomoyo_path2_acl *ptr)
 {
 	int pos;
-	const char *atmark1 = "";
-	const char *atmark2 = "";
-	const char *filename1;
-	const char *filename2;
 	const u8 perm = ptr->perm;
 	u8 bit;
 
-	filename1 = ptr->filename1->name;
-	filename2 = ptr->filename2->name;
 	for (bit = head->read_bit; bit < TOMOYO_MAX_PATH2_OPERATION; bit++) {
-		const char *msg;
 		if (!(perm & (1 << bit)))
 			continue;
-		msg = tomoyo_path22keyword(bit);
 		pos = head->read_avail;
-		if (!tomoyo_io_printf(head, "allow_%s %s%s %s%s\n", msg,
-				      atmark1, filename1, atmark2, filename2))
+		if (!tomoyo_io_printf(head, "allow_%s ",
+				      tomoyo_path22keyword(bit)) ||
+		    !tomoyo_print_name_union(head, &ptr->name1) ||
+		    !tomoyo_print_name_union(head, &ptr->name2) ||
+		    !tomoyo_io_printf(head, "\n"))
 			goto out;
 	}
 	head->read_bit = 0;
@@ -1687,6 +1748,8 @@ static int tomoyo_write_exception_policy(struct tomoyo_io_buffer *head)
 		return tomoyo_write_pattern_policy(data, is_delete);
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_DENY_REWRITE))
 		return tomoyo_write_no_rewrite_policy(data, is_delete);
+	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_PATH_GROUP))
+		return tomoyo_write_path_group_policy(data, is_delete);
 	return -EINVAL;
 }
 
@@ -1743,6 +1806,12 @@ static int tomoyo_read_exception_policy(struct tomoyo_io_buffer *head)
 			head->read_var2 = NULL;
 			head->read_step = 9;
 		case 9:
+			if (!tomoyo_read_path_group_policy(head))
+				break;
+			head->read_var1 = NULL;
+			head->read_var2 = NULL;
+			head->read_step = 10;
+		case 10:
 			head->read_eof = true;
 			break;
 		default:
@@ -1886,7 +1955,7 @@ static int tomoyo_read_self_domain(struct tomoyo_io_buffer *head)
  */
 static int tomoyo_open_control(const u8 type, struct file *file)
 {
-	struct tomoyo_io_buffer *head = kzalloc(sizeof(*head), GFP_KERNEL);
+	struct tomoyo_io_buffer *head = kzalloc(sizeof(*head), GFP_NOFS);
 
 	if (!head)
 		return -ENOMEM;
@@ -1947,7 +2016,7 @@ static int tomoyo_open_control(const u8 type, struct file *file)
 	} else {
 		if (!head->readbuf_size)
 			head->readbuf_size = 4096 * 2;
-		head->read_buf = kzalloc(head->readbuf_size, GFP_KERNEL);
+		head->read_buf = kzalloc(head->readbuf_size, GFP_NOFS);
 		if (!head->read_buf) {
 			kfree(head);
 			return -ENOMEM;
@@ -1961,7 +2030,7 @@ static int tomoyo_open_control(const u8 type, struct file *file)
 		head->write = NULL;
 	} else if (head->write) {
 		head->writebuf_size = 4096 * 2;
-		head->write_buf = kzalloc(head->writebuf_size, GFP_KERNEL);
+		head->write_buf = kzalloc(head->writebuf_size, GFP_NOFS);
 		if (!head->write_buf) {
 			kfree(head->read_buf);
 			kfree(head);

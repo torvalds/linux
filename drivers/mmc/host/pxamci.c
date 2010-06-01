@@ -544,7 +544,7 @@ static irqreturn_t pxamci_detect_irq(int irq, void *devid)
 {
 	struct pxamci_host *host = mmc_priv(devid);
 
-	mmc_detect_change(devid, host->pdata->detect_delay);
+	mmc_detect_change(devid, msecs_to_jiffies(host->pdata->detect_delay_ms));
 	return IRQ_HANDLED;
 }
 
@@ -813,7 +813,7 @@ static int pxamci_suspend(struct device *dev)
 	int ret = 0;
 
 	if (mmc)
-		ret = mmc_suspend_host(mmc, PMSG_SUSPEND);
+		ret = mmc_suspend_host(mmc);
 
 	return ret;
 }

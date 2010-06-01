@@ -716,7 +716,7 @@ static int run_ksoftirqd(void * __bind_cpu)
 			preempt_enable_no_resched();
 			cond_resched();
 			preempt_disable();
-			rcu_sched_qs((long)__bind_cpu);
+			rcu_note_context_switch((long)__bind_cpu);
 		}
 		preempt_enable();
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -808,7 +808,7 @@ static int __cpuinit cpu_callback(struct notifier_block *nfb,
 		p = kthread_create(run_ksoftirqd, hcpu, "ksoftirqd/%d", hotcpu);
 		if (IS_ERR(p)) {
 			printk("ksoftirqd for %i failed\n", hotcpu);
-			return NOTIFY_BAD;
+			return notifier_from_errno(PTR_ERR(p));
 		}
 		kthread_bind(p, hotcpu);
   		per_cpu(ksoftirqd, hotcpu) = p;

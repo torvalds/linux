@@ -236,13 +236,15 @@ static char ohci_driver_name[] = KBUILD_MODNAME;
 #define QUIRK_CYCLE_TIMER		1
 #define QUIRK_RESET_PACKET		2
 #define QUIRK_BE_HEADERS		4
+#define QUIRK_NO_1394A			8
 
 /* In case of multiple matches in ohci_quirks[], only the first one is used. */
 static const struct {
 	unsigned short vendor, device, flags;
 } ohci_quirks[] = {
 	{PCI_VENDOR_ID_TI,	PCI_DEVICE_ID_TI_TSB12LV22, QUIRK_CYCLE_TIMER |
-							    QUIRK_RESET_PACKET},
+							    QUIRK_RESET_PACKET |
+							    QUIRK_NO_1394A},
 	{PCI_VENDOR_ID_TI,	PCI_ANY_ID,	QUIRK_RESET_PACKET},
 	{PCI_VENDOR_ID_AL,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
 	{PCI_VENDOR_ID_NEC,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
@@ -257,14 +259,15 @@ MODULE_PARM_DESC(quirks, "Chip quirks (default = 0"
 	", nonatomic cycle timer = "	__stringify(QUIRK_CYCLE_TIMER)
 	", reset packet generation = "	__stringify(QUIRK_RESET_PACKET)
 	", AR/selfID endianess = "	__stringify(QUIRK_BE_HEADERS)
+	", no 1394a enhancements = "	__stringify(QUIRK_NO_1394A)
 	")");
-
-#ifdef CONFIG_FIREWIRE_OHCI_DEBUG
 
 #define OHCI_PARAM_DEBUG_AT_AR		1
 #define OHCI_PARAM_DEBUG_SELFIDS	2
 #define OHCI_PARAM_DEBUG_IRQS		4
 #define OHCI_PARAM_DEBUG_BUSRESETS	8 /* only effective before chip init */
+
+#ifdef CONFIG_FIREWIRE_OHCI_DEBUG
 
 static int param_debug;
 module_param_named(debug, param_debug, int, 0644);
@@ -438,9 +441,10 @@ static void log_ar_at_event(char dir, int speed, u32 *header, int evt)
 
 #else
 
-#define log_irqs(evt)
-#define log_selfids(node_id, generation, self_id_count, sid)
-#define log_ar_at_event(dir, speed, header, evt)
+#define param_debug 0
+static inline void log_irqs(u32 evt) {}
+static inline void log_selfids(int node_id, int generation, int self_id_count, u32 *s) {}
+static inline void log_ar_at_event(char dir, int speed, u32 *header, int evt) {}
 
 #endif /* CONFIG_FIREWIRE_OHCI_DEBUG */
 
@@ -460,27 +464,71 @@ static inline void flush_writes(const struct fw_ohci *ohci)
 	reg_read(ohci, OHCI1394_Version);
 }
 
+static int read_phy_reg(struct fw_ohci *ohci, int addr)
+{
+	u32 val;
+	int i;
+
+	reg_write(ohci, OHCI1394_PhyControl, OHCI1394_PhyControl_Read(addr));
+	for (i = 0; i < 10; i++) {
+		val = reg_read(ohci, OHCI1394_PhyControl);
+		if (val & OHCI1394_PhyControl_ReadDone)
+			return OHCI1394_PhyControl_ReadData(val);
+
+		msleep(1);
+	}
+	fw_error("failed to read phy reg\n");
+
+	return -EBUSY;
+}
+
+static int write_phy_reg(const struct fw_ohci *ohci, int addr, u32 val)
+{
+	int i;
+
+	reg_write(ohci, OHCI1394_PhyControl,
+		  OHCI1394_PhyControl_Write(addr, val));
+	for (i = 0; i < 100; i++) {
+		val = reg_read(ohci, OHCI1394_PhyControl);
+		if (!(val & OHCI1394_PhyControl_WritePending))
+			return 0;
+
+		msleep(1);
+	}
+	fw_error("failed to write phy reg\n");
+
+	return -EBUSY;
+}
+
 static int ohci_update_phy_reg(struct fw_card *card, int addr,
 			       int clear_bits, int set_bits)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
-	u32 val, old;
+	int ret;
 
-	reg_write(ohci, OHCI1394_PhyControl, OHCI1394_PhyControl_Read(addr));
-	flush_writes(ohci);
-	msleep(2);
-	val = reg_read(ohci, OHCI1394_PhyControl);
-	if ((val & OHCI1394_PhyControl_ReadDone) == 0) {
-		fw_error("failed to set phy reg bits.\n");
-		return -EBUSY;
-	}
+	ret = read_phy_reg(ohci, addr);
+	if (ret < 0)
+		return ret;
 
-	old = OHCI1394_PhyControl_ReadData(val);
-	old = (old & ~clear_bits) | set_bits;
-	reg_write(ohci, OHCI1394_PhyControl,
-		  OHCI1394_PhyControl_Write(addr, old));
+	/*
+	 * The interrupt status bits are cleared by writing a one bit.
+	 * Avoid clearing them unless explicitly requested in set_bits.
+	 */
+	if (addr == 5)
+		clear_bits |= PHY_INT_STATUS_BITS;
 
-	return 0;
+	return write_phy_reg(ohci, addr, (ret & ~clear_bits) | set_bits);
+}
+
+static int read_paged_phy_reg(struct fw_ohci *ohci, int page, int addr)
+{
+	int ret;
+
+	ret = ohci_update_phy_reg(&ohci->card, 7, PHY_PAGE_SELECT, page << 5);
+	if (ret < 0)
+		return ret;
+
+	return read_phy_reg(ohci, addr);
 }
 
 static int ar_context_add_page(struct ar_context *ctx)
@@ -1351,7 +1399,7 @@ static void bus_reset_tasklet(unsigned long data)
 	 * was set up before this reset, the old one is now no longer
 	 * in use and we can free it. Update the config rom pointers
 	 * to point to the current config rom and clear the
-	 * next_config_rom pointer so a new udpate can take place.
+	 * next_config_rom pointer so a new update can take place.
 	 */
 
 	if (ohci->next_config_rom != NULL) {
@@ -1495,13 +1543,64 @@ static void copy_config_rom(__be32 *dest, const __be32 *src, size_t length)
 		memset(&dest[length], 0, CONFIG_ROM_SIZE - size);
 }
 
+static int configure_1394a_enhancements(struct fw_ohci *ohci)
+{
+	bool enable_1394a;
+	int ret, clear, set, offset;
+
+	/* Check if the driver should configure link and PHY. */
+	if (!(reg_read(ohci, OHCI1394_HCControlSet) &
+	      OHCI1394_HCControl_programPhyEnable))
+		return 0;
+
+	/* Paranoia: check whether the PHY supports 1394a, too. */
+	enable_1394a = false;
+	ret = read_phy_reg(ohci, 2);
+	if (ret < 0)
+		return ret;
+	if ((ret & PHY_EXTENDED_REGISTERS) == PHY_EXTENDED_REGISTERS) {
+		ret = read_paged_phy_reg(ohci, 1, 8);
+		if (ret < 0)
+			return ret;
+		if (ret >= 1)
+			enable_1394a = true;
+	}
+
+	if (ohci->quirks & QUIRK_NO_1394A)
+		enable_1394a = false;
+
+	/* Configure PHY and link consistently. */
+	if (enable_1394a) {
+		clear = 0;
+		set = PHY_ENABLE_ACCEL | PHY_ENABLE_MULTI;
+	} else {
+		clear = PHY_ENABLE_ACCEL | PHY_ENABLE_MULTI;
+		set = 0;
+	}
+	ret = ohci_update_phy_reg(&ohci->card, 5, clear, set);
+	if (ret < 0)
+		return ret;
+
+	if (enable_1394a)
+		offset = OHCI1394_HCControlSet;
+	else
+		offset = OHCI1394_HCControlClear;
+	reg_write(ohci, offset, OHCI1394_HCControl_aPhyEnhanceEnable);
+
+	/* Clean up: configuration has been taken care of. */
+	reg_write(ohci, OHCI1394_HCControlClear,
+		  OHCI1394_HCControl_programPhyEnable);
+
+	return 0;
+}
+
 static int ohci_enable(struct fw_card *card,
 		       const __be32 *config_rom, size_t length)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct pci_dev *dev = to_pci_dev(card->device);
 	u32 lps;
-	int i;
+	int i, ret;
 
 	if (software_reset(ohci)) {
 		fw_error("Failed to reset ohci card.\n");
@@ -1565,10 +1664,14 @@ static int ohci_enable(struct fw_card *card,
 	if (param_debug & OHCI_PARAM_DEBUG_BUSRESETS)
 		reg_write(ohci, OHCI1394_IntMaskSet, OHCI1394_busReset);
 
+	ret = configure_1394a_enhancements(ohci);
+	if (ret < 0)
+		return ret;
+
 	/* Activate link_on bit and contender bit in our self ID packets.*/
-	if (ohci_update_phy_reg(card, 4, 0,
-				PHY_LINK_ACTIVE | PHY_CONTENDER) < 0)
-		return -EIO;
+	ret = ohci_update_phy_reg(card, 4, 0, PHY_LINK_ACTIVE | PHY_CONTENDER);
+	if (ret < 0)
+		return ret;
 
 	/*
 	 * When the link is not yet enabled, the atomic config rom
@@ -2304,7 +2407,7 @@ static const struct fw_card_driver ohci_driver = {
 };
 
 #ifdef CONFIG_PPC_PMAC
-static void ohci_pmac_on(struct pci_dev *dev)
+static void pmac_ohci_on(struct pci_dev *dev)
 {
 	if (machine_is(powermac)) {
 		struct device_node *ofn = pci_device_to_OF_node(dev);
@@ -2316,7 +2419,7 @@ static void ohci_pmac_on(struct pci_dev *dev)
 	}
 }
 
-static void ohci_pmac_off(struct pci_dev *dev)
+static void pmac_ohci_off(struct pci_dev *dev)
 {
 	if (machine_is(powermac)) {
 		struct device_node *ofn = pci_device_to_OF_node(dev);
@@ -2328,15 +2431,15 @@ static void ohci_pmac_off(struct pci_dev *dev)
 	}
 }
 #else
-#define ohci_pmac_on(dev)
-#define ohci_pmac_off(dev)
+static inline void pmac_ohci_on(struct pci_dev *dev) {}
+static inline void pmac_ohci_off(struct pci_dev *dev) {}
 #endif /* CONFIG_PPC_PMAC */
 
 static int __devinit pci_probe(struct pci_dev *dev,
 			       const struct pci_device_id *ent)
 {
 	struct fw_ohci *ohci;
-	u32 bus_options, max_receive, link_speed, version;
+	u32 bus_options, max_receive, link_speed, version, link_enh;
 	u64 guid;
 	int i, err, n_ir, n_it;
 	size_t size;
@@ -2349,7 +2452,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
 
 	fw_card_initialize(&ohci->card, &ohci_driver, &dev->dev);
 
-	ohci_pmac_on(dev);
+	pmac_ohci_on(dev);
 
 	err = pci_enable_device(dev);
 	if (err) {
@@ -2388,6 +2491,23 @@ static int __devinit pci_probe(struct pci_dev *dev,
 		}
 	if (param_quirks)
 		ohci->quirks = param_quirks;
+
+	/* TI OHCI-Lynx and compatible: set recommended configuration bits. */
+	if (dev->vendor == PCI_VENDOR_ID_TI) {
+		pci_read_config_dword(dev, PCI_CFG_TI_LinkEnh, &link_enh);
+
+		/* adjust latency of ATx FIFO: use 1.7 KB threshold */
+		link_enh &= ~TI_LinkEnh_atx_thresh_mask;
+		link_enh |= TI_LinkEnh_atx_thresh_1_7K;
+
+		/* use priority arbitration for asynchronous responses */
+		link_enh |= TI_LinkEnh_enab_unfair;
+
+		/* required for aPhyEnhanceEnable to work */
+		link_enh |= TI_LinkEnh_enab_accel;
+
+		pci_write_config_dword(dev, PCI_CFG_TI_LinkEnh, link_enh);
+	}
 
 	ar_context_init(&ohci->ar_request_ctx, ohci,
 			OHCI1394_AsReqRcvContextControlSet);
@@ -2466,7 +2586,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	pci_disable_device(dev);
  fail_free:
 	kfree(&ohci->card);
-	ohci_pmac_off(dev);
+	pmac_ohci_off(dev);
  fail:
 	if (err == -ENOMEM)
 		fw_error("Out of memory\n");
@@ -2509,7 +2629,7 @@ static void pci_remove(struct pci_dev *dev)
 	pci_release_region(dev, 0);
 	pci_disable_device(dev);
 	kfree(&ohci->card);
-	ohci_pmac_off(dev);
+	pmac_ohci_off(dev);
 
 	fw_notify("Removed fw-ohci device.\n");
 }
@@ -2530,7 +2650,7 @@ static int pci_suspend(struct pci_dev *dev, pm_message_t state)
 	err = pci_set_power_state(dev, pci_choose_state(dev, state));
 	if (err)
 		fw_error("pci_set_power_state failed with %d\n", err);
-	ohci_pmac_off(dev);
+	pmac_ohci_off(dev);
 
 	return 0;
 }
@@ -2540,7 +2660,7 @@ static int pci_resume(struct pci_dev *dev)
 	struct fw_ohci *ohci = pci_get_drvdata(dev);
 	int err;
 
-	ohci_pmac_on(dev);
+	pmac_ohci_on(dev);
 	pci_set_power_state(dev, PCI_D0);
 	pci_restore_state(dev);
 	err = pci_enable_device(dev);

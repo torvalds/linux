@@ -1147,6 +1147,12 @@ load_unlock_out:
 		if (ctr->state == CAPI_CTR_DETECTED)
 			goto reset_unlock_out;
 
+		if (ctr->reset_ctr == NULL) {
+			printk(KERN_DEBUG "kcapi: reset: no reset function\n");
+			retval = -ESRCH;
+			goto reset_unlock_out;
+		}
+
 		ctr->reset_ctr(ctr);
 
 		retval = wait_on_ctr_state(ctr, CAPI_CTR_DETECTED);

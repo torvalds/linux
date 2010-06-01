@@ -38,7 +38,6 @@
 static DEFINE_SPINLOCK(xfrm_state_lock);
 
 static unsigned int xfrm_state_hashmax __read_mostly = 1 * 1024 * 1024;
-static unsigned int xfrm_state_genid;
 
 static struct xfrm_state_afinfo *xfrm_state_get_afinfo(unsigned int family);
 static void xfrm_state_put_afinfo(struct xfrm_state_afinfo *afinfo);
@@ -924,8 +923,6 @@ static void __xfrm_state_insert(struct xfrm_state *x)
 	struct net *net = xs_net(x);
 	unsigned int h;
 
-	x->genid = ++xfrm_state_genid;
-
 	list_add(&x->km.all, &net->xfrm.state_all);
 
 	h = xfrm_dst_hash(net, &x->id.daddr, &x->props.saddr,
@@ -971,7 +968,7 @@ static void __xfrm_state_bump_genids(struct xfrm_state *xnew)
 		    (mark & x->mark.m) == x->mark.v &&
 		    !xfrm_addr_cmp(&x->id.daddr, &xnew->id.daddr, family) &&
 		    !xfrm_addr_cmp(&x->props.saddr, &xnew->props.saddr, family))
-			x->genid = xfrm_state_genid;
+			x->genid++;
 	}
 }
 

@@ -91,9 +91,9 @@ static unsigned int udp6_portaddr_hash(struct net *net,
 	if (ipv6_addr_any(addr6))
 		hash = jhash_1word(0, mix);
 	else if (ipv6_addr_v4mapped(addr6))
-		hash = jhash_1word(addr6->s6_addr32[3], mix);
+		hash = jhash_1word((__force u32)addr6->s6_addr32[3], mix);
 	else
-		hash = jhash2(addr6->s6_addr32, 4, mix);
+		hash = jhash2((__force u32 *)addr6->s6_addr32, 4, mix);
 
 	return hash ^ port;
 }
@@ -328,12 +328,16 @@ int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 	int err;
 	int is_udplite = IS_UDPLITE(sk);
 	int is_udp4;
+	bool slow;
 
 	if (addr_len)
 		*addr_len=sizeof(struct sockaddr_in6);
 
 	if (flags & MSG_ERRQUEUE)
 		return ipv6_recv_error(sk, msg, len);
+
+	if (np->rxpmtu && np->rxopt.bits.rxpmtu)
+		return ipv6_recv_rxpmtu(sk, msg, len);
 
 try_again:
 	skb = __skb_recv_datagram(sk, flags | (noblock ? MSG_DONTWAIT : 0),
@@ -421,7 +425,7 @@ out:
 	return err;
 
 csum_copy_err:
-	lock_sock(sk);
+	slow = lock_sock_fast(sk);
 	if (!skb_kill_datagram(sk, skb, flags)) {
 		if (is_udp4)
 			UDP_INC_STATS_USER(sock_net(sk),
@@ -430,7 +434,7 @@ csum_copy_err:
 			UDP6_INC_STATS_USER(sock_net(sk),
 					UDP_MIB_INERRORS, is_udplite);
 	}
-	release_sock(sk);
+	unlock_sock_fast(sk, slow);
 
 	if (flags & MSG_DONTWAIT)
 		return -EAGAIN;
@@ -511,7 +515,7 @@ int udpv6_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 			goto drop;
 	}
 
-	if ((rc = sock_queue_rcv_skb(sk, skb)) < 0) {
+	if ((rc = ip_queue_rcv_skb(sk, skb)) < 0) {
 		/* Note that an ENOMEM error is charged twice */
 		if (rc == -ENOMEM)
 			UDP6_INC_STATS_BH(sock_net(sk),
@@ -581,6 +585,10 @@ static void flush_stack(struct sock **stack, unsigned int count,
 
 		sk = stack[i];
 		if (skb1) {
+			if (sk_rcvqueues_full(sk, skb)) {
+				kfree_skb(skb1);
+				goto drop;
+			}
 			bh_lock_sock(sk);
 			if (!sock_owned_by_user(sk))
 				udpv6_queue_rcv_skb(sk, skb1);
@@ -692,7 +700,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	u32 ulen = 0;
 
 	if (!pskb_may_pull(skb, sizeof(struct udphdr)))
-		goto short_packet;
+		goto discard;
 
 	saddr = &ipv6_hdr(skb)->saddr;
 	daddr = &ipv6_hdr(skb)->daddr;
@@ -756,6 +764,10 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 
 	/* deliver */
 
+	if (sk_rcvqueues_full(sk, skb)) {
+		sock_put(sk);
+		goto discard;
+	}
 	bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk))
 		udpv6_queue_rcv_skb(sk, skb);
@@ -770,9 +782,14 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	return 0;
 
 short_packet:
-	LIMIT_NETDEBUG(KERN_DEBUG "UDP%sv6: short packet: %d/%u\n",
+	LIMIT_NETDEBUG(KERN_DEBUG "UDP%sv6: short packet: From [%pI6c]:%u %d/%d to [%pI6c]:%u\n",
 		       proto == IPPROTO_UDPLITE ? "-Lite" : "",
-		       ulen, skb->len);
+		       saddr,
+		       ntohs(uh->source),
+		       ulen,
+		       skb->len,
+		       daddr,
+		       ntohs(uh->dest));
 
 discard:
 	UDP6_INC_STATS_BH(net, UDP_MIB_INERRORS, proto == IPPROTO_UDPLITE);
@@ -919,6 +936,7 @@ int udpv6_sendmsg(struct kiocb *iocb, struct sock *sk,
 	int ulen = len;
 	int hlimit = -1;
 	int tclass = -1;
+	int dontfrag = -1;
 	int corkreq = up->corkflag || msg->msg_flags&MSG_MORE;
 	int err;
 	int connected = 0;
@@ -1049,7 +1067,8 @@ do_udp_sendmsg:
 		memset(opt, 0, sizeof(struct ipv6_txoptions));
 		opt->tot_len = sizeof(*opt);
 
-		err = datagram_send_ctl(sock_net(sk), msg, &fl, opt, &hlimit, &tclass);
+		err = datagram_send_ctl(sock_net(sk), msg, &fl, opt, &hlimit,
+					&tclass, &dontfrag);
 		if (err < 0) {
 			fl6_sock_release(flowlabel);
 			return err;
@@ -1120,6 +1139,9 @@ do_udp_sendmsg:
 	if (tclass < 0)
 		tclass = np->tclass;
 
+	if (dontfrag < 0)
+		dontfrag = np->dontfrag;
+
 	if (msg->msg_flags&MSG_CONFIRM)
 		goto do_confirm;
 back_from_confirm:
@@ -1143,7 +1165,7 @@ do_append_data:
 	err = ip6_append_data(sk, getfrag, msg->msg_iov, ulen,
 		sizeof(struct udphdr), hlimit, tclass, opt, &fl,
 		(struct rt6_info*)dst,
-		corkreq ? msg->msg_flags|MSG_MORE : msg->msg_flags);
+		corkreq ? msg->msg_flags|MSG_MORE : msg->msg_flags, dontfrag);
 	if (err)
 		udp_v6_flush_pending_frames(sk);
 	else if (!corkreq)

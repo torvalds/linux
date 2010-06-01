@@ -344,16 +344,10 @@ unsigned long get_wchan(struct task_struct *p);
 #ifdef CONFIG_CPU_HAS_PREFETCH
 
 #define ARCH_HAS_PREFETCH
+#define prefetch(x) __builtin_prefetch((x), 0, 1)
 
-static inline void prefetch(const void *addr)
-{
-	__asm__ __volatile__(
-	"	.set	mips4		\n"
-	"	pref	%0, (%1)	\n"
-	"	.set	mips0		\n"
-	:
-	: "i" (Pref_Load), "r" (addr));
-}
+#define ARCH_HAS_PREFETCHW
+#define prefetchw(x) __builtin_prefetch((x), 1, 1)
 
 #endif
 

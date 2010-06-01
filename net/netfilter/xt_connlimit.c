@@ -5,13 +5,13 @@
  *   Nov 2002: Martin Bene <martin.bene@icomedias.com>:
  *		only ignore TIME_WAIT or gone connections
  *   (C) CC Computer Consultants GmbH, 2007
- *   Contact: <jengelh@computergmbh.de>
  *
  * based on ...
  *
  * Kernel module to match connection tracking information.
  * GPL (C) 1999  Rusty Russell (rusty@rustcorp.com.au).
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/ip.h>
@@ -173,7 +173,7 @@ static int count_them(struct net *net,
 }
 
 static bool
-connlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
+connlimit_mt(const struct sk_buff *skb, struct xt_action_param *par)
 {
 	struct net *net = dev_net(par->in ? par->in : par->out);
 	const struct xt_connlimit_info *info = par->matchinfo;
@@ -206,44 +206,46 @@ connlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 
 	if (connections < 0) {
 		/* kmalloc failed, drop it entirely */
-		*par->hotdrop = true;
+		par->hotdrop = true;
 		return false;
 	}
 
 	return (connections > info->limit) ^ info->inverse;
 
  hotdrop:
-	*par->hotdrop = true;
+	par->hotdrop = true;
 	return false;
 }
 
-static bool connlimit_mt_check(const struct xt_mtchk_param *par)
+static int connlimit_mt_check(const struct xt_mtchk_param *par)
 {
 	struct xt_connlimit_info *info = par->matchinfo;
 	unsigned int i;
+	int ret;
 
 	if (unlikely(!connlimit_rnd_inited)) {
 		get_random_bytes(&connlimit_rnd, sizeof(connlimit_rnd));
 		connlimit_rnd_inited = true;
 	}
-	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
-		printk(KERN_WARNING "cannot load conntrack support for "
-		       "address family %u\n", par->family);
-		return false;
+	ret = nf_ct_l3proto_try_module_get(par->family);
+	if (ret < 0) {
+		pr_info("cannot load conntrack support for "
+			"address family %u\n", par->family);
+		return ret;
 	}
 
 	/* init private data */
 	info->data = kmalloc(sizeof(struct xt_connlimit_data), GFP_KERNEL);
 	if (info->data == NULL) {
 		nf_ct_l3proto_module_put(par->family);
-		return false;
+		return -ENOMEM;
 	}
 
 	spin_lock_init(&info->data->lock);
 	for (i = 0; i < ARRAY_SIZE(info->data->iphash); ++i)
 		INIT_LIST_HEAD(&info->data->iphash[i]);
 
-	return true;
+	return 0;
 }
 
 static void connlimit_mt_destroy(const struct xt_mtdtor_param *par)

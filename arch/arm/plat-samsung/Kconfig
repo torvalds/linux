@@ -6,7 +6,7 @@
 
 config PLAT_SAMSUNG
 	bool
-	depends on ARCH_S3C2410 || ARCH_S3C24A0 || ARCH_S3C64XX || ARCH_S5PC1XX
+	depends on ARCH_S3C2410 || ARCH_S3C24A0 || ARCH_S3C64XX
 	select NO_IOPORT
 	default y
 	help
@@ -90,12 +90,6 @@ config S3C_GPIO_CFG_S3C64XX
 	  Internal configuration to enable S3C64XX style GPIO configuration
 	  functions.
 
-config S5P_GPIO_CFG_S5PC1XX
-	bool
-	help
-	  Internal configuration to enable S5PC1XX style GPIO configuration
-	  functions.
-
 config S3C_GPIO_PULL_UPDOWN
 	bool
 	help
@@ -110,6 +104,12 @@ config S3C_GPIO_PULL_UP
 	bool
 	help
 	  Internal configuration to enable the correct GPIO pull helper
+
+config S5P_GPIO_DRVSTR
+	bool
+	help
+	  Internal configuration to get and set correct GPIO driver strength
+	  helper
 
 config SAMSUNG_GPIO_EXTRA
 	int "Number of additional GPIO pins"
@@ -160,10 +160,20 @@ config S3C_DEV_HSMMC2
 	help
 	  Compile in platform device definitions for HSMMC channel 2
 
+config S3C_DEV_HWMON
+	bool
+	help
+	    Compile in platform device definitions for HWMON
+
 config S3C_DEV_I2C1
 	bool
 	help
 	  Compile in platform device definitions for I2C channel 1
+
+config S3C_DEV_I2C2
+	bool
+	help
+	  Compile in platform device definitions for I2C channel 2
 
 config S3C_DEV_FB
 	bool
@@ -180,10 +190,31 @@ config S3C_DEV_USB_HSOTG
 	help
 	  Compile in platform device definition for USB high-speed OtG
 
+config S3C_DEV_WDT
+	bool
+	default y if ARCH_S3C2410
+	help
+	  Complie in platform device definition for Watchdog Timer
+
 config S3C_DEV_NAND
 	bool
 	help
 	  Compile in platform device definition for NAND controller
+
+config S3C_DEV_ONENAND
+	bool
+	help
+	  Compile in platform device definition for OneNAND controller
+
+config S3C_DEV_RTC
+	bool
+	help
+	  Complie in platform device definition for RTC
+
+config SAMSUNG_DEV_ADC
+	bool
+	help
+	  Compile in platform device definition for ADC controller
 
 config S3C64XX_DEV_SPI
 	bool
@@ -191,12 +222,23 @@ config S3C64XX_DEV_SPI
 	  Compile in platform device definitions for S3C64XX's type
 	  SPI controllers.
 
+config SAMSUNG_DEV_TS
+	bool
+	help
+	    Common in platform device definitions for touchscreen device
+
 # DMA
 
 config S3C_DMA
 	bool
 	help
 	  Internal configuration for S3C DMA core
+
+config S3C_PL330_DMA
+	bool
+	select PL330
+	help
+	  S3C DMA API Driver for PL330 DMAC.
 
 comment "Power management"
 
@@ -242,5 +284,13 @@ config SAMSUNG_PM_CHECK_CHUNKSIZE
 	  faults with better precision.
 
 	  See <file:Documentation/arm/Samsung-S3C24XX/Suspend.txt>
+
+config SAMSUNG_WAKEMASK
+	bool
+	depends on PM
+	help
+	  Compile support for wakeup-mask controls found on the S3C6400
+	  and above. This code allows a set of interrupt to wakeup-mask
+	  mappings. See <plat/wakeup-mask.h>
 
 endif

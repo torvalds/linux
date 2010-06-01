@@ -25,10 +25,10 @@
 #include "sort.h"
 
 extern regex_t parent_regex;
-extern char *sort_order;
-extern char default_parent_pattern[];
-extern char *parent_pattern;
-extern char default_sort_order[];
+extern const char *sort_order;
+extern const char default_parent_pattern[];
+extern const char *parent_pattern;
+extern const char default_sort_order[];
 extern int sort__need_collapse;
 extern int sort__has_parent;
 extern char *field_sep;
@@ -43,19 +43,24 @@ extern enum sort_type sort__first_dimension;
 
 struct hist_entry {
 	struct rb_node		rb_node;
-	u64			count;
+	u64			period;
+	u64			period_sys;
+	u64			period_us;
+	u64			period_guest_sys;
+	u64			period_guest_us;
+	struct map_symbol	ms;
 	struct thread		*thread;
-	struct map		*map;
-	struct symbol		*sym;
 	u64			ip;
+	u32			nr_events;
 	char			level;
-	struct symbol	  *parent;
-	struct callchain_node	callchain;
+	u8			filtered;
+	struct symbol		*parent;
 	union {
 		unsigned long	  position;
 		struct hist_entry *pair;
 		struct rb_root	  sorted_chain;
 	};
+	struct callchain_node	callchain[0];
 };
 
 enum sort_type {
@@ -73,12 +78,13 @@ enum sort_type {
 struct sort_entry {
 	struct list_head list;
 
-	const char *header;
+	const char *se_header;
 
-	int64_t (*cmp)(struct hist_entry *, struct hist_entry *);
-	int64_t (*collapse)(struct hist_entry *, struct hist_entry *);
-	size_t	(*print)(FILE *fp, struct hist_entry *, unsigned int width);
-	unsigned int *width;
+	int64_t (*se_cmp)(struct hist_entry *, struct hist_entry *);
+	int64_t (*se_collapse)(struct hist_entry *, struct hist_entry *);
+	int	(*se_snprintf)(struct hist_entry *self, char *bf, size_t size,
+			       unsigned int width);
+	unsigned int *se_width;
 	bool	elide;
 };
 
@@ -87,7 +93,6 @@ extern struct list_head hist_entry__sort_list;
 
 void setup_sorting(const char * const usagestr[], const struct option *opts);
 
-extern int repsep_fprintf(FILE *fp, const char *fmt, ...);
 extern size_t sort__thread_print(FILE *, struct hist_entry *, unsigned int);
 extern size_t sort__comm_print(FILE *, struct hist_entry *, unsigned int);
 extern size_t sort__dso_print(FILE *, struct hist_entry *, unsigned int);

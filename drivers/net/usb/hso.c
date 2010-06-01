@@ -475,6 +475,9 @@ static const struct usb_device_id hso_ids[] = {
 	{USB_DEVICE(0x0af0, 0x8302)},
 	{USB_DEVICE(0x0af0, 0x8304)},
 	{USB_DEVICE(0x0af0, 0x8400)},
+	{USB_DEVICE(0x0af0, 0x8600)},
+	{USB_DEVICE(0x0af0, 0x8800)},
+	{USB_DEVICE(0x0af0, 0x8900)},
 	{USB_DEVICE(0x0af0, 0xd035)},
 	{USB_DEVICE(0x0af0, 0xd055)},
 	{USB_DEVICE(0x0af0, 0xd155)},
@@ -834,8 +837,6 @@ static netdev_tx_t hso_net_start_xmit(struct sk_buff *skb,
 	} else {
 		net->stats.tx_packets++;
 		net->stats.tx_bytes += skb->len;
-		/* And tell the kernel when the last transmit started. */
-		net->trans_start = jiffies;
 	}
 	dev_kfree_skb(skb);
 	/* we're done */
@@ -1474,7 +1475,6 @@ static void hso_serial_set_termios(struct tty_struct *tty, struct ktermios *old)
 	spin_unlock_irqrestore(&serial->serial_lock, flags);
 
 	/* done */
-	return;
 }
 
 /* how many characters in the buffer */
@@ -1994,7 +1994,6 @@ static void hso_std_serial_write_bulk_callback(struct urb *urb)
 	hso_kick_transmit(serial);
 
 	D1(" ");
-	return;
 }
 
 /* called for writing diag or CS serial port */

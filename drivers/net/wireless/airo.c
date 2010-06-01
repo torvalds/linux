@@ -2876,7 +2876,7 @@ static struct net_device *_init_airo_card( unsigned short irq, int port,
 	ai->wep_capable = (cap_rid.softCap & cpu_to_le16(0x02)) ? 1 : 0;
 	ai->max_wep_idx = (cap_rid.softCap & cpu_to_le16(0x80)) ? 3 : 0;
 
-	airo_print_info(dev->name, "Firmware version %x.%x.%02x",
+	airo_print_info(dev->name, "Firmware version %x.%x.%02d",
 	                ((le16_to_cpu(cap_rid.softVer) >> 8) & 0xF),
 	                (le16_to_cpu(cap_rid.softVer) & 0xFF),
 	                le16_to_cpu(cap_rid.softSubVer));
@@ -3193,19 +3193,26 @@ static void airo_print_status(const char *devname, u16 status)
 {
 	u8 reason = status & 0xFF;
 
-	switch (status) {
+	switch (status & 0xFF00) {
 	case STAT_NOBEACON:
-		airo_print_dbg(devname, "link lost (missed beacons)");
-		break;
-	case STAT_MAXRETRIES:
-	case STAT_MAXARL:
-		airo_print_dbg(devname, "link lost (max retries)");
-		break;
-	case STAT_FORCELOSS:
-		airo_print_dbg(devname, "link lost (local choice)");
-		break;
-	case STAT_TSFSYNC:
-		airo_print_dbg(devname, "link lost (TSF sync lost)");
+		switch (status) {
+		case STAT_NOBEACON:
+			airo_print_dbg(devname, "link lost (missed beacons)");
+			break;
+		case STAT_MAXRETRIES:
+		case STAT_MAXARL:
+			airo_print_dbg(devname, "link lost (max retries)");
+			break;
+		case STAT_FORCELOSS:
+			airo_print_dbg(devname, "link lost (local choice)");
+			break;
+		case STAT_TSFSYNC:
+			airo_print_dbg(devname, "link lost (TSF sync lost)");
+			break;
+		default:
+			airo_print_dbg(devname, "unknow status %x\n", status);
+			break;
+		}
 		break;
 	case STAT_DEAUTH:
 		airo_print_dbg(devname, "deauthenticated (reason: %d)", reason);
@@ -3221,7 +3228,11 @@ static void airo_print_status(const char *devname, u16 status)
 		airo_print_dbg(devname, "authentication failed (reason: %d)",
 			       reason);
 		break;
+	case STAT_ASSOC:
+	case STAT_REASSOC:
+		break;
 	default:
+		airo_print_dbg(devname, "unknow status %x\n", status);
 		break;
 	}
 }
@@ -5151,13 +5162,6 @@ static void proc_SSID_on_close(struct inode *inode, struct file *file)
 	enable_MAC(ai, 1);
 }
 
-static inline u8 hexVal(char c) {
-	if (c>='0' && c<='9') return c -= '0';
-	if (c>='a' && c<='f') return c -= 'a'-10;
-	if (c>='A' && c<='F') return c -= 'A'-10;
-	return 0;
-}
-
 static void proc_APList_on_close( struct inode *inode, struct file *file ) {
 	struct proc_data *data = (struct proc_data *)file->private_data;
 	struct proc_dir_entry *dp = PDE(inode);
@@ -5177,11 +5181,11 @@ static void proc_APList_on_close( struct inode *inode, struct file *file ) {
 			switch(j%3) {
 			case 0:
 				APList_rid.ap[i][j/3]=
-					hexVal(data->wbuffer[j+i*6*3])<<4;
+					hex_to_bin(data->wbuffer[j+i*6*3])<<4;
 				break;
 			case 1:
 				APList_rid.ap[i][j/3]|=
-					hexVal(data->wbuffer[j+i*6*3]);
+					hex_to_bin(data->wbuffer[j+i*6*3]);
 				break;
 			}
 		}
@@ -5329,10 +5333,10 @@ static void proc_wepkey_on_close( struct inode *inode, struct file *file ) {
 	for( i = 0; i < 16*3 && data->wbuffer[i+j]; i++ ) {
 		switch(i%3) {
 		case 0:
-			key[i/3] = hexVal(data->wbuffer[i+j])<<4;
+			key[i/3] = hex_to_bin(data->wbuffer[i+j])<<4;
 			break;
 		case 1:
-			key[i/3] |= hexVal(data->wbuffer[i+j]);
+			key[i/3] |= hex_to_bin(data->wbuffer[i+j]);
 			break;
 		}
 	}

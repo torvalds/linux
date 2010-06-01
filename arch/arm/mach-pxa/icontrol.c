@@ -73,7 +73,6 @@ static struct pxa2xx_spi_chip mcp251x_chip_info4 = {
 
 static struct mcp251x_platform_data mcp251x_info = {
 	.oscillator_frequency = 16E6,
-	.model                = CAN_MCP251X_MCP2515,
 	.board_specific_setup = NULL,
 	.power_enable         = NULL,
 	.transceiver_enable   = NULL
@@ -81,7 +80,7 @@ static struct mcp251x_platform_data mcp251x_info = {
 
 static struct spi_board_info mcp251x_board_info[] = {
 	{
-		.modalias        = "mcp251x",
+		.modalias        = "mcp2515",
 		.max_speed_hz    = 6500000,
 		.bus_num         = 3,
 		.chip_select     = 0,
@@ -90,7 +89,7 @@ static struct spi_board_info mcp251x_board_info[] = {
 		.irq             = gpio_to_irq(ICONTROL_MCP251x_nIRQ1)
 	},
 	{
-		.modalias        = "mcp251x",
+		.modalias        = "mcp2515",
 		.max_speed_hz    = 6500000,
 		.bus_num         = 3,
 		.chip_select     = 1,
@@ -99,7 +98,7 @@ static struct spi_board_info mcp251x_board_info[] = {
 		.irq             = gpio_to_irq(ICONTROL_MCP251x_nIRQ2)
 	},
 	{
-		.modalias        = "mcp251x",
+		.modalias        = "mcp2515",
 		.max_speed_hz    = 6500000,
 		.bus_num         = 4,
 		.chip_select     = 0,
@@ -108,7 +107,7 @@ static struct spi_board_info mcp251x_board_info[] = {
 		.irq             = gpio_to_irq(ICONTROL_MCP251x_nIRQ3)
 	},
 	{
-		.modalias        = "mcp251x",
+		.modalias        = "mcp2515",
 		.max_speed_hz    = 6500000,
 		.bus_num         = 4,
 		.chip_select     = 1,

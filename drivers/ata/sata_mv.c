@@ -675,8 +675,6 @@ static struct ata_port_operations mv5_ops = {
 	.freeze			= mv_eh_freeze,
 	.thaw			= mv_eh_thaw,
 	.hardreset		= mv_hardreset,
-	.error_handler		= ata_std_error_handler, /* avoid SFF EH */
-	.post_internal_cmd	= ATA_OP_NULL,
 
 	.scr_read		= mv5_scr_read,
 	.scr_write		= mv5_scr_write,
@@ -686,15 +684,26 @@ static struct ata_port_operations mv5_ops = {
 };
 
 static struct ata_port_operations mv6_ops = {
-	.inherits		= &mv5_ops,
-	.dev_config             = mv6_dev_config,
-	.scr_read		= mv_scr_read,
-	.scr_write		= mv_scr_write,
+	.inherits		= &ata_bmdma_port_ops,
 
+	.lost_interrupt		= ATA_OP_NULL,
+
+	.qc_defer		= mv_qc_defer,
+	.qc_prep		= mv_qc_prep,
+	.qc_issue		= mv_qc_issue,
+
+	.dev_config             = mv6_dev_config,
+
+	.freeze			= mv_eh_freeze,
+	.thaw			= mv_eh_thaw,
+	.hardreset		= mv_hardreset,
+	.softreset		= mv_softreset,
 	.pmp_hardreset		= mv_pmp_hardreset,
 	.pmp_softreset		= mv_softreset,
-	.softreset		= mv_softreset,
 	.error_handler		= mv_pmp_error_handler,
+
+	.scr_read		= mv_scr_read,
+	.scr_write		= mv_scr_write,
 
 	.sff_check_status	= mv_sff_check_status,
 	.sff_irq_clear		= mv_sff_irq_clear,
@@ -703,6 +712,9 @@ static struct ata_port_operations mv6_ops = {
 	.bmdma_start		= mv_bmdma_start,
 	.bmdma_stop		= mv_bmdma_stop,
 	.bmdma_status		= mv_bmdma_status,
+
+	.port_start		= mv_port_start,
+	.port_stop		= mv_port_stop,
 };
 
 static struct ata_port_operations mv_iie_ops = {
@@ -2248,7 +2260,7 @@ static unsigned int mv_qc_issue_fis(struct ata_queued_cmd *qc)
 	}
 
 	if (qc->tf.flags & ATA_TFLAG_POLLING)
-		ata_pio_queue_task(ap, qc, 0);
+		ata_sff_queue_pio_task(ap, 0);
 	return 0;
 }
 
@@ -2344,7 +2356,7 @@ static unsigned int mv_qc_issue(struct ata_queued_cmd *qc)
 		if (IS_GEN_II(hpriv))
 			return mv_qc_issue_fis(qc);
 	}
-	return ata_sff_qc_issue(qc);
+	return ata_bmdma_qc_issue(qc);
 }
 
 static struct ata_queued_cmd *mv_get_active_qc(struct ata_port *ap)
@@ -2355,13 +2367,9 @@ static struct ata_queued_cmd *mv_get_active_qc(struct ata_port *ap)
 	if (pp->pp_flags & MV_PP_FLAG_NCQ_EN)
 		return NULL;
 	qc = ata_qc_from_tag(ap, ap->link.active_tag);
-	if (qc) {
-		if (qc->tf.flags & ATA_TFLAG_POLLING)
-			qc = NULL;
-		else if (!(qc->flags & ATA_QCFLAG_ACTIVE))
-			qc = NULL;
-	}
-	return qc;
+	if (qc && !(qc->tf.flags & ATA_TFLAG_POLLING))
+		return qc;
+	return NULL;
 }
 
 static void mv_pmp_error_handler(struct ata_port *ap)
@@ -2546,9 +2554,7 @@ static void mv_unexpected_intr(struct ata_port *ap, int edma_was_enabled)
 	char *when = "idle";
 
 	ata_ehi_clear_desc(ehi);
-	if (ap->flags & ATA_FLAG_DISABLED) {
-		when = "disabled";
-	} else if (edma_was_enabled) {
+	if (edma_was_enabled) {
 		when = "EDMA enabled";
 	} else {
 		struct ata_queued_cmd *qc = ata_qc_from_tag(ap, ap->link.active_tag);
@@ -2782,10 +2788,6 @@ static void mv_port_intr(struct ata_port *ap, u32 port_cause)
 	struct mv_port_priv *pp;
 	int edma_was_enabled;
 
-	if (ap->flags & ATA_FLAG_DISABLED) {
-		mv_unexpected_intr(ap, 0);
-		return;
-	}
 	/*
 	 * Grab a snapshot of the EDMA_EN flag setting,
 	 * so that we have a consistent view for this port,
@@ -2809,7 +2811,7 @@ static void mv_port_intr(struct ata_port *ap, u32 port_cause)
 	} else if (!edma_was_enabled) {
 		struct ata_queued_cmd *qc = mv_get_active_qc(ap);
 		if (qc)
-			ata_sff_host_intr(ap, qc);
+			ata_bmdma_port_intr(ap, qc);
 		else
 			mv_unexpected_intr(ap, edma_was_enabled);
 	}
@@ -3655,9 +3657,6 @@ static void mv_port_init(struct ata_ioports *port,  void __iomem *port_mmio)
 		port->command_addr = shd_base + (sizeof(u32) * ATA_REG_STATUS);
 	/* special case: control/altstatus doesn't have ATA_REG_ address */
 	port->altstatus_addr = port->ctl_addr = shd_base + SHD_CTL_AST;
-
-	/* unused: */
-	port->cmd_addr = port->bmdma_addr = port->scr_addr = NULL;
 
 	/* Clear any currently outstanding port interrupt conditions */
 	serr = port_mmio + mv_scr_offset(SCR_ERROR);

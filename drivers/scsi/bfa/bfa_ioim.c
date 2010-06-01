@@ -731,6 +731,9 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	static struct fcp_cmnd_s cmnd_z0 = { 0 };
 	struct bfi_sge_s      *sge;
 	u32        pgdlen = 0;
+	u64 addr;
+	struct scatterlist *sg;
+	struct scsi_cmnd *cmnd = (struct scsi_cmnd *) ioim->dio;
 
 	/**
 	 * check for room in queue to send request now
@@ -754,8 +757,10 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	 */
 	sge = &m->sges[0];
 	if (ioim->nsges) {
-		sge->sga = bfa_cb_ioim_get_sgaddr(ioim->dio, 0);
-		pgdlen = bfa_cb_ioim_get_sglen(ioim->dio, 0);
+		sg = (struct scatterlist *)scsi_sglist(cmnd);
+		addr = bfa_os_sgaddr(sg_dma_address(sg));
+		sge->sga = *(union bfi_addr_u *) &addr;
+		pgdlen = sg_dma_len(sg);
 		sge->sg_len = pgdlen;
 		sge->flags = (ioim->nsges > BFI_SGE_INLINE) ?
 					BFI_SGE_DATA_CPL : BFI_SGE_DATA_LAST;
@@ -868,9 +873,15 @@ bfa_ioim_sgpg_setup(struct bfa_ioim_s *ioim)
 	struct bfi_sge_s      *sge;
 	struct bfa_sgpg_s *sgpg;
 	u32        pgcumsz;
+	u64        addr;
+	struct scatterlist *sg;
+	struct scsi_cmnd *cmnd = (struct scsi_cmnd *) ioim->dio;
 
 	sgeid = BFI_SGE_INLINE;
 	ioim->sgpg = sgpg = bfa_q_first(&ioim->sgpg_q);
+
+	sg = scsi_sglist(cmnd);
+	sg = sg_next(sg);
 
 	do {
 		sge = sgpg->sgpg->sges;
@@ -879,9 +890,10 @@ bfa_ioim_sgpg_setup(struct bfa_ioim_s *ioim)
 			nsges = BFI_SGPG_DATA_SGES;
 
 		pgcumsz = 0;
-		for (i = 0; i < nsges; i++, sge++, sgeid++) {
-			sge->sga = bfa_cb_ioim_get_sgaddr(ioim->dio, sgeid);
-			sge->sg_len = bfa_cb_ioim_get_sglen(ioim->dio, sgeid);
+		for (i = 0; i < nsges; i++, sge++, sgeid++, sg = sg_next(sg)) {
+			addr = bfa_os_sgaddr(sg_dma_address(sg));
+			sge->sga = *(union bfi_addr_u *) &addr;
+			sge->sg_len = sg_dma_len(sg);
 			pgcumsz += sge->sg_len;
 
 			/**

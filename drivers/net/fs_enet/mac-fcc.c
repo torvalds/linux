@@ -88,19 +88,19 @@ static int do_pd_setup(struct fs_enet_private *fep)
 	struct fs_platform_info *fpi = fep->fpi;
 	int ret = -EINVAL;
 
-	fep->interrupt = of_irq_to_resource(ofdev->node, 0, NULL);
+	fep->interrupt = of_irq_to_resource(ofdev->dev.of_node, 0, NULL);
 	if (fep->interrupt == NO_IRQ)
 		goto out;
 
-	fep->fcc.fccp = of_iomap(ofdev->node, 0);
+	fep->fcc.fccp = of_iomap(ofdev->dev.of_node, 0);
 	if (!fep->fcc.fccp)
 		goto out;
 
-	fep->fcc.ep = of_iomap(ofdev->node, 1);
+	fep->fcc.ep = of_iomap(ofdev->dev.of_node, 1);
 	if (!fep->fcc.ep)
 		goto out_fccp;
 
-	fep->fcc.fcccp = of_iomap(ofdev->node, 2);
+	fep->fcc.fcccp = of_iomap(ofdev->dev.of_node, 2);
 	if (!fep->fcc.fcccp)
 		goto out_ep;
 
@@ -231,12 +231,12 @@ static void set_multicast_finish(struct net_device *dev)
 
 static void set_multicast_list(struct net_device *dev)
 {
-	struct dev_mc_list *pmc;
+	struct netdev_hw_addr *ha;
 
 	if ((dev->flags & IFF_PROMISC) == 0) {
 		set_multicast_start(dev);
-		netdev_for_each_mc_addr(pmc, dev)
-			set_multicast_one(dev, pmc->dmi_addr);
+		netdev_for_each_mc_addr(ha, dev)
+			set_multicast_one(dev, ha->addr);
 		set_multicast_finish(dev);
 	} else
 		set_promiscuous_mode(dev);

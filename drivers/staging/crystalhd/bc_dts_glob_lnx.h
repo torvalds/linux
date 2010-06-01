@@ -40,7 +40,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <arpa/inet.h>
-#include <asm/param.h>
+#include <linux/param.h>
 #include <linux/ioctl.h>
 #include <sys/select.h>
 
@@ -58,7 +58,7 @@
  * These are SW stack tunable parameters shared
  * between the driver and the application.
  */
-enum _BC_DTS_GLOBALS {
+enum BC_DTS_GLOBALS {
 	BC_MAX_FW_CMD_BUFF_SZ	= 0x40,		/* FW passthrough cmd/rsp buffer size */
 	PCI_CFG_SIZE		= 256,		/* PCI config size buffer */
 	BC_IOCTL_DATA_POOL_SIZE	= 8,		/* BC_IOCTL_DATA Pool size */
@@ -70,62 +70,62 @@ enum _BC_DTS_GLOBALS {
 	BC_INFIFO_THRESHOLD	= 0x10000,
 };
 
-typedef struct _BC_CMD_REG_ACC {
+struct BC_CMD_REG_ACC {
 	uint32_t		Offset;
 	uint32_t		Value;
-} BC_CMD_REG_ACC;
+};
 
-typedef struct _BC_CMD_DEV_MEM {
+struct BC_CMD_DEV_MEM {
 	uint32_t		StartOff;
 	uint32_t		NumDwords;
 	uint32_t		Rsrd;
-} BC_CMD_DEV_MEM;
+};
 
 /* FW Passthrough command structure */
-enum _bc_fw_cmd_flags {
+enum bc_fw_cmd_flags {
 	BC_FW_CMD_FLAGS_NONE	= 0,
 	BC_FW_CMD_PIB_QS	= 0x01,
 };
 
-typedef struct _BC_FW_CMD {
+struct BC_FW_CMD {
 	uint32_t		cmd[BC_MAX_FW_CMD_BUFF_SZ];
 	uint32_t		rsp[BC_MAX_FW_CMD_BUFF_SZ];
 	uint32_t		flags;
 	uint32_t		add_data;
-} BC_FW_CMD, *PBC_FW_CMD;
+};
 
-typedef struct _BC_HW_TYPE {
+struct BC_HW_TYPE {
 	uint16_t		PciDevId;
 	uint16_t		PciVenId;
 	uint8_t			HwRev;
 	uint8_t			Align[3];
-} BC_HW_TYPE;
+};
 
-typedef struct _BC_PCI_CFG {
+struct BC_PCI_CFG {
 	uint32_t		Size;
 	uint32_t		Offset;
 	uint8_t			pci_cfg_space[PCI_CFG_SIZE];
-} BC_PCI_CFG;
+};
 
-typedef struct _BC_VERSION_INFO_ {
+struct BC_VERSION_INFO {
 	uint8_t			DriverMajor;
 	uint8_t			DriverMinor;
 	uint16_t		DriverRevision;
-} BC_VERSION_INFO;
+};
 
-typedef struct _BC_START_RX_CAP_ {
+struct BC_START_RX_CAP {
 	uint32_t		Rsrd;
 	uint32_t		StartDeliveryThsh;
 	uint32_t		PauseThsh;
 	uint32_t		ResumeThsh;
-} BC_START_RX_CAP;
+};
 
-typedef struct _BC_FLUSH_RX_CAP_ {
+struct BC_FLUSH_RX_CAP {
 	uint32_t		Rsrd;
 	uint32_t		bDiscardOnly;
-} BC_FLUSH_RX_CAP;
+};
 
-typedef struct _BC_DTS_STATS {
+struct BC_DTS_STATS {
 	uint8_t			drvRLL;
 	uint8_t			drvFLL;
 	uint8_t			eosDetected;
@@ -154,18 +154,18 @@ typedef struct _BC_DTS_STATS {
 	uint32_t		DrvRepeatedFrms;
 	uint32_t		res1[13];
 
-} BC_DTS_STATS;
+};
 
-typedef struct _BC_PROC_INPUT_ {
+struct BC_PROC_INPUT {
 	uint8_t			*pDmaBuff;
 	uint32_t		BuffSz;
 	uint8_t			Mapped;
 	uint8_t			Encrypted;
 	uint8_t			Rsrd[2];
 	uint32_t		DramOffset;	/* For debug use only */
-} BC_PROC_INPUT, *PBC_PROC_INPUT;
+};
 
-typedef struct _BC_DEC_YUV_BUFFS {
+struct BC_DEC_YUV_BUFFS {
 	uint32_t		b422Mode;
 	uint8_t			*YuvBuff;
 	uint32_t		YuvBuffSz;
@@ -173,9 +173,9 @@ typedef struct _BC_DEC_YUV_BUFFS {
 	uint32_t		YBuffDoneSz;
 	uint32_t		UVBuffDoneSz;
 	uint32_t		RefCnt;
-} BC_DEC_YUV_BUFFS;
+};
 
-enum _DECOUT_COMPLETION_FLAGS{
+enum DECOUT_COMPLETION_FLAGS{
 	COMP_FLAG_NO_INFO	= 0x00,
 	COMP_FLAG_FMT_CHANGE	= 0x01,
 	COMP_FLAG_PIB_VALID	= 0x02,
@@ -184,47 +184,47 @@ enum _DECOUT_COMPLETION_FLAGS{
 	COMP_FLAG_DATA_BOT	= 0x10,
 };
 
-typedef struct _BC_DEC_OUT_BUFF{
-	BC_DEC_YUV_BUFFS	OutPutBuffs;
-	BC_PIC_INFO_BLOCK	PibInfo;
+struct BC_DEC_OUT_BUFF{
+	struct BC_DEC_YUV_BUFFS	OutPutBuffs;
+	struct BC_PIC_INFO_BLOCK PibInfo;
 	uint32_t		Flags;
 	uint32_t		BadFrCnt;
-} BC_DEC_OUT_BUFF;
+};
 
-typedef struct _BC_NOTIFY_MODE {
+struct BC_NOTIFY_MODE {
 	uint32_t		Mode;
 	uint32_t		Rsvr[3];
-} BC_NOTIFY_MODE;
+};
 
-typedef struct _BC_CLOCK {
+struct BC_CLOCK {
 	uint32_t		clk;
 	uint32_t		Rsvr[3];
-} BC_CLOCK;
+};
 
-typedef struct _BC_IOCTL_DATA {
-	BC_STATUS		RetSts;
+struct BC_IOCTL_DATA {
+	enum BC_STATUS		RetSts;
 	uint32_t		IoctlDataSz;
 	uint32_t		Timeout;
 	union {
-		BC_CMD_REG_ACC		regAcc;
-		BC_CMD_DEV_MEM		devMem;
-		BC_FW_CMD		fwCmd;
-		BC_HW_TYPE		hwType;
-		BC_PCI_CFG		pciCfg;
-		BC_VERSION_INFO		VerInfo;
-		BC_PROC_INPUT		ProcInput;
-		BC_DEC_YUV_BUFFS	RxBuffs;
-		BC_DEC_OUT_BUFF		DecOutData;
-		BC_START_RX_CAP		RxCap;
-		BC_FLUSH_RX_CAP		FlushRxCap;
-		BC_DTS_STATS		drvStat;
-		BC_NOTIFY_MODE		NotifyMode;
-		BC_CLOCK			clockValue;
+		struct BC_CMD_REG_ACC	regAcc;
+		struct BC_CMD_DEV_MEM	devMem;
+		struct BC_FW_CMD	fwCmd;
+		struct BC_HW_TYPE	hwType;
+		struct BC_PCI_CFG	pciCfg;
+		struct BC_VERSION_INFO	VerInfo;
+		struct BC_PROC_INPUT	ProcInput;
+		struct BC_DEC_YUV_BUFFS	RxBuffs;
+		struct BC_DEC_OUT_BUFF	DecOutData;
+		struct BC_START_RX_CAP	RxCap;
+		struct BC_FLUSH_RX_CAP	FlushRxCap;
+		struct BC_DTS_STATS	drvStat;
+		struct BC_NOTIFY_MODE	NotifyMode;
+		struct BC_CLOCK		clockValue;
 	} u;
 	struct _BC_IOCTL_DATA	*next;
-} BC_IOCTL_DATA;
+};
 
-typedef enum _BC_DRV_CMD{
+enum BC_DRV_CMD {
 	DRV_CMD_VERSION = 0,	/* Get SW version */
 	DRV_CMD_GET_HWTYPE,	/* Get HW version and type Dozer/Tank */
 	DRV_CMD_REG_RD,		/* Read Device Register */
@@ -249,12 +249,12 @@ typedef enum _BC_DRV_CMD{
 
 	/* MUST be the last one.. */
 	DRV_CMD_END,			/* End of the List.. */
-} BC_DRV_CMD;
+};
 
 #define BC_IOC_BASE		'b'
 #define BC_IOC_VOID		_IOC_NONE
 #define BC_IOC_IOWR(nr, type)	_IOWR(BC_IOC_BASE, nr, type)
-#define BC_IOCTL_MB		BC_IOCTL_DATA
+#define BC_IOCTL_MB		struct BC_IOCTL_DATA
 
 #define	BCM_IOC_GET_VERSION	BC_IOC_IOWR(DRV_CMD_VERSION, BC_IOCTL_MB)
 #define	BCM_IOC_GET_HWTYPE	BC_IOC_IOWR(DRV_CMD_GET_HWTYPE, BC_IOCTL_MB)
@@ -280,17 +280,16 @@ typedef enum _BC_DRV_CMD{
 #define	BCM_IOC_END		BC_IOC_VOID
 
 /* Wrapper for main IOCTL data */
-typedef struct _crystalhd_ioctl_data {
-	BC_IOCTL_DATA		udata;		/* IOCTL from App..*/
+struct crystalhd_ioctl_data {
+	struct BC_IOCTL_DATA	udata;		/* IOCTL from App..*/
 	uint32_t		u_id;		/* Driver specific user ID */
 	uint32_t		cmd;		/* Cmd ID for driver's use. */
 	void			*add_cdata;	/* Additional command specific data..*/
 	uint32_t		add_cdata_sz;	/* Additional command specific data size */
-	struct _crystalhd_ioctl_data *next;	/* List/Fifo management */
-} crystalhd_ioctl_data;
+	struct crystalhd_ioctl_data *next;	/* List/Fifo management */
+};
 
-
-enum _crystalhd_kmod_ver{
+enum crystalhd_kmod_ver{
 	crystalhd_kmod_major	= 0,
 	crystalhd_kmod_minor	= 9,
 	crystalhd_kmod_rev	= 27,

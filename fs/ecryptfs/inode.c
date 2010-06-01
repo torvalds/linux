@@ -142,19 +142,10 @@ out:
 static int grow_file(struct dentry *ecryptfs_dentry)
 {
 	struct inode *ecryptfs_inode = ecryptfs_dentry->d_inode;
-	struct file fake_file;
-	struct ecryptfs_file_info tmp_file_info;
 	char zero_virt[] = { 0x00 };
 	int rc = 0;
 
-	memset(&fake_file, 0, sizeof(fake_file));
-	fake_file.f_path.dentry = ecryptfs_dentry;
-	memset(&tmp_file_info, 0, sizeof(tmp_file_info));
-	ecryptfs_set_file_private(&fake_file, &tmp_file_info);
-	ecryptfs_set_file_lower(
-		&fake_file,
-		ecryptfs_inode_to_private(ecryptfs_inode)->lower_file);
-	rc = ecryptfs_write(&fake_file, zero_virt, 0, 1);
+	rc = ecryptfs_write(ecryptfs_inode, zero_virt, 0, 1);
 	i_size_write(ecryptfs_inode, 0);
 	rc = ecryptfs_write_inode_size_to_metadata(ecryptfs_inode);
 	ecryptfs_inode_to_private(ecryptfs_inode)->crypt_stat.flags |=
@@ -784,8 +775,6 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 {
 	int rc = 0;
 	struct inode *inode = dentry->d_inode;
-	struct dentry *lower_dentry;
-	struct file fake_ecryptfs_file;
 	struct ecryptfs_crypt_stat *crypt_stat;
 	loff_t i_size = i_size_read(inode);
 	loff_t lower_size_before_truncate;
@@ -796,23 +785,6 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 		goto out;
 	}
 	crypt_stat = &ecryptfs_inode_to_private(dentry->d_inode)->crypt_stat;
-	/* Set up a fake ecryptfs file, this is used to interface with
-	 * the file in the underlying filesystem so that the
-	 * truncation has an effect there as well. */
-	memset(&fake_ecryptfs_file, 0, sizeof(fake_ecryptfs_file));
-	fake_ecryptfs_file.f_path.dentry = dentry;
-	/* Released at out_free: label */
-	ecryptfs_set_file_private(&fake_ecryptfs_file,
-				  kmem_cache_alloc(ecryptfs_file_info_cache,
-						   GFP_KERNEL));
-	if (unlikely(!ecryptfs_file_to_private(&fake_ecryptfs_file))) {
-		rc = -ENOMEM;
-		goto out;
-	}
-	lower_dentry = ecryptfs_dentry_to_lower(dentry);
-	ecryptfs_set_file_lower(
-		&fake_ecryptfs_file,
-		ecryptfs_inode_to_private(dentry->d_inode)->lower_file);
 	/* Switch on growing or shrinking file */
 	if (ia->ia_size > i_size) {
 		char zero[] = { 0x00 };
@@ -822,7 +794,7 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 		 * this triggers code that will fill in 0's throughout
 		 * the intermediate portion of the previous end of the
 		 * file and the new and of the file */
-		rc = ecryptfs_write(&fake_ecryptfs_file, zero,
+		rc = ecryptfs_write(inode, zero,
 				    (ia->ia_size - 1), 1);
 	} else { /* ia->ia_size < i_size_read(inode) */
 		/* We're chopping off all the pages down to the page
@@ -833,12 +805,12 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 				    - (ia->ia_size & ~PAGE_CACHE_MASK));
 
 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
-			rc = vmtruncate(inode, ia->ia_size);
+			rc = simple_setsize(inode, ia->ia_size);
 			if (rc)
-				goto out_free;
+				goto out;
 			lower_ia->ia_size = ia->ia_size;
 			lower_ia->ia_valid |= ATTR_SIZE;
-			goto out_free;
+			goto out;
 		}
 		if (num_zeros) {
 			char *zeros_virt;
@@ -846,25 +818,25 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 			zeros_virt = kzalloc(num_zeros, GFP_KERNEL);
 			if (!zeros_virt) {
 				rc = -ENOMEM;
-				goto out_free;
+				goto out;
 			}
-			rc = ecryptfs_write(&fake_ecryptfs_file, zeros_virt,
+			rc = ecryptfs_write(inode, zeros_virt,
 					    ia->ia_size, num_zeros);
 			kfree(zeros_virt);
 			if (rc) {
 				printk(KERN_ERR "Error attempting to zero out "
 				       "the remainder of the end page on "
 				       "reducing truncate; rc = [%d]\n", rc);
-				goto out_free;
+				goto out;
 			}
 		}
-		vmtruncate(inode, ia->ia_size);
+		simple_setsize(inode, ia->ia_size);
 		rc = ecryptfs_write_inode_size_to_metadata(inode);
 		if (rc) {
 			printk(KERN_ERR	"Problem with "
 			       "ecryptfs_write_inode_size_to_metadata; "
 			       "rc = [%d]\n", rc);
-			goto out_free;
+			goto out;
 		}
 		/* We are reducing the size of the ecryptfs file, and need to
 		 * know if we need to reduce the size of the lower file. */
@@ -878,10 +850,6 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 		} else
 			lower_ia->ia_valid &= ~ATTR_SIZE;
 	}
-out_free:
-	if (ecryptfs_file_to_private(&fake_ecryptfs_file))
-		kmem_cache_free(ecryptfs_file_info_cache,
-				ecryptfs_file_to_private(&fake_ecryptfs_file));
 out:
 	return rc;
 }

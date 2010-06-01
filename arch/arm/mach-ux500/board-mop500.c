@@ -17,37 +17,14 @@
 #include <linux/amba/pl022.h>
 #include <linux/spi/spi.h>
 
-#include <asm/localtimer.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <plat/mtu.h>
 #include <plat/i2c.h>
 
 #include <mach/hardware.h>
 #include <mach/setup.h>
-
-#define __MEM_4K_RESOURCE(x) \
-	.res = {.start = (x), .end = (x) + SZ_4K - 1, .flags = IORESOURCE_MEM}
-
-/* These are active devices on this board */
-static struct amba_device uart0_device = {
-	.dev = { .init_name = "uart0" },
-	__MEM_4K_RESOURCE(U8500_UART0_BASE),
-	.irq = {IRQ_UART0, NO_IRQ},
-};
-
-static struct amba_device uart1_device = {
-	.dev = { .init_name = "uart1" },
-	__MEM_4K_RESOURCE(U8500_UART1_BASE),
-	.irq = {IRQ_UART1, NO_IRQ},
-};
-
-static struct amba_device uart2_device = {
-	.dev = { .init_name = "uart2" },
-	__MEM_4K_RESOURCE(U8500_UART2_BASE),
-	.irq = {IRQ_UART2, NO_IRQ},
-};
+#include <mach/devices.h>
 
 static void ab4500_spi_cs_control(u32 command)
 {
@@ -73,7 +50,7 @@ struct pl022_config_chip ab4500_chip_info = {
 
 static struct spi_board_info u8500_spi_devices[] = {
 	{
-		.modalias = "ab4500",
+		.modalias = "ab8500",
 		.controller_data = &ab4500_chip_info,
 		.max_speed_hz = 12000000,
 		.bus_num = 0,
@@ -93,55 +70,8 @@ static struct pl022_ssp_controller ssp0_platform_data = {
 	.num_chipselect = 5,
 };
 
-static struct amba_device pl022_device = {
-	.dev = {
-		.coherent_dma_mask = ~0,
-		.init_name = "pl022",
-		.platform_data = &ssp0_platform_data,
-	},
-	.res = {
-		.start = U8500_SSP0_BASE,
-		.end   = U8500_SSP0_BASE + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	.irq = {IRQ_SSP0, NO_IRQ },
-	/* ST-Ericsson modified id */
-	.periphid = SSP_PER_ID,
-};
-
-static struct amba_device pl031_device = {
-	.dev = {
-		.init_name = "pl031",
-	},
-	.res = {
-		.start = U8500_RTC_BASE,
-		.end = U8500_RTC_BASE + SZ_4K - 1,
-		.flags = IORESOURCE_MEM,
-	},
-	.irq = {IRQ_RTC_RTT, NO_IRQ},
-};
-
-#define U8500_I2C_RESOURCES(id, size)		\
-static struct resource u8500_i2c_resources_##id[] = {	\
-	[0] = {					\
-		.start	= U8500_I2C##id##_BASE,	\
-		.end	= U8500_I2C##id##_BASE + size - 1, \
-		.flags	= IORESOURCE_MEM,	\
-	},					\
-	[1] = {					\
-		.start	= IRQ_I2C##id,		\
-		.end	= IRQ_I2C##id,		\
-		.flags	= IORESOURCE_IRQ	\
-	}					\
-}
-
-U8500_I2C_RESOURCES(0, SZ_4K);
-U8500_I2C_RESOURCES(1, SZ_4K);
-U8500_I2C_RESOURCES(2, SZ_4K);
-U8500_I2C_RESOURCES(3, SZ_4K);
-
 #define U8500_I2C_CONTROLLER(id, _slsu, _tft, _rft, clk, _sm) \
-static struct nmk_i2c_controller u8500_i2c_##id = { \
+static struct nmk_i2c_controller u8500_i2c##id##_data = { \
 	/*				\
 	 * slave data setup time, which is	\
 	 * 250 ns,100ns,10ns which is 14,6,2	\
@@ -169,57 +99,31 @@ U8500_I2C_CONTROLLER(1, 0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 U8500_I2C_CONTROLLER(2,	0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 U8500_I2C_CONTROLLER(3,	0xe, 1, 1, 100000, I2C_FREQ_MODE_STANDARD);
 
-#define U8500_I2C_PDEVICE(cid)		\
-static struct platform_device i2c_controller##cid = { \
-	.name = "nmk-i2c",		\
-	.id	 = cid,			\
-	.num_resources = 2,		\
-	.resource = u8500_i2c_resources_##cid,	\
-	.dev = {			\
-		.platform_data = &u8500_i2c_##cid \
-	}				\
-}
-
-U8500_I2C_PDEVICE(0);
-U8500_I2C_PDEVICE(1);
-U8500_I2C_PDEVICE(2);
-U8500_I2C_PDEVICE(3);
-
 static struct amba_device *amba_devs[] __initdata = {
-	&uart0_device,
-	&uart1_device,
-	&uart2_device,
-	&pl022_device,
-	&pl031_device,
+	&ux500_uart0_device,
+	&ux500_uart1_device,
+	&ux500_uart2_device,
+	&u8500_ssp0_device,
 };
 
 /* add any platform devices here - TODO */
 static struct platform_device *platform_devs[] __initdata = {
-	&i2c_controller0,
-	&i2c_controller1,
-	&i2c_controller2,
-	&i2c_controller3,
-};
-
-static void __init u8500_timer_init(void)
-{
-#ifdef CONFIG_LOCAL_TIMERS
-	/* Setup the local timer base */
-	twd_base = __io_address(U8500_TWD_BASE);
-#endif
-	/* Setup the MTU base */
-	mtu_base = __io_address(U8500_MTU0_BASE);
-
-	nmdk_timer_init();
-}
-
-static struct sys_timer u8500_timer = {
-	.init	= u8500_timer_init,
+	&u8500_i2c0_device,
+	&ux500_i2c1_device,
+	&ux500_i2c2_device,
+	&ux500_i2c3_device,
 };
 
 static void __init u8500_init_machine(void)
 {
 	int i;
+
+	u8500_i2c0_device.dev.platform_data = &u8500_i2c0_data;
+	ux500_i2c1_device.dev.platform_data = &u8500_i2c1_data;
+	ux500_i2c2_device.dev.platform_data = &u8500_i2c2_data;
+	ux500_i2c3_device.dev.platform_data = &u8500_i2c3_data;
+
+	u8500_ssp0_device.dev.platform_data = &ssp0_platform_data;
 
 	/* Register the active AMBA devices on this board */
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++)
@@ -239,8 +143,8 @@ MACHINE_START(U8500, "ST-Ericsson MOP500 platform")
 	.io_pg_offst	= (IO_ADDRESS(U8500_UART2_BASE) >> 18) & 0xfffc,
 	.boot_params	= 0x100,
 	.map_io		= u8500_map_io,
-	.init_irq	= u8500_init_irq,
+	.init_irq	= ux500_init_irq,
 	/* we re-use nomadik timer here */
-	.timer		= &u8500_timer,
+	.timer		= &ux500_timer,
 	.init_machine	= u8500_init_machine,
 MACHINE_END

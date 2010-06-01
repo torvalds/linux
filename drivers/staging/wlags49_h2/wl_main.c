@@ -3591,7 +3591,8 @@ int scull_read_procmem(char *buf, char **start, off_t offset, int len, int *eof,
 
     len=0;
 
-	if ( ( lp = ((struct net_device *)data)->priv ) == NULL ) {
+	lp = ((struct net_device *)data)->priv;
+	if (lp == NULL) {
         len += sprintf(buf+len,"No wl_private in scull_read_procmem\n" );
 	} else if ( lp->wlags49_type == 0 ){
    	    ifbp = &lp->hcfCtx;

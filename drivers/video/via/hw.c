@@ -19,6 +19,7 @@
  * 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
  */
 
+#include <linux/via-core.h>
 #include "global.h"
 
 static struct pll_map pll_value[] = {
@@ -62,6 +63,7 @@ static struct pll_map pll_value[] = {
 	 CX700_52_977M,	VX855_52_977M},
 	{CLK_56_250M, CLE266_PLL_56_250M, K800_PLL_56_250M,
 	 CX700_56_250M, VX855_56_250M},
+	{CLK_57_275M, 0, 0, 0, VX855_57_275M},
 	{CLK_60_466M, CLE266_PLL_60_466M, K800_PLL_60_466M,
 	 CX700_60_466M, VX855_60_466M},
 	{CLK_61_500M, CLE266_PLL_61_500M, K800_PLL_61_500M,
@@ -525,8 +527,7 @@ static void dvi_patch_skew_dvp_low(void);
 static void set_dvi_output_path(int set_iga, int output_interface);
 static void set_lcd_output_path(int set_iga, int output_interface);
 static void load_fix_bit_crtc_reg(void);
-static void init_gfx_chip_info(struct pci_dev *pdev,
-				const struct pci_device_id *pdi);
+static void init_gfx_chip_info(int chip_type);
 static void init_tmds_chip_info(void);
 static void init_lvds_chip_info(void);
 static void device_screen_off(void);
@@ -537,18 +538,6 @@ static void device_on(void);
 static void enable_second_display_channel(void);
 static void disable_second_display_channel(void);
 
-void viafb_write_reg(u8 index, u16 io_port, u8 data)
-{
-	outb(index, io_port);
-	outb(data, io_port + 1);
-	/*DEBUG_MSG(KERN_INFO "\nIndex=%2d Value=%2d", index, data); */
-}
-u8 viafb_read_reg(int io_port, u8 index)
-{
-	outb(index, io_port);
-	return inb(io_port + 1);
-}
-
 void viafb_lock_crt(void)
 {
 	viafb_write_reg_mask(CR11, VIACR, BIT7, BIT7);
@@ -558,16 +547,6 @@ void viafb_unlock_crt(void)
 {
 	viafb_write_reg_mask(CR11, VIACR, 0, BIT7);
 	viafb_write_reg_mask(CR47, VIACR, 0, BIT0);
-}
-
-void viafb_write_reg_mask(u8 index, int io_port, u8 data, u8 mask)
-{
-	u8 tmp;
-
-	outb(index, io_port);
-	tmp = inb(io_port + 1);
-	outb((data & mask) | (tmp & (~mask)), io_port + 1);
-	/*DEBUG_MSG(KERN_INFO "\nIndex=%2d Value=%2d", index, tmp); */
 }
 
 void write_dac_reg(u8 index, u8 r, u8 g, u8 b)
@@ -644,102 +623,6 @@ void viafb_set_iga_path(void)
 			viaparinfo->tmds_setting_info->iga_path = IGA1;
 		}
 	}
-}
-
-void viafb_set_primary_address(u32 addr)
-{
-	DEBUG_MSG(KERN_DEBUG "viafb_set_primary_address(0x%08X)\n", addr);
-	viafb_write_reg(CR0D, VIACR, addr & 0xFF);
-	viafb_write_reg(CR0C, VIACR, (addr >> 8) & 0xFF);
-	viafb_write_reg(CR34, VIACR, (addr >> 16) & 0xFF);
-	viafb_write_reg_mask(CR48, VIACR, (addr >> 24) & 0x1F, 0x1F);
-}
-
-void viafb_set_secondary_address(u32 addr)
-{
-	DEBUG_MSG(KERN_DEBUG "viafb_set_secondary_address(0x%08X)\n", addr);
-	/* secondary display supports only quadword aligned memory */
-	viafb_write_reg_mask(CR62, VIACR, (addr >> 2) & 0xFE, 0xFE);
-	viafb_write_reg(CR63, VIACR, (addr >> 10) & 0xFF);
-	viafb_write_reg(CR64, VIACR, (addr >> 18) & 0xFF);
-	viafb_write_reg_mask(CRA3, VIACR, (addr >> 26) & 0x07, 0x07);
-}
-
-void viafb_set_primary_pitch(u32 pitch)
-{
-	DEBUG_MSG(KERN_DEBUG "viafb_set_primary_pitch(0x%08X)\n", pitch);
-	/* spec does not say that first adapter skips 3 bits but old
-	 * code did it and seems to be reasonable in analogy to 2nd adapter
-	 */
-	pitch = pitch >> 3;
-	viafb_write_reg(0x13, VIACR, pitch & 0xFF);
-	viafb_write_reg_mask(0x35, VIACR, (pitch >> (8 - 5)) & 0xE0, 0xE0);
-}
-
-void viafb_set_secondary_pitch(u32 pitch)
-{
-	DEBUG_MSG(KERN_DEBUG "viafb_set_secondary_pitch(0x%08X)\n", pitch);
-	pitch = pitch >> 3;
-	viafb_write_reg(0x66, VIACR, pitch & 0xFF);
-	viafb_write_reg_mask(0x67, VIACR, (pitch >> 8) & 0x03, 0x03);
-	viafb_write_reg_mask(0x71, VIACR, (pitch >> (10 - 7)) & 0x80, 0x80);
-}
-
-void viafb_set_primary_color_depth(u8 depth)
-{
-	u8 value;
-
-	DEBUG_MSG(KERN_DEBUG "viafb_set_primary_color_depth(%d)\n", depth);
-	switch (depth) {
-	case 8:
-		value = 0x00;
-		break;
-	case 15:
-		value = 0x04;
-		break;
-	case 16:
-		value = 0x14;
-		break;
-	case 24:
-		value = 0x0C;
-		break;
-	case 30:
-		value = 0x08;
-		break;
-	default:
-		printk(KERN_WARNING "viafb_set_primary_color_depth: "
-			"Unsupported depth: %d\n", depth);
-		return;
-	}
-
-	viafb_write_reg_mask(0x15, VIASR, value, 0x1C);
-}
-
-void viafb_set_secondary_color_depth(u8 depth)
-{
-	u8 value;
-
-	DEBUG_MSG(KERN_DEBUG "viafb_set_secondary_color_depth(%d)\n", depth);
-	switch (depth) {
-	case 8:
-		value = 0x00;
-		break;
-	case 16:
-		value = 0x40;
-		break;
-	case 24:
-		value = 0xC0;
-		break;
-	case 30:
-		value = 0x80;
-		break;
-	default:
-		printk(KERN_WARNING "viafb_set_secondary_color_depth: "
-			"Unsupported depth: %d\n", depth);
-		return;
-	}
-
-	viafb_write_reg_mask(0x67, VIACR, value, 0xC0);
 }
 
 static void set_color_register(u8 index, u8 red, u8 green, u8 blue)
@@ -1126,16 +1009,12 @@ void viafb_load_reg(int timing_value, int viafb_load_reg_num,
 void viafb_write_regx(struct io_reg RegTable[], int ItemNum)
 {
 	int i;
-	unsigned char RegTemp;
 
 	/*DEBUG_MSG(KERN_INFO "Table Size : %x!!\n",ItemNum ); */
 
-	for (i = 0; i < ItemNum; i++) {
-		outb(RegTable[i].index, RegTable[i].port);
-		RegTemp = inb(RegTable[i].port + 1);
-		RegTemp = (RegTemp & (~RegTable[i].mask)) | RegTable[i].value;
-		outb(RegTemp, RegTable[i].port + 1);
-	}
+	for (i = 0; i < ItemNum; i++)
+		via_write_reg_mask(RegTable[i].port, RegTable[i].index,
+			RegTable[i].value, RegTable[i].mask);
 }
 
 void viafb_load_fetch_count_reg(int h_addr, int bpp_byte, int set_iga)
@@ -1516,8 +1395,6 @@ u32 viafb_get_clk_value(int clk)
 /* Set VCLK*/
 void viafb_set_vclock(u32 CLK, int set_iga)
 {
-	unsigned char RegTemp;
-
 	/* H.W. Reset : ON */
 	viafb_write_reg_mask(CR17, VIACR, 0x00, BIT7);
 
@@ -1590,8 +1467,7 @@ void viafb_set_vclock(u32 CLK, int set_iga)
 	}
 
 	/* Fire! */
-	RegTemp = inb(VIARMisc);
-	outb(RegTemp | (BIT2 + BIT3), VIAWMisc);
+	via_write_misc_reg_mask(0x0C, 0x0C); /* select external clock */
 }
 
 void viafb_load_crtc_timing(struct display_timing device_timing,
@@ -1835,6 +1711,7 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	int index = 0;
 	int h_addr, v_addr;
 	u32 pll_D_N;
+	u8 polarity = 0;
 
 	for (i = 0; i < video_mode->mode_array; i++) {
 		index = i;
@@ -1863,20 +1740,11 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	v_addr = crt_reg.ver_addr;
 
 	/* update polarity for CRT timing */
-	if (crt_table[index].h_sync_polarity == NEGATIVE) {
-		if (crt_table[index].v_sync_polarity == NEGATIVE)
-			outb((inb(VIARMisc) & (~(BIT6 + BIT7))) |
-			     (BIT6 + BIT7), VIAWMisc);
-		else
-			outb((inb(VIARMisc) & (~(BIT6 + BIT7))) | (BIT6),
-			     VIAWMisc);
-	} else {
-		if (crt_table[index].v_sync_polarity == NEGATIVE)
-			outb((inb(VIARMisc) & (~(BIT6 + BIT7))) | (BIT7),
-			     VIAWMisc);
-		else
-			outb((inb(VIARMisc) & (~(BIT6 + BIT7))), VIAWMisc);
-	}
+	if (crt_table[index].h_sync_polarity == NEGATIVE)
+		polarity |= BIT6;
+	if (crt_table[index].v_sync_polarity == NEGATIVE)
+		polarity |= BIT7;
+	via_write_misc_reg_mask(polarity, BIT6 | BIT7);
 
 	if (set_iga == IGA1) {
 		viafb_unlock_crt();
@@ -1910,10 +1778,9 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 
 }
 
-void viafb_init_chip_info(struct pci_dev *pdev,
-			  const struct pci_device_id *pdi)
+void viafb_init_chip_info(int chip_type)
 {
-	init_gfx_chip_info(pdev, pdi);
+	init_gfx_chip_info(chip_type);
 	init_tmds_chip_info();
 	init_lvds_chip_info();
 
@@ -1980,12 +1847,11 @@ void viafb_update_device_setting(int hres, int vres,
 	}
 }
 
-static void init_gfx_chip_info(struct pci_dev *pdev,
-			       const struct pci_device_id *pdi)
+static void init_gfx_chip_info(int chip_type)
 {
 	u8 tmp;
 
-	viaparinfo->chip_info->gfx_chip_name = pdi->driver_data;
+	viaparinfo->chip_info->gfx_chip_name = chip_type;
 
 	/* Check revision of CLE266 Chip */
 	if (viaparinfo->chip_info->gfx_chip_name == UNICHROME_CLE266) {
@@ -2015,6 +1881,21 @@ static void init_gfx_chip_info(struct pci_dev *pdev,
 			viaparinfo->chip_info->gfx_chip_revision =
 				CX700_REVISION_700;
 		}
+	}
+
+	/* Determine which 2D engine we have */
+	switch (viaparinfo->chip_info->gfx_chip_name) {
+	case UNICHROME_VX800:
+	case UNICHROME_VX855:
+		viaparinfo->chip_info->twod_engine = VIA_2D_ENG_M1;
+		break;
+	case UNICHROME_K8M890:
+	case UNICHROME_P4M900:
+		viaparinfo->chip_info->twod_engine = VIA_2D_ENG_H5;
+		break;
+	default:
+		viaparinfo->chip_info->twod_engine = VIA_2D_ENG_H2;
+		break;
 	}
 }
 
@@ -2232,13 +2113,11 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 
 	/* Fill VPIT Parameters */
 	/* Write Misc Register */
-	outb(VPIT.Misc, VIAWMisc);
+	outb(VPIT.Misc, VIA_MISC_REG_WRITE);
 
 	/* Write Sequencer */
-	for (i = 1; i <= StdSR; i++) {
-		outb(i, VIASR);
-		outb(VPIT.SR[i - 1], VIASR + 1);
-	}
+	for (i = 1; i <= StdSR; i++)
+		via_write_reg(VIASR, i, VPIT.SR[i - 1]);
 
 	viafb_write_reg_mask(0x15, VIASR, 0xA2, 0xA2);
 	viafb_set_iga_path();
@@ -2247,10 +2126,8 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 	viafb_fill_crtc_timing(crt_timing, vmode_tbl, video_bpp / 8, IGA1);
 
 	/* Write Graphic Controller */
-	for (i = 0; i < StdGR; i++) {
-		outb(i, VIAGR);
-		outb(VPIT.GR[i], VIAGR + 1);
-	}
+	for (i = 0; i < StdGR; i++)
+		via_write_reg(VIAGR, i, VPIT.GR[i]);
 
 	/* Write Attribute Controller */
 	for (i = 0; i < StdAR; i++) {
@@ -2277,11 +2154,11 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 		}
 	}
 
-	viafb_set_primary_pitch(viafbinfo->fix.line_length);
-	viafb_set_secondary_pitch(viafb_dual_fb ? viafbinfo1->fix.line_length
+	via_set_primary_pitch(viafbinfo->fix.line_length);
+	via_set_secondary_pitch(viafb_dual_fb ? viafbinfo1->fix.line_length
 		: viafbinfo->fix.line_length);
-	viafb_set_primary_color_depth(viaparinfo->depth);
-	viafb_set_secondary_color_depth(viafb_dual_fb ? viaparinfo1->depth
+	via_set_primary_color_depth(viaparinfo->depth);
+	via_set_secondary_color_depth(viafb_dual_fb ? viaparinfo1->depth
 		: viaparinfo->depth);
 	/* Update Refresh Rate Setting */
 
@@ -2473,108 +2350,6 @@ static void disable_second_display_channel(void)
 	viafb_write_reg_mask(CR6A, VIACR, BIT6, BIT6);
 }
 
-int viafb_get_fb_size_from_pci(void)
-{
-	unsigned long configid, deviceid, FBSize = 0;
-	int VideoMemSize;
-	int DeviceFound = false;
-
-	for (configid = 0x80000000; configid < 0x80010800; configid += 0x100) {
-		outl(configid, (unsigned long)0xCF8);
-		deviceid = (inl((unsigned long)0xCFC) >> 16) & 0xffff;
-
-		switch (deviceid) {
-		case CLE266:
-		case KM400:
-			outl(configid + 0xE0, (unsigned long)0xCF8);
-			FBSize = inl((unsigned long)0xCFC);
-			DeviceFound = true;	/* Found device id */
-			break;
-
-		case CN400_FUNCTION3:
-		case CN700_FUNCTION3:
-		case CX700_FUNCTION3:
-		case KM800_FUNCTION3:
-		case KM890_FUNCTION3:
-		case P4M890_FUNCTION3:
-		case P4M900_FUNCTION3:
-		case VX800_FUNCTION3:
-		case VX855_FUNCTION3:
-			/*case CN750_FUNCTION3: */
-			outl(configid + 0xA0, (unsigned long)0xCF8);
-			FBSize = inl((unsigned long)0xCFC);
-			DeviceFound = true;	/* Found device id */
-			break;
-
-		default:
-			break;
-		}
-
-		if (DeviceFound)
-			break;
-	}
-
-	DEBUG_MSG(KERN_INFO "Device ID = %lx\n", deviceid);
-
-	FBSize = FBSize & 0x00007000;
-	DEBUG_MSG(KERN_INFO "FB Size = %x\n", FBSize);
-
-	if (viaparinfo->chip_info->gfx_chip_name < UNICHROME_CX700) {
-		switch (FBSize) {
-		case 0x00004000:
-			VideoMemSize = (16 << 20);	/*16M */
-			break;
-
-		case 0x00005000:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-
-		case 0x00006000:
-			VideoMemSize = (64 << 20);	/*64M */
-			break;
-
-		default:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-		}
-	} else {
-		switch (FBSize) {
-		case 0x00001000:
-			VideoMemSize = (8 << 20);	/*8M */
-			break;
-
-		case 0x00002000:
-			VideoMemSize = (16 << 20);	/*16M */
-			break;
-
-		case 0x00003000:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-
-		case 0x00004000:
-			VideoMemSize = (64 << 20);	/*64M */
-			break;
-
-		case 0x00005000:
-			VideoMemSize = (128 << 20);	/*128M */
-			break;
-
-		case 0x00006000:
-			VideoMemSize = (256 << 20);	/*256M */
-			break;
-
-		case 0x00007000:	/* Only on VX855/875 */
-			VideoMemSize = (512 << 20);	/*512M */
-			break;
-
-		default:
-			VideoMemSize = (32 << 20);	/*32M */
-			break;
-		}
-	}
-
-	return VideoMemSize;
-}
 
 void viafb_set_dpa_gfx(int output_interface, struct GFX_DPA_SETTING\
 					*p_gfx_dpa_setting)

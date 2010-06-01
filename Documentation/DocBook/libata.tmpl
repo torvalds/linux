@@ -81,16 +81,14 @@ void (*port_disable) (struct ata_port *);
 	</programlisting>
 
 	<para>
-	Called from ata_bus_probe() and ata_bus_reset() error paths,
-	as well as when unregistering from the SCSI module (rmmod, hot
-	unplug).
+	Called from ata_bus_probe() error path, as well as when
+	unregistering from the SCSI module (rmmod, hot unplug).
 	This function should do whatever needs to be done to take the
 	port out of use.  In most cases, ata_port_disable() can be used
 	as this hook.
 	</para>
 	<para>
 	Called from ata_bus_probe() on a failed probe.
-	Called from ata_bus_reset() on a failed bus reset.
 	Called from ata_scsi_release().
 	</para>
 
@@ -223,6 +221,18 @@ u8   (*sff_check_altstatus)(struct ata_port *ap);
 	the side effect of clearing the interrupt condition.
 	Most drivers for taskfile-based hardware use
 	ata_sff_check_status() for this hook.
+	</para>
+
+	</sect2>
+
+	<sect2><title>Write specific ATA shadow register</title>
+	<programlisting>
+void (*sff_set_devctl)(struct ata_port *ap, u8 ctl);
+	</programlisting>
+
+	<para>
+	Write the device control ATA shadow register to the hardware.
+	Most drivers don't need to define this.
 	</para>
 
 	</sect2>
@@ -477,7 +487,7 @@ void (*host_stop) (struct ata_host_set *host_set);
 	allocates space for a legacy IDE PRD table and returns.
 	</para>
 	<para>
-	->port_stop() is called after ->host_stop().  It's sole function
+	->port_stop() is called after ->host_stop().  Its sole function
 	is to release DMA/memory resources, now that they are no longer
 	actively being used.  Many drivers also free driver-private
 	data from port at this time.

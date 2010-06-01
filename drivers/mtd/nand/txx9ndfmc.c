@@ -274,7 +274,7 @@ static int txx9ndfmc_nand_scan(struct mtd_info *mtd)
 	struct nand_chip *chip = mtd->priv;
 	int ret;
 
-	ret = nand_scan_ident(mtd, 1);
+	ret = nand_scan_ident(mtd, 1, NULL);
 	if (!ret) {
 		if (mtd->writesize >= 512) {
 			chip->ecc.size = mtd->writesize;

@@ -89,7 +89,7 @@ static int sdhci_of_suspend(struct of_device *ofdev, pm_message_t state)
 {
 	struct sdhci_host *host = dev_get_drvdata(&ofdev->dev);
 
-	return mmc_suspend_host(host->mmc, state);
+	return mmc_suspend_host(host->mmc);
 }
 
 static int sdhci_of_resume(struct of_device *ofdev)
@@ -118,7 +118,7 @@ static bool __devinit sdhci_of_wp_inverted(struct device_node *np)
 static int __devinit sdhci_of_probe(struct of_device *ofdev,
 				 const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct sdhci_of_data *sdhci_of_data = match->data;
 	struct sdhci_host *host;
 	struct sdhci_of_host *of_host;
@@ -205,8 +205,11 @@ static const struct of_device_id sdhci_of_match[] = {
 MODULE_DEVICE_TABLE(of, sdhci_of_match);
 
 static struct of_platform_driver sdhci_of_driver = {
-	.driver.name = "sdhci-of",
-	.match_table = sdhci_of_match,
+	.driver = {
+		.name = "sdhci-of",
+		.owner = THIS_MODULE,
+		.of_match_table = sdhci_of_match,
+	},
 	.probe = sdhci_of_probe,
 	.remove = __devexit_p(sdhci_of_remove),
 	.suspend = sdhci_of_suspend,

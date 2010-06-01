@@ -179,6 +179,8 @@ static void jfs_put_super(struct super_block *sb)
 
 	jfs_info("In jfs_put_super");
 
+	dquot_disable(sb, -1, DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
+
 	lock_kernel();
 
 	rc = jfs_umount(sb);
@@ -396,10 +398,20 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 
 		JFS_SBI(sb)->flag = flag;
 		ret = jfs_mount_rw(sb, 1);
+
+		/* mark the fs r/w for quota activity */
+		sb->s_flags &= ~MS_RDONLY;
+
 		unlock_kernel();
+		dquot_resume(sb, -1);
 		return ret;
 	}
 	if ((!(sb->s_flags & MS_RDONLY)) && (*flags & MS_RDONLY)) {
+		rc = dquot_suspend(sb, -1);
+		if (rc < 0) {
+			unlock_kernel();
+			return rc;
+		}
 		rc = jfs_umount_rw(sb);
 		JFS_SBI(sb)->flag = flag;
 		unlock_kernel();
@@ -446,10 +458,8 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	/* initialize the mount flag and determine the default error handler */
 	flag = JFS_ERR_REMOUNT_RO;
 
-	if (!parse_options((char *) data, sb, &newLVSize, &flag)) {
-		kfree(sbi);
-		return -EINVAL;
-	}
+	if (!parse_options((char *) data, sb, &newLVSize, &flag))
+		goto out_kfree;
 	sbi->flag = flag;
 
 #ifdef CONFIG_JFS_POSIX_ACL
@@ -458,7 +468,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	if (newLVSize) {
 		printk(KERN_ERR "resize option for remount only\n");
-		return -EINVAL;
+		goto out_kfree;
 	}
 
 	/*
@@ -471,6 +481,10 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	 */
 	sb->s_op = &jfs_super_operations;
 	sb->s_export_op = &jfs_export_operations;
+#ifdef CONFIG_QUOTA
+	sb->dq_op = &dquot_operations;
+	sb->s_qcop = &dquot_quotactl_ops;
+#endif
 
 	/*
 	 * Initialize direct-mapping inode/address-space
@@ -478,7 +492,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	inode = new_inode(sb);
 	if (inode == NULL) {
 		ret = -ENOMEM;
-		goto out_kfree;
+		goto out_unload;
 	}
 	inode->i_ino = 0;
 	inode->i_nlink = 1;
@@ -550,9 +564,10 @@ out_mount_failed:
 	make_bad_inode(sbi->direct_inode);
 	iput(sbi->direct_inode);
 	sbi->direct_inode = NULL;
-out_kfree:
+out_unload:
 	if (sbi->nls_tab)
 		unload_nls(sbi->nls_tab);
+out_kfree:
 	kfree(sbi);
 	return ret;
 }

@@ -33,7 +33,7 @@
 #include <linux/completion.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
 
 #define DRV_NAME	"pmcmsptwi"
 

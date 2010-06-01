@@ -126,7 +126,7 @@ static void ns87415_bmdma_setup(struct ata_queued_cmd *qc)
 
 	/* load PRD table addr. */
 	mb();	/* make sure PRD table writes are visible to controller */
-	iowrite32(ap->prd_dma, ap->ioaddr.bmdma_addr + ATA_DMA_TABLE_OFS);
+	iowrite32(ap->bmdma_prd_dma, ap->ioaddr.bmdma_addr + ATA_DMA_TABLE_OFS);
 
 	/* specify data direction, triple-check start bit is clear */
 	dmactl = ioread8(ap->ioaddr.bmdma_addr + ATA_DMA_CMD);
@@ -380,7 +380,7 @@ static int ns87415_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 
 	ns87415_fixup(pdev);
 
-	return ata_pci_sff_init_one(pdev, ppi, &ns87415_sht, NULL, 0);
+	return ata_pci_bmdma_init_one(pdev, ppi, &ns87415_sht, NULL, 0);
 }
 
 static const struct pci_device_id ns87415_pci_tbl[] = {
