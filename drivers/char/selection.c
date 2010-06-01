@@ -319,8 +319,13 @@ int paste_selection(struct tty_struct *tty)
 	poke_blanked_console();
 	release_console_sem();
 
-	ld = tty_ldisc_ref_wait(tty);
-	
+	ld = tty_ldisc_ref(tty);
+	if (!ld) {
+		tty_unlock();
+		ld = tty_ldisc_ref_wait(tty);
+		tty_lock();
+	}
+
 	add_wait_queue(&vc->paste_wait, &wait);
 	while (sel_buffer && sel_buffer_lth > pasted) {
 		set_current_state(TASK_INTERRUPTIBLE);
