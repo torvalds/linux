@@ -193,8 +193,7 @@ static void bdi_wait_on_work_clear(struct bdi_work *work)
 }
 
 static void bdi_alloc_queue_work(struct backing_dev_info *bdi,
-				 struct wb_writeback_args *args,
-				 int wait)
+				 struct wb_writeback_args *args)
 {
 	struct bdi_work *work;
 
@@ -206,8 +205,6 @@ static void bdi_alloc_queue_work(struct backing_dev_info *bdi,
 	if (work) {
 		bdi_work_init(work, args);
 		bdi_queue_work(bdi, work);
-		if (wait)
-			bdi_wait_on_work_clear(work);
 	} else {
 		struct bdi_writeback *wb = &bdi->wb;
 
@@ -282,7 +279,7 @@ void bdi_start_writeback(struct backing_dev_info *bdi, struct super_block *sb,
 		args.for_background = 1;
 	}
 
-	bdi_alloc_queue_work(bdi, &args, sb_locked);
+	bdi_alloc_queue_work(bdi, &args);
 }
 
 /*
@@ -912,7 +909,6 @@ long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
 
 	while ((work = get_next_work_item(bdi, wb)) != NULL) {
 		struct wb_writeback_args args = work->args;
-		int post_clear;
 
 		/*
 		 * Override sync mode, in case we must wait for completion
@@ -920,13 +916,11 @@ long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
 		if (force_wait)
 			work->args.sync_mode = args.sync_mode = WB_SYNC_ALL;
 
-		post_clear = WB_SYNC_ALL || args.sb_pinned;
-
 		/*
 		 * If this isn't a data integrity operation, just notify
 		 * that we have seen this work and we are now starting it.
 		 */
-		if (!post_clear)
+		if (args.sync_mode == WB_SYNC_NONE)
 			wb_clear_pending(wb, work);
 
 		wrote += wb_writeback(wb, &args);
@@ -935,7 +929,7 @@ long wb_do_writeback(struct bdi_writeback *wb, int force_wait)
 		 * This is a data integrity writeback, so only do the
 		 * notification when we have completed the work.
 		 */
-		if (post_clear)
+		if (args.sync_mode == WB_SYNC_ALL)
 			wb_clear_pending(wb, work);
 	}
 
@@ -1011,7 +1005,7 @@ static void bdi_writeback_all(struct super_block *sb, long nr_pages)
 		if (!bdi_has_dirty_io(bdi))
 			continue;
 
-		bdi_alloc_queue_work(bdi, &args, 0);
+		bdi_alloc_queue_work(bdi, &args);
 	}
 
 	rcu_read_unlock();
