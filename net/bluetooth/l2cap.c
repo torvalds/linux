@@ -1415,11 +1415,8 @@ static int l2cap_ertm_send(struct sock *sk)
 	u16 control, fcs;
 	int nsent = 0;
 
-	if (pi->conn_state & L2CAP_CONN_WAIT_F)
-		return 0;
 
-	while ((skb = sk->sk_send_head) && (!l2cap_tx_window_full(sk)) &&
-			!(pi->conn_state & L2CAP_CONN_REMOTE_BUSY)) {
+	while ((skb = sk->sk_send_head) && (!l2cap_tx_window_full(sk))) {
 
 		if (pi->remote_max_tx &&
 				bt_cb(skb)->retries == pi->remote_max_tx) {
@@ -1792,6 +1789,11 @@ static int l2cap_sock_sendmsg(struct kiocb *iocb, struct socket *sock, struct ms
 		if (pi->mode == L2CAP_MODE_STREAMING) {
 			err = l2cap_streaming_send(sk);
 		} else {
+			if (pi->conn_state & L2CAP_CONN_REMOTE_BUSY &&
+					pi->conn_state && L2CAP_CONN_WAIT_F) {
+				err = len;
+				break;
+			}
 			spin_lock_bh(&pi->send_lock);
 			err = l2cap_ertm_send(sk);
 			spin_unlock_bh(&pi->send_lock);
@@ -3377,8 +3379,6 @@ static inline void l2cap_send_i_or_rr_or_rnr(struct sock *sk)
 
 	if (pi->conn_state & L2CAP_CONN_REMOTE_BUSY && pi->unacked_frames > 0)
 		__mod_retrans_timer();
-
-	pi->conn_state &= ~L2CAP_CONN_REMOTE_BUSY;
 
 	spin_lock_bh(&pi->send_lock);
 	l2cap_ertm_send(sk);
