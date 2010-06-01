@@ -487,5 +487,12 @@ extern void md_integrity_add_rdev(mdk_rdev_t *rdev, mddev_t *mddev);
 extern int strict_strtoul_scaled(const char *cp, unsigned long *res, int scale);
 extern void restore_bitmap_write_access(struct file *file);
 
+extern void mddev_init(mddev_t *mddev);
+extern int md_run(mddev_t *mddev);
+extern void md_stop(mddev_t *mddev);
+extern void md_stop_writes(mddev_t *mddev);
 extern void md_rdev_init(mdk_rdev_t *rdev);
+
+extern void mddev_suspend(mddev_t *mddev);
+extern void mddev_resume(mddev_t *mddev);
 #endif /* _MD_MD_H */
