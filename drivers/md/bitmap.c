@@ -1681,7 +1681,6 @@ int bitmap_create(mddev_t *mddev)
 	unsigned long pages;
 	struct file *file = mddev->bitmap_info.file;
 	int err;
-	sector_t start;
 	struct sysfs_dirent *bm = NULL;
 
 	BUILD_BUG_ON(sizeof(bitmap_super_t) != 256);
@@ -1763,13 +1762,40 @@ int bitmap_create(mddev_t *mddev)
 	if (!bitmap->bp)
 		goto error;
 
-	/* now that we have some pages available, initialize the in-memory
-	 * bitmap from the on-disk bitmap */
-	start = 0;
-	if (mddev->degraded == 0
-	    || bitmap->events_cleared == mddev->events)
-		/* no need to keep dirty bits to optimise a re-add of a missing device */
-		start = mddev->recovery_cp;
+	printk(KERN_INFO "created bitmap (%lu pages) for device %s\n",
+		pages, bmname(bitmap));
+
+	mddev->bitmap = bitmap;
+
+
+	return (bitmap->flags & BITMAP_WRITE_ERROR) ? -EIO : 0;
+
+ error:
+	bitmap_free(bitmap);
+	return err;
+}
+
+int bitmap_load(mddev_t *mddev)
+{
+	int err = 0;
+	sector_t sector = 0;
+	struct bitmap *bitmap = mddev->bitmap;
+
+	if (!bitmap)
+		goto out;
+
+	/* Clear out old bitmap info first:  Either there is none, or we
+	 * are resuming after someone else has possibly changed things,
+	 * so we should forget old cached info.
+	 * All chunks should be clean, but some might need_sync.
+	 */
+	while (sector < mddev->resync_max_sectors) {
+		int blocks;
+		bitmap_start_sync(bitmap, sector, &blocks, 0);
+		sector += blocks;
+	}
+	bitmap_close_sync(bitmap);
+
 	if (mddev->bitmap_info.log) {
 		unsigned long i;
 		struct dm_dirty_log *log = mddev->bitmap_info.log;
@@ -1778,29 +1804,30 @@ int bitmap_create(mddev_t *mddev)
 				bitmap_set_memory_bits(bitmap,
 						       (sector_t)i << CHUNK_BLOCK_SHIFT(bitmap),
 						       1);
-		err = 0;
-	} else
+	} else {
+		sector_t start = 0;
+		if (mddev->degraded == 0
+		    || bitmap->events_cleared == mddev->events)
+			/* no need to keep dirty bits to optimise a
+			 * re-add of a missing device */
+			start = mddev->recovery_cp;
+
 		err = bitmap_init_from_disk(bitmap, start);
-
+	}
 	if (err)
-		goto error;
-
-	printk(KERN_INFO "created bitmap (%lu pages) for device %s\n",
-		pages, bmname(bitmap));
-
-	mddev->bitmap = bitmap;
+		goto out;
 
 	mddev->thread->timeout = mddev->bitmap_info.daemon_sleep;
 	md_wakeup_thread(mddev->thread);
 
 	bitmap_update_sb(bitmap);
 
-	return (bitmap->flags & BITMAP_WRITE_ERROR) ? -EIO : 0;
-
- error:
-	bitmap_free(bitmap);
+	if (bitmap->flags & BITMAP_WRITE_ERROR)
+		err = -EIO;
+out:
 	return err;
 }
+EXPORT_SYMBOL_GPL(bitmap_load);
 
 static ssize_t
 location_show(mddev_t *mddev, char *page)

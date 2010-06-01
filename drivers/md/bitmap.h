@@ -254,6 +254,7 @@ struct bitmap {
 
 /* these are used only by md/bitmap */
 int  bitmap_create(mddev_t *mddev);
+int bitmap_load(mddev_t *mddev);
 void bitmap_flush(mddev_t *mddev);
 void bitmap_destroy(mddev_t *mddev);
 

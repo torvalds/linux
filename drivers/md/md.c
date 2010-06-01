@@ -4594,7 +4594,11 @@ static int do_md_run(mddev_t *mddev)
 	err = md_run(mddev);
 	if (err)
 		goto out;
-
+	err = bitmap_load(mddev);
+	if (err) {
+		bitmap_destroy(mddev);
+		goto out;
+	}
 	set_capacity(mddev->gendisk, mddev->array_sectors);
 	revalidate_disk(mddev->gendisk);
 	kobject_uevent(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE);
@@ -5382,8 +5386,11 @@ static int set_bitmap_file(mddev_t *mddev, int fd)
 	err = 0;
 	if (mddev->pers) {
 		mddev->pers->quiesce(mddev, 1);
-		if (fd >= 0)
+		if (fd >= 0) {
 			err = bitmap_create(mddev);
+			if (!err)
+				err = bitmap_load(mddev);
+		}
 		if (fd < 0 || err) {
 			bitmap_destroy(mddev);
 			fd = -1; /* make sure to put the file */
@@ -5632,6 +5639,8 @@ static int update_array_info(mddev_t *mddev, mdu_array_info_t *info)
 				mddev->bitmap_info.default_offset;
 			mddev->pers->quiesce(mddev, 1);
 			rv = bitmap_create(mddev);
+			if (!rv)
+				rv = bitmap_load(mddev);
 			if (rv)
 				bitmap_destroy(mddev);
 			mddev->pers->quiesce(mddev, 0);
