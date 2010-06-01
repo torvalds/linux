@@ -546,8 +546,10 @@ static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switchero
 		/* don't suspend or resume card normally */
 		rdev->powered_down = false;
 		radeon_resume_kms(dev);
+		drm_kms_helper_poll_enable(dev);
 	} else {
 		printk(KERN_INFO "radeon: switched off\n");
+		drm_kms_helper_poll_disable(dev);
 		radeon_suspend_kms(dev, pmm);
 		/* don't suspend or resume card normally */
 		rdev->powered_down = true;

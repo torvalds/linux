@@ -376,12 +376,15 @@ out_err:
 static void nouveau_switcheroo_set_state(struct pci_dev *pdev,
 					 enum vga_switcheroo_state state)
 {
+	struct drm_device *dev = pci_get_drvdata(pdev);
 	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
 	if (state == VGA_SWITCHEROO_ON) {
 		printk(KERN_ERR "VGA switcheroo: switched nouveau on\n");
 		nouveau_pci_resume(pdev);
+		drm_kms_helper_poll_enable(dev);
 	} else {
 		printk(KERN_ERR "VGA switcheroo: switched nouveau off\n");
+		drm_kms_helper_poll_disable(dev);
 		nouveau_pci_suspend(pdev, pmm);
 	}
 }

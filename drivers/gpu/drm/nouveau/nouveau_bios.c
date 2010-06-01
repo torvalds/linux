@@ -178,6 +178,25 @@ out:
 	pci_disable_rom(dev->pdev);
 }
 
+static void load_vbios_acpi(struct drm_device *dev, uint8_t *data)
+{
+	int i;
+	int ret;
+	int size = 64 * 1024;
+
+	if (!nouveau_acpi_rom_supported(dev->pdev))
+		return;
+
+	for (i = 0; i < (size / ROM_BIOS_PAGE); i++) {
+		ret = nouveau_acpi_get_bios_chunk(data,
+						  (i * ROM_BIOS_PAGE),
+						  ROM_BIOS_PAGE);
+		if (ret <= 0)
+			break;
+	}
+	return;
+}
+
 struct methods {
 	const char desc[8];
 	void (*loadbios)(struct drm_device *, uint8_t *);
@@ -191,6 +210,7 @@ static struct methods nv04_methods[] = {
 };
 
 static struct methods nv50_methods[] = {
+	{ "ACPI", load_vbios_acpi, true },
 	{ "PRAMIN", load_vbios_pramin, true },
 	{ "PROM", load_vbios_prom, false },
 	{ "PCIROM", load_vbios_pci, true },
