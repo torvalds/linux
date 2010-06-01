@@ -641,12 +641,13 @@ static int __init mac8390_initdev(struct net_device *dev,
 
 static int mac8390_open(struct net_device *dev)
 {
+	int err;
+
 	__ei_open(dev);
-	if (request_irq(dev->irq, __ei_interrupt, 0, "8390 Ethernet", dev)) {
-		pr_info("%s: unable to get IRQ %d.\n", dev->name, dev->irq);
-		return -EAGAIN;
-	}
-	return 0;
+	err = request_irq(dev->irq, __ei_interrupt, 0, "8390 Ethernet", dev);
+	if (err)
+		pr_info("%s: unable to get IRQ %d\n", dev->name, dev->irq);
+	return err;
 }
 
 static int mac8390_close(struct net_device *dev)
