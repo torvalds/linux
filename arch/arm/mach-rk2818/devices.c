@@ -387,21 +387,20 @@ struct platform_device rk2818_device_dsp = {
 
 
 #if defined(CONFIG_ANDROID_PMEM)
+
 static struct android_pmem_platform_data pmem_pdata = {
 	.name = "pmem",
 	.no_allocator = 1,
 	.cached = 1,
 	.start = 0x6f000000,
 	.size =  0x1000000,
-	//.start = 0x67000000,
-	//.size =  0x1000000,
 };
 
 static struct android_pmem_platform_data pmem_pdata_dsp = {
 	.name = "pmem-dsp",
 	.no_allocator = 1,
 	.cached = 0,
-    .start = 0x66B00000,
+    .start = 0x6db00000,
 	.size =  0x1500000,
 };
 
@@ -416,7 +415,6 @@ struct platform_device rk2818_device_pmem_dsp = {
 	.id = 1,
 	.dev = { .platform_data = &pmem_pdata_dsp },
 };
-
 
 #endif
 #if defined(CONFIG_MTD_NAND_RK2818)  

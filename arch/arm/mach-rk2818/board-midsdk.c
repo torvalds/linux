@@ -409,6 +409,7 @@ static struct platform_device *devices[] __initdata = {
 	&rk2818_device_i2s,
 #if defined(CONFIG_ANDROID_PMEM)
 	&rk2818_device_pmem,
+	&rk2818_device_pmem_dsp,
 #endif
 	&rk2818_device_adc,
 	&rk2818_device_adckey,
