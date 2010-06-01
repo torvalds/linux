@@ -859,8 +859,8 @@ void *iosapic_register(unsigned long hpa)
 	isi->isi_version = iosapic_rd_version(isi);
 	isi->isi_num_vectors = IOSAPIC_IRDT_MAX_ENTRY(isi->isi_version) + 1;
 
-	vip = isi->isi_vector = (struct vector_info *)
-		kzalloc(sizeof(struct vector_info) * isi->isi_num_vectors, GFP_KERNEL);
+	vip = isi->isi_vector = kcalloc(isi->isi_num_vectors,
+					sizeof(struct vector_info), GFP_KERNEL);
 	if (vip == NULL) {
 		kfree(isi);
 		return NULL;
