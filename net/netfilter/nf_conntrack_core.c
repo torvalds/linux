@@ -619,9 +619,7 @@ struct nf_conn *nf_conntrack_alloc(struct net *net, u16 zone,
 	ct->tuplehash[IP_CT_DIR_REPLY].hnnode.pprev = NULL;
 	/* Don't set timer yet: wait for confirmation */
 	setup_timer(&ct->timeout, death_by_timeout, (unsigned long)ct);
-#ifdef CONFIG_NET_NS
-	ct->ct_net = net;
-#endif
+	write_pnet(&ct->ct_net, net);
 #ifdef CONFIG_NF_CONNTRACK_ZONES
 	if (zone) {
 		struct nf_conntrack_zone *nf_ct_zone;
@@ -1363,9 +1361,7 @@ static int nf_conntrack_init_init_net(void)
 		goto err_extend;
 #endif
 	/* Set up fake conntrack: to never be deleted, not in any hashes */
-#ifdef CONFIG_NET_NS
-	nf_conntrack_untracked.ct_net = &init_net;
-#endif
+	write_pnet(&nf_conntrack_untracked.ct_net, &init_net);
 	atomic_set(&nf_conntrack_untracked.ct_general.use, 1);
 	/*  - and look it like as a confirmed connection */
 	set_bit(IPS_CONFIRMED_BIT, &nf_conntrack_untracked.status);

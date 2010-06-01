@@ -1724,19 +1724,13 @@ static inline void sk_eat_skb(struct sock *sk, struct sk_buff *skb, int copied_e
 static inline
 struct net *sock_net(const struct sock *sk)
 {
-#ifdef CONFIG_NET_NS
-	return sk->sk_net;
-#else
-	return &init_net;
-#endif
+	return read_pnet(&sk->sk_net);
 }
 
 static inline
 void sock_net_set(struct sock *sk, struct net *net)
 {
-#ifdef CONFIG_NET_NS
-	sk->sk_net = net;
-#endif
+	write_pnet(&sk->sk_net, net);
 }
 
 /*

@@ -53,11 +53,7 @@ static struct ip6addrlbl_table
 static inline
 struct net *ip6addrlbl_net(const struct ip6addrlbl_entry *lbl)
 {
-#ifdef CONFIG_NET_NS
-	return lbl->lbl_net;
-#else
-	return &init_net;
-#endif
+	return read_pnet(&lbl->lbl_net);
 }
 
 /*

@@ -1087,11 +1087,7 @@ static inline void netdev_for_each_tx_queue(struct net_device *dev,
 static inline
 struct net *dev_net(const struct net_device *dev)
 {
-#ifdef CONFIG_NET_NS
-	return dev->nd_net;
-#else
-	return &init_net;
-#endif
+	return read_pnet(&dev->nd_net);
 }
 
 static inline
