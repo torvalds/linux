@@ -1117,6 +1117,12 @@ static void ath9k_htc_radio_disable(struct ieee80211_hw *hw)
 	/* Stop RX */
 	WMI_CMD(WMI_STOP_RECV_CMDID);
 
+	/*
+	 * The MIB counters have to be disabled here,
+	 * since the target doesn't do it.
+	 */
+	ath9k_hw_disable_mib_counters(ah);
+
 	if (!ah->curchan)
 		ah->curchan = ath9k_cmn_get_curchannel(hw, ah);
 
@@ -1197,6 +1203,10 @@ static int ath9k_htc_start(struct ieee80211_hw *hw)
 	ath_print(common, ATH_DBG_CONFIG,
 		  "Starting driver with initial channel: %d MHz\n",
 		  curchan->center_freq);
+
+	/* Ensure that HW is awake before flushing RX */
+	ath9k_htc_setpower(priv, ATH9K_PM_AWAKE);
+	WMI_CMD(WMI_FLUSH_RECV_CMDID);
 
 	/* setup initial channel */
 	init_channel = ath9k_cmn_get_curchannel(hw, ah);

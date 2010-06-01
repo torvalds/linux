@@ -495,6 +495,7 @@ void ath9k_hw_disable_mib_counters(struct ath_hw *ah)
 	REG_WRITE(ah, AR_FILT_OFDM, 0);
 	REG_WRITE(ah, AR_FILT_CCK, 0);
 }
+EXPORT_SYMBOL(ath9k_hw_disable_mib_counters);
 
 u32 ath9k_hw_GetMibCycleCountsPct(struct ath_hw *ah,
 				  u32 *rxc_pcnt,
