@@ -151,7 +151,7 @@ Source: linux-upstream
 Section: admin
 Priority: optional
 Maintainer: $maintainer
-Standards-Version: 3.8.1
+Standards-Version: 3.8.4
 Homepage: http://www.kernel.org/
 EOF
 
