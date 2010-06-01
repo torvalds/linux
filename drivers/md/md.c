@@ -2691,6 +2691,24 @@ static struct kobj_type rdev_ktype = {
 	.default_attrs	= rdev_default_attrs,
 };
 
+void md_rdev_init(mdk_rdev_t *rdev)
+{
+	rdev->desc_nr = -1;
+	rdev->saved_raid_disk = -1;
+	rdev->raid_disk = -1;
+	rdev->flags = 0;
+	rdev->data_offset = 0;
+	rdev->sb_events = 0;
+	rdev->last_read_error.tv_sec  = 0;
+	rdev->last_read_error.tv_nsec = 0;
+	atomic_set(&rdev->nr_pending, 0);
+	atomic_set(&rdev->read_errors, 0);
+	atomic_set(&rdev->corrected_errors, 0);
+
+	INIT_LIST_HEAD(&rdev->same_set);
+	init_waitqueue_head(&rdev->blocked_wait);
+}
+EXPORT_SYMBOL_GPL(md_rdev_init);
 /*
  * Import a device. If 'super_format' >= 0, then sanity check the superblock
  *
@@ -2714,6 +2732,7 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 		return ERR_PTR(-ENOMEM);
 	}
 
+	md_rdev_init(rdev);
 	if ((err = alloc_disk_sb(rdev)))
 		goto abort_free;
 
@@ -2722,18 +2741,6 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 		goto abort_free;
 
 	kobject_init(&rdev->kobj, &rdev_ktype);
-
-	rdev->desc_nr = -1;
-	rdev->saved_raid_disk = -1;
-	rdev->raid_disk = -1;
-	rdev->flags = 0;
-	rdev->data_offset = 0;
-	rdev->sb_events = 0;
-	rdev->last_read_error.tv_sec  = 0;
-	rdev->last_read_error.tv_nsec = 0;
-	atomic_set(&rdev->nr_pending, 0);
-	atomic_set(&rdev->read_errors, 0);
-	atomic_set(&rdev->corrected_errors, 0);
 
 	size = rdev->bdev->bd_inode->i_size >> BLOCK_SIZE_BITS;
 	if (!size) {
@@ -2762,9 +2769,6 @@ static mdk_rdev_t *md_import_device(dev_t newdev, int super_format, int super_mi
 			goto abort_free;
 		}
 	}
-
-	INIT_LIST_HEAD(&rdev->same_set);
-	init_waitqueue_head(&rdev->blocked_wait);
 
 	return rdev;
 
