@@ -50,6 +50,7 @@ extern void octeon_crypto_disable(struct octeon_cop2_state *state,
 extern asmlinkage void octeon_cop2_restore(struct octeon_cop2_state *task);
 
 extern void octeon_init_cvmcount(void);
+extern void octeon_setup_delays(void);
 
 #define OCTEON_ARGV_MAX_ARGS	64
 #define OCTOEN_SERIAL_LEN	20
