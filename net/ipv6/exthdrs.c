@@ -874,3 +874,27 @@ struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 	return opt;
 }
 
+/**
+ * fl6_update_dst - update flowi destination address with info given
+ *                  by srcrt option, if any.
+ *
+ * @fl: flowi for which fl6_dst is to be updated
+ * @opt: struct ipv6_txoptions in which to look for srcrt opt
+ * @orig: copy of original fl6_dst address if modified
+ *
+ * Returns NULL if no txoptions or no srcrt, otherwise returns orig
+ * and initial value of fl->fl6_dst set in orig
+ */
+struct in6_addr *fl6_update_dst(struct flowi *fl,
+				const struct ipv6_txoptions *opt,
+				struct in6_addr *orig)
+{
+	if (!opt || !opt->srcrt)
+		return NULL;
+
+	ipv6_addr_copy(orig, &fl->fl6_dst);
+	ipv6_addr_copy(&fl->fl6_dst, ((struct rt0_hdr *)opt->srcrt)->addr);
+	return orig;
+}
+
+EXPORT_SYMBOL_GPL(fl6_update_dst);
