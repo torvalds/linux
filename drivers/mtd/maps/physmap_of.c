@@ -353,7 +353,7 @@ static int __devinit of_flash_probe(struct of_device *dev,
 				   &info->parts, 0);
 	if (err < 0) {
 		of_free_probes(part_probe_types);
-		return err;
+		goto err_out;
 	}
 	of_free_probes(part_probe_types);
 
@@ -361,14 +361,14 @@ static int __devinit of_flash_probe(struct of_device *dev,
 	if (err == 0) {
 		err = of_mtd_parse_partitions(&dev->dev, dp, &info->parts);
 		if (err < 0)
-			return err;
+			goto err_out;
 	}
 #endif
 
 	if (err == 0) {
 		err = parse_obsolete_partitions(dev, info, dp);
 		if (err < 0)
-			return err;
+			goto err_out;
 	}
 
 	if (err > 0)
