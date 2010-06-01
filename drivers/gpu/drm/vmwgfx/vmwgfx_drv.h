@@ -47,6 +47,7 @@
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
 #define VMWGFX_MAX_RELOCATIONS 2048
 #define VMWGFX_MAX_GMRS 2048
+#define VMWGFX_MAX_DISPLAYS 16
 
 struct vmw_fpriv {
 	struct drm_master *locked_master;
@@ -152,6 +153,14 @@ struct vmw_master {
 	struct ttm_lock lock;
 };
 
+struct vmw_vga_topology_state {
+	uint32_t width;
+	uint32_t height;
+	uint32_t primary;
+	uint32_t pos_x;
+	uint32_t pos_y;
+};
+
 struct vmw_private {
 	struct ttm_bo_device bdev;
 	struct ttm_bo_global_ref bo_global_ref;
@@ -179,15 +188,19 @@ struct vmw_private {
 	 * VGA registers.
 	 */
 
+	struct vmw_vga_topology_state vga_save[VMWGFX_MAX_DISPLAYS];
 	uint32_t vga_width;
 	uint32_t vga_height;
 	uint32_t vga_depth;
 	uint32_t vga_bpp;
 	uint32_t vga_pseudo;
 	uint32_t vga_red_mask;
-	uint32_t vga_blue_mask;
 	uint32_t vga_green_mask;
+	uint32_t vga_blue_mask;
+	uint32_t vga_bpl;
 	uint32_t vga_pitchlock;
+
+	uint32_t num_displays;
 
 	/*
 	 * Framebuffer info.

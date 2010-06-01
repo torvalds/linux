@@ -865,30 +865,52 @@ void vmw_kms_write_svga(struct vmw_private *vmw_priv,
 
 int vmw_kms_save_vga(struct vmw_private *vmw_priv)
 {
+	struct vmw_vga_topology_state *save;
+	uint32_t i;
+
 	vmw_priv->vga_width = vmw_read(vmw_priv, SVGA_REG_WIDTH);
 	vmw_priv->vga_height = vmw_read(vmw_priv, SVGA_REG_HEIGHT);
-	vmw_priv->vga_bpp = vmw_read(vmw_priv, SVGA_REG_BITS_PER_PIXEL);
 	vmw_priv->vga_depth = vmw_read(vmw_priv, SVGA_REG_DEPTH);
+	vmw_priv->vga_bpp = vmw_read(vmw_priv, SVGA_REG_BITS_PER_PIXEL);
 	vmw_priv->vga_pseudo = vmw_read(vmw_priv, SVGA_REG_PSEUDOCOLOR);
 	vmw_priv->vga_red_mask = vmw_read(vmw_priv, SVGA_REG_RED_MASK);
-	vmw_priv->vga_green_mask = vmw_read(vmw_priv, SVGA_REG_GREEN_MASK);
 	vmw_priv->vga_blue_mask = vmw_read(vmw_priv, SVGA_REG_BLUE_MASK);
+	vmw_priv->vga_green_mask = vmw_read(vmw_priv, SVGA_REG_GREEN_MASK);
 	if (vmw_priv->capabilities & SVGA_CAP_PITCHLOCK)
 		vmw_priv->vga_pitchlock =
-			vmw_read(vmw_priv, SVGA_REG_PITCHLOCK);
+		  vmw_read(vmw_priv, SVGA_REG_PITCHLOCK);
 	else if (vmw_fifo_have_pitchlock(vmw_priv))
-		vmw_priv->vga_pitchlock =
-			ioread32(vmw_priv->mmio_virt + SVGA_FIFO_PITCHLOCK);
+		vmw_priv->vga_pitchlock = ioread32(vmw_priv->mmio_virt +
+						       SVGA_FIFO_PITCHLOCK);
 
+	if (!(vmw_priv->capabilities & SVGA_CAP_DISPLAY_TOPOLOGY))
+		return 0;
+
+	vmw_priv->num_displays = vmw_read(vmw_priv,
+					  SVGA_REG_NUM_GUEST_DISPLAYS);
+
+	for (i = 0; i < vmw_priv->num_displays; ++i) {
+		save = &vmw_priv->vga_save[i];
+		vmw_write(vmw_priv, SVGA_REG_DISPLAY_ID, i);
+		save->primary = vmw_read(vmw_priv, SVGA_REG_DISPLAY_IS_PRIMARY);
+		save->pos_x = vmw_read(vmw_priv, SVGA_REG_DISPLAY_POSITION_X);
+		save->pos_y = vmw_read(vmw_priv, SVGA_REG_DISPLAY_POSITION_Y);
+		save->width = vmw_read(vmw_priv, SVGA_REG_DISPLAY_WIDTH);
+		save->height = vmw_read(vmw_priv, SVGA_REG_DISPLAY_HEIGHT);
+		vmw_write(vmw_priv, SVGA_REG_DISPLAY_ID, SVGA_ID_INVALID);
+	}
 	return 0;
 }
 
 int vmw_kms_restore_vga(struct vmw_private *vmw_priv)
 {
+	struct vmw_vga_topology_state *save;
+	uint32_t i;
+
 	vmw_write(vmw_priv, SVGA_REG_WIDTH, vmw_priv->vga_width);
 	vmw_write(vmw_priv, SVGA_REG_HEIGHT, vmw_priv->vga_height);
-	vmw_write(vmw_priv, SVGA_REG_BITS_PER_PIXEL, vmw_priv->vga_bpp);
 	vmw_write(vmw_priv, SVGA_REG_DEPTH, vmw_priv->vga_depth);
+	vmw_write(vmw_priv, SVGA_REG_BITS_PER_PIXEL, vmw_priv->vga_bpp);
 	vmw_write(vmw_priv, SVGA_REG_PSEUDOCOLOR, vmw_priv->vga_pseudo);
 	vmw_write(vmw_priv, SVGA_REG_RED_MASK, vmw_priv->vga_red_mask);
 	vmw_write(vmw_priv, SVGA_REG_GREEN_MASK, vmw_priv->vga_green_mask);
@@ -899,6 +921,20 @@ int vmw_kms_restore_vga(struct vmw_private *vmw_priv)
 	else if (vmw_fifo_have_pitchlock(vmw_priv))
 		iowrite32(vmw_priv->vga_pitchlock,
 			  vmw_priv->mmio_virt + SVGA_FIFO_PITCHLOCK);
+
+	if (!(vmw_priv->capabilities & SVGA_CAP_DISPLAY_TOPOLOGY))
+		return 0;
+
+	for (i = 0; i < vmw_priv->num_displays; ++i) {
+		save = &vmw_priv->vga_save[i];
+		vmw_write(vmw_priv, SVGA_REG_DISPLAY_ID, i);
+		vmw_write(vmw_priv, SVGA_REG_DISPLAY_IS_PRIMARY, save->primary);
+		vmw_write(vmw_priv, SVGA_REG_DISPLAY_POSITION_X, save->pos_x);
+		vmw_write(vmw_priv, SVGA_REG_DISPLAY_POSITION_Y, save->pos_y);
+		vmw_write(vmw_priv, SVGA_REG_DISPLAY_WIDTH, save->width);
+		vmw_write(vmw_priv, SVGA_REG_DISPLAY_HEIGHT, save->height);
+		vmw_write(vmw_priv, SVGA_REG_DISPLAY_ID, SVGA_ID_INVALID);
+	}
 
 	return 0;
 }
