@@ -14,6 +14,7 @@
  *	the Free Software Foundation; either version 2 of the License, or
  *	(at your option) any later version.
  *
+ *	FIXME: brdp->state needs proper locking.
  */
 
 /*****************************************************************************/
@@ -4011,6 +4012,7 @@ static int stli_getbrdstats(combrd_t __user *bp)
 		return -ENODEV;
 
 	memset(&stli_brdstats, 0, sizeof(combrd_t));
+
 	stli_brdstats.brd = brdp->brdnr;
 	stli_brdstats.type = brdp->brdtype;
 	stli_brdstats.hwid = 0;
@@ -4076,10 +4078,13 @@ static int stli_portcmdstats(struct tty_struct *tty, struct stliport *portp)
 	if (brdp == NULL)
 		return -ENODEV;
 
+	mutex_lock(&portp->port.mutex);
 	if (brdp->state & BST_STARTED) {
 		if ((rc = stli_cmdwait(brdp, portp, A_GETSTATS,
-		    &stli_cdkstats, sizeof(asystats_t), 1)) < 0)
+		    &stli_cdkstats, sizeof(asystats_t), 1)) < 0) {
+			mutex_unlock(&portp->port.mutex);
 			return rc;
+		}
 	} else {
 		memset(&stli_cdkstats, 0, sizeof(asystats_t));
 	}
@@ -4124,6 +4129,7 @@ static int stli_portcmdstats(struct tty_struct *tty, struct stliport *portp)
 	stli_comstats.modem = stli_cdkstats.dcdcnt;
 	stli_comstats.hwid = stli_cdkstats.hwid;
 	stli_comstats.signals = stli_mktiocm(stli_cdkstats.signals);
+	mutex_unlock(&portp->port.mutex);
 
 	return 0;
 }
@@ -4186,15 +4192,20 @@ static int stli_clrportstats(struct stliport *portp, comstats_t __user *cp)
 	if (!brdp)
 		return -ENODEV;
 
+	mutex_lock(&portp->port.mutex);
+
 	if (brdp->state & BST_STARTED) {
-		if ((rc = stli_cmdwait(brdp, portp, A_CLEARSTATS, NULL, 0, 0)) < 0)
+		if ((rc = stli_cmdwait(brdp, portp, A_CLEARSTATS, NULL, 0, 0)) < 0) {
+			mutex_unlock(&portp->port.mutex);
 			return rc;
+		}
 	}
 
 	memset(&stli_comstats, 0, sizeof(comstats_t));
 	stli_comstats.brd = portp->brdnr;
 	stli_comstats.panel = portp->panelnr;
 	stli_comstats.port = portp->portnr;
+	mutex_unlock(&portp->port.mutex);
 
 	if (copy_to_user(cp, &stli_comstats, sizeof(comstats_t)))
 		return -EFAULT;
@@ -4266,8 +4277,6 @@ static long stli_memioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 	done = 0;
 	rc = 0;
 
-	lock_kernel();
-
 	switch (cmd) {
 	case COM_GETPORTSTATS:
 		rc = stli_getportstats(NULL, NULL, argp);
@@ -4290,8 +4299,6 @@ static long stli_memioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		done++;
 		break;
 	}
-	unlock_kernel();
-
 	if (done)
 		return rc;
 
@@ -4307,8 +4314,6 @@ static long stli_memioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		return -ENODEV;
 	if (brdp->state == 0)
 		return -ENODEV;
-
-	lock_kernel();
 
 	switch (cmd) {
 	case STL_BINTR:
@@ -4332,7 +4337,6 @@ static long stli_memioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		rc = -ENOIOCTLCMD;
 		break;
 	}
-	unlock_kernel();
 	return rc;
 }
 
