@@ -681,11 +681,11 @@ typedef struct __device_info {
     // For Auto Power Tunning
 
     BYTE                    byAutoPwrTunning;
-    SHORT                   sPSetPointCCK;
-    SHORT                   sPSetPointOFDMG;
-    SHORT                   sPSetPointOFDMA;
+    short                   sPSetPointCCK;
+    short                   sPSetPointOFDMG;
+    short                   sPSetPointOFDMA;
     LONG                    lPFormulaOffset;
-    SHORT                   sPThreshold;
+    short                   sPThreshold;
     char                    cAdjustStep;
     char                    cMinTxAGC;
 
