@@ -290,13 +290,13 @@ load-$(CONFIG_MIPS_MIRAGE)	+= 0xffffffff80100000
 #
 # 4G-Systems eval board
 #
-libs-$(CONFIG_MIPS_MTX1)	+= arch/mips/alchemy/mtx-1/
+core-$(CONFIG_MIPS_MTX1)	+= arch/mips/alchemy/mtx-1/
 load-$(CONFIG_MIPS_MTX1)	+= 0xffffffff80100000
 
 #
 # MyCable eval board
 #
-libs-$(CONFIG_MIPS_XXS1500)	+= arch/mips/alchemy/xxs1500/
+core-$(CONFIG_MIPS_XXS1500)	+= arch/mips/alchemy/xxs1500/
 load-$(CONFIG_MIPS_XXS1500)	+= 0xffffffff80100000
 
 # must be last for Alchemy systems for GPIO to work properly
