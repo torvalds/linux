@@ -336,7 +336,7 @@ enum efx_rx_alloc_method {
  * @eventq: Event queue buffer
  * @eventq_read_ptr: Event queue read pointer
  * @last_eventq_read_ptr: Last event queue read pointer value.
- * @eventq_magic: Event queue magic value for driver-generated test events
+ * @magic_count: Event queue test event count
  * @irq_count: Number of IRQs since last adaptive moderation decision
  * @irq_mod_score: IRQ moderation score
  * @rx_alloc_level: Watermark based heuristic counter for pushing descriptors
@@ -367,7 +367,7 @@ struct efx_channel {
 	struct efx_special_buffer eventq;
 	unsigned int eventq_read_ptr;
 	unsigned int last_eventq_read_ptr;
-	unsigned int eventq_magic;
+	unsigned int magic_count;
 
 	unsigned int irq_count;
 	unsigned int irq_mod_score;

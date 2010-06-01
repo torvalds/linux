@@ -79,6 +79,10 @@ MODULE_PARM_DESC(rx_xon_thresh_bytes, "RX fifo XON threshold");
 /* Depth of RX flush request fifo */
 #define EFX_RX_FLUSH_COUNT 4
 
+/* Magic value for efx_generate_test_event() */
+#define EFX_CHANNEL_MAGIC(_channel)			\
+	(0x00010100 + (_channel)->channel)
+
 /**************************************************************************
  *
  * Solarstorm hardware access
@@ -993,8 +997,10 @@ int efx_nic_process_eventq(struct efx_channel *channel, int budget)
 			}
 			break;
 		case FSE_AZ_EV_CODE_DRV_GEN_EV:
-			channel->eventq_magic = EFX_QWORD_FIELD(
-				event, FSF_AZ_DRV_GEN_EV_MAGIC);
+			if (EFX_QWORD_FIELD(event, FSF_AZ_DRV_GEN_EV_MAGIC)
+			    == EFX_CHANNEL_MAGIC(channel))
+				++channel->magic_count;
+
 			EFX_LOG(channel->efx, "channel %d received generated "
 				"event "EFX_QWORD_FMT"\n", channel->channel,
 				EFX_QWORD_VAL(event));
@@ -1088,12 +1094,9 @@ void efx_nic_remove_eventq(struct efx_channel *channel)
 }
 
 
-/* Generates a test event on the event queue.  A subsequent call to
- * process_eventq() should pick up the event and place the value of
- * "magic" into channel->eventq_magic;
- */
-void efx_nic_generate_test_event(struct efx_channel *channel, unsigned int magic)
+void efx_nic_generate_test_event(struct efx_channel *channel)
 {
+	unsigned int magic = EFX_CHANNEL_MAGIC(channel);
 	efx_qword_t test_event;
 
 	EFX_POPULATE_QWORD_2(test_event, FSF_AZ_EV_CODE,
