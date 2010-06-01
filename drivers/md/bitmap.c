@@ -1235,29 +1235,32 @@ __acquires(bitmap->lock)
 	unsigned long page = chunk >> PAGE_COUNTER_SHIFT;
 	unsigned long pageoff = (chunk & PAGE_COUNTER_MASK) << COUNTER_BYTE_SHIFT;
 	sector_t csize;
+	int err;
 
-	if (bitmap_checkpage(bitmap, page, create) < 0) {
+	err = bitmap_checkpage(bitmap, page, create);
+
+	if (bitmap->bp[page].hijacked ||
+	    bitmap->bp[page].map == NULL)
+		csize = ((sector_t)1) << (CHUNK_BLOCK_SHIFT(bitmap) +
+					  PAGE_COUNTER_SHIFT - 1);
+	else
 		csize = ((sector_t)1) << (CHUNK_BLOCK_SHIFT(bitmap));
-		*blocks = csize - (offset & (csize - 1));
+	*blocks = csize - (offset & (csize - 1));
+
+	if (err < 0)
 		return NULL;
-	}
+
 	/* now locked ... */
 
 	if (bitmap->bp[page].hijacked) { /* hijacked pointer */
 		/* should we use the first or second counter field
 		 * of the hijacked pointer? */
 		int hi = (pageoff > PAGE_COUNTER_MASK);
-		csize = ((sector_t)1) << (CHUNK_BLOCK_SHIFT(bitmap) +
-					  PAGE_COUNTER_SHIFT - 1);
-		*blocks = csize - (offset & (csize - 1));
 		return  &((bitmap_counter_t *)
 			  &bitmap->bp[page].map)[hi];
-	} else { /* page is allocated */
-		csize = ((sector_t)1) << (CHUNK_BLOCK_SHIFT(bitmap));
-		*blocks = csize - (offset & (csize - 1));
+	} else /* page is allocated */
 		return (bitmap_counter_t *)
 			&(bitmap->bp[page].map[pageoff]);
-	}
 }
 
 int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sectors, int behind)
