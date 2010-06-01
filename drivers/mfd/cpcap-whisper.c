@@ -90,7 +90,7 @@ struct cpcap_whisper_data {
 	unsigned char is_vusb_enabled;
 	struct switch_dev wsdev;
 	struct switch_dev dsdev;
-	unsigned char audio;
+	struct switch_dev asdev;
 };
 
 static int whisper_debug;
@@ -254,6 +254,7 @@ static void whisper_notify(struct cpcap_whisper_data *di, enum cpcap_accy accy)
 	else {
 		switch_set_state(&di->wsdev, 0);
 		switch_set_state(&di->dsdev, NO_DOCK);
+		switch_set_state(&di->asdev, 0);
 	}
 }
 
@@ -262,6 +263,10 @@ static void whisper_audio_check(struct cpcap_whisper_data *di)
 	struct cpcap_adc_request req;
 	int ret;
 	unsigned short value;
+	int audio;
+
+	if (!switch_get_state(&di->dsdev))
+		return;
 
 	cpcap_regacc_read(di->cpcap, CPCAP_REG_USBC1, &value);
 	value &= CPCAP_BIT_ID100KPU;
@@ -284,10 +289,11 @@ static void whisper_audio_check(struct cpcap_whisper_data *di)
 		pr_info("%s: ADC result=0x%X (ret=%d, status=%d)\n", __func__,
 			req.result[CPCAP_ADC_USB_ID], ret, req.status);
 
-	di->audio = (req.result[CPCAP_ADC_USB_ID] > ADC_AUDIO_THRES) ? 1 : 0;
+	audio = (req.result[CPCAP_ADC_USB_ID] > ADC_AUDIO_THRES) ? 1 : 0;
+	switch_set_state(&di->asdev, audio);
 
 	pr_info("%s: Audio cable %s present\n", __func__,
-		(di->audio ? "is" : "not"));
+		(audio ? "is" : "not"));
 }
 
 static void whisper_det_work(struct work_struct *work)
@@ -377,7 +383,6 @@ static void whisper_det_work(struct work_struct *work)
 
 		if (data->sense & CPCAP_BIT_SE1_S) {
 			whisper_notify(data, CPCAP_ACCY_WHISPER);
-			whisper_audio_check(data);
 
 			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDFLOAT);
 			cpcap_irq_unmask(data->cpcap, CPCAP_IRQ_IDGND);
@@ -453,7 +458,8 @@ int cpcap_accy_whisper(struct cpcap_device *cpcap, unsigned long cmd)
 			CPCAP_WHISPER_ACCY_SHFT;
 		switch_set_state(&di->dsdev, dock);
 
-		/* TODO: Report audio cable to system. */
+		if (dock)
+			whisper_audio_check(di);
 	}
 
 	return retval;
@@ -485,6 +491,9 @@ static int __init cpcap_whisper_probe(struct platform_device *pdev)
 	data->dsdev.name = "dock";
 	data->dsdev.print_name = print_name;
 	switch_dev_register(&data->dsdev);
+
+	data->asdev.name = "usb_audio";
+	switch_dev_register(&data->asdev);
 
 	platform_set_drvdata(pdev, data);
 
@@ -530,6 +539,7 @@ free_irqs:
 free_mem:
 	switch_dev_unregister(&data->wsdev);
 	switch_dev_unregister(&data->dsdev);
+	switch_dev_unregister(&data->asdev);
 	wake_lock_destroy(&data->wake_lock);
 	kfree(data);
 
@@ -549,6 +559,7 @@ static int __exit cpcap_whisper_remove(struct platform_device *pdev)
 
 	switch_dev_unregister(&data->wsdev);
 	switch_dev_unregister(&data->dsdev);
+	switch_dev_unregister(&data->asdev);
 
 	gpio_set_value(data->pdata->data_gpio, 1);
 
