@@ -1250,6 +1250,7 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p, int sync)
 	 * effect of the currently running task from the load
 	 * of the current CPU:
 	 */
+	rcu_read_lock();
 	if (sync) {
 		tg = task_group(current);
 		weight = current->se.load.weight;
@@ -1275,6 +1276,7 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p, int sync)
 	balanced = !this_load ||
 		100*(this_load + effective_load(tg, this_cpu, weight, weight)) <=
 		imbalance*(load + effective_load(tg, prev_cpu, 0, weight));
+	rcu_read_unlock();
 
 	/*
 	 * If the currently running task will sleep within
