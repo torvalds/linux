@@ -555,7 +555,7 @@ static void percpu_modcopy(void *pcpudest, const void *from, unsigned long size)
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		memcpy(per_cpu_ptr(pcpudest, cpu), from, size);
+		memcpy(pcpudest + per_cpu_offset(cpu), from, size);
 }
 
 #else /* ... !CONFIG_SMP */
