@@ -858,7 +858,7 @@ int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg)
 			break;
 		}
 
-		if (!display->driver->enable_te) {
+		if (!display || !display->driver->enable_te) {
 			r = -ENODEV;
 			break;
 		}

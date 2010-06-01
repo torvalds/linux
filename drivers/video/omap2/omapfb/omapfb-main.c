@@ -1271,6 +1271,9 @@ static int omapfb_blank(int blank, struct fb_info *fbi)
 	int do_update = 0;
 	int r = 0;
 
+	if (!display)
+		return -EINVAL;
+
 	omapfb_lock(fbdev);
 
 	switch (blank) {
