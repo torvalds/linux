@@ -319,7 +319,7 @@ struct mddev_s
 							 */
 		struct mutex		mutex;
 		unsigned long		chunksize;
-		unsigned long		daemon_sleep; /* how many seconds between updates? */
+		unsigned long		daemon_sleep; /* how many jiffies between updates? */
 		unsigned long		max_write_behind; /* write-behind mode */
 		int			external;
 	} bitmap_info;
