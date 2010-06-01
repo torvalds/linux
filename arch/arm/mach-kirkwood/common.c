@@ -402,7 +402,7 @@ void __init kirkwood_sdio_init(struct mvsdio_platform_data *mvsdio_data)
 	u32 dev, rev;
 
 	kirkwood_pcie_id(&dev, &rev);
-	if (rev == 0)  /* catch all Kirkwood Z0's */
+	if (rev == 0 && dev != MV88F6282_DEV_ID) /* catch all Kirkwood Z0's */
 		mvsdio_data->clock = 100000000;
 	else
 		mvsdio_data->clock = 200000000;
@@ -847,8 +847,10 @@ int __init kirkwood_find_tclk(void)
 	u32 dev, rev;
 
 	kirkwood_pcie_id(&dev, &rev);
-	if (dev == MV88F6281_DEV_ID && (rev == MV88F6281_REV_A0 ||
-					rev == MV88F6281_REV_A1))
+
+	if ((dev == MV88F6281_DEV_ID && (rev == MV88F6281_REV_A0 ||
+					rev == MV88F6281_REV_A1)) ||
+	    (dev == MV88F6282_DEV_ID))
 		return 200000000;
 
 	return 166666667;
@@ -902,6 +904,11 @@ static char * __init kirkwood_id(void)
 			return "MV88F6180-Rev-A1";
 		else
 			return "MV88F6180-Rev-Unsupported";
+	} else if (dev == MV88F6282_DEV_ID) {
+		if (rev == MV88F6282_REV_A0)
+			return "MV88F6282-Rev-A0";
+		else
+			return "MV88F6282-Rev-Unsupported";
 	} else {
 		return "Device-Unknown";
 	}
