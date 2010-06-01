@@ -1,5 +1,5 @@
 /*
- * Compressed RAM based swap device
+ * Compressed RAM block device
  *
  * Copyright (C) 2008, 2009, 2010  Nitin Gupta
  *
@@ -12,17 +12,16 @@
  * Project home: http://compcache.googlecode.com
  */
 
-#ifndef _RAMZSWAP_IOCTL_H_
-#define _RAMZSWAP_IOCTL_H_
+#ifndef _ZRAM_IOCTL_H_
+#define _ZRAM_IOCTL_H_
 
-struct ramzswap_ioctl_stats {
-	u64 disksize;		/* user specified or equal to backing swap
-				 * size (if present) */
+struct zram_ioctl_stats {
+	u64 disksize;		/* disksize in bytes (user specifies in KB) */
 	u64 num_reads;		/* failed + successful */
 	u64 num_writes;		/* --do-- */
 	u64 failed_reads;	/* should NEVER! happen */
 	u64 failed_writes;	/* can happen when memory is too low */
-	u64 invalid_io;		/* non-swap I/O requests */
+	u64 invalid_io;		/* non-page-aligned I/O requests */
 	u64 notify_free;	/* no. of swap slot free notifications */
 	u32 pages_zero;		/* no. of zero filled pages */
 	u32 good_compress_pct;	/* no. of pages with compression ratio<=50% */
@@ -34,9 +33,9 @@ struct ramzswap_ioctl_stats {
 	u64 mem_used_total;
 } __attribute__ ((packed, aligned(4)));
 
-#define RZSIO_SET_DISKSIZE_KB	_IOW('z', 0, size_t)
-#define RZSIO_GET_STATS		_IOR('z', 1, struct ramzswap_ioctl_stats)
-#define RZSIO_INIT		_IO('z', 2)
-#define RZSIO_RESET		_IO('z', 3)
+#define ZRAMIO_SET_DISKSIZE_KB	_IOW('z', 0, size_t)
+#define ZRAMIO_GET_STATS	_IOR('z', 1, struct zram_ioctl_stats)
+#define ZRAMIO_INIT		_IO('z', 2)
+#define ZRAMIO_RESET		_IO('z', 3)
 
 #endif
