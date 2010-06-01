@@ -128,15 +128,21 @@
  */
 
 /*
- * MMC (CN7)
+ * MMC0/SDHI1 (CN7)
  *
- * J22 : 1-2: 1.8v for MMC
- *       2-3: 3.3v for MMC
- * SW1 : OFF
- * SW33: bit1: OFF
- *       bit2: ON
- *       bit3: ON
- *       bit4: X
+ * J22 : select card voltage
+ *       1-2 pin : 1.8v
+ *       2-3 pin : 3.3v
+ *
+ *        SW1  |             SW33
+ *             | bit1 | bit2 | bit3 | bit4
+ * ------------+------+------+------+-------
+ * MMC0   OFF  |  OFF |  ON  |  ON  |  X
+ * SDHI1  OFF  |  ON  |   X  |  OFF | ON
+ *
+ * voltage lebel
+ * CN7 : 1.8v
+ * CN12: 3.3v
  */
 
 /* MTD */
