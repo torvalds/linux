@@ -147,7 +147,7 @@ typedef struct board_info {
 	}						\
 } while (0)
 
-#ifdef CONFIG_DM9000_USE_NAND_CONTROL
+#if defined(CONFIG_DM9000_USE_NAND_CONTROL) && defined(CONFIG_MTD_NAND_RK2818)
 extern void rk2818_nand_status_mutex_lock(void);
 extern	int rk2818_nand_status_mutex_trylock(void);
 extern	void rk2818_nand_status_mutex_unlock(void);
