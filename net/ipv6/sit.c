@@ -249,8 +249,6 @@ failed:
 	return NULL;
 }
 
-static DEFINE_SPINLOCK(ipip6_prl_lock);
-
 #define for_each_prl_rcu(start)			\
 	for (prl = rcu_dereference(start);	\
 	     prl;				\
@@ -340,7 +338,7 @@ ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 	if (a->addr == htonl(INADDR_ANY))
 		return -EINVAL;
 
-	spin_lock(&ipip6_prl_lock);
+	ASSERT_RTNL();
 
 	for (p = t->prl; p; p = p->next) {
 		if (p->addr == a->addr) {
@@ -370,7 +368,6 @@ ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 	t->prl_count++;
 	rcu_assign_pointer(t->prl, p);
 out:
-	spin_unlock(&ipip6_prl_lock);
 	return err;
 }
 
@@ -397,7 +394,7 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 	struct ip_tunnel_prl_entry *x, **p;
 	int err = 0;
 
-	spin_lock(&ipip6_prl_lock);
+	ASSERT_RTNL();
 
 	if (a && a->addr != htonl(INADDR_ANY)) {
 		for (p = &t->prl; *p; p = &(*p)->next) {
@@ -419,7 +416,6 @@ ipip6_tunnel_del_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a)
 		}
 	}
 out:
-	spin_unlock(&ipip6_prl_lock);
 	return err;
 }
 
