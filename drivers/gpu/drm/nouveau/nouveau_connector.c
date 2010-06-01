@@ -236,20 +236,6 @@ nouveau_connector_detect(struct drm_connector *connector)
 	struct nouveau_i2c_chan *i2c;
 	int type, flags;
 
-	if (nv_connector->dcb->type == DCB_CONNECTOR_LVDS)
-		nv_encoder = find_encoder_by_type(connector, OUTPUT_LVDS);
-	if (nv_encoder && nv_connector->native_mode) {
-		unsigned status = connector_status_connected;
-
-#if defined(CONFIG_ACPI_BUTTON) || \
-	(defined(CONFIG_ACPI_BUTTON_MODULE) && defined(MODULE))
-		if (!nouveau_ignorelid && !acpi_lid_open())
-			status = connector_status_unknown;
-#endif
-		nouveau_connector_set_encoder(connector, nv_encoder);
-		return status;
-	}
-
 	/* Cleanup the previous EDID block. */
 	if (nv_connector->edid) {
 		drm_mode_connector_update_edid_property(connector, NULL);
@@ -319,6 +305,67 @@ detect_analog:
 	}
 
 	return connector_status_disconnected;
+}
+
+static enum drm_connector_status
+nouveau_connector_detect_lvds(struct drm_connector *connector)
+{
+	struct drm_device *dev = connector->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_connector *nv_connector = nouveau_connector(connector);
+	struct nouveau_encoder *nv_encoder = NULL;
+	enum drm_connector_status status = connector_status_disconnected;
+
+	/* Cleanup the previous EDID block. */
+	if (nv_connector->edid) {
+		drm_mode_connector_update_edid_property(connector, NULL);
+		kfree(nv_connector->edid);
+		nv_connector->edid = NULL;
+	}
+
+	nv_encoder = find_encoder_by_type(connector, OUTPUT_LVDS);
+	if (!nv_encoder)
+		return connector_status_disconnected;
+
+	if (!dev_priv->vbios.fp_no_ddc) {
+		status = nouveau_connector_detect(connector);
+		if (status == connector_status_connected)
+			goto out;
+	}
+
+	/* If no EDID found above, and the VBIOS indicates a hardcoded
+	 * modeline is avalilable for the panel, set it as the panel's
+	 * native mode and exit.
+	 */
+	if (nouveau_bios_fp_mode(dev, NULL) && (dev_priv->vbios.fp_no_ddc ||
+	    nv_encoder->dcb->lvdsconf.use_straps_for_mode)) {
+		status = connector_status_connected;
+		goto out;
+	}
+
+	/* Still nothing, some VBIOS images have a hardcoded EDID block
+	 * stored for the panel stored in them.
+	 */
+	if (!dev_priv->vbios.fp_no_ddc) {
+		struct edid *edid =
+			(struct edid *)nouveau_bios_embedded_edid(dev);
+		if (edid) {
+			nv_connector->edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
+			*(nv_connector->edid) = *edid;
+			status = connector_status_connected;
+		}
+	}
+
+out:
+#if defined(CONFIG_ACPI_BUTTON) || \
+	(defined(CONFIG_ACPI_BUTTON_MODULE) && defined(MODULE))
+	if (status == connector_status_connected &&
+	    !nouveau_ignorelid && !acpi_lid_open())
+		status = connector_status_unknown;
+#endif
+
+	drm_mode_connector_update_edid_property(connector, nv_connector->edid);
+	return status;
 }
 
 static void
@@ -534,21 +581,28 @@ static int
 nouveau_connector_get_modes(struct drm_connector *connector)
 {
 	struct drm_device *dev = connector->dev;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_connector *nv_connector = nouveau_connector(connector);
 	struct nouveau_encoder *nv_encoder = nv_connector->detected_encoder;
+	struct drm_display_mode mode;
 	int ret = 0;
 
-	/* If we're not LVDS, destroy the previous native mode, the attached
-	 * monitor could have changed.
+	/* destroy the native mode, the attached monitor could have changed.
 	 */
-	if (nv_connector->dcb->type != DCB_CONNECTOR_LVDS &&
-	    nv_connector->native_mode) {
+	if (nv_connector->native_mode) {
 		drm_mode_destroy(dev, nv_connector->native_mode);
 		nv_connector->native_mode = NULL;
 	}
 
 	if (nv_connector->edid)
 		ret = drm_add_edid_modes(connector, nv_connector->edid);
+	else
+	if (nv_encoder->dcb->type == OUTPUT_LVDS &&
+	    (nv_encoder->dcb->lvdsconf.use_straps_for_mode ||
+	     dev_priv->vbios.fp_no_ddc) &&
+	    nouveau_bios_fp_mode(dev, &mode)) {
+		nv_connector->native_mode = drm_mode_duplicate(dev, &mode);
+	}
 
 	/* Find the native mode if this is a digital panel, if we didn't
 	 * find any modes through DDC previously add the native mode to
@@ -662,99 +716,28 @@ nouveau_connector_funcs = {
 	.force = nouveau_connector_force
 };
 
-static int
-nouveau_connector_create_lvds(struct drm_device *dev,
-			      struct drm_connector *connector)
-{
-	struct nouveau_connector *nv_connector = nouveau_connector(connector);
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_i2c_chan *i2c = NULL;
-	struct nouveau_encoder *nv_encoder;
-	struct drm_display_mode native, *mode, *temp;
-	bool dummy, if_is_24bit = false;
-	int ret, flags;
-
-	nv_encoder = find_encoder_by_type(connector, OUTPUT_LVDS);
-	if (!nv_encoder)
-		return -ENODEV;
-
-	ret = nouveau_bios_parse_lvds_table(dev, 0, &dummy, &if_is_24bit);
-	if (ret) {
-		NV_ERROR(dev, "Error parsing LVDS table, disabling LVDS\n");
-		return ret;
-	}
-	nv_connector->use_dithering = !if_is_24bit;
-
-	/* Firstly try getting EDID over DDC, if allowed and I2C channel
-	 * is available.
-	 */
-	if (!dev_priv->vbios.fp_no_ddc && nv_encoder->dcb->i2c_index < 0xf)
-		i2c = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
-
-	if (i2c) {
-		nouveau_connector_ddc_prepare(connector, &flags);
-		nv_connector->edid = drm_get_edid(connector, &i2c->adapter);
-		nouveau_connector_ddc_finish(connector, flags);
-	}
-
-	/* If no EDID found above, and the VBIOS indicates a hardcoded
-	 * modeline is avalilable for the panel, set it as the panel's
-	 * native mode and exit.
-	 */
-	if (!nv_connector->edid && nouveau_bios_fp_mode(dev, &native) &&
-	     (nv_encoder->dcb->lvdsconf.use_straps_for_mode ||
-	      dev_priv->vbios.fp_no_ddc)) {
-		nv_connector->native_mode = drm_mode_duplicate(dev, &native);
-		goto out;
-	}
-
-	/* Still nothing, some VBIOS images have a hardcoded EDID block
-	 * stored for the panel stored in them.
-	 */
-	if (!nv_connector->edid && !nv_connector->native_mode &&
-	    !dev_priv->vbios.fp_no_ddc) {
-		struct edid *edid =
-			(struct edid *)nouveau_bios_embedded_edid(dev);
-		if (edid) {
-			nv_connector->edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
-			*(nv_connector->edid) = *edid;
-		}
-	}
-
-	if (!nv_connector->edid)
-		goto out;
-
-	/* We didn't find/use a panel mode from the VBIOS, so parse the EDID
-	 * block and look for the preferred mode there.
-	 */
-	ret = drm_add_edid_modes(connector, nv_connector->edid);
-	if (ret == 0)
-		goto out;
-	nv_connector->detected_encoder = nv_encoder;
-	nv_connector->native_mode = nouveau_connector_native_mode(connector);
-	list_for_each_entry_safe(mode, temp, &connector->probed_modes, head)
-		drm_mode_remove(connector, mode);
-
-out:
-	if (!nv_connector->native_mode) {
-		NV_ERROR(dev, "LVDS present in DCB table, but couldn't "
-			      "determine its native mode.  Disabling.\n");
-		return -ENODEV;
-	}
-
-	drm_mode_connector_update_edid_property(connector, nv_connector->edid);
-	return 0;
-}
+static const struct drm_connector_funcs
+nouveau_connector_funcs_lvds = {
+	.dpms = drm_helper_connector_dpms,
+	.save = NULL,
+	.restore = NULL,
+	.detect = nouveau_connector_detect_lvds,
+	.destroy = nouveau_connector_destroy,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.set_property = nouveau_connector_set_property,
+	.force = nouveau_connector_force
+};
 
 int
 nouveau_connector_create(struct drm_device *dev,
 			 struct dcb_connector_table_entry *dcb)
 {
+	const struct drm_connector_funcs *funcs = &nouveau_connector_funcs;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_connector *nv_connector = NULL;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-	int ret, type;
+	int type;
 
 	NV_DEBUG_KMS(dev, "\n");
 
@@ -787,6 +770,7 @@ nouveau_connector_create(struct drm_device *dev,
 	case DCB_CONNECTOR_LVDS:
 		NV_INFO(dev, "Detected a LVDS connector\n");
 		type = DRM_MODE_CONNECTOR_LVDS;
+		funcs = &nouveau_connector_funcs_lvds;
 		break;
 	case DCB_CONNECTOR_DP:
 		NV_INFO(dev, "Detected a DisplayPort connector\n");
@@ -811,7 +795,7 @@ nouveau_connector_create(struct drm_device *dev,
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
 
-	drm_connector_init(dev, connector, &nouveau_connector_funcs, type);
+	drm_connector_init(dev, connector, funcs, type);
 	drm_connector_helper_add(connector, &nouveau_connector_helper_funcs);
 
 	/* attach encoders */
@@ -840,9 +824,6 @@ nouveau_connector_create(struct drm_device *dev,
 		drm_connector_attach_property(connector, dev->mode_config.dvi_i_subconnector_property, 0);
 		drm_connector_attach_property(connector, dev->mode_config.dvi_i_select_subconnector_property, 0);
 	}
-
-	if (dcb->type != DCB_CONNECTOR_LVDS)
-		nv_connector->use_dithering = false;
 
 	switch (dcb->type) {
 	case DCB_CONNECTOR_VGA:
@@ -883,14 +864,5 @@ nouveau_connector_create(struct drm_device *dev,
 	}
 
 	drm_sysfs_connector_add(connector);
-
-	if (dcb->type == DCB_CONNECTOR_LVDS) {
-		ret = nouveau_connector_create_lvds(dev, connector);
-		if (ret) {
-			connector->funcs->destroy(connector);
-			return ret;
-		}
-	}
-
 	return 0;
 }
