@@ -607,5 +607,47 @@ static inline void tty_unlock(void) __releases(kernel_lock)
 }
 #define tty_locked()		(kernel_locked())
 
+/*
+ * wait_event_interruptible_tty -- wait for a condition with the tty lock held
+ *
+ * The condition we are waiting for might take a long time to
+ * become true, or might depend on another thread taking the
+ * BTM. In either case, we need to drop the BTM to guarantee
+ * forward progress. This is a leftover from the conversion
+ * from the BKL and should eventually get removed as the BTM
+ * falls out of use.
+ *
+ * Do not use in new code.
+ */
+#define wait_event_interruptible_tty(wq, condition)			\
+({									\
+	int __ret = 0;							\
+	if (!(condition)) {						\
+		__wait_event_interruptible_tty(wq, condition, __ret);	\
+	}								\
+	__ret;								\
+})
+
+#define __wait_event_interruptible_tty(wq, condition, ret)		\
+do {									\
+	DEFINE_WAIT(__wait);						\
+									\
+	for (;;) {							\
+		prepare_to_wait(&wq, &__wait, TASK_INTERRUPTIBLE);	\
+		if (condition)						\
+			break;						\
+		if (!signal_pending(current)) {				\
+			tty_unlock();					\
+			schedule();					\
+			tty_lock();					\
+			continue;					\
+		}							\
+		ret = -ERESTARTSYS;					\
+		break;							\
+	}								\
+	finish_wait(&wq, &__wait);					\
+} while (0)
+
+
 #endif /* __KERNEL__ */
 #endif
