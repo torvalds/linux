@@ -1548,6 +1548,7 @@ fail:
  * off just killing the userspace task and waiting for it to exit.
  */
 
+/* No BKL needed */
 static int
 usbtest_ioctl (struct usb_interface *intf, unsigned int code, void *buf)
 {
@@ -2170,7 +2171,7 @@ static struct usb_driver usbtest_driver = {
 	.name =		"usbtest",
 	.id_table =	id_table,
 	.probe =	usbtest_probe,
-	.ioctl =	usbtest_ioctl,
+	.unlocked_ioctl = usbtest_ioctl,
 	.disconnect =	usbtest_disconnect,
 	.suspend =	usbtest_suspend,
 	.resume =	usbtest_resume,
