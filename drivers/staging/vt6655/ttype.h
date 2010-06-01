@@ -68,7 +68,6 @@ typedef int             BOOL;
  * but it doesn't matter if they're signed or unsigned.
  */
 
-typedef char            CHAR;
 typedef signed short    SHORT;
 typedef signed int      INT;
 typedef signed long     LONG;

@@ -162,7 +162,7 @@ typedef enum _COUNTRY_CODE {
 typedef struct tagSCountryTable
 {
     BYTE    byChannelCountryCode;             /* The country code         */
-    CHAR    chCountryCode[2];
+    char    chCountryCode[2];
     BYTE    bChannelIdxList[CB_MAX_CHANNEL];  /* Available channels Index */
     BYTE    byPower[CB_MAX_CHANNEL];
 }   SCountryTable, *PSCountryTable;

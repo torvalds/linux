@@ -686,8 +686,8 @@ typedef struct __device_info {
     SHORT                   sPSetPointOFDMA;
     LONG                    lPFormulaOffset;
     SHORT                   sPThreshold;
-    CHAR                    cAdjustStep;
-    CHAR                    cMinTxAGC;
+    char                    cAdjustStep;
+    char                    cMinTxAGC;
 
     // For RF Power table
     BYTE                    byCCKPwr;
