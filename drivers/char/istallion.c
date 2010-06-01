@@ -14,7 +14,6 @@
  *	the Free Software Foundation; either version 2 of the License, or
  *	(at your option) any later version.
  *
- *	FIXME: brdp->state needs proper locking.
  */
 
 /*****************************************************************************/
@@ -204,9 +203,9 @@ static int		stli_shared;
  *	the board has been detected, and whether it is actually running a slave
  *	or not.
  */
-#define	BST_FOUND	0x1
-#define	BST_STARTED	0x2
-#define	BST_PROBED	0x4
+#define	BST_FOUND	0
+#define	BST_STARTED	1
+#define	BST_PROBED	2
 
 /*
  *	Define the set of port state flags. These are marked for internal
@@ -817,7 +816,7 @@ static int stli_open(struct tty_struct *tty, struct file *filp)
 	brdp = stli_brds[brdnr];
 	if (brdp == NULL)
 		return -ENODEV;
-	if ((brdp->state & BST_STARTED) == 0)
+	if (!test_bit(BST_STARTED, &brdp->state))
 		return -ENODEV;
 	portnr = MINOR2PORT(minordev);
 	if (portnr > brdp->nrports)
@@ -1847,7 +1846,7 @@ static void stli_portinfo(struct seq_file *m, struct stlibrd *brdp, struct stlip
 	rc = stli_portcmdstats(NULL, portp);
 
 	uart = "UNKNOWN";
-	if (brdp->state & BST_STARTED) {
+	if (test_bit(BST_STARTED, &brdp->state)) {
 		switch (stli_comstats.hwid) {
 		case 0:	uart = "2681"; break;
 		case 1:	uart = "SC26198"; break;
@@ -1856,7 +1855,7 @@ static void stli_portinfo(struct seq_file *m, struct stlibrd *brdp, struct stlip
 	}
 	seq_printf(m, "%d: uart:%s ", portnr, uart);
 
-	if ((brdp->state & BST_STARTED) && (rc >= 0)) {
+	if (test_bit(BST_STARTED, &brdp->state) && rc >= 0) {
 		char sep;
 
 		seq_printf(m, "tx:%d rx:%d", (int) stli_comstats.txtotal,
@@ -2356,7 +2355,7 @@ static void stli_poll(unsigned long arg)
 		brdp = stli_brds[brdnr];
 		if (brdp == NULL)
 			continue;
-		if ((brdp->state & BST_STARTED) == 0)
+		if (!test_bit(BST_STARTED, &brdp->state))
 			continue;
 
 		spin_lock(&brd_lock);
@@ -3141,7 +3140,7 @@ static int stli_initecp(struct stlibrd *brdp)
 	}
 
 
-	brdp->state |= BST_FOUND;
+	set_bit(BST_FOUND, &brdp->state);
 	return 0;
 err_unmap:
 	iounmap(brdp->membase);
@@ -3298,7 +3297,7 @@ static int stli_initonb(struct stlibrd *brdp)
 	brdp->panels[0] = brdp->nrports;
 
 
-	brdp->state |= BST_FOUND;
+	set_bit(BST_FOUND, &brdp->state);
 	return 0;
 err_unmap:
 	iounmap(brdp->membase);
@@ -3408,7 +3407,7 @@ stli_donestartup:
 	spin_unlock_irqrestore(&brd_lock, flags);
 
 	if (rc == 0)
-		brdp->state |= BST_STARTED;
+		set_bit(BST_STARTED, &brdp->state);
 
 	if (! stli_timeron) {
 		stli_timeron++;
@@ -3711,7 +3710,7 @@ static int __devinit stli_pciprobe(struct pci_dev *pdev,
 	if (retval)
 		goto err_null;
 
-	brdp->state |= BST_PROBED;
+	set_bit(BST_PROBED, &brdp->state);
 	pci_set_drvdata(pdev, brdp);
 
 	EBRDENABLE(brdp);
@@ -3842,7 +3841,7 @@ static int __init stli_initbrds(void)
 			brdp = stli_brds[i];
 			if (brdp == NULL)
 				continue;
-			if (brdp->state & BST_FOUND) {
+			if (test_bit(BST_FOUND, &brdp->state)) {
 				EBRDENABLE(brdp);
 				brdp->enable = NULL;
 				brdp->disable = NULL;
@@ -4079,7 +4078,7 @@ static int stli_portcmdstats(struct tty_struct *tty, struct stliport *portp)
 		return -ENODEV;
 
 	mutex_lock(&portp->port.mutex);
-	if (brdp->state & BST_STARTED) {
+	if (test_bit(BST_STARTED, &brdp->state)) {
 		if ((rc = stli_cmdwait(brdp, portp, A_GETSTATS,
 		    &stli_cdkstats, sizeof(asystats_t), 1)) < 0) {
 			mutex_unlock(&portp->port.mutex);
@@ -4194,7 +4193,7 @@ static int stli_clrportstats(struct stliport *portp, comstats_t __user *cp)
 
 	mutex_lock(&portp->port.mutex);
 
-	if (brdp->state & BST_STARTED) {
+	if (test_bit(BST_STARTED, &brdp->state)) {
 		if ((rc = stli_cmdwait(brdp, portp, A_CLEARSTATS, NULL, 0, 0)) < 0) {
 			mutex_unlock(&portp->port.mutex);
 			return rc;
@@ -4323,10 +4322,10 @@ static long stli_memioctl(struct file *fp, unsigned int cmd, unsigned long arg)
 		rc = stli_startbrd(brdp);
 		break;
 	case STL_BSTOP:
-		brdp->state &= ~BST_STARTED;
+		clear_bit(BST_STARTED, &brdp->state);
 		break;
 	case STL_BRESET:
-		brdp->state &= ~BST_STARTED;
+		clear_bit(BST_STARTED, &brdp->state);
 		EBRDRESET(brdp);
 		if (stli_shared == 0) {
 			if (brdp->reenable != NULL)
@@ -4382,7 +4381,8 @@ static void istallion_cleanup_isa(void)
 	unsigned int j;
 
 	for (j = 0; (j < stli_nrbrds); j++) {
-		if ((brdp = stli_brds[j]) == NULL || (brdp->state & BST_PROBED))
+		if ((brdp = stli_brds[j]) == NULL ||
+				test_bit(BST_PROBED, &brdp->state))
 			continue;
 
 		stli_cleanup_ports(brdp);
