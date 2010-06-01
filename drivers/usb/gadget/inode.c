@@ -1299,11 +1299,9 @@ static long dev_ioctl (struct file *fd, unsigned code, unsigned long value)
 	struct usb_gadget	*gadget = dev->gadget;
 	long ret = -ENOTTY;
 
-	if (gadget->ops->ioctl) {
-		lock_kernel();
+	if (gadget->ops->ioctl)
 		ret = gadget->ops->ioctl (gadget, code, value);
-		unlock_kernel();
-	}
+
 	return ret;
 }
 
