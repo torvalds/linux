@@ -41,7 +41,7 @@
 
 #define VMWGFX_DRIVER_DATE "20100209"
 #define VMWGFX_DRIVER_MAJOR 1
-#define VMWGFX_DRIVER_MINOR 0
+#define VMWGFX_DRIVER_MINOR 1
 #define VMWGFX_DRIVER_PATCHLEVEL 0
 #define VMWGFX_FILE_PAGE_OFFSET 0x00100000
 #define VMWGFX_FIFO_STATIC_SIZE (1024*1024)
@@ -102,6 +102,13 @@ struct vmw_surface {
 	struct vmw_cursor_snooper snooper;
 };
 
+struct vmw_fence_queue {
+	struct list_head head;
+	struct timespec lag;
+	struct timespec lag_time;
+	spinlock_t lock;
+};
+
 struct vmw_fifo_state {
 	unsigned long reserved_size;
 	__le32 *dynamic_buffer;
@@ -115,6 +122,7 @@ struct vmw_fifo_state {
 	uint32_t capabilities;
 	struct mutex fifo_mutex;
 	struct rw_semaphore rwsem;
+	struct vmw_fence_queue fence_queue;
 };
 
 struct vmw_relocation {
@@ -179,6 +187,7 @@ struct vmw_private {
 	uint32_t vga_red_mask;
 	uint32_t vga_blue_mask;
 	uint32_t vga_green_mask;
+	uint32_t vga_pitchlock;
 
 	/*
 	 * Framebuffer info.
@@ -393,6 +402,7 @@ extern int vmw_fifo_send_fence(struct vmw_private *dev_priv,
 extern void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason);
 extern int vmw_fifo_mmap(struct file *filp, struct vm_area_struct *vma);
 extern bool vmw_fifo_have_3d(struct vmw_private *dev_priv);
+extern bool vmw_fifo_have_pitchlock(struct vmw_private *dev_priv);
 
 /**
  * TTM glue - vmwgfx_ttm_glue.c
@@ -441,6 +451,23 @@ extern int vmw_fallback_wait(struct vmw_private *dev_priv,
 			     uint32_t sequence,
 			     bool interruptible,
 			     unsigned long timeout);
+extern void vmw_update_sequence(struct vmw_private *dev_priv,
+				struct vmw_fifo_state *fifo_state);
+
+
+/**
+ * Rudimentary fence objects currently used only for throttling -
+ * vmwgfx_fence.c
+ */
+
+extern void vmw_fence_queue_init(struct vmw_fence_queue *queue);
+extern void vmw_fence_queue_takedown(struct vmw_fence_queue *queue);
+extern int vmw_fence_push(struct vmw_fence_queue *queue,
+			  uint32_t sequence);
+extern int vmw_fence_pull(struct vmw_fence_queue *queue,
+			  uint32_t signaled_sequence);
+extern int vmw_wait_lag(struct vmw_private *dev_priv,
+			struct vmw_fence_queue *queue, uint32_t us);
 
 /**
  * Kernel framebuffer - vmwgfx_fb.c
@@ -466,6 +493,9 @@ void vmw_kms_cursor_snoop(struct vmw_surface *srf,
 			  struct ttm_object_file *tfile,
 			  struct ttm_buffer_object *bo,
 			  SVGA3dCmdHeader *header);
+void vmw_kms_write_svga(struct vmw_private *vmw_priv,
+			unsigned width, unsigned height, unsigned pitch,
+			unsigned bbp, unsigned depth);
 
 /**
  * Overlay control - vmwgfx_overlay.c
