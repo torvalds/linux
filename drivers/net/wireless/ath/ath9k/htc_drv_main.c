@@ -1266,12 +1266,6 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 	WMI_CMD(WMI_DISABLE_INTR_CMDID);
 	WMI_CMD(WMI_DRAIN_TXQ_ALL_CMDID);
 	WMI_CMD(WMI_STOP_RECV_CMDID);
-	ath9k_hw_phy_disable(ah);
-	ath9k_hw_disable(ah);
-	ath9k_hw_configpcipowersave(ah, 1, 1);
-	ath9k_htc_ps_restore(priv);
-	ath9k_htc_setpower(priv, ATH9K_PM_FULL_SLEEP);
-
 	skb_queue_purge(&priv->tx_queue);
 
 	/* Remove monitor interface here */
@@ -1283,6 +1277,12 @@ static void ath9k_htc_stop(struct ieee80211_hw *hw)
 			ath_print(common, ATH_DBG_CONFIG,
 				  "Monitor interface removed\n");
 	}
+
+	ath9k_hw_phy_disable(ah);
+	ath9k_hw_disable(ah);
+	ath9k_hw_configpcipowersave(ah, 1, 1);
+	ath9k_htc_ps_restore(priv);
+	ath9k_htc_setpower(priv, ATH9K_PM_FULL_SLEEP);
 
 	priv->op_flags |= OP_INVALID;
 
