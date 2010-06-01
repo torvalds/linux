@@ -436,55 +436,84 @@ static void ar9002_hw_configpcipowersave(struct ath_hw *ah,
 		}
 
 		udelay(1000);
+	}
 
-		/* set bit 19 to allow forcing of pcie core into L1 state */
-		REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
+	if (power_off) {
+		/* clear bit 19 to disable L1 */
+		REG_CLR_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
 
-		/* Several PCIe massages to ensure proper behaviour */
+		val = REG_READ(ah, AR_WA);
+
+		/*
+		 * Set PCIe workaround bits
+		 * In AR9280 and AR9285, bit 14 in WA register (disable L1)
+		 * should only  be set when device enters D3 and be
+		 * cleared when device comes back to D0.
+		 */
+		if (ah->config.pcie_waen) {
+			if (ah->config.pcie_waen & AR_WA_D3_L1_DISABLE)
+				val |= AR_WA_D3_L1_DISABLE;
+		} else {
+			if (((AR_SREV_9285(ah) ||
+			      AR_SREV_9271(ah) ||
+			      AR_SREV_9287(ah)) &&
+			     (AR9285_WA_DEFAULT & AR_WA_D3_L1_DISABLE)) ||
+			    (AR_SREV_9280(ah) &&
+			     (AR9280_WA_DEFAULT & AR_WA_D3_L1_DISABLE))) {
+				val |= AR_WA_D3_L1_DISABLE;
+			}
+		}
+
+		if (AR_SREV_9280(ah) || AR_SREV_9285(ah) || AR_SREV_9287(ah)) {
+			/*
+			 * Disable bit 6 and 7 before entering D3 to
+			 * prevent system hang.
+			 */
+			val &= ~(AR_WA_BIT6 | AR_WA_BIT7);
+		}
+
+		if (AR_SREV_9285E_20(ah))
+			val |= AR_WA_BIT23;
+
+		REG_WRITE(ah, AR_WA, val);
+	} else {
 		if (ah->config.pcie_waen) {
 			val = ah->config.pcie_waen;
 			if (!power_off)
 				val &= (~AR_WA_D3_L1_DISABLE);
 		} else {
-			if (AR_SREV_9285(ah) || AR_SREV_9271(ah) ||
+			if (AR_SREV_9285(ah) ||
+			    AR_SREV_9271(ah) ||
 			    AR_SREV_9287(ah)) {
 				val = AR9285_WA_DEFAULT;
 				if (!power_off)
 					val &= (~AR_WA_D3_L1_DISABLE);
-			} else if (AR_SREV_9280(ah)) {
+			}
+			else if (AR_SREV_9280(ah)) {
 				/*
-				 * On AR9280 chips bit 22 of 0x4004 needs to be
-				 * set otherwise card may disappear.
+				 * For AR9280 chips, bit 22 of 0x4004
+				 * needs to be set.
 				 */
 				val = AR9280_WA_DEFAULT;
 				if (!power_off)
 					val &= (~AR_WA_D3_L1_DISABLE);
-			} else
+			} else {
 				val = AR_WA_DEFAULT;
-		}
-
-		REG_WRITE(ah, AR_WA, val);
-	}
-
-	if (power_off) {
-		/*
-		 * Set PCIe workaround bits
-		 * bit 14 in WA register (disable L1) should only
-		 * be set when device enters D3 and be cleared
-		 * when device comes back to D0.
-		 */
-		if (ah->config.pcie_waen) {
-			if (ah->config.pcie_waen & AR_WA_D3_L1_DISABLE)
-				REG_SET_BIT(ah, AR_WA, AR_WA_D3_L1_DISABLE);
-		} else {
-			if (((AR_SREV_9285(ah) || AR_SREV_9271(ah) ||
-			      AR_SREV_9287(ah)) &&
-			     (AR9285_WA_DEFAULT & AR_WA_D3_L1_DISABLE)) ||
-			    (AR_SREV_9280(ah) &&
-			     (AR9280_WA_DEFAULT & AR_WA_D3_L1_DISABLE))) {
-				REG_SET_BIT(ah, AR_WA, AR_WA_D3_L1_DISABLE);
 			}
 		}
+
+		/* WAR for ASPM system hang */
+		if (AR_SREV_9280(ah) || AR_SREV_9285(ah) || AR_SREV_9287(ah)) {
+			val |= (AR_WA_BIT6 | AR_WA_BIT7);
+		}
+
+		if (AR_SREV_9285E_20(ah))
+			val |= AR_WA_BIT23;
+
+		REG_WRITE(ah, AR_WA, val);
+
+		/* set bit 19 to allow forcing of pcie core into L1 state */
+		REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
 	}
 }
 

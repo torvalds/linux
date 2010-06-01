@@ -700,6 +700,9 @@
 #define AR_RC_HOSTIF         0x00000100
 
 #define AR_WA                		0x4004
+#define AR_WA_BIT6			(1 << 6)
+#define AR_WA_BIT7			(1 << 7)
+#define AR_WA_BIT23			(1 << 23)
 #define AR_WA_D3_L1_DISABLE		(1 << 14)
 #define AR9285_WA_DEFAULT		0x004a050b
 #define AR9280_WA_DEFAULT           	0x0040073b
