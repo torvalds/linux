@@ -689,6 +689,7 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 		warn_no_callback_path(clp, task->tk_status);
 		if (current_rpc_client != task->tk_client) {
 			/* queue a callback on the new connection: */
+			atomic_inc(&dp->dl_count);
 			nfsd4_cb_recall(dp);
 			return;
 		}
