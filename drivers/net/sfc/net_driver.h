@@ -649,6 +649,7 @@ union efx_multicast_hash {
  * struct efx_nic - an Efx NIC
  * @name: Device name (net device name or bus id before net device registered)
  * @pci_dev: The PCI device
+ * @port_num: Index of this host port within the controller
  * @type: Controller type attributes
  * @legacy_irq: IRQ number
  * @workqueue: Workqueue for port reconfigures and the HW monitor.
@@ -732,6 +733,7 @@ union efx_multicast_hash {
 struct efx_nic {
 	char name[IFNAMSIZ];
 	struct pci_dev *pci_dev;
+	unsigned port_num;
 	const struct efx_nic_type *type;
 	int legacy_irq;
 	struct workqueue_struct *workqueue;
@@ -834,7 +836,7 @@ static inline const char *efx_dev_name(struct efx_nic *efx)
 
 static inline unsigned int efx_port_num(struct efx_nic *efx)
 {
-	return PCI_FUNC(efx->pci_dev->devfn);
+	return efx->port_num;
 }
 
 /**
