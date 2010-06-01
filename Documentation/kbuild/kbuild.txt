@@ -65,7 +65,7 @@ CROSS_COMPILE
 Specify an optional fixed part of the binutils filename.
 CROSS_COMPILE can be a part of the filename or the full path.
 
-CROSS_COMPILE is also used for ccache is some setups.
+CROSS_COMPILE is also used for ccache in some setups.
 
 CF
 --------------------------------------------------
@@ -162,3 +162,7 @@ For tags/TAGS/cscope targets, you can specify more than one arch
 to be included in the databases, separated by blank space. E.g.:
 
     $ make ALLSOURCE_ARCHS="x86 mips arm" tags
+
+To get all available archs you can also specify all. E.g.:
+
+    $ make ALLSOURCE_ARCHS=all tags
