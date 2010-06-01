@@ -1632,7 +1632,6 @@ static void ath9k_htc_bss_info_changed(struct ieee80211_hw *hw,
 			ath_start_ani(priv);
 		} else {
 			priv->op_flags &= ~OP_ASSOCIATED;
-			cancel_work_sync(&priv->ps_work);
 			cancel_delayed_work_sync(&priv->ath9k_ani_work);
 		}
 	}
