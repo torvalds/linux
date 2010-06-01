@@ -2191,7 +2191,7 @@ static void smack_ipc_getsecid(struct kern_ipc_perm *ipp, u32 *secid)
 
 /**
  * smack_d_instantiate - Make sure the blob is correct on an inode
- * @opt_dentry: unused
+ * @opt_dentry: dentry where inode will be attached
  * @inode: the object
  *
  * Set the inode's security blob if it hasn't been done already.
@@ -2310,20 +2310,10 @@ static void smack_d_instantiate(struct dentry *opt_dentry, struct inode *inode)
 		/*
 		 * Get the dentry for xattr.
 		 */
-		if (opt_dentry == NULL) {
-			dp = d_find_alias(inode);
-			if (dp == NULL)
-				break;
-		} else {
-			dp = dget(opt_dentry);
-			if (dp == NULL)
-				break;
-		}
-
+		dp = dget(opt_dentry);
 		fetched = smk_fetch(inode, dp);
 		if (fetched != NULL)
 			final = fetched;
-
 		dput(dp);
 		break;
 	}
