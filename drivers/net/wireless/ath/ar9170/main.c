@@ -226,7 +226,7 @@ static void __ar9170_dump_txqueue(struct ar9170 *ar,
 {
 	struct sk_buff *skb;
 	int i = 0;
-
+	return;
 	printk(KERN_DEBUG "---[ cut here ]---\n");
 	printk(KERN_DEBUG "%s: %d entries in queue.\n",
 	       wiphy_name(ar->hw->wiphy), skb_queue_len(queue));
