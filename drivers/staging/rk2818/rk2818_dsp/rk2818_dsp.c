@@ -285,14 +285,14 @@ static int _down_firmware(char *fwname, struct rk28dsp_inf *inf)
 	        dspprintk("%s already down, not redown! \n", fwname);
 
 	        /* change dsp & arm to normal mode */
-	        if(DS_SLOW==inf->dsp_status)    printk("dsp work mode : slow -> normal mode \n");
+	        //if(DS_SLOW==inf->dsp_status)    printk("dsp work mode : slow -> normal mode \n");
 	        inf->dsp_status = DS_NORMAL;
 	        __raw_writel(0x5, RK2818_SCU_BASE+0x0c);
             return 0;
 	    }
     }
 
-    if(DS_SLEEP==inf->dsp_status)    printk("dsp work mode : sleep -> normal mode \n");
+    //if(DS_SLEEP==inf->dsp_status)    printk("dsp work mode : sleep -> normal mode \n");
     inf->dsp_status = DS_NORMAL;
 
     dspprintk("down firmware (%s) ... \n", fwname);
@@ -430,14 +430,14 @@ void dsptimer_callback(unsigned long arg)
     case DS_TOSLOW:
         dsp_powerctl(DPC_SLOW, 0);
         inf->dsp_status = DS_SLOW;
-        printk("dsp work mode : slow mode \n");
+        //printk("dsp work mode : slow mode \n");
         sec_cnt = 0;
         break;
     case DS_SLOW:
         if(++sec_cnt>=5) {
             dsp_powerctl(DPC_SLEEP, 0);
             inf->dsp_status = DS_SLEEP;
-            printk("dsp work mode : sleep mode \n");
+            //printk("dsp work mode : sleep mode \n");
         }
         break;
     case DS_SLEEP:
@@ -915,7 +915,7 @@ static int dsp_drv_suspend(struct platform_device *pdev, pm_message_t state)
 
     dsp_powerctl(DPC_SLEEP, 0);
     inf->dsp_status = DS_SLEEP;
-    printk("dsp work mode : sleep mode \n");
+    //printk("dsp work mode : sleep mode \n");
     return 0;
 }
 
