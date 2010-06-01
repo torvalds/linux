@@ -448,7 +448,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 	mutex_init(&local->iflist_mtx);
 	mutex_init(&local->scan_mtx);
 
-	spin_lock_init(&local->key_lock);
+	mutex_init(&local->key_mtx);
 	spin_lock_init(&local->filter_lock);
 	spin_lock_init(&local->queue_stop_reason_lock);
 

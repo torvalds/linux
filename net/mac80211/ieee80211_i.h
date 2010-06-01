@@ -746,10 +746,10 @@ struct ieee80211_local {
 	struct mutex iflist_mtx;
 
 	/*
-	 * Key lock, protects sdata's key_list and sta_info's
+	 * Key mutex, protects sdata's key_list and sta_info's
 	 * key pointers (write access, they're RCU.)
 	 */
-	spinlock_t key_lock;
+	struct mutex key_mtx;
 
 
 	/* Scanning and BSS list */
