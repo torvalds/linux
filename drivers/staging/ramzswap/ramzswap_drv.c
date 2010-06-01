@@ -101,20 +101,6 @@ static void ramzswap_set_disksize(struct ramzswap *rzs, size_t totalram_bytes)
 	rzs->disksize &= PAGE_MASK;
 }
 
-/*
- * Swap header (1st page of swap device) contains information
- * about a swap file/partition. Prepare such a header for the
- * given ramzswap device so that swapon can identify it as a
- * swap partition.
- */
-static void setup_swap_header(struct ramzswap *rzs, union swap_header *s)
-{
-	s->info.version = 1;
-	s->info.last_page = (rzs->disksize >> PAGE_SHIFT) - 1;
-	s->info.nr_badpages = 0;
-	memcpy(s->magic.magic, "SWAPSPACE2", 10);
-}
-
 static void ramzswap_ioctl_get_stats(struct ramzswap *rzs,
 			struct ramzswap_ioctl_stats *s)
 {
@@ -202,30 +188,21 @@ out:
 	rzs->table[index].offset = 0;
 }
 
-static int handle_zero_page(struct bio *bio)
+static void handle_zero_page(struct page *page)
 {
 	void *user_mem;
-	struct page *page = bio->bi_io_vec[0].bv_page;
 
 	user_mem = kmap_atomic(page, KM_USER0);
 	memset(user_mem, 0, PAGE_SIZE);
 	kunmap_atomic(user_mem, KM_USER0);
 
 	flush_dcache_page(page);
-
-	set_bit(BIO_UPTODATE, &bio->bi_flags);
-	bio_endio(bio, 0);
-	return 0;
 }
 
-static int handle_uncompressed_page(struct ramzswap *rzs, struct bio *bio)
+static void handle_uncompressed_page(struct ramzswap *rzs,
+				struct page *page, u32 index)
 {
-	u32 index;
-	struct page *page;
 	unsigned char *user_mem, *cmem;
-
-	page = bio->bi_io_vec[0].bv_page;
-	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
 
 	user_mem = kmap_atomic(page, KM_USER0);
 	cmem = kmap_atomic(rzs->table[index].page, KM_USER1) +
@@ -236,79 +213,71 @@ static int handle_uncompressed_page(struct ramzswap *rzs, struct bio *bio)
 	kunmap_atomic(cmem, KM_USER1);
 
 	flush_dcache_page(page);
-
-	set_bit(BIO_UPTODATE, &bio->bi_flags);
-	bio_endio(bio, 0);
-	return 0;
-}
-
-/*
- * Called when request page is not present in ramzswap.
- * This is an attempt to read before any previous write
- * to this location - this happens due to readahead when
- * swap device is read from user-space (e.g. during swapon)
- */
-static int handle_ramzswap_fault(struct ramzswap *rzs, struct bio *bio)
-{
-	pr_debug("Read before write on swap device: "
-		"sector=%lu, size=%u, offset=%u\n",
-		(ulong)(bio->bi_sector), bio->bi_size,
-		bio->bi_io_vec[0].bv_offset);
-
-	/* Do nothing. Just return success */
-	set_bit(BIO_UPTODATE, &bio->bi_flags);
-	bio_endio(bio, 0);
-	return 0;
 }
 
 static int ramzswap_read(struct ramzswap *rzs, struct bio *bio)
 {
-	int ret;
+
+	int i;
 	u32 index;
-	size_t clen;
-	struct page *page;
-	struct zobj_header *zheader;
-	unsigned char *user_mem, *cmem;
+	struct bio_vec *bvec;
 
 	rzs_stat64_inc(rzs, &rzs->stats.num_reads);
 
-	page = bio->bi_io_vec[0].bv_page;
 	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
+	bio_for_each_segment(bvec, bio, i) {
+		int ret;
+		size_t clen;
+		struct page *page;
+		struct zobj_header *zheader;
+		unsigned char *user_mem, *cmem;
 
-	if (rzs_test_flag(rzs, index, RZS_ZERO))
-		return handle_zero_page(bio);
+		page = bvec->bv_page;
 
-	/* Requested page is not present in compressed area */
-	if (!rzs->table[index].page)
-		return handle_ramzswap_fault(rzs, bio);
+		if (rzs_test_flag(rzs, index, RZS_ZERO)) {
+			handle_zero_page(page);
+			continue;
+		}
 
-	/* Page is stored uncompressed since it's incompressible */
-	if (unlikely(rzs_test_flag(rzs, index, RZS_UNCOMPRESSED)))
-		return handle_uncompressed_page(rzs, bio);
+		/* Requested page is not present in compressed area */
+		if (unlikely(!rzs->table[index].page)) {
+			pr_debug("Read before write: sector=%lu, size=%u",
+				(ulong)(bio->bi_sector), bio->bi_size);
+			/* Do nothing */
+			continue;
+		}
 
-	user_mem = kmap_atomic(page, KM_USER0);
-	clen = PAGE_SIZE;
+		/* Page is stored uncompressed since it's incompressible */
+		if (unlikely(rzs_test_flag(rzs, index, RZS_UNCOMPRESSED))) {
+			handle_uncompressed_page(rzs, page, index);
+			continue;
+		}
 
-	cmem = kmap_atomic(rzs->table[index].page, KM_USER1) +
-			rzs->table[index].offset;
+		user_mem = kmap_atomic(page, KM_USER0);
+		clen = PAGE_SIZE;
 
-	ret = lzo1x_decompress_safe(
-		cmem + sizeof(*zheader),
-		xv_get_object_size(cmem) - sizeof(*zheader),
-		user_mem, &clen);
+		cmem = kmap_atomic(rzs->table[index].page, KM_USER1) +
+				rzs->table[index].offset;
 
-	kunmap_atomic(user_mem, KM_USER0);
-	kunmap_atomic(cmem, KM_USER1);
+		ret = lzo1x_decompress_safe(
+			cmem + sizeof(*zheader),
+			xv_get_object_size(cmem) - sizeof(*zheader),
+			user_mem, &clen);
 
-	/* should NEVER happen */
-	if (unlikely(ret != LZO_E_OK)) {
-		pr_err("Decompression failed! err=%d, page=%u\n",
-			ret, index);
-		rzs_stat64_inc(rzs, &rzs->stats.failed_reads);
-		goto out;
+		kunmap_atomic(user_mem, KM_USER0);
+		kunmap_atomic(cmem, KM_USER1);
+
+		/* Should NEVER happen. Return bio error if it does. */
+		if (unlikely(ret != LZO_E_OK)) {
+			pr_err("Decompression failed! err=%d, page=%u\n",
+				ret, index);
+			rzs_stat64_inc(rzs, &rzs->stats.failed_reads);
+			goto out;
+		}
+
+		flush_dcache_page(page);
+		index++;
 	}
-
-	flush_dcache_page(page);
 
 	set_bit(BIO_UPTODATE, &bio->bi_flags);
 	bio_endio(bio, 0);
@@ -321,108 +290,120 @@ out:
 
 static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 {
-	int ret;
-	u32 offset, index;
-	size_t clen;
-	struct zobj_header *zheader;
-	struct page *page, *page_store;
-	unsigned char *user_mem, *cmem, *src;
+	int i;
+	u32 index;
+	struct bio_vec *bvec;
 
 	rzs_stat64_inc(rzs, &rzs->stats.num_writes);
 
-	page = bio->bi_io_vec[0].bv_page;
 	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
 
-	src = rzs->compress_buffer;
+	bio_for_each_segment(bvec, bio, i) {
+		int ret;
+		u32 offset;
+		size_t clen;
+		struct zobj_header *zheader;
+		struct page *page, *page_store;
+		unsigned char *user_mem, *cmem, *src;
 
-	mutex_lock(&rzs->lock);
+		page = bvec->bv_page;
+		src = rzs->compress_buffer;
 
-	user_mem = kmap_atomic(page, KM_USER0);
-	if (page_zero_filled(user_mem)) {
-		kunmap_atomic(user_mem, KM_USER0);
-		mutex_unlock(&rzs->lock);
-		rzs_stat_inc(&rzs->stats.pages_zero);
-		rzs_set_flag(rzs, index, RZS_ZERO);
+		/*
+		 * System overwrites unused sectors. Free memory associated
+		 * with this sector now.
+		 */
+		if (rzs->table[index].page ||
+				rzs_test_flag(rzs, index, RZS_ZERO))
+			ramzswap_free_page(rzs, index);
 
-		set_bit(BIO_UPTODATE, &bio->bi_flags);
-		bio_endio(bio, 0);
-		return 0;
-	}
+		mutex_lock(&rzs->lock);
 
-	ret = lzo1x_1_compress(user_mem, PAGE_SIZE, src, &clen,
-				rzs->compress_workmem);
-
-	kunmap_atomic(user_mem, KM_USER0);
-
-	if (unlikely(ret != LZO_E_OK)) {
-		mutex_unlock(&rzs->lock);
-		pr_err("Compression failed! err=%d\n", ret);
-		rzs_stat64_inc(rzs, &rzs->stats.failed_writes);
-		goto out;
-	}
-
-	/*
-	 * Page is incompressible. Store it as-is (uncompressed)
-	 * since we do not want to return too many swap write
-	 * errors which has side effect of hanging the system.
-	 */
-	if (unlikely(clen > max_zpage_size)) {
-		clen = PAGE_SIZE;
-		page_store = alloc_page(GFP_NOIO | __GFP_HIGHMEM);
-		if (unlikely(!page_store)) {
+		user_mem = kmap_atomic(page, KM_USER0);
+		if (page_zero_filled(user_mem)) {
+			kunmap_atomic(user_mem, KM_USER0);
 			mutex_unlock(&rzs->lock);
-			pr_info("Error allocating memory for incompressible "
-				"page: %u\n", index);
+			rzs_stat_inc(&rzs->stats.pages_zero);
+			rzs_set_flag(rzs, index, RZS_ZERO);
+			continue;
+		}
+
+		ret = lzo1x_1_compress(user_mem, PAGE_SIZE, src, &clen,
+					rzs->compress_workmem);
+
+		kunmap_atomic(user_mem, KM_USER0);
+
+		if (unlikely(ret != LZO_E_OK)) {
+			mutex_unlock(&rzs->lock);
+			pr_err("Compression failed! err=%d\n", ret);
 			rzs_stat64_inc(rzs, &rzs->stats.failed_writes);
 			goto out;
 		}
 
-		offset = 0;
-		rzs_set_flag(rzs, index, RZS_UNCOMPRESSED);
-		rzs_stat_inc(&rzs->stats.pages_expand);
-		rzs->table[index].page = page_store;
-		src = kmap_atomic(page, KM_USER0);
-		goto memstore;
-	}
+		/*
+		 * Page is incompressible. Store it as-is (uncompressed)
+		 * since we do not want to return too many swap write
+		 * errors which has side effect of hanging the system.
+		 */
+		if (unlikely(clen > max_zpage_size)) {
+			clen = PAGE_SIZE;
+			page_store = alloc_page(GFP_NOIO | __GFP_HIGHMEM);
+			if (unlikely(!page_store)) {
+				mutex_unlock(&rzs->lock);
+				pr_info("Error allocating memory for "
+					"incompressible page: %u\n", index);
+				rzs_stat64_inc(rzs, &rzs->stats.failed_writes);
+				goto out;
+			}
 
-	if (xv_malloc(rzs->mem_pool, clen + sizeof(*zheader),
-			&rzs->table[index].page, &offset,
-			GFP_NOIO | __GFP_HIGHMEM)) {
-		mutex_unlock(&rzs->lock);
-		pr_info("Error allocating memory for compressed "
-			"page: %u, size=%zu\n", index, clen);
-		rzs_stat64_inc(rzs, &rzs->stats.failed_writes);
-		goto out;
-	}
+			offset = 0;
+			rzs_set_flag(rzs, index, RZS_UNCOMPRESSED);
+			rzs_stat_inc(&rzs->stats.pages_expand);
+			rzs->table[index].page = page_store;
+			src = kmap_atomic(page, KM_USER0);
+			goto memstore;
+		}
+
+		if (xv_malloc(rzs->mem_pool, clen + sizeof(*zheader),
+				&rzs->table[index].page, &offset,
+				GFP_NOIO | __GFP_HIGHMEM)) {
+			mutex_unlock(&rzs->lock);
+			pr_info("Error allocating memory for compressed "
+				"page: %u, size=%zu\n", index, clen);
+			rzs_stat64_inc(rzs, &rzs->stats.failed_writes);
+			goto out;
+		}
 
 memstore:
-	rzs->table[index].offset = offset;
+		rzs->table[index].offset = offset;
 
-	cmem = kmap_atomic(rzs->table[index].page, KM_USER1) +
-			rzs->table[index].offset;
+		cmem = kmap_atomic(rzs->table[index].page, KM_USER1) +
+				rzs->table[index].offset;
 
 #if 0
-	/* Back-reference needed for memory defragmentation */
-	if (!rzs_test_flag(rzs, index, RZS_UNCOMPRESSED)) {
-		zheader = (struct zobj_header *)cmem;
-		zheader->table_idx = index;
-		cmem += sizeof(*zheader);
-	}
+		/* Back-reference needed for memory defragmentation */
+		if (!rzs_test_flag(rzs, index, RZS_UNCOMPRESSED)) {
+			zheader = (struct zobj_header *)cmem;
+			zheader->table_idx = index;
+			cmem += sizeof(*zheader);
+		}
 #endif
 
-	memcpy(cmem, src, clen);
+		memcpy(cmem, src, clen);
 
-	kunmap_atomic(cmem, KM_USER1);
-	if (unlikely(rzs_test_flag(rzs, index, RZS_UNCOMPRESSED)))
-		kunmap_atomic(src, KM_USER0);
+		kunmap_atomic(cmem, KM_USER1);
+		if (unlikely(rzs_test_flag(rzs, index, RZS_UNCOMPRESSED)))
+			kunmap_atomic(src, KM_USER0);
 
-	/* Update stats */
-	rzs->stats.compr_size += clen;
-	rzs_stat_inc(&rzs->stats.pages_stored);
-	if (clen <= PAGE_SIZE / 2)
-		rzs_stat_inc(&rzs->stats.good_compress);
+		/* Update stats */
+		rzs->stats.compr_size += clen;
+		rzs_stat_inc(&rzs->stats.pages_stored);
+		if (clen <= PAGE_SIZE / 2)
+			rzs_stat_inc(&rzs->stats.good_compress);
 
-	mutex_unlock(&rzs->lock);
+		mutex_unlock(&rzs->lock);
+		index++;
+	}
 
 	set_bit(BIO_UPTODATE, &bio->bi_flags);
 	bio_endio(bio, 0);
@@ -436,19 +417,17 @@ out:
 /*
  * Check if request is within bounds and page aligned.
  */
-static inline int valid_swap_request(struct ramzswap *rzs, struct bio *bio)
+static inline int valid_io_request(struct ramzswap *rzs, struct bio *bio)
 {
 	if (unlikely(
 		(bio->bi_sector >= (rzs->disksize >> SECTOR_SHIFT)) ||
 		(bio->bi_sector & (SECTORS_PER_PAGE - 1)) ||
-		(bio->bi_vcnt != 1) ||
-		(bio->bi_size != PAGE_SIZE) ||
-		(bio->bi_io_vec[0].bv_offset != 0))) {
+		(bio->bi_size & (PAGE_SIZE - 1)))) {
 
 		return 0;
 	}
 
-	/* swap request is valid */
+	/* I/O request is valid */
 	return 1;
 }
 
@@ -465,7 +444,7 @@ static int ramzswap_make_request(struct request_queue *queue, struct bio *bio)
 		return 0;
 	}
 
-	if (!valid_swap_request(rzs, bio)) {
+	if (!valid_io_request(rzs, bio)) {
 		rzs_stat64_inc(rzs, &rzs->stats.invalid_io);
 		bio_io_error(bio);
 		return 0;
@@ -531,8 +510,6 @@ static int ramzswap_ioctl_init_device(struct ramzswap *rzs)
 {
 	int ret;
 	size_t num_pages;
-	struct page *page;
-	union swap_header *swap_header;
 
 	if (rzs->init_done) {
 		pr_info("Device already initialized!\n");
@@ -565,19 +542,6 @@ static int ramzswap_ioctl_init_device(struct ramzswap *rzs)
 		goto fail;
 	}
 	memset(rzs->table, 0, num_pages * sizeof(*rzs->table));
-
-	page = alloc_page(__GFP_ZERO);
-	if (!page) {
-		pr_err("Error allocating swap header page\n");
-		ret = -ENOMEM;
-		goto fail;
-	}
-	rzs->table[0].page = page;
-	rzs_set_flag(rzs, 0, RZS_UNCOMPRESSED);
-
-	swap_header = kmap(page);
-	setup_swap_header(rzs, swap_header);
-	kunmap(page);
 
 	set_capacity(rzs->disk, rzs->disksize >> SECTOR_SHIFT);
 
@@ -689,11 +653,9 @@ void ramzswap_slot_free_notify(struct block_device *bdev, unsigned long index)
 	rzs = bdev->bd_disk->private_data;
 	ramzswap_free_page(rzs, index);
 	rzs_stat64_inc(rzs, &rzs->stats.notify_free);
-
-	return;
 }
 
-static struct block_device_operations ramzswap_devops = {
+static const struct block_device_operations ramzswap_devops = {
 	.ioctl = ramzswap_ioctl,
 	.swap_slot_free_notify = ramzswap_slot_free_notify,
 	.owner = THIS_MODULE
@@ -737,8 +699,14 @@ static int create_device(struct ramzswap *rzs, int device_id)
 	/* Actual capacity set using RZSIO_SET_DISKSIZE_KB ioctl */
 	set_capacity(rzs->disk, 0);
 
+	/*
+	 * To ensure that we always get PAGE_SIZE aligned
+	 * and n*PAGE_SIZED sized I/O requests.
+	 */
 	blk_queue_physical_block_size(rzs->disk->queue, PAGE_SIZE);
 	blk_queue_logical_block_size(rzs->disk->queue, PAGE_SIZE);
+	blk_queue_io_min(rzs->disk->queue, PAGE_SIZE);
+	blk_queue_io_opt(rzs->disk->queue, PAGE_SIZE);
 
 	add_disk(rzs->disk);
 
