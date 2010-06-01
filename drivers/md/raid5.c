@@ -4566,6 +4566,32 @@ raid5_show_stripe_cache_size(mddev_t *mddev, char *page)
 		return 0;
 }
 
+int
+raid5_set_cache_size(mddev_t *mddev, int size)
+{
+	raid5_conf_t *conf = mddev->private;
+	int err;
+
+	if (size <= 16 || size > 32768)
+		return -EINVAL;
+	while (size < conf->max_nr_stripes) {
+		if (drop_one_stripe(conf))
+			conf->max_nr_stripes--;
+		else
+			break;
+	}
+	err = md_allow_write(mddev);
+	if (err)
+		return err;
+	while (size > conf->max_nr_stripes) {
+		if (grow_one_stripe(conf))
+			conf->max_nr_stripes++;
+		else break;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(raid5_set_cache_size);
+
 static ssize_t
 raid5_store_stripe_cache_size(mddev_t *mddev, const char *page, size_t len)
 {
@@ -4580,22 +4606,9 @@ raid5_store_stripe_cache_size(mddev_t *mddev, const char *page, size_t len)
 
 	if (strict_strtoul(page, 10, &new))
 		return -EINVAL;
-	if (new <= 16 || new > 32768)
-		return -EINVAL;
-	while (new < conf->max_nr_stripes) {
-		if (drop_one_stripe(conf))
-			conf->max_nr_stripes--;
-		else
-			break;
-	}
-	err = md_allow_write(mddev);
+	err = raid5_set_cache_size(mddev, new);
 	if (err)
 		return err;
-	while (new > conf->max_nr_stripes) {
-		if (grow_one_stripe(conf))
-			conf->max_nr_stripes++;
-		else break;
-	}
 	return len;
 }
 

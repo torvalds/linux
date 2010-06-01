@@ -497,4 +497,5 @@ static inline int algorithm_is_DDF(int layout)
 {
 	return layout >= 8 && layout <= 10;
 }
+extern int raid5_set_cache_size(mddev_t *mddev, int size);
 #endif
