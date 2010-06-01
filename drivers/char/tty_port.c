@@ -294,7 +294,9 @@ int tty_port_block_til_ready(struct tty_port *port,
 			retval = -ERESTARTSYS;
 			break;
 		}
+		tty_unlock();
 		schedule();
+		tty_lock();
 	}
 	finish_wait(&port->open_wait, &wait);
 

@@ -1786,7 +1786,9 @@ block_til_ready(struct tty_struct *tty, struct file *filp,
 		       tty->name, info->count);
 		/**/
 #endif
-		    schedule();
+		tty_unlock();
+		schedule();
+		tty_lock();
 	}
 	__set_current_state(TASK_RUNNING);
 	remove_wait_queue(&info->open_wait, &wait);
