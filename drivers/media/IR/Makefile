@@ -13,3 +13,4 @@ obj-$(CONFIG_IR_SONY_DECODER) += ir-sony-decoder.o
 
 # stand-alone IR receivers/transmitters
 obj-$(CONFIG_IR_IMON) += imon.o
+obj-$(CONFIG_IR_MCEUSB) += mceusb.o

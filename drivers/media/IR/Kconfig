@@ -68,3 +68,15 @@ config IR_IMON
 
 	   To compile this driver as a module, choose M here: the
 	   module will be called imon.
+
+config IR_MCEUSB
+	tristate "Windows Media Center Ed. eHome Infrared Transceiver"
+	depends on USB_ARCH_HAS_HCD
+	depends on IR_CORE
+	select USB
+	---help---
+	   Say Y here if you want to use a Windows Media Center Edition
+	   eHome Infrared Transceiver.
+
+	   To compile this driver as a module, choose M here: the
+	   module will be called mceusb.
