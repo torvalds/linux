@@ -1358,7 +1358,7 @@ void bitmap_endwrite(struct bitmap *bitmap, sector_t offset, unsigned long secto
 		    bitmap->events_cleared < bitmap->mddev->events) {
 			bitmap->events_cleared = bitmap->mddev->events;
 			bitmap->need_sync = 1;
-			sysfs_notify_dirent(bitmap->sysfs_can_clear);
+			sysfs_notify_dirent_safe(bitmap->sysfs_can_clear);
 		}
 
 		if (!success && ! (*bmc & NEEDED_MASK))
@@ -1643,7 +1643,7 @@ int bitmap_create(mddev_t *mddev)
 	struct file *file = mddev->bitmap_info.file;
 	int err;
 	sector_t start;
-	struct sysfs_dirent *bm;
+	struct sysfs_dirent *bm = NULL;
 
 	BUILD_BUG_ON(sizeof(bitmap_super_t) != 256);
 
@@ -1664,7 +1664,8 @@ int bitmap_create(mddev_t *mddev)
 
 	bitmap->mddev = mddev;
 
-	bm = sysfs_get_dirent(mddev->kobj.sd, NULL, "bitmap");
+	if (mddev->kobj.sd)
+		bm = sysfs_get_dirent(mddev->kobj.sd, NULL, "bitmap");
 	if (bm) {
 		bitmap->sysfs_can_clear = sysfs_get_dirent(bm, NULL, "can_clear");
 		sysfs_put(bm);
