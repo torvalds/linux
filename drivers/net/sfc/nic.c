@@ -1219,9 +1219,6 @@ int efx_nic_flush_queues(struct efx_nic *efx)
 		rx_queue->flushed = FLUSH_DONE;
 	}
 
-	if (EFX_WORKAROUND_7803(efx))
-		return 0;
-
 	return -ETIMEDOUT;
 }
 

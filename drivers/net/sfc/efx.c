@@ -27,6 +27,7 @@
 #include "nic.h"
 
 #include "mcdi.h"
+#include "workarounds.h"
 
 /**************************************************************************
  *
@@ -556,10 +557,18 @@ static void efx_fini_channels(struct efx_nic *efx)
 	BUG_ON(efx->port_enabled);
 
 	rc = efx_nic_flush_queues(efx);
-	if (rc)
+	if (rc && EFX_WORKAROUND_7803(efx)) {
+		/* Schedule a reset to recover from the flush failure. The
+		 * descriptor caches reference memory we're about to free,
+		 * but falcon_reconfigure_mac_wrapper() won't reconnect
+		 * the MACs because of the pending reset. */
+		EFX_ERR(efx, "Resetting to recover from flush failure\n");
+		efx_schedule_reset(efx, RESET_TYPE_ALL);
+	} else if (rc) {
 		EFX_ERR(efx, "failed to flush queues\n");
-	else
+	} else {
 		EFX_LOG(efx, "successfully flushed all queues\n");
+	}
 
 	efx_for_each_channel(channel, efx) {
 		EFX_LOG(channel->efx, "shut down chan %d\n", channel->channel);
