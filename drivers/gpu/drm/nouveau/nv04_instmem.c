@@ -106,7 +106,7 @@ int nv04_instmem_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint32_t offset;
-	int ret = 0;
+	int ret;
 
 	nv04_instmem_determine_amount(dev);
 	nv04_instmem_configure_fixed_tables(dev);
@@ -129,14 +129,14 @@ int nv04_instmem_init(struct drm_device *dev)
 			offset = 0x40000;
 	}
 
-	ret = nouveau_mem_init_heap(&dev_priv->ramin_heap,
-				    offset, dev_priv->ramin_rsvd_vram - offset);
+	ret = drm_mm_init(&dev_priv->ramin_heap, offset,
+			  dev_priv->ramin_rsvd_vram - offset);
 	if (ret) {
-		dev_priv->ramin_heap = NULL;
-		NV_ERROR(dev, "Failed to init RAMIN heap\n");
+		NV_ERROR(dev, "Failed to init RAMIN heap: %d\n", ret);
+		return ret;
 	}
 
-	return ret;
+	return 0;
 }
 
 void

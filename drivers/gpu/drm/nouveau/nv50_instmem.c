@@ -147,7 +147,7 @@ nv50_instmem_init(struct drm_device *dev)
 	if (ret)
 		return ret;
 
-	if (nouveau_mem_init_heap(&chan->ramin_heap, c_base, c_size - c_base))
+	if (drm_mm_init(&chan->ramin_heap, c_base, c_size - c_base))
 		return -ENOMEM;
 
 	/* RAMFC + zero channel's PRAMIN up to start of VM pagedir */
@@ -276,9 +276,7 @@ nv50_instmem_init(struct drm_device *dev)
 	nv_wr32(dev, NV50_PUNK_BAR0_PRAMIN, save_nv001700);
 
 	/* Global PRAMIN heap */
-	if (nouveau_mem_init_heap(&dev_priv->ramin_heap,
-				  c_size, dev_priv->ramin_size - c_size)) {
-		dev_priv->ramin_heap = NULL;
+	if (drm_mm_init(&dev_priv->ramin_heap, c_size, dev_priv->ramin_size - c_size)) {
 		NV_ERROR(dev, "Failed to init RAMIN heap\n");
 	}
 
@@ -321,7 +319,7 @@ nv50_instmem_takedown(struct drm_device *dev)
 		nouveau_gpuobj_del(dev, &chan->vm_pd);
 		nouveau_gpuobj_ref_del(dev, &chan->ramfc);
 		nouveau_gpuobj_ref_del(dev, &chan->ramin);
-		nouveau_mem_takedown(&chan->ramin_heap);
+		drm_mm_takedown(&chan->ramin_heap);
 
 		dev_priv->fifos[0] = dev_priv->fifos[127] = NULL;
 		kfree(chan);
@@ -436,14 +434,14 @@ nv50_instmem_bind(struct drm_device *dev, struct nouveau_gpuobj *gpuobj)
 	if (!gpuobj->im_backing || !gpuobj->im_pramin || gpuobj->im_bound)
 		return -EINVAL;
 
-	NV_DEBUG(dev, "st=0x%0llx sz=0x%0llx\n",
+	NV_DEBUG(dev, "st=0x%lx sz=0x%lx\n",
 		 gpuobj->im_pramin->start, gpuobj->im_pramin->size);
 
 	pte     = (gpuobj->im_pramin->start >> 12) << 1;
 	pte_end = ((gpuobj->im_pramin->size >> 12) << 1) + pte;
 	vram    = gpuobj->im_backing_start;
 
-	NV_DEBUG(dev, "pramin=0x%llx, pte=%d, pte_end=%d\n",
+	NV_DEBUG(dev, "pramin=0x%lx, pte=%d, pte_end=%d\n",
 		 gpuobj->im_pramin->start, pte, pte_end);
 	NV_DEBUG(dev, "first vram page: 0x%08x\n", gpuobj->im_backing_start);
 

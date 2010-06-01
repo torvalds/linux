@@ -110,8 +110,8 @@ nv50_evo_channel_new(struct drm_device *dev, struct nouveau_channel **pchan)
 		return ret;
 	}
 
-	ret = nouveau_mem_init_heap(&chan->ramin_heap, chan->ramin->gpuobj->
-				    im_pramin->start, 32768);
+	ret = drm_mm_init(&chan->ramin_heap,
+			  chan->ramin->gpuobj->im_pramin->start, 32768);
 	if (ret) {
 		NV_ERROR(dev, "Error initialising EVO PRAMIN heap: %d\n", ret);
 		nv50_evo_channel_del(pchan);

@@ -209,7 +209,7 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_engine *engine = &dev_priv->engine;
 	struct nouveau_gpuobj *gpuobj;
-	struct mem_block *pramin = NULL;
+	struct drm_mm *pramin = NULL;
 	int ret;
 
 	NV_DEBUG(dev, "ch%d size=%u align=%d flags=0x%08x\n",
@@ -233,17 +233,17 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 	 * available.
 	 */
 	if (chan) {
-		if (chan->ramin_heap) {
+		if (chan->ramin_heap.ml_entry.next) {
 			NV_DEBUG(dev, "private heap\n");
-			pramin = chan->ramin_heap;
+			pramin = &chan->ramin_heap;
 		} else
 		if (dev_priv->card_type < NV_50) {
 			NV_DEBUG(dev, "global heap fallback\n");
-			pramin = dev_priv->ramin_heap;
+			pramin = &dev_priv->ramin_heap;
 		}
 	} else {
 		NV_DEBUG(dev, "global heap\n");
-		pramin = dev_priv->ramin_heap;
+		pramin = &dev_priv->ramin_heap;
 	}
 
 	if (!pramin) {
@@ -260,9 +260,10 @@ nouveau_gpuobj_new(struct drm_device *dev, struct nouveau_channel *chan,
 	}
 
 	/* Allocate a chunk of the PRAMIN aperture */
-	gpuobj->im_pramin = nouveau_mem_alloc_block(pramin, size,
-						    drm_order(align),
-						    (struct drm_file *)-2, 0);
+	gpuobj->im_pramin = drm_mm_search_free(pramin, size, align, 0);
+	if (gpuobj->im_pramin)
+		gpuobj->im_pramin = drm_mm_get_block(gpuobj->im_pramin, size, align);
+
 	if (!gpuobj->im_pramin) {
 		nouveau_gpuobj_del(dev, &gpuobj);
 		return -ENOMEM;
@@ -386,7 +387,7 @@ nouveau_gpuobj_del(struct drm_device *dev, struct nouveau_gpuobj **pgpuobj)
 		if (gpuobj->flags & NVOBJ_FLAG_FAKE)
 			kfree(gpuobj->im_pramin);
 		else
-			nouveau_mem_free_block(gpuobj->im_pramin);
+			drm_mm_put_block(gpuobj->im_pramin);
 	}
 
 	list_del(&gpuobj->list);
@@ -589,7 +590,7 @@ nouveau_gpuobj_new_fake(struct drm_device *dev, uint32_t p_offset,
 	list_add_tail(&gpuobj->list, &dev_priv->gpuobj_list);
 
 	if (p_offset != ~0) {
-		gpuobj->im_pramin = kzalloc(sizeof(struct mem_block),
+		gpuobj->im_pramin = kzalloc(sizeof(struct drm_mm_node),
 					    GFP_KERNEL);
 		if (!gpuobj->im_pramin) {
 			nouveau_gpuobj_del(dev, &gpuobj);
@@ -944,8 +945,7 @@ nouveau_gpuobj_channel_init_pramin(struct nouveau_channel *chan)
 	}
 	pramin = chan->ramin->gpuobj;
 
-	ret = nouveau_mem_init_heap(&chan->ramin_heap,
-				    pramin->im_pramin->start + base, size);
+	ret = drm_mm_init(&chan->ramin_heap, pramin->im_pramin->start + base, size);
 	if (ret) {
 		NV_ERROR(dev, "Error creating PRAMIN heap: %d\n", ret);
 		nouveau_gpuobj_ref_del(dev, &chan->ramin);
@@ -1130,8 +1130,8 @@ nouveau_gpuobj_channel_takedown(struct nouveau_channel *chan)
 	for (i = 0; i < dev_priv->vm_vram_pt_nr; i++)
 		nouveau_gpuobj_ref_del(dev, &chan->vm_vram_pt[i]);
 
-	if (chan->ramin_heap)
-		nouveau_mem_takedown(&chan->ramin_heap);
+	if (chan->ramin_heap.free_stack.next)
+		drm_mm_takedown(&chan->ramin_heap);
 	if (chan->ramin)
 		nouveau_gpuobj_ref_del(dev, &chan->ramin);
 

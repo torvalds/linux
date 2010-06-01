@@ -123,14 +123,6 @@ nvbo_kmap_obj_iovirtual(struct nouveau_bo *nvbo)
 	return ioptr;
 }
 
-struct mem_block {
-	struct mem_block *next;
-	struct mem_block *prev;
-	uint64_t start;
-	uint64_t size;
-	struct drm_file *file_priv; /* NULL: free, -1: heap, other: real files */
-};
-
 enum nouveau_flags {
 	NV_NFORCE   = 0x10000000,
 	NV_NFORCE2  = 0x20000000
@@ -149,7 +141,7 @@ struct nouveau_gpuobj {
 	struct list_head list;
 
 	struct nouveau_channel *im_channel;
-	struct mem_block *im_pramin;
+	struct drm_mm_node *im_pramin;
 	struct nouveau_bo *im_backing;
 	uint32_t im_backing_start;
 	uint32_t *im_backing_suspend;
@@ -206,7 +198,7 @@ struct nouveau_channel {
 
 	/* Notifier memory */
 	struct nouveau_bo *notifier_bo;
-	struct mem_block *notifier_heap;
+	struct drm_mm notifier_heap;
 
 	/* PFIFO context */
 	struct nouveau_gpuobj_ref *ramfc;
@@ -224,7 +216,7 @@ struct nouveau_channel {
 
 	/* Objects */
 	struct nouveau_gpuobj_ref *ramin; /* Private instmem */
-	struct mem_block          *ramin_heap; /* Private PRAMIN heap */
+	struct drm_mm              ramin_heap; /* Private PRAMIN heap */
 	struct nouveau_gpuobj_ref *ramht; /* Hash table */
 	struct list_head           ramht_refs; /* Objects referenced by RAMHT */
 
@@ -595,7 +587,7 @@ struct drm_nouveau_private {
 	struct nouveau_gpuobj *vm_vram_pt[NV50_VM_VRAM_NR];
 	int vm_vram_pt_nr;
 
-	struct mem_block *ramin_heap;
+	struct drm_mm ramin_heap;
 
 	/* context table pointed to be NV_PGRAPH_CHANNEL_CTX_TABLE (0x400780) */
 	uint32_t ctx_table_size;
@@ -707,15 +699,7 @@ extern bool nouveau_wait_for_idle(struct drm_device *);
 extern int  nouveau_card_init(struct drm_device *);
 
 /* nouveau_mem.c */
-extern int  nouveau_mem_init_heap(struct mem_block **, uint64_t start,
-				 uint64_t size);
-extern struct mem_block *nouveau_mem_alloc_block(struct mem_block *,
-						 uint64_t size, int align2,
-						 struct drm_file *, int tail);
-extern void nouveau_mem_takedown(struct mem_block **heap);
-extern void nouveau_mem_free_block(struct mem_block *);
 extern int  nouveau_mem_detect(struct drm_device *dev);
-extern void nouveau_mem_release(struct drm_file *, struct mem_block *heap);
 extern int  nouveau_mem_init(struct drm_device *);
 extern int  nouveau_mem_init_agp(struct drm_device *);
 extern void nouveau_mem_close(struct drm_device *);
