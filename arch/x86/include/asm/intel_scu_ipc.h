@@ -1,6 +1,12 @@
 #ifndef _ASM_X86_INTEL_SCU_IPC_H_
 #define  _ASM_X86_INTEL_SCU_IPC_H_
 
+#define IPCMSG_VRTC	0xFA	 /* Set vRTC device */
+
+/* Command id associated with message IPCMSG_VRTC */
+#define IPC_CMD_VRTC_SETTIME      1 /* Set time */
+#define IPC_CMD_VRTC_SETALARM     2 /* Set alarm */
+
 /* Read single register */
 int intel_scu_ipc_ioread8(u16 addr, u8 *data);
 
