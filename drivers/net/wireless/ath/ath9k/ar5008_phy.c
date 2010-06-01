@@ -742,17 +742,6 @@ static int ar5008_hw_process_ini(struct ath_hw *ah,
 		return -EINVAL;
 	}
 
-	if (AR_SREV_9287_12_OR_LATER(ah)) {
-		/* Enable ASYNC FIFO */
-		REG_SET_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
-				AR_MAC_PCU_ASYNC_FIFO_REG3_DATAPATH_SEL);
-		REG_SET_BIT(ah, AR_PHY_MODE, AR_PHY_MODE_ASYNCFIFO);
-		REG_CLR_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
-				AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET);
-		REG_SET_BIT(ah, AR_MAC_PCU_ASYNC_FIFO_REG3,
-				AR_MAC_PCU_ASYNC_FIFO_REG3_SOFT_RESET);
-	}
-
 	/*
 	 * Set correct baseband to analog shift setting to
 	 * access analog chips.

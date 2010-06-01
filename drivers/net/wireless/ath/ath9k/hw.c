@@ -1298,6 +1298,9 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (AR_SREV_9280_10_OR_LATER(ah))
 		REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL, AR_GPIO_JTAG_DISABLE);
 
+	if (!AR_SREV_9300_20_OR_LATER(ah))
+		ar9002_hw_enable_async_fifo(ah);
+
 	r = ath9k_hw_process_ini(ah, chan);
 	if (r)
 		return r;
@@ -1370,7 +1373,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	ath9k_hw_init_global_settings(ah);
 
 	if (!AR_SREV_9300_20_OR_LATER(ah)) {
-		ar9002_hw_enable_async_fifo(ah);
+		ar9002_hw_update_async_fifo(ah);
 		ar9002_hw_enable_wep_aggregation(ah);
 	}
 
