@@ -1018,8 +1018,13 @@ static ssize_t iwl_dbgfs_rx_queue_read(struct file *file,
 						rxq->write);
 	pos += scnprintf(buf + pos, bufsz - pos, "free_count: %u\n",
 						rxq->free_count);
-	pos += scnprintf(buf + pos, bufsz - pos, "closed_rb_num: %u\n",
+	if (rxq->rb_stts) {
+		pos += scnprintf(buf + pos, bufsz - pos, "closed_rb_num: %u\n",
 			 le16_to_cpu(rxq->rb_stts->closed_rb_num) &  0x0FFF);
+	} else {
+		pos += scnprintf(buf + pos, bufsz - pos,
+					"closed_rb_num: Not Allocated\n");
+	}
 	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
 }
 
