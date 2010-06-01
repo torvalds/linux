@@ -520,17 +520,16 @@ qlcnic_setup_idc_param(struct qlcnic_adapter *adapter) {
 	int timeo;
 	u32 val;
 
-	val = QLCRD32(adapter, QLCNIC_CRB_DEV_PARTITION_INFO);
-	val = (val >> (adapter->portnum * 4)) & 0xf;
-
-	if ((val & 0x3) != 1) {
-		dev_err(&adapter->pdev->dev, "Not an Ethernet NIC func=%u\n",
-									val);
-		return -EIO;
+	if (adapter->fw_hal_version == QLCNIC_FW_BASE) {
+		val = QLCRD32(adapter, QLCNIC_CRB_DEV_PARTITION_INFO);
+		val = QLC_DEV_GET_DRV(val, adapter->portnum);
+		if ((val & 0x3) != QLCNIC_TYPE_NIC) {
+			dev_err(&adapter->pdev->dev,
+				"Not an Ethernet NIC func=%u\n", val);
+			return -EIO;
+		}
+		adapter->physical_port = (val >> 2);
 	}
-
-	adapter->physical_port = (val >> 2);
-
 	if (qlcnic_rom_fast_read(adapter, QLCNIC_ROM_DEV_INIT_TIMEOUT, &timeo))
 		timeo = 30;
 
@@ -1700,4 +1699,25 @@ qlcnic_process_rcv_ring_diag(struct qlcnic_host_sds_ring *sds_ring)
 
 	sds_ring->consumer = consumer;
 	writel(consumer, sds_ring->crb_sts_consumer);
+}
+
+void
+qlcnic_fetch_mac(struct qlcnic_adapter *adapter, u32 off1, u32 off2,
+			u8 alt_mac, u8 *mac)
+{
+	u32 mac_low, mac_high;
+	int i;
+
+	mac_low = QLCRD32(adapter, off1);
+	mac_high = QLCRD32(adapter, off2);
+
+	if (alt_mac) {
+		mac_low |= (mac_low >> 16) | (mac_high << 16);
+		mac_high >>= 16;
+	}
+
+	for (i = 0; i < 2; i++)
+		mac[i] = (u8)(mac_high >> ((1 - i) * 8));
+	for (i = 2; i < 6; i++)
+		mac[i] = (u8)(mac_low >> ((5 - i) * 8));
 }
