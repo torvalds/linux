@@ -1401,16 +1401,17 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 		bool enable_radio = false;
 		bool idle = !!(conf->flags & IEEE80211_CONF_IDLE);
 
+		mutex_lock(&priv->htc_pm_lock);
 		if (!idle && priv->ps_idle)
 			enable_radio = true;
-
 		priv->ps_idle = idle;
+		mutex_unlock(&priv->htc_pm_lock);
 
 		if (enable_radio) {
-			ath9k_htc_setpower(priv, ATH9K_PM_AWAKE);
-			ath9k_htc_radio_enable(hw);
 			ath_print(common, ATH_DBG_CONFIG,
 				  "not-idle: enabling radio\n");
+			ath9k_htc_setpower(priv, ATH9K_PM_AWAKE);
+			ath9k_htc_radio_enable(hw);
 		}
 	}
 
@@ -1453,14 +1454,21 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
-	if ((changed & IEEE80211_CONF_CHANGE_IDLE) && priv->ps_idle) {
+	if (changed & IEEE80211_CONF_CHANGE_IDLE) {
+		mutex_lock(&priv->htc_pm_lock);
+		if (!priv->ps_idle) {
+			mutex_unlock(&priv->htc_pm_lock);
+			goto out;
+		}
+		mutex_unlock(&priv->htc_pm_lock);
+
 		ath_print(common, ATH_DBG_CONFIG,
 			  "idle: disabling radio\n");
 		ath9k_htc_radio_disable(hw);
 	}
 
+out:
 	mutex_unlock(&priv->mutex);
-
 	return 0;
 }
 
