@@ -1453,7 +1453,7 @@ static int ath9k_htc_config(struct ieee80211_hw *hw, u32 changed)
 		}
 	}
 
-	if (priv->ps_idle) {
+	if ((changed & IEEE80211_CONF_CHANGE_IDLE) && priv->ps_idle) {
 		ath_print(common, ATH_DBG_CONFIG,
 			  "idle: disabling radio\n");
 		ath9k_htc_radio_disable(hw);
