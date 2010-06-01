@@ -891,11 +891,15 @@ static char * __init kirkwood_id(void)
 			return "MV88F6192-Z0";
 		else if (rev == MV88F6192_REV_A0)
 			return "MV88F6192-A0";
+		else if (rev == MV88F6192_REV_A1)
+			return "MV88F6192-A1";
 		else
 			return "MV88F6192-Rev-Unsupported";
 	} else if (dev == MV88F6180_DEV_ID) {
 		if (rev == MV88F6180_REV_A0)
 			return "MV88F6180-Rev-A0";
+		else if (rev == MV88F6180_REV_A1)
+			return "MV88F6180-Rev-A1";
 		else
 			return "MV88F6180-Rev-Unsupported";
 	} else {
