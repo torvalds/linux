@@ -367,9 +367,10 @@ nouveau_mem_detect(struct drm_device *dev)
 	} else {
 		dev_priv->vram_size  = nv_rd32(dev, NV04_FIFO_DATA);
 		dev_priv->vram_size &= NV10_FIFO_DATA_RAM_AMOUNT_MB_MASK;
-		if (dev_priv->chipset == 0xaa || dev_priv->chipset == 0xac)
+		if (dev_priv->chipset == 0xaa || dev_priv->chipset == 0xac) {
 			dev_priv->vram_sys_base = nv_rd32(dev, 0x100e10);
 			dev_priv->vram_sys_base <<= 12;
+		}
 	}
 
 	NV_INFO(dev, "Detected %dMiB VRAM\n", (int)(dev_priv->vram_size >> 20));
