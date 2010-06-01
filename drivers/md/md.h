@@ -382,6 +382,18 @@ struct md_sysfs_entry {
 };
 extern struct attribute_group md_bitmap_group;
 
+static inline struct sysfs_dirent *sysfs_get_dirent_safe(struct sysfs_dirent *sd, char *name)
+{
+	if (sd)
+		return sysfs_get_dirent(sd, NULL, name);
+	return sd;
+}
+static inline void sysfs_notify_dirent_safe(struct sysfs_dirent *sd)
+{
+	if (sd)
+		sysfs_notify_dirent(sd);
+}
+
 static inline char * mdname (mddev_t * mddev)
 {
 	return mddev->gendisk ? mddev->gendisk->disk_name : "mdX";

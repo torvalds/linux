@@ -5158,7 +5158,8 @@ static int run(mddev_t *mddev)
 	/* Ok, everything is just fine now */
 	if (mddev->to_remove == &raid5_attrs_group)
 		mddev->to_remove = NULL;
-	else if (sysfs_create_group(&mddev->kobj, &raid5_attrs_group))
+	else if (mddev->kobj.sd &&
+	    sysfs_create_group(&mddev->kobj, &raid5_attrs_group))
 		printk(KERN_WARNING
 		       "md/raid:%s: failed to create sysfs attributes.\n",
 		       mdname(mddev));
@@ -5545,10 +5546,7 @@ static int raid5_start_reshape(mddev_t *mddev)
 				sprintf(nm, "rd%d", rdev->raid_disk);
 				if (sysfs_create_link(&mddev->kobj,
 						      &rdev->kobj, nm))
-					printk(KERN_WARNING
-					       "md/raid:%s: failed to create "
-					       " link %s\n",
-					       mdname(mddev), nm);
+					/* Failure here is OK */;
 			} else
 				break;
 		}
