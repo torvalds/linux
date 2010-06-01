@@ -1866,19 +1866,19 @@ got_driver:
 		printk(KERN_DEBUG "error %d in opening %s...", retval,
 		       tty->name);
 #endif
+		tty_unlock(); /* need to call tty_release without BTM */
 		tty_release(inode, filp);
-		if (retval != -ERESTARTSYS) {
-			tty_unlock();
+		if (retval != -ERESTARTSYS)
 			return retval;
-		}
-		if (signal_pending(current)) {
-			tty_unlock();
+
+		if (signal_pending(current))
 			return retval;
-		}
+
 		schedule();
 		/*
 		 * Need to reset f_op in case a hangup happened.
 		 */
+		tty_lock();
 		if (filp->f_op == &hung_up_tty_fops)
 			filp->f_op = &tty_fops;
 		tty_unlock();

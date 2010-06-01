@@ -647,7 +647,7 @@ static const struct tty_operations pty_unix98_ops = {
  *		allocated_ptys_lock handles the list of free pty numbers
  */
 
-static int __ptmx_open(struct inode *inode, struct file *filp)
+static int ptmx_open(struct inode *inode, struct file *filp)
 {
 	struct tty_struct *tty;
 	int retval;
@@ -656,11 +656,14 @@ static int __ptmx_open(struct inode *inode, struct file *filp)
 	nonseekable_open(inode, filp);
 
 	/* find a device that is not in use. */
+	tty_lock();
 	index = devpts_new_index(inode);
+	tty_unlock();
 	if (index < 0)
 		return index;
 
 	mutex_lock(&tty_mutex);
+	tty_lock();
 	tty = tty_init_dev(ptm_driver, index, 1);
 	mutex_unlock(&tty_mutex);
 
@@ -678,24 +681,19 @@ static int __ptmx_open(struct inode *inode, struct file *filp)
 		goto out1;
 
 	retval = ptm_driver->ops->open(tty, filp);
-	if (!retval)
-		return 0;
+	if (retval)
+		goto out2;
 out1:
+	tty_unlock();
+	return retval;
+out2:
+	tty_unlock();
 	tty_release(inode, filp);
 	return retval;
 out:
 	devpts_kill_index(inode, index);
-	return retval;
-}
-
-static int ptmx_open(struct inode *inode, struct file *filp)
-{
-	int ret;
-
-	tty_lock();
-	ret = __ptmx_open(inode, filp);
 	tty_unlock();
-	return ret;
+	return retval;
 }
 
 static struct file_operations ptmx_fops;
