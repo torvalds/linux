@@ -666,7 +666,7 @@ typedef struct __device_info {
     BYTE                    byBBVGANew;
     BYTE                    byBBVGACurrent;
     BYTE                    abyBBVGA[BB_VGA_LEVEL];
-    LONG                    ldBmThreshold[BB_VGA_LEVEL];
+    long                    ldBmThreshold[BB_VGA_LEVEL];
 
     BYTE                    byBBPreEDRSSI;
     BYTE                    byBBPreEDIndex;
@@ -684,7 +684,7 @@ typedef struct __device_info {
     short                   sPSetPointCCK;
     short                   sPSetPointOFDMG;
     short                   sPSetPointOFDMA;
-    LONG                    lPFormulaOffset;
+    long                    lPFormulaOffset;
     short                   sPThreshold;
     char                    cAdjustStep;
     char                    cMinTxAGC;

@@ -68,8 +68,6 @@ typedef int             BOOL;
  * but it doesn't matter if they're signed or unsigned.
  */
 
-typedef signed long     LONG;
-
 typedef unsigned char   UCHAR;
 typedef unsigned short  USHORT;
 typedef unsigned int    UINT;

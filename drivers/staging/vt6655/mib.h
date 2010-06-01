@@ -72,15 +72,15 @@ typedef struct tagSDot11Counters {
 // MIB2 counter
 //
 typedef struct tagSMib2Counter {
-    LONG    ifIndex;
+    long    ifIndex;
     char    ifDescr[256];               // max size 255 plus zero ending
                                         // e.g. "interface 1"
-    LONG    ifType;
-    LONG    ifMtu;
+    long    ifType;
+    long    ifMtu;
     DWORD   ifSpeed;
     BYTE    ifPhysAddress[ETH_ALEN];
-    LONG    ifAdminStatus;
-    LONG    ifOperStatus;
+    long    ifAdminStatus;
+    long    ifOperStatus;
     DWORD   ifLastChange;
     DWORD   ifInOctets;
     DWORD   ifInUcastPkts;
@@ -111,7 +111,7 @@ typedef struct tagSMib2Counter {
 // RMON counter
 //
 typedef struct tagSRmonCounter {
-    LONG    etherStatsIndex;
+    long    etherStatsIndex;
     DWORD   etherStatsDataSource;
     DWORD   etherStatsDropEvents;
     DWORD   etherStatsOctets;

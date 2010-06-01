@@ -609,7 +609,7 @@ BSSbUpdateToBSSList (
     PSDevice        pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PSRxMgmtPacket  pRxPacket = (PSRxMgmtPacket)pRxPacketContext;
-    LONG            ldBm;
+    long            ldBm;
     BOOL            bParsingQuiet = FALSE;
     PWLAN_IE_QUIET  pQuiet = NULL;
 
@@ -1629,8 +1629,8 @@ void s_vCheckSensitivity(
         pBSSList = BSSpAddrIsInBSSList(pDevice, pMgmt->abyCurrBSSID, (PWLAN_IE_SSID)pMgmt->abyCurrSSID);
         if (pBSSList != NULL) {
             // Updata BB Reg if RSSI is too strong.
-            LONG    LocalldBmAverage = 0;
-            LONG    uNumofdBm = 0;
+            long    LocalldBmAverage = 0;
+            long    uNumofdBm = 0;
             for (ii = 0; ii < RSSI_STAT_COUNT; ii++) {
                 if (pBSSList->ldBmAverage[ii] != 0) {
                     uNumofdBm ++;

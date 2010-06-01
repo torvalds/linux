@@ -375,8 +375,8 @@ device_receive_frame (
     SKeyItem        STempKey;
     // 802.11h RPI
     DWORD           dwDuration = 0;
-    LONG            ldBm = 0;
-    LONG            ldBmThreshold = 0;
+    long            ldBm = 0;
+    long            ldBmThreshold = 0;
     PS802_11Header pMACHeader;
  BOOL            bRxeapol_key = FALSE;
 

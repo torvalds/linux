@@ -79,7 +79,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
     BYTE                abyNullAddr[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
     DWORD               dwKeyIndex= 0;
     BYTE                abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
-    LONG                ldBm;
+    long                ldBm;
 
     pReq->wResult = 0;
 

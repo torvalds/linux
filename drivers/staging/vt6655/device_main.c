@@ -2830,7 +2830,7 @@ static  irqreturn_t  device_intr(int irq,  void *dev_instance) {
                 //pDevice->bBeaconSent = FALSE;
             } else {
                 if ((pDevice->bUpdateBBVGA) && (pDevice->bLinkPass == TRUE) && (pDevice->uCurrRSSI != 0)) {
-                    LONG            ldBm;
+                    long            ldBm;
 
                     RFvRSSITodBm(pDevice, (BYTE) pDevice->uCurrRSSI, &ldBm);
                     for (ii=0;ii<BB_VGA_LEVEL;ii++) {
