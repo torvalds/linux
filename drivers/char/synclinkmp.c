@@ -52,7 +52,6 @@
 #include <linux/mm.h>
 #include <linux/seq_file.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/netdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/init.h>
@@ -1062,9 +1061,7 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 	if (sanity_check(info, tty->name, "wait_until_sent"))
 		return;
 
-	lock_kernel();
-
-	if (!(info->port.flags & ASYNC_INITIALIZED))
+	if (!test_bit(ASYNCB_INITIALIZED, &info->port.flags))
 		goto exit;
 
 	orig_jiffies = jiffies;
@@ -1094,8 +1091,10 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 				break;
 		}
 	} else {
-		//TODO: determine if there is something similar to USC16C32
-		// 	TXSTATUS_ALL_SENT status
+		/*
+		 * TODO: determine if there is something similar to USC16C32
+		 * 	 TXSTATUS_ALL_SENT status
+		 */
 		while ( info->tx_active && info->tx_enabled) {
 			msleep_interruptible(jiffies_to_msecs(char_time));
 			if (signal_pending(current))
@@ -1106,7 +1105,6 @@ static void wait_until_sent(struct tty_struct *tty, int timeout)
 	}
 
 exit:
-	unlock_kernel();
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):%s wait_until_sent() exit\n",
 			 __FILE__,__LINE__, info->device_name );
@@ -1122,7 +1120,6 @@ static int write_room(struct tty_struct *tty)
 	if (sanity_check(info, tty->name, "write_room"))
 		return 0;
 
-	lock_kernel();
 	if (info->params.mode == MGSL_MODE_HDLC) {
 		ret = (info->tx_active) ? 0 : HDLC_MAX_FRAME_SIZE;
 	} else {
@@ -1130,7 +1127,6 @@ static int write_room(struct tty_struct *tty)
 		if (ret < 0)
 			ret = 0;
 	}
-	unlock_kernel();
 
 	if (debug_level >= DEBUG_LEVEL_INFO)
 		printk("%s(%d):%s write_room()=%d\n",
@@ -1251,7 +1247,7 @@ static void tx_release(struct tty_struct *tty)
  *
  * Return Value:	0 if success, otherwise error code
  */
-static int do_ioctl(struct tty_struct *tty, struct file *file,
+static int ioctl(struct tty_struct *tty, struct file *file,
 		 unsigned int cmd, unsigned long arg)
 {
 	SLMP_INFO *info = tty->driver_data;
@@ -1339,16 +1335,6 @@ static int do_ioctl(struct tty_struct *tty, struct file *file,
 		return -ENOIOCTLCMD;
 	}
 	return 0;
-}
-
-static int ioctl(struct tty_struct *tty, struct file *file,
-		 unsigned int cmd, unsigned long arg)
-{
-	int ret;
-	lock_kernel();
-	ret = do_ioctl(tty, file, cmd, arg);
-	unlock_kernel();
-	return ret;
 }
 
 /*
@@ -2883,7 +2869,9 @@ static int get_stats(SLMP_INFO * info, struct mgsl_icount __user *user_icount)
 	if (!user_icount) {
 		memset(&info->icount, 0, sizeof(info->icount));
 	} else {
+		mutex_lock(&info->port.mutex);
 		COPY_TO_USER(err, user_icount, &info->icount, sizeof(struct mgsl_icount));
+		mutex_unlock(&info->port.mutex);
 		if (err)
 			return -EFAULT;
 	}
@@ -2898,7 +2886,9 @@ static int get_params(SLMP_INFO * info, MGSL_PARAMS __user *user_params)
 		printk("%s(%d):%s get_params()\n",
 			 __FILE__,__LINE__, info->device_name);
 
+	mutex_lock(&info->port.mutex);
 	COPY_TO_USER(err,user_params, &info->params, sizeof(MGSL_PARAMS));
+	mutex_unlock(&info->port.mutex);
 	if (err) {
 		if ( debug_level >= DEBUG_LEVEL_INFO )
 			printk( "%s(%d):%s get_params() user buffer copy failed\n",
@@ -2926,11 +2916,13 @@ static int set_params(SLMP_INFO * info, MGSL_PARAMS __user *new_params)
 		return -EFAULT;
 	}
 
+	mutex_lock(&info->port.mutex);
 	spin_lock_irqsave(&info->lock,flags);
 	memcpy(&info->params,&tmp_params,sizeof(MGSL_PARAMS));
 	spin_unlock_irqrestore(&info->lock,flags);
 
  	change_params(info);
+	mutex_unlock(&info->port.mutex);
 
 	return 0;
 }
