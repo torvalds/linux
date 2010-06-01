@@ -1337,10 +1337,14 @@ static int grow_stripes(raid5_conf_t *conf, int num)
 	struct kmem_cache *sc;
 	int devs = max(conf->raid_disks, conf->previous_raid_disks);
 
-	sprintf(conf->cache_name[0],
-		"raid%d-%s", conf->level, mdname(conf->mddev));
-	sprintf(conf->cache_name[1],
-		"raid%d-%s-alt", conf->level, mdname(conf->mddev));
+	if (conf->mddev->gendisk)
+		sprintf(conf->cache_name[0],
+			"raid%d-%s", conf->level, mdname(conf->mddev));
+	else
+		sprintf(conf->cache_name[0],
+			"raid%d-%p", conf->level, conf->mddev);
+	sprintf(conf->cache_name[1], "%s-alt", conf->cache_name[0]);
+
 	conf->active_name = 0;
 	sc = kmem_cache_create(conf->cache_name[conf->active_name],
 			       sizeof(struct stripe_head)+(devs-1)*sizeof(struct r5dev),
