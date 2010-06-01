@@ -1705,7 +1705,6 @@ static void rs_360_wait_until_sent(struct tty_struct *tty, int timeout)
 	printk("jiff=%lu...", jiffies);
 #endif
 
-	tty_lock_nested(); /* always held already since we come from ->close */
 	/* We go through the loop at least once because we can't tell
 	 * exactly when the last character exits the shifter.  There can
 	 * be at least two characters waiting to be sent after the buffers
@@ -1734,7 +1733,6 @@ static void rs_360_wait_until_sent(struct tty_struct *tty, int timeout)
 			bdp--;
 	} while (bdp->status & BD_SC_READY);
 	current->state = TASK_RUNNING;
-	tty_unlock();
 #ifdef SERIAL_DEBUG_RS_WAIT_UNTIL_SENT
 	printk("lsr = %d (jiff=%lu)...done\n", lsr, jiffies);
 #endif
