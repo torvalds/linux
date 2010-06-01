@@ -24,6 +24,14 @@ static inline u16 ath9k_hw_fbin2freq(u8 fbin, bool is2GHz)
 	return (u16) ((is2GHz) ? (2300 + fbin) : (4800 + 5 * fbin));
 }
 
+void ath9k_hw_analog_shift_regwrite(struct ath_hw *ah, u32 reg, u32 val)
+{
+        REG_WRITE(ah, reg, val);
+
+        if (ah->config.analog_shiftreg)
+		udelay(100);
+}
+
 void ath9k_hw_analog_shift_rmw(struct ath_hw *ah, u32 reg, u32 mask,
 			       u32 shift, u32 val)
 {

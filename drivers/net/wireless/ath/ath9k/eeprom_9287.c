@@ -988,7 +988,7 @@ static void ath9k_hw_ar9287_set_board_values(struct ath_hw *ah,
 	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
 	struct modal_eep_ar9287_header *pModal = &eep->modalHeader;
 	u16 antWrites[AR9287_ANT_16S];
-	u32 regChainOffset;
+	u32 regChainOffset, regval;
 	u8 txRxAttenLocal;
 	int i, j, offset_num;
 
@@ -1075,42 +1075,37 @@ static void ath9k_hw_ar9287_set_board_values(struct ath_hw *ah,
 	REG_RMW_FIELD(ah, AR_PHY_EXT_CCA0,
 		      AR_PHY_EXT_CCA0_THRESH62, pModal->thresh62);
 
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH0, AR9287_AN_RF2G3_DB1,
-				  AR9287_AN_RF2G3_DB1_S, pModal->db1);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH0, AR9287_AN_RF2G3_DB2,
-				  AR9287_AN_RF2G3_DB2_S, pModal->db2);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH0,
-				  AR9287_AN_RF2G3_OB_CCK,
-				  AR9287_AN_RF2G3_OB_CCK_S, pModal->ob_cck);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH0,
-				  AR9287_AN_RF2G3_OB_PSK,
-				  AR9287_AN_RF2G3_OB_PSK_S, pModal->ob_psk);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH0,
-				  AR9287_AN_RF2G3_OB_QAM,
-				  AR9287_AN_RF2G3_OB_QAM_S, pModal->ob_qam);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH0,
-				  AR9287_AN_RF2G3_OB_PAL_OFF,
-				  AR9287_AN_RF2G3_OB_PAL_OFF_S,
-				  pModal->ob_pal_off);
+	regval = REG_READ(ah, AR9287_AN_RF2G3_CH0);
+	regval &= ~(AR9287_AN_RF2G3_DB1 |
+		    AR9287_AN_RF2G3_DB2 |
+		    AR9287_AN_RF2G3_OB_CCK |
+		    AR9287_AN_RF2G3_OB_PSK |
+		    AR9287_AN_RF2G3_OB_QAM |
+		    AR9287_AN_RF2G3_OB_PAL_OFF);
+	regval |= (SM(pModal->db1, AR9287_AN_RF2G3_DB1) |
+		   SM(pModal->db2, AR9287_AN_RF2G3_DB2) |
+		   SM(pModal->ob_cck, AR9287_AN_RF2G3_OB_CCK) |
+		   SM(pModal->ob_psk, AR9287_AN_RF2G3_OB_PSK) |
+		   SM(pModal->ob_qam, AR9287_AN_RF2G3_OB_QAM) |
+		   SM(pModal->ob_pal_off, AR9287_AN_RF2G3_OB_PAL_OFF));
 
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH1,
-				  AR9287_AN_RF2G3_DB1, AR9287_AN_RF2G3_DB1_S,
-				  pModal->db1);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH1, AR9287_AN_RF2G3_DB2,
-				  AR9287_AN_RF2G3_DB2_S, pModal->db2);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH1,
-				  AR9287_AN_RF2G3_OB_CCK,
-				  AR9287_AN_RF2G3_OB_CCK_S, pModal->ob_cck);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH1,
-				  AR9287_AN_RF2G3_OB_PSK,
-				  AR9287_AN_RF2G3_OB_PSK_S, pModal->ob_psk);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH1,
-				  AR9287_AN_RF2G3_OB_QAM,
-				  AR9287_AN_RF2G3_OB_QAM_S, pModal->ob_qam);
-	ath9k_hw_analog_shift_rmw(ah, AR9287_AN_RF2G3_CH1,
-				  AR9287_AN_RF2G3_OB_PAL_OFF,
-				  AR9287_AN_RF2G3_OB_PAL_OFF_S,
-				  pModal->ob_pal_off);
+	ath9k_hw_analog_shift_regwrite(ah, AR9287_AN_RF2G3_CH0, regval);
+
+	regval = REG_READ(ah, AR9287_AN_RF2G3_CH1);
+	regval &= ~(AR9287_AN_RF2G3_DB1 |
+		    AR9287_AN_RF2G3_DB2 |
+		    AR9287_AN_RF2G3_OB_CCK |
+		    AR9287_AN_RF2G3_OB_PSK |
+		    AR9287_AN_RF2G3_OB_QAM |
+		    AR9287_AN_RF2G3_OB_PAL_OFF);
+	regval |= (SM(pModal->db1, AR9287_AN_RF2G3_DB1) |
+		   SM(pModal->db2, AR9287_AN_RF2G3_DB2) |
+		   SM(pModal->ob_cck, AR9287_AN_RF2G3_OB_CCK) |
+		   SM(pModal->ob_psk, AR9287_AN_RF2G3_OB_PSK) |
+		   SM(pModal->ob_qam, AR9287_AN_RF2G3_OB_QAM) |
+		   SM(pModal->ob_pal_off, AR9287_AN_RF2G3_OB_PAL_OFF));
+
+	ath9k_hw_analog_shift_regwrite(ah, AR9287_AN_RF2G3_CH1, regval);
 
 	REG_RMW_FIELD(ah, AR_PHY_RF_CTL2,
 		      AR_PHY_TX_END_DATA_START, pModal->txFrameToDataStart);
