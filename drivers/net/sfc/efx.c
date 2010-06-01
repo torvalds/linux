@@ -1886,6 +1886,9 @@ static void efx_reset_work(struct work_struct *data)
 {
 	struct efx_nic *efx = container_of(data, struct efx_nic, reset_work);
 
+	if (efx->reset_pending == RESET_TYPE_NONE)
+		return;
+
 	/* If we're not RUNNING then don't reset. Leave the reset_pending
 	 * flag set so that efx_pci_probe_main will be retried */
 	if (efx->state != STATE_RUNNING) {
@@ -2331,6 +2334,9 @@ static int efx_pm_thaw(struct device *dev)
 	efx->state = STATE_RUNNING;
 
 	efx->type->resume_wol(efx);
+
+	/* Reschedule any quenched resets scheduled during efx_pm_freeze() */
+	queue_work(reset_workqueue, &efx->reset_work);
 
 	return 0;
 }
