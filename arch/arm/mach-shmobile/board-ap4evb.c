@@ -267,12 +267,12 @@ static struct resource sh_mmcif_resources[] = {
 	},
 	[1] = {
 		/* MMC ERR */
-		.start	= 198,
+		.start	= evt2irq(0x1ac0),
 		.flags	= IORESOURCE_IRQ,
 	},
 	[2] = {
 		/* MMC NOR */
-		.start	= 199,
+		.start	= evt2irq(0x1ae0),
 		.flags	= IORESOURCE_IRQ,
 	},
 };
