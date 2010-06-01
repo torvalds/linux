@@ -545,7 +545,7 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 static int efx_wait_for_link(struct efx_nic *efx)
 {
 	struct efx_link_state *link_state = &efx->link_state;
-	int count;
+	int count, link_up_count = 0;
 	bool link_up;
 
 	for (count = 0; count < 40; count++) {
@@ -567,8 +567,12 @@ static int efx_wait_for_link(struct efx_nic *efx)
 			link_up = !efx->mac_op->check_fault(efx);
 		mutex_unlock(&efx->mac_lock);
 
-		if (link_up)
-			return 0;
+		if (link_up) {
+			if (++link_up_count == 2)
+				return 0;
+		} else {
+			link_up_count = 0;
+		}
 	}
 
 	return -ETIMEDOUT;
