@@ -9,8 +9,6 @@
 #include <linux/rbtree.h>
 #include <stdio.h>
 
-#define DEBUG_CACHE_DIR ".debug"
-
 #ifdef HAVE_CPLUS_DEMANGLE
 extern char *cplus_demangle(const char *, int);
 

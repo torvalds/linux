@@ -43,19 +43,17 @@ struct perf_event_ops build_id__mark_dso_hit_ops = {
 char *dso__build_id_filename(struct dso *self, char *bf, size_t size)
 {
 	char build_id_hex[BUILD_ID_SIZE * 2 + 1];
-	const char *home;
 
 	if (!self->has_build_id)
 		return NULL;
 
 	build_id__sprintf(self->build_id, sizeof(self->build_id), build_id_hex);
-	home = getenv("HOME");
 	if (bf == NULL) {
-		if (asprintf(&bf, "%s/%s/.build-id/%.2s/%s", home,
-			     DEBUG_CACHE_DIR, build_id_hex, build_id_hex + 2) < 0)
+		if (asprintf(&bf, "%s/.build-id/%.2s/%s", buildid_dir,
+			     build_id_hex, build_id_hex + 2) < 0)
 			return NULL;
 	} else
-		snprintf(bf, size, "%s/%s/.build-id/%.2s/%s", home,
-			 DEBUG_CACHE_DIR, build_id_hex, build_id_hex + 2);
+		snprintf(bf, size, "%s/.build-id/%.2s/%s", buildid_dir,
+			 build_id_hex, build_id_hex + 2);
 	return bf;
 }
