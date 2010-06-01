@@ -417,6 +417,7 @@ extern int is_ignored(int sig);
 extern int tty_signal(int sig, struct tty_struct *tty);
 extern void tty_hangup(struct tty_struct *tty);
 extern void tty_vhangup(struct tty_struct *tty);
+extern void tty_vhangup_locked(struct tty_struct *tty);
 extern void tty_vhangup_self(void);
 extern void tty_unhangup(struct file *filp);
 extern int tty_hung_up_p(struct file *filp);
@@ -578,21 +579,6 @@ extern long vt_compat_ioctl(struct tty_struct *tty, struct file * file,
 		     unsigned int cmd, unsigned long arg);
 
 /* functions for preparation of BKL removal */
-
-/*
- * tty_lock_nested get the tty_lock while potentially holding it
- *
- * The Big TTY Mutex is a recursive lock, meaning you can take it
- * from a thread that is already holding it.
- * This is bad for a number of reasons, so tty_lock_nested should
- * really be used as rarely as possible. If a code location can
- * be shown to never get called with this held already, it should
- * use tty_lock() instead.
- */
-static inline void __lockfunc tty_lock_nested(void) __acquires(kernel_lock)
-{
-	lock_kernel();
-}
 static inline void tty_lock(void) __acquires(kernel_lock)
 {
 #ifdef CONFIG_LOCK_KERNEL

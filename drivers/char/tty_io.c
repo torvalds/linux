@@ -492,10 +492,8 @@ EXPORT_SYMBOL_GPL(tty_wakeup);
  *		  tasklist_lock to walk task list for hangup event
  *		    ->siglock to protect ->signal/->sighand
  */
-static void do_tty_hangup(struct work_struct *work)
+void tty_vhangup_locked(struct tty_struct *tty)
 {
-	struct tty_struct *tty =
-		container_of(work, struct tty_struct, hangup_work);
 	struct file *cons_filp = NULL;
 	struct file *filp, *f = NULL;
 	struct task_struct *p;
@@ -517,8 +515,6 @@ static void do_tty_hangup(struct work_struct *work)
 	/* inuse_filps is protected by the single tty lock,
 	   this really needs to change if we want to flush the
 	   workqueue with the lock held */
-	tty_lock_nested(); /* called with BTM held from pty_close and
-				others */
 	check_tty_count(tty, "do_tty_hangup");
 
 	file_list_lock();
@@ -598,9 +594,18 @@ static void do_tty_hangup(struct work_struct *work)
 	 */
 	set_bit(TTY_HUPPED, &tty->flags);
 	tty_ldisc_enable(tty);
-	tty_unlock();
 	if (f)
 		fput(f);
+}
+
+static void do_tty_hangup(struct work_struct *work)
+{
+	struct tty_struct *tty =
+		container_of(work, struct tty_struct, hangup_work);
+
+	tty_lock();
+	tty_vhangup_locked(tty);
+	tty_unlock();
 }
 
 /**
@@ -638,7 +643,9 @@ void tty_vhangup(struct tty_struct *tty)
 
 	printk(KERN_DEBUG "%s vhangup...\n", tty_name(tty, buf));
 #endif
-	do_tty_hangup(&tty->hangup_work);
+	tty_lock();
+	tty_vhangup_locked(tty);
+	tty_unlock();
 }
 
 EXPORT_SYMBOL(tty_vhangup);
@@ -719,10 +726,12 @@ void disassociate_ctty(int on_exit)
 	tty = get_current_tty();
 	if (tty) {
 		tty_pgrp = get_pid(tty->pgrp);
-		tty_lock_nested(); /* see above */
-		if (on_exit && tty->driver->type != TTY_DRIVER_TYPE_PTY)
-			tty_vhangup(tty);
-		tty_unlock();
+		if (on_exit) {
+			tty_lock();
+			if (tty->driver->type != TTY_DRIVER_TYPE_PTY)
+				tty_vhangup_locked(tty);
+			tty_unlock();
+		}
 		tty_kref_put(tty);
 	} else if (on_exit) {
 		struct pid *old_pgrp;
@@ -1213,18 +1222,14 @@ static int tty_driver_install_tty(struct tty_driver *driver,
 	int ret;
 
 	if (driver->ops->install) {
-		tty_lock_nested(); /* already called with BTM held */
 		ret = driver->ops->install(driver, tty);
-		tty_unlock();
 		return ret;
 	}
 
 	if (tty_init_termios(tty) == 0) {
-		tty_lock_nested();
 		tty_driver_kref_get(driver);
 		tty->count++;
 		driver->ttys[idx] = tty;
-		tty_unlock();
 		return 0;
 	}
 	return -ENOMEM;
@@ -1317,15 +1322,11 @@ struct tty_struct *tty_init_dev(struct tty_driver *driver, int idx,
 	struct tty_struct *tty;
 	int retval;
 
-	tty_lock_nested(); /* always called with tty lock held already */
-
 	/* Check if pty master is being opened multiple times */
 	if (driver->subtype == PTY_TYPE_MASTER &&
 		(driver->flags & TTY_DRIVER_DEVPTS_MEM) && !first_ok) {
-		tty_unlock();
 		return ERR_PTR(-EIO);
 	}
-	tty_unlock();
 
 	/*
 	 * First time open is complex, especially for PTY devices.
@@ -1369,9 +1370,7 @@ release_mem_out:
 	if (printk_ratelimit())
 		printk(KERN_INFO "tty_init_dev: ldisc open failed, "
 				 "clearing slot %d\n", idx);
-	tty_lock_nested();
 	release_tty(tty, idx);
-	tty_unlock();
 	return ERR_PTR(retval);
 }
 
