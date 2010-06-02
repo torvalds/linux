@@ -36,7 +36,7 @@ struct hdlc_header {
 	u8 address;
 	u8 control;
 	__be16 protocol;
-}__attribute__ ((packed));
+}__packed;
 
 
 struct cisco_packet {
@@ -45,7 +45,7 @@ struct cisco_packet {
 	__be32 par2;
 	__be16 rel;		/* reliability */
 	__be32 time;
-}__attribute__ ((packed));
+}__packed;
 #define	CISCO_PACKET_LEN	18
 #define	CISCO_BIG_PACKET_LEN	20
 

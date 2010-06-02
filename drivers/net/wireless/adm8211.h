@@ -80,7 +80,7 @@ struct adm8211_csr {
 	__le32 FEMR;		/* 0x104 */
 	__le32 FPSR;		/* 0x108 */
 	__le32 FFER;		/* 0x10C */
-} __attribute__ ((packed));
+} __packed;
 
 /* CSR0 - PAR (PCI Address Register) */
 #define ADM8211_PAR_MWIE	(1 << 24)
@@ -484,7 +484,7 @@ struct adm8211_tx_hdr {
 	u8 entry_control;	// huh??
 	u16 reserved_1;
 	u32 reserved_2;
-} __attribute__ ((packed));
+} __packed;
 
 
 #define RX_COPY_BREAK 128
@@ -531,7 +531,7 @@ struct adm8211_eeprom {
 	u8	lnags_threshold[14];	/* 0x70 */
 	__le16	checksum;		/* 0x7E */
 	u8	cis_data[0];		/* 0x80, 384 bytes */
-} __attribute__ ((packed));
+} __packed;
 
 struct adm8211_priv {
 	struct pci_dev *pdev;

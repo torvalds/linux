@@ -82,7 +82,7 @@ struct event_debug_report {
 	u32 report_1;
 	u32 report_2;
 	u32 report_3;
-} __attribute__ ((packed));
+} __packed;
 
 struct event_mailbox {
 	u32 events_vector;
@@ -112,7 +112,7 @@ struct event_mailbox {
 	struct event_debug_report report;
 	u8 average_snr_level;
 	u8 padding[19];
-} __attribute__ ((packed));
+} __packed;
 
 int wl1251_event_unmask(struct wl1251 *wl);
 void wl1251_event_mbox_config(struct wl1251 *wl);

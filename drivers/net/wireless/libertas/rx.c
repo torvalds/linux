@@ -15,7 +15,7 @@ struct eth803hdr {
 	u8 dest_addr[6];
 	u8 src_addr[6];
 	u16 h803_len;
-} __attribute__ ((packed));
+} __packed;
 
 struct rfc1042hdr {
 	u8 llc_dsap;
@@ -23,17 +23,17 @@ struct rfc1042hdr {
 	u8 llc_ctrl;
 	u8 snap_oui[3];
 	u16 snap_type;
-} __attribute__ ((packed));
+} __packed;
 
 struct rxpackethdr {
 	struct eth803hdr eth803_hdr;
 	struct rfc1042hdr rfc1042_hdr;
-} __attribute__ ((packed));
+} __packed;
 
 struct rx80211packethdr {
 	struct rxpd rx_pd;
 	void *eth80211_hdr;
-} __attribute__ ((packed));
+} __packed;
 
 static int process_rxed_802_11_packet(struct lbs_private *priv,
 	struct sk_buff *skb);

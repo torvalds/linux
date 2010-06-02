@@ -172,7 +172,7 @@ struct hermes_txexc_data {
 	__le16 frame_ctl;
 	__le16 duration_id;
 	u8 addr1[ETH_ALEN];
-} __attribute__ ((packed));
+} __packed;
 
 /* Rx frame header except compatibility 802.3 header */
 struct hermes_rx_descriptor {
@@ -196,7 +196,7 @@ struct hermes_rx_descriptor {
 
 	/* Data length */
 	__le16 data_len;
-} __attribute__ ((packed));
+} __packed;
 
 struct orinoco_rx_data {
 	struct hermes_rx_descriptor *desc;
@@ -390,7 +390,7 @@ int orinoco_process_xmit_skb(struct sk_buff *skb,
 		struct header_struct {
 			struct ethhdr eth;	/* 802.3 header */
 			u8 encap[6];		/* 802.2 header */
-		} __attribute__ ((packed)) hdr;
+		} __packed hdr;
 		int len = skb->len + sizeof(encaps_hdr) - (2 * ETH_ALEN);
 
 		if (skb_headroom(skb) < ENCAPS_OVERHEAD) {
@@ -1170,7 +1170,7 @@ static void orinoco_join_ap(struct work_struct *work)
 	struct join_req {
 		u8 bssid[ETH_ALEN];
 		__le16 channel;
-	} __attribute__ ((packed)) req;
+	} __packed req;
 	const int atom_len = offsetof(struct prism2_scan_apinfo, atim);
 	struct prism2_scan_apinfo *atom = NULL;
 	int offset = 4;
@@ -1410,7 +1410,7 @@ void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 	struct {
 		__le16 len;
 		__le16 type;
-	} __attribute__ ((packed)) info;
+	} __packed info;
 	int len, type;
 	int err;
 

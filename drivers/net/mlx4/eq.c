@@ -110,7 +110,7 @@ struct mlx4_eqe {
 		u32		raw[6];
 		struct {
 			__be32	cqn;
-		} __attribute__((packed)) comp;
+		} __packed comp;
 		struct {
 			u16	reserved1;
 			__be16	token;
@@ -118,27 +118,27 @@ struct mlx4_eqe {
 			u8	reserved3[3];
 			u8	status;
 			__be64	out_param;
-		} __attribute__((packed)) cmd;
+		} __packed cmd;
 		struct {
 			__be32	qpn;
-		} __attribute__((packed)) qp;
+		} __packed qp;
 		struct {
 			__be32	srqn;
-		} __attribute__((packed)) srq;
+		} __packed srq;
 		struct {
 			__be32	cqn;
 			u32	reserved1;
 			u8	reserved2[3];
 			u8	syndrome;
-		} __attribute__((packed)) cq_err;
+		} __packed cq_err;
 		struct {
 			u32	reserved1[2];
 			__be32	port;
-		} __attribute__((packed)) port_change;
+		} __packed port_change;
 	}			event;
 	u8			reserved3[3];
 	u8			owner;
-} __attribute__((packed));
+} __packed;
 
 static void eq_set_ci(struct mlx4_eq *eq, int req_not)
 {

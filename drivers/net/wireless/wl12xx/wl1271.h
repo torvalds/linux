@@ -141,7 +141,7 @@ struct wl1271_nvs_file {
 	u8 dyn_radio_params[WL1271_NVS_FEM_COUNT]
 			   [WL1271_NVS_DYN_RADIO_PARAMS_SIZE_PADDED];
 	u8 ini_spare[WL1271_NVS_INI_SPARE_SIZE];
-} __attribute__ ((packed));
+} __packed;
 
 /*
  * Enable/disable 802.11a support for WL1273
@@ -317,7 +317,7 @@ struct wl1271_fw_status {
 	__le32 tx_released_blks[NUM_TX_QUEUES];
 	__le32 fw_localtime;
 	__le32 padding[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct wl1271_rx_mem_pool_addr {
 	u32 addr;

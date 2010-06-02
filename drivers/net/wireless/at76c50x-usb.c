@@ -305,7 +305,7 @@ struct dfu_status {
 	unsigned char poll_timeout[3];
 	unsigned char state;
 	unsigned char string;
-} __attribute__((packed));
+} __packed;
 
 static inline int at76_is_intersil(enum board_type board)
 {

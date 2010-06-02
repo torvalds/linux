@@ -2101,7 +2101,7 @@ struct ieee80211_beacon_phdr {
 	u8 timestamp[8];
 	u16 beacon_int;
 	u16 capab_info;
-} __attribute__ ((packed));
+} __packed;
 
 #define WLAN_EID_GENERIC 0xdd
 static u8 wpa_oid[4] = { 0x00, 0x50, 0xf2, 1 };

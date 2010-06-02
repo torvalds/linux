@@ -56,7 +56,7 @@
 
 struct iwm_umac_cmd_reset {
 	__le32 flags;
-} __attribute__ ((packed));
+} __packed;
 
 #define UMAC_PARAM_TBL_ORD_FIX    0x0
 #define UMAC_PARAM_TBL_ORD_VAR    0x1
@@ -220,37 +220,37 @@ struct iwm_umac_cmd_set_param_fix {
 	__le16 tbl;
 	__le16 key;
 	__le32 value;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_set_param_var {
 	__le16 tbl;
 	__le16 key;
 	__le16 len;
 	__le16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_get_param {
 	__le16 tbl;
 	__le16 key;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_get_param_resp {
 	__le16 tbl;
 	__le16 key;
 	__le16 len;
 	__le16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_eeprom_proxy_hdr {
 	__le32 type;
 	__le32 offset;
 	__le32 len;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_eeprom_proxy {
 	struct iwm_umac_cmd_eeprom_proxy_hdr hdr;
 	u8 buf[0];
-} __attribute__ ((packed));
+} __packed;
 
 #define IWM_UMAC_CMD_EEPROM_TYPE_READ       0x1
 #define IWM_UMAC_CMD_EEPROM_TYPE_WRITE      0x2
@@ -267,13 +267,13 @@ struct iwm_umac_channel_info {
 	u8 reserved;
 	u8 flags;
 	__le32 channels_mask;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_get_channel_list {
 	__le16 count;
 	__le16 reserved;
 	struct iwm_umac_channel_info ch[0];
-} __attribute__ ((packed));
+} __packed;
 
 
 /* UMAC WiFi interface commands */
@@ -304,7 +304,7 @@ struct iwm_umac_ssid {
 	u8 ssid_len;
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 reserved[3];
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_scan_request {
 	struct iwm_umac_wifi_if hdr;
@@ -314,7 +314,7 @@ struct iwm_umac_cmd_scan_request {
 	u8 timeout; /* In seconds */
 	u8 reserved;
 	struct iwm_umac_ssid ssids[UMAC_WIFI_IF_PROBE_OPTION_MAX];
-} __attribute__ ((packed));
+} __packed;
 
 #define UMAC_CIPHER_TYPE_NONE		0xFF
 #define UMAC_CIPHER_TYPE_USE_GROUPCAST	0x00
@@ -357,7 +357,7 @@ struct iwm_umac_security {
 	u8 ucast_cipher;
 	u8 mcast_cipher;
 	u8 flags;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_ibss {
 	u8 beacon_interval;	/* in millisecond */
@@ -366,7 +366,7 @@ struct iwm_umac_ibss {
 	u8 band;
 	u8 channel;
 	u8 reserved[3];
-} __attribute__ ((packed));
+} __packed;
 
 #define UMAC_MODE_BSS	0
 #define UMAC_MODE_IBSS	1
@@ -385,13 +385,13 @@ struct iwm_umac_profile {
 	__le16 flags;
 	u8 wireless_mode;
 	u8 bss_num;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_invalidate_profile {
 	struct iwm_umac_wifi_if hdr;
 	u8 reason;
 	u8 reserved[3];
-} __attribute__ ((packed));
+} __packed;
 
 /* Encryption key commands */
 struct iwm_umac_key_wep40 {
@@ -400,7 +400,7 @@ struct iwm_umac_key_wep40 {
 	u8 key[WLAN_KEY_LEN_WEP40];
 	u8 static_key;
 	u8 reserved[2];
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_key_wep104 {
 	struct iwm_umac_wifi_if hdr;
@@ -408,7 +408,7 @@ struct iwm_umac_key_wep104 {
 	u8 key[WLAN_KEY_LEN_WEP104];
 	u8 static_key;
 	u8 reserved[2];
-} __attribute__ ((packed));
+} __packed;
 
 #define IWM_TKIP_KEY_SIZE 16
 #define IWM_TKIP_MIC_SIZE 8
@@ -420,7 +420,7 @@ struct iwm_umac_key_tkip {
 	u8 tkip_key[IWM_TKIP_KEY_SIZE];
 	u8 mic_rx_key[IWM_TKIP_MIC_SIZE];
 	u8 mic_tx_key[IWM_TKIP_MIC_SIZE];
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_key_ccmp {
 	struct iwm_umac_wifi_if hdr;
@@ -428,27 +428,27 @@ struct iwm_umac_key_ccmp {
 	u8 iv_count[6];
 	u8 reserved[2];
 	u8 key[WLAN_KEY_LEN_CCMP];
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_key_remove {
 	struct iwm_umac_wifi_if hdr;
 	struct iwm_umac_key_hdr key_hdr;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_tx_key_id {
 	struct iwm_umac_wifi_if hdr;
 	u8 key_idx;
 	u8 reserved[3];
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_pwr_trigger {
 	struct iwm_umac_wifi_if hdr;
 	__le32 reseved;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_stats_req {
 	__le32 flags;
-} __attribute__ ((packed));
+} __packed;
 
 struct iwm_umac_cmd_stop_resume_tx {
 	u8 flags;
@@ -456,7 +456,7 @@ struct iwm_umac_cmd_stop_resume_tx {
 	__le16 stop_resume_tid_msk;
 	__le16 last_seq_num[IWM_UMAC_TID_NR];
 	u16 reserved;
-} __attribute__ ((packed));
+} __packed;
 
 #define IWM_CMD_PMKID_ADD   1
 #define IWM_CMD_PMKID_DEL   2
@@ -468,7 +468,7 @@ struct iwm_umac_pmkid_update {
 	u8 bssid[ETH_ALEN];
 	__le16 reserved;
 	u8 pmkid[WLAN_PMKID_LEN];
-} __attribute__ ((packed));
+} __packed;
 
 /* LMAC commands */
 int iwm_read_mac(struct iwm_priv *iwm, u8 *mac);

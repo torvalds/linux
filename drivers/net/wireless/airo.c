@@ -506,20 +506,20 @@ struct WepKeyRid {
 	u8 mac[ETH_ALEN];
 	__le16 klen;
 	u8 key[16];
-} __attribute__ ((packed));
+} __packed;
 
 /* These structures are from the Aironet's PC4500 Developers Manual */
 typedef struct Ssid Ssid;
 struct Ssid {
 	__le16 len;
 	u8 ssid[32];
-} __attribute__ ((packed));
+} __packed;
 
 typedef struct SsidRid SsidRid;
 struct SsidRid {
 	__le16 len;
 	Ssid ssids[3];
-} __attribute__ ((packed));
+} __packed;
 
 typedef struct ModulationRid ModulationRid;
 struct ModulationRid {
@@ -528,7 +528,7 @@ struct ModulationRid {
 #define MOD_DEFAULT cpu_to_le16(0)
 #define MOD_CCK cpu_to_le16(1)
 #define MOD_MOK cpu_to_le16(2)
-} __attribute__ ((packed));
+} __packed;
 
 typedef struct ConfigRid ConfigRid;
 struct ConfigRid {
@@ -652,7 +652,7 @@ struct ConfigRid {
 #define MAGIC_STAY_IN_CAM (1<<10)
 	u8 magicControl;
 	__le16 autoWake;
-} __attribute__ ((packed));
+} __packed;
 
 typedef struct StatusRid StatusRid;
 struct StatusRid {
@@ -711,20 +711,20 @@ struct StatusRid {
 #define STAT_LEAPFAILED 91
 #define STAT_LEAPTIMEDOUT 92
 #define STAT_LEAPCOMPLETE 93
-} __attribute__ ((packed));
+} __packed;
 
 typedef struct StatsRid StatsRid;
 struct StatsRid {
 	__le16 len;
 	__le16 spacer;
 	__le32 vals[100];
-} __attribute__ ((packed));
+} __packed;
 
 typedef struct APListRid APListRid;
 struct APListRid {
 	__le16 len;
 	u8 ap[4][ETH_ALEN];
-} __attribute__ ((packed));
+} __packed;
 
 typedef struct CapabilityRid CapabilityRid;
 struct CapabilityRid {
@@ -754,7 +754,7 @@ struct CapabilityRid {
 	__le16 bootBlockVer;
 	__le16 requiredHard;
 	__le16 extSoftCap;
-} __attribute__ ((packed));
+} __packed;
 
 /* Only present on firmware >= 5.30.17 */
 typedef struct BSSListRidExtra BSSListRidExtra;
@@ -762,7 +762,7 @@ struct BSSListRidExtra {
   __le16 unknown[4];
   u8 fixed[12]; /* WLAN management frame */
   u8 iep[624];
-} __attribute__ ((packed));
+} __packed;
 
 typedef struct BSSListRid BSSListRid;
 struct BSSListRid {
@@ -796,7 +796,7 @@ struct BSSListRid {
 
   /* Only present on firmware >= 5.30.17 */
   BSSListRidExtra extra;
-} __attribute__ ((packed));
+} __packed;
 
 typedef struct {
   BSSListRid bss;
@@ -807,13 +807,13 @@ typedef struct tdsRssiEntry tdsRssiEntry;
 struct tdsRssiEntry {
   u8 rssipct;
   u8 rssidBm;
-} __attribute__ ((packed));
+} __packed;
 
 typedef struct tdsRssiRid tdsRssiRid;
 struct tdsRssiRid {
   u16 len;
   tdsRssiEntry x[256];
-} __attribute__ ((packed));
+} __packed;
 
 typedef struct MICRid MICRid;
 struct MICRid {
@@ -823,7 +823,7 @@ struct MICRid {
 	u8  multicast[16];
 	__le16 unicastValid;
 	u8  unicast[16];
-} __attribute__ ((packed));
+} __packed;
 
 typedef struct MICBuffer MICBuffer;
 struct MICBuffer {
@@ -841,7 +841,7 @@ struct MICBuffer {
 	} u;
 	__be32 mic;
 	__be32 seq;
-} __attribute__ ((packed));
+} __packed;
 
 typedef struct {
 	u8 da[ETH_ALEN];
@@ -996,7 +996,7 @@ struct rx_hdr {
 	u8 rate;
 	u8 freq;
 	__le16 tmp[4];
-} __attribute__ ((packed));
+} __packed;
 
 typedef struct {
 	unsigned int  ctl: 15;

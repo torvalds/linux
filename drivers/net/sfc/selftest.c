@@ -38,7 +38,7 @@ struct efx_loopback_payload {
 	struct udphdr udp;
 	__be16 iteration;
 	const char msg[64];
-} __attribute__ ((packed));
+} __packed;
 
 /* Loopback test source MAC address */
 static const unsigned char payload_source[ETH_ALEN] = {

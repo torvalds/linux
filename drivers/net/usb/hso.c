@@ -211,7 +211,7 @@ struct hso_serial_state_notification {
 	u16 wIndex;
 	u16 wLength;
 	u16 UART_state_bitmap;
-} __attribute__((packed));
+} __packed;
 
 struct hso_tiocmget {
 	struct mutex mutex;
