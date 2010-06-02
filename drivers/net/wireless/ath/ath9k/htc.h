@@ -289,6 +289,8 @@ struct ath9k_debug {
 #define TX_STAT_INC(c) do { } while (0)
 #define RX_STAT_INC(c) do { } while (0)
 
+#define TX_QSTAT_INC(c) do { } while (0)
+
 #endif /* CONFIG_ATH9K_HTC_DEBUGFS */
 
 #define ATH_LED_PIN_DEF             1
