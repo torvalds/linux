@@ -302,54 +302,58 @@ static void handle_rx(struct vhost_net *net)
 	unuse_mm(net->dev.mm);
 }
 
-static void handle_tx_kick(struct work_struct *work)
+static void handle_tx_kick(struct vhost_work *work)
 {
-	struct vhost_virtqueue *vq;
-	struct vhost_net *net;
-	vq = container_of(work, struct vhost_virtqueue, poll.work);
-	net = container_of(vq->dev, struct vhost_net, dev);
+	struct vhost_virtqueue *vq = container_of(work, struct vhost_virtqueue,
+						  poll.work);
+	struct vhost_net *net = container_of(vq->dev, struct vhost_net, dev);
+
 	handle_tx(net);
 }
 
-static void handle_rx_kick(struct work_struct *work)
+static void handle_rx_kick(struct vhost_work *work)
 {
-	struct vhost_virtqueue *vq;
-	struct vhost_net *net;
-	vq = container_of(work, struct vhost_virtqueue, poll.work);
-	net = container_of(vq->dev, struct vhost_net, dev);
+	struct vhost_virtqueue *vq = container_of(work, struct vhost_virtqueue,
+						  poll.work);
+	struct vhost_net *net = container_of(vq->dev, struct vhost_net, dev);
+
 	handle_rx(net);
 }
 
-static void handle_tx_net(struct work_struct *work)
+static void handle_tx_net(struct vhost_work *work)
 {
-	struct vhost_net *net;
-	net = container_of(work, struct vhost_net, poll[VHOST_NET_VQ_TX].work);
+	struct vhost_net *net = container_of(work, struct vhost_net,
+					     poll[VHOST_NET_VQ_TX].work);
 	handle_tx(net);
 }
 
-static void handle_rx_net(struct work_struct *work)
+static void handle_rx_net(struct vhost_work *work)
 {
-	struct vhost_net *net;
-	net = container_of(work, struct vhost_net, poll[VHOST_NET_VQ_RX].work);
+	struct vhost_net *net = container_of(work, struct vhost_net,
+					     poll[VHOST_NET_VQ_RX].work);
 	handle_rx(net);
 }
 
 static int vhost_net_open(struct inode *inode, struct file *f)
 {
 	struct vhost_net *n = kmalloc(sizeof *n, GFP_KERNEL);
+	struct vhost_dev *dev;
 	int r;
+
 	if (!n)
 		return -ENOMEM;
+
+	dev = &n->dev;
 	n->vqs[VHOST_NET_VQ_TX].handle_kick = handle_tx_kick;
 	n->vqs[VHOST_NET_VQ_RX].handle_kick = handle_rx_kick;
-	r = vhost_dev_init(&n->dev, n->vqs, VHOST_NET_VQ_MAX);
+	r = vhost_dev_init(dev, n->vqs, VHOST_NET_VQ_MAX);
 	if (r < 0) {
 		kfree(n);
 		return r;
 	}
 
-	vhost_poll_init(n->poll + VHOST_NET_VQ_TX, handle_tx_net, POLLOUT);
-	vhost_poll_init(n->poll + VHOST_NET_VQ_RX, handle_rx_net, POLLIN);
+	vhost_poll_init(n->poll + VHOST_NET_VQ_TX, handle_tx_net, POLLOUT, dev);
+	vhost_poll_init(n->poll + VHOST_NET_VQ_RX, handle_rx_net, POLLIN, dev);
 	n->tx_poll_state = VHOST_NET_POLL_DISABLED;
 
 	f->private_data = n;
@@ -656,25 +660,13 @@ static struct miscdevice vhost_net_misc = {
 
 static int vhost_net_init(void)
 {
-	int r = vhost_init();
-	if (r)
-		goto err_init;
-	r = misc_register(&vhost_net_misc);
-	if (r)
-		goto err_reg;
-	return 0;
-err_reg:
-	vhost_cleanup();
-err_init:
-	return r;
-
+	return misc_register(&vhost_net_misc);
 }
 module_init(vhost_net_init);
 
 static void vhost_net_exit(void)
 {
 	misc_deregister(&vhost_net_misc);
-	vhost_cleanup();
 }
 module_exit(vhost_net_exit);
 
