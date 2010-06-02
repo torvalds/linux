@@ -618,7 +618,7 @@ static int __init nmk_gpio_init(void)
 	return platform_driver_register(&nmk_gpio_driver);
 }
 
-arch_initcall(nmk_gpio_init);
+core_initcall(nmk_gpio_init);
 
 MODULE_AUTHOR("Prafulla WADASKAR and Alessandro Rubini");
 MODULE_DESCRIPTION("Nomadik GPIO Driver");
