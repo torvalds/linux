@@ -1411,7 +1411,58 @@ static ssize_t bonding_show_ad_partner_mac(struct device *d,
 }
 static DEVICE_ATTR(ad_partner_mac, S_IRUGO, bonding_show_ad_partner_mac, NULL);
 
+/*
+ * Show and set the all_slaves_active flag.
+ */
+static ssize_t bonding_show_slaves_active(struct device *d,
+					  struct device_attribute *attr,
+					  char *buf)
+{
+	struct bonding *bond = to_bond(d);
 
+	return sprintf(buf, "%d\n", bond->params.all_slaves_active);
+}
+
+static ssize_t bonding_store_slaves_active(struct device *d,
+					   struct device_attribute *attr,
+					   const char *buf, size_t count)
+{
+	int i, new_value, ret = count;
+	struct bonding *bond = to_bond(d);
+	struct slave *slave;
+
+	if (sscanf(buf, "%d", &new_value) != 1) {
+		pr_err("%s: no all_slaves_active value specified.\n",
+		       bond->dev->name);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	if (new_value == bond->params.all_slaves_active)
+		goto out;
+
+	if ((new_value == 0) || (new_value == 1)) {
+		bond->params.all_slaves_active = new_value;
+	} else {
+		pr_info("%s: Ignoring invalid all_slaves_active value %d.\n",
+			bond->dev->name, new_value);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	bond_for_each_slave(bond, slave, i) {
+		if (slave->state == BOND_STATE_BACKUP) {
+			if (new_value)
+				slave->dev->priv_flags &= ~IFF_SLAVE_INACTIVE;
+			else
+				slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
+		}
+	}
+out:
+	return count;
+}
+static DEVICE_ATTR(all_slaves_active, S_IRUGO | S_IWUSR,
+		   bonding_show_slaves_active, bonding_store_slaves_active);
 
 static struct attribute *per_bond_attrs[] = {
 	&dev_attr_slaves.attr,
@@ -1438,6 +1489,7 @@ static struct attribute *per_bond_attrs[] = {
 	&dev_attr_ad_actor_key.attr,
 	&dev_attr_ad_partner_key.attr,
 	&dev_attr_ad_partner_mac.attr,
+	&dev_attr_all_slaves_active.attr,
 	NULL,
 };
 

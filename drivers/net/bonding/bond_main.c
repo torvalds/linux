@@ -106,6 +106,7 @@ static int arp_interval = BOND_LINK_ARP_INTERV;
 static char *arp_ip_target[BOND_MAX_ARP_TARGETS];
 static char *arp_validate;
 static char *fail_over_mac;
+static int all_slaves_active = 0;
 static struct bond_params bonding_defaults;
 
 module_param(max_bonds, int, 0);
@@ -155,6 +156,10 @@ module_param(arp_validate, charp, 0);
 MODULE_PARM_DESC(arp_validate, "validate src/dst of ARP probes: none (default), active, backup or all");
 module_param(fail_over_mac, charp, 0);
 MODULE_PARM_DESC(fail_over_mac, "For active-backup, do not set all slaves to the same MAC.  none (default), active or follow");
+module_param(all_slaves_active, int, 0);
+MODULE_PARM_DESC(all_slaves_active, "Keep all frames received on an interface"
+				     "by setting active flag for all slaves.  "
+				     "0 for never (default), 1 for always.");
 
 /*----------------------------- Global variables ----------------------------*/
 
@@ -4771,6 +4776,13 @@ static int bond_check_params(struct bond_params *params)
 		}
 	}
 
+	if ((all_slaves_active != 0) && (all_slaves_active != 1)) {
+		pr_warning("Warning: all_slaves_active module parameter (%d), "
+			   "not of valid value (0/1), so it was set to "
+			   "0\n", all_slaves_active);
+		all_slaves_active = 0;
+	}
+
 	/* reset values for TLB/ALB */
 	if ((bond_mode == BOND_MODE_TLB) ||
 	    (bond_mode == BOND_MODE_ALB)) {
@@ -4941,6 +4953,7 @@ static int bond_check_params(struct bond_params *params)
 	params->primary[0] = 0;
 	params->primary_reselect = primary_reselect_value;
 	params->fail_over_mac = fail_over_mac_value;
+	params->all_slaves_active = all_slaves_active;
 
 	if (primary) {
 		strncpy(params->primary, primary, IFNAMSIZ);

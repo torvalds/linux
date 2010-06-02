@@ -131,6 +131,7 @@ struct bond_params {
 	char primary[IFNAMSIZ];
 	int primary_reselect;
 	__be32 arp_targets[BOND_MAX_ARP_TARGETS];
+	int all_slaves_active;
 };
 
 struct bond_parm_tbl {
@@ -290,7 +291,8 @@ static inline void bond_set_slave_inactive_flags(struct slave *slave)
 	struct bonding *bond = netdev_priv(slave->dev->master);
 	if (!bond_is_lb(bond))
 		slave->state = BOND_STATE_BACKUP;
-	slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
+	if (!bond->params.all_slaves_active)
+		slave->dev->priv_flags |= IFF_SLAVE_INACTIVE;
 	if (slave_do_arp_validate(bond, slave))
 		slave->dev->priv_flags |= IFF_SLAVE_NEEDARP;
 }
