@@ -206,18 +206,48 @@ static struct platform_device cpcap_whisper_device = {
 		.platform_data  = &whisper_pdata,
 	},
 };
-static struct platform_device cpcap_disp_button_led = {
-	.name   = LD_DISP_BUTTON_DEV,
-	.id     = -1,
-	.dev    = {
-		.platform_data  = NULL,
-	},
+
+static struct cpcap_led stingray_display_led = {
+	.cpcap_register = CPCAP_REG_KLC,
+	.cpcap_mask = 0x03FF,
+	.on_val = 0x00F5,
+	.off_val = 0x00F4,
+	.cpcap_duty_cycle = 0x2A0,
+	.cpcap_current = 0x0,
+	.class_name = LD_DISP_BUTTON_DEV,
+	.led_regulator = "sw5",
 };
 
+static struct platform_device cpcap_disp_button_led = {
+	.name   = LD_CPCAP_LED_DRV,
+	.id     = 1,
+	.dev    = {
+		.platform_data  = &stingray_display_led,
+	},
+};
+static struct cpcap_led stingray_privacy_led ={
+	.cpcap_register = CPCAP_REG_BLEDC,
+	.cpcap_mask = 0x03FF,
+	.on_val = 0x00F5,
+	.off_val = 0x00F4,
+	.cpcap_duty_cycle = 0x41,
+	.cpcap_current = 0x0,
+	.class_name = LD_PRIVACY_LED_DEV,
+	.led_regulator = "sw5",
+};
+
+static struct platform_device cpcap_privacy_led = {
+	.name   = LD_CPCAP_LED_DRV,
+	.id     = 2,
+	.dev    = {
+		.platform_data  = &stingray_privacy_led,
+	},
+};
 static struct platform_device *cpcap_devices[] = {
 	&cpcap_validity_device,
 	&cpcap_whisper_device,
 	&cpcap_disp_button_led,
+	&cpcap_privacy_led,
 	&cpcap_3mm5_device,
 };
 
@@ -535,18 +565,6 @@ static struct cpcap_adc_ato stingray_cpcap_adc_ato = {
 	.atox_ps_factor_out = 0,
 };
 
-static struct cpcap_leds stingray_cpcap_leds = {
-	.button_led = {
-		.button_reg = CPCAP_REG_KLC,
-		.button_mask = 0x03FF,
-		.button_on = 0x00F5,
-		.button_off = 0x00F4,
-	},
-	.rgb_led = {
-		.rgb_on = 0x0053,
-	},
-};
-
 static struct cpcap_platform_data stingray_cpcap_data = {
 	.init = stingray_cpcap_spi_init,
 	.init_len = ARRAY_SIZE(stingray_cpcap_spi_init),
@@ -554,7 +572,6 @@ static struct cpcap_platform_data stingray_cpcap_data = {
 	.regulator_off_mode_values = cpcap_regulator_off_mode_values,
 	.regulator_init = cpcap_regulator,
 	.adc_ato = &stingray_cpcap_adc_ato,
-	.leds = &stingray_cpcap_leds,
 	.ac_changed = NULL,
 	.batt_changed = NULL,
 	.usb_changed = NULL,
