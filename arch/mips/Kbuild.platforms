@@ -2,6 +2,7 @@
 
 platforms += alchemy
 platforms += ar7
+platforms += cobalt
 platforms += loongson
 platforms += mipssim
 platforms += sgi-ip27

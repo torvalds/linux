@@ -199,13 +199,6 @@ cflags-$(CONFIG_MACH_JAZZ)	+= -I$(srctree)/arch/mips/include/asm/mach-jazz
 load-$(CONFIG_MACH_JAZZ)	+= 0xffffffff80080000
 
 #
-# Cobalt Server
-#
-core-$(CONFIG_MIPS_COBALT)	+= arch/mips/cobalt/
-cflags-$(CONFIG_MIPS_COBALT)	+= -I$(srctree)/arch/mips/include/asm/mach-cobalt
-load-$(CONFIG_MIPS_COBALT)	+= 0xffffffff80080000
-
-#
 # DECstation family
 #
 core-$(CONFIG_MACH_DECSTATION)	+= arch/mips/dec/
