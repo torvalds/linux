@@ -160,10 +160,9 @@ static void magicmouse_emit_touch(struct magicmouse_sc *msc, int raw_id, u8 *tda
 	msc->touches[id].size = misc & 63;
 
 	/* If requested, emulate a scroll wheel by detecting small
-	 * vertical touch motions along the middle of the mouse.
+	 * vertical touch motions.
 	 */
-	if (emulate_scroll_wheel &&
-	    middle_button_start < x && x < middle_button_stop) {
+	if (emulate_scroll_wheel) {
 		static const int accel_profile[] = {
 			256, 228, 192, 160, 128, 96, 64, 32,
 		};
