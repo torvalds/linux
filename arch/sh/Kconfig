@@ -9,7 +9,7 @@ config SUPERH
 	def_bool y
 	select EMBEDDED
 	select HAVE_CLK
-	select HAVE_IDE
+	select HAVE_IDE if HAS_IOPORT
 	select HAVE_LMB
 	select HAVE_OPROFILE
 	select HAVE_GENERIC_DMA_COHERENT
@@ -173,6 +173,9 @@ config ARCH_HAS_DEFAULT_IDLE
 
 config ARCH_HAS_CPU_IDLE_WAIT
 	def_bool y
+
+config NO_IOPORT
+	bool
 
 config IO_TRAPPED
 	bool
