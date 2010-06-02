@@ -144,7 +144,7 @@ config LEDS_AUO_PANEL
 	help
 	  This option enables support for AUO display backlight driver
 
-config LEDS_CPCAP_DISP
+config LEDS_CPCAP
 	tristate "LED Support for Display LEDS connected to CPCAP"
 	depends on LEDS_CLASS && MFD_CPCAP
 	help

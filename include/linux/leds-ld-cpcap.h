@@ -19,37 +19,37 @@
 #ifndef __LED_LD_CPCAP_H__
 #define __LED_LD_CPCAP_H__
 
-#define LD_MSG_IND_DEV "notification-led"
+#ifdef __KERNEL__
+
+#define LD_CPCAP_LED_DRV "cpcap_led_driver"
+
 #define LD_DISP_BUTTON_DEV "button-backlight"
-#define LD_KPAD_DEV "keyboard-backlight"
-#define LD_AF_LED_DEV "af-led"
-#define LD_SUPPLY "sw5"
+#define LD_PRIVACY_LED_DEV "privacy-led"
 
-#define LD_MSG_IND_ON               0x1
-#define LD_MSG_IND_CURRENT          0x2
-#define LD_MSG_IND_LO_CURRENT       0x0
+struct cpcap_display_led {
+	unsigned int display_reg;
+	unsigned int display_mask;
+	unsigned int display_on;
+	unsigned int display_off;
+	unsigned int display_init;
+	unsigned int poll_intvl;
+	unsigned int zone0;
+	unsigned int zone1;
+	unsigned int zone2;
+	unsigned int zone3;
+	unsigned int zone4;
+};
 
-#define LD_MSG_IND_CPCAP_MASK       0x3FF
+struct cpcap_led {
+	unsigned int cpcap_register;
+	unsigned int cpcap_mask;
+	unsigned int on_val;
+	unsigned int off_val;
+	unsigned int cpcap_duty_cycle;
+	unsigned int cpcap_current;
+	char *class_name;
+	char *led_regulator;
+};
 
-#define LD_MSG_IND_LOW              0x20
-#define LD_MSG_IND_LOW_MED          0x20
-#define LD_MSG_IND_MEDIUM           0x30
-#define LD_MSG_IND_MED_HIGH         0x40
-#define LD_MSG_IND_HIGH             0x50
-
-#define LD_LED_RED                  0x01
-#define LD_LED_GREEN                0x02
-#define LD_LED_BLUE                 0x04
-
-#define LD_DISP_BUTTON_ON           0x1
-#define LD_DISP_BUTTON_CURRENT      0x0
-#define LD_DISP_BUTTON_DUTY_CYCLE	0x2A0
-#define LD_DISP_BUTTON_CPCAP_MASK	0x3FF
-
-#define LD_BLED_CPCAP_DUTY_CYCLE    0x41
-#define LD_BLED_CPCAP_MASK          0x3FF
-#define LD_BLED_CPCAP_CURRENT       0x6
-
-#define LD_ALT_ADBL_CURRENT         0x4
-
+#endif  /* __KERNEL__ */
 #endif  /* __LED_LD_CPCAP_H__ */

@@ -39,7 +39,7 @@ obj-$(CONFIG_LEDS_DELL_NETBOOKS)	+= dell-led.o
 obj-$(CONFIG_LEDS_MC13783)		+= leds-mc13783.o
 obj-$(CONFIG_LEDS_NS2)			+= leds-ns2.o
 obj-$(CONFIG_LEDS_AUO_PANEL)		+= leds-auo-panel-backlight.o
-obj-$(CONFIG_LEDS_CPCAP_DISP)		+= leds-ld-cpcap-disp.o
+obj-$(CONFIG_LEDS_CPCAP)		+= leds-ld-cpcap.o
 
 # LED SPI Drivers
 obj-$(CONFIG_LEDS_DAC124S085)		+= leds-dac124s085.o
