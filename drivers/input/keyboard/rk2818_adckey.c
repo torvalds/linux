@@ -49,7 +49,7 @@
 #define Valuedrift		50
 #define ADEmpty			1000
 #define ADInvalid		20
-#define ADKEYNUM		6
+#define ADKEYNUM		10
 
 #define ADKEYCH			1	//ADÍ¨µÀ
 
@@ -84,7 +84,8 @@ static  ADC_keyst gAdcValueTab[] =
 //key code tab
 static unsigned char gInitKeyCode[ADKEYNUM] = 
 {
-	AD2KEY1,AD2KEY2,AD2KEY3,AD2KEY4,AD2KEY5,AD2KEY6	
+	AD2KEY1,AD2KEY2,AD2KEY3,AD2KEY4,AD2KEY5,AD2KEY6,	
+	ENDCALL,KEYSTART,KEY_WAKEUP,
 };
 
 
