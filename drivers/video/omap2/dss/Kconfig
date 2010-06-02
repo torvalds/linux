@@ -136,4 +136,16 @@ config OMAP2_DSS_SLEEP_BEFORE_RESET
 	  However, 50ms is quite long time to sleep, and with some
 	  configurations the SYNC_LOST may never happen, so the sleep can
 	  be disabled here.
+
+config OMAP2_DSS_SLEEP_AFTER_VENC_RESET
+	bool "Sleep 20ms after VENC reset"
+	default y
+	help
+	  There is a 20ms sleep after VENC reset which seemed to fix the
+	  reset. The reason for the bug is unclear, and it's also unclear
+	  on what platforms this happens.
+
+	  This option enables the sleep, and is enabled by default. You can
+	  disable the sleep if it doesn't cause problems on your platform.
+
 endif
