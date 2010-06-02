@@ -93,8 +93,7 @@ static int tomoyo_bprm_check_security(struct linux_binprm *bprm)
 	return tomoyo_check_open_permission(domain, &bprm->file->f_path, O_RDONLY);
 }
 
-static int tomoyo_path_truncate(struct path *path, loff_t length,
-				unsigned int time_attrs)
+static int tomoyo_path_truncate(struct path *path)
 {
 	return tomoyo_path_perm(TOMOYO_TYPE_TRUNCATE, path);
 }
