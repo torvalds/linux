@@ -179,7 +179,7 @@ static inline int ath9k_htc_connect_svc(struct ath9k_htc_priv *priv,
 	return htc_connect_service(priv->htc, &req, ep_id);
 }
 
-static int ath9k_init_htc_services(struct ath9k_htc_priv *priv)
+static int ath9k_init_htc_services(struct ath9k_htc_priv *priv, u16 devid)
 {
 	int ret;
 
@@ -237,9 +237,32 @@ static int ath9k_init_htc_services(struct ath9k_htc_priv *priv)
 	if (ret)
 		goto err;
 
+	/*
+	 * Setup required credits before initializing HTC.
+	 * This is a bit hacky, but, since queuing is done in
+	 * the HIF layer, shouldn't matter much.
+	 */
+
+	switch(devid) {
+	case 0x9271:
+	case 0x1006:
+		priv->htc->credits = 33;
+		break;
+	case 0x7010:
+		priv->htc->credits = 45;
+		break;
+	default:
+		dev_err(priv->dev, "ath9k_htc: Unsupported device id: 0x%x\n",
+			devid);
+		goto err;
+	}
+
 	ret = htc_init(priv->htc);
 	if (ret)
 		goto err;
+
+	dev_info(priv->dev, "ath9k_htc: HTC initialized with %d credits\n",
+		 priv->htc->credits);
 
 	return 0;
 
@@ -842,7 +865,7 @@ int ath9k_htc_probe_device(struct htc_target *htc_handle, struct device *dev,
 		goto err_free;
 	}
 
-	ret = ath9k_init_htc_services(priv);
+	ret = ath9k_init_htc_services(priv, devid);
 	if (ret)
 		goto err_init;
 
@@ -885,7 +908,8 @@ int ath9k_htc_resume(struct htc_target *htc_handle)
 	if (ret)
 		return ret;
 
-	ret = ath9k_init_htc_services(htc_handle->drv_priv);
+	ret = ath9k_init_htc_services(htc_handle->drv_priv,
+			      htc_handle->drv_priv->ah->hw_version.devid);
 	return ret;
 }
 #endif
