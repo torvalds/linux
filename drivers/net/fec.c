@@ -1359,6 +1359,8 @@ fec_drv_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+
 static int
 fec_suspend(struct platform_device *dev, pm_message_t state)
 {
@@ -1389,15 +1391,31 @@ fec_resume(struct platform_device *dev)
 	return 0;
 }
 
+static const struct dev_pm_ops fec_pm_ops = {
+	.suspend	= fec_suspend,
+	.resume		= fec_resume,
+	.freeze		= fec_suspend,
+	.thaw		= fec_resume,
+	.poweroff	= fec_suspend,
+	.restore	= fec_resume,
+};
+
+#define FEC_PM_OPS (&fec_pm_ops)
+
+#else /* !CONFIG_PM */
+
+#define FEC_PM_OPS NULL
+
+#endif /* !CONFIG_PM */
+
 static struct platform_driver fec_driver = {
 	.driver	= {
 		.name    = "fec",
 		.owner	 = THIS_MODULE,
+		.pm		 = FEC_PM_OPS,
 	},
 	.probe   = fec_probe,
 	.remove  = __devexit_p(fec_drv_remove),
-	.suspend = fec_suspend,
-	.resume  = fec_resume,
 };
 
 static int __init
