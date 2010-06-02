@@ -23,6 +23,7 @@
 #include <linux/irq.h>
 #include <linux/slab.h>
 
+#include <plat/pincfg.h>
 #include <mach/hardware.h>
 #include <mach/gpio.h>
 
@@ -94,6 +95,101 @@ static void __nmk_gpio_set_pull(struct nmk_gpio_chip *nmk_chip,
 	else if (pull == NMK_GPIO_PULL_DOWN)
 		writel(bit, nmk_chip->addr + NMK_GPIO_DATC);
 }
+
+static void __nmk_gpio_make_input(struct nmk_gpio_chip *nmk_chip,
+				  unsigned offset)
+{
+	writel(1 << offset, nmk_chip->addr + NMK_GPIO_DIRC);
+}
+
+static void __nmk_config_pin(struct nmk_gpio_chip *nmk_chip, unsigned offset,
+			     pin_cfg_t cfg)
+{
+	static const char *afnames[] = {
+		[NMK_GPIO_ALT_GPIO]	= "GPIO",
+		[NMK_GPIO_ALT_A]	= "A",
+		[NMK_GPIO_ALT_B]	= "B",
+		[NMK_GPIO_ALT_C]	= "C"
+	};
+	static const char *pullnames[] = {
+		[NMK_GPIO_PULL_NONE]	= "none",
+		[NMK_GPIO_PULL_UP]	= "up",
+		[NMK_GPIO_PULL_DOWN]	= "down",
+		[3] /* illegal */	= "??"
+	};
+	static const char *slpmnames[] = {
+		[NMK_GPIO_SLPM_INPUT]		= "input",
+		[NMK_GPIO_SLPM_NOCHANGE]	= "no-change",
+	};
+
+	int pin = PIN_NUM(cfg);
+	int pull = PIN_PULL(cfg);
+	int af = PIN_ALT(cfg);
+	int slpm = PIN_SLPM(cfg);
+
+	dev_dbg(nmk_chip->chip.dev, "pin %d: af %s, pull %s, slpm %s\n",
+		pin, afnames[af], pullnames[pull], slpmnames[slpm]);
+
+	__nmk_gpio_make_input(nmk_chip, offset);
+	__nmk_gpio_set_pull(nmk_chip, offset, pull);
+	__nmk_gpio_set_slpm(nmk_chip, offset, slpm);
+	__nmk_gpio_set_mode(nmk_chip, offset, af);
+}
+
+/**
+ * nmk_config_pin - configure a pin's mux attributes
+ * @cfg: pin confguration
+ *
+ * Configures a pin's mode (alternate function or GPIO), its pull up status,
+ * and its sleep mode based on the specified configuration.  The @cfg is
+ * usually one of the SoC specific macros defined in mach/<soc>-pins.h.  These
+ * are constructed using, and can be further enhanced with, the macros in
+ * plat/pincfg.h.
+ *
+ * If a pin's mode is set to GPIO, it is configured as an input to avoid
+ * side-effects.  The gpio can be manipulated later using standard GPIO API
+ * calls.
+ */
+int nmk_config_pin(pin_cfg_t cfg)
+{
+	struct nmk_gpio_chip *nmk_chip;
+	int gpio = PIN_NUM(cfg);
+	unsigned long flags;
+
+	nmk_chip = get_irq_chip_data(NOMADIK_GPIO_TO_IRQ(gpio));
+	if (!nmk_chip)
+		return -EINVAL;
+
+	spin_lock_irqsave(&nmk_chip->lock, flags);
+	__nmk_config_pin(nmk_chip, gpio - nmk_chip->chip.base, cfg);
+	spin_unlock_irqrestore(&nmk_chip->lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL(nmk_config_pin);
+
+/**
+ * nmk_config_pins - configure several pins at once
+ * @cfgs: array of pin configurations
+ * @num: number of elments in the array
+ *
+ * Configures several pins using nmk_config_pin().  Refer to that function for
+ * further information.
+ */
+int nmk_config_pins(pin_cfg_t *cfgs, int num)
+{
+	int ret = 0;
+	int i;
+
+	for (i = 0; i < num; i++) {
+		int ret = nmk_config_pin(cfgs[i]);
+		if (ret)
+			break;
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(nmk_config_pins);
 
 /**
  * nmk_gpio_set_slpm() - configure the sleep mode of a pin
