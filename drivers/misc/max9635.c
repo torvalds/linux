@@ -87,7 +87,7 @@ static void max9635_early_suspend(struct early_suspend *handler);
 static void max9635_late_resume(struct early_suspend *handler);
 #endif
 
-static uint32_t max9635_debug = 0xff;
+static uint32_t max9635_debug = 0x00;
 module_param_named(als_debug, max9635_debug, uint, 0664);
 
 static int max9635_read_reg(struct max9635_data *als_data, u8 * buf, int len)
