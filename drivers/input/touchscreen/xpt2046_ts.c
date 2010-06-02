@@ -61,8 +61,8 @@
 #define AD_TO_X(adx)	(LCD_MAX_WIDTH * (adx - PT2046_TOUCH_AD_TOP) / ( PT2046_TOUCH_AD_BOTTOM  - PT2046_TOUCH_AD_TOP ))
 #define AD_TO_Y(ady)	(LCD_MAX_LENGTH * (PT2046_TOUCH_AD_LEFT - ady) / (PT2046_TOUCH_AD_LEFT - PT2046_TOUCH_AD_RIGHT))
 
-#define TS_POLL_DELAY	(15 * 1000000)	/* ns delay before the first sample */
-#define TS_POLL_PERIOD	(15 * 1000000)	/* ns delay between samples */
+#define TS_POLL_DELAY	(1 * 1000000)	/* ns delay before the first sample */
+#define TS_POLL_PERIOD	(5 * 1000000)	/* ns delay between samples */
 
 #define DEBOUNCE_REPTIME  3
 /* this driver doesn't aim at the peak continuous sample rate */
@@ -213,6 +213,7 @@ static struct xpt2046_platform_data xpt2046_info = {
 	.debounce_rep		= DEBOUNCE_REPTIME,
 	.debounce_tol		= 20,
 	.gpio_pendown		= RK2818_PIN_PE3,
+	.penirq_recheck_delay_usecs = 1,
 
 };
 static void xpt2046_enable(struct xpt2046 *ts);
@@ -388,11 +389,18 @@ static int xpt2046_debounce(void *xpt, int data_idx, int *val)
 	  ts->read_cnt,ts->debounce_max,
 		abs(ts->last_read - *val),ts->debounce_tol,
 		ts->read_rep,ts->debounce_rep);
-
+	
+	if(*val == 4095 || *val == 0)
+	{
+		ts->read_cnt = 0;
+		ts->last_read = 0;
+		memset(average_val,0,sizeof(average_val));
+		xpt2046printk("***>%s:*val == 4095 || *val == 0\n",__FUNCTION__);
+		return XPT2046_FILTER_IGNORE;
+	}
 	/* discard the first sample. */
 	if(!ts->read_cnt)
 	{
-		udelay(100);
 		ts->read_cnt++;
 		return XPT2046_FILTER_REPEAT;
 	}
