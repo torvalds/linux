@@ -450,6 +450,11 @@ static int hpwdt_change_timer(int new_margin)
 	return 0;
 }
 
+static int hpwdt_time_left(void)
+{
+	return TICKS_TO_SECS(ioread16(hpwdt_timer_reg));
+}
+
 /*
  *	NMI Handler
  */
@@ -590,6 +595,10 @@ static long hpwdt_ioctl(struct file *file, unsigned int cmd,
 		/* Fall */
 	case WDIOC_GETTIMEOUT:
 		ret = put_user(soft_margin, p);
+		break;
+
+	case WDIOC_GETTIMELEFT:
+		ret = put_user(hpwdt_time_left(), p);
 		break;
 	}
 	return ret;
