@@ -161,15 +161,14 @@ static inline void uv_bau_process_retry_msg(struct msg_desc *mdp,
 			slot2 = msg2 - mdp->va_queue_first;
 			mmr = uv_read_local_mmr
 				(UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE);
-			msg_res = ((msg2->sw_ack_vector << 8) |
-				   msg2->sw_ack_vector);
+			msg_res = msg2->sw_ack_vector;
 			/*
 			 * This is a message retry; clear the resources held
 			 * by the previous message only if they timed out.
 			 * If it has not timed out we have an unexpected
 			 * situation to report.
 			 */
-			if (mmr & (msg_res << 8)) {
+			if (mmr & (msg_res << UV_SW_ACK_NPENDING)) {
 				/*
 				 * is the resource timed out?
 				 * make everyone ignore the cancelled message.
@@ -179,9 +178,9 @@ static inline void uv_bau_process_retry_msg(struct msg_desc *mdp,
 				cancel_count++;
 				uv_write_local_mmr(
 				    UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE_ALIAS,
-					(msg_res << 8) | msg_res);
-			} else
-				printk(KERN_INFO "note bau retry: no effect\n");
+					(msg_res << UV_SW_ACK_NPENDING) |
+					 msg_res);
+			}
 		}
 	}
 	if (!cancel_count)
@@ -317,13 +316,13 @@ uv_do_reset(void *ptr)
 			 */
 			mmr = uv_read_local_mmr
 					(UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE);
-			msg_res = ((msg->sw_ack_vector << 8) |
-						   msg->sw_ack_vector);
+			msg_res = msg->sw_ack_vector;
 			if (mmr & msg_res) {
 				stat->d_rcanceled++;
 				uv_write_local_mmr(
 				    UVH_LB_BAU_INTD_SOFTWARE_ACKNOWLEDGE_ALIAS,
-							msg_res);
+					(msg_res << UV_SW_ACK_NPENDING) |
+					 msg_res);
 			}
 		}
 	}
