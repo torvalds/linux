@@ -580,23 +580,10 @@ const struct cpumask *uv_flush_send_and_wait(struct bau_desc *bau_desc,
 	}
 	time1 = get_cycles();
 	do {
-		/*
-		 * Every message from any given cpu gets a unique message
-		 * sequence number. But retries use that same number.
-		 * Our message may have timed out at the destination because
-		 * all sw-ack resources are in use and there is a timeout
-		 * pending there.  In that case, our last send never got
-		 * placed into the queue and we need to persist until it
-		 * does.
-		 *
-		 * Make any retry a type MSG_RETRY so that the destination will
-		 * free any resource held by a previous message from this cpu.
-		 */
 		if (try == 0) {
-			/* use message type set by the caller the first time */
+			bau_desc->header.msg_type = MSG_REGULAR;
 			seq_number = bcp->message_number++;
 		} else {
-			/* use RETRY type on all the rest; same sequence */
 			bau_desc->header.msg_type = MSG_RETRY;
 			stat->s_retry_messages++;
 		}
