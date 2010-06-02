@@ -100,7 +100,7 @@ static struct platform_device nor_flash_device = {
 };
 
 /* USBHS */
-void usb_host_port_power(int port, int power)
+static void usb_host_port_power(int port, int power)
 {
 	if (!power) /* only power-on supported for now */
 		return;
