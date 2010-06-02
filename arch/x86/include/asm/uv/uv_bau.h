@@ -75,7 +75,6 @@
 #define DESC_STATUS_DESTINATION_TIMEOUT	2
 #define DESC_STATUS_SOURCE_TIMEOUT	3
 
-#define TIMEOUT_DELAY			10
 /*
  * delay for 'plugged' timeout retries, in microseconds
  */

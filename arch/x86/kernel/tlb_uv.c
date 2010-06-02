@@ -485,6 +485,47 @@ static inline int atomic_inc_unless_ge(spinlock_t *lock, atomic_t *v, int u)
 }
 
 /*
+ * Our retries are blocked by all destination swack resources being
+ * in use, and a timeout is pending. In that case hardware immediately
+ * returns the ERROR that looks like a destination timeout.
+ */
+static void
+destination_plugged(struct bau_desc *bau_desc, struct bau_control *bcp,
+			struct bau_control *hmaster, struct ptc_stats *stat)
+{
+	udelay(bcp->plugged_delay);
+	bcp->plugged_tries++;
+	if (bcp->plugged_tries >= bcp->plugsb4reset) {
+		bcp->plugged_tries = 0;
+		quiesce_local_uvhub(hmaster);
+		spin_lock(&hmaster->queue_lock);
+		uv_reset_with_ipi(&bau_desc->distribution, bcp->cpu);
+		spin_unlock(&hmaster->queue_lock);
+		end_uvhub_quiesce(hmaster);
+		bcp->ipi_attempts++;
+		stat->s_resets_plug++;
+	}
+}
+
+static void
+destination_timeout(struct bau_desc *bau_desc, struct bau_control *bcp,
+			struct bau_control *hmaster, struct ptc_stats *stat)
+{
+	hmaster->max_bau_concurrent = 1;
+	bcp->timeout_tries++;
+	if (bcp->timeout_tries >= bcp->timeoutsb4reset) {
+		bcp->timeout_tries = 0;
+		quiesce_local_uvhub(hmaster);
+		spin_lock(&hmaster->queue_lock);
+		uv_reset_with_ipi(&bau_desc->distribution, bcp->cpu);
+		spin_unlock(&hmaster->queue_lock);
+		end_uvhub_quiesce(hmaster);
+		bcp->ipi_attempts++;
+		stat->s_resets_timeout++;
+	}
+}
+
+/*
  * Completions are taking a very long time due to a congested numalink
  * network.
  */
@@ -518,7 +559,7 @@ disable_for_congestion(struct bau_control *bcp, struct ptc_stats *stat)
  *
  * Send a broadcast and wait for it to complete.
  *
- * The flush_mask contains the cpus the broadcast is to be sent to, plus
+ * The flush_mask contains the cpus the broadcast is to be sent to including
  * cpus that are on the local uvhub.
  *
  * Returns 0 if all flushing represented in the mask was done.
@@ -553,7 +594,6 @@ int uv_flush_send_and_wait(struct bau_desc *bau_desc,
 			&hmaster->active_descriptor_count,
 			hmaster->max_bau_concurrent));
 	}
-
 	while (hmaster->uvhub_quiesce)
 		cpu_relax();
 
@@ -584,40 +624,9 @@ int uv_flush_send_and_wait(struct bau_desc *bau_desc,
 			right_shift, this_cpu, bcp, smaster, try);
 
 		if (completion_status == FLUSH_RETRY_PLUGGED) {
-			/*
-			 * Our retries may be blocked by all destination swack
-			 * resources being consumed, and a timeout pending. In
-			 * that case hardware immediately returns the ERROR
-			 * that looks like a destination timeout.
-			 */
-			udelay(bcp->plugged_delay);
-			bcp->plugged_tries++;
-			if (bcp->plugged_tries >= bcp->plugsb4reset) {
-				bcp->plugged_tries = 0;
-				quiesce_local_uvhub(hmaster);
-				spin_lock(&hmaster->queue_lock);
-				uv_reset_with_ipi(&bau_desc->distribution,
-							this_cpu);
-				spin_unlock(&hmaster->queue_lock);
-				end_uvhub_quiesce(hmaster);
-				bcp->ipi_attempts++;
-				stat->s_resets_plug++;
-			}
+			destination_plugged(bau_desc, bcp, hmaster, stat);
 		} else if (completion_status == FLUSH_RETRY_TIMEOUT) {
-			hmaster->max_bau_concurrent = 1;
-			bcp->timeout_tries++;
-			udelay(TIMEOUT_DELAY);
-			if (bcp->timeout_tries >= bcp->timeoutsb4reset) {
-				bcp->timeout_tries = 0;
-				quiesce_local_uvhub(hmaster);
-				spin_lock(&hmaster->queue_lock);
-				uv_reset_with_ipi(&bau_desc->distribution,
-								this_cpu);
-				spin_unlock(&hmaster->queue_lock);
-				end_uvhub_quiesce(hmaster);
-				bcp->ipi_attempts++;
-				stat->s_resets_timeout++;
-			}
+			destination_timeout(bau_desc, bcp, hmaster, stat);
 		}
 		if (bcp->ipi_attempts >= bcp->ipi_reset_limit) {
 			bcp->ipi_attempts = 0;
@@ -628,10 +637,8 @@ int uv_flush_send_and_wait(struct bau_desc *bau_desc,
 	} while ((completion_status == FLUSH_RETRY_PLUGGED) ||
 		 (completion_status == FLUSH_RETRY_TIMEOUT));
 	time2 = get_cycles();
-
 	bcp->plugged_tries = 0;
 	bcp->timeout_tries = 0;
-
 	if ((completion_status == FLUSH_COMPLETE) &&
 	    (bcp->conseccompletes > bcp->complete_threshold) &&
 	    (hmaster->max_bau_concurrent <
@@ -740,7 +747,6 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 
 	bau_desc = bcp->descriptor_base;
 	bau_desc += UV_ITEMS_PER_DESCRIPTOR * bcp->uvhub_cpu;
-
 	bau_uvhubs_clear(&bau_desc->distribution, UV_DISTRIBUTION_SIZE);
 
 	/* cpu statistics */
