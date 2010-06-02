@@ -332,6 +332,7 @@ struct bau_control {
 	struct bau_payload_queue_entry *bau_msg_head;
 	struct bau_control *uvhub_master;
 	struct bau_control *socket_master;
+	struct ptc_stats *statp;
 	unsigned long timeout_interval;
 	unsigned long set_bau_on_time;
 	atomic_t active_descriptor_count;

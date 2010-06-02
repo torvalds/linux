@@ -153,7 +153,7 @@ static inline void uv_bau_process_retry_msg(struct msg_desc *mdp,
 	struct ptc_stats *stat;
 
 	msg = mdp->msg;
-	stat = &per_cpu(ptcstats, bcp->cpu);
+	stat = bcp->statp;
 	stat->d_retries++;
 	/*
 	 * cancel any message from msg+1 to the retry itself
@@ -217,7 +217,7 @@ static void uv_bau_process_message(struct msg_desc *mdp,
 	 * This must be a normal message, or retry of a normal message
 	 */
 	msg = mdp->msg;
-	stat = &per_cpu(ptcstats, bcp->cpu);
+	stat = bcp->statp;
 	if (msg->address == TLB_FLUSH_ALL) {
 		local_flush_tlb();
 		stat->d_alltlb++;
@@ -301,7 +301,7 @@ uv_do_reset(void *ptr)
 
 	bcp = &per_cpu(bau_control, smp_processor_id());
 	rap = (struct reset_args *)ptr;
-	stat = &per_cpu(ptcstats, bcp->cpu);
+	stat = bcp->statp;
 	stat->d_resets++;
 
 	/*
@@ -419,7 +419,7 @@ static int uv_wait_completion(struct bau_desc *bau_desc,
 	unsigned long mask;
 	cycles_t ttime;
 	cycles_t timeout_time;
-	struct ptc_stats *stat = &per_cpu(ptcstats, this_cpu);
+	struct ptc_stats *stat = bcp->statp;
 	struct bau_control *hmaster;
 
 	hmaster = bcp->uvhub_master;
@@ -583,7 +583,7 @@ const struct cpumask *uv_flush_send_and_wait(struct bau_desc *bau_desc,
 	cycles_t time1;
 	cycles_t time2;
 	cycles_t elapsed;
-	struct ptc_stats *stat = &per_cpu(ptcstats, bcp->cpu);
+	struct ptc_stats *stat = bcp->statp;
 	struct bau_control *smaster = bcp->socket_master;
 	struct bau_control *hmaster = bcp->uvhub_master;
 
@@ -794,7 +794,7 @@ const struct cpumask *uv_flush_tlb_others(const struct cpumask *cpumask,
 		return cpumask;
 
 	bcp = &per_cpu(bau_control, cpu);
-	stat = &per_cpu(ptcstats, cpu);
+	stat = bcp->statp;
 
 	/* bau was disabled due to slow response */
 	if (bcp->baudisabled) {
@@ -903,7 +903,7 @@ void uv_bau_message_interrupt(struct pt_regs *regs)
 
 	time_start = get_cycles();
 	bcp = &per_cpu(bau_control, smp_processor_id());
-	stat = &per_cpu(ptcstats, smp_processor_id());
+	stat = bcp->statp;
 	msgdesc.va_queue_first = bcp->va_queue_first;
 	msgdesc.va_queue_last = bcp->va_queue_last;
 	msg = bcp->bau_msg_head;
@@ -1636,6 +1636,7 @@ static void uv_init_per_cpu(int nuvhubs)
 	for_each_present_cpu(cpu) {
 		bcp = &per_cpu(bau_control, cpu);
 		bcp->baudisabled = 0;
+		bcp->statp = &per_cpu(ptcstats, cpu);
 		/* time interval to catch a hardware stay-busy bug */
 		bcp->timeout_interval = microsec_2_cycles(2*timeout_us);
 		bcp->max_bau_concurrent = max_bau_concurrent;
@@ -1673,7 +1674,6 @@ static int __init uv_bau_init(void)
 		zalloc_cpumask_var_node(&per_cpu(uv_flush_tlb_mask, cur_cpu),
 				       GFP_KERNEL, cpu_to_node(cur_cpu));
 
-	max_bau_concurrent = MAX_BAU_CONCURRENT;
 	uv_nshift = uv_hub_info->m_val;
 	uv_mmask = (1UL << uv_hub_info->m_val) - 1;
 	nuvhubs = uv_num_possible_blades();
