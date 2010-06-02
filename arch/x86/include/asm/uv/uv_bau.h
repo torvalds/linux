@@ -45,10 +45,14 @@
 #define UV_DESC_BASE_PNODE_SHIFT	49
 #define UV_PAYLOADQ_PNODE_SHIFT		49
 #define UV_PTC_BASENAME			"sgi_uv/ptc_statistics"
+#define UV_BAU_BASENAME			"sgi_uv/bau_tunables"
+#define UV_BAU_TUNABLES_DIR		"sgi_uv"
+#define UV_BAU_TUNABLES_FILE		"bau_tunables"
+#define WHITESPACE			" \t\n"
 #define uv_physnodeaddr(x)		((__pa((unsigned long)(x)) & uv_mmask))
 #define UV_ENABLE_INTD_SOFT_ACK_MODE_SHIFT 15
 #define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHIFT 16
-#define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD 0x000000000bUL
+#define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD 0x0000000009UL
 /* [19:16] SOFT_ACK timeout period  19: 1 is urgency 7  17:16 1 is multiplier */
 #define BAU_MISC_CONTROL_MULT_MASK 3
 
@@ -70,25 +74,23 @@
 #define DESC_STATUS_DESTINATION_TIMEOUT	2
 #define DESC_STATUS_SOURCE_TIMEOUT	3
 
-/*
- * source side threshholds at which message retries print a warning
- */
-#define SOURCE_TIMEOUT_LIMIT		20
-#define DESTINATION_TIMEOUT_LIMIT	20
-
-/*
- * misc. delays, in microseconds
- */
-#define THROTTLE_DELAY			10
 #define TIMEOUT_DELAY			10
-#define BIOS_TO				1000
-/* BIOS is assumed to set the destination timeout to 1003520 nanoseconds */
+/*
+ * delay for 'plugged' timeout retries, in microseconds
+ */
+#define PLUGGED_DELAY			10
 
 /*
  * threshholds at which to use IPI to free resources
  */
+/* after this # consecutive 'plugged' timeouts, use IPI to release resources */
 #define PLUGSB4RESET 100
-#define TIMEOUTSB4RESET 100
+/* after this many consecutive timeouts, use IPI to release resources */
+#define TIMEOUTSB4RESET 1
+/* at this number uses of IPI to release resources, giveup the request */
+#define IPI_RESET_LIMIT 1
+/* after this # consecutive successes, bump up the throttle if it was lowered */
+#define COMPLETE_THRESHOLD 5
 
 /*
  * number of entries in the destination side payload queue
@@ -106,6 +108,13 @@
 #define FLUSH_RETRY_TIMEOUT		2
 #define FLUSH_GIVEUP			3
 #define FLUSH_COMPLETE			4
+
+/*
+ * tuning the action when the numalink network is extremely delayed
+ */
+#define CONGESTED_RESPONSE_US 1000 /* 'long' response time, in microseconds */
+#define CONGESTED_REPS 10 /* long delays averaged over this many broadcasts */
+#define CONGESTED_PERIOD 30 /* time for the bau to be disabled, in seconds */
 
 /*
  * Distribution: 32 bytes (256 bits) (bytes 0-0x1f of descriptor)
@@ -323,14 +332,13 @@ struct bau_control {
 	struct bau_control *uvhub_master;
 	struct bau_control *socket_master;
 	unsigned long timeout_interval;
+	unsigned long set_bau_on_time;
 	atomic_t active_descriptor_count;
-	int max_concurrent;
-	int max_concurrent_constant;
-	int retry_message_scans;
 	int plugged_tries;
 	int timeout_tries;
 	int ipi_attempts;
 	int conseccompletes;
+	int set_bau_off;
 	short cpu;
 	short uvhub_cpu;
 	short uvhub;
@@ -343,6 +351,19 @@ struct bau_control {
 	spinlock_t masks_lock;
 	spinlock_t uvhub_lock;
 	spinlock_t queue_lock;
+	/* tunables */
+	int max_bau_concurrent;
+	int max_bau_concurrent_constant;
+	int plugged_delay;
+	int plugsb4reset;
+	int timeoutsb4reset;
+	int ipi_reset_limit;
+	int complete_threshold;
+	int congested_response_us;
+	int congested_reps;
+	int congested_period;
+	cycles_t period_time;
+	long period_requests;
 };
 
 /*
