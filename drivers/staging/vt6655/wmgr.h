@@ -88,7 +88,7 @@ typedef void (*TimerFunction)(ULONG);
 
 //+++ NDIS related
 
-typedef UCHAR   NDIS_802_11_MAC_ADDRESS[6];
+typedef unsigned char NDIS_802_11_MAC_ADDRESS[6];
 typedef struct _NDIS_802_11_AI_REQFI
 {
     USHORT Capabilities;

@@ -340,7 +340,8 @@ static void device_free_rd0_ring(PSDevice pDevice);
 static void device_free_rd1_ring(PSDevice pDevice);
 static void device_free_rings(PSDevice pDevice);
 static void device_free_frag_buf(PSDevice pDevice);
-static int Config_FileGetParameter(UCHAR *string, UCHAR *dest,UCHAR *source);
+static int Config_FileGetParameter(unsigned char *string,
+		unsigned char *dest, unsigned char *source);
 
 
 /*---------------------  Export Variables  --------------------------*/
@@ -2978,9 +2979,10 @@ static inline u32 ether_crc(int length, unsigned char *data)
 }
 
 //2008-8-4 <add> by chester
-static int Config_FileGetParameter(UCHAR *string, UCHAR *dest,UCHAR *source)
+static int Config_FileGetParameter(unsigned char *string,
+		unsigned char *dest, unsigned char *source)
 {
-  UCHAR buf1[100];
+  unsigned char buf1[100];
   int source_len = strlen(source);
 
     memset(buf1,0,100);
@@ -2993,9 +2995,9 @@ static int Config_FileGetParameter(UCHAR *string, UCHAR *dest,UCHAR *source)
 }
 
 int Config_FileOperation(PSDevice pDevice,BOOL fwrite,unsigned char *Parameter) {
-    UCHAR    *config_path=CONFIG_PATH;
-    UCHAR    *buffer=NULL;
-    UCHAR      tmpbuffer[20];
+    unsigned char *config_path = CONFIG_PATH;
+    unsigned char *buffer = NULL;
+    unsigned char tmpbuffer[20];
     struct file   *filp=NULL;
     mm_segment_t old_fs = get_fs();
     //int oldfsuid=0,oldfsgid=0;

@@ -218,7 +218,7 @@ typedef enum __device_init_type {
 #define NDIS_802_11_PMKID_CANDIDATE_PREAUTH_ENABLED	0x01
 
 // PMKID Structures
-typedef UCHAR   NDIS_802_11_PMKID_VALUE[16];
+typedef unsigned char NDIS_802_11_PMKID_VALUE[16];
 
 
 typedef enum _NDIS_802_11_WEP_STATUS
