@@ -3333,8 +3333,9 @@ static inline int interrupt_pending(ctlr_info_t *h)
 
 static inline long interrupt_not_for_us(ctlr_info_t *h)
 {
-	return (((h->access.intr_pending(h) == 0) ||
-		(h->interrupts_enabled == 0)));
+	return !(h->msi_vector || h->msix_vector) &&
+		((h->access.intr_pending(h) == 0) ||
+		(h->interrupts_enabled == 0));
 }
 
 static inline int bad_tag(ctlr_info_t *h, u32 tag_index,
