@@ -162,7 +162,7 @@ enum {D_PRT, D_PRO, D_UNI, D_MOD, D_SLV, D_DLY};
 #include <linux/pg.h>
 #include <linux/device.h>
 #include <linux/sched.h>	/* current, TASK_* */
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/jiffies.h>
 
 #include <asm/uaccess.h>
@@ -193,6 +193,7 @@ module_param_array(drive3, int, NULL, 0);
 
 #define ATAPI_IDENTIFY		0x12
 
+static DEFINE_MUTEX(pg_mutex);
 static int pg_open(struct inode *inode, struct file *file);
 static int pg_release(struct inode *inode, struct file *file);
 static ssize_t pg_read(struct file *filp, char __user *buf,
@@ -518,7 +519,7 @@ static int pg_open(struct inode *inode, struct file *file)
 	struct pg *dev = &devices[unit];
 	int ret = 0;
 
-	lock_kernel();
+	mutex_lock(&pg_mutex);
 	if ((unit >= PG_UNITS) || (!dev->present)) {
 		ret = -ENODEV;
 		goto out;
@@ -547,7 +548,7 @@ static int pg_open(struct inode *inode, struct file *file)
 	file->private_data = dev;
 
 out:
-	unlock_kernel();
+	mutex_unlock(&pg_mutex);
 	return ret;
 }
 
