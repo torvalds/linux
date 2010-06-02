@@ -84,7 +84,7 @@ static int iget_skip_test(struct inode *inode, void *opaque)
 	struct gfs2_skip_data *data = opaque;
 
 	if (ip->i_no_addr == data->no_addr) {
-		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE)){
+		if (inode->i_state & (I_FREEING|I_WILL_FREE)){
 			data->skipped = 1;
 			return 0;
 		}

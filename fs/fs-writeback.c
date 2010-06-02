@@ -352,7 +352,7 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 
 	spin_lock(&inode_lock);
 	inode->i_state &= ~I_SYNC;
-	if (!(inode->i_state & (I_FREEING | I_CLEAR))) {
+	if (!(inode->i_state & I_FREEING)) {
 		if ((inode->i_state & I_DIRTY_PAGES) && wbc->for_kupdate) {
 			/*
 			 * More pages get dirtied by a fast dirtier.
@@ -499,7 +499,7 @@ static int writeback_sb_inodes(struct super_block *sb, struct bdi_writeback *wb,
 		if (inode_dirtied_after(inode, wbc->wb_start))
 			return 1;
 
-		BUG_ON(inode->i_state & (I_FREEING | I_CLEAR));
+		BUG_ON(inode->i_state & I_FREEING);
 		__iget(inode);
 		pages_skipped = wbc->pages_skipped;
 		writeback_single_inode(inode, wbc);
@@ -935,7 +935,7 @@ void __mark_inode_dirty(struct inode *inode, int flags)
 			if (hlist_unhashed(&inode->i_hash))
 				goto out;
 		}
-		if (inode->i_state & (I_FREEING|I_CLEAR))
+		if (inode->i_state & I_FREEING)
 			goto out;
 
 		/*
@@ -1001,7 +1001,7 @@ static void wait_sb_inodes(struct super_block *sb)
 	list_for_each_entry(inode, &sb->s_inodes, i_sb_list) {
 		struct address_space *mapping;
 
-		if (inode->i_state & (I_FREEING|I_CLEAR|I_WILL_FREE|I_NEW))
+		if (inode->i_state & (I_FREEING|I_WILL_FREE|I_NEW))
 			continue;
 		mapping = inode->i_mapping;
 		if (mapping->nrpages == 0)

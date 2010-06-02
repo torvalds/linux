@@ -377,11 +377,11 @@ void inotify_unmount_inodes(struct list_head *list)
 		struct list_head *watches;
 
 		/*
-		 * We cannot __iget() an inode in state I_CLEAR, I_FREEING,
+		 * We cannot __iget() an inode in state I_FREEING,
 		 * I_WILL_FREE, or I_NEW which is fine because by that point
 		 * the inode cannot have any associated watches.
 		 */
-		if (inode->i_state & (I_CLEAR|I_FREEING|I_WILL_FREE|I_NEW))
+		if (inode->i_state & (I_FREEING|I_WILL_FREE|I_NEW))
 			continue;
 
 		/*
@@ -403,8 +403,7 @@ void inotify_unmount_inodes(struct list_head *list)
 		/* In case the dropping of a reference would nuke next_i. */
 		if ((&next_i->i_sb_list != list) &&
 				atomic_read(&next_i->i_count) &&
-				!(next_i->i_state & (I_CLEAR | I_FREEING |
-					I_WILL_FREE))) {
+				!(next_i->i_state & (I_FREEING|I_WILL_FREE))) {
 			__iget(next_i);
 			need_iput = next_i;
 		}
