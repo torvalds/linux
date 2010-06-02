@@ -243,39 +243,6 @@ core-$(CONFIG_LASAT)		+= arch/mips/lasat/
 cflags-$(CONFIG_LASAT)		+= -I$(srctree)/arch/mips/include/asm/mach-lasat
 load-$(CONFIG_LASAT)		+= 0xffffffff80000000
 
-#
-# Common VR41xx
-#
-core-$(CONFIG_MACH_VR41XX)	+= arch/mips/vr41xx/common/
-cflags-$(CONFIG_MACH_VR41XX)	+= -I$(srctree)/arch/mips/include/asm/mach-vr41xx
-
-#
-# ZAO Networks Capcella (VR4131)
-#
-load-$(CONFIG_ZAO_CAPCELLA)	+= 0xffffffff80000000
-
-#
-# Victor MP-C303/304 (VR4122)
-#
-load-$(CONFIG_VICTOR_MPC30X)	+= 0xffffffff80001000
-
-#
-# IBM WorkPad z50 (VR4121)
-#
-core-$(CONFIG_IBM_WORKPAD)	+= arch/mips/vr41xx/ibm-workpad/
-load-$(CONFIG_IBM_WORKPAD)	+= 0xffffffff80004000
-
-#
-# CASIO CASSIPEIA E-55/65 (VR4111)
-#
-core-$(CONFIG_CASIO_E55)	+= arch/mips/vr41xx/casio-e55/
-load-$(CONFIG_CASIO_E55)	+= 0xffffffff80004000
-
-#
-# TANBAC VR4131 multichip module(TB0225) and TANBAC VR4131DIMM(TB0229) (VR4131)
-#
-load-$(CONFIG_TANBAC_TB022X)	+= 0xffffffff80000000
-
 # NXP STB225
 core-$(CONFIG_SOC_PNX833X)		+= arch/mips/nxp/pnx833x/common/
 cflags-$(CONFIG_SOC_PNX833X)	+= -Iarch/mips/include/asm/mach-pnx833x

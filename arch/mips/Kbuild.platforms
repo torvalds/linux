@@ -6,6 +6,7 @@ platforms += cobalt
 platforms += loongson
 platforms += mipssim
 platforms += sgi-ip27
+platforms += vr41xx
 
 # include the platform specific files
 include $(patsubst %, $(srctree)/arch/mips/%/Platform, $(platforms))
