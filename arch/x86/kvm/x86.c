@@ -42,13 +42,13 @@
 #include <linux/srcu.h>
 #include <linux/slab.h>
 #include <linux/perf_event.h>
+#include <linux/uaccess.h>
 #include <trace/events/kvm.h>
 
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
 #include <asm/debugreg.h>
-#include <asm/uaccess.h>
 #include <asm/msr.h>
 #include <asm/desc.h>
 #include <asm/mtrr.h>
