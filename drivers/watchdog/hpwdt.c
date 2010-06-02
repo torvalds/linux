@@ -36,6 +36,8 @@
 
 #define HPWDT_VERSION			"1.1.1"
 #define SECS_TO_TICKS(secs)		((secs) * 1000 / 128)
+#define TICKS_TO_SECS(ticks)		((ticks) * 128 / 1000)
+#define HPWDT_MAX_TIMER			TICKS_TO_SECS(65535)
 #define DEFAULT_MARGIN			30
 
 static unsigned int soft_margin = DEFAULT_MARGIN;	/* in seconds */
@@ -432,8 +434,7 @@ static void hpwdt_ping(void)
 
 static int hpwdt_change_timer(int new_margin)
 {
-	/* Arbitrary, can't find the card's limits */
-	if (new_margin < 5 || new_margin > 600) {
+	if (new_margin < 1 || new_margin > HPWDT_MAX_TIMER) {
 		printk(KERN_WARNING
 			"hpwdt: New value passed in is invalid: %d seconds.\n",
 			new_margin);
