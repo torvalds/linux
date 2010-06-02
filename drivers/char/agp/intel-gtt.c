@@ -1059,7 +1059,7 @@ static void intel_i9xx_setup_flush(void)
 	}
 }
 
-static int intel_i915_configure(void)
+static int intel_i9xx_configure(void)
 {
 	struct aper_size_info_fixed *current_size;
 	u32 temp;
@@ -1207,6 +1207,38 @@ static int intel_i9xx_fetch_size(void)
 	return 0;
 }
 
+static int intel_i915_get_gtt_size(void)
+{
+	int size;
+
+	if (IS_G33) {
+		u16 gmch_ctrl;
+
+		/* G33's GTT size defined in gmch_ctrl */
+		pci_read_config_word(agp_bridge->dev, I830_GMCH_CTRL, &gmch_ctrl);
+		switch (gmch_ctrl & G33_PGETBL_SIZE_MASK) {
+		case G33_PGETBL_SIZE_1M:
+			size = 1024;
+			break;
+		case G33_PGETBL_SIZE_2M:
+			size = 2048;
+			break;
+		default:
+			dev_info(&agp_bridge->dev->dev,
+				 "unknown page table size 0x%x, assuming 512KB\n",
+				(gmch_ctrl & G33_PGETBL_SIZE_MASK));
+			size = 512;
+		}
+	} else {
+		/* On previous hardware, the GTT size was just what was
+		 * required to map the aperture.
+		 */
+		size = agp_bridge->driver->fetch_size();
+	}
+
+	return KB(size);
+}
+
 /* The intel i915 automatically initializes the agp aperture during POST.
  * Use the memory already set aside for in the GTT.
  */
@@ -1216,7 +1248,7 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 	struct aper_size_info_fixed *size;
 	int num_entries;
 	u32 temp, temp2;
-	int gtt_map_size = 256 * 1024;
+	int gtt_map_size;
 
 	size = agp_bridge->current_size;
 	page_order = size->page_order;
@@ -1226,8 +1258,8 @@ static int intel_i915_create_gatt_table(struct agp_bridge_data *bridge)
 	pci_read_config_dword(intel_private.pcidev, I915_MMADDR, &temp);
 	pci_read_config_dword(intel_private.pcidev, I915_PTEADDR, &temp2);
 
-	if (IS_G33)
-	    gtt_map_size = 1024 * 1024; /* 1M on G33 */
+	gtt_map_size = intel_i915_get_gtt_size();
+
 	intel_private.gtt = ioremap(temp2, gtt_map_size);
 	if (!intel_private.gtt)
 		return -ENOMEM;
@@ -1422,7 +1454,7 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.size_type		= FIXED_APER_SIZE,
 	.num_aperture_sizes	= 4,
 	.needs_scratch_page	= true,
-	.configure		= intel_i915_configure,
+	.configure		= intel_i9xx_configure,
 	.fetch_size		= intel_i9xx_fetch_size,
 	.cleanup		= intel_i915_cleanup,
 	.mask_memory		= intel_i810_mask_memory,
@@ -1455,7 +1487,7 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.size_type		= FIXED_APER_SIZE,
 	.num_aperture_sizes	= 4,
 	.needs_scratch_page	= true,
-	.configure		= intel_i915_configure,
+	.configure		= intel_i9xx_configure,
 	.fetch_size		= intel_i9xx_fetch_size,
 	.cleanup		= intel_i915_cleanup,
 	.mask_memory		= intel_i965_mask_memory,
@@ -1488,7 +1520,7 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.size_type		= FIXED_APER_SIZE,
 	.num_aperture_sizes	= 4,
 	.needs_scratch_page	= true,
-	.configure		= intel_i915_configure,
+	.configure		= intel_i9xx_configure,
 	.fetch_size		= intel_i9xx_fetch_size,
 	.cleanup		= intel_i915_cleanup,
 	.mask_memory		= intel_i965_mask_memory,

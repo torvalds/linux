@@ -77,7 +77,7 @@ static int i915_gem_object_list_info(struct seq_file *m, void *data)
 	case ACTIVE_LIST:
 		seq_printf(m, "Active:\n");
 		lock = &dev_priv->mm.active_list_lock;
-		head = &dev_priv->mm.active_list;
+		head = &dev_priv->render_ring.active_list;
 		break;
 	case INACTIVE_LIST:
 		seq_printf(m, "Inactive:\n");
@@ -129,7 +129,8 @@ static int i915_gem_request_info(struct seq_file *m, void *data)
 	struct drm_i915_gem_request *gem_request;
 
 	seq_printf(m, "Request:\n");
-	list_for_each_entry(gem_request, &dev_priv->mm.request_list, list) {
+	list_for_each_entry(gem_request, &dev_priv->render_ring.request_list,
+			list) {
 		seq_printf(m, "    %d @ %d\n",
 			   gem_request->seqno,
 			   (int) (jiffies - gem_request->emitted_jiffies));
@@ -143,9 +144,9 @@ static int i915_gem_seqno_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 
-	if (dev_priv->hw_status_page != NULL) {
+	if (dev_priv->render_ring.status_page.page_addr != NULL) {
 		seq_printf(m, "Current sequence: %d\n",
-			   i915_get_gem_seqno(dev));
+			   i915_get_gem_seqno(dev,  &dev_priv->render_ring));
 	} else {
 		seq_printf(m, "Current sequence: hws uninitialized\n");
 	}
@@ -195,9 +196,9 @@ static int i915_interrupt_info(struct seq_file *m, void *data)
 	}
 	seq_printf(m, "Interrupts received: %d\n",
 		   atomic_read(&dev_priv->irq_received));
-	if (dev_priv->hw_status_page != NULL) {
+	if (dev_priv->render_ring.status_page.page_addr != NULL) {
 		seq_printf(m, "Current sequence:    %d\n",
-			   i915_get_gem_seqno(dev));
+			   i915_get_gem_seqno(dev,  &dev_priv->render_ring));
 	} else {
 		seq_printf(m, "Current sequence:    hws uninitialized\n");
 	}
@@ -251,7 +252,7 @@ static int i915_hws_info(struct seq_file *m, void *data)
 	int i;
 	volatile u32 *hws;
 
-	hws = (volatile u32 *)dev_priv->hw_status_page;
+	hws = (volatile u32 *)dev_priv->render_ring.status_page.page_addr;
 	if (hws == NULL)
 		return 0;
 
@@ -287,7 +288,8 @@ static int i915_batchbuffer_info(struct seq_file *m, void *data)
 
 	spin_lock(&dev_priv->mm.active_list_lock);
 
-	list_for_each_entry(obj_priv, &dev_priv->mm.active_list, list) {
+	list_for_each_entry(obj_priv, &dev_priv->render_ring.active_list,
+			list) {
 		obj = &obj_priv->base;
 		if (obj->read_domains & I915_GEM_DOMAIN_COMMAND) {
 		    ret = i915_gem_object_get_pages(obj, 0);
@@ -317,14 +319,14 @@ static int i915_ringbuffer_data(struct seq_file *m, void *data)
 	u8 *virt;
 	uint32_t *ptr, off;
 
-	if (!dev_priv->ring.ring_obj) {
+	if (!dev_priv->render_ring.gem_object) {
 		seq_printf(m, "No ringbuffer setup\n");
 		return 0;
 	}
 
-	virt = dev_priv->ring.virtual_start;
+	virt = dev_priv->render_ring.virtual_start;
 
-	for (off = 0; off < dev_priv->ring.Size; off += 4) {
+	for (off = 0; off < dev_priv->render_ring.size; off += 4) {
 		ptr = (uint32_t *)(virt + off);
 		seq_printf(m, "%08x :  %08x\n", off, *ptr);
 	}
@@ -344,7 +346,7 @@ static int i915_ringbuffer_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "RingHead :  %08x\n", head);
 	seq_printf(m, "RingTail :  %08x\n", tail);
-	seq_printf(m, "RingSize :  %08lx\n", dev_priv->ring.Size);
+	seq_printf(m, "RingSize :  %08lx\n", dev_priv->render_ring.size);
 	seq_printf(m, "Acthd :     %08x\n", I915_READ(IS_I965G(dev) ? ACTHD_I965 : ACTHD));
 
 	return 0;
@@ -489,11 +491,14 @@ static int i915_cur_delayinfo(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u16 rgvswctl = I915_READ16(MEMSWCTL);
+	u16 rgvstat = I915_READ16(MEMSTAT_ILK);
 
-	seq_printf(m, "Last command: 0x%01x\n", (rgvswctl >> 13) & 0x3);
-	seq_printf(m, "Command status: %d\n", (rgvswctl >> 12) & 1);
-	seq_printf(m, "P%d DELAY 0x%02x\n", (rgvswctl >> 8) & 0xf,
-		   rgvswctl & 0x3f);
+	seq_printf(m, "Requested P-state: %d\n", (rgvswctl >> 8) & 0xf);
+	seq_printf(m, "Requested VID: %d\n", rgvswctl & 0x3f);
+	seq_printf(m, "Current VID: %d\n", (rgvstat & MEMSTAT_VID_MASK) >>
+		   MEMSTAT_VID_SHIFT);
+	seq_printf(m, "Current P-state: %d\n",
+		   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
 
 	return 0;
 }
@@ -508,7 +513,8 @@ static int i915_delayfreq_table(struct seq_file *m, void *unused)
 
 	for (i = 0; i < 16; i++) {
 		delayfreq = I915_READ(PXVFREQ_BASE + i * 4);
-		seq_printf(m, "P%02dVIDFREQ: 0x%08x\n", i, delayfreq);
+		seq_printf(m, "P%02dVIDFREQ: 0x%08x (VID: %d)\n", i, delayfreq,
+			   (delayfreq & PXVFREQ_PX_MASK) >> PXVFREQ_PX_SHIFT);
 	}
 
 	return 0;
@@ -541,6 +547,8 @@ static int i915_drpc_info(struct seq_file *m, void *unused)
 	struct drm_device *dev = node->minor->dev;
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	u32 rgvmodectl = I915_READ(MEMMODECTL);
+	u32 rstdbyctl = I915_READ(MCHBAR_RENDER_STANDBY);
+	u16 crstandvid = I915_READ16(CRSTANDVID);
 
 	seq_printf(m, "HD boost: %s\n", (rgvmodectl & MEMMODE_BOOST_EN) ?
 		   "yes" : "no");
@@ -555,9 +563,13 @@ static int i915_drpc_info(struct seq_file *m, void *unused)
 		   rgvmodectl & MEMMODE_RCLK_GATE ? "yes" : "no");
 	seq_printf(m, "Starting frequency: P%d\n",
 		   (rgvmodectl & MEMMODE_FSTART_MASK) >> MEMMODE_FSTART_SHIFT);
-	seq_printf(m, "Max frequency: P%d\n",
+	seq_printf(m, "Max P-state: P%d\n",
 		   (rgvmodectl & MEMMODE_FMAX_MASK) >> MEMMODE_FMAX_SHIFT);
-	seq_printf(m, "Min frequency: P%d\n", (rgvmodectl & MEMMODE_FMIN_MASK));
+	seq_printf(m, "Min P-state: P%d\n", (rgvmodectl & MEMMODE_FMIN_MASK));
+	seq_printf(m, "RS1 VID: %d\n", (crstandvid & 0x3f));
+	seq_printf(m, "RS2 VID: %d\n", ((crstandvid >> 8) & 0x3f));
+	seq_printf(m, "Render standby enabled: %s\n",
+		   (rstdbyctl & RCX_SW_EXIT) ? "no" : "yes");
 
 	return 0;
 }
@@ -617,6 +629,36 @@ static int i915_sr_status(struct seq_file *m, void *unused)
 
 	seq_printf(m, "self-refresh: %s\n", sr_enabled ? "enabled" :
 		   "disabled");
+
+	return 0;
+}
+
+static int i915_emon_status(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	unsigned long temp, chipset, gfx;
+
+	temp = i915_mch_val(dev_priv);
+	chipset = i915_chipset_val(dev_priv);
+	gfx = i915_gfx_val(dev_priv);
+
+	seq_printf(m, "GMCH temp: %ld\n", temp);
+	seq_printf(m, "Chipset power: %ld\n", chipset);
+	seq_printf(m, "GFX power: %ld\n", gfx);
+	seq_printf(m, "Total power: %ld\n", chipset + gfx);
+
+	return 0;
+}
+
+static int i915_gfxec(struct seq_file *m, void *unused)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_device *dev = node->minor->dev;
+	drm_i915_private_t *dev_priv = dev->dev_private;
+
+	seq_printf(m, "GFXEC: %ld\n", (unsigned long)I915_READ(0x112f4));
 
 	return 0;
 }
@@ -743,6 +785,8 @@ static struct drm_info_list i915_debugfs_list[] = {
 	{"i915_delayfreq_table", i915_delayfreq_table, 0},
 	{"i915_inttoext_table", i915_inttoext_table, 0},
 	{"i915_drpc_info", i915_drpc_info, 0},
+	{"i915_emon_status", i915_emon_status, 0},
+	{"i915_gfxec", i915_gfxec, 0},
 	{"i915_fbc_status", i915_fbc_status, 0},
 	{"i915_sr_status", i915_sr_status, 0},
 };
