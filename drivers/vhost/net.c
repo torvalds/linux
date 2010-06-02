@@ -519,13 +519,12 @@ static long vhost_net_set_backend(struct vhost_net *n, unsigned index, int fd)
 
 	/* start polling new socket */
 	oldsock = vq->private_data;
-	if (sock == oldsock)
-		goto done;
+	if (sock != oldsock){
+                vhost_net_disable_vq(n, vq);
+                rcu_assign_pointer(vq->private_data, sock);
+                vhost_net_enable_vq(n, vq);
+	}
 
-	vhost_net_disable_vq(n, vq);
-	rcu_assign_pointer(vq->private_data, sock);
-	vhost_net_enable_vq(n, vq);
-done:
 	if (oldsock) {
 		vhost_net_flush_vq(n, index);
 		fput(oldsock->file);
@@ -626,7 +625,7 @@ static long vhost_net_compat_ioctl(struct file *f, unsigned int ioctl,
 }
 #endif
 
-const static struct file_operations vhost_net_fops = {
+static const struct file_operations vhost_net_fops = {
 	.owner          = THIS_MODULE,
 	.release        = vhost_net_release,
 	.unlocked_ioctl = vhost_net_ioctl,
