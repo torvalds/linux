@@ -222,7 +222,7 @@ static int siena_probe_nic(struct efx_nic *efx)
 	}
 
 	efx_reado(efx, &reg, FR_AZ_CS_DEBUG);
-	efx->port_num = EFX_OWORD_FIELD(reg, FRF_CZ_CS_PORT_NUM) - 1;
+	efx->net_dev->dev_id = EFX_OWORD_FIELD(reg, FRF_CZ_CS_PORT_NUM) - 1;
 
 	efx_mcdi_init(efx);
 
