@@ -30,6 +30,19 @@ struct msg_desc {
 	struct bau_payload_queue_entry *va_queue_last;
 };
 
+/* timeouts in nanoseconds (indexed by UVH_AGING_PRESCALE_SEL urgency7 30:28) */
+static int timeout_base_ns[] = {
+		20,
+		160,
+		1280,
+		10240,
+		81920,
+		655360,
+		5242880,
+		167772160
+};
+static int timeout_us;
+
 #define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD	0x000000000bUL
 
 static int uv_bau_max_concurrent __read_mostly;
@@ -423,7 +436,8 @@ static int uv_wait_completion(struct bau_desc *bau_desc,
 			 * pending.  In that case hardware returns the
 			 * ERROR that looks like a destination timeout.
 			 */
-			if (cycles_2_us(ttime - bcp->send_message) < BIOS_TO) {
+			if (cycles_2_us(ttime - bcp->send_message) <
+							timeout_us) {
 				bcp->conseccompletes = 0;
 				return FLUSH_RETRY_PLUGGED;
 			}
@@ -908,12 +922,12 @@ static void uv_ptc_seq_stop(struct seq_file *file, void *data)
 }
 
 static inline unsigned long long
-millisec_2_cycles(unsigned long millisec)
+microsec_2_cycles(unsigned long microsec)
 {
 	unsigned long ns;
 	unsigned long long cyc;
 
-	ns = millisec * 1000;
+	ns = microsec * 1000;
 	cyc = (ns << CYC2NS_SCALE_FACTOR)/(per_cpu(cyc2ns, smp_processor_id()));
 	return cyc;
 }
@@ -1259,6 +1273,33 @@ static void __init uv_init_uvhub(int uvhub, int vector)
 }
 
 /*
+ * We will set BAU_MISC_CONTROL with a timeout period.
+ * But the BIOS has set UVH_AGING_PRESCALE_SEL and UVH_TRANSACTION_TIMEOUT.
+ * So the destination timeout period has be be calculated from them.
+ */
+static int
+calculate_destination_timeout(void)
+{
+	unsigned long mmr_image;
+	int mult1;
+	int mult2;
+	int index;
+	int base;
+	int ret;
+	unsigned long ts_ns;
+
+	mult1 = UV_INTD_SOFT_ACK_TIMEOUT_PERIOD & BAU_MISC_CONTROL_MULT_MASK;
+	mmr_image = uv_read_local_mmr(UVH_AGING_PRESCALE_SEL);
+	index = (mmr_image >> BAU_URGENCY_7_SHIFT) & BAU_URGENCY_7_MASK;
+	mmr_image = uv_read_local_mmr(UVH_TRANSACTION_TIMEOUT);
+	mult2 = (mmr_image >> BAU_TRANS_SHIFT) & BAU_TRANS_MASK;
+	base = timeout_base_ns[index];
+	ts_ns = base * mult1 * mult2;
+	ret = ts_ns / 1000;
+	return ret;
+}
+
+/*
  * initialize the bau_control structure for each cpu
  */
 static void uv_init_per_cpu(int nuvhubs)
@@ -1286,6 +1327,8 @@ static void uv_init_per_cpu(int nuvhubs)
 	};
 	struct uvhub_desc *uvhub_descs;
 
+	timeout_us = calculate_destination_timeout();
+
 	uvhub_descs = (struct uvhub_desc *)
 		kmalloc(nuvhubs * sizeof(struct uvhub_desc), GFP_KERNEL);
 	memset(uvhub_descs, 0, nuvhubs * sizeof(struct uvhub_desc));
@@ -1301,7 +1344,7 @@ static void uv_init_per_cpu(int nuvhubs)
 		bdp->uvhub = uvhub;
 		bdp->pnode = pnode;
 		/* time interval to catch a hardware stay-busy bug */
-		bcp->timeout_interval = millisec_2_cycles(3);
+		bcp->timeout_interval = microsec_2_cycles(2*timeout_us);
 		/* kludge: assume uv_hub.h is constant */
 		socket = (cpu_physical_id(cpu)>>5)&1;
 		if (socket >= bdp->num_sockets)

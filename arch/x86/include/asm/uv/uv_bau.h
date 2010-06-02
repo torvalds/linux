@@ -49,6 +49,18 @@
 #define UV_ENABLE_INTD_SOFT_ACK_MODE_SHIFT 15
 #define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHIFT 16
 #define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD 0x000000000bUL
+/* [19:16] SOFT_ACK timeout period  19: 1 is urgency 7  17:16 1 is multiplier */
+#define BAU_MISC_CONTROL_MULT_MASK 3
+
+#define UVH_AGING_PRESCALE_SEL 0x000000b000UL
+/* [30:28] URGENCY_7  an index into a table of times */
+#define BAU_URGENCY_7_SHIFT 28
+#define BAU_URGENCY_7_MASK 7
+
+#define UVH_TRANSACTION_TIMEOUT 0x000000b200UL
+/* [45:40] BAU - BAU transaction timeout select - a multiplier */
+#define BAU_TRANS_SHIFT 40
+#define BAU_TRANS_MASK 0x3f
 
 /*
  * bits in UVH_LB_BAU_SB_ACTIVATION_STATUS_0/1
