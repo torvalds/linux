@@ -64,3 +64,4 @@ int ath9k_cmn_key_config(struct ath_common *common,
 			 struct ieee80211_key_conf *key);
 void ath9k_cmn_key_delete(struct ath_common *common,
 			  struct ieee80211_key_conf *key);
+int ath9k_cmn_count_streams(unsigned int chainmask, int max);

@@ -397,6 +397,19 @@ void ath9k_cmn_key_delete(struct ath_common *common,
 }
 EXPORT_SYMBOL(ath9k_cmn_key_delete);
 
+int ath9k_cmn_count_streams(unsigned int chainmask, int max)
+{
+	int streams = 0;
+
+	do {
+		if (++streams == max)
+			break;
+	} while ((chainmask = chainmask & (chainmask - 1)));
+
+	return streams;
+}
+EXPORT_SYMBOL(ath9k_cmn_count_streams);
+
 static int __init ath9k_cmn_init(void)
 {
 	return 0;

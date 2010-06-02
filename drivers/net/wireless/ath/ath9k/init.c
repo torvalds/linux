@@ -175,18 +175,6 @@ static const struct ath_ops ath9k_common_ops = {
 	.write = ath9k_iowrite32,
 };
 
-static int count_streams(unsigned int chainmask, int max)
-{
-	int streams = 0;
-
-	do {
-		if (++streams == max)
-			break;
-	} while ((chainmask = chainmask & (chainmask - 1)));
-
-	return streams;
-}
-
 /**************************/
 /*     Initialization     */
 /**************************/
@@ -227,8 +215,8 @@ static void setup_ht_cap(struct ath_softc *sc,
 
 	/* set up supported mcs set */
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
-	tx_streams = count_streams(common->tx_chainmask, max_streams);
-	rx_streams = count_streams(common->rx_chainmask, max_streams);
+	tx_streams = ath9k_cmn_count_streams(common->tx_chainmask, max_streams);
+	rx_streams = ath9k_cmn_count_streams(common->rx_chainmask, max_streams);
 
 	ath_print(common, ATH_DBG_CONFIG,
 		  "TX streams %d, RX streams: %d\n",
