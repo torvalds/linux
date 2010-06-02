@@ -76,6 +76,21 @@ struct Qdisc {
 	struct rcu_head     rcu_head;
 };
 
+static inline bool qdisc_is_running(struct Qdisc *qdisc)
+{
+	return test_bit(__QDISC_STATE_RUNNING, &qdisc->state);
+}
+
+static inline bool qdisc_run_begin(struct Qdisc *qdisc)
+{
+	return !test_and_set_bit(__QDISC_STATE_RUNNING, &qdisc->state);
+}
+
+static inline void qdisc_run_end(struct Qdisc *qdisc)
+{
+	clear_bit(__QDISC_STATE_RUNNING, &qdisc->state);
+}
+
 struct Qdisc_class_ops {
 	/* Child qdisc manipulation */
 	struct netdev_queue *	(*select_queue)(struct Qdisc *, struct tcmsg *);
