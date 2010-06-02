@@ -398,6 +398,10 @@ static const struct ath_bus_ops ath9k_usb_bus_ops = {
 static void setup_ht_cap(struct ath9k_htc_priv *priv,
 			 struct ieee80211_sta_ht_cap *ht_info)
 {
+	struct ath_common *common = ath9k_hw_common(priv->ah);
+	u8 tx_streams, rx_streams;
+	int i;
+
 	ht_info->ht_supported = true;
 	ht_info->cap = IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
 		       IEEE80211_HT_CAP_SM_PS |
@@ -413,7 +417,24 @@ static void setup_ht_cap(struct ath9k_htc_priv *priv,
 	ht_info->ampdu_density = IEEE80211_HT_MPDU_DENSITY_8;
 
 	memset(&ht_info->mcs, 0, sizeof(ht_info->mcs));
-	ht_info->mcs.rx_mask[0] = 0xff;
+
+	/* ath9k_htc supports only 1 or 2 stream devices */
+	tx_streams = ath9k_cmn_count_streams(common->tx_chainmask, 2);
+	rx_streams = ath9k_cmn_count_streams(common->rx_chainmask, 2);
+
+	ath_print(common, ATH_DBG_CONFIG,
+		  "TX streams %d, RX streams: %d\n",
+		  tx_streams, rx_streams);
+
+	if (tx_streams != rx_streams) {
+		ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_RX_DIFF;
+		ht_info->mcs.tx_params |= ((tx_streams - 1) <<
+					   IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT);
+	}
+
+	for (i = 0; i < rx_streams; i++)
+		ht_info->mcs.rx_mask[i] = 0xff;
+
 	ht_info->mcs.tx_params |= IEEE80211_HT_MCS_TX_DEFINED;
 }
 
