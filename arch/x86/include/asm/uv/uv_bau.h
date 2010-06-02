@@ -346,6 +346,11 @@ struct ptc_stats {
 	unsigned long s_time; /* time spent in sending side */
 	unsigned long s_retriesok; /* successful retries */
 	unsigned long s_ntargcpu; /* total number of cpu's targeted */
+	unsigned long s_ntargself; /* times the sending cpu was targeted */
+	unsigned long s_ntarglocals; /* targets of cpus on the local blade */
+	unsigned long s_ntargremotes; /* targets of cpus on remote blades */
+	unsigned long s_ntarglocaluvhub; /* targets of the local hub */
+	unsigned long s_ntargremoteuvhub; /* remotes hubs targeted */
 	unsigned long s_ntarguvhub; /* total number of uvhubs targeted */
 	unsigned long s_ntarguvhub16; /* number of times target hubs >= 16*/
 	unsigned long s_ntarguvhub8; /* number of times target hubs >= 8 */
