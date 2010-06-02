@@ -1851,6 +1851,7 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 	__be32 spec_dst;
 	struct in_device *in_dev = in_dev_get(dev);
 	u32 itag = 0;
+	int err;
 
 	/* Primary sanity checks. */
 
@@ -1865,10 +1866,12 @@ static int ip_route_input_mc(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		if (!ipv4_is_local_multicast(daddr))
 			goto e_inval;
 		spec_dst = inet_select_addr(dev, 0, RT_SCOPE_LINK);
-	} else if (fib_validate_source(saddr, 0, tos, 0,
-					dev, &spec_dst, &itag, 0) < 0)
-		goto e_inval;
-
+	} else {
+		err = fib_validate_source(saddr, 0, tos, 0, dev, &spec_dst,
+					  &itag, 0);
+		if (err < 0)
+			goto e_err;
+	}
 	rth = dst_alloc(&ipv4_dst_ops);
 	if (!rth)
 		goto e_nobufs;
@@ -1920,8 +1923,10 @@ e_nobufs:
 	return -ENOBUFS;
 
 e_inval:
+	err = -EINVAL;
+e_err:
 	in_dev_put(in_dev);
-	return -EINVAL;
+	return err;
 }
 
 
@@ -1985,7 +1990,6 @@ static int __mkroute_input(struct sk_buff *skb,
 		ip_handle_martian_source(in_dev->dev, in_dev, skb, daddr,
 					 saddr);
 
-		err = -EINVAL;
 		goto cleanup;
 	}
 
@@ -2157,13 +2161,12 @@ static int ip_route_input_slow(struct sk_buff *skb, __be32 daddr, __be32 saddr,
 		goto brd_input;
 
 	if (res.type == RTN_LOCAL) {
-		int result;
-		result = fib_validate_source(saddr, daddr, tos,
+		err = fib_validate_source(saddr, daddr, tos,
 					     net->loopback_dev->ifindex,
 					     dev, &spec_dst, &itag, skb->mark);
-		if (result < 0)
-			goto martian_source;
-		if (result)
+		if (err < 0)
+			goto martian_source_keep_err;
+		if (err)
 			flags |= RTCF_DIRECTSRC;
 		spec_dst = daddr;
 		goto local_input;
@@ -2191,7 +2194,7 @@ brd_input:
 		err = fib_validate_source(saddr, 0, tos, 0, dev, &spec_dst,
 					  &itag, skb->mark);
 		if (err < 0)
-			goto martian_source;
+			goto martian_source_keep_err;
 		if (err)
 			flags |= RTCF_DIRECTSRC;
 	}
@@ -2272,8 +2275,10 @@ e_nobufs:
 	goto done;
 
 martian_source:
+	err = -EINVAL;
+martian_source_keep_err:
 	ip_handle_martian_source(dev, in_dev, skb, daddr, saddr);
-	goto e_inval;
+	goto done;
 }
 
 int ip_route_input_common(struct sk_buff *skb, __be32 daddr, __be32 saddr,

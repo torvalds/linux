@@ -340,6 +340,9 @@ static int ip_rcv_finish(struct sk_buff *skb)
 			else if (err == -ENETUNREACH)
 				IP_INC_STATS_BH(dev_net(skb->dev),
 						IPSTATS_MIB_INNOROUTES);
+			else if (err == -EXDEV)
+				NET_INC_STATS_BH(dev_net(skb->dev),
+						 LINUX_MIB_IPRPFILTER);
 			goto drop;
 		}
 	}

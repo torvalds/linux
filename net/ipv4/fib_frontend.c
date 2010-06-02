@@ -284,7 +284,7 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 	if (no_addr)
 		goto last_resort;
 	if (rpf == 1)
-		goto e_inval;
+		goto e_rpf;
 	fl.oif = dev->ifindex;
 
 	ret = 0;
@@ -299,7 +299,7 @@ int fib_validate_source(__be32 src, __be32 dst, u8 tos, int oif,
 
 last_resort:
 	if (rpf)
-		goto e_inval;
+		goto e_rpf;
 	*spec_dst = inet_select_addr(dev, 0, RT_SCOPE_UNIVERSE);
 	*itag = 0;
 	return 0;
@@ -308,6 +308,8 @@ e_inval_res:
 	fib_res_put(&res);
 e_inval:
 	return -EINVAL;
+e_rpf:
+	return -EXDEV;
 }
 
 static inline __be32 sk_extract_addr(struct sockaddr *addr)
