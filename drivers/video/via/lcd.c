@@ -87,33 +87,8 @@ static int check_lvds_chip(int device_id_subaddr, int device_id)
 void viafb_init_lcd_size(void)
 {
 	DEBUG_MSG(KERN_INFO "viafb_init_lcd_size()\n");
-	DEBUG_MSG(KERN_INFO
-		"viaparinfo->lvds_setting_info->get_lcd_size_method %d\n",
-		viaparinfo->lvds_setting_info->get_lcd_size_method);
 
-	switch (viaparinfo->lvds_setting_info->get_lcd_size_method) {
-	case GET_LCD_SIZE_BY_SYSTEM_BIOS:
-		break;
-	case GET_LCD_SZIE_BY_HW_STRAPPING:
-		break;
-	case GET_LCD_SIZE_BY_VGA_BIOS:
-		DEBUG_MSG(KERN_INFO "Get LCD Size method by VGA BIOS !!\n");
-		fp_id_to_vindex(viafb_lcd_panel_id);
-		DEBUG_MSG(KERN_INFO "LCD Panel_ID = %d\n",
-			  viaparinfo->lvds_setting_info->lcd_panel_id);
-		break;
-	case GET_LCD_SIZE_BY_USER_SETTING:
-		DEBUG_MSG(KERN_INFO "Get LCD Size method by user setting !!\n");
-		fp_id_to_vindex(viafb_lcd_panel_id);
-		DEBUG_MSG(KERN_INFO "LCD Panel_ID = %d\n",
-			  viaparinfo->lvds_setting_info->lcd_panel_id);
-		break;
-	default:
-		DEBUG_MSG(KERN_INFO "viafb_init_lcd_size fail\n");
-		viaparinfo->lvds_setting_info->lcd_panel_id =
-			LCD_PANEL_ID1_800X600;
-		fp_id_to_vindex(LCD_PANEL_ID1_800X600);
-	}
+	fp_id_to_vindex(viafb_lcd_panel_id);
 	viaparinfo->lvds_setting_info2->lcd_panel_id =
 		viaparinfo->lvds_setting_info->lcd_panel_id;
 	viaparinfo->lvds_setting_info2->lcd_panel_hres =

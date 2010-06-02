@@ -1791,8 +1791,6 @@ void viafb_init_chip_info(int chip_type)
 	viafb_set_iga_path();
 
 	viaparinfo->lvds_setting_info->display_method = viafb_lcd_dsp_method;
-	viaparinfo->lvds_setting_info->get_lcd_size_method =
-		GET_LCD_SIZE_BY_USER_SETTING;
 	viaparinfo->lvds_setting_info->lcd_mode = viafb_lcd_mode;
 	viaparinfo->lvds_setting_info2->display_method =
 		viaparinfo->lvds_setting_info->display_method;
@@ -1946,13 +1944,6 @@ static void init_tmds_chip_info(void)
 
 static void init_lvds_chip_info(void)
 {
-	if (viafb_lcd_panel_id > LCD_PANEL_ID_MAXIMUM)
-		viaparinfo->lvds_setting_info->get_lcd_size_method =
-		    GET_LCD_SIZE_BY_VGA_BIOS;
-	else
-		viaparinfo->lvds_setting_info->get_lcd_size_method =
-		    GET_LCD_SIZE_BY_USER_SETTING;
-
 	viafb_lvds_trasmitter_identify();
 	viafb_init_lcd_size();
 	viafb_init_lvds_output_interface(&viaparinfo->chip_info->lvds_chip_info,
