@@ -340,6 +340,11 @@ static inline bool cpu_has_vmx_ept_1g_page(void)
 	return vmx_capability.ept & VMX_EPT_1GB_PAGE_BIT;
 }
 
+static inline bool cpu_has_vmx_ept_4levels(void)
+{
+	return vmx_capability.ept & VMX_EPT_PAGE_WALK_4_BIT;
+}
+
 static inline bool cpu_has_vmx_invept_individual_addr(void)
 {
 	return vmx_capability.ept & VMX_EPT_EXTENT_INDIVIDUAL_BIT;
@@ -1568,7 +1573,8 @@ static __init int hardware_setup(void)
 	if (!cpu_has_vmx_vpid())
 		enable_vpid = 0;
 
-	if (!cpu_has_vmx_ept()) {
+	if (!cpu_has_vmx_ept() ||
+	    !cpu_has_vmx_ept_4levels()) {
 		enable_ept = 0;
 		enable_unrestricted_guest = 0;
 	}
