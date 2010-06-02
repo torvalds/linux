@@ -466,7 +466,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		}
 
 	}
-	if (c->x86 == 0x10 || c->x86 == 0x11)
+	if (c->x86 >= 0x10)
 		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
 
 	/* get apicid instead of initial apic id from cpuid */
@@ -529,7 +529,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 			num_cache_leaves = 3;
 	}
 
-	if (c->x86 >= 0xf && c->x86 <= 0x11)
+	if (c->x86 >= 0xf)
 		set_cpu_cap(c, X86_FEATURE_K8);
 
 	if (cpu_has_xmm2) {
@@ -546,7 +546,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 		fam10h_check_enable_mmcfg();
 	}
 
-	if (c == &boot_cpu_data && c->x86 >= 0xf && c->x86 <= 0x11) {
+	if (c == &boot_cpu_data && c->x86 >= 0xf) {
 		unsigned long long tseg;
 
 		/*
