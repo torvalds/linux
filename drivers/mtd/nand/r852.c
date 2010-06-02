@@ -940,18 +940,19 @@ int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 
 	r852_dma_test(dev);
 
+	dev->irq = pci_dev->irq;
+	spin_lock_init(&dev->irqlock);
+
+	dev->card_detected = 0;
+	r852_card_update_present(dev);
+
 	/*register irq handler*/
 	error = -ENODEV;
 	if (request_irq(pci_dev->irq, &r852_irq, IRQF_SHARED,
 			  DRV_NAME, dev))
 		goto error10;
 
-	dev->irq = pci_dev->irq;
-	spin_lock_init(&dev->irqlock);
-
 	/* kick initial present test */
-	dev->card_detected = 0;
-	r852_card_update_present(dev);
 	queue_delayed_work(dev->card_workqueue,
 		&dev->card_detect_work, 0);
 
