@@ -487,9 +487,6 @@ static int venc_panel_enable(struct omap_dss_device *dssdev)
 
 	dssdev->state = OMAP_DSS_DISPLAY_ACTIVE;
 
-	/* wait couple of vsyncs until enabling the LCD */
-	msleep(50);
-
 err1:
 	mutex_unlock(&venc.venc_lock);
 
@@ -512,9 +509,6 @@ static void venc_panel_disable(struct omap_dss_device *dssdev)
 	}
 
 	venc_power_off(dssdev);
-
-	/* wait at least 5 vsyncs after disabling the LCD */
-	msleep(100);
 
 	dssdev->state = OMAP_DSS_DISPLAY_DISABLED;
 end:
