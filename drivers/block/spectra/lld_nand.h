@@ -82,7 +82,7 @@ struct mrst_nand_info {
 };
 
 int NAND_Flash_Init(void);
-int nand_release(void);
+int nand_release_spectra(void);
 u16  NAND_Flash_Reset(void);
 u16  NAND_Read_Device_ID(void);
 u16  NAND_Erase_Block(u32 flash_add);

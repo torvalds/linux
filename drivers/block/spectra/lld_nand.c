@@ -2588,7 +2588,7 @@ int NAND_Flash_Init(void)
 }
 
 /* Free memory */
-int nand_release(void)
+int nand_release_spectra(void)
 {
 	pci_unregister_driver(&nand_pci_driver);
 	iounmap(FlashMem);

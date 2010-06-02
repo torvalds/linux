@@ -218,7 +218,7 @@ u16 GLOB_LLD_Flash_Init(void)
 
 int GLOB_LLD_Flash_Release(void)
 {
-	return nand_release();
+	return nand_release_spectra();
 }
 
 u16 GLOB_LLD_Erase_Block(u32 block_add)
