@@ -25,7 +25,7 @@ struct access_method {
 	void (*submit_command)(ctlr_info_t *h, CommandList_struct *c);
 	void (*set_intr_mask)(ctlr_info_t *h, unsigned long val);
 	unsigned long (*fifo_full)(ctlr_info_t *h);
-	unsigned long (*intr_pending)(ctlr_info_t *h);
+	bool (*intr_pending)(ctlr_info_t *h);
 	unsigned long (*command_completed)(ctlr_info_t *h);
 };
 typedef struct _drive_info_struct
@@ -253,7 +253,7 @@ static unsigned long SA5_completed(ctlr_info_t *h)
 /*
  *	Returns true if an interrupt is pending.. 
  */
-static unsigned long SA5_intr_pending(ctlr_info_t *h)
+static bool SA5_intr_pending(ctlr_info_t *h)
 {
 	unsigned long register_value  = 
 		readl(h->vaddr + SA5_INTR_STATUS);
@@ -268,7 +268,7 @@ static unsigned long SA5_intr_pending(ctlr_info_t *h)
 /*
  *      Returns true if an interrupt is pending..
  */
-static unsigned long SA5B_intr_pending(ctlr_info_t *h)
+static bool SA5B_intr_pending(ctlr_info_t *h)
 {
         unsigned long register_value  =
                 readl(h->vaddr + SA5_INTR_STATUS);
