@@ -845,6 +845,17 @@ config RCU_CPU_STALL_DETECTOR
 
 	  Say Y if you are unsure.
 
+config RCU_CPU_STALL_TIMEOUT
+	int "RCU CPU stall timeout in seconds"
+	depends on RCU_CPU_STALL_DETECTOR
+	range 3 300
+	default 60
+	help
+	  If a given RCU grace period extends more than the specified
+	  number of seconds, a CPU stall warning is printed.  If the
+	  RCU grace period persists, additional CPU stall warnings are
+	  printed at more widely spaced intervals.
+
 config RCU_CPU_STALL_VERBOSE
 	bool "Print additional per-task information for RCU_CPU_STALL_DETECTOR"
 	depends on RCU_CPU_STALL_DETECTOR && TREE_PREEMPT_RCU
