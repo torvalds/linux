@@ -34,6 +34,7 @@
  */
 
 #define UV_ITEMS_PER_DESCRIPTOR		8
+/* the 'throttle' to prevent the hardware stay-busy bug */
 #define MAX_BAU_CONCURRENT		3
 #define UV_CPUS_PER_ACT_STATUS		32
 #define UV_ACT_STATUS_MASK		0x3
@@ -338,6 +339,7 @@ struct bau_control {
 	int timeout_tries;
 	int ipi_attempts;
 	int conseccompletes;
+	int baudisabled;
 	int set_bau_off;
 	short cpu;
 	short uvhub_cpu;
@@ -389,6 +391,8 @@ struct ptc_stats {
 	unsigned long s_busy; /* status stayed busy past s/w timer */
 	unsigned long s_throttles; /* waits in throttle */
 	unsigned long s_retry_messages; /* retry broadcasts */
+	unsigned long s_bau_reenabled; /* for bau enable/disable */
+	unsigned long s_bau_disabled; /* for bau enable/disable */
 	/* destination statistics */
 	unsigned long d_alltlb; /* times all tlb's on this cpu were flushed */
 	unsigned long d_onetlb; /* times just one tlb on this cpu was flushed */
