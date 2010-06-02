@@ -526,7 +526,6 @@ static void macio_pci_add_devices(struct macio_chip *chip)
 int macio_register_driver(struct macio_driver *drv)
 {
 	/* initialize common driver fields */
-	drv->driver.name = drv->name;
 	drv->driver.bus = &macio_bus_type;
 
 	/* register with core */
