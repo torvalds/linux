@@ -402,7 +402,6 @@ struct bau_control {
 	unsigned short uvhub_quiesce;
 	short socket_acknowledge_count[DEST_Q_SIZE];
 	cycles_t send_message;
-	spinlock_t masks_lock;
 	spinlock_t uvhub_lock;
 	spinlock_t queue_lock;
 	/* tunables */

@@ -405,12 +405,10 @@ static int uv_wait_completion(struct bau_desc *bau_desc,
 	unsigned long mmr;
 	unsigned long mask;
 	cycles_t ttime;
-	cycles_t timeout_time;
 	struct ptc_stats *stat = bcp->statp;
 	struct bau_control *hmaster;
 
 	hmaster = bcp->uvhub_master;
-	timeout_time = get_cycles() + bcp->timeout_interval;
 
 	/* spin on the status MMR, waiting for it to go idle */
 	while ((descriptor_status = (((unsigned long)
@@ -450,26 +448,6 @@ static int uv_wait_completion(struct bau_desc *bau_desc,
 			 * descriptor_status is still BUSY
 			 */
 			cpu_relax();
-			relaxes++;
-			if (relaxes >= 10000) {
-				relaxes = 0;
-				if (get_cycles() > timeout_time) {
-					quiesce_local_uvhub(hmaster);
-
-					/* single-thread the register change */
-					spin_lock(&hmaster->masks_lock);
-					mmr = uv_read_local_mmr(mmr_offset);
-					mask = 0UL;
-					mask |= (3UL < right_shift);
-					mask = ~mask;
-					mmr &= mask;
-					uv_write_local_mmr(mmr_offset, mmr);
-					spin_unlock(&hmaster->masks_lock);
-					end_uvhub_quiesce(hmaster);
-					stat->s_busy++;
-					return FLUSH_GIVEUP;
-				}
-			}
 		}
 	}
 	bcp->conseccompletes++;
@@ -1580,7 +1558,6 @@ static void uv_init_per_cpu(int nuvhubs)
 	for_each_present_cpu(cpu) {
 		bcp = &per_cpu(bau_control, cpu);
 		memset(bcp, 0, sizeof(struct bau_control));
-		spin_lock_init(&bcp->masks_lock);
 		pnode = uv_cpu_hub_info(cpu)->pnode;
 		uvhub = uv_cpu_hub_info(cpu)->numa_blade_id;
 		uvhub_mask |= (1 << uvhub);
