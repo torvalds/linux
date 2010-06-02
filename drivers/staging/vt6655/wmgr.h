@@ -91,26 +91,26 @@ typedef void (*TimerFunction)(ULONG);
 typedef unsigned char NDIS_802_11_MAC_ADDRESS[6];
 typedef struct _NDIS_802_11_AI_REQFI
 {
-    USHORT Capabilities;
-    USHORT ListenInterval;
+    unsigned short Capabilities;
+    unsigned short ListenInterval;
     NDIS_802_11_MAC_ADDRESS  CurrentAPAddress;
 } NDIS_802_11_AI_REQFI, *PNDIS_802_11_AI_REQFI;
 
 typedef struct _NDIS_802_11_AI_RESFI
 {
-    USHORT Capabilities;
-    USHORT StatusCode;
-    USHORT AssociationId;
+    unsigned short Capabilities;
+    unsigned short StatusCode;
+    unsigned short AssociationId;
 } NDIS_802_11_AI_RESFI, *PNDIS_802_11_AI_RESFI;
 
 typedef struct _NDIS_802_11_ASSOCIATION_INFORMATION
 {
     ULONG                   Length;
-    USHORT                  AvailableRequestFixedIEs;
+    unsigned short          AvailableRequestFixedIEs;
     NDIS_802_11_AI_REQFI    RequestFixedIEs;
     ULONG                   RequestIELength;
     ULONG                   OffsetRequestIEs;
-    USHORT                  AvailableResponseFixedIEs;
+    unsigned short          AvailableResponseFixedIEs;
     NDIS_802_11_AI_RESFI    ResponseFixedIEs;
     ULONG                   ResponseIELength;
     ULONG                   OffsetResponseIEs;
