@@ -74,6 +74,7 @@ struct uart_amba_port {
 	unsigned int		ifls;		/* vendor-specific */
 	unsigned int		lcrh_tx;	/* vendor-specific */
 	unsigned int		lcrh_rx;	/* vendor-specific */
+	bool			oversampling;   /* vendor-specific */
 	bool			autorts;
 };
 
@@ -83,6 +84,7 @@ struct vendor_data {
 	unsigned int		fifosize;
 	unsigned int		lcrh_tx;
 	unsigned int		lcrh_rx;
+	bool			oversampling;
 };
 
 static struct vendor_data vendor_arm = {
@@ -90,6 +92,7 @@ static struct vendor_data vendor_arm = {
 	.fifosize		= 16,
 	.lcrh_tx		= UART011_LCRH,
 	.lcrh_rx		= UART011_LCRH,
+	.oversampling		= false,
 };
 
 static struct vendor_data vendor_st = {
@@ -97,6 +100,7 @@ static struct vendor_data vendor_st = {
 	.fifosize		= 64,
 	.lcrh_tx		= ST_UART011_LCRH_TX,
 	.lcrh_rx		= ST_UART011_LCRH_RX,
+	.oversampling		= true,
 };
 
 static void pl011_stop_tx(struct uart_port *port)
@@ -499,8 +503,13 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 	/*
 	 * Ask the core to calculate the divisor for us.
 	 */
-	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16);
-	quot = port->uartclk * 4 / baud;
+	baud = uart_get_baud_rate(port, termios, old, 0,
+				  port->uartclk/(uap->oversampling ? 8 : 16));
+
+	if (baud > port->uartclk/16)
+		quot = DIV_ROUND_CLOSEST(port->uartclk * 8, baud);
+	else
+		quot = DIV_ROUND_CLOSEST(port->uartclk * 4, baud);
 
 	switch (termios->c_cflag & CSIZE) {
 	case CS5:
@@ -577,6 +586,13 @@ pl011_set_termios(struct uart_port *port, struct ktermios *termios,
 	} else {
 		old_cr &= ~(UART011_CR_CTSEN | UART011_CR_RTSEN);
 		uap->autorts = false;
+	}
+
+	if (uap->oversampling) {
+		if (baud > port->uartclk/16)
+			old_cr |= ST_UART011_CR_OVSFACT;
+		else
+			old_cr &= ~ST_UART011_CR_OVSFACT;
 	}
 
 	/* Set baud rate */
@@ -744,6 +760,12 @@ pl011_console_get_options(struct uart_amba_port *uap, int *baud,
 		fbrd = readw(uap->port.membase + UART011_FBRD);
 
 		*baud = uap->port.uartclk * 4 / (64 * ibrd + fbrd);
+
+		if (uap->oversampling) {
+			if (readw(uap->port.membase + UART011_CR)
+				  & ST_UART011_CR_OVSFACT)
+				*baud *= 2;
+		}
 	}
 }
 
@@ -839,6 +861,7 @@ static int pl011_probe(struct amba_device *dev, struct amba_id *id)
 	uap->ifls = vendor->ifls;
 	uap->lcrh_rx = vendor->lcrh_rx;
 	uap->lcrh_tx = vendor->lcrh_tx;
+	uap->oversampling = vendor->oversampling;
 	uap->port.dev = &dev->dev;
 	uap->port.mapbase = dev->res.start;
 	uap->port.membase = base;

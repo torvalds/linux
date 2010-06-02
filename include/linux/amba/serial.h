@@ -86,6 +86,7 @@
 #define UART010_CR_TIE 		0x0020
 #define UART010_CR_RIE 		0x0010
 #define UART010_CR_MSIE		0x0008
+#define ST_UART011_CR_OVSFACT	0x0008	/* Oversampling factor */
 #define UART01x_CR_IIRLP	0x0004	/* SIR low power mode */
 #define UART01x_CR_SIREN	0x0002	/* SIR enable */
 #define UART01x_CR_UARTEN	0x0001	/* UART enable */
