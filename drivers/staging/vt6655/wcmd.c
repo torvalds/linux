@@ -326,7 +326,7 @@ vCommandTimerWait(
     PSDevice        pDevice = (PSDevice)hDeviceContext;
 
     init_timer(&pDevice->sTimerCommand);
-    pDevice->sTimerCommand.data = (ULONG)pDevice;
+    pDevice->sTimerCommand.data = (unsigned long) pDevice;
     pDevice->sTimerCommand.function = (TimerFunction)vCommandTimer;
     // RUN_AT :1 msec ~= (HZ/1024)
     pDevice->sTimerCommand.expires = (unsigned int)RUN_AT((MSecond * HZ) >> 10);
@@ -723,7 +723,7 @@ printk("chester-abyDesireSSID=%s\n",((PWLAN_IE_SSID)pMgmt->abyDesireSSID)->abySS
                      // printk("Re-initial TxDataTimer****\n");
 		    del_timer(&pDevice->sTimerTxData);
                       init_timer(&pDevice->sTimerTxData);
-                      pDevice->sTimerTxData.data = (ULONG)pDevice;
+                      pDevice->sTimerTxData.data = (unsigned long) pDevice;
                       pDevice->sTimerTxData.function = (TimerFunction)BSSvSecondTxData;
                       pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
                       pDevice->fTxDataInSleep = FALSE;
@@ -1092,7 +1092,7 @@ vResetCommandTimer(
       del_timer(&pDevice->sTimerCommand);
   //init timer
       init_timer(&pDevice->sTimerCommand);
-    pDevice->sTimerCommand.data = (ULONG)pDevice;
+    pDevice->sTimerCommand.data = (unsigned long) pDevice;
     pDevice->sTimerCommand.function = (TimerFunction)vCommandTimer;
     pDevice->sTimerCommand.expires = RUN_AT(HZ);
     pDevice->cbFreeCmdQueue = CMD_Q_SIZE;

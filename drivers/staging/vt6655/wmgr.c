@@ -393,18 +393,18 @@ vMgrTimerInit(
 
 
     init_timer(&pMgmt->sTimerSecondCallback);
-    pMgmt->sTimerSecondCallback.data = (ULONG)pDevice;
+    pMgmt->sTimerSecondCallback.data = (unsigned long) pDevice;
     pMgmt->sTimerSecondCallback.function = (TimerFunction)BSSvSecondCallBack;
     pMgmt->sTimerSecondCallback.expires = RUN_AT(HZ);
 
     init_timer(&pDevice->sTimerCommand);
-    pDevice->sTimerCommand.data = (ULONG)pDevice;
+    pDevice->sTimerCommand.data = (unsigned long) pDevice;
     pDevice->sTimerCommand.function = (TimerFunction)vCommandTimer;
     pDevice->sTimerCommand.expires = RUN_AT(HZ);
 
    #ifdef TxInSleep
     init_timer(&pDevice->sTimerTxData);
-    pDevice->sTimerTxData.data = (ULONG)pDevice;
+    pDevice->sTimerTxData.data = (unsigned long) pDevice;
     pDevice->sTimerTxData.function = (TimerFunction)BSSvSecondTxData;
     pDevice->sTimerTxData.expires = RUN_AT(10*HZ);      //10s callback
     pDevice->fTxDataInSleep = FALSE;

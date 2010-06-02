@@ -47,7 +47,7 @@ void vConfigWEPKey (
     PSDevice pDevice,
     DWORD    dwKeyIndex,
     PBYTE    pbyKey,
-    ULONG    uKeyLength
+    unsigned long uKeyLength
     );
 */
 

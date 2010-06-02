@@ -1719,7 +1719,7 @@ const WORD awcFrameTime[MAX_RATE] =
 /*---------------------  Static Functions  --------------------------*/
 
 static
-ULONG
+unsigned long
 s_ulGetRatio(PSDevice pDevice);
 
 static
@@ -2651,12 +2651,12 @@ BBvExitDeepSleep (DWORD_PTR dwIoBase, BYTE byLocalID)
 
 
 static
-ULONG
+unsigned long
 s_ulGetRatio (PSDevice pDevice)
 {
-ULONG   ulRatio = 0;
-ULONG   ulMaxPacket;
-ULONG   ulPacketNum;
+unsigned long ulRatio = 0;
+unsigned long ulMaxPacket;
+unsigned long ulPacketNum;
 
     //This is a thousand-ratio
     ulMaxPacket = pDevice->uNumSQ3[RATE_54M];

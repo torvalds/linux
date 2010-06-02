@@ -83,7 +83,7 @@
 
 /*---------------------  Export Types  ------------------------------*/
 #define timer_expire(timer,next_tick)   mod_timer(&timer, RUN_AT(next_tick))
-typedef void (*TimerFunction)(ULONG);
+typedef void (*TimerFunction)(unsigned long);
 
 
 //+++ NDIS related
@@ -105,15 +105,15 @@ typedef struct _NDIS_802_11_AI_RESFI
 
 typedef struct _NDIS_802_11_ASSOCIATION_INFORMATION
 {
-    ULONG                   Length;
+    unsigned long Length;
     unsigned short          AvailableRequestFixedIEs;
     NDIS_802_11_AI_REQFI    RequestFixedIEs;
-    ULONG                   RequestIELength;
-    ULONG                   OffsetRequestIEs;
+    unsigned long RequestIELength;
+    unsigned long OffsetRequestIEs;
     unsigned short          AvailableResponseFixedIEs;
     NDIS_802_11_AI_RESFI    ResponseFixedIEs;
-    ULONG                   ResponseIELength;
-    ULONG                   OffsetResponseIEs;
+    unsigned long ResponseIELength;
+    unsigned long OffsetResponseIEs;
 } NDIS_802_11_ASSOCIATION_INFORMATION, *PNDIS_802_11_ASSOCIATION_INFORMATION;
 
 
@@ -122,7 +122,7 @@ typedef struct tagSAssocInfo {
     NDIS_802_11_ASSOCIATION_INFORMATION     AssocInfo;
     BYTE                                    abyIEs[WLAN_BEACON_FR_MAXLEN+WLAN_BEACON_FR_MAXLEN];
     // store ReqIEs set by OID_802_11_ASSOCIATION_INFORMATION
-    ULONG                                   RequestIELength;
+    unsigned long RequestIELength;
     BYTE                                    abyReqIEs[WLAN_BEACON_FR_MAXLEN];
 } SAssocInfo, *PSAssocInfo;
 //---

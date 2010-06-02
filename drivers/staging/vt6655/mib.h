@@ -39,7 +39,7 @@
 //
 
 typedef struct tagSDot11Counters {
-    ULONG       Length;             // Length of structure
+    unsigned long Length;             // Length of structure
     ULONGLONG   TransmittedFragmentCount;
     ULONGLONG   MulticastTransmittedFrameCount;
     ULONGLONG   FailedCount;
@@ -138,7 +138,7 @@ typedef struct tagSRmonCounter {
 // Custom counter
 //
 typedef struct tagSCustomCounters {
-    ULONG       Length;
+    unsigned long Length;
 
     ULONGLONG   ullTsrAllOK;
 
@@ -177,7 +177,7 @@ typedef struct tagSCustomCounters {
 // Custom counter
 //
 typedef struct tagSISRCounters {
-    ULONG   Length;
+    unsigned long Length;
 
     DWORD   dwIsrTx0OK;
     DWORD   dwIsrAC0TxOK;
@@ -324,15 +324,15 @@ typedef struct tagSStatCounter {
 
    #ifdef Calcu_LinkQual
        //Tx count:
-    ULONG TxNoRetryOkCount;         //success tx no retry !
-    ULONG TxRetryOkCount;              //success tx but retry !
-    ULONG TxFailCount;                      //fail tx ?
+    unsigned long TxNoRetryOkCount;         //success tx no retry !
+    unsigned long TxRetryOkCount;              //success tx but retry !
+    unsigned long TxFailCount;                      //fail tx ?
       //Rx count:
-    ULONG RxOkCnt;                          //success rx !
-    ULONG RxFcsErrCnt;                    //fail rx ?
+    unsigned long RxOkCnt;                          //success rx !
+    unsigned long RxFcsErrCnt;                    //fail rx ?
       //statistic
-    ULONG SignalStren;
-    ULONG LinkQuality;
+    unsigned long SignalStren;
+    unsigned long LinkQuality;
    #endif
 } SStatCounter, *PSStatCounter;
 

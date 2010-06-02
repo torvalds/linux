@@ -99,7 +99,7 @@ void CARDvUpdateNextTBTT(DWORD_PTR dwIoBase, QWORD qwTSF, WORD wBeaconInterval);
 BOOL CARDbGetCurrentTSF(DWORD_PTR dwIoBase, PQWORD pqwCurrTSF);
 QWORD CARDqGetNextTBTT(QWORD qwTSF, WORD wBeaconInterval);
 QWORD CARDqGetTSFOffset(BYTE byRxRate, QWORD qwTSF1, QWORD qwTSF2);
-BOOL CARDbSetTxPower(void *pDeviceHandler, ULONG ulTxPower);
+BOOL CARDbSetTxPower(void *pDeviceHandler, unsigned long ulTxPower);
 BYTE CARDbyGetPktType(void *pDeviceHandler);
 void CARDvSafeResetTx(void *pDeviceHandler);
 void CARDvSafeResetRx(void *pDeviceHandler);

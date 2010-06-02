@@ -265,7 +265,7 @@ VNTWIFIbyGetKeyCypher(
 BOOL
 VNTWIFIbSetPMKIDCache (
     void *pMgmtObject,
-    ULONG ulCount,
+    unsigned long ulCount,
     void *pPMKIDInfo
     );
 

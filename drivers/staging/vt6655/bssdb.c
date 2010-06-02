@@ -1680,9 +1680,9 @@ void s_uCalculateLinkQual(
     )
 {
    PSDevice        pDevice = (PSDevice)hDeviceContext;
-   ULONG TxOkRatio, TxCnt;
-   ULONG RxOkRatio,RxCnt;
-   ULONG RssiRatio;
+   unsigned long TxOkRatio, TxCnt;
+   unsigned long RxOkRatio,RxCnt;
+   unsigned long RssiRatio;
    long ldBm;
 
 TxCnt = pDevice->scStatistic.TxNoRetryOkCount +

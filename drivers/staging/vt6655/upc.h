@@ -141,7 +141,7 @@
 
 #define PCAvDelayByIO(uDelayUnit) {             \
     BYTE    byData;                             \
-    ULONG   ii;                                 \
+    unsigned long ii;                           \
                                                 \
     if (uDelayUnit <= 50) {                     \
         udelay(uDelayUnit);                     \

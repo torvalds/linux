@@ -588,7 +588,7 @@ static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
         pDevice->ulDiversityMValue = 100*16;//SROMbyReadEmbedded(pDevice->PortOffset, 0x52);
         pDevice->byTMax = 1;//SROMbyReadEmbedded(pDevice->PortOffset, 0x53);
         pDevice->byTMax2 = 4;//SROMbyReadEmbedded(pDevice->PortOffset, 0x54);
-        pDevice->ulSQ3TH = 0;//(ULONG) SROMbyReadEmbedded(pDevice->PortOffset, 0x55);
+        pDevice->ulSQ3TH = 0;//(unsigned long) SROMbyReadEmbedded(pDevice->PortOffset, 0x55);
         pDevice->byTMax3 = 64;//SROMbyReadEmbedded(pDevice->PortOffset, 0x56);
 
         if (byValue == (EEP_ANTENNA_AUX | EEP_ANTENNA_MAIN)) {
@@ -851,17 +851,17 @@ else  CARDbRadioPowerOn(pDevice);
 static void device_init_diversity_timer(PSDevice pDevice) {
 
     init_timer(&pDevice->TimerSQ3Tmax1);
-    pDevice->TimerSQ3Tmax1.data = (ULONG)pDevice;
+    pDevice->TimerSQ3Tmax1.data = (unsigned long) pDevice;
     pDevice->TimerSQ3Tmax1.function = (TimerFunction)TimerSQ3CallBack;
     pDevice->TimerSQ3Tmax1.expires = RUN_AT(HZ);
 
     init_timer(&pDevice->TimerSQ3Tmax2);
-    pDevice->TimerSQ3Tmax2.data = (ULONG)pDevice;
+    pDevice->TimerSQ3Tmax2.data = (unsigned long) pDevice;
     pDevice->TimerSQ3Tmax2.function = (TimerFunction)TimerSQ3CallBack;
     pDevice->TimerSQ3Tmax2.expires = RUN_AT(HZ);
 
     init_timer(&pDevice->TimerSQ3Tmax3);
-    pDevice->TimerSQ3Tmax3.data = (ULONG)pDevice;
+    pDevice->TimerSQ3Tmax3.data = (unsigned long) pDevice;
     pDevice->TimerSQ3Tmax3.function = (TimerFunction)TimerState1CallBack;
     pDevice->TimerSQ3Tmax3.expires = RUN_AT(HZ);
 
@@ -1112,10 +1112,11 @@ static void device_print_info(PSDevice pDevice)
     DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "%s: %s\n",dev->name, get_chip_name(pDevice->chip_id));
     DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "%s: MAC=%pM", dev->name, dev->dev_addr);
 #ifdef IO_MAP
-    DBG_PRT(MSG_LEVEL_INFO, KERN_INFO" IO=0x%lx  ",(ULONG) pDevice->ioaddr);
+    DBG_PRT(MSG_LEVEL_INFO, KERN_INFO" IO=0x%lx  ",(unsigned long) pDevice->ioaddr);
     DBG_PRT(MSG_LEVEL_INFO, KERN_INFO" IRQ=%d \n", pDevice->dev->irq);
 #else
-    DBG_PRT(MSG_LEVEL_INFO, KERN_INFO" IO=0x%lx Mem=0x%lx ",(ULONG) pDevice->ioaddr,(ULONG) pDevice->PortOffset);
+    DBG_PRT(MSG_LEVEL_INFO, KERN_INFO" IO=0x%lx Mem=0x%lx ",
+		    (unsigned long) pDevice->ioaddr,(unsigned long) pDevice->PortOffset);
     DBG_PRT(MSG_LEVEL_INFO, KERN_INFO" IRQ=%d \n", pDevice->dev->irq);
 #endif
 

@@ -250,7 +250,7 @@ typedef enum _NDIS_802_11_STATUS_TYPE
 //Added new types for PMKID Candidate lists.
 typedef struct _PMKID_CANDIDATE {
     NDIS_802_11_MAC_ADDRESS BSSID;
-    ULONG Flags;
+    unsigned long Flags;
 } PMKID_CANDIDATE, *PPMKID_CANDIDATE;
 
 
@@ -261,15 +261,15 @@ typedef struct _BSSID_INFO
 } BSSID_INFO, *PBSSID_INFO;
 
 typedef struct tagSPMKID {
-    ULONG Length;
-    ULONG BSSIDInfoCount;
+    unsigned long Length;
+    unsigned long BSSIDInfoCount;
     BSSID_INFO BSSIDInfo[MAX_BSSIDINFO_4_PMKID];
 } SPMKID, *PSPMKID;
 
 typedef struct tagSPMKIDCandidateEvent {
     NDIS_802_11_STATUS_TYPE     StatusType;
-    ULONG Version;       // Version of the structure
-    ULONG NumCandidates; // No. of pmkid candidates
+    unsigned long Version;       // Version of the structure
+    unsigned long NumCandidates; // No. of pmkid candidates
     PMKID_CANDIDATE CandidateList[MAX_PMKIDLIST];
 } SPMKIDCandidateEvent, *PSPMKIDCandidateEvent;
 
@@ -618,7 +618,7 @@ typedef struct __device_info {
     //WOW
     BYTE                    abyIPAddr[4];
 
-    ULONG                   ulTxPower;
+    unsigned long ulTxPower;
     NDIS_802_11_WEP_STATUS  eEncryptionStatus;
     BOOL                    bTransmitKey;
 //2007-0925-01<Add>by MikeLiu
@@ -712,7 +712,7 @@ typedef struct __device_info {
     struct timer_list       sTimerCommand;
 #ifdef TxInSleep
      struct timer_list       sTimerTxData;
-     ULONG                       nTxDataTimeCout;
+     unsigned long nTxDataTimeCout;
      BOOL  fTxDataInSleep;
      BOOL  IsTxDataTrigger;
 #endif
@@ -728,18 +728,18 @@ typedef struct __device_info {
 
     BOOL                    bDiversityRegCtlON;
     BOOL                    bDiversityEnable;
-    ULONG                   ulDiversityNValue;
-    ULONG                   ulDiversityMValue;
+    unsigned long ulDiversityNValue;
+    unsigned long ulDiversityMValue;
     BYTE                    byTMax;
     BYTE                    byTMax2;
     BYTE                    byTMax3;
-    ULONG                   ulSQ3TH;
+    unsigned long ulSQ3TH;
 
 // ANT diversity
-    ULONG                   uDiversityCnt;
+    unsigned long uDiversityCnt;
     BYTE                    byAntennaState;
-    ULONG                   ulRatio_State0;
-    ULONG                   ulRatio_State1;
+    unsigned long ulRatio_State0;
+    unsigned long ulRatio_State1;
 
     //SQ3 functions for antenna diversity
     struct timer_list           TimerSQ3Tmax1;
@@ -747,7 +747,7 @@ typedef struct __device_info {
     struct timer_list           TimerSQ3Tmax3;
 
 
-    ULONG                   uNumSQ3[MAX_RATE];
+    unsigned long uNumSQ3[MAX_RATE];
     WORD                    wAntDiversityMaxRate;
 
 

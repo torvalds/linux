@@ -68,7 +68,6 @@ typedef int             BOOL;
  * but it doesn't matter if they're signed or unsigned.
  */
 
-typedef unsigned long   ULONG;
 typedef unsigned long long	ULONGLONG; //64 bit
 
 

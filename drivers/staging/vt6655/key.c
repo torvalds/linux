@@ -193,7 +193,7 @@ BOOL KeybSetKey (
     PSKeyManagement pTable,
     PBYTE           pbyBSSID,
     DWORD           dwKeyIndex,
-    ULONG           uKeyLength,
+    unsigned long uKeyLength,
     PQWORD          pKeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode,
@@ -634,7 +634,7 @@ BOOL KeybCheckPairewiseKey (
 BOOL KeybSetDefaultKey (
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
-    ULONG           uKeyLength,
+    unsigned long uKeyLength,
     PQWORD          pKeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode,
@@ -741,7 +741,7 @@ BOOL KeybSetDefaultKey (
 BOOL KeybSetAllGroupKey (
     PSKeyManagement pTable,
     DWORD           dwKeyIndex,
-    ULONG           uKeyLength,
+    unsigned long uKeyLength,
     PQWORD          pKeyRSC,
     PBYTE           pbyKey,
     BYTE            byKeyDecMode,

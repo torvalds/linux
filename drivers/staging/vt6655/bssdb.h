@@ -205,7 +205,7 @@ typedef struct tagKnownNodeDB {
     BOOL            bPSEnable;
     BOOL            bRxPSPoll;
     BYTE            byAuthSequence;
-    ULONG           ulLastRxJiffer;
+    unsigned long ulLastRxJiffer;
     BYTE            bySuppRate;
     DWORD           dwFlags;
     WORD            wEnQueueCnt;

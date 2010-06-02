@@ -45,7 +45,7 @@ typedef struct tagsPMKIDInfo {
 } PMKIDInfo, *PPMKIDInfo;
 
 typedef struct tagSPMKIDCache {
-    ULONG       BSSIDInfoCount;
+    unsigned long BSSIDInfoCount;
     PMKIDInfo   BSSIDInfo[MAX_PMKID_CACHE];
 } SPMKIDCache, *PSPMKIDCache;
 
