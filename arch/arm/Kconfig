@@ -586,6 +586,7 @@ config ARCH_MSM
 	bool "Qualcomm MSM"
 	select HAVE_CLK
 	select GENERIC_CLOCKEVENTS
+	select ARCH_REQUIRE_GPIOLIB
 	help
 	  Support for Qualcomm MSM/QSD based systems.  This runs on the
 	  apps processor of the MSM/QSD and depends on a shared memory
