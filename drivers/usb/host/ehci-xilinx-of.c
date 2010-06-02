@@ -151,7 +151,7 @@ static const struct hc_driver ehci_xilinx_of_hc_driver = {
 static int __devinit
 ehci_hcd_xilinx_of_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dn = op->node;
+	struct device_node *dn = op->dev.of_node;
 	struct usb_hcd *hcd;
 	struct ehci_hcd	*ehci;
 	struct resource res;
