@@ -343,8 +343,7 @@ static void ath9k_htc_setup_rate(struct ath9k_htc_priv *priv,
 	u32 caps = 0;
 	int i, j;
 
-	/* Only 2GHz is supported */
-	sband = priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ];
+	sband = priv->hw->wiphy->bands[priv->hw->conf.channel->band];
 
 	for (i = 0, j = 0; i < sband->n_bitrates; i++) {
 		if (sta->supp_rates[sband->band] & BIT(i)) {
