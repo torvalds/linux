@@ -147,7 +147,7 @@ static void nuc900_ac97_warm_reset(struct snd_ac97 *ac97)
 	val |= AC_W_RES;
 	AUDIO_WRITE(nuc900_audio->mmio + ACTL_ACCON, val);
 
-	udelay(1000);
+	udelay(100);
 
 	val = nuc900_checkready();
 	if (!!val)
@@ -168,13 +168,9 @@ static void nuc900_ac97_cold_reset(struct snd_ac97 *ac97)
 	val |= ACTL_RESET_BIT;
 	AUDIO_WRITE(nuc900_audio->mmio + ACTL_RESET, val);
 
-	udelay(1000);
-
 	val = AUDIO_READ(nuc900_audio->mmio + ACTL_RESET);
 	val &= (~ACTL_RESET_BIT);
 	AUDIO_WRITE(nuc900_audio->mmio + ACTL_RESET, val);
-
-	udelay(1000);
 
 	/* reset AC-link interface */
 
@@ -182,26 +178,20 @@ static void nuc900_ac97_cold_reset(struct snd_ac97 *ac97)
 	val |= AC_RESET;
 	AUDIO_WRITE(nuc900_audio->mmio + ACTL_RESET, val);
 
-	udelay(1000);
-
 	val = AUDIO_READ(nuc900_audio->mmio + ACTL_RESET);
 	val &= ~AC_RESET;
 	AUDIO_WRITE(nuc900_audio->mmio + ACTL_RESET, val);
-
-	udelay(1000);
 
 	/* cold reset AC 97 */
 	val = AUDIO_READ(nuc900_audio->mmio + ACTL_ACCON);
 	val |= AC_C_RES;
 	AUDIO_WRITE(nuc900_audio->mmio + ACTL_ACCON, val);
 
-	udelay(1000);
-
 	val = AUDIO_READ(nuc900_audio->mmio + ACTL_ACCON);
 	val &= (~AC_C_RES);
 	AUDIO_WRITE(nuc900_audio->mmio + ACTL_ACCON, val);
 
-	udelay(1000);
+	udelay(100);
 
 	mutex_unlock(&ac97_mutex);
 
