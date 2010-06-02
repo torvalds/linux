@@ -506,9 +506,9 @@ static int rs5c_oscillator_setup(struct rs5c372 *rs5c372)
 	int addr, i, ret = 0;
 
 	if (rs5c372->type == rtc_r2025sd) {
-		if (!(rs5c372->regs[RS5C_REG_CTRL2] & R2025_CTRL2_XST))
+		if (rs5c372->regs[RS5C_REG_CTRL2] & R2025_CTRL2_XST)
 			return ret;
-		rs5c372->regs[RS5C_REG_CTRL2] &= ~R2025_CTRL2_XST;
+		rs5c372->regs[RS5C_REG_CTRL2] |= R2025_CTRL2_XST;
 	} else {
 		if (!(rs5c372->regs[RS5C_REG_CTRL2] & RS5C_CTRL2_XSTP))
 			return ret;
