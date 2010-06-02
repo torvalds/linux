@@ -80,7 +80,8 @@ struct Qdisc {
 	struct gnet_stats_basic_packed bstats;
 	unsigned long		__state;
 	struct gnet_stats_queue	qstats;
-	struct rcu_head     rcu_head;
+	struct rcu_head		rcu_head;
+	spinlock_t		busylock;
 };
 
 static inline bool qdisc_is_running(struct Qdisc *qdisc)

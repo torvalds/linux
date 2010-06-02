@@ -561,6 +561,7 @@ struct Qdisc *qdisc_alloc(struct netdev_queue *dev_queue,
 
 	INIT_LIST_HEAD(&sch->list);
 	skb_queue_head_init(&sch->q);
+	spin_lock_init(&sch->busylock);
 	sch->ops = ops;
 	sch->enqueue = ops->enqueue;
 	sch->dequeue = ops->dequeue;
