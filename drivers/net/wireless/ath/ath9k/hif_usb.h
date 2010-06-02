@@ -90,6 +90,7 @@ struct hif_device_usb {
 	struct usb_anchor regout_submitted;
 	struct usb_anchor rx_submitted;
 	struct sk_buff *remain_skb;
+	const char *fw_name;
 	int rx_remain_len;
 	int rx_pkt_len;
 	int rx_transfer_len;

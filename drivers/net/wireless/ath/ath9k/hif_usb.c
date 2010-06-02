@@ -16,12 +16,9 @@
 
 #include "htc.h"
 
-#define ATH9K_FW_USB_DEV(devid, fw)					\
-	{ USB_DEVICE(0x0cf3, devid), .driver_info = (unsigned long) fw }
-
 static struct usb_device_id ath9k_hif_usb_ids[] = {
-	ATH9K_FW_USB_DEV(0x9271, "ar9271.fw"),
-	ATH9K_FW_USB_DEV(0x1006, "ar9271.fw"),
+	{ USB_DEVICE(0x0cf3, 0x9271) },
+	{ USB_DEVICE(0x0cf3, 0x1006) },
 	{ },
 };
 
@@ -790,21 +787,21 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 		return -EIO;
 
 	dev_info(&hif_dev->udev->dev, "ath9k_htc: Transferred FW: %s, size: %ld\n",
-		 "ar9271.fw", (unsigned long) hif_dev->firmware->size);
+		 hif_dev->fw_name, (unsigned long) hif_dev->firmware->size);
 
 	return 0;
 }
 
-static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev,
-				  const char *fw_name)
+static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev)
 {
 	int ret;
 
 	/* Request firmware */
-	ret = request_firmware(&hif_dev->firmware, fw_name, &hif_dev->udev->dev);
+	ret = request_firmware(&hif_dev->firmware, hif_dev->fw_name,
+			       &hif_dev->udev->dev);
 	if (ret) {
 		dev_err(&hif_dev->udev->dev,
-			"ath9k_htc: Firmware - %s not found\n", fw_name);
+			"ath9k_htc: Firmware - %s not found\n", hif_dev->fw_name);
 		goto err_fw_req;
 	}
 
@@ -820,7 +817,8 @@ static int ath9k_hif_usb_dev_init(struct hif_device_usb *hif_dev,
 	ret = ath9k_hif_usb_download_fw(hif_dev);
 	if (ret) {
 		dev_err(&hif_dev->udev->dev,
-			"ath9k_htc: Firmware - %s download failed\n", fw_name);
+			"ath9k_htc: Firmware - %s download failed\n",
+			hif_dev->fw_name);
 		goto err_fw_download;
 	}
 
@@ -847,7 +845,6 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 {
 	struct usb_device *udev = interface_to_usbdev(interface);
 	struct hif_device_usb *hif_dev;
-	const char *fw_name = (const char *) id->driver_info;
 	int ret = 0;
 
 	hif_dev = kzalloc(sizeof(struct hif_device_usb), GFP_KERNEL);
@@ -872,7 +869,23 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 		goto err_htc_hw_alloc;
 	}
 
-	ret = ath9k_hif_usb_dev_init(hif_dev, fw_name);
+	/* Find out which firmware to load */
+
+	switch(hif_dev->device_id) {
+	case 0x9271:
+	case 0x1006:
+		hif_dev->fw_name = "ar9271.fw";
+		break;
+	default:
+		break;
+	}
+
+	if (!hif_dev->fw_name) {
+		dev_err(&udev->dev, "Can't determine firmware !\n");
+		goto err_htc_hw_alloc;
+	}
+
+	ret = ath9k_hif_usb_dev_init(hif_dev);
 	if (ret) {
 		ret = -EINVAL;
 		goto err_hif_init_usb;
