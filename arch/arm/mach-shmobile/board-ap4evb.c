@@ -283,7 +283,7 @@ static struct resource sh_mmcif_resources[] = {
 	},
 };
 
-struct sh_mmcif_plat_data sh_mmcif_plat = {
+static struct sh_mmcif_plat_data sh_mmcif_plat = {
 	.sup_pclk	= 0,
 	.ocr		= MMC_VDD_165_195 | MMC_VDD_32_33 | MMC_VDD_33_34,
 	.caps		= MMC_CAP_4_BIT_DATA |
@@ -363,7 +363,7 @@ static struct platform_device sdhi1_device = {
 };
 
 /* USB1 */
-void usb1_host_port_power(int port, int power)
+static void usb1_host_port_power(int port, int power)
 {
 	if (!power) /* only power-on supported for now */
 		return;
@@ -498,7 +498,7 @@ static struct clk fsiackcr_clk = {
 	.rate		= 0, /* unknown */
 };
 
-struct sh_fsi_platform_info fsi_info = {
+static struct sh_fsi_platform_info fsi_info = {
 	.porta_flags = SH_FSI_BRS_INV |
 		       SH_FSI_OUT_SLAVE_MODE |
 		       SH_FSI_IN_SLAVE_MODE |
@@ -544,7 +544,7 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 
 /* TouchScreen (Needs SW3 set to OFF) */
 #define IRQ28	evt2irq(0x3380) /* IRQ28A */
-struct tsc2007_platform_data tsc2007_info = {
+static struct tsc2007_platform_data tsc2007_info = {
 	.model			= 2007,
 	.x_plate_ohms		= 180,
 };
