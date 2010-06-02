@@ -66,9 +66,8 @@ static unsigned short nuc900_ac97_read(struct snd_ac97 *ac97,
 	udelay(100);
 
 	/* polling the AC_R_FINISH */
-	val = AUDIO_READ(nuc900_audio->mmio + ACTL_ACCON);
-	val &= AC_R_FINISH;
-	while (!val && timeout--)
+	while (!(AUDIO_READ(nuc900_audio->mmio + ACTL_ACCON) & AC_R_FINISH)
+								&& timeout--)
 		mdelay(1);
 
 	if (!timeout) {
@@ -121,9 +120,8 @@ static void nuc900_ac97_write(struct snd_ac97 *ac97, unsigned short reg,
 	udelay(100);
 
 	/* polling the AC_W_FINISH */
-	tmp = AUDIO_READ(nuc900_audio->mmio + ACTL_ACCON);
-	tmp &= AC_W_FINISH;
-	while (tmp && timeout--)
+	while ((AUDIO_READ(nuc900_audio->mmio + ACTL_ACCON) & AC_W_FINISH)
+								&& timeout--)
 		mdelay(1);
 
 	if (!timeout)
