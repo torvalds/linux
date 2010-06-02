@@ -5,7 +5,7 @@
 #include <linux/nl80211.h>
 #include "ieee80211_i.h"
 
-enum ieee80211_chan_mode
+static enum ieee80211_chan_mode
 __ieee80211_get_channel_mode(struct ieee80211_local *local,
 			     struct ieee80211_sub_if_data *ignore)
 {

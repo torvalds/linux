@@ -1913,11 +1913,11 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 	if (WARN_ONCE(!azx_dev->period_bytes,
 		      "hda-intel: zero azx_dev->period_bytes"))
 		return -1; /* this shouldn't happen! */
-	if (wallclk <= azx_dev->period_wallclk &&
+	if (wallclk < (azx_dev->period_wallclk * 5) / 4 &&
 	    pos % azx_dev->period_bytes > azx_dev->period_bytes / 2)
 		/* NG - it's below the first next period boundary */
 		return bdl_pos_adj[chip->dev_index] ? 0 : -1;
-	azx_dev->start_wallclk = wallclk;
+	azx_dev->start_wallclk += wallclk;
 	return 1; /* OK, it's fine */
 }
 

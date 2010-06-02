@@ -1198,7 +1198,7 @@ void ath_drain_all_txq(struct ath_softc *sc, bool retry_tx)
 		int r;
 
 		ath_print(common, ATH_DBG_FATAL,
-			  "Unable to stop TxDMA. Reset HAL!\n");
+			  "Failed to stop TX DMA. Resetting hardware!\n");
 
 		spin_lock_bh(&sc->sc_resetlock);
 		r = ath9k_hw_reset(ah, sc->sc_ah->curchan, false);
@@ -1728,6 +1728,8 @@ static int ath_tx_setup_buffer(struct ieee80211_hw *hw, struct ath_buf *bf,
 	} else
 		bf->bf_isnullfunc = false;
 
+	bf->bf_tx_aborted = false;
+
 	return 0;
 }
 
@@ -1989,7 +1991,7 @@ static int ath_tx_num_badfrms(struct ath_softc *sc, struct ath_buf *bf,
 	int nbad = 0;
 	int isaggr = 0;
 
-	if (bf->bf_tx_aborted)
+	if (bf->bf_lastbf->bf_tx_aborted)
 		return 0;
 
 	isaggr = bf_isaggr(bf);
