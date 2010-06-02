@@ -23,14 +23,6 @@
 #include <asm/irq_vectors.h>
 #include <asm/timer.h>
 
-struct msg_desc {
-	struct bau_payload_queue_entry *msg;
-	int msg_slot;
-	int sw_ack_slot;
-	struct bau_payload_queue_entry *va_queue_first;
-	struct bau_payload_queue_entry *va_queue_last;
-};
-
 /* timeouts in nanoseconds (indexed by UVH_AGING_PRESCALE_SEL urgency7 30:28) */
 static int timeout_base_ns[] = {
 		20,
@@ -78,10 +70,6 @@ static unsigned long uv_mmask __read_mostly;
 static DEFINE_PER_CPU(struct ptc_stats, ptcstats);
 static DEFINE_PER_CPU(struct bau_control, bau_control);
 static DEFINE_PER_CPU(cpumask_var_t, uv_flush_tlb_mask);
-
-struct reset_args {
-	int sender;
-};
 
 /*
  * Determine the first node on a uvhub. 'Nodes' are used for kernel

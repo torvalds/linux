@@ -322,6 +322,57 @@ struct bau_payload_queue_entry {
 	/* bytes 24-31 */
 };
 
+struct msg_desc {
+	struct bau_payload_queue_entry *msg;
+	int msg_slot;
+	int sw_ack_slot;
+	struct bau_payload_queue_entry *va_queue_first;
+	struct bau_payload_queue_entry *va_queue_last;
+};
+
+struct reset_args {
+	int sender;
+};
+
+/*
+ * This structure is allocated per_cpu for UV TLB shootdown statistics.
+ */
+struct ptc_stats {
+	/* sender statistics */
+	unsigned long s_giveup; /* number of fall backs to IPI-style flushes */
+	unsigned long s_requestor; /* number of shootdown requests */
+	unsigned long s_stimeout; /* source side timeouts */
+	unsigned long s_dtimeout; /* destination side timeouts */
+	unsigned long s_time; /* time spent in sending side */
+	unsigned long s_retriesok; /* successful retries */
+	unsigned long s_ntargcpu; /* total number of cpu's targeted */
+	unsigned long s_ntarguvhub; /* total number of uvhubs targeted */
+	unsigned long s_ntarguvhub16; /* number of times target hubs >= 16*/
+	unsigned long s_ntarguvhub8; /* number of times target hubs >= 8 */
+	unsigned long s_ntarguvhub4; /* number of times target hubs >= 4 */
+	unsigned long s_ntarguvhub2; /* number of times target hubs >= 2 */
+	unsigned long s_ntarguvhub1; /* number of times target hubs == 1 */
+	unsigned long s_resets_plug; /* ipi-style resets from plug state */
+	unsigned long s_resets_timeout; /* ipi-style resets from timeouts */
+	unsigned long s_busy; /* status stayed busy past s/w timer */
+	unsigned long s_throttles; /* waits in throttle */
+	unsigned long s_retry_messages; /* retry broadcasts */
+	unsigned long s_bau_reenabled; /* for bau enable/disable */
+	unsigned long s_bau_disabled; /* for bau enable/disable */
+	/* destination statistics */
+	unsigned long d_alltlb; /* times all tlb's on this cpu were flushed */
+	unsigned long d_onetlb; /* times just one tlb on this cpu was flushed */
+	unsigned long d_multmsg; /* interrupts with multiple messages */
+	unsigned long d_nomsg; /* interrupts with no message */
+	unsigned long d_time; /* time spent on destination side */
+	unsigned long d_requestee; /* number of messages processed */
+	unsigned long d_retries; /* number of retry messages processed */
+	unsigned long d_canceled; /* number of messages canceled by retries */
+	unsigned long d_nocanceled; /* retries that found nothing to cancel */
+	unsigned long d_resets; /* number of ipi-style requests processed */
+	unsigned long d_rcanceled; /* number of messages canceled by resets */
+};
+
 /*
  * one per-cpu; to locate the software tables
  */
@@ -367,45 +418,6 @@ struct bau_control {
 	int congested_period;
 	cycles_t period_time;
 	long period_requests;
-};
-
-/*
- * This structure is allocated per_cpu for UV TLB shootdown statistics.
- */
-struct ptc_stats {
-	/* sender statistics */
-	unsigned long s_giveup; /* number of fall backs to IPI-style flushes */
-	unsigned long s_requestor; /* number of shootdown requests */
-	unsigned long s_stimeout; /* source side timeouts */
-	unsigned long s_dtimeout; /* destination side timeouts */
-	unsigned long s_time; /* time spent in sending side */
-	unsigned long s_retriesok; /* successful retries */
-	unsigned long s_ntargcpu; /* number of cpus targeted */
-	unsigned long s_ntarguvhub; /* number of uvhubs targeted */
-	unsigned long s_ntarguvhub16; /* number of times >= 16 target hubs */
-	unsigned long s_ntarguvhub8; /* number of times >= 8 target hubs */
-	unsigned long s_ntarguvhub4; /* number of times >= 4 target hubs */
-	unsigned long s_ntarguvhub2; /* number of times >= 2 target hubs */
-	unsigned long s_ntarguvhub1; /* number of times == 1 target hub */
-	unsigned long s_resets_plug; /* ipi-style resets from plug state */
-	unsigned long s_resets_timeout; /* ipi-style resets from timeouts */
-	unsigned long s_busy; /* status stayed busy past s/w timer */
-	unsigned long s_throttles; /* waits in throttle */
-	unsigned long s_retry_messages; /* retry broadcasts */
-	unsigned long s_bau_reenabled; /* for bau enable/disable */
-	unsigned long s_bau_disabled; /* for bau enable/disable */
-	/* destination statistics */
-	unsigned long d_alltlb; /* times all tlb's on this cpu were flushed */
-	unsigned long d_onetlb; /* times just one tlb on this cpu was flushed */
-	unsigned long d_multmsg; /* interrupts with multiple messages */
-	unsigned long d_nomsg; /* interrupts with no message */
-	unsigned long d_time; /* time spent on destination side */
-	unsigned long d_requestee; /* number of messages processed */
-	unsigned long d_retries; /* number of retry messages processed */
-	unsigned long d_canceled; /* number of messages canceled by retries */
-	unsigned long d_nocanceled; /* retries that found nothing to cancel */
-	unsigned long d_resets; /* number of ipi-style requests processed */
-	unsigned long d_rcanceled; /* number of messages canceled by resets */
 };
 
 static inline int bau_uvhub_isset(int uvhub, struct bau_target_uvhubmask *dstp)
