@@ -99,6 +99,7 @@ int mtd_Flash_Release(void)
 
 u16 mtd_Read_Device_ID(void)
 {
+	uint64_t tmp;
 	nand_dbg_print(NAND_DBG_TRACE, "%s, Line %d, Function: %s\n",
 		       __FILE__, __LINE__, __func__);
 
@@ -108,7 +109,9 @@ u16 mtd_Read_Device_ID(void)
 	DeviceInfo.wDeviceMaker = 0;
 	DeviceInfo.wDeviceType = 8;
 	DeviceInfo.wSpectraStartBlock = SPECTRA_START_BLOCK;
-	DeviceInfo.wTotalBlocks = spectra_mtd->size / spectra_mtd->erasesize;
+	tmp = spectra_mtd->size;
+	do_div(tmp, spectra_mtd->erasesize);
+	DeviceInfo.wTotalBlocks = tmp;
 	DeviceInfo.wSpectraEndBlock = DeviceInfo.wTotalBlocks - 1;
 	DeviceInfo.wPagesPerBlock = spectra_mtd->erasesize / spectra_mtd->writesize;
 	DeviceInfo.wPageSize = spectra_mtd->writesize + spectra_mtd->oobsize;
