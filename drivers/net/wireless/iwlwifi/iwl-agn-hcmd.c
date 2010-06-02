@@ -37,7 +37,7 @@
 #include "iwl-io.h"
 #include "iwl-agn.h"
 
-static int iwlagn_send_rxon_assoc(struct iwl_priv *priv)
+int iwlagn_send_rxon_assoc(struct iwl_priv *priv)
 {
 	int ret = 0;
 	struct iwl5000_rxon_assoc_cmd rxon_assoc;
@@ -84,7 +84,7 @@ static int iwlagn_send_rxon_assoc(struct iwl_priv *priv)
 	return ret;
 }
 
-static int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
+int iwlagn_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 {
 	struct iwl_tx_ant_config_cmd tx_ant_cmd = {
 	  .valid = cpu_to_le32(valid_tx_ant),

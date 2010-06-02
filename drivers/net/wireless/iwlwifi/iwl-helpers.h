@@ -92,6 +92,11 @@ static inline void iwl_free_fw_desc(struct pci_dev *pci_dev,
 static inline int iwl_alloc_fw_desc(struct pci_dev *pci_dev,
 				    struct fw_desc *desc)
 {
+	if (!desc->len) {
+		desc->v_addr = NULL;
+		return -EINVAL;
+	}
+
 	desc->v_addr = dma_alloc_coherent(&pci_dev->dev, desc->len,
 					  &desc->p_addr, GFP_KERNEL);
 	return (desc->v_addr != NULL) ? 0 : -ENOMEM;

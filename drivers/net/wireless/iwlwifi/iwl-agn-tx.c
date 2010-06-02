@@ -567,10 +567,7 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	hdr_len = ieee80211_hdrlen(fc);
 
 	/* Find index into station table for destination station */
-	if (!info->control.sta)
-		sta_id = priv->hw_params.bcast_sta_id;
-	else
-		sta_id = iwl_sta_id(info->control.sta);
+	sta_id = iwl_sta_id_or_broadcast(priv, info->control.sta);
 	if (sta_id == IWL_INVALID_STATION) {
 		IWL_DEBUG_DROP(priv, "Dropping - INVALID STATION: %pM\n",
 			       hdr->addr1);
@@ -598,11 +595,17 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	}
 
 	txq_id = get_queue_from_ac(skb_get_queue_mapping(skb));
+
+	/* irqs already disabled/saved above when locking priv->lock */
+	spin_lock(&priv->sta_lock);
+
 	if (ieee80211_is_data_qos(fc)) {
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
-		if (unlikely(tid >= MAX_TID_COUNT))
+		if (WARN_ON_ONCE(tid >= MAX_TID_COUNT)) {
+			spin_unlock(&priv->sta_lock);
 			goto drop_unlock;
+		}
 		seq_number = priv->stations[sta_id].tid[tid].seq_number;
 		seq_number &= IEEE80211_SCTL_SEQ;
 		hdr->seq_ctrl = hdr->seq_ctrl &
@@ -620,11 +623,18 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	swq_id = txq->swq_id;
 	q = &txq->q;
 
-	if (unlikely(iwl_queue_space(q) < q->high_mark))
+	if (unlikely(iwl_queue_space(q) < q->high_mark)) {
+		spin_unlock(&priv->sta_lock);
 		goto drop_unlock;
+	}
 
-	if (ieee80211_is_data_qos(fc))
+	if (ieee80211_is_data_qos(fc)) {
 		priv->stations[sta_id].tid[tid].tfds_in_queue++;
+		if (!ieee80211_has_morefrags(fc))
+			priv->stations[sta_id].tid[tid].seq_number = seq_number;
+	}
+
+	spin_unlock(&priv->sta_lock);
 
 	/* Set up driver data for this TFD */
 	memset(&(txq->txb[q->write_ptr]), 0, sizeof(struct iwl_tx_info));
@@ -703,8 +713,6 @@ int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	if (!ieee80211_has_morefrags(hdr->frame_control)) {
 		txq->need_update = 1;
-		if (qc)
-			priv->stations[sta_id].tid[tid].seq_number = seq_number;
 	} else {
 		wait_write_ptr = 1;
 		txq->need_update = 0;
@@ -1009,6 +1017,8 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 	if (ret)
 		return ret;
 
+	spin_lock_irqsave(&priv->sta_lock, flags);
+	tid_data = &priv->stations[sta_id].tid[tid];
 	if (tid_data->tfds_in_queue == 0) {
 		IWL_DEBUG_HT(priv, "HW queue is empty\n");
 		tid_data->agg.state = IWL_AGG_ON;
@@ -1018,6 +1028,7 @@ int iwlagn_tx_agg_start(struct iwl_priv *priv, struct ieee80211_vif *vif,
 			     tid_data->tfds_in_queue);
 		tid_data->agg.state = IWL_EMPTYING_HW_QUEUE_ADDBA;
 	}
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
 	return ret;
 }
 
@@ -1040,11 +1051,14 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		return -ENXIO;
 	}
 
+	spin_lock_irqsave(&priv->sta_lock, flags);
+
 	if (priv->stations[sta_id].tid[tid].agg.state ==
 				IWL_EMPTYING_HW_QUEUE_ADDBA) {
 		IWL_DEBUG_HT(priv, "AGG stop before setup done\n");
 		ieee80211_stop_tx_ba_cb_irqsafe(vif, sta->addr, tid);
 		priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
+		spin_unlock_irqrestore(&priv->sta_lock, flags);
 		return 0;
 	}
 
@@ -1062,13 +1076,17 @@ int iwlagn_tx_agg_stop(struct iwl_priv *priv, struct ieee80211_vif *vif,
 		IWL_DEBUG_HT(priv, "Stopping a non empty AGG HW QUEUE\n");
 		priv->stations[sta_id].tid[tid].agg.state =
 				IWL_EMPTYING_HW_QUEUE_DELBA;
+		spin_unlock_irqrestore(&priv->sta_lock, flags);
 		return 0;
 	}
 
 	IWL_DEBUG_HT(priv, "HW queue is empty\n");
 	priv->stations[sta_id].tid[tid].agg.state = IWL_AGG_OFF;
 
-	spin_lock_irqsave(&priv->lock, flags);
+	/* do not restore/save irqs */
+	spin_unlock(&priv->sta_lock);
+	spin_lock(&priv->lock);
+
 	/*
 	 * the only reason this call can fail is queue number out of range,
 	 * which can happen if uCode is reloaded and all the station
@@ -1091,6 +1109,8 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 	struct iwl_queue *q = &priv->txq[txq_id].q;
 	u8 *addr = priv->stations[sta_id].sta.sta.addr;
 	struct iwl_tid_data *tid_data = &priv->stations[sta_id].tid[tid];
+
+	WARN_ON(!spin_is_locked(&priv->sta_lock));
 
 	switch (priv->stations[sta_id].tid[tid].agg.state) {
 	case IWL_EMPTYING_HW_QUEUE_DELBA:
@@ -1116,6 +1136,7 @@ int iwlagn_txq_check_empty(struct iwl_priv *priv,
 		}
 		break;
 	}
+
 	return 0;
 }
 
@@ -1279,6 +1300,7 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	int index;
 	int sta_id;
 	int tid;
+	unsigned long flags;
 
 	/* "flow" corresponds to Tx queue */
 	u16 scd_flow = le16_to_cpu(ba_resp->scd_flow);
@@ -1301,7 +1323,7 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 	/* Find index just before block-ack window */
 	index = iwl_queue_dec_wrap(ba_resp_scd_ssn & 0xff, txq->q.n_bd);
 
-	/* TODO: Need to get this copy more safely - now good for debug */
+	spin_lock_irqsave(&priv->sta_lock, flags);
 
 	IWL_DEBUG_TX_REPLY(priv, "REPLY_COMPRESSED_BA [%d] Received from %pM, "
 			   "sta_id = %d\n",
@@ -1337,4 +1359,6 @@ void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
 
 		iwlagn_txq_check_empty(priv, sta_id, tid, scd_flow);
 	}
+
+	spin_unlock_irqrestore(&priv->sta_lock, flags);
 }

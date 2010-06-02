@@ -48,25 +48,6 @@
 #include "iwl-power.h"
 #include "iwl-agn-rs.h"
 
-/* configuration for the iwl4965 */
-extern struct iwl_cfg iwl4965_agn_cfg;
-extern struct iwl_cfg iwl5300_agn_cfg;
-extern struct iwl_cfg iwl5100_agn_cfg;
-extern struct iwl_cfg iwl5350_agn_cfg;
-extern struct iwl_cfg iwl5100_bgn_cfg;
-extern struct iwl_cfg iwl5100_abg_cfg;
-extern struct iwl_cfg iwl5150_agn_cfg;
-extern struct iwl_cfg iwl5150_abg_cfg;
-extern struct iwl_cfg iwl6000g2a_2agn_cfg;
-extern struct iwl_cfg iwl6000i_2agn_cfg;
-extern struct iwl_cfg iwl6000i_2abg_cfg;
-extern struct iwl_cfg iwl6000i_2bg_cfg;
-extern struct iwl_cfg iwl6000_3agn_cfg;
-extern struct iwl_cfg iwl6050_2agn_cfg;
-extern struct iwl_cfg iwl6050_2abg_cfg;
-extern struct iwl_cfg iwl1000_bgn_cfg;
-extern struct iwl_cfg iwl1000_bg_cfg;
-
 struct iwl_tx_queue;
 
 /* CT-KILL constants */
@@ -433,7 +414,7 @@ struct iwl_ht_agg {
 
 
 struct iwl_tid_data {
-	u16 seq_number;
+	u16 seq_number; /* agn only */
 	u16 tfds_in_queue;
 	struct iwl_ht_agg agg;
 };
@@ -583,6 +564,12 @@ enum iwl_ucode_tlv_type {
 	IWL_UCODE_TLV_INIT_DATA		= 4,
 	IWL_UCODE_TLV_BOOT		= 5,
 	IWL_UCODE_TLV_PROBE_MAX_LEN	= 6, /* a u32 value */
+	IWL_UCODE_TLV_RUNT_EVTLOG_PTR	= 8,
+	IWL_UCODE_TLV_RUNT_EVTLOG_SIZE	= 9,
+	IWL_UCODE_TLV_RUNT_ERRLOG_PTR	= 10,
+	IWL_UCODE_TLV_INIT_EVTLOG_PTR	= 11,
+	IWL_UCODE_TLV_INIT_EVTLOG_SIZE	= 12,
+	IWL_UCODE_TLV_INIT_ERRLOG_PTR	= 13,
 };
 
 struct iwl_ucode_tlv {
@@ -1109,7 +1096,7 @@ struct iwl_priv {
 	/* force reset */
 	struct iwl_force_reset force_reset[IWL_MAX_FORCE_RESET];
 
-	/* we allocate array of iwl4965_channel_info for NIC's valid channels.
+	/* we allocate array of iwl_channel_info for NIC's valid channels.
 	 *    Access via channel # using indirect index array */
 	struct iwl_channel_info *channel_info;	/* channel info array */
 	u8 channel_count;	/* # of channels */
@@ -1174,7 +1161,7 @@ struct iwl_priv {
 	struct iwl_switch_rxon switch_rxon;
 
 	/* 1st responses from initialize and runtime uCode images.
-	 * 4965's initialize alive response contains some calibration data. */
+	 * _agn's initialize alive response contains some calibration data. */
 	struct iwl_init_alive_resp card_alive_init;
 	struct iwl_alive_resp card_alive;
 
@@ -1220,18 +1207,13 @@ struct iwl_priv {
 	struct iwl_power_mgr power_data;
 	struct iwl_tt_mgmt thermal_throttle;
 
-	struct iwl_notif_statistics statistics;
-#ifdef CONFIG_IWLWIFI_DEBUG
-	struct iwl_notif_statistics accum_statistics;
-	struct iwl_notif_statistics delta_statistics;
-	struct iwl_notif_statistics max_delta;
-#endif
-
 	/* context information */
 	u8 bssid[ETH_ALEN]; /* used only on 3945 but filled by core */
 	u8 mac_addr[ETH_ALEN];
 
-	/*station table variables */
+	/* station table variables */
+
+	/* Note: if lock and sta_lock are needed, lock must be acquired first */
 	spinlock_t sta_lock;
 	int num_stations;
 	struct iwl_station_entry stations[IWL_STATION_COUNT];
@@ -1273,7 +1255,7 @@ struct iwl_priv {
 			struct delayed_work rfkill_poll;
 
 			struct iwl3945_notif_statistics statistics;
-#ifdef CONFIG_IWLWIFI_DEBUG
+#ifdef CONFIG_IWLWIFI_DEBUGFS
 			struct iwl3945_notif_statistics accum_statistics;
 			struct iwl3945_notif_statistics delta_statistics;
 			struct iwl3945_notif_statistics max_delta;
@@ -1315,6 +1297,16 @@ struct iwl_priv {
 			bool last_phy_res_valid;
 
 			struct completion firmware_loading_complete;
+
+			struct iwl_notif_statistics statistics;
+#ifdef CONFIG_IWLWIFI_DEBUGFS
+			struct iwl_notif_statistics accum_statistics;
+			struct iwl_notif_statistics delta_statistics;
+			struct iwl_notif_statistics max_delta;
+#endif
+
+			u32 init_evtlog_ptr, init_evtlog_size, init_errlog_ptr;
+			u32 inst_evtlog_ptr, inst_evtlog_size, inst_errlog_ptr;
 		} _agn;
 #endif
 	};
@@ -1355,7 +1347,7 @@ struct iwl_priv {
 			    iwl_debug_level if set */
 	u32 framecnt_to_us;
 	atomic_t restrict_refcnt;
-	bool disable_ht40;
+#endif /* CONFIG_IWLWIFI_DEBUG */
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 	/* debugfs */
 	u16 tx_traffic_idx;
@@ -1364,8 +1356,8 @@ struct iwl_priv {
 	u8 *rx_traffic;
 	struct dentry *debugfs_dir;
 	u32 dbgfs_sram_offset, dbgfs_sram_len;
+	bool disable_ht40;
 #endif /* CONFIG_IWLWIFI_DEBUGFS */
-#endif /* CONFIG_IWLWIFI_DEBUG */
 
 	struct work_struct txpower_work;
 	u32 disable_sens_cal;
