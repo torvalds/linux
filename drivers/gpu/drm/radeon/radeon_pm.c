@@ -84,9 +84,9 @@ static void radeon_pm_update_profile(struct radeon_device *rdev)
 				rdev->pm.profile_index = PM_PROFILE_HIGH_SH_IDX;
 		} else {
 			if (rdev->pm.active_crtc_count > 1)
-				rdev->pm.profile_index = PM_PROFILE_LOW_MH_IDX;
+				rdev->pm.profile_index = PM_PROFILE_MID_MH_IDX;
 			else
-				rdev->pm.profile_index = PM_PROFILE_LOW_SH_IDX;
+				rdev->pm.profile_index = PM_PROFILE_MID_SH_IDX;
 		}
 		break;
 	case PM_PROFILE_LOW:
@@ -94,6 +94,12 @@ static void radeon_pm_update_profile(struct radeon_device *rdev)
 			rdev->pm.profile_index = PM_PROFILE_LOW_MH_IDX;
 		else
 			rdev->pm.profile_index = PM_PROFILE_LOW_SH_IDX;
+		break;
+	case PM_PROFILE_MID:
+		if (rdev->pm.active_crtc_count > 1)
+			rdev->pm.profile_index = PM_PROFILE_MID_MH_IDX;
+		else
+			rdev->pm.profile_index = PM_PROFILE_MID_SH_IDX;
 		break;
 	case PM_PROFILE_HIGH:
 		if (rdev->pm.active_crtc_count > 1)
@@ -302,6 +308,8 @@ static ssize_t radeon_set_pm_profile(struct device *dev,
 			rdev->pm.profile = PM_PROFILE_AUTO;
 		else if (strncmp("low", buf, strlen("low")) == 0)
 			rdev->pm.profile = PM_PROFILE_LOW;
+		else if (strncmp("mid", buf, strlen("mid")) == 0)
+			rdev->pm.profile = PM_PROFILE_MID;
 		else if (strncmp("high", buf, strlen("high")) == 0)
 			rdev->pm.profile = PM_PROFILE_HIGH;
 		else {
