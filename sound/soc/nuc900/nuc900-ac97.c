@@ -222,7 +222,7 @@ static int nuc900_ac97_trigger(struct snd_pcm_substream *substream,
 				int cmd, struct snd_soc_dai *dai)
 {
 	struct nuc900_audio *nuc900_audio = nuc900_ac97_data;
-	int ret, stype = SUBSTREAM_TYPE(substream);
+	int ret;
 	unsigned long val, tmp;
 
 	ret = 0;
@@ -231,7 +231,7 @@ static int nuc900_ac97_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 		val = AUDIO_READ(nuc900_audio->mmio + ACTL_RESET);
-		if (PCM_TX == stype) {
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			tmp = AUDIO_READ(nuc900_audio->mmio + ACTL_ACOS0);
 			tmp |= (SLOT3_VALID | SLOT4_VALID | VALID_FRAME);
 			AUDIO_WRITE(nuc900_audio->mmio + ACTL_ACOS0, tmp);
@@ -254,7 +254,7 @@ static int nuc900_ac97_trigger(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 		val = AUDIO_READ(nuc900_audio->mmio + ACTL_RESET);
-		if (PCM_TX == stype) {
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			tmp = AUDIO_READ(nuc900_audio->mmio + ACTL_ACOS0);
 			tmp &= ~(SLOT3_VALID | SLOT4_VALID);
 			AUDIO_WRITE(nuc900_audio->mmio + ACTL_ACOS0, tmp);

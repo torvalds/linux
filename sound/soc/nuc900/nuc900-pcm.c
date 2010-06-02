@@ -47,7 +47,7 @@ static int nuc900_dma_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct nuc900_audio *nuc900_audio = runtime->private_data;
-	unsigned long flags, stype = SUBSTREAM_TYPE(substream);
+	unsigned long flags;
 	int ret = 0;
 
 	spin_lock_irqsave(&nuc900_audio->lock, flags);
@@ -57,8 +57,9 @@ static int nuc900_dma_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 
 	nuc900_audio->substream = substream;
-	nuc900_audio->dma_addr[stype] = runtime->dma_addr;
-	nuc900_audio->buffersize[stype] = params_buffer_bytes(params);
+	nuc900_audio->dma_addr[substream->stream] = runtime->dma_addr;
+	nuc900_audio->buffersize[substream->stream] =
+						params_buffer_bytes(params);
 
 	spin_unlock_irqrestore(&nuc900_audio->lock, flags);
 
@@ -72,7 +73,7 @@ static void nuc900_update_dma_register(struct snd_pcm_substream *substream,
 	struct nuc900_audio *nuc900_audio = runtime->private_data;
 	void __iomem *mmio_addr, *mmio_len;
 
-	if (SUBSTREAM_TYPE(substream) == PCM_TX) {
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		mmio_addr = nuc900_audio->mmio + ACTL_PDSTB;
 		mmio_len = nuc900_audio->mmio + ACTL_PDST_LENGTH;
 	} else {
@@ -167,18 +168,19 @@ static int nuc900_dma_prepare(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct nuc900_audio *nuc900_audio = runtime->private_data;
-	unsigned long flags, val, stype = SUBSTREAM_TYPE(substream);;
+	unsigned long flags, val;
 
 	spin_lock_irqsave(&nuc900_audio->lock, flags);
 
 	nuc900_update_dma_register(substream,
-		nuc900_audio->dma_addr[stype], nuc900_audio->buffersize[stype]);
+				nuc900_audio->dma_addr[substream->stream],
+				nuc900_audio->buffersize[substream->stream]);
 
 	val = AUDIO_READ(nuc900_audio->mmio + ACTL_RESET);
 
 	switch (runtime->channels) {
 	case 1:
-		if (PCM_TX == stype) {
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			val &= ~(PLAY_LEFT_CHNNEL | PLAY_RIGHT_CHNNEL);
 			val |= PLAY_RIGHT_CHNNEL;
 		} else {
@@ -188,7 +190,7 @@ static int nuc900_dma_prepare(struct snd_pcm_substream *substream)
 		AUDIO_WRITE(nuc900_audio->mmio + ACTL_RESET, val);
 		break;
 	case 2:
-		if (PCM_TX == stype)
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 			val |= (PLAY_LEFT_CHNNEL | PLAY_RIGHT_CHNNEL);
 		else
 			val |= (RECORD_LEFT_CHNNEL | RECORD_RIGHT_CHNNEL);

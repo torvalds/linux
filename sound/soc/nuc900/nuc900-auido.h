@@ -96,10 +96,6 @@
 #define RESET_PRSR		0x00
 #define AUDIO_WRITE(addr, val)	__raw_writel(val, addr)
 #define AUDIO_READ(addr)	__raw_readl(addr)
-#define PCM_TX			0
-#define PCM_RX			1
-#define SUBSTREAM_TYPE(substream) \
-	((substream)->stream == SNDRV_PCM_STREAM_PLAYBACK ? PCM_TX : PCM_RX)
 
 struct nuc900_audio {
 	void __iomem *mmio;
