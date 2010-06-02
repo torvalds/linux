@@ -3973,6 +3973,13 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 			DRM_ERROR("failed to pin cursor bo\n");
 			goto fail_locked;
 		}
+
+		ret = i915_gem_object_set_to_gtt_domain(bo, 0);
+		if (ret) {
+			DRM_ERROR("failed to move cursor bo into the GTT\n");
+			goto fail_unpin;
+		}
+
 		addr = obj_priv->gtt_offset;
 	} else {
 		ret = i915_gem_attach_phys_object(dev, bo, (pipe == 0) ? I915_GEM_PHYS_CURSOR_0 : I915_GEM_PHYS_CURSOR_1);
@@ -4016,6 +4023,8 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	intel_crtc->cursor_bo = bo;
 
 	return 0;
+fail_unpin:
+	i915_gem_object_unpin(bo);
 fail_locked:
 	mutex_unlock(&dev->struct_mutex);
 fail:
