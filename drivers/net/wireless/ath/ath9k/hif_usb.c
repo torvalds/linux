@@ -19,6 +19,7 @@
 static struct usb_device_id ath9k_hif_usb_ids[] = {
 	{ USB_DEVICE(0x0cf3, 0x9271) },
 	{ USB_DEVICE(0x0cf3, 0x1006) },
+	{ USB_DEVICE(0x0cf3, 0x7010) },
 	{ },
 };
 
@@ -753,6 +754,7 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 	size_t len = hif_dev->firmware->size;
 	u32 addr = AR9271_FIRMWARE;
 	u8 *buf = kzalloc(4096, GFP_KERNEL);
+	u32 firm_offset;
 
 	if (!buf)
 		return -ENOMEM;
@@ -776,13 +778,18 @@ static int ath9k_hif_usb_download_fw(struct hif_device_usb *hif_dev)
 	}
 	kfree(buf);
 
+	if (hif_dev->device_id == 0x7010)
+		firm_offset = AR7010_FIRMWARE_TEXT;
+	else
+		firm_offset = AR9271_FIRMWARE_TEXT;
+
 	/*
 	 * Issue FW download complete command to firmware.
 	 */
 	err = usb_control_msg(hif_dev->udev, usb_sndctrlpipe(hif_dev->udev, 0),
 			      FIRMWARE_DOWNLOAD_COMP,
 			      0x40 | USB_DIR_OUT,
-			      AR9271_FIRMWARE_TEXT >> 8, 0, NULL, 0, HZ);
+			      firm_offset >> 8, 0, NULL, 0, HZ);
 	if (err)
 		return -EIO;
 
@@ -875,6 +882,12 @@ static int ath9k_hif_usb_probe(struct usb_interface *interface,
 	case 0x9271:
 	case 0x1006:
 		hif_dev->fw_name = "ar9271.fw";
+		break;
+	case 0x7010:
+		if (le16_to_cpu(udev->descriptor.bcdDevice) == 0x0202)
+			hif_dev->fw_name = "ar7010_1_1.fw";
+		else
+			hif_dev->fw_name = "ar7010.fw";
 		break;
 	default:
 		break;
