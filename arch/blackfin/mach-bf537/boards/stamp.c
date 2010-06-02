@@ -38,9 +38,6 @@
 #ifdef CONFIG_REGULATOR_FIXED_VOLTAGE
 #include <linux/regulator/fixed.h>
 #endif
-#ifdef CONFIG_REGULATOR_AD5398
-#include <linux/regulator/ad5398.h>
-#endif
 #include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/userspace-consumer.h>
@@ -2146,12 +2143,6 @@ static struct regulator_init_data ad5398_regulator_data = {
 	.consumer_supplies     = &ad5398_consumer,
 };
 
-static struct ad5398_platform_data ad5398_i2c_platform_data = {
-	.current_bits = 10,
-	.current_offset = 4,
-	.regulator_data = &ad5398_regulator_data,
-};
-
 #if defined(CONFIG_REGULATOR_VIRTUAL_CONSUMER) || \
 	defined(CONFIG_REGULATOR_VIRTUAL_CONSUMER_MODULE)
 static struct platform_device ad5398_virt_consumer_device = {
@@ -2393,7 +2384,7 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_REGULATOR_AD5398) || defined(CONFIG_REGULATOR_AD5398_MODULE)
 	{
 		I2C_BOARD_INFO("ad5398", 0xC),
-		.platform_data = (void *)&ad5398_i2c_platform_data,
+		.platform_data = (void *)&ad5398_regulator_data,
 	},
 #endif
 #if defined(CONFIG_BACKLIGHT_ADP8860) || defined(CONFIG_BACKLIGHT_ADP8860_MODULE)
