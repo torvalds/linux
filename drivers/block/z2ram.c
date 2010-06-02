@@ -33,7 +33,7 @@
 #include <linux/module.h>
 #include <linux/blkdev.h>
 #include <linux/bitops.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 
 #include <asm/setup.h>
@@ -57,6 +57,7 @@ extern struct mem_info m68k_memory[NUM_MEMINFO];
 
 #define Z2RAM_CHUNK1024       ( Z2RAM_CHUNKSIZE >> 10 )
 
+static DEFINE_MUTEX(z2ram_mutex);
 static u_long *z2ram_map    = NULL;
 static u_long z2ram_size    = 0;
 static int z2_count         = 0;
@@ -154,7 +155,7 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 
     device = MINOR(bdev->bd_dev);
 
-    lock_kernel();
+    mutex_lock(&z2ram_mutex);
     if ( current_device != -1 && current_device != device )
     {
 	rc = -EBUSY;
@@ -296,25 +297,25 @@ static int z2_open(struct block_device *bdev, fmode_t mode)
 	set_capacity(z2ram_gendisk, z2ram_size >> 9);
     }
 
-    unlock_kernel();
+    mutex_unlock(&z2ram_mutex);
     return 0;
 
 err_out_kfree:
     kfree(z2ram_map);
 err_out:
-    unlock_kernel();
+    mutex_unlock(&z2ram_mutex);
     return rc;
 }
 
 static int
 z2_release(struct gendisk *disk, fmode_t mode)
 {
-    lock_kernel();
+    mutex_lock(&z2ram_mutex);
     if ( current_device == -1 ) {
-    	unlock_kernel();
+    	mutex_unlock(&z2ram_mutex);
     	return 0;
     }
-    unlock_kernel();
+    mutex_unlock(&z2ram_mutex);
     /*
      * FIXME: unmap memory
      */

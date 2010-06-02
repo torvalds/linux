@@ -89,7 +89,7 @@
 #include <linux/delay.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/ata.h>
 #include <linux/hdreg.h>
 #include <linux/platform_device.h>
@@ -214,6 +214,7 @@ struct ace_device {
 	u16 cf_id[ATA_ID_WORDS];
 };
 
+static DEFINE_MUTEX(xsysace_mutex);
 static int ace_major;
 
 /* ---------------------------------------------------------------------
@@ -903,13 +904,13 @@ static int ace_open(struct block_device *bdev, fmode_t mode)
 
 	dev_dbg(ace->dev, "ace_open() users=%i\n", ace->users + 1);
 
-	lock_kernel();
+	mutex_lock(&xsysace_mutex);
 	spin_lock_irqsave(&ace->lock, flags);
 	ace->users++;
 	spin_unlock_irqrestore(&ace->lock, flags);
 
 	check_disk_change(bdev);
-	unlock_kernel();
+	mutex_unlock(&xsysace_mutex);
 
 	return 0;
 }
@@ -922,7 +923,7 @@ static int ace_release(struct gendisk *disk, fmode_t mode)
 
 	dev_dbg(ace->dev, "ace_release() users=%i\n", ace->users - 1);
 
-	lock_kernel();
+	mutex_lock(&xsysace_mutex);
 	spin_lock_irqsave(&ace->lock, flags);
 	ace->users--;
 	if (ace->users == 0) {
@@ -930,7 +931,7 @@ static int ace_release(struct gendisk *disk, fmode_t mode)
 		ace_out(ace, ACE_CTRL, val & ~ACE_CTRL_LOCKREQ);
 	}
 	spin_unlock_irqrestore(&ace->lock, flags);
-	unlock_kernel();
+	mutex_unlock(&xsysace_mutex);
 	return 0;
 }
 

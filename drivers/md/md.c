@@ -36,7 +36,7 @@
 #include <linux/blkdev.h>
 #include <linux/sysctl.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/buffer_head.h> /* for invalidate_bdev */
 #include <linux/poll.h>
 #include <linux/ctype.h>
@@ -57,6 +57,7 @@
 #define DEBUG 0
 #define dprintk(x...) ((void)(DEBUG && printk(x)))
 
+static DEFINE_MUTEX(md_mutex);
 
 #ifndef MODULE
 static void autostart_arrays(int part);
@@ -5949,7 +5950,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 	mddev_t *mddev = mddev_find(bdev->bd_dev);
 	int err;
 
-	lock_kernel();
+	mutex_lock(&md_mutex);
 	if (mddev->gendisk != bdev->bd_disk) {
 		/* we are racing with mddev_put which is discarding this
 		 * bd_disk.
@@ -5958,7 +5959,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 		/* Wait until bdev->bd_disk is definitely gone */
 		flush_scheduled_work();
 		/* Then retry the open from the top */
-		unlock_kernel();
+		mutex_unlock(&md_mutex);
 		return -ERESTARTSYS;
 	}
 	BUG_ON(mddev != bdev->bd_disk->private_data);
@@ -5972,7 +5973,7 @@ static int md_open(struct block_device *bdev, fmode_t mode)
 
 	check_disk_size_change(mddev->gendisk, bdev);
  out:
-	unlock_kernel();
+	mutex_unlock(&md_mutex);
 	return err;
 }
 
@@ -5981,10 +5982,10 @@ static int md_release(struct gendisk *disk, fmode_t mode)
  	mddev_t *mddev = disk->private_data;
 
 	BUG_ON(!mddev);
-	lock_kernel();
+	mutex_lock(&md_mutex);
 	atomic_dec(&mddev->openers);
 	mddev_put(mddev);
-	unlock_kernel();
+	mutex_unlock(&md_mutex);
 
 	return 0;
 }

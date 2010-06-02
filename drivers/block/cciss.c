@@ -26,7 +26,6 @@
 #include <linux/pci.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
-#include <linux/smp_lock.h>
 #include <linux/delay.h>
 #include <linux/major.h>
 #include <linux/fs.h>
@@ -66,6 +65,7 @@ MODULE_SUPPORTED_DEVICE("HP Smart Array Controllers");
 MODULE_VERSION("3.6.26");
 MODULE_LICENSE("GPL");
 
+static DEFINE_MUTEX(cciss_mutex);
 static int cciss_allow_hpsa;
 module_param(cciss_allow_hpsa, int, S_IRUGO|S_IWUSR);
 MODULE_PARM_DESC(cciss_allow_hpsa,
@@ -1059,9 +1059,9 @@ static int cciss_unlocked_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&cciss_mutex);
 	ret = cciss_open(bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&cciss_mutex);
 
 	return ret;
 }
@@ -1074,13 +1074,13 @@ static int cciss_release(struct gendisk *disk, fmode_t mode)
 	ctlr_info_t *h;
 	drive_info_struct *drv;
 
-	lock_kernel();
+	mutex_lock(&cciss_mutex);
 	h = get_host(disk);
 	drv = get_drv(disk);
 	dev_dbg(&h->pdev->dev, "cciss_release %s\n", disk->disk_name);
 	drv->usage_count--;
 	h->usage_count--;
-	unlock_kernel();
+	mutex_unlock(&cciss_mutex);
 	return 0;
 }
 
@@ -1088,9 +1088,9 @@ static int do_ioctl(struct block_device *bdev, fmode_t mode,
 		    unsigned cmd, unsigned long arg)
 {
 	int ret;
-	lock_kernel();
+	mutex_lock(&cciss_mutex);
 	ret = cciss_ioctl(bdev, mode, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&cciss_mutex);
 	return ret;
 }
 

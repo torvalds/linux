@@ -32,7 +32,7 @@
 #include <asm/types.h>
 #include <net/sock.h>
 #include <linux/ctype.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include <linux/fs.h>
 #include <linux/file.h>
 #include <linux/proc_fs.h>
@@ -64,6 +64,7 @@ struct after_state_chg_work {
 	struct completion *done;
 };
 
+static DEFINE_MUTEX(drbd_main_mutex);
 int drbdd_init(struct drbd_thread *);
 int drbd_worker(struct drbd_thread *);
 int drbd_asender(struct drbd_thread *);
@@ -2536,7 +2537,7 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
 	unsigned long flags;
 	int rv = 0;
 
-	lock_kernel();
+	mutex_lock(&drbd_main_mutex);
 	spin_lock_irqsave(&mdev->req_lock, flags);
 	/* to have a stable mdev->state.role
 	 * and no race with updating open_cnt */
@@ -2551,7 +2552,7 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
 	if (!rv)
 		mdev->open_cnt++;
 	spin_unlock_irqrestore(&mdev->req_lock, flags);
-	unlock_kernel();
+	mutex_unlock(&drbd_main_mutex);
 
 	return rv;
 }
@@ -2559,9 +2560,9 @@ static int drbd_open(struct block_device *bdev, fmode_t mode)
 static int drbd_release(struct gendisk *gd, fmode_t mode)
 {
 	struct drbd_conf *mdev = gd->private_data;
-	lock_kernel();
+	mutex_lock(&drbd_main_mutex);
 	mdev->open_cnt--;
-	unlock_kernel();
+	mutex_unlock(&drbd_main_mutex);
 	return 0;
 }
 

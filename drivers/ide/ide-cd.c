@@ -31,7 +31,6 @@
 #include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
 #include <linux/errno.h>
@@ -52,6 +51,7 @@
 
 #include "ide-cd.h"
 
+static DEFINE_MUTEX(ide_cd_mutex);
 static DEFINE_MUTEX(idecd_ref_mutex);
 
 static void ide_cd_release(struct device *);
@@ -1602,7 +1602,7 @@ static int idecd_open(struct block_device *bdev, fmode_t mode)
 	struct cdrom_info *info;
 	int rc = -ENXIO;
 
-	lock_kernel();
+	mutex_lock(&ide_cd_mutex);
 	info = ide_cd_get(bdev->bd_disk);
 	if (!info)
 		goto out;
@@ -1611,7 +1611,7 @@ static int idecd_open(struct block_device *bdev, fmode_t mode)
 	if (rc < 0)
 		ide_cd_put(info);
 out:
-	unlock_kernel();
+	mutex_unlock(&ide_cd_mutex);
 	return rc;
 }
 
@@ -1619,11 +1619,11 @@ static int idecd_release(struct gendisk *disk, fmode_t mode)
 {
 	struct cdrom_info *info = ide_drv_g(disk, cdrom_info);
 
-	lock_kernel();
+	mutex_lock(&ide_cd_mutex);
 	cdrom_release(&info->devinfo, mode);
 
 	ide_cd_put(info);
-	unlock_kernel();
+	mutex_unlock(&ide_cd_mutex);
 
 	return 0;
 }
@@ -1694,9 +1694,9 @@ static int idecd_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&ide_cd_mutex);
 	ret = idecd_locked_ioctl(bdev, mode, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&ide_cd_mutex);
 
 	return ret;
 }

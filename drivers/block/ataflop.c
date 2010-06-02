@@ -67,7 +67,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 #include <linux/blkdev.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 
 #include <asm/atafd.h>
 #include <asm/atafdreg.h>
@@ -79,6 +79,7 @@
 
 #undef DEBUG
 
+static DEFINE_MUTEX(ataflop_mutex);
 static struct request_queue *floppy_queue;
 static struct request *fd_request;
 
@@ -1671,9 +1672,9 @@ static int fd_ioctl(struct block_device *bdev, fmode_t mode,
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&ataflop_mutex);
 	ret = fd_locked_ioctl(bdev, mode, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&ataflop_mutex);
 
 	return ret;
 }
@@ -1854,9 +1855,9 @@ static int floppy_unlocked_open(struct block_device *bdev, fmode_t mode)
 {
 	int ret;
 
-	lock_kernel();
+	mutex_lock(&ataflop_mutex);
 	ret = floppy_open(bdev, mode);
-	unlock_kernel();
+	mutex_unlock(&ataflop_mutex);
 
 	return ret;
 }
@@ -1864,14 +1865,14 @@ static int floppy_unlocked_open(struct block_device *bdev, fmode_t mode)
 static int floppy_release(struct gendisk *disk, fmode_t mode)
 {
 	struct atari_floppy_struct *p = disk->private_data;
-	lock_kernel();
+	mutex_lock(&ataflop_mutex);
 	if (p->ref < 0)
 		p->ref = 0;
 	else if (!p->ref--) {
 		printk(KERN_ERR "floppy_release with fd_ref == 0");
 		p->ref = 0;
 	}
-	unlock_kernel();
+	mutex_unlock(&ataflop_mutex);
 	return 0;
 }
 

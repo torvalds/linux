@@ -12,9 +12,10 @@
 #include <linux/slab.h>
 #include <linux/genhd.h>
 #include <linux/netdevice.h>
-#include <linux/smp_lock.h>
+#include <linux/mutex.h>
 #include "aoe.h"
 
+static DEFINE_MUTEX(aoeblk_mutex);
 static struct kmem_cache *buf_pool_cache;
 
 static ssize_t aoedisk_show_state(struct device *dev,
@@ -125,16 +126,16 @@ aoeblk_open(struct block_device *bdev, fmode_t mode)
 	struct aoedev *d = bdev->bd_disk->private_data;
 	ulong flags;
 
-	lock_kernel();
+	mutex_lock(&aoeblk_mutex);
 	spin_lock_irqsave(&d->lock, flags);
 	if (d->flags & DEVFL_UP) {
 		d->nopen++;
 		spin_unlock_irqrestore(&d->lock, flags);
-		unlock_kernel();
+		mutex_unlock(&aoeblk_mutex);
 		return 0;
 	}
 	spin_unlock_irqrestore(&d->lock, flags);
-	unlock_kernel();
+	mutex_unlock(&aoeblk_mutex);
 	return -ENODEV;
 }
 
