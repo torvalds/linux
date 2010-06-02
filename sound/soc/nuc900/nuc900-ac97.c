@@ -25,7 +25,7 @@
 
 #include <mach/mfp.h>
 
-#include "nuc900-auido.h"
+#include "nuc900-audio.h"
 
 static DEFINE_MUTEX(ac97_mutex);
 struct nuc900_audio *nuc900_ac97_data;
