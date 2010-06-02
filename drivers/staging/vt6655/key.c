@@ -202,9 +202,9 @@ BOOL KeybSetKey (
     )
 {
     int         i,j;
-    UINT        ii;
+    unsigned int ii;
     PSKeyItem   pKey;
-    UINT        uKeyIdx;
+    unsigned int uKeyIdx;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetKey: %lX\n", dwKeyIndex);
 
@@ -642,9 +642,9 @@ BOOL KeybSetDefaultKey (
     BYTE            byLocalID
     )
 {
-    UINT        ii;
+    unsigned int ii;
     PSKeyItem   pKey;
-    UINT        uKeyIdx;
+    unsigned int uKeyIdx;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetDefaultKey: %1x, %d \n", (int)dwKeyIndex, (int)uKeyLength);
 
@@ -750,9 +750,9 @@ BOOL KeybSetAllGroupKey (
     )
 {
     int         i;
-    UINT        ii;
+    unsigned int ii;
     PSKeyItem   pKey;
-    UINT        uKeyIdx;
+    unsigned int uKeyIdx;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Enter KeybSetAllGroupKey: %lX\n", dwKeyIndex);
 

@@ -96,7 +96,7 @@ BYTE ETHbyGetHashIndexByCrc32 (PBYTE pbyMultiAddr)
  * Return Value: TRUE if ok; FALSE if error.
  *
  */
-BOOL ETHbIsBufferCrc32Ok (PBYTE pbyBuffer, UINT cbFrameLength)
+BOOL ETHbIsBufferCrc32Ok (PBYTE pbyBuffer, unsigned int cbFrameLength)
 {
     DWORD dwCRC;
 

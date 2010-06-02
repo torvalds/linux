@@ -209,7 +209,7 @@ BOOL MACbIsIntDisable (DWORD_PTR dwIoBase)
  * Return Value: Mask Value read
  *
  */
-BYTE MACbyReadMultiAddr (DWORD_PTR dwIoBase, UINT uByteIdx)
+BYTE MACbyReadMultiAddr (DWORD_PTR dwIoBase, unsigned int uByteIdx)
 {
     BYTE byData;
 
@@ -234,7 +234,7 @@ BYTE MACbyReadMultiAddr (DWORD_PTR dwIoBase, UINT uByteIdx)
  * Return Value: none
  *
  */
-void MACvWriteMultiAddr (DWORD_PTR dwIoBase, UINT uByteIdx, BYTE byData)
+void MACvWriteMultiAddr (DWORD_PTR dwIoBase, unsigned int uByteIdx, BYTE byData)
 {
     MACvSelectPage1(dwIoBase);
     VNSvOutPortB(dwIoBase + MAC_REG_MAR0 + uByteIdx, byData);
@@ -257,7 +257,7 @@ void MACvWriteMultiAddr (DWORD_PTR dwIoBase, UINT uByteIdx, BYTE byData)
  */
 void MACvSetMultiAddrByHash (DWORD_PTR dwIoBase, BYTE byHashIdx)
 {
-    UINT uByteIdx;
+    unsigned int uByteIdx;
     BYTE byBitMask;
     BYTE byOrgValue;
 
@@ -288,7 +288,7 @@ void MACvSetMultiAddrByHash (DWORD_PTR dwIoBase, BYTE byHashIdx)
  */
 void MACvResetMultiAddrByHash (DWORD_PTR dwIoBase, BYTE byHashIdx)
 {
-    UINT uByteIdx;
+    unsigned int uByteIdx;
     BYTE byBitMask;
     BYTE byOrgValue;
 
@@ -1244,10 +1244,10 @@ void MACvSetCurrTXDescAddr (int iTxType, DWORD_PTR dwIoBase, DWORD dwCurrDescAdd
  * Return Value: none
  *
  */
-void MACvTimer0MicroSDelay (DWORD_PTR dwIoBase, UINT uDelay)
+void MACvTimer0MicroSDelay (DWORD_PTR dwIoBase, unsigned int uDelay)
 {
 BYTE byValue;
-UINT uu,ii;
+unsigned int uu,ii;
 
     VNSvOutPortB(dwIoBase + MAC_REG_TMCTL0, 0);
     VNSvOutPortD(dwIoBase + MAC_REG_TMDATA0, uDelay);
@@ -1280,7 +1280,7 @@ UINT uu,ii;
  * Return Value: none
  *
  */
-void MACvOneShotTimer0MicroSec (DWORD_PTR dwIoBase, UINT uDelayTime)
+void MACvOneShotTimer0MicroSec (DWORD_PTR dwIoBase, unsigned int uDelayTime)
 {
     VNSvOutPortB(dwIoBase + MAC_REG_TMCTL0, 0);
     VNSvOutPortD(dwIoBase + MAC_REG_TMDATA0, uDelayTime);
@@ -1301,7 +1301,7 @@ void MACvOneShotTimer0MicroSec (DWORD_PTR dwIoBase, UINT uDelayTime)
  * Return Value: none
  *
  */
-void MACvOneShotTimer1MicroSec (DWORD_PTR dwIoBase, UINT uDelayTime)
+void MACvOneShotTimer1MicroSec (DWORD_PTR dwIoBase, unsigned int uDelayTime)
 {
     VNSvOutPortB(dwIoBase + MAC_REG_TMCTL1, 0);
     VNSvOutPortD(dwIoBase + MAC_REG_TMDATA1, uDelayTime);
@@ -1319,10 +1319,10 @@ void MACvSetMISCFifo (DWORD_PTR dwIoBase, WORD wOffset, DWORD dwData)
 }
 
 
-BOOL MACbTxDMAOff (DWORD_PTR dwIoBase, UINT idx)
+BOOL MACbTxDMAOff (DWORD_PTR dwIoBase, unsigned int idx)
 {
 BYTE byData;
-UINT ww = 0;
+unsigned int ww = 0;
 
     if (idx == TYPE_TXDMA0) {
         VNSvOutPortB(dwIoBase + MAC_REG_TXDMACTL0+2, DMACTL_RUN);
@@ -1350,7 +1350,7 @@ UINT ww = 0;
 void MACvClearBusSusInd (DWORD_PTR dwIoBase)
 {
     DWORD dwOrgValue;
-    UINT ww;
+    unsigned int ww;
     // check if BcnSusInd enabled
     VNSvInPortD(dwIoBase + MAC_REG_ENCFG , &dwOrgValue);
     if( !(dwOrgValue & EnCFG_BcnSusInd))
@@ -1373,7 +1373,7 @@ void MACvEnableBusSusEn (DWORD_PTR dwIoBase)
 {
     BYTE  byOrgValue;
     DWORD dwOrgValue;
-    UINT ww;
+    unsigned int ww;
     // check if BcnSusInd enabled
     VNSvInPortB(dwIoBase + MAC_REG_CFG , &byOrgValue);
 
@@ -1394,7 +1394,7 @@ void MACvEnableBusSusEn (DWORD_PTR dwIoBase)
 BOOL MACbFlushSYNCFifo (DWORD_PTR dwIoBase)
 {
     BYTE  byOrgValue;
-    UINT ww;
+    unsigned int ww;
     // Read MACCR
     VNSvInPortB(dwIoBase + MAC_REG_MACCR , &byOrgValue);
 
@@ -1418,7 +1418,7 @@ BOOL MACbFlushSYNCFifo (DWORD_PTR dwIoBase)
 BOOL MACbPSWakeup (DWORD_PTR dwIoBase)
 {
     BYTE  byOrgValue;
-    UINT ww;
+    unsigned int ww;
     // Read PSCTL
     if (MACbIsRegBitsOff(dwIoBase, MAC_REG_PSCTL, PSCTL_PS)) {
         return TRUE;
@@ -1455,7 +1455,8 @@ BOOL MACbPSWakeup (DWORD_PTR dwIoBase)
  *
  */
 
-void MACvSetKeyEntry (DWORD_PTR dwIoBase, WORD wKeyCtl, UINT uEntryIdx, UINT uKeyIdx, PBYTE pbyAddr, PDWORD pdwKey, BYTE byLocalID)
+void MACvSetKeyEntry (DWORD_PTR dwIoBase, WORD wKeyCtl, unsigned int uEntryIdx,
+		unsigned int uKeyIdx, PBYTE pbyAddr, PDWORD pdwKey, BYTE byLocalID)
 {
 WORD    wOffset;
 DWORD   dwData;
@@ -1521,7 +1522,7 @@ int     ii;
  * Return Value: none
  *
  */
-void MACvDisableKeyEntry (DWORD_PTR dwIoBase, UINT uEntryIdx)
+void MACvDisableKeyEntry (DWORD_PTR dwIoBase, unsigned int uEntryIdx)
 {
 WORD    wOffset;
 
@@ -1549,7 +1550,8 @@ WORD    wOffset;
  *
  */
 
-void MACvSetDefaultKeyEntry (DWORD_PTR dwIoBase, UINT uKeyLen, UINT uKeyIdx, PDWORD pdwKey, BYTE byLocalID)
+void MACvSetDefaultKeyEntry (DWORD_PTR dwIoBase, unsigned int uKeyLen,
+		unsigned int uKeyIdx, PDWORD pdwKey, BYTE byLocalID)
 {
 WORD    wOffset;
 DWORD   dwData;
@@ -1664,7 +1666,8 @@ DWORD   dwData;
  * Return Value: none
  *
  */
-void MACvSetDefaultTKIPKeyEntry (DWORD_PTR dwIoBase, UINT uKeyLen, UINT uKeyIdx, PDWORD pdwKey, BYTE byLocalID)
+void MACvSetDefaultTKIPKeyEntry (DWORD_PTR dwIoBase, unsigned int uKeyLen,
+		unsigned int uKeyIdx, PDWORD pdwKey, BYTE byLocalID)
 {
 WORD    wOffset;
 DWORD   dwData;
@@ -1720,7 +1723,7 @@ int     ii;
  *
  */
 
-void MACvSetDefaultKeyCtl (DWORD_PTR dwIoBase, WORD wKeyCtl, UINT uEntryIdx, BYTE byLocalID)
+void MACvSetDefaultKeyCtl (DWORD_PTR dwIoBase, WORD wKeyCtl, unsigned int uEntryIdx, BYTE byLocalID)
 {
 WORD    wOffset;
 DWORD   dwData;

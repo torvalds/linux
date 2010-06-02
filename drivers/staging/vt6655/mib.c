@@ -178,7 +178,7 @@ void STAvUpdateIsrStatCounter (PSStatCounter pStatistic, DWORD dwIsr)
  */
 void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
                               BYTE byRSR, BYTE byNewRSR, BYTE byRxRate,
-                              PBYTE pbyBuffer, UINT cbFrameLength)
+                              PBYTE pbyBuffer, unsigned int cbFrameLength)
 {
     //need change
     PS802_11Header pHeader = (PS802_11Header)pbyBuffer;
@@ -393,7 +393,7 @@ STAvUpdateRDStatCounterEx (
     BYTE            byNewRSR,
     BYTE            byRxRate,
     PBYTE           pbyBuffer,
-    UINT            cbFrameLength
+    unsigned int cbFrameLength
     )
 {
     STAvUpdateRDStatCounter(
@@ -435,8 +435,8 @@ STAvUpdateTDStatCounter (
     BYTE            byTSR0,
     BYTE            byTSR1,
     PBYTE           pbyBuffer,
-    UINT            cbFrameLength,
-    UINT            uIdx
+    unsigned int cbFrameLength,
+    unsigned int uIdx
     )
 {
     PWLAN_80211HDR_A4   pHeader;
@@ -526,9 +526,9 @@ STAvUpdateTDStatCounterEx (
     DWORD           cbFrameLength
     )
 {
-    UINT    uPktLength;
+    unsigned int uPktLength;
 
-    uPktLength = (UINT)cbFrameLength;
+    uPktLength = (unsigned int)cbFrameLength;
 
     // tx length
     pStatistic->dwCntTxBufLength = uPktLength;

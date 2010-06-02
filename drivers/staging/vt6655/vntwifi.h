@@ -145,7 +145,7 @@ VNTWIFIvSetIBSSParameter (
     void *pMgmtHandle,
     WORD  wBeaconPeriod,
     WORD  wATIMWindow,
-    UINT  uChannel
+    unsigned int uChannel
     );
 
 void
@@ -159,7 +159,7 @@ VNTWIFIpGetCurrentSSID(
     void *pMgmtHandle
     );
 
-UINT
+unsigned int
 VNTWIFIpGetCurrentChannel(
     void *pMgmtHandle
     );

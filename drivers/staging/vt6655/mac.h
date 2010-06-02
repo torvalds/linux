@@ -1082,8 +1082,8 @@ BOOL MACbIsRegBitsOff(DWORD_PTR dwIoBase, BYTE byRegOfs, BYTE byTestBits);
 
 BOOL MACbIsIntDisable(DWORD_PTR dwIoBase);
 
-BYTE MACbyReadMultiAddr(DWORD_PTR dwIoBase, UINT uByteIdx);
-void MACvWriteMultiAddr(DWORD_PTR dwIoBase, UINT uByteIdx, BYTE byData);
+BYTE MACbyReadMultiAddr(DWORD_PTR dwIoBase, unsigned int uByteIdx);
+void MACvWriteMultiAddr(DWORD_PTR dwIoBase, unsigned int uByteIdx, BYTE byData);
 void MACvSetMultiAddrByHash(DWORD_PTR dwIoBase, BYTE byHashIdx);
 void MACvResetMultiAddrByHash(DWORD_PTR dwIoBase, BYTE byHashIdx);
 
@@ -1125,13 +1125,13 @@ void MACvSetCurrTx0DescAddrEx(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
 void MACvSetCurrAC0DescAddrEx(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
 void MACvSetCurrSyncDescAddrEx(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
 void MACvSetCurrATIMDescAddrEx(DWORD_PTR dwIoBase, DWORD dwCurrDescAddr);
-void MACvTimer0MicroSDelay(DWORD_PTR dwIoBase, UINT uDelay);
-void MACvOneShotTimer0MicroSec(DWORD_PTR dwIoBase, UINT uDelayTime);
-void MACvOneShotTimer1MicroSec(DWORD_PTR dwIoBase, UINT uDelayTime);
+void MACvTimer0MicroSDelay(DWORD_PTR dwIoBase, unsigned int uDelay);
+void MACvOneShotTimer0MicroSec(DWORD_PTR dwIoBase, unsigned int uDelayTime);
+void MACvOneShotTimer1MicroSec(DWORD_PTR dwIoBase, unsigned int uDelayTime);
 
 void MACvSetMISCFifo(DWORD_PTR dwIoBase, WORD wOffset, DWORD dwData);
 
-BOOL MACbTxDMAOff (DWORD_PTR dwIoBase, UINT idx);
+BOOL MACbTxDMAOff (DWORD_PTR dwIoBase, unsigned int idx);
 
 void MACvClearBusSusInd(DWORD_PTR dwIoBase);
 void MACvEnableBusSusEn(DWORD_PTR dwIoBase);
@@ -1139,13 +1139,16 @@ void MACvEnableBusSusEn(DWORD_PTR dwIoBase);
 BOOL MACbFlushSYNCFifo(DWORD_PTR dwIoBase);
 BOOL MACbPSWakeup(DWORD_PTR dwIoBase);
 
-void MACvSetKeyEntry(DWORD_PTR dwIoBase, WORD wKeyCtl, UINT uEntryIdx, UINT uKeyIdx, PBYTE pbyAddr, PDWORD pdwKey, BYTE byLocalID);
-void MACvDisableKeyEntry(DWORD_PTR dwIoBase, UINT uEntryIdx);
-void MACvSetDefaultKeyEntry(DWORD_PTR dwIoBase, UINT uKeyLen, UINT uKeyIdx, PDWORD pdwKey, BYTE byLocalID);
+void MACvSetKeyEntry(DWORD_PTR dwIoBase, WORD wKeyCtl, unsigned int uEntryIdx,
+		unsigned int uKeyIdx, PBYTE pbyAddr, PDWORD pdwKey, BYTE byLocalID);
+void MACvDisableKeyEntry(DWORD_PTR dwIoBase, unsigned int uEntryIdx);
+void MACvSetDefaultKeyEntry(DWORD_PTR dwIoBase, unsigned int uKeyLen,
+		unsigned int uKeyIdx, PDWORD pdwKey, BYTE byLocalID);
 //void MACvEnableDefaultKey(DWORD_PTR dwIoBase, BYTE byLocalID);
 void MACvDisableDefaultKey(DWORD_PTR dwIoBase);
-void MACvSetDefaultTKIPKeyEntry(DWORD_PTR dwIoBase, UINT uKeyLen, UINT uKeyIdx, PDWORD pdwKey, BYTE byLocalID);
-void MACvSetDefaultKeyCtl(DWORD_PTR dwIoBase, WORD wKeyCtl, UINT uEntryIdx, BYTE byLocalID);
+void MACvSetDefaultTKIPKeyEntry(DWORD_PTR dwIoBase, unsigned int uKeyLen,
+		unsigned int uKeyIdx, PDWORD pdwKey, BYTE byLocalID);
+void MACvSetDefaultKeyCtl(DWORD_PTR dwIoBase, WORD wKeyCtl, unsigned int uEntryIdx, BYTE byLocalID);
 
 #endif // __MAC_H__
 

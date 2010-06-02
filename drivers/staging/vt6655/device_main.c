@@ -329,8 +329,8 @@ static int  device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev);
 static BOOL device_release_WPADEV(PSDevice pDevice);
 
 static int  ethtool_ioctl(struct net_device *dev, void *useraddr);
-static int  device_rx_srv(PSDevice pDevice, UINT uIdx);
-static int  device_tx_srv(PSDevice pDevice, UINT uIdx);
+static int  device_rx_srv(PSDevice pDevice, unsigned int uIdx);
+static int  device_tx_srv(PSDevice pDevice, unsigned int uIdx);
 static BOOL device_alloc_rx_buf(PSDevice pDevice, PSRxDesc pDesc);
 static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType);
 static void device_free_tx_buf(PSDevice pDevice, PSTxDesc pDesc);
@@ -481,7 +481,7 @@ pDevice->bUpdateBBVGA = TRUE;
 
 static void s_vCompleteCurrentMeasure (PSDevice pDevice, BYTE byResult)
 {
-    UINT    ii;
+    unsigned int ii;
     DWORD   dwDuration = 0;
     BYTE    byRPI0 = 0;
 
@@ -526,7 +526,7 @@ static void s_vCompleteCurrentMeasure (PSDevice pDevice, BYTE byResult)
 
 static void device_init_registers(PSDevice pDevice, DEVICE_INIT_TYPE InitType)
 {
-    UINT    ii;
+    unsigned int ii;
     BYTE    byValue;
 	BYTE    byValue1;
     BYTE    byCCKPwrdBm = 0;
@@ -1153,7 +1153,7 @@ static BOOL device_get_pci_info(PSDevice pDevice, struct pci_dev* pcid) {
 
     u16 pci_cmd;
     u8  b;
-    UINT cis_addr;
+    unsigned int cis_addr;
 #ifdef	PLICE_DEBUG
 	BYTE       pci_config[256];
 	BYTE	value =0x00;
@@ -1594,7 +1594,7 @@ static void device_free_td1_ring(PSDevice pDevice) {
 
 /*-----------------------------------------------------------------*/
 
-static int device_rx_srv(PSDevice pDevice, UINT uIdx) {
+static int device_rx_srv(PSDevice pDevice, unsigned int uIdx) {
     PSRxDesc    pRD;
     int works = 0;
 
@@ -1662,17 +1662,17 @@ BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF) {
 
 
 
-static int device_tx_srv(PSDevice pDevice, UINT uIdx) {
+static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
     PSTxDesc                 pTD;
     BOOL                     bFull=FALSE;
     int                      works = 0;
     BYTE                     byTsr0;
     BYTE                     byTsr1;
-    UINT                     uFrameSize, uFIFOHeaderSize;
+    unsigned int	uFrameSize, uFIFOHeaderSize;
     PSTxBufHead              pTxBufHead;
     struct net_device_stats* pStats = &pDevice->stats;
     struct sk_buff*          skb;
-    UINT                     uNodeIndex;
+    unsigned int	uNodeIndex;
     PSMgmtObject             pMgmt = pDevice->pMgmt;
 
 
@@ -2084,7 +2084,7 @@ device_release_WPADEV(pDevice);
 static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
     PSDevice        pDevice=netdev_priv(dev);
     PBYTE           pbMPDU;
-    UINT            cbMPDULen = 0;
+    unsigned int cbMPDULen = 0;
 
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO "device_dma0_tx_80211\n");
@@ -2116,16 +2116,16 @@ static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
 
 
 
-BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, UINT uNodeIndex) {
+BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeIndex) {
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PSTxDesc        pHeadTD, pLastTD;
-    UINT            cbFrameBodySize;
-    UINT            uMACfragNum;
+    unsigned int cbFrameBodySize;
+    unsigned int uMACfragNum;
     BYTE            byPktType;
     BOOL            bNeedEncryption = FALSE;
     PSKeyItem       pTransmitKey = NULL;
-    UINT            cbHeaderSize;
-    UINT            ii;
+    unsigned int cbHeaderSize;
+    unsigned int ii;
     SKeyItem        STempKey;
 //    BYTE            byKeyIndex = 0;
 
@@ -2270,17 +2270,17 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
 
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PSTxDesc        pHeadTD, pLastTD;
-    UINT            uNodeIndex = 0;
+    unsigned int uNodeIndex = 0;
     BYTE            byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
     WORD            wAID;
-    UINT            uMACfragNum = 1;
-    UINT            cbFrameBodySize;
+    unsigned int uMACfragNum = 1;
+    unsigned int cbFrameBodySize;
     BYTE            byPktType;
-    UINT            cbHeaderSize;
+    unsigned int cbHeaderSize;
     BOOL            bNeedEncryption = FALSE;
     PSKeyItem       pTransmitKey = NULL;
     SKeyItem        STempKey;
-    UINT            ii;
+    unsigned int ii;
     BOOL            bTKIP_UseGTK = FALSE;
     BOOL            bNeedDeAuth = FALSE;
     PBYTE           pbyBSSID;

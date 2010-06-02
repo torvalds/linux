@@ -69,7 +69,7 @@ WPA2vParseRSN (
     PWLAN_IE_RSN     pRSN
     );
 
-UINT
+unsigned int
 WPA2uSetIEs(
     void *pMgmtHandle,
     PWLAN_IE_RSN pRSNIEs

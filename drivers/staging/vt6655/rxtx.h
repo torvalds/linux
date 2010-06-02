@@ -44,7 +44,7 @@ void vGenerateMACHeader(
     PSDevice pDevice,
     DWORD dwTxBufferAddr,
     PBYTE pbySkbData,
-    UINT cbPacketSize,
+    unsigned int cbPacketSize,
     BOOL bDMA0Used,
     PUINT pcbHeadSize,
     PUINT pcbAppendPayload
@@ -53,7 +53,7 @@ void vGenerateMACHeader(
 void vProcessRxMACHeader (
     PSDevice pDevice,
     DWORD dwRxBufferAddr,
-    UINT cbPacketSize,
+    unsigned int cbPacketSize,
     BOOL bIsWEP,
     PUINT pcbHeadSize
     );
@@ -68,16 +68,16 @@ vGenerateMACHeader (
     PSEthernetHeader psEthHeader,
     BOOL             bNeedEncrypt,
     WORD             wFragType,
-    UINT             uDMAIdx,
-    UINT             uFragIdx
+    unsigned int uDMAIdx,
+    unsigned int uFragIdx
     );
 
 
-UINT
+unsigned int
 cbGetFragCount(
     PSDevice         pDevice,
     PSKeyItem        pTransmitKey,
-    UINT             cbFrameBodySize,
+    unsigned int	cbFrameBodySize,
     PSEthernetHeader psEthHeader
     );
 
@@ -88,19 +88,19 @@ vGenerateFIFOHeader (
     BYTE             byPktTyp,
     PBYTE            pbyTxBufferAddr,
     BOOL             bNeedEncrypt,
-    UINT             cbPayloadSize,
-    UINT             uDMAIdx,
+    unsigned int	cbPayloadSize,
+    unsigned int	uDMAIdx,
     PSTxDesc         pHeadTD,
     PSEthernetHeader psEthHeader,
     PBYTE            pPacket,
     PSKeyItem        pTransmitKey,
-    UINT             uNodeIndex,
+    unsigned int	uNodeIndex,
     PUINT            puMACfragNum,
     PUINT            pcbHeaderSize
     );
 
 
-void vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, PBYTE pbMPDU, UINT cbMPDULen);
+void vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, PBYTE pbMPDU, unsigned int cbMPDULen);
 CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 

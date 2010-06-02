@@ -103,7 +103,7 @@ VNTWIFIvSetIBSSParameter (
     void *pMgmtHandle,
     WORD  wBeaconPeriod,
     WORD  wATIMWindow,
-    UINT  uChannel
+    unsigned int uChannel
     )
 {
     PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
@@ -150,7 +150,7 @@ VNTWIFIpGetCurrentSSID (
  * Return Value: current Channel.
  *
 -*/
-UINT
+unsigned int
 VNTWIFIpGetCurrentChannel (
     void *pMgmtHandle
     )
@@ -210,7 +210,7 @@ VNTWIFIbyGetMaxSupportRate (
 {
     BYTE    byMaxSupportRate = RATE_1M;
     BYTE    bySupportRate = RATE_1M;
-    UINT    ii = 0;
+    unsigned int ii = 0;
 
     if (pSupportRateIEs) {
         for (ii = 0; ii < pSupportRateIEs->len; ii++) {
@@ -257,7 +257,7 @@ VNTWIFIbyGetACKTxRate (
 {
     BYTE    byMaxAckRate;
     BYTE    byBasicRate;
-    UINT    ii;
+    unsigned int ii;
 
     if (byRxDataRate <= RATE_11M) {
         byMaxAckRate = RATE_1M;
@@ -431,10 +431,10 @@ VNTWIFIvQueryBSSList (
     void **pvFirstBSS
     )
 {
-    UINT            ii = 0;
+    unsigned int ii = 0;
     PSMgmtObject    pMgmt = (PSMgmtObject)pMgmtHandle;
     PKnownBSS       pBSS = NULL;
-    UINT            uCount = 0;
+    unsigned int uCount = 0;
 
     *pvFirstBSS = NULL;
 
@@ -504,8 +504,8 @@ VNTWIFIvUpdateNodeTxCounter(
     )
 {
     PSMgmtObject    pMgmt = (PSMgmtObject)pMgmtHandle;
-    UINT            uNodeIndex = 0;
-    UINT            ii;
+    unsigned int uNodeIndex = 0;
+    unsigned int ii;
 
     if ((pMgmt->eCurrMode == WMAC_MODE_IBSS_STA) ||
         (pMgmt->eCurrMode == WMAC_MODE_ESS_AP)) {
@@ -540,7 +540,7 @@ VNTWIFIvGetTxRate(
     )
 {
     PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
-    UINT                uNodeIndex = 0;
+    unsigned int uNodeIndex = 0;
     WORD                wTxDataRate = RATE_1M;
     BYTE                byACKRate = RATE_1M;
     BYTE                byCCKBasicRate = RATE_1M;
@@ -626,7 +626,7 @@ VNTWIFIbInit(
 {
 
     PSMgmtObject        pMgmt = NULL;
-    UINT                ii;
+    unsigned int ii;
 
 
     pMgmt = (PSMgmtObject)kmalloc(sizeof(SMgmtObject), (int)GFP_ATOMIC);

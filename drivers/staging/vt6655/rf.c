@@ -911,7 +911,7 @@ BOOL    bResult = TRUE;
  * Return Value: None.
  *
  */
-BOOL RFvWriteWakeProgSyn (DWORD_PTR dwIoBase, BYTE byRFType, UINT uChannel)
+BOOL RFvWriteWakeProgSyn (DWORD_PTR dwIoBase, BYTE byRFType, unsigned int uChannel)
 {
     int   ii;
     BYTE  byInitCount = 0;
@@ -998,8 +998,8 @@ BOOL RFvWriteWakeProgSyn (DWORD_PTR dwIoBase, BYTE byRFType, UINT uChannel)
  */
 BOOL RFbSetPower (
     PSDevice  pDevice,
-    UINT      uRATE,
-    UINT      uCH
+    unsigned int uRATE,
+    unsigned int uCH
     )
 {
 BOOL    bResult = TRUE;
@@ -1138,7 +1138,7 @@ BYTE    byPwrdBm = 0;
 BOOL RFbRawSetPower (
     PSDevice  pDevice,
     BYTE      byPwr,
-    UINT      uRATE
+    unsigned int uRATE
     )
 {
 BOOL    bResult = TRUE;

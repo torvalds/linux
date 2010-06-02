@@ -261,7 +261,7 @@ WPA2vParseRSN (
  * Return Value: length of IEs.
  *
 -*/
-UINT
+unsigned int
 WPA2uSetIEs(
     void *pMgmtHandle,
     PWLAN_IE_RSN pRSNIEs
@@ -269,7 +269,7 @@ WPA2uSetIEs(
 {
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtHandle;
     PBYTE           pbyBuffer = NULL;
-    UINT            ii = 0;
+    unsigned int ii = 0;
     PWORD           pwPMKID = NULL;
 
     if (pRSNIEs == NULL) {

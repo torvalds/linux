@@ -138,8 +138,8 @@ BSSpSearchBSSList(
     PKnownBSS       pCurrBSS = NULL;
     PKnownBSS       pSelect = NULL;
 BYTE                 ZeroBSSID[WLAN_BSSID_LEN]={0x00,0x00,0x00,0x00,0x00,0x00};
-    UINT            ii = 0;
-//    UINT            jj = 0;   //DavidWang
+    unsigned int ii = 0;
+
     if (pbyDesireBSSID != NULL) {
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"BSSpSearchBSSList BSSID[%02X %02X %02X-%02X %02X %02X]\n",
                             *pbyDesireBSSID,*(pbyDesireBSSID+1),*(pbyDesireBSSID+2),
@@ -288,7 +288,7 @@ BSSvClearBSSList(
 {
     PSDevice     pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
-    UINT            ii;
+    unsigned int ii;
 
     for (ii = 0; ii < MAX_BSS_NUM; ii++) {
         if (bKeepCurrBSSID) {
@@ -333,7 +333,7 @@ BSSpAddrIsInBSSList(
     PSDevice     pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PKnownBSS       pBSSList = NULL;
-    UINT            ii;
+    unsigned int ii;
 
     for (ii = 0; ii < MAX_BSS_NUM; ii++) {
         pBSSList = &(pMgmt->sBSSList[ii]);
@@ -382,7 +382,7 @@ BSSbInsertToBSSList (
     PWLAN_IE_RSN_EXT pRSNWPA,
     PWLAN_IE_COUNTRY pIE_Country,
     PWLAN_IE_QUIET pIE_Quiet,
-    UINT uIELength,
+    unsigned int uIELength,
     PBYTE pbyIEs,
     void *pRxPacketContext
     )
@@ -392,7 +392,7 @@ BSSbInsertToBSSList (
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PSRxMgmtPacket  pRxPacket = (PSRxMgmtPacket)pRxPacketContext;
     PKnownBSS       pBSSList = NULL;
-    UINT            ii;
+    unsigned int ii;
     BOOL            bParsingQuiet = FALSE;
     PWLAN_IE_QUIET  pQuiet = NULL;
 
@@ -468,9 +468,9 @@ BSSbInsertToBSSList (
     WPA_ClearRSN(pBSSList);
 
     if (pRSNWPA != NULL) {
-        UINT uLen = pRSNWPA->len + 2;
+        unsigned int uLen = pRSNWPA->len + 2;
 
-        if (uLen <= (uIELength - (UINT)(ULONG_PTR)((PBYTE)pRSNWPA - pbyIEs))) {
+        if (uLen <= (uIELength - (unsigned int)(ULONG_PTR)((PBYTE)pRSNWPA - pbyIEs))) {
             pBSSList->wWPALen = uLen;
             memcpy(pBSSList->byWPAIE, pRSNWPA, uLen);
             WPA_ParseRSN(pBSSList, pRSNWPA);
@@ -480,8 +480,8 @@ BSSbInsertToBSSList (
     WPA2_ClearRSN(pBSSList);
 
     if (pRSN != NULL) {
-        UINT uLen = pRSN->len + 2;
-        if (uLen <= (uIELength - (UINT)(ULONG_PTR)((PBYTE)pRSN - pbyIEs))) {
+        unsigned int uLen = pRSN->len + 2;
+        if (uLen <= (uIELength - (unsigned int)(ULONG_PTR)((PBYTE)pRSN - pbyIEs))) {
             pBSSList->wRSNLen = uLen;
             memcpy(pBSSList->byRSNIE, pRSN, uLen);
             WPA2vParseRSN(pBSSList, pRSN);
@@ -600,7 +600,7 @@ BSSbUpdateToBSSList (
     PWLAN_IE_COUNTRY pIE_Country,
     PWLAN_IE_QUIET pIE_Quiet,
     PKnownBSS pBSSList,
-    UINT uIELength,
+    unsigned int uIELength,
     PBYTE pbyIEs,
     void *pRxPacketContext
     )
@@ -670,8 +670,8 @@ BSSbUpdateToBSSList (
    WPA_ClearRSN(pBSSList);         //mike update
 
     if (pRSNWPA != NULL) {
-        UINT uLen = pRSNWPA->len + 2;
-        if (uLen <= (uIELength - (UINT)(ULONG_PTR)((PBYTE)pRSNWPA - pbyIEs))) {
+        unsigned int uLen = pRSNWPA->len + 2;
+        if (uLen <= (uIELength - (unsigned int)(ULONG_PTR)((PBYTE)pRSNWPA - pbyIEs))) {
             pBSSList->wWPALen = uLen;
             memcpy(pBSSList->byWPAIE, pRSNWPA, uLen);
             WPA_ParseRSN(pBSSList, pRSNWPA);
@@ -681,8 +681,8 @@ BSSbUpdateToBSSList (
    WPA2_ClearRSN(pBSSList);  //mike update
 
     if (pRSN != NULL) {
-        UINT uLen = pRSN->len + 2;
-        if (uLen <= (uIELength - (UINT)(ULONG_PTR)((PBYTE)pRSN - pbyIEs))) {
+        unsigned int uLen = pRSN->len + 2;
+        if (uLen <= (uIELength - (unsigned int)(ULONG_PTR)((PBYTE)pRSN - pbyIEs))) {
             pBSSList->wRSNLen = uLen;
             memcpy(pBSSList->byRSNIE, pRSN, uLen);
             WPA2vParseRSN(pBSSList, pRSN);
@@ -770,7 +770,7 @@ BSSDBbIsSTAInNodeDB(
     )
 {
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
-    UINT            ii;
+    unsigned int ii;
 
     // Index = 0 reserved for AP Node
     for (ii = 1; ii < (MAX_NODE_NUM + 1); ii++) {
@@ -806,9 +806,9 @@ BSSvCreateOneNode(
 
     PSDevice     pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
-    UINT            ii;
-    UINT            BigestCount = 0;
-    UINT            SelectIndex;
+    unsigned int ii;
+    unsigned int BigestCount = 0;
+    unsigned int SelectIndex;
     struct sk_buff  *skb;
     // Index = 0 reserved for AP Node (In STA mode)
     // Index = 0 reserved for Broadcast/MultiCast (In AP mode)
@@ -865,7 +865,7 @@ BSSvCreateOneNode(
 void
 BSSvRemoveOneNode(
     void *hDeviceContext,
-    UINT uNodeIndex
+    unsigned int uNodeIndex
     )
 {
 
@@ -905,7 +905,7 @@ BSSvUpdateAPNode(
 {
     PSDevice     pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
-    UINT            uRateLen = WLAN_RATES_MAXLEN;
+    unsigned int uRateLen = WLAN_RATES_MAXLEN;
 
     memset(&pMgmt->sNodeDBTable[0], 0, sizeof(KnownNodeDB));
 
@@ -1009,7 +1009,7 @@ BSSvAddMulticastNode(
  //2008-4-14 <add> by chester for led issue
  #ifdef FOR_LED_ON_NOTEBOOK
 BOOL cc=FALSE;
-UINT status;
+unsigned int status;
 #endif
 void
 BSSvSecondCallBack(
@@ -1018,11 +1018,11 @@ BSSvSecondCallBack(
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
-    UINT            ii;
+    unsigned int ii;
     PWLAN_IE_SSID   pItemSSID, pCurrSSID;
-    UINT            uSleepySTACnt = 0;
-    UINT            uNonShortSlotSTACnt = 0;
-    UINT            uLongPreambleSTACnt = 0;
+    unsigned int uSleepySTACnt = 0;
+    unsigned int uNonShortSlotSTACnt = 0;
+    unsigned int uLongPreambleSTACnt = 0;
     viawget_wpa_header* wpahdr;  //DavidWang
 
     spin_lock_irq(&pDevice->lock);
@@ -1394,20 +1394,20 @@ BSSvUpdateNodeTxCounter(
     BYTE        byTsr0,
     BYTE        byTsr1,
     PBYTE       pbyBuffer,
-    UINT        uFIFOHeaderSize
+    unsigned int uFIFOHeaderSize
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
-    UINT            uNodeIndex = 0;
+    unsigned int uNodeIndex = 0;
     BYTE            byTxRetry = (byTsr0 & TSR0_NCR);
     PSTxBufHead     pTxBufHead;
     PS802_11Header  pMACHeader;
     WORD            wRate;
     WORD            wFallBackRate = RATE_1M;
     BYTE            byFallBack;
-    UINT            ii;
-//	UINT		txRetryTemp;
+    unsigned int ii;
+//	unsigned int txRetryTemp;
 //PLICE_DEBUG->
 	//txRetryTemp = byTxRetry;
 	//if (txRetryTemp== 8)
@@ -1584,14 +1584,14 @@ BSSvUpdateNodeTxCounter(
 void
 BSSvClearNodeDBTable(
     void *hDeviceContext,
-    UINT uStartIndex
+    unsigned int uStartIndex
     )
 
 {
     PSDevice     pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     struct sk_buff  *skb;
-    UINT            ii;
+    unsigned int ii;
 
     for (ii = uStartIndex; ii < (MAX_NODE_NUM + 1); ii++) {
         if (pMgmt->sNodeDBTable[ii].bActive) {
@@ -1666,7 +1666,7 @@ BSSvClearAnyBSSJoinRecord (
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
-    UINT            ii;
+    unsigned int ii;
 
     for (ii = 0; ii < MAX_BSS_NUM; ii++) {
         pMgmt->sBSSList[ii].bSelected = FALSE;

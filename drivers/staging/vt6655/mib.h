@@ -301,7 +301,7 @@ typedef struct tagSStatCounter {
     DWORD   dwCntRxDataErr;             // rx buffer data software compare CRC err count
     DWORD   dwCntDecryptErr;            // rx buffer data software compare CRC err count
     DWORD   dwCntRxICVErr;              // rx buffer data software compare CRC err count
-    UINT    idxRxErrorDesc[TYPE_MAXRD]; // index for rx data error RD
+    unsigned int idxRxErrorDesc[TYPE_MAXRD]; // index for rx data error RD
 
     // 64-bit OID
     ULONGLONG   ullTsrOK[TYPE_MAXTD];
@@ -348,15 +348,14 @@ void STAvUpdateIsrStatCounter(PSStatCounter pStatistic, DWORD dwIsr);
 
 void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
                               BYTE byRSR, BYTE byNewRSR, BYTE byRxRate,
-                              PBYTE pbyBuffer, UINT cbFrameLength);
+                              PBYTE pbyBuffer, unsigned int cbFrameLength);
 
 void STAvUpdateRDStatCounterEx(PSStatCounter pStatistic,
                               BYTE byRSR, BYTE byNewRsr, BYTE byRxRate,
-                              PBYTE pbyBuffer, UINT cbFrameLength);
+                              PBYTE pbyBuffer, unsigned int cbFrameLength);
 
-void STAvUpdateTDStatCounter(PSStatCounter pStatistic,
-                             BYTE byTSR0, BYTE byTSR1,
-                             PBYTE pbyBuffer, UINT cbFrameLength, UINT uIdx );
+void STAvUpdateTDStatCounter(PSStatCounter pStatistic, BYTE byTSR0, BYTE byTSR1,
+		PBYTE pbyBuffer, unsigned int cbFrameLength, unsigned int uIdx);
 
 void STAvUpdateTDStatCounterEx(
     PSStatCounter   pStatistic,

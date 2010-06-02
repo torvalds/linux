@@ -86,7 +86,7 @@ typedef enum _CARD_OP_MODE {
 
 /*---------------------  Export Functions  --------------------------*/
 
-BOOL ChannelValid(UINT ChannelIndex);
+BOOL ChannelValid(unsigned int ChannelIndex);
 void CARDvSetRSPINF(void *pDeviceHandler, CARD_PHY_TYPE ePHYType);
 void vUpdateIFS(void *pDeviceHandler);
 void CARDvUpdateBasicTopRate(void *pDeviceHandler);
@@ -107,8 +107,8 @@ void CARDvSafeResetRx(void *pDeviceHandler);
 //xxx
 BOOL CARDbRadioPowerOff(void *pDeviceHandler);
 BOOL CARDbRadioPowerOn(void *pDeviceHandler);
-BOOL CARDbSetChannel(void *pDeviceHandler, UINT uConnectionChannel);
-//BOOL CARDbSendPacket(void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktType, UINT uLength);
+BOOL CARDbSetChannel(void *pDeviceHandler, unsigned int uConnectionChannel);
+//BOOL CARDbSendPacket(void *pDeviceHandler, void *pPacket, CARD_PKT_TYPE ePktType, unsigned int uLength);
 BOOL CARDbIsShortPreamble(void *pDeviceHandler);
 BOOL CARDbIsShorSlotTime(void *pDeviceHandler);
 BOOL CARDbSetPhyParameter(void *pDeviceHandler, CARD_PHY_TYPE ePHYType, WORD wCapInfo, BYTE byERPField, void *pvSupportRateIEs, void *pvExtSupportRateIEs);
@@ -152,7 +152,7 @@ BOOL
 CARDbStartMeasure (
     void *pDeviceHandler,
     void *pvMeasureEIDs,
-    UINT             uNumOfMeasureEIDs
+    unsigned int uNumOfMeasureEIDs
     );
 
 BOOL
@@ -212,7 +212,7 @@ CARDbyGetTransmitPower (
 
 BOOL
 CARDbChannelGetList (
-     UINT       uCountryCodeIdx,
+    unsigned int uCountryCodeIdx,
     PBYTE      pbyChannelTable
     );
 
@@ -225,7 +225,7 @@ CARDvSetCountryIE(
 BOOL
 CARDbGetChannelMapInfo(
     void *pDeviceHandler,
-    UINT         uChannelIndex,
+    unsigned int uChannelIndex,
     PBYTE       pbyChannelNumber,
     PBYTE       pbyMap
     );
@@ -233,7 +233,7 @@ CARDbGetChannelMapInfo(
 void
 CARDvSetChannelMapInfo(
     void *pDeviceHandler,
-    UINT         uChannelIndex,
+    unsigned int uChannelIndex,
     BYTE         byMap
     );
 

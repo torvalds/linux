@@ -224,8 +224,8 @@ typedef enum tagWMAC_POWER_MODE {
 typedef struct tagSTxMgmtPacket {
 
     PUWLAN_80211HDR     p80211Header;
-    UINT                cbMPDULen;
-    UINT                cbPayloadLen;
+    unsigned int cbMPDULen;
+    unsigned int cbPayloadLen;
 
 } STxMgmtPacket, *PSTxMgmtPacket;
 
@@ -235,9 +235,9 @@ typedef struct tagSRxMgmtPacket {
 
     PUWLAN_80211HDR     p80211Header;
     QWORD               qwLocalTSF;
-    UINT                cbMPDULen;
-    UINT                cbPayloadLen;
-    UINT                uRSSI;
+    unsigned int cbMPDULen;
+    unsigned int cbPayloadLen;
+    unsigned int uRSSI;
     BYTE                bySQ;
     BYTE                byRxRate;
     BYTE                byRxChannel;
@@ -271,7 +271,7 @@ typedef struct tagSMgmtObject
 //    BYTE                    abyNewExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN];
 
     // Current state vars
-    UINT                    uCurrChannel;
+    unsigned int	uCurrChannel;
     BYTE                    abyCurrSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
     BYTE                    abyCurrExtSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
     BYTE                    abyCurrSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
@@ -284,7 +284,7 @@ typedef struct tagSMgmtObject
     BYTE                    byERPContext;
 
     CMD_STATE               eCommandState;
-    UINT                    uScanChannel;
+    unsigned int	uScanChannel;
 
     // Desire joinning BSS vars
     BYTE                    abyDesireSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
@@ -294,22 +294,22 @@ typedef struct tagSMgmtObject
   //BYTE                    abyAdHocSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
     WORD                    wIBSSBeaconPeriod;
     WORD                    wIBSSATIMWindow;
-    UINT                    uIBSSChannel;
+    unsigned int	uIBSSChannel;
     BYTE                    abyIBSSSuppRates[WLAN_IEHDR_LEN + WLAN_RATES_MAXLEN + 1];
     BYTE                    byAPBBType;
     BYTE                    abyWPAIE[MAX_WPA_IE_LEN];
     WORD                    wWPAIELen;
 
-    UINT                    uAssocCount;
+    unsigned int	uAssocCount;
     BOOL                    bMoreData;
 
     // Scan state vars
     WMAC_SCAN_STATE         eScanState;
     WMAC_SCAN_TYPE          eScanType;
-    UINT                    uScanStartCh;
-    UINT                    uScanEndCh;
+    unsigned int	uScanStartCh;
+    unsigned int	uScanEndCh;
     WORD                    wScanSteps;
-    UINT                    uScanBSSType;
+    unsigned int	uScanBSSType;
     // Desire scannig vars
     BYTE                    abyScanSSID[WLAN_IEHDR_LEN + WLAN_SSID_MAXLEN + 1];
     BYTE                    abyScanBSSID[WLAN_BSSID_LEN];
@@ -338,8 +338,8 @@ typedef struct tagSMgmtObject
     BYTE                    abyPSTxMap[MAX_NODE_NUM + 1];
 
     // management command related
-    UINT                    uCmdBusy;
-    UINT                    uCmdHostAPBusy;
+    unsigned int	uCmdBusy;
+    unsigned int	uCmdHostAPBusy;
 
     // management packet pool
     PBYTE                   pbyMgmtPacketPool;
@@ -381,7 +381,7 @@ typedef struct tagSMgmtObject
     BOOL                    bSwitchChannel;
     BYTE                    byNewChannel;
     PWLAN_IE_MEASURE_REP    pCurrMeasureEIDRep;
-    UINT                    uLengthOfRepEIDs;
+    unsigned int	uLengthOfRepEIDs;
     BYTE                    abyCurrentMSRReq[sizeof(STxMgmtPacket) + WLAN_A3FR_MAXLEN];
     BYTE                    abyCurrentMSRRep[sizeof(STxMgmtPacket) + WLAN_A3FR_MAXLEN];
     BYTE                    abyIECountry[WLAN_A3FR_MAXLEN];

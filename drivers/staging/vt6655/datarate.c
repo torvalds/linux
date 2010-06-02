@@ -208,11 +208,11 @@ RATEvParseMaxRate (
     )
 {
 PSDevice  pDevice = (PSDevice) pDeviceHandler;
-UINT  ii;
+unsigned int ii;
 BYTE  byHighSuppRate = 0;
 BYTE  byRate = 0;
 WORD  wOldBasicRate = pDevice->wBasicRate;
-UINT  uRateLen;
+unsigned int uRateLen;
 
 
     if (pItemRates == NULL)
@@ -248,7 +248,7 @@ UINT  uRateLen;
     if ((pItemExtRates != NULL) && (pItemExtRates->byElementID == WLAN_EID_EXTSUPP_RATES) &&
         (pDevice->eCurrentPHYType != PHY_TYPE_11B)) {
 
-        UINT  uExtRateLen = pItemExtRates->len;
+        unsigned int uExtRateLen = pItemExtRates->len;
 
         if (uExtRateLen > WLAN_RATES_MAXLEN)
             uExtRateLen = WLAN_RATES_MAXLEN;
@@ -315,7 +315,7 @@ RATEvTxRateFallBack (
 {
 PSDevice        pDevice = (PSDevice) pDeviceHandler;
 WORD            wIdxDownRate = 0;
-UINT            ii;
+unsigned int ii;
 //DWORD           dwRateTable[MAX_RATE]  = {1,   2,   5,   11,  6,    9,    12,   18,  24,  36,  48,  54};
 BOOL            bAutoRate[MAX_RATE]    = {TRUE,TRUE,TRUE,TRUE,FALSE,FALSE,TRUE,TRUE,TRUE,TRUE,TRUE,TRUE};
 DWORD           dwThroughputTbl[MAX_RATE] = {10, 20, 55, 110, 60, 90, 120, 180, 240, 360, 480, 540};
@@ -413,10 +413,10 @@ BYTE
 RATEuSetIE (
     PWLAN_IE_SUPP_RATES pSrcRates,
     PWLAN_IE_SUPP_RATES pDstRates,
-    UINT                uRateLen
+    unsigned int uRateLen
     )
 {
-    UINT ii, uu, uRateCnt = 0;
+    unsigned int ii, uu, uRateCnt = 0;
 
     if ((pSrcRates == NULL) || (pDstRates == NULL))
         return 0;

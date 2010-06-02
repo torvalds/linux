@@ -81,12 +81,12 @@ BOOL RFbSelectChannel(DWORD_PTR dwIoBase, BYTE byRFType, BYTE byChannel);
 BOOL RFbInit (
     PSDevice  pDevice
     );
-BOOL RFvWriteWakeProgSyn(DWORD_PTR dwIoBase, BYTE byRFType, UINT uChannel);
-BOOL RFbSetPower(PSDevice pDevice, UINT uRATE, UINT uCH);
+BOOL RFvWriteWakeProgSyn(DWORD_PTR dwIoBase, BYTE byRFType, unsigned int uChannel);
+BOOL RFbSetPower(PSDevice pDevice, unsigned int uRATE, unsigned int uCH);
 BOOL RFbRawSetPower(
     PSDevice  pDevice,
     BYTE      byPwr,
-    UINT      uRATE
+    unsigned int uRATE
     );
 
 void

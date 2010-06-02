@@ -191,7 +191,7 @@ PSbConsiderPowerDown(
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
-    UINT            uIdx;
+    unsigned int uIdx;
 
     // check if already in Doze mode
     if (MACbIsRegBitsOn(pDevice->PortOffset, MAC_REG_PSCTL, PSCTL_PS))
@@ -304,7 +304,7 @@ PSbSendNullPacket(
     PSDevice            pDevice = (PSDevice)hDeviceContext;
     PSTxMgmtPacket      pTxPacket = NULL;
     PSMgmtObject        pMgmt = pDevice->pMgmt;
-    UINT                uIdx;
+    unsigned int uIdx;
 
 
     if (pDevice->bLinkPass == FALSE) {

@@ -133,7 +133,7 @@ bScheduleCommand(
 void
 vCommandTimerWait(
     void *hDeviceContext,
-    UINT MSecond
+    unsigned int MSecond
     );
 #ifdef TxInSleep
 void

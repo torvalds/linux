@@ -65,18 +65,18 @@ static int          msglevel                =MSG_LEVEL_INFO;
  * Return Value: TRUE if packet duplicate; otherwise FALSE
  *
  */
-BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, UINT uDataLen, UINT uNodeIndex)
+BOOL ROUTEbRelay (PSDevice pDevice, PBYTE pbySkbData, unsigned int uDataLen, unsigned int uNodeIndex)
 {
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PSTxDesc        pHeadTD, pLastTD;
-    UINT            cbFrameBodySize;
-    UINT            uMACfragNum;
+    unsigned int cbFrameBodySize;
+    unsigned int uMACfragNum;
     BYTE            byPktType;
     BOOL            bNeedEncryption = FALSE;
     SKeyItem        STempKey;
     PSKeyItem       pTransmitKey = NULL;
-    UINT            cbHeaderSize;
-    UINT            ii;
+    unsigned int cbHeaderSize;
+    unsigned int ii;
     PBYTE           pbyBSSID;
 
 

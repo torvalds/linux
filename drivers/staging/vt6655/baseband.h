@@ -118,18 +118,18 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-UINT
+unsigned int
 BBuGetFrameTime(
     BYTE byPreambleType,
     BYTE byPktType,
-    UINT cbFrameLength,
+    unsigned int cbFrameLength,
     WORD wRate
     );
 
 void
 BBvCaculateParameter (
     PSDevice pDevice,
-    UINT cbFrameLength,
+    unsigned int cbFrameLength,
     WORD wRate,
     BYTE byPacketType,
     PWORD pwPhyLen,

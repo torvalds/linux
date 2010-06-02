@@ -92,7 +92,7 @@ void
 s_vProcessRxMACHeader (
     PSDevice pDevice,
     PBYTE pbyRxBufferAddr,
-    UINT cbPacketSize,
+    unsigned int cbPacketSize,
     BOOL bIsWEP,
     BOOL bExtIV,
     PUINT pcbHeadSize
@@ -109,8 +109,8 @@ static BOOL s_bAPModeRxCtl(
 static BOOL s_bAPModeRxData (
     PSDevice pDevice,
     struct sk_buff* skb,
-    UINT     FrameSize,
-    UINT     cbHeaderOffset,
+    unsigned int FrameSize,
+    unsigned int cbHeaderOffset,
     int      iSANodeIndex,
     int      iDANodeIndex
     );
@@ -119,7 +119,7 @@ static BOOL s_bAPModeRxData (
 static BOOL s_bHandleRxEncryption(
     PSDevice     pDevice,
     PBYTE        pbyFrame,
-    UINT         FrameSize,
+    unsigned int FrameSize,
     PBYTE        pbyRsr,
     PBYTE       pbyNewRsr,
     PSKeyItem   *pKeyOut,
@@ -132,7 +132,7 @@ static BOOL s_bHostWepRxEncryption(
 
     PSDevice     pDevice,
     PBYTE        pbyFrame,
-    UINT         FrameSize,
+    unsigned int FrameSize,
     PBYTE        pbyRsr,
     BOOL         bOnFly,
     PSKeyItem    pKey,
@@ -167,14 +167,14 @@ void
 s_vProcessRxMACHeader (
     PSDevice pDevice,
     PBYTE pbyRxBufferAddr,
-    UINT cbPacketSize,
+    unsigned int cbPacketSize,
     BOOL bIsWEP,
     BOOL bExtIV,
     PUINT pcbHeadSize
     )
 {
     PBYTE           pbyRxBuffer;
-    UINT            cbHeaderSize = 0;
+    unsigned int cbHeaderSize = 0;
     PWORD           pwType;
     PS802_11Header  pMACHeader;
     int             ii;
@@ -269,7 +269,7 @@ s_vGetDASA (
     PSEthernetHeader psEthHeader
     )
 {
-    UINT            cbHeaderSize = 0;
+    unsigned int cbHeaderSize = 0;
     PS802_11Header  pMACHeader;
     int             ii;
 
@@ -357,18 +357,18 @@ device_receive_frame (
     PBYTE           pbyFrame;
     BOOL            bDeFragRx = FALSE;
     BOOL            bIsWEP = FALSE;
-    UINT            cbHeaderOffset;
-    UINT            FrameSize;
+    unsigned int cbHeaderOffset;
+    unsigned int FrameSize;
     WORD            wEtherType = 0;
     int             iSANodeIndex = -1;
     int             iDANodeIndex = -1;
-    UINT            ii;
-    UINT            cbIVOffset;
+    unsigned int ii;
+    unsigned int cbIVOffset;
     BOOL            bExtIV = FALSE;
     PBYTE           pbyRxSts;
     PBYTE           pbyRxRate;
     PBYTE           pbySQ;
-    UINT            cbHeaderSize;
+    unsigned int cbHeaderSize;
     PSKeyItem       pKey = NULL;
     WORD            wRxTSC15_0 = 0;
     DWORD           dwRxTSC47_16 = 0;
@@ -1165,7 +1165,7 @@ static BOOL s_bAPModeRxCtl (
 static BOOL s_bHandleRxEncryption (
     PSDevice     pDevice,
     PBYTE        pbyFrame,
-    UINT         FrameSize,
+    unsigned int FrameSize,
     PBYTE        pbyRsr,
     PBYTE       pbyNewRsr,
     PSKeyItem   *pKeyOut,
@@ -1174,7 +1174,7 @@ static BOOL s_bHandleRxEncryption (
     PDWORD      pdwRxTSC47_16
     )
 {
-    UINT            PayloadLen = FrameSize;
+    unsigned int PayloadLen = FrameSize;
     PBYTE           pbyIV;
     BYTE            byKeyIdx;
     PSKeyItem       pKey = NULL;
@@ -1311,7 +1311,7 @@ static BOOL s_bHandleRxEncryption (
 static BOOL s_bHostWepRxEncryption (
     PSDevice     pDevice,
     PBYTE        pbyFrame,
-    UINT         FrameSize,
+    unsigned int FrameSize,
     PBYTE        pbyRsr,
     BOOL         bOnFly,
     PSKeyItem    pKey,
@@ -1321,7 +1321,7 @@ static BOOL s_bHostWepRxEncryption (
     PDWORD      pdwRxTSC47_16
     )
 {
-    UINT            PayloadLen = FrameSize;
+    unsigned int PayloadLen = FrameSize;
     PBYTE           pbyIV;
     BYTE            byKeyIdx;
     BYTE            byDecMode = KEY_CTL_WEP;
@@ -1442,8 +1442,8 @@ static BOOL s_bHostWepRxEncryption (
 static BOOL s_bAPModeRxData (
     PSDevice pDevice,
     struct sk_buff* skb,
-    UINT     FrameSize,
-    UINT     cbHeaderOffset,
+    unsigned int FrameSize,
+    unsigned int cbHeaderOffset,
     int      iSANodeIndex,
     int      iDANodeIndex
     )
@@ -1515,7 +1515,7 @@ static BOOL s_bAPModeRxData (
             iDANodeIndex = 0;
 
         if ((pDevice->uAssocCount > 1) && (iDANodeIndex >= 0)) {
-            ROUTEbRelay(pDevice, (PBYTE)(skb->data + cbHeaderOffset), FrameSize, (UINT)iDANodeIndex);
+            ROUTEbRelay(pDevice, (PBYTE)(skb->data + cbHeaderOffset), FrameSize, (unsigned int)iDANodeIndex);
         }
 
         if (bRelayOnly)

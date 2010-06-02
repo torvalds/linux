@@ -311,7 +311,7 @@ typedef struct tagSCache{
 /* The receive cache is updated circularly.  The next entry to be written is
  * indexed by the "InPtr".
 */
-    UINT            uInPtr;         // Place to use next
+    unsigned int uInPtr;         // Place to use next
     SCacheEntry     asCacheEntry[DUPLICATE_RX_CACHE_LENGTH];
 } SCache, *PSCache;
 
@@ -322,10 +322,10 @@ typedef struct tagSDeFragControlBlock
     WORD            wSequence;
     WORD            wFragNum;
     BYTE            abyAddr2[ETH_ALEN];
-	UINT            uLifetime;
+    unsigned int uLifetime;
     struct sk_buff* skb;
     PBYTE           pbyRxBuffer;
-    UINT            cbFrameLength;
+    unsigned int cbFrameLength;
     BOOL            bInUse;
 } SDeFragControlBlock, *PSDeFragControlBlock;
 
@@ -448,9 +448,9 @@ typedef struct __device_info {
     SCache                      sDupRxCache;
 
     SDeFragControlBlock         sRxDFCB[CB_MAX_RX_FRAG];
-    UINT                        cbDFCB;
-    UINT                        cbFreeDFCB;
-    UINT                        uCurrentDFCBIdx;
+    unsigned int	cbDFCB;
+    unsigned int	cbFreeDFCB;
+    unsigned int	uCurrentDFCBIdx;
 
     OPTIONS                     sOpts;
 
@@ -497,7 +497,7 @@ typedef struct __device_info {
     SMgmtObject                 sMgmtObj;
 
     // 802.11 MAC specific
-    UINT                        uCurrRSSI;
+    unsigned int	uCurrRSSI;
     BYTE                        byCurrSQ;
 
     DWORD                       dwTxAntennaSel;
@@ -508,12 +508,12 @@ typedef struct __device_info {
     BOOL                        bTxRxAntInv;
 
     PBYTE                       pbyTmpBuff;
-    UINT                        uSIFS;    //Current SIFS
-    UINT                        uDIFS;    //Current DIFS
-    UINT                        uEIFS;    //Current EIFS
-    UINT                        uSlot;    //Current SlotTime
-    UINT                        uCwMin;   //Current CwMin
-    UINT                        uCwMax;   //CwMax is fixed on 1023.
+    unsigned int	uSIFS;    //Current SIFS
+    unsigned int	uDIFS;    //Current DIFS
+    unsigned int	uEIFS;    //Current EIFS
+    unsigned int	uSlot;    //Current SlotTime
+    unsigned int	uCwMin;   //Current CwMin
+    unsigned int	uCwMax;   //CwMax is fixed on 1023.
     // PHY parameter
     BYTE                        bySIFS;
     BYTE                        byDIFS;
@@ -532,7 +532,7 @@ typedef struct __device_info {
 
     BYTE                        byMinChannel;
     BYTE                        byMaxChannel;
-    UINT                        uConnectionRate;
+    unsigned int	uConnectionRate;
 
     BYTE                        byPreambleType;
     BYTE                        byShortPreamble;
@@ -588,10 +588,10 @@ typedef struct __device_info {
     BOOL                    bBeaconBufReady;
     BOOL                    bBeaconSent;
     BOOL                    bIsBeaconBufReadySet;
-    UINT                    cbBeaconBufReadySetCnt;
+    unsigned int	cbBeaconBufReadySetCnt;
     BOOL                    bFixRate;
     BYTE                    byCurrentCh;
-    UINT                    uScanTime;
+    unsigned int	uScanTime;
 
     CMD_STATE               eCommandState;
 
@@ -601,14 +601,14 @@ typedef struct __device_info {
     BOOL                    bStopBeacon;
     BOOL                    bStopDataPkt;
     BOOL                    bStopTx0Pkt;
-    UINT                    uAutoReConnectTime;
+    unsigned int	uAutoReConnectTime;
 
     // 802.11 counter
 
     CMD_ITEM                eCmdQueue[CMD_Q_SIZE];
-    UINT                    uCmdDequeueIdx;
-    UINT                    uCmdEnqueueIdx;
-    UINT                    cbFreeCmdQueue;
+    unsigned int	uCmdDequeueIdx;
+    unsigned int	uCmdEnqueueIdx;
+    unsigned int	cbFreeCmdQueue;
     BOOL                    bCmdRunning;
     BOOL                    bCmdClear;
 
@@ -629,19 +629,19 @@ typedef struct __device_info {
     DWORD                   dwIVCounter;
 
     QWORD                   qwPacketNumber; //For CCMP and TKIP as TSC(6 bytes)
-    UINT                    uCurrentWEPMode;
+    unsigned int	uCurrentWEPMode;
 
     RC4Ext                  SBox;
     BYTE                    abyPRNG[WLAN_WEPMAX_KEYLEN+3];
     BYTE                    byKeyIndex;
-    UINT                    uKeyLength;
+    unsigned int	uKeyLength;
     BYTE                    abyKey[WLAN_WEP232_KEYLEN];
 
     BOOL                    bAES;
     BYTE                    byCntMeasure;
 
     // for AP mode
-    UINT                    uAssocCount;
+    unsigned int	uAssocCount;
     BOOL                    bMoreData;
 
     // QoS
@@ -657,12 +657,12 @@ typedef struct __device_info {
     BOOL                    bRxMICFail;
 
 
-    UINT                    uRATEIdx;
+    unsigned int	uRATEIdx;
 
 
     // For Update BaseBand VGA Gain Offset
     BOOL                    bUpdateBBVGA;
-    UINT                    uBBVGADiffCount;
+    unsigned int	uBBVGADiffCount;
     BYTE                    byBBVGANew;
     BYTE                    byBBVGACurrent;
     BYTE                    abyBBVGA[BB_VGA_LEVEL];
@@ -766,7 +766,7 @@ typedef struct __device_info {
     BOOL                    b11hEnable;
     BYTE                    abyCountryCode[3];
     // for 802.11h DFS
-    UINT                    uNumOfMeasureEIDs;
+    unsigned int	uNumOfMeasureEIDs;
     PWLAN_IE_MEASURE_REQ    pCurrMeasureEID;
     BOOL                    bMeasureInProgress;
     BYTE                    byOrgChannel;
@@ -783,7 +783,7 @@ typedef struct __device_info {
     BOOL                    bQuietEnable;
     BOOL                    bEnableFirstQuiet;
     BYTE                    byQuietStartCount;
-    UINT                    uQuietEnqueue;
+    unsigned int	uQuietEnqueue;
     DWORD                   dwCurrentQuietEndTime;
     SQuietControl           sQuiet[MAX_QUIET_COUNT];
     // for 802.11h TPC
@@ -803,7 +803,7 @@ typedef struct __device_info {
         BOOL                 bwextstep2;
         BOOL                 bwextstep3;
         */
-        UINT                   bwextcount;
+        unsigned int	bwextcount;
         BOOL                 bWPASuppWextEnabled;
 #endif
 
@@ -816,7 +816,7 @@ typedef struct __device_info {
 	struct net_device       *apdev;
 	int (*tx_80211)(struct sk_buff *skb, struct net_device *dev);
 #endif
-    UINT                    uChannel;
+    unsigned int	uChannel;
     BOOL                    bMACSuspend;
 
 	struct iw_statistics	wstats;		// wireless stats
@@ -920,7 +920,7 @@ static inline PDEVICE_TD_INFO alloc_td_info(void) {
 
 /*---------------------  Export Functions  --------------------------*/
 
-BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, UINT uNodeIndex);
+BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeIndex);
 BOOL device_alloc_frag_buf(PSDevice pDevice, PSDeFragControlBlock pDeF);
 int Config_FileOperation(PSDevice pDevice,BOOL fwrite,unsigned char *Parameter);
 #endif

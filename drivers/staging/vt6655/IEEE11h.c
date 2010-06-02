@@ -97,7 +97,8 @@ typedef struct _WLAN_FRAME_TPCREP {
 /*---------------------  Static Variables  --------------------------*/
 
 /*---------------------  Static Functions  --------------------------*/
-static BOOL s_bRxMSRReq(PSMgmtObject pMgmt, PWLAN_FRAME_MSRREQ pMSRReq, UINT uLength)
+static BOOL s_bRxMSRReq(PSMgmtObject pMgmt, PWLAN_FRAME_MSRREQ pMSRReq,
+		unsigned int uLength)
 {
     size_t    uNumOfEIDs = 0;
     BOOL    bResult = TRUE;
@@ -209,7 +210,7 @@ IEEE11hbMgrRxAction (
 {
     PSMgmtObject            pMgmt = (PSMgmtObject) pMgmtHandle;
     PWLAN_FRAME_ACTION      pAction = NULL;
-    UINT                    uLength = 0;
+    unsigned int uLength = 0;
     PWLAN_IE_CH_SW          pChannelSwitch = NULL;
 
 
