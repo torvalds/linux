@@ -713,6 +713,7 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 {
 	struct radeon_device *rdev;
 	struct drm_crtc *crtc;
+	struct drm_connector *connector;
 	int r;
 
 	if (dev == NULL || dev->dev_private == NULL) {
@@ -725,6 +726,12 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 
 	if (rdev->powered_down)
 		return 0;
+
+	/* turn off display hw */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		drm_helper_connector_dpms(connector, DRM_MODE_DPMS_OFF);
+	}
+
 	/* unpin the front buffers */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct radeon_framebuffer *rfb = to_radeon_framebuffer(crtc->fb);
