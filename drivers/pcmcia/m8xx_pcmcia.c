@@ -1157,7 +1157,7 @@ static int __init m8xx_probe(struct of_device *ofdev,
 	unsigned int i, m, hwirq;
 	pcmconf8xx_t *pcmcia;
 	int status;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 
 	pcmcia_info("%s\n", version);
 
@@ -1301,7 +1301,7 @@ static struct of_platform_driver m8xx_pcmcia_driver = {
 	.driver = {
 		.name = driver_name,
 		.owner = THIS_MODULE,
-		.match_table = m8xx_pcmcia_match,
+		.of_match_table = m8xx_pcmcia_match,
 	},
 	.probe = m8xx_probe,
 	.remove = m8xx_remove,
