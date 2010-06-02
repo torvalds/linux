@@ -54,7 +54,7 @@ typedef enum { KEY_MGMT_802_1X, KEY_MGMT_CCKM,KEY_MGMT_PSK, KEY_MGMT_NONE,
 
 
 
-typedef ULONGLONG   NDIS_802_11_KEY_RSC;
+typedef unsigned long long   NDIS_802_11_KEY_RSC;
 
 /*---------------------  Export Classes  ----------------------------*/
 

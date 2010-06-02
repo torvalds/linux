@@ -40,31 +40,31 @@
 
 typedef struct tagSDot11Counters {
     unsigned long Length;             // Length of structure
-    ULONGLONG   TransmittedFragmentCount;
-    ULONGLONG   MulticastTransmittedFrameCount;
-    ULONGLONG   FailedCount;
-    ULONGLONG   RetryCount;
-    ULONGLONG   MultipleRetryCount;
-    ULONGLONG   RTSSuccessCount;
-    ULONGLONG   RTSFailureCount;
-    ULONGLONG   ACKFailureCount;
-    ULONGLONG   FrameDuplicateCount;
-    ULONGLONG   ReceivedFragmentCount;
-    ULONGLONG   MulticastReceivedFrameCount;
-    ULONGLONG   FCSErrorCount;
-    ULONGLONG   TKIPLocalMICFailures;
-    ULONGLONG   TKIPRemoteMICFailures;
-    ULONGLONG   TKIPICVErrors;
-    ULONGLONG   TKIPCounterMeasuresInvoked;
-    ULONGLONG   TKIPReplays;
-    ULONGLONG   CCMPFormatErrors;
-    ULONGLONG   CCMPReplays;
-    ULONGLONG   CCMPDecryptErrors;
-    ULONGLONG   FourWayHandshakeFailures;
-//    ULONGLONG   WEPUndecryptableCount;
-//    ULONGLONG   WEPICVErrorCount;
-//    ULONGLONG   DecryptSuccessCount;
-//    ULONGLONG   DecryptFailureCount;
+    unsigned long long   TransmittedFragmentCount;
+    unsigned long long   MulticastTransmittedFrameCount;
+    unsigned long long   FailedCount;
+    unsigned long long   RetryCount;
+    unsigned long long   MultipleRetryCount;
+    unsigned long long   RTSSuccessCount;
+    unsigned long long   RTSFailureCount;
+    unsigned long long   ACKFailureCount;
+    unsigned long long   FrameDuplicateCount;
+    unsigned long long   ReceivedFragmentCount;
+    unsigned long long   MulticastReceivedFrameCount;
+    unsigned long long   FCSErrorCount;
+    unsigned long long   TKIPLocalMICFailures;
+    unsigned long long   TKIPRemoteMICFailures;
+    unsigned long long   TKIPICVErrors;
+    unsigned long long   TKIPCounterMeasuresInvoked;
+    unsigned long long   TKIPReplays;
+    unsigned long long   CCMPFormatErrors;
+    unsigned long long   CCMPReplays;
+    unsigned long long   CCMPDecryptErrors;
+    unsigned long long   FourWayHandshakeFailures;
+//    unsigned long long   WEPUndecryptableCount;
+//    unsigned long long   WEPICVErrorCount;
+//    unsigned long long   DecryptSuccessCount;
+//    unsigned long long   DecryptFailureCount;
 } SDot11Counters, *PSDot11Counters;
 
 
@@ -140,35 +140,35 @@ typedef struct tagSRmonCounter {
 typedef struct tagSCustomCounters {
     unsigned long Length;
 
-    ULONGLONG   ullTsrAllOK;
+    unsigned long long   ullTsrAllOK;
 
-    ULONGLONG   ullRsr11M;
-    ULONGLONG   ullRsr5M;
-    ULONGLONG   ullRsr2M;
-    ULONGLONG   ullRsr1M;
+    unsigned long long   ullRsr11M;
+    unsigned long long   ullRsr5M;
+    unsigned long long   ullRsr2M;
+    unsigned long long   ullRsr1M;
 
-    ULONGLONG   ullRsr11MCRCOk;
-    ULONGLONG   ullRsr5MCRCOk;
-    ULONGLONG   ullRsr2MCRCOk;
-    ULONGLONG   ullRsr1MCRCOk;
+    unsigned long long   ullRsr11MCRCOk;
+    unsigned long long   ullRsr5MCRCOk;
+    unsigned long long   ullRsr2MCRCOk;
+    unsigned long long   ullRsr1MCRCOk;
 
-    ULONGLONG   ullRsr54M;
-    ULONGLONG   ullRsr48M;
-    ULONGLONG   ullRsr36M;
-    ULONGLONG   ullRsr24M;
-    ULONGLONG   ullRsr18M;
-    ULONGLONG   ullRsr12M;
-    ULONGLONG   ullRsr9M;
-    ULONGLONG   ullRsr6M;
+    unsigned long long   ullRsr54M;
+    unsigned long long   ullRsr48M;
+    unsigned long long   ullRsr36M;
+    unsigned long long   ullRsr24M;
+    unsigned long long   ullRsr18M;
+    unsigned long long   ullRsr12M;
+    unsigned long long   ullRsr9M;
+    unsigned long long   ullRsr6M;
 
-    ULONGLONG   ullRsr54MCRCOk;
-    ULONGLONG   ullRsr48MCRCOk;
-    ULONGLONG   ullRsr36MCRCOk;
-    ULONGLONG   ullRsr24MCRCOk;
-    ULONGLONG   ullRsr18MCRCOk;
-    ULONGLONG   ullRsr12MCRCOk;
-    ULONGLONG   ullRsr9MCRCOk;
-    ULONGLONG   ullRsr6MCRCOk;
+    unsigned long long   ullRsr54MCRCOk;
+    unsigned long long   ullRsr48MCRCOk;
+    unsigned long long   ullRsr36MCRCOk;
+    unsigned long long   ullRsr24MCRCOk;
+    unsigned long long   ullRsr18MCRCOk;
+    unsigned long long   ullRsr12MCRCOk;
+    unsigned long long   ullRsr9MCRCOk;
+    unsigned long long   ullRsr6MCRCOk;
 
 } SCustomCounters, *PSCustomCounters;
 
@@ -251,15 +251,15 @@ typedef struct tagSStatCounter {
     DWORD   dwRsrMulticast;
     DWORD   dwRsrDirected;
     // 64-bit OID
-    ULONGLONG   ullRsrOK;
+    unsigned long long   ullRsrOK;
 
     // for some optional OIDs (64 bits) and DMI support
-    ULONGLONG   ullRxBroadcastBytes;
-    ULONGLONG   ullRxMulticastBytes;
-    ULONGLONG   ullRxDirectedBytes;
-    ULONGLONG   ullRxBroadcastFrames;
-    ULONGLONG   ullRxMulticastFrames;
-    ULONGLONG   ullRxDirectedFrames;
+    unsigned long long   ullRxBroadcastBytes;
+    unsigned long long   ullRxMulticastBytes;
+    unsigned long long   ullRxDirectedBytes;
+    unsigned long long   ullRxBroadcastFrames;
+    unsigned long long   ullRxMulticastFrames;
+    unsigned long long   ullRxDirectedFrames;
 
     DWORD   dwRsrRxFragment;
     DWORD   dwRsrRxFrmLen64;
@@ -304,15 +304,15 @@ typedef struct tagSStatCounter {
     unsigned int idxRxErrorDesc[TYPE_MAXRD]; // index for rx data error RD
 
     // 64-bit OID
-    ULONGLONG   ullTsrOK[TYPE_MAXTD];
+    unsigned long long   ullTsrOK[TYPE_MAXTD];
 
     // for some optional OIDs (64 bits) and DMI support
-    ULONGLONG   ullTxBroadcastFrames[TYPE_MAXTD];
-    ULONGLONG   ullTxMulticastFrames[TYPE_MAXTD];
-    ULONGLONG   ullTxDirectedFrames[TYPE_MAXTD];
-    ULONGLONG   ullTxBroadcastBytes[TYPE_MAXTD];
-    ULONGLONG   ullTxMulticastBytes[TYPE_MAXTD];
-    ULONGLONG   ullTxDirectedBytes[TYPE_MAXTD];
+    unsigned long long   ullTxBroadcastFrames[TYPE_MAXTD];
+    unsigned long long   ullTxMulticastFrames[TYPE_MAXTD];
+    unsigned long long   ullTxDirectedFrames[TYPE_MAXTD];
+    unsigned long long   ullTxBroadcastBytes[TYPE_MAXTD];
+    unsigned long long   ullTxMulticastBytes[TYPE_MAXTD];
+    unsigned long long   ullTxDirectedBytes[TYPE_MAXTD];
 
 //    DWORD   dwTxRetryCount[8];
     //

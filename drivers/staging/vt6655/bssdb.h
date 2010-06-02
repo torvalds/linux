@@ -211,7 +211,7 @@ typedef struct tagKnownNodeDB {
     WORD            wEnQueueCnt;
 
     BOOL            bOnFly;
-    ULONGLONG       KeyRSC;
+    unsigned long long       KeyRSC;
     BYTE            byKeyIndex;
     DWORD           dwKeyIndex;
     BYTE            byCipherSuite;

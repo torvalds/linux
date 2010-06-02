@@ -919,9 +919,9 @@ device_receive_frame (
         if (bIsWEP) {
             WORD        wLocalTSC15_0 = 0;
             DWORD       dwLocalTSC47_16 = 0;
-            ULONGLONG       RSC = 0;
+            unsigned long long       RSC = 0;
             // endian issues
-            RSC = *((ULONGLONG *) &(pKey->KeyRSC));
+            RSC = *((unsigned long long *) &(pKey->KeyRSC));
             wLocalTSC15_0 = (WORD) RSC;
             dwLocalTSC47_16 = (DWORD) (RSC>>16);
 
