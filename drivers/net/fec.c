@@ -1373,10 +1373,9 @@ fec_suspend(struct platform_device *dev, pm_message_t state)
 
 	if (ndev) {
 		fep = netdev_priv(ndev);
-		if (netif_running(ndev)) {
-			netif_device_detach(ndev);
-			fec_stop(ndev);
-		}
+		if (netif_running(ndev))
+			fec_enet_close(ndev);
+		clk_disable(fep->clk);
 	}
 	return 0;
 }
@@ -1385,12 +1384,13 @@ static int
 fec_resume(struct platform_device *dev)
 {
 	struct net_device *ndev = platform_get_drvdata(dev);
+	struct fec_enet_private *fep;
 
 	if (ndev) {
-		if (netif_running(ndev)) {
-			fec_enet_init(ndev, 0);
-			netif_device_attach(ndev);
-		}
+		fep = netdev_priv(ndev);
+		clk_enable(fep->clk);
+		if (netif_running(ndev))
+			fec_enet_open(ndev);
 	}
 	return 0;
 }
