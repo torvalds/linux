@@ -220,6 +220,7 @@ struct x86_pmu {
 						 struct perf_event *event);
 	struct event_constraint *event_constraints;
 	void		(*quirks)(void);
+	int		perfctr_second_write;
 
 	int		(*cpu_prepare)(int cpu);
 	void		(*cpu_starting)(int cpu);
@@ -925,8 +926,17 @@ x86_perf_event_set_period(struct perf_event *event)
 	 */
 	atomic64_set(&hwc->prev_count, (u64)-left);
 
-	wrmsrl(hwc->event_base + idx,
+	wrmsrl(hwc->event_base + idx, (u64)(-left) & x86_pmu.cntval_mask);
+
+	/*
+	 * Due to erratum on certan cpu we need
+	 * a second write to be sure the register
+	 * is updated properly
+	 */
+	if (x86_pmu.perfctr_second_write) {
+		wrmsrl(hwc->event_base + idx,
 			(u64)(-left) & x86_pmu.cntval_mask);
+	}
 
 	perf_event_update_userpage(event);
 
