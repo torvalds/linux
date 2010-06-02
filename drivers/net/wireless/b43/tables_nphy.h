@@ -4,9 +4,22 @@
 #include <linux/types.h>
 
 
-struct b43_nphy_channeltab_entry {
+struct b43_phy_n_sfo_cfg {
+	u16 phy_bw1a;
+	u16 phy_bw2;
+	u16 phy_bw3;
+	u16 phy_bw4;
+	u16 phy_bw5;
+	u16 phy_bw6;
+};
+
+struct b43_nphy_channeltab_entry_rev2 {
 	/* The channel number */
 	u8 channel;
+	/* The channel frequency in MHz */
+	u16 freq;
+	/* An unknown value */
+	u16 unk2;
 	/* Radio register values on channelswitch */
 	u8 radio_pll_ref;
 	u8 radio_rf_pllmod0;
@@ -31,16 +44,18 @@ struct b43_nphy_channeltab_entry {
 	u8 radio_c2_tx_pgapadtn;
 	u8 radio_c2_tx_mxbgtrim;
 	/* PHY register values on channelswitch */
-	u16 phy_bw1a;
-	u16 phy_bw2;
-	u16 phy_bw3;
-	u16 phy_bw4;
-	u16 phy_bw5;
-	u16 phy_bw6;
+	struct b43_phy_n_sfo_cfg phy_regs;
+};
+
+struct b43_nphy_channeltab_entry_rev3 {
+	/* The channel number */
+	u8 channel;
 	/* The channel frequency in MHz */
 	u16 freq;
-	/* An unknown value */
-	u16 unk2;
+	/* Radio register values on channelswitch */
+	/* TODO */
+	/* PHY register values on channelswitch */
+	struct b43_phy_n_sfo_cfg phy_regs;
 };
 
 
@@ -77,8 +92,8 @@ void b2055_upload_inittab(struct b43_wldev *dev,
 
 /* Get the NPHY Channel Switch Table entry for a channel number.
  * Returns NULL on failure to find an entry. */
-const struct b43_nphy_channeltab_entry *
-b43_nphy_get_chantabent(struct b43_wldev *dev, u8 channel);
+const struct b43_nphy_channeltab_entry_rev2 *
+b43_nphy_get_chantabent_rev2(struct b43_wldev *dev, u8 channel);
 
 
 /* The N-PHY tables. */

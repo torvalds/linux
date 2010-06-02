@@ -250,6 +250,8 @@ numastat.txt
 	- info on how to read Numa policy hit/miss statistics in sysfs.
 oops-tracing.txt
 	- how to decode those nasty internal kernel error dump messages.
+padata.txt
+	- An introduction to the "padata" parallel execution API
 parisc/
 	- directory with info on using Linux on PA-RISC architecture.
 parport.txt

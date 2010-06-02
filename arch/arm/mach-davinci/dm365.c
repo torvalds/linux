@@ -467,11 +467,6 @@ static struct clk_lookup dm365_clks[] = {
 
 /*----------------------------------------------------------------------*/
 
-#define PINMUX0		0x00
-#define PINMUX1		0x04
-#define PINMUX2		0x08
-#define PINMUX3		0x0c
-#define PINMUX4		0x10
 #define INTMUX		0x18
 #define EVTMUX		0x1c
 
@@ -490,11 +485,14 @@ MUX_CFG(DM365,	SD1_DATA0,	4,   22,    3,	  1,	 false)
 MUX_CFG(DM365,	I2C_SDA,	3,   23,    3,	  2,	 false)
 MUX_CFG(DM365,	I2C_SCL,	3,   21,    3,	  2,	 false)
 
-MUX_CFG(DM365,	AEMIF_AR,	2,   0,     3,	  1,	 false)
+MUX_CFG(DM365,	AEMIF_AR_A14,	2,   0,     3,	  1,	 false)
+MUX_CFG(DM365,	AEMIF_AR_BA0,	2,   0,     3,	  2,	 false)
 MUX_CFG(DM365,	AEMIF_A3,	2,   2,     3,	  1,	 false)
 MUX_CFG(DM365,	AEMIF_A7,	2,   4,     3,	  1,	 false)
 MUX_CFG(DM365,	AEMIF_D15_8,	2,   6,     1,	  1,	 false)
 MUX_CFG(DM365,	AEMIF_CE0,	2,   7,     1,	  0,	 false)
+MUX_CFG(DM365,	AEMIF_CE1,	2,   8,     1,    0,     false)
+MUX_CFG(DM365,	AEMIF_WE_OE,	2,   9,     1,    0,     false)
 
 MUX_CFG(DM365,	MCBSP0_BDX,	0,   23,    1,	  1,	 false)
 MUX_CFG(DM365,	MCBSP0_X,	0,   22,    1,	  1,	 false)
@@ -573,9 +571,17 @@ MUX_CFG(DM365,	SPI4_SDO,	4,   16,    3,    1,	 false)
 MUX_CFG(DM365,	SPI4_SDENA0,	4,   20,    3,    1,	 false)
 MUX_CFG(DM365,	SPI4_SDENA1,	4,   16,    3,    2,	 false)
 
+MUX_CFG(DM365,	CLKOUT0,	4,   20,    3,    3,     false)
+MUX_CFG(DM365,	CLKOUT1,	4,   16,    3,    3,     false)
+MUX_CFG(DM365,	CLKOUT2,	4,   8,     3,    3,     false)
+
 MUX_CFG(DM365,	GPIO20,		3,   21,    3,    0,	 false)
+MUX_CFG(DM365,	GPIO30,		4,   6,     3,	  0,	 false)
+MUX_CFG(DM365,	GPIO31,		4,   8,     3,	  0,	 false)
+MUX_CFG(DM365,	GPIO32,		4,   10,    3,	  0,	 false)
 MUX_CFG(DM365,	GPIO33,		4,   12,    3,	  0,	 false)
 MUX_CFG(DM365,	GPIO40,		4,   26,    3,	  0,	 false)
+MUX_CFG(DM365,	GPIO64_57,	2,   6,     1,	  0,	 false)
 
 MUX_CFG(DM365,	VOUT_FIELD,	1,   18,    3,	  1,	 false)
 MUX_CFG(DM365,	VOUT_FIELD_G81,	1,   18,    3,	  0,	 false)
@@ -1006,11 +1012,9 @@ static struct davinci_id dm365_ids[] = {
 	},
 };
 
-static void __iomem *dm365_psc_bases[] = {
-	IO_ADDRESS(DAVINCI_PWR_SLEEP_CNTRL_BASE),
-};
+static u32 dm365_psc_bases[] = { DAVINCI_PWR_SLEEP_CNTRL_BASE };
 
-struct davinci_timer_info dm365_timer_info = {
+static struct davinci_timer_info dm365_timer_info = {
 	.timers		= davinci_timer_instance,
 	.clockevent_id	= T0_BOT,
 	.clocksource_id	= T0_TOP,
@@ -1049,21 +1053,22 @@ static struct platform_device dm365_serial_device = {
 static struct davinci_soc_info davinci_soc_info_dm365 = {
 	.io_desc		= dm365_io_desc,
 	.io_desc_num		= ARRAY_SIZE(dm365_io_desc),
-	.jtag_id_base		= IO_ADDRESS(0x01c40028),
+	.jtag_id_reg		= 0x01c40028,
 	.ids			= dm365_ids,
 	.ids_num		= ARRAY_SIZE(dm365_ids),
 	.cpu_clks		= dm365_clks,
 	.psc_bases		= dm365_psc_bases,
 	.psc_bases_num		= ARRAY_SIZE(dm365_psc_bases),
-	.pinmux_base		= IO_ADDRESS(DAVINCI_SYSTEM_MODULE_BASE),
+	.pinmux_base		= DAVINCI_SYSTEM_MODULE_BASE,
 	.pinmux_pins		= dm365_pins,
 	.pinmux_pins_num	= ARRAY_SIZE(dm365_pins),
-	.intc_base		= IO_ADDRESS(DAVINCI_ARM_INTC_BASE),
+	.intc_base		= DAVINCI_ARM_INTC_BASE,
 	.intc_type		= DAVINCI_INTC_TYPE_AINTC,
 	.intc_irq_prios		= dm365_default_priorities,
 	.intc_irq_num		= DAVINCI_N_AINTC_IRQ,
 	.timer_info		= &dm365_timer_info,
-	.gpio_base		= IO_ADDRESS(DAVINCI_GPIO_BASE),
+	.gpio_type		= GPIO_TYPE_DAVINCI,
+	.gpio_base		= DAVINCI_GPIO_BASE,
 	.gpio_num		= 104,
 	.gpio_irq		= IRQ_DM365_GPIO0,
 	.gpio_unbanked		= 8,	/* really 16 ... skip muxed GPIOs */
@@ -1071,6 +1076,7 @@ static struct davinci_soc_info davinci_soc_info_dm365 = {
 	.emac_pdata		= &dm365_emac_pdata,
 	.sram_dma		= 0x00010000,
 	.sram_len		= SZ_32K,
+	.reset_device		= &davinci_wdt_device,
 };
 
 void __init dm365_init_asp(struct snd_platform_data *pdata)

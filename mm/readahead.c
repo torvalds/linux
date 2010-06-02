@@ -523,7 +523,7 @@ EXPORT_SYMBOL_GPL(page_cache_sync_readahead);
  * @req_size: hint: total size of the read which the caller is performing in
  *            pagecache pages
  *
- * page_cache_async_ondemand() should be called when a page is used which
+ * page_cache_async_readahead() should be called when a page is used which
  * has the PG_readahead flag; this is a marker to suggest that the application
  * has used up enough of the readahead window that we should start pulling in
  * more pages.

@@ -47,6 +47,7 @@ static bool ath_ahb_eeprom_read(struct ath_common *common, u32 off, u16 *data)
 }
 
 static struct ath_bus_ops ath_ahb_bus_ops  = {
+	.ath_bus_type = ATH_AHB,
 	.read_cachesize = ath_ahb_read_cachesize,
 	.eeprom_read = ath_ahb_eeprom_read,
 };

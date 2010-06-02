@@ -488,7 +488,7 @@ EXPORT_SYMBOL_GPL(ubi_leb_write);
  *
  * This function changes the contents of a logical eraseblock atomically. @buf
  * has to contain new logical eraseblock data, and @len - the length of the
- * data, which has to be aligned. The length may be shorter then the logical
+ * data, which has to be aligned. The length may be shorter than the logical
  * eraseblock size, ant the logical eraseblock may be appended to more times
  * later on. This function guarantees that in case of an unclean reboot the old
  * contents is preserved. Returns zero in case of success and a negative error
@@ -571,7 +571,7 @@ EXPORT_SYMBOL_GPL(ubi_leb_erase);
  *
  * This function un-maps logical eraseblock @lnum and schedules the
  * corresponding physical eraseblock for erasure, so that it will eventually be
- * physically erased in background. This operation is much faster then the
+ * physically erased in background. This operation is much faster than the
  * erase operation.
  *
  * Unlike erase, the un-map operation does not guarantee that the logical
@@ -590,7 +590,7 @@ EXPORT_SYMBOL_GPL(ubi_leb_erase);
  *
  * The main and obvious use-case of this function is when the contents of a
  * logical eraseblock has to be re-written. Then it is much more efficient to
- * first un-map it, then write new data, rather then first erase it, then write
+ * first un-map it, then write new data, rather than first erase it, then write
  * new data. Note, once new data has been written to the logical eraseblock,
  * UBI guarantees that the old contents has gone forever. In other words, if an
  * unclean reboot happens after the logical eraseblock has been un-mapped and

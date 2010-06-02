@@ -2994,7 +2994,6 @@ static void cgroup_event_remove(struct work_struct *work)
 			remove);
 	struct cgroup *cgrp = event->cgrp;
 
-	/* TODO: check return code */
 	event->cft->unregister_event(cgrp, event->cft, event->eventfd);
 
 	eventfd_ctx_put(event->eventfd);
@@ -3016,7 +3015,7 @@ static int cgroup_event_wake(wait_queue_t *wait, unsigned mode,
 	unsigned long flags = (unsigned long)key;
 
 	if (flags & POLLHUP) {
-		remove_wait_queue_locked(event->wqh, &event->wait);
+		__remove_wait_queue(event->wqh, &event->wait);
 		spin_lock(&cgrp->event_list_lock);
 		list_del(&event->list);
 		spin_unlock(&cgrp->event_list_lock);
@@ -3615,7 +3614,7 @@ static void __init cgroup_init_subsys(struct cgroup_subsys *ss)
  * @ss: the subsystem to load
  *
  * This function should be called in a modular subsystem's initcall. If the
- * subsytem is built as a module, it will be assigned a new subsys_id and set
+ * subsystem is built as a module, it will be assigned a new subsys_id and set
  * up for use. If the subsystem is built-in anyway, work is delegated to the
  * simpler cgroup_init_subsys.
  */

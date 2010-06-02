@@ -339,7 +339,7 @@ To mount a cgroup hierarchy with all available subsystems, type:
 The "xxx" is not interpreted by the cgroup code, but will appear in
 /proc/mounts so may be any useful identifying string that you like.
 
-To mount a cgroup hierarchy with just the cpuset and numtasks
+To mount a cgroup hierarchy with just the cpuset and memory
 subsystems, type:
 # mount -t cgroup -o cpuset,memory hier1 /dev/cgroup
 
@@ -572,7 +572,7 @@ void cancel_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
 
 Called when a task attach operation has failed after can_attach() has succeeded.
 A subsystem whose can_attach() has some side-effects should provide this
-function, so that the subsytem can implement a rollback. If not, not necessary.
+function, so that the subsystem can implement a rollback. If not, not necessary.
 This will be called only about subsystems whose can_attach() operation have
 succeeded.
 

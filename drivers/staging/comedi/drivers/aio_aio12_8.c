@@ -110,7 +110,7 @@ static int aio_aio12_8_ai_read(struct comedi_device *dev,
 		while (timeout &&
 		       !(inb(dev->iobase + AIO12_8_STATUS) & STATUS_ADC_EOC)) {
 			timeout--;
-			printk("timeout %d\n", timeout);
+			printk(KERN_ERR "timeout %d\n", timeout);
 			udelay(1);
 		}
 		if (timeout == 0) {
@@ -172,7 +172,7 @@ static int aio_aio12_8_attach(struct comedi_device *dev,
 
 	iobase = it->options[0];
 	if (!request_region(iobase, 24, "aio_aio12_8")) {
-		printk("I/O port conflict");
+		printk(KERN_ERR "I/O port conflict");
 		return -EIO;
 	}
 

@@ -354,11 +354,11 @@ struct inet_frag_queue;
 enum ip6_defrag_users {
 	IP6_DEFRAG_LOCAL_DELIVER,
 	IP6_DEFRAG_CONNTRACK_IN,
-	__IP6_DEFRAG_CONNTRACK_IN	= IP6_DEFRAG_CONNTRACK_IN + USHORT_MAX,
+	__IP6_DEFRAG_CONNTRACK_IN	= IP6_DEFRAG_CONNTRACK_IN + USHRT_MAX,
 	IP6_DEFRAG_CONNTRACK_OUT,
-	__IP6_DEFRAG_CONNTRACK_OUT	= IP6_DEFRAG_CONNTRACK_OUT + USHORT_MAX,
+	__IP6_DEFRAG_CONNTRACK_OUT	= IP6_DEFRAG_CONNTRACK_OUT + USHRT_MAX,
 	IP6_DEFRAG_CONNTRACK_BRIDGE_IN,
-	__IP6_DEFRAG_CONNTRACK_BRIDGE_IN = IP6_DEFRAG_CONNTRACK_BRIDGE_IN + USHORT_MAX,
+	__IP6_DEFRAG_CONNTRACK_BRIDGE_IN = IP6_DEFRAG_CONNTRACK_BRIDGE_IN + USHRT_MAX,
 };
 
 struct ip6_create_arg {
@@ -422,7 +422,7 @@ static inline int __ipv6_addr_diff(const void *token1, const void *token2, int a
 	for (i = 0; i < addrlen; i++) {
 		__be32 xb = a1[i] ^ a2[i];
 		if (xb)
-			return i * 32 + 32 - fls(ntohl(xb));
+			return i * 32 + 31 - __fls(ntohl(xb));
 	}
 
 	/*
@@ -482,8 +482,7 @@ extern int			ip6_rcv_finish(struct sk_buff *skb);
 extern int			ip6_xmit(struct sock *sk,
 					 struct sk_buff *skb,
 					 struct flowi *fl,
-					 struct ipv6_txoptions *opt,
-					 int ipfragok);
+					 struct ipv6_txoptions *opt);
 
 extern int			ip6_nd_hdr(struct sock *sk,
 					   struct sk_buff *skb,
@@ -504,7 +503,8 @@ extern int			ip6_append_data(struct sock *sk,
 						struct ipv6_txoptions *opt,
 						struct flowi *fl,
 						struct rt6_info *rt,
-						unsigned int flags);
+						unsigned int flags,
+						int dontfrag);
 
 extern int			ip6_push_pending_frames(struct sock *sk);
 
@@ -578,9 +578,11 @@ extern int			ip6_datagram_connect(struct sock *sk,
 						     struct sockaddr *addr, int addr_len);
 
 extern int 			ipv6_recv_error(struct sock *sk, struct msghdr *msg, int len);
+extern int 			ipv6_recv_rxpmtu(struct sock *sk, struct msghdr *msg, int len);
 extern void			ipv6_icmp_error(struct sock *sk, struct sk_buff *skb, int err, __be16 port,
 						u32 info, u8 *payload);
 extern void			ipv6_local_error(struct sock *sk, int err, struct flowi *fl, u32 info);
+extern void			ipv6_local_rxpmtu(struct sock *sk, struct flowi *fl, u32 mtu);
 
 extern int inet6_release(struct socket *sock);
 extern int inet6_bind(struct socket *sock, struct sockaddr *uaddr, 

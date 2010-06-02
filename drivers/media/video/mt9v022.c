@@ -325,7 +325,7 @@ static int mt9v022_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	if (ret < 0)
 		return ret;
 
-	dev_dbg(&client->dev, "Frame %ux%u pixel\n", rect.width, rect.height);
+	dev_dbg(&client->dev, "Frame %dx%d pixel\n", rect.width, rect.height);
 
 	mt9v022->rect = rect;
 

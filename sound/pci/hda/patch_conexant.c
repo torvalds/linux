@@ -115,6 +115,7 @@ struct conexant_spec {
 	unsigned int port_d_mode;
 	unsigned int dell_vostro:1;
 	unsigned int ideapad:1;
+	unsigned int thinkpad:1;
 
 	unsigned int ext_mic_present;
 	unsigned int recording;
@@ -1784,6 +1785,7 @@ static struct hda_verb cxt5051_init_verbs[] = {
 	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1) | 0x44},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0) | 0x44},
 	/* SPDIF route: PCM */
+	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{0x1c, AC_VERB_SET_CONNECT_SEL, 0x0},
 	/* EAPD */
 	{0x1a, AC_VERB_SET_EAPD_BTLENABLE, 0x2}, /* default on */ 
@@ -1840,6 +1842,7 @@ static struct hda_verb cxt5051_lenovo_x200_init_verbs[] = {
 	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1) | 0x44},
 	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0) | 0x44},
 	/* SPDIF route: PCM */
+	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT}, /* needed for W500 Advanced Mini Dock 250410 */
 	{0x1c, AC_VERB_SET_CONNECT_SEL, 0x0},
 	/* EAPD */
 	{0x1a, AC_VERB_SET_EAPD_BTLENABLE, 0x2}, /* default on */
@@ -1911,7 +1914,7 @@ enum {
 	CXT5051_LAPTOP,	 /* Laptops w/ EAPD support */
 	CXT5051_HP,	/* no docking */
 	CXT5051_HP_DV6736,	/* HP without mic switch */
-	CXT5051_LENOVO_X200,	/* Lenovo X200 laptop */
+	CXT5051_LENOVO_X200,	/* Lenovo X200 laptop, also used for Advanced Mini Dock 250410 */
 	CXT5051_F700,       /* HP Compaq Presario F700 */
 	CXT5051_TOSHIBA,	/* Toshiba M300 & co */
 	CXT5051_MODELS
@@ -2033,6 +2036,9 @@ static void cxt5066_update_speaker(struct hda_codec *codec)
 	/* Port D (HP/LO) */
 	pinctl = ((spec->hp_present & 2) && spec->cur_eapd)
 		? spec->port_d_mode : 0;
+	/* Mute if Port A is connected on Thinkpad */
+	if (spec->thinkpad && (spec->hp_present & 1))
+		pinctl = 0;
 	snd_hda_codec_write(codec, 0x1c, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
 			pinctl);
 
@@ -2213,6 +2219,50 @@ static void cxt5066_ideapad_automic(struct hda_codec *codec)
 	}
 }
 
+/* toggle input of built-in digital mic and mic jack appropriately
+   order is: external mic -> dock mic -> interal mic */
+static void cxt5066_thinkpad_automic(struct hda_codec *codec)
+{
+	unsigned int ext_present, dock_present;
+
+	static struct hda_verb ext_mic_present[] = {
+		{0x14, AC_VERB_SET_CONNECT_SEL, 0},
+		{0x17, AC_VERB_SET_CONNECT_SEL, 1},
+		{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+		{0x23, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+		{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+		{}
+	};
+	static struct hda_verb dock_mic_present[] = {
+		{0x14, AC_VERB_SET_CONNECT_SEL, 0},
+		{0x17, AC_VERB_SET_CONNECT_SEL, 0},
+		{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+		{0x23, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+		{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+		{}
+	};
+	static struct hda_verb ext_mic_absent[] = {
+		{0x14, AC_VERB_SET_CONNECT_SEL, 2},
+		{0x23, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+		{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+		{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+		{}
+	};
+
+	ext_present = snd_hda_jack_detect(codec, 0x1b);
+	dock_present = snd_hda_jack_detect(codec, 0x1a);
+	if (ext_present) {
+		snd_printdd("CXT5066: external microphone detected\n");
+		snd_hda_sequence_write(codec, ext_mic_present);
+	} else if (dock_present) {
+		snd_printdd("CXT5066: dock microphone detected\n");
+		snd_hda_sequence_write(codec, dock_mic_present);
+	} else {
+		snd_printdd("CXT5066: external microphone absent\n");
+		snd_hda_sequence_write(codec, ext_mic_absent);
+	}
+}
+
 /* mute internal speaker if HP is plugged */
 static void cxt5066_hp_automute(struct hda_codec *codec)
 {
@@ -2225,7 +2275,8 @@ static void cxt5066_hp_automute(struct hda_codec *codec)
 	/* Port D */
 	portD = snd_hda_jack_detect(codec, 0x1c);
 
-	spec->hp_present = !!(portA | portD);
+	spec->hp_present = !!(portA);
+	spec->hp_present |= portD ? 2 : 0;
 	snd_printdd("CXT5066: hp automute portA=%x portD=%x present=%d\n",
 		portA, portD, spec->hp_present);
 	cxt5066_update_speaker(codec);
@@ -2276,6 +2327,20 @@ static void cxt5066_ideapad_event(struct hda_codec *codec, unsigned int res)
 	}
 }
 
+/* unsolicited event for jack sensing */
+static void cxt5066_thinkpad_event(struct hda_codec *codec, unsigned int res)
+{
+	snd_printdd("CXT5066_thinkpad: unsol event %x (%x)\n", res, res >> 26);
+	switch (res >> 26) {
+	case CONEXANT_HP_EVENT:
+		cxt5066_hp_automute(codec);
+		break;
+	case CONEXANT_MIC_EVENT:
+		cxt5066_thinkpad_automic(codec);
+		break;
+	}
+}
+
 static const struct hda_input_mux cxt5066_analog_mic_boost = {
 	.num_items = 5,
 	.items = {
@@ -2294,7 +2359,7 @@ static void cxt5066_set_mic_boost(struct hda_codec *codec)
 		AC_VERB_SET_AMP_GAIN_MUTE,
 		AC_AMP_SET_RIGHT | AC_AMP_SET_LEFT | AC_AMP_SET_OUTPUT |
 			cxt5066_analog_mic_boost.items[spec->mic_boost].index);
-	if (spec->ideapad) {
+	if (spec->ideapad || spec->thinkpad) {
 		/* adjust the internal mic as well...it is not through 0x17 */
 		snd_hda_codec_write_cache(codec, 0x23, 0,
 			AC_VERB_SET_AMP_GAIN_MUTE,
@@ -2782,6 +2847,64 @@ static struct hda_verb cxt5066_init_verbs_ideapad[] = {
 	{ } /* end */
 };
 
+static struct hda_verb cxt5066_init_verbs_thinkpad[] = {
+	{0x1e, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN}, /* Port F */
+	{0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN}, /* Port E */
+
+	/* Port G: internal speakers  */
+	{0x1f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x1f, AC_VERB_SET_CONNECT_SEL, 0x00}, /* DAC1 */
+
+	/* Port A: HP, Amp  */
+	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+	{0x19, AC_VERB_SET_CONNECT_SEL, 0x00}, /* DAC1 */
+
+	/* Port B: Mic Dock */
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+
+	/* Port C: Mic */
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+
+	/* Port D: HP Dock, Amp */
+	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, 0},
+	{0x1c, AC_VERB_SET_CONNECT_SEL, 0x00}, /* DAC1 */
+
+	/* DAC1 */
+	{0x10, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+
+	/* Node 14 connections: 0x17 0x18 0x23 0x24 0x27 */
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0) | 0x50},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2) | 0x50},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(3)},
+	{0x14, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
+	{0x14, AC_VERB_SET_CONNECT_SEL, 2},	/* default to internal mic */
+
+	/* Audio input selector */
+	{0x17, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE | 0x2},
+	{0x17, AC_VERB_SET_CONNECT_SEL, 1},	/* route ext mic */
+
+	/* SPDIF route: PCM */
+	{0x20, AC_VERB_SET_CONNECT_SEL, 0x0},
+	{0x22, AC_VERB_SET_CONNECT_SEL, 0x0},
+
+	{0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x22, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+
+	/* internal microphone */
+	{0x23, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN}, /* enable int mic */
+
+	/* EAPD */
+	{0x1d, AC_VERB_SET_EAPD_BTLENABLE, 0x2}, /* default on */
+
+	/* enable unsolicited events for Port A, B, C and D */
+	{0x19, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | CONEXANT_HP_EVENT},
+	{0x1c, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | CONEXANT_HP_EVENT},
+	{0x1a, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | CONEXANT_MIC_EVENT},
+	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | CONEXANT_MIC_EVENT},
+	{ } /* end */
+};
+
 static struct hda_verb cxt5066_init_verbs_portd_lo[] = {
 	{0x1c, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
 	{ } /* end */
@@ -2800,6 +2923,8 @@ static int cxt5066_init(struct hda_codec *codec)
 			cxt5066_vostro_automic(codec);
 		else if (spec->ideapad)
 			cxt5066_ideapad_automic(codec);
+		else if (spec->thinkpad)
+			cxt5066_thinkpad_automic(codec);
 	}
 	cxt5066_set_mic_boost(codec);
 	return 0;
@@ -2821,20 +2946,22 @@ static int cxt5066_olpc_init(struct hda_codec *codec)
 }
 
 enum {
-	CXT5066_LAPTOP,			/* Laptops w/ EAPD support */
+	CXT5066_LAPTOP,		/* Laptops w/ EAPD support */
 	CXT5066_DELL_LAPTOP,	/* Dell Laptop */
 	CXT5066_OLPC_XO_1_5,	/* OLPC XO 1.5 */
 	CXT5066_DELL_VOSTO,	/* Dell Vostro 1015i */
 	CXT5066_IDEAPAD,	/* Lenovo IdeaPad U150 */
+	CXT5066_THINKPAD,	/* Lenovo ThinkPad T410s, others? */
 	CXT5066_MODELS
 };
 
 static const char *cxt5066_models[CXT5066_MODELS] = {
-	[CXT5066_LAPTOP]		= "laptop",
+	[CXT5066_LAPTOP]	= "laptop",
 	[CXT5066_DELL_LAPTOP]	= "dell-laptop",
 	[CXT5066_OLPC_XO_1_5]	= "olpc-xo-1_5",
 	[CXT5066_DELL_VOSTO]    = "dell-vostro",
 	[CXT5066_IDEAPAD]	= "ideapad",
+	[CXT5066_THINKPAD]	= "thinkpad",
 };
 
 static struct snd_pci_quirk cxt5066_cfg_tbl[] = {
@@ -2848,7 +2975,10 @@ static struct snd_pci_quirk cxt5066_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1179, 0xff50, "Toshiba Satellite P500-PSPGSC-01800T", CXT5066_OLPC_XO_1_5),
 	SND_PCI_QUIRK(0x1179, 0xffe0, "Toshiba Satellite Pro T130-15F", CXT5066_OLPC_XO_1_5),
 	SND_PCI_QUIRK(0x17aa, 0x21b2, "Thinkpad X100e", CXT5066_IDEAPAD),
+	SND_PCI_QUIRK(0x17aa, 0x21b3, "Thinkpad Edge 13 (197)", CXT5066_IDEAPAD),
+	SND_PCI_QUIRK(0x17aa, 0x21b4, "Thinkpad Edge", CXT5066_IDEAPAD),
 	SND_PCI_QUIRK(0x17aa, 0x3a0d, "ideapad", CXT5066_IDEAPAD),
+	SND_PCI_QUIRK(0x17aa, 0x215e, "Lenovo Thinkpad", CXT5066_THINKPAD),
 	{}
 };
 
@@ -2956,6 +3086,22 @@ static int patch_cxt5066(struct hda_codec *codec)
 		/* input source automatically selected */
 		spec->input_mux = NULL;
 		break;
+	case CXT5066_THINKPAD:
+		codec->patch_ops.init = cxt5066_init;
+		codec->patch_ops.unsol_event = cxt5066_thinkpad_event;
+		spec->mixers[spec->num_mixers++] = cxt5066_mixer_master;
+		spec->mixers[spec->num_mixers++] = cxt5066_mixers;
+		spec->init_verbs[0] = cxt5066_init_verbs_thinkpad;
+		spec->thinkpad = 1;
+		spec->port_d_mode = PIN_OUT;
+		spec->mic_boost = 2;	/* default 20dB gain */
+
+		/* no S/PDIF out */
+		spec->multiout.dig_out_nid = 0;
+
+		/* input source automatically selected */
+		spec->input_mux = NULL;
+		break;
 	}
 
 	return 0;
@@ -2975,6 +3121,8 @@ static struct hda_codec_preset snd_hda_preset_conexant[] = {
 	  .patch = patch_cxt5066 },
 	{ .id = 0x14f15067, .name = "CX20583 (Pebble HSF)",
 	  .patch = patch_cxt5066 },
+	{ .id = 0x14f15069, .name = "CX20585",
+	  .patch = patch_cxt5066 },
 	{} /* terminator */
 };
 
@@ -2983,6 +3131,7 @@ MODULE_ALIAS("snd-hda-codec-id:14f15047");
 MODULE_ALIAS("snd-hda-codec-id:14f15051");
 MODULE_ALIAS("snd-hda-codec-id:14f15066");
 MODULE_ALIAS("snd-hda-codec-id:14f15067");
+MODULE_ALIAS("snd-hda-codec-id:14f15069");
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Conexant HD-audio codec");

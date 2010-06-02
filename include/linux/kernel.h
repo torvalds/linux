@@ -4,6 +4,8 @@
 /*
  * 'kernel.h' contains some often-used function prototypes etc
  */
+#define __ALIGN_KERNEL(x, a)		__ALIGN_KERNEL_MASK(x, (typeof(x))(a) - 1)
+#define __ALIGN_KERNEL_MASK(x, mask)	(((x) + (mask)) & ~(mask))
 
 #ifdef __KERNEL__
 
@@ -22,9 +24,9 @@
 extern const char linux_banner[];
 extern const char linux_proc_banner[];
 
-#define USHORT_MAX	((u16)(~0U))
-#define SHORT_MAX	((s16)(USHORT_MAX>>1))
-#define SHORT_MIN	(-SHORT_MAX - 1)
+#define USHRT_MAX	((u16)(~0U))
+#define SHRT_MAX	((s16)(USHRT_MAX>>1))
+#define SHRT_MIN	((s16)(-SHRT_MAX - 1))
 #define INT_MAX		((int)(~0U>>1))
 #define INT_MIN		(-INT_MAX - 1)
 #define UINT_MAX	(~0U)
@@ -37,8 +39,8 @@ extern const char linux_proc_banner[];
 
 #define STACK_MAGIC	0xdeadbeef
 
-#define ALIGN(x,a)		__ALIGN_MASK(x,(typeof(x))(a)-1)
-#define __ALIGN_MASK(x,mask)	(((x)+(mask))&~(mask))
+#define ALIGN(x, a)		__ALIGN_KERNEL((x), (a))
+#define __ALIGN_MASK(x, mask)	__ALIGN_KERNEL_MASK((x), (mask))
 #define PTR_ALIGN(p, a)		((typeof(p))ALIGN((unsigned long)(p), (a)))
 #define IS_ALIGNED(x, a)		(((x) & ((typeof(x))(a) - 1)) == 0)
 
@@ -344,6 +346,7 @@ extern enum system_states {
 #define TAINT_OVERRIDDEN_ACPI_TABLE	8
 #define TAINT_WARN			9
 #define TAINT_CRAP			10
+#define TAINT_FIRMWARE_WORKAROUND	11
 
 extern void dump_stack(void) __cold;
 
@@ -372,6 +375,8 @@ static inline char *pack_hex_byte(char *buf, u8 byte)
 	return buf;
 }
 
+extern int hex_to_bin(char ch);
+
 #ifndef pr_fmt
 #define pr_fmt(fmt) fmt
 #endif
@@ -386,6 +391,7 @@ static inline char *pack_hex_byte(char *buf, u8 byte)
         printk(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_warning(fmt, ...) \
         printk(KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_warn pr_warning
 #define pr_notice(fmt, ...) \
         printk(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info(fmt, ...) \
@@ -420,14 +426,13 @@ static inline char *pack_hex_byte(char *buf, u8 byte)
  * no local ratelimit_state used in the !PRINTK case
  */
 #ifdef CONFIG_PRINTK
-#define printk_ratelimited(fmt, ...)  ({		\
-	static struct ratelimit_state _rs = {		\
-		.interval = DEFAULT_RATELIMIT_INTERVAL, \
-		.burst = DEFAULT_RATELIMIT_BURST,       \
-	};                                              \
-							\
-	if (__ratelimit(&_rs))                          \
-		printk(fmt, ##__VA_ARGS__);		\
+#define printk_ratelimited(fmt, ...)  ({				\
+	static DEFINE_RATELIMIT_STATE(_rs,				\
+				      DEFAULT_RATELIMIT_INTERVAL,	\
+				      DEFAULT_RATELIMIT_BURST);		\
+									\
+	if (__ratelimit(&_rs))						\
+		printk(fmt, ##__VA_ARGS__);				\
 })
 #else
 /* No effect, but we still get type checking even in the !PRINTK case: */
@@ -444,6 +449,7 @@ static inline char *pack_hex_byte(char *buf, u8 byte)
 	printk_ratelimited(KERN_ERR pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_warning_ratelimited(fmt, ...) \
 	printk_ratelimited(KERN_WARNING pr_fmt(fmt), ##__VA_ARGS__)
+#define pr_warn_ratelimited pr_warning_ratelimited
 #define pr_notice_ratelimited(fmt, ...) \
 	printk_ratelimited(KERN_NOTICE pr_fmt(fmt), ##__VA_ARGS__)
 #define pr_info_ratelimited(fmt, ...) \
@@ -490,6 +496,13 @@ static inline void tracing_off(void) { }
 static inline void tracing_off_permanent(void) { }
 static inline int tracing_is_on(void) { return 0; }
 #endif
+
+enum ftrace_dump_mode {
+	DUMP_NONE,
+	DUMP_ALL,
+	DUMP_ORIG,
+};
+
 #ifdef CONFIG_TRACING
 extern void tracing_start(void);
 extern void tracing_stop(void);
@@ -571,7 +584,7 @@ __ftrace_vbprintk(unsigned long ip, const char *fmt, va_list ap);
 extern int
 __ftrace_vprintk(unsigned long ip, const char *fmt, va_list ap);
 
-extern void ftrace_dump(void);
+extern void ftrace_dump(enum ftrace_dump_mode oops_dump_mode);
 #else
 static inline void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3) { }
@@ -592,7 +605,7 @@ ftrace_vprintk(const char *fmt, va_list ap)
 {
 	return 0;
 }
-static inline void ftrace_dump(void) { }
+static inline void ftrace_dump(enum ftrace_dump_mode oops_dump_mode) { }
 #endif /* CONFIG_TRACING */
 
 /*

@@ -47,8 +47,8 @@ MODULE_DESCRIPTION("kernel IB MAD API");
 MODULE_AUTHOR("Hal Rosenstock");
 MODULE_AUTHOR("Sean Hefty");
 
-int mad_sendq_size = IB_MAD_QP_SEND_SIZE;
-int mad_recvq_size = IB_MAD_QP_RECV_SIZE;
+static int mad_sendq_size = IB_MAD_QP_SEND_SIZE;
+static int mad_recvq_size = IB_MAD_QP_RECV_SIZE;
 
 module_param_named(send_queue_size, mad_sendq_size, int, 0444);
 MODULE_PARM_DESC(send_queue_size, "Size of send queue in number of work requests");
@@ -291,13 +291,11 @@ struct ib_mad_agent *ib_register_mad_agent(struct ib_device *device,
 	}
 
 	if (mad_reg_req) {
-		reg_req = kmalloc(sizeof *reg_req, GFP_KERNEL);
+		reg_req = kmemdup(mad_reg_req, sizeof *reg_req, GFP_KERNEL);
 		if (!reg_req) {
 			ret = ERR_PTR(-ENOMEM);
 			goto error3;
 		}
-		/* Make a copy of the MAD registration request */
-		memcpy(reg_req, mad_reg_req, sizeof *reg_req);
 	}
 
 	/* Now, fill in the various structures */

@@ -30,7 +30,6 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/smp_lock.h>
-#include <linux/quotaops.h>
 
 #include "ufs_fs.h"
 #include "ufs.h"
@@ -86,8 +85,6 @@ static int ufs_create (struct inode * dir, struct dentry * dentry, int mode,
 
 	UFSD("BEGIN\n");
 
-	dquot_initialize(dir);
-
 	inode = ufs_new_inode(dir, mode);
 	err = PTR_ERR(inode);
 
@@ -111,8 +108,6 @@ static int ufs_mknod (struct inode * dir, struct dentry *dentry, int mode, dev_t
 
 	if (!old_valid_dev(rdev))
 		return -EINVAL;
-
-	dquot_initialize(dir);
 
 	inode = ufs_new_inode(dir, mode);
 	err = PTR_ERR(inode);
@@ -138,8 +133,6 @@ static int ufs_symlink (struct inode * dir, struct dentry * dentry,
 	if (l > sb->s_blocksize)
 		goto out_notlocked;
 
-	dquot_initialize(dir);
-
 	lock_kernel();
 	inode = ufs_new_inode(dir, S_IFLNK | S_IRWXUGO);
 	err = PTR_ERR(inode);
@@ -148,7 +141,7 @@ static int ufs_symlink (struct inode * dir, struct dentry * dentry,
 
 	if (l > UFS_SB(sb)->s_uspi->s_maxsymlinklen) {
 		/* slow symlink */
-		inode->i_op = &page_symlink_inode_operations;
+		inode->i_op = &ufs_symlink_inode_operations;
 		inode->i_mapping->a_ops = &ufs_aops;
 		err = page_symlink(inode, symname, l);
 		if (err)
@@ -185,8 +178,6 @@ static int ufs_link (struct dentry * old_dentry, struct inode * dir,
 		return -EMLINK;
 	}
 
-	dquot_initialize(dir);
-
 	inode->i_ctime = CURRENT_TIME_SEC;
 	inode_inc_link_count(inode);
 	atomic_inc(&inode->i_count);
@@ -203,8 +194,6 @@ static int ufs_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 
 	if (dir->i_nlink >= UFS_LINK_MAX)
 		goto out;
-
-	dquot_initialize(dir);
 
 	lock_kernel();
 	inode_inc_link_count(dir);
@@ -250,8 +239,6 @@ static int ufs_unlink(struct inode *dir, struct dentry *dentry)
 	struct page *page;
 	int err = -ENOENT;
 
-	dquot_initialize(dir);
-
 	de = ufs_find_entry(dir, &dentry->d_name, &page);
 	if (!de)
 		goto out;
@@ -295,9 +282,6 @@ static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct page *old_page;
 	struct ufs_dir_entry *old_de;
 	int err = -ENOENT;
-
-	dquot_initialize(old_dir);
-	dquot_initialize(new_dir);
 
 	old_de = ufs_find_entry(old_dir, &old_dentry->d_name, &old_page);
 	if (!old_de)

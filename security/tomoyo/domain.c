@@ -130,57 +130,47 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 						  const bool is_not,
 						  const bool is_delete)
 {
-	struct tomoyo_domain_initializer_entry *entry = NULL;
 	struct tomoyo_domain_initializer_entry *ptr;
-	const struct tomoyo_path_info *saved_program = NULL;
-	const struct tomoyo_path_info *saved_domainname = NULL;
+	struct tomoyo_domain_initializer_entry e = { .is_not = is_not };
 	int error = is_delete ? -ENOENT : -ENOMEM;
-	bool is_last_name = false;
 
 	if (!tomoyo_is_correct_path(program, 1, -1, -1))
 		return -EINVAL; /* No patterns allowed. */
 	if (domainname) {
 		if (!tomoyo_is_domain_def(domainname) &&
 		    tomoyo_is_correct_path(domainname, 1, -1, -1))
-			is_last_name = true;
+			e.is_last_name = true;
 		else if (!tomoyo_is_correct_domain(domainname))
 			return -EINVAL;
-		saved_domainname = tomoyo_get_name(domainname);
-		if (!saved_domainname)
+		e.domainname = tomoyo_get_name(domainname);
+		if (!e.domainname)
 			goto out;
 	}
-	saved_program = tomoyo_get_name(program);
-	if (!saved_program)
+	e.program = tomoyo_get_name(program);
+	if (!e.program)
 		goto out;
-	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_domain_initializer_list, list) {
-		if (ptr->is_not != is_not ||
-		    ptr->domainname != saved_domainname ||
-		    ptr->program != saved_program)
+		if (!tomoyo_is_same_domain_initializer_entry(ptr, &e))
 			continue;
 		ptr->is_deleted = is_delete;
 		error = 0;
 		break;
 	}
-	if (!is_delete && error && tomoyo_memory_ok(entry)) {
-		entry->domainname = saved_domainname;
-		saved_domainname = NULL;
-		entry->program = saved_program;
-		saved_program = NULL;
-		entry->is_not = is_not;
-		entry->is_last_name = is_last_name;
-		list_add_tail_rcu(&entry->list,
-				  &tomoyo_domain_initializer_list);
-		entry = NULL;
-		error = 0;
+	if (!is_delete && error) {
+		struct tomoyo_domain_initializer_entry *entry =
+			tomoyo_commit_ok(&e, sizeof(e));
+		if (entry) {
+			list_add_tail_rcu(&entry->list,
+					  &tomoyo_domain_initializer_list);
+			error = 0;
+		}
 	}
 	mutex_unlock(&tomoyo_policy_lock);
  out:
-	tomoyo_put_name(saved_domainname);
-	tomoyo_put_name(saved_program);
-	kfree(entry);
+	tomoyo_put_name(e.domainname);
+	tomoyo_put_name(e.program);
 	return error;
 }
 
@@ -350,56 +340,47 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 					     const bool is_not,
 					     const bool is_delete)
 {
-	struct tomoyo_domain_keeper_entry *entry = NULL;
 	struct tomoyo_domain_keeper_entry *ptr;
-	const struct tomoyo_path_info *saved_domainname = NULL;
-	const struct tomoyo_path_info *saved_program = NULL;
+	struct tomoyo_domain_keeper_entry e = { .is_not = is_not };
 	int error = is_delete ? -ENOENT : -ENOMEM;
-	bool is_last_name = false;
 
 	if (!tomoyo_is_domain_def(domainname) &&
 	    tomoyo_is_correct_path(domainname, 1, -1, -1))
-		is_last_name = true;
+		e.is_last_name = true;
 	else if (!tomoyo_is_correct_domain(domainname))
 		return -EINVAL;
 	if (program) {
 		if (!tomoyo_is_correct_path(program, 1, -1, -1))
 			return -EINVAL;
-		saved_program = tomoyo_get_name(program);
-		if (!saved_program)
+		e.program = tomoyo_get_name(program);
+		if (!e.program)
 			goto out;
 	}
-	saved_domainname = tomoyo_get_name(domainname);
-	if (!saved_domainname)
+	e.domainname = tomoyo_get_name(domainname);
+	if (!e.domainname)
 		goto out;
-	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_domain_keeper_list, list) {
-		if (ptr->is_not != is_not ||
-		    ptr->domainname != saved_domainname ||
-		    ptr->program != saved_program)
+		if (!tomoyo_is_same_domain_keeper_entry(ptr, &e))
 			continue;
 		ptr->is_deleted = is_delete;
 		error = 0;
 		break;
 	}
-	if (!is_delete && error && tomoyo_memory_ok(entry)) {
-		entry->domainname = saved_domainname;
-		saved_domainname = NULL;
-		entry->program = saved_program;
-		saved_program = NULL;
-		entry->is_not = is_not;
-		entry->is_last_name = is_last_name;
-		list_add_tail_rcu(&entry->list, &tomoyo_domain_keeper_list);
-		entry = NULL;
-		error = 0;
+	if (!is_delete && error) {
+		struct tomoyo_domain_keeper_entry *entry =
+			tomoyo_commit_ok(&e, sizeof(e));
+		if (entry) {
+			list_add_tail_rcu(&entry->list,
+					  &tomoyo_domain_keeper_list);
+			error = 0;
+		}
 	}
 	mutex_unlock(&tomoyo_policy_lock);
  out:
-	tomoyo_put_name(saved_domainname);
-	tomoyo_put_name(saved_program);
-	kfree(entry);
+	tomoyo_put_name(e.domainname);
+	tomoyo_put_name(e.program);
 	return error;
 }
 
@@ -551,44 +532,38 @@ static int tomoyo_update_alias_entry(const char *original_name,
 				     const char *aliased_name,
 				     const bool is_delete)
 {
-	struct tomoyo_alias_entry *entry = NULL;
 	struct tomoyo_alias_entry *ptr;
-	const struct tomoyo_path_info *saved_original_name;
-	const struct tomoyo_path_info *saved_aliased_name;
+	struct tomoyo_alias_entry e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
 	if (!tomoyo_is_correct_path(original_name, 1, -1, -1) ||
 	    !tomoyo_is_correct_path(aliased_name, 1, -1, -1))
 		return -EINVAL; /* No patterns allowed. */
-	saved_original_name = tomoyo_get_name(original_name);
-	saved_aliased_name = tomoyo_get_name(aliased_name);
-	if (!saved_original_name || !saved_aliased_name)
+	e.original_name = tomoyo_get_name(original_name);
+	e.aliased_name = tomoyo_get_name(aliased_name);
+	if (!e.original_name || !e.aliased_name)
 		goto out;
-	if (!is_delete)
-		entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	mutex_lock(&tomoyo_policy_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_alias_list, list) {
-		if (ptr->original_name != saved_original_name ||
-		    ptr->aliased_name != saved_aliased_name)
+		if (!tomoyo_is_same_alias_entry(ptr, &e))
 			continue;
 		ptr->is_deleted = is_delete;
 		error = 0;
 		break;
 	}
-	if (!is_delete && error && tomoyo_memory_ok(entry)) {
-		entry->original_name = saved_original_name;
-		saved_original_name = NULL;
-		entry->aliased_name = saved_aliased_name;
-		saved_aliased_name = NULL;
-		list_add_tail_rcu(&entry->list, &tomoyo_alias_list);
-		entry = NULL;
-		error = 0;
+	if (!is_delete && error) {
+		struct tomoyo_alias_entry *entry =
+			tomoyo_commit_ok(&e, sizeof(e));
+		if (entry) {
+			list_add_tail_rcu(&entry->list, &tomoyo_alias_list);
+			error = 0;
+		}
 	}
 	mutex_unlock(&tomoyo_policy_lock);
  out:
-	tomoyo_put_name(saved_original_name);
-	tomoyo_put_name(saved_aliased_name);
-	kfree(entry);
+	tomoyo_put_name(e.original_name);
+	tomoyo_put_name(e.aliased_name);
 	return error;
 }
 
@@ -656,7 +631,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 							    const u8 profile)
 {
 	struct tomoyo_domain_info *entry;
-	struct tomoyo_domain_info *domain;
+	struct tomoyo_domain_info *domain = NULL;
 	const struct tomoyo_path_info *saved_domainname;
 	bool found = false;
 
@@ -665,8 +640,9 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 	saved_domainname = tomoyo_get_name(domainname);
 	if (!saved_domainname)
 		return NULL;
-	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
-	mutex_lock(&tomoyo_policy_lock);
+	entry = kzalloc(sizeof(*entry), GFP_NOFS);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
 	list_for_each_entry_rcu(domain, &tomoyo_domain_list, list) {
 		if (domain->is_deleted ||
 		    tomoyo_pathcmp(saved_domainname, domain->domainname))
@@ -685,6 +661,7 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 		found = true;
 	}
 	mutex_unlock(&tomoyo_policy_lock);
+ out:
 	tomoyo_put_name(saved_domainname);
 	kfree(entry);
 	return found ? domain : NULL;
@@ -705,7 +682,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	 * This function assumes that the size of buffer returned by
 	 * tomoyo_realpath() = TOMOYO_MAX_PATHNAME_LEN.
 	 */
-	struct tomoyo_page_buffer *tmp = kzalloc(sizeof(*tmp), GFP_KERNEL);
+	struct tomoyo_page_buffer *tmp = kzalloc(sizeof(*tmp), GFP_NOFS);
 	struct tomoyo_domain_info *old_domain = tomoyo_domain();
 	struct tomoyo_domain_info *domain = NULL;
 	const char *old_domain_name = old_domain->domainname->name;

@@ -141,6 +141,13 @@ config COH901318
 	help
 	  Enable support for ST-Ericsson COH 901 318 DMA.
 
+config STE_DMA40
+	bool "ST-Ericsson DMA40 support"
+	depends on ARCH_U8500
+	select DMA_ENGINE
+	help
+	  Support for ST-Ericsson DMA40 controller
+
 config AMCC_PPC440SPE_ADMA
 	tristate "AMCC PPC440SPe ADMA support"
 	depends on 440SPe || 440SP
@@ -149,8 +156,24 @@ config AMCC_PPC440SPE_ADMA
 	help
 	  Enable support for the AMCC PPC440SPe RAID engines.
 
+config TIMB_DMA
+	tristate "Timberdale FPGA DMA support"
+	depends on MFD_TIMBERDALE || HAS_IOMEM
+	select DMA_ENGINE
+	help
+	  Enable support for the Timberdale FPGA DMA engine.
+
 config ARCH_HAS_ASYNC_TX_FIND_CHANNEL
 	bool
+
+config PL330_DMA
+	tristate "DMA API Driver for PL330"
+	select DMA_ENGINE
+	depends on PL330
+	help
+	  Select if your platform has one or more PL330 DMACs.
+	  You need to provide platform specific settings via
+	  platform_data for a dma-pl330 device.
 
 config DMA_ENGINE
 	bool

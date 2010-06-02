@@ -193,8 +193,9 @@ static ssize_t enabled_show(struct device *device,
 			"disabled");
 }
 
-static ssize_t edid_show(struct kobject *kobj, struct bin_attribute *attr,
-			 char *buf, loff_t off, size_t count)
+static ssize_t edid_show(struct file *filp, struct kobject *kobj,
+			 struct bin_attribute *attr, char *buf, loff_t off,
+			 size_t count)
 {
 	struct device *connector_dev = container_of(kobj, struct device, kobj);
 	struct drm_connector *connector = to_drm_connector(connector_dev);
@@ -333,7 +334,7 @@ static struct device_attribute connector_attrs_opt1[] = {
 static struct bin_attribute edid_attr = {
 	.attr.name = "edid",
 	.attr.mode = 0444,
-	.size = 128,
+	.size = 0,
 	.read = edid_show,
 };
 

@@ -54,30 +54,27 @@
 /*---------------------  Export Functions  --------------------------*/
 
 void ControlvWriteByte(
-    IN PSDevice pDevice,
-    IN BYTE byRegType,
-    IN BYTE byRegOfs,
-    IN BYTE byData
+     PSDevice pDevice,
+     BYTE byRegType,
+     BYTE byRegOfs,
+     BYTE byData
     );
 
 
 void ControlvReadByte(
-    IN PSDevice pDevice,
-    IN BYTE byRegType,
-    IN BYTE byRegOfs,
-    IN PBYTE pbyData
+     PSDevice pDevice,
+     BYTE byRegType,
+     BYTE byRegOfs,
+     PBYTE pbyData
     );
 
 
 void ControlvMaskByte(
-    IN PSDevice pDevice,
-    IN BYTE byRegType,
-    IN BYTE byRegOfs,
-    IN BYTE byMask,
-    IN BYTE byData
+     PSDevice pDevice,
+     BYTE byRegType,
+     BYTE byRegOfs,
+     BYTE byMask,
+     BYTE byData
     );
 
-#endif // __RCV_H__
-
-
-
+#endif /* __CONTROL_H__ */

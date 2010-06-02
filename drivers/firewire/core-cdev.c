@@ -227,7 +227,7 @@ static int fw_device_op_open(struct inode *inode, struct file *file)
 	list_add_tail(&client->link, &device->client_list);
 	mutex_unlock(&device->client_list_mutex);
 
-	return 0;
+	return nonseekable_open(inode, file);
 }
 
 static void queue_event(struct client *client, struct event *event,
@@ -1496,13 +1496,13 @@ static unsigned int fw_device_op_poll(struct file *file, poll_table * pt)
 
 const struct file_operations fw_device_ops = {
 	.owner		= THIS_MODULE,
+	.llseek		= no_llseek,
 	.open		= fw_device_op_open,
 	.read		= fw_device_op_read,
 	.unlocked_ioctl	= fw_device_op_ioctl,
-	.poll		= fw_device_op_poll,
-	.release	= fw_device_op_release,
 	.mmap		= fw_device_op_mmap,
-
+	.release	= fw_device_op_release,
+	.poll		= fw_device_op_poll,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= fw_device_op_compat_ioctl,
 #endif

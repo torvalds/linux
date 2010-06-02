@@ -227,6 +227,16 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
 
+  Module snd-asihpi
+  -----------------
+
+    Module for AudioScience ASI soundcards
+
+    enable_hpi_hwdep	- enable HPI hwdep for AudioScience soundcard
+
+    This module supports multiple cards.
+    The driver requires the firmware loader support on kernel.
+
   Module snd-atiixp
   -----------------
 
@@ -622,28 +632,23 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     
     The power-management is supported.
 
-  Module snd-es968
-  ----------------
-
-    Module for sound cards based on ESS ES968 chip (PnP only).
-
-    This module supports multiple cards, PnP and autoprobe.
-    
-    The power-management is supported.
-
   Module snd-es1688
   -----------------
 
     Module for ESS AudioDrive ES-1688 and ES-688 sound cards.
 
-    port	- port # for ES-1688 chip (0x220,0x240,0x260)
-    fm_port	- port # for OPL3 (option; share the same port as default)
+    isapnp	- ISA PnP detection - 0 = disable, 1 = enable (default)
     mpu_port	- port # for MPU-401 port (0x300,0x310,0x320,0x330), -1 = disable (default)
-    irq		- IRQ # for ES-1688 chip (5,7,9,10)
     mpu_irq	- IRQ # for MPU-401 port (5,7,9,10)
+    fm_port	- port # for OPL3 (option; share the same port as default)
+
+    with isapnp=0, the following additional options are available:
+    port	- port # for ES-1688 chip (0x220,0x240,0x260)
+    irq		- IRQ # for ES-1688 chip (5,7,9,10)
     dma8	- DMA # for ES-1688 chip (0,1,3)
 
-    This module supports multiple cards and autoprobe (without MPU-401 port).
+    This module supports multiple cards and autoprobe (without MPU-401 port)
+    and PnP with the ES968 chip.
 
   Module snd-es18xx
   -----------------

@@ -280,7 +280,7 @@ static unsigned int ipv6_conntrack_local(unsigned int hooknum,
 	/* root is playing with raw sockets. */
 	if (skb->len < sizeof(struct ipv6hdr)) {
 		if (net_ratelimit())
-			printk("ipv6_conntrack_local: packet too short\n");
+			pr_notice("ipv6_conntrack_local: packet too short\n");
 		return NF_ACCEPT;
 	}
 	return __ipv6_conntrack_in(dev_net(out), hooknum, skb, okfn);
@@ -406,37 +406,37 @@ static int __init nf_conntrack_l3proto_ipv6_init(void)
 
 	ret = nf_ct_frag6_init();
 	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't initialize frag6.\n");
+		pr_err("nf_conntrack_ipv6: can't initialize frag6.\n");
 		return ret;
 	}
 	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_tcp6);
 	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register tcp.\n");
+		pr_err("nf_conntrack_ipv6: can't register tcp.\n");
 		goto cleanup_frag6;
 	}
 
 	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_udp6);
 	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register udp.\n");
+		pr_err("nf_conntrack_ipv6: can't register udp.\n");
 		goto cleanup_tcp;
 	}
 
 	ret = nf_conntrack_l4proto_register(&nf_conntrack_l4proto_icmpv6);
 	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register icmpv6.\n");
+		pr_err("nf_conntrack_ipv6: can't register icmpv6.\n");
 		goto cleanup_udp;
 	}
 
 	ret = nf_conntrack_l3proto_register(&nf_conntrack_l3proto_ipv6);
 	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register ipv6\n");
+		pr_err("nf_conntrack_ipv6: can't register ipv6\n");
 		goto cleanup_icmpv6;
 	}
 
 	ret = nf_register_hooks(ipv6_conntrack_ops,
 				ARRAY_SIZE(ipv6_conntrack_ops));
 	if (ret < 0) {
-		printk("nf_conntrack_ipv6: can't register pre-routing defrag "
+		pr_err("nf_conntrack_ipv6: can't register pre-routing defrag "
 		       "hook.\n");
 		goto cleanup_ipv6;
 	}

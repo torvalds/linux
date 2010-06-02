@@ -355,7 +355,7 @@ static unsigned long via_mode_filter(struct ata_device *dev, unsigned long mask)
 			mask &= ~ ATA_MASK_UDMA;
 		}
 	}
-	return ata_bmdma_mode_filter(dev, mask);
+	return mask;
 }
 
 /**
@@ -417,8 +417,6 @@ static void via_tf_load(struct ata_port *ap, const struct ata_taskfile *tf)
 			tf->lbam,
 			tf->lbah);
 	}
-
-	ata_wait_idle(ap);
 }
 
 static int via_port_start(struct ata_port *ap)
@@ -426,7 +424,7 @@ static int via_port_start(struct ata_port *ap)
 	struct via_port *vp;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
 
-	int ret = ata_sff_port_start(ap);
+	int ret = ata_bmdma_port_start(ap);
 	if (ret < 0)
 		return ret;
 
@@ -629,7 +627,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* We have established the device type, now fire it up */
-	return ata_pci_sff_init_one(pdev, ppi, &via_sht, (void *)config, 0);
+	return ata_pci_bmdma_init_one(pdev, ppi, &via_sht, (void *)config, 0);
 }
 
 #ifdef CONFIG_PM

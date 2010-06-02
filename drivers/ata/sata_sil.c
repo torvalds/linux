@@ -284,7 +284,7 @@ static void sil_bmdma_setup(struct ata_queued_cmd *qc)
 	void __iomem *bmdma = ap->ioaddr.bmdma_addr;
 
 	/* load PRD table addr. */
-	iowrite32(ap->prd_dma, bmdma + ATA_DMA_TABLE_OFS);
+	iowrite32(ap->bmdma_prd_dma, bmdma + ATA_DMA_TABLE_OFS);
 
 	/* issue r/w command */
 	ap->ops->sff_exec_command(ap, &qc->tf);
@@ -311,10 +311,10 @@ static void sil_fill_sg(struct ata_queued_cmd *qc)
 {
 	struct scatterlist *sg;
 	struct ata_port *ap = qc->ap;
-	struct ata_prd *prd, *last_prd = NULL;
+	struct ata_bmdma_prd *prd, *last_prd = NULL;
 	unsigned int si;
 
-	prd = &ap->prd[0];
+	prd = &ap->bmdma_prd[0];
 	for_each_sg(qc->sg, sg, qc->n_elem, si) {
 		/* Note h/w doesn't support 64-bit, so we unconditionally
 		 * truncate dma_addr_t to u32.
@@ -503,7 +503,7 @@ static void sil_host_intr(struct ata_port *ap, u32 bmdma2)
 		goto err_hsm;
 
 	/* ack bmdma irq events */
-	ata_sff_irq_clear(ap);
+	ata_bmdma_irq_clear(ap);
 
 	/* kick HSM in the ass */
 	ata_sff_hsm_move(ap, qc, status, 0);
@@ -531,9 +531,6 @@ static irqreturn_t sil_interrupt(int irq, void *dev_instance)
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
 		u32 bmdma2 = readl(mmio_base + sil_port[ap->port_no].bmdma2);
-
-		if (unlikely(ap->flags & ATA_FLAG_DISABLED))
-			continue;
 
 		/* turn off SATA_IRQ if not supported */
 		if (ap->flags & SIL_FLAG_NO_SATA_IRQ)
@@ -587,7 +584,7 @@ static void sil_thaw(struct ata_port *ap)
 
 	/* clear IRQ */
 	ap->ops->sff_check_status(ap);
-	ata_sff_irq_clear(ap);
+	ata_bmdma_irq_clear(ap);
 
 	/* turn on SATA IRQ if supported */
 	if (!(ap->flags & SIL_FLAG_NO_SATA_IRQ))

@@ -22,7 +22,9 @@
  */
 
 #include <linux/init.h>
+#include <linux/ioport.h>
 #include <asm/mach-powertv/asic.h>
+#include "prealloc.h"
 
 /*
  * NON_DVR_CAPABLE CALLIOPE RESOURCES
@@ -32,432 +34,234 @@ struct resource non_dvr_calliope_resources[] __initdata =
 	/*
 	 * VIDEO / LX1
 	 */
-	{
-		.name   = "ST231aImage",     	/* Delta-Mu 1 image and ram */
-		.start  = 0x24000000,
-		.end    = 0x24200000 - 1,	/*2MiB */
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ST231aMonitor",   /*8KiB block ST231a monitor */
-		.start  = 0x24200000,
-		.end    = 0x24202000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "MediaMemory1",
-		.start  = 0x24202000,
-		.end    = 0x26700000 - 1, /*~36.9MiB (32MiB - (2MiB + 8KiB)) */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* Delta-Mu 1 image (2MiB) */
+	PREALLOC_NORMAL("ST231aImage", 0x24000000, 0x24200000-1,
+		IORESOURCE_MEM)
+	/* Delta-Mu 1 monitor (8KiB) */
+	PREALLOC_NORMAL("ST231aMonitor", 0x24200000, 0x24202000-1,
+		IORESOURCE_MEM)
+	/* Delta-Mu 1 RAM (~36.9MiB (32MiB - (2MiB + 8KiB))) */
+	PREALLOC_NORMAL("MediaMemory1", 0x24202000, 0x26700000-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * Sysaudio Driver
 	 */
-	{
-		.name   = "DSP_Image_Buff",
-		.start  = 0x00000000,
-		.end    = 0x000FFFFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_CPU_PCM_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00009FFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_AUX_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_Main_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* DSP code and data images (1MiB) */
+	PREALLOC_NORMAL("DSP_Image_Buff", 0x00000000, 0x00100000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC CPU PCM buffer (40KiB) */
+	PREALLOC_NORMAL("ADSC_CPU_PCM_Buff", 0x00000000, 0x0000A000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC AUX buffer (128KiB) */
+	PREALLOC_NORMAL("ADSC_AUX_Buff", 0x00000000, 0x00020000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC Main buffer (128KiB) */
+	PREALLOC_NORMAL("ADSC_Main_Buff", 0x00000000, 0x00020000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * STAVEM driver/STAPI
 	 */
-	{
-		.name   = "AVMEMPartition0",
-		.start  = 0x00000000,
-		.end    = 0x00600000 - 1,	/* 6 MB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 6MiB */
+	PREALLOC_NORMAL("AVMEMPartition0", 0x00000000, 0x00600000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * DOCSIS Subsystem
 	 */
-	{
-		.name   = "Docsis",
-		.start  = 0x22000000,
-		.end    = 0x22700000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 7MiB */
+	PREALLOC_DOCSIS("Docsis", 0x27500000, 0x27c00000-1, IORESOURCE_MEM)
+
 	/*
 	 * GHW HAL Driver
 	 */
-	{
-		.name   = "GraphicsHeap",
-		.start  = 0x22700000,
-		.end    = 0x23500000 - 1,	/* 14 MB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* PowerTV Graphics Heap (14MiB) */
+	PREALLOC_NORMAL("GraphicsHeap", 0x26700000, 0x26700000+(14*1048576)-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * multi com buffer area
 	 */
-	{
-		.name   = "MulticomSHM",
-		.start  = 0x23700000,
-		.end    = 0x23720000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 128KiB */
+	PREALLOC_NORMAL("MulticomSHM", 0x23700000, 0x23720000-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * DMA Ring buffer (don't need recording buffers)
 	 */
-	{
-		.name   = "BMM_Buffer",
-		.start  = 0x00000000,
-		.end    = 0x000AA000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 680KiB */
+	PREALLOC_NORMAL("BMM_Buffer", 0x00000000, 0x000AA000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * Display bins buffer for unit0
 	 */
-	{
-		.name   = "DisplayBins0",
-		.start  = 0x00000000,
-		.end    = 0x00000FFF,		/* 4 KB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 4KiB */
+	PREALLOC_NORMAL("DisplayBins0", 0x00000000, 0x00001000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
-	 *
 	 * AVFS: player HAL memory
-	 *
-	 *
 	 */
-	{
-		.name   = "AvfsDmaMem",
-		.start  = 0x00000000,
-		.end    = 0x002c4c00 - 1,	/* 945K * 3 for playback */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 945K * 3 for playback */
+	PREALLOC_NORMAL("AvfsDmaMem", 0x00000000, 0x002c4c00-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * PMEM
 	 */
-	{
-		.name   = "DiagPersistentMemory",
-		.start  = 0x00000000,
-		.end    = 0x10000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* Persistent memory for diagnostics (64KiB) */
+	PREALLOC_PMEM("DiagPersistentMemory", 0x00000000, 0x10000-1,
+	     (IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * Smartcard
 	 */
-	{
-		.name   = "SmartCardInfo",
-		.start  = 0x00000000,
-		.end    = 0x2800 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* Read and write buffers for Internal/External cards (10KiB) */
+	PREALLOC_NORMAL("SmartCardInfo", 0x00000000, 0x2800-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * NAND Flash
 	 */
-	{
-		.name   = "NandFlash",
-		.start  = NAND_FLASH_BASE,
-		.end    = NAND_FLASH_BASE + 0x400 - 1,
-		.flags  = IORESOURCE_IO,
-	},
+	/* 10KiB */
+	PREALLOC_NORMAL("NandFlash", NAND_FLASH_BASE, NAND_FLASH_BASE+0x400-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * Synopsys GMAC Memory Region
 	 */
-	{
-		.name   = "GMAC",
-		.start  = 0x00000000,
-		.end    = 0x00010000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 64KiB */
+	PREALLOC_NORMAL("GMAC", 0x00000000, 0x00010000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
+	/*
+	 * TFTPBuffer
+	 *
+	 *  This buffer is used in some minimal configurations (e.g. two-way
+	 *  loader) for storing software images
+	 */
+	PREALLOC_TFTP("TFTPBuffer", 0x00000000, MEBIBYTE(80)-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * Add other resources here
-	 *
 	 */
-	{ },
+
+	/*
+	 * End of Resource marker
+	 */
+	{
+		.flags  = 0,
+	},
 };
 
-struct resource non_dvr_vz_calliope_resources[] __initdata =
-{
-	/*
-	 * VIDEO / LX1
-	 */
-	{
-		.name   = "ST231aImage",	/* Delta-Mu 1 image and ram */
-		.start  = 0x24000000,
-		.end    = 0x24200000 - 1, /*2 Meg */
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ST231aMonitor",	/* 8k block ST231a monitor */
-		.start  = 0x24200000,
-		.end    = 0x24202000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "MediaMemory1",
-		.start  = 0x22202000,
-		.end    = 0x22C20B85 - 1,	/* 10.12 Meg */
-		.flags  = IORESOURCE_MEM,
-	},
-	/*
-	 * Sysaudio Driver
-	 */
-	{
-		.name   = "DSP_Image_Buff",
-		.start  = 0x00000000,
-		.end    = 0x000FFFFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_CPU_PCM_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00009FFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_AUX_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_Main_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	/*
-	 * STAVEM driver/STAPI
-	 */
-	{
-		.name   = "AVMEMPartition0",
-		.start  = 0x20300000,
-		.end    = 0x20620000-1,  /*3.125 MB total */
-		.flags  = IORESOURCE_MEM,
-	},
-	/*
-	 * GHW HAL Driver
-	 */
-	{
-		.name   = "GraphicsHeap",
-		.start  = 0x20100000,
-		.end    = 0x20300000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	/*
-	 * multi com buffer area
-	 */
-	{
-		.name   = "MulticomSHM",
-		.start  = 0x23900000,
-		.end    = 0x23920000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	/*
-	 * DMA Ring buffer
-	 */
-	{
-		.name   = "BMM_Buffer",
-		.start  = 0x00000000,
-		.end    = 0x000AA000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	/*
-	 * Display bins buffer for unit0
-	 */
-	{
-		.name   = "DisplayBins0",
-		.start  = 0x00000000,
-		.end    = 0x00000FFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	/*
-	 * PMEM
-	 */
-	{
-		.name   = "DiagPersistentMemory",
-		.start  = 0x00000000,
-		.end    = 0x10000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	/*
-	 * Smartcard
-	 */
-	{
-		.name   = "SmartCardInfo",
-		.start  = 0x00000000,
-		.end    = 0x2800 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	/*
-	 * NAND Flash
-	 */
-	{
-		.name   = "NandFlash",
-		.start  = NAND_FLASH_BASE,
-		.end    = NAND_FLASH_BASE+0x400 - 1,
-		.flags  = IORESOURCE_IO,
-	},
-	/*
-	 * Synopsys GMAC Memory Region
-	 */
-	{
-		.name   = "GMAC",
-		.start  = 0x00000000,
-		.end    = 0x00010000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	/*
-	 * Add other resources here
-	 */
-	{ },
-};
 
 struct resource non_dvr_vze_calliope_resources[] __initdata =
 {
 	/*
 	 * VIDEO / LX1
 	 */
-	{
-		.name   = "ST231aImage",	/* Delta-Mu 1 image and ram */
-		.start  = 0x22000000,
-		.end    = 0x22200000 - 1,	/*2  Meg */
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ST231aMonitor",	/* 8k block ST231a monitor */
-		.start  = 0x22200000,
-		.end    = 0x22202000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "MediaMemory1",
-		.start  = 0x22202000,
-		.end    = 0x22C20B85 - 1,	/* 10.12 Meg */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* Delta-Mu 1 image (2MiB) */
+	PREALLOC_NORMAL("ST231aImage", 0x22000000, 0x22200000-1,
+		IORESOURCE_MEM)
+	/* Delta-Mu 1 monitor (8KiB) */
+	PREALLOC_NORMAL("ST231aMonitor", 0x22200000, 0x22202000-1,
+		IORESOURCE_MEM)
+	/* Delta-Mu 1 RAM (10.12MiB) */
+	PREALLOC_NORMAL("MediaMemory1", 0x22202000, 0x22C20B85-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * Sysaudio Driver
 	 */
-	{
-		.name   = "DSP_Image_Buff",
-		.start  = 0x00000000,
-		.end    = 0x000FFFFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_CPU_PCM_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00009FFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_AUX_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_Main_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* DSP code and data images (1MiB) */
+	PREALLOC_NORMAL("DSP_Image_Buff", 0x00000000, 0x00100000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC CPU PCM buffer (40KiB) */
+	PREALLOC_NORMAL("ADSC_CPU_PCM_Buff", 0x00000000, 0x0000A000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC AUX buffer (16KiB) */
+	PREALLOC_NORMAL("ADSC_AUX_Buff", 0x00000000, 0x00004000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC Main buffer (16KiB) */
+	PREALLOC_NORMAL("ADSC_Main_Buff", 0x00000000, 0x00004000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * STAVEM driver/STAPI
 	 */
-	{
-		.name   = "AVMEMPartition0",
-		.start  = 0x20396000,
-		.end    = 0x206B6000 - 1,		/* 3.125 MB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 3.125MiB */
+	PREALLOC_NORMAL("AVMEMPartition0", 0x20396000, 0x206B6000-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * GHW HAL Driver
 	 */
-	{
-		.name   = "GraphicsHeap",
-		.start  = 0x20100000,
-		.end    = 0x20396000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* PowerTV Graphics Heap (2.59MiB) */
+	PREALLOC_NORMAL("GraphicsHeap", 0x20100000, 0x20396000-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * multi com buffer area
 	 */
-	{
-		.name   = "MulticomSHM",
-		.start  = 0x206B6000,
-		.end    = 0x206D6000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 128KiB */
+	PREALLOC_NORMAL("MulticomSHM", 0x206B6000, 0x206D6000-1,
+		IORESOURCE_MEM)
+
 	/*
-	 * DMA Ring buffer
+	 * DMA Ring buffer (don't need recording buffers)
 	 */
-	{
-		.name   = "BMM_Buffer",
-		.start  = 0x00000000,
-		.end    = 0x000AA000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 680KiB */
+	PREALLOC_NORMAL("BMM_Buffer", 0x00000000, 0x000AA000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * Display bins buffer for unit0
 	 */
-	{
-		.name   = "DisplayBins0",
-		.start  = 0x00000000,
-		.end    = 0x00000FFF,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 4KiB */
+	PREALLOC_NORMAL("DisplayBins0", 0x00000000, 0x00001000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * PMEM
 	 */
-	{
-		.name   = "DiagPersistentMemory",
-		.start  = 0x00000000,
-		.end    = 0x10000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* Persistent memory for diagnostics (64KiB) */
+	PREALLOC_PMEM("DiagPersistentMemory", 0x00000000, 0x10000-1,
+	     (IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * Smartcard
 	 */
-	{
-		.name   = "SmartCardInfo",
-		.start  = 0x00000000,
-		.end    = 0x2800 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* Read and write buffers for Internal/External cards (10KiB) */
+	PREALLOC_NORMAL("SmartCardInfo", 0x00000000, 0x2800-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * NAND Flash
 	 */
-	{
-		.name   = "NandFlash",
-		.start  = NAND_FLASH_BASE,
-		.end    = NAND_FLASH_BASE+0x400 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 10KiB */
+	PREALLOC_NORMAL("NandFlash", NAND_FLASH_BASE, NAND_FLASH_BASE+0x400-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * Synopsys GMAC Memory Region
 	 */
-	{
-		.name   = "GMAC",
-		.start  = 0x00000000,
-		.end    = 0x00010000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 64KiB */
+	PREALLOC_NORMAL("GMAC", 0x00000000, 0x00010000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * Add other resources here
 	 */
-	{ },
+
+	/*
+	 * End of Resource marker
+	 */
+	{
+		.flags  = 0,
+	},
 };
 
 struct resource non_dvr_vzf_calliope_resources[] __initdata =
@@ -465,156 +269,117 @@ struct resource non_dvr_vzf_calliope_resources[] __initdata =
 	/*
 	 * VIDEO / LX1
 	 */
-	{
-		.name   = "ST231aImage",	/*Delta-Mu 1 image and ram */
-		.start  = 0x24000000,
-		.end    = 0x24200000 - 1,	/*2MiB */
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ST231aMonitor",	/*8KiB block ST231a monitor */
-		.start  = 0x24200000,
-		.end    = 0x24202000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "MediaMemory1",
-		.start  = 0x24202000,
-		/* ~19.4 (21.5MiB - (2MiB + 8KiB)) */
-		.end    = 0x25580000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* Delta-Mu 1 image (2MiB) */
+	PREALLOC_NORMAL("ST231aImage", 0x24000000, 0x24200000-1,
+		IORESOURCE_MEM)
+	/* Delta-Mu 1 monitor (8KiB) */
+	PREALLOC_NORMAL("ST231aMonitor", 0x24200000, 0x24202000-1,
+		IORESOURCE_MEM)
+	/* Delta-Mu 1 RAM (~19.4 (21.5MiB - (2MiB + 8KiB))) */
+	PREALLOC_NORMAL("MediaMemory1", 0x24202000, 0x25580000-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * Sysaudio Driver
 	 */
-	{
-		.name   = "DSP_Image_Buff",
-		.start  = 0x00000000,
-		.end    = 0x000FFFFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_CPU_PCM_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00009FFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_AUX_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
-	},
-	{
-		.name   = "ADSC_Main_Buff",
-		.start  = 0x00000000,
-		.end    = 0x00003FFF,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* DSP code and data images (1MiB) */
+	PREALLOC_NORMAL("DSP_Image_Buff", 0x00000000, 0x00100000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC CPU PCM buffer (40KiB) */
+	PREALLOC_NORMAL("ADSC_CPU_PCM_Buff", 0x00000000, 0x0000A000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC AUX buffer (128KiB) */
+	PREALLOC_NORMAL("ADSC_AUX_Buff", 0x00000000, 0x00020000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+	/* ADSC Main buffer (128KiB) */
+	PREALLOC_NORMAL("ADSC_Main_Buff", 0x00000000, 0x00020000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * STAVEM driver/STAPI
 	 */
-	{
-		.name   = "AVMEMPartition0",
-		.start  = 0x00000000,
-		.end    = 0x00480000 - 1,  /* 4.5 MB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 4.5MiB */
+	PREALLOC_NORMAL("AVMEMPartition0", 0x00000000, 0x00480000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * GHW HAL Driver
 	 */
-	{
-		.name   = "GraphicsHeap",
-		.start  = 0x22700000,
-		.end    = 0x23500000 - 1, /* 14 MB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* PowerTV Graphics Heap (14MiB) */
+	PREALLOC_NORMAL("GraphicsHeap", 0x25600000, 0x25600000+(14*1048576)-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * multi com buffer area
 	 */
-	{
-		.name   = "MulticomSHM",
-		.start  = 0x23700000,
-		.end    = 0x23720000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 128KiB */
+	PREALLOC_NORMAL("MulticomSHM", 0x23700000, 0x23720000-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * DMA Ring buffer (don't need recording buffers)
 	 */
-	{
-		.name   = "BMM_Buffer",
-		.start  = 0x00000000,
-		.end    = 0x000AA000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 680KiB */
+	PREALLOC_NORMAL("BMM_Buffer", 0x00000000, 0x000AA000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * Display bins buffer for unit0
 	 */
-	{
-		.name   = "DisplayBins0",
-		.start  = 0x00000000,
-		.end    = 0x00000FFF,  /* 4 KB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 4KiB */
+	PREALLOC_NORMAL("DisplayBins0", 0x00000000, 0x00001000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * Display bins buffer for unit1
 	 */
-	{
-		.name   = "DisplayBins1",
-		.start  = 0x00000000,
-		.end    = 0x00000FFF,  /* 4 KB total */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 4KiB */
+	PREALLOC_NORMAL("DisplayBins1", 0x00000000, 0x00001000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
-	 *
 	 * AVFS: player HAL memory
-	 *
-	 *
 	 */
-	{
-		.name   = "AvfsDmaMem",
-		.start  = 0x00000000,
-		.end    = 0x002c4c00 - 1,  /* 945K * 3 for playback */
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 945K * 3 for playback */
+	PREALLOC_NORMAL("AvfsDmaMem", 0x00000000, 0x002c4c00-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * PMEM
 	 */
-	{
-		.name   = "DiagPersistentMemory",
-		.start  = 0x00000000,
-		.end    = 0x10000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* Persistent memory for diagnostics (64KiB) */
+	PREALLOC_PMEM("DiagPersistentMemory", 0x00000000, 0x10000-1,
+	     (IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * Smartcard
 	 */
-	{
-		.name   = "SmartCardInfo",
-		.start  = 0x00000000,
-		.end    = 0x2800 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* Read and write buffers for Internal/External cards (10KiB) */
+	PREALLOC_NORMAL("SmartCardInfo", 0x00000000, 0x2800-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * NAND Flash
 	 */
-	{
-		.name   = "NandFlash",
-		.start  = NAND_FLASH_BASE,
-		.end    = NAND_FLASH_BASE + 0x400 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 10KiB */
+	PREALLOC_NORMAL("NandFlash", NAND_FLASH_BASE, NAND_FLASH_BASE+0x400-1,
+		IORESOURCE_MEM)
+
 	/*
 	 * Synopsys GMAC Memory Region
 	 */
-	{
-		.name   = "GMAC",
-		.start  = 0x00000000,
-		.end    = 0x00010000 - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+	/* 64KiB */
+	PREALLOC_NORMAL("GMAC", 0x00000000, 0x00010000-1,
+		(IORESOURCE_MEM|IORESOURCE_PTV_RES_LOEXT))
+
 	/*
 	 * Add other resources here
 	 */
-	{ },
+
+	/*
+	 * End of Resource marker
+	 */
+	{
+		.flags  = 0,
+	},
 };

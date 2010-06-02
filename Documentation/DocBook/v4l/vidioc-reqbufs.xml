@@ -61,7 +61,7 @@ fields of the <structname>v4l2_requestbuffers</structname> structure.
 They set the <structfield>type</structfield> field to the respective
 stream or buffer type, the <structfield>count</structfield> field to
 the desired number of buffers, <structfield>memory</structfield>
-must be set to the requested I/O method and the reserved array
+must be set to the requested I/O method and the <structfield>reserved</structfield> array
 must be zeroed. When the ioctl
 is called with a pointer to this structure the driver will attempt to allocate
 the requested number of buffers and it stores the actual number

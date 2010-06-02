@@ -594,8 +594,6 @@ static netdev_tx_t dnet_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	spin_unlock_irqrestore(&bp->lock, flags);
 
-	dev->trans_start = jiffies;
-
 	return NETDEV_TX_OK;
 }
 
@@ -918,7 +916,7 @@ static int __devinit dnet_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "Dave DNET at 0x%p (0x%08x) irq %d %pM\n",
 	       bp->regs, mem_base, dev->irq, dev->dev_addr);
-	dev_info(&pdev->dev, "has %smdio, %sirq, %sgigabit, %sdma \n",
+	dev_info(&pdev->dev, "has %smdio, %sirq, %sgigabit, %sdma\n",
 	       (bp->capabilities & DNET_HAS_MDIO) ? "" : "no ",
 	       (bp->capabilities & DNET_HAS_IRQ) ? "" : "no ",
 	       (bp->capabilities & DNET_HAS_GIGABIT) ? "" : "no ",

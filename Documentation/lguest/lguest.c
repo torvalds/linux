@@ -263,7 +263,7 @@ static u8 *get_feature_bits(struct device *dev)
  * Launcher virtual with an offset.
  *
  * This can be tough to get your head around, but usually it just means that we
- * use these trivial conversion functions when the Guest gives us it's
+ * use these trivial conversion functions when the Guest gives us its
  * "physical" addresses:
  */
 static void *from_guest_phys(unsigned long addr)

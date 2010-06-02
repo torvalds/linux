@@ -174,6 +174,40 @@
 				(~((1ULL << (12 + ((lvl) * 9))) - 1)))
 #define PM_ALIGNED(lvl, addr)	((PM_MAP_MASK(lvl) & (addr)) == (addr))
 
+/*
+ * Returns the page table level to use for a given page size
+ * Pagesize is expected to be a power-of-two
+ */
+#define PAGE_SIZE_LEVEL(pagesize) \
+		((__ffs(pagesize) - 12) / 9)
+/*
+ * Returns the number of ptes to use for a given page size
+ * Pagesize is expected to be a power-of-two
+ */
+#define PAGE_SIZE_PTE_COUNT(pagesize) \
+		(1ULL << ((__ffs(pagesize) - 12) % 9))
+
+/*
+ * Aligns a given io-virtual address to a given page size
+ * Pagesize is expected to be a power-of-two
+ */
+#define PAGE_SIZE_ALIGN(address, pagesize) \
+		((address) & ~((pagesize) - 1))
+/*
+ * Creates an IOMMU PTE for an address an a given pagesize
+ * The PTE has no permission bits set
+ * Pagesize is expected to be a power-of-two larger than 4096
+ */
+#define PAGE_SIZE_PTE(address, pagesize)		\
+		(((address) | ((pagesize) - 1)) &	\
+		 (~(pagesize >> 1)) & PM_ADDR_MASK)
+
+/*
+ * Takes a PTE value with mode=0x07 and returns the page size it maps
+ */
+#define PTE_PAGE_SIZE(pte) \
+	(1ULL << (1 + ffz(((pte) | 0xfffULL))))
+
 #define IOMMU_PTE_P  (1ULL << 0)
 #define IOMMU_PTE_TV (1ULL << 1)
 #define IOMMU_PTE_U  (1ULL << 59)

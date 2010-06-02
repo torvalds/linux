@@ -87,7 +87,16 @@ extern wait_queue_head_t request_key_conswq;
 extern struct key_type *key_type_lookup(const char *type);
 extern void key_type_put(struct key_type *ktype);
 
-extern int __key_link(struct key *keyring, struct key *key);
+extern int __key_link_begin(struct key *keyring,
+			    const struct key_type *type,
+			    const char *description,
+			    struct keyring_list **_prealloc);
+extern int __key_link_check_live_key(struct key *keyring, struct key *key);
+extern void __key_link(struct key *keyring, struct key *key,
+		       struct keyring_list **_prealloc);
+extern void __key_link_end(struct key *keyring,
+			   struct key_type *type,
+			   struct keyring_list *prealloc);
 
 extern key_ref_t __keyring_search_one(key_ref_t keyring_ref,
 				      const struct key_type *type,
@@ -115,6 +124,7 @@ extern struct key *find_keyring_by_name(const char *name, bool skip_perm_check);
 extern int install_user_keyrings(void);
 extern int install_thread_keyring_to_cred(struct cred *);
 extern int install_process_keyring_to_cred(struct cred *);
+extern int install_session_keyring_to_cred(struct cred *, struct key *);
 
 extern struct key *request_key_and_link(struct key_type *type,
 					const char *description,

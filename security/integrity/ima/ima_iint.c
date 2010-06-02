@@ -80,21 +80,21 @@ void iint_free(struct kref *kref)
 	iint->version = 0;
 	iint->flags = 0UL;
 	if (iint->readcount != 0) {
-		printk(KERN_INFO "%s: readcount: %ld\n", __FUNCTION__,
+		printk(KERN_INFO "%s: readcount: %ld\n", __func__,
 		       iint->readcount);
 		iint->readcount = 0;
 	}
 	if (iint->writecount != 0) {
-		printk(KERN_INFO "%s: writecount: %ld\n", __FUNCTION__,
+		printk(KERN_INFO "%s: writecount: %ld\n", __func__,
 		       iint->writecount);
 		iint->writecount = 0;
 	}
 	if (iint->opencount != 0) {
-		printk(KERN_INFO "%s: opencount: %ld\n", __FUNCTION__,
+		printk(KERN_INFO "%s: opencount: %ld\n", __func__,
 		       iint->opencount);
 		iint->opencount = 0;
 	}
-	kref_set(&iint->refcount, 1);
+	kref_init(&iint->refcount);
 	kmem_cache_free(iint_cache, iint);
 }
 
@@ -133,7 +133,7 @@ static void init_once(void *foo)
 	iint->readcount = 0;
 	iint->writecount = 0;
 	iint->opencount = 0;
-	kref_set(&iint->refcount, 1);
+	kref_init(&iint->refcount);
 }
 
 static int __init ima_iintcache_init(void)

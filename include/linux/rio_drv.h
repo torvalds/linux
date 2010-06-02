@@ -413,6 +413,12 @@ void rio_release_regions(struct rio_dev *);
 int rio_request_region(struct rio_dev *, int, char *);
 void rio_release_region(struct rio_dev *, int);
 
+/* Port-Write management */
+extern int rio_request_inb_pwrite(struct rio_dev *,
+			int (*)(struct rio_dev *, union rio_pw_msg*, int));
+extern int rio_release_inb_pwrite(struct rio_dev *);
+extern int rio_inb_pwrite_handler(union rio_pw_msg *pw_msg);
+
 /* LDM support */
 int rio_register_driver(struct rio_driver *);
 void rio_unregister_driver(struct rio_driver *);

@@ -643,17 +643,15 @@ struct sctp_pf {
 struct sctp_datamsg {
 	/* Chunks waiting to be submitted to lower layer. */
 	struct list_head chunks;
-	/* Chunks that have been transmitted. */
-	size_t msg_size;
 	/* Reference counting. */
 	atomic_t refcnt;
 	/* When is this message no longer interesting to the peer? */
 	unsigned long expires_at;
 	/* Did the messenge fail to send? */
 	int send_error;
-	char send_failed;
-	/* Control whether chunks from this message can be abandoned. */
-	char can_abandon;
+	u8 send_failed:1,
+	   can_abandon:1,   /* can chunks from this message can be abandoned. */
+	   can_delay;	    /* should this message be Nagle delayed */
 };
 
 struct sctp_datamsg *sctp_datamsg_from_user(struct sctp_association *,
@@ -757,7 +755,6 @@ struct sctp_chunk {
 #define SCTP_NEED_FRTX 0x1
 #define SCTP_DONT_FRTX 0x2
 	__u16	rtt_in_progress:1,	/* This chunk used for RTT calc? */
-		resent:1,		/* Has this chunk ever been resent. */
 		has_tsn:1,		/* Does this chunk have a TSN yet? */
 		has_ssn:1,		/* Does this chunk have a SSN yet? */
 		singleton:1,		/* Only chunk in the packet? */
@@ -879,7 +876,30 @@ struct sctp_transport {
 
 	/* Reference counting. */
 	atomic_t refcnt;
-	int	 dead;
+	__u32	 dead:1,
+		/* RTO-Pending : A flag used to track if one of the DATA
+		 *		chunks sent to this address is currently being
+		 *		used to compute a RTT. If this flag is 0,
+		 *		the next DATA chunk sent to this destination
+		 *		should be used to compute a RTT and this flag
+		 *		should be set. Every time the RTT
+		 *		calculation completes (i.e. the DATA chunk
+		 *		is SACK'd) clear this flag.
+		 */
+		 rto_pending:1,
+
+		/*
+		 * hb_sent : a flag that signals that we have a pending
+		 * heartbeat.
+		 */
+		hb_sent:1,
+
+		/* Is the Path MTU update pending on this tranport */
+		pmtu_pending:1,
+
+		/* Is this structure kfree()able? */
+		malloced:1;
+
 
 	/* This is the peer's IP address and port. */
 	union sctp_addr ipaddr;
@@ -909,22 +929,6 @@ struct sctp_transport {
 	/* SRTT	       : The current smoothed round trip time.	*/
 	__u32 srtt;
 
-	/* RTO-Pending : A flag used to track if one of the DATA
-	 *		chunks sent to this address is currently being
-	 *		used to compute a RTT. If this flag is 0,
-	 *		the next DATA chunk sent to this destination
-	 *		should be used to compute a RTT and this flag
-	 *		should be set. Every time the RTT
-	 *		calculation completes (i.e. the DATA chunk
-	 *		is SACK'd) clear this flag.
-	 * hb_sent : a flag that signals that we have a pending heartbeat.
-	 */
-	__u8 rto_pending;
-	__u8 hb_sent;
-
-	/* Flag to track the current fast recovery state */
-	__u8 fast_recovery;
-
 	/*
 	 * These are the congestion stats.
 	 */
@@ -943,9 +947,6 @@ struct sctp_transport {
 	__u32 flight_size;
 
 	__u32 burst_limited;	/* Holds old cwnd when max.burst is applied */
-
-	/* TSN marking the fast recovery exit point */
-	__u32 fast_recovery_exit;
 
 	/* Destination */
 	struct dst_entry *dst;
@@ -976,9 +977,6 @@ struct sctp_transport {
 	 * using SCTP_SET_PEER_ADDR_PARAMS socket option.
 	 */
 	__u16 pathmaxrxt;
-
-	/* is the Path MTU update pending on this tranport */
-	__u8 pmtu_pending;
 
 	/* PMTU	      : The current known path MTU.  */
 	__u32 pathmtu;
@@ -1026,8 +1024,6 @@ struct sctp_transport {
 	/* This is the list of transports that have chunks to send.  */
 	struct list_head send_ready;
 
-	int malloced; /* Is this structure kfree()able? */
-
 	/* State information saved for SFR_CACC algorithm. The key
 	 * idea in SFR_CACC is to maintain state at the sender on a
 	 * per-destination basis when a changeover happens.
@@ -1069,7 +1065,7 @@ void sctp_transport_route(struct sctp_transport *, union sctp_addr *,
 			  struct sctp_sock *);
 void sctp_transport_pmtu(struct sctp_transport *);
 void sctp_transport_free(struct sctp_transport *);
-void sctp_transport_reset_timers(struct sctp_transport *, int);
+void sctp_transport_reset_timers(struct sctp_transport *);
 void sctp_transport_hold(struct sctp_transport *);
 void sctp_transport_put(struct sctp_transport *);
 void sctp_transport_update_rto(struct sctp_transport *, __u32);
@@ -1722,6 +1718,12 @@ struct sctp_association {
 
 	/* Highest TSN that is acknowledged by incoming SACKs. */
 	__u32 highest_sacked;
+
+	/* TSN marking the fast recovery exit point */
+	__u32 fast_recovery_exit;
+
+	/* Flag to track the current fast recovery state */
+	__u8 fast_recovery;
 
 	/* The number of unacknowledged data chunks.  Reported through
 	 * the SCTP_STATUS sockopt.

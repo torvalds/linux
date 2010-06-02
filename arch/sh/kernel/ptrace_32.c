@@ -85,7 +85,7 @@ static int set_single_step(struct task_struct *tsk, unsigned long addr)
 
 	bp = thread->ptrace_bps[0];
 	if (!bp) {
-		hw_breakpoint_init(&attr);
+		ptrace_breakpoint_init(&attr);
 
 		attr.bp_addr = addr;
 		attr.bp_len = HW_BREAKPOINT_LEN_2;
@@ -435,29 +435,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 					     REGSET_DSP,
 					     0, sizeof(struct pt_dspregs),
 					     (const void __user *)data);
-#endif
-#ifdef CONFIG_BINFMT_ELF_FDPIC
-	case PTRACE_GETFDPIC: {
-		unsigned long tmp = 0;
-
-		switch (addr) {
-		case PTRACE_GETFDPIC_EXEC:
-			tmp = child->mm->context.exec_fdpic_loadmap;
-			break;
-		case PTRACE_GETFDPIC_INTERP:
-			tmp = child->mm->context.interp_fdpic_loadmap;
-			break;
-		default:
-			break;
-		}
-
-		ret = 0;
-		if (put_user(tmp, datap)) {
-			ret = -EFAULT;
-			break;
-		}
-		break;
-	}
 #endif
 	default:
 		ret = ptrace_request(child, request, addr, data);

@@ -1148,8 +1148,6 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 	if (!(ctrl_inl(ndev->base_addr + EDTRR) & EDTRR_TRNS))
 		ctrl_outl(EDTRR_TRNS, ndev->base_addr + EDTRR);
 
-	ndev->trans_start = jiffies;
-
 	return NETDEV_TX_OK;
 }
 
@@ -1295,6 +1293,9 @@ static int sh_mdio_release(struct net_device *ndev)
 
 	/* remove mdio bus info from net_device */
 	dev_set_drvdata(&ndev->dev, NULL);
+
+	/* free interrupts memory */
+	kfree(bus->irq);
 
 	/* free bitbang info */
 	free_mdio_bitbang(bus);

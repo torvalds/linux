@@ -67,8 +67,8 @@ int __ip6_local_out(struct sk_buff *skb)
 		len = 0;
 	ipv6_hdr(skb)->payload_len = htons(len);
 
-	return nf_hook(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, skb_dst(skb)->dev,
-		       dst_output);
+	return nf_hook(NFPROTO_IPV6, NF_INET_LOCAL_OUT, skb, NULL,
+		       skb_dst(skb)->dev, dst_output);
 }
 
 int ip6_local_out(struct sk_buff *skb)
@@ -83,22 +83,6 @@ int ip6_local_out(struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(ip6_local_out);
 
-static int ip6_output_finish(struct sk_buff *skb)
-{
-	struct dst_entry *dst = skb_dst(skb);
-
-	if (dst->hh)
-		return neigh_hh_output(dst->hh, skb);
-	else if (dst->neighbour)
-		return dst->neighbour->output(skb);
-
-	IP6_INC_STATS_BH(dev_net(dst->dev),
-			 ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
-	kfree_skb(skb);
-	return -EINVAL;
-
-}
-
 /* dev_loopback_xmit for use with netfilter. */
 static int ip6_dev_loopback_xmit(struct sk_buff *newskb)
 {
@@ -112,8 +96,7 @@ static int ip6_dev_loopback_xmit(struct sk_buff *newskb)
 	return 0;
 }
 
-
-static int ip6_output2(struct sk_buff *skb)
+static int ip6_finish_output2(struct sk_buff *skb)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct net_device *dev = dst->dev;
@@ -125,7 +108,7 @@ static int ip6_output2(struct sk_buff *skb)
 		struct inet6_dev *idev = ip6_dst_idev(skb_dst(skb));
 
 		if (!(dev->flags & IFF_LOOPBACK) && sk_mc_loop(skb->sk) &&
-		    ((mroute6_socket(dev_net(dev)) &&
+		    ((mroute6_socket(dev_net(dev), skb) &&
 		     !(IP6CB(skb)->flags & IP6SKB_FORWARDED)) ||
 		     ipv6_chk_mcast_addr(dev, &ipv6_hdr(skb)->daddr,
 					 &ipv6_hdr(skb)->saddr))) {
@@ -135,8 +118,8 @@ static int ip6_output2(struct sk_buff *skb)
 			   is not supported in any case.
 			 */
 			if (newskb)
-				NF_HOOK(PF_INET6, NF_INET_POST_ROUTING, newskb,
-					NULL, newskb->dev,
+				NF_HOOK(NFPROTO_IPV6, NF_INET_POST_ROUTING,
+					newskb, NULL, newskb->dev,
 					ip6_dev_loopback_xmit);
 
 			if (ipv6_hdr(skb)->hop_limit == 0) {
@@ -151,8 +134,15 @@ static int ip6_output2(struct sk_buff *skb)
 				skb->len);
 	}
 
-	return NF_HOOK(PF_INET6, NF_INET_POST_ROUTING, skb, NULL, skb->dev,
-		       ip6_output_finish);
+	if (dst->hh)
+		return neigh_hh_output(dst->hh, skb);
+	else if (dst->neighbour)
+		return dst->neighbour->output(skb);
+
+	IP6_INC_STATS_BH(dev_net(dst->dev),
+			 ip6_dst_idev(dst), IPSTATS_MIB_OUTNOROUTES);
+	kfree_skb(skb);
+	return -EINVAL;
 }
 
 static inline int ip6_skb_dst_mtu(struct sk_buff *skb)
@@ -163,29 +153,37 @@ static inline int ip6_skb_dst_mtu(struct sk_buff *skb)
 	       skb_dst(skb)->dev->mtu : dst_mtu(skb_dst(skb));
 }
 
+static int ip6_finish_output(struct sk_buff *skb)
+{
+	if ((skb->len > ip6_skb_dst_mtu(skb) && !skb_is_gso(skb)) ||
+	    dst_allfrag(skb_dst(skb)))
+		return ip6_fragment(skb, ip6_finish_output2);
+	else
+		return ip6_finish_output2(skb);
+}
+
 int ip6_output(struct sk_buff *skb)
 {
+	struct net_device *dev = skb_dst(skb)->dev;
 	struct inet6_dev *idev = ip6_dst_idev(skb_dst(skb));
 	if (unlikely(idev->cnf.disable_ipv6)) {
-		IP6_INC_STATS(dev_net(skb_dst(skb)->dev), idev,
+		IP6_INC_STATS(dev_net(dev), idev,
 			      IPSTATS_MIB_OUTDISCARDS);
 		kfree_skb(skb);
 		return 0;
 	}
 
-	if ((skb->len > ip6_skb_dst_mtu(skb) && !skb_is_gso(skb)) ||
-				dst_allfrag(skb_dst(skb)))
-		return ip6_fragment(skb, ip6_output2);
-	else
-		return ip6_output2(skb);
+	return NF_HOOK_COND(NFPROTO_IPV6, NF_INET_POST_ROUTING, skb, NULL, dev,
+			    ip6_finish_output,
+			    !(IP6CB(skb)->flags & IP6SKB_REROUTED));
 }
 
 /*
- *	xmit an sk_buff (used by TCP)
+ *	xmit an sk_buff (used by TCP, SCTP and DCCP)
  */
 
 int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
-	     struct ipv6_txoptions *opt, int ipfragok)
+	     struct ipv6_txoptions *opt)
 {
 	struct net *net = sock_net(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -218,8 +216,7 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 			}
 			kfree_skb(skb);
 			skb = skb2;
-			if (sk)
-				skb_set_owner_w(skb, sk);
+			skb_set_owner_w(skb, sk);
 		}
 		if (opt->opt_flen)
 			ipv6_push_frag_opts(skb, opt, &proto);
@@ -230,10 +227,6 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	skb_push(skb, sizeof(struct ipv6hdr));
 	skb_reset_network_header(skb);
 	hdr = ipv6_hdr(skb);
-
-	/* Allow local fragmentation. */
-	if (ipfragok)
-		skb->local_df = 1;
 
 	/*
 	 *	Fill in the IPv6 header
@@ -261,8 +254,8 @@ int ip6_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl,
 	if ((skb->len <= mtu) || skb->local_df || skb_is_gso(skb)) {
 		IP6_UPD_PO_STATS(net, ip6_dst_idev(skb_dst(skb)),
 			      IPSTATS_MIB_OUT, skb->len);
-		return NF_HOOK(PF_INET6, NF_INET_LOCAL_OUT, skb, NULL, dst->dev,
-				dst_output);
+		return NF_HOOK(NFPROTO_IPV6, NF_INET_LOCAL_OUT, skb, NULL,
+			       dst->dev, dst_output);
 	}
 
 	if (net_ratelimit())
@@ -514,7 +507,7 @@ int ip6_forward(struct sk_buff *skb)
 	if (mtu < IPV6_MIN_MTU)
 		mtu = IPV6_MIN_MTU;
 
-	if (skb->len > mtu) {
+	if (skb->len > mtu && !skb_is_gso(skb)) {
 		/* Again, force OUTPUT device used as source address */
 		skb->dev = dst->dev;
 		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
@@ -538,7 +531,7 @@ int ip6_forward(struct sk_buff *skb)
 	hdr->hop_limit--;
 
 	IP6_INC_STATS_BH(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTFORWDATAGRAMS);
-	return NF_HOOK(PF_INET6, NF_INET_FORWARD, skb, skb->dev, dst->dev,
+	return NF_HOOK(NFPROTO_IPV6, NF_INET_FORWARD, skb, skb->dev, dst->dev,
 		       ip6_forward_finish);
 
 error:
@@ -1109,7 +1102,7 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 	int offset, int len, int odd, struct sk_buff *skb),
 	void *from, int length, int transhdrlen,
 	int hlimit, int tclass, struct ipv6_txoptions *opt, struct flowi *fl,
-	struct rt6_info *rt, unsigned int flags)
+	struct rt6_info *rt, unsigned int flags, int dontfrag)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -1223,15 +1216,23 @@ int ip6_append_data(struct sock *sk, int getfrag(void *from, char *to,
 	 */
 
 	inet->cork.length += length;
-	if (((length > mtu) && (sk->sk_protocol == IPPROTO_UDP)) &&
-	    (rt->u.dst.dev->features & NETIF_F_UFO)) {
+	if (length > mtu) {
+		int proto = sk->sk_protocol;
+		if (dontfrag && (proto == IPPROTO_UDP || proto == IPPROTO_RAW)){
+			ipv6_local_rxpmtu(sk, fl, mtu-exthdrlen);
+			return -EMSGSIZE;
+		}
 
-		err = ip6_ufo_append_data(sk, getfrag, from, length, hh_len,
-					  fragheaderlen, transhdrlen, mtu,
-					  flags);
-		if (err)
-			goto error;
-		return 0;
+		if (proto == IPPROTO_UDP &&
+		    (rt->u.dst.dev->features & NETIF_F_UFO)) {
+
+			err = ip6_ufo_append_data(sk, getfrag, from, length,
+						  hh_len, fragheaderlen,
+						  transhdrlen, mtu, flags);
+			if (err)
+				goto error;
+			return 0;
+		}
 	}
 
 	if ((skb = skb_peek_tail(&sk->sk_write_queue)) == NULL)

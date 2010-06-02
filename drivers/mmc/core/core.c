@@ -1252,9 +1252,8 @@ EXPORT_SYMBOL(mmc_card_can_sleep);
 /**
  *	mmc_suspend_host - suspend a host
  *	@host: mmc host
- *	@state: suspend mode (PM_SUSPEND_xxx)
  */
-int mmc_suspend_host(struct mmc_host *host, pm_message_t state)
+int mmc_suspend_host(struct mmc_host *host)
 {
 	int err = 0;
 

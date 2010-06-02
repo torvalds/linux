@@ -315,16 +315,13 @@ out_free_inst:
 	goto out;
 }
 
-static struct crypto_instance *pcrypt_alloc_aead(struct rtattr **tb)
+static struct crypto_instance *pcrypt_alloc_aead(struct rtattr **tb,
+						 u32 type, u32 mask)
 {
 	struct crypto_instance *inst;
 	struct crypto_alg *alg;
-	struct crypto_attr_type *algt;
 
-	algt = crypto_get_attr_type(tb);
-
-	alg = crypto_get_attr_alg(tb, algt->type,
-				  (algt->mask & CRYPTO_ALG_TYPE_MASK));
+	alg = crypto_get_attr_alg(tb, type, (mask & CRYPTO_ALG_TYPE_MASK));
 	if (IS_ERR(alg))
 		return ERR_CAST(alg);
 
@@ -365,7 +362,7 @@ static struct crypto_instance *pcrypt_alloc(struct rtattr **tb)
 
 	switch (algt->type & algt->mask & CRYPTO_ALG_TYPE_MASK) {
 	case CRYPTO_ALG_TYPE_AEAD:
-		return pcrypt_alloc_aead(tb);
+		return pcrypt_alloc_aead(tb, algt->type, algt->mask);
 	}
 
 	return ERR_PTR(-EINVAL);

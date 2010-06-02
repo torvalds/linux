@@ -782,16 +782,22 @@ int cfg80211_wext_siwfreq(struct net_device *dev,
 		return cfg80211_mgd_wext_siwfreq(dev, info, wextfreq, extra);
 	case NL80211_IFTYPE_ADHOC:
 		return cfg80211_ibss_wext_siwfreq(dev, info, wextfreq, extra);
-	default:
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_WDS:
+	case NL80211_IFTYPE_MESH_POINT:
 		freq = cfg80211_wext_freq(wdev->wiphy, wextfreq);
 		if (freq < 0)
 			return freq;
 		if (freq == 0)
 			return -EINVAL;
+		wdev_lock(wdev);
 		mutex_lock(&rdev->devlist_mtx);
-		err = rdev_set_freq(rdev, NULL, freq, NL80211_CHAN_NO_HT);
+		err = cfg80211_set_freq(rdev, wdev, freq, NL80211_CHAN_NO_HT);
 		mutex_unlock(&rdev->devlist_mtx);
+		wdev_unlock(wdev);
 		return err;
+	default:
+		return -EOPNOTSUPP;
 	}
 }
 EXPORT_SYMBOL_GPL(cfg80211_wext_siwfreq);
@@ -801,7 +807,6 @@ int cfg80211_wext_giwfreq(struct net_device *dev,
 			  struct iw_freq *freq, char *extra)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_registered_device *rdev = wiphy_to_dev(wdev->wiphy);
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_STATION:
@@ -809,9 +814,9 @@ int cfg80211_wext_giwfreq(struct net_device *dev,
 	case NL80211_IFTYPE_ADHOC:
 		return cfg80211_ibss_wext_giwfreq(dev, info, freq, extra);
 	default:
-		if (!rdev->channel)
+		if (!wdev->channel)
 			return -EINVAL;
-		freq->m = rdev->channel->center_freq;
+		freq->m = wdev->channel->center_freq;
 		freq->e = 6;
 		return 0;
 	}

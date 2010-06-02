@@ -137,7 +137,7 @@ static int parport_getsda(void *data)
    copied. The attaching code will set getscl to NULL for adapters that
    cannot read SCL back, and will also make the data field point to
    the parallel port structure. */
-static struct i2c_algo_bit_data parport_algo_data = {
+static const struct i2c_algo_bit_data parport_algo_data = {
 	.setsda		= parport_setsda,
 	.setscl		= parport_setscl,
 	.getsda		= parport_getsda,

@@ -500,8 +500,10 @@ static struct ftrace_event_field *
 find_event_field(struct ftrace_event_call *call, char *name)
 {
 	struct ftrace_event_field *field;
+	struct list_head *head;
 
-	list_for_each_entry(field, &call->fields, link) {
+	head = trace_get_fields(call);
+	list_for_each_entry(field, head, link) {
 		if (!strcmp(field->name, name))
 			return field;
 	}
@@ -545,7 +547,7 @@ static void filter_disable_preds(struct ftrace_event_call *call)
 	struct event_filter *filter = call->filter;
 	int i;
 
-	call->filter_active = 0;
+	call->flags &= ~TRACE_EVENT_FL_FILTERED;
 	filter->n_preds = 0;
 
 	for (i = 0; i < MAX_FILTER_PRED; i++)
@@ -572,7 +574,7 @@ void destroy_preds(struct ftrace_event_call *call)
 {
 	__free_preds(call->filter);
 	call->filter = NULL;
-	call->filter_active = 0;
+	call->flags &= ~TRACE_EVENT_FL_FILTERED;
 }
 
 static struct event_filter *__alloc_preds(void)
@@ -611,7 +613,7 @@ static int init_preds(struct ftrace_event_call *call)
 	if (call->filter)
 		return 0;
 
-	call->filter_active = 0;
+	call->flags &= ~TRACE_EVENT_FL_FILTERED;
 	call->filter = __alloc_preds();
 	if (IS_ERR(call->filter))
 		return PTR_ERR(call->filter);
@@ -625,10 +627,10 @@ static int init_subsystem_preds(struct event_subsystem *system)
 	int err;
 
 	list_for_each_entry(call, &ftrace_events, list) {
-		if (!call->define_fields)
+		if (!call->class || !call->class->define_fields)
 			continue;
 
-		if (strcmp(call->system, system->name) != 0)
+		if (strcmp(call->class->system, system->name) != 0)
 			continue;
 
 		err = init_preds(call);
@@ -644,10 +646,10 @@ static void filter_free_subsystem_preds(struct event_subsystem *system)
 	struct ftrace_event_call *call;
 
 	list_for_each_entry(call, &ftrace_events, list) {
-		if (!call->define_fields)
+		if (!call->class || !call->class->define_fields)
 			continue;
 
-		if (strcmp(call->system, system->name) != 0)
+		if (strcmp(call->class->system, system->name) != 0)
 			continue;
 
 		filter_disable_preds(call);
@@ -1249,10 +1251,10 @@ static int replace_system_preds(struct event_subsystem *system,
 	list_for_each_entry(call, &ftrace_events, list) {
 		struct event_filter *filter = call->filter;
 
-		if (!call->define_fields)
+		if (!call->class || !call->class->define_fields)
 			continue;
 
-		if (strcmp(call->system, system->name) != 0)
+		if (strcmp(call->class->system, system->name) != 0)
 			continue;
 
 		/* try to see if the filter can be applied */
@@ -1266,7 +1268,7 @@ static int replace_system_preds(struct event_subsystem *system,
 		if (err)
 			filter_disable_preds(call);
 		else {
-			call->filter_active = 1;
+			call->flags |= TRACE_EVENT_FL_FILTERED;
 			replace_filter_string(filter, filter_string);
 		}
 		fail = false;
@@ -1315,7 +1317,7 @@ int apply_event_filter(struct ftrace_event_call *call, char *filter_string)
 	if (err)
 		append_filter_err(ps, call->filter);
 	else
-		call->filter_active = 1;
+		call->flags |= TRACE_EVENT_FL_FILTERED;
 out:
 	filter_opstack_clear(ps);
 	postfix_clear(ps);
@@ -1393,12 +1395,12 @@ int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 	mutex_lock(&event_mutex);
 
 	list_for_each_entry(call, &ftrace_events, list) {
-		if (call->id == event_id)
+		if (call->event.type == event_id)
 			break;
 	}
 
 	err = -EINVAL;
-	if (!call)
+	if (&call->list == &ftrace_events)
 		goto out_unlock;
 
 	err = -EEXIST;

@@ -19,6 +19,7 @@
 #include <mach/common.h>
 #include <mach/time.h>
 #include <mach/da8xx.h>
+#include <mach/gpio.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -1126,10 +1127,7 @@ static struct map_desc da830_io_desc[] = {
 	},
 };
 
-static void __iomem *da830_psc_bases[] = {
-	IO_ADDRESS(DA8XX_PSC0_BASE),
-	IO_ADDRESS(DA8XX_PSC1_BASE),
-};
+static u32 da830_psc_bases[] = { DA8XX_PSC0_BASE, DA8XX_PSC1_BASE };
 
 /* Contents of JTAG ID register used to identify exact cpu type */
 static struct davinci_id da830_ids[] = {
@@ -1158,14 +1156,14 @@ static struct davinci_id da830_ids[] = {
 
 static struct davinci_timer_instance da830_timer_instance[2] = {
 	{
-		.base		= IO_ADDRESS(DA8XX_TIMER64P0_BASE),
+		.base		= DA8XX_TIMER64P0_BASE,
 		.bottom_irq	= IRQ_DA8XX_TINT12_0,
 		.top_irq	= IRQ_DA8XX_TINT34_0,
 		.cmp_off	= DA830_CMP12_0,
 		.cmp_irq	= IRQ_DA830_T12CMPINT0_0,
 	},
 	{
-		.base		= IO_ADDRESS(DA8XX_TIMER64P1_BASE),
+		.base		= DA8XX_TIMER64P1_BASE,
 		.bottom_irq	= IRQ_DA8XX_TINT12_1,
 		.top_irq	= IRQ_DA8XX_TINT34_1,
 		.cmp_off	= DA830_CMP12_0,
@@ -1187,34 +1185,33 @@ static struct davinci_timer_info da830_timer_info = {
 static struct davinci_soc_info davinci_soc_info_da830 = {
 	.io_desc		= da830_io_desc,
 	.io_desc_num		= ARRAY_SIZE(da830_io_desc),
+	.jtag_id_reg		= DA8XX_SYSCFG0_BASE + DA8XX_JTAG_ID_REG,
 	.ids			= da830_ids,
 	.ids_num		= ARRAY_SIZE(da830_ids),
 	.cpu_clks		= da830_clks,
 	.psc_bases		= da830_psc_bases,
 	.psc_bases_num		= ARRAY_SIZE(da830_psc_bases),
+	.pinmux_base		= DA8XX_SYSCFG0_BASE + 0x120,
 	.pinmux_pins		= da830_pins,
 	.pinmux_pins_num	= ARRAY_SIZE(da830_pins),
-	.intc_base		= (void __iomem *)DA8XX_CP_INTC_VIRT,
+	.intc_base		= DA8XX_CP_INTC_BASE,
 	.intc_type		= DAVINCI_INTC_TYPE_CP_INTC,
 	.intc_irq_prios		= da830_default_priorities,
 	.intc_irq_num		= DA830_N_CP_INTC_IRQ,
 	.timer_info		= &da830_timer_info,
-	.gpio_base		= IO_ADDRESS(DA8XX_GPIO_BASE),
+	.gpio_type		= GPIO_TYPE_DAVINCI,
+	.gpio_base		= DA8XX_GPIO_BASE,
 	.gpio_num		= 128,
 	.gpio_irq		= IRQ_DA8XX_GPIO0,
 	.serial_dev		= &da8xx_serial_device,
 	.emac_pdata		= &da8xx_emac_pdata,
+	.reset_device		= &da8xx_wdt_device,
 };
 
 void __init da830_init(void)
 {
-	da8xx_syscfg0_base = ioremap(DA8XX_SYSCFG0_BASE, SZ_4K);
-	if (WARN(!da8xx_syscfg0_base, "Unable to map syscfg0 module"))
-		return;
-
-	davinci_soc_info_da830.jtag_id_base =
-					DA8XX_SYSCFG0_VIRT(DA8XX_JTAG_ID_REG);
-	davinci_soc_info_da830.pinmux_base = DA8XX_SYSCFG0_VIRT(0x120);
-
 	davinci_common_init(&davinci_soc_info_da830);
+
+	da8xx_syscfg0_base = ioremap(DA8XX_SYSCFG0_BASE, SZ_4K);
+	WARN(!da8xx_syscfg0_base, "Unable to map syscfg0 module");
 }

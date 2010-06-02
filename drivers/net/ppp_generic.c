@@ -2174,6 +2174,24 @@ int ppp_unit_number(struct ppp_channel *chan)
 }
 
 /*
+ * Return the PPP device interface name of a channel.
+ */
+char *ppp_dev_name(struct ppp_channel *chan)
+{
+	struct channel *pch = chan->ppp;
+	char *name = NULL;
+
+	if (pch) {
+		read_lock_bh(&pch->upl);
+		if (pch->ppp && pch->ppp->dev)
+			name = pch->ppp->dev->name;
+		read_unlock_bh(&pch->upl);
+	}
+	return name;
+}
+
+
+/*
  * Disconnect a channel from the generic layer.
  * This must be called in process context.
  */
@@ -2901,11 +2919,12 @@ EXPORT_SYMBOL(ppp_register_channel);
 EXPORT_SYMBOL(ppp_unregister_channel);
 EXPORT_SYMBOL(ppp_channel_index);
 EXPORT_SYMBOL(ppp_unit_number);
+EXPORT_SYMBOL(ppp_dev_name);
 EXPORT_SYMBOL(ppp_input);
 EXPORT_SYMBOL(ppp_input_error);
 EXPORT_SYMBOL(ppp_output_wakeup);
 EXPORT_SYMBOL(ppp_register_compressor);
 EXPORT_SYMBOL(ppp_unregister_compressor);
 MODULE_LICENSE("GPL");
-MODULE_ALIAS_CHARDEV_MAJOR(PPP_MAJOR);
-MODULE_ALIAS("/dev/ppp");
+MODULE_ALIAS_CHARDEV(PPP_MAJOR, 0);
+MODULE_ALIAS("devname:ppp");

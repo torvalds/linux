@@ -1583,7 +1583,7 @@ static enum dvbfe_search stv0900_search(struct dvb_frontend *fe,
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
 	struct stv0900_search_params p_search;
-	struct stv0900_signal_info p_result;
+	struct stv0900_signal_info p_result = intp->result[demod];
 
 	enum fe_stv0900_error error = STV0900_NO_ERROR;
 
@@ -1842,6 +1842,19 @@ static void stv0900_release(struct dvb_frontend *fe)
 	kfree(state);
 }
 
+static int stv0900_get_frontend(struct dvb_frontend *fe,
+				struct dvb_frontend_parameters *p)
+{
+	struct stv0900_state *state = fe->demodulator_priv;
+	struct stv0900_internal *intp = state->internal;
+	enum fe_stv0900_demod_num demod = state->demod;
+	struct stv0900_signal_info p_result = intp->result[demod];
+
+	p->frequency = p_result.locked ? p_result.frequency : 0;
+	p->u.qpsk.symbol_rate = p_result.locked ? p_result.symbol_rate : 0;
+	return 0;
+}
+
 static struct dvb_frontend_ops stv0900_ops = {
 
 	.info = {
@@ -1862,6 +1875,7 @@ static struct dvb_frontend_ops stv0900_ops = {
 	},
 	.release			= stv0900_release,
 	.init				= stv0900_init,
+	.get_frontend                   = stv0900_get_frontend,
 	.get_frontend_algo		= stv0900_frontend_algo,
 	.i2c_gate_ctrl			= stv0900_i2c_gate_ctrl,
 	.diseqc_send_master_cmd		= stv0900_send_master_cmd,

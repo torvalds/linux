@@ -22,6 +22,7 @@
 #include <linux/mm.h>
 #include <linux/elf.h>
 #include <linux/ftrace.h>
+#include <linux/module.h>
 #include <linux/slab.h>
 #include <asm/dwarf.h>
 #include <asm/unwinder.h>
@@ -844,8 +845,10 @@ static int dwarf_parse_cie(void *entry, void *p, unsigned long len,
 	rb_link_node(&cie->node, parent, rb_node);
 	rb_insert_color(&cie->node, &cie_root);
 
+#ifdef CONFIG_MODULES
 	if (mod != NULL)
 		list_add_tail(&cie->link, &mod->arch.cie_list);
+#endif
 
 	spin_unlock_irqrestore(&dwarf_cie_lock, flags);
 
@@ -934,8 +937,10 @@ static int dwarf_parse_fde(void *entry, u32 entry_type,
 	rb_link_node(&fde->node, parent, rb_node);
 	rb_insert_color(&fde->node, &fde_root);
 
+#ifdef CONFIG_MODULES
 	if (mod != NULL)
 		list_add_tail(&fde->link, &mod->arch.fde_list);
+#endif
 
 	spin_unlock_irqrestore(&dwarf_fde_lock, flags);
 

@@ -106,7 +106,7 @@ enum {
 	REPLY_TX = 0x1c,
 	REPLY_RATE_SCALE = 0x47,	/* 3945 only */
 	REPLY_LEDS_CMD = 0x48,
-	REPLY_TX_LINK_QUALITY_CMD = 0x4e, /* 4965 only */
+	REPLY_TX_LINK_QUALITY_CMD = 0x4e, /* for 4965 and up */
 
 	/* WiMAX coexistence */
 	COEX_PRIORITY_TABLE_CMD = 0x5a,	/* for 5000 series and up */
@@ -512,8 +512,9 @@ struct iwl_init_alive_resp {
  *
  *     Entries without timestamps contain only event_id and data.
  *
+ *
  * 2)  error_event_table_ptr indicates base of the error log.  This contains
- *     information about any uCode error that occurs.  For 4965, the format
+ *     information about any uCode error that occurs.  For agn, the format
  *     of the error log is:
  *
  *	__le32 valid;        (nonzero) valid, (0) log is empty
@@ -529,6 +530,30 @@ struct iwl_init_alive_resp {
  *	__le32 bcon_time;    beacon timer
  *	__le32 tsf_low;      network timestamp function timer
  *	__le32 tsf_hi;       network timestamp function timer
+ *	__le32 gp1;          GP1 timer register
+ *	__le32 gp2;          GP2 timer register
+ *	__le32 gp3;          GP3 timer register
+ *	__le32 ucode_ver;    uCode version
+ *	__le32 hw_ver;       HW Silicon version
+ *	__le32 brd_ver;      HW board version
+ *	__le32 log_pc;       log program counter
+ *	__le32 frame_ptr;    frame pointer
+ *	__le32 stack_ptr;    stack pointer
+ *	__le32 hcmd;         last host command
+ *	__le32 isr0;         isr status register LMPM_NIC_ISR0: rxtx_flag
+ *	__le32 isr1;         isr status register LMPM_NIC_ISR1: host_flag
+ *	__le32 isr2;         isr status register LMPM_NIC_ISR2: enc_flag
+ *	__le32 isr3;         isr status register LMPM_NIC_ISR3: time_flag
+ *	__le32 isr4;         isr status register LMPM_NIC_ISR4: wico interrupt
+ *	__le32 isr_pref;     isr status register LMPM_NIC_PREF_STAT
+ *	__le32 wait_event;   wait event() caller address
+ *	__le32 l2p_control;  L2pControlField
+ *	__le32 l2p_duration; L2pDurationField
+ *	__le32 l2p_mhvalid;  L2pMhValidBits
+ *	__le32 l2p_addr_match; L2pAddrMatchStat
+ *	__le32 lmpm_pmg_sel; indicate which clocks are turned on (LMPM_PMG_SEL)
+ *	__le32 u_timestamp;  indicate when the date and time of the compilation
+ *	__le32 reserved;
  *
  * The Linux driver can print both logs to the system log when a uCode error
  * occurs.
@@ -1418,7 +1443,7 @@ struct iwl4965_rx_mpdu_res_start {
 
 /* 1: Ignore Bluetooth priority for this frame.
  * 0: Delay Tx until Bluetooth device is done (normal usage). */
-#define TX_CMD_FLG_BT_DIS_MSK cpu_to_le32(1 << 12)
+#define TX_CMD_FLG_IGNORE_BT cpu_to_le32(1 << 12)
 
 /* 1: uCode overrides sequence control field in MAC header.
  * 0: Driver provides sequence control field in MAC header.
@@ -1637,7 +1662,7 @@ struct iwl_tx_cmd {
 	struct ieee80211_hdr hdr[0];
 } __attribute__ ((packed));
 
-/* TX command response is sent after *all* transmission attempts.
+/* TX command response is sent after *3945* transmission attempts.
  *
  * NOTES:
  *
@@ -1665,24 +1690,65 @@ struct iwl_tx_cmd {
  * control line.  Receiving is still allowed in this case.
  */
 enum {
+	TX_3945_STATUS_SUCCESS = 0x01,
+	TX_3945_STATUS_DIRECT_DONE = 0x02,
+	TX_3945_STATUS_FAIL_SHORT_LIMIT = 0x82,
+	TX_3945_STATUS_FAIL_LONG_LIMIT = 0x83,
+	TX_3945_STATUS_FAIL_FIFO_UNDERRUN = 0x84,
+	TX_3945_STATUS_FAIL_MGMNT_ABORT = 0x85,
+	TX_3945_STATUS_FAIL_NEXT_FRAG = 0x86,
+	TX_3945_STATUS_FAIL_LIFE_EXPIRE = 0x87,
+	TX_3945_STATUS_FAIL_DEST_PS = 0x88,
+	TX_3945_STATUS_FAIL_ABORTED = 0x89,
+	TX_3945_STATUS_FAIL_BT_RETRY = 0x8a,
+	TX_3945_STATUS_FAIL_STA_INVALID = 0x8b,
+	TX_3945_STATUS_FAIL_FRAG_DROPPED = 0x8c,
+	TX_3945_STATUS_FAIL_TID_DISABLE = 0x8d,
+	TX_3945_STATUS_FAIL_FRAME_FLUSHED = 0x8e,
+	TX_3945_STATUS_FAIL_INSUFFICIENT_CF_POLL = 0x8f,
+	TX_3945_STATUS_FAIL_TX_LOCKED = 0x90,
+	TX_3945_STATUS_FAIL_NO_BEACON_ON_RADAR = 0x91,
+};
+
+/*
+ * TX command response is sent after *agn* transmission attempts.
+ *
+ * both postpone and abort status are expected behavior from uCode. there is
+ * no special operation required from driver; except for RFKILL_FLUSH,
+ * which required tx flush host command to flush all the tx frames in queues
+ */
+enum {
 	TX_STATUS_SUCCESS = 0x01,
 	TX_STATUS_DIRECT_DONE = 0x02,
+	/* postpone TX */
+	TX_STATUS_POSTPONE_DELAY = 0x40,
+	TX_STATUS_POSTPONE_FEW_BYTES = 0x41,
+	TX_STATUS_POSTPONE_BT_PRIO = 0x42,
+	TX_STATUS_POSTPONE_QUIET_PERIOD = 0x43,
+	TX_STATUS_POSTPONE_CALC_TTAK = 0x44,
+	/* abort TX */
+	TX_STATUS_FAIL_INTERNAL_CROSSED_RETRY = 0x81,
 	TX_STATUS_FAIL_SHORT_LIMIT = 0x82,
 	TX_STATUS_FAIL_LONG_LIMIT = 0x83,
 	TX_STATUS_FAIL_FIFO_UNDERRUN = 0x84,
-	TX_STATUS_FAIL_MGMNT_ABORT = 0x85,
-	TX_STATUS_FAIL_NEXT_FRAG = 0x86,
+	TX_STATUS_FAIL_DRAIN_FLOW = 0x85,
+	TX_STATUS_FAIL_RFKILL_FLUSH = 0x86,
 	TX_STATUS_FAIL_LIFE_EXPIRE = 0x87,
 	TX_STATUS_FAIL_DEST_PS = 0x88,
-	TX_STATUS_FAIL_ABORTED = 0x89,
+	TX_STATUS_FAIL_HOST_ABORTED = 0x89,
 	TX_STATUS_FAIL_BT_RETRY = 0x8a,
 	TX_STATUS_FAIL_STA_INVALID = 0x8b,
 	TX_STATUS_FAIL_FRAG_DROPPED = 0x8c,
 	TX_STATUS_FAIL_TID_DISABLE = 0x8d,
-	TX_STATUS_FAIL_FRAME_FLUSHED = 0x8e,
+	TX_STATUS_FAIL_FIFO_FLUSHED = 0x8e,
 	TX_STATUS_FAIL_INSUFFICIENT_CF_POLL = 0x8f,
-	TX_STATUS_FAIL_TX_LOCKED = 0x90,
-	TX_STATUS_FAIL_NO_BEACON_ON_RADAR = 0x91,
+	/* uCode drop due to FW drop request */
+	TX_STATUS_FAIL_FW_DROP = 0x90,
+	/*
+	 * uCode drop due to station color mismatch
+	 * between tx command and station table
+	 */
+	TX_STATUS_FAIL_STA_COLOR_MISMATCH_DROP = 0x91,
 };
 
 #define	TX_PACKET_MODE_REGULAR		0x0000
@@ -1703,30 +1769,6 @@ enum {
 	TX_POWER_PA_DETECT_MSK = 0x7f800000,	/* bits 23:30 */
 	TX_ABORT_REQUIRED_MSK = 0x80000000,	/* bits 31:31 */
 };
-
-static inline u32 iwl_tx_status_to_mac80211(u32 status)
-{
-	status &= TX_STATUS_MSK;
-
-	switch (status) {
-	case TX_STATUS_SUCCESS:
-	case TX_STATUS_DIRECT_DONE:
-		return IEEE80211_TX_STAT_ACK;
-	case TX_STATUS_FAIL_DEST_PS:
-		return IEEE80211_TX_STAT_TX_FILTERED;
-	default:
-		return 0;
-	}
-}
-
-static inline bool iwl_is_tx_success(u32 status)
-{
-	status &= TX_STATUS_MSK;
-	return (status == TX_STATUS_SUCCESS) ||
-	       (status == TX_STATUS_DIRECT_DONE);
-}
-
-
 
 /* *******************************
  * TX aggregation status
@@ -2626,7 +2668,6 @@ struct iwl_ssid_ie {
 #define IWL_GOOD_CRC_TH_NEVER		cpu_to_le16(0xffff)
 #define IWL_MAX_SCAN_SIZE 1024
 #define IWL_MAX_CMD_SIZE 4096
-#define IWL_MAX_PROBE_REQUEST		200
 
 /*
  * REPLY_SCAN_CMD = 0x80 (command)
@@ -3086,6 +3127,11 @@ struct statistics_tx {
 	__le32 cts_timeout_collision;
 	__le32 ack_or_ba_timeout_collision;
 	struct statistics_tx_non_phy_agg agg;
+	/*
+	 * "tx_power" are optional parameters provided by uCode,
+	 * 6000 series is the only device provide the information,
+	 * Those are reserved fields for all the other devices
+	 */
 	struct statistics_tx_power tx_power;
 	__le32 reserved1;
 } __attribute__ ((packed));

@@ -567,8 +567,8 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 		goto err_nomem;
 	}
 
-	vaddr = ioremap(res1->start, res1->end - res1->start);
-	base = ioremap(res2->start, res2->end - res2->start);
+	vaddr = ioremap(res1->start, resource_size(res1));
+	base = ioremap(res2->start, resource_size(res2));
 	if (!vaddr || !base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -EINVAL;
@@ -691,7 +691,7 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 	spin_unlock_irq(&davinci_nand_lock);
 
 	/* Scan to find existence of the device(s) */
-	ret = nand_scan_ident(&info->mtd, pdata->mask_chipsel ? 2 : 1);
+	ret = nand_scan_ident(&info->mtd, pdata->mask_chipsel ? 2 : 1, NULL);
 	if (ret < 0) {
 		dev_dbg(&pdev->dev, "no NAND chip(s) found\n");
 		goto err_scan;

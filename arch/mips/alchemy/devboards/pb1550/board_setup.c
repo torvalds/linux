@@ -48,11 +48,6 @@ const char *get_system_type(void)
 	return "Alchemy Pb1550";
 }
 
-void board_reset(void)
-{
-	bcsr_write(BCSR_SYSTEM, 0);
-}
-
 void __init board_setup(void)
 {
 	u32 pin_func;

@@ -713,8 +713,6 @@ static void bcm_remove_op(struct bcm_op *op)
 		kfree(op->last_frames);
 
 	kfree(op);
-
-	return;
 }
 
 static void bcm_rx_unreg(struct net_device *dev, struct bcm_op *op)

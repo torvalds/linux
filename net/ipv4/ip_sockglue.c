@@ -287,11 +287,7 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 void ip_icmp_error(struct sock *sk, struct sk_buff *skb, int err,
 		   __be16 port, u32 info, u8 *payload)
 {
-	struct inet_sock *inet = inet_sk(sk);
 	struct sock_exterr_skb *serr;
-
-	if (!inet->recverr)
-		return;
 
 	skb = skb_clone(skb, GFP_ATOMIC);
 	if (!skb)
@@ -957,6 +953,22 @@ e_inval:
 	release_sock(sk);
 	return -EINVAL;
 }
+
+/**
+ * ip_queue_rcv_skb - Queue an skb into sock receive queue
+ * @sk: socket
+ * @skb: buffer
+ *
+ * Queues an skb into socket receive queue. If IP_CMSG_PKTINFO option
+ * is not set, we drop skb dst entry now, while dst cache line is hot.
+ */
+int ip_queue_rcv_skb(struct sock *sk, struct sk_buff *skb)
+{
+	if (!(inet_sk(sk)->cmsg_flags & IP_CMSG_PKTINFO))
+		skb_dst_drop(skb);
+	return sock_queue_rcv_skb(sk, skb);
+}
+EXPORT_SYMBOL(ip_queue_rcv_skb);
 
 int ip_setsockopt(struct sock *sk, int level,
 		int optname, char __user *optval, unsigned int optlen)

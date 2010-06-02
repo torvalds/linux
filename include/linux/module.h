@@ -465,8 +465,7 @@ static inline void __module_get(struct module *module)
 	if (module) {
 		preempt_disable();
 		__this_cpu_inc(module->refptr->incs);
-		trace_module_get(module, _THIS_IP_,
-				 __this_cpu_read(module->refptr->incs));
+		trace_module_get(module, _THIS_IP_);
 		preempt_enable();
 	}
 }
@@ -480,8 +479,7 @@ static inline int try_module_get(struct module *module)
 
 		if (likely(module_is_live(module))) {
 			__this_cpu_inc(module->refptr->incs);
-			trace_module_get(module, _THIS_IP_,
-				__this_cpu_read(module->refptr->incs));
+			trace_module_get(module, _THIS_IP_);
 		} else
 			ret = 0;
 

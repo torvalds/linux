@@ -138,10 +138,14 @@ static int logfs_sb_set(struct super_block *sb, void *_super)
 	sb->s_fs_info = super;
 	sb->s_mtd = super->s_mtd;
 	sb->s_bdev = super->s_bdev;
+#ifdef CONFIG_BLOCK
 	if (sb->s_bdev)
 		sb->s_bdi = &bdev_get_queue(sb->s_bdev)->backing_dev_info;
+#endif
+#ifdef CONFIG_MTD
 	if (sb->s_mtd)
 		sb->s_bdi = sb->s_mtd->backing_dev_info;
+#endif
 	return 0;
 }
 
@@ -382,7 +386,7 @@ static struct page *find_super_block(struct super_block *sb)
 	if (!first || IS_ERR(first))
 		return NULL;
 	last = super->s_devops->find_last_sb(sb, &super->s_sb_ofs[1]);
-	if (!last || IS_ERR(first)) {
+	if (!last || IS_ERR(last)) {
 		page_cache_release(first);
 		return NULL;
 	}
@@ -413,7 +417,7 @@ static int __logfs_read_sb(struct super_block *sb)
 
 	page = find_super_block(sb);
 	if (!page)
-		return -EIO;
+		return -EINVAL;
 
 	ds = page_address(page);
 	super->s_size = be64_to_cpu(ds->ds_filesystem_size);

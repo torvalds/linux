@@ -103,8 +103,6 @@ jme_mdio_write(struct net_device *netdev,
 
 	if (i == 0)
 		jeprintk(jme->pdev, "phy(%d) write timeout : %d\n", phy, reg);
-
-	return;
 }
 
 static inline void
@@ -130,8 +128,6 @@ jme_reset_phy_processor(struct jme_adapter *jme)
 	jme_mdio_write(jme->dev,
 			jme->mii_if.phy_id,
 			MII_BMCR, val | BMCR_RESET);
-
-	return;
 }
 
 static void
@@ -2010,12 +2006,12 @@ jme_set_multi(struct net_device *netdev)
 	} else if (netdev->flags & IFF_ALLMULTI) {
 		jme->reg_rxmcs |= RXMCS_ALLMULFRAME;
 	} else if (netdev->flags & IFF_MULTICAST) {
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 		int bit_nr;
 
 		jme->reg_rxmcs |= RXMCS_MULFRAME | RXMCS_MULFILTERED;
-		netdev_for_each_mc_addr(mclist, netdev) {
-			bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) & 0x3F;
+		netdev_for_each_mc_addr(ha, netdev) {
+			bit_nr = ether_crc(ETH_ALEN, ha->addr) & 0x3F;
 			mc_hash[bit_nr >> 5] |= 1 << (bit_nr & 0x1F);
 		}
 
@@ -2839,7 +2835,7 @@ jme_init_one(struct pci_dev *pdev,
 	default:
 		jme->reg_txcs = TXCS_DEFAULT | TXCS_DMASIZE_512B;
 		break;
-	};
+	}
 
 	/*
 	 * Must check before reset_mac_processor

@@ -7,6 +7,8 @@
 #ifndef _SPARC_CACHE_H
 #define _SPARC_CACHE_H
 
+#define ARCH_SLAB_MINALIGN	__alignof__(unsigned long long)
+
 #define L1_CACHE_SHIFT 5
 #define L1_CACHE_BYTES 32
 #define L1_CACHE_ALIGN(x) ((((x)+(L1_CACHE_BYTES-1))&~(L1_CACHE_BYTES-1)))

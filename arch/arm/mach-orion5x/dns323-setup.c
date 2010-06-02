@@ -240,22 +240,23 @@ error_fail:
 
 #define ORION_BLINK_HALF_PERIOD 100 /* ms */
 
-static int dns323_gpio_blink_set(unsigned gpio,
+static int dns323_gpio_blink_set(unsigned gpio, int state,
 	unsigned long *delay_on, unsigned long *delay_off)
 {
-	static int value = 0;
 
-	if (!*delay_on && !*delay_off)
+	if (delay_on && delay_off && !*delay_on && !*delay_off)
 		*delay_on = *delay_off = ORION_BLINK_HALF_PERIOD;
 
-	if (ORION_BLINK_HALF_PERIOD == *delay_on
-	    && ORION_BLINK_HALF_PERIOD == *delay_off) {
-		value = !value;
-		orion_gpio_set_blink(gpio, value);
-		return 0;
+	switch(state) {
+	case GPIO_LED_NO_BLINK_LOW:
+	case GPIO_LED_NO_BLINK_HIGH:
+		orion_gpio_set_blink(gpio, 0);
+		gpio_set_value(gpio, state);
+		break;
+	case GPIO_LED_BLINK:
+		orion_gpio_set_blink(gpio, 1);
 	}
-
-	return -EINVAL;
+	return 0;
 }
 
 static struct gpio_led dns323_leds[] = {
@@ -263,6 +264,7 @@ static struct gpio_led dns323_leds[] = {
 		.name = "power:blue",
 		.gpio = DNS323_GPIO_LED_POWER2,
 		.default_trigger = "timer",
+		.active_low = 1,
 	}, {
 		.name = "right:amber",
 		.gpio = DNS323_GPIO_LED_RIGHT_AMBER,
@@ -439,6 +441,7 @@ static void __init dns323_init(void)
 	 */
 	if (dns323_dev_id() == MV88F5181_DEV_ID) {
 		dns323_leds[0].active_low = 1;
+		gpio_request(DNS323_GPIO_LED_POWER1, "Power Led Enable");
 		gpio_direction_output(DNS323_GPIO_LED_POWER1, 0);
 	}
 

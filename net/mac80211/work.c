@@ -33,6 +33,7 @@
 #define IEEE80211_MAX_PROBE_TRIES 5
 
 enum work_action {
+	WORK_ACT_MISMATCH,
 	WORK_ACT_NONE,
 	WORK_ACT_TIMEOUT,
 	WORK_ACT_DONE,
@@ -213,15 +214,25 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 
 	sband = local->hw.wiphy->bands[wk->chan->band];
 
-	/*
-	 * Get all rates supported by the device and the AP as
-	 * some APs don't like getting a superset of their rates
-	 * in the association request (e.g. D-Link DAP 1353 in
-	 * b-only mode)...
-	 */
-	rates_len = ieee80211_compatible_rates(wk->assoc.supp_rates,
-					       wk->assoc.supp_rates_len,
-					       sband, &rates);
+	if (wk->assoc.supp_rates_len) {
+		/*
+		 * Get all rates supported by the device and the AP as
+		 * some APs don't like getting a superset of their rates
+		 * in the association request (e.g. D-Link DAP 1353 in
+		 * b-only mode)...
+		 */
+		rates_len = ieee80211_compatible_rates(wk->assoc.supp_rates,
+						       wk->assoc.supp_rates_len,
+						       sband, &rates);
+	} else {
+		/*
+		 * In case AP not provide any supported rates information
+		 * before association, we send information element(s) with
+		 * all rates that we support.
+		 */
+		rates = ~0;
+		rates_len = sband->n_bitrates;
+	}
 
 	skb = alloc_skb(local->hw.extra_tx_headroom +
 			sizeof(*mgmt) + /* bit too much but doesn't matter */
@@ -575,7 +586,7 @@ ieee80211_rx_mgmt_auth(struct ieee80211_work *wk,
 	u16 auth_alg, auth_transaction, status_code;
 
 	if (wk->type != IEEE80211_WORK_AUTH)
-		return WORK_ACT_NONE;
+		return WORK_ACT_MISMATCH;
 
 	if (len < 24 + 6)
 		return WORK_ACT_NONE;
@@ -625,6 +636,9 @@ ieee80211_rx_mgmt_assoc_resp(struct ieee80211_work *wk,
 	u16 capab_info, status_code, aid;
 	struct ieee802_11_elems elems;
 	u8 *pos;
+
+	if (wk->type != IEEE80211_WORK_ASSOC)
+		return WORK_ACT_MISMATCH;
 
 	/*
 	 * AssocResp and ReassocResp have identical structure, so process both
@@ -681,6 +695,12 @@ ieee80211_rx_mgmt_probe_resp(struct ieee80211_work *wk,
 
 	ASSERT_WORK_MTX(local);
 
+	if (wk->type != IEEE80211_WORK_DIRECT_PROBE)
+		return WORK_ACT_MISMATCH;
+
+	if (len < 24 + 12)
+		return WORK_ACT_NONE;
+
 	baselen = (u8 *) mgmt->u.probe_resp.variable - (u8 *) mgmt;
 	if (baselen > len)
 		return WORK_ACT_NONE;
@@ -695,7 +715,7 @@ static void ieee80211_work_rx_queued_mgmt(struct ieee80211_local *local,
 	struct ieee80211_rx_status *rx_status;
 	struct ieee80211_mgmt *mgmt;
 	struct ieee80211_work *wk;
-	enum work_action rma = WORK_ACT_NONE;
+	enum work_action rma;
 	u16 fc;
 
 	rx_status = (struct ieee80211_rx_status *) skb->cb;
@@ -742,7 +762,17 @@ static void ieee80211_work_rx_queued_mgmt(struct ieee80211_local *local,
 			break;
 		default:
 			WARN_ON(1);
+			rma = WORK_ACT_NONE;
 		}
+
+		/*
+		 * We've either received an unexpected frame, or we have
+		 * multiple work items and need to match the frame to the
+		 * right one.
+		 */
+		if (rma == WORK_ACT_MISMATCH)
+			continue;
+
 		/*
 		 * We've processed this frame for that work, so it can't
 		 * belong to another work struct.
@@ -752,6 +782,9 @@ static void ieee80211_work_rx_queued_mgmt(struct ieee80211_local *local,
 	}
 
 	switch (rma) {
+	case WORK_ACT_MISMATCH:
+		/* ignore this unmatched frame */
+		break;
 	case WORK_ACT_NONE:
 		break;
 	case WORK_ACT_DONE:
@@ -920,10 +953,15 @@ static void ieee80211_work_work(struct work_struct *work)
 		run_again(local, jiffies + HZ/2);
 	}
 
-	if (list_empty(&local->work_list) && local->scan_req)
+	mutex_lock(&local->scan_mtx);
+
+	if (list_empty(&local->work_list) && local->scan_req &&
+	    !local->scanning)
 		ieee80211_queue_delayed_work(&local->hw,
 					     &local->scan_work,
 					     round_jiffies_relative(0));
+
+	mutex_unlock(&local->scan_mtx);
 
 	mutex_unlock(&local->work_mtx);
 

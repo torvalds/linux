@@ -108,7 +108,7 @@ static int amanda_help(struct sk_buff *skb,
 	dataoff = protoff + sizeof(struct udphdr);
 	if (dataoff >= skb->len) {
 		if (net_ratelimit())
-			printk("amanda_help: skblen = %u\n", skb->len);
+			printk(KERN_ERR "amanda_help: skblen = %u\n", skb->len);
 		return NF_ACCEPT;
 	}
 

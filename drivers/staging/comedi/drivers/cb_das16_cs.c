@@ -175,17 +175,18 @@ static int das16cs_attach(struct comedi_device *dev,
 	printk("I/O base=0x%04lx ", dev->iobase);
 
 	printk("fingerprint:\n");
-	for (i = 0; i < 48; i += 2) {
+	for (i = 0; i < 48; i += 2)
 		printk("%04x ", inw(dev->iobase + i));
-	}
+
 	printk("\n");
 
-	ret = request_irq(link->irq.AssignedIRQ, das16cs_interrupt,
+	ret = request_irq(link->irq, das16cs_interrupt,
 			  IRQF_SHARED, "cb_das16_cs", dev);
-	if (ret < 0) {
+	if (ret < 0)
 		return ret;
-	}
-	dev->irq = link->irq.AssignedIRQ;
+
+	dev->irq = link->irq;
+
 	printk("irq=%u ", dev->irq);
 
 	dev->board_ptr = das16cs_probe(dev, link);
@@ -262,9 +263,9 @@ static int das16cs_detach(struct comedi_device *dev)
 {
 	printk("comedi%d: das16cs: remove\n", dev->minor);
 
-	if (dev->irq) {
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}
+
 
 	return 0;
 }
@@ -671,7 +672,6 @@ static dev_info_t dev_info = "cb_das16_cs";
 
 struct local_info_t {
 	struct pcmcia_device *link;
-	dev_node_t node;
 	int stop;
 	struct bus_operations *bus;
 };
@@ -702,10 +702,6 @@ static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 	link->priv = local;
 
 	/* Initialize the pcmcia_device structure */
-	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.Handler = NULL;
-
 	link->conf.Attributes = 0;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -720,10 +716,8 @@ static void das16cs_pcmcia_detach(struct pcmcia_device *link)
 {
 	dev_dbg(&link->dev, "das16cs_pcmcia_detach\n");
 
-	if (link->dev_node) {
-		((struct local_info_t *)link->priv)->stop = 1;
-		das16cs_pcmcia_release(link);
-	}
+	((struct local_info_t *)link->priv)->stop = 1;
+	das16cs_pcmcia_release(link);
 	/* This points to the parent struct local_info_t struct */
 	if (link->priv)
 		kfree(link->priv);
@@ -740,8 +734,7 @@ static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		return -EINVAL;
 
 	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
@@ -769,7 +762,6 @@ static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 static void das16cs_pcmcia_config(struct pcmcia_device *link)
 {
-	struct local_info_t *dev = link->priv;
 	int ret;
 
 	dev_dbg(&link->dev, "das16cs_pcmcia_config\n");
@@ -780,16 +772,9 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	/*
-	   Allocate an interrupt line.  Note that this does not assign a
-	   handler to the interrupt, unless the 'Handler' member of the
-	   irq structure is initialized.
-	 */
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
-	}
+	if (!link->irq)
+		goto failed;
+
 	/*
 	   This actually configures the PCMCIA socket -- setting up
 	   the I/O windows and the interrupt mapping, and putting the
@@ -799,19 +784,10 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	/*
-	   At this point, the dev_node_t structure(s) need to be
-	   initialized and arranged in a linked list at link->dev.
-	 */
-	sprintf(dev->node.dev_name, "cb_das16_cs");
-	dev->node.major = dev->node.minor = 0;
-	link->dev_node = &dev->node;
-
 	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x",
-	       dev->node.dev_name, link->conf.ConfigIndex);
+	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %u", link->irq.AssignedIRQ);
+		printk(", irq %u", link->irq);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 		       link->io.BasePort1 + link->io.NumPorts1 - 1);
@@ -859,6 +835,9 @@ static struct pcmcia_device_id das16cs_id_table[] = {
 };
 
 MODULE_DEVICE_TABLE(pcmcia, das16cs_id_table);
+MODULE_AUTHOR("David A. Schleef <ds@schleef.org>");
+MODULE_DESCRIPTION("Comedi driver for Computer Boards PC-CARD DAS16/16");
+MODULE_LICENSE("GPL");
 
 struct pcmcia_driver das16cs_driver = {
 	.probe = das16cs_pcmcia_attach,

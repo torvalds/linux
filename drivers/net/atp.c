@@ -547,7 +547,7 @@ static void tx_timeout(struct net_device *dev)
 	dev->stats.tx_errors++;
 	/* Try to restart the adapter. */
 	hardware_init(dev);
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_wake_queue(dev);
 	dev->stats.tx_errors++;
 }
@@ -586,7 +586,6 @@ static netdev_tx_t atp_send_packet(struct sk_buff *skb,
 	write_reg(ioaddr, IMR, ISR_RxOK | ISR_TxErr | ISR_TxOK);
 	write_reg_high(ioaddr, IMR, ISRh_RxErr);
 
-	dev->trans_start = jiffies;
 	dev_kfree_skb (skb);
 	return NETDEV_TX_OK;
 }
@@ -803,7 +802,6 @@ static void net_rx(struct net_device *dev)
  done:
 	write_reg(ioaddr, CMR1, CMR1_NextPkt);
 	lp->last_rx_time = jiffies;
-	return;
 }
 
 static void read_block(long ioaddr, int length, unsigned char *p, int data_mode)
@@ -882,11 +880,11 @@ static void set_rx_mode_8012(struct net_device *dev)
 		memset(mc_filter, 0xff, sizeof(mc_filter));
 		new_mode = CMR2h_Normal;
 	} else {
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		netdev_for_each_mc_addr(mclist, dev) {
-			int filterbit = ether_crc_le(ETH_ALEN, mclist->dmi_addr) & 0x3f;
+		netdev_for_each_mc_addr(ha, dev) {
+			int filterbit = ether_crc_le(ETH_ALEN, ha->addr) & 0x3f;
 			mc_filter[filterbit >> 5] |= 1 << (filterbit & 31);
 		}
 		new_mode = CMR2h_Normal;

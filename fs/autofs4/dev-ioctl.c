@@ -95,7 +95,7 @@ static int check_dev_ioctl_version(int cmd, struct autofs_dev_ioctl *param)
  */
 static struct autofs_dev_ioctl *copy_dev_ioctl(struct autofs_dev_ioctl __user *in)
 {
-	struct autofs_dev_ioctl tmp, *ads;
+	struct autofs_dev_ioctl tmp;
 
 	if (copy_from_user(&tmp, in, sizeof(tmp)))
 		return ERR_PTR(-EFAULT);
@@ -103,16 +103,7 @@ static struct autofs_dev_ioctl *copy_dev_ioctl(struct autofs_dev_ioctl __user *i
 	if (tmp.size < sizeof(tmp))
 		return ERR_PTR(-EINVAL);
 
-	ads = kmalloc(tmp.size, GFP_KERNEL);
-	if (!ads)
-		return ERR_PTR(-ENOMEM);
-
-	if (copy_from_user(ads, in, tmp.size)) {
-		kfree(ads);
-		return ERR_PTR(-EFAULT);
-	}
-
-	return ads;
+	return memdup_user(in, tmp.size);
 }
 
 static inline void free_dev_ioctl(struct autofs_dev_ioctl *param)
@@ -736,10 +727,13 @@ static const struct file_operations _dev_ioctl_fops = {
 };
 
 static struct miscdevice _autofs_dev_ioctl_misc = {
-	.minor 		= MISC_DYNAMIC_MINOR,
+	.minor		= AUTOFS_MINOR,
 	.name  		= AUTOFS_DEVICE_NAME,
 	.fops  		= &_dev_ioctl_fops
 };
+
+MODULE_ALIAS_MISCDEV(AUTOFS_MINOR);
+MODULE_ALIAS("devname:autofs");
 
 /* Register/deregister misc character device */
 int autofs_dev_ioctl_init(void)

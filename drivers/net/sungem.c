@@ -1136,7 +1136,7 @@ static netdev_tx_t gem_start_xmit(struct sk_buff *skb,
 	writel(gp->tx_new, gp->regs + TXDMA_KICK);
 	spin_unlock_irqrestore(&gp->tx_lock, flags);
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* NETIF_F_LLTX driver :( */
 
 	return NETDEV_TX_OK;
 }
@@ -1846,12 +1846,12 @@ static u32 gem_setup_multicast(struct gem *gp)
 	} else {
 		u16 hash_table[16];
 		u32 crc;
-		struct dev_mc_list *dmi;
+		struct netdev_hw_addr *ha;
 		int i;
 
 		memset(hash_table, 0, sizeof(hash_table));
-		netdev_for_each_mc_addr(dmi, gp->dev) {
-			char *addrs = dmi->dmi_addr;
+		netdev_for_each_mc_addr(ha, gp->dev) {
+			char *addrs = ha->addr;
 
 			if (!(*addrs & 1))
 				continue;
@@ -2923,7 +2923,6 @@ static void get_gem_mac_nonobp(struct pci_dev *pdev, unsigned char *dev_addr)
 	dev_addr[1] = 0x00;
 	dev_addr[2] = 0x20;
 	get_random_bytes(dev_addr + 3, 3);
-	return;
 }
 #endif /* not Sparc and not PPC */
 

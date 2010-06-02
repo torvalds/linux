@@ -79,17 +79,17 @@ static inline void qcam_set_ack(struct qcam_device *qcam, unsigned int i)
 {
 	/* note: the QC specs refer to the PCAck pin by voltage, not
 	   software level.  PC ports have builtin inverters. */
-	parport_frob_control(qcam->pport, 8, i?8:0);
+	parport_frob_control(qcam->pport, 8, i ? 8 : 0);
 }
 
 static inline unsigned int qcam_ready1(struct qcam_device *qcam)
 {
-	return (parport_read_status(qcam->pport) & 0x8)?1:0;
+	return (parport_read_status(qcam->pport) & 0x8) ? 1 : 0;
 }
 
 static inline unsigned int qcam_ready2(struct qcam_device *qcam)
 {
-	return (parport_read_data(qcam->pport) & 0x1)?1:0;
+	return (parport_read_data(qcam->pport) & 0x1) ? 1 : 0;
 }
 
 static unsigned int qcam_await_ready1(struct qcam_device *qcam,
@@ -99,14 +99,13 @@ static unsigned int qcam_await_ready1(struct qcam_device *qcam,
 	unsigned int i;
 
 	for (oldjiffies = jiffies;
-	     time_before(jiffies, oldjiffies + msecs_to_jiffies(40)); )
+	     time_before(jiffies, oldjiffies + msecs_to_jiffies(40));)
 		if (qcam_ready1(qcam) == value)
 			return 0;
 
 	/* If the camera didn't respond within 1/25 second, poll slowly
 	   for a while. */
-	for (i = 0; i < 50; i++)
-	{
+	for (i = 0; i < 50; i++) {
 		if (qcam_ready1(qcam) == value)
 			return 0;
 		msleep_interruptible(100);
@@ -125,14 +124,13 @@ static unsigned int qcam_await_ready2(struct qcam_device *qcam, int value)
 	unsigned int i;
 
 	for (oldjiffies = jiffies;
-	     time_before(jiffies, oldjiffies + msecs_to_jiffies(40)); )
+	     time_before(jiffies, oldjiffies + msecs_to_jiffies(40));)
 		if (qcam_ready2(qcam) == value)
 			return 0;
 
 	/* If the camera didn't respond within 1/25 second, poll slowly
 	   for a while. */
-	for (i = 0; i < 50; i++)
-	{
+	for (i = 0; i < 50; i++) {
 		if (qcam_ready2(qcam) == value)
 			return 0;
 		msleep_interruptible(100);
@@ -149,22 +147,25 @@ static unsigned int qcam_await_ready2(struct qcam_device *qcam, int value)
 static int qcam_read_data(struct qcam_device *qcam)
 {
 	unsigned int idata;
+
 	qcam_set_ack(qcam, 0);
-	if (qcam_await_ready1(qcam, 1)) return -1;
+	if (qcam_await_ready1(qcam, 1))
+		return -1;
 	idata = parport_read_status(qcam->pport) & 0xf0;
 	qcam_set_ack(qcam, 1);
-	if (qcam_await_ready1(qcam, 0)) return -1;
-	idata |= (parport_read_status(qcam->pport) >> 4);
+	if (qcam_await_ready1(qcam, 0))
+		return -1;
+	idata |= parport_read_status(qcam->pport) >> 4;
 	return idata;
 }
 
 static int qcam_write_data(struct qcam_device *qcam, unsigned int data)
 {
 	unsigned int idata;
+
 	parport_write_data(qcam->pport, data);
 	idata = qcam_read_data(qcam);
-	if (data != idata)
-	{
+	if (data != idata) {
 		printk(KERN_WARNING "cqcam: sent %x but received %x\n", data,
 		       idata);
 		return 1;
@@ -212,13 +213,12 @@ static int qc_detect(struct qcam_device *qcam)
 
 	/* look for a heartbeat */
 	ostat = stat = parport_read_status(qcam->pport);
-	for (i=0; i<250; i++)
-	{
+	for (i = 0; i < 250; i++) {
 		mdelay(1);
 		stat = parport_read_status(qcam->pport);
-		if (ostat != stat)
-		{
-			if (++count >= 3) return 1;
+		if (ostat != stat) {
+			if (++count >= 3)
+				return 1;
 			ostat = stat;
 		}
 	}
@@ -232,13 +232,12 @@ static int qc_detect(struct qcam_device *qcam)
 	count = 0;
 
 	ostat = stat = parport_read_status(qcam->pport);
-	for (i=0; i<250; i++)
-	{
+	for (i = 0; i < 250; i++) {
 		mdelay(1);
 		stat = parport_read_status(qcam->pport);
-		if (ostat != stat)
-		{
-			if (++count >= 3) return 1;
+		if (ostat != stat) {
+			if (++count >= 3)
+				return 1;
 			ostat = stat;
 		}
 	}
@@ -263,7 +262,7 @@ static void qc_setup(struct qcam_device *q)
 {
 	qc_reset(q);
 
-	/* Set the brightness.  */
+	/* Set the brightness. */
 	qcam_set(q, 11, q->brightness);
 
 	/* Set the height and width.  These refer to the actual
@@ -292,25 +291,25 @@ static unsigned int qcam_read_bytes(struct qcam_device *q, unsigned char *buf, u
 	unsigned int bytes = 0;
 
 	qcam_set_ack(q, 0);
-	if (q->bidirectional)
-	{
+	if (q->bidirectional) {
 		/* It's a bidirectional port */
-		while (bytes < nbytes)
-		{
+		while (bytes < nbytes) {
 			unsigned int lo1, hi1, lo2, hi2;
 			unsigned char r, g, b;
 
-			if (qcam_await_ready2(q, 1)) return bytes;
+			if (qcam_await_ready2(q, 1))
+				return bytes;
 			lo1 = parport_read_data(q->pport) >> 1;
 			hi1 = ((parport_read_status(q->pport) >> 3) & 0x1f) ^ 0x10;
 			qcam_set_ack(q, 1);
-			if (qcam_await_ready2(q, 0)) return bytes;
+			if (qcam_await_ready2(q, 0))
+				return bytes;
 			lo2 = parport_read_data(q->pport) >> 1;
 			hi2 = ((parport_read_status(q->pport) >> 3) & 0x1f) ^ 0x10;
 			qcam_set_ack(q, 0);
-			r = (lo1 | ((hi1 & 1)<<7));
-			g = ((hi1 & 0x1e)<<3) | ((hi2 & 0x1e)>>1);
-			b = (lo2 | ((hi2 & 1)<<7));
+			r = lo1 | ((hi1 & 1) << 7);
+			g = ((hi1 & 0x1e) << 3) | ((hi2 & 0x1e) >> 1);
+			b = lo2 | ((hi2 & 1) << 7);
 			if (force_rgb) {
 				buf[bytes++] = r;
 				buf[bytes++] = g;
@@ -321,21 +320,20 @@ static unsigned int qcam_read_bytes(struct qcam_device *q, unsigned char *buf, u
 				buf[bytes++] = r;
 			}
 		}
-	}
-	else
-	{
+	} else {
 		/* It's a unidirectional port */
 		int i = 0, n = bytes;
 		unsigned char rgb[3];
 
-		while (bytes < nbytes)
-		{
+		while (bytes < nbytes) {
 			unsigned int hi, lo;
 
-			if (qcam_await_ready1(q, 1)) return bytes;
+			if (qcam_await_ready1(q, 1))
+				return bytes;
 			hi = (parport_read_status(q->pport) & 0xf0);
 			qcam_set_ack(q, 1);
-			if (qcam_await_ready1(q, 0)) return bytes;
+			if (qcam_await_ready1(q, 0))
+				return bytes;
 			lo = (parport_read_status(q->pport) & 0xf0);
 			qcam_set_ack(q, 0);
 			/* flip some bits */
@@ -374,28 +372,26 @@ static long qc_capture(struct qcam_device *q, char __user *buf, unsigned long le
 		return -EFAULT;
 
 	/* Wait for camera to become ready */
-	for (;;)
-	{
+	for (;;) {
 		int i = qcam_get(q, 41);
+
 		if (i == -1) {
 			qc_setup(q);
 			return -EIO;
 		}
 		if ((i & 0x80) == 0)
 			break;
-		else
-			schedule();
+		schedule();
 	}
 
-	if (qcam_set(q, 7, (q->mode | (is_bi_dir?1:0)) + 1))
+	if (qcam_set(q, 7, (q->mode | (is_bi_dir ? 1 : 0)) + 1))
 		return -EIO;
 
 	lines = q->height;
 	pixelsperline = q->width;
 	bitsperxfer = (is_bi_dir) ? 24 : 8;
 
-	if (is_bi_dir)
-	{
+	if (is_bi_dir) {
 		/* Turn the port around */
 		parport_data_reverse(q->pport);
 		mdelay(3);
@@ -413,16 +409,17 @@ static long qc_capture(struct qcam_device *q, char __user *buf, unsigned long le
 
 	wantlen = lines * pixelsperline * 24 / 8;
 
-	while (wantlen)
-	{
+	while (wantlen) {
 		size_t t, s;
-		s = (wantlen > BUFSZ)?BUFSZ:wantlen;
+
+		s = (wantlen > BUFSZ) ? BUFSZ : wantlen;
 		t = qcam_read_bytes(q, tmpbuf, s);
-		if (outptr < len)
-		{
+		if (outptr < len) {
 			size_t sz = len - outptr;
-			if (sz > t) sz = t;
-			if (__copy_to_user(buf+outptr, tmpbuf, sz))
+
+			if (sz > t)
+				sz = t;
+			if (__copy_to_user(buf + outptr, tmpbuf, sz))
 				break;
 			outptr += sz;
 		}
@@ -434,33 +431,31 @@ static long qc_capture(struct qcam_device *q, char __user *buf, unsigned long le
 
 	len = outptr;
 
-	if (wantlen)
-	{
-		printk("qcam: short read.\n");
+	if (wantlen) {
+		printk(KERN_ERR "qcam: short read.\n");
 		if (is_bi_dir)
 			parport_data_forward(q->pport);
 		qc_setup(q);
 		return len;
 	}
 
-	if (is_bi_dir)
-	{
+	if (is_bi_dir) {
 		int l;
+
 		do {
 			l = qcam_read_bytes(q, tmpbuf, 3);
 			cond_resched();
 		} while (l && (tmpbuf[0] == 0x7e || tmpbuf[1] == 0x7e || tmpbuf[2] == 0x7e));
 		if (force_rgb) {
 			if (tmpbuf[0] != 0xe || tmpbuf[1] != 0x0 || tmpbuf[2] != 0xf)
-				printk("qcam: bad EOF\n");
+				printk(KERN_ERR "qcam: bad EOF\n");
 		} else {
 			if (tmpbuf[0] != 0xf || tmpbuf[1] != 0x0 || tmpbuf[2] != 0xe)
-				printk("qcam: bad EOF\n");
+				printk(KERN_ERR "qcam: bad EOF\n");
 		}
 		qcam_set_ack(q, 0);
-		if (qcam_await_ready1(q, 1))
-		{
-			printk("qcam: no ack after EOF\n");
+		if (qcam_await_ready1(q, 1)) {
+			printk(KERN_ERR "qcam: no ack after EOF\n");
 			parport_data_forward(q->pport);
 			qc_setup(q);
 			return len;
@@ -468,27 +463,25 @@ static long qc_capture(struct qcam_device *q, char __user *buf, unsigned long le
 		parport_data_forward(q->pport);
 		mdelay(3);
 		qcam_set_ack(q, 1);
-		if (qcam_await_ready1(q, 0))
-		{
-			printk("qcam: no ack to port turnaround\n");
+		if (qcam_await_ready1(q, 0)) {
+			printk(KERN_ERR "qcam: no ack to port turnaround\n");
 			qc_setup(q);
 			return len;
 		}
-	}
-	else
-	{
+	} else {
 		int l;
+
 		do {
 			l = qcam_read_bytes(q, tmpbuf, 1);
 			cond_resched();
 		} while (l && tmpbuf[0] == 0x7e);
-		l = qcam_read_bytes(q, tmpbuf+1, 2);
+		l = qcam_read_bytes(q, tmpbuf + 1, 2);
 		if (force_rgb) {
 			if (tmpbuf[0] != 0xe || tmpbuf[1] != 0x0 || tmpbuf[2] != 0xf)
-				printk("qcam: bad EOF\n");
+				printk(KERN_ERR "qcam: bad EOF\n");
 		} else {
 			if (tmpbuf[0] != 0xf || tmpbuf[1] != 0x0 || tmpbuf[2] != 0xe)
-				printk("qcam: bad EOF\n");
+				printk(KERN_ERR "qcam: bad EOF\n");
 		}
 	}
 
@@ -503,164 +496,166 @@ static long qc_capture(struct qcam_device *q, char __user *buf, unsigned long le
 static long qcam_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 {
 	struct video_device *dev = video_devdata(file);
-	struct qcam_device *qcam=(struct qcam_device *)dev;
+	struct qcam_device *qcam = (struct qcam_device *)dev;
 
-	switch(cmd)
+	switch (cmd) {
+	case VIDIOCGCAP:
 	{
-		case VIDIOCGCAP:
-		{
-			struct video_capability *b = arg;
-			strcpy(b->name, "Quickcam");
-			b->type = VID_TYPE_CAPTURE|VID_TYPE_SCALES;
-			b->channels = 1;
-			b->audios = 0;
-			b->maxwidth = 320;
-			b->maxheight = 240;
-			b->minwidth = 80;
-			b->minheight = 60;
-			return 0;
-		}
-		case VIDIOCGCHAN:
-		{
-			struct video_channel *v = arg;
-			if(v->channel!=0)
-				return -EINVAL;
-			v->flags=0;
-			v->tuners=0;
-			/* Good question.. its composite or SVHS so.. */
-			v->type = VIDEO_TYPE_CAMERA;
-			strcpy(v->name, "Camera");
-			return 0;
-		}
-		case VIDIOCSCHAN:
-		{
-			struct video_channel *v = arg;
-			if(v->channel!=0)
-				return -EINVAL;
-			return 0;
-		}
-		case VIDIOCGTUNER:
-		{
-			struct video_tuner *v = arg;
-			if(v->tuner)
-				return -EINVAL;
-			memset(v,0,sizeof(*v));
-			strcpy(v->name, "Format");
-			v->mode = VIDEO_MODE_AUTO;
-			return 0;
-		}
-		case VIDIOCSTUNER:
-		{
-			struct video_tuner *v = arg;
-			if(v->tuner)
-				return -EINVAL;
-			if(v->mode!=VIDEO_MODE_AUTO)
-				return -EINVAL;
-			return 0;
-		}
-		case VIDIOCGPICT:
-		{
-			struct video_picture *p = arg;
-			p->colour=0x8000;
-			p->hue=0x8000;
-			p->brightness=qcam->brightness<<8;
-			p->contrast=qcam->contrast<<8;
-			p->whiteness=qcam->whitebal<<8;
-			p->depth=24;
-			p->palette=VIDEO_PALETTE_RGB24;
-			return 0;
-		}
-		case VIDIOCSPICT:
-		{
-			struct video_picture *p = arg;
+		struct video_capability *b = arg;
 
-			/*
-			 *	Sanity check args
-			 */
-			if (p->depth != 24 || p->palette != VIDEO_PALETTE_RGB24)
-				return -EINVAL;
+		strcpy(b->name, "Quickcam");
+		b->type = VID_TYPE_CAPTURE | VID_TYPE_SCALES;
+		b->channels = 1;
+		b->audios = 0;
+		b->maxwidth = 320;
+		b->maxheight = 240;
+		b->minwidth = 80;
+		b->minheight = 60;
+		return 0;
+	}
+	case VIDIOCGCHAN:
+	{
+		struct video_channel *v = arg;
 
-			/*
-			 *	Now load the camera.
-			 */
-			qcam->brightness = p->brightness>>8;
-			qcam->contrast = p->contrast>>8;
-			qcam->whitebal = p->whiteness>>8;
-
-			mutex_lock(&qcam->lock);
-			parport_claim_or_block(qcam->pdev);
-			qc_setup(qcam);
-			parport_release(qcam->pdev);
-			mutex_unlock(&qcam->lock);
-			return 0;
-		}
-		case VIDIOCSWIN:
-		{
-			struct video_window *vw = arg;
-
-			if(vw->flags)
-				return -EINVAL;
-			if(vw->clipcount)
-				return -EINVAL;
-			if(vw->height<60||vw->height>240)
-				return -EINVAL;
-			if(vw->width<80||vw->width>320)
-				return -EINVAL;
-
-			qcam->width = 80;
-			qcam->height = 60;
-			qcam->mode = QC_DECIMATION_4;
-
-			if(vw->width>=160 && vw->height>=120)
-			{
-				qcam->width = 160;
-				qcam->height = 120;
-				qcam->mode = QC_DECIMATION_2;
-			}
-			if(vw->width>=320 && vw->height>=240)
-			{
-				qcam->width = 320;
-				qcam->height = 240;
-				qcam->mode = QC_DECIMATION_1;
-			}
-			qcam->mode |= QC_MILLIONS;
-#if 0
-			if(vw->width>=640 && vw->height>=480)
-			{
-				qcam->width = 640;
-				qcam->height = 480;
-				qcam->mode = QC_BILLIONS | QC_DECIMATION_1;
-			}
-#endif
-			/* Ok we figured out what to use from our
-			   wide choice */
-			mutex_lock(&qcam->lock);
-			parport_claim_or_block(qcam->pdev);
-			qc_setup(qcam);
-			parport_release(qcam->pdev);
-			mutex_unlock(&qcam->lock);
-			return 0;
-		}
-		case VIDIOCGWIN:
-		{
-			struct video_window *vw = arg;
-			memset(vw, 0, sizeof(*vw));
-			vw->width=qcam->width;
-			vw->height=qcam->height;
-			return 0;
-		}
-		case VIDIOCKEY:
-			return 0;
-		case VIDIOCCAPTURE:
-		case VIDIOCGFBUF:
-		case VIDIOCSFBUF:
-		case VIDIOCGFREQ:
-		case VIDIOCSFREQ:
-		case VIDIOCGAUDIO:
-		case VIDIOCSAUDIO:
+		if (v->channel != 0)
 			return -EINVAL;
-		default:
-			return -ENOIOCTLCMD;
+		v->flags = 0;
+		v->tuners = 0;
+		/* Good question.. its composite or SVHS so.. */
+		v->type = VIDEO_TYPE_CAMERA;
+		strcpy(v->name, "Camera");
+		return 0;
+	}
+	case VIDIOCSCHAN:
+	{
+		struct video_channel *v = arg;
+
+		if (v->channel != 0)
+			return -EINVAL;
+		return 0;
+	}
+	case VIDIOCGTUNER:
+	{
+		struct video_tuner *v = arg;
+
+		if (v->tuner)
+			return -EINVAL;
+		memset(v, 0, sizeof(*v));
+		strcpy(v->name, "Format");
+		v->mode = VIDEO_MODE_AUTO;
+		return 0;
+	}
+	case VIDIOCSTUNER:
+	{
+		struct video_tuner *v = arg;
+
+		if (v->tuner)
+			return -EINVAL;
+		if (v->mode != VIDEO_MODE_AUTO)
+			return -EINVAL;
+		return 0;
+	}
+	case VIDIOCGPICT:
+	{
+		struct video_picture *p = arg;
+
+		p->colour = 0x8000;
+		p->hue = 0x8000;
+		p->brightness = qcam->brightness << 8;
+		p->contrast = qcam->contrast << 8;
+		p->whiteness = qcam->whitebal << 8;
+		p->depth = 24;
+		p->palette = VIDEO_PALETTE_RGB24;
+		return 0;
+	}
+	case VIDIOCSPICT:
+	{
+		struct video_picture *p = arg;
+
+		/*
+		 *	Sanity check args
+		 */
+		if (p->depth != 24 || p->palette != VIDEO_PALETTE_RGB24)
+			return -EINVAL;
+
+		/*
+		 *	Now load the camera.
+		 */
+		qcam->brightness = p->brightness >> 8;
+		qcam->contrast = p->contrast >> 8;
+		qcam->whitebal = p->whiteness >> 8;
+
+		mutex_lock(&qcam->lock);
+		parport_claim_or_block(qcam->pdev);
+		qc_setup(qcam);
+		parport_release(qcam->pdev);
+		mutex_unlock(&qcam->lock);
+		return 0;
+	}
+	case VIDIOCSWIN:
+	{
+		struct video_window *vw = arg;
+
+		if (vw->flags)
+			return -EINVAL;
+		if (vw->clipcount)
+			return -EINVAL;
+		if (vw->height < 60 || vw->height > 240)
+			return -EINVAL;
+		if (vw->width < 80 || vw->width > 320)
+			return -EINVAL;
+
+		qcam->width = 80;
+		qcam->height = 60;
+		qcam->mode = QC_DECIMATION_4;
+
+		if (vw->width >= 160 && vw->height >= 120) {
+			qcam->width = 160;
+			qcam->height = 120;
+			qcam->mode = QC_DECIMATION_2;
+		}
+		if (vw->width >= 320 && vw->height >= 240) {
+			qcam->width = 320;
+			qcam->height = 240;
+			qcam->mode = QC_DECIMATION_1;
+		}
+		qcam->mode |= QC_MILLIONS;
+#if 0
+		if (vw->width >= 640 && vw->height >= 480) {
+			qcam->width = 640;
+			qcam->height = 480;
+			qcam->mode = QC_BILLIONS | QC_DECIMATION_1;
+		}
+#endif
+		/* Ok we figured out what to use from our
+		   wide choice */
+		mutex_lock(&qcam->lock);
+		parport_claim_or_block(qcam->pdev);
+		qc_setup(qcam);
+		parport_release(qcam->pdev);
+		mutex_unlock(&qcam->lock);
+		return 0;
+	}
+	case VIDIOCGWIN:
+	{
+		struct video_window *vw = arg;
+		memset(vw, 0, sizeof(*vw));
+		vw->width = qcam->width;
+		vw->height = qcam->height;
+		return 0;
+	}
+	case VIDIOCKEY:
+		return 0;
+	case VIDIOCCAPTURE:
+	case VIDIOCGFBUF:
+	case VIDIOCSFBUF:
+	case VIDIOCGFREQ:
+	case VIDIOCSFREQ:
+	case VIDIOCGAUDIO:
+	case VIDIOCSAUDIO:
+		return -EINVAL;
+	default:
+		return -ENOIOCTLCMD;
 	}
 	return 0;
 }
@@ -675,13 +670,13 @@ static ssize_t qcam_read(struct file *file, char __user *buf,
 			 size_t count, loff_t *ppos)
 {
 	struct video_device *v = video_devdata(file);
-	struct qcam_device *qcam=(struct qcam_device *)v;
+	struct qcam_device *qcam = (struct qcam_device *)v;
 	int len;
 
 	mutex_lock(&qcam->lock);
 	parport_claim_or_block(qcam->pdev);
 	/* Probably should have a semaphore against multiple users */
-	len = qc_capture(qcam, buf,count);
+	len = qc_capture(qcam, buf, count);
 	parport_release(qcam->pdev);
 	mutex_unlock(&qcam->lock);
 	return len;
@@ -713,8 +708,7 @@ static const struct v4l2_file_operations qcam_fops = {
 	.read		= qcam_read,
 };
 
-static struct video_device qcam_template=
-{
+static struct video_device qcam_template = {
 	.name		= "Colour QuickCam",
 	.fops           = &qcam_fops,
 	.release 	= video_device_release_empty,
@@ -727,17 +721,16 @@ static struct qcam_device *qcam_init(struct parport *port)
 	struct qcam_device *q;
 
 	q = kmalloc(sizeof(struct qcam_device), GFP_KERNEL);
-	if(q==NULL)
+	if (q == NULL)
 		return NULL;
 
 	q->pport = port;
 	q->pdev = parport_register_device(port, "c-qcam", NULL, NULL,
 					  NULL, 0, NULL);
 
-	q->bidirectional = (q->pport->modes & PARPORT_MODE_TRISTATE)?1:0;
+	q->bidirectional = (q->pport->modes & PARPORT_MODE_TRISTATE) ? 1 : 0;
 
-	if (q->pdev == NULL)
-	{
+	if (q->pdev == NULL) {
 		printk(KERN_ERR "c-qcam: couldn't register for %s.\n",
 		       port->name);
 		kfree(q);
@@ -765,12 +758,11 @@ static int init_cqcam(struct parport *port)
 {
 	struct qcam_device *qcam;
 
-	if (parport[0] != -1)
-	{
+	if (parport[0] != -1) {
 		/* The user gave specific instructions */
 		int i, found = 0;
-		for (i = 0; i < MAX_CAMS && parport[i] != -1; i++)
-		{
+
+		for (i = 0; i < MAX_CAMS && parport[i] != -1; i++) {
 			if (parport[0] == port->number)
 				found = 1;
 		}
@@ -782,15 +774,14 @@ static int init_cqcam(struct parport *port)
 		return -ENOSPC;
 
 	qcam = qcam_init(port);
-	if (qcam==NULL)
+	if (qcam == NULL)
 		return -ENODEV;
 
 	parport_claim_or_block(qcam->pdev);
 
 	qc_reset(qcam);
 
-	if (probe && qc_detect(qcam)==0)
-	{
+	if (probe && qc_detect(qcam) == 0) {
 		parport_release(qcam->pdev);
 		parport_unregister_device(qcam->pdev);
 		kfree(qcam);
@@ -840,14 +831,14 @@ static struct parport_driver cqcam_driver = {
 	.detach = cq_detach,
 };
 
-static int __init cqcam_init (void)
+static int __init cqcam_init(void)
 {
 	printk(BANNER "\n");
 
 	return parport_register_driver(&cqcam_driver);
 }
 
-static void __exit cqcam_cleanup (void)
+static void __exit cqcam_cleanup(void)
 {
 	unsigned int i;
 
@@ -862,9 +853,9 @@ MODULE_DESCRIPTION(BANNER);
 MODULE_LICENSE("GPL");
 
 /* FIXME: parport=auto would never have worked, surely? --RR */
-MODULE_PARM_DESC(parport ,"parport=<auto|n[,n]...> for port detection method\n\
-probe=<0|1|2> for camera detection method\n\
-force_rgb=<0|1> for RGB data format (default BGR)");
+MODULE_PARM_DESC(parport, "parport=<auto|n[,n]...> for port detection method\n"
+			  "probe=<0|1|2> for camera detection method\n"
+			  "force_rgb=<0|1> for RGB data format (default BGR)");
 module_param_array(parport, int, NULL, 0);
 module_param(probe, int, 0);
 module_param(force_rgb, bool, 0);

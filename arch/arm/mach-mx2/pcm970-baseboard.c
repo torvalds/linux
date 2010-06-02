@@ -201,9 +201,9 @@ static struct resource pcm970_sja1000_resources[] = {
 };
 
 struct sja1000_platform_data pcm970_sja1000_platform_data = {
-	.clock		= 16000000 / 2,
-	.ocr		= 0x40 | 0x18,
-	.cdr		= 0x40,
+	.osc_freq	= 16000000,
+	.ocr		= OCR_TX1_PULLDOWN | OCR_TX0_PUSHPULL,
+	.cdr		= CDR_CBP,
 };
 
 static struct platform_device pcm970_sja1000 = {

@@ -19,14 +19,6 @@
 
 #include "hw.h"
 
-extern const struct ath9k_percal_data iq_cal_multi_sample;
-extern const struct ath9k_percal_data iq_cal_single_sample;
-extern const struct ath9k_percal_data adc_gain_cal_multi_sample;
-extern const struct ath9k_percal_data adc_gain_cal_single_sample;
-extern const struct ath9k_percal_data adc_dc_cal_multi_sample;
-extern const struct ath9k_percal_data adc_dc_cal_single_sample;
-extern const struct ath9k_percal_data adc_init_dc_cal;
-
 #define AR_PHY_CCA_MAX_AR5416_GOOD_VALUE	-85
 #define AR_PHY_CCA_MAX_AR9280_GOOD_VALUE	-112
 #define AR_PHY_CCA_MAX_AR9285_GOOD_VALUE	-118
@@ -76,7 +68,8 @@ enum ath9k_cal_types {
 	ADC_DC_INIT_CAL = 0x1,
 	ADC_GAIN_CAL = 0x2,
 	ADC_DC_CAL = 0x4,
-	IQ_MISMATCH_CAL = 0x8
+	IQ_MISMATCH_CAL = 0x8,
+	TEMP_COMP_CAL = 0x10,
 };
 
 enum ath9k_cal_state {
@@ -122,14 +115,12 @@ struct ath9k_pacal_info{
 
 bool ath9k_hw_reset_calvalid(struct ath_hw *ah);
 void ath9k_hw_start_nfcal(struct ath_hw *ah);
-void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan);
 int16_t ath9k_hw_getnf(struct ath_hw *ah,
 		       struct ath9k_channel *chan);
 void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah);
 s16 ath9k_hw_getchan_noise(struct ath_hw *ah, struct ath9k_channel *chan);
-bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
-			u8 rxchainmask, bool longcal);
-bool ath9k_hw_init_cal(struct ath_hw *ah,
-		       struct ath9k_channel *chan);
+void ath9k_hw_reset_calibration(struct ath_hw *ah,
+				struct ath9k_cal_list *currCal);
+
 
 #endif /* CALIB_H */

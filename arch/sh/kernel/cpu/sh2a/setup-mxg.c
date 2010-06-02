@@ -115,16 +115,13 @@ static DECLARE_INTC_DESC(intc_desc, "mxg", vectors, groups,
 			 mask_registers, prio_registers, NULL);
 
 static struct sh_timer_config mtu2_0_platform_data = {
-	.name = "MTU2_0",
 	.channel_offset = -0x80,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource mtu2_0_resources[] = {
 	[0] = {
-		.name	= "MTU2_0",
 		.start	= 0xff801300,
 		.end	= 0xff801326,
 		.flags	= IORESOURCE_MEM,
@@ -146,16 +143,13 @@ static struct platform_device mtu2_0_device = {
 };
 
 static struct sh_timer_config mtu2_1_platform_data = {
-	.name = "MTU2_1",
 	.channel_offset = -0x100,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource mtu2_1_resources[] = {
 	[0] = {
-		.name	= "MTU2_1",
 		.start	= 0xff801380,
 		.end	= 0xff801390,
 		.flags	= IORESOURCE_MEM,
@@ -177,16 +171,13 @@ static struct platform_device mtu2_1_device = {
 };
 
 static struct sh_timer_config mtu2_2_platform_data = {
-	.name = "MTU2_2",
 	.channel_offset = 0x80,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource mtu2_2_resources[] = {
 	[0] = {
-		.name	= "MTU2_2",
 		.start	= 0xff801000,
 		.end	= 0xff80100a,
 		.flags	= IORESOURCE_MEM,

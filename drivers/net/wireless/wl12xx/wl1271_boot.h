@@ -53,10 +53,16 @@ struct wl1271_static_data {
 #define OCP_REG_POLARITY     0x0064
 #define OCP_REG_CLK_TYPE     0x0448
 #define OCP_REG_CLK_POLARITY 0x0cb2
+#define OCP_REG_CLK_PULL     0x0cb4
 
-#define CMD_MBOX_ADDRESS 0x407B4
+#define REG_FUSE_DATA_2_1    0x050a
+#define PG_VER_MASK          0x3c
+#define PG_VER_OFFSET        2
 
-#define POLARITY_LOW BIT(1)
+#define CMD_MBOX_ADDRESS     0x407B4
+
+#define POLARITY_LOW         BIT(1)
+#define NO_PULL              (BIT(14) | BIT(15))
 
 #define FREF_CLK_TYPE_BITS     0xfffffe7f
 #define CLK_REQ_PRCM           0x100

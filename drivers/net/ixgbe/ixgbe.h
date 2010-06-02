@@ -111,7 +111,10 @@ struct vf_data_storage {
 	u16 default_vf_vlan_id;
 	u16 vlans_enabled;
 	bool clear_to_send;
+	bool pf_set_mac;
 	int rar;
+	u16 pf_vlan; /* When set, guest VLAN config not allowed. */
+	u16 pf_qos;
 };
 
 /* wrapper around a pointer to a socket buffer,
@@ -357,6 +360,7 @@ struct ixgbe_adapter {
 	u32 flags2;
 #define IXGBE_FLAG2_RSC_CAPABLE                 (u32)(1)
 #define IXGBE_FLAG2_RSC_ENABLED                 (u32)(1 << 1)
+#define IXGBE_FLAG2_TEMP_SENSOR_CAPABLE         (u32)(1 << 2)
 /* default to trying for four seconds */
 #define IXGBE_TRY_LINK_TIMEOUT (4 * HZ)
 
@@ -404,6 +408,8 @@ struct ixgbe_adapter {
 	u16 eeprom_version;
 
 	int node;
+	struct work_struct check_overtemp_task;
+	u32 interrupt_event;
 
 	/* SR-IOV */
 	DECLARE_BITMAP(active_vfs, IXGBE_MAX_VF_FUNCTIONS);

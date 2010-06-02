@@ -767,8 +767,8 @@ static void lance_tx_timeout (struct net_device *dev)
 	/* lance_restart, essentially */
 	lance_init_ring(dev);
 	REGA( CSR0 ) = CSR0_INEA | CSR0_INIT | CSR0_STRT;
-	dev->trans_start = jiffies;
-	netif_wake_queue (dev);
+	dev->trans_start = jiffies; /* prevent tx timeout */
+	netif_wake_queue(dev);
 }
 
 /* XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX */
@@ -836,7 +836,6 @@ static int lance_start_xmit( struct sk_buff *skb, struct net_device *dev )
 
 	/* Trigger an immediate send poll. */
 	DREG = CSR0_INEA | CSR0_TDMD;
-	dev->trans_start = jiffies;
 
 	if ((MEM->tx_head[(entry+1) & TX_RING_MOD_MASK].flag & TMD1_OWN) ==
 		TMD1_OWN_HOST)

@@ -10,7 +10,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
-#include <fcntl.h>
 #include <errno.h>
 #include <sys/time.h>
 #include <linux/hpet.h>
@@ -24,7 +23,6 @@ extern void hpet_read(int, const char **);
 
 #include <sys/poll.h>
 #include <sys/ioctl.h>
-#include <signal.h>
 
 struct hpet_command {
 	char		*command;

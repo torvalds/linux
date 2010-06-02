@@ -221,7 +221,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	}
 
 	switch (a->type) {
-	case LSM_AUDIT_NO_AUDIT:
+	case LSM_AUDIT_DATA_NONE:
 		return;
 	case LSM_AUDIT_DATA_IPC:
 		audit_log_format(ab, " key=%d ", a->u.ipc_id);

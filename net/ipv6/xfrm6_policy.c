@@ -67,36 +67,6 @@ static int xfrm6_get_saddr(struct net *net,
 	return 0;
 }
 
-static struct dst_entry *
-__xfrm6_find_bundle(struct flowi *fl, struct xfrm_policy *policy)
-{
-	struct dst_entry *dst;
-
-	/* Still not clear if we should set fl->fl6_{src,dst}... */
-	read_lock_bh(&policy->lock);
-	for (dst = policy->bundles; dst; dst = dst->next) {
-		struct xfrm_dst *xdst = (struct xfrm_dst*)dst;
-		struct in6_addr fl_dst_prefix, fl_src_prefix;
-
-		ipv6_addr_prefix(&fl_dst_prefix,
-				 &fl->fl6_dst,
-				 xdst->u.rt6.rt6i_dst.plen);
-		ipv6_addr_prefix(&fl_src_prefix,
-				 &fl->fl6_src,
-				 xdst->u.rt6.rt6i_src.plen);
-		if (ipv6_addr_equal(&xdst->u.rt6.rt6i_dst.addr, &fl_dst_prefix) &&
-		    ipv6_addr_equal(&xdst->u.rt6.rt6i_src.addr, &fl_src_prefix) &&
-		    xfrm_bundle_ok(policy, xdst, fl, AF_INET6,
-				   (xdst->u.rt6.rt6i_dst.plen != 128 ||
-				    xdst->u.rt6.rt6i_src.plen != 128))) {
-			dst_clone(dst);
-			break;
-		}
-	}
-	read_unlock_bh(&policy->lock);
-	return dst;
-}
-
 static int xfrm6_get_tos(struct flowi *fl)
 {
 	return 0;
@@ -291,7 +261,6 @@ static struct xfrm_policy_afinfo xfrm6_policy_afinfo = {
 	.dst_ops =		&xfrm6_dst_ops,
 	.dst_lookup =		xfrm6_dst_lookup,
 	.get_saddr = 		xfrm6_get_saddr,
-	.find_bundle =		__xfrm6_find_bundle,
 	.decode_session =	_decode_session6,
 	.get_tos =		xfrm6_get_tos,
 	.init_path =		xfrm6_init_path,

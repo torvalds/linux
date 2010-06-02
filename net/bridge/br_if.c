@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
+#include <linux/netpoll.h>
 #include <linux/ethtool.h>
 #include <linux/if_arp.h>
 #include <linux/module.h>
@@ -132,7 +133,7 @@ static void del_nbp(struct net_bridge_port *p)
 	struct net_bridge *br = p->br;
 	struct net_device *dev = p->dev;
 
-	sysfs_remove_link(br->ifobj, dev->name);
+	sysfs_remove_link(br->ifobj, p->dev->name);
 
 	dev_set_promiscuity(dev, -1);
 
@@ -153,6 +154,7 @@ static void del_nbp(struct net_bridge_port *p)
 	kobject_uevent(&p->kobj, KOBJ_REMOVE);
 	kobject_del(&p->kobj);
 
+	br_netpoll_disable(br, dev);
 	call_rcu(&p->rcu, destroy_nbp_rcu);
 }
 
@@ -164,6 +166,8 @@ static void del_br(struct net_bridge *br, struct list_head *head)
 	list_for_each_entry_safe(p, n, &br->port_list, list) {
 		del_nbp(p);
 	}
+
+	br_netpoll_cleanup(br->dev);
 
 	del_timer_sync(&br->gc_timer);
 
@@ -185,6 +189,12 @@ static struct net_device *new_bridge_dev(struct net *net, const char *name)
 
 	br = netdev_priv(dev);
 	br->dev = dev;
+
+	br->stats = alloc_percpu(struct br_cpu_netstats);
+	if (!br->stats) {
+		free_netdev(dev);
+		return NULL;
+	}
 
 	spin_lock_init(&br->lock);
 	INIT_LIST_HEAD(&br->port_list);
@@ -437,6 +447,8 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	dev_set_mtu(br->dev, br_min_mtu(br));
 
 	kobject_uevent(&p->kobj, KOBJ_ADD);
+
+	br_netpoll_enable(br, dev);
 
 	return 0;
 err2:

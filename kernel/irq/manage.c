@@ -138,6 +138,22 @@ int irq_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 	return 0;
 }
 
+int irq_set_affinity_hint(unsigned int irq, const struct cpumask *m)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+	unsigned long flags;
+
+	if (!desc)
+		return -EINVAL;
+
+	raw_spin_lock_irqsave(&desc->lock, flags);
+	desc->affinity_hint = m;
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(irq_set_affinity_hint);
+
 #ifndef CONFIG_AUTO_IRQ_AFFINITY
 /*
  * Generic version of the affinity autoselector.
@@ -757,16 +773,6 @@ __setup_irq(unsigned int irq, struct irq_desc *desc, struct irqaction *new)
 		if (new->flags & IRQF_ONESHOT)
 			desc->status |= IRQ_ONESHOT;
 
-		/*
-		 * Force MSI interrupts to run with interrupts
-		 * disabled. The multi vector cards can cause stack
-		 * overflows due to nested interrupts when enough of
-		 * them are directed to a core and fire at the same
-		 * time.
-		 */
-		if (desc->msi_desc)
-			new->flags |= IRQF_DISABLED;
-
 		if (!(desc->status & IRQ_NOAUTOEN)) {
 			desc->depth = 0;
 			desc->status &= ~IRQ_DISABLED;
@@ -916,6 +922,12 @@ static struct irqaction *__free_irq(unsigned int irq, void *dev_id)
 			desc->chip->disable(irq);
 	}
 
+#ifdef CONFIG_SMP
+	/* make sure affinity_hint is cleaned up */
+	if (WARN_ON_ONCE(desc->affinity_hint))
+		desc->affinity_hint = NULL;
+#endif
+
 	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
 	unregister_handler_proc(irq, action);
@@ -1027,7 +1039,6 @@ EXPORT_SYMBOL(free_irq);
  *	Flags:
  *
  *	IRQF_SHARED		Interrupt is shared
- *	IRQF_DISABLED	Disable local interrupts while processing
  *	IRQF_SAMPLE_RANDOM	The interrupt can be used for entropy
  *	IRQF_TRIGGER_*		Specify active edge(s) or level
  *
@@ -1040,25 +1051,6 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 	struct irq_desc *desc;
 	int retval;
 
-	/*
-	 * handle_IRQ_event() always ignores IRQF_DISABLED except for
-	 * the _first_ irqaction (sigh).  That can cause oopsing, but
-	 * the behavior is classified as "will not fix" so we need to
-	 * start nudging drivers away from using that idiom.
-	 */
-	if ((irqflags & (IRQF_SHARED|IRQF_DISABLED)) ==
-					(IRQF_SHARED|IRQF_DISABLED)) {
-		pr_warning(
-		  "IRQ %d/%s: IRQF_DISABLED is not guaranteed on shared IRQs\n",
-			irq, devname);
-	}
-
-#ifdef CONFIG_LOCKDEP
-	/*
-	 * Lockdep wants atomic interrupt handlers:
-	 */
-	irqflags |= IRQF_DISABLED;
-#endif
 	/*
 	 * Sanity-check: shared interrupts must pass in a real dev-ID,
 	 * otherwise we'll have trouble later trying to figure out
@@ -1120,3 +1112,40 @@ int request_threaded_irq(unsigned int irq, irq_handler_t handler,
 	return retval;
 }
 EXPORT_SYMBOL(request_threaded_irq);
+
+/**
+ *	request_any_context_irq - allocate an interrupt line
+ *	@irq: Interrupt line to allocate
+ *	@handler: Function to be called when the IRQ occurs.
+ *		  Threaded handler for threaded interrupts.
+ *	@flags: Interrupt type flags
+ *	@name: An ascii name for the claiming device
+ *	@dev_id: A cookie passed back to the handler function
+ *
+ *	This call allocates interrupt resources and enables the
+ *	interrupt line and IRQ handling. It selects either a
+ *	hardirq or threaded handling method depending on the
+ *	context.
+ *
+ *	On failure, it returns a negative value. On success,
+ *	it returns either IRQC_IS_HARDIRQ or IRQC_IS_NESTED.
+ */
+int request_any_context_irq(unsigned int irq, irq_handler_t handler,
+			    unsigned long flags, const char *name, void *dev_id)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+	int ret;
+
+	if (!desc)
+		return -EINVAL;
+
+	if (desc->status & IRQ_NESTED_THREAD) {
+		ret = request_threaded_irq(irq, NULL, handler,
+					   flags, name, dev_id);
+		return !ret ? IRQC_IS_NESTED : ret;
+	}
+
+	ret = request_irq(irq, handler, flags, name, dev_id);
+	return !ret ? IRQC_IS_HARDIRQ : ret;
+}
+EXPORT_SYMBOL_GPL(request_any_context_irq);

@@ -10,13 +10,19 @@
 struct tvec_base;
 
 struct timer_list {
+	/*
+	 * All fields that change during normal runtime grouped to the
+	 * same cacheline
+	 */
 	struct list_head entry;
 	unsigned long expires;
+	struct tvec_base *base;
 
 	void (*function)(unsigned long);
 	unsigned long data;
 
-	struct tvec_base *base;
+	int slack;
+
 #ifdef CONFIG_TIMER_STATS
 	void *start_site;
 	char start_comm[16];
@@ -164,6 +170,8 @@ extern int del_timer(struct timer_list * timer);
 extern int mod_timer(struct timer_list *timer, unsigned long expires);
 extern int mod_timer_pending(struct timer_list *timer, unsigned long expires);
 extern int mod_timer_pinned(struct timer_list *timer, unsigned long expires);
+
+extern void set_timer_slack(struct timer_list *time, int slack_hz);
 
 #define TIMER_NOT_PINNED	0
 #define TIMER_PINNED		1

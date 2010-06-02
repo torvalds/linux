@@ -59,7 +59,7 @@
 #define CCDC_PRGODD_0				0x8c
 #define CCDC_PRGODD_1				0x90
 #define CCDC_VP_OUT				0x94
-
+#define CCDC_REG_END				0x98
 
 /***************************************************************
 *	Define for various register bit mask and shifts for CCDC
@@ -135,11 +135,19 @@
 #define CCDC_SYN_MODE_INPMOD_SHIFT		12
 #define CCDC_SYN_MODE_INPMOD_MASK		3
 #define CCDC_SYN_MODE_8BITS			(7 << 8)
+#define CCDC_SYN_MODE_10BITS			(6 << 8)
+#define CCDC_SYN_MODE_11BITS			(5 << 8)
+#define CCDC_SYN_MODE_12BITS			(4 << 8)
+#define CCDC_SYN_MODE_13BITS			(3 << 8)
+#define CCDC_SYN_MODE_14BITS			(2 << 8)
+#define CCDC_SYN_MODE_15BITS			(1 << 8)
+#define CCDC_SYN_MODE_16BITS			(0 << 8)
 #define CCDC_SYN_FLDMODE_MASK			1
 #define CCDC_SYN_FLDMODE_SHIFT			7
 #define CCDC_REC656IF_BT656_EN			3
 #define CCDC_SYN_MODE_VD_POL_NEGATIVE		(1 << 2)
 #define CCDC_CCDCFG_Y8POS_SHIFT			11
+#define CCDC_CCDCFG_BW656_10BIT 		(1 << 5)
 #define CCDC_SDOFST_FIELD_INTERLEAVED		0x249
 #define CCDC_NO_CULLING				0xffff00ff
 #endif

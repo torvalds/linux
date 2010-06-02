@@ -918,7 +918,6 @@ void libipw_rx_any(struct libipw_device *ieee,
 drop_free:
 	dev_kfree_skb_irq(skb);
 	ieee->dev->stats.rx_dropped++;
-	return;
 }
 
 #define MGMT_FRAME_FIXED_PART_LENGTH		0x24

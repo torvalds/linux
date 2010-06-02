@@ -1096,7 +1096,7 @@ int avc_ca_pmt(struct firedtv *fdtv, char *msg, int length)
 
 	c->operand[15] = msg[1]; /* Program number */
 	c->operand[16] = msg[2];
-	c->operand[17] = 0x01; /* Version number=0 + current/next=1 */
+	c->operand[17] = msg[3]; /* Version number and current/next */
 	c->operand[18] = 0x00; /* Section number=0 */
 	c->operand[19] = 0x00; /* Last section number=0 */
 	c->operand[20] = 0x1f; /* PCR_PID=1FFF */

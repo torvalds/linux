@@ -264,8 +264,7 @@ no_context:
 
   out_of_memory:
 	up_read(&mm->mmap_sem);
-	printk(KERN_CRIT "VM: killing process %s\n", current->comm);
-	if (user_mode(regs))
-		do_group_exit(SIGKILL);
-	goto no_context;
+	if (!user_mode(regs))
+		goto no_context;
+	pagefault_out_of_memory();
 }

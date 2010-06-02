@@ -17,7 +17,6 @@
 #include <linux/init_task.h>
 #include <linux/security.h>
 #include <linux/cn_proc.h>
-#include "cred-internals.h"
 
 #if 0
 #define kdebug(FMT, ...) \
@@ -348,66 +347,6 @@ struct cred *prepare_exec_creds(void)
 }
 
 /*
- * prepare new credentials for the usermode helper dispatcher
- */
-struct cred *prepare_usermodehelper_creds(void)
-{
-#ifdef CONFIG_KEYS
-	struct thread_group_cred *tgcred = NULL;
-#endif
-	struct cred *new;
-
-#ifdef CONFIG_KEYS
-	tgcred = kzalloc(sizeof(*new->tgcred), GFP_ATOMIC);
-	if (!tgcred)
-		return NULL;
-#endif
-
-	new = kmem_cache_alloc(cred_jar, GFP_ATOMIC);
-	if (!new)
-		goto free_tgcred;
-
-	kdebug("prepare_usermodehelper_creds() alloc %p", new);
-
-	memcpy(new, &init_cred, sizeof(struct cred));
-
-	atomic_set(&new->usage, 1);
-	set_cred_subscribers(new, 0);
-	get_group_info(new->group_info);
-	get_uid(new->user);
-
-#ifdef CONFIG_KEYS
-	new->thread_keyring = NULL;
-	new->request_key_auth = NULL;
-	new->jit_keyring = KEY_REQKEY_DEFL_DEFAULT;
-
-	atomic_set(&tgcred->usage, 1);
-	spin_lock_init(&tgcred->lock);
-	new->tgcred = tgcred;
-#endif
-
-#ifdef CONFIG_SECURITY
-	new->security = NULL;
-#endif
-	if (security_prepare_creds(new, &init_cred, GFP_ATOMIC) < 0)
-		goto error;
-	validate_creds(new);
-
-	BUG_ON(atomic_read(&new->usage) != 1);
-	return new;
-
-error:
-	put_cred(new);
-	return NULL;
-
-free_tgcred:
-#ifdef CONFIG_KEYS
-	kfree(tgcred);
-#endif
-	return NULL;
-}
-
-/*
  * Copy credentials for the new process created by fork()
  *
  * We share if we can, but under some circumstances we have to generate a new
@@ -523,8 +462,6 @@ int commit_creds(struct cred *new)
 #endif
 	BUG_ON(atomic_read(&new->usage) < 1);
 
-	security_commit_creds(new, old);
-
 	get_cred(new); /* we will require a ref for the subj creds too */
 
 	/* dumpability changes */
@@ -559,8 +496,6 @@ int commit_creds(struct cred *new)
 	if (new->user != old->user)
 		atomic_dec(&old->user->processes);
 	alter_cred_subscribers(old, -2);
-
-	sched_switch_user(task);
 
 	/* send notifications */
 	if (new->uid   != old->uid  ||

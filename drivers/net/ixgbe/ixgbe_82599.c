@@ -133,27 +133,6 @@ setup_sfp_out:
 	return ret_val;
 }
 
-/**
- *  ixgbe_get_pcie_msix_count_82599 - Gets MSI-X vector count
- *  @hw: pointer to hardware structure
- *
- *  Read PCIe configuration space, and get the MSI-X vector count from
- *  the capabilities table.
- **/
-static u32 ixgbe_get_pcie_msix_count_82599(struct ixgbe_hw *hw)
-{
-	struct ixgbe_adapter *adapter = hw->back;
-	u16 msix_count;
-	pci_read_config_word(adapter->pdev, IXGBE_PCIE_MSIX_82599_CAPS,
-	                     &msix_count);
-	msix_count &= IXGBE_PCIE_MSIX_TBL_SZ_MASK;
-
-	/* MSI-X count is zero-based in HW, so increment to give proper value */
-	msix_count++;
-
-	return msix_count;
-}
-
 static s32 ixgbe_get_invariants_82599(struct ixgbe_hw *hw)
 {
 	struct ixgbe_mac_info *mac = &hw->mac;
@@ -165,7 +144,7 @@ static s32 ixgbe_get_invariants_82599(struct ixgbe_hw *hw)
 	mac->num_rar_entries = IXGBE_82599_RAR_ENTRIES;
 	mac->max_rx_queues = IXGBE_82599_MAX_RX_QUEUES;
 	mac->max_tx_queues = IXGBE_82599_MAX_TX_QUEUES;
-	mac->max_msix_vectors = ixgbe_get_pcie_msix_count_82599(hw);
+	mac->max_msix_vectors = ixgbe_get_pcie_msix_count_generic(hw);
 
 	return 0;
 }
@@ -642,6 +621,7 @@ static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
 	s32 i, j;
 	bool link_up = false;
 	u32 autoc_reg = IXGBE_READ_REG(hw, IXGBE_AUTOC);
+	struct ixgbe_adapter *adapter = hw->back;
 
 	hw_dbg(hw, "ixgbe_setup_mac_link_smartspeed.\n");
 
@@ -726,61 +706,11 @@ static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
 					    autoneg_wait_to_complete);
 
 out:
+	if (link_up && (link_speed == IXGBE_LINK_SPEED_1GB_FULL))
+		netif_info(adapter, hw, adapter->netdev, "Smartspeed has"
+			" downgraded the link speed from the maximum"
+			" advertised\n");
 	return status;
-}
-
-/**
- *  ixgbe_check_mac_link_82599 - Determine link and speed status
- *  @hw: pointer to hardware structure
- *  @speed: pointer to link speed
- *  @link_up: true when link is up
- *  @link_up_wait_to_complete: bool used to wait for link up or not
- *
- *  Reads the links register to determine if link is up and the current speed
- **/
-static s32 ixgbe_check_mac_link_82599(struct ixgbe_hw *hw,
-                                      ixgbe_link_speed *speed,
-                                      bool *link_up,
-                                      bool link_up_wait_to_complete)
-{
-	u32 links_reg;
-	u32 i;
-
-	links_reg = IXGBE_READ_REG(hw, IXGBE_LINKS);
-	if (link_up_wait_to_complete) {
-		for (i = 0; i < IXGBE_LINK_UP_TIME; i++) {
-			if (links_reg & IXGBE_LINKS_UP) {
-				*link_up = true;
-				break;
-			} else {
-				*link_up = false;
-			}
-			msleep(100);
-			links_reg = IXGBE_READ_REG(hw, IXGBE_LINKS);
-		}
-	} else {
-		if (links_reg & IXGBE_LINKS_UP)
-			*link_up = true;
-		else
-			*link_up = false;
-	}
-
-	if ((links_reg & IXGBE_LINKS_SPEED_82599) ==
-	    IXGBE_LINKS_SPEED_10G_82599)
-		*speed = IXGBE_LINK_SPEED_10GB_FULL;
-	else if ((links_reg & IXGBE_LINKS_SPEED_82599) ==
-	         IXGBE_LINKS_SPEED_1G_82599)
-		*speed = IXGBE_LINK_SPEED_1GB_FULL;
-	else
-		*speed = IXGBE_LINK_SPEED_100_FULL;
-
-	/* if link is down, zero out the current_mode */
-	if (*link_up == false) {
-		hw->fc.current_mode = ixgbe_fc_none;
-		hw->fc.fc_was_autonegged = false;
-	}
-
-	return 0;
 }
 
 /**
@@ -1045,243 +975,6 @@ reset_hw_out:
 }
 
 /**
- *  ixgbe_clear_vmdq_82599 - Disassociate a VMDq pool index from a rx address
- *  @hw: pointer to hardware struct
- *  @rar: receive address register index to disassociate
- *  @vmdq: VMDq pool index to remove from the rar
- **/
-static s32 ixgbe_clear_vmdq_82599(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
-{
-	u32 mpsar_lo, mpsar_hi;
-	u32 rar_entries = hw->mac.num_rar_entries;
-
-	if (rar < rar_entries) {
-		mpsar_lo = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
-		mpsar_hi = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
-
-		if (!mpsar_lo && !mpsar_hi)
-			goto done;
-
-		if (vmdq == IXGBE_CLEAR_VMDQ_ALL) {
-			if (mpsar_lo) {
-				IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), 0);
-				mpsar_lo = 0;
-			}
-			if (mpsar_hi) {
-				IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), 0);
-				mpsar_hi = 0;
-			}
-		} else if (vmdq < 32) {
-			mpsar_lo &= ~(1 << vmdq);
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar_lo);
-		} else {
-			mpsar_hi &= ~(1 << (vmdq - 32));
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar_hi);
-		}
-
-		/* was that the last pool using this rar? */
-		if (mpsar_lo == 0 && mpsar_hi == 0 && rar != 0)
-			hw->mac.ops.clear_rar(hw, rar);
-	} else {
-		hw_dbg(hw, "RAR index %d is out of range.\n", rar);
-	}
-
-done:
-	return 0;
-}
-
-/**
- *  ixgbe_set_vmdq_82599 - Associate a VMDq pool index with a rx address
- *  @hw: pointer to hardware struct
- *  @rar: receive address register index to associate with a VMDq index
- *  @vmdq: VMDq pool index
- **/
-static s32 ixgbe_set_vmdq_82599(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
-{
-	u32 mpsar;
-	u32 rar_entries = hw->mac.num_rar_entries;
-
-	if (rar < rar_entries) {
-		if (vmdq < 32) {
-			mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_LO(rar));
-			mpsar |= 1 << vmdq;
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_LO(rar), mpsar);
-		} else {
-			mpsar = IXGBE_READ_REG(hw, IXGBE_MPSAR_HI(rar));
-			mpsar |= 1 << (vmdq - 32);
-			IXGBE_WRITE_REG(hw, IXGBE_MPSAR_HI(rar), mpsar);
-		}
-	} else {
-		hw_dbg(hw, "RAR index %d is out of range.\n", rar);
-	}
-	return 0;
-}
-
-/**
- *  ixgbe_set_vfta_82599 - Set VLAN filter table
- *  @hw: pointer to hardware structure
- *  @vlan: VLAN id to write to VLAN filter
- *  @vind: VMDq output index that maps queue to VLAN id in VFVFB
- *  @vlan_on: boolean flag to turn on/off VLAN in VFVF
- *
- *  Turn on/off specified VLAN in the VLAN filter table.
- **/
-static s32 ixgbe_set_vfta_82599(struct ixgbe_hw *hw, u32 vlan, u32 vind,
-                                bool vlan_on)
-{
-	u32 regindex;
-	u32 vlvf_index;
-	u32 bitindex;
-	u32 bits;
-	u32 first_empty_slot;
-	u32 vt_ctl;
-
-	if (vlan > 4095)
-		return IXGBE_ERR_PARAM;
-
-	/*
-	 * this is a 2 part operation - first the VFTA, then the
-	 * VLVF and VLVFB if vind is set
-	 */
-
-	/* Part 1
-	 * The VFTA is a bitstring made up of 128 32-bit registers
-	 * that enable the particular VLAN id, much like the MTA:
-	 *    bits[11-5]: which register
-	 *    bits[4-0]:  which bit in the register
-	 */
-	regindex = (vlan >> 5) & 0x7F;
-	bitindex = vlan & 0x1F;
-	bits = IXGBE_READ_REG(hw, IXGBE_VFTA(regindex));
-	if (vlan_on)
-		bits |= (1 << bitindex);
-	else
-		bits &= ~(1 << bitindex);
-	IXGBE_WRITE_REG(hw, IXGBE_VFTA(regindex), bits);
-
-
-	/* Part 2
-	 * If VT mode is set
-	 *   Either vlan_on
-	 *     make sure the vlan is in VLVF
-	 *     set the vind bit in the matching VLVFB
-	 *   Or !vlan_on
-	 *     clear the pool bit and possibly the vind
-	 */
-	vt_ctl = IXGBE_READ_REG(hw, IXGBE_VT_CTL);
-	if (!(vt_ctl & IXGBE_VT_CTL_VT_ENABLE))
-		goto out;
-
-	/* find the vlanid or the first empty slot */
-	first_empty_slot = 0;
-
-	for (vlvf_index = 1; vlvf_index < IXGBE_VLVF_ENTRIES; vlvf_index++) {
-		bits = IXGBE_READ_REG(hw, IXGBE_VLVF(vlvf_index));
-		if (!bits && !first_empty_slot)
-			first_empty_slot = vlvf_index;
-		else if ((bits & 0x0FFF) == vlan)
-			break;
-	}
-
-	if (vlvf_index >= IXGBE_VLVF_ENTRIES) {
-		if (first_empty_slot)
-			vlvf_index = first_empty_slot;
-		else {
-			hw_dbg(hw, "No space in VLVF.\n");
-			goto out;
-		}
-	}
-
-	if (vlan_on) {
-		/* set the pool bit */
-		if (vind < 32) {
-			bits = IXGBE_READ_REG(hw,
-					      IXGBE_VLVFB(vlvf_index * 2));
-			bits |= (1 << vind);
-			IXGBE_WRITE_REG(hw,
-					IXGBE_VLVFB(vlvf_index * 2), bits);
-		} else {
-			bits = IXGBE_READ_REG(hw,
-				IXGBE_VLVFB((vlvf_index * 2) + 1));
-			bits |= (1 << (vind - 32));
-			IXGBE_WRITE_REG(hw,
-				IXGBE_VLVFB((vlvf_index * 2) + 1), bits);
-		}
-	} else {
-		/* clear the pool bit */
-		if (vind < 32) {
-			bits = IXGBE_READ_REG(hw,
-					      IXGBE_VLVFB(vlvf_index * 2));
-			bits &= ~(1 << vind);
-			IXGBE_WRITE_REG(hw,
-					IXGBE_VLVFB(vlvf_index * 2), bits);
-			bits |= IXGBE_READ_REG(hw,
-					IXGBE_VLVFB((vlvf_index * 2) + 1));
-		} else {
-			bits = IXGBE_READ_REG(hw,
-				IXGBE_VLVFB((vlvf_index * 2) + 1));
-			bits &= ~(1 << (vind - 32));
-			IXGBE_WRITE_REG(hw,
-				IXGBE_VLVFB((vlvf_index * 2) + 1), bits);
-			bits |= IXGBE_READ_REG(hw,
-					       IXGBE_VLVFB(vlvf_index * 2));
-		}
-	}
-
-	if (bits) {
-		IXGBE_WRITE_REG(hw, IXGBE_VLVF(vlvf_index),
-				(IXGBE_VLVF_VIEN | vlan));
-		/* if bits is non-zero then some pools/VFs are still
-		 * using this VLAN ID.  Force the VFTA entry to on */
-		bits = IXGBE_READ_REG(hw, IXGBE_VFTA(regindex));
-		bits |= (1 << bitindex);
-		IXGBE_WRITE_REG(hw, IXGBE_VFTA(regindex), bits);
-	}
-	else
-		IXGBE_WRITE_REG(hw, IXGBE_VLVF(vlvf_index), 0);
-
-out:
-	return 0;
-}
-
-/**
- *  ixgbe_clear_vfta_82599 - Clear VLAN filter table
- *  @hw: pointer to hardware structure
- *
- *  Clears the VLAN filer table, and the VMDq index associated with the filter
- **/
-static s32 ixgbe_clear_vfta_82599(struct ixgbe_hw *hw)
-{
-	u32 offset;
-
-	for (offset = 0; offset < hw->mac.vft_size; offset++)
-		IXGBE_WRITE_REG(hw, IXGBE_VFTA(offset), 0);
-
-	for (offset = 0; offset < IXGBE_VLVF_ENTRIES; offset++) {
-		IXGBE_WRITE_REG(hw, IXGBE_VLVF(offset), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_VLVFB(offset * 2), 0);
-		IXGBE_WRITE_REG(hw, IXGBE_VLVFB((offset * 2) + 1), 0);
-	}
-
-	return 0;
-}
-
-/**
- *  ixgbe_init_uta_tables_82599 - Initialize the Unicast Table Array
- *  @hw: pointer to hardware structure
- **/
-static s32 ixgbe_init_uta_tables_82599(struct ixgbe_hw *hw)
-{
-	int i;
-	hw_dbg(hw, " Clearing UTA\n");
-
-	for (i = 0; i < 128; i++)
-		IXGBE_WRITE_REG(hw, IXGBE_UTA(i), 0);
-
-	return 0;
-}
-
-/**
  *  ixgbe_reinit_fdir_tables_82599 - Reinitialize Flow Director tables.
  *  @hw: pointer to hardware structure
  **/
@@ -1303,7 +996,7 @@ s32 ixgbe_reinit_fdir_tables_82599(struct ixgbe_hw *hw)
 	}
 	if (i >= IXGBE_FDIRCMD_CMD_POLL) {
 		hw_dbg(hw ,"Flow Director previous command isn't complete, "
-		       "aborting table re-initialization. \n");
+		       "aborting table re-initialization.\n");
 		return IXGBE_ERR_FDIR_REINIT_FAILED;
 	}
 
@@ -2462,9 +2155,13 @@ sfp_check:
 		goto out;
 
 	switch (hw->phy.type) {
-	case ixgbe_phy_tw_tyco:
-	case ixgbe_phy_tw_unknown:
+	case ixgbe_phy_sfp_passive_tyco:
+	case ixgbe_phy_sfp_passive_unknown:
 		physical_layer = IXGBE_PHYSICAL_LAYER_SFP_PLUS_CU;
+		break;
+	case ixgbe_phy_sfp_ftl_active:
+	case ixgbe_phy_sfp_active_unknown:
+		physical_layer = IXGBE_PHYSICAL_LAYER_SFP_ACTIVE_DA;
 		break;
 	case ixgbe_phy_sfp_avago:
 	case ixgbe_phy_sfp_ftl:
@@ -2541,75 +2238,6 @@ static s32 ixgbe_get_device_caps_82599(struct ixgbe_hw *hw, u16 *device_caps)
 {
 	hw->eeprom.ops.read(hw, IXGBE_DEVICE_CAPS, device_caps);
 
-	return 0;
-}
-
-/**
- *  ixgbe_get_san_mac_addr_offset_82599 - SAN MAC address offset for 82599
- *  @hw: pointer to hardware structure
- *  @san_mac_offset: SAN MAC address offset
- *
- *  This function will read the EEPROM location for the SAN MAC address
- *  pointer, and returns the value at that location.  This is used in both
- *  get and set mac_addr routines.
- **/
-static s32 ixgbe_get_san_mac_addr_offset_82599(struct ixgbe_hw *hw,
-                                               u16 *san_mac_offset)
-{
-	/*
-	 * First read the EEPROM pointer to see if the MAC addresses are
-	 * available.
-	 */
-	hw->eeprom.ops.read(hw, IXGBE_SAN_MAC_ADDR_PTR, san_mac_offset);
-
-	return 0;
-}
-
-/**
- *  ixgbe_get_san_mac_addr_82599 - SAN MAC address retrieval for 82599
- *  @hw: pointer to hardware structure
- *  @san_mac_addr: SAN MAC address
- *
- *  Reads the SAN MAC address from the EEPROM, if it's available.  This is
- *  per-port, so set_lan_id() must be called before reading the addresses.
- *  set_lan_id() is called by identify_sfp(), but this cannot be relied
- *  upon for non-SFP connections, so we must call it here.
- **/
-static s32 ixgbe_get_san_mac_addr_82599(struct ixgbe_hw *hw, u8 *san_mac_addr)
-{
-	u16 san_mac_data, san_mac_offset;
-	u8 i;
-
-	/*
-	 * First read the EEPROM pointer to see if the MAC addresses are
-	 * available.  If they're not, no point in calling set_lan_id() here.
-	 */
-	ixgbe_get_san_mac_addr_offset_82599(hw, &san_mac_offset);
-
-	if ((san_mac_offset == 0) || (san_mac_offset == 0xFFFF)) {
-		/*
-		 * No addresses available in this EEPROM.  It's not an
-		 * error though, so just wipe the local address and return.
-		 */
-		for (i = 0; i < 6; i++)
-			san_mac_addr[i] = 0xFF;
-
-		goto san_mac_addr_out;
-	}
-
-	/* make sure we know which port we need to program */
-	hw->mac.ops.set_lan_id(hw);
-	/* apply the port offset to the address offset */
-	(hw->bus.func) ? (san_mac_offset += IXGBE_SAN_MAC_ADDR_PORT1_OFFSET) :
-	                 (san_mac_offset += IXGBE_SAN_MAC_ADDR_PORT0_OFFSET);
-	for (i = 0; i < 3; i++) {
-		hw->eeprom.ops.read(hw, san_mac_offset, &san_mac_data);
-		san_mac_addr[i * 2] = (u8)(san_mac_data);
-		san_mac_addr[i * 2 + 1] = (u8)(san_mac_data >> 8);
-		san_mac_offset++;
-	}
-
-san_mac_addr_out:
 	return 0;
 }
 
@@ -2715,7 +2343,7 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.get_supported_physical_layer = &ixgbe_get_supported_physical_layer_82599,
 	.enable_rx_dma          = &ixgbe_enable_rx_dma_82599,
 	.get_mac_addr           = &ixgbe_get_mac_addr_generic,
-	.get_san_mac_addr       = &ixgbe_get_san_mac_addr_82599,
+	.get_san_mac_addr       = &ixgbe_get_san_mac_addr_generic,
 	.get_device_caps        = &ixgbe_get_device_caps_82599,
 	.get_wwn_prefix         = &ixgbe_get_wwn_prefix_82599,
 	.stop_adapter           = &ixgbe_stop_adapter_generic,
@@ -2724,7 +2352,7 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.read_analog_reg8       = &ixgbe_read_analog_reg8_82599,
 	.write_analog_reg8      = &ixgbe_write_analog_reg8_82599,
 	.setup_link             = &ixgbe_setup_mac_link_82599,
-	.check_link             = &ixgbe_check_mac_link_82599,
+	.check_link             = &ixgbe_check_mac_link_generic,
 	.get_link_capabilities  = &ixgbe_get_link_capabilities_82599,
 	.led_on                 = &ixgbe_led_on_generic,
 	.led_off                = &ixgbe_led_off_generic,
@@ -2732,23 +2360,23 @@ static struct ixgbe_mac_operations mac_ops_82599 = {
 	.blink_led_stop         = &ixgbe_blink_led_stop_generic,
 	.set_rar                = &ixgbe_set_rar_generic,
 	.clear_rar              = &ixgbe_clear_rar_generic,
-	.set_vmdq               = &ixgbe_set_vmdq_82599,
-	.clear_vmdq             = &ixgbe_clear_vmdq_82599,
+	.set_vmdq               = &ixgbe_set_vmdq_generic,
+	.clear_vmdq             = &ixgbe_clear_vmdq_generic,
 	.init_rx_addrs          = &ixgbe_init_rx_addrs_generic,
 	.update_uc_addr_list    = &ixgbe_update_uc_addr_list_generic,
 	.update_mc_addr_list    = &ixgbe_update_mc_addr_list_generic,
 	.enable_mc              = &ixgbe_enable_mc_generic,
 	.disable_mc             = &ixgbe_disable_mc_generic,
-	.clear_vfta             = &ixgbe_clear_vfta_82599,
-	.set_vfta               = &ixgbe_set_vfta_82599,
-	.fc_enable               = &ixgbe_fc_enable_generic,
-	.init_uta_tables        = &ixgbe_init_uta_tables_82599,
+	.clear_vfta             = &ixgbe_clear_vfta_generic,
+	.set_vfta               = &ixgbe_set_vfta_generic,
+	.fc_enable              = &ixgbe_fc_enable_generic,
+	.init_uta_tables        = &ixgbe_init_uta_tables_generic,
 	.setup_sfp              = &ixgbe_setup_sfp_modules_82599,
 };
 
 static struct ixgbe_eeprom_operations eeprom_ops_82599 = {
 	.init_params            = &ixgbe_init_eeprom_params_generic,
-	.read                   = &ixgbe_read_eeprom_generic,
+	.read                   = &ixgbe_read_eerd_generic,
 	.write                  = &ixgbe_write_eeprom_generic,
 	.validate_checksum      = &ixgbe_validate_eeprom_checksum_generic,
 	.update_checksum        = &ixgbe_update_eeprom_checksum_generic,
@@ -2757,7 +2385,7 @@ static struct ixgbe_eeprom_operations eeprom_ops_82599 = {
 static struct ixgbe_phy_operations phy_ops_82599 = {
 	.identify               = &ixgbe_identify_phy_82599,
 	.identify_sfp           = &ixgbe_identify_sfp_module_generic,
-	.init			= &ixgbe_init_phy_ops_82599,
+	.init			            = &ixgbe_init_phy_ops_82599,
 	.reset                  = &ixgbe_reset_phy_generic,
 	.read_reg               = &ixgbe_read_phy_reg_generic,
 	.write_reg              = &ixgbe_write_phy_reg_generic,
@@ -2767,6 +2395,7 @@ static struct ixgbe_phy_operations phy_ops_82599 = {
 	.write_i2c_byte         = &ixgbe_write_i2c_byte_generic,
 	.read_i2c_eeprom        = &ixgbe_read_i2c_eeprom_generic,
 	.write_i2c_eeprom       = &ixgbe_write_i2c_eeprom_generic,
+	.check_overtemp         = &ixgbe_tn_check_overtemp,
 };
 
 struct ixgbe_info ixgbe_82599_info = {

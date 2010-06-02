@@ -30,6 +30,7 @@ BFA_TRC_FILE(LDRV, IM);
 
 DEFINE_IDR(bfad_im_port_index);
 struct scsi_transport_template *bfad_im_scsi_transport_template;
+struct scsi_transport_template *bfad_im_scsi_vport_transport_template;
 static void bfad_im_itnim_work_handler(struct work_struct *work);
 static int bfad_im_queuecommand(struct scsi_cmnd *cmnd,
 		void (*done)(struct scsi_cmnd *));
@@ -252,7 +253,6 @@ bfad_im_target_reset_send(struct bfad_s *bfad, struct scsi_cmnd *cmnd,
 	struct bfa_itnim_s *bfa_itnim;
 	bfa_status_t    rc = BFA_STATUS_OK;
 
-	bfa_itnim = bfa_fcs_itnim_get_halitn(&itnim->fcs_itnim);
 	tskim = bfa_tskim_alloc(&bfad->bfa, (struct bfad_tskim_s *) cmnd);
 	if (!tskim) {
 		BFA_DEV_PRINTF(bfad, BFA_ERR,
@@ -513,11 +513,14 @@ void bfa_fcb_itnim_tov(struct bfad_itnim_s *itnim)
  * Allocate a Scsi_Host for a port.
  */
 int
-bfad_im_scsi_host_alloc(struct bfad_s *bfad, struct bfad_im_port_s *im_port)
+bfad_im_scsi_host_alloc(struct bfad_s *bfad, struct bfad_im_port_s *im_port,
+				struct device *dev)
 {
 	int error = 1;
 
+	mutex_lock(&bfad_mutex);
 	if (!idr_pre_get(&bfad_im_port_index, GFP_KERNEL)) {
+		mutex_unlock(&bfad_mutex);
 		printk(KERN_WARNING "idr_pre_get failure\n");
 		goto out;
 	}
@@ -525,9 +528,12 @@ bfad_im_scsi_host_alloc(struct bfad_s *bfad, struct bfad_im_port_s *im_port)
 	error = idr_get_new(&bfad_im_port_index, im_port,
 					 &im_port->idr_id);
 	if (error) {
+		mutex_unlock(&bfad_mutex);
 		printk(KERN_WARNING "idr_get_new failure\n");
 		goto out;
 	}
+
+	mutex_unlock(&bfad_mutex);
 
 	im_port->shost = bfad_os_scsi_host_alloc(im_port, bfad);
 	if (!im_port->shost) {
@@ -542,12 +548,15 @@ bfad_im_scsi_host_alloc(struct bfad_s *bfad, struct bfad_im_port_s *im_port)
 	im_port->shost->max_lun = MAX_FCP_LUN;
 	im_port->shost->max_cmd_len = 16;
 	im_port->shost->can_queue = bfad->cfg_data.ioc_queue_depth;
-	im_port->shost->transportt = bfad_im_scsi_transport_template;
+	if (im_port->port->pvb_type == BFAD_PORT_PHYS_BASE)
+		im_port->shost->transportt = bfad_im_scsi_transport_template;
+	else
+		im_port->shost->transportt =
+				bfad_im_scsi_vport_transport_template;
 
-	error = bfad_os_scsi_add_host(im_port->shost, im_port, bfad);
+	error = scsi_add_host(im_port->shost, dev);
 	if (error) {
-		printk(KERN_WARNING "bfad_os_scsi_add_host failure %d\n",
-							error);
+		printk(KERN_WARNING "scsi_add_host failure %d\n", error);
 		goto out_fc_rel;
 	}
 
@@ -559,7 +568,9 @@ bfad_im_scsi_host_alloc(struct bfad_s *bfad, struct bfad_im_port_s *im_port)
 out_fc_rel:
 	scsi_host_put(im_port->shost);
 out_free_idr:
+	mutex_lock(&bfad_mutex);
 	idr_remove(&bfad_im_port_index, im_port->idr_id);
+	mutex_unlock(&bfad_mutex);
 out:
 	return error;
 }
@@ -567,8 +578,6 @@ out:
 void
 bfad_im_scsi_host_free(struct bfad_s *bfad, struct bfad_im_port_s *im_port)
 {
-	unsigned long flags;
-
 	bfa_trc(bfad, bfad->inst_no);
 	bfa_log(bfad->logmod, BFA_LOG_LINUX_SCSI_HOST_FREE,
 			im_port->shost->host_no);
@@ -578,9 +587,9 @@ bfad_im_scsi_host_free(struct bfad_s *bfad, struct bfad_im_port_s *im_port)
 	scsi_remove_host(im_port->shost);
 	scsi_host_put(im_port->shost);
 
-	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	mutex_lock(&bfad_mutex);
 	idr_remove(&bfad_im_port_index, im_port->idr_id);
-	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	mutex_unlock(&bfad_mutex);
 }
 
 static void
@@ -589,9 +598,11 @@ bfad_im_port_delete_handler(struct work_struct *work)
 	struct bfad_im_port_s *im_port =
 		container_of(work, struct bfad_im_port_s, port_delete_work);
 
-	bfad_im_scsi_host_free(im_port->bfad, im_port);
-	bfad_im_port_clean(im_port);
-	kfree(im_port);
+	if (im_port->port->pvb_type != BFAD_PORT_PHYS_BASE) {
+		im_port->flags |= BFAD_PORT_DELETE;
+		fc_vport_terminate(im_port->fc_vport);
+	}
+
 }
 
 bfa_status_t
@@ -690,23 +701,6 @@ bfad_im_probe_undo(struct bfad_s *bfad)
 	}
 }
 
-
-
-
-int
-bfad_os_scsi_add_host(struct Scsi_Host *shost, struct bfad_im_port_s *im_port,
-			struct bfad_s *bfad)
-{
-    struct device *dev;
-
-    if (im_port->port->pvb_type == BFAD_PORT_PHYS_BASE)
-		dev = &bfad->pcidev->dev;
-    else
-		dev = &bfad->pport.im_port->shost->shost_gendev;
-
-    return scsi_add_host(shost, dev);
-}
-
 struct Scsi_Host *
 bfad_os_scsi_host_alloc(struct bfad_im_port_s *im_port, struct bfad_s *bfad)
 {
@@ -725,7 +719,8 @@ bfad_os_scsi_host_alloc(struct bfad_im_port_s *im_port, struct bfad_s *bfad)
 void
 bfad_os_scsi_host_free(struct bfad_s *bfad, struct bfad_im_port_s *im_port)
 {
-	flush_workqueue(bfad->im->drv_workq);
+	if (!(im_port->flags & BFAD_PORT_DELETE))
+		flush_workqueue(bfad->im->drv_workq);
 	bfad_im_scsi_host_free(im_port->bfad, im_port);
 	bfad_im_port_clean(im_port);
 	kfree(im_port);
@@ -830,6 +825,13 @@ bfad_im_module_init(void)
 	if (!bfad_im_scsi_transport_template)
 		return BFA_STATUS_ENOMEM;
 
+	bfad_im_scsi_vport_transport_template =
+		fc_attach_transport(&bfad_im_vport_fc_function_template);
+	if (!bfad_im_scsi_vport_transport_template) {
+		fc_release_transport(bfad_im_scsi_transport_template);
+		return BFA_STATUS_ENOMEM;
+	}
+
 	return BFA_STATUS_OK;
 }
 
@@ -838,6 +840,8 @@ bfad_im_module_exit(void)
 {
 	if (bfad_im_scsi_transport_template)
 		fc_release_transport(bfad_im_scsi_transport_template);
+	if (bfad_im_scsi_vport_transport_template)
+		fc_release_transport(bfad_im_scsi_vport_transport_template);
 }
 
 void
@@ -938,6 +942,7 @@ bfad_os_fc_host_init(struct bfad_im_port_s *im_port)
 		bfa_os_htonll((bfa_fcs_port_get_nwwn(port->fcs_port)));
 	fc_host_port_name(host) =
 		bfa_os_htonll((bfa_fcs_port_get_pwwn(port->fcs_port)));
+	fc_host_max_npiv_vports(host) = bfa_lps_get_max_vport(&bfad->bfa);
 
 	fc_host_supported_classes(host) = FC_COS_CLASS3;
 

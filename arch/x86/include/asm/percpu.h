@@ -105,7 +105,7 @@ do {							\
 
 /*
  * Generate a percpu add to memory instruction and optimize code
- * if a one is added or subtracted.
+ * if one is added or subtracted.
  */
 #define percpu_add_op(var, val)						\
 do {									\
@@ -190,6 +190,29 @@ do {									\
 	pfo_ret__;					\
 })
 
+#define percpu_unary_op(op, var)			\
+({							\
+	switch (sizeof(var)) {				\
+	case 1:						\
+		asm(op "b "__percpu_arg(0)		\
+		    : "+m" (var));			\
+		break;					\
+	case 2:						\
+		asm(op "w "__percpu_arg(0)		\
+		    : "+m" (var));			\
+		break;					\
+	case 4:						\
+		asm(op "l "__percpu_arg(0)		\
+		    : "+m" (var));			\
+		break;					\
+	case 8:						\
+		asm(op "q "__percpu_arg(0)		\
+		    : "+m" (var));			\
+		break;					\
+	default: __bad_percpu_size();			\
+	}						\
+})
+
 /*
  * percpu_read() makes gcc load the percpu variable every time it is
  * accessed while percpu_read_stable() allows the value to be cached.
@@ -207,6 +230,7 @@ do {									\
 #define percpu_and(var, val)		percpu_to_op("and", var, val)
 #define percpu_or(var, val)		percpu_to_op("or", var, val)
 #define percpu_xor(var, val)		percpu_to_op("xor", var, val)
+#define percpu_inc(var)		percpu_unary_op("inc", var)
 
 #define __this_cpu_read_1(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
 #define __this_cpu_read_2(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))

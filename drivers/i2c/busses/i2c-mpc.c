@@ -118,7 +118,7 @@ static int i2c_wait(struct mpc_i2c *i2c, unsigned timeout, int writing)
 	u32 x;
 	int result = 0;
 
-	if (i2c->irq == NO_IRQ) {
+	if (!i2c->irq) {
 		while (!(readb(i2c->base + MPC_I2C_SR) & CSR_MIF)) {
 			schedule();
 			if (time_after(jiffies, orig_jiffies + timeout)) {
@@ -560,15 +560,15 @@ static int __devinit fsl_i2c_probe(struct of_device *op,
 
 	init_waitqueue_head(&i2c->queue);
 
-	i2c->base = of_iomap(op->node, 0);
+	i2c->base = of_iomap(op->dev.of_node, 0);
 	if (!i2c->base) {
 		dev_err(i2c->dev, "failed to map controller\n");
 		result = -ENOMEM;
 		goto fail_map;
 	}
 
-	i2c->irq = irq_of_parse_and_map(op->node, 0);
-	if (i2c->irq != NO_IRQ) { /* i2c->irq = NO_IRQ implies polling */
+	i2c->irq = irq_of_parse_and_map(op->dev.of_node, 0);
+	if (i2c->irq) { /* no i2c->irq implies polling */
 		result = request_irq(i2c->irq, mpc_i2c_isr,
 				     IRQF_SHARED, "i2c-mpc", i2c);
 		if (result < 0) {
@@ -577,21 +577,22 @@ static int __devinit fsl_i2c_probe(struct of_device *op,
 		}
 	}
 
-	if (of_get_property(op->node, "fsl,preserve-clocking", NULL)) {
+	if (of_get_property(op->dev.of_node, "fsl,preserve-clocking", NULL)) {
 		clock = MPC_I2C_CLOCK_PRESERVE;
 	} else {
-		prop = of_get_property(op->node, "clock-frequency", &plen);
+		prop = of_get_property(op->dev.of_node, "clock-frequency",
+					&plen);
 		if (prop && plen == sizeof(u32))
 			clock = *prop;
 	}
 
 	if (match->data) {
 		struct mpc_i2c_data *data = match->data;
-		data->setup(op->node, i2c, clock, data->prescaler);
+		data->setup(op->dev.of_node, i2c, clock, data->prescaler);
 	} else {
 		/* Backwards compatibility */
-		if (of_get_property(op->node, "dfsrr", NULL))
-			mpc_i2c_setup_8xxx(op->node, i2c, clock, 0);
+		if (of_get_property(op->dev.of_node, "dfsrr", NULL))
+			mpc_i2c_setup_8xxx(op->dev.of_node, i2c, clock, 0);
 	}
 
 	dev_set_drvdata(&op->dev, i2c);
@@ -605,7 +606,7 @@ static int __devinit fsl_i2c_probe(struct of_device *op,
 		dev_err(i2c->dev, "failed to add adapter\n");
 		goto fail_add;
 	}
-	of_register_i2c_devices(&i2c->adap, op->node);
+	of_register_i2c_devices(&i2c->adap, op->dev.of_node);
 
 	return result;
 
@@ -627,7 +628,7 @@ static int __devexit fsl_i2c_remove(struct of_device *op)
 	i2c_del_adapter(&i2c->adap);
 	dev_set_drvdata(&op->dev, NULL);
 
-	if (i2c->irq != NO_IRQ)
+	if (i2c->irq)
 		free_irq(i2c->irq, i2c);
 
 	irq_dispose_mapping(i2c->irq);
@@ -674,12 +675,12 @@ MODULE_DEVICE_TABLE(of, mpc_i2c_of_match);
 
 /* Structure for a device driver */
 static struct of_platform_driver mpc_i2c_driver = {
-	.match_table	= mpc_i2c_of_match,
 	.probe		= fsl_i2c_probe,
 	.remove		= __devexit_p(fsl_i2c_remove),
-	.driver		= {
-		.owner	= THIS_MODULE,
-		.name	= DRV_NAME,
+	.driver = {
+		.owner = THIS_MODULE,
+		.name = DRV_NAME,
+		.of_match_table = mpc_i2c_of_match,
 	},
 };
 

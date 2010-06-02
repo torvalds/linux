@@ -316,7 +316,6 @@ static void rt6_probe(struct rt6_info *rt)
 #else
 static inline void rt6_probe(struct rt6_info *rt)
 {
-	return;
 }
 #endif
 
@@ -1553,7 +1552,6 @@ void rt6_redirect(struct in6_addr *dest, struct in6_addr *src,
 
 out:
 	dst_release(&rt->u.dst);
-	return;
 }
 
 /*

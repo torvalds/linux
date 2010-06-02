@@ -438,7 +438,7 @@ sctp_vtag_verify_either(const struct sctp_chunk *chunk,
 	 */
         if ((!sctp_test_T_bit(chunk) &&
              (ntohl(chunk->sctp_hdr->vtag) == asoc->c.my_vtag)) ||
-	    (sctp_test_T_bit(chunk) &&
+	    (sctp_test_T_bit(chunk) && asoc->c.peer_vtag &&
 	     (ntohl(chunk->sctp_hdr->vtag) == asoc->c.peer_vtag))) {
                 return 1;
 	}

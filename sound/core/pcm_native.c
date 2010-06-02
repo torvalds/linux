@@ -27,7 +27,6 @@
 #include <linux/pm_qos_params.h>
 #include <linux/uio.h>
 #include <linux/dma-mapping.h>
-#include <linux/math64.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/info.h>
@@ -370,38 +369,6 @@ static int period_to_usecs(struct snd_pcm_runtime *runtime)
 	return usecs;
 }
 
-static int calc_boundary(struct snd_pcm_runtime *runtime)
-{
-	u_int64_t boundary;
-
-	boundary = (u_int64_t)runtime->buffer_size *
-		   (u_int64_t)runtime->period_size;
-#if BITS_PER_LONG < 64
-	/* try to find lowest common multiple for buffer and period */
-	if (boundary > LONG_MAX - runtime->buffer_size) {
-		u_int32_t remainder = -1;
-		u_int32_t divident = runtime->buffer_size;
-		u_int32_t divisor = runtime->period_size;
-		while (remainder) {
-			remainder = divident % divisor;
-			if (remainder) {
-				divident = divisor;
-				divisor = remainder;
-			}
-		}
-		boundary = div_u64(boundary, divisor);
-		if (boundary > LONG_MAX - runtime->buffer_size)
-			return -ERANGE;
-	}
-#endif
-	if (boundary == 0)
-		return -ERANGE;
-	runtime->boundary = boundary;
-	while (runtime->boundary * 2 <= LONG_MAX - runtime->buffer_size)
-		runtime->boundary *= 2;
-	return 0;
-}
-
 static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
@@ -477,18 +444,20 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 	runtime->stop_threshold = runtime->buffer_size;
 	runtime->silence_threshold = 0;
 	runtime->silence_size = 0;
-	err = calc_boundary(runtime);
-	if (err < 0)
-		goto _error;
+	runtime->boundary = runtime->buffer_size;
+	while (runtime->boundary * 2 <= LONG_MAX - runtime->buffer_size)
+		runtime->boundary *= 2;
 
 	snd_pcm_timer_resolution_change(substream);
 	runtime->status->state = SNDRV_PCM_STATE_SETUP;
 
-	pm_qos_remove_requirement(PM_QOS_CPU_DMA_LATENCY,
-				substream->latency_id);
+	if (substream->latency_pm_qos_req) {
+		pm_qos_remove_request(substream->latency_pm_qos_req);
+		substream->latency_pm_qos_req = NULL;
+	}
 	if ((usecs = period_to_usecs(runtime)) >= 0)
-		pm_qos_add_requirement(PM_QOS_CPU_DMA_LATENCY,
-					substream->latency_id, usecs);
+		substream->latency_pm_qos_req = pm_qos_add_request(
+					PM_QOS_CPU_DMA_LATENCY, usecs);
 	return 0;
  _error:
 	/* hardware might be unuseable from this time,
@@ -543,8 +512,8 @@ static int snd_pcm_hw_free(struct snd_pcm_substream *substream)
 	if (substream->ops->hw_free)
 		result = substream->ops->hw_free(substream);
 	runtime->status->state = SNDRV_PCM_STATE_OPEN;
-	pm_qos_remove_requirement(PM_QOS_CPU_DMA_LATENCY,
-		substream->latency_id);
+	pm_qos_remove_request(substream->latency_pm_qos_req);
+	substream->latency_pm_qos_req = NULL;
 	return result;
 }
 
@@ -2110,7 +2079,9 @@ static int snd_pcm_open_file(struct file *file,
 static int snd_pcm_playback_open(struct inode *inode, struct file *file)
 {
 	struct snd_pcm *pcm;
-
+	int err = nonseekable_open(inode, file);
+	if (err < 0)
+		return err;
 	pcm = snd_lookup_minor_data(iminor(inode),
 				    SNDRV_DEVICE_TYPE_PCM_PLAYBACK);
 	return snd_pcm_open(file, pcm, SNDRV_PCM_STREAM_PLAYBACK);
@@ -2119,7 +2090,9 @@ static int snd_pcm_playback_open(struct inode *inode, struct file *file)
 static int snd_pcm_capture_open(struct inode *inode, struct file *file)
 {
 	struct snd_pcm *pcm;
-
+	int err = nonseekable_open(inode, file);
+	if (err < 0)
+		return err;
 	pcm = snd_lookup_minor_data(iminor(inode),
 				    SNDRV_DEVICE_TYPE_PCM_CAPTURE);
 	return snd_pcm_open(file, pcm, SNDRV_PCM_STREAM_CAPTURE);
@@ -3310,18 +3283,13 @@ static int snd_pcm_fasync(int fd, struct file * file, int on)
 	struct snd_pcm_file * pcm_file;
 	struct snd_pcm_substream *substream;
 	struct snd_pcm_runtime *runtime;
-	int err = -ENXIO;
 
-	lock_kernel();
 	pcm_file = file->private_data;
 	substream = pcm_file->substream;
 	if (PCM_RUNTIME_CHECK(substream))
-		goto out;
+		return -ENXIO;
 	runtime = substream->runtime;
-	err = fasync_helper(fd, file, on, &runtime->fasync);
-out:
-	unlock_kernel();
-	return err;
+	return fasync_helper(fd, file, on, &runtime->fasync);
 }
 
 /*
@@ -3441,14 +3409,28 @@ out:
 #endif /* CONFIG_SND_SUPPORT_OLD_API */
 
 #ifndef CONFIG_MMU
-unsigned long dummy_get_unmapped_area(struct file *file, unsigned long addr,
-				      unsigned long len, unsigned long pgoff,
-				      unsigned long flags)
+static unsigned long snd_pcm_get_unmapped_area(struct file *file,
+					       unsigned long addr,
+					       unsigned long len,
+					       unsigned long pgoff,
+					       unsigned long flags)
 {
-	return 0;
+	struct snd_pcm_file *pcm_file = file->private_data;
+	struct snd_pcm_substream *substream = pcm_file->substream;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	unsigned long offset = pgoff << PAGE_SHIFT;
+
+	switch (offset) {
+	case SNDRV_PCM_MMAP_OFFSET_STATUS:
+		return (unsigned long)runtime->status;
+	case SNDRV_PCM_MMAP_OFFSET_CONTROL:
+		return (unsigned long)runtime->control;
+	default:
+		return (unsigned long)runtime->dma_area + offset;
+	}
 }
 #else
-# define dummy_get_unmapped_area NULL
+# define snd_pcm_get_unmapped_area NULL
 #endif
 
 /*
@@ -3462,12 +3444,13 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.aio_write =		snd_pcm_aio_write,
 		.open =			snd_pcm_playback_open,
 		.release =		snd_pcm_release,
+		.llseek =		no_llseek,
 		.poll =			snd_pcm_playback_poll,
 		.unlocked_ioctl =	snd_pcm_playback_ioctl,
 		.compat_ioctl = 	snd_pcm_ioctl_compat,
 		.mmap =			snd_pcm_mmap,
 		.fasync =		snd_pcm_fasync,
-		.get_unmapped_area =	dummy_get_unmapped_area,
+		.get_unmapped_area =	snd_pcm_get_unmapped_area,
 	},
 	{
 		.owner =		THIS_MODULE,
@@ -3475,11 +3458,12 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.aio_read =		snd_pcm_aio_read,
 		.open =			snd_pcm_capture_open,
 		.release =		snd_pcm_release,
+		.llseek =		no_llseek,
 		.poll =			snd_pcm_capture_poll,
 		.unlocked_ioctl =	snd_pcm_capture_ioctl,
 		.compat_ioctl = 	snd_pcm_ioctl_compat,
 		.mmap =			snd_pcm_mmap,
 		.fasync =		snd_pcm_fasync,
-		.get_unmapped_area =	dummy_get_unmapped_area,
+		.get_unmapped_area =	snd_pcm_get_unmapped_area,
 	}
 };

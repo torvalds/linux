@@ -53,7 +53,7 @@
 #include "libipw.h"
 
 #define DRV_DESCRIPTION "802.11 data/management/control stack"
-#define DRV_NAME        "ieee80211"
+#define DRV_NAME        "libipw"
 #define DRV_VERSION	LIBIPW_VERSION
 #define DRV_COPYRIGHT   "Copyright (C) 2004-2005 Intel Corporation <jketreno@linux.intel.com>"
 
@@ -140,7 +140,7 @@ int libipw_change_mtu(struct net_device *dev, int new_mtu)
 }
 EXPORT_SYMBOL(libipw_change_mtu);
 
-struct net_device *alloc_ieee80211(int sizeof_priv, int monitor)
+struct net_device *alloc_libipw(int sizeof_priv, int monitor)
 {
 	struct libipw_device *ieee;
 	struct net_device *dev;
@@ -222,8 +222,9 @@ failed_free_netdev:
 failed:
 	return NULL;
 }
+EXPORT_SYMBOL(alloc_libipw);
 
-void free_ieee80211(struct net_device *dev, int monitor)
+void free_libipw(struct net_device *dev, int monitor)
 {
 	struct libipw_device *ieee = netdev_priv(dev);
 
@@ -237,6 +238,7 @@ void free_ieee80211(struct net_device *dev, int monitor)
 
 	free_netdev(dev);
 }
+EXPORT_SYMBOL(free_libipw);
 
 #ifdef CONFIG_LIBIPW_DEBUG
 
@@ -291,7 +293,7 @@ static int __init libipw_init(void)
 	struct proc_dir_entry *e;
 
 	libipw_debug_level = debug;
-	libipw_proc = proc_mkdir(DRV_NAME, init_net.proc_net);
+	libipw_proc = proc_mkdir("ieee80211", init_net.proc_net);
 	if (libipw_proc == NULL) {
 		LIBIPW_ERROR("Unable to create " DRV_NAME
 				" proc directory\n");
@@ -331,6 +333,3 @@ MODULE_PARM_DESC(debug, "debug output mask");
 
 module_exit(libipw_exit);
 module_init(libipw_init);
-
-EXPORT_SYMBOL(alloc_ieee80211);
-EXPORT_SYMBOL(free_ieee80211);

@@ -82,8 +82,9 @@ acpi_ex_add_table(u32 table_index,
 		  struct acpi_namespace_node *parent_node,
 		  union acpi_operand_object **ddb_handle)
 {
-	acpi_status status;
 	union acpi_operand_object *obj_desc;
+	acpi_status status;
+	acpi_owner_id owner_id;
 
 	ACPI_FUNCTION_TRACE(ex_add_table);
 
@@ -119,7 +120,14 @@ acpi_ex_add_table(u32 table_index,
 	acpi_ns_exec_module_code_list();
 	acpi_ex_enter_interpreter();
 
-	return_ACPI_STATUS(status);
+	/* Update GPEs for any new _PRW or _Lxx/_Exx methods. Ignore errors */
+
+	status = acpi_tb_get_owner_id(table_index, &owner_id);
+	if (ACPI_SUCCESS(status)) {
+		acpi_ev_update_gpes(owner_id);
+	}
+
+	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
@@ -248,10 +256,8 @@ acpi_ex_load_table_op(struct acpi_walk_state *walk_state,
 
 	status = acpi_get_table_by_index(table_index, &table);
 	if (ACPI_SUCCESS(status)) {
-		ACPI_INFO((AE_INFO,
-			   "Dynamic OEM Table Load - [%.4s] OemId [%.6s] OemTableId [%.8s]",
-			   table->signature, table->oem_id,
-			   table->oem_table_id));
+		ACPI_INFO((AE_INFO, "Dynamic OEM Table Load:"));
+		acpi_tb_print_table_header(0, table);
 	}
 
 	/* Invoke table handler if present */
@@ -524,6 +530,9 @@ acpi_ex_load_op(union acpi_operand_object *obj_desc,
 		acpi_ut_remove_reference(ddb_handle);
 		return_ACPI_STATUS(status);
 	}
+
+	ACPI_INFO((AE_INFO, "Dynamic OEM Table Load:"));
+	acpi_tb_print_table_header(0, table_desc.pointer);
 
 	/* Remove the reference by added by acpi_ex_store above */
 

@@ -140,8 +140,6 @@ static void mlx4_en_get_wol(struct net_device *netdev,
 {
 	wol->supported = 0;
 	wol->wolopts = 0;
-
-	return;
 }
 
 static int mlx4_en_get_sset_count(struct net_device *dev, int sset)

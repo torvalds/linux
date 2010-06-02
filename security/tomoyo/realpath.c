@@ -139,7 +139,7 @@ int tomoyo_realpath_from_path2(struct path *path, char *newname,
  */
 char *tomoyo_realpath_from_path(struct path *path)
 {
-	char *buf = kzalloc(sizeof(struct tomoyo_page_buffer), GFP_KERNEL);
+	char *buf = kzalloc(sizeof(struct tomoyo_page_buffer), GFP_NOFS);
 
 	BUILD_BUG_ON(sizeof(struct tomoyo_page_buffer)
 		     <= TOMOYO_MAX_PATHNAME_LEN - 1);
@@ -223,6 +223,25 @@ bool tomoyo_memory_ok(void *ptr)
 }
 
 /**
+ * tomoyo_commit_ok - Check memory quota.
+ *
+ * @data:   Data to copy from.
+ * @size:   Size in byte.
+ *
+ * Returns pointer to allocated memory on success, NULL otherwise.
+ */
+void *tomoyo_commit_ok(void *data, const unsigned int size)
+{
+	void *ptr = kzalloc(size, GFP_NOFS);
+	if (tomoyo_memory_ok(ptr)) {
+		memmove(ptr, data, size);
+		memset(data, 0, size);
+		return ptr;
+	}
+	return NULL;
+}
+
+/**
  * tomoyo_memory_free - Free memory for elements.
  *
  * @ptr:  Pointer to allocated memory.
@@ -240,8 +259,6 @@ void tomoyo_memory_free(void *ptr)
  * "const struct tomoyo_path_info *".
  */
 struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
-/* Lock for protecting tomoyo_name_list . */
-DEFINE_MUTEX(tomoyo_name_list_lock);
 
 /**
  * tomoyo_get_name - Allocate permanent memory for string data.
@@ -263,14 +280,15 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 	len = strlen(name) + 1;
 	hash = full_name_hash((const unsigned char *) name, len - 1);
 	head = &tomoyo_name_list[hash_long(hash, TOMOYO_HASH_BITS)];
-	mutex_lock(&tomoyo_name_list_lock);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		return NULL;
 	list_for_each_entry(ptr, head, list) {
 		if (hash != ptr->entry.hash || strcmp(name, ptr->entry.name))
 			continue;
 		atomic_inc(&ptr->users);
 		goto out;
 	}
-	ptr = kzalloc(sizeof(*ptr) + len, GFP_KERNEL);
+	ptr = kzalloc(sizeof(*ptr) + len, GFP_NOFS);
 	allocated_len = ptr ? ksize(ptr) : 0;
 	if (!ptr || (tomoyo_quota_for_policy &&
 		     atomic_read(&tomoyo_policy_memory_size) + allocated_len
@@ -290,7 +308,7 @@ const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 	tomoyo_fill_path_info(&ptr->entry);
 	list_add_tail(&ptr->list, head);
  out:
-	mutex_unlock(&tomoyo_name_list_lock);
+	mutex_unlock(&tomoyo_policy_lock);
 	return ptr ? &ptr->entry : NULL;
 }
 

@@ -429,7 +429,7 @@ static void wq_add(struct mqueue_inode_info *info, int sr,
  * sr: SEND or RECV
  */
 static int wq_sleep(struct mqueue_inode_info *info, int sr,
-			long timeout, struct ext_wait_queue *ewp)
+		    ktime_t *timeout, struct ext_wait_queue *ewp)
 {
 	int retval;
 	signed long time;
@@ -440,7 +440,8 @@ static int wq_sleep(struct mqueue_inode_info *info, int sr,
 		set_current_state(TASK_INTERRUPTIBLE);
 
 		spin_unlock(&info->lock);
-		time = schedule_timeout(timeout);
+		time = schedule_hrtimeout_range_clock(timeout,
+		    HRTIMER_MODE_ABS, 0, CLOCK_REALTIME);
 
 		while (ewp->state == STATE_PENDING)
 			cpu_relax();
@@ -552,31 +553,16 @@ static void __do_notify(struct mqueue_inode_info *info)
 	wake_up(&info->wait_q);
 }
 
-static long prepare_timeout(struct timespec *p)
+static int prepare_timeout(const struct timespec __user *u_abs_timeout,
+			   ktime_t *expires, struct timespec *ts)
 {
-	struct timespec nowts;
-	long timeout;
+	if (copy_from_user(ts, u_abs_timeout, sizeof(struct timespec)))
+		return -EFAULT;
+	if (!timespec_valid(ts))
+		return -EINVAL;
 
-	if (p) {
-		if (unlikely(p->tv_nsec < 0 || p->tv_sec < 0
-			|| p->tv_nsec >= NSEC_PER_SEC))
-			return -EINVAL;
-		nowts = CURRENT_TIME;
-		/* first subtract as jiffies can't be too big */
-		p->tv_sec -= nowts.tv_sec;
-		if (p->tv_nsec < nowts.tv_nsec) {
-			p->tv_nsec += NSEC_PER_SEC;
-			p->tv_sec--;
-		}
-		p->tv_nsec -= nowts.tv_nsec;
-		if (p->tv_sec < 0)
-			return 0;
-
-		timeout = timespec_to_jiffies(p) + 1;
-	} else
-		return MAX_SCHEDULE_TIMEOUT;
-
-	return timeout;
+	*expires = timespec_to_ktime(*ts);
+	return 0;
 }
 
 static void remove_notification(struct mqueue_inode_info *info)
@@ -862,22 +848,21 @@ SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes, const char __user *, u_msg_ptr,
 	struct ext_wait_queue *receiver;
 	struct msg_msg *msg_ptr;
 	struct mqueue_inode_info *info;
-	struct timespec ts, *p = NULL;
-	long timeout;
+	ktime_t expires, *timeout = NULL;
+	struct timespec ts;
 	int ret;
 
 	if (u_abs_timeout) {
-		if (copy_from_user(&ts, u_abs_timeout, 
-					sizeof(struct timespec)))
-			return -EFAULT;
-		p = &ts;
+		int res = prepare_timeout(u_abs_timeout, &expires, &ts);
+		if (res)
+			return res;
+		timeout = &expires;
 	}
 
 	if (unlikely(msg_prio >= (unsigned long) MQ_PRIO_MAX))
 		return -EINVAL;
 
-	audit_mq_sendrecv(mqdes, msg_len, msg_prio, p);
-	timeout = prepare_timeout(p);
+	audit_mq_sendrecv(mqdes, msg_len, msg_prio, timeout ? &ts : NULL);
 
 	filp = fget(mqdes);
 	if (unlikely(!filp)) {
@@ -919,9 +904,6 @@ SYSCALL_DEFINE5(mq_timedsend, mqd_t, mqdes, const char __user *, u_msg_ptr,
 		if (filp->f_flags & O_NONBLOCK) {
 			spin_unlock(&info->lock);
 			ret = -EAGAIN;
-		} else if (unlikely(timeout < 0)) {
-			spin_unlock(&info->lock);
-			ret = timeout;
 		} else {
 			wait.task = current;
 			wait.msg = (void *) msg_ptr;
@@ -954,24 +936,23 @@ SYSCALL_DEFINE5(mq_timedreceive, mqd_t, mqdes, char __user *, u_msg_ptr,
 		size_t, msg_len, unsigned int __user *, u_msg_prio,
 		const struct timespec __user *, u_abs_timeout)
 {
-	long timeout;
 	ssize_t ret;
 	struct msg_msg *msg_ptr;
 	struct file *filp;
 	struct inode *inode;
 	struct mqueue_inode_info *info;
 	struct ext_wait_queue wait;
-	struct timespec ts, *p = NULL;
+	ktime_t expires, *timeout = NULL;
+	struct timespec ts;
 
 	if (u_abs_timeout) {
-		if (copy_from_user(&ts, u_abs_timeout, 
-					sizeof(struct timespec)))
-			return -EFAULT;
-		p = &ts;
+		int res = prepare_timeout(u_abs_timeout, &expires, &ts);
+		if (res)
+			return res;
+		timeout = &expires;
 	}
 
-	audit_mq_sendrecv(mqdes, msg_len, 0, p);
-	timeout = prepare_timeout(p);
+	audit_mq_sendrecv(mqdes, msg_len, 0, timeout ? &ts : NULL);
 
 	filp = fget(mqdes);
 	if (unlikely(!filp)) {
@@ -1003,11 +984,6 @@ SYSCALL_DEFINE5(mq_timedreceive, mqd_t, mqdes, char __user *, u_msg_ptr,
 		if (filp->f_flags & O_NONBLOCK) {
 			spin_unlock(&info->lock);
 			ret = -EAGAIN;
-			msg_ptr = NULL;
-		} else if (unlikely(timeout < 0)) {
-			spin_unlock(&info->lock);
-			ret = timeout;
-			msg_ptr = NULL;
 		} else {
 			wait.task = current;
 			wait.state = STATE_NONE;

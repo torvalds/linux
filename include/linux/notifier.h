@@ -164,7 +164,10 @@ extern int __srcu_notifier_call_chain(struct srcu_notifier_head *nh,
 /* Encapsulate (negative) errno value (in particular, NOTIFY_BAD <=> EPERM). */
 static inline int notifier_from_errno(int err)
 {
-	return NOTIFY_STOP_MASK | (NOTIFY_OK - err);
+	if (err)
+		return NOTIFY_STOP_MASK | (NOTIFY_OK - err);
+
+	return NOTIFY_OK;
 }
 
 /* Restore (negative) errno value from notify return value. */
@@ -182,7 +185,10 @@ static inline int notifier_to_errno(int ret)
  *	VC switch chains (for loadable kernel svgalib VC switch helpers) etc...
  */
  
-/* netdevice notifier chain */
+/* netdevice notifier chain. Please remember to update the rtnetlink
+ * notification exclusion list in rtnetlink_event() when adding new
+ * types.
+ */
 #define NETDEV_UP	0x0001	/* For now you can't veto a device up/down */
 #define NETDEV_DOWN	0x0002
 #define NETDEV_REBOOT	0x0003	/* Tell a protocol stack a network interface
@@ -199,10 +205,11 @@ static inline int notifier_to_errno(int ret)
 #define NETDEV_FEAT_CHANGE	0x000B
 #define NETDEV_BONDING_FAILOVER 0x000C
 #define NETDEV_PRE_UP		0x000D
-#define NETDEV_BONDING_OLDTYPE  0x000E
-#define NETDEV_BONDING_NEWTYPE  0x000F
+#define NETDEV_PRE_TYPE_CHANGE	0x000E
+#define NETDEV_POST_TYPE_CHANGE	0x000F
 #define NETDEV_POST_INIT	0x0010
 #define NETDEV_UNREGISTER_BATCH 0x0011
+#define NETDEV_BONDING_DESLAVE  0x0012
 
 #define SYS_DOWN	0x0001	/* Notify of system down */
 #define SYS_RESTART	SYS_DOWN

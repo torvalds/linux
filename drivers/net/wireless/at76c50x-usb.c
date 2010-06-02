@@ -1223,7 +1223,6 @@ static void at76_rx_callback(struct urb *urb)
 
 	priv->rx_tasklet.data = (unsigned long)urb;
 	tasklet_schedule(&priv->rx_tasklet);
-	return;
 }
 
 static int at76_submit_rx_urb(struct at76_priv *priv)
@@ -1889,6 +1888,7 @@ static void at76_dwork_hw_scan(struct work_struct *work)
 }
 
 static int at76_hw_scan(struct ieee80211_hw *hw,
+			struct ieee80211_vif *vif,
 			struct cfg80211_scan_request *req)
 {
 	struct at76_priv *priv = hw->priv;

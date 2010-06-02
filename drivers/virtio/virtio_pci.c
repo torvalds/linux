@@ -655,7 +655,7 @@ static int __devinit virtio_pci_probe(struct pci_dev *pci_dev,
 	/* we use the subsystem vendor/device id as the virtio vendor/device
 	 * id.  this allows us to use the same PCI vendor/device id for all
 	 * virtio devices and to identify the particular virtio driver by
-	 * the subsytem ids */
+	 * the subsystem ids */
 	vp_dev->vdev.id.vendor = pci_dev->subsystem_vendor;
 	vp_dev->vdev.id.device = pci_dev->subsystem_device;
 

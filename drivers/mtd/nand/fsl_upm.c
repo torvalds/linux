@@ -49,7 +49,10 @@ struct fsl_upm_nand {
 	uint32_t wait_flags;
 };
 
-#define to_fsl_upm_nand(mtd) container_of(mtd, struct fsl_upm_nand, mtd)
+static inline struct fsl_upm_nand *to_fsl_upm_nand(struct mtd_info *mtdinfo)
+{
+	return container_of(mtdinfo, struct fsl_upm_nand, mtd);
+}
 
 static int fun_chip_ready(struct mtd_info *mtd)
 {
@@ -303,7 +306,7 @@ static int __devinit fun_probe(struct of_device *ofdev,
 				  FSL_UPM_WAIT_WRITE_BYTE;
 
 	fun->io_base = devm_ioremap_nocache(&ofdev->dev, io_res.start,
-					    io_res.end - io_res.start + 1);
+					    resource_size(&io_res));
 	if (!fun->io_base) {
 		ret = -ENOMEM;
 		goto err2;
@@ -350,15 +353,18 @@ static int __devexit fun_remove(struct of_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id of_fun_match[] = {
+static const struct of_device_id of_fun_match[] = {
 	{ .compatible = "fsl,upm-nand" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, of_fun_match);
 
 static struct of_platform_driver of_fun_driver = {
-	.name		= "fsl,upm-nand",
-	.match_table	= of_fun_match,
+	.driver = {
+		.name = "fsl,upm-nand",
+		.owner = THIS_MODULE,
+		.of_match_table = of_fun_match,
+	},
 	.probe		= fun_probe,
 	.remove		= __devexit_p(fun_remove),
 };

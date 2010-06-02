@@ -61,7 +61,7 @@ int vlan_hwaccel_do_receive(struct sk_buff *skb)
 					dev->dev_addr))
 			skb->pkt_type = PACKET_HOST;
 		break;
-	};
+	}
 	return 0;
 }
 

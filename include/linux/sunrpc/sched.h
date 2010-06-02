@@ -10,6 +10,7 @@
 #define _LINUX_SUNRPC_SCHED_H_
 
 #include <linux/timer.h>
+#include <linux/ktime.h>
 #include <linux/sunrpc/types.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
@@ -40,21 +41,15 @@ struct rpc_wait {
  * This is the RPC task struct
  */
 struct rpc_task {
-#ifdef RPC_DEBUG
-	unsigned long		tk_magic;	/* 0xf00baa */
-#endif
 	atomic_t		tk_count;	/* Reference count */
 	struct list_head	tk_task;	/* global list of tasks */
 	struct rpc_clnt *	tk_client;	/* RPC client */
 	struct rpc_rqst *	tk_rqstp;	/* RPC request */
-	int			tk_status;	/* result of last operation */
 
 	/*
 	 * RPC call state
 	 */
 	struct rpc_message	tk_msg;		/* RPC call info */
-	__u8			tk_garb_retry;
-	__u8			tk_cred_retry;
 
 	/*
 	 * callback	to be executed after waking up
@@ -67,7 +62,6 @@ struct rpc_task {
 	void *			tk_calldata;
 
 	unsigned long		tk_timeout;	/* timeout for rpc_sleep() */
-	unsigned short		tk_flags;	/* misc flags */
 	unsigned long		tk_runstate;	/* Task run status */
 	struct workqueue_struct	*tk_workqueue;	/* Normally rpciod, but could
 						 * be any workqueue
@@ -78,17 +72,19 @@ struct rpc_task {
 		struct rpc_wait		tk_wait;	/* RPC wait */
 	} u;
 
-	unsigned short		tk_timeouts;	/* maj timeouts */
-	size_t			tk_bytes_sent;	/* total bytes sent */
-	unsigned long		tk_start;	/* RPC task init timestamp */
-	long			tk_rtt;		/* round-trip time (jiffies) */
+	ktime_t			tk_start;	/* RPC task init timestamp */
 
 	pid_t			tk_owner;	/* Process id for batching tasks */
-	unsigned char		tk_priority : 2;/* Task priority */
+	int			tk_status;	/* result of last operation */
+	unsigned short		tk_flags;	/* misc flags */
+	unsigned short		tk_timeouts;	/* maj timeouts */
 
 #ifdef RPC_DEBUG
 	unsigned short		tk_pid;		/* debugging aid */
 #endif
+	unsigned char		tk_priority : 2,/* Task priority */
+				tk_garb_retry : 2,
+				tk_cred_retry : 2;
 };
 #define tk_xprt			tk_client->cl_xprt
 

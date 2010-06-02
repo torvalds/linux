@@ -49,6 +49,8 @@ source "drivers/staging/go7007/Kconfig"
 
 source "drivers/staging/cx25821/Kconfig"
 
+source "drivers/staging/tm6000/Kconfig"
+
 source "drivers/staging/usbip/Kconfig"
 
 source "drivers/staging/winbond/Kconfig"
@@ -56,8 +58,6 @@ source "drivers/staging/winbond/Kconfig"
 source "drivers/staging/wlan-ng/Kconfig"
 
 source "drivers/staging/echo/Kconfig"
-
-source "drivers/staging/poch/Kconfig"
 
 source "drivers/staging/otus/Kconfig"
 
@@ -111,6 +111,8 @@ source "drivers/staging/vme/Kconfig"
 
 source "drivers/staging/rar_register/Kconfig"
 
+source "drivers/staging/memrar/Kconfig"
+
 source "drivers/staging/sep/Kconfig"
 
 source "drivers/staging/iio/Kconfig"
@@ -125,19 +127,19 @@ source "drivers/staging/batman-adv/Kconfig"
 
 source "drivers/staging/samsung-laptop/Kconfig"
 
-source "drivers/staging/strip/Kconfig"
-
-source "drivers/staging/arlan/Kconfig"
-
-source "drivers/staging/wavelan/Kconfig"
-
-source "drivers/staging/netwave/Kconfig"
-
 source "drivers/staging/sm7xx/Kconfig"
 
 source "drivers/staging/dt3155/Kconfig"
 
+source "drivers/staging/dt3155v4l/Kconfig"
+
 source "drivers/staging/crystalhd/Kconfig"
+
+source "drivers/staging/cxt1e1/Kconfig"
+
+source "drivers/staging/ti-st/Kconfig"
+
+source "drivers/staging/adis16255/Kconfig"
 
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

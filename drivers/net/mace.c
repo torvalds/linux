@@ -599,7 +599,7 @@ static void mace_set_multicast(struct net_device *dev)
 	mp->maccc |= PROM;
     } else {
 	unsigned char multicast_filter[8];
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 
 	if (dev->flags & IFF_ALLMULTI) {
 	    for (i = 0; i < 8; i++)
@@ -607,8 +607,8 @@ static void mace_set_multicast(struct net_device *dev)
 	} else {
 	    for (i = 0; i < 8; i++)
 		multicast_filter[i] = 0;
-	    netdev_for_each_mc_addr(dmi, dev) {
-	        crc = ether_crc_le(6, dmi->dmi_addr);
+	    netdev_for_each_mc_addr(ha, dev) {
+	        crc = ether_crc_le(6, ha->addr);
 		i = crc >> 26;	/* bit number in multicast_filter */
 		multicast_filter[i >> 3] |= 1 << (i & 7);
 	    }

@@ -811,11 +811,10 @@ static int nexio_init(struct usbtouch_usb *usbtouch)
 
 	priv = usbtouch->priv;
 
-	priv->ack_buf = kmalloc(sizeof(nexio_ack_pkt), GFP_KERNEL);
+	priv->ack_buf = kmemdup(nexio_ack_pkt, sizeof(nexio_ack_pkt),
+				GFP_KERNEL);
 	if (!priv->ack_buf)
 		goto err_priv;
-
-	memcpy(priv->ack_buf, nexio_ack_pkt, sizeof(nexio_ack_pkt));
 
 	priv->ack = usb_alloc_urb(0, GFP_KERNEL);
 	if (!priv->ack) {
@@ -857,6 +856,11 @@ static int nexio_read_data(struct usbtouch_usb *usbtouch, unsigned char *pkt)
 	/* got touch data? */
 	if ((pkt[0] & 0xe0) != 0xe0)
 		return 0;
+
+	if (be16_to_cpu(packet->data_len) > 0xff)
+		packet->data_len = cpu_to_be16(be16_to_cpu(packet->data_len) - 0x100);
+	if (be16_to_cpu(packet->x_len) > 0xff)
+		packet->x_len = cpu_to_be16(be16_to_cpu(packet->x_len) - 0x80);
 
 	/* send ACK */
 	ret = usb_submit_urb(priv->ack, GFP_ATOMIC);
@@ -1113,7 +1117,7 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 
 #ifdef CONFIG_TOUCHSCREEN_USB_NEXIO
 	[DEVTYPE_NEXIO] = {
-		.rept_size	= 128,
+		.rept_size	= 1024,
 		.irq_always	= true,
 		.read_data	= nexio_read_data,
 		.init		= nexio_init,
@@ -1291,8 +1295,8 @@ static void usbtouch_close(struct input_dev *input)
 static void usbtouch_free_buffers(struct usb_device *udev,
 				  struct usbtouch_usb *usbtouch)
 {
-	usb_buffer_free(udev, usbtouch->type->rept_size,
-	                usbtouch->data, usbtouch->data_dma);
+	usb_free_coherent(udev, usbtouch->type->rept_size,
+			  usbtouch->data, usbtouch->data_dma);
 	kfree(usbtouch->buffer);
 }
 
@@ -1336,8 +1340,8 @@ static int usbtouch_probe(struct usb_interface *intf,
 	if (!type->process_pkt)
 		type->process_pkt = usbtouch_process_pkt;
 
-	usbtouch->data = usb_buffer_alloc(udev, type->rept_size,
-	                                  GFP_KERNEL, &usbtouch->data_dma);
+	usbtouch->data = usb_alloc_coherent(udev, type->rept_size,
+					    GFP_KERNEL, &usbtouch->data_dma);
 	if (!usbtouch->data)
 		goto out_free;
 

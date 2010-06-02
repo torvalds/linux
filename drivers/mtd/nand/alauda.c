@@ -49,7 +49,7 @@
 
 #define TIMEOUT HZ
 
-static struct usb_device_id alauda_table [] = {
+static const struct usb_device_id alauda_table[] = {
 	{ USB_DEVICE(0x0584, 0x0008) },	/* Fujifilm DPC-R1 */
 	{ USB_DEVICE(0x07b4, 0x010a) },	/* Olympus MAUSB-10 */
 	{ }

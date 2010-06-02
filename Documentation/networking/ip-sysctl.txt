@@ -588,6 +588,37 @@ ip_local_port_range - 2 INTEGERS
 	(i.e. by default) range 1024-4999 is enough to issue up to
 	2000 connections per second to systems supporting timestamps.
 
+ip_local_reserved_ports - list of comma separated ranges
+	Specify the ports which are reserved for known third-party
+	applications. These ports will not be used by automatic port
+	assignments (e.g. when calling connect() or bind() with port
+	number 0). Explicit port allocation behavior is unchanged.
+
+	The format used for both input and output is a comma separated
+	list of ranges (e.g. "1,2-4,10-10" for ports 1, 2, 3, 4 and
+	10). Writing to the file will clear all previously reserved
+	ports and update the current list with the one given in the
+	input.
+
+	Note that ip_local_port_range and ip_local_reserved_ports
+	settings are independent and both are considered by the kernel
+	when determining which ports are available for automatic port
+	assignments.
+
+	You can reserve ports which are not in the current
+	ip_local_port_range, e.g.:
+
+	$ cat /proc/sys/net/ipv4/ip_local_port_range
+	32000	61000
+	$ cat /proc/sys/net/ipv4/ip_local_reserved_ports
+	8080,9148
+
+	although this is redundant. However such a setting is useful
+	if later the port range is changed to a value that will
+	include the reserved ports.
+
+	Default: Empty
+
 ip_nonlocal_bind - BOOLEAN
 	If set, allows processes to bind() to non-local IP addresses,
 	which can be quite useful - but may break some applications.

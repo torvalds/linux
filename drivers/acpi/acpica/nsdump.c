@@ -205,8 +205,8 @@ acpi_ns_dump_one_object(acpi_handle obj_handle,
 		/* Check the node type and name */
 
 		if (type > ACPI_TYPE_LOCAL_MAX) {
-			ACPI_WARNING((AE_INFO, "Invalid ACPI Object Type %08X",
-				      type));
+			ACPI_WARNING((AE_INFO,
+				      "Invalid ACPI Object Type 0x%08X", type));
 		}
 
 		if (!acpi_ut_valid_acpi_name(this_node->name.integer)) {

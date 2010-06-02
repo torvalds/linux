@@ -671,8 +671,11 @@ static const struct of_device_id smu_platform_match[] =
 
 static struct of_platform_driver smu_of_platform_driver =
 {
-	.name 		= "smu",
-	.match_table	= smu_platform_match,
+	.driver = {
+		.name = "smu",
+		.owner = THIS_MODULE,
+		.of_match_table = smu_platform_match,
+	},
 	.probe		= smu_platform_probe,
 };
 
@@ -1183,8 +1186,10 @@ static ssize_t smu_read_command(struct file *file, struct smu_private *pp,
 		return -EOVERFLOW;
 	spin_lock_irqsave(&pp->lock, flags);
 	if (pp->cmd.status == 1) {
-		if (file->f_flags & O_NONBLOCK)
+		if (file->f_flags & O_NONBLOCK) {
+			spin_unlock_irqrestore(&pp->lock, flags);
 			return -EAGAIN;
+		}
 		add_wait_queue(&pp->wait, &wait);
 		for (;;) {
 			set_current_state(TASK_INTERRUPTIBLE);

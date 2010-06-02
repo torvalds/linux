@@ -613,7 +613,7 @@ int efx_mcdi_fwver(struct efx_nic *efx, u64 *version, u32 *build)
 	}
 
 	if (outlength < MC_CMD_GET_VERSION_V1_OUT_LEN) {
-		rc = -EMSGSIZE;
+		rc = -EIO;
 		goto fail;
 	}
 
@@ -647,8 +647,10 @@ int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		goto fail;
-	if (outlen < MC_CMD_DRV_ATTACH_OUT_LEN)
+	if (outlen < MC_CMD_DRV_ATTACH_OUT_LEN) {
+		rc = -EIO;
 		goto fail;
+	}
 
 	if (was_attached != NULL)
 		*was_attached = MCDI_DWORD(outbuf, DRV_ATTACH_OUT_OLD_STATE);
@@ -676,7 +678,7 @@ int efx_mcdi_get_board_cfg(struct efx_nic *efx, u8 *mac_address,
 		goto fail;
 
 	if (outlen < MC_CMD_GET_BOARD_CFG_OUT_LEN) {
-		rc = -EMSGSIZE;
+		rc = -EIO;
 		goto fail;
 	}
 
@@ -738,8 +740,10 @@ int efx_mcdi_nvram_types(struct efx_nic *efx, u32 *nvram_types_out)
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		goto fail;
-	if (outlen < MC_CMD_NVRAM_TYPES_OUT_LEN)
+	if (outlen < MC_CMD_NVRAM_TYPES_OUT_LEN) {
+		rc = -EIO;
 		goto fail;
+	}
 
 	*nvram_types_out = MCDI_DWORD(outbuf, NVRAM_TYPES_OUT_TYPES);
 	return 0;
@@ -765,8 +769,10 @@ int efx_mcdi_nvram_info(struct efx_nic *efx, unsigned int type,
 			  outbuf, sizeof(outbuf), &outlen);
 	if (rc)
 		goto fail;
-	if (outlen < MC_CMD_NVRAM_INFO_OUT_LEN)
+	if (outlen < MC_CMD_NVRAM_INFO_OUT_LEN) {
+		rc = -EIO;
 		goto fail;
+	}
 
 	*size_out = MCDI_DWORD(outbuf, NVRAM_INFO_OUT_SIZE);
 	*erase_size_out = MCDI_DWORD(outbuf, NVRAM_INFO_OUT_ERASESIZE);
@@ -926,20 +932,26 @@ int efx_mcdi_nvram_test_all(struct efx_nic *efx)
 
 	rc = efx_mcdi_nvram_types(efx, &nvram_types);
 	if (rc)
-		return rc;
+		goto fail1;
 
 	type = 0;
 	while (nvram_types != 0) {
 		if (nvram_types & 1) {
 			rc = efx_mcdi_nvram_test(efx, type);
 			if (rc)
-				return rc;
+				goto fail2;
 		}
 		type++;
 		nvram_types >>= 1;
 	}
 
 	return 0;
+
+fail2:
+	EFX_ERR(efx, "%s: failed type=%u\n", __func__, type);
+fail1:
+	EFX_ERR(efx, "%s: failed rc=%d\n", __func__, rc);
+	return rc;
 }
 
 static int efx_mcdi_read_assertion(struct efx_nic *efx)
@@ -968,7 +980,7 @@ static int efx_mcdi_read_assertion(struct efx_nic *efx)
 	if (rc)
 		return rc;
 	if (outlen < MC_CMD_GET_ASSERTS_OUT_LEN)
-		return -EINVAL;
+		return -EIO;
 
 	/* Print out any recorded assertion state */
 	flags = MCDI_DWORD(outbuf, GET_ASSERTS_OUT_GLOBAL_FLAGS);
@@ -1086,7 +1098,7 @@ int efx_mcdi_wol_filter_set(struct efx_nic *efx, u32 type,
 		goto fail;
 
 	if (outlen < MC_CMD_WOL_FILTER_SET_OUT_LEN) {
-		rc = -EMSGSIZE;
+		rc = -EIO;
 		goto fail;
 	}
 
@@ -1121,7 +1133,7 @@ int efx_mcdi_wol_filter_get_magic(struct efx_nic *efx, int *id_out)
 		goto fail;
 
 	if (outlen < MC_CMD_WOL_FILTER_GET_OUT_LEN) {
-		rc = -EMSGSIZE;
+		rc = -EIO;
 		goto fail;
 	}
 

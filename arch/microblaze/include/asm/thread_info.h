@@ -122,7 +122,7 @@ static inline struct thread_info *current_thread_info(void)
 /* restore singlestep on return to user mode */
 #define TIF_SINGLESTEP		4
 #define TIF_IRET		5 /* return with iret */
-#define TIF_MEMDIE		6
+#define TIF_MEMDIE		6	/* is terminating due to OOM killer */
 #define TIF_SYSCALL_AUDIT	9       /* syscall auditing active */
 #define TIF_SECCOMP		10      /* secure computing */
 #define TIF_FREEZE		14	/* Freezing for suspend */

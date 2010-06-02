@@ -150,8 +150,6 @@ static inline int elf_core_copy_task_xfpregs(struct task_struct *t, elf_fpxregse
 }
 #endif
 
-#endif /* __KERNEL__ */
-
 /*
  * These functions parameterize elf_core_dump in fs/binfmt_elf.c to write out
  * extra segments containing the gate DSO contents.  Dumping its
@@ -167,5 +165,7 @@ elf_core_write_extra_phdrs(struct file *file, loff_t offset, size_t *size,
 extern int
 elf_core_write_extra_data(struct file *file, size_t *size, unsigned long limit);
 extern size_t elf_core_extra_data_size(void);
+
+#endif /* __KERNEL__ */
 
 #endif /* _LINUX_ELFCORE_H */

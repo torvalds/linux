@@ -1102,7 +1102,7 @@ static int hp100_open(struct net_device *dev)
 		return -EAGAIN;
 	}
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	netif_start_queue(dev);
 
 	lp->lan_type = hp100_sense_lan(dev);
@@ -1510,7 +1510,7 @@ static netdev_tx_t hp100_start_xmit_bm(struct sk_buff *skb,
 		printk("hp100: %s: start_xmit_bm: No TX PDL available.\n", dev->name);
 #endif
 		/* not waited long enough since last tx? */
-		if (time_before(jiffies, dev->trans_start + HZ))
+		if (time_before(jiffies, dev_trans_start(dev) + HZ))
 			goto drop;
 
 		if (hp100_check_lan(dev))
@@ -1547,7 +1547,6 @@ static netdev_tx_t hp100_start_xmit_bm(struct sk_buff *skb,
 			}
 		}
 
-		dev->trans_start = jiffies;
 		goto drop;
 	}
 
@@ -1585,7 +1584,6 @@ static netdev_tx_t hp100_start_xmit_bm(struct sk_buff *skb,
 	/* Update statistics */
 	lp->stats.tx_packets++;
 	lp->stats.tx_bytes += skb->len;
-	dev->trans_start = jiffies;
 
 	return NETDEV_TX_OK;
 
@@ -1663,7 +1661,7 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 		printk("hp100: %s: start_xmit: tx free mem = 0x%x\n", dev->name, i);
 #endif
 		/* not waited long enough since last failed tx try? */
-		if (time_before(jiffies, dev->trans_start + HZ)) {
+		if (time_before(jiffies, dev_trans_start(dev) + HZ)) {
 #ifdef HP100_DEBUG
 			printk("hp100: %s: trans_start timing problem\n",
 			       dev->name);
@@ -1701,7 +1699,6 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 				mdelay(1);
 			}
 		}
-		dev->trans_start = jiffies;
 		goto drop;
 	}
 
@@ -1745,7 +1742,6 @@ static netdev_tx_t hp100_start_xmit(struct sk_buff *skb,
 
 	lp->stats.tx_packets++;
 	lp->stats.tx_bytes += skb->len;
-	dev->trans_start = jiffies;
 	hp100_ints_on();
 	spin_unlock_irqrestore(&lp->lock, flags);
 
@@ -2099,15 +2095,15 @@ static void hp100_set_multicast_list(struct net_device *dev)
 		} else {
 			int i, idx;
 			u_char *addrs;
-			struct dev_mc_list *dmi;
+			struct netdev_hw_addr *ha;
 
 			memset(&lp->hash_bytes, 0x00, 8);
 #ifdef HP100_DEBUG
 			printk("hp100: %s: computing hash filter - mc_count = %i\n",
 			       dev->name, netdev_mc_count(dev));
 #endif
-			netdev_for_each_mc_addr(dmi, dev) {
-				addrs = dmi->dmi_addr;
+			netdev_for_each_mc_addr(ha, dev) {
+				addrs = ha->addr;
 				if ((*addrs & 0x01) == 0x01) {	/* multicast address? */
 #ifdef HP100_DEBUG
 					printk("hp100: %s: multicast = %pM, ",

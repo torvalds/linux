@@ -35,7 +35,8 @@
  */
 static int
 ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
-	unsigned int pkt_len, unsigned int hdr_len, enum ath5k_pkt_type type,
+	unsigned int pkt_len, unsigned int hdr_len, int padsize,
+	enum ath5k_pkt_type type,
 	unsigned int tx_power, unsigned int tx_rate0, unsigned int tx_tries0,
 	unsigned int key_index, unsigned int antenna_mode, unsigned int flags,
 	unsigned int rtscts_rate, unsigned int rtscts_duration)
@@ -71,7 +72,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 	/* Verify and set frame length */
 
 	/* remove padding we might have added before */
-	frame_len = pkt_len - ath5k_pad_size(hdr_len) + FCS_LEN;
+	frame_len = pkt_len - padsize + FCS_LEN;
 
 	if (frame_len & ~AR5K_2W_TX_DESC_CTL0_FRAME_LEN)
 		return -EINVAL;
@@ -100,7 +101,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
 			AR5K_REG_SM(hdr_len, AR5K_2W_TX_DESC_CTL0_HEADER_LEN);
 	}
 
-	/*Diferences between 5210-5211*/
+	/*Differences between 5210-5211*/
 	if (ah->ah_version == AR5K_AR5210) {
 		switch (type) {
 		case AR5K_PKT_TYPE_BEACON:
@@ -165,6 +166,7 @@ ath5k_hw_setup_2word_tx_desc(struct ath5k_hw *ah, struct ath5k_desc *desc,
  */
 static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	struct ath5k_desc *desc, unsigned int pkt_len, unsigned int hdr_len,
+	int padsize,
 	enum ath5k_pkt_type type, unsigned int tx_power, unsigned int tx_rate0,
 	unsigned int tx_tries0, unsigned int key_index,
 	unsigned int antenna_mode, unsigned int flags,
@@ -206,7 +208,7 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 	/* Verify and set frame length */
 
 	/* remove padding we might have added before */
-	frame_len = pkt_len - ath5k_pad_size(hdr_len) + FCS_LEN;
+	frame_len = pkt_len - padsize + FCS_LEN;
 
 	if (frame_len & ~AR5K_4W_TX_DESC_CTL0_FRAME_LEN)
 		return -EINVAL;
@@ -229,7 +231,7 @@ static int ath5k_hw_setup_4word_tx_desc(struct ath5k_hw *ah,
 		AR5K_REG_SM(antenna_mode, AR5K_4W_TX_DESC_CTL0_ANT_MODE_XMIT);
 	tx_ctl->tx_control_1 |= AR5K_REG_SM(type,
 					AR5K_4W_TX_DESC_CTL1_FRAME_TYPE);
-	tx_ctl->tx_control_2 = AR5K_REG_SM(tx_tries0 + AR5K_TUNE_HWTXTRIES,
+	tx_ctl->tx_control_2 = AR5K_REG_SM(tx_tries0,
 					AR5K_4W_TX_DESC_CTL2_XMIT_TRIES0);
 	tx_ctl->tx_control_3 = tx_rate0 & AR5K_4W_TX_DESC_CTL3_XMIT_RATE0;
 
@@ -643,6 +645,7 @@ static int ath5k_hw_proc_5212_rx_status(struct ath5k_hw *ah,
 			rs->rs_status |= AR5K_RXERR_PHY;
 			rs->rs_phyerr |= AR5K_REG_MS(rx_err->rx_error_1,
 					   AR5K_RX_DESC_ERROR1_PHY_ERROR_CODE);
+			ath5k_ani_phy_error_report(ah, rs->rs_phyerr);
 		}
 
 		if (rx_status->rx_status_1 &
@@ -667,12 +670,6 @@ int ath5k_hw_init_desc_functions(struct ath5k_hw *ah)
 		ah->ah_version != AR5K_AR5211 &&
 		ah->ah_version != AR5K_AR5212)
 			return -ENOTSUPP;
-
-	/* XXX: What is this magic value and where is it used ? */
-	if (ah->ah_version == AR5K_AR5212)
-		ah->ah_magic = AR5K_EEPROM_MAGIC_5212;
-	else if (ah->ah_version == AR5K_AR5211)
-		ah->ah_magic = AR5K_EEPROM_MAGIC_5211;
 
 	if (ah->ah_version == AR5K_AR5212) {
 		ah->ah_setup_rx_desc = ath5k_hw_setup_rx_desc;

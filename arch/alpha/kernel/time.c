@@ -51,6 +51,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/time.h>
 #include <linux/timex.h>
+#include <linux/clocksource.h>
 
 #include "proto.h"
 #include "irq_impl.h"
@@ -75,8 +76,6 @@ static struct {
 	__u32 last_time;
 	/* ticks/cycle * 2^48 */
 	unsigned long scaled_ticks_per_cycle;
-	/* last time the CMOS clock got updated */
-	time_t last_rtc_update;
 	/* partial unused tick */
 	unsigned long partial_tick;
 } state;
@@ -90,6 +89,52 @@ static inline __u32 rpcc(void)
     asm volatile ("rpcc %0" : "=r"(result));
     return result;
 }
+
+int update_persistent_clock(struct timespec now)
+{
+	return set_rtc_mmss(now.tv_sec);
+}
+
+void read_persistent_clock(struct timespec *ts)
+{
+	unsigned int year, mon, day, hour, min, sec, epoch;
+
+	sec = CMOS_READ(RTC_SECONDS);
+	min = CMOS_READ(RTC_MINUTES);
+	hour = CMOS_READ(RTC_HOURS);
+	day = CMOS_READ(RTC_DAY_OF_MONTH);
+	mon = CMOS_READ(RTC_MONTH);
+	year = CMOS_READ(RTC_YEAR);
+
+	if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
+		sec = bcd2bin(sec);
+		min = bcd2bin(min);
+		hour = bcd2bin(hour);
+		day = bcd2bin(day);
+		mon = bcd2bin(mon);
+		year = bcd2bin(year);
+	}
+
+	/* PC-like is standard; used for year >= 70 */
+	epoch = 1900;
+	if (year < 20)
+		epoch = 2000;
+	else if (year >= 20 && year < 48)
+		/* NT epoch */
+		epoch = 1980;
+	else if (year >= 48 && year < 70)
+		/* Digital UNIX epoch */
+		epoch = 1952;
+
+	printk(KERN_INFO "Using epoch = %d\n", epoch);
+
+	if ((year += epoch) < 1970)
+		year += 100;
+
+	ts->tv_sec = mktime(year, mon, day, hour, min, sec);
+}
+
+
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
@@ -122,19 +167,6 @@ irqreturn_t timer_interrupt(int irq, void *dev)
 
 	if (nticks)
 		do_timer(nticks);
-
-	/*
-	 * If we have an externally synchronized Linux clock, then update
-	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
-	 * called as close as possible to 500 ms before the new second starts.
-	 */
-	if (ntp_synced()
-	    && xtime.tv_sec > state.last_rtc_update + 660
-	    && xtime.tv_nsec >= 500000 - ((unsigned) TICK_SIZE) / 2
-	    && xtime.tv_nsec <= 500000 + ((unsigned) TICK_SIZE) / 2) {
-		int tmp = set_rtc_mmss(xtime.tv_sec);
-		state.last_rtc_update = xtime.tv_sec - (tmp ? 600 : 0);
-	}
 
 	write_sequnlock(&xtime_lock);
 
@@ -301,10 +333,38 @@ rpcc_after_update_in_progress(void)
 	return rpcc();
 }
 
+#ifndef CONFIG_SMP
+/* Until and unless we figure out how to get cpu cycle counters
+   in sync and keep them there, we can't use the rpcc.  */
+static cycle_t read_rpcc(struct clocksource *cs)
+{
+	cycle_t ret = (cycle_t)rpcc();
+	return ret;
+}
+
+static struct clocksource clocksource_rpcc = {
+	.name                   = "rpcc",
+	.rating                 = 300,
+	.read                   = read_rpcc,
+	.mask                   = CLOCKSOURCE_MASK(32),
+	.flags                  = CLOCK_SOURCE_IS_CONTINUOUS
+};
+
+static inline void register_rpcc_clocksource(long cycle_freq)
+{
+	clocksource_calc_mult_shift(&clocksource_rpcc, cycle_freq, 4);
+	clocksource_register(&clocksource_rpcc);
+}
+#else /* !CONFIG_SMP */
+static inline void register_rpcc_clocksource(long cycle_freq)
+{
+}
+#endif /* !CONFIG_SMP */
+
 void __init
 time_init(void)
 {
-	unsigned int year, mon, day, hour, min, sec, cc1, cc2, epoch;
+	unsigned int cc1, cc2;
 	unsigned long cycle_freq, tolerance;
 	long diff;
 
@@ -348,95 +408,21 @@ time_init(void)
 	   bogomips yet, but this is close on a 500Mhz box.  */
 	__delay(1000000);
 
-	sec = CMOS_READ(RTC_SECONDS);
-	min = CMOS_READ(RTC_MINUTES);
-	hour = CMOS_READ(RTC_HOURS);
-	day = CMOS_READ(RTC_DAY_OF_MONTH);
-	mon = CMOS_READ(RTC_MONTH);
-	year = CMOS_READ(RTC_YEAR);
-
-	if (!(CMOS_READ(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-		sec = bcd2bin(sec);
-		min = bcd2bin(min);
-		hour = bcd2bin(hour);
-		day = bcd2bin(day);
-		mon = bcd2bin(mon);
-		year = bcd2bin(year);
-	}
-
-	/* PC-like is standard; used for year >= 70 */
-	epoch = 1900;
-	if (year < 20)
-		epoch = 2000;
-	else if (year >= 20 && year < 48)
-		/* NT epoch */
-		epoch = 1980;
-	else if (year >= 48 && year < 70)
-		/* Digital UNIX epoch */
-		epoch = 1952;
-
-	printk(KERN_INFO "Using epoch = %d\n", epoch);
-
-	if ((year += epoch) < 1970)
-		year += 100;
-
-	xtime.tv_sec = mktime(year, mon, day, hour, min, sec);
-	xtime.tv_nsec = 0;
-
-        wall_to_monotonic.tv_sec -= xtime.tv_sec;
-        wall_to_monotonic.tv_nsec = 0;
 
 	if (HZ > (1<<16)) {
 		extern void __you_loose (void);
 		__you_loose();
 	}
 
+	register_rpcc_clocksource(cycle_freq);
+
 	state.last_time = cc1;
 	state.scaled_ticks_per_cycle
 		= ((unsigned long) HZ << FIX_SHIFT) / cycle_freq;
-	state.last_rtc_update = 0;
 	state.partial_tick = 0L;
 
 	/* Startup the timer source. */
 	alpha_mv.init_rtc();
-}
-
-/*
- * Use the cycle counter to estimate an displacement from the last time
- * tick.  Unfortunately the Alpha designers made only the low 32-bits of
- * the cycle counter active, so we overflow on 8.2 seconds on a 500MHz
- * part.  So we can't do the "find absolute time in terms of cycles" thing
- * that the other ports do.
- */
-u32 arch_gettimeoffset(void)
-{
-#ifdef CONFIG_SMP
-	/* Until and unless we figure out how to get cpu cycle counters
-	   in sync and keep them there, we can't use the rpcc tricks.  */
-	return 0;
-#else
-	unsigned long delta_cycles, delta_usec, partial_tick;
-
-	delta_cycles = rpcc() - state.last_time;
-	partial_tick = state.partial_tick;
-	/*
-	 * usec = cycles * ticks_per_cycle * 2**48 * 1e6 / (2**48 * ticks)
-	 *	= cycles * (s_t_p_c) * 1e6 / (2**48 * ticks)
-	 *	= cycles * (s_t_p_c) * 15625 / (2**42 * ticks)
-	 *
-	 * which, given a 600MHz cycle and a 1024Hz tick, has a
-	 * dynamic range of about 1.7e17, which is less than the
-	 * 1.8e19 in an unsigned long, so we are safe from overflow.
-	 *
-	 * Round, but with .5 up always, since .5 to even is harder
-	 * with no clear gain.
-	 */
-
-	delta_usec = (delta_cycles * state.scaled_ticks_per_cycle 
-		      + partial_tick) * 15625;
-	delta_usec = ((delta_usec / ((1UL << (FIX_SHIFT-6-1)) * HZ)) + 1) / 2;
-	return delta_usec * 1000;
-#endif
 }
 
 /*

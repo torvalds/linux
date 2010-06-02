@@ -36,13 +36,10 @@
 #include "builtin.h"
 #include "util/util.h"
 #include "util/strlist.h"
-#include "util/event.h"
+#include "util/symbol.h"
 #include "util/debug.h"
 #include "util/debugfs.h"
-#include "util/symbol.h"
-#include "util/thread.h"
 #include "util/parse-options.h"
-#include "util/parse-events.h"	/* For debugfs_path */
 #include "util/probe-finder.h"
 #include "util/probe-event.h"
 
@@ -50,37 +47,39 @@
 
 /* Session management structure */
 static struct {
-	bool need_dwarf;
 	bool list_events;
 	bool force_add;
 	bool show_lines;
-	int nr_probe;
-	struct probe_point probes[MAX_PROBES];
+	int nevents;
+	struct perf_probe_event events[MAX_PROBES];
 	struct strlist *dellist;
-	struct map_groups kmap_groups;
-	struct map *kmaps[MAP__NR_TYPES];
 	struct line_range line_range;
-} session;
+	int max_probe_points;
+} params;
 
 
 /* Parse an event definition. Note that any error must die. */
-static void parse_probe_event(const char *str)
+static int parse_probe_event(const char *str)
 {
-	struct probe_point *pp = &session.probes[session.nr_probe];
+	struct perf_probe_event *pev = &params.events[params.nevents];
+	int ret;
 
-	pr_debug("probe-definition(%d): %s\n", session.nr_probe, str);
-	if (++session.nr_probe == MAX_PROBES)
-		die("Too many probes (> %d) are specified.", MAX_PROBES);
+	pr_debug("probe-definition(%d): %s\n", params.nevents, str);
+	if (++params.nevents == MAX_PROBES) {
+		pr_err("Too many probes (> %d) were specified.", MAX_PROBES);
+		return -1;
+	}
 
-	/* Parse perf-probe event into probe_point */
-	parse_perf_probe_event(str, pp, &session.need_dwarf);
+	/* Parse a perf-probe command into event */
+	ret = parse_perf_probe_command(str, pev);
+	pr_debug("%d arguments\n", pev->nargs);
 
-	pr_debug("%d arguments\n", pp->nr_args);
+	return ret;
 }
 
-static void parse_probe_event_argv(int argc, const char **argv)
+static int parse_probe_event_argv(int argc, const char **argv)
 {
-	int i, len;
+	int i, len, ret;
 	char *buf;
 
 	/* Bind up rest arguments */
@@ -88,65 +87,48 @@ static void parse_probe_event_argv(int argc, const char **argv)
 	for (i = 0; i < argc; i++)
 		len += strlen(argv[i]) + 1;
 	buf = zalloc(len + 1);
-	if (!buf)
-		die("Failed to allocate memory for binding arguments.");
+	if (buf == NULL)
+		return -ENOMEM;
 	len = 0;
 	for (i = 0; i < argc; i++)
 		len += sprintf(&buf[len], "%s ", argv[i]);
-	parse_probe_event(buf);
+	ret = parse_probe_event(buf);
 	free(buf);
+	return ret;
 }
 
 static int opt_add_probe_event(const struct option *opt __used,
 			      const char *str, int unset __used)
 {
 	if (str)
-		parse_probe_event(str);
-	return 0;
+		return parse_probe_event(str);
+	else
+		return 0;
 }
 
 static int opt_del_probe_event(const struct option *opt __used,
 			       const char *str, int unset __used)
 {
 	if (str) {
-		if (!session.dellist)
-			session.dellist = strlist__new(true, NULL);
-		strlist__add(session.dellist, str);
+		if (!params.dellist)
+			params.dellist = strlist__new(true, NULL);
+		strlist__add(params.dellist, str);
 	}
 	return 0;
 }
 
-/* Currently just checking function name from symbol map */
-static void evaluate_probe_point(struct probe_point *pp)
-{
-	struct symbol *sym;
-	sym = map__find_symbol_by_name(session.kmaps[MAP__FUNCTION],
-				       pp->function, NULL);
-	if (!sym)
-		die("Kernel symbol \'%s\' not found - probe not added.",
-		    pp->function);
-}
-
-#ifndef NO_DWARF_SUPPORT
-static int open_vmlinux(void)
-{
-	if (map__load(session.kmaps[MAP__FUNCTION], NULL) < 0) {
-		pr_debug("Failed to load kernel map.\n");
-		return -EINVAL;
-	}
-	pr_debug("Try to open %s\n",
-		 session.kmaps[MAP__FUNCTION]->dso->long_name);
-	return open(session.kmaps[MAP__FUNCTION]->dso->long_name, O_RDONLY);
-}
-
+#ifdef DWARF_SUPPORT
 static int opt_show_lines(const struct option *opt __used,
 			  const char *str, int unset __used)
 {
+	int ret = 0;
+
 	if (str)
-		parse_line_range_desc(str, &session.line_range);
-	INIT_LIST_HEAD(&session.line_range.line_list);
-	session.show_lines = true;
-	return 0;
+		ret = parse_line_range_desc(str, &params.line_range);
+	INIT_LIST_HEAD(&params.line_range.line_list);
+	params.show_lines = true;
+
+	return ret;
 }
 #endif
 
@@ -155,29 +137,25 @@ static const char * const probe_usage[] = {
 	"perf probe [<options>] --add 'PROBEDEF' [--add 'PROBEDEF' ...]",
 	"perf probe [<options>] --del '[GROUP:]EVENT' ...",
 	"perf probe --list",
-#ifndef NO_DWARF_SUPPORT
+#ifdef DWARF_SUPPORT
 	"perf probe --line 'LINEDESC'",
 #endif
 	NULL
 };
 
 static const struct option options[] = {
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
-#ifndef NO_DWARF_SUPPORT
-	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
-		   "file", "vmlinux pathname"),
-#endif
-	OPT_BOOLEAN('l', "list", &session.list_events,
+	OPT_BOOLEAN('l', "list", &params.list_events,
 		    "list up current probe events"),
 	OPT_CALLBACK('d', "del", NULL, "[GROUP:]EVENT", "delete a probe event.",
 		opt_del_probe_event),
 	OPT_CALLBACK('a', "add", NULL,
-#ifdef NO_DWARF_SUPPORT
-		"[EVENT=]FUNC[+OFF|%return] [ARG ...]",
-#else
+#ifdef DWARF_SUPPORT
 		"[EVENT=]FUNC[@SRC][+OFF|%return|:RL|;PT]|SRC:AL|SRC;PT"
-		" [ARG ...]",
+		" [[NAME=]ARG ...]",
+#else
+		"[EVENT=]FUNC[+OFF|%return] [[NAME=]ARG ...]",
 #endif
 		"probe point definition, where\n"
 		"\t\tGROUP:\tGroup name (optional)\n"
@@ -185,51 +163,35 @@ static const struct option options[] = {
 		"\t\tFUNC:\tFunction name\n"
 		"\t\tOFF:\tOffset from function entry (in byte)\n"
 		"\t\t%return:\tPut the probe at function return\n"
-#ifdef NO_DWARF_SUPPORT
-		"\t\tARG:\tProbe argument (only \n"
-#else
+#ifdef DWARF_SUPPORT
 		"\t\tSRC:\tSource code path\n"
 		"\t\tRL:\tRelative line number from function entry.\n"
 		"\t\tAL:\tAbsolute line number in file.\n"
 		"\t\tPT:\tLazy expression of line code.\n"
 		"\t\tARG:\tProbe argument (local variable name or\n"
-#endif
 		"\t\t\tkprobe-tracer argument format.)\n",
-		opt_add_probe_event),
-	OPT_BOOLEAN('f', "force", &session.force_add, "forcibly add events"
-		    " with existing name"),
-#ifndef NO_DWARF_SUPPORT
-	OPT_CALLBACK('L', "line", NULL,
-		     "FUNC[:RLN[+NUM|:RLN2]]|SRC:ALN[+NUM|:ALN2]",
-		     "Show source code lines.", opt_show_lines),
+#else
+		"\t\tARG:\tProbe argument (kprobe-tracer argument format.)\n",
 #endif
+		opt_add_probe_event),
+	OPT_BOOLEAN('f', "force", &params.force_add, "forcibly add events"
+		    " with existing name"),
+#ifdef DWARF_SUPPORT
+	OPT_CALLBACK('L', "line", NULL,
+		     "FUNC[:RLN[+NUM|-RLN2]]|SRC:ALN[+NUM|-ALN2]",
+		     "Show source code lines.", opt_show_lines),
+	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
+#endif
+	OPT__DRY_RUN(&probe_event_dry_run),
+	OPT_INTEGER('\0', "max-probes", &params.max_probe_points,
+		 "Set how many probe points can be found for a probe."),
 	OPT_END()
 };
 
-/* Initialize symbol maps for vmlinux */
-static void init_vmlinux(void)
-{
-	symbol_conf.sort_by_name = true;
-	if (symbol_conf.vmlinux_name == NULL)
-		symbol_conf.try_vmlinux_path = true;
-	else
-		pr_debug("Use vmlinux: %s\n", symbol_conf.vmlinux_name);
-	if (symbol__init() < 0)
-		die("Failed to init symbol map.");
-
-	map_groups__init(&session.kmap_groups);
-	if (map_groups__create_kernel_maps(&session.kmap_groups,
-					   session.kmaps) < 0)
-		die("Failed to create kernel maps.");
-}
-
 int cmd_probe(int argc, const char **argv, const char *prefix __used)
 {
-	int i, ret;
-#ifndef NO_DWARF_SUPPORT
-	int fd;
-#endif
-	struct probe_point *pp;
+	int ret;
 
 	argc = parse_options(argc, argv, options, probe_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
@@ -238,123 +200,69 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			pr_warning("  Error: '-' is not supported.\n");
 			usage_with_options(probe_usage, options);
 		}
-		parse_probe_event_argv(argc, argv);
+		ret = parse_probe_event_argv(argc, argv);
+		if (ret < 0) {
+			pr_err("  Error: Parse Error.  (%d)\n", ret);
+			return ret;
+		}
 	}
 
-	if ((!session.nr_probe && !session.dellist && !session.list_events &&
-	     !session.show_lines))
+	if (params.max_probe_points == 0)
+		params.max_probe_points = MAX_PROBES;
+
+	if ((!params.nevents && !params.dellist && !params.list_events &&
+	     !params.show_lines))
 		usage_with_options(probe_usage, options);
 
-	if (debugfs_valid_mountpoint(debugfs_path) < 0)
-		die("Failed to find debugfs path.");
-
-	if (session.list_events) {
-		if (session.nr_probe != 0 || session.dellist) {
-			pr_warning("  Error: Don't use --list with"
-				   " --add/--del.\n");
+	if (params.list_events) {
+		if (params.nevents != 0 || params.dellist) {
+			pr_err("  Error: Don't use --list with --add/--del.\n");
 			usage_with_options(probe_usage, options);
 		}
-		if (session.show_lines) {
-			pr_warning("  Error: Don't use --list with --line.\n");
+		if (params.show_lines) {
+			pr_err("  Error: Don't use --list with --line.\n");
 			usage_with_options(probe_usage, options);
 		}
-		show_perf_probe_events();
-		return 0;
+		ret = show_perf_probe_events();
+		if (ret < 0)
+			pr_err("  Error: Failed to show event list. (%d)\n",
+			       ret);
+		return ret;
 	}
 
-#ifndef NO_DWARF_SUPPORT
-	if (session.show_lines) {
-		if (session.nr_probe != 0 || session.dellist) {
+#ifdef DWARF_SUPPORT
+	if (params.show_lines) {
+		if (params.nevents != 0 || params.dellist) {
 			pr_warning("  Error: Don't use --line with"
 				   " --add/--del.\n");
 			usage_with_options(probe_usage, options);
 		}
-		init_vmlinux();
-		fd = open_vmlinux();
-		if (fd < 0)
-			die("Could not open debuginfo file.");
-		ret = find_line_range(fd, &session.line_range);
-		if (ret <= 0)
-			die("Source line is not found.\n");
-		close(fd);
-		show_line_range(&session.line_range);
-		return 0;
+
+		ret = show_line_range(&params.line_range);
+		if (ret < 0)
+			pr_err("  Error: Failed to show lines. (%d)\n", ret);
+		return ret;
 	}
 #endif
 
-	if (session.dellist) {
-		del_trace_kprobe_events(session.dellist);
-		strlist__delete(session.dellist);
-		if (session.nr_probe == 0)
-			return 0;
-	}
-
-	/* Add probes */
-	init_vmlinux();
-
-	if (session.need_dwarf)
-#ifdef NO_DWARF_SUPPORT
-		die("Debuginfo-analysis is not supported");
-#else	/* !NO_DWARF_SUPPORT */
-		pr_debug("Some probes require debuginfo.\n");
-
-	fd = open_vmlinux();
-	if (fd < 0) {
-		if (session.need_dwarf)
-			die("Could not open debuginfo file.");
-
-		pr_debug("Could not open vmlinux/module file."
-			 " Try to use symbols.\n");
-		goto end_dwarf;
-	}
-
-	/* Searching probe points */
-	for (i = 0; i < session.nr_probe; i++) {
-		pp = &session.probes[i];
-		if (pp->found)
-			continue;
-
-		lseek(fd, SEEK_SET, 0);
-		ret = find_probe_point(fd, pp);
-		if (ret > 0)
-			continue;
-		if (ret == 0) {	/* No error but failed to find probe point. */
-			synthesize_perf_probe_point(pp);
-			die("Probe point '%s' not found. - probe not added.",
-			    pp->probes[0]);
+	if (params.dellist) {
+		ret = del_perf_probe_events(params.dellist);
+		strlist__delete(params.dellist);
+		if (ret < 0) {
+			pr_err("  Error: Failed to delete events. (%d)\n", ret);
+			return ret;
 		}
-		/* Error path */
-		if (session.need_dwarf) {
-			if (ret == -ENOENT)
-				pr_warning("No dwarf info found in the vmlinux - please rebuild with CONFIG_DEBUG_INFO=y.\n");
-			die("Could not analyze debuginfo.");
+	}
+
+	if (params.nevents) {
+		ret = add_perf_probe_events(params.events, params.nevents,
+					    params.force_add,
+					    params.max_probe_points);
+		if (ret < 0) {
+			pr_err("  Error: Failed to add events. (%d)\n", ret);
+			return ret;
 		}
-		pr_debug("An error occurred in debuginfo analysis."
-			 " Try to use symbols.\n");
-		break;
 	}
-	close(fd);
-
-end_dwarf:
-#endif /* !NO_DWARF_SUPPORT */
-
-	/* Synthesize probes without dwarf */
-	for (i = 0; i < session.nr_probe; i++) {
-		pp = &session.probes[i];
-		if (pp->found)	/* This probe is already found. */
-			continue;
-
-		evaluate_probe_point(pp);
-		ret = synthesize_trace_kprobe_event(pp);
-		if (ret == -E2BIG)
-			die("probe point definition becomes too long.");
-		else if (ret < 0)
-			die("Failed to synthesize a probe point.");
-	}
-
-	/* Settng up probe points */
-	add_trace_kprobe_events(session.probes, session.nr_probe,
-				session.force_add);
 	return 0;
 }
 

@@ -86,7 +86,7 @@ static int wait_for_packet(struct sock *sk, int *err, long *timeo_p)
 	int error;
 	DEFINE_WAIT_FUNC(wait, receiver_wake_function);
 
-	prepare_to_wait_exclusive(sk->sk_sleep, &wait, TASK_INTERRUPTIBLE);
+	prepare_to_wait_exclusive(sk_sleep(sk), &wait, TASK_INTERRUPTIBLE);
 
 	/* Socket errors? */
 	error = sock_error(sk);
@@ -115,7 +115,7 @@ static int wait_for_packet(struct sock *sk, int *err, long *timeo_p)
 	error = 0;
 	*timeo_p = schedule_timeout(*timeo_p);
 out:
-	finish_wait(sk->sk_sleep, &wait);
+	finish_wait(sk_sleep(sk), &wait);
 	return error;
 interrupted:
 	error = sock_intr_errno(*timeo_p);
@@ -229,9 +229,20 @@ EXPORT_SYMBOL(skb_free_datagram);
 
 void skb_free_datagram_locked(struct sock *sk, struct sk_buff *skb)
 {
-	lock_sock(sk);
-	skb_free_datagram(sk, skb);
-	release_sock(sk);
+	bool slow;
+
+	if (likely(atomic_read(&skb->users) == 1))
+		smp_rmb();
+	else if (likely(!atomic_dec_and_test(&skb->users)))
+		return;
+
+	slow = lock_sock_fast(sk);
+	skb_orphan(skb);
+	sk_mem_reclaim_partial(sk);
+	unlock_sock_fast(sk, slow);
+
+	/* skb is now orphaned, can be freed outside of locked section */
+	__kfree_skb(skb);
 }
 EXPORT_SYMBOL(skb_free_datagram_locked);
 
@@ -726,7 +737,7 @@ unsigned int datagram_poll(struct file *file, struct socket *sock,
 	struct sock *sk = sock->sk;
 	unsigned int mask;
 
-	sock_poll_wait(file, sk->sk_sleep, wait);
+	sock_poll_wait(file, sk_sleep(sk), wait);
 	mask = 0;
 
 	/* exceptional events? */

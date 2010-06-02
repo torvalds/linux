@@ -641,7 +641,6 @@ done:
 		inb_p(base+7);
 		inb_p(base+7);
 	}
-	return;
 }
 
 
