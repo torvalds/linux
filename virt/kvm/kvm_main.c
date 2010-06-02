@@ -600,7 +600,7 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	/* Allocate if a slot is being created */
 #ifndef CONFIG_S390
 	if (npages && !new.rmap) {
-		new.rmap = vmalloc(npages * sizeof(struct page *));
+		new.rmap = vmalloc(npages * sizeof(*new.rmap));
 
 		if (!new.rmap)
 			goto out_free;
