@@ -325,9 +325,9 @@ static int ath9k_htc_update_cap_target(struct ath9k_htc_priv *priv)
 	tcap.flags_ext = 0x80601000;
 	tcap.ampdu_limit = 0xffff0000;
 	tcap.ampdu_subframes = 20;
-	tcap.tx_chainmask_legacy = 1;
+	tcap.tx_chainmask_legacy = priv->ah->caps.tx_chainmask;
 	tcap.protmode = 1;
-	tcap.tx_chainmask = 1;
+	tcap.tx_chainmask = priv->ah->caps.tx_chainmask;
 
 	WMI_CMD_BUF(WMI_TARGET_IC_UPDATE_CMDID, &tcap);
 
@@ -365,6 +365,11 @@ static void ath9k_htc_setup_rate(struct ath9k_htc_priv *priv,
 		trate->rates.ht_rates.rs_nrates = j;
 
 		caps = WLAN_RC_HT_FLAG;
+		if (priv->ah->caps.tx_chainmask != 1 &&
+		    ath9k_hw_getcapability(priv->ah, ATH9K_CAP_DS, 0, NULL)) {
+			if (sta->ht_cap.mcs.rx_mask[1])
+				caps |= WLAN_RC_DS_FLAG;
+		}
 		if (sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40)
 			caps |= WLAN_RC_40_FLAG;
 		if (conf_is_ht40(&priv->hw->conf) &&
