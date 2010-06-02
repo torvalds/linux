@@ -712,6 +712,7 @@ void r852_card_detect_work(struct work_struct *work)
 		container_of(work, struct r852_device, card_detect_work.work);
 
 	r852_card_update_present(dev);
+	r852_update_card_detect(dev);
 	dev->card_unstable = 0;
 
 	/* False alarm */
@@ -727,7 +728,6 @@ void r852_card_detect_work(struct work_struct *work)
 	else
 		r852_unregister_nand_device(dev);
 exit:
-	/* Update detection logic */
 	r852_update_card_detect(dev);
 }
 
