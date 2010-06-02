@@ -35,12 +35,13 @@
 #include <asm/reboot.h>
 #include <asm/portmux.h>
 #include <asm/dpmc.h>
-#ifdef CONFIG_REGULATOR_ADP_SWITCH
-#include <linux/regulator/adp_switch.h>
+#ifdef CONFIG_REGULATOR_FIXED_VOLTAGE
+#include <linux/regulator/fixed.h>
 #endif
 #ifdef CONFIG_REGULATOR_AD5398
 #include <linux/regulator/ad5398.h>
 #endif
+#include <linux/regulator/machine.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/userspace-consumer.h>
 
@@ -2590,50 +2591,38 @@ static struct platform_device bfin_ac97 = {
 };
 #endif
 
-#if defined(CONFIG_REGULATOR_ADP_SWITCH) || defined(CONFIG_REGULATOR_ADP_SWITCH_MODULE)
-#define REGULATOR_ADP122        "adp122"
-#define REGULATOR_ADP150        "adp150"
+#if defined(CONFIG_REGULATOR_FIXED_VOLTAGE) || defined(CONFIG_REGULATOR_FIXED_VOLTAGE_MODULE)
+#define REGULATOR_ADP122	"adp122"
+#define REGULATOR_ADP122_UV	2500000
 
 static struct regulator_consumer_supply adp122_consumers = {
 		.supply = REGULATOR_ADP122,
 };
 
-static struct regulator_consumer_supply adp150_consumers = {
-		.supply = REGULATOR_ADP150,
+static struct regulator_init_data adp_switch_regulator_data = {
+	.constraints = {
+		.name = REGULATOR_ADP122,
+		.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+		.min_uV = REGULATOR_ADP122_UV,
+		.max_uV = REGULATOR_ADP122_UV,
+		.min_uA = 0,
+		.max_uA = 300000,
+	},
+	.num_consumer_supplies = 1,	/* only 1 */
+	.consumer_supplies     = &adp122_consumers,
 };
 
-static struct regulator_init_data adp_switch_regulator_data[] = {
-	{
-		.constraints = {
-			.name = REGULATOR_ADP122,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
-			.min_uA = 0,
-			.max_uA = 300000,
-		},
-		.num_consumer_supplies = 1,	/* only 1 */
-		.consumer_supplies     = &adp122_consumers,
-		.driver_data	       = (void *)GPIO_PF2, /* gpio port only */
-	},
-	{
-		.constraints = {
-			.name = REGULATOR_ADP150,
-			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
-			.min_uA = 0,
-			.max_uA = 150000,
-		},
-		.num_consumer_supplies = 1,	/* only 1 */
-		.consumer_supplies     = &adp150_consumers,
-		.driver_data	       = (void *)GPIO_PF3, /* gpio port only */
-	},
-};
-
-static struct adp_switch_platform_data adp_switch_pdata = {
-	.regulator_num = ARRAY_SIZE(adp_switch_regulator_data),
-	.regulator_data = adp_switch_regulator_data,
+static struct fixed_voltage_config adp_switch_pdata = {
+	.supply_name = REGULATOR_ADP122,
+	.microvolts = REGULATOR_ADP122_UV,
+	.gpio = GPIO_PF2,
+	.enable_high = 1,
+	.enabled_at_boot = 0,
+	.init_data = &adp_switch_regulator_data,
 };
 
 static struct platform_device adp_switch_device = {
-	.name = "adp_switch",
+	.name = "reg-fixed-voltage",
 	.id = 0,
 	.dev = {
 		.platform_data = &adp_switch_pdata,
@@ -2657,24 +2646,6 @@ static struct platform_device adp122_userspace_consumer_device = {
 	.id = 0,
 	.dev = {
 		.platform_data = &adp122_userspace_comsumer_data,
-	},
-};
-
-static struct regulator_bulk_data adp150_bulk_data = {
-	.supply = REGULATOR_ADP150,
-};
-
-static struct regulator_userspace_consumer_data adp150_userspace_comsumer_data = {
-	.name = REGULATOR_ADP150,
-	.num_supplies = 1,
-	.supplies = &adp150_bulk_data,
-};
-
-static struct platform_device adp150_userspace_consumer_device = {
-	.name = "reg-userspace-consumer",
-	.id = 1,
-	.dev = {
-		.platform_data = &adp150_userspace_comsumer_data,
 	},
 };
 #endif
@@ -2829,12 +2800,11 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 #endif
 
-#if defined(CONFIG_REGULATOR_ADP_SWITCH) || defined(CONFIG_REGULATOR_ADP_SWITCH_MODULE)
+#if defined(CONFIG_REGULATOR_FIXED_VOLTAGE) || defined(CONFIG_REGULATOR_FIXED_VOLTAGE_MODULE)
 	&adp_switch_device,
 #if defined(CONFIG_REGULATOR_USERSPACE_CONSUMER) || \
 	defined(CONFIG_REGULATOR_USERSPACE_CONSUMER_MODULE)
 	&adp122_userspace_consumer_device,
-	&adp150_userspace_consumer_device,
 #endif
 #endif
 
