@@ -1626,20 +1626,6 @@ static int _dsi_reset(void)
 	return _dsi_wait_reset();
 }
 
-static void dsi_reset_tx_fifo(int channel)
-{
-	u32 mask;
-	u32 l;
-
-	/* set fifosize of the channel to 0, then return the old size */
-	l = dsi_read_reg(DSI_TX_FIFO_VC_SIZE);
-
-	mask = FLD_MASK((8 * channel) + 7, (8 * channel) + 4);
-	dsi_write_reg(DSI_TX_FIFO_VC_SIZE, l & ~mask);
-
-	dsi_write_reg(DSI_TX_FIFO_VC_SIZE, l);
-}
-
 static void dsi_config_tx_fifo(enum fifo_size size1, enum fifo_size size2,
 		enum fifo_size size3, enum fifo_size size4)
 {
