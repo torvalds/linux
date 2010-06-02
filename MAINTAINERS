@@ -3009,6 +3009,7 @@ F:	include/linux/wimax/i2400m.h
 INTEL WIRELESS WIFI LINK (iwlwifi)
 M:	Zhu Yi <yi.zhu@intel.com>
 M:	Reinette Chatre <reinette.chatre@intel.com>
+M:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
 M:	Intel Linux Wireless <ilw@linux.intel.com>
 L:	linux-wireless@vger.kernel.org
 W:	http://intellinuxwireless.org
