@@ -2148,8 +2148,17 @@ static inline void kmemleak_load_module(struct module *mod, Elf_Ehdr *hdr,
 }
 #endif
 
-static int copy_and_check(Elf_Ehdr **hdrp,
-			  const void __user *umod, unsigned long len)
+struct load_info {
+	Elf_Ehdr *hdr;
+	unsigned long len;
+	Elf_Shdr *sechdrs;
+	char *secstrings, *args, *strtab;
+	struct {
+		unsigned int sym, str, mod, vers, info, pcpu;
+	} index;
+};
+
+static int copy_and_check(struct load_info *info, const void __user *umod, unsigned long len)
 {
 	int err;
 	Elf_Ehdr *hdr;
@@ -2159,7 +2168,7 @@ static int copy_and_check(Elf_Ehdr **hdrp,
 
 	/* Suck in entire file: we'll want most of it. */
 	/* vmalloc barfs on "unusual" numbers.  Check here */
-	if (len > 64 * 1024 * 1024 || (hdr = *hdrp = vmalloc(len)) == NULL)
+	if (len > 64 * 1024 * 1024 || (hdr = vmalloc(len)) == NULL)
 		return -ENOMEM;
 
 	if (copy_from_user(hdr, umod, len) != 0) {
@@ -2181,11 +2190,87 @@ static int copy_and_check(Elf_Ehdr **hdrp,
 		err = -ENOEXEC;
 		goto free_hdr;
 	}
+	info->hdr = hdr;
+	info->len = len;
 	return 0;
 
 free_hdr:
 	vfree(hdr);
 	return err;
+}
+
+/*
+ * Set up our basic convenience variables (pointers to section headers,
+ * search for module section index etc), and do some basic section
+ * verification.
+ *
+ * Return the temporary module pointer (we'll replace it with the final
+ * one when we move the module sections around).
+ */
+static struct module *setup_load_info(struct load_info *info)
+{
+	unsigned int i;
+	struct module *mod;
+
+	/* Set up the convenience variables */
+	info->sechdrs = (void *)info->hdr + info->hdr->e_shoff;
+	info->secstrings = (void *)info->hdr + info->sechdrs[info->hdr->e_shstrndx].sh_offset;
+	info->sechdrs[0].sh_addr = 0;
+
+	for (i = 1; i < info->hdr->e_shnum; i++) {
+		if (info->sechdrs[i].sh_type != SHT_NOBITS
+		    && info->len < info->sechdrs[i].sh_offset + info->sechdrs[i].sh_size)
+			goto truncated;
+
+		/* Mark all sections sh_addr with their address in the
+		   temporary image. */
+		info->sechdrs[i].sh_addr = (size_t)info->hdr + info->sechdrs[i].sh_offset;
+
+		/* Internal symbols and strings. */
+		if (info->sechdrs[i].sh_type == SHT_SYMTAB) {
+			info->index.sym = i;
+			info->index.str = info->sechdrs[i].sh_link;
+			info->strtab = (char *)info->hdr + info->sechdrs[info->index.str].sh_offset;
+		}
+#ifndef CONFIG_MODULE_UNLOAD
+		/* Don't load .exit sections */
+		if (strstarts(info->secstrings+info->sechdrs[i].sh_name, ".exit"))
+			info->sechdrs[i].sh_flags &= ~(unsigned long)SHF_ALLOC;
+#endif
+	}
+
+	info->index.mod = find_sec(info->hdr, info->sechdrs, info->secstrings,
+			    ".gnu.linkonce.this_module");
+	if (!info->index.mod) {
+		printk(KERN_WARNING "No module found in object\n");
+		return ERR_PTR(-ENOEXEC);
+	}
+	/* This is temporary: point mod into copy of data. */
+	mod = (void *)info->sechdrs[info->index.mod].sh_addr;
+
+	if (info->index.sym == 0) {
+		printk(KERN_WARNING "%s: module has no symbols (stripped?)\n",
+		       mod->name);
+		return ERR_PTR(-ENOEXEC);
+	}
+
+	info->index.vers = find_sec(info->hdr, info->sechdrs, info->secstrings, "__versions");
+	info->index.info = find_sec(info->hdr, info->sechdrs, info->secstrings, ".modinfo");
+	info->index.pcpu = find_pcpusec(info->hdr, info->sechdrs, info->secstrings);
+
+	/* Don't keep modinfo and version sections. */
+	info->sechdrs[info->index.info].sh_flags &= ~(unsigned long)SHF_ALLOC;
+	info->sechdrs[info->index.vers].sh_flags &= ~(unsigned long)SHF_ALLOC;
+
+	/* Check module struct version now, before we try to use module. */
+	if (!check_modstruct_version(info->sechdrs, info->index.vers, mod))
+		return ERR_PTR(-ENOEXEC);
+
+	return mod;
+
+ truncated:
+	printk(KERN_ERR "Module len %lu truncated\n", info->len);
+	return ERR_PTR(-ENOEXEC);
 }
 
 static int check_modinfo(struct module *mod,
@@ -2412,13 +2497,7 @@ static noinline struct module *load_module(void __user *umod,
 				  unsigned long len,
 				  const char __user *uargs)
 {
-	Elf_Ehdr *hdr;
-	Elf_Shdr *sechdrs;
-	char *secstrings, *args, *strtab = NULL;
-	unsigned int i;
-	unsigned int symindex = 0;
-	unsigned int strindex = 0;
-	unsigned int modindex, versindex, infoindex, pcpuindex;
+	struct load_info info = { NULL, };
 	struct module *mod;
 	long err;
 	unsigned long symoffs, stroffs, *strmap;
@@ -2429,80 +2508,28 @@ static noinline struct module *load_module(void __user *umod,
 	DEBUGP("load_module: umod=%p, len=%lu, uargs=%p\n",
 	       umod, len, uargs);
 
-	err = copy_and_check(&hdr, umod, len);
+	err = copy_and_check(&info, umod, len);
 	if (err)
 		return ERR_PTR(err);
 
-	/* Convenience variables */
-	sechdrs = (void *)hdr + hdr->e_shoff;
-	secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
-	sechdrs[0].sh_addr = 0;
-
-	for (i = 1; i < hdr->e_shnum; i++) {
-		if (sechdrs[i].sh_type != SHT_NOBITS
-		    && len < sechdrs[i].sh_offset + sechdrs[i].sh_size)
-			goto truncated;
-
-		/* Mark all sections sh_addr with their address in the
-		   temporary image. */
-		sechdrs[i].sh_addr = (size_t)hdr + sechdrs[i].sh_offset;
-
-		/* Internal symbols and strings. */
-		if (sechdrs[i].sh_type == SHT_SYMTAB) {
-			symindex = i;
-			strindex = sechdrs[i].sh_link;
-			strtab = (char *)hdr + sechdrs[strindex].sh_offset;
-		}
-#ifndef CONFIG_MODULE_UNLOAD
-		/* Don't load .exit sections */
-		if (strstarts(secstrings+sechdrs[i].sh_name, ".exit"))
-			sechdrs[i].sh_flags &= ~(unsigned long)SHF_ALLOC;
-#endif
-	}
-
-	modindex = find_sec(hdr, sechdrs, secstrings,
-			    ".gnu.linkonce.this_module");
-	if (!modindex) {
-		printk(KERN_WARNING "No module found in object\n");
-		err = -ENOEXEC;
-		goto free_hdr;
-	}
-	/* This is temporary: point mod into copy of data. */
-	mod = (void *)sechdrs[modindex].sh_addr;
-
-	if (symindex == 0) {
-		printk(KERN_WARNING "%s: module has no symbols (stripped?)\n",
-		       mod->name);
-		err = -ENOEXEC;
+	mod = setup_load_info(&info);
+	if (IS_ERR(mod)) {
+		err = PTR_ERR(mod);
 		goto free_hdr;
 	}
 
-	versindex = find_sec(hdr, sechdrs, secstrings, "__versions");
-	infoindex = find_sec(hdr, sechdrs, secstrings, ".modinfo");
-	pcpuindex = find_pcpusec(hdr, sechdrs, secstrings);
-
-	/* Don't keep modinfo and version sections. */
-	sechdrs[infoindex].sh_flags &= ~(unsigned long)SHF_ALLOC;
-	sechdrs[versindex].sh_flags &= ~(unsigned long)SHF_ALLOC;
-
-	/* Check module struct version now, before we try to use module. */
-	if (!check_modstruct_version(sechdrs, versindex, mod)) {
-		err = -ENOEXEC;
-		goto free_hdr;
-	}
-
-	err = check_modinfo(mod, sechdrs, infoindex, versindex);
+	err = check_modinfo(mod, info.sechdrs, info.index.info, info.index.vers);
 	if (err)
 		goto free_hdr;
 
 	/* Now copy in args */
-	args = strndup_user(uargs, ~0UL >> 1);
-	if (IS_ERR(args)) {
-		err = PTR_ERR(args);
+	info.args = strndup_user(uargs, ~0UL >> 1);
+	if (IS_ERR(info.args)) {
+		err = PTR_ERR(info.args);
 		goto free_hdr;
 	}
 
-	strmap = kzalloc(BITS_TO_LONGS(sechdrs[strindex].sh_size)
+	strmap = kzalloc(BITS_TO_LONGS(info.sechdrs[info.index.str].sh_size)
 			 * sizeof(long), GFP_KERNEL);
 	if (!strmap) {
 		err = -ENOMEM;
@@ -2512,17 +2539,17 @@ static noinline struct module *load_module(void __user *umod,
 	mod->state = MODULE_STATE_COMING;
 
 	/* Allow arches to frob section contents and sizes.  */
-	err = module_frob_arch_sections(hdr, sechdrs, secstrings, mod);
+	err = module_frob_arch_sections(info.hdr, info.sechdrs, info.secstrings, mod);
 	if (err < 0)
 		goto free_mod;
 
-	if (pcpuindex) {
+	if (info.index.pcpu) {
 		/* We have a special allocation for this section. */
-		err = percpu_modalloc(mod, sechdrs[pcpuindex].sh_size,
-				      sechdrs[pcpuindex].sh_addralign);
+		err = percpu_modalloc(mod, info.sechdrs[info.index.pcpu].sh_size,
+				      info.sechdrs[info.index.pcpu].sh_addralign);
 		if (err)
 			goto free_mod;
-		sechdrs[pcpuindex].sh_flags &= ~(unsigned long)SHF_ALLOC;
+		info.sechdrs[info.index.pcpu].sh_flags &= ~(unsigned long)SHF_ALLOC;
 	}
 	/* Keep this around for failure path. */
 	percpu = mod_percpu(mod);
@@ -2530,12 +2557,12 @@ static noinline struct module *load_module(void __user *umod,
 	/* Determine total sizes, and put offsets in sh_entsize.  For now
 	   this is done generically; there doesn't appear to be any
 	   special cases for the architectures. */
-	layout_sections(mod, hdr, sechdrs, secstrings);
-	symoffs = layout_symtab(mod, sechdrs, symindex, strindex, hdr,
-				secstrings, &stroffs, strmap);
+	layout_sections(mod, info.hdr, info.sechdrs, info.secstrings);
+	symoffs = layout_symtab(mod, info.sechdrs, info.index.sym, info.index.str, info.hdr,
+				info.secstrings, &stroffs, strmap);
 
 	/* Allocate and move to the final place */
-	mod = move_module(mod, hdr, sechdrs, secstrings, modindex);
+	mod = move_module(mod, info.hdr, info.sechdrs, info.secstrings, info.index.mod);
 	if (IS_ERR(mod)) {
 		err = PTR_ERR(mod);
 		goto free_percpu;
@@ -2548,50 +2575,50 @@ static noinline struct module *load_module(void __user *umod,
 
 	/* Now we've got everything in the final locations, we can
 	 * find optional sections. */
-	find_module_sections(mod, hdr, sechdrs, secstrings);
+	find_module_sections(mod, info.hdr, info.sechdrs, info.secstrings);
 
-	err = check_module_license_and_versions(mod, sechdrs);
+	err = check_module_license_and_versions(mod, info.sechdrs);
 	if (err)
 		goto free_unload;
 
 	/* Set up MODINFO_ATTR fields */
-	setup_modinfo(mod, sechdrs, infoindex);
+	setup_modinfo(mod, info.sechdrs, info.index.info);
 
 	/* Fix up syms, so that st_value is a pointer to location. */
-	err = simplify_symbols(sechdrs, symindex, strtab, versindex, pcpuindex,
+	err = simplify_symbols(info.sechdrs, info.index.sym, info.strtab, info.index.vers, info.index.pcpu,
 			       mod);
 	if (err < 0)
 		goto cleanup;
 
-	err = apply_relocations(mod, hdr, sechdrs, symindex, strindex);
+	err = apply_relocations(mod, info.hdr, info.sechdrs, info.index.sym, info.index.str);
 	if (err < 0)
 		goto cleanup;
 
   	/* Set up and sort exception table */
-	mod->extable = section_objs(hdr, sechdrs, secstrings, "__ex_table",
+	mod->extable = section_objs(info.hdr, info.sechdrs, info.secstrings, "__ex_table",
 				    sizeof(*mod->extable), &mod->num_exentries);
 	sort_extable(mod->extable, mod->extable + mod->num_exentries);
 
 	/* Finally, copy percpu area over. */
-	percpu_modcopy(mod, (void *)sechdrs[pcpuindex].sh_addr,
-		       sechdrs[pcpuindex].sh_size);
+	percpu_modcopy(mod, (void *)info.sechdrs[info.index.pcpu].sh_addr,
+		       info.sechdrs[info.index.pcpu].sh_size);
 
-	add_kallsyms(mod, sechdrs, hdr->e_shnum, symindex, strindex,
-		     symoffs, stroffs, secstrings, strmap);
+	add_kallsyms(mod, info.sechdrs, info.hdr->e_shnum, info.index.sym, info.index.str,
+		     symoffs, stroffs, info.secstrings, strmap);
 	kfree(strmap);
 	strmap = NULL;
 
 	if (!mod->taints)
-		debug = section_objs(hdr, sechdrs, secstrings, "__verbose",
+		debug = section_objs(info.hdr, info.sechdrs, info.secstrings, "__verbose",
 				     sizeof(*debug), &num_debug);
 
-	err = module_finalize(hdr, sechdrs, mod);
+	err = module_finalize(info.hdr, info.sechdrs, mod);
 	if (err < 0)
 		goto cleanup;
 
 	flush_module_icache(mod);
 
-	mod->args = args;
+	mod->args = info.args;
 
 	/* Now sew it into the lists so we can get lockdep and oops
 	 * info during argument parsing.  Noone should access us, since
@@ -2625,11 +2652,11 @@ static noinline struct module *load_module(void __user *umod,
 	if (err < 0)
 		goto unlink;
 
-	add_sect_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
-	add_notes_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
+	add_sect_attrs(mod, info.hdr->e_shnum, info.secstrings, info.sechdrs);
+	add_notes_attrs(mod, info.hdr->e_shnum, info.secstrings, info.sechdrs);
 
 	/* Get rid of temporary copy */
-	vfree(hdr);
+	vfree(info.hdr);
 
 	trace_module_load(mod);
 
@@ -2657,16 +2684,11 @@ static noinline struct module *load_module(void __user *umod,
  free_percpu:
 	free_percpu(percpu);
  free_mod:
-	kfree(args);
+	kfree(info.args);
 	kfree(strmap);
  free_hdr:
-	vfree(hdr);
+	vfree(info.hdr);
 	return ERR_PTR(err);
-
- truncated:
-	printk(KERN_ERR "Module len %lu truncated\n", len);
-	err = -ENOEXEC;
-	goto free_hdr;
 }
 
 /* Call module constructors. */
