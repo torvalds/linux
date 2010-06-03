@@ -1524,12 +1524,11 @@ function_test_events_call(unsigned long ip, unsigned long parent_ip)
 	struct ftrace_entry *entry;
 	unsigned long flags;
 	long disabled;
-	int resched;
 	int cpu;
 	int pc;
 
 	pc = preempt_count();
-	resched = ftrace_preempt_disable();
+	preempt_disable_notrace();
 	cpu = raw_smp_processor_id();
 	disabled = atomic_inc_return(&per_cpu(ftrace_test_event_disable, cpu));
 
@@ -1551,7 +1550,7 @@ function_test_events_call(unsigned long ip, unsigned long parent_ip)
 
  out:
 	atomic_dec(&per_cpu(ftrace_test_event_disable, cpu));
-	ftrace_preempt_enable(resched);
+	preempt_enable_notrace();
 }
 
 static struct ftrace_ops trace_ops __initdata  =
