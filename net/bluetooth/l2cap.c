@@ -3405,8 +3405,8 @@ static inline void l2cap_send_i_or_rr_or_rnr(struct sock *sk)
 		pi->conn_state &= ~L2CAP_CONN_SEND_FBIT;
 	}
 
-	if (pi->conn_state & L2CAP_CONN_REMOTE_BUSY && pi->unacked_frames > 0)
-		__mod_retrans_timer();
+	if (pi->conn_state & L2CAP_CONN_REMOTE_BUSY)
+		l2cap_retransmit_frames(sk);
 
 	spin_lock_bh(&pi->send_lock);
 	l2cap_ertm_send(sk);
