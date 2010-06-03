@@ -494,8 +494,8 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 		return 0;
 	}
 
-	if (uevent)
-		dev_info(device, "firmware: requesting %s\n", name);
+	//if (uevent)
+	//	dev_info(device, "firmware: requesting %s\n", name);
 
 	retval = fw_setup_device(firmware, &f_dev, name, device, uevent);
 	if (retval)
