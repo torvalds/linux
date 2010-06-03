@@ -1335,7 +1335,6 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 		} else {
 			rt2800_register_write(rt2x00dev, TX_SW_CFG2, 0x00000000);
 		}
-		rt2800_register_write(rt2x00dev, TX_SW_CFG2, reg);
 	} else if (rt2x00_rt(rt2x00dev, RT3070)) {
 		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000400);
 
