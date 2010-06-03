@@ -831,6 +831,7 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 
 		pi->imtu = l2cap_pi(parent)->imtu;
 		pi->omtu = l2cap_pi(parent)->omtu;
+		pi->conf_state = l2cap_pi(parent)->conf_state;
 		pi->mode = l2cap_pi(parent)->mode;
 		pi->fcs  = l2cap_pi(parent)->fcs;
 		pi->max_tx = l2cap_pi(parent)->max_tx;
@@ -841,10 +842,12 @@ static void l2cap_sock_init(struct sock *sk, struct sock *parent)
 	} else {
 		pi->imtu = L2CAP_DEFAULT_MTU;
 		pi->omtu = 0;
-		if (enable_ertm && sk->sk_type == SOCK_STREAM)
+		if (enable_ertm && sk->sk_type == SOCK_STREAM) {
 			pi->mode = L2CAP_MODE_ERTM;
-		else
+			pi->conf_state |= L2CAP_CONF_STATE2_DEVICE;
+		} else {
 			pi->mode = L2CAP_MODE_BASIC;
+		}
 		pi->max_tx = L2CAP_DEFAULT_MAX_TX;
 		pi->fcs  = L2CAP_FCS_CRC16;
 		pi->tx_win = L2CAP_DEFAULT_TX_WINDOW;
@@ -1925,6 +1928,7 @@ static int l2cap_sock_setsockopt_old(struct socket *sock, int optname, char __us
 		l2cap_pi(sk)->mode = opts.mode;
 		switch (l2cap_pi(sk)->mode) {
 		case L2CAP_MODE_BASIC:
+			l2cap_pi(sk)->conf_state &= ~L2CAP_CONF_STATE2_DEVICE;
 			break;
 		case L2CAP_MODE_ERTM:
 		case L2CAP_MODE_STREAMING:
@@ -2469,7 +2473,12 @@ static int l2cap_build_conf_req(struct sock *sk, void *data)
 	switch (pi->mode) {
 	case L2CAP_MODE_STREAMING:
 	case L2CAP_MODE_ERTM:
-		pi->conf_state |= L2CAP_CONF_STATE2_DEVICE;
+		if (!(pi->conf_state & L2CAP_CONF_STATE2_DEVICE)) {
+			pi->mode = l2cap_select_mode(rfc.mode,
+					pi->conn->feat_mask);
+			break;
+		}
+
 		if (!l2cap_mode_supported(pi->mode, pi->conn->feat_mask))
 			l2cap_send_disconn_req(pi->conn, sk, ECONNRESET);
 		break;
@@ -2602,7 +2611,12 @@ static int l2cap_parse_conf_req(struct sock *sk, void *data)
 	switch (pi->mode) {
 	case L2CAP_MODE_STREAMING:
 	case L2CAP_MODE_ERTM:
-		pi->conf_state |= L2CAP_CONF_STATE2_DEVICE;
+		if (!(pi->conf_state & L2CAP_CONF_STATE2_DEVICE)) {
+			pi->mode = l2cap_select_mode(rfc.mode,
+					pi->conn->feat_mask);
+			break;
+		}
+
 		if (!l2cap_mode_supported(pi->mode, pi->conn->feat_mask))
 			return -ECONNREFUSED;
 		break;
