@@ -226,6 +226,7 @@ struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
 int p9_client_open(struct p9_fid *fid, int mode);
 int p9_client_fcreate(struct p9_fid *fid, char *name, u32 perm, int mode,
 							char *extension);
+int p9_client_link(struct p9_fid *fid, struct p9_fid *oldfid, char *newname);
 int p9_client_clunk(struct p9_fid *fid);
 int p9_client_remove(struct p9_fid *fid);
 int p9_client_read(struct p9_fid *fid, char *data, char __user *udata,

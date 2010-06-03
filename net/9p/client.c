@@ -1095,6 +1095,25 @@ error:
 }
 EXPORT_SYMBOL(p9_client_fcreate);
 
+int p9_client_link(struct p9_fid *dfid, struct p9_fid *oldfid, char *newname)
+{
+	struct p9_client *clnt;
+	struct p9_req_t *req;
+
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TLINK dfid %d oldfid %d newname %s\n",
+			dfid->fid, oldfid->fid, newname);
+	clnt = dfid->clnt;
+	req = p9_client_rpc(clnt, P9_TLINK, "dds", dfid->fid, oldfid->fid,
+			newname);
+	if (IS_ERR(req))
+		return PTR_ERR(req);
+
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RLINK\n");
+	p9_free_req(clnt, req);
+	return 0;
+}
+EXPORT_SYMBOL(p9_client_link);
+
 int p9_client_clunk(struct p9_fid *fid)
 {
 	int err;
