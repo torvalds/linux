@@ -1284,6 +1284,8 @@ typedef struct hfa384x {
 	u16 link_status_new;
 	struct sk_buff_head authq;
 
+	u32 txrate;
+
 	/* And here we have stuff that used to be in priv */
 
 	/* State variables */

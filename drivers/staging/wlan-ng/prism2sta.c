@@ -124,6 +124,10 @@ MODULE_PARM_DESC(prism2_reset_settletime, "reset settle time in ms");
 
 MODULE_LICENSE("Dual MPL/GPL");
 
+void prism2_connect_result(wlandevice_t *wlandev, u8 failed);
+void prism2_disconnected(wlandevice_t *wlandev);
+void prism2_roamed(wlandevice_t *wlandev);
+
 static int prism2sta_open(wlandevice_t *wlandev);
 static int prism2sta_close(wlandevice_t *wlandev);
 static void prism2sta_reset(wlandevice_t *wlandev);
@@ -401,6 +405,7 @@ static int prism2sta_mlmerequest(wlandevice_t *wlandev, p80211msg_t *msg)
 			qualmsg->link.data = le16_to_cpu(hw->qual.CQ_currBSS);
 			qualmsg->level.data = le16_to_cpu(hw->qual.ASL_currBSS);
 			qualmsg->noise.data = le16_to_cpu(hw->qual.ANL_currFC);
+			qualmsg->txrate.data = hw->txrate;
 
 			break;
 		}
@@ -1300,6 +1305,9 @@ void prism2sta_processing_defer(struct work_struct *data)
 			    (portstatus == HFA384x_PSTATUS_CONN_IBSS) ?
 			    WLAN_MACMODE_IBSS_STA : WLAN_MACMODE_ESS_STA;
 
+			/* signal back up to cfg80211 layer */
+			prism2_connect_result(wlandev, P80211ENUM_truth_false);
+
 			/* Get the ball rolling on the comms quality stuff */
 			prism2sta_commsqual_defer(&hw->commsqual_bh);
 		}
@@ -1315,24 +1323,15 @@ void prism2sta_processing_defer(struct work_struct *data)
 		 * Indicate Deauthentication
 		 * Block Transmits, Ignore receives of data frames
 		 */
-		if (hw->join_ap == 2) {
-			hfa384x_JoinRequest_data_t joinreq;
-			joinreq = hw->joinreq;
-			/* Send the join request */
-			hfa384x_drvr_setconfig(hw,
-					       HFA384x_RID_JOINREQUEST,
-					       &joinreq,
-					       HFA384x_RID_JOINREQUEST_LEN);
+		if (wlandev->netdev->type == ARPHRD_ETHER)
 			printk(KERN_INFO
-			    "linkstatus=DISCONNECTED (re-submitting join)\n");
-		} else {
-			if (wlandev->netdev->type == ARPHRD_ETHER)
-				printk(KERN_INFO
-				       "linkstatus=DISCONNECTED (unhandled)\n");
-		}
+			       "linkstatus=DISCONNECTED (unhandled)\n");
 		wlandev->macmode = WLAN_MACMODE_NONE;
 
 		netif_carrier_off(wlandev->netdev);
+
+		/* signal back up to cfg80211 layer */
+		prism2_disconnected(wlandev);
 
 		break;
 
@@ -1375,6 +1374,9 @@ void prism2sta_processing_defer(struct work_struct *data)
 
 		hw->link_status = HFA384x_LINK_CONNECTED;
 		netif_carrier_on(wlandev->netdev);
+
+		/* signal back up to cfg80211 layer */
+		prism2_roamed(wlandev);
 
 		break;
 
@@ -1435,6 +1437,9 @@ void prism2sta_processing_defer(struct work_struct *data)
 
 		netif_carrier_off(wlandev->netdev);
 
+		/* signal back up to cfg80211 layer */
+		prism2_connect_result(wlandev, P80211ENUM_truth_true);
+
 		break;
 
 	default:
@@ -1446,7 +1451,6 @@ void prism2sta_processing_defer(struct work_struct *data)
 	}
 
 	wlandev->linkstatus = (hw->link_status == HFA384x_LINK_CONNECTED);
-	p80211wext_event_associated(wlandev, wlandev->linkstatus);
 
 failed:
 	return;
@@ -1985,6 +1989,8 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 	hfa384x_t *hw = container_of(data, struct hfa384x, commsqual_bh);
 	wlandevice_t *wlandev = hw->wlandev;
 	hfa384x_bytestr32_t ssid;
+	p80211msg_dot11req_mibget_t msg;
+	p80211item_uint32_t *mibitem = (p80211item_uint32_t *) &msg.mibattribute.data;
 	int result = 0;
 
 	if (hw->wlandev->hwremoved)
@@ -2011,6 +2017,34 @@ void prism2sta_commsqual_defer(struct work_struct *data)
 			 le16_to_cpu(hw->qual.CQ_currBSS),
 			 le16_to_cpu(hw->qual.ASL_currBSS),
 			 le16_to_cpu(hw->qual.ANL_currFC));
+	}
+
+	/* Get the signal rate */
+	msg.msgcode = DIDmsg_dot11req_mibget;
+	mibitem->did = DIDmib_p2_p2MAC_p2CurrentTxRate;
+	result = p80211req_dorequest(wlandev, (u8 *) & msg);
+
+	if (result) {
+		pr_debug("get signal rate failed, result = %d\n",
+			 result);
+		goto done;
+	}
+
+	switch (mibitem->data) {
+	case HFA384x_RATEBIT_1:
+		hw->txrate = 10;
+		break;
+	case HFA384x_RATEBIT_2:
+		hw->txrate = 20;
+		break;
+	case HFA384x_RATEBIT_5dot5:
+		hw->txrate = 55;
+		break;
+	case HFA384x_RATEBIT_11:
+		hw->txrate = 110;
+		break;
+	default:
+		pr_debug("Bad ratebit (%d)\n", mibitem->data);
 	}
 
 	/* Lastly, we need to make sure the BSSID didn't change on us */

@@ -113,6 +113,7 @@ typedef struct p80211msg_dot11req_scan_results {
 	p80211item_uint32_t cfpollable;
 	p80211item_uint32_t cfpollreq;
 	p80211item_uint32_t privacy;
+	p80211item_uint32_t capinfo;
 	p80211item_uint32_t basicrate1;
 	p80211item_uint32_t basicrate2;
 	p80211item_uint32_t basicrate3;
@@ -209,6 +210,7 @@ typedef struct p80211msg_lnxreq_commsquality {
 	p80211item_uint32_t link;
 	p80211item_uint32_t level;
 	p80211item_uint32_t noise;
+	p80211item_uint32_t txrate;
 } __attribute__ ((packed)) p80211msg_lnxreq_commsquality_t;
 
 typedef struct p80211msg_lnxreq_autojoin {

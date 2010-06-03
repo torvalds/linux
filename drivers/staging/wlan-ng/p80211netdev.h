@@ -148,6 +148,7 @@ int p80211wext_event_associated(struct wlandevice *wlandev, int assoc);
 #define MAX_KEYLEN 32
 
 #define HOSTWEP_DEFAULTKEY_MASK (BIT(1)|BIT(0))
+#define HOSTWEP_SHAREDKEY BIT(3)
 #define HOSTWEP_DECRYPT  BIT(4)
 #define HOSTWEP_ENCRYPT  BIT(5)
 #define HOSTWEP_PRIVACYINVOKED BIT(6)
@@ -233,7 +234,7 @@ int wep_decrypt(wlandevice_t *wlandev, u8 *buf, u32 len, int key_override,
 int wep_encrypt(wlandevice_t *wlandev, u8 *buf, u8 *dst, u32 len, int keynum,
 		u8 *iv, u8 *icv);
 
-int wlan_setup(wlandevice_t *wlandev);
+int wlan_setup(wlandevice_t *wlandev, struct device *physdev);
 int wlan_unsetup(wlandevice_t *wlandev);
 int register_wlandev(wlandevice_t *wlandev);
 int unregister_wlandev(wlandevice_t *wlandev);

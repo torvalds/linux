@@ -463,6 +463,8 @@ int prism2mgmt_scan_results(wlandevice_t *wlandev, void *msgp)
 
 	/* capinfo bits */
 	count = le16_to_cpu(item->capinfo);
+	req->capinfo.status = P80211ENUM_msgitem_status_data_ok;
+	req->capinfo.data = count;
 
 	/* privacy flag */
 	req->privacy.status = P80211ENUM_msgitem_status_data_ok;

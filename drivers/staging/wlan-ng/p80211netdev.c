@@ -75,6 +75,7 @@
 
 #include <net/iw_handler.h>
 #include <net/net_namespace.h>
+#include <net/cfg80211.h>
 
 #include "p80211types.h"
 #include "p80211hdr.h"
@@ -86,6 +87,8 @@
 #include "p80211req.h"
 #include "p80211metastruct.h"
 #include "p80211metadef.h"
+
+#include "cfg80211.c"
 
 /* Support functions */
 static void p80211netdev_rx_bh(unsigned long arg);
@@ -732,6 +735,7 @@ static const struct net_device_ops p80211_netdev_ops = {
 * Arguments:
 *	wlandev		ptr to the wlandev structure for the
 *			interface.
+*	physdev		ptr to usb device
 * Returns:
 *	zero on success, non-zero otherwise.
 * Call Context:
@@ -740,10 +744,12 @@ static const struct net_device_ops p80211_netdev_ops = {
 *	compiled drivers, this function will be called in the
 *	context of the kernel startup code.
 ----------------------------------------------------------------*/
-int wlan_setup(wlandevice_t *wlandev)
+int wlan_setup(wlandevice_t *wlandev, struct device *physdev)
 {
 	int result = 0;
-	netdevice_t *dev;
+	netdevice_t *netdev;
+	struct wiphy *wiphy;
+	struct wireless_dev *wdev;
 
 	/* Set up the wlandev */
 	wlandev->state = WLAN_DEVICE_CLOSED;
@@ -755,20 +761,30 @@ int wlan_setup(wlandevice_t *wlandev)
 	tasklet_init(&wlandev->rx_bh,
 		     p80211netdev_rx_bh, (unsigned long)wlandev);
 
+	/* Allocate and initialize the wiphy struct */
+	wiphy = wlan_create_wiphy(physdev, wlandev);
+	if (wiphy == NULL) {
+		printk(KERN_ERR "Failed to alloc wiphy.\n");
+		return 1;
+	}
+
 	/* Allocate and initialize the struct device */
-	dev = alloc_netdev(0, "wlan%d", ether_setup);
-	if (dev == NULL) {
+	netdev = alloc_netdev(sizeof(struct wireless_dev), "wlan%d", ether_setup);
+	if (netdev == NULL) {
 		printk(KERN_ERR "Failed to alloc netdev.\n");
+		wlan_free_wiphy(wiphy);
 		result = 1;
 	} else {
-		wlandev->netdev = dev;
-		dev->ml_priv = wlandev;
-		dev->netdev_ops = &p80211_netdev_ops;
+		wlandev->netdev = netdev;
+		netdev->ml_priv = wlandev;
+		netdev->netdev_ops = &p80211_netdev_ops;
+		wdev = netdev_priv(netdev);
+		wdev->wiphy = wiphy;
+		wdev->iftype = NL80211_IFTYPE_STATION;
+		netdev->ieee80211_ptr = wdev;
 
-		dev->wireless_handlers = &p80211wext_handler_def;
-
-		netif_stop_queue(dev);
-		netif_carrier_off(dev);
+		netif_stop_queue(netdev);
+		netif_carrier_off(netdev);
 	}
 
 	return result;
@@ -797,14 +813,13 @@ int wlan_setup(wlandevice_t *wlandev)
 ----------------------------------------------------------------*/
 int wlan_unsetup(wlandevice_t *wlandev)
 {
-	int result = 0;
+	struct wireless_dev *wdev;
 
 	tasklet_kill(&wlandev->rx_bh);
 
-	if (wlandev->netdev == NULL) {
-		printk(KERN_ERR "called without wlandev->netdev set.\n");
-		result = 1;
-	} else {
+	if (wlandev->netdev) {
+		wdev = netdev_priv(wlandev->netdev);
+		if(wdev->wiphy) wlan_free_wiphy(wdev->wiphy);
 		free_netdev(wlandev->netdev);
 		wlandev->netdev = NULL;
 	}
