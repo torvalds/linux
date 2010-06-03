@@ -446,6 +446,38 @@ static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	rt2800_register_write(rt2x00dev, INT_MASK_CSR, reg);
 }
 
+static int rt2800pci_init_registers(struct rt2x00_dev *rt2x00dev)
+{
+	u32 reg;
+
+	/*
+	 * Reset DMA indexes
+	 */
+	rt2800_register_read(rt2x00dev, WPDMA_RST_IDX, &reg);
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX0, 1);
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX1, 1);
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX2, 1);
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX3, 1);
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX4, 1);
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX5, 1);
+	rt2x00_set_field32(&reg, WPDMA_RST_IDX_DRX_IDX0, 1);
+	rt2800_register_write(rt2x00dev, WPDMA_RST_IDX, reg);
+
+	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e1f);
+	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e00);
+
+	rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000003);
+
+	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_CSR, 1);
+	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_BBP, 1);
+	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+
+	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, 0x00000000);
+
+	return 0;
+}
+
 static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
@@ -944,6 +976,8 @@ static const struct rt2800_ops rt2800pci_rt2800_ops = {
 	.register_multiwrite	= rt2x00pci_register_multiwrite,
 
 	.regbusy_read		= rt2x00pci_regbusy_read,
+
+	.drv_init_registers	= rt2800pci_init_registers,
 };
 
 static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)

@@ -38,12 +38,8 @@
 #include <linux/slab.h>
 
 #include "rt2x00.h"
-#if defined(CONFIG_RT2X00_LIB_USB) || defined(CONFIG_RT2X00_LIB_USB_MODULE)
-#include "rt2x00usb.h"
-#endif
 #include "rt2800lib.h"
 #include "rt2800.h"
-#include "rt2800usb.h"
 
 MODULE_AUTHOR("Bartlomiej Zolnierkiewicz");
 MODULE_DESCRIPTION("rt2800 library");
@@ -1272,6 +1268,7 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	u32 reg;
 	u16 eeprom;
 	unsigned int i;
+	int ret;
 
 	rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
 	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_ENABLE_TX_DMA, 0);
@@ -1281,59 +1278,9 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, WPDMA_GLO_CFG_TX_WRITEBACK_DONE, 1);
 	rt2800_register_write(rt2x00dev, WPDMA_GLO_CFG, reg);
 
-	if (rt2x00_is_usb(rt2x00dev)) {
-		/*
-		 * Wait until BBP and RF are ready.
-		 */
-		for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-			rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
-			if (reg && reg != ~0)
-				break;
-			msleep(1);
-		}
-
-		if (i == REGISTER_BUSY_COUNT) {
-			ERROR(rt2x00dev, "Unstable hardware.\n");
-			return -EBUSY;
-		}
-
-		rt2800_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
-		rt2800_register_write(rt2x00dev, PBF_SYS_CTRL,
-				      reg & ~0x00002000);
-	} else if (rt2x00_is_pci(rt2x00dev) || rt2x00_is_soc(rt2x00dev)) {
-		/*
-		 * Reset DMA indexes
-		 */
-		rt2800_register_read(rt2x00dev, WPDMA_RST_IDX, &reg);
-		rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX0, 1);
-		rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX1, 1);
-		rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX2, 1);
-		rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX3, 1);
-		rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX4, 1);
-		rt2x00_set_field32(&reg, WPDMA_RST_IDX_DTX_IDX5, 1);
-		rt2x00_set_field32(&reg, WPDMA_RST_IDX_DRX_IDX0, 1);
-		rt2800_register_write(rt2x00dev, WPDMA_RST_IDX, reg);
-
-		rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e1f);
-		rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e00);
-
-		rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000003);
-	}
-
-	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_CSR, 1);
-	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_BBP, 1);
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
-
-	if (rt2x00_is_usb(rt2x00dev)) {
-		rt2800_register_write(rt2x00dev, USB_DMA_CFG, 0x00000000);
-#if defined(CONFIG_RT2X00_LIB_USB) || defined(CONFIG_RT2X00_LIB_USB_MODULE)
-		rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
-					    USB_MODE_RESET, REGISTER_TIMEOUT);
-#endif
-	}
-
-	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, 0x00000000);
+	ret = rt2800_drv_init_registers(rt2x00dev);
+	if (ret)
+		return ret;
 
 	rt2800_register_read(rt2x00dev, BCN_OFFSET0, &reg);
 	rt2x00_set_field32(&reg, BCN_OFFSET0_BCN0, 0xe0); /* 0x3800 */

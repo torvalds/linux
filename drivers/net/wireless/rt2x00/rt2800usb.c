@@ -243,6 +243,44 @@ static void rt2800usb_toggle_rx(struct rt2x00_dev *rt2x00dev,
 	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 }
 
+static int rt2800usb_init_registers(struct rt2x00_dev *rt2x00dev)
+{
+	u32 reg;
+	int i;
+
+	/*
+	 * Wait until BBP and RF are ready.
+	 */
+	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
+		rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
+		if (reg && reg != ~0)
+			break;
+		msleep(1);
+	}
+
+	if (i == REGISTER_BUSY_COUNT) {
+		ERROR(rt2x00dev, "Unstable hardware.\n");
+		return -EBUSY;
+	}
+
+	rt2800_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
+	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, reg & ~0x00002000);
+
+	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
+	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_CSR, 1);
+	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_BBP, 1);
+	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
+
+	rt2800_register_write(rt2x00dev, USB_DMA_CFG, 0x00000000);
+
+	rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
+				    USB_MODE_RESET, REGISTER_TIMEOUT);
+
+	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, 0x00000000);
+
+	return 0;
+}
+
 static int rt2800usb_enable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
@@ -549,6 +587,8 @@ static const struct rt2800_ops rt2800usb_rt2800_ops = {
 	.register_multiwrite	= rt2x00usb_register_multiwrite,
 
 	.regbusy_read		= rt2x00usb_regbusy_read,
+
+	.drv_init_registers	= rt2800usb_init_registers,
 };
 
 static int rt2800usb_probe_hw(struct rt2x00_dev *rt2x00dev)
