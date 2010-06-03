@@ -38,6 +38,8 @@
 
 #include "rk2818-sdmmc.h"
 
+struct mmc_host *wifi_mmc_host = NULL;
+
 #define RK2818_MCI_DATA_ERROR_FLAGS	(SDMMC_INT_DRTO | SDMMC_INT_DCRC | SDMMC_INT_HTO | SDMMC_INT_SBE | SDMMC_INT_EBE)
 #define RK2818_MCI_CMD_ERROR_FLAGS	(SDMMC_INT_RTO | SDMMC_INT_RCRC | SDMMC_INT_RE | SDMMC_INT_HLE)
 #define RK2818_MCI_ERROR_FLAGS		(RK2818_MCI_DATA_ERROR_FLAGS | RK2818_MCI_CMD_ERROR_FLAGS | SDMMC_INT_HLE)
@@ -1300,6 +1302,8 @@ static int rk2818_sdmmc_probe(struct platform_device *pdev)
 
 	dev_info(&pdev->dev, "RK2818 MMC controller used as %s, at irq %d\n", 
 				host->dma_name, host->irq);
+	if (strncmp(host->dma_name, "sdio", 4) == 0)
+		wifi_mmc_host = mmc;
 
 	return 0;
 
@@ -1320,6 +1324,9 @@ err_free_host:
 static int __exit rk2818_sdmmc_remove(struct platform_device *pdev)
 {
 	struct rk2818_sdmmc_host *host = platform_get_drvdata(pdev);
+
+	if (strncmp(host->dma_name, "sdio", 4) == 0)
+		wifi_mmc_host = NULL;
 
 	writel(0xFFFFFFFF, host->regs + SDMMC_RINTSTS);
 	writel(0, host->regs + SDMMC_INTMASK); // disable all mmc interrupt first

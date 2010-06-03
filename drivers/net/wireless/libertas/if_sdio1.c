@@ -34,6 +34,7 @@
 #include <linux/mmc/card.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
+#include <linux/mmc/host.h>
 
 #include "host.h"
 #include "decl.h"
@@ -41,6 +42,9 @@
 #include "dev.h"
 #include "cmd.h"
 #include "if_sdio.h"
+#include "wifi_power.h"
+
+extern struct mmc_host *wifi_mmc_host;
 
 /* The if_sdio_remove() callback function is called when
  * user removes this module from kernel space or ejects
@@ -1141,21 +1145,48 @@ static struct sdio_driver if_sdio_driver = {
 
 //static int __init if_sdio_init_module2(void)
 //void if_sdio_init_module2(struct work_struct *work)
+int wifi_no_power_gpio = 0;  /* 0-No 1-Yes */
 void if_sdio_init_module2(void)
 {
-	int ret = 0;
-
-	lbs_deb_enter(LBS_DEB_SDIO);
+	int ret = 0,timeout;
+	
+	wifi_sdio_func = NULL;
+	wifi_no_power_gpio = 0;
+	
+	//lbs_deb_enter(LBS_DEB_SDIO);
 
 	printk(KERN_INFO "libertas_sdio: Libertas SDIO driver\n");
 	printk(KERN_INFO "libertas_sdio: Copyright Pierre Ossman\n");
 
-	ret = sdio_register_driver(&if_sdio_driver);
-
 	/* Clear the flag in case user removes the card. */
 	user_rmmod = 0;
-
-	lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
+	///lbs_deb_leave_args(LBS_DEB_SDIO, "ret %d", ret);
+	
+	ret = sdio_register_driver(&if_sdio_driver);
+	
+#ifdef WIFI_GPIO_POWER_CONTROL	
+	if (wifi_mmc_host->bus_ops != NULL) /* mmc/card is attached already. */
+	{
+		printk("SDIO maybe be attached already.\n");
+		wifi_no_power_gpio = 1;
+		return ;
+	}
+	
+	wifi_turn_on_card();
+	wifi_power_up_wifi();
+	
+	mmc_detect_change(wifi_mmc_host, 2);
+	
+	for (timeout = 100; timeout >=0; timeout--)
+	{
+	    if (wifi_sdio_func != NULL)
+	    	break;
+	    msleep(50);
+	}
+	if (timeout <= 0)
+	   printk("No WiFi function card has been attached.\n");
+#endif
+	return ;
 }
 EXPORT_SYMBOL(if_sdio_init_module2);
 
@@ -1173,20 +1204,47 @@ static int __init if_sdio_init_module(void)
 #endif
 
 
-static void __exit if_sdio_exit_module(void)
+void if_sdio_exit_module(void)
 {
+	int timeout;
+	
 	lbs_deb_enter(LBS_DEB_SDIO);
 
 	/* Set the flag as user is removing this module. */
 	user_rmmod = 1;
 
 	sdio_unregister_driver(&if_sdio_driver);
+	
+#ifdef WIFI_GPIO_POWER_CONTROL
 
+	if (wifi_no_power_gpio == 1)
+	    return;
+	    
+	if (wifi_mmc_host == NULL)
+	{
+	    printk("No SDIO host is present.\n");
+	    return;
+	}
+	
+	wifi_power_down_wifi();
+	wifi_turn_off_card();
+	
+	mmc_detect_change(wifi_mmc_host, 2);
+	
+	for (timeout = 50; timeout >= 0; timeout--)
+	{
+		msleep(100);
+		if (wifi_mmc_host->bus_ops == NULL)
+	    	break;
+	}
+	if (timeout < 0)
+		printk("Fail to release SDIO card.\n");
+#endif
 	lbs_deb_leave(LBS_DEB_SDIO);
 }
-
+EXPORT_SYMBOL(if_sdio_exit_module);
 //module_init(if_sdio_init_module);
-module_exit(if_sdio_exit_module);
+//module_exit(if_sdio_exit_module);
 
 MODULE_DESCRIPTION("Libertas SDIO WLAN Driver");
 MODULE_AUTHOR("Pierre Ossman");
