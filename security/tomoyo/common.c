@@ -1141,6 +1141,8 @@ static int tomoyo_write_exception_policy(struct tomoyo_io_buffer *head)
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_NO_INITIALIZE_DOMAIN))
 		return tomoyo_write_domain_initializer_policy(data, true,
 							      is_delete);
+	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_AGGREGATOR))
+		return tomoyo_write_aggregator_policy(data, is_delete);
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_ALIAS))
 		return tomoyo_write_alias_policy(data, is_delete);
 	if (tomoyo_str_starts(&data, TOMOYO_KEYWORD_ALLOW_READ))
@@ -1196,6 +1198,8 @@ static int tomoyo_read_exception_policy(struct tomoyo_io_buffer *head)
 			head->read_var2 = NULL;
 			head->read_step = 6;
 		case 6:
+			if (!tomoyo_read_aggregator_policy(head))
+				break;
 			head->read_var2 = NULL;
 			head->read_step = 7;
 		case 7:

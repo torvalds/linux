@@ -46,6 +46,7 @@ enum tomoyo_mode_index {
 };
 
 /* Keywords for ACLs. */
+#define TOMOYO_KEYWORD_AGGREGATOR                "aggregator "
 #define TOMOYO_KEYWORD_ALIAS                     "alias "
 #define TOMOYO_KEYWORD_ALLOW_MOUNT               "allow_mount "
 #define TOMOYO_KEYWORD_ALLOW_READ                "allow_read "
@@ -593,6 +594,24 @@ struct tomoyo_domain_keeper_entry {
 };
 
 /*
+ * tomoyo_aggregator_entry is a structure which is used for holding
+ * "aggregator" entries.
+ * It has following fields.
+ *
+ *  (1) "list" which is linked to tomoyo_aggregator_list .
+ *  (2) "original_name" which is originally requested name.
+ *  (3) "aggregated_name" which is name to rewrite.
+ *  (4) "is_deleted" is a bool which is true if marked as deleted, false
+ *      otherwise.
+ */
+struct tomoyo_aggregator_entry {
+	struct list_head list;
+	const struct tomoyo_path_info *original_name;
+	const struct tomoyo_path_info *aggregated_name;
+	bool is_deleted;
+};
+
+/*
  * tomoyo_alias_entry is a structure which is used for holding "alias" entries.
  * It has following fields.
  *
@@ -693,6 +712,8 @@ bool tomoyo_print_number_union(struct tomoyo_io_buffer *head,
 			       const struct tomoyo_number_union *ptr);
 bool tomoyo_parse_number_union(char *data, struct tomoyo_number_union *num);
 
+/* Read "aggregator" entry in exception policy. */
+bool tomoyo_read_aggregator_policy(struct tomoyo_io_buffer *head);
 /* Read "alias" entry in exception policy. */
 bool tomoyo_read_alias_policy(struct tomoyo_io_buffer *head);
 /*
@@ -730,6 +751,8 @@ int tomoyo_init_request_info(struct tomoyo_request_info *r,
 /* Check permission for mount operation. */
 int tomoyo_mount_permission(char *dev_name, struct path *path, char *type,
 			    unsigned long flags, void *data_page);
+/* Create "aggregator" entry in exception policy. */
+int tomoyo_write_aggregator_policy(char *data, const bool is_delete);
 /* Create "alias" entry in exception policy. */
 int tomoyo_write_alias_policy(char *data, const bool is_delete);
 /*
@@ -857,6 +880,7 @@ extern struct list_head tomoyo_path_group_list;
 extern struct list_head tomoyo_number_group_list;
 extern struct list_head tomoyo_domain_initializer_list;
 extern struct list_head tomoyo_domain_keeper_list;
+extern struct list_head tomoyo_aggregator_list;
 extern struct list_head tomoyo_alias_list;
 extern struct list_head tomoyo_globally_readable_list;
 extern struct list_head tomoyo_pattern_list;
@@ -1034,6 +1058,14 @@ static inline bool tomoyo_is_same_domain_keeper_entry
 	return p1->is_not == p2->is_not && p1->is_last_name == p2->is_last_name
 		&& p1->domainname == p2->domainname
 		&& p1->program == p2->program;
+}
+
+static inline bool tomoyo_is_same_aggregator_entry
+(const struct tomoyo_aggregator_entry *p1,
+ const struct tomoyo_aggregator_entry *p2)
+{
+	return p1->original_name == p2->original_name &&
+		p1->aggregated_name == p2->aggregated_name;
 }
 
 static inline bool tomoyo_is_same_alias_entry

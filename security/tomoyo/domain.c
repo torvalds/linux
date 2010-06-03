@@ -483,6 +483,136 @@ static bool tomoyo_is_domain_keeper(const struct tomoyo_path_info *domainname,
 }
 
 /*
+ * tomoyo_aggregator_list is used for holding list of rewrite table for
+ * execve() request. Some programs provides similar functionality. This keyword
+ * allows users to aggregate such programs.
+ *
+ * Entries are added by
+ *
+ * # echo 'aggregator /usr/bin/vi /./editor' > \
+ *                            /sys/kernel/security/tomoyo/exception_policy
+ * # echo 'aggregator /usr/bin/emacs /./editor' > \
+ *                            /sys/kernel/security/tomoyo/exception_policy
+ *
+ * and are deleted by
+ *
+ * # echo 'delete aggregator /usr/bin/vi /./editor' > \
+ *                            /sys/kernel/security/tomoyo/exception_policy
+ * # echo 'delete aggregator /usr/bin/emacs /./editor' > \
+ *                            /sys/kernel/security/tomoyo/exception_policy
+ *
+ * and all entries are retrieved by
+ *
+ * # grep ^aggregator /sys/kernel/security/tomoyo/exception_policy
+ *
+ * In the example above, if /usr/bin/vi or /usr/bin/emacs are executed,
+ * permission is checked for /./editor and domainname which the current process
+ * will belong to after execve() succeeds is calculated using /./editor .
+ */
+LIST_HEAD(tomoyo_aggregator_list);
+
+/**
+ * tomoyo_update_aggregator_entry - Update "struct tomoyo_aggregator_entry" list.
+ *
+ * @original_name:   The original program's name.
+ * @aggregated_name: The program name to use.
+ * @is_delete:       True if it is a delete request.
+ *
+ * Returns 0 on success, negative value otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
+ */
+static int tomoyo_update_aggregator_entry(const char *original_name,
+					  const char *aggregated_name,
+					  const bool is_delete)
+{
+	struct tomoyo_aggregator_entry *ptr;
+	struct tomoyo_aggregator_entry e = { };
+	int error = is_delete ? -ENOENT : -ENOMEM;
+
+	if (!tomoyo_is_correct_path(original_name) ||
+	    !tomoyo_is_correct_path(aggregated_name))
+		return -EINVAL;
+	e.original_name = tomoyo_get_name(original_name);
+	e.aggregated_name = tomoyo_get_name(aggregated_name);
+	if (!e.original_name || !e.aggregated_name ||
+	    e.aggregated_name->is_patterned) /* No patterns allowed. */
+		goto out;
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
+	list_for_each_entry_rcu(ptr, &tomoyo_aggregator_list, list) {
+		if (!tomoyo_is_same_aggregator_entry(ptr, &e))
+			continue;
+		ptr->is_deleted = is_delete;
+		error = 0;
+		break;
+	}
+	if (!is_delete && error) {
+		struct tomoyo_aggregator_entry *entry =
+			tomoyo_commit_ok(&e, sizeof(e));
+		if (entry) {
+			list_add_tail_rcu(&entry->list,
+					  &tomoyo_aggregator_list);
+			error = 0;
+		}
+	}
+	mutex_unlock(&tomoyo_policy_lock);
+ out:
+	tomoyo_put_name(e.original_name);
+	tomoyo_put_name(e.aggregated_name);
+	return error;
+}
+
+/**
+ * tomoyo_read_aggregator_policy - Read "struct tomoyo_aggregator_entry" list.
+ *
+ * @head: Pointer to "struct tomoyo_io_buffer".
+ *
+ * Returns true on success, false otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
+ */
+bool tomoyo_read_aggregator_policy(struct tomoyo_io_buffer *head)
+{
+	struct list_head *pos;
+	bool done = true;
+
+	list_for_each_cookie(pos, head->read_var2, &tomoyo_aggregator_list) {
+		struct tomoyo_aggregator_entry *ptr;
+
+		ptr = list_entry(pos, struct tomoyo_aggregator_entry, list);
+		if (ptr->is_deleted)
+			continue;
+		done = tomoyo_io_printf(head, TOMOYO_KEYWORD_AGGREGATOR
+					"%s %s\n", ptr->original_name->name,
+					ptr->aggregated_name->name);
+		if (!done)
+			break;
+	}
+	return done;
+}
+
+/**
+ * tomoyo_write_aggregator_policy - Write "struct tomoyo_aggregator_entry" list.
+ *
+ * @data:      String to parse.
+ * @is_delete: True if it is a delete request.
+ *
+ * Returns 0 on success, negative value otherwise.
+ *
+ * Caller holds tomoyo_read_lock().
+ */
+int tomoyo_write_aggregator_policy(char *data, const bool is_delete)
+{
+	char *cp = strchr(data, ' ');
+
+	if (!cp)
+		return -EINVAL;
+	*cp++ = '\0';
+	return tomoyo_update_aggregator_entry(data, cp, is_delete);
+}
+
+/*
  * tomoyo_alias_list is used for holding list of symlink's pathnames which are
  * allowed to be passed to an execve() request. Normally, the domainname which
  * the current process will belong to after execve() succeeds is calculated
@@ -728,6 +858,23 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 			need_kfree = false;
 			/* This is OK because it is read only. */
 			rn = *ptr->aliased_name;
+			break;
+		}
+	}
+
+	/* Check 'aggregator' directive. */
+	{
+		struct tomoyo_aggregator_entry *ptr;
+		list_for_each_entry_rcu(ptr, &tomoyo_aggregator_list, list) {
+			if (ptr->is_deleted ||
+			    !tomoyo_path_matches_pattern(&rn,
+							 ptr->original_name))
+				continue;
+			if (need_kfree)
+				kfree(rn.name);
+			need_kfree = false;
+			/* This is OK because it is read only. */
+			rn = *ptr->aggregated_name;
 			break;
 		}
 	}

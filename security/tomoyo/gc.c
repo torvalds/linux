@@ -18,6 +18,7 @@ enum tomoyo_gc_id {
 	TOMOYO_ID_NUMBER_GROUP_MEMBER,
 	TOMOYO_ID_DOMAIN_INITIALIZER,
 	TOMOYO_ID_DOMAIN_KEEPER,
+	TOMOYO_ID_AGGREGATOR,
 	TOMOYO_ID_ALIAS,
 	TOMOYO_ID_GLOBALLY_READABLE,
 	TOMOYO_ID_PATTERN,
@@ -75,6 +76,12 @@ static void tomoyo_del_domain_keeper(struct tomoyo_domain_keeper_entry *ptr)
 {
 	tomoyo_put_name(ptr->domainname);
 	tomoyo_put_name(ptr->program);
+}
+
+static void tomoyo_del_aggregator(struct tomoyo_aggregator_entry *ptr)
+{
+	tomoyo_put_name(ptr->original_name);
+	tomoyo_put_name(ptr->aggregated_name);
 }
 
 static void tomoyo_del_alias(struct tomoyo_alias_entry *ptr)
@@ -264,6 +271,17 @@ static void tomoyo_collect_entry(void)
 		}
 	}
 	{
+		struct tomoyo_aggregator_entry *ptr;
+		list_for_each_entry_rcu(ptr, &tomoyo_aggregator_list, list) {
+			if (!ptr->is_deleted)
+				continue;
+			if (tomoyo_add_to_gc(TOMOYO_ID_AGGREGATOR, ptr))
+				list_del_rcu(&ptr->list);
+			else
+				break;
+		}
+	}
+	{
 		struct tomoyo_alias_entry *ptr;
 		list_for_each_entry_rcu(ptr, &tomoyo_alias_list, list) {
 			if (!ptr->is_deleted)
@@ -416,6 +434,9 @@ static void tomoyo_kfree_entry(void)
 			break;
 		case TOMOYO_ID_DOMAIN_KEEPER:
 			tomoyo_del_domain_keeper(p->element);
+			break;
+		case TOMOYO_ID_AGGREGATOR:
+			tomoyo_del_aggregator(p->element);
 			break;
 		case TOMOYO_ID_ALIAS:
 			tomoyo_del_alias(p->element);
