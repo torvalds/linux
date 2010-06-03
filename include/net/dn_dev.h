@@ -101,7 +101,7 @@ struct dn_short_packet {
 	__le16 dstnode;
 	__le16 srcnode;
 	__u8   forward;
-} __attribute__((packed));
+} __packed;
 
 struct dn_long_packet {
 	__u8   msgflg;
@@ -115,7 +115,7 @@ struct dn_long_packet {
 	__u8   visit_ct;
 	__u8   s_class;
 	__u8   pt;
-} __attribute__((packed));
+} __packed;
 
 /*------------------------- DRP - Routing messages ---------------------*/
 
@@ -132,7 +132,7 @@ struct endnode_hello_message {
 	__u8   mpd;
 	__u8   datalen;
 	__u8   data[2];
-} __attribute__((packed));
+} __packed;
 
 struct rtnode_hello_message {
 	__u8   msgflg;
@@ -144,7 +144,7 @@ struct rtnode_hello_message {
 	__u8   area;
 	__le16  timer;
 	__u8   mpd;
-} __attribute__((packed));
+} __packed;
 
 
 extern void dn_dev_init(void);

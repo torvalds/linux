@@ -27,6 +27,6 @@ struct ipv6_tlv_tnl_enc_lim {
 	__u8 type;		/* type-code for option         */
 	__u8 length;		/* option length                */
 	__u8 encap_limit;	/* tunnel encapsulation limit   */
-} __attribute__ ((packed));
+} __packed;
 
 #endif
