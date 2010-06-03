@@ -326,6 +326,9 @@ struct qib_verbs_txreq {
 
 #define QIB_DEFAULT_MTU 4096
 
+/* max number of IB ports supported per HCA */
+#define QIB_MAX_IB_PORTS 2
+
 /*
  * Possible IB config parameters for f_get/set_ib_table()
  */
