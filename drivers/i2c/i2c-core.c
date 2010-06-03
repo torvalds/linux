@@ -47,7 +47,6 @@ static DEFINE_MUTEX(core_lock);
 static DEFINE_IDR(i2c_adapter_idr);
 
 static struct device_type i2c_client_type;
-static int i2c_check_addr(struct i2c_adapter *adapter, int addr);
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver);
 
 /* ------------------------------------------------------------------------- */
@@ -408,6 +407,22 @@ static int i2c_check_addr_validity(unsigned short addr)
 	return 0;
 }
 
+static int __i2c_check_addr_busy(struct device *dev, void *addrp)
+{
+	struct i2c_client	*client = i2c_verify_client(dev);
+	int			addr = *(int *)addrp;
+
+	if (client && client->addr == addr)
+		return -EBUSY;
+	return 0;
+}
+
+static int i2c_check_addr_busy(struct i2c_adapter *adapter, int addr)
+{
+	return device_for_each_child(&adapter->dev, &addr,
+				     __i2c_check_addr_busy);
+}
+
 /**
  * i2c_new_device - instantiate an i2c device
  * @adap: the adapter managing the device
@@ -456,7 +471,7 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	}
 
 	/* Check for address business */
-	status = i2c_check_addr(adap, client->addr);
+	status = i2c_check_addr_busy(adap, client->addr);
 	if (status)
 		goto out_err;
 
@@ -1064,21 +1079,6 @@ EXPORT_SYMBOL(i2c_del_driver);
 
 /* ------------------------------------------------------------------------- */
 
-static int __i2c_check_addr(struct device *dev, void *addrp)
-{
-	struct i2c_client	*client = i2c_verify_client(dev);
-	int			addr = *(int *)addrp;
-
-	if (client && client->addr == addr)
-		return -EBUSY;
-	return 0;
-}
-
-static int i2c_check_addr(struct i2c_adapter *adapter, int addr)
-{
-	return device_for_each_child(&adapter->dev, &addr, __i2c_check_addr);
-}
-
 /**
  * i2c_use_client - increments the reference count of the i2c client structure
  * @client: the client being referenced
@@ -1369,7 +1369,7 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 	}
 
 	/* Skip if already in use */
-	if (i2c_check_addr(adapter, addr))
+	if (i2c_check_addr_busy(adapter, addr))
 		return 0;
 
 	/* Make sure there is something at this address */
@@ -1475,7 +1475,7 @@ i2c_new_probed_device(struct i2c_adapter *adap,
 		}
 
 		/* Check address availability */
-		if (i2c_check_addr(adap, addr_list[i])) {
+		if (i2c_check_addr_busy(adap, addr_list[i])) {
 			dev_dbg(&adap->dev, "Address 0x%02x already in "
 				"use, not probing\n", addr_list[i]);
 			continue;
