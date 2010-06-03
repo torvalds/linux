@@ -63,7 +63,6 @@
  */
 #define REV_RT2860C			0x0100
 #define REV_RT2860D			0x0101
-#define REV_RT2870D			0x0101
 #define REV_RT2872E			0x0200
 #define REV_RT3070E			0x0200
 #define REV_RT3070F			0x0201
