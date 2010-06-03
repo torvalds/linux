@@ -232,7 +232,7 @@ static int __devinit fun_probe(struct of_device *ofdev,
 	if (!fun)
 		return -ENOMEM;
 
-	ret = of_address_to_resource(ofdev->node, 0, &io_res);
+	ret = of_address_to_resource(ofdev->dev.of_node, 0, &io_res);
 	if (ret) {
 		dev_err(&ofdev->dev, "can't get IO base\n");
 		goto err1;
@@ -244,7 +244,8 @@ static int __devinit fun_probe(struct of_device *ofdev,
 		goto err1;
 	}
 
-	prop = of_get_property(ofdev->node, "fsl,upm-addr-offset", &size);
+	prop = of_get_property(ofdev->dev.of_node, "fsl,upm-addr-offset",
+			       &size);
 	if (!prop || size != sizeof(uint32_t)) {
 		dev_err(&ofdev->dev, "can't get UPM address offset\n");
 		ret = -EINVAL;
@@ -252,7 +253,7 @@ static int __devinit fun_probe(struct of_device *ofdev,
 	}
 	fun->upm_addr_offset = *prop;
 
-	prop = of_get_property(ofdev->node, "fsl,upm-cmd-offset", &size);
+	prop = of_get_property(ofdev->dev.of_node, "fsl,upm-cmd-offset", &size);
 	if (!prop || size != sizeof(uint32_t)) {
 		dev_err(&ofdev->dev, "can't get UPM command offset\n");
 		ret = -EINVAL;
@@ -260,7 +261,7 @@ static int __devinit fun_probe(struct of_device *ofdev,
 	}
 	fun->upm_cmd_offset = *prop;
 
-	prop = of_get_property(ofdev->node,
+	prop = of_get_property(ofdev->dev.of_node,
 			       "fsl,upm-addr-line-cs-offsets", &size);
 	if (prop && (size / sizeof(uint32_t)) > 0) {
 		fun->mchip_count = size / sizeof(uint32_t);
@@ -276,7 +277,7 @@ static int __devinit fun_probe(struct of_device *ofdev,
 
 	for (i = 0; i < fun->mchip_count; i++) {
 		fun->rnb_gpio[i] = -1;
-		rnb_gpio = of_get_gpio(ofdev->node, i);
+		rnb_gpio = of_get_gpio(ofdev->dev.of_node, i);
 		if (rnb_gpio >= 0) {
 			ret = gpio_request(rnb_gpio, dev_name(&ofdev->dev));
 			if (ret) {
@@ -292,13 +293,13 @@ static int __devinit fun_probe(struct of_device *ofdev,
 		}
 	}
 
-	prop = of_get_property(ofdev->node, "chip-delay", NULL);
+	prop = of_get_property(ofdev->dev.of_node, "chip-delay", NULL);
 	if (prop)
 		fun->chip_delay = *prop;
 	else
 		fun->chip_delay = 50;
 
-	prop = of_get_property(ofdev->node, "fsl,upm-wait-flags", &size);
+	prop = of_get_property(ofdev->dev.of_node, "fsl,upm-wait-flags", &size);
 	if (prop && size == sizeof(uint32_t))
 		fun->wait_flags = *prop;
 	else
@@ -315,7 +316,7 @@ static int __devinit fun_probe(struct of_device *ofdev,
 	fun->dev = &ofdev->dev;
 	fun->last_ctrl = NAND_CLE;
 
-	ret = fun_chip_init(fun, ofdev->node, &io_res);
+	ret = fun_chip_init(fun, ofdev->dev.of_node, &io_res);
 	if (ret)
 		goto err2;
 
