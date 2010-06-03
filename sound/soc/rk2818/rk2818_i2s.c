@@ -69,14 +69,14 @@ static struct rockchip_dma_client rockchip_dma_client_in = {
 
 static struct rockchip_pcm_dma_params rockchip_i2s_pcm_stereo_out = {
 	.client		= &rockchip_dma_client_out,
-	.channel	= RK28_DMA_CH2, ///0,  //DMACH_I2S_OUT,
+	.channel	= RK28_DMA_CH4, ///0,  //DMACH_I2S_OUT,
 	.dma_addr	= RK2818_I2S_PHYS + I2S_TXR_BUFF,
 	.dma_size	= 4,
 };
 
 static struct rockchip_pcm_dma_params rockchip_i2s_pcm_stereo_in = {
 	.client		= &rockchip_dma_client_in,
-	.channel	= RK28_DMA_CH2,  ///1,  //DMACH_I2S_IN,
+	.channel	= RK28_DMA_CH5,  ///1,  //DMACH_I2S_IN,
 	.dma_addr	= RK2818_I2S_PHYS + I2S_RXR_BUFF,
 	.dma_size	= 4,
 };

@@ -294,6 +294,12 @@ static int rockchip_pcm_hw_params(struct snd_pcm_substream *substream,
 			prtd->params->client, prtd->params->channel);
 
 		ret = request_dma(prtd->params->channel, "i2s");  ///prtd->params->client->name);
+		if(ret){
+			for(prtd->params->channel=5;prtd->params->channel>0;prtd->params->channel--){
+				ret = request_dma(prtd->params->channel, "i2s");
+				if(!ret)break;
+			}
+		}
 		if (ret) {
 			DBG(KERN_ERR "failed to get dma channel\n");
 			return ret;
