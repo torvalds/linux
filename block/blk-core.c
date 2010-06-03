@@ -570,9 +570,17 @@ EXPORT_SYMBOL(blk_init_queue);
 struct request_queue *
 blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 {
-	struct request_queue *q = blk_alloc_queue_node(GFP_KERNEL, node_id);
+	struct request_queue *uninit_q, *q;
 
-	return blk_init_allocated_queue_node(q, rfn, lock, node_id);
+	uninit_q = blk_alloc_queue_node(GFP_KERNEL, node_id);
+	if (!uninit_q)
+		return NULL;
+
+	q = blk_init_allocated_queue_node(uninit_q, rfn, lock, node_id);
+	if (!q)
+		blk_cleanup_queue(uninit_q);
+
+	return q;
 }
 EXPORT_SYMBOL(blk_init_queue_node);
 
@@ -592,10 +600,8 @@ blk_init_allocated_queue_node(struct request_queue *q, request_fn_proc *rfn,
 		return NULL;
 
 	q->node = node_id;
-	if (blk_init_free_list(q)) {
-		kmem_cache_free(blk_requestq_cachep, q);
+	if (blk_init_free_list(q))
 		return NULL;
-	}
 
 	q->request_fn		= rfn;
 	q->prep_rq_fn		= NULL;
@@ -618,7 +624,6 @@ blk_init_allocated_queue_node(struct request_queue *q, request_fn_proc *rfn,
 		return q;
 	}
 
-	blk_put_queue(q);
 	return NULL;
 }
 EXPORT_SYMBOL(blk_init_allocated_queue_node);
