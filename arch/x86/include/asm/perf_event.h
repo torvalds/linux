@@ -68,8 +68,9 @@ union cpuid10_eax {
 
 union cpuid10_edx {
 	struct {
-		unsigned int num_counters_fixed:4;
-		unsigned int reserved:28;
+		unsigned int num_counters_fixed:5;
+		unsigned int bit_width_fixed:8;
+		unsigned int reserved:19;
 	} split;
 	unsigned int full;
 };
