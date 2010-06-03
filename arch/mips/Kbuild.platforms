@@ -5,6 +5,7 @@ platforms += ar7
 platforms += cobalt
 platforms += loongson
 platforms += mipssim
+platforms += pmc-sierra
 platforms += sgi-ip27
 platforms += vr41xx
 

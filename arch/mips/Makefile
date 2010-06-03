@@ -222,21 +222,6 @@ load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
 all-$(CONFIG_MIPS_MALTA)	:= $(COMPRESSION_FNAME).bin
 
 #
-# PMC-Sierra MSP SOCs
-#
-core-$(CONFIG_PMC_MSP)		+= arch/mips/pmc-sierra/msp71xx/
-cflags-$(CONFIG_PMC_MSP)	+= -I$(srctree)/arch/mips/include/asm/pmc-sierra/msp71xx \
-					-mno-branch-likely
-load-$(CONFIG_PMC_MSP)		+= 0xffffffff80100000
-
-#
-# PMC-Sierra Yosemite
-#
-core-$(CONFIG_PMC_YOSEMITE)	+= arch/mips/pmc-sierra/yosemite/
-cflags-$(CONFIG_PMC_YOSEMITE)	+= -I$(srctree)/arch/mips/include/asm/mach-yosemite
-load-$(CONFIG_PMC_YOSEMITE)	+= 0xffffffff80100000
-
-#
 # LASAT platforms
 #
 core-$(CONFIG_LASAT)		+= arch/mips/lasat/
