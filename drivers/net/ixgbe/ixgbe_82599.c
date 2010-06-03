@@ -707,9 +707,8 @@ static s32 ixgbe_setup_mac_link_smartspeed(struct ixgbe_hw *hw,
 
 out:
 	if (link_up && (link_speed == IXGBE_LINK_SPEED_1GB_FULL))
-		netif_info(adapter, hw, adapter->netdev, "Smartspeed has"
-			" downgraded the link speed from the maximum"
-			" advertised\n");
+		e_info("Smartspeed has downgraded the link speed from "
+		       "the maximum advertised\n");
 	return status;
 }
 
