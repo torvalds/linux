@@ -321,7 +321,7 @@ LC1:		.word	reloc_end - reloc_start
 
 #ifdef CONFIG_ARCH_RPC
 		.globl	params
-params:		ldr	r0, =params_phys
+params:		ldr	r0, =0x10000100		@ params_phys for RPC
 		mov	pc, lr
 		.ltorg
 		.align
