@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_sdio.c,v 1.157.2.27.2.33.2.109.2.2 2010/05/18 01:13:11 Exp $
+ * $Id: dhd_sdio.c,v 1.157.2.27.2.33.2.123 2010/05/18 05:48:53 Exp $
  */
 
 #include <typedefs.h>
@@ -953,7 +953,6 @@ dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 	        (((pad + SDPCM_HDRLEN) << SDPCM_DOFFSET_SHIFT) & SDPCM_DOFFSET_MASK);
 	htol32_ua_store(swheader, frame + SDPCM_FRAMETAG_LEN);
 	htol32_ua_store(0, frame + SDPCM_FRAMETAG_LEN + sizeof(swheader));
-	bus->tx_seq = (bus->tx_seq + 1) % SDPCM_SEQUENCE_WRAP;
 
 #ifdef DHD_DEBUG
 	tx_packets[PKTPRIO(pkt)]++;
@@ -1018,6 +1017,9 @@ dhdsdio_txpkt(dhd_bus_t *bus, void *pkt, uint chan, bool free_pkt)
 					break;
 			}
 
+		}
+		if (ret == 0) {
+			bus->tx_seq = (bus->tx_seq + 1) % SDPCM_SEQUENCE_WRAP;
 		}
 	} while ((ret < 0) && retrydata && retries++ < TXRETRIES);
 
@@ -1106,7 +1108,8 @@ dhd_bus_txdata(struct dhd_bus *bus, void *pkt)
 
 		/* Otherwise, send it now */
 		BUS_WAKE(bus);
-		dhdsdio_clkctl(bus, CLK_AVAIL, TRUE);
+		/* Make sure back plane ht clk is on, no pending allowed */
+		dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
 
 #ifndef SDTEST
 		DHD_TRACE(("%s: calling txpkt\n", __FUNCTION__));
@@ -1260,6 +1263,8 @@ dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 	htol32_ua_store(0, frame + SDPCM_FRAMETAG_LEN + sizeof(swheader));
 
 	if (!DATAOK(bus)) {
+		DHD_INFO(("%s: No bus credit bus->tx_max %d, bus->tx_seq %d\n",
+			__FUNCTION__, bus->tx_max, bus->tx_seq));
 		bus->ctrl_frame_stat = TRUE;
 		/* Send from dpc */
 		bus->ctrl_frame_buf = frame;
@@ -1267,15 +1272,16 @@ dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 
 		dhd_wait_for_event(bus->dhd, &bus->ctrl_frame_stat);
 
-		if (bus->ctrl_frame_stat == FALSE)
+		if (bus->ctrl_frame_stat == FALSE) {
+			DHD_INFO(("%s: ctrl_frame_stat == FALSE\n", __FUNCTION__));
 			ret = 0;
-		else
+		} else {
+			DHD_INFO(("%s: ctrl_frame_stat == TRUE\n", __FUNCTION__));
 			ret = -1;
+		}
 	}
 
 	if (ret == -1) {
-		bus->tx_seq = (bus->tx_seq + 1) % SDPCM_SEQUENCE_WRAP;
-
 #ifdef DHD_DEBUG
 		if (DHD_BYTES_ON() && DHD_CTL_ON()) {
 			prhex("Tx Frame", frame, len);
@@ -1285,6 +1291,7 @@ dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 #endif
 
 		do {
+			bus->ctrl_frame_stat = FALSE;
 			ret = dhd_bcmsdh_send_buf(bus, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2, F2SYNC,
 			                          frame, len, NULL, NULL, NULL);
 			ASSERT(ret != BCME_PENDING);
@@ -1312,6 +1319,9 @@ dhd_bus_txctl(struct dhd_bus *bus, uchar *msg, uint msglen)
 						break;
 				}
 
+			}
+			if (ret == 0) {
+				bus->tx_seq = (bus->tx_seq + 1) % SDPCM_SEQUENCE_WRAP;
 			}
 		} while ((ret < 0) && retries++ < TXRETRIES);
 	}
@@ -1723,83 +1733,7 @@ dhdsdio_readshared(dhd_bus_t *bus, sdpcm_shared_t *sh)
 
 	return BCME_OK;
 }
-#endif
 
-#define CONSOLE_LINE_MAX	192
-
-#ifdef DHD_DEBUG
-static int
-dhdsdio_readconsole(dhd_bus_t *bus)
-{
-	dhd_console_t *c = &bus->console;
-	uint8 line[CONSOLE_LINE_MAX], ch;
-	uint32 n, idx, addr;
-	int rv;
-
-	/* Don't do anything until FWREADY updates console address */
-	if (bus->console_addr == 0)
-		return 0;
-
-	/* Read console log struct */
-	addr = bus->console_addr + OFFSETOF(hndrte_cons_t, log);
-	if ((rv = dhdsdio_membytes(bus, FALSE, addr, (uint8 *)&c->log, sizeof(c->log))) < 0)
-		return rv;
-
-	/* Allocate console buffer (one time only) */
-	if (c->buf == NULL) {
-		c->bufsize = ltoh32(c->log.buf_size);
-		if ((c->buf = MALLOC(bus->dhd->osh, c->bufsize)) == NULL)
-			return BCME_NOMEM;
-	}
-
-	idx = ltoh32(c->log.idx);
-
-	/* Protect against corrupt value */
-	if (idx > c->bufsize)
-		return BCME_ERROR;
-
-	/* Skip reading the console buffer if the index pointer has not moved */
-	if (idx == c->last)
-		return BCME_OK;
-
-	/* Read the console buffer */
-	addr = ltoh32(c->log.buf);
-	if ((rv = dhdsdio_membytes(bus, FALSE, addr, c->buf, c->bufsize)) < 0)
-		return rv;
-
-	while (c->last != idx) {
-		for (n = 0; n < CONSOLE_LINE_MAX - 2; n++) {
-			if (c->last == idx) {
-				/* This would output a partial line.  Instead, back up
-				 * the buffer pointer and output this line next time around.
-				 */
-				if (c->last >= n)
-					c->last -= n;
-				else
-					c->last = c->bufsize - n;
-				goto break2;
-			}
-			ch = c->buf[c->last];
-			c->last = (c->last + 1) % c->bufsize;
-			if (ch == '\n')
-				break;
-			line[n] = ch;
-		}
-
-		if (n > 0) {
-			if (line[n - 1] == '\r')
-				n--;
-			line[n] = 0;
-			printf("CONSOLE: %s\n", line);
-		}
-	}
-break2:
-
-	return BCME_OK;
-}
-#endif
-
-#ifdef DHD_DEBUG_TRAP
 static int
 dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
 {
@@ -1892,7 +1826,7 @@ dhdsdio_checkdied(dhd_bus_t *bus, uint8 *data, uint size)
 				goto done;
 
 			bcm_bprintf(&strbuf,
-			"Dongle trap type 0x%x @ pc 0x%x, cpsr 0x%x, spsr 0x%x, sp 0x%x,"
+			"Dongle trap type 0x%x @ epc 0x%x, cpsr 0x%x, spsr 0x%x, sp 0x%x,"
 			"lp 0x%x, rpc 0x%x Trap offset 0x%x, "
 			"r0 0x%x, r1 0x%x, r2 0x%x, r3 0x%x, r4 0x%x, r5 0x%x, r6 0x%x, r7 0x%x\n",
 			tr.type, tr.epc, tr.cpsr, tr.spsr, tr.r13, tr.r14, tr.pc,
@@ -1923,9 +1857,130 @@ static int
 dhdsdio_mem_dump(dhd_bus_t *bus)
 {
 	int ret = 0;
-	return ret;
+	int size; /* Full mem size */
+	int start = 0; /* Start address */
+	int read_size = 0; /* Read size of each iteration */
+	uint8 *buf = NULL, *databuf = NULL;
+
+	/* Get full mem size */
+	size = bus->ramsize;
+	buf = MALLOC(bus->dhd->osh, size);
+	if (!buf) {
+		printf("%s: Out of memory (%d bytes)\n", __FUNCTION__, size);
+		return -1;
+	}
+
+	/* Read mem content */
+	printf("Dump dongle memory");
+	databuf = buf;
+	while (size)
+	{
+		read_size = MIN(MEMBLOCK, size);
+		if ((ret = dhdsdio_membytes(bus, FALSE, start, databuf, read_size)))
+		{
+			printf("%s: Error membytes %d\n", __FUNCTION__, ret);
+			if (buf) {
+				MFREE(bus->dhd->osh, buf, size);
+			}
+			return -1;
+		}
+		printf(".");
+
+		/* Decrement size and increment start address */
+		size -= read_size;
+		start += read_size;
+		databuf += read_size;
+	}
+	printf("Done\n");
+
+#ifdef DHD_DEBUG
+	/* free buf before return !!! */
+	if (write_to_file(bus->dhd, buf, bus->ramsize))
+	{
+		printf("%s: Error writing to files\n", __FUNCTION__);
+		return -1;
+	}
+	/* buf free handled in write_to_file, not here */
+#else
+	MFREE(bus->dhd->osh, buf, size);
+#endif
+	return 0;
 }
 #endif /* DHD_DEBUG_TRAP */
+
+#ifdef DHD_DEBUG
+#define CONSOLE_LINE_MAX	192
+
+static int
+dhdsdio_readconsole(dhd_bus_t *bus)
+{
+	dhd_console_t *c = &bus->console;
+	uint8 line[CONSOLE_LINE_MAX], ch;
+	uint32 n, idx, addr;
+	int rv;
+
+	/* Don't do anything until FWREADY updates console address */
+	if (bus->console_addr == 0)
+		return 0;
+
+	/* Read console log struct */
+	addr = bus->console_addr + OFFSETOF(hndrte_cons_t, log);
+	if ((rv = dhdsdio_membytes(bus, FALSE, addr, (uint8 *)&c->log, sizeof(c->log))) < 0)
+		return rv;
+
+	/* Allocate console buffer (one time only) */
+	if (c->buf == NULL) {
+		c->bufsize = ltoh32(c->log.buf_size);
+		if ((c->buf = MALLOC(bus->dhd->osh, c->bufsize)) == NULL)
+			return BCME_NOMEM;
+	}
+
+	idx = ltoh32(c->log.idx);
+
+	/* Protect against corrupt value */
+	if (idx > c->bufsize)
+		return BCME_ERROR;
+
+	/* Skip reading the console buffer if the index pointer has not moved */
+	if (idx == c->last)
+		return BCME_OK;
+
+	/* Read the console buffer */
+	addr = ltoh32(c->log.buf);
+	if ((rv = dhdsdio_membytes(bus, FALSE, addr, c->buf, c->bufsize)) < 0)
+		return rv;
+
+	while (c->last != idx) {
+		for (n = 0; n < CONSOLE_LINE_MAX - 2; n++) {
+			if (c->last == idx) {
+				/* This would output a partial line.  Instead, back up
+				 * the buffer pointer and output this line next time around.
+				 */
+				if (c->last >= n)
+					c->last -= n;
+				else
+					c->last = c->bufsize - n;
+				goto break2;
+			}
+			ch = c->buf[c->last];
+			c->last = (c->last + 1) % c->bufsize;
+			if (ch == '\n')
+				break;
+			line[n] = ch;
+		}
+
+		if (n > 0) {
+			if (line[n - 1] == '\r')
+				n--;
+			line[n] = 0;
+			printf("CONSOLE: %s\n", line);
+		}
+	}
+break2:
+
+	return BCME_OK;
+}
+#endif /* DHD_DEBUG */
 
 int
 dhdsdio_downloadvars(dhd_bus_t *bus, void *arg, int len)
@@ -4082,8 +4137,10 @@ dhdsdio_dpc(dhd_bus_t *bus)
 
 	BUS_WAKE(bus);
 
-	/* Make sure backplane clock is on */
-	dhdsdio_clkctl(bus, CLK_AVAIL, TRUE);
+	/* Make sure backplane clock is on, no pending, 
+	* waste of cycle to wait for the next schedule to send
+	*/
+	dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
 	if (bus->clkstate == CLK_PENDING)
 		goto clkwait;
 
@@ -4174,7 +4231,7 @@ clkwait:
 		bcmsdh_intr_enable(sdh);
 	}
 
-	if (DATAOK(bus) && bus->ctrl_frame_stat) {
+	if (DATAOK(bus) && bus->ctrl_frame_stat && (bus->clkstate == CLK_AVAIL)) {
 		int ret, i;
 
 		ret = dhd_bcmsdh_send_buf(bus, bcmsdh_cur_sbwad(sdh), SDIO_FUNC_2, F2SYNC,
@@ -4206,13 +4263,16 @@ clkwait:
 			}
 
 		}
+		if (ret == 0) {
+				bus->tx_seq = (bus->tx_seq + 1) % SDPCM_SEQUENCE_WRAP;
+		}
+
 		printf("Return_dpc value is : %d\n", ret);
-		bus->tx_seq = (bus->tx_seq + 1) % SDPCM_SEQUENCE_WRAP;
 		bus->ctrl_frame_stat = FALSE;
 		dhd_wait_event_wakeup(bus->dhd);
 	}
 	/* Send queued frames (limit 1 if rx may still be pending) */
-	else if ((bus->clkstate != CLK_PENDING) && !bus->fcstate &&
+	else if ((bus->clkstate == CLK_AVAIL) && !bus->fcstate &&
 	    pktq_mlen(&bus->txq, ~bus->flowcontrol) && txlimit && DATAOK(bus)) {
 		framecnt = rxdone ? txlimit : MIN(txlimit, dhd_txminmax);
 		framecnt = dhdsdio_sendfromq(bus, framecnt);
@@ -4227,7 +4287,8 @@ clkwait:
 		bus->dhd->busstate = DHD_BUS_DOWN;
 		bus->intstatus = 0;
 	} else if (bus->clkstate == CLK_PENDING) {
-		/* Awaiting I_CHIPACTIVE; don't resched */
+		DHD_INFO(("%s: rescheduled due to CLK_PENDING awaiting \
+			I_CHIPACTIVE interrupt", __FUNCTION__));
 	} else if (bus->intstatus || bus->ipend ||
 	           (!bus->fcstate && pktq_mlen(&bus->txq, ~bus->flowcontrol) && DATAOK(bus)) ||
 			PKT_AVAILABLE()) {  /* Read multiple frames */
@@ -4251,7 +4312,6 @@ clkwait:
 bool
 dhd_bus_dpc(struct dhd_bus *bus)
 {
-#ifdef SDIO_ISR_THREAD
 	bool resched;
 
 	/* Call the DPC directly. */
@@ -4259,9 +4319,6 @@ dhd_bus_dpc(struct dhd_bus *bus)
 	resched = dhdsdio_dpc(bus);
 
 	return resched;
-#else
-	return dhdsdio_dpc(bus);
-#endif /* SDIO_ISR_THREAD */
 }
 
 void
@@ -4269,6 +4326,8 @@ dhdsdio_isr(void *arg)
 {
 	dhd_bus_t *bus = (dhd_bus_t*)arg;
 	bcmsdh_info_t *sdh;
+
+	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
 	if (!bus) {
 		DHD_ERROR(("%s : bus is null pointer , exit \n", __FUNCTION__));
@@ -4280,9 +4339,6 @@ dhdsdio_isr(void *arg)
 		DHD_ERROR(("%s : bus is down. we have nothing to do\n", __FUNCTION__));
 		return;
 	}
-
-	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
-
 	/* Count the interrupt call */
 	bus->intrcount++;
 	bus->ipend = TRUE;
@@ -4639,7 +4695,6 @@ dhd_bus_watchdog(dhd_pub_t *dhdp)
 			bus->idlecount = 0;
 			if (bus->activity) {
 				bus->activity = FALSE;
-			} else {
 				dhdsdio_clkctl(bus, CLK_NONE, FALSE);
 			}
 		}
@@ -4650,6 +4705,68 @@ dhd_bus_watchdog(dhd_pub_t *dhdp)
 	return bus->ipend;
 }
 
+#ifdef DHD_DEBUG
+extern int
+dhd_bus_console_in(dhd_pub_t *dhdp, uchar *msg, uint msglen)
+{
+	dhd_bus_t *bus = dhdp->bus;
+	uint32 addr, val;
+	int rv;
+	void *pkt;
+
+	/* Address could be zero if CONSOLE := 0 in dongle Makefile */
+	if (bus->console_addr == 0)
+		return BCME_UNSUPPORTED;
+
+	/* Exclusive bus access */
+	dhd_os_sdlock(bus->dhd);
+
+	/* Don't allow input if dongle is in reset */
+	if (bus->dhd->dongle_reset) {
+		dhd_os_sdunlock(bus->dhd);
+		return BCME_NOTREADY;
+	}
+
+	/* Request clock to allow SDIO accesses */
+	BUS_WAKE(bus);
+	/* No pend allowed since txpkt is called later, ht clk has to be on */
+	dhdsdio_clkctl(bus, CLK_AVAIL, FALSE);
+
+	/* Zero cbuf_index */
+	addr = bus->console_addr + OFFSETOF(hndrte_cons_t, cbuf_idx);
+	val = htol32(0);
+	if ((rv = dhdsdio_membytes(bus, TRUE, addr, (uint8 *)&val, sizeof(val))) < 0)
+		goto done;
+
+	/* Write message into cbuf */
+	addr = bus->console_addr + OFFSETOF(hndrte_cons_t, cbuf);
+	if ((rv = dhdsdio_membytes(bus, TRUE, addr, (uint8 *)msg, msglen)) < 0)
+		goto done;
+
+	/* Write length into vcons_in */
+	addr = bus->console_addr + OFFSETOF(hndrte_cons_t, vcons_in);
+	val = htol32(msglen);
+	if ((rv = dhdsdio_membytes(bus, TRUE, addr, (uint8 *)&val, sizeof(val))) < 0)
+		goto done;
+
+	/* Bump dongle by sending an empty event pkt.
+	 * sdpcm_sendup (RX) checks for virtual console input.
+	 */
+	if (((pkt = PKTGET(bus->dhd->osh, 4 + SDPCM_RESERVE, TRUE)) != NULL) &&
+		bus->clkstate == CLK_AVAIL)
+		dhdsdio_txpkt(bus, pkt, SDPCM_EVENT_CHANNEL, TRUE);
+
+done:
+	if ((bus->idletime == DHD_IDLE_IMMEDIATE) && !bus->dpc_sched) {
+		bus->activity = FALSE;
+		dhdsdio_clkctl(bus, CLK_NONE, TRUE);
+	}
+
+	dhd_os_sdunlock(bus->dhd);
+
+	return rv;
+}
+#endif /* DHD_DEBUG */
 
 #ifdef DHD_DEBUG
 static void

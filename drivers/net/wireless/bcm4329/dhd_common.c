@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhd_common.c,v 1.5.6.8.2.6.6.41 2010/02/24 01:52:41 Exp $
+ * $Id: dhd_common.c,v 1.5.6.8.2.6.6.60 2010/05/26 03:36:55 Exp $
  */
 #include <typedefs.h>
 #include <osl.h>
@@ -38,6 +38,8 @@
 #include <msgtrace.h>
 
 
+#include <wlioctl.h>
+
 int dhd_msg_level;
 
 char fw_path[MOD_PARAM_PATHLEN];
@@ -48,6 +50,25 @@ uint32 dhd_conn_event;
 uint32 dhd_conn_status;
 uint32 dhd_conn_reason;
 
+#define htod32(i) i
+#define htod16(i) i
+#define dtoh32(i) i
+#define dtoh16(i) i
+
+extern int dhdcdc_set_ioctl(dhd_pub_t *dhd, int ifidx, uint cmd, void *buf, uint len);
+extern void dhd_ind_scan_confirm(void *h, bool status);
+extern int dhd_wl_ioctl(dhd_pub_t *dhd, uint cmd, char *buf, uint buflen);
+void dhd_iscan_lock(void);
+void dhd_iscan_unlock(void);
+
+/* Packet alignment for most efficient SDIO (can change based on platform) */
+#ifndef DHD_SDALIGN
+#define DHD_SDALIGN	32
+#endif
+#if !ISPOWEROF2(DHD_SDALIGN)
+#error DHD_SDALIGN is not a power of 2!
+#endif
+
 #ifdef DHD_DEBUG
 const char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR "\nCompiled on "
 	__DATE__ " at " __TIME__;
@@ -57,7 +78,6 @@ const char dhd_version[] = "Dongle Host Driver, version " EPI_VERSION_STR;
 
 void dhd_set_timer(void *bus, uint wdtick);
 
-
 /* IOVar table */
 enum {
 	IOV_VERSION = 1,
@@ -66,6 +86,10 @@ enum {
 	IOV_BCMERROR,
 	IOV_WDTICK,
 	IOV_DUMP,
+#ifdef DHD_DEBUG
+	IOV_CONS,
+	IOV_DCONSOLE_POLL,
+#endif
 	IOV_CLEARCOUNTS,
 	IOV_LOGDUMP,
 	IOV_LOGCAL,
@@ -84,6 +108,10 @@ const bcm_iovar_t dhd_iovars[] = {
 	{"bcmerror",	IOV_BCMERROR,	0,	IOVT_INT8,	0 },
 	{"wdtick",	IOV_WDTICK, 0,	IOVT_UINT32,	0 },
 	{"dump",	IOV_DUMP,	0,	IOVT_BUFFER,	DHD_IOCTL_MAXLEN },
+#ifdef DHD_DEBUG
+	{"dconpoll",	IOV_DCONSOLE_POLL, 0,	IOVT_UINT32,	0 },
+	{"cons",	IOV_CONS,	0,	IOVT_BUFFER,	0 },
+#endif
 	{"clearcounts", IOV_CLEARCOUNTS, 0, IOVT_VOID,	0 },
 	{"gpioob",	IOV_GPIOOB,	0,	IOVT_UINT32,	0 },
 	{"ioctl_timeout",	IOV_IOCTLTIMEOUT,	0,	IOVT_UINT32,	0 },
@@ -223,6 +251,21 @@ dhd_doiovar(dhd_pub_t *dhd_pub, const bcm_iovar_t *vi, uint32 actionid, const ch
 		bcmerror = dhd_dump(dhd_pub, arg, len);
 		break;
 
+#ifdef DHD_DEBUG
+	case IOV_GVAL(IOV_DCONSOLE_POLL):
+		int_val = (int32)dhd_console_ms;
+		bcopy(&int_val, arg, val_size);
+		break;
+
+	case IOV_SVAL(IOV_DCONSOLE_POLL):
+		dhd_console_ms = (uint)int_val;
+		break;
+
+	case IOV_SVAL(IOV_CONS):
+		if (len > 0)
+			bcmerror = dhd_bus_console_in(dhd_pub, arg, len - 1);
+		break;
+#endif
 
 	case IOV_SVAL(IOV_CLEARCOUNTS):
 		dhd_pub->tx_packets = dhd_pub->rx_packets = 0;
@@ -892,3 +935,759 @@ wl_event_to_host_order(wl_event_msg_t *evt)
 	evt->datalen = ntoh32(evt->datalen);
 	evt->version = ntoh16(evt->version);
 }
+
+void print_buf(void *pbuf, int len, int bytes_per_line)
+{
+	int i, j = 0;
+	unsigned char *buf = pbuf;
+
+	if (bytes_per_line == 0) {
+		bytes_per_line = len;
+	}
+
+	for (i = 0; i < len; i++) {
+		printf("%2.2x", *buf++);
+		j++;
+		if (j == bytes_per_line) {
+			printf("\n");
+			j = 0;
+		} else {
+			printf(":");
+		}
+	}
+	printf("\n");
+}
+
+#define strtoul(nptr, endptr, base) bcm_strtoul((nptr), (endptr), (base))
+
+/* Convert user's input in hex pattern to byte-size mask */
+static int
+wl_pattern_atoh(char *src, char *dst)
+{
+	int i;
+	if (strncmp(src, "0x", 2) != 0 &&
+	    strncmp(src, "0X", 2) != 0) {
+		DHD_ERROR(("Mask invalid format. Needs to start with 0x\n"));
+		return -1;
+	}
+	src = src + 2; /* Skip past 0x */
+	if (strlen(src) % 2 != 0) {
+		DHD_ERROR(("Mask invalid format. Needs to be of even length\n"));
+		return -1;
+	}
+	for (i = 0; *src != '\0'; i++) {
+		char num[3];
+		strncpy(num, src, 2);
+		num[2] = '\0';
+		dst[i] = (uint8)strtoul(num, NULL, 16);
+		src += 2;
+	}
+	return i;
+}
+
+void
+dhd_pktfilter_offload_enable(dhd_pub_t * dhd, char *arg, int enable, int master_mode)
+{
+	char				*argv[8];
+	int					i = 0;
+	const char 			*str;
+	int					buf_len;
+	int					str_len;
+	char				*arg_save = 0, *arg_org = 0;
+	int					rc;
+	char				buf[128];
+	wl_pkt_filter_enable_t	enable_parm;
+	wl_pkt_filter_enable_t	* pkt_filterp;
+
+	if (!(arg_save = MALLOC(dhd->osh, strlen(arg) + 1))) {
+		DHD_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
+		goto fail;
+	}
+	arg_org = arg_save;
+	memcpy(arg_save, arg, strlen(arg) + 1);
+
+	argv[i] = bcmstrtok(&arg_save, " ", 0);
+
+	i = 0;
+	if (NULL == argv[i]) {
+		DHD_ERROR(("No args provided\n"));
+		goto fail;
+	}
+
+	str = "pkt_filter_enable";
+	str_len = strlen(str);
+	strncpy(buf, str, str_len);
+	buf[str_len] = '\0';
+	buf_len = str_len + 1;
+
+	pkt_filterp = (wl_pkt_filter_enable_t *)(buf + str_len + 1);
+
+	/* Parse packet filter id. */
+	enable_parm.id = htod32(strtoul(argv[i], NULL, 0));
+
+	/* Parse enable/disable value. */
+	enable_parm.enable = htod32(enable);
+
+	buf_len += sizeof(enable_parm);
+	memcpy((char *)pkt_filterp,
+	       &enable_parm,
+	       sizeof(enable_parm));
+
+	/* Enable/disable the specified filter. */
+	rc = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, buf_len);
+	rc = rc >= 0 ? 0 : rc;
+	if (rc)
+		DHD_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
+		__FUNCTION__, arg, rc));
+	else
+		DHD_TRACE(("%s: successfully added pktfilter %s\n",
+		__FUNCTION__, arg));
+
+	/* Contorl the master mode */
+	bcm_mkiovar("pkt_filter_mode", (char *)&master_mode, 4, buf, sizeof(buf));
+	rc = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
+	rc = rc >= 0 ? 0 : rc;
+	if (rc)
+		DHD_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
+		__FUNCTION__, arg, rc));
+
+fail:
+	if (arg_org)
+		MFREE(dhd->osh, arg_org, strlen(arg) + 1);
+}
+
+void
+dhd_pktfilter_offload_set(dhd_pub_t * dhd, char *arg)
+{
+	const char 			*str;
+	wl_pkt_filter_t		pkt_filter;
+	wl_pkt_filter_t		*pkt_filterp;
+	int					buf_len;
+	int					str_len;
+	int 				rc;
+	uint32				mask_size;
+	uint32				pattern_size;
+	char				*argv[8], * buf = 0;
+	int					i = 0;
+	char				*arg_save = 0, *arg_org = 0;
+#define BUF_SIZE		2048
+
+	if (!(arg_save = MALLOC(dhd->osh, strlen(arg) + 1))) {
+		DHD_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
+		goto fail;
+	}
+
+	arg_org = arg_save;
+
+	if (!(buf = MALLOC(dhd->osh, BUF_SIZE))) {
+		DHD_ERROR(("%s: kmalloc failed\n", __FUNCTION__));
+		goto fail;
+	}
+
+	memcpy(arg_save, arg, strlen(arg) + 1);
+
+	if (strlen(arg) > BUF_SIZE) {
+		DHD_ERROR(("Not enough buffer %d < %d\n", (int)strlen(arg), (int)sizeof(buf)));
+		goto fail;
+	}
+
+	argv[i] = bcmstrtok(&arg_save, " ", 0);
+	while (argv[i++])
+		argv[i] = bcmstrtok(&arg_save, " ", 0);
+
+	i = 0;
+	if (NULL == argv[i]) {
+		DHD_ERROR(("No args provided\n"));
+		goto fail;
+	}
+
+	str = "pkt_filter_add";
+	str_len = strlen(str);
+	strncpy(buf, str, str_len);
+	buf[ str_len ] = '\0';
+	buf_len = str_len + 1;
+
+	pkt_filterp = (wl_pkt_filter_t *) (buf + str_len + 1);
+
+	/* Parse packet filter id. */
+	pkt_filter.id = htod32(strtoul(argv[i], NULL, 0));
+
+	if (NULL == argv[++i]) {
+		DHD_ERROR(("Polarity not provided\n"));
+		goto fail;
+	}
+
+	/* Parse filter polarity. */
+	pkt_filter.negate_match = htod32(strtoul(argv[i], NULL, 0));
+
+	if (NULL == argv[++i]) {
+		DHD_ERROR(("Filter type not provided\n"));
+		goto fail;
+	}
+
+	/* Parse filter type. */
+	pkt_filter.type = htod32(strtoul(argv[i], NULL, 0));
+
+	if (NULL == argv[++i]) {
+		DHD_ERROR(("Offset not provided\n"));
+		goto fail;
+	}
+
+	/* Parse pattern filter offset. */
+	pkt_filter.u.pattern.offset = htod32(strtoul(argv[i], NULL, 0));
+
+	if (NULL == argv[++i]) {
+		DHD_ERROR(("Bitmask not provided\n"));
+		goto fail;
+	}
+
+	/* Parse pattern filter mask. */
+	mask_size =
+		htod32(wl_pattern_atoh(argv[i], (char *) pkt_filterp->u.pattern.mask_and_pattern));
+
+	if (NULL == argv[++i]) {
+		DHD_ERROR(("Pattern not provided\n"));
+		goto fail;
+	}
+
+	/* Parse pattern filter pattern. */
+	pattern_size =
+		htod32(wl_pattern_atoh(argv[i],
+	         (char *) &pkt_filterp->u.pattern.mask_and_pattern[mask_size]));
+
+	if (mask_size != pattern_size) {
+		DHD_ERROR(("Mask and pattern not the same size\n"));
+		goto fail;
+	}
+
+	pkt_filter.u.pattern.size_bytes = mask_size;
+	buf_len += WL_PKT_FILTER_FIXED_LEN;
+	buf_len += (WL_PKT_FILTER_PATTERN_FIXED_LEN + 2 * mask_size);
+
+	/* Keep-alive attributes are set in local	variable (keep_alive_pkt), and
+	** then memcpy'ed into buffer (keep_alive_pktp) since there is no
+	** guarantee that the buffer is properly aligned.
+	*/
+	memcpy((char *)pkt_filterp,
+	       &pkt_filter,
+	       WL_PKT_FILTER_FIXED_LEN + WL_PKT_FILTER_PATTERN_FIXED_LEN);
+
+	rc = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, buf_len);
+	rc = rc >= 0 ? 0 : rc;
+
+	if (rc)
+		DHD_TRACE(("%s: failed to add pktfilter %s, retcode = %d\n",
+		__FUNCTION__, arg, rc));
+	else
+		DHD_TRACE(("%s: successfully added pktfilter %s\n",
+		__FUNCTION__, arg));
+
+fail:
+	if (arg_org)
+		MFREE(dhd->osh, arg_org, strlen(arg) + 1);
+
+	if (buf)
+		MFREE(dhd->osh, buf, BUF_SIZE);
+}
+
+void
+dhd_arp_offload_set(dhd_pub_t * dhd, int arp_mode)
+{
+	char iovbuf[32];
+	int retcode;
+
+	bcm_mkiovar("arp_ol", (char *)&arp_mode, 4, iovbuf, sizeof(iovbuf));
+	retcode = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+	retcode = retcode >= 0 ? 0 : retcode;
+	if (retcode)
+		DHD_TRACE(("%s: failed to set ARP offload mode to 0x%x, retcode = %d\n",
+		__FUNCTION__, arp_mode, retcode));
+	else
+		DHD_TRACE(("%s: successfully set ARP offload mode to 0x%x\n",
+		__FUNCTION__, arp_mode));
+}
+
+void
+dhd_arp_offload_enable(dhd_pub_t * dhd, int arp_enable)
+{
+	char iovbuf[32];
+	int retcode;
+
+	bcm_mkiovar("arpoe", (char *)&arp_enable, 4, iovbuf, sizeof(iovbuf));
+	retcode = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+	retcode = retcode >= 0 ? 0 : retcode;
+	if (retcode)
+		DHD_TRACE(("%s: failed to enabe ARP offload to %d, retcode = %d\n",
+		__FUNCTION__, arp_enable, retcode));
+	else
+		DHD_TRACE(("%s: successfully enabed ARP offload to %d\n",
+		__FUNCTION__, arp_enable));
+}
+
+int
+dhd_preinit_ioctls(dhd_pub_t *dhd)
+{
+	char iovbuf[WL_EVENTING_MASK_LEN + 12];	/*  Room for "event_msgs" + '\0' + bitvec  */
+	uint up = 0;
+	char buf[128], *ptr;
+	uint power_mode = PM_FAST;
+	uint32 dongle_align = DHD_SDALIGN;
+	uint32 glom = 0;
+	uint bcn_timeout = 3;
+	int scan_assoc_time = 40;
+	int scan_unassoc_time = 80;
+
+	/* Set Country code */
+	if (dhd->country_code[0] != 0) {
+		if (dhdcdc_set_ioctl(dhd, 0, WLC_SET_COUNTRY,
+			dhd->country_code, sizeof(dhd->country_code)) < 0) {
+			DHD_ERROR(("%s: country code setting failed\n", __FUNCTION__));
+		}
+	}
+
+	/* query for 'ver' to get version info from firmware */
+	memset(buf, 0, sizeof(buf));
+	ptr = buf;
+	bcm_mkiovar("ver", 0, 0, buf, sizeof(buf));
+	dhdcdc_query_ioctl(dhd, 0, WLC_GET_VAR, buf, sizeof(buf));
+	bcmstrtok(&ptr, "\n", 0);
+	/* Print fw version info */
+	DHD_ERROR(("Firmware version = %s\n", buf));
+
+	/* Set PowerSave mode */
+	dhdcdc_set_ioctl(dhd, 0, WLC_SET_PM, (char *)&power_mode, sizeof(power_mode));
+
+	/* Match Host and Dongle rx alignment */
+	bcm_mkiovar("bus:txglomalign", (char *)&dongle_align, 4, iovbuf, sizeof(iovbuf));
+	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+
+	/* disable glom option per default */
+	bcm_mkiovar("bus:txglom", (char *)&glom, 4, iovbuf, sizeof(iovbuf));
+	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+
+	/* Setup timeout if Beacons are lost and roam is off to report link down */
+	bcm_mkiovar("bcn_timeout", (char *)&bcn_timeout, 4, iovbuf, sizeof(iovbuf));
+	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+
+	/* Enable/Disable build-in roaming to allowed ext supplicant to take of romaing */
+	bcm_mkiovar("roam_off", (char *)&dhd_roam, 4, iovbuf, sizeof(iovbuf));
+	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+
+	/* Force STA UP */
+	if (dhd_radio_up)
+		dhdcdc_set_ioctl(dhd, 0, WLC_UP, (char *)&up, sizeof(up));
+
+	/* Setup event_msgs */
+	bcm_mkiovar("event_msgs", dhd->eventmask, WL_EVENTING_MASK_LEN, iovbuf, sizeof(iovbuf));
+	dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, iovbuf, sizeof(iovbuf));
+
+	dhdcdc_set_ioctl(dhd, 0, WLC_SET_SCAN_CHANNEL_TIME, (char *)&scan_assoc_time,
+		sizeof(scan_assoc_time));
+	dhdcdc_set_ioctl(dhd, 0, WLC_SET_SCAN_UNASSOC_TIME, (char *)&scan_unassoc_time,
+		sizeof(scan_unassoc_time));
+
+#ifdef ARP_OFFLOAD_SUPPORT
+	/* Set and enable ARP offload feature */
+	if (dhd_arp_enable)
+		dhd_arp_offload_set(dhd, dhd_arp_mode);
+	dhd_arp_offload_enable(dhd, dhd_arp_enable);
+#endif /* ARP_OFFLOAD_SUPPORT */
+
+#ifdef PKT_FILTER_SUPPORT
+	{
+		int i;
+		/* Set up pkt filter */
+		if (dhd_pkt_filter_enable) {
+			for (i = 0; i < dhd->pktfilter_count; i++) {
+				dhd_pktfilter_offload_set(dhd, dhd->pktfilter[i]);
+				dhd_pktfilter_offload_enable(dhd, dhd->pktfilter[i],
+					dhd_pkt_filter_init, dhd_master_mode);
+			}
+		}
+	}
+#endif /* PKT_FILTER_SUPPORT */
+
+	return 0;
+}
+
+#ifdef SIMPLE_ISCAN
+
+uint iscan_thread_id;
+iscan_buf_t * iscan_chain = 0;
+
+iscan_buf_t *
+dhd_iscan_allocate_buf(dhd_pub_t *dhd, iscan_buf_t **iscanbuf)
+{
+	iscan_buf_t *iscanbuf_alloc = 0;
+	iscan_buf_t *iscanbuf_head;
+
+	dhd_iscan_lock();
+
+	iscanbuf_alloc = (iscan_buf_t*)MALLOC(dhd->osh, sizeof(iscan_buf_t));
+	if (iscanbuf_alloc == NULL)
+		goto fail;
+
+	iscanbuf_alloc->next = NULL;
+	iscanbuf_head = *iscanbuf;
+
+	DHD_ISCAN(("%s: addr of allocated node = 0x%X, addr of iscanbuf_head \
+		= 0x%X dhd = 0x%X\n", __FUNCTION__, iscanbuf_alloc,
+		iscanbuf_head, dhd));
+
+	if (iscanbuf_head == NULL) {
+		*iscanbuf = iscanbuf_alloc;
+		DHD_ISCAN(("%s: Head is allocated\n", __FUNCTION__));
+		goto fail;
+	}
+
+	while (iscanbuf_head->next)
+		iscanbuf_head = iscanbuf_head->next;
+
+	iscanbuf_head->next = iscanbuf_alloc;
+
+fail:
+	dhd_iscan_unlock();
+	return iscanbuf_alloc;
+}
+
+void
+dhd_iscan_free_buf(void *dhdp, iscan_buf_t *iscan_delete)
+{
+	iscan_buf_t *iscanbuf_free = 0;
+	iscan_buf_t *iscanbuf_prv = 0;
+	iscan_buf_t *iscanbuf_cur = iscan_chain;
+	dhd_pub_t *dhd = dhd_bus_pub(dhdp);
+
+	dhd_iscan_lock();
+	/* If iscan_delete is null then delete the entire 
+	 * chain or else delete specific one provided
+	 */
+	if (!iscan_delete) {
+		while (iscanbuf_cur) {
+			iscanbuf_free = iscanbuf_cur;
+			iscanbuf_cur = iscanbuf_cur->next;
+			iscanbuf_free->next = 0;
+			MFREE(dhd->osh, iscanbuf_free, sizeof(iscan_buf_t));
+		}
+		iscan_chain = 0;
+	} else {
+		while (iscanbuf_cur) {
+			if (iscanbuf_cur == iscan_delete)
+				break;
+			iscanbuf_prv = iscanbuf_cur;
+			iscanbuf_cur = iscanbuf_cur->next;
+		}
+		if (iscanbuf_prv)
+			iscanbuf_prv->next = iscan_delete->next;
+
+		iscan_delete->next = 0;
+		MFREE(dhd->osh, iscan_delete, sizeof(iscan_buf_t));
+
+		if (!iscanbuf_prv)
+			iscan_chain = 0;
+	}
+	dhd_iscan_unlock();
+}
+
+iscan_buf_t *
+dhd_iscan_result_buf(void)
+{
+	return iscan_chain;
+}
+
+
+
+/*
+* print scan cache
+* print partial iscan_skip list differently
+*/
+int
+dhd_iscan_print_cache(iscan_buf_t *iscan_skip)
+{
+	int i = 0, l = 0;
+	iscan_buf_t *iscan_cur;
+	wl_iscan_results_t *list;
+	wl_scan_results_t *results;
+	wl_bss_info_t UNALIGNED *bi;
+
+	dhd_iscan_lock();
+
+	iscan_cur = dhd_iscan_result_buf();
+
+	while (iscan_cur) {
+		list = (wl_iscan_results_t *)iscan_cur->iscan_buf;
+		if (!list)
+			break;
+
+		results = (wl_scan_results_t *)&list->results;
+		if (!results)
+			break;
+
+		if (results->version != WL_BSS_INFO_VERSION) {
+			DHD_ISCAN(("%s: results->version %d != WL_BSS_INFO_VERSION\n",
+				__FUNCTION__, results->version));
+			goto done;
+		}
+
+		bi = results->bss_info;
+		for (i = 0; i < results->count; i++) {
+			if (!bi)
+				break;
+
+			DHD_ISCAN(("%s[%2.2d:%2.2d] %X:%X:%X:%X:%X:%X\n",
+				iscan_cur != iscan_skip?"BSS":"bss", l, i,
+				bi->BSSID.octet[0], bi->BSSID.octet[1], bi->BSSID.octet[2],
+				bi->BSSID.octet[3], bi->BSSID.octet[4], bi->BSSID.octet[5]));
+
+			bi = (wl_bss_info_t *)((uintptr)bi + dtoh32(bi->length));
+		}
+		iscan_cur = iscan_cur->next;
+		l++;
+	}
+
+done:
+	dhd_iscan_unlock();
+	return 0;
+}
+
+/*
+* delete disappeared AP from specific scan cache but skip partial list in iscan_skip
+*/
+int
+dhd_iscan_delete_bss(void *dhdp, void *addr, iscan_buf_t *iscan_skip)
+{
+	int i = 0, j = 0, l = 0;
+	iscan_buf_t *iscan_cur;
+	wl_iscan_results_t *list;
+	wl_scan_results_t *results;
+	wl_bss_info_t UNALIGNED *bi, *bi_new, *bi_next;
+
+	uchar *s_addr = addr;
+
+	dhd_iscan_lock();
+	DHD_ISCAN(("%s: BSS to remove %X:%X:%X:%X:%X:%X\n",
+		__FUNCTION__, s_addr[0], s_addr[1], s_addr[2],
+		s_addr[3], s_addr[4], s_addr[5]));
+
+	iscan_cur = dhd_iscan_result_buf();
+
+	while (iscan_cur) {
+		if (iscan_cur != iscan_skip) {
+			list = (wl_iscan_results_t *)iscan_cur->iscan_buf;
+			if (!list)
+				break;
+
+			results = (wl_scan_results_t *)&list->results;
+			if (!results)
+				break;
+
+			if (results->version != WL_BSS_INFO_VERSION) {
+				DHD_ERROR(("%s: results->version %d != WL_BSS_INFO_VERSION\n",
+				__FUNCTION__, results->version));
+				goto done;
+			}
+
+			bi = results->bss_info;
+			for (i = 0; i < results->count; i++) {
+				if (!bi)
+					break;
+
+				if (!memcmp(bi->BSSID.octet, addr, ETHER_ADDR_LEN)) {
+					DHD_ISCAN(("%s: Del BSS[%2.2d:%2.2d] %X:%X:%X:%X:%X:%X\n", \
+					__FUNCTION__, l, i, bi->BSSID.octet[0], \
+					bi->BSSID.octet[1], bi->BSSID.octet[2], \
+					bi->BSSID.octet[3], bi->BSSID.octet[4], \
+					bi->BSSID.octet[5]));
+
+					bi_new = bi;
+					bi = (wl_bss_info_t *)((uintptr)bi + dtoh32(bi->length));
+/*
+					if(bi && bi_new) {
+						bcopy(bi, bi_new, results->buflen -
+						dtoh32(bi_new->length));
+						results->buflen -= dtoh32(bi_new->length);
+					}
+*/
+					results->buflen -= dtoh32(bi_new->length);
+					results->count--;
+
+					for (j = i; j < results->count; j++) {
+						if (bi && bi_new) {
+							DHD_ISCAN(("%s: Moved up BSS[%2.2d:%2.2d] \
+							%X:%X:%X:%X:%X:%X\n",
+							__FUNCTION__, l, j, bi->BSSID.octet[0],
+							bi->BSSID.octet[1], bi->BSSID.octet[2],
+							bi->BSSID.octet[3], bi->BSSID.octet[4],
+							bi->BSSID.octet[5]));
+
+							bi_next = (wl_bss_info_t *)((uintptr)bi +
+								dtoh32(bi->length));
+							bcopy(bi, bi_new, dtoh32(bi->length));
+							bi_new = (wl_bss_info_t *)((uintptr)bi_new +
+								dtoh32(bi_new->length));
+							bi = bi_next;
+						}
+					}
+
+					if (results->count == 0) {
+						/* Prune now empty partial scan list */
+						dhd_iscan_free_buf(dhdp, iscan_cur);
+						goto done;
+					}
+					break;
+				}
+				bi = (wl_bss_info_t *)((uintptr)bi + dtoh32(bi->length));
+			}
+		}
+		iscan_cur = iscan_cur->next;
+		l++;
+	}
+
+done:
+	dhd_iscan_unlock();
+	return 0;
+}
+
+int
+dhd_iscan_remove_duplicates(void * dhdp, iscan_buf_t *iscan_cur)
+{
+	int i = 0;
+	wl_iscan_results_t *list;
+	wl_scan_results_t *results;
+	wl_bss_info_t UNALIGNED *bi, *bi_new, *bi_next;
+
+	dhd_iscan_lock();
+
+	DHD_ISCAN(("%s: Scan cache before delete\n",
+		__FUNCTION__));
+	dhd_iscan_print_cache(iscan_cur);
+
+	if (!iscan_cur)
+		goto done;
+
+	list = (wl_iscan_results_t *)iscan_cur->iscan_buf;
+	if (!list)
+		goto done;
+
+	results = (wl_scan_results_t *)&list->results;
+	if (!results)
+		goto done;
+
+	if (results->version != WL_BSS_INFO_VERSION) {
+		DHD_ERROR(("%s: results->version %d != WL_BSS_INFO_VERSION\n",
+			__FUNCTION__, results->version));
+		goto done;
+	}
+
+	bi = results->bss_info;
+	for (i = 0; i < results->count; i++) {
+		if (!bi)
+			break;
+
+		DHD_ISCAN(("%s: Find dups for BSS[%2.2d] %X:%X:%X:%X:%X:%X\n",
+			__FUNCTION__, i, bi->BSSID.octet[0], bi->BSSID.octet[1], bi->BSSID.octet[2],
+			bi->BSSID.octet[3], bi->BSSID.octet[4], bi->BSSID.octet[5]));
+
+		dhd_iscan_delete_bss(dhdp, bi->BSSID.octet, iscan_cur);
+
+		bi = (wl_bss_info_t *)((uintptr)bi + dtoh32(bi->length));
+	}
+
+done:
+	DHD_ISCAN(("%s: Scan cache after delete\n", __FUNCTION__));
+	dhd_iscan_print_cache(iscan_cur);
+	dhd_iscan_unlock();
+	return 0;
+}
+
+void
+dhd_iscan_ind_scan_confirm(void *dhdp, bool status)
+{
+
+	dhd_ind_scan_confirm(dhdp, status);
+}
+
+int
+dhd_iscan_request(void * dhdp, uint16 action)
+{
+	int rc;
+	wl_iscan_params_t params;
+	dhd_pub_t *dhd = dhd_bus_pub(dhdp);
+	char buf[WLC_IOCTL_SMLEN];
+
+
+	memset(&params, 0, sizeof(wl_iscan_params_t));
+	memcpy(&params.params.bssid, &ether_bcast, ETHER_ADDR_LEN);
+
+	params.params.bss_type = DOT11_BSSTYPE_ANY;
+	params.params.scan_type = DOT11_SCANTYPE_ACTIVE;
+
+	params.params.nprobes = htod32(-1);
+	params.params.active_time = htod32(-1);
+	params.params.passive_time = htod32(-1);
+	params.params.home_time = htod32(-1);
+	params.params.channel_num = htod32(0);
+
+	params.version = htod32(ISCAN_REQ_VERSION);
+	params.action = htod16(action);
+	params.scan_duration = htod16(0);
+
+	bcm_mkiovar("iscan", (char *)&params, sizeof(wl_iscan_params_t), buf, WLC_IOCTL_SMLEN);
+	rc = dhd_wl_ioctl(dhdp, WLC_SET_VAR, buf, WLC_IOCTL_SMLEN);
+
+	return rc;
+}
+
+static int
+dhd_iscan_get_partial_result(void *dhdp, uint *scan_count)
+{
+	wl_iscan_results_t *list_buf;
+	wl_iscan_results_t list;
+	wl_scan_results_t *results;
+	iscan_buf_t *iscan_cur;
+	int status = -1;
+	dhd_pub_t *dhd = dhd_bus_pub(dhdp);
+	int rc;
+
+
+	iscan_cur = dhd_iscan_allocate_buf(dhd, &iscan_chain);
+	if (!iscan_cur) {
+		DHD_ERROR(("%s: Failed to allocate node\n", __FUNCTION__));
+		dhd_iscan_free_buf(dhdp, 0);
+		dhd_iscan_request(dhdp, WL_SCAN_ACTION_ABORT);
+		goto fail;
+	}
+
+	dhd_iscan_lock();
+
+	memset(iscan_cur->iscan_buf, 0, WLC_IW_ISCAN_MAXLEN);
+	list_buf = (wl_iscan_results_t*)iscan_cur->iscan_buf;
+	results = &list_buf->results;
+	results->buflen = WL_ISCAN_RESULTS_FIXED_SIZE;
+	results->version = 0;
+	results->count = 0;
+
+	memset(&list, 0, sizeof(list));
+	list.results.buflen = htod32(WLC_IW_ISCAN_MAXLEN);
+	bcm_mkiovar("iscanresults", (char *)&list, WL_ISCAN_RESULTS_FIXED_SIZE,
+		iscan_cur->iscan_buf, WLC_IW_ISCAN_MAXLEN);
+	rc = dhd_wl_ioctl(dhdp, WLC_GET_VAR, iscan_cur->iscan_buf, WLC_IW_ISCAN_MAXLEN);
+
+	results->buflen = dtoh32(results->buflen);
+	results->version = dtoh32(results->version);
+	*scan_count = results->count = dtoh32(results->count);
+	status = dtoh32(list_buf->status);
+
+	dhd_iscan_unlock();
+
+	if (!(*scan_count))
+		dhd_iscan_free_buf(dhdp, iscan_cur);
+	else
+		dhd_iscan_remove_duplicates(dhdp, iscan_cur);
+
+
+fail:
+	return status;
+}
+
+#endif 

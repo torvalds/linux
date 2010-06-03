@@ -5,7 +5,7 @@
  *
  * Definitions subject to change without notice.
  *
- * Copyright (C) 1999-2009, Broadcom Corporation
+ * Copyright (C) 1999-2010, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -25,7 +25,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: dhdioctl.h,v 13.7.8.1.4.1.16.4 2009/09/05 16:50:35 Exp $
+ * $Id: dhdioctl.h,v 13.7.8.1.4.1.16.5 2010/05/21 21:49:38 Exp $
  */
 
 #ifndef _dhdioctl_h_
@@ -79,6 +79,7 @@ typedef struct dhd_ioctl {
 #define DHD_GLOM_VAL	0x0400
 #define DHD_EVENT_VAL	0x0800
 #define DHD_BTA_VAL	0x1000
+#define DHD_ISCAN_VAL 0x2000
 
 #ifdef SDTEST
 /* For pktgen iovar */

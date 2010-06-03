@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: linux_osl.c,v 1.125.12.3.8.6 2009/12/09 01:29:03 Exp $
+ * $Id: linux_osl.c,v 1.125.12.3.8.7 2010/05/04 21:10:04 Exp $
  */
 
 
@@ -511,7 +511,7 @@ osl_mfree(osl_t *osh, void *addr, uint size)
 #ifdef DHD_USE_STATIC_BUF
 	if (bcm_static_buf)
 	{
-		if ((addr > (void *)bcm_static_buf) && ((unsigned char *)addr \
+		if ((addr > (void *)bcm_static_buf) && ((unsigned char *)addr
 			<= ((unsigned char *)bcm_static_buf + STATIC_BUF_TOTAL_LEN)))
 		{
 			int buf_idx = 0;

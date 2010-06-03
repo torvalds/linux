@@ -1,7 +1,7 @@
 /*
  * From FreeBSD 2.2.7: Fundamental constants relating to ethernet.
  *
- * Copyright (C) 1999-2009, Broadcom Corporation
+ * Copyright (C) 1999-2010, Broadcom Corporation
  * 
  *      Unless you and Broadcom execute a separate written software license
  * agreement governing use of this software, this software is licensed to you
@@ -21,7 +21,7 @@
  * software in any way with any other Broadcom software provided under a license
  * other than the GPL, without Broadcom's express prior written consent.
  *
- * $Id: ethernet.h,v 9.45.56.3 2009/08/15 00:51:27 Exp $
+ * $Id: ethernet.h,v 9.45.56.5 2010/02/22 22:04:36 Exp $
  */
 
 
@@ -67,6 +67,7 @@
 #define ETHER_TYPE_8021Q	0x8100		
 #define	ETHER_TYPE_BRCM		0x886c		
 #define	ETHER_TYPE_802_1X	0x888e		
+#define ETHER_TYPE_WAI		0x88b4		
 #ifdef BCMWPA2
 #define	ETHER_TYPE_802_1X_PREAUTH 0x88c7	
 #endif
