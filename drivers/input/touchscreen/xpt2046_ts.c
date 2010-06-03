@@ -61,8 +61,8 @@
 #define AD_TO_X(adx)	(LCD_MAX_WIDTH * (adx - PT2046_TOUCH_AD_TOP) / ( PT2046_TOUCH_AD_BOTTOM  - PT2046_TOUCH_AD_TOP ))
 #define AD_TO_Y(ady)	(LCD_MAX_LENGTH * (PT2046_TOUCH_AD_LEFT - ady) / (PT2046_TOUCH_AD_LEFT - PT2046_TOUCH_AD_RIGHT))
 
-#define TS_POLL_DELAY	(1 * 1000000)	/* ns delay before the first sample */
-#define TS_POLL_PERIOD	(5 * 1000000)	/* ns delay between samples */
+#define TS_POLL_DELAY	(3 * 1000000)	/* ns delay before the first sample */
+#define TS_POLL_PERIOD	(15 * 1000000)	/* ns delay between samples */
 
 #define DEBOUNCE_REPTIME  3
 /* this driver doesn't aim at the peak continuous sample rate */
