@@ -1178,7 +1178,7 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 		nr_pages = (arg + PAGE_SIZE - 1) >> PAGE_SHIFT;
 		nr_pages = roundup_pow_of_two(nr_pages);
 
-		if (!capable(CAP_SYS_ADMIN) && nr_pages > pipe_max_pages) {
+		if (!capable(CAP_SYS_RESOURCE) && nr_pages > pipe_max_pages) {
 			ret = -EPERM;
 			goto out;
 		} else if (nr_pages < 1) {
