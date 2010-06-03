@@ -4055,13 +4055,6 @@ static void perf_swevent_overflow(struct perf_event *event, u64 overflow,
 	}
 }
 
-static void perf_swevent_unthrottle(struct perf_event *event)
-{
-	/*
-	 * Nothing to do, we already reset hwc->interrupts.
-	 */
-}
-
 static void perf_swevent_add(struct perf_event *event, u64 nr,
 			       int nmi, struct perf_sample_data *data,
 			       struct pt_regs *regs)
@@ -4276,11 +4269,22 @@ static void perf_swevent_disable(struct perf_event *event)
 	hlist_del_rcu(&event->hlist_entry);
 }
 
+static void perf_swevent_void(struct perf_event *event)
+{
+}
+
+static int perf_swevent_int(struct perf_event *event)
+{
+	return 0;
+}
+
 static const struct pmu perf_ops_generic = {
 	.enable		= perf_swevent_enable,
 	.disable	= perf_swevent_disable,
+	.start		= perf_swevent_int,
+	.stop		= perf_swevent_void,
 	.read		= perf_swevent_read,
-	.unthrottle	= perf_swevent_unthrottle,
+	.unthrottle	= perf_swevent_void, /* hwc->interrupts already reset */
 };
 
 /*
@@ -4561,8 +4565,10 @@ static int swevent_hlist_get(struct perf_event *event)
 static const struct pmu perf_ops_tracepoint = {
 	.enable		= perf_trace_enable,
 	.disable	= perf_trace_disable,
+	.start		= perf_swevent_int,
+	.stop		= perf_swevent_void,
 	.read		= perf_swevent_read,
-	.unthrottle	= perf_swevent_unthrottle,
+	.unthrottle	= perf_swevent_void,
 };
 
 static int perf_tp_filter_match(struct perf_event *event,
