@@ -37,6 +37,7 @@
 #define PROGRAM_BUSY_COUNT   10000
 #define ERASE_BUSY_COUNT	    20000
 #define READ_BUSY_COUNT   	    5000
+#define RESET_BUSY_COUNT			20000
 
 /* Define delays in microsec for NAND device operations */
 #define TROP_US_DELAY   2000
@@ -312,6 +313,7 @@ static void rk2818_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int colum
 		  
 		}
 		
+		rk2818_nand_wait_busy(mtd,READ_BUSY_COUNT);
 	   	break;
 		
        case NAND_CMD_READ0:
@@ -350,8 +352,8 @@ static void rk2818_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int colum
                {
 			if ( column>= 0 )
 		         {
-	                   pRK28NC ->chip[master->cs].addr = (column + mtd->writesize) & 0xff;	
-			     pRK28NC ->chip[master->cs].addr = ( (column + mtd->writesize)  >> 8) & 0xff;
+	                   pRK28NC ->chip[master->cs].addr = column  & 0xff;	
+			     pRK28NC ->chip[master->cs].addr = ( column   >> 8) & 0xff;
 		         }
 			if ( page_addr>=0 )
 			   {
@@ -434,10 +436,27 @@ static void rk2818_nand_cmdfunc(struct mtd_info *mtd, unsigned command,int colum
 	case NAND_CMD_STATUS:
 		pRK28NC ->BCHCTL = 0x0;
 		pRK28NC ->chip[master->cs].cmd = command;
+		while (timeout>0)
+		{
+                 timeout --;
+		   udelay(1);  
+	          if(pRK28NC->FLCTL&FL_INTCLR)
+			 break;
+		  
+		}
 		break;
 
 	case NAND_CMD_RESET:
 		pRK28NC ->chip[master->cs].cmd = command;
+		while (timeout>0)
+		{
+                 timeout --;
+		   udelay(1);  
+	          if(pRK28NC->FLCTL&FL_INTCLR)
+			 break;
+		  
+		}
+		rk2818_nand_wait_busy(mtd,RESET_BUSY_COUNT);
 		break;
 
 	/* This applies to read commands */
