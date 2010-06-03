@@ -1542,7 +1542,7 @@ static int iwl4965_hw_get_temperature(struct iwl_priv *priv)
 	u32 R4;
 
 	if (test_bit(STATUS_TEMPERATURE, &priv->status) &&
-		(priv->_agn.statistics.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)) {
+		(priv->statistics.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)) {
 		IWL_DEBUG_TEMP(priv, "Running HT40 temperature calibration\n");
 		R1 = (s32)le32_to_cpu(priv->card_alive_init.therm_r1[1]);
 		R2 = (s32)le32_to_cpu(priv->card_alive_init.therm_r2[1]);
@@ -1567,7 +1567,7 @@ static int iwl4965_hw_get_temperature(struct iwl_priv *priv)
 		vt = sign_extend(R4, 23);
 	else
 		vt = sign_extend(
-			le32_to_cpu(priv->_agn.statistics.general.temperature), 23);
+			le32_to_cpu(priv->statistics.general.temperature), 23);
 
 	IWL_DEBUG_TEMP(priv, "Calib values R[1-3]: %d %d %d R4: %d\n", R1, R2, R3, vt);
 
