@@ -1181,13 +1181,7 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 		if (!capable(CAP_SYS_ADMIN) && nr_pages > pipe_max_pages) {
 			ret = -EPERM;
 			goto out;
-		}
-
-		/*
-		 * The pipe needs to be at least 2 pages large to
-		 * guarantee POSIX behaviour.
-		 */
-		if (arg < 2) {
+		} else if (nr_pages < 1) {
 			ret = -EINVAL;
 			goto out;
 		}
