@@ -1108,6 +1108,16 @@ static void rt2500usb_write_beacon(struct queue_entry *entry,
 	rt2500usb_register_write(rt2x00dev, TXRX_CSR19, reg);
 
 	/*
+	 * Write the TX descriptor for the beacon.
+	 */
+	rt2500usb_write_tx_desc(rt2x00dev, entry->skb, txdesc);
+
+	/*
+	 * Dump beacon to userspace through debugfs.
+	 */
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry->skb);
+
+	/*
 	 * Take the descriptor in front of the skb into account.
 	 */
 	skb_push(entry->skb, TXD_DESC_SIZE);

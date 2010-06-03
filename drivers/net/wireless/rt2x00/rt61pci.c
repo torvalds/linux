@@ -1874,6 +1874,16 @@ static void rt61pci_write_beacon(struct queue_entry *entry,
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR9, reg);
 
 	/*
+	 * Write the TX descriptor for the beacon.
+	 */
+	rt61pci_write_tx_desc(rt2x00dev, entry->skb, txdesc);
+
+	/*
+	 * Dump beacon to userspace through debugfs.
+	 */
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry->skb);
+
+	/*
 	 * Write entire beacon with descriptor to register.
 	 */
 	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);

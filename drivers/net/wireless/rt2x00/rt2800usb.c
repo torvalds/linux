@@ -437,6 +437,7 @@ static void rt2800usb_write_beacon(struct queue_entry *entry,
 				   struct txentry_desc *txdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
+	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	unsigned int beacon_base;
 	u32 reg;
 
@@ -449,9 +450,24 @@ static void rt2800usb_write_beacon(struct queue_entry *entry,
 	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
 	/*
+	 * Register descriptor details in skb frame descriptor.
+	 */
+	skbdesc->desc = entry->skb->data - TXWI_DESC_SIZE;
+	skbdesc->desc_len = TXWI_DESC_SIZE;
+
+	/*
 	 * Add the TXWI for the beacon to the skb.
 	 */
 	rt2800_write_txwi(entry->skb, txdesc);
+
+	/*
+	 * Dump beacon to userspace through debugfs.
+	 */
+	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry->skb);
+
+	/*
+	 * Adjust skb to take TXWI into account.
+	 */
 	skb_push(entry->skb, TXWI_DESC_SIZE);
 
 	/*
