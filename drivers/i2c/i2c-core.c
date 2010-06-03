@@ -371,6 +371,22 @@ struct i2c_client *i2c_verify_client(struct device *dev)
 EXPORT_SYMBOL(i2c_verify_client);
 
 
+/* This is a permissive address validity check, I2C address map constraints
+ * are purposedly not enforced, except for the general call address. */
+static int i2c_check_client_addr_validity(const struct i2c_client *client)
+{
+	if (client->flags & I2C_CLIENT_TEN) {
+		/* 10-bit address, all values are valid */
+		if (client->addr > 0x3ff)
+			return -EINVAL;
+	} else {
+		/* 7-bit address, reject the general call address */
+		if (client->addr == 0x00 || client->addr > 0x7f)
+			return -EINVAL;
+	}
+	return 0;
+}
+
 /**
  * i2c_new_device - instantiate an i2c device
  * @adap: the adapter managing the device
@@ -410,6 +426,14 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 
 	strlcpy(client->name, info->type, sizeof(client->name));
 
+	/* Check for address validity */
+	status = i2c_check_client_addr_validity(client);
+	if (status) {
+		dev_err(&adap->dev, "Invalid %d-bit I2C address 0x%02hx\n",
+			client->flags & I2C_CLIENT_TEN ? 10 : 7, client->addr);
+		goto out_err_silent;
+	}
+
 	/* Check for address business */
 	status = i2c_check_addr(adap, client->addr);
 	if (status)
@@ -436,6 +460,7 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 out_err:
 	dev_err(&adap->dev, "Failed to register i2c client %s at 0x%02x "
 		"(%d)\n", client->name, client->addr, status);
+out_err_silent:
 	kfree(client);
 	return NULL;
 }
@@ -561,15 +586,9 @@ i2c_sysfs_new_device(struct device *dev, struct device_attribute *attr,
 		return -EINVAL;
 	}
 
-	if (info.addr < 0x03 || info.addr > 0x77) {
-		dev_err(dev, "%s: Invalid I2C address 0x%hx\n", "new_device",
-			info.addr);
-		return -EINVAL;
-	}
-
 	client = i2c_new_device(adap, &info);
 	if (!client)
-		return -EEXIST;
+		return -EINVAL;
 
 	/* Keep track of the added device */
 	i2c_lock_adapter(adap);
