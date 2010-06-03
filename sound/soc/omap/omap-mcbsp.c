@@ -59,6 +59,7 @@ struct omap_mcbsp_data {
 	int				configured;
 	unsigned int			in_freq;
 	int				clk_div;
+	int				wlen;
 };
 
 #define to_mcbsp(priv)	container_of((priv), struct omap_mcbsp_data, bus_id)
@@ -155,19 +156,21 @@ static void omap_mcbsp_set_threshold(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct omap_mcbsp_data *mcbsp_data = to_mcbsp(cpu_dai->private_data);
 	int dma_op_mode = omap_mcbsp_get_dma_op_mode(mcbsp_data->bus_id);
-	int samples;
+	int words;
 
 	/* TODO: Currently, MODE_ELEMENT == MODE_FRAME */
 	if (dma_op_mode == MCBSP_DMA_MODE_THRESHOLD)
-		samples = snd_pcm_lib_period_bytes(substream) >> 1;
+		/* The FIFO size depends on the McBSP word configuration */
+		words = snd_pcm_lib_period_bytes(substream) /
+							(mcbsp_data->wlen / 8);
 	else
-		samples = 1;
+		words = 1;
 
 	/* Configure McBSP internal buffer usage */
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		omap_mcbsp_set_tx_threshold(mcbsp_data->bus_id, samples - 1);
+		omap_mcbsp_set_tx_threshold(mcbsp_data->bus_id, words);
 	else
-		omap_mcbsp_set_rx_threshold(mcbsp_data->bus_id, samples - 1);
+		omap_mcbsp_set_rx_threshold(mcbsp_data->bus_id, words);
 }
 
 static int omap_mcbsp_dai_startup(struct snd_pcm_substream *substream,
@@ -409,6 +412,7 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	omap_mcbsp_config(bus_id, &mcbsp_data->regs);
+	mcbsp_data->wlen = wlen;
 	mcbsp_data->configured = 1;
 
 	return 0;
