@@ -1375,7 +1375,7 @@ static void __exit acer_wmi_exit(void)
 {
 	remove_sysfs(acer_platform_device);
 	remove_debugfs();
-	platform_device_del(acer_platform_device);
+	platform_device_unregister(acer_platform_device);
 	platform_driver_unregister(&acer_platform_driver);
 
 	printk(ACER_INFO "Acer Laptop WMI Extras unloaded\n");

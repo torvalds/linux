@@ -760,7 +760,7 @@ static void __exit hp_wmi_exit(void)
 		input_unregister_device(hp_wmi_input_dev);
 	}
 	if (hp_wmi_platform_dev) {
-		platform_device_del(hp_wmi_platform_dev);
+		platform_device_unregister(hp_wmi_platform_dev);
 		platform_driver_unregister(&hp_wmi_driver);
 	}
 }
