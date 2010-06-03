@@ -200,6 +200,21 @@ static int snd_tm6000_close(struct snd_pcm_substream *substream)
 	return 0;
 }
 
+static int tm6000_fillbuf(struct tm6000_core *core, char *buf, int size)
+{
+	int i;
+
+	/* Need to add a real code to copy audio buffer */
+	printk("Audio (%i bytes): ", size);
+	for (i = 0; i < size - 3; i +=4)
+		printk("(0x%04x, 0x%04x), ",
+			*(u16 *)(buf + i), *(u16 *)(buf + i + 2));
+
+	printk("\n");
+
+	return 0;
+}
+
 /*
  * hw_params callback
  */
@@ -396,6 +411,7 @@ struct tm6000_ops audio_ops = {
 	.name	= "TM6000 Audio Extension",
 	.init	= tm6000_audio_init,
 	.fini	= tm6000_audio_fini,
+	.fillbuf = tm6000_fillbuf,
 };
 
 static int __init tm6000_alsa_register(void)

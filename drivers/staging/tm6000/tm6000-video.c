@@ -301,7 +301,7 @@ static int copy_streams(u8 *data, unsigned long len,
 					memcpy (&voutp[pos], ptr, cpysize);
 				break;
 			case TM6000_URB_MSG_AUDIO:
-				/* Need some code to copy audio buffer */
+				tm6000_call_fillbuf(dev, TM6000_AUDIO, ptr, cpysize);
 				break;
 			case TM6000_URB_MSG_VBI:
 				/* Need some code to copy vbi buffer */

@@ -229,6 +229,7 @@ struct tm6000_ops {
 	enum tm6000_ops_type	type;
 	int (*init)(struct tm6000_core *);
 	int (*fini)(struct tm6000_core *);
+	int (*fillbuf)(struct tm6000_core *, char *buf, int size);
 };
 
 struct tm6000_fh {
@@ -278,6 +279,9 @@ int tm6000_register_extension(struct tm6000_ops *ops);
 void tm6000_unregister_extension(struct tm6000_ops *ops);
 void tm6000_init_extension(struct tm6000_core *dev);
 void tm6000_close_extension(struct tm6000_core *dev);
+int tm6000_call_fillbuf(struct tm6000_core *dev, enum tm6000_ops_type type,
+			char *buf, int size);
+
 
 /* In tm6000-stds.c */
 void tm6000_get_std_res(struct tm6000_core *dev);
