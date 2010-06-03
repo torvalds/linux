@@ -673,7 +673,10 @@ int bus_add_driver(struct device_driver *drv)
 	if (drv->bus->p->drivers_autoprobe) {
 		error = driver_attach(drv);
 		if (error)
+		{
+			printk(KERN_ERR "driver_attach failed\n");
 			goto out_unregister;
+		}
 	}
 	klist_add_tail(&priv->knode_bus, &bus->p->klist_drivers);
 	module_add_driver(drv->owner, drv);

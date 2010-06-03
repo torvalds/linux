@@ -76,8 +76,7 @@
 
 #include "gadget_chips.h"
 
-
-#define BULK_BUFFER_SIZE           4096
+#define BULK_BUFFER_SIZE           16384 * 4//4096
 
 /* flush after every 4 meg of writes to avoid excessive block level caching */
 #define MAX_UNFLUSHED_BYTES (4 * 1024 * 1024)
@@ -222,7 +221,7 @@ struct bulk_cs_wrap {
 #define ASC(x)		((u8) ((x) >> 8))
 #define ASCQ(x)		((u8) (x))
 
-
+static  int usb_msc_connected;	/*usb charge status*/
 /*-------------------------------------------------------------------------*/
 
 struct lun {
@@ -465,6 +464,20 @@ static void put_be32(u8 *buf, u32 val)
 	buf[1] = val >> 16;
 	buf[2] = val >> 8;
 	buf[3] = val & 0xff;
+}
+
+static void set_msc_connect_flag( int connected )
+{
+	//GPIOSetPinLevel(CHARGE_OK_PIN,GPIO_LOW);
+    printk("set usb_msc_connect status = %d 20100520\n" , connected);	
+    if( usb_msc_connected == connected )
+            return;
+	usb_msc_connected = connected;//usb mass storage is ok
+}
+
+int get_msc_connect_flag( void )
+{
+	return usb_msc_connected;
 }
 
 /*-------------------------------------------------------------------------*/
@@ -1133,6 +1146,7 @@ static int do_synchronize_cache(struct fsg_dev *fsg)
 
 /*-------------------------------------------------------------------------*/
 
+#if 0
 static void invalidate_sub(struct lun *curlun)
 {
 	struct file	*filp = curlun->filp;
@@ -1238,7 +1252,7 @@ static int do_verify(struct fsg_dev *fsg)
 	}
 	return 0;
 }
-
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -1961,7 +1975,7 @@ static int do_scsi_command(struct fsg_dev *fsg)
 		if ((reply = check_command(fsg, 10, DATA_DIR_NONE,
 				(1<<1) | (0xf<<2) | (3<<7), 1,
 				"VERIFY")) == 0)
-			reply = do_verify(fsg);
+			reply = 0;//do_verify(fsg);//zyf 20100302
 		break;
 
 	case SC_WRITE_6:
@@ -2274,6 +2288,8 @@ static int do_set_config(struct fsg_dev *fsg, u8 new_config)
 		fsg->config = new_config;
 		if ((rc = do_set_interface(fsg, 0)) != 0)
 			fsg->config = 0;	// Reset on errors
+		else
+			set_msc_connect_flag( 1 );
 	}
 
 	switch_set_state(&fsg->sdev, new_config);
@@ -2283,7 +2299,6 @@ static int do_set_config(struct fsg_dev *fsg, u8 new_config)
 
 
 /*-------------------------------------------------------------------------*/
-
 static void handle_exception(struct fsg_dev *fsg)
 {
 	siginfo_t		info;
@@ -2951,7 +2966,7 @@ int mass_storage_bind_config(struct usb_configuration *c)
 	int		rc;
 	struct fsg_dev	*fsg;
 
-	printk(KERN_INFO "mass_storage_bind_config\n");
+	printk("mass_storage_bind_config\n");
 	rc = fsg_alloc();
 	if (rc)
 		return rc;

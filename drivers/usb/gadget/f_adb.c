@@ -486,7 +486,6 @@ adb_function_bind(struct usb_configuration *c, struct usb_function *f)
 
 	dev->cdev = cdev;
 	DBG(cdev, "adb_function_bind dev: %p\n", dev);
-
 	/* allocate interface ID(s) */
 	id = usb_interface_id(c, f);
 	if (id < 0)
@@ -613,7 +612,7 @@ static int adb_bind_config(struct usb_configuration *c)
 	dev->function.disable = adb_function_disable;
 
 	/* start disabled */
-	dev->function.hidden = 1;
+	dev->function.hidden = 0;
 
 	/* _adb_dev must be set before calling usb_gadget_register_driver */
 	_adb_dev = dev;

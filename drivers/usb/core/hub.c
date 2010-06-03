@@ -37,6 +37,9 @@
 #endif
 #endif
 
+// cmy@091222: 记录Host端口所连接的设备
+static struct usb_device *g_usb_device = 0;
+
 struct usb_hub {
 	struct device		*intfdev;	/* the "interface" device */
 	struct usb_device	*hdev;
@@ -1577,6 +1580,17 @@ void usb_disconnect(struct usb_device **pdev)
 	spin_unlock_irq(&device_state_lock);
 
 	usb_stop_pm(udev);
+    
+    // cmy: 不处理hub设备
+    if(USB_CLASS_HUB != udev->descriptor.bDeviceClass)
+    {
+        if(udev == g_usb_device)
+            g_usb_device = 0;
+
+#ifdef CONFIG_ANDROID_POWER
+        android_unlock_suspend(&hub_suspend_lock);
+#endif
+    }
 
 	put_device(&udev->dev);
 }
@@ -1780,6 +1794,14 @@ int usb_new_device(struct usb_device *udev)
 		dev_err(&udev->dev, "can't device_add, error %d\n", err);
 		goto fail;
 	}
+    // cmy: 在启动时自动会添加lm0的hub设备，不需记录，不需上锁
+    if(USB_CLASS_HUB != udev->descriptor.bDeviceClass)
+    {
+        g_usb_device = udev;
+#ifdef CONFIG_ANDROID_POWER
+        android_lock_suspend(&hub_suspend_lock);
+#endif
+    }
 
 	(void) usb_create_ep_devs(&udev->dev, &udev->ep0, udev);
 	return err;
@@ -3358,6 +3380,16 @@ loop:
 		kref_put(&hub->kref, hub_release);
 
         } /* end while (1) */
+}
+// cmy@091222: 当开Host端口所连接的设备，供host/slave切换用
+void hub_disconnect_device()
+{
+    if(g_usb_device)
+    {
+        struct usb_hub *hub = hdev_to_hub(g_usb_device->parent);
+        // cmy: 断开设备连接
+    	hub_port_connect_change(hub, 1, 0, 0x2);
+    }
 }
 
 static int hub_thread(void *__unused)

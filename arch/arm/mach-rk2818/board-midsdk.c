@@ -430,6 +430,14 @@ static struct platform_device *devices[] __initdata = {
 #ifdef CONFIG_MTD_NAND_RK2818
 	&rk2818_nand_device,
 #endif
+#ifdef CONFIG_DWC_OTG
+	&rk2818_device_dwc_otg,
+#endif
+#ifdef CONFIG_USB_ANDROID
+	&android_usb_device,
+	&usb_mass_storage_device,
+#endif
+
 };
 
 extern struct sys_timer rk2818_timer;

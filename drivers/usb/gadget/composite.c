@@ -281,7 +281,6 @@ static int config_buf(struct usb_configuration *config,
 	int				status;
 	int				interfaceCount = 0;
 	u8 *dest;
-
 	/* write the config descriptor */
 	c = buf;
 	c->bLength = USB_DT_CONFIG_SIZE;
@@ -532,11 +531,12 @@ int __init usb_add_config(struct usb_composite_dev *cdev,
 	/* Prevent duplicate configuration identifiers */
 	list_for_each_entry(c, &cdev->configs, list) {
 		if (c->bConfigurationValue == config->bConfigurationValue) {
+			printk("usb_add_config, already configed,everest\n");
 			status = -EBUSY;
 			goto done;
 		}
 	}
-
+	printk("usb_add_config, add and bind,everest\n");
 	config->cdev = cdev;
 	list_add_tail(&config->list, &cdev->configs);
 
@@ -760,7 +760,6 @@ composite_setup(struct usb_gadget *gadget, const struct usb_ctrlrequest *ctrl)
 	req->complete = composite_setup_complete;
 	req->length = USB_BUFSIZ;
 	gadget->ep0->driver_data = cdev;
-
 	switch (ctrl->bRequest) {
 
 	/* we handle all standard USB descriptors */
@@ -1139,7 +1138,7 @@ static struct usb_gadget_driver composite_driver = {
 	.speed		= USB_SPEED_HIGH,
 
 	.bind		= composite_bind,
-	.unbind		= __exit_p(composite_unbind),
+	.unbind		= composite_unbind,//__exit_p(composite_unbind),
 
 	.setup		= composite_setup,
 	.disconnect	= composite_disconnect,
