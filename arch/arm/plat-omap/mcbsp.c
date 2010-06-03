@@ -560,6 +560,20 @@ u16 omap_mcbsp_get_max_rx_threshold(unsigned int id)
 }
 EXPORT_SYMBOL(omap_mcbsp_get_max_rx_threshold);
 
+u16 omap_mcbsp_get_fifo_size(unsigned int id)
+{
+	struct omap_mcbsp *mcbsp;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
+		return -ENODEV;
+	}
+	mcbsp = id_to_mcbsp_ptr(id);
+
+	return mcbsp->pdata->buffer_size;
+}
+EXPORT_SYMBOL(omap_mcbsp_get_fifo_size);
+
 #define MCBSP2_FIFO_SIZE	0x500 /* 1024 + 256 locations */
 #define MCBSP1345_FIFO_SIZE	0x80  /* 128 locations */
 /*
