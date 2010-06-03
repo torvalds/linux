@@ -793,19 +793,20 @@ static void tcp_v4_reqsk_destructor(struct request_sock *req)
 	kfree(inet_rsk(req)->opt);
 }
 
-#ifdef CONFIG_SYN_COOKIES
-static void syn_flood_warning(struct sk_buff *skb)
+static void syn_flood_warning(const struct sk_buff *skb)
 {
-	static unsigned long warntime;
+	const char *msg;
 
-	if (time_after(jiffies, (warntime + HZ * 60))) {
-		warntime = jiffies;
-		printk(KERN_INFO
-		       "possible SYN flooding on port %d. Sending cookies.\n",
-		       ntohs(tcp_hdr(skb)->dest));
-	}
-}
+#ifdef CONFIG_SYN_COOKIES
+	if (sysctl_tcp_syncookies)
+		msg = "Sending cookies";
+	else
 #endif
+		msg = "Dropping request";
+
+	pr_info("TCP: Possible SYN flooding on port %d. %s.\n",
+				ntohs(tcp_hdr(skb)->dest), msg);
+}
 
 /*
  * Save and compile IPv4 options into the request_sock if needed.
@@ -1243,6 +1244,8 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	 * evidently real one.
 	 */
 	if (inet_csk_reqsk_queue_is_full(sk) && !isn) {
+		if (net_ratelimit())
+			syn_flood_warning(skb);
 #ifdef CONFIG_SYN_COOKIES
 		if (sysctl_tcp_syncookies) {
 			want_cookie = 1;
@@ -1328,7 +1331,6 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 
 	if (want_cookie) {
 #ifdef CONFIG_SYN_COOKIES
-		syn_flood_warning(skb);
 		req->cookie_ts = tmp_opt.tstamp_ok;
 #endif
 		isn = cookie_v4_init_sequence(sk, skb, &req->mss);
