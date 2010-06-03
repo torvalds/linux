@@ -1957,22 +1957,22 @@ static void ip_handle_martian_source(struct net_device *dev,
 #endif
 }
 
+/* called in rcu_read_lock() section */
 static int __mkroute_input(struct sk_buff *skb,
 			   struct fib_result *res,
 			   struct in_device *in_dev,
 			   __be32 daddr, __be32 saddr, u32 tos,
 			   struct rtable **result)
 {
-
 	struct rtable *rth;
 	int err;
 	struct in_device *out_dev;
-	unsigned flags = 0;
+	unsigned int flags = 0;
 	__be32 spec_dst;
 	u32 itag;
 
 	/* get a working reference to the output device */
-	out_dev = in_dev_get(FIB_RES_DEV(*res));
+	out_dev = __in_dev_get_rcu(FIB_RES_DEV(*res));
 	if (out_dev == NULL) {
 		if (net_ratelimit())
 			printk(KERN_CRIT "Bug in ip_route_input" \
@@ -2053,8 +2053,6 @@ static int __mkroute_input(struct sk_buff *skb,
 	*result = rth;
 	err = 0;
  cleanup:
-	/* release the working reference to the output device */
-	in_dev_put(out_dev);
 	return err;
 }
 
