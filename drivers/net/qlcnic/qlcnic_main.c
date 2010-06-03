@@ -2581,6 +2581,46 @@ reschedule:
 	qlcnic_schedule_work(adapter, qlcnic_fw_poll_work, FW_POLL_DELAY);
 }
 
+static int
+qlcnicvf_start_firmware(struct qlcnic_adapter *adapter)
+{
+	int err;
+
+	err = qlcnic_can_start_firmware(adapter);
+	if (err)
+		return err;
+
+	qlcnic_check_options(adapter);
+
+	adapter->need_fw_reset = 0;
+
+	return err;
+}
+
+static int
+qlcnicvf_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable)
+{
+	return -EOPNOTSUPP;
+}
+
+static int
+qlcnicvf_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate)
+{
+	return -EOPNOTSUPP;
+}
+
+static int
+qlcnicvf_set_ilb_mode(struct qlcnic_adapter *adapter)
+{
+	return -EOPNOTSUPP;
+}
+
+static void
+qlcnicvf_clear_ilb_mode(struct qlcnic_adapter *adapter)
+{
+	return;
+}
+
 static ssize_t
 qlcnic_store_bridged_mode(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
@@ -2953,47 +2993,6 @@ recheck:
 done:
 	return NOTIFY_DONE;
 }
-
-static int
-qlcnicvf_start_firmware(struct qlcnic_adapter *adapter)
-{
-	int err;
-
-	err = qlcnic_can_start_firmware(adapter);
-	if (err)
-		return err;
-
-	qlcnic_check_options(adapter);
-
-	adapter->need_fw_reset = 0;
-
-	return err;
-}
-
-static int
-qlcnicvf_config_bridged_mode(struct qlcnic_adapter *adapter, u32 enable)
-{
-	return -EOPNOTSUPP;
-}
-
-static int
-qlcnicvf_config_led(struct qlcnic_adapter *adapter, u32 state, u32 rate)
-{
-	return -EOPNOTSUPP;
-}
-
-static int
-qlcnicvf_set_ilb_mode(struct qlcnic_adapter *adapter)
-{
-	return -EOPNOTSUPP;
-}
-
-static void
-qlcnicvf_clear_ilb_mode(struct qlcnic_adapter *adapter)
-{
-	return;
-}
-
 
 static struct notifier_block	qlcnic_netdev_cb = {
 	.notifier_call = qlcnic_netdev_event,
