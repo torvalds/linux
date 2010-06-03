@@ -65,21 +65,8 @@ bool tomoyo_compare_name_union(const struct tomoyo_path_info *name,
 			       const struct tomoyo_name_union *ptr)
 {
 	if (ptr->is_group)
-		return tomoyo_path_matches_group(name, ptr->group, 1);
+		return tomoyo_path_matches_group(name, ptr->group);
 	return tomoyo_path_matches_pattern(name, ptr->filename);
-}
-
-static bool tomoyo_compare_name_union_pattern(const struct tomoyo_path_info
-					      *name,
-					      const struct tomoyo_name_union
-					      *ptr, const bool may_use_pattern)
-{
-	if (ptr->is_group)
-		return tomoyo_path_matches_group(name, ptr->group,
-						 may_use_pattern);
-	if (may_use_pattern || !ptr->filename->is_patterned)
-		return tomoyo_path_matches_pattern(name, ptr->filename);
-	return false;
 }
 
 void tomoyo_put_number_union(struct tomoyo_number_union *ptr)
@@ -247,7 +234,7 @@ static int tomoyo_update_globally_readable_entry(const char *filename,
 	struct tomoyo_globally_readable_file_entry e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
-	if (!tomoyo_is_correct_path(filename, 1, 0, -1))
+	if (!tomoyo_is_correct_word(filename))
 		return -EINVAL;
 	e.filename = tomoyo_get_name(filename);
 	if (!e.filename)
@@ -391,13 +378,14 @@ static int tomoyo_update_file_pattern_entry(const char *pattern,
 					    const bool is_delete)
 {
 	struct tomoyo_pattern_entry *ptr;
-	struct tomoyo_pattern_entry e = { .pattern = tomoyo_get_name(pattern) };
+	struct tomoyo_pattern_entry e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
+	if (!tomoyo_is_correct_word(pattern))
+		return -EINVAL;
+	e.pattern = tomoyo_get_name(pattern);
 	if (!e.pattern)
 		return error;
-	if (!e.pattern->is_patterned)
-		goto out;
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_pattern_list, list) {
@@ -543,7 +531,7 @@ static int tomoyo_update_no_rewrite_entry(const char *pattern,
 	struct tomoyo_no_rewrite_entry e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
-	if (!tomoyo_is_correct_path(pattern, 0, 0, 0))
+	if (!tomoyo_is_correct_word(pattern))
 		return -EINVAL;
 	e.pattern = tomoyo_get_name(pattern);
 	if (!e.pattern)
@@ -690,7 +678,6 @@ static int tomoyo_update_file_acl(u8 perm, const char *filename,
  * @r:               Pointer to "struct tomoyo_request_info".
  * @filename:        Filename to check.
  * @perm:            Permission.
- * @may_use_pattern: True if patterned ACL is permitted.
  *
  * Returns 0 on success, -EPERM otherwise.
  *
@@ -698,7 +685,7 @@ static int tomoyo_update_file_acl(u8 perm, const char *filename,
  */
 static int tomoyo_path_acl(const struct tomoyo_request_info *r,
 			   const struct tomoyo_path_info *filename,
-			   const u32 perm, const bool may_use_pattern)
+			   const u32 perm)
 {
 	struct tomoyo_domain_info *domain = r->domain;
 	struct tomoyo_acl_info *ptr;
@@ -710,8 +697,7 @@ static int tomoyo_path_acl(const struct tomoyo_request_info *r,
 			continue;
 		acl = container_of(ptr, struct tomoyo_path_acl, head);
 		if (!(acl->perm & perm) ||
-		    !tomoyo_compare_name_union_pattern(filename, &acl->name,
-                                                       may_use_pattern))
+		    !tomoyo_compare_name_union(filename, &acl->name))
 			continue;
 		error = 0;
 		break;
@@ -756,7 +742,7 @@ static int tomoyo_file_perm(struct tomoyo_request_info *r,
 	} else
 		BUG();
 	do {
-		error = tomoyo_path_acl(r, filename, perm, mode != 1);
+		error = tomoyo_path_acl(r, filename, perm);
 		if (error && mode == 4 && !r->domain->ignore_global_allow_read
 		    && tomoyo_is_globally_readable_file(filename))
 			error = 0;
@@ -764,7 +750,6 @@ static int tomoyo_file_perm(struct tomoyo_request_info *r,
 			break;
 		tomoyo_warn_log(r, "%s %s", msg, filename->name);
 		error = tomoyo_supervisor(r, "allow_%s %s\n", msg,
-					  mode == 1 ? filename->name :
 					  tomoyo_file_pattern(filename));
 		/*
                  * Do not retry for execute request, for alias may have
@@ -1073,7 +1058,7 @@ static int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 
  next:
 	do {
-		error = tomoyo_path_acl(r, filename, 1 << operation, 1);
+		error = tomoyo_path_acl(r, filename, 1 << operation);
 		if (!error)
 			break;
 		msg = tomoyo_path2keyword(operation);

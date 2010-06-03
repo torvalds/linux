@@ -24,8 +24,7 @@ struct tomoyo_number_group *tomoyo_get_number_group(const char *group_name)
 	struct tomoyo_number_group *group = NULL;
 	const struct tomoyo_path_info *saved_group_name;
 	int error = -ENOMEM;
-	if (!tomoyo_is_correct_path(group_name, 0, 0, 0) ||
-	    !group_name[0])
+	if (!tomoyo_is_correct_word(group_name))
 		return NULL;
 	saved_group_name = tomoyo_get_name(group_name);
 	if (!saved_group_name)

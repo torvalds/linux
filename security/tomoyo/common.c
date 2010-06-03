@@ -407,7 +407,7 @@ static int tomoyo_update_manager_entry(const char *manager,
 			return -EINVAL;
 		e.is_domain = true;
 	} else {
-		if (!tomoyo_is_correct_path(manager, 1, -1, -1))
+		if (!tomoyo_is_correct_path(manager))
 			return -EINVAL;
 	}
 	e.manager = tomoyo_get_name(manager);

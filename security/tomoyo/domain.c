@@ -131,11 +131,11 @@ static int tomoyo_update_domain_initializer_entry(const char *domainname,
 	struct tomoyo_domain_initializer_entry e = { .is_not = is_not };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
-	if (!tomoyo_is_correct_path(program, 1, -1, -1))
-		return -EINVAL; /* No patterns allowed. */
+	if (!tomoyo_is_correct_path(program))
+		return -EINVAL;
 	if (domainname) {
 		if (!tomoyo_is_domain_def(domainname) &&
-		    tomoyo_is_correct_path(domainname, 1, -1, -1))
+		    tomoyo_is_correct_path(domainname))
 			e.is_last_name = true;
 		else if (!tomoyo_is_correct_domain(domainname))
 			return -EINVAL;
@@ -342,12 +342,12 @@ static int tomoyo_update_domain_keeper_entry(const char *domainname,
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
 	if (!tomoyo_is_domain_def(domainname) &&
-	    tomoyo_is_correct_path(domainname, 1, -1, -1))
+	    tomoyo_is_correct_path(domainname))
 		e.is_last_name = true;
 	else if (!tomoyo_is_correct_domain(domainname))
 		return -EINVAL;
 	if (program) {
-		if (!tomoyo_is_correct_path(program, 1, -1, -1))
+		if (!tomoyo_is_correct_path(program))
 			return -EINVAL;
 		e.program = tomoyo_get_name(program);
 		if (!e.program)
@@ -533,13 +533,14 @@ static int tomoyo_update_alias_entry(const char *original_name,
 	struct tomoyo_alias_entry e = { };
 	int error = is_delete ? -ENOENT : -ENOMEM;
 
-	if (!tomoyo_is_correct_path(original_name, 1, -1, -1) ||
-	    !tomoyo_is_correct_path(aliased_name, 1, -1, -1))
-		return -EINVAL; /* No patterns allowed. */
+	if (!tomoyo_is_correct_path(original_name) ||
+	    !tomoyo_is_correct_path(aliased_name))
+		return -EINVAL;
 	e.original_name = tomoyo_get_name(original_name);
 	e.aliased_name = tomoyo_get_name(aliased_name);
-	if (!e.original_name || !e.aliased_name)
-		goto out;
+	if (!e.original_name || !e.aliased_name ||
+	    e.original_name->is_patterned || e.aliased_name->is_patterned)
+		goto out; /* No patterns allowed. */
 	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		goto out;
 	list_for_each_entry_rcu(ptr, &tomoyo_alias_list, list) {

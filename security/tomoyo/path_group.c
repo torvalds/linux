@@ -22,8 +22,7 @@ struct tomoyo_path_group *tomoyo_get_path_group(const char *group_name)
 	struct tomoyo_path_group *group = NULL;
 	const struct tomoyo_path_info *saved_group_name;
 	int error = -ENOMEM;
-	if (!tomoyo_is_correct_path(group_name, 0, 0, 0) ||
-	    !group_name[0])
+	if (!tomoyo_is_correct_word(group_name))
 		return NULL;
 	saved_group_name = tomoyo_get_name(group_name);
 	if (!saved_group_name)
@@ -141,29 +140,21 @@ bool tomoyo_read_path_group_policy(struct tomoyo_io_buffer *head)
  *
  * @pathname:        The name of pathname.
  * @group:           Pointer to "struct tomoyo_path_group".
- * @may_use_pattern: True if wild card is permitted.
  *
  * Returns true if @pathname matches pathnames in @group, false otherwise.
  *
  * Caller holds tomoyo_read_lock().
  */
 bool tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
-			       const struct tomoyo_path_group *group,
-			       const bool may_use_pattern)
+			       const struct tomoyo_path_group *group)
 {
 	struct tomoyo_path_group_member *member;
 	bool matched = false;
 	list_for_each_entry_rcu(member, &group->member_list, list) {
 		if (member->is_deleted)
 			continue;
-		if (!member->member_name->is_patterned) {
-			if (tomoyo_pathcmp(pathname, member->member_name))
-				continue;
-		} else if (may_use_pattern) {
-			if (!tomoyo_path_matches_pattern(pathname,
-							 member->member_name))
-				continue;
-		} else
+		if (!tomoyo_path_matches_pattern(pathname,
+						 member->member_name))
 			continue;
 		matched = true;
 		break;

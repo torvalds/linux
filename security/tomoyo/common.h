@@ -672,16 +672,15 @@ bool tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
 /* Check whether the domainname is correct. */
 bool tomoyo_is_correct_domain(const unsigned char *domainname);
 /* Check whether the token is correct. */
-bool tomoyo_is_correct_path(const char *filename, const s8 start_type,
-			    const s8 pattern_type, const s8 end_type);
+bool tomoyo_is_correct_path(const char *filename);
+bool tomoyo_is_correct_word(const char *string);
 /* Check whether the token can be a domainname. */
 bool tomoyo_is_domain_def(const unsigned char *buffer);
 bool tomoyo_parse_name_union(const char *filename,
 			     struct tomoyo_name_union *ptr);
 /* Check whether the given filename matches the given path_group. */
 bool tomoyo_path_matches_group(const struct tomoyo_path_info *pathname,
-			       const struct tomoyo_path_group *group,
-			       const bool may_use_pattern);
+			       const struct tomoyo_path_group *group);
 /* Check whether the given value matches the given number_group. */
 bool tomoyo_number_matches_group(const unsigned long min,
 				 const unsigned long max,
