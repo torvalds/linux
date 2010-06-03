@@ -44,6 +44,7 @@
 #include <linux/slab.h>
 #include <linux/crc32.h>
 #include <linux/math64.h>
+#include <linux/random.h>
 #include "ubi.h"
 
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
@@ -956,6 +957,7 @@ static int check_what_we_have(const struct ubi_device *ubi,
 			 */
 			si->is_empty = 1;
 			ubi_msg("empty MTD device detected");
+			get_random_bytes(&ubi->image_seq, sizeof(ubi->image_seq));
 		} else {
 			ubi_err("MTD device possibly contains non-UBI data, "
 				"refusing it");
