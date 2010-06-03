@@ -813,6 +813,21 @@ static int configure_overlay(enum omap_plane plane)
 
 		w = w * outw / orig_outw;
 		h = h * outh / orig_outh;
+
+		/* YUV mode overlay's input width has to be even and the
+		 * algorithm above may adjust the width to be odd.
+		 *
+		 * Here we adjust the width if needed, preferring to increase
+		 * the width if the original width was bigger.
+		 */
+		if ((w & 1) &&
+				(c->color_mode == OMAP_DSS_COLOR_YUV2 ||
+				 c->color_mode == OMAP_DSS_COLOR_UYVY)) {
+			if (orig_w > w)
+				w += 1;
+			else
+				w -= 1;
+		}
 	}
 
 	r = dispc_setup_plane(plane,
