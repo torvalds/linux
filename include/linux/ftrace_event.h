@@ -11,8 +11,6 @@ struct trace_array;
 struct tracer;
 struct dentry;
 
-DECLARE_PER_CPU(struct trace_seq, ftrace_event_seq);
-
 struct trace_print_flags {
 	unsigned long		mask;
 	const char		*name;
@@ -57,6 +55,9 @@ struct trace_iterator {
 	struct mutex		mutex;
 	struct ring_buffer_iter	*buffer_iter[NR_CPUS];
 	unsigned long		iter_flags;
+
+	/* trace_seq for __print_flags() and __print_symbolic() etc. */
+	struct trace_seq	tmp_seq;
 
 	/* The below is zeroed out in pipe_read */
 	struct trace_seq	seq;
