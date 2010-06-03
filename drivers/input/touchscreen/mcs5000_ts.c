@@ -256,7 +256,6 @@ static int __devexit mcs5000_ts_remove(struct i2c_client *client)
 	free_irq(client->irq, data);
 	input_unregister_device(data->input_dev);
 	kfree(data);
-	i2c_set_clientdata(client, NULL);
 
 	return 0;
 }
