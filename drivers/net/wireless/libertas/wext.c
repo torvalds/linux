@@ -518,6 +518,52 @@ static inline void sort_channels(struct iw_freq *freq, int num)
 			}
 }
 
+static int lbs_get_sense(struct net_device *dev, struct iw_request_info *info,
+		  struct iw_param *vwrq, char *extra)
+{
+	//struct lbs_private *priv = dev->priv;
+	struct lbs_private *priv = dev->ml_priv;
+	
+	lbs_deb_enter(LBS_DEB_WEXT);
+
+#if 1
+
+	if (priv->connect_status == LBS_CONNECTED)
+	{
+		//if ((pm_onelevel_status == 0) && (wifi_ps_status == WIFI_PS_AWAKE))
+			lbs_prepare_and_send_command(priv, CMD_802_11_RSSI, 0, CMD_OPTION_WAITFORRSP, 0, NULL);
+
+		/* Quality by RSSI */
+		priv->wstats.qual.level =
+			    CAL_RSSI(priv->SNR[TYPE_BEACON][TYPE_NOAVG],
+					     priv->NF[TYPE_BEACON][TYPE_NOAVG]);
+
+		if (priv->NF[TYPE_BEACON][TYPE_NOAVG] == 0) 
+		{
+			priv->wstats.qual.noise = MRVDRV_NF_DEFAULT_SCAN_VALUE;
+		} else {
+			priv->wstats.qual.noise =
+				CAL_NF(priv->NF[TYPE_BEACON][TYPE_NOAVG]);
+		}
+		//printk("signal level %d  ", priv->wstats.qual.level);
+		//printk("noise %d  ", priv->wstats.qual.noise);
+		vwrq->value = 100 -(priv->wstats.qual.level - priv->wstats.qual.noise);
+		//printk("rssi %d\n", vwrq->value);
+		//lbs_prepare_and_send_command(priv, CMD_802_11_RSSI, 0, 0, 0, NULL);
+	} 
+	else 
+	{
+		vwrq->value = 30;
+	}
+#else
+	vwrq->value = 60;
+#endif
+
+	lbs_deb_leave(LBS_DEB_WEXT);
+
+	return 1;
+}
+
 /* data rate listing
 	MULTI_BANDS:
 		abg		a	b	b/g
@@ -2148,7 +2194,7 @@ static const iw_handler lbs_handler[] = {
 	(iw_handler) lbs_set_mode,	/* SIOCSIWMODE */
 	(iw_handler) lbs_get_mode,	/* SIOCGIWMODE */
 	(iw_handler) NULL,	/* SIOCSIWSENS */
-	(iw_handler) NULL,	/* SIOCGIWSENS */
+	(iw_handler) lbs_get_sense,	/* SIOCGIWSENS */
 	(iw_handler) NULL,	/* SIOCSIWRANGE */
 	(iw_handler) lbs_get_range,	/* SIOCGIWRANGE */
 	(iw_handler) NULL,	/* SIOCSIWPRIV */
