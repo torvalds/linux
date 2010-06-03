@@ -4394,7 +4394,7 @@ static void ppc440spe_adma_release_irqs(struct ppc440spe_adma_device *adev,
 static int __devinit ppc440spe_adma_probe(struct of_device *ofdev,
 					  const struct of_device_id *match)
 {
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 	struct ppc440spe_adma_device *adev;
 	struct ppc440spe_adma_chan *chan;
@@ -4626,7 +4626,7 @@ out:
 static int __devexit ppc440spe_adma_remove(struct of_device *ofdev)
 {
 	struct ppc440spe_adma_device *adev = dev_get_drvdata(&ofdev->dev);
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct resource res;
 	struct dma_chan *chan, *_chan;
 	struct ppc_dma_chan_ref *ref, *_ref;
