@@ -222,15 +222,18 @@ static int jffs2_create(struct inode *dir_i, struct dentry *dentry, int mode,
 	dir_i->i_mtime = dir_i->i_ctime = ITIME(je32_to_cpu(ri->ctime));
 
 	jffs2_free_raw_inode(ri);
-	d_instantiate(dentry, inode);
 
 	D1(printk(KERN_DEBUG "jffs2_create: Created ino #%lu with mode %o, nlink %d(%d). nrpages %ld\n",
 		  inode->i_ino, inode->i_mode, inode->i_nlink,
 		  f->inocache->pino_nlink, inode->i_mapping->nrpages));
+
+	d_instantiate(dentry, inode);
+	unlock_new_inode(inode);
 	return 0;
 
  fail:
 	make_bad_inode(inode);
+	unlock_new_inode(inode);
 	iput(inode);
 	jffs2_free_raw_inode(ri);
 	return ret;
@@ -447,10 +450,12 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	jffs2_complete_reservation(c);
 
 	d_instantiate(dentry, inode);
+	unlock_new_inode(inode);
 	return 0;
 
  fail:
 	make_bad_inode(inode);
+	unlock_new_inode(inode);
 	iput(inode);
 	return ret;
 }
@@ -592,10 +597,12 @@ static int jffs2_mkdir (struct inode *dir_i, struct dentry *dentry, int mode)
 	jffs2_complete_reservation(c);
 
 	d_instantiate(dentry, inode);
+	unlock_new_inode(inode);
 	return 0;
 
  fail:
 	make_bad_inode(inode);
+	unlock_new_inode(inode);
 	iput(inode);
 	return ret;
 }
@@ -767,11 +774,12 @@ static int jffs2_mknod (struct inode *dir_i, struct dentry *dentry, int mode, de
 	jffs2_complete_reservation(c);
 
 	d_instantiate(dentry, inode);
-
+	unlock_new_inode(inode);
 	return 0;
 
  fail:
 	make_bad_inode(inode);
+	unlock_new_inode(inode);
 	iput(inode);
 	return ret;
 }
