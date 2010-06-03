@@ -251,7 +251,7 @@ static void p9100_init_fix(struct fb_info *info, int linebytes, struct device_no
 
 static int __devinit p9100_probe(struct of_device *op, const struct of_device_id *match)
 {
-	struct device_node *dp = op->node;
+	struct device_node *dp = op->dev.of_node;
 	struct fb_info *info;
 	struct p9100_par *par;
 	int linebytes, err;

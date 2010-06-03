@@ -347,7 +347,7 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 		goto error_out;
 	}
 	offset = 0;
-	p = of_get_property(dev->node, "msi-available-ranges", &len);
+	p = of_get_property(dev->dev.of_node, "msi-available-ranges", &len);
 	if (p)
 		offset = *p / IRQS_PER_MSI_REG;
 
