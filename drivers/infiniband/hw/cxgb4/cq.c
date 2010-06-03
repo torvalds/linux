@@ -77,7 +77,7 @@ static int destroy_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	kfree(cq->sw_queue);
 	dma_free_coherent(&(rdev->lldi.pdev->dev),
 			  cq->memsize, cq->queue,
-			  pci_unmap_addr(cq, mapping));
+			  dma_unmap_addr(cq, mapping));
 	c4iw_put_cqid(rdev, cq->cqid, uctx);
 	return ret;
 }
@@ -112,7 +112,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 		ret = -ENOMEM;
 		goto err3;
 	}
-	pci_unmap_addr_set(cq, mapping, cq->dma_addr);
+	dma_unmap_addr_set(cq, mapping, cq->dma_addr);
 	memset(cq->queue, 0, cq->memsize);
 
 	/* build fw_ri_res_wr */
@@ -179,7 +179,7 @@ static int create_cq(struct c4iw_rdev *rdev, struct t4_cq *cq,
 	return 0;
 err4:
 	dma_free_coherent(&rdev->lldi.pdev->dev, cq->memsize, cq->queue,
-			  pci_unmap_addr(cq, mapping));
+			  dma_unmap_addr(cq, mapping));
 err3:
 	kfree(cq->sw_queue);
 err2:
