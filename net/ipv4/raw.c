@@ -314,7 +314,7 @@ int raw_rcv(struct sock *sk, struct sk_buff *skb)
 }
 
 static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
-			struct rtable *rt,
+			struct rtable **rtp,
 			unsigned int flags)
 {
 	struct inet_sock *inet = inet_sk(sk);
@@ -323,6 +323,7 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 	struct sk_buff *skb;
 	unsigned int iphlen;
 	int err;
+	struct rtable *rt = *rtp;
 
 	if (length > rt->u.dst.dev->mtu) {
 		ip_local_error(sk, EMSGSIZE, rt->rt_dst, inet->inet_dport,
@@ -341,7 +342,8 @@ static int raw_send_hdrinc(struct sock *sk, void *from, size_t length,
 
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
-	skb_dst_set(skb, dst_clone(&rt->u.dst));
+	skb_dst_set(skb, &rt->u.dst);
+	*rtp = NULL;
 
 	skb_reset_network_header(skb);
 	iph = ip_hdr(skb);
@@ -576,7 +578,7 @@ back_from_confirm:
 
 	if (inet->hdrincl)
 		err = raw_send_hdrinc(sk, msg->msg_iov, len,
-					rt, msg->msg_flags);
+					&rt, msg->msg_flags);
 
 	 else {
 		if (!ipc.addr)
