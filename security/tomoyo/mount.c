@@ -25,57 +25,6 @@
 #define TOMOYO_MOUNT_MAKE_SHARED_KEYWORD                 "--make-shared"
 
 /**
- * tomoyo_encode2: Encode binary string to ascii string.
- *
- * @str: String in binary format.
- *
- * Returns pointer to @str in ascii format on success, NULL otherwise.
- *
- * This function uses kzalloc(), so caller must kfree() if this function
- * didn't return NULL.
- */
-static char *tomoyo_encode2(const char *str)
-{
-	int len = 0;
-	const char *p = str;
-	char *cp;
-	char *cp0;
-	if (!p)
-		return NULL;
-	while (*p) {
-		const unsigned char c = *p++;
-		if (c == '\\')
-			len += 2;
-		else if (c > ' ' && c < 127)
-			len++;
-		else
-			len += 4;
-	}
-	len++;
-	/* Reserve space for appending "/". */
-	cp = kzalloc(len + 10, GFP_NOFS);
-	if (!cp)
-		return NULL;
-	cp0 = cp;
-	p = str;
-	while (*p) {
-		const unsigned char c = *p++;
-		if (c == '\\') {
-			*cp++ = '\\';
-			*cp++ = '\\';
-		} else if (c > ' ' && c < 127) {
-			*cp++ = c;
-		} else {
-			*cp++ = '\\';
-			*cp++ = (c >> 6) + '0';
-			*cp++ = ((c >> 3) & 7) + '0';
-			*cp++ = (c & 7) + '0';
-		}
-	}
-	return cp0;
-}
-
-/**
  * tomoyo_mount_acl2 - Check permission for mount() operation.
  *
  * @r:        Pointer to "struct tomoyo_request_info".
@@ -104,7 +53,7 @@ static int tomoyo_mount_acl2(struct tomoyo_request_info *r, char *dev_name,
 	int error = -ENOMEM;
 
 	/* Get fstype. */
-	requested_type = tomoyo_encode2(type);
+	requested_type = tomoyo_encode(type);
 	if (!requested_type)
 		goto out;
 	rtype.name = requested_type;
@@ -155,7 +104,7 @@ static int tomoyo_mount_acl2(struct tomoyo_request_info *r, char *dev_name,
 		/* Map dev_name to "<NULL>" if no dev_name given. */
 		if (!dev_name)
 			dev_name = "<NULL>";
-		requested_dev_name = tomoyo_encode2(dev_name);
+		requested_dev_name = tomoyo_encode(dev_name);
 		if (!requested_dev_name) {
 			error = -ENOMEM;
 			goto out;

@@ -148,6 +148,17 @@ const char *tomoyo_path_number2keyword(const u8 operation)
 		? tomoyo_path_number_keyword[operation] : NULL;
 }
 
+static void tomoyo_add_slash(struct tomoyo_path_info *buf)
+{
+	if (buf->is_dir)
+		return;
+	/*
+	 * This is OK because tomoyo_encode() reserves space for appending "/".
+	 */
+	strcat((char *) buf->name, "/");
+	tomoyo_fill_path_info(buf);
+}
+
 /**
  * tomoyo_strendswith - Check whether the token ends with the given token.
  *
@@ -167,30 +178,21 @@ static bool tomoyo_strendswith(const char *name, const char *tail)
 }
 
 /**
- * tomoyo_get_path - Get realpath.
+ * tomoyo_get_realpath - Get realpath.
  *
+ * @buf:  Pointer to "struct tomoyo_path_info".
  * @path: Pointer to "struct path".
  *
- * Returns pointer to "struct tomoyo_path_info" on success, NULL otherwise.
+ * Returns true on success, false otherwise.
  */
-static struct tomoyo_path_info *tomoyo_get_path(struct path *path)
+static bool tomoyo_get_realpath(struct tomoyo_path_info *buf, struct path *path)
 {
-	int error;
-	struct tomoyo_path_info_with_data *buf = kzalloc(sizeof(*buf),
-							 GFP_NOFS);
-
-	if (!buf)
-		return NULL;
-	/* Reserve one byte for appending "/". */
-	error = tomoyo_realpath_from_path2(path, buf->body,
-					   sizeof(buf->body) - 2);
-	if (!error) {
-		buf->head.name = buf->body;
-		tomoyo_fill_path_info(&buf->head);
-		return &buf->head;
+	buf->name = tomoyo_realpath_from_path(path);
+	if (buf->name) {
+		tomoyo_fill_path_info(buf);
+		return true;
 	}
-	kfree(buf);
-	return NULL;
+        return false;
 }
 
 static int tomoyo_update_path2_acl(const u8 type, const char *filename1,
@@ -1259,26 +1261,20 @@ int tomoyo_path_number_perm(const u8 type, struct path *path,
 {
 	struct tomoyo_request_info r;
 	int error = -ENOMEM;
-	struct tomoyo_path_info *buf;
+	struct tomoyo_path_info buf;
 	int idx;
 
 	if (tomoyo_init_request_info(&r, NULL) == TOMOYO_CONFIG_DISABLED ||
 	    !path->mnt || !path->dentry)
 		return 0;
 	idx = tomoyo_read_lock();
-	buf = tomoyo_get_path(path);
-	if (!buf)
+	if (!tomoyo_get_realpath(&buf, path))
 		goto out;
-	if (type == TOMOYO_TYPE_MKDIR && !buf->is_dir) {
-		/*
-		 * tomoyo_get_path() reserves space for appending "/."
-		 */
-		strcat((char *) buf->name, "/");
-		tomoyo_fill_path_info(buf);
-	}
-	error = tomoyo_path_number_perm2(&r, type, buf, number);
+	if (type == TOMOYO_TYPE_MKDIR)
+		tomoyo_add_slash(&buf);
+	error = tomoyo_path_number_perm2(&r, type, &buf, number);
  out:
-	kfree(buf);
+	kfree(buf.name);
 	tomoyo_read_unlock(idx);
 	if (r.mode != TOMOYO_CONFIG_ENFORCING)
 		error = 0;
@@ -1319,7 +1315,7 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 {
 	const u8 acc_mode = ACC_MODE(flag);
 	int error = -ENOMEM;
-	struct tomoyo_path_info *buf;
+	struct tomoyo_path_info buf;
 	struct tomoyo_request_info r;
 	int idx;
 
@@ -1335,8 +1331,7 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 		 */
 		return 0;
 	idx = tomoyo_read_lock();
-	buf = tomoyo_get_path(path);
-	if (!buf)
+	if (!tomoyo_get_realpath(&buf, path))
 		goto out;
 	error = 0;
 	/*
@@ -1346,15 +1341,15 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 	 */
 	if ((acc_mode & MAY_WRITE) &&
 	    ((flag & O_TRUNC) || !(flag & O_APPEND)) &&
-	    (tomoyo_is_no_rewrite_file(buf))) {
-		error = tomoyo_path_permission(&r, TOMOYO_TYPE_REWRITE, buf);
+	    (tomoyo_is_no_rewrite_file(&buf))) {
+		error = tomoyo_path_permission(&r, TOMOYO_TYPE_REWRITE, &buf);
 	}
 	if (!error)
-		error = tomoyo_file_perm(&r, buf, acc_mode);
+		error = tomoyo_file_perm(&r, &buf, acc_mode);
 	if (!error && (flag & O_TRUNC))
-		error = tomoyo_path_permission(&r, TOMOYO_TYPE_TRUNCATE, buf);
+		error = tomoyo_path_permission(&r, TOMOYO_TYPE_TRUNCATE, &buf);
  out:
-	kfree(buf);
+	kfree(buf.name);
 	tomoyo_read_unlock(idx);
 	if (r.mode != TOMOYO_CONFIG_ENFORCING)
 		error = 0;
@@ -1372,7 +1367,7 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 int tomoyo_path_perm(const u8 operation, struct path *path)
 {
 	int error = -ENOMEM;
-	struct tomoyo_path_info *buf;
+	struct tomoyo_path_info buf;
 	struct tomoyo_request_info r;
 	int idx;
 
@@ -1380,29 +1375,23 @@ int tomoyo_path_perm(const u8 operation, struct path *path)
 	    !path->mnt)
 		return 0;
 	idx = tomoyo_read_lock();
-	buf = tomoyo_get_path(path);
-	if (!buf)
+	if (!tomoyo_get_realpath(&buf, path))
 		goto out;
 	switch (operation) {
 	case TOMOYO_TYPE_REWRITE:
-		if (!tomoyo_is_no_rewrite_file(buf)) {
+		if (!tomoyo_is_no_rewrite_file(&buf)) {
 			error = 0;
 			goto out;
 		}
 		break;
 	case TOMOYO_TYPE_RMDIR:
 	case TOMOYO_TYPE_CHROOT:
-		if (!buf->is_dir) {
-			/*
-			 * tomoyo_get_path() reserves space for appending "/."
-			 */
-			strcat((char *) buf->name, "/");
-			tomoyo_fill_path_info(buf);
-		}
+		tomoyo_add_slash(&buf);
+		break;
 	}
-	error = tomoyo_path_permission(&r, operation, buf);
+	error = tomoyo_path_permission(&r, operation, &buf);
  out:
-	kfree(buf);
+	kfree(buf.name);
 	tomoyo_read_unlock(idx);
 	if (r.mode != TOMOYO_CONFIG_ENFORCING)
 		error = 0;
@@ -1465,7 +1454,7 @@ int tomoyo_path_number3_perm(const u8 operation, struct path *path,
 {
 	struct tomoyo_request_info r;
 	int error = -ENOMEM;
-	struct tomoyo_path_info *buf;
+	struct tomoyo_path_info buf;
 	int idx;
 
 	if (tomoyo_init_request_info(&r, NULL) == TOMOYO_CONFIG_DISABLED ||
@@ -1473,11 +1462,10 @@ int tomoyo_path_number3_perm(const u8 operation, struct path *path,
 		return 0;
 	idx = tomoyo_read_lock();
 	error = -ENOMEM;
-	buf = tomoyo_get_path(path);
-	if (buf) {
-		error = tomoyo_path_number3_perm2(&r, operation, buf, mode,
+	if (tomoyo_get_realpath(&buf, path)) {
+		error = tomoyo_path_number3_perm2(&r, operation, &buf, mode,
 						  new_decode_dev(dev));
-		kfree(buf);
+		kfree(buf.name);
 	}
 	tomoyo_read_unlock(idx);
 	if (r.mode != TOMOYO_CONFIG_ENFORCING)
@@ -1499,48 +1487,40 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 {
 	int error = -ENOMEM;
 	const char *msg;
-	struct tomoyo_path_info *buf1;
-	struct tomoyo_path_info *buf2;
+	struct tomoyo_path_info buf1;
+	struct tomoyo_path_info buf2;
 	struct tomoyo_request_info r;
 	int idx;
 
 	if (tomoyo_init_request_info(&r, NULL) == TOMOYO_CONFIG_DISABLED ||
 	    !path1->mnt || !path2->mnt)
 		return 0;
+	buf1.name = NULL;
+	buf2.name = NULL;
 	idx = tomoyo_read_lock();
-	buf1 = tomoyo_get_path(path1);
-	buf2 = tomoyo_get_path(path2);
-	if (!buf1 || !buf2)
+	if (!tomoyo_get_realpath(&buf1, path1) ||
+	    !tomoyo_get_realpath(&buf2, path2))
 		goto out;
 	{
 		struct dentry *dentry = path1->dentry;
 		if (dentry->d_inode && S_ISDIR(dentry->d_inode->i_mode)) {
-			/*
-			 * tomoyo_get_path() reserves space for appending "/."
-			 */
-			if (!buf1->is_dir) {
-				strcat((char *) buf1->name, "/");
-				tomoyo_fill_path_info(buf1);
-			}
-			if (!buf2->is_dir) {
-				strcat((char *) buf2->name, "/");
-				tomoyo_fill_path_info(buf2);
-			}
+			tomoyo_add_slash(&buf1);
+			tomoyo_add_slash(&buf2);
 		}
 	}
 	do {
-		error = tomoyo_path2_acl(&r, operation, buf1, buf2);
+		error = tomoyo_path2_acl(&r, operation, &buf1, &buf2);
 		if (!error)
 			break;
 		msg = tomoyo_path22keyword(operation);
-		tomoyo_warn_log(&r, "%s %s %s", msg, buf1->name, buf2->name);
+		tomoyo_warn_log(&r, "%s %s %s", msg, buf1.name, buf2.name);
 		error = tomoyo_supervisor(&r, "allow_%s %s %s\n", msg,
-					  tomoyo_file_pattern(buf1),
-					  tomoyo_file_pattern(buf2));
+					  tomoyo_file_pattern(&buf1),
+					  tomoyo_file_pattern(&buf2));
         } while (error == TOMOYO_RETRY_REQUEST);
  out:
-	kfree(buf1);
-	kfree(buf2);
+	kfree(buf1.name);
+	kfree(buf2.name);
 	tomoyo_read_unlock(idx);
 	if (r.mode != TOMOYO_CONFIG_ENFORCING)
 		error = 0;

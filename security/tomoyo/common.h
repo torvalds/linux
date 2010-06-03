@@ -33,14 +33,7 @@ struct linux_binprm;
 #define TOMOYO_HASH_BITS  8
 #define TOMOYO_MAX_HASH (1u<<TOMOYO_HASH_BITS)
 
-/*
- * This is the max length of a token.
- *
- * A token consists of only ASCII printable characters.
- * Non printable characters in a token is represented in \ooo style
- * octal string. Thus, \ itself is represented as \\.
- */
-#define TOMOYO_MAX_PATHNAME_LEN 4000
+#define TOMOYO_EXEC_TMPSIZE     4096
 
 /* Profile number is an integer between 0 and 255. */
 #define TOMOYO_MAX_PROFILES 256
@@ -168,17 +161,6 @@ enum tomoyo_securityfs_interface_index {
 /********** Structure definitions. **********/
 
 /*
- * tomoyo_page_buffer is a structure which is used for holding a pathname
- * obtained from "struct dentry" and "struct vfsmount" pair.
- * As of now, it is 4096 bytes. If users complain that 4096 bytes is too small
- * (because TOMOYO escapes non ASCII printable characters using \ooo format),
- * we will make the buffer larger.
- */
-struct tomoyo_page_buffer {
-	char buffer[4096];
-};
-
-/*
  * tomoyo_request_info is a structure which is used for holding
  *
  * (1) Domain information of current process.
@@ -229,28 +211,6 @@ struct tomoyo_name_entry {
 	struct list_head list;
 	atomic_t users;
 	struct tomoyo_path_info entry;
-};
-
-/*
- * tomoyo_path_info_with_data is a structure which is used for holding a
- * pathname obtained from "struct dentry" and "struct vfsmount" pair.
- *
- * "struct tomoyo_path_info_with_data" consists of "struct tomoyo_path_info"
- * and buffer for the pathname, while "struct tomoyo_page_buffer" consists of
- * buffer for the pathname only.
- *
- * "struct tomoyo_path_info_with_data" is intended to allow TOMOYO to release
- * both "struct tomoyo_path_info" and buffer for the pathname by single kfree()
- * so that we don't need to return two pointers to the caller. If the caller
- * puts "struct tomoyo_path_info" on stack memory, we will be able to remove
- * "struct tomoyo_path_info_with_data".
- */
-struct tomoyo_path_info_with_data {
-	/* Keep "head" first, for this pointer is passed to kfree(). */
-	struct tomoyo_path_info head;
-	char barrier1[16]; /* Safeguard for overrun. */
-	char body[TOMOYO_MAX_PATHNAME_LEN];
-	char barrier2[16]; /* Safeguard for overrun. */
 };
 
 struct tomoyo_name_union {
@@ -827,11 +787,7 @@ void tomoyo_load_policy(const char *filename);
 void tomoyo_put_number_union(struct tomoyo_number_union *ptr);
 
 /* Convert binary string to ascii string. */
-int tomoyo_encode(char *buffer, int buflen, const char *str);
-
-/* Returns realpath(3) of the given pathname but ignores chroot'ed root. */
-int tomoyo_realpath_from_path2(struct path *path, char *newname,
-			       int newname_len);
+char *tomoyo_encode(const char *str);
 
 /*
  * Returns realpath(3) of the given pathname but ignores chroot'ed root.

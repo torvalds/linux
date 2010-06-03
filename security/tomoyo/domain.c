@@ -676,47 +676,43 @@ struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 int tomoyo_find_next_domain(struct linux_binprm *bprm)
 {
 	struct tomoyo_request_info r;
-	/*
-	 * This function assumes that the size of buffer returned by
-	 * tomoyo_realpath() = TOMOYO_MAX_PATHNAME_LEN.
-	 */
-	struct tomoyo_page_buffer *tmp = kzalloc(sizeof(*tmp), GFP_NOFS);
+	char *tmp = kzalloc(TOMOYO_EXEC_TMPSIZE, GFP_NOFS);
 	struct tomoyo_domain_info *old_domain = tomoyo_domain();
 	struct tomoyo_domain_info *domain = NULL;
 	const char *old_domain_name = old_domain->domainname->name;
 	const char *original_name = bprm->filename;
-	char *new_domain_name = NULL;
-	char *real_program_name = NULL;
-	char *symlink_program_name = NULL;
 	const u8 mode = tomoyo_check_flags(old_domain, TOMOYO_MAC_FOR_FILE);
 	const bool is_enforce = (mode == TOMOYO_CONFIG_ENFORCING);
 	int retval = -ENOMEM;
-	struct tomoyo_path_info rn; /* real name */
-	struct tomoyo_path_info sn; /* symlink name */
+	bool need_kfree = false;
+	struct tomoyo_path_info rn = { }; /* real name */
+	struct tomoyo_path_info sn = { }; /* symlink name */
 	struct tomoyo_path_info ln; /* last name */
 
+	ln.name = tomoyo_get_last_name(old_domain);
+	tomoyo_fill_path_info(&ln);
 	tomoyo_init_request_info(&r, NULL);
 	if (!tmp)
 		goto out;
 
  retry:
+	if (need_kfree) {
+		kfree(rn.name);
+		need_kfree = false;
+	}
 	/* Get tomoyo_realpath of program. */
 	retval = -ENOENT;
-	/* I hope tomoyo_realpath() won't fail with -ENOMEM. */
-	real_program_name = tomoyo_realpath(original_name);
-	if (!real_program_name)
+	rn.name = tomoyo_realpath(original_name);
+	if (!rn.name)
 		goto out;
-	/* Get tomoyo_realpath of symbolic link. */
-	symlink_program_name = tomoyo_realpath_nofollow(original_name);
-	if (!symlink_program_name)
-		goto out;
-
-	rn.name = real_program_name;
 	tomoyo_fill_path_info(&rn);
-	sn.name = symlink_program_name;
+	need_kfree = true;
+
+	/* Get tomoyo_realpath of symbolic link. */
+	sn.name = tomoyo_realpath_nofollow(original_name);
+	if (!sn.name)
+		goto out;
 	tomoyo_fill_path_info(&sn);
-	ln.name = tomoyo_get_last_name(old_domain);
-	tomoyo_fill_path_info(&ln);
 
 	/* Check 'alias' directive. */
 	if (tomoyo_pathcmp(&rn, &sn)) {
@@ -727,10 +723,10 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 			    tomoyo_pathcmp(&rn, ptr->original_name) ||
 			    tomoyo_pathcmp(&sn, ptr->aliased_name))
 				continue;
-			memset(real_program_name, 0, TOMOYO_MAX_PATHNAME_LEN);
-			strncpy(real_program_name, ptr->aliased_name->name,
-				TOMOYO_MAX_PATHNAME_LEN - 1);
-			tomoyo_fill_path_info(&rn);
+			kfree(rn.name);
+			need_kfree = false;
+			/* This is OK because it is read only. */
+			rn = *ptr->aliased_name;
 			break;
 		}
 	}
@@ -742,11 +738,10 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	if (retval < 0)
 		goto out;
 
-	new_domain_name = tmp->buffer;
 	if (tomoyo_is_domain_initializer(old_domain->domainname, &rn, &ln)) {
 		/* Transit to the child of tomoyo_kernel_domain domain. */
-		snprintf(new_domain_name, TOMOYO_MAX_PATHNAME_LEN + 1,
-			 TOMOYO_ROOT_NAME " " "%s", real_program_name);
+		snprintf(tmp, TOMOYO_EXEC_TMPSIZE - 1,
+			 TOMOYO_ROOT_NAME " " "%s", rn.name);
 	} else if (old_domain == &tomoyo_kernel_domain &&
 		   !tomoyo_policy_loaded) {
 		/*
@@ -760,29 +755,27 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 		domain = old_domain;
 	} else {
 		/* Normal domain transition. */
-		snprintf(new_domain_name, TOMOYO_MAX_PATHNAME_LEN + 1,
-			 "%s %s", old_domain_name, real_program_name);
+		snprintf(tmp, TOMOYO_EXEC_TMPSIZE - 1,
+			 "%s %s", old_domain_name, rn.name);
 	}
-	if (domain || strlen(new_domain_name) >= TOMOYO_MAX_PATHNAME_LEN)
+	if (domain || strlen(tmp) >= TOMOYO_EXEC_TMPSIZE - 10)
 		goto done;
-	domain = tomoyo_find_domain(new_domain_name);
+	domain = tomoyo_find_domain(tmp);
 	if (domain)
 		goto done;
 	if (is_enforce) {
 		int error = tomoyo_supervisor(&r, "# wants to create domain\n"
-					      "%s\n", new_domain_name);
+					      "%s\n", tmp);
 		if (error == TOMOYO_RETRY_REQUEST)
 			goto retry;
 		if (error < 0)
 			goto done;
 	}
-	domain = tomoyo_find_or_assign_new_domain(new_domain_name,
-						  old_domain->profile);
+	domain = tomoyo_find_or_assign_new_domain(tmp, old_domain->profile);
  done:
 	if (domain)
 		goto out;
-	printk(KERN_WARNING "TOMOYO-ERROR: Domain '%s' not defined.\n",
-	       new_domain_name);
+	printk(KERN_WARNING "TOMOYO-ERROR: Domain '%s' not defined.\n", tmp);
 	if (is_enforce)
 		retval = -EPERM;
 	else
@@ -793,8 +786,9 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	/* Update reference count on "struct tomoyo_domain_info". */
 	atomic_inc(&domain->users);
 	bprm->cred->security = domain;
-	kfree(real_program_name);
-	kfree(symlink_program_name);
+	if (need_kfree)
+		kfree(rn.name);
+	kfree(sn.name);
 	kfree(tmp);
 	return retval;
 }

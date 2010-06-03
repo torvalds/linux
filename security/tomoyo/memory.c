@@ -153,7 +153,6 @@ void __init tomoyo_mm_init(void)
 {
 	int idx;
 
-	BUILD_BUG_ON(TOMOYO_MAX_PATHNAME_LEN > PATH_MAX);
 	for (idx = 0; idx < TOMOYO_MAX_HASH; idx++)
 		INIT_LIST_HEAD(&tomoyo_name_list[idx]);
 	INIT_LIST_HEAD(&tomoyo_kernel_domain.acl_info_list);
