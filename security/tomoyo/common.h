@@ -68,6 +68,8 @@ enum tomoyo_mode_index {
 #define TOMOYO_KEYWORD_SELECT                    "select "
 #define TOMOYO_KEYWORD_USE_PROFILE               "use_profile "
 #define TOMOYO_KEYWORD_IGNORE_GLOBAL_ALLOW_READ  "ignore_global_allow_read"
+#define TOMOYO_KEYWORD_QUOTA_EXCEEDED            "quota_exceeded"
+#define TOMOYO_KEYWORD_TRANSITION_FAILED         "transition_failed"
 /* A domain definition starts with <kernel>. */
 #define TOMOYO_ROOT_NAME                         "<kernel>"
 #define TOMOYO_ROOT_NAME_LEN                     (sizeof(TOMOYO_ROOT_NAME) - 1)

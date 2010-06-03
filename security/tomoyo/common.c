@@ -366,7 +366,7 @@ static int tomoyo_read_profile(struct tomoyo_io_buffer *head)
  *
  *  or
  *
- * # echo '/usr/lib/ccs/editpolicy' > /sys/kernel/security/tomoyo/manager
+ * # echo '/usr/sbin/tomoyo-editpolicy' > /sys/kernel/security/tomoyo/manager
  *  (if you want to specify by a program's location)
  *
  * and is deleted by
@@ -376,7 +376,7 @@ static int tomoyo_read_profile(struct tomoyo_io_buffer *head)
  *
  *  or
  *
- * # echo 'delete /usr/lib/ccs/editpolicy' > \
+ * # echo 'delete /usr/sbin/tomoyo-editpolicy' > \
  *                                        /sys/kernel/security/tomoyo/manager
  *
  * and all entries are retrieved by
@@ -556,12 +556,17 @@ static bool tomoyo_is_select_one(struct tomoyo_io_buffer *head,
 {
 	unsigned int pid;
 	struct tomoyo_domain_info *domain = NULL;
+	bool global_pid = false;
 
-	if (sscanf(data, "pid=%u", &pid) == 1) {
+	if (sscanf(data, "pid=%u", &pid) == 1 ||
+	    (global_pid = true, sscanf(data, "global-pid=%u", &pid) == 1)) {
 		struct task_struct *p;
 		rcu_read_lock();
 		read_lock(&tasklist_lock);
-		p = find_task_by_vpid(pid);
+		if (global_pid)
+			p = find_task_by_pid_ns(pid, &init_pid_ns);
+		else
+			p = find_task_by_vpid(pid);
 		if (p)
 			domain = tomoyo_real_domain(p);
 		read_unlock(&tasklist_lock);
@@ -695,6 +700,14 @@ static int tomoyo_write_domain_policy(struct tomoyo_io_buffer *head)
 	}
 	if (!strcmp(data, TOMOYO_KEYWORD_IGNORE_GLOBAL_ALLOW_READ)) {
 		domain->ignore_global_allow_read = !is_delete;
+		return 0;
+	}
+	if (!strcmp(data, TOMOYO_KEYWORD_QUOTA_EXCEEDED)) {
+		domain->quota_warned = !is_delete;
+		return 0;
+	}
+	if (!strcmp(data, TOMOYO_KEYWORD_TRANSITION_FAILED)) {
+		domain->transition_failed = !is_delete;
 		return 0;
 	}
 	return tomoyo_write_domain_policy2(data, domain, is_delete);
@@ -853,6 +866,8 @@ static bool tomoyo_print_mount_acl(struct tomoyo_io_buffer *head,
 				   struct tomoyo_mount_acl *ptr)
 {
 	const int pos = head->read_avail;
+	if (ptr->is_deleted)
+		return true;
 	if (!tomoyo_io_printf(head, TOMOYO_KEYWORD_ALLOW_MOUNT) ||
 	    !tomoyo_print_name_union(head, &ptr->dev_name) ||
 	    !tomoyo_print_name_union(head, &ptr->dir_name) ||
@@ -993,7 +1008,7 @@ tail_mark:
  * This is equivalent to doing
  *
  *     ( echo "select " $domainname; echo "use_profile " $profile ) |
- *     /usr/lib/ccs/loadpolicy -d
+ *     /usr/sbin/tomoyo-loadpolicy -d
  *
  * Caller holds tomoyo_read_lock().
  */

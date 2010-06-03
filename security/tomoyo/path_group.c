@@ -6,7 +6,7 @@
 
 #include <linux/slab.h>
 #include "common.h"
-/* The list for "struct ccs_path_group". */
+/* The list for "struct tomoyo_path_group". */
 LIST_HEAD(tomoyo_path_group_list);
 
 /**
