@@ -812,8 +812,8 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	struct tomoyo_domain_info *domain = NULL;
 	const char *old_domain_name = old_domain->domainname->name;
 	const char *original_name = bprm->filename;
-	const u8 mode = tomoyo_check_flags(old_domain, TOMOYO_MAC_FOR_FILE);
-	const bool is_enforce = (mode == TOMOYO_CONFIG_ENFORCING);
+	u8 mode;
+	bool is_enforce;
 	int retval = -ENOMEM;
 	bool need_kfree = false;
 	struct tomoyo_path_info rn = { }; /* real name */
@@ -822,7 +822,8 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 
 	ln.name = tomoyo_get_last_name(old_domain);
 	tomoyo_fill_path_info(&ln);
-	tomoyo_init_request_info(&r, NULL);
+	mode = tomoyo_init_request_info(&r, NULL, TOMOYO_MAC_FILE_EXECUTE);
+	is_enforce = (mode == TOMOYO_CONFIG_ENFORCING);
 	if (!tmp)
 		goto out;
 
@@ -880,7 +881,7 @@ int tomoyo_find_next_domain(struct linux_binprm *bprm)
 	}
 
 	/* Check execute permission. */
-	retval = tomoyo_check_exec_perm(old_domain, &rn);
+	retval = tomoyo_check_exec_perm(&r, &rn);
 	if (retval == TOMOYO_RETRY_REQUEST)
 		goto retry;
 	if (retval < 0)

@@ -248,7 +248,8 @@ int tomoyo_mount_permission(char *dev_name, struct path *path, char *type,
 	int error;
 	int idx;
 
-	if (tomoyo_init_request_info(&r, NULL) == TOMOYO_CONFIG_DISABLED)
+	if (tomoyo_init_request_info(&r, NULL, TOMOYO_MAC_FILE_MOUNT)
+	    == TOMOYO_CONFIG_DISABLED)
 		return 0;
 	if (!type)
 		type = "<NULL>";

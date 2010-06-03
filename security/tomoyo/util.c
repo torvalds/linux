@@ -792,22 +792,64 @@ const char *tomoyo_get_exe(void)
 }
 
 /**
+ * tomoyo_get_mode - Get MAC mode.
+ *
+ * @profile: Profile number.
+ * @index:   Index number of functionality.
+ *
+ * Returns mode.
+ */
+int tomoyo_get_mode(const u8 profile, const u8 index)
+{
+	u8 mode;
+	const u8 category = TOMOYO_MAC_CATEGORY_FILE;
+	if (!tomoyo_policy_loaded)
+		return TOMOYO_CONFIG_DISABLED;
+	mode = tomoyo_profile(profile)->config[index];
+	if (mode == TOMOYO_CONFIG_USE_DEFAULT)
+		mode = tomoyo_profile(profile)->config[category];
+	if (mode == TOMOYO_CONFIG_USE_DEFAULT)
+		mode = tomoyo_profile(profile)->default_config;
+	return mode & 3;
+}
+
+/**
  * tomoyo_init_request_info - Initialize "struct tomoyo_request_info" members.
  *
  * @r:      Pointer to "struct tomoyo_request_info" to initialize.
  * @domain: Pointer to "struct tomoyo_domain_info". NULL for tomoyo_domain().
+ * @index:  Index number of functionality.
  *
  * Returns mode.
  */
 int tomoyo_init_request_info(struct tomoyo_request_info *r,
-			     struct tomoyo_domain_info *domain)
+			     struct tomoyo_domain_info *domain, const u8 index)
 {
+	u8 profile;
 	memset(r, 0, sizeof(*r));
 	if (!domain)
 		domain = tomoyo_domain();
 	r->domain = domain;
-	r->mode = tomoyo_check_flags(domain, TOMOYO_MAC_FOR_FILE);
+	profile = domain->profile;
+	r->profile = profile;
+	r->type = index;
+	r->mode = tomoyo_get_mode(profile, index);
 	return r->mode;
+}
+
+/**
+ * tomoyo_last_word - Get last component of a line.
+ *
+ * @line: A line.
+ *
+ * Returns the last word of a line.
+ */
+static const char *tomoyo_last_word(const char *name)
+{
+	const char *cp = strrchr(name, ' ');
+	if (cp)
+		return cp + 1;
+	return name;
 }
 
 /**
@@ -818,29 +860,34 @@ int tomoyo_init_request_info(struct tomoyo_request_info *r,
  */
 void tomoyo_warn_log(struct tomoyo_request_info *r, const char *fmt, ...)
 {
-	int len = PAGE_SIZE;
 	va_list args;
 	char *buffer;
-	if (!tomoyo_verbose_mode(r->domain))
-		return;
-	while (1) {
-		int len2;
-		buffer = kmalloc(len, GFP_NOFS);
-		if (!buffer)
+	const struct tomoyo_domain_info * const domain = r->domain;
+	const struct tomoyo_profile *profile = tomoyo_profile(domain->profile);
+	switch (r->mode) {
+	case TOMOYO_CONFIG_ENFORCING:
+		if (!profile->enforcing->enforcing_verbose)
 			return;
-		va_start(args, fmt);
-		len2 = vsnprintf(buffer, len - 1, fmt, args);
-		va_end(args);
-		if (len2 <= len - 1) {
-			buffer[len2] = '\0';
-			break;
-		}
-		len = len2 + 1;
-		kfree(buffer);
+		break;
+	case TOMOYO_CONFIG_PERMISSIVE:
+		if (!profile->permissive->permissive_verbose)
+			return;
+		break;
+	case TOMOYO_CONFIG_LEARNING:
+		if (!profile->learning->learning_verbose)
+			return;
+		break;
 	}
-	printk(KERN_WARNING "TOMOYO-%s: Access %s denied for %s\n",
-	       r->mode == TOMOYO_CONFIG_ENFORCING ? "ERROR" : "WARNING",
-	       buffer, tomoyo_get_last_name(r->domain));
+	buffer = kmalloc(4096, GFP_NOFS);
+	if (!buffer)
+		return;
+	va_start(args, fmt);
+	vsnprintf(buffer, 4095, fmt, args);
+	va_end(args);
+	buffer[4095] = '\0';
+	printk(KERN_WARNING "%s: Access %s denied for %s\n",
+	       r->mode == TOMOYO_CONFIG_ENFORCING ? "ERROR" : "WARNING", buffer,
+	       tomoyo_last_word(domain->domainname->name));
 	kfree(buffer);
 }
 
@@ -903,7 +950,8 @@ bool tomoyo_domain_quota_is_ok(struct tomoyo_request_info *r)
 				count++;
 		}
 	}
-	if (count < tomoyo_check_flags(domain, TOMOYO_MAX_ACCEPT_ENTRY))
+	if (count < tomoyo_profile(domain->profile)->learning->
+	    learning_max_entry)
 		return true;
 	if (!domain->quota_warned) {
 		domain->quota_warned = true;

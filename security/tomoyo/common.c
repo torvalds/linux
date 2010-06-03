@@ -9,51 +9,72 @@
 #include <linux/uaccess.h>
 #include <linux/slab.h>
 #include <linux/security.h>
-#include <linux/hardirq.h>
 #include "common.h"
+
+static struct tomoyo_profile tomoyo_default_profile = {
+	.learning = &tomoyo_default_profile.preference,
+	.permissive = &tomoyo_default_profile.preference,
+	.enforcing = &tomoyo_default_profile.preference,
+	.preference.enforcing_verbose = true,
+	.preference.learning_max_entry = 2048,
+	.preference.learning_verbose = false,
+	.preference.permissive_verbose = true
+};
+
+/* Profile version. Currently only 20090903 is defined. */
+static unsigned int tomoyo_profile_version;
+
+/* Profile table. Memory is allocated as needed. */
+static struct tomoyo_profile *tomoyo_profile_ptr[TOMOYO_MAX_PROFILES];
 
 /* String table for functionality that takes 4 modes. */
 static const char *tomoyo_mode_4[4] = {
 	"disabled", "learning", "permissive", "enforcing"
 };
-/* String table for functionality that takes 2 modes. */
-static const char *tomoyo_mode_2[4] = {
-	"disabled", "enabled", "enabled", "enabled"
-};
 
-/*
- * tomoyo_control_array is a static data which contains
- *
- *  (1) functionality name used by /sys/kernel/security/tomoyo/profile .
- *  (2) initial values for "struct tomoyo_profile".
- *  (3) max values for "struct tomoyo_profile".
- */
-static struct {
-	const char *keyword;
-	unsigned int current_value;
-	const unsigned int max_value;
-} tomoyo_control_array[TOMOYO_MAX_CONTROL_INDEX] = {
-	[TOMOYO_MAC_FOR_FILE]     = { "MAC_FOR_FILE",        0,       3 },
-	[TOMOYO_MAX_ACCEPT_ENTRY] = { "MAX_ACCEPT_ENTRY", 2048, INT_MAX },
-	[TOMOYO_VERBOSE]          = { "TOMOYO_VERBOSE",      1,       1 },
+/* String table for /sys/kernel/security/tomoyo/profile */
+static const char *tomoyo_mac_keywords[TOMOYO_MAX_MAC_INDEX
+				       + TOMOYO_MAX_MAC_CATEGORY_INDEX] = {
+	[TOMOYO_MAC_FILE_EXECUTE]    = "file::execute",
+	[TOMOYO_MAC_FILE_OPEN]       = "file::open",
+	[TOMOYO_MAC_FILE_CREATE]     = "file::create",
+	[TOMOYO_MAC_FILE_UNLINK]     = "file::unlink",
+	[TOMOYO_MAC_FILE_MKDIR]      = "file::mkdir",
+	[TOMOYO_MAC_FILE_RMDIR]      = "file::rmdir",
+	[TOMOYO_MAC_FILE_MKFIFO]     = "file::mkfifo",
+	[TOMOYO_MAC_FILE_MKSOCK]     = "file::mksock",
+	[TOMOYO_MAC_FILE_TRUNCATE]   = "file::truncate",
+	[TOMOYO_MAC_FILE_SYMLINK]    = "file::symlink",
+	[TOMOYO_MAC_FILE_REWRITE]    = "file::rewrite",
+	[TOMOYO_MAC_FILE_MKBLOCK]    = "file::mkblock",
+	[TOMOYO_MAC_FILE_MKCHAR]     = "file::mkchar",
+	[TOMOYO_MAC_FILE_LINK]       = "file::link",
+	[TOMOYO_MAC_FILE_RENAME]     = "file::rename",
+	[TOMOYO_MAC_FILE_CHMOD]      = "file::chmod",
+	[TOMOYO_MAC_FILE_CHOWN]      = "file::chown",
+	[TOMOYO_MAC_FILE_CHGRP]      = "file::chgrp",
+	[TOMOYO_MAC_FILE_IOCTL]      = "file::ioctl",
+	[TOMOYO_MAC_FILE_CHROOT]     = "file::chroot",
+	[TOMOYO_MAC_FILE_MOUNT]      = "file::mount",
+	[TOMOYO_MAC_FILE_UMOUNT]     = "file::umount",
+	[TOMOYO_MAC_FILE_PIVOT_ROOT] = "file::pivot_root",
+	[TOMOYO_MAX_MAC_INDEX + TOMOYO_MAC_CATEGORY_FILE] = "file",
 };
-
-/*
- * tomoyo_profile is a structure which is used for holding the mode of access
- * controls. TOMOYO has 4 modes: disabled, learning, permissive, enforcing.
- * An administrator can define up to 256 profiles.
- * The ->profile of "struct tomoyo_domain_info" is used for remembering
- * the profile's number (0 - 255) assigned to that domain.
- */
-static struct tomoyo_profile {
-	unsigned int value[TOMOYO_MAX_CONTROL_INDEX];
-	const struct tomoyo_path_info *comment;
-} *tomoyo_profile_ptr[TOMOYO_MAX_PROFILES];
 
 /* Permit policy management by non-root user? */
 static bool tomoyo_manage_by_non_root;
 
 /* Utility functions. */
+
+/**
+ * tomoyo_yesno - Return "yes" or "no".
+ *
+ * @value: Bool value.
+ */
+static const char *tomoyo_yesno(const unsigned int value)
+{
+	return value ? "yes" : "no";
+}
 
 /**
  * tomoyo_print_name_union - Print a tomoyo_name_union.
@@ -154,80 +175,62 @@ bool tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
 }
 
 /**
- * tomoyo_check_flags - Check mode for specified functionality.
- *
- * @domain: Pointer to "struct tomoyo_domain_info".
- * @index:  The functionality to check mode.
- *
- * TOMOYO checks only process context.
- * This code disables TOMOYO's enforcement in case the function is called from
- * interrupt context.
- */
-unsigned int tomoyo_check_flags(const struct tomoyo_domain_info *domain,
-				const u8 index)
-{
-	const u8 profile = domain->profile;
-
-	if (WARN_ON(in_interrupt()))
-		return 0;
-	return tomoyo_policy_loaded && index < TOMOYO_MAX_CONTROL_INDEX
-#if TOMOYO_MAX_PROFILES != 256
-		&& profile < TOMOYO_MAX_PROFILES
-#endif
-		&& tomoyo_profile_ptr[profile] ?
-		tomoyo_profile_ptr[profile]->value[index] : 0;
-}
-
-/**
- * tomoyo_verbose_mode - Check whether TOMOYO is verbose mode.
- *
- * @domain: Pointer to "struct tomoyo_domain_info".
- *
- * Returns true if domain policy violation warning should be printed to
- * console.
- */
-bool tomoyo_verbose_mode(const struct tomoyo_domain_info *domain)
-{
-	return tomoyo_check_flags(domain, TOMOYO_VERBOSE) != 0;
-}
-
-/**
  * tomoyo_find_or_assign_new_profile - Create a new profile.
  *
  * @profile: Profile number to create.
  *
  * Returns pointer to "struct tomoyo_profile" on success, NULL otherwise.
  */
-static struct tomoyo_profile *tomoyo_find_or_assign_new_profile(const unsigned
-								int profile)
+static struct tomoyo_profile *tomoyo_find_or_assign_new_profile
+(const unsigned int profile)
 {
-	struct tomoyo_profile *ptr = NULL;
-	int i;
-
+	struct tomoyo_profile *ptr;
+	struct tomoyo_profile *entry;
 	if (profile >= TOMOYO_MAX_PROFILES)
-		return NULL;
-	if (mutex_lock_interruptible(&tomoyo_policy_lock))
 		return NULL;
 	ptr = tomoyo_profile_ptr[profile];
 	if (ptr)
-		goto ok;
-	ptr = kmalloc(sizeof(*ptr), GFP_NOFS);
-	if (!tomoyo_memory_ok(ptr)) {
-		kfree(ptr);
-		ptr = NULL;
-		goto ok;
+		return ptr;
+	entry = kzalloc(sizeof(*entry), GFP_NOFS);
+	if (mutex_lock_interruptible(&tomoyo_policy_lock))
+		goto out;
+	ptr = tomoyo_profile_ptr[profile];
+	if (!ptr && tomoyo_memory_ok(entry)) {
+		ptr = entry;
+		ptr->learning = &tomoyo_default_profile.preference;
+		ptr->permissive = &tomoyo_default_profile.preference;
+		ptr->enforcing = &tomoyo_default_profile.preference;
+		ptr->default_config = TOMOYO_CONFIG_DISABLED;
+		memset(ptr->config, TOMOYO_CONFIG_USE_DEFAULT,
+		       sizeof(ptr->config));
+		mb(); /* Avoid out-of-order execution. */
+		tomoyo_profile_ptr[profile] = ptr;
+		entry = NULL;
 	}
-	for (i = 0; i < TOMOYO_MAX_CONTROL_INDEX; i++)
-		ptr->value[i] = tomoyo_control_array[i].current_value;
-	mb(); /* Avoid out-of-order execution. */
-	tomoyo_profile_ptr[profile] = ptr;
- ok:
 	mutex_unlock(&tomoyo_policy_lock);
+ out:
+	kfree(entry);
 	return ptr;
 }
 
 /**
- * tomoyo_write_profile - Write to profile table.
+ * tomoyo_profile - Find a profile.
+ *
+ * @profile: Profile number to find.
+ *
+ * Returns pointer to "struct tomoyo_profile".
+ */
+struct tomoyo_profile *tomoyo_profile(const u8 profile)
+{
+	struct tomoyo_profile *ptr = tomoyo_profile_ptr[profile];
+	if (!tomoyo_policy_loaded)
+		return &tomoyo_default_profile;
+	BUG_ON(!ptr);
+	return ptr;
+}
+
+/**
+ * tomoyo_write_profile - Write profile table.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
@@ -237,64 +240,116 @@ static int tomoyo_write_profile(struct tomoyo_io_buffer *head)
 {
 	char *data = head->write_buf;
 	unsigned int i;
-	unsigned int value;
+	int value;
+	int mode;
+	u8 config;
+	bool use_default = false;
 	char *cp;
 	struct tomoyo_profile *profile;
-	unsigned long num;
-
-	cp = strchr(data, '-');
-	if (cp)
-		*cp = '\0';
-	if (strict_strtoul(data, 10, &num))
-		return -EINVAL;
-	if (cp)
+	if (sscanf(data, "PROFILE_VERSION=%u", &tomoyo_profile_version) == 1)
+		return 0;
+	i = simple_strtoul(data, &cp, 10);
+	if (data == cp) {
+		profile = &tomoyo_default_profile;
+	} else {
+		if (*cp != '-')
+			return -EINVAL;
 		data = cp + 1;
-	profile = tomoyo_find_or_assign_new_profile(num);
-	if (!profile)
-		return -EINVAL;
+		profile = tomoyo_find_or_assign_new_profile(i);
+		if (!profile)
+			return -EINVAL;
+	}
 	cp = strchr(data, '=');
 	if (!cp)
 		return -EINVAL;
-	*cp = '\0';
+	*cp++ = '\0';
+	if (profile != &tomoyo_default_profile)
+		use_default = strstr(cp, "use_default") != NULL;
+	if (strstr(cp, "verbose=yes"))
+		value = 1;
+	else if (strstr(cp, "verbose=no"))
+		value = 0;
+	else
+		value = -1;
+	if (!strcmp(data, "PREFERENCE::enforcing")) {
+		if (use_default) {
+			profile->enforcing = &tomoyo_default_profile.preference;
+			return 0;
+		}
+		profile->enforcing = &profile->preference;
+		if (value >= 0)
+			profile->preference.enforcing_verbose = value;
+		return 0;
+	}
+	if (!strcmp(data, "PREFERENCE::permissive")) {
+		if (use_default) {
+			profile->permissive = &tomoyo_default_profile.preference;
+			return 0;
+		}
+		profile->permissive = &profile->preference;
+		if (value >= 0)
+			profile->preference.permissive_verbose = value;
+		return 0;
+	}
+	if (!strcmp(data, "PREFERENCE::learning")) {
+		char *cp2;
+		if (use_default) {
+			profile->learning = &tomoyo_default_profile.preference;
+			return 0;
+		}
+		profile->learning = &profile->preference;
+		if (value >= 0)
+			profile->preference.learning_verbose = value;
+		cp2 = strstr(cp, "max_entry=");
+		if (cp2)
+			sscanf(cp2 + 10, "%u",
+			       &profile->preference.learning_max_entry);
+		return 0;
+	}
+	if (profile == &tomoyo_default_profile)
+		return -EINVAL;
 	if (!strcmp(data, "COMMENT")) {
 		const struct tomoyo_path_info *old_comment = profile->comment;
-		profile->comment = tomoyo_get_name(cp + 1);
+		profile->comment = tomoyo_get_name(cp);
 		tomoyo_put_name(old_comment);
 		return 0;
 	}
-	for (i = 0; i < TOMOYO_MAX_CONTROL_INDEX; i++) {
-		if (strcmp(data, tomoyo_control_array[i].keyword))
-			continue;
-		if (sscanf(cp + 1, "%u", &value) != 1) {
-			int j;
-			const char **modes;
-			switch (i) {
-			case TOMOYO_VERBOSE:
-				modes = tomoyo_mode_2;
-				break;
-			default:
-				modes = tomoyo_mode_4;
-				break;
-			}
-			for (j = 0; j < 4; j++) {
-				if (strcmp(cp + 1, modes[j]))
-					continue;
-				value = j;
-				break;
-			}
-			if (j == 4)
-				return -EINVAL;
-		} else if (value > tomoyo_control_array[i].max_value) {
-			value = tomoyo_control_array[i].max_value;
+	if (!strcmp(data, "CONFIG")) {
+		i = TOMOYO_MAX_MAC_INDEX + TOMOYO_MAX_MAC_CATEGORY_INDEX;
+		config = profile->default_config;
+	} else if (tomoyo_str_starts(&data, "CONFIG::")) {
+		config = 0;
+		for (i = 0; i < TOMOYO_MAX_MAC_INDEX + TOMOYO_MAX_MAC_CATEGORY_INDEX; i++) {
+			if (strcmp(data, tomoyo_mac_keywords[i]))
+				continue;
+			config = profile->config[i];
+			break;
 		}
-		profile->value[i] = value;
-		return 0;
+		if (i == TOMOYO_MAX_MAC_INDEX + TOMOYO_MAX_MAC_CATEGORY_INDEX)
+			return -EINVAL;
+	} else {
+		return -EINVAL;
 	}
-	return -EINVAL;
+	if (use_default) {
+		config = TOMOYO_CONFIG_USE_DEFAULT;
+	} else {
+		for (mode = 3; mode >= 0; mode--)
+			if (strstr(cp, tomoyo_mode_4[mode]))
+				/*
+				 * Update lower 3 bits in order to distinguish
+				 * 'config' from 'TOMOYO_CONFIG_USE_DEAFULT'.
+				 */
+				config = (config & ~7) | mode;
+	}
+	if (i < TOMOYO_MAX_MAC_INDEX + TOMOYO_MAX_MAC_CATEGORY_INDEX)
+		profile->config[i] = config;
+	else if (config != TOMOYO_CONFIG_USE_DEFAULT)
+		profile->default_config = config;
+	return 0;
 }
 
 /**
- * tomoyo_read_profile - Read from profile table.
+ * tomoyo_read_profile - Read profile table.
  *
  * @head: Pointer to "struct tomoyo_io_buffer".
  *
@@ -302,53 +357,82 @@ static int tomoyo_write_profile(struct tomoyo_io_buffer *head)
  */
 static int tomoyo_read_profile(struct tomoyo_io_buffer *head)
 {
-	static const int total = TOMOYO_MAX_CONTROL_INDEX + 1;
-	int step;
-
+	int index;
 	if (head->read_eof)
 		return 0;
-	for (step = head->read_step; step < TOMOYO_MAX_PROFILES * total;
-	     step++) {
-		const u8 index = step / total;
-		u8 type = step % total;
+	if (head->read_bit)
+		goto body;
+	tomoyo_io_printf(head, "PROFILE_VERSION=%s\n", "20090903");
+	tomoyo_io_printf(head, "PREFERENCE::learning={ verbose=%s "
+			 "max_entry=%u }\n",
+			 tomoyo_yesno(tomoyo_default_profile.preference.
+				      learning_verbose),
+			 tomoyo_default_profile.preference.learning_max_entry);
+	tomoyo_io_printf(head, "PREFERENCE::permissive={ verbose=%s }\n",
+			 tomoyo_yesno(tomoyo_default_profile.preference.
+				      permissive_verbose));
+	tomoyo_io_printf(head, "PREFERENCE::enforcing={ verbose=%s }\n",
+			 tomoyo_yesno(tomoyo_default_profile.preference.
+				      enforcing_verbose));
+	head->read_bit = 1;
+ body:
+	for (index = head->read_step; index < TOMOYO_MAX_PROFILES; index++) {
+		bool done;
+		u8 config;
+		int i;
+		int pos;
 		const struct tomoyo_profile *profile
 			= tomoyo_profile_ptr[index];
-		head->read_step = step;
+		const struct tomoyo_path_info *comment;
+		head->read_step = index;
 		if (!profile)
 			continue;
-		if (!type) { /* Print profile' comment tag. */
-			if (!tomoyo_io_printf(head, "%u-COMMENT=%s\n",
-					      index, profile->comment ?
-					      profile->comment->name : ""))
-				break;
-			continue;
+		pos = head->read_avail;
+		comment = profile->comment;
+		done = tomoyo_io_printf(head, "%u-COMMENT=%s\n", index,
+					comment ? comment->name : "");
+		if (!done)
+			goto out;
+		config = profile->default_config;
+		if (!tomoyo_io_printf(head, "%u-CONFIG={ mode=%s }\n", index,
+				      tomoyo_mode_4[config & 3]))
+			goto out;
+		for (i = 0; i < TOMOYO_MAX_MAC_INDEX +
+			     TOMOYO_MAX_MAC_CATEGORY_INDEX; i++) {
+			config = profile->config[i];
+			if (config == TOMOYO_CONFIG_USE_DEFAULT)
+				continue;
+			if (!tomoyo_io_printf(head,
+					      "%u-CONFIG::%s={ mode=%s }\n",
+					      index, tomoyo_mac_keywords[i],
+					      tomoyo_mode_4[config & 3]))
+				goto out;
 		}
-		type--;
-		if (type < TOMOYO_MAX_CONTROL_INDEX) {
-			const unsigned int value = profile->value[type];
-			const char **modes = NULL;
-			const char *keyword
-				= tomoyo_control_array[type].keyword;
-			switch (tomoyo_control_array[type].max_value) {
-			case 3:
-				modes = tomoyo_mode_4;
-				break;
-			case 1:
-				modes = tomoyo_mode_2;
-				break;
-			}
-			if (modes) {
-				if (!tomoyo_io_printf(head, "%u-%s=%s\n", index,
-						      keyword, modes[value]))
-					break;
-			} else {
-				if (!tomoyo_io_printf(head, "%u-%s=%u\n", index,
-						      keyword, value))
-					break;
-			}
-		}
+		if (profile->learning != &tomoyo_default_profile.preference &&
+		    !tomoyo_io_printf(head, "%u-PREFERENCE::learning={ "
+				      "verbose=%s max_entry=%u }\n", index,
+				      tomoyo_yesno(profile->preference.
+						   learning_verbose),
+				      profile->preference.learning_max_entry))
+			goto out;
+		if (profile->permissive != &tomoyo_default_profile.preference
+		    && !tomoyo_io_printf(head, "%u-PREFERENCE::permissive={ "
+					 "verbose=%s }\n", index,
+					 tomoyo_yesno(profile->preference.
+						      permissive_verbose)))
+			goto out;
+		if (profile->enforcing != &tomoyo_default_profile.preference &&
+		    !tomoyo_io_printf(head, "%u-PREFERENCE::enforcing={ "
+				      "verbose=%s }\n", index,
+				      tomoyo_yesno(profile->preference.
+						   enforcing_verbose)))
+			goto out;
+		continue;
+ out:
+		head->read_avail = pos;
+		break;
 	}
-	if (step == TOMOYO_MAX_PROFILES * total)
+	if (index == TOMOYO_MAX_PROFILES)
 		head->read_eof = true;
 	return 0;
 }
@@ -1595,7 +1679,7 @@ static int tomoyo_write_answer(struct tomoyo_io_buffer *head)
 static int tomoyo_read_version(struct tomoyo_io_buffer *head)
 {
 	if (!head->read_eof) {
-		tomoyo_io_printf(head, "2.2.0");
+		tomoyo_io_printf(head, "2.3.0-pre");
 		head->read_eof = true;
 	}
 	return 0;
@@ -1915,6 +1999,9 @@ void tomoyo_check_profile(void)
 		      profile, domain->domainname->name);
 	}
 	tomoyo_read_unlock(idx);
-	printk(KERN_INFO "TOMOYO: 2.2.0   2009/04/01\n");
+	if (tomoyo_profile_version != 20090903)
+		panic("Profile version %u is not supported.\n",
+		      tomoyo_profile_version);
+	printk(KERN_INFO "TOMOYO: 2.3.0-pre   2010/06/03\n");
 	printk(KERN_INFO "Mandatory Access Control activated.\n");
 }

@@ -51,6 +51,42 @@ static const char *tomoyo_path_number_keyword
 	[TOMOYO_TYPE_CHGRP]      = "chgrp",
 };
 
+static const u8 tomoyo_p2mac[TOMOYO_MAX_PATH_OPERATION] = {
+	[TOMOYO_TYPE_READ_WRITE] = TOMOYO_MAC_FILE_OPEN,
+	[TOMOYO_TYPE_EXECUTE]    = TOMOYO_MAC_FILE_EXECUTE,
+	[TOMOYO_TYPE_READ]       = TOMOYO_MAC_FILE_OPEN,
+	[TOMOYO_TYPE_WRITE]      = TOMOYO_MAC_FILE_OPEN,
+	[TOMOYO_TYPE_UNLINK]     = TOMOYO_MAC_FILE_UNLINK,
+	[TOMOYO_TYPE_RMDIR]      = TOMOYO_MAC_FILE_RMDIR,
+	[TOMOYO_TYPE_TRUNCATE]   = TOMOYO_MAC_FILE_TRUNCATE,
+	[TOMOYO_TYPE_SYMLINK]    = TOMOYO_MAC_FILE_SYMLINK,
+	[TOMOYO_TYPE_REWRITE]    = TOMOYO_MAC_FILE_REWRITE,
+	[TOMOYO_TYPE_CHROOT]     = TOMOYO_MAC_FILE_CHROOT,
+	[TOMOYO_TYPE_UMOUNT]     = TOMOYO_MAC_FILE_UMOUNT,
+};
+
+static const u8 tomoyo_pnnn2mac[TOMOYO_MAX_PATH_NUMBER3_OPERATION] = {
+	[TOMOYO_TYPE_MKBLOCK] = TOMOYO_MAC_FILE_MKBLOCK,
+	[TOMOYO_TYPE_MKCHAR]  = TOMOYO_MAC_FILE_MKCHAR,
+};
+
+static const u8 tomoyo_pp2mac[TOMOYO_MAX_PATH2_OPERATION] = {
+	[TOMOYO_TYPE_LINK]       = TOMOYO_MAC_FILE_LINK,
+	[TOMOYO_TYPE_RENAME]     = TOMOYO_MAC_FILE_RENAME,
+	[TOMOYO_TYPE_PIVOT_ROOT] = TOMOYO_MAC_FILE_PIVOT_ROOT,
+};
+
+static const u8 tomoyo_pn2mac[TOMOYO_MAX_PATH_NUMBER_OPERATION] = {
+	[TOMOYO_TYPE_CREATE] = TOMOYO_MAC_FILE_CREATE,
+	[TOMOYO_TYPE_MKDIR]  = TOMOYO_MAC_FILE_MKDIR,
+	[TOMOYO_TYPE_MKFIFO] = TOMOYO_MAC_FILE_MKFIFO,
+	[TOMOYO_TYPE_MKSOCK] = TOMOYO_MAC_FILE_MKSOCK,
+	[TOMOYO_TYPE_IOCTL]  = TOMOYO_MAC_FILE_IOCTL,
+	[TOMOYO_TYPE_CHMOD]  = TOMOYO_MAC_FILE_CHMOD,
+	[TOMOYO_TYPE_CHOWN]  = TOMOYO_MAC_FILE_CHOWN,
+	[TOMOYO_TYPE_CHGRP]  = TOMOYO_MAC_FILE_CHGRP,
+};
+
 void tomoyo_put_name_union(struct tomoyo_name_union *ptr)
 {
 	if (!ptr)
@@ -1057,6 +1093,10 @@ static int tomoyo_path_permission(struct tomoyo_request_info *r, u8 operation,
 	int error;
 
  next:
+	r->type = tomoyo_p2mac[operation];
+	r->mode = tomoyo_get_mode(r->profile, r->type);
+	if (r->mode == TOMOYO_CONFIG_DISABLED)
+		return 0;
 	do {
 		error = tomoyo_path_acl(r, filename, 1 << operation);
 		if (!error)
@@ -1249,8 +1289,8 @@ int tomoyo_path_number_perm(const u8 type, struct path *path,
 	struct tomoyo_path_info buf;
 	int idx;
 
-	if (tomoyo_init_request_info(&r, NULL) == TOMOYO_CONFIG_DISABLED ||
-	    !path->mnt || !path->dentry)
+	if (tomoyo_init_request_info(&r, NULL, tomoyo_pn2mac[type])
+	    == TOMOYO_CONFIG_DISABLED || !path->mnt || !path->dentry)
 		return 0;
 	idx = tomoyo_read_lock();
 	if (!tomoyo_get_realpath(&buf, path))
@@ -1269,21 +1309,19 @@ int tomoyo_path_number_perm(const u8 type, struct path *path,
 /**
  * tomoyo_check_exec_perm - Check permission for "execute".
  *
- * @domain:   Pointer to "struct tomoyo_domain_info".
+ * @r:        Pointer to "struct tomoyo_request_info".
  * @filename: Check permission for "execute".
  *
  * Returns 0 on success, negativevalue otherwise.
  *
  * Caller holds tomoyo_read_lock().
  */
-int tomoyo_check_exec_perm(struct tomoyo_domain_info *domain,
+int tomoyo_check_exec_perm(struct tomoyo_request_info *r,
 			   const struct tomoyo_path_info *filename)
 {
-	struct tomoyo_request_info r;
-
-	if (tomoyo_init_request_info(&r, NULL) == TOMOYO_CONFIG_DISABLED)
+	if (r->mode == TOMOYO_CONFIG_DISABLED)
 		return 0;
-	return tomoyo_file_perm(&r, filename, 1);
+	return tomoyo_file_perm(r, filename, 1);
 }
 
 /**
@@ -1304,17 +1342,11 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 	struct tomoyo_request_info r;
 	int idx;
 
-	if (tomoyo_init_request_info(&r, domain) == TOMOYO_CONFIG_DISABLED ||
-	    !path->mnt)
+	if (!path->mnt ||
+	    (path->dentry->d_inode && S_ISDIR(path->dentry->d_inode->i_mode)))
 		return 0;
-	if (acc_mode == 0)
-		return 0;
-	if (path->dentry->d_inode && S_ISDIR(path->dentry->d_inode->i_mode))
-		/*
-		 * I don't check directories here because mkdir() and rmdir()
-		 * don't call me.
-		 */
-		return 0;
+	buf.name = NULL;
+	r.mode = TOMOYO_CONFIG_DISABLED;
 	idx = tomoyo_read_lock();
 	if (!tomoyo_get_realpath(&buf, path))
 		goto out;
@@ -1324,15 +1356,26 @@ int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 	 * we need to check "allow_rewrite" permission when the filename is not
 	 * opened for append mode or the filename is truncated at open time.
 	 */
-	if ((acc_mode & MAY_WRITE) &&
-	    ((flag & O_TRUNC) || !(flag & O_APPEND)) &&
-	    (tomoyo_is_no_rewrite_file(&buf))) {
-		error = tomoyo_path_permission(&r, TOMOYO_TYPE_REWRITE, &buf);
+	if ((acc_mode & MAY_WRITE) && !(flag & O_APPEND)
+	    && tomoyo_init_request_info(&r, domain, TOMOYO_MAC_FILE_REWRITE)
+	    != TOMOYO_CONFIG_DISABLED) {
+		if (!tomoyo_get_realpath(&buf, path)) {
+			error = -ENOMEM;
+			goto out;
+		}
+		if (tomoyo_is_no_rewrite_file(&buf))
+			error = tomoyo_path_permission(&r, TOMOYO_TYPE_REWRITE,
+						       &buf);
 	}
-	if (!error)
+	if (!error && acc_mode &&
+	    tomoyo_init_request_info(&r, domain, TOMOYO_MAC_FILE_OPEN)
+	    != TOMOYO_CONFIG_DISABLED) {
+		if (!buf.name && !tomoyo_get_realpath(&buf, path)) {
+			error = -ENOMEM;
+			goto out;
+		}
 		error = tomoyo_file_perm(&r, &buf, acc_mode);
-	if (!error && (flag & O_TRUNC))
-		error = tomoyo_path_permission(&r, TOMOYO_TYPE_TRUNCATE, &buf);
+	}
  out:
 	kfree(buf.name);
 	tomoyo_read_unlock(idx);
@@ -1356,9 +1399,12 @@ int tomoyo_path_perm(const u8 operation, struct path *path)
 	struct tomoyo_request_info r;
 	int idx;
 
-	if (tomoyo_init_request_info(&r, NULL) == TOMOYO_CONFIG_DISABLED ||
-	    !path->mnt)
+	if (!path->mnt)
 		return 0;
+	if (tomoyo_init_request_info(&r, NULL, tomoyo_p2mac[operation])
+	    == TOMOYO_CONFIG_DISABLED)
+		return 0;
+	buf.name = NULL;
 	idx = tomoyo_read_lock();
 	if (!tomoyo_get_realpath(&buf, path))
 		goto out;
@@ -1371,6 +1417,7 @@ int tomoyo_path_perm(const u8 operation, struct path *path)
 		break;
 	case TOMOYO_TYPE_RMDIR:
 	case TOMOYO_TYPE_CHROOT:
+	case TOMOYO_TYPE_UMOUNT:
 		tomoyo_add_slash(&buf);
 		break;
 	}
@@ -1442,8 +1489,9 @@ int tomoyo_path_number3_perm(const u8 operation, struct path *path,
 	struct tomoyo_path_info buf;
 	int idx;
 
-	if (tomoyo_init_request_info(&r, NULL) == TOMOYO_CONFIG_DISABLED ||
-	    !path->mnt)
+	if (!path->mnt ||
+	    tomoyo_init_request_info(&r, NULL, tomoyo_pnnn2mac[operation])
+	    == TOMOYO_CONFIG_DISABLED)
 		return 0;
 	idx = tomoyo_read_lock();
 	error = -ENOMEM;
@@ -1477,8 +1525,9 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 	struct tomoyo_request_info r;
 	int idx;
 
-	if (tomoyo_init_request_info(&r, NULL) == TOMOYO_CONFIG_DISABLED ||
-	    !path1->mnt || !path2->mnt)
+	if (!path1->mnt || !path2->mnt ||
+	    tomoyo_init_request_info(&r, NULL, tomoyo_pp2mac[operation])
+	    == TOMOYO_CONFIG_DISABLED)
 		return 0;
 	buf1.name = NULL;
 	buf2.name = NULL;
@@ -1486,13 +1535,19 @@ int tomoyo_path2_perm(const u8 operation, struct path *path1,
 	if (!tomoyo_get_realpath(&buf1, path1) ||
 	    !tomoyo_get_realpath(&buf2, path2))
 		goto out;
-	{
-		struct dentry *dentry = path1->dentry;
-		if (dentry->d_inode && S_ISDIR(dentry->d_inode->i_mode)) {
-			tomoyo_add_slash(&buf1);
-			tomoyo_add_slash(&buf2);
-		}
-	}
+	switch (operation) {
+		struct dentry *dentry;
+	case TOMOYO_TYPE_RENAME:
+        case TOMOYO_TYPE_LINK:
+		dentry = path1->dentry;
+	        if (!dentry->d_inode || !S_ISDIR(dentry->d_inode->i_mode))
+                        break;
+                /* fall through */
+        case TOMOYO_TYPE_PIVOT_ROOT:
+                tomoyo_add_slash(&buf1);
+                tomoyo_add_slash(&buf2);
+		break;
+        }
 	do {
 		error = tomoyo_path2_acl(&r, operation, &buf1, &buf2);
 		if (!error)

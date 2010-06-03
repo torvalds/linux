@@ -42,7 +42,8 @@ enum tomoyo_mode_index {
 	TOMOYO_CONFIG_DISABLED,
 	TOMOYO_CONFIG_LEARNING,
 	TOMOYO_CONFIG_PERMISSIVE,
-	TOMOYO_CONFIG_ENFORCING
+	TOMOYO_CONFIG_ENFORCING,
+	TOMOYO_CONFIG_USE_DEFAULT = 255
 };
 
 /* Keywords for ACLs. */
@@ -73,14 +74,6 @@ enum tomoyo_mode_index {
 #define TOMOYO_VALUE_TYPE_DECIMAL     1
 #define TOMOYO_VALUE_TYPE_OCTAL       2
 #define TOMOYO_VALUE_TYPE_HEXADECIMAL 3
-
-/* Index numbers for Access Controls. */
-enum tomoyo_mac_index {
-	TOMOYO_MAC_FOR_FILE,  /* domain_policy.conf */
-	TOMOYO_MAX_ACCEPT_ENTRY,
-	TOMOYO_VERBOSE,
-	TOMOYO_MAX_CONTROL_INDEX
-};
 
 /* Index numbers for Access Controls. */
 enum tomoyo_acl_entry_type_index {
@@ -157,6 +150,38 @@ enum tomoyo_securityfs_interface_index {
 	TOMOYO_MANAGER
 };
 
+enum tomoyo_mac_index {
+	TOMOYO_MAC_FILE_EXECUTE,
+	TOMOYO_MAC_FILE_OPEN,
+	TOMOYO_MAC_FILE_CREATE,
+	TOMOYO_MAC_FILE_UNLINK,
+	TOMOYO_MAC_FILE_MKDIR,
+	TOMOYO_MAC_FILE_RMDIR,
+	TOMOYO_MAC_FILE_MKFIFO,
+	TOMOYO_MAC_FILE_MKSOCK,
+	TOMOYO_MAC_FILE_TRUNCATE,
+	TOMOYO_MAC_FILE_SYMLINK,
+	TOMOYO_MAC_FILE_REWRITE,
+	TOMOYO_MAC_FILE_MKBLOCK,
+	TOMOYO_MAC_FILE_MKCHAR,
+	TOMOYO_MAC_FILE_LINK,
+	TOMOYO_MAC_FILE_RENAME,
+	TOMOYO_MAC_FILE_CHMOD,
+	TOMOYO_MAC_FILE_CHOWN,
+	TOMOYO_MAC_FILE_CHGRP,
+	TOMOYO_MAC_FILE_IOCTL,
+	TOMOYO_MAC_FILE_CHROOT,
+	TOMOYO_MAC_FILE_MOUNT,
+	TOMOYO_MAC_FILE_UMOUNT,
+	TOMOYO_MAC_FILE_PIVOT_ROOT,
+	TOMOYO_MAX_MAC_INDEX
+};
+
+enum tomoyo_mac_category_index {
+	TOMOYO_MAC_CATEGORY_FILE,
+	TOMOYO_MAX_MAC_CATEGORY_INDEX
+};
+
 #define TOMOYO_RETRY_REQUEST 1 /* Retry this request. */
 
 /********** Structure definitions. **********/
@@ -174,6 +199,7 @@ struct tomoyo_request_info {
 	u8 retry;
 	u8 profile;
 	u8 mode; /* One of tomoyo_mode_index . */
+	u8 type;
 };
 
 /*
@@ -649,6 +675,23 @@ struct tomoyo_policy_manager_entry {
 	bool is_deleted; /* True if this entry is deleted. */
 };
 
+struct tomoyo_preference {
+	unsigned int learning_max_entry;
+	bool enforcing_verbose;
+	bool learning_verbose;
+	bool permissive_verbose;
+};
+
+struct tomoyo_profile {
+	const struct tomoyo_path_info *comment;
+	struct tomoyo_preference *learning;
+	struct tomoyo_preference *permissive;
+	struct tomoyo_preference *enforcing;
+	struct tomoyo_preference preference;
+	u8 default_config;
+	u8 config[TOMOYO_MAX_MAC_INDEX + TOMOYO_MAX_MAC_CATEGORY_INDEX];
+};
+
 /********** Function prototypes. **********/
 
 extern asmlinkage long sys_getpid(void);
@@ -685,6 +728,7 @@ bool tomoyo_compare_name_union(const struct tomoyo_path_info *name,
 /* Check whether the given number matches the given number_union. */
 bool tomoyo_compare_number_union(const unsigned long value,
 				 const struct tomoyo_number_union *ptr);
+int tomoyo_get_mode(const u8 profile, const u8 index);
 /* Transactional sprintf() for policy dump. */
 bool tomoyo_io_printf(struct tomoyo_io_buffer *head, const char *fmt, ...)
 	__attribute__ ((format(printf, 2, 3)));
@@ -747,7 +791,8 @@ const char *tomoyo_get_last_name(const struct tomoyo_domain_info *domain);
 const char *tomoyo_path2keyword(const u8 operation);
 /* Fill "struct tomoyo_request_info". */
 int tomoyo_init_request_info(struct tomoyo_request_info *r,
-			     struct tomoyo_domain_info *domain);
+			     struct tomoyo_domain_info *domain,
+			     const u8 index);
 /* Check permission for mount operation. */
 int tomoyo_mount_permission(char *dev_name, struct path *path, char *type,
 			    unsigned long flags, void *data_page);
@@ -794,6 +839,7 @@ struct tomoyo_domain_info *tomoyo_find_domain(const char *domainname);
 struct tomoyo_domain_info *tomoyo_find_or_assign_new_domain(const char *
 							    domainname,
 							    const u8 profile);
+struct tomoyo_profile *tomoyo_profile(const u8 profile);
 /* Allocate memory for "struct tomoyo_path_group". */
 struct tomoyo_path_group *tomoyo_get_path_group(const char *group_name);
 struct tomoyo_number_group *tomoyo_get_number_group(const char *group_name);
@@ -844,7 +890,7 @@ int tomoyo_write_memory_quota(struct tomoyo_io_buffer *head);
 
 /* Initialize mm related code. */
 void __init tomoyo_mm_init(void);
-int tomoyo_check_exec_perm(struct tomoyo_domain_info *domain,
+int tomoyo_check_exec_perm(struct tomoyo_request_info *r,
 			   const struct tomoyo_path_info *filename);
 int tomoyo_check_open_permission(struct tomoyo_domain_info *domain,
 				 struct path *path, const int flag);
