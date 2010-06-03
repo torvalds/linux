@@ -920,7 +920,6 @@ static int mt9v022_probe(struct i2c_client *client,
 	ret = mt9v022_video_probe(icd, client);
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(mt9v022);
 	}
 
@@ -934,7 +933,6 @@ static int mt9v022_remove(struct i2c_client *client)
 
 	icd->ops = NULL;
 	mt9v022_video_remove(icd);
-	i2c_set_clientdata(client, NULL);
 	client->driver = NULL;
 	kfree(mt9v022);
 

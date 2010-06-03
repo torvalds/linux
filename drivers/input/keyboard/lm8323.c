@@ -778,8 +778,6 @@ static int __devexit lm8323_remove(struct i2c_client *client)
 	struct lm8323_chip *lm = i2c_get_clientdata(client);
 	int i;
 
-	i2c_set_clientdata(client, NULL);
-
 	disable_irq_wake(client->irq);
 	free_irq(client->irq, lm);
 	cancel_work_sync(&lm->work);

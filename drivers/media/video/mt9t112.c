@@ -1119,7 +1119,6 @@ static int mt9t112_probe(struct i2c_client *client,
 	ret = mt9t112_camera_probe(icd, client);
 	if (ret) {
 		icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(priv);
 	}
 
@@ -1132,7 +1131,6 @@ static int mt9t112_remove(struct i2c_client *client)
 	struct soc_camera_device *icd = client->dev.platform_data;
 
 	icd->ops = NULL;
-	i2c_set_clientdata(client, NULL);
 	kfree(priv);
 	return 0;
 }

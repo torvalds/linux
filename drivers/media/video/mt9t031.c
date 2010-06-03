@@ -883,7 +883,6 @@ static int mt9t031_probe(struct i2c_client *client,
 	if (ret) {
 		if (icd)
 			icd->ops = NULL;
-		i2c_set_clientdata(client, NULL);
 		kfree(mt9t031);
 	}
 
@@ -897,7 +896,6 @@ static int mt9t031_remove(struct i2c_client *client)
 
 	if (icd)
 		icd->ops = NULL;
-	i2c_set_clientdata(client, NULL);
 	client->driver = NULL;
 	kfree(mt9t031);
 

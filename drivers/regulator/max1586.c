@@ -244,7 +244,6 @@ static int __devexit max1586_pmic_remove(struct i2c_client *client)
 	for (i = 0; i <= MAX1586_V6; i++)
 		if (rdev[i])
 			regulator_unregister(rdev[i]);
-	i2c_set_clientdata(client, NULL);
 	kfree(rdev);
 
 	return 0;
