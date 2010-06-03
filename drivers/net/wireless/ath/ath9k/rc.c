@@ -20,7 +20,7 @@
 #include "ath9k.h"
 
 static const struct ath_rate_table ar5416_11na_ratetable = {
-	42,
+	43,
 	8, /* MCS start */
 	{
 		{ VALID, VALID, WLAN_RC_PHY_OFDM, 6000, /* 6 Mb */
@@ -118,7 +118,7 @@ static const struct ath_rate_table ar5416_11na_ratetable = {
  * for HT are the 64K max aggregate limit */
 
 static const struct ath_rate_table ar5416_11ng_ratetable = {
-	46,
+	47,
 	12, /* MCS start */
 	{
 		{ VALID_ALL, VALID_ALL, WLAN_RC_PHY_CCK, 1000, /* 1 Mb */
