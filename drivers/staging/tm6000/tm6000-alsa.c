@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/usb.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 #include <asm/delay.h>
 #include <sound/core.h>
@@ -106,18 +107,38 @@ static int _tm6000_stop_audio_dma(struct snd_tm6000_card *chip)
 	return 0;
 }
 
-static int dsp_buffer_free(struct snd_tm6000_card *chip)
+static void dsp_buffer_free(struct snd_pcm_substream *substream)
 {
-	BUG_ON(!chip->bufsize);
+	struct snd_tm6000_card *chip = snd_pcm_substream_chip(substream);
 
 	dprintk(2, "Freeing buffer\n");
 
-	/* FIXME: Frees buffer */
-
-	chip->bufsize = 0;
-
-       return 0;
+	vfree(substream->runtime->dma_area);
+	substream->runtime->dma_area = NULL;
+	substream->runtime->dma_bytes = 0;
 }
+
+static int dsp_buffer_alloc(struct snd_pcm_substream *substream, int size)
+{
+	struct snd_tm6000_card *chip = snd_pcm_substream_chip(substream);
+
+	dprintk(2, "Allocating buffer\n");
+
+	if (substream->runtime->dma_area) {
+		if (substream->runtime->dma_bytes > size)
+			return 0;
+		dsp_buffer_free(substream);
+	}
+
+	substream->runtime->dma_area = vmalloc(size);
+	if (!substream->runtime->dma_area)
+		return -ENOMEM;
+
+	substream->runtime->dma_bytes = size;
+
+	return 0;
+}
+
 
 /****************************************************************************
 				ALSA PCM Interface
@@ -185,23 +206,13 @@ static int snd_tm6000_close(struct snd_pcm_substream *substream)
 static int snd_tm6000_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *hw_params)
 {
-	struct snd_tm6000_card *chip = snd_pcm_substream_chip(substream);
+	int size, rc;
 
-	if (substream->runtime->dma_area) {
-		dsp_buffer_free(chip);
-		substream->runtime->dma_area = NULL;
-	}
+	size = params_period_bytes(hw_params) * params_periods(hw_params);
 
-	chip->period_size = params_period_bytes(hw_params);
-	chip->num_periods = params_periods(hw_params);
-	chip->bufsize = chip->period_size * params_periods(hw_params);
-
-	BUG_ON(!chip->bufsize);
-
-	dprintk(1, "Setting buffer\n");
-
-	/* FIXME: Allocate buffer for audio */
-
+	rc = dsp_buffer_alloc(substream, size);
+	if (rc < 0)
+		return rc;
 
 	return 0;
 }
@@ -211,13 +222,7 @@ static int snd_tm6000_hw_params(struct snd_pcm_substream *substream,
  */
 static int snd_tm6000_hw_free(struct snd_pcm_substream *substream)
 {
-
-	struct snd_tm6000_card *chip = snd_pcm_substream_chip(substream);
-
-	if (substream->runtime->dma_area) {
-		dsp_buffer_free(chip);
-		substream->runtime->dma_area = NULL;
-	}
+	dsp_buffer_free(substream);
 
 	return 0;
 }
