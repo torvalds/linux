@@ -1066,7 +1066,7 @@ static int __init cell_iommu_fixed_mapping_init(void)
 	fbase = _ALIGN_UP(fbase, 1 << IO_SEGMENT_SHIFT);
 	fsize = lmb_phys_mem_size();
 
-	if ((fbase + fsize) <= 0x800000000)
+	if ((fbase + fsize) <= 0x800000000ul)
 		hbase = 0; /* use the device tree window */
 	else {
 		/* If we're over 32 GB we need to cheat. We can't map all of
