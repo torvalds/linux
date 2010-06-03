@@ -248,6 +248,12 @@ int rt2x00usb_write_tx_data(struct queue_entry *entry,
 	 */
 	skb_pull(entry->skb, entry->queue->desc_size);
 
+	/*
+	 * Call the driver's write_tx_datadesc function, if it exists.
+	 */
+	if (rt2x00dev->ops->lib->write_tx_datadesc)
+		rt2x00dev->ops->lib->write_tx_datadesc(entry, txdesc);
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_write_tx_data);
