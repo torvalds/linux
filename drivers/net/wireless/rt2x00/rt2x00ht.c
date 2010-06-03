@@ -48,9 +48,18 @@ void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
 	txdesc->stbc =
 	    (tx_info->flags & IEEE80211_TX_CTL_STBC) >> IEEE80211_TX_CTL_STBC_SHIFT;
 
-	txdesc->mcs = rt2x00_get_rate_mcs(hwrate->mcs);
-	if (txrate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
-		txdesc->mcs |= 0x08;
+	/*
+	 * If IEEE80211_TX_RC_MCS is set txrate->idx just contains the
+	 * mcs rate to be used
+	 */
+	if (txrate->flags & IEEE80211_TX_RC_MCS) {
+		txdesc->mcs = txrate->idx;
+	} else {
+		txdesc->mcs = rt2x00_get_rate_mcs(hwrate->mcs);
+		if (txrate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
+			txdesc->mcs |= 0x08;
+	}
+
 
 	/*
 	 * Convert flags
