@@ -97,6 +97,7 @@ MODULE_ALIAS_SCSI_DEVICE(TYPE_RBC);
 #endif
 
 static int  sd_revalidate_disk(struct gendisk *);
+static void sd_unlock_native_capacity(struct gendisk *disk);
 static int  sd_probe(struct device *);
 static int  sd_remove(struct device *);
 static void sd_shutdown(struct device *);
@@ -1101,6 +1102,7 @@ static const struct block_device_operations sd_fops = {
 #endif
 	.media_changed		= sd_media_changed,
 	.revalidate_disk	= sd_revalidate_disk,
+	.unlock_native_capacity	= sd_unlock_native_capacity,
 };
 
 static unsigned int sd_completed_bytes(struct scsi_cmnd *scmd)
@@ -2118,6 +2120,26 @@ static int sd_revalidate_disk(struct gendisk *disk)
 
  out:
 	return 0;
+}
+
+/**
+ *	sd_unlock_native_capacity - unlock native capacity
+ *	@disk: struct gendisk to set capacity for
+ *
+ *	Block layer calls this function if it detects that partitions
+ *	on @disk reach beyond the end of the device.  If the SCSI host
+ *	implements ->unlock_native_capacity() method, it's invoked to
+ *	give it a chance to adjust the device capacity.
+ *
+ *	CONTEXT:
+ *	Defined by block layer.  Might sleep.
+ */
+static void sd_unlock_native_capacity(struct gendisk *disk)
+{
+	struct scsi_device *sdev = scsi_disk(disk)->device;
+
+	if (sdev->host->hostt->unlock_native_capacity)
+		sdev->host->hostt->unlock_native_capacity(sdev);
 }
 
 /**

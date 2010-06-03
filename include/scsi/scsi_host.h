@@ -327,6 +327,14 @@ struct scsi_host_template {
 			sector_t, int []);
 
 	/*
+	 * This function is called when one or more partitions on the
+	 * device reach beyond the end of the device.
+	 *
+	 * Status: OPTIONAL
+	 */
+	void (*unlock_native_capacity)(struct scsi_device *);
+
+	/*
 	 * Can be used to export driver statistics and other infos to the
 	 * world outside the kernel ie. userspace and it also provides an
 	 * interface to feed the driver with information.

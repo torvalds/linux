@@ -168,10 +168,10 @@ config ATA_BMDMA
 	default y
 	help
 	  This option adds support for SFF ATA controllers with BMDMA
-	  capability.  BMDMA stands for bus-master DMA and the
-	  de-facto DMA interface for SFF controllers.
+	  capability.  BMDMA stands for bus-master DMA and is the
+	  de facto DMA interface for SFF controllers.
 
-	  If unuser, say Y.
+	  If unsure, say Y.
 
 if ATA_BMDMA
 
