@@ -169,11 +169,8 @@ static int rt2800usb_load_firmware(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Write firmware to device.
 	 */
-	rt2x00usb_vendor_request_large_buff(rt2x00dev, USB_MULTI_WRITE,
-					    USB_VENDOR_REQUEST_OUT,
-					    FIRMWARE_IMAGE_BASE,
-					    data + offset, length,
-					    REGISTER_TIMEOUT32(length));
+	rt2800_register_multiwrite(rt2x00dev, FIRMWARE_IMAGE_BASE,
+				   data + offset, length);
 
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CID, ~0);
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_STATUS, ~0);
@@ -478,10 +475,8 @@ static void rt2800usb_write_beacon(struct queue_entry *entry,
 	 * Write entire beacon with descriptor to register.
 	 */
 	beacon_base = HW_BEACON_OFFSET(entry->entry_idx);
-	rt2x00usb_vendor_request_large_buff(rt2x00dev, USB_MULTI_WRITE,
-					    USB_VENDOR_REQUEST_OUT, beacon_base,
-					    entry->skb->data, entry->skb->len,
-					    REGISTER_TIMEOUT32(entry->skb->len));
+	rt2800_register_multiwrite(rt2x00dev, beacon_base,
+				   entry->skb->data, entry->skb->len);
 
 	/*
 	 * Enable beaconing again.
