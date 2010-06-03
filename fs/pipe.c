@@ -26,9 +26,14 @@
 
 /*
  * The max size that a non-root user is allowed to grow the pipe. Can
- * be set by root in /proc/sys/fs/pipe-max-pages
+ * be set by root in /proc/sys/fs/pipe-max-size
  */
-unsigned int pipe_max_pages = PIPE_DEF_BUFFERS * 16;
+unsigned int pipe_max_size = 1048576;
+
+/*
+ * Minimum pipe size, as required by POSIX
+ */
+unsigned int pipe_min_size = PAGE_SIZE;
 
 /*
  * We use a start+len construction, which provides full use of the 
@@ -1156,6 +1161,35 @@ static long pipe_set_size(struct pipe_inode_info *pipe, unsigned long nr_pages)
 	return nr_pages * PAGE_SIZE;
 }
 
+/*
+ * Currently we rely on the pipe array holding a power-of-2 number
+ * of pages.
+ */
+static inline unsigned int round_pipe_size(unsigned int size)
+{
+	unsigned long nr_pages;
+
+	nr_pages = (size + PAGE_SIZE - 1) >> PAGE_SHIFT;
+	return roundup_pow_of_two(nr_pages) << PAGE_SHIFT;
+}
+
+/*
+ * This should work even if CONFIG_PROC_FS isn't set, as proc_dointvec_minmax
+ * will return an error.
+ */
+int pipe_proc_fn(struct ctl_table *table, int write, void __user *buf,
+		 size_t *lenp, loff_t *ppos)
+{
+	int ret;
+
+	ret = proc_dointvec_minmax(table, write, buf, lenp, ppos);
+	if (ret < 0 || !write)
+		return ret;
+
+	pipe_max_size = round_pipe_size(pipe_max_size);
+	return ret;
+}
+
 long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct pipe_inode_info *pipe;
@@ -1169,23 +1203,19 @@ long pipe_fcntl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case F_SETPIPE_SZ: {
-		unsigned long nr_pages;
+		unsigned int size, nr_pages;
 
-		/*
-		 * Currently the array must be a power-of-2 size, so adjust
-		 * upwards if needed.
-		 */
-		nr_pages = (arg + PAGE_SIZE - 1) >> PAGE_SHIFT;
-		nr_pages = roundup_pow_of_two(nr_pages);
+		size = round_pipe_size(arg);
+		nr_pages = size >> PAGE_SHIFT;
 
-		if (!capable(CAP_SYS_RESOURCE) && nr_pages > pipe_max_pages) {
+		if (!capable(CAP_SYS_RESOURCE) && size > pipe_max_size) {
 			ret = -EPERM;
 			goto out;
-		} else if (nr_pages < 1) {
+		} else if (nr_pages < PAGE_SIZE) {
 			ret = -EINVAL;
 			goto out;
 		}
-		ret = pipe_set_size(pipe, arg);
+		ret = pipe_set_size(pipe, nr_pages);
 		break;
 		}
 	case F_GETPIPE_SZ:
