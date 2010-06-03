@@ -2153,7 +2153,7 @@ int evergreen_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	rdev->accel_working = false;
+	rdev->accel_working = true;
 	r = evergreen_startup(rdev);
 	if (r) {
 		dev_err(rdev->dev, "disabling GPU acceleration\n");
