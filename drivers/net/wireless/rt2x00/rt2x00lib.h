@@ -105,13 +105,6 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct rt2x00_dev *rt2x00dev,
 					struct queue_entry *entry);
 
 /**
- * rt2x00queue_unmap_skb - Unmap a skb from DMA.
- * @rt2x00dev: Pointer to &struct rt2x00_dev.
- * @skb: The skb to unmap.
- */
-void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb);
-
-/**
  * rt2x00queue_free_skb - free a skb
  * @rt2x00dev: Pointer to &struct rt2x00_dev.
  * @skb: The skb to free.

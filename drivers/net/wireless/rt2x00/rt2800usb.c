@@ -400,13 +400,14 @@ static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 				    struct txentry_desc *txdesc)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
-	__le32 *txi = (__le32 *)(skb->data - TXWI_DESC_SIZE - TXINFO_DESC_SIZE);
+	__le32 *txi = (__le32 *) skb->data;
+	__le32 *txwi = (__le32 *) (skb->data + TXINFO_DESC_SIZE);
 	u32 word;
 
 	/*
 	 * Initialize TXWI descriptor
 	 */
-	rt2800_write_txwi(skb, txdesc);
+	rt2800_write_txwi(txwi, txdesc);
 
 	/*
 	 * Initialize TXINFO descriptor
@@ -426,6 +427,7 @@ static void rt2800usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * Register descriptor details in skb frame descriptor.
 	 */
+	skbdesc->flags |= SKBDESC_DESC_IN_SKB;
 	skbdesc->desc = txi;
 	skbdesc->desc_len = TXINFO_DESC_SIZE + TXWI_DESC_SIZE;
 }
@@ -450,25 +452,27 @@ static void rt2800usb_write_beacon(struct queue_entry *entry,
 	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
 	/*
+	 * Add space for the TXWI in front of the skb.
+	 */
+	skb_push(entry->skb, TXWI_DESC_SIZE);
+	memset(entry->skb, 0, TXWI_DESC_SIZE);
+
+	/*
 	 * Register descriptor details in skb frame descriptor.
 	 */
-	skbdesc->desc = entry->skb->data - TXWI_DESC_SIZE;
+	skbdesc->flags |= SKBDESC_DESC_IN_SKB;
+	skbdesc->desc = entry->skb->data;
 	skbdesc->desc_len = TXWI_DESC_SIZE;
 
 	/*
 	 * Add the TXWI for the beacon to the skb.
 	 */
-	rt2800_write_txwi(entry->skb, txdesc);
+	rt2800_write_txwi((__le32 *) entry->skb->data, txdesc);
 
 	/*
 	 * Dump beacon to userspace through debugfs.
 	 */
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry->skb);
-
-	/*
-	 * Adjust skb to take TXWI into account.
-	 */
-	skb_push(entry->skb, TXWI_DESC_SIZE);
 
 	/*
 	 * Write entire beacon with descriptor to register.

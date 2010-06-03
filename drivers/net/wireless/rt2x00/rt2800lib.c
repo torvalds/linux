@@ -282,9 +282,8 @@ int rt2800_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2800_wait_wpdma_ready);
 
-void rt2800_write_txwi(struct sk_buff *skb, struct txentry_desc *txdesc)
+void rt2800_write_txwi(__le32 *txwi, struct txentry_desc *txdesc)
 {
-	__le32 *txwi = (__le32 *)(skb->data - TXWI_DESC_SIZE);
 	u32 word;
 
 	/*

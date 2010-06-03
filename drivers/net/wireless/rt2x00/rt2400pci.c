@@ -1229,7 +1229,7 @@ static void rt2400pci_txdone(struct rt2x00_dev *rt2x00dev,
 		}
 		txdesc.retry = rt2x00_get_field32(word, TXD_W0_RETRY_COUNT);
 
-		rt2x00lib_txdone(entry, &txdesc);
+		rt2x00pci_txdone(entry, &txdesc);
 	}
 }
 

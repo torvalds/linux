@@ -616,7 +616,7 @@ static int rt2800pci_set_device_state(struct rt2x00_dev *rt2x00dev,
 static void rt2800pci_write_tx_datadesc(struct queue_entry* entry,
 					 struct txentry_desc *txdesc)
 {
-	rt2800_write_txwi(entry->skb, txdesc);
+	rt2800_write_txwi((__le32 *) entry->skb->data, txdesc);
 }
 
 
@@ -693,25 +693,27 @@ static void rt2800pci_write_beacon(struct queue_entry *entry,
 	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
 	/*
+	 * Add space for the TXWI in front of the skb.
+	 */
+	skb_push(entry->skb, TXWI_DESC_SIZE);
+	memset(entry->skb, 0, TXWI_DESC_SIZE);
+
+	/*
 	 * Register descriptor details in skb frame descriptor.
 	 */
-	skbdesc->desc = entry->skb->data - TXWI_DESC_SIZE;
+	skbdesc->flags |= SKBDESC_DESC_IN_SKB;
+	skbdesc->desc = entry->skb->data;
 	skbdesc->desc_len = TXWI_DESC_SIZE;
 
 	/*
 	 * Add the TXWI for the beacon to the skb.
 	 */
-	rt2800_write_txwi(entry->skb, txdesc);
+	rt2800_write_txwi((__le32 *)entry->skb->data, txdesc);
 
 	/*
 	 * Dump beacon to userspace through debugfs.
 	 */
 	rt2x00debug_dump_frame(rt2x00dev, DUMP_FRAME_BEACON, entry->skb);
-
-	/*
-	 * Adjust skb to take TXWI into account.
-	 */
-	skb_push(entry->skb, TXWI_DESC_SIZE);
 
 	/*
 	 * Write entire beacon with TXWI to register.
@@ -888,8 +890,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 
 		/* Check if we got a match by looking at WCID/ACK/PID
 		 * fields */
-		txwi = (__le32 *)(entry->skb->data -
-				  rt2x00dev->ops->extra_tx_headroom);
+		txwi = (__le32 *) entry->skb->data;
 
 		rt2x00_desc_read(txwi, 1, &word);
 		tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
@@ -934,7 +935,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 		__set_bit(TXDONE_FALLBACK, &txdesc.flags);
 
 
-		rt2x00lib_txdone(entry, &txdesc);
+		rt2x00pci_txdone(entry, &txdesc);
 	}
 }
 
