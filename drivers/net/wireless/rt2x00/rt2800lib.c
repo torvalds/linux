@@ -2536,8 +2536,11 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	    IEEE80211_HT_CAP_GRN_FLD |
 	    IEEE80211_HT_CAP_SGI_20 |
 	    IEEE80211_HT_CAP_SGI_40 |
-	    IEEE80211_HT_CAP_TX_STBC |
 	    IEEE80211_HT_CAP_RX_STBC;
+
+	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_TXPATH) >= 2)
+		spec->ht.cap |= IEEE80211_HT_CAP_TX_STBC;
+
 	spec->ht.ampdu_factor = 3;
 	spec->ht.ampdu_density = 4;
 	spec->ht.mcs.tx_params =
