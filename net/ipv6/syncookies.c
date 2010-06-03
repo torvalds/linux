@@ -27,28 +27,17 @@ extern __u32 syncookie_secret[2][16-4+SHA_DIGEST_WORDS];
 #define COOKIEBITS 24	/* Upper bits store count */
 #define COOKIEMASK (((__u32)1 << COOKIEBITS) - 1)
 
-/*
- * This table has to be sorted and terminated with (__u16)-1.
- * XXX generate a better table.
- * Unresolved Issues: HIPPI with a 64k MSS is not well supported.
- *
- * Taken directly from ipv4 implementation.
- * Should this list be modified for ipv6 use or is it close enough?
- * rfc 2460 8.3 suggests mss values 20 bytes less than ipv4 counterpart
- */
+/* Table must be sorted. */
 static __u16 const msstab[] = {
-	64 - 1,
-	256 - 1,
-	512 - 1,
-	536 - 1,
-	1024 - 1,
-	1440 - 1,
-	1460 - 1,
-	4312 - 1,
-	(__u16)-1
+	64,
+	512,
+	536,
+	1280 - 60,
+	1480 - 60,
+	1500 - 60,
+	4460 - 60,
+	9000 - 60,
 };
-/* The number doesn't include the -1 terminator */
-#define NUM_MSS (ARRAY_SIZE(msstab) - 1)
 
 /*
  * This (misnamed) value is the age of syncookie which is permitted.
@@ -134,9 +123,11 @@ __u32 cookie_v6_init_sequence(struct sock *sk, struct sk_buff *skb, __u16 *mssp)
 
 	tcp_synq_overflow(sk);
 
-	for (mssind = 0; mss > msstab[mssind + 1]; mssind++)
-		;
-	*mssp = msstab[mssind] + 1;
+	for (mssind = ARRAY_SIZE(msstab) - 1; mssind ; mssind--)
+		if (mss >= msstab[mssind])
+			break;
+
+	*mssp = msstab[mssind];
 
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SYNCOOKIESSENT);
 
@@ -154,7 +145,7 @@ static inline int cookie_check(struct sk_buff *skb, __u32 cookie)
 					    th->source, th->dest, seq,
 					    jiffies / (HZ * 60), COUNTER_TRIES);
 
-	return mssind < NUM_MSS ? msstab[mssind] + 1 : 0;
+	return mssind < ARRAY_SIZE(msstab) ? msstab[mssind] : 0;
 }
 
 struct sock *cookie_v6_check(struct sock *sk, struct sk_buff *skb)
