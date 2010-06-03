@@ -392,7 +392,7 @@ static int tm6000_audio_fini(struct tm6000_core *dev)
 }
 
 struct tm6000_ops audio_ops = {
-	.id	= TM6000_AUDIO,
+	.type	= TM6000_AUDIO,
 	.name	= "TM6000 Audio Extension",
 	.init	= tm6000_audio_init,
 	.fini	= tm6000_audio_fini,

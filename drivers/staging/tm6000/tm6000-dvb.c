@@ -432,7 +432,7 @@ static int dvb_fini(struct tm6000_core *dev)
 }
 
 static struct tm6000_ops dvb_ops = {
-	.id	= TM6000_DVB,
+	.type	= TM6000_DVB,
 	.name	= "TM6000 dvb Extension",
 	.init	= dvb_init,
 	.fini	= dvb_fini,

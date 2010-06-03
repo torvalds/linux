@@ -218,13 +218,15 @@ struct tm6000_core {
 	spinlock_t                   slock;
 };
 
-#define TM6000_AUDIO 0x10
-#define TM6000_DVB	0x20
+enum tm6000_ops_type {
+	TM6000_AUDIO = 0x10,
+	TM6000_DVB = 0x20,
+};
 
 struct tm6000_ops {
 	struct list_head	next;
 	char			*name;
-	int			id;
+	enum tm6000_ops_type	type;
 	int (*init)(struct tm6000_core *);
 	int (*fini)(struct tm6000_core *);
 };
