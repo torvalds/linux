@@ -44,7 +44,9 @@ void rt2x00ht_create_tx_descriptor(struct queue_entry *entry,
 		txdesc->mpdu_density = 0;
 
 	txdesc->ba_size = 7;	/* FIXME: What value is needed? */
-	txdesc->stbc = 0;	/* FIXME: What value is needed? */
+
+	txdesc->stbc =
+	    (tx_info->flags & IEEE80211_TX_CTL_STBC) >> IEEE80211_TX_CTL_STBC_SHIFT;
 
 	txdesc->mcs = rt2x00_get_rate_mcs(hwrate->mcs);
 	if (txrate->flags & IEEE80211_TX_RC_USE_SHORT_PREAMBLE)
