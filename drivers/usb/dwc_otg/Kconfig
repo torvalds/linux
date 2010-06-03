@@ -1,0 +1,49 @@
+config DWC_OTG
+	tristate "RockChip DWC_OTG support"
+        ---help---
+          This driver supports Rockchip DWC_OTG 
+
+config DWC_OTG_DEBUG
+	bool "enable debug mode"
+	depends on DWC_OTG
+
+choice
+	tristate "DWC_OTG OPMODE"
+	default DWC_OTG_BOTH_HOST_SLAVE
+	depends on DWC_OTG
+	help
+	   RockChip DWC_OTG Controller can only work
+	   one of following mode
+	
+config DWC_OTG_HOST_ONLY
+        bool "HOST ONLY MODE"
+        depends on DWC_OTG && USB
+
+config DWC_OTG_DEVICE_ONLY
+        bool "DEVICE ONLY MODE"
+        depends on DWC_OTG && USB_GADGET
+
+config DWC_OTG_BOTH_HOST_SLAVE
+	bool "BOTH HOST AND SLAVE"
+	depends on DWC_OTG && USB_GADGET && USB
+endchoice
+choice
+	bool "USB controller mode"
+	depends on DWC_OTG
+	default DWC_OTG_NORMAL_PREFRENCE
+	help
+	  Rockchip dwc_otg controller
+
+config DWC_OTG_NORMAL_PREFERENCE
+	bool "NORMAL MODE"
+	depends on DWC_OTG_BOTH_HOST_SLAVE
+
+config DWC_OTG_HOST_PREFERENCE
+        bool "HOST PREFERENCE MODE"
+	depends on DWC_OTG_HOST_ONLY || DWC_OTG_BOTH_HOST_SLAVE
+
+config DWC_OTG_DEVICE_PREFERENCE
+        bool "DEVICE PREFERENCE MODE"
+	depends on DWC_OTG_DEVICE_ONLY || DWC_OTG_BOTH_HOST_SLAVE
+
+endchoice								 
