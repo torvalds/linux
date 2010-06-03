@@ -40,7 +40,7 @@
  ****************************************************************************/
 
 static int index[SNDRV_CARDS] = SNDRV_DEFAULT_IDX;	/* Index 0-MAX */
-static char *id[SNDRV_CARDS] = SNDRV_DEFAULT_STR;       /* ID for this card */
+
 static int enable[SNDRV_CARDS] = {1, [1 ... (SNDRV_CARDS - 1)] = 1};
 
 module_param_array(enable, bool, NULL, 0444);
@@ -317,7 +317,7 @@ int tm6000_audio_init(struct tm6000_core *dev)
 	if (!enable[devnr])
 		return -ENOENT;
 
-	rc = snd_card_create(index[devnr], id[devnr], THIS_MODULE, 0, &card);
+	rc = snd_card_create(index[devnr], "tm6000", THIS_MODULE, 0, &card);
 	if (rc < 0) {
 		snd_printk(KERN_ERR "cannot create card instance %d\n", devnr);
 		return rc;
