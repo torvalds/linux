@@ -1281,6 +1281,7 @@ config COMEDI_NI_TIO
 
 config COMEDI_NI_LABPC
 	tristate "NI Lab-PC and compatibles ISA and PCI support"
+	depends on COMEDI_MITE
 	select COMEDI_8255
 	select COMEDI_FC
 	default N
