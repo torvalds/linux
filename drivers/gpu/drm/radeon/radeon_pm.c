@@ -151,6 +151,7 @@ static void radeon_sync_with_vblank(struct radeon_device *rdev)
 static void radeon_set_power_state(struct radeon_device *rdev)
 {
 	u32 sclk, mclk;
+	bool misc_after = false;
 
 	if ((rdev->pm.requested_clock_mode_index == rdev->pm.current_clock_mode_index) &&
 	    (rdev->pm.requested_power_state_index == rdev->pm.current_power_state_index))
@@ -167,54 +168,46 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 		if (mclk > rdev->clock.default_mclk)
 			mclk = rdev->clock.default_mclk;
 
-		/* voltage, pcie lanes, etc.*/
-		radeon_pm_misc(rdev);
+		/* upvolt before raising clocks, downvolt after lowering clocks */
+		if (sclk < rdev->pm.current_sclk)
+			misc_after = true;
+
+		radeon_sync_with_vblank(rdev);
 
 		if (rdev->pm.pm_method == PM_METHOD_DYNPM) {
-			radeon_sync_with_vblank(rdev);
-
 			if (!radeon_pm_in_vbl(rdev))
 				return;
-
-			radeon_pm_prepare(rdev);
-			/* set engine clock */
-			if (sclk != rdev->pm.current_sclk) {
-				radeon_pm_debug_check_in_vbl(rdev, false);
-				radeon_set_engine_clock(rdev, sclk);
-				radeon_pm_debug_check_in_vbl(rdev, true);
-				rdev->pm.current_sclk = sclk;
-				DRM_DEBUG("Setting: e: %d\n", sclk);
-			}
-
-			/* set memory clock */
-			if (rdev->asic->set_memory_clock && (mclk != rdev->pm.current_mclk)) {
-				radeon_pm_debug_check_in_vbl(rdev, false);
-				radeon_set_memory_clock(rdev, mclk);
-				radeon_pm_debug_check_in_vbl(rdev, true);
-				rdev->pm.current_mclk = mclk;
-				DRM_DEBUG("Setting: m: %d\n", mclk);
-			}
-			radeon_pm_finish(rdev);
-		} else {
-			/* set engine clock */
-			if (sclk != rdev->pm.current_sclk) {
-				radeon_sync_with_vblank(rdev);
-				radeon_pm_prepare(rdev);
-				radeon_set_engine_clock(rdev, sclk);
-				radeon_pm_finish(rdev);
-				rdev->pm.current_sclk = sclk;
-				DRM_DEBUG("Setting: e: %d\n", sclk);
-			}
-			/* set memory clock */
-			if (rdev->asic->set_memory_clock && (mclk != rdev->pm.current_mclk)) {
-				radeon_sync_with_vblank(rdev);
-				radeon_pm_prepare(rdev);
-				radeon_set_memory_clock(rdev, mclk);
-				radeon_pm_finish(rdev);
-				rdev->pm.current_mclk = mclk;
-				DRM_DEBUG("Setting: m: %d\n", mclk);
-			}
 		}
+
+		radeon_pm_prepare(rdev);
+
+		if (!misc_after)
+			/* voltage, pcie lanes, etc.*/
+			radeon_pm_misc(rdev);
+
+		/* set engine clock */
+		if (sclk != rdev->pm.current_sclk) {
+			radeon_pm_debug_check_in_vbl(rdev, false);
+			radeon_set_engine_clock(rdev, sclk);
+			radeon_pm_debug_check_in_vbl(rdev, true);
+			rdev->pm.current_sclk = sclk;
+			DRM_DEBUG("Setting: e: %d\n", sclk);
+		}
+
+		/* set memory clock */
+		if (rdev->asic->set_memory_clock && (mclk != rdev->pm.current_mclk)) {
+			radeon_pm_debug_check_in_vbl(rdev, false);
+			radeon_set_memory_clock(rdev, mclk);
+			radeon_pm_debug_check_in_vbl(rdev, true);
+			rdev->pm.current_mclk = mclk;
+			DRM_DEBUG("Setting: m: %d\n", mclk);
+		}
+
+		if (misc_after)
+			/* voltage, pcie lanes, etc.*/
+			radeon_pm_misc(rdev);
+
+		radeon_pm_finish(rdev);
 
 		rdev->pm.current_power_state_index = rdev->pm.requested_power_state_index;
 		rdev->pm.current_clock_mode_index = rdev->pm.requested_clock_mode_index;

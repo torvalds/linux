@@ -669,6 +669,15 @@ int vmw_execbuf_ioctl(struct drm_device *dev, void *data,
 		goto out_err;
 
 	vmw_apply_relocations(sw_context);
+
+	if (arg->throttle_us) {
+		ret = vmw_wait_lag(dev_priv, &dev_priv->fifo.fence_queue,
+				   arg->throttle_us);
+
+		if (unlikely(ret != 0))
+			goto out_err;
+	}
+
 	vmw_fifo_commit(dev_priv, arg->command_size);
 
 	ret = vmw_fifo_send_fence(dev_priv, &sequence);
