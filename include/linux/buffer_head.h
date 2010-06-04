@@ -231,11 +231,7 @@ void block_sync_page(struct page *);
 sector_t generic_block_bmap(struct address_space *, sector_t, get_block_t *);
 int block_truncate_page(struct address_space *, loff_t, get_block_t *);
 int file_fsync(struct file *, int);
-int nobh_write_begin_newtrunc(struct file *, struct address_space *,
-				loff_t, unsigned, unsigned,
-				struct page **, void **, get_block_t*);
-int nobh_write_begin(struct file *, struct address_space *,
-				loff_t, unsigned, unsigned,
+int nobh_write_begin(struct address_space *, loff_t, unsigned, unsigned,
 				struct page **, void **, get_block_t*);
 int nobh_write_end(struct file *, struct address_space *,
 				loff_t, unsigned, unsigned,

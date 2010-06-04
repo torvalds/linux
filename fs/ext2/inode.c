@@ -806,13 +806,8 @@ ext2_nobh_write_begin(struct file *file, struct address_space *mapping,
 {
 	int ret;
 
-	/*
-	 * Dir-in-pagecache still uses ext2_write_begin. Would have to rework
-	 * directory handling code to pass around offsets rather than struct
-	 * pages in order to make this work easily.
-	 */
-	ret = nobh_write_begin_newtrunc(file, mapping, pos, len, flags, pagep,
-						fsdata, ext2_get_block);
+	ret = nobh_write_begin(mapping, pos, len, flags, pagep, fsdata,
+			       ext2_get_block);
 	if (ret < 0)
 		ext2_write_failed(mapping, pos + len);
 	return ret;

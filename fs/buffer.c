@@ -2510,11 +2510,11 @@ static void attach_nobh_buffers(struct page *page, struct buffer_head *head)
 }
 
 /*
- * Filesystems implementing the new truncate sequence should use the
- * _newtrunc postfix variant which won't incorrectly call vmtruncate.
+ * On entry, the page is fully not uptodate.
+ * On exit the page is fully uptodate in the areas outside (from,to)
  * The filesystem needs to handle block truncation upon failure.
  */
-int nobh_write_begin_newtrunc(struct file *file, struct address_space *mapping,
+int nobh_write_begin(struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata,
 			get_block_t *get_block)
@@ -2547,7 +2547,7 @@ int nobh_write_begin_newtrunc(struct file *file, struct address_space *mapping,
 		unlock_page(page);
 		page_cache_release(page);
 		*pagep = NULL;
-		return block_write_begin_newtrunc(file, mapping, pos, len,
+		return block_write_begin_newtrunc(NULL, mapping, pos, len,
 					flags, pagep, fsdata, get_block);
 	}
 
@@ -2651,35 +2651,6 @@ out_release:
 	unlock_page(page);
 	page_cache_release(page);
 	*pagep = NULL;
-
-	return ret;
-}
-EXPORT_SYMBOL(nobh_write_begin_newtrunc);
-
-/*
- * On entry, the page is fully not uptodate.
- * On exit the page is fully uptodate in the areas outside (from,to)
- */
-int nobh_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata,
-			get_block_t *get_block)
-{
-	int ret;
-
-	ret = nobh_write_begin_newtrunc(file, mapping, pos, len, flags,
-					pagep, fsdata, get_block);
-
-	/*
-	 * prepare_write() may have instantiated a few blocks
-	 * outside i_size.  Trim these off again. Don't need
-	 * i_size_read because we hold i_mutex.
-	 */
-	if (unlikely(ret)) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
-	}
 
 	return ret;
 }
