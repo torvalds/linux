@@ -371,27 +371,10 @@ static void truncate_hugepages(struct inode *inode, loff_t lstart)
 	hugetlb_unreserve_pages(inode, start, freed);
 }
 
-static void hugetlbfs_delete_inode(struct inode *inode)
+static void hugetlbfs_evict_inode(struct inode *inode)
 {
 	truncate_hugepages(inode, 0);
 	clear_inode(inode);
-}
-
-static void hugetlbfs_forget_inode(struct inode *inode) __releases(inode_lock)
-{
-	if (generic_detach_inode(inode)) {
-		truncate_hugepages(inode, 0);
-		clear_inode(inode);
-		destroy_inode(inode);
-	}
-}
-
-static void hugetlbfs_drop_inode(struct inode *inode)
-{
-	if (!inode->i_nlink)
-		generic_delete_inode(inode);
-	else
-		hugetlbfs_forget_inode(inode);
 }
 
 static inline void
@@ -713,9 +696,8 @@ static const struct inode_operations hugetlbfs_inode_operations = {
 static const struct super_operations hugetlbfs_ops = {
 	.alloc_inode    = hugetlbfs_alloc_inode,
 	.destroy_inode  = hugetlbfs_destroy_inode,
+	.evict_inode	= hugetlbfs_evict_inode,
 	.statfs		= hugetlbfs_statfs,
-	.delete_inode	= hugetlbfs_delete_inode,
-	.drop_inode	= hugetlbfs_drop_inode,
 	.put_super	= hugetlbfs_put_super,
 	.show_options	= generic_show_options,
 };
