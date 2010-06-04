@@ -30,7 +30,6 @@
 #include <mach/regs-mem.h>
 #include <mach/regs-lcd.h>
 #include <mach/regs-sdi.h>
-#include <plat/regs-s3c2412-iis.h>
 #include <plat/regs-iis.h>
 #include <plat/regs-spi.h>
 
@@ -119,13 +118,11 @@ static struct s3c24xx_dma_map __initdata s3c2412_dma_mappings[] = {
 		.name		= "i2s-sdi",
 		.channels	= MAP(S3C2412_DMAREQSEL_I2SRX),
 		.channels_rx	= MAP(S3C2412_DMAREQSEL_I2SRX),
-		.hw_addr.from	= S3C2410_PA_IIS + S3C2412_IISRXD,
 	},
 	[DMACH_I2S_OUT] = {
 		.name		= "i2s-sdo",
 		.channels	= MAP(S3C2412_DMAREQSEL_I2STX),
 		.channels_rx	= MAP(S3C2412_DMAREQSEL_I2STX),
-		.hw_addr.to	= S3C2410_PA_IIS + S3C2412_IISTXD,
 	},
 	[DMACH_USB_EP1] = {
 		.name		= "usb-ep1",

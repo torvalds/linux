@@ -71,8 +71,7 @@ struct siu_firmware {
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
-
-#include <asm/dmaengine.h>
+#include <linux/sh_dma.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>

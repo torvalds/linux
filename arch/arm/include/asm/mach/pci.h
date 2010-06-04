@@ -8,10 +8,16 @@
  * published by the Free Software Foundation.
  */
 
+#ifndef __ASM_MACH_PCI_H
+#define __ASM_MACH_PCI_H
+
 struct pci_sys_data;
 struct pci_bus;
 
 struct hw_pci {
+#ifdef CONFIG_PCI_DOMAINS
+	int		domain;
+#endif
 	struct list_head buses;
 	int		nr_controllers;
 	int		(*setup)(int nr, struct pci_sys_data *);
@@ -26,6 +32,9 @@ struct hw_pci {
  * Per-controller structure
  */
 struct pci_sys_data {
+#ifdef CONFIG_PCI_DOMAINS
+	int		domain;
+#endif
 	struct list_head node;
 	int		busnr;		/* primary bus number			*/
 	u64		mem_offset;	/* bus->cpu memory mapping offset	*/
@@ -70,3 +79,5 @@ extern int pci_v3_setup(int nr, struct pci_sys_data *);
 extern struct pci_bus *pci_v3_scan_bus(int nr, struct pci_sys_data *);
 extern void pci_v3_preinit(void);
 extern void pci_v3_postinit(void);
+
+#endif /* __ASM_MACH_PCI_H */

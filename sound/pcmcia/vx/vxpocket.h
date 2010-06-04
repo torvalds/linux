@@ -43,7 +43,6 @@ struct snd_vxpocket {
 
 	/* pcmcia stuff */
 	struct pcmcia_device	*p_dev;
-	dev_node_t node;
 };
 
 extern struct snd_vx_ops snd_vxpocket_ops;

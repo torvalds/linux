@@ -105,6 +105,7 @@
 #include "hal.h"
 #include "umac.h"
 #include "debug.h"
+#include "trace.h"
 
 static int iwm_nonwifi_cmd_init(struct iwm_priv *iwm,
 				struct iwm_nonwifi_cmd *cmd,
@@ -207,9 +208,9 @@ void iwm_cmd_flush(struct iwm_priv *iwm)
 
 struct iwm_wifi_cmd *iwm_get_pending_wifi_cmd(struct iwm_priv *iwm, u16 seq_num)
 {
-	struct iwm_wifi_cmd *cmd, *next;
+	struct iwm_wifi_cmd *cmd;
 
-	list_for_each_entry_safe(cmd, next, &iwm->wifi_pending_cmd, pending)
+	list_for_each_entry(cmd, &iwm->wifi_pending_cmd, pending)
 		if (cmd->seq_num == seq_num) {
 			list_del(&cmd->pending);
 			return cmd;
@@ -218,12 +219,12 @@ struct iwm_wifi_cmd *iwm_get_pending_wifi_cmd(struct iwm_priv *iwm, u16 seq_num)
 	return NULL;
 }
 
-struct iwm_nonwifi_cmd *
-iwm_get_pending_nonwifi_cmd(struct iwm_priv *iwm, u8 seq_num, u8 cmd_opcode)
+struct iwm_nonwifi_cmd *iwm_get_pending_nonwifi_cmd(struct iwm_priv *iwm,
+						    u8 seq_num, u8 cmd_opcode)
 {
-	struct iwm_nonwifi_cmd *cmd, *next;
+	struct iwm_nonwifi_cmd *cmd;
 
-	list_for_each_entry_safe(cmd, next, &iwm->nonwifi_pending_cmd, pending)
+	list_for_each_entry(cmd, &iwm->nonwifi_pending_cmd, pending)
 		if ((cmd->seq_num == seq_num) &&
 		    (cmd->udma_cmd.opcode == cmd_opcode) &&
 		    (cmd->resp_received)) {
@@ -277,6 +278,7 @@ static int iwm_send_udma_nonwifi_cmd(struct iwm_priv *iwm,
 		    udma_cmd->handle_by_hw, cmd->seq_num, udma_cmd->addr,
 		    udma_cmd->op1_sz, udma_cmd->op2);
 
+	trace_iwm_tx_nonwifi_cmd(iwm, udma_hdr);
 	return iwm_bus_send_chunk(iwm, buf->start, buf->len);
 }
 
@@ -363,6 +365,7 @@ static int iwm_send_udma_wifi_cmd(struct iwm_priv *iwm,
 		return ret;
 	}
 
+	trace_iwm_tx_wifi_cmd(iwm, umac_hdr);
 	return iwm_bus_send_chunk(iwm, buf->start, buf->len);
 }
 

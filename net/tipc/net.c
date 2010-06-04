@@ -116,7 +116,7 @@
 */
 
 DEFINE_RWLOCK(tipc_net_lock);
-struct _zone *tipc_zones[256] = { NULL, };
+static struct _zone *tipc_zones[256] = { NULL, };
 struct network tipc_net = { tipc_zones };
 
 struct tipc_node *tipc_net_select_remote_node(u32 addr, u32 ref)
@@ -219,7 +219,7 @@ void tipc_net_route_msg(struct sk_buff *buf)
 
 	/* Handle message for this node */
 	dnode = msg_short(msg) ? tipc_own_addr : msg_destnode(msg);
-	if (in_scope(dnode, tipc_own_addr)) {
+	if (tipc_in_scope(dnode, tipc_own_addr)) {
 		if (msg_isdata(msg)) {
 			if (msg_mcast(msg))
 				tipc_port_recv_mcast(buf, NULL);
@@ -277,7 +277,7 @@ int tipc_net_start(u32 addr)
 
 	info("Started in network mode\n");
 	info("Own node address %s, network identity %u\n",
-	     addr_string_fill(addr_string, tipc_own_addr), tipc_net_id);
+	     tipc_addr_string_fill(addr_string, tipc_own_addr), tipc_net_id);
 	return 0;
 }
 
@@ -291,6 +291,6 @@ void tipc_net_stop(void)
 	tipc_bclink_stop();
 	net_stop();
 	write_unlock_bh(&tipc_net_lock);
-	info("Left network mode \n");
+	info("Left network mode\n");
 }
 

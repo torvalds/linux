@@ -314,8 +314,8 @@ static void at91_mci_post_dma_read(struct at91mci_host *host)
 			dmabuf = (unsigned *)tmpv;
 		}
 
+		flush_kernel_dcache_page(sg_page(sg));
 		kunmap_atomic(sgbuffer, KM_BIO_SRC_IRQ);
-		dmac_flush_range((void *)sgbuffer, ((void *)sgbuffer) + amount);
 		data->bytes_xfered += amount;
 		if (size == 0)
 			break;
@@ -1157,7 +1157,7 @@ static int at91_mci_suspend(struct platform_device *pdev, pm_message_t state)
 		enable_irq_wake(host->board->det_pin);
 
 	if (mmc)
-		ret = mmc_suspend_host(mmc, state);
+		ret = mmc_suspend_host(mmc);
 
 	return ret;
 }

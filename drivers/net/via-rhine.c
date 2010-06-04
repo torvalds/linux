@@ -1209,7 +1209,7 @@ static void rhine_reset_task(struct work_struct *work)
 	spin_unlock_bh(&rp->lock);
 	enable_irq(rp->pdev->irq);
 
-	dev->trans_start = jiffies;
+	dev->trans_start = jiffies; /* prevent tx timeout */
 	dev->stats.tx_errors++;
 	netif_wake_queue(dev);
 }
@@ -1293,8 +1293,6 @@ static netdev_tx_t rhine_start_tx(struct sk_buff *skb,
 
 	if (rp->cur_tx == rp->dirty_tx + TX_QUEUE_LEN)
 		netif_stop_queue(dev);
-
-	dev->trans_start = jiffies;
 
 	spin_unlock_irqrestore(&rp->lock, flags);
 
@@ -1703,11 +1701,11 @@ static void rhine_set_rx_mode(struct net_device *dev)
 		iowrite32(0xffffffff, ioaddr + MulticastFilter1);
 		rx_mode = 0x0C;
 	} else {
-		struct dev_mc_list *mclist;
+		struct netdev_hw_addr *ha;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		netdev_for_each_mc_addr(mclist, dev) {
-			int bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26;
+		netdev_for_each_mc_addr(ha, dev) {
+			int bit_nr = ether_crc(ETH_ALEN, ha->addr) >> 26;
 
 			mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
 		}

@@ -373,9 +373,6 @@ static int hdpvr_probe(struct usb_interface *interface,
 	}
 #endif /* CONFIG_I2C */
 
-	/* save our data pointer in this interface device */
-	usb_set_intfdata(interface, dev);
-
 	/* let the user know what node this device is now attached to */
 	v4l2_info(&dev->v4l2_dev, "device now attached to %s\n",
 		  video_device_node_name(dev->video_dev));
@@ -391,44 +388,24 @@ error:
 
 static void hdpvr_disconnect(struct usb_interface *interface)
 {
-	struct hdpvr_device *dev;
+	struct hdpvr_device *dev = to_hdpvr_dev(usb_get_intfdata(interface));
 
-	dev = usb_get_intfdata(interface);
-	usb_set_intfdata(interface, NULL);
-
+	v4l2_info(&dev->v4l2_dev, "device %s disconnected\n",
+		  video_device_node_name(dev->video_dev));
 	/* prevent more I/O from starting and stop any ongoing */
 	mutex_lock(&dev->io_mutex);
 	dev->status = STATUS_DISCONNECTED;
-	v4l2_device_disconnect(&dev->v4l2_dev);
-	video_unregister_device(dev->video_dev);
 	wake_up_interruptible(&dev->wait_data);
 	wake_up_interruptible(&dev->wait_buffer);
 	mutex_unlock(&dev->io_mutex);
+	v4l2_device_disconnect(&dev->v4l2_dev);
 	msleep(100);
 	flush_workqueue(dev->workqueue);
 	mutex_lock(&dev->io_mutex);
 	hdpvr_cancel_queue(dev);
-	destroy_workqueue(dev->workqueue);
 	mutex_unlock(&dev->io_mutex);
-
-	/* deregister I2C adapter */
-#ifdef CONFIG_I2C
-	mutex_lock(&dev->i2c_mutex);
-	if (dev->i2c_adapter)
-		i2c_del_adapter(dev->i2c_adapter);
-	kfree(dev->i2c_adapter);
-	dev->i2c_adapter = NULL;
-	mutex_unlock(&dev->i2c_mutex);
-#endif /* CONFIG_I2C */
-
+	video_unregister_device(dev->video_dev);
 	atomic_dec(&dev_nr);
-
-	v4l2_info(&dev->v4l2_dev, "device %s disconnected\n",
-		  video_device_node_name(dev->video_dev));
-
-	v4l2_device_unregister(&dev->v4l2_dev);
-	kfree(dev->usbc_buf);
-	kfree(dev);
 }
 
 

@@ -274,7 +274,6 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 	struct ceph_osd_client *osdc = &ceph_inode_to_client(inode)->osdc;
 	int rc = 0;
 	struct page **pages;
-	struct pagevec pvec;
 	loff_t offset;
 	u64 len;
 
@@ -297,8 +296,6 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 	if (rc < 0)
 		goto out;
 
-	/* set uptodate and add to lru in pagevec-sized chunks */
-	pagevec_init(&pvec, 0);
 	for (; !list_empty(page_list) && len > 0;
 	     rc -= PAGE_CACHE_SIZE, len -= PAGE_CACHE_SIZE) {
 		struct page *page =
@@ -312,7 +309,7 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 			zero_user_segment(page, s, PAGE_CACHE_SIZE);
 		}
 
-		if (add_to_page_cache(page, mapping, page->index, GFP_NOFS)) {
+		if (add_to_page_cache_lru(page, mapping, page->index, GFP_NOFS)) {
 			page_cache_release(page);
 			dout("readpages %p add_to_page_cache failed %p\n",
 			     inode, page);
@@ -323,10 +320,8 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 		flush_dcache_page(page);
 		SetPageUptodate(page);
 		unlock_page(page);
-		if (pagevec_add(&pvec, page) == 0)
-			pagevec_lru_add_file(&pvec);   /* add to lru */
+		page_cache_release(page);
 	}
-	pagevec_lru_add_file(&pvec);
 	rc = 0;
 
 out:
@@ -504,7 +499,6 @@ static void writepages_finish(struct ceph_osd_request *req,
 	int i;
 	struct ceph_snap_context *snapc = req->r_snapc;
 	struct address_space *mapping = inode->i_mapping;
-	struct writeback_control *wbc = req->r_wbc;
 	__s32 rc = -EIO;
 	u64 bytes = 0;
 	struct ceph_client *client = ceph_inode_to_client(inode);
@@ -546,10 +540,6 @@ static void writepages_finish(struct ceph_osd_request *req,
 			clear_bdi_congested(&client->backing_dev_info,
 					    BLK_RW_ASYNC);
 
-		if (i >= wrote) {
-			dout("inode %p skipping page %p\n", inode, page);
-			wbc->pages_skipped++;
-		}
 		ceph_put_snap_context((void *)page->private);
 		page->private = 0;
 		ClearPagePrivate(page);
@@ -573,7 +563,7 @@ static void writepages_finish(struct ceph_osd_request *req,
 	ceph_release_pages(req->r_pages, req->r_num_pages);
 	if (req->r_pages_from_pool)
 		mempool_free(req->r_pages,
-			     ceph_client(inode->i_sb)->wb_pagevec_pool);
+			     ceph_sb_to_client(inode->i_sb)->wb_pagevec_pool);
 	else
 		kfree(req->r_pages);
 	ceph_osdc_put_request(req);
@@ -799,7 +789,6 @@ get_more_pages:
 				alloc_page_vec(client, req);
 				req->r_callback = writepages_finish;
 				req->r_inode = inode;
-				req->r_wbc = wbc;
 			}
 
 			/* note position of first page in pvec */

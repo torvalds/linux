@@ -181,7 +181,7 @@ SOC_SINGLE("ADC 128x Oversampling Switch", WM8974_ADC, 8, 1, 0),
 static const struct snd_kcontrol_new wm8974_speaker_mixer_controls[] = {
 SOC_DAPM_SINGLE("Line Bypass Switch", WM8974_SPKMIX, 1, 1, 0),
 SOC_DAPM_SINGLE("Aux Playback Switch", WM8974_SPKMIX, 5, 1, 0),
-SOC_DAPM_SINGLE("PCM Playback Switch", WM8974_SPKMIX, 0, 1, 1),
+SOC_DAPM_SINGLE("PCM Playback Switch", WM8974_SPKMIX, 0, 1, 0),
 };
 
 /* Mono Output Mixer */
@@ -609,7 +609,7 @@ static int wm8974_resume(struct platform_device *pdev)
 		codec->hw_write(codec->control_data, data, 2);
 	}
 	wm8974_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
-	wm8974_set_bias_level(codec, codec->suspend_bias_level);
+
 	return 0;
 }
 
@@ -677,7 +677,7 @@ static __devinit int wm8974_register(struct wm8974_priv *wm8974)
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8974;
+	snd_soc_codec_set_drvdata(codec, wm8974);
 	codec->name = "WM8974";
 	codec->owner = THIS_MODULE;
 	codec->bias_level = SND_SOC_BIAS_OFF;

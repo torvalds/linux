@@ -301,7 +301,9 @@ static int pccard_get_status(struct pcmcia_socket *s,
 	    (c->IntType & (INT_MEMORY_AND_IO | INT_ZOOMED_VIDEO))) {
 		u_char reg;
 		if (c->CardValues & PRESENT_PIN_REPLACE) {
+			mutex_lock(&s->ops_mutex);
 			pcmcia_read_cis_mem(s, 1, (c->ConfigBase+CISREG_PRR)>>1, 1, &reg);
+			mutex_unlock(&s->ops_mutex);
 			status->CardState |=
 				(reg & PRR_WP_STATUS) ? CS_EVENT_WRITE_PROTECT : 0;
 			status->CardState |=
@@ -315,7 +317,9 @@ static int pccard_get_status(struct pcmcia_socket *s,
 			status->CardState |= CS_EVENT_READY_CHANGE;
 		}
 		if (c->CardValues & PRESENT_EXT_STATUS) {
+			mutex_lock(&s->ops_mutex);
 			pcmcia_read_cis_mem(s, 1, (c->ConfigBase+CISREG_ESR)>>1, 1, &reg);
+			mutex_unlock(&s->ops_mutex);
 			status->CardState |=
 				(reg & ESR_REQ_ATTN) ? CS_EVENT_REQUEST_ATTENTION : 0;
 		}
@@ -351,7 +355,7 @@ static int pccard_get_configuration_info(struct pcmcia_socket *s,
 		if (s->state & SOCKET_CARDBUS_CONFIG) {
 			config->Attributes = CONF_VALID_CLIENT;
 			config->IntType = INT_CARDBUS;
-			config->AssignedIRQ = s->irq.AssignedIRQ;
+			config->AssignedIRQ = s->pcmcia_irq;
 			if (config->AssignedIRQ)
 				config->Attributes |= CONF_ENABLE_IRQ;
 			if (s->io[0].res) {
@@ -391,7 +395,7 @@ static int pccard_get_configuration_info(struct pcmcia_socket *s,
 	config->ExtStatus = c->ExtStatus;
 	config->Present = config->CardValues = c->CardValues;
 	config->IRQAttributes = c->irq.Attributes;
-	config->AssignedIRQ = s->irq.AssignedIRQ;
+	config->AssignedIRQ = s->pcmcia_irq;
 	config->BasePort1 = c->io.BasePort1;
 	config->NumPorts1 = c->io.NumPorts1;
 	config->Attributes1 = c->io.Attributes1;
@@ -571,7 +575,6 @@ static struct pci_bus *pcmcia_lookup_bus(struct pcmcia_socket *s)
 
 static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int first)
 {
-	dev_node_t *node;
 	struct pcmcia_device *p_dev;
 	struct pcmcia_driver *p_drv;
 	int ret = 0;
@@ -633,21 +636,13 @@ static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int 
 		goto err_put;
 	}
 
-	if (first)
-		node = p_dev->dev_node;
-	else
-		for (node = p_dev->dev_node; node; node = node->next)
-			if (node == bind_info->next)
-				break;
-	if (!node) {
+	if (!first) {
 		ret = -ENODEV;
 		goto err_put;
 	}
 
-	strlcpy(bind_info->name, node->dev_name, DEV_NAME_LEN);
-	bind_info->major = node->major;
-	bind_info->minor = node->minor;
-	bind_info->next = node->next;
+	strlcpy(bind_info->name, dev_name(&p_dev->dev), DEV_NAME_LEN);
+	bind_info->next = NULL;
 
  err_put:
 	pcmcia_put_dev(p_dev);
@@ -818,8 +813,7 @@ static u_int ds_poll(struct file *file, poll_table *wait)
 
 /*====================================================================*/
 
-static int ds_ioctl(struct inode *inode, struct file *file,
-		    u_int cmd, u_long arg)
+static int ds_ioctl(struct file *file, u_int cmd, u_long arg)
 {
     struct pcmcia_socket *s;
     void __user *uarg = (char __user *)arg;
@@ -1026,13 +1020,25 @@ free_out:
     return err;
 } /* ds_ioctl */
 
+static long ds_unlocked_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
+{
+	int ret;
+
+	lock_kernel();
+	ret = ds_ioctl(file, cmd, arg);
+	unlock_kernel();
+
+	return ret;
+}
+
+
 /*====================================================================*/
 
 static const struct file_operations ds_fops = {
 	.owner		= THIS_MODULE,
 	.open		= ds_open,
 	.release	= ds_release,
-	.ioctl		= ds_ioctl,
+	.unlocked_ioctl	= ds_unlocked_ioctl,
 	.read		= ds_read,
 	.write		= ds_write,
 	.poll		= ds_poll,

@@ -221,9 +221,9 @@ static int i2sbus_add_dev(struct macio_dev *macio,
 
 	mutex_init(&dev->lock);
 	spin_lock_init(&dev->low_lock);
-	dev->sound.ofdev.node = np;
-	dev->sound.ofdev.dma_mask = macio->ofdev.dma_mask;
-	dev->sound.ofdev.dev.dma_mask = &dev->sound.ofdev.dma_mask;
+	dev->sound.ofdev.archdata.dma_mask = macio->ofdev.archdata.dma_mask;
+	dev->sound.ofdev.dev.of_node = np;
+	dev->sound.ofdev.dev.dma_mask = &dev->sound.ofdev.archdata.dma_mask;
 	dev->sound.ofdev.dev.parent = &macio->ofdev.dev;
 	dev->sound.ofdev.dev.release = i2sbus_release_dev;
 	dev->sound.attach_codec = i2sbus_attach_codec;
@@ -346,7 +346,7 @@ static int i2sbus_probe(struct macio_dev* dev, const struct of_device_id *match)
 		return -ENODEV;
 	}
 
-	while ((np = of_get_next_child(dev->ofdev.node, np))) {
+	while ((np = of_get_next_child(dev->ofdev.dev.of_node, np))) {
 		if (of_device_is_compatible(np, "i2sbus") ||
 		    of_device_is_compatible(np, "i2s-modem")) {
 			got += i2sbus_add_dev(dev, control, np);

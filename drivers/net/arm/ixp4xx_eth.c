@@ -708,7 +708,6 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* NPE firmware pads short frames with zeros internally */
 	wmb();
 	queue_put_desc(TX_QUEUE(port->id), tx_desc_phys(port, n), desc);
-	dev->trans_start = jiffies;
 
 	if (qmgr_stat_below_low_watermark(txreadyq)) { /* empty */
 #if DEBUG_TX
@@ -736,7 +735,7 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 static void eth_set_mcast_list(struct net_device *dev)
 {
 	struct port *port = netdev_priv(dev);
-	struct dev_mc_list *mclist;
+	struct netdev_hw_addr *ha;
 	u8 diffs[ETH_ALEN], *addr;
 	int i;
 
@@ -749,11 +748,11 @@ static void eth_set_mcast_list(struct net_device *dev)
 	memset(diffs, 0, ETH_ALEN);
 
 	addr = NULL;
-	netdev_for_each_mc_addr(mclist, dev) {
+	netdev_for_each_mc_addr(ha, dev) {
 		if (!addr)
-			addr = mclist->dmi_addr; /* first MAC address */
+			addr = ha->addr; /* first MAC address */
 		for (i = 0; i < ETH_ALEN; i++)
-			diffs[i] |= addr[i] ^ mclist->dmi_addr[i];
+			diffs[i] |= addr[i] ^ ha->addr[i];
 	}
 
 	for (i = 0; i < ETH_ALEN; i++) {

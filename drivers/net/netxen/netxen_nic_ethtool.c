@@ -632,6 +632,9 @@ static int netxen_nic_reg_test(struct net_device *dev)
 	if ((data_read & 0xffff) != adapter->pdev->vendor)
 		return 1;
 
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		return 0;
+
 	data_written = (u32)0xa5a5a5a5;
 
 	NXWR32(adapter, CRB_SCRATCHPAD_TEST, data_written);
@@ -701,6 +704,11 @@ netxen_nic_get_ethtool_stats(struct net_device *dev,
 		    (netxen_nic_gstrings_stats[index].sizeof_stat ==
 		     sizeof(u64)) ? *(u64 *) p : *(u32 *) p;
 	}
+}
+
+static u32 netxen_nic_get_tx_csum(struct net_device *dev)
+{
+	return dev->features & NETIF_F_IP_CSUM;
 }
 
 static u32 netxen_nic_get_rx_csum(struct net_device *dev)
@@ -909,6 +917,7 @@ const struct ethtool_ops netxen_nic_ethtool_ops = {
 	.set_ringparam = netxen_nic_set_ringparam,
 	.get_pauseparam = netxen_nic_get_pauseparam,
 	.set_pauseparam = netxen_nic_set_pauseparam,
+	.get_tx_csum = netxen_nic_get_tx_csum,
 	.set_tx_csum = ethtool_op_set_tx_csum,
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = netxen_nic_get_tso,

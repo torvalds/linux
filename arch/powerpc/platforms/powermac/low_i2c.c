@@ -592,7 +592,7 @@ static void __init kw_i2c_probe(void)
 	/* Probe keywest-i2c busses */
 	for_each_compatible_node(np, "i2c","keywest-i2c") {
 		struct pmac_i2c_host_kw *host;
-		int multibus, chans, i;
+		int multibus;
 
 		/* Found one, init a host structure */
 		host = kw_i2c_host_init(np);
@@ -614,6 +614,8 @@ static void __init kw_i2c_probe(void)
 		 * parent type
 		 */
 		if (multibus) {
+			int chans, i;
+
 			parent = of_get_parent(np);
 			if (parent == NULL)
 				continue;
@@ -1258,8 +1260,7 @@ static void pmac_i2c_do_end(struct pmf_function *func, void *instdata)
 	if (inst == NULL)
 		return;
 	pmac_i2c_close(inst->bus);
-	if (inst)
-		kfree(inst);
+	kfree(inst);
 }
 
 static int pmac_i2c_do_read(PMF_STD_ARGS, u32 len)

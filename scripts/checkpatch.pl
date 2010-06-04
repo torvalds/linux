@@ -1382,6 +1382,21 @@ sub process {
 			ERROR("trailing whitespace\n" . $herevet);
 		}
 
+# check for Kconfig help text having a real description
+		if ($realfile =~ /Kconfig/ &&
+		    $line =~ /\+?\s*(---)?help(---)?$/) {
+			my $length = 0;
+			for (my $l = $linenr; defined($lines[$l]); $l++) {
+				my $f = $lines[$l];
+				$f =~ s/#.*//;
+				$f =~ s/^\s+//;
+				next if ($f =~ /^$/);
+				last if ($f =~ /^\s*config\s/);
+				$length++;
+			}
+			WARN("please write a paragraph that describes the config symbol fully\n" . $herecurr) if ($length < 4);
+		}
+
 # check we are in a valid source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c|s|S|pl|sh)$/);
 
@@ -2586,6 +2601,11 @@ sub process {
 			CHK("architecture specific defines should be avoided\n" .  $herecurr);
 		}
 
+# Check that the storage class is at the beginning of a declaration
+		if ($line =~ /\b$Storage\b/ && $line !~ /^.\s*$Storage\b/) {
+			WARN("storage class should be at the beginning of the declaration\n" . $herecurr)
+		}
+
 # check the location of the inline attribute, that it is between
 # storage class and type.
 		if ($line =~ /\b$Type\s+$Inline\b/ ||
@@ -2656,6 +2676,7 @@ sub process {
 # check for semaphores used as mutexes
 		if ($line =~ /^.\s*init_MUTEX_LOCKED\s*\(/) {
 			WARN("consider using a completion\n" . $herecurr);
+
 		}
 # recommend strict_strto* over simple_strto*
 		if ($line =~ /\bsimple_(strto.*?)\s*\(/) {
@@ -2738,6 +2759,16 @@ sub process {
 				ERROR("do not use in_atomic in drivers\n" . $herecurr);
 			} elsif ($realfile !~ m@^kernel/@) {
 				WARN("use of in_atomic() is incorrect outside core kernel code\n" . $herecurr);
+			}
+		}
+
+# check for lockdep_set_novalidate_class
+		if ($line =~ /^.\s*lockdep_set_novalidate_class\s*\(/ ||
+		    $line =~ /__lockdep_no_validate__\s*\)/ ) {
+			if ($realfile !~ m@^kernel/lockdep@ &&
+			    $realfile !~ m@^include/linux/lockdep@ &&
+			    $realfile !~ m@^drivers/base/core@) {
+				ERROR("lockdep_no_validate class is reserved for device->mutex.\n" . $herecurr);
 			}
 		}
 	}

@@ -418,7 +418,7 @@ void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 			      FRF_BZ_TX_NON_IP_DROP_DIS, 1);
 
 	if (efx_nic_rev(efx) >= EFX_REV_FALCON_B0) {
-		int csum = tx_queue->queue == EFX_TX_QUEUE_OFFLOAD_CSUM;
+		int csum = tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD;
 		EFX_SET_OWORD_FIELD(tx_desc_ptr, FRF_BZ_TX_IP_CHKSM_DIS, !csum);
 		EFX_SET_OWORD_FIELD(tx_desc_ptr, FRF_BZ_TX_TCP_CHKSM_DIS,
 				    !csum);
@@ -431,10 +431,10 @@ void efx_nic_init_tx(struct efx_tx_queue *tx_queue)
 		efx_oword_t reg;
 
 		/* Only 128 bits in this register */
-		BUILD_BUG_ON(EFX_TX_QUEUE_COUNT >= 128);
+		BUILD_BUG_ON(EFX_MAX_TX_QUEUES > 128);
 
 		efx_reado(efx, &reg, FR_AA_TX_CHKSM_CFG);
-		if (tx_queue->queue == EFX_TX_QUEUE_OFFLOAD_CSUM)
+		if (tx_queue->queue & EFX_TXQ_TYPE_OFFLOAD)
 			clear_bit_le(tx_queue->queue, (void *)&reg);
 		else
 			set_bit_le(tx_queue->queue, (void *)&reg);
@@ -654,22 +654,23 @@ void efx_generate_event(struct efx_channel *channel, efx_qword_t *event)
  * The NIC batches TX completion events; the message we receive is of
  * the form "complete all TX events up to this index".
  */
-static void
+static int
 efx_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 {
 	unsigned int tx_ev_desc_ptr;
 	unsigned int tx_ev_q_label;
 	struct efx_tx_queue *tx_queue;
 	struct efx_nic *efx = channel->efx;
+	int tx_packets = 0;
 
 	if (likely(EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_COMP))) {
 		/* Transmit completion */
 		tx_ev_desc_ptr = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_DESC_PTR);
 		tx_ev_q_label = EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_Q_LABEL);
 		tx_queue = &efx->tx_queue[tx_ev_q_label];
-		channel->irq_mod_score +=
-			(tx_ev_desc_ptr - tx_queue->read_count) &
-			EFX_TXQ_MASK;
+		tx_packets = ((tx_ev_desc_ptr - tx_queue->read_count) &
+			      EFX_TXQ_MASK);
+		channel->irq_mod_score += tx_packets;
 		efx_xmit_done(tx_queue, tx_ev_desc_ptr);
 	} else if (EFX_QWORD_FIELD(*event, FSF_AZ_TX_EV_WQ_FF_FULL)) {
 		/* Rewrite the FIFO write pointer */
@@ -689,6 +690,8 @@ efx_handle_tx_event(struct efx_channel *channel, efx_qword_t *event)
 			EFX_QWORD_FMT"\n", channel->channel,
 			EFX_QWORD_VAL(*event));
 	}
+
+	return tx_packets;
 }
 
 /* Detect errors included in the rx_evt_pkt_ok bit. */
@@ -947,16 +950,17 @@ efx_handle_driver_event(struct efx_channel *channel, efx_qword_t *event)
 	}
 }
 
-int efx_nic_process_eventq(struct efx_channel *channel, int rx_quota)
+int efx_nic_process_eventq(struct efx_channel *channel, int budget)
 {
 	unsigned int read_ptr;
 	efx_qword_t event, *p_event;
 	int ev_code;
-	int rx_packets = 0;
+	int tx_packets = 0;
+	int spent = 0;
 
 	read_ptr = channel->eventq_read_ptr;
 
-	do {
+	for (;;) {
 		p_event = efx_event(channel, read_ptr);
 		event = *p_event;
 
@@ -970,15 +974,23 @@ int efx_nic_process_eventq(struct efx_channel *channel, int rx_quota)
 		/* Clear this event by marking it all ones */
 		EFX_SET_QWORD(*p_event);
 
+		/* Increment read pointer */
+		read_ptr = (read_ptr + 1) & EFX_EVQ_MASK;
+
 		ev_code = EFX_QWORD_FIELD(event, FSF_AZ_EV_CODE);
 
 		switch (ev_code) {
 		case FSE_AZ_EV_CODE_RX_EV:
 			efx_handle_rx_event(channel, &event);
-			++rx_packets;
+			if (++spent == budget)
+				goto out;
 			break;
 		case FSE_AZ_EV_CODE_TX_EV:
-			efx_handle_tx_event(channel, &event);
+			tx_packets += efx_handle_tx_event(channel, &event);
+			if (tx_packets >= EFX_TXQ_SIZE) {
+				spent = budget;
+				goto out;
+			}
 			break;
 		case FSE_AZ_EV_CODE_DRV_GEN_EV:
 			channel->eventq_magic = EFX_QWORD_FIELD(
@@ -1001,14 +1013,11 @@ int efx_nic_process_eventq(struct efx_channel *channel, int rx_quota)
 				" (data " EFX_QWORD_FMT ")\n", channel->channel,
 				ev_code, EFX_QWORD_VAL(event));
 		}
+	}
 
-		/* Increment read pointer */
-		read_ptr = (read_ptr + 1) & EFX_EVQ_MASK;
-
-	} while (rx_packets < rx_quota);
-
+out:
 	channel->eventq_read_ptr = read_ptr;
-	return rx_packets;
+	return spent;
 }
 
 
@@ -1123,7 +1132,7 @@ static void efx_poll_flush_events(struct efx_nic *efx)
 		    ev_sub_code == FSE_AZ_TX_DESCQ_FLS_DONE_EV) {
 			ev_queue = EFX_QWORD_FIELD(*event,
 						   FSF_AZ_DRIVER_EV_SUBDATA);
-			if (ev_queue < EFX_TX_QUEUE_COUNT) {
+			if (ev_queue < EFX_TXQ_TYPES * efx->n_tx_channels) {
 				tx_queue = efx->tx_queue + ev_queue;
 				tx_queue->flushed = FLUSH_DONE;
 			}
@@ -1133,7 +1142,7 @@ static void efx_poll_flush_events(struct efx_nic *efx)
 				*event, FSF_AZ_DRIVER_EV_RX_DESCQ_ID);
 			ev_failed = EFX_QWORD_FIELD(
 				*event, FSF_AZ_DRIVER_EV_RX_FLUSH_FAIL);
-			if (ev_queue < efx->n_rx_queues) {
+			if (ev_queue < efx->n_rx_channels) {
 				rx_queue = efx->rx_queue + ev_queue;
 				rx_queue->flushed =
 					ev_failed ? FLUSH_FAILED : FLUSH_DONE;
@@ -1229,15 +1238,9 @@ static inline void efx_nic_interrupts(struct efx_nic *efx,
 				      bool enabled, bool force)
 {
 	efx_oword_t int_en_reg_ker;
-	unsigned int level = 0;
-
-	if (EFX_WORKAROUND_17213(efx) && !EFX_INT_MODE_USE_MSI(efx))
-		/* Set the level always even if we're generating a test
-		 * interrupt, because our legacy interrupt handler is safe */
-		level = 0x1f;
 
 	EFX_POPULATE_OWORD_3(int_en_reg_ker,
-			     FRF_AZ_KER_INT_LEVE_SEL, level,
+			     FRF_AZ_KER_INT_LEVE_SEL, efx->fatal_irq_level,
 			     FRF_AZ_KER_INT_KER, force,
 			     FRF_AZ_DRV_INT_EN_KER, enabled);
 	efx_writeo(efx, &int_en_reg_ker, FR_AZ_INT_EN_KER);
@@ -1291,11 +1294,10 @@ irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx)
 		EFX_OWORD_FMT ": %s\n", EFX_OWORD_VAL(*int_ker),
 		EFX_OWORD_VAL(fatal_intr),
 		error ? "disabling bus mastering" : "no recognised error");
-	if (error == 0)
-		goto out;
 
 	/* If this is a memory parity error dump which blocks are offending */
-	mem_perr = EFX_OWORD_FIELD(fatal_intr, FRF_AZ_MEM_PERR_INT_KER);
+	mem_perr = (EFX_OWORD_FIELD(fatal_intr, FRF_AZ_MEM_PERR_INT_KER) ||
+		    EFX_OWORD_FIELD(fatal_intr, FRF_AZ_SRM_PERR_INT_KER));
 	if (mem_perr) {
 		efx_oword_t reg;
 		efx_reado(efx, &reg, FR_AZ_MEM_STAT);
@@ -1324,7 +1326,7 @@ irqreturn_t efx_nic_fatal_interrupt(struct efx_nic *efx)
 			"NIC will be disabled\n");
 		efx_schedule_reset(efx, RESET_TYPE_DISABLE);
 	}
-out:
+
 	return IRQ_HANDLED;
 }
 
@@ -1346,9 +1348,11 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 	queues = EFX_EXTRACT_DWORD(reg, 0, 31);
 
 	/* Check to see if we have a serious error condition */
-	syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
-	if (unlikely(syserr))
-		return efx_nic_fatal_interrupt(efx);
+	if (queues & (1U << efx->fatal_irq_level)) {
+		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
+		if (unlikely(syserr))
+			return efx_nic_fatal_interrupt(efx);
+	}
 
 	if (queues != 0) {
 		if (EFX_WORKAROUND_15783(efx))
@@ -1362,33 +1366,28 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 		}
 		result = IRQ_HANDLED;
 
-	} else if (EFX_WORKAROUND_15783(efx) &&
-		   efx->irq_zero_count++ == 0) {
+	} else if (EFX_WORKAROUND_15783(efx)) {
 		efx_qword_t *event;
 
-		/* Ensure we rearm all event queues */
+		/* We can't return IRQ_HANDLED more than once on seeing ISR=0
+		 * because this might be a shared interrupt. */
+		if (efx->irq_zero_count++ == 0)
+			result = IRQ_HANDLED;
+
+		/* Ensure we schedule or rearm all event queues */
 		efx_for_each_channel(channel, efx) {
 			event = efx_event(channel, channel->eventq_read_ptr);
 			if (efx_event_present(event))
 				efx_schedule_channel(channel);
+			else
+				efx_nic_eventq_read_ack(channel);
 		}
-
-		result = IRQ_HANDLED;
 	}
 
 	if (result == IRQ_HANDLED) {
 		efx->last_irq_cpu = raw_smp_processor_id();
 		EFX_TRACE(efx, "IRQ %d on CPU %d status " EFX_DWORD_FMT "\n",
 			  irq, raw_smp_processor_id(), EFX_DWORD_VAL(reg));
-	} else if (EFX_WORKAROUND_15783(efx)) {
-		/* We can't return IRQ_HANDLED more than once on seeing ISR0=0
-		 * because this might be a shared interrupt, but we do need to
-		 * check the channel every time and preemptively rearm it if
-		 * it's idle. */
-		efx_for_each_channel(channel, efx) {
-			if (!channel->work_pending)
-				efx_nic_eventq_read_ack(channel);
-		}
 	}
 
 	return result;
@@ -1413,9 +1412,11 @@ static irqreturn_t efx_msi_interrupt(int irq, void *dev_id)
 		  irq, raw_smp_processor_id(), EFX_OWORD_VAL(*int_ker));
 
 	/* Check to see if we have a serious error condition */
-	syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
-	if (unlikely(syserr))
-		return efx_nic_fatal_interrupt(efx);
+	if (channel->channel == efx->fatal_irq_level) {
+		syserr = EFX_OWORD_FIELD(*int_ker, FSF_AZ_NET_IVEC_FATAL_INT);
+		if (unlikely(syserr))
+			return efx_nic_fatal_interrupt(efx);
+	}
 
 	/* Schedule processing of the channel */
 	efx_schedule_channel(channel);
@@ -1440,7 +1441,7 @@ static void efx_setup_rss_indir_table(struct efx_nic *efx)
 	     offset < FR_BZ_RX_INDIRECTION_TBL + 0x800;
 	     offset += 0x10) {
 		EFX_POPULATE_DWORD_1(dword, FRF_BZ_IT_QUEUE,
-				     i % efx->n_rx_queues);
+				     i % efx->n_rx_channels);
 		efx_writed(efx, &dword, offset);
 		i++;
 	}
@@ -1553,6 +1554,13 @@ void efx_nic_init_common(struct efx_nic *efx)
 			     FRF_AZ_INT_ADR_KER, efx->irq_status.dma_addr);
 	efx_writeo(efx, &temp, FR_AZ_INT_ADR_KER);
 
+	if (EFX_WORKAROUND_17213(efx) && !EFX_INT_MODE_USE_MSI(efx))
+		/* Use an interrupt level unused by event queues */
+		efx->fatal_irq_level = 0x1f;
+	else
+		/* Use a valid MSI-X vector */
+		efx->fatal_irq_level = 0;
+
 	/* Enable all the genuinely fatal interrupts.  (They are still
 	 * masked by the overall interrupt mask, controlled by
 	 * falcon_interrupts()).
@@ -1563,6 +1571,8 @@ void efx_nic_init_common(struct efx_nic *efx)
 			     FRF_AZ_ILL_ADR_INT_KER_EN, 1,
 			     FRF_AZ_RBUF_OWN_INT_KER_EN, 1,
 			     FRF_AZ_TBUF_OWN_INT_KER_EN, 1);
+	if (efx_nic_rev(efx) >= EFX_REV_SIENA_A0)
+		EFX_SET_OWORD_FIELD(temp, FRF_CZ_SRAM_PERR_INT_P_KER_EN, 1);
 	EFX_INVERT_OWORD(temp);
 	efx_writeo(efx, &temp, FR_AZ_FATAL_INTR_KER);
 

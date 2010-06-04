@@ -41,14 +41,19 @@
 #define MUTE_ST		0x0028
 #define REG_END		MUTE_ST
 
+
+#define CPU_INT_ST	0x01F4
+#define CPU_IEMSK	0x01F8
+#define CPU_IMSK	0x01FC
 #define INT_ST		0x0200
 #define IEMSK		0x0204
 #define IMSK		0x0208
 #define MUTE		0x020C
 #define CLK_RST		0x0210
 #define SOFT_RST	0x0214
-#define MREG_START	INT_ST
-#define MREG_END	SOFT_RST
+#define FIFO_SZ		0x0218
+#define MREG_START	CPU_INT_ST
+#define MREG_END	FIFO_SZ
 
 /* DO_FMT */
 /* DI_FMT */
@@ -80,6 +85,17 @@
 #define INT_A_IN	(1 << 4)
 #define INT_A_OUT	(1 << 0)
 
+/* SOFT_RST */
+#define PBSR		(1 << 12) /* Port B Software Reset */
+#define PASR		(1 <<  8) /* Port A Software Reset */
+#define IR		(1 <<  4) /* Interrupt Reset */
+#define FSISR		(1 <<  0) /* Software Reset */
+
+/* FIFO_SZ */
+#define OUT_SZ_MASK	0x7
+#define BO_SZ_SHIFT	8
+#define AO_SZ_SHIFT	0
+
 #define FSI_RATES SNDRV_PCM_RATE_8000_96000
 
 #define FSI_FMTS (SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE)
@@ -105,11 +121,18 @@ struct fsi_priv {
 	int periods;
 };
 
+struct fsi_regs {
+	u32 int_st;
+	u32 iemsk;
+	u32 imsk;
+};
+
 struct fsi_master {
 	void __iomem *base;
 	int irq;
 	struct fsi_priv fsia;
 	struct fsi_priv fsib;
+	struct fsi_regs *regs;
 	struct sh_fsi_platform_info *info;
 	spinlock_t lock;
 };
@@ -317,7 +340,7 @@ static int fsi_get_fifo_residue(struct fsi_priv *fsi, int is_play)
 /************************************************************************
 
 
-		ctrl function
+		irq function
 
 
 ************************************************************************/
@@ -326,8 +349,8 @@ static void fsi_irq_enable(struct fsi_priv *fsi, int is_play)
 	u32 data = fsi_port_ab_io_bit(fsi, is_play);
 	struct fsi_master *master = fsi_get_master(fsi);
 
-	fsi_master_mask_set(master, IMSK,  data, data);
-	fsi_master_mask_set(master, IEMSK, data, data);
+	fsi_master_mask_set(master, master->regs->imsk,  data, data);
+	fsi_master_mask_set(master, master->regs->iemsk, data, data);
 }
 
 static void fsi_irq_disable(struct fsi_priv *fsi, int is_play)
@@ -335,10 +358,39 @@ static void fsi_irq_disable(struct fsi_priv *fsi, int is_play)
 	u32 data = fsi_port_ab_io_bit(fsi, is_play);
 	struct fsi_master *master = fsi_get_master(fsi);
 
-	fsi_master_mask_set(master, IMSK,  data, 0);
-	fsi_master_mask_set(master, IEMSK, data, 0);
+	fsi_master_mask_set(master, master->regs->imsk,  data, 0);
+	fsi_master_mask_set(master, master->regs->iemsk, data, 0);
 }
 
+static u32 fsi_irq_get_status(struct fsi_master *master)
+{
+	return fsi_master_read(master, master->regs->int_st);
+}
+
+static void fsi_irq_clear_all_status(struct fsi_master *master)
+{
+	fsi_master_write(master, master->regs->int_st, 0x0000000);
+}
+
+static void fsi_irq_clear_status(struct fsi_priv *fsi)
+{
+	u32 data = 0;
+	struct fsi_master *master = fsi_get_master(fsi);
+
+	data |= fsi_port_ab_io_bit(fsi, 0);
+	data |= fsi_port_ab_io_bit(fsi, 1);
+
+	/* clear interrupt factor */
+	fsi_master_mask_set(master, master->regs->int_st, data, 0);
+}
+
+/************************************************************************
+
+
+		ctrl function
+
+
+************************************************************************/
 static void fsi_clk_ctrl(struct fsi_priv *fsi, int enable)
 {
 	u32 val = fsi_is_port_a(fsi) ? (1 << 0) : (1 << 4);
@@ -350,41 +402,61 @@ static void fsi_clk_ctrl(struct fsi_priv *fsi, int enable)
 		fsi_master_mask_set(master, CLK_RST, val, 0);
 }
 
-static void fsi_irq_init(struct fsi_priv *fsi, int is_play)
+static void fsi_fifo_init(struct fsi_priv *fsi,
+			  int is_play,
+			  struct snd_soc_dai *dai)
 {
-	u32 data;
-	u32 ctrl;
+	struct fsi_master *master = fsi_get_master(fsi);
+	u32 ctrl, shift, i;
 
-	data = fsi_port_ab_io_bit(fsi, is_play);
+	/* get on-chip RAM capacity */
+	shift = fsi_master_read(master, FIFO_SZ);
+	shift >>= fsi_is_port_a(fsi) ? AO_SZ_SHIFT : BO_SZ_SHIFT;
+	shift &= OUT_SZ_MASK;
+	fsi->fifo_max = 256 << shift;
+	dev_dbg(dai->dev, "fifo = %d words\n", fsi->fifo_max);
+
+	/*
+	 * The maximum number of sample data varies depending
+	 * on the number of channels selected for the format.
+	 *
+	 * FIFOs are used in 4-channel units in 3-channel mode
+	 * and in 8-channel units in 5- to 7-channel mode
+	 * meaning that more FIFOs than the required size of DPRAM
+	 * are used.
+	 *
+	 * ex) if 256 words of DP-RAM is connected
+	 * 1 channel:  256 (256 x 1 = 256)
+	 * 2 channels: 128 (128 x 2 = 256)
+	 * 3 channels:  64 ( 64 x 3 = 192)
+	 * 4 channels:  64 ( 64 x 4 = 256)
+	 * 5 channels:  32 ( 32 x 5 = 160)
+	 * 6 channels:  32 ( 32 x 6 = 192)
+	 * 7 channels:  32 ( 32 x 7 = 224)
+	 * 8 channels:  32 ( 32 x 8 = 256)
+	 */
+	for (i = 1; i < fsi->chan; i <<= 1)
+		fsi->fifo_max >>= 1;
+	dev_dbg(dai->dev, "%d channel %d store\n", fsi->chan, fsi->fifo_max);
+
 	ctrl = is_play ? DOFF_CTL : DIFF_CTL;
-
-	/* set IMSK */
-	fsi_irq_disable(fsi, is_play);
 
 	/* set interrupt generation factor */
 	fsi_reg_write(fsi, ctrl, IRQ_HALF);
 
 	/* clear FIFO */
 	fsi_reg_mask_set(fsi, ctrl, FIFO_CLR, FIFO_CLR);
-
-	/* clear interrupt factor */
-	fsi_master_mask_set(fsi_get_master(fsi), INT_ST, data, 0);
 }
 
 static void fsi_soft_all_reset(struct fsi_master *master)
 {
-	u32 status = fsi_master_read(master, SOFT_RST);
-
 	/* port AB reset */
-	status &= 0x000000ff;
-	fsi_master_write(master, SOFT_RST, status);
+	fsi_master_mask_set(master, SOFT_RST, PASR | PBSR, 0);
 	mdelay(10);
 
 	/* soft reset */
-	status &= 0x000000f0;
-	fsi_master_write(master, SOFT_RST, status);
-	status |= 0x00000001;
-	fsi_master_write(master, SOFT_RST, status);
+	fsi_master_mask_set(master, SOFT_RST, FSISR, 0);
+	fsi_master_mask_set(master, SOFT_RST, FSISR, FSISR);
 	mdelay(10);
 }
 
@@ -559,12 +631,11 @@ static int fsi_data_pop(struct fsi_priv *fsi, int startup)
 static irqreturn_t fsi_interrupt(int irq, void *data)
 {
 	struct fsi_master *master = data;
-	u32 status = fsi_master_read(master, SOFT_RST) & ~0x00000010;
-	u32 int_st = fsi_master_read(master, INT_ST);
+	u32 int_st = fsi_irq_get_status(master);
 
 	/* clear irq status */
-	fsi_master_write(master, SOFT_RST, status);
-	fsi_master_write(master, SOFT_RST, status | 0x00000010);
+	fsi_master_mask_set(master, SOFT_RST, IR, 0);
+	fsi_master_mask_set(master, SOFT_RST, IR, IR);
 
 	if (int_st & INT_A_OUT)
 		fsi_data_push(&master->fsia, 0);
@@ -575,7 +646,7 @@ static irqreturn_t fsi_interrupt(int irq, void *data)
 	if (int_st & INT_B_IN)
 		fsi_data_pop(&master->fsib, 0);
 
-	fsi_master_write(master, INT_ST, 0x0000000);
+	fsi_irq_clear_all_status(master);
 
 	return IRQ_HANDLED;
 }
@@ -669,29 +740,6 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 		dev_err(dai->dev, "unknown format.\n");
 		return -EINVAL;
 	}
-
-	switch (fsi->chan) {
-	case 1:
-		fsi->fifo_max = 256;
-		break;
-	case 2:
-		fsi->fifo_max = 128;
-		break;
-	case 3:
-	case 4:
-		fsi->fifo_max = 64;
-		break;
-	case 5:
-	case 6:
-	case 7:
-	case 8:
-		fsi->fifo_max = 32;
-		break;
-	default:
-		dev_err(dai->dev, "channel size error.\n");
-		return -EINVAL;
-	}
-
 	fsi_reg_write(fsi, reg, data);
 
 	/*
@@ -700,8 +748,12 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 	if (is_master)
 		fsi_clk_ctrl(fsi, 1);
 
-	/* irq setting */
-	fsi_irq_init(fsi, is_play);
+	/* irq clear */
+	fsi_irq_disable(fsi, is_play);
+	fsi_irq_clear_status(fsi);
+
+	/* fifo init */
+	fsi_fifo_init(fsi, is_play, dai);
 
 	return ret;
 }
@@ -913,12 +965,19 @@ EXPORT_SYMBOL_GPL(fsi_soc_platform);
 static int fsi_probe(struct platform_device *pdev)
 {
 	struct fsi_master *master;
+	const struct platform_device_id	*id_entry;
 	struct resource *res;
 	unsigned int irq;
 	int ret;
 
 	if (0 != pdev->id) {
 		dev_err(&pdev->dev, "current fsi support id 0 only now\n");
+		return -ENODEV;
+	}
+
+	id_entry = pdev->id_entry;
+	if (!id_entry) {
+		dev_err(&pdev->dev, "unknown fsi device\n");
 		return -ENODEV;
 	}
 
@@ -950,6 +1009,7 @@ static int fsi_probe(struct platform_device *pdev)
 	master->fsia.master	= master;
 	master->fsib.base	= master->base + 0x40;
 	master->fsib.master	= master;
+	master->regs		= (struct fsi_regs *)id_entry->driver_data;
 	spin_lock_init(&master->lock);
 
 	pm_runtime_enable(&pdev->dev);
@@ -962,7 +1022,8 @@ static int fsi_probe(struct platform_device *pdev)
 
 	fsi_soft_all_reset(master);
 
-	ret = request_irq(irq, &fsi_interrupt, IRQF_DISABLED, "fsi", master);
+	ret = request_irq(irq, &fsi_interrupt, IRQF_DISABLED,
+			  id_entry->name, master);
 	if (ret) {
 		dev_err(&pdev->dev, "irq request err\n");
 		goto exit_iounmap;
@@ -1029,6 +1090,23 @@ static struct dev_pm_ops fsi_pm_ops = {
 	.runtime_resume		= fsi_runtime_nop,
 };
 
+static struct fsi_regs fsi_regs = {
+	.int_st	= INT_ST,
+	.iemsk	= IEMSK,
+	.imsk	= IMSK,
+};
+
+static struct fsi_regs fsi2_regs = {
+	.int_st	= CPU_INT_ST,
+	.iemsk	= CPU_IEMSK,
+	.imsk	= CPU_IMSK,
+};
+
+static struct platform_device_id fsi_id_table[] = {
+	{ "sh_fsi",	(kernel_ulong_t)&fsi_regs },
+	{ "sh_fsi2",	(kernel_ulong_t)&fsi2_regs },
+};
+
 static struct platform_driver fsi_driver = {
 	.driver 	= {
 		.name	= "sh_fsi",
@@ -1036,6 +1114,7 @@ static struct platform_driver fsi_driver = {
 	},
 	.probe		= fsi_probe,
 	.remove		= fsi_remove,
+	.id_table	= fsi_id_table,
 };
 
 static int __init fsi_mobile_init(void)

@@ -38,7 +38,7 @@
 #include <asm/vio.h>
 #include <asm/mmu.h>
 
-#define MODULE_VERS "1.8"
+#define MODULE_VERS "1.9"
 #define MODULE_NAME "lparcfg"
 
 /* #define LPARCFG_DEBUG */
@@ -487,6 +487,14 @@ static void splpar_dispatch_data(struct seq_file *m)
 	seq_printf(m, "dispatch_dispersions=%lu\n", dispatch_dispersions);
 }
 
+static void parse_em_data(struct seq_file *m)
+{
+	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
+
+	if (plpar_hcall(H_GET_EM_PARMS, retbuf) == H_SUCCESS)
+		seq_printf(m, "power_mode_data=%016lx\n", retbuf[0]);
+}
+
 static int pseries_lparcfg_data(struct seq_file *m, void *v)
 {
 	int partition_potential_processors;
@@ -540,6 +548,8 @@ static int pseries_lparcfg_data(struct seq_file *m, void *v)
 	seq_printf(m, "shared_processor_mode=%d\n", lppaca[0].shared_proc);
 
 	seq_printf(m, "slb_size=%d\n", mmu_slb_size);
+
+	parse_em_data(m);
 
 	return 0;
 }

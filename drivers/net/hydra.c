@@ -71,6 +71,7 @@ static struct zorro_device_id hydra_zorro_tbl[] __devinitdata = {
     { ZORRO_PROD_HYDRA_SYSTEMS_AMIGANET },
     { 0 }
 };
+MODULE_DEVICE_TABLE(zorro, hydra_zorro_tbl);
 
 static struct zorro_driver hydra_driver = {
     .name	= "hydra",

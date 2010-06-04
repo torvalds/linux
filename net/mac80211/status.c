@@ -171,13 +171,16 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct net_device *prev_dev = NULL;
 	struct sta_info *sta, *tmp;
 	int retry_count = -1, i;
-	bool injected;
+	int rates_idx = -1;
+	bool send_to_cooked;
 
 	for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
 		/* the HW cannot have attempted that rate */
 		if (i >= hw->max_rates) {
 			info->status.rates[i].idx = -1;
 			info->status.rates[i].count = 0;
+		} else if (info->status.rates[i].idx >= 0) {
+			rates_idx = i;
 		}
 
 		retry_count += info->status.rates[i].count;
@@ -205,6 +208,10 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			rcu_read_unlock();
 			return;
 		}
+
+		if ((local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL) &&
+		    (rates_idx != -1))
+			sta->last_tx_rate = info->status.rates[rates_idx];
 
 		if ((info->flags & IEEE80211_TX_STAT_AMPDU_NO_BACK) &&
 		    (ieee80211_is_data_qos(fc))) {
@@ -296,11 +303,15 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	/* this was a transmitted frame, but now we want to reuse it */
 	skb_orphan(skb);
 
+	/* Need to make a copy before skb->cb gets cleared */
+	send_to_cooked = !!(info->flags & IEEE80211_TX_CTL_INJECTED) ||
+			(type != IEEE80211_FTYPE_DATA);
+
 	/*
 	 * This is a bit racy but we can avoid a lot of work
 	 * with this test...
 	 */
-	if (!local->monitors && !local->cooked_mntrs) {
+	if (!local->monitors && (!send_to_cooked || !local->cooked_mntrs)) {
 		dev_kfree_skb(skb);
 		return;
 	}
@@ -345,9 +356,6 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	/* for now report the total retry_count */
 	rthdr->data_retries = retry_count;
 
-	/* Need to make a copy before skb->cb gets cleared */
-	injected = !!(info->flags & IEEE80211_TX_CTL_INJECTED);
-
 	/* XXX: is this sufficient for BPF? */
 	skb_set_mac_header(skb, 0);
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -362,8 +370,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 				continue;
 
 			if ((sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES) &&
-			    !injected &&
-			    (type == IEEE80211_FTYPE_DATA))
+			    !send_to_cooked)
 				continue;
 
 			if (prev_dev) {

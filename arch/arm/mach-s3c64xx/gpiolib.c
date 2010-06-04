@@ -51,6 +51,7 @@
 
 static struct s3c_gpio_cfg gpio_4bit_cfg_noint = {
 	.set_config	= s3c_gpio_setcfg_s3c64xx_4bit,
+	.get_config	= s3c_gpio_getcfg_s3c64xx_4bit,
 	.set_pull	= s3c_gpio_setpull_updown,
 	.get_pull	= s3c_gpio_getpull_updown,
 };
@@ -58,12 +59,14 @@ static struct s3c_gpio_cfg gpio_4bit_cfg_noint = {
 static struct s3c_gpio_cfg gpio_4bit_cfg_eint0111 = {
 	.cfg_eint	= 7,
 	.set_config	= s3c_gpio_setcfg_s3c64xx_4bit,
+	.get_config	= s3c_gpio_getcfg_s3c64xx_4bit,
 	.set_pull	= s3c_gpio_setpull_updown,
 	.get_pull	= s3c_gpio_getpull_updown,
 };
 
 static struct s3c_gpio_cfg gpio_4bit_cfg_eint0011 = {
 	.cfg_eint	= 3,
+	.get_config	= s3c_gpio_getcfg_s3c64xx_4bit,
 	.set_config	= s3c_gpio_setcfg_s3c64xx_4bit,
 	.set_pull	= s3c_gpio_setpull_updown,
 	.get_pull	= s3c_gpio_getpull_updown,
@@ -171,6 +174,7 @@ static struct s3c_gpio_chip gpio_4bit2[] = {
 
 static struct s3c_gpio_cfg gpio_2bit_cfg_noint = {
 	.set_config	= s3c_gpio_setcfg_s3c24xx,
+	.get_config	= s3c_gpio_getcfg_s3c24xx,
 	.set_pull	= s3c_gpio_setpull_updown,
 	.get_pull	= s3c_gpio_getpull_updown,
 };
@@ -178,6 +182,7 @@ static struct s3c_gpio_cfg gpio_2bit_cfg_noint = {
 static struct s3c_gpio_cfg gpio_2bit_cfg_eint10 = {
 	.cfg_eint	= 2,
 	.set_config	= s3c_gpio_setcfg_s3c24xx,
+	.get_config	= s3c_gpio_getcfg_s3c24xx,
 	.set_pull	= s3c_gpio_setpull_updown,
 	.get_pull	= s3c_gpio_getpull_updown,
 };
@@ -185,6 +190,7 @@ static struct s3c_gpio_cfg gpio_2bit_cfg_eint10 = {
 static struct s3c_gpio_cfg gpio_2bit_cfg_eint11 = {
 	.cfg_eint	= 3,
 	.set_config	= s3c_gpio_setcfg_s3c24xx,
+	.get_config	= s3c_gpio_getcfg_s3c24xx,
 	.set_pull	= s3c_gpio_setpull_updown,
 	.get_pull	= s3c_gpio_getpull_updown,
 };

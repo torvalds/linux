@@ -111,6 +111,9 @@ void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
 			const u8 command, const u8 token,
 			const u8 arg0, const u8 arg1);
 
+void rt2800_write_txwi(struct sk_buff *skb, struct txentry_desc *txdesc);
+void rt2800_process_rxwi(struct sk_buff *skb, struct rxdone_entry_desc *txdesc);
+
 extern const struct rt2x00debug rt2800_rt2x00debug;
 
 int rt2800_rfkill_poll(struct rt2x00_dev *rt2x00dev);

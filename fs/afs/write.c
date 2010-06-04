@@ -701,8 +701,9 @@ int afs_writeback_all(struct afs_vnode *vnode)
  * - the return status from this call provides a reliable indication of
  *   whether any write errors occurred for this process.
  */
-int afs_fsync(struct file *file, struct dentry *dentry, int datasync)
+int afs_fsync(struct file *file, int datasync)
 {
+	struct dentry *dentry = file->f_path.dentry;
 	struct afs_writeback *wb, *xwb;
 	struct afs_vnode *vnode = AFS_FS_I(dentry->d_inode);
 	int ret;

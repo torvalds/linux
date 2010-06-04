@@ -803,6 +803,7 @@ static long chsc_ioctl(struct file *filp, unsigned int cmd,
 
 static const struct file_operations chsc_fops = {
 	.owner = THIS_MODULE,
+	.open = nonseekable_open,
 	.unlocked_ioctl = chsc_ioctl,
 	.compat_ioctl = chsc_ioctl,
 };

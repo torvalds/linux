@@ -186,14 +186,9 @@ static int i2o_cfg_parms(unsigned long arg, unsigned int type)
 	if (!dev)
 		return -ENXIO;
 
-	ops = kmalloc(kcmd.oplen, GFP_KERNEL);
-	if (!ops)
-		return -ENOMEM;
-
-	if (copy_from_user(ops, kcmd.opbuf, kcmd.oplen)) {
-		kfree(ops);
-		return -EFAULT;
-	}
+	ops = memdup_user(kcmd.opbuf, kcmd.oplen);
+	if (IS_ERR(ops))
+		return PTR_ERR(ops);
 
 	/*
 	 * It's possible to have a _very_ large table
@@ -314,22 +309,22 @@ static int i2o_cfg_swul(unsigned long arg)
 	int ret = 0;
 
 	if (copy_from_user(&kxfer, pxfer, sizeof(struct i2o_sw_xfer)))
-		goto return_fault;
+		return -EFAULT;
 
 	if (get_user(swlen, kxfer.swlen) < 0)
-		goto return_fault;
+		return -EFAULT;
 
 	if (get_user(maxfrag, kxfer.maxfrag) < 0)
-		goto return_fault;
+		return -EFAULT;
 
 	if (get_user(curfrag, kxfer.curfrag) < 0)
-		goto return_fault;
+		return -EFAULT;
 
 	if (curfrag == maxfrag)
 		fragsize = swlen - (maxfrag - 1) * 8192;
 
 	if (!kxfer.buf)
-		goto return_fault;
+		return -EFAULT;
 
 	c = i2o_find_iop(kxfer.iop);
 	if (!c)
@@ -373,12 +368,8 @@ static int i2o_cfg_swul(unsigned long arg)
 
 	i2o_dma_free(&c->pdev->dev, &buffer);
 
-      return_ret:
 	return ret;
-      return_fault:
-	ret = -EFAULT;
-	goto return_ret;
-};
+}
 
 static int i2o_cfg_swdel(unsigned long arg)
 {

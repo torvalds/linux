@@ -216,8 +216,7 @@ static int install_process_keyring(void)
 /*
  * install a session keyring directly to a credentials struct
  */
-static int install_session_keyring_to_cred(struct cred *cred,
-					   struct key *keyring)
+int install_session_keyring_to_cred(struct cred *cred, struct key *keyring)
 {
 	unsigned long flags;
 	struct key *old;
@@ -508,7 +507,7 @@ try_again:
 
 			ret = install_thread_keyring();
 			if (ret < 0) {
-				key = ERR_PTR(ret);
+				key_ref = ERR_PTR(ret);
 				goto error;
 			}
 			goto reget_creds;
@@ -526,7 +525,7 @@ try_again:
 
 			ret = install_process_keyring();
 			if (ret < 0) {
-				key = ERR_PTR(ret);
+				key_ref = ERR_PTR(ret);
 				goto error;
 			}
 			goto reget_creds;
@@ -585,7 +584,7 @@ try_again:
 
 	case KEY_SPEC_GROUP_KEYRING:
 		/* group keyrings are not yet supported */
-		key = ERR_PTR(-EINVAL);
+		key_ref = ERR_PTR(-EINVAL);
 		goto error;
 
 	case KEY_SPEC_REQKEY_AUTH_KEY:

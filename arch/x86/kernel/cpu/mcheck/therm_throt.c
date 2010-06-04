@@ -190,7 +190,7 @@ thermal_throttle_cpu_callback(struct notifier_block *nfb,
 		mutex_unlock(&therm_cpu_lock);
 		break;
 	}
-	return err ? NOTIFY_BAD : NOTIFY_OK;
+	return notifier_from_errno(err);
 }
 
 static struct notifier_block thermal_throttle_cpu_notifier __cpuinitdata =

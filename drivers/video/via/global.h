@@ -41,7 +41,6 @@
 #include "share.h"
 #include "dvi.h"
 #include "viamode.h"
-#include "via_i2c.h"
 #include "hw.h"
 
 #include "lcd.h"

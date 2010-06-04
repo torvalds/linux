@@ -371,6 +371,9 @@ int set_dabr(unsigned long dabr)
 	/* XXX should we have a CPU_FTR_HAS_DABR ? */
 #ifdef CONFIG_PPC_ADV_DEBUG_REGS
 	mtspr(SPRN_DAC1, dabr);
+#ifdef CONFIG_PPC_47x
+	isync();
+#endif
 #elif defined(CONFIG_PPC_BOOK3S)
 	mtspr(SPRN_DABR, dabr);
 #endif

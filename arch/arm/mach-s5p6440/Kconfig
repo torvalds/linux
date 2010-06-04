@@ -9,12 +9,17 @@ if ARCH_S5P6440
 
 config CPU_S5P6440
 	bool
+	select S3C_PL330_DMA
 	help
 	  Enable S5P6440 CPU support
 
 config MACH_SMDK6440
 	bool "SMDK6440"
 	select CPU_S5P6440
+	select SAMSUNG_DEV_TS
+	select SAMSUNG_DEV_ADC
+	select S3C_DEV_WDT
+	select HAVE_S3C2410_WATCHDOG
 	help
 	  Machine support for the Samsung SMDK6440
 

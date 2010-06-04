@@ -45,6 +45,8 @@ Configuration options:
 #define DPRINTK(fmt, args...)
 #endif
 
+#define PCI_VENDOR_ID_ADVANTECH		0x13fe
+
 /* hardware types of the cards */
 enum hw_cards_id {
 	TYPE_PCI1730, TYPE_PCI1733, TYPE_PCI1734, TYPE_PCI1736,
@@ -367,9 +369,9 @@ static int pci_dio_insn_bits_di_b(struct comedi_device *dev,
 	int i;
 
 	data[1] = 0;
-	for (i = 0; i < d->regs; i++) {
+	for (i = 0; i < d->regs; i++)
 		data[1] |= inb(dev->iobase + d->addr + i) << (8 * i);
-	}
+
 
 	return 2;
 }
@@ -882,9 +884,9 @@ static int CheckAndAllocCard(struct comedi_device *dev,
 	struct pci_dio_private *pr, *prev;
 
 	for (pr = pci_priv, prev = NULL; pr != NULL; prev = pr, pr = pr->next) {
-		if (pr->pcidev == pcidev) {
+		if (pr->pcidev == pcidev)
 			return 0;	/*  this card is used, look for another */
-		}
+
 	}
 
 	if (prev) {
@@ -1040,22 +1042,22 @@ static int pci_dio_detach(struct comedi_device *dev)
 	int subdev;
 
 	if (dev->private) {
-		if (devpriv->valid) {
+		if (devpriv->valid)
 			pci_dio_reset(dev);
-		}
+
 
 		/* This shows the silliness of using this kind of
 		 * scheme for numbering subdevices.  Don't do it.  --ds */
 		subdev = 0;
 		for (i = 0; i < MAX_DI_SUBDEVS; i++) {
-			if (this_board->sdi[i].chans) {
+			if (this_board->sdi[i].chans)
 				subdev++;
-			}
+
 		}
 		for (i = 0; i < MAX_DO_SUBDEVS; i++) {
-			if (this_board->sdo[i].chans) {
+			if (this_board->sdo[i].chans)
 				subdev++;
-			}
+
 		}
 		for (i = 0; i < MAX_DIO_SUBDEVG; i++) {
 			for (j = 0; j < this_board->sdio[i].regs; j++) {
@@ -1071,20 +1073,20 @@ static int pci_dio_detach(struct comedi_device *dev)
 		}
 
 		if (devpriv->pcidev) {
-			if (dev->iobase) {
+			if (dev->iobase)
 				comedi_pci_disable(devpriv->pcidev);
-			}
+
 			pci_dev_put(devpriv->pcidev);
 		}
 
-		if (devpriv->prev) {
+		if (devpriv->prev)
 			devpriv->prev->next = devpriv->next;
-		} else {
+		else
 			pci_priv = devpriv->next;
-		}
-		if (devpriv->next) {
+
+		if (devpriv->next)
 			devpriv->next->prev = devpriv->prev;
-		}
+
 	}
 
 	return 0;

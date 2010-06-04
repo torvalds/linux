@@ -18,8 +18,8 @@
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/bitops.h>
+#include <linux/uaccess.h>
 #include <linux/slab.h>
-#include <asm/uaccess.h>
 
 /*
  * Some useful ethtool_ops methods that're device independent.
@@ -31,6 +31,7 @@ u32 ethtool_op_get_link(struct net_device *dev)
 {
 	return netif_carrier_ok(dev) ? 1 : 0;
 }
+EXPORT_SYMBOL(ethtool_op_get_link);
 
 u32 ethtool_op_get_rx_csum(struct net_device *dev)
 {
@@ -63,6 +64,7 @@ int ethtool_op_set_tx_hw_csum(struct net_device *dev, u32 data)
 
 	return 0;
 }
+EXPORT_SYMBOL(ethtool_op_set_tx_hw_csum);
 
 int ethtool_op_set_tx_ipv6_csum(struct net_device *dev, u32 data)
 {
@@ -73,11 +75,13 @@ int ethtool_op_set_tx_ipv6_csum(struct net_device *dev, u32 data)
 
 	return 0;
 }
+EXPORT_SYMBOL(ethtool_op_set_tx_ipv6_csum);
 
 u32 ethtool_op_get_sg(struct net_device *dev)
 {
 	return (dev->features & NETIF_F_SG) != 0;
 }
+EXPORT_SYMBOL(ethtool_op_get_sg);
 
 int ethtool_op_set_sg(struct net_device *dev, u32 data)
 {
@@ -88,11 +92,13 @@ int ethtool_op_set_sg(struct net_device *dev, u32 data)
 
 	return 0;
 }
+EXPORT_SYMBOL(ethtool_op_set_sg);
 
 u32 ethtool_op_get_tso(struct net_device *dev)
 {
 	return (dev->features & NETIF_F_TSO) != 0;
 }
+EXPORT_SYMBOL(ethtool_op_get_tso);
 
 int ethtool_op_set_tso(struct net_device *dev, u32 data)
 {
@@ -103,11 +109,13 @@ int ethtool_op_set_tso(struct net_device *dev, u32 data)
 
 	return 0;
 }
+EXPORT_SYMBOL(ethtool_op_set_tso);
 
 u32 ethtool_op_get_ufo(struct net_device *dev)
 {
 	return (dev->features & NETIF_F_UFO) != 0;
 }
+EXPORT_SYMBOL(ethtool_op_get_ufo);
 
 int ethtool_op_set_ufo(struct net_device *dev, u32 data)
 {
@@ -117,12 +125,13 @@ int ethtool_op_set_ufo(struct net_device *dev, u32 data)
 		dev->features &= ~NETIF_F_UFO;
 	return 0;
 }
+EXPORT_SYMBOL(ethtool_op_set_ufo);
 
 /* the following list of flags are the same as their associated
  * NETIF_F_xxx values in include/linux/netdevice.h
  */
 static const u32 flags_dup_features =
-	(ETH_FLAG_LRO | ETH_FLAG_NTUPLE);
+	(ETH_FLAG_LRO | ETH_FLAG_NTUPLE | ETH_FLAG_RXHASH);
 
 u32 ethtool_op_get_flags(struct net_device *dev)
 {
@@ -133,6 +142,7 @@ u32 ethtool_op_get_flags(struct net_device *dev)
 
 	return dev->features & flags_dup_features;
 }
+EXPORT_SYMBOL(ethtool_op_get_flags);
 
 int ethtool_op_set_flags(struct net_device *dev, u32 data)
 {
@@ -153,9 +163,15 @@ int ethtool_op_set_flags(struct net_device *dev, u32 data)
 		features &= ~NETIF_F_NTUPLE;
 	}
 
+	if (data & ETH_FLAG_RXHASH)
+		features |= NETIF_F_RXHASH;
+	else
+		features &= ~NETIF_F_RXHASH;
+
 	dev->features = features;
 	return 0;
 }
+EXPORT_SYMBOL(ethtool_op_set_flags);
 
 void ethtool_ntuple_flush(struct net_device *dev)
 {
@@ -201,7 +217,8 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 	return dev->ethtool_ops->set_settings(dev, &cmd);
 }
 
-static noinline_for_stack int ethtool_get_drvinfo(struct net_device *dev, void __user *useraddr)
+static noinline_for_stack int ethtool_get_drvinfo(struct net_device *dev,
+						  void __user *useraddr)
 {
 	struct ethtool_drvinfo info;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -241,7 +258,7 @@ static noinline_for_stack int ethtool_get_drvinfo(struct net_device *dev, void _
 }
 
 static noinline_for_stack int ethtool_get_sset_info(struct net_device *dev,
-                                          void __user *useraddr)
+						    void __user *useraddr)
 {
 	struct ethtool_sset_info info;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -300,7 +317,8 @@ out:
 	return ret;
 }
 
-static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev, void __user *useraddr)
+static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev,
+						void __user *useraddr)
 {
 	struct ethtool_rxnfc cmd;
 
@@ -313,7 +331,8 @@ static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev, void __u
 	return dev->ethtool_ops->set_rxnfc(dev, &cmd);
 }
 
-static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev, void __user *useraddr)
+static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev,
+						void __user *useraddr)
 {
 	struct ethtool_rxnfc info;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -358,8 +377,8 @@ err_out:
 }
 
 static void __rx_ntuple_filter_add(struct ethtool_rx_ntuple_list *list,
-                              struct ethtool_rx_ntuple_flow_spec *spec,
-                              struct ethtool_rx_ntuple_flow_spec_container *fsc)
+			struct ethtool_rx_ntuple_flow_spec *spec,
+			struct ethtool_rx_ntuple_flow_spec_container *fsc)
 {
 
 	/* don't add filters forever */
@@ -385,7 +404,8 @@ static void __rx_ntuple_filter_add(struct ethtool_rx_ntuple_list *list,
 	list->count++;
 }
 
-static noinline_for_stack int ethtool_set_rx_ntuple(struct net_device *dev, void __user *useraddr)
+static noinline_for_stack int ethtool_set_rx_ntuple(struct net_device *dev,
+						    void __user *useraddr)
 {
 	struct ethtool_rx_ntuple cmd;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -502,7 +522,7 @@ static int ethtool_get_rx_ntuple(struct net_device *dev, void __user *useraddr)
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			goto unknown_filter;
-		};
+		}
 
 		/* now the rest of the filters */
 		switch (fsc->fs.flow_type) {
@@ -510,125 +530,125 @@ static int ethtool_get_rx_ntuple(struct net_device *dev, void __user *useraddr)
 		case UDP_V4_FLOW:
 		case SCTP_V4_FLOW:
 			sprintf(p, "\tSrc IP addr: 0x%x\n",
-			        fsc->fs.h_u.tcp_ip4_spec.ip4src);
+				fsc->fs.h_u.tcp_ip4_spec.ip4src);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tSrc IP mask: 0x%x\n",
-			        fsc->fs.m_u.tcp_ip4_spec.ip4src);
+				fsc->fs.m_u.tcp_ip4_spec.ip4src);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tDest IP addr: 0x%x\n",
-			        fsc->fs.h_u.tcp_ip4_spec.ip4dst);
+				fsc->fs.h_u.tcp_ip4_spec.ip4dst);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tDest IP mask: 0x%x\n",
-			        fsc->fs.m_u.tcp_ip4_spec.ip4dst);
+				fsc->fs.m_u.tcp_ip4_spec.ip4dst);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tSrc Port: %d, mask: 0x%x\n",
-			        fsc->fs.h_u.tcp_ip4_spec.psrc,
-			        fsc->fs.m_u.tcp_ip4_spec.psrc);
+				fsc->fs.h_u.tcp_ip4_spec.psrc,
+				fsc->fs.m_u.tcp_ip4_spec.psrc);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tDest Port: %d, mask: 0x%x\n",
-			        fsc->fs.h_u.tcp_ip4_spec.pdst,
-			        fsc->fs.m_u.tcp_ip4_spec.pdst);
+				fsc->fs.h_u.tcp_ip4_spec.pdst,
+				fsc->fs.m_u.tcp_ip4_spec.pdst);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tTOS: %d, mask: 0x%x\n",
-			        fsc->fs.h_u.tcp_ip4_spec.tos,
-			        fsc->fs.m_u.tcp_ip4_spec.tos);
+				fsc->fs.h_u.tcp_ip4_spec.tos,
+				fsc->fs.m_u.tcp_ip4_spec.tos);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			break;
 		case AH_ESP_V4_FLOW:
 		case ESP_V4_FLOW:
 			sprintf(p, "\tSrc IP addr: 0x%x\n",
-			        fsc->fs.h_u.ah_ip4_spec.ip4src);
+				fsc->fs.h_u.ah_ip4_spec.ip4src);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tSrc IP mask: 0x%x\n",
-			        fsc->fs.m_u.ah_ip4_spec.ip4src);
+				fsc->fs.m_u.ah_ip4_spec.ip4src);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tDest IP addr: 0x%x\n",
-			        fsc->fs.h_u.ah_ip4_spec.ip4dst);
+				fsc->fs.h_u.ah_ip4_spec.ip4dst);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tDest IP mask: 0x%x\n",
-			        fsc->fs.m_u.ah_ip4_spec.ip4dst);
+				fsc->fs.m_u.ah_ip4_spec.ip4dst);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tSPI: %d, mask: 0x%x\n",
-			        fsc->fs.h_u.ah_ip4_spec.spi,
-			        fsc->fs.m_u.ah_ip4_spec.spi);
+				fsc->fs.h_u.ah_ip4_spec.spi,
+				fsc->fs.m_u.ah_ip4_spec.spi);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tTOS: %d, mask: 0x%x\n",
-			        fsc->fs.h_u.ah_ip4_spec.tos,
-			        fsc->fs.m_u.ah_ip4_spec.tos);
+				fsc->fs.h_u.ah_ip4_spec.tos,
+				fsc->fs.m_u.ah_ip4_spec.tos);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			break;
 		case IP_USER_FLOW:
 			sprintf(p, "\tSrc IP addr: 0x%x\n",
-			        fsc->fs.h_u.raw_ip4_spec.ip4src);
+				fsc->fs.h_u.raw_ip4_spec.ip4src);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tSrc IP mask: 0x%x\n",
-			        fsc->fs.m_u.raw_ip4_spec.ip4src);
+				fsc->fs.m_u.raw_ip4_spec.ip4src);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tDest IP addr: 0x%x\n",
-			        fsc->fs.h_u.raw_ip4_spec.ip4dst);
+				fsc->fs.h_u.raw_ip4_spec.ip4dst);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tDest IP mask: 0x%x\n",
-			        fsc->fs.m_u.raw_ip4_spec.ip4dst);
+				fsc->fs.m_u.raw_ip4_spec.ip4dst);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			break;
 		case IPV4_FLOW:
 			sprintf(p, "\tSrc IP addr: 0x%x\n",
-			        fsc->fs.h_u.usr_ip4_spec.ip4src);
+				fsc->fs.h_u.usr_ip4_spec.ip4src);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tSrc IP mask: 0x%x\n",
-			        fsc->fs.m_u.usr_ip4_spec.ip4src);
+				fsc->fs.m_u.usr_ip4_spec.ip4src);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tDest IP addr: 0x%x\n",
-			        fsc->fs.h_u.usr_ip4_spec.ip4dst);
+				fsc->fs.h_u.usr_ip4_spec.ip4dst);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tDest IP mask: 0x%x\n",
-			        fsc->fs.m_u.usr_ip4_spec.ip4dst);
+				fsc->fs.m_u.usr_ip4_spec.ip4dst);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tL4 bytes: 0x%x, mask: 0x%x\n",
-			        fsc->fs.h_u.usr_ip4_spec.l4_4_bytes,
-			        fsc->fs.m_u.usr_ip4_spec.l4_4_bytes);
+				fsc->fs.h_u.usr_ip4_spec.l4_4_bytes,
+				fsc->fs.m_u.usr_ip4_spec.l4_4_bytes);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tTOS: %d, mask: 0x%x\n",
-			        fsc->fs.h_u.usr_ip4_spec.tos,
-			        fsc->fs.m_u.usr_ip4_spec.tos);
+				fsc->fs.h_u.usr_ip4_spec.tos,
+				fsc->fs.m_u.usr_ip4_spec.tos);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tIP Version: %d, mask: 0x%x\n",
-			        fsc->fs.h_u.usr_ip4_spec.ip_ver,
-			        fsc->fs.m_u.usr_ip4_spec.ip_ver);
+				fsc->fs.h_u.usr_ip4_spec.ip_ver,
+				fsc->fs.m_u.usr_ip4_spec.ip_ver);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			sprintf(p, "\tProtocol: %d, mask: 0x%x\n",
-			        fsc->fs.h_u.usr_ip4_spec.proto,
-			        fsc->fs.m_u.usr_ip4_spec.proto);
+				fsc->fs.h_u.usr_ip4_spec.proto,
+				fsc->fs.m_u.usr_ip4_spec.proto);
 			p += ETH_GSTRING_LEN;
 			num_strings++;
 			break;
-		};
+		}
 		sprintf(p, "\tVLAN: %d, mask: 0x%x\n",
-		        fsc->fs.vlan_tag, fsc->fs.vlan_tag_mask);
+			fsc->fs.vlan_tag, fsc->fs.vlan_tag_mask);
 		p += ETH_GSTRING_LEN;
 		num_strings++;
 		sprintf(p, "\tUser-defined: 0x%Lx\n", fsc->fs.data);
@@ -641,7 +661,7 @@ static int ethtool_get_rx_ntuple(struct net_device *dev, void __user *useraddr)
 			sprintf(p, "\tAction: Drop\n");
 		else
 			sprintf(p, "\tAction: Direct to queue %d\n",
-			        fsc->fs.action);
+				fsc->fs.action);
 		p += ETH_GSTRING_LEN;
 		num_strings++;
 unknown_filter:
@@ -853,7 +873,8 @@ static int ethtool_set_eeprom(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
-static noinline_for_stack int ethtool_get_coalesce(struct net_device *dev, void __user *useraddr)
+static noinline_for_stack int ethtool_get_coalesce(struct net_device *dev,
+						   void __user *useraddr)
 {
 	struct ethtool_coalesce coalesce = { .cmd = ETHTOOL_GCOALESCE };
 
@@ -867,7 +888,8 @@ static noinline_for_stack int ethtool_get_coalesce(struct net_device *dev, void 
 	return 0;
 }
 
-static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev, void __user *useraddr)
+static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev,
+						   void __user *useraddr)
 {
 	struct ethtool_coalesce coalesce;
 
@@ -971,6 +993,7 @@ static int ethtool_set_tx_csum(struct net_device *dev, char __user *useraddr)
 
 	return dev->ethtool_ops->set_tx_csum(dev, edata.data);
 }
+EXPORT_SYMBOL(ethtool_op_set_tx_csum);
 
 static int ethtool_set_rx_csum(struct net_device *dev, char __user *useraddr)
 {
@@ -1042,7 +1065,7 @@ static int ethtool_get_gso(struct net_device *dev, char __user *useraddr)
 
 	edata.data = dev->features & NETIF_F_GSO;
 	if (copy_to_user(useraddr, &edata, sizeof(edata)))
-		 return -EFAULT;
+		return -EFAULT;
 	return 0;
 }
 
@@ -1065,7 +1088,7 @@ static int ethtool_get_gro(struct net_device *dev, char __user *useraddr)
 
 	edata.data = dev->features & NETIF_F_GRO;
 	if (copy_to_user(useraddr, &edata, sizeof(edata)))
-		 return -EFAULT;
+		return -EFAULT;
 	return 0;
 }
 
@@ -1277,7 +1300,8 @@ static int ethtool_set_value(struct net_device *dev, char __user *useraddr,
 	return actor(dev, edata.data);
 }
 
-static noinline_for_stack int ethtool_flash_device(struct net_device *dev, char __user *useraddr)
+static noinline_for_stack int ethtool_flash_device(struct net_device *dev,
+						   char __user *useraddr)
 {
 	struct ethtool_flash efl;
 
@@ -1306,11 +1330,11 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	if (!dev->ethtool_ops)
 		return -EOPNOTSUPP;
 
-	if (copy_from_user(&ethcmd, useraddr, sizeof (ethcmd)))
+	if (copy_from_user(&ethcmd, useraddr, sizeof(ethcmd)))
 		return -EFAULT;
 
 	/* Allow some commands to be done by anyone */
-	switch(ethcmd) {
+	switch (ethcmd) {
 	case ETHTOOL_GDRVINFO:
 	case ETHTOOL_GMSGLVL:
 	case ETHTOOL_GCOALESCE:
@@ -1338,10 +1362,11 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 			return -EPERM;
 	}
 
-	if (dev->ethtool_ops->begin)
-		if ((rc = dev->ethtool_ops->begin(dev)) < 0)
+	if (dev->ethtool_ops->begin) {
+		rc = dev->ethtool_ops->begin(dev);
+		if (rc  < 0)
 			return rc;
-
+	}
 	old_features = dev->features;
 
 	switch (ethcmd) {
@@ -1531,16 +1556,3 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 
 	return rc;
 }
-
-EXPORT_SYMBOL(ethtool_op_get_link);
-EXPORT_SYMBOL(ethtool_op_get_sg);
-EXPORT_SYMBOL(ethtool_op_get_tso);
-EXPORT_SYMBOL(ethtool_op_set_sg);
-EXPORT_SYMBOL(ethtool_op_set_tso);
-EXPORT_SYMBOL(ethtool_op_set_tx_csum);
-EXPORT_SYMBOL(ethtool_op_set_tx_hw_csum);
-EXPORT_SYMBOL(ethtool_op_set_tx_ipv6_csum);
-EXPORT_SYMBOL(ethtool_op_set_ufo);
-EXPORT_SYMBOL(ethtool_op_get_ufo);
-EXPORT_SYMBOL(ethtool_op_set_flags);
-EXPORT_SYMBOL(ethtool_op_get_flags);

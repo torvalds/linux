@@ -289,9 +289,6 @@ reset:
 	}
 	stac9766_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
 
-	if (codec->suspend_bias_level == SND_SOC_BIAS_ON)
-		stac9766_set_bias_level(codec, SND_SOC_BIAS_ON);
-
 	return 0;
 }
 
@@ -410,7 +407,7 @@ reset_err:
 pcm_err:
 	snd_soc_free_ac97_codec(codec);
 codec_err:
-	kfree(codec->private_data);
+	kfree(snd_soc_codec_get_drvdata(codec));
 cache_err:
 	kfree(socdev->card->codec);
 	socdev->card->codec = NULL;

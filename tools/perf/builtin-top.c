@@ -55,9 +55,9 @@
 #include <linux/unistd.h>
 #include <linux/types.h>
 
-static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
+static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
 
-static int			system_wide			=      0;
+static bool			system_wide			=  false;
 
 static int			default_interval		=      0;
 
@@ -65,18 +65,21 @@ static int			count_filter			=      5;
 static int			print_entries;
 
 static int			target_pid			=     -1;
-static int			inherit				=      0;
+static int			target_tid			=     -1;
+static pid_t			*all_tids			=      NULL;
+static int			thread_num			=      0;
+static bool			inherit				=  false;
 static int			profile_cpu			=     -1;
 static int			nr_cpus				=      0;
-static unsigned int		realtime_prio			=      0;
-static int			group				=      0;
+static int			realtime_prio			=      0;
+static bool			group				=  false;
 static unsigned int		page_size;
 static unsigned int		mmap_pages			=     16;
 static int			freq				=   1000; /* 1 KHz */
 
 static int			delay_secs			=      2;
-static int			zero                            =      0;
-static int			dump_symtab                     =      0;
+static bool			zero                            =  false;
+static bool			dump_symtab                     =  false;
 
 static bool			hide_kernel_symbols		=  false;
 static bool			hide_user_symbols		=  false;
@@ -93,7 +96,7 @@ struct source_line {
 	struct source_line	*next;
 };
 
-static char			*sym_filter			=   NULL;
+static const char		*sym_filter			=   NULL;
 struct sym_entry		*sym_filter_entry		=   NULL;
 struct sym_entry		*sym_filter_entry_sched		=   NULL;
 static int			sym_pcnt_filter			=      5;
@@ -133,7 +136,7 @@ static inline struct symbol *sym_entry__symbol(struct sym_entry *self)
        return ((void *)self) + symbol_conf.priv_size;
 }
 
-static void get_term_dimensions(struct winsize *ws)
+void get_term_dimensions(struct winsize *ws)
 {
 	char *s = getenv("LINES");
 
@@ -169,7 +172,7 @@ static void sig_winch_handler(int sig __used)
 	update_print_entries(&winsize);
 }
 
-static void parse_source(struct sym_entry *syme)
+static int parse_source(struct sym_entry *syme)
 {
 	struct symbol *sym;
 	struct sym_entry_source *source;
@@ -180,12 +183,21 @@ static void parse_source(struct sym_entry *syme)
 	u64 len;
 
 	if (!syme)
-		return;
+		return -1;
+
+	sym = sym_entry__symbol(syme);
+	map = syme->map;
+
+	/*
+	 * We can't annotate with just /proc/kallsyms
+	 */
+	if (map->dso->origin == DSO__ORIG_KERNEL)
+		return -1;
 
 	if (syme->src == NULL) {
 		syme->src = zalloc(sizeof(*source));
 		if (syme->src == NULL)
-			return;
+			return -1;
 		pthread_mutex_init(&syme->src->lock, NULL);
 	}
 
@@ -195,9 +207,6 @@ static void parse_source(struct sym_entry *syme)
 		pthread_mutex_lock(&source->lock);
 		goto out_assign;
 	}
-
-	sym = sym_entry__symbol(syme);
-	map = syme->map;
 	path = map->dso->long_name;
 
 	len = sym->end - sym->start;
@@ -209,7 +218,7 @@ static void parse_source(struct sym_entry *syme)
 
 	file = popen(command, "r");
 	if (!file)
-		return;
+		return -1;
 
 	pthread_mutex_lock(&source->lock);
 	source->lines_tail = &source->lines;
@@ -245,6 +254,7 @@ static void parse_source(struct sym_entry *syme)
 out_assign:
 	sym_filter_entry = syme;
 	pthread_mutex_unlock(&source->lock);
+	return 0;
 }
 
 static void __zero_source_counters(struct sym_entry *syme)
@@ -410,7 +420,9 @@ static double sym_weight(const struct sym_entry *sym)
 }
 
 static long			samples;
-static long			userspace_samples;
+static long			kernel_samples, us_samples;
+static long			exact_samples;
+static long			guest_us_samples, guest_kernel_samples;
 static const char		CONSOLE_CLEAR[] = "[H[2J";
 
 static void __list_insert_active_sym(struct sym_entry *syme)
@@ -450,7 +462,11 @@ static void print_sym_table(void)
 	int printed = 0, j;
 	int counter, snap = !display_weighted ? sym_counter : 0;
 	float samples_per_sec = samples/delay_secs;
-	float ksamples_per_sec = (samples-userspace_samples)/delay_secs;
+	float ksamples_per_sec = kernel_samples/delay_secs;
+	float us_samples_per_sec = (us_samples)/delay_secs;
+	float guest_kernel_samples_per_sec = (guest_kernel_samples)/delay_secs;
+	float guest_us_samples_per_sec = (guest_us_samples)/delay_secs;
+	float esamples_percent = (100.0*exact_samples)/samples;
 	float sum_ksamples = 0.0;
 	struct sym_entry *syme, *n;
 	struct rb_root tmp = RB_ROOT;
@@ -458,7 +474,8 @@ static void print_sym_table(void)
 	int sym_width = 0, dso_width = 0, dso_short_width = 0;
 	const int win_width = winsize.ws_col - 1;
 
-	samples = userspace_samples = 0;
+	samples = us_samples = kernel_samples = exact_samples = 0;
+	guest_kernel_samples = guest_us_samples = 0;
 
 	/* Sort the active symbols */
 	pthread_mutex_lock(&active_symbols_lock);
@@ -489,9 +506,30 @@ static void print_sym_table(void)
 	puts(CONSOLE_CLEAR);
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
-	printf( "   PerfTop:%8.0f irqs/sec  kernel:%4.1f%% [",
-		samples_per_sec,
-		100.0 - (100.0*((samples_per_sec-ksamples_per_sec)/samples_per_sec)));
+	if (!perf_guest) {
+		printf("   PerfTop:%8.0f irqs/sec  kernel:%4.1f%%"
+			"  exact: %4.1f%% [",
+			samples_per_sec,
+			100.0 - (100.0 * ((samples_per_sec - ksamples_per_sec) /
+					 samples_per_sec)),
+			esamples_percent);
+	} else {
+		printf("   PerfTop:%8.0f irqs/sec  kernel:%4.1f%% us:%4.1f%%"
+			" guest kernel:%4.1f%% guest us:%4.1f%%"
+			" exact: %4.1f%% [",
+			samples_per_sec,
+			100.0 - (100.0 * ((samples_per_sec-ksamples_per_sec) /
+					  samples_per_sec)),
+			100.0 - (100.0 * ((samples_per_sec-us_samples_per_sec) /
+					  samples_per_sec)),
+			100.0 - (100.0 * ((samples_per_sec -
+						guest_kernel_samples_per_sec) /
+					  samples_per_sec)),
+			100.0 - (100.0 * ((samples_per_sec -
+					   guest_us_samples_per_sec) /
+					  samples_per_sec)),
+			esamples_percent);
+	}
 
 	if (nr_counters == 1 || !display_weighted) {
 		printf("%Ld", (u64)attrs[0].sample_period);
@@ -514,13 +552,15 @@ static void print_sym_table(void)
 
 	if (target_pid != -1)
 		printf(" (target_pid: %d", target_pid);
+	else if (target_tid != -1)
+		printf(" (target_tid: %d", target_tid);
 	else
 		printf(" (all");
 
 	if (profile_cpu != -1)
 		printf(", cpu: %d)\n", profile_cpu);
 	else {
-		if (target_pid != -1)
+		if (target_tid != -1)
 			printf(")\n");
 		else
 			printf(", %d CPUs)\n", nr_cpus);
@@ -582,7 +622,6 @@ static void print_sym_table(void)
 
 		syme = rb_entry(nd, struct sym_entry, rb_node);
 		sym = sym_entry__symbol(syme);
-
 		if (++printed > print_entries || (int)syme->snap_count < count_filter)
 			continue;
 
@@ -746,7 +785,7 @@ static int key_mapped(int c)
 	return 0;
 }
 
-static void handle_keypress(int c)
+static void handle_keypress(struct perf_session *session, int c)
 {
 	if (!key_mapped(c)) {
 		struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
@@ -815,7 +854,7 @@ static void handle_keypress(int c)
 		case 'Q':
 			printf("exiting.\n");
 			if (dump_symtab)
-				dsos__fprintf(stderr);
+				perf_session__fprintf_dsos(session, stderr);
 			exit(0);
 		case 's':
 			prompt_symbol(&sym_filter_entry, "Enter details symbol");
@@ -839,7 +878,7 @@ static void handle_keypress(int c)
 			display_weighted = ~display_weighted;
 			break;
 		case 'z':
-			zero = ~zero;
+			zero = !zero;
 			break;
 		default:
 			break;
@@ -851,6 +890,7 @@ static void *display_thread(void *arg __used)
 	struct pollfd stdin_poll = { .fd = 0, .events = POLLIN };
 	struct termios tc, save;
 	int delay_msecs, c;
+	struct perf_session *session = (struct perf_session *) arg;
 
 	tcgetattr(0, &save);
 	tc = save;
@@ -871,7 +911,7 @@ repeat:
 	c = getc(stdin);
 	tcsetattr(0, TCSAFLUSH, &save);
 
-	handle_keypress(c);
+	handle_keypress(session, c);
 	goto repeat;
 
 	return NULL;
@@ -942,23 +982,47 @@ static void event__process_sample(const event_t *self,
 	u64 ip = self->ip.ip;
 	struct sym_entry *syme;
 	struct addr_location al;
+	struct machine *machine;
 	u8 origin = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
 	++samples;
 
 	switch (origin) {
 	case PERF_RECORD_MISC_USER:
-		++userspace_samples;
+		++us_samples;
 		if (hide_user_symbols)
 			return;
+		machine = perf_session__find_host_machine(session);
 		break;
 	case PERF_RECORD_MISC_KERNEL:
+		++kernel_samples;
 		if (hide_kernel_symbols)
 			return;
+		machine = perf_session__find_host_machine(session);
 		break;
+	case PERF_RECORD_MISC_GUEST_KERNEL:
+		++guest_kernel_samples;
+		machine = perf_session__find_machine(session, self->ip.pid);
+		break;
+	case PERF_RECORD_MISC_GUEST_USER:
+		++guest_us_samples;
+		/*
+		 * TODO: we don't process guest user from host side
+		 * except simple counting.
+		 */
+		return;
 	default:
 		return;
 	}
+
+	if (!machine && perf_guest) {
+		pr_err("Can't find guest [%d]'s kernel information\n",
+			self->ip.pid);
+		return;
+	}
+
+	if (self->header.misc & PERF_RECORD_MISC_EXACT_IP)
+		exact_samples++;
 
 	if (event__preprocess_sample(self, session, &al, symbol_filter) < 0 ||
 	    al.filtered)
@@ -976,7 +1040,7 @@ static void event__process_sample(const event_t *self,
 		 * --hide-kernel-symbols, even if the user specifies an
 		 * invalid --vmlinux ;-)
 		 */
-		if (al.map == session->vmlinux_maps[MAP__FUNCTION] &&
+		if (al.map == machine->vmlinux_maps[MAP__FUNCTION] &&
 		    RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION])) {
 			pr_err("The %s file can't be used\n",
 			       symbol_conf.vmlinux_name);
@@ -990,7 +1054,17 @@ static void event__process_sample(const event_t *self,
 	if (sym_filter_entry_sched) {
 		sym_filter_entry = sym_filter_entry_sched;
 		sym_filter_entry_sched = NULL;
-		parse_source(sym_filter_entry);
+		if (parse_source(sym_filter_entry) < 0) {
+			struct symbol *sym = sym_entry__symbol(sym_filter_entry);
+
+			pr_err("Can't annotate %s", sym->name);
+			if (sym_filter_entry->map->dso->origin == DSO__ORIG_KERNEL) {
+				pr_err(": No vmlinux file was found in the path:\n");
+				machine__fprintf_vmlinux_path(machine, stderr);
+			} else
+				pr_err(".\n");
+			exit(1);
+		}
 	}
 
 	syme = symbol__priv(al.sym);
@@ -1106,16 +1180,21 @@ static void perf_session__mmap_read_counter(struct perf_session *self,
 	md->prev = old;
 }
 
-static struct pollfd event_array[MAX_NR_CPUS * MAX_COUNTERS];
-static struct mmap_data mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
+static struct pollfd *event_array;
+static struct mmap_data *mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 
 static void perf_session__mmap_read(struct perf_session *self)
 {
-	int i, counter;
+	int i, counter, thread_index;
 
 	for (i = 0; i < nr_cpus; i++) {
 		for (counter = 0; counter < nr_counters; counter++)
-			perf_session__mmap_read_counter(self, &mmap_array[i][counter]);
+			for (thread_index = 0;
+				thread_index < thread_num;
+				thread_index++) {
+				perf_session__mmap_read_counter(self,
+					&mmap_array[i][counter][thread_index]);
+			}
 	}
 }
 
@@ -1126,9 +1205,10 @@ static void start_counter(int i, int counter)
 {
 	struct perf_event_attr *attr;
 	int cpu;
+	int thread_index;
 
 	cpu = profile_cpu;
-	if (target_pid == -1 && profile_cpu == -1)
+	if (target_tid == -1 && profile_cpu == -1)
 		cpu = cpumap[i];
 
 	attr = attrs + counter;
@@ -1144,55 +1224,58 @@ static void start_counter(int i, int counter)
 	attr->inherit		= (cpu < 0) && inherit;
 	attr->mmap		= 1;
 
+	for (thread_index = 0; thread_index < thread_num; thread_index++) {
 try_again:
-	fd[i][counter] = sys_perf_event_open(attr, target_pid, cpu, group_fd, 0);
+		fd[i][counter][thread_index] = sys_perf_event_open(attr,
+				all_tids[thread_index], cpu, group_fd, 0);
 
-	if (fd[i][counter] < 0) {
-		int err = errno;
+		if (fd[i][counter][thread_index] < 0) {
+			int err = errno;
 
-		if (err == EPERM || err == EACCES)
-			die("No permission - are you root?\n");
-		/*
-		 * If it's cycles then fall back to hrtimer
-		 * based cpu-clock-tick sw counter, which
-		 * is always available even if no PMU support:
-		 */
-		if (attr->type == PERF_TYPE_HARDWARE
-			&& attr->config == PERF_COUNT_HW_CPU_CYCLES) {
+			if (err == EPERM || err == EACCES)
+				die("No permission - are you root?\n");
+			/*
+			 * If it's cycles then fall back to hrtimer
+			 * based cpu-clock-tick sw counter, which
+			 * is always available even if no PMU support:
+			 */
+			if (attr->type == PERF_TYPE_HARDWARE
+					&& attr->config == PERF_COUNT_HW_CPU_CYCLES) {
 
-			if (verbose)
-				warning(" ... trying to fall back to cpu-clock-ticks\n");
+				if (verbose)
+					warning(" ... trying to fall back to cpu-clock-ticks\n");
 
-			attr->type = PERF_TYPE_SOFTWARE;
-			attr->config = PERF_COUNT_SW_CPU_CLOCK;
-			goto try_again;
+				attr->type = PERF_TYPE_SOFTWARE;
+				attr->config = PERF_COUNT_SW_CPU_CLOCK;
+				goto try_again;
+			}
+			printf("\n");
+			error("perfcounter syscall returned with %d (%s)\n",
+					fd[i][counter][thread_index], strerror(err));
+			die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
+			exit(-1);
 		}
-		printf("\n");
-		error("perfcounter syscall returned with %d (%s)\n",
-			fd[i][counter], strerror(err));
-		die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
-		exit(-1);
+		assert(fd[i][counter][thread_index] >= 0);
+		fcntl(fd[i][counter][thread_index], F_SETFL, O_NONBLOCK);
+
+		/*
+		 * First counter acts as the group leader:
+		 */
+		if (group && group_fd == -1)
+			group_fd = fd[i][counter][thread_index];
+
+		event_array[nr_poll].fd = fd[i][counter][thread_index];
+		event_array[nr_poll].events = POLLIN;
+		nr_poll++;
+
+		mmap_array[i][counter][thread_index].counter = counter;
+		mmap_array[i][counter][thread_index].prev = 0;
+		mmap_array[i][counter][thread_index].mask = mmap_pages*page_size - 1;
+		mmap_array[i][counter][thread_index].base = mmap(NULL, (mmap_pages+1)*page_size,
+				PROT_READ, MAP_SHARED, fd[i][counter][thread_index], 0);
+		if (mmap_array[i][counter][thread_index].base == MAP_FAILED)
+			die("failed to mmap with %d (%s)\n", errno, strerror(errno));
 	}
-	assert(fd[i][counter] >= 0);
-	fcntl(fd[i][counter], F_SETFL, O_NONBLOCK);
-
-	/*
-	 * First counter acts as the group leader:
-	 */
-	if (group && group_fd == -1)
-		group_fd = fd[i][counter];
-
-	event_array[nr_poll].fd = fd[i][counter];
-	event_array[nr_poll].events = POLLIN;
-	nr_poll++;
-
-	mmap_array[i][counter].counter = counter;
-	mmap_array[i][counter].prev = 0;
-	mmap_array[i][counter].mask = mmap_pages*page_size - 1;
-	mmap_array[i][counter].base = mmap(NULL, (mmap_pages+1)*page_size,
-			PROT_READ, MAP_SHARED, fd[i][counter], 0);
-	if (mmap_array[i][counter].base == MAP_FAILED)
-		die("failed to mmap with %d (%s)\n", errno, strerror(errno));
 }
 
 static int __cmd_top(void)
@@ -1204,12 +1287,12 @@ static int __cmd_top(void)
 	 * FIXME: perf_session__new should allow passing a O_MMAP, so that all this
 	 * mmap reading, etc is encapsulated in it. Use O_WRONLY for now.
 	 */
-	struct perf_session *session = perf_session__new(NULL, O_WRONLY, false);
+	struct perf_session *session = perf_session__new(NULL, O_WRONLY, false, false);
 	if (session == NULL)
 		return -ENOMEM;
 
-	if (target_pid != -1)
-		event__synthesize_thread(target_pid, event__process, session);
+	if (target_tid != -1)
+		event__synthesize_thread(target_tid, event__process, session);
 	else
 		event__synthesize_threads(event__process, session);
 
@@ -1220,11 +1303,11 @@ static int __cmd_top(void)
 	}
 
 	/* Wait for a minimal set of events before starting the snapshot */
-	poll(event_array, nr_poll, 100);
+	poll(&event_array[0], nr_poll, 100);
 
 	perf_session__mmap_read(session);
 
-	if (pthread_create(&thread, NULL, display_thread, NULL)) {
+	if (pthread_create(&thread, NULL, display_thread, session)) {
 		printf("Could not create display thread.\n");
 		exit(-1);
 	}
@@ -1263,7 +1346,9 @@ static const struct option options[] = {
 	OPT_INTEGER('c', "count", &default_interval,
 		    "event period to sample"),
 	OPT_INTEGER('p', "pid", &target_pid,
-		    "profile events on existing pid"),
+		    "profile events on existing process id"),
+	OPT_INTEGER('t', "tid", &target_tid,
+		    "profile events on existing thread id"),
 	OPT_BOOLEAN('a', "all-cpus", &system_wide,
 			    "system-wide collection from all CPUs"),
 	OPT_INTEGER('C', "CPU", &profile_cpu,
@@ -1272,8 +1357,7 @@ static const struct option options[] = {
 		   "file", "vmlinux pathname"),
 	OPT_BOOLEAN('K', "hide_kernel_symbols", &hide_kernel_symbols,
 		    "hide kernel symbols"),
-	OPT_INTEGER('m', "mmap-pages", &mmap_pages,
-		    "number of mmap data pages"),
+	OPT_UINTEGER('m', "mmap-pages", &mmap_pages, "number of mmap data pages"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
 	OPT_INTEGER('d', "delay", &delay_secs,
@@ -1296,7 +1380,7 @@ static const struct option options[] = {
 		    "display this many functions"),
 	OPT_BOOLEAN('U', "hide_user_symbols", &hide_user_symbols,
 		    "hide user symbols"),
-	OPT_BOOLEAN('v', "verbose", &verbose,
+	OPT_INCR('v', "verbose", &verbose,
 		    "be more verbose (show counter open errors, etc)"),
 	OPT_END()
 };
@@ -1304,6 +1388,7 @@ static const struct option options[] = {
 int cmd_top(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
+	int i,j;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
 
@@ -1311,8 +1396,39 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	if (argc)
 		usage_with_options(top_usage, options);
 
+	if (target_pid != -1) {
+		target_tid = target_pid;
+		thread_num = find_all_tid(target_pid, &all_tids);
+		if (thread_num <= 0) {
+			fprintf(stderr, "Can't find all threads of pid %d\n",
+				target_pid);
+			usage_with_options(top_usage, options);
+		}
+	} else {
+		all_tids=malloc(sizeof(pid_t));
+		if (!all_tids)
+			return -ENOMEM;
+
+		all_tids[0] = target_tid;
+		thread_num = 1;
+	}
+
+	for (i = 0; i < MAX_NR_CPUS; i++) {
+		for (j = 0; j < MAX_COUNTERS; j++) {
+			fd[i][j] = malloc(sizeof(int)*thread_num);
+			mmap_array[i][j] = zalloc(
+				sizeof(struct mmap_data)*thread_num);
+			if (!fd[i][j] || !mmap_array[i][j])
+				return -ENOMEM;
+		}
+	}
+	event_array = malloc(
+		sizeof(struct pollfd)*MAX_NR_CPUS*MAX_COUNTERS*thread_num);
+	if (!event_array)
+		return -ENOMEM;
+
 	/* CPU and PID are mutually exclusive */
-	if (target_pid != -1 && profile_cpu != -1) {
+	if (target_tid > 0 && profile_cpu != -1) {
 		printf("WARNING: PID switch overriding CPU\n");
 		sleep(1);
 		profile_cpu = -1;
@@ -1353,7 +1469,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		attrs[counter].sample_period = default_interval;
 	}
 
-	if (target_pid != -1 || profile_cpu != -1)
+	if (target_tid != -1 || profile_cpu != -1)
 		nr_cpus = 1;
 	else
 		nr_cpus = read_cpu_map();

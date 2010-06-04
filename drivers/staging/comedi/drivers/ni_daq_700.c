@@ -145,6 +145,7 @@ void subdev_700_interrupt(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	comedi_event(dev, s);
 }
+EXPORT_SYMBOL(subdev_700_interrupt);
 
 static int subdev_700_cb(int dir, int port, int data, unsigned long arg)
 {
@@ -326,6 +327,7 @@ int subdev_700_init(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	return 0;
 }
+EXPORT_SYMBOL(subdev_700_init);
 
 int subdev_700_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 			int (*cb) (int, int, int, unsigned long),
@@ -345,6 +347,7 @@ int subdev_700_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 
 	return 0;
 }
+EXPORT_SYMBOL(subdev_700_init_irq);
 
 void subdev_700_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
 {
@@ -353,11 +356,7 @@ void subdev_700_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
 
 			kfree(s->private);
 }
-
-EXPORT_SYMBOL(subdev_700_init);
-EXPORT_SYMBOL(subdev_700_init_irq);
 EXPORT_SYMBOL(subdev_700_cleanup);
-EXPORT_SYMBOL(subdev_700_interrupt);
 
 static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 {
@@ -380,7 +379,7 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 			return -EIO;
 		iobase = link->io.BasePort1;
 #ifdef incomplete
-		irq = link->irq.AssignedIRQ;
+		irq = link->irq;
 #endif
 		break;
 	default:
@@ -470,7 +469,6 @@ static const dev_info_t dev_info = "ni_daq_700";
 
 struct local_info_t {
 	struct pcmcia_device *link;
-	dev_node_t node;
 	int stop;
 	struct bus_operations *bus;
 };
@@ -501,10 +499,6 @@ static int dio700_cs_attach(struct pcmcia_device *link)
 		return -ENOMEM;
 	local->link = link;
 	link->priv = local;
-
-	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.Handler = NULL;
 
 	/*
 	   General socket configuration defaults can go here.  In this
@@ -539,10 +533,8 @@ static void dio700_cs_detach(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "dio700_cs_detach\n");
 
-	if (link->dev_node) {
-		((struct local_info_t *)link->priv)->stop = 1;
-		dio700_release(link);
-	}
+	((struct local_info_t *)link->priv)->stop = 1;
+	dio700_release(link);
 
 	/* This points to the parent struct local_info_t struct */
 	if (link->priv)
@@ -577,8 +569,7 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 	}
 
 	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
@@ -625,7 +616,6 @@ static int dio700_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 static void dio700_config(struct pcmcia_device *link)
 {
-	struct local_info_t *dev = link->priv;
 	win_req_t req;
 	int ret;
 
@@ -639,16 +629,8 @@ static void dio700_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	/*
-	   Allocate an interrupt line.  Note that this does not assign a
-	   handler to the interrupt, unless the 'Handler' member of the
-	   irq structure is initialized.
-	 */
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
-	}
+	if (!link->irq)
+		goto failed;
 
 	/*
 	   This actually configures the PCMCIA socket -- setting up
@@ -659,19 +641,10 @@ static void dio700_config(struct pcmcia_device *link)
 	if (ret != 0)
 		goto failed;
 
-	/*
-	   At this point, the dev_node_t structure(s) need to be
-	   initialized and arranged in a linked list at link->dev.
-	 */
-	sprintf(dev->node.dev_name, "ni_daq_700");
-	dev->node.major = dev->node.minor = 0;
-	link->dev_node = &dev->node;
-
 	/* Finally, report what we've done */
-	printk(KERN_INFO "%s: index 0x%02x",
-	       dev->node.dev_name, link->conf.ConfigIndex);
+	dev_info(&link->dev, "index 0x%02x", link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %d", link->irq.AssignedIRQ);
+		printk(", irq %d", link->irq);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 		       link->io.BasePort1 + link->io.NumPorts1 - 1);
@@ -735,8 +708,12 @@ static struct pcmcia_device_id dio700_cs_ids[] = {
 	PCMCIA_DEVICE_NULL
 };
 
-MODULE_LICENSE("GPL");
+
 MODULE_DEVICE_TABLE(pcmcia, dio700_cs_ids);
+MODULE_AUTHOR("Fred Brooks <nsaspook@nsaspook.com>");
+MODULE_DESCRIPTION("Comedi driver for National Instruments "
+		   "PCMCIA DAQCard-700 DIO");
+MODULE_LICENSE("GPL");
 
 struct pcmcia_driver dio700_cs_driver = {
 	.probe = dio700_cs_attach,

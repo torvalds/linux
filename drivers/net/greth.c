@@ -895,7 +895,6 @@ static int greth_rx_gbit(struct net_device *dev, int limit)
 				else
 					skb->ip_summed = CHECKSUM_NONE;
 
-				skb->dev = dev;
 				skb->protocol = eth_type_trans(skb, dev);
 				dev->stats.rx_packets++;
 				netif_receive_skb(skb);
@@ -990,7 +989,7 @@ static u32 greth_hash_get_index(__u8 *addr)
 
 static void greth_set_hash_filter(struct net_device *dev)
 {
-	struct dev_mc_list *curr;
+	struct netdev_hw_addr *ha;
 	struct greth_private *greth = netdev_priv(dev);
 	struct greth_regs *regs = (struct greth_regs *) greth->regs;
 	u32 mc_filter[2];
@@ -998,8 +997,8 @@ static void greth_set_hash_filter(struct net_device *dev)
 
 	mc_filter[0] = mc_filter[1] = 0;
 
-	netdev_for_each_mc_addr(curr, dev) {
-		bitnr = greth_hash_get_index(curr->dmi_addr);
+	netdev_for_each_mc_addr(ha, dev) {
+		bitnr = greth_hash_get_index(ha->addr);
 		mc_filter[bitnr >> 5] |= 1 << (bitnr & 31);
 	}
 
@@ -1500,7 +1499,8 @@ static int __devinit greth_of_probe(struct of_device *ofdev, const struct of_dev
 	if (i == 6) {
 		const unsigned char *addr;
 		int len;
-		addr = of_get_property(ofdev->node, "local-mac-address", &len);
+		addr = of_get_property(ofdev->dev.of_node, "local-mac-address",
+					&len);
 		if (addr != NULL && len == 6) {
 			for (i = 0; i < 6; i++)
 				macaddr[i] = (unsigned int) addr[i];

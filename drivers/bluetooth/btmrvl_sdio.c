@@ -931,7 +931,12 @@ static int btmrvl_sdio_probe(struct sdio_func *func,
 	priv->hw_host_to_card = btmrvl_sdio_host_to_card;
 	priv->hw_wakeup_firmware = btmrvl_sdio_wakeup_fw;
 
-	btmrvl_send_module_cfg_cmd(priv, MODULE_BRINGUP_REQ);
+	if (btmrvl_register_hdev(priv)) {
+		BT_ERR("Register hdev failed!");
+		ret = -ENODEV;
+		goto disable_host_int;
+	}
+
 	priv->btmrvl_dev.psmode = 1;
 	btmrvl_enable_ps(priv);
 

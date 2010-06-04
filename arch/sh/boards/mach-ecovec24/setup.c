@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
+#include <linux/mfd/sh_mobile_sdhi.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
@@ -442,7 +443,9 @@ static void sdhi0_set_pwr(struct platform_device *pdev, int state)
 }
 
 static struct sh_mobile_sdhi_info sdhi0_info = {
-	.set_pwr = sdhi0_set_pwr,
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI0_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI0_RX,
+	.set_pwr	= sdhi0_set_pwr,
 };
 
 static struct resource sdhi0_resources[] = {
@@ -478,7 +481,9 @@ static void sdhi1_set_pwr(struct platform_device *pdev, int state)
 }
 
 static struct sh_mobile_sdhi_info sdhi1_info = {
-	.set_pwr = sdhi1_set_pwr,
+	.dma_slave_tx	= SHDMA_SLAVE_SDHI1_TX,
+	.dma_slave_rx	= SHDMA_SLAVE_SDHI1_RX,
+	.set_pwr	= sdhi1_set_pwr,
 };
 
 static struct resource sdhi1_resources[] = {
@@ -710,8 +715,6 @@ static struct clk_ops fsimck_clk_ops = {
 };
 
 static struct clk fsimckb_clk = {
-	.name		= "fsimckb_clk",
-	.id		= -1,
 	.ops		= &fsimck_clk_ops,
 	.enable_reg	= (void __iomem *)FCLKBCR,
 	.rate		= 0, /* unknown */
@@ -771,6 +774,51 @@ static struct platform_device irda_device = {
 	.resource       = irda_resources,
 };
 
+#include <media/ak881x.h>
+#include <media/sh_vou.h>
+
+struct ak881x_pdata ak881x_pdata = {
+	.flags = AK881X_IF_MODE_SLAVE,
+};
+
+static struct i2c_board_info ak8813 = {
+	I2C_BOARD_INFO("ak8813", 0x20),
+	.platform_data = &ak881x_pdata,
+};
+
+struct sh_vou_pdata sh_vou_pdata = {
+	.bus_fmt	= SH_VOU_BUS_8BIT,
+	.flags		= SH_VOU_HSYNC_LOW | SH_VOU_VSYNC_LOW,
+	.board_info	= &ak8813,
+	.i2c_adap	= 0,
+	.module_name	= "ak881x",
+};
+
+static struct resource sh_vou_resources[] = {
+	[0] = {
+		.start  = 0xfe960000,
+		.end    = 0xfe962043,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 55,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device vou_device = {
+	.name           = "sh-vou",
+	.id		= -1,
+	.num_resources  = ARRAY_SIZE(sh_vou_resources),
+	.resource       = sh_vou_resources,
+	.dev		= {
+		.platform_data	= &sh_vou_pdata,
+	},
+	.archdata	= {
+		.hwblk_id	= HWBLK_VOU,
+	},
+};
+
 static struct platform_device *ecovec_devices[] __initdata = {
 	&heartbeat_device,
 	&nor_flash_device,
@@ -792,6 +840,7 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&camera_devices[2],
 	&fsi_device,
 	&irda_device,
+	&vou_device,
 };
 
 #ifdef CONFIG_I2C
@@ -1138,16 +1187,20 @@ static int __init arch_setup(void)
 
 	/* set SPU2 clock to 83.4 MHz */
 	clk = clk_get(NULL, "spu_clk");
-	clk_set_rate(clk, clk_round_rate(clk, 83333333));
-	clk_put(clk);
+	if (clk) {
+		clk_set_rate(clk, clk_round_rate(clk, 83333333));
+		clk_put(clk);
+	}
 
 	/* change parent of FSI B */
 	clk = clk_get(NULL, "fsib_clk");
-	clk_register(&fsimckb_clk);
-	clk_set_parent(clk, &fsimckb_clk);
-	clk_set_rate(clk, 11000);
-	clk_set_rate(&fsimckb_clk, 11000);
-	clk_put(clk);
+	if (clk) {
+		clk_register(&fsimckb_clk);
+		clk_set_parent(clk, &fsimckb_clk);
+		clk_set_rate(clk, 11000);
+		clk_set_rate(&fsimckb_clk, 11000);
+		clk_put(clk);
+	}
 
 	gpio_request(GPIO_PTU0, NULL);
 	gpio_direction_output(GPIO_PTU0, 0);
@@ -1159,8 +1212,10 @@ static int __init arch_setup(void)
 
 	/* set VPU clock to 166 MHz */
 	clk = clk_get(NULL, "vpu_clk");
-	clk_set_rate(clk, clk_round_rate(clk, 166000000));
-	clk_put(clk);
+	if (clk) {
+		clk_set_rate(clk, clk_round_rate(clk, 166000000));
+		clk_put(clk);
+	}
 
 	/* enable IrDA */
 	gpio_request(GPIO_FN_IRDA_OUT, NULL);
@@ -1174,6 +1229,38 @@ static int __init arch_setup(void)
 
 	i2c_register_board_info(1, i2c1_devices,
 				ARRAY_SIZE(i2c1_devices));
+
+	/* VOU */
+	gpio_request(GPIO_FN_DV_D15, NULL);
+	gpio_request(GPIO_FN_DV_D14, NULL);
+	gpio_request(GPIO_FN_DV_D13, NULL);
+	gpio_request(GPIO_FN_DV_D12, NULL);
+	gpio_request(GPIO_FN_DV_D11, NULL);
+	gpio_request(GPIO_FN_DV_D10, NULL);
+	gpio_request(GPIO_FN_DV_D9, NULL);
+	gpio_request(GPIO_FN_DV_D8, NULL);
+	gpio_request(GPIO_FN_DV_CLKI, NULL);
+	gpio_request(GPIO_FN_DV_CLK, NULL);
+	gpio_request(GPIO_FN_DV_VSYNC, NULL);
+	gpio_request(GPIO_FN_DV_HSYNC, NULL);
+
+	/* AK8813 power / reset sequence */
+	gpio_request(GPIO_PTG4, NULL);
+	gpio_request(GPIO_PTU3, NULL);
+	/* Reset */
+	gpio_direction_output(GPIO_PTG4, 0);
+	/* Power down */
+	gpio_direction_output(GPIO_PTU3, 1);
+
+	udelay(10);
+
+	/* Power up, reset */
+	gpio_set_value(GPIO_PTU3, 0);
+
+	udelay(10);
+
+	/* Remove reset */
+	gpio_set_value(GPIO_PTG4, 1);
 
 	return platform_add_devices(ecovec_devices,
 				    ARRAY_SIZE(ecovec_devices));

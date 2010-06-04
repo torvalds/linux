@@ -12,9 +12,8 @@
 #include <linux/serial.h>
 #include <linux/io.h>
 #include <linux/serial_sci.h>
+#include <linux/sh_dma.h>
 #include <linux/sh_timer.h>
-
-#include <asm/dmaengine.h>
 
 #include <cpu/dma-register.h>
 
@@ -49,16 +48,13 @@ static struct platform_device scif1_device = {
 };
 
 static struct sh_timer_config tmu0_platform_data = {
-	.name = "TMU0",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 	.clockevent_rating = 200,
 };
 
 static struct resource tmu0_resources[] = {
 	[0] = {
-		.name	= "TMU0",
 		.start	= 0xffd80008,
 		.end	= 0xffd80013,
 		.flags	= IORESOURCE_MEM,
@@ -80,16 +76,13 @@ static struct platform_device tmu0_device = {
 };
 
 static struct sh_timer_config tmu1_platform_data = {
-	.name = "TMU1",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 	.clocksource_rating = 200,
 };
 
 static struct resource tmu1_resources[] = {
 	[0] = {
-		.name	= "TMU1",
 		.start	= 0xffd80014,
 		.end	= 0xffd8001f,
 		.flags	= IORESOURCE_MEM,
@@ -111,15 +104,12 @@ static struct platform_device tmu1_device = {
 };
 
 static struct sh_timer_config tmu2_platform_data = {
-	.name = "TMU2",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu2_resources[] = {
 	[0] = {
-		.name	= "TMU2",
 		.start	= 0xffd80020,
 		.end	= 0xffd8002f,
 		.flags	= IORESOURCE_MEM,
@@ -141,15 +131,12 @@ static struct platform_device tmu2_device = {
 };
 
 static struct sh_timer_config tmu3_platform_data = {
-	.name = "TMU3",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu3_resources[] = {
 	[0] = {
-		.name	= "TMU3",
 		.start	= 0xffdc0008,
 		.end	= 0xffdc0013,
 		.flags	= IORESOURCE_MEM,
@@ -171,15 +158,12 @@ static struct platform_device tmu3_device = {
 };
 
 static struct sh_timer_config tmu4_platform_data = {
-	.name = "TMU4",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu4_resources[] = {
 	[0] = {
-		.name	= "TMU4",
 		.start	= 0xffdc0014,
 		.end	= 0xffdc001f,
 		.flags	= IORESOURCE_MEM,
@@ -201,15 +185,12 @@ static struct platform_device tmu4_device = {
 };
 
 static struct sh_timer_config tmu5_platform_data = {
-	.name = "TMU5",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
-	.clk = "peripheral_clk",
 };
 
 static struct resource tmu5_resources[] = {
 	[0] = {
-		.name	= "TMU5",
 		.start	= 0xffdc0020,
 		.end	= 0xffdc002b,
 		.flags	= IORESOURCE_MEM,
@@ -251,7 +232,7 @@ static struct platform_device rtc_device = {
 };
 
 /* DMA */
-static struct sh_dmae_channel sh7780_dmae0_channels[] = {
+static const struct sh_dmae_channel sh7780_dmae0_channels[] = {
 	{
 		.offset = 0,
 		.dmars = 0,
@@ -279,7 +260,7 @@ static struct sh_dmae_channel sh7780_dmae0_channels[] = {
 	}
 };
 
-static struct sh_dmae_channel sh7780_dmae1_channels[] = {
+static const struct sh_dmae_channel sh7780_dmae1_channels[] = {
 	{
 		.offset = 0,
 	}, {
@@ -295,7 +276,7 @@ static struct sh_dmae_channel sh7780_dmae1_channels[] = {
 	}
 };
 
-static unsigned int ts_shift[] = TS_SHIFT;
+static const unsigned int ts_shift[] = TS_SHIFT;
 
 static struct sh_dmae_pdata dma0_platform_data = {
 	.channel	= sh7780_dmae0_channels,

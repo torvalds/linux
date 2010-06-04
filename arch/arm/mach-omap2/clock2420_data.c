@@ -155,12 +155,12 @@ static struct clk apll54_ck = {
 /* func_54m_ck */
 
 static const struct clksel_rate func_54m_apll54_rates[] = {
-	{ .div = 1, .val = 0, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 0, .flags = RATE_IN_24XX },
 	{ .div = 0 },
 };
 
 static const struct clksel_rate func_54m_alt_rates[] = {
-	{ .div = 1, .val = 1, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 1, .flags = RATE_IN_24XX },
 	{ .div = 0 },
 };
 
@@ -177,7 +177,7 @@ static struct clk func_54m_ck = {
 	.clkdm_name	= "wkup_clkdm",
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
-	.clksel_mask	= OMAP24XX_54M_SOURCE,
+	.clksel_mask	= OMAP24XX_54M_SOURCE_MASK,
 	.clksel		= func_54m_clksel,
 	.recalc		= &omap2_clksel_recalc,
 };
@@ -201,12 +201,12 @@ static struct clk func_96m_ck = {
 /* func_48m_ck */
 
 static const struct clksel_rate func_48m_apll96_rates[] = {
-	{ .div = 2, .val = 0, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 2, .val = 0, .flags = RATE_IN_24XX },
 	{ .div = 0 },
 };
 
 static const struct clksel_rate func_48m_alt_rates[] = {
-	{ .div = 1, .val = 1, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 1, .flags = RATE_IN_24XX },
 	{ .div = 0 },
 };
 
@@ -223,7 +223,7 @@ static struct clk func_48m_ck = {
 	.clkdm_name	= "wkup_clkdm",
 	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKSEL1),
-	.clksel_mask	= OMAP24XX_48M_SOURCE,
+	.clksel_mask	= OMAP24XX_48M_SOURCE_MASK,
 	.clksel		= func_48m_clksel,
 	.recalc		= &omap2_clksel_recalc,
 	.round_rate	= &omap2_clksel_round_rate,
@@ -256,22 +256,22 @@ static struct clk wdt1_osc_ck = {
  * flags fields, which mark them as 2420-only.
  */
 static const struct clksel_rate common_clkout_src_core_rates[] = {
-	{ .div = 1, .val = 0, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 0, .flags = RATE_IN_24XX },
 	{ .div = 0 }
 };
 
 static const struct clksel_rate common_clkout_src_sys_rates[] = {
-	{ .div = 1, .val = 1, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 1, .flags = RATE_IN_24XX },
 	{ .div = 0 }
 };
 
 static const struct clksel_rate common_clkout_src_96m_rates[] = {
-	{ .div = 1, .val = 2, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 2, .flags = RATE_IN_24XX },
 	{ .div = 0 }
 };
 
 static const struct clksel_rate common_clkout_src_54m_rates[] = {
-	{ .div = 1, .val = 3, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 3, .flags = RATE_IN_24XX },
 	{ .div = 0 }
 };
 
@@ -300,7 +300,7 @@ static struct clk sys_clkout_src = {
 };
 
 static const struct clksel_rate common_clkout_rates[] = {
-	{ .div = 1, .val = 0, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 0, .flags = RATE_IN_24XX },
 	{ .div = 2, .val = 1, .flags = RATE_IN_24XX },
 	{ .div = 4, .val = 2, .flags = RATE_IN_24XX },
 	{ .div = 8, .val = 3, .flags = RATE_IN_24XX },
@@ -384,7 +384,7 @@ static struct clk emul_ck = {
  *
  */
 static const struct clksel_rate mpu_core_rates[] = {
-	{ .div = 1, .val = 1, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 1, .flags = RATE_IN_24XX },
 	{ .div = 2, .val = 2, .flags = RATE_IN_24XX },
 	{ .div = 4, .val = 4, .flags = RATE_IN_242X },
 	{ .div = 6, .val = 6, .flags = RATE_IN_242X },
@@ -420,7 +420,7 @@ static struct clk mpu_ck = {	/* Control cpu */
  * routed into a synchronizer and out of clocks abc.
  */
 static const struct clksel_rate dsp_fck_core_rates[] = {
-	{ .div = 1, .val = 1, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 1, .flags = RATE_IN_24XX },
 	{ .div = 2, .val = 2, .flags = RATE_IN_24XX },
 	{ .div = 3, .val = 3, .flags = RATE_IN_24XX },
 	{ .div = 4, .val = 4, .flags = RATE_IN_24XX },
@@ -450,7 +450,7 @@ static struct clk dsp_fck = {
 
 /* DSP interface clock */
 static const struct clksel_rate dsp_irate_ick_rates[] = {
-	{ .div = 1, .val = 1, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 1, .flags = RATE_IN_24XX },
 	{ .div = 2, .val = 2, .flags = RATE_IN_24XX },
 	{ .div = 0 },
 };
@@ -532,7 +532,7 @@ static struct clk iva1_mpu_int_ifck = {
 static const struct clksel_rate core_l3_core_rates[] = {
 	{ .div = 1, .val = 1, .flags = RATE_IN_24XX },
 	{ .div = 2, .val = 2, .flags = RATE_IN_242X },
-	{ .div = 4, .val = 4, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 4, .val = 4, .flags = RATE_IN_24XX },
 	{ .div = 6, .val = 6, .flags = RATE_IN_24XX },
 	{ .div = 8, .val = 8, .flags = RATE_IN_242X },
 	{ .div = 12, .val = 12, .flags = RATE_IN_242X },
@@ -559,7 +559,7 @@ static struct clk core_l3_ck = {	/* Used for ick and fck, interconnect */
 /* usb_l4_ick */
 static const struct clksel_rate usb_l4_ick_core_l3_rates[] = {
 	{ .div = 1, .val = 1, .flags = RATE_IN_24XX },
-	{ .div = 2, .val = 2, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 2, .val = 2, .flags = RATE_IN_24XX },
 	{ .div = 4, .val = 4, .flags = RATE_IN_24XX },
 	{ .div = 0 }
 };
@@ -591,7 +591,7 @@ static struct clk usb_l4_ick = {	/* FS-USB interface clock */
  * this domain.
  */
 static const struct clksel_rate l4_core_l3_rates[] = {
-	{ .div = 1, .val = 1, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 1, .flags = RATE_IN_24XX },
 	{ .div = 2, .val = 2, .flags = RATE_IN_24XX },
 	{ .div = 0 }
 };
@@ -622,7 +622,7 @@ static struct clk l4_ck = {		/* used both as an ick and fck */
  */
 static const struct clksel_rate ssi_ssr_sst_fck_core_rates[] = {
 	{ .div = 1, .val = 1, .flags = RATE_IN_24XX },
-	{ .div = 2, .val = 2, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 2, .val = 2, .flags = RATE_IN_24XX },
 	{ .div = 3, .val = 3, .flags = RATE_IN_24XX },
 	{ .div = 4, .val = 4, .flags = RATE_IN_24XX },
 	{ .div = 6, .val = 6, .flags = RATE_IN_242X },
@@ -730,7 +730,7 @@ static struct clk gfx_ick = {
 /* XXX Add RATE_NOT_VALIDATED */
 
 static const struct clksel_rate dss1_fck_sys_rates[] = {
-	{ .div = 1, .val = 0, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 0, .flags = RATE_IN_24XX },
 	{ .div = 0 }
 };
 
@@ -744,7 +744,7 @@ static const struct clksel_rate dss1_fck_core_rates[] = {
 	{ .div = 8, .val = 8, .flags = RATE_IN_24XX },
 	{ .div = 9, .val = 9, .flags = RATE_IN_24XX },
 	{ .div = 12, .val = 12, .flags = RATE_IN_24XX },
-	{ .div = 16, .val = 16, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 16, .val = 16, .flags = RATE_IN_24XX },
 	{ .div = 0 }
 };
 
@@ -779,12 +779,12 @@ static struct clk dss1_fck = {
 };
 
 static const struct clksel_rate dss2_fck_sys_rates[] = {
-	{ .div = 1, .val = 0, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 0, .flags = RATE_IN_24XX },
 	{ .div = 0 }
 };
 
 static const struct clksel_rate dss2_fck_48m_rates[] = {
-	{ .div = 1, .val = 1, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 1, .flags = RATE_IN_24XX },
 	{ .div = 0 }
 };
 
@@ -825,7 +825,7 @@ static struct clk dss_54m_fck = {	/* Alt clk used in power management */
  * functional clock parents.
  */
 static const struct clksel_rate gpt_alt_rates[] = {
-	{ .div = 1, .val = 2, .flags = RATE_IN_24XX | DEFAULT_RATE },
+	{ .div = 1, .val = 2, .flags = RATE_IN_24XX },
 	{ .div = 0 }
 };
 
@@ -1588,7 +1588,7 @@ static struct clk vlynq_ick = {
 };
 
 static const struct clksel_rate vlynq_fck_96m_rates[] = {
-	{ .div = 1, .val = 0, .flags = RATE_IN_242X | DEFAULT_RATE },
+	{ .div = 1, .val = 0, .flags = RATE_IN_242X },
 	{ .div = 0 }
 };
 
@@ -1601,7 +1601,7 @@ static const struct clksel_rate vlynq_fck_core_rates[] = {
 	{ .div = 8, .val = 8, .flags = RATE_IN_242X },
 	{ .div = 9, .val = 9, .flags = RATE_IN_242X },
 	{ .div = 12, .val = 12, .flags = RATE_IN_242X },
-	{ .div = 16, .val = 16, .flags = RATE_IN_242X | DEFAULT_RATE },
+	{ .div = 16, .val = 16, .flags = RATE_IN_242X },
 	{ .div = 18, .val = 18, .flags = RATE_IN_242X },
 	{ .div = 0 }
 };
@@ -1836,7 +1836,7 @@ static struct omap_clk omap2420_clks[] = {
 	CLK(NULL,	"vlynq_ick",	&vlynq_ick,	CK_242X),
 	CLK(NULL,	"vlynq_fck",	&vlynq_fck,	CK_242X),
 	CLK(NULL,	"des_ick",	&des_ick,	CK_242X),
-	CLK(NULL,	"sha_ick",	&sha_ick,	CK_242X),
+	CLK("omap-sham",	"ick",	&sha_ick,	CK_242X),
 	CLK("omap_rng",	"ick",		&rng_ick,	CK_242X),
 	CLK(NULL,	"aes_ick",	&aes_ick,	CK_242X),
 	CLK(NULL,	"pka_ick",	&pka_ick,	CK_242X),

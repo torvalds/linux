@@ -257,15 +257,13 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	return total;
 }
 
-static int v9fs_file_fsync(struct file *filp, struct dentry *dentry,
-					int datasync)
+static int v9fs_file_fsync(struct file *filp, int datasync)
 {
 	struct p9_fid *fid;
 	struct p9_wstat wstat;
 	int retval;
 
-	P9_DPRINTK(P9_DEBUG_VFS, "filp %p dentry %p datasync %x\n", filp,
-						dentry, datasync);
+	P9_DPRINTK(P9_DEBUG_VFS, "filp %p datasync %x\n", filp, datasync);
 
 	fid = filp->private_data;
 	v9fs_blank_wstat(&wstat);
@@ -287,6 +285,17 @@ static const struct file_operations v9fs_cached_file_operations = {
 };
 
 const struct file_operations v9fs_file_operations = {
+	.llseek = generic_file_llseek,
+	.read = v9fs_file_read,
+	.write = v9fs_file_write,
+	.open = v9fs_file_open,
+	.release = v9fs_dir_release,
+	.lock = v9fs_file_lock,
+	.mmap = generic_file_readonly_mmap,
+	.fsync = v9fs_file_fsync,
+};
+
+const struct file_operations v9fs_file_operations_dotl = {
 	.llseek = generic_file_llseek,
 	.read = v9fs_file_read,
 	.write = v9fs_file_write,

@@ -892,7 +892,7 @@ static void acm_write_buffers_free(struct acm *acm)
 	struct usb_device *usb_dev = interface_to_usbdev(acm->control);
 
 	for (wb = &acm->wb[0], i = 0; i < ACM_NW; i++, wb++)
-		usb_buffer_free(usb_dev, acm->writesize, wb->buf, wb->dmah);
+		usb_free_coherent(usb_dev, acm->writesize, wb->buf, wb->dmah);
 }
 
 static void acm_read_buffers_free(struct acm *acm)
@@ -901,8 +901,8 @@ static void acm_read_buffers_free(struct acm *acm)
 	int i, n = acm->rx_buflimit;
 
 	for (i = 0; i < n; i++)
-		usb_buffer_free(usb_dev, acm->readsize,
-					acm->rb[i].base, acm->rb[i].dma);
+		usb_free_coherent(usb_dev, acm->readsize,
+				  acm->rb[i].base, acm->rb[i].dma);
 }
 
 /* Little helper: write buffers allocate */
@@ -912,13 +912,13 @@ static int acm_write_buffers_alloc(struct acm *acm)
 	struct acm_wb *wb;
 
 	for (wb = &acm->wb[0], i = 0; i < ACM_NW; i++, wb++) {
-		wb->buf = usb_buffer_alloc(acm->dev, acm->writesize, GFP_KERNEL,
+		wb->buf = usb_alloc_coherent(acm->dev, acm->writesize, GFP_KERNEL,
 		    &wb->dmah);
 		if (!wb->buf) {
 			while (i != 0) {
 				--i;
 				--wb;
-				usb_buffer_free(acm->dev, acm->writesize,
+				usb_free_coherent(acm->dev, acm->writesize,
 				    wb->buf, wb->dmah);
 			}
 			return -ENOMEM;
@@ -1177,7 +1177,7 @@ made_compressed_probe:
 	tty_port_init(&acm->port);
 	acm->port.ops = &acm_port_ops;
 
-	buf = usb_buffer_alloc(usb_dev, ctrlsize, GFP_KERNEL, &acm->ctrl_dma);
+	buf = usb_alloc_coherent(usb_dev, ctrlsize, GFP_KERNEL, &acm->ctrl_dma);
 	if (!buf) {
 		dev_dbg(&intf->dev, "out of memory (ctrl buffer alloc)\n");
 		goto alloc_fail2;
@@ -1210,11 +1210,11 @@ made_compressed_probe:
 	for (i = 0; i < num_rx_buf; i++) {
 		struct acm_rb *rb = &(acm->rb[i]);
 
-		rb->base = usb_buffer_alloc(acm->dev, readsize,
+		rb->base = usb_alloc_coherent(acm->dev, readsize,
 				GFP_KERNEL, &rb->dma);
 		if (!rb->base) {
 			dev_dbg(&intf->dev,
-				"out of memory (read bufs usb_buffer_alloc)\n");
+				"out of memory (read bufs usb_alloc_coherent)\n");
 			goto alloc_fail7;
 		}
 	}
@@ -1306,7 +1306,7 @@ alloc_fail7:
 alloc_fail5:
 	acm_write_buffers_free(acm);
 alloc_fail4:
-	usb_buffer_free(usb_dev, ctrlsize, acm->ctrl_buffer, acm->ctrl_dma);
+	usb_free_coherent(usb_dev, ctrlsize, acm->ctrl_buffer, acm->ctrl_dma);
 alloc_fail2:
 	kfree(acm);
 alloc_fail:
@@ -1356,8 +1356,8 @@ static void acm_disconnect(struct usb_interface *intf)
 	stop_data_traffic(acm);
 
 	acm_write_buffers_free(acm);
-	usb_buffer_free(usb_dev, acm->ctrlsize, acm->ctrl_buffer,
-								acm->ctrl_dma);
+	usb_free_coherent(usb_dev, acm->ctrlsize, acm->ctrl_buffer,
+			  acm->ctrl_dma);
 	acm_read_buffers_free(acm);
 
 	if (!acm->combined_interfaces)

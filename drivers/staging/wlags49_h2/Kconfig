@@ -1,6 +1,6 @@
 config WLAGS49_H2
 	tristate "Agere Systems HERMES II Wireless PC Card Model 0110"
-	depends on WLAN_80211 && WIRELESS_EXT && PCMCIA
+	depends on WLAN && WIRELESS_EXT && PCMCIA
 	select WEXT_SPY
 	---help---
 	  Driver for wireless cards using Agere's HERMES II chipset

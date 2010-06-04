@@ -111,7 +111,11 @@ from the driver's outgoing queue. They just set the
 and <structfield>reserved</structfield>
 fields of a &v4l2-buffer; as above, when <constant>VIDIOC_DQBUF</constant>
 is called with a pointer to this structure the driver fills the
-remaining fields or returns an error code.</para>
+remaining fields or returns an error code. The driver may also set
+<constant>V4L2_BUF_FLAG_ERROR</constant> in the <structfield>flags</structfield>
+field. It indicates a non-critical (recoverable) streaming error. In such case
+the application may continue as normal, but should be aware that data in the
+dequeued buffer might be corrupted.</para>
 
     <para>By default <constant>VIDIOC_DQBUF</constant> blocks when no
 buffer is in the outgoing queue. When the
@@ -158,7 +162,13 @@ enqueue a user pointer buffer.</para>
 	  <para><constant>VIDIOC_DQBUF</constant> failed due to an
 internal error. Can also indicate temporary problems like signal
 loss. Note the driver might dequeue an (empty) buffer despite
-returning an error, or even stop capturing.</para>
+returning an error, or even stop capturing. Reusing such buffer may be unsafe
+though and its details (e.g. <structfield>index</structfield>) may not be
+returned either. It is recommended that drivers indicate recoverable errors
+by setting the <constant>V4L2_BUF_FLAG_ERROR</constant> and returning 0 instead.
+In that case the application should be able to safely reuse the buffer and
+continue streaming.
+	</para>
 	</listitem>
       </varlistentry>
     </variablelist>

@@ -26,7 +26,6 @@
 /* it will make jiffies at 96 hz instead of 100 hz though */
 #undef USE_CASCADE_TIMERS
 
-extern void update_xtime_from_cmos(void);
 extern int set_rtc_mmss(unsigned long nowtime);
 extern int have_rtc;
 
@@ -188,8 +187,6 @@ stop_watchdog(void)
 #endif	
 }
 
-/* last time the cmos clock got updated */
-static long last_rtc_update = 0;
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
@@ -232,24 +229,6 @@ timer_interrupt(int irq, void *dev_id)
 	do_timer(1);
 	
         cris_do_profile(regs); /* Save profiling information */
-
-	/*
-	 * If we have an externally synchronized Linux clock, then update
-	 * CMOS clock accordingly every ~11 minutes. Set_rtc_mmss() has to be
-	 * called as close as possible to 500 ms before the new second starts.
-	 *
-	 * The division here is not time critical since it will run once in 
-	 * 11 minutes
-	 */
-	if (ntp_synced() &&
-	    xtime.tv_sec > last_rtc_update + 660 &&
-	    (xtime.tv_nsec / 1000) >= 500000 - (tick_nsec / 1000) / 2 &&
-	    (xtime.tv_nsec / 1000) <= 500000 + (tick_nsec / 1000) / 2) {
-		if (set_rtc_mmss(xtime.tv_sec) == 0)
-			last_rtc_update = xtime.tv_sec;
-		else
-			last_rtc_update = xtime.tv_sec - 600; /* do it again in 60 s */
-	}
         return IRQ_HANDLED;
 }
 
@@ -274,22 +253,10 @@ time_init(void)
 	 */
 	loops_per_usec = 50;
 
-	if(RTC_INIT() < 0) {
-		/* no RTC, start at 1980 */
-		xtime.tv_sec = 0;
-		xtime.tv_nsec = 0;
+	if(RTC_INIT() < 0)
 		have_rtc = 0;
-	} else {		
-		/* get the current time */
+	else
 		have_rtc = 1;
-		update_xtime_from_cmos();
-	}
-
-	/*
-	 * Initialize wall_to_monotonic such that adding it to xtime will yield zero, the
-	 * tv_nsec field must be normalized (i.e., 0 <= nsec < NSEC_PER_SEC).
-	 */
-	set_normalized_timespec(&wall_to_monotonic, -xtime.tv_sec, -xtime.tv_nsec);
 
 	/* Setup the etrax timers
 	 * Base frequency is 25000 hz, divider 250 -> 100 HZ

@@ -97,7 +97,7 @@ int w1_ds2760_recall_eeprom(struct device *dev, int addr)
 	return w1_ds2760_eeprom_cmd(dev, addr, W1_DS2760_RECALL_DATA);
 }
 
-static ssize_t w1_ds2760_read_bin(struct kobject *kobj,
+static ssize_t w1_ds2760_read_bin(struct file *filp, struct kobject *kobj,
 				  struct bin_attribute *bin_attr,
 				  char *buf, loff_t off, size_t count)
 {

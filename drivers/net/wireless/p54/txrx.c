@@ -38,7 +38,7 @@ static void p54_dump_tx_queue(struct p54_common *priv)
 	u32 largest_hole = 0, free;
 
 	spin_lock_irqsave(&priv->tx_queue.lock, flags);
-	printk(KERN_DEBUG "%s: / --- tx queue dump (%d entries) --- \n",
+	printk(KERN_DEBUG "%s: / --- tx queue dump (%d entries) ---\n",
 	       wiphy_name(priv->hw->wiphy), skb_queue_len(&priv->tx_queue));
 
 	prev_addr = priv->rx_start;
@@ -350,7 +350,6 @@ static int p54_rx_data(struct p54_common *priv, struct sk_buff *skb)
 		rx_status->flag |= RX_FLAG_MMIC_ERROR;
 
 	rx_status->signal = p54_rssi_to_dbm(priv, hdr->rssi);
-	rx_status->noise = priv->noise;
 	if (hdr->rate & 0x10)
 		rx_status->flag |= RX_FLAG_SHORTPRE;
 	if (priv->hw->conf.channel->band == IEEE80211_BAND_5GHZ)

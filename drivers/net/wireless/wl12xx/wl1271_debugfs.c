@@ -29,6 +29,7 @@
 #include "wl1271.h"
 #include "wl1271_acx.h"
 #include "wl1271_ps.h"
+#include "wl1271_io.h"
 
 /* ms */
 #define WL1271_DEBUGFS_STATS_LIFETIME 1000
@@ -277,13 +278,10 @@ static ssize_t gpio_power_write(struct file *file,
 		goto out;
 	}
 
-	if (value) {
-		wl->set_power(true);
-		set_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
-	} else {
-		wl->set_power(false);
-		clear_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
-	}
+	if (value)
+		wl1271_power_on(wl);
+	else
+		wl1271_power_off(wl);
 
 out:
 	mutex_unlock(&wl->mutex);

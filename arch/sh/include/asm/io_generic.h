@@ -38,5 +38,6 @@ void IO_CONCAT(__IO_PREFIX,iounmap)(void *addr);
 
 void __iomem *IO_CONCAT(__IO_PREFIX,ioport_map)(unsigned long addr, unsigned int size);
 void IO_CONCAT(__IO_PREFIX,ioport_unmap)(void __iomem *addr);
+void IO_CONCAT(__IO_PREFIX,mem_init)(void);
 
 #undef __IO_PREFIX

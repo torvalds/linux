@@ -12,7 +12,7 @@ The 3180 does not.  Otherwise, they are identical.
 The DTC3x80 does not support DMA but it does have Pseudo-DMA which is
 supported by the driver.
 
-It's DTC406 scsi chip is supposedly compatible with the NCR 53C400.
+Its DTC406 scsi chip is supposedly compatible with the NCR 53C400.
 It is memory mapped, uses an IRQ, but no dma or io-port.  There is
 internal DMA, between SCSI bus and an on-chip 128-byte buffer.  Double
 buffering is done automagically by the chip.  Data is transferred

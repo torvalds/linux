@@ -178,6 +178,52 @@
 #define   S_000074_MC_IND_DATA(x)                      (((x) & 0xFFFFFFFF) << 0)
 #define   G_000074_MC_IND_DATA(x)                      (((x) >> 0) & 0xFFFFFFFF)
 #define   C_000074_MC_IND_DATA                         0x00000000
+#define R_0000F0_RBBM_SOFT_RESET                     0x0000F0
+#define   S_0000F0_SOFT_RESET_CP(x)                    (((x) & 0x1) << 0)
+#define   G_0000F0_SOFT_RESET_CP(x)                    (((x) >> 0) & 0x1)
+#define   C_0000F0_SOFT_RESET_CP                       0xFFFFFFFE
+#define   S_0000F0_SOFT_RESET_HI(x)                    (((x) & 0x1) << 1)
+#define   G_0000F0_SOFT_RESET_HI(x)                    (((x) >> 1) & 0x1)
+#define   C_0000F0_SOFT_RESET_HI                       0xFFFFFFFD
+#define   S_0000F0_SOFT_RESET_VAP(x)                   (((x) & 0x1) << 2)
+#define   G_0000F0_SOFT_RESET_VAP(x)                   (((x) >> 2) & 0x1)
+#define   C_0000F0_SOFT_RESET_VAP                      0xFFFFFFFB
+#define   S_0000F0_SOFT_RESET_RE(x)                    (((x) & 0x1) << 3)
+#define   G_0000F0_SOFT_RESET_RE(x)                    (((x) >> 3) & 0x1)
+#define   C_0000F0_SOFT_RESET_RE                       0xFFFFFFF7
+#define   S_0000F0_SOFT_RESET_PP(x)                    (((x) & 0x1) << 4)
+#define   G_0000F0_SOFT_RESET_PP(x)                    (((x) >> 4) & 0x1)
+#define   C_0000F0_SOFT_RESET_PP                       0xFFFFFFEF
+#define   S_0000F0_SOFT_RESET_E2(x)                    (((x) & 0x1) << 5)
+#define   G_0000F0_SOFT_RESET_E2(x)                    (((x) >> 5) & 0x1)
+#define   C_0000F0_SOFT_RESET_E2                       0xFFFFFFDF
+#define   S_0000F0_SOFT_RESET_RB(x)                    (((x) & 0x1) << 6)
+#define   G_0000F0_SOFT_RESET_RB(x)                    (((x) >> 6) & 0x1)
+#define   C_0000F0_SOFT_RESET_RB                       0xFFFFFFBF
+#define   S_0000F0_SOFT_RESET_HDP(x)                   (((x) & 0x1) << 7)
+#define   G_0000F0_SOFT_RESET_HDP(x)                   (((x) >> 7) & 0x1)
+#define   C_0000F0_SOFT_RESET_HDP                      0xFFFFFF7F
+#define   S_0000F0_SOFT_RESET_MC(x)                    (((x) & 0x1) << 8)
+#define   G_0000F0_SOFT_RESET_MC(x)                    (((x) >> 8) & 0x1)
+#define   C_0000F0_SOFT_RESET_MC                       0xFFFFFEFF
+#define   S_0000F0_SOFT_RESET_AIC(x)                   (((x) & 0x1) << 9)
+#define   G_0000F0_SOFT_RESET_AIC(x)                   (((x) >> 9) & 0x1)
+#define   C_0000F0_SOFT_RESET_AIC                      0xFFFFFDFF
+#define   S_0000F0_SOFT_RESET_VIP(x)                   (((x) & 0x1) << 10)
+#define   G_0000F0_SOFT_RESET_VIP(x)                   (((x) >> 10) & 0x1)
+#define   C_0000F0_SOFT_RESET_VIP                      0xFFFFFBFF
+#define   S_0000F0_SOFT_RESET_DISP(x)                  (((x) & 0x1) << 11)
+#define   G_0000F0_SOFT_RESET_DISP(x)                  (((x) >> 11) & 0x1)
+#define   C_0000F0_SOFT_RESET_DISP                     0xFFFFF7FF
+#define   S_0000F0_SOFT_RESET_CG(x)                    (((x) & 0x1) << 12)
+#define   G_0000F0_SOFT_RESET_CG(x)                    (((x) >> 12) & 0x1)
+#define   C_0000F0_SOFT_RESET_CG                       0xFFFFEFFF
+#define   S_0000F0_SOFT_RESET_GA(x)                    (((x) & 0x1) << 13)
+#define   G_0000F0_SOFT_RESET_GA(x)                    (((x) >> 13) & 0x1)
+#define   C_0000F0_SOFT_RESET_GA                       0xFFFFDFFF
+#define   S_0000F0_SOFT_RESET_IDCT(x)                  (((x) & 0x1) << 14)
+#define   G_0000F0_SOFT_RESET_IDCT(x)                  (((x) >> 14) & 0x1)
+#define   C_0000F0_SOFT_RESET_IDCT                     0xFFFFBFFF
 #define R_000134_HDP_FB_LOCATION                     0x000134
 #define   S_000134_HDP_FB_START(x)                     (((x) & 0xFFFF) << 0)
 #define   G_000134_HDP_FB_START(x)                     (((x) >> 0) & 0xFFFF)
@@ -587,5 +633,39 @@
 #define   S_006D4C_D2MODE_PRIORITY_B_FORCE_MASK(x)     (((x) & 0x1) << 24)
 #define   G_006D4C_D2MODE_PRIORITY_B_FORCE_MASK(x)     (((x) >> 24) & 0x1)
 #define   C_006D4C_D2MODE_PRIORITY_B_FORCE_MASK        0xFEFFFFFF
+
+/* PLL regs */
+#define GENERAL_PWRMGT                                 0x8
+#define   GLOBAL_PWRMGT_EN                             (1 << 0)
+#define   MOBILE_SU                                    (1 << 2)
+#define DYN_PWRMGT_SCLK_LENGTH                         0xc
+#define   NORMAL_POWER_SCLK_HILEN(x)                   ((x) << 0)
+#define   NORMAL_POWER_SCLK_LOLEN(x)                   ((x) << 4)
+#define   REDUCED_POWER_SCLK_HILEN(x)                  ((x) << 8)
+#define   REDUCED_POWER_SCLK_LOLEN(x)                  ((x) << 12)
+#define   POWER_D1_SCLK_HILEN(x)                       ((x) << 16)
+#define   POWER_D1_SCLK_LOLEN(x)                       ((x) << 20)
+#define   STATIC_SCREEN_HILEN(x)                       ((x) << 24)
+#define   STATIC_SCREEN_LOLEN(x)                       ((x) << 28)
+#define DYN_SCLK_VOL_CNTL                              0xe
+#define   IO_CG_VOLTAGE_DROP                           (1 << 0)
+#define   VOLTAGE_DROP_SYNC                            (1 << 2)
+#define   VOLTAGE_DELAY_SEL(x)                         ((x) << 3)
+#define HDP_DYN_CNTL                                   0x10
+#define   HDP_FORCEON                                  (1 << 0)
+#define MC_HOST_DYN_CNTL                               0x1e
+#define   MC_HOST_FORCEON                              (1 << 0)
+#define DYN_BACKBIAS_CNTL                              0x29
+#define   IO_CG_BACKBIAS_EN                            (1 << 0)
+
+/* mmreg */
+#define DOUT_POWER_MANAGEMENT_CNTL                     0x7ee0
+#define   PWRDN_WAIT_BUSY_OFF                          (1 << 0)
+#define   PWRDN_WAIT_PWRSEQ_OFF                        (1 << 4)
+#define   PWRDN_WAIT_PPLL_OFF                          (1 << 8)
+#define   PWRUP_WAIT_PPLL_ON                           (1 << 12)
+#define   PWRUP_WAIT_MEM_INIT_DONE                     (1 << 16)
+#define   PM_ASSERT_RESET                              (1 << 20)
+#define   PM_PWRDN_PPLL                                (1 << 24)
 
 #endif

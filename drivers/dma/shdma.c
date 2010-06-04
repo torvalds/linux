@@ -26,8 +26,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-
-#include <asm/dmaengine.h>
+#include <linux/sh_dma.h>
 
 #include "shdma.h"
 
@@ -45,7 +44,7 @@ enum sh_dmae_desc_status {
 #define LOG2_DEFAULT_XFER_SIZE	2
 
 /* A bitmask with bits enough for enum sh_dmae_slave_chan_id */
-static unsigned long sh_dmae_slave_used[BITS_TO_LONGS(SHDMA_SLAVE_NUMBER)];
+static unsigned long sh_dmae_slave_used[BITS_TO_LONGS(SH_DMA_SLAVE_NUMBER)];
 
 static void sh_dmae_chan_ld_cleanup(struct sh_dmae_chan *sh_chan, bool all);
 
@@ -190,7 +189,7 @@ static int dmae_set_dmars(struct sh_dmae_chan *sh_chan, u16 val)
 	struct sh_dmae_device *shdev = container_of(sh_chan->common.device,
 						struct sh_dmae_device, common);
 	struct sh_dmae_pdata *pdata = shdev->pdata;
-	struct sh_dmae_channel *chan_pdata = &pdata->channel[sh_chan->id];
+	const struct sh_dmae_channel *chan_pdata = &pdata->channel[sh_chan->id];
 	u16 __iomem *addr = shdev->dmars + chan_pdata->dmars / sizeof(u16);
 	int shift = chan_pdata->dmars_bit;
 
@@ -266,8 +265,8 @@ static struct sh_desc *sh_dmae_get_desc(struct sh_dmae_chan *sh_chan)
 	return NULL;
 }
 
-static struct sh_dmae_slave_config *sh_dmae_find_slave(
-	struct sh_dmae_chan *sh_chan, enum sh_dmae_slave_chan_id slave_id)
+static const struct sh_dmae_slave_config *sh_dmae_find_slave(
+	struct sh_dmae_chan *sh_chan, struct sh_dmae_slave *param)
 {
 	struct dma_device *dma_dev = sh_chan->common.device;
 	struct sh_dmae_device *shdev = container_of(dma_dev,
@@ -275,11 +274,11 @@ static struct sh_dmae_slave_config *sh_dmae_find_slave(
 	struct sh_dmae_pdata *pdata = shdev->pdata;
 	int i;
 
-	if ((unsigned)slave_id >= SHDMA_SLAVE_NUMBER)
+	if (param->slave_id >= SH_DMA_SLAVE_NUMBER)
 		return NULL;
 
 	for (i = 0; i < pdata->slave_num; i++)
-		if (pdata->slave[i].slave_id == slave_id)
+		if (pdata->slave[i].slave_id == param->slave_id)
 			return pdata->slave + i;
 
 	return NULL;
@@ -299,9 +298,9 @@ static int sh_dmae_alloc_chan_resources(struct dma_chan *chan)
 	 * never runs concurrently with itself or free_chan_resources.
 	 */
 	if (param) {
-		struct sh_dmae_slave_config *cfg;
+		const struct sh_dmae_slave_config *cfg;
 
-		cfg = sh_dmae_find_slave(sh_chan, param->slave_id);
+		cfg = sh_dmae_find_slave(sh_chan, param);
 		if (!cfg) {
 			ret = -EINVAL;
 			goto efindslave;
@@ -574,12 +573,14 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_slave_sg(
 {
 	struct sh_dmae_slave *param;
 	struct sh_dmae_chan *sh_chan;
+	dma_addr_t slave_addr;
 
 	if (!chan)
 		return NULL;
 
 	sh_chan = to_sh_chan(chan);
 	param = chan->private;
+	slave_addr = param->config->addr;
 
 	/* Someone calling slave DMA on a public channel? */
 	if (!param || !sg_len) {
@@ -592,16 +593,21 @@ static struct dma_async_tx_descriptor *sh_dmae_prep_slave_sg(
 	 * if (param != NULL), this is a successfully requested slave channel,
 	 * therefore param->config != NULL too.
 	 */
-	return sh_dmae_prep_sg(sh_chan, sgl, sg_len, &param->config->addr,
+	return sh_dmae_prep_sg(sh_chan, sgl, sg_len, &slave_addr,
 			       direction, flags);
 }
 
-static void sh_dmae_terminate_all(struct dma_chan *chan)
+static int sh_dmae_control(struct dma_chan *chan, enum dma_ctrl_cmd cmd,
+			   unsigned long arg)
 {
 	struct sh_dmae_chan *sh_chan = to_sh_chan(chan);
 
+	/* Only supports DMA_TERMINATE_ALL */
+	if (cmd != DMA_TERMINATE_ALL)
+		return -ENXIO;
+
 	if (!chan)
-		return;
+		return -EINVAL;
 
 	dmae_halt(sh_chan);
 
@@ -617,6 +623,8 @@ static void sh_dmae_terminate_all(struct dma_chan *chan)
 	spin_unlock_bh(&sh_chan->desc_lock);
 
 	sh_dmae_chan_ld_cleanup(sh_chan, true);
+
+	return 0;
 }
 
 static dma_async_tx_callback __ld_cleanup(struct sh_dmae_chan *sh_chan, bool all)
@@ -714,6 +722,10 @@ static void sh_dmae_chan_ld_cleanup(struct sh_dmae_chan *sh_chan, bool all)
 {
 	while (__ld_cleanup(sh_chan, all))
 		;
+
+	if (all)
+		/* Terminating - forgive uncompleted cookies */
+		sh_chan->completed_cookie = sh_chan->common.cookie;
 }
 
 static void sh_chan_xfer_ld_queue(struct sh_dmae_chan *sh_chan)
@@ -748,10 +760,9 @@ static void sh_dmae_memcpy_issue_pending(struct dma_chan *chan)
 	sh_chan_xfer_ld_queue(sh_chan);
 }
 
-static enum dma_status sh_dmae_is_complete(struct dma_chan *chan,
+static enum dma_status sh_dmae_tx_status(struct dma_chan *chan,
 					dma_cookie_t cookie,
-					dma_cookie_t *done,
-					dma_cookie_t *used)
+					struct dma_tx_state *txstate)
 {
 	struct sh_dmae_chan *sh_chan = to_sh_chan(chan);
 	dma_cookie_t last_used;
@@ -763,12 +774,7 @@ static enum dma_status sh_dmae_is_complete(struct dma_chan *chan,
 	last_used = chan->cookie;
 	last_complete = sh_chan->completed_cookie;
 	BUG_ON(last_complete < 0);
-
-	if (done)
-		*done = last_complete;
-
-	if (used)
-		*used = last_used;
+	dma_set_tx_state(txstate, last_complete, last_used, 0);
 
 	spin_lock_bh(&sh_chan->desc_lock);
 
@@ -873,7 +879,7 @@ static int __devinit sh_dmae_chan_probe(struct sh_dmae_device *shdev, int id,
 					int irq, unsigned long flags)
 {
 	int err;
-	struct sh_dmae_channel *chan_pdata = &shdev->pdata->channel[id];
+	const struct sh_dmae_channel *chan_pdata = &shdev->pdata->channel[id];
 	struct platform_device *pdev = to_platform_device(shdev->common.dev);
 	struct sh_dmae_chan *new_sh_chan;
 
@@ -1040,12 +1046,12 @@ static int __init sh_dmae_probe(struct platform_device *pdev)
 		= sh_dmae_alloc_chan_resources;
 	shdev->common.device_free_chan_resources = sh_dmae_free_chan_resources;
 	shdev->common.device_prep_dma_memcpy = sh_dmae_prep_memcpy;
-	shdev->common.device_is_tx_complete = sh_dmae_is_complete;
+	shdev->common.device_tx_status = sh_dmae_tx_status;
 	shdev->common.device_issue_pending = sh_dmae_memcpy_issue_pending;
 
 	/* Compulsory for DMA_SLAVE fields */
 	shdev->common.device_prep_slave_sg = sh_dmae_prep_slave_sg;
-	shdev->common.device_terminate_all = sh_dmae_terminate_all;
+	shdev->common.device_control = sh_dmae_control;
 
 	shdev->common.dev = &pdev->dev;
 	/* Default transfer size of 32 bytes requires 32-byte alignment */
@@ -1186,6 +1192,7 @@ static struct platform_driver sh_dmae_driver = {
 	.remove		= __exit_p(sh_dmae_remove),
 	.shutdown	= sh_dmae_shutdown,
 	.driver = {
+		.owner	= THIS_MODULE,
 		.name	= "sh-dma-engine",
 	},
 };

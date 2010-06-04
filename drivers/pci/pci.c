@@ -1193,7 +1193,7 @@ void pci_disable_enabled_device(struct pci_dev *dev)
  * anymore.  This only involves disabling PCI bus-mastering, if active.
  *
  * Note we don't actually disable the device until all callers of
- * pci_device_enable() have called pci_device_disable().
+ * pci_enable_device() have called pci_disable_device().
  */
 void
 pci_disable_device(struct pci_dev *dev)
@@ -1503,7 +1503,7 @@ int pci_prepare_to_sleep(struct pci_dev *dev)
  * pci_back_from_sleep - turn PCI device on during system-wide transition into working state
  * @dev: Device to handle.
  *
- * Disable device's sytem wake-up capability and put it into D0.
+ * Disable device's system wake-up capability and put it into D0.
  */
 int pci_back_from_sleep(struct pci_dev *dev)
 {
@@ -1631,7 +1631,6 @@ void pci_pm_init(struct pci_dev *dev)
 		 * let the user space enable it to wake up the system as needed.
 		 */
 		device_set_wakeup_capable(&dev->dev, true);
-		device_set_wakeup_enable(&dev->dev, false);
 		/* Disable the PME# generation functionality */
 		pci_pme_active(dev, false);
 	} else {
@@ -1655,7 +1654,6 @@ void platform_pci_wakeup_init(struct pci_dev *dev)
 		return;
 
 	device_set_wakeup_capable(&dev->dev, true);
-	device_set_wakeup_enable(&dev->dev, false);
 	platform_pci_sleep_wake(dev, false);
 }
 

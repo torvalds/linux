@@ -439,7 +439,7 @@ static int wm8978_enum_mclk(unsigned int f_out, unsigned int f_mclk,
  */
 static int wm8978_configure_pll(struct snd_soc_codec *codec)
 {
-	struct wm8978_priv *wm8978 = codec->private_data;
+	struct wm8978_priv *wm8978 = snd_soc_codec_get_drvdata(codec);
 	struct wm8978_pll_div pll_div;
 	unsigned int f_opclk = wm8978->f_opclk, f_mclk = wm8978->f_mclk,
 		f_256fs = wm8978->f_256fs;
@@ -535,7 +535,7 @@ static int wm8978_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 				 int div_id, int div)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8978_priv *wm8978 = codec->private_data;
+	struct wm8978_priv *wm8978 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
 	switch (div_id) {
@@ -580,7 +580,7 @@ static int wm8978_set_dai_sysclk(struct snd_soc_dai *codec_dai, int clk_id,
 				 unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct wm8978_priv *wm8978 = codec->private_data;
+	struct wm8978_priv *wm8978 = snd_soc_codec_get_drvdata(codec);
 	int ret = 0;
 
 	dev_dbg(codec->dev, "%s: ID %d, freq %u\n", __func__, clk_id, freq);
@@ -692,7 +692,7 @@ static int wm8978_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8978_priv *wm8978 = codec->private_data;
+	struct wm8978_priv *wm8978 = snd_soc_codec_get_drvdata(codec);
 	/* Word length mask = 0x60 */
 	u16 iface_ctl = snd_soc_read(codec, WM8978_AUDIO_INTERFACE) & ~0x60;
 	/* Sampling rate mask = 0xe (for filters) */
@@ -912,7 +912,7 @@ static int wm8978_resume(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec = socdev->card->codec;
-	struct wm8978_priv *wm8978 = codec->private_data;
+	struct wm8978_priv *wm8978 = snd_soc_codec_get_drvdata(codec);
 	int i;
 	u16 *cache = codec->reg_cache;
 
@@ -1020,7 +1020,7 @@ static __devinit int wm8978_register(struct wm8978_priv *wm8978)
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
-	codec->private_data = wm8978;
+	snd_soc_codec_set_drvdata(codec, wm8978);
 	codec->name = "WM8978";
 	codec->owner = THIS_MODULE;
 	codec->bias_level = SND_SOC_BIAS_OFF;

@@ -19,7 +19,6 @@ static irqreturn_t line_interrupt(int irq, void *data)
 {
 	struct chan *chan = data;
 	struct line *line = chan->line;
-	struct tty_struct *tty;
 
 	if (line)
 		chan_interrupt(&line->chan_list, &line->task, line->tty, irq);

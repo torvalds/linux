@@ -49,10 +49,8 @@ struct ceph_connection_operations {
 					int *skip);
 };
 
-extern const char *ceph_name_type_str(int t);
-
 /* use format string %s%d */
-#define ENTITY_NAME(n) ceph_name_type_str((n).type), le64_to_cpu((n).num)
+#define ENTITY_NAME(n) ceph_entity_type_name((n).type), le64_to_cpu((n).num)
 
 struct ceph_messenger {
 	struct ceph_entity_inst inst;    /* my name+address */
@@ -86,6 +84,7 @@ struct ceph_msg {
 	struct kref kref;
 	bool front_is_vmalloc;
 	bool more_to_follow;
+	bool needs_out_seq;
 	int front_max;
 
 	struct ceph_msgpool *pool;
@@ -143,6 +142,7 @@ struct ceph_connection {
 	struct ceph_entity_addr peer_addr; /* peer address */
 	struct ceph_entity_name peer_name; /* peer name */
 	struct ceph_entity_addr peer_addr_for_me;
+	unsigned peer_features;
 	u32 connect_seq;      /* identify the most recent connection
 				 attempt for this connection, client */
 	u32 peer_global_seq;  /* peer's global seq for this connection */
@@ -157,7 +157,6 @@ struct ceph_connection {
 	struct list_head out_queue;
 	struct list_head out_sent;   /* sending or sent but unacked */
 	u64 out_seq;		     /* last message queued for send */
-	u64 out_seq_sent;            /* last message sent */
 	bool out_keepalive_pending;
 
 	u64 in_seq, in_seq_acked;  /* last message received, acked */
@@ -214,6 +213,7 @@ extern int ceph_parse_ips(const char *c, const char *end,
 
 extern int ceph_msgr_init(void);
 extern void ceph_msgr_exit(void);
+extern void ceph_msgr_flush(void);
 
 extern struct ceph_messenger *ceph_messenger_create(
 	struct ceph_entity_addr *myaddr);
@@ -233,9 +233,7 @@ extern void ceph_con_keepalive(struct ceph_connection *con);
 extern struct ceph_connection *ceph_con_get(struct ceph_connection *con);
 extern void ceph_con_put(struct ceph_connection *con);
 
-extern struct ceph_msg *ceph_msg_new(int type, int front_len,
-				     int page_len, int page_off,
-				     struct page **pages);
+extern struct ceph_msg *ceph_msg_new(int type, int front_len, gfp_t flags);
 extern void ceph_msg_kfree(struct ceph_msg *m);
 
 

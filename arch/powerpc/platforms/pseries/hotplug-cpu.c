@@ -154,30 +154,6 @@ static void pseries_mach_cpu_die(void)
 	for(;;);
 }
 
-static int qcss_tok;	/* query-cpu-stopped-state token */
-
-/* Get state of physical CPU.
- * Return codes:
- *	0	- The processor is in the RTAS stopped state
- *	1	- stop-self is in progress
- *	2	- The processor is not in the RTAS stopped state
- *	-1	- Hardware Error
- *	-2	- Hardware Busy, Try again later.
- */
-static int query_cpu_stopped(unsigned int pcpu)
-{
-	int cpu_status, status;
-
-	status = rtas_call(qcss_tok, 1, 2, &cpu_status, pcpu);
-	if (status != 0) {
-		printk(KERN_ERR
-		       "RTAS query-cpu-stopped-state failed: %i\n", status);
-		return status;
-	}
-
-	return cpu_status;
-}
-
 static int pseries_cpu_disable(void)
 {
 	int cpu = smp_processor_id();
@@ -187,7 +163,7 @@ static int pseries_cpu_disable(void)
 
 	/*fix boot_cpuid here*/
 	if (cpu == boot_cpuid)
-		boot_cpuid = any_online_cpu(cpu_online_map);
+		boot_cpuid = cpumask_any(cpu_online_mask);
 
 	/* FIXME: abstract this to not be platform specific later on */
 	xics_migrate_irqs_away();
@@ -224,8 +200,9 @@ static void pseries_cpu_die(unsigned int cpu)
 	} else if (get_preferred_offline_state(cpu) == CPU_STATE_OFFLINE) {
 
 		for (tries = 0; tries < 25; tries++) {
-			cpu_status = query_cpu_stopped(pcpu);
-			if (cpu_status == 0 || cpu_status == -1)
+			cpu_status = smp_query_cpu_stopped(pcpu);
+			if (cpu_status == QCSS_STOPPED ||
+			    cpu_status == QCSS_HARDWARE_ERROR)
 				break;
 			cpu_relax();
 		}
@@ -245,7 +222,7 @@ static void pseries_cpu_die(unsigned int cpu)
 }
 
 /*
- * Update cpu_present_map and paca(s) for a new cpu node.  The wrinkle
+ * Update cpu_present_mask and paca(s) for a new cpu node.  The wrinkle
  * here is that a cpu device node may represent up to two logical cpus
  * in the SMT case.  We must honor the assumption in other code that
  * the logical ids for sibling SMT threads x and y are adjacent, such
@@ -254,7 +231,7 @@ static void pseries_cpu_die(unsigned int cpu)
 static int pseries_add_processor(struct device_node *np)
 {
 	unsigned int cpu;
-	cpumask_t candidate_map, tmp = CPU_MASK_NONE;
+	cpumask_var_t candidate_mask, tmp;
 	int err = -ENOSPC, len, nthreads, i;
 	const u32 *intserv;
 
@@ -262,48 +239,53 @@ static int pseries_add_processor(struct device_node *np)
 	if (!intserv)
 		return 0;
 
+	zalloc_cpumask_var(&candidate_mask, GFP_KERNEL);
+	zalloc_cpumask_var(&tmp, GFP_KERNEL);
+
 	nthreads = len / sizeof(u32);
 	for (i = 0; i < nthreads; i++)
-		cpu_set(i, tmp);
+		cpumask_set_cpu(i, tmp);
 
 	cpu_maps_update_begin();
 
-	BUG_ON(!cpus_subset(cpu_present_map, cpu_possible_map));
+	BUG_ON(!cpumask_subset(cpu_present_mask, cpu_possible_mask));
 
 	/* Get a bitmap of unoccupied slots. */
-	cpus_xor(candidate_map, cpu_possible_map, cpu_present_map);
-	if (cpus_empty(candidate_map)) {
+	cpumask_xor(candidate_mask, cpu_possible_mask, cpu_present_mask);
+	if (cpumask_empty(candidate_mask)) {
 		/* If we get here, it most likely means that NR_CPUS is
 		 * less than the partition's max processors setting.
 		 */
 		printk(KERN_ERR "Cannot add cpu %s; this system configuration"
 		       " supports %d logical cpus.\n", np->full_name,
-		       cpus_weight(cpu_possible_map));
+		       cpumask_weight(cpu_possible_mask));
 		goto out_unlock;
 	}
 
-	while (!cpus_empty(tmp))
-		if (cpus_subset(tmp, candidate_map))
+	while (!cpumask_empty(tmp))
+		if (cpumask_subset(tmp, candidate_mask))
 			/* Found a range where we can insert the new cpu(s) */
 			break;
 		else
-			cpus_shift_left(tmp, tmp, nthreads);
+			cpumask_shift_left(tmp, tmp, nthreads);
 
-	if (cpus_empty(tmp)) {
-		printk(KERN_ERR "Unable to find space in cpu_present_map for"
+	if (cpumask_empty(tmp)) {
+		printk(KERN_ERR "Unable to find space in cpu_present_mask for"
 		       " processor %s with %d thread(s)\n", np->name,
 		       nthreads);
 		goto out_unlock;
 	}
 
-	for_each_cpu_mask(cpu, tmp) {
-		BUG_ON(cpu_isset(cpu, cpu_present_map));
+	for_each_cpu(cpu, tmp) {
+		BUG_ON(cpumask_test_cpu(cpu, cpu_present_mask));
 		set_cpu_present(cpu, true);
 		set_hard_smp_processor_id(cpu, *intserv++);
 	}
 	err = 0;
 out_unlock:
 	cpu_maps_update_done();
+	free_cpumask_var(candidate_mask);
+	free_cpumask_var(tmp);
 	return err;
 }
 
@@ -334,7 +316,7 @@ static void pseries_remove_processor(struct device_node *np)
 			set_hard_smp_processor_id(cpu, -1);
 			break;
 		}
-		if (cpu == NR_CPUS)
+		if (cpu >= nr_cpu_ids)
 			printk(KERN_WARNING "Could not find cpu to remove "
 			       "with physical id 0x%x\n", intserv[i]);
 	}
@@ -388,6 +370,7 @@ static int __init pseries_cpu_hotplug_init(void)
 	struct device_node *np;
 	const char *typep;
 	int cpu;
+	int qcss_tok;
 
 	for_each_node_by_name(np, "interrupt-controller") {
 		typep = of_get_property(np, "compatible", NULL);

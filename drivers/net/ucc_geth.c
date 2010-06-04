@@ -1999,7 +1999,7 @@ static void ucc_geth_memclean(struct ucc_geth_private *ugeth)
 static void ucc_geth_set_multi(struct net_device *dev)
 {
 	struct ucc_geth_private *ugeth;
-	struct dev_mc_list *dmi;
+	struct netdev_hw_addr *ha;
 	struct ucc_fast __iomem *uf_regs;
 	struct ucc_geth_82xx_address_filtering_pram __iomem *p_82xx_addr_filt;
 
@@ -2028,16 +2028,16 @@ static void ucc_geth_set_multi(struct net_device *dev)
 			out_be32(&p_82xx_addr_filt->gaddr_h, 0x0);
 			out_be32(&p_82xx_addr_filt->gaddr_l, 0x0);
 
-			netdev_for_each_mc_addr(dmi, dev) {
+			netdev_for_each_mc_addr(ha, dev) {
 				/* Only support group multicast for now.
 				 */
-				if (!(dmi->dmi_addr[0] & 1))
+				if (!(ha->addr[0] & 1))
 					continue;
 
 				/* Ask CPM to run CRC and set bit in
 				 * filter mask.
 				 */
-				hw_add_addr_in_hash(ugeth, dmi->dmi_addr);
+				hw_add_addr_in_hash(ugeth, ha->addr);
 			}
 		}
 	}
@@ -3148,8 +3148,6 @@ static int ucc_geth_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	/* set bd status and length */
 	out_be32((u32 __iomem *)bd, bd_status);
 
-	dev->trans_start = jiffies;
-
 	/* Move to next BD in the ring */
 	if (!(bd_status & T_W))
 		bd += sizeof(struct qe_bd);
@@ -3721,7 +3719,7 @@ static const struct net_device_ops ucc_geth_netdev_ops = {
 static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *match)
 {
 	struct device *device = &ofdev->dev;
-	struct device_node *np = ofdev->node;
+	struct device_node *np = ofdev->dev.of_node;
 	struct net_device *dev = NULL;
 	struct ucc_geth_private *ugeth = NULL;
 	struct ucc_geth_info *ug_info;
@@ -3883,7 +3881,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	}
 
 	if (netif_msg_probe(&debug))
-		printk(KERN_INFO "ucc_geth: UCC%1d at 0x%8x (irq = %d) \n",
+		printk(KERN_INFO "ucc_geth: UCC%1d at 0x%8x (irq = %d)\n",
 			ug_info->uf_info.ucc_num + 1, ug_info->uf_info.regs,
 			ug_info->uf_info.irq);
 
@@ -3965,8 +3963,11 @@ static struct of_device_id ucc_geth_match[] = {
 MODULE_DEVICE_TABLE(of, ucc_geth_match);
 
 static struct of_platform_driver ucc_geth_driver = {
-	.name		= DRV_NAME,
-	.match_table	= ucc_geth_match,
+	.driver = {
+		.name = DRV_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = ucc_geth_match,
+	},
 	.probe		= ucc_geth_probe,
 	.remove		= ucc_geth_remove,
 	.suspend	= ucc_geth_suspend,

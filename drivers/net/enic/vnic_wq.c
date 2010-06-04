@@ -161,10 +161,10 @@ int vnic_wq_disable(struct vnic_wq *wq)
 	iowrite32(0, &wq->ctrl->enable);
 
 	/* Wait for HW to ACK disable request */
-	for (wait = 0; wait < 100; wait++) {
+	for (wait = 0; wait < 1000; wait++) {
 		if (!(ioread32(&wq->ctrl->running)))
 			return 0;
-		udelay(1);
+		udelay(10);
 	}
 
 	printk(KERN_ERR "Failed to disable WQ[%d]\n", wq->index);

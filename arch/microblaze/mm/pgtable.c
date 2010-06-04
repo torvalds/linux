@@ -42,6 +42,7 @@
 
 unsigned long ioremap_base;
 unsigned long ioremap_bot;
+EXPORT_SYMBOL(ioremap_bot);
 
 /* The maximum lowmem defaults to 768Mb, but this can be configured to
  * another value.

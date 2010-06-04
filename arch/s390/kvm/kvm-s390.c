@@ -341,11 +341,13 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm,
 
 	rc = kvm_vcpu_init(vcpu, kvm, id);
 	if (rc)
-		goto out_free_cpu;
+		goto out_free_sie_block;
 	VM_EVENT(kvm, 3, "create cpu %d at %p, sie block at %p", id, vcpu,
 		 vcpu->arch.sie_block);
 
 	return vcpu;
+out_free_sie_block:
+	free_page((unsigned long)(vcpu->arch.sie_block));
 out_free_cpu:
 	kfree(vcpu);
 out_nomem:
@@ -750,7 +752,7 @@ gfn_t unalias_gfn(struct kvm *kvm, gfn_t gfn)
 static int __init kvm_s390_init(void)
 {
 	int ret;
-	ret = kvm_init(NULL, sizeof(struct kvm_vcpu), THIS_MODULE);
+	ret = kvm_init(NULL, sizeof(struct kvm_vcpu), 0, THIS_MODULE);
 	if (ret)
 		return ret;
 

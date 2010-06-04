@@ -2,7 +2,7 @@
 
 static DEFINE_RAW_SPINLOCK(amd_nb_lock);
 
-static __initconst u64 amd_hw_cache_event_ids
+static __initconst const u64 amd_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
 				[PERF_COUNT_HW_CACHE_OP_MAX]
 				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
@@ -111,22 +111,19 @@ static u64 amd_pmu_event_map(int hw_event)
 	return amd_perfmon_event_map[hw_event];
 }
 
-static u64 amd_pmu_raw_event(u64 hw_event)
+static int amd_pmu_hw_config(struct perf_event *event)
 {
-#define K7_EVNTSEL_EVENT_MASK	0xF000000FFULL
-#define K7_EVNTSEL_UNIT_MASK	0x00000FF00ULL
-#define K7_EVNTSEL_EDGE_MASK	0x000040000ULL
-#define K7_EVNTSEL_INV_MASK	0x000800000ULL
-#define K7_EVNTSEL_REG_MASK	0x0FF000000ULL
+	int ret = x86_pmu_hw_config(event);
 
-#define K7_EVNTSEL_MASK			\
-	(K7_EVNTSEL_EVENT_MASK |	\
-	 K7_EVNTSEL_UNIT_MASK  |	\
-	 K7_EVNTSEL_EDGE_MASK  |	\
-	 K7_EVNTSEL_INV_MASK   |	\
-	 K7_EVNTSEL_REG_MASK)
+	if (ret)
+		return ret;
 
-	return hw_event & K7_EVNTSEL_MASK;
+	if (event->attr.type != PERF_TYPE_RAW)
+		return 0;
+
+	event->hw.config |= event->attr.config & AMD64_RAW_EVENT_MASK;
+
+	return 0;
 }
 
 /*
@@ -165,7 +162,7 @@ static void amd_put_event_constraints(struct cpu_hw_events *cpuc,
 	 * be removed on one CPU at a time AND PMU is disabled
 	 * when we come here
 	 */
-	for (i = 0; i < x86_pmu.num_events; i++) {
+	for (i = 0; i < x86_pmu.num_counters; i++) {
 		if (nb->owners[i] == event) {
 			cmpxchg(nb->owners+i, event, NULL);
 			break;
@@ -215,7 +212,7 @@ amd_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	struct amd_nb *nb = cpuc->amd_nb;
 	struct perf_event *old = NULL;
-	int max = x86_pmu.num_events;
+	int max = x86_pmu.num_counters;
 	int i, j, k = -1;
 
 	/*
@@ -293,7 +290,7 @@ static struct amd_nb *amd_alloc_nb(int cpu, int nb_id)
 	/*
 	 * initialize all possible NB constraints
 	 */
-	for (i = 0; i < x86_pmu.num_events; i++) {
+	for (i = 0; i < x86_pmu.num_counters; i++) {
 		__set_bit(i, nb->event_constraints[i].idxmsk);
 		nb->event_constraints[i].weight = 1;
 	}
@@ -371,21 +368,22 @@ static void amd_pmu_cpu_dead(int cpu)
 	raw_spin_unlock(&amd_nb_lock);
 }
 
-static __initconst struct x86_pmu amd_pmu = {
+static __initconst const struct x86_pmu amd_pmu = {
 	.name			= "AMD",
 	.handle_irq		= x86_pmu_handle_irq,
 	.disable_all		= x86_pmu_disable_all,
 	.enable_all		= x86_pmu_enable_all,
 	.enable			= x86_pmu_enable_event,
 	.disable		= x86_pmu_disable_event,
+	.hw_config		= amd_pmu_hw_config,
+	.schedule_events	= x86_schedule_events,
 	.eventsel		= MSR_K7_EVNTSEL0,
 	.perfctr		= MSR_K7_PERFCTR0,
 	.event_map		= amd_pmu_event_map,
-	.raw_event		= amd_pmu_raw_event,
 	.max_events		= ARRAY_SIZE(amd_perfmon_event_map),
-	.num_events		= 4,
-	.event_bits		= 48,
-	.event_mask		= (1ULL << 48) - 1,
+	.num_counters		= 4,
+	.cntval_bits		= 48,
+	.cntval_mask		= (1ULL << 48) - 1,
 	.apic			= 1,
 	/* use highest bit to detect overflow */
 	.max_period		= (1ULL << 47) - 1,

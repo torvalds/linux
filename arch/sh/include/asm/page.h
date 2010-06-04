@@ -49,7 +49,7 @@
 
 extern unsigned long shm_align_mask;
 extern unsigned long max_low_pfn, min_low_pfn;
-extern unsigned long memory_start, memory_end;
+extern unsigned long memory_start, memory_end, memory_limit;
 
 static inline unsigned long
 pages_do_alias(unsigned long addr1, unsigned long addr2)
@@ -128,12 +128,17 @@ typedef struct page *pgtable_t;
  * added or subtracted as required.
  */
 #ifdef CONFIG_PMB
-#define __pa(x)	((unsigned long)(x)-PAGE_OFFSET+__MEMORY_START)
-#define __va(x)	((void *)((unsigned long)(x)+PAGE_OFFSET-__MEMORY_START))
+#define ___pa(x)	((x)-PAGE_OFFSET+__MEMORY_START)
+#define ___va(x)	((x)+PAGE_OFFSET-__MEMORY_START)
 #else
-#define __pa(x)	((unsigned long)(x)-PAGE_OFFSET)
-#define __va(x)	((void *)((unsigned long)(x)+PAGE_OFFSET))
+#define ___pa(x)	((x)-PAGE_OFFSET)
+#define ___va(x)	((x)+PAGE_OFFSET)
 #endif
+
+#ifndef __ASSEMBLY__
+#define __pa(x)		___pa((unsigned long)x)
+#define __va(x)		(void *)___va((unsigned long)x)
+#endif /* !__ASSEMBLY__ */
 
 #ifdef CONFIG_UNCACHED_MAPPING
 #define UNCAC_ADDR(addr)	((addr) - PAGE_OFFSET + uncached_start)

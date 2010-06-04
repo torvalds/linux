@@ -59,6 +59,13 @@ static int be_mcc_compl_process(struct be_adapter *adapter,
 
 	compl_status = (compl->status >> CQE_STATUS_COMPL_SHIFT) &
 				CQE_STATUS_COMPL_MASK;
+
+	if ((compl->tag0 == OPCODE_COMMON_WRITE_FLASHROM) &&
+		(compl->tag1 == CMD_SUBSYSTEM_COMMON)) {
+		adapter->flash_status = compl_status;
+		complete(&adapter->flash_compl);
+	}
+
 	if (compl_status == MCC_STATUS_SUCCESS) {
 		if (compl->tag0 == OPCODE_ETH_GET_STATISTICS) {
 			struct be_cmd_resp_get_stats *resp =
@@ -287,7 +294,7 @@ int be_cmd_POST(struct be_adapter *adapter)
 		} else {
 			return 0;
 		}
-	} while (timeout < 20);
+	} while (timeout < 40);
 
 	dev_err(&adapter->pdev->dev, "POST timeout; stage=0x%x\n", stage);
 	return -1;
@@ -843,7 +850,8 @@ int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
  * Uses mbox
  */
 int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
-		u8 *mac, bool pmac_invalid, u32 *if_handle, u32 *pmac_id)
+		u8 *mac, bool pmac_invalid, u32 *if_handle, u32 *pmac_id,
+		u32 domain)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_if_create *req;
@@ -860,6 +868,7 @@ int be_cmd_if_create(struct be_adapter *adapter, u32 cap_flags, u32 en_flags,
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_NTWK_INTERFACE_CREATE, sizeof(*req));
 
+	req->hdr.domain = domain;
 	req->capability_flags = cpu_to_le32(cap_flags);
 	req->enable_flags = cpu_to_le32(en_flags);
 	req->pmac_invalid = pmac_invalid;
@@ -1111,6 +1120,10 @@ int be_cmd_promiscuous_config(struct be_adapter *adapter, u8 port_num, bool en)
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ETH,
 		OPCODE_ETH_PROMISCUOUS, sizeof(*req));
 
+	/* In FW versions X.102.149/X.101.487 and later,
+	 * the port setting associated only with the
+	 * issuing pci function will take effect
+	 */
 	if (port_num)
 		req->port1_promiscuous = en;
 	else
@@ -1157,13 +1170,13 @@ int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
 	req->interface_id = if_id;
 	if (netdev) {
 		int i;
-		struct dev_mc_list *mc;
+		struct netdev_hw_addr *ha;
 
 		req->num_mac = cpu_to_le16(netdev_mc_count(netdev));
 
 		i = 0;
-		netdev_for_each_mc_addr(mc, netdev)
-			memcpy(req->mac[i].byte, mc->dmi_addr, ETH_ALEN);
+		netdev_for_each_mc_addr(ha, netdev)
+			memcpy(req->mac[i].byte, ha->addr, ETH_ALEN);
 	} else {
 		req->promiscuous = 1;
 	}
@@ -1411,6 +1424,7 @@ int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 	int status;
 
 	spin_lock_bh(&adapter->mcc_lock);
+	adapter->flash_status = 0;
 
 	wrb = wrb_from_mccq(adapter);
 	if (!wrb) {
@@ -1422,6 +1436,7 @@ int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 
 	be_wrb_hdr_prepare(wrb, cmd->size, false, 1,
 			OPCODE_COMMON_WRITE_FLASHROM);
+	wrb->tag1 = CMD_SUBSYSTEM_COMMON;
 
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_WRITE_FLASHROM, cmd->size);
@@ -1433,10 +1448,16 @@ int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 	req->params.op_code = cpu_to_le32(flash_opcode);
 	req->params.data_buf_size = cpu_to_le32(buf_size);
 
-	status = be_mcc_notify_wait(adapter);
+	be_mcc_notify(adapter);
+	spin_unlock_bh(&adapter->mcc_lock);
+
+	if (!wait_for_completion_timeout(&adapter->flash_compl,
+			msecs_to_jiffies(12000)))
+		status = -1;
+	else
+		status = adapter->flash_status;
 
 err:
-	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }
 

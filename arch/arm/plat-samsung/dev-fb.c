@@ -19,7 +19,6 @@
 
 #include <mach/irqs.h>
 #include <mach/map.h>
-#include <mach/regs-fb.h>
 
 #include <plat/fb.h>
 #include <plat/devs.h>

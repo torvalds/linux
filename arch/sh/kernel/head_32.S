@@ -131,6 +131,7 @@ ENTRY(_stext)
  *	r8 = scratch register
  *	r9 = scratch register
  *	r10 = number of PMB entries we've setup
+ *	r11 = scratch register
  */
 
 	mov.l	.LMMUCR, r1	/* Flush the TLB */
@@ -167,8 +168,9 @@ ENTRY(_stext)
 
 .Lvalidate_existing_mappings:
 
+	mov.l	.LPMB_DATA_MASK, r11
 	mov.l	@r7, r8
-	and	r0, r8
+	and	r11, r8
 	cmp/eq	r0, r8		/* Check for valid __MEMORY_START mappings */
 	bt	.Lpmb_done
 
@@ -335,12 +337,13 @@ ENTRY(stack_start)
 3:	.long	__bss_start
 4:	.long	_end
 5:	.long	start_kernel
-6:	.long	sh_cpu_init
+6:	.long	cpu_init
 7:	.long	init_thread_union
 
 #ifdef CONFIG_PMB
 .LPMB_ADDR:		.long	PMB_ADDR
 .LPMB_DATA:		.long	PMB_DATA
+.LPMB_DATA_MASK:	.long	PMB_PFN_MASK | PMB_V
 .LFIRST_ADDR_ENTRY:	.long	PAGE_OFFSET | PMB_V
 .LFIRST_DATA_ENTRY:	.long	__MEMORY_START | PMB_V
 .LMMUCR:		.long	MMUCR

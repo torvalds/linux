@@ -253,8 +253,8 @@ static int pxa_videobuf_setup(struct videobuf_queue *vq, unsigned int *count,
 
 	if (0 == *count)
 		*count = 32;
-	while (*size * *count > vid_limit * 1024 * 1024)
-		(*count)--;
+	if (*size * *count > vid_limit * 1024 * 1024)
+		*count = (vid_limit * 1024 * 1024) / *size;
 
 	return 0;
 }

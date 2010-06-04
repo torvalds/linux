@@ -34,6 +34,7 @@
 #include "drm.h"
 #include "drmP.h"
 #include "drm_crtc.h"
+#include "drm_edid.h"
 
 struct drm_prop_enum_list {
 	int type;
@@ -494,7 +495,6 @@ void drm_connector_cleanup(struct drm_connector *connector)
 	list_for_each_entry_safe(mode, t, &connector->user_modes, head)
 		drm_mode_remove(connector, mode);
 
-	kfree(connector->fb_helper_private);
 	mutex_lock(&dev->mode_config.mutex);
 	drm_mode_object_put(dev, &connector->base);
 	list_del(&connector->head);
@@ -858,7 +858,6 @@ void drm_mode_config_init(struct drm_device *dev)
 	mutex_init(&dev->mode_config.mutex);
 	mutex_init(&dev->mode_config.idr_mutex);
 	INIT_LIST_HEAD(&dev->mode_config.fb_list);
-	INIT_LIST_HEAD(&dev->mode_config.fb_kernel_list);
 	INIT_LIST_HEAD(&dev->mode_config.crtc_list);
 	INIT_LIST_HEAD(&dev->mode_config.connector_list);
 	INIT_LIST_HEAD(&dev->mode_config.encoder_list);
@@ -2350,7 +2349,7 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 					    struct edid *edid)
 {
 	struct drm_device *dev = connector->dev;
-	int ret = 0;
+	int ret = 0, size;
 
 	if (connector->edid_blob_ptr)
 		drm_property_destroy_blob(dev, connector->edid_blob_ptr);
@@ -2362,7 +2361,9 @@ int drm_mode_connector_update_edid_property(struct drm_connector *connector,
 		return ret;
 	}
 
-	connector->edid_blob_ptr = drm_property_create_blob(connector->dev, 128, edid);
+	size = EDID_LENGTH * (1 + edid->extensions);
+	connector->edid_blob_ptr = drm_property_create_blob(connector->dev,
+							    size, edid);
 
 	ret = drm_connector_property_set_value(connector,
 					       dev->mode_config.edid_property,

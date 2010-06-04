@@ -356,6 +356,20 @@ extern struct nfs_open_context *nfs_find_open_context(struct inode *inode, struc
 extern u64 nfs_compat_user_ino64(u64 fileid);
 extern void nfs_fattr_init(struct nfs_fattr *fattr);
 
+extern struct nfs_fattr *nfs_alloc_fattr(void);
+
+static inline void nfs_free_fattr(const struct nfs_fattr *fattr)
+{
+	kfree(fattr);
+}
+
+extern struct nfs_fh *nfs_alloc_fhandle(void);
+
+static inline void nfs_free_fhandle(const struct nfs_fh *fh)
+{
+	kfree(fh);
+}
+
 /* linux/net/ipv4/ipconfig.c: trims ip addr off front of name, too. */
 extern __be32 root_nfs_parse_addr(char *name); /*__init*/
 extern unsigned long nfs_inc_attr_generation_counter(void);

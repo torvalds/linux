@@ -710,6 +710,43 @@ config USB_GADGETFS
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "gadgetfs".
 
+config USB_FUNCTIONFS
+	tristate "Function Filesystem (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	help
+	  The Function Filesystem (FunctioFS) lets one create USB
+	  composite functions in user space in the same way as GadgetFS
+	  lets one create USB gadgets in user space.  This allows creation
+	  of composite gadgets such that some of the functions are
+	  implemented in kernel space (for instance Ethernet, serial or
+	  mass storage) and other are implemented in user space.
+
+	  Say "y" to link the driver statically, or "m" to build
+	  a dynamically linked module called "g_ffs".
+
+config USB_FUNCTIONFS_ETH
+	bool "Include CDC ECM (Ethernet) function"
+	depends on USB_FUNCTIONFS && NET
+	help
+	  Include an CDC ECM (Ethernet) funcion in the CDC ECM (Funcion)
+	  Filesystem.  If you also say "y" to the RNDIS query below the
+	  gadget will have two configurations.
+
+config USB_FUNCTIONFS_RNDIS
+	bool "Include RNDIS (Ethernet) function"
+	depends on USB_FUNCTIONFS && NET
+	help
+	  Include an RNDIS (Ethernet) funcion in the Funcion Filesystem.
+	  If you also say "y" to the CDC ECM query above the gadget will
+	  have two configurations.
+
+config USB_FUNCTIONFS_GENERIC
+	bool "Include 'pure' configuration"
+	depends on USB_FUNCTIONFS && (USB_FUNCTIONFS_ETH || USB_FUNCTIONFS_RNDIS)
+	help
+	  Include a configuration with FunctionFS and no Ethernet
+	  configuration.
+
 config USB_FILE_STORAGE
 	tristate "File-backed Storage Gadget"
 	depends on BLOCK
@@ -863,11 +900,30 @@ config USB_G_MULTI_CDC
 
 	  If unsure, say "y".
 
+config USB_G_HID
+	tristate "HID Gadget"
+	help
+	  The HID gadget driver provides generic emulation of USB
+	  Human Interface Devices (HID).
+
+	  For more information, see Documentation/usb/gadget_hid.txt which
+	  includes sample code for accessing the device files.
+
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "g_hid".
 
 # put drivers that need isochronous transfer support (for audio
 # or video class gadget drivers), or specific hardware, here.
+config USB_G_WEBCAM
+	tristate "USB Webcam Gadget"
+	depends on VIDEO_DEV
+	help
+	  The Webcam Gadget acts as a composite USB Audio and Video Class
+	  device. It provides a userspace API to process UVC control requests
+	  and stream video data to the host.
 
-# - none yet
+	  Say "y" to link the driver statically, or "m" to build a
+	  dynamically linked module called "g_webcam".
 
 endchoice
 

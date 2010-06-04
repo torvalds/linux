@@ -486,7 +486,8 @@ int variax_init(struct usb_interface *interface,
 		return err;
 	}
 
-	variax->buffer_activate = kmalloc(sizeof(variax_activate), GFP_KERNEL);
+	variax->buffer_activate = kmemdup(variax_activate,
+					  sizeof(variax_activate), GFP_KERNEL);
 
 	if (variax->buffer_activate == NULL) {
 		dev_err(&interface->dev, "Out of memory\n");
@@ -494,8 +495,6 @@ int variax_init(struct usb_interface *interface,
 		return -ENOMEM;
 	}
 
-	memcpy(variax->buffer_activate, variax_activate,
-	       sizeof(variax_activate));
 	init_timer(&variax->activate_timer);
 
 	/* create sysfs entries: */

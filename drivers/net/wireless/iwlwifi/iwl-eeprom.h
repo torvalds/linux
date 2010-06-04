@@ -172,35 +172,35 @@ struct iwl_eeprom_enhanced_txpwr {
 #define EEPROM_5000_TX_POWER_VERSION    (4)
 #define EEPROM_5000_EEPROM_VERSION	(0x11A)
 
-/*5000 calibrations */
-#define EEPROM_5000_CALIB_ALL	(INDIRECT_ADDRESS | INDIRECT_CALIBRATION)
-#define EEPROM_5000_XTAL	((2*0x128) | EEPROM_5000_CALIB_ALL)
-#define EEPROM_5000_TEMPERATURE ((2*0x12A) | EEPROM_5000_CALIB_ALL)
+/* 5000 and up calibration */
+#define EEPROM_CALIB_ALL	(INDIRECT_ADDRESS | INDIRECT_CALIBRATION)
+#define EEPROM_XTAL		((2*0x128) | EEPROM_CALIB_ALL)
 
-/* 5000 links */
-#define EEPROM_5000_LINK_HOST             (2*0x64)
-#define EEPROM_5000_LINK_GENERAL          (2*0x65)
-#define EEPROM_5000_LINK_REGULATORY       (2*0x66)
-#define EEPROM_5000_LINK_CALIBRATION      (2*0x67)
-#define EEPROM_5000_LINK_PROCESS_ADJST    (2*0x68)
-#define EEPROM_5000_LINK_OTHERS           (2*0x69)
+/* 5000 temperature */
+#define EEPROM_5000_TEMPERATURE ((2*0x12A) | EEPROM_CALIB_ALL)
 
-/* 5000 regulatory - indirect access */
-#define EEPROM_5000_REG_SKU_ID ((0x02)\
-		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 4  bytes */
-#define EEPROM_5000_REG_BAND_1_CHANNELS       ((0x08)\
+/* agn links */
+#define EEPROM_LINK_HOST             (2*0x64)
+#define EEPROM_LINK_GENERAL          (2*0x65)
+#define EEPROM_LINK_REGULATORY       (2*0x66)
+#define EEPROM_LINK_CALIBRATION      (2*0x67)
+#define EEPROM_LINK_PROCESS_ADJST    (2*0x68)
+#define EEPROM_LINK_OTHERS           (2*0x69)
+
+/* agn regulatory - indirect access */
+#define EEPROM_REG_BAND_1_CHANNELS       ((0x08)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 28 bytes */
-#define EEPROM_5000_REG_BAND_2_CHANNELS       ((0x26)\
+#define EEPROM_REG_BAND_2_CHANNELS       ((0x26)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 26 bytes */
-#define EEPROM_5000_REG_BAND_3_CHANNELS       ((0x42)\
+#define EEPROM_REG_BAND_3_CHANNELS       ((0x42)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 24 bytes */
-#define EEPROM_5000_REG_BAND_4_CHANNELS       ((0x5C)\
+#define EEPROM_REG_BAND_4_CHANNELS       ((0x5C)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 22 bytes */
-#define EEPROM_5000_REG_BAND_5_CHANNELS       ((0x74)\
+#define EEPROM_REG_BAND_5_CHANNELS       ((0x74)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 12 bytes */
-#define EEPROM_5000_REG_BAND_24_HT40_CHANNELS  ((0x82)\
+#define EEPROM_REG_BAND_24_HT40_CHANNELS  ((0x82)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 14  bytes */
-#define EEPROM_5000_REG_BAND_52_HT40_CHANNELS  ((0x92)\
+#define EEPROM_REG_BAND_52_HT40_CHANNELS  ((0x92)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 22  bytes */
 
 /* 6000 regulatory - indirect access */
@@ -265,13 +265,20 @@ struct iwl_eeprom_enhanced_txpwr {
 #define EEPROM_5050_EEPROM_VERSION	(0x21E)
 
 /* 1000 Specific */
+#define EEPROM_1000_TX_POWER_VERSION    (4)
 #define EEPROM_1000_EEPROM_VERSION	(0x15C)
 
 /* 6x00 Specific */
+#define EEPROM_6000_TX_POWER_VERSION    (4)
 #define EEPROM_6000_EEPROM_VERSION	(0x434)
 
 /* 6x50 Specific */
+#define EEPROM_6050_TX_POWER_VERSION    (4)
 #define EEPROM_6050_EEPROM_VERSION	(0x532)
+
+/* 6x00g2 Specific */
+#define EEPROM_6000G2_TX_POWER_VERSION    (6)
+#define EEPROM_6000G2_EEPROM_VERSION	(0x709)
 
 /* OTP */
 /* lower blocks contain EEPROM image and calibration data */

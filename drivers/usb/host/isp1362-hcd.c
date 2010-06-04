@@ -77,6 +77,7 @@
 #include <linux/interrupt.h>
 #include <linux/usb.h>
 #include <linux/usb/isp1362.h>
+#include <linux/usb/hcd.h>
 #include <linux/platform_device.h>
 #include <linux/pm.h>
 #include <linux/io.h>
@@ -95,7 +96,6 @@ module_param(dbg_level, int, 0);
 #define	STUB_DEBUG_FILE
 #endif
 
-#include "../core/hcd.h"
 #include "../core/usb.h"
 #include "isp1362.h"
 
@@ -1265,7 +1265,7 @@ static int isp1362_urb_enqueue(struct usb_hcd *hcd,
 
 	/* don't submit to a dead or disabled port */
 	if (!((isp1362_hcd->rhport[0] | isp1362_hcd->rhport[1]) &
-	      (1 << USB_PORT_FEAT_ENABLE)) ||
+	      USB_PORT_STAT_ENABLE) ||
 	    !HC_IS_RUNNING(hcd->state)) {
 		kfree(ep);
 		retval = -ENODEV;
@@ -2217,7 +2217,7 @@ static void create_debug_file(struct isp1362_hcd *isp1362_hcd)
 static void remove_debug_file(struct isp1362_hcd *isp1362_hcd)
 {
 	if (isp1362_hcd->pde)
-		remove_proc_entry(proc_filename, 0);
+		remove_proc_entry(proc_filename, NULL);
 }
 
 #endif

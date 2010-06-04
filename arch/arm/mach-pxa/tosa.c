@@ -275,6 +275,7 @@ static void tosa_mci_exit(struct device *dev, void *data)
 }
 
 static struct pxamci_platform_data tosa_mci_platform_data = {
+	.detect_delay_ms	= 250,
 	.ocr_mask       	= MMC_VDD_32_33|MMC_VDD_33_34,
 	.init           	= tosa_mci_init,
 	.exit           	= tosa_mci_exit,
@@ -926,7 +927,6 @@ static void __init tosa_init(void)
 	dummy = gpiochip_reserve(TOSA_SCOOP_JC_GPIO_BASE, 12);
 	dummy = gpiochip_reserve(TOSA_TC6393XB_GPIO_BASE, 16);
 
-	tosa_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 	pxa_set_mci_info(&tosa_mci_platform_data);
 	pxa_set_udc_info(&udc_info);
 	pxa_set_ficp_info(&tosa_ficp_platform_data);

@@ -1830,8 +1830,6 @@ static void atl1_rx_checksum(struct atl1_adapter *adapter,
 		adapter->hw_csum_good++;
 		return;
 	}
-
-	return;
 }
 
 /*
@@ -2347,7 +2345,7 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 {
 	struct atl1_adapter *adapter = netdev_priv(netdev);
 	struct atl1_tpd_ring *tpd_ring = &adapter->tpd_ring;
-	int len = skb->len;
+	int len;
 	int tso;
 	int count = 1;
 	int ret_val;
@@ -2359,7 +2357,7 @@ static netdev_tx_t atl1_xmit_frame(struct sk_buff *skb,
 	unsigned int f;
 	unsigned int proto_hdr_len;
 
-	len -= skb->data_len;
+	len = skb_headlen(skb);
 
 	if (unlikely(skb->len <= 0)) {
 		dev_kfree_skb_any(skb);
@@ -3390,7 +3388,6 @@ static void atl1_get_wol(struct net_device *netdev,
 	wol->wolopts = 0;
 	if (adapter->wol & ATLX_WUFC_MAG)
 		wol->wolopts |= WAKE_MAGIC;
-	return;
 }
 
 static int atl1_set_wol(struct net_device *netdev,

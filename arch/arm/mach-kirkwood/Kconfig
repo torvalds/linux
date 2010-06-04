@@ -38,6 +38,12 @@ config MACH_ESATA_SHEEVAPLUG
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell eSATA SheevaPlug Reference Board.
 
+config MACH_GURUPLUG
+	bool "Marvell GuruPlug Reference Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell GuruPlug Reference Board.
+
 config MACH_TS219
 	bool "QNAP TS-110, TS-119, TS-210, TS-219 and TS-219P Turbo NAS"
 	help
@@ -80,6 +86,18 @@ config MACH_INETSPACE_V2
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  LaCie Internet Space v2 NAS.
+
+config MACH_NET2BIG_V2
+	bool "LaCie 2Big Network v2 NAS Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie 2Big Network v2 NAS.
+
+config MACH_NET5BIG_V2
+	bool "LaCie 5Big Network v2 NAS Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie 5Big Network v2 NAS.
 
 endmenu
 

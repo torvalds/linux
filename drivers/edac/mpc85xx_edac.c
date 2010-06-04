@@ -338,15 +338,13 @@ static struct of_device_id mpc85xx_pci_err_of_match[] = {
 };
 
 static struct of_platform_driver mpc85xx_pci_err_driver = {
-	.owner = THIS_MODULE,
-	.name = "mpc85xx_pci_err",
-	.match_table = mpc85xx_pci_err_of_match,
 	.probe = mpc85xx_pci_err_probe,
 	.remove = __devexit_p(mpc85xx_pci_err_remove),
 	.driver = {
-		   .name = "mpc85xx_pci_err",
-		   .owner = THIS_MODULE,
-		   },
+		.name = "mpc85xx_pci_err",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc85xx_pci_err_of_match,
+	},
 };
 
 #endif				/* CONFIG_PCI */
@@ -654,15 +652,13 @@ static struct of_device_id mpc85xx_l2_err_of_match[] = {
 };
 
 static struct of_platform_driver mpc85xx_l2_err_driver = {
-	.owner = THIS_MODULE,
-	.name = "mpc85xx_l2_err",
-	.match_table = mpc85xx_l2_err_of_match,
 	.probe = mpc85xx_l2_err_probe,
 	.remove = mpc85xx_l2_err_remove,
 	.driver = {
-		   .name = "mpc85xx_l2_err",
-		   .owner = THIS_MODULE,
-		   },
+		.name = "mpc85xx_l2_err",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc85xx_l2_err_of_match,
+	},
 };
 
 /**************************** MC Err device ***************************/
@@ -1131,15 +1127,13 @@ static struct of_device_id mpc85xx_mc_err_of_match[] = {
 };
 
 static struct of_platform_driver mpc85xx_mc_err_driver = {
-	.owner = THIS_MODULE,
-	.name = "mpc85xx_mc_err",
-	.match_table = mpc85xx_mc_err_of_match,
 	.probe = mpc85xx_mc_err_probe,
 	.remove = mpc85xx_mc_err_remove,
 	.driver = {
-		   .name = "mpc85xx_mc_err",
-		   .owner = THIS_MODULE,
-		   },
+		.name = "mpc85xx_mc_err",
+		.owner = THIS_MODULE,
+		.of_match_table = mpc85xx_mc_err_of_match,
+	},
 };
 
 #ifdef CONFIG_MPC85xx

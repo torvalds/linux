@@ -53,10 +53,14 @@ config X86
 	select HAVE_KERNEL_LZMA
 	select HAVE_KERNEL_LZO
 	select HAVE_HW_BREAKPOINT
+	select HAVE_MIXED_BREAKPOINTS_REGS
 	select PERF_EVENTS
 	select ANON_INODES
 	select HAVE_ARCH_KMEMCHECK
 	select HAVE_USER_RETURN_NOTIFIER
+
+config INSTRUCTION_DECODER
+	def_bool (KPROBES || PERF_EVENTS)
 
 config OUTPUT_FORMAT
 	string
@@ -104,6 +108,9 @@ config SBUS
 
 config NEED_DMA_MAP_STATE
        def_bool (X86_64 || DMAR || DMA_API_DEBUG)
+
+config NEED_SG_DMA_LENGTH
+	def_bool y
 
 config GENERIC_ISA_DMA
 	def_bool y
@@ -197,20 +204,17 @@ config HAVE_INTEL_TXT
 
 # Use the generic interrupt handling code in kernel/irq/:
 config GENERIC_HARDIRQS
-	bool
-	default y
+	def_bool y
 
 config GENERIC_HARDIRQS_NO__DO_IRQ
        def_bool y
 
 config GENERIC_IRQ_PROBE
-	bool
-	default y
+	def_bool y
 
 config GENERIC_PENDING_IRQ
-	bool
+	def_bool y
 	depends on GENERIC_HARDIRQS && SMP
-	default y
 
 config USE_GENERIC_SMP_HELPERS
 	def_bool y
@@ -225,18 +229,21 @@ config X86_64_SMP
 	depends on X86_64 && SMP
 
 config X86_HT
-	bool
+	def_bool y
 	depends on SMP
-	default y
 
 config X86_TRAMPOLINE
-	bool
+	def_bool y
 	depends on SMP || (64BIT && ACPI_SLEEP)
-	default y
 
 config X86_32_LAZY_GS
 	def_bool y
 	depends on X86_32 && !CC_STACKPROTECTOR
+
+config ARCH_HWEIGHT_CFLAGS
+	string
+	default "-fcall-saved-ecx -fcall-saved-edx" if X86_32
+	default "-fcall-saved-rdi -fcall-saved-rsi -fcall-saved-rdx -fcall-saved-rcx -fcall-saved-r8 -fcall-saved-r9 -fcall-saved-r10 -fcall-saved-r11" if X86_64
 
 config KTIME_SCALAR
 	def_bool X86_32
@@ -447,7 +454,7 @@ config X86_NUMAQ
 	  firmware with - send email to <Martin.Bligh@us.ibm.com>.
 
 config X86_SUPPORTS_MEMORY_FAILURE
-	bool
+	def_bool y
 	# MCE code calls memory_failure():
 	depends on X86_MCE
 	# On 32-bit this adds too big of NODES_SHIFT and we run out of page flags:
@@ -455,7 +462,6 @@ config X86_SUPPORTS_MEMORY_FAILURE
 	# On 32-bit SPARSEMEM adds too big of SECTIONS_WIDTH:
 	depends on X86_64 || !SPARSEMEM
 	select ARCH_SUPPORTS_MEMORY_FAILURE
-	default y
 
 config X86_VISWS
 	bool "SGI 320/540 (Visual Workstation)"
@@ -570,7 +576,6 @@ config PARAVIRT_SPINLOCKS
 
 config PARAVIRT_CLOCK
 	bool
-	default n
 
 endif
 
@@ -749,7 +754,6 @@ config MAXSMP
 	bool "Configure Maximum number of SMP Processors and NUMA Nodes"
 	depends on X86_64 && SMP && DEBUG_KERNEL && EXPERIMENTAL
 	select CPUMASK_OFFSTACK
-	default n
 	---help---
 	  Configure maximum number of CPUS and NUMA Nodes for this architecture.
 	  If unsure, say N.
@@ -829,7 +833,6 @@ config X86_VISWS_APIC
 
 config X86_REROUTE_FOR_BROKEN_BOOT_IRQS
 	bool "Reroute for broken boot IRQs"
-	default n
 	depends on X86_IO_APIC
 	---help---
 	  This option enables a workaround that fixes a source of
@@ -876,9 +879,8 @@ config X86_MCE_AMD
 	   the DRAM Error Threshold.
 
 config X86_ANCIENT_MCE
-	def_bool n
+	bool "Support for old Pentium 5 / WinChip machine checks"
 	depends on X86_32 && X86_MCE
-	prompt "Support for old Pentium 5 / WinChip machine checks"
 	---help---
 	  Include support for machine check handling on old Pentium 5 or WinChip
 	  systems. These typically need to be enabled explicitely on the command
@@ -886,8 +888,7 @@ config X86_ANCIENT_MCE
 
 config X86_MCE_THRESHOLD
 	depends on X86_MCE_AMD || X86_MCE_INTEL
-	bool
-	default y
+	def_bool y
 
 config X86_MCE_INJECT
 	depends on X86_MCE
@@ -1026,8 +1027,8 @@ config X86_CPUID
 
 choice
 	prompt "High Memory Support"
-	default HIGHMEM4G if !X86_NUMAQ
 	default HIGHMEM64G if X86_NUMAQ
+	default HIGHMEM4G
 	depends on X86_32
 
 config NOHIGHMEM
@@ -1285,7 +1286,7 @@ source "mm/Kconfig"
 
 config HIGHPTE
 	bool "Allocate 3rd-level pagetables from highmem"
-	depends on X86_32 && (HIGHMEM4G || HIGHMEM64G)
+	depends on HIGHMEM
 	---help---
 	  The VM uses one page table entry for each page of physical memory.
 	  For systems with a lot of RAM, this can be wasteful of precious
@@ -1369,8 +1370,7 @@ config MATH_EMULATION
 	  kernel, it won't hurt.
 
 config MTRR
-	bool
-	default y
+	def_bool y
 	prompt "MTRR (Memory Type Range Register) support" if EMBEDDED
 	---help---
 	  On Intel P6 family processors (Pentium Pro, Pentium II and later)
@@ -1436,8 +1436,7 @@ config MTRR_SANITIZER_SPARE_REG_NR_DEFAULT
 	  mtrr_spare_reg_nr=N on the kernel command line.
 
 config X86_PAT
-	bool
-	default y
+	def_bool y
 	prompt "x86 PAT support" if EMBEDDED
 	depends on MTRR
 	---help---
@@ -1605,8 +1604,7 @@ config X86_NEED_RELOCS
 	depends on X86_32 && RELOCATABLE
 
 config PHYSICAL_ALIGN
-	hex
-	prompt "Alignment value to which kernel should be aligned" if X86_32
+	hex "Alignment value to which kernel should be aligned" if X86_32
 	default "0x1000000"
 	range 0x2000 0x1000000
 	---help---
@@ -1653,7 +1651,6 @@ config COMPAT_VDSO
 
 config CMDLINE_BOOL
 	bool "Built-in kernel command line"
-	default n
 	---help---
 	  Allow for specifying boot arguments to the kernel at
 	  build time.  On some systems (e.g. embedded ones), it is
@@ -1687,7 +1684,6 @@ config CMDLINE
 
 config CMDLINE_OVERRIDE
 	bool "Built-in command line overrides boot loader arguments"
-	default n
 	depends on CMDLINE_BOOL
 	---help---
 	  Set this option to 'Y' to have the kernel ignore the boot loader
@@ -1710,6 +1706,10 @@ config HAVE_ARCH_EARLY_PFN_TO_NID
 	def_bool X86_64
 	depends on NUMA
 
+config USE_PERCPU_NUMA_NODE_ID
+	def_bool X86_64
+	depends on NUMA
+
 menu "Power management and ACPI options"
 
 config ARCH_HIBERNATION_HEADER
@@ -1723,8 +1723,7 @@ source "drivers/acpi/Kconfig"
 source "drivers/sfi/Kconfig"
 
 config X86_APM_BOOT
-	bool
-	default y
+	def_bool y
 	depends on APM || APM_MODULE
 
 menuconfig APM
@@ -1931,6 +1930,14 @@ config PCI_MMCONFIG
 	bool "Support mmconfig PCI config space access"
 	depends on X86_64 && PCI && ACPI
 
+config PCI_CNB20LE_QUIRK
+	bool "Read CNB20LE Host Bridge Windows"
+	depends on PCI
+	help
+	  Read the PCI windows out of the CNB20LE host bridge. This allows
+	  PCI hotplug to work on systems with the CNB20LE chipset which do
+	  not have ACPI.
+
 config DMAR
 	bool "Support for DMA Remapping Devices (EXPERIMENTAL)"
 	depends on PCI_MSI && ACPI && EXPERIMENTAL
@@ -1953,8 +1960,7 @@ config DMAR_DEFAULT_ON
 	  experimental.
 
 config DMAR_BROKEN_GFX_WA
-	def_bool n
-	prompt "Workaround broken graphics drivers (going away soon)"
+	bool "Workaround broken graphics drivers (going away soon)"
 	depends on DMAR && BROKEN
 	---help---
 	  Current Graphics drivers tend to use physical address
@@ -2052,7 +2058,6 @@ config SCx200HR_TIMER
 config OLPC
 	bool "One Laptop Per Child support"
 	select GPIOLIB
-	default n
 	---help---
 	  Add support for detecting the unique features of the OLPC
 	  XO hardware.

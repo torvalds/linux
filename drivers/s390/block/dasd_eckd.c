@@ -692,18 +692,20 @@ dasd_eckd_cdl_reclen(int recid)
 /*
  * Generate device unique id that specifies the physical device.
  */
-static int dasd_eckd_generate_uid(struct dasd_device *device,
-				  struct dasd_uid *uid)
+static int dasd_eckd_generate_uid(struct dasd_device *device)
 {
 	struct dasd_eckd_private *private;
+	struct dasd_uid *uid;
 	int count;
+	unsigned long flags;
 
 	private = (struct dasd_eckd_private *) device->private;
 	if (!private)
 		return -ENODEV;
 	if (!private->ned || !private->gneq)
 		return -ENODEV;
-
+	uid = &private->uid;
+	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
 	memset(uid, 0, sizeof(struct dasd_uid));
 	memcpy(uid->vendor, private->ned->HDA_manufacturer,
 	       sizeof(uid->vendor) - 1);
@@ -726,7 +728,23 @@ static int dasd_eckd_generate_uid(struct dasd_device *device,
 				private->vdsneq->uit[count]);
 		}
 	}
+	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
 	return 0;
+}
+
+static int dasd_eckd_get_uid(struct dasd_device *device, struct dasd_uid *uid)
+{
+	struct dasd_eckd_private *private;
+	unsigned long flags;
+
+	if (device->private) {
+		private = (struct dasd_eckd_private *)device->private;
+		spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
+		*uid = private->uid;
+		spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
+		return 0;
+	}
+	return -EINVAL;
 }
 
 static struct dasd_ccw_req *dasd_eckd_build_rcd_lpm(struct dasd_device *device,
@@ -1088,6 +1106,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 {
 	struct dasd_eckd_private *private;
 	struct dasd_block *block;
+	struct dasd_uid temp_uid;
 	int is_known, rc;
 	int readonly;
 
@@ -1124,13 +1143,13 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	if (rc)
 		goto out_err1;
 
-	/* Generate device unique id and register in devmap */
-	rc = dasd_eckd_generate_uid(device, &private->uid);
+	/* Generate device unique id */
+	rc = dasd_eckd_generate_uid(device);
 	if (rc)
 		goto out_err1;
-	dasd_set_uid(device->cdev, &private->uid);
 
-	if (private->uid.type == UA_BASE_DEVICE) {
+	dasd_eckd_get_uid(device, &temp_uid);
+	if (temp_uid.type == UA_BASE_DEVICE) {
 		block = dasd_alloc_block();
 		if (IS_ERR(block)) {
 			DBF_EVENT_DEVID(DBF_WARNING, device->cdev, "%s",
@@ -1451,6 +1470,7 @@ static int dasd_eckd_ready_to_online(struct dasd_device *device)
 
 static int dasd_eckd_online_to_ready(struct dasd_device *device)
 {
+	cancel_work_sync(&device->reload_device);
 	return dasd_alias_remove_device(device);
 };
 
@@ -1709,10 +1729,27 @@ static void dasd_eckd_handle_unsolicited_interrupt(struct dasd_device *device,
 {
 	char mask;
 	char *sense = NULL;
+	struct dasd_eckd_private *private;
 
+	private = (struct dasd_eckd_private *) device->private;
 	/* first of all check for state change pending interrupt */
 	mask = DEV_STAT_ATTENTION | DEV_STAT_DEV_END | DEV_STAT_UNIT_EXCEP;
 	if ((scsw_dstat(&irb->scsw) & mask) == mask) {
+		/* for alias only and not in offline processing*/
+		if (!device->block && private->lcu &&
+		    !test_bit(DASD_FLAG_OFFLINE, &device->flags)) {
+			/*
+			 * the state change could be caused by an alias
+			 * reassignment remove device from alias handling
+			 * to prevent new requests from being scheduled on
+			 * the wrong alias device
+			 */
+			dasd_alias_remove_device(device);
+
+			/* schedule worker to reload device */
+			dasd_reload_device(device);
+		}
+
 		dasd_generic_handle_state_change(device);
 		return;
 	}
@@ -3259,7 +3296,7 @@ static void dasd_eckd_dump_sense(struct dasd_device *device,
 		dasd_eckd_dump_sense_ccw(device, req, irb);
 }
 
-int dasd_eckd_pm_freeze(struct dasd_device *device)
+static int dasd_eckd_pm_freeze(struct dasd_device *device)
 {
 	/*
 	 * the device should be disconnected from our LCU structure
@@ -3272,7 +3309,7 @@ int dasd_eckd_pm_freeze(struct dasd_device *device)
 	return 0;
 }
 
-int dasd_eckd_restore_device(struct dasd_device *device)
+static int dasd_eckd_restore_device(struct dasd_device *device)
 {
 	struct dasd_eckd_private *private;
 	struct dasd_eckd_characteristics temp_rdc_data;
@@ -3287,15 +3324,16 @@ int dasd_eckd_restore_device(struct dasd_device *device)
 	if (rc)
 		goto out_err;
 
-	/* Generate device unique id and register in devmap */
-	rc = dasd_eckd_generate_uid(device, &private->uid);
-	dasd_get_uid(device->cdev, &temp_uid);
+	dasd_eckd_get_uid(device, &temp_uid);
+	/* Generate device unique id */
+	rc = dasd_eckd_generate_uid(device);
+	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
 	if (memcmp(&private->uid, &temp_uid, sizeof(struct dasd_uid)) != 0)
 		dev_err(&device->cdev->dev, "The UID of the DASD has "
 			"changed\n");
+	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
 	if (rc)
 		goto out_err;
-	dasd_set_uid(device->cdev, &private->uid);
 
 	/* register lcu with alias handling, enable PAV if this is a new lcu */
 	is_known = dasd_alias_make_device_known_to_lcu(device);
@@ -3336,6 +3374,56 @@ out_err:
 	return -1;
 }
 
+static int dasd_eckd_reload_device(struct dasd_device *device)
+{
+	struct dasd_eckd_private *private;
+	int rc, old_base;
+	char print_uid[60];
+	struct dasd_uid uid;
+	unsigned long flags;
+
+	private = (struct dasd_eckd_private *) device->private;
+
+	spin_lock_irqsave(get_ccwdev_lock(device->cdev), flags);
+	old_base = private->uid.base_unit_addr;
+	spin_unlock_irqrestore(get_ccwdev_lock(device->cdev), flags);
+
+	/* Read Configuration Data */
+	rc = dasd_eckd_read_conf(device);
+	if (rc)
+		goto out_err;
+
+	rc = dasd_eckd_generate_uid(device);
+	if (rc)
+		goto out_err;
+	/*
+	 * update unit address configuration and
+	 * add device to alias management
+	 */
+	dasd_alias_update_add_device(device);
+
+	dasd_eckd_get_uid(device, &uid);
+
+	if (old_base != uid.base_unit_addr) {
+		if (strlen(uid.vduit) > 0)
+			snprintf(print_uid, sizeof(print_uid),
+				 "%s.%s.%04x.%02x.%s", uid.vendor, uid.serial,
+				 uid.ssid, uid.base_unit_addr, uid.vduit);
+		else
+			snprintf(print_uid, sizeof(print_uid),
+				 "%s.%s.%04x.%02x", uid.vendor, uid.serial,
+				 uid.ssid, uid.base_unit_addr);
+
+		dev_info(&device->cdev->dev,
+			 "An Alias device was reassigned to a new base device "
+			 "with UID: %s\n", print_uid);
+	}
+	return 0;
+
+out_err:
+	return -1;
+}
+
 static struct ccw_driver dasd_eckd_driver = {
 	.name	     = "dasd-eckd",
 	.owner	     = THIS_MODULE,
@@ -3348,6 +3436,7 @@ static struct ccw_driver dasd_eckd_driver = {
 	.freeze      = dasd_generic_pm_freeze,
 	.thaw	     = dasd_generic_restore_device,
 	.restore     = dasd_generic_restore_device,
+	.uc_handler  = dasd_generic_uc_handler,
 };
 
 /*
@@ -3389,6 +3478,8 @@ static struct dasd_discipline dasd_eckd_discipline = {
 	.ioctl = dasd_eckd_ioctl,
 	.freeze = dasd_eckd_pm_freeze,
 	.restore = dasd_eckd_restore_device,
+	.reload = dasd_eckd_reload_device,
+	.get_uid = dasd_eckd_get_uid,
 };
 
 static int __init

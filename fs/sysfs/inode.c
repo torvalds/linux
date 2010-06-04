@@ -117,13 +117,11 @@ int sysfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (error)
 		goto out;
 
-	iattr->ia_valid &= ~ATTR_SIZE; /* ignore size changes */
-
-	error = inode_setattr(inode, iattr);
-	if (error)
-		goto out;
+	/* this ignores size changes */
+	generic_setattr(inode, iattr);
 
 	error = sysfs_sd_setattr(sd, iattr);
+
 out:
 	mutex_unlock(&sysfs_mutex);
 	return error;
@@ -324,7 +322,7 @@ void sysfs_delete_inode(struct inode *inode)
 	sysfs_put(sd);
 }
 
-int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name)
+int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const void *ns, const char *name)
 {
 	struct sysfs_addrm_cxt acxt;
 	struct sysfs_dirent *sd;
@@ -334,7 +332,9 @@ int sysfs_hash_and_remove(struct sysfs_dirent *dir_sd, const char *name)
 
 	sysfs_addrm_start(&acxt, dir_sd);
 
-	sd = sysfs_find_dirent(dir_sd, name);
+	sd = sysfs_find_dirent(dir_sd, ns, name);
+	if (sd && (sd->s_ns != ns))
+		sd = NULL;
 	if (sd)
 		sysfs_remove_one(&acxt, sd);
 

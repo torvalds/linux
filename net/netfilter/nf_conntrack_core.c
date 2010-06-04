@@ -319,8 +319,10 @@ begin:
 	 * not the expected one, we must restart lookup.
 	 * We probably met an item that was moved to another chain.
 	 */
-	if (get_nulls_value(n) != hash)
+	if (get_nulls_value(n) != hash) {
+		NF_CT_STAT_INC(net, search_restart);
 		goto begin;
+	}
 	local_bh_enable();
 
 	return NULL;
@@ -421,6 +423,16 @@ __nf_conntrack_confirm(struct sk_buff *skb)
 	pr_debug("Confirming conntrack %p\n", ct);
 
 	spin_lock_bh(&nf_conntrack_lock);
+
+	/* We have to check the DYING flag inside the lock to prevent
+	   a race against nf_ct_get_next_corpse() possibly called from
+	   user context, else we insert an already 'dead' hash, blocking
+	   further use of that particular connection -JM */
+
+	if (unlikely(nf_ct_is_dying(ct))) {
+		spin_unlock_bh(&nf_conntrack_lock);
+		return NF_ACCEPT;
+	}
 
 	/* See if there's one in the list already, including reverse:
 	   NAT could have grabbed it without realizing, since we're
@@ -1333,7 +1345,7 @@ static int nf_conntrack_init_init_net(void)
 	}
 	nf_conntrack_max = max_factor * nf_conntrack_htable_size;
 
-	printk("nf_conntrack version %s (%u buckets, %d max)\n",
+	printk(KERN_INFO "nf_conntrack version %s (%u buckets, %d max)\n",
 	       NF_CONNTRACK_VERSION, nf_conntrack_htable_size,
 	       nf_conntrack_max);
 

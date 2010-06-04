@@ -19,7 +19,7 @@
 #define PROTECTION (PROT_READ | PROT_WRITE)
 
 #ifndef MAP_HUGETLB
-#define MAP_HUGETLB 0x40
+#define MAP_HUGETLB 0x40000 /* arch specific */
 #endif
 
 /* Only ia64 requires this */

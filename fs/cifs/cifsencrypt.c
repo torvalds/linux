@@ -103,7 +103,7 @@ static int cifs_calc_signature2(const struct kvec *iov, int n_vec,
 		if (iov[i].iov_len == 0)
 			continue;
 		if (iov[i].iov_base == NULL) {
-			cERROR(1, ("null iovec entry"));
+			cERROR(1, "null iovec entry");
 			return -EIO;
 		}
 		/* The first entry includes a length field (which does not get
@@ -181,8 +181,8 @@ int cifs_verify_signature(struct smb_hdr *cifs_pdu,
 
 	/* Do not need to verify session setups with signature "BSRSPYL "  */
 	if (memcmp(cifs_pdu->Signature.SecuritySignature, "BSRSPYL ", 8) == 0)
-		cFYI(1, ("dummy signature received for smb command 0x%x",
-			cifs_pdu->Command));
+		cFYI(1, "dummy signature received for smb command 0x%x",
+			cifs_pdu->Command);
 
 	/* save off the origiginal signature so we can modify the smb and check
 		its signature against what the server sent */
@@ -291,7 +291,7 @@ void calc_lanman_hash(const char *password, const char *cryptkey, bool encrypt,
 	if (password)
 		strncpy(password_with_pad, password, CIFS_ENCPWD_SIZE);
 
-	if (!encrypt && extended_security & CIFSSEC_MAY_PLNTXT) {
+	if (!encrypt && global_secflags & CIFSSEC_MAY_PLNTXT) {
 		memset(lnm_session_key, 0, CIFS_SESS_KEY_SIZE);
 		memcpy(lnm_session_key, password_with_pad,
 			CIFS_ENCPWD_SIZE);
@@ -398,7 +398,7 @@ void setup_ntlmv2_rsp(struct cifsSesInfo *ses, char *resp_buf,
 	/* calculate buf->ntlmv2_hash */
 	rc = calc_ntlmv2_hash(ses, nls_cp);
 	if (rc)
-		cERROR(1, ("could not get v2 hash rc %d", rc));
+		cERROR(1, "could not get v2 hash rc %d", rc);
 	CalcNTLMv2_response(ses, resp_buf);
 
 	/* now calculate the MAC key for NTLMv2 */

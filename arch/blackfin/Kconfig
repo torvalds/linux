@@ -348,7 +348,7 @@ config MEM_MT48LC16M16A2TG_75
 
 config MEM_MT48LC32M8A2_75
 	bool
-	depends on (BFIN537_STAMP || PNAV10 || BFIN538_EZKIT)
+	depends on (BFIN518F_EZBRD || BFIN537_STAMP || PNAV10 || BFIN538_EZKIT)
 	default y
 
 config MEM_MT48LC8M32B2B5_7
@@ -359,11 +359,6 @@ config MEM_MT48LC8M32B2B5_7
 config MEM_MT48LC32M16A2TG_75
 	bool
 	depends on (BFIN527_EZKIT || BFIN527_EZKIT_V2 || BFIN532_IP0X || BLACKSTAMP)
-	default y
-
-config MEM_MT48LC32M8A2_75
-	bool
-	depends on (BFIN518F_EZBRD)
 	default y
 
 config MEM_MT48H32M16LFCJ_75
@@ -791,6 +786,34 @@ config MEMCPY_L1
 	  If enabled, the memcpy function is linked
 	  into L1 instruction memory. (less latency)
 
+config STRCMP_L1
+	bool "locate strcmp function in L1 Memory"
+	default y
+	help
+	  If enabled, the strcmp function is linked
+	  into L1 instruction memory (less latency).
+
+config STRNCMP_L1
+	bool "locate strncmp function in L1 Memory"
+	default y
+	help
+	  If enabled, the strncmp function is linked
+	  into L1 instruction memory (less latency).
+
+config STRCPY_L1
+	bool "locate strcpy function in L1 Memory"
+	default y
+	help
+	  If enabled, the strcpy function is linked
+	  into L1 instruction memory (less latency).
+
+config STRNCPY_L1
+	bool "locate strncpy function in L1 Memory"
+	default y
+	help
+	  If enabled, the strncpy function is linked
+	  into L1 instruction memory (less latency).
+
 config SYS_BFIN_SPINLOCK_L1
 	bool "Locate sys_bfin_spinlock function in L1 Memory"
 	default y
@@ -1185,32 +1208,6 @@ config  PM_BFIN_SLEEP
 	  memory is not supported.
 
 	  If unsure, select "Sleep Deeper".
-endchoice
-
-config PM_WAKEUP_BY_GPIO
-	bool "Allow Wakeup from Standby by GPIO"
-	depends on PM && !BF54x
-
-config PM_WAKEUP_GPIO_NUMBER
-	int "GPIO number"
-	range 0 47
-	depends on PM_WAKEUP_BY_GPIO
-	default 2
-
-choice
-	prompt "GPIO Polarity"
-	depends on PM_WAKEUP_BY_GPIO
-	default PM_WAKEUP_GPIO_POLAR_H
-config  PM_WAKEUP_GPIO_POLAR_H
-	bool "Active High"
-config  PM_WAKEUP_GPIO_POLAR_L
-	bool "Active Low"
-config  PM_WAKEUP_GPIO_POLAR_EDGE_F
-	bool "Falling EDGE"
-config  PM_WAKEUP_GPIO_POLAR_EDGE_R
-	bool "Rising EDGE"
-config  PM_WAKEUP_GPIO_POLAR_EDGE_B
-	bool "Both EDGE"
 endchoice
 
 comment "Possible Suspend Mem / Hibernate Wake-Up Sources"

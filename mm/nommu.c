@@ -918,14 +918,6 @@ static int validate_mmap_request(struct file *file,
 			if (!(capabilities & BDI_CAP_MAP_DIRECT))
 				return -ENODEV;
 
-			if (((prot & PROT_READ)  && !(capabilities & BDI_CAP_READ_MAP))  ||
-			    ((prot & PROT_WRITE) && !(capabilities & BDI_CAP_WRITE_MAP)) ||
-			    ((prot & PROT_EXEC)  && !(capabilities & BDI_CAP_EXEC_MAP))
-			    ) {
-				printk("MAP_SHARED not completely supported on !MMU\n");
-				return -EINVAL;
-			}
-
 			/* we mustn't privatise shared mappings */
 			capabilities &= ~BDI_CAP_MAP_COPY;
 		}
@@ -939,6 +931,20 @@ static int validate_mmap_request(struct file *file,
 			 * shared with the backing device */
 			if (prot & PROT_WRITE)
 				capabilities &= ~BDI_CAP_MAP_DIRECT;
+		}
+
+		if (capabilities & BDI_CAP_MAP_DIRECT) {
+			if (((prot & PROT_READ)  && !(capabilities & BDI_CAP_READ_MAP))  ||
+			    ((prot & PROT_WRITE) && !(capabilities & BDI_CAP_WRITE_MAP)) ||
+			    ((prot & PROT_EXEC)  && !(capabilities & BDI_CAP_EXEC_MAP))
+			    ) {
+				capabilities &= ~BDI_CAP_MAP_DIRECT;
+				if (flags & MAP_SHARED) {
+					printk(KERN_WARNING
+					       "MAP_SHARED not completely supported on !MMU\n");
+					return -EINVAL;
+				}
+			}
 		}
 
 		/* handle executable mappings and implied executable
@@ -996,22 +1002,20 @@ static unsigned long determine_vm_flags(struct file *file,
 	unsigned long vm_flags;
 
 	vm_flags = calc_vm_prot_bits(prot) | calc_vm_flag_bits(flags);
-	vm_flags |= VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
 	/* vm_flags |= mm->def_flags; */
 
 	if (!(capabilities & BDI_CAP_MAP_DIRECT)) {
 		/* attempt to share read-only copies of mapped file chunks */
+		vm_flags |= VM_MAYREAD | VM_MAYWRITE | VM_MAYEXEC;
 		if (file && !(prot & PROT_WRITE))
 			vm_flags |= VM_MAYSHARE;
-	}
-	else {
+	} else {
 		/* overlay a shareable mapping on the backing device or inode
 		 * if possible - used for chardevs, ramfs/tmpfs/shmfs and
 		 * romfs/cramfs */
+		vm_flags |= VM_MAYSHARE | (capabilities & BDI_CAP_VMFLAGS);
 		if (flags & MAP_SHARED)
-			vm_flags |= VM_MAYSHARE | VM_SHARED;
-		else if ((((vm_flags & capabilities) ^ vm_flags) & BDI_CAP_VMFLAGS) == 0)
-			vm_flags |= VM_MAYSHARE;
+			vm_flags |= VM_SHARED;
 	}
 
 	/* refuse to let anyone share private mappings with this process if

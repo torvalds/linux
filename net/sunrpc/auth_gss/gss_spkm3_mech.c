@@ -84,13 +84,14 @@ simple_get_netobj(const void *p, const void *end, struct xdr_netobj *res)
 
 static int
 gss_import_sec_context_spkm3(const void *p, size_t len,
-				struct gss_ctx *ctx_id)
+				struct gss_ctx *ctx_id,
+				gfp_t gfp_mask)
 {
 	const void *end = (const void *)((const char *)p + len);
 	struct	spkm3_ctx *ctx;
 	int	version;
 
-	if (!(ctx = kzalloc(sizeof(*ctx), GFP_NOFS)))
+	if (!(ctx = kzalloc(sizeof(*ctx), gfp_mask)))
 		goto out_err;
 
 	p = simple_get_bytes(p, end, &version, sizeof(version));

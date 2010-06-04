@@ -317,8 +317,6 @@ static void atl1c_common_task(struct work_struct *work)
 
 	if (adapter->work_event & ATL1C_WORK_EVENT_LINK_CHANGE)
 		atl1c_check_link_status(adapter);
-
-	return;
 }
 
 
@@ -354,7 +352,7 @@ static void atl1c_set_multi(struct net_device *netdev)
 {
 	struct atl1c_adapter *adapter = netdev_priv(netdev);
 	struct atl1c_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr;
+	struct netdev_hw_addr *ha;
 	u32 mac_ctrl_data;
 	u32 hash_value;
 
@@ -377,8 +375,8 @@ static void atl1c_set_multi(struct net_device *netdev)
 	AT_WRITE_REG_ARRAY(hw, REG_RX_HASH_TABLE, 1, 0);
 
 	/* comoute mc addresses' hash value ,and put it into hash table */
-	netdev_for_each_mc_addr(mc_ptr, netdev) {
-		hash_value = atl1c_hash_mc_addr(hw, mc_ptr->dmi_addr);
+	netdev_for_each_mc_addr(ha, netdev) {
+		hash_value = atl1c_hash_mc_addr(hw, ha->addr);
 		atl1c_hash_set(hw, hash_value);
 	}
 }
@@ -1817,7 +1815,6 @@ rrs_checked:
 		atl1c_clean_rfd(rfd_ring, rrs, rfd_num);
 		skb_put(skb, length - ETH_FCS_LEN);
 		skb->protocol = eth_type_trans(skb, netdev);
-		skb->dev = netdev;
 		atl1c_rx_checksum(adapter, skb, rrs);
 		if (unlikely(adapter->vlgrp) && rrs->word3 & RRS_VLAN_INS) {
 			u16 vlan;

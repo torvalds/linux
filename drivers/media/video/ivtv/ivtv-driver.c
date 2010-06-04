@@ -1293,7 +1293,6 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 		ivtv_call_hw(itv, IVTV_HW_SAA7127, video, s_stream, 1);
 		ivtv_init_mpeg_decoder(itv);
 	}
-	ivtv_s_std(NULL, &fh, &itv->tuner_std);
 
 	/* On a cx23416 this seems to be able to enable DMA to the chip? */
 	if (!itv->has_cx23415)
@@ -1310,6 +1309,10 @@ int ivtv_init_on_first_open(struct ivtv *itv)
 	}
 	else
 		ivtv_clear_irq_mask(itv, IVTV_IRQ_MASK_INIT);
+
+	/* For cards with video out, this call needs interrupts enabled */
+	ivtv_s_std(NULL, &fh, &itv->tuner_std);
+
 	return 0;
 }
 

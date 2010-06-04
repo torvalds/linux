@@ -858,6 +858,8 @@ static int __ceph_is_any_caps(struct ceph_inode_info *ci)
 }
 
 /*
+ * Remove a cap.  Take steps to deal with a racing iterate_session_caps.
+ *
  * caller should hold i_lock.
  * caller will not hold session s_mutex if called from destroy_inode.
  */
@@ -865,15 +867,11 @@ void __ceph_remove_cap(struct ceph_cap *cap)
 {
 	struct ceph_mds_session *session = cap->session;
 	struct ceph_inode_info *ci = cap->ci;
-	struct ceph_mds_client *mdsc = &ceph_client(ci->vfs_inode.i_sb)->mdsc;
+	struct ceph_mds_client *mdsc =
+		&ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc;
+	int removed = 0;
 
 	dout("__ceph_remove_cap %p from %p\n", cap, &ci->vfs_inode);
-
-	/* remove from inode list */
-	rb_erase(&cap->ci_node, &ci->i_caps);
-	cap->ci = NULL;
-	if (ci->i_auth_cap == cap)
-		ci->i_auth_cap = NULL;
 
 	/* remove from session list */
 	spin_lock(&session->s_cap_lock);
@@ -885,10 +883,18 @@ void __ceph_remove_cap(struct ceph_cap *cap)
 		list_del_init(&cap->session_caps);
 		session->s_nr_caps--;
 		cap->session = NULL;
+		removed = 1;
 	}
+	/* protect backpointer with s_cap_lock: see iterate_session_caps */
+	cap->ci = NULL;
 	spin_unlock(&session->s_cap_lock);
 
-	if (cap->session == NULL)
+	/* remove from inode list */
+	rb_erase(&cap->ci_node, &ci->i_caps);
+	if (ci->i_auth_cap == cap)
+		ci->i_auth_cap = NULL;
+
+	if (removed)
 		ceph_put_cap(cap);
 
 	if (!__ceph_is_any_caps(ci) && ci->i_snap_realm) {
@@ -932,9 +938,9 @@ static int send_cap_msg(struct ceph_mds_session *session,
 	     seq, issue_seq, mseq, follows, size, max_size,
 	     xattr_version, xattrs_buf ? (int)xattrs_buf->vec.iov_len : 0);
 
-	msg = ceph_msg_new(CEPH_MSG_CLIENT_CAPS, sizeof(*fc), 0, 0, NULL);
-	if (IS_ERR(msg))
-		return PTR_ERR(msg);
+	msg = ceph_msg_new(CEPH_MSG_CLIENT_CAPS, sizeof(*fc), GFP_NOFS);
+	if (!msg)
+		return -ENOMEM;
 
 	msg->hdr.tid = cpu_to_le64(flush_tid);
 
@@ -1293,7 +1299,8 @@ static void ceph_flush_snaps(struct ceph_inode_info *ci)
  */
 void __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 {
-	struct ceph_mds_client *mdsc = &ceph_client(ci->vfs_inode.i_sb)->mdsc;
+	struct ceph_mds_client *mdsc =
+		&ceph_sb_to_client(ci->vfs_inode.i_sb)->mdsc;
 	struct inode *inode = &ci->vfs_inode;
 	int was = ci->i_dirty_caps;
 	int dirty = 0;
@@ -1331,7 +1338,7 @@ void __ceph_mark_dirty_caps(struct ceph_inode_info *ci, int mask)
 static int __mark_caps_flushing(struct inode *inode,
 				 struct ceph_mds_session *session)
 {
-	struct ceph_mds_client *mdsc = &ceph_client(inode->i_sb)->mdsc;
+	struct ceph_mds_client *mdsc = &ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int flushing;
 
@@ -1658,7 +1665,7 @@ ack:
 static int try_flush_caps(struct inode *inode, struct ceph_mds_session *session,
 			  unsigned *flush_tid)
 {
-	struct ceph_mds_client *mdsc = &ceph_client(inode->i_sb)->mdsc;
+	struct ceph_mds_client *mdsc = &ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int unlock_session = session ? 0 : 1;
 	int flushing = 0;
@@ -1711,10 +1718,9 @@ out_unlocked:
 static int caps_are_flushed(struct inode *inode, unsigned tid)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	int dirty, i, ret = 1;
+	int i, ret = 1;
 
 	spin_lock(&inode->i_lock);
-	dirty = __ceph_caps_dirty(ci);
 	for (i = 0; i < CEPH_CAP_BITS; i++)
 		if ((ci->i_flushing_caps & (1 << i)) &&
 		    ci->i_cap_flush_tid[i] <= tid) {
@@ -1770,9 +1776,9 @@ out:
 	spin_unlock(&ci->i_unsafe_lock);
 }
 
-int ceph_fsync(struct file *file, struct dentry *dentry, int datasync)
+int ceph_fsync(struct file *file, int datasync)
 {
-	struct inode *inode = dentry->d_inode;
+	struct inode *inode = file->f_mapping->host;
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	unsigned flush_tid;
 	int ret;
@@ -1824,7 +1830,8 @@ int ceph_write_inode(struct inode *inode, struct writeback_control *wbc)
 			err = wait_event_interruptible(ci->i_cap_wq,
 				       caps_are_flushed(inode, flush_tid));
 	} else {
-		struct ceph_mds_client *mdsc = &ceph_client(inode->i_sb)->mdsc;
+		struct ceph_mds_client *mdsc =
+			&ceph_sb_to_client(inode->i_sb)->mdsc;
 
 		spin_lock(&inode->i_lock);
 		if (__ceph_caps_dirty(ci))
@@ -2406,7 +2413,7 @@ static void handle_cap_flush_ack(struct inode *inode, u64 flush_tid,
 	__releases(inode->i_lock)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
-	struct ceph_mds_client *mdsc = &ceph_client(inode->i_sb)->mdsc;
+	struct ceph_mds_client *mdsc = &ceph_sb_to_client(inode->i_sb)->mdsc;
 	unsigned seq = le32_to_cpu(m->seq);
 	int dirty = le32_to_cpu(m->dirty);
 	int cleaned = 0;

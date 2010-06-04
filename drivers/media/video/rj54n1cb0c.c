@@ -555,15 +555,15 @@ static int rj54n1_commit(struct i2c_client *client)
 	return ret;
 }
 
-static int rj54n1_sensor_scale(struct v4l2_subdev *sd, u32 *in_w, u32 *in_h,
-			       u32 *out_w, u32 *out_h);
+static int rj54n1_sensor_scale(struct v4l2_subdev *sd, s32 *in_w, s32 *in_h,
+			       s32 *out_w, s32 *out_h);
 
 static int rj54n1_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 {
 	struct i2c_client *client = sd->priv;
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
 	struct v4l2_rect *rect = &a->c;
-	unsigned int dummy = 0, output_w, output_h,
+	int dummy = 0, output_w, output_h,
 		input_w = rect->width, input_h = rect->height;
 	int ret;
 
@@ -577,7 +577,7 @@ static int rj54n1_s_crop(struct v4l2_subdev *sd, struct v4l2_crop *a)
 	output_w = (input_w * 1024 + rj54n1->resize / 2) / rj54n1->resize;
 	output_h = (input_h * 1024 + rj54n1->resize / 2) / rj54n1->resize;
 
-	dev_dbg(&client->dev, "Scaling for %ux%u : %u = %ux%u\n",
+	dev_dbg(&client->dev, "Scaling for %dx%d : %u = %dx%d\n",
 		input_w, input_h, rj54n1->resize, output_w, output_h);
 
 	ret = rj54n1_sensor_scale(sd, &input_w, &input_h, &output_w, &output_h);
@@ -638,8 +638,8 @@ static int rj54n1_g_fmt(struct v4l2_subdev *sd,
  * the output one, updates the window sizes and returns an error or the resize
  * coefficient on success. Note: we only use the "Fixed Scaling" on this camera.
  */
-static int rj54n1_sensor_scale(struct v4l2_subdev *sd, u32 *in_w, u32 *in_h,
-			       u32 *out_w, u32 *out_h)
+static int rj54n1_sensor_scale(struct v4l2_subdev *sd, s32 *in_w, s32 *in_h,
+			       s32 *out_w, s32 *out_h)
 {
 	struct i2c_client *client = sd->priv;
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
@@ -749,7 +749,7 @@ static int rj54n1_sensor_scale(struct v4l2_subdev *sd, u32 *in_w, u32 *in_h,
 	 * improve the image quality or stability for larger frames (see comment
 	 * above), but I didn't check the framerate.
 	 */
-	skip = min(resize / 1024, (unsigned)15);
+	skip = min(resize / 1024, 15U);
 
 	inc_sel = 1 << skip;
 
@@ -819,7 +819,7 @@ static int rj54n1_sensor_scale(struct v4l2_subdev *sd, u32 *in_w, u32 *in_h,
 	*out_w = output_w;
 	*out_h = output_h;
 
-	dev_dbg(&client->dev, "Scaled for %ux%u : %u = %ux%u, skip %u\n",
+	dev_dbg(&client->dev, "Scaled for %dx%d : %u = %ux%u, skip %u\n",
 		*in_w, *in_h, resize, output_w, output_h, skip);
 
 	return resize;
@@ -1017,7 +1017,7 @@ static int rj54n1_s_fmt(struct v4l2_subdev *sd,
 	struct i2c_client *client = sd->priv;
 	struct rj54n1 *rj54n1 = to_rj54n1(client);
 	const struct rj54n1_datafmt *fmt;
-	unsigned int output_w, output_h, max_w, max_h,
+	int output_w, output_h, max_w, max_h,
 		input_w = rj54n1->rect.width, input_h = rj54n1->rect.height;
 	int ret;
 

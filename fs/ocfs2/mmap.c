@@ -41,44 +41,20 @@
 #include "file.h"
 #include "inode.h"
 #include "mmap.h"
+#include "super.h"
 
-static inline int ocfs2_vm_op_block_sigs(sigset_t *blocked, sigset_t *oldset)
-{
-	/* The best way to deal with signals in the vm path is
-	 * to block them upfront, rather than allowing the
-	 * locking paths to return -ERESTARTSYS. */
-	sigfillset(blocked);
-
-	/* We should technically never get a bad return value
-	 * from sigprocmask */
-	return sigprocmask(SIG_BLOCK, blocked, oldset);
-}
-
-static inline int ocfs2_vm_op_unblock_sigs(sigset_t *oldset)
-{
-	return sigprocmask(SIG_SETMASK, oldset, NULL);
-}
 
 static int ocfs2_fault(struct vm_area_struct *area, struct vm_fault *vmf)
 {
-	sigset_t blocked, oldset;
-	int error, ret;
+	sigset_t oldset;
+	int ret;
 
 	mlog_entry("(area=%p, page offset=%lu)\n", area, vmf->pgoff);
 
-	error = ocfs2_vm_op_block_sigs(&blocked, &oldset);
-	if (error < 0) {
-		mlog_errno(error);
-		ret = VM_FAULT_SIGBUS;
-		goto out;
-	}
-
+	ocfs2_block_signals(&oldset);
 	ret = filemap_fault(area, vmf);
+	ocfs2_unblock_signals(&oldset);
 
-	error = ocfs2_vm_op_unblock_sigs(&oldset);
-	if (error < 0)
-		mlog_errno(error);
-out:
 	mlog_exit_ptr(vmf->page);
 	return ret;
 }
@@ -158,14 +134,10 @@ static int ocfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	struct page *page = vmf->page;
 	struct inode *inode = vma->vm_file->f_path.dentry->d_inode;
 	struct buffer_head *di_bh = NULL;
-	sigset_t blocked, oldset;
-	int ret, ret2;
+	sigset_t oldset;
+	int ret;
 
-	ret = ocfs2_vm_op_block_sigs(&blocked, &oldset);
-	if (ret < 0) {
-		mlog_errno(ret);
-		return ret;
-	}
+	ocfs2_block_signals(&oldset);
 
 	/*
 	 * The cluster locks taken will block a truncate from another
@@ -193,9 +165,7 @@ static int ocfs2_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf)
 	ocfs2_inode_unlock(inode, 1);
 
 out:
-	ret2 = ocfs2_vm_op_unblock_sigs(&oldset);
-	if (ret2 < 0)
-		mlog_errno(ret2);
+	ocfs2_unblock_signals(&oldset);
 	if (ret)
 		ret = VM_FAULT_SIGBUS;
 	return ret;

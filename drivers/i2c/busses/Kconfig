@@ -564,7 +564,7 @@ config I2C_STU300
 
 config I2C_VERSATILE
 	tristate "ARM Versatile/Realview I2C bus support"
-	depends on ARCH_VERSATILE || ARCH_REALVIEW
+	depends on ARCH_VERSATILE || ARCH_REALVIEW || ARCH_VEXPRESS
 	select I2C_ALGOBIT
 	help
 	  Say yes if you want to support the I2C serial bus on ARMs Versatile

@@ -208,7 +208,7 @@ static void python_process_event(int cpu, void *data,
 				 int size __unused,
 				 unsigned long long nsecs, char *comm)
 {
-	PyObject *handler, *retval, *context, *t, *obj;
+	PyObject *handler, *retval, *context, *t, *obj, *dict = NULL;
 	static char handler_name[256];
 	struct format_field *field;
 	unsigned long long val;
@@ -232,6 +232,14 @@ static void python_process_event(int cpu, void *data,
 
 	sprintf(handler_name, "%s__%s", event->system, event->name);
 
+	handler = PyDict_GetItemString(main_dict, handler_name);
+	if (handler && !PyCallable_Check(handler))
+		handler = NULL;
+	if (!handler) {
+		dict = PyDict_New();
+		if (!dict)
+			Py_FatalError("couldn't create Python dict");
+	}
 	s = nsecs / NSECS_PER_SEC;
 	ns = nsecs - s * NSECS_PER_SEC;
 
@@ -242,12 +250,20 @@ static void python_process_event(int cpu, void *data,
 	PyTuple_SetItem(t, n++, PyString_FromString(handler_name));
 	PyTuple_SetItem(t, n++,
 			PyCObject_FromVoidPtr(scripting_context, NULL));
-	PyTuple_SetItem(t, n++, PyInt_FromLong(cpu));
-	PyTuple_SetItem(t, n++, PyInt_FromLong(s));
-	PyTuple_SetItem(t, n++, PyInt_FromLong(ns));
-	PyTuple_SetItem(t, n++, PyInt_FromLong(pid));
-	PyTuple_SetItem(t, n++, PyString_FromString(comm));
 
+	if (handler) {
+		PyTuple_SetItem(t, n++, PyInt_FromLong(cpu));
+		PyTuple_SetItem(t, n++, PyInt_FromLong(s));
+		PyTuple_SetItem(t, n++, PyInt_FromLong(ns));
+		PyTuple_SetItem(t, n++, PyInt_FromLong(pid));
+		PyTuple_SetItem(t, n++, PyString_FromString(comm));
+	} else {
+		PyDict_SetItemString(dict, "common_cpu", PyInt_FromLong(cpu));
+		PyDict_SetItemString(dict, "common_s", PyInt_FromLong(s));
+		PyDict_SetItemString(dict, "common_ns", PyInt_FromLong(ns));
+		PyDict_SetItemString(dict, "common_pid", PyInt_FromLong(pid));
+		PyDict_SetItemString(dict, "common_comm", PyString_FromString(comm));
+	}
 	for (field = event->format.fields; field; field = field->next) {
 		if (field->flags & FIELD_IS_STRING) {
 			int offset;
@@ -272,27 +288,31 @@ static void python_process_event(int cpu, void *data,
 					obj = PyLong_FromUnsignedLongLong(val);
 			}
 		}
-		PyTuple_SetItem(t, n++, obj);
+		if (handler)
+			PyTuple_SetItem(t, n++, obj);
+		else
+			PyDict_SetItemString(dict, field->name, obj);
+
 	}
+	if (!handler)
+		PyTuple_SetItem(t, n++, dict);
 
 	if (_PyTuple_Resize(&t, n) == -1)
 		Py_FatalError("error resizing Python tuple");
 
-	handler = PyDict_GetItemString(main_dict, handler_name);
-	if (handler && PyCallable_Check(handler)) {
+	if (handler) {
 		retval = PyObject_CallObject(handler, t);
 		if (retval == NULL)
 			handler_call_die(handler_name);
 	} else {
 		handler = PyDict_GetItemString(main_dict, "trace_unhandled");
 		if (handler && PyCallable_Check(handler)) {
-			if (_PyTuple_Resize(&t, N_COMMON_FIELDS) == -1)
-				Py_FatalError("error resizing Python tuple");
 
 			retval = PyObject_CallObject(handler, t);
 			if (retval == NULL)
 				handler_call_die("trace_unhandled");
 		}
+		Py_DECREF(dict);
 	}
 
 	Py_DECREF(t);
@@ -374,8 +394,6 @@ static int python_start_script(const char *script, int argc, const char **argv)
 	}
 
 	free(command_line);
-	fprintf(stderr, "perf trace started with Python script %s\n\n",
-		script);
 
 	return err;
 error:
@@ -406,8 +424,6 @@ out:
 	Py_XDECREF(main_dict);
 	Py_XDECREF(main_module);
 	Py_Finalize();
-
-	fprintf(stderr, "\nperf trace Python script stopped\n");
 
 	return err;
 }
@@ -552,12 +568,10 @@ static int python_generate_script(const char *outfile)
 	}
 
 	fprintf(ofp, "def trace_unhandled(event_name, context, "
-		"common_cpu, common_secs, common_nsecs,\n\t\t"
-		"common_pid, common_comm):\n");
+		"event_fields_dict):\n");
 
-	fprintf(ofp, "\t\tprint_header(event_name, common_cpu, "
-		"common_secs, common_nsecs,\n\t\tcommon_pid, "
-		"common_comm)\n\n");
+	fprintf(ofp, "\t\tprint ' '.join(['%%s=%%s'%%(k,str(v))"
+		"for k,v in sorted(event_fields_dict.items())])\n\n");
 
 	fprintf(ofp, "def print_header("
 		"event_name, cpu, secs, nsecs, pid, comm):\n"

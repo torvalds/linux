@@ -1,0 +1,30 @@
+config ACPI_APEI
+	bool "ACPI Platform Error Interface (APEI)"
+	depends on X86
+	help
+	  APEI allows to report errors (for example from the chipset)
+	  to the operating system. This improves NMI handling
+	  especially. In addition it supports error serialization and
+	  error injection.
+
+config ACPI_APEI_GHES
+	tristate "APEI Generic Hardware Error Source"
+	depends on ACPI_APEI && X86
+	select ACPI_HED
+	help
+	  Generic Hardware Error Source provides a way to report
+	  platform hardware errors (such as that from chipset). It
+	  works in so called "Firmware First" mode, that is, hardware
+	  errors are reported to firmware firstly, then reported to
+	  Linux by firmware. This way, some non-standard hardware
+	  error registers or non-standard hardware link can be checked
+	  by firmware to produce more valuable hardware error
+	  information for Linux.
+
+config ACPI_APEI_EINJ
+	tristate "APEI Error INJection (EINJ)"
+	depends on ACPI_APEI && DEBUG_FS
+	help
+	  EINJ provides a hardware error injection mechanism, it is
+	  mainly used for debugging and testing the other parts of
+	  APEI and some other RAS features.

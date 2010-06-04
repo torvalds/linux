@@ -45,6 +45,10 @@ config VIDEO_TUNER
 	tristate
 	depends on MEDIA_TUNER
 
+config V4L2_MEM2MEM_DEV
+	tristate
+	depends on VIDEOBUF_GEN
+
 #
 # Multimedia Video device configuration
 #
@@ -480,6 +484,12 @@ config VIDEO_ADV7343
 	  To compile this driver as a module, choose M here: the
 	  module will be called adv7343.
 
+config VIDEO_AK881X
+	tristate "AK8813/AK8814 video encoders"
+	depends on I2C
+	help
+	  Video output driver for AKM AK8813 and AK8814 TV encoders
+
 comment "Video improvement chips"
 
 config VIDEO_UPD64031A
@@ -520,6 +530,13 @@ config DISPLAY_DAVINCI_DM646X_EVM
 	  To compile this driver as a module, choose M here: the
 	  module will be called vpif_display.
 
+config VIDEO_SH_VOU
+	tristate "SuperH VOU video output driver"
+	depends on VIDEO_DEV && ARCH_SHMOBILE
+	select VIDEOBUF_DMA_CONTIG
+	help
+	  Support for the Video Output Unit (VOU) on SuperH SoCs.
+
 config CAPTURE_DAVINCI_DM646X_EVM
 	tristate "DM646x EVM Video Capture"
 	depends on VIDEO_DEV && MACH_DAVINCI_DM6467_EVM
@@ -542,7 +559,8 @@ config VIDEO_DAVINCI_VPIF
 
 config VIDEO_VIVI
 	tristate "Virtual Video Driver"
-	depends on VIDEO_DEV && VIDEO_V4L2 && !SPARC32 && !SPARC64
+	depends on VIDEO_DEV && VIDEO_V4L2 && !SPARC32 && !SPARC64 && FONTS
+	select FONT_8x16
 	select VIDEOBUF_VMALLOC
 	default n
 	---help---
@@ -613,6 +631,8 @@ config VIDEO_ISIF
 	   To compile this driver as a module, choose M here: the
 	   module will be called vpfe.
 
+source "drivers/media/video/omap/Kconfig"
+
 source "drivers/media/video/bt8xx/Kconfig"
 
 config VIDEO_PMS
@@ -647,7 +667,7 @@ config VIDEO_CQCAM
 
 config VIDEO_W9966
 	tristate "W9966CF Webcam (FlyCam Supra and others) Video For Linux"
-	depends on PARPORT_1284 && PARPORT && VIDEO_V4L1
+	depends on PARPORT_1284 && PARPORT && VIDEO_V4L2
 	help
 	  Video4linux driver for Winbond's w9966 based Webcams.
 	  Currently tested with the LifeView FlyCam Supra.
@@ -740,7 +760,7 @@ source "drivers/media/video/zoran/Kconfig"
 
 config VIDEO_MEYE
 	tristate "Sony Vaio Picturebook Motion Eye Video For Linux"
-	depends on PCI && SONY_LAPTOP && VIDEO_V4L1
+	depends on PCI && SONY_LAPTOP && VIDEO_V4L2
 	---help---
 	  This is the video4linux driver for the Motion Eye camera found
 	  in the Vaio Picturebook laptops. Please read the material in
@@ -807,7 +827,7 @@ source "drivers/media/video/saa7164/Kconfig"
 
 config VIDEO_M32R_AR
 	tristate "AR devices"
-	depends on M32R && VIDEO_V4L1
+	depends on M32R && VIDEO_V4L2
 	---help---
 	  This is a video4linux driver for the Renesas AR (Artificial Retina)
 	  camera module.
@@ -1107,3 +1127,27 @@ config USB_S2255
 
 endif # V4L_USB_DRIVERS
 endif # VIDEO_CAPTURE_DRIVERS
+
+menuconfig V4L_MEM2MEM_DRIVERS
+	bool "Memory-to-memory multimedia devices"
+	depends on VIDEO_V4L2
+	default n
+	---help---
+	  Say Y here to enable selecting drivers for V4L devices that
+	  use system memory for both source and destination buffers, as opposed
+	  to capture and output drivers, which use memory buffers for just
+	  one of those.
+
+if V4L_MEM2MEM_DRIVERS
+
+config VIDEO_MEM2MEM_TESTDEV
+	tristate "Virtual test device for mem2mem framework"
+	depends on VIDEO_DEV && VIDEO_V4L2
+	select VIDEOBUF_VMALLOC
+	select V4L2_MEM2MEM_DEV
+	default n
+	---help---
+	  This is a virtual test device for the memory-to-memory driver
+	  framework.
+
+endif # V4L_MEM2MEM_DRIVERS

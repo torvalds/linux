@@ -206,8 +206,10 @@ static void iscsi_sw_tcp_conn_set_callbacks(struct iscsi_conn *conn)
 }
 
 static void
-iscsi_sw_tcp_conn_restore_callbacks(struct iscsi_sw_tcp_conn *tcp_sw_conn)
+iscsi_sw_tcp_conn_restore_callbacks(struct iscsi_conn *conn)
 {
+	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
+	struct iscsi_sw_tcp_conn *tcp_sw_conn = tcp_conn->dd_data;
 	struct sock *sk = tcp_sw_conn->sock->sk;
 
 	/* restore socket callbacks, see also: iscsi_conn_set_callbacks() */
@@ -555,7 +557,7 @@ static void iscsi_sw_tcp_release_conn(struct iscsi_conn *conn)
 		return;
 
 	sock_hold(sock->sk);
-	iscsi_sw_tcp_conn_restore_callbacks(tcp_sw_conn);
+	iscsi_sw_tcp_conn_restore_callbacks(conn);
 	sock_put(sock->sk);
 
 	spin_lock_bh(&session->lock);
@@ -599,10 +601,8 @@ static void iscsi_sw_tcp_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
 	write_unlock_bh(&tcp_sw_conn->sock->sk->sk_callback_lock);
 
-	if (sock->sk->sk_sleep) {
-		sock->sk->sk_err = EIO;
-		wake_up_interruptible(sock->sk->sk_sleep);
-	}
+	sock->sk->sk_err = EIO;
+	wake_up_interruptible(sk_sleep(sock->sk));
 
 	iscsi_conn_stop(cls_conn, flag);
 	iscsi_sw_tcp_release_conn(conn);

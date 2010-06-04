@@ -22,7 +22,7 @@
 #include <linux/slab.h>
 #include <linux/list.h>
 #include <linux/usb.h>
-#include "../core/hcd.h"
+#include <linux/usb/hcd.h>
 #include "fhci.h"
 
 /* maps the hardware error code to the USB error code */

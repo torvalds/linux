@@ -76,6 +76,7 @@ struct pll_data {
 	u32 num;
 	u32 flags;
 	u32 input_rate;
+	u32 div_ratio_mask;
 };
 #define PLL_HAS_PREDIV          0x01
 #define PLL_HAS_POSTDIV         0x02
@@ -101,10 +102,11 @@ struct clk {
 
 /* Clock flags: SoC-specific flags start at BIT(16) */
 #define ALWAYS_ENABLED		BIT(1)
-#define CLK_PSC                 BIT(2)
-#define PSC_DSP                 BIT(3) /* PSC uses DSP domain, not ARM */
+#define CLK_PSC			BIT(2)
+#define PSC_DSP			BIT(3) /* PSC uses DSP domain, not ARM */
 #define CLK_PLL			BIT(4) /* PLL-derived clock */
-#define PRE_PLL                 BIT(5) /* source is before PLL mult/div */
+#define PRE_PLL			BIT(5) /* source is before PLL mult/div */
+#define PSC_SWRSTDISABLE	BIT(6) /* Disable state is SwRstDisable */
 
 #define CLK(dev, con, ck) 	\
 	{			\
@@ -118,6 +120,7 @@ int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 				unsigned int mult, unsigned int postdiv);
 
 extern struct platform_device davinci_wdt_device;
+extern void davinci_watchdog_reset(struct platform_device *);
 
 #endif
 

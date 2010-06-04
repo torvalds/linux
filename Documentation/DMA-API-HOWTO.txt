@@ -639,6 +639,36 @@ is planned to completely remove virt_to_bus() and bus_to_virt() as
 they are entirely deprecated.  Some ports already do not provide these
 as it is impossible to correctly support them.
 
+			Handling Errors
+
+DMA address space is limited on some architectures and an allocation
+failure can be determined by:
+
+- checking if dma_alloc_coherent returns NULL or dma_map_sg returns 0
+
+- checking the returned dma_addr_t of dma_map_single and dma_map_page
+  by using dma_mapping_error():
+
+	dma_addr_t dma_handle;
+
+	dma_handle = dma_map_single(dev, addr, size, direction);
+	if (dma_mapping_error(dev, dma_handle)) {
+		/*
+		 * reduce current DMA mapping usage,
+		 * delay and try again later or
+		 * reset driver.
+		 */
+	}
+
+Networking drivers must call dev_kfree_skb to free the socket buffer
+and return NETDEV_TX_OK if the DMA mapping fails on the transmit hook
+(ndo_start_xmit). This means that the socket buffer is just dropped in
+the failure case.
+
+SCSI drivers must return SCSI_MLQUEUE_HOST_BUSY if the DMA mapping
+fails in the queuecommand hook. This means that the SCSI subsystem
+passes the command to the driver again later.
+
 		Optimizing Unmap State Space Consumption
 
 On many platforms, dma_unmap_{single,page}() is simply a nop.
@@ -703,46 +733,29 @@ to "Closing".
 
 1) Struct scatterlist requirements.
 
-   Struct scatterlist must contain, at a minimum, the following
-   members:
+   Don't invent the architecture specific struct scatterlist; just use
+   <asm-generic/scatterlist.h>. You need to enable
+   CONFIG_NEED_SG_DMA_LENGTH if the architecture supports IOMMUs
+   (including software IOMMU).
 
-	struct page *page;
-	unsigned int offset;
-	unsigned int length;
+2) ARCH_KMALLOC_MINALIGN
 
-   The base address is specified by a "page+offset" pair.
+   Architectures must ensure that kmalloc'ed buffer is
+   DMA-safe. Drivers and subsystems depend on it. If an architecture
+   isn't fully DMA-coherent (i.e. hardware doesn't ensure that data in
+   the CPU cache is identical to data in main memory),
+   ARCH_KMALLOC_MINALIGN must be set so that the memory allocator
+   makes sure that kmalloc'ed buffer doesn't share a cache line with
+   the others. See arch/arm/include/asm/cache.h as an example.
 
-   Previous versions of struct scatterlist contained a "void *address"
-   field that was sometimes used instead of page+offset.  As of Linux
-   2.5., page+offset is always used, and the "address" field has been
-   deleted.
-
-2) More to come...
-
-			Handling Errors
-
-DMA address space is limited on some architectures and an allocation
-failure can be determined by:
-
-- checking if dma_alloc_coherent returns NULL or dma_map_sg returns 0
-
-- checking the returned dma_addr_t of dma_map_single and dma_map_page
-  by using dma_mapping_error():
-
-	dma_addr_t dma_handle;
-
-	dma_handle = dma_map_single(dev, addr, size, direction);
-	if (dma_mapping_error(dev, dma_handle)) {
-		/*
-		 * reduce current DMA mapping usage,
-		 * delay and try again later or
-		 * reset driver.
-		 */
-	}
+   Note that ARCH_KMALLOC_MINALIGN is about DMA memory alignment
+   constraints. You don't need to worry about the architecture data
+   alignment constraints (e.g. the alignment constraints about 64-bit
+   objects).
 
 			   Closing
 
-This document, and the API itself, would not be in it's current
+This document, and the API itself, would not be in its current
 form without the feedback and suggestions from numerous individuals.
 We would like to specifically mention, in no particular order, the
 following people:

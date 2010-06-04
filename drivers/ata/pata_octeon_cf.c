@@ -489,9 +489,8 @@ static void octeon_cf_exec_command16(struct ata_port *ap,
 	ata_wait_idle(ap);
 }
 
-static u8 octeon_cf_irq_on(struct ata_port *ap)
+static void octeon_cf_irq_on(struct ata_port *ap)
 {
-	return 0;
 }
 
 static void octeon_cf_irq_clear(struct ata_port *ap)
@@ -655,9 +654,6 @@ static irqreturn_t octeon_cf_interrupt(int irq, void *dev_instance)
 		ap = host->ports[i];
 		ocd = ap->dev->platform_data;
 
-		if (ap->flags & ATA_FLAG_DISABLED)
-			continue;
-
 		ocd = ap->dev->platform_data;
 		cf_port = ap->private_data;
 		dma_int.u64 =
@@ -667,8 +663,7 @@ static irqreturn_t octeon_cf_interrupt(int irq, void *dev_instance)
 
 		qc = ata_qc_from_tag(ap, ap->link.active_tag);
 
-		if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)) &&
-		    (qc->flags & ATA_QCFLAG_ACTIVE)) {
+		if (qc && !(qc->tf.flags & ATA_TFLAG_POLLING)) {
 			if (dma_int.s.done && !dma_cfg.s.en) {
 				if (!sg_is_last(qc->cursg)) {
 					qc->cursg = sg_next(qc->cursg);
@@ -738,8 +733,7 @@ static void octeon_cf_delayed_finish(struct work_struct *work)
 		goto out;
 	}
 	qc = ata_qc_from_tag(ap, ap->link.active_tag);
-	if (qc && (!(qc->tf.flags & ATA_TFLAG_POLLING)) &&
-	    (qc->flags & ATA_QCFLAG_ACTIVE))
+	if (qc && !(qc->tf.flags & ATA_TFLAG_POLLING))
 		octeon_cf_dma_finished(ap, qc);
 out:
 	spin_unlock_irqrestore(&host->lock, flags);
@@ -753,20 +747,6 @@ static void octeon_cf_dev_config(struct ata_device *dev)
 	 * (2^12 - 1 == 4095) to assure that this can never happen.
 	 */
 	dev->max_sectors = min(dev->max_sectors, 4095U);
-}
-
-/*
- * Trap if driver tries to do standard bmdma commands.  They are not
- * supported.
- */
-static void unreachable_qc(struct ata_queued_cmd *qc)
-{
-	BUG();
-}
-
-static u8 unreachable_port(struct ata_port *ap)
-{
-	BUG();
 }
 
 /*
@@ -810,10 +790,6 @@ static struct ata_port_operations octeon_cf_ops = {
 	.sff_dev_select		= octeon_cf_dev_select,
 	.sff_irq_on		= octeon_cf_irq_on,
 	.sff_irq_clear		= octeon_cf_irq_clear,
-	.bmdma_setup		= unreachable_qc,
-	.bmdma_start		= unreachable_qc,
-	.bmdma_stop		= unreachable_qc,
-	.bmdma_status		= unreachable_port,
 	.cable_detect		= ata_cable_40wire,
 	.set_piomode		= octeon_cf_set_piomode,
 	.set_dmamode		= octeon_cf_set_dmamode,

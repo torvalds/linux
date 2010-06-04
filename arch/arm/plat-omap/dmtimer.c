@@ -264,8 +264,8 @@ static struct omap_dm_timer omap4_dm_timers[] = {
 	{ .phys_base = 0x4a320000, .irq = OMAP44XX_IRQ_GPT12 },
 };
 static const char *omap4_dm_source_names[] __initdata = {
-	"sys_ck",
-	"omap_32k_fck",
+	"sys_clkin_ck",
+	"sys_32k_ck",
 	NULL
 };
 static struct clk *omap4_dm_source_clocks[2];

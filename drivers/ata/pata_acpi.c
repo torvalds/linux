@@ -101,7 +101,7 @@ static unsigned long pacpi_discover_modes(struct ata_port *ap, struct ata_device
 static unsigned long pacpi_mode_filter(struct ata_device *adev, unsigned long mask)
 {
 	struct pata_acpi *acpi = adev->link->ap->private_data;
-	return ata_bmdma_mode_filter(adev, mask & acpi->mask[adev->devno]);
+	return mask & acpi->mask[adev->devno];
 }
 
 /**
@@ -172,7 +172,7 @@ static unsigned int pacpi_qc_issue(struct ata_queued_cmd *qc)
 	struct pata_acpi *acpi = ap->private_data;
 
 	if (acpi->gtm.flags & 0x10)
-		return ata_sff_qc_issue(qc);
+		return ata_bmdma_qc_issue(qc);
 
 	if (adev != acpi->last) {
 		pacpi_set_piomode(ap, adev);
@@ -180,7 +180,7 @@ static unsigned int pacpi_qc_issue(struct ata_queued_cmd *qc)
 			pacpi_set_dmamode(ap, adev);
 		acpi->last = adev;
 	}
-	return ata_sff_qc_issue(qc);
+	return ata_bmdma_qc_issue(qc);
 }
 
 /**
@@ -205,7 +205,7 @@ static int pacpi_port_start(struct ata_port *ap)
 		return -ENOMEM;
 	acpi->mask[0] = pacpi_discover_modes(ap, &ap->link.device[0]);
 	acpi->mask[1] = pacpi_discover_modes(ap, &ap->link.device[1]);
-	ret = ata_sff_port_start(ap);
+	ret = ata_bmdma_port_start(ap);
 	if (ret < 0)
 		return ret;
 
@@ -260,7 +260,7 @@ static int pacpi_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 			return rc;
 		pcim_pin_device(pdev);
 	}
-	return ata_pci_sff_init_one(pdev, ppi, &pacpi_sht, NULL, 0);
+	return ata_pci_bmdma_init_one(pdev, ppi, &pacpi_sht, NULL, 0);
 }
 
 static const struct pci_device_id pacpi_pci_tbl[] = {

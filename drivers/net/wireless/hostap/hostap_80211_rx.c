@@ -355,8 +355,7 @@ static struct hostap_bss_info *__hostap_add_bss(local_info_t *local, u8 *bssid,
 		list_del(&bss->list);
 		local->num_bss_info--;
 	} else {
-		bss = (struct hostap_bss_info *)
-			kmalloc(sizeof(*bss), GFP_ATOMIC);
+		bss = kmalloc(sizeof(*bss), GFP_ATOMIC);
 		if (bss == NULL)
 			return NULL;
 	}

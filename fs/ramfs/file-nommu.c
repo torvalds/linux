@@ -42,7 +42,7 @@ const struct file_operations ramfs_file_operations = {
 	.aio_read		= generic_file_aio_read,
 	.write			= do_sync_write,
 	.aio_write		= generic_file_aio_write,
-	.fsync			= simple_sync_file,
+	.fsync			= noop_fsync,
 	.splice_read		= generic_file_splice_read,
 	.splice_write		= generic_file_splice_write,
 	.llseek			= generic_file_llseek,
@@ -146,7 +146,7 @@ static int ramfs_nommu_resize(struct inode *inode, loff_t newsize, loff_t size)
 			return ret;
 	}
 
-	ret = vmtruncate(inode, newsize);
+	ret = simple_setsize(inode, newsize);
 
 	return ret;
 }
@@ -169,7 +169,8 @@ static int ramfs_nommu_setattr(struct dentry *dentry, struct iattr *ia)
 
 	/* pick out size-changing events */
 	if (ia->ia_valid & ATTR_SIZE) {
-		loff_t size = i_size_read(inode);
+		loff_t size = inode->i_size;
+
 		if (ia->ia_size != size) {
 			ret = ramfs_nommu_resize(inode, ia->ia_size, size);
 			if (ret < 0 || ia->ia_valid == ATTR_SIZE)
@@ -182,7 +183,7 @@ static int ramfs_nommu_setattr(struct dentry *dentry, struct iattr *ia)
 		}
 	}
 
-	ret = inode_setattr(inode, ia);
+	generic_setattr(inode, ia);
  out:
 	ia->ia_valid = old_ia_valid;
 	return ret;

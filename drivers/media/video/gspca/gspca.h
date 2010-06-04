@@ -130,7 +130,7 @@ struct sd_desc {
 	cam_reg_op get_register;
 #endif
 	cam_ident_op get_chip_ident;
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	cam_int_pkt_op int_pkt_scan;
 	/* other_input makes the gspca core create gspca_dev->input even when
 	   int_pkt_scan is NULL, for cams with non interrupt driven buttons */
@@ -158,7 +158,7 @@ struct gspca_dev {
 	struct module *module;		/* subdriver handling the device */
 	struct usb_device *dev;
 	struct file *capt_file;		/* file doing video capture */
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	struct input_dev *input_dev;
 	char phys[64];			/* physical device path */
 #endif
@@ -171,7 +171,7 @@ struct gspca_dev {
 #define USB_BUF_SZ 64
 	__u8 *usb_buf;				/* buffer for USB exchanges */
 	struct urb *urb[MAX_NURBS];
-#ifdef CONFIG_INPUT
+#if defined(CONFIG_INPUT) || defined(CONFIG_INPUT_MODULE)
 	struct urb *int_urb;
 #endif
 
