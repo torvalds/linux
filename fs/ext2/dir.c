@@ -450,8 +450,7 @@ ino_t ext2_inode_by_name(struct inode *dir, struct qstr *child)
 
 static int ext2_prepare_chunk(struct page *page, loff_t pos, unsigned len)
 {
-	return block_write_begin_newtrunc(NULL, page->mapping, pos, len, 0,
-					  &page, NULL, ext2_get_block);
+	return __block_write_begin(page, pos, len, ext2_get_block);
 }
 
 /* Releases the page */

@@ -461,8 +461,7 @@ static int sysv_readpage(struct file *file, struct page *page)
 
 int sysv_prepare_chunk(struct page *page, loff_t pos, unsigned len)
 {
-	return block_write_begin_newtrunc(NULL, page->mapping, pos, len, 0,
-					  &page, NULL, get_block);
+	return __block_write_begin(page, pos, len, get_block);
 }
 
 static int sysv_write_begin(struct file *file, struct address_space *mapping,

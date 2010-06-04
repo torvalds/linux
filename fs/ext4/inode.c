@@ -1578,11 +1578,9 @@ retry:
 	*pagep = page;
 
 	if (ext4_should_dioread_nolock(inode))
-		ret = block_write_begin(file, mapping, pos, len, flags, pagep,
-				fsdata, ext4_get_block_write);
+		ret = __block_write_begin(page, pos, len, ext4_get_block_write);
 	else
-		ret = block_write_begin(file, mapping, pos, len, flags, pagep,
-				fsdata, ext4_get_block);
+		ret = __block_write_begin(page, pos, len, ext4_get_block);
 
 	if (!ret && ext4_should_journal_data(inode)) {
 		ret = walk_page_buffers(handle, page_buffers(page),
@@ -1593,7 +1591,7 @@ retry:
 		unlock_page(page);
 		page_cache_release(page);
 		/*
-		 * block_write_begin may have instantiated a few blocks
+		 * __block_write_begin may have instantiated a few blocks
 		 * outside i_size.  Trim these off again. Don't need
 		 * i_size_read because we hold i_mutex.
 		 *
@@ -3185,8 +3183,7 @@ retry:
 	}
 	*pagep = page;
 
-	ret = block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				ext4_da_get_block_prep);
+	ret = __block_write_begin(page, pos, len, ext4_da_get_block_prep);
 	if (ret < 0) {
 		unlock_page(page);
 		ext4_journal_stop(handle);

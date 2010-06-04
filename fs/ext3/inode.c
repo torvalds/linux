@@ -1196,8 +1196,7 @@ retry:
 		ret = PTR_ERR(handle);
 		goto out;
 	}
-	ret = block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-							ext3_get_block);
+	ret = __block_write_begin(page, pos, len, ext3_get_block);
 	if (ret)
 		goto write_begin_failed;
 

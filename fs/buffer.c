@@ -1833,9 +1833,10 @@ void page_zero_new_buffers(struct page *page, unsigned from, unsigned to)
 }
 EXPORT_SYMBOL(page_zero_new_buffers);
 
-static int __block_prepare_write(struct inode *inode, struct page *page,
-		unsigned from, unsigned to, get_block_t *get_block)
+int block_prepare_write(struct page *page, unsigned from, unsigned to,
+		get_block_t *get_block)
 {
+	struct inode *inode = page->mapping->host;
 	unsigned block_start, block_end;
 	sector_t block;
 	int err = 0;
@@ -1908,10 +1909,13 @@ static int __block_prepare_write(struct inode *inode, struct page *page,
 		if (!buffer_uptodate(*wait_bh))
 			err = -EIO;
 	}
-	if (unlikely(err))
+	if (unlikely(err)) {
 		page_zero_new_buffers(page, from, to);
+		ClearPageUptodate(page);
+	}
 	return err;
 }
+EXPORT_SYMBOL(block_prepare_write);
 
 static int __block_commit_write(struct inode *inode, struct page *page,
 		unsigned from, unsigned to)
@@ -1948,6 +1952,15 @@ static int __block_commit_write(struct inode *inode, struct page *page,
 	return 0;
 }
 
+int __block_write_begin(struct page *page, loff_t pos, unsigned len,
+		get_block_t *get_block)
+{
+	unsigned start = pos & (PAGE_CACHE_SIZE - 1);
+
+	return block_prepare_write(page, start, start + len, get_block);
+}
+EXPORT_SYMBOL(__block_write_begin);
+
 /*
  * Filesystems implementing the new truncate sequence should use the
  * _newtrunc postfix variant which won't incorrectly call vmtruncate.
@@ -1958,41 +1971,22 @@ int block_write_begin_newtrunc(struct file *file, struct address_space *mapping,
 			struct page **pagep, void **fsdata,
 			get_block_t *get_block)
 {
-	struct inode *inode = mapping->host;
-	int status = 0;
+	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 	struct page *page;
-	pgoff_t index;
-	unsigned start, end;
-	int ownpage = 0;
+	int status;
 
-	index = pos >> PAGE_CACHE_SHIFT;
-	start = pos & (PAGE_CACHE_SIZE - 1);
-	end = start + len;
+	page = grab_cache_page_write_begin(mapping, index, flags);
+	if (!page)
+		return -ENOMEM;
 
-	page = *pagep;
-	if (page == NULL) {
-		ownpage = 1;
-		page = grab_cache_page_write_begin(mapping, index, flags);
-		if (!page) {
-			status = -ENOMEM;
-			goto out;
-		}
-		*pagep = page;
-	} else
-		BUG_ON(!PageLocked(page));
-
-	status = __block_prepare_write(inode, page, start, end, get_block);
+	status = __block_write_begin(page, pos, len, get_block);
 	if (unlikely(status)) {
-		ClearPageUptodate(page);
-
-		if (ownpage) {
-			unlock_page(page);
-			page_cache_release(page);
-			*pagep = NULL;
-		}
+		unlock_page(page);
+		page_cache_release(page);
+		page = NULL;
 	}
 
-out:
+	*pagep = page;
 	return status;
 }
 EXPORT_SYMBOL(block_write_begin_newtrunc);
@@ -2378,17 +2372,6 @@ out:
 	return err;
 }
 EXPORT_SYMBOL(cont_write_begin);
-
-int block_prepare_write(struct page *page, unsigned from, unsigned to,
-			get_block_t *get_block)
-{
-	struct inode *inode = page->mapping->host;
-	int err = __block_prepare_write(inode, page, from, to, get_block);
-	if (err)
-		ClearPageUptodate(page);
-	return err;
-}
-EXPORT_SYMBOL(block_prepare_write);
 
 int block_commit_write(struct page *page, unsigned from, unsigned to)
 {

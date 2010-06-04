@@ -2585,8 +2585,7 @@ static int reiserfs_write_begin(struct file *file,
 		old_ref = th->t_refcount;
 		th->t_refcount++;
 	}
-	ret = block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				reiserfs_get_block);
+	ret = __block_write_begin(page, pos, len, reiserfs_get_block);
 	if (ret && reiserfs_transaction_running(inode->i_sb)) {
 		struct reiserfs_transaction_handle *th = current->journal_info;
 		/* this gets a little ugly.  If reiserfs_get_block returned an
