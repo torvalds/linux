@@ -36,9 +36,9 @@ struct sd {
 	unsigned char colors;
 	unsigned char lightfreq;
 	u8 quality;
-#define QUALITY_MIN 60
+#define QUALITY_MIN 70
 #define QUALITY_MAX 95
-#define QUALITY_DEF 80
+#define QUALITY_DEF 88
 
 	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
