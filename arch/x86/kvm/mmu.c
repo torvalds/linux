@@ -916,6 +916,7 @@ static int is_empty_shadow_page(u64 *spt)
 static void kvm_mmu_free_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 {
 	ASSERT(is_empty_shadow_page(sp->spt));
+	hlist_del(&sp->hash_link);
 	list_del(&sp->link);
 	__free_page(virt_to_page(sp->spt));
 	if (!sp->role.direct)
@@ -1200,6 +1201,10 @@ static void kvm_unlink_unsync_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 }
 
 static int kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp);
+static int kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
+				    struct list_head *invalid_list);
+static void kvm_mmu_commit_zap_page(struct kvm *kvm,
+				    struct list_head *invalid_list);
 
 #define for_each_gfn_sp(kvm, sp, gfn, pos, n)				\
   hlist_for_each_entry_safe(sp, pos, n,					\
@@ -1530,7 +1535,8 @@ static void kvm_mmu_unlink_parents(struct kvm *kvm, struct kvm_mmu_page *sp)
 }
 
 static int mmu_zap_unsync_children(struct kvm *kvm,
-				   struct kvm_mmu_page *parent)
+				   struct kvm_mmu_page *parent,
+				   struct list_head *invalid_list)
 {
 	int i, zapped = 0;
 	struct mmu_page_path parents;
@@ -1544,7 +1550,7 @@ static int mmu_zap_unsync_children(struct kvm *kvm,
 		struct kvm_mmu_page *sp;
 
 		for_each_sp(pages, sp, parents, i) {
-			kvm_mmu_zap_page(kvm, sp);
+			kvm_mmu_prepare_zap_page(kvm, sp, invalid_list);
 			mmu_pages_clear_parents(&parents);
 			zapped++;
 		}
@@ -1554,16 +1560,16 @@ static int mmu_zap_unsync_children(struct kvm *kvm,
 	return zapped;
 }
 
-static int kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp)
+static int kvm_mmu_prepare_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp,
+				    struct list_head *invalid_list)
 {
 	int ret;
 
-	trace_kvm_mmu_zap_page(sp);
+	trace_kvm_mmu_prepare_zap_page(sp);
 	++kvm->stat.mmu_shadow_zapped;
-	ret = mmu_zap_unsync_children(kvm, sp);
+	ret = mmu_zap_unsync_children(kvm, sp, invalid_list);
 	kvm_mmu_page_unlink_children(kvm, sp);
 	kvm_mmu_unlink_parents(kvm, sp);
-	kvm_flush_remote_tlbs(kvm);
 	if (!sp->role.invalid && !sp->role.direct)
 		unaccount_shadowed(kvm, sp->gfn);
 	if (sp->unsync)
@@ -1571,14 +1577,42 @@ static int kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp)
 	if (!sp->root_count) {
 		/* Count self */
 		ret++;
-		hlist_del(&sp->hash_link);
-		kvm_mmu_free_page(kvm, sp);
+		list_move(&sp->link, invalid_list);
 	} else {
-		sp->role.invalid = 1;
 		list_move(&sp->link, &kvm->arch.active_mmu_pages);
 		kvm_reload_remote_mmus(kvm);
 	}
+
+	sp->role.invalid = 1;
 	kvm_mmu_reset_last_pte_updated(kvm);
+	return ret;
+}
+
+static void kvm_mmu_commit_zap_page(struct kvm *kvm,
+				    struct list_head *invalid_list)
+{
+	struct kvm_mmu_page *sp;
+
+	if (list_empty(invalid_list))
+		return;
+
+	kvm_flush_remote_tlbs(kvm);
+
+	do {
+		sp = list_first_entry(invalid_list, struct kvm_mmu_page, link);
+		WARN_ON(!sp->role.invalid || sp->root_count);
+		kvm_mmu_free_page(kvm, sp);
+	} while (!list_empty(invalid_list));
+
+}
+
+static int kvm_mmu_zap_page(struct kvm *kvm, struct kvm_mmu_page *sp)
+{
+	LIST_HEAD(invalid_list);
+	int ret;
+
+	ret = kvm_mmu_prepare_zap_page(kvm, sp, &invalid_list);
+	kvm_mmu_commit_zap_page(kvm, &invalid_list);
 	return ret;
 }
 
