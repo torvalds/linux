@@ -183,7 +183,7 @@ void sun4d_free_irq(unsigned int irq, void *dev_id)
 		goto out_unlock;
 	}
 	
-	if (action && tmp)
+	if (tmp)
 		tmp->next = action->next;
 	else
 		*actionp = action->next;
