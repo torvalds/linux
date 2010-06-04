@@ -968,11 +968,17 @@ int pohmelfs_setattr_raw(struct inode *inode, struct iattr *attr)
 		goto err_out_exit;
 	}
 
-	err = inode_setattr(inode, attr);
-	if (err) {
-		dprintk("%s: ino: %llu, failed to set the attributes.\n", __func__, POHMELFS_I(inode)->ino);
-		goto err_out_exit;
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		err = vmtruncate(inode, attr->ia_size);
+		if (err) {
+			dprintk("%s: ino: %llu, failed to set the attributes.\n", __func__, POHMELFS_I(inode)->ino);
+			goto err_out_exit;
+		}
 	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
 
 	dprintk("%s: ino: %llu, mode: %o -> %o, uid: %u -> %u, gid: %u -> %u, size: %llu -> %llu.\n",
 			__func__, POHMELFS_I(inode)->ino, inode->i_mode, attr->ia_mode,

@@ -3134,54 +3134,61 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	error = inode_change_ok(inode, attr);
-	if (!error) {
-		if ((ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
-		    (ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {
-			error = reiserfs_chown_xattrs(inode, attr);
+	if (error)
+		goto out;
 
-			if (!error) {
-				struct reiserfs_transaction_handle th;
-				int jbegin_count =
-				    2 *
-				    (REISERFS_QUOTA_INIT_BLOCKS(inode->i_sb) +
-				     REISERFS_QUOTA_DEL_BLOCKS(inode->i_sb)) +
-				    2;
+	if ((ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
+	    (ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {
+		struct reiserfs_transaction_handle th;
+		int jbegin_count =
+		    2 *
+		    (REISERFS_QUOTA_INIT_BLOCKS(inode->i_sb) +
+		     REISERFS_QUOTA_DEL_BLOCKS(inode->i_sb)) +
+		    2;
 
-				/* (user+group)*(old+new) structure - we count quota info and , inode write (sb, inode) */
-				error =
-				    journal_begin(&th, inode->i_sb,
-						  jbegin_count);
-				if (error)
-					goto out;
-				error = dquot_transfer(inode, attr);
-				if (error) {
-					journal_end(&th, inode->i_sb,
-						    jbegin_count);
-					goto out;
-				}
-				/* Update corresponding info in inode so that everything is in
-				 * one transaction */
-				if (attr->ia_valid & ATTR_UID)
-					inode->i_uid = attr->ia_uid;
-				if (attr->ia_valid & ATTR_GID)
-					inode->i_gid = attr->ia_gid;
-				mark_inode_dirty(inode);
-				error =
-				    journal_end(&th, inode->i_sb, jbegin_count);
-			}
+		error = reiserfs_chown_xattrs(inode, attr);
+
+		if (error)
+			return error;
+
+		/* (user+group)*(old+new) structure - we count quota info and , inode write (sb, inode) */
+		error = journal_begin(&th, inode->i_sb, jbegin_count);
+		if (error)
+			goto out;
+		error = dquot_transfer(inode, attr);
+		if (error) {
+			journal_end(&th, inode->i_sb, jbegin_count);
+			goto out;
 		}
-		if (!error) {
-			/*
-			 * Relax the lock here, as it might truncate the
-			 * inode pages and wait for inode pages locks.
-			 * To release such page lock, the owner needs the
-			 * reiserfs lock
-			 */
-			reiserfs_write_unlock_once(inode->i_sb, depth);
-			error = inode_setattr(inode, attr);
-			depth = reiserfs_write_lock_once(inode->i_sb);
-		}
+
+		/* Update corresponding info in inode so that everything is in
+		 * one transaction */
+		if (attr->ia_valid & ATTR_UID)
+			inode->i_uid = attr->ia_uid;
+		if (attr->ia_valid & ATTR_GID)
+			inode->i_gid = attr->ia_gid;
+		mark_inode_dirty(inode);
+		error = journal_end(&th, inode->i_sb, jbegin_count);
+		if (error)
+			goto out;
 	}
+
+	/*
+	 * Relax the lock here, as it might truncate the
+	 * inode pages and wait for inode pages locks.
+	 * To release such page lock, the owner needs the
+	 * reiserfs lock
+	 */
+	reiserfs_write_unlock_once(inode->i_sb, depth);
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode))
+		error = vmtruncate(inode, attr->ia_size);
+
+	if (!error) {
+		setattr_copy(inode, attr);
+		mark_inode_dirty(inode);
+	}
+	depth = reiserfs_write_lock_once(inode->i_sb);
 
 	if (!error && reiserfs_posixacl(inode->i_sb)) {
 		if (attr->ia_valid & ATTR_MODE)

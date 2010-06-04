@@ -5539,11 +5539,19 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 			ext4_truncate(inode);
 	}
 
-	rc = inode_setattr(inode, attr);
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode))
+		rc = vmtruncate(inode, attr->ia_size);
 
-	/* If inode_setattr's call to ext4_truncate failed to get a
-	 * transaction handle at all, we need to clean up the in-core
-	 * orphan list manually. */
+	if (!rc) {
+		setattr_copy(inode, attr);
+		mark_inode_dirty(inode);
+	}
+
+	/*
+	 * If the call to ext4_truncate failed to get a transaction handle at
+	 * all, we need to clean up the in-core orphan list manually.
+	 */
 	if (inode->i_nlink)
 		ext4_orphan_del(NULL, inode);
 

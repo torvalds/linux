@@ -3208,9 +3208,17 @@ int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 		ext3_journal_stop(handle);
 	}
 
-	rc = inode_setattr(inode, attr);
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		rc = vmtruncate(inode, attr->ia_size);
+		if (rc)
+			goto err_out;
+	}
 
-	if (!rc && (ia_valid & ATTR_MODE))
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+
+	if (ia_valid & ATTR_MODE)
 		rc = ext3_acl_chmod(inode);
 
 err_out:

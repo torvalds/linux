@@ -3656,13 +3656,15 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 		if (err)
 			return err;
 	}
-	attr->ia_valid &= ~ATTR_SIZE;
 
-	if (attr->ia_valid)
-		err = inode_setattr(inode, attr);
+	if (attr->ia_valid) {
+		setattr_copy(inode, attr);
+		mark_inode_dirty(inode);
 
-	if (!err && ((attr->ia_valid & ATTR_MODE)))
-		err = btrfs_acl_chmod(inode);
+		if (attr->ia_valid & ATTR_MODE)
+			err = btrfs_acl_chmod(inode);
+	}
+
 	return err;
 }
 

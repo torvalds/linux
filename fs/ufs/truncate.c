@@ -525,7 +525,10 @@ int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 		if (error)
 			return error;
 	}
-	return inode_setattr(inode, attr);
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 const struct inode_operations ufs_file_inode_operations = {

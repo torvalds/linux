@@ -146,31 +146,6 @@ void setattr_copy(struct inode *inode, const struct iattr *attr)
 }
 EXPORT_SYMBOL(setattr_copy);
 
-/*
- * note this function is deprecated, the new truncate sequence should be
- * used instead -- see eg. simple_setsize, setattr_copy.
- */
-int inode_setattr(struct inode *inode, const struct iattr *attr)
-{
-	unsigned int ia_valid = attr->ia_valid;
-
-	if (ia_valid & ATTR_SIZE &&
-	    attr->ia_size != i_size_read(inode)) {
-		int error;
-
-		error = vmtruncate(inode, attr->ia_size);
-		if (error)
-			return error;
-	}
-
-	setattr_copy(inode, attr);
-
-	mark_inode_dirty(inode);
-
-	return 0;
-}
-EXPORT_SYMBOL(inode_setattr);
-
 int notify_change(struct dentry * dentry, struct iattr * attr)
 {
 	struct inode *inode = dentry->d_inode;

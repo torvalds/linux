@@ -612,10 +612,16 @@ int hfs_inode_setattr(struct dentry *dentry, struct iattr * attr)
 			attr->ia_mode = inode->i_mode & ~S_IWUGO;
 		attr->ia_mode &= S_ISDIR(inode->i_mode) ? ~hsb->s_dir_umask: ~hsb->s_file_umask;
 	}
-	error = inode_setattr(inode, attr);
-	if (error)
-		return error;
 
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		error = vmtruncate(inode, attr->ia_size);
+		if (error)
+			return error;
+	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
 	return 0;
 }
 

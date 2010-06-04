@@ -887,8 +887,18 @@ int exofs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (error)
 		return error;
 
-	error = inode_setattr(inode, iattr);
-	return error;
+	if ((iattr->ia_valid & ATTR_SIZE) &&
+	    iattr->ia_size != i_size_read(inode)) {
+		int error;
+
+		error = vmtruncate(inode, iattr->ia_size);
+		if (error)
+			return error;
+	}
+
+	setattr_copy(inode, iattr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 static const struct osd_attr g_attr_inode_file_layout = ATTR_DEF(

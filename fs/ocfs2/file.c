@@ -1238,12 +1238,20 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	 * Otherwise, we could get into problems with truncate as
 	 * ip_alloc_sem is used there to protect against i_size
 	 * changes.
+	 *
+	 * XXX: this means the conditional below can probably be removed.
 	 */
-	status = inode_setattr(inode, attr);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail_commit;
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		status = vmtruncate(inode, attr->ia_size);
+		if (status) {
+			mlog_errno(status);
+			goto bail_commit;
+		}
 	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
 
 	status = ocfs2_mark_inode_dirty(handle, inode, bh);
 	if (status < 0)

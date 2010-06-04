@@ -924,9 +924,8 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 				tmpattr.ia_valid = ATTR_MODE;
 				tmpattr.ia_mode = attr->ia_mode;
 
-				result = inode_setattr(inode, &tmpattr);
-				if (result)
-					goto out;
+				setattr_copy(inode, &tmpattr);
+				mark_inode_dirty(inode);
 			}
 		}
 #endif
@@ -954,15 +953,12 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 		result = ncp_make_closed(inode);
 		if (result)
 			goto out;
-		{
-			struct iattr tmpattr;
-			
-			tmpattr.ia_valid = ATTR_SIZE;
-			tmpattr.ia_size = attr->ia_size;
-			
-			result = inode_setattr(inode, &tmpattr);
+
+		if (attr->ia_size != i_size_read(inode)) {
+			result = vmtruncate(inode, attr->ia_size);
 			if (result)
 				goto out;
+			mark_inode_dirty(inode);
 		}
 	}
 	if ((attr->ia_valid & ATTR_CTIME) != 0) {
@@ -1002,8 +998,12 @@ int ncp_notify_change(struct dentry *dentry, struct iattr *attr)
 			NCP_FINFO(inode)->nwattr = info.attributes;
 #endif
 	}
-	if (!result)
-		result = inode_setattr(inode, attr);
+	if (result)
+		goto out;
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+
 out:
 	unlock_kernel();
 	return result;

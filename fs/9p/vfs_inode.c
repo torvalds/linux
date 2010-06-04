@@ -896,10 +896,19 @@ static int v9fs_vfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	}
 
 	retval = p9_client_wstat(fid, &wstat);
-	if (retval >= 0)
-		retval = inode_setattr(dentry->d_inode, iattr);
+	if (retval < 0)
+		return retval;
 
-	return retval;
+	if ((iattr->ia_valid & ATTR_SIZE) &&
+	    iattr->ia_size != i_size_read(dentry->d_inode)) {
+		retval = vmtruncate(dentry->d_inode, iattr->ia_size);
+		if (retval)
+			return retval;
+	}
+
+	setattr_copy(dentry->d_inode, iattr);
+	mark_inode_dirty(dentry->d_inode);
+	return 0;
 }
 
 /**

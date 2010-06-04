@@ -214,10 +214,12 @@ static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
 
 	attr->ia_valid &= ~ATTR_SIZE;
 	error = inode_change_ok(inode, attr);
-	if (!error)
-		error = inode_setattr(inode, attr);
+	if (error)
+		return error;
 
-	return error;
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 static unsigned int dlmfs_file_poll(struct file *file, poll_table *wait)

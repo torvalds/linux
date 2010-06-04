@@ -448,19 +448,20 @@ static int hugetlbfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	error = inode_change_ok(inode, attr);
 	if (error)
-		goto out;
+		return error;
 
 	if (ia_valid & ATTR_SIZE) {
 		error = -EINVAL;
-		if (!(attr->ia_size & ~huge_page_mask(h)))
-			error = hugetlb_vmtruncate(inode, attr->ia_size);
+		if (attr->ia_size & ~huge_page_mask(h))
+			return -EINVAL;
+		error = hugetlb_vmtruncate(inode, attr->ia_size);
 		if (error)
-			goto out;
-		attr->ia_valid &= ~ATTR_SIZE;
+			return error;
 	}
-	error = inode_setattr(inode, attr);
-out:
-	return error;
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 static struct inode *hugetlbfs_get_inode(struct super_block *sb, uid_t uid, 

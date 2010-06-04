@@ -849,13 +849,14 @@ int hostfs_permission(struct inode *ino, int desired)
 
 int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 {
+	struct inode *inode = dentry->d_inode;
 	struct hostfs_iattr attrs;
 	char *name;
 	int err;
 
-	int fd = HOSTFS_I(dentry->d_inode)->fd;
+	int fd = HOSTFS_I(inode)->fd;
 
-	err = inode_change_ok(dentry->d_inode, attr);
+	err = inode_change_ok(inode, attr);
 	if (err)
 		return err;
 
@@ -905,7 +906,18 @@ int hostfs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (err)
 		return err;
 
-	return inode_setattr(dentry->d_inode, attr);
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		int error;
+
+		error = vmtruncate(inode, attr->ia_size);
+		if (err)
+			return err;
+	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+	return 0;
 }
 
 static const struct inode_operations hostfs_iops = {

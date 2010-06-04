@@ -656,14 +656,27 @@ int nilfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	err = nilfs_transaction_begin(sb, &ti, 0);
 	if (unlikely(err))
 		return err;
-	err = inode_setattr(inode, iattr);
-	if (!err && (iattr->ia_valid & ATTR_MODE))
-		err = nilfs_acl_chmod(inode);
-	if (likely(!err))
-		err = nilfs_transaction_commit(sb);
-	else
-		nilfs_transaction_abort(sb);
 
+	if ((iattr->ia_valid & ATTR_SIZE) &&
+	    iattr->ia_size != i_size_read(inode)) {
+		err = vmtruncate(inode, iattr->ia_size);
+		if (unlikely(err))
+			goto out_err;
+	}
+
+	setattr_copy(inode, iattr);
+	mark_inode_dirty(inode);
+
+	if (iattr->ia_valid & ATTR_MODE) {
+		err = nilfs_acl_chmod(inode);
+		if (unlikely(err))
+			goto out_err;
+	}
+
+	return nilfs_transaction_commit(sb);
+
+out_err:
+	nilfs_transaction_abort(sb);
 	return err;
 }
 

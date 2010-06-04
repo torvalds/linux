@@ -235,8 +235,17 @@ affs_notify_change(struct dentry *dentry, struct iattr *attr)
 		goto out;
 	}
 
-	error = inode_setattr(inode, attr);
-	if (!error && (attr->ia_valid & ATTR_MODE))
+	if ((attr->ia_valid & ATTR_SIZE) &&
+	    attr->ia_size != i_size_read(inode)) {
+		error = vmtruncate(inode, attr->ia_size);
+		if (error)
+			return error;
+	}
+
+	setattr_copy(inode, attr);
+	mark_inode_dirty(inode);
+
+	if (attr->ia_valid & ATTR_MODE)
 		mode_to_prot(inode);
 out:
 	return error;
