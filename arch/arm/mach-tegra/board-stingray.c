@@ -93,7 +93,45 @@ static struct platform_device debug_uart = {
 	},
 };
 
-static struct plat_serial8250_port hsuart_platform_data[] = {
+static struct plat_serial8250_port hs_uarta_platform_data[] = {
+	{
+		.mapbase	= TEGRA_UARTA_BASE,
+		.membase	= IO_ADDRESS(TEGRA_UARTA_BASE),
+		.irq		= INT_UARTA,
+	}, {
+		.flags		= 0
+	}
+};
+
+static struct platform_device hs_uarta = {
+	.name = "tegra_uart",
+	.id = 0,
+	.dev = {
+		.platform_data = hs_uarta_platform_data,
+		.coherent_dma_mask = 0xffffffff,
+	},
+};
+
+static struct plat_serial8250_port hs_uartc_platform_data[] = {
+	{
+		.mapbase	= TEGRA_UARTC_BASE,
+		.membase	= IO_ADDRESS(TEGRA_UARTC_BASE),
+		.irq		= INT_UARTC,
+	}, {
+		.flags		= 0
+	}
+};
+
+static struct platform_device hs_uartc = {
+	.name = "tegra_uart",
+	.id = 2,
+	.dev = {
+		.platform_data = hs_uartc_platform_data,
+		.coherent_dma_mask = 0xffffffff,
+	},
+};
+
+static struct plat_serial8250_port hs_uartd_platform_data[] = {
 	{
 		.mapbase	= TEGRA_UARTD_BASE,
 		.membase	= IO_ADDRESS(TEGRA_UARTD_BASE),
@@ -103,11 +141,30 @@ static struct plat_serial8250_port hsuart_platform_data[] = {
 	}
 };
 
-static struct platform_device hsuart = {
+static struct platform_device hs_uartd = {
 	.name = "tegra_uart",
 	.id = 3,
 	.dev = {
-		.platform_data = hsuart_platform_data,
+		.platform_data = hs_uartd_platform_data,
+		.coherent_dma_mask = 0xffffffff,
+	},
+};
+
+static struct plat_serial8250_port hs_uarte_platform_data[] = {
+	{
+		.mapbase	= TEGRA_UARTE_BASE,
+		.membase	= IO_ADDRESS(TEGRA_UARTE_BASE),
+		.irq		= INT_UARTE,
+	}, {
+		.flags		= 0
+	}
+};
+
+static struct platform_device hs_uarte = {
+	.name = "tegra_uart",
+	.id = 4,
+	.dev = {
+		.platform_data = hs_uarte_platform_data,
 		.coherent_dma_mask = 0xffffffff,
 	},
 };
@@ -233,7 +290,10 @@ static struct platform_device *stingray_devices[] __initdata = {
 	&tegra_otg,
 	&androidusb_device,
 	&bq24617_device,
-	&hsuart,
+	&hs_uarta,
+	&hs_uartc,
+	&hs_uartd,
+	&hs_uarte,
 	&tegra_i2c_device1,
 	&tegra_i2c_device2,
 	&tegra_i2c_device3,
