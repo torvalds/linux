@@ -1623,7 +1623,7 @@ void r600_gpu_init(struct radeon_device *rdev)
 							 r600_count_pipe_bits((cc_rb_backend_disable &
 									       R6XX_MAX_BACKENDS_MASK) >> 16)),
 							(cc_rb_backend_disable >> 16));
-
+	rdev->config.r600.tile_config = tiling_config;
 	tiling_config |= BACKEND_MAP(backend_map);
 	WREG32(GB_TILING_CONFIG, tiling_config);
 	WREG32(DCP_TILING_CONFIG, tiling_config & 0xffff);
