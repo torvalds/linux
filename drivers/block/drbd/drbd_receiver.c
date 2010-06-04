@@ -42,7 +42,6 @@
 #include <linux/unistd.h>
 #include <linux/vmalloc.h>
 #include <linux/random.h>
-#include <linux/mm.h>
 #include <linux/string.h>
 #include <linux/scatterlist.h>
 #include "drbd_int.h"
@@ -571,6 +570,25 @@ static int drbd_recv(struct drbd_conf *mdev, void *buf, size_t size)
 	return rv;
 }
 
+/* quoting tcp(7):
+ *   On individual connections, the socket buffer size must be set prior to the
+ *   listen(2) or connect(2) calls in order to have it take effect.
+ * This is our wrapper to do so.
+ */
+static void drbd_setbufsize(struct socket *sock, unsigned int snd,
+		unsigned int rcv)
+{
+	/* open coded SO_SNDBUF, SO_RCVBUF */
+	if (snd) {
+		sock->sk->sk_sndbuf = snd;
+		sock->sk->sk_userlocks |= SOCK_SNDBUF_LOCK;
+	}
+	if (rcv) {
+		sock->sk->sk_rcvbuf = rcv;
+		sock->sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
+	}
+}
+
 static struct socket *drbd_try_connect(struct drbd_conf *mdev)
 {
 	const char *what;
@@ -592,6 +610,8 @@ static struct socket *drbd_try_connect(struct drbd_conf *mdev)
 
 	sock->sk->sk_rcvtimeo =
 	sock->sk->sk_sndtimeo =  mdev->net_conf->try_connect_int*HZ;
+	drbd_setbufsize(sock, mdev->net_conf->sndbuf_size,
+			mdev->net_conf->rcvbuf_size);
 
        /* explicitly bind to the configured IP as source IP
 	*  for the outgoing connections.
@@ -670,6 +690,8 @@ static struct socket *drbd_wait_for_connect(struct drbd_conf *mdev)
 	s_listen->sk->sk_reuse    = 1; /* SO_REUSEADDR */
 	s_listen->sk->sk_rcvtimeo = timeo;
 	s_listen->sk->sk_sndtimeo = timeo;
+	drbd_setbufsize(s_listen, mdev->net_conf->sndbuf_size,
+			mdev->net_conf->rcvbuf_size);
 
 	what = "bind before listen";
 	err = s_listen->ops->bind(s_listen,
@@ -855,16 +877,6 @@ retry:
 
 	sock->sk->sk_priority = TC_PRIO_INTERACTIVE_BULK;
 	msock->sk->sk_priority = TC_PRIO_INTERACTIVE;
-
-	if (mdev->net_conf->sndbuf_size) {
-		sock->sk->sk_sndbuf = mdev->net_conf->sndbuf_size;
-		sock->sk->sk_userlocks |= SOCK_SNDBUF_LOCK;
-	}
-
-	if (mdev->net_conf->rcvbuf_size) {
-		sock->sk->sk_rcvbuf = mdev->net_conf->rcvbuf_size;
-		sock->sk->sk_userlocks |= SOCK_RCVBUF_LOCK;
-	}
 
 	/* NOT YET ...
 	 * sock->sk->sk_sndtimeo = mdev->net_conf->timeout*HZ/10;
@@ -1153,17 +1165,6 @@ int drbd_submit_ee(struct drbd_conf *mdev, struct drbd_epoch_entry *e,
 	unsigned ds = e->size;
 	unsigned n_bios = 0;
 	unsigned nr_pages = (ds + PAGE_SIZE -1) >> PAGE_SHIFT;
-
-	if (atomic_read(&mdev->new_c_uuid)) {
-		if (atomic_add_unless(&mdev->new_c_uuid, -1, 1)) {
-			drbd_uuid_new_current(mdev);
-			drbd_md_sync(mdev);
-
-			atomic_dec(&mdev->new_c_uuid);
-			wake_up(&mdev->misc_wait);
-		}
-		wait_event(mdev->misc_wait, !atomic_read(&mdev->new_c_uuid));
-	}
 
 	/* In most cases, we will only need one bio.  But in case the lower
 	 * level restrictions happen to be different at this offset on this
