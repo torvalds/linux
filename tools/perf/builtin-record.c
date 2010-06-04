@@ -274,6 +274,9 @@ static void create_counter(int counter, int cpu)
 	if (call_graph)
 		attr->sample_type	|= PERF_SAMPLE_CALLCHAIN;
 
+	if (system_wide)
+		attr->sample_type	|= PERF_SAMPLE_CPU;
+
 	if (raw_samples) {
 		attr->sample_type	|= PERF_SAMPLE_TIME;
 		attr->sample_type	|= PERF_SAMPLE_RAW;

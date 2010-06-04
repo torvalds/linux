@@ -710,6 +710,7 @@ int event__preprocess_sample(const event_t *self, struct perf_session *session,
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");
 	al->sym = NULL;
+	al->cpu = data->cpu;
 
 	if (al->map) {
 		if (symbol_conf.dso_list &&
