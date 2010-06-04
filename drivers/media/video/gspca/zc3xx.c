@@ -6915,10 +6915,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(dev, 0x00, 0x0007);	/* (from win traces) */
 		reg_w(dev, 0x02, ZC3XX_R008_CLOCKSETTING);
 		break;
-	case SENSOR_PAS202B:
-		reg_w(dev, 0x32, 0x0007);	/* (from win traces) */
-		reg_w(dev, 0x02, ZC3XX_R008_CLOCKSETTING);
-		break;
 	}
 	return 0;
 }
