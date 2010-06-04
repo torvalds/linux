@@ -596,7 +596,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 		if (IS_ERR_VALUE(result)) {
 			printk("Unable to read data+bss, errno %d\n", (int)-result);
 			do_munmap(current->mm, textpos, text_len);
-			do_munmap(current->mm, realdatastart, data_len + extra);
+			do_munmap(current->mm, realdatastart, len);
 			ret = result;
 			goto err;
 		}
