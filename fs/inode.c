@@ -1234,7 +1234,7 @@ EXPORT_SYMBOL(generic_delete_inode);
  *
  *	Returns 1 if inode should be completely destroyed.
  */
-int generic_detach_inode(struct inode *inode)
+static int generic_detach_inode(struct inode *inode)
 {
 	struct super_block *sb = inode->i_sb;
 
@@ -1264,7 +1264,6 @@ int generic_detach_inode(struct inode *inode)
 	spin_unlock(&inode_lock);
 	return 1;
 }
-EXPORT_SYMBOL_GPL(generic_detach_inode);
 
 static void generic_forget_inode(struct inode *inode)
 {
