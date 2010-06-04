@@ -370,20 +370,25 @@ int simple_setsize(struct inode *inode, loff_t newsize)
 EXPORT_SYMBOL(simple_setsize);
 
 /**
- * simple_setattr - setattr for simple in-memory filesystem
+ * simple_setattr - setattr for simple filesystem
  * @dentry: dentry
  * @iattr: iattr structure
  *
  * Returns 0 on success, -error on failure.
  *
- * simple_setattr implements setattr for an in-memory filesystem which
- * does not store its own file data or metadata (eg. uses the page cache
- * and inode cache as its data store).
+ * simple_setattr is a simple ->setattr implementation without a proper
+ * implementation of size changes.
+ *
+ * It can either be used for in-memory filesystems or special files
+ * on simple regular filesystems.  Anything that needs to change on-disk
+ * or wire state on size changes needs its own setattr method.
  */
 int simple_setattr(struct dentry *dentry, struct iattr *iattr)
 {
 	struct inode *inode = dentry->d_inode;
 	int error;
+
+	WARN_ON_ONCE(inode->i_op->truncate);
 
 	error = inode_change_ok(inode, iattr);
 	if (error)
@@ -396,7 +401,8 @@ int simple_setattr(struct dentry *dentry, struct iattr *iattr)
 	}
 
 	setattr_copy(inode, iattr);
-	return error;
+	mark_inode_dirty(inode);
+	return 0;
 }
 EXPORT_SYMBOL(simple_setattr);
 
