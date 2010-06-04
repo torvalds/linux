@@ -141,6 +141,7 @@ struct ehci_hcd {			/* one per controller */
 	__hc32			*ohci_hcctrl_reg;
 	unsigned		has_hostpc:1;
 	unsigned		has_lpm:1;  /* support link power management */
+	unsigned		has_ppcd:1; /* support per-port change bits */
 	u8			sbrn;		/* packed release number */
 
 	/* irq statistics */

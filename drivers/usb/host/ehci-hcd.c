@@ -584,6 +584,11 @@ static int ehci_init(struct usb_hcd *hcd)
 	if (log2_irq_thresh < 0 || log2_irq_thresh > 6)
 		log2_irq_thresh = 0;
 	temp = 1 << (16 + log2_irq_thresh);
+	if (HCC_PER_PORT_CHANGE_EVENT(hcc_params)) {
+		ehci->has_ppcd = 1;
+		ehci_dbg(ehci, "enable per-port change event\n");
+		temp |= CMD_PPCEE;
+	}
 	if (HCC_CANPARK(hcc_params)) {
 		/* HW default park == 3, on hardware that supports it (like
 		 * NVidia and ALI silicon), maximizes throughput on the async
@@ -782,6 +787,7 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 	/* remote wakeup [4.3.1] */
 	if (status & STS_PCD) {
 		unsigned	i = HCS_N_PORTS (ehci->hcs_params);
+		u32		ppcd = 0;
 
 		/* kick root hub later */
 		pcd_status = status;
@@ -790,9 +796,18 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 		if (!(cmd & CMD_RUN))
 			usb_hcd_resume_root_hub(hcd);
 
+		/* get per-port change detect bits */
+		if (ehci->has_ppcd)
+			ppcd = status >> 16;
+
 		while (i--) {
-			int pstatus = ehci_readl(ehci,
-						 &ehci->regs->port_status [i]);
+			int pstatus;
+
+			/* leverage per-port change bits feature */
+			if (ehci->has_ppcd && !(ppcd & (1 << i)))
+				continue;
+			pstatus = ehci_readl(ehci,
+					 &ehci->regs->port_status[i]);
 
 			if (pstatus & PORT_OWNER)
 				continue;

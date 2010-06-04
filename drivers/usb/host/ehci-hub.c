@@ -603,6 +603,7 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 	u32		mask;
 	int		ports, i, retval = 1;
 	unsigned long	flags;
+	u32		ppcd = 0;
 
 	/* if !USB_SUSPEND, root hub timers won't get shut down ... */
 	if (!HC_IS_RUNNING(hcd->state))
@@ -632,7 +633,15 @@ ehci_hub_status_data (struct usb_hcd *hcd, char *buf)
 
 	/* port N changes (bit N)? */
 	spin_lock_irqsave (&ehci->lock, flags);
+
+	/* get per-port change detect bits */
+	if (ehci->has_ppcd)
+		ppcd = ehci_readl(ehci, &ehci->regs->status) >> 16;
+
 	for (i = 0; i < ports; i++) {
+		/* leverage per-port change bits feature */
+		if (ehci->has_ppcd && !(ppcd & (1 << i)))
+			continue;
 		temp = ehci_readl(ehci, &ehci->regs->port_status [i]);
 
 		/*
