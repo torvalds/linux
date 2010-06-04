@@ -805,11 +805,10 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 			}
 		}
 
-		error = simple_setsize(inode, newsize);
+		/* XXX(truncate): truncate_setsize should be called last */
+		truncate_setsize(inode, newsize);
 		if (page)
 			page_cache_release(page);
-		if (error)
-			return error;
 		shmem_truncate_range(inode, newsize, (loff_t)-1);
 	}
 

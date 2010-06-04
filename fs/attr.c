@@ -14,35 +14,53 @@
 #include <linux/fcntl.h>
 #include <linux/security.h>
 
-/* Taken over from the old code... */
-
-/* POSIX UID/GID verification for setting inode attributes. */
+/**
+ * inode_change_ok - check if attribute changes to an inode are allowed
+ * @inode:	inode to check
+ * @attr:	attributes to change
+ *
+ * Check if we are allowed to change the attributes contained in @attr
+ * in the given inode.  This includes the normal unix access permission
+ * checks, as well as checks for rlimits and others.
+ *
+ * Should be called as the first thing in ->setattr implementations,
+ * possibly after taking additional locks.
+ */
 int inode_change_ok(const struct inode *inode, struct iattr *attr)
 {
-	int retval = -EPERM;
 	unsigned int ia_valid = attr->ia_valid;
+
+	/*
+	 * First check size constraints.  These can't be overriden using
+	 * ATTR_FORCE.
+	 */
+	if (ia_valid & ATTR_SIZE) {
+		int error = inode_newsize_ok(inode, attr->ia_size);
+		if (error)
+			return error;
+	}
 
 	/* If force is set do it anyway. */
 	if (ia_valid & ATTR_FORCE)
-		goto fine;
+		return 0;
 
 	/* Make sure a caller can chown. */
 	if ((ia_valid & ATTR_UID) &&
 	    (current_fsuid() != inode->i_uid ||
 	     attr->ia_uid != inode->i_uid) && !capable(CAP_CHOWN))
-		goto error;
+		return -EPERM;
 
 	/* Make sure caller can chgrp. */
 	if ((ia_valid & ATTR_GID) &&
 	    (current_fsuid() != inode->i_uid ||
 	    (!in_group_p(attr->ia_gid) && attr->ia_gid != inode->i_gid)) &&
 	    !capable(CAP_CHOWN))
-		goto error;
+		return -EPERM;
 
 	/* Make sure a caller can chmod. */
 	if (ia_valid & ATTR_MODE) {
 		if (!is_owner_or_cap(inode))
-			goto error;
+			return -EPERM;
 		/* Also check the setgid bit! */
 		if (!in_group_p((ia_valid & ATTR_GID) ? attr->ia_gid :
 				inode->i_gid) && !capable(CAP_FSETID))
@@ -52,12 +70,10 @@ int inode_change_ok(const struct inode *inode, struct iattr *attr)
 	/* Check for setting the inode time. */
 	if (ia_valid & (ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)) {
 		if (!is_owner_or_cap(inode))
-			goto error;
+			return -EPERM;
 	}
-fine:
-	retval = 0;
-error:
-	return retval;
+
+	return 0;
 }
 EXPORT_SYMBOL(inode_change_ok);
 
@@ -113,7 +129,7 @@ EXPORT_SYMBOL(inode_newsize_ok);
  *
  * setattr_copy updates the inode's metadata with that specified
  * in attr. Noticably missing is inode size update, which is more complex
- * as it requires pagecache updates. See simple_setsize.
+ * as it requires pagecache updates.
  *
  * The inode is not marked as dirty after this operation. The rationale is
  * that for "simple" filesystems, the struct inode is the inode storage.

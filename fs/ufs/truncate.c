@@ -500,11 +500,6 @@ out:
 	return err;
 }
 
-/*
- * TODO:
- *	- truncate case should use proper ordering instead of using
- *	  simple_setsize
- */
 int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct inode *inode = dentry->d_inode;
@@ -518,9 +513,9 @@ int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (ia_valid & ATTR_SIZE && attr->ia_size != inode->i_size) {
 		loff_t old_i_size = inode->i_size;
 
-		error = simple_setsize(inode, attr->ia_size);
-		if (error)
-			return error;
+		/* XXX(truncate): truncate_setsize should be called last */
+		truncate_setsize(inode, attr->ia_size);
+
 		error = ufs_truncate(inode, old_i_size);
 		if (error)
 			return error;

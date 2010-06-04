@@ -333,10 +333,7 @@ adfs_notify_change(struct dentry *dentry, struct iattr *attr)
 
 	/* XXX: this is missing some actual on-disk truncation.. */
 	if (ia_valid & ATTR_SIZE)
-		error = simple_setsize(inode, attr->ia_size);
-
-	if (error)
-		goto out;
+		truncate_setsize(inode, attr->ia_size);
 
 	if (ia_valid & ATTR_MTIME) {
 		inode->i_mtime = attr->ia_mtime;

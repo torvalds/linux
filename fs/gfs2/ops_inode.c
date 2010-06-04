@@ -1072,7 +1072,7 @@ int gfs2_permission(struct inode *inode, int mask)
 }
 
 /*
- * XXX: should be changed to have proper ordering by opencoding simple_setsize
+ * XXX(truncate): the truncate_setsize calls should be moved to the end.
  */
 static int setattr_size(struct inode *inode, struct iattr *attr)
 {
@@ -1084,10 +1084,8 @@ static int setattr_size(struct inode *inode, struct iattr *attr)
 		error = gfs2_trans_begin(sdp, 0, sdp->sd_jdesc->jd_blocks);
 		if (error)
 			return error;
-		error = simple_setsize(inode, attr->ia_size);
+		truncate_setsize(inode, attr->ia_size);
 		gfs2_trans_end(sdp);
-		if (error) 
-			return error;
 	}
 
 	error = gfs2_truncatei(ip, attr->ia_size);

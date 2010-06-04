@@ -714,9 +714,7 @@ smb_notify_change(struct dentry *dentry, struct iattr *attr)
 		error = server->ops->truncate(inode, attr->ia_size);
 		if (error)
 			goto out;
-		error = simple_setsize(inode, attr->ia_size);
-		if (error)
-			goto out;
+		truncate_setsize(inode, attr->ia_size);
 		refresh = 1;
 	}
 

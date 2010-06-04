@@ -146,9 +146,8 @@ static int ramfs_nommu_resize(struct inode *inode, loff_t newsize, loff_t size)
 			return ret;
 	}
 
-	ret = simple_setsize(inode, newsize);
-
-	return ret;
+	truncate_setsize(inode, newsize);
+	return 0;
 }
 
 /*****************************************************************************/

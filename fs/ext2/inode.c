@@ -1156,14 +1156,9 @@ static void ext2_truncate_blocks(struct inode *inode, loff_t offset)
 	__ext2_truncate_blocks(inode, offset);
 }
 
-int ext2_setsize(struct inode *inode, loff_t newsize)
+static int ext2_setsize(struct inode *inode, loff_t newsize)
 {
-	loff_t oldsize;
 	int error;
-
-	error = inode_newsize_ok(inode, newsize);
-	if (error)
-		return error;
 
 	if (!(S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 	    S_ISLNK(inode->i_mode)))
@@ -1184,10 +1179,7 @@ int ext2_setsize(struct inode *inode, loff_t newsize)
 	if (error)
 		return error;
 
-	oldsize = inode->i_size;
-	i_size_write(inode, newsize);
-	truncate_pagecache(inode, oldsize, newsize);
-
+	truncate_setsize(inode, newsize);
 	__ext2_truncate_blocks(inode, newsize);
 
 	inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;

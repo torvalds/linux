@@ -364,18 +364,6 @@ static int fat_allow_set_time(struct msdos_sb_info *sbi, struct inode *inode)
 	return 0;
 }
 
-int fat_setsize(struct inode *inode, loff_t offset)
-{
-	int error;
-
-	error = simple_setsize(inode, offset);
-	if (error)
-		return error;
-	fat_truncate_blocks(inode, offset);
-
-	return error;
-}
-
 #define TIMES_SET_FLAGS	(ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)
 /* valid file mode bits */
 #define FAT_VALID_MODE	(S_IFREG | S_IFDIR | S_IRWXUGO)
@@ -441,9 +429,8 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	if (attr->ia_valid & ATTR_SIZE) {
-		error = fat_setsize(inode, attr->ia_size);
-		if (error)
-			goto out;
+		truncate_setsize(inode, attr->ia_size);
+		fat_truncate_blocks(inode, attr->ia_size);
 	}
 
 	setattr_copy(inode, attr);

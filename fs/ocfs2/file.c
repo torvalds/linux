@@ -1233,7 +1233,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	/*
-	 * This will intentionally not wind up calling simple_setsize(),
+	 * This will intentionally not wind up calling truncate_setsize(),
 	 * since all the work for a size change has been done above.
 	 * Otherwise, we could get into problems with truncate as
 	 * ip_alloc_sem is used there to protect against i_size
@@ -2308,12 +2308,12 @@ relock:
 			 * blocks outside i_size. Trim these off again.
 			 * Don't need i_size_read because we hold i_mutex.
 			 *
-			 * XXX(hch): this looks buggy because ocfs2 did not
+			 * XXX(truncate): this looks buggy because ocfs2 did not
 			 * actually implement ->truncate.  Take a look at
 			 * the new truncate sequence and update this accordingly
 			 */
 			if (*ppos + count > inode->i_size)
-				simple_setsize(inode, inode->i_size);
+				truncate_setsize(inode, inode->i_size);
 			ret = written;
 			goto out_dio;
 		}

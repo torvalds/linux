@@ -1280,12 +1280,8 @@ static int fuse_do_setattr(struct dentry *entry, struct iattr *attr,
 	if ((attr->ia_valid & ATTR_OPEN) && fc->atomic_o_trunc)
 		return 0;
 
-	if (attr->ia_valid & ATTR_SIZE) {
-		err = inode_newsize_ok(inode, attr->ia_size);
-		if (err)
-			return err;
+	if (attr->ia_valid & ATTR_SIZE)
 		is_truncate = true;
-	}
 
 	req = fuse_get_req(fc);
 	if (IS_ERR(req))

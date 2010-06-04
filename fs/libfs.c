@@ -327,49 +327,6 @@ int simple_rename(struct inode *old_dir, struct dentry *old_dentry,
 }
 
 /**
- * simple_setsize - handle core mm and vfs requirements for file size change
- * @inode: inode
- * @newsize: new file size
- *
- * Returns 0 on success, -error on failure.
- *
- * simple_setsize must be called with inode_mutex held.
- *
- * simple_setsize will check that the requested new size is OK (see
- * inode_newsize_ok), and then will perform the necessary i_size update
- * and pagecache truncation (if necessary). It will be typically be called
- * from the filesystem's setattr function when ATTR_SIZE is passed in.
- *
- * The inode itself must have correct permissions and attributes to allow
- * i_size to be changed, this function then just checks that the new size
- * requested is valid.
- *
- * In the case of simple in-memory filesystems with inodes stored solely
- * in the inode cache, and file data in the pagecache, nothing more needs
- * to be done to satisfy a truncate request. Filesystems with on-disk
- * blocks for example will need to free them in the case of truncate, in
- * that case it may be easier not to use simple_setsize (but each of its
- * components will likely be required at some point to update pagecache
- * and inode etc).
- */
-int simple_setsize(struct inode *inode, loff_t newsize)
-{
-	loff_t oldsize;
-	int error;
-
-	error = inode_newsize_ok(inode, newsize);
-	if (error)
-		return error;
-
-	oldsize = inode->i_size;
-	i_size_write(inode, newsize);
-	truncate_pagecache(inode, oldsize, newsize);
-
-	return error;
-}
-EXPORT_SYMBOL(simple_setsize);
-
-/**
  * simple_setattr - setattr for simple filesystem
  * @dentry: dentry
  * @iattr: iattr structure
@@ -394,12 +351,8 @@ int simple_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (error)
 		return error;
 
-	if (iattr->ia_valid & ATTR_SIZE) {
-		error = simple_setsize(inode, iattr->ia_size);
-		if (error)
-			return error;
-	}
-
+	if (iattr->ia_valid & ATTR_SIZE)
+		truncate_setsize(inode, iattr->ia_size);
 	setattr_copy(inode, iattr);
 	mark_inode_dirty(inode);
 	return 0;

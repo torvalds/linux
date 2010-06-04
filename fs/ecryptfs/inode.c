@@ -804,10 +804,20 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 		size_t num_zeros = (PAGE_CACHE_SIZE
 				    - (ia->ia_size & ~PAGE_CACHE_MASK));
 
+
+		/*
+		 * XXX(truncate) this should really happen at the begginning
+		 * of ->setattr.  But the code is too messy to that as part
+		 * of a larger patch.  ecryptfs is also totally missing out
+		 * on the inode_change_ok check at the beginning of
+		 * ->setattr while would include this.
+		 */
+		rc = inode_newsize_ok(inode, ia->ia_size);
+		if (rc)
+			goto out;
+
 		if (!(crypt_stat->flags & ECRYPTFS_ENCRYPTED)) {
-			rc = simple_setsize(inode, ia->ia_size);
-			if (rc)
-				goto out;
+			truncate_setsize(inode, ia->ia_size);
 			lower_ia->ia_size = ia->ia_size;
 			lower_ia->ia_valid |= ATTR_SIZE;
 			goto out;
@@ -830,7 +840,7 @@ static int truncate_upper(struct dentry *dentry, struct iattr *ia,
 				goto out;
 			}
 		}
-		simple_setsize(inode, ia->ia_size);
+		truncate_setsize(inode, ia->ia_size);
 		rc = ecryptfs_write_inode_size_to_metadata(inode);
 		if (rc) {
 			printk(KERN_ERR	"Problem with "
