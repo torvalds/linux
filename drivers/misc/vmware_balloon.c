@@ -45,7 +45,7 @@
 
 MODULE_AUTHOR("VMware, Inc.");
 MODULE_DESCRIPTION("VMware Memory Control (Balloon) Driver");
-MODULE_VERSION("1.2.1.0-K");
+MODULE_VERSION("1.2.1.1-k");
 MODULE_ALIAS("dmi:*:svnVMware*:*");
 MODULE_ALIAS("vmware_vmmemctl");
 MODULE_LICENSE("GPL");
@@ -101,6 +101,8 @@ MODULE_LICENSE("GPL");
 /* Maximum number of page allocations without yielding processor */
 #define VMW_BALLOON_YIELD_THRESHOLD	1024
 
+/* Maximum number of refused pages we accumulate during inflation cycle */
+#define VMW_BALLOON_MAX_REFUSED		16
 
 /*
  * Hypervisor communication port definitions.
@@ -183,6 +185,7 @@ struct vmballoon {
 
 	/* transient list of non-balloonable pages */
 	struct list_head refused_pages;
+	unsigned int n_refused_pages;
 
 	/* balloon size in pages */
 	unsigned int size;
@@ -428,14 +431,21 @@ static int vmballoon_reserve_page(struct vmballoon *b, bool can_sleep)
 		/* inform monitor */
 		locked = vmballoon_send_lock_page(b, page_to_pfn(page));
 		if (!locked) {
+			STATS_INC(b->stats.refused_alloc);
+
 			if (b->reset_required) {
 				__free_page(page);
 				return -EIO;
 			}
 
-			/* place on list of non-balloonable pages, retry allocation */
+			/*
+			 * Place page on the list of non-balloonable pages
+			 * and retry allocation, unless we already accumulated
+			 * too many of them, in which case take a breather.
+			 */
 			list_add(&page->lru, &b->refused_pages);
-			STATS_INC(b->stats.refused_alloc);
+			if (++b->n_refused_pages >= VMW_BALLOON_MAX_REFUSED)
+				return -EIO;
 		}
 	} while (!locked);
 
@@ -483,6 +493,8 @@ static void vmballoon_release_refused_pages(struct vmballoon *b)
 		__free_page(page);
 		STATS_INC(b->stats.refused_free);
 	}
+
+	b->n_refused_pages = 0;
 }
 
 /*
