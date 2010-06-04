@@ -375,6 +375,7 @@ static void rds_conn_message_info(struct socket *sock, unsigned int len,
 	struct rds_connection *conn;
 	struct rds_message *rm;
 	unsigned int total = 0;
+	unsigned long flags;
 	size_t i;
 
 	len /= sizeof(struct rds_info_message);
@@ -389,7 +390,7 @@ static void rds_conn_message_info(struct socket *sock, unsigned int len,
 			else
 				list = &conn->c_retrans;
 
-			spin_lock(&conn->c_lock);
+			spin_lock_irqsave(&conn->c_lock, flags);
 
 			/* XXX too lazy to maintain counts.. */
 			list_for_each_entry(rm, list, m_conn_item) {
@@ -400,7 +401,7 @@ static void rds_conn_message_info(struct socket *sock, unsigned int len,
 							  conn->c_faddr, 0);
 			}
 
-			spin_unlock(&conn->c_lock);
+			spin_unlock_irqrestore(&conn->c_lock, flags);
 		}
 	}
 	rcu_read_unlock();
