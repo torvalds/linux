@@ -505,11 +505,14 @@ static int recover_dsync_blocks(struct nilfs_sb_info *sbi,
 		}
 
 		pos = rb->blkoff << inode->i_blkbits;
-		page = NULL;
-		err = block_write_begin(NULL, inode->i_mapping, pos, blocksize,
-					0, &page, NULL, nilfs_get_block);
-		if (unlikely(err))
+		err = block_write_begin(inode->i_mapping, pos, blocksize,
+					0, &page, nilfs_get_block);
+		if (unlikely(err)) {
+			loff_t isize = inode->i_size;
+			if (pos + blocksize > isize)
+				vmtruncate(inode, isize);
 			goto failed_inode;
+		}
 
 		err = nilfs_recovery_copy_block(sbi, rb, page);
 		if (unlikely(err))

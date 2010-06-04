@@ -1962,14 +1962,13 @@ int __block_write_begin(struct page *page, loff_t pos, unsigned len,
 EXPORT_SYMBOL(__block_write_begin);
 
 /*
- * Filesystems implementing the new truncate sequence should use the
- * _newtrunc postfix variant which won't incorrectly call vmtruncate.
+ * block_write_begin takes care of the basic task of block allocation and
+ * bringing partial write blocks uptodate first.
+ *
  * The filesystem needs to handle block truncation upon failure.
  */
-int block_write_begin_newtrunc(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata,
-			get_block_t *get_block)
+int block_write_begin(struct address_space *mapping, loff_t pos, unsigned len,
+		unsigned flags, struct page **pagep, get_block_t *get_block)
 {
 	pgoff_t index = pos >> PAGE_CACHE_SHIFT;
 	struct page *page;
@@ -1988,44 +1987,6 @@ int block_write_begin_newtrunc(struct file *file, struct address_space *mapping,
 
 	*pagep = page;
 	return status;
-}
-EXPORT_SYMBOL(block_write_begin_newtrunc);
-
-/*
- * block_write_begin takes care of the basic task of block allocation and
- * bringing partial write blocks uptodate first.
- *
- * If *pagep is not NULL, then block_write_begin uses the locked page
- * at *pagep rather than allocating its own. In this case, the page will
- * not be unlocked or deallocated on failure.
- */
-int block_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata,
-			get_block_t *get_block)
-{
-	int ret;
-
-	ret = block_write_begin_newtrunc(file, mapping, pos, len, flags,
-					pagep, fsdata, get_block);
-
-	/*
-	 * prepare_write() may have instantiated a few blocks
-	 * outside i_size.  Trim these off again. Don't need
-	 * i_size_read because we hold i_mutex.
-	 *
-	 * Filesystems which pass down their own page also cannot
-	 * call into vmtruncate here because it would lead to lock
-	 * inversion problems (*pagep is locked). This is a further
-	 * example of where the old truncate sequence is inadequate.
-	 */
-	if (unlikely(ret) && *pagep == NULL) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
-	}
-
-	return ret;
 }
 EXPORT_SYMBOL(block_write_begin);
 
@@ -2357,7 +2318,7 @@ int cont_write_begin(struct file *file, struct address_space *mapping,
 
 	err = cont_expand_zero(file, mapping, pos, bytes);
 	if (err)
-		goto out;
+		return err;
 
 	zerofrom = *bytes & ~PAGE_CACHE_MASK;
 	if (pos+len > *bytes && zerofrom & (blocksize-1)) {
@@ -2365,11 +2326,7 @@ int cont_write_begin(struct file *file, struct address_space *mapping,
 		(*bytes)++;
 	}
 
-	*pagep = NULL;
-	err = block_write_begin_newtrunc(file, mapping, pos, len,
-				flags, pagep, fsdata, get_block);
-out:
-	return err;
+	return block_write_begin(mapping, pos, len, flags, pagep, get_block);
 }
 EXPORT_SYMBOL(cont_write_begin);
 
@@ -2511,8 +2468,8 @@ int nobh_write_begin(struct address_space *mapping,
 		unlock_page(page);
 		page_cache_release(page);
 		*pagep = NULL;
-		return block_write_begin_newtrunc(NULL, mapping, pos, len,
-					flags, pagep, fsdata, get_block);
+		return block_write_begin(mapping, pos, len, flags, pagep,
+					 get_block);
 	}
 
 	if (PageMappedToDisk(page))

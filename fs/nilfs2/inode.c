@@ -197,11 +197,15 @@ static int nilfs_write_begin(struct file *file, struct address_space *mapping,
 	if (unlikely(err))
 		return err;
 
-	*pagep = NULL;
-	err = block_write_begin(file, mapping, pos, len, flags, pagep,
-				fsdata, nilfs_get_block);
-	if (unlikely(err))
+	err = block_write_begin(mapping, pos, len, flags, pagep,
+				nilfs_get_block);
+	if (unlikely(err)) {
+		loff_t isize = mapping->host->i_size;
+		if (pos + len > isize)
+			vmtruncate(mapping->host, isize);
+
 		nilfs_transaction_abort(inode->i_sb);
+	}
 	return err;
 }
 

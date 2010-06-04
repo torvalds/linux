@@ -127,9 +127,16 @@ static int udf_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
-	*pagep = NULL;
-	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				udf_get_block);
+	int ret;
+
+	ret = block_write_begin(mapping, pos, len, flags, pagep, udf_get_block);
+	if (unlikely(ret)) {
+		loff_t isize = mapping->host->i_size;
+		if (pos + len > isize)
+			vmtruncate(mapping->host, isize);
+	}
+
+	return ret;
 }
 
 static sector_t udf_bmap(struct address_space *mapping, sector_t block)
