@@ -2281,7 +2281,7 @@ static void do_get_dqblk(struct dquot *dquot, struct fs_disk_quota *di)
 	memset(di, 0, sizeof(*di));
 	di->d_version = FS_DQUOT_VERSION;
 	di->d_flags = dquot->dq_type == USRQUOTA ?
-			XFS_USER_QUOTA : XFS_GROUP_QUOTA;
+			FS_USER_QUOTA : FS_GROUP_QUOTA;
 	di->d_id = dquot->dq_id;
 
 	spin_lock(&dq_data_lock);
