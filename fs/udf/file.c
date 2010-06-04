@@ -228,6 +228,18 @@ const struct file_operations udf_file_operations = {
 	.llseek			= generic_file_llseek,
 };
 
+static int udf_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	struct inode *inode = dentry->d_inode;
+	int error;
+
+	error = inode_change_ok(inode, attr);
+	if (error)
+		return error;
+	return inode_setattr(inode, attr);
+}
+
 const struct inode_operations udf_file_inode_operations = {
+	.setattr		= udf_setattr,
 	.truncate		= udf_truncate,
 };

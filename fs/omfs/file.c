@@ -341,7 +341,19 @@ const struct file_operations omfs_file_operations = {
 	.splice_read = generic_file_splice_read,
 };
 
+static int omfs_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	struct inode *inode = dentry->d_inode;
+	int error;
+
+	error = inode_change_ok(inode, attr);
+	if (error)
+		return error;
+	return inode_setattr(inode, attr);
+}
+
 const struct inode_operations omfs_file_inops = {
+	.setattr = omfs_setattr,
 	.truncate = omfs_truncate
 };
 

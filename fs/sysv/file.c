@@ -30,7 +30,19 @@ const struct file_operations sysv_file_operations = {
 	.splice_read	= generic_file_splice_read,
 };
 
+static int sysv_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	struct inode *inode = dentry->d_inode;
+	int error;
+
+	error = inode_change_ok(inode, attr);
+	if (error)
+		return error;
+	return inode_setattr(inode, attr);
+}
+
 const struct inode_operations sysv_file_inode_operations = {
 	.truncate	= sysv_truncate,
+	.setattr	= sysv_setattr,
 	.getattr	= sysv_getattr,
 };
