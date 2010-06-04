@@ -60,5 +60,5 @@ int register_callchain_param(struct callchain_param *param);
 int append_chain(struct callchain_node *root, struct ip_callchain *chain,
 		 struct map_symbol *syms);
 
-bool ip_callchain__valid(struct ip_callchain *chain, event_t *event);
+bool ip_callchain__valid(struct ip_callchain *chain, const event_t *event);
 #endif	/* __PERF_CALLCHAIN_H */

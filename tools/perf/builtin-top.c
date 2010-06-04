@@ -983,6 +983,7 @@ static void event__process_sample(const event_t *self,
 	u64 ip = self->ip.ip;
 	struct sym_entry *syme;
 	struct addr_location al;
+	struct sample_data data;
 	struct machine *machine;
 	u8 origin = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
@@ -1025,7 +1026,8 @@ static void event__process_sample(const event_t *self,
 	if (self->header.misc & PERF_RECORD_MISC_EXACT_IP)
 		exact_samples++;
 
-	if (event__preprocess_sample(self, session, &al, symbol_filter) < 0 ||
+	if (event__preprocess_sample(self, session, &al, &data,
+				     symbol_filter) < 0 ||
 	    al.filtered)
 		return;
 
