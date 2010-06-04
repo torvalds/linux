@@ -2663,9 +2663,6 @@ static inline struct sk_buff *handle_ing(struct sk_buff *skb,
 	if (*pt_prev) {
 		*ret = deliver_skb(skb, *pt_prev, orig_dev);
 		*pt_prev = NULL;
-	} else {
-		/* Huh? Why does turning on AF_PACKET affect this? */
-		skb->tc_verd = SET_TC_OK2MUNGE(skb->tc_verd);
 	}
 
 	switch (ing_filter(skb)) {
