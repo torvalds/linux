@@ -321,6 +321,19 @@ void clear_inode(struct inode *inode)
 }
 EXPORT_SYMBOL(clear_inode);
 
+static void evict(struct inode *inode, int delete)
+{
+	const struct super_operations *op = inode->i_sb->s_op;
+
+	if (delete && op->delete_inode) {
+		op->delete_inode(inode);
+	} else {
+		if (inode->i_data.nrpages)
+			truncate_inode_pages(&inode->i_data, 0);
+		clear_inode(inode);
+	}
+}
+
 /*
  * dispose_list - dispose of the contents of a local list
  * @head: the head of the list to free
@@ -338,9 +351,7 @@ static void dispose_list(struct list_head *head)
 		inode = list_first_entry(head, struct inode, i_list);
 		list_del(&inode->i_list);
 
-		if (inode->i_data.nrpages)
-			truncate_inode_pages(&inode->i_data, 0);
-		clear_inode(inode);
+		evict(inode, 0);
 
 		spin_lock(&inode_lock);
 		hlist_del_init(&inode->i_hash);
@@ -1194,8 +1205,6 @@ EXPORT_SYMBOL(remove_inode_hash);
  */
 void generic_delete_inode(struct inode *inode)
 {
-	const struct super_operations *op = inode->i_sb->s_op;
-
 	list_del_init(&inode->i_list);
 	list_del_init(&inode->i_sb_list);
 	WARN_ON(inode->i_state & I_NEW);
@@ -1203,17 +1212,8 @@ void generic_delete_inode(struct inode *inode)
 	inodes_stat.nr_inodes--;
 	spin_unlock(&inode_lock);
 
-	if (op->delete_inode) {
-		void (*delete)(struct inode *) = op->delete_inode;
-		/* Filesystems implementing their own
-		 * s_op->delete_inode are required to call
-		 * truncate_inode_pages and clear_inode()
-		 * internally */
-		delete(inode);
-	} else {
-		truncate_inode_pages(&inode->i_data, 0);
-		clear_inode(inode);
-	}
+	evict(inode, 1);
+
 	spin_lock(&inode_lock);
 	hlist_del_init(&inode->i_hash);
 	spin_unlock(&inode_lock);
@@ -1268,9 +1268,7 @@ static void generic_forget_inode(struct inode *inode)
 {
 	if (!generic_detach_inode(inode))
 		return;
-	if (inode->i_data.nrpages)
-		truncate_inode_pages(&inode->i_data, 0);
-	clear_inode(inode);
+	evict(inode, 0);
 	wake_up_inode(inode);
 	destroy_inode(inode);
 }
