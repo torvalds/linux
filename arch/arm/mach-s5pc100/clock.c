@@ -737,7 +737,7 @@ static struct clk init_clocks_disable[] = {
 		.enable		= s5pc100_d1_5_ctrl,
 		.ctrlbit	= (1 << 7),
 	}, {
-		.name		= "keyif",
+		.name		= "keypad",
 		.id		= -1,
 		.parent		= &clk_div_d1_bus.clk,
 		.enable		= s5pc100_d1_5_ctrl,
