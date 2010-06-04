@@ -27,7 +27,7 @@ static inline u16 combine_8_to_16(u8 lower, u8 upper)
 	return _lower | (_upper << 8);
 }
 
-static IIO_SCAN_EL_C(supply, ADIS16300_SCAN_SUPPLY, IIO_SIGNED(14),
+static IIO_SCAN_EL_C(supply, ADIS16300_SCAN_SUPPLY, IIO_UNSIGNED(14),
 		     ADIS16300_SUPPLY_OUT, NULL);
 
 static IIO_SCAN_EL_C(gyro_x, ADIS16300_SCAN_GYRO_X, IIO_SIGNED(14),
@@ -40,9 +40,9 @@ static IIO_SCAN_EL_C(accel_y, ADIS16300_SCAN_ACC_Y, IIO_SIGNED(14),
 static IIO_SCAN_EL_C(accel_z, ADIS16300_SCAN_ACC_Z, IIO_SIGNED(14),
 		     ADIS16300_ZACCL_OUT, NULL);
 
-static IIO_SCAN_EL_C(temp, ADIS16300_SCAN_TEMP, IIO_SIGNED(12),
+static IIO_SCAN_EL_C(temp, ADIS16300_SCAN_TEMP, IIO_UNSIGNED(12),
 		     ADIS16300_TEMP_OUT, NULL);
-static IIO_SCAN_EL_C(adc_0, ADIS16300_SCAN_ADC_0, IIO_SIGNED(12),
+static IIO_SCAN_EL_C(adc_0, ADIS16300_SCAN_ADC_0, IIO_UNSIGNED(12),
 		     ADIS16300_AUX_ADC, NULL);
 
 static IIO_SCAN_EL_C(incli_x, ADIS16300_SCAN_INCLI_X, IIO_SIGNED(12),
@@ -86,6 +86,54 @@ static void adis16300_poll_func_th(struct iio_dev *indio_dev)
 	 * handler running there is currently no way for the interrupt
 	 * to clear.
 	 */
+}
+
+/**
+ * adis16300_spi_read_burst() - read all data registers
+ * @dev: device associated with child of actual device (iio_dev or iio_trig)
+ * @rx: somewhere to pass back the value read (min size is 24 bytes)
+ **/
+static int adis16300_spi_read_burst(struct device *dev, u8 *rx)
+{
+	struct spi_message msg;
+	struct iio_dev *indio_dev = dev_get_drvdata(dev);
+	struct adis16300_state *st = iio_dev_get_devdata(indio_dev);
+	u32 old_speed_hz = st->us->max_speed_hz;
+	int ret;
+
+	struct spi_transfer xfers[] = {
+		{
+			.tx_buf = st->tx,
+			.bits_per_word = 8,
+			.len = 2,
+			.cs_change = 0,
+		}, {
+			.rx_buf = rx,
+			.bits_per_word = 8,
+			.len = 18,
+			.cs_change = 0,
+		},
+	};
+
+	mutex_lock(&st->buf_lock);
+	st->tx[0] = ADIS16300_READ_REG(ADIS16300_GLOB_CMD);
+	st->tx[1] = 0;
+
+	spi_message_init(&msg);
+	spi_message_add_tail(&xfers[0], &msg);
+	spi_message_add_tail(&xfers[1], &msg);
+
+	st->us->max_speed_hz = ADIS16300_SPI_BURST;
+	spi_setup(st->us);
+
+	ret = spi_sync(st->us, &msg);
+	if (ret)
+		dev_err(&st->us->dev, "problem when burst reading");
+
+	st->us->max_speed_hz = old_speed_hz;
+	spi_setup(st->us);
+	mutex_unlock(&st->buf_lock);
+	return ret;
 }
 
 /* Whilst this makes a lot of calls to iio_sw_ring functions - it is to device
