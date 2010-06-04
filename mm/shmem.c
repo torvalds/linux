@@ -767,6 +767,10 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 	loff_t newsize = attr->ia_size;
 	int error;
 
+	error = inode_change_ok(inode, attr);
+	if (error)
+		return error;
+
 	if (S_ISREG(inode->i_mode) && (attr->ia_valid & ATTR_SIZE)
 					&& newsize != inode->i_size) {
 		struct page *page = NULL;
@@ -809,11 +813,9 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 		shmem_truncate_range(inode, newsize, (loff_t)-1);
 	}
 
-	error = inode_change_ok(inode, attr);
-	if (!error)
-		setattr_copy(inode, attr);
+	setattr_copy(inode, attr);
 #ifdef CONFIG_TMPFS_POSIX_ACL
-	if (!error && (attr->ia_valid & ATTR_MODE))
+	if (attr->ia_valid & ATTR_MODE)
 		error = generic_acl_chmod(inode);
 #endif
 	return error;

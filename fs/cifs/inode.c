@@ -1796,14 +1796,12 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 
 	xid = GetXid();
 
-	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) == 0) {
-		/* check if we have permission to change attrs */
-		rc = inode_change_ok(inode, attrs);
-		if (rc < 0)
-			goto out;
-		else
-			rc = 0;
-	}
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
+		attrs->ia_valid |= ATTR_FORCE;
+
+	rc = inode_change_ok(inode, attrs);
+	if (rc < 0)
+		goto out;
 
 	full_path = build_path_from_dentry(direntry);
 	if (full_path == NULL) {
@@ -1934,14 +1932,13 @@ cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 	cFYI(1, "setattr on file %s attrs->iavalid 0x%x",
 		 direntry->d_name.name, attrs->ia_valid);
 
-	if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM) == 0) {
-		/* check if we have permission to change attrs */
-		rc = inode_change_ok(inode, attrs);
-		if (rc < 0) {
-			FreeXid(xid);
-			return rc;
-		} else
-			rc = 0;
+	if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_PERM)
+		attrs->ia_valid |= ATTR_FORCE;
+
+	rc = inode_change_ok(inode, attrs);
+	if (rc < 0) {
+		FreeXid(xid);
+		return rc;
 	}
 
 	full_path = build_path_from_dentry(direntry);

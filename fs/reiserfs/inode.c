@@ -3084,6 +3084,10 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 	int depth;
 	int error;
 
+	error = inode_change_ok(inode, attr);
+	if (error)
+		return error;
+
 	/* must be turned off for recursive notify_change calls */
 	ia_valid = attr->ia_valid &= ~(ATTR_KILL_SUID|ATTR_KILL_SGID);
 
@@ -3132,10 +3136,6 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 		error = -EINVAL;
 		goto out;
 	}
-
-	error = inode_change_ok(inode, attr);
-	if (error)
-		goto out;
 
 	if ((ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
 	    (ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {

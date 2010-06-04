@@ -387,21 +387,6 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 	unsigned int ia_valid;
 	int error;
 
-	/*
-	 * Expand the file. Since inode_setattr() updates ->i_size
-	 * before calling the ->truncate(), but FAT needs to fill the
-	 * hole before it. XXX: this is no longer true with new truncate
-	 * sequence.
-	 */
-	if (attr->ia_valid & ATTR_SIZE) {
-		if (attr->ia_size > inode->i_size) {
-			error = fat_cont_expand(inode, attr->ia_size);
-			if (error || attr->ia_valid == ATTR_SIZE)
-				goto out;
-			attr->ia_valid &= ~ATTR_SIZE;
-		}
-	}
-
 	/* Check for setting the inode time. */
 	ia_valid = attr->ia_valid;
 	if (ia_valid & TIMES_SET_FLAGS) {
@@ -415,6 +400,21 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 		if (sbi->options.quiet)
 			error = 0;
 		goto out;
+	}
+
+	/*
+	 * Expand the file. Since inode_setattr() updates ->i_size
+	 * before calling the ->truncate(), but FAT needs to fill the
+	 * hole before it. XXX: this is no longer true with new truncate
+	 * sequence.
+	 */
+	if (attr->ia_valid & ATTR_SIZE) {
+		if (attr->ia_size > inode->i_size) {
+			error = fat_cont_expand(inode, attr->ia_size);
+			if (error || attr->ia_valid == ATTR_SIZE)
+				goto out;
+			attr->ia_valid &= ~ATTR_SIZE;
+		}
 	}
 
 	if (((attr->ia_valid & ATTR_UID) &&
