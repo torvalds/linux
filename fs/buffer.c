@@ -2351,7 +2351,7 @@ out:
  * For moronic filesystems that do not allow holes in file.
  * We may have to extend the file.
  */
-int cont_write_begin_newtrunc(struct file *file, struct address_space *mapping,
+int cont_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata,
 			get_block_t *get_block, loff_t *bytes)
@@ -2376,25 +2376,6 @@ int cont_write_begin_newtrunc(struct file *file, struct address_space *mapping,
 				flags, pagep, fsdata, get_block);
 out:
 	return err;
-}
-EXPORT_SYMBOL(cont_write_begin_newtrunc);
-
-int cont_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata,
-			get_block_t *get_block, loff_t *bytes)
-{
-	int ret;
-
-	ret = cont_write_begin_newtrunc(file, mapping, pos, len, flags,
-					pagep, fsdata, get_block, bytes);
-	if (unlikely(ret)) {
-		loff_t isize = mapping->host->i_size;
-		if (pos + len > isize)
-			vmtruncate(mapping->host, isize);
-	}
-
-	return ret;
 }
 EXPORT_SYMBOL(cont_write_begin);
 
