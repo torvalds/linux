@@ -46,9 +46,9 @@ struct sd {
 	u8 lightfreq;
 	u8 sharpness;
 	u8 quality;			/* image quality */
-#define QUALITY_MIN 40
-#define QUALITY_MAX 60
-#define QUALITY_DEF 50
+#define QUALITY_MIN 50
+#define QUALITY_MAX 80
+#define QUALITY_DEF 70
 
 	u8 sensor;		/* Type of image sensor chip */
 /* !! values used in different tables */
