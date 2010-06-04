@@ -22,7 +22,7 @@
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
-#include <linux/wm97xx_batt.h>
+#include <linux/wm97xx.h>
 #include <linux/power_supply.h>
 #include <linux/sysdev.h>
 #include <linux/mtd/mtd.h>
@@ -387,9 +387,9 @@ static struct platform_device power_supply = {
 };
 
 /******************************************************************************
- * WM97xx battery
+ * WM97xx audio, battery
  ******************************************************************************/
-static struct wm97xx_batt_info wm97xx_batt_pdata = {
+static struct wm97xx_batt_pdata palmld_batt_pdata = {
 	.batt_aux	= WM97XX_AUX_ID3,
 	.temp_aux	= WM97XX_AUX_ID2,
 	.charge_gpio	= -1,
@@ -403,15 +403,17 @@ static struct wm97xx_batt_info wm97xx_batt_pdata = {
 	.batt_name	= "main-batt",
 };
 
-/******************************************************************************
- * aSoC audio
- ******************************************************************************/
-static struct palm27x_asoc_info palmld_asoc_pdata = {
-	.jack_gpio	= GPIO_NR_PALMLD_EARPHONE_DETECT,
+static struct wm97xx_pdata palmld_wm97xx_pdata = {
+	.batt_pdata	= &palmld_batt_pdata,
 };
 
 static pxa2xx_audio_ops_t palmld_ac97_pdata = {
 	.reset_gpio	= 95,
+	.codec_pdata	= { &palmld_wm97xx_pdata, },
+};
+
+static struct palm27x_asoc_info palmld_asoc_pdata = {
+	.jack_gpio	= GPIO_NR_PALMLD_EARPHONE_DETECT,
 };
 
 static struct platform_device palmld_asoc = {
@@ -521,7 +523,6 @@ static void __init palmld_init(void)
 	pxa_set_ac97_info(&palmld_ac97_pdata);
 	pxa_set_ficp_info(&palmld_ficp_platform_data);
 	pxa_set_keypad_info(&palmld_keypad_platform_data);
-	wm97xx_bat_set_pdata(&wm97xx_batt_pdata);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }

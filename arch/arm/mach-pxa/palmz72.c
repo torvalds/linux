@@ -27,7 +27,7 @@
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 #include <linux/gpio.h>
-#include <linux/wm97xx_batt.h>
+#include <linux/wm97xx.h>
 #include <linux/power_supply.h>
 #include <linux/usb/gpio_vbus.h>
 
@@ -325,9 +325,9 @@ static struct platform_device power_supply = {
 };
 
 /******************************************************************************
- * WM97xx battery
+ * WM97xx audio, battery
  ******************************************************************************/
-static struct wm97xx_batt_info wm97xx_batt_pdata = {
+static struct wm97xx_batt_pdata palmz72_batt_pdata = {
 	.batt_aux	= WM97XX_AUX_ID3,
 	.temp_aux	= WM97XX_AUX_ID2,
 	.charge_gpio	= -1,
@@ -341,9 +341,14 @@ static struct wm97xx_batt_info wm97xx_batt_pdata = {
 	.batt_name	= "main-batt",
 };
 
-/******************************************************************************
- * aSoC audio
- ******************************************************************************/
+static struct wm97xx_pdata palmz72_wm97xx_pdata = {
+	.batt_pdata	= &palmz72_batt_pdata,
+};
+
+static pxa2xx_audio_ops_t palmz72_ac97_pdata = {
+	.codec_pdata	= { &palmz72_wm97xx_pdata, },
+};
+
 static struct platform_device palmz72_asoc = {
 	.name = "palm27x-asoc",
 	.id   = -1,
@@ -480,10 +485,9 @@ static void __init palmz72_init(void)
 	set_pxa_fb_info(&palmz72_lcd_screen);
 	pxa_set_mci_info(&palmz72_mci_platform_data);
 	palmz72_udc_init();
-	pxa_set_ac97_info(NULL);
+	pxa_set_ac97_info(&palmz72_ac97_pdata);
 	pxa_set_ficp_info(&palmz72_ficp_platform_data);
 	pxa_set_keypad_info(&palmz72_keypad_platform_data);
-	wm97xx_bat_set_pdata(&wm97xx_batt_pdata);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
