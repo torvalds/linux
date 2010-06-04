@@ -2455,7 +2455,7 @@ default_mode:
 	rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;
 	rdev->pm.power_state[state_index].default_clock_mode = &rdev->pm.power_state[state_index].clock_info[0];
 	if ((state_index > 0) &&
-	    (rdev->pm.power_state[0].clock_info[0].voltage.type = VOLTAGE_GPIO))
+	    (rdev->pm.power_state[0].clock_info[0].voltage.type == VOLTAGE_GPIO))
 		rdev->pm.power_state[state_index].clock_info[0].voltage =
 			rdev->pm.power_state[0].clock_info[0].voltage;
 	else
