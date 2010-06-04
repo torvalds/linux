@@ -405,35 +405,6 @@ static inline int rds_send_is_acked(struct rds_message *rm, u64 ack,
 }
 
 /*
- * Returns true if there are no messages on the send and retransmit queues
- * which have a sequence number greater than or equal to the given sequence
- * number.
- */
-int rds_send_acked_before(struct rds_connection *conn, u64 seq)
-{
-	struct rds_message *rm, *tmp;
-	int ret = 1;
-
-	spin_lock(&conn->c_lock);
-
-	list_for_each_entry_safe(rm, tmp, &conn->c_retrans, m_conn_item) {
-		if (be64_to_cpu(rm->m_inc.i_hdr.h_sequence) < seq)
-			ret = 0;
-		break;
-	}
-
-	list_for_each_entry_safe(rm, tmp, &conn->c_send_queue, m_conn_item) {
-		if (be64_to_cpu(rm->m_inc.i_hdr.h_sequence) < seq)
-			ret = 0;
-		break;
-	}
-
-	spin_unlock(&conn->c_lock);
-
-	return ret;
-}
-
-/*
  * This is pretty similar to what happens below in the ACK
  * handling code - except that we call here as soon as we get
  * the IB send completion on the RDMA op and the accompanying
