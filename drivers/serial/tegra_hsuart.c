@@ -47,9 +47,7 @@
 #define BYTES_TO_ALIGN(x) ((unsigned long)(ALIGN((x), sizeof(u32))) - \
 	(unsigned long)(x))
 
-#define UART_RX_DMA_BUFFER_SIZE    (4 *  1024 * 16)
-
-#define UART_TX_DMA_BUFFERS_TOTAL  2
+#define UART_RX_DMA_BUFFER_SIZE    2048
 
 #define UART_LSR_FIFOE		0x80
 #define UART_IER_EORD		0x20
@@ -73,7 +71,7 @@ const int dma_req_sel[] = {
 #define TEGRA_TX_DMA			2
 
 #define TEGRA_UART_MIN_DMA		16
-#define TEGRA_UART_FIFO_SIZE		4
+#define TEGRA_UART_FIFO_SIZE		16
 
 struct tegra_uart_port {
 	struct uart_port	uport;
@@ -107,6 +105,8 @@ struct tegra_uart_port {
 
 	bool			use_rx_dma;
 	bool			use_tx_dma;
+
+	bool			rx_timeout;
 };
 
 static inline u8 uart_readb(struct tegra_uart_port *t, unsigned long reg)
@@ -226,7 +226,7 @@ static int tegra_start_dma_rx(struct tegra_uart_port *t)
 	return 0;
 }
 
-static void tegra_rx_dma_threshold_callback(struct tegra_dma_req *req, int err)
+static void tegra_rx_dma_threshold_callback(struct tegra_dma_req *req)
 {
 	struct tegra_uart_port *t = req->dev;
 	struct uart_port *u = &t->uport;
@@ -254,7 +254,7 @@ static void tegra_rx_dma_threshold_callback(struct tegra_dma_req *req, int err)
  * 2. UART ISR - UART calls the dequue API which in-turn will call this API.
  * In this case, UART ISR takes the UART lock.
  * */
-static void tegra_rx_dma_complete_callback(struct tegra_dma_req *req, int err)
+static void tegra_rx_dma_complete_callback(struct tegra_dma_req *req)
 {
 	struct tegra_uart_port *t = req->dev;
 	struct uart_port *u = &t->uport;
@@ -262,7 +262,8 @@ static void tegra_rx_dma_complete_callback(struct tegra_dma_req *req, int err)
 
 	/* If we are here, DMA is stopped */
 
-	dev_dbg(t->uport.dev, "%s: %d\n", __func__, req->bytes_transferred);
+	dev_dbg(t->uport.dev, "%s: %d %d\n", __func__, req->bytes_transferred,
+		req->status);
 	if (req->bytes_transferred) {
 		t->uport.icount.rx += req->bytes_transferred;
 		tty_insert_flip_string(tty,
@@ -270,8 +271,10 @@ static void tegra_rx_dma_complete_callback(struct tegra_dma_req *req, int err)
 			req->bytes_transferred);
 	}
 
-	if (req->status == -TEGRA_DMA_REQ_ERROR_ABORTED)
+	if (t->rx_timeout) {
+		t->rx_timeout = 0;
 		do_handle_rx_pio(t);
+	}
 
 	spin_unlock(&u->lock);
 	tty_flip_buffer_push(u->state->port.tty);
@@ -383,14 +386,14 @@ static void do_handle_tx_pio(struct tegra_uart_port *t)
 	return;
 }
 
-static void tegra_tx_dma_complete_callback(struct tegra_dma_req *req, int err)
+static void tegra_tx_dma_complete_callback(struct tegra_dma_req *req)
 {
 	struct tegra_uart_port *t = req->dev;
 	struct circ_buf *xmit = &t->uport.state->xmit;
 	int count = req->bytes_transferred;
 	unsigned long flags;
 	int timeout = 20;
-	if (err == -TEGRA_DMA_REQ_ERROR_ABORTED)
+	if (req->status == -TEGRA_DMA_REQ_ERROR_ABORTED)
 		BUG();
 
 	dev_vdbg(t->uport.dev, "%s: %d\n", __func__, count);
@@ -454,8 +457,10 @@ static irqreturn_t tegra_uart_isr(int irq, void *data)
 			ier |= UART_IER_EORD;
 			uart_writeb(t, ier, UART_IER);
 			/* fallthrough */
-		case 2: /* Receive */
 		case 6: /* Rx timeout */
+			t->rx_timeout = 1;
+			/* fallthrough */
+		case 2: /* Receive */
 			if (likely(t->use_rx_dma))
 				do_handle_rx_dma(t);
 			else
@@ -514,7 +519,7 @@ static int tegra_uart_hw_init(struct tegra_uart_port *t)
 	dev_vdbg(t->uport.dev, "+tegra_uart_hw_init\n");
 
 	t->fcr_shadow = 0;
-	t->mcr_shadow = UART_MCR_LOOP;
+	t->mcr_shadow = 0;
 	t->lcr_shadow = 0;
 	t->ier_shadow = 0;
 	t->baud = 0;
