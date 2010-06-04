@@ -446,7 +446,7 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 			goto out;
 	}
 
-	generic_setattr(inode, attr);
+	setattr_copy(inode, attr);
 	mark_inode_dirty(inode);
 out:
 	return error;

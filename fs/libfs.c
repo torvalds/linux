@@ -395,8 +395,7 @@ int simple_setattr(struct dentry *dentry, struct iattr *iattr)
 			return error;
 	}
 
-	generic_setattr(inode, iattr);
-
+	setattr_copy(inode, iattr);
 	return error;
 }
 EXPORT_SYMBOL(simple_setattr);

@@ -1544,7 +1544,7 @@ int ext2_setattr(struct dentry *dentry, struct iattr *iattr)
 		if (error)
 			return error;
 	}
-	generic_setattr(inode, iattr);
+	setattr_copy(inode, iattr);
 	if (iattr->ia_valid & ATTR_MODE)
 		error = ext2_acl_chmod(inode);
 	mark_inode_dirty(inode);

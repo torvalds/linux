@@ -811,7 +811,7 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 
 	error = inode_change_ok(inode, attr);
 	if (!error)
-		generic_setattr(inode, attr);
+		setattr_copy(inode, attr);
 #ifdef CONFIG_TMPFS_POSIX_ACL
 	if (!error && (attr->ia_valid & ATTR_MODE))
 		error = generic_acl_chmod(inode);

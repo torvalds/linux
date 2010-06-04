@@ -122,7 +122,7 @@ int sysfs_setattr(struct dentry *dentry, struct iattr *iattr)
 		goto out;
 
 	/* this ignores size changes */
-	generic_setattr(inode, iattr);
+	setattr_copy(inode, iattr);
 
 out:
 	mutex_unlock(&sysfs_mutex);

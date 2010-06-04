@@ -105,13 +105,13 @@ out_big:
 EXPORT_SYMBOL(inode_newsize_ok);
 
 /**
- * generic_setattr - copy simple metadata updates into the generic inode
+ * setattr_copy - copy simple metadata updates into the generic inode
  * @inode:	the inode to be updated
  * @attr:	the new attributes
  *
- * generic_setattr must be called with i_mutex held.
+ * setattr_copy must be called with i_mutex held.
  *
- * generic_setattr updates the inode's metadata with that specified
+ * setattr_copy updates the inode's metadata with that specified
  * in attr. Noticably missing is inode size update, which is more complex
  * as it requires pagecache updates. See simple_setsize.
  *
@@ -119,7 +119,7 @@ EXPORT_SYMBOL(inode_newsize_ok);
  * that for "simple" filesystems, the struct inode is the inode storage.
  * The caller is free to mark the inode dirty afterwards if needed.
  */
-void generic_setattr(struct inode *inode, const struct iattr *attr)
+void setattr_copy(struct inode *inode, const struct iattr *attr)
 {
 	unsigned int ia_valid = attr->ia_valid;
 
@@ -144,11 +144,11 @@ void generic_setattr(struct inode *inode, const struct iattr *attr)
 		inode->i_mode = mode;
 	}
 }
-EXPORT_SYMBOL(generic_setattr);
+EXPORT_SYMBOL(setattr_copy);
 
 /*
  * note this function is deprecated, the new truncate sequence should be
- * used instead -- see eg. simple_setsize, generic_setattr.
+ * used instead -- see eg. simple_setsize, setattr_copy.
  */
 int inode_setattr(struct inode *inode, const struct iattr *attr)
 {
@@ -163,7 +163,7 @@ int inode_setattr(struct inode *inode, const struct iattr *attr)
 			return error;
 	}
 
-	generic_setattr(inode, attr);
+	setattr_copy(inode, attr);
 
 	mark_inode_dirty(inode);
 

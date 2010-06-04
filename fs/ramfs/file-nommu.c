@@ -183,7 +183,7 @@ static int ramfs_nommu_setattr(struct dentry *dentry, struct iattr *ia)
 		}
 	}
 
-	generic_setattr(inode, ia);
+	setattr_copy(inode, ia);
  out:
 	ia->ia_valid = old_ia_valid;
 	return ret;
