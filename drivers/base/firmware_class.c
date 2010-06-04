@@ -87,7 +87,6 @@ static DEFINE_MUTEX(fw_lock);
 
 struct firmware_priv {
 	struct completion completion;
-	struct bin_attribute attr_data;
 	struct firmware *fw;
 	unsigned long status;
 	struct page **pages;
@@ -420,8 +419,8 @@ out:
 	return retval;
 }
 
-static struct bin_attribute firmware_attr_data_tmpl = {
-	.attr = {.name = "data", .mode = 0644},
+static struct bin_attribute firmware_attr_data = {
+	.attr = { .name = "data", .mode = 0644 },
 	.size = 0,
 	.read = firmware_data_read,
 	.write = firmware_data_write,
@@ -452,7 +451,6 @@ static int fw_register_device(struct device **dev_p, const char *fw_name,
 
 	strcpy(fw_priv->fw_id, fw_name);
 	init_completion(&fw_priv->completion);
-	fw_priv->attr_data = firmware_attr_data_tmpl;
 	fw_priv->timeout.function = firmware_class_timeout;
 	fw_priv->timeout.data = (u_long) fw_priv;
 	init_timer(&fw_priv->timeout);
@@ -498,8 +496,7 @@ static int fw_setup_device(struct firmware *fw, struct device **dev_p,
 	fw_priv->nowait = nowait;
 
 	fw_priv->fw = fw;
-	sysfs_bin_attr_init(&fw_priv->attr_data);
-	retval = sysfs_create_bin_file(&f_dev->kobj, &fw_priv->attr_data);
+	retval = sysfs_create_bin_file(&f_dev->kobj, &firmware_attr_data);
 	if (retval) {
 		dev_err(device, "%s: sysfs_create_bin_file failed\n", __func__);
 		goto error_unreg;
