@@ -614,10 +614,10 @@ static int ov9640_try_fmt(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int ov9640_enum_fmt(struct v4l2_subdev *sd, int index,
+static int ov9640_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			   enum v4l2_mbus_pixelcode *code)
 {
-	if ((unsigned int)index >= ARRAY_SIZE(ov9640_codes))
+	if (index >= ARRAY_SIZE(ov9640_codes))
 		return -EINVAL;
 
 	*code = ov9640_codes[index];

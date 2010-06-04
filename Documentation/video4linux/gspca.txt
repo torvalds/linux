@@ -290,6 +290,7 @@ sonixb		0c45:602e	Genius VideoCam Messenger
 sonixj		0c45:6040	Speed NVC 350K
 sonixj		0c45:607c	Sonix sn9c102p Hv7131R
 sonixj		0c45:60c0	Sangha Sn535
+sonixj		0c45:60ce	USB-PC-Camera-168 (TALK-5067)
 sonixj		0c45:60ec	SN9C105+MO4000
 sonixj		0c45:60fb	Surfer NoName
 sonixj		0c45:60fc	LG-LIC300

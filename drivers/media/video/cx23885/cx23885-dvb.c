@@ -991,6 +991,8 @@ static int dvb_register(struct cx23885_tsport *port)
 	ret = videobuf_dvb_register_bus(&port->frontends, THIS_MODULE, port,
 					&dev->pci->dev, adapter_nr, 0,
 					cx23885_dvb_fe_ioctl_override);
+	if (!ret)
+		return ret;
 
 	/* init CI & MAC */
 	switch (dev->board) {

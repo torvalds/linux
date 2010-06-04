@@ -1092,10 +1092,10 @@ static struct v4l2_subdev_core_ops ov772x_subdev_core_ops = {
 #endif
 };
 
-static int ov772x_enum_fmt(struct v4l2_subdev *sd, int index,
+static int ov772x_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			   enum v4l2_mbus_pixelcode *code)
 {
-	if ((unsigned int)index >= ARRAY_SIZE(ov772x_cfmts))
+	if (index >= ARRAY_SIZE(ov772x_cfmts))
 		return -EINVAL;
 
 	*code = ov772x_cfmts[index].code;
