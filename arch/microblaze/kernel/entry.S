@@ -476,13 +476,13 @@ C_ENTRY(sys_vfork):
 
 C_ENTRY(sys_clone):
 	bnei	r6, 1f;			/* See if child SP arg (arg 1) is 0. */
-	lwi	r6, r1, PTO+PT_R1;	/* If so, use paret's stack ptr */
-1:	la	r7, r1, PTO;			/* Arg 2: parent context */
-	add	r8, r0, r0;			/* Arg 3: (unused) */
-	add	r9, r0, r0;			/* Arg 4: (unused) */
-	add	r10, r0, r0;			/* Arg 5: (unused) */
-	brid	do_fork		/* Do real work (tail-call) */
-	nop;
+	lwi	r6, r1, PTO + PT_R1;	/* If so, use paret's stack ptr */
+1:	add	r10, r0, r9;		/* Arg 6: (child_tidptr) */
+	add	r9, r0, r8;		/* Arg 5: (parent_tidptr) */
+	add	r8, r0, r7;		/* Arg 4: (stack_size) */
+	la	r7, r1, PTO;		/* Arg 3: pt_regs  */
+	brid	do_fork			/* Do real work (tail-call) */
+	nop
 
 C_ENTRY(sys_execve):
 	la	r8, r1, PTO;		/* add user context as 4th arg */
