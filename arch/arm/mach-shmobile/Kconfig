@@ -44,6 +44,19 @@ config MACH_AP4EVB
 	select ARCH_REQUIRE_GPIOLIB
 	select SH_LCD_MIPI_DSI
 
+choice
+	prompt "AP4EVB LCD panel selection"
+	default AP4EVB_QHD
+	depends on MACH_AP4EVB
+
+config AP4EVB_QHD
+	bool "MIPI-DSI QHD (960x540)"
+
+config AP4EVB_WVGA
+	bool "Parallel WVGA (800x480)"
+
+endchoice
+
 comment "SH-Mobile System Configuration"
 
 menu "Memory configuration"
