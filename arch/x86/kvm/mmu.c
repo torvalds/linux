@@ -2666,11 +2666,15 @@ static bool need_remote_flush(u64 old, u64 new)
 	return (old & ~new & PT64_PERM_MASK) != 0;
 }
 
-static void mmu_pte_write_flush_tlb(struct kvm_vcpu *vcpu, u64 old, u64 new)
+static void mmu_pte_write_flush_tlb(struct kvm_vcpu *vcpu, bool zap_page,
+				    bool remote_flush, bool local_flush)
 {
-	if (need_remote_flush(old, new))
+	if (zap_page)
+		return;
+
+	if (remote_flush)
 		kvm_flush_remote_tlbs(vcpu->kvm);
-	else
+	else if (local_flush)
 		kvm_mmu_flush_tlb(vcpu);
 }
 
@@ -2735,6 +2739,9 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	int npte;
 	int r;
 	int invlpg_counter;
+	bool remote_flush, local_flush, zap_page;
+
+	zap_page = remote_flush = local_flush = false;
 
 	pgprintk("%s: gpa %llx bytes %d\n", __func__, gpa, bytes);
 
@@ -2808,7 +2815,7 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 			 */
 			pgprintk("misaligned: gpa %llx bytes %d role %x\n",
 				 gpa, bytes, sp->role.word);
-			kvm_mmu_prepare_zap_page(vcpu->kvm, sp,
+			zap_page |= !!kvm_mmu_prepare_zap_page(vcpu->kvm, sp,
 						     &invalid_list);
 			++vcpu->kvm->stat.mmu_flooded;
 			continue;
@@ -2833,16 +2840,19 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 			if (quadrant != sp->role.quadrant)
 				continue;
 		}
+		local_flush = true;
 		spte = &sp->spt[page_offset / sizeof(*spte)];
 		while (npte--) {
 			entry = *spte;
 			mmu_pte_write_zap_pte(vcpu, sp, spte);
 			if (gentry)
 				mmu_pte_write_new_pte(vcpu, sp, spte, &gentry);
-			mmu_pte_write_flush_tlb(vcpu, entry, *spte);
+			if (!remote_flush && need_remote_flush(entry, *spte))
+				remote_flush = true;
 			++spte;
 		}
 	}
+	mmu_pte_write_flush_tlb(vcpu, zap_page, remote_flush, local_flush);
 	kvm_mmu_commit_zap_page(vcpu->kvm, &invalid_list);
 	kvm_mmu_audit(vcpu, "post pte write");
 	spin_unlock(&vcpu->kvm->mmu_lock);
