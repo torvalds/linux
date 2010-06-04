@@ -1,5 +1,7 @@
 /*
- * V4L2 by Jean-Francois Moine <http://moinejf.free.fr>
+ * T613 subdriver
+ *
+ * Copyright (C) 2010 Jean-Francois Moine (http://moinejf.free.fr)
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -47,15 +49,17 @@ struct sd {
 	u8 red_balance; /* split balance */
 	u8 blue_balance;
 	u8 global_gain; /* aka gain */
-	u8 whitebalance; /* set default r/g/b and activate */
+	u8 awb; /* set default r/g/b and activate */
 	u8 mirror;
 	u8 effect;
 
 	u8 sensor;
-#define SENSOR_OM6802 0
-#define SENSOR_OTHER 1
-#define SENSOR_TAS5130A 2
-#define SENSOR_LT168G 3     /* must verify if this is the actual model */
+enum {
+	SENSOR_OM6802,
+	SENSOR_OTHER,
+	SENSOR_TAS5130A,
+	SENSOR_LT168G,		/* must verify if this is the actual model */
+} sensors;
 };
 
 /* V4L2 controls supported by the driver */
@@ -74,9 +78,8 @@ static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 
-
-static int sd_setwhitebalance(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getwhitebalance(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setawb(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getawb(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setblue_balance(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val);
@@ -84,13 +87,12 @@ static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setglobal_gain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getglobal_gain(struct gspca_dev *gspca_dev, __s32 *val);
 
-static int sd_setflip(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setmirror(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getmirror(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_seteffect(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_geteffect(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_querymenu(struct gspca_dev *gspca_dev,
 			struct v4l2_querymenu *menu);
-
 
 static const struct ctrl sd_ctrls[] = {
 	{
@@ -177,8 +179,8 @@ static const struct ctrl sd_ctrls[] = {
 #define MIRROR_DEF 0
 	  .default_value = MIRROR_DEF,
 	  },
-	 .set = sd_setflip,
-	 .get = sd_getflip
+	 .set = sd_setmirror,
+	 .get = sd_getmirror
 	},
 	{
 	 {
@@ -198,15 +200,15 @@ static const struct ctrl sd_ctrls[] = {
 	 {
 	  .id =  V4L2_CID_AUTO_WHITE_BALANCE,
 	  .type = V4L2_CTRL_TYPE_INTEGER,
-	  .name = "White Balance",
+	  .name = "Auto White Balance",
 	  .minimum = 0,
 	  .maximum = 1,
 	  .step = 1,
-#define WHITE_BALANCE_DEF 0
-	  .default_value = WHITE_BALANCE_DEF,
+#define AWB_DEF 0
+	  .default_value = AWB_DEF,
 	  },
-	 .set = sd_setwhitebalance,
-	 .get = sd_getwhitebalance
+	 .set = sd_setawb,
+	 .get = sd_getawb
 	},
 	{
 	 {
@@ -278,16 +280,6 @@ static const struct ctrl sd_ctrls[] = {
 	.set = sd_setglobal_gain,
 	.get = sd_getglobal_gain,
 	},
-};
-
-static char *effects_control[] = {
-	"Normal",
-	"Emboss",		/* disabled */
-	"Monochrome",
-	"Sepia",
-	"Sketch",
-	"Sun Effect",		/* disabled */
-	"Negative",
 };
 
 static const struct v4l2_pix_format vga_mode_t16[] = {
@@ -375,7 +367,7 @@ static const u8 n4_lt168g[] = {
 };
 
 static const struct additional_sensor_data sensor_data[] = {
-    {				/* 0: OM6802 */
+[SENSOR_OM6802] = {
 	.n3 =
 		{0x61, 0x68, 0x65, 0x0a, 0x60, 0x04},
 	.n4 = n4_om6802,
@@ -399,7 +391,7 @@ static const struct additional_sensor_data sensor_data[] = {
 	.stream =
 		{0x0b, 0x04, 0x0a, 0x78},
     },
-    {				/* 1: OTHER */
+[SENSOR_OTHER] = {
 	.n3 =
 		{0x61, 0xc2, 0x65, 0x88, 0x60, 0x00},
 	.n4 = n4_other,
@@ -423,7 +415,7 @@ static const struct additional_sensor_data sensor_data[] = {
 	.stream =
 		{0x0b, 0x04, 0x0a, 0x00},
     },
-    {				/* 2: TAS5130A */
+[SENSOR_TAS5130A] = {
 	.n3 =
 		{0x61, 0xc2, 0x65, 0x0d, 0x60, 0x08},
 	.n4 = n4_tas5130a,
@@ -447,7 +439,7 @@ static const struct additional_sensor_data sensor_data[] = {
 	.stream =
 		{0x0b, 0x04, 0x0a, 0x40},
     },
-    {				/* 3: LT168G */
+[SENSOR_LT168G] = {
 	.n3 = {0x61, 0xc2, 0x65, 0x68, 0x60, 0x00},
 	.n4 = n4_lt168g,
 	.n4sz = sizeof n4_lt168g,
@@ -469,6 +461,15 @@ static const struct additional_sensor_data sensor_data[] = {
 #define MAX_EFFECTS 7
 /* easily done by soft, this table could be removed,
  * i keep it here just in case */
+static char *effects_control[MAX_EFFECTS] = {
+	"Normal",
+	"Emboss",		/* disabled */
+	"Monochrome",
+	"Sepia",
+	"Sketch",
+	"Sun Effect",		/* disabled */
+	"Negative",
+};
 static const u8 effects_table[MAX_EFFECTS][6] = {
 	{0xa8, 0xe8, 0xc6, 0xd2, 0xc0, 0x00},	/* Normal */
 	{0xa8, 0xc8, 0xc6, 0x52, 0xc0, 0x04},	/* Repujar */
@@ -625,7 +626,6 @@ static void reg_w_ixbuf(struct gspca_dev *gspca_dev,
 		kfree(tmpbuf);
 }
 
-/* Reported as OM6802*/
 static void om6802_sensor_init(struct gspca_dev *gspca_dev)
 {
 	int i;
@@ -703,7 +703,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->autogain = AUTOGAIN_DEF;
 	sd->mirror = MIRROR_DEF;
 	sd->freq = FREQ_DEF;
-	sd->whitebalance = WHITE_BALANCE_DEF;
+	sd->awb = AWB_DEF;
 	sd->sharpness = SHARPNESS_DEF;
 	sd->effect = EFFECTS_DEF;
 	sd->red_balance = RED_BALANCE_DEF;
@@ -771,12 +771,12 @@ static void setglobalgain(struct gspca_dev *gspca_dev)
 }
 
 /* Generic fnc for r/b balance, exposure and whitebalance */
-static void setbalance(struct gspca_dev *gspca_dev)
+static void setawb(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	/* on whitebalance leave defaults values */
-	if (sd->whitebalance) {
+	/* on awb leave defaults values */
+	if (sd->awb) {
 		reg_w(gspca_dev, 0x3c80);
 	} else {
 		reg_w(gspca_dev, 0x3880);
@@ -788,13 +788,6 @@ static void setbalance(struct gspca_dev *gspca_dev)
 		setglobalgain(gspca_dev);
 	}
 
-}
-
-
-
-static void setwhitebalance(struct gspca_dev *gspca_dev)
-{
-	setbalance(gspca_dev);
 }
 
 static void setsharpness(struct gspca_dev *gspca_dev)
@@ -901,7 +894,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	setgamma(gspca_dev);
 	setcolors(gspca_dev);
 	setsharpness(gspca_dev);
-	setwhitebalance(gspca_dev);
+	setawb(gspca_dev);
 
 	reg_w(gspca_dev, 0x2087);	/* tied to white balance? */
 	reg_w(gspca_dev, 0x2088);
@@ -926,16 +919,16 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-static void setflip(struct gspca_dev *gspca_dev)
+static void setmirror(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	u8 flipcmd[8] =
+	u8 hflipcmd[8] =
 		{0x62, 0x07, 0x63, 0x03, 0x64, 0x00, 0x60, 0x09};
 
 	if (sd->mirror)
-		flipcmd[3] = 0x01;
+		hflipcmd[3] = 0x01;
 
-	reg_w_buf(gspca_dev, flipcmd, sizeof flipcmd);
+	reg_w_buf(gspca_dev, hflipcmd, sizeof hflipcmd);
 }
 
 static void seteffect(struct gspca_dev *gspca_dev)
@@ -1025,12 +1018,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_OM6802:
 		om6802_sensor_init(gspca_dev);
 		break;
-	case SENSOR_LT168G:
-		break;
-	case SENSOR_OTHER:
-		break;
-	default:
-/*	case SENSOR_TAS5130A: */
+	case SENSOR_TAS5130A:
 		i = 0;
 		for (;;) {
 			reg_w_buf(gspca_dev, tas5130a_sensor_init[i],
@@ -1167,7 +1155,6 @@ static int sd_getglobal_gain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1186,35 +1173,35 @@ static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
 	return *val;
 }
 
-static int sd_setwhitebalance(struct gspca_dev *gspca_dev, __s32 val)
+static int sd_setawb(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	sd->whitebalance = val;
+	sd->awb = val;
 	if (gspca_dev->streaming)
-		setwhitebalance(gspca_dev);
+		setawb(gspca_dev);
 	return 0;
 }
 
-static int sd_getwhitebalance(struct gspca_dev *gspca_dev, __s32 *val)
+static int sd_getawb(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	*val = sd->whitebalance;
+	*val = sd->awb;
 	return *val;
 }
 
-static int sd_setflip(struct gspca_dev *gspca_dev, __s32 val)
+static int sd_setmirror(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->mirror = val;
 	if (gspca_dev->streaming)
-		setflip(gspca_dev);
+		setmirror(gspca_dev);
 	return 0;
 }
 
-static int sd_getflip(struct gspca_dev *gspca_dev, __s32 *val)
+static int sd_getmirror(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
@@ -1300,7 +1287,7 @@ static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val)
 
 	sd->freq = val;
 	if (gspca_dev->streaming)
-		setlightfreq(gspca_dev);
+		setfreq(gspca_dev);
 	return 0;
 }
 
@@ -1368,7 +1355,8 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 	case V4L2_CID_EFFECTS:
 		if ((unsigned) menu->index < ARRAY_SIZE(effects_control)) {
 			strncpy((char *) menu->name,
-				effects_control[menu->index], 32);
+				effects_control[menu->index],
+				sizeof menu->name);
 			return 0;
 		}
 		break;
