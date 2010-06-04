@@ -195,6 +195,21 @@ struct p9_fid {
 	struct list_head dlist;	/* list of all fids attached to a dentry */
 };
 
+/**
+ * struct p9_dirent - directory entry structure
+ * @qid: The p9 server qid for this dirent
+ * @d_off: offset to the next dirent
+ * @d_type: type of file
+ * @d_name: file name
+ */
+
+struct p9_dirent {
+	struct p9_qid qid;
+	u64 d_off;
+	unsigned char d_type;
+	char d_name[256];
+};
+
 int p9_client_statfs(struct p9_fid *fid, struct p9_rstatfs *sb);
 int p9_client_rename(struct p9_fid *fid, struct p9_fid *newdirfid, char *name);
 int p9_client_version(struct p9_client *);
@@ -217,6 +232,9 @@ int p9_client_read(struct p9_fid *fid, char *data, char __user *udata,
 							u64 offset, u32 count);
 int p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 							u64 offset, u32 count);
+int p9_client_readdir(struct p9_fid *fid, char *data, u32 count, u64 offset);
+int p9dirent_read(char *buf, int len, struct p9_dirent *dirent,
+							int proto_version);
 struct p9_wstat *p9_client_stat(struct p9_fid *fid);
 int p9_client_wstat(struct p9_fid *fid, struct p9_wstat *wst);
 

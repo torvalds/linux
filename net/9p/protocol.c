@@ -580,3 +580,30 @@ void p9pdu_reset(struct p9_fcall *pdu)
 	pdu->offset = 0;
 	pdu->size = 0;
 }
+
+int p9dirent_read(char *buf, int len, struct p9_dirent *dirent,
+						int proto_version)
+{
+	struct p9_fcall fake_pdu;
+	int ret;
+	char *nameptr;
+
+	fake_pdu.size = len;
+	fake_pdu.capacity = len;
+	fake_pdu.sdata = buf;
+	fake_pdu.offset = 0;
+
+	ret = p9pdu_readf(&fake_pdu, proto_version, "Qqbs", &dirent->qid,
+			&dirent->d_off, &dirent->d_type, &nameptr);
+	if (ret) {
+		P9_DPRINTK(P9_DEBUG_9P, "<<< p9dirent_read failed: %d\n", ret);
+		p9pdu_dump(1, &fake_pdu);
+		goto out;
+	}
+
+	strcpy(dirent->d_name, nameptr);
+
+out:
+	return fake_pdu.offset;
+}
+EXPORT_SYMBOL(p9dirent_read);

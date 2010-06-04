@@ -133,6 +133,8 @@ enum p9_msg_t {
 	P9_RSTATFS,
 	P9_TRENAME = 20,
 	P9_RRENAME,
+	P9_TREADDIR = 40,
+	P9_RREADDIR,
 	P9_TVERSION = 100,
 	P9_RVERSION,
 	P9_TAUTH = 102,
@@ -274,6 +276,9 @@ enum p9_qid_t {
 
 /* ample room for Twrite/Rread header */
 #define P9_IOHDRSZ	24
+
+/* Room for readdir header */
+#define P9_READDIRHDRSZ	24
 
 /**
  * struct p9_str - length prefixed string type
@@ -484,6 +489,18 @@ struct p9_twrite {
 struct p9_rwrite {
 	u32 count;
 };
+
+struct p9_treaddir {
+	u32 fid;
+	u64 offset;
+	u32 count;
+};
+
+struct p9_rreaddir {
+	u32 count;
+	u8 *data;
+};
+
 
 struct p9_tclunk {
 	u32 fid;
