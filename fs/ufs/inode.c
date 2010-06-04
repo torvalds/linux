@@ -558,12 +558,10 @@ static int ufs_readpage(struct file *file, struct page *page)
 	return block_read_full_page(page,ufs_getfrag_block);
 }
 
-int __ufs_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata)
+int ufs_prepare_chunk(struct page *page, loff_t pos, unsigned len)
 {
-	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				ufs_getfrag_block);
+	return block_write_begin_newtrunc(NULL, page->mapping, pos, len, 0,
+					  &page, NULL, ufs_getfrag_block);
 }
 
 static int ufs_write_begin(struct file *file, struct address_space *mapping,
@@ -571,7 +569,8 @@ static int ufs_write_begin(struct file *file, struct address_space *mapping,
 			struct page **pagep, void **fsdata)
 {
 	*pagep = NULL;
-	return __ufs_write_begin(file, mapping, pos, len, flags, pagep, fsdata);
+	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+				ufs_getfrag_block);
 }
 
 static sector_t ufs_bmap(struct address_space *mapping, sector_t block)

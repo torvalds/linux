@@ -357,12 +357,10 @@ static int minix_readpage(struct file *file, struct page *page)
 	return block_read_full_page(page,minix_get_block);
 }
 
-int __minix_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata)
+int minix_prepare_chunk(struct page *page, loff_t pos, unsigned len)
 {
-	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				minix_get_block);
+	return block_write_begin_newtrunc(NULL, page->mapping, pos, len, 0,
+					  &page, NULL, minix_get_block);
 }
 
 static int minix_write_begin(struct file *file, struct address_space *mapping,
@@ -370,7 +368,8 @@ static int minix_write_begin(struct file *file, struct address_space *mapping,
 			struct page **pagep, void **fsdata)
 {
 	*pagep = NULL;
-	return __minix_write_begin(file, mapping, pos, len, flags, pagep, fsdata);
+	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+				minix_get_block);
 }
 
 static sector_t minix_bmap(struct address_space *mapping, sector_t block)

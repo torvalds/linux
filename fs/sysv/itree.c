@@ -459,12 +459,10 @@ static int sysv_readpage(struct file *file, struct page *page)
 	return block_read_full_page(page,get_block);
 }
 
-int __sysv_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
-			struct page **pagep, void **fsdata)
+int sysv_prepare_chunk(struct page *page, loff_t pos, unsigned len)
 {
-	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
-				get_block);
+	return block_write_begin_newtrunc(NULL, page->mapping, pos, len, 0,
+					  &page, NULL, get_block);
 }
 
 static int sysv_write_begin(struct file *file, struct address_space *mapping,
@@ -472,7 +470,8 @@ static int sysv_write_begin(struct file *file, struct address_space *mapping,
 			struct page **pagep, void **fsdata)
 {
 	*pagep = NULL;
-	return __sysv_write_begin(file, mapping, pos, len, flags, pagep, fsdata);
+	return block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
+				get_block);
 }
 
 static sector_t sysv_bmap(struct address_space *mapping, sector_t block)

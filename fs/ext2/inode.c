@@ -765,14 +765,6 @@ ext2_readpages(struct file *file, struct address_space *mapping,
 	return mpage_readpages(mapping, pages, nr_pages, ext2_get_block);
 }
 
-int __ext2_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, unsigned flags,
-		struct page **pagep, void **fsdata)
-{
-	return block_write_begin_newtrunc(file, mapping, pos, len, flags,
-					pagep, fsdata, ext2_get_block);
-}
-
 static int
 ext2_write_begin(struct file *file, struct address_space *mapping,
 		loff_t pos, unsigned len, unsigned flags,
@@ -781,7 +773,8 @@ ext2_write_begin(struct file *file, struct address_space *mapping,
 	int ret;
 
 	*pagep = NULL;
-	ret = __ext2_write_begin(file, mapping, pos, len, flags, pagep, fsdata);
+	ret = block_write_begin_newtrunc(file, mapping, pos, len, flags,
+					 pagep, fsdata, ext2_get_block);
 	if (ret < 0)
 		ext2_write_failed(mapping, pos + len);
 	return ret;
