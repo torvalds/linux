@@ -329,6 +329,7 @@ static void ieee80211_recalc_smps_work(struct work_struct *work)
 	mutex_unlock(&local->iflist_mtx);
 }
 
+#ifdef CONFIG_INET
 int ieee80211_set_arp_filter(struct ieee80211_sub_if_data *sdata)
 {
 	struct in_device *idev;
@@ -380,6 +381,7 @@ static int ieee80211_ifa_changed(struct notifier_block *nb,
 
 	return NOTIFY_DONE;
 }
+#endif
 
 struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 					const struct ieee80211_ops *ops)
@@ -669,10 +671,12 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		goto fail_pm_qos;
 	}
 
+#ifdef CONFIG_INET
 	local->ifa_notifier.notifier_call = ieee80211_ifa_changed;
 	result = register_inetaddr_notifier(&local->ifa_notifier);
 	if (result)
 		goto fail_ifa;
+#endif
 
 	return 0;
 
@@ -707,7 +711,9 @@ void ieee80211_unregister_hw(struct ieee80211_hw *hw)
 
 	pm_qos_remove_notifier(PM_QOS_NETWORK_LATENCY,
 			       &local->network_latency_notifier);
+#ifdef CONFIG_INET
 	unregister_inetaddr_notifier(&local->ifa_notifier);
+#endif
 
 	rtnl_lock();
 
