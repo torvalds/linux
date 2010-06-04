@@ -2433,6 +2433,7 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 	struct ceph_dentry_info *di;
 	int mds = session->s_mds;
 	struct ceph_mds_lease *h = msg->front.iov_base;
+	u32 seq;
 	struct ceph_vino vino;
 	int mask;
 	struct qstr dname;
@@ -2446,6 +2447,7 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 	vino.ino = le64_to_cpu(h->ino);
 	vino.snap = CEPH_NOSNAP;
 	mask = le16_to_cpu(h->mask);
+	seq = le32_to_cpu(h->seq);
 	dname.name = (void *)h + sizeof(*h) + sizeof(u32);
 	dname.len = msg->front.iov_len - sizeof(*h) - sizeof(u32);
 	if (dname.len != get_unaligned_le32(h+1))
@@ -2456,8 +2458,9 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 
 	/* lookup inode */
 	inode = ceph_find_inode(sb, vino);
-	dout("handle_lease '%s', mask %d, ino %llx %p\n",
-	     ceph_lease_op_name(h->action), mask, vino.ino, inode);
+	dout("handle_lease %s, mask %d, ino %llx %p %.*s\n",
+	     ceph_lease_op_name(h->action), mask, vino.ino, inode,
+	     dname.len, dname.name);
 	if (inode == NULL) {
 		dout("handle_lease no inode %llx\n", vino.ino);
 		goto release;
@@ -2482,7 +2485,8 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 	switch (h->action) {
 	case CEPH_MDS_LEASE_REVOKE:
 		if (di && di->lease_session == session) {
-			h->seq = cpu_to_le32(di->lease_seq);
+			if (ceph_seq_cmp(di->lease_seq, seq) > 0)
+				h->seq = cpu_to_le32(di->lease_seq);
 			__ceph_mdsc_drop_dentry_lease(dentry);
 		}
 		release = 1;
@@ -2496,7 +2500,7 @@ static void handle_lease(struct ceph_mds_client *mdsc,
 			unsigned long duration =
 				le32_to_cpu(h->duration_ms) * HZ / 1000;
 
-			di->lease_seq = le32_to_cpu(h->seq);
+			di->lease_seq = seq;
 			dentry->d_time = di->lease_renew_from + duration;
 			di->lease_renew_after = di->lease_renew_from +
 				(duration >> 1);
