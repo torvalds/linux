@@ -132,15 +132,10 @@ xlog_align(
 	int		nbblks,
 	xfs_buf_t	*bp)
 {
-	xfs_daddr_t	offset;
-	xfs_caddr_t	ptr;
+	xfs_daddr_t	offset = blk_no & ((xfs_daddr_t)log->l_sectBBsize - 1);
 
-	offset = blk_no & ((xfs_daddr_t) log->l_sectBBsize - 1);
-	ptr = XFS_BUF_PTR(bp) + BBTOB(offset);
-
-	ASSERT(ptr + BBTOB(nbblks) <= XFS_BUF_PTR(bp) + XFS_BUF_SIZE(bp));
-
-	return ptr;
+	ASSERT(BBTOB(offset + nbblks) <= XFS_BUF_SIZE(bp));
+	return XFS_BUF_PTR(bp) + BBTOB(offset);
 }
 
 
