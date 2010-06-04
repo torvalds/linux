@@ -167,7 +167,8 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 			.clr_uproc_interrupt_reg32 = 0x0002C,
 			.init_feedback_reg = 0x0005C,
 			.dump_addr_reg = 0x00064,
-			.dump_data_reg = 0x00068
+			.dump_data_reg = 0x00068,
+			.endian_swap_reg = 0x00084
 		}
 	},
 };
@@ -7208,6 +7209,12 @@ static int ipr_reset_enable_ioa(struct ipr_cmnd *ipr_cmd)
 	ipr_init_ioa_mem(ioa_cfg);
 
 	ioa_cfg->allow_interrupts = 1;
+	if (ioa_cfg->sis64) {
+		/* Set the adapter to the correct endian mode. */
+		writel(IPR_ENDIAN_SWAP_KEY, ioa_cfg->regs.endian_swap_reg);
+		int_reg = readl(ioa_cfg->regs.endian_swap_reg);
+	}
+
 	int_reg = readl(ioa_cfg->regs.sense_interrupt_reg32);
 
 	if (int_reg & IPR_PCII_IOA_TRANS_TO_OPER) {
@@ -7365,6 +7372,7 @@ static void ipr_get_unit_check_buffer(struct ipr_ioa_cfg *ioa_cfg)
 static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	volatile u32 int_reg;
 	int rc;
 
 	ENTER;
@@ -7382,6 +7390,12 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 	}
 
 	ipr_fail_all_ops(ioa_cfg);
+
+	if (ioa_cfg->sis64) {
+		/* Set the adapter to the correct endian mode. */
+		writel(IPR_ENDIAN_SWAP_KEY, ioa_cfg->regs.endian_swap_reg);
+		int_reg = readl(ioa_cfg->regs.endian_swap_reg);
+	}
 
 	if (ioa_cfg->ioa_unit_checked) {
 		ioa_cfg->ioa_unit_checked = 0;
@@ -7547,7 +7561,7 @@ static int ipr_reset_wait_to_start_bist(struct ipr_cmnd *ipr_cmd)
 }
 
 /**
- * ipr_reset_alert_part2 - Alert the adapter of a pending reset
+ * ipr_reset_alert - Alert the adapter of a pending reset
  * @ipr_cmd:	ipr command struct
  *
  * Description: This function alerts the adapter that it will be reset.
@@ -8318,6 +8332,7 @@ static void __devinit ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
 		t->init_feedback_reg = base + p->init_feedback_reg;
 		t->dump_addr_reg = base + p->dump_addr_reg;
 		t->dump_data_reg = base + p->dump_data_reg;
+		t->endian_swap_reg = base + p->endian_swap_reg;
 	}
 }
 
