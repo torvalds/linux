@@ -539,12 +539,12 @@ static void sil24_config_port(struct ata_port *ap)
 		writel(PORT_CS_IRQ_WOC, port + PORT_CTRL_CLR);
 
 	/* zero error counters. */
-	writel(0x8000, port + PORT_DECODE_ERR_THRESH);
-	writel(0x8000, port + PORT_CRC_ERR_THRESH);
-	writel(0x8000, port + PORT_HSHK_ERR_THRESH);
-	writel(0x0000, port + PORT_DECODE_ERR_CNT);
-	writel(0x0000, port + PORT_CRC_ERR_CNT);
-	writel(0x0000, port + PORT_HSHK_ERR_CNT);
+	writew(0x8000, port + PORT_DECODE_ERR_THRESH);
+	writew(0x8000, port + PORT_CRC_ERR_THRESH);
+	writew(0x8000, port + PORT_HSHK_ERR_THRESH);
+	writew(0x0000, port + PORT_DECODE_ERR_CNT);
+	writew(0x0000, port + PORT_CRC_ERR_CNT);
+	writew(0x0000, port + PORT_HSHK_ERR_CNT);
 
 	/* always use 64bit activation */
 	writel(PORT_CS_32BIT_ACTV, port + PORT_CTRL_CLR);
