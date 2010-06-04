@@ -157,6 +157,7 @@ struct ehci_hcd {			/* one per controller */
 	struct dentry		*debug_async;
 	struct dentry		*debug_periodic;
 	struct dentry		*debug_registers;
+	struct dentry		*debug_lpm;
 #endif
 };
 
