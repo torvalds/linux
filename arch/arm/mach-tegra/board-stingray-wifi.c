@@ -12,6 +12,9 @@
 #include <linux/wlan_plat.h>
 #include <mach/sdhci.h>
 
+#include <linux/random.h>
+#include <linux/jiffies.h>
+
 #include "board-stingray.h"
 #include "gpio-names.h"
 
@@ -164,11 +167,31 @@ static int stingray_wifi_reset(int on)
 	return 0;
 }
 
+static int stingray_wifi_get_mac_addr(unsigned char *buf)
+{
+	static unsigned char mac_addr[6] = { 0, 0x90, 0x4c, 0, 0, 0 };
+	uint rand_mac;
+
+	if (!buf)
+		return -EINVAL;
+
+	if ((mac_addr[4] == 0) && (mac_addr[5] == 0)) {
+		srandom32((uint)jiffies);
+		rand_mac = random32();
+		mac_addr[3] = (unsigned char)rand_mac;
+		mac_addr[4] = (unsigned char)(rand_mac >> 8);
+		mac_addr[5] = (unsigned char)(rand_mac >> 16);
+	}
+	memcpy(buf, mac_addr, 6);
+	return 0;
+}
+
 static struct wifi_platform_data stingray_wifi_control = {
 	.set_power      = stingray_wifi_power,
 	.set_reset      = stingray_wifi_reset,
 	.set_carddetect = stingray_wifi_set_carddetect,
 	.mem_prealloc	= stingray_wifi_mem_prealloc,
+	.get_mac_addr	= stingray_wifi_get_mac_addr,
 };
 
 static struct platform_device stingray_wifi_device = {
