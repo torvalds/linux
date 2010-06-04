@@ -41,6 +41,11 @@
 #include <linux/input.h>
 #include "gspca.h"
 
+/* The jpeg_hdr is used by w996Xcf only */
+/* The CONEX_CAM define for jpeg.h needs renaming, now its used here too */
+#define CONEX_CAM
+#include "jpeg.h"
+
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("OV519 USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -116,7 +121,7 @@ struct sd {
 	int sensor_height;
 	int sensor_reg_cache[256];
 
-	u8 *jpeg_hdr;
+	u8 jpeg_hdr[JPEG_HDR_SZ];
 };
 
 /* Note this is a bit of a hack, but the w9968cf driver needs the code for all
