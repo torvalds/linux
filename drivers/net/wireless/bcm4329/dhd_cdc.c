@@ -41,10 +41,6 @@
 #include <dhd_bus.h>
 #include <dhd_dbg.h>
 
-#ifdef CUSTOMER_HW2
-int wifi_get_mac_addr(unsigned char *buf);
-#endif
-
 extern int dhd_preinit_ioctls(dhd_pub_t *dhd);
 
 /* Packet alignment for most efficient SDIO (can change based on platform) */
@@ -520,25 +516,10 @@ dhd_prot_init(dhd_pub_t *dhd)
 {
 	int ret = 0;
 	char buf[128];
-#ifdef CUSTOMER_HW2
-	struct ether_addr ea_addr;
-#endif
+
 	DHD_TRACE(("%s: Enter\n", __FUNCTION__));
 
 	dhd_os_proto_block(dhd);
-
-#ifdef CUSTOMER_HW2
-	/* Set the device MAC address if applicable */
-	ret = wifi_get_mac_addr(ea_addr.octet);
-	if (!ret) {
-		bcm_mkiovar("cur_etheraddr", (void *)&ea_addr, ETHER_ADDR_LEN, buf, sizeof(buf));
-		ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
-		if (ret < 0) {
-			DHD_ERROR(("%s: can't set MAC address , error=%d\n", __FUNCTION__, ret));
-			goto fail;
-		}
-	}
-#endif
 
 	/* Get the device MAC address */
 	strcpy(buf, "cur_etheraddr");

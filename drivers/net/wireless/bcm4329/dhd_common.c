@@ -37,8 +37,11 @@
 #include <dhd_dbg.h>
 #include <msgtrace.h>
 
-
 #include <wlioctl.h>
+
+#ifdef GET_CUSTOM_MAC_ENABLE
+int wifi_get_mac_addr(unsigned char *buf);
+#endif /* GET_CUSTOM_MAC_ENABLE */
 
 int dhd_msg_level;
 
@@ -1236,6 +1239,29 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint bcn_timeout = 3;
 	int scan_assoc_time = 40;
 	int scan_unassoc_time = 80;
+#ifdef GET_CUSTOM_MAC_ENABLE
+	int ret;
+	struct ether_addr ea_addr;
+#endif /* GET_CUSTOM_MAC_ENABLE */
+
+#ifdef GET_CUSTOM_MAC_ENABLE
+	/*
+	** Read MAC address from external customer place
+	** NOTE that default mac address has to be present in otp or nvram file
+	** to bring up firmware but unique per board mac address maybe provided
+	** by customer code
+	*/
+	ret = wifi_get_mac_addr(ea_addr.octet);
+	if (!ret) {
+		bcm_mkiovar("cur_etheraddr", (void *)&ea_addr, ETHER_ADDR_LEN, buf, sizeof(buf));
+		ret = dhdcdc_set_ioctl(dhd, 0, WLC_SET_VAR, buf, sizeof(buf));
+		if (ret < 0) {
+			DHD_ERROR(("%s: can't set MAC address , error=%d\n", __FUNCTION__, ret));
+		}
+		else
+			memcpy(dhd->mac.octet, (void *)&ea_addr, ETHER_ADDR_LEN);
+	}
+#endif /* GET_CUSTOM_MAC_ENABLE */
 
 	/* Set Country code */
 	if (dhd->country_code[0] != 0) {
