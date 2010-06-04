@@ -80,6 +80,7 @@ enum {
 /* Bits for c_flags */
 #define RDS_LL_SEND_FULL	0
 #define RDS_RECONNECT_PENDING	1
+#define RDS_IN_XMIT		2
 
 struct rds_connection {
 	struct hlist_node	c_hash_node;
@@ -91,9 +92,6 @@ struct rds_connection {
 	struct rds_cong_map	*c_lcong;
 	struct rds_cong_map	*c_fcong;
 
-	spinlock_t		c_send_lock;	/* protect send ring */
-	atomic_t		c_send_generation;
-	atomic_t		c_senders;
 	struct rds_message	*c_xmit_rm;
 	unsigned long		c_xmit_sg;
 	unsigned int		c_xmit_hdr_off;
@@ -120,6 +118,7 @@ struct rds_connection {
 	struct delayed_work	c_conn_w;
 	struct work_struct	c_down_w;
 	struct mutex		c_cm_lock;	/* protect conn state & cm */
+	wait_queue_head_t	c_waitq;
 
 	struct list_head	c_map_item;
 	unsigned long		c_map_queued;

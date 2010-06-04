@@ -321,7 +321,7 @@ void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context)
  * credits (see rds_ib_send_add_credits below).
  *
  * The RDS send code is essentially single-threaded; rds_send_xmit
- * grabs c_send_lock to ensure exclusive access to the send ring.
+ * sets RDS_IN_XMIT to ensure exclusive access to the send ring.
  * However, the ACK sending code is independent and can race with
  * message SENDs.
  *

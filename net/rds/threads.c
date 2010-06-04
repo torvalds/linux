@@ -61,7 +61,7 @@
  *
  * Transition to state DISCONNECTING/DOWN:
  *  -	Inside the shutdown worker; synchronizes with xmit path
- *	through c_send_lock, and with connection management callbacks
+ *	through RDS_IN_XMIT, and with connection management callbacks
  *	via c_cm_lock.
  *
  *	For receive callbacks, we rely on the underlying transport

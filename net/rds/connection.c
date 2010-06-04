@@ -148,9 +148,7 @@ static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
 	spin_lock_init(&conn->c_lock);
 	conn->c_next_tx_seq = 1;
 
-	spin_lock_init(&conn->c_send_lock);
-	atomic_set(&conn->c_send_generation, 1);
-	atomic_set(&conn->c_senders, 0);
+	init_waitqueue_head(&conn->c_waitq);
 	INIT_LIST_HEAD(&conn->c_send_queue);
 	INIT_LIST_HEAD(&conn->c_retrans);
 
@@ -275,15 +273,8 @@ void rds_conn_shutdown(struct rds_connection *conn)
 		}
 		mutex_unlock(&conn->c_cm_lock);
 
-		/* verify everybody's out of rds_send_xmit() */
-		spin_lock_irq(&conn->c_send_lock);
-		spin_unlock_irq(&conn->c_send_lock);
-
-		while(atomic_read(&conn->c_senders)) {
-			schedule_timeout(1);
-			spin_lock_irq(&conn->c_send_lock);
-			spin_unlock_irq(&conn->c_send_lock);
-		}
+		wait_event(conn->c_waitq,
+			   !test_bit(RDS_IN_XMIT, &conn->c_flags));
 
 		conn->c_trans->conn_shutdown(conn);
 		rds_conn_reset(conn);
@@ -477,8 +468,8 @@ static int rds_conn_info_visitor(struct rds_connection *conn,
 		sizeof(cinfo->transport));
 	cinfo->flags = 0;
 
-	rds_conn_info_set(cinfo->flags,
-			  spin_is_locked(&conn->c_send_lock), SENDING);
+	rds_conn_info_set(cinfo->flags, test_bit(RDS_IN_XMIT, &conn->c_flags),
+			  SENDING);
 	/* XXX Future: return the state rather than these funky bits */
 	rds_conn_info_set(cinfo->flags,
 			  atomic_read(&conn->c_state) == RDS_CONN_CONNECTING,
