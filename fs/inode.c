@@ -325,7 +325,9 @@ static void evict(struct inode *inode, int delete)
 {
 	const struct super_operations *op = inode->i_sb->s_op;
 
-	if (delete && op->delete_inode) {
+	if (op->evict_inode) {
+		op->evict_inode(inode);
+	} else if (delete && op->delete_inode) {
 		op->delete_inode(inode);
 	} else {
 		if (inode->i_data.nrpages)
