@@ -1629,7 +1629,7 @@ static int kvm_mmu_unprotect_page(struct kvm *kvm, gfn_t gfn)
 	bucket = &kvm->arch.mmu_page_hash[index];
 restart:
 	hlist_for_each_entry_safe(sp, node, n, bucket, hash_link)
-		if (sp->gfn == gfn && !sp->role.direct) {
+		if (sp->gfn == gfn && !sp->role.direct && !sp->role.invalid) {
 			pgprintk("%s: gfn %lx role %x\n", __func__, gfn,
 				 sp->role.word);
 			r = 1;
