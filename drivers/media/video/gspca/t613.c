@@ -987,9 +987,7 @@ static void poll_sensor(struct gspca_dev *gspca_dev)
 	static const u8 poll2[] =
 		{0x67, 0x02, 0x68, 0x71, 0x69, 0x72, 0x72, 0xa9,
 		 0x73, 0x02, 0x73, 0x02, 0x60, 0x14};
-	static const u8 poll3[] =
-		{0x87, 0x3f, 0x88, 0x20, 0x89, 0x2d};
-	static const u8 poll4[] =
+	static const u8 noise03[] =	/* (some differences / ms-drv) */
 		{0xa6, 0x0a, 0xea, 0xcf, 0xbe, 0x26, 0xb1, 0x5f,
 		 0xa1, 0xb1, 0xda, 0x6b, 0xdb, 0x98, 0xdf, 0x0c,
 		 0xc2, 0x80, 0xc3, 0x10};
@@ -997,8 +995,7 @@ static void poll_sensor(struct gspca_dev *gspca_dev)
 	PDEBUG(D_STREAM, "[Sensor requires polling]");
 	reg_w_buf(gspca_dev, poll1, sizeof poll1);
 	reg_w_buf(gspca_dev, poll2, sizeof poll2);
-	reg_w_buf(gspca_dev, poll3, sizeof poll3);
-	reg_w_buf(gspca_dev, poll4, sizeof poll4);
+	reg_w_buf(gspca_dev, noise03, sizeof noise03);
 }
 
 static int sd_start(struct gspca_dev *gspca_dev)
