@@ -71,7 +71,7 @@ const int dma_req_sel[] = {
 #define TEGRA_TX_DMA			2
 
 #define TEGRA_UART_MIN_DMA		16
-#define TEGRA_UART_FIFO_SIZE		16
+#define TEGRA_UART_FIFO_SIZE		8
 
 struct tegra_uart_port {
 	struct uart_port	uport;
@@ -158,7 +158,7 @@ static void tegra_start_pio_tx(struct tegra_uart_port *t, unsigned int bytes)
 		bytes = TEGRA_UART_FIFO_SIZE;
 
 	t->fcr_shadow &= ~UART_FCR_T_TRIG_11;
-	t->fcr_shadow |= UART_FCR_T_TRIG_00;
+	t->fcr_shadow |= UART_FCR_T_TRIG_10;
 	uart_writeb(t, t->fcr_shadow, UART_FCR);
 	t->tx_in_progress = TEGRA_TX_PIO;
 	t->tx_bytes = bytes;
@@ -166,12 +166,10 @@ static void tegra_start_pio_tx(struct tegra_uart_port *t, unsigned int bytes)
 	uart_writeb(t, t->ier_shadow, UART_IER);
 }
 
-static void tegra_start_dma_tx(struct tegra_uart_port *t)
+static void tegra_start_dma_tx(struct tegra_uart_port *t, unsigned long bytes)
 {
-	unsigned int count;
 	struct circ_buf *xmit;
 	xmit = &t->uport.state->xmit;
-	count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
 
 	dma_sync_single_for_device(t->uport.dev, t->xmit_dma_addr,
 		UART_XMIT_SIZE, DMA_TO_DEVICE);
@@ -180,7 +178,7 @@ static void tegra_start_dma_tx(struct tegra_uart_port *t)
 	t->fcr_shadow |= UART_FCR_T_TRIG_01;
 	uart_writeb(t, t->fcr_shadow, UART_FCR);
 
-	t->tx_bytes = count & ~(sizeof(u32)-1);
+	t->tx_bytes = bytes & ~(sizeof(u32)-1);
 	t->tx_dma_req.source_addr = t->xmit_dma_addr + xmit->tail;
 	t->tx_dma_req.size = t->tx_bytes;
 
@@ -189,31 +187,47 @@ static void tegra_start_dma_tx(struct tegra_uart_port *t)
 	tegra_dma_enqueue_req(t->tx_dma, &t->tx_dma_req);
 }
 
-/* Called by serial core driver, or in interrupt context when a PIO or DMA
- * tranmission is complete.  Called with u->lock taken.
- */
+/* Called with u->lock taken */
+static void tegra_start_next_tx(struct tegra_uart_port *t)
+{
+	unsigned long tail;
+	unsigned long count;
+
+	struct circ_buf *xmit;
+
+	xmit = &t->uport.state->xmit;
+	tail = (unsigned long)&xmit->buf[xmit->tail];
+	count = CIRC_CNT_TO_END(xmit->head, xmit->tail, UART_XMIT_SIZE);
+
+
+	dev_vdbg(t->uport.dev, "+%s %lu %d\n", __func__, count,
+		t->tx_in_progress);
+
+	if (count == 0)
+		goto out;
+
+	if (TX_FORCE_PIO || count < TEGRA_UART_MIN_DMA)
+		tegra_start_pio_tx(t, count);
+	else if (BYTES_TO_ALIGN(tail) > 0)
+		tegra_start_pio_tx(t, BYTES_TO_ALIGN(tail));
+	else
+		tegra_start_dma_tx(t, count);
+
+out:
+	dev_vdbg(t->uport.dev, "-%s", __func__);
+}
+
+/* Called by serial core driver with u->lock taken. */
 static void tegra_start_tx(struct uart_port *u)
 {
 	struct tegra_uart_port *t;
 	struct circ_buf *xmit;
-	unsigned long tail;
-	int pending;
 
 	t = container_of(u, struct tegra_uart_port, uport);
 	xmit = &u->state->xmit;
 
-	dev_vdbg(t->uport.dev, "+tegra_start_tx\n");
-	while (!uart_circ_empty(xmit) && !t->tx_in_progress) {
-		tail = (unsigned long)&xmit->buf[xmit->tail];
-		pending = uart_circ_chars_pending(xmit);
-		if (TX_FORCE_PIO || pending < TEGRA_UART_MIN_DMA)
-			tegra_start_pio_tx(t, pending);
-		else if (BYTES_TO_ALIGN(tail) > 0)
-			tegra_start_pio_tx(t, BYTES_TO_ALIGN(tail));
-		else
-			tegra_start_dma_tx(t);
-	}
-	dev_vdbg(t->uport.dev, "-tegra_start_tx\n");
+	if (!uart_circ_empty(xmit) && !t->tx_in_progress)
+		tegra_start_next_tx(t);
 }
 
 static int tegra_start_dma_rx(struct tegra_uart_port *t)
@@ -382,7 +396,7 @@ static void do_handle_tx_pio(struct tegra_uart_port *t)
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&t->uport);
 
-	tegra_start_tx(&t->uport);
+	tegra_start_next_tx(t);
 	return;
 }
 
@@ -393,16 +407,14 @@ static void tegra_tx_dma_complete_callback(struct tegra_dma_req *req)
 	int count = req->bytes_transferred;
 	unsigned long flags;
 	int timeout = 20;
-	if (req->status == -TEGRA_DMA_REQ_ERROR_ABORTED)
-		BUG();
 
 	dev_vdbg(t->uport.dev, "%s: %d\n", __func__, count);
 
 	while ((uart_readb(t, UART_LSR) & TX_EMPTY_STATUS) != TX_EMPTY_STATUS) {
 		timeout--;
-		if (timeout-- == 0) {
+		if (timeout == 0) {
 			dev_err(t->uport.dev,
-				"timed out waiting for TX FIFO to empty");
+				"timed out waiting for TX FIFO to empty\n");
 			return;
 		}
 		msleep(1);
@@ -415,7 +427,9 @@ static void tegra_tx_dma_complete_callback(struct tegra_dma_req *req)
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&t->uport);
 
-	tegra_start_tx(&t->uport);
+	if (req->status != -TEGRA_DMA_REQ_ERROR_ABORTED)
+		tegra_start_next_tx(t);
+
 	spin_unlock_irqrestore(&t->uport.lock, flags);
 }
 
@@ -502,10 +516,15 @@ static void tegra_uart_hw_deinit(struct tegra_uart_port *t)
 	/* Disable interrupts */
 	uart_writeb(t, 0, UART_IER);
 
+	while ((uart_readb(t, UART_LSR) & UART_LSR_TEMT) != UART_LSR_TEMT);
+		udelay(2000);
+
 	/* Reset the Rx and Tx FIFOs */
 	fcr = t->fcr_shadow;
 	fcr |= UART_FCR_CLEAR_XMIT | UART_FCR_CLEAR_RCVR;
 	uart_writeb(t, fcr, UART_FCR);
+
+	udelay(2000);
 
 	clk_disable(t->clk);
 	t->baud = 0;
@@ -563,7 +582,7 @@ static int tegra_uart_hw_init(struct tegra_uart_port *t)
 	 *  programmed in the DMA registers.
 	 * */
 	t->fcr_shadow |= UART_FCR_R_TRIG_01;
-	t->fcr_shadow |= UART_FCR_T_TRIG_01;
+	t->fcr_shadow |= UART_FCR_T_TRIG_10;
 	uart_writeb(t, t->fcr_shadow, UART_FCR);
 
 	if (t->use_rx_dma)
