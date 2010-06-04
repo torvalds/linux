@@ -508,12 +508,12 @@ static int __devinit s3c_rtc_probe(struct platform_device *pdev)
 		goto err_nortc;
 	}
 
+	s3c_rtc_cpu_type = platform_get_device_id(pdev)->driver_data;
+
 	if (s3c_rtc_cpu_type == TYPE_S3C64XX)
 		rtc->max_user_freq = 32768;
 	else
 		rtc->max_user_freq = 128;
-
-	s3c_rtc_cpu_type = platform_get_device_id(pdev)->driver_data;
 
 	platform_set_drvdata(pdev, rtc);
 
