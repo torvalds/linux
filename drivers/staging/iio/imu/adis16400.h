@@ -147,13 +147,7 @@ struct adis16400_state {
 	struct mutex			buf_lock;
 };
 
-int adis16400_spi_read_burst(struct device *dev, u8 *rx);
-
 int adis16400_set_irq(struct device *dev, bool enable);
-
-int adis16400_reset(struct device *dev);
-
-int adis16400_check_status(struct device *dev);
 
 #ifdef CONFIG_IIO_RING_BUFFER
 /* At the moment triggers are only used for ring buffer
