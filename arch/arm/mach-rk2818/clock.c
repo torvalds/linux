@@ -1376,7 +1376,7 @@ static int arm_clk_set_rate(struct clk *clk, unsigned long rate)
 			break;
 	}
 	pll_clk_slow_mode(&arm_pll_clk, 0);
-
+	mdelay(5);
 	pr_debug("clock: set %s to %ld MHz, delay count=%d\n", clk->name, rate/1000000, unit);
 
 	arm_pll_clk.rate = arm_pll_clk.recalc(&arm_pll_clk);
