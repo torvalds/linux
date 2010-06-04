@@ -190,6 +190,38 @@ static int parse_uac_endpoint_attributes(struct snd_usb_audio *chip,
 	return attributes;
 }
 
+static struct uac2_input_terminal_descriptor *
+	snd_usb_find_input_terminal_descriptor(struct usb_host_interface *ctrl_iface,
+					       int terminal_id)
+{
+	struct uac2_input_terminal_descriptor *term = NULL;
+
+	while ((term = snd_usb_find_csint_desc(ctrl_iface->extra,
+					       ctrl_iface->extralen,
+					       term, UAC_INPUT_TERMINAL))) {
+		if (term->bTerminalID == terminal_id)
+			return term;
+	}
+
+	return NULL;
+}
+
+static struct uac2_output_terminal_descriptor *
+	snd_usb_find_output_terminal_descriptor(struct usb_host_interface *ctrl_iface,
+						int terminal_id)
+{
+	struct uac2_output_terminal_descriptor *term = NULL;
+
+	while ((term = snd_usb_find_csint_desc(ctrl_iface->extra,
+					       ctrl_iface->extralen,
+					       term, UAC_OUTPUT_TERMINAL))) {
+		if (term->bTerminalID == terminal_id)
+			return term;
+	}
+
+	return NULL;
+}
+
 int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 {
 	struct usb_device *dev;
@@ -199,7 +231,7 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 	int i, altno, err, stream;
 	int format = 0, num_channels = 0;
 	struct audioformat *fp = NULL;
-	int num, protocol;
+	int num, protocol, clock = 0;
 	struct uac_format_type_i_continuous_descriptor *fmt;
 
 	dev = chip->dev;
@@ -263,6 +295,8 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		}
 
 		case UAC_VERSION_2: {
+			struct uac2_input_terminal_descriptor *input_term;
+			struct uac2_output_terminal_descriptor *output_term;
 			struct uac_as_header_descriptor_v2 *as =
 				snd_usb_find_csint_desc(alts->extra, alts->extralen, NULL, UAC_AS_GENERAL);
 
@@ -281,7 +315,25 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 			num_channels = as->bNrChannels;
 			format = le32_to_cpu(as->bmFormats);
 
-			break;
+			/* lookup the terminal associated to this interface
+			 * to extract the clock */
+			input_term = snd_usb_find_input_terminal_descriptor(chip->ctrl_intf,
+									    as->bTerminalLink);
+			if (input_term) {
+				clock = input_term->bCSourceID;
+				break;
+			}
+
+			output_term = snd_usb_find_output_terminal_descriptor(chip->ctrl_intf,
+									      as->bTerminalLink);
+			if (output_term) {
+				clock = output_term->bCSourceID;
+				break;
+			}
+
+			snd_printk(KERN_ERR "%d:%u:%d : bogus bTerminalLink %d\n",
+				   dev->devnum, iface_no, altno, as->bTerminalLink);
+			continue;
 		}
 
 		default:
@@ -338,6 +390,7 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 			fp->maxpacksize = (((fp->maxpacksize >> 11) & 3) + 1)
 					* (fp->maxpacksize & 0x7ff);
 		fp->attributes = parse_uac_endpoint_attributes(chip, alts, protocol, iface_no);
+		fp->clock = clock;
 
 		/* some quirks for attributes here */
 
