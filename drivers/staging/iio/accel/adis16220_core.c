@@ -72,13 +72,13 @@ static int adis16220_spi_write_reg_16(struct device *dev,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = 25,
+			.delay_usecs = 35,
 		}, {
 			.tx_buf = st->tx + 2,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = 25,
+			.delay_usecs = 35,
 		},
 	};
 
@@ -118,13 +118,13 @@ static int adis16220_spi_read_reg_16(struct device *dev,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = 25,
+			.delay_usecs = 35,
 		}, {
 			.rx_buf = st->rx,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = 25,
+			.delay_usecs = 35,
 		},
 	};
 
@@ -291,9 +291,9 @@ static int adis16220_check_status(struct device *dev)
 	if (status & ADIS16220_DIAG_STAT_FLASH_UPT)
 		dev_err(dev, "Flash update failed\n");
 	if (status & ADIS16220_DIAG_STAT_POWER_HIGH)
-		dev_err(dev, "Power supply above 5.25V\n");
+		dev_err(dev, "Power supply above 3.625V\n");
 	if (status & ADIS16220_DIAG_STAT_POWER_LOW)
-		dev_err(dev, "Power supply below 4.75V\n");
+		dev_err(dev, "Power supply below 3.15V\n");
 
 error_ret:
 	return ret;

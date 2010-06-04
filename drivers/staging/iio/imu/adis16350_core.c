@@ -75,13 +75,13 @@ static int adis16350_spi_write_reg_16(struct device *dev,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = 25,
+			.delay_usecs = 35,
 		}, {
 			.tx_buf = st->tx + 2,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = 25,
+			.delay_usecs = 35,
 		},
 	};
 
@@ -121,13 +121,13 @@ static int adis16350_spi_read_reg_16(struct device *dev,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = 25,
+			.delay_usecs = 35,
 		}, {
 			.rx_buf = st->rx,
 			.bits_per_word = 8,
 			.len = 2,
 			.cs_change = 1,
-			.delay_usecs = 25,
+			.delay_usecs = 35,
 		},
 	};
 
