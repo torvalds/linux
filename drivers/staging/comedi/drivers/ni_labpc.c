@@ -526,7 +526,8 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	unsigned long dma_flags, isr_flags;
 	short lsb, msb;
 
-	printk("comedi%d: ni_labpc: %s, io 0x%lx", dev->minor, thisboard->name,
+	printk(KERN_ERR "comedi%d: ni_labpc: %s, io 0x%lx", dev->minor,
+								thisboard->name,
 	       iobase);
 	if (irq)
 		printk(", irq %u", irq);
@@ -543,7 +544,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		/* check if io addresses are available */
 		if (!request_region(iobase, LABPC_SIZE,
 				    driver_labpc.driver_name)) {
-			printk("I/O port conflict\n");
+			printk(KERN_ERR "I/O port conflict\n");
 			return -EIO;
 		}
 	}
@@ -575,7 +576,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 			isr_flags |= IRQF_SHARED;
 		if (request_irq(irq, labpc_interrupt, isr_flags,
 				driver_labpc.driver_name, dev)) {
-			printk("unable to allocate irq %u\n", irq);
+			printk(KERN_ERR "unable to allocate irq %u\n", irq);
 			return -EINVAL;
 		}
 	}
@@ -583,18 +584,18 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 
 	/* grab dma channel */
 	if (dma_chan > 3) {
-		printk(" invalid dma channel %u\n", dma_chan);
+		printk(KERN_ERR " invalid dma channel %u\n", dma_chan);
 		return -EINVAL;
 	} else if (dma_chan) {
 		/* allocate dma buffer */
 		devpriv->dma_buffer =
 		    kmalloc(dma_buffer_size, GFP_KERNEL | GFP_DMA);
 		if (devpriv->dma_buffer == NULL) {
-			printk(" failed to allocate dma buffer\n");
+			printk(KERN_ERR " failed to allocate dma buffer\n");
 			return -ENOMEM;
 		}
 		if (request_dma(dma_chan, driver_labpc.driver_name)) {
-			printk(" failed to allocate dma channel %u\n",
+			printk(KERN_ERR " failed to allocate dma channel %u\n",
 			       dma_chan);
 			return -EINVAL;
 		}
@@ -690,7 +691,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 		for (i = 0; i < EEPROM_SIZE; i++)
 			devpriv->eeprom_data[i] = labpc_eeprom_read(dev, i);
 #ifdef LABPC_DEBUG
-		printk(" eeprom:");
+		printk(KERN_ERR " eeprom:");
 		for (i = 0; i < EEPROM_SIZE; i++)
 			printk(" %i:0x%x ", i, devpriv->eeprom_data[i]);
 		printk("\n");
@@ -732,7 +733,8 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		iobase = (unsigned long)devpriv->mite->daq_io_addr;
 		irq = mite_irq(devpriv->mite);
 #else
-		printk(" this driver has not been built with PCI support.\n");
+		printk(KERN_ERR " this driver has not been built with PCI "
+								"support.\n");
 		return -EINVAL;
 #endif
 		break;
@@ -742,7 +744,7 @@ static int labpc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 		return -EINVAL;
 		break;
 	default:
-		printk("bug! couldn't determine board type\n");
+		printk(KERN_ERR "bug! couldn't determine board type\n");
 		return -EINVAL;
 		break;
 	}
@@ -776,7 +778,7 @@ static int labpc_find_device(struct comedi_device *dev, int bus, int slot)
 			}
 		}
 	}
-	printk("no device found\n");
+	printk(KERN_ERR "no device found\n");
 	mite_list_devices();
 	return -EIO;
 }
@@ -784,7 +786,7 @@ static int labpc_find_device(struct comedi_device *dev, int bus, int slot)
 
 int labpc_common_detach(struct comedi_device *dev)
 {
-	printk("comedi%d: ni_labpc: detach\n", dev->minor);
+	printk(KERN_ERR "comedi%d: ni_labpc: detach\n", dev->minor);
 
 	if (dev->subdevices)
 		subdev_8255_cleanup(dev, dev->subdevices + 2);
@@ -846,7 +848,7 @@ static enum scan_mode labpc_ai_scan_mode(const struct comedi_cmd *cmd)
 	if (CR_CHAN(cmd->chanlist[0]) > CR_CHAN(cmd->chanlist[1]))
 		return MODE_MULT_CHAN_DOWN;
 
-	printk("ni_labpc: bug! this should never happen\n");
+	printk(KERN_ERR "ni_labpc: bug! this should never happen\n");
 
 	return 0;
 }
@@ -902,7 +904,7 @@ static int labpc_ai_chanlist_invalid(const struct comedi_device *dev,
 			}
 			break;
 		default:
-			printk("ni_labpc: bug! in chanlist check\n");
+			printk(KERN_ERR "ni_labpc: bug! in chanlist check\n");
 			return 1;
 			break;
 		}
