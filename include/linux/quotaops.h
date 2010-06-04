@@ -145,11 +145,6 @@ static inline bool sb_has_quota_active(struct super_block *sb, int type)
 	       !sb_has_quota_suspended(sb, type);
 }
 
-static inline unsigned sb_any_quota_active(struct super_block *sb)
-{
-	return sb_any_quota_loaded(sb) & ~sb_any_quota_suspended(sb);
-}
-
 /*
  * Operations supported for diskquotas.
  */
@@ -190,11 +185,6 @@ static inline int sb_any_quota_loaded(struct super_block *sb)
 }
 
 static inline int sb_has_quota_active(struct super_block *sb, int type)
-{
-	return 0;
-}
-
-static inline int sb_any_quota_active(struct super_block *sb)
 {
 	return 0;
 }
