@@ -28,6 +28,7 @@
 
 #define MODULE_NAME "t613"
 
+#include <linux/slab.h>
 #include "gspca.h"
 
 #define V4L2_CID_EFFECTS (V4L2_CID_PRIVATE_BASE + 0)

@@ -20,7 +20,6 @@
 
 #ifdef CONFIG_INPUT
 #include <linux/input.h>
-#include <linux/slab.h>
 #endif
 
 #include "gspca.h"
