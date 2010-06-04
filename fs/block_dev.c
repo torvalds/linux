@@ -172,9 +172,8 @@ blkdev_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 
-	return blockdev_direct_IO_no_locking_newtrunc(rw, iocb, inode,
-				I_BDEV(inode), iov, offset, nr_segs,
-				blkdev_get_blocks, NULL);
+	return __blockdev_direct_IO(rw, iocb, inode, I_BDEV(inode), iov, offset,
+				    nr_segs, blkdev_get_blocks, NULL, NULL, 0);
 }
 
 int __sync_blockdev(struct block_device *bdev, int wait)

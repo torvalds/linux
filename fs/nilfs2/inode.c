@@ -237,6 +237,19 @@ nilfs_direct_IO(int rw, struct kiocb *iocb, const struct iovec *iov,
 	/* Needs synchronization with the cleaner */
 	size = blockdev_direct_IO(rw, iocb, inode, inode->i_sb->s_bdev, iov,
 				  offset, nr_segs, nilfs_get_block, NULL);
+
+	/*
+	 * In case of error extending write may have instantiated a few
+	 * blocks outside i_size. Trim these off again.
+	 */
+	if (unlikely((rw & WRITE) && size < 0)) {
+		loff_t isize = i_size_read(inode);
+		loff_t end = offset + iov_length(iov, nr_segs);
+
+		if (end > isize)
+			vmtruncate(inode, isize);
+	}
+
 	return size;
 }
 

@@ -3545,15 +3545,24 @@ static ssize_t ext4_ind_direct_IO(int rw, struct kiocb *iocb,
 
 retry:
 	if (rw == READ && ext4_should_dioread_nolock(inode))
-		ret = blockdev_direct_IO_no_locking(rw, iocb, inode,
+		ret = __blockdev_direct_IO(rw, iocb, inode,
 				 inode->i_sb->s_bdev, iov,
 				 offset, nr_segs,
-				 ext4_get_block, NULL);
-	else
+				 ext4_get_block, NULL, NULL, 0);
+	else {
 		ret = blockdev_direct_IO(rw, iocb, inode,
 				 inode->i_sb->s_bdev, iov,
 				 offset, nr_segs,
 				 ext4_get_block, NULL);
+
+		if (unlikely((rw & WRITE) && ret < 0)) {
+			loff_t isize = i_size_read(inode);
+			loff_t end = offset + iov_length(iov, nr_segs);
+
+			if (end > isize)
+				vmtruncate(inode, isize);
+		}
+	}
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
 		goto retry;
 
