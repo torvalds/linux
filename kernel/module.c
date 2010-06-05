@@ -2226,11 +2226,6 @@ static noinline struct module *load_module(void __user *umod,
 		goto free_mod;
 	}
 
-	if (find_module(mod->name)) {
-		err = -EEXIST;
-		goto free_mod;
-	}
-
 	mod->state = MODULE_STATE_COMING;
 
 	/* Allow arches to frob section contents and sizes.  */
@@ -2509,6 +2504,12 @@ static noinline struct module *load_module(void __user *umod,
 	 * The mutex protects against concurrent writers.
 	 */
 	mutex_lock(&module_mutex);
+	if (find_module(mod->name)) {
+		err = -EEXIST;
+		/* This will also unlock the mutex */
+		goto already_exists;
+	}
+
 	list_add_rcu(&mod->list, &modules);
 	mutex_unlock(&module_mutex);
 
@@ -2535,6 +2536,7 @@ static noinline struct module *load_module(void __user *umod,
 	mutex_lock(&module_mutex);
 	/* Unlink carefully: kallsyms could be walking list. */
 	list_del_rcu(&mod->list);
+ already_exists:
 	mutex_unlock(&module_mutex);
 	synchronize_sched();
 	module_arch_cleanup(mod);
