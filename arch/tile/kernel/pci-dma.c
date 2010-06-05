@@ -35,8 +35,7 @@ void *dma_alloc_coherent(struct device *dev,
 	struct page *pg;
 	dma_addr_t addr;
 
-	/* Set GFP_KERNEL to ensure we have memory with a kernel VA. */
-	gfp |= GFP_KERNEL | __GFP_ZERO;
+	gfp |= __GFP_ZERO;
 
 	/*
 	 * By forcing NUMA node 0 for 32-bit masks we ensure that the
