@@ -672,43 +672,10 @@ static inline int module_get_iter_tracepoints(struct tracepoint_iter *iter)
 
 #endif /* CONFIG_MODULES */
 
-struct device_driver;
 #ifdef CONFIG_SYSFS
-struct module;
-
 extern struct kset *module_kset;
 extern struct kobj_type module_ktype;
 extern int module_sysfs_initialized;
-
-int mod_sysfs_init(struct module *mod);
-int mod_sysfs_setup(struct module *mod,
-			   struct kernel_param *kparam,
-			   unsigned int num_params);
-int module_add_modinfo_attrs(struct module *mod);
-void module_remove_modinfo_attrs(struct module *mod);
-
-#else /* !CONFIG_SYSFS */
-
-static inline int mod_sysfs_init(struct module *mod)
-{
-	return 0;
-}
-
-static inline int mod_sysfs_setup(struct module *mod,
-			   struct kernel_param *kparam,
-			   unsigned int num_params)
-{
-	return 0;
-}
-
-static inline int module_add_modinfo_attrs(struct module *mod)
-{
-	return 0;
-}
-
-static inline void module_remove_modinfo_attrs(struct module *mod)
-{ }
-
 #endif /* CONFIG_SYSFS */
 
 #define symbol_request(x) try_then_request_module(symbol_get(x), "symbol:" #x)

@@ -1323,7 +1323,7 @@ static void del_usage_links(struct module *mod)
 #endif
 }
 
-int module_add_modinfo_attrs(struct module *mod)
+static int module_add_modinfo_attrs(struct module *mod)
 {
 	struct module_attribute *attr;
 	struct module_attribute *temp_attr;
@@ -1349,7 +1349,7 @@ int module_add_modinfo_attrs(struct module *mod)
 	return error;
 }
 
-void module_remove_modinfo_attrs(struct module *mod)
+static void module_remove_modinfo_attrs(struct module *mod)
 {
 	struct module_attribute *attr;
 	int i;
@@ -1365,7 +1365,7 @@ void module_remove_modinfo_attrs(struct module *mod)
 	kfree(mod->modinfo_attrs);
 }
 
-int mod_sysfs_init(struct module *mod)
+static int mod_sysfs_init(struct module *mod)
 {
 	int err;
 	struct kobject *kobj;
@@ -1399,7 +1399,7 @@ out:
 	return err;
 }
 
-int mod_sysfs_setup(struct module *mod,
+static int mod_sysfs_setup(struct module *mod,
 			   struct kernel_param *kparam,
 			   unsigned int num_params)
 {
@@ -1444,6 +1444,27 @@ static void mod_sysfs_fini(struct module *mod)
 }
 
 #else /* CONFIG_SYSFS */
+
+static inline int mod_sysfs_init(struct module *mod)
+{
+	return 0;
+}
+
+static inline int mod_sysfs_setup(struct module *mod,
+			   struct kernel_param *kparam,
+			   unsigned int num_params)
+{
+	return 0;
+}
+
+static inline int module_add_modinfo_attrs(struct module *mod)
+{
+	return 0;
+}
+
+static inline void module_remove_modinfo_attrs(struct module *mod)
+{
+}
 
 static void mod_sysfs_fini(struct module *mod)
 {
