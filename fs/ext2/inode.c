@@ -69,26 +69,42 @@ static void ext2_write_failed(struct address_space *mapping, loff_t to)
 /*
  * Called at the last iput() if i_nlink is zero.
  */
-void ext2_delete_inode (struct inode * inode)
+void ext2_evict_inode(struct inode * inode)
 {
-	if (!is_bad_inode(inode))
+	struct ext2_block_alloc_info *rsv;
+	int want_delete = 0;
+
+	if (!inode->i_nlink && !is_bad_inode(inode)) {
+		want_delete = 1;
 		dquot_initialize(inode);
+	} else {
+		dquot_drop(inode);
+	}
+
 	truncate_inode_pages(&inode->i_data, 0);
 
-	if (is_bad_inode(inode))
-		goto no_delete;
-	EXT2_I(inode)->i_dtime	= get_seconds();
-	mark_inode_dirty(inode);
-	__ext2_write_inode(inode, inode_needs_sync(inode));
+	if (want_delete) {
+		/* set dtime */
+		EXT2_I(inode)->i_dtime	= get_seconds();
+		mark_inode_dirty(inode);
+		__ext2_write_inode(inode, inode_needs_sync(inode));
+		/* truncate to 0 */
+		inode->i_size = 0;
+		if (inode->i_blocks)
+			ext2_truncate_blocks(inode, 0);
+	}
 
-	inode->i_size = 0;
-	if (inode->i_blocks)
-		ext2_truncate_blocks(inode, 0);
-	ext2_free_inode (inode);
+	invalidate_inode_buffers(inode);
+	end_writeback(inode);
 
-	return;
-no_delete:
-	clear_inode(inode);	/* We must guarantee clearing of inode... */
+	ext2_discard_reservation(inode);
+	rsv = EXT2_I(inode)->i_block_alloc_info;
+	EXT2_I(inode)->i_block_alloc_info = NULL;
+	if (unlikely(rsv))
+		kfree(rsv);
+
+	if (want_delete)
+		ext2_free_inode(inode);
 }
 
 typedef struct {
