@@ -560,7 +560,6 @@ static int already_uses(struct module *a, struct module *b)
  */
 static int add_module_usage(struct module *a, struct module *b)
 {
-	int no_warn;
 	struct module_use *use;
 
 	DEBUGP("Allocating new usage for %s.\n", a->name);
@@ -574,7 +573,6 @@ static int add_module_usage(struct module *a, struct module *b)
 	use->target = b;
 	list_add(&use->source_list, &b->source_list);
 	list_add(&use->target_list, &a->target_list);
-	no_warn = sysfs_create_link(b->holders_dir, &a->mkobj.kobj, a->name);
 	return 0;
 }
 
@@ -619,7 +617,6 @@ static void module_unload_free(struct module *mod)
 		list_del(&use->source_list);
 		list_del(&use->target_list);
 		kfree(use);
-		sysfs_remove_link(i->holders_dir, mod->name);
 	}
 }
 
@@ -1303,6 +1300,29 @@ static inline void remove_notes_attrs(struct module *mod)
 #endif
 
 #ifdef CONFIG_SYSFS
+static void add_usage_links(struct module *mod)
+{
+#ifdef CONFIG_MODULE_UNLOAD
+	struct module_use *use;
+	int nowarn;
+
+	list_for_each_entry(use, &mod->target_list, target_list) {
+		nowarn = sysfs_create_link(use->target->holders_dir,
+					   &mod->mkobj.kobj, mod->name);
+	}
+#endif
+}
+
+static void del_usage_links(struct module *mod)
+{
+#ifdef CONFIG_MODULE_UNLOAD
+	struct module_use *use;
+
+	list_for_each_entry(use, &mod->target_list, target_list)
+		sysfs_remove_link(use->target->holders_dir, mod->name);
+#endif
+}
+
 int module_add_modinfo_attrs(struct module *mod)
 {
 	struct module_attribute *attr;
@@ -1385,6 +1405,10 @@ int mod_sysfs_setup(struct module *mod,
 {
 	int err;
 
+	err = mod_sysfs_init(mod);
+	if (err)
+		goto out;
+
 	mod->holders_dir = kobject_create_and_add("holders", &mod->mkobj.kobj);
 	if (!mod->holders_dir) {
 		err = -ENOMEM;
@@ -1399,6 +1423,8 @@ int mod_sysfs_setup(struct module *mod,
 	if (err)
 		goto out_unreg_param;
 
+	add_usage_links(mod);
+
 	kobject_uevent(&mod->mkobj.kobj, KOBJ_ADD);
 	return 0;
 
@@ -1408,6 +1434,7 @@ out_unreg_holders:
 	kobject_put(mod->holders_dir);
 out_unreg:
 	kobject_put(&mod->mkobj.kobj);
+out:
 	return err;
 }
 
@@ -1422,10 +1449,15 @@ static void mod_sysfs_fini(struct module *mod)
 {
 }
 
+static void del_usage_links(struct module *mod)
+{
+}
+
 #endif /* CONFIG_SYSFS */
 
 static void mod_kobject_remove(struct module *mod)
 {
+	del_usage_links(mod);
 	module_remove_modinfo_attrs(mod);
 	module_param_sysfs_remove(mod);
 	kobject_put(mod->mkobj.drivers_dir);
@@ -2242,11 +2274,6 @@ static noinline struct module *load_module(void __user *umod,
 	/* Now we've moved module, initialize linked lists, etc. */
 	module_unload_init(mod);
 
-	/* add kobject, so we can reference it. */
-	err = mod_sysfs_init(mod);
-	if (err)
-		goto free_unload;
-
 	/* Set up license info based on the info section */
 	set_license(mod, get_modinfo(sechdrs, infoindex, "license"));
 
@@ -2443,6 +2470,7 @@ static noinline struct module *load_module(void __user *umod,
 	err = mod_sysfs_setup(mod, mod->kp, mod->num_kp);
 	if (err < 0)
 		goto unlink;
+
 	add_sect_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
 	add_notes_attrs(mod, hdr->e_shnum, secstrings, sechdrs);
 
@@ -2461,9 +2489,6 @@ static noinline struct module *load_module(void __user *umod,
 	module_arch_cleanup(mod);
  cleanup:
 	free_modinfo(mod);
-	kobject_del(&mod->mkobj.kobj);
-	kobject_put(&mod->mkobj.kobj);
- free_unload:
 	module_unload_free(mod);
 #if defined(CONFIG_MODULE_UNLOAD)
 	free_percpu(mod->refptr);
