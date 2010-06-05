@@ -43,9 +43,9 @@
 
 /*---------------------  Export Functions  --------------------------*/
 
-DWORD CRCdwCrc32(PBYTE pbyData, unsigned int cbByte, DWORD dwCrcSeed);
-DWORD CRCdwGetCrc32(PBYTE pbyData, unsigned int cbByte);
-DWORD CRCdwGetCrc32Ex(PBYTE pbyData, unsigned int cbByte, DWORD dwPreCRC);
+DWORD CRCdwCrc32(unsigned char *pbyData, unsigned int cbByte, DWORD dwCrcSeed);
+DWORD CRCdwGetCrc32(unsigned char *pbyData, unsigned int cbByte);
+DWORD CRCdwGetCrc32Ex(unsigned char *pbyData, unsigned int cbByte, DWORD dwPreCRC);
 
 #endif // __TCRC_H__
 

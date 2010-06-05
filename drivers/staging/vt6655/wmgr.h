@@ -332,7 +332,7 @@ typedef struct tagSMgmtObject
     WORD                    wListenInterval;
     WORD                    wCountToWakeUp;
     BOOL                    bInTIMWake;
-    PBYTE                   pbyPSPacketPool;
+    unsigned char *pbyPSPacketPool;
     BYTE                    byPSPacketPool[sizeof(STxMgmtPacket) + WLAN_NULLDATA_FR_MAXLEN];
     BOOL                    bRxBeaconInTBTTWake;
     BYTE                    abyPSTxMap[MAX_NODE_NUM + 1];
@@ -342,7 +342,7 @@ typedef struct tagSMgmtObject
     unsigned int	uCmdHostAPBusy;
 
     // management packet pool
-    PBYTE                   pbyMgmtPacketPool;
+    unsigned char *pbyMgmtPacketPool;
     BYTE                    byMgmtPacketPool[sizeof(STxMgmtPacket) + WLAN_A3FR_MAXLEN];
 
 
@@ -432,7 +432,7 @@ void
 vMgrDisassocBeginSta(
     void *hDeviceContext,
     PSMgmtObject pMgmt,
-    PBYTE  abyDestAddress,
+    unsigned char *abyDestAddress,
     WORD    wReason,
     PCMD_STATUS pStatus
     );
@@ -475,7 +475,7 @@ void
 vMgrDeAuthenBeginSta(
     void *hDeviceContext,
     PSMgmtObject  pMgmt,
-    PBYTE   abyDestAddress,
+    unsigned char *abyDestAddress,
     WORD    wReason,
     PCMD_STATUS pStatus
     );
@@ -490,7 +490,7 @@ bMgrPrepareBeaconToSend(
 BOOL
 bAdd_PMKID_Candidate (
     void *hDeviceContext,
-    PBYTE          pbyBSSID,
+    unsigned char *pbyBSSID,
     PSRSNCapObject psRSNCapObj
     );
 

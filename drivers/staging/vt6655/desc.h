@@ -350,7 +350,7 @@ STDES1;
 
 typedef struct tagDEVICE_TD_INFO{
     struct sk_buff*     skb;
-    PBYTE               buf;
+    unsigned char *buf;
     dma_addr_t          skb_dma;
     dma_addr_t          buf_dma;
     dma_addr_t          curr_desc;

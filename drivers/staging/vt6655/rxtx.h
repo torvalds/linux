@@ -43,7 +43,7 @@
 void vGenerateMACHeader(
     PSDevice pDevice,
     DWORD dwTxBufferAddr,
-    PBYTE pbySkbData,
+    unsigned char *pbySkbData,
     unsigned int cbPacketSize,
     BOOL bDMA0Used,
     PUINT pcbHeadSize,
@@ -63,7 +63,7 @@ void vProcessRxMACHeader (
 void
 vGenerateMACHeader (
     PSDevice         pDevice,
-    PBYTE            pbyBufferAddr,
+    unsigned char *pbyBufferAddr,
     WORD             wDuration,
     PSEthernetHeader psEthHeader,
     BOOL             bNeedEncrypt,
@@ -86,13 +86,13 @@ void
 vGenerateFIFOHeader (
     PSDevice         pDevice,
     BYTE             byPktTyp,
-    PBYTE            pbyTxBufferAddr,
+    unsigned char *pbyTxBufferAddr,
     BOOL             bNeedEncrypt,
     unsigned int	cbPayloadSize,
     unsigned int	uDMAIdx,
     PSTxDesc         pHeadTD,
     PSEthernetHeader psEthHeader,
-    PBYTE            pPacket,
+    unsigned char *pPacket,
     PSKeyItem        pTransmitKey,
     unsigned int	uNodeIndex,
     PUINT            puMACfragNum,
@@ -100,7 +100,7 @@ vGenerateFIFOHeader (
     );
 
 
-void vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, PBYTE pbMPDU, unsigned int cbMPDULen);
+void vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, unsigned int cbMPDULen);
 CMD_STATUS csMgmt_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 CMD_STATUS csBeacon_xmit(PSDevice pDevice, PSTxMgmtPacket pPacket);
 

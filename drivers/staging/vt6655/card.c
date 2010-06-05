@@ -427,8 +427,8 @@ void
 s_vCaculateOFDMRParameter(
     BYTE byRate,
     CARD_PHY_TYPE ePHYType,
-    PBYTE pbyTxRate,
-    PBYTE pbyRsvTime
+    unsigned char *pbyTxRate,
+    unsigned char *pbyRsvTime
     );
 
 
@@ -499,8 +499,8 @@ void
 s_vCaculateOFDMRParameter (
     BYTE byRate,
     CARD_PHY_TYPE ePHYType,
-    PBYTE pbyTxRate,
-    PBYTE pbyRsvTime
+    unsigned char *pbyTxRate,
+    unsigned char *pbyRsvTime
     )
 {
     switch (byRate) {
@@ -1296,7 +1296,7 @@ BOOL CARDbStartTxPacket (void *pDeviceHandler, CARD_PKT_TYPE ePktType)
  * Return Value: TRUE if success; FALSE if failed.
  *
  */
-BOOL CARDbSetBSSID(void *pDeviceHandler, PBYTE pbyBSSID, CARD_OP_MODE eOPMode)
+BOOL CARDbSetBSSID(void *pDeviceHandler, unsigned char *pbyBSSID, CARD_OP_MODE eOPMode)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
@@ -1522,7 +1522,7 @@ MACvRegBitsOff(pDevice->PortOffset, MAC_REG_GPIOCTL0, LED_ACTSET); //LED issue
 
 
 
-BOOL CARDbRemoveKey (void *pDeviceHandler, PBYTE pbyBSSID)
+BOOL CARDbRemoveKey (void *pDeviceHandler, unsigned char *pbyBSSID)
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
 
@@ -1550,7 +1550,7 @@ BOOL CARDbRemoveKey (void *pDeviceHandler, PBYTE pbyBSSID)
 BOOL
 CARDbAdd_PMKID_Candidate (
     void *pDeviceHandler,
-    PBYTE            pbyBSSID,
+    unsigned char *pbyBSSID,
     BOOL             bRSNCapExist,
     WORD             wRSNCap
     )
@@ -2129,8 +2129,8 @@ CARDvSetPowerConstraint (
 void
 CARDvGetPowerCapability (
     void *pDeviceHandler,
-    PBYTE           pbyMinPower,
-    PBYTE           pbyMaxPower
+    unsigned char *pbyMinPower,
+    unsigned char *pbyMaxPower
     )
 {
     PSDevice    pDevice = (PSDevice) pDeviceHandler;
@@ -2165,14 +2165,14 @@ CARDvGetPowerCapability (
 BYTE
 CARDbySetSupportChannels (
     void *pDeviceHandler,
-    PBYTE        pbyIEs
+    unsigned char *pbyIEs
     )
 {
     PSDevice            pDevice = (PSDevice) pDeviceHandler;
     unsigned int ii;
     BYTE                byCount;
     PWLAN_IE_SUPP_CH    pIE = (PWLAN_IE_SUPP_CH) pbyIEs;
-    PBYTE               pbyChTupple;
+    unsigned char *pbyChTupple;
     BYTE                byLen = 0;
 
 
@@ -2267,7 +2267,7 @@ CARDbyGetTransmitPower (
 BOOL
 CARDbChannelGetList (
     unsigned int uCountryCodeIdx,
-    PBYTE      pbyChannelTable
+    unsigned char *pbyChannelTable
     )
 {
     if (uCountryCodeIdx >= CCODE_MAX) {
@@ -2308,8 +2308,8 @@ BOOL
 CARDbGetChannelMapInfo(
     void *pDeviceHandler,
     unsigned int uChannelIndex,
-    PBYTE       pbyChannelNumber,
-    PBYTE       pbyMap
+    unsigned char *pbyChannelNumber,
+    unsigned char *pbyMap
     )
 {
 //    PSDevice            pDevice = (PSDevice) pDeviceHandler;

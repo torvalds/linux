@@ -149,7 +149,7 @@ void MIC_vUnInit (void)
     s_vClear();
 }
 
-void MIC_vAppend (PBYTE src, unsigned int nBytes)
+void MIC_vAppend (unsigned char *src, unsigned int nBytes)
 {
     // This is simple
     while (nBytes > 0)

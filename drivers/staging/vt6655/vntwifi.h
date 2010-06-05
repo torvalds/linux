@@ -229,21 +229,21 @@ VNTWIFIvGetNextBSS (
 void
 VNTWIFIvUpdateNodeTxCounter(
     void *pMgmtHandle,
-    PBYTE    pbyDestAddress,
+    unsigned char *pbyDestAddress,
     BOOL     bTxOk,
     WORD     wRate,
-    PBYTE    pbyTxFailCount
+    unsigned char *pbyTxFailCount
     );
 
 
 void
 VNTWIFIvGetTxRate(
     void *pMgmtHandle,
-    PBYTE    pbyDestAddress,
+    unsigned char *pbyDestAddress,
     PWORD   pwTxDataRate,
-    PBYTE   pbyACKRate,
-    PBYTE   pbyCCKBasicRate,
-    PBYTE   pbyOFDMBasicRate
+    unsigned char *pbyACKRate,
+    unsigned char *pbyCCKBasicRate,
+    unsigned char *pbyOFDMBasicRate
     );
 /*
 BOOL
@@ -294,7 +294,7 @@ VNTWIFIbMeasureReport(
     BYTE  byReportMode,
     BYTE  byBasicMap,
     BYTE  byCCAFraction,
-    PBYTE pbyRPIs
+    unsigned char *pbyRPIs
     );
 
 BOOL

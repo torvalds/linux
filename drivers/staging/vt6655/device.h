@@ -324,7 +324,7 @@ typedef struct tagSDeFragControlBlock
     BYTE            abyAddr2[ETH_ALEN];
     unsigned int uLifetime;
     struct sk_buff* skb;
-    PBYTE           pbyRxBuffer;
+    unsigned char *pbyRxBuffer;
     unsigned int cbFrameLength;
     BOOL            bInUse;
 } SDeFragControlBlock, *PSDeFragControlBlock;
@@ -417,9 +417,9 @@ typedef struct __device_info {
     dma_addr_t                  tx_bufs_dma1;
     dma_addr_t                  tx_beacon_dma;
 
-    PBYTE                       tx0_bufs;
-    PBYTE                       tx1_bufs;
-    PBYTE                       tx_beacon_bufs;
+    unsigned char *tx0_bufs;
+    unsigned char *tx1_bufs;
+    unsigned char *tx_beacon_bufs;
 
     CHIP_TYPE                   chip_id;
 
@@ -507,7 +507,7 @@ typedef struct __device_info {
     BYTE                        byTxAntennaMode;
     BOOL                        bTxRxAntInv;
 
-    PBYTE                       pbyTmpBuff;
+    unsigned char *pbyTmpBuff;
     unsigned int	uSIFS;    //Current SIFS
     unsigned int	uDIFS;    //Current DIFS
     unsigned int	uEIFS;    //Current EIFS

@@ -497,7 +497,7 @@ typedef struct tagWLAN_FR_MGMT {
 
     unsigned int	uType;
     unsigned int	len;
-    PBYTE                 pBuf;
+    unsigned char *pBuf;
     PUWLAN_80211HDR       pHdr;
 
 } WLAN_FR_MGMT,  *PWLAN_FR_MGMT;
@@ -507,7 +507,7 @@ typedef struct tagWLAN_FR_BEACON {
 
     unsigned int	uType;
     unsigned int	len;
-    PBYTE                   pBuf;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     // fixed fields
     PQWORD                  pqwTimestamp;
@@ -539,7 +539,7 @@ typedef struct tagWLAN_FR_IBSSATIM {
 
     unsigned int	uType;
     unsigned int	len;
-    PBYTE                   pBuf;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
 
     // fixed fields
@@ -553,7 +553,7 @@ typedef struct tagWLAN_FR_DISASSOC {
 
     unsigned int	uType;
     unsigned int	len;
-    PBYTE                   pBuf;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
     PWORD                   pwReason;
@@ -566,7 +566,7 @@ typedef struct tagWLAN_FR_ASSOCREQ {
 
     unsigned int	uType;
     unsigned int	len;
-    PBYTE                   pBuf;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
     PWORD                   pwCapInfo;
@@ -587,7 +587,7 @@ typedef struct tagWLAN_FR_ASSOCRESP {
 
     unsigned int	uType;
     unsigned int	len;
-    PBYTE                   pBuf;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
     PWORD                   pwCapInfo;
@@ -604,7 +604,7 @@ typedef struct tagWLAN_FR_REASSOCREQ {
 
     unsigned int	uType;
     unsigned int	len;
-    PBYTE                   pBuf;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
 
     /*-- fixed fields -----------*/
@@ -626,7 +626,7 @@ typedef struct tagWLAN_FR_REASSOCRESP {
 
     unsigned int	uType;
     unsigned int	len;
-    PBYTE                   pBuf;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
     PWORD                   pwCapInfo;
@@ -643,7 +643,7 @@ typedef struct tagWLAN_FR_PROBEREQ {
 
     unsigned int	uType;
     unsigned int	len;
-    PBYTE                   pBuf;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
     /*-- info elements ----------*/
@@ -658,7 +658,7 @@ typedef struct tagWLAN_FR_PROBERESP {
 
     unsigned int	uType;
     unsigned int	len;
-    PBYTE                   pBuf;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
     PQWORD                  pqwTimestamp;
@@ -687,7 +687,7 @@ typedef struct tagWLAN_FR_AUTHEN {
 
     unsigned int	uType;
     unsigned int	len;
-    PBYTE                   pBuf;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
     PWORD                   pwAuthAlgorithm;
@@ -703,7 +703,7 @@ typedef struct tagWLAN_FR_DEAUTHEN {
 
     unsigned int	uType;
     unsigned int	len;
-    PBYTE                   pBuf;
+    unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
     PWORD                   pwReason;

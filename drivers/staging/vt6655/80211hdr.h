@@ -282,8 +282,8 @@
 #define WLAN_MGMT_GET_TIM_OFFSET(b)     (((b) & ~BIT0) >> 1)
 
 /* 3-Addr & 4-Addr */
-#define WLAN_HDR_A3_DATA_PTR(p) (((PBYTE)(p)) + WLAN_HDR_ADDR3_LEN)
-#define WLAN_HDR_A4_DATA_PTR(p) (((PBYTE)(p)) + WLAN_HDR_ADDR4_LEN)
+#define WLAN_HDR_A3_DATA_PTR(p) (((unsigned char *)(p)) + WLAN_HDR_ADDR3_LEN)
+#define WLAN_HDR_A4_DATA_PTR(p) (((unsigned char *)(p)) + WLAN_HDR_ADDR4_LEN)
 
 /* IEEE ADDR */
 #define IEEE_ADDR_UNIVERSAL         0x02

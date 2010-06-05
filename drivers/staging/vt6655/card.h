@@ -116,7 +116,7 @@ BOOL CARDbUpdateTSF(void *pDeviceHandler, BYTE byRxRate, QWORD qwBSSTimestamp, Q
 BOOL CARDbStopTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType);
 BOOL CARDbStartTxPacket(void *pDeviceHandler, CARD_PKT_TYPE ePktType);
 BOOL CARDbSetBeaconPeriod(void *pDeviceHandler, WORD wBeaconInterval);
-BOOL CARDbSetBSSID(void *pDeviceHandler, PBYTE pbyBSSID, CARD_OP_MODE eOPMode);
+BOOL CARDbSetBSSID(void *pDeviceHandler, unsigned char *pbyBSSID, CARD_OP_MODE eOPMode);
 
 BOOL
 CARDbPowerDown(
@@ -129,12 +129,12 @@ BOOL CARDbSetTxDataRate(
     );
 
 
-BOOL CARDbRemoveKey (void *pDeviceHandler, PBYTE pbyBSSID);
+BOOL CARDbRemoveKey (void *pDeviceHandler, unsigned char *pbyBSSID);
 
 BOOL
 CARDbAdd_PMKID_Candidate (
     void *pDeviceHandler,
-    PBYTE            pbyBSSID,
+    unsigned char *pbyBSSID,
     BOOL             bRSNCapExist,
     WORD             wRSNCap
     );
@@ -195,14 +195,14 @@ CARDvSetPowerConstraint (
 void
 CARDvGetPowerCapability (
     void *pDeviceHandler,
-    PBYTE           pbyMinPower,
-    PBYTE           pbyMaxPower
+    unsigned char *pbyMinPower,
+    unsigned char *pbyMaxPower
     );
 
 BYTE
 CARDbySetSupportChannels (
     void *pDeviceHandler,
-    PBYTE        pbyIEs
+    unsigned char *pbyIEs
     );
 
 char
@@ -213,7 +213,7 @@ CARDbyGetTransmitPower (
 BOOL
 CARDbChannelGetList (
     unsigned int uCountryCodeIdx,
-    PBYTE      pbyChannelTable
+    unsigned char *pbyChannelTable
     );
 
 void
@@ -226,8 +226,8 @@ BOOL
 CARDbGetChannelMapInfo(
     void *pDeviceHandler,
     unsigned int uChannelIndex,
-    PBYTE       pbyChannelNumber,
-    PBYTE       pbyMap
+    unsigned char *pbyChannelNumber,
+    unsigned char *pbyMap
     );
 
 void

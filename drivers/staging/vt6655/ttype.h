@@ -92,8 +92,6 @@ typedef unsigned long   DWORD_PTR;      // 32-bit
 // boolean pointer
 typedef unsigned int *   PUINT;
 
-typedef BYTE *           PBYTE;
-
 typedef WORD *           PWORD;
 
 typedef DWORD *          PDWORD;

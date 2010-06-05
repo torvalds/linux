@@ -193,9 +193,9 @@ S802_11Header, *PS802_11Header;
 
 /*---------------------  Export Functions  --------------------------*/
 
-BYTE ETHbyGetHashIndexByCrc32(PBYTE pbyMultiAddr);
-//BYTE ETHbyGetHashIndexByCrc(PBYTE pbyMultiAddr);
-BOOL ETHbIsBufferCrc32Ok(PBYTE pbyBuffer, unsigned int cbFrameLength);
+BYTE ETHbyGetHashIndexByCrc32(unsigned char *pbyMultiAddr);
+//BYTE ETHbyGetHashIndexByCrc(unsigned char *pbyMultiAddr);
+BOOL ETHbIsBufferCrc32Ok(unsigned char *pbyBuffer, unsigned int cbFrameLength);
 
 #endif // __TETHER_H__
 

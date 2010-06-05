@@ -1850,8 +1850,8 @@ BBvCaculateParameter (
     WORD wRate,
     BYTE byPacketType,
     PWORD pwPhyLen,
-    PBYTE pbyPhySrv,
-    PBYTE pbyPhySgn
+    unsigned char *pbyPhySrv,
+    unsigned char *pbyPhySgn
     )
 {
     unsigned int cbBitCount;
@@ -2015,7 +2015,7 @@ BBvCaculateParameter (
  * Return Value: TRUE if succeeded; FALSE if failed.
  *
  */
-BOOL BBbReadEmbeded (DWORD_PTR dwIoBase, BYTE byBBAddr, PBYTE pbyData)
+BOOL BBbReadEmbeded (DWORD_PTR dwIoBase, BYTE byBBAddr, unsigned char *pbyData)
 {
     WORD    ww;
     BYTE    byValue;
@@ -2321,7 +2321,7 @@ BOOL BBbVT3253Init (PSDevice pDevice)
  * Return Value: none
  *
  */
-void BBvReadAllRegs (DWORD_PTR dwIoBase, PBYTE pbyBBRegs)
+void BBvReadAllRegs (DWORD_PTR dwIoBase, unsigned char *pbyBBRegs)
 {
     int  ii;
     BYTE byBase = 1;

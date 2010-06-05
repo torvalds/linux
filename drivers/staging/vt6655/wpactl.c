@@ -359,7 +359,7 @@ spin_lock_irq(&pDevice->lock);
                             dwKeyIndex,
                             param->u.wpa_key.key_len,
                             (PQWORD) &(KeyRSC),
-                            (PBYTE)abyKey,
+                            (unsigned char *)abyKey,
                             byKeyDecMode,
                             pDevice->PortOffset,
                             pDevice->byLocalID) == TRUE) &&
@@ -367,7 +367,7 @@ spin_lock_irq(&pDevice->lock);
                             dwKeyIndex,
                             param->u.wpa_key.key_len,
                             (PQWORD) &(KeyRSC),
-                            (PBYTE)abyKey,
+                            (unsigned char *)abyKey,
                             byKeyDecMode,
                             pDevice->PortOffset,
                             pDevice->byLocalID) == TRUE) ) {
@@ -400,7 +400,7 @@ spin_lock_irq(&pDevice->lock);
                        dwKeyIndex,
                        param->u.wpa_key.key_len,
                        (PQWORD) &(KeyRSC),
-                       (PBYTE)abyKey,
+                       (unsigned char *)abyKey,
                         byKeyDecMode,
                         pDevice->PortOffset,
                         pDevice->byLocalID) == TRUE) {
@@ -613,13 +613,13 @@ static int wpa_get_scan(PSDevice pDevice,
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     PWLAN_IE_SSID   pItemSSID;
     PKnownBSS pBSS;
-	PBYTE  pBuf;
+	unsigned char *pBuf;
 	int ret = 0;
 	u16 count = 0;
 	u16 ii, jj;
 #if 1
 
-    PBYTE ptempBSS;
+    unsigned char *ptempBSS;
 
 
 
@@ -713,7 +713,7 @@ static int wpa_get_scan(PSDevice pDevice,
                 scan_buf->rsn_ie_len = pBSS->wRSNLen;
                 memcpy(scan_buf->rsn_ie, pBSS->byRSNIE, pBSS->wRSNLen);
             }
-            scan_buf = (struct viawget_scan_result *)((PBYTE)scan_buf + sizeof(struct viawget_scan_result));
+            scan_buf = (struct viawget_scan_result *)((unsigned char *)scan_buf + sizeof(struct viawget_scan_result));
             jj ++;
         }
     }

@@ -63,8 +63,8 @@ RATEvParseMaxRate(
     PWORD pwMaxBasicRate,
     PWORD pwMaxSuppRate,
     PWORD pwSuppRate,
-    PBYTE pbyTopCCKRate,
-    PBYTE pbyTopOFDMRate
+    unsigned char *pbyTopCCKRate,
+    unsigned char *pbyTopOFDMRate
     );
 
 void

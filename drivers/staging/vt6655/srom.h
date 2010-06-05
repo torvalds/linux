@@ -144,11 +144,11 @@ void SROMvRegBitsOff(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byBits);
 BOOL SROMbIsRegBitsOn(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byTestBits);
 BOOL SROMbIsRegBitsOff(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byTestBits);
 
-void SROMvReadAllContents(DWORD_PTR dwIoBase, PBYTE pbyEepromRegs);
-void SROMvWriteAllContents(DWORD_PTR dwIoBase, PBYTE pbyEepromRegs);
+void SROMvReadAllContents(DWORD_PTR dwIoBase, unsigned char *pbyEepromRegs);
+void SROMvWriteAllContents(DWORD_PTR dwIoBase, unsigned char *pbyEepromRegs);
 
-void SROMvReadEtherAddress(DWORD_PTR dwIoBase, PBYTE pbyEtherAddress);
-void SROMvWriteEtherAddress(DWORD_PTR dwIoBase, PBYTE pbyEtherAddress);
+void SROMvReadEtherAddress(DWORD_PTR dwIoBase, unsigned char *pbyEtherAddress);
+void SROMvWriteEtherAddress(DWORD_PTR dwIoBase, unsigned char *pbyEtherAddress);
 
 void SROMvReadSubSysVenId(DWORD_PTR dwIoBase, PDWORD pdwSubSysVenId);
 

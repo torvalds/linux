@@ -112,7 +112,7 @@ WPA_ParseRSN (
 {
     PWLAN_IE_RSN_AUTH  pIE_RSN_Auth = NULL;
     int                i, j, m, n = 0;
-    PBYTE              pbyCaps;
+    unsigned char *pbyCaps;
 
     WPA_ClearRSN(pBSSList);
 
@@ -207,7 +207,7 @@ WPA_ParseRSN (
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"14+4+(m+n)*4: %d\n", 14+4+(m+n)*4);
 
             if(pRSN->len+2 >= 14+4+(m+n)*4) { //oui1(4)+ver(2)+GKS(4)+PKSCnt(2)+PKS(4*m)+AKC(2)+AKS(4*n)+Cap(2)
-                pbyCaps = (PBYTE)pIE_RSN_Auth->AuthKSList[n].abyOUI;
+                pbyCaps = (unsigned char *)pIE_RSN_Auth->AuthKSList[n].abyOUI;
                 pBSSList->byDefaultK_as_PK = (*pbyCaps) & WPA_GROUPFLAG;
                 pBSSList->byReplayIdx = 2 << ((*pbyCaps >> WPA_REPLAYBITSSHIFT) & WPA_REPLAYBITS);
                 pBSSList->sRSNCapObj.bRSNCapExist = TRUE;

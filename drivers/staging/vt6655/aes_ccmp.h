@@ -41,6 +41,6 @@
 /*---------------------  Export Variables  --------------------------*/
 
 /*---------------------  Export Functions  --------------------------*/
-BOOL AESbGenCCMP(PBYTE pbyRxKey, PBYTE pbyFrame, WORD wFrameSize);
+BOOL AESbGenCCMP(unsigned char *pbyRxKey, unsigned char *pbyFrame, WORD wFrameSize);
 
 #endif //__AES_H__

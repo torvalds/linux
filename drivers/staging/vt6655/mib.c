@@ -178,7 +178,7 @@ void STAvUpdateIsrStatCounter (PSStatCounter pStatistic, DWORD dwIsr)
  */
 void STAvUpdateRDStatCounter (PSStatCounter pStatistic,
                               BYTE byRSR, BYTE byNewRSR, BYTE byRxRate,
-                              PBYTE pbyBuffer, unsigned int cbFrameLength)
+                              unsigned char *pbyBuffer, unsigned int cbFrameLength)
 {
     //need change
     PS802_11Header pHeader = (PS802_11Header)pbyBuffer;
@@ -392,7 +392,7 @@ STAvUpdateRDStatCounterEx (
     BYTE            byRSR,
     BYTE            byNewRSR,
     BYTE            byRxRate,
-    PBYTE           pbyBuffer,
+    unsigned char *pbyBuffer,
     unsigned int cbFrameLength
     )
 {
@@ -408,7 +408,7 @@ STAvUpdateRDStatCounterEx (
     // rx length
     pStatistic->dwCntRxFrmLength = cbFrameLength;
     // rx pattern, we just see 10 bytes for sample
-    memcpy(pStatistic->abyCntRxPattern, (PBYTE)pbyBuffer, 10);
+    memcpy(pStatistic->abyCntRxPattern, (unsigned char *)pbyBuffer, 10);
 }
 
 
@@ -434,13 +434,13 @@ STAvUpdateTDStatCounter (
     PSStatCounter   pStatistic,
     BYTE            byTSR0,
     BYTE            byTSR1,
-    PBYTE           pbyBuffer,
+    unsigned char *pbyBuffer,
     unsigned int cbFrameLength,
     unsigned int uIdx
     )
 {
     PWLAN_80211HDR_A4   pHeader;
-    PBYTE               pbyDestAddr;
+    unsigned char *pbyDestAddr;
     BYTE                byTSR0_NCR = byTSR0 & TSR0_NCR;
 
 
@@ -522,7 +522,7 @@ STAvUpdateTDStatCounter (
 void
 STAvUpdateTDStatCounterEx (
     PSStatCounter   pStatistic,
-    PBYTE           pbyBuffer,
+    unsigned char *pbyBuffer,
     DWORD           cbFrameLength
     )
 {

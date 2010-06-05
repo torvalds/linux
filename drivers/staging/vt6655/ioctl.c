@@ -257,7 +257,7 @@ int private_ioctl(PSDevice pDevice, struct ifreq *rq) {
                                     dwKeyIndex,
                                     sWEPCmd.auWepKeyLength[ii],
                                     NULL,
-                                    (PBYTE)&sWEPCmd.abyWepKey[ii][0],
+                                    (unsigned char *)&sWEPCmd.abyWepKey[ii][0],
                                     KEY_CTL_WEP,
                                     pDevice->PortOffset,
                                     pDevice->byLocalID);
@@ -718,7 +718,7 @@ void
 vConfigWEPKey (
     PSDevice pDevice,
     DWORD    dwKeyIndex,
-    PBYTE    pbyKey,
+    unsigned char *pbyKey,
     unsigned long uKeyLength
     )
 {

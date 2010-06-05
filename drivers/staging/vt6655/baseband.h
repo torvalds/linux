@@ -133,14 +133,14 @@ BBvCaculateParameter (
     WORD wRate,
     BYTE byPacketType,
     PWORD pwPhyLen,
-    PBYTE pbyPhySrv,
-    PBYTE pbyPhySgn
+    unsigned char *pbyPhySrv,
+    unsigned char *pbyPhySgn
     );
 
-BOOL BBbReadEmbeded(DWORD_PTR dwIoBase, BYTE byBBAddr, PBYTE pbyData);
+BOOL BBbReadEmbeded(DWORD_PTR dwIoBase, BYTE byBBAddr, unsigned char *pbyData);
 BOOL BBbWriteEmbeded(DWORD_PTR dwIoBase, BYTE byBBAddr, BYTE byData);
 
-void BBvReadAllRegs(DWORD_PTR dwIoBase, PBYTE pbyBBRegs);
+void BBvReadAllRegs(DWORD_PTR dwIoBase, unsigned char *pbyBBRegs);
 void BBvLoopbackOn(PSDevice pDevice);
 void BBvLoopbackOff(PSDevice pDevice);
 void BBvSetShortSlotTime(PSDevice pDevice);

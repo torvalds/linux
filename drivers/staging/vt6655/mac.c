@@ -103,7 +103,7 @@ static int          msglevel                =MSG_LEVEL_INFO;
  * Return Value: none
  *
  */
-void MACvReadAllRegs (DWORD_PTR dwIoBase, PBYTE pbyMacRegs)
+void MACvReadAllRegs (DWORD_PTR dwIoBase, unsigned char *pbyMacRegs)
 {
     int ii;
 
@@ -342,7 +342,7 @@ void MACvSetRxThreshold (DWORD_PTR dwIoBase, BYTE byThreshold)
  * Return Value: none
  *
  */
-void MACvGetRxThreshold (DWORD_PTR dwIoBase, PBYTE pbyThreshold)
+void MACvGetRxThreshold (DWORD_PTR dwIoBase, unsigned char *pbyThreshold)
 {
     // get FCR0
     VNSvInPortB(dwIoBase + MAC_REG_FCR0, pbyThreshold);
@@ -388,7 +388,7 @@ void MACvSetTxThreshold (DWORD_PTR dwIoBase, BYTE byThreshold)
  * Return Value: none
  *
  */
-void MACvGetTxThreshold (DWORD_PTR dwIoBase, PBYTE pbyThreshold)
+void MACvGetTxThreshold (DWORD_PTR dwIoBase, unsigned char *pbyThreshold)
 {
     // get FCR0
     VNSvInPortB(dwIoBase + MAC_REG_FCR0, pbyThreshold);
@@ -434,7 +434,7 @@ void MACvSetDmaLength (DWORD_PTR dwIoBase, BYTE byDmaLength)
  * Return Value: none
  *
  */
-void MACvGetDmaLength (DWORD_PTR dwIoBase, PBYTE pbyDmaLength)
+void MACvGetDmaLength (DWORD_PTR dwIoBase, unsigned char *pbyDmaLength)
 {
     // get FCR0
     VNSvInPortB(dwIoBase + MAC_REG_FCR0, pbyDmaLength);
@@ -474,7 +474,7 @@ void MACvSetShortRetryLimit (DWORD_PTR dwIoBase, BYTE byRetryLimit)
  * Return Value: none
  *
  */
-void MACvGetShortRetryLimit (DWORD_PTR dwIoBase, PBYTE pbyRetryLimit)
+void MACvGetShortRetryLimit (DWORD_PTR dwIoBase, unsigned char *pbyRetryLimit)
 {
     // get SRT
     VNSvInPortB(dwIoBase + MAC_REG_SRT, pbyRetryLimit);
@@ -513,7 +513,7 @@ void MACvSetLongRetryLimit (DWORD_PTR dwIoBase, BYTE byRetryLimit)
  * Return Value: none
  *
  */
-void MACvGetLongRetryLimit (DWORD_PTR dwIoBase, PBYTE pbyRetryLimit)
+void MACvGetLongRetryLimit (DWORD_PTR dwIoBase, unsigned char *pbyRetryLimit)
 {
     // get LRT
     VNSvInPortB(dwIoBase + MAC_REG_LRT, pbyRetryLimit);
@@ -643,7 +643,7 @@ void MACvSetPacketFilter (DWORD_PTR dwIoBase, WORD wFilterType)
  * Return Value: none
  *
  */
-void MACvSaveContext (DWORD_PTR dwIoBase, PBYTE pbyCxtBuf)
+void MACvSaveContext (DWORD_PTR dwIoBase, unsigned char *pbyCxtBuf)
 {
     int         ii;
 
@@ -676,7 +676,7 @@ void MACvSaveContext (DWORD_PTR dwIoBase, PBYTE pbyCxtBuf)
  * Return Value: none
  *
  */
-void MACvRestoreContext (DWORD_PTR dwIoBase, PBYTE pbyCxtBuf)
+void MACvRestoreContext (DWORD_PTR dwIoBase, unsigned char *pbyCxtBuf)
 {
     int         ii;
 
@@ -728,7 +728,7 @@ void MACvRestoreContext (DWORD_PTR dwIoBase, PBYTE pbyCxtBuf)
  * Return Value: TRUE if all values are the same; otherwise FALSE
  *
  */
-BOOL MACbCompareContext (DWORD_PTR dwIoBase, PBYTE pbyCxtBuf)
+BOOL MACbCompareContext (DWORD_PTR dwIoBase, unsigned char *pbyCxtBuf)
 {
     DWORD       dwData;
 
@@ -1456,7 +1456,7 @@ BOOL MACbPSWakeup (DWORD_PTR dwIoBase)
  */
 
 void MACvSetKeyEntry (DWORD_PTR dwIoBase, WORD wKeyCtl, unsigned int uEntryIdx,
-		unsigned int uKeyIdx, PBYTE pbyAddr, PDWORD pdwKey, BYTE byLocalID)
+		unsigned int uKeyIdx, unsigned char *pbyAddr, PDWORD pdwKey, BYTE byLocalID)
 {
 WORD    wOffset;
 DWORD   dwData;

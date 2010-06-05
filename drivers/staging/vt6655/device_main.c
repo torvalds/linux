@@ -1699,13 +1699,13 @@ static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
 
                 STAvUpdateTDStatCounter(&pDevice->scStatistic,
                         byTsr0, byTsr1,
-                        (PBYTE)(pTD->pTDInfo->buf + uFIFOHeaderSize),
+                        (unsigned char *)(pTD->pTDInfo->buf + uFIFOHeaderSize),
                         uFrameSize, uIdx);
 
 
                 BSSvUpdateNodeTxCounter(pDevice,
                          byTsr0, byTsr1,
-                         (PBYTE)(pTD->pTDInfo->buf),
+                         (unsigned char *)(pTD->pTDInfo->buf),
                          uFIFOHeaderSize
                          );
 
@@ -1756,7 +1756,7 @@ static int device_tx_srv(PSDevice pDevice, unsigned int uIdx) {
                     BYTE    byMask[8] = {1, 2, 4, 8, 0x10, 0x20, 0x40, 0x80};
 
                     skb = pTD->pTDInfo->skb;
-                    if (BSSDBbIsSTAInNodeDB(pMgmt, (PBYTE)(skb->data), &uNodeIndex)) {
+                    if (BSSDBbIsSTAInNodeDB(pMgmt, (unsigned char *)(skb->data), &uNodeIndex)) {
                         if (pMgmt->sNodeDBTable[uNodeIndex].bPSEnable) {
                             skb_queue_tail(&pMgmt->sNodeDBTable[uNodeIndex].sTxPSQueue, skb);
                             pMgmt->sNodeDBTable[uNodeIndex].wEnQueueCnt++;
@@ -2084,7 +2084,7 @@ device_release_WPADEV(pDevice);
 
 static int device_dma0_tx_80211(struct sk_buff *skb, struct net_device *dev) {
     PSDevice        pDevice=netdev_priv(dev);
-    PBYTE           pbMPDU;
+    unsigned char *pbMPDU;
     unsigned int cbMPDULen = 0;
 
 
@@ -2154,7 +2154,7 @@ BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeI
 
     pHeadTD->m_td1TD1.byTCR = (TCR_EDP|TCR_STP);
 
-    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)(skb->data), ETH_HLEN);
+    memcpy(pDevice->sTxEthHeader.abyDstAddr, (unsigned char *)(skb->data), ETH_HLEN);
     cbFrameBodySize = skb->len - ETH_HLEN;
 
     // 802.1H
@@ -2228,7 +2228,7 @@ BOOL device_dma0_xmit(PSDevice pDevice, struct sk_buff *skb, unsigned int uNodeI
     }
     vGenerateFIFOHeader(pDevice, byPktType, pDevice->pbyTmpBuff, bNeedEncryption,
                         cbFrameBodySize, TYPE_TXDMA0, pHeadTD,
-                        &pDevice->sTxEthHeader, (PBYTE)skb->data, pTransmitKey, uNodeIndex,
+                        &pDevice->sTxEthHeader, (unsigned char *)skb->data, pTransmitKey, uNodeIndex,
                         &uMACfragNum,
                         &cbHeaderSize
                         );
@@ -2284,7 +2284,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
     unsigned int ii;
     BOOL            bTKIP_UseGTK = FALSE;
     BOOL            bNeedDeAuth = FALSE;
-    PBYTE           pbyBSSID;
+    unsigned char *pbyBSSID;
     BOOL            bNodeExist = FALSE;
 
 
@@ -2309,7 +2309,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
             spin_unlock_irq(&pDevice->lock);
             return 0;
         }
-        if (is_multicast_ether_addr((PBYTE)(skb->data))) {
+        if (is_multicast_ether_addr((unsigned char *)(skb->data))) {
             uNodeIndex = 0;
             bNodeExist = TRUE;
             if (pMgmt->sNodeDBTable[0].bPSEnable) {
@@ -2321,7 +2321,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
                 return 0;
             }
 }else {
-            if (BSSDBbIsSTAInNodeDB(pMgmt, (PBYTE)(skb->data), &uNodeIndex)) {
+            if (BSSDBbIsSTAInNodeDB(pMgmt, (unsigned char *)(skb->data), &uNodeIndex)) {
                 if (pMgmt->sNodeDBTable[uNodeIndex].bPSEnable) {
                     skb_queue_tail(&pMgmt->sNodeDBTable[uNodeIndex].sTxPSQueue, skb);
                     pMgmt->sNodeDBTable[uNodeIndex].wEnQueueCnt++;
@@ -2358,7 +2358,7 @@ static int  device_xmit(struct sk_buff *skb, struct net_device *dev) {
     pHeadTD->m_td1TD1.byTCR = (TCR_EDP|TCR_STP);
 
 
-    memcpy(pDevice->sTxEthHeader.abyDstAddr, (PBYTE)(skb->data), ETH_HLEN);
+    memcpy(pDevice->sTxEthHeader.abyDstAddr, (unsigned char *)(skb->data), ETH_HLEN);
     cbFrameBodySize = skb->len - ETH_HLEN;
     // 802.1H
     if (ntohs(pDevice->sTxEthHeader.wType) > ETH_DATA_LEN) {
@@ -2586,7 +2586,7 @@ pDevice->byTopCCKBasicRate,pDevice->byTopOFDMBasicRate);
 #endif
     vGenerateFIFOHeader(pDevice, byPktType, pDevice->pbyTmpBuff, bNeedEncryption,
                         cbFrameBodySize, TYPE_AC0DMA, pHeadTD,
-                        &pDevice->sTxEthHeader, (PBYTE)skb->data, pTransmitKey, uNodeIndex,
+                        &pDevice->sTxEthHeader, (unsigned char *)skb->data, pTransmitKey, uNodeIndex,
                         &uMACfragNum,
                         &cbHeaderSize
                         );

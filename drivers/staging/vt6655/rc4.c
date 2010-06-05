@@ -32,12 +32,12 @@
 
 #include "rc4.h"
 
-void rc4_init(PRC4Ext pRC4, PBYTE pbyKey, unsigned int cbKey_len)
+void rc4_init(PRC4Ext pRC4, unsigned char *pbyKey, unsigned int cbKey_len)
 {
     unsigned int ust1, ust2;
     unsigned int keyindex;
     unsigned int stateindex;
-    PBYTE pbyst;
+    unsigned char *pbyst;
     unsigned int idx;
 
     pbyst = pRC4->abystate;
@@ -63,7 +63,7 @@ unsigned int rc4_byte(PRC4Ext pRC4)
     unsigned int ux;
     unsigned int uy;
     unsigned int ustx, usty;
-    PBYTE pbyst;
+    unsigned char *pbyst;
 
     pbyst = pRC4->abystate;
     ux = (pRC4->ux + 1) & 0xff;
@@ -78,8 +78,8 @@ unsigned int rc4_byte(PRC4Ext pRC4)
     return pbyst[(ustx + usty) & 0xff];
 }
 
-void rc4_encrypt(PRC4Ext pRC4, PBYTE pbyDest,
-                     PBYTE pbySrc, unsigned int cbData_len)
+void rc4_encrypt(PRC4Ext pRC4, unsigned char *pbyDest,
+                     unsigned char *pbySrc, unsigned int cbData_len)
 {
     unsigned int ii;
     for (ii = 0; ii < cbData_len; ii++)

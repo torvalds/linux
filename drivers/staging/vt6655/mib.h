@@ -348,18 +348,18 @@ void STAvUpdateIsrStatCounter(PSStatCounter pStatistic, DWORD dwIsr);
 
 void STAvUpdateRDStatCounter(PSStatCounter pStatistic,
                               BYTE byRSR, BYTE byNewRSR, BYTE byRxRate,
-                              PBYTE pbyBuffer, unsigned int cbFrameLength);
+                              unsigned char *pbyBuffer, unsigned int cbFrameLength);
 
 void STAvUpdateRDStatCounterEx(PSStatCounter pStatistic,
                               BYTE byRSR, BYTE byNewRsr, BYTE byRxRate,
-                              PBYTE pbyBuffer, unsigned int cbFrameLength);
+                              unsigned char *pbyBuffer, unsigned int cbFrameLength);
 
 void STAvUpdateTDStatCounter(PSStatCounter pStatistic, BYTE byTSR0, BYTE byTSR1,
-		PBYTE pbyBuffer, unsigned int cbFrameLength, unsigned int uIdx);
+		unsigned char *pbyBuffer, unsigned int cbFrameLength, unsigned int uIdx);
 
 void STAvUpdateTDStatCounterEx(
     PSStatCounter   pStatistic,
-    PBYTE           pbyBuffer,
+    unsigned char *pbyBuffer,
     DWORD           cbFrameLength
     );
 

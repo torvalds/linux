@@ -77,7 +77,7 @@ PSTxMgmtPacket
 s_MgrMakeProbeRequest(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    PBYTE pScanBSSID,
+    unsigned char *pScanBSSID,
     PWLAN_IE_SSID pSSID,
     PWLAN_IE_SUPP_RATES pCurrRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
@@ -213,7 +213,7 @@ s_vProbeChannel(
                                                            //6M,   9M,   12M,  48M
     BYTE abyCurrSuppRatesA[] = {WLAN_EID_SUPP_RATES, 8, 0x0C, 0x12, 0x18, 0x24, 0x30, 0x48, 0x60, 0x6C};
     BYTE abyCurrSuppRatesB[] = {WLAN_EID_SUPP_RATES, 4, 0x02, 0x04, 0x0B, 0x16};
-    PBYTE           pbyRate;
+    unsigned char *pbyRate;
     PSTxMgmtPacket  pTxPacket;
     PSMgmtObject    pMgmt = pDevice->pMgmt;
     unsigned int ii;
@@ -269,7 +269,7 @@ PSTxMgmtPacket
 s_MgrMakeProbeRequest(
     PSDevice pDevice,
     PSMgmtObject pMgmt,
-    PBYTE pScanBSSID,
+    unsigned char *pScanBSSID,
     PWLAN_IE_SSID pSSID,
     PWLAN_IE_SUPP_RATES pCurrRates,
     PWLAN_IE_SUPP_RATES pCurrExtSuppRates
@@ -282,8 +282,8 @@ s_MgrMakeProbeRequest(
 
     pTxPacket = (PSTxMgmtPacket)pMgmt->pbyMgmtPacketPool;
     memset(pTxPacket, 0, sizeof(STxMgmtPacket) + WLAN_PROBEREQ_FR_MAXLEN);
-    pTxPacket->p80211Header = (PUWLAN_80211HDR)((PBYTE)pTxPacket + sizeof(STxMgmtPacket));
-    sFrame.pBuf = (PBYTE)pTxPacket->p80211Header;
+    pTxPacket->p80211Header = (PUWLAN_80211HDR)((unsigned char *)pTxPacket + sizeof(STxMgmtPacket));
+    sFrame.pBuf = (unsigned char *)pTxPacket->p80211Header;
     sFrame.len = WLAN_PROBEREQ_FR_MAXLEN;
     vMgrEncodeProbeRequest(&sFrame);
     sFrame.pHdr->sA3.wFrameCtl = cpu_to_le16(
@@ -982,7 +982,7 @@ s_bCommandComplete (
 BOOL bScheduleCommand (
     void *hDeviceContext,
     CMD_CODE    eCommand,
-    PBYTE       pbyItem0
+    unsigned char *pbyItem0
     )
 {
     PSDevice        pDevice = (PSDevice)hDeviceContext;

@@ -2096,7 +2096,7 @@ int iwctl_siwmlme(struct net_device *dev,
 	switch(mlme->cmd){
 	case IW_MLME_DEAUTH:
 		//this command seems to be not complete,please test it --einsnliu
-		//bScheduleCommand((void *) pDevice, WLAN_CMD_DEAUTH, (PBYTE)&reason);
+		//bScheduleCommand((void *) pDevice, WLAN_CMD_DEAUTH, (unsigned char *)&reason);
 		break;
 	case IW_MLME_DISASSOC:
 		if(pDevice->bLinkPass == TRUE){

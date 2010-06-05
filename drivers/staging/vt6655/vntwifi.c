@@ -497,10 +497,10 @@ VNTWIFIvGetNextBSS (
 void
 VNTWIFIvUpdateNodeTxCounter(
     void *pMgmtHandle,
-    PBYTE    pbyDestAddress,
+    unsigned char *pbyDestAddress,
     BOOL     bTxOk,
     WORD     wRate,
-    PBYTE    pbyTxFailCount
+    unsigned char *pbyTxFailCount
     )
 {
     PSMgmtObject    pMgmt = (PSMgmtObject)pMgmtHandle;
@@ -532,11 +532,11 @@ VNTWIFIvUpdateNodeTxCounter(
 void
 VNTWIFIvGetTxRate(
     void *pMgmtHandle,
-    PBYTE    pbyDestAddress,
+    unsigned char *pbyDestAddress,
     PWORD   pwTxDataRate,
-    PBYTE   pbyACKRate,
-    PBYTE   pbyCCKBasicRate,
-    PBYTE   pbyOFDMBasicRate
+    unsigned char *pbyACKRate,
+    unsigned char *pbyCCKBasicRate,
+    unsigned char *pbyOFDMBasicRate
     )
 {
     PSMgmtObject        pMgmt = (PSMgmtObject)pMgmtHandle;
@@ -721,11 +721,11 @@ VNTWIFIbMeasureReport(
     BYTE  byReportMode,
     BYTE  byBasicMap,
     BYTE  byCCAFraction,
-    PBYTE pbyRPIs
+    unsigned char *pbyRPIs
     )
 {
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtObject;
-    PBYTE           pbyCurrentEID = (PBYTE) (pMgmt->pCurrMeasureEIDRep);
+    unsigned char *pbyCurrentEID = (unsigned char *) (pMgmt->pCurrMeasureEIDRep);
 
     //spin_lock_irq(&pDevice->lock);
     if ((pvMeasureEID != NULL) &&

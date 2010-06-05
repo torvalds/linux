@@ -76,7 +76,7 @@
 
 
 #define VNSvInPortB(dwIOAddress, pbyData) {                     \
-	volatile BYTE* pbyAddr = ((PBYTE)(dwIOAddress));            \
+	volatile BYTE* pbyAddr = ((unsigned char *)(dwIOAddress));            \
 	*(pbyData) = readb(pbyAddr);                           \
 }
 
@@ -93,7 +93,7 @@
 
 
 #define VNSvOutPortB(dwIOAddress, byData) {                     \
-    volatile BYTE* pbyAddr = ((PBYTE)(dwIOAddress));            \
+    volatile BYTE* pbyAddr = ((unsigned char *)(dwIOAddress));            \
     writeb((BYTE)byData, pbyAddr);							\
 }
 

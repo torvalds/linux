@@ -133,7 +133,7 @@ void KeyvInitTable (PSKeyManagement pTable, DWORD_PTR dwIoBase)
  */
 BOOL KeybGetKey (
     PSKeyManagement pTable,
-    PBYTE           pbyBSSID,
+    unsigned char *pbyBSSID,
     DWORD           dwKeyIndex,
     PSKeyItem       *pKey
     )
@@ -191,11 +191,11 @@ BOOL KeybGetKey (
  */
 BOOL KeybSetKey (
     PSKeyManagement pTable,
-    PBYTE           pbyBSSID,
+    unsigned char *pbyBSSID,
     DWORD           dwKeyIndex,
     unsigned long uKeyLength,
     PQWORD          pKeyRSC,
-    PBYTE           pbyKey,
+    unsigned char *pbyKey,
     BYTE            byKeyDecMode,
     DWORD_PTR       dwIoBase,
     BYTE            byLocalID
@@ -364,7 +364,7 @@ BOOL KeybSetKey (
  */
 BOOL KeybRemoveKey (
     PSKeyManagement pTable,
-    PBYTE           pbyBSSID,
+    unsigned char *pbyBSSID,
     DWORD           dwKeyIndex,
     DWORD_PTR       dwIoBase
     )
@@ -437,7 +437,7 @@ BOOL KeybRemoveKey (
  */
 BOOL KeybRemoveAllKey (
     PSKeyManagement pTable,
-    PBYTE           pbyBSSID,
+    unsigned char *pbyBSSID,
     DWORD_PTR       dwIoBase
     )
 {
@@ -519,7 +519,7 @@ void KeyvRemoveAllWEPKey (
  */
 BOOL KeybGetTransmitKey (
     PSKeyManagement pTable,
-    PBYTE           pbyBSSID,
+    unsigned char *pbyBSSID,
     DWORD           dwKeyType,
     PSKeyItem       *pKey
     )
@@ -636,7 +636,7 @@ BOOL KeybSetDefaultKey (
     DWORD           dwKeyIndex,
     unsigned long uKeyLength,
     PQWORD          pKeyRSC,
-    PBYTE           pbyKey,
+    unsigned char *pbyKey,
     BYTE            byKeyDecMode,
     DWORD_PTR       dwIoBase,
     BYTE            byLocalID
@@ -743,7 +743,7 @@ BOOL KeybSetAllGroupKey (
     DWORD           dwKeyIndex,
     unsigned long uKeyLength,
     PQWORD          pKeyRSC,
-    PBYTE           pbyKey,
+    unsigned char *pbyKey,
     BYTE            byKeyDecMode,
     DWORD_PTR       dwIoBase,
     BYTE            byLocalID

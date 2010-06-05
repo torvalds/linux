@@ -266,7 +266,7 @@ BOOL SROMbIsRegBitsOff(DWORD_PTR dwIoBase, BYTE byContntOffset, BYTE byTestBits)
  * Return Value: none
  *
  */
-void SROMvReadAllContents(DWORD_PTR dwIoBase, PBYTE pbyEepromRegs)
+void SROMvReadAllContents(DWORD_PTR dwIoBase, unsigned char *pbyEepromRegs)
 {
     int     ii;
 
@@ -291,7 +291,7 @@ void SROMvReadAllContents(DWORD_PTR dwIoBase, PBYTE pbyEepromRegs)
  * Return Value: none
  *
  */
-void SROMvWriteAllContents(DWORD_PTR dwIoBase, PBYTE pbyEepromRegs)
+void SROMvWriteAllContents(DWORD_PTR dwIoBase, unsigned char *pbyEepromRegs)
 {
     int     ii;
 
@@ -315,7 +315,7 @@ void SROMvWriteAllContents(DWORD_PTR dwIoBase, PBYTE pbyEepromRegs)
  * Return Value: none
  *
  */
-void SROMvReadEtherAddress(DWORD_PTR dwIoBase, PBYTE pbyEtherAddress)
+void SROMvReadEtherAddress(DWORD_PTR dwIoBase, unsigned char *pbyEtherAddress)
 {
     BYTE     ii;
 
@@ -340,7 +340,7 @@ void SROMvReadEtherAddress(DWORD_PTR dwIoBase, PBYTE pbyEtherAddress)
  * Return Value: none
  *
  */
-void SROMvWriteEtherAddress(DWORD_PTR dwIoBase, PBYTE pbyEtherAddress)
+void SROMvWriteEtherAddress(DWORD_PTR dwIoBase, unsigned char *pbyEtherAddress)
 {
     BYTE     ii;
 
@@ -366,9 +366,9 @@ void SROMvWriteEtherAddress(DWORD_PTR dwIoBase, PBYTE pbyEtherAddress)
  */
 void SROMvReadSubSysVenId(DWORD_PTR dwIoBase, PDWORD pdwSubSysVenId)
 {
-    PBYTE   pbyData;
+    unsigned char *pbyData;
 
-    pbyData = (PBYTE)pdwSubSysVenId;
+    pbyData = (unsigned char *)pdwSubSysVenId;
     /* sub vendor */
     *pbyData = SROMbyReadEmbedded(dwIoBase, 6);
     *(pbyData+1) = SROMbyReadEmbedded(dwIoBase, 7);

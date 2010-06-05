@@ -115,7 +115,7 @@ WPA2vParseRSN (
 {
     int                 i, j;
     WORD                m = 0, n = 0;
-    PBYTE               pbyOUI;
+    unsigned char *pbyOUI;
     BOOL                bUseGK = FALSE;
 
     DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"WPA2_ParseRSN: [%d]\n", pRSN->len);
@@ -268,7 +268,7 @@ WPA2uSetIEs(
     )
 {
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtHandle;
-    PBYTE           pbyBuffer = NULL;
+    unsigned char *pbyBuffer = NULL;
     unsigned int ii = 0;
     PWORD           pwPMKID = NULL;
 
@@ -279,7 +279,7 @@ WPA2uSetIEs(
          (pMgmt->eAuthenMode == WMAC_AUTH_WPA2PSK)) &&
         (pMgmt->pCurrBSS != NULL)) {
         /* WPA2 IE */
-        pbyBuffer = (PBYTE) pRSNIEs;
+        pbyBuffer = (unsigned char *) pRSNIEs;
         pRSNIEs->byElementID = WLAN_EID_RSN;
         pRSNIEs->len = 6; //Version(2)+GK(4)
         pRSNIEs->wVersion = 1;

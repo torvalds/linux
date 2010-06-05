@@ -184,11 +184,11 @@ unsigned int rotr1(unsigned int a)
  *
  */
 void TKIPvMixKey(
-    PBYTE   pbyTKey,
-    PBYTE   pbyTA,
+    unsigned char *pbyTKey,
+    unsigned char *pbyTA,
     WORD    wTSC15_0,
     DWORD   dwTSC47_16,
-    PBYTE   pbyRC4Key
+    unsigned char *pbyRC4Key
     )
 {
     unsigned int p1k[5];

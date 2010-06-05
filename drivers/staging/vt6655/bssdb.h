@@ -245,15 +245,15 @@ typedef struct tagKnownNodeDB {
 PKnownBSS
 BSSpSearchBSSList(
     void *hDeviceContext,
-    PBYTE pbyDesireBSSID,
-    PBYTE pbyDesireSSID,
+    unsigned char *pbyDesireBSSID,
+    unsigned char *pbyDesireSSID,
     CARD_PHY_TYPE ePhyType
     );
 
 PKnownBSS
 BSSpAddrIsInBSSList(
     void *hDeviceContext,
-    PBYTE abyBSSID,
+    unsigned char *abyBSSID,
     PWLAN_IE_SSID pSSID
     );
 
@@ -266,7 +266,7 @@ BSSvClearBSSList(
 BOOL
 BSSbInsertToBSSList(
     void *hDeviceContext,
-    PBYTE abyBSSIDAddr,
+    unsigned char *abyBSSIDAddr,
     QWORD qwTimestamp,
     WORD wBeaconInterval,
     WORD wCapInfo,
@@ -280,7 +280,7 @@ BSSbInsertToBSSList(
     PWLAN_IE_COUNTRY pIE_Country,
     PWLAN_IE_QUIET pIE_Quiet,
     unsigned int uIELength,
-    PBYTE pbyIEs,
+    unsigned char *pbyIEs,
     void *pRxPacketContext
     );
 
@@ -303,7 +303,7 @@ BSSbUpdateToBSSList(
     PWLAN_IE_QUIET pIE_Quiet,
     PKnownBSS pBSSList,
     unsigned int uIELength,
-    PBYTE pbyIEs,
+    unsigned char *pbyIEs,
     void *pRxPacketContext
     );
 
@@ -311,7 +311,7 @@ BSSbUpdateToBSSList(
 BOOL
 BSSDBbIsSTAInNodeDB(
     void *hDeviceContext,
-    PBYTE abyDstAddr,
+    unsigned char *abyDstAddr,
     PUINT puNodeIndex
     );
 
@@ -341,7 +341,7 @@ BSSvUpdateNodeTxCounter(
     void *hDeviceContext,
     BYTE        byTsr0,
     BYTE        byTsr1,
-    PBYTE       pbyBuffer,
+    unsigned char *pbyBuffer,
     unsigned int uFIFOHeaderSize
     );
 
