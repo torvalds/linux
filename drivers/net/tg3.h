@@ -2949,6 +2949,7 @@ struct tg3 {
 #define TG3_PHY_ID_BCM5718C		0x5c0d8a00
 #define TG3_PHY_ID_BCM5718S		0xbc050ff0
 #define TG3_PHY_ID_BCM57765		0x5c0d8a40
+#define TG3_PHY_ID_BCM5719C		0x5c0d8a20
 #define TG3_PHY_ID_BCM5906		0xdc00ac40
 #define TG3_PHY_ID_BCM8002		0x60010140
 #define TG3_PHY_ID_INVALID		0xffffffff
@@ -2972,7 +2973,8 @@ struct tg3 {
 	 (X) == TG3_PHY_ID_BCM5755 || (X) == TG3_PHY_ID_BCM5756 || \
 	 (X) == TG3_PHY_ID_BCM5906 || (X) == TG3_PHY_ID_BCM5761 || \
 	 (X) == TG3_PHY_ID_BCM5718C || (X) == TG3_PHY_ID_BCM5718S || \
-	 (X) == TG3_PHY_ID_BCM57765 || (X) == TG3_PHY_ID_BCM8002)
+	 (X) == TG3_PHY_ID_BCM57765 || (X) == TG3_PHY_ID_BCM5719C || \
+	 (X) == TG3_PHY_ID_BCM8002)
 
 	u32				led_ctrl;
 	u32				phy_otp;
