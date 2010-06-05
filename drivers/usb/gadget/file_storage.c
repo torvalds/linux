@@ -56,7 +56,7 @@
  * following protocols: RBC (0x01), ATAPI or SFF-8020i (0x02), QIC-157 (0c03),
  * UFI (0x04), SFF-8070i (0x05), and transparent SCSI (0x06), selected by
  * the optional "protocol" module parameter.  In addition, the default
- * Vendor ID, Product ID, and release number can be overridden.
+ * Vendor ID, Product ID, release number and serial number can be overridden.
  *
  * There is support for multiple logical units (LUNs), each of which has
  * its own backing file.  The number of LUNs can be set using the optional
@@ -106,6 +106,7 @@
  *	vendor=0xVVVV		Default 0x0525 (NetChip), USB Vendor ID
  *	product=0xPPPP		Default 0xa4a5 (FSG), USB Product ID
  *	release=0xRRRR		Override the USB release number (bcdDevice)
+ *	serial=HHHH...		Override serial number (string of hex chars)
  *	buflen=N		Default N=16384, buffer size used (will be
  *					rounded down to a multiple of
  *					PAGE_CACHE_SIZE)
@@ -270,6 +271,8 @@
 
 #define DRIVER_DESC		"File-backed Storage Gadget"
 #define DRIVER_NAME		"g_file_storage"
+/* DRIVER_VERSION must be at least 6 characters long, as it is used
+ * to generate a fallback serial number. */
 #define DRIVER_VERSION		"20 November 2008"
 
 static       char fsg_string_manufacturer[64];
@@ -314,6 +317,7 @@ static struct {
 	unsigned short	vendor;
 	unsigned short	product;
 	unsigned short	release;
+	char		*serial_parm;
 	unsigned int	buflen;
 
 	int		transport_type;
@@ -373,6 +377,9 @@ MODULE_PARM_DESC(product, "USB Product ID");
 
 module_param_named(release, mod_data.release, ushort, S_IRUGO);
 MODULE_PARM_DESC(release, "USB release number");
+
+module_param_named(serial, mod_data.serial_parm, charp, S_IRUGO);
+MODULE_PARM_DESC(serial, "USB serial number");
 
 module_param_named(buflen, mod_data.buflen, uint, S_IRUGO);
 MODULE_PARM_DESC(buflen, "I/O buffer size");
@@ -3197,6 +3204,7 @@ static int __init check_parameters(struct fsg_dev *fsg)
 {
 	int	prot;
 	int	gcnum;
+	int	i;
 
 	/* Store the default values */
 	mod_data.transport_type = USB_PR_BULK;
@@ -3272,6 +3280,55 @@ static int __init check_parameters(struct fsg_dev *fsg)
 		ERROR(fsg, "invalid buflen\n");
 		return -ETOOSMALL;
 	}
+
+	/* Serial string handling.
+	 * On a real device, the serial string would be loaded
+	 * from permanent storage. */
+	if (mod_data.serial_parm) {
+		const char *ch;
+		unsigned len = 0;
+
+		/* Sanity check :
+		 * The CB[I] specification limits the serial string to
+		 * 12 uppercase hexadecimal characters.
+		 * BBB need at least 12 uppercase hexadecimal characters,
+		 * with a maximum of 126. */
+		for (ch = mod_data.serial_parm; *ch; ++ch) {
+			++len;
+			if ((*ch < '0' || *ch > '9') &&
+			    (*ch < 'A' || *ch > 'F')) { /* not uppercase hex */
+				WARNING(fsg,
+					"Invalid serial string character: %c; "
+					"Failing back to default\n",
+					*ch);
+				goto fill_serial;
+			}
+		}
+		if (len > 126 ||
+		    (mod_data.transport_type == USB_PR_BULK && len < 12) ||
+		    (mod_data.transport_type != USB_PR_BULK && len > 12)) {
+			WARNING(fsg,
+				"Invalid serial string length; "
+				"Failing back to default\n");
+			goto fill_serial;
+		}
+		fsg_strings[FSG_STRING_SERIAL - 1].s = mod_data.serial_parm;
+	} else {
+fill_serial:
+		/* Serial number not specified or invalid, make our own.
+		 * We just encode it from the driver version string,
+		 * 12 characters to comply with both CB[I] and BBB spec.
+		 * Warning : Two devices running the same kernel will have
+		 * the same fallback serial number. */
+		for (i = 0; i < 12; i += 2) {
+			unsigned char	c = DRIVER_VERSION[i / 2];
+
+			if (!c)
+				break;
+			sprintf(&fsg_string_serial[i], "%02X", c);
+		}
+	}
+
 #endif /* CONFIG_USB_FILE_STORAGE_TEST */
 
 	return 0;
@@ -3446,16 +3503,6 @@ static int __init fsg_bind(struct usb_gadget *gadget)
 			"%s %s with %s",
 			init_utsname()->sysname, init_utsname()->release,
 			gadget->name);
-
-	/* On a real device, serial[] would be loaded from permanent
-	 * storage.  We just encode it from the driver version string. */
-	for (i = 0; i < sizeof fsg_string_serial - 2; i += 2) {
-		unsigned char		c = DRIVER_VERSION[i / 2];
-
-		if (!c)
-			break;
-		sprintf(&fsg_string_serial[i], "%02X", c);
-	}
 
 	fsg->thread_task = kthread_create(fsg_main_thread, fsg,
 			"file-storage-gadget");
