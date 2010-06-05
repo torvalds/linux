@@ -1571,6 +1571,8 @@ EXPORT_SYMBOL_GPL(__symbol_get);
 /*
  * Ensure that an exported symbol [global namespace] does not already exist
  * in the kernel or in some other module's exported symbol table.
+ *
+ * You must hold the module_mutex.
  */
 static int verify_export_symbols(struct module *mod)
 {
@@ -1592,14 +1594,7 @@ static int verify_export_symbols(struct module *mod)
 
 	for (i = 0; i < ARRAY_SIZE(arr); i++) {
 		for (s = arr[i].sym; s < arr[i].sym + arr[i].num; s++) {
-			const struct kernel_symbol *sym;
-
-			/* Stopping preemption makes find_symbol safe. */
-			preempt_disable();
-			sym = find_symbol(s->name, &owner, NULL, true, false);
-			preempt_enable();
-
-			if (sym) {
+			if (find_symbol(s->name, &owner, NULL, true, false)) {
 				printk(KERN_ERR
 				       "%s: exports duplicate symbol %s"
 				       " (owned by %s)\n",
@@ -2440,11 +2435,6 @@ static noinline struct module *load_module(void __user *umod,
 			goto cleanup;
 	}
 
-        /* Find duplicate symbols */
-	err = verify_export_symbols(mod);
-	if (err < 0)
-		goto cleanup;
-
   	/* Set up and sort exception table */
 	mod->extable = section_objs(hdr, sechdrs, secstrings, "__ex_table",
 				    sizeof(*mod->extable), &mod->num_exentries);
@@ -2506,9 +2496,13 @@ static noinline struct module *load_module(void __user *umod,
 	mutex_lock(&module_mutex);
 	if (find_module(mod->name)) {
 		err = -EEXIST;
-		/* This will also unlock the mutex */
-		goto already_exists;
+		goto unlock;
 	}
+
+	/* Find duplicate symbols */
+	err = verify_export_symbols(mod);
+	if (err < 0)
+		goto unlock;
 
 	list_add_rcu(&mod->list, &modules);
 	mutex_unlock(&module_mutex);
@@ -2536,7 +2530,7 @@ static noinline struct module *load_module(void __user *umod,
 	mutex_lock(&module_mutex);
 	/* Unlink carefully: kallsyms could be walking list. */
 	list_del_rcu(&mod->list);
- already_exists:
+ unlock:
 	mutex_unlock(&module_mutex);
 	synchronize_sched();
 	module_arch_cleanup(mod);
