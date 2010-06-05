@@ -1085,13 +1085,9 @@ static int tg3_mdio_init(struct tg3 *tp)
 	struct phy_device *phydev;
 
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717) {
-		u32 funcnum, is_serdes;
+		u32 is_serdes;
 
-		funcnum = tr32(TG3_CPMU_STATUS) & TG3_CPMU_STATUS_PCIE_FUNC;
-		if (funcnum)
-			tp->phy_addr = 2;
-		else
-			tp->phy_addr = 1;
+		tp->phy_addr = PCI_FUNC(tp->pdev->devfn) + 1;
 
 		if (tp->pci_chip_rev_id != CHIPREV_ID_5717_A0)
 			is_serdes = tr32(SG_DIG_STATUS) & SG_DIG_IS_SERDES;
@@ -13608,7 +13604,7 @@ static int __devinit tg3_get_device_address(struct tg3 *tp)
 		else
 			tg3_nvram_unlock(tp);
 	} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5717) {
-		if (tr32(TG3_CPMU_STATUS) & TG3_CPMU_STATUS_PCIE_FUNC)
+		if (PCI_FUNC(tp->pdev->devfn))
 			mac_offset = 0xcc;
 	} else if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
 		mac_offset = 0x10;
