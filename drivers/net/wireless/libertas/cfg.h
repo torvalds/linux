@@ -3,10 +3,15 @@
 
 struct device;
 struct lbs_private;
+struct regulatory_request;
+struct wiphy;
 
 struct wireless_dev *lbs_cfg_alloc(struct device *dev);
 int lbs_cfg_register(struct lbs_private *priv);
 void lbs_cfg_free(struct lbs_private *priv);
+
+int lbs_reg_notifier(struct wiphy *wiphy,
+		struct regulatory_request *request);
 
 /* All of those are TODOs: */
 #define lbs_cmd_802_11_rssi(priv, cmdptr) (0)

@@ -652,6 +652,9 @@ static int lbs_setup_firmware(struct lbs_private *priv)
 		priv->txpower_max = maxlevel;
 	}
 
+	/* Send cmd to FW to enable 11D function */
+	ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_11D_ENABLE, 1);
+
 	lbs_set_mac_control(priv);
 done:
 	lbs_deb_leave_args(LBS_DEB_FW, "ret %d", ret);

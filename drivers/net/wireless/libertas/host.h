@@ -389,6 +389,30 @@ struct lbs_offset_value {
 	u32 value;
 } __attribute__ ((packed));
 
+#define MRVDRV_MAX_TRIPLET_802_11D              83
+
+#define COUNTRY_CODE_LEN                        3
+
+struct mrvl_ie_domain_param_set {
+	struct mrvl_ie_header header;
+
+	u8 countrycode[COUNTRY_CODE_LEN];
+	struct ieee80211_country_ie_triplet triplet[1];
+} __attribute__ ((packed));
+
+struct cmd_ds_802_11d_domain_info {
+	__le16 action;
+	struct mrvl_ie_domain_param_set domain;
+} __attribute__ ((packed));
+
+struct lbs_802_11d_domain_reg {
+	/** Country code*/
+	u8 country_code[COUNTRY_CODE_LEN];
+	/** No. of triplet*/
+	u8 no_triplet;
+	struct ieee80211_country_ie_triplet triplet[MRVDRV_MAX_TRIPLET_802_11D];
+} __attribute__ ((packed));
+
 /*
  * Define data structure for CMD_GET_HW_SPEC
  * This structure defines the response for the GET_HW_SPEC command
@@ -949,6 +973,9 @@ struct cmd_ds_command {
 		struct cmd_ds_bbp_reg_access bbpreg;
 		struct cmd_ds_rf_reg_access rfreg;
 
+		struct cmd_ds_802_11d_domain_info domaininfo;
+		struct cmd_ds_802_11d_domain_info domaininforesp;
+
 		struct cmd_ds_802_11_tpc_cfg tpccfg;
 		struct cmd_ds_802_11_afc afc;
 		struct cmd_ds_802_11_led_ctrl ledgpio;
@@ -958,5 +985,4 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11_beacon_control bcn_ctrl;
 	} params;
 } __attribute__ ((packed));
-
 #endif
