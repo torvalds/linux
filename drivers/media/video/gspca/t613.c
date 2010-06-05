@@ -46,9 +46,9 @@ struct sd {
 	u8 gamma;
 	u8 sharpness;
 	u8 freq;
-	u8 red_balance; /* split balance */
-	u8 blue_balance;
-	u8 global_gain; /* aka gain */
+	u8 red_gain;
+	u8 blue_gain;
+	u8 green_gain;
 	u8 awb; /* set default r/g/b and activate */
 	u8 mirror;
 	u8 effect;
@@ -80,12 +80,12 @@ static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 
 static int sd_setawb(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getawb(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setblue_balance(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setglobal_gain(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getglobal_gain(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setblue_gain(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getblue_gain(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setred_gain(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getred_gain(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
 
 static int sd_setmirror(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getmirror(struct gspca_dev *gspca_dev, __s32 *val);
@@ -246,11 +246,11 @@ static const struct ctrl sd_ctrls[] = {
 	    .minimum = 0x10,
 	    .maximum = 0x40,
 	    .step    = 1,
-#define BLUE_BALANCE_DEF 0x20
-	    .default_value = BLUE_BALANCE_DEF,
+#define BLUE_GAIN_DEF 0x20
+	    .default_value = BLUE_GAIN_DEF,
 	 },
-	.set = sd_setblue_balance,
-	.get = sd_getblue_balance,
+	.set = sd_setblue_gain,
+	.get = sd_getblue_gain,
 	},
 	{
 	 {
@@ -260,11 +260,11 @@ static const struct ctrl sd_ctrls[] = {
 	    .minimum = 0x10,
 	    .maximum = 0x40,
 	    .step    = 1,
-#define RED_BALANCE_DEF 0x20
-	    .default_value = RED_BALANCE_DEF,
+#define RED_GAIN_DEF 0x20
+	    .default_value = RED_GAIN_DEF,
 	 },
-	.set = sd_setred_balance,
-	.get = sd_getred_balance,
+	.set = sd_setred_gain,
+	.get = sd_getred_gain,
 	},
 	{
 	 {
@@ -274,11 +274,11 @@ static const struct ctrl sd_ctrls[] = {
 	    .minimum = 0x10,
 	    .maximum = 0x40,
 	    .step    = 1,
-#define global_gain_DEF  0x20
-	    .default_value = global_gain_DEF,
+#define GAIN_DEF  0x20
+	    .default_value = GAIN_DEF,
 	 },
-	.set = sd_setglobal_gain,
-	.get = sd_getglobal_gain,
+	.set = sd_setgain,
+	.get = sd_getgain,
 	},
 };
 
@@ -699,9 +699,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->awb = AWB_DEF;
 	sd->sharpness = SHARPNESS_DEF;
 	sd->effect = EFFECTS_DEF;
-	sd->red_balance = RED_BALANCE_DEF;
-	sd->blue_balance = BLUE_BALANCE_DEF;
-	sd->global_gain = global_gain_DEF;
+	sd->red_gain = RED_GAIN_DEF;
+	sd->blue_gain = BLUE_GAIN_DEF;
+	sd->green_gain = GAIN_DEF * 3 - RED_GAIN_DEF - BLUE_GAIN_DEF;
 
 	return 0;
 }
@@ -754,33 +754,59 @@ static void setgamma(struct gspca_dev *gspca_dev)
 	reg_w_ixbuf(gspca_dev, 0x90,
 		gamma_table[sd->gamma], sizeof gamma_table[0]);
 }
-static void setglobalgain(struct gspca_dev *gspca_dev)
-{
 
+static void setRGB(struct gspca_dev *gspca_dev)
+{
 	struct sd *sd = (struct sd *) gspca_dev;
-	reg_w(gspca_dev, (sd->red_balance  << 8) + 0x87);
-	reg_w(gspca_dev, (sd->blue_balance << 8) + 0x88);
-	reg_w(gspca_dev, (sd->global_gain  << 8) + 0x89);
+	u8 all_gain_reg[6] =
+		{0x87, 0x00, 0x88, 0x00, 0x89, 0x00};
+
+	all_gain_reg[1] = sd->red_gain;
+	all_gain_reg[3] = sd->blue_gain;
+	all_gain_reg[5] = sd->green_gain;
+	reg_w_buf(gspca_dev, all_gain_reg, sizeof all_gain_reg);
 }
 
-/* Generic fnc for r/b balance, exposure and whitebalance */
+/* Generic fnc for r/b balance, exposure and awb */
 static void setawb(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	u16 reg80;
+
+	reg80 = (sensor_data[sd->sensor].reg80 << 8) | 0x80;
 
 	/* on awb leave defaults values */
-	if (sd->awb) {
-		reg_w(gspca_dev, 0x3c80);
-	} else {
-		reg_w(gspca_dev, 0x3880);
+	if (!sd->awb) {
 		/* shoud we wait here.. */
-		/* update and reset 'global gain' with webcam parameters */
-		sd->red_balance = reg_r(gspca_dev, 0x0087);
-		sd->blue_balance = reg_r(gspca_dev, 0x0088);
-		sd->global_gain = reg_r(gspca_dev, 0x0089);
-		setglobalgain(gspca_dev);
+		/* update and reset RGB gains with webcam values */
+		sd->red_gain = reg_r(gspca_dev, 0x0087);
+		sd->blue_gain = reg_r(gspca_dev, 0x0088);
+		sd->green_gain = reg_r(gspca_dev, 0x0089);
+		reg80 &= ~0x0400;		/* AWB off */
 	}
+	reg_w(gspca_dev, reg80);
+	reg_w(gspca_dev, reg80);
+}
 
+static void init_gains(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	u16 reg80;
+	u8 all_gain_reg[8] =
+		{0x87, 0x00, 0x88, 0x00, 0x89, 0x00, 0x80, 0x00};
+
+	all_gain_reg[1] = sd->red_gain;
+	all_gain_reg[3] = sd->blue_gain;
+	all_gain_reg[5] = sd->green_gain;
+	reg80 = sensor_data[sd->sensor].reg80;
+	if (!sd->awb)
+		reg80 &= ~0x04;
+	all_gain_reg[7] = reg80;
+	reg_w_buf(gspca_dev, all_gain_reg, sizeof all_gain_reg);
+
+	reg_w(gspca_dev, (sd->red_gain  << 8) + 0x87);
+	reg_w(gspca_dev, (sd->blue_gain << 8) + 0x88);
+	reg_w(gspca_dev, (sd->green_gain  << 8) + 0x89);
 }
 
 static void setsharpness(struct gspca_dev *gspca_dev)
@@ -919,14 +945,9 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	setgamma(gspca_dev);
 	setcolors(gspca_dev);
 	setsharpness(gspca_dev);
-	setawb(gspca_dev);
+	init_gains(gspca_dev);
 	setfreq(gspca_dev);
 
-	reg_w(gspca_dev, 0x2087);	/* tied to white balance? */
-	reg_w(gspca_dev, 0x2088);
-	reg_w(gspca_dev, 0x2089);
-
-	reg_w_buf(gspca_dev, sensor->data4, sizeof sensor->data4);
 	reg_w_buf(gspca_dev, sensor->data5, sizeof sensor->data5);
 	reg_w_buf(gspca_dev, sensor->nset8, sizeof sensor->nset8);
 	reg_w_buf(gspca_dev, sensor->stream, sizeof sensor->stream);
@@ -1099,62 +1120,76 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	gspca_frame_add(gspca_dev, pkt_type, data, len);
 }
 
-
-static int sd_setblue_balance(struct gspca_dev *gspca_dev, __s32 val)
+static int sd_setblue_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	sd->blue_balance = val;
+	sd->blue_gain = val;
 	if (gspca_dev->streaming)
 		reg_w(gspca_dev, (val << 8) + 0x88);
 	return 0;
 }
 
-static int sd_getblue_balance(struct gspca_dev *gspca_dev, __s32 *val)
+static int sd_getblue_gain(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	*val = sd->blue_balance;
+	*val = sd->blue_gain;
 	return 0;
 }
 
-static int sd_setred_balance(struct gspca_dev *gspca_dev, __s32 val)
+static int sd_setred_gain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	sd->red_balance = val;
+	sd->red_gain = val;
 	if (gspca_dev->streaming)
 		reg_w(gspca_dev, (val << 8) + 0x87);
 
 	return 0;
 }
 
-static int sd_getred_balance(struct gspca_dev *gspca_dev, __s32 *val)
+static int sd_getred_gain(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	*val = sd->red_balance;
+	*val = sd->red_gain;
 	return 0;
 }
 
-
-
-static int sd_setglobal_gain(struct gspca_dev *gspca_dev, __s32 val)
+static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	u16 psg, nsg;
 
-	sd->global_gain = val;
+	psg = sd->red_gain + sd->blue_gain + sd->green_gain;
+	nsg = val * 3;
+	sd->red_gain = sd->red_gain * nsg / psg;
+	if (sd->red_gain > 0x40)
+		sd->red_gain = 0x40;
+	else if (sd->red_gain < 0x10)
+		sd->red_gain = 0x10;
+	sd->blue_gain = sd->blue_gain * nsg / psg;
+	if (sd->blue_gain > 0x40)
+		sd->blue_gain = 0x40;
+	else if (sd->blue_gain < 0x10)
+		sd->blue_gain = 0x10;
+	sd->green_gain = sd->green_gain * nsg / psg;
+	if (sd->green_gain > 0x40)
+		sd->green_gain = 0x40;
+	else if (sd->green_gain < 0x10)
+		sd->green_gain = 0x10;
+
 	if (gspca_dev->streaming)
-		setglobalgain(gspca_dev);
-
+		setRGB(gspca_dev);
 	return 0;
 }
 
-static int sd_getglobal_gain(struct gspca_dev *gspca_dev, __s32 *val)
+static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	*val = sd->global_gain;
+	*val = (sd->red_gain + sd->blue_gain + sd->green_gain) / 3;
 	return 0;
 }
 
