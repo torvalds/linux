@@ -158,16 +158,16 @@ static struct snd_pcm_hardware snd_tm6000_digital_hw = {
 		SNDRV_PCM_INFO_MMAP_VALID,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 
-	.rates =		SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000,
-	.rate_min =		44100,
+	.rates =		SNDRV_PCM_RATE_48000,
+	.rate_min =		48000,
 	.rate_max =		48000,
 	.channels_min = 2,
 	.channels_max = 2,
-	.period_bytes_min = DEFAULT_FIFO_SIZE/4,
-	.period_bytes_max = DEFAULT_FIFO_SIZE/4,
+	.period_bytes_min = 62720,
+	.period_bytes_max = 62720,
 	.periods_min = 1,
 	.periods_max = 1024,
-	.buffer_bytes_max = (1024*1024),
+	.buffer_bytes_max = 62720 * 8,
 };
 
 /*
@@ -204,15 +204,45 @@ static int snd_tm6000_close(struct snd_pcm_substream *substream)
 
 static int tm6000_fillbuf(struct tm6000_core *core, char *buf, int size)
 {
-	int i;
+	struct snd_tm6000_card *chip = core->adev;
+	struct snd_pcm_substream *substream = chip->substream;
+	struct snd_pcm_runtime *runtime;
+	int period_elapsed = 0;
+	unsigned int stride, buf_pos;
 
-	/* Need to add a real code to copy audio buffer */
-	printk("Audio (%i bytes): ", size);
-	for (i = 0; i < size - 3; i +=4)
-		printk("(0x%04x, 0x%04x), ",
-			*(u16 *)(buf + i), *(u16 *)(buf + i + 2));
+	if (!size || !substream)
+		return -EINVAL;
 
-	printk("\n");
+	runtime = substream->runtime;
+	if (!runtime || !runtime->dma_area)
+		return -EINVAL;
+
+	buf_pos = chip->buf_pos;
+	stride = runtime->frame_bits >> 3;
+
+	dprintk(1, "Copying %d bytes at %p[%d] - buf size=%d x %d\n", size,
+		runtime->dma_area, buf_pos,
+		(unsigned int)runtime->buffer_size, stride);
+
+	if (buf_pos + size >= runtime->buffer_size * stride) {
+		unsigned int cnt = runtime->buffer_size * stride - buf_pos;
+		memcpy(runtime->dma_area + buf_pos, buf, cnt);
+		memcpy(runtime->dma_area, buf + cnt, size - cnt);
+	} else
+		memcpy(runtime->dma_area + buf_pos, buf, size);
+
+	chip->buf_pos += size;
+	if (chip->buf_pos >= runtime->buffer_size * stride)
+		chip->buf_pos -= runtime->buffer_size * stride;
+
+	chip->period_pos += size;
+	if (chip->period_pos >= runtime->period_size) {
+		chip->period_pos -= runtime->period_size;
+		period_elapsed = 1;
+	}
+
+	if (period_elapsed)
+		snd_pcm_period_elapsed(substream);
 
 	return 0;
 }
