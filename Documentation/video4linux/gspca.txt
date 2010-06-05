@@ -142,6 +142,7 @@ finepix		04cb:013d	Fujifilm FinePix unknown model
 finepix		04cb:013f	Fujifilm FinePix F420
 sunplus		04f1:1001	JVC GC A50
 spca561		04fc:0561	Flexcam 100
+spca1528	04fc:1528	Sunplus MD80 clone
 sunplus		04fc:500c	Sunplus CA500C
 sunplus		04fc:504a	Aiptek Mini PenCam 1.3
 sunplus		04fc:504b	Maxell MaxPocket LE 1.3
