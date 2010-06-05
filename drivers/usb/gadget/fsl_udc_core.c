@@ -291,16 +291,16 @@ static void dr_controller_run(struct fsl_udc *udc)
 #ifdef CONFIG_ARCH_TEGRA
 	unsigned long timeout;
 #define FSL_UDC_RUN_TIMEOUT 1000
-#endif
-
-#ifdef CONFIG_ARCH_TEGRA
-	/* Enable cable detection interrupt, without setting the
-	 * USB_SYS_VBUS_WAKEUP_INT bit. USB_SYS_VBUS_WAKEUP_INT is
-	 * clear on write */
-	temp = fsl_readl(&usb_sys_regs->vbus_wakeup);
-	temp |= (USB_SYS_VBUS_WAKEUP_INT_ENABLE | USB_SYS_VBUS_WAKEUP_ENABLE);
-	temp &= ~USB_SYS_VBUS_WAKEUP_INT_STATUS;
-	fsl_writel(temp, &usb_sys_regs->vbus_wakeup);
+	/* If OTG transceiver is available, then it handles the VBUS detection */
+	if (!udc_controller->transceiver) {
+		/* Enable cable detection interrupt, without setting the
+		 * USB_SYS_VBUS_WAKEUP_INT bit. USB_SYS_VBUS_WAKEUP_INT is
+		 * clear on write */
+		temp = fsl_readl(&usb_sys_regs->vbus_wakeup);
+		temp |= (USB_SYS_VBUS_WAKEUP_INT_ENABLE | USB_SYS_VBUS_WAKEUP_ENABLE);
+		temp &= ~USB_SYS_VBUS_WAKEUP_INT_STATUS;
+		fsl_writel(temp, &usb_sys_regs->vbus_wakeup);
+	}
 #endif
 
 	/* Enable DR irq reg */
@@ -1788,32 +1788,65 @@ static irqreturn_t fsl_udc_irq(int irq, void *_udc)
 	fsl_writel(irq_src, &dr_regs->usbsts);
 
 	/* VDBG("irq_src [0x%8x]", irq_src); */
-#if defined(CONFIG_ARCH_TEGRA)
-	/* VBUS A session detection interrupts. When the interrupt is received,
-	 * the mark the vbus active shadow.
-	 */
-	temp = fsl_readl(&usb_sys_regs->vbus_sensors);
-	if (temp & USB_SYS_VBUS_ASESSION_CHANGED) {
-		if (temp & USB_SYS_VBUS_ASESSION) {
-			udc->vbus_active = 1;
-		} else {
-			reset_queues(udc);
-			udc->vbus_active = 0;
-			udc->usb_state = USB_STATE_DEFAULT;
-		}
-		/* write back the register to clear the interrupt */
-		fsl_writel(temp, &usb_sys_regs->vbus_wakeup);
 
-#if 0
-		/* XXX */
-		if (udc->vbus_active) {
-			fsl_udc_clk_resume();
+#ifdef CONFIG_ARCH_TEGRA
+	if (udc->transceiver) {
+		if (udc->transceiver->state == OTG_STATE_B_PERIPHERAL) {
+			if (!udc->vbus_active) {
+				/* set vbus active  and enable the usb clocks */
+				udc->vbus_active = 1;
+				fsl_udc_clk_resume();
+				/* setup the controller in the device mode */
+				dr_controller_setup(udc);
+				/* setup EP0 for setup packet */
+				ep0_setup(udc);
+				/* start the controller */
+				dr_controller_run(udc);
+				/* initialize the USB and EP states */
+				udc->usb_state = USB_STATE_ATTACHED;
+				udc->ep0_state = WAIT_FOR_SETUP;
+				udc->ep0_dir = 0;
+			}
+		} else if (udc->transceiver->state == OTG_STATE_A_SUSPEND) {
+			if (udc->vbus_active) {
+				/* Reset all internal Queues and inform client driver */
+				reset_queues(udc);
+				/* stop the controller and turn off the clocks */
+				dr_controller_stop(udc);
+				fsl_udc_clk_suspend();
+				udc->vbus_active = 0;
+				udc->usb_state = USB_STATE_DEFAULT;
+			} else {
+				spin_unlock_irqrestore(&udc->lock, flags);
+				return IRQ_HANDLED;
+			}
 		} else {
-			fsl_udc_clk_suspend();
+			spin_unlock_irqrestore(&udc->lock, flags);
+			return IRQ_HANDLED;
 		}
-#endif
+	} else {
+		/* VBUS A session detection interrupts. When the interrupt is received,
+		 * the mark the vbus active shadow.
+		 */
+		temp = fsl_readl(&usb_sys_regs->vbus_wakeup);
+		if (temp & USB_SYS_VBUS_WAKEUP_INT_STATUS) {
+			if (temp & USB_SYS_VBUS_STATUS) {
+				udc->vbus_active = 1;
+			} else {
+				reset_queues(udc);
+				udc->vbus_active = 0;
+				udc->usb_state = USB_STATE_DEFAULT;
+			}
+			/* write back the register to clear the interrupt */
+			fsl_writel(temp, &usb_sys_regs->vbus_wakeup);
 
-		status = IRQ_HANDLED;
+			if (udc->vbus_active)
+				fsl_udc_clk_resume();
+			else
+				fsl_udc_clk_suspend();
+
+			status = IRQ_HANDLED;
+		}
 	}
 #endif
 
@@ -1909,6 +1942,9 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 		udc_controller->driver = NULL;
 		goto out;
 	}
+
+	if (udc_controller->transceiver)
+		otg_set_peripheral(udc_controller->transceiver, &udc_controller->gadget);
 
 	/* Enable DR IRQ reg and Set usbcmd reg  Run bit */
 	dr_controller_run(udc_controller);
@@ -2514,12 +2550,13 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	}
 	create_proc_file();
 
-#if 0
-/* XXX */
+#ifdef CONFIG_USB_OTG_UTILS
+	udc_controller->transceiver = otg_get_transceiver();
+#else
 #ifdef CONFIG_ARCH_TEGRA
 	/* Power down the phy if cable is not connected */
 	if (!(fsl_readl(&usb_sys_regs->vbus_wakeup) & USB_SYS_VBUS_STATUS))
-		platform_udc_clk_suspend();
+		fsl_udc_clk_suspend();
 #endif
 #endif
 
