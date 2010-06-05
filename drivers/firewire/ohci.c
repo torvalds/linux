@@ -1594,7 +1594,7 @@ static int ohci_enable(struct fw_card *card,
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	struct pci_dev *dev = to_pci_dev(card->device);
-	u32 lps;
+	u32 lps, irqs;
 	int i, ret;
 
 	if (software_reset(ohci)) {
@@ -1648,16 +1648,6 @@ static int ohci_enable(struct fw_card *card,
 	reg_write(ohci, OHCI1394_PhyUpperBound, 0x00010000);
 	reg_write(ohci, OHCI1394_IntEventClear, ~0);
 	reg_write(ohci, OHCI1394_IntMaskClear, ~0);
-	reg_write(ohci, OHCI1394_IntMaskSet,
-		  OHCI1394_selfIDComplete |
-		  OHCI1394_RQPkt | OHCI1394_RSPkt |
-		  OHCI1394_reqTxComplete | OHCI1394_respTxComplete |
-		  OHCI1394_isochRx | OHCI1394_isochTx |
-		  OHCI1394_postedWriteErr | OHCI1394_cycleTooLong |
-		  OHCI1394_cycleInconsistent | OHCI1394_regAccessFail |
-		  OHCI1394_masterIntEnable);
-	if (param_debug & OHCI_PARAM_DEBUG_BUSRESETS)
-		reg_write(ohci, OHCI1394_IntMaskSet, OHCI1394_busReset);
 
 	ret = configure_1394a_enhancements(ohci);
 	if (ret < 0)
@@ -1722,6 +1712,18 @@ static int ohci_enable(struct fw_card *card,
 				  ohci->config_rom, ohci->config_rom_bus);
 		return -EIO;
 	}
+
+	irqs =	OHCI1394_reqTxComplete | OHCI1394_respTxComplete |
+		OHCI1394_RQPkt | OHCI1394_RSPkt |
+		OHCI1394_isochTx | OHCI1394_isochRx |
+		OHCI1394_postedWriteErr |
+		OHCI1394_selfIDComplete |
+		OHCI1394_regAccessFail |
+		OHCI1394_cycleInconsistent | OHCI1394_cycleTooLong |
+		OHCI1394_masterIntEnable;
+	if (param_debug & OHCI_PARAM_DEBUG_BUSRESETS)
+		irqs |= OHCI1394_busReset;
+	reg_write(ohci, OHCI1394_IntMaskSet, irqs);
 
 	reg_write(ohci, OHCI1394_HCControlSet,
 		  OHCI1394_HCControl_linkEnable |
