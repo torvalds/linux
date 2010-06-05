@@ -264,6 +264,15 @@ config USB_GSPCA_SQ905C
 	  To compile this driver as a module, choose M here: the
 	  module will be called gspca_sq905c.
 
+config USB_GSPCA_SQ930X
+	tristate "SQ Technologies SQ930X based USB Camera Driver"
+	depends on VIDEO_V4L2 && USB_GSPCA
+	help
+	  Say Y here if you want support for cameras based on the SQ930X chip.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called gspca_sq930x.
+
 config USB_GSPCA_STK014
 	tristate "Syntek DV4000 (STK014) USB Camera Driver"
 	depends on VIDEO_V4L2 && USB_GSPCA
