@@ -72,7 +72,11 @@
 /* If this is set, the section belongs in the init part of the module */
 #define INIT_OFFSET_MASK (1UL << (BITS_PER_LONG-1))
 
-/* List of modules, protected by module_mutex or preempt_disable
+/*
+ * Mutex protects:
+ * 1) List of modules (also safely readable with preempt_disable),
+ * 2) module_use links,
+ * 3) module_addr_min/module_addr_max.
  * (delete uses stop_machine/add uses RCU list operations). */
 DEFINE_MUTEX(module_mutex);
 EXPORT_SYMBOL_GPL(module_mutex);
@@ -90,7 +94,8 @@ static DECLARE_WAIT_QUEUE_HEAD(module_wq);
 
 static BLOCKING_NOTIFIER_HEAD(module_notify_list);
 
-/* Bounds of module allocation, for speeding __module_address */
+/* Bounds of module allocation, for speeding __module_address.
+ * Protected by module_mutex. */
 static unsigned long module_addr_min = -1UL, module_addr_max = 0;
 
 int register_module_notifier(struct notifier_block * nb)
@@ -329,7 +334,7 @@ static bool find_symbol_in_section(const struct symsearch *syms,
 }
 
 /* Find a symbol and return it, along with, (optional) crc and
- * (optional) module which owns it */
+ * (optional) module which owns it.  Needs preempt disabled or module_mutex. */
 const struct kernel_symbol *find_symbol(const char *name,
 					struct module **owner,
 					const unsigned long **crc,
@@ -576,7 +581,7 @@ static int add_module_usage(struct module *a, struct module *b)
 	return 0;
 }
 
-/* Module a uses b */
+/* Module a uses b: caller needs module_mutex() */
 int use_module(struct module *a, struct module *b)
 {
 	int err;
@@ -610,6 +615,7 @@ static void module_unload_free(struct module *mod)
 {
 	struct module_use *use, *tmp;
 
+	mutex_lock(&module_mutex);
 	list_for_each_entry_safe(use, tmp, &mod->target_list, target_list) {
 		struct module *i = use->target;
 		DEBUGP("%s unusing %s\n", mod->name, i->name);
@@ -618,6 +624,7 @@ static void module_unload_free(struct module *mod)
 		list_del(&use->target_list);
 		kfree(use);
 	}
+	mutex_unlock(&module_mutex);
 }
 
 #ifdef CONFIG_MODULE_FORCE_UNLOAD
@@ -784,13 +791,14 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 	blocking_notifier_call_chain(&module_notify_list,
 				     MODULE_STATE_GOING, mod);
 	async_synchronize_full();
-	mutex_lock(&module_mutex);
+
 	/* Store the name of the last unloaded module for diagnostic purposes */
 	strlcpy(last_unloaded_module, mod->name, sizeof(last_unloaded_module));
 	ddebug_remove_module(mod->name);
-	free_module(mod);
 
- out:
+	free_module(mod);
+	return 0;
+out:
 	mutex_unlock(&module_mutex);
 	return ret;
 }
@@ -1006,6 +1014,8 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 {
 	const unsigned long *crc;
 
+	/* Since this should be found in kernel (which can't be removed),
+	 * no locking is necessary. */
 	if (!find_symbol(MODULE_SYMBOL_PREFIX "module_layout", NULL,
 			 &crc, true, false))
 		BUG();
@@ -1048,8 +1058,7 @@ static inline int same_magic(const char *amagic, const char *bmagic,
 }
 #endif /* CONFIG_MODVERSIONS */
 
-/* Resolve a symbol for this module.  I.e. if we find one, record usage.
-   Must be holding module_mutex. */
+/* Resolve a symbol for this module.  I.e. if we find one, record usage. */
 static const struct kernel_symbol *resolve_symbol(Elf_Shdr *sechdrs,
 						  unsigned int versindex,
 						  const char *name,
@@ -1059,6 +1068,7 @@ static const struct kernel_symbol *resolve_symbol(Elf_Shdr *sechdrs,
 	const struct kernel_symbol *sym;
 	const unsigned long *crc;
 
+	mutex_lock(&module_mutex);
 	sym = find_symbol(name, &owner, &crc,
 			  !(mod->taints & (1 << TAINT_PROPRIETARY_MODULE)), true);
 	/* use_module can fail due to OOM,
@@ -1068,6 +1078,7 @@ static const struct kernel_symbol *resolve_symbol(Elf_Shdr *sechdrs,
 		    || !use_module(mod, owner))
 			sym = NULL;
 	}
+	mutex_unlock(&module_mutex);
 	return sym;
 }
 
@@ -1306,10 +1317,12 @@ static void add_usage_links(struct module *mod)
 	struct module_use *use;
 	int nowarn;
 
+	mutex_lock(&module_mutex);
 	list_for_each_entry(use, &mod->target_list, target_list) {
 		nowarn = sysfs_create_link(use->target->holders_dir,
 					   &mod->mkobj.kobj, mod->name);
 	}
+	mutex_unlock(&module_mutex);
 #endif
 }
 
@@ -1318,8 +1331,10 @@ static void del_usage_links(struct module *mod)
 #ifdef CONFIG_MODULE_UNLOAD
 	struct module_use *use;
 
+	mutex_lock(&module_mutex);
 	list_for_each_entry(use, &mod->target_list, target_list)
 		sysfs_remove_link(use->target->holders_dir, mod->name);
+	mutex_unlock(&module_mutex);
 #endif
 }
 
@@ -1497,13 +1512,15 @@ static int __unlink_module(void *_mod)
 	return 0;
 }
 
-/* Free a module, remove from lists, etc (must hold module_mutex). */
+/* Free a module, remove from lists, etc. */
 static void free_module(struct module *mod)
 {
 	trace_module_free(mod);
 
 	/* Delete from various lists */
+	mutex_lock(&module_mutex);
 	stop_machine(__unlink_module, mod, NULL);
+	mutex_unlock(&module_mutex);
 	remove_notes_attrs(mod);
 	remove_sect_attrs(mod);
 	mod_kobject_remove(mod);
@@ -1575,7 +1592,14 @@ static int verify_export_symbols(struct module *mod)
 
 	for (i = 0; i < ARRAY_SIZE(arr); i++) {
 		for (s = arr[i].sym; s < arr[i].sym + arr[i].num; s++) {
-			if (find_symbol(s->name, &owner, NULL, true, false)) {
+			const struct kernel_symbol *sym;
+
+			/* Stopping preemption makes find_symbol safe. */
+			preempt_disable();
+			sym = find_symbol(s->name, &owner, NULL, true, false);
+			preempt_enable();
+
+			if (sym) {
 				printk(KERN_ERR
 				       "%s: exports duplicate symbol %s"
 				       " (owned by %s)\n",
@@ -2021,11 +2045,13 @@ static void *module_alloc_update_bounds(unsigned long size)
 	void *ret = module_alloc(size);
 
 	if (ret) {
+		mutex_lock(&module_mutex);
 		/* Update module bounds. */
 		if ((unsigned long)ret < module_addr_min)
 			module_addr_min = (unsigned long)ret;
 		if ((unsigned long)ret + size > module_addr_max)
 			module_addr_max = (unsigned long)ret + size;
+		mutex_unlock(&module_mutex);
 	}
 	return ret;
 }
@@ -2482,7 +2508,9 @@ static noinline struct module *load_module(void __user *umod,
 	 * function to insert in a way safe to concurrent readers.
 	 * The mutex protects against concurrent writers.
 	 */
+	mutex_lock(&module_mutex);
 	list_add_rcu(&mod->list, &modules);
+	mutex_unlock(&module_mutex);
 
 	err = parse_args(mod->name, mod->args, mod->kp, mod->num_kp, NULL);
 	if (err < 0)
@@ -2504,8 +2532,10 @@ static noinline struct module *load_module(void __user *umod,
 	return mod;
 
  unlink:
+	mutex_lock(&module_mutex);
 	/* Unlink carefully: kallsyms could be walking list. */
 	list_del_rcu(&mod->list);
+	mutex_unlock(&module_mutex);
 	synchronize_sched();
 	module_arch_cleanup(mod);
  cleanup:
@@ -2556,19 +2586,10 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 	if (!capable(CAP_SYS_MODULE) || modules_disabled)
 		return -EPERM;
 
-	/* Only one module load at a time, please */
-	if (mutex_lock_interruptible(&module_mutex) != 0)
-		return -EINTR;
-
 	/* Do all the hard work */
 	mod = load_module(umod, len, uargs);
-	if (IS_ERR(mod)) {
-		mutex_unlock(&module_mutex);
+	if (IS_ERR(mod))
 		return PTR_ERR(mod);
-	}
-
-	/* Drop lock so they can recurse */
-	mutex_unlock(&module_mutex);
 
 	blocking_notifier_call_chain(&module_notify_list,
 			MODULE_STATE_COMING, mod);
@@ -2585,9 +2606,7 @@ SYSCALL_DEFINE3(init_module, void __user *, umod,
 		module_put(mod);
 		blocking_notifier_call_chain(&module_notify_list,
 					     MODULE_STATE_GOING, mod);
-		mutex_lock(&module_mutex);
 		free_module(mod);
-		mutex_unlock(&module_mutex);
 		wake_up(&module_wq);
 		return ret;
 	}
