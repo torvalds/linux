@@ -231,12 +231,14 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 
 static char ohci_driver_name[] = KBUILD_MODNAME;
 
+#define PCI_DEVICE_ID_JMICRON_JMB38X_FW	0x2380
 #define PCI_DEVICE_ID_TI_TSB12LV22	0x8009
 
 #define QUIRK_CYCLE_TIMER		1
 #define QUIRK_RESET_PACKET		2
 #define QUIRK_BE_HEADERS		4
 #define QUIRK_NO_1394A			8
+#define QUIRK_NO_MSI			16
 
 /* In case of multiple matches in ohci_quirks[], only the first one is used. */
 static const struct {
@@ -247,6 +249,7 @@ static const struct {
 							    QUIRK_NO_1394A},
 	{PCI_VENDOR_ID_TI,	PCI_ANY_ID,	QUIRK_RESET_PACKET},
 	{PCI_VENDOR_ID_AL,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
+	{PCI_VENDOR_ID_JMICRON,	PCI_DEVICE_ID_JMICRON_JMB38X_FW, QUIRK_NO_MSI},
 	{PCI_VENDOR_ID_NEC,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
 	{PCI_VENDOR_ID_VIA,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
 	{PCI_VENDOR_ID_APPLE,	PCI_DEVICE_ID_APPLE_UNI_N_FW, QUIRK_BE_HEADERS},
@@ -260,6 +263,7 @@ MODULE_PARM_DESC(quirks, "Chip quirks (default = 0"
 	", reset packet generation = "	__stringify(QUIRK_RESET_PACKET)
 	", AR/selfID endianess = "	__stringify(QUIRK_BE_HEADERS)
 	", no 1394a enhancements = "	__stringify(QUIRK_NO_1394A)
+	", disable MSI = "		__stringify(QUIRK_NO_MSI)
 	")");
 
 #define OHCI_PARAM_DEBUG_AT_AR		1
@@ -1704,10 +1708,13 @@ static int ohci_enable(struct fw_card *card,
 
 	reg_write(ohci, OHCI1394_AsReqFilterHiSet, 0x80000000);
 
+	if (!(ohci->quirks & QUIRK_NO_MSI))
+		pci_enable_msi(dev);
 	if (request_irq(dev->irq, irq_handler,
-			IRQF_SHARED, ohci_driver_name, ohci)) {
-		fw_error("Failed to allocate shared interrupt %d.\n",
-			 dev->irq);
+			pci_dev_msi_enabled(dev) ? 0 : IRQF_SHARED,
+			ohci_driver_name, ohci)) {
+		fw_error("Failed to allocate interrupt %d.\n", dev->irq);
+		pci_disable_msi(dev);
 		dma_free_coherent(ohci->card.device, CONFIG_ROM_SIZE,
 				  ohci->config_rom, ohci->config_rom_bus);
 		return -EIO;
@@ -2622,6 +2629,7 @@ static void pci_remove(struct pci_dev *dev)
 	context_release(&ohci->at_response_ctx);
 	kfree(ohci->it_context_list);
 	kfree(ohci->ir_context_list);
+	pci_disable_msi(dev);
 	pci_iounmap(dev, ohci->registers);
 	pci_release_region(dev, 0);
 	pci_disable_device(dev);
@@ -2639,6 +2647,7 @@ static int pci_suspend(struct pci_dev *dev, pm_message_t state)
 
 	software_reset(ohci);
 	free_irq(dev->irq, ohci);
+	pci_disable_msi(dev);
 	err = pci_save_state(dev);
 	if (err) {
 		fw_error("pci_save_state failed\n");
