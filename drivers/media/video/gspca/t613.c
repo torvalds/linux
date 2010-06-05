@@ -1080,7 +1080,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
-	static u8 ffd9[] = { 0xff, 0xd9 };
+	int pkt_type;
 
 	if (data[0] == 0x5a) {
 		/* Control Packet, after this came the header again,
@@ -1090,22 +1090,13 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	}
 	data += 2;
 	len -= 2;
-	if (data[0] == 0xff && data[1] == 0xd8) {
-		/* extra bytes....., could be processed too but would be
-		 * a waste of time, right now leave the application and
-		 * libjpeg do it for ourserlves.. */
-		gspca_frame_add(gspca_dev, LAST_PACKET,
-					ffd9, 2);
-		gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
-		return;
-	}
-
-	if (data[len - 2] == 0xff && data[len - 1] == 0xd9) {
-		/* Just in case, i have seen packets with the marker,
-		 * other's do not include it... */
-		len -= 2;
-	}
-	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
+	if (data[0] == 0xff && data[1] == 0xd8)
+		pkt_type = FIRST_PACKET;
+	else if (data[len - 2] == 0xff && data[len - 1] == 0xd9)
+		pkt_type = LAST_PACKET;
+	else
+		pkt_type = INTER_PACKET;
+	gspca_frame_add(gspca_dev, pkt_type, data, len);
 }
 
 
