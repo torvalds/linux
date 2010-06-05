@@ -582,33 +582,26 @@ static int add_module_usage(struct module *a, struct module *b)
 }
 
 /* Module a uses b: caller needs module_mutex() */
-int use_module(struct module *a, struct module *b)
+int ref_module(struct module *a, struct module *b)
 {
 	int err;
 
-	if (b == NULL || already_uses(a, b)) return 1;
-
-	/* If we're interrupted or time out, we fail. */
-	if (wait_event_interruptible_timeout(
-		    module_wq, (err = strong_try_module_get(b)) != -EBUSY,
-		    30 * HZ) <= 0) {
-		printk("%s: gave up waiting for init of module %s.\n",
-		       a->name, b->name);
+	if (b == NULL || already_uses(a, b))
 		return 0;
-	}
 
-	/* If strong_try_module_get() returned a different error, we fail. */
+	/* If module isn't available, we fail. */
+	err = strong_try_module_get(b);
 	if (err)
-		return 0;
+		return err;
 
 	err = add_module_usage(a, b);
 	if (err) {
 		module_put(b);
-		return 0;
+		return err;
 	}
-	return 1;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(use_module);
+EXPORT_SYMBOL_GPL(ref_module);
 
 /* Clear the unload stuff of the module. */
 static void module_unload_free(struct module *mod)
@@ -893,11 +886,11 @@ static inline void module_unload_free(struct module *mod)
 {
 }
 
-int use_module(struct module *a, struct module *b)
+int ref_module(struct module *a, struct module *b)
 {
-	return strong_try_module_get(b) == 0;
+	return strong_try_module_get(b);
 }
-EXPORT_SYMBOL_GPL(use_module);
+EXPORT_SYMBOL_GPL(ref_module);
 
 static inline void module_unload_init(struct module *mod)
 {
@@ -1062,24 +1055,56 @@ static inline int same_magic(const char *amagic, const char *bmagic,
 static const struct kernel_symbol *resolve_symbol(Elf_Shdr *sechdrs,
 						  unsigned int versindex,
 						  const char *name,
-						  struct module *mod)
+						  struct module *mod,
+						  char ownername[])
 {
 	struct module *owner;
 	const struct kernel_symbol *sym;
 	const unsigned long *crc;
+	int err;
 
 	mutex_lock(&module_mutex);
 	sym = find_symbol(name, &owner, &crc,
 			  !(mod->taints & (1 << TAINT_PROPRIETARY_MODULE)), true);
-	/* use_module can fail due to OOM,
-	   or module initialization or unloading */
-	if (sym) {
-		if (!check_version(sechdrs, versindex, name, mod, crc, owner)
-		    || !use_module(mod, owner))
-			sym = NULL;
+	if (!sym)
+		goto unlock;
+
+	if (!check_version(sechdrs, versindex, name, mod, crc, owner)) {
+		sym = ERR_PTR(-EINVAL);
+		goto getname;
 	}
+
+	err = ref_module(mod, owner);
+	if (err) {
+		sym = ERR_PTR(err);
+		goto getname;
+	}
+
+getname:
+	/* We must make copy under the lock if we failed to get ref. */
+	strncpy(ownername, module_name(owner), MODULE_NAME_LEN);
+unlock:
 	mutex_unlock(&module_mutex);
 	return sym;
+}
+
+static const struct kernel_symbol *resolve_symbol_wait(Elf_Shdr *sechdrs,
+						       unsigned int versindex,
+						       const char *name,
+						       struct module *mod)
+{
+	const struct kernel_symbol *ksym;
+	char ownername[MODULE_NAME_LEN];
+
+	if (wait_event_interruptible_timeout(module_wq,
+			!IS_ERR(ksym = resolve_symbol(sechdrs, versindex, name,
+						      mod, ownername)) ||
+			PTR_ERR(ksym) != -EBUSY,
+					     30 * HZ) <= 0) {
+		printk(KERN_WARNING "%s: gave up waiting for init of module %s.\n",
+		       mod->name, ownername);
+	}
+	return ksym;
 }
 
 /*
@@ -1638,21 +1663,23 @@ static int simplify_symbols(Elf_Shdr *sechdrs,
 			break;
 
 		case SHN_UNDEF:
-			ksym = resolve_symbol(sechdrs, versindex,
-					      strtab + sym[i].st_name, mod);
+			ksym = resolve_symbol_wait(sechdrs, versindex,
+						   strtab + sym[i].st_name,
+						   mod);
 			/* Ok if resolved.  */
-			if (ksym) {
+			if (ksym && !IS_ERR(ksym)) {
 				sym[i].st_value = ksym->value;
 				break;
 			}
 
 			/* Ok if weak.  */
-			if (ELF_ST_BIND(sym[i].st_info) == STB_WEAK)
+			if (!ksym && ELF_ST_BIND(sym[i].st_info) == STB_WEAK)
 				break;
 
-			printk(KERN_WARNING "%s: Unknown symbol %s\n",
-			       mod->name, strtab + sym[i].st_name);
-			ret = -ENOENT;
+			printk(KERN_WARNING "%s: Unknown symbol %s (err %li)\n",
+			       mod->name, strtab + sym[i].st_name,
+			       PTR_ERR(ksym));
+			ret = PTR_ERR(ksym) ?: -ENOENT;
 			break;
 
 		default:
