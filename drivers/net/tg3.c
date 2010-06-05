@@ -4206,6 +4206,8 @@ static int tg3_setup_fiber_mii_phy(struct tg3 *tp, int force_reset)
 					current_duplex = DUPLEX_FULL;
 				else
 					current_duplex = DUPLEX_HALF;
+			} else if (!(tp->tg3_flags2 & TG3_FLG2_5780_CLASS)) {
+				/* Link is up via parallel detect */
 			} else {
 				current_link_up = 0;
 			}
@@ -8531,8 +8533,10 @@ static void tg3_timer(unsigned long __opaque)
 				}
 				tg3_setup_phy(tp, 0);
 			}
-		} else if (tp->tg3_flags2 & TG3_FLG2_MII_SERDES)
+		} else if ((tp->tg3_flags2 & TG3_FLG2_MII_SERDES) &&
+			   !(tp->tg3_flags2 & TG3_FLG2_5780_CLASS)) {
 			tg3_serdes_parallel_detect(tp);
+		}
 
 		tp->timer_counter = tp->timer_multiplier;
 	}
