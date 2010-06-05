@@ -585,18 +585,23 @@ static void tg3_read_mem(struct tg3 *tp, u32 off, u32 *val)
 static void tg3_ape_lock_init(struct tg3 *tp)
 {
 	int i;
+	u32 regbase;
+
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761)
+		regbase = TG3_APE_LOCK_GRANT;
+	else
+		regbase = TG3_APE_PER_LOCK_GRANT;
 
 	/* Make sure the driver hasn't any stale locks. */
 	for (i = 0; i < 8; i++)
-		tg3_ape_write32(tp, TG3_APE_LOCK_GRANT + 4 * i,
-				APE_LOCK_GRANT_DRIVER);
+		tg3_ape_write32(tp, regbase + 4 * i, APE_LOCK_GRANT_DRIVER);
 }
 
 static int tg3_ape_lock(struct tg3 *tp, int locknum)
 {
 	int i, off;
 	int ret = 0;
-	u32 status;
+	u32 status, req, gnt;
 
 	if (!(tp->tg3_flags3 & TG3_FLG3_ENABLE_APE))
 		return 0;
@@ -609,13 +614,21 @@ static int tg3_ape_lock(struct tg3 *tp, int locknum)
 		return -EINVAL;
 	}
 
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761) {
+		req = TG3_APE_LOCK_REQ;
+		gnt = TG3_APE_LOCK_GRANT;
+	} else {
+		req = TG3_APE_PER_LOCK_REQ;
+		gnt = TG3_APE_PER_LOCK_GRANT;
+	}
+
 	off = 4 * locknum;
 
-	tg3_ape_write32(tp, TG3_APE_LOCK_REQ + off, APE_LOCK_REQ_DRIVER);
+	tg3_ape_write32(tp, req + off, APE_LOCK_REQ_DRIVER);
 
 	/* Wait for up to 1 millisecond to acquire lock. */
 	for (i = 0; i < 100; i++) {
-		status = tg3_ape_read32(tp, TG3_APE_LOCK_GRANT + off);
+		status = tg3_ape_read32(tp, gnt + off);
 		if (status == APE_LOCK_GRANT_DRIVER)
 			break;
 		udelay(10);
@@ -623,7 +636,7 @@ static int tg3_ape_lock(struct tg3 *tp, int locknum)
 
 	if (status != APE_LOCK_GRANT_DRIVER) {
 		/* Revoke the lock request. */
-		tg3_ape_write32(tp, TG3_APE_LOCK_GRANT + off,
+		tg3_ape_write32(tp, gnt + off,
 				APE_LOCK_GRANT_DRIVER);
 
 		ret = -EBUSY;
@@ -634,7 +647,7 @@ static int tg3_ape_lock(struct tg3 *tp, int locknum)
 
 static void tg3_ape_unlock(struct tg3 *tp, int locknum)
 {
-	int off;
+	u32 gnt;
 
 	if (!(tp->tg3_flags3 & TG3_FLG3_ENABLE_APE))
 		return;
@@ -647,8 +660,12 @@ static void tg3_ape_unlock(struct tg3 *tp, int locknum)
 		return;
 	}
 
-	off = 4 * locknum;
-	tg3_ape_write32(tp, TG3_APE_LOCK_GRANT + off, APE_LOCK_GRANT_DRIVER);
+	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5761)
+		gnt = TG3_APE_LOCK_GRANT;
+	else
+		gnt = TG3_APE_PER_LOCK_GRANT;
+
+	tg3_ape_write32(tp, gnt + 4 * locknum, APE_LOCK_GRANT_DRIVER);
 }
 
 static void tg3_disable_ints(struct tg3 *tp)
@@ -6782,7 +6799,8 @@ static void tg3_restore_pci_state(struct tg3 *tp)
 	/* Allow reads and writes to the APE register and memory space. */
 	if (tp->tg3_flags3 & TG3_FLG3_ENABLE_APE)
 		val |= PCISTATE_ALLOW_APE_CTLSPC_WR |
-		       PCISTATE_ALLOW_APE_SHMEM_WR;
+		       PCISTATE_ALLOW_APE_SHMEM_WR |
+		       PCISTATE_ALLOW_APE_PSPACE_WR;
 	pci_write_config_dword(tp->pdev, TG3PCI_PCISTATE, val);
 
 	pci_write_config_word(tp->pdev, PCI_COMMAND, tp->pci_cmd);
@@ -7720,7 +7738,8 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		 */
 		val = tr32(TG3PCI_PCISTATE);
 		val |= PCISTATE_ALLOW_APE_CTLSPC_WR |
-		       PCISTATE_ALLOW_APE_SHMEM_WR;
+		       PCISTATE_ALLOW_APE_SHMEM_WR |
+		       PCISTATE_ALLOW_APE_PSPACE_WR;
 		tw32(TG3PCI_PCISTATE, val);
 	}
 
@@ -13242,7 +13261,8 @@ static int __devinit tg3_get_invariants(struct tg3 *tp)
 		 * APE register and memory space.
 		 */
 		pci_state_reg |= PCISTATE_ALLOW_APE_CTLSPC_WR |
-				 PCISTATE_ALLOW_APE_SHMEM_WR;
+				 PCISTATE_ALLOW_APE_SHMEM_WR |
+				 PCISTATE_ALLOW_APE_PSPACE_WR;
 		pci_write_config_dword(tp->pdev, TG3PCI_PCISTATE,
 				       pci_state_reg);
 	}
