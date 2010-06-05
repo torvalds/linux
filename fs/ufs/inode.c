@@ -911,24 +911,33 @@ int ufs_sync_inode (struct inode *inode)
 	return ufs_update_inode (inode, 1);
 }
 
-void ufs_delete_inode (struct inode * inode)
+void ufs_evict_inode(struct inode * inode)
 {
-	loff_t old_i_size;
+	int want_delete = 0;
+
+	if (!inode->i_nlink && !is_bad_inode(inode))
+		want_delete = 1;
 
 	truncate_inode_pages(&inode->i_data, 0);
-	if (is_bad_inode(inode))
-		goto no_delete;
-	/*UFS_I(inode)->i_dtime = CURRENT_TIME;*/
-	lock_kernel();
-	mark_inode_dirty(inode);
-	ufs_update_inode(inode, IS_SYNC(inode));
-	old_i_size = inode->i_size;
-	inode->i_size = 0;
-	if (inode->i_blocks && ufs_truncate(inode, old_i_size))
-		ufs_warning(inode->i_sb, __func__, "ufs_truncate failed\n");
-	ufs_free_inode (inode);
-	unlock_kernel();
-	return;
-no_delete:
-	clear_inode(inode);	/* We must guarantee clearing of inode... */
+	if (want_delete) {
+		loff_t old_i_size;
+		/*UFS_I(inode)->i_dtime = CURRENT_TIME;*/
+		lock_kernel();
+		mark_inode_dirty(inode);
+		ufs_update_inode(inode, IS_SYNC(inode));
+		old_i_size = inode->i_size;
+		inode->i_size = 0;
+		if (inode->i_blocks && ufs_truncate(inode, old_i_size))
+			ufs_warning(inode->i_sb, __func__, "ufs_truncate failed\n");
+		unlock_kernel();
+	}
+
+	invalidate_inode_buffers(inode);
+	end_writeback(inode);
+
+	if (want_delete) {
+		lock_kernel();
+		ufs_free_inode (inode);
+		unlock_kernel();
+	}
 }
