@@ -67,8 +67,8 @@
 #include "tg3.h"
 
 #define DRV_MODULE_NAME		"tg3"
-#define DRV_MODULE_VERSION	"3.110"
-#define DRV_MODULE_RELDATE	"April 9, 2010"
+#define DRV_MODULE_VERSION	"3.111"
+#define DRV_MODULE_RELDATE	"June 5, 2010"
 
 #define TG3_DEF_MAC_MODE	0
 #define TG3_DEF_RX_MODE		0
