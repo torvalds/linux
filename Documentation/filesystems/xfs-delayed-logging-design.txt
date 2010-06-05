@@ -794,11 +794,6 @@ designed.
 
 Roadmap:
 
-2.6.35 Inclusion in mainline as an experimental mount option
-	=> approximately 2-3 months to merge window
-	=> needs to be in xfs-dev tree in 4-6 weeks
-	=> code is nearing readiness for review
-
 2.6.37 Remove experimental tag from mount option
 	=> should be roughly 6 months after initial merge
 	=> enough time to:

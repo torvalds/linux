@@ -164,10 +164,6 @@ xfs_inode_ag_iterator(
 		struct xfs_perag	*pag;
 
 		pag = xfs_perag_get(mp, ag);
-		if (!pag->pag_ici_init) {
-			xfs_perag_put(pag);
-			continue;
-		}
 		error = xfs_inode_ag_walk(mp, pag, execute, flags, tag,
 						exclusive, &nr);
 		xfs_perag_put(pag);
@@ -867,12 +863,7 @@ xfs_reclaim_inode_shrink(
 	down_read(&xfs_mount_list_lock);
 	list_for_each_entry(mp, &xfs_mount_list, m_mplist) {
 		for (ag = 0; ag < mp->m_sb.sb_agcount; ag++) {
-
 			pag = xfs_perag_get(mp, ag);
-			if (!pag->pag_ici_init) {
-				xfs_perag_put(pag);
-				continue;
-			}
 			reclaimable += pag->pag_ici_reclaimable;
 			xfs_perag_put(pag);
 		}
