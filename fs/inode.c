@@ -313,10 +313,6 @@ void clear_inode(struct inode *inode)
 	inode_sync_wait(inode);
 	if (inode->i_sb->s_op->clear_inode)
 		inode->i_sb->s_op->clear_inode(inode);
-	if (S_ISBLK(inode->i_mode) && inode->i_bdev)
-		bd_forget(inode);
-	if (S_ISCHR(inode->i_mode) && inode->i_cdev)
-		cd_forget(inode);
 	inode->i_state = I_FREEING | I_CLEAR;
 }
 EXPORT_SYMBOL(clear_inode);
@@ -334,6 +330,10 @@ static void evict(struct inode *inode, int delete)
 			truncate_inode_pages(&inode->i_data, 0);
 		clear_inode(inode);
 	}
+	if (S_ISBLK(inode->i_mode) && inode->i_bdev)
+		bd_forget(inode);
+	if (S_ISCHR(inode->i_mode) && inode->i_cdev)
+		cd_forget(inode);
 }
 
 /*
