@@ -361,7 +361,7 @@ err:
 
 /*-------------------------------------------------------------------------*/
 
-static int spi_adis16255_probe(struct spi_device *spi)
+static int __devinit spi_adis16255_probe(struct spi_device *spi)
 {
 
 	struct adis16255_init_data *init_data = spi->dev.platform_data;
@@ -421,7 +421,7 @@ err:
 	return status;
 }
 
-static int spi_adis16255_remove(struct spi_device *spi)
+static int __devexit spi_adis16255_remove(struct spi_device *spi)
 {
 	struct spi_adis16255_data  *spiadis    = dev_get_drvdata(&spi->dev);
 

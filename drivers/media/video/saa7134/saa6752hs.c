@@ -846,23 +846,27 @@ static int saa6752hs_g_ext_ctrls(struct v4l2_subdev *sd, struct v4l2_ext_control
 	return 0;
 }
 
-static int saa6752hs_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int saa6752hs_g_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *f)
 {
 	struct saa6752hs_state *h = to_state(sd);
 
 	if (h->video_format == SAA6752HS_VF_UNKNOWN)
 		h->video_format = SAA6752HS_VF_D1;
-	f->fmt.pix.width =
-		v4l2_format_table[h->video_format].fmt.pix.width;
-	f->fmt.pix.height =
-		v4l2_format_table[h->video_format].fmt.pix.height;
+	f->width = v4l2_format_table[h->video_format].fmt.pix.width;
+	f->height = v4l2_format_table[h->video_format].fmt.pix.height;
+	f->code = V4L2_MBUS_FMT_FIXED;
+	f->field = V4L2_FIELD_INTERLACED;
+	f->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	return 0;
 }
 
-static int saa6752hs_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
+static int saa6752hs_s_mbus_fmt(struct v4l2_subdev *sd, struct v4l2_mbus_framefmt *f)
 {
 	struct saa6752hs_state *h = to_state(sd);
 	int dist_352, dist_480, dist_720;
+
+	if (f->code != V4L2_MBUS_FMT_FIXED)
+		return -EINVAL;
 
 	/*
 	  FIXME: translate and round width/height into EMPRESS
@@ -876,28 +880,30 @@ static int saa6752hs_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *f)
 	  D1     | 720x576 | 720x480
 	*/
 
-	dist_352 = abs(f->fmt.pix.width - 352);
-	dist_480 = abs(f->fmt.pix.width - 480);
-	dist_720 = abs(f->fmt.pix.width - 720);
+	dist_352 = abs(f->width - 352);
+	dist_480 = abs(f->width - 480);
+	dist_720 = abs(f->width - 720);
 	if (dist_720 < dist_480) {
-		f->fmt.pix.width = 720;
-		f->fmt.pix.height = 576;
+		f->width = 720;
+		f->height = 576;
 		h->video_format = SAA6752HS_VF_D1;
 	} else if (dist_480 < dist_352) {
-		f->fmt.pix.width = 480;
-		f->fmt.pix.height = 576;
+		f->width = 480;
+		f->height = 576;
 		h->video_format = SAA6752HS_VF_2_3_D1;
 	} else {
-		f->fmt.pix.width = 352;
-		if (abs(f->fmt.pix.height - 576) <
-		    abs(f->fmt.pix.height - 288)) {
-			f->fmt.pix.height = 576;
+		f->width = 352;
+		if (abs(f->height - 576) <
+		    abs(f->height - 288)) {
+			f->height = 576;
 			h->video_format = SAA6752HS_VF_1_2_D1;
 		} else {
-			f->fmt.pix.height = 288;
+			f->height = 288;
 			h->video_format = SAA6752HS_VF_SIF;
 		}
 	}
+	f->field = V4L2_FIELD_INTERLACED;
+	f->colorspace = V4L2_COLORSPACE_SMPTE170M;
 	return 0;
 }
 
@@ -932,8 +938,8 @@ static const struct v4l2_subdev_core_ops saa6752hs_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops saa6752hs_video_ops = {
-	.s_fmt = saa6752hs_s_fmt,
-	.g_fmt = saa6752hs_g_fmt,
+	.s_mbus_fmt = saa6752hs_s_mbus_fmt,
+	.g_mbus_fmt = saa6752hs_g_mbus_fmt,
 };
 
 static const struct v4l2_subdev_ops saa6752hs_ops = {

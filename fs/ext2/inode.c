@@ -1552,7 +1552,7 @@ int ext2_setattr(struct dentry *dentry, struct iattr *iattr)
 		if (error)
 			return error;
 	}
-	if (iattr->ia_valid & ATTR_SIZE) {
+	if (iattr->ia_valid & ATTR_SIZE && iattr->ia_size != inode->i_size) {
 		error = ext2_setsize(inode, iattr->ia_size);
 		if (error)
 			return error;

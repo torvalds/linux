@@ -798,7 +798,7 @@ static struct v4l2_subdev_core_ops mt9t031_subdev_core_ops = {
 #endif
 };
 
-static int mt9t031_enum_fmt(struct v4l2_subdev *sd, int index,
+static int mt9t031_enum_fmt(struct v4l2_subdev *sd, unsigned int index,
 			    enum v4l2_mbus_pixelcode *code)
 {
 	if (index)

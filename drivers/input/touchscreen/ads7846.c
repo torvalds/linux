@@ -1164,7 +1164,7 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	ts->reg = regulator_get(&spi->dev, "vcc");
 	if (IS_ERR(ts->reg)) {
 		err = PTR_ERR(ts->reg);
-		dev_err(&spi->dev, "unable to get regulator: %ld\n", err);
+		dev_err(&spi->dev, "unable to get regulator: %d\n", err);
 		goto err_free_gpio;
 	}
 

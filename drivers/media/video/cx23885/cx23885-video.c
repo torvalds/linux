@@ -976,6 +976,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 {
 	struct cx23885_fh *fh = priv;
 	struct cx23885_dev *dev  = ((struct cx23885_fh *)priv)->dev;
+	struct v4l2_mbus_framefmt mbus_fmt;
 	int err;
 
 	dprintk(2, "%s()\n", __func__);
@@ -989,7 +990,9 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	fh->vidq.field = f->fmt.pix.field;
 	dprintk(2, "%s() width=%d height=%d field=%d\n", __func__,
 		fh->width, fh->height, fh->vidq.field);
-	call_all(dev, video, s_fmt, f);
+	v4l2_fill_mbus_format(&mbus_fmt, &f->fmt.pix, V4L2_MBUS_FMT_FIXED);
+	call_all(dev, video, s_mbus_fmt, &mbus_fmt);
+	v4l2_fill_pix_format(&f->fmt.pix, &mbus_fmt);
 	return 0;
 }
 

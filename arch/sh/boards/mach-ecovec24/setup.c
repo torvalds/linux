@@ -12,6 +12,8 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/mfd/sh_mobile_sdhi.h>
+#include <linux/mmc/host.h>
+#include <linux/mmc/sh_mmcif.h>
 #include <linux/mtd/physmap.h>
 #include <linux/gpio.h>
 #include <linux/interrupt.h>
@@ -26,7 +28,6 @@
 #include <linux/mmc/host.h>
 #include <linux/input.h>
 #include <linux/input/sh_keysc.h>
-#include <linux/mfd/sh_mobile_sdhi.h>
 #include <video/sh_mobile_lcdc.h>
 #include <sound/sh_fsi.h>
 #include <media/sh_mobile_ceu.h>
@@ -139,7 +140,7 @@ static struct resource sh_eth_resources[] = {
 	},
 };
 
-struct sh_eth_plat_data sh_eth_plat = {
+static struct sh_eth_plat_data sh_eth_plat = {
 	.phy = 0x1f, /* SMSC LAN8700 */
 	.edmac_endian = EDMAC_LITTLE_ENDIAN,
 	.ether_link_active_low = 1
@@ -159,7 +160,7 @@ static struct platform_device sh_eth_device = {
 };
 
 /* USB0 host */
-void usb0_port_power(int port, int power)
+static void usb0_port_power(int port, int power)
 {
 	gpio_set_value(GPIO_PTB4, power);
 }
@@ -195,7 +196,7 @@ static struct platform_device usb0_host_device = {
 };
 
 /* USB1 host/function */
-void usb1_port_power(int port, int power)
+static void usb1_port_power(int port, int power)
 {
 	gpio_set_value(GPIO_PTB5, power);
 }
@@ -421,7 +422,7 @@ static int ts_init(void)
 	return 0;
 }
 
-struct tsc2007_platform_data tsc2007_info = {
+static struct tsc2007_platform_data tsc2007_info = {
 	.model			= 2007,
 	.x_plate_ohms		= 180,
 	.get_pendown_state	= ts_get_pendown_state,
@@ -436,7 +437,7 @@ static struct i2c_board_info ts_i2c_clients = {
 };
 
 #ifdef CONFIG_MFD_SH_MOBILE_SDHI
-/* SHDI0 */
+/* SDHI0 */
 static void sdhi0_set_pwr(struct platform_device *pdev, int state)
 {
 	gpio_set_value(GPIO_PTB6, state);
@@ -474,7 +475,8 @@ static struct platform_device sdhi0_device = {
 	},
 };
 
-/* SHDI1 */
+#if !defined(CONFIG_MMC_SH_MMCIF)
+/* SDHI1 */
 static void sdhi1_set_pwr(struct platform_device *pdev, int state)
 {
 	gpio_set_value(GPIO_PTB7, state);
@@ -511,6 +513,7 @@ static struct platform_device sdhi1_device = {
 		.hwblk_id = HWBLK_SDHI1,
 	},
 };
+#endif /* CONFIG_MMC_SH_MMCIF */
 
 #else
 
@@ -720,7 +723,7 @@ static struct clk fsimckb_clk = {
 	.rate		= 0, /* unknown */
 };
 
-struct sh_fsi_platform_info fsi_info = {
+static struct sh_fsi_platform_info fsi_info = {
 	.portb_flags = SH_FSI_BRS_INV |
 		       SH_FSI_OUT_SLAVE_MODE |
 		       SH_FSI_IN_SLAVE_MODE |
@@ -777,7 +780,7 @@ static struct platform_device irda_device = {
 #include <media/ak881x.h>
 #include <media/sh_vou.h>
 
-struct ak881x_pdata ak881x_pdata = {
+static struct ak881x_pdata ak881x_pdata = {
 	.flags = AK881X_IF_MODE_SLAVE,
 };
 
@@ -786,7 +789,7 @@ static struct i2c_board_info ak8813 = {
 	.platform_data = &ak881x_pdata,
 };
 
-struct sh_vou_pdata sh_vou_pdata = {
+static struct sh_vou_pdata sh_vou_pdata = {
 	.bus_fmt	= SH_VOU_BUS_8BIT,
 	.flags		= SH_VOU_HSYNC_LOW | SH_VOU_VSYNC_LOW,
 	.board_info	= &ak8813,
@@ -819,6 +822,58 @@ static struct platform_device vou_device = {
 	},
 };
 
+#if defined(CONFIG_MMC_SH_MMCIF)
+/* SH_MMCIF */
+static void mmcif_set_pwr(struct platform_device *pdev, int state)
+{
+	gpio_set_value(GPIO_PTB7, state);
+}
+
+static void mmcif_down_pwr(struct platform_device *pdev)
+{
+	gpio_set_value(GPIO_PTB7, 0);
+}
+
+static struct resource sh_mmcif_resources[] = {
+	[0] = {
+		.name	= "SH_MMCIF",
+		.start	= 0xA4CA0000,
+		.end	= 0xA4CA00FF,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		/* MMC2I */
+		.start	= 29,
+		.flags	= IORESOURCE_IRQ,
+	},
+	[2] = {
+		/* MMC3I */
+		.start	= 30,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct sh_mmcif_plat_data sh_mmcif_plat = {
+	.set_pwr	= mmcif_set_pwr,
+	.down_pwr	= mmcif_down_pwr,
+	.sup_pclk	= 0, /* SH7724: Max Pclk/2 */
+	.caps		= MMC_CAP_4_BIT_DATA |
+			  MMC_CAP_8_BIT_DATA |
+			  MMC_CAP_NEEDS_POLL,
+	.ocr		= MMC_VDD_32_33 | MMC_VDD_33_34,
+};
+
+static struct platform_device sh_mmcif_device = {
+	.name		= "sh_mmcif",
+	.id		= 0,
+	.dev		= {
+		.platform_data		= &sh_mmcif_plat,
+	},
+	.num_resources	= ARRAY_SIZE(sh_mmcif_resources),
+	.resource	= sh_mmcif_resources,
+};
+#endif
+
 static struct platform_device *ecovec_devices[] __initdata = {
 	&heartbeat_device,
 	&nor_flash_device,
@@ -831,7 +886,9 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&keysc_device,
 #ifdef CONFIG_MFD_SH_MOBILE_SDHI
 	&sdhi0_device,
+#if !defined(CONFIG_MMC_SH_MMCIF)
 	&sdhi1_device,
+#endif
 #else
 	&msiof0_device,
 #endif
@@ -841,6 +898,9 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&fsi_device,
 	&irda_device,
 	&vou_device,
+#if defined(CONFIG_MMC_SH_MMCIF)
+	&sh_mmcif_device,
+#endif
 };
 
 #ifdef CONFIG_I2C
@@ -1134,6 +1194,7 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_PTB6, NULL);
 	gpio_direction_output(GPIO_PTB6, 0);
 
+#if !defined(CONFIG_MMC_SH_MMCIF)
 	/* enable SDHI1 on CN12 (needs DS2.6,7 set to ON,OFF) */
 	gpio_request(GPIO_FN_SDHI1CD,  NULL);
 	gpio_request(GPIO_FN_SDHI1WP,  NULL);
@@ -1148,6 +1209,7 @@ static int __init arch_setup(void)
 
 	/* I/O buffer drive ability is high for SDHI1 */
 	__raw_writew((__raw_readw(IODRIVEA) & ~0x3000) | 0x2000 , IODRIVEA);
+#endif /* CONFIG_MMC_SH_MMCIF */
 #else
 	/* enable MSIOF0 on CN11 (needs DS2.4 set to OFF) */
 	gpio_request(GPIO_FN_MSIOF0_TXD, NULL);
@@ -1222,6 +1284,25 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_IRDA_IN,  NULL);
 	gpio_request(GPIO_PTU5, NULL);
 	gpio_direction_output(GPIO_PTU5, 0);
+
+#if defined(CONFIG_MMC_SH_MMCIF)
+	/* enable MMCIF (needs DS2.6,7 set to OFF,ON) */
+	gpio_request(GPIO_FN_MMC_D7, NULL);
+	gpio_request(GPIO_FN_MMC_D6, NULL);
+	gpio_request(GPIO_FN_MMC_D5, NULL);
+	gpio_request(GPIO_FN_MMC_D4, NULL);
+	gpio_request(GPIO_FN_MMC_D3, NULL);
+	gpio_request(GPIO_FN_MMC_D2, NULL);
+	gpio_request(GPIO_FN_MMC_D1, NULL);
+	gpio_request(GPIO_FN_MMC_D0, NULL);
+	gpio_request(GPIO_FN_MMC_CLK, NULL);
+	gpio_request(GPIO_FN_MMC_CMD, NULL);
+	gpio_request(GPIO_PTB7, NULL);
+	gpio_direction_output(GPIO_PTB7, 0);
+
+	/* I/O buffer drive ability is high for MMCIF */
+	__raw_writew((__raw_readw(IODRIVEA) & ~0x3000) | 0x2000 , IODRIVEA);
+#endif
 
 	/* enable I2C device */
 	i2c_register_board_info(0, i2c0_devices,
