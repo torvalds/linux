@@ -364,7 +364,7 @@ void SROMvWriteEtherAddress(DWORD_PTR dwIoBase, unsigned char *pbyEtherAddress)
  * Return Value: none
  *
  */
-void SROMvReadSubSysVenId(DWORD_PTR dwIoBase, PDWORD pdwSubSysVenId)
+void SROMvReadSubSysVenId(DWORD_PTR dwIoBase, unsigned long *pdwSubSysVenId)
 {
     unsigned char *pbyData;
 

@@ -732,7 +732,7 @@ vConfigWEPKey (
     pDevice->auWepKeyLength[dwKeyIndex] = uKeyLength;
 
     MACvSetDefaultKeyEntry(pDevice->PortOffset, uKeyLength, dwKeyIndex,
-                           (PDWORD) &(pDevice->abyWepKey[dwKeyIndex][0]), pDevice->byLocalID);
+                           (unsigned long *) &(pDevice->abyWepKey[dwKeyIndex][0]), pDevice->byLocalID);
 
     if (pDevice->eEncryptionStatus < Ndis802_11EncryptionNotSupported) {
         for(ii=0; ii<MAX_GROUP_KEY; ii++) {

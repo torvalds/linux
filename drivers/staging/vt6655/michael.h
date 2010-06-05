@@ -44,7 +44,7 @@ void MIC_vAppend(unsigned char *src, unsigned int nBytes);
 
 // Get the MIC result. Destination should accept 8 bytes of result.
 // This also resets the message to empty.
-void MIC_vGetMIC(PDWORD pdwL, PDWORD pdwR);
+void MIC_vGetMIC(unsigned long *pdwL, unsigned long *pdwR);
 
 /*---------------------  Export Macros ------------------------------*/
 

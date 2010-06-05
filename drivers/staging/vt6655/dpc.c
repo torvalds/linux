@@ -125,7 +125,7 @@ static BOOL s_bHandleRxEncryption(
     PSKeyItem   *pKeyOut,
     int *       pbExtIV,
     unsigned short *pwRxTSC15_0,
-    PDWORD      pdwRxTSC47_16
+    unsigned long *pdwRxTSC47_16
     );
 
 static BOOL s_bHostWepRxEncryption(
@@ -139,7 +139,7 @@ static BOOL s_bHostWepRxEncryption(
     unsigned char *pbyNewRsr,
     int *       pbExtIV,
     unsigned short *pwRxTSC15_0,
-    PDWORD      pdwRxTSC47_16
+    unsigned long *pdwRxTSC47_16
 
     );
 
@@ -800,8 +800,8 @@ device_receive_frame (
     // Soft MIC
     if ((pKey != NULL) && (pKey->byCipherSuite == KEY_CTL_TKIP)) {
         if (bIsWEP) {
-            PDWORD          pdwMIC_L;
-            PDWORD          pdwMIC_R;
+            unsigned long *pdwMIC_L;
+            unsigned long *pdwMIC_R;
             DWORD           dwMIC_Priority;
             DWORD           dwMICKey0 = 0, dwMICKey1 = 0;
             DWORD           dwLocalMIC_L = 0;
@@ -810,19 +810,19 @@ device_receive_frame (
 
 
             if (pMgmt->eCurrMode == WMAC_MODE_ESS_AP) {
-                dwMICKey0 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[24]));
-                dwMICKey1 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[28]));
+                dwMICKey0 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[24]));
+                dwMICKey1 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[28]));
             }
             else {
                 if (pDevice->pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
-                    dwMICKey0 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[16]));
-                    dwMICKey1 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[20]));
+                    dwMICKey0 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[16]));
+                    dwMICKey1 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[20]));
                 } else if ((pKey->dwKeyIndex & BIT28) == 0) {
-                    dwMICKey0 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[16]));
-                    dwMICKey1 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[20]));
+                    dwMICKey0 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[16]));
+                    dwMICKey1 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[20]));
                 } else {
-                    dwMICKey0 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[24]));
-                    dwMICKey1 = cpu_to_le32(*(PDWORD)(&pKey->abyKey[28]));
+                    dwMICKey0 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[24]));
+                    dwMICKey1 = cpu_to_le32(*(unsigned long *)(&pKey->abyKey[28]));
                 }
             }
 
@@ -836,8 +836,8 @@ device_receive_frame (
             MIC_vGetMIC(&dwLocalMIC_L, &dwLocalMIC_R);
             MIC_vUnInit();
 
-            pdwMIC_L = (PDWORD)(skb->data + 4 + FrameSize);
-            pdwMIC_R = (PDWORD)(skb->data + 4 + FrameSize + 4);
+            pdwMIC_L = (unsigned long *)(skb->data + 4 + FrameSize);
+            pdwMIC_R = (unsigned long *)(skb->data + 4 + FrameSize + 4);
             //DBG_PRN_GRP12(("RxL: %lx, RxR: %lx\n", *pdwMIC_L, *pdwMIC_R));
             //DBG_PRN_GRP12(("LocalL: %lx, LocalR: %lx\n", dwLocalMIC_L, dwLocalMIC_R));
             //DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"dwMICKey0= %lx,dwMICKey1= %lx \n", dwMICKey0, dwMICKey1);
@@ -1171,7 +1171,7 @@ static BOOL s_bHandleRxEncryption (
     PSKeyItem   *pKeyOut,
     int *       pbExtIV,
     unsigned short *pwRxTSC15_0,
-    PDWORD      pdwRxTSC47_16
+    unsigned long *pdwRxTSC47_16
     )
 {
     unsigned int PayloadLen = FrameSize;
@@ -1275,7 +1275,7 @@ static BOOL s_bHandleRxEncryption (
         // TKIP/AES
 
         PayloadLen -= (WLAN_HDR_ADDR3_LEN + 8 + 4); // 24 is 802.11 header, 8 is IV&ExtIV, 4 is crc
-        *pdwRxTSC47_16 = cpu_to_le32(*(PDWORD)(pbyIV + 4));
+        *pdwRxTSC47_16 = cpu_to_le32(*(unsigned long *)(pbyIV + 4));
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ExtIV: %lx\n",*pdwRxTSC47_16);
         if (byDecMode == KEY_CTL_TKIP) {
             *pwRxTSC15_0 = cpu_to_le16(MAKEWORD(*(pbyIV+2), *pbyIV));
@@ -1318,7 +1318,7 @@ static BOOL s_bHostWepRxEncryption (
     unsigned char *pbyNewRsr,
     int *       pbExtIV,
     unsigned short *pwRxTSC15_0,
-    PDWORD      pdwRxTSC47_16
+    unsigned long *pdwRxTSC47_16
     )
 {
     unsigned int PayloadLen = FrameSize;
@@ -1385,7 +1385,7 @@ static BOOL s_bHostWepRxEncryption (
         // TKIP/AES
 
         PayloadLen -= (WLAN_HDR_ADDR3_LEN + 8 + 4); // 24 is 802.11 header, 8 is IV&ExtIV, 4 is crc
-        *pdwRxTSC47_16 = cpu_to_le32(*(PDWORD)(pbyIV + 4));
+        *pdwRxTSC47_16 = cpu_to_le32(*(unsigned long *)(pbyIV + 4));
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"ExtIV: %lx\n",*pdwRxTSC47_16);
 
         if (byDecMode == KEY_CTL_TKIP) {

@@ -252,7 +252,7 @@ BOOL KeybSetKey (
                 if (uKeyLength == WLAN_WEP104_KEYLEN)
                     pKey->abyKey[15] |= 0x80;
             }
-            MACvSetKeyEntry(dwIoBase, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pbyBSSID, (PDWORD)pKey->abyKey, byLocalID);
+            MACvSetKeyEntry(dwIoBase, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pbyBSSID, (unsigned long *)pKey->abyKey, byLocalID);
 
             if ((dwKeyIndex & USE_KEYRSC) == 0) {
                 // RSC set by NIC
@@ -317,7 +317,7 @@ BOOL KeybSetKey (
             if (uKeyLength == WLAN_WEP104_KEYLEN)
                 pKey->abyKey[15] |= 0x80;
         }
-        MACvSetKeyEntry(dwIoBase, pTable->KeyTable[j].wKeyCtl, j, uKeyIdx, pbyBSSID, (PDWORD)pKey->abyKey, byLocalID);
+        MACvSetKeyEntry(dwIoBase, pTable->KeyTable[j].wKeyCtl, j, uKeyIdx, pbyBSSID, (unsigned long *)pKey->abyKey, byLocalID);
 
         if ((dwKeyIndex & USE_KEYRSC) == 0) {
             // RSC set by NIC
@@ -693,7 +693,7 @@ BOOL KeybSetDefaultKey (
         if (uKeyLength == WLAN_WEP104_KEYLEN)
             pKey->abyKey[15] |= 0x80;
     }
-    MACvSetKeyEntry(dwIoBase, pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl, MAX_KEY_TABLE-1, uKeyIdx, pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID, (PDWORD)pKey->abyKey, byLocalID);
+    MACvSetKeyEntry(dwIoBase, pTable->KeyTable[MAX_KEY_TABLE-1].wKeyCtl, MAX_KEY_TABLE-1, uKeyIdx, pTable->KeyTable[MAX_KEY_TABLE-1].abyBSSID, (unsigned long *)pKey->abyKey, byLocalID);
 
     if ((dwKeyIndex & USE_KEYRSC) == 0) {
         // RSC set by NIC
@@ -792,7 +792,7 @@ BOOL KeybSetAllGroupKey (
                 if (uKeyLength == WLAN_WEP104_KEYLEN)
                     pKey->abyKey[15] |= 0x80;
             }
-            MACvSetKeyEntry(dwIoBase, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pTable->KeyTable[i].abyBSSID, (PDWORD)pKey->abyKey, byLocalID);
+            MACvSetKeyEntry(dwIoBase, pTable->KeyTable[i].wKeyCtl, i, uKeyIdx, pTable->KeyTable[i].abyBSSID, (unsigned long *)pKey->abyKey, byLocalID);
 
             if ((dwKeyIndex & USE_KEYRSC) == 0) {
                 // RSC set by NIC

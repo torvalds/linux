@@ -159,7 +159,7 @@ void MIC_vAppend (unsigned char *src, unsigned int nBytes)
     }
 }
 
-void MIC_vGetMIC (PDWORD pdwL, PDWORD pdwR)
+void MIC_vGetMIC (unsigned long *pdwL, unsigned long *pdwR)
 {
     // Append the minimum padding
     s_vAppendByte(0x5a);

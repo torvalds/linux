@@ -703,14 +703,14 @@ void MACvRestoreContext (DWORD_PTR dwIoBase, unsigned char *pbyCxtBuf)
     }
 
     // restore CURR_RX_DESC_ADDR, CURR_TX_DESC_ADDR
-    VNSvOutPortD(dwIoBase + MAC_REG_TXDMAPTR0, *(PDWORD)(pbyCxtBuf + MAC_REG_TXDMAPTR0));
-    VNSvOutPortD(dwIoBase + MAC_REG_AC0DMAPTR, *(PDWORD)(pbyCxtBuf + MAC_REG_AC0DMAPTR));
-    VNSvOutPortD(dwIoBase + MAC_REG_BCNDMAPTR, *(PDWORD)(pbyCxtBuf + MAC_REG_BCNDMAPTR));
+    VNSvOutPortD(dwIoBase + MAC_REG_TXDMAPTR0, *(unsigned long *)(pbyCxtBuf + MAC_REG_TXDMAPTR0));
+    VNSvOutPortD(dwIoBase + MAC_REG_AC0DMAPTR, *(unsigned long *)(pbyCxtBuf + MAC_REG_AC0DMAPTR));
+    VNSvOutPortD(dwIoBase + MAC_REG_BCNDMAPTR, *(unsigned long *)(pbyCxtBuf + MAC_REG_BCNDMAPTR));
 
 
-    VNSvOutPortD(dwIoBase + MAC_REG_RXDMAPTR0, *(PDWORD)(pbyCxtBuf + MAC_REG_RXDMAPTR0));
+    VNSvOutPortD(dwIoBase + MAC_REG_RXDMAPTR0, *(unsigned long *)(pbyCxtBuf + MAC_REG_RXDMAPTR0));
 
-    VNSvOutPortD(dwIoBase + MAC_REG_RXDMAPTR1, *(PDWORD)(pbyCxtBuf + MAC_REG_RXDMAPTR1));
+    VNSvOutPortD(dwIoBase + MAC_REG_RXDMAPTR1, *(unsigned long *)(pbyCxtBuf + MAC_REG_RXDMAPTR1));
 
 }
 
@@ -737,22 +737,22 @@ BOOL MACbCompareContext (DWORD_PTR dwIoBase, unsigned char *pbyCxtBuf)
 
     // compare CURR_RX_DESC_ADDR, CURR_TX_DESC_ADDR
     VNSvInPortD(dwIoBase + MAC_REG_TXDMAPTR0, &dwData);
-    if (dwData != *(PDWORD)(pbyCxtBuf + MAC_REG_TXDMAPTR0)) {
+    if (dwData != *(unsigned long *)(pbyCxtBuf + MAC_REG_TXDMAPTR0)) {
         return FALSE;
     }
 
     VNSvInPortD(dwIoBase + MAC_REG_AC0DMAPTR, &dwData);
-    if (dwData != *(PDWORD)(pbyCxtBuf + MAC_REG_AC0DMAPTR)) {
+    if (dwData != *(unsigned long *)(pbyCxtBuf + MAC_REG_AC0DMAPTR)) {
         return FALSE;
     }
 
     VNSvInPortD(dwIoBase + MAC_REG_RXDMAPTR0, &dwData);
-    if (dwData != *(PDWORD)(pbyCxtBuf + MAC_REG_RXDMAPTR0)) {
+    if (dwData != *(unsigned long *)(pbyCxtBuf + MAC_REG_RXDMAPTR0)) {
         return FALSE;
     }
 
     VNSvInPortD(dwIoBase + MAC_REG_RXDMAPTR1, &dwData);
-    if (dwData != *(PDWORD)(pbyCxtBuf + MAC_REG_RXDMAPTR1)) {
+    if (dwData != *(unsigned long *)(pbyCxtBuf + MAC_REG_RXDMAPTR1)) {
         return FALSE;
     }
 
@@ -1456,7 +1456,7 @@ BOOL MACbPSWakeup (DWORD_PTR dwIoBase)
  */
 
 void MACvSetKeyEntry (DWORD_PTR dwIoBase, WORD wKeyCtl, unsigned int uEntryIdx,
-		unsigned int uKeyIdx, unsigned char *pbyAddr, PDWORD pdwKey, BYTE byLocalID)
+		unsigned int uKeyIdx, unsigned char *pbyAddr, unsigned long *pdwKey, BYTE byLocalID)
 {
 WORD    wOffset;
 DWORD   dwData;
@@ -1551,7 +1551,7 @@ WORD    wOffset;
  */
 
 void MACvSetDefaultKeyEntry (DWORD_PTR dwIoBase, unsigned int uKeyLen,
-		unsigned int uKeyIdx, PDWORD pdwKey, BYTE byLocalID)
+		unsigned int uKeyIdx, unsigned long *pdwKey, BYTE byLocalID)
 {
 WORD    wOffset;
 DWORD   dwData;
@@ -1667,7 +1667,7 @@ DWORD   dwData;
  *
  */
 void MACvSetDefaultTKIPKeyEntry (DWORD_PTR dwIoBase, unsigned int uKeyLen,
-		unsigned int uKeyIdx, PDWORD pdwKey, BYTE byLocalID)
+		unsigned int uKeyIdx, unsigned long *pdwKey, BYTE byLocalID)
 {
 WORD    wOffset;
 DWORD   dwData;

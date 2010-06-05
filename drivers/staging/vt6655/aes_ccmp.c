@@ -112,9 +112,9 @@ BYTE dot3_table[256] = {
 
 void xor_128(BYTE *a, BYTE *b, BYTE *out)
 {
-PDWORD dwPtrA = (PDWORD) a;
-PDWORD dwPtrB = (PDWORD) b;
-PDWORD dwPtrOut =(PDWORD) out;
+unsigned long *dwPtrA = (unsigned long *) a;
+unsigned long *dwPtrB = (unsigned long *) b;
+unsigned long *dwPtrOut =(unsigned long *) out;
 
     (*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
     (*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
@@ -125,9 +125,9 @@ PDWORD dwPtrOut =(PDWORD) out;
 
 void xor_32(BYTE *a, BYTE *b, BYTE *out)
 {
-PDWORD dwPtrA = (PDWORD) a;
-PDWORD dwPtrB = (PDWORD) b;
-PDWORD dwPtrOut =(PDWORD) out;
+unsigned long *dwPtrA = (unsigned long *) a;
+unsigned long *dwPtrB = (unsigned long *) b;
+unsigned long *dwPtrOut =(unsigned long *) out;
 
     (*dwPtrOut++) = (*dwPtrA++) ^ (*dwPtrB++);
 }

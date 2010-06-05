@@ -101,7 +101,7 @@ BOOL ETHbIsBufferCrc32Ok (unsigned char *pbyBuffer, unsigned int cbFrameLength)
     DWORD dwCRC;
 
     dwCRC = CRCdwGetCrc32(pbyBuffer, cbFrameLength - 4);
-    if (cpu_to_le32(*((PDWORD)(pbyBuffer + cbFrameLength - 4))) != dwCRC) {
+    if (cpu_to_le32(*((unsigned long *)(pbyBuffer + cbFrameLength - 4))) != dwCRC) {
         return FALSE;
     }
     return TRUE;

@@ -714,37 +714,37 @@
 #define MACvGetCurrRx0DescAddr(dwIoBase, pdwCurrDescAddr)    \
 {                                                           \
     VNSvInPortD(dwIoBase + MAC_REG_RXDMAPTR0,               \
-                (PDWORD)pdwCurrDescAddr);                   \
+                (unsigned long *)pdwCurrDescAddr);          \
 }
 
 #define MACvGetCurrRx1DescAddr(dwIoBase, pdwCurrDescAddr)   \
 {                                                           \
     VNSvInPortD(dwIoBase + MAC_REG_RXDMAPTR1,               \
-                (PDWORD)pdwCurrDescAddr);                   \
+                (unsigned long *)pdwCurrDescAddr);          \
 }
 
 #define MACvGetCurrTx0DescAddr(dwIoBase, pdwCurrDescAddr)   \
 {                                                           \
     VNSvInPortD(dwIoBase + MAC_REG_TXDMAPTR0,               \
-                (PDWORD)pdwCurrDescAddr);                   \
+                (unsigned long *)pdwCurrDescAddr);          \
 }
 
 #define MACvGetCurrAC0DescAddr(dwIoBase, pdwCurrDescAddr)   \
 {                                                           \
     VNSvInPortD(dwIoBase + MAC_REG_AC0DMAPTR,               \
-                (PDWORD)pdwCurrDescAddr);                   \
+                (unsigned long *)pdwCurrDescAddr);          \
 }
 
 #define MACvGetCurrSyncDescAddr(dwIoBase, pdwCurrDescAddr)  \
 {                                                           \
     VNSvInPortD(dwIoBase + MAC_REG_SYNCDMAPTR,              \
-                (PDWORD)pdwCurrDescAddr);                   \
+                (unsigned long *)pdwCurrDescAddr);          \
 }
 
 #define MACvGetCurrATIMDescAddr(dwIoBase, pdwCurrDescAddr)  \
 {                                                           \
     VNSvInPortD(dwIoBase + MAC_REG_ATIMDMAPTR,              \
-                (PDWORD)pdwCurrDescAddr);                   \
+                (unsigned long *)pdwCurrDescAddr);          \
 }                                                           \
 
 // set the chip with current BCN tx descriptor address
@@ -1140,14 +1140,14 @@ BOOL MACbFlushSYNCFifo(DWORD_PTR dwIoBase);
 BOOL MACbPSWakeup(DWORD_PTR dwIoBase);
 
 void MACvSetKeyEntry(DWORD_PTR dwIoBase, WORD wKeyCtl, unsigned int uEntryIdx,
-		unsigned int uKeyIdx, unsigned char *pbyAddr, PDWORD pdwKey, BYTE byLocalID);
+		unsigned int uKeyIdx, unsigned char *pbyAddr, unsigned long *pdwKey, BYTE byLocalID);
 void MACvDisableKeyEntry(DWORD_PTR dwIoBase, unsigned int uEntryIdx);
 void MACvSetDefaultKeyEntry(DWORD_PTR dwIoBase, unsigned int uKeyLen,
-		unsigned int uKeyIdx, PDWORD pdwKey, BYTE byLocalID);
+		unsigned int uKeyIdx, unsigned long *pdwKey, BYTE byLocalID);
 //void MACvEnableDefaultKey(DWORD_PTR dwIoBase, BYTE byLocalID);
 void MACvDisableDefaultKey(DWORD_PTR dwIoBase);
 void MACvSetDefaultTKIPKeyEntry(DWORD_PTR dwIoBase, unsigned int uKeyLen,
-		unsigned int uKeyIdx, PDWORD pdwKey, BYTE byLocalID);
+		unsigned int uKeyIdx, unsigned long *pdwKey, BYTE byLocalID);
 void MACvSetDefaultKeyCtl(DWORD_PTR dwIoBase, WORD wKeyCtl, unsigned int uEntryIdx, BYTE byLocalID);
 
 #endif // __MAC_H__

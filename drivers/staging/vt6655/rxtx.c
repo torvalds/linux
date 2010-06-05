@@ -221,8 +221,8 @@ s_vFillTxKey (
     unsigned char *pMICHDR
     )
 {
-    PDWORD          pdwIV = (PDWORD) pbyIVHead;
-    PDWORD          pdwExtIV = (PDWORD) ((unsigned char *)pbyIVHead+4);
+    unsigned long *pdwIV = (unsigned long *) pbyIVHead;
+    unsigned long *pdwExtIV = (unsigned long *) ((unsigned char *)pbyIVHead+4);
     WORD            wValue;
     PS802_11Header  pMACHeader = (PS802_11Header)pbyHdrBuf;
     DWORD           dwRevIVCounter;
@@ -338,7 +338,7 @@ s_vSWencryption (
 {
     unsigned int cbICVlen = 4;
     DWORD  dwICV = 0xFFFFFFFFL;
-    PDWORD pdwICV;
+    unsigned long *pdwICV;
 
     if (pTransmitKey == NULL)
         return;
@@ -347,7 +347,7 @@ s_vSWencryption (
         //=======================================================================
         // Append ICV after payload
         dwICV = CRCdwGetCrc32Ex(pbyPayloadHead, wPayloadSize, dwICV);//ICV(Payload)
-        pdwICV = (PDWORD)(pbyPayloadHead + wPayloadSize);
+        pdwICV = (unsigned long *)(pbyPayloadHead + wPayloadSize);
         // finally, we must invert dwCRC to get the correct answer
         *pdwICV = cpu_to_le32(~dwICV);
         // RC4 encryption
@@ -358,7 +358,7 @@ s_vSWencryption (
         //=======================================================================
         //Append ICV after payload
         dwICV = CRCdwGetCrc32Ex(pbyPayloadHead, wPayloadSize, dwICV);//ICV(Payload)
-        pdwICV = (PDWORD)(pbyPayloadHead + wPayloadSize);
+        pdwICV = (unsigned long *)(pbyPayloadHead + wPayloadSize);
         // finally, we must invert dwCRC to get the correct answer
         *pdwICV = cpu_to_le32(~dwICV);
         // RC4 encryption
@@ -1359,8 +1359,8 @@ s_cbFillTxBufHead (
     unsigned int cbMICHDR = 0;
     DWORD          dwMICKey0, dwMICKey1;
     DWORD          dwMIC_Priority;
-    PDWORD         pdwMIC_L;
-    PDWORD         pdwMIC_R;
+    unsigned long *pdwMIC_L;
+    unsigned long *pdwMIC_R;
     DWORD          dwSafeMIC_L, dwSafeMIC_R; //Fix "Last Frag Size" < "MIC length".
     BOOL           bMIC2Frag = FALSE;
     unsigned int uMICFragLen = 0;
@@ -1549,16 +1549,16 @@ s_cbFillTxBufHead (
 //////////////////////////////////////////////////////////////////
     if ((bNeedEncrypt == TRUE) && (pTransmitKey != NULL) && (pTransmitKey->byCipherSuite == KEY_CTL_TKIP)) {
         if (pDevice->pMgmt->eAuthenMode == WMAC_AUTH_WPANONE) {
-            dwMICKey0 = *(PDWORD)(&pTransmitKey->abyKey[16]);
-            dwMICKey1 = *(PDWORD)(&pTransmitKey->abyKey[20]);
+            dwMICKey0 = *(unsigned long *)(&pTransmitKey->abyKey[16]);
+            dwMICKey1 = *(unsigned long *)(&pTransmitKey->abyKey[20]);
         }
         else if ((pTransmitKey->dwKeyIndex & AUTHENTICATOR_KEY) != 0) {
-            dwMICKey0 = *(PDWORD)(&pTransmitKey->abyKey[16]);
-            dwMICKey1 = *(PDWORD)(&pTransmitKey->abyKey[20]);
+            dwMICKey0 = *(unsigned long *)(&pTransmitKey->abyKey[16]);
+            dwMICKey1 = *(unsigned long *)(&pTransmitKey->abyKey[20]);
         }
         else {
-            dwMICKey0 = *(PDWORD)(&pTransmitKey->abyKey[24]);
-            dwMICKey1 = *(PDWORD)(&pTransmitKey->abyKey[28]);
+            dwMICKey0 = *(unsigned long *)(&pTransmitKey->abyKey[24]);
+            dwMICKey1 = *(unsigned long *)(&pTransmitKey->abyKey[28]);
         }
         // DO Software Michael
         MIC_vInit(dwMICKey0, dwMICKey1);
@@ -1760,8 +1760,8 @@ s_cbFillTxBufHead (
                     if (bMIC2Frag == FALSE) {
                         if (uTmpLen != 0)
                             MIC_vAppend((pbyBuffer + uLength), uTmpLen);
-                        pdwMIC_L = (PDWORD)(pbyBuffer + uLength + uTmpLen);
-                        pdwMIC_R = (PDWORD)(pbyBuffer + uLength + uTmpLen + 4);
+                        pdwMIC_L = (unsigned long *)(pbyBuffer + uLength + uTmpLen);
+                        pdwMIC_R = (unsigned long *)(pbyBuffer + uLength + uTmpLen + 4);
                         MIC_vGetMIC(pdwMIC_L, pdwMIC_R);
                         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Last MIC:%lX, %lX\n", *pdwMIC_L, *pdwMIC_R);
                     } else {
@@ -1895,8 +1895,8 @@ s_cbFillTxBufHead (
                         uMICFragLen = cbFragPayloadSize - uTmpLen;
                         ASSERT(uMICFragLen < cbMIClen);
 
-                        pdwMIC_L = (PDWORD)(pbyBuffer + uLength + uTmpLen);
-                        pdwMIC_R = (PDWORD)(pbyBuffer + uLength + uTmpLen + 4);
+                        pdwMIC_L = (unsigned long *)(pbyBuffer + uLength + uTmpLen);
+                        pdwMIC_R = (unsigned long *)(pbyBuffer + uLength + uTmpLen + 4);
                         MIC_vGetMIC(pdwMIC_L, pdwMIC_R);
                         dwSafeMIC_L = *pdwMIC_L;
                         dwSafeMIC_R = *pdwMIC_R;
@@ -2035,8 +2035,8 @@ s_cbFillTxBufHead (
 
             MIC_vAppend((pbyBuffer + uLength - cb802_1_H_len), cbFrameBodySize);
 
-            pdwMIC_L = (PDWORD)(pbyBuffer + uLength - cb802_1_H_len + cbFrameBodySize);
-            pdwMIC_R = (PDWORD)(pbyBuffer + uLength - cb802_1_H_len + cbFrameBodySize + 4);
+            pdwMIC_L = (unsigned long *)(pbyBuffer + uLength - cb802_1_H_len + cbFrameBodySize);
+            pdwMIC_R = (unsigned long *)(pbyBuffer + uLength - cb802_1_H_len + cbFrameBodySize + 4);
 
             MIC_vGetMIC(pdwMIC_L, pdwMIC_R);
             MIC_vUnInit();
@@ -2852,8 +2852,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
     unsigned int uLength = 0;
     DWORD           dwMICKey0, dwMICKey1;
     DWORD           dwMIC_Priority;
-    PDWORD          pdwMIC_L;
-    PDWORD          pdwMIC_R;
+    unsigned long *pdwMIC_L;
+    unsigned long *pdwMIC_R;
     WORD            wTxBufSize;
     unsigned int cbMacHdLen;
     SEthernetHeader sEthHeader;
@@ -3127,8 +3127,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 
         if ((pTransmitKey != NULL) && (pTransmitKey->byCipherSuite == KEY_CTL_TKIP)) {
 
-            dwMICKey0 = *(PDWORD)(&pTransmitKey->abyKey[16]);
-            dwMICKey1 = *(PDWORD)(&pTransmitKey->abyKey[20]);
+            dwMICKey0 = *(unsigned long *)(&pTransmitKey->abyKey[16]);
+            dwMICKey1 = *(unsigned long *)(&pTransmitKey->abyKey[20]);
 
             // DO Software Michael
             MIC_vInit(dwMICKey0, dwMICKey1);
@@ -3141,8 +3141,8 @@ vDMA0_tx_80211(PSDevice  pDevice, struct sk_buff *skb, unsigned char *pbMPDU, un
 
             MIC_vAppend((pbyTxBufferAddr + uLength), cbFrameBodySize);
 
-            pdwMIC_L = (PDWORD)(pbyTxBufferAddr + uLength + cbFrameBodySize);
-            pdwMIC_R = (PDWORD)(pbyTxBufferAddr + uLength + cbFrameBodySize + 4);
+            pdwMIC_L = (unsigned long *)(pbyTxBufferAddr + uLength + cbFrameBodySize);
+            pdwMIC_R = (unsigned long *)(pbyTxBufferAddr + uLength + cbFrameBodySize + 4);
 
             MIC_vGetMIC(pdwMIC_L, pdwMIC_R);
             MIC_vUnInit();
