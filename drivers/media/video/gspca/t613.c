@@ -319,7 +319,6 @@ struct additional_sensor_data {
 	const u8 data1[10];
 	const u8 data2[9];
 	const u8 data3[9];
-	const u8 data4[4];
 	const u8 data5[6];
 	const u8 stream[4];
 };
@@ -384,8 +383,6 @@ static const struct additional_sensor_data sensor_data[] = {
 	.data3 =
 		{0x80, 0xff, 0xff, 0x80, 0xff, 0xff, 0x80, 0xff,
 		 0xff},
-	.data4 =	/*Freq (50/60Hz). Splitted for test purpose */
-		{0x66, 0xca, 0xa8, 0xf0},
 	.data5 =	/* this could be removed later */
 		{0x0c, 0x03, 0xab, 0x13, 0x81, 0x23},
 	.stream =
@@ -408,8 +405,6 @@ static const struct additional_sensor_data sensor_data[] = {
 	.data3 =
 		{0x4e, 0x9c, 0xec, 0x40, 0x80, 0xc0, 0x48, 0x96,
 		 0xd9},
-	.data4 =
-		{0x66, 0x00, 0xa8, 0xa8},
 	.data5 =
 		{0x0c, 0x03, 0xab, 0x29, 0x81, 0x69},
 	.stream =
@@ -432,8 +427,6 @@ static const struct additional_sensor_data sensor_data[] = {
 	.data3 =
 		{0x60, 0xa8, 0xe0, 0x60, 0xa8, 0xe0, 0x60, 0xa8,
 		 0xe0},
-	.data4 =	/* Freq (50/60Hz). Splitted for test purpose */
-		{0x66, 0x00, 0xa8, 0xe8},
 	.data5 =
 		{0x0c, 0x03, 0xab, 0x10, 0x81, 0x20},
 	.stream =
@@ -452,7 +445,6 @@ static const struct additional_sensor_data sensor_data[] = {
 		 0xff},
 	.data3 = {0x40, 0x80, 0xc0, 0x50, 0xa0, 0xf0, 0x53, 0xa6,
 		 0xff},
-	.data4 = {0x66, 0x41, 0xa8, 0xf0},
 	.data5 = {0x0c, 0x03, 0xab, 0x4b, 0x81, 0x2b},
 	.stream = {0x0b, 0x04, 0x0a, 0x28},
     },
@@ -800,6 +792,38 @@ static void setsharpness(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, reg_to_write);
 }
 
+static void setfreq(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	u8 reg66;
+	u8 freq[4] = { 0x66, 0x00, 0xa8, 0xe8 };
+
+	switch (sd->sensor) {
+	case SENSOR_LT168G:
+		if (sd->freq != 0)
+			freq[3] = 0xa8;
+		reg66 = 0x41;
+		break;
+	case SENSOR_OM6802:
+		reg66 = 0xca;
+		break;
+	default:
+		reg66 = 0x40;
+		break;
+	}
+	switch (sd->freq) {
+	case 0:				/* no flicker */
+		freq[3] = 0xf0;
+		break;
+	case 2:				/* 60Hz */
+		reg66 &= ~0x40;
+		break;
+	}
+	freq[1] = reg66;
+
+	reg_w_buf(gspca_dev, freq, sizeof freq);
+}
+
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
@@ -895,6 +919,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 	setcolors(gspca_dev);
 	setsharpness(gspca_dev);
 	setawb(gspca_dev);
+	setfreq(gspca_dev);
 
 	reg_w(gspca_dev, 0x2087);	/* tied to white balance? */
 	reg_w(gspca_dev, 0x2088);
@@ -947,17 +972,6 @@ static void seteffect(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x4aa6);
 	else
 		reg_w(gspca_dev, 0xfaa6);
-}
-
-static void setlightfreq(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	u8 freq[4] = { 0x66, 0x40, 0xa8, 0xe8 };
-
-	if (sd->freq == 2)	/* 60hz */
-		freq[1] = 0x00;
-
-	reg_w_buf(gspca_dev, freq, sizeof freq);
 }
 
 /* Is this really needed?
@@ -1035,7 +1049,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 	sensor = &sensor_data[sd->sensor];
-	reg_w_buf(gspca_dev, sensor->data4, sizeof sensor->data4);
+	setfreq(gspca_dev);
 	reg_r(gspca_dev, 0x0012);
 	reg_w_buf(gspca_dev, t2, sizeof t2);
 	reg_w_ixbuf(gspca_dev, 0xb3, t3, sizeof t3);
