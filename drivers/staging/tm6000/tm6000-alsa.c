@@ -78,6 +78,8 @@ static int _tm6000_start_audio_dma(struct snd_tm6000_card *chip)
 	struct tm6000_core *core = chip->core;
 	int val;
 
+	dprintk(1, "Starting audio DMA\n");
+
 	/* Enables audio */
 	val = tm6000_get_reg(core, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, 0x0);
 	val |= 0x20;
@@ -237,7 +239,9 @@ static int snd_tm6000_hw_params(struct snd_pcm_substream *substream,
  */
 static int snd_tm6000_hw_free(struct snd_pcm_substream *substream)
 {
-	dsp_buffer_free(substream);
+	struct snd_tm6000_card *chip = snd_pcm_substream_chip(substream);
+
+	_tm6000_stop_audio_dma(chip);
 
 	return 0;
 }
@@ -247,6 +251,11 @@ static int snd_tm6000_hw_free(struct snd_pcm_substream *substream)
  */
 static int snd_tm6000_prepare(struct snd_pcm_substream *substream)
 {
+	struct snd_tm6000_card *chip = snd_pcm_substream_chip(substream);
+
+	chip->buf_pos = 0;
+	chip->period_pos = 0;
+
 	return 0;
 }
 
@@ -284,12 +293,8 @@ static int snd_tm6000_card_trigger(struct snd_pcm_substream *substream, int cmd)
 static snd_pcm_uframes_t snd_tm6000_pointer(struct snd_pcm_substream *substream)
 {
 	struct snd_tm6000_card *chip = snd_pcm_substream_chip(substream);
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	u16 count;
 
-	count = atomic_read(&chip->count);
-
-	return runtime->period_size * (count & (runtime->periods-1));
+	return chip->buf_pos;
 }
 
 /*
@@ -342,6 +347,16 @@ int tm6000_audio_init(struct tm6000_core *dev)
 		snd_printk(KERN_ERR "cannot create card instance %d\n", devnr);
 		return rc;
 	}
+	strcpy(card->driver, "tm6000-alsa");
+	strcpy(card->shortname, "TM5600/60x0");
+	sprintf(card->longname, "TM5600/60x0 Audio at bus %d device %d",
+		dev->udev->bus->busnum, dev->udev->devnum);
+
+	sprintf(component, "USB%04x:%04x",
+		le16_to_cpu(dev->udev->descriptor.idVendor),
+		le16_to_cpu(dev->udev->descriptor.idProduct));
+	snd_component_add(card, component);
+	snd_card_set_dev(card, &dev->udev->dev);
 
 	chip = kzalloc(sizeof(struct snd_tm6000_card), GFP_KERNEL);
 	if (!chip) {
@@ -349,34 +364,26 @@ int tm6000_audio_init(struct tm6000_core *dev)
 		goto error;
 	}
 
-	sprintf(component, "USB%04x:%04x",
-		le16_to_cpu(dev->udev->descriptor.idVendor),
-		le16_to_cpu(dev->udev->descriptor.idProduct));
-	snd_component_add(card, component);
-
+	chip->core = dev;
+	chip->card = card;
+	dev->adev = chip;
 	spin_lock_init(&chip->reg_lock);
+
 	rc = snd_pcm_new(card, "TM6000 Audio", 0, 0, 1, &pcm);
 	if (rc < 0)
 		goto error;
 
-	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_tm6000_pcm_ops);
 	pcm->info_flags = 0;
-	pcm->private_data = dev;
+	pcm->private_data = chip;
 	strcpy(pcm->name, "Trident TM5600/60x0");
-	strcpy(card->driver, "tm6000-alsa");
-	strcpy(card->shortname, "TM5600/60x0");
-	sprintf(card->longname, "TM5600/60x0 Audio at bus %d device %d",
-		dev->udev->bus->busnum, dev->udev->devnum);
 
-	snd_card_set_dev(card, &dev->udev->dev);
+	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_tm6000_pcm_ops);
 
 	rc = snd_card_register(card);
 	if (rc < 0)
 		goto error;
 
-	chip->core = dev;
-	chip->card = card;
-	dev->adev = chip;
+	dprintk(1,"Registered audio driver for %s\n", card->longname);
 
 	return 0;
 

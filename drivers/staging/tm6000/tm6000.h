@@ -135,9 +135,12 @@ struct tm6000_dvb {
 struct snd_tm6000_card {
 	struct snd_card			*card;
 	spinlock_t			reg_lock;
-	atomic_t			count;
 	struct tm6000_core		*core;
 	struct snd_pcm_substream	*substream;
+
+	/* temporary data for buffer fill processing */
+	unsigned			buf_pos;
+	unsigned			period_pos;
 };
 
 struct tm6000_endpoint {

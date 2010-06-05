@@ -678,10 +678,10 @@ int tm6000_register_extension(struct tm6000_ops *ops)
 	mutex_lock(&tm6000_extension_devlist_lock);
 	list_add_tail(&ops->next, &tm6000_extension_devlist);
 	list_for_each_entry(dev, &tm6000_devlist, devlist) {
-		if (dev)
-			ops->init(dev);
+		ops->init(dev);
+		printk(KERN_INFO "%s: Initialized (%s) extension\n",
+		       dev->name, ops->name);
 	}
-	printk(KERN_INFO "tm6000: Initialized (%s) extension\n", ops->name);
 	mutex_unlock(&tm6000_extension_devlist_lock);
 	mutex_unlock(&tm6000_devlist_mutex);
 	return 0;
