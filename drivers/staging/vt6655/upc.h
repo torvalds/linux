@@ -82,7 +82,7 @@
 
 
 #define VNSvInPortW(dwIOAddress, pwData) {                      \
-	volatile WORD* pwAddr = ((PWORD)(dwIOAddress));             \
+	volatile WORD* pwAddr = ((unsigned short *)(dwIOAddress));             \
 	*(pwData) = readw(pwAddr);                             \
 }
 
@@ -99,7 +99,7 @@
 
 
 #define VNSvOutPortW(dwIOAddress, wData) {                      \
-    volatile WORD* pwAddr = ((PWORD)(dwIOAddress));             \
+    volatile WORD* pwAddr = ((unsigned short *)(dwIOAddress));             \
     writew((WORD)wData, pwAddr);							\
 }
 

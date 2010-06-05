@@ -1748,7 +1748,7 @@ CARDbStartMeasure (
         if (pDevice->byLocalID > REV_ID_VT3253_B1) {
             HIDWORD(qwStartTSF) = HIDWORD(*((PQWORD) (pDevice->pCurrMeasureEID->sReq.abyStartTime)));
             LODWORD(qwStartTSF) = LODWORD(*((PQWORD) (pDevice->pCurrMeasureEID->sReq.abyStartTime)));
-            wDuration = *((PWORD) (pDevice->pCurrMeasureEID->sReq.abyDuration));
+            wDuration = *((unsigned short *) (pDevice->pCurrMeasureEID->sReq.abyDuration));
             wDuration += 1; // 1 TU for channel switching
 
             if ((LODWORD(qwStartTSF) == 0) && (HIDWORD(qwStartTSF) == 0)) {

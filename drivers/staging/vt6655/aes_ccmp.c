@@ -267,8 +267,8 @@ int             ii,jj,kk;
 
 
     pbyIV = pbyFrame + WLAN_HDR_ADDR3_LEN;
-    if ( WLAN_GET_FC_TODS(*(PWORD)pbyFrame) &&
-         WLAN_GET_FC_FROMDS(*(PWORD)pbyFrame) ) {
+    if ( WLAN_GET_FC_TODS(*(unsigned short *)pbyFrame) &&
+         WLAN_GET_FC_FROMDS(*(unsigned short *)pbyFrame) ) {
          bA4 = TRUE;
          pbyIV += 6;             // 6 is 802.11 address4
          wHLen += 6;

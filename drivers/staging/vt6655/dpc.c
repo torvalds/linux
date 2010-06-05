@@ -124,7 +124,7 @@ static BOOL s_bHandleRxEncryption(
     unsigned char *pbyNewRsr,
     PSKeyItem   *pKeyOut,
     int *       pbExtIV,
-    PWORD       pwRxTSC15_0,
+    unsigned short *pwRxTSC15_0,
     PDWORD      pdwRxTSC47_16
     );
 
@@ -138,7 +138,7 @@ static BOOL s_bHostWepRxEncryption(
     PSKeyItem    pKey,
     unsigned char *pbyNewRsr,
     int *       pbExtIV,
-    PWORD       pwRxTSC15_0,
+    unsigned short *pwRxTSC15_0,
     PDWORD      pdwRxTSC47_16
 
     );
@@ -175,7 +175,7 @@ s_vProcessRxMACHeader (
 {
     unsigned char *pbyRxBuffer;
     unsigned int cbHeaderSize = 0;
-    PWORD           pwType;
+    unsigned short *pwType;
     PS802_11Header  pMACHeader;
     int             ii;
 
@@ -203,12 +203,12 @@ s_vProcessRxMACHeader (
     }
     else if (!compare_ether_addr(pbyRxBuffer, &pDevice->abySNAP_RFC1042[0])) {
         cbHeaderSize += 6;
-        pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
+        pwType = (unsigned short *) (pbyRxBufferAddr + cbHeaderSize);
         if ((*pwType!= TYPE_PKT_IPX) && (*pwType != cpu_to_le16(0xF380))) {
         }
         else {
             cbHeaderSize -= 8;
-            pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
+            pwType = (unsigned short *) (pbyRxBufferAddr + cbHeaderSize);
             if (bIsWEP) {
                 if (bExtIV) {
                     *pwType = htons(cbPacketSize - WLAN_HDR_ADDR3_LEN - 8);    // 8 is IV&ExtIV
@@ -223,7 +223,7 @@ s_vProcessRxMACHeader (
     }
     else {
         cbHeaderSize -= 2;
-        pwType = (PWORD) (pbyRxBufferAddr + cbHeaderSize);
+        pwType = (unsigned short *) (pbyRxBufferAddr + cbHeaderSize);
         if (bIsWEP) {
             if (bExtIV) {
                 *pwType = htons(cbPacketSize - WLAN_HDR_ADDR3_LEN - 8);    // 8 is IV&ExtIV
@@ -353,7 +353,7 @@ device_receive_frame (
     unsigned char *pbyNewRsr;
     unsigned char *pbyRSSI;
     PQWORD          pqwTSFTime;
-    PWORD           pwFrameSize;
+    unsigned short *pwFrameSize;
     unsigned char *pbyFrame;
     BOOL            bDeFragRx = FALSE;
     BOOL            bIsWEP = FALSE;
@@ -391,7 +391,7 @@ device_receive_frame (
                      pDevice->rx_buf_sz, PCI_DMA_FROMDEVICE);
 #endif
 //PLICE_DEBUG<-
-    pwFrameSize = (PWORD)(skb->data + 2);
+    pwFrameSize = (unsigned short *)(skb->data + 2);
     FrameSize = cpu_to_le16(pCurrRD->m_rd1RD1.wReqCount) - cpu_to_le16(pCurrRD->m_rd0RD0.wResCount);
 
     // Max: 2312Payload + 30HD +4CRC + 2Padding + 4Len + 8TSF + 4RSR
@@ -1170,7 +1170,7 @@ static BOOL s_bHandleRxEncryption (
     unsigned char *pbyNewRsr,
     PSKeyItem   *pKeyOut,
     int *       pbExtIV,
-    PWORD       pwRxTSC15_0,
+    unsigned short *pwRxTSC15_0,
     PDWORD      pdwRxTSC47_16
     )
 {
@@ -1186,8 +1186,8 @@ static BOOL s_bHandleRxEncryption (
     *pdwRxTSC47_16 = 0;
 
     pbyIV = pbyFrame + WLAN_HDR_ADDR3_LEN;
-    if ( WLAN_GET_FC_TODS(*(PWORD)pbyFrame) &&
-         WLAN_GET_FC_FROMDS(*(PWORD)pbyFrame) ) {
+    if ( WLAN_GET_FC_TODS(*(unsigned short *)pbyFrame) &&
+         WLAN_GET_FC_FROMDS(*(unsigned short *)pbyFrame) ) {
          pbyIV += 6;             // 6 is 802.11 address4
          PayloadLen -= 6;
     }
@@ -1280,7 +1280,7 @@ static BOOL s_bHandleRxEncryption (
         if (byDecMode == KEY_CTL_TKIP) {
             *pwRxTSC15_0 = cpu_to_le16(MAKEWORD(*(pbyIV+2), *pbyIV));
         } else {
-            *pwRxTSC15_0 = cpu_to_le16(*(PWORD)pbyIV);
+            *pwRxTSC15_0 = cpu_to_le16(*(unsigned short *)pbyIV);
         }
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TSC0_15: %x\n", *pwRxTSC15_0);
 
@@ -1317,7 +1317,7 @@ static BOOL s_bHostWepRxEncryption (
     PSKeyItem    pKey,
     unsigned char *pbyNewRsr,
     int *       pbExtIV,
-    PWORD       pwRxTSC15_0,
+    unsigned short *pwRxTSC15_0,
     PDWORD      pdwRxTSC47_16
     )
 {
@@ -1333,8 +1333,8 @@ static BOOL s_bHostWepRxEncryption (
     *pdwRxTSC47_16 = 0;
 
     pbyIV = pbyFrame + WLAN_HDR_ADDR3_LEN;
-    if ( WLAN_GET_FC_TODS(*(PWORD)pbyFrame) &&
-         WLAN_GET_FC_FROMDS(*(PWORD)pbyFrame) ) {
+    if ( WLAN_GET_FC_TODS(*(unsigned short *)pbyFrame) &&
+         WLAN_GET_FC_FROMDS(*(unsigned short *)pbyFrame) ) {
          pbyIV += 6;             // 6 is 802.11 address4
          PayloadLen -= 6;
     }
@@ -1391,7 +1391,7 @@ static BOOL s_bHostWepRxEncryption (
         if (byDecMode == KEY_CTL_TKIP) {
             *pwRxTSC15_0 = cpu_to_le16(MAKEWORD(*(pbyIV+2), *pbyIV));
         } else {
-            *pwRxTSC15_0 = cpu_to_le16(*(PWORD)pbyIV);
+            *pwRxTSC15_0 = cpu_to_le16(*(unsigned short *)pbyIV);
         }
         DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"TSC0_15: %x\n", *pwRxTSC15_0);
 

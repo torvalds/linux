@@ -1849,7 +1849,7 @@ BBvCaculateParameter (
     unsigned int cbFrameLength,
     WORD wRate,
     BYTE byPacketType,
-    PWORD pwPhyLen,
+    unsigned short *pwPhyLen,
     unsigned char *pbyPhySrv,
     unsigned char *pbyPhySgn
     )

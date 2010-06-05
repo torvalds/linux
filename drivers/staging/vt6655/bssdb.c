@@ -542,8 +542,8 @@ BSSbInsertToBSSList (
                                 TRUE,
                                 pQuiet->byQuietCount,
                                 pQuiet->byQuietPeriod,
-                                *((PWORD)pQuiet->abyQuietDuration),
-                                *((PWORD)pQuiet->abyQuietOffset)
+                                *((unsigned short *)pQuiet->abyQuietDuration),
+                                *((unsigned short *)pQuiet->abyQuietOffset)
                                 );
             } else {
                 pQuiet = (PWLAN_IE_QUIET)pIE_Quiet;
@@ -551,8 +551,8 @@ BSSbInsertToBSSList (
                                 FALSE,
                                 pQuiet->byQuietCount,
                                 pQuiet->byQuietPeriod,
-                                *((PWORD)pQuiet->abyQuietDuration),
-                                *((PWORD)pQuiet->abyQuietOffset)
+                                *((unsigned short *)pQuiet->abyQuietDuration),
+                                *((unsigned short *)pQuiet->abyQuietOffset)
                                 );
             }
         }
@@ -719,8 +719,8 @@ BSSbUpdateToBSSList (
                                 TRUE,
                                 pQuiet->byQuietCount,
                                 pQuiet->byQuietPeriod,
-                                *((PWORD)pQuiet->abyQuietDuration),
-                                *((PWORD)pQuiet->abyQuietOffset)
+                                *((unsigned short *)pQuiet->abyQuietDuration),
+                                *((unsigned short *)pQuiet->abyQuietOffset)
                                 );
             } else {
                 pQuiet = (PWLAN_IE_QUIET)pIE_Quiet;
@@ -728,8 +728,8 @@ BSSbUpdateToBSSList (
                                 FALSE,
                                 pQuiet->byQuietCount,
                                 pQuiet->byQuietPeriod,
-                                *((PWORD)pQuiet->abyQuietDuration),
-                                *((PWORD)pQuiet->abyQuietOffset)
+                                *((unsigned short *)pQuiet->abyQuietDuration),
+                                *((unsigned short *)pQuiet->abyQuietOffset)
                                 );
             }
         }
@@ -898,7 +898,7 @@ BSSvRemoveOneNode(
 void
 BSSvUpdateAPNode(
     void *hDeviceContext,
-    PWORD pwCapInfo,
+    unsigned short *pwCapInfo,
     PWLAN_IE_SUPP_RATES pSuppRates,
     PWLAN_IE_SUPP_RATES pExtSuppRates
     )

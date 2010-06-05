@@ -60,9 +60,9 @@ RATEvParseMaxRate(
     PWLAN_IE_SUPP_RATES pItemRates,
     PWLAN_IE_SUPP_RATES pItemExtRates,
     BOOL bUpdateBasicRate,
-    PWORD pwMaxBasicRate,
-    PWORD pwMaxSuppRate,
-    PWORD pwSuppRate,
+    unsigned short *pwMaxBasicRate,
+    unsigned short *pwMaxSuppRate,
+    unsigned short *pwSuppRate,
     unsigned char *pbyTopCCKRate,
     unsigned char *pbyTopOFDMRate
     );

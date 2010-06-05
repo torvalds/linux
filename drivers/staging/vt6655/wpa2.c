@@ -164,7 +164,7 @@ WPA2vParseRSN (
         }
 
         if (pRSN->len >= 8) { // ver(2) + GK(4) + PK count(2)
-            pBSSNode->wCSSPKCount = *((PWORD) &(pRSN->abyRSN[4]));
+            pBSSNode->wCSSPKCount = *((unsigned short *) &(pRSN->abyRSN[4]));
             j = 0;
             pbyOUI = &(pRSN->abyRSN[6]);
 
@@ -213,10 +213,10 @@ WPA2vParseRSN (
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wCSSPKCount: %d\n", pBSSNode->wCSSPKCount);
         }
 
-        m = *((PWORD) &(pRSN->abyRSN[4]));
+        m = *((unsigned short *) &(pRSN->abyRSN[4]));
 
         if (pRSN->len >= 10+m*4) { // ver(2) + GK(4) + PK count(2) + PKS(4*m) + AKMSS count(2)
-            pBSSNode->wAKMSSAuthCount = *((PWORD) &(pRSN->abyRSN[6+4*m]));;
+            pBSSNode->wAKMSSAuthCount = *((unsigned short *) &(pRSN->abyRSN[6+4*m]));;
             j = 0;
             pbyOUI = &(pRSN->abyRSN[8+4*m]);
             for (i = 0; (i < pBSSNode->wAKMSSAuthCount) && (j < sizeof(pBSSNode->abyAKMSSAuthType)/sizeof(BYTE)); i++) {
@@ -235,10 +235,10 @@ WPA2vParseRSN (
             pBSSNode->wAKMSSAuthCount = (WORD)j;
             DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"wAKMSSAuthCount: %d\n", pBSSNode->wAKMSSAuthCount);
 
-            n = *((PWORD) &(pRSN->abyRSN[6+4*m]));;
+            n = *((unsigned short *) &(pRSN->abyRSN[6+4*m]));;
             if (pRSN->len >= 12+4*m+4*n) { // ver(2)+GK(4)+PKCnt(2)+PKS(4*m)+AKMSSCnt(2)+AKMSS(4*n)+Cap(2)
                 pBSSNode->sRSNCapObj.bRSNCapExist = TRUE;
-                pBSSNode->sRSNCapObj.wRSNCap = *((PWORD) &(pRSN->abyRSN[8+4*m+4*n]));
+                pBSSNode->sRSNCapObj.wRSNCap = *((unsigned short *) &(pRSN->abyRSN[8+4*m+4*n]));
             }
         }
         //ignore PMKID lists bcs only (Re)Assocrequest has this field
@@ -270,7 +270,7 @@ WPA2uSetIEs(
     PSMgmtObject    pMgmt = (PSMgmtObject) pMgmtHandle;
     unsigned char *pbyBuffer = NULL;
     unsigned int ii = 0;
-    PWORD           pwPMKID = NULL;
+    unsigned short *pwPMKID = NULL;
 
     if (pRSNIEs == NULL) {
         return(0);
@@ -342,7 +342,7 @@ WPA2uSetIEs(
             (pMgmt->bRoaming == TRUE) &&
             (pMgmt->eAuthenMode == WMAC_AUTH_WPA2)) {
             // RSN PMKID
-            pwPMKID = (PWORD)(&pRSNIEs->abyRSN[18]);  // Point to PMKID count
+            pwPMKID = (unsigned short *)(&pRSNIEs->abyRSN[18]);  // Point to PMKID count
             *pwPMKID = 0;                               // Initialize PMKID count
             pbyBuffer = &pRSNIEs->abyRSN[20];           // Point to PMKID list
             for (ii = 0; ii < pMgmt->gsPMKIDCache.BSSIDInfoCount; ii++) {

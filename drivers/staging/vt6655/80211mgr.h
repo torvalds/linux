@@ -511,8 +511,8 @@ typedef struct tagWLAN_FR_BEACON {
     PUWLAN_80211HDR         pHdr;
     // fixed fields
     PQWORD                  pqwTimestamp;
-    PWORD                   pwBeaconInterval;
-    PWORD                   pwCapInfo;
+    unsigned short *pwBeaconInterval;
+    unsigned short *pwCapInfo;
     /*-- info elements ----------*/
     PWLAN_IE_SSID           pSSID;
     PWLAN_IE_SUPP_RATES     pSuppRates;
@@ -556,7 +556,7 @@ typedef struct tagWLAN_FR_DISASSOC {
     unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
-    PWORD                   pwReason;
+    unsigned short *pwReason;
     /*-- info elements ----------*/
 
 } WLAN_FR_DISASSOC, *PWLAN_FR_DISASSOC;
@@ -569,8 +569,8 @@ typedef struct tagWLAN_FR_ASSOCREQ {
     unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
-    PWORD                   pwCapInfo;
-    PWORD                   pwListenInterval;
+    unsigned short *pwCapInfo;
+    unsigned short *pwListenInterval;
     /*-- info elements ----------*/
     PWLAN_IE_SSID           pSSID;
     PWLAN_IE_SUPP_RATES     pSuppRates;
@@ -590,9 +590,9 @@ typedef struct tagWLAN_FR_ASSOCRESP {
     unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
-    PWORD                   pwCapInfo;
-    PWORD                   pwStatus;
-    PWORD                   pwAid;
+    unsigned short *pwCapInfo;
+    unsigned short *pwStatus;
+    unsigned short *pwAid;
     /*-- info elements ----------*/
     PWLAN_IE_SUPP_RATES     pSuppRates;
     PWLAN_IE_SUPP_RATES     pExtSuppRates;
@@ -608,8 +608,8 @@ typedef struct tagWLAN_FR_REASSOCREQ {
     PUWLAN_80211HDR         pHdr;
 
     /*-- fixed fields -----------*/
-    PWORD                   pwCapInfo;
-    PWORD                   pwListenInterval;
+    unsigned short *pwCapInfo;
+    unsigned short *pwListenInterval;
     PIEEE_ADDR              pAddrCurrAP;
 
     /*-- info elements ----------*/
@@ -629,9 +629,9 @@ typedef struct tagWLAN_FR_REASSOCRESP {
     unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
-    PWORD                   pwCapInfo;
-    PWORD                   pwStatus;
-    PWORD                   pwAid;
+    unsigned short *pwCapInfo;
+    unsigned short *pwStatus;
+    unsigned short *pwAid;
     /*-- info elements ----------*/
     PWLAN_IE_SUPP_RATES     pSuppRates;
     PWLAN_IE_SUPP_RATES     pExtSuppRates;
@@ -662,8 +662,8 @@ typedef struct tagWLAN_FR_PROBERESP {
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
     PQWORD                  pqwTimestamp;
-    PWORD                   pwBeaconInterval;
-    PWORD                   pwCapInfo;
+    unsigned short *pwBeaconInterval;
+    unsigned short *pwCapInfo;
     /*-- info elements ----------*/
     PWLAN_IE_SSID           pSSID;
     PWLAN_IE_SUPP_RATES     pSuppRates;
@@ -690,9 +690,9 @@ typedef struct tagWLAN_FR_AUTHEN {
     unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
-    PWORD                   pwAuthAlgorithm;
-    PWORD                   pwAuthSequence;
-    PWORD                   pwStatus;
+    unsigned short *pwAuthAlgorithm;
+    unsigned short *pwAuthSequence;
+    unsigned short *pwStatus;
     /*-- info elements ----------*/
     PWLAN_IE_CHALLENGE      pChallenge;
 
@@ -706,7 +706,7 @@ typedef struct tagWLAN_FR_DEAUTHEN {
     unsigned char *pBuf;
     PUWLAN_80211HDR         pHdr;
     /*-- fixed fields -----------*/
-    PWORD                   pwReason;
+    unsigned short *pwReason;
 
     /*-- info elements ----------*/
 

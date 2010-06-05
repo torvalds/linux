@@ -324,7 +324,7 @@ BSSvCreateOneNode(
 void
 BSSvUpdateAPNode(
     void *hDeviceContext,
-    PWORD pwCapInfo,
+    unsigned short *pwCapInfo,
     PWLAN_IE_SUPP_RATES pItemRates,
     PWLAN_IE_SUPP_RATES pExtSuppRates
     );

@@ -211,7 +211,7 @@ WPA_ParseRSN (
                 pBSSList->byDefaultK_as_PK = (*pbyCaps) & WPA_GROUPFLAG;
                 pBSSList->byReplayIdx = 2 << ((*pbyCaps >> WPA_REPLAYBITSSHIFT) & WPA_REPLAYBITS);
                 pBSSList->sRSNCapObj.bRSNCapExist = TRUE;
-                pBSSList->sRSNCapObj.wRSNCap = *(PWORD)pbyCaps;
+                pBSSList->sRSNCapObj.wRSNCap = *(unsigned short *)pbyCaps;
                 //DBG_PRN_GRP14(("pbyCaps: %X\n", *pbyCaps));
                 //DBG_PRN_GRP14(("byDefaultK_as_PK: %X\n", pBSSList->byDefaultK_as_PK));
                 //DBG_PRN_GRP14(("byReplayIdx: %X\n", pBSSList->byReplayIdx));

@@ -240,7 +240,7 @@ void
 VNTWIFIvGetTxRate(
     void *pMgmtHandle,
     unsigned char *pbyDestAddress,
-    PWORD   pwTxDataRate,
+    unsigned short *pwTxDataRate,
     unsigned char *pbyACKRate,
     unsigned char *pbyCCKBasicRate,
     unsigned char *pbyOFDMBasicRate

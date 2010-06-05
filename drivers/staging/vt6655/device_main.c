@@ -487,7 +487,7 @@ static void s_vCompleteCurrentMeasure (PSDevice pDevice, BYTE byResult)
 
     for(ii=1;ii<8;ii++) {
         pDevice->dwRPIs[ii] *= 255;
-        dwDuration |= *((PWORD) (pDevice->pCurrMeasureEID->sReq.abyDuration));
+        dwDuration |= *((unsigned short *) (pDevice->pCurrMeasureEID->sReq.abyDuration));
         dwDuration <<= 10;
         pDevice->dwRPIs[ii] /= dwDuration;
         pDevice->abyRPIs[ii] = (BYTE) pDevice->dwRPIs[ii];
