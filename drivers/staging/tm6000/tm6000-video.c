@@ -56,6 +56,7 @@ static int video_nr = -1;		/* /dev/videoN, -1 for autodetect */
 
 /* Debug level */
 int tm6000_debug;
+EXPORT_SYMBOL_GPL(tm6000_debug);
 
 /* supported controls */
 static struct v4l2_queryctrl tm6000_qctrl[] = {
