@@ -6229,6 +6229,8 @@ static void tg3_free_rings(struct tg3 *tp)
 	for (j = 0; j < tp->irq_cnt; j++) {
 		struct tg3_napi *tnapi = &tp->napi[j];
 
+		tg3_rx_prodring_free(tp, &tp->prodring[j]);
+
 		if (!tnapi->tx_buffers)
 			continue;
 
@@ -6264,8 +6266,6 @@ static void tg3_free_rings(struct tg3 *tp)
 
 			dev_kfree_skb_any(skb);
 		}
-
-		tg3_rx_prodring_free(tp, &tp->prodring[j]);
 	}
 }
 
