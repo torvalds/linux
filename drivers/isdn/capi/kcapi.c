@@ -1020,12 +1020,12 @@ static int old_capi_manufacturer(unsigned int cmd, void __user *data)
 		if (cmd == AVMB1_ADDCARD) {
 		   if ((retval = copy_from_user(&cdef, data,
 					    sizeof(avmb1_carddef))))
-			   return retval;
+			   return -EFAULT;
 		   cdef.cardtype = AVM_CARDTYPE_B1;
 		} else {
 		   if ((retval = copy_from_user(&cdef, data,
 					    sizeof(avmb1_extcarddef))))
-			   return retval;
+			   return -EFAULT;
 		}
 		cparams.port = cdef.port;
 		cparams.irq = cdef.irq;
@@ -1218,7 +1218,7 @@ int capi20_manufacturer(unsigned int cmd, void __user *data)
 		kcapi_carddef cdef;
 
 		if ((retval = copy_from_user(&cdef, data, sizeof(cdef))))
-			return retval;
+			return -EFAULT;
 
 		cparams.port = cdef.port;
 		cparams.irq = cdef.irq;
