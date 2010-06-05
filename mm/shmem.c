@@ -820,7 +820,7 @@ static int shmem_notify_change(struct dentry *dentry, struct iattr *attr)
 	return error;
 }
 
-static void shmem_delete_inode(struct inode *inode)
+static void shmem_evict_inode(struct inode *inode)
 {
 	struct shmem_inode_info *info = SHMEM_I(inode);
 
@@ -837,7 +837,7 @@ static void shmem_delete_inode(struct inode *inode)
 	}
 	BUG_ON(inode->i_blocks);
 	shmem_free_inode(inode->i_sb);
-	clear_inode(inode);
+	end_writeback(inode);
 }
 
 static inline int shmem_find_swp(swp_entry_t entry, swp_entry_t *dir, swp_entry_t *edir)
@@ -934,7 +934,7 @@ found:
 
 	/*
 	 * Move _head_ to start search for next from here.
-	 * But be careful: shmem_delete_inode checks list_empty without taking
+	 * But be careful: shmem_evict_inode checks list_empty without taking
 	 * mutex, and there's an instant in list_move_tail when info->swaplist
 	 * would appear empty, if it were the only one on shmem_swaplist.  We
 	 * could avoid doing it if inode NULL; or use this minor optimization.
@@ -2497,7 +2497,7 @@ static const struct super_operations shmem_ops = {
 	.remount_fs	= shmem_remount_fs,
 	.show_options	= shmem_show_options,
 #endif
-	.delete_inode	= shmem_delete_inode,
+	.evict_inode	= shmem_evict_inode,
 	.drop_inode	= generic_delete_inode,
 	.put_super	= shmem_put_super,
 };
