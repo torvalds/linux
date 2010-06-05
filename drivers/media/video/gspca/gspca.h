@@ -217,6 +217,11 @@ int gspca_dev_probe(struct usb_interface *intf,
 		const struct sd_desc *sd_desc,
 		int dev_size,
 		struct module *module);
+int gspca_dev_probe2(struct usb_interface *intf,
+		const struct usb_device_id *id,
+		const struct sd_desc *sd_desc,
+		int dev_size,
+		struct module *module);
 void gspca_disconnect(struct usb_interface *intf);
 void gspca_frame_add(struct gspca_dev *gspca_dev,
 			enum gspca_packet_type packet_type,

@@ -2253,30 +2253,17 @@ static struct video_device gspca_template = {
  * This function must be called by the sub-driver when it is
  * called for probing a new device.
  */
-int gspca_dev_probe(struct usb_interface *intf,
+int gspca_dev_probe2(struct usb_interface *intf,
 		const struct usb_device_id *id,
 		const struct sd_desc *sd_desc,
 		int dev_size,
 		struct module *module)
 {
-	struct usb_interface_descriptor *interface;
 	struct gspca_dev *gspca_dev;
 	struct usb_device *dev = interface_to_usbdev(intf);
 	int ret;
 
 	PDEBUG(D_PROBE, "probing %04x:%04x", id->idVendor, id->idProduct);
-
-	/* we don't handle multi-config cameras */
-	if (dev->descriptor.bNumConfigurations != 1) {
-		PDEBUG(D_ERR, "Too many config");
-		return -ENODEV;
-	}
-
-	/* the USB video interface must be the first one */
-	interface = &intf->cur_altsetting->desc;
-	if (dev->config->desc.bNumInterfaces != 1 &&
-	    interface->bInterfaceNumber != 0)
-		return -ENODEV;
 
 	/* create the device */
 	if (dev_size < sizeof *gspca_dev)
@@ -2293,7 +2280,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 		goto out;
 	}
 	gspca_dev->dev = dev;
-	gspca_dev->iface = interface->bInterfaceNumber;
+	gspca_dev->iface = intf->cur_altsetting->desc.bInterfaceNumber;
 	gspca_dev->nbalt = intf->num_altsetting;
 	gspca_dev->sd_desc = sd_desc;
 	gspca_dev->nbufread = 2;
@@ -2344,6 +2331,35 @@ out:
 	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
 	return ret;
+}
+EXPORT_SYMBOL(gspca_dev_probe2);
+
+/* same function as the previous one, but check the interface */
+int gspca_dev_probe(struct usb_interface *intf,
+		const struct usb_device_id *id,
+		const struct sd_desc *sd_desc,
+		int dev_size,
+		struct module *module)
+{
+	struct usb_device *dev = interface_to_usbdev(intf);
+
+	/* we don't handle multi-config cameras */
+	if (dev->descriptor.bNumConfigurations != 1) {
+		PDEBUG(D_ERR, "%04x:%04x too many config",
+				id->idVendor, id->idProduct);
+		return -ENODEV;
+	}
+
+	/* the USB video interface must be the first one */
+	if (dev->config->desc.bNumInterfaces != 1
+	 && intf->cur_altsetting->desc.bInterfaceNumber != 0) {
+		PDEBUG(D_ERR, "%04x:%04x bad interface %d",
+				id->idVendor, id->idProduct,
+				intf->cur_altsetting->desc.bInterfaceNumber);
+		return -ENODEV;
+	}
+
+	return gspca_dev_probe2(intf, id, sd_desc, dev_size, module);
 }
 EXPORT_SYMBOL(gspca_dev_probe);
 
