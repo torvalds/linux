@@ -8214,6 +8214,9 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 	}
 
 	tp->tx_mode = TX_MODE_ENABLE;
+	if ((tp->tg3_flags3 & TG3_FLG3_5755_PLUS) ||
+	    GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
+		tp->tx_mode |= TX_MODE_MBUF_LOCKUP_FIX;
 	tw32_f(MAC_TX_MODE, tp->tx_mode);
 	udelay(100);
 
