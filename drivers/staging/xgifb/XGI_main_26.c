@@ -28,7 +28,6 @@
 #include <linux/fs.h>
 #include <linux/types.h>
 #include <linux/proc_fs.h>
-#include <linux/kernel.h>
 
 #include "osdef.h"
 

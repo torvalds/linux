@@ -41,7 +41,6 @@
 
 #ifdef LINUX_KERNEL
 #include <asm/io.h>
-#include <linux/types.h>
 #endif
 
 
