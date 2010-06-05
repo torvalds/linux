@@ -8228,7 +8228,7 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
 		for (i = 0; i < TG3_RSS_INDIR_TBL_SIZE; i++) {
 			int idx = i % sizeof(val);
 
-			ent[idx] = i % (tp->irq_cnt - 1);
+			ent[idx] = (i % (tp->irq_cnt - 1)) + 1;
 			if (idx == sizeof(val) - 1) {
 				tw32(reg, val);
 				reg += 4;
