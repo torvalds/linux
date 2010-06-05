@@ -84,7 +84,6 @@ struct nfs4_delegation {
 	u32			dl_type;
 	time_t			dl_time;
 /* For recall: */
-	u32			dl_ident;
 	stateid_t		dl_stateid;
 	struct knfsd_fh		dl_fh;
 	int			dl_retries;
@@ -217,9 +216,16 @@ struct nfs4_client {
 
 	/* for v4.0 and v4.1 callbacks: */
 	struct nfs4_cb_conn	cl_cb_conn;
+#define NFSD4_CLIENT_CB_UPDATE	1
+#define NFSD4_CLIENT_KILL	2
+	unsigned long		cl_cb_flags;
 	struct rpc_clnt		*cl_cb_client;
+	u32			cl_cb_ident;
 	atomic_t		cl_cb_set;
 	struct nfsd4_callback	cl_cb_null;
+
+	/* for all client information that callback code might need: */
+	spinlock_t		cl_lock;
 
 	/* for nfs41 */
 	struct list_head	cl_sessions;
@@ -439,7 +445,7 @@ extern void nfsd4_do_callback_rpc(struct work_struct *);
 extern void nfsd4_cb_recall(struct nfs4_delegation *dp);
 extern int nfsd4_create_callback_queue(void);
 extern void nfsd4_destroy_callback_queue(void);
-extern void nfsd4_set_callback_client(struct nfs4_client *, struct rpc_clnt *);
+extern void nfsd4_shutdown_callback(struct nfs4_client *);
 extern void nfs4_put_delegation(struct nfs4_delegation *dp);
 extern __be32 nfs4_make_rec_clidname(char *clidname, struct xdr_netobj *clname);
 extern void nfsd4_init_recdir(char *recdir_name);

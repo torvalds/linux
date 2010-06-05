@@ -207,7 +207,6 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_stateid *stp, struct svc_f
 {
 	struct nfs4_delegation *dp;
 	struct nfs4_file *fp = stp->st_file;
-	struct nfs4_cb_conn *conn = &stp->st_stateowner->so_client->cl_cb_conn;
 
 	dprintk("NFSD alloc_init_deleg\n");
 	/*
@@ -234,7 +233,6 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_stateid *stp, struct svc_f
 	nfs4_file_get_access(fp, O_RDONLY);
 	dp->dl_flock = NULL;
 	dp->dl_type = type;
-	dp->dl_ident = conn->cb_ident;
 	dp->dl_stateid.si_boot = boot_time;
 	dp->dl_stateid.si_stateownerid = current_delegid++;
 	dp->dl_stateid.si_fileid = 0;
@@ -875,7 +873,7 @@ expire_client(struct nfs4_client *clp)
 		sop = list_entry(clp->cl_openowners.next, struct nfs4_stateowner, so_perclient);
 		release_openowner(sop);
 	}
-	nfsd4_set_callback_client(clp, NULL);
+	nfsd4_shutdown_callback(clp);
 	if (clp->cl_cb_conn.cb_xprt)
 		svc_xprt_put(clp->cl_cb_conn.cb_xprt);
 	list_del(&clp->cl_idhash);
@@ -978,6 +976,7 @@ static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
 	INIT_LIST_HEAD(&clp->cl_delegations);
 	INIT_LIST_HEAD(&clp->cl_sessions);
 	INIT_LIST_HEAD(&clp->cl_lru);
+	spin_lock_init(&clp->cl_lock);
 	INIT_WORK(&clp->cl_cb_null.cb_work, nfsd4_do_callback_rpc);
 	clp->cl_time = get_seconds();
 	clear_bit(0, &clp->cl_cb_slot_busy);
@@ -1547,7 +1546,7 @@ nfsd4_destroy_session(struct svc_rqst *r,
 
 	nfs4_lock_state();
 	/* wait for callbacks */
-	nfsd4_set_callback_client(ses->se_client, NULL);
+	nfsd4_shutdown_callback(ses->se_client);
 	nfs4_unlock_state();
 	nfsd4_put_session(ses);
 	status = nfs_ok;
