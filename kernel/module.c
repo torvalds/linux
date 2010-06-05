@@ -536,14 +536,6 @@ static void module_unload_init(struct module *mod)
 	mod->waiter = current;
 }
 
-/* modules using other modules */
-struct module_use
-{
-	struct list_head source_list;
-	struct list_head target_list;
-	struct module *source, *target;
-};
-
 /* Does a already use b? */
 static int already_uses(struct module *a, struct module *b)
 {
@@ -589,8 +581,7 @@ static int add_module_usage(struct module *a, struct module *b)
 /* Module a uses b */
 int use_module(struct module *a, struct module *b)
 {
-	struct module_use *use;
-	int no_warn, err;
+	int err;
 
 	if (b == NULL || already_uses(a, b)) return 1;
 
