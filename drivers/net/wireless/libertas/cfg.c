@@ -1238,28 +1238,6 @@ static int lbs_cfg_connect(struct wiphy *wiphy, struct net_device *dev,
 	return ret;
 }
 
-
-
-
-/* callback from lbs_cfg_disconnect() */
-static int lbs_cfg_ret_disconnect(struct lbs_private *priv, unsigned long dummy,
-			      struct cmd_header *resp)
-{
-	lbs_deb_enter(LBS_DEB_CFG80211);
-
-	cfg80211_disconnected(priv->dev,
-			      priv->disassoc_reason,
-			      NULL, 0, /* TODO? */
-			      GFP_KERNEL);
-
-	/* TODO: get rid of priv->connect_status */
-	priv->connect_status = LBS_CONNECTED;
-
-	lbs_deb_leave(LBS_DEB_CFG80211);
-	return 0;
-}
-
-
 static int lbs_cfg_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	u16 reason_code)
 {
@@ -1277,9 +1255,14 @@ static int lbs_cfg_disconnect(struct wiphy *wiphy, struct net_device *dev,
 	memcpy(cmd.macaddr, &priv->assoc_bss, ETH_ALEN);
 	cmd.reasoncode = cpu_to_le16(reason_code);
 
-	__lbs_cmd_async(priv, CMD_802_11_DEAUTHENTICATE,
-			&cmd.hdr, sizeof(cmd),
-			lbs_cfg_ret_disconnect, 0);
+	if (lbs_cmd_with_response(priv, CMD_802_11_DEAUTHENTICATE, &cmd))
+		return -EFAULT;
+
+	cfg80211_disconnected(priv->dev,
+			priv->disassoc_reason,
+			NULL, 0,
+			GFP_KERNEL);
+	priv->connect_status = LBS_DISCONNECTED;
 
 	return 0;
 }
@@ -1673,6 +1656,10 @@ static void lbs_join_post(struct lbs_private *priv,
 			    params->beacon_interval,
 			    fake_ie, fake - fake_ie,
 			    0, GFP_KERNEL);
+
+	memcpy(priv->wdev->ssid, params->ssid, params->ssid_len);
+	priv->wdev->ssid_len = params->ssid_len;
+
 	cfg80211_ibss_joined(priv->dev, bssid, GFP_KERNEL);
 
 	/* TODO: consider doing this at MACREG_INT_CODE_LINK_SENSED time */

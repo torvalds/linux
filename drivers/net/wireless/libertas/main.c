@@ -932,8 +932,6 @@ void lbs_remove_card(struct lbs_private *priv)
 		lbs_ps_wakeup(priv, CMD_OPTION_WAITFORRSP);
 	}
 
-	lbs_send_disconnect_notification(priv);
-
 	if (priv->is_deep_sleep) {
 		priv->is_deep_sleep = 0;
 		wake_up_interruptible(&priv->ds_awake_q);
