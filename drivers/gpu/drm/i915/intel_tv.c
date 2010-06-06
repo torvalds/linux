@@ -476,7 +476,7 @@ static const struct tv_mode tv_modes[] = {
 		.vi_end_f1	= 20,		    .vi_end_f2		= 21,
 		.nbr_end	= 240,
 
-		.burst_ena	= 8,
+		.burst_ena	= true,
 		.hburst_start	= 72,		    .hburst_len		= 34,
 		.vburst_start_f1 = 9,		    .vburst_end_f1	= 240,
 		.vburst_start_f2 = 10,		    .vburst_end_f2	= 240,
