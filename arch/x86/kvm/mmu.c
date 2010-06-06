@@ -288,6 +288,21 @@ static void __set_spte(u64 *sptep, u64 spte)
 #endif
 }
 
+static u64 __xchg_spte(u64 *sptep, u64 new_spte)
+{
+#ifdef CONFIG_X86_64
+	return xchg(sptep, new_spte);
+#else
+	u64 old_spte;
+
+	do {
+		old_spte = *sptep;
+	} while (cmpxchg64(sptep, old_spte, new_spte) != old_spte);
+
+	return old_spte;
+#endif
+}
+
 static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
 				  struct kmem_cache *base_cache, int min)
 {
@@ -653,18 +668,17 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 static void drop_spte(struct kvm *kvm, u64 *sptep, u64 new_spte)
 {
 	pfn_t pfn;
+	u64 old_spte;
 
-	if (!is_rmap_spte(*sptep)) {
-		__set_spte(sptep, new_spte);
+	old_spte = __xchg_spte(sptep, new_spte);
+	if (!is_rmap_spte(old_spte))
 		return;
-	}
-	pfn = spte_to_pfn(*sptep);
-	if (*sptep & shadow_accessed_mask)
+	pfn = spte_to_pfn(old_spte);
+	if (old_spte & shadow_accessed_mask)
 		kvm_set_pfn_accessed(pfn);
-	if (is_writable_pte(*sptep))
+	if (is_writable_pte(old_spte))
 		kvm_set_pfn_dirty(pfn);
 	rmap_remove(kvm, sptep);
-	__set_spte(sptep, new_spte);
 }
 
 static u64 *rmap_next(struct kvm *kvm, unsigned long *rmapp, u64 *spte)
