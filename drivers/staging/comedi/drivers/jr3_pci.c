@@ -987,7 +987,43 @@ static int jr3_pci_detach(struct comedi_device *dev)
 	return 0;
 }
 
-COMEDI_PCI_INITCLEANUP(driver_jr3_pci, jr3_pci_pci_table);
+static int __devinit driver_jr3_pci_pci_probe(struct pci_dev *dev,
+					      const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_jr3_pci.driver_name);
+}
+
+static void __devexit driver_jr3_pci_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_jr3_pci_pci_driver = {
+	.id_table = jr3_pci_pci_table,
+	.probe = &driver_jr3_pci_pci_probe,
+	.remove = __devexit_p(&driver_jr3_pci_pci_remove)
+};
+
+static int __init driver_jr3_pci_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_jr3_pci);
+	if (retval < 0)
+		return retval;
+
+	driver_jr3_pci_pci_driver.name = (char *)driver_jr3_pci.driver_name;
+	return pci_register_driver(&driver_jr3_pci_pci_driver);
+}
+
+static void __exit driver_jr3_pci_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_jr3_pci_pci_driver);
+	comedi_driver_unregister(&driver_jr3_pci);
+}
+
+module_init(driver_jr3_pci_init_module);
+module_exit(driver_jr3_pci_cleanup_module);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

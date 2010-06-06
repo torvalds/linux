@@ -53,44 +53,6 @@
 	COMEDI_MINORVERSION, COMEDI_MICROVERSION)
 #define COMEDI_RELEASE VERSION
 
-#define COMEDI_PCI_INITCLEANUP_NOMODULE(comedi_driver, pci_id_table) \
-	static int __devinit comedi_driver ## _pci_probe(struct pci_dev *dev, \
-		const struct pci_device_id *ent) \
-	{ \
-		return comedi_pci_auto_config(dev, comedi_driver.driver_name); \
-	} \
-	static void __devexit comedi_driver ## _pci_remove(\
-		struct pci_dev *dev) \
-	{ \
-		comedi_pci_auto_unconfig(dev); \
-	} \
-	static struct pci_driver comedi_driver ## _pci_driver = \
-	{ \
-		.id_table = pci_id_table, \
-		.probe = &comedi_driver ## _pci_probe, \
-		.remove = __devexit_p(&comedi_driver ## _pci_remove) \
-	}; \
-	static int __init comedi_driver ## _init_module(void) \
-	{ \
-		int retval; \
-		retval = comedi_driver_register(&comedi_driver); \
-		if (retval < 0) \
-			return retval; \
-			comedi_driver ## _pci_driver.name = \
-				(char *)comedi_driver.driver_name; \
-		return pci_register_driver(&comedi_driver ## _pci_driver); \
-	} \
-	static void __exit comedi_driver ## _cleanup_module(void) \
-	{ \
-		pci_unregister_driver(&comedi_driver ## _pci_driver); \
-		comedi_driver_unregister(&comedi_driver); \
-	} \
-	module_init(comedi_driver ## _init_module); \
-	module_exit(comedi_driver ## _cleanup_module);
-
-#define COMEDI_PCI_INITCLEANUP(comedi_driver, pci_id_table) \
-	COMEDI_PCI_INITCLEANUP_NOMODULE(comedi_driver, pci_id_table)
-
 #define PCI_VENDOR_ID_ADLINK		0x144a
 #define PCI_VENDOR_ID_ICP		0x104c
 #define PCI_VENDOR_ID_CONTEC		0x1221

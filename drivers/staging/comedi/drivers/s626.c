@@ -224,7 +224,43 @@ static struct dio_private *dio_private_word[]={
 #define devpriv ((struct s626_private *)dev->private)
 #define diopriv ((struct dio_private *)s->private)
 
-COMEDI_PCI_INITCLEANUP_NOMODULE(driver_s626, s626_pci_table);
+static int __devinit driver_s626_pci_probe(struct pci_dev *dev,
+					   const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_s626.driver_name);
+}
+
+static void __devexit driver_s626_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_s626_pci_driver = {
+	.id_table = s626_pci_table,
+	.probe = &driver_s626_pci_probe,
+	.remove = __devexit_p(&driver_s626_pci_remove)
+};
+
+static int __init driver_s626_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_s626);
+	if (retval < 0)
+		return retval;
+
+	driver_s626_pci_driver.name = (char *)driver_s626.driver_name;
+	return pci_register_driver(&driver_s626_pci_driver);
+}
+
+static void __exit driver_s626_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_s626_pci_driver);
+	comedi_driver_unregister(&driver_s626);
+}
+
+module_init(driver_s626_init_module);
+module_exit(driver_s626_cleanup_module);
 
 /* ioctl routines */
 static int s626_ai_insn_config(struct comedi_device *dev,

@@ -1253,7 +1253,43 @@ static int pci_dio_detach(struct comedi_device *dev)
 /*
 ==============================================================================
 */
-COMEDI_PCI_INITCLEANUP(driver_pci_dio, pci_dio_pci_table);
+static int __devinit driver_pci_dio_pci_probe(struct pci_dev *dev,
+					      const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_pci_dio.driver_name);
+}
+
+static void __devexit driver_pci_dio_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_pci_dio_pci_driver = {
+	.id_table = pci_dio_pci_table,
+	.probe = &driver_pci_dio_pci_probe,
+	.remove = __devexit_p(&driver_pci_dio_pci_remove)
+};
+
+static int __init driver_pci_dio_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_pci_dio);
+	if (retval < 0)
+		return retval;
+
+	driver_pci_dio_pci_driver.name = (char *)driver_pci_dio.driver_name;
+	return pci_register_driver(&driver_pci_dio_pci_driver);
+}
+
+static void __exit driver_pci_dio_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_pci_dio_pci_driver);
+	comedi_driver_unregister(&driver_pci_dio);
+}
+
+module_init(driver_pci_dio_init_module);
+module_exit(driver_pci_dio_cleanup_module);
 /*
 ==============================================================================
 */

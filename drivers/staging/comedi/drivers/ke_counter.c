@@ -96,7 +96,43 @@ static struct comedi_driver cnt_driver = {
 	.detach = cnt_detach,
 };
 
-COMEDI_PCI_INITCLEANUP(cnt_driver, cnt_pci_table);
+static int __devinit cnt_driver_pci_probe(struct pci_dev *dev,
+					  const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, cnt_driver.driver_name);
+}
+
+static void __devexit cnt_driver_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver cnt_driver_pci_driver = {
+	.id_table = cnt_pci_table,
+	.probe = &cnt_driver_pci_probe,
+	.remove = __devexit_p(&cnt_driver_pci_remove)
+};
+
+static int __init cnt_driver_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&cnt_driver);
+	if (retval < 0)
+		return retval;
+
+	cnt_driver_pci_driver.name = (char *)cnt_driver.driver_name;
+	return pci_register_driver(&cnt_driver_pci_driver);
+}
+
+static void __exit cnt_driver_cleanup_module(void)
+{
+	pci_unregister_driver(&cnt_driver_pci_driver);
+	comedi_driver_unregister(&cnt_driver);
+}
+
+module_init(cnt_driver_init_module);
+module_exit(cnt_driver_cleanup_module);
 
 /*-- counter write ----------------------------------------------------------*/
 

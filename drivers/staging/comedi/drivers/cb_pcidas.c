@@ -1871,7 +1871,43 @@ static int nvram_read(struct comedi_device *dev, unsigned int address,
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_PCI_INITCLEANUP(driver_cb_pcidas, cb_pcidas_pci_table);
+static int __devinit driver_cb_pcidas_pci_probe(struct pci_dev *dev,
+						const struct pci_device_id *ent)
+{
+	return comedi_pci_auto_config(dev, driver_cb_pcidas.driver_name);
+}
+
+static void __devexit driver_cb_pcidas_pci_remove(struct pci_dev *dev)
+{
+	comedi_pci_auto_unconfig(dev);
+}
+
+static struct pci_driver driver_cb_pcidas_pci_driver = {
+	.id_table = cb_pcidas_pci_table,
+	.probe = &driver_cb_pcidas_pci_probe,
+	.remove = __devexit_p(&driver_cb_pcidas_pci_remove)
+};
+
+static int __init driver_cb_pcidas_init_module(void)
+{
+	int retval;
+
+	retval = comedi_driver_register(&driver_cb_pcidas);
+	if (retval < 0)
+		return retval;
+
+	driver_cb_pcidas_pci_driver.name = (char *)driver_cb_pcidas.driver_name;
+	return pci_register_driver(&driver_cb_pcidas_pci_driver);
+}
+
+static void __exit driver_cb_pcidas_cleanup_module(void)
+{
+	pci_unregister_driver(&driver_cb_pcidas_pci_driver);
+	comedi_driver_unregister(&driver_cb_pcidas);
+}
+
+module_init(driver_cb_pcidas_init_module);
+module_exit(driver_cb_pcidas_cleanup_module);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");
