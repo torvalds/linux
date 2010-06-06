@@ -303,6 +303,19 @@ static u64 __xchg_spte(u64 *sptep, u64 new_spte)
 #endif
 }
 
+static void update_spte(u64 *sptep, u64 new_spte)
+{
+	u64 old_spte;
+
+	if (!shadow_accessed_mask || (new_spte & shadow_accessed_mask)) {
+		__set_spte(sptep, new_spte);
+	} else {
+		old_spte = __xchg_spte(sptep, new_spte);
+		if (old_spte & shadow_accessed_mask)
+			mark_page_accessed(pfn_to_page(spte_to_pfn(old_spte)));
+	}
+}
+
 static int mmu_topup_memory_cache(struct kvm_mmu_memory_cache *cache,
 				  struct kmem_cache *base_cache, int min)
 {
@@ -721,7 +734,7 @@ static int rmap_write_protect(struct kvm *kvm, u64 gfn)
 		BUG_ON(!(*spte & PT_PRESENT_MASK));
 		rmap_printk("rmap_write_protect: spte %p %llx\n", spte, *spte);
 		if (is_writable_pte(*spte)) {
-			__set_spte(spte, *spte & ~PT_WRITABLE_MASK);
+			update_spte(spte, *spte & ~PT_WRITABLE_MASK);
 			write_protected = 1;
 		}
 		spte = rmap_next(kvm, rmapp, spte);
@@ -777,7 +790,7 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
 			     unsigned long data)
 {
 	int need_flush = 0;
-	u64 *spte, new_spte;
+	u64 *spte, new_spte, old_spte;
 	pte_t *ptep = (pte_t *)data;
 	pfn_t new_pfn;
 
@@ -797,9 +810,13 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
 
 			new_spte &= ~PT_WRITABLE_MASK;
 			new_spte &= ~SPTE_HOST_WRITEABLE;
+			new_spte &= ~shadow_accessed_mask;
 			if (is_writable_pte(*spte))
 				kvm_set_pfn_dirty(spte_to_pfn(*spte));
-			__set_spte(spte, new_spte);
+			old_spte = __xchg_spte(spte, new_spte);
+			if (is_shadow_present_pte(old_spte)
+			    && (old_spte & shadow_accessed_mask))
+				mark_page_accessed(pfn_to_page(spte_to_pfn(old_spte)));
 			spte = rmap_next(kvm, rmapp, spte);
 		}
 	}
@@ -1922,7 +1939,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		mark_page_dirty(vcpu->kvm, gfn);
 
 set_pte:
-	__set_spte(sptep, spte);
+	update_spte(sptep, spte);
 done:
 	return ret;
 }
