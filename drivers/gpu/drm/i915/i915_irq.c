@@ -1229,16 +1229,21 @@ void i915_hangcheck_elapsed(unsigned long data)
 {
 	struct drm_device *dev = (struct drm_device *)data;
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t acthd;
+	uint32_t acthd, instdone, instdone1;
 
 	/* No reset support on this chip yet. */
 	if (IS_GEN6(dev))
 		return;
 
-	if (!IS_I965G(dev))
+	if (!IS_I965G(dev)) {
 		acthd = I915_READ(ACTHD);
-	else
+		instdone = I915_READ(INSTDONE);
+		instdone1 = 0;
+	} else {
 		acthd = I915_READ(ACTHD_I965);
+		instdone = I915_READ(INSTDONE_I965);
+		instdone1 = I915_READ(INSTDONE1);
+	}
 
 	/* If all work is done then ACTHD clearly hasn't advanced. */
 	if (list_empty(&dev_priv->render_ring.request_list) ||
@@ -1249,21 +1254,24 @@ void i915_hangcheck_elapsed(unsigned long data)
 		return;
 	}
 
-	if (dev_priv->last_acthd == acthd && dev_priv->hangcheck_count > 0) {
-		DRM_ERROR("Hangcheck timer elapsed... GPU hung\n");
-		i915_handle_error(dev, true);
-		return;
-	} 
+	if (dev_priv->last_acthd == acthd &&
+	    dev_priv->last_instdone == instdone &&
+	    dev_priv->last_instdone1 == instdone1) {
+		if (dev_priv->hangcheck_count++ > 1) {
+			DRM_ERROR("Hangcheck timer elapsed... GPU hung\n");
+			i915_handle_error(dev, true);
+			return;
+		}
+	} else {
+		dev_priv->hangcheck_count = 0;
+
+		dev_priv->last_acthd = acthd;
+		dev_priv->last_instdone = instdone;
+		dev_priv->last_instdone1 = instdone1;
+	}
 
 	/* Reset timer case chip hangs without another request being added */
 	mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
-
-	if (acthd != dev_priv->last_acthd)
-		dev_priv->hangcheck_count = 0;
-	else
-		dev_priv->hangcheck_count++;
-
-	dev_priv->last_acthd = acthd;
 }
 
 /* drm_dma.h hooks
