@@ -51,6 +51,7 @@
 #include <mach/cpcap_audio.h>
 #include <mach/suspend.h>
 #include <mach/system.h>
+#include <mach/tegra_fiq_debugger.h>
 
 #include <linux/usb/android_composite.h>
 
@@ -94,28 +95,6 @@ static int __init parse_tag_nvidia(const struct tag *tag)
 	return 0;
 }
 __tagtable(ATAG_NVIDIA, parse_tag_nvidia);
-
-static struct plat_serial8250_port debug_uart_platform_data[] = {
-	{
-		.membase	= IO_ADDRESS(TEGRA_UARTB_BASE),
-		.mapbase	= TEGRA_UARTB_BASE,
-		.irq		= INT_UARTB,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.iotype		= UPIO_MEM,
-		.regshift	= 2,
-		.uartclk	= 0, /* filled in by tegra_stingray_init */
-	}, {
-		.flags		= 0
-	}
-};
-
-static struct platform_device debug_uart = {
-	.name = "serial8250",
-	.id = PLAT8250_DEV_PLATFORM,
-	.dev = {
-		.platform_data = debug_uart_platform_data,
-	},
-};
 
 static struct plat_serial8250_port hs_uarta_platform_data[] = {
 	{
@@ -624,7 +603,6 @@ static struct platform_device ram_console_device = {
 };
 
 static struct platform_device *stingray_devices[] __initdata = {
-	&debug_uart,
 	&cpcap_otg,
 	&bq24617_device,
 	&bcm4329_rfkill,
@@ -1029,7 +1007,8 @@ static void __init tegra_stingray_init(void)
 	tegra_clk_init_from_table(stingray_clk_init_table);
 
 	clk = tegra_get_clock_by_name("uartb");
-	debug_uart_platform_data[0].uartclk = clk_get_rate(clk);
+	tegra_serial_debug_init(TEGRA_UARTB_BASE, INT_UARTB,
+				clk, INT_QUAD_RES_31, -1);
 
 	nvmap_add_carveout_heap(TEGRA_IRAM_BASE, TEGRA_IRAM_SIZE, "iram",
 				NVMEM_HEAP_CARVEOUT_IRAM);
