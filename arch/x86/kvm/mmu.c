@@ -612,19 +612,11 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 	struct kvm_rmap_desc *desc;
 	struct kvm_rmap_desc *prev_desc;
 	struct kvm_mmu_page *sp;
-	pfn_t pfn;
 	gfn_t gfn;
 	unsigned long *rmapp;
 	int i;
 
-	if (!is_rmap_spte(*spte))
-		return;
 	sp = page_header(__pa(spte));
-	pfn = spte_to_pfn(*spte);
-	if (*spte & shadow_accessed_mask)
-		kvm_set_pfn_accessed(pfn);
-	if (is_writable_pte(*spte))
-		kvm_set_pfn_dirty(pfn);
 	gfn = kvm_mmu_page_get_gfn(sp, spte - sp->spt);
 	rmapp = gfn_to_rmap(kvm, gfn, sp->role.level);
 	if (!*rmapp) {
@@ -660,6 +652,17 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 
 static void drop_spte(struct kvm *kvm, u64 *sptep, u64 new_spte)
 {
+	pfn_t pfn;
+
+	if (!is_rmap_spte(*sptep)) {
+		__set_spte(sptep, new_spte);
+		return;
+	}
+	pfn = spte_to_pfn(*sptep);
+	if (*sptep & shadow_accessed_mask)
+		kvm_set_pfn_accessed(pfn);
+	if (is_writable_pte(*sptep))
+		kvm_set_pfn_dirty(pfn);
 	rmap_remove(kvm, sptep);
 	__set_spte(sptep, new_spte);
 }
