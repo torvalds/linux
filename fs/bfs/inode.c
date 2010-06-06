@@ -99,6 +99,24 @@ error:
 	return ERR_PTR(-EIO);
 }
 
+static struct bfs_inode *find_inode(struct super_block *sb, u16 ino, struct buffer_head **p)
+{
+	if ((ino < BFS_ROOT_INO) || (ino > BFS_SB(sb)->si_lasti)) {
+		printf("Bad inode number %s:%08x\n", sb->s_id, ino);
+		return ERR_PTR(-EIO);
+	}
+
+	ino -= BFS_ROOT_INO;
+
+	*p = sb_bread(sb, 1 + ino / BFS_INODES_PER_BLOCK);
+	if (!*p) {
+		printf("Unable to read inode %s:%08x\n", sb->s_id, ino);
+		return ERR_PTR(-EIO);
+	}
+
+	return (struct bfs_inode *)(*p)->b_data +  ino % BFS_INODES_PER_BLOCK;
+}
+
 static int bfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
@@ -106,28 +124,15 @@ static int bfs_write_inode(struct inode *inode, struct writeback_control *wbc)
         unsigned long i_sblock;
 	struct bfs_inode *di;
 	struct buffer_head *bh;
-	int block, off;
 	int err = 0;
 
         dprintf("ino=%08x\n", ino);
 
-	if ((ino < BFS_ROOT_INO) || (ino > BFS_SB(inode->i_sb)->si_lasti)) {
-		printf("Bad inode number %s:%08x\n", inode->i_sb->s_id, ino);
-		return -EIO;
-	}
+	di = find_inode(inode->i_sb, ino, &bh);
+	if (IS_ERR(di))
+		return PTR_ERR(di);
 
 	mutex_lock(&info->bfs_lock);
-	block = (ino - BFS_ROOT_INO) / BFS_INODES_PER_BLOCK + 1;
-	bh = sb_bread(inode->i_sb, block);
-	if (!bh) {
-		printf("Unable to read inode %s:%08x\n",
-				inode->i_sb->s_id, ino);
-		mutex_unlock(&info->bfs_lock);
-		return -EIO;
-	}
-
-	off = (ino - BFS_ROOT_INO) % BFS_INODES_PER_BLOCK;
-	di = (struct bfs_inode *)bh->b_data + off;
 
 	if (ino == BFS_ROOT_INO)
 		di->i_vtype = cpu_to_le32(BFS_VDIR);
@@ -158,12 +163,11 @@ static int bfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 	return err;
 }
 
-static void bfs_delete_inode(struct inode *inode)
+static void bfs_evict_inode(struct inode *inode)
 {
 	unsigned long ino = inode->i_ino;
 	struct bfs_inode *di;
 	struct buffer_head *bh;
-	int block, off;
 	struct super_block *s = inode->i_sb;
 	struct bfs_sb_info *info = BFS_SB(s);
 	struct bfs_inode_info *bi = BFS_I(inode);
@@ -171,28 +175,19 @@ static void bfs_delete_inode(struct inode *inode)
 	dprintf("ino=%08lx\n", ino);
 
 	truncate_inode_pages(&inode->i_data, 0);
+	invalidate_inode_buffers(inode);
+	end_writeback(inode);
 
-	if ((ino < BFS_ROOT_INO) || (ino > info->si_lasti)) {
-		printf("invalid ino=%08lx\n", ino);
+	if (inode->i_nlink)
 		return;
-	}
-	
-	inode->i_size = 0;
-	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME_SEC;
+
+	di = find_inode(s, inode->i_ino, &bh);
+	if (IS_ERR(di))
+		return;
+
 	mutex_lock(&info->bfs_lock);
-	mark_inode_dirty(inode);
-
-	block = (ino - BFS_ROOT_INO) / BFS_INODES_PER_BLOCK + 1;
-	bh = sb_bread(s, block);
-	if (!bh) {
-		printf("Unable to read inode %s:%08lx\n",
-					inode->i_sb->s_id, ino);
-		mutex_unlock(&info->bfs_lock);
-		return;
-	}
-	off = (ino - BFS_ROOT_INO) % BFS_INODES_PER_BLOCK;
-	di = (struct bfs_inode *)bh->b_data + off;
-	memset((void *)di, 0, sizeof(struct bfs_inode));
+	/* clear on-disk inode */
+	memset(di, 0, sizeof(struct bfs_inode));
 	mark_buffer_dirty(bh);
 	brelse(bh);
 
@@ -214,7 +209,6 @@ static void bfs_delete_inode(struct inode *inode)
 		mark_buffer_dirty(info->si_sbh);
 	}
 	mutex_unlock(&info->bfs_lock);
-	clear_inode(inode);
 }
 
 static int bfs_sync_fs(struct super_block *sb, int wait)
@@ -319,7 +313,7 @@ static const struct super_operations bfs_sops = {
 	.alloc_inode	= bfs_alloc_inode,
 	.destroy_inode	= bfs_destroy_inode,
 	.write_inode	= bfs_write_inode,
-	.delete_inode	= bfs_delete_inode,
+	.evict_inode	= bfs_evict_inode,
 	.put_super	= bfs_put_super,
 	.write_super	= bfs_write_super,
 	.sync_fs	= bfs_sync_fs,
