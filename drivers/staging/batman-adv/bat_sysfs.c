@@ -28,22 +28,6 @@
 
 #define to_dev(obj)     container_of(obj, struct device, kobj)
 
-struct bat_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct kobject *kobj, struct attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct kobject *kobj, struct attribute *attr,
-			 char *buf, size_t count);
-};
-
-struct hardif_attribute {
-	struct attribute attr;
-	ssize_t (*show)(struct kobject *kobj, struct attribute *attr,
-			char *buf);
-	ssize_t (*store)(struct kobject *kobj, struct attribute *attr,
-			 char *buf, size_t count);
-};
-
 #define BAT_ATTR(_name, _mode, _show, _store)	\
 struct bat_attribute bat_attr_##_name = {	\
 	.attr = {.name = __stringify(_name),	\
@@ -58,14 +42,6 @@ struct bin_attribute bat_attr_##_name = {		\
 		  .mode = _mode, },			\
 	.read = _read,					\
 	.write = _write,				\
-};
-
-#define HARDIF_ATTR(_name, _mode, _show, _store)	\
-struct hardif_attribute hardif_attr_##_name = {		\
-	.attr = {.name = __stringify(_name),		\
-		 .mode = _mode },			\
-	.show   = _show,				\
-	.store  = _store,				\
 };
 
 static ssize_t show_aggr_ogm(struct kobject *kobj, struct attribute *attr,
@@ -433,20 +409,20 @@ static ssize_t show_iface_status(struct kobject *kobj, struct attribute *attr,
 	}
 }
 
-static HARDIF_ATTR(mesh_iface, S_IRUGO | S_IWUSR,
-		   show_mesh_iface, store_mesh_iface);
-static HARDIF_ATTR(iface_status, S_IRUGO, show_iface_status, NULL);
+static BAT_ATTR(mesh_iface, S_IRUGO | S_IWUSR,
+		show_mesh_iface, store_mesh_iface);
+static BAT_ATTR(iface_status, S_IRUGO, show_iface_status, NULL);
 
-static struct hardif_attribute *batman_attrs[] = {
-	&hardif_attr_mesh_iface,
-	&hardif_attr_iface_status,
+static struct bat_attribute *batman_attrs[] = {
+	&bat_attr_mesh_iface,
+	&bat_attr_iface_status,
 	NULL,
 };
 
 int sysfs_add_hardif(struct kobject **hardif_obj, struct net_device *dev)
 {
 	struct kobject *hardif_kobject = &dev->dev.kobj;
-	struct hardif_attribute **hardif_attr;
+	struct bat_attribute **bat_attr;
 	int err;
 
 	*hardif_obj = kobject_create_and_add(SYSFS_IF_BAT_SUBDIR,
@@ -458,12 +434,12 @@ int sysfs_add_hardif(struct kobject **hardif_obj, struct net_device *dev)
 		goto out;
 	}
 
-	for (hardif_attr = batman_attrs; *hardif_attr; ++hardif_attr) {
-		err = sysfs_create_file(*hardif_obj, &((*hardif_attr)->attr));
+	for (bat_attr = batman_attrs; *bat_attr; ++bat_attr) {
+		err = sysfs_create_file(*hardif_obj, &((*bat_attr)->attr));
 		if (err) {
 			printk(KERN_ERR "batman-adv:Can't add sysfs file: %s/%s/%s\n",
 			       dev->name, SYSFS_IF_BAT_SUBDIR,
-			       ((*hardif_attr)->attr).name);
+			       ((*bat_attr)->attr).name);
 			goto rem_attr;
 		}
 	}
@@ -471,8 +447,8 @@ int sysfs_add_hardif(struct kobject **hardif_obj, struct net_device *dev)
 	return 0;
 
 rem_attr:
-	for (hardif_attr = batman_attrs; *hardif_attr; ++hardif_attr)
-		sysfs_remove_file(*hardif_obj, &((*hardif_attr)->attr));
+	for (bat_attr = batman_attrs; *bat_attr; ++bat_attr)
+		sysfs_remove_file(*hardif_obj, &((*bat_attr)->attr));
 out:
 	return -ENOMEM;
 }
