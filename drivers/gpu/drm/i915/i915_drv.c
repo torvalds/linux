@@ -482,7 +482,7 @@ static int i915_pm_poweroff(struct device *dev)
 	return i915_drm_freeze(drm_dev);
 }
 
-const struct dev_pm_ops i915_pm_ops = {
+static const struct dev_pm_ops i915_pm_ops = {
      .suspend = i915_pm_suspend,
      .resume = i915_pm_resume,
      .freeze = i915_pm_freeze,
