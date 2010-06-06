@@ -204,50 +204,11 @@ static char *follow_link(char *link)
 	return ERR_PTR(n);
 }
 
-static int hostfs_read_inode(struct inode *ino)
-{
-	char *name;
-	int err = 0;
-
-	/*
-	 * Unfortunately, we are called from iget() when we don't have a dentry
-	 * allocated yet.
-	 */
-	if (list_empty(&ino->i_dentry))
-		goto out;
-
-	err = -ENOMEM;
-	name = inode_name(ino, 0);
-	if (name == NULL)
-		goto out;
-
-	if (file_type(name, NULL, NULL) == OS_TYPE_SYMLINK) {
-		name = follow_link(name);
-		if (IS_ERR(name)) {
-			err = PTR_ERR(name);
-			goto out;
-		}
-	}
-
-	err = read_name(ino, name);
-	kfree(name);
- out:
-	return err;
-}
-
 static struct inode *hostfs_iget(struct super_block *sb)
 {
-	struct inode *inode;
-	long ret;
-
-	inode = new_inode(sb);
+	struct inode *inode = new_inode(sb);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
-	ret = hostfs_read_inode(inode);
-	if (ret < 0) {
-		iput(inode);
-		return ERR_PTR(ret);
-	}
 	return inode;
 }
 
@@ -979,13 +940,23 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 
 	sprintf(host_root_path, "%s/%s", root_ino, req_root);
 
-	root_inode = hostfs_iget(sb);
-	if (IS_ERR(root_inode)) {
-		err = PTR_ERR(root_inode);
+	root_inode = new_inode(sb);
+	if (!root_inode)
 		goto out;
-	}
 
-	err = init_inode(root_inode, NULL);
+	root_inode->i_op = &hostfs_dir_iops;
+	root_inode->i_fop = &hostfs_dir_fops;
+
+	if (file_type(host_root_path, NULL, NULL) == OS_TYPE_SYMLINK) {
+		char *name = follow_link(host_root_path);
+		if (IS_ERR(name))
+			err = PTR_ERR(name);
+		else
+			err = read_name(root_inode, name);
+		kfree(name);
+	} else {
+		err = read_name(root_inode, host_root_path);
+	}
 	if (err)
 		goto out_put;
 
@@ -993,14 +964,6 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 	sb->s_root = d_alloc_root(root_inode);
 	if (sb->s_root == NULL)
 		goto out_put;
-
-	err = hostfs_read_inode(root_inode);
-	if (err) {
-		/* No iput in this case because the dput does that for us */
-		dput(sb->s_root);
-		sb->s_root = NULL;
-		goto out;
-	}
 
 	return 0;
 
