@@ -241,16 +241,13 @@ static struct inode *hostfs_iget(struct super_block *sb)
 	struct inode *inode;
 	long ret;
 
-	inode = iget_locked(sb, 0);
+	inode = new_inode(sb);
 	if (!inode)
 		return ERR_PTR(-ENOMEM);
-	if (inode->i_state & I_NEW) {
-		ret = hostfs_read_inode(inode);
-		if (ret < 0) {
-			iget_failed(inode);
-			return ERR_PTR(ret);
-		}
-		unlock_new_inode(inode);
+	ret = hostfs_read_inode(inode);
+	if (ret < 0) {
+		iput(inode);
+		return ERR_PTR(ret);
 	}
 	return inode;
 }
@@ -299,29 +296,19 @@ static struct inode *hostfs_alloc_inode(struct super_block *sb)
 	return &hi->vfs_inode;
 }
 
-static void hostfs_delete_inode(struct inode *inode)
+static void hostfs_evict_inode(struct inode *inode)
 {
 	truncate_inode_pages(&inode->i_data, 0);
+	end_writeback(inode);
 	if (HOSTFS_I(inode)->fd != -1) {
 		close_file(&HOSTFS_I(inode)->fd);
 		HOSTFS_I(inode)->fd = -1;
 	}
-	clear_inode(inode);
 }
 
 static void hostfs_destroy_inode(struct inode *inode)
 {
 	kfree(HOSTFS_I(inode)->host_filename);
-
-	/*
-	 * XXX: This should not happen, probably. The check is here for
-	 * additional safety.
-	 */
-	if (HOSTFS_I(inode)->fd != -1) {
-		close_file(&HOSTFS_I(inode)->fd);
-		printk(KERN_DEBUG "Closing host fd in .destroy_inode\n");
-	}
-
 	kfree(HOSTFS_I(inode));
 }
 
@@ -339,9 +326,8 @@ static int hostfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 
 static const struct super_operations hostfs_sbops = {
 	.alloc_inode	= hostfs_alloc_inode,
-	.drop_inode	= generic_delete_inode,
-	.delete_inode   = hostfs_delete_inode,
 	.destroy_inode	= hostfs_destroy_inode,
+	.evict_inode	= hostfs_evict_inode,
 	.statfs		= hostfs_statfs,
 	.show_options	= hostfs_show_options,
 };
