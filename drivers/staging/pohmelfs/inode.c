@@ -1266,7 +1266,7 @@ static void pohmelfs_put_super(struct super_block *sb)
 {
 	struct pohmelfs_sb *psb = POHMELFS_SB(sb);
 	struct pohmelfs_inode *pi;
-	unsigned int count;
+	unsigned int count = 0;
 	unsigned int in_drop_list = 0;
 	struct inode *inode, *tmp;
 
