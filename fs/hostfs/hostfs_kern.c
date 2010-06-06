@@ -19,7 +19,6 @@
 #include "kern.h"
 
 struct hostfs_inode_info {
-	char *host_filename;
 	int fd;
 	fmode_t mode;
 	struct inode vfs_inode;
@@ -103,7 +102,7 @@ static char *dentry_name(struct dentry *dentry, int extra)
 		parent = parent->d_parent;
 	}
 
-	root = HOSTFS_I(parent->d_inode)->host_filename;
+	root = parent->d_sb->s_fs_info;
 	len += strlen(root);
 	name = kmalloc(len + extra + 1, GFP_KERNEL);
 	if (name == NULL)
@@ -266,7 +265,7 @@ int hostfs_statfs(struct dentry *dentry, struct kstatfs *sf)
 	long long f_files;
 	long long f_ffree;
 
-	err = do_statfs(HOSTFS_I(dentry->d_sb->s_root->d_inode)->host_filename,
+	err = do_statfs(dentry->d_sb->s_fs_info,
 			&sf->f_bsize, &f_blocks, &f_bfree, &f_bavail, &f_files,
 			&f_ffree, &sf->f_fsid, sizeof(sf->f_fsid),
 			&sf->f_namelen, sf->f_spare);
@@ -285,13 +284,10 @@ static struct inode *hostfs_alloc_inode(struct super_block *sb)
 {
 	struct hostfs_inode_info *hi;
 
-	hi = kmalloc(sizeof(*hi), GFP_KERNEL);
+	hi = kzalloc(sizeof(*hi), GFP_KERNEL);
 	if (hi == NULL)
 		return NULL;
-
-	*hi = ((struct hostfs_inode_info) { .host_filename	= NULL,
-					    .fd			= -1,
-					    .mode		= 0 });
+	hi->fd = -1;
 	inode_init_once(&hi->vfs_inode);
 	return &hi->vfs_inode;
 }
@@ -308,14 +304,12 @@ static void hostfs_evict_inode(struct inode *inode)
 
 static void hostfs_destroy_inode(struct inode *inode)
 {
-	kfree(HOSTFS_I(inode)->host_filename);
 	kfree(HOSTFS_I(inode));
 }
 
 static int hostfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 {
-	struct inode *root = vfs->mnt_sb->s_root->d_inode;
-	const char *root_path = HOSTFS_I(root)->host_filename;
+	const char *root_path = vfs->mnt_sb->s_fs_info;
 	size_t offset = strlen(root_ino) + 1;
 
 	if (strlen(root_path) > offset)
@@ -978,8 +972,8 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 		req_root = "";
 
 	err = -ENOMEM;
-	host_root_path = kmalloc(strlen(root_ino) + 1
-				 + strlen(req_root) + 1, GFP_KERNEL);
+	sb->s_fs_info = host_root_path =
+		kmalloc(strlen(root_ino) + strlen(req_root) + 2, GFP_KERNEL);
 	if (host_root_path == NULL)
 		goto out;
 
@@ -988,19 +982,12 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 	root_inode = hostfs_iget(sb);
 	if (IS_ERR(root_inode)) {
 		err = PTR_ERR(root_inode);
-		goto out_free;
+		goto out;
 	}
 
 	err = init_inode(root_inode, NULL);
 	if (err)
 		goto out_put;
-
-	HOSTFS_I(root_inode)->host_filename = host_root_path;
-	/*
-	 * Avoid that in the error path, iput(root_inode) frees again
-	 * host_root_path through hostfs_destroy_inode!
-	 */
-	host_root_path = NULL;
 
 	err = -ENOMEM;
 	sb->s_root = d_alloc_root(root_inode);
@@ -1019,8 +1006,6 @@ static int hostfs_fill_sb_common(struct super_block *sb, void *d, int silent)
 
 out_put:
 	iput(root_inode);
-out_free:
-	kfree(host_root_path);
 out:
 	return err;
 }
@@ -1032,11 +1017,17 @@ static int hostfs_read_sb(struct file_system_type *type,
 	return get_sb_nodev(type, flags, data, hostfs_fill_sb_common, mnt);
 }
 
+static void hostfs_kill_sb(struct super_block *s)
+{
+	kill_anon_super(s);
+	kfree(s->s_fs_info);
+}
+
 static struct file_system_type hostfs_type = {
 	.owner 		= THIS_MODULE,
 	.name 		= "hostfs",
 	.get_sb 	= hostfs_read_sb,
-	.kill_sb	= kill_anon_super,
+	.kill_sb	= hostfs_kill_sb,
 	.fs_flags 	= 0,
 };
 
