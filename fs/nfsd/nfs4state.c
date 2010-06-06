@@ -625,6 +625,25 @@ static void init_forechannel_attrs(struct nfsd4_channel_attrs *new, struct nfsd4
 	new->maxops = min_t(u32, req->maxops, NFSD_MAX_OPS_PER_COMPOUND);
 }
 
+static void free_conn(struct nfsd4_conn *c)
+{
+	svc_xprt_put(c->cn_xprt);
+	kfree(c);
+}
+
+static void nfsd4_conn_lost(struct svc_xpt_user *u)
+{
+	struct nfsd4_conn *c = container_of(u, struct nfsd4_conn, cn_xpt_user);
+	struct nfs4_client *clp = c->cn_session->se_client;
+
+	spin_lock(&clp->cl_lock);
+	if (!list_empty(&c->cn_persession)) {
+		list_del(&c->cn_persession);
+		free_conn(c);
+	}
+	spin_unlock(&clp->cl_lock);
+}
+
 static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
 {
 	struct nfs4_client *clp = ses->se_client;
@@ -636,18 +655,34 @@ static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
 	conn->cn_flags = NFS4_CDFC4_FORE;
 	svc_xprt_get(rqstp->rq_xprt);
 	conn->cn_xprt = rqstp->rq_xprt;
+	conn->cn_session = ses;
 
 	spin_lock(&clp->cl_lock);
 	list_add(&conn->cn_persession, &ses->se_conns);
 	spin_unlock(&clp->cl_lock);
 
+	conn->cn_xpt_user.callback = nfsd4_conn_lost;
+	register_xpt_user(rqstp->rq_xprt, &conn->cn_xpt_user);
 	return nfs_ok;
 }
 
-static void free_conn(struct nfsd4_conn *c)
+static void nfsd4_del_conns(struct nfsd4_session *s)
 {
-	svc_xprt_put(c->cn_xprt);
-	kfree(c);
+	struct nfs4_client *clp = s->se_client;
+	struct nfsd4_conn *c;
+
+	spin_lock(&clp->cl_lock);
+	while (!list_empty(&s->se_conns)) {
+		c = list_first_entry(&s->se_conns, struct nfsd4_conn, cn_persession);
+		list_del_init(&c->cn_persession);
+		spin_unlock(&clp->cl_lock);
+
+		unregister_xpt_user(c->cn_xprt, &c->cn_xpt_user);
+		free_conn(c);
+
+		spin_lock(&clp->cl_lock);
+	}
+	spin_unlock(&clp->cl_lock);
 }
 
 void free_session(struct kref *kref)
@@ -656,12 +691,7 @@ void free_session(struct kref *kref)
 	int mem;
 
 	ses = container_of(kref, struct nfsd4_session, se_ref);
-	while (!list_empty(&ses->se_conns)) {
-		struct nfsd4_conn *c;
-		c = list_first_entry(&ses->se_conns, struct nfsd4_conn, cn_persession);
-		list_del(&c->cn_persession);
-		free_conn(c);
-	}
+	nfsd4_del_conns(ses);
 	spin_lock(&nfsd_drc_lock);
 	mem = ses->se_fchannel.maxreqs * slot_bytes(&ses->se_fchannel);
 	nfsd_drc_mem_used -= mem;
@@ -1552,6 +1582,9 @@ nfsd4_destroy_session(struct svc_rqst *r,
 	/* wait for callbacks */
 	nfsd4_shutdown_callback(ses->se_client);
 	nfs4_unlock_state();
+
+	nfsd4_del_conns(ses);
+
 	nfsd4_put_session(ses);
 	status = nfs_ok;
 out:

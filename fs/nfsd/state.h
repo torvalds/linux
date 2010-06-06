@@ -35,6 +35,7 @@
 #ifndef _NFSD4_STATE_H
 #define _NFSD4_STATE_H
 
+#include <linux/sunrpc/svc_xprt.h>
 #include <linux/nfsd/nfsfh.h>
 #include "nfsfh.h"
 
@@ -155,6 +156,8 @@ struct nfsd4_clid_slot {
 struct nfsd4_conn {
 	struct list_head cn_persession;
 	struct svc_xprt *cn_xprt;
+	struct svc_xpt_user cn_xpt_user;
+	struct nfsd4_session *cn_session;
 /* CDFC4_FORE, CDFC4_BACK: */
 	unsigned char cn_flags;
 };
