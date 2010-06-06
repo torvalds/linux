@@ -1095,7 +1095,18 @@ void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec)
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver_dmm32at);
+static int __init driver_dmm32at_init_module(void)
+{
+	return comedi_driver_register(&driver_dmm32at);
+}
+
+static void __exit driver_dmm32at_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_dmm32at);
+}
+
+module_init(driver_dmm32at_init_module);
+module_exit(driver_dmm32at_cleanup_module);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

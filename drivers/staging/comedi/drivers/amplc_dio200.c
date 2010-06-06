@@ -496,7 +496,18 @@ static struct comedi_driver driver_amplc_dio200 = {
 #ifdef CONFIG_COMEDI_PCI
 COMEDI_PCI_INITCLEANUP(driver_amplc_dio200, dio200_pci_table);
 #else
-COMEDI_INITCLEANUP(driver_amplc_dio200);
+static int __init driver_amplc_dio200_init_module(void)
+{
+	return comedi_driver_register(&driver_amplc_dio200);
+}
+
+static void __exit driver_amplc_dio200_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_amplc_dio200);
+}
+
+module_init(driver_amplc_dio200_init_module);
+module_exit(driver_amplc_dio200_cleanup_module);
 #endif
 
 /*

@@ -53,17 +53,6 @@
 	COMEDI_MINORVERSION, COMEDI_MICROVERSION)
 #define COMEDI_RELEASE VERSION
 
-#define COMEDI_INITCLEANUP_NOMODULE(x)					\
-	static int __init x ## _init_module(void)			\
-		{return comedi_driver_register(&(x)); }			\
-	static void __exit x ## _cleanup_module(void)			\
-		{comedi_driver_unregister(&(x)); }			\
-	module_init(x ## _init_module);					\
-	module_exit(x ## _cleanup_module);
-
-#define COMEDI_INITCLEANUP(x)						\
-	COMEDI_INITCLEANUP_NOMODULE(x)
-
 #define COMEDI_PCI_INITCLEANUP_NOMODULE(comedi_driver, pci_id_table) \
 	static int __devinit comedi_driver ## _pci_probe(struct pci_dev *dev, \
 		const struct pci_device_id *ent) \

@@ -57,7 +57,18 @@ static struct comedi_driver driver_rti802 = {
 	.detach = rti802_detach,
 };
 
-COMEDI_INITCLEANUP(driver_rti802);
+static int __init driver_rti802_init_module(void)
+{
+	return comedi_driver_register(&driver_rti802);
+}
+
+static void __exit driver_rti802_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_rti802);
+}
+
+module_init(driver_rti802_init_module);
+module_exit(driver_rti802_cleanup_module);
 
 struct rti802_private {
 	enum {

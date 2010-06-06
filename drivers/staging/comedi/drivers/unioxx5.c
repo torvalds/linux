@@ -114,7 +114,18 @@ static struct comedi_driver unioxx5_driver = {
 	.detach = unioxx5_detach
 };
 
-COMEDI_INITCLEANUP(unioxx5_driver);
+static int __init unioxx5_driver_init_module(void)
+{
+	return comedi_driver_register(&unioxx5_driver);
+}
+
+static void __exit unioxx5_driver_cleanup_module(void)
+{
+	comedi_driver_unregister(&unioxx5_driver);
+}
+
+module_init(unioxx5_driver_init_module);
+module_exit(unioxx5_driver_cleanup_module);
 
 static int unioxx5_attach(struct comedi_device *dev,
 			  struct comedi_devconfig *it)

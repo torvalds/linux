@@ -1002,7 +1002,18 @@ static int s526_dio_insn_config(struct comedi_device *dev,
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver_s526);
+static int __init driver_s526_init_module(void)
+{
+	return comedi_driver_register(&driver_s526);
+}
+
+static void __exit driver_s526_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_s526);
+}
+
+module_init(driver_s526_init_module);
+module_exit(driver_s526_cleanup_module);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

@@ -56,7 +56,18 @@ static struct comedi_driver driver_mpc8260cpm = {
 	.detach = mpc8260cpm_detach,
 };
 
-COMEDI_INITCLEANUP(driver_mpc8260cpm);
+static int __init driver_mpc8260cpm_init_module(void)
+{
+	return comedi_driver_register(&driver_mpc8260cpm);
+}
+
+static void __exit driver_mpc8260cpm_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_mpc8260cpm);
+}
+
+module_init(driver_mpc8260cpm_init_module);
+module_exit(driver_mpc8260cpm_cleanup_module);
 
 static int mpc8260cpm_dio_config(struct comedi_device *dev,
 				 struct comedi_subdevice *s,

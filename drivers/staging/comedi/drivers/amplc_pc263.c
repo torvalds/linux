@@ -434,7 +434,18 @@ static int pc263_dio_insn_config(struct comedi_device *dev,
 #ifdef CONFIG_COMEDI_PCI
 COMEDI_PCI_INITCLEANUP(driver_amplc_pc263, pc263_pci_table);
 #else
-COMEDI_INITCLEANUP(driver_amplc_pc263);
+static int __init driver_amplc_pc263_init_module(void)
+{
+	return comedi_driver_register(&driver_amplc_pc263);
+}
+
+static void __exit driver_amplc_pc263_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_amplc_pc263);
+}
+
+module_init(driver_amplc_pc263_init_module);
+module_exit(driver_amplc_pc263_cleanup_module);
 #endif
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");

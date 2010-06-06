@@ -102,7 +102,18 @@ static struct comedi_driver driver_dnp = {
 	.num_names = ARRAY_SIZE(dnp_boards),
 };
 
-COMEDI_INITCLEANUP(driver_dnp);
+static int __init driver_dnp_init_module(void)
+{
+	return comedi_driver_register(&driver_dnp);
+}
+
+static void __exit driver_dnp_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_dnp);
+}
+
+module_init(driver_dnp_init_module);
+module_exit(driver_dnp_cleanup_module);
 
 static int dnp_dio_insn_bits(struct comedi_device *dev,
 			     struct comedi_subdevice *s,

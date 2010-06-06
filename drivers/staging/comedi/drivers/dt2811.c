@@ -239,7 +239,18 @@ static struct comedi_driver driver_dt2811 = {
 	.offset = sizeof(struct dt2811_board),
 };
 
-COMEDI_INITCLEANUP(driver_dt2811);
+static int __init driver_dt2811_init_module(void)
+{
+	return comedi_driver_register(&driver_dt2811);
+}
+
+static void __exit driver_dt2811_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_dt2811);
+}
+
+module_init(driver_dt2811_init_module);
+module_exit(driver_dt2811_cleanup_module);
 
 static int dt2811_ai_insn(struct comedi_device *dev, struct comedi_subdevice *s,
 			  struct comedi_insn *insn, unsigned int *data);

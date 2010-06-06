@@ -347,7 +347,18 @@ static int das800_probe(struct comedi_device *dev)
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver_das800);
+static int __init driver_das800_init_module(void)
+{
+	return comedi_driver_register(&driver_das800);
+}
+
+static void __exit driver_das800_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_das800);
+}
+
+module_init(driver_das800_init_module);
+module_exit(driver_das800_cleanup_module);
 
 /* interrupt service routine */
 static irqreturn_t das800_interrupt(int irq, void *d)

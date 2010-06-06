@@ -917,7 +917,18 @@ static int serial2002_detach(struct comedi_device *dev)
 	return 0;
 }
 
-COMEDI_INITCLEANUP(driver_serial2002);
+static int __init driver_serial2002_init_module(void)
+{
+	return comedi_driver_register(&driver_serial2002);
+}
+
+static void __exit driver_serial2002_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_serial2002);
+}
+
+module_init(driver_serial2002_init_module);
+module_exit(driver_serial2002_cleanup_module);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

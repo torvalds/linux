@@ -406,7 +406,18 @@ static int mpc624_ai_rinsn(struct comedi_device *dev,
 	return n;
 }
 
-COMEDI_INITCLEANUP(driver_mpc624);
+static int __init driver_mpc624_init_module(void)
+{
+	return comedi_driver_register(&driver_mpc624);
+}
+
+static void __exit driver_mpc624_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_mpc624);
+}
+
+module_init(driver_mpc624_init_module);
+module_exit(driver_mpc624_cleanup_module);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

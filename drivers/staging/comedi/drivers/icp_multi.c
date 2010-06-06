@@ -185,7 +185,18 @@ board_name : &boardtypes[0].name,
 offset : sizeof(struct boardtype),
 };
 
-COMEDI_INITCLEANUP(driver_icp_multi);
+static int __init driver_icp_multi_init_module(void)
+{
+	return comedi_driver_register(&driver_icp_multi);
+}
+
+static void __exit driver_icp_multi_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_icp_multi);
+}
+
+module_init(driver_icp_multi_init_module);
+module_exit(driver_icp_multi_cleanup_module);
 
 struct icp_multi_private {
 	struct pcilst_struct *card;	/*  pointer to card */

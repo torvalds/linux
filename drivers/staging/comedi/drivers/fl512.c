@@ -52,7 +52,18 @@ static struct comedi_driver driver_fl512 = {
 	.detach = fl512_detach,
 };
 
-COMEDI_INITCLEANUP(driver_fl512);
+static int __init driver_fl512_init_module(void)
+{
+	return comedi_driver_register(&driver_fl512);
+}
+
+static void __exit driver_fl512_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_fl512);
+}
+
+module_init(driver_fl512_init_module);
+module_exit(driver_fl512_cleanup_module);
 
 static int fl512_ai_insn(struct comedi_device *dev,
 			 struct comedi_subdevice *s, struct comedi_insn *insn,

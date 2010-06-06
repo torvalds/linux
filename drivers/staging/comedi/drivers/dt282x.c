@@ -423,7 +423,18 @@ static struct comedi_driver driver_dt282x = {
 	.offset = sizeof(struct dt282x_board),
 };
 
-COMEDI_INITCLEANUP(driver_dt282x);
+static int __init driver_dt282x_init_module(void)
+{
+	return comedi_driver_register(&driver_dt282x);
+}
+
+static void __exit driver_dt282x_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_dt282x);
+}
+
+module_init(driver_dt282x_init_module);
+module_exit(driver_dt282x_cleanup_module);
 
 static void free_resources(struct comedi_device *dev);
 static int prep_ai_dma(struct comedi_device *dev, int chan, int size);

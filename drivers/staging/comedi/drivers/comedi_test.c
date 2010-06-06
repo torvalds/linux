@@ -107,7 +107,18 @@ static struct comedi_driver driver_waveform = {
 	.num_names = ARRAY_SIZE(waveform_boards),
 };
 
-COMEDI_INITCLEANUP(driver_waveform);
+static int __init driver_waveform_init_module(void)
+{
+	return comedi_driver_register(&driver_waveform);
+}
+
+static void __exit driver_waveform_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_waveform);
+}
+
+module_init(driver_waveform_init_module);
+module_exit(driver_waveform_cleanup_module);
 
 static int waveform_ai_cmdtest(struct comedi_device *dev,
 			       struct comedi_subdevice *s,

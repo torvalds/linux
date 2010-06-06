@@ -402,7 +402,18 @@ static int adq12b_do_insn_bits(struct comedi_device *dev,
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver_adq12b);
+static int __init driver_adq12b_init_module(void)
+{
+	return comedi_driver_register(&driver_adq12b);
+}
+
+static void __exit driver_adq12b_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_adq12b);
+}
+
+module_init(driver_adq12b_init_module);
+module_exit(driver_adq12b_cleanup_module);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

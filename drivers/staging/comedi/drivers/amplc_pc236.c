@@ -184,7 +184,18 @@ static struct comedi_driver driver_amplc_pc236 = {
 #ifdef CONFIG_COMEDI_PCI
 COMEDI_PCI_INITCLEANUP(driver_amplc_pc236, pc236_pci_table);
 #else
-COMEDI_INITCLEANUP(driver_amplc_pc236);
+static int __init driver_amplc_pc236_init_module(void)
+{
+	return comedi_driver_register(&driver_amplc_pc236);
+}
+
+static void __exit driver_amplc_pc236_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_amplc_pc236);
+}
+
+module_init(driver_amplc_pc236_init_module);
+module_exit(driver_amplc_pc236_cleanup_module);
 #endif
 
 static int pc236_request_region(unsigned minor, unsigned long from,

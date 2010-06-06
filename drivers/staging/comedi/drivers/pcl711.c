@@ -171,7 +171,18 @@ static struct comedi_driver driver_pcl711 = {
 	.offset = sizeof(struct pcl711_board),
 };
 
-COMEDI_INITCLEANUP(driver_pcl711);
+static int __init driver_pcl711_init_module(void)
+{
+	return comedi_driver_register(&driver_pcl711);
+}
+
+static void __exit driver_pcl711_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_pcl711);
+}
+
+module_init(driver_pcl711_init_module);
+module_exit(driver_pcl711_cleanup_module);
 
 struct pcl711_private {
 

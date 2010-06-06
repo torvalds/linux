@@ -640,7 +640,18 @@ static unsigned int pci20xxx_di(struct comedi_device *dev,
 }
 #endif
 
-COMEDI_INITCLEANUP(driver_pci20xxx);
+static int __init driver_pci20xxx_init_module(void)
+{
+	return comedi_driver_register(&driver_pci20xxx);
+}
+
+static void __exit driver_pci20xxx_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_pci20xxx);
+}
+
+module_init(driver_pci20xxx_init_module);
+module_exit(driver_pci20xxx_cleanup_module);
 
 MODULE_AUTHOR("Comedi http://www.comedi.org");
 MODULE_DESCRIPTION("Comedi low-level driver");

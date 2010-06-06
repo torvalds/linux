@@ -531,7 +531,18 @@ static struct comedi_driver driver_das1800 = {
  * A convenient macro that defines init_module() and cleanup_module(),
  * as necessary.
  */
-COMEDI_INITCLEANUP(driver_das1800);
+static int __init driver_das1800_init_module(void)
+{
+	return comedi_driver_register(&driver_das1800);
+}
+
+static void __exit driver_das1800_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_das1800);
+}
+
+module_init(driver_das1800_init_module);
+module_exit(driver_das1800_cleanup_module);
 
 static int das1800_init_dma(struct comedi_device *dev, unsigned int dma0,
 			    unsigned int dma1)

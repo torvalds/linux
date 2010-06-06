@@ -407,7 +407,18 @@ static struct comedi_driver driver_pcl812 = {
 	.offset = sizeof(struct pcl812_board),
 };
 
-COMEDI_INITCLEANUP(driver_pcl812);
+static int __init driver_pcl812_init_module(void)
+{
+	return comedi_driver_register(&driver_pcl812);
+}
+
+static void __exit driver_pcl812_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_pcl812);
+}
+
+module_init(driver_pcl812_init_module);
+module_exit(driver_pcl812_cleanup_module);
 
 struct pcl812_private {
 

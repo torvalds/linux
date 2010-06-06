@@ -620,11 +620,18 @@ static int skel_dio_insn_config(struct comedi_device *dev,
 	return insn->n;
 }
 
-/*
- * A convenient macro that defines init_module() and cleanup_module(),
- * as necessary.
- */
-COMEDI_INITCLEANUP(driver_skel);
+static int __init driver_skel_init_module(void)
+{
+	return comedi_driver_register(&driver_skel);
+}
+
+static void __exit driver_skel_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_skel);
+}
+
+module_init(driver_skel_init_module);
+module_exit(driver_skel_cleanup_module);
 /* If you are writing a PCI driver you should use COMEDI_PCI_INITCLEANUP
  * instead.
  */

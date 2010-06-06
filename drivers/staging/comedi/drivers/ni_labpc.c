@@ -2080,7 +2080,18 @@ static void write_caldac(struct comedi_device *dev, unsigned int channel,
 #ifdef CONFIG_COMEDI_PCI
 COMEDI_PCI_INITCLEANUP(driver_labpc, labpc_pci_table);
 #else
-COMEDI_INITCLEANUP(driver_labpc);
+static int __init driver_labpc_init_module(void)
+{
+	return comedi_driver_register(&driver_labpc);
+}
+
+static void __exit driver_labpc_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_labpc);
+}
+
+module_init(driver_labpc_init_module);
+module_exit(driver_labpc_cleanup_module);
 #endif
 
 EXPORT_SYMBOL_GPL(labpc_common_attach);

@@ -49,7 +49,18 @@ static struct comedi_driver driver_acl7225b = {
 	.offset = sizeof(struct boardtype),
 };
 
-COMEDI_INITCLEANUP(driver_acl7225b);
+static int __init driver_acl7225b_init_module(void)
+{
+	return comedi_driver_register(&driver_acl7225b);
+}
+
+static void __exit driver_acl7225b_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_acl7225b);
+}
+
+module_init(driver_acl7225b_init_module);
+module_exit(driver_acl7225b_cleanup_module);
 
 static int acl7225b_do_insn(struct comedi_device *dev,
 			    struct comedi_subdevice *s,

@@ -349,7 +349,18 @@ static struct comedi_driver driver_atmio = {
 	.detach = ni_atmio_detach,
 };
 
-COMEDI_INITCLEANUP(driver_atmio);
+static int __init driver_atmio_init_module(void)
+{
+	return comedi_driver_register(&driver_atmio);
+}
+
+static void __exit driver_atmio_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_atmio);
+}
+
+module_init(driver_atmio_init_module);
+module_exit(driver_atmio_cleanup_module);
 
 #include "ni_mio_common.c"
 

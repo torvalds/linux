@@ -101,7 +101,18 @@ static struct comedi_driver driver_parport = {
 	.detach = parport_detach,
 };
 
-COMEDI_INITCLEANUP(driver_parport);
+static int __init driver_parport_init_module(void)
+{
+	return comedi_driver_register(&driver_parport);
+}
+
+static void __exit driver_parport_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_parport);
+}
+
+module_init(driver_parport_init_module);
+module_exit(driver_parport_cleanup_module);
 
 struct parport_private {
 	unsigned int a_data;

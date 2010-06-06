@@ -1084,7 +1084,18 @@ EXPORT_SYMBOL_GPL(das08_common_detach);
 #ifdef CONFIG_COMEDI_PCI
 COMEDI_PCI_INITCLEANUP(driver_das08, das08_pci_table);
 #else
-COMEDI_INITCLEANUP(driver_das08);
+static int __init driver_das08_init_module(void)
+{
+	return comedi_driver_register(&driver_das08);
+}
+
+static void __exit driver_das08_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_das08);
+}
+
+module_init(driver_das08_init_module);
+module_exit(driver_das08_cleanup_module);
 #endif
 
 #ifdef CONFIG_COMEDI_PCMCIA

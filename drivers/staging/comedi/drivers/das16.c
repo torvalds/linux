@@ -1717,7 +1717,18 @@ static int das16_detach(struct comedi_device *dev)
 	return 0;
 }
 
-COMEDI_INITCLEANUP(driver_das16);
+static int __init driver_das16_init_module(void)
+{
+	return comedi_driver_register(&driver_das16);
+}
+
+static void __exit driver_das16_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_das16);
+}
+
+module_init(driver_das16_init_module);
+module_exit(driver_das16_cleanup_module);
 
 /* utility function that suggests a dma transfer size in bytes */
 static unsigned int das16_suggest_transfer_size(struct comedi_device *dev,

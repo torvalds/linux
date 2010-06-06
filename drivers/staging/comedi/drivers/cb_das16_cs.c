@@ -880,5 +880,16 @@ void __exit cleanup_module(void)
 }
 
 #else
-COMEDI_INITCLEANUP(driver_das16cs);
+static int __init driver_das16cs_init_module(void)
+{
+	return comedi_driver_register(&driver_das16cs);
+}
+
+static void __exit driver_das16cs_cleanup_module(void)
+{
+	comedi_driver_unregister(&driver_das16cs);
+}
+
+module_init(driver_das16cs_init_module);
+module_exit(driver_das16cs_cleanup_module);
 #endif /* CONFIG_PCMCIA */
