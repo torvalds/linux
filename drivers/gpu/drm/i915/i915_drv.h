@@ -673,7 +673,7 @@ struct drm_i915_gem_object {
 	 *
 	 * Size: 4 bits for 16 fences + sign (for FENCE_REG_NONE)
 	 */
-	int fence_reg : 5;
+	signed int fence_reg : 5;
 
 	/**
 	 * Used for checking the object doesn't appear more than once
@@ -709,7 +709,7 @@ struct drm_i915_gem_object {
 	 *
 	 * In the worst case this is 1 + 1 + 1 + 2*2 = 7. That would fit into 3
 	 * bits with absolutely no headroom. So use 4 bits. */
-	int pin_count : 4;
+	unsigned int pin_count : 4;
 #define DRM_I915_GEM_OBJECT_MAX_PIN_COUNT 0xf
 
 	/** AGP memory structure for our GTT binding. */
