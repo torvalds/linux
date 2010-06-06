@@ -485,25 +485,16 @@ static const struct address_space_operations hostfs_aops = {
 	.write_end	= hostfs_write_end,
 };
 
-static int init_inode(struct inode *inode, struct dentry *dentry)
+static void init_inode(struct inode *inode, char *path)
 {
-	char *name;
-	int type, err = -ENOMEM;
+	int type;
 	int maj, min;
 	dev_t rdev = 0;
 
-	if (dentry) {
-		name = dentry_name(dentry, 0);
-		if (name == NULL)
-			goto out;
-		type = file_type(name, &maj, &min);
-		/* Reencode maj and min with the kernel encoding.*/
-		rdev = MKDEV(maj, min);
-		kfree(name);
-	}
-	else type = OS_TYPE_DIR;
+	type = file_type(path, &maj, &min);
+	/* Reencode maj and min with the kernel encoding.*/
+	rdev = MKDEV(maj, min);
 
-	err = 0;
 	if (type == OS_TYPE_SYMLINK)
 		inode->i_op = &page_symlink_inode_operations;
 	else if (type == OS_TYPE_DIR)
@@ -531,8 +522,6 @@ static int init_inode(struct inode *inode, struct dentry *dentry)
 		init_special_inode(inode, S_IFSOCK, 0);
 		break;
 	}
- out:
-	return err;
 }
 
 int hostfs_create(struct inode *dir, struct dentry *dentry, int mode,
@@ -548,10 +537,6 @@ int hostfs_create(struct inode *dir, struct dentry *dentry, int mode,
 		goto out;
 	}
 
-	error = init_inode(inode, dentry);
-	if (error)
-		goto out_put;
-
 	error = -ENOMEM;
 	name = dentry_name(dentry, 0);
 	if (name == NULL)
@@ -561,9 +546,12 @@ int hostfs_create(struct inode *dir, struct dentry *dentry, int mode,
 			 mode & S_IRUSR, mode & S_IWUSR, mode & S_IXUSR,
 			 mode & S_IRGRP, mode & S_IWGRP, mode & S_IXGRP,
 			 mode & S_IROTH, mode & S_IWOTH, mode & S_IXOTH);
-	if (fd < 0)
+	if (fd < 0) {
 		error = fd;
-	else error = read_name(inode, name);
+	} else {
+		error = read_name(inode, name);
+		init_inode(inode, name);
+	}
 
 	kfree(name);
 	if (error)
@@ -593,16 +581,14 @@ struct dentry *hostfs_lookup(struct inode *ino, struct dentry *dentry,
 		goto out;
 	}
 
-	err = init_inode(inode, dentry);
-	if (err)
-		goto out_put;
-
 	err = -ENOMEM;
 	name = dentry_name(dentry, 0);
 	if (name == NULL)
 		goto out_put;
 
 	err = read_name(inode, name);
+	init_inode(inode, name);
+
 	kfree(name);
 	if (err == -ENOENT) {
 		iput(inode);
@@ -717,10 +703,6 @@ int hostfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 		goto out;
 	}
 
-	err = init_inode(inode, dentry);
-	if (err)
-		goto out_put;
-
 	err = -ENOMEM;
 	name = dentry_name(dentry, 0);
 	if (name == NULL)
@@ -732,6 +714,9 @@ int hostfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 		goto out_free;
 
 	err = read_name(inode, name);
+	init_inode(inode, name);
+	if (err)
+		goto out_put;
 	kfree(name);
 	if (err)
 		goto out_put;
