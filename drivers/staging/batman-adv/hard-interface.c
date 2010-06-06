@@ -30,6 +30,7 @@
 #include "hash.h"
 
 #include <linux/if_arp.h>
+#include <linux/netfilter_bridge.h>
 
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 
@@ -432,6 +433,11 @@ out:
 	return NOTIFY_DONE;
 }
 
+static int batman_skb_recv_finish(struct sk_buff *skb)
+{
+	return NF_ACCEPT;
+}
+
 /* receive a packet with the batman ethertype coming on a hard
  * interface */
 int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
@@ -450,6 +456,13 @@ int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
 
 	if (atomic_read(&module_state) != MODULE_ACTIVE)
 		goto err_free;
+
+	/* if netfilter/ebtables wants to block incoming batman
+	 * packets then give them a chance to do so here */
+	ret = NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, dev, NULL,
+		      batman_skb_recv_finish);
+	if (ret != 1)
+		goto err_out;
 
 	/* packet should hold at least type and version */
 	if (unlikely(skb_headlen(skb) < 2))
@@ -529,7 +542,6 @@ err_free:
 err_out:
 	return NET_RX_DROP;
 }
-
 
 struct notifier_block hard_if_notifier = {
 	.notifier_call = hard_if_event,
