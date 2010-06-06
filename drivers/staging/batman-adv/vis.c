@@ -701,7 +701,7 @@ int vis_init(void)
 	}
 
 	/* prefill the vis info */
-	my_vis_info->first_seen = jiffies - atomic_read(&vis_interval);
+	my_vis_info->first_seen = jiffies - msecs_to_jiffies(VIS_INTERVAL);
 	INIT_LIST_HEAD(&my_vis_info->recv_list);
 	INIT_LIST_HEAD(&my_vis_info->send_list);
 	kref_init(&my_vis_info->refcount);
@@ -764,5 +764,5 @@ void vis_quit(void)
 static void start_vis_timer(void)
 {
 	queue_delayed_work(bat_event_workqueue, &vis_timer_wq,
-			   (atomic_read(&vis_interval) * HZ) / 1000);
+			   (VIS_INTERVAL * HZ) / 1000);
 }

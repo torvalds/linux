@@ -57,6 +57,8 @@
 #define LOG_BUF_LEN 8192	  /* has to be a power of 2 */
 #define ETH_STR_LEN 20
 
+#define VIS_INTERVAL 5000	/* 5 seconds */
+
 #define MAX_AGGREGATION_BYTES 512 /* should not be bigger than 512 bytes or
 				   * change the size of
 				   * forw_packet->direct_link_flags */
@@ -134,7 +136,6 @@ extern spinlock_t orig_hash_lock;
 extern spinlock_t forw_bat_list_lock;
 extern spinlock_t forw_bcast_list_lock;
 
-extern atomic_t vis_interval;
 extern atomic_t bcast_queue_left;
 extern atomic_t batman_queue_left;
 extern int16_t num_hna;
