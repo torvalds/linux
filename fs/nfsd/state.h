@@ -152,6 +152,13 @@ struct nfsd4_clid_slot {
 	struct nfsd4_create_session	sl_cr_ses;
 };
 
+struct nfsd4_conn {
+	struct list_head cn_persession;
+	struct svc_xprt *cn_xprt;
+/* CDFC4_FORE, CDFC4_BACK: */
+	unsigned char cn_flags;
+};
+
 struct nfsd4_session {
 	struct kref		se_ref;
 	struct list_head	se_hash;	/* hash by sessionid */
@@ -161,6 +168,7 @@ struct nfsd4_session {
 	struct nfs4_sessionid	se_sessionid;
 	struct nfsd4_channel_attrs se_fchannel;
 	struct nfsd4_channel_attrs se_bchannel;
+	struct list_head	se_conns;
 	struct nfsd4_slot	*se_slots[];	/* forward channel slots */
 };
 

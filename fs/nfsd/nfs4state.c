@@ -625,11 +625,58 @@ static void init_forechannel_attrs(struct nfsd4_channel_attrs *new, struct nfsd4
 	new->maxops = min_t(u32, req->maxops, NFSD_MAX_OPS_PER_COMPOUND);
 }
 
+static __be32 nfsd4_new_conn(struct svc_rqst *rqstp, struct nfsd4_session *ses)
+{
+	struct nfs4_client *clp = ses->se_client;
+	struct nfsd4_conn *conn;
+
+	conn = kmalloc(sizeof(struct nfsd4_conn), GFP_KERNEL);
+	if (!conn)
+		return nfserr_jukebox;
+	conn->cn_flags = NFS4_CDFC4_FORE;
+	svc_xprt_get(rqstp->rq_xprt);
+	conn->cn_xprt = rqstp->rq_xprt;
+
+	spin_lock(&clp->cl_lock);
+	list_add(&conn->cn_persession, &ses->se_conns);
+	spin_unlock(&clp->cl_lock);
+
+	return nfs_ok;
+}
+
+static void free_conn(struct nfsd4_conn *c)
+{
+	svc_xprt_put(c->cn_xprt);
+	kfree(c);
+}
+
+void free_session(struct kref *kref)
+{
+	struct nfsd4_session *ses;
+	int mem;
+
+	ses = container_of(kref, struct nfsd4_session, se_ref);
+	while (!list_empty(&ses->se_conns)) {
+		struct nfsd4_conn *c;
+		c = list_first_entry(&ses->se_conns, struct nfsd4_conn, cn_persession);
+		list_del(&c->cn_persession);
+		free_conn(c);
+	}
+	spin_lock(&nfsd_drc_lock);
+	mem = ses->se_fchannel.maxreqs * slot_bytes(&ses->se_fchannel);
+	nfsd_drc_mem_used -= mem;
+	spin_unlock(&nfsd_drc_lock);
+	free_session_slots(ses);
+	kfree(ses);
+}
+
+
 static __be32 alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp, struct nfsd4_create_session *cses)
 {
 	struct nfsd4_session *new;
 	struct nfsd4_channel_attrs *fchan = &cses->fore_channel;
 	int numslots, slotsize;
+	int status;
 	int idx;
 
 	/*
@@ -654,6 +701,8 @@ static __be32 alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp
 	memcpy(clp->cl_sessionid.data, new->se_sessionid.data,
 	       NFS4_MAX_SESSIONID_LEN);
 
+	INIT_LIST_HEAD(&new->se_conns);
+
 	new->se_flags = cses->flags;
 	kref_init(&new->se_ref);
 	idx = hash_sessionid(&new->se_sessionid);
@@ -662,6 +711,11 @@ static __be32 alloc_init_session(struct svc_rqst *rqstp, struct nfs4_client *clp
 	list_add(&new->se_perclnt, &clp->cl_sessions);
 	spin_unlock(&client_lock);
 
+	status = nfsd4_new_conn(rqstp, new);
+	if (status) {
+		free_session(&new->se_ref);
+		return nfserr_jukebox;
+	}
 	return nfs_ok;
 }
 
@@ -692,21 +746,6 @@ unhash_session(struct nfsd4_session *ses)
 {
 	list_del(&ses->se_hash);
 	list_del(&ses->se_perclnt);
-}
-
-void
-free_session(struct kref *kref)
-{
-	struct nfsd4_session *ses;
-	int mem;
-
-	ses = container_of(kref, struct nfsd4_session, se_ref);
-	spin_lock(&nfsd_drc_lock);
-	mem = ses->se_fchannel.maxreqs * slot_bytes(&ses->se_fchannel);
-	nfsd_drc_mem_used -= mem;
-	spin_unlock(&nfsd_drc_lock);
-	free_session_slots(ses);
-	kfree(ses);
 }
 
 /* must be called under the client_lock */
