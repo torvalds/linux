@@ -1613,3 +1613,7 @@ COMEDI_PCI_INITCLEANUP(driver_pci1710, pci1710_pci_table);
 /*
 ==============================================================================
 */
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

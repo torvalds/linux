@@ -1003,3 +1003,7 @@ static int s526_dio_insn_config(struct comedi_device *dev,
  * as necessary.
  */
 COMEDI_INITCLEANUP(driver_s526);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

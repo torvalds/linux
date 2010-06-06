@@ -301,3 +301,7 @@ static int pcidio_detach(struct comedi_device *dev)
  * as necessary.
  */
 COMEDI_PCI_INITCLEANUP(driver_cb_pcidio, pcidio_pci_table);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

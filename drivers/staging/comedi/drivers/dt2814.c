@@ -387,3 +387,7 @@ static irqreturn_t dt2814_interrupt(int irq, void *d)
 	comedi_event(dev, s);
 	return IRQ_HANDLED;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

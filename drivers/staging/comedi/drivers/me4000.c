@@ -2384,3 +2384,7 @@ static int me4000_cnt_insn_write(struct comedi_device *dev,
 }
 
 COMEDI_PCI_INITCLEANUP(driver_me4000, me4000_pci_table);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

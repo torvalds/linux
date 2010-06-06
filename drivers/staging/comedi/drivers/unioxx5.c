@@ -529,3 +529,7 @@ static int __unioxx5_define_chan_offset(int chan_num)
 
 	return (chan_num >> 3) + 1;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

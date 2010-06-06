@@ -185,3 +185,7 @@ static int aio_iiro_16_dio_insn_bits_read(struct comedi_device *dev,
 }
 
 COMEDI_INITCLEANUP(driver_aio_iiro_16);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

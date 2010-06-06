@@ -3014,3 +3014,7 @@ static int pci230_ai_cancel(struct comedi_device *dev,
 	pci230_ai_stop(dev, s);
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

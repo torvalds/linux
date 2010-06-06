@@ -1334,3 +1334,7 @@ static int ao_winsn(struct comedi_device *dev, struct comedi_subdevice *s,
  * as necessary.
  */
 COMEDI_INITCLEANUP(driver);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

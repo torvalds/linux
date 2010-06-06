@@ -991,3 +991,7 @@ static struct pci_dev *dt_pci_find_device(struct pci_dev *from, int *board)
 	*board = -1;
 	return from;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

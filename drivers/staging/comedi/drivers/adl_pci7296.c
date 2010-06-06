@@ -178,3 +178,7 @@ static int adl_pci7296_detach(struct comedi_device *dev)
 }
 
 COMEDI_PCI_INITCLEANUP(driver_adl_pci7296, adl_pci7296_pci_table);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

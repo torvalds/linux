@@ -1090,3 +1090,7 @@ COMEDI_INITCLEANUP(driver_das08);
 #ifdef CONFIG_COMEDI_PCMCIA
 EXPORT_SYMBOL_GPL(das08_cs_boards);
 #endif
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

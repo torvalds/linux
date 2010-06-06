@@ -829,3 +829,7 @@ void __exit cleanup_module(void)
 	mite_cleanup();
 }
 #endif
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

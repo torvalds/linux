@@ -211,3 +211,7 @@ static int adl_pci7432_di_insn_bits(struct comedi_device *dev,
 }
 
 COMEDI_PCI_INITCLEANUP(driver_adl_pci7432, adl_pci7432_pci_table);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

@@ -228,3 +228,7 @@ static struct comedi_driver driver_aio_aio12_8 = {
 };
 
 COMEDI_INITCLEANUP(driver_aio_aio12_8);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

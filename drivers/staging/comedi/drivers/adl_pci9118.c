@@ -2432,3 +2432,7 @@ static int pci9118_detach(struct comedi_device *dev)
 /*
 ==============================================================================
 */
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

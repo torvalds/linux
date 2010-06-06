@@ -625,3 +625,7 @@ static int dt2811_do_insn_bits(struct comedi_device *dev,
 
 	return 2;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

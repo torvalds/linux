@@ -497,3 +497,7 @@ static int pci1723_detach(struct comedi_device *dev)
  * as necessary.
  */
 COMEDI_PCI_INITCLEANUP(driver_pci1723, pci1723_pci_table);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

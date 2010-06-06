@@ -492,3 +492,7 @@ static int cb_pcimdas_ao_rinsn(struct comedi_device *dev,
  * as necessary.
  */
 COMEDI_PCI_INITCLEANUP(driver_cb_pcimdas, cb_pcimdas_pci_table);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

@@ -1502,3 +1502,7 @@ static int dt282x_grab_dma(struct comedi_device *dev, int dma1, int dma2)
 
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

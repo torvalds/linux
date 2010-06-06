@@ -1096,3 +1096,7 @@ void dmm32at_setaitimer(struct comedi_device *dev, unsigned int nansec)
  * as necessary.
  */
 COMEDI_INITCLEANUP(driver_dmm32at);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

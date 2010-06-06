@@ -2088,3 +2088,7 @@ EXPORT_SYMBOL_GPL(labpc_common_detach);
 EXPORT_SYMBOL_GPL(range_labpc_1200_ai);
 EXPORT_SYMBOL_GPL(labpc_1200_ai_gain_bits);
 EXPORT_SYMBOL_GPL(labpc_1200_is_unipolar);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

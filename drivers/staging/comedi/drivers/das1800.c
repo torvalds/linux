@@ -1800,3 +1800,7 @@ static unsigned int suggest_transfer_size(struct comedi_cmd *cmd)
 
 	return size;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

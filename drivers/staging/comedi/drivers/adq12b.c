@@ -403,3 +403,7 @@ static int adq12b_do_insn_bits(struct comedi_device *dev,
  * as necessary.
  */
 COMEDI_INITCLEANUP(driver_adq12b);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

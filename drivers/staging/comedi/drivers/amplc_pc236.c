@@ -664,3 +664,7 @@ static irqreturn_t pc236_interrupt(int irq, void *d)
 	}
 	return IRQ_RETVAL(handled);
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

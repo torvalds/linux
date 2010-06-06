@@ -205,3 +205,7 @@ static int fl512_detach(struct comedi_device *dev)
 	printk(KERN_INFO "comedi%d: fl512: dummy i detach\n", dev->minor);
 	return 0;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

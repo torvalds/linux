@@ -459,3 +459,7 @@ static int atao_calib_insn_write(struct comedi_device *dev,
 
 	return insn->n;
 }
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

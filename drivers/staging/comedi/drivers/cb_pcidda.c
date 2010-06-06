@@ -858,3 +858,7 @@ static void cb_pcidda_calibrate(struct comedi_device *dev, unsigned int channel,
  * as necessary.
  */
 COMEDI_PCI_INITCLEANUP(driver_cb_pcidda, cb_pcidda_pci_table);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

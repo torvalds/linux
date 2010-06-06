@@ -918,3 +918,7 @@ static int serial2002_detach(struct comedi_device *dev)
 }
 
 COMEDI_INITCLEANUP(driver_serial2002);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

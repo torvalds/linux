@@ -436,3 +436,7 @@ COMEDI_PCI_INITCLEANUP(driver_amplc_pc263, pc263_pci_table);
 #else
 COMEDI_INITCLEANUP(driver_amplc_pc263);
 #endif
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

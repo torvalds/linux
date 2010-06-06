@@ -1257,3 +1257,7 @@ COMEDI_PCI_INITCLEANUP(driver_pci_dio, pci_dio_pci_table);
 /*
 ==============================================================================
 */
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

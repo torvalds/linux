@@ -641,3 +641,7 @@ static unsigned int pci20xxx_di(struct comedi_device *dev,
 #endif
 
 COMEDI_INITCLEANUP(driver_pci20xxx);
+
+MODULE_AUTHOR("Comedi http://www.comedi.org");
+MODULE_DESCRIPTION("Comedi low-level driver");
+MODULE_LICENSE("GPL");

@@ -61,13 +61,7 @@
 	module_init(x ## _init_module);					\
 	module_exit(x ## _cleanup_module);
 
-#define COMEDI_MODULE_MACROS						\
-	MODULE_AUTHOR("Comedi http://www.comedi.org");		\
-	MODULE_DESCRIPTION("Comedi low-level driver");			\
-	MODULE_LICENSE("GPL");
-
 #define COMEDI_INITCLEANUP(x)						\
-	COMEDI_MODULE_MACROS		\
 	COMEDI_INITCLEANUP_NOMODULE(x)
 
 #define COMEDI_PCI_INITCLEANUP_NOMODULE(comedi_driver, pci_id_table) \
@@ -106,7 +100,6 @@
 	module_exit(comedi_driver ## _cleanup_module);
 
 #define COMEDI_PCI_INITCLEANUP(comedi_driver, pci_id_table) \
-	COMEDI_MODULE_MACROS \
 	COMEDI_PCI_INITCLEANUP_NOMODULE(comedi_driver, pci_id_table)
 
 #define PCI_VENDOR_ID_ADLINK		0x144a
