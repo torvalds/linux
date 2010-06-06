@@ -1,0 +1,54 @@
+#!/bin/sh
+
+SPATCH="`which ${SPATCH:=spatch}`"
+
+if [ ! -x "$SPATCH" ]; then
+    echo 'spatch is part of the Coccinelle project and is available at http://coccinelle.lip6.fr/'
+    exit 1
+fi
+
+if [ "$MODE" = "" ] ; then
+    echo 'You have not explicitly specify the mode to use. Fallback to "report".'
+    echo 'You can specify the mode with "make coccicheck MODE=<mode>"'
+    echo 'Available modes are: report, patch, context, org'
+    MODE="report"
+fi
+
+echo ''
+echo 'Please check for false positives in the output before submitting a patch.'
+echo 'When using "patch" mode, carefully review the patch before submitting it.'
+echo ''
+
+function coccinelle {
+    COCCI="$1"
+    DIR="$2"
+
+    OPT=`grep "Option" $COCCI | cut -d':' -f2`
+    FILE=`echo $COCCI | sed "s|$DIR/||"`
+
+    echo "Processing `basename $COCCI` with option(s) \"$OPT\""
+    echo 'Message example to submit a patch:'
+
+    sed -e '/\/\/\//!d' -e 's|^///||' $COCCI
+
+    echo ' The semantic patch that makes this change is available'
+    echo " in $FILE."
+    echo ''
+    echo ' More information about semantic patching is available at'
+    echo ' http://coccinelle.lip6.fr/'
+    echo ''
+
+#   The option '-parse_cocci' can be used to syntaxically check the SmPL files.
+#
+#    $SPATCH -D $MODE -very_quiet -parse_cocci $COCCI $OPT > /dev/null
+
+    $SPATCH -D $MODE -very_quiet -sp_file $COCCI $OPT -dir $DIR
+}
+
+if [ "$COCCI" = "" ] ; then
+    for f in `find $srctree/scripts/coccinelle/ -name '*.cocci' -type f | sort`; do
+	coccinelle $f $srctree;
+    done
+else
+    coccinelle $COCCI $srctree
+fi
