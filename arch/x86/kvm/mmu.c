@@ -658,6 +658,12 @@ static void rmap_remove(struct kvm *kvm, u64 *spte)
 	}
 }
 
+static void drop_spte(struct kvm *kvm, u64 *sptep, u64 new_spte)
+{
+	rmap_remove(kvm, sptep);
+	__set_spte(sptep, new_spte);
+}
+
 static u64 *rmap_next(struct kvm *kvm, unsigned long *rmapp, u64 *spte)
 {
 	struct kvm_rmap_desc *desc;
@@ -722,9 +728,9 @@ static int rmap_write_protect(struct kvm *kvm, u64 gfn)
 			BUG_ON((*spte & (PT_PAGE_SIZE_MASK|PT_PRESENT_MASK)) != (PT_PAGE_SIZE_MASK|PT_PRESENT_MASK));
 			pgprintk("rmap_write_protect(large): spte %p %llx %lld\n", spte, *spte, gfn);
 			if (is_writable_pte(*spte)) {
-				rmap_remove(kvm, spte);
+				drop_spte(kvm, spte,
+					  shadow_trap_nonpresent_pte);
 				--kvm->stat.lpages;
-				__set_spte(spte, shadow_trap_nonpresent_pte);
 				spte = NULL;
 				write_protected = 1;
 			}
@@ -744,8 +750,7 @@ static int kvm_unmap_rmapp(struct kvm *kvm, unsigned long *rmapp,
 	while ((spte = rmap_next(kvm, rmapp, NULL))) {
 		BUG_ON(!(*spte & PT_PRESENT_MASK));
 		rmap_printk("kvm_rmap_unmap_hva: spte %p %llx\n", spte, *spte);
-		rmap_remove(kvm, spte);
-		__set_spte(spte, shadow_trap_nonpresent_pte);
+		drop_spte(kvm, spte, shadow_trap_nonpresent_pte);
 		need_tlb_flush = 1;
 	}
 	return need_tlb_flush;
@@ -767,8 +772,7 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, unsigned long *rmapp,
 		rmap_printk("kvm_set_pte_rmapp: spte %p %llx\n", spte, *spte);
 		need_flush = 1;
 		if (pte_write(*ptep)) {
-			rmap_remove(kvm, spte);
-			__set_spte(spte, shadow_trap_nonpresent_pte);
+			drop_spte(kvm, spte, shadow_trap_nonpresent_pte);
 			spte = rmap_next(kvm, rmapp, NULL);
 		} else {
 			new_spte = *spte &~ (PT64_BASE_ADDR_MASK);
@@ -1464,7 +1468,8 @@ static void kvm_mmu_page_unlink_children(struct kvm *kvm,
 			} else {
 				if (is_large_pte(ent))
 					--kvm->stat.lpages;
-				rmap_remove(kvm, &pt[i]);
+				drop_spte(kvm, &pt[i],
+					  shadow_trap_nonpresent_pte);
 			}
 		}
 		pt[i] = shadow_trap_nonpresent_pte;
@@ -1868,9 +1873,8 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		if (level > PT_PAGE_TABLE_LEVEL &&
 		    has_wrprotected_page(vcpu->kvm, gfn, level)) {
 			ret = 1;
-			rmap_remove(vcpu->kvm, sptep);
-			spte = shadow_trap_nonpresent_pte;
-			goto set_pte;
+			drop_spte(vcpu->kvm, sptep, shadow_trap_nonpresent_pte);
+			goto done;
 		}
 
 		spte |= PT_WRITABLE_MASK;
@@ -1902,6 +1906,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 
 set_pte:
 	__set_spte(sptep, spte);
+done:
 	return ret;
 }
 
@@ -1938,8 +1943,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		} else if (pfn != spte_to_pfn(*sptep)) {
 			pgprintk("hfn old %lx new %lx\n",
 				 spte_to_pfn(*sptep), pfn);
-			rmap_remove(vcpu->kvm, sptep);
-			__set_spte(sptep, shadow_trap_nonpresent_pte);
+			drop_spte(vcpu->kvm, sptep, shadow_trap_nonpresent_pte);
 			kvm_flush_remote_tlbs(vcpu->kvm);
 		} else
 			was_rmapped = 1;
@@ -2591,7 +2595,7 @@ static void mmu_pte_write_zap_pte(struct kvm_vcpu *vcpu,
 	pte = *spte;
 	if (is_shadow_present_pte(pte)) {
 		if (is_last_spte(pte, sp->role.level))
-			rmap_remove(vcpu->kvm, spte);
+			drop_spte(vcpu->kvm, spte, shadow_trap_nonpresent_pte);
 		else {
 			child = page_header(pte & PT64_BASE_ADDR_MASK);
 			mmu_page_remove_parent_pte(child, spte);

@@ -353,8 +353,7 @@ static u64 *FNAME(fetch)(struct kvm_vcpu *vcpu, gva_t addr,
 		}
 
 		if (is_large_pte(*sptep)) {
-			rmap_remove(vcpu->kvm, sptep);
-			__set_spte(sptep, shadow_trap_nonpresent_pte);
+			drop_spte(vcpu->kvm, sptep, shadow_trap_nonpresent_pte);
 			kvm_flush_remote_tlbs(vcpu->kvm);
 		}
 
@@ -516,12 +515,13 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 			pte_gpa += (sptep - sp->spt) * sizeof(pt_element_t);
 
 			if (is_shadow_present_pte(*sptep)) {
-				rmap_remove(vcpu->kvm, sptep);
 				if (is_large_pte(*sptep))
 					--vcpu->kvm->stat.lpages;
+				drop_spte(vcpu->kvm, sptep,
+					  shadow_trap_nonpresent_pte);
 				need_flush = 1;
-			}
-			__set_spte(sptep, shadow_trap_nonpresent_pte);
+			} else
+				__set_spte(sptep, shadow_trap_nonpresent_pte);
 			break;
 		}
 
@@ -637,12 +637,11 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
 		      !is_present_gpte(gpte) || !(gpte & PT_ACCESSED_MASK)) {
 			u64 nonpresent;
 
-			rmap_remove(vcpu->kvm, &sp->spt[i]);
 			if (is_present_gpte(gpte) || !clear_unsync)
 				nonpresent = shadow_trap_nonpresent_pte;
 			else
 				nonpresent = shadow_notrap_nonpresent_pte;
-			__set_spte(&sp->spt[i], nonpresent);
+			drop_spte(vcpu->kvm, &sp->spt[i], nonpresent);
 			continue;
 		}
 
