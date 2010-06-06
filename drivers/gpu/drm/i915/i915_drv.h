@@ -278,6 +278,7 @@ typedef struct drm_i915_private {
 	struct mem_block *agp_heap;
 	unsigned int sr01, adpa, ppcr, dvob, dvoc, lvds;
 	int vblank_pipe;
+	int num_pipe;
 
 	/* For hangcheck timer */
 #define DRM_I915_HANGCHECK_PERIOD 75 /* in jiffies */

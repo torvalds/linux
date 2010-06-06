@@ -253,7 +253,7 @@ int intel_fbdev_init(struct drm_device *dev)
 	dev_priv->fbdev = ifbdev;
 	ifbdev->helper.funcs = &intel_fb_helper_funcs;
 
-	drm_fb_helper_init(dev, &ifbdev->helper, 2,
+	drm_fb_helper_init(dev, &ifbdev->helper, dev_priv->num_pipe,
 			   INTELFB_CONN_LIMIT);
 
 	drm_fb_helper_single_add_all_connectors(&ifbdev->helper);
