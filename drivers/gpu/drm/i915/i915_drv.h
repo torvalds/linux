@@ -739,7 +739,7 @@ struct drm_i915_gem_object {
 	uint32_t stride;
 
 	/** Record of address bit 17 of each page at last unbind. */
-	long *bit_17;
+	unsigned long *bit_17;
 
 	/** AGP mapping type (AGP_USER_MEMORY or AGP_USER_CACHED_MEMORY */
 	uint32_t agp_type;
