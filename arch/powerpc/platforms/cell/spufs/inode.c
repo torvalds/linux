@@ -143,15 +143,14 @@ out:
 }
 
 static void
-spufs_delete_inode(struct inode *inode)
+spufs_evict_inode(struct inode *inode)
 {
 	struct spufs_inode_info *ei = SPUFS_I(inode);
-
+	end_writeback(inode);
 	if (ei->i_ctx)
 		put_spu_context(ei->i_ctx);
 	if (ei->i_gang)
 		put_spu_gang(ei->i_gang);
-	clear_inode(inode);
 }
 
 static void spufs_prune_dir(struct dentry *dir)
@@ -779,8 +778,7 @@ spufs_fill_super(struct super_block *sb, void *data, int silent)
 		.alloc_inode = spufs_alloc_inode,
 		.destroy_inode = spufs_destroy_inode,
 		.statfs = simple_statfs,
-		.delete_inode = spufs_delete_inode,
-		.drop_inode = generic_delete_inode,
+		.evict_inode = spufs_evict_inode,
 		.show_options = generic_show_options,
 	};
 
