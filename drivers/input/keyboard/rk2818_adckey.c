@@ -119,7 +119,11 @@ static irqreturn_t rk28_playkey_irq(int irq, void *handle)
 	input_sync(pRk28AdcKey->input_dev);
 	input_report_key(pRk28AdcKey->input_dev,KEYSTART,0);
 	input_sync(pRk28AdcKey->input_dev);
-	printk("Enter::%s,LINE=%d,KEYSTART=%d,0\n",__FUNCTION__,__LINE__,KEYSTART);
+	input_report_key(pRk28AdcKey->input_dev,ENDCALL,1);
+	input_sync(pRk28AdcKey->input_dev);
+	input_report_key(pRk28AdcKey->input_dev,ENDCALL,0);
+	input_sync(pRk28AdcKey->input_dev);
+	DBG("Enter::%s,LINE=%d,KEYSTART=%d,ENDCALL=%d0\n",__FUNCTION__,__LINE__,KEYSTART,ENDCALL);
 	
 	return IRQ_HANDLED;
 }
