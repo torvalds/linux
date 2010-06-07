@@ -373,9 +373,8 @@ static void logfs_put_super(struct super_block *sb)
 
 const struct super_operations logfs_super_operations = {
 	.alloc_inode	= logfs_alloc_inode,
-	.clear_inode	= logfs_clear_inode,
-	.delete_inode	= logfs_delete_inode,
 	.destroy_inode	= logfs_destroy_inode,
+	.evict_inode	= logfs_evict_inode,
 	.drop_inode	= logfs_drop_inode,
 	.put_super	= logfs_put_super,
 	.write_inode	= logfs_write_inode,
