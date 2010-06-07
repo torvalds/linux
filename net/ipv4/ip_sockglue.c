@@ -239,7 +239,12 @@ int ip_cmsg_send(struct net *net, struct msghdr *msg, struct ipcm_cookie *ipc)
    sent to multicast group to reach destination designated router.
  */
 struct ip_ra_chain *ip_ra_chain;
-DEFINE_RWLOCK(ip_ra_lock);
+static DEFINE_SPINLOCK(ip_ra_lock);
+
+static void ip_ra_free_rcu(struct rcu_head *head)
+{
+	kfree(container_of(head, struct ip_ra_chain, rcu));
+}
 
 int ip_ra_control(struct sock *sk, unsigned char on,
 		  void (*destructor)(struct sock *))
@@ -251,35 +256,35 @@ int ip_ra_control(struct sock *sk, unsigned char on,
 
 	new_ra = on ? kmalloc(sizeof(*new_ra), GFP_KERNEL) : NULL;
 
-	write_lock_bh(&ip_ra_lock);
+	spin_lock_bh(&ip_ra_lock);
 	for (rap = &ip_ra_chain; (ra = *rap) != NULL; rap = &ra->next) {
 		if (ra->sk == sk) {
 			if (on) {
-				write_unlock_bh(&ip_ra_lock);
+				spin_unlock_bh(&ip_ra_lock);
 				kfree(new_ra);
 				return -EADDRINUSE;
 			}
-			*rap = ra->next;
-			write_unlock_bh(&ip_ra_lock);
+			rcu_assign_pointer(*rap, ra->next);
+			spin_unlock_bh(&ip_ra_lock);
 
 			if (ra->destructor)
 				ra->destructor(sk);
 			sock_put(sk);
-			kfree(ra);
+			call_rcu(&ra->rcu, ip_ra_free_rcu);
 			return 0;
 		}
 	}
 	if (new_ra == NULL) {
-		write_unlock_bh(&ip_ra_lock);
+		spin_unlock_bh(&ip_ra_lock);
 		return -ENOBUFS;
 	}
 	new_ra->sk = sk;
 	new_ra->destructor = destructor;
 
 	new_ra->next = ra;
-	*rap = new_ra;
+	rcu_assign_pointer(*rap, new_ra);
 	sock_hold(sk);
-	write_unlock_bh(&ip_ra_lock);
+	spin_unlock_bh(&ip_ra_lock);
 
 	return 0;
 }
