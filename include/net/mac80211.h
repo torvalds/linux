@@ -313,8 +313,9 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTFL_NL80211_FRAME_TX	= BIT(21),
 	IEEE80211_TX_CTL_LDPC			= BIT(22),
 	IEEE80211_TX_CTL_STBC			= BIT(23) | BIT(24),
-#define IEEE80211_TX_CTL_STBC_SHIFT		23
 };
+
+#define IEEE80211_TX_CTL_STBC_SHIFT		23
 
 /**
  * enum mac80211_rate_control_flags - per-rate flags set by the
@@ -813,7 +814,6 @@ enum ieee80211_key_flags {
  *	encrypted in hardware.
  * @alg: The key algorithm.
  * @flags: key flags, see &enum ieee80211_key_flags.
- * @ap_addr: AP's MAC address
  * @keyidx: the key index (0-3)
  * @keylen: key material length
  * @key: key material. For ALG_TKIP the key is encoded as a 256-bit (32 byte)
