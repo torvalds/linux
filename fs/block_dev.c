@@ -817,7 +817,6 @@ static void bd_finish_claiming(struct block_device *bdev,
 				struct block_device *whole, void *holder)
 {
 	spin_lock(&bdev_lock);
-	BUG_ON(whole->bd_claiming != holder);
 	BUG_ON(!bd_may_claim(bdev, whole, holder));
 	__bd_claim(bdev, whole, holder);
 	__bd_abort_claiming(whole, holder); /* not actually an abort */
