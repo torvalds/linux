@@ -603,8 +603,17 @@ int tm6000_set_audio_bitrate(struct tm6000_core *dev, int bitrate)
 {
 	int val;
 
+	if (dev->dev_type == TM6010) {
+		val = tm6000_get_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, 0);
+		if (val < 0)
+			return val;
+		val = (val & 0xf0) | 0x1; /* 48 kHz, not muted */
+		val = tm6000_set_reg(dev, TM6010_REQ08_R0A_A_I2S_MOD, val);
+		if (val < 0)
+			return val;
+	}
+
 	val = tm6000_get_reg(dev, REQ_07_SET_GET_AVREG, 0xeb, 0x0);
-	printk("Original value=%d\n", val);
 	if (val < 0)
 		return val;
 

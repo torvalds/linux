@@ -85,6 +85,8 @@ static int _tm6000_start_audio_dma(struct snd_tm6000_card *chip)
 	val |= 0x20;
 	tm6000_set_reg(core, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, val);
 
+	tm6000_set_audio_bitrate(core, 48000);
+
 	tm6000_set_reg(core, TM6010_REQ08_R01_A_INIT, 0x80);
 
 	return 0;
