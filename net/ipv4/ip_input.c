@@ -293,18 +293,16 @@ static inline int ip_rcv_options(struct sk_buff *skb)
 	}
 
 	if (unlikely(opt->srr)) {
-		struct in_device *in_dev = in_dev_get(dev);
+		struct in_device *in_dev = __in_dev_get_rcu(dev);
+
 		if (in_dev) {
 			if (!IN_DEV_SOURCE_ROUTE(in_dev)) {
 				if (IN_DEV_LOG_MARTIANS(in_dev) &&
 				    net_ratelimit())
 					printk(KERN_INFO "source route option %pI4 -> %pI4\n",
 					       &iph->saddr, &iph->daddr);
-				in_dev_put(in_dev);
 				goto drop;
 			}
-
-			in_dev_put(in_dev);
 		}
 
 		if (ip_options_rcv_srr(skb))
