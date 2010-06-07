@@ -127,15 +127,6 @@ static void radeon_unmap_vram_bos(struct radeon_device *rdev)
 		if (bo->tbo.mem.mem_type == TTM_PL_VRAM)
 			ttm_bo_unmap_virtual(&bo->tbo);
 	}
-
-	if (rdev->gart.table.vram.robj)
-		ttm_bo_unmap_virtual(&rdev->gart.table.vram.robj->tbo);
-
-	if (rdev->stollen_vga_memory)
-		ttm_bo_unmap_virtual(&rdev->stollen_vga_memory->tbo);
-
-	if (rdev->r600_blit.shader_obj)
-		ttm_bo_unmap_virtual(&rdev->r600_blit.shader_obj->tbo);
 }
 
 static void radeon_sync_with_vblank(struct radeon_device *rdev)
