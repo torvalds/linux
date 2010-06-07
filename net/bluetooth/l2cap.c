@@ -456,6 +456,22 @@ static void l2cap_do_start(struct sock *sk)
 	}
 }
 
+static inline int l2cap_mode_supported(__u8 mode, __u32 feat_mask)
+{
+	u32 local_feat_mask = l2cap_feat_mask;
+	if (enable_ertm)
+		local_feat_mask |= L2CAP_FEAT_ERTM | L2CAP_FEAT_STREAMING;
+
+	switch (mode) {
+	case L2CAP_MODE_ERTM:
+		return L2CAP_FEAT_ERTM & feat_mask & local_feat_mask;
+	case L2CAP_MODE_STREAMING:
+		return L2CAP_FEAT_STREAMING & feat_mask & local_feat_mask;
+	default:
+		return 0x00;
+	}
+}
+
 static void l2cap_send_disconn_req(struct l2cap_conn *conn, struct sock *sk, int err)
 {
 	struct l2cap_disconn_req req;
@@ -484,9 +500,12 @@ static void l2cap_send_disconn_req(struct l2cap_conn *conn, struct sock *sk, int
 static void l2cap_conn_start(struct l2cap_conn *conn)
 {
 	struct l2cap_chan_list *l = &conn->chan_list;
+	struct sock_del_list del, *tmp1, *tmp2;
 	struct sock *sk;
 
 	BT_DBG("conn %p", conn);
+
+	INIT_LIST_HEAD(&del.list);
 
 	read_lock(&l->lock);
 
@@ -503,6 +522,19 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 			if (l2cap_check_security(sk) &&
 					__l2cap_no_conn_pending(sk)) {
 				struct l2cap_conn_req req;
+
+				if (!l2cap_mode_supported(l2cap_pi(sk)->mode,
+						conn->feat_mask)
+						&& l2cap_pi(sk)->conf_state &
+						L2CAP_CONF_STATE2_DEVICE) {
+					tmp1 = kzalloc(sizeof(struct srej_list),
+							GFP_ATOMIC);
+					tmp1->sk = sk;
+					list_add_tail(&tmp1->list, &del.list);
+					bh_unlock_sock(sk);
+					continue;
+				}
+
 				req.scid = cpu_to_le16(l2cap_pi(sk)->scid);
 				req.psm  = l2cap_pi(sk)->psm;
 
@@ -542,6 +574,14 @@ static void l2cap_conn_start(struct l2cap_conn *conn)
 	}
 
 	read_unlock(&l->lock);
+
+	list_for_each_entry_safe(tmp1, tmp2, &del.list, list) {
+		bh_lock_sock(tmp1->sk);
+		__l2cap_sock_close(tmp1->sk, ECONNRESET);
+		bh_unlock_sock(tmp1->sk);
+		list_del(&tmp1->list);
+		kfree(tmp1);
+	}
 }
 
 static void l2cap_conn_ready(struct l2cap_conn *conn)
@@ -2427,22 +2467,6 @@ static inline void l2cap_ertm_init(struct sock *sk)
 	spin_lock_init(&l2cap_pi(sk)->send_lock);
 
 	INIT_WORK(&l2cap_pi(sk)->busy_work, l2cap_busy_work);
-}
-
-static int l2cap_mode_supported(__u8 mode, __u32 feat_mask)
-{
-	u32 local_feat_mask = l2cap_feat_mask;
-	if (enable_ertm)
-		local_feat_mask |= L2CAP_FEAT_ERTM | L2CAP_FEAT_STREAMING;
-
-	switch (mode) {
-	case L2CAP_MODE_ERTM:
-		return L2CAP_FEAT_ERTM & feat_mask & local_feat_mask;
-	case L2CAP_MODE_STREAMING:
-		return L2CAP_FEAT_STREAMING & feat_mask & local_feat_mask;
-	default:
-		return 0x00;
-	}
 }
 
 static inline __u8 l2cap_select_mode(__u8 mode, __u16 remote_feat_mask)
