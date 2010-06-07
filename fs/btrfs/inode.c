@@ -6893,7 +6893,7 @@ static long btrfs_fallocate(struct inode *inode, int mode,
 		if (em->block_start == EXTENT_MAP_HOLE ||
 		    (cur_offset >= inode->i_size &&
 		     !test_bit(EXTENT_FLAG_PREALLOC, &em->flags))) {
-			ret = btrfs_prealloc_file_range(inode, 0, cur_offset,
+			ret = btrfs_prealloc_file_range(inode, mode, cur_offset,
 							last_byte - cur_offset,
 							1 << inode->i_blkbits,
 							offset + len,
